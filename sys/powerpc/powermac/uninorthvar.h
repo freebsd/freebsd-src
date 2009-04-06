@@ -64,7 +64,6 @@ struct uninorth_softc {
 	struct ofw_bus_iinfo	sc_pci_iinfo;
 
 	int			sc_u3;
-	int			sc_icells;
 };
 
 struct unin_chip_softc {

@@ -47,6 +47,7 @@ static char rcsid[] =
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <strings.h>
 int cc_trace = 0;
 FILE *cc_trace_fp;
 

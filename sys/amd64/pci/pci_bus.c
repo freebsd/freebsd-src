@@ -55,9 +55,9 @@ legacy_pcib_maxslots(device_t dev)
 
 /* read configuration space register */
 
-u_int32_t
-legacy_pcib_read_config(device_t dev, int bus, int slot, int func,
-			int reg, int bytes)
+uint32_t
+legacy_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
+			u_int reg, int bytes)
 {
 	return(pci_cfgregread(bus, slot, func, reg, bytes));
 }
@@ -65,8 +65,8 @@ legacy_pcib_read_config(device_t dev, int bus, int slot, int func,
 /* write configuration space register */
 
 void
-legacy_pcib_write_config(device_t dev, int bus, int slot, int func,
-			 int reg, u_int32_t data, int bytes)
+legacy_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
+			 u_int reg, uint32_t data, int bytes)
 {
 	pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }

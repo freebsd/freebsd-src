@@ -69,6 +69,10 @@ struct pccard_mem_handle {
 	int		kind;
 };
 
+/* Bits for kind */
+#define	PCCARD_MEM_16BIT	1	/* 1 -> 16bit 0 -> 8bit */
+#define PCCARD_MEM_ATTR		2	/* 1 -> attribute mem 0 -> common */
+
 #define	PCCARD_WIDTH_AUTO	0
 #define	PCCARD_WIDTH_IO8	1
 #define	PCCARD_WIDTH_IO16	2

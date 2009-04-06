@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/libauditd/Makefile.am#1 $
+# $P4: //depot/projects/trustedbsd/openbsm/libauditd/Makefile.am#2 $
 #
 
 if USE_NATIVE_INCLUDES
@@ -13,5 +13,5 @@ lib_LTLIBRARIES = libauditd.la
 libauditd_la_SOURCES =	\
 	auditd_lib.c
 
-#man3_MANS =		\
-#	libauditd.3
+man3_MANS =		\
+	libauditd.3

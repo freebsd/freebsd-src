@@ -44,9 +44,9 @@
 # KMODDIR	Base path for loadable kernel modules
 #		(see kld(4)). [/boot/kernel]
 #
-# KMODOWN	KLD owner. [${BINOWN}]
+# KMODOWN	Kernel and KLD owner. [${BINOWN}]
 #
-# KMODGRP	KLD group. [${BINGRP}]
+# KMODGRP	Kernel and KLD group. [${BINGRP}]
 #
 # KMODMODE	KLD mode. [${BINMODE}]
 #

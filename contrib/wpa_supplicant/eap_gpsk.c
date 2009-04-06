@@ -240,8 +240,8 @@ const u8 * eap_gpsk_process_csuite_list(struct eap_sm *sm,
 		return NULL;
 	}
 	if (*list_len == 0 || (*list_len % sizeof(struct eap_gpsk_csuite))) {
-		wpa_printf(MSG_DEBUG, "EAP-GPSK: Invalid CSuite_List len %d",
-			   *list_len);
+		wpa_printf(MSG_DEBUG, "EAP-GPSK: Invalid CSuite_List len %lu",
+			   (unsigned long) *list_len);
 		return NULL;
 	}
 	*list = pos;
@@ -460,6 +460,7 @@ const u8 * eap_gpsk_validate_id_server(struct eap_gpsk_data *data,
 				  data->id_server, data->id_server_len);
 		wpa_hexdump_ascii(MSG_DEBUG, "EAP-GPSK: ID_Server in GPSK-3",
 				  pos, len);
+		return NULL;
 	}
 
 	pos += len;
@@ -537,7 +538,9 @@ const u8 * eap_gpsk_validate_gpsk_3_mic(struct eap_gpsk_data *data,
 	miclen = eap_gpsk_mic_len(data->vendor, data->specifier);
 	if (end - pos < (int) miclen) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Message too short for MIC "
-			   "(left=%d miclen=%d)", end - pos, miclen);
+			   "(left=%lu miclen=%lu)",
+			   (unsigned long) (end - pos),
+			   (unsigned long) miclen);
 		return NULL;
 	}
 	if (eap_gpsk_compute_mic(data->sk, data->sk_len, data->vendor,
@@ -589,8 +592,9 @@ static u8 * eap_gpsk_process_gpsk_3(struct eap_sm *sm,
 		return NULL;
 	}
 	if (pos != end) {
-		wpa_printf(MSG_DEBUG, "EAP-GPSK: Ignored %d bytes of extra "
-			   "data in the end of GPSK-2", end - pos);
+		wpa_printf(MSG_DEBUG, "EAP-GPSK: Ignored %lu bytes of extra "
+			   "data in the end of GPSK-2",
+			   (unsigned long) (end - pos));
 	}
 
 	req = (const struct eap_hdr *) reqData;

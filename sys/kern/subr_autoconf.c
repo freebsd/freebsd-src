@@ -91,8 +91,7 @@ run_interrupt_driven_config_hooks_warning(int warned)
 }
 
 static void
-run_interrupt_driven_config_hooks(dummy)
-	void *dummy;
+run_interrupt_driven_config_hooks(void *dummy)
 {
 	struct intr_config_hook *hook_entry, *next_entry;
 	int warned;
@@ -127,8 +126,7 @@ SYSINIT(intr_config_hooks, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
  * be used to complete initialization.
  */
 int
-config_intrhook_establish(hook)
-	struct intr_config_hook *hook;
+config_intrhook_establish(struct intr_config_hook *hook)
 {
 	struct intr_config_hook *hook_entry;
 
@@ -151,8 +149,7 @@ config_intrhook_establish(hook)
 }
 
 void
-config_intrhook_disestablish(hook)
-	struct intr_config_hook *hook;
+config_intrhook_disestablish(struct intr_config_hook *hook)
 {
 	struct intr_config_hook *hook_entry;
 

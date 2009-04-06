@@ -37,9 +37,7 @@
 #include <machine/pc/display.h>
 
 #include <dev/syscons/syscons.h>
-#include <dev/syscons/sctermvar.h>
-
-#ifndef SC_DUMB_TERMINAL
+#include <pc98/cbus/sctermvar.h>
 
 #define MAX_ESC_PAR	5
 
@@ -1212,5 +1210,3 @@ mask2attr(term_stat *tcp)
 
 	return (attr << 8);
 }
-
-#endif /* SC_DUMB_TERMINAL */

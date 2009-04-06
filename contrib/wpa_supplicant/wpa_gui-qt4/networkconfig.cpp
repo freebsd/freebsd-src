@@ -12,6 +12,7 @@
  * See README and COPYING for more details.
  */
 
+#include <cstdio>
 #include <QMessageBox>
 
 #include "networkconfig.h"

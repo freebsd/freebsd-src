@@ -61,17 +61,44 @@ struct usb2_bus_methods {
 	void    (*xfer_setup) (struct usb2_setup_params *parm);
 	void    (*xfer_unsetup) (struct usb2_xfer *xfer);
 	void    (*get_dma_delay) (struct usb2_bus *, uint32_t *pdelay);
+	void    (*device_suspend) (struct usb2_device *udev);
+	void    (*device_resume) (struct usb2_device *udev);
+	void    (*set_hw_power) (struct usb2_bus *bus);
+	/*
+	 * The following flag is set if one or more control transfers are
+	 * active:
+	 */
+#define	USB_HW_POWER_CONTROL	0x01
+	/*
+	 * The following flag is set if one or more bulk transfers are
+	 * active:
+	 */
+#define	USB_HW_POWER_BULK	0x02
+	/*
+	 * The following flag is set if one or more interrupt transfers are
+	 * active:
+	 */
+#define	USB_HW_POWER_INTERRUPT	0x04
+	/*
+	 * The following flag is set if one or more isochronous transfers
+	 * are active:
+	 */
+#define	USB_HW_POWER_ISOC	0x08
+	/*
+	 * The following flag is set if one or more non-root-HUB devices 
+	 * are present on the given USB bus:
+	 */
+#define	USB_HW_POWER_NON_ROOT_HUB 0x10
 
 	/* USB Device mode only - Mandatory */
 
 	void    (*get_hw_ep_profile) (struct usb2_device *udev, const struct usb2_hw_ep_profile **ppf, uint8_t ep_addr);
 	void    (*set_stall) (struct usb2_device *udev, struct usb2_xfer *xfer, struct usb2_pipe *pipe);
 	void    (*clear_stall) (struct usb2_device *udev, struct usb2_pipe *pipe);
-	void    (*rem_wakeup_set) (struct usb2_device *udev, uint8_t is_on);
 
-	/* USB Device mode only - Optional */
+	/* USB Device and Host mode - Optional */
 
-	void    (*vbus_interrupt) (struct usb2_bus *, uint8_t is_on);
+	void	(*roothub_exec) (struct usb2_bus *);
 };
 
 /*
@@ -90,7 +117,6 @@ struct usb2_pipe_methods {
 
 	/* Optional */
 
-	uint8_t (*isdone) (struct usb2_xfer *xfer);
 	void   *info;
 
 	/* Flags */
@@ -165,6 +191,7 @@ struct usb2_temp_setup {
 void	usb2_bus_mem_flush_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb);
 uint8_t	usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat, usb2_bus_mem_cb_t *cb);
 void	usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb);
+void	usb2_bus_roothub_exec(struct usb2_bus *bus);
 uint16_t usb2_isoc_time_expand(struct usb2_bus *bus, uint16_t isoc_time_curr);
 uint16_t usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev, struct usb2_fs_isoc_schedule **pp_start, struct usb2_fs_isoc_schedule **pp_end, uint16_t isoc_time);
 uint8_t	usb2_fs_isoc_schedule_alloc(struct usb2_fs_isoc_schedule *fss, uint8_t *pstart, uint16_t len);

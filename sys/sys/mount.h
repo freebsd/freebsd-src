@@ -206,6 +206,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
 #define	MNT_REF(mp)	(mp)->mnt_ref++
 #define	MNT_REL(mp)	do {						\
+	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));			\
 	(mp)->mnt_ref--;						\
 	if ((mp)->mnt_ref == 0)						\
 		wakeup((mp));						\

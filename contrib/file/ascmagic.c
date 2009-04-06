@@ -49,32 +49,32 @@
 #include "names.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: ascmagic.c,v 1.53 2007/10/29 00:54:08 christos Exp $")
+FILE_RCSID("@(#)$File: ascmagic.c,v 1.64 2008/07/16 18:00:57 christos Exp $")
 #endif	/* lint */
-
-typedef unsigned long unichar;
 
 #define MAXLINELEN 300	/* longest sane line length */
 #define ISSPC(x) ((x) == ' ' || (x) == '\t' || (x) == '\r' || (x) == '\n' \
 		  || (x) == 0x85 || (x) == '\f')
 
 private int looks_ascii(const unsigned char *, size_t, unichar *, size_t *);
-private int looks_utf8(const unsigned char *, size_t, unichar *, size_t *);
-private int looks_unicode(const unsigned char *, size_t, unichar *, size_t *);
+private int looks_utf8_with_BOM(const unsigned char *, size_t, unichar *,
+    size_t *);
+private int looks_ucs16(const unsigned char *, size_t, unichar *, size_t *);
 private int looks_latin1(const unsigned char *, size_t, unichar *, size_t *);
 private int looks_extended(const unsigned char *, size_t, unichar *, size_t *);
 private void from_ebcdic(const unsigned char *, size_t, unsigned char *);
 private int ascmatch(const unsigned char *, const unichar *, size_t);
+private unsigned char *encode_utf8(unsigned char *, size_t, unichar *, size_t);
 
 
 protected int
 file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 {
 	size_t i;
-	unsigned char *nbuf = NULL;
+	unsigned char *nbuf = NULL, *utf8_buf = NULL, *utf8_end;
 	unichar *ubuf = NULL;	
-	size_t ulen;
-	struct names *p;
+	size_t ulen, mlen;
+	const struct names *p;
 	int rv = -1;
 	int mime = ms->flags & MAGIC_MIME;
 
@@ -103,9 +103,11 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 	while (nbytes > 1 && buf[nbytes - 1] == '\0')
 		nbytes--;
 
-	if ((nbuf = calloc(1, (nbytes + 1) * sizeof(nbuf[0]))) == NULL)
+	if ((nbuf = CAST(unsigned char *, calloc((size_t)1,
+	    (nbytes + 1) * sizeof(nbuf[0])))) == NULL)
 		goto done;
-	if ((ubuf = calloc(1, (nbytes + 1) * sizeof(ubuf[0]))) == NULL)
+	if ((ubuf = CAST(unichar *, calloc((size_t)1,
+	    (nbytes + 1) * sizeof(ubuf[0])))) == NULL)
 		goto done;
 
 	/*
@@ -118,11 +120,15 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 		code = "ASCII";
 		code_mime = "us-ascii";
 		type = "text";
-	} else if (looks_utf8(buf, nbytes, ubuf, &ulen)) {
+	} else if (looks_utf8_with_BOM(buf, nbytes, ubuf, &ulen) > 0) {
+		code = "UTF-8 Unicode (with BOM)";
+		code_mime = "utf-8";
+		type = "text";
+	} else if (file_looks_utf8(buf, nbytes, ubuf, &ulen) > 1) {
 		code = "UTF-8 Unicode";
 		code_mime = "utf-8";
 		type = "text";
-	} else if ((i = looks_unicode(buf, nbytes, ubuf, &ulen)) != 0) {
+	} else if ((i = looks_ucs16(buf, nbytes, ubuf, &ulen)) != 0) {
 		if (i == 1)
 			code = "Little-endian UTF-16 Unicode";
 		else
@@ -160,33 +166,25 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 		goto done;
 	}
 
-	/*
-	 * for troff, look for . + letter + letter or .\";
-	 * this must be done to disambiguate tar archives' ./file
-	 * and other trash from real troff input.
-	 *
-	 * I believe Plan 9 troff allows non-ASCII characters in the names
-	 * of macros, so this test might possibly fail on such a file.
-	 */
-	if ((ms->flags & MAGIC_NO_CHECK_TROFF) == 0 && *ubuf == '.') {
-		unichar *tp = ubuf + 1;
-
-		while (ISSPC(*tp))
-			++tp;	/* skip leading whitespace */
-		if ((tp[0] == '\\' && tp[1] == '\"') ||
-		    (isascii((unsigned char)tp[0]) &&
-		     isalnum((unsigned char)tp[0]) &&
-		     isascii((unsigned char)tp[1]) &&
-		     isalnum((unsigned char)tp[1]) &&
-		     ISSPC(tp[2]))) {
-			subtype_mime = "text/troff";
-			subtype = "troff or preprocessor input";
-			goto subtype_identified;
-		}
+	/* Convert ubuf to UTF-8 and try text soft magic */
+	/* If original was ASCII or UTF-8, could use nbuf instead of
+	   re-converting. */
+	/* malloc size is a conservative overestimate; could be
+	   re-converting improved, or at least realloced after
+	   re-converting conversion. */
+	mlen = ulen * 6;
+	if ((utf8_buf = CAST(unsigned char *, malloc(mlen))) == NULL) {
+		file_oomem(ms, mlen);
+		goto done;
+	}
+	if ((utf8_end = encode_utf8(utf8_buf, mlen, ubuf, ulen)) == NULL)
+		goto done;
+	if (file_softmagic(ms, utf8_buf, utf8_end - utf8_buf, TEXTTEST) != 0) {
+		rv = 1;
+		goto done;
 	}
 
 	/* look for tokens from names.h - this is expensive! */
-
 	if ((ms->flags & MAGIC_NO_CHECK_TOKENS) != 0)
 		goto subtype_identified;
 
@@ -194,24 +192,18 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 	while (i < ulen) {
 		size_t end;
 
-		/*
-		 * skip past any leading space
-		 */
+		/* skip past any leading space */
 		while (i < ulen && ISSPC(ubuf[i]))
 			i++;
 		if (i >= ulen)
 			break;
 
-		/*
-		 * find the next whitespace
-		 */
+		/* find the next whitespace */
 		for (end = i + 1; end < nbytes; end++)
 			if (ISSPC(ubuf[end]))
 				break;
 
-		/*
-		 * compare the word thus isolated against the token list
-		 */
+		/* compare the word thus isolated against the token list */
 		for (p = names; p < names + NNAMES; p++) {
 			if (ascmatch((const unsigned char *)p->name, ubuf + i,
 			    end - i)) {
@@ -226,9 +218,7 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 
 subtype_identified:
 
-	/*
-	 * Now try to discover other details about the file.
-	 */
+	/* Now try to discover other details about the file. */
 	for (i = 0; i < ulen; i++) {
 		if (ubuf[i] == '\n') {
 			if (seen_cr)
@@ -362,6 +352,8 @@ done:
 		free(nbuf);
 	if (ubuf)
 		free(ubuf);
+	if (utf8_buf)
+		free(utf8_buf);
 
 	return rv;
 }
@@ -520,15 +512,84 @@ looks_extended(const unsigned char *buf, size_t nbytes, unichar *ubuf,
 	return 1;
 }
 
-private int
-looks_utf8(const unsigned char *buf, size_t nbytes, unichar *ubuf, size_t *ulen)
+/*
+ * Encode Unicode string as UTF-8, returning pointer to character
+ * after end of string, or NULL if an invalid character is found.
+ */
+private unsigned char *
+encode_utf8(unsigned char *buf, size_t len, unichar *ubuf, size_t ulen)
+{
+	size_t i;
+	unsigned char *end = buf + len;
+
+	for (i = 0; i < ulen; i++) {
+		if (ubuf[i] <= 0x7f) {
+			if (end - buf < 1)
+				return NULL;
+			*buf++ = (unsigned char)ubuf[i];
+		} else if (ubuf[i] <= 0x7ff) {
+			if (end - buf < 2)
+				return NULL;
+			*buf++ = (unsigned char)((ubuf[i] >> 6) + 0xc0);
+			*buf++ = (unsigned char)((ubuf[i] & 0x3f) + 0x80);
+		} else if (ubuf[i] <= 0xffff) {
+			if (end - buf < 3)
+				return NULL;
+			*buf++ = (unsigned char)((ubuf[i] >> 12) + 0xe0);
+			*buf++ = (unsigned char)(((ubuf[i] >> 6) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)((ubuf[i] & 0x3f) + 0x80);
+		} else if (ubuf[i] <= 0x1fffff) {
+			if (end - buf < 4)
+				return NULL;
+			*buf++ = (unsigned char)((ubuf[i] >> 18) + 0xf0);
+			*buf++ = (unsigned char)(((ubuf[i] >> 12) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)(((ubuf[i] >>  6) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)((ubuf[i] & 0x3f) + 0x80);
+		} else if (ubuf[i] <= 0x3ffffff) {
+			if (end - buf < 5)
+				return NULL;
+			*buf++ = (unsigned char)((ubuf[i] >> 24) + 0xf8);
+			*buf++ = (unsigned char)(((ubuf[i] >> 18) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)(((ubuf[i] >> 12) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)(((ubuf[i] >>  6) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)((ubuf[i] & 0x3f) + 0x80);
+		} else if (ubuf[i] <= 0x7fffffff) {
+			if (end - buf < 6)
+				return NULL;
+			*buf++ = (unsigned char)((ubuf[i] >> 30) + 0xfc);
+			*buf++ = (unsigned char)(((ubuf[i] >> 24) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)(((ubuf[i] >> 18) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)(((ubuf[i] >> 12) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)(((ubuf[i] >>  6) & 0x3f) + 0x80);
+			*buf++ = (unsigned char)((ubuf[i] & 0x3f) + 0x80);
+		} else /* Invalid character */
+			return NULL;
+	}
+
+	return buf;
+}
+
+/*
+ * Decide whether some text looks like UTF-8. Returns:
+ *
+ *     -1: invalid UTF-8
+ *      0: uses odd control characters, so doesn't look like text
+ *      1: 7-bit text
+ *      2: definitely UTF-8 text (valid high-bit set bytes)
+ *
+ * If ubuf is non-NULL on entry, text is decoded into ubuf, *ulen;
+ * ubuf must be big enough!
+ */
+protected int
+file_looks_utf8(const unsigned char *buf, size_t nbytes, unichar *ubuf, size_t *ulen)
 {
 	size_t i;
 	int n;
 	unichar c;
-	int gotone = 0;
+	int gotone = 0, ctrl = 0;
 
-	*ulen = 0;
+	if (ubuf)
+		*ulen = 0;
 
 	for (i = 0; i < nbytes; i++) {
 		if ((buf[i] & 0x80) == 0) {	   /* 0xxxxxxx is plain ASCII */
@@ -538,11 +599,12 @@ looks_utf8(const unsigned char *buf, size_t nbytes, unichar *ubuf, size_t *ulen)
 			 */
 
 			if (text_chars[buf[i]] != T)
-				return 0;
+				ctrl = 1;
 
-			ubuf[(*ulen)++] = buf[i];
+			if (ubuf)
+				ubuf[(*ulen)++] = buf[i];
 		} else if ((buf[i] & 0x40) == 0) { /* 10xxxxxx never 1st byte */
-			return 0;
+			return -1;
 		} else {			   /* 11xxxxxx begins UTF-8 */
 			int following;
 
@@ -562,7 +624,7 @@ looks_utf8(const unsigned char *buf, size_t nbytes, unichar *ubuf, size_t *ulen)
 				c = buf[i] & 0x01;
 				following = 5;
 			} else
-				return 0;
+				return -1;
 
 			for (n = 0; n < following; n++) {
 				i++;
@@ -570,21 +632,37 @@ looks_utf8(const unsigned char *buf, size_t nbytes, unichar *ubuf, size_t *ulen)
 					goto done;
 
 				if ((buf[i] & 0x80) == 0 || (buf[i] & 0x40))
-					return 0;
+					return -1;
 
 				c = (c << 6) + (buf[i] & 0x3f);
 			}
 
-			ubuf[(*ulen)++] = c;
+			if (ubuf)
+				ubuf[(*ulen)++] = c;
 			gotone = 1;
 		}
 	}
 done:
-	return gotone;   /* don't claim it's UTF-8 if it's all 7-bit */
+	return ctrl ? 0 : (gotone ? 2 : 1);
+}
+
+/*
+ * Decide whether some text looks like UTF-8 with BOM. If there is no
+ * BOM, return -1; otherwise return the result of looks_utf8 on the
+ * rest of the text.
+ */
+private int
+looks_utf8_with_BOM(const unsigned char *buf, size_t nbytes, unichar *ubuf,
+    size_t *ulen)
+{
+	if (nbytes > 3 && buf[0] == 0xef && buf[1] == 0xbb && buf[2] == 0xbf)
+		return file_looks_utf8(buf + 3, nbytes - 3, ubuf, ulen);
+	else
+		return -1;
 }
 
 private int
-looks_unicode(const unsigned char *buf, size_t nbytes, unichar *ubuf,
+looks_ucs16(const unsigned char *buf, size_t nbytes, unichar *ubuf,
     size_t *ulen)
 {
 	int bigend;

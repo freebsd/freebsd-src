@@ -1612,7 +1612,7 @@ crypto_verify(
 	 */
 	EVP_VerifyInit(&ctx, peer->digest);
 	EVP_VerifyUpdate(&ctx, (u_char *)&ep->tstamp, vallen + 12);
-	if (!EVP_VerifyFinal(&ctx, (u_char *)&ep->pkt[i], siglen, pkey))
+	if (EVP_VerifyFinal(&ctx, (u_char *)&ep->pkt[i], siglen, pkey) <= 0)
 		return (XEVNT_SIG);
 
 	if (peer->crypto & CRYPTO_FLAG_VRFY) {

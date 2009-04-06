@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2000
+.Dd January 12, 2009
 .Dt TIMER_CREATE 2
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Lb librt
 .Sh SYNOPSIS
 .In time.h
+.In signal.h
 .Ft int
 .Fo timer_create
 .Fa "clockid_t clockid" "struct sigevent *restrict evp"
@@ -100,7 +101,7 @@ or
 .Dv CLOCK_MONOTONIC .
 .Pp
 If
-.Fa evp->sigev_sigev_notify
+.Fa evp->sigev_notify
 is
 .Dv SIGEV_THREAD
 and

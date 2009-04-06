@@ -10,6 +10,7 @@
 
 # standard unix compress
 0	string		\037\235	compress'd data
+!:mime	application/x-compress
 >2	byte&0x80	>0		block compressed
 >2	byte&0x1f	x		%d bits
 
@@ -19,6 +20,7 @@
 #	* Produce shorter output - notably, only report compression methods
 #	  other than 8 ("deflate", the only method defined in RFC 1952).
 0       string          \037\213        gzip compressed data
+!:mime	application/x-gzip
 >2	byte		<8		\b, reserved method
 >2	byte		>8		\b, unknown method
 >3	byte		&0x01		\b, ASCII
@@ -49,23 +51,29 @@
 
 # packed data, Huffman (minimum redundancy) codes on a byte-by-byte basis
 0	string		\037\036	packed data
+!:mime	application/octet-stream
 >2	belong		>1		\b, %d characters originally
 >2	belong		=1		\b, %d character originally
 #
 # This magic number is byte-order-independent.
 0	short		0x1f1f		old packed data
+!:mime	application/octet-stream
 
 # XXX - why *two* entries for "compacted data", one of which is
 # byte-order independent, and one of which is byte-order dependent?
 #
 0	short		0x1fff		compacted data
+!:mime	application/octet-stream
 # This string is valid for SunOS (BE) and a matching "short" is listed
 # in the Ultrix (LE) magic file.
 0	string		\377\037	compacted data
+!:mime	application/octet-stream
 0	short		0145405		huf output
+!:mime	application/octet-stream
 
 # bzip2
 0	string		BZh		bzip2 compressed data
+!:mime	application/x-bzip2
 >3	byte		>47		\b, block size = %c00k
 
 # squeeze and crunch
@@ -102,17 +110,17 @@
 # bzip	a block-sorting file compressor
 #	by Julian Seward <sewardj@cs.man.ac.uk> and others
 #
-0	string		BZ		bzip compressed data
->2	byte		x		\b, version: %c
->3	string		=1		\b, compression block size 100k
->3	string		=2		\b, compression block size 200k
->3	string		=3		\b, compression block size 300k
->3	string		=4		\b, compression block size 400k
->3	string		=5		\b, compression block size 500k
->3	string		=6		\b, compression block size 600k
->3	string		=7		\b, compression block size 700k
->3	string		=8		\b, compression block size 800k
->3	string		=9		\b, compression block size 900k
+#0	string		BZ		bzip compressed data
+#>2	byte		x		\b, version: %c
+#>3	string		=1		\b, compression block size 100k
+#>3	string		=2		\b, compression block size 200k
+#>3	string		=3		\b, compression block size 300k
+#>3	string		=4		\b, compression block size 400k
+#>3	string		=5		\b, compression block size 500k
+#>3	string		=6		\b, compression block size 600k
+#>3	string		=7		\b, compression block size 700k
+#>3	string		=8		\b, compression block size 800k
+#>3	string		=9		\b, compression block size 900k
 
 # lzop from <markus.oberhumer@jk.uni-linz.ac.at>
 0	string		\x89\x4c\x5a\x4f\x00\x0d\x0a\x1a\x0a	lzop compressed data
@@ -173,6 +181,13 @@
 0	string		7z\274\257\047\034	7-zip archive data,
 >6	byte		x			version %d
 >7	byte		x			\b.%d
+
+# Type: LZMA
+# URL:  http://www.7-zip.org/sdk.html
+# From: Robert Millan <rmh@aybabtu.com> and Reuben Thomas <rrt@sc3d.org>
+# Commented out because apparently not reliable (according to Debian
+# bug #364260)
+#0	string		]\000\000\200\000	LZMA compressed data
 
 # AFX compressed files (Wolfram Kleff)
 2	string		-afx-		AFX compressed file data

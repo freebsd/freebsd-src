@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -216,7 +216,8 @@ struct ieee80211_stats {
 	uint8_t		is_rx_disassoc_code;	/* last rx'd disassoc reason */
 	uint8_t		is_rx_authfail_code;	/* last rx'd auth fail reason */
 	uint32_t	is_beacon_miss;		/* beacon miss notification */
-	uint32_t	is_spare[13];
+	uint32_t	is_rx_badstate;		/* rx discard state != RUN */
+	uint32_t	is_spare[12];
 };
 
 /*
@@ -298,13 +299,13 @@ struct ieee80211req_maclist {
 };
 
 /*
- * Set the active channel list.  Note this list is
- * intersected with the available channel list in
- * calculating the set of channels actually used in
- * scanning.
+ * Set the active channel list by IEEE channel #: each channel
+ * to be marked active is set in a bit vector.  Note this list is
+ * intersected with the available channel list in calculating
+ * the set of channels actually used in scanning.
  */
 struct ieee80211req_chanlist {
-	uint8_t		ic_channels[IEEE80211_CHAN_BYTES];
+	uint8_t		ic_channels[32];	/* NB: can be variable length */
 };
 
 /*
@@ -312,8 +313,13 @@ struct ieee80211req_chanlist {
  */
 struct ieee80211req_chaninfo {
 	u_int	ic_nchans;
-	struct ieee80211_channel ic_chans[IEEE80211_CHAN_MAX];
+	struct ieee80211_channel ic_chans[1];	/* NB: variable length */
 };
+#define	IEEE80211_CHANINFO_SIZE(_nchan) \
+	(sizeof(struct ieee80211req_chaninfo) + \
+	 (((_nchan)-1) * sizeof(struct ieee80211_channel)))
+#define	IEEE80211_CHANINFO_SPACE(_ci) \
+	IEEE80211_CHANINFO_SIZE((_ci)->ic_nchans)
 
 /*
  * Retrieve the WPA/RSN information element for an associated station.
@@ -462,6 +468,11 @@ struct ieee80211_regdomain_req {
 	struct ieee80211_regdomain	rd;
 	struct ieee80211req_chaninfo	chaninfo;
 };
+#define	IEEE80211_REGDOMAIN_SIZE(_nchan) \
+	(sizeof(struct ieee80211_regdomain_req) + \
+	 (((_nchan)-1) * sizeof(struct ieee80211_channel)))
+#define	IEEE80211_REGDOMAIN_SPACE(_req) \
+	IEEE80211_REGDOMAIN_SIZE((_req)->chaninfo.ic_nchans)
 
 /*
  * Get driver capabilities.  Driver, hardware crypto, and
@@ -474,6 +485,11 @@ struct ieee80211_devcaps_req {
 	uint32_t	dc_htcaps;		/* HT/802.11n support */
 	struct ieee80211req_chaninfo dc_chaninfo;
 };
+#define	IEEE80211_DEVCAPS_SIZE(_nchan) \
+	(sizeof(struct ieee80211_devcaps_req) + \
+	 (((_nchan)-1) * sizeof(struct ieee80211_channel)))
+#define	IEEE80211_DEVCAPS_SPACE(_dc) \
+	IEEE80211_DEVCAPS_SIZE((_dc)->dc_chaninfo.ic_nchans)
 
 struct ieee80211_chanswitch_req {
 	struct ieee80211_channel csa_chan;	/* new channel */
@@ -612,6 +628,11 @@ struct ieee80211req {
 #define	IEEE80211_IOC_SMPS		110	/* MIMO power save */
 #define	IEEE80211_IOC_RIFS		111	/* RIFS config (on, off) */
 
+#define	IEEE80211_IOC_TDMA_SLOT		201	/* TDMA: assigned slot */
+#define	IEEE80211_IOC_TDMA_SLOTCNT	202	/* TDMA: slots in bss */
+#define	IEEE80211_IOC_TDMA_SLOTLEN	203	/* TDMA: slot length (usecs) */
+#define	IEEE80211_IOC_TDMA_BINTERVAL	204	/* TDMA: beacon intvl (slots) */
+
 /*
  * Parameters for controlling a scan requested with
  * IEEE80211_IOC_SCAN_REQ.
@@ -738,6 +759,7 @@ struct ieee80211_clone_params {
 #define	IEEE80211_CLONE_NOBEACONS	0x0002	/* don't setup beacon timers */
 #define	IEEE80211_CLONE_WDSLEGACY	0x0004	/* legacy WDS processing */
 #define	IEEE80211_CLONE_MACADDR		0x0008	/* use specified mac addr */
+#define	IEEE80211_CLONE_TDMA		0x0010	/* operate in TDMA mode */
 #endif /* __FreeBSD__ */
 
 #endif /* _NET80211_IEEE80211_IOCTL_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2004 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210_misc.c,v 1.6 2008/11/27 22:29:37 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -561,7 +561,8 @@ ar5210AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 }
 
 void
-ar5210AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats, HAL_CHANNEL *chan)
+ar5210AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
+	const struct ieee80211_channel *chan)
 {
 }
 

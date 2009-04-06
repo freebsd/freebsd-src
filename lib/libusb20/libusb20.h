@@ -175,6 +175,7 @@ enum {
 	LIBUSB20_POWER_RESUME,
 };
 
+struct usb2_device_info;
 struct libusb20_transfer;
 struct libusb20_backend;
 struct libusb20_backend_methods;
@@ -260,6 +261,8 @@ int	libusb20_dev_get_owner(struct libusb20_device *pdev, uid_t *user, gid_t *gro
 int	libusb20_dev_get_perm(struct libusb20_device *pdev, mode_t *mode);
 int	libusb20_dev_get_iface_owner(struct libusb20_device *pdev, uint8_t iface_index, uid_t *user, gid_t *group);
 int	libusb20_dev_get_iface_perm(struct libusb20_device *pdev, uint8_t iface_index, mode_t *mode);
+int	libusb20_dev_get_info(struct libusb20_device *pdev, struct usb2_device_info *pinfo);
+int	libusb20_dev_get_iface_desc(struct libusb20_device *pdev, uint8_t iface_index, char *buf, uint8_t len);
 
 struct LIBUSB20_DEVICE_DESC_DECODED *libusb20_dev_get_device_desc(struct libusb20_device *pdev);
 struct libusb20_config *libusb20_dev_alloc_config(struct libusb20_device *pdev, uint8_t config_index);

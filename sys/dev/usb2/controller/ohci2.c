@@ -41,14 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/include/usb2_defs.h>
 
 #define	USB_DEBUG_VAR ohcidebug
-#define	usb2_config_td_cc ohci_config_copy
-#define	usb2_config_td_softc ohci_softc
 
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_transfer.h>
 #include <dev/usb2/core/usb2_device.h>
@@ -99,7 +96,6 @@ extern struct usb2_pipe_methods ohci_device_isoc_methods;
 extern struct usb2_pipe_methods ohci_root_ctrl_methods;
 extern struct usb2_pipe_methods ohci_root_intr_methods;
 
-static usb2_config_td_command_t ohci_root_ctrl_task;
 static void ohci_root_ctrl_poll(struct ohci_softc *sc);
 static void ohci_do_poll(struct usb2_bus *bus);
 static void ohci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
@@ -172,7 +168,7 @@ ohci_controller_init(ohci_softc_t *sc)
 		DPRINTF("SMM active, request owner change\n");
 		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_OCR);
 		for (i = 0; (i < 100) && (ctl & OHCI_IR); i++) {
-			usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+			usb2_pause_mtx(NULL, hz / 1000);
 			ctl = OREAD4(sc, OHCI_CONTROL);
 		}
 		if (ctl & OHCI_IR) {
@@ -185,8 +181,8 @@ ohci_controller_init(ohci_softc_t *sc)
 		DPRINTF("cold started\n");
 reset:
 		/* controller was cold started */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-		    USB_BUS_RESET_DELAY);
+		usb2_pause_mtx(NULL,
+		    USB_MS_TO_TICKS(USB_BUS_RESET_DELAY));
 	}
 
 	/*
@@ -196,8 +192,8 @@ reset:
 	DPRINTF("%s: resetting\n", device_get_nameunit(sc->sc_bus.bdev));
 	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_BUS_RESET_DELAY);
+	usb2_pause_mtx(NULL,
+	    USB_MS_TO_TICKS(USB_BUS_RESET_DELAY));
 
 	/* we now own the host controller and the bus has been reset */
 	ival = OHCI_GET_IVAL(OREAD4(sc, OHCI_FM_INTERVAL));
@@ -259,8 +255,8 @@ reset:
 	desca = OREAD4(sc, OHCI_RH_DESCRIPTOR_A);
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca | OHCI_NOCP);
 	OWRITE4(sc, OHCI_RH_STATUS, OHCI_LPSC);	/* Enable port power */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    OHCI_ENABLE_POWER_DELAY);
+	usb2_pause_mtx(NULL,
+	    USB_MS_TO_TICKS(OHCI_ENABLE_POWER_DELAY));
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca);
 
 	/*
@@ -269,8 +265,8 @@ reset:
 	 */
 	sc->sc_noport = 0;
 	for (i = 0; (i < 10) && (sc->sc_noport == 0); i++) {
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-		    OHCI_READ_DESC_DELAY);
+		usb2_pause_mtx(NULL,
+		    USB_MS_TO_TICKS(OHCI_READ_DESC_DELAY));
 		sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 	}
 
@@ -307,8 +303,6 @@ ohci_init(ohci_softc_t *sc)
 	uint16_t bit;
 	uint16_t x;
 	uint16_t y;
-
-	USB_BUS_LOCK(&sc->sc_bus);
 
 	DPRINTF("start\n");
 
@@ -406,10 +400,8 @@ ohci_init(ohci_softc_t *sc)
 	sc->sc_bus.usbrev = USB_REV_1_0;
 
 	if (ohci_controller_init(sc)) {
-		USB_BUS_UNLOCK(&sc->sc_bus);
 		return (USB_ERR_INVAL);
 	} else {
-		USB_BUS_UNLOCK(&sc->sc_bus);
 		/* catch any lost interrupts */
 		ohci_do_poll(&sc->sc_bus);
 		return (USB_ERR_NORMAL_COMPLETION);
@@ -429,10 +421,10 @@ ohci_detach(struct ohci_softc *sc)
 	OWRITE4(sc, OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
 	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 
-	/* XXX let stray task complete */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 50);
-
 	USB_BUS_UNLOCK(&sc->sc_bus);
+
+	/* XXX let stray task complete */
+	usb2_pause_mtx(NULL, hz / 20);
 
 	usb2_callout_drain(&sc->sc_tmo_rhsc);
 }
@@ -467,7 +459,7 @@ ohci_suspend(ohci_softc_t *sc)
 	OWRITE4(sc, OHCI_CONTROL, ctl);
 
 	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_RESUME_WAIT);
+	    USB_MS_TO_TICKS(USB_RESUME_WAIT));
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
@@ -476,8 +468,6 @@ void
 ohci_resume(ohci_softc_t *sc)
 {
 	uint32_t ctl;
-
-	USB_BUS_LOCK(&sc->sc_bus);
 
 #if USB_DEBUG
 	DPRINTF("\n");
@@ -488,6 +478,7 @@ ohci_resume(ohci_softc_t *sc)
 	/* some broken BIOSes never initialize the Controller chip */
 	ohci_controller_init(sc);
 
+	USB_BUS_LOCK(&sc->sc_bus);
 	if (sc->sc_intre) {
 		OWRITE4(sc, OHCI_INTERRUPT_ENABLE,
 		    sc->sc_intre & (OHCI_ALL_INTRS | OHCI_MIE));
@@ -498,10 +489,12 @@ ohci_resume(ohci_softc_t *sc)
 		ctl = OREAD4(sc, OHCI_CONTROL);
 	ctl |= OHCI_HCFS_RESUME;
 	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_DELAY);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
+	    USB_MS_TO_TICKS(USB_RESUME_DELAY));
 	ctl = (ctl & ~OHCI_HCFS_MASK) | OHCI_HCFS_OPERATIONAL;
 	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_RECOVERY);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 
+	    USB_MS_TO_TICKS(USB_RESUME_RECOVERY));
 	sc->sc_control = sc->sc_intre = 0;
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
@@ -673,7 +666,7 @@ ohci_transfer_intr_enqueue(struct usb2_xfer *xfer)
 		return;
 	}
 	/* put transfer on interrupt queue */
-	usb2_transfer_enqueue(&xfer->udev->bus->intr_q, xfer);
+	usb2_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
 
 	/* start timeout, if any */
 	if (xfer->timeout != 0) {
@@ -681,18 +674,22 @@ ohci_transfer_intr_enqueue(struct usb2_xfer *xfer)
 	}
 }
 
-#define	OHCI_APPEND_QH(sed,td_self,last) (last) = _ohci_append_qh(sed,td_self,last)
+#define	OHCI_APPEND_QH(sed,last) (last) = _ohci_append_qh(sed,last)
 static ohci_ed_t *
-_ohci_append_qh(ohci_ed_t *sed, uint32_t td_self, ohci_ed_t *last)
+_ohci_append_qh(ohci_ed_t *sed, ohci_ed_t *last)
 {
 	DPRINTFN(11, "%p to %p\n", sed, last);
 
+	if (sed->prev != NULL) {
+		/* should not happen */
+		DPRINTFN(0, "ED already linked!\n");
+		return (last);
+	}
 	/* (sc->sc_bus.bus_mtx) must be locked */
 
 	sed->next = last->next;
 	sed->ed_next = last->ed_next;
 	sed->ed_tailp = 0;
-	sed->ed_headp = td_self;
 
 	sed->prev = last;
 
@@ -730,13 +727,6 @@ _ohci_remove_qh(ohci_ed_t *sed, ohci_ed_t *last)
 			sed->next->prev = sed->prev;
 			usb2_pc_cpu_flush(sed->next->page_cache);
 		}
-		/*
-		 * terminate transfer in case the transferred packet was
-		 * short so that the ED still points at the last used TD
-		 */
-		sed->ed_flags |= htole32(OHCI_ED_SKIP);
-		sed->ed_headp = sed->ed_tailp;
-
 		last = ((last == sed) ? sed->prev : last);
 
 		sed->prev = 0;
@@ -843,6 +833,9 @@ ohci_non_isoc_done_sub(struct usb2_xfer *xfer)
 	td_alt_next = td->alt_next;
 	td_flags = 0;
 
+	if (xfer->aframes != xfer->nframes) {
+		xfer->frlengths[xfer->aframes] = 0;
+	}
 	while (1) {
 
 		usb2_pc_cpu_invalidate(td->page_cache);
@@ -866,10 +859,15 @@ ohci_non_isoc_done_sub(struct usb2_xfer *xfer)
 				cc = OHCI_CC_STALL;
 			} else if (xfer->aframes != xfer->nframes) {
 				/*
-				 * subtract remaining length from
-				 * "frlengths[]"
+				 * Sum up total transfer length
+				 * in "frlengths[]":
 				 */
-				xfer->frlengths[xfer->aframes] -= temp;
+				xfer->frlengths[xfer->aframes] += td->len - temp;
+			}
+		} else {
+			if (xfer->aframes != xfer->nframes) {
+				/* transfer was complete */
+				xfer->frlengths[xfer->aframes] += td->len;
 			}
 		}
 		/* Check for last transfer */
@@ -1240,7 +1238,7 @@ ohci_timeout(void *arg)
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	/* transfer is transferred */
 	ohci_device_done(xfer, USB_ERR_TIMEOUT);
@@ -1411,7 +1409,7 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpoint),
-	    xfer->sumlen, usb2_get_speed(xfer->udev));
+	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
 	temp.average = xfer->max_usb2_frame_size;
 	temp.max_frame_size = xfer->max_frame_size;
@@ -1556,26 +1554,31 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 
 	ed_flags |= (OHCI_ED_FORMAT_GEN | OHCI_ED_DIR_TD);
 
-	if (xfer->udev->speed == USB_SPEED_LOW) {
+	if (xfer->xroot->udev->speed == USB_SPEED_LOW) {
 		ed_flags |= OHCI_ED_SPEED;
 	}
 	ed->ed_flags = htole32(ed_flags);
 
-	usb2_pc_cpu_flush(ed->page_cache);
-
 	td = xfer->td_transfer_first;
 
-	OHCI_APPEND_QH(ed, td->td_self, *ed_last);
+	ed->ed_headp = td->td_self;
 
-	if (methods == &ohci_device_bulk_methods) {
-		ohci_softc_t *sc = xfer->usb2_sc;
+	if (xfer->xroot->udev->pwr_save.suspended == 0) {
+		/* the append function will flush the endpoint descriptor */
+		OHCI_APPEND_QH(ed, *ed_last);
 
-		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
-	}
-	if (methods == &ohci_device_ctrl_methods) {
-		ohci_softc_t *sc = xfer->usb2_sc;
+		if (methods == &ohci_device_bulk_methods) {
+			ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
-		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
+			OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
+		}
+		if (methods == &ohci_device_ctrl_methods) {
+			ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
+
+			OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
+		}
+	} else {
+		usb2_pc_cpu_flush(ed->page_cache);
 	}
 }
 
@@ -1583,7 +1586,7 @@ static void
 ohci_root_intr_done(struct usb2_xfer *xfer,
     struct usb2_sw_transfer *std)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	uint32_t hstatus;
 	uint16_t i;
 	uint16_t m;
@@ -1631,7 +1634,7 @@ static void
 ohci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 {
 	struct usb2_pipe_methods *methods = xfer->pipe->methods;
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	ohci_ed_t *ed;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -1687,7 +1690,7 @@ ohci_device_bulk_enter(struct usb2_xfer *xfer)
 static void
 ohci_device_bulk_start(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
 	/* setup TD's and QH */
 	ohci_setup_standard_chain(xfer, &sc->sc_bulk_p_last);
@@ -1730,7 +1733,7 @@ ohci_device_ctrl_enter(struct usb2_xfer *xfer)
 static void
 ohci_device_ctrl_start(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
 	/* setup TD's and QH */
 	ohci_setup_standard_chain(xfer, &sc->sc_ctrl_p_last);
@@ -1755,7 +1758,7 @@ struct usb2_pipe_methods ohci_device_ctrl_methods =
 static void
 ohci_device_intr_open(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	uint16_t best;
 	uint16_t bit;
 	uint16_t x;
@@ -1788,7 +1791,7 @@ ohci_device_intr_open(struct usb2_xfer *xfer)
 static void
 ohci_device_intr_close(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
 	sc->sc_intr_stat[xfer->qh_pos]--;
 
@@ -1804,7 +1807,7 @@ ohci_device_intr_enter(struct usb2_xfer *xfer)
 static void
 ohci_device_intr_start(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
 	/* setup TD's and QH */
 	ohci_setup_standard_chain(xfer, &sc->sc_intr_p_last[xfer->qh_pos]);
@@ -1843,7 +1846,7 @@ static void
 ohci_device_isoc_enter(struct usb2_xfer *xfer)
 {
 	struct usb2_page_search buf_res;
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	struct ohci_hcca *hcca;
 	uint32_t buf_offset;
 	uint32_t nframes;
@@ -2001,16 +2004,19 @@ ohci_device_isoc_enter(struct usb2_xfer *xfer)
 	    OHCI_ED_SET_EN(UE_GET_ADDR(xfer->endpoint)) |
 	    OHCI_ED_SET_MAXP(xfer->max_frame_size));
 
-	if (xfer->udev->speed == USB_SPEED_LOW) {
+	if (xfer->xroot->udev->speed == USB_SPEED_LOW) {
 		ed_flags |= OHCI_ED_SPEED;
 	}
 	ed->ed_flags = htole32(ed_flags);
 
-	usb2_pc_cpu_flush(ed->page_cache);
-
 	td = xfer->td_transfer_first;
 
-	OHCI_APPEND_QH(ed, td->itd_self, sc->sc_isoc_p_last);
+	ed->ed_headp = td->itd_self;
+
+	/* isochronous transfers are not affected by suspend / resume */
+	/* the append function will flush the endpoint descriptor */
+
+	OHCI_APPEND_QH(ed, sc->sc_isoc_p_last);
 }
 
 static void
@@ -2046,7 +2052,7 @@ ohci_root_ctrl_open(struct usb2_xfer *xfer)
 static void
 ohci_root_ctrl_close(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
 	if (sc->sc_root_ctrl.xfer == xfer) {
 		sc->sc_root_ctrl.xfer = NULL;
@@ -2126,26 +2132,24 @@ ohci_root_ctrl_enter(struct usb2_xfer *xfer)
 static void
 ohci_root_ctrl_start(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
 	sc->sc_root_ctrl.xfer = xfer;
 
-	usb2_config_td_queue_command
-	    (&sc->sc_config_td, NULL, &ohci_root_ctrl_task, 0, 0);
+	usb2_bus_roothub_exec(xfer->xroot->bus);
 }
 
 static void
-ohci_root_ctrl_task(struct ohci_softc *sc,
-    struct ohci_config_copy *cc, uint16_t refcount)
+ohci_root_ctrl_task(struct usb2_bus *bus)
 {
-	ohci_root_ctrl_poll(sc);
+	ohci_root_ctrl_poll(OHCI_BUS2SC(bus));
 }
 
 static void
 ohci_root_ctrl_done(struct usb2_xfer *xfer,
     struct usb2_sw_transfer *std)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	char *ptr;
 	uint32_t port;
 	uint32_t v;
@@ -2170,7 +2174,7 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
 
-	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xroot->xfer_mtx) ? 1 : 0;
 
 	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
@@ -2411,7 +2415,7 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 						DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
 					} else {
 						usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-						    USB_PORT_ROOT_RESET_DELAY);
+						    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
 					}
 
 					if ((OREAD4(sc, port) & UPS_RESET) == 0) {
@@ -2471,7 +2475,7 @@ ohci_root_intr_open(struct usb2_xfer *xfer)
 static void
 ohci_root_intr_close(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
 	if (sc->sc_root_intr.xfer == xfer) {
 		sc->sc_root_intr.xfer = NULL;
@@ -2488,7 +2492,7 @@ ohci_root_intr_enter(struct usb2_xfer *xfer)
 static void
 ohci_root_intr_start(struct usb2_xfer *xfer)
 {
-	ohci_softc_t *sc = xfer->usb2_sc;
+	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
 	sc->sc_root_intr.xfer = xfer;
 }
@@ -2518,11 +2522,6 @@ ohci_xfer_setup(struct usb2_setup_params *parm)
 
 	sc = OHCI_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
-
-	/*
-	 * setup xfer
-	 */
-	xfer->usb2_sc = sc;
 
 	parm->hc_max_packet_size = 0x500;
 	parm->hc_max_packet_count = 1;
@@ -2740,6 +2739,115 @@ ohci_get_dma_delay(struct usb2_bus *bus, uint32_t *pus)
 	*pus = (1125);			/* microseconds */
 }
 
+static void
+ohci_device_resume(struct usb2_device *udev)
+{
+	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
+	struct usb2_xfer *xfer;
+	struct usb2_pipe_methods *methods;
+	ohci_ed_t *ed;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->xroot->udev == udev) {
+
+			methods = xfer->pipe->methods;
+			ed = xfer->qh_start[xfer->flags_int.curr_dma_set];
+
+			if (methods == &ohci_device_bulk_methods) {
+				OHCI_APPEND_QH(ed, sc->sc_bulk_p_last);
+				OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
+			}
+			if (methods == &ohci_device_ctrl_methods) {
+				OHCI_APPEND_QH(ed, sc->sc_ctrl_p_last);
+				OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
+			}
+			if (methods == &ohci_device_intr_methods) {
+				OHCI_APPEND_QH(ed, sc->sc_intr_p_last[xfer->qh_pos]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
+
+	return;
+}
+
+static void
+ohci_device_suspend(struct usb2_device *udev)
+{
+	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
+	struct usb2_xfer *xfer;
+	struct usb2_pipe_methods *methods;
+	ohci_ed_t *ed;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->xroot->udev == udev) {
+
+			methods = xfer->pipe->methods;
+			ed = xfer->qh_start[xfer->flags_int.curr_dma_set];
+
+			if (methods == &ohci_device_bulk_methods) {
+				OHCI_REMOVE_QH(ed, sc->sc_bulk_p_last);
+			}
+			if (methods == &ohci_device_ctrl_methods) {
+				OHCI_REMOVE_QH(ed, sc->sc_ctrl_p_last);
+			}
+			if (methods == &ohci_device_intr_methods) {
+				OHCI_REMOVE_QH(ed, sc->sc_intr_p_last[xfer->qh_pos]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
+
+	return;
+}
+
+static void
+ohci_set_hw_power(struct usb2_bus *bus)
+{
+	struct ohci_softc *sc = OHCI_BUS2SC(bus);
+	uint32_t temp;
+	uint32_t flags;
+
+	DPRINTF("\n");
+
+	USB_BUS_LOCK(bus);
+
+	flags = bus->hw_power_state;
+
+	temp = OREAD4(sc, OHCI_CONTROL);
+	temp &= ~(OHCI_PLE | OHCI_IE | OHCI_CLE | OHCI_BLE);
+
+	if (flags & USB_HW_POWER_CONTROL)
+		temp |= OHCI_CLE;
+
+	if (flags & USB_HW_POWER_BULK)
+		temp |= OHCI_BLE;
+
+	if (flags & USB_HW_POWER_INTERRUPT)
+		temp |= OHCI_PLE;
+
+	if (flags & USB_HW_POWER_ISOC)
+		temp |= OHCI_IE | OHCI_PLE;
+
+	OWRITE4(sc, OHCI_CONTROL, temp);
+
+	USB_BUS_UNLOCK(bus);
+
+	return;
+}
+
 struct usb2_bus_methods ohci_bus_methods =
 {
 	.pipe_init = ohci_pipe_init,
@@ -2747,4 +2855,8 @@ struct usb2_bus_methods ohci_bus_methods =
 	.xfer_unsetup = ohci_xfer_unsetup,
 	.do_poll = ohci_do_poll,
 	.get_dma_delay = ohci_get_dma_delay,
+	.device_resume = ohci_device_resume,
+	.device_suspend = ohci_device_suspend,
+	.set_hw_power = ohci_set_hw_power,
+	.roothub_exec = ohci_root_ctrl_task,
 };

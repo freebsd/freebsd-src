@@ -1,5 +1,5 @@
 #	$FreeBSD$
 
-SUBDIR=	stumbler w00t wesside wlaninject wlanstats wlanwatch wlanwds
+SUBDIR=	stumbler w00t wesside wlaninject wlanstats wlantxtime wlanwatch wlanwds
 
 .include <bsd.subdir.mk>

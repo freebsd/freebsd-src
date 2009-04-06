@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_inet.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_mac.h"
@@ -312,7 +313,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = INPLOOKUP_WILDCARD;
-	if (nam) {
+	if (nam == NULL) {
+		if ((error = prison_local_ip4(cred, &laddr)) != 0)
+			return (error);
+	} else {
 		sin = (struct sockaddr_in *)nam;
 		if (nam->sa_len != sizeof (*sin))
 			return (EINVAL);
@@ -324,8 +328,9 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		if (sin->sin_family != AF_INET)
 			return (EAFNOSUPPORT);
 #endif
-		if (prison_local_ip4(cred, &sin->sin_addr))
-			return (EINVAL);
+		error = prison_local_ip4(cred, &sin->sin_addr);
+		if (error)
+			return (error);
 		if (sin->sin_port != *lportp) {
 			/* Don't allow the port to change. */
 			if (*lportp != 0)
@@ -346,7 +351,16 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		} else if (sin->sin_addr.s_addr != INADDR_ANY) {
 			sin->sin_port = 0;		/* yech... */
 			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
-			if (ifa_ifwithaddr((struct sockaddr *)sin) == 0)
+			/*
+			 * Is the address a local IP address? 
+			 * If INP_NONLOCALOK is set, then the socket may be bound
+			 * to any endpoint address, local or not.
+			 */
+			if (
+#if defined(IP_NONLOCALBIND)
+			    ((inp->inp_flags & INP_NONLOCALOK) == 0) &&
+#endif
+			    (ifa_ifwithaddr((struct sockaddr *)sin) == 0))
 				return (EADDRNOTAVAIL);
 		}
 		laddr = sin->sin_addr;
@@ -381,8 +395,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
 			}
-			if (prison_local_ip4(cred, &sin->sin_addr))
-				return (EADDRNOTAVAIL);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, wild, cred);
 			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
@@ -415,9 +427,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	if (lport == 0) {
 		u_short first, last, aux;
 		int count;
-
-		if (prison_local_ip4(cred, &laddr))
-			return (EINVAL);
 
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = V_ipport_hifirstauto;	/* sysctl */
@@ -483,8 +492,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		} while (in_pcblookup_local(pcbinfo, laddr,
 		    lport, wild, cred));
 	}
-	if (prison_local_ip4(cred, &laddr))
-		return (EINVAL);
 	*laddrp = laddr.s_addr;
 	*lportp = lport;
 	return (0);
@@ -604,7 +611,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			if (sa->sa_family != AF_INET)
 				continue;
 			sin = (struct sockaddr_in *)sa;
-			if (prison_check_ip4(cred, &sin->sin_addr)) {
+			if (prison_check_ip4(cred, &sin->sin_addr) == 0) {
 				ia = (struct in_ifaddr *)ifa;
 				break;
 			}
@@ -615,8 +622,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
-			error = EADDRNOTAVAIL;
+		error = prison_get_ip4(cred, laddr);
 		goto done;
 	}
 
@@ -641,7 +647,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		/* Jailed. */
 		/* 1. Check if the iface address belongs to the jail. */
 		sin = (struct sockaddr_in *)sro.ro_rt->rt_ifa->ifa_addr;
-		if (prison_check_ip4(cred, &sin->sin_addr)) {
+		if (prison_check_ip4(cred, &sin->sin_addr) == 0) {
 			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
 			goto done;
@@ -657,7 +663,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			if (sa->sa_family != AF_INET)
 				continue;
 			sin = (struct sockaddr_in *)sa;
-			if (prison_check_ip4(cred, &sin->sin_addr)) {
+			if (prison_check_ip4(cred, &sin->sin_addr) == 0) {
 				ia = (struct in_ifaddr *)ifa;
 				break;
 			}
@@ -668,8 +674,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
-			error = EADDRNOTAVAIL;
+		error = prison_get_ip4(cred, laddr);
 		goto done;
 	}
 
@@ -719,7 +724,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 				if (sa->sa_family != AF_INET)
 					continue;
 				sin = (struct sockaddr_in *)sa;
-				if (prison_check_ip4(cred, &sin->sin_addr)) {
+				if (prison_check_ip4(cred,
+				    &sin->sin_addr) == 0) {
 					ia = (struct in_ifaddr *)ifa;
 					break;
 				}
@@ -731,8 +737,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
-		if (prison_getip4(cred, laddr) != 0)
-			error = EADDRNOTAVAIL;
+		error = prison_get_ip4(cred, laddr);
 		goto done;
 	}
 
@@ -766,7 +771,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
 	struct inpcb *oinp;
-	struct in_addr laddr, faddr, jailia;
+	struct in_addr laddr, faddr;
 	u_short lport, fport;
 	int error;
 
@@ -799,15 +804,11 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * choose the broadcast address for that interface.
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
-			if (cred != NULL && jailed(cred)) {
-				if (prison_getip4(cred, &jailia) != 0)
-					return (EADDRNOTAVAIL);
-				faddr.s_addr = jailia.s_addr;
-			} else {
-				faddr =
-				    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->
-				    sin_addr;
-			}
+			faddr =
+			    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
+			if (cred != NULL &&
+			    (error = prison_get_ip4(cred, &faddr)) != 0)
+				return (error);
 		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
 		    (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 		    IFF_BROADCAST))
@@ -1365,7 +1366,8 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 
 			injail = jailed(inp->inp_cred);
 			if (injail) {
-				if (!prison_check_ip4(inp->inp_cred, &laddr))
+				if (prison_check_ip4(inp->inp_cred,
+				    &laddr) != 0)
 					continue;
 			} else {
 				if (local_exact != NULL)

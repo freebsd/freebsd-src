@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2008
+.Dd January 7, 2009
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -610,9 +610,15 @@ is one of
 (or
 .Cm hostap ),
 .Cm wds ,
+.Cm tdma ,
 and
 .Cm monitor .
 The operating mode of a cloned interface cannot be changed.
+The
+.Cm tdma
+mode is actually implemented as an
+.Cm adhoc-demo
+interface with special properties.
 .It Cm wlanbssid Ar bssid
 The 802.11 mac address to use for the bssid.
 This must be specified at create time for a legacy
@@ -1530,6 +1536,60 @@ hexadecimal when preceded by
 .Ql 0x .
 Additionally, the SSID may be cleared by setting it to
 .Ql - .
+.It Cm tdmaslot Ar slot
+When operating with TDMA, use the specified
+.Ar slot
+configuration.
+The
+.Ar slot
+is a number between 0 and the maximum number of slots in the BSS.
+Note that a station configured as slot 0 is a master and
+will broadcast beacon frames advertising the BSS;
+stations configured to use other slots will always
+scan to locate a master before they ever transmit.
+By default
+.Cm tdmaslot
+is set to 1.
+.It Cm tdmaslotcnt Ar cnt
+When operating with TDMA, setup a BSS with
+.Ar cnt
+slots.
+The slot count may be at most 8.
+The current implementation is only tested with two stations
+(i.e. point to point applications).
+This setting is only meaningful when a station is configured as slot 0;
+other stations adopt this setting from the BSS they join.
+By default
+.Cm tdmaslotcnt
+is set to 2.
+.It Cm tdmaslotlen Ar len
+When operating with TDMA, setup a BSS such that each station has a slot
+.Ar len
+microseconds long.
+The slot length must be at least 150 microseconds (1/8 TU)
+and no more than 65 milliseconds.
+Note that setting too small a slot length may result in poor channel
+bandwidth utilization due to factors such as timer granularity and
+guard time.
+This setting is only meaningful when a station is configured as slot 0;
+other stations adopt this setting from the BSS they join.
+By default
+.Cm tdmaslotlen
+is set to 10 milliseconds.
+.It Cm tdmabintval Ar intval
+When operating with TDMA, setup a BSS such that beacons are transmitted every
+.Ar intval
+superframes to synchronize the TDMA slot timing.
+A superframe is defined as the number of slots times the slot length; e.g.
+a BSS with two slots of 10 milliseconds has a 20 millisecond superframe.
+The beacon interval may not be zero.
+A lower setting of
+.Cm tdmabintval
+causes the timers to be resynchronized more often; this can be help if
+significant timer drift is observed.
+By default
+.Cm tdmabintval
+is set to 5.
 .It Cm tsn
 When operating as an access point with WPA/802.11i allow legacy
 stations to associate using static key WEP and open authentication.

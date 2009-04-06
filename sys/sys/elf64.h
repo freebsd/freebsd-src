@@ -141,16 +141,16 @@ typedef struct {
 } Elf64_Rela;
 
 /* Macros for accessing the fields of r_info. */
-#define ELF64_R_SYM(info)	((info) >> 32)
-#define ELF64_R_TYPE(info)	((info) & 0xffffffffL)
+#define	ELF64_R_SYM(info)	((info) >> 32)
+#define	ELF64_R_TYPE(info)	((info) & 0xffffffffL)
 
 /* Macro for constructing r_info from field values. */
-#define ELF64_R_INFO(sym, type)	(((sym) << 32) + ((type) & 0xffffffffL))
+#define	ELF64_R_INFO(sym, type)	(((sym) << 32) + ((type) & 0xffffffffL))
 
 #define	ELF64_R_TYPE_DATA(info)	(((Elf64_Xword)(info)<<32)>>40)
 #define	ELF64_R_TYPE_ID(info)	(((Elf64_Xword)(info)<<56)>>56)
 #define	ELF64_R_TYPE_INFO(data, type)	\
-		(((Elf64_Xword)(data)<<8)+(Elf64_Xword)(type))
+				(((Elf64_Xword)(data)<<8)+(Elf64_Xword)(type))
 
 /*
  *	Note entry header
@@ -197,14 +197,14 @@ typedef struct {
 } Elf64_Sym;
 
 /* Macros for accessing the fields of st_info. */
-#define ELF64_ST_BIND(info)		((info) >> 4)
-#define ELF64_ST_TYPE(info)		((info) & 0xf)
+#define	ELF64_ST_BIND(info)		((info) >> 4)
+#define	ELF64_ST_TYPE(info)		((info) & 0xf)
 
 /* Macro for constructing st_info from field values. */
-#define ELF64_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
+#define	ELF64_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
 
 /* Macro for accessing the fields of st_other. */
-#define ELF64_ST_VISIBILITY(oth)	((oth) & 0x3)
+#define	ELF64_ST_VISIBILITY(oth)	((oth) & 0x3)
 
 /* Structures used by Sun & GNU-style symbol versioning. */
 typedef struct {

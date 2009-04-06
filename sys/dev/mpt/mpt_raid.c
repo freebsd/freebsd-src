@@ -564,7 +564,7 @@ mpt_raid_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 	action_result = REQ_TO_RAID_ACTION_RESULT(req);
 	memcpy(&action_result->action_data, &reply->ActionData,
 	    sizeof(action_result->action_data));
-	action_result->action_status = reply->ActionStatus;
+	action_result->action_status = le16toh(reply->ActionStatus);
 	return (TRUE);
 }
 
@@ -583,7 +583,7 @@ mpt_issue_raid_req(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
 	rap = req->req_vbuf;
 	memset(rap, 0, sizeof *rap);
 	rap->Action = Action;
-	rap->ActionDataWord = ActionDataWord;
+	rap->ActionDataWord = htole32(ActionDataWord);
 	rap->Function = MPI_FUNCTION_RAID_ACTION;
 	rap->VolumeID = vol->config_page->VolumeID;
 	rap->VolumeBus = vol->config_page->VolumeBus;
@@ -592,12 +592,13 @@ mpt_issue_raid_req(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
 	else
 		rap->PhysDiskNum = 0xFF;
 	se = (SGE_SIMPLE32 *)&rap->ActionDataSGE;
-	se->Address = addr;
+	se->Address = htole32(addr);
 	MPI_pSGE_SET_LENGTH(se, len);
 	MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 	    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 	    MPI_SGE_FLAGS_END_OF_LIST |
 	    write ? MPI_SGE_FLAGS_HOST_TO_IOC : MPI_SGE_FLAGS_IOC_TO_HOST));
+	se->FlagsLength = htole32(se->FlagsLength);
 	rap->MsgContext = htole32(req->index | raid_handler_id);
 
 	mpt_check_doorbell(mpt);
@@ -1226,6 +1227,7 @@ mpt_refresh_raid_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 		mpt_prt(mpt, "mpt_refresh_raid_disk: "
 			"Failed to read RAID Disk Page(%d)\n",
 		 	ioc_disk->PhysDiskNum);
+	mpt2host_config_page_raid_phys_disk_0(&mpt_disk->config_page);
 }
 
 static void
@@ -1354,6 +1356,7 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 		    "mpt_refresh_raid_data: Failed to read IOC Page 3\n");
 		return (-1);
 	}
+	mpt2host_config_page_ioc3(mpt->ioc_page3);
 
 	ioc_disk = mpt->ioc_page3->PhysDisk;
 	ioc_last_disk = ioc_disk + mpt->ioc_page3->NumPhysDisks;
@@ -1384,6 +1387,7 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 			"Failed to read IOC Page 2\n");
 		return (-1);
 	}
+	mpt2host_config_page_ioc2(mpt->ioc_page2);
 
 	ioc_vol = mpt->ioc_page2->RaidVolume;
 	ioc_last_vol = ioc_vol + mpt->ioc_page2->NumActiveVolumes;

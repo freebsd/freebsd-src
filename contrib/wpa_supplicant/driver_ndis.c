@@ -42,7 +42,9 @@ int close(int fd);
 #include "driver_ndis.h"
 
 int wpa_driver_register_event_cb(struct wpa_driver_ndis_data *drv);
+#ifdef CONFIG_NDIS_EVENTS_INTEGRATED
 void wpa_driver_ndis_event_pipe_cb(void *eloop_data, void *user_data);
+#endif /* CONFIG_NDIS_EVENTS_INTEGRATED */
 
 static void wpa_driver_ndis_deinit(void *priv);
 static void wpa_driver_ndis_poll(void *drv);

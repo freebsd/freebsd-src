@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -328,9 +328,6 @@ atausb2_attach(device_t dev)
 	uint8_t has_intr;
 	int err;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	sc->dev = dev;
@@ -773,11 +770,12 @@ atausb2_t_bbb_status_callback(struct usb2_xfer *xfer)
 
 		sc->ata_request = NULL;
 
-		USB_XFER_UNLOCK(xfer);
+		/* drop the USB transfer lock while doing the ATA interrupt */
+		mtx_unlock(&sc->locked_mtx);
 
 		ata_interrupt(device_get_softc(request->parent));
 
-		USB_XFER_LOCK(xfer);
+		mtx_lock(&sc->locked_mtx);
 		return;
 
 	case USB_ST_SETUP:

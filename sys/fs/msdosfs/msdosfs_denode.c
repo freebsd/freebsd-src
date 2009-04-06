@@ -168,6 +168,7 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
 	ldep->de_inode = inode;
+	ldep->de_dev = pmp->pm_devvp->v_rdev;
 	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 
 	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL);

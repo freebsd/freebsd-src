@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#12 $
+ * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#14 $
  */
 
 /*
@@ -792,6 +792,7 @@ generate_seq_record(const char *directory, const char *record_filename)
 	write_record(directory, record_filename, seq_token, AUE_NULL);
 }
 
+#if 0
 /*
  * AUT_ACL
  */
@@ -823,7 +824,9 @@ generate_ipc_perm_record(const char *directory, const char *record_filename)
 	token_t *ipc_perm_token;
 
 }
+#endif
 
+#if 0
 /*
  * AUT_LABEL
  */
@@ -841,6 +844,7 @@ generate_groups_record(const char *directory, const char *record_filename)
 	token_t *groups_token;
 
 }
+#endif
 
 /*
  * AUT_ILABEL
@@ -878,6 +882,7 @@ generate_groups_record(const char *directory, const char *record_filename)
  * AUT_EXEC_ENV
  */
 
+#if 0
 static void
 generate_attr32_token(const char *directory, const char *token_filename)
 {
@@ -891,6 +896,7 @@ generate_attr32_record(const char *directory, const char *record_filename)
 	token_t *attr32_token;
 
 }
+#endif
 
 static char	*zonename_sample = "testzone";
 
@@ -916,7 +922,7 @@ generate_zonename_record(const char *directory, const char *record_filename)
 	write_record(directory, record_filename, zonename_token, AUE_NULL);
 }
 
-static u_short socketex_domain = AF_INET;
+static u_short socketex_domain = PF_INET;
 static u_short socketex_type = SOCK_STREAM;
 static struct sockaddr_in socketex_laddr, socketex_raddr;
 
@@ -935,7 +941,8 @@ generate_socketex_token(const char *directory, const char *token_filename)
 	socketex_raddr.sin_len = sizeof(socketex_raddr);
 	socketex_raddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-	socketex_token = au_to_socket_ex(socketex_domain, socketex_type,
+	socketex_token = au_to_socket_ex(au_domain_to_bsm(socketex_domain),
+	    au_socket_type_to_bsm(socketex_type),
 	    (struct sockaddr *)&socketex_laddr,
 	    (struct sockaddr *)&socketex_raddr);
 	if (socketex_token == NULL)
@@ -958,7 +965,8 @@ generate_socketex_record(const char *directory, const char *record_filename)
 	socketex_raddr.sin_len = sizeof(socketex_raddr);
 	socketex_raddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-	socketex_token = au_to_socket_ex(socketex_domain, socketex_type,
+	socketex_token = au_to_socket_ex(au_domain_to_bsm(socketex_domain),
+	    au_socket_type_to_bsm(socketex_type),
 	    (struct sockaddr *)&socketex_laddr,
 	    (struct sockaddr *)&socketex_raddr);
 	if (socketex_token == NULL)
@@ -1096,10 +1104,12 @@ main(int argc, char *argv[])
 		generate_iport_token(directory, "iport_token");
 		generate_arg32_token(directory, "arg32_token");
 		generate_seq_token(directory, "seq_token");
+#if 0
 		generate_attr_token(directory,  "attr_token");
 		generate_ipc_perm_token(directory, "ipc_perm_token");
 		generate_groups_token(directory, "groups_token");
 		generate_attr32_token(directory, "attr32_token");
+#endif
 		generate_zonename_token(directory, "zonename_token");
 		generate_socketex_token(directory, "socketex_token");
 	}
@@ -1132,10 +1142,12 @@ main(int argc, char *argv[])
 		generate_iport_record(directory, "iport_record");
 		generate_arg32_record(directory, "arg32_record");
 		generate_seq_record(directory, "seq_record");
+#if 0
 		generate_attr_record(directory,  "attr_record");
 		generate_ipc_perm_record(directory, "ipc_perm_record");
 		generate_groups_record(directory, "groups_record");
 		generate_attr32_record(directory, "attr32_record");
+#endif
 		generate_zonename_record(directory, "zonename_record");
 		generate_socketex_record(directory, "socketex_record");
 		do_error_records(directory);

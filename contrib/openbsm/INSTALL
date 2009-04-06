@@ -9,6 +9,12 @@ support are built conditionally.  Typically, build will be performed using:
     ./configure
     make
 
+If doing development work on OpenBSM with gcc, the following invocation of
+configure may be preferred in order to generate full compiler warnings and
+force the compile to fail if a warning is found:
+
+    CFLAGS="-Wall -Werror" ./configure
+
 To install, use:
 
     make install

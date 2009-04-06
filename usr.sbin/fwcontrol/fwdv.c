@@ -202,15 +202,20 @@ again:
 					(dv->payload[0] & DV_DSF_12) == 0)
 					dv->payload[0] |= DV_DSF_12;
 				nb = nblocks[system];
-				fprintf(stderr, "%d", k%10);
+ 				fprintf(stderr, "%d:%02d:%02d %d\r",
+					k / (3600 * frame_rate[system]),
+					(k / (60 * frame_rate[system])) % 60,
+					(k / frame_rate[system]) % 60,
+					k % frame_rate[system]);
+
 #if FIX_FRAME
 				if (m > 0 && m != nb) {
 					/* padding bad frame */
 					npad = ((nb - m) % nb);
 					if (npad < 0)
 						npad += nb;
-					fprintf(stderr, "(%d blocks padded)",
-								npad);
+					fprintf(stderr, "\n%d blocks padded\n",
+					    npad);
 					npad *= DSIZE;
 					wbuf[vec].iov_base = pad;
 					wbuf[vec++].iov_len = npad;
@@ -221,10 +226,6 @@ again:
 				}
 #endif
 				k++;
-				if (k % frame_rate[system] == 0) {
-					/* every second */
-					fprintf(stderr, "\n");
-				}
 				fflush(stderr);
 				m = 0;
 			}
@@ -245,9 +246,8 @@ next:
 		if (vec > 0)
 			writev(fd, wbuf, vec);
 	}
-	if(fd != STDOUT_FILENO) {
+	if (fd != STDOUT_FILENO)
 		close(fd);
-	}
 	fprintf(stderr, "\n");
 }
 

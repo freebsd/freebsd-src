@@ -682,6 +682,7 @@ typedef int ipfw_nat_t(struct ip_fw_args *, struct cfg_nat *, struct mbuf *);
 typedef int ipfw_nat_cfg_t(struct sockopt *);
 #endif
 
+struct eventhandler_entry;
 /*
  * Stack virtualization support.
  */
@@ -713,7 +714,7 @@ struct vnet_ipfw {
 	u_int32_t _dyn_max;
 	u_int64_t _norule_counter;
 	struct callout _ipfw_timeout;
-	eventhandler_tag _ifaddr_event_tag;
+	struct eventhandler_entry *_ifaddr_event_tag;
 };
 
 #ifndef VIMAGE

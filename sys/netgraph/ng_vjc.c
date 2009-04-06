@@ -249,6 +249,9 @@ ng_vjc_constructor(node_p node)
 
 	NG_NODE_SET_PRIVATE(node, priv);
 
+	/* slcompress is not thread-safe. Protect it's state here. */
+	NG_NODE_FORCE_WRITER(node);
+
 	/* Done */
 	return (0);
 }

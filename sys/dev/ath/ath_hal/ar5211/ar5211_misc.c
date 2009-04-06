@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2006 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5211_misc.c,v 1.7 2008/11/27 22:29:52 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -564,7 +564,8 @@ ar5211AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 }
 
 void
-ar5211AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats, HAL_CHANNEL *chan)
+ar5211AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
+	const struct ieee80211_channel *chan)
 {
 }
 
@@ -603,8 +604,7 @@ ar5211GetAntennaSwitch(struct ath_hal *ah)
 HAL_BOOL
 ar5211SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 {
-	const HAL_CHANNEL *chan =
-		(const HAL_CHANNEL *) AH_PRIVATE(ah)->ah_curchan;
+	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 
 	if (chan == AH_NULL) {
 		AH5211(ah)->ah_diversityControl = settings;

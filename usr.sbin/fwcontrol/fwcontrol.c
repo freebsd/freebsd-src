@@ -537,13 +537,12 @@ show_topology_map(int fd)
 			printf("%02d sequel packet\n", sid.p0.phy_id);
 			continue;
 		}
-		printf("%02d   %2d      %2d  %4s     %d    %d   %3s"
+		printf("%02d   %2d      %2d  %4s     %d   %3s"
 				"     %s     %s     %s   %d    %d\n",
 			sid.p0.phy_id,
 			sid.p0.link_active,
 			sid.p0.gap_count,
 			speed[sid.p0.phy_speed],
-			sid.p0.phy_delay,
 			sid.p0.contender,
 			pwr_class[sid.p0.power_class],
 			port_status[sid.p0.port0],
@@ -1065,6 +1064,7 @@ main(int argc, char **argv)
 		if (recvfn == NULL) { /* guess... */
 			recvfn = detect_recv_fn(fd, TAG | CHANNEL);
 			close(fd);
+			fd = -1;
 		}
 		snprintf(devbase, sizeof(devbase), "%s%d.0", device_string, current_board);
 		if (open_dev(&fd, devbase) < 0)

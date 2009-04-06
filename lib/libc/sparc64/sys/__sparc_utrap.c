@@ -122,7 +122,7 @@ __utrap_write(const char *str)
 }
 
 void
-__utrap_kill_self(sig)
+__utrap_kill_self(int sig)
 {
 	int berrno;
 

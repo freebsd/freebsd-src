@@ -40,6 +40,8 @@
 .Ft void
 .Fn disk_create "struct disk *disk" "int version"
 .Ft void
+.Fn disk_gone "struct disk *disk"
+.Ft void
 .Fn disk_destroy "struct disk *disk"
 .Sh DESCRIPTION
 The disk storage API permits kernel device drivers providing access to
@@ -65,6 +67,11 @@ function,
 fill in the fields and call
 .Fn disk_create
 when the device is ready to service requests.
+.Fn disk_gone
+orphans all of the providers associated with the drive, setting an error
+condition of ENXIO in each one.
+In addition, it prevents a re-taste on last close for writing if an error
+condition has been set in the provider.
 After calling
 .Fn disk_destroy ,
 the device driver is not allowed to access the contents of

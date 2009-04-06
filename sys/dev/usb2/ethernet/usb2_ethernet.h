@@ -34,6 +34,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/limits.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -48,21 +49,74 @@
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#define	USB_ETHER_HASH_MAX 64		/* bytes */
+struct usb2_ether;
+struct usb2_device_request;
 
-struct usb2_ether_cc {
-	uint32_t if_flags;
-	uint16_t if_rxfilt;
-	uint8_t	if_lladdr[ETHER_ADDR_LEN];
-	uint8_t	if_mhash;
-	uint8_t	if_nhash;
-	uint8_t	if_hash[USB_ETHER_HASH_MAX];
+typedef void (usb2_ether_fn_t)(struct usb2_ether *);
+
+struct usb2_ether_methods {
+	usb2_ether_fn_t		*ue_attach_post;
+	usb2_ether_fn_t		*ue_start;
+	usb2_ether_fn_t		*ue_init;
+	usb2_ether_fn_t		*ue_stop;
+	usb2_ether_fn_t		*ue_setmulti;
+	usb2_ether_fn_t		*ue_setpromisc;
+	usb2_ether_fn_t		*ue_tick;
+	int			(*ue_mii_upd)(struct ifnet *);
+	void			(*ue_mii_sts)(struct ifnet *,
+				    struct ifmediareq *);
+	int			(*ue_ioctl)(struct ifnet *, u_long, caddr_t);
+
 };
 
-typedef void (usb2_ether_mchash_t)(struct usb2_ether_cc *cc, const uint8_t *ptr);
+struct usb2_ether_cfg_task {
+	struct usb2_proc_msg hdr;
+	struct usb2_ether *ue;
+};
 
-struct mbuf	*usb2_ether_get_mbuf(void);
-void		usb2_ether_cc(struct ifnet *ifp, usb2_ether_mchash_t *fhash,
-		    struct usb2_ether_cc *cc);
+struct usb2_ether {
+	/* NOTE: the "ue_ifp" pointer must be first --hps */
+	struct ifnet		*ue_ifp;
+	struct mtx		*ue_mtx;
+	const struct usb2_ether_methods *ue_methods;
+	struct sysctl_oid	*ue_sysctl_oid;
+	void			*ue_sc;
+	struct usb2_device	*ue_udev; /* used by usb2_ether_do_request() */
+	device_t		ue_dev;
+	device_t		ue_miibus;
 
+	struct usb2_process	ue_tq;
+	struct sysctl_ctx_list	ue_sysctl_ctx;
+	struct ifqueue		ue_rxq;
+	struct usb2_callout	ue_watchdog;
+	struct usb2_ether_cfg_task	ue_sync_task[2];
+	struct usb2_ether_cfg_task	ue_media_task[2];
+	struct usb2_ether_cfg_task	ue_multi_task[2];
+	struct usb2_ether_cfg_task	ue_promisc_task[2];
+	struct usb2_ether_cfg_task	ue_tick_task[2];
+
+	int			ue_unit;
+
+	/* ethernet address from eeprom */
+	uint8_t			ue_eaddr[ETHER_ADDR_LEN];
+};
+
+#define	usb2_ether_do_request(ue,req,data,timo) \
+    usb2_do_request_proc((ue)->ue_udev,&(ue)->ue_tq,req,data,0,NULL,timo)
+
+uint8_t		usb2_ether_pause(struct usb2_ether *, unsigned int);
+struct ifnet	*usb2_ether_getifp(struct usb2_ether *);
+struct mii_data *usb2_ether_getmii(struct usb2_ether *);
+void		*usb2_ether_getsc(struct usb2_ether *);
+int		usb2_ether_ifattach(struct usb2_ether *);
+void		usb2_ether_ifdetach(struct usb2_ether *);
+int		usb2_ether_ioctl(struct ifnet *, u_long, caddr_t);
+int		usb2_ether_rxmbuf(struct usb2_ether *, struct mbuf *, 
+		    unsigned int);
+int		usb2_ether_rxbuf(struct usb2_ether *,
+		    struct usb2_page_cache *, 
+		    unsigned int, unsigned int);
+void		usb2_ether_rxflush(struct usb2_ether *);
+void		usb2_ether_ifshutdown(struct usb2_ether *);
+uint8_t		usb2_ether_is_gone(struct usb2_ether *);
 #endif					/* _USB2_ETHERNET_H_ */

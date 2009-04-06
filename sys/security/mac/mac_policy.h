@@ -956,9 +956,9 @@ struct mac_policy_conf {
 	int				*mpc_field_off; /* security field */
 	int				 mpc_runtime_flags; /* flags */
 	int				 _mpc_spare1;	/* Spare. */
-	uint64_t			 mpc_labeled;	/* Labeled objects. */
 	uint64_t			 _mpc_spare2;	/* Spare. */
-	void				*_mpc_spare3;	/* Spare. */
+	uint64_t			 _mpc_spare3;	/* Spare. */
+	void				*_mpc_spare4;	/* Spare. */
 	LIST_ENTRY(mac_policy_conf)	 mpc_list;	/* global list */
 };
 
@@ -968,31 +968,6 @@ struct mac_policy_conf {
 
 /* Flags for the mpc_runtime_flags field. */
 #define	MPC_RUNTIME_FLAG_REGISTERED	0x00000001
-
-/*
- * Flags for mpc_labeled declaring which objects should have labels allocated
- * for them by the MAC Framework.
- */
-#define	MPC_OBJECT_CRED			0x0000000000000001
-#define	MPC_OBJECT_PROC			0x0000000000000002
-#define	MPC_OBJECT_VNODE		0x0000000000000004
-#define	MPC_OBJECT_INPCB		0x0000000000000008
-#define	MPC_OBJECT_SOCKET		0x0000000000000010
-#define	MPC_OBJECT_DEVFS		0x0000000000000020
-#define	MPC_OBJECT_MBUF			0x0000000000000040
-#define	MPC_OBJECT_IPQ			0x0000000000000080
-#define	MPC_OBJECT_IFNET		0x0000000000000100
-#define	MPC_OBJECT_BPFDESC		0x0000000000000200
-#define	MPC_OBJECT_PIPE			0x0000000000000400
-#define	MPC_OBJECT_MOUNT		0x0000000000000800
-#define	MPC_OBJECT_POSIXSEM		0x0000000000001000
-#define	MPC_OBJECT_POSIXSHM		0x0000000000002000
-#define	MPC_OBJECT_SYSVMSG		0x0000000000004000
-#define	MPC_OBJECT_SYSVMSQ		0x0000000000008000
-#define	MPC_OBJECT_SYSVSEM		0x0000000000010000
-#define	MPC_OBJECT_SYSVSHM		0x0000000000020000
-#define	MPC_OBJECT_SYNCACHE		0x0000000000040000
-#define	MPC_OBJECT_IP6Q			0x0000000000080000
 
 /*-
  * The TrustedBSD MAC Framework has a major version number, MAC_VERSION,
@@ -1009,15 +984,13 @@ struct mac_policy_conf {
  */
 #define	MAC_VERSION	4
 
-#define	MAC_POLICY_SET(mpops, mpname, mpfullname, mpflags, privdata_wanted, \
-    labeled)								\
+#define	MAC_POLICY_SET(mpops, mpname, mpfullname, mpflags, privdata_wanted) \
 	static struct mac_policy_conf mpname##_mac_policy_conf = {	\
 		.mpc_name = #mpname,					\
 		.mpc_fullname = mpfullname,				\
 		.mpc_ops = mpops,					\
 		.mpc_loadtime_flags = mpflags,				\
 		.mpc_field_off = privdata_wanted,			\
-		.mpc_labeled = labeled,					\
 	};								\
 	static moduledata_t mpname##_mod = {				\
 		#mpname,						\

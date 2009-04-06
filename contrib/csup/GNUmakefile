@@ -12,8 +12,9 @@ GROUP?=	0
 UNAME=	$(shell uname -s)
 
 SRCS=	attrstack.c config.c detailer.c diff.c fattr.c fixups.c fnmatch.c \
-	globtree.c idcache.c keyword.c lister.c main.c misc.c mux.c pathcomp.c \
-	parse.c proto.c status.c stream.c threads.c token.c updater.c
+	globtree.c idcache.c keyword.c lex.rcs.c lister.c main.c misc.c mux.c \
+	pathcomp.c parse.c proto.c rcsfile.c rcsparse.c rsyncfile.c status.c \
+	stream.c threads.c token.c updater.c
 OBJS=	$(SRCS:.c=.o)
 
 WARNS=	-Wall -W -Wno-unused-parameter -Wmissing-prototypes -Wpointer-arith \

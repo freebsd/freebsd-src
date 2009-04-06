@@ -211,11 +211,11 @@ extern u_int dsisr(void);
  * Page Table Entry definitions and macros.
  */
 #ifndef	LOCORE
-struct pte_entry {
+struct pte {
 	vm_offset_t rpn;
-	u_int32_t flags;
+	uint32_t flags;
 };
-typedef struct pte_entry pte_t;
+typedef struct pte pte_t;
 #endif
 
 /* RPN mask, TLB0 4K pages */

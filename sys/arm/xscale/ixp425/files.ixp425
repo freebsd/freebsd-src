@@ -15,6 +15,7 @@ arm/xscale/ixp425/uart_cpu_ixp425.c	optional	uart
 arm/xscale/ixp425/uart_bus_ixp425.c	optional	uart
 arm/xscale/ixp425/ixp425_a4x_space.c	optional	uart
 arm/xscale/ixp425/ixp425_a4x_io.S	optional	uart
+dev/cfi/cfi_bus_ixp4xx.c		optional	cfi
 dev/uart/uart_dev_ns8250.c		optional	uart
 #
 # NPE-based Ethernet support (requires qmgr also).

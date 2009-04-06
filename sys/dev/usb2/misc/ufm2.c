@@ -32,7 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -131,9 +130,6 @@ ufm_attach(device_t dev)
 	struct ufm_softc *sc = device_get_softc(dev);
 	int error;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = uaa->device;
 	sc->sc_unit = device_get_unit(dev);
 
@@ -292,10 +288,7 @@ ufm_get_stat(struct ufm_softc *sc, void *addr)
 	 * Note, there's a 240ms settle time before the status
 	 * will be valid, so sleep that amount.
 	 */
-
-	mtx_lock(&sc->sc_mtx);
-	usb2_pause_mtx(&sc->sc_mtx, USB_MS_HZ / 4);
-	mtx_unlock(&sc->sc_mtx);
+	usb2_pause_mtx(NULL, hz / 4);
 
 	if (ufm_do_req(sc, UFM_CMD0,
 	    0x00, 0x24, &ret)) {

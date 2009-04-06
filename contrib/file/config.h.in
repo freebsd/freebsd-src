@@ -1,25 +1,40 @@
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Use the builtin ELF recognition code */
+/* Define in built-in ELF support is used */
 #undef BUILTIN_ELF
 
-/* Recognize ELF core files */
+/* Define for ELF core file support */
 #undef ELFCORE
 
-/* */
+/* Define to 1 if you have the `asprintf' function. */
+#undef HAVE_ASPRINTF
+
+/* HAVE_DAYLIGHT */
 #undef HAVE_DAYLIGHT
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have the <err.h> header file. */
+#undef HAVE_ERR_H
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
+
+/* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
+#undef HAVE_FSEEKO
 
 /* Define to 1 if you have the <getopt.h> header file. */
 #undef HAVE_GETOPT_H
 
 /* Define to 1 if you have the `getopt_long' function. */
 #undef HAVE_GETOPT_LONG
+
+/* Define to 1 if the system has the type `int32_t'. */
+#undef HAVE_INT32_T
+
+/* Define to 1 if the system has the type `int64_t'. */
+#undef HAVE_INT64_T
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -32,9 +47,6 @@
 
 /* Define to 1 if you have the <locale.h> header file. */
 #undef HAVE_LOCALE_H
-
-/* */
-#undef HAVE_LONG_LONG
 
 /* Define to 1 if you have the `mbrtowc' function. */
 #undef HAVE_MBRTOWC
@@ -50,9 +62,6 @@
 
 /* Define to 1 if you have the `mmap' function. */
 #undef HAVE_MMAP
-
-/* Define to 1 if you have the `snprintf' function. */
-#undef HAVE_SNPRINTF
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -81,10 +90,6 @@
 /* Define to 1 if `st_rdev' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_RDEV
 
-/* Define to 1 if your `struct stat' has `st_rdev'. Deprecated, use
-   `HAVE_STRUCT_STAT_ST_RDEV' instead. */
-#undef HAVE_ST_RDEV
-
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
@@ -103,7 +108,7 @@
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
 
-/* */
+/* HAVE_TM_ISDST */
 #undef HAVE_TM_ISDST
 
 /* HAVE_TM_ZONE */
@@ -111,6 +116,18 @@
 
 /* HAVE_TZNAME */
 #undef HAVE_TZNAME
+
+/* Define to 1 if the system has the type `uint16_t'. */
+#undef HAVE_UINT16_T
+
+/* Define to 1 if the system has the type `uint32_t'. */
+#undef HAVE_UINT32_T
+
+/* Define to 1 if the system has the type `uint64_t'. */
+#undef HAVE_UINT64_T
+
+/* Define to 1 if the system has the type `uint8_t'. */
+#undef HAVE_UINT8_T
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
@@ -124,8 +141,8 @@
 /* Define to 1 if you have the <utime.h> header file. */
 #undef HAVE_UTIME_H
 
-/* Define to 1 if you have the `vsnprintf' function. */
-#undef HAVE_VSNPRINTF
+/* Define to 1 if you have the `vasprintf' function. */
+#undef HAVE_VASPRINTF
 
 /* Define to 1 if you have the <wchar.h> header file. */
 #undef HAVE_WCHAR_H
@@ -147,6 +164,9 @@
    <sysmacros.h>. */
 #undef MAJOR_IN_SYSMACROS
 
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#undef NO_MINUS_C_MINUS_O
+
 /* Name of package */
 #undef PACKAGE
 
@@ -165,20 +185,8 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* */
-#undef SIZEOF_INT64_T
-
-/* */
-#undef SIZEOF_UINT16_T
-
-/* */
-#undef SIZEOF_UINT32_T
-
-/* */
-#undef SIZEOF_UINT64_T
-
-/* */
-#undef SIZEOF_UINT8_T
+/* The size of `long long', as computed by sizeof. */
+#undef SIZEOF_LONG_LONG
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
@@ -197,17 +205,14 @@
 # undef _GNU_SOURCE
 #endif
 
+/* Define to 1 to make fseeko visible on some hosts (e.g. glibc 2.2). */
+#undef _LARGEFILE_SOURCE
+
 /* Define for large files, on AIX-style hosts. */
 #undef _LARGE_FILES
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
-
-/* */
-#undef int32_t
-
-/* */
-#undef int64_t
 
 /* Define to a type if <wchar.h> does not define. */
 #undef mbstate_t
@@ -218,14 +223,31 @@
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
-/* */
-#undef uint16_t
 
-/* */
-#undef uint32_t
+#ifndef HAVE_UINT8_T
+typedef unsigned char uint8_t;
+#endif
+#ifndef HAVE_UINT16_T
+typedef unsigned short uint16_t;
+#endif
+#ifndef HAVE_UINT32_T
+typedef unsigned int uint32_t;
+#endif
+#ifndef HAVE_INT32_T
+typedef int int32_t;
+#endif
+#ifndef HAVE_UINT64_T
+#if SIZEOF_LONG_LONG == 8
+typedef unsigned long long uint64_t;
+#else
+typedef unsigned long uint64_t;
+#endif
+#endif
+#ifndef HAVE_INT64_T
+#if SIZEOF_LONG_LONG == 8
+typedef long long int64_t;
+#else
+typedef long int64_t;
+#endif
+#endif
 
-/* */
-#undef uint64_t
-
-/* */
-#undef uint8_t

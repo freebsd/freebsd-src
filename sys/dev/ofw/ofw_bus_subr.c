@@ -146,18 +146,6 @@ ofw_bus_gen_get_type(device_t bus, device_t dev)
 	return (obd->obd_type);
 }
 
-static int
-ofw_bus_searchprop(phandle_t node, char *propname, void *buf, int buflen)
-{
-	int rv;
-
-	for (; node != 0; node = OF_parent(node)) {
-		if ((rv = OF_getprop(node, propname, buf, buflen)) != -1)
-			return (rv);
-	}
-	return (-1);
-}
-
 void
 ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 {
@@ -249,17 +237,16 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 
 	mptr = imap;
 	i = imapsz;
-	tsz = physsz + intrsz + sizeof(phandle_t) + rintrsz;
 	while (i > 0) {
-		KASSERT(i >= tsz, ("ofw_bus_search_intrmap: truncated map"));
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
-		if (ofw_bus_searchprop(parent, "#interrupt-cells",
+		if (OF_searchprop(parent, "#interrupt-cells",
 		    &pintrsz, sizeof(pintrsz)) == -1)
 			pintrsz = 1;	/* default */
 		pintrsz *= sizeof(pcell_t);
-		if (pintrsz != rintrsz)
-			panic("ofw_bus_search_intrmap: expected interrupt cell "
-			    "size incorrect: %d > %d", rintrsz, pintrsz);
+
+		/* Compute the map stride size */
+		tsz = physsz + intrsz + sizeof(phandle_t) + pintrsz;
+		KASSERT(i >= tsz, ("ofw_bus_search_intrmap: truncated map"));
 	
 		/*
 		 * XXX: Apple hardware uses a second cell to set information

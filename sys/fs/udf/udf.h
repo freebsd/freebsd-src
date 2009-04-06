@@ -137,3 +137,5 @@ int udf_vget(struct mount *, ino_t, int, struct vnode **);
 extern uma_zone_t udf_zone_trans;
 extern uma_zone_t udf_zone_node;
 extern uma_zone_t udf_zone_ds;
+
+extern struct vop_vector udf_fifoops;

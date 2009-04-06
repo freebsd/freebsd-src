@@ -171,6 +171,11 @@ vop_setattr {
 	IN struct ucred *cred;
 };
 
+%% markatime	vp	L L L
+
+vop_markatime {
+	IN struct vnode *vp;
+};
 
 %% read		vp	L L L
 

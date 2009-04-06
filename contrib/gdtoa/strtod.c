@@ -80,6 +80,28 @@ strtod
 #ifdef SET_INEXACT
 	int inexact, oldinexact;
 #endif
+#ifdef USE_LOCALE /*{{*/
+#ifdef NO_LOCALE_CACHE
+	char *decimalpoint = localeconv()->decimal_point;
+	int dplen = strlen(decimalpoint);
+#else
+	char *decimalpoint;
+	static char *decimalpoint_cache;
+	static int dplen;
+	if (!(s0 = decimalpoint_cache)) {
+		s0 = localeconv()->decimal_point;
+		if ((decimalpoint_cache = (char*)malloc(strlen(s0) + 1))) {
+			strcpy(decimalpoint_cache, s0);
+			s0 = decimalpoint_cache;
+			}
+		dplen = strlen(s0);
+		}
+	decimalpoint = (char*)s0;
+#endif /*NO_LOCALE_CACHE*/
+#else  /*USE_LOCALE}{*/
+#define dplen 1
+#endif /*USE_LOCALE}}*/
+
 #ifdef Honor_FLT_ROUNDS /*{*/
 	int Rounding;
 #ifdef Trust_FLT_ROUNDS /*{{ only define this if FLT_ROUNDS really works! */
@@ -118,7 +140,7 @@ strtod
 		}
  break2:
 	if (*s == '0') {
-#ifndef NO_HEX_FP /*{{*/
+#ifndef NO_HEX_FP /*{*/
 		{
 		static FPI fpi = { 53, 1-1023-53+1, 2046-1023-53+1, 1, SI };
 		Long exp;
@@ -157,7 +179,7 @@ strtod
 			goto ret;
 		  }
 		}
-#endif
+#endif /*}*/
 		nz0 = 1;
 		while(*++s == '0') ;
 		if (!*s)
@@ -172,13 +194,17 @@ strtod
 			z = 10*z + c - '0';
 	nd0 = nd;
 #ifdef USE_LOCALE
-	if (c == *localeconv()->decimal_point)
+	if (c == *decimalpoint) {
+		for(i = 1; decimalpoint[i]; ++i)
+			if (s[i] != decimalpoint[i])
+				goto dig_done;
+		s += i;
+		c = *s;
 #else
-	if (c == '.')
-#endif
-		{
-		decpt = 1;
+	if (c == '.') {
 		c = *++s;
+#endif
+		decpt = 1;
 		if (!nd) {
 			for(; c == '0'; c = *++s)
 				nz++;
@@ -207,7 +233,7 @@ strtod
 				nz = 0;
 				}
 			}
-		}
+		}/*}*/
  dig_done:
 	e = 0;
 	if (c == 'e' || c == 'E') {
@@ -527,7 +553,7 @@ strtod
 
 	/* Put digits into bd: true value = bd * 10^e */
 
-	bd0 = s2b(s0, nd0, nd, y);
+	bd0 = s2b(s0, nd0, nd, y, dplen);
 
 	for(;;) {
 		bd = Balloc(bd0->k);
@@ -974,7 +1000,11 @@ strtod
 		dval(rv) *= dval(rv0);
 #ifndef NO_ERRNO
 		/* try to avoid the bug of testing an 8087 register value */
+#ifdef IEEE_Arith
+		if (!(word0(rv) & Exp_mask))
+#else
 		if (word0(rv) == 0 && word1(rv) == 0)
+#endif
 			errno = ERANGE;
 #endif
 		}

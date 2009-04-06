@@ -46,7 +46,7 @@ The
 function associates a vnode with a mount.
 This includes updating
 .Va v_mount
-for the vnode, and inserting the vnode into the mounts vnode list.
+for the vnode, and inserting the vnode into the mount's vnode list.
 .Pp
 The mount reference count is incremented for each vnode added to the
 mount, and that reference is decremented by
@@ -75,13 +75,14 @@ The
 .Fa dtr_arg
 argument is the second, supplying any additional context needed.
 .Sh RETURN VALUES
-.Fn insmntque
-will always return 0, unless the file system is currently being unmounted
-in which case it may return
-.Dv EBUSY .
 The
 .Fn insmntque
-function may be forced to insert the vnode into the mount's vnode list
+function will always return 0, unless the file system is currently being unmounted
+in which case it may return
+.Dv EBUSY .
+Also,
+.Fn insmntque
+may be forced to insert the vnode into the mount's vnode list
 by setting the
 .Va VV_FORCEINSMQ
 flag in the vnode

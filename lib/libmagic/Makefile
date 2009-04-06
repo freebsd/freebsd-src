@@ -19,9 +19,9 @@ MAGICPATH?=	/usr/share/misc
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${CONTRDIR}
 
-CLEANFILES+=	magic magic.mgc magic.mime.mgc
+CLEANFILES+=	magic magic.mgc
 
-FILES=		magic magic.mgc ${CONTRDIR}/magic.mime magic.mime.mgc
+FILES=		magic magic.mgc
 FILESDIR=	${MAGICPATH}
 
 MAGFILES=	${CONTRDIR}/Header\
@@ -33,9 +33,6 @@ magic: ${MAGFILES}
 
 magic.mgc: mkmagic magic
 	./mkmagic magic
-
-magic.mime.mgc: mkmagic magic.mime
-	./mkmagic ${CONTRDIR}/magic.mime
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic

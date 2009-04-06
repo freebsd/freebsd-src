@@ -35,7 +35,7 @@
  * NOTE: Much of the SCSI statemachine handling code derives from the
  * Linux USB gadget stack.
  */
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -318,9 +318,6 @@ ustorage_fs_attach(device_t dev)
 	struct usb2_interface_descriptor *id;
 	int err;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	/*
 	 * NOTE: the softc struct is bzero-ed in device_set_driver.
 	 * We can safely call ustorage_fs_detach without specifically
@@ -1301,6 +1298,7 @@ ustorage_fs_mode_select(struct ustorage_fs_softc *sc)
 static uint8_t
 ustorage_fs_synchronize_cache(struct ustorage_fs_softc *sc)
 {
+#if 0
 	struct ustorage_fs_lun *currlun = sc->sc_transfer.currlun;
 	uint8_t rc;
 
@@ -1311,6 +1309,7 @@ ustorage_fs_synchronize_cache(struct ustorage_fs_softc *sc)
 	if (rc) {
 		currlun->sense_data = SS_WRITE_ERROR;
 	}
+#endif
 	return (0);
 }
 

@@ -212,6 +212,7 @@ retry2:
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, curthread) == 0) {
 				++pfs_vncache_hits;
 				vgone(*vpp);
+				vput(*vpp);
 				*vpp = vp;
 				cache_purge(vp);
 				return (0);

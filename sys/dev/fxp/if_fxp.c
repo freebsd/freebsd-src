@@ -255,7 +255,7 @@ static int		fxp_serial_ifmedia_upd(struct ifnet *ifp);
 static void		fxp_serial_ifmedia_sts(struct ifnet *ifp,
 			    struct ifmediareq *ifmr);
 static int		fxp_miibus_readreg(device_t dev, int phy, int reg);
-static void		fxp_miibus_writereg(device_t dev, int phy, int reg,
+static int		fxp_miibus_writereg(device_t dev, int phy, int reg,
 			    int value);
 static void		fxp_load_ucode(struct fxp_softc *sc);
 static int		sysctl_int_range(SYSCTL_HANDLER_ARGS,
@@ -2545,7 +2545,8 @@ fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 		return (error);
 	}
 
-	bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
+	if (rxp->rx_mbuf != NULL)
+		bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
 	tmp_map = sc->spare_map;
 	sc->spare_map = rxp->rx_map;
 	rxp->rx_map = tmp_map;
@@ -2641,7 +2642,7 @@ fxp_miibus_readreg(device_t dev, int phy, int reg)
 	return (value & 0xffff);
 }
 
-static void
+static int
 fxp_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
@@ -2657,6 +2658,7 @@ fxp_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	if (count <= 0)
 		device_printf(dev, "fxp_miibus_writereg: timed out\n");
+	return (0);
 }
 
 static int

@@ -1229,14 +1229,14 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			unp3->unp_addr = (struct sockaddr_un *) sa;
 			sa = NULL;
 		}
+
 		/*
-		 * unp_peercred management:
-		 *
 		 * The connecter's (client's) credentials are copied from its
 		 * process structure at the time of connect() (which is now).
 		 */
 		cru2x(td->td_ucred, &unp3->unp_peercred);
 		unp3->unp_flags |= UNP_HAVEPC;
+
 		/*
 		 * The receiver's (server's) credentials are copied from the
 		 * unp_peercred member of socket on which the former called

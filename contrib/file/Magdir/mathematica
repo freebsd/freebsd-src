@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # mathematica:  file(1) magic for mathematica files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
@@ -56,7 +55,8 @@
 0	string	(***********************	Mathematica 3.0 notebook
 
 # other (* matches it is a comment start in these langs
-0	string	(*	Mathematica, or Pascal,  Modula-2 or 3 code text
+# GRR: Too weak; also matches other languages e.g. ML
+#0	string	(*	Mathematica, or Pascal, Modula-2 or 3 code text
 
 #########################
 # MatLab v5

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_cal.h,v 1.3 2008/11/11 17:43:23 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _ATH_AR5416_CAL_H_
 #define _ATH_AR5416_CAL_H_
@@ -102,12 +102,13 @@ struct ar5416PerCal {
 	}								\
 } while (0)
 
-HAL_BOOL ar5416InitCal(struct ath_hal *ah, HAL_CHANNEL *chan);
-HAL_BOOL ar5416PerCalibration(struct ath_hal *,  HAL_CHANNEL *,
+HAL_BOOL ar5416InitCal(struct ath_hal *, const struct ieee80211_channel *);
+HAL_BOOL ar5416PerCalibration(struct ath_hal *,  struct ieee80211_channel *,
 	    HAL_BOOL *isIQdone);
-HAL_BOOL ar5416PerCalibrationN(struct ath_hal *ah, HAL_CHANNEL *chan,
+HAL_BOOL ar5416PerCalibrationN(struct ath_hal *, struct ieee80211_channel *,
 	    u_int chainMask, HAL_BOOL longCal, HAL_BOOL *isCalDone);
-HAL_BOOL ar5416ResetCalValid(struct ath_hal *ah,  HAL_CHANNEL *chan);
+HAL_BOOL ar5416ResetCalValid(struct ath_hal *,
+	    const struct ieee80211_channel *);
 
 void	ar5416IQCalCollect(struct ath_hal *ah);
 void	ar5416IQCalibration(struct ath_hal *ah, uint8_t numChains);

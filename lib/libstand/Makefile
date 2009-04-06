@@ -6,13 +6,15 @@
 #   quite large.
 #
 
+.include <bsd.own.mk>
+MK_SSP=		no
+
 LIB=		stand
 NO_PROFILE=
 NO_PIC=
 INCS=		stand.h
 MAN=		libstand.3
 
-WITHOUT_SSP=
 CFLAGS+= -ffreestanding -Wformat
 CFLAGS+= -I${.CURDIR}
 

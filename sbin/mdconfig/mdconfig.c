@@ -58,7 +58,7 @@ usage()
 "usage: mdconfig -a -t type [-n] [-o [no]option] ... [-f file]\n"
 "                [-s size] [-S sectorsize] [-u unit]\n"
 "                [-x sectors/track] [-y heads/cyl]\n"
-"       mdconfig -d -u unit\n"
+"       mdconfig -d -u unit [-o [no]force]\n"
 "       mdconfig -l [-v] [-n] [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
@@ -160,6 +160,16 @@ main(int argc, char **argv)
 			close(fd);
 			break;
 		case 'o':
+			if (action == DETACH) {
+				if (!strcmp(optarg, "force"))
+					mdio.md_options |= MD_FORCE;
+				else if (!strcmp(optarg, "noforce"))
+					mdio.md_options &= ~MD_FORCE;
+				else
+					errx(1, "Unknown option: %s.", optarg);
+				break;
+			}
+
 			if (cmdline != 2)
 				usage();
 			if (!strcmp(optarg, "async"))

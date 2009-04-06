@@ -17,10 +17,14 @@
 # The format is very similar to pgp
 0	string          \001gpg                 GPG key trust database
 >4	byte            x                       version %d
+# Note: magic.mime had 0x8501 for the next line instead of 0x8502
 0	beshort		0x8502			GPG encrypted data
+!:mime	text/PGP # encoding: data
+
 # This magic is not particularly good, as the keyrings don't have true
 # magic. Nevertheless, it covers many keyrings.
 0       beshort         0x9901                  GPG key public ring
+!:mime	application/x-gnupg-keyring
 
 # Gnumeric spreadsheet
 # This entry is only semi-helpful, as Gnumeric compresses its files, so
@@ -32,3 +36,7 @@
 0	string	\0LOCATE	GNU findutils locate database data
 >7	string	>\0		\b, format %s
 >7	string	02		\b (frcode)
+
+# Files produced by GNU gettext
+0	long	0xDE120495		GNU-format message catalog data
+0	long	0x950412DE		GNU-format message catalog data

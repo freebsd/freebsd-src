@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_record.h#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_record.h#9 $
  */
 
 #ifndef _BSM_AUDIT_RECORD_H_
@@ -281,10 +281,15 @@ token_t	*au_to_trailer(int rec_size);
 token_t	*au_to_zonename(const char *zonename);
 
 /*
- * BSM library routines for manipulating errno values.
+ * BSM library routines for converting between local and BSM constant spaces.
  */
+int	 au_bsm_to_domain(u_short bsm_domain, int *local_domainp);
 int	 au_bsm_to_errno(u_char bsm_error, int *errorp);
-u_char	 au_errno_to_bsm(int error);
+int	 au_bsm_to_socket_type(u_short bsm_socket_type,
+	    int *local_socket_typep);
+u_short	 au_domain_to_bsm(int local_domain);
+u_char	 au_errno_to_bsm(int local_errno);
+u_short	 au_socket_type_to_bsm(int local_socket_type);
 
 __END_DECLS
 

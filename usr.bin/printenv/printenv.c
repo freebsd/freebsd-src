@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 void	usage(void);
+extern char **environ;
 
 /*
  * printenv
@@ -64,7 +65,6 @@ void	usage(void);
 int
 main(int argc, char *argv[])
 {
-	extern char **environ;
 	char *cp, **ep;
 	size_t len;
 	int ch;

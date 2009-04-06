@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#29 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#31 $
  */
 
 /* 
@@ -41,6 +41,9 @@
  */ 
 
 #include <config/config.h>
+
+#define	_GNU_SOURCE		/* Required for strptime() on glibc2. */
+
 #ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
 #else

@@ -1799,7 +1799,7 @@ do { \
 				if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 					break;
 				req = mtod(m, caddr_t);
-				error = ipsec6_set_policy(in6p, optname, req,
+				error = ipsec_set_policy(in6p, optname, req,
 				    m->m_len, (sopt->sopt_td != NULL) ?
 				    sopt->sopt_td->td_ucred : NULL);
 				m_freem(m);
@@ -2024,7 +2024,7 @@ do { \
 					req = mtod(m, caddr_t);
 					len = m->m_len;
 				}
-				error = ipsec6_get_policy(in6p, req, len, mp);
+				error = ipsec_get_policy(in6p, req, len, mp);
 				if (error == 0)
 					error = soopt_mcopyout(sopt, m); /* XXX */
 				if (error == 0 && m)

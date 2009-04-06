@@ -80,6 +80,7 @@ static int	ugen_set_config(struct usb2_fifo *, uint8_t);
 static int	ugen_set_interface(struct usb2_fifo *, uint8_t, uint8_t);
 static int	ugen_get_cdesc(struct usb2_fifo *, struct usb2_gen_descriptor *);
 static int	ugen_get_sdesc(struct usb2_fifo *, struct usb2_gen_descriptor *);
+static int	ugen_get_iface_driver(struct usb2_fifo *f, struct usb2_gen_descriptor *ugd);
 static int	usb2_gen_fill_deviceinfo(struct usb2_fifo *,
 		    struct usb2_device_info *);
 static int	ugen_re_enumerate(struct usb2_fifo *);
@@ -157,12 +158,16 @@ ugen_open(struct usb2_fifo *f, int fflags, struct thread *td)
 	DPRINTFN(6, "flag=0x%x\n", fflags);
 
 	mtx_lock(f->priv_mtx);
-	if (usb2_get_speed(f->udev) == USB_SPEED_HIGH) {
-		f->nframes = UGEN_HW_FRAMES * 8;
-		f->bufsize = UGEN_BULK_HS_BUFFER_SIZE;
-	} else {
+	switch (usb2_get_speed(f->udev)) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
 		f->nframes = UGEN_HW_FRAMES;
 		f->bufsize = UGEN_BULK_FS_BUFFER_SIZE;
+		break;
+	default:
+		f->nframes = UGEN_HW_FRAMES * 8;
+		f->bufsize = UGEN_BULK_HS_BUFFER_SIZE;
+		break;
 	}
 
 	type = ed->bmAttributes & UE_XFERTYPE;
@@ -710,68 +715,64 @@ ugen_get_sdesc(struct usb2_fifo *f, struct usb2_gen_descriptor *ugd)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_gen_fill_devicenames
+ *	ugen_get_iface_driver
  *
- * This function dumps information about an USB device names to
- * userland.
+ * This function generates an USB interface description for userland.
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
 static int
-usb2_gen_fill_devicenames(struct usb2_fifo *f, struct usb2_device_names *dn)
+ugen_get_iface_driver(struct usb2_fifo *f, struct usb2_gen_descriptor *ugd)
 {
+	struct usb2_device *udev = f->udev;
 	struct usb2_interface *iface;
 	const char *ptr;
-	char *dst;
-	char buf[32];
-	int error = 0;
-	int len;
-	int max_len;
-	uint8_t i;
-	uint8_t first = 1;
+	const char *desc;
+	unsigned int len;
+	unsigned int maxlen;
+	char buf[128];
+	int error;
 
-	max_len = dn->udn_devnames_len;
-	dst = dn->udn_devnames_ptr;
+	DPRINTFN(6, "\n");
 
-	if (max_len == 0) {
+	if ((ugd->ugd_data == NULL) || (ugd->ugd_maxlen == 0)) {
+		/* userland pointer should not be zero */
 		return (EINVAL);
 	}
-	/* put a zero there */
-	error = copyout("", dst, 1);
-	if (error) {
-		return (error);
+
+	iface = usb2_get_iface(udev, ugd->ugd_iface_index);
+	if ((iface == NULL) || (iface->idesc == NULL)) {
+		/* invalid interface index */
+		return (EINVAL);
 	}
-	for (i = 0;; i++) {
-		iface = usb2_get_iface(f->udev, i);
-		if (iface == NULL) {
-			break;
-		}
-		if ((iface->subdev != NULL) &&
-		    device_is_attached(iface->subdev)) {
-			ptr = device_get_nameunit(iface->subdev);
-			if (!first) {
-				strlcpy(buf, ", ", sizeof(buf));
-			} else {
-				buf[0] = 0;
-			}
-			strlcat(buf, ptr, sizeof(buf));
-			len = strlen(buf) + 1;
-			if (len > max_len) {
-				break;
-			}
-			error = copyout(buf, dst, len);
-			if (error) {
-				return (error);
-			}
-			len--;
-			dst += len;
-			max_len -= len;
-			first = 0;
-		}
+
+	/* read out device nameunit string, if any */
+	if ((iface->subdev != NULL) &&
+	    device_is_attached(iface->subdev) &&
+	    (ptr = device_get_nameunit(iface->subdev)) &&
+	    (desc = device_get_desc(iface->subdev))) {
+
+		/* print description */
+		snprintf(buf, sizeof(buf), "%s: <%s>", ptr, desc);
+
+		/* range checks */
+		maxlen = ugd->ugd_maxlen - 1;
+		len = strlen(buf);
+		if (len > maxlen)
+			len = maxlen;
+
+		/* update actual length, including terminating zero */
+		ugd->ugd_actlen = len + 1;
+
+		/* copy out interface description */
+		error = copyout(buf, ugd->ugd_data, ugd->ugd_actlen);
+	} else {
+		/* zero length string is default */
+		error = copyout("", ugd->ugd_data, 1);
 	}
-	return (0);
+	return (error);
 }
 
 /*------------------------------------------------------------------------*
@@ -1688,22 +1689,31 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 {
 	struct usb2_device *udev = f->udev;
 	int err;
+	uint8_t old_mode;
 
 	if ((udev == NULL) ||
 	    (udev->parent_hub == NULL)) {
 		return (EINVAL);
 	}
 	err = priv_check(curthread, PRIV_ROOT);
-	if (err) {
+	if (err)
 		return (err);
-	}
+
+	/* get old power mode */
+	old_mode = udev->power_mode;
+
+	/* if no change, then just return */
+	if (old_mode == mode)
+		return (0);
+
 	switch (mode) {
 	case USB_POWER_MODE_OFF:
-		/* clear suspend */
-		err = usb2_req_clear_port_feature(udev->parent_hub,
-		    NULL, udev->port_no, UHF_PORT_SUSPEND);
-		if (err)
-			break;
+		/* get the device unconfigured */
+		err = ugen_set_config(f, USB_UNCONFIG_INDEX);
+		if (err) {
+			DPRINTFN(0, "Could not unconfigure "
+			    "device (ignored)\n");
+		}
 
 		/* clear port enable */
 		err = usb2_req_clear_port_feature(udev->parent_hub,
@@ -1711,24 +1721,21 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 		break;
 
 	case USB_POWER_MODE_ON:
-		/* enable port */
-		err = usb2_req_set_port_feature(udev->parent_hub,
-		    NULL, udev->port_no, UHF_PORT_ENABLE);
-
-		/* FALLTHROUGH */
-
 	case USB_POWER_MODE_SAVE:
+		break;
+
 	case USB_POWER_MODE_RESUME:
-		/* TODO: implement USB power save */
 		err = usb2_req_clear_port_feature(udev->parent_hub,
 		    NULL, udev->port_no, UHF_PORT_SUSPEND);
+		mode = USB_POWER_MODE_SAVE;
 		break;
 
 	case USB_POWER_MODE_SUSPEND:
-		/* TODO: implement USB power save */
 		err = usb2_req_set_port_feature(udev->parent_hub,
 		    NULL, udev->port_no, UHF_PORT_SUSPEND);
+		mode = USB_POWER_MODE_SAVE;
 		break;
+
 	default:
 		return (EINVAL);
 	}
@@ -1736,7 +1743,15 @@ ugen_set_power_mode(struct usb2_fifo *f, int mode)
 	if (err)
 		return (ENXIO);		/* I/O failure */
 
-	udev->power_mode = mode;	/* update copy of power mode */
+	/* if we are powered off we need to re-enumerate first */
+	if (old_mode == USB_POWER_MODE_OFF) {
+		err = ugen_re_enumerate(f);
+		if (err)
+			return (err);
+	}
+
+	/* set new power mode */
+	usb2_set_power_mode(udev, mode);
 
 	return (0);			/* success */
 }
@@ -2028,6 +2043,10 @@ ugen_ioctl_post(struct usb2_fifo *f, u_long cmd, void *addr, int fflags,
 		error = ugen_get_sdesc(f, addr);
 		break;
 
+	case USB_GET_IFACE_DRIVER:
+		error = ugen_get_iface_driver(f, addr);
+		break;
+
 	case USB_REQUEST:
 	case USB_DO_REQUEST:
 		if (!(fflags & FWRITE)) {
@@ -2040,10 +2059,6 @@ ugen_ioctl_post(struct usb2_fifo *f, u_long cmd, void *addr, int fflags,
 	case USB_DEVICEINFO:
 	case USB_GET_DEVICEINFO:
 		error = usb2_gen_fill_deviceinfo(f, addr);
-		break;
-
-	case USB_GET_DEVICENAMES:
-		error = usb2_gen_fill_devicenames(f, addr);
 		break;
 
 	case USB_DEVICESTATS:

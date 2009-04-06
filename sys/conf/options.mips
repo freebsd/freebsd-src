@@ -48,7 +48,7 @@ CFE_CONSOLE	opt_global.h
 KERNPHYSADDR	opt_global.h
 KERNVIRTADDR	opt_global.h
 PHYSADDR	opt_global.h
-SOFTFLOAT       opt_global.h
+SOFTFLOAT	opt_global.h
 
 TARGET_OCTEON	opt_global.h
 TARGET_EMULATOR	opt_ddb.h

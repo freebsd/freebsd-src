@@ -42,6 +42,7 @@ static char rcsid[] =
 
 #include "ww.h"
 #include <signal.h>
+#include <unistd.h>
 
 /*
  * There is a dead lock with vfork and closing of pseudo-ports.

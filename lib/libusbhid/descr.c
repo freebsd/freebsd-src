@@ -39,21 +39,83 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/ioctl.h>
 
-#include <dev/usb/usb.h>
+#include <dev/usb2/include/usb2_ioctl.h>
 
 #include "usbhid.h"
 #include "usbvar.h"
 
+int
+hid_set_immed(int fd, int enable)
+{
+	int ret;
+	ret = ioctl(fd, USB_SET_IMMED, &enable);
+	if (ret < 0)
+		ret = hid_set_immed_compat7(fd, enable);
+	return (ret);
+}
+
+int
+hid_get_report_id(int fd)
+{
+	int temp = -1;
+	int ret;
+
+	ret = ioctl(fd, USB_GET_REPORT_ID, &temp);
+	if (ret < 0)
+		ret = hid_get_report_id_compat7(fd);
+	else
+		ret = temp;
+
+	return (ret);
+}
+
 report_desc_t
 hid_get_report_desc(int fd)
 {
-	struct usb_ctl_report_desc rep;
+	struct usb2_gen_descriptor ugd;
+	report_desc_t rep;
+	void *data;
 
-	rep.ucrd_size = 0;
-	if (ioctl(fd, USB_GET_REPORT_DESC, &rep) < 0)
+	memset(&ugd, 0, sizeof(ugd));
+
+	/* get actual length first */
+	ugd.ugd_data = NULL;
+	ugd.ugd_maxlen = 65535;
+	if (ioctl(fd, USB_GET_REPORT_DESC, &ugd) < 0) {
+		/* could not read descriptor */
+		/* try FreeBSD 7 compat code */
+		return (hid_get_report_desc_compat7(fd));
+	}
+
+	/*
+	 * NOTE: The kernel will return a failure if 
+	 * "ugd_actlen" is zero.
+	 */
+	data = malloc(ugd.ugd_actlen);
+	if (data == NULL)
 		return (NULL);
 
-	return hid_use_report_desc(rep.ucrd_data, (unsigned int)rep.ucrd_size);
+	/* fetch actual descriptor */
+	ugd.ugd_data = data;
+	ugd.ugd_maxlen = ugd.ugd_actlen;
+	if (ioctl(fd, USB_GET_REPORT_DESC, &ugd) < 0) {
+		/* could not read descriptor */
+		free(data);
+		return (NULL);
+	}
+
+	/* check END_COLLECTION */
+	if (((unsigned char *)ugd.ugd_data)[ugd.ugd_actlen -1] != 0xC0) {
+		/* invalid end byte */
+		free(data);
+		return (NULL);
+	}
+
+	rep = hid_use_report_desc(data, ugd.ugd_actlen);
+
+	free(data);
+
+	return (rep);
 }
 
 report_desc_t

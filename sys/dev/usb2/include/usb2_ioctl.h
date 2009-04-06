@@ -39,13 +39,6 @@
 #define	USB_DEVICE_NAME "usb"
 #define	USB_GENERIC_NAME "ugen"
 
-/* definition of USB power mode */
-#define	USB_POWER_MODE_OFF 0		/* turn off device */
-#define	USB_POWER_MODE_ON 1		/* always on */
-#define	USB_POWER_MODE_SAVE 2		/* automatic suspend and resume */
-#define	USB_POWER_MODE_SUSPEND 3	/* force suspend */
-#define	USB_POWER_MODE_RESUME 4		/* force resume */
-
 struct usb2_read_dir {
 	void   *urd_data;
 	uint32_t urd_startentry;
@@ -82,13 +75,6 @@ struct usb2_gen_descriptor {
 	uint8_t	ugd_endpt_index;
 	uint8_t	ugd_report_type;
 	uint8_t	reserved[8];
-};
-
-struct usb2_device_names {
-	char   *udn_devnames_ptr;	/* userland pointer to comma separated
-					 * list of device names */
-	uint16_t udn_devnames_len;	/* maximum string length including
-					 * terminating zero */
 };
 
 struct usb2_device_info {
@@ -230,7 +216,7 @@ struct usb2_gen_quirk {
 #define	USB_DEVICEENUMERATE	_IOW ('U', 6, int)
 
 /* Generic HID device */
-#define	USB_GET_REPORT_DESC	_IOR ('U', 21, struct usb2_gen_descriptor)
+#define	USB_GET_REPORT_DESC	_IOWR('U', 21, struct usb2_gen_descriptor)
 #define	USB_SET_IMMED		_IOW ('U', 22, int)
 #define	USB_GET_REPORT		_IOWR('U', 23, struct usb2_gen_descriptor)
 #define	USB_SET_REPORT		_IOW ('U', 24, struct usb2_gen_descriptor)
@@ -256,7 +242,7 @@ struct usb2_gen_quirk {
 #define	USB_SET_RX_BUFFER_SIZE	_IOW ('U', 118, int)
 #define	USB_SET_RX_STALL_FLAG	_IOW ('U', 119, int)
 #define	USB_SET_TX_STALL_FLAG	_IOW ('U', 120, int)
-#define	USB_GET_DEVICENAMES	_IOW ('U', 121, struct usb2_device_names)
+#define	USB_GET_IFACE_DRIVER	_IOWR('U', 121, struct usb2_gen_descriptor)
 #define	USB_CLAIM_INTERFACE	_IOW ('U', 122, int)
 #define	USB_RELEASE_INTERFACE	_IOW ('U', 123, int)
 #define	USB_IFACE_DRIVER_ACTIVE	_IOW ('U', 124, int)

@@ -43,9 +43,8 @@ __FBSDID("$FreeBSD$");
 
 static char zapchar;
 static FILE *tf;
-static int maxpts = 0;
+static int maxpts = -1;
 static int curpts = 0;
-static int pts_valid = 0;
 static size_t lbsize;
 static char *line;
 
@@ -84,7 +83,7 @@ getttyent()
 		return (NULL);
 	for (;;) {
 		if (!fgets(p = line, lbsize, tf)) {
-			if (pts_valid == 1 && curpts <= maxpts) {
+			if (curpts <= maxpts) {
 				sprintf(devpts_name, "pts/%d", curpts++);
 				tty.ty_name = devpts_name;
 				tty.ty_getty = tty.ty_type = NULL;
@@ -234,12 +233,12 @@ setttyent()
 	if (devpts_dir) {
 		struct dirent *dp;
 
+		maxpts = -1;
 		while ((dp = readdir(devpts_dir))) {
 			if (strcmp(dp->d_name, ".") != 0 &&
 			    strcmp(dp->d_name, "..") != 0) {
 				if (atoi(dp->d_name) > maxpts) {
 					maxpts = atoi(dp->d_name);
-					pts_valid = 1;
 					curpts = 0;
 				}
 			}
@@ -259,7 +258,7 @@ endttyent()
 {
 	int rval;
 
-	pts_valid = 0;
+	maxpts = -1;
 	/*
          * NB: Don't free `line' because getttynam()
 	 * may still be referencing it

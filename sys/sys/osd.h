@@ -31,10 +31,15 @@
 
 #include <sys/queue.h>
 
+/*
+ * Lock key:
+ *   (c) container lock (e.g. jail's pr_mtx) and/or osd_object_lock
+ *   (l) osd_list_lock
+ */
 struct osd {
-	u_int		  osd_nslots;
-	void		**osd_slots;
-	LIST_ENTRY(osd)	  osd_next;
+	u_int		  osd_nslots;	/* (c) */
+	void		**osd_slots;	/* (c) */
+	LIST_ENTRY(osd)	  osd_next;	/* (l) */
 };
 
 #ifdef _KERNEL
@@ -46,18 +51,21 @@ struct osd {
 #define	OSD_LAST	OSD_JAIL
 
 typedef void (*osd_destructor_t)(void *value);
+typedef int (*osd_method_t)(void *obj, void *data);
 
-int osd_register(u_int type, osd_destructor_t destructor);
+int osd_register(u_int type, osd_destructor_t destructor,
+    osd_method_t *methods);
 void osd_deregister(u_int type, u_int slot);
 
 int osd_set(u_int type, struct osd *osd, u_int slot, void *value);
 void *osd_get(u_int type, struct osd *osd, u_int slot);
 void osd_del(u_int type, struct osd *osd, u_int slot);
+int osd_call(u_int type, u_int method, void *obj, void *data);
 
 void osd_exit(u_int type, struct osd *osd);
 
 #define	osd_thread_register(destructor)					\
-	osd_register(OSD_THREAD, (destructor))
+	osd_register(OSD_THREAD, (destructor), NULL)
 #define	osd_thread_deregister(slot)					\
 	osd_deregister(OSD_THREAD, (slot))
 #define	osd_thread_set(td, slot, value)					\
@@ -68,11 +76,13 @@ void osd_exit(u_int type, struct osd *osd);
 	KASSERT((td) == curthread, ("Not curthread."));			\
 	osd_del(OSD_THREAD, &(td)->td_osd, (slot));			\
 } while (0)
+#define	osd_thread_call(td, method, data)				\
+	osd_call(OSD_THREAD, (method), (td), (data))
 #define	osd_thread_exit(td)						\
 	osd_exit(OSD_THREAD, &(td)->td_osd)
 
 #define	osd_jail_register(destructor)					\
-	osd_register(OSD_JAIL, (destructor))
+	osd_register(OSD_JAIL, (destructor), NULL)
 #define	osd_jail_deregister(slot)					\
 	osd_deregister(OSD_JAIL, (slot))
 #define	osd_jail_set(pr, slot, value)					\
@@ -81,6 +91,8 @@ void osd_exit(u_int type, struct osd *osd);
 	osd_get(OSD_JAIL, &(pr)->pr_osd, (slot))
 #define	osd_jail_del(pr, slot)						\
 	osd_del(OSD_JAIL, &(pr)->pr_osd, (slot))
+#define	osd_jail_call(pr, method, data)					\
+	osd_call(OSD_JAIL, (method), (pr), (data))
 #define	osd_jail_exit(pr)						\
 	osd_exit(OSD_JAIL, &(pr)->pr_osd)
 

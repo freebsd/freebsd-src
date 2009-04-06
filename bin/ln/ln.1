@@ -38,7 +38,7 @@
 .Sh NAME
 .Nm ln ,
 .Nm link
-.Nd make links
+.Nd link files
 .Sh SYNOPSIS
 .Nm
 .Op Fl s Op Fl F
@@ -57,8 +57,13 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility creates a new directory entry (linked file) which has the
-same modes as the original file.
+utility creates a new directory entry (linked file) for the file name
+specified by
+.Ar target_file .
+The
+.Ar target_file
+will be created with the same file modes as the
+.Ar source_file .
 It is useful for maintaining multiple copies of a file in many places
 at once without using up storage for the
 .Dq copies ;
@@ -148,7 +153,7 @@ links.
 A hard link to a file is indistinguishable from the original directory entry;
 any changes to a file are effectively independent of the name used to reference
 the file.
-Hard links may not normally refer to directories and may not span file systems.
+Directories may not be hardlinked, and hard links may not span file systems.
 .Pp
 A symbolic link contains the name of the file to
 which it is linked.

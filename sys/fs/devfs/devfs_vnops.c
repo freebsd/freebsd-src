@@ -540,12 +540,28 @@ devfs_close_f(struct file *fp, struct thread *td)
 	return (error);
 }
 
-/* ARGSUSED */
 static int
 devfs_fsync(struct vop_fsync_args *ap)
 {
-	if (!vn_isdisk(ap->a_vp, NULL))
+	int error;
+	struct bufobj *bo;
+	struct devfs_dirent *de;
+
+	if (!vn_isdisk(ap->a_vp, &error)) {
+		bo = &ap->a_vp->v_bufobj;
+		de = ap->a_vp->v_data;
+		if (error == ENXIO && bo->bo_dirty.bv_cnt > 0) {
+			printf("Device %s went missing before all of the data "
+			    "could be written to it; expect data loss.\n",
+			    de->de_dirent->d_name);
+
+			error = vop_stdfsync(ap);
+			if (bo->bo_dirty.bv_cnt != 0 || error != 0)
+				panic("devfs_fsync: vop_stdfsync failed.");
+		}
+
 		return (0);
+	}
 
 	return (vop_stdfsync(ap));
 }
@@ -1058,7 +1074,7 @@ devfs_readdir(struct vop_readdir_args *ap)
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
-	off_t off, oldoff;
+	off_t off;
 	int *tmp_ncookies = NULL;
 
 	if (ap->a_vp->v_type != VDIR)
@@ -1097,7 +1113,6 @@ devfs_readdir(struct vop_readdir_args *ap)
 	error = 0;
 	de = ap->a_vp->v_data;
 	off = 0;
-	oldoff = uio->uio_offset;
 	TAILQ_FOREACH(dd, &de->de_dlist, de_list) {
 		KASSERT(dd->de_cdp != (void *)0xdeadc0de, ("%s %d\n", __func__, __LINE__));
 		if (dd->de_flags & DE_WHITEOUT)

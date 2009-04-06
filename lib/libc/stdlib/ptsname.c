@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <paths.h>
+#include <stdlib.h>
 #include "un-namespace.h"
 
 /*
@@ -75,7 +76,6 @@ char *
 ptsname(int fildes)
 {
 	static char pt_slave[sizeof _PATH_DEV + SPECNAMELEN] = _PATH_DEV;
-	struct fiodgname_arg fgn;
 	char *ret = NULL;
 	int sverrno = errno;
 
@@ -83,10 +83,8 @@ ptsname(int fildes)
 	if (__isptmaster(fildes) != 0)
 		goto done;
 	
-	/* Obtain the device name through FIODGNAME. */
-	fgn.len = sizeof pt_slave - (sizeof _PATH_DEV - 1);
-	fgn.buf = pt_slave + (sizeof _PATH_DEV - 1);
-	if (_ioctl(fildes, FIODGNAME, &fgn) == 0)
+	if (fdevname_r(fildes, pt_slave + (sizeof _PATH_DEV - 1),
+	    sizeof pt_slave - (sizeof _PATH_DEV - 1)) != NULL)
 		ret = pt_slave;
 
 done:	/* Make sure ptsname() does not overwrite errno. */

@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#34 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#35 $
  */
 
 #include <sys/types.h>
@@ -219,13 +219,16 @@ au_write(int d, token_t *tok)
 static int
 au_assemble(au_record_t *rec, short event)
 {
-	token_t *header, *tok, *trailer;
-	size_t tot_rec_size, hdrsize;
-	u_char *dptr;
+#ifdef HAVE_AUDIT_SYSCALLS
 	struct in6_addr *aptr;
-	int error;
 	struct auditinfo_addr aia;
 	struct timeval tm;
+	size_t hdrsize;
+#endif /* HAVE_AUDIT_SYSCALLS */
+	token_t *header, *tok, *trailer;
+	size_t tot_rec_size;
+	u_char *dptr;
+	int error;
 
 #ifdef HAVE_AUDIT_SYSCALLS
 	/*

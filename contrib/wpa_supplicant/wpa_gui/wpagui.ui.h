@@ -16,6 +16,7 @@
 #include <unistd.h>
 #endif
 
+#include <stdlib.h>
 
 void WpaGui::init()
 {

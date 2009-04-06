@@ -46,7 +46,7 @@
 0	string		ClamAV-VDB:	
 >11	string		>\0		Clam AntiVirus database %-.23s
 >>34	string		:		
->>>35	regex		[^:]+		\b, version 
+>>>35		string		!:	\b, version 
 >>>>35		string		x 	\b%-.1s
 >>>>>36		string 		!:	
 >>>>>>36	string		x 	\b%-.1s
@@ -54,7 +54,9 @@
 >>>>>>>>37	string		x 	\b%-.1s
 >>>>>>>>>38	string		!:	
 >>>>>>>>>>38	string		x 	\b%-.1s
->>>>512	string		\037\213	\b, gzipped
->>>>769	string		ustar\0		\b, tared
 >512	string		\037\213	\b, gzipped
->769	string		ustar\0		\b, tared
+>769	string		ustar\0		\b, tarred
+
+# Type: Grisoft AVG AntiVirus
+# From: David Newgas <david@newgas.net>
+0	string	AVG7_ANTIVIRUS_VAULT_FILE	AVG 7 Antivirus vault file data

@@ -27,7 +27,12 @@
 #ifndef _USB2_REQUEST_H_
 #define	_USB2_REQUEST_H_
 
+struct usb2_process;
+
 usb2_error_t usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
+		    struct usb2_device_request *req, void *data, uint32_t flags,
+		    uint16_t *actlen, uint32_t timeout);
+usb2_error_t usb2_do_request_proc(struct usb2_device *udev, struct usb2_process *pproc,
 		    struct usb2_device_request *req, void *data, uint32_t flags,
 		    uint16_t *actlen, uint32_t timeout);
 usb2_error_t usb2_req_clear_hub_feature(struct usb2_device *udev,
@@ -89,6 +94,8 @@ usb2_error_t usb2_req_set_report(struct usb2_device *udev, struct mtx *mtx,
 		    void *data, uint16_t len, uint8_t iface_index,
 		    uint8_t type, uint8_t id);
 usb2_error_t usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx);
+usb2_error_t usb2_req_clear_device_feature(struct usb2_device *udev, struct mtx *mtx, uint16_t sel);
+usb2_error_t usb2_req_set_device_feature(struct usb2_device *udev, struct mtx *mtx, uint16_t sel);
 
 #define	usb2_do_request(u,m,r,d) \
   usb2_do_request_flags(u,m,r,d,0,NULL,USB_DEFAULT_TIMEOUT)

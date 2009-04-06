@@ -785,6 +785,7 @@ sender_loop(void *arg)
 	int error, id, iovcnt, what = 0;
 
 	m = (struct mux *)arg;
+	what = 0;
 again:
 	id = sender_waitforwork(m, &what);
 	chan = chan_get(m, id);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_regdomain.h>
+#ifdef IEEE80211_SUPPORT_TDMA
+#include <net80211/ieee80211_tdma.h>
+#endif
 
 #include <net/bpf.h>
 
@@ -119,6 +122,10 @@ static void sta_flush_table(struct sta_table *);
 #define	MATCH_NOTSEEN		0x0080	/* not seen in recent scans */
 #define	MATCH_RSSI		0x0100	/* rssi deemed too low to use */
 #define	MATCH_CC		0x0200	/* country code mismatch */
+#define	MATCH_TDMA_NOIE		0x0400	/* no TDMA ie */
+#define	MATCH_TDMA_NOTMASTER	0x0800	/* not TDMA master */
+#define	MATCH_TDMA_NOSLOT	0x1000	/* all TDMA slots occupied */
+#define	MATCH_TDMA_LOCAL	0x2000	/* local address */
 static int match_bss(struct ieee80211vap *,
 	const struct ieee80211_scan_state *, struct sta_entry *, int);
 static void adhoc_age(struct ieee80211_scan_state *);
@@ -388,27 +395,32 @@ find11gchannel(struct ieee80211com *ic, int i, int freq)
 	 */
 	for (j = i+1; j < ic->ic_nchans; j++) {
 		c = &ic->ic_channels[j];
-		if (c->ic_freq == freq && IEEE80211_IS_CHAN_ANYG(c))
+		if (c->ic_freq == freq && IEEE80211_IS_CHAN_G(c))
 			return c;
 	}
 	for (j = 0; j < i; j++) {
 		c = &ic->ic_channels[j];
-		if (c->ic_freq == freq && IEEE80211_IS_CHAN_ANYG(c))
+		if (c->ic_freq == freq && IEEE80211_IS_CHAN_G(c))
 			return c;
 	}
 	return NULL;
 }
+
 static const u_int chanflags[IEEE80211_MODE_MAX] = {
-	IEEE80211_CHAN_B,	/* IEEE80211_MODE_AUTO */
-	IEEE80211_CHAN_A,	/* IEEE80211_MODE_11A */
-	IEEE80211_CHAN_B,	/* IEEE80211_MODE_11B */
-	IEEE80211_CHAN_G,	/* IEEE80211_MODE_11G */
-	IEEE80211_CHAN_FHSS,	/* IEEE80211_MODE_FH */
-	IEEE80211_CHAN_A,	/* IEEE80211_MODE_TURBO_A (check base channel)*/
-	IEEE80211_CHAN_G,	/* IEEE80211_MODE_TURBO_G */
-	IEEE80211_CHAN_ST,	/* IEEE80211_MODE_STURBO_A */
-	IEEE80211_CHAN_A,	/* IEEE80211_MODE_11NA (check legacy) */
-	IEEE80211_CHAN_G,	/* IEEE80211_MODE_11NG (check legacy) */
+	[IEEE80211_MODE_AUTO]	  = IEEE80211_CHAN_B,
+	[IEEE80211_MODE_11A]	  = IEEE80211_CHAN_A,
+	[IEEE80211_MODE_11B]	  = IEEE80211_CHAN_B,
+	[IEEE80211_MODE_11G]	  = IEEE80211_CHAN_G,
+	[IEEE80211_MODE_FH]	  = IEEE80211_CHAN_FHSS,
+	/* check base channel */
+	[IEEE80211_MODE_TURBO_A]  = IEEE80211_CHAN_A,
+	[IEEE80211_MODE_TURBO_G]  = IEEE80211_CHAN_G,
+	[IEEE80211_MODE_STURBO_A] = IEEE80211_CHAN_ST,
+	[IEEE80211_MODE_HALF]	  = IEEE80211_CHAN_HALF,
+	[IEEE80211_MODE_QUARTER]  = IEEE80211_CHAN_QUARTER,
+	/* check legacy */
+	[IEEE80211_MODE_11NA]	  = IEEE80211_CHAN_A,
+	[IEEE80211_MODE_11NG]	  = IEEE80211_CHAN_G,
 };
 
 static void
@@ -870,6 +882,20 @@ match_ssid(const uint8_t *ie,
 	return 0;
 }
 
+#ifdef IEEE80211_SUPPORT_TDMA
+static int
+tdma_isfull(const struct ieee80211_tdma_param *tdma)
+{
+	int slot, slotcnt;
+
+	slotcnt = tdma->tdma_slotcnt;
+	for (slot = slotcnt-1; slot >= 0; slot--)
+		if (isclr(tdma->tdma_inuse, slot))
+			return 0;
+	return 1;
+}
+#endif /* IEEE80211_SUPPORT_TDMA */
+
 /*
  * Test a scan candidate for suitability/compatibility.
  */
@@ -900,6 +926,36 @@ match_bss(struct ieee80211vap *vap,
 	if (vap->iv_opmode == IEEE80211_M_IBSS) {
 		if ((se->se_capinfo & IEEE80211_CAPINFO_IBSS) == 0)
 			fail |= MATCH_CAPINFO;
+#ifdef IEEE80211_SUPPORT_TDMA
+	} else if (vap->iv_opmode == IEEE80211_M_AHDEMO) {
+		/*
+		 * Adhoc demo network setup shouldn't really be scanning
+		 * but just in case skip stations operating in IBSS or
+		 * BSS mode.
+		 */
+		if (se->se_capinfo & (IEEE80211_CAPINFO_IBSS|IEEE80211_CAPINFO_ESS))
+			fail |= MATCH_CAPINFO;
+		/*
+		 * TDMA operation cannot coexist with a normal 802.11 network;
+		 * skip if IBSS or ESS capabilities are marked and require
+		 * the beacon have a TDMA ie present.
+		 */
+		if (vap->iv_caps & IEEE80211_C_TDMA) {
+			const struct ieee80211_tdma_param *tdma =
+			    (const struct ieee80211_tdma_param *)se->se_ies.tdma_ie;
+
+			if (tdma == NULL)
+				fail |= MATCH_TDMA_NOIE;
+			else if (tdma->tdma_slot != 0)
+				fail |= MATCH_TDMA_NOTMASTER;
+			else if (tdma_isfull(tdma))
+				fail |= MATCH_TDMA_NOSLOT;
+#if 0
+			else if (ieee80211_local_address(se->se_macaddr))
+				fail |= MATCH_TDMA_LOCAL;
+#endif
+		}
+#endif /* IEEE80211_SUPPORT_TDMA */
 	} else {
 		if ((se->se_capinfo & IEEE80211_CAPINFO_ESS) == 0)
 			fail |= MATCH_CAPINFO;
@@ -977,6 +1033,12 @@ match_bss(struct ieee80211vap *vap,
 		    fail & MATCH_FAILS ? '=' :
 		    fail & MATCH_NOTSEEN ? '^' :
 		    fail & MATCH_CC ? '$' :
+#ifdef IEEE80211_SUPPORT_TDMA
+		    fail & MATCH_TDMA_NOIE ? '&' :
+		    fail & MATCH_TDMA_NOTMASTER ? ':' :
+		    fail & MATCH_TDMA_NOSLOT ? '@' :
+		    fail & MATCH_TDMA_LOCAL ? '#' :
+#endif
 		    fail ? '-' : '+', ether_sprintf(se->se_macaddr));
 		printf(" %s%c", ether_sprintf(se->se_bssid),
 		    fail & MATCH_BSSID ? '!' : ' ');
@@ -1449,7 +1511,14 @@ adhoc_pick_bss(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 		if (ss->ss_flags & IEEE80211_SCAN_NOJOIN)
 			return 0;
 notfound:
+		/* NB: never auto-start a tdma network for slot !0 */
+#ifdef IEEE80211_SUPPORT_TDMA
+		if (vap->iv_des_nssid &&
+		    ((vap->iv_caps & IEEE80211_C_TDMA) == 0 ||
+		     ieee80211_tdma_getslot(vap) == 0)) {
+#else
 		if (vap->iv_des_nssid) {
+#endif
 			/*
 			 * No existing adhoc network to join and we have
 			 * an ssid; start one up.  If no channel was

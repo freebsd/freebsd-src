@@ -223,8 +223,6 @@ retry:
 		object->un_pager.vnp.vnp_size = size;
 
 		object->handle = handle;
-		if (VFS_NEEDSGIANT(vp->v_mount))
-			vm_object_set_flag(object, OBJ_NEEDGIANT);
 		VI_LOCK(vp);
 		if (vp->v_object != NULL) {
 			/*
@@ -367,6 +365,7 @@ vnode_pager_setsize(vp, nsize)
 
 	if ((object = vp->v_object) == NULL)
 		return;
+/* 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_setsize and not locked vnode"); */
 	VM_OBJECT_LOCK(object);
 	if (nsize == object->un_pager.vnp.vnp_size) {
 		/*
@@ -1172,57 +1171,4 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 		rtvals[i] = VM_PAGER_OK;
 	}
 	return rtvals[0];
-}
-
-struct vnode *
-vnode_pager_lock(vm_object_t first_object)
-{
-	struct vnode *vp;
-	vm_object_t backing_object, object;
-	int locked, lockf;
-
-	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
-	for (object = first_object; object != NULL; object = backing_object) {
-		if (object->type != OBJT_VNODE) {
-			if ((backing_object = object->backing_object) != NULL)
-				VM_OBJECT_LOCK(backing_object);
-			if (object != first_object)
-				VM_OBJECT_UNLOCK(object);
-			continue;
-		}
-	retry:
-		if (object->flags & OBJ_DEAD) {
-			if (object != first_object)
-				VM_OBJECT_UNLOCK(object);
-			return NULL;
-		}
-		vp = object->handle;
-		locked = VOP_ISLOCKED(vp);
-		VI_LOCK(vp);
-		VM_OBJECT_UNLOCK(object);
-		if (first_object != object)
-			VM_OBJECT_UNLOCK(first_object);
-		VFS_ASSERT_GIANT(vp->v_mount);
-		if (locked == LK_EXCLUSIVE)
-			lockf = LK_CANRECURSE | LK_INTERLOCK | LK_RETRY |
-			    LK_EXCLUSIVE;
-		else
-			lockf = LK_CANRECURSE | LK_INTERLOCK | LK_RETRY |
-			    LK_SHARED;
-		if (vget(vp, lockf, curthread)) {
-			VM_OBJECT_LOCK(first_object);
-			if (object != first_object)
-				VM_OBJECT_LOCK(object);
-			if (object->type != OBJT_VNODE) {
-				if (object != first_object)
-					VM_OBJECT_UNLOCK(object);
-				return NULL;
-			}
-			printf("vnode_pager_lock: retrying\n");
-			goto retry;
-		}
-		VM_OBJECT_LOCK(first_object);
-		return (vp);
-	}
-	return NULL;
 }

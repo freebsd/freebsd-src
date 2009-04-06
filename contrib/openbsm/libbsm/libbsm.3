@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2005-2007 Robert N. M. Watson
+.\" Copyright (c) 2008 Apple Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/libbsm.3#14 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/libbsm.3#16 $
 .\"
 .Dd November 12, 2008
 .Dt LIBBSM 3
@@ -170,6 +171,7 @@ representation:
 .Xr au_to_sock_inet 3 ,
 .Xr au_to_sock_inet32 3 ,
 .Xr au_to_sock_inet128 3 ,
+.Xr au_to_socket_ex 3 ,
 .Xr au_to_subject 3 ,
 .Xr au_to_subject32 3 ,
 .Xr au_to_subject64 3 ,
@@ -191,22 +193,30 @@ database:
 .Xr getauusernam 3 ,
 .Xr getauusernam_r 3 ,
 .Xr getfauditflags 3 .
+.Ss Audit Constant Conversion Interfaces
+These functions convert between BSM and local constants, including the
+.Xr errno 2
+number, socket type, and protocol famil spaces, and must be used to generate
+and interpret BSM return and extended socket tokens:
+.Xr au_bsm_to_domain 3 ,
+.Xr au_bsm_to_errno 3 ,
+.Xr au_bsm_to_socket_type 3 ,
+.Xr au_domain_to_bsm 3 ,
+.Xr au_errno_to_bsm 3 ,
+.Xr au_socket_type_to_bsm 3 .
 .Sh SEE ALSO
 .Xr au_class 3 ,
-.Xr audit_submit 3 ,
+.Xr au_domain 3 ,
+.Xr au_errno 3 ,
 .Xr au_mask 3 ,
 .Xr au_notify 3 ,
+.Xr au_socket_type 3 ,
 .Xr au_stream 3 ,
 .Xr au_token 3 ,
 .Xr au_user 3 ,
+.Xr audit_submit 3 ,
 .Xr audit_class 5 ,
 .Xr audit_control 5
-.Ss Audit Error Interfaces
-These functions convert between BSM and local
-.Xr errno 2
-error numbers, and must be used to interpret and generate BSM return tokens:
-.Xr au_bsm_to_errno 3 ,
-.Xr au_errno_to_bsm 3 .
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.

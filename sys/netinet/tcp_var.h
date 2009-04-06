@@ -540,6 +540,8 @@ extern	int tcp_insecure_rst;
 extern	int tcp_do_autorcvbuf;
 extern	int tcp_autorcvbuf_inc;
 extern	int tcp_autorcvbuf_max;
+extern	int tcp_do_rfc3465;
+extern	int tcp_abc_l_var;
 
 extern	int tcp_do_tso;
 extern	int tcp_do_autosndbuf;

@@ -959,7 +959,7 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, msgbuf, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, sysctl_kern_msgbuf, "A", "Contents of kernel message buffer");
+    NULL, 0, sysctl_kern_msgbuf, "A", "Contents of kernel message buffer");
 
 static int msgbuf_clearflag;
 

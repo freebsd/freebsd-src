@@ -110,6 +110,10 @@ void		 udp_init(void);
 void		 udp_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);
 int		 udp_shutdown(struct socket *so);
+
+
+typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
+int udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f);
 #endif
 
 #endif

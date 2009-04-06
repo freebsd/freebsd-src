@@ -328,8 +328,8 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	sf.sf_uc.uc_mcontext.mc_fs = rfs();
-	__asm __volatile("movl %%es,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_es));
-	__asm __volatile("movl %%ds,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_ds));
+	__asm __volatile("mov %%es,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_es));
+	__asm __volatile("mov %%ds,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_ds));
 	sf.sf_uc.uc_mcontext.mc_edi = regs->tf_rdi;
 	sf.sf_uc.uc_mcontext.mc_esi = regs->tf_rsi;
 	sf.sf_uc.uc_mcontext.mc_ebp = regs->tf_rbp;
@@ -443,8 +443,8 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	sf.sf_uc.uc_mcontext.mc_fs = rfs();
-	__asm __volatile("movl %%es,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_es));
-	__asm __volatile("movl %%ds,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_ds));
+	__asm __volatile("mov %%es,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_es));
+	__asm __volatile("mov %%ds,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_ds));
 	sf.sf_uc.uc_mcontext.mc_edi = regs->tf_rdi;
 	sf.sf_uc.uc_mcontext.mc_esi = regs->tf_rsi;
 	sf.sf_uc.uc_mcontext.mc_ebp = regs->tf_rbp;

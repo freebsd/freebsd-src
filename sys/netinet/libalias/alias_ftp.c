@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #else
+#include <ctype.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <stdio.h>

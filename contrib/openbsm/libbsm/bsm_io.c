@@ -32,7 +32,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#59 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#60 $
  */
 
 #include <sys/types.h>
@@ -3827,6 +3827,12 @@ print_socketex32_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
     __unused char sfrm, int xml)
 {
 
+	/*
+	 * This print routine prints BSM constant space domains and socket
+	 * types rather than converting them.  If we add string printers for
+	 * these constants in the future, we may want to call conversion
+	 * routines.
+	 */
 	print_tok_type(fp, tok->id, "socket", raw, xml);
 	if (xml) {
 		open_attr(fp, "sock_dom");

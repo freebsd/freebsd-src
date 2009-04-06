@@ -165,6 +165,95 @@ void	ktr_tracepoint(u_int mask, const char *file, int line,
 #define	TR6(d, p1, p2, p3, p4, p5, p6)	CTR6(KTR_GEN, d, p1, p2, p3, p4, p5, p6)
 
 /*
+ * The event macros implement KTR graphic plotting facilities provided
+ * by src/tools/sched/schedgraph.py.  Three generic types of events are
+ * supported: states, counters, and points.
+ *
+ * m is the ktr class for ktr_mask.
+ * ident is the string identifier that owns the event (ie: "thread 10001")
+ * etype is the type of event to plot (state, counter, point)
+ * edat is the event specific data (state name, counter value, point name)
+ * up to four attributes may be supplied as a name, value pair of arguments.
+ *
+ * etype and attribute names must be string constants.  This minimizes the
+ * number of ktr slots required by construction the final format strings
+ * at compile time.  Both must also include a colon and format specifier
+ * (ie. "prio:%d", prio).  It is recommended that string arguments be
+ * contained within escaped quotes if they may contain ',' or ':' characters.
+ *
+ * The special attribute (KTR_ATTR_LINKED, ident) creates a reference to another
+ * id on the graph for easy traversal of related graph elements.
+ */
+
+#define	KTR_ATTR_LINKED	"linkedto:\"%s\""
+#define	KTR_EFMT(egroup, ident, etype)					\
+	    "KTRGRAPH group:\"" egroup "\", id:\"%s\", " etype ", attributes: "
+
+#define	KTR_EVENT0(m, egroup, ident, etype, edat)			\
+	CTR2(m,	KTR_EFMT(egroup, ident, etype) "none", ident, edat)
+#define	KTR_EVENT1(m, egroup, ident, etype, edat, a0, v0)		\
+	CTR3(m, KTR_EFMT(egroup, ident, etype) a0, ident, edat, (v0))
+#define	KTR_EVENT2(m, egroup, ident, etype, edat, a0, v0, a1, v1)	\
+	CTR4(m, KTR_EFMT(egroup, ident, etype) a0 ", " a1,		\
+	    ident, edat, (v0), (v1))
+#define	KTR_EVENT3(m, egroup, ident, etype, edat, a0, v0, a1, v1, a2, v2)\
+	CTR5(m,KTR_EFMT(egroup, ident, etype) a0 ", " a1 ", " a2,	\
+	    ident, edat, (v0), (v1), (v2))
+#define	KTR_EVENT4(m, egroup, ident, etype, edat,			\
+	    a0, v0, a1, v1, a2, v2, a3, v3)				\
+	CTR6(m,KTR_EFMT(egroup, ident, etype) a0 ", " a1 ", " a2, ", ", a3,\
+	     ident, edat, (v0), (v1), (v2), (v3))
+
+/*
+ * State functions graph state changes on an ident.
+ */
+#define KTR_STATE0(m, egroup, ident, state)				\
+	KTR_EVENT0(m, egroup, ident, "state:\"%s\"", state)
+#define KTR_STATE1(m, egroup, ident, state, a0, v0)			\
+	KTR_EVENT1(m, egroup, ident, "state:\"%s\"", state, a0, (v0))
+#define KTR_STATE2(m, egroup, ident, state, a0, v0, a1, v1)		\
+	KTR_EVENT2(m, egroup, ident, "state:\"%s\"", state, a0, (v0), a1, (v1))
+#define KTR_STATE3(m, egroup, ident, state, a0, v0, a1, v1, a2, v2)	\
+	KTR_EVENT3(m, egroup, ident, "state:\"%s\"",			\
+	    state, a0, (v0), a1, (v1), a2, (v2))
+#define KTR_STATE4(m, egroup, ident, state, a0, v0, a1, v1, a2, v2, a3, v3)\
+	KTR_EVENT4(m, egroup, ident, "state:\"%s\"",			\
+	    state, a0, (v0), a1, (v1), a2, (v2), a3, (v3))
+
+/*
+ * Counter functions graph counter values.  The counter id
+ * must not be intermixed with a state id. 
+ */
+#define	KTR_COUNTER0(m, egroup, ident, counter)				\
+	KTR_EVENT0(m, egroup, ident, "counter:%d", counter)
+#define	KTR_COUNTER1(m, egroup, ident, edat, a0, v0)			\
+	KTR_EVENT1(m, egroup, ident, "counter:%d", counter, a0, (v0))
+#define	KTR_COUNTER2(m, egroup, ident, counter, a0, v0, a1, v1)		\
+	KTR_EVENT2(m, egroup, ident, "counter:%d", counter, a0, (v0), a1, (v1))
+#define	KTR_COUNTER3(m, egroup, ident, counter, a0, v0, a1, v1, a2, v2)	\
+	KTR_EVENT3(m, egroup, ident, "counter:%d",			\
+	    counter, a0, (v0), a1, (v1), a2, (v2))
+#define	KTR_COUNTER4(m, egroup, ident, counter, a0, v0, a1, v1, a2, v2, a3, v3)\
+	KTR_EVENT4(m, egroup, ident, "counter:%d",			\
+	    counter, a0, (v0), a1, (v1), a2, (v2), a3, (v3))
+
+/*
+ * Point functions plot points of interest on counter or state graphs.
+ */
+#define	KTR_POINT0(m, egroup, ident, point)				\
+	KTR_EVENT0(m, egroup, ident, "point:\"%s\"", point)
+#define	KTR_POINT1(m, egroup, ident, point, a0, v0)			\
+	KTR_EVENT1(m, egroup, ident, "point:\"%s\"", point, a0, (v0))
+#define	KTR_POINT2(m, egroup, ident, point, a0, v0, a1, v1)		\
+	KTR_EVENT2(m, egroup, ident, "point:\"%s\"", point, a0, (v0), a1, (v1))
+#define	KTR_POINT3(m, egroup, ident, point, a0, v0, a1, v1, a2, v2)	\
+	KTR_EVENT3(m, egroup, ident, "point:\"%s\"", point,		\
+	    a0, (v0), a1, (v1), a2, (v2))
+#define	KTR_POINT4(m, egroup, ident, point, a0, v0, a1, v1, a2, v2, a3, v3)\
+	KTR_EVENT4(m, egroup, ident, "point:\"%s\"",			\
+	    point, a0, (v0), a1, (v1), a2, (v2), a3, (v3))
+
+/*
  * Trace initialization events, similar to CTR with KTR_INIT, but
  * completely ifdef'ed out if KTR_INIT isn't in KTR_COMPILE (to
  * save string space, the compiler doesn't optimize out strings

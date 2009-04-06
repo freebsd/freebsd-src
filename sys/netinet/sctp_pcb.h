@@ -144,6 +144,7 @@ struct sctp_tagblock {
 
 
 struct sctp_epinfo {
+	struct socket *udp_tun_socket;
 	struct sctpasochead *sctp_asochash;
 	u_long hashasocmark;
 

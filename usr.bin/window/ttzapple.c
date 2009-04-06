@@ -43,6 +43,7 @@ static char rcsid[] =
 #include "ww.h"
 #include "tt.h"
 #include "char.h"
+#include <stdio.h>
 
 /*
 zz|zapple|perfect apple:\

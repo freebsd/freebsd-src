@@ -115,6 +115,8 @@ typedef int ofw_vec_t(void *);
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
+int dtlb_slots;
+int itlb_slots;
 struct tlb_entry *kernel_tlbs;
 int kernel_tlb_slots;
 
@@ -276,7 +278,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	tick_stop();
 
 	/*
-	 * Set up Open Firmware entry points 
+	 * Set up Open Firmware entry points.
 	 */
 	ofw_tba = rdpr(tba);
 	ofw_vec = (u_long)vec;
@@ -379,6 +381,19 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		    "Attempting to continue anyway.\n");
 		end = (vm_offset_t)_end;
 	}
+
+	/*
+	 * Determine the TLB slot maxima, which are expected to be
+	 * equal across all CPUs.
+	 * NB: for Cheetah-class CPUs, these properties only refer
+	 * to the t16s.
+	 */
+	if (OF_getprop(pc->pc_node, "#dtlb-entries", &dtlb_slots,
+	    sizeof(dtlb_slots)) == -1)
+		panic("sparc64_init: cannot determine number of dTLB slots");
+	if (OF_getprop(pc->pc_node, "#itlb-entries", &itlb_slots,
+	    sizeof(itlb_slots)) == -1)
+		panic("sparc64_init: cannot determine number of iTLB slots");
 
 	cache_init(pc);
 	cache_enable();

@@ -38,6 +38,8 @@
 #ifndef _EHCI_H_
 #define	_EHCI_H_
 
+#define	EHCI_MAX_DEVICES USB_MAX_DEVICES
+
 /* PCI config registers */
 #define	PCI_CBMEM		0x10	/* configuration base MEM */
 #define	PCI_INTERFACE_EHCI	0x20
@@ -159,6 +161,15 @@
 #define	EHCI_PS_CSC		0x00000002	/* RWC connect status change */
 #define	EHCI_PS_CS		0x00000001	/* RO connect status */
 #define	EHCI_PS_CLEAR		(EHCI_PS_OCC | EHCI_PS_PEC | EHCI_PS_CSC)
+
+#define	EHCI_USBMODE		0x68	/* RW USB Device mode register */
+#define	EHCI_UM_CM		0x00000003	/* R/WO Controller Mode */
+#define	EHCI_UM_CM_IDLE		0x0	/* Idle */
+#define	EHCI_UM_CM_HOST		0x3	/* Host Controller */
+#define	EHCI_UM_ES		0x00000004	/* R/WO Endian Select */
+#define	EHCI_UM_ES_LE		0x0	/* Little-endian byte alignment */
+#define	EHCI_UM_ES_BE		0x4	/* Big-endian byte alignment */
+#define	EHCI_UM_SDIS		0x00000010	/* R/WO Stream Disable Mode */
 
 #define	EHCI_PORT_RESET_COMPLETE	2	/* ms */
 
@@ -444,12 +455,12 @@ union ehci_hub_desc {
 typedef struct ehci_softc {
 	struct ehci_hw_softc sc_hw;
 	struct usb2_bus sc_bus;		/* base device */
-	struct usb2_config_td sc_config_td;
 	struct usb2_callout sc_tmo_pcd;
 	union ehci_hub_desc sc_hub_desc;
 	struct usb2_sw_transfer sc_root_ctrl;
 	struct usb2_sw_transfer sc_root_intr;
 
+	struct usb2_device *sc_devices[EHCI_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	struct ehci_qh *sc_async_p_last;
@@ -457,7 +468,6 @@ typedef struct ehci_softc {
 	struct ehci_sitd *sc_isoc_fs_p_last[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	struct ehci_itd *sc_isoc_hs_p_last[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	void   *sc_intr_hdl;
-	device_t sc_dev;
 	bus_size_t sc_io_size;
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
@@ -469,11 +479,12 @@ typedef struct ehci_softc {
 	uint16_t sc_intr_stat[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	uint16_t sc_id_vendor;		/* vendor ID for root hub */
 	uint16_t sc_flags;		/* chip specific flags */
-#define	EHCI_SCFLG_SETMODE     0x0001	/* set bridge mode again after init
-					 * (Marvell) */
-#define	EHCI_SCFLG_FORCESPEED  0x0002	/* force speed (Marvell) */
-#define	EHCI_SCFLG_NORESTERM   0x0004	/* don't terminate reset sequence
-					 * (Marvell) */
+#define	EHCI_SCFLG_SETMODE	0x0001	/* set bridge mode again after init */
+#define	EHCI_SCFLG_FORCESPEED	0x0002	/* force speed */
+#define	EHCI_SCFLG_NORESTERM	0x0004	/* don't terminate reset sequence */
+#define	EHCI_SCFLG_BIGEDESC	0x0008	/* big-endian byte order descriptors */
+#define	EHCI_SCFLG_BIGEMMIO	0x0010	/* big-endian byte order MMIO */
+#define	EHCI_SCFLG_TT		0x0020	/* transaction translator present */
 
 	uint8_t	sc_offs;		/* offset to operational registers */
 	uint8_t	sc_doorbell_disable;	/* set on doorbell failure */

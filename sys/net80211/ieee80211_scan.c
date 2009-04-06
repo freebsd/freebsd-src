@@ -73,16 +73,20 @@ struct scan_state {
 
 /*
  * Roaming-related defaults.  RSSI thresholds are as returned by the
- * driver (dBm).  Transmit rate thresholds are IEEE rate codes (i.e
+ * driver (.5dBm).  Transmit rate thresholds are IEEE rate codes (i.e
  * .5M units) or MCS.
  */
-#define	ROAM_RSSI_11A_DEFAULT		14	/* rssi threshold for 11a bss */
-#define	ROAM_RSSI_11B_DEFAULT		14	/* rssi threshold for 11b bss */
-#define	ROAM_RSSI_11BONLY_DEFAULT	14	/* rssi threshold for 11b-only bss */
-#define	ROAM_RATE_11A_DEFAULT		2*12	/* tx rate thresh for 11a bss */
-#define	ROAM_RATE_11B_DEFAULT		2*5	/* tx rate thresh for 11b bss */
-#define	ROAM_RATE_11BONLY_DEFAULT	2*1	/* tx rate thresh for 11b-only bss */
-#define	ROAM_MCS_11N_DEFAULT		1	/* tx MCS thresh for 11n  bss*/
+/* rssi thresholds */
+#define	ROAM_RSSI_11A_DEFAULT		14	/* 11a bss */
+#define	ROAM_RSSI_11B_DEFAULT		14	/* 11b bss */
+#define	ROAM_RSSI_11BONLY_DEFAULT	14	/* 11b-only bss */
+/* transmit rate thresholds */
+#define	ROAM_RATE_11A_DEFAULT		2*12	/* 11a bss */
+#define	ROAM_RATE_11B_DEFAULT		2*5	/* 11b bss */
+#define	ROAM_RATE_11BONLY_DEFAULT	2*1	/* 11b-only bss */
+#define	ROAM_RATE_HALF_DEFAULT		2*6	/* half-width 11a/g bss */
+#define	ROAM_RATE_QUARTER_DEFAULT	2*3	/* quarter-width 11a/g bss */
+#define	ROAM_MCS_11N_DEFAULT		(1 | IEEE80211_RATE_MCS) /* 11n bss */
 
 static	void scan_restart_pwrsav(void *);
 static	void scan_curchan(struct ieee80211_scan_state *, unsigned long);
@@ -126,50 +130,38 @@ ieee80211_scan_detach(struct ieee80211com *ic)
 	}
 }
 
-static __inline void
-setparams(struct ieee80211_roamparam *rp, int8_t rssi, uint8_t txrate)
-{
-	rp->rssi = rssi;
-	rp->rate = txrate;
-}
+static const struct ieee80211_roamparam defroam[IEEE80211_MODE_MAX] = {
+	[IEEE80211_MODE_11A]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_11G]	= { .rssi = ROAM_RSSI_11B_DEFAULT,
+				    .rate = ROAM_RATE_11B_DEFAULT },
+	[IEEE80211_MODE_11B]	= { .rssi = ROAM_RSSI_11BONLY_DEFAULT,
+				    .rate = ROAM_RATE_11BONLY_DEFAULT },
+	[IEEE80211_MODE_TURBO_A]= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_TURBO_G]= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_STURBO_A]={ .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_HALF]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_RATE_HALF_DEFAULT },
+	[IEEE80211_MODE_QUARTER]= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_RATE_QUARTER_DEFAULT },
+	[IEEE80211_MODE_11NA]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_MCS_11N_DEFAULT },
+	[IEEE80211_MODE_11NG]	= { .rssi = ROAM_RSSI_11B_DEFAULT,
+				    .rate = ROAM_MCS_11N_DEFAULT },
+};
 
 void
 ieee80211_scan_vattach(struct ieee80211vap *vap)
 {
-	struct ieee80211com *ic = vap->iv_ic;
-
 	vap->iv_bgscanidle = (IEEE80211_BGSCAN_IDLE_DEFAULT*1000)/hz;
 	vap->iv_bgscanintvl = IEEE80211_BGSCAN_INTVAL_DEFAULT*hz;
 	vap->iv_scanvalid = IEEE80211_SCAN_VALID_DEFAULT*hz;
 
 	vap->iv_roaming = IEEE80211_ROAMING_AUTO;
-
-	/* NB: only set supported modes so user apps can identify */
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11A))
-		setparams(&vap->iv_roamparms[IEEE80211_MODE_11A],
-		    ROAM_RSSI_11A_DEFAULT, ROAM_RATE_11A_DEFAULT);
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11G))
-		setparams(&vap->iv_roamparms[IEEE80211_MODE_11G],
-		    ROAM_RSSI_11B_DEFAULT, ROAM_RATE_11B_DEFAULT);
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11B))
-		setparams(&vap->iv_roamparms[IEEE80211_MODE_11B],
-		    ROAM_RSSI_11BONLY_DEFAULT, ROAM_RATE_11BONLY_DEFAULT);
-	/* NB: default turbo controls to be the same as !turbo */
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_TURBO_A))
-		vap->iv_roamparms[IEEE80211_MODE_TURBO_A] =
-		    vap->iv_roamparms[IEEE80211_MODE_11A];
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_TURBO_G))
-		vap->iv_roamparms[IEEE80211_MODE_TURBO_G] =
-		    vap->iv_roamparms[IEEE80211_MODE_11G];
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_STURBO_A))
-		vap->iv_roamparms[IEEE80211_MODE_STURBO_A] =
-		    vap->iv_roamparms[IEEE80211_MODE_11A];
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA))
-		setparams(&vap->iv_roamparms[IEEE80211_MODE_11NA],
-		    ROAM_RSSI_11A_DEFAULT, ROAM_MCS_11N_DEFAULT | 0x80);
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
-		setparams(&vap->iv_roamparms[IEEE80211_MODE_11NG],
-		    ROAM_RSSI_11B_DEFAULT, ROAM_MCS_11N_DEFAULT | 0x80);
+	memcpy(vap->iv_roamparms, defroam, sizeof(defroam));
 }
 
 void
@@ -354,7 +346,8 @@ scan_dump(struct ieee80211_scan_state *ss)
 
 	if_printf(vap->iv_ifp, "scan set ");
 	ieee80211_scan_dump_channels(ss);
-	printf(" dwell min %lu max %lu\n", ss->ss_mindwell, ss->ss_maxdwell);
+	printf(" dwell min %lums max %lums\n",
+	    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(ss->ss_maxdwell));
 }
 #endif /* IEEE80211_DEBUG */
 
@@ -927,7 +920,7 @@ again:
 			maxdwell = ss->ss_maxdwell;
 
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: chan %3d%c -> %3d%c [%s, dwell min %lu max %lu]\n",
+		    "%s: chan %3d%c -> %3d%c [%s, dwell min %lums max %lums]\n",
 		    __func__,
 		    ieee80211_chan2ieee(ic, ic->ic_curchan),
 		        channel_type(ic->ic_curchan),
@@ -935,7 +928,7 @@ again:
 		    (ss->ss_flags & IEEE80211_SCAN_ACTIVE) &&
 			(chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0 ?
 			"active" : "passive",
-		    ss->ss_mindwell, maxdwell);
+		    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(maxdwell));
 
 		/*
 		 * Potentially change channel and phy mode.

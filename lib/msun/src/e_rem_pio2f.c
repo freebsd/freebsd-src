@@ -41,7 +41,7 @@ pio2_1  =  1.57079631090164184570e+00, /* 0x3FF921FB, 0x50000000 */
 pio2_1t =  1.58932547735281966916e-08; /* 0x3E5110b4, 0x611A6263 */
 
 #ifdef INLINE_REM_PIO2F
-extern inline
+extern __gnu89_inline
 #endif
 int
 __ieee754_rem_pio2f(float x, double *y)

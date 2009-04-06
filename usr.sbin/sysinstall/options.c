@@ -122,8 +122,6 @@ static Option Options[] = {
       OPT_IS_VAR,	NULL,			VAR_TRY_DHCP,		varCheck	},
 { "IPv6",		"Attempt IPv6 configuration of interfaces",
       OPT_IS_VAR,	NULL,			VAR_TRY_RTSOL,		varCheck	},
-{ "Skip PCCARD",	"Skip PC Card probing, do not use PC Card devices for installation",
-      OPT_IS_VAR,	NULL,			VAR_SKIP_PCCARD,	varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFTPUserPass,	VAR_FTP_USER,		varCheck	},
 { "Editor",		"Which text editor to use during installation",

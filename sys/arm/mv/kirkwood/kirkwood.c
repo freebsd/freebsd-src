@@ -112,7 +112,7 @@ const struct obio_pci mv_pci_info[] = {
 	{ 0, 0, 0 }
 };
 
-struct resource_spec mv_gpio_spec[] = {
+struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -124,7 +124,7 @@ struct resource_spec mv_gpio_spec[] = {
 	{ -1, 0 }
 };
 
-struct resource_spec mv_xor_spec[] = {
+struct resource_spec mv_xor_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
@@ -147,6 +147,35 @@ const struct decode_win cpu_win_tbl[] = {
 
 	/* Device bus CS2 */
 	{ 1, 0x1b, MV_DEV_CS2_PHYS_BASE, MV_DEV_CS2_SIZE, -1 },
+
+	/* CESA */
+	{ 3, 0x00, MV_CESA_SRAM_PHYS_BASE, MV_CESA_SRAM_SIZE, -1 },
+
 };
 const struct decode_win *cpu_wins = cpu_win_tbl;
 int cpu_wins_no = sizeof(cpu_win_tbl) / sizeof(struct decode_win);
+
+const struct decode_win xor_win_tbl[] = {
+	/* PCIE MEM */
+	{ 4, 0xE8, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
+};
+const struct decode_win *xor_wins = xor_win_tbl;
+int xor_wins_no = sizeof(xor_win_tbl) / sizeof(struct decode_win);
+
+uint32_t
+get_tclk(void)
+{
+	uint32_t dev, rev;
+
+	/*
+	 * On Kirkwood TCLK is not configurable and depends on silicon
+	 * revision:
+	 * - A0 has TCLK hardcoded to 200 MHz.
+	 * - Z0 and others have TCLK hardcoded to 166 MHz.
+	 */
+	soc_id(&dev, &rev);
+	if (dev == MV_DEV_88F6281 && rev == 2)
+		return (TCLK_200MHZ);
+
+	return (TCLK_166MHZ);
+}

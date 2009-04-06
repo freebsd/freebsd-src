@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_CLI" "8" "19 February 2008" "" ""
+.TH "WPA_CLI" "8" "28 November 2008" "" ""
 
 .SH NAME
 wpa_cli \- WPA command line client
@@ -57,17 +57,18 @@ current network. <text> is description of the request. In
 case of OTP request, it includes the challenge from the
 authentication server.
 .PP
-The reply to these requests can be given with 'identity',
-'password', and 'otp' commands. <id> needs to be copied from the
-the matching request. 'password' and 'otp' commands can be used
-regardless of whether the request was for PASSWORD or OTP. The
-main difference between these two commands is that values given
-with 'password' are remembered as long as wpa_supplicant is
-running whereas values given with 'otp' are used only once and
-then forgotten, i.e., wpa_supplicant will ask frontend for a new
-value for every use. This can be used to implement
-one-time-password lists and generic token card -based
-authentication.
+The reply to these requests can be given with
+\fBidentity\fR, \fBpassword\fR, and
+\fBotp\fR commands. <id> needs to be copied from
+the matching request. \fBpassword\fR and
+\fBotp\fR commands can be used regardless of whether
+the request was for PASSWORD or OTP. The main difference between these
+two commands is that values given with \fBpassword\fR are
+remembered as long as wpa_supplicant is running whereas values given
+with \fBotp\fR are used only once and then forgotten,
+i.e., wpa_supplicant will ask frontend for a new value for every use.
+This can be used to implement one-time-password lists and generic token
+card -based authentication.
 .PP
 Example request for password and a matching reply:
 .sp

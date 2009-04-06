@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # uuencode:  file(1) magic for ASCII-encoded files
 #
@@ -9,22 +8,22 @@
 # punctuation and survives BITNET gateways better.)  If regular expressions
 # were supported, this entry could possibly be split into two with
 # "begin\040\.\*\012M" or "begin\040\.\*\012h" (where \. and \* are REs).
-0	string		begin\040	uuencoded or xxencoded text
+0	search/1	begin\ 		uuencoded or xxencoded text
 
 # btoa(1) is an alternative to uuencode that requires less space.
-0	string		xbtoa\ Begin	btoa'd text
+0	search/1	xbtoa\ Begin	btoa'd text
 
 # ship(1) is another, much cooler alternative to uuencode.
 # Greg Roelofs, newt@uchicago.edu
-0	string		$\012ship	ship'd binary text
+0	search/1	$\012ship	ship'd binary text
 
 # bencode(8) is used to encode compressed news batches (Bnews/Cnews only?)
 # Greg Roelofs, newt@uchicago.edu
-0	string	Decode\ the\ following\ with\ bdeco	bencoded News text
+0	search/1	Decode\ the\ following\ with\ bdeco	bencoded News text
 
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
 # Daniel Quinlan, quinlan@yggdrasil.com
-11	string	must\ be\ converted\ with\ BinHex	BinHex binary text
->41	string	x					\b, version %.3s
+11	search/1	must\ be\ converted\ with\ BinHex	BinHex binary text
+>41	search/1	x					\b, version %.3s
 
-# GRR:  is MIME BASE64 encoding handled somewhere?
+# GRR: handle BASE64

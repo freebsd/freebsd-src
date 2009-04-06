@@ -1081,6 +1081,7 @@ static int wpa_cli_exec(const char *program, const char *arg1,
 {
 	char *cmd;
 	size_t len;
+	int ret = 0;
 
 	len = os_strlen(program) + os_strlen(arg1) + os_strlen(arg2) + 3;
 	cmd = os_malloc(len);
@@ -1089,11 +1090,12 @@ static int wpa_cli_exec(const char *program, const char *arg1,
 	os_snprintf(cmd, len, "%s %s %s", program, arg1, arg2);
 	cmd[len - 1] = '\0';
 #ifndef _WIN32_WCE
-	system(cmd);
+	if (system(cmd) < 0)
+		ret = -1;
 #endif /* _WIN32_WCE */
 	os_free(cmd);
 
-	return 0;
+	return ret;
 }
 
 

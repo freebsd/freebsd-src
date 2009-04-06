@@ -25,8 +25,6 @@
  *
  */
 
-#define NO_DMA
-
 /*-
  * Copyright (c) 1997, 1998, 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -189,7 +187,6 @@ busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
  * with the tag are meant to never be defered.
  * XXX Should have a way to identify which driver is responsible here.
  */
-#ifndef NO_DMA
 static void
 dflt_lock(void *arg, bus_dma_lock_op_t op)
 {
@@ -199,7 +196,6 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
 	printf("DRIVER_ERROR: busdma dflt_lock called\n");
 #endif
 }
-#endif
 
 static __inline bus_dmamap_t
 _busdma_alloc_dmamap(void)
@@ -240,7 +236,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		   void *lockfuncarg, bus_dma_tag_t *dmat)
 {
-#ifndef NO_DMA
 	bus_dma_tag_t newtag;
 	int error = 0;
 
@@ -315,10 +310,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
 	    __func__, newtag, (newtag != NULL ? newtag->flags : 0), error);
 	return (error);
-#else 
-	return ENOSYS;
-#endif
-
 }
 
 int
@@ -656,7 +647,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 			if (m->m_len > 0) {
 				error = bus_dmamap_load_buffer(dmat,
 				    dm_segments, map, m->m_data, m->m_len, 
-				    pmap_kernel(), flags, &lastaddr, &nsegs);
+				    kernel_pmap, flags, &lastaddr, &nsegs);
 				map->len += m->m_len;
 			}
 		}
@@ -703,7 +694,7 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 			if (m->m_len > 0) {
 				error = bus_dmamap_load_buffer(dmat, segs, map,
 				    m->m_data, m->m_len, 
-				    pmap_kernel(), flags, &lastaddr, nsegs);
+				    kernel_pmap, flags, &lastaddr, nsegs);
 				map->len += m->m_len;
 			}
 		}

@@ -285,6 +285,8 @@ tty_info(struct tty *tp)
 		state = "suspended";
 	else if (TD_AWAITING_INTR(td))
 		state = "intrwait";
+	else if (pick->p_state == PRS_ZOMBIE)
+		state = "zombie";
 	else
 		state = "unknown";
 	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;

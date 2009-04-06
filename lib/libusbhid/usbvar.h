@@ -34,3 +34,8 @@ struct report_desc {
 	unsigned char data[1];
 };
 
+/* internal backwards compatibility functions */
+
+int	hid_set_immed_compat7(int fd, int enable);
+int	hid_get_report_id_compat7(int fd);
+report_desc_t	hid_get_report_desc_compat7(int fd);

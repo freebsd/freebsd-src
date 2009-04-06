@@ -29,14 +29,6 @@
 #ifndef _USB2_MFUNC_H_
 #define	_USB2_MFUNC_H_
 
-#define	USB_MAKE_001(n,ENUM) ENUM,
-#define	USB_MAKE_ENUM(m) \
-enum { m(USB_MAKE_001,) m##_MAX }
-
-#define	USB_MAKE_002(n,ENUM) #ENUM,
-#define	USB_MAKE_DEBUG_TABLE(m) \
-static const char * m[m##_MAX] = { m(USB_MAKE_002,) }
-
 #define	USB_LOG2(n) (	    \
 ((x) <= (1<<0x00)) ? 0x00 : \
 ((x) <= (1<<0x01)) ? 0x01 : \

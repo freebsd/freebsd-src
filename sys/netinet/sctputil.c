@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_uio.h>
 #include <netinet/sctp_timer.h>
-#include <netinet/sctp_crc32.h>
 #include <netinet/sctp_indata.h>/* for sctp_deliver_data() */
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_asconf.h>
@@ -53,8 +52,14 @@ __FBSDID("$FreeBSD$");
 #define NUMBER_OF_MTU_SIZES 18
 
 
+#if defined(__Windows__) && !defined(SCTP_LOCAL_TRACE_BUF)
+#include "eventrace_netinet.h"
+#include "sctputil.tmh"		/* this is the file that will be auto
+				 * generated */
+#else
 #ifndef KTR_SCTP
 #define KTR_SCTP KTR_SUBSYS
+#endif
 #endif
 
 void
@@ -1114,7 +1119,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	 * Now the stream parameters, here we allocate space for all streams
 	 * that we request by default.
 	 */
-	asoc->streamoutcnt = asoc->pre_open_streams =
+	asoc->strm_realoutsize = asoc->streamoutcnt = asoc->pre_open_streams =
 	    m->sctp_ep.pre_open_stream_count;
 	SCTP_MALLOC(asoc->strmout, struct sctp_stream_out *,
 	    asoc->streamoutcnt * sizeof(struct sctp_stream_out),
@@ -2458,48 +2463,6 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	return;
 }
 
-#ifdef SCTP_USE_ADLER32
-static uint32_t
-update_adler32(uint32_t adler, uint8_t * buf, int32_t len)
-{
-	uint32_t s1 = adler & 0xffff;
-	uint32_t s2 = (adler >> 16) & 0xffff;
-	int n;
-
-	for (n = 0; n < len; n++, buf++) {
-		/* s1 = (s1 + buf[n]) % BASE */
-		/* first we add */
-		s1 = (s1 + *buf);
-		/*
-		 * now if we need to, we do a mod by subtracting. It seems a
-		 * bit faster since I really will only ever do one subtract
-		 * at the MOST, since buf[n] is a max of 255.
-		 */
-		if (s1 >= SCTP_ADLER32_BASE) {
-			s1 -= SCTP_ADLER32_BASE;
-		}
-		/* s2 = (s2 + s1) % BASE */
-		/* first we add */
-		s2 = (s2 + s1);
-		/*
-		 * again, it is more efficent (it seems) to subtract since
-		 * the most s2 will ever be is (BASE-1 + BASE-1) in the
-		 * worse case. This would then be (2 * BASE) - 2, which will
-		 * still only do one subtract. On Intel this is much better
-		 * to do this way and avoid the divide. Have not -pg'd on
-		 * sparc.
-		 */
-		if (s2 >= SCTP_ADLER32_BASE) {
-			s2 -= SCTP_ADLER32_BASE;
-		}
-	}
-	/* Return the adler32 of the bytes buf[0..len-1] */
-	return ((s2 << 16) + s1);
-}
-
-#endif
-
-
 uint32_t
 sctp_calculate_len(struct mbuf *m)
 {
@@ -2513,132 +2476,6 @@ sctp_calculate_len(struct mbuf *m)
 	}
 	return (tlen);
 }
-
-#if defined(SCTP_WITH_NO_CSUM)
-
-uint32_t
-sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
-{
-	/*
-	 * given a mbuf chain with a packetheader offset by 'offset'
-	 * pointing at a sctphdr (with csum set to 0) go through the chain
-	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
-	 * has a side bonus as it will calculate the total length of the
-	 * mbuf chain. Note: if offset is greater than the total mbuf
-	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
-	 */
-	if (pktlen == NULL)
-		return (0);
-	*pktlen = sctp_calculate_len(m);
-	return (0);
-}
-
-#elif defined(SCTP_USE_INCHKSUM)
-
-#include <machine/in_cksum.h>
-
-uint32_t
-sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
-{
-	/*
-	 * given a mbuf chain with a packetheader offset by 'offset'
-	 * pointing at a sctphdr (with csum set to 0) go through the chain
-	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
-	 * has a side bonus as it will calculate the total length of the
-	 * mbuf chain. Note: if offset is greater than the total mbuf
-	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
-	 */
-	int32_t tlen = 0;
-	struct mbuf *at;
-	uint32_t the_sum, retsum;
-
-	at = m;
-	while (at) {
-		tlen += SCTP_BUF_LEN(at);
-		at = SCTP_BUF_NEXT(at);
-	}
-	the_sum = (uint32_t) (in_cksum_skip(m, tlen, offset));
-	if (pktlen != NULL)
-		*pktlen = (tlen - offset);
-	retsum = htons(the_sum);
-	return (the_sum);
-}
-
-#else
-
-uint32_t
-sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
-{
-	/*
-	 * given a mbuf chain with a packetheader offset by 'offset'
-	 * pointing at a sctphdr (with csum set to 0) go through the chain
-	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
-	 * has a side bonus as it will calculate the total length of the
-	 * mbuf chain. Note: if offset is greater than the total mbuf
-	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
-	 */
-	int32_t tlen = 0;
-
-#ifdef SCTP_USE_ADLER32
-	uint32_t base = 1L;
-
-#else
-	uint32_t base = 0xffffffff;
-
-#endif
-	struct mbuf *at;
-
-	at = m;
-	/* find the correct mbuf and offset into mbuf */
-	while ((at != NULL) && (offset > (uint32_t) SCTP_BUF_LEN(at))) {
-		offset -= SCTP_BUF_LEN(at);	/* update remaining offset
-						 * left */
-		at = SCTP_BUF_NEXT(at);
-	}
-	while (at != NULL) {
-		if ((SCTP_BUF_LEN(at) - offset) > 0) {
-#ifdef SCTP_USE_ADLER32
-			base = update_adler32(base,
-			    (unsigned char *)(SCTP_BUF_AT(at, offset)),
-			    (unsigned int)(SCTP_BUF_LEN(at) - offset));
-#else
-			if ((SCTP_BUF_LEN(at) - offset) < 4) {
-				/* Use old method if less than 4 bytes */
-				base = old_update_crc32(base,
-				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
-				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
-			} else {
-				base = update_crc32(base,
-				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
-				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
-			}
-#endif
-			tlen += SCTP_BUF_LEN(at) - offset;
-			/* we only offset once into the first mbuf */
-		}
-		if (offset) {
-			if (offset < (uint32_t) SCTP_BUF_LEN(at))
-				offset = 0;
-			else
-				offset -= SCTP_BUF_LEN(at);
-		}
-		at = SCTP_BUF_NEXT(at);
-	}
-	if (pktlen != NULL) {
-		*pktlen = tlen;
-	}
-#ifdef SCTP_USE_ADLER32
-	/* Adler32 */
-	base = htonl(base);
-#else
-	/* CRC-32c */
-	base = sctp_csum_finalize(base);
-#endif
-	return (base);
-}
-
-
-#endif
 
 void
 sctp_mtu_size_reset(struct sctp_inpcb *inp,
@@ -3428,7 +3265,6 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 		}
 #endif
 		socantsendmore(stcb->sctp_socket);
-		socantrcvmore(stcb->sctp_socket);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
@@ -3515,6 +3351,63 @@ sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
 	    &stcb->sctp_socket->so_rcv, 1, so_locked);
 }
 
+
+static void
+sctp_notify_stream_reset_add(struct sctp_tcb *stcb, int number_entries, int flag)
+{
+	struct mbuf *m_notify;
+	struct sctp_queued_to_read *control;
+	struct sctp_stream_reset_event *strreset;
+	int len;
+
+	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_STREAM_RESETEVNT)) {
+		/* event not enabled */
+		return;
+	}
+	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
+	if (m_notify == NULL)
+		/* no space left */
+		return;
+	SCTP_BUF_LEN(m_notify) = 0;
+	len = sizeof(struct sctp_stream_reset_event) + (number_entries * sizeof(uint16_t));
+	if (len > M_TRAILINGSPACE(m_notify)) {
+		/* never enough room */
+		sctp_m_freem(m_notify);
+		return;
+	}
+	strreset = mtod(m_notify, struct sctp_stream_reset_event *);
+	strreset->strreset_type = SCTP_STREAM_RESET_EVENT;
+	strreset->strreset_flags = SCTP_STRRESET_ADD_STREAM | flag;
+	strreset->strreset_length = len;
+	strreset->strreset_assoc_id = sctp_get_associd(stcb);
+	strreset->strreset_list[0] = number_entries;
+
+	SCTP_BUF_LEN(m_notify) = len;
+	SCTP_BUF_NEXT(m_notify) = NULL;
+	if (sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv) < SCTP_BUF_LEN(m_notify)) {
+		/* no space */
+		sctp_m_freem(m_notify);
+		return;
+	}
+	/* append to socket */
+	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
+	    0, 0, 0, 0, 0, 0,
+	    m_notify);
+	if (control == NULL) {
+		/* no memory */
+		sctp_m_freem(m_notify);
+		return;
+	}
+	control->spec_flags = M_NOTIFICATION;
+	control->length = SCTP_BUF_LEN(m_notify);
+	/* not that we need this */
+	control->tail_mbuf = m_notify;
+	sctp_add_to_readq(stcb->sctp_ep, stcb,
+	    control,
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+}
+
+
 static void
 sctp_notify_stream_reset(struct sctp_tcb *stcb,
     int number_entries, uint16_t * list, int flag)
@@ -3594,6 +3487,9 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
 		/* If the socket is gone we are out of here */
+		return;
+	}
+	if (stcb->sctp_socket->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		return;
 	}
 	if (stcb && ((stcb->asoc.state & SCTP_STATE_COOKIE_WAIT) ||
@@ -3689,6 +3585,16 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		break;
 	case SCTP_NOTIFY_HB_RESP:
 		break;
+	case SCTP_NOTIFY_STR_RESET_INSTREAM_ADD_OK:
+		sctp_notify_stream_reset_add(stcb, error, SCTP_STRRESET_INBOUND_STR);
+		break;
+	case SCTP_NOTIFY_STR_RESET_ADD_OK:
+		sctp_notify_stream_reset_add(stcb, error, SCTP_STRRESET_OUTBOUND_STR);
+		break;
+	case SCTP_NOTIFY_STR_RESET_ADD_FAIL:
+		sctp_notify_stream_reset_add(stcb, error, (SCTP_STRRESET_FAILED | SCTP_STRRESET_OUTBOUND_STR));
+		break;
+
 	case SCTP_NOTIFY_STR_RESET_SEND:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *) data), SCTP_STRRESET_OUTBOUND_STR);
 		break;
@@ -6708,14 +6614,165 @@ sctp_log_trace(uint32_t subsys, const char *str SCTP_UNUSED, uint32_t a, uint32_
  * so we can do UDP tunneling. In
  * the mean-time, we return error
  */
+#include <netinet/udp.h>
+#include <netinet/udp_var.h>
+#include <sys/proc.h>
+#ifdef INET6
+#include <netinet6/sctp6_var.h>
+#endif
+
+static void
+sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
+{
+	struct ip *iph;
+	struct mbuf *sp, *last;
+	struct udphdr *uhdr;
+	uint16_t port = 0, len;
+	int header_size = sizeof(struct udphdr) + sizeof(struct sctphdr);
+
+	/*
+	 * Split out the mbuf chain. Leave the IP header in m, place the
+	 * rest in the sp.
+	 */
+	if ((m->m_flags & M_PKTHDR) == 0) {
+		/* Can't handle one that is not a pkt hdr */
+		goto out;
+	}
+	/* pull the src port */
+	iph = mtod(m, struct ip *);
+	uhdr = (struct udphdr *)((caddr_t)iph + off);
+
+	port = uhdr->uh_sport;
+	sp = m_split(m, off, M_DONTWAIT);
+	if (sp == NULL) {
+		/* Gak, drop packet, we can't do a split */
+		goto out;
+	}
+	if (sp->m_pkthdr.len < header_size) {
+		/* Gak, packet can't have an SCTP header in it - to small */
+		m_freem(sp);
+		goto out;
+	}
+	/* ok now pull up the UDP header and SCTP header together */
+	sp = m_pullup(sp, header_size);
+	if (sp == NULL) {
+		/* Gak pullup failed */
+		goto out;
+	}
+	/* trim out the UDP header */
+	m_adj(sp, sizeof(struct udphdr));
+
+	/* Now reconstruct the mbuf chain */
+	/* 1) find last one */
+	last = m;
+	while (last->m_next != NULL) {
+		last = last->m_next;
+	}
+	last->m_next = sp;
+	m->m_pkthdr.len += sp->m_pkthdr.len;
+	last = m;
+	while (last != NULL) {
+		last = last->m_next;
+	}
+	/* Now its ready for sctp_input or sctp6_input */
+	iph = mtod(m, struct ip *);
+	switch (iph->ip_v) {
+	case IPVERSION:
+		{
+			/* its IPv4 */
+			len = SCTP_GET_IPV4_LENGTH(iph);
+			len -= sizeof(struct udphdr);
+			SCTP_GET_IPV4_LENGTH(iph) = len;
+			sctp_input_with_port(m, off, port);
+			break;
+		}
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+		{
+			/* its IPv6 - NOT supported */
+			goto out;
+			break;
+
+		}
+#endif
+	default:
+		{
+			m_freem(m);
+			break;
+		}
+	}
+	return;
+out:
+	m_freem(m);
+}
 
 void 
 sctp_over_udp_stop(void)
 {
-	return;
+	struct socket *sop;
+
+	/*
+	 * This function assumes sysctl caller holds sctp_sysctl_info_lock()
+	 * for writting!
+	 */
+	if (SCTP_BASE_INFO(udp_tun_socket) == NULL) {
+		/* Nothing to do */
+		return;
+	}
+	sop = SCTP_BASE_INFO(udp_tun_socket);
+	soclose(sop);
+	SCTP_BASE_INFO(udp_tun_socket) = NULL;
 }
 int 
 sctp_over_udp_start(void)
 {
-	return (-1);
+	uint16_t port;
+	int ret;
+	struct sockaddr_in sin;
+	struct socket *sop = NULL;
+	struct thread *th;
+	struct ucred *cred;
+
+	/*
+	 * This function assumes sysctl caller holds sctp_sysctl_info_lock()
+	 * for writting!
+	 */
+	port = SCTP_BASE_SYSCTL(sctp_udp_tunneling_port);
+	if (port == 0) {
+		/* Must have a port set */
+		return (EINVAL);
+	}
+	if (SCTP_BASE_INFO(udp_tun_socket) != NULL) {
+		/* Already running -- must stop first */
+		return (EALREADY);
+	}
+	th = curthread;
+	cred = th->td_ucred;
+	if ((ret = socreate(PF_INET, &sop,
+	    SOCK_DGRAM, IPPROTO_UDP, cred, th))) {
+		return (ret);
+	}
+	SCTP_BASE_INFO(udp_tun_socket) = sop;
+	/* call the special UDP hook */
+	ret = udp_set_kernel_tunneling(sop, sctp_recv_udp_tunneled_packet);
+	if (ret) {
+		goto exit_stage_left;
+	}
+	/* Ok we have a socket, bind it to the port */
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+	ret = sobind(sop, (struct sockaddr *)&sin, th);
+	if (ret) {
+		/* Close up we cant get the port */
+exit_stage_left:
+		sctp_over_udp_stop();
+		return (ret);
+	}
+	/*
+	 * Ok we should now get UDP packets directly to our input routine
+	 * sctp_recv_upd_tunneled_packet().
+	 */
+	return (0);
 }

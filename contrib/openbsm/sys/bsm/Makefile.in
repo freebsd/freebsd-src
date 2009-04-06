@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/Makefile.in#4 $
+# $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/Makefile.in#5 $
 #
 
 VPATH = @srcdir@
@@ -48,8 +48,9 @@ CONFIG_HEADER = $(top_builddir)/config/config.h
 CONFIG_CLEAN_FILES =
 SOURCES =
 DIST_SOURCES =
-am__openbsm_HEADERS_DIST = audit.h audit_errno.h audit_internal.h \
-	audit_kevents.h audit_record.h
+am__openbsm_HEADERS_DIST = audit.h audit_domain.h audit_errno.h \
+	audit_internal.h audit_kevents.h audit_record.h \
+	audit_socket_type.h
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -173,10 +174,12 @@ top_srcdir = @top_srcdir@
 @USE_NATIVE_INCLUDES_FALSE@openbsmdir = $(includedir)/bsm
 @USE_NATIVE_INCLUDES_FALSE@openbsm_HEADERS = \
 @USE_NATIVE_INCLUDES_FALSE@	audit.h			\
+@USE_NATIVE_INCLUDES_FALSE@	audit_domain.h		\
 @USE_NATIVE_INCLUDES_FALSE@	audit_errno.h		\
 @USE_NATIVE_INCLUDES_FALSE@	audit_internal.h	\
 @USE_NATIVE_INCLUDES_FALSE@	audit_kevents.h		\
-@USE_NATIVE_INCLUDES_FALSE@	audit_record.h
+@USE_NATIVE_INCLUDES_FALSE@	audit_record.h		\
+@USE_NATIVE_INCLUDES_FALSE@	audit_socket_type.h
 
 all: all-am
 

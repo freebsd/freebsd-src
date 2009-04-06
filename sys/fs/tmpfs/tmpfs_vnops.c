@@ -52,8 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <sys/sched.h>
-#include <sys/sf_buf.h>
+
 #include <machine/_inttypes.h>
 
 #include <fs/fifofs/fifo.h>
@@ -104,7 +103,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		*vpp = dvp;
 		error = 0;
 	} else {
-		de = tmpfs_dir_lookup(dnode, cnp);
+		de = tmpfs_dir_lookup(dnode, NULL, cnp);
 		if (de == NULL) {
 			/* The entry was not found in the directory.
 			 * This is OK if we are creating or renaming an
@@ -436,10 +435,9 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 {
 	vm_pindex_t	idx;
 	vm_page_t	m;
-	struct sf_buf	*sf;
-	off_t		offset, addr;
+	vm_offset_t	offset;
+	off_t		addr;
 	size_t		tlen;
-	caddr_t		va;
 	int		error;
 
 	addr = uio->uio_offset;
@@ -458,12 +456,7 @@ lookupvpg:
 			goto lookupvpg;
 		vm_page_busy(m);
 		VM_OBJECT_UNLOCK(vobj);
-		sched_pin();
-		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-		va = (caddr_t)sf_buf_kva(sf);
-		error = uiomove(va + offset, tlen, uio);
-		sf_buf_free(sf);
-		sched_unpin();
+		error = uiomove_fromphys(&m, offset, tlen, uio);
 		VM_OBJECT_LOCK(vobj);
 		vm_page_wakeup(m);
 		VM_OBJECT_UNLOCK(vobj);
@@ -487,17 +480,11 @@ nocache:
 			vm_page_zero_invalid(m, TRUE);
 	}
 	VM_OBJECT_UNLOCK(tobj);
-	sched_pin();
-	sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-	va = (caddr_t)sf_buf_kva(sf);
-	error = uiomove(va + offset, tlen, uio);
-	sf_buf_free(sf);
-	sched_unpin();
+	error = uiomove_fromphys(&m, offset, tlen, uio);
 	VM_OBJECT_LOCK(tobj);
 out:
 	vm_page_lock_queues();
-	vm_page_unwire(m, 0);
-	vm_page_activate(m);
+	vm_page_unwire(m, TRUE);
 	vm_page_unlock_queues();
 	vm_page_wakeup(m);
 	vm_object_pip_subtract(tobj, 1);
@@ -558,10 +545,9 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 {
 	vm_pindex_t	idx;
 	vm_page_t	vpg, tpg;
-	struct sf_buf	*sf;
-	off_t		offset, addr;
+	vm_offset_t	offset;
+	off_t		addr;
 	size_t		tlen;
-	caddr_t		va;
 	int		error;
 
 	error = 0;
@@ -587,12 +573,7 @@ lookupvpg:
 		vm_page_undirty(vpg);
 		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(vobj);
-		sched_pin();
-		sf = sf_buf_alloc(vpg, SFB_CPUPRIVATE);
-		va = (caddr_t)sf_buf_kva(sf);
-		error = uiomove(va + offset, tlen, uio);
-		sf_buf_free(sf);
-		sched_unpin();
+		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
@@ -614,14 +595,9 @@ nocache:
 			vm_page_zero_invalid(tpg, TRUE);
 	}
 	VM_OBJECT_UNLOCK(tobj);
-	if (vpg == NULL) {
-		sched_pin();
-		sf = sf_buf_alloc(tpg, SFB_CPUPRIVATE);
-		va = (caddr_t)sf_buf_kva(sf);
-		error = uiomove(va + offset, tlen, uio);
-		sf_buf_free(sf);
-		sched_unpin();
-	} else {
+	if (vpg == NULL)
+		error = uiomove_fromphys(&tpg, offset, tlen, uio);
+	else {
 		KASSERT(vpg->valid == VM_PAGE_BITS_ALL, ("parts of vpg invalid"));
 		pmap_copy_page(vpg, tpg);
 	}
@@ -635,8 +611,7 @@ out:
 		vm_page_zero_invalid(tpg, TRUE);
 		vm_page_dirty(tpg);
 	}
-	vm_page_unwire(tpg, 0);
-	vm_page_activate(tpg);
+	vm_page_unwire(tpg, TRUE);
 	vm_page_unlock_queues();
 	vm_page_wakeup(tpg);
 	if (vpg != NULL)
@@ -772,7 +747,7 @@ tmpfs_remove(struct vop_remove_args *v)
 	dnode = VP_TO_TMPFS_DIR(dvp);
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
-	de = tmpfs_dir_search(dnode, node);
+	de = tmpfs_dir_lookup(dnode, node, v->a_cnp);
 	MPASS(de != NULL);
 
 	/* Files marked as immutable or append-only cannot be deleted. */
@@ -919,7 +894,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	}
 	fdnode = VP_TO_TMPFS_DIR(fdvp);
 	fnode = VP_TO_TMPFS_NODE(fvp);
-	de = tmpfs_dir_search(fdnode, fnode);
+	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
 
 	/* Avoid manipulating '.' and '..' entries. */
 	if (de == NULL) {
@@ -1031,7 +1006,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	 * from the target directory. */
 	if (tvp != NULL) {
 		/* Remove the old entry from the target directory. */
-		de = tmpfs_dir_search(tdnode, tnode);
+		de = tmpfs_dir_lookup(tdnode, tnode, tcnp);
 		tmpfs_dir_detach(tdvp, de);
 
 		/* Free the directory entry we just deleted.  Note that the
@@ -1119,7 +1094,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 
 	/* Get the directory entry associated with node (vp).  This was
 	 * filled by tmpfs_lookup while looking up the entry. */
-	de = tmpfs_dir_search(dnode, node);
+	de = tmpfs_dir_lookup(dnode, node, v->a_cnp);
 	MPASS(TMPFS_DIRENT_MATCHES(de,
 	    v->a_cnp->cn_nameptr,
 	    v->a_cnp->cn_namelen));

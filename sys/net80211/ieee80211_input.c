@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -635,6 +635,10 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 				scan->wme = frm;
 			else if (isatherosoui(frm))
 				scan->ath = frm;
+#ifdef IEEE80211_SUPPORT_TDMA
+			else if (istdmaoui(frm))
+				scan->tdma = frm;
+#endif
 			else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
 				/*
 				 * Accept pre-draft HT ie's if the

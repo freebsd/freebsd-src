@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_rfgain.c,v 1.2 2008/11/19 21:23:01 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -239,34 +239,36 @@ ar5212AdjustGain(struct ath_hal *ah, GAIN_VALUES *gv)
 /*
  * Read rf register to determine if gainF needs correction
  */
-static void
+static uint32_t
 ar5212GetGainFCorrection(struct ath_hal *ah)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
-	GAIN_VALUES *gv = &ahp->ah_gainValues;
+	uint32_t correction;
 
 	HALASSERT(IS_RADX112_REV2(ah));
 
-	gv->gainFCorrection = 0;
+	correction = 0;
 	if (ar5212GetRfField(ar5212GetRfBank(ah, 7), 1, 36, 0) == 1) {
+		const GAIN_VALUES *gv = &ahp->ah_gainValues;
 		uint32_t mixGain = gv->currStep->paramVal[0];
 		uint32_t gainStep =
 			ar5212GetRfField(ar5212GetRfBank(ah, 7), 4, 32, 0);
 		switch (mixGain) {
 		case 0 :
-			gv->gainFCorrection = 0;
+			correction = 0;
 			break;
 		case 1 :
-			gv->gainFCorrection = gainStep;
+			correction = gainStep;
 			break;
 		case 2 :
-			gv->gainFCorrection = 2 * gainStep - 5;
+			correction = 2 * gainStep - 5;
 			break;
 		case 3 :
-			gv->gainFCorrection = 2 * gainStep;
+			correction = 2 * gainStep;
 			break;
 		}
 	}
+	return correction;
 }
 
 /*
@@ -280,7 +282,8 @@ ar5212GetRfgain(struct ath_hal *ah)
 	GAIN_VALUES *gv = &ahp->ah_gainValues;
 	uint32_t rddata, probeType;
 
-	if (!gv->active)
+	/* NB: beware of touching the BB when PHY is powered down */
+	if (!gv->active || !ahp->ah_phyPowerOn)
 		return HAL_RFGAIN_INACTIVE;
 
 	if (ahp->ah_rfgainState == HAL_RFGAIN_READ_REQUESTED) {
@@ -302,9 +305,9 @@ ar5212GetRfgain(struct ath_hal *ah)
 					gv->currGain += PHY_PROBE_CCK_CORRECTION;
 			}
 			if (IS_RADX112_REV2(ah)) {
-				ar5212GetGainFCorrection(ah);
-				if (gv->currGain >= gv->gainFCorrection)
-					gv->currGain -= gv->gainFCorrection;
+				uint32_t correct = ar5212GetGainFCorrection(ah);
+				if (gv->currGain >= correct)
+					gv->currGain -= correct;
 				else
 					gv->currGain = 0;
 			}

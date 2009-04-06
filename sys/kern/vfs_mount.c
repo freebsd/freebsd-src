@@ -386,6 +386,8 @@ nmount(td, uap)
 	u_int iovcnt;
 
 	AUDIT_ARG(fflags, uap->flags);
+	CTR4(KTR_VFS, "%s: iovp %p with iovcnt %d and flags %d", __func__,
+	    uap->iovp, uap->iovcnt, uap->flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
@@ -400,16 +402,24 @@ nmount(td, uap)
 	 * Check that we have an even number of iovec's
 	 * and that we have at least two options.
 	 */
-	if ((iovcnt & 1) || (iovcnt < 4))
+	if ((iovcnt & 1) || (iovcnt < 4)) {
+		CTR2(KTR_VFS, "%s: failed for invalid iovcnt %d", __func__,
+		    uap->iovcnt);
 		return (EINVAL);
+	}
 
 	error = copyinuio(uap->iovp, iovcnt, &auio);
-	if (error)
+	if (error) {
+		CTR2(KTR_VFS, "%s: failed for invalid uio op with %d errno",
+		    __func__, error);
 		return (error);
+	}
 	iov = auio->uio_iov;
 	for (i = 0; i < iovcnt; i++) {
 		if (iov->iov_len > MMAXOPTIONLEN) {
 			free(auio, M_IOV);
+			CTR1(KTR_VFS, "%s: failed for invalid new auio",
+			    __func__);
 			return (EINVAL);
 		}
 		iov++;
@@ -429,6 +439,7 @@ void
 vfs_ref(struct mount *mp)
 {
 
+	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	MNT_IUNLOCK(mp);
@@ -438,6 +449,7 @@ void
 vfs_rel(struct mount *mp)
 {
 
+	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);

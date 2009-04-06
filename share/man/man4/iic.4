@@ -45,10 +45,16 @@ In order to control I2C devices, use
 .Pa /dev/iic?
 with the
 following ioctls:
-.Bl -tag -width ".Dv I2CRSTCARD"
+.Bl -tag -width ".Dv I2CRPTSTART"
 .It Dv I2CSTART
 .Pq Vt "struct iiccmd"
 Sends the start condition to the slave specified by the
+.Va slave
+element to the bus.
+All other elements are ignored.
+.It Dv I2CRPTSTART
+.Pq Vt "struct iiccmd"
+Sends the repeated start condition to the slave specified by the
 .Va slave
 element to the bus.
 All other elements are ignored.

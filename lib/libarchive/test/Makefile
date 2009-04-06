@@ -58,9 +58,11 @@ TESTS= \
 	test_write_compress.c			\
 	test_write_compress_program.c		\
 	test_write_disk.c			\
+	test_write_disk_failures.c		\
 	test_write_disk_hardlink.c		\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
+	test_write_disk_sparse.c		\
 	test_write_disk_times.c			\
 	test_write_format_ar.c			\
 	test_write_format_cpio.c		\

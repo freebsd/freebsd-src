@@ -45,7 +45,7 @@
 >0	string                  >\0             "%s"
 60	string	                SM01SMem	SuperMemo PalmOS document
 >0	string                  >\0             "%s"
-60	string	                DataTlPt	TealDoc PalmOS document
+60	string	                TEXtTlDc	TealDoc PalmOS document
 >0	string                  >\0             "%s"
 60	string	                InfoTlIf	TealInfo PalmOS document
 >0	string                  >\0             "%s"

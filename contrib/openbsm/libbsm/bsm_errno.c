@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE. 
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_errno.c#12 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_errno.c#16 $
  */
 
 #include <sys/types.h>
@@ -45,15 +45,24 @@
  * operating system.  These routines convert between BSM and local error
  * number spaces, subject to the above realities.  BSM error numbers are
  * stored in a single 8-bit character, so don't have a byte order.
+ *
+ * Don't include string definitions when this code is compiled into a kernel.
  */
-
-struct bsm_errors {
-	int		 be_bsm_error;
-	int		 be_os_error;
+struct bsm_errno {
+	int		 be_bsm_errno;
+	int		 be_local_errno;
+#if !defined(KERNEL) && !defined(_KERNEL)
 	const char	*be_strerror;
+#endif
 };
 
 #define	ERRNO_NO_LOCAL_MAPPING	-600
+
+#if !defined(KERNEL) && !defined(_KERNEL)
+#define	ES(x)	x
+#else
+#define	ES(x)
+#endif
 
 /*
  * Mapping table -- please maintain in numeric sorted order with respect to
@@ -70,523 +79,551 @@ struct bsm_errors {
  * support catalogues; these are only used if the OS doesn't have an error
  * string using strerror(3).
  */
-static const struct bsm_errors bsm_errors[] = {
-	{ BSM_ESUCCESS, 0, "Success" },
-	{ BSM_EPERM, EPERM, "Operation not permitted" },
-	{ BSM_ENOENT, ENOENT, "No such file or directory" },
-	{ BSM_ESRCH, ESRCH, "No such process" },
-	{ BSM_EINTR, EINTR, "Interrupted system call" },
-	{ BSM_EIO, EIO, "Input/output error" },
-	{ BSM_ENXIO, ENXIO, "Device not configured" },
-	{ BSM_E2BIG, E2BIG, "Argument list too long" },
-	{ BSM_ENOEXEC, ENOEXEC, "Exec format error" },
-	{ BSM_EBADF, EBADF, "BAd file descriptor" },
-	{ BSM_ECHILD, ECHILD, "No child processes" },
-	{ BSM_EAGAIN, EAGAIN, "Resource temporarily unavailable" },
-	{ BSM_ENOMEM, ENOMEM, "Cannot allocate memory" },
-	{ BSM_EACCES, EACCES, "Permission denied" },
-	{ BSM_EFAULT, EFAULT, "Bad address" },
-	{ BSM_ENOTBLK, ENOTBLK, "Block device required" },
-	{ BSM_EBUSY, EBUSY, "Device busy" },
-	{ BSM_EEXIST, EEXIST, "File exists" },
-	{ BSM_EXDEV, EXDEV, "Cross-device link" },
-	{ BSM_ENODEV, ENODEV, "Operation not supported by device" },
-	{ BSM_ENOTDIR, ENOTDIR, "Not a directory" },
-	{ BSM_EISDIR, EISDIR, "Is a directory" },
-	{ BSM_EINVAL, EINVAL, "Invalid argument" },
-	{ BSM_ENFILE, ENFILE, "Too many open files in system" },
-	{ BSM_EMFILE, EMFILE, "Too many open files" },
-	{ BSM_ENOTTY, ENOTTY, "Inappropriate ioctl for device" },
-	{ BSM_ETXTBSY, ETXTBSY, "Text file busy" },
-	{ BSM_EFBIG, EFBIG, "File too large" },
-	{ BSM_ENOSPC, ENOSPC, "No space left on device" },
-	{ BSM_ESPIPE, ESPIPE, "Illegal seek" },
-	{ BSM_EROFS, EROFS, "Read-only file system" },
-	{ BSM_EMLINK, EMLINK, "Too many links" },
-	{ BSM_EPIPE, EPIPE, "Broken pipe" },
-	{ BSM_EDOM, EDOM, "Numerical argument out of domain" },
-	{ BSM_ERANGE, ERANGE, "Result too large" },
-	{ BSM_ENOMSG, ENOMSG, "No message of desired type" },
-	{ BSM_EIDRM, EIDRM, "Identifier removed" },
-	{ BSM_ECHRNG,
+static const struct bsm_errno bsm_errnos[] = {
+	{ BSM_ERRNO_ESUCCESS, 0, ES("Success") },
+	{ BSM_ERRNO_EPERM, EPERM, ES("Operation not permitted") },
+	{ BSM_ERRNO_ENOENT, ENOENT, ES("No such file or directory") },
+	{ BSM_ERRNO_ESRCH, ESRCH, ES("No such process") },
+	{ BSM_ERRNO_EINTR, EINTR, ES("Interrupted system call") },
+	{ BSM_ERRNO_EIO, EIO, ES("Input/output error") },
+	{ BSM_ERRNO_ENXIO, ENXIO, ES("Device not configured") },
+	{ BSM_ERRNO_E2BIG, E2BIG, ES("Argument list too long") },
+	{ BSM_ERRNO_ENOEXEC, ENOEXEC, ES("Exec format error") },
+	{ BSM_ERRNO_EBADF, EBADF, ES("Bad file descriptor") },
+	{ BSM_ERRNO_ECHILD, ECHILD, ES("No child processes") },
+	{ BSM_ERRNO_EAGAIN, EAGAIN, ES("Resource temporarily unavailable") },
+	{ BSM_ERRNO_ENOMEM, ENOMEM, ES("Cannot allocate memory") },
+	{ BSM_ERRNO_EACCES, EACCES, ES("Permission denied") },
+	{ BSM_ERRNO_EFAULT, EFAULT, ES("Bad address") },
+	{ BSM_ERRNO_ENOTBLK, ENOTBLK, ES("Block device required") },
+	{ BSM_ERRNO_EBUSY, EBUSY, ES("Device busy") },
+	{ BSM_ERRNO_EEXIST, EEXIST, ES("File exists") },
+	{ BSM_ERRNO_EXDEV, EXDEV, ES("Cross-device link") },
+	{ BSM_ERRNO_ENODEV, ENODEV, ES("Operation not supported by device") },
+	{ BSM_ERRNO_ENOTDIR, ENOTDIR, ES("Not a directory") },
+	{ BSM_ERRNO_EISDIR, EISDIR, ES("Is a directory") },
+	{ BSM_ERRNO_EINVAL, EINVAL, ES("Invalid argument") },
+	{ BSM_ERRNO_ENFILE, ENFILE, ES("Too many open files in system") },
+	{ BSM_ERRNO_EMFILE, EMFILE, ES("Too many open files") },
+	{ BSM_ERRNO_ENOTTY, ENOTTY, ES("Inappropriate ioctl for device") },
+	{ BSM_ERRNO_ETXTBSY, ETXTBSY, ES("Text file busy") },
+	{ BSM_ERRNO_EFBIG, EFBIG, ES("File too large") },
+	{ BSM_ERRNO_ENOSPC, ENOSPC, ES("No space left on device") },
+	{ BSM_ERRNO_ESPIPE, ESPIPE, ES("Illegal seek") },
+	{ BSM_ERRNO_EROFS, EROFS, ES("Read-only file system") },
+	{ BSM_ERRNO_EMLINK, EMLINK, ES("Too many links") },
+	{ BSM_ERRNO_EPIPE, EPIPE, ES("Broken pipe") },
+	{ BSM_ERRNO_EDOM, EDOM, ES("Numerical argument out of domain") },
+	{ BSM_ERRNO_ERANGE, ERANGE, ES("Result too large") },
+	{ BSM_ERRNO_ENOMSG, ENOMSG, ES("No message of desired type") },
+	{ BSM_ERRNO_EIDRM, EIDRM, ES("Identifier removed") },
+	{ BSM_ERRNO_ECHRNG,
 #ifdef ECHRNG
 	ECHRNG,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Channel number out of range" },
-	{ BSM_EL2NSYNC,
+	ES("Channel number out of range") },
+	{ BSM_ERRNO_EL2NSYNC,
 #ifdef EL2NSYNC
 	EL2NSYNC,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Level 2 not synchronized" },
-	{ BSM_EL3HLT,
+	ES("Level 2 not synchronized") },
+	{ BSM_ERRNO_EL3HLT,
 #ifdef EL3HLT
 	EL3HLT,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Level 3 halted" },
-	{ BSM_EL3RST,
+	ES("Level 3 halted") },
+	{ BSM_ERRNO_EL3RST,
 #ifdef EL3RST
 	EL3RST,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Level 3 reset" },
-	{ BSM_ELNRNG,
+	ES("Level 3 reset") },
+	{ BSM_ERRNO_ELNRNG,
 #ifdef ELNRNG
 	ELNRNG,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Link number out of range" },
-	{ BSM_EUNATCH,
+	ES("Link number out of range") },
+	{ BSM_ERRNO_EUNATCH,
 #ifdef EUNATCH
 	EUNATCH,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Protocol driver not attached" },
-	{ BSM_ENOCSI,
+	ES("Protocol driver not attached") },
+	{ BSM_ERRNO_ENOCSI,
 #ifdef ENOCSI
 	ENOCSI,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"No CSI structure available" },
-	{ BSM_EL2HLT,
+	ES("No CSI structure available") },
+	{ BSM_ERRNO_EL2HLT,
 #ifdef EL2HLT
 	EL2HLT,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Level 2 halted" },
-	{ BSM_EDEADLK, EDEADLK, "Resource deadlock avoided" },
-	{ BSM_ENOLCK, ENOLCK, "No locks available" },
-	{ BSM_ECANCELED, ECANCELED, "Operation canceled" },
-	{ BSM_ENOTSUP, ENOTSUP, "Operation not supported" },
-	{ BSM_EDQUOT, EDQUOT, "Disc quota exceeded" },
-	{ BSM_EBADE,
+	ES("Level 2 halted") },
+	{ BSM_ERRNO_EDEADLK, EDEADLK, ES("Resource deadlock avoided") },
+	{ BSM_ERRNO_ENOLCK, ENOLCK, ES("No locks available") },
+	{ BSM_ERRNO_ECANCELED, ECANCELED, ES("Operation canceled") },
+	{ BSM_ERRNO_ENOTSUP, ENOTSUP, ES("Operation not supported") },
+	{ BSM_ERRNO_EDQUOT, EDQUOT, ES("Disc quota exceeded") },
+	{ BSM_ERRNO_EBADE,
 #ifdef EBADE
 	EBADE,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Invalid exchange" },
-	{ BSM_EBADR,
+	ES("Invalid exchange") },
+	{ BSM_ERRNO_EBADR,
 #ifdef EBADR
 	EBADR,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Invalid request descriptor" },
-	{ BSM_EXFULL,
+	ES("Invalid request descriptor") },
+	{ BSM_ERRNO_EXFULL,
 #ifdef EXFULL
 	EXFULL,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Exchange full" },
-	{ BSM_ENOANO,
+	ES("Exchange full") },
+	{ BSM_ERRNO_ENOANO,
 #ifdef ENOANO
 	ENOANO,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"No anode" },
-	{ BSM_EBADRQC,
+	ES("No anode") },
+	{ BSM_ERRNO_EBADRQC,
 #ifdef EBADRQC
 	EBADRQC,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Invalid request descriptor" },
-	{ BSM_EBADSLT,
+	ES("Invalid request descriptor") },
+	{ BSM_ERRNO_EBADSLT,
 #ifdef EBADSLT
 	EBADSLT,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Invalid slot" },
-	{ BSM_EDEADLOCK,
+	ES("Invalid slot") },
+	{ BSM_ERRNO_EDEADLOCK,
 #ifdef EDEADLOCK
 	EDEADLOCK,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Resource deadlock avoided" },
-	{ BSM_EBFONT,
+	ES("Resource deadlock avoided") },
+	{ BSM_ERRNO_EBFONT,
 #ifdef EBFONT
 	EBFONT,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Bad font file format" },
-	{ BSM_EOWNERDEAD,
+	ES("Bad font file format") },
+	{ BSM_ERRNO_EOWNERDEAD,
 #ifdef EOWNERDEAD
 	EOWNERDEAD,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Process died with the lock" },
-	{ BSM_ENOTRECOVERABLE,
+	ES("Process died with the lock") },
+	{ BSM_ERRNO_ENOTRECOVERABLE,
 #ifdef ENOTRECOVERABLE
 	ENOTRECOVERABLE,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Lock is not recoverable" },
-	{ BSM_ENOSTR,
+	ES("Lock is not recoverable") },
+	{ BSM_ERRNO_ENOSTR,
 #ifdef ENOSTR
 	ENOSTR,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Device not a stream" },
-	{ BSM_ENONET,
+	ES("Device not a stream") },
+	{ BSM_ERRNO_ENONET,
 #ifdef ENONET
 	ENONET,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Machine is not on the network" },
-	{ BSM_ENOPKG,
+	ES("Machine is not on the network") },
+	{ BSM_ERRNO_ENOPKG,
 #ifdef ENOPKG
 	ENOPKG,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Package not installed" },
-	{ BSM_EREMOTE, EREMOTE, "Too many levels of remote in path" },
-	{ BSM_ENOLINK,
+	ES("Package not installed") },
+	{ BSM_ERRNO_EREMOTE, EREMOTE,
+	    ES("Too many levels of remote in path") },
+	{ BSM_ERRNO_ENOLINK,
 #ifdef ENOLINK
 	ENOLINK,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Link has been severed" },
-	{ BSM_EADV,
+	ES("Link has been severed") },
+	{ BSM_ERRNO_EADV,
 #ifdef EADV
 	EADV,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Advertise error" },
-	{ BSM_ESRMNT,
+	ES("Advertise error") },
+	{ BSM_ERRNO_ESRMNT,
 #ifdef ESRMNT
 	ESRMNT,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"srmount error" },
-	{ BSM_ECOMM,
+	ES("srmount error") },
+	{ BSM_ERRNO_ECOMM,
 #ifdef ECOMM
 	ECOMM,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Communication error on send" },
-	{ BSM_EPROTO,
+	ES("Communication error on send") },
+	{ BSM_ERRNO_EPROTO,
 #ifdef EPROTO
 	EPROTO,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Protocol error" },
-	{ BSM_ELOCKUNMAPPED,
+	ES("Protocol error") },
+	{ BSM_ERRNO_ELOCKUNMAPPED,
 #ifdef ELOCKUNMAPPED
 	ELOCKUNMAPPED,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Locked lock was unmapped" },
-	{ BSM_ENOTACTIVE,
+	ES("Locked lock was unmapped") },
+	{ BSM_ERRNO_ENOTACTIVE,
 #ifdef ENOTACTIVE
 	ENOTACTIVE,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Facility is not active" },
-	{ BSM_EMULTIHOP,
+	ES("Facility is not active") },
+	{ BSM_ERRNO_EMULTIHOP,
 #ifdef EMULTIHOP
 	EMULTIHOP,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Multihop attempted" },
-	{ BSM_EBADMSG,
+	ES("Multihop attempted") },
+	{ BSM_ERRNO_EBADMSG,
 #ifdef EBADMSG
 	EBADMSG,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Bad message" },
-	{ BSM_ENAMETOOLONG, ENAMETOOLONG, "File name too long" },
-	{ BSM_EOVERFLOW, EOVERFLOW, "Value too large to be stored in data type" },
-	{ BSM_ENOTUNIQ,
+	ES("Bad message") },
+	{ BSM_ERRNO_ENAMETOOLONG, ENAMETOOLONG, ES("File name too long") },
+	{ BSM_ERRNO_EOVERFLOW, EOVERFLOW,
+	    ES("Value too large to be stored in data type") },
+	{ BSM_ERRNO_ENOTUNIQ,
 #ifdef ENOTUNIQ
 	ENOTUNIQ,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Given log name not unique" },
-	{ BSM_EBADFD,
+	ES("Given log name not unique") },
+	{ BSM_ERRNO_EBADFD,
 #ifdef EBADFD
 	EBADFD,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Given f.d. invalid for this operation" },
-	{ BSM_EREMCHG,
+	ES("Given f.d. invalid for this operation") },
+	{ BSM_ERRNO_EREMCHG,
 #ifdef EREMCHG
 	EREMCHG,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Remote address changed" },
-	{ BSM_ELIBACC,
+	ES("Remote address changed") },
+	{ BSM_ERRNO_ELIBACC,
 #ifdef ELIBACC
 	ELIBACC,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Can't access a needed shared lib" },
-	{ BSM_ELIBBAD,
+	ES("Can't access a needed shared lib") },
+	{ BSM_ERRNO_ELIBBAD,
 #ifdef ELIBBAD
 	ELIBBAD,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Accessing a corrupted shared lib" },
-	{ BSM_ELIBSCN,
+	ES("Accessing a corrupted shared lib") },
+	{ BSM_ERRNO_ELIBSCN,
 #ifdef ELIBSCN
 	ELIBSCN,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	".lib section in a.out corrupted" },
-	{ BSM_ELIBMAX,
+	ES(".lib section in a.out corrupted") },
+	{ BSM_ERRNO_ELIBMAX,
 #ifdef ELIBMAX
 	ELIBMAX,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Attempting to link in too many libs" },
-	{ BSM_ELIBEXEC,
+	ES("Attempting to link in too many libs") },
+	{ BSM_ERRNO_ELIBEXEC,
 #ifdef ELIBEXEC
 	ELIBEXEC,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Attempting to exec a shared library" },
-	{ BSM_EILSEQ, EILSEQ, "Illegal byte sequence" },
-	{ BSM_ENOSYS, ENOSYS, "Function not implemented" },
-	{ BSM_ELOOP, ELOOP, "Too many levels of symbolic links" },
-	{ BSM_ERESTART,
+	ES("Attempting to exec a shared library") },
+	{ BSM_ERRNO_EILSEQ, EILSEQ, ES("Illegal byte sequence") },
+	{ BSM_ERRNO_ENOSYS, ENOSYS, ES("Function not implemented") },
+	{ BSM_ERRNO_ELOOP, ELOOP, ES("Too many levels of symbolic links") },
+	{ BSM_ERRNO_ERESTART,
 #ifdef ERESTART
 	ERESTART,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Restart syscall" },
-	{ BSM_ESTRPIPE,
+	ES("Restart syscall") },
+	{ BSM_ERRNO_ESTRPIPE,
 #ifdef ESTRPIPE
 	ESTRPIPE,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"If pipe/FIFO, don't sleep in stream head" },
-	{ BSM_ENOTEMPTY, ENOTEMPTY, "Directory not empty" },
-	{ BSM_EUSERS, EUSERS, "Too many users" },
-	{ BSM_ENOTSOCK, ENOTSOCK, "Socket operation on non-socket" },
-	{ BSM_EDESTADDRREQ, EDESTADDRREQ, "Destination address required" },
-	{ BSM_EMSGSIZE, EMSGSIZE, "Message too long" },
-	{ BSM_EPROTOTYPE, EPROTOTYPE, "Protocol wrong type for socket" },
-	{ BSM_ENOPROTOOPT, ENOPROTOOPT, "Protocol not available" },
-	{ BSM_EPROTONOSUPPORT, EPROTONOSUPPORT, "Protocol not supported" },
-	{ BSM_ESOCKTNOSUPPORT, ESOCKTNOSUPPORT, "Socket type not supported" },
-	{ BSM_EOPNOTSUPP, EOPNOTSUPP, "Operation not supported" },
-	{ BSM_EPFNOSUPPORT, EPFNOSUPPORT, "Protocol family not supported" },
-	{ BSM_EAFNOSUPPORT, EAFNOSUPPORT, "Address family not supported by protocol family" },
-	{ BSM_EADDRINUSE, EADDRINUSE, "Address already in use" },
-	{ BSM_EADDRNOTAVAIL, EADDRNOTAVAIL, "Can't assign requested address" },
-	{ BSM_ENETDOWN, ENETDOWN, "Network is down" },
-	{ BSM_ENETRESET, ENETRESET, "Network dropped connection on reset" },
-	{ BSM_ECONNABORTED, ECONNABORTED, "Software caused connection abort" },
-	{ BSM_ECONNRESET, ECONNRESET, "Connection reset by peer" },
-	{ BSM_ENOBUFS, ENOBUFS, "No buffer space available" },
-	{ BSM_EISCONN, EISCONN, "Socket is already connected" },
-	{ BSM_ENOTCONN, ENOTCONN, "Socket is not connected" },
-	{ BSM_ESHUTDOWN, ESHUTDOWN, "Can't send after socket shutdown" },
-	{ BSM_ETOOMANYREFS, ETOOMANYREFS, "Too many references: can't splice" },
-	{ BSM_ETIMEDOUT, ETIMEDOUT, "Operation timed out" },
-	{ BSM_ECONNREFUSED, ECONNREFUSED, "Connection refused" },
-	{ BSM_EHOSTDOWN, EHOSTDOWN, "Host is down" },
-	{ BSM_EHOSTUNREACH, EHOSTUNREACH, "No route to host" },
-	{ BSM_EALREADY, EALREADY, "Operation already in progress" },
-	{ BSM_EINPROGRESS, EINPROGRESS, "Operation now in progress" },
-	{ BSM_ESTALE, ESTALE, "Stale NFS file handle" },
-	{ BSM_EPWROFF,
+	ES("If pipe/FIFO, don't sleep in stream head") },
+	{ BSM_ERRNO_ENOTEMPTY, ENOTEMPTY, ES("Directory not empty") },
+	{ BSM_ERRNO_EUSERS, EUSERS, ES("Too many users") },
+	{ BSM_ERRNO_ENOTSOCK, ENOTSOCK,
+	    ES("Socket operation on non-socket") },
+	{ BSM_ERRNO_EDESTADDRREQ, EDESTADDRREQ,
+	    ES("Destination address required") },
+	{ BSM_ERRNO_EMSGSIZE, EMSGSIZE, ES("Message too long") },
+	{ BSM_ERRNO_EPROTOTYPE, EPROTOTYPE,
+	    ES("Protocol wrong type for socket") },
+	{ BSM_ERRNO_ENOPROTOOPT, ENOPROTOOPT, ES("Protocol not available") },
+	{ BSM_ERRNO_EPROTONOSUPPORT, EPROTONOSUPPORT,
+	    ES("Protocol not supported") },
+	{ BSM_ERRNO_ESOCKTNOSUPPORT, ESOCKTNOSUPPORT,
+	    ES("Socket type not supported") },
+	{ BSM_ERRNO_EOPNOTSUPP, EOPNOTSUPP, ES("Operation not supported") },
+	{ BSM_ERRNO_EPFNOSUPPORT, EPFNOSUPPORT,
+	    ES("Protocol family not supported") },
+	{ BSM_ERRNO_EAFNOSUPPORT, EAFNOSUPPORT,
+	    ES("Address family not supported by protocol family") },
+	{ BSM_ERRNO_EADDRINUSE, EADDRINUSE, ES("Address already in use") },
+	{ BSM_ERRNO_EADDRNOTAVAIL, EADDRNOTAVAIL,
+	    ES("Can't assign requested address") },
+	{ BSM_ERRNO_ENETDOWN, ENETDOWN, ES("Network is down") },
+	{ BSM_ERRNO_ENETRESET, ENETRESET,
+	    ES("Network dropped connection on reset") },
+	{ BSM_ERRNO_ECONNABORTED, ECONNABORTED,
+	    ES("Software caused connection abort") },
+	{ BSM_ERRNO_ECONNRESET, ECONNRESET, ES("Connection reset by peer") },
+	{ BSM_ERRNO_ENOBUFS, ENOBUFS, ES("No buffer space available") },
+	{ BSM_ERRNO_EISCONN, EISCONN, ES("Socket is already connected") },
+	{ BSM_ERRNO_ENOTCONN, ENOTCONN, ES("Socket is not connected") },
+	{ BSM_ERRNO_ESHUTDOWN, ESHUTDOWN,
+	    ES("Can't send after socket shutdown") },
+	{ BSM_ERRNO_ETOOMANYREFS, ETOOMANYREFS,
+	    ES("Too many references: can't splice") },
+	{ BSM_ERRNO_ETIMEDOUT, ETIMEDOUT, ES("Operation timed out") },
+	{ BSM_ERRNO_ECONNREFUSED, ECONNREFUSED, ES("Connection refused") },
+	{ BSM_ERRNO_EHOSTDOWN, EHOSTDOWN, ES("Host is down") },
+	{ BSM_ERRNO_EHOSTUNREACH, EHOSTUNREACH, ES("No route to host") },
+	{ BSM_ERRNO_EALREADY, EALREADY, ES("Operation already in progress") },
+	{ BSM_ERRNO_EINPROGRESS, EINPROGRESS,
+	    ES("Operation now in progress") },
+	{ BSM_ERRNO_ESTALE, ESTALE, ES("Stale NFS file handle") },
+	{ BSM_ERRNO_EPWROFF,
 #ifdef EPWROFF
 	EPWROFF,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Device power is off" },
-	{ BSM_EDEVERR,
+	ES("Device power is off") },
+	{ BSM_ERRNO_EDEVERR,
 #ifdef EDEVERR
 	EDEVERR,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Device error" },
-	{ BSM_EBADEXEC,
+	ES("Device error") },
+	{ BSM_ERRNO_EBADEXEC,
 #ifdef EBADEXEC
 	EBADEXEC,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Bad executable" },
-	{ BSM_EBADARCH,
+	ES("Bad executable") },
+	{ BSM_ERRNO_EBADARCH,
 #ifdef EBADARCH
 	EBADARCH,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Bad CPU type in executable" },
-	{ BSM_ESHLIBVERS,
+	ES("Bad CPU type in executable") },
+	{ BSM_ERRNO_ESHLIBVERS,
 #ifdef ESHLIBVERS
 	ESHLIBVERS,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Shared library version mismatch" },
-	{ BSM_EBADMACHO,
+	ES("Shared library version mismatch") },
+	{ BSM_ERRNO_EBADMACHO,
 #ifdef EBADMACHO
 	EBADMACHO,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Malfored Macho file" },
-	{ BSM_EPOLICY,
+	ES("Malfored Macho file") },
+	{ BSM_ERRNO_EPOLICY,
 #ifdef EPOLICY
 	EPOLICY,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Operation failed by policy" },
-	{ BSM_EDOTDOT,
+	ES("Operation failed by policy") },
+	{ BSM_ERRNO_EDOTDOT,
 #ifdef EDOTDOT
 	EDOTDOT,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"RFS specific error" },
-	{ BSM_EUCLEAN,
+	ES("RFS specific error") },
+	{ BSM_ERRNO_EUCLEAN,
 #ifdef EUCLEAN
 	EUCLEAN,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Structure needs cleaning" },
-	{ BSM_ENOTNAM,
+	ES("Structure needs cleaning") },
+	{ BSM_ERRNO_ENOTNAM,
 #ifdef ENOTNAM
 	ENOTNAM,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Not a XENIX named type file" },
-	{ BSM_ENAVAIL,
+	ES("Not a XENIX named type file") },
+	{ BSM_ERRNO_ENAVAIL,
 #ifdef ENAVAIL
 	ENAVAIL,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"No XENIX semaphores available" },
-	{ BSM_EISNAM,
+	ES("No XENIX semaphores available") },
+	{ BSM_ERRNO_EISNAM,
 #ifdef EISNAM
 	EISNAM,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Is a named type file" },
-	{ BSM_EREMOTEIO,
+	ES("Is a named type file") },
+	{ BSM_ERRNO_EREMOTEIO,
 #ifdef EREMOTEIO
 	EREMOTEIO,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Remote I/O error" },
-	{ BSM_ENOMEDIUM,
+	ES("Remote I/O error") },
+	{ BSM_ERRNO_ENOMEDIUM,
 #ifdef ENOMEDIUM
 	ENOMEDIUM,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"No medium found" },
-	{ BSM_EMEDIUMTYPE,
+	ES("No medium found") },
+	{ BSM_ERRNO_EMEDIUMTYPE,
 #ifdef EMEDIUMTYPE
 	EMEDIUMTYPE,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Wrong medium type" },
-	{ BSM_ENOKEY,
+	ES("Wrong medium type") },
+	{ BSM_ERRNO_ENOKEY,
 #ifdef ENOKEY
 	ENOKEY,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Required key not available" },
-	{ BSM_EKEYEXPIRED,
+	ES("Required key not available") },
+	{ BSM_ERRNO_EKEYEXPIRED,
 #ifdef EKEEXPIRED
 	EKEYEXPIRED,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Key has expired" },
-	{ BSM_EKEYREVOKED,
+	ES("Key has expired") },
+	{ BSM_ERRNO_EKEYREVOKED,
 #ifdef EKEYREVOKED
 	EKEYREVOKED,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Key has been revoked" },
-	{ BSM_EKEYREJECTED,
+	ES("Key has been revoked") },
+	{ BSM_ERRNO_EKEYREJECTED,
 #ifdef EKEREJECTED
 	EKEYREJECTED,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
-	"Key was rejected by service" },
+	ES("Key was rejected by service") },
 };
-static const int bsm_errors_count = sizeof(bsm_errors) / sizeof(bsm_errors[0]);
+static const int bsm_errnos_count = sizeof(bsm_errnos) / sizeof(bsm_errnos[0]);
 
-static const struct bsm_errors *
-au_bsm_error_lookup_errno(int error)
+static const struct bsm_errno *
+bsm_lookup_errno_local(int local_errno)
 {
 	int i;
 
-	if (error == ERRNO_NO_LOCAL_MAPPING)
-		return (NULL);
-	for (i = 0; i < bsm_errors_count; i++) {
-		if (bsm_errors[i].be_os_error == error)
-			return (&bsm_errors[i]);
+	for (i = 0; i < bsm_errnos_count; i++) {
+		if (bsm_errnos[i].be_local_errno == local_errno)
+			return (&bsm_errnos[i]);
 	}
 	return (NULL);
 }
 
-static const struct bsm_errors *
-au_bsm_error_lookup_bsm(u_char bsm_error)
+/*
+ * Conversion to the BSM errno space isn't allowed to fail; we simply map to
+ * BSM_ERRNO_UNKNOWN and let the remote endpoint deal with it.
+ */
+u_char
+au_errno_to_bsm(int local_errno)
+{
+	const struct bsm_errno *bsme;
+
+	bsme = bsm_lookup_errno_local(local_errno);
+	if (bsme == NULL)
+		return (BSM_ERRNO_UNKNOWN);
+	return (bsme->be_bsm_errno);
+}
+
+static const struct bsm_errno *
+bsm_lookup_errno_bsm(u_char bsm_errno)
 {
 	int i;
 
-	for (i = 0; i < bsm_errors_count; i++) {
-		if (bsm_errors[i].be_bsm_error == bsm_error)
-			return (&bsm_errors[i]);
+	for (i = 0; i < bsm_errnos_count; i++) {
+		if (bsm_errnos[i].be_bsm_errno == bsm_errno)
+			return (&bsm_errnos[i]);
 	}
 	return (NULL);
 }
@@ -594,49 +631,31 @@ au_bsm_error_lookup_bsm(u_char bsm_error)
 /*
  * Converstion from a BSM error to a local error number may fail if either
  * OpenBSM doesn't recognize the error on the wire, or because there is no
- * appropriate local mapping.  However, we don't allow conversion to BSM to
- * fail, we just convert to BSM_UKNOWNERR.
+ * appropriate local mapping.
  */
 int
-au_bsm_to_errno(u_char bsm_error, int *errorp)
+au_bsm_to_errno(u_char bsm_errno, int *errorp)
 {
-	const struct bsm_errors *bsme;
+	const struct bsm_errno *bsme;
 
-	bsme = au_bsm_error_lookup_bsm(bsm_error);
-	if (bsme == NULL || bsme->be_os_error == ERRNO_NO_LOCAL_MAPPING)
+	bsme = bsm_lookup_errno_bsm(bsm_errno);
+	if (bsme == NULL || bsme->be_local_errno == ERRNO_NO_LOCAL_MAPPING)
 		return (-1);
-	*errorp = bsme->be_os_error;
+	*errorp = bsme->be_local_errno;
 	return (0);
-}
-
-u_char
-au_errno_to_bsm(int error)
-{
-	const struct bsm_errors *bsme;
-
-	/*
-	 * We should never be passed this libbsm-internal constant, and
-	 * because it is ambiguous we just return an error.
-	 */
-	if (error == ERRNO_NO_LOCAL_MAPPING)
-		return (BSM_UNKNOWNERR);
-	bsme = au_bsm_error_lookup_errno(error);
-	if (bsme == NULL)
-		return (BSM_UNKNOWNERR);
-	return (bsme->be_bsm_error);
 }
 
 #if !defined(KERNEL) && !defined(_KERNEL)
 const char *
-au_strerror(u_char bsm_error)
+au_strerror(u_char bsm_errno)
 {
-	const struct bsm_errors *bsme;
+	const struct bsm_errno *bsme;
 
-	bsme = au_bsm_error_lookup_bsm(bsm_error);
+	bsme = bsm_lookup_errno_bsm(bsm_errno);
 	if (bsme == NULL)
 		return ("Unrecognized BSM error");
-	if (bsme->be_os_error != ERRNO_NO_LOCAL_MAPPING)
-		return (strerror(bsme->be_os_error));
+	if (bsme->be_local_errno != ERRNO_NO_LOCAL_MAPPING)
+		return (strerror(bsme->be_local_errno));
 	return (bsme->be_strerror);
 }
 #endif
