@@ -31,7 +31,7 @@
 
 #define	USB_BUS_DMA_TAG_MAX 8
 
-/* structure prototypes */
+/* structure prototypes  */
 
 struct usb2_bus;
 struct usb2_page;

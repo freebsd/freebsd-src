@@ -41,7 +41,7 @@
 
 #define	UHCI_MAX_DEVICES MIN(USB_MAX_DEVICES, 128)
 
-/* PCI config registers */
+/* PCI config registers  */
 #define	PCI_USBREV		0x60	/* USB protocol revision */
 #define	PCI_USB_REV_MASK		0xff
 #define	PCI_USB_REV_PRE_1_0	0x00

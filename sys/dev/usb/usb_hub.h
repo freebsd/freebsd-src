@@ -28,7 +28,7 @@
 #define	_USB2_HUB_H_
 
 /*
- * The following structure defines an USB port.
+ * The following structure defines an USB port. 
  */
 struct usb2_port {
 	uint8_t	restartcnt;
