@@ -41,7 +41,7 @@
 
 #define	OHCI_MAX_DEVICES MIN(USB_MAX_DEVICES, 128)
 
-/* PCI config registers */
+/* PCI config registers  */
 #define	PCI_CBMEM		0x10	/* configuration base memory */
 #define	PCI_INTERFACE_OHCI	0x10
 

@@ -25,8 +25,8 @@
  */
 
 /*
- * This header file defines the registers of the Mentor Graphics
- * USB OnTheGo Inventra chip.
+ * This header file defines the registers of the Mentor Graphics USB OnTheGo
+ * Inventra chip.
  */
 
 #ifndef _MUSB2_OTG_H_

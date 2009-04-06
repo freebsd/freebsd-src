@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * NOTE: The "fifo_bank" is not reset in hardware when the endpoint is
- * reset !
+ * reset.
  *
  * NOTE: When the chip detects BUS-reset it will also reset the
  * endpoints, Function-address and more.
