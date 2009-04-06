@@ -1500,7 +1500,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		vm_map_lock_read(map);
 		if (error)
 			break;
-		if (last_timestamp + 1 != map->timestamp) {
+		if (last_timestamp != map->timestamp) {
 			vm_map_lookup_entry(map, addr - 1, &tmp_entry);
 			entry = tmp_entry;
 		}
@@ -1677,7 +1677,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		vm_map_lock_read(map);
 		if (error)
 			break;
-		if (last_timestamp + 1 != map->timestamp) {
+		if (last_timestamp != map->timestamp) {
 			vm_map_lookup_entry(map, addr - 1, &tmp_entry);
 			entry = tmp_entry;
 		}

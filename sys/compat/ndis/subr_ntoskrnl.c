@@ -207,7 +207,6 @@ static void *MmMapLockedPages(mdl *, uint8_t);
 static void *MmMapLockedPagesSpecifyCache(mdl *,
 	uint8_t, uint32_t, void *, uint32_t, uint32_t);
 static void MmUnmapLockedPages(void *, mdl *);
-static uint8_t MmIsAddressValid(void *);
 static device_t ntoskrnl_finddev(device_t, uint64_t, struct resource **);
 static void RtlZeroMemory(void *, size_t);
 static void RtlCopyMemory(void *, const void *, size_t);
@@ -251,6 +250,8 @@ static funcptr ntoskrnl_findwrap(funcptr);
 static uint32_t DbgPrint(char *, ...);
 static void DbgBreakPoint(void);
 static void KeBugCheckEx(uint32_t, u_long, u_long, u_long, u_long);
+static int32_t KeDelayExecutionThread(uint8_t, uint8_t, int64_t *);
+static int32_t KeSetPriorityThread(struct thread *, int32_t);
 static void dummy(void);
 
 static struct mtx ntoskrnl_dispatchlock;
@@ -1143,16 +1144,18 @@ uint8_t
 IoCancelIrp(irp *ip)
 {
 	cancel_func		cfunc;
+	uint8_t			cancelirql;
 
-	IoAcquireCancelSpinLock(&ip->irp_cancelirql);
+	IoAcquireCancelSpinLock(&cancelirql);
 	cfunc = IoSetCancelRoutine(ip, NULL);
 	ip->irp_cancel = TRUE;
-	if (ip->irp_cancelfunc == NULL) {
-		IoReleaseCancelSpinLock(ip->irp_cancelirql);
+	if (cfunc == NULL) {
+		IoReleaseCancelSpinLock(cancelirql);
 		return(FALSE);
 	}
+	ip->irp_cancelirql = cancelirql;
 	MSCALL2(cfunc, IoGetCurrentIrpStackLocation(ip)->isl_devobj, ip);
-	return(TRUE);
+	return (uint8_t)IoSetCancelValue(ip, TRUE);
 }
 
 uint32_t
@@ -1186,24 +1189,27 @@ IofCompleteRequest(ip, prioboost)
 	irp			*ip;
 	uint8_t			prioboost;
 {
-	uint32_t		i;
 	uint32_t		status;
 	device_object		*dobj;
 	io_stack_location	*sl;
 	completion_func		cf;
 
-	ip->irp_pendingreturned =
-	    IoGetCurrentIrpStackLocation(ip)->isl_ctl & SL_PENDING_RETURNED;
-	sl = (io_stack_location *)(ip + 1);
+	KASSERT(ip->irp_iostat.isb_status != STATUS_PENDING,
+	    ("incorrect IRP(%p) status (STATUS_PENDING)", ip));
 
-	for (i = ip->irp_currentstackloc; i < (uint32_t)ip->irp_stackcnt; i++) {
-		if (ip->irp_currentstackloc < ip->irp_stackcnt - 1) {
-			IoSkipCurrentIrpStackLocation(ip);
+	sl = IoGetCurrentIrpStackLocation(ip);
+	IoSkipCurrentIrpStackLocation(ip);
+
+	do {
+		if (sl->isl_ctl & SL_PENDING_RETURNED)
+			ip->irp_pendingreturned = TRUE;
+
+		if (ip->irp_currentstackloc != (ip->irp_stackcnt + 1))
 			dobj = IoGetCurrentIrpStackLocation(ip)->isl_devobj;
-		} else
+		else
 			dobj = NULL;
 
-		if (sl[i].isl_completionfunc != NULL &&
+		if (sl->isl_completionfunc != NULL &&
 		    ((ip->irp_iostat.isb_status == STATUS_SUCCESS &&
 		    sl->isl_ctl & SL_INVOKE_ON_SUCCESS) ||
 		    (ip->irp_iostat.isb_status != STATUS_SUCCESS &&
@@ -1214,12 +1220,16 @@ IofCompleteRequest(ip, prioboost)
 			status = MSCALL3(cf, dobj, ip, sl->isl_completionctx);
 			if (status == STATUS_MORE_PROCESSING_REQUIRED)
 				return;
+		} else {
+			if ((ip->irp_currentstackloc <= ip->irp_stackcnt) &&
+			    (ip->irp_pendingreturned == TRUE))
+				IoMarkIrpPending(ip);
 		}
 
-		if (IoGetCurrentIrpStackLocation(ip)->isl_ctl &
-		    SL_PENDING_RETURNED)
-			ip->irp_pendingreturned = TRUE;
-	}
+		/* move to the next.  */
+		IoSkipCurrentIrpStackLocation(ip);
+		sl++;
+	} while (ip->irp_currentstackloc <= (ip->irp_stackcnt + 1));
 
 	/* Handle any associated IRPs. */
 
@@ -2672,7 +2682,7 @@ MmUnmapLockedPages(vaddr, buf)
  * here, but it doesn't.
  */
 
-static uint8_t
+uint8_t
 MmIsAddressValid(vaddr)
 	void			*vaddr;
 {
@@ -4258,6 +4268,73 @@ KeReadStateTimer(timer)
 	return(timer->k_header.dh_sigstate);
 }
 
+static int32_t
+KeDelayExecutionThread(wait_mode, alertable, interval)
+        uint8_t                 wait_mode;
+        uint8_t                 alertable;
+        int64_t                 *interval;
+{
+	ktimer                  timer;
+
+	if (wait_mode != 0)
+		panic("invalid wait_mode %d", wait_mode);
+
+	KeInitializeTimer(&timer);
+	KeSetTimer(&timer, *interval, NULL);
+	KeWaitForSingleObject(&timer, 0, 0, alertable, NULL);
+
+	return STATUS_SUCCESS;
+}
+
+static uint64_t
+KeQueryInterruptTime(void)
+{
+	int ticks;
+	struct timeval tv;
+
+	getmicrouptime(&tv);
+
+	ticks = tvtohz(&tv);
+
+	return ticks * ((10000000 + hz - 1) / hz);
+}
+
+static struct thread *
+KeGetCurrentThread(void)
+{
+
+	return curthread;
+}
+
+static int32_t
+KeSetPriorityThread(td, pri)
+	struct thread	*td;
+	int32_t		pri;
+{
+	int32_t old;
+
+	if (td == NULL)
+		return LOW_REALTIME_PRIORITY;
+
+	if (td->td_priority <= PRI_MIN_KERN)
+		old = HIGH_PRIORITY;
+	else if (td->td_priority >= PRI_MAX_KERN)
+		old = LOW_PRIORITY;
+	else
+		old = LOW_REALTIME_PRIORITY;
+
+	thread_lock(td);
+	if (pri == HIGH_PRIORITY)
+		sched_prio(td, PRI_MIN_KERN);
+	if (pri == LOW_REALTIME_PRIORITY)
+		sched_prio(td, PRI_MIN_KERN + (PRI_MAX_KERN - PRI_MIN_KERN) / 2);
+	if (pri == LOW_PRIORITY)
+		sched_prio(td, PRI_MAX_KERN);
+	thread_unlock(td);
+
+	return old;
+}
+
 static void
 dummy()
 {
@@ -4441,6 +4518,10 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_CFUNC(WmiTraceMessage, 0),
 	IMPORT_SFUNC(KeQuerySystemTime, 1),
 	IMPORT_CFUNC(KeTickCount, 0),
+	IMPORT_SFUNC(KeDelayExecutionThread, 3),
+	IMPORT_SFUNC(KeQueryInterruptTime, 0),
+	IMPORT_SFUNC(KeGetCurrentThread, 0),
+	IMPORT_SFUNC(KeSetPriorityThread, 2),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't

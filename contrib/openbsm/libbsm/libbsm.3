@@ -23,9 +23,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/libbsm.3#13 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/libbsm.3#14 $
 .\"
-.Dd April 19, 2005
+.Dd November 12, 2008
 .Dt LIBBSM 3
 .Os
 .Sh NAME
@@ -201,6 +201,12 @@ database:
 .Xr au_user 3 ,
 .Xr audit_class 5 ,
 .Xr audit_control 5
+.Ss Audit Error Interfaces
+These functions convert between BSM and local
+.Xr errno 2
+error numbers, and must be used to interpret and generate BSM return tokens:
+.Xr au_bsm_to_errno 3 ,
+.Xr au_errno_to_bsm 3 .
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.

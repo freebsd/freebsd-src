@@ -62,9 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/xen_intr.h>
-#include <machine/xen/evtchn.h>
+#include <xen/hypervisor.h>
+#include <xen/xen_intr.h>
+#include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/interface/memory.h>
 #include <dev/xen/netfront/mbufq.h>
@@ -363,24 +363,25 @@ makembuf (struct mbuf *buf)
 static int 
 xen_net_read_mac(device_t dev, uint8_t mac[])
 {
-	char *s;
-	int i;
-	char *e;
-	char *macstr = xenbus_read(XBT_NIL, xenbus_get_node(dev), "mac", NULL);
-	if (IS_ERR(macstr)) {
-		return PTR_ERR(macstr);
-	}
+	int error, i;
+	char *s, *e, *macstr;
+
+	error = xenbus_read(XBT_NIL, xenbus_get_node(dev), "mac", NULL,
+	    (void **) &macstr);
+	if (error)
+		return (error);
+
 	s = macstr;
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		mac[i] = strtoul(s, &e, 16);
 		if (s == e || (e[0] != ':' && e[0] != 0)) {
 			free(macstr, M_DEVBUF);
-			return ENOENT;
+			return (ENOENT);
 		}
 		s = &e[1];
 	}
 	free(macstr, M_DEVBUF);
-	return 0;
+	return (0);
 }
 
 /**
@@ -422,13 +423,11 @@ netfront_attach(device_t dev)
  * leave the device-layer structures intact so that this is transparent to the
  * rest of the kernel.
  */
-static int 
+static int
 netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
-	
-	DPRINTK("%s\n", xenbus_get_node(dev));
-	
+
 	netif_disconnect_backend(info);
 	return (0);
 }
@@ -532,7 +531,7 @@ setup_device(device_t dev, struct netfront_info *info)
 {
 	netif_tx_sring_t *txs;
 	netif_rx_sring_t *rxs;
-	int err;
+	int error;
 	struct ifnet *ifp;
 	
 	ifp = info->xn_ifp;
@@ -545,51 +544,45 @@ setup_device(device_t dev, struct netfront_info *info)
 
 	txs = (netif_tx_sring_t *)malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (!txs) {
-		err = ENOMEM;
-		xenbus_dev_fatal(dev, err, "allocating tx ring page");
+		error = ENOMEM;
+		xenbus_dev_fatal(dev, error, "allocating tx ring page");
 		goto fail;
 	}
 	SHARED_RING_INIT(txs);
 	FRONT_RING_INIT(&info->tx, txs, PAGE_SIZE);
-	err = xenbus_grant_ring(dev, virt_to_mfn(txs));
-	if (err < 0)
+	error = xenbus_grant_ring(dev, virt_to_mfn(txs), &info->tx_ring_ref);
+	if (error)
 		goto fail;
-	info->tx_ring_ref = err;
 
 	rxs = (netif_rx_sring_t *)malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (!rxs) {
-		err = ENOMEM;
-		xenbus_dev_fatal(dev, err, "allocating rx ring page");
+		error = ENOMEM;
+		xenbus_dev_fatal(dev, error, "allocating rx ring page");
 		goto fail;
 	}
 	SHARED_RING_INIT(rxs);
 	FRONT_RING_INIT(&info->rx, rxs, PAGE_SIZE);
 
-	err = xenbus_grant_ring(dev, virt_to_mfn(rxs));
-	if (err < 0)
+	error = xenbus_grant_ring(dev, virt_to_mfn(rxs), &info->rx_ring_ref);
+	if (error)
 		goto fail;
-	info->rx_ring_ref = err;
 
-#if 0	
-	network_connect(info);
-#endif
-	err = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
-		"xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, NULL);
+	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
+	         "xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
 
-	if (err <= 0) {
-		xenbus_dev_fatal(dev, err,
+	if (error) {
+		xenbus_dev_fatal(dev, error,
 				 "bind_evtchn_to_irqhandler failed");
 		goto fail;
 	}
-	info->irq = err;
-	
+
 	show_device(info);
 	
-	return 0;
+	return (0);
 	
  fail:
 	netif_free(info);
-	return err;
+	return (error);
 }
 
 /**
@@ -1225,7 +1218,7 @@ xennet_get_responses(struct netfront_info *np,
 				MULTI_update_va_mapping(mcl, (u_long)vaddr,
 				    (((vm_paddr_t)mfn) << PAGE_SHIFT) | PG_RW |
 				    PG_V | PG_M | PG_A, 0);
-				pfn = (uint32_t)m->m_ext.ext_arg1;
+				pfn = (uintptr_t)m->m_ext.ext_arg1;
 				mmu->ptr = ((vm_paddr_t)mfn << PAGE_SHIFT) |
 				    MMU_MACHPHYS_UPDATE;
 				mmu->val = pfn;
@@ -1557,18 +1550,18 @@ xn_stop(struct netfront_info *sc)
 int
 network_connect(struct netfront_info *np)
 {
-	int i, requeue_idx, err;
+	int i, requeue_idx, error;
 	grant_ref_t ref;
 	netif_rx_request_t *req;
 	u_int feature_rx_copy, feature_rx_flip;
 
-	err = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
-			   "feature-rx-copy", "%u", &feature_rx_copy);
-	if (err != 1)
+	error = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
+	    "feature-rx-copy", NULL, "%u", &feature_rx_copy);
+	if (error)
 		feature_rx_copy = 0;
-	err = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
-			   "feature-rx-flip", "%u", &feature_rx_flip);
-	if (err != 1)
+	error = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
+	    "feature-rx-flip", NULL, "%u", &feature_rx_flip);
+	if (error)
 		feature_rx_flip = 1;
 
 	/*
@@ -1581,9 +1574,9 @@ network_connect(struct netfront_info *np)
 
 	XN_LOCK(np);
 	/* Recovery procedure: */
-	err = talk_to_backend(np->xbdev, np);
-	if (err) 
-		return (err);
+	error = talk_to_backend(np->xbdev, np);
+	if (error) 
+		return (error);
 	
 	/* Step 1: Reinitialise variables. */
 	netif_release_tx_bufs(np);
@@ -1591,6 +1584,7 @@ network_connect(struct netfront_info *np)
 	/* Step 2: Rebuild the RX buffer freelist and the RX ring itself. */
 	for (requeue_idx = 0, i = 0; i < NET_RX_RING_SIZE; i++) {
 		struct mbuf *m;
+		u_long pfn;
 
 		if (np->rx_mbufs[i] == NULL)
 			continue;
@@ -1598,15 +1592,16 @@ network_connect(struct netfront_info *np)
 		m = np->rx_mbufs[requeue_idx] = xennet_get_rx_mbuf(np, i);
 		ref = np->grant_rx_ref[requeue_idx] = xennet_get_rx_ref(np, i);
 		req = RING_GET_REQUEST(&np->rx, requeue_idx);
+		pfn = vtophys(mtod(m, vm_offset_t)) >> PAGE_SHIFT;
 
 		if (!np->copying_receiver) {
 			gnttab_grant_foreign_transfer_ref(ref,
 			    xenbus_get_otherend_id(np->xbdev),
-			    vtophys(mtod(m, vm_offset_t)));
+			    pfn);
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
 			    xenbus_get_otherend_id(np->xbdev),
-			    vtophys(mtod(m, vm_offset_t)), 0);
+			    PFNTOMFN(pfn), 0);
 		}
 		req->gref = ref;
 		req->id   = requeue_idx;
@@ -1707,7 +1702,7 @@ create_netdev(device_t dev)
 	ifp = np->xn_ifp = if_alloc(IFT_ETHER);
     	ifp->if_softc = np;
     	if_initname(ifp, "xn",  device_get_unit(dev));
-    	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+    	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     	ifp->if_ioctl = xn_ioctl;
     	ifp->if_output = ether_output;
     	ifp->if_start = xn_start;
@@ -1777,11 +1772,14 @@ static void netif_free(struct netfront_info *info)
 #endif
 }
 
-
-
 static void netif_disconnect_backend(struct netfront_info *info)
 {
-	xn_stop(info);
+	XN_RX_LOCK(info);
+	XN_TX_LOCK(info);
+	netfront_carrier_off(info);
+	XN_TX_UNLOCK(info);
+	XN_RX_UNLOCK(info);
+
 	end_access(info->tx_ring_ref, info->tx.sring);
 	end_access(info->rx_ring_ref, info->rx.sring);
 	info->tx_ring_ref = GRANT_INVALID_REF;
@@ -1789,12 +1787,9 @@ static void netif_disconnect_backend(struct netfront_info *info)
 	info->tx.sring = NULL;
 	info->rx.sring = NULL;
 
-#if 0
 	if (info->irq)
-		unbind_from_irqhandler(info->irq, info->netdev);
-#else 
-	panic("FIX ME");
-#endif
+		unbind_from_irqhandler(info->irq);
+
 	info->irq = 0;
 }
 

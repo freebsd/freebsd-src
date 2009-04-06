@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#26 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#28 $
  */
 
 #ifdef __APPLE__
@@ -69,6 +69,7 @@ audit_submit(short au_event, au_id_t auid, char status,
 	int error, afd, subj_ex;
 	struct auditinfo ai;
 	struct auditinfo_addr aia;
+	au_tid_t atid;
 
 	if (auditon(A_GETCOND, &acond, sizeof(acond)) < 0) {
 		/*
@@ -85,7 +86,6 @@ audit_submit(short au_event, au_id_t auid, char status,
 	}
 	if (acond == AUC_NOAUDIT)
 		return (0);
-	/* XXXCSJP we should be doing a pre-select here */
 	afd = au_open();
 	if (afd < 0) {
 		error = errno;
@@ -95,30 +95,51 @@ audit_submit(short au_event, au_id_t auid, char status,
 		return (-1);
 	}
 	/*
-	 * Some operating systems do not have getaudit_addr(2) implemented
-	 * yet.  So we try to use getaudit(2) first, if the subject is
-	 * using IPv6, then we will have to try getaudit_addr(2).  Failing
-	 * this, we return error.
+	 * Try to use getaudit_addr(2) first.  If this kernel does not support
+	 * it, then fall back on to getaudit(2).
 	 */
 	subj_ex = 0;
-	error = getaudit(&ai);
-	if (error < 0 && errno == E2BIG) {
-		error = getaudit_addr(&aia, sizeof(aia));
-		if (error == 0)
-			subj_ex = 1;
-	}
-	if (error < 0) {
+	error = getaudit_addr(&aia, sizeof(aia));
+	if (error < 0 && errno == ENOSYS) {
+		error = getaudit(&ai);
+		if (error < 0) {
+			error = errno;
+			syslog(LOG_AUTH | LOG_ERR, "audit: getaudit failed: %s",
+			    strerror(errno));
+			errno = error;
+			return (-1);
+		}
+		/*
+		 * Convert this auditinfo_t to an auditinfo_addr_t to make the
+		 * following code less complicated wrt to preselection and
+		 * subject token generation.
+		 */
+		aia.ai_auid = ai.ai_auid;
+		aia.ai_mask = ai.ai_mask;
+		aia.ai_asid = ai.ai_asid;
+		aia.ai_termid.at_type = AU_IPv4;
+		aia.ai_termid.at_addr[0] = ai.ai_termid.machine;
+		aia.ai_termid.at_port = ai.ai_termid.port;
+	} else if (error < 0) {
 		error = errno;
-		syslog(LOG_AUTH | LOG_ERR, "audit: getaudit failed: %s",
+		syslog(LOG_AUTH | LOG_ERR, "audit: getaudit_addr failed: %s",
 		    strerror(errno));
 		errno = error;
 		return (-1);
 	}
+	/*
+	 * NB: We should be performing pre-selection here now that we have the
+	 * masks for this process.
+	 */
+	if (aia.ai_termid.at_type == AU_IPv6)
+		subj_ex = 1;
 	pid = getpid();
-	if (subj_ex == 0)
+	if (subj_ex == 0) {
+		atid.port = aia.ai_termid.at_port;
+		atid.machine = aia.ai_termid.at_addr[0];
 		token = au_to_subject32(auid, geteuid(), getegid(),
-		    getuid(), getgid(), pid, pid, &ai.ai_termid);
-	else
+		    getuid(), getgid(), pid, pid, &atid);
+	} else
 		token = au_to_subject_ex(auid, geteuid(), getegid(),
 		    getuid(), getgid(), pid, pid, &aia.ai_termid);
 	if (token == NULL) {
@@ -157,7 +178,7 @@ audit_submit(short au_event, au_id_t auid, char status,
 			return (-1);
 		}
 	}
-	token = au_to_return32(status, reterr);
+	token = au_to_return32(status, au_errno_to_bsm(reterr));
 	if (token == NULL) {
 		syslog(LOG_AUTH | LOG_ERR,
 		    "audit: enable to build return token");

@@ -75,7 +75,6 @@ MARCHDIR=	i486
 MARCHDIR=	${MACHINE_ARCH}
 .endif
 
-ATOMICITY_H=	atomicity.h
 .if exists(${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h)
 ATOMICITY_H=	${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h
 .else

@@ -12,7 +12,7 @@
 #ifndef __ASM_EVTCHN_H__
 #define __ASM_EVTCHN_H__
 #include <machine/pcpu.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/synch_bitops.h>
 #include <machine/frame.h>
 

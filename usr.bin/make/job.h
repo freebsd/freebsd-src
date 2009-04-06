@@ -67,6 +67,7 @@ Boolean Job_Empty(void);
 void Job_Finish(void);
 void Job_Wait(void);
 void Job_AbortAll(void);
+void Job_SetPrefix(void);
 
 void Proc_Init(void);
 

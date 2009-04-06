@@ -1703,14 +1703,16 @@ fdfree(struct thread *td)
 	FILEDESC_XUNLOCK(fdp);
 	if (i > 0)
 		return;
-	/*
-	 * We are the last reference to the structure, so we can
-	 * safely assume it will not change out from under us.
-	 */
+
 	fpp = fdp->fd_ofiles;
 	for (i = fdp->fd_lastfile; i-- >= 0; fpp++) {
-		if (*fpp)
-			(void) closef(*fpp, td);
+		if (*fpp) {
+			FILEDESC_XLOCK(fdp);
+			fp = *fpp;
+			*fpp = NULL;
+			FILEDESC_XUNLOCK(fdp);
+			(void) closef(fp, td);
+		}
 	}
 	FILEDESC_XLOCK(fdp);
 

@@ -197,7 +197,7 @@ typedef struct {
 	uByte		bCDBLength;
 #	define CBWCDBLENGTH	16
 	uByte		CBWCDB[CBWCDBLENGTH];
-} umass_bbb_cbw_t;
+} __packed umass_bbb_cbw_t;
 #define	UMASS_BBB_CBW_SIZE	31
 
 /* Command Status Wrapper */
@@ -212,7 +212,7 @@ typedef struct {
 #	define CSWSTATUS_GOOD	0x0
 #	define CSWSTATUS_FAILED	0x1
 #	define CSWSTATUS_PHASE	0x2
-} umass_bbb_csw_t;
+} __packed umass_bbb_csw_t;
 #define	UMASS_BBB_CSW_SIZE	13
 
 /* CBI features */

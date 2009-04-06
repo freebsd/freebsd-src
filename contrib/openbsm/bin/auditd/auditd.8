@@ -25,9 +25,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#14 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#16 $
 .\"
-.Dd October 2, 2006
+.Dd December 11, 2008
 .Dt AUDITD 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd audit log management daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl d
+.Op Fl d | l
 .Sh DESCRIPTION
 The
 .Nm
@@ -50,7 +50,16 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl d
 Starts the daemon in debug mode \[em] it will not daemonize.
+.It Fl l
+This option is for when
+.Nm
+is configured to start on-demand using
+.Xr launchd 8 .
 .El
+.Pp
+Optionally, the audit review group "audit" may be created.
+Non-privileged
+users that are members of this group may read the audit trail log files. 
 .Sh NOTE
 To assure uninterrupted audit support, the
 .Nm
@@ -63,20 +72,33 @@ the
 .Pa audit_control
 file.
 .Pp
-.\" Sending a
-.\" .Dv SIGHUP
-.\" to a running
-.\" .Nm
-.\" daemon will force it to exit.
-Sending a
-.Dv SIGTERM
-to a running
+If 
 .Nm
-daemon will force it to exit.
+is started on-demand by
+.Xr launchd 8 
+then auditing should only be started and stopped with
+.Xr audit 8 .
+.Pp
+On Mac OS X, 
+.Nm
+uses the 
+.Xr asl 3
+API for writing system log messages.
+Therefore, only the audit administrator 
+and members of the audit review group will be able to read the
+system log entries. 
 .Sh FILES
-.Bl -tag -width ".Pa /var/audit" -compact
+.Bl -tag -width ".Pa /etc/security" -compact
 .It Pa /var/audit
 Default directory for storing audit log files.
+.Pp
+.It Pa /etc/security
+The directory containing the auditing configuration files 
+.Xr audit_class 5 ,
+.Xr audit_control 5 ,
+.Xr audit_event 5 ,
+and
+.Xr audit_warn 5 . 
 .El
 .Sh COMPATIBILITY
 The historical
@@ -92,9 +114,14 @@ and
 and are no longer available as arguments to
 .Nm .
 .Sh SEE ALSO
+.Xr asl 3 ,
 .Xr audit 4 ,
+.Xr audit_class 5 ,
 .Xr audit_control 5 ,
-.Xr audit 8
+.Xr audit_event 5 ,
+.Xr audit_warn 5 ,
+.Xr audit 8 ,
+.Xr launchd 8
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.

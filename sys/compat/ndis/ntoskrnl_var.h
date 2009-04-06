@@ -536,6 +536,11 @@ typedef struct wait_block wait_block;
 
 #define WAITKEY_VALID		0x8000
 
+/* kthread priority  */
+#define	LOW_PRIORITY		0
+#define	LOW_REALTIME_PRIORITY	16
+#define	HIGH_PRIORITY		31
+
 struct thread_context {
 	void			*tc_thrctx;
 	void			*tc_thrfunc;
@@ -989,13 +994,22 @@ struct irp {
 			} s2;
 			void			*irp_fileobj;
 		} irp_overlay;
-		kapc			irp_apc;
+		union {
+			kapc			irp_apc;
+			struct {
+				void		*irp_xfer;
+				void		*irp_dev;
+			} irp_usb;
+		} irp_misc;
 		void			*irp_compkey;
 	} irp_tail;
 };
 
 #define irp_csl			s2.u2.irp_csl
 #define irp_pkttype		s2.u2.irp_pkttype
+
+#define	IRP_NDIS_DEV(irp)	(irp)->irp_tail.irp_misc.irp_usb.irp_dev
+#define	IRP_NDISUSB_XFER(irp)	(irp)->irp_tail.irp_misc.irp_usb.irp_xfer
 
 typedef struct irp irp;
 
@@ -1008,6 +1022,10 @@ typedef struct irp irp;
 #define IoSetCancelRoutine(irp, func)					\
 	(cancel_func)InterlockedExchangePointer(			\
 	(void *)&(ip)->irp_cancelfunc, (void *)(func))
+
+#define	IoSetCancelValue(irp, val)					\
+	(u_long)InterlockedExchangePointer(				\
+	(void *)&(ip)->irp_cancel, (void *)(val))
 
 #define IoGetCurrentIrpStackLocation(irp)				\
 	(irp)->irp_tail.irp_overlay.irp_csl
@@ -1035,6 +1053,8 @@ typedef struct irp irp;
 
 #define IoMarkIrpPending(irp)						\
 	IoGetCurrentIrpStackLocation(irp)->isl_ctl |= SL_PENDING_RETURNED
+#define	IoUnmarkIrpPending(irp)						\
+	IoGetCurrentIrpStackLocation(irp)->isl_ctl &= ~SL_PENDING_RETURNED
 
 #define IoCopyCurrentIrpStackLocationToNext(irp)			\
 	do {								\
@@ -1191,14 +1211,21 @@ typedef struct driver_object driver_object;
 #define STATUS_ALERTED			0x00000101
 #define STATUS_TIMEOUT			0x00000102
 #define STATUS_PENDING			0x00000103
+#define	STATUS_FAILURE			0xC0000001
+#define	STATUS_NOT_IMPLEMENTED		0xC0000002
 #define STATUS_INVALID_PARAMETER	0xC000000D
 #define STATUS_INVALID_DEVICE_REQUEST	0xC0000010
 #define STATUS_MORE_PROCESSING_REQUIRED	0xC0000016
+#define	STATUS_NO_MEMORY		0xC0000017
 #define STATUS_BUFFER_TOO_SMALL		0xC0000023
 #define STATUS_MUTANT_NOT_OWNED		0xC0000046
+#define	STATUS_NOT_SUPPORTED		0xC00000BB
 #define STATUS_INVALID_PARAMETER_2	0xC00000F0
 #define STATUS_INSUFFICIENT_RESOURCES	0xC000009A
+#define	STATUS_DEVICE_NOT_CONNECTED	0xC000009D
+#define	STATUS_CANCELLED		0xC0000120
 #define STATUS_NOT_FOUND		0xC0000225
+#define	STATUS_DEVICE_REMOVED		0xC00002B6
 
 #define STATUS_WAIT_0			0x00000000
 
@@ -1365,6 +1392,7 @@ extern void ExFreePool(void *);
 extern uint32_t IoConnectInterrupt(kinterrupt **, void *, void *,
 	kspin_lock *, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t,
 	uint32_t, uint8_t);
+extern uint8_t MmIsAddressValid(void *);
 extern void *MmMapIoSpace(uint64_t, uint32_t, uint32_t);
 extern void MmUnmapIoSpace(void *, size_t);
 extern void MmBuildMdlForNonPagedPool(mdl *);

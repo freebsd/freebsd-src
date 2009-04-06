@@ -1658,6 +1658,7 @@ typedef void (*ndis_return_handler)(ndis_handle, ndis_packet *);
 typedef void (*ndis_enable_interrupts_handler)(ndis_handle);
 typedef void (*ndis_disable_interrupts_handler)(ndis_handle);
 typedef void (*ndis_shutdown_handler)(void *);
+typedef void (*ndis_pnpevent_handler)(void *, int, void *, uint32_t);
 typedef void (*ndis_allocdone_handler)(ndis_handle, void *,
 		ndis_physaddr *, uint32_t, void *);
 typedef uint8_t (*ndis_checkforhang_handler)(ndis_handle);
@@ -1739,6 +1740,7 @@ extern void ndis_free_bufs(ndis_buffer *);
 extern int ndis_reset_nic(void *);
 extern int ndis_halt_nic(void *);
 extern int ndis_shutdown_nic(void *);
+extern int ndis_pnpevent_nic(void *, int);
 extern int ndis_init_nic(void *);
 extern void ndis_return_packet(void *, void *);
 extern int ndis_init_dma(void *);
@@ -1759,6 +1761,7 @@ extern void NdisAllocatePacket(ndis_status *,
 extern void NdisFreePacket(ndis_packet *);
 extern ndis_status NdisScheduleWorkItem(ndis_work_item *);
 extern void NdisMSleep(uint32_t);
+extern void ndis_cancel_timerlist(void);
 __END_DECLS
 
 #endif /* _NDIS_VAR_H_ */

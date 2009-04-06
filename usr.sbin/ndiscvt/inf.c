@@ -62,8 +62,10 @@ static struct section
 		*find_section	(const char *);
 static void	dump_deviceids_pci	(void);
 static void	dump_deviceids_pcmcia	(void);
+static void	dump_deviceids_usb	(void);
 static void	dump_pci_id	(const char *);
 static void	dump_pcmcia_id	(const char *);
+static void	dump_usb_id	(const char *);
 static void	dump_regvals	(void);
 static void	dump_paramreg	(const struct section *,
 				const struct reg *, int);
@@ -83,6 +85,7 @@ inf_parse (FILE *fp, FILE *outfp)
 
 	dump_deviceids_pci();
 	dump_deviceids_pcmcia();
+	dump_deviceids_usb();
 	fprintf(outfp, "#ifdef NDIS_REGVALS\n");
 	dump_regvals();
 	fprintf(outfp, "#endif /* NDIS_REGVALS */\n");
@@ -252,6 +255,30 @@ dump_pci_id(const char *s)
 }
 
 static void
+dump_usb_id(const char *s)
+{
+	char *p;
+	char vidstr[7], pidstr[7];
+
+	p = strcasestr(s, "VID_");
+	if (p == NULL)
+		return;
+	p += 4;
+	strcpy(vidstr, "0x");
+	strncat(vidstr, p, 4);
+	p = strcasestr(s, "PID_");
+	if (p == NULL)
+		return;
+	p += 4;
+	strcpy(pidstr, "0x");
+	strncat(pidstr, p, 4);
+	if (p == NULL)
+		return;
+
+	fprintf(ofp, "\t\\\n\t{ %s, %s, ", vidstr, pidstr);
+}
+
+static void
 dump_deviceids_pci()
 {
 	struct assign *manf, *dev;
@@ -408,6 +435,99 @@ retry:
 			/* Emit device IDs. */
 			if (strcasestr(assign->vals[1], "PCMCIA") != NULL)
 				dump_pcmcia_id(assign->vals[1]);
+			else
+				continue;
+			/* Emit device description */
+			fprintf (ofp, "\t\\\n\t\"%s\" },", dev->vals[0]);
+			found++;
+		}
+	}
+
+	/* Someone tried to fool us. Shame on them. */
+	if (!found) {
+		found++;
+		sec = find_section(manf->vals[0]);
+		goto retry;
+	}
+
+	/* Handle Manufacturer sections with multiple entries. */
+	manf = find_next_assign(manf);
+
+	if (manf != NULL)
+		goto nextmanf;
+
+done:
+	/* Emit end of table */
+
+	fprintf(ofp, "\n\n");
+
+	return;
+}
+
+static void
+dump_deviceids_usb()
+{
+	struct assign *manf, *dev;
+	struct section *sec;
+	struct assign *assign;
+	char xpsec[256];
+	int first = 1, found = 0;
+
+	/* Find manufacturer name */
+	manf = find_assign("Manufacturer", NULL);
+
+nextmanf:
+
+	/* Find manufacturer section */
+	if (manf->vals[1] != NULL &&
+	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTx86") == 0 ||
+	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTamd64") == 0)) {
+		/* Handle Windows XP INF files. */
+		snprintf(xpsec, sizeof(xpsec), "%s.%s",
+		    manf->vals[0], manf->vals[1]);
+		sec = find_section(xpsec);
+	} else
+		sec = find_section(manf->vals[0]);
+
+	/* See if there are any USB device definitions. */
+
+	TAILQ_FOREACH(assign, &ah, link) {
+		if (assign->section == sec) {
+			dev = find_assign("strings", assign->key);
+			if (strcasestr(assign->vals[1], "USB") != NULL) {
+				found++;
+				break;
+			}
+		}
+	}
+
+	if (found == 0)
+		goto done;
+
+	found = 0;
+
+	if (first == 1) {
+		/* Emit start of USB device table */
+		fprintf (ofp, "#define NDIS_USB_DEV_TABLE");
+		first = 0;
+	}
+
+retry:
+
+	/*
+	 * Now run through all the device names listed
+	 * in the manufacturer section and dump out the
+	 * device descriptions and vendor/device IDs.
+	 */
+
+	TAILQ_FOREACH(assign, &ah, link) {
+		if (assign->section == sec) {
+			dev = find_assign("strings", assign->key);
+			/* Emit device IDs. */
+			if (strcasestr(assign->vals[1], "USB") != NULL)
+				dump_usb_id(assign->vals[1]);
 			else
 				continue;
 			/* Emit device description */

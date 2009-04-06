@@ -1061,8 +1061,10 @@ zyd_al2230_init_b(struct zyd_rf *rf)
 	for (i = 0; i < N(phyini); i++)
 		zyd_write16_m(sc, phyini[i].reg, phyini[i].val);
 
-	if (sc->sc_rfrev == ZYD_RF_AL2230S || sc->sc_al2230s != 0)
-		zyd_write16_m(sc, phy2230s[i].reg, phy2230s[i].val);
+	if (sc->sc_rfrev == ZYD_RF_AL2230S || sc->sc_al2230s != 0) {
+		for (i = 0; i < N(phy2230s); i++)
+			zyd_write16_m(sc, phy2230s[i].reg, phy2230s[i].val);
+	}
 
 	for (i = 0; i < 3; i++) {
 		error = zyd_rfwrite_cr(sc, zyd_al2230_chtable[0][i]);

@@ -1076,7 +1076,7 @@ ParseDoDependency(char *line)
 			break;
 		  case Posix:
 			is_posix = TRUE;
-			Var_Set("%POSIX", "1003.2", VAR_GLOBAL);
+			Var_SetGlobal("%POSIX", "1003.2");
 			break;
 		  default:
 			break;
@@ -1533,6 +1533,8 @@ Parse_DoVar(char *line, GNode *ctxt)
 		 */
 		Var_Set(line, cp, ctxt);
 	}
+	if (strcmp(line, MAKE_JOB_PREFIX) == 0)
+		Job_SetPrefix();
 }
 
 /*-

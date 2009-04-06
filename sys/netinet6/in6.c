@@ -2282,7 +2282,7 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
 			ndpc.rtm.rtm_rmx.rmx_expire =
 			    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;
-			ndpc.rtm.rtm_flags |= RTF_HOST;
+			ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
 			if (lle->la_flags & LLE_STATIC)
 				ndpc.rtm.rtm_flags |= RTF_STATIC;
 			ndpc.rtm.rtm_index = ifp->if_index;

@@ -165,14 +165,11 @@
 #define	AUDIT_HEADER_VERSION_SOLARIS	2
 #define	AUDIT_HEADER_VERSION_TSOL25	3
 #define	AUDIT_HEADER_VERSION_TSOL	4
-#define	AUDIT_HEADER_VERSION_OPENBSM	10
+#define	AUDIT_HEADER_VERSION_OPENBSM10	10
+#define	AUDIT_HEADER_VERSION_OPENBSM11	11
+#define	AUDIT_HEADER_VERSION_OPENBSM	AUDIT_HEADER_VERSION_OPENBSM11
 
-/*
- * BSM define is AUT_TRAILER_MAGIC; Apple BSM define is TRAILER_PAD_MAGIC; we
- * split the difference, will remove the Apple define for the next release.
- */
 #define	AUT_TRAILER_MAGIC	0xb105
-#define	TRAILER_PAD_MAGIC	AUT_TRAILER_MAGIC
 
 /* BSM library calls */
 
@@ -183,6 +180,7 @@ struct in6_addr;
 struct ip;
 struct ipc_perm;
 struct kevent;
+struct sockaddr;
 struct sockaddr_in;
 struct sockaddr_in6;
 struct sockaddr_un;
@@ -209,6 +207,7 @@ token_t	*au_to_header(int rec_size, au_event_t e_type, au_emod_t e_mod);
 token_t	*au_to_header_ex(int rec_size, au_event_t e_type, au_emod_t e_mod);
 token_t	*au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod);
 token_t	*au_to_header64(int rec_size, au_event_t e_type, au_emod_t e_mod);
+token_t	*au_to_header32_ex(int rec_size, au_event_t e_type, au_emod_t e_mod);
 #endif
 
 token_t	*au_to_me(void);
@@ -252,15 +251,8 @@ token_t	*au_to_return(char status, uint32_t ret);
 token_t	*au_to_return32(char status, uint32_t ret);
 token_t	*au_to_return64(char status, uint64_t ret);
 token_t	*au_to_seq(long audit_count);
-
-#if defined(_KERNEL) || defined(KERNEL)
-token_t	*au_to_socket(struct socket *so);
-token_t	*au_to_socket_ex_32(uint16_t lp, uint16_t rp, struct sockaddr *la,
-	    struct sockaddr *ta);
-token_t	*au_to_socket_ex_128(uint16_t lp, uint16_t rp, struct sockaddr *la,
-	    struct sockaddr *ta);
-#endif
-
+token_t	*au_to_socket_ex(u_short so_domain, u_short so_type,
+	    struct sockaddr *sa_local, struct sockaddr *sa_remote);
 token_t	*au_to_sock_inet(struct sockaddr_in *so);
 token_t	*au_to_sock_inet32(struct sockaddr_in *so);
 token_t	*au_to_sock_inet128(struct sockaddr_in6 *so);
@@ -288,6 +280,12 @@ token_t	*au_to_text(const char *text);
 token_t	*au_to_kevent(struct kevent *kev);
 token_t	*au_to_trailer(int rec_size);
 token_t	*au_to_zonename(const char *zonename);
+
+/*
+ * BSM library routines for manipulating errno values.
+ */
+int	 au_bsm_to_errno(u_char bsm_error, int *errorp);
+u_char	 au_errno_to_bsm(int error);
 
 __END_DECLS
 

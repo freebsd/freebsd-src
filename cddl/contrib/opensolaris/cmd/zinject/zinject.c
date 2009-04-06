@@ -146,6 +146,7 @@
 #include <unistd.h>
 
 #include <sys/fs/zfs.h>
+#include <sys/param.h>
 #include <sys/mount.h>
 
 #include <libzfs.h>

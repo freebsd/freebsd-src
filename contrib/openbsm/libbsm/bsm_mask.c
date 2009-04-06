@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_mask.c#14 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_mask.c#15 $
  */
 
 #include <sys/types.h>
@@ -41,12 +41,16 @@
 
 #include <bsm/libbsm.h>
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 #include <pthread.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 
 /* MT-Safe */
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 static int		firsttime = 1;
 
 /*
@@ -162,11 +166,15 @@ au_preselect(au_event_t event, au_mask_t *mask_p, int sorf, int flag)
 		return (-1);
 
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	if (firsttime) {
 		firsttime = 0;
 		if ( -1 == load_event_table()) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 			pthread_mutex_unlock(&mutex);
+#endif
 			return (-1);
 		}
 	}
@@ -174,7 +182,9 @@ au_preselect(au_event_t event, au_mask_t *mask_p, int sorf, int flag)
 	case AU_PRS_REREAD:
 		flush_cache();
 		if (load_event_table() == -1) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 			pthread_mutex_unlock(&mutex);
+#endif
 			return (-1);
 		}
 		ev = read_from_cache(event);
@@ -186,14 +196,18 @@ au_preselect(au_event_t event, au_mask_t *mask_p, int sorf, int flag)
 		ev = NULL;
 	}
 	if (ev == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
+#endif
 		return (-1);
 	}
 	if (sorf & AU_PRS_SUCCESS)
 		effmask |= (mask_p->am_success & ev->ae_class);
 	if (sorf & AU_PRS_FAILURE)
 		effmask |= (mask_p->am_failure & ev->ae_class);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	if (effmask != 0)
 		return (1);
 	return (0);

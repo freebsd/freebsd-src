@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/test/Makefile.in#6 $
+# $P4: //depot/projects/trustedbsd/openbsm/test/Makefile.in#7 $
 #
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@

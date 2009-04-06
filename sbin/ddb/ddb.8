@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2008
+.Dd December 24, 2008
 .Dt DDB 8
 .Os
 .Sh NAME
@@ -87,7 +87,7 @@ kernel on disk.
 The following debugger commands are available from the command line:
 .Bl -tag -width indent
 .It Xo
-.Ic Cm capture
+.Cm capture
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Cm print
@@ -96,7 +96,7 @@ Print the current contents of the
 .Xr ddb 4
 output capture buffer.
 .It Xo
-.Ic Cm capture
+.Cm capture
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Cm status
@@ -104,6 +104,7 @@ output capture buffer.
 Print the current status of the
 .Xr ddb 4
 output capture buffer.
+.El
 .Sh SCRIPTING
 The
 .Nm

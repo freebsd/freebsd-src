@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
 
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/synch_bitops.h>
 #include <xen/gnttab.h>
 
@@ -70,14 +70,14 @@ static int gnttab_expand(unsigned int req_entries);
 #define gnttab_entry(entry) (gnttab_list[(entry) / RPP][(entry) % RPP])
 
 static int
-get_free_entries(int count)
+get_free_entries(int count, int *entries)
 {
 	int ref, rc;
 	grant_ref_t head;
 	
 	mtx_lock(&gnttab_list_lock);
 	if ((gnttab_free_count < count) &&
-	    ((rc = gnttab_expand(count - gnttab_free_count)) < 0)) {
+	    ((rc = gnttab_expand(count - gnttab_free_count)) != 0)) {
 		mtx_unlock(&gnttab_list_lock);
 		return (rc);
 	}
@@ -88,10 +88,10 @@ get_free_entries(int count)
 	gnttab_free_head = gnttab_entry(head);
 	gnttab_entry(head) = GNTTAB_LIST_END;
 	mtx_unlock(&gnttab_list_lock);	
-	return (ref);
-}
 
-#define get_free_entry() get_free_entries(1)
+	*entries = ref;
+	return (0);
+}
 
 static void
 do_free_callbacks(void)
@@ -138,19 +138,25 @@ put_free_entry(grant_ref_t ref)
  */
 
 int
-gnttab_grant_foreign_access(domid_t domid, unsigned long frame, int readonly)
+gnttab_grant_foreign_access(domid_t domid, unsigned long frame, int readonly,
+	grant_ref_t *result)
 {
-	int ref;
+	int error, ref;
 
-	if (unlikely((ref = get_free_entry()) == -1))
-		return -ENOSPC;
+	error = get_free_entries(1, &ref);
+	
+	if (unlikely(error))
+		return (error);
 
 	shared[ref].frame = frame;
 	shared[ref].domid = domid;
 	wmb();
 	shared[ref].flags = GTF_permit_access | (readonly ? GTF_readonly : 0);
 
-	return ref;
+	if (result)
+		*result = ref;
+
+	return (0);
 }
 
 void
@@ -209,10 +215,11 @@ gnttab_end_foreign_access(grant_ref_t ref, void *page)
 int
 gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn)
 {
-	int ref;
-	
-	if (unlikely((ref = get_free_entry()) == -1))
-		return -ENOSPC;
+	int error, ref;
+
+	error = get_free_entries(1, &ref);
+	if (unlikely(error))
+		return (error);
 
 	gnttab_grant_foreign_transfer_ref(ref, domid, pfn);
 	
@@ -300,14 +307,14 @@ gnttab_free_grant_references(grant_ref_t head)
 int
 gnttab_alloc_grant_references(uint16_t count, grant_ref_t *head)
 {
-	int h = get_free_entries(count);
+	int ref, error;
 
-	if (h == -1)
-		return -ENOSPC;
+	error = get_free_entries(count, &ref);
+	if (unlikely(error))
+		return (error);
 
-	*head = h;
-
-	return 0;
+	*head = ref;
+	return (0);
 }
 
 int
@@ -322,7 +329,7 @@ gnttab_claim_grant_reference(grant_ref_t *private_head)
 	grant_ref_t g = *private_head;
 
 	if (unlikely(g == GNTTAB_LIST_END))
-		return -ENOSPC;
+		return (ENOSPC);
 	*private_head = gnttab_entry(g);
 
 	return (g);
@@ -468,7 +475,7 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	frames = malloc(nr_gframes * sizeof(unsigned long), M_DEVBUF, M_NOWAIT);
 	if (!frames)
-		return -ENOMEM;
+		return (ENOMEM);
 
 	setup.dom        = DOMID_SELF;
 	setup.nr_frames  = nr_gframes;
@@ -477,7 +484,7 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 	rc = HYPERVISOR_grant_table_op(GNTTABOP_setup_table, &setup, 1);
 	if (rc == -ENOSYS) {
 		free(frames, M_DEVBUF);
-		return -ENOSYS;
+		return (ENOSYS);
 	}
 	PANIC_IF(rc || setup.status);
 
@@ -529,7 +536,7 @@ gnttab_expand(unsigned int req_entries)
 	extra = ((req_entries + (GREFS_PER_GRANT_FRAME-1)) /
 		 GREFS_PER_GRANT_FRAME);
 	if (cur + extra > max_nr_grant_frames())
-		return -ENOSPC;
+		return (ENOSPC);
 
 	if ((rc = gnttab_map(cur, cur + extra - 1)) == 0)
 		rc = grow_gnttab_list(extra);
@@ -561,7 +568,7 @@ gnttab_init()
 	    M_DEVBUF, M_NOWAIT);
 
 	if (gnttab_list == NULL)
-		return -ENOMEM;
+		return (ENOMEM);
 
 	for (i = 0; i < nr_grant_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT);
@@ -569,8 +576,8 @@ gnttab_init()
 			goto ini_nomem;
 	}
 	
-	if (gnttab_resume() < 0)
-		return -ENODEV;
+	if (gnttab_resume())
+		return (ENODEV);
 	
 	nr_init_grefs = nr_grant_frames * GREFS_PER_GRANT_FRAME;
 
@@ -588,7 +595,7 @@ ini_nomem:
 	for (i--; i >= 0; i--)
 		free(gnttab_list[i], M_DEVBUF);
 	free(gnttab_list, M_DEVBUF);
-	return -ENOMEM;
+	return (ENOMEM);
 
 }
 

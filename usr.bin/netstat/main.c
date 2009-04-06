@@ -593,7 +593,7 @@ main(int argc, char *argv[])
 		for (tp = netgraphprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 #endif /* NETGRAPH */
-	if ((af == AF_UNIX || af == AF_UNSPEC) && !Lflag && !sflag)
+	if ((af == AF_UNIX || af == AF_UNSPEC) && !sflag)
 		unixpr(nl[N_UNP_COUNT].n_value, nl[N_UNP_GENCNT].n_value,
 		    nl[N_UNP_DHEAD].n_value, nl[N_UNP_SHEAD].n_value);
 	exit(0);

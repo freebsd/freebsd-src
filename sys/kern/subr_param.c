@@ -73,7 +73,9 @@ __FBSDID("$FreeBSD$");
 #define	MAXFILES (maxproc * 2)
 #endif
 
-enum VM_GUEST { VM_GUEST_NO, VM_GUEST_VM, VM_GUEST_XEN };
+/* Values of enum VM_GUEST members are used as indices in 
+ * vm_guest_sysctl_names */
+enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 
@@ -126,6 +128,14 @@ SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
  */
 struct	buf *swbuf;
 
+static const char *const vm_guest_sysctl_names[] = {
+	"none",
+	"generic",
+	"xen",
+	NULL
+};
+
+#ifndef XEN
 static const char *const vm_bnames[] = {
 	"QEMU",				/* QEMU */
 	"Plex86",			/* Plex86 */
@@ -138,13 +148,6 @@ static const char *const vm_pnames[] = {
 	"Virtual Machine",		/* Microsoft VirtualPC */
 	"VirtualBox",			/* Sun xVM VirtualBox */
 	"Parallels Virtual Platform",	/* Parallels VM */
-	NULL
-};
-
-static const char *const vm_guest_sysctl_names[] = {
-	"none",
-	"generic",
-	"xen",
 	NULL
 };
 
@@ -178,6 +181,7 @@ detect_virtual(void)
 	}
 	return (VM_GUEST_NO);
 }
+#endif
 
 /*
  * Boot time overrides that are not scaled against main memory

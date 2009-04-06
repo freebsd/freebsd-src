@@ -110,6 +110,28 @@ protosw_init(struct protosw *pr)
 	    pr->pr_domain->dom_name,
 	    (int)(pr - pr->pr_domain->dom_protosw)));
 
+	/*
+	 * Protocol switch methods fall into three categories: mandatory,
+	 * mandatory but protosw_init() provides a default, and optional.
+	 *
+	 * For true protocols (i.e., pru_attach != NULL), KASSERT truly
+	 * mandatory methods with no defaults, and initialize defaults for
+	 * other mandatory methods if the protocol hasn't defined an
+	 * implementation (NULL function pointer).
+	 */
+#if 0
+	if (pu->pru_attach != NULL) {
+		KASSERT(pu->pru_abort != NULL,
+		    ("protosw_init: %ssw[%d] pru_abort NULL",
+		    pr->pr_domain->dom_name,
+		    (int)(pr - pr->pr_domain->dom_protosw)));
+		KASSERT(pu->pru_send != NULL,
+		    ("protosw_init: %ssw[%d] pru_send NULL",
+		    pr->pr_domain->dom_name,
+		    (int)(pr - pr->pr_domain->dom_protosw)));
+	}
+#endif
+
 #define DEFAULT(foo, bar)	if ((foo) == NULL)  (foo) = (bar)
 	DEFAULT(pu->pru_accept, pru_accept_notsupp);
 	DEFAULT(pu->pru_bind, pru_bind_notsupp);

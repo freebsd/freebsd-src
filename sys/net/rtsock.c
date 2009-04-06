@@ -53,6 +53,7 @@
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/raw_cb.h>
@@ -514,8 +515,10 @@ route_output(struct mbuf *m, struct socket *so)
 		if (info.rti_info[RTAX_GATEWAY] == NULL)
 			senderr(EINVAL);
 		saved_nrt = NULL;
+
 		/* support for new ARP code */
-		if (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK) {
+		if (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
+		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
 			error = lla_rt_output(rtm, &info);
 			break;
 		}
@@ -535,7 +538,8 @@ route_output(struct mbuf *m, struct socket *so)
 		saved_nrt = NULL;
 		/* support for new ARP code */
 		if (info.rti_info[RTAX_GATEWAY] && 
-		    (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK)) {
+		    (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK) &&
+		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
 			error = lla_rt_output(rtm, &info);
 			break;
 		}
@@ -1427,6 +1431,21 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 			lim = AF_MAX;
 		} else				/* dump only one table */
 			i = lim = af;
+
+		/*
+		 * take care of llinfo entries, the caller must
+		 * specify an AF
+		 */
+		if (w.w_op == NET_RT_FLAGS && w.w_arg == 0) {
+			if (af != 0)
+				error = lltable_sysctl_dumparp(af, w.w_req);
+			else
+				error = EINVAL;
+			break;
+		}
+		/*
+		 * take care of routing entries
+		 */
 		for (error = 0; error == 0 && i <= lim; i++)
 			if ((rnh = V_rt_tables[curthread->td_proc->p_fibnum][i]) != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
@@ -1435,11 +1454,6 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 				RADIX_NODE_HEAD_UNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
-		/*
-		 * take care of llinfo entries
-		 */
-		if (w.w_op == NET_RT_FLAGS)
-			error = lltable_sysctl_dumparp(af, w.w_req);
 		break;
 
 	case NET_RT_IFLIST:

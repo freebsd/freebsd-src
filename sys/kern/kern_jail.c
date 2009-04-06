@@ -293,7 +293,8 @@ jail_copyin_ips(struct jail *j)
 		}
 
 		j->ip4 = ip4;
-	}
+	} else
+		j->ip4 = NULL;
 #endif
 #ifdef INET6
 	if (j->ip6s > 0) {
@@ -320,16 +321,19 @@ jail_copyin_ips(struct jail *j)
 		}
 
 		j->ip6 = ip6;
-	}
+	} else
+		j->ip6 = NULL;
 #endif
 	return (0);
 
 e_free_ip:
 #ifdef INET6
 	free(ip6, M_PRISON);
+	j->ip6 = NULL;
 #endif
 #ifdef INET
 	free(ip4, M_PRISON);
+	j->ip4 = NULL;
 #endif
 	return (error);
 }

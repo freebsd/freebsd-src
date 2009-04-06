@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Apple Inc.
+ * Copyright (c) 2004-2008 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * Copyright (c) 2006 Martin Voros
@@ -32,15 +32,15 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#55 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#59 $
  */
 
 #include <sys/types.h>
 
 #include <config/config.h>
-#ifdef HAVE_SYS_ENDIAN_H
+#if defined(HAVE_SYS_ENDIAN_H) && defined(HAVE_BE32ENC)
 #include <sys/endian.h>
-#else /* !HAVE_SYS_ENDIAN_H */
+#else /* !HAVE_SYS_ENDIAN_H || !HAVE_BE32ENC */
 #ifdef HAVE_MACHINE_ENDIAN_H
 #include <machine/endian.h>
 #else /* !HAVE_MACHINE_ENDIAN_H */
@@ -51,7 +51,7 @@
 #endif /* !HAVE_ENDIAN_H */
 #endif /* !HAVE_MACHINE_ENDIAN_H */
 #include <compat/endian.h>
-#endif /* !HAVE_SYS_ENDIAN_H */
+#endif /* !HAVE_SYS_ENDIAN_H || !HAVE_BE32ENC */
 #ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
 #else /* !HAVE_FULL_QUEUE_H */
@@ -771,13 +771,24 @@ print_ip_ex_address(FILE *fp, u_int32_t type, u_int32_t *ipaddr)
 static void
 print_retval(FILE *fp, u_char status, char raw)
 {
+	int error;
+
 	if (raw)
 		fprintf(fp, "%u", status);
 	else {
-		if (status == 0)
-			fprintf(fp, "success");
-		else
-			fprintf(fp, "failure : %s", strerror(status));
+		/*
+		 * Convert to a local error number and print the OS's version
+		 * of the error string if possible.  We may want to provide
+		 * an au_strerror(3) in the future so that we can print
+		 * strings for non-local errors.
+		 */
+		if (au_bsm_to_errno(status, &error) == 0) {
+			if (error == 0)
+				fprintf(fp, "success");
+			else
+				fprintf(fp, "failure : %s", strerror(error));
+		} else
+			fprintf(fp, "failure: Unknown error: %d", status);
 	}
 }
 
@@ -3742,22 +3753,36 @@ print_text_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 }
 
 /*
+ * socket domain           2 bytes
  * socket type             2 bytes
+ * address type            2 bytes
  * local port              2 bytes
- * address type/length     4 bytes
- * local Internet address  4 bytes
- * remote port             4 bytes
- * address type/length     4 bytes
- * remote Internet address 4 bytes
+ * local Internet address  4/16 bytes
+ * remote port             2 bytes
+ * remote Internet address 4/16 bytes
  */
 static int
 fetch_socketex32_tok(tokenstr_t *tok, u_char *buf, int len)
 {
 	int err = 0;
 
+	READ_TOKEN_U_INT16(buf, len, tok->tt.socket_ex32.domain, tok->len,
+	    err);
+	if (err)
+		return (-1);
+
 	READ_TOKEN_U_INT16(buf, len, tok->tt.socket_ex32.type, tok->len,
 	    err);
 	if (err)
+		return (-1);
+
+	READ_TOKEN_U_INT16(buf, len, tok->tt.socket_ex32.atype, tok->len,
+	    err);
+	if (err)
+		return (-1);
+
+	if (tok->tt.socket_ex32.atype != AU_IPv4 &&
+	    tok->tt.socket_ex32.atype != AU_IPv6)
 		return (-1);
 
 	READ_TOKEN_BYTES(buf, len, &tok->tt.socket_ex32.l_port,
@@ -3765,30 +3790,34 @@ fetch_socketex32_tok(tokenstr_t *tok, u_char *buf, int len)
 	if (err)
 		return (-1);
 
-	READ_TOKEN_U_INT32(buf, len, tok->tt.socket_ex32.l_ad_type, tok->len,
-	    err);
-	if (err)
-		return (-1);
-
-	READ_TOKEN_BYTES(buf, len, &tok->tt.socket_ex32.l_addr,
-	    sizeof(tok->tt.socket_ex32.l_addr), tok->len, err);
-	if (err)
-		return (-1);
+	if (tok->tt.socket_ex32.atype == AU_IPv4) {
+		READ_TOKEN_BYTES(buf, len, &tok->tt.socket_ex32.l_addr,
+		    sizeof(tok->tt.socket_ex32.l_addr[0]), tok->len, err);
+		if (err)
+			return (-1);
+	} else {
+		READ_TOKEN_BYTES(buf, len, &tok->tt.socket_ex32.l_addr,
+		    sizeof(tok->tt.socket_ex32.l_addr), tok->len, err);
+		if (err)
+			return (-1);
+	}
 
 	READ_TOKEN_BYTES(buf, len, &tok->tt.socket_ex32.r_port,
 	    sizeof(uint16_t), tok->len, err);
 	if (err)
 		return (-1);
 
-	READ_TOKEN_U_INT32(buf, len, tok->tt.socket_ex32.r_ad_type, tok->len,
-	    err);
-	if (err)
-		return (-1);
-
-	READ_TOKEN_BYTES(buf, len, &tok->tt.socket_ex32.r_addr,
-	    sizeof(tok->tt.socket_ex32.r_addr), tok->len, err);
-	if (err)
-		return (-1);
+	if (tok->tt.socket_ex32.atype == AU_IPv4) {
+		READ_TOKEN_BYTES(buf, len, &tok->tt.socket_ex32.r_addr,
+		    sizeof(tok->tt.socket_ex32.r_addr[0]), tok->len, err);
+		if (err)
+			return (-1);
+	} else {
+		READ_TOKEN_BYTES(buf, len, &tok->tt.socket_ex32.r_addr,
+		    sizeof(tok->tt.socket_ex32.r_addr), tok->len, err);
+		if (err)
+			return (-1);
+	}
 
 	return (0);
 }
@@ -3800,6 +3829,9 @@ print_socketex32_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 
 	print_tok_type(fp, tok->id, "socket", raw, xml);
 	if (xml) {
+		open_attr(fp, "sock_dom");
+		print_2_bytes(fp, tok->tt.socket_ex32.domain, "%#x");
+		close_attr(fp);
 		open_attr(fp, "sock_type");
 		print_2_bytes(fp, tok->tt.socket_ex32.type, "%#x");
 		close_attr(fp);
@@ -3807,10 +3839,12 @@ print_socketex32_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		print_2_bytes(fp, ntohs(tok->tt.socket_ex32.l_port), "%#x");
 		close_attr(fp);
 		open_attr(fp, "laddr");
-		print_ip_address(fp, tok->tt.socket_ex32.l_addr);
+		print_ip_ex_address(fp, tok->tt.socket_ex32.atype,
+		    tok->tt.socket_ex32.l_addr);
 		close_attr(fp);
 		open_attr(fp, "faddr");
-		print_ip_address(fp, tok->tt.socket_ex32.r_addr);
+		print_ip_ex_address(fp, tok->tt.socket_ex32.atype,
+		    tok->tt.socket_ex32.r_addr);
 		close_attr(fp);
 		open_attr(fp, "fport");
 		print_2_bytes(fp, ntohs(tok->tt.socket_ex32.r_port), "%#x");
@@ -3818,15 +3852,19 @@ print_socketex32_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		close_tag(fp, tok->id);
 	} else {
 		print_delim(fp, del);
+		print_2_bytes(fp, tok->tt.socket_ex32.domain, "%#x");
+		print_delim(fp, del);
 		print_2_bytes(fp, tok->tt.socket_ex32.type, "%#x");
 		print_delim(fp, del);
 		print_2_bytes(fp, ntohs(tok->tt.socket_ex32.l_port), "%#x");
 		print_delim(fp, del);
-		print_ip_address(fp, tok->tt.socket_ex32.l_addr);
+		print_ip_ex_address(fp, tok->tt.socket_ex32.atype,
+		    tok->tt.socket_ex32.l_addr);
 		print_delim(fp, del);
 		print_4_bytes(fp, ntohs(tok->tt.socket_ex32.r_port), "%#x");
 		print_delim(fp, del);
-		print_ip_address(fp, tok->tt.socket_ex32.r_addr);
+		print_ip_ex_address(fp, tok->tt.socket_ex32.atype,
+		    tok->tt.socket_ex32.r_addr);
 	}
 }
 

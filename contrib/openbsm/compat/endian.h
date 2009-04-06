@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  * Derived from FreeBSD src/sys/sys/endian.h:1.6.
- * $P4: //depot/projects/trustedbsd/openbsm/compat/endian.h#7 $
+ * $P4: //depot/projects/trustedbsd/openbsm/compat/endian.h#8 $
  */
 
 #ifndef _COMPAT_ENDIAN_H_
@@ -35,7 +35,9 @@
  * Some systems will have the uint/int types defined here already, others
  * will need stdint.h.
  */
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
 
 /*
  * Some operating systems do not yet have the more recent endian APIs that

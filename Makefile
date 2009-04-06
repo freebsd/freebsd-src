@@ -298,7 +298,7 @@ universe_prologue:
 .endif
 .for target in ${TARGETS}
 KERNCONFS!=	cd ${.CURDIR}/sys/${target}/conf && \
-		find [A-Z]*[A-Z] -type f -maxdepth 0 \
+		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
 		! -name DEFAULTS ! -name LINT
 KERNCONFS:=	${KERNCONFS:S/^NOTES$/LINT/}
 universe: universe_${target}

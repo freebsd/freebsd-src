@@ -754,7 +754,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 {
 	struct unpcb *unp, *unp2;
 	struct socket *so2;
-	u_int mbcnt, sbcc;
+	u_int mbcnt_delta, sbcc;
 	u_long newhiwat;
 	int error = 0;
 
@@ -884,7 +884,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 				control = NULL;
 		} else
 			sbappend_locked(&so2->so_rcv, m);
-		mbcnt = so2->so_rcv.sb_mbcnt - unp2->unp_mbcnt;
+		mbcnt_delta = so2->so_rcv.sb_mbcnt - unp2->unp_mbcnt;
 		unp2->unp_mbcnt = so2->so_rcv.sb_mbcnt;
 		sbcc = so2->so_rcv.sb_cc;
 		sorwakeup_locked(so2);
@@ -893,7 +893,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		newhiwat = so->so_snd.sb_hiwat - (sbcc - unp2->unp_cc);
 		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
-		so->so_snd.sb_mbmax -= mbcnt;
+		so->so_snd.sb_mbmax -= mbcnt_delta;
 		SOCKBUF_UNLOCK(&so->so_snd);
 		unp2->unp_cc = sbcc;
 		UNP_PCB_UNLOCK(unp2);

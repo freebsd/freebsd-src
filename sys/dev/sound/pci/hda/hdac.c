@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081223_0121"
+#define HDA_DRV_TEST_REV	"20081226_0122"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -162,6 +162,16 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_NVIDIA_MCP65_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x044b)
 #define HDA_NVIDIA_MCP67_1	HDA_MODEL_CONSTRUCT(NVIDIA, 0x055c)
 #define HDA_NVIDIA_MCP67_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x055d)
+#define HDA_NVIDIA_MCP78_1	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0774)
+#define HDA_NVIDIA_MCP78_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0775)
+#define HDA_NVIDIA_MCP78_3	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0776)
+#define HDA_NVIDIA_MCP78_4	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0777)
+#define HDA_NVIDIA_MCP73_1	HDA_MODEL_CONSTRUCT(NVIDIA, 0x07fc)
+#define HDA_NVIDIA_MCP73_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x07fd)
+#define HDA_NVIDIA_MCP79_1	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0ac0)
+#define HDA_NVIDIA_MCP79_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0ac1)
+#define HDA_NVIDIA_MCP79_3	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0ac2)
+#define HDA_NVIDIA_MCP79_4	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0ac3)
 #define HDA_NVIDIA_ALL		HDA_MODEL_CONSTRUCT(NVIDIA, 0xffff)
 
 /* ATI */
@@ -468,6 +478,16 @@ static const struct {
 	{ HDA_NVIDIA_MCP65_2, "NVidia MCP65" },
 	{ HDA_NVIDIA_MCP67_1, "NVidia MCP67" },
 	{ HDA_NVIDIA_MCP67_2, "NVidia MCP67" },
+	{ HDA_NVIDIA_MCP73_1, "NVidia MCP73" },
+	{ HDA_NVIDIA_MCP73_2, "NVidia MCP73" },
+	{ HDA_NVIDIA_MCP78_1, "NVidia MCP78" },
+	{ HDA_NVIDIA_MCP78_2, "NVidia MCP78" },
+	{ HDA_NVIDIA_MCP78_3, "NVidia MCP78" },
+	{ HDA_NVIDIA_MCP78_4, "NVidia MCP78" },
+	{ HDA_NVIDIA_MCP79_1, "NVidia MCP79" },
+	{ HDA_NVIDIA_MCP79_2, "NVidia MCP79" },
+	{ HDA_NVIDIA_MCP79_3, "NVidia MCP79" },
+	{ HDA_NVIDIA_MCP79_4, "NVidia MCP79" },
 	{ HDA_ATI_SB450,     "ATI SB450"    },
 	{ HDA_ATI_SB600,     "ATI SB600"    },
 	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A" },
@@ -4548,6 +4568,32 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		 */
 		break;
 	case HDA_CODEC_AD1986A:
+		/*
+		 * This codec has overcomplicated input mixing.
+		 * Make some cleaning there.
+		 */
+		/* Disable input mono mixer. Not needed and not supported. */
+		w = hdac_widget_get(devinfo, 43);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable any with any input mixing mesh. Use separately. */
+		w = hdac_widget_get(devinfo, 39);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdac_widget_get(devinfo, 40);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdac_widget_get(devinfo, 41);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdac_widget_get(devinfo, 42);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable duplicate mixer node connector. */
+		w = hdac_widget_get(devinfo, 15);
+		if (w != NULL)
+			w->connsenable[3] = 0;
+
 		if (subvendor == ASUS_A8X_SUBVENDOR) {
 			/*
 			 * This is just plain ridiculous.. There

@@ -26,17 +26,34 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit.h#1 $
+ * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit.h#2 $
  */
 
 #ifndef _BSM_AUDIT_H
 #define	_BSM_AUDIT_H
+
+#ifdef	__APPLE__
+/* Temporary until rdar://problem/6133383 is resolved. */
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/cdefs.h>
+#include <sys/queue.h>
+#endif /* __APPLE__ */
 
 #define	AUDIT_RECORD_MAGIC	0x828a0f1b
 #define	MAX_AUDIT_RECORDS	20
 #define	MAXAUDITDATA		(0x8000 - 1)
 #define	MAX_AUDIT_RECORD_SIZE	MAXAUDITDATA
 #define	MIN_AUDIT_FILE_SIZE	(512 * 1024)
+
+/*
+ * Minimum noumber of free blocks on the filesystem containing the audit
+ * log necessary to avoid a hard log rotation. DO NOT SET THIS VALUE TO 0
+ * as the kernel does an unsigned compare, plus we want to leave a few blocks
+ * free so userspace can terminate the log, etc.
+ */
+#define	AUDIT_HARD_LIMIT_FREE_BLOCKS	4
 
 /*
  * Triggers for the audit daemon.
@@ -47,8 +64,9 @@
 #define	AUDIT_TRIGGER_READ_FILE		3	/* Re-read config file. */
 #define	AUDIT_TRIGGER_CLOSE_AND_DIE	4	/* Terminate audit. */
 #define	AUDIT_TRIGGER_NO_SPACE		5	/* Below min free space. */
-#define	AUDIT_TRIGGER_ROTATE_USER	6	/* User requests roate. */
-#define	AUDIT_TRIGGER_MAX		6
+#define	AUDIT_TRIGGER_ROTATE_USER	6	/* User requests rotate. */
+#define	AUDIT_TRIGGER_INITIALIZE	7	/* Initialize audit. */
+#define	AUDIT_TRIGGER_MAX		7
 
 /*
  * The special device filename (FreeBSD).
@@ -59,7 +77,9 @@
 /*
  * Pre-defined audit IDs
  */
-#define	AU_DEFAUDITID	-1
+#define	AU_DEFAUDITID	(uid_t)(-1)
+#define	AU_DEFAUDITSID	 0
+#define	AU_ASSIGN_ASID	-1
 
 /*
  * IPC types.
@@ -103,6 +123,7 @@
 #define	A_GETKAUDIT	29
 #define	A_SETKAUDIT	30
 #define	A_SENDTRIGGER	31
+#define	A_GETSINFO_ADDR	32
 
 /*
  * Audit policy controls.
@@ -183,6 +204,7 @@ struct auditinfo_addr {
 	au_mask_t	ai_mask;	/* Audit masks. */
 	au_tid_addr_t	ai_termid;	/* Terminal ID. */
 	au_asid_t	ai_asid;	/* Audit session ID. */
+	u_int64_t	ai_flags;	/* Audit session flags. */
 };
 typedef	struct auditinfo_addr	auditinfo_addr_t;
 
@@ -192,6 +214,7 @@ struct auditpinfo {
 	au_mask_t	ap_mask;	/* Audit masks. */
 	au_tid_t	ap_termid;	/* Terminal ID. */
 	au_asid_t	ap_asid;	/* Audit session ID. */
+	u_int64_t	ap_flags;	/* Audit session flags. */
 };
 typedef	struct auditpinfo	auditpinfo_t;
 
@@ -203,6 +226,16 @@ struct auditpinfo_addr {
 	au_asid_t	ap_asid;	/* Audit session ID. */
 };
 typedef	struct auditpinfo_addr	auditpinfo_addr_t;
+
+struct au_session {
+	auditinfo_addr_t	*as_aia_p;	/* Ptr to full audit info. */
+#define	as_asid			as_aia_p->ai_asid
+#define	as_auid			as_aia_p->ai_auid
+#define	as_termid		as_aia_p->ai_termid
+
+	au_mask_t		 as_mask;	/* Process Audit Masks. */
+};
+typedef struct au_session       au_session_t;
 
 /*
  * Contents of token_t are opaque outside of libbsm.

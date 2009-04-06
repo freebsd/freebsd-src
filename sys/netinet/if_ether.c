@@ -156,12 +156,12 @@ arptimer(void *arg)
 	ifp = lle->lle_tbl->llt_ifp;
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(lle);
-	if ((lle->la_flags & LLE_DELETED) ||
-	    (time_second >= lle->la_expire)) {
-		if (!callout_pending(&lle->la_timer) &&
-		    callout_active(&lle->la_timer))
-			(void) llentry_free(lle);
-	} else {
+	if (((lle->la_flags & LLE_DELETED)
+		|| (time_second >= lle->la_expire))
+	    && (!callout_pending(&lle->la_timer) &&
+		callout_active(&lle->la_timer)))
+		(void) llentry_free(lle);
+	else {
 		/*
 		 * Still valid, just drop our reference
 		 */

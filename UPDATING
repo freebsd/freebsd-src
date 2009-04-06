@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20081225:
+	ng_tty(4) module updated to match the new TTY subsystem.
+	Due to API change, user-level applications must be updated.
+	New API support added to mpd5 CVS and expected to be present
+	in next mpd5.3 release.
+
 20081219:
 	With __FreeBSD_version 800060 the makefs tool is part of
 	the base system (it was a port).

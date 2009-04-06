@@ -1058,7 +1058,7 @@ rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #define	p(f, m) if (rip6stat.f || sflag <= 1) \
     printf(m, (uintmax_t)rip6stat.f, plural(rip6stat.f))
 	p(rip6s_ipackets, "\t%ju message%s received\n");
-	p(rip6s_isum, "\t%ju checksum calcuration%s on inbound\n");
+	p(rip6s_isum, "\t%ju checksum calculation%s on inbound\n");
 	p(rip6s_badsum, "\t%ju message%s with bad checksum\n");
 	p(rip6s_nosock, "\t%ju message%s dropped due to no socket\n");
 	p(rip6s_nosockmcast,

@@ -330,8 +330,14 @@ set(int argc, char **argv)
 				argc--; argv++;
 			}
 		} else if (strncmp(argv[0], "blackhole", 9) == 0) {
+			if (flags & RTF_REJECT) {
+				printf("Choose one of blackhole or reject, not both.\n");
+			}
 			flags |= RTF_BLACKHOLE;
 		} else if (strncmp(argv[0], "reject", 6) == 0) {
+			if (flags & RTF_BLACKHOLE) {
+				printf("Choose one of blackhole or reject, not both.\n");
+			}
 			flags |= RTF_REJECT;
 		} else if (strncmp(argv[0], "trail", 5) == 0) {
 			/* XXX deprecated and undocumented feature */
@@ -471,6 +477,7 @@ delete(char *host, int do_proxy)
 		}
 		dst->sin_other = SIN_PROXY;
 	}
+	rtm->rtm_flags |= RTF_LLDATA;
 	if (rtmsg(RTM_DELETE, dst, NULL) != NULL) {
 		printf("%s (%s) deleted\n", host, inet_ntoa(addr->sin_addr));
 		return (0);
@@ -648,8 +655,8 @@ usage(void)
 		"       arp [-n] [-i interface] -a",
 		"       arp -d hostname [pub]",
 		"       arp -d [-i interface] -a",
-		"       arp -s hostname ether_addr [temp] [reject] [blackhole] [pub [only]]",
-		"       arp -S hostname ether_addr [temp] [reject] [blackhole] [pub [only]]",
+		"       arp -s hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
+		"       arp -S hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
 		"       arp -f filename");
 	exit(1);
 }
@@ -700,7 +707,7 @@ rtmsg(int cmd, struct sockaddr_inarp *dst, struct sockaddr_dl *sdl)
 		rtm->rtm_addrs |= RTA_GATEWAY;
 		rtm->rtm_rmx.rmx_expire = expire_time;
 		rtm->rtm_inits = RTV_EXPIRE;
-		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC);
+		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC | RTF_LLDATA);
 		dst->sin_other = 0;
 		if (doing_proxy) {
 			if (proxy_only)

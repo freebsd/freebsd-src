@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#28 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#29 $
  */
 
 /* 
@@ -567,7 +567,7 @@ select_records(FILE *fp)
  * The -o option has the form object_type=object_value.  Identify the object
  * components.
  */
-void
+static void
 parse_object_type(char *name, char *val)
 {
 	if (val == NULL)

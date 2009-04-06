@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #ifdef XEN
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #endif
 #ifdef PC98
 #include <pc98/cbus/cbus.h>

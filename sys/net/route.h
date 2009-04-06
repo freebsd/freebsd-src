@@ -174,6 +174,7 @@ struct ortentry {
 /*			0x100		   unused, was RTF_CLONING */
 #define RTF_XRESOLVE	0x200		/* external daemon resolves name */
 /*			0x400		   unused, was RTF_LLINFO */
+#define RTF_LLDATA	0x400		/* used by apps to add/del L2 entries */
 #define RTF_STATIC	0x800		/* manually added */
 #define RTF_BLACKHOLE	0x1000		/* just discard pkts (during updates) */
 #define RTF_PROTO2	0x4000		/* protocol specific routing flag */

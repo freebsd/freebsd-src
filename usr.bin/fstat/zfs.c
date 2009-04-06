@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #define _KERNEL
 #include <sys/mount.h>
 #undef _KERNEL

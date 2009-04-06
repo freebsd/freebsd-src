@@ -258,6 +258,8 @@ tun_destroy(struct tun_softc *tp)
 	mtx_lock(&tp->tun_mtx);
 	if ((tp->tun_flags & TUN_OPEN) != 0)
 		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);
+	else
+		mtx_unlock(&tp->tun_mtx);
 
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
 	dev = tp->tun_dev;

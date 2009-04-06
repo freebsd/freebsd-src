@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2007
+.Dd December 24, 2008
 .Dt textdump 4
 .Os
 .Sh NAME
@@ -148,10 +148,15 @@ violation, printing lock-related information for the user:
 .Bd -literal -offset indent
 script kdb.enter.witness=show locks
 .Ed
+.Pp
+These scripts may also be configured using the
+.Xr ddb 8
+utility.
 .Sh SEE ALSO
 .Xr bsdtar 1 ,
 .Xr ddb 4 ,
 .Xr tar 5 ,
+.Xr ddb 8 ,
 .Xr dumpon 8 ,
 .Xr savecore 8 ,
 .Xr sysctl 8

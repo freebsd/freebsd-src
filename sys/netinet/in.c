@@ -1153,7 +1153,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		lle = (void *)-1;
 		
 	}
-	if (lle != NULL && lle != (void *)-1) {
+	if (LLE_IS_VALID(lle)) {
 		if (flags & LLE_EXCLUSIVE)
 			LLE_WLOCK(lle);
 		else
@@ -1222,7 +1222,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 
 			arpc.rtm.rtm_rmx.rmx_expire =
 			    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;
-			arpc.rtm.rtm_flags |= RTF_HOST;
+			arpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
 			if (lle->la_flags & LLE_STATIC)
 				arpc.rtm.rtm_flags |= RTF_STATIC;
 			arpc.rtm.rtm_index = ifp->if_index;

@@ -321,10 +321,11 @@ static GNode	*lastNode;	/* The node for which output was most recently
 static const char *targFmt;	/* Format string to use to head output from a
 				 * job when it's not the most-recent job heard
 				 * from */
+static char *targPrefix = NULL;	/* What we print at the start of targFmt */
 
-#define	TARG_FMT  "--- %s ---\n" /* Default format */
+#define TARG_FMT  "%s %s ---\n"	/* Default format */
 #define	MESSAGE(fp, gn) \
-	 fprintf(fp, targFmt, gn->name);
+	fprintf(fp, targFmt, targPrefix, gn->name);
 
 /*
  * When JobStart attempts to run a job but isn't allowed to
@@ -2283,6 +2284,18 @@ Job_Make(GNode *gn)
 	JobStart(gn, 0, NULL);
 }
 
+void
+Job_SetPrefix(void)
+{
+
+	if (targPrefix) {
+		free(targPrefix);
+	} else if (!Var_Exists(MAKE_JOB_PREFIX, VAR_GLOBAL)) {
+		Var_SetGlobal(MAKE_JOB_PREFIX, "---");
+	}
+	targPrefix = Var_Subst("${" MAKE_JOB_PREFIX "}", VAR_GLOBAL, 0)->buf;
+}
+
 /**
  * Job_Init
  *	Initialize the process module, given a maximum number of jobs.
@@ -2350,7 +2363,7 @@ Job_Init(int maxproc)
 
 	lastNode = NULL;
 
-	if ((maxJobs == 1 && fifoFd < 0) || beVerbose == 0) {
+	if (maxJobs == 1 && fifoFd < 0) {
 		/*
 		 * If only one job can run at a time, there's no need for a
 		 * banner, no is there?

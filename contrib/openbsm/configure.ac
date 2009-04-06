@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.1alpha2], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
-AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#42 $])
+AC_INIT([OpenBSM], [1.1alpha4], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
+AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#48 $])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER([config/config.h])
@@ -35,7 +35,7 @@ AC_SEARCH_LIBS(clock_gettime, rt)
 # Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([endian.h mach/mach.h machine/endian.h sys/endian.h])
+AC_CHECK_HEADERS([endian.h mach/mach.h machine/endian.h sys/endian.h stdint.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -83,7 +83,7 @@ AC_FUNC_MKTIME
 AC_TYPE_SIGNAL
 AC_FUNC_STAT
 AC_FUNC_STRFTIME
-AC_CHECK_FUNCS([bzero clock_gettime ftruncate gettimeofday inet_ntoa memset strchr strerror strlcat strlcpy strrchr strstr strtol strtoul])
+AC_CHECK_FUNCS([bzero clock_gettime ftruncate gettimeofday inet_ntoa memset strchr strerror strlcat strlcpy strrchr strstr strtol strtoul pthread_mutex_lock])
 
 # sys/queue.h exists on most systems, but its capabilities vary a great deal.
 # test for LIST_FIRST and TAILQ_FOREACH_SAFE, which appears to not exist in
@@ -106,7 +106,7 @@ AC_DEFINE(HAVE_FULL_QUEUE_H,, Define if queue.h includes LIST_FIRST)
 # depend on them or it will generate link-time or run-time errors.  Test for
 # just one.
 AC_TRY_LINK([
-	#include <stdlib.h>
+	#include <stddef.h>
 
 	extern int auditon(int, void *, int);
 ], [
@@ -120,6 +120,20 @@ have_audit_syscalls=true
 have_audit_syscalls=false
 ])
 AM_CONDITIONAL(HAVE_AUDIT_SYSCALLS, $have_audit_syscalls)
+
+#
+# There are a wide variety of endian macros and functions in the wild; we try
+# to use the native support if it defines be32enc(), but otherwise have to
+# use our own.
+#
+AC_TRY_LINK([
+	#include <sys/endian.h>
+	#include <stdlib.h>
+], [
+	be32enc(NULL, 1);
+], [
+AC_DEFINE(HAVE_BE32ENC,, Define if be32enc is present)
+])
 
 # Check to see if Mach IPC is used for trigger messages.  If so, use Mach IPC
 # instead of the default for sending trigger messages to the audit components.
@@ -139,6 +153,7 @@ AC_CONFIG_FILES([Makefile
                  bin/auditreduce/Makefile
                  bin/praudit/Makefile
                  bsm/Makefile
+                 libauditd/Makefile
                  libbsm/Makefile
                  modules/Makefile
                  modules/auditfilter_noop/Makefile

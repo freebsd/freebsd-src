@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_event.c#16 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_event.c#17 $
  */
 
 #include <config/config.h>
@@ -35,7 +35,9 @@
 #include <bsm/libbsm.h>
 
 #include <string.h>
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -52,7 +54,9 @@ static FILE		*fp = NULL;
 static char		 linestr[AU_LINE_MAX];
 static const char	*eventdelim = ":";
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * Parse one line from the audit_event file into the au_event_ent structure.
@@ -114,9 +118,13 @@ void
 setauevent(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	setauevent_locked();
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -126,12 +134,16 @@ void
 endauevent(void)
 {
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	if (fp != NULL) {
 		fclose(fp);
 		fp = NULL;
 	}
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 }
 
 /*
@@ -171,9 +183,13 @@ getauevent_r(struct au_event_ent *e)
 {
 	struct au_event_ent *ep;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	ep = getauevent_r_locked(e);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (ep);
 }
 
@@ -230,9 +246,13 @@ getauevnam_r(struct au_event_ent *e, const char *name)
 {
 	struct au_event_ent *ep;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	ep = getauevnam_r_locked(e, name);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (ep);
 }
 
@@ -284,9 +304,13 @@ getauevnum_r(struct au_event_ent *e, au_event_t event_number)
 {
 	struct au_event_ent *ep;
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_lock(&mutex);
+#endif
 	ep = getauevnum_r_locked(e, event_number);
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
+#endif
 	return (ep);
 }
 

@@ -207,7 +207,7 @@ cardbus_attach_card(device_t cbdev)
 	}
 	if (cardattached > 0)
 		return (0);
-	POWER_DISABLE_SOCKET(brdev, cbdev);
+/*	POWER_DISABLE_SOCKET(brdev, cbdev); */
 	return (ENOENT);
 }
 
@@ -269,6 +269,7 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 	}
 	if (i > 0 && i == numdevs)
 		POWER_ENABLE_SOCKET(device_get_parent(cbdev), cbdev);
+	/* XXX Should I wait for power to become good? */
 	for (i = 0; i < numdevs; i++) {
 		dev = devlist[i];
 		if (device_get_state(dev) != DS_NOTPRESENT)

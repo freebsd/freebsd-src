@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Apple Inc.
+ * Copyright (c) 2004-2008 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#35 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#40 $
  */
 
 #ifndef _LIBBSM_H_
@@ -547,13 +547,13 @@ typedef struct {
  * remote Internet address 4 bytes/16 bytes (IPv4/IPv6 address)
  */
 typedef struct {
+	u_int16_t	domain;
 	u_int16_t	type;
+	u_int16_t	atype;
 	u_int16_t	l_port;
-	u_int32_t	l_ad_type;
-	u_int32_t	l_addr;
+	u_int32_t	l_addr[4];
 	u_int32_t	r_port;
-	u_int32_t	r_ad_type;
-	u_int32_t	r_addr;
+	u_int32_t	r_addr[4];
 } au_socket_ex32_t;
 
 /*
@@ -824,6 +824,13 @@ void			 au_print_xml_footer(FILE *outfp);
 __END_DECLS
 
 /*
+ * Functions relating to BSM<->errno conversion.
+ */
+int			 au_bsm_to_errno(u_char bsm_error, int *errorp);
+u_char			 au_errno_to_bsm(int error);
+const char		*au_strerror(u_char bsm_error);
+
+/*
  * The remaining APIs are associated with Apple's BSM implementation, in
  * particular as relates to Mach IPC auditing and triggers passed via Mach
  * IPC.
@@ -930,6 +937,19 @@ void	au_free_token(token_t *tok);
  * XXXRW: In Apple's bsm-8, these are marked __APPLE_API_PRIVATE.
  */
 int	au_get_state(void);
+
+/*
+ * Initialize the audit notification.  If it has not already been initialized
+ * it will automatically on the first call of au_get_state().
+ */
+uint32_t	au_notify_initialize(void);
+
+/*
+ * Cancel audit notification and free the resources associated with it.
+ * Responsible code that no longer needs to use au_get_state() should call
+ * this.
+ */
+int		au_notify_terminate(void);
 __END_DECLS
 
 /* OpenSSH compatibility */
