@@ -111,6 +111,7 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, proxyall,
 	"Enable proxy ARP for all suitable requests");
 
 static void	arp_init(void);
+static int	arp_iattach(const void *);
 void		arprequest(struct ifnet *,
 			struct in_addr *, struct in_addr *, u_char *);
 static void	arpintr(struct mbuf *);
@@ -790,8 +791,8 @@ arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
 	ifa->ifa_rtrequest = NULL;
 }
 
-static void
-arp_init(void)
+static int
+arp_iattach(const void *unused __unused)
 {
 	INIT_VNET_INET(curvnet);
 
@@ -799,6 +800,15 @@ arp_init(void)
 	V_arp_maxtries = 5;
 	V_useloopback = 1; /* use loopback interface for local traffic */
 	V_arp_proxyall = 0;
+
+	return (0);
+}
+
+static void
+arp_init(void)
+{
+
+	arp_iattach(NULL);
 
 	arpintrq.ifq_maxlen = 50;
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);

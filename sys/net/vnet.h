@@ -47,6 +47,7 @@ struct vnet_net {
 	struct	rtstat _rtstat;
 	struct	radix_node_head *_rt_tables[RT_MAXFIBS][AF_MAX+1];
 	int	_rttrash;
+	uma_zone_t _rtzone;
 
 	struct	ifnet *_loif;
 	LIST_HEAD(, lo_softc) _lo_list;
@@ -86,5 +87,6 @@ extern struct vnet_net vnet_net_0;
 #define	V_rt_tables	VNET_NET(rt_tables)
 #define	V_rtstat	VNET_NET(rtstat)
 #define	V_rttrash	VNET_NET(rttrash)
+#define	V_rtzone	VNET_NET(rtzone)
 
 #endif /* !_NET_VNET_H_ */
