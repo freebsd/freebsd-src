@@ -80,6 +80,7 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipcomp, IPSECCTL_STATS,
 
 static int ipcomp_input_cb(struct cryptop *crp);
 static int ipcomp_output_cb(struct cryptop *crp);
+static int ipcomp_iattach(const void *);
 
 struct comp_algo *
 ipcomp_algorithm_lookup(int alg)
@@ -600,7 +601,16 @@ static void
 ipcomp_attach(void)
 {
 
-	V_ipcomp_enable = 0;
 	xform_register(&ipcomp_xformsw);
+	ipcomp_iattach(NULL);
+}
+
+static int
+ipcomp_iattach(const void *unused __unused)
+{
+	INIT_VNET_IPSEC(curvnet);
+
+	V_ipcomp_enable = 0;
+	return (0);
 }
 SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipcomp_attach, NULL);

@@ -697,11 +697,18 @@ ipe4_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	return ((m->m_flags & M_IPSEC) != 0 ? 1 : 0);
 }
 
+static int
+ipe4_iattach(const void *unused __unused)
+{
+	INIT_VNET_IPSEC(curvnet);
+
+	V_ipip_allow = 0;
+	return (0);
+}
+
 static void
 ipe4_attach(void)
 {
-
-	V_ipip_allow = 0;
 
 	xform_register(&ipe4_xformsw);
 	/* attach to encapsulation framework */
@@ -712,6 +719,7 @@ ipe4_attach(void)
 	(void) encap_attach_func(AF_INET6, -1,
 		ipe4_encapcheck, (struct protosw *)&ipe6_protosw, NULL);
 #endif
+	ipe4_iattach(NULL);
 }
 SYSINIT(ipe4_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipe4_attach, NULL);
 #endif	/* IPSEC */

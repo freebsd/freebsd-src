@@ -86,6 +86,11 @@ struct vnet_inet {
 	struct	tcp_hostcache _tcp_hostcache;
 	struct  callout _tcp_hc_callout;
 
+	uma_zone_t _tcp_reass_zone;
+	uma_zone_t _tcpcb_zone;
+	uma_zone_t _tcptw_zone;
+	uma_zone_t _sack_hole_zone;
+
 	struct	tcp_syncache _tcp_syncache;
 	int	_tcp_syncookies;
 	int	_tcp_syncookiesonly;
@@ -315,12 +320,15 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_rtq_timeout		VNET_INET(rtq_timeout)
 #define	V_rtq_timer		VNET_INET(rtq_timer)
 #define	V_rtq_toomany		VNET_INET(rtq_toomany)
+#define	V_sack_hole_zone	VNET_INET(sack_hole_zone)
 #define	V_sameprefixcarponly	VNET_INET(sameprefixcarponly)
 #define	V_ss_fltsz		VNET_INET(ss_fltsz)
 #define	V_ss_fltsz_local	VNET_INET(ss_fltsz_local)
 #define	V_subnetsarelocal	VNET_INET(subnetsarelocal)
 #define	V_tcb			VNET_INET(tcb)
 #define	V_tcbinfo		VNET_INET(tcbinfo)
+#define	V_tcpcb_zone		VNET_INET(tcpcb_zone)
+#define	V_tcptw_zone		VNET_INET(tcptw_zone)
 #define	V_tcp_abc_l_var		VNET_INET(tcp_abc_l_var)
 #define	V_tcp_autorcvbuf_inc	VNET_INET(tcp_autorcvbuf_inc)
 #define	V_tcp_autorcvbuf_max	VNET_INET(tcp_autorcvbuf_max)
@@ -353,6 +361,7 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_tcp_reass_maxseg	VNET_INET(tcp_reass_maxseg)
 #define	V_tcp_reass_overflows	VNET_INET(tcp_reass_overflows)
 #define	V_tcp_reass_qsize	VNET_INET(tcp_reass_qsize)
+#define	V_tcp_reass_zone	VNET_INET(tcp_reass_zone)
 #define	V_tcp_sack_globalholes	VNET_INET(tcp_sack_globalholes)
 #define	V_tcp_sack_globalmaxholes VNET_INET(tcp_sack_globalmaxholes)
 #define	V_tcp_sack_maxholes	VNET_INET(tcp_sack_maxholes)
