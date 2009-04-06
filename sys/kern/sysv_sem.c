@@ -285,6 +285,7 @@ semunload(void)
 	free(semu, M_SEM);
 	for (i = 0; i < seminfo.semmni; i++)
 		mtx_destroy(&sema_mtx[i]);
+	free(sema_mtx, M_SEM);
 	mtx_destroy(&sem_mtx);
 	mtx_destroy(&sem_undo_mtx);
 	return (0);
