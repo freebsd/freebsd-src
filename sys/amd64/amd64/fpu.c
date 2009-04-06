@@ -101,11 +101,12 @@ static	void	fpu_clean_state(void);
 SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
     NULL, 1, "Floating point instructions executed in hardware");
 
-static	struct savefpu		fpu_cleanstate;
-static	bool_t			fpu_cleanstate_ready;
+static	struct savefpu		fpu_initialstate;
 
 /*
- * Initialize floating point unit.
+ * Initialize the floating point unit.  On the boot CPU we generate a
+ * clean state that is used to initialize the floating point unit when
+ * it is first used by a process.
  */
 void
 fpuinit(void)
@@ -115,22 +116,22 @@ fpuinit(void)
 	u_short control;
 
 	savecrit = intr_disable();
-	PCPU_SET(fpcurthread, 0);
 	stop_emulating();
 	fninit();
 	control = __INITIAL_FPUCW__;
 	fldcw(&control);
 	mxcsr = __INITIAL_MXCSR__;
 	ldmxcsr(mxcsr);
-	fxsave(&fpu_cleanstate);
-	if (fpu_cleanstate.sv_env.en_mxcsr_mask)
-		cpu_mxcsr_mask = fpu_cleanstate.sv_env.en_mxcsr_mask;
-	else
-		cpu_mxcsr_mask = 0xFFBF;
+	if (PCPU_GET(cpuid) == 0) {
+		fxsave(&fpu_initialstate);
+		if (fpu_initialstate.sv_env.en_mxcsr_mask)
+			cpu_mxcsr_mask = fpu_initialstate.sv_env.en_mxcsr_mask;
+		else
+			cpu_mxcsr_mask = 0xFFBF;
+		bzero(fpu_initialstate.sv_fp, sizeof(fpu_initialstate.sv_fp));
+		bzero(fpu_initialstate.sv_xmm, sizeof(fpu_initialstate.sv_xmm));
+	}
 	start_emulating();
-	bzero(fpu_cleanstate.sv_fp, sizeof(fpu_cleanstate.sv_fp));
-	bzero(fpu_cleanstate.sv_xmm, sizeof(fpu_cleanstate.sv_xmm));
-	fpu_cleanstate_ready = 1;
 	intr_restore(savecrit);
 }
 
@@ -384,18 +385,17 @@ fputrap()
 
 static int err_count = 0;
 
-int
-fpudna()
+void
+fpudna(void)
 {
 	struct pcb *pcb;
 	register_t s;
-	u_short control;
 
 	if (PCPU_GET(fpcurthread) == curthread) {
 		printf("fpudna: fpcurthread == curthread %d times\n",
 		    ++err_count);
 		stop_emulating();
-		return (1);
+		return;
 	}
 	if (PCPU_GET(fpcurthread) != NULL) {
 		printf("fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
@@ -416,20 +416,17 @@ fpudna()
 
 	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
 		/*
-		 * This is the first time this thread has used the FPU,
-		 * explicitly load sanitized registers.
+		 * This is the first time this thread has used the FPU or
+		 * the PCB doesn't contain a clean FPU state.  Explicitly
+		 * load an initial state.
 		 */
-		fxrstor(&fpu_cleanstate);
-		if (pcb->pcb_flags & PCB_32BIT) {
-			control = __INITIAL_FPUCW_I386__;
-			fldcw(&control);
-		}
+		fxrstor(&fpu_initialstate);
+		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
+			fldcw(&pcb->pcb_initial_fpucw);
 		pcb->pcb_flags |= PCB_FPUINITDONE;
 	} else
 		fxrstor(&pcb->pcb_save);
 	intr_restore(s);
-
-	return (1);
 }
 
 /*
@@ -457,10 +454,8 @@ fpugetregs(struct thread *td, struct savefpu *addr)
 	register_t s;
 
 	if ((td->td_pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
-		if (fpu_cleanstate_ready)
-			bcopy(&fpu_cleanstate, addr, sizeof(fpu_cleanstate));
-		else
-			bzero(addr, sizeof(*addr));
+		bcopy(&fpu_initialstate, addr, sizeof(fpu_initialstate));
+		addr->sv_env.en_cw = td->td_pcb->pcb_initial_fpucw;
 		return (_MC_FPOWNED_NONE);
 	}
 	s = intr_disable();
@@ -485,7 +480,6 @@ fpusetregs(struct thread *td, struct savefpu *addr)
 
 	s = intr_disable();
 	if (td == PCPU_GET(fpcurthread)) {
-		fpu_clean_state();
 		fxrstor(addr);
 		intr_restore(s);
 	} else {
@@ -504,10 +498,10 @@ fpusetregs(struct thread *td, struct savefpu *addr)
  * In order to avoid leaking this information across processes, we clean
  * these values by performing a dummy load before executing fxrstor().
  */
-static	double	dummy_variable = 0.0;
 static void
 fpu_clean_state(void)
 {
+	static float dummy_variable = 0.0;
 	u_short status;
 
 	/*

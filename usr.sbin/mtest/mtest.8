@@ -1,8 +1,32 @@
 .\"
+.\" Copyright (c) 2007-2009 Bruce Simpson.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
 .\" $FreeBSD$
 .\"
-.\" The following requests are required for all man pages.
-.Dd March 8, 2007
+.Dd March 3, 2009
 .Os
 .Dt MTEST 8
 .Sh NAME
@@ -17,19 +41,33 @@ utility
 is a small program for testing the multicast membership socket operations
 and ioctls.
 It accepts the following commands, interactively:
-.Bl -tag -width "a ifname e.e.e.e.e.e" -compact -offset indent
-.It Ic j Ar g.g.g.g Ar i.i.i.i
+.Bl -tag -width "a ifname e.e.e.e e.e.e.e" -compact -offset indent
+.It Ic j Ar g.g.g.g Ar i.i.i.i Op Ar s.s.s.s
 Join the IP group address
 .Ar g.g.g.g
 on the interface with address
 .Ar i.i.i.i .
+.Pp
+If an optional source
+.Ar s.s.s.s
+is specified, a source-specific join will be performed;
+if
+.Nm
+is already a member of the group, the source
+will be added to its filter list.
+.Pp
 .Ar i.i.i.i
-may be specified as 0.0.0.0 to use the default interface.
-.It Ic l Ar g.g.g.g Ar i.i.i.i
+may be specified as 0.0.0.0 to use the default interface,
+although this is legacy behaviour and is not recommended,
+as group memberships are keyed to each individual link.
+.It Ic l Ar g.g.g.g Ar i.i.i.i Op Ar s.s.s.s
 Leave the IP group address
 .Ar g.g.g.g
 on the interface with address
 .Ar i.i.i.i .
+If a source
+.Ar s.s.s.s
+is specified, only that source will be left.
 .It Ic a Ar ifname Ar e.e.e.e.e.e
 Join the Ethernet group address
 .Ar e.e.e.e.e.e
@@ -115,5 +153,6 @@ Quit the program.
 .Re
 .Sh AUTHORS
 .An -split
+.An "Bruce Simpson"
 .An "Steve Deering"
 .An "Wilbert De Graaf"

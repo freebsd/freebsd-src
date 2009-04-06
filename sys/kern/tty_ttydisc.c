@@ -48,11 +48,11 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Statistics. */
-static long tty_nin = 0;
-SYSCTL_LONG(_kern, OID_AUTO, tty_nin, CTLFLAG_RD,
+static unsigned long tty_nin = 0;
+SYSCTL_ULONG(_kern, OID_AUTO, tty_nin, CTLFLAG_RD,
 	&tty_nin, 0, "Total amount of bytes received");
-static long tty_nout = 0;
-SYSCTL_LONG(_kern, OID_AUTO, tty_nout, CTLFLAG_RD,
+static unsigned long tty_nout = 0;
+SYSCTL_ULONG(_kern, OID_AUTO, tty_nout, CTLFLAG_RD,
 	&tty_nout, 0, "Total amount of bytes transmitted");
 
 /* termios comparison macro's. */

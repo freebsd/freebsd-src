@@ -1700,7 +1700,7 @@ my_watchdog(struct ifnet * ifp)
 	my_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		my_start_locked(ifp);
-	MY_LOCK(sc);
+	MY_UNLOCK(sc);
 	return;
 }
 

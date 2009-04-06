@@ -46,6 +46,8 @@
  * ng_ether(4) netgraph node type
  */
 
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -63,6 +65,7 @@
 #include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_bridgevar.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netgraph/ng_message.h>

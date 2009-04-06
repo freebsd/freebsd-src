@@ -33,23 +33,21 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libi386.h"
 
+static int	bios_seconds(void);
+
 /*
- * Return the time in seconds since the beginning of the day.
- *
- * If we pass midnight, don't wrap back to 0.
+ * Return the BIOS time-of-day value.
  *
  * XXX uses undocumented BCD support from libstand.
  */
-
-time_t
-time(time_t *t)
+static int
+bios_seconds(void)
 {
-    static time_t	lasttime, now;
     int			hr, minute, sec;
     unsigned char	bios_time[6];
-
+    
     v86.ctl = 0;
-    v86.addr = 0x1c;            /* int 0x1c, function 0 */
+    v86.addr = 0x1c;		/* int 0x1c, function 0 */
     v86.eax = 0x0000;
     v86.es  = VTOPSEG(bios_time);
     v86.ebx = VTOPOFF(bios_time);
@@ -59,7 +57,20 @@ time(time_t *t)
     minute = bcd2bin(bios_time[4]);
     sec = bcd2bin(bios_time[5]);
     
-    now = hr * 3600 + minute * 60 + sec;
+    return (hr * 3600 + minute * 60 + sec);
+}
+
+/*
+ * Return the time in seconds since the beginning of the day.
+ */
+time_t
+time(time_t *t)
+{
+    static time_t lasttime;
+    time_t now;
+
+    now = bios_seconds();
+
     if (now < lasttime)
 	now += 24 * 3600;
     lasttime = now;

@@ -545,6 +545,10 @@ g_new_provider_event(void *arg, int flag)
 		mp->taste(mp, pp, 0);
 		g_topology_assert();
 	}
+	if (pp->roothold != NULL) {
+		root_mount_rel(pp->roothold);
+		pp->roothold = NULL;
+	}
 }
 
 
@@ -581,6 +585,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	pp->stat = devstat_new_entry(pp, -1, 0, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
+	pp->roothold = root_mount_hold(pp->name, M_WAITOK);
 	g_post_event(g_new_provider_event, pp, M_WAITOK, pp, gp, NULL);
 	return (pp);
 }

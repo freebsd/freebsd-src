@@ -40,7 +40,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-dhcp6.c,v 1.35.2.1 2006/10/25 22:04:36 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-dhcp6.c,v 1.36.2.1 2008-02-06 10:26:27 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -80,6 +80,8 @@ static const char rcsid[] _U_ =
 #define DH6_INFORM_REQ	11
 #define DH6_RELAY_FORW	12
 #define DH6_RELAY_REPLY	13
+#define DH6_LEASEQUERY	14
+#define DH6_LQ_REPLY	15
 
 /* DHCP6 base packet format */
 struct dhcp6 {
@@ -130,6 +132,10 @@ struct dhcp6_relay {
 #  define DH6OPT_STCODE_NOTONLINK 4
 #  define DH6OPT_STCODE_USEMULTICAST 5
 #  define DH6OPT_STCODE_NOPREFIXAVAIL 6
+#  define DH6OPT_STCODE_UNKNOWNQUERYTYPE 7
+#  define DH6OPT_STCODE_MALFORMEDQUERY 8
+#  define DH6OPT_STCODE_NOTCONFIGURED 9
+#  define DH6OPT_STCODE_NOTALLOWED 10
 #define DH6OPT_RAPID_COMMIT 14
 #define DH6OPT_USER_CLASS 15
 #define DH6OPT_VENDOR_CLASS 16
@@ -155,6 +161,15 @@ struct dhcp6_relay {
 #define DH6OPT_REMOTE_ID 37
 #define DH6OPT_SUBSCRIBER_ID 38
 #define DH6OPT_CLIENT_FQDN 39
+#define DH6OPT_PANA_AGENT 40
+#define DH6OPT_NEW_POSIX_TIMEZONE 41
+#define DH6OPT_NEW_TZDB_TIMEZONE 42
+#define DH6OPT_ERO 43
+#define DH6OPT_LQ_QUERY 44
+#define DH6OPT_CLIENT_DATA 45
+#define DH6OPT_CLT_TIME 46
+#define DH6OPT_LQ_RELAY_DATA 47
+#define DH6OPT_LQ_CLIENT_LINK 48
 
 struct dhcp6opt {
 	u_int16_t dh6opt_type;
@@ -280,6 +295,24 @@ dhcp6opt_name(int type)
 		return "Subscriber ID";
 	case DH6OPT_CLIENT_FQDN:
 		return "Client FQDN";
+	case DH6OPT_PANA_AGENT:
+		return "PANA agent";
+	case DH6OPT_NEW_POSIX_TIMEZONE:
+		return "POSIX timezone";
+	case DH6OPT_NEW_TZDB_TIMEZONE:
+		return "POSIX tz database";
+	case DH6OPT_ERO:
+		return "Echo request option";
+	case DH6OPT_LQ_QUERY:
+		return "Lease query";
+	case DH6OPT_CLIENT_DATA:
+		return "LQ client data";
+	case DH6OPT_CLT_TIME:
+		return "Clt time";
+	case DH6OPT_LQ_RELAY_DATA:
+		return "LQ relay data";
+	case DH6OPT_LQ_CLIENT_LINK:
+		return "LQ client link";
 	default:
 		snprintf(genstr, sizeof(genstr), "opt_%d", type);
 		return(genstr);
@@ -309,6 +342,14 @@ dhcp6stcode(int code)
 		return "use multicast";
 	case DH6OPT_STCODE_NOPREFIXAVAIL:
 		return "no prefixes";
+	case DH6OPT_STCODE_UNKNOWNQUERYTYPE:
+		return "unknown query type";
+	case DH6OPT_STCODE_MALFORMEDQUERY:
+		return "malformed query";
+	case DH6OPT_STCODE_NOTCONFIGURED:
+		return "not configured";
+	case DH6OPT_STCODE_NOTALLOWED:
+		return "not allowed";
 	default:
 		snprintf(genstr, sizeof(genstr), "code%d", code);
 		return(genstr);
@@ -420,6 +461,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			printf(")");
 			break;
 		case DH6OPT_ORO:
+		case DH6OPT_ERO:
 			if (optlen % 2) {
 				printf(" ?)");
 				break;
@@ -549,12 +591,15 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			printf(")");
 			break;
 		case DH6OPT_INTERFACE_ID:
+		case DH6OPT_SUBSCRIBER_ID:
 			/*
 			 * Since we cannot predict the encoding, print hex dump
 			 * at most 10 characters.
 			 */
+			printf(" ");
 			for (i = 0; i < optlen && i < 10; i++)
 				printf("%02x", ((u_char *)(dh6o + 1))[i]);
+			printf("...)");
 			break;
 		case DH6OPT_RECONF_MSG:
 			tp = (u_char *)(dh6o + 1);
@@ -579,6 +624,8 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 		case DH6OPT_NIS_SERVERS:
 		case DH6OPT_NISP_SERVERS:
 		case DH6OPT_BCMCS_SERVER_A:
+		case DH6OPT_PANA_AGENT:
+		case DH6OPT_LQ_CLIENT_LINK:
 			if (optlen % 16) {
 				printf(" ?)");
 				break;
@@ -618,6 +665,21 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			}
 			printf(")");
 			break;
+		case DH6OPT_IA_TA:
+			if (optlen < 4) {
+				printf(" ?)");
+				break;
+			}
+			memcpy(&val32, dh6o + 1, sizeof(val32));
+			val32 = ntohl(val32);
+			printf(" IAID:%lu", (unsigned long)val32);
+			if (optlen > 4) {
+				/* there are sub-options */
+				dhcp6opt_print((u_char *)(dh6o + 1) + 4,
+				    (u_char *)(dh6o + 1) + optlen);
+			}
+			printf(")");
+			break;
 		case DH6OPT_IA_PD_PREFIX:
 			if (optlen < sizeof(ia_prefix) - 4) {
 				printf(" ?)");
@@ -643,6 +705,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			printf(")");
 			break;
 		case DH6OPT_LIFETIME:
+		case DH6OPT_CLT_TIME:
 			if (optlen != 4) {
 				printf(" ?)");
 				break;
@@ -650,6 +713,68 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			memcpy(&val32, dh6o + 1, sizeof(val32));
 			val32 = ntohl(val32);
 			printf(" %d)", (int)val32);
+			break;
+		case DH6OPT_REMOTE_ID:
+			if (optlen < 4) {
+				printf(" ?)");
+				break;
+			}
+			tp = (u_char *)(dh6o + 1);
+			memcpy(&val32, &tp[0], sizeof(val32));
+			val32 = ntohl(val32);
+			printf(" %d ", (int)val32);
+			/*
+			 * Print hex dump first 10 characters.
+			 */
+			for (i = 4; i < optlen && i < 14; i++)
+				printf("%02x", tp[i]);
+			printf("...)");
+			break;
+		case DH6OPT_LQ_QUERY:
+			if (optlen < 17) {
+				printf(" ?)");
+				break;
+			}
+			tp = (u_char *)(dh6o + 1);
+			switch (*tp) {
+			case 1:
+				printf(" by-address");
+				break;
+			case 2:
+				printf(" by-clientID");
+				break;
+			default:
+				printf(" type_%d", (int)*tp);
+				break;
+			}
+			printf(" %s", ip6addr_string(&tp[1]));
+			if (optlen > 17) {
+				/* there are query-options */
+				dhcp6opt_print(tp + 17, tp + optlen);
+			}
+			printf(")");
+			break;
+		case DH6OPT_CLIENT_DATA:
+			if (optlen > 0) {
+				/* there are encapsulated options */
+				dhcp6opt_print((u_char *)(dh6o + 1),
+				    (u_char *)(dh6o + 1) + optlen);
+			}
+			printf(")");
+			break;
+		case DH6OPT_LQ_RELAY_DATA:
+			if (optlen < 16) {
+				printf(" ?)");
+				break;
+			}
+			tp = (u_char *)(dh6o + 1);
+			printf(" %s ", ip6addr_string(&tp[0]));
+			/*
+			 * Print hex dump first 10 characters.
+			 */
+			for (i = 16; i < optlen && i < 26; i++)
+				printf("%02x", tp[i]);
+			printf("...)");
 			break;
 		default:
 			printf(")");
@@ -724,6 +849,12 @@ dhcp6_print(const u_char *cp, u_int length)
 		break;
 	case DH6_RELAY_REPLY:
 		name= "relay-reply";
+		break;
+	case DH6_LEASEQUERY:
+		name= "leasequery";
+		break;
+	case DH6_LQ_REPLY:
+		name= "leasequery-reply";
 		break;
 	default:
 		name = NULL;

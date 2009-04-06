@@ -54,21 +54,6 @@ The credentials of the caller.
 The vnode should be locked on entry and will still be locked on exit.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error code is returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_readlink(struct vnode *vp, struct uio *uio, struct ucred *cred)
-{
-    int error = 0;
-
-    /*
-     * Read the target of the symlink.
-     */
-    ...;
-
-    return error;
-}
-.Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EIO

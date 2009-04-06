@@ -566,7 +566,7 @@ init_secondary(void)
 		invlpg(addr);
 
 	/* set up FPU state on the AP */
-	npxinit(__INITIAL_NPXCW__);
+	npxinit();
 #if 0
 	
 	/* set up SSE registers */

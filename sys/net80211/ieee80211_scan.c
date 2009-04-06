@@ -298,6 +298,7 @@ change_channel(struct ieee80211com *ic,
 	struct ieee80211_channel *chan)
 {
 	ic->ic_curchan = chan;
+	ic->ic_rt = ieee80211_get_ratetable(chan);
 	ic->ic_set_channel(ic);
 }
 

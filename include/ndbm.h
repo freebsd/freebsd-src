@@ -70,11 +70,15 @@ int	 dbm_delete(DBM *, datum);
 int	 dbm_error(DBM *);
 datum	 dbm_fetch(DBM *, datum);
 datum	 dbm_firstkey(DBM *);
+#if __BSD_VISIBLE
 long	 dbm_forder(DBM *, datum);
+#endif
 datum	 dbm_nextkey(DBM *);
 DBM	*dbm_open(const char *, int, int);
 int	 dbm_store(DBM *, datum, datum, int);
+#if __BSD_VISIBLE
 int	 dbm_dirfno(DBM *);
+#endif
 __END_DECLS
 
 #endif /* !_NDBM_H_ */

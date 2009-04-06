@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #define BOTH    3
 
 static int
-proc_sum(struct proc *p, int *estcpup)
+proc_sum(struct proc *p, fixpt_t *estcpup)
 {
 	struct thread *td;
 	int estcpu;
@@ -261,7 +261,6 @@ tty_info(struct tty *tp)
 
 	PROC_LOCK(pick);
 	picktd = NULL;
-	td = FIRST_THREAD_IN_PROC(pick);
 	FOREACH_THREAD_IN_PROC(pick, td)
 		if (thread_compare(picktd, td))
 			picktd = td;
@@ -300,7 +299,7 @@ tty_info(struct tty *tp)
 	PGRP_UNLOCK(tp->t_pgrp);
 	rufetchcalc(pick, &ru, &utime, &stime);
 	pid = pick->p_pid;
-	bcopy(pick->p_comm, comm, sizeof(comm));
+	strlcpy(comm, pick->p_comm, sizeof comm);
 	PROC_UNLOCK(pick);
 
 	/* Print command, pid, state, utime, stime, %cpu, and rss. */

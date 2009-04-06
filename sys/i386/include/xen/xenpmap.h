@@ -45,6 +45,8 @@ void xen_pt_pin(vm_paddr_t);
 void xen_pt_unpin(vm_paddr_t);
 void xen_flush_queue(void);
 void pmap_ref(pt_entry_t *pte, vm_paddr_t ma);
+void pmap_suspend(void);
+void pmap_resume(void);
 void xen_check_queue(void);
 
 #ifdef INVARIANTS
@@ -222,7 +224,11 @@ set_phys_to_machine(unsigned long pfn, unsigned long mfn)
         xen_phys_machine[pfn] = mfn;
 }
 
-
+static __inline int
+phys_to_machine_mapping_valid(unsigned long pfn)
+{
+	return xen_phys_machine[pfn] != INVALID_P2M_ENTRY;
+}
 
 
 #endif /* _XEN_XENPMAP_H_ */

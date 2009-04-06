@@ -46,9 +46,7 @@ static char sccsid[] = "@(#)rwall.c	1.2 91/03/11 TIRPC 1.0; from  1.3 89/03/24 S
 #include <rpcsvc/rwall.h>
 
 int
-rwall(host, msg)
-	char *host;
-	char *msg;
+rwall(char *host, char *msg)
 {
 	return (callrpc(host, WALLPROG, WALLVERS, WALLPROC_WALL,
 			(xdrproc_t)xdr_wrapstring, (char *) &msg,

@@ -153,7 +153,6 @@ zfs_znode_cache_constructor(void *buf, void *arg, int kmflags)
 	zp->z_vnode = vp;
 	vp->v_data = (caddr_t)zp;
 	VN_LOCK_AREC(vp);
-	VN_LOCK_ASHARE(vp);
 
 	list_link_init(&zp->z_link_node);
 
@@ -610,6 +609,8 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz)
 		vp->v_op = &zfs_fifoops;
 		break;
 	}
+	if (vp->v_type != VFIFO)
+		VN_LOCK_ASHARE(vp);
 
 	mutex_enter(&zfsvfs->z_znodes_lock);
 	list_insert_tail(&zfsvfs->z_all_znodes, zp);
@@ -1491,6 +1492,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 
 	vp = ZTOV(rootzp);
 	vp->v_type = VDIR;
+	VN_LOCK_ASHARE(vp);
 
 	bzero(&zfsvfs, sizeof (zfsvfs_t));
 

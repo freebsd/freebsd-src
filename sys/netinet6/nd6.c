@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_mac.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_arc.h>
@@ -75,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/vinet6.h>
 
 #include <sys/limits.h>
-#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 

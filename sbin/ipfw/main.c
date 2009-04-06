@@ -54,7 +54,7 @@ help(void)
 "RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
 "ACTION:	check-state | allow | count | deny | unreach{,6} CODE |\n"
 "               skipto N | {divert|tee} PORT | forward ADDR |\n"
-"               pipe N | queue N | nat N | setfib FIB\n"
+"               pipe N | queue N | nat N | setfib FIB | reass\n"
 "PARAMS: 	[log [logamount LOGLIMIT]] [altq QUEUE_NAME]\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
 "		[ ip from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
@@ -104,6 +104,7 @@ ipfw_main(int oldac, char **oldav)
 	const char *errstr;
 	char **av, **save_av;
 	int do_acct = 0;		/* Show packet/byte count */
+	int try_next = 0;		/* set if pipe cmd not found */
 
 #define WHITESP		" \t\f\v\n\r"
 	if (oldac < 2)
@@ -332,7 +333,6 @@ ipfw_main(int oldac, char **oldav)
 		av[1] = p;
 	}
 
-	int try_next = 0;
 	if (co.use_set == 0) {
 		if (_substrcmp(*av, "add") == 0)
 			ipfw_add(ac, av);

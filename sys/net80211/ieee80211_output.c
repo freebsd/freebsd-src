@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
@@ -62,9 +65,6 @@ __FBSDID("$FreeBSD$");
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
-static struct mbuf *ieee80211_encap_fastframe(struct ieee80211vap *,
-	struct mbuf *m1, const struct ether_header *eh1,
-	struct mbuf *m2, const struct ether_header *eh2);
 static int ieee80211_fragment(struct ieee80211vap *, struct mbuf *,
 	u_int hdrsize, u_int ciphdrsize, u_int mtu);
 static	void ieee80211_tx_mgt_cb(struct ieee80211_node *, void *, int);
@@ -205,7 +205,6 @@ ieee80211_start(struct ifnet *ifp)
 			m_freem(m);
 			continue;
 		}
-		/* XXX AUTH'd */
 		if (ni->ni_associd == 0 &&
 		    (ni->ni_flags & IEEE80211_NODE_ASSOCID)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
@@ -218,6 +217,7 @@ ieee80211_start(struct ifnet *ifp)
 			ieee80211_free_node(ni);
 			continue;
 		}
+
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 		    (m->m_flags & M_PWR_SAV) == 0) {
 			/*
@@ -242,23 +242,26 @@ ieee80211_start(struct ifnet *ifp)
 			continue;
 		}
 
-		BPF_MTAP(ifp, m);		/* 802.11 tx path */
-
+		BPF_MTAP(ifp, m);		/* 802.3 tx */
+ 
+#ifdef IEEE80211_SUPPORT_SUPERG
+		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
+			m = ieee80211_ff_check(ni, m);
+			if (m == NULL) {
+				/* NB: any ni ref held on stageq */
+				continue;
+			}
+		}
+#endif /* IEEE80211_SUPPORT_SUPERG */
 		/*
-		 * XXX When ni is associated with a WDS link then
-		 * the vap will be the WDS vap but ni_vap will point
-		 * to the ap vap the station associated to.  Once
-		 * we handoff the packet to the driver the callback
-		 * to ieee80211_encap won't be able to tell if the
-		 * packet should be encapsulated for WDS or not (e.g.
-		 * multicast frames will not be handled correctly).
-		 * We hack this by marking the mbuf so ieee80211_encap
-		 * can do the right thing.
+		 * Encapsulate the packet in prep for transmission.
 		 */
-		if (vap->iv_opmode == IEEE80211_M_WDS)
-			m->m_flags |= M_WDS;
-		else
-			m->m_flags &= ~M_WDS;
+		m = ieee80211_encap(vap, ni, m);
+		if (m == NULL) {
+			/* NB: stat+msg handled in ieee80211_encap */
+			ieee80211_free_node(ni);
+			continue;
+		}
 
 		/*
 		 * Stash the node pointer and hand the frame off to
@@ -268,7 +271,6 @@ ieee80211_start(struct ifnet *ifp)
 		 */
 		m->m_pkthdr.rcvif = (void *)ni;
 
-		/* XXX defer if_start calls? */
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
@@ -732,7 +734,7 @@ done:
  * Drivers and cipher modules assume we have done the necessary work
  * and fail rudely if they don't find the space they need.
  */
-static struct mbuf *
+struct mbuf *
 ieee80211_mbuf_adjust(struct ieee80211vap *vap, int hdrsize,
 	struct ieee80211_key *key, struct mbuf *m)
 {
@@ -853,16 +855,16 @@ ieee80211_crypto_getmcastkey(struct ieee80211vap *vap,
  *     marked EAPOL frames w/ M_EAPOL.
  */
 struct mbuf *
-ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
+ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
+    struct mbuf *m)
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)(wh))
-	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ether_header eh;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *key;
 	struct llc *llc;
-	int hdrsize, hdrspace, datalen, addqos, txfrag, isff, is4addr;
+	int hdrsize, hdrspace, datalen, addqos, txfrag, is4addr;
 
 	/*
 	 * Copy existing Ethernet header to a safe place.  The
@@ -917,12 +919,11 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 		hdrsize = sizeof(struct ieee80211_frame);
 	/*
 	 * 4-address frames need to be generated for:
-	 * o packets sent through a WDS vap (M_WDS || IEEE80211_M_WDS)
+	 * o packets sent through a WDS vap (IEEE80211_M_WDS)
 	 * o packets relayed by a station operating with dynamic WDS
 	 *   (IEEE80211_M_STA+IEEE80211_F_DWDS and src address)
 	 */
-	is4addr = (m->m_flags & M_WDS) ||
-	    vap->iv_opmode == IEEE80211_M_WDS ||	/* XXX redundant? */
+	is4addr = vap->iv_opmode == IEEE80211_M_WDS ||
 	    (vap->iv_opmode == IEEE80211_M_STA &&
 	     (vap->iv_flags & IEEE80211_F_DWDS) &&
 	     !IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr));
@@ -936,56 +937,7 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 	else
 		hdrspace = hdrsize;
 
-	if ((isff = m->m_flags & M_FF) != 0) {
-		struct mbuf *m2;
-		struct ether_header eh2;
-
-		/*
-		 * Fast frame encapsulation.  There must be two packets
-		 * chained with m_nextpkt.  We do header adjustment for
-		 * each, add the tunnel encapsulation, and then concatenate
-		 * the mbuf chains to form a single frame for transmission.
-		 */
-		m2 = m->m_nextpkt;
-		if (m2 == NULL) {
-			IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-				"%s: only one frame\n", __func__);
-			goto bad;
-		}
-		m->m_nextpkt = NULL;
-		/*
-		 * Include fast frame headers in adjusting header
-		 * layout; this allocates space according to what
-		 * ieee80211_encap_fastframe will do.
-		 */
-		m = ieee80211_mbuf_adjust(vap,
-			hdrspace + sizeof(struct llc) + sizeof(uint32_t) + 2 +
-			    sizeof(struct ether_header),
-			key, m);
-		if (m == NULL) {
-			/* NB: ieee80211_mbuf_adjust handles msgs+statistics */
-			m_freem(m2);
-			goto bad;
-		}
-		/*
-		 * Copy second frame's Ethernet header out of line
-		 * and adjust for encapsulation headers.  Note that
-		 * we make room for padding in case there isn't room
-		 * at the end of first frame.
-		 */
-		KASSERT(m2->m_len >= sizeof(eh2), ("no ethernet header!"));
-		ETHER_HEADER_COPY(&eh2, mtod(m2, caddr_t));
-		m2 = ieee80211_mbuf_adjust(vap,
-			ATH_FF_MAX_HDR_PAD + sizeof(struct ether_header),
-			NULL, m2);
-		if (m2 == NULL) {
-			/* NB: ieee80211_mbuf_adjust handles msgs+statistics */
-			goto bad;
-		}
-		m = ieee80211_encap_fastframe(vap, m, &eh, m2, &eh2);
-		if (m == NULL)
-			goto bad;
-	} else {
+	if (__predict_true((m->m_flags & M_FF) == 0)) {
 		/*
 		 * Normal frame.
 		 */
@@ -1003,6 +955,15 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 		llc->llc_snap.org_code[1] = 0;
 		llc->llc_snap.org_code[2] = 0;
 		llc->llc_snap.ether_type = eh.ether_type;
+	} else {
+#ifdef IEEE80211_SUPPORT_SUPERG
+		/*
+		 * Aggregated frame.
+		 */
+		m = ieee80211_ff_encap(vap, m, hdrspace, key);
+		if (m == NULL)
+#endif
+			goto bad;
 	}
 	datalen = m->m_pkthdr.len;		/* NB: w/o 802.11 header */
 
@@ -1129,7 +1090,7 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 	txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
 	    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
 	    (vap->iv_caps & IEEE80211_C_TXFRAG) &&
-	    !isff);		/* NB: don't fragment ff's */
+	    (m->m_flags & M_FF) == 0);		/* NB: don't fragment ff's */
 	if (key != NULL) {
 		/*
 		 * IEEE 802.1X: send EAPOL frames always in the clear.
@@ -1173,135 +1134,6 @@ bad:
 		m_freem(m);
 	return NULL;
 #undef WH4
-}
-
-/*
- * Do Ethernet-LLC encapsulation for each payload in a fast frame
- * tunnel encapsulation.  The frame is assumed to have an Ethernet
- * header at the front that must be stripped before prepending the
- * LLC followed by the Ethernet header passed in (with an Ethernet
- * type that specifies the payload size).
- */
-static struct mbuf *
-ieee80211_encap1(struct ieee80211vap *vap, struct mbuf *m,
-	const struct ether_header *eh)
-{
-	struct llc *llc;
-	uint16_t payload;
-
-	/* XXX optimize by combining m_adj+M_PREPEND */
-	m_adj(m, sizeof(struct ether_header) - sizeof(struct llc));
-	llc = mtod(m, struct llc *);
-	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
-	llc->llc_control = LLC_UI;
-	llc->llc_snap.org_code[0] = 0;
-	llc->llc_snap.org_code[1] = 0;
-	llc->llc_snap.org_code[2] = 0;
-	llc->llc_snap.ether_type = eh->ether_type;
-	payload = m->m_pkthdr.len;		/* NB: w/o Ethernet header */
-
-	M_PREPEND(m, sizeof(struct ether_header), M_DONTWAIT);
-	if (m == NULL) {		/* XXX cannot happen */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-			"%s: no space for ether_header\n", __func__);
-		vap->iv_stats.is_tx_nobuf++;
-		return NULL;
-	}
-	ETHER_HEADER_COPY(mtod(m, void *), eh);
-	mtod(m, struct ether_header *)->ether_type = htons(payload);
-	return m;
-}
-
-/*
- * Do fast frame tunnel encapsulation.  The two frames and
- * Ethernet headers are supplied.  The caller is assumed to
- * have arrange for space in the mbuf chains for encapsulating
- * headers (to avoid major mbuf fragmentation).
- *
- * The encapsulated frame is returned or NULL if there is a
- * problem (should not happen).
- */
-static struct mbuf *
-ieee80211_encap_fastframe(struct ieee80211vap *vap,
-	struct mbuf *m1, const struct ether_header *eh1,
-	struct mbuf *m2, const struct ether_header *eh2)
-{
-	struct llc *llc;
-	struct mbuf *m;
-	int pad;
-
-	/*
-	 * First, each frame gets a standard encapsulation.
-	 */
-	m1 = ieee80211_encap1(vap, m1, eh1);
-	if (m1 == NULL) {
-		m_freem(m2);
-		return NULL;
-	}
-	m2 = ieee80211_encap1(vap, m2, eh2);
-	if (m2 == NULL) {
-		m_freem(m1);
-		return NULL;
-	}
-
-	/*
-	 * Pad leading frame to a 4-byte boundary.  If there
-	 * is space at the end of the first frame, put it
-	 * there; otherwise prepend to the front of the second
-	 * frame.  We know doing the second will always work
-	 * because we reserve space above.  We prefer appending
-	 * as this typically has better DMA alignment properties.
-	 */
-	for (m = m1; m->m_next != NULL; m = m->m_next)
-		;
-	pad = roundup2(m1->m_pkthdr.len, 4) - m1->m_pkthdr.len;
-	if (pad) {
-		if (M_TRAILINGSPACE(m) < pad) {		/* prepend to second */
-			m2->m_data -= pad;
-			m2->m_len += pad;
-			m2->m_pkthdr.len += pad;
-		} else {				/* append to first */
-			m->m_len += pad;
-			m1->m_pkthdr.len += pad;
-		}
-	}
-
-	/*
-	 * Now, stick 'em together and prepend the tunnel headers;
-	 * first the Atheros tunnel header (all zero for now) and
-	 * then a special fast frame LLC.
-	 *
-	 * XXX optimize by prepending together
-	 */
-	m->m_next = m2;			/* NB: last mbuf from above */
-	m1->m_pkthdr.len += m2->m_pkthdr.len;
-	M_PREPEND(m1, sizeof(uint32_t)+2, M_DONTWAIT);
-	if (m1 == NULL) {		/* XXX cannot happen */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-			"%s: no space for tunnel header\n", __func__);
-		vap->iv_stats.is_tx_nobuf++;
-		return NULL;
-	}
-	memset(mtod(m1, void *), 0, sizeof(uint32_t)+2);
-
-	M_PREPEND(m1, sizeof(struct llc), M_DONTWAIT);
-	if (m1 == NULL) {		/* XXX cannot happen */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-			"%s: no space for llc header\n", __func__);
-		vap->iv_stats.is_tx_nobuf++;
-		return NULL;
-	}
-	llc = mtod(m1, struct llc *);
-	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
-	llc->llc_control = LLC_UI;
-	llc->llc_snap.org_code[0] = ATH_FF_SNAP_ORGCODE_0;
-	llc->llc_snap.org_code[1] = ATH_FF_SNAP_ORGCODE_1;
-	llc->llc_snap.org_code[2] = ATH_FF_SNAP_ORGCODE_2;
-	llc->llc_snap.ether_type = htons(ATH_FF_ETH_TYPE);
-
-	vap->iv_stats.is_ff_encap++;
-
-	return m1;
 }
 
 /*
@@ -1568,31 +1400,6 @@ ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme)
 #undef ADDSHORT
 }
 #undef WME_OUI_BYTES
-
-#define	ATH_OUI_BYTES		0x00, 0x03, 0x7f
-/*
- * Add a WME information element to a frame.
- */
-static uint8_t *
-ieee80211_add_ath(uint8_t *frm, uint8_t caps, uint16_t defkeyix)
-{
-	static const struct ieee80211_ath_ie info = {
-		.ath_id		= IEEE80211_ELEMID_VENDOR,
-		.ath_len	= sizeof(struct ieee80211_ath_ie) - 2,
-		.ath_oui	= { ATH_OUI_BYTES },
-		.ath_oui_type	= ATH_OUI_TYPE,
-		.ath_oui_subtype= ATH_OUI_SUBTYPE,
-		.ath_version	= ATH_OUI_VERSION,
-	};
-	struct ieee80211_ath_ie *ath = (struct ieee80211_ath_ie *) frm;
-
-	memcpy(frm, &info, sizeof(info));
-	ath->ath_capability = caps;
-	ath->ath_defkeyix[0] = (defkeyix & 0xff);
-	ath->ath_defkeyix[1] = ((defkeyix >> 8) & 0xff);
-	return frm + sizeof(info); 
-}
-#undef ATH_OUI_BYTES
 
 /*
  * Add an 11h Power Constraint element to a frame.
@@ -1978,7 +1785,9 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		       + sizeof(struct ieee80211_wme_info)
 		       + sizeof(struct ieee80211_ie_htcap)
 		       + 4 + sizeof(struct ieee80211_ie_htcap)
+#ifdef IEEE80211_SUPPORT_SUPERG
 		       + sizeof(struct ieee80211_ath_ie)
+#endif
 		       + (vap->iv_appie_wpa != NULL ?
 				vap->iv_appie_wpa->ie_len : 0)
 		       + (vap->iv_appie_assocreq != NULL ?
@@ -2047,13 +1856,15 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		    ni->ni_ies.htcap_ie != NULL &&
 		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_VENDOR)
 			frm = ieee80211_add_htcap_vendor(frm, ni);
-		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS))
-			frm = ieee80211_add_ath(frm,
+#ifdef IEEE80211_SUPPORT_SUPERG
+		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS)) {
+			frm = ieee80211_add_ath(frm, 
 				IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS),
-				(vap->iv_flags & IEEE80211_F_WPA) == 0 &&
-				ni->ni_authmode != IEEE80211_AUTH_8021X &&
-				vap->iv_def_txkey != IEEE80211_KEYIX_NONE ?
-				vap->iv_def_txkey : 0x7fff);
+				((vap->iv_flags & IEEE80211_F_WPA) == 0 &&
+				 ni->ni_authmode != IEEE80211_AUTH_8021X) ?
+				vap->iv_def_txkey : IEEE80211_KEYIX_NONE);
+		}
+#endif /* IEEE80211_SUPPORT_SUPERG */
 		if (vap->iv_appie_assocreq != NULL)
 			frm = add_appie(frm, vap->iv_appie_assocreq);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
@@ -2089,7 +1900,9 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		       + sizeof(struct ieee80211_ie_htcap) + 4
 		       + sizeof(struct ieee80211_ie_htinfo) + 4
 		       + sizeof(struct ieee80211_wme_param)
+#ifdef IEEE80211_SUPPORT_SUPERG
 		       + sizeof(struct ieee80211_ath_ie)
+#endif
 		       + (vap->iv_appie_assocresp != NULL ?
 				vap->iv_appie_assocresp->ie_len : 0)
 		);
@@ -2124,10 +1937,14 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 			frm = ieee80211_add_htcap_vendor(frm, ni);
 			frm = ieee80211_add_htinfo_vendor(frm, ni);
 		}
+#ifdef IEEE80211_SUPPORT_SUPERG
 		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS))
-			frm = ieee80211_add_ath(frm,
+			frm = ieee80211_add_ath(frm, 
 				IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS),
-				ni->ni_ath_defkeyix);
+				((vap->iv_flags & IEEE80211_F_WPA) == 0 &&
+				 ni->ni_authmode != IEEE80211_AUTH_8021X) ?
+				vap->iv_def_txkey : IEEE80211_KEYIX_NONE);
+#endif /* IEEE80211_SUPPORT_SUPERG */
 		if (vap->iv_appie_assocresp != NULL)
 			frm = add_appie(frm, vap->iv_appie_assocresp);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
@@ -2228,7 +2045,9 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	       + sizeof(struct ieee80211_wme_param)
 	       + 4 + sizeof(struct ieee80211_ie_htcap)
 	       + 4 + sizeof(struct ieee80211_ie_htinfo)
+#ifdef IEEE80211_SUPPORT_SUPERG
 	       + sizeof(struct ieee80211_ath_ie)
+#endif
 	       + (vap->iv_appie_proberesp != NULL ?
 			vap->iv_appie_proberesp->ie_len : 0)
 	);
@@ -2311,9 +2130,11 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 		frm = ieee80211_add_htcap_vendor(frm, bss);
 		frm = ieee80211_add_htinfo_vendor(frm, bss);
 	}
-	if (bss->ni_ies.ath_ie != NULL && legacy != IEEE80211_SEND_LEGACY_11B)
-		frm = ieee80211_add_ath(frm, bss->ni_ath_flags,
-			bss->ni_ath_defkeyix);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	if ((vap->iv_flags & IEEE80211_F_ATHEROS) &&
+	    legacy != IEEE80211_SEND_LEGACY_11B)
+		frm = ieee80211_add_athcaps(frm, bss);
+#endif
 	if (vap->iv_appie_proberesp != NULL)
 		frm = add_appie(frm, vap->iv_appie_proberesp);
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
@@ -2506,6 +2327,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	 *	[tlv] WME parameters
 	 *	[tlv] Vendor OUI HT capabilities (optional)
 	 *	[tlv] Vendor OUI HT information (optional)
+	 *	[tlv] Atheros capabilities (optional)
 	 *	[tlv] TDMA parameters (optional)
 	 *	[tlv] application data (optional)
 	 */
@@ -2596,6 +2418,12 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		frm = ieee80211_add_htcap_vendor(frm, ni);
 		frm = ieee80211_add_htinfo_vendor(frm, ni);
 	}
+#ifdef IEEE80211_SUPPORT_SUPERG
+	if (vap->iv_flags & IEEE80211_F_ATHEROS) {
+		bo->bo_ath = frm;
+		frm = ieee80211_add_athcaps(frm, ni);
+	}
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (vap->iv_caps & IEEE80211_C_TDMA) {
 		bo->bo_tdma = frm;
@@ -2675,6 +2503,9 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		 + 4+2*sizeof(struct ieee80211_ie_htinfo)/* HT info */
 		 + (vap->iv_caps & IEEE80211_C_WME ?	/* WME */
 			sizeof(struct ieee80211_wme_param) : 0)
+#ifdef IEEE80211_SUPPORT_SUPERG
+		 + sizeof(struct ieee80211_ath_ie)	/* ATH */
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 		 + (vap->iv_caps & IEEE80211_C_TDMA ?	/* TDMA */
 			sizeof(struct ieee80211_tdma_param) : 0)
@@ -2852,6 +2683,12 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				bo->bo_tim_trailer += adjust;
 				bo->bo_erp += adjust;
 				bo->bo_htinfo += adjust;
+#ifdef IEEE80211_SUPERG_SUPPORT
+				bo->bo_ath += adjust;
+#endif
+#ifdef IEEE80211_TDMA_SUPPORT
+				bo->bo_tdma += adjust;
+#endif
 				bo->bo_appie += adjust;
 				bo->bo_wme += adjust;
 				bo->bo_csa += adjust;
@@ -2895,7 +2732,14 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 			if (vap->iv_csa_count == 0) {
 				memmove(&csa[1], csa, bo->bo_csa_trailer_len);
 				bo->bo_erp += sizeof(*csa);
+				bo->bo_htinfo += sizeof(*csa);
 				bo->bo_wme += sizeof(*csa);
+#ifdef IEEE80211_SUPERG_SUPPORT
+				bo->bo_ath += sizeof(*csa);
+#endif
+#ifdef IEEE80211_TDMA_SUPPORT
+				bo->bo_tdma += sizeof(*csa);
+#endif
 				bo->bo_appie += sizeof(*csa);
 				bo->bo_csa_trailer_len += sizeof(*csa);
 				bo->bo_tim_trailer_len += sizeof(*csa);
@@ -2915,6 +2759,12 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 			(void) ieee80211_add_erp(bo->bo_erp, ic);
 			clrbit(bo->bo_flags, IEEE80211_BEACON_ERP);
 		}
+#ifdef IEEE80211_SUPPORT_SUPERG
+		if (isset(bo->bo_flags,  IEEE80211_BEACON_ATH)) {
+			ieee80211_add_athcaps(bo->bo_ath, ni);
+			clrbit(bo->bo_flags, IEEE80211_BEACON_ATH);
+		}
+#endif
 	}
 	if (isset(bo->bo_flags, IEEE80211_BEACON_APPIE)) {
 		const struct ieee80211_appie *aie = vap->iv_appie_beacon;

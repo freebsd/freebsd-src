@@ -51,6 +51,7 @@ extern struct cdevsw cfi_cdevsw;
 
 char cfi_driver_name[] = "cfi";
 devclass_t cfi_devclass;
+devclass_t cfi_diskclass;
 
 uint32_t
 cfi_read(struct cfi_softc *sc, u_int ofs)
@@ -283,6 +284,10 @@ cfi_attach(device_t dev)
 	sc->sc_nod = make_dev(&cfi_cdevsw, u, UID_ROOT, GID_WHEEL, 0600,
 	    "%s%u", cfi_driver_name, u);
 	sc->sc_nod->si_drv1 = sc;
+
+	device_add_child(dev, "cfid",
+	    devclass_find_free_unit(cfi_diskclass, 0));
+	bus_generic_attach(dev);
 
 	return (0);
 }

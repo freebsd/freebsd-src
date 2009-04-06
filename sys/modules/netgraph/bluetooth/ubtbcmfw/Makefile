@@ -1,12 +1,12 @@
 # $Id: Makefile,v 1.1 2003/04/27 00:22:12 max Exp $
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../netgraph/bluetooth/drivers/ubtbcmfw
+S=	${.CURDIR}/../../../..
 
-CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
-		-I${.CURDIR}/../../../../netgraph/bluetooth/drivers/ubtbcmfw
+.PATH: $S/dev/usb/bluetooth
 
-KMOD=		ubtbcmfw
-SRCS=		ubtbcmfw.c bus_if.h device_if.h opt_usb.h usbdevs.h
+KMOD=	ubtbcmfw
+SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h vnode_if.h usbdevs.h \
+	ubtbcmfw.c
 
 .include <bsd.kmod.mk>

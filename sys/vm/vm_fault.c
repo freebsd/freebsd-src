@@ -868,13 +868,17 @@ vnode_locked:
 		}
 	}
 	/*
-	 * update lastr imperfectly (we do not know how much
-	 * getpages will actually read), but good enough.
+	 * If the page was filled by a pager, update the map entry's
+	 * last read offset.  Since the pager does not return the
+	 * actual set of pages that it read, this update is based on
+	 * the requested set.  Typically, the requested and actual
+	 * sets are the same.
 	 *
 	 * XXX The following assignment modifies the map
 	 * without holding a write lock on it.
 	 */
-	fs.entry->lastr = fs.pindex + faultcount - behind;
+	if (hardfault)
+		fs.entry->lastr = fs.pindex + faultcount - behind;
 
 	if (prot & VM_PROT_WRITE) {
 		vm_object_set_writeable_dirty(fs.object);

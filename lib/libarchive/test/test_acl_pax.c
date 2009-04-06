@@ -454,7 +454,7 @@ DEFINE_TEST(test_acl_pax)
 
 	/* Write out the data we generated to a file for manual inspection. */
 	assert(-1 < (fd = open("testout", O_WRONLY | O_CREAT | O_TRUNC, 0775)));
-	assert(used == (size_t)write(fd, buff, used));
+	assert(used == (size_t)write(fd, buff, (unsigned int)used));
 	close(fd);
 
 	/* Write out the reference data to a file for manual inspection. */
@@ -466,7 +466,7 @@ DEFINE_TEST(test_acl_pax)
 	failure("Generated pax archive does not match reference; check 'testout' and 'reference' files.");
 	assert(0 == memcmp(buff, reference, sizeof(reference)));
 	failure("Generated pax archive does not match reference; check 'testout' and 'reference' files.");
-	assertEqualInt(used, sizeof(reference));
+	assertEqualInt((int)used, sizeof(reference));
 
 	/* Read back each entry and check that the ACL data is right. */
 	assert(NULL != (a = archive_read_new()));

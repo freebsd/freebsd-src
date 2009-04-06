@@ -33,10 +33,7 @@
 #ifndef _NET_VNET_H_
 #define _NET_VNET_H_
 
-#include "opt_route.h"
-
 #include <net/if_var.h>
-#include <net/route.h>
 
 struct vnet_net {
 	int	_if_index;
@@ -58,6 +55,9 @@ struct vnet_net {
 
 	int	_ether_ipfw;
 };
+
+/* Size guard. See sys/vimage.h. */
+VIMAGE_CTASSERT(SIZEOF_vnet_net, sizeof(struct vnet_net));
 
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS

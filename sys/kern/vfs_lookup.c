@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
 
@@ -51,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #ifdef KTRACE
@@ -64,6 +66,11 @@ __FBSDID("$FreeBSD$");
 
 #define	NAMEI_DIAGNOSTIC 1
 #undef NAMEI_DIAGNOSTIC
+
+SDT_PROVIDER_DECLARE(vfs);
+SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, "struct vnode *", "char *",
+    "unsigned long");
+SDT_PROBE_DEFINE2(vfs, namei, lookup, return, "int", "struct vnode *");
 
 /*
  * Allocation zone for namei
@@ -181,7 +188,6 @@ namei(struct nameidata *ndp)
 		ktrnamei(cnp->cn_pnbuf);
 	}
 #endif
-
 	/*
 	 * Get starting point for the translation.
 	 */
@@ -224,6 +230,8 @@ namei(struct nameidata *ndp)
 			VFS_UNLOCK_GIANT(vfslocked);
 		}
 	}
+	SDT_PROBE(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
+	    cnp->cn_flags, 0, 0);
 	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	for (;;) {
 		/*
@@ -252,6 +260,8 @@ namei(struct nameidata *ndp)
 			cnp->cn_pnbuf = NULL;
 			cnp->cn_nameptr = NULL;
 #endif
+			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
+			    0, 0);
 			return (error);
 		}
 		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
@@ -273,6 +283,8 @@ namei(struct nameidata *ndp)
 				VFS_UNLOCK_GIANT(vfslocked);
 			} else if (vfslocked)
 				ndp->ni_cnd.cn_flags |= GIANTHELD;
+			SDT_PROBE(vfs, namei, lookup, return, 0, ndp->ni_vp,
+			    0, 0, 0);
 			return (0);
 		}
 		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
@@ -338,6 +350,7 @@ namei(struct nameidata *ndp)
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
 	VFS_UNLOCK_GIANT(vfslocked);
+	SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0, 0, 0);
 	return (error);
 }
 
@@ -351,6 +364,41 @@ compute_cn_lkflags(struct mount *mp, int lkflags)
 		lkflags |= LK_EXCLUSIVE;
 	}
 	return (lkflags);
+}
+
+static __inline int
+needs_exclusive_leaf(struct mount *mp, int flags)
+{
+
+	/*
+	 * Intermediate nodes can use shared locks, we only need to
+	 * force an exclusive lock for leaf nodes.
+	 */
+	if ((flags & (ISLASTCN | LOCKLEAF)) != (ISLASTCN | LOCKLEAF))
+		return (0);
+
+	/* Always use exclusive locks if LOCKSHARED isn't set. */
+	if (!(flags & LOCKSHARED))
+		return (1);
+
+	/*
+	 * For lookups during open(), if the mount point supports
+	 * extended shared operations, then use a shared lock for the
+	 * leaf node, otherwise use an exclusive lock.
+	 */
+	if (flags & ISOPEN) {
+		if (mp != NULL &&
+		    (mp->mnt_kern_flag & MNTK_EXTENDED_SHARED))
+			return (0);
+		else
+			return (1);
+	}
+
+	/*
+	 * Lookup requests outside of open() that specify LOCKSHARED
+	 * only need a shared lock on the leaf vnode.
+	 */
+	return (0);
 }
 
 /*
@@ -567,7 +615,7 @@ dirloop:
 			if ((dp->v_vflag & VV_ROOT) == 0)
 				break;
 			if (dp->v_iflag & VI_DOOMED) {	/* forced unmount */
-				error = EBADF;
+				error = ENOENT;
 				goto bad;
 			}
 			tdp = dp;
@@ -610,8 +658,7 @@ unionlookup:
 	 * If we're looking up the last component and we need an exclusive
 	 * lock, adjust our lkflags.
 	 */
-	if ((cnp->cn_flags & (ISLASTCN|LOCKSHARED|LOCKLEAF)) ==
-	    (ISLASTCN|LOCKLEAF))
+	if (needs_exclusive_leaf(dp->v_mount, cnp->cn_flags))
 		cnp->cn_lkflags = LK_EXCLUSIVE;
 #ifdef NAMEI_DIAGNOSTIC
 	vprint("lookup in", dp);
@@ -730,9 +777,11 @@ unionlookup:
 	     *ndp->ni_next == '/')) {
 		cnp->cn_flags |= ISSYMLINK;
 		if (dp->v_iflag & VI_DOOMED) {
-			/* We can't know whether the directory was mounted with
-			 * NOSYMFOLLOW, so we can't follow safely. */
-			error = EBADF;
+			/*
+			 * We can't know whether the directory was mounted with
+			 * NOSYMFOLLOW, so we can't follow safely.
+			 */
+			error = ENOENT;
 			goto bad2;
 		}
 		if (dp->v_mount->mnt_flag & MNT_NOSYMFOLLOW) {
@@ -811,8 +860,8 @@ success:
 	 * Because of lookup_shared we may have the vnode shared locked, but
 	 * the caller may want it to be exclusively locked.
 	 */
-	if ((cnp->cn_flags & (ISLASTCN | LOCKSHARED | LOCKLEAF)) ==
-	    (ISLASTCN | LOCKLEAF) && VOP_ISLOCKED(dp) != LK_EXCLUSIVE) {
+	if (needs_exclusive_leaf(dp->v_mount, cnp->cn_flags) &&
+	    VOP_ISLOCKED(dp) != LK_EXCLUSIVE) {
 		vn_lock(dp, LK_UPGRADE | LK_RETRY);
 		if (dp->v_iflag & VI_DOOMED) {
 			error = ENOENT;

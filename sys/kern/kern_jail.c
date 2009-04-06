@@ -2,7 +2,7 @@
  * Copyright (c) 1999 Poul-Henning Kamp.
  * Copyright (c) 2008 Bjoern A. Zeeb.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -119,14 +119,14 @@ struct	sx allprison_lock;
 int	lastprid = 0;
 int	prisoncount = 0;
 
-static void		 init_prison(void *);
-static void		 prison_complete(void *context, int pending);
-static int		 sysctl_jail_list(SYSCTL_HANDLER_ARGS);
+static void init_prison(void *);
+static void prison_complete(void *context, int pending);
+static int sysctl_jail_list(SYSCTL_HANDLER_ARGS);
 #ifdef INET
-static int		_prison_check_ip4(struct prison *, struct in_addr *);
+static int _prison_check_ip4(struct prison *pr, struct in_addr *ia);
 #endif
 #ifdef INET6
-static int		_prison_check_ip6(struct prison *, struct in6_addr *);
+static int _prison_check_ip6(struct prison *pr, struct in6_addr *ia6);
 #endif
 
 static void
@@ -177,7 +177,7 @@ qcmp_v6(const void *ip1, const void *ip2)
 	ia6b = (const struct in6_addr *)ip2;
 
 	rc = 0;
-	for (i=0; rc == 0 && i < sizeof(struct in6_addr); i++) {
+	for (i = 0; rc == 0 && i < sizeof(struct in6_addr); i++) {
 		if (ia6a->s6_addr[i] > ia6b->s6_addr[i])
 			rc = 1;
 		else if (ia6a->s6_addr[i] < ia6b->s6_addr[i])
@@ -240,7 +240,7 @@ static int
 jail_copyin_ips(struct jail *j)
 {
 #ifdef INET
-	struct in_addr  *ip4;
+	struct in_addr *ip4;
 #endif
 #ifdef INET6
 	struct in6_addr *ip6;
@@ -348,7 +348,7 @@ jail_handle_ips(struct jail *j)
 	 * Finish conversion for older versions, copyin and setup IPs.
 	 */
 	switch (j->version) {
-	case 0:	
+	case 0:
 	{
 #ifdef INET
 		/* FreeBSD single IPv4 jails. */
@@ -594,6 +594,7 @@ e_killmtx:
 	return (error);
 }
 
+
 /*
  * struct jail_attach_args {
  *	int jid;
@@ -807,7 +808,7 @@ prison_proc_free(struct prison *pr)
  * Pass back primary IPv4 address of this jail.
  *
  * If not jailed return success but do not alter the address.  Caller has to
- * make sure to intialize it correctly (e.g. INADDR_ANY).
+ * make sure to initialize it correctly (e.g. INADDR_ANY).
  *
  * Returns 0 on success, EAFNOSUPPORT if the jail doesn't allow IPv4.
  * Address returned in NBO.
@@ -822,7 +823,6 @@ prison_get_ip4(struct ucred *cred, struct in_addr *ia)
 	if (!jailed(cred))
 		/* Do not change address passed in. */
 		return (0);
-
 	if (cred->cr_prison->pr_ip4 == NULL)
 		return (EAFNOSUPPORT);
 
@@ -956,7 +956,7 @@ prison_check_ip4(struct ucred *cred, struct in_addr *ia)
  * Pass back primary IPv6 address for this jail.
  *
  * If not jailed return success but do not alter the address.  Caller has to
- * make sure to intialize it correctly (e.g. IN6ADDR_ANY_INIT).
+ * make sure to initialize it correctly (e.g. IN6ADDR_ANY_INIT).
  *
  * Returns 0 on success, EAFNOSUPPORT if the jail doesn't allow IPv6.
  */

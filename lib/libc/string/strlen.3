@@ -32,11 +32,11 @@
 .\"     @(#)strlen.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd February 28, 2009
 .Dt STRLEN 3
 .Os
 .Sh NAME
-.Nm strlen
+.Nm strlen, strnlen
 .Nd find length of string
 .Sh LIBRARY
 .Lb libc
@@ -44,11 +44,21 @@
 .In string.h
 .Ft size_t
 .Fn strlen "const char *s"
+.Ft size_t
+.Fn strnlen "const char *s" "size_t maxlen"
 .Sh DESCRIPTION
 The
 .Fn strlen
 function
 computes the length of the string
+.Fa s .
+The
+.Fn strnlen
+function attempts to compute the length of
+.Fa s ,
+but never scans beyond the first
+.Fa maxlen
+bytes of
 .Fa s .
 .Sh RETURN VALUES
 The
@@ -59,6 +69,13 @@ the number of characters that precede the
 terminating
 .Dv NUL
 character.
+The
+.Fn strnlen
+function returns either the same result as
+.Fn strlen
+or
+.Fa maxlen ,
+whichever is smaller.
 .Sh SEE ALSO
 .Xr string 3
 .Sh STANDARDS
@@ -67,3 +84,7 @@ The
 function
 conforms to
 .St -isoC .
+The
+.Fn strnlen
+function conforms to
+.St -p1003.1-2008 .

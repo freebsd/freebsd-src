@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
+#include "opt_route.h"
 #include "opt_sctp.h"
 
 #include <sys/param.h>
@@ -195,7 +196,7 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTP_PRINTF(params...)	printf(params)
 
 #ifdef SCTP_LTRACE_CHUNKS
-#define SCTP_LTRACE_CHK(a, b, c, d) if(SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_CHUNK_ENABLE) CTR6(KTR_SUBSYS, "SCTP:%d[%d]:%x-%x-%x-%x", SCTP_LOG_CHUNK_PROC, 0, a, b, c, d)
+#define SCTP_LTRACE_CHK(a, b, c, d) if(SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_CHUNK_ENABLE) SCTP_CTR6(KTR_SUBSYS, "SCTP:%d[%d]:%x-%x-%x-%x", SCTP_LOG_CHUNK_PROC, 0, a, b, c, d)
 #else
 #define SCTP_LTRACE_CHK(a, b, c, d)
 #endif

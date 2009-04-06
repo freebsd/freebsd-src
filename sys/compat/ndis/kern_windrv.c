@@ -56,8 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #endif
 
-#include <legacy/dev/usb/usb.h>
-#include <legacy/dev/usb/usbdi.h>
+#include <dev/usb/usb.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -95,7 +94,7 @@ windrv_libinit(void)
 {
 	STAILQ_INIT(&drvdb_head);
 	mtx_init(&drvdb_mtx, "Windows driver DB lock",
-           "Windows internal lock", MTX_DEF);
+	    "Windows internal lock", MTX_DEF);
 
 	/*
 	 * PCI and pccard devices don't need to use IRPs to
@@ -286,7 +285,7 @@ windrv_unload(mod, img, len)
 	if (drv == NULL)
 		return(ENOENT);
 
-        /*
+	/*
 	 * Destroy any custom extensions that may have been added.
 	 */
 	drv = r->windrv_object;
@@ -341,7 +340,7 @@ windrv_load(mod, img, len, bustype, devlist, regvals)
 	 */
 
 	ptr = (uint32_t *)(img + 8);
-        if (*ptr == WINDRV_LOADED)
+	if (*ptr == WINDRV_LOADED)
 		goto skipreloc;
 
 	/* Perform text relocation */
@@ -390,7 +389,7 @@ skipreloc:
 		free (new, M_DEVBUF);
 		return (ENOMEM);
 	}
-	
+
 	/* Allocate a driver extension structure too. */
 
 	drv->dro_driverext = malloc(sizeof(driver_extension),
@@ -544,7 +543,7 @@ windrv_bus_attach(drv, name)
 	new->windrv_devlist = NULL;
 	new->windrv_regvals = NULL;
 
-	mtx_lock(&drvdb_mtx); 
+	mtx_lock(&drvdb_mtx);
 	STAILQ_INSERT_HEAD(&drvdb_head, new, link);
 	mtx_unlock(&drvdb_mtx);
 
@@ -727,41 +726,41 @@ static int	windrv_wrap_stdcall(funcptr, funcptr *, int);
 static int	windrv_wrap_fastcall(funcptr, funcptr *, int);
 static int	windrv_wrap_regparm(funcptr, funcptr *);
 
-extern void     x86_fastcall_wrap(void);
-extern void     x86_fastcall_wrap_call(void);
-extern void     x86_fastcall_wrap_arg(void);
-extern void     x86_fastcall_wrap_end(void);
+extern void	x86_fastcall_wrap(void);
+extern void	x86_fastcall_wrap_call(void);
+extern void	x86_fastcall_wrap_arg(void);
+extern void	x86_fastcall_wrap_end(void);
 
 static int
 windrv_wrap_fastcall(func, wrap, argcnt)
-        funcptr                 func;
-        funcptr                 *wrap;
+	funcptr			func;
+	funcptr			*wrap;
 	int8_t			argcnt;
 {
-        funcptr                 p;
-        vm_offset_t             *calladdr;
+	funcptr			p;
+	vm_offset_t		*calladdr;
 	uint8_t			*argaddr;
-        vm_offset_t             wrapstart, wrapend, wrapcall, wraparg;
+	vm_offset_t		wrapstart, wrapend, wrapcall, wraparg;
 
-        wrapstart = (vm_offset_t)&x86_fastcall_wrap;
-        wrapend = (vm_offset_t)&x86_fastcall_wrap_end;
-        wrapcall = (vm_offset_t)&x86_fastcall_wrap_call;
-        wraparg = (vm_offset_t)&x86_fastcall_wrap_arg;
+	wrapstart = (vm_offset_t)&x86_fastcall_wrap;
+	wrapend = (vm_offset_t)&x86_fastcall_wrap_end;
+	wrapcall = (vm_offset_t)&x86_fastcall_wrap_call;
+	wraparg = (vm_offset_t)&x86_fastcall_wrap_arg;
 
-        /* Allocate a new wrapper instance. */
+	/* Allocate a new wrapper instance. */
 
-        p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
-        if (p == NULL)
-                return(ENOMEM);
+	p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
+	if (p == NULL)
+		return(ENOMEM);
 
-        /* Copy over the code. */
+	/* Copy over the code. */
 
 	bcopy((char *)wrapstart, p, (wrapend - wrapstart));
 
-        /* Insert the function address into the new wrapper instance. */
+	/* Insert the function address into the new wrapper instance. */
 
 	calladdr = (vm_offset_t *)((char *)p + ((wrapcall - wrapstart) + 1));
-        *calladdr = (vm_offset_t)func;
+	*calladdr = (vm_offset_t)func;
 
 	argcnt -= 2;
 	if (argcnt < 1)
@@ -770,96 +769,96 @@ windrv_wrap_fastcall(func, wrap, argcnt)
 	argaddr = (u_int8_t *)((char *)p + ((wraparg - wrapstart) + 1));
 	*argaddr = argcnt * sizeof(uint32_t);
 
-        *wrap = p;
+	*wrap = p;
 
-        return(0);
+	return(0);
 }
 
-extern void     x86_stdcall_wrap(void);
-extern void     x86_stdcall_wrap_call(void);
-extern void     x86_stdcall_wrap_arg(void);
-extern void     x86_stdcall_wrap_end(void);
+extern void	x86_stdcall_wrap(void);
+extern void	x86_stdcall_wrap_call(void);
+extern void	x86_stdcall_wrap_arg(void);
+extern void	x86_stdcall_wrap_end(void);
 
 static int
 windrv_wrap_stdcall(func, wrap, argcnt)
-        funcptr                 func;
-        funcptr                 *wrap;
+	funcptr			func;
+	funcptr			*wrap;
 	uint8_t			argcnt;
 {
-        funcptr                 p;
-        vm_offset_t             *calladdr;
+	funcptr			p;
+	vm_offset_t		*calladdr;
 	uint8_t			*argaddr;
-        vm_offset_t             wrapstart, wrapend, wrapcall, wraparg;
+	vm_offset_t		wrapstart, wrapend, wrapcall, wraparg;
 
-        wrapstart = (vm_offset_t)&x86_stdcall_wrap;
-        wrapend = (vm_offset_t)&x86_stdcall_wrap_end;
-        wrapcall = (vm_offset_t)&x86_stdcall_wrap_call;
-        wraparg = (vm_offset_t)&x86_stdcall_wrap_arg;
+	wrapstart = (vm_offset_t)&x86_stdcall_wrap;
+	wrapend = (vm_offset_t)&x86_stdcall_wrap_end;
+	wrapcall = (vm_offset_t)&x86_stdcall_wrap_call;
+	wraparg = (vm_offset_t)&x86_stdcall_wrap_arg;
 
-        /* Allocate a new wrapper instance. */
+	/* Allocate a new wrapper instance. */
 
-        p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
-        if (p == NULL)
-                return(ENOMEM);
+	p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
+	if (p == NULL)
+		return(ENOMEM);
 
-        /* Copy over the code. */
+	/* Copy over the code. */
 
 	bcopy((char *)wrapstart, p, (wrapend - wrapstart));
 
-        /* Insert the function address into the new wrapper instance. */
+	/* Insert the function address into the new wrapper instance. */
 
 	calladdr = (vm_offset_t *)((char *)p + ((wrapcall - wrapstart) + 1));
-        *calladdr = (vm_offset_t)func;
+	*calladdr = (vm_offset_t)func;
 
 	argaddr = (u_int8_t *)((char *)p + ((wraparg - wrapstart) + 1));
 	*argaddr = argcnt * sizeof(uint32_t);
 
-        *wrap = p;
+	*wrap = p;
 
-        return(0);
+	return(0);
 }
 
-extern void     x86_regparm_wrap(void);
-extern void     x86_regparm_wrap_call(void);
-extern void     x86_regparm_wrap_end(void);
+extern void	x86_regparm_wrap(void);
+extern void	x86_regparm_wrap_call(void);
+extern void	x86_regparm_wrap_end(void);
 
 static int
 windrv_wrap_regparm(func, wrap)
-        funcptr                 func;
-        funcptr                 *wrap;
+	funcptr			func;
+	funcptr			*wrap;
 {
-        funcptr                 p;
-        vm_offset_t             *calladdr;
-        vm_offset_t             wrapstart, wrapend, wrapcall;
+	funcptr			p;
+	vm_offset_t		*calladdr;
+	vm_offset_t		wrapstart, wrapend, wrapcall;
 
-        wrapstart = (vm_offset_t)&x86_regparm_wrap;
-        wrapend = (vm_offset_t)&x86_regparm_wrap_end;
-        wrapcall = (vm_offset_t)&x86_regparm_wrap_call;
+	wrapstart = (vm_offset_t)&x86_regparm_wrap;
+	wrapend = (vm_offset_t)&x86_regparm_wrap_end;
+	wrapcall = (vm_offset_t)&x86_regparm_wrap_call;
 
-        /* Allocate a new wrapper instance. */
+	/* Allocate a new wrapper instance. */
 
-        p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
-        if (p == NULL)
-                return(ENOMEM);
+	p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
+	if (p == NULL)
+		return(ENOMEM);
 
-        /* Copy over the code. */
+	/* Copy over the code. */
 
-        bcopy(x86_regparm_wrap, p, (wrapend - wrapstart));
+	bcopy(x86_regparm_wrap, p, (wrapend - wrapstart));
 
-        /* Insert the function address into the new wrapper instance. */
+	/* Insert the function address into the new wrapper instance. */
 
 	calladdr = (vm_offset_t *)((char *)p + ((wrapcall - wrapstart) + 1));
-        *calladdr = (vm_offset_t)func;
+	*calladdr = (vm_offset_t)func;
 
-        *wrap = p;
+	*wrap = p;
 
-        return(0);
+	return(0);
 }
 
 int
 windrv_wrap(func, wrap, argcnt, ftype)
-        funcptr                 func;
-        funcptr                 *wrap;
+	funcptr			func;
+	funcptr			*wrap;
 	int			argcnt;
 	int			ftype;
 {

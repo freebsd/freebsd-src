@@ -544,7 +544,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_THRESHOLD_LOGGING              0x02000000
 #define SCTP_LOG_AT_SEND_2_SCTP             0x04000000
 #define SCTP_LOG_AT_SEND_2_OUTQ             0x08000000
-
+#define SCTP_LOG_TRY_ADVANCE                0x10000000
 
 
 #undef SCTP_PACKED

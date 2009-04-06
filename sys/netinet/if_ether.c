@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_route.h"
 #include "opt_mac.h"
 #include "opt_carp.h"
 
@@ -80,7 +81,8 @@ __FBSDID("$FreeBSD$");
 
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
-#define LLTABLE(ifp)	((struct lltable *)(ifp)->if_afdata[AF_INET])
+#define LLTABLE(ifp)	\
+	((struct in_ifinfo *)(ifp)->if_afdata[AF_INET])->ii_llt
 
 SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");

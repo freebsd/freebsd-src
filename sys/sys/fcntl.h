@@ -140,6 +140,11 @@ typedef	__pid_t		pid_t;
 #define	FEXEC		O_EXEC
 #endif
 
+/* Defined by POSIX 1003.1-2008; BSD default, but reserve for future use. */
+#if __POSIX_VISIBLE >= 200809
+#define	O_TTY_INIT	0x00080000	/* Restore default termios attributes */
+#endif
+
 /*
  * XXX missing O_DSYNC, O_RSYNC.
  */
@@ -273,7 +278,9 @@ __BEGIN_DECLS
 int	open(const char *, int, ...);
 int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
 int	openat(int, const char *, int, ...);
+#endif
 #if __BSD_VISIBLE
 int	flock(int, int);
 #endif

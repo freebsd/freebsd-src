@@ -78,6 +78,9 @@
 #include <net/route.h>
 
 #include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_freebsd.h>
+#include <net80211/ieee80211_superg.h>
+#include <net80211/ieee80211_tdma.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -3020,13 +3023,6 @@ list_scan(int s)
 	} while (len >= sizeof(struct ieee80211req_scan_result));
 }
 
-#ifdef __FreeBSD__
-#include <net80211/ieee80211_freebsd.h>
-#endif
-#ifdef __NetBSD__
-#include <net80211/ieee80211_netbsd.h>
-#endif
-
 static void
 scan_and_wait(int s)
 {
@@ -4667,7 +4663,8 @@ wlan_create(int s, struct ifreq *ifr)
 	static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
 
 	if (params.icp_parent[0] == '\0')
-		errx(1, "must specify a parent when creating a wlan device");
+		errx(1, "must specify a parent device (wlandev) when creating "
+		    "a wlan device");
 	if (params.icp_opmode == IEEE80211_M_WDS &&
 	    memcmp(params.icp_bssid, zerobssid, sizeof(zerobssid)) == 0)
 		errx(1, "no bssid specified for WDS (use wlanbssid)");
@@ -4680,7 +4677,6 @@ static
 DECL_CMD_FUNC(set80211clone_wlandev, arg, d)
 {
 	strlcpy(params.icp_parent, arg, IFNAMSIZ);
-	clone_setcallback(wlan_create);
 }
 
 static
@@ -4692,7 +4688,6 @@ DECL_CMD_FUNC(set80211clone_wlanbssid, arg, d)
 	if (ea == NULL)
 		errx(1, "%s: cannot parse bssid", arg);
 	memcpy(params.icp_bssid, ea->octet, IEEE80211_ADDR_LEN);
-	clone_setcallback(wlan_create);
 }
 
 static
@@ -4705,7 +4700,6 @@ DECL_CMD_FUNC(set80211clone_wlanaddr, arg, d)
 		errx(1, "%s: cannot parse addres", arg);
 	memcpy(params.icp_macaddr, ea->octet, IEEE80211_ADDR_LEN);
 	params.icp_flags |= IEEE80211_CLONE_MACADDR;
-	clone_setcallback(wlan_create);
 }
 
 static
@@ -4729,7 +4723,6 @@ DECL_CMD_FUNC(set80211clone_wlanmode, arg, d)
 		params.icp_flags |= IEEE80211_CLONE_TDMA;
 	} else
 		errx(1, "Don't know to create %s for %s", arg, name);
-	clone_setcallback(wlan_create);
 #undef iseq
 }
 
@@ -4741,7 +4734,6 @@ set80211clone_beacons(const char *val, int d, int s, const struct afswtch *rafp)
 		params.icp_flags &= ~IEEE80211_CLONE_NOBEACONS;
 	else
 		params.icp_flags |= IEEE80211_CLONE_NOBEACONS;
-	clone_setcallback(wlan_create);
 }
 
 static void
@@ -4751,7 +4743,6 @@ set80211clone_bssid(const char *val, int d, int s, const struct afswtch *rafp)
 		params.icp_flags |= IEEE80211_CLONE_BSSID;
 	else
 		params.icp_flags &= ~IEEE80211_CLONE_BSSID;
-	clone_setcallback(wlan_create);
 }
 
 static void
@@ -4761,7 +4752,6 @@ set80211clone_wdslegacy(const char *val, int d, int s, const struct afswtch *raf
 		params.icp_flags |= IEEE80211_CLONE_WDSLEGACY;
 	else
 		params.icp_flags &= ~IEEE80211_CLONE_WDSLEGACY;
-	clone_setcallback(wlan_create);
 }
 
 static struct cmd ieee80211_cmds[] = {
@@ -4935,5 +4925,6 @@ ieee80211_ctor(void)
 	for (i = 0; i < N(ieee80211_cmds);  i++)
 		cmd_register(&ieee80211_cmds[i]);
 	af_register(&af_ieee80211);
+	clone_setdefcallback("wlan", wlan_create);
 #undef N
 }

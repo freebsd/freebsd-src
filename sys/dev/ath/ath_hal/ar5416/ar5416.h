@@ -45,6 +45,8 @@ typedef struct {
 #define	AR5416_CCA_MAX_HIGH_VALUE	-62
 #define	AR5416_CCA_MIN_BAD_VALUE	-140
 
+#define AR5416_SPUR_RSSI_THRESH		40
+
 struct ath_hal_5416 {
 	struct ath_hal_5212 ah_5212;
 
@@ -57,8 +59,15 @@ struct ath_hal_5416 {
 	HAL_INI_ARRAY	ah_ini_bank6;
 	HAL_INI_ARRAY	ah_ini_bank7;
 	HAL_INI_ARRAY	ah_ini_addac;
+	HAL_INI_ARRAY	ah_ini_pcieserdes;
+
+	void		(*ah_writeIni)(struct ath_hal *,
+			    const struct ieee80211_channel *);
+	void		(*ah_spurMitigate)(struct ath_hal *,
+			    const struct ieee80211_channel *);
 
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
+	u_int		ah_gpioMask;
 	int		ah_hangs;		/* h/w hangs state */
 	uint8_t		ah_keytype[AR5416_KEYTABLE_SIZE];
 	/*
@@ -83,12 +92,12 @@ extern	HAL_BOOL ar2133RfAttach(struct ath_hal *, HAL_STATUS *);
 
 struct ath_hal;
 
-extern	struct ath_hal * ar5416Attach(uint16_t devid, HAL_SOFTC sc,
-		HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status);
+extern	uint32_t ar5416GetRadioRev(struct ath_hal *ah);
 extern	void ar5416InitState(struct ath_hal_5416 *, uint16_t devid,
 		HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
 		HAL_STATUS *status);
 extern	void ar5416Detach(struct ath_hal *ah);
+extern	void ar5416AttachPCIE(struct ath_hal *ah);
 extern	HAL_BOOL ar5416FillCapabilityInfo(struct ath_hal *ah);
 
 #define	IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
@@ -121,7 +130,8 @@ extern	HAL_BOOL ar5416IsInterruptPending(struct ath_hal *ah);
 extern	HAL_BOOL ar5416GetPendingInterrupts(struct ath_hal *, HAL_INT *masked);
 extern	HAL_INT ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints);
 
-extern	HAL_BOOL ar5416GpioCfgOutput(struct ath_hal *, uint32_t gpio);
+extern	HAL_BOOL ar5416GpioCfgOutput(struct ath_hal *, uint32_t gpio,
+		HAL_GPIO_MUX_TYPE);
 extern	HAL_BOOL ar5416GpioCfgInput(struct ath_hal *, uint32_t gpio);
 extern	HAL_BOOL ar5416GpioSet(struct ath_hal *, uint32_t gpio, uint32_t val);
 extern	uint32_t ar5416GpioGet(struct ath_hal *ah, uint32_t gpio);

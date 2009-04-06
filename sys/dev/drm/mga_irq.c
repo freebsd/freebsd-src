@@ -139,6 +139,9 @@ int mga_driver_fence_wait(struct drm_device * dev, unsigned int *sequence)
 		    (((cur_fence = atomic_read(&dev_priv->last_fence_retired))
 		      - *sequence) <= (1 << 23)));
 
+	if (ret == -ERESTART)
+		DRM_DEBUG("restarting syscall\n");
+
 	*sequence = cur_fence;
 
 	return ret;
@@ -157,11 +160,6 @@ void mga_driver_irq_preinstall(struct drm_device * dev)
 int mga_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
-	int ret;
-
-	ret = drm_vblank_init(dev, 1);
-	if (ret)
-		return ret;
 
 	DRM_INIT_WAITQUEUE(&dev_priv->fence_queue);
 

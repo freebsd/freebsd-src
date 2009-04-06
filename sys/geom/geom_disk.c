@@ -381,6 +381,7 @@ g_disk_create(void *arg, int flag)
 		printf("GEOM: new disk %s\n", gp->name);
 	dp->d_geom = gp;
 	g_error_provider(pp, 0);
+	root_mount_rel(dp->d_roothold);
 }
 
 static void
@@ -467,6 +468,7 @@ disk_create(struct disk *dp, int version)
 		    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 		    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	dp->d_geom = NULL;
+	dp->d_roothold = root_mount_hold(dp->d_name, M_WAITOK);
 	g_disk_ident_adjust(dp->d_ident, sizeof(dp->d_ident));
 	g_post_event(g_disk_create, dp, M_WAITOK, dp, NULL);
 }

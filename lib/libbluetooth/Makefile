@@ -9,7 +9,7 @@ CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../sys
 
 SHLIB_MAJOR=	3
 
-SRCS=		bluetooth.c
+SRCS=		bluetooth.c dev.c hci.c
 INCS=		bluetooth.h
 
 MLINKS+=	bluetooth.3 bt_gethostbyname.3
@@ -26,6 +26,12 @@ MLINKS+=	bluetooth.3 bt_endprotoent.3
 
 MLINKS+=	bluetooth.3 bt_ntoa.3
 MLINKS+=	bluetooth.3 bt_aton.3
+
+MLINKS+=	bluetooth.3 bt_devaddr.3
+MLINKS+=	bluetooth.3 bt_devname.3
+
+MLINKS+=	bluetooth.3 bt_devinfo.3
+MLINKS+=	bluetooth.3 bt_devenum.3
 
 MLINKS+=	bluetooth.3 bdaddr_same.3
 MLINKS+=	bluetooth.3 bdaddr_any.3

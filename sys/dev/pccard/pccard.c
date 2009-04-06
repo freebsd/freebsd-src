@@ -1066,6 +1066,10 @@ pccard_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	switch (which) {
 	default:
 		return (EINVAL);
+	case PCCARD_IVAR_FUNCE_DISK:
+		*(uint16_t *)result = pf->pf_funce_disk_interface |
+		    (pf->pf_funce_disk_power << 8);
+		break;
 	case PCCARD_IVAR_ETHADDR:
 		bcopy(pf->pf_funce_lan_nid, result, ETHER_ADDR_LEN);
 		break;

@@ -13,7 +13,7 @@ INTERNALLIB=
 SRCS=		genget.c getent.c misc.c
 CFLAGS+=	-I${TELNETDIR}
 
-WARNS?=		0
+WARNS?=		2
 
 .if !defined(RELEASE_CRUNCH)
 .if ${MK_OPENSSL} != "no"

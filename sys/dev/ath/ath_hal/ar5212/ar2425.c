@@ -61,7 +61,7 @@ ar2425WriteRegs(struct ath_hal *ah, u_int modesIndex, u_int freqIndex,
 	 * Bit 0 enables link to go to L1 when MAC goes to sleep.
 	 * Bit 3 enables the loop back the link down to reset.
 	 */
-	if (IS_PCIE(ah) && ath_hal_pcieL1SKPEnable) {
+	if (AH_PRIVATE(ah)->ah_ispcie && && ath_hal_pcieL1SKPEnable) {
 		OS_REG_WRITE(ah, AR_PCIE_PMC,
 		    AR_PCIE_PMC_ENA_L1 | AR_PCIE_PMC_ENA_RESET);
 	}

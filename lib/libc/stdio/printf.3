@@ -32,16 +32,17 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 16, 2004
+.Dd March 3, 2009
 .Dt PRINTF 3
 .Os
 .Sh NAME
-.Nm printf , fprintf , sprintf , snprintf , asprintf ,
-.Nm vprintf , vfprintf, vsprintf , vsnprintf , vasprintf
+.Nm printf , fprintf , sprintf , snprintf , asprintf , dprintf ,
+.Nm vprintf , vfprintf, vsprintf , vsnprintf , vasprintf, vdprintf
 .Nd formatted output conversion
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.Fd "#define _WITH_DPRINTF"
 .In stdio.h
 .Ft int
 .Fn printf "const char * restrict format" ...
@@ -53,6 +54,8 @@
 .Fn snprintf "char * restrict str" "size_t size" "const char * restrict format" ...
 .Ft int
 .Fn asprintf "char **ret" "const char *format" ...
+.Ft int
+.Fn dprintf "int" "const char * restrict format" ...
 .In stdarg.h
 .Ft int
 .Fn vprintf "const char * restrict format" "va_list ap"
@@ -64,6 +67,8 @@
 .Fn vsnprintf "char * restrict str" "size_t size" "const char * restrict format" "va_list ap"
 .Ft int
 .Fn vasprintf "char **ret" "const char *format" "va_list ap"
+.Ft int
+.Fn vdprintf "int fd" "const char * restrict format" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn printf
@@ -83,6 +88,10 @@ and
 .Fn vfprintf
 write output to the given output
 .Fa stream ;
+.Fn dprintf
+and
+.Fn vdprintf
+write output to the given file descriptor;
 .Fn sprintf ,
 .Fn snprintf ,
 .Fn vsprintf ,
@@ -771,6 +780,57 @@ for later interpolation by
 Always use the proper secure idiom:
 .Pp
 .Dl "snprintf(buffer, sizeof(buffer), \*q%s\*q, string);"
+.Sh COMPATIBILITY
+Many application writers used the name
+.Va dprintf
+before the
+.Fn dprintf
+function was introduced in
+.St -p1003.1 ,
+so a prototype is not provided by default in order to avoid
+compatibility problems.
+Applications that wish to use the
+.Fn dprintf
+function described herein should either request a strict
+.St -p1003.1-2008
+environment by defining the macro
+.Dv _POSIX_C_SOURCE
+to the value 200809 or greater, or by defining the macro
+.Dv _WITH_DPRINTF ,
+prior to the inclusion of
+.In stdio.h .
+For compatibility with GNU libc, defining either
+.Dv _BSD_SOURCE
+or
+.Dv _GNU_SOURCE
+prior to the inclusion of
+.In stdio.h
+will also make
+.Fn dprintf
+available.
+.Pp
+The conversion formats
+.Cm \&%D , \&%O ,
+and
+.Cm %U
+are not standard and
+are provided only for backward compatibility.
+The effect of padding the
+.Cm %p
+format with zeros (either by the
+.Cm 0
+flag or by specifying a precision), and the benign effect (i.e., none)
+of the
+.Cm #
+flag on
+.Cm %n
+and
+.Cm %p
+conversions, as well as other
+nonsensical combinations such as
+.Cm %Ld ,
+are not standard; such combinations
+should be avoided.
 .Sh ERRORS
 In addition to the errors documented for the
 .Xr write 2
@@ -810,7 +870,13 @@ With the same reservation, the
 and
 .Fn vsnprintf
 functions conform to
-.St -isoC-99 .
+.St -isoC-99 ,
+while
+.Fn dprintf
+and
+.Fn vdprintf
+conform to
+.St -p1003.1-2008 .
 .Sh HISTORY
 The functions
 .Fn asprintf
@@ -828,30 +894,13 @@ from
 .An Todd C. Miller Aq Todd.Miller@courtesan.com
 for
 .Ox 2.3 .
+The
+.Fn dprintf
+and
+.Fn vdprintf
+functions were added in
+.Fx 8.0 .
 .Sh BUGS
-The conversion formats
-.Cm \&%D , \&%O ,
-and
-.Cm %U
-are not standard and
-are provided only for backward compatibility.
-The effect of padding the
-.Cm %p
-format with zeros (either by the
-.Cm 0
-flag or by specifying a precision), and the benign effect (i.e., none)
-of the
-.Cm #
-flag on
-.Cm %n
-and
-.Cm %p
-conversions, as well as other
-nonsensical combinations such as
-.Cm %Ld ,
-are not standard; such combinations
-should be avoided.
-.Pp
 The
 .Nm
 family of functions do not correctly handle multibyte characters in the

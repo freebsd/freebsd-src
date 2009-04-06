@@ -635,7 +635,7 @@ findpcb:
 	 * tried to free the inpcb, in which case we need to loop back and
 	 * try to find a new inpcb to deliver to.
 	 */
-	if (inp->inp_vflag & INP_TIMEWAIT) {
+	if (inp->inp_flags & INP_TIMEWAIT) {
 		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
 		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
 

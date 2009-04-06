@@ -3150,8 +3150,10 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 					    (uintptr_t) stcb,
 					    tp1->rec.data.TSN_seq);
 				}
-				sctp_flight_size_decrease(tp1);
-				sctp_total_flight_decrease(stcb, tp1);
+				if (tp1->sent < SCTP_DATAGRAM_RESEND) {
+					sctp_flight_size_decrease(tp1);
+					sctp_total_flight_decrease(stcb, tp1);
+				}
 			} {
 				/* audit code */
 				unsigned int audit;
@@ -3442,6 +3444,8 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 				}
 			} else if (type == SCTP_STR_RESET_ADD_STREAMS) {
 				/* Ok we now may have more streams */
+				if (asoc->stream_reset_outstanding)
+					asoc->stream_reset_outstanding--;
 				if (action == SCTP_STREAM_RESET_PERFORMED) {
 					/* Put the new streams into effect */
 					stcb->asoc.streamoutcnt = stcb->asoc.strm_realoutsize;
@@ -3730,50 +3734,79 @@ sctp_handle_str_reset_add_strm(struct sctp_tcb *stcb, struct sctp_tmit_chunk *ch
 	 */
 	uint16_t num_stream, i;
 	uint32_t seq;
+	struct sctp_association *asoc = &stcb->asoc;
+	struct sctp_queued_to_read *ctl;
 
 	/* Get the number. */
 	seq = ntohl(str_add->request_seq);
 	num_stream = ntohs(str_add->number_of_streams);
 	/* Now what would be the new total? */
-	num_stream += stcb->asoc.streamincnt;
-	if (num_stream > stcb->asoc.max_inbound_streams) {
-		/* We must reject it they ask for to many */
-denied:
-		sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_DENIED);
-		stcb->asoc.last_reset_action[1] = stcb->asoc.last_reset_action[0];
-		stcb->asoc.last_reset_action[0] = SCTP_STREAM_RESET_DENIED;
-	} else {
-		/* Ok, we can do that :-) */
-		struct sctp_stream_in *oldstrm;
+	if (asoc->str_reset_seq_in == seq) {
+		num_stream += stcb->asoc.streamincnt;
+		if (num_stream > stcb->asoc.max_inbound_streams) {
+			/* We must reject it they ask for to many */
+	denied:
+			sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_DENIED);
+			stcb->asoc.last_reset_action[1] = stcb->asoc.last_reset_action[0];
+			stcb->asoc.last_reset_action[0] = SCTP_STREAM_RESET_DENIED;
+		} else {
+			/* Ok, we can do that :-) */
+			struct sctp_stream_in *oldstrm;
 
-		/* save off the old */
-		oldstrm = stcb->asoc.strmin;
-		SCTP_MALLOC(stcb->asoc.strmin, struct sctp_stream_in *,
-		    (num_stream * sizeof(struct sctp_stream_in)),
-		    SCTP_M_STRMI);
-		if (stcb->asoc.strmin == NULL) {
-			stcb->asoc.strmin = oldstrm;
-			goto denied;
+			/* save off the old */
+			oldstrm = stcb->asoc.strmin;
+			SCTP_MALLOC(stcb->asoc.strmin, struct sctp_stream_in *,
+			    (num_stream * sizeof(struct sctp_stream_in)),
+			    SCTP_M_STRMI);
+			if (stcb->asoc.strmin == NULL) {
+				stcb->asoc.strmin = oldstrm;
+				goto denied;
+			}
+			/* copy off the old data */
+			for (i = 0; i < stcb->asoc.streamincnt; i++) {
+				TAILQ_INIT(&stcb->asoc.strmin[i].inqueue);
+				stcb->asoc.strmin[i].stream_no = i;
+				stcb->asoc.strmin[i].last_sequence_delivered = oldstrm[i].last_sequence_delivered;
+				stcb->asoc.strmin[i].delivery_started = oldstrm[i].delivery_started;
+				/* now anything on those queues? */
+				while (TAILQ_EMPTY(&oldstrm[i].inqueue) == 0) {
+					ctl = TAILQ_FIRST(&oldstrm[i].inqueue);
+					TAILQ_REMOVE(&oldstrm[i].inqueue, ctl, next);
+					TAILQ_INSERT_TAIL(&stcb->asoc.strmin[i].inqueue, ctl, next);
+				}
+			}
+			/* Init the new streams */
+			for (i = stcb->asoc.streamincnt; i < num_stream; i++) {
+				TAILQ_INIT(&stcb->asoc.strmin[i].inqueue);
+				stcb->asoc.strmin[i].stream_no = i;
+				stcb->asoc.strmin[i].last_sequence_delivered = 0xffff;
+				stcb->asoc.strmin[i].delivery_started = 0;
+			}
+			SCTP_FREE(oldstrm, SCTP_M_STRMI);
+			/* update the size */
+			stcb->asoc.streamincnt = num_stream;
+			/* Send the ack */
+			sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_PERFORMED);
+			stcb->asoc.last_reset_action[1] = stcb->asoc.last_reset_action[0];
+			stcb->asoc.last_reset_action[0] = SCTP_STREAM_RESET_PERFORMED;
+			sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_INSTREAM_ADD_OK, stcb,
+			    (uint32_t) stcb->asoc.streamincnt, NULL, SCTP_SO_NOT_LOCKED);
 		}
-		/* copy off the old data */
-		memcpy(stcb->asoc.strmin, oldstrm,
-		    (stcb->asoc.streamincnt * sizeof(struct sctp_stream_in)));
-		/* Init the new streams */
-		for (i = stcb->asoc.streamincnt; i < num_stream; i++) {
-			TAILQ_INIT(&stcb->asoc.strmin[i].inqueue);
-			stcb->asoc.strmin[i].stream_no = i;
-			stcb->asoc.strmin[i].last_sequence_delivered = 0xffff;
-			stcb->asoc.strmin[i].delivery_started = 0;
-		}
-		SCTP_FREE(oldstrm, SCTP_M_STRMI);
-		/* update the size */
-		stcb->asoc.streamincnt = num_stream;
-		/* Send the ack */
-		sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_PERFORMED);
-		stcb->asoc.last_reset_action[1] = stcb->asoc.last_reset_action[0];
-		stcb->asoc.last_reset_action[0] = SCTP_STREAM_RESET_PERFORMED;
-		sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_INSTREAM_ADD_OK, stcb,
-		    (uint32_t) stcb->asoc.streamincnt, NULL, SCTP_SO_NOT_LOCKED);
+	} else if ((asoc->str_reset_seq_in - 1) == seq) {
+		/*
+		 * one seq back, just echo back last action since my
+		 * response was lost.
+		 */
+		sctp_add_stream_reset_result(chk, seq, asoc->last_reset_action[0]);
+	} else if ((asoc->str_reset_seq_in - 2) == seq) {
+		/*
+		 * two seq back, just echo back last action since my
+		 * response was lost.
+		 */
+		sctp_add_stream_reset_result(chk, seq, asoc->last_reset_action[1]);
+	} else {
+		sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_BAD_SEQNO);
+
 	}
 }
 
@@ -5575,11 +5608,14 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 			/* there was a gap before this data was processed */
 			was_a_gap = 1;
 		}
+		stcb->asoc.send_sack = 1;
 		sctp_sack_check(stcb, 1, was_a_gap, &abort_flag);
 		if (abort_flag) {
 			/* Again, we aborted so NO UNLOCK needed */
 			goto out_now;
 		}
+	} else if (fwd_tsn_seen) {
+		stcb->asoc.send_sack = 1;
 	}
 	/* trigger send of any chunks in queue... */
 trigger_send:
@@ -5628,10 +5664,7 @@ sctp_print_mbuf_chain(struct mbuf *m)
 #endif
 
 void
-sctp_input_with_port(i_pak, off, port)
-	struct mbuf *i_pak;
-	int off;
-	uint16_t port;
+sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 {
 #ifdef SCTP_MBUF_LOGGING
 	struct mbuf *mat;

@@ -359,6 +359,22 @@ typedef enum {
 } HAL_INT;
 
 typedef enum {
+	HAL_GPIO_MUX_OUTPUT		= 0,
+	HAL_GPIO_MUX_PCIE_ATTENTION_LED	= 1,
+	HAL_GPIO_MUX_PCIE_POWER_LED	= 2,
+	HAL_GPIO_MUX_TX_FRAME		= 3,
+	HAL_GPIO_MUX_RX_CLEAR_EXTERNAL	= 4,
+	HAL_GPIO_MUX_MAC_NETWORK_LED	= 5,
+	HAL_GPIO_MUX_MAC_POWER_LED	= 6
+} HAL_GPIO_MUX_TYPE;
+
+typedef enum {
+	HAL_GPIO_INTR_LOW		= 0,
+	HAL_GPIO_INTR_HIGH		= 1,
+	HAL_GPIO_INTR_DISABLE		= 2
+} HAL_GPIO_INTR_TYPE;
+
+typedef enum {
 	HAL_RFGAIN_INACTIVE		= 0,
 	HAL_RFGAIN_READ_REQUESTED	= 1,
 	HAL_RFGAIN_NEED_CHANGE		= 2
@@ -582,8 +598,6 @@ struct ieee80211_channel;
  */
 struct ath_hal {
 	uint32_t	ah_magic;	/* consistency check magic number */
-	uint32_t	ah_abi;		/* HAL ABI version */
-#define	HAL_ABI_VERSION	0x08112800	/* YYMMDDnn */
 	uint16_t	ah_devid;	/* PCI device ID */
 	uint16_t	ah_subvendorid;	/* PCI subvendor ID */
 	HAL_SOFTC	ah_sc;		/* back pointer to driver/os state */
@@ -608,6 +622,8 @@ struct ath_hal {
 				HAL_BOOL bChannelChange, HAL_STATUS *status);
 	HAL_BOOL  __ahdecl(*ah_phyDisable)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_disable)(struct ath_hal *);
+	void	  __ahdecl(*ah_configPCIE)(struct ath_hal *, HAL_BOOL restore);
+	void	  __ahdecl(*ah_disablePCIE)(struct ath_hal *);
 	void	  __ahdecl(*ah_setPCUConfig)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_perCalibration)(struct ath_hal*,
 			struct ieee80211_channel *, HAL_BOOL *);
@@ -700,7 +716,8 @@ struct ath_hal {
 	void	  __ahdecl(*ah_setLedState)(struct ath_hal*, HAL_LED_STATE);
 	void	  __ahdecl(*ah_writeAssocid)(struct ath_hal*,
 				const uint8_t *bssid, uint16_t assocId);
-	HAL_BOOL  __ahdecl(*ah_gpioCfgOutput)(struct ath_hal *, uint32_t gpio);
+	HAL_BOOL  __ahdecl(*ah_gpioCfgOutput)(struct ath_hal *,
+				uint32_t gpio, HAL_GPIO_MUX_TYPE);
 	HAL_BOOL  __ahdecl(*ah_gpioCfgInput)(struct ath_hal *, uint32_t gpio);
 	uint32_t __ahdecl(*ah_gpioGet)(struct ath_hal *, uint32_t gpio);
 	HAL_BOOL  __ahdecl(*ah_gpioSet)(struct ath_hal *,
@@ -788,6 +805,9 @@ extern	const char *__ahdecl ath_hal_probe(uint16_t vendorid, uint16_t devid);
  */
 extern	struct ath_hal * __ahdecl ath_hal_attach(uint16_t devid, HAL_SOFTC,
 		HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS* status);
+
+extern	const char *ath_hal_mac_name(struct ath_hal *);
+extern	const char *ath_hal_rf_name(struct ath_hal *);
 
 /*
  * Regulatory interfaces.  Drivers should use ath_hal_init_channels to

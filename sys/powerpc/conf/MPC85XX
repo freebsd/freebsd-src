@@ -70,7 +70,6 @@ device		scc
 device		tsec
 device		tun
 device		uart
-device		ugen
 #device		uhci
 device		umass
 device		usb

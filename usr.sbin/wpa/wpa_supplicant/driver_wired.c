@@ -21,7 +21,7 @@
 
 #include "common.h"
 #include "driver.h"
-#include "wpa_supplicant.h"
+#include "wpa.h"
 
 static const u8 pae_group_addr[ETH_ALEN] =
 { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x03 };

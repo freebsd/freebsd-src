@@ -42,6 +42,7 @@ __COPYRIGHT(
 __RCSID("$FreeBSD$");
 #endif    
 
+#define	_WITH_GETLINE
 #include <sys/types.h>
 
 #include <err.h>
@@ -96,12 +97,6 @@ static struct numbering_property numbering_properties[NP_LAST + 1] = {
 static void	filter(void);
 static void	parse_numbering(const char *, int);
 static void	usage(void);
-
-/*
- * Pointer to dynamically allocated input line buffer, and its size.
- */
-static char *buffer;
-static size_t buffersize;
 
 /*
  * Dynamically allocated buffer suitable for string representation of ints.
@@ -269,14 +264,6 @@ main(argc, argv)
 	memcpy(delim + delim1len, delim2, delim2len);
 	delimlen = delim1len + delim2len;
 
-	/* Determine the maximum input line length to operate on. */
-	if ((val = sysconf(_SC_LINE_MAX)) == -1) /* ignore errno */
-		val = LINE_MAX;
-	/* Allocate sufficient buffer space (including the terminating NUL). */
-	buffersize = (size_t)val + 1;
-	if ((buffer = malloc(buffersize)) == NULL)
-		err(EXIT_FAILURE, "cannot allocate input line buffer");
-
 	/* Allocate a buffer suitable for preformatting line number. */
 	intbuffersize = max(INT_STRLEN_MAXIMUM, width) + 1;	/* NUL */
 	if ((intbuffer = malloc(intbuffersize)) == NULL)
@@ -292,6 +279,9 @@ main(argc, argv)
 static void
 filter()
 {
+	char *buffer;
+	size_t buffersize;
+	ssize_t linelen;
 	int line;		/* logical line number */
 	int section;		/* logical page section */
 	unsigned int adjblank;	/* adjacent blank lines */
@@ -302,21 +292,23 @@ filter()
 	line = startnum;
 	section = BODY;
 
-	while (fgets(buffer, (int)buffersize, stdin) != NULL) {
+	buffer = NULL;
+	buffersize = 0;
+	while ((linelen = getline(&buffer, &buffersize, stdin)) > 0) {
 		for (idx = FOOTER; idx <= NP_LAST; idx++) {
 			/* Does it look like a delimiter? */
-			if (memcmp(buffer + delimlen * idx, delim,
-			    delimlen) == 0) {
-				/* Was this the whole line? */
-				if (buffer[delimlen * (idx + 1)] == '\n') {
-					section = idx;
-					adjblank = 0;
-					if (restart)
-						line = startnum;
-					goto nextline;
-				}
-			} else {
+			if (delimlen * (idx + 1) > linelen)
 				break;
+			if (memcmp(buffer + delimlen * idx, delim,
+			    delimlen) != 0)
+				break;
+			/* Was this the whole line? */
+			if (buffer[delimlen * (idx + 1)] == '\n') {
+				section = idx;
+				adjblank = 0;
+				if (restart)
+					line = startnum;
+				goto nextline;
 			}
 		}
 
@@ -354,7 +346,8 @@ filter()
 		} else {
 			(void)printf("%*s", width, "");
 		}
-		(void)printf("%s%s", sep, buffer);
+		(void)fputs(sep, stdout);
+		(void)fwrite(buffer, linelen, 1, stdout);
 
 		if (ferror(stdout))
 			err(EXIT_FAILURE, "output error");
@@ -364,6 +357,8 @@ nextline:
 
 	if (ferror(stdin))
 		err(EXIT_FAILURE, "input error");
+
+	free(buffer);
 }
 
 /*

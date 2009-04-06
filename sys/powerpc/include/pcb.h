@@ -70,6 +70,7 @@ struct pcb {
 		struct {
 			register_t	ctr;
 			register_t	xer;
+			register_t	dbcr0;
 		} booke;
 	} pcb_cpu;
 };

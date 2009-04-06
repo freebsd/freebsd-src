@@ -100,7 +100,13 @@ for dir in /bin /usr/bin /usr/local/bin; do
 done
 
 if [ -n "$svnversion" -a -d "${SRCDIR}/.svn" ] ; then
-	svn=" r`cd $SRCDIR && $svnversion`"
+	# If we are called from the kernel build, limit
+	# the scope of svnversion to sys/ .
+	if [ -e "${SRCDIR}/sys/conf/newvers.sh" ] ; then
+		svn=" r`cd $SRCDIR/sys && $svnversion`"
+	else
+		svn=" r`cd $SRCDIR && $svnversion`"
+	fi
 else
 	svn=""
 fi

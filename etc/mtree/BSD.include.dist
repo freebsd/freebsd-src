@@ -120,10 +120,6 @@
         ..
         usb
         ..
-        usb2
-            include
-            ..
-        ..
         utopia
         ..
         vkbd
@@ -199,6 +195,12 @@
     ..
     kadm5
     ..
+    legacy
+        dev
+            usb
+            ..
+        ..
+    ..
     libmilter
     ..
     lwres
@@ -254,6 +256,8 @@
     objc
     ..
     openssl
+    ..
+    pcap
     ..
     protocols
     ..

@@ -205,7 +205,7 @@ DEFINE_TEST(test_write_format_cpio_newc)
 	assertEqualMem(e + 121, "\0\0\0", 3); /* Pad to multiple of 4 bytes */
 	e += 124; /* Must be multiple of four here! */
 
-	assertEqualInt(used, e - buff);
+	assertEqualInt((int)used, e - buff);
 
 	free(buff);
 }

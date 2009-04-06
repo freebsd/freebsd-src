@@ -231,7 +231,7 @@ main(int argc, char *argv[])
 	if (strlen(user) > MAXLOGNAME - 1) {
 #ifdef USE_BSM_AUDIT
 		if (audit_submit(AUE_su, auid,
-		    1, EPERM, "username too long: '%s'", user))
+		    EPERM, 1, "username too long: '%s'", user))
 			errx(1, "Permission denied");
 #endif
 		errx(1, "username too long");
@@ -264,7 +264,7 @@ main(int argc, char *argv[])
 		pwd = getpwuid(ruid);
 	if (pwd == NULL) {
 #ifdef USE_BSM_AUDIT
-		if (audit_submit(AUE_su, auid, 1, EPERM,
+		if (audit_submit(AUE_su, auid, EPERM, 1,
 		    "unable to determine invoking subject: '%s'", username))
 			errx(1, "Permission denied");
 #endif
@@ -305,7 +305,7 @@ main(int argc, char *argv[])
 	retcode = pam_authenticate(pamh, 0);
 	if (retcode != PAM_SUCCESS) {
 #ifdef USE_BSM_AUDIT
-		if (audit_submit(AUE_su, auid, 1, EPERM, "bad su %s to %s on %s",
+		if (audit_submit(AUE_su, auid, EPERM, 1, "bad su %s to %s on %s",
 		    username, user, mytty))
 			errx(1, "Permission denied");
 #endif
@@ -326,7 +326,7 @@ main(int argc, char *argv[])
 	pwd = getpwnam(user);
 	if (pwd == NULL) {
 #ifdef USE_BSM_AUDIT
-		if (audit_submit(AUE_su, auid, 1, EPERM,
+		if (audit_submit(AUE_su, auid, EPERM, 1,
 		    "unknown subject: %s", user))
 			errx(1, "Permission denied");
 #endif
@@ -342,7 +342,7 @@ main(int argc, char *argv[])
 			aerr = pam_strerror(pamh, retcode);
 			if (aerr == NULL)
 				aerr = "Unknown PAM error";
-			if (audit_submit(AUE_su, auid, 1, EPERM,
+			if (audit_submit(AUE_su, auid, EPERM, 1,
 			    "pam_chauthtok: %s", aerr))
 				errx(1, "Permission denied");
 #endif
@@ -353,7 +353,7 @@ main(int argc, char *argv[])
 	}
 	if (retcode != PAM_SUCCESS) {
 #ifdef USE_BSM_AUDIT
-		if (audit_submit(AUE_su, auid, 1, EPERM, "pam_acct_mgmt: %s",
+		if (audit_submit(AUE_su, auid, EPERM, 1, "pam_acct_mgmt: %s",
 		    pam_strerror(pamh, retcode)))
 			errx(1, "Permission denied");
 #endif
@@ -368,7 +368,7 @@ main(int argc, char *argv[])
 	else {
 		if (ruid != 0) {
 #ifdef USE_BSM_AUDIT
-			if (audit_submit(AUE_su, auid, 1, EPERM,
+			if (audit_submit(AUE_su, auid, EPERM, 1,
 			    "only root may use -c"))
 				errx(1, "Permission denied");
 #endif

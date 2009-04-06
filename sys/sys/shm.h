@@ -108,6 +108,7 @@ struct shminfo {
 struct shmid_kernel {
 	struct shmid_ds u;
 	struct label *label;	/* MAC label */
+	size_t shm_bsegsz;
 };
 
 extern struct shminfo	shminfo;
@@ -137,7 +138,9 @@ typedef __size_t        size_t;
 #endif
 
 __BEGIN_DECLS
+#ifdef __BSD_VISIBLE
 int shmsys(int, ...);
+#endif
 void *shmat(int, const void *, int);
 int shmget(key_t, size_t, int);
 int shmctl(int, int, struct shmid_ds *);

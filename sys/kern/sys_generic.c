@@ -76,6 +76,7 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
+static int	pollout(struct pollfd *, struct pollfd *, u_int);
 static int	pollscan(struct thread *, struct pollfd *, u_int);
 static int	pollrescan(struct thread *);
 static int	selscan(struct thread *, fd_mask **, fd_mask **, int);
@@ -731,6 +732,22 @@ out:
 	return (error);
 }
 
+int
+poll_no_poll(int events)
+{
+	/*
+	 * Return true for read/write.  If the user asked for something
+	 * special, return POLLNVAL, so that clients have a way of
+	 * determining reliably whether or not the extended
+	 * functionality is present without hard-coding knowledge
+	 * of specific filesystem implementations.
+	 */
+	if (events & ~POLLSTANDARD)
+		return (POLLNVAL);
+
+	return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct select_args {
 	int	nd;
@@ -1112,7 +1129,7 @@ done:
 	if (error == EWOULDBLOCK)
 		error = 0;
 	if (error == 0) {
-		error = copyout(bits, uap->fds, ni);
+		error = pollout(bits, uap->fds, nfds);
 		if (error)
 			goto out;
 	}
@@ -1165,6 +1182,26 @@ pollrescan(struct thread *td)
 	return (0);
 }
 
+
+static int
+pollout(fds, ufds, nfd)
+	struct pollfd *fds;
+	struct pollfd *ufds;
+	u_int nfd;
+{
+	int error = 0;
+	u_int i = 0;
+
+	for (i = 0; i < nfd; i++) {
+		error = copyout(&fds->revents, &ufds->revents,
+		    sizeof(ufds->revents));
+		if (error)
+			return (error);
+		fds++;
+		ufds++;
+	}
+	return (0);
+}
 
 static int
 pollscan(td, fds, nfd)

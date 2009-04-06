@@ -685,7 +685,8 @@ fw_init_crom(struct firewire_comm *fc)
 	src->businfo.cyc_clk_acc = 100;
 	src->businfo.max_rec = fc->maxrec;
 	src->businfo.max_rom = MAXROM_4;
-	src->businfo.generation = 0;
+#define FW_GENERATION_CHANGEABLE 2
+	src->businfo.generation = FW_GENERATION_CHANGEABLE;
 	src->businfo.link_spd = fc->speed;
 
 	src->businfo.eui64.hi = fc->eui.hi;
@@ -734,6 +735,7 @@ fw_busreset(struct firewire_comm *fc, uint32_t new_status)
 	struct firewire_dev_comm *fdc;
 	struct crom_src *src;
 	device_t *devlistp;
+	uint32_t *newrom;
 	int i, devcnt;
 
 	FW_GLOCK_ASSERT(fc);
@@ -759,18 +761,31 @@ fw_busreset(struct firewire_comm *fc, uint32_t new_status)
 	}
 
 	src = &fc->crom_src_buf->src;
-	/*
-	 * If the old config rom needs to be overwritten,
-	 * bump the businfo.generation indicator to 
-	 * indicate that we need to be reprobed
-	 */
-	if (bcmp(src, fc->config_rom, CROMSIZE) != 0) {
-		/* generation is a 2 bit field */
-		/* valid values are only from 0 - 3 */
-		src->businfo.generation = 1;
-		bcopy(src, (void *)fc->config_rom, CROMSIZE);
-	} else
-		src->businfo.generation = 0;
+        /*
+         * If the old config rom needs to be overwritten,
+         * bump the businfo.generation indicator to 
+         * indicate that we need to be reprobed
+         * See 1394a-2000 8.3.2.5.4 for more details.
+         * generation starts at 2 and rolls over at 0xF
+         * back to 2.
+         * 
+         * A generation of 0 indicates a device
+         * that is not 1394a-2000 compliant.
+         * A generation of 1 indicates a device that
+         * does not change it's Bus Info Block or 
+         * Configuration ROM.
+         */
+#define FW_MAX_GENERATION 0xF
+	newrom = malloc(CROMSIZE, M_FW, M_NOWAIT | M_ZERO);
+	src = &fc->crom_src_buf->src;
+	crom_load(src, newrom, CROMSIZE);
+	if (bcmp(newrom, fc->config_rom, CROMSIZE) != 0) {
+		if ( src->businfo.generation++ > FW_MAX_GENERATION )
+			src->businfo.generation = FW_GENERATION_CHANGEABLE;
+		bcopy(newrom, (void *)fc->config_rom, CROMSIZE);
+	}
+	free(newrom, M_FW);
+
 }
 
 /* Call once after reboot */
@@ -1590,6 +1605,10 @@ fw_explore_node(struct fw_device *dfwdev)
 		}
 		fwdev->fc = fc;
 		fwdev->eui = binfo->eui64;
+		fwdev->dst = dfwdev->dst;
+		fwdev->maxrec = dfwdev->maxrec;
+		fwdev->status = dfwdev->status;
+
 		/*
 		 * Pre-1394a-2000 didn't have link_spd in
 		 * the Bus Info block, so try and use the 
@@ -1599,7 +1618,7 @@ fw_explore_node(struct fw_device *dfwdev)
 		 * ignore the speed map alltogether. SWB
 		 */
 		if ( binfo->link_spd == FWSPD_S100 /* 0 */) {
-			device_printf(fc->bdev, "%s"
+			device_printf(fc->bdev, "%s: "
 				"Pre 1394a-2000 detected\n",
 				__func__);
 			fwdev->speed = fc->speed_map->speed[fc->nodeid][node];
@@ -1609,21 +1628,19 @@ fw_explore_node(struct fw_device *dfwdev)
 		 * Test this speed with a read to the CSRROM.
 		 * If it fails, slow down the speed and retry.
 		 */
-		while (fwdev->speed > 0) {
+		while (fwdev->speed > FWSPD_S100 /* 0 */) {
 			err = fw_explore_read_quads(fwdev, CSRROMOFF,
             				&speed_test, 1);
-			if (err)
+			if (err) {
+				device_printf(fc->bdev, "%s: fwdev->speed(%s)"
+						" decremented due to negotiation\n",
+						__func__,
+						linkspeed[fwdev->speed]);
 				fwdev->speed--;
-			else
+			} else
 				break;
 				
 		}
-		if (fwdev->speed != binfo->link_spd)
-			device_printf(fc->bdev, "%s: fwdev->speed(%s)"
-						" set lower than binfo->link_spd(%s)\n",
-						__func__,
-						linkspeed[fwdev->speed],
-						linkspeed[binfo->link_spd]);
 		/* inesrt into sorted fwdev list */
 		pfwdev = NULL;
 		STAILQ_FOREACH(tfwdev, &fc->devices, link) {
@@ -1641,15 +1658,15 @@ fw_explore_node(struct fw_device *dfwdev)
 		device_printf(fc->bdev, "New %s device ID:%08x%08x\n",
 		    linkspeed[fwdev->speed],
 		    fwdev->eui.hi, fwdev->eui.lo);
-	}
-	fwdev->dst = node;
-	fwdev->status = FWDEVINIT;
-
-	/* unchanged ? */
-	if (bcmp(&csr[0], &fwdev->csrrom[0], sizeof(uint32_t) * 5) == 0) {
-		if (firewire_debug)
-			device_printf(fc->dev, "node%d: crom unchanged\n", node);
-		return (0);
+	} else {
+		fwdev->dst = node;
+		fwdev->status = FWDEVINIT;
+		/* unchanged ? */
+		if (bcmp(&csr[0], &fwdev->csrrom[0], sizeof(uint32_t) * 5) == 0) {
+			if (firewire_debug)
+				device_printf(fc->dev, "node%d: crom unchanged\n", node);
+			return (0);
+		}
 	}
 
 	bzero(&fwdev->csrrom[0], CROMSIZE);
@@ -1661,6 +1678,9 @@ fw_explore_node(struct fw_device *dfwdev)
 	err = fw_explore_csrblock(fwdev, 0x14, 1); /* root directory */
 
 	if (err) {
+		if (firewire_debug)
+			device_printf(fc->dev, "%s: explore csrblock failed err(%d)\n",
+					__func__, err);
 		fwdev->status = FWDEVINVAL;
 		fwdev->csrrom[0] = 0;
 	}

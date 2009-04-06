@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef DEBUG
 #include <assert.h>
@@ -98,12 +99,10 @@ static BUFHEAD *newbuf(HTAB *, u_int32_t, BUFHEAD *);
  * be valid.  Therefore, you must always verify that its address matches the
  * address you are seeking.
  */
-extern BUFHEAD *
-__get_buf(hashp, addr, prev_bp, newpage)
-	HTAB *hashp;
-	u_int32_t addr;
-	BUFHEAD *prev_bp;
-	int newpage;	/* If prev_bp set, indicates a new overflow page. */
+BUFHEAD *
+__get_buf(HTAB *hashp, u_int32_t addr,
+    BUFHEAD *prev_bp,	/* If prev_bp set, indicates a new overflow page. */
+    int newpage)
 {
 	BUFHEAD *bp;
 	u_int32_t is_disk_mask;
@@ -154,10 +153,7 @@ __get_buf(hashp, addr, prev_bp, newpage)
  * If newbuf finds an error (returning NULL), it also sets errno.
  */
 static BUFHEAD *
-newbuf(hashp, addr, prev_bp)
-	HTAB *hashp;
-	u_int32_t addr;
-	BUFHEAD *prev_bp;
+newbuf(HTAB *hashp, u_int32_t addr, BUFHEAD *prev_bp)
 {
 	BUFHEAD *bp;		/* The buffer we're going to use */
 	BUFHEAD *xbp;		/* Temp pointer */
@@ -168,24 +164,38 @@ newbuf(hashp, addr, prev_bp)
 
 	oaddr = 0;
 	bp = LRU;
+
+        /* It is bad to overwrite the page under the cursor. */
+        if (bp == hashp->cpage) {
+                BUF_REMOVE(bp);
+                MRU_INSERT(bp);
+                bp = LRU;
+        }
+
+	/* If prev_bp is part of bp overflow, create a new buffer. */
+	if (hashp->nbufs == 0 && prev_bp && bp->ovfl) {
+		BUFHEAD *ovfl;
+
+		for (ovfl = bp->ovfl; ovfl ; ovfl = ovfl->ovfl) {
+			if (ovfl == prev_bp) {
+				hashp->nbufs++;
+				break;
+			}
+		}
+	}
+
 	/*
 	 * If LRU buffer is pinned, the buffer pool is too small. We need to
 	 * allocate more buffers.
 	 */
-	if (hashp->nbufs || (bp->flags & BUF_PIN)) {
+	if (hashp->nbufs || (bp->flags & BUF_PIN) || bp == hashp->cpage) {
 		/* Allocate a new one */
-		if ((bp = (BUFHEAD *)malloc(sizeof(BUFHEAD))) == NULL)
+		if ((bp = (BUFHEAD *)calloc(1, sizeof(BUFHEAD))) == NULL)
 			return (NULL);
-#ifdef PURIFY
-		memset(bp, 0xff, sizeof(BUFHEAD));
-#endif
-		if ((bp->page = (char *)malloc(hashp->BSIZE)) == NULL) {
+		if ((bp->page = (char *)calloc(1, hashp->BSIZE)) == NULL) {
 			free(bp);
 			return (NULL);
 		}
-#ifdef PURIFY
-		memset(bp->page, 0xff, hashp->BSIZE);
-#endif
 		if (hashp->nbufs)
 			hashp->nbufs--;
 	} else {
@@ -272,7 +282,7 @@ newbuf(hashp, addr, prev_bp)
 		 */
 #ifdef DEBUG1
 		(void)fprintf(stderr, "NEWBUF2: %d->ovfl was %d is now %d\n",
-		    prev_bp->addr, (prev_bp->ovfl ? bp->ovfl->addr : 0),
+		    prev_bp->addr, (prev_bp->ovfl ? prev_bp->ovfl->addr : 0),
 		    (bp ? bp->addr : 0));
 #endif
 		prev_bp->ovfl = bp;
@@ -283,10 +293,8 @@ newbuf(hashp, addr, prev_bp)
 	return (bp);
 }
 
-extern void
-__buf_init(hashp, nbytes)
-	HTAB *hashp;
-	int nbytes;
+void
+__buf_init(HTAB *hashp, int nbytes)
 {
 	BUFHEAD *bfp;
 	int npages;
@@ -308,10 +316,8 @@ __buf_init(hashp, nbytes)
 	 */
 }
 
-extern int
-__buf_free(hashp, do_free, to_disk)
-	HTAB *hashp;
-	int do_free, to_disk;
+int
+__buf_free(HTAB *hashp, int do_free, int to_disk)
 {
 	BUFHEAD *bp;
 
@@ -328,8 +334,10 @@ __buf_free(hashp, do_free, to_disk)
 		}
 		/* Check if we are freeing stuff */
 		if (do_free) {
-			if (bp->page)
+			if (bp->page) {
+				(void)memset(bp->page, 0, hashp->BSIZE);
 				free(bp->page);
+			}
 			BUF_REMOVE(bp);
 			free(bp);
 			bp = LRU;
@@ -339,10 +347,8 @@ __buf_free(hashp, do_free, to_disk)
 	return (0);
 }
 
-extern void
-__reclaim_buf(hashp, bp)
-	HTAB *hashp;
-	BUFHEAD *bp;
+void
+__reclaim_buf(HTAB *hashp, BUFHEAD *bp)
 {
 	bp->ovfl = 0;
 	bp->addr = 0;

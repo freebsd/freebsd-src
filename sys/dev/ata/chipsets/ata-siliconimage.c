@@ -150,10 +150,6 @@ ata_sii_chipinit(device_t dev)
 	ATA_OUTL(ctlr->r_res1, 0x0040, 0x80000000);
 	DELAY(10000);
 	ATA_OUTL(ctlr->r_res1, 0x0040, 0x0000000f);
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
 	break;
 
     case SII_MEMIO:
@@ -384,7 +380,7 @@ ata_sii_status(device_t dev)
 static void
 ata_sii_reset(device_t dev)
 {
-    if (ata_sata_phy_reset(dev))
+    if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
 }
 
@@ -836,7 +832,7 @@ ata_siiprb_reset(device_t dev)
     }
 
     /* reset phy */
-    if (!ata_sata_phy_reset(dev)) {
+    if (!ata_sata_phy_reset(dev, -1, 1)) {
 	if (bootverbose)
 	    device_printf(dev, "phy reset found no device\n");
 	ch->devices = 0;

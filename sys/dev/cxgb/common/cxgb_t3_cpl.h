@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2009 Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -272,6 +272,14 @@ struct work_request_hdr {
 #define S_WR_FLUSH	17
 #define V_WR_FLUSH(x)	((x) << S_WR_FLUSH)
 #define F_WR_FLUSH	V_WR_FLUSH(1U)
+
+#define S_WR_CHN	18
+#define V_WR_CHN(x)	((x) << S_WR_CHN)
+#define F_WR_CHN	V_WR_CHN(1U)
+
+#define S_WR_CHN_VLD	19
+#define V_WR_CHN_VLD(x)	((x) << S_WR_CHN_VLD)
+#define F_WR_CHN_VLD	V_WR_CHN_VLD(1U)
 
 #define S_WR_DATATYPE    20
 #define V_WR_DATATYPE(x) ((x) << S_WR_DATATYPE)

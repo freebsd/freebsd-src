@@ -98,14 +98,12 @@ device		bpf
 device          ohci            # OHCI localbus->USB interface
 device          usb             # USB Bus (required)
 #device         udbp            # USB Double Bulk Pipe devices
-device          ugen            # Generic
 device          uhid            # "Human Interface Devices"
 device          ulpt            # Printer
 device          umass           # Disks/Mass storage - Requires scbus and da
 device          ural            # Ralink Technology RT2500USB wireless NICs
 device          rum             # Ralink Technology RT2501USB wireless NICs
 device          urio            # Diamond Rio 500 MP3 player
-device          uscanner        # Scanners
 # USB Ethernet, requires miibus
 device		miibus
 device          aue             # ADMtek USB Ethernet
@@ -116,7 +114,6 @@ device          kue             # Kawasaki LSI USB Ethernet
 device          rue             # RealTek RTL8150 USB Ethernet
 device		udav
 # usb serial
-device          ucom
 device          uark
 device          ubsa
 device          uftdi

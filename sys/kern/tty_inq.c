@@ -62,11 +62,11 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Statistics. */
-static long ttyinq_nfast = 0;
-SYSCTL_LONG(_kern, OID_AUTO, tty_inq_nfast, CTLFLAG_RD,
+static unsigned long ttyinq_nfast = 0;
+SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nfast, CTLFLAG_RD,
 	&ttyinq_nfast, 0, "Unbuffered reads to userspace on input");
-static long ttyinq_nslow = 0;
-SYSCTL_LONG(_kern, OID_AUTO, tty_inq_nslow, CTLFLAG_RD,
+static unsigned long ttyinq_nslow = 0;
+SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nslow, CTLFLAG_RD,
 	&ttyinq_nslow, 0, "Buffered reads to userspace on input");
 
 #define TTYINQ_QUOTESIZE	(TTYINQ_DATASIZE / BMSIZE)

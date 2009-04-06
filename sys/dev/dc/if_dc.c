@@ -331,7 +331,6 @@ static driver_t dc_driver = {
 
 static devclass_t dc_devclass;
 
-DRIVER_MODULE(dc, cardbus, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(dc, pci, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 

@@ -53,11 +53,11 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Statistics. */
-static long ttyoutq_nfast = 0;
-SYSCTL_LONG(_kern, OID_AUTO, tty_outq_nfast, CTLFLAG_RD,
+static unsigned long ttyoutq_nfast = 0;
+SYSCTL_ULONG(_kern, OID_AUTO, tty_outq_nfast, CTLFLAG_RD,
 	&ttyoutq_nfast, 0, "Unbuffered reads to userspace on output");
-static long ttyoutq_nslow = 0;
-SYSCTL_LONG(_kern, OID_AUTO, tty_outq_nslow, CTLFLAG_RD,
+static unsigned long ttyoutq_nslow = 0;
+SYSCTL_ULONG(_kern, OID_AUTO, tty_outq_nslow, CTLFLAG_RD,
 	&ttyoutq_nslow, 0, "Buffered reads to userspace on output");
 
 struct ttyoutq_block {

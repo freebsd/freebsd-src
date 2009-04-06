@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_route.h"
 #include "opt_wlan.h"
 
 #ifdef DDB
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #include <net80211/ieee80211_var.h>
@@ -443,7 +445,6 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf(" opmode %s", ieee80211_opmode_name[ic->ic_opmode]);
 	db_printf("\n");
 	db_printf("\tmedia %p", &ic->ic_media);
-	db_printf(" myaddr %s", ether_sprintf(ic->ic_myaddr));
 	db_printf(" inact %p", &ic->ic_inact);
 	db_printf("\n");
 

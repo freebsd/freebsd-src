@@ -114,8 +114,6 @@ devclass_t ocpbus_devclass;
 
 DRIVER_MODULE(ocpbus, nexus, ocpbus_driver, ocpbus_devclass, 0, 0);
 
-static int law_max = 0;
-
 static device_t
 ocpbus_mk_child(device_t dev, int type, int unit)
 {
@@ -189,16 +187,6 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 static int
 ocpbus_probe(device_t dev)
 {
-	struct ocpbus_softc *sc;
-	uint32_t ver;
-
-	sc = device_get_softc(dev);
-
-	ver = SVR_VER(mfspr(SPR_SVR));
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
-		law_max = 12;
-	else
-		law_max = 8;
 
 	device_set_desc(dev, "On-Chip Peripherals bus");
 	return (BUS_PROBE_DEFAULT);
@@ -208,7 +196,7 @@ static int
 ocpbus_attach(device_t dev)
 {
 	struct ocpbus_softc *sc;
-	int error, i, tgt;
+	int error, i, tgt, law_max;
 	uint32_t sr;
 	u_long start, end;
 
@@ -261,6 +249,7 @@ ocpbus_attach(device_t dev)
 	 * Clear local access windows. Skip DRAM entries, so we don't shoot
 	 * ourselves in the foot.
 	 */
+	law_max = law_getmax();
 	for (i = 0; i < law_max; i++) {
 		sr = ccsr_read4(OCP85XX_LAWSR(i));
 		if ((sr & 0x80000000) == 0)

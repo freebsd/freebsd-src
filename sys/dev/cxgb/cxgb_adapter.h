@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2008, Chelsio Inc.
+Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -119,9 +119,11 @@ struct port_info {
 	uint8_t		txpkt_intf;
 	uint8_t         first_qset;
 	uint32_t	nqsets;
-	
+	int		link_fault;
+
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
 	struct task	timer_reclaim_task;
+	struct task	link_fault_task;
 	struct cdev     *port_cdev;
 
 #define PORT_LOCK_NAME_LEN 32
@@ -214,7 +216,7 @@ struct sge_fl {
 	uint32_t	gen;
 	bus_addr_t	phys_addr;
 	uint32_t	cntxt_id;
-	uint64_t	empty;
+	uint32_t	empty;
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
 	bus_dma_tag_t   entry_tag;
@@ -528,6 +530,8 @@ int t3_os_pci_restore_state(struct adapter *adapter);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc);
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
+void t3_os_link_fault(adapter_t *adapter, int port_id, int state);
+void t3_os_link_fault_handler(adapter_t *adapter, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
 int t3_offload_tx(struct t3cdev *, struct mbuf *);
 void t3_os_ext_intr_handler(adapter_t *adapter);
