@@ -388,6 +388,7 @@ MAN=	aac.4 \
 	u3g.4 \
 	uark.4 \
 	uart.4 \
+	uath.4 \
 	ubsa.4 \
 	ubsec.4 \
 	ubser.4 \
@@ -561,6 +562,7 @@ MLINKS+=tun.4 if_tun.4
 MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
 MLINKS+=u3g.4 u3gstub.4
+MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
 MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
