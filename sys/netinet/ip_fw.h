@@ -698,6 +698,7 @@ struct vnet_ipfw {
 	int	_fw_debug;		/* actually unused */
 	int	_autoinc_step;
 	ipfw_dyn_rule **_ipfw_dyn_v;
+	uma_zone_t _ipfw_dyn_rule_zone;
 	struct ip_fw_chain _layer3_chain;
 	u_int32_t _dyn_buckets;
 	u_int32_t _curr_dyn_buckets;
@@ -742,6 +743,7 @@ extern struct vnet_ipfw vnet_ipfw_0;
 #define	V_fw_debug		VNET_IPFW(fw_debug)
 #define	V_autoinc_step		VNET_IPFW(autoinc_step)
 #define	V_ipfw_dyn_v		VNET_IPFW(ipfw_dyn_v)
+#define	V_ipfw_dyn_rule_zone	VNET_IPFW(ipfw_dyn_rule_zone)
 #define	V_layer3_chain		VNET_IPFW(layer3_chain)
 #define	V_dyn_buckets		VNET_IPFW(dyn_buckets)
 #define	V_curr_dyn_buckets	VNET_IPFW(curr_dyn_buckets)

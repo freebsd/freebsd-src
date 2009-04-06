@@ -7171,12 +7171,6 @@ key_init(void)
 	V_ipsec_esp_auth = 0;
 	V_ipsec_ah_keymin = 128;
 
-	SPTREE_LOCK_INIT();
-	REGTREE_LOCK_INIT();
-	SAHTREE_LOCK_INIT();
-	ACQ_LOCK_INIT();
-	SPACQ_LOCK_INIT();
-
 	for (i = 0; i < IPSEC_DIR_MAX; i++)
 		LIST_INIT(&V_sptree[i]);
 
@@ -7191,6 +7185,15 @@ key_init(void)
 	/* system default */
 	V_ip4_def_policy.policy = IPSEC_POLICY_NONE;
 	V_ip4_def_policy.refcnt++;	/*never reclaim this*/
+
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
+	SPTREE_LOCK_INIT();
+	REGTREE_LOCK_INIT();
+	SAHTREE_LOCK_INIT();
+	ACQ_LOCK_INIT();
+	SPACQ_LOCK_INIT();
 
 #ifndef IPSEC_DEBUG2
 	timeout((void *)key_timehandler, (void *)0, hz);

@@ -242,6 +242,7 @@ ip_init(void)
 	V_rsvp_on = 0;
 	V_ip_defttl = IPDEFTTL;
 	V_ip_do_randomid = 0;
+	V_ip_id = time_second & 0xffff;
 	V_ipforwarding = 0;
 	V_ipstealth = 0;
 	V_nipq = 0;	/* Total # of reass queues */
@@ -270,6 +271,20 @@ ip_init(void)
 
 	TAILQ_INIT(&V_in_ifaddrhead);
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
+
+	/* Initialize IP reassembly queue. */
+	for (i = 0; i < IPREASS_NHASH; i++)
+		TAILQ_INIT(&V_ipq[i]);
+	V_maxnipq = nmbclusters / 32;
+	V_maxfragsperpacket = 16;
+	V_ipq_zone = uma_zcreate("ipq", sizeof(struct ipq), NULL, NULL, NULL,
+	    NULL, UMA_ALIGN_PTR, 0);
+	maxnipq_update();
+
+	/* Skip initialization of globals for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
 	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
 		panic("ip_init: PF_INET not found");
@@ -297,16 +312,6 @@ ip_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
-	/* Initialize IP reassembly queue. */
-	IPQ_LOCK_INIT();
-	for (i = 0; i < IPREASS_NHASH; i++)
-	    TAILQ_INIT(&V_ipq[i]);
-	V_maxnipq = nmbclusters / 32;
-	V_maxfragsperpacket = 16;
-	V_ipq_zone = uma_zcreate("ipq", sizeof(struct ipq), NULL, NULL, NULL,
-	    NULL, UMA_ALIGN_PTR, 0);
-	maxnipq_update();
-
 	/* Start ipport_tick. */
 	callout_init(&ipport_tick_callout, CALLOUT_MPSAFE);
 	ipport_tick(NULL);
@@ -316,7 +321,7 @@ ip_init(void)
 		NULL, EVENTHANDLER_PRI_ANY);
 
 	/* Initialize various other remaining things. */
-	V_ip_id = time_second & 0xffff;
+	IPQ_LOCK_INIT();
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IP, ip_input, &ipintrq, 0);
