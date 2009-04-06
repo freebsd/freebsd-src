@@ -25,8 +25,8 @@
  */
 
 /*
- * USB Device Port register definitions, copied from ATMEGA
- * documentation provided by ATMEL.
+ * USB Device Port register definitions, copied from ATMEGA documentation
+ * provided by ATMEL.
  */
 
 #ifndef _ATMEGADCI_H_

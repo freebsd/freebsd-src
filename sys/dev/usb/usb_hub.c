@@ -27,7 +27,7 @@
  */
 
 /*
- * USB spec: http://www.usb.org/developers/docs/usbspec.zip
+ * USB spec: http://www.usb.org/developers/docs/usbspec.zip 
  */
 
 #include <dev/usb/usb_mfunc.h>

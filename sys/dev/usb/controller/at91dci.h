@@ -27,8 +27,8 @@
  */
 
 /*
- * USB Device Port (UDP) register definition, based on
- * "AT91RM9200.h" provided by ATMEL.
+ * USB Device Port (UDP) register definition, based on "AT91RM9200.h" provided
+ * by ATMEL.
  */
 
 #ifndef _AT9100_DCI_H_

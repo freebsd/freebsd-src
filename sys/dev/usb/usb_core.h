@@ -25,8 +25,7 @@
  */
 
 /*
- * Including this file is mandatory for all USB related c-files in the
- * kernel.
+ * Including this file is mandatory for all USB related c-files in the kernel.
  */
 
 #ifndef _USB2_CORE_H_

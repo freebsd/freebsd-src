@@ -28,8 +28,8 @@
 #define	_USB2_BUS_H_
 
 /*
- * The following structure defines the USB explore message sent to the
- * USB explore process.
+ * The following structure defines the USB explore message sent to the USB
+ * explore process.
  */
 
 struct usb2_bus_msg {
