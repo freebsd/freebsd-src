@@ -76,6 +76,10 @@
  *           Global cache clean area
  * FF00 0000 ---------------------------
  *
+ * FE00 0000 ---------------------------
+ *           16M CFI Flash (on ext bus)
+ * FD00 0000 ---------------------------
+ *
  * FC00 0000 ---------------------------
  *           PCI Data (memory space)
  * F800 0000 --------------------------- IXP425_PCI_MEM_VBASE
@@ -649,6 +653,9 @@
 #define	IXP425_EXP_BUS_CSx_VBASE(i) \
 	(IXP425_MAC_B_VBASE + (i)*IXP425_MAC_B_SIZE)
 
+#define	IXP425_EXP_BUS_CS0_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(0)
+#define IXP425_EXP_BUS_CS0_VBASE	0xFD000000UL
+#define IXP425_EXP_BUS_CS0_SIZE		0x01000000	/* NB: 16M */
 #define	IXP425_EXP_BUS_CS1_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(1)
 #define IXP425_EXP_BUS_CS1_VBASE	IXP425_EXP_BUS_CSx_VBASE(1)
 #define IXP425_EXP_BUS_CS1_SIZE		0x1000
@@ -663,7 +670,6 @@
 #define IXP425_EXP_BUS_CS4_SIZE		0x1000
 
 /* NB: not mapped (yet) */
-#define	IXP425_EXP_BUS_CS0_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(0)
 #define	IXP425_EXP_BUS_CS5_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(5)
 #define	IXP425_EXP_BUS_CS6_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(6)
 #define	IXP425_EXP_BUS_CS7_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(7)

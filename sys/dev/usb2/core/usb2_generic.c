@@ -80,6 +80,7 @@ static int	ugen_set_config(struct usb2_fifo *, uint8_t);
 static int	ugen_set_interface(struct usb2_fifo *, uint8_t, uint8_t);
 static int	ugen_get_cdesc(struct usb2_fifo *, struct usb2_gen_descriptor *);
 static int	ugen_get_sdesc(struct usb2_fifo *, struct usb2_gen_descriptor *);
+static int	ugen_get_iface_driver(struct usb2_fifo *f, struct usb2_gen_descriptor *ugd);
 static int	usb2_gen_fill_deviceinfo(struct usb2_fifo *,
 		    struct usb2_device_info *);
 static int	ugen_re_enumerate(struct usb2_fifo *);
@@ -714,68 +715,64 @@ ugen_get_sdesc(struct usb2_fifo *f, struct usb2_gen_descriptor *ugd)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_gen_fill_devicenames
+ *	ugen_get_iface_driver
  *
- * This function dumps information about an USB device names to
- * userland.
+ * This function generates an USB interface description for userland.
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
 static int
-usb2_gen_fill_devicenames(struct usb2_fifo *f, struct usb2_device_names *dn)
+ugen_get_iface_driver(struct usb2_fifo *f, struct usb2_gen_descriptor *ugd)
 {
+	struct usb2_device *udev = f->udev;
 	struct usb2_interface *iface;
 	const char *ptr;
-	char *dst;
-	char buf[32];
-	int error = 0;
-	int len;
-	int max_len;
-	uint8_t i;
-	uint8_t first = 1;
+	const char *desc;
+	unsigned int len;
+	unsigned int maxlen;
+	char buf[128];
+	int error;
 
-	max_len = dn->udn_devnames_len;
-	dst = dn->udn_devnames_ptr;
+	DPRINTFN(6, "\n");
 
-	if (max_len == 0) {
+	if ((ugd->ugd_data == NULL) || (ugd->ugd_maxlen == 0)) {
+		/* userland pointer should not be zero */
 		return (EINVAL);
 	}
-	/* put a zero there */
-	error = copyout("", dst, 1);
-	if (error) {
-		return (error);
+
+	iface = usb2_get_iface(udev, ugd->ugd_iface_index);
+	if ((iface == NULL) || (iface->idesc == NULL)) {
+		/* invalid interface index */
+		return (EINVAL);
 	}
-	for (i = 0;; i++) {
-		iface = usb2_get_iface(f->udev, i);
-		if (iface == NULL) {
-			break;
-		}
-		if ((iface->subdev != NULL) &&
-		    device_is_attached(iface->subdev)) {
-			ptr = device_get_nameunit(iface->subdev);
-			if (!first) {
-				strlcpy(buf, ", ", sizeof(buf));
-			} else {
-				buf[0] = 0;
-			}
-			strlcat(buf, ptr, sizeof(buf));
-			len = strlen(buf) + 1;
-			if (len > max_len) {
-				break;
-			}
-			error = copyout(buf, dst, len);
-			if (error) {
-				return (error);
-			}
-			len--;
-			dst += len;
-			max_len -= len;
-			first = 0;
-		}
+
+	/* read out device nameunit string, if any */
+	if ((iface->subdev != NULL) &&
+	    device_is_attached(iface->subdev) &&
+	    (ptr = device_get_nameunit(iface->subdev)) &&
+	    (desc = device_get_desc(iface->subdev))) {
+
+		/* print description */
+		snprintf(buf, sizeof(buf), "%s: <%s>", ptr, desc);
+
+		/* range checks */
+		maxlen = ugd->ugd_maxlen - 1;
+		len = strlen(buf);
+		if (len > maxlen)
+			len = maxlen;
+
+		/* update actual length, including terminating zero */
+		ugd->ugd_actlen = len + 1;
+
+		/* copy out interface description */
+		error = copyout(buf, ugd->ugd_data, ugd->ugd_actlen);
+	} else {
+		/* zero length string is default */
+		error = copyout("", ugd->ugd_data, 1);
 	}
-	return (0);
+	return (error);
 }
 
 /*------------------------------------------------------------------------*
@@ -2046,6 +2043,10 @@ ugen_ioctl_post(struct usb2_fifo *f, u_long cmd, void *addr, int fflags,
 		error = ugen_get_sdesc(f, addr);
 		break;
 
+	case USB_GET_IFACE_DRIVER:
+		error = ugen_get_iface_driver(f, addr);
+		break;
+
 	case USB_REQUEST:
 	case USB_DO_REQUEST:
 		if (!(fflags & FWRITE)) {
@@ -2058,10 +2059,6 @@ ugen_ioctl_post(struct usb2_fifo *f, u_long cmd, void *addr, int fflags,
 	case USB_DEVICEINFO:
 	case USB_GET_DEVICEINFO:
 		error = usb2_gen_fill_deviceinfo(f, addr);
-		break;
-
-	case USB_GET_DEVICENAMES:
-		error = usb2_gen_fill_devicenames(f, addr);
 		break;
 
 	case USB_DEVICESTATS:

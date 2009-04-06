@@ -170,7 +170,9 @@ void	teken_init(teken_t *, const teken_funcs_t *, void *);
 /* Deliver character input. */
 void	teken_input(teken_t *, const void *, size_t);
 
-/* Set teken attributes. */
+/* Get/set teken attributes. */
+const teken_attr_t *teken_get_curattr(teken_t *);
+const teken_attr_t *teken_get_defattr(teken_t *);
 void	teken_set_cursor(teken_t *, const teken_pos_t *);
 void	teken_set_defattr(teken_t *, const teken_attr_t *);
 void	teken_set_winsize(teken_t *, const teken_pos_t *);

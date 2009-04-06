@@ -267,7 +267,8 @@ cpu_mp_start()
 			if (!ap_awake)
 				printf("SMP: WARNING: cpu%d did not wake up\n",
 				    pc->pc_cpuid);
-		}
+		} else
+			pc->pc_awake = 1;
 	}
 }
 

@@ -72,17 +72,18 @@
    case of OTP request, it includes the challenge from the
    authentication server.</para>
 
-    <para>The reply to these requests can be given with 'identity',
-    'password', and 'otp' commands. &lt;id&gt; needs to be copied from the
-    the matching request. 'password' and 'otp' commands can be used
-    regardless of whether the request was for PASSWORD or OTP. The
-    main difference between these two commands is that values given
-    with 'password' are remembered as long as wpa_supplicant is
-    running whereas values given with 'otp' are used only once and
-    then forgotten, i.e., wpa_supplicant will ask frontend for a new
-    value for every use. This can be used to implement
-    one-time-password lists and generic token card -based
-    authentication.</para>
+    <para>The reply to these requests can be given with
+    <emphasis>identity</emphasis>, <emphasis>password</emphasis>, and
+    <emphasis>otp</emphasis> commands. &lt;id&gt; needs to be copied from
+    the matching request. <emphasis>password</emphasis> and
+    <emphasis>otp</emphasis> commands can be used regardless of whether
+    the request was for PASSWORD or OTP. The main difference between these
+    two commands is that values given with <emphasis>password</emphasis> are
+    remembered as long as wpa_supplicant is running whereas values given
+    with <emphasis>otp</emphasis> are used only once and then forgotten,
+    i.e., wpa_supplicant will ask frontend for a new value for every use.
+    This can be used to implement one-time-password lists and generic token
+    card -based authentication.</para>
 
     <para>Example request for password and a matching reply:</para>
 

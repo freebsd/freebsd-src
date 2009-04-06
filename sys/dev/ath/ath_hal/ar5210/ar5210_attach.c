@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2004 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210_attach.c,v 1.9 2008/11/11 02:40:13 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -31,12 +31,11 @@
 static	HAL_BOOL ar5210GetChannelEdges(struct ath_hal *,
 		uint16_t flags, uint16_t *low, uint16_t *high);
 static	HAL_BOOL ar5210GetChipPowerLimits(struct ath_hal *ah,
-		HAL_CHANNEL *chans, uint32_t nchans);
+		struct ieee80211_channel *chan);
 
 static const struct ath_hal_private ar5210hal = {{
 	.ah_magic			= AR5210_MAGIC,
 	.ah_abi				= HAL_ABI_VERSION,
-	.ah_countryCode			= CTRY_DEFAULT,
 
 	.ah_getRateTable		= ar5210GetRateTable,
 	.ah_detach			= ar5210Detach,
@@ -303,7 +302,7 @@ static HAL_BOOL
 ar5210GetChannelEdges(struct ath_hal *ah,
 	uint16_t flags, uint16_t *low, uint16_t *high)
 {
-	if (flags & CHANNEL_5GHZ) {
+	if (flags & IEEE80211_CHAN_5GHZ) {
 		*low = 5120;
 		*high = 5430;
 		return AH_TRUE;
@@ -313,20 +312,14 @@ ar5210GetChannelEdges(struct ath_hal *ah,
 }
 
 static HAL_BOOL
-ar5210GetChipPowerLimits(struct ath_hal *ah, HAL_CHANNEL *chans, uint32_t nchans)
+ar5210GetChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
-	HAL_CHANNEL *chan;
-	int i;
-
 	/* XXX fill in, this is just a placeholder */
-	for (i = 0; i < nchans; i++) {
-		chan = &chans[i];
-		HALDEBUG(ah, HAL_DEBUG_ATTACH,
-		    "%s: no min/max power for %u/0x%x\n",
-		    __func__, chan->channel, chan->channelFlags);
-		chan->maxTxPower = AR5210_MAX_RATE_POWER;
-		chan->minTxPower = 0;
-	}
+	HALDEBUG(ah, HAL_DEBUG_ATTACH,
+	    "%s: no min/max power for %u/0x%x\n",
+	    __func__, chan->ic_freq, chan->ic_flags);
+	chan->ic_maxpower = AR5210_MAX_RATE_POWER;
+	chan->ic_minpower = 0;
 	return AH_TRUE;
 }
 

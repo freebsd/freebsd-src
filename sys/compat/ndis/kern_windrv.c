@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #endif
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
+#include <legacy/dev/usb/usb.h>
+#include <legacy/dev/usb/usbdi.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>

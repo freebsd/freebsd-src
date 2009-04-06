@@ -157,6 +157,8 @@ vm_map_entry_system_wired_count(vm_map_entry_t entry)
 {
 	return (entry->wired_count - vm_map_entry_user_wired_count(entry));
 }
+
+void vm_map_entry_free_freelist(vm_map_t map, vm_map_entry_t freelist);
 #endif	/* _KERNEL */
 
 /*
@@ -336,7 +338,7 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #ifdef _KERNEL
 boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t);
 vm_map_t vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
-int vm_map_delete (vm_map_t, vm_offset_t, vm_offset_t);
+int vm_map_delete(vm_map_t, vm_offset_t, vm_offset_t, vm_map_entry_t *);
 int vm_map_find(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t,
     int, vm_prot_t, vm_prot_t, int);
 int vm_map_fixed(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_size_t,

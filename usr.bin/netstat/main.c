@@ -558,7 +558,6 @@ main(int argc, char *argv[])
 					  nl[N_MIF6TABLE].n_value);
 #endif
 		}
-		ifmalist_dump();
 		exit(0);
 	}
 

@@ -84,6 +84,7 @@ struct pci_id {
 static struct pci_id pci_ids[] = {
 	{ 0x1020131f, "SIIG Cyber Parallel PCI (10x family)", 0x18 },
 	{ 0x2020131f, "SIIG Cyber Parallel PCI (20x family)", 0x10 },
+	{ 0x05111407, "Lava SP BIDIR Parallel PCI", 0x10 },
 	{ 0x80001407, "Lava Computers 2SP-PCI parallel port", 0x10 },
 	{ 0x84031415, "Oxford Semiconductor OX12PCI840 Parallel port", 0x10 },
 	{ 0x95131415, "Oxford Semiconductor OX16PCI954 Parallel port", 0x10 },

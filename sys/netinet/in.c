@@ -264,7 +264,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			if (iap->ia_ifp == ifp &&
 			    iap->ia_addr.sin_addr.s_addr == dst.s_addr) {
 				if (td == NULL || prison_check_ip4(
-				    td->td_ucred, &dst))
+				    td->td_ucred, &dst) == 0)
 					ia = iap;
 				break;
 			}
@@ -273,8 +273,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				iap = ifatoia(ifa);
 				if (iap->ia_addr.sin_family == AF_INET) {
 					if (td != NULL &&
-					    !prison_check_ip4(td->td_ucred,
-					    &iap->ia_addr.sin_addr))
+					    prison_check_ip4(td->td_ucred,
+					    &iap->ia_addr.sin_addr) != 0)
 						continue;
 					ia = iap;
 					break;
@@ -1199,8 +1199,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
 				continue;
 			/* Skip if jailed and not a valid IP of the prison. */
-			if (jailed(wr->td->td_ucred) &&
-			    !prison_if(wr->td->td_ucred, L3_ADDR(lle)))
+			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
 				continue;
 			/*
 			 * produce a msg made of:

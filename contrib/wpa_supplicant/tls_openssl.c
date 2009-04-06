@@ -871,6 +871,7 @@ struct tls_connection * tls_connection_init(void *ssl_ctx)
 {
 	SSL_CTX *ssl = ssl_ctx;
 	struct tls_connection *conn;
+	long options;
 
 	conn = os_zalloc(sizeof(*conn));
 	if (conn == NULL)
@@ -884,9 +885,12 @@ struct tls_connection * tls_connection_init(void *ssl_ctx)
 	}
 
 	SSL_set_app_data(conn->ssl, conn);
-	SSL_set_options(conn->ssl,
-			SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_SINGLE_DH_USE);
+	options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
+		SSL_OP_SINGLE_DH_USE;
+#ifdef SSL_OP_NO_COMPRESSION
+	options |= SSL_OP_NO_COMPRESSION;
+#endif /* SSL_OP_NO_COMPRESSION */
+	SSL_set_options(conn->ssl, options);
 
 	conn->ssl_in = BIO_new(BIO_s_mem());
 	if (!conn->ssl_in) {

@@ -1478,7 +1478,6 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	if (mnew == NULL) {
 		DPRINTFN(WPI_DEBUG_RX, ("%s: no mbuf to restock ring\n",
 		    __func__));
-		ic->ic_stats.is_rx_nobuf++;
 		ifp->if_ierrors++;
 		return;
 	}
@@ -1489,7 +1488,6 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		device_printf(sc->sc_dev,
 		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
 		m_freem(mnew);
-		ic->ic_stats.is_rx_nobuf++;	/* XXX need stat */
 		ifp->if_ierrors++;
 		return;
 	}

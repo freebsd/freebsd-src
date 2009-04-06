@@ -271,7 +271,7 @@ uhci_reset(uhci_softc_t *sc)
 	/* wait */
 
 	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_BUS_RESET_DELAY);
+	    USB_MS_TO_TICKS(USB_BUS_RESET_DELAY));
 
 	/* terminate all transfers */
 
@@ -283,7 +283,7 @@ uhci_reset(uhci_softc_t *sc)
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 		if (!(UREAD2(sc, UHCI_CMD) & UHCI_CMD_HCRESET)) {
 			goto done_1;
@@ -299,7 +299,7 @@ done_1:
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 		/* check if HC is stopped */
 		if (UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) {
@@ -345,7 +345,7 @@ uhci_start(uhci_softc_t *sc)
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 		/* check that controller has started */
 
@@ -405,8 +405,6 @@ uhci_init(uhci_softc_t *sc)
 	uint16_t bit;
 	uint16_t x;
 	uint16_t y;
-
-	USB_BUS_LOCK(&sc->sc_bus);
 
 	DPRINTF("start\n");
 
@@ -597,12 +595,12 @@ uhci_init(uhci_softc_t *sc)
 	/* set up the bus struct */
 	sc->sc_bus.methods = &uhci_bus_methods;
 
+	USB_BUS_LOCK(&sc->sc_bus);
 	/* reset the controller */
 	uhci_reset(sc);
 
 	/* start the controller */
 	uhci_start(sc);
-
 	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	/* catch lost interrupts */
@@ -638,7 +636,8 @@ uhci_suspend(uhci_softc_t *sc)
 
 	UHCICMD(sc, UHCI_CMD_EGSM);
 
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_WAIT);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 
+	    USB_MS_TO_TICKS(USB_RESUME_WAIT));
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
@@ -657,7 +656,7 @@ uhci_resume(uhci_softc_t *sc)
 	UHCICMD(sc, UHCI_CMD_FGR);
 
 	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_RESUME_DELAY);
+	    USB_MS_TO_TICKS(USB_RESUME_DELAY));
 
 	/* and start traffic again */
 
@@ -2396,6 +2395,24 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 	else
 		return (USB_ERR_IOERROR);
 
+	/*
+	 * Before we do anything, turn on SOF messages on the USB
+	 * BUS. Some USB devices do not cope without them!
+	 */
+  	if (!(UREAD2(sc, UHCI_CMD) & UHCI_CMD_RS)) {
+
+		DPRINTF("Activating SOFs!\n");
+
+		UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
+
+		/* wait a little bit */
+		if (use_polling) {
+			DELAY(10000);
+		} else {
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+		}
+	}
+
 	x = URWMASK(UREAD2(sc, port));
 	UWRITE2(sc, port, x | UHCI_PORTSC_PR);
 
@@ -2404,7 +2421,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 		DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
 	} else {
 		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-		    USB_PORT_ROOT_RESET_DELAY);
+		    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
 	}
 
 	DPRINTFN(4, "uhci port %d reset, status0 = 0x%04x\n",
@@ -2413,12 +2430,16 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 	x = URWMASK(UREAD2(sc, port));
 	UWRITE2(sc, port, x & ~UHCI_PORTSC_PR);
 
-	if (use_polling) {
-		/* polling */
-		DELAY(1000);
-	} else {
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
-	}
+
+	mtx_unlock(&sc->sc_bus.bus_mtx);
+
+	/* 
+	 * This delay needs to be exactly 100us, else some USB devices
+	 * fail to attach!
+	 */
+	DELAY(100);
+
+	mtx_lock(&sc->sc_bus.bus_mtx);
 
 	DPRINTFN(4, "uhci port %d reset, status1 = 0x%04x\n",
 	    index, UREAD2(sc, port));
@@ -2433,7 +2454,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 			DELAY(USB_PORT_RESET_DELAY * 1000);
 		} else {
 			usb2_pause_mtx(&sc->sc_bus.bus_mtx,
-			    USB_PORT_RESET_DELAY);
+			    USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
 		}
 
 		x = UREAD2(sc, port);
@@ -2760,9 +2781,9 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			/* wait 20ms for resume sequence to complete */
 			if (use_polling) {
 				/* polling */
-				DELAY(20 * 1000);
+				DELAY(20000);
 			} else {
-				usb2_pause_mtx(&sc->sc_bus.bus_mtx, 20);
+				usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 50);
 			}
 
 			/* clear suspend and resume detect */
@@ -2770,7 +2791,7 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 			    UHCI_PORTSC_SUSP));
 
 			/* wait a little bit */
-			usb2_pause_mtx(&sc->sc_bus.bus_mtx, 2);
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 500);
 
 			sc->sc_isresumed |= (1 << index);
 
@@ -3320,7 +3341,13 @@ uhci_set_hw_power(struct usb2_bus *bus)
 
 	flags = bus->hw_power_state;
 
+	/*
+	 * WARNING: Some FULL speed USB devices require periodic SOF
+	 * messages! If any USB devices are connected through the
+	 * UHCI, power save will be disabled!
+	 */
 	if (flags & (USB_HW_POWER_CONTROL |
+	    USB_HW_POWER_NON_ROOT_HUB |
 	    USB_HW_POWER_BULK |
 	    USB_HW_POWER_INTERRUPT |
 	    USB_HW_POWER_ISOC)) {

@@ -2824,7 +2824,7 @@ int
 freebsd32_aio_waitcomplete(struct thread *td,
     struct freebsd32_aio_waitcomplete_args *uap)
 {
-	struct timespec ts32;
+	struct timespec32 ts32;
 	struct timespec ts, *tsp;
 	int error;
 

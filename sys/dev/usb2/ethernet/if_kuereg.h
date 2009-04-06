@@ -67,7 +67,8 @@ struct kue_ether_desc {
 #define	KUE_ETHERSTATS(x)	UGETDW((x)->sc_desc.kue_etherstats)
 #define	KUE_MAXSEG(x)		UGETW((x)->sc_desc.kue_maxseg)
 #define	KUE_MCFILTCNT(x)	(UGETW((x)->sc_desc.kue_mcastfilt) & 0x7FFF)
-#define	KUE_MCFILT_MAX		(USB_ETHER_HASH_MAX / ETHER_ADDR_LEN)
+#define KUE_MCFILT(x, y)	\
+	(char *)&(sc->sc_mcfilters[y * ETHER_ADDR_LEN])
 
 #define	KUE_STAT_TX_OK			0x00000001
 #define	KUE_STAT_RX_OK			0x00000002
@@ -119,30 +120,22 @@ struct kue_ether_desc {
 enum {
 	KUE_BULK_DT_WR,
 	KUE_BULK_DT_RD,
-	KUE_BULK_CS_WR,
-	KUE_BULK_CS_RD,
-	KUE_N_TRANSFER = 4,
+	KUE_N_TRANSFER,
 };
 
 struct kue_softc {
-	struct ifnet *sc_ifp;
+	struct usb2_ether	sc_ue;
+	struct mtx		sc_mtx;
+	struct kue_ether_desc	sc_desc;
+	struct usb2_xfer	*sc_xfer[KUE_N_TRANSFER];
+	uint8_t			*sc_mcfilters;
 
-	struct usb2_config_td sc_config_td;
-	struct usb2_callout sc_watchdog;
-	struct mtx sc_mtx;
-	struct kue_ether_desc sc_desc;
+	int			sc_flags;
+#define	KUE_FLAG_LINK		0x0001
 
-	device_t sc_dev;
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[KUE_N_TRANSFER];
-
-	uint32_t sc_unit;
-
-	uint16_t sc_mcfilt_max;
-	uint16_t sc_flags;
-#define	KUE_FLAG_READ_STALL	0x0010	/* wait for clearing of stall */
-#define	KUE_FLAG_WRITE_STALL	0x0020	/* wait for clearing of stall */
-#define	KUE_FLAG_LL_READY	0x0040	/* Lower Layer Ready */
-#define	KUE_FLAG_HL_READY	0x0080	/* Higher Layer Ready */
-#define	KUE_FLAG_INTR_STALL	0x0100	/* wait for clearing of stall */
+	uint16_t		sc_rxfilt;
 };
+
+#define	KUE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	KUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	KUE_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->sc_mtx, t)

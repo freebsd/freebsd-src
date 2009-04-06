@@ -130,11 +130,13 @@ struct faultstate {
 	vm_map_entry_t entry;
 	int lookup_still_valid;
 	struct vnode *vp;
+	int vfslocked;
 };
 
 static inline void
 release_page(struct faultstate *fs)
 {
+
 	vm_page_wakeup(fs->m);
 	vm_page_lock_queues();
 	vm_page_deactivate(fs->m);
@@ -145,6 +147,7 @@ release_page(struct faultstate *fs)
 static inline void
 unlock_map(struct faultstate *fs)
 {
+
 	if (fs->lookup_still_valid) {
 		vm_map_lookup_done(fs->map, fs->entry);
 		fs->lookup_still_valid = FALSE;
@@ -169,13 +172,11 @@ unlock_and_deallocate(struct faultstate *fs)
 	vm_object_deallocate(fs->first_object);
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
-		int vfslocked;
-
-		vfslocked = VFS_LOCK_GIANT(fs->vp->v_mount);
 		vput(fs->vp);
 		fs->vp = NULL;
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
+	VFS_UNLOCK_GIANT(fs->vfslocked);
+	fs->vfslocked = 0;
 }
 
 /*
@@ -211,17 +212,22 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	vm_prot_t prot;
 	int is_first_object_locked, result;
-	boolean_t growstack, wired;
+	boolean_t are_queues_locked, growstack, wired;
 	int map_generation;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ];
 	int hardfault;
-	int faultcount;
+	int faultcount, ahead, behind;
 	struct faultstate fs;
+	struct vnode *vp;
+	int locked, error;
 
 	hardfault = 0;
 	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
+	fs.vp = NULL;
+	fs.vfslocked = 0;
+	faultcount = behind = 0;
 
 RetryFault:;
 
@@ -287,21 +293,9 @@ RetryFault:;
 	 * Bump the paging-in-progress count to prevent size changes (e.g. 
 	 * truncation operations) during I/O.  This must be done after
 	 * obtaining the vnode lock in order to avoid possible deadlocks.
-	 *
-	 * XXX vnode_pager_lock() can block without releasing the map lock.
 	 */
-	if (fs.first_object->flags & OBJ_NEEDGIANT)
-		mtx_lock(&Giant);
 	VM_OBJECT_LOCK(fs.first_object);
 	vm_object_reference_locked(fs.first_object);
-	fs.vp = vnode_pager_lock(fs.first_object);
-	KASSERT(fs.vp == NULL || !fs.map->system_map,
-	    ("vm_fault: vnode-backed object mapped by system map"));
-	KASSERT((fs.first_object->flags & OBJ_NEEDGIANT) == 0 ||
-	    !fs.map->system_map,
-	    ("vm_fault: Object requiring giant mapped by system map"));
-	if (fs.first_object->flags & OBJ_NEEDGIANT)
-		mtx_unlock(&Giant);
 	vm_object_pip_add(fs.first_object, 1);
 
 	fs.lookup_still_valid = TRUE;
@@ -378,14 +372,6 @@ RetryFault:;
 					fs.first_m = NULL;
 				}
 				unlock_map(&fs);
-				if (fs.vp != NULL) {
-					int vfslck;
-
-					vfslck = VFS_LOCK_GIANT(fs.vp->v_mount);
-					vput(fs.vp);
-					fs.vp = NULL;
-					VFS_UNLOCK_GIANT(vfslck);
-				}
 				VM_OBJECT_LOCK(fs.object);
 				if (fs.m == vm_page_lookup(fs.object,
 				    fs.pindex)) {
@@ -439,7 +425,9 @@ RetryFault:;
 				}
 #endif
 				fs.m = vm_page_alloc(fs.object, fs.pindex,
-				    (fs.vp || fs.object->backing_object)? VM_ALLOC_NORMAL: VM_ALLOC_ZERO);
+				    (fs.object->type == OBJT_VNODE ||
+				     fs.object->backing_object != NULL) ?
+				    VM_ALLOC_NORMAL : VM_ALLOC_ZERO);
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
@@ -462,7 +450,6 @@ readrest:
 		if (TRYPAGER) {
 			int rv;
 			int reqpage = 0;
-			int ahead, behind;
 			u_char behavior = vm_map_entry_behavior(fs.entry);
 
 			if (behavior == MAP_ENTRY_BEHAV_RANDOM) {
@@ -493,7 +480,7 @@ readrest:
 				else
 					firstpindex = fs.first_pindex - 2 * VM_FAULT_READ;
 
-				vm_page_lock_queues();
+				are_queues_locked = FALSE;
 				/*
 				 * note: partially valid pages cannot be 
 				 * included in the lookahead - NFS piecemeal
@@ -508,8 +495,13 @@ readrest:
 					if (mt == NULL || (mt->valid != VM_PAGE_BITS_ALL))
 						break;
 					if (mt->busy ||
-					    (mt->oflags & VPO_BUSY) ||
-						mt->hold_count ||
+					    (mt->oflags & VPO_BUSY))
+						continue;
+					if (!are_queues_locked) {
+						are_queues_locked = TRUE;
+						vm_page_lock_queues();
+					}
+					if (mt->hold_count ||
 						mt->wire_count) 
 						continue;
 					pmap_remove_all(mt);
@@ -519,12 +511,69 @@ readrest:
 						vm_page_cache(mt);
 					}
 				}
-				vm_page_unlock_queues();
+				if (are_queues_locked)
+					vm_page_unlock_queues();
 				ahead += behind;
 				behind = 0;
 			}
 			if (is_first_object_locked)
 				VM_OBJECT_UNLOCK(fs.first_object);
+
+			/*
+			 * Call the pager to retrieve the data, if any, after
+			 * releasing the lock on the map.  We hold a ref on
+			 * fs.object and the pages are VPO_BUSY'd.
+			 */
+			unlock_map(&fs);
+
+vnode_lock:
+			if (fs.object->type == OBJT_VNODE) {
+				vp = fs.object->handle;
+				if (vp == fs.vp)
+					goto vnode_locked;
+				else if (fs.vp != NULL) {
+					vput(fs.vp);
+					fs.vp = NULL;
+				}
+				locked = VOP_ISLOCKED(vp);
+
+				if (VFS_NEEDSGIANT(vp->v_mount) && !fs.vfslocked) {
+					fs.vfslocked = 1;
+					if (!mtx_trylock(&Giant)) {
+						VM_OBJECT_UNLOCK(fs.object);
+						mtx_lock(&Giant);
+						VM_OBJECT_LOCK(fs.object);
+						goto vnode_lock;
+					}
+				}
+				if (locked != LK_EXCLUSIVE)
+					locked = LK_SHARED;
+				/* Do not sleep for vnode lock while fs.m is busy */
+				error = vget(vp, locked | LK_CANRECURSE |
+				    LK_NOWAIT, curthread);
+				if (error != 0) {
+					int vfslocked;
+
+					vfslocked = fs.vfslocked;
+					fs.vfslocked = 0; /* Keep Giant */
+					vhold(vp);
+					release_page(&fs);
+					unlock_and_deallocate(&fs);
+					error = vget(vp, locked | LK_RETRY |
+					    LK_CANRECURSE, curthread);
+					vdrop(vp);
+					fs.vp = vp;
+					fs.vfslocked = vfslocked;
+					KASSERT(error == 0,
+					    ("vm_fault: vget failed"));
+					goto RetryFault;
+				}
+				fs.vp = vp;
+			}
+vnode_locked:
+			KASSERT(fs.vp == NULL || !fs.map->system_map,
+			    ("vm_fault: vnode-backed object mapped by system map"));
+
 			/*
 			 * now we find out if any other pages should be paged
 			 * in at this time this routine checks to see if the
@@ -538,28 +587,9 @@ readrest:
 			 * vm_page_t passed to the routine.
 			 *
 			 * fs.m plus the additional pages are VPO_BUSY'd.
-			 *
-			 * XXX vm_fault_additional_pages() can block
-			 * without releasing the map lock.
 			 */
 			faultcount = vm_fault_additional_pages(
 			    fs.m, behind, ahead, marray, &reqpage);
-
-			/*
-			 * update lastr imperfectly (we do not know how much
-			 * getpages will actually read), but good enough.
-			 *
-			 * XXX The following assignment modifies the map
-			 * without holding a write lock on it.
-			 */
-			fs.entry->lastr = fs.pindex + faultcount - behind;
-
-			/*
-			 * Call the pager to retrieve the data, if any, after
-			 * releasing the lock on the map.  We hold a ref on
-			 * fs.object and the pages are VPO_BUSY'd.
-			 */
-			unlock_map(&fs);
 
 			rv = faultcount ?
 			    vm_pager_get_pages(fs.object, marray, faultcount,
@@ -837,6 +867,15 @@ readrest:
 			prot &= retry_prot;
 		}
 	}
+	/*
+	 * update lastr imperfectly (we do not know how much
+	 * getpages will actually read), but good enough.
+	 *
+	 * XXX The following assignment modifies the map
+	 * without holding a write lock on it.
+	 */
+	fs.entry->lastr = fs.pindex + faultcount - behind;
+
 	if (prot & VM_PROT_WRITE) {
 		vm_object_set_writeable_dirty(fs.object);
 

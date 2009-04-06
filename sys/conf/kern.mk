@@ -78,9 +78,10 @@ INLINE_LIMIT?=	8000
 #
 # For PowerPC we tell gcc to use floating point emulation.  This avoids using
 # floating point registers for integer operations which it has a tendency to do.
+# Also explicitly disable Altivec instructions inside the kernel.
 #
 .if ${MACHINE_ARCH} == "powerpc"
-CFLAGS+=	-msoft-float
+CFLAGS+=	-msoft-float -mno-altivec
 INLINE_LIMIT?=	15000
 .endif
 

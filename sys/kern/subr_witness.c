@@ -235,8 +235,8 @@ struct witness {
 	uint16_t 		w_num_descendants; /* direct/indirect
 						    * descendant count */
 	int16_t 		w_ddb_level;
-	int 			w_displayed:1;
-	int 			w_reversed:1;
+	unsigned		w_displayed:1;
+	unsigned		w_reversed:1;
 };
 
 STAILQ_HEAD(witness_list, witness);
@@ -376,7 +376,7 @@ static void	witness_setflag(struct lock_object *lock, int flag, int set);
 #define	witness_debugger(c)
 #endif
 
-SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, 0, "Witness Locking");
+SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL, "Witness Locking");
 
 /*
  * If set to 0, lock order checking is disabled.  If set to -1,

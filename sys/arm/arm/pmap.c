@@ -3102,7 +3102,7 @@ void
 pmap_remove_all(vm_page_t m)
 {
 	pv_entry_t pv;
-	pt_entry_t *ptep, pte;
+	pt_entry_t *ptep;
 	struct l2_bucket *l2b;
 	boolean_t flush = FALSE;
 	pmap_t curpm;
@@ -3130,7 +3130,6 @@ pmap_remove_all(vm_page_t m)
 		l2b = pmap_get_l2_bucket(pv->pv_pmap, pv->pv_va);
 		KASSERT(l2b != NULL, ("No l2 bucket"));
 		ptep = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
-		pte = *ptep;
 		*ptep = 0;
 		PTE_SYNC_CURRENT(pv->pv_pmap, ptep);
 		pmap_free_l2_bucket(pv->pv_pmap, l2b, 1);

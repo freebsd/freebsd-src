@@ -44,8 +44,8 @@ struct resource *ppc_alloc_resource(device_t bus, device_t child, int type,
     int *rid, u_long start, u_long end, u_long count, u_int flags);
 int ppc_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r);
-void ppc_reset_epp(device_t);
-void ppc_ecp_sync(device_t);
+int ppc_reset_epp(device_t);
+int ppc_ecp_sync(device_t);
 int ppc_setmode(device_t, int);
 
 extern devclass_t ppc_devclass;

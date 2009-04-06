@@ -33,7 +33,7 @@
  * - The device ID's are stored in "core/usb2_msctest.c"
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -88,21 +88,18 @@ struct u3g_speeds_s {
 enum {
 	U3G_BULK_WR,
 	U3G_BULK_RD,
-	U3G_N_TRANSFER = 2,
+	U3G_N_TRANSFER,
 };
 
 struct u3g_softc {
 	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct usb2_com_softc sc_ucom[U3G_MAXPORTS];
 
-	struct usb2_xfer *sc_xfer[U3G_N_TRANSFER];
+	struct usb2_xfer *sc_xfer[U3G_MAXPORTS][U3G_N_TRANSFER];
 	struct usb2_device *sc_udev;
 
-	uint8_t	sc_iface_no;		/* interface number */
-	uint8_t	sc_iface_index;		/* interface index */
 	uint8_t	sc_lsr;			/* local status register */
 	uint8_t	sc_msr;			/* U3G status register */
-	struct u3g_speeds_s sc_speed;
 	uint8_t	sc_numports;
 };
 
@@ -148,6 +145,7 @@ static const struct usb2_com_callback u3g_callback = {
 	.usb2_com_stop_write = &u3g_stop_write,
 };
 
+#if 0
 static const struct u3g_speeds_s u3g_speeds[U3GSP_MAX] = {
 	[U3GSP_GPRS] = {64000, 64000},
 	[U3GSP_EDGE] = {384000, 64000},
@@ -157,6 +155,7 @@ static const struct u3g_speeds_s u3g_speeds[U3GSP_MAX] = {
 	[U3GSP_HSUPA] = {1200000, 384000},
 	[U3GSP_HSPA] = {7200000, 384000},
 };
+#endif
 
 static device_method_t u3g_methods[] = {
 	DEVMETHOD(device_probe, u3g_probe),
@@ -382,38 +381,90 @@ u3g_probe(device_t self)
 static int
 u3g_attach(device_t dev)
 {
+	struct usb2_config u3g_config_tmp[U3G_N_TRANSFER];
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct u3g_softc *sc = device_get_softc(dev);
+	struct usb2_interface *iface;
+	struct usb2_interface_descriptor *id;
+	uint8_t m;
+	uint8_t n;
+	uint8_t i;
+	uint8_t x;
 	int error;
 
 	DPRINTF("sc=%p\n", sc);
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
+	/* copy in USB config */
+	for (n = 0; n != U3G_N_TRANSFER; n++) 
+		u3g_config_tmp[n] = u3g_config[n];
+
 	device_set_usb2_desc(dev);
 
 	sc->sc_udev = uaa->device;
-	sc->sc_iface_no = uaa->info.bIfaceNum;
-	sc->sc_iface_index = uaa->info.bIfaceIndex;
-	sc->sc_speed = u3g_speeds[U3G_GET_SPEED(uaa)];
 
-	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
-	    sc->sc_xfer, u3g_config, U3G_N_TRANSFER, sc, &Giant);
+	x = 0;		/* interface index */
+	i = 0;		/* endpoint index */
+	m = 0;		/* number of ports */
 
-	if (error) {
-		DPRINTF("could not allocate all pipes\n");
-		goto detach;
+	while (m != U3G_MAXPORTS) {
+
+		/* update BULK endpoint index */
+		for (n = 0; n != U3G_N_TRANSFER; n++) 
+			u3g_config_tmp[n].ep_index = i;
+
+		iface = usb2_get_iface(uaa->device, x);
+		if (iface == NULL) {
+			if (m != 0)
+				break;	/* end of interfaces */
+			DPRINTF("did not find any modem endpoints\n");
+			goto detach;
+		}
+
+		id = usb2_get_interface_descriptor(iface);
+		if ((id == NULL) || 
+		    (id->bInterfaceClass != UICLASS_VENDOR)) {
+			/* next interface */
+			x++;
+			i = 0;
+			continue;
+		}
+
+		/* try to allocate a set of BULK endpoints */
+		error = usb2_transfer_setup(uaa->device, &x,
+		    sc->sc_xfer[m], u3g_config_tmp, U3G_N_TRANSFER, 
+		    &sc->sc_ucom[m], &Giant);
+		if (error) {
+			/* next interface */
+			x++;
+			i = 0;
+			continue;
+		}
+
+		/* grab other interface, if any */
+                if (x != uaa->info.bIfaceIndex)
+                        usb2_set_parent_iface(uaa->device, x,
+                            uaa->info.bIfaceIndex);
+
+		/* set stall by default */
+		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_WR]);
+		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_RD]);
+
+		m++;	/* found one port */
+		i++;	/* next endpoint index */
 	}
-	/* set stall by default */
-	usb2_transfer_set_stall(sc->sc_xfer[U3G_BULK_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[U3G_BULK_RD]);
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &u3g_callback, &Giant);
+	sc->sc_numports = m;
+
+	error = usb2_com_attach(&sc->sc_super_ucom, sc->sc_ucom, 
+	    sc->sc_numports, sc, &u3g_callback, &Giant);
 	if (error) {
 		DPRINTF("usb2_com_attach failed\n");
 		goto detach;
+	}
+	if (sc->sc_numports != 1) {
+		/* be verbose */
+		device_printf(dev, "Found %u ports.\n",
+		    (unsigned int)sc->sc_numports);
 	}
 	return (0);
 
@@ -426,12 +477,15 @@ static int
 u3g_detach(device_t dev)
 {
 	struct u3g_softc *sc = device_get_softc(dev);
+	uint8_t m;
 
 	DPRINTF("sc=%p\n", sc);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	/* NOTE: It is not dangerous to detach more ports than attached! */
+	usb2_com_detach(&sc->sc_super_ucom, sc->sc_ucom, U3G_MAXPORTS);
 
-	usb2_transfer_unsetup(sc->sc_xfer, U3G_N_TRANSFER);
+	for (m = 0; m != U3G_MAXPORTS; m++)
+		usb2_transfer_unsetup(sc->sc_xfer[m], U3G_N_TRANSFER);
 
 	return (0);
 }
@@ -442,7 +496,7 @@ u3g_start_read(struct usb2_com_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[U3G_BULK_RD]);
+	usb2_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
 	return;
 }
 
@@ -452,7 +506,7 @@ u3g_stop_read(struct usb2_com_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[U3G_BULK_RD]);
+	usb2_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
 	return;
 }
 
@@ -461,7 +515,7 @@ u3g_start_write(struct usb2_com_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[U3G_BULK_WR]);
+	usb2_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
 	return;
 }
 
@@ -470,21 +524,21 @@ u3g_stop_write(struct usb2_com_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[U3G_BULK_WR]);
+	usb2_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
 	return;
 }
 
 static void
 u3g_write_callback(struct usb2_xfer *xfer)
 {
-	struct u3g_softc *sc = xfer->priv_sc;
+	struct usb2_com_softc *ucom = xfer->priv_sc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 tr_setup:
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		if (usb2_com_get_data(ucom, xfer->frbuffers, 0,
 		    U3G_BSIZE, &actlen)) {
 			xfer->frlengths[0] = actlen;
 			usb2_start_hardware(xfer);
@@ -505,11 +559,11 @@ tr_setup:
 static void
 u3g_read_callback(struct usb2_xfer *xfer)
 {
-	struct u3g_softc *sc = xfer->priv_sc;
+	struct usb2_com_softc *ucom = xfer->priv_sc;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
+		usb2_com_put_data(ucom, xfer->frbuffers, 0, xfer->actlen);
 
 	case USB_ST_SETUP:
 tr_setup:

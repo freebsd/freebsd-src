@@ -167,9 +167,8 @@ static	long	timezero(const char *funcname,
 
 int	hw_float;		/* XXX currently just alias for npx_exists */
 
-SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
-	CTLFLAG_RD, &hw_float, 0, 
-	"Floatingpoint instructions executed in hardware");
+SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
+    &hw_float, 0, "Floating point instructions executed in hardware");
 
 static	volatile u_int		npx_intrs_while_probing;
 static	volatile u_int		npx_traps_while_probing;
@@ -812,8 +811,8 @@ npxdna()
 		pcb->pcb_flags |= PCB_NPXINITDONE;
 	} else {
 		/*
-		 * The following frstor may cause an IRQ13 when the state
-		 * being restored has a pending error.  The error will
+		 * The following fpurstor() may cause an IRQ13 when the
+		 * state being restored has a pending error.  The error will
 		 * appear to have been triggered by the current (npx) user
 		 * instruction even when that instruction is a no-wait
 		 * instruction that should not trigger an error (e.g.,

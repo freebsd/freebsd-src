@@ -53,11 +53,10 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_jmicron_chipinit(device_t dev);
-static int ata_jmicron_allocate(device_t dev);
+static int ata_jmicron_ch_attach(device_t dev);
+static int ata_jmicron_ch_detach(device_t dev);
 static void ata_jmicron_reset(device_t dev);
-static void ata_jmicron_dmainit(device_t dev);
 static void ata_jmicron_setmode(device_t dev, int mode);
-
 
 /*
  * JMicron chipset support functions
@@ -112,9 +111,9 @@ ata_jmicron_chipinit(device_t dev)
 	    return 0;
 
 	/* otherwise we are on the PATA part */
-	ctlr->allocate = ata_pci_allocate;
+	ctlr->ch_attach = ata_pci_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->reset = ata_generic_reset;
-	ctlr->dmainit = ata_pci_dmainit;
 	ctlr->setmode = ata_jmicron_setmode;
 	ctlr->channels = ctlr->chip->cfg2;
     }
@@ -126,9 +125,9 @@ ata_jmicron_chipinit(device_t dev)
 	if (ctlr->chip->cfg1 && (error = ata_ahci_chipinit(dev)))
 	    return error;
 
-	ctlr->allocate = ata_jmicron_allocate;
+	ctlr->ch_attach = ata_jmicron_ch_attach;
+	ctlr->ch_detach = ata_jmicron_ch_detach;
 	ctlr->reset = ata_jmicron_reset;
-	ctlr->dmainit = ata_jmicron_dmainit;
 	ctlr->setmode = ata_jmicron_setmode;
 
 	/* set the number of HW channels */ 
@@ -138,7 +137,7 @@ ata_jmicron_chipinit(device_t dev)
 }
 
 static int
-ata_jmicron_allocate(device_t dev)
+ata_jmicron_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
@@ -146,12 +145,30 @@ ata_jmicron_allocate(device_t dev)
 
     if (ch->unit >= ctlr->chip->cfg1) {
 	ch->unit -= ctlr->chip->cfg1;
-	error = ata_pci_allocate(dev);
+	error = ata_pci_ch_attach(dev);
 	ch->unit += ctlr->chip->cfg1;
     }
     else
-	error = ata_ahci_allocate(dev);
+	error = ata_ahci_ch_attach(dev);
     return error;
+}
+
+static int
+ata_jmicron_ch_detach(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int error;
+
+    if (ch->unit >= ctlr->chip->cfg1) {
+	ch->unit -= ctlr->chip->cfg1;
+	error = ata_pci_ch_detach(dev);
+	ch->unit += ctlr->chip->cfg1;
+    }
+    else
+	error = ata_ahci_ch_detach(dev);
+
+    return (error);
 }
 
 static void
@@ -164,18 +181,6 @@ ata_jmicron_reset(device_t dev)
 	ata_generic_reset(dev);
     else
 	ata_ahci_reset(dev);
-}
-
-static void
-ata_jmicron_dmainit(device_t dev)
-{
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
-    struct ata_channel *ch = device_get_softc(dev);
-
-    if (ch->unit >= ctlr->chip->cfg1)
-	ata_pci_dmainit(dev);
-    else
-	ata_ahci_dmainit(dev);
 }
 
 static void

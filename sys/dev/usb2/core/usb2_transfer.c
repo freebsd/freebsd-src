@@ -1066,7 +1066,8 @@ usb2_transfer_unsetup_sub(struct usb2_xfer_root *info, uint8_t needs_delay)
 
 	if (needs_delay) {
 		temp = usb2_get_dma_delay(info->bus);
-		usb2_pause_mtx(&info->bus->bus_mtx, temp);
+		usb2_pause_mtx(&info->bus->bus_mtx,
+		    USB_MS_TO_TICKS(temp));
 	}
 
 	/* make sure that our done messages are not queued anywhere */
@@ -1689,6 +1690,10 @@ usb2_transfer_pending(struct usb2_xfer *xfer)
 	struct usb2_xfer_root *info;
 	struct usb2_xfer_queue *pq;
 
+	if (xfer == NULL) {
+		/* transfer is gone */
+		return (0);
+	}
 	USB_XFER_LOCK_ASSERT(xfer, MA_OWNED);
 
 	if (xfer->flags_int.transferring) {

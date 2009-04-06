@@ -42,14 +42,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
 #include <err.h>
 #include <ctype.h>
 #include <errno.h>
 #include <usbhid.h>
-#include <dev/usb/usb.h>
-#include <dev/usb/usbhid.h>
+#include <dev/usb2/include/usb2_hid.h>
 
 int verbose = 0;
 int all = 0;
@@ -207,7 +205,6 @@ dumpdata(int f, report_desc_t rd, int loop)
 	struct hid_item h, *hids, *n;
 	int r, dlen;
 	u_char *dbuf;
-	static int one = 1;
 	u_int32_t colls[100];
 	int sp = 0;
 	char namebuf[10000], *namep;
@@ -231,7 +228,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 	dlen = hid_report_size(rd, hid_input, 0);
 	dbuf = malloc(dlen);
 	if (!loop)
-		if (ioctl(f, USB_SET_IMMED, &one) < 0) {
+		if (hid_set_immed(f, 1) < 0) {
 			if (errno == EOPNOTSUPP)
 				warnx("device does not support immediate mode, only changes reported.");
 			else

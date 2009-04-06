@@ -102,7 +102,6 @@ struct usb2_setup_params {
 
 /* function prototypes */
 
-uint8_t	usb2_transfer_pending(struct usb2_xfer *xfer);
 uint8_t	usb2_transfer_setup_sub_malloc(struct usb2_setup_params *parm,
 	    struct usb2_page_cache **ppc, uint32_t size, uint32_t align,
 	    uint32_t count);

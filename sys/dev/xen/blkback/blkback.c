@@ -1135,8 +1135,8 @@ open_device(blkif_t *blkif)
 	}
 	blkif->media_num_sectors = blkif->media_size >> blkif->sector_size_shift;
 
-	blkif->major = umajor(vattr.va_rdev);
-	blkif->minor = uminor(vattr.va_rdev);
+	blkif->major = major(vattr.va_rdev);
+	blkif->minor = minor(vattr.va_rdev);
 
 	DPRINTF("opened dev=%s major=%d minor=%d sector_size=%u media_size=%lld\n",
 			blkif->dev_name, blkif->major, blkif->minor, blkif->sector_size, blkif->media_size);

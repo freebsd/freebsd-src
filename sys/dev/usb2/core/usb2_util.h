@@ -31,7 +31,7 @@ int	device_delete_all_children(device_t dev);
 uint32_t usb2_get_devid(device_t dev);
 uint8_t	usb2_make_str_desc(void *ptr, uint16_t max_len, const char *s);
 void	device_set_usb2_desc(device_t dev);
-void	usb2_pause_mtx(struct mtx *mtx, uint32_t ms);
+void	usb2_pause_mtx(struct mtx *mtx, int _ticks);
 void	usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd);
 void	usb2_trim_spaces(char *p);
 

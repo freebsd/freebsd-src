@@ -156,7 +156,7 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
 /* Tunables. */
-static int msi_disable = 1;
+static int msi_disable = 0;
 TUNABLE_INT("hw.re.msi_disable", &msi_disable);
 
 #define RE_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
@@ -1149,7 +1149,8 @@ re_attach(device_t dev)
 		if (bootverbose)
 			device_printf(dev, "MSI count : %d\n", msic);
 	}
-	if (msic == RL_MSI_MESSAGES  && msi_disable == 0) {
+	if (msic > 0 && msi_disable == 0) {
+		msic = 1;
 		if (pci_alloc_msi(dev, &msic) == 0) {
 			if (msic == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI messages\n",
@@ -2064,6 +2065,13 @@ re_tick(void *xsc)
 	mii_tick(mii);
 	if ((sc->rl_flags & RL_FLAG_LINK) == 0)
 		re_miibus_statchg(sc->rl_dev);
+	/*
+	 * Reclaim transmitted frames here. Technically it is not
+	 * necessary to do here but it ensures periodic reclamation
+	 * regardless of Tx completion interrupt which seems to be
+	 * lost on PCIe based controllers under certain situations. 
+	 */
+	re_txeof(sc);
 	re_watchdog(sc);
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }

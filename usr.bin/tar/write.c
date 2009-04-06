@@ -972,7 +972,7 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 		siginfo_printinfo(bsdtar, progress);
 
 		bytes_written = archive_write_data(a, bsdtar->buff,
-		    FILEDATABUFLEN);
+		    bytes_read);
 		if (bytes_written < 0) {
 			/* Write failed; this is bad */
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));

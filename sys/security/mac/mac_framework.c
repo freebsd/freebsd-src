@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2006 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2006, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
@@ -63,6 +63,7 @@
  * src/sys/security/mac_*.
  */
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/cdefs.h>
@@ -75,12 +76,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/mac.h>
 #include <sys/module.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
+
+/*
+ * DTrace SDT provider for MAC.
+ */
+SDT_PROVIDER_DEFINE(mac);
+
+SDT_PROBE_DEFINE(mac, kernel, policy, modevent);
+SDT_PROBE_ARGTYPE(mac, kernel, policy, modevent, 0, "int");
+SDT_PROBE_ARGTYPE(mac, kernel, policy, modevent, 1,
+    "struct mac_policy_conf *mpc");
+
+SDT_PROBE_DEFINE(mac, kernel, policy, register);
+SDT_PROBE_ARGTYPE(mac, kernel, policy, register, 0,
+    "struct mac_policy_conf *");
+
+SDT_PROBE_DEFINE(mac, kernel, policy, unregister);
+SDT_PROBE_ARGTYPE(mac, kernel, policy, unregister, 0,
+    "struct mac_policy_conf *");
 
 /*
  * Root sysctl node for all MAC and MAC policy controls.
@@ -458,6 +478,7 @@ mac_policy_register(struct mac_policy_conf *mpc)
 		(*(mpc->mpc_ops->mpo_init))(mpc);
 	mac_policy_updateflags();
 
+	SDT_PROBE(mac, kernel, policy, register, mpc, 0, 0, 0, 0);
 	printf("Security policy loaded: %s (%s)\n", mpc->mpc_fullname,
 	    mpc->mpc_name);
 
@@ -505,6 +526,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 
 	mac_policy_release_exclusive();
 
+	SDT_PROBE(mac, kernel, policy, unregister, mpc, 0, 0, 0, 0);
 	printf("Security policy unload: %s (%s)\n", mpc->mpc_fullname,
 	    mpc->mpc_name);
 
@@ -530,6 +552,7 @@ mac_policy_modevent(module_t mod, int type, void *data)
 	}
 #endif
 
+	SDT_PROBE(mac, kernel, policy, modevent, type, mpc, 0, 0, 0);
 	switch (type) {
 	case MOD_LOAD:
 		if (mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_NOTLATE &&

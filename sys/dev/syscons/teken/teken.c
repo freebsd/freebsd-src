@@ -329,6 +329,20 @@ teken_set_cursor(teken_t *t, const teken_pos_t *p)
 	t->t_cursor = *p;
 }
 
+const teken_attr_t *
+teken_get_curattr(teken_t *t)
+{
+
+	return (&t->t_curattr);
+}
+
+const teken_attr_t *
+teken_get_defattr(teken_t *t)
+{
+
+	return (&t->t_defattr);
+}
+
 void
 teken_set_defattr(teken_t *t, const teken_attr_t *a)
 {

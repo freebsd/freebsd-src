@@ -127,6 +127,9 @@ Int_Open_Disk(const char *name, char *conftxt)
 				name, a, b, line);
 	}
 
+	/* Sanitize the parameters. */
+	Sanitize_Bios_Geom(d);
+
 	/*
 	 * Calculate the number of cylinders this disk must have. If we have
 	 * an obvious insanity, we set the number of cylinders to zero.

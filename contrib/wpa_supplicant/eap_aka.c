@@ -292,7 +292,7 @@ static u8 * eap_aka_response_challenge(struct eap_aka_data *data,
 	msg = eap_sim_msg_init(EAP_CODE_RESPONSE, req->identifier,
 			       EAP_TYPE_AKA, EAP_AKA_SUBTYPE_CHALLENGE);
 	wpa_printf(MSG_DEBUG, "   AT_RES");
-	eap_sim_msg_add(msg, EAP_SIM_AT_RES, data->res_len,
+	eap_sim_msg_add(msg, EAP_SIM_AT_RES, data->res_len * 8,
 			data->res, data->res_len);
 	wpa_printf(MSG_DEBUG, "   AT_MAC");
 	eap_sim_msg_add_mac(msg, EAP_SIM_AT_MAC);

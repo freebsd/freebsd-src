@@ -54,17 +54,17 @@ static ufs2_daddr_t badblk;
 static ufs2_daddr_t dupblk;
 static ino_t lastino;		/* last inode in use */
 
-static void checkinode(ino_t inumber, struct inodesc *);
+static int checkinode(ino_t inumber, struct inodesc *, int rebuildcg);
 
 void
 pass1(void)
 {
 	struct inostat *info;
 	struct inodesc idesc;
-	ino_t inumber, inosused;
+	ino_t inumber, inosused, mininos;
 	ufs2_daddr_t i, cgd;
 	u_int8_t *cp;
-	int c;
+	int c, rebuildcg;
 
 	/*
 	 * Set file system reserved blocks in used block map.
@@ -93,7 +93,10 @@ pass1(void)
 		inumber = c * sblock.fs_ipg;
 		setinodebuf(inumber);
 		getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
-		if (sblock.fs_magic == FS_UFS2_MAGIC) {
+		rebuildcg = 0;
+		if (!check_cgmagic(c, &cgrp))
+			rebuildcg = 1;
+		if (!rebuildcg && sblock.fs_magic == FS_UFS2_MAGIC) {
 			inosused = cgrp.cg_initediblk;
 			if (inosused > sblock.fs_ipg)
 				inosused = sblock.fs_ipg;
@@ -117,9 +120,7 @@ pass1(void)
 		 * to find the inodes that are really in use, and then
 		 * read only those inodes in from disk.
 		 */
-		if (preen && usedsoftdep) {
-			if (!cg_chkmagic(&cgrp))
-				pfatal("CG %d: BAD MAGIC NUMBER\n", c);
+		if ((preen || inoopt) && usedsoftdep && !rebuildcg) {
 			cp = &cg_inosused(&cgrp)[(inosused - 1) / CHAR_BIT];
 			for ( ; inosused > 0; inosused -= CHAR_BIT, cp--) {
 				if (*cp == 0)
@@ -152,24 +153,60 @@ pass1(void)
 		 */
 		for (i = 0; i < inosused; i++, inumber++) {
 			if (inumber < ROOTINO) {
-				(void)getnextinode(inumber);
+				(void)getnextinode(inumber, rebuildcg);
 				continue;
 			}
-			checkinode(inumber, &idesc);
+			/*
+			 * NULL return indicates probable end of allocated
+			 * inodes during cylinder group rebuild attempt.
+			 * We always keep trying until we get to the minimum
+			 * valid number for this cylinder group.
+			 */
+			if (checkinode(inumber, &idesc, rebuildcg) == 0 &&
+			    i > cgrp.cg_initediblk)
+				break;
 		}
-		lastino += 1;
-		if (inosused < sblock.fs_ipg || inumber == lastino)
+		/*
+		 * This optimization speeds up future runs of fsck
+		 * by trimming down the number of inodes in cylinder
+		 * groups that formerly had many inodes but now have
+		 * fewer in use.
+		 */
+		mininos = roundup(inosused + INOPB(&sblock), INOPB(&sblock));
+		if (inoopt && !preen && !rebuildcg &&
+		    sblock.fs_magic == FS_UFS2_MAGIC &&
+		    cgrp.cg_initediblk > 2 * INOPB(&sblock) &&
+		    mininos < cgrp.cg_initediblk) {
+			i = cgrp.cg_initediblk;
+			if (mininos < 2 * INOPB(&sblock))
+				cgrp.cg_initediblk = 2 * INOPB(&sblock);
+			else
+				cgrp.cg_initediblk = mininos;
+			pwarn("CYLINDER GROUP %d: RESET FROM %ju TO %d %s\n",
+			    c, i, cgrp.cg_initediblk, "VALID INODES");
+			cgdirty();
+		}
+		if (inosused < sblock.fs_ipg)
 			continue;
+		lastino += 1;
+		if (lastino < (c * sblock.fs_ipg))
+			inosused = 0;
+		else
+			inosused = lastino - (c * sblock.fs_ipg);
+		if (rebuildcg && inosused > cgrp.cg_initediblk &&
+		    sblock.fs_magic == FS_UFS2_MAGIC) {
+			cgrp.cg_initediblk = roundup(inosused, INOPB(&sblock));
+			pwarn("CYLINDER GROUP %d: FOUND %d VALID INODES\n", c,
+			    cgrp.cg_initediblk);
+		}
 		/*
 		 * If we were not able to determine in advance which inodes
 		 * were in use, then reduce the size of the inoinfo structure
 		 * to the size necessary to describe the inodes that we
 		 * really found.
 		 */
-		if (lastino < (c * sblock.fs_ipg))
-			inosused = 0;
-		else
-			inosused = lastino - (c * sblock.fs_ipg);
+		if (inumber == lastino)
+			continue;
 		inostathead[c].il_numalloced = inosused;
 		if (inosused == 0) {
 			free(inostathead[c].il_stat);
@@ -187,8 +224,8 @@ pass1(void)
 	freeinodebuf();
 }
 
-static void
-checkinode(ino_t inumber, struct inodesc *idesc)
+static int
+checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 {
 	union dinode *dp;
 	off_t kernmaxfilesize;
@@ -196,7 +233,8 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	mode_t mode;
 	int j, ret, offset;
 
-	dp = getnextinode(inumber);
+	if ((dp = getnextinode(inumber, rebuildcg)) == NULL)
+		return (0);
 	mode = DIP(dp, di_mode) & IFMT;
 	if (mode == 0) {
 		if ((sblock.fs_magic == FS_UFS1_MAGIC &&
@@ -220,7 +258,7 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 			}
 		}
 		inoinfo(inumber)->ino_state = USTATE;
-		return;
+		return (1);
 	}
 	lastino = inumber;
 	/* This should match the file size limit in ffs_mountfs(). */
@@ -352,7 +390,7 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 		if (preen)
 			printf(" (CORRECTED)\n");
 		else if (reply("CORRECT") == 0)
-			return;
+			return (1);
 		if (bkgrdflag == 0) {
 			dp = ginode(inumber);
 			DIP_SET(dp, di_blocks, idesc->id_entryno);
@@ -368,7 +406,7 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 				rwerror("ADJUST INODE BLOCK COUNT", cmd.value);
 		}
 	}
-	return;
+	return (1);
 unknown:
 	pfatal("UNKNOWN FILE TYPE I=%lu", (u_long)inumber);
 	inoinfo(inumber)->ino_state = FCLEAR;
@@ -378,6 +416,7 @@ unknown:
 		clearinode(dp);
 		inodirty();
 	}
+	return (1);
 }
 
 int

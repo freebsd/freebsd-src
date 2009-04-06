@@ -1,6 +1,6 @@
 #!/usr/local/bin/python
 
-# Copyright (c) 2002-2003, Jeffrey Roberson <jeff@freebsd.org>
+# Copyright (c) 2002-2003, 2009, Jeffrey Roberson <jeff@freebsd.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -149,15 +149,19 @@ class Colormap:
 		return (color)
 
 def ticks2sec(ticks):
-	us = ticksps / 1000000
-	ticks /= us
+	ticks = float(ticks)
+	ns = float(ticksps) / 1000000000
+	ticks /= ns
 	if (ticks < 1000):
-		return (str(ticks) + "us")
+		return ("%.2fns" % ticks)
 	ticks /= 1000
 	if (ticks < 1000):
-		return (str(ticks) + "ms")
+		return ("%.2fus" % ticks)
 	ticks /= 1000
-	return (str(ticks) + "s")
+	if (ticks < 1000):
+		return ("%.2fms" % ticks)
+	ticks /= 1000
+	return ("%.2fs" % ticks)
 
 class Scaler(Frame):
 	def __init__(self, master, target):
@@ -443,7 +447,7 @@ class SourceStats(Toplevel):
 		self.resizable(0, 0)
 		self.title(source.name + " statistics")
 		self.evframe = LabelFrame(self,
-		    text="Event Frequency and Duration")
+		    text="Event Count, Duration, Avg Duration")
 		self.evframe.grid(row=0, column=0, sticky=E+W)
 		eventtypes={}
 		for event in self.source.events:
@@ -466,15 +470,22 @@ class SourceStats(Toplevel):
 		ypos = 0
 		for event in events:
 			(name, c, d) = event
-			l = Label(self.evframe, text=name, bd=1, 
-			    relief=SUNKEN, anchor=W, width=30)
-			m = Label(self.evframe, text=str(c), bd=1,
-			    relief=SUNKEN, anchor=W, width=10)
-			r = Label(self.evframe, text=ticks2sec(d),
-			    bd=1, relief=SUNKEN, width=10)
-			l.grid(row=ypos, column=0, sticky=E+W)
-			m.grid(row=ypos, column=1, sticky=E+W)
-			r.grid(row=ypos, column=2, sticky=E+W)
+			Label(self.evframe, text=name, bd=1, 
+			    relief=SUNKEN, anchor=W, width=30).grid(
+			    row=ypos, column=0, sticky=W+E)
+			Label(self.evframe, text=str(c), bd=1,
+			    relief=SUNKEN, anchor=W, width=10).grid(
+			    row=ypos, column=1, sticky=W+E)
+			Label(self.evframe, text=ticks2sec(d),
+			    bd=1, relief=SUNKEN, width=10).grid(
+			    row=ypos, column=2, sticky=W+E)
+			if (d and c):
+				d /= c
+			else:
+				d = 0
+			Label(self.evframe, text=ticks2sec(d),
+			    bd=1, relief=SUNKEN, width=10).grid(
+			    row=ypos, column=3, sticky=W+E)
 			ypos += 1
 
 

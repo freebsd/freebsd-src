@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_attach.c,v 1.18 2008/11/19 22:10:42 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -32,7 +32,6 @@
 static const struct ath_hal_private ar5212hal = {{
 	.ah_magic			= AR5212_MAGIC,
 	.ah_abi				= HAL_ABI_VERSION,
-	.ah_countryCode			= CTRY_DEFAULT,
 
 	.ah_getRateTable		= ar5212GetRateTable,
 	.ah_detach			= ar5212Detach,
@@ -653,12 +652,12 @@ HAL_BOOL
 ar5212GetChannelEdges(struct ath_hal *ah,
 	uint16_t flags, uint16_t *low, uint16_t *high)
 {
-	if (flags & CHANNEL_5GHZ) {
+	if (flags & IEEE80211_CHAN_5GHZ) {
 		*low = 4915;
 		*high = 6100;
 		return AH_TRUE;
 	}
-	if ((flags & CHANNEL_2GHZ) &&
+	if ((flags & IEEE80211_CHAN_2GHZ) &&
 	    (ath_hal_eepromGetFlag(ah, AR_EEP_BMODE) ||
 	     ath_hal_eepromGetFlag(ah, AR_EEP_GMODE))) {
 		*low = 2312;

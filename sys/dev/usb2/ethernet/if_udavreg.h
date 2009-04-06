@@ -34,6 +34,12 @@
 #define	UDAV_IFACE_INDEX	0
 #define	UDAV_CONFIG_INDEX	0	/* config number 1 */
 
+#define	UDAV_TX_TIMEOUT		1000
+#define	UDAV_TIMEOUT		10000
+
+#define	UDAV_TX_TIMEOUT		1000
+#define	UDAV_TIMEOUT		10000
+
 /* Packet length */
 #define	UDAV_MIN_FRAME_LEN	60
 
@@ -131,43 +137,30 @@
 #define	UDAV_GPR_GEPIO1		(1<<1)	/* General purpose 1 */
 #define	UDAV_GPR_GEPIO0		(1<<0)	/* General purpose 0 */
 
-#define	GET_MII(sc)	((sc)->sc_miibus ?				\
-			    device_get_softc((sc)->sc_miibus) : NULL)
+#define	GET_MII(sc)		usb2_ether_getmii(&(sc)->sc_ue)
+
+struct udav_rxpkt {
+	uint8_t	rxstat;
+	uint16_t pktlen;
+} __packed;
 
 enum {
 	UDAV_BULK_DT_WR,
 	UDAV_BULK_DT_RD,
-	UDAV_BULK_CS_WR,
-	UDAV_BULK_CS_RD,
 	UDAV_INTR_DT_RD,
-	UDAV_INTR_CS_RD,
-	UDAV_N_TRANSFER = 6,
+	UDAV_N_TRANSFER,
 };
 
 struct udav_softc {
-	struct ifnet *sc_ifp;
+	struct usb2_ether	sc_ue;
+	struct mtx		sc_mtx;
+	struct usb2_xfer	*sc_xfer[UDAV_N_TRANSFER];
 
-	struct usb2_config_td sc_config_td;
-	struct usb2_callout sc_watchdog;
-	struct mtx sc_mtx;
-
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[UDAV_N_TRANSFER];
-	device_t sc_miibus;
-	device_t sc_dev;
-
-	uint32_t sc_unit;
-	uint32_t sc_media_active;
-	uint32_t sc_media_status;
-
-	uint16_t sc_flags;
-#define	UDAV_FLAG_WAIT_LINK	0x0001
-#define	UDAV_FLAG_INTR_STALL	0x0002
-#define	UDAV_FLAG_READ_STALL	0x0004
-#define	UDAV_FLAG_WRITE_STALL	0x0008
-#define	UDAV_FLAG_LL_READY	0x0010
-#define	UDAV_FLAG_HL_READY	0x0020
+	int			sc_flags;
+#define	UDAV_FLAG_LINK		0x0001
 #define	UDAV_FLAG_EXT_PHY	0x0040
-
-	uint8_t	sc_name[16];
 };
+
+#define	UDAV_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
+#define	UDAV_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	UDAV_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->sc_mtx, t)

@@ -8,9 +8,8 @@
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
 
-WITHOUT_SSP=
-
 .include <bsd.own.mk>
+MK_SSP=	no
 
 .if ${SHLIBDIR} == "/usr/lib"
 SHLIBDIR= /lib
@@ -44,7 +43,9 @@ PRECIOUSLIB=
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 
+.if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
+.endif
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 .endif

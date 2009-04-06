@@ -304,7 +304,6 @@ cpu_startup(void *dummy)
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
-	thread0.td_frame = (struct trapframe *)pcb->un_32.pcb32_sp - 1;
 	pmap_postinit();
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);

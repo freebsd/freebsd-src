@@ -887,7 +887,8 @@ printcpuinfo(void)
 				break;
 			case CPU_VENDOR_CENTAUR:
 				if (I386_CPU_FAMILY(cpu_id) == 0x6 &&
-				    I386_CPU_MODEL(cpu_id) >= 0xf)
+				    I386_CPU_MODEL(cpu_id) >= 0xf &&
+				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 					tsc_is_invariant = 1;
 				break;
 			}

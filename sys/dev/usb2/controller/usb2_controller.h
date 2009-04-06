@@ -84,6 +84,11 @@ struct usb2_bus_methods {
 	 * are active:
 	 */
 #define	USB_HW_POWER_ISOC	0x08
+	/*
+	 * The following flag is set if one or more non-root-HUB devices 
+	 * are present on the given USB bus:
+	 */
+#define	USB_HW_POWER_NON_ROOT_HUB 0x10
 
 	/* USB Device mode only - Mandatory */
 

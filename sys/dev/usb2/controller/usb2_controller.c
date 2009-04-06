@@ -126,6 +126,10 @@ usb2_attach(device_t dev)
 		DPRINTFN(0, "USB device has no ivars\n");
 		return (ENXIO);
 	}
+
+	/* delay vfs_mountroot until the bus is explored */
+	bus->bus_roothold = root_mount_hold(device_get_nameunit(dev));
+
 	if (usb2_post_init_called) {
 		mtx_lock(&Giant);
 		usb2_attach_sub(dev, bus);
@@ -153,6 +157,10 @@ usb2_detach(device_t dev)
 	usb2_callout_drain(&bus->power_wdog);
 
 	/* Let the USB explore process detach all devices. */
+	if (bus->bus_roothold != NULL) {
+		root_mount_rel(bus->bus_roothold);
+		bus->bus_roothold = NULL;
+	}
 
 	USB_BUS_LOCK(bus);
 	if (usb2_proc_msignal(&bus->explore_proc,
@@ -168,16 +176,16 @@ usb2_detach(device_t dev)
 
 	/* Get rid of USB callback processes */
 
-	usb2_proc_unsetup(&bus->giant_callback_proc);
-	usb2_proc_unsetup(&bus->non_giant_callback_proc);
+	usb2_proc_free(&bus->giant_callback_proc);
+	usb2_proc_free(&bus->non_giant_callback_proc);
 
 	/* Get rid of USB roothub process */
 
-	usb2_proc_unsetup(&bus->roothub_proc);
+	usb2_proc_free(&bus->roothub_proc);
 
 	/* Get rid of USB explore process */
 
-	usb2_proc_unsetup(&bus->explore_proc);
+	usb2_proc_free(&bus->explore_proc);
 
 	return (0);
 }
@@ -224,6 +232,10 @@ usb2_bus_explore(struct usb2_proc_msg *pm)
 		mtx_unlock(&Giant);
 
 		USB_BUS_LOCK(bus);
+	}
+	if (bus->bus_roothold != NULL) {
+		root_mount_rel(bus->bus_roothold);
+		bus->bus_roothold = NULL;
 	}
 }
 
@@ -375,6 +387,8 @@ usb2_bus_attach(struct usb2_proc_msg *pm)
 static void
 usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 {
+	const char *pname = device_get_nameunit(dev);
+
 	/* Initialise USB process messages */
 	bus->explore_msg[0].hdr.pm_callback = &usb2_bus_explore;
 	bus->explore_msg[0].bus = bus;
@@ -398,20 +412,20 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 
 	/* Create USB explore, roothub and callback processes */
 
-	if (usb2_proc_setup(&bus->giant_callback_proc,
-	    &bus->bus_mtx, USB_PRI_MED)) {
+	if (usb2_proc_create(&bus->giant_callback_proc,
+	    &bus->bus_mtx, pname, USB_PRI_MED)) {
 		printf("WARNING: Creation of USB Giant "
 		    "callback process failed.\n");
-	} else if (usb2_proc_setup(&bus->non_giant_callback_proc,
-	    &bus->bus_mtx, USB_PRI_HIGH)) {
+	} else if (usb2_proc_create(&bus->non_giant_callback_proc,
+	    &bus->bus_mtx, pname, USB_PRI_HIGH)) {
 		printf("WARNING: Creation of USB non-Giant "
 		    "callback process failed.\n");
-	} else if (usb2_proc_setup(&bus->roothub_proc,
-	    &bus->bus_mtx, USB_PRI_HIGH)) {
+	} else if (usb2_proc_create(&bus->roothub_proc,
+	    &bus->bus_mtx, pname, USB_PRI_HIGH)) {
 		printf("WARNING: Creation of USB roothub "
 		    "process failed.\n");
-	} else if (usb2_proc_setup(&bus->explore_proc,
-	    &bus->bus_mtx, USB_PRI_MED)) {
+	} else if (usb2_proc_create(&bus->explore_proc,
+	    &bus->bus_mtx, pname, USB_PRI_MED)) {
 		printf("WARNING: Creation of USB explore "
 		    "process failed.\n");
 	} else {

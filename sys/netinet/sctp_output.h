@@ -192,10 +192,14 @@ sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
 
 int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
-    int number_entries, uint16_t * list,
-    uint8_t send_out_req, uint32_t resp_seq,
+    int number_entries,
+    uint16_t * list,
+    uint8_t send_out_req,
+    uint32_t resp_seq,
     uint8_t send_in_req,
-    uint8_t send_tsn_req);
+    uint8_t send_tsn_req,
+    uint8_t add_str,
+    uint16_t adding);
 
 
 void

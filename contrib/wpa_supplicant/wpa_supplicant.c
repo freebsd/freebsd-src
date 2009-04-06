@@ -364,7 +364,6 @@ static void wpa_supplicant_notify_eapol_done(void *ctx)
 	if (wpa_s->key_mgmt == WPA_KEY_MGMT_IEEE8021X) {
 		wpa_supplicant_set_state(wpa_s, WPA_4WAY_HANDSHAKE);
 	} else {
-		eloop_cancel_timeout(wpa_supplicant_scan, wpa_s, NULL);
 		wpa_supplicant_cancel_auth_timeout(wpa_s);
 		wpa_supplicant_set_state(wpa_s, WPA_COMPLETED);
 	}
@@ -492,6 +491,28 @@ void wpa_blacklist_clear(struct wpa_supplicant *wpa_s)
  */
 void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec)
 {
+	/* If there's at least one network that should be specifically scanned
+	 * then don't cancel the scan and reschedule.  Some drivers do
+	 * background scanning which generates frequent scan results, and that
+	 * causes the specific SSID scan to get continually pushed back and
+	 * never happen, which causes hidden APs to never get probe-scanned.
+	 */
+	if (eloop_is_timeout_registered(wpa_supplicant_scan, wpa_s, NULL) &&
+	    wpa_s->conf->ap_scan == 1) {
+		struct wpa_ssid *ssid = wpa_s->conf->ssid;
+
+		while (ssid) {
+			if (!ssid->disabled && ssid->scan_ssid)
+				break;
+			ssid = ssid->next;
+		}
+		if (ssid) {
+			wpa_msg(wpa_s, MSG_DEBUG, "Not rescheduling scan to "
+			        "ensure that specific SSID scans occur");
+			return;
+		}
+	}
+
 	wpa_msg(wpa_s, MSG_DEBUG, "Setting scan request: %d sec %d usec",
 		sec, usec);
 	eloop_cancel_timeout(wpa_supplicant_scan, wpa_s, NULL);
@@ -1051,6 +1072,7 @@ static void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx)
 
 	if (wpa_s->scan_res_tried == 0 && wpa_s->conf->ap_scan == 1) {
 		wpa_s->scan_res_tried++;
+		wpa_s->scan_req = scan_req;
 		wpa_printf(MSG_DEBUG, "Trying to get current scan results "
 			   "first without requesting a new scan to speed up "
 			   "initial association");
@@ -1521,13 +1543,15 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 		wpa_supplicant_set_state(wpa_s, WPA_COMPLETED);
 	} else {
 		/* Timeout for IEEE 802.11 authentication and association */
-		int timeout;
-		if (assoc_failed)
-			timeout = 5;
-		else if (wpa_s->conf->ap_scan == 1)
-			timeout = 10;
-		else
-			timeout = 60;
+		int timeout = 60;
+
+		if (assoc_failed) {
+			/* give IBSS a bit more time */
+ 			timeout = ssid->mode ? 10 : 5;
+		} else if (wpa_s->conf->ap_scan == 1) {
+			/* give IBSS a bit more time */
+ 			timeout = ssid->mode ? 20 : 10;
+		}
 		wpa_supplicant_req_auth_timeout(wpa_s, timeout, 0);
 	}
 
@@ -1797,12 +1821,6 @@ static int _wpa_ether_send(void *wpa_s, const u8 *dest, u16 proto,
 }
 
 
-static void _wpa_supplicant_req_scan(void *wpa_s, int sec, int usec)
-{
-	wpa_supplicant_req_scan(wpa_s, sec, usec);
-}
-
-
 static void _wpa_supplicant_cancel_auth_timeout(void *wpa_s)
 {
 	wpa_supplicant_cancel_auth_timeout(wpa_s);
@@ -1824,12 +1842,16 @@ static wpa_states _wpa_supplicant_get_state(void *wpa_s)
 static void _wpa_supplicant_disassociate(void *wpa_s, int reason_code)
 {
 	wpa_supplicant_disassociate(wpa_s, reason_code);
+	/* Schedule a scan to make sure we continue looking for networks */
+	wpa_supplicant_req_scan(wpa_s, 0, 0);
 }
 
 
 static void _wpa_supplicant_deauthenticate(void *wpa_s, int reason_code)
 {
 	wpa_supplicant_deauthenticate(wpa_s, reason_code);
+	/* Schedule a scan to make sure we continue looking for networks */
+	wpa_supplicant_req_scan(wpa_s, 0, 0);
 }
 
 
@@ -2207,7 +2229,6 @@ static int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
 	ctx->ctx = wpa_s;
 	ctx->set_state = _wpa_supplicant_set_state;
 	ctx->get_state = _wpa_supplicant_get_state;
-	ctx->req_scan = _wpa_supplicant_req_scan;
 	ctx->deauthenticate = _wpa_supplicant_deauthenticate;
 	ctx->disassociate = _wpa_supplicant_disassociate;
 	ctx->set_key = wpa_supplicant_set_key;

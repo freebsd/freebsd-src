@@ -585,7 +585,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		} else
 #endif /* INET6 */
 	      {
-		xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, n_long);
+		xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
 		nth = (struct tcphdr *)(ip + 1);
 	      }
 		if (th != nth) {
@@ -597,7 +597,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			nth->th_sport = th->th_sport;
 			nth->th_dport = th->th_dport;
 		}
-		xchg(nth->th_dport, nth->th_sport, n_short);
+		xchg(nth->th_dport, nth->th_sport, uint16_t);
 #undef xchg
 	}
 #ifdef INET6
@@ -1768,7 +1768,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 		m->m_pkthdr.len = m->m_len =
 			sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 		tcpip_fillheaders(inp, ip6, th);
-		hdrsiz = ipsec6_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
+		hdrsiz = ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
 	} else
 #endif /* INET6 */
 	{
@@ -1776,7 +1776,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 		th = (struct tcphdr *)(ip + 1);
 		m->m_pkthdr.len = m->m_len = sizeof(struct tcpiphdr);
 		tcpip_fillheaders(inp, ip, th);
-		hdrsiz = ipsec4_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
+		hdrsiz = ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
 	}
 
 	m_free(m);

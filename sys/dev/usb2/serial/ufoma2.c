@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
  * be called from within the config thread function !
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -145,18 +145,15 @@ typedef struct ufoma_mobile_acm_descriptor {
 
 enum {
 	UFOMA_CTRL_ENDPT_INTR,
-	UFOMA_CTRL_ENDPT_INTR_CLEAR,	
 	UFOMA_CTRL_ENDPT_READ,
 	UFOMA_CTRL_ENDPT_WRITE,
-	UFOMA_CTRL_ENDPT_MAX = 4,
+	UFOMA_CTRL_ENDPT_MAX,
 };
 
 enum {
 	UFOMA_BULK_ENDPT_WRITE,
 	UFOMA_BULK_ENDPT_READ,	
-	UFOMA_BULK_ENDPT_WRITE_CLEAR,
-	UFOMA_BULK_ENDPT_READ_CLEAR,
-	UFOMA_BULK_ENDPT_MAX = 4,
+	UFOMA_BULK_ENDPT_MAX,
 };
 
 struct ufoma_softc {
@@ -175,7 +172,7 @@ struct ufoma_softc {
 	uint16_t sc_line;
 
 	uint8_t	sc_num_msg;
-	uint8_t	sc_is_pseudo;
+	uint8_t	sc_nobulk;
 	uint8_t	sc_ctrl_iface_no;
 	uint8_t	sc_ctrl_iface_index;
 	uint8_t	sc_data_iface_no;
@@ -186,11 +183,6 @@ struct ufoma_softc {
 	uint8_t	sc_msr;
 	uint8_t	sc_modetoactivate;
 	uint8_t	sc_currentmode;
-	uint8_t	sc_flags;
-#define	UFOMA_FLAG_INTR_STALL        0x01
-#define	UFOMA_FLAG_BULK_WRITE_STALL  0x02
-#define	UFOMA_FLAG_BULK_READ_STALL   0x04
-
 	uint8_t	sc_name[16];
 };
 
@@ -202,15 +194,10 @@ static device_detach_t ufoma_detach;
 
 static usb2_callback_t ufoma_ctrl_read_callback;
 static usb2_callback_t ufoma_ctrl_write_callback;
-static usb2_callback_t ufoma_intr_clear_stall_callback;
 static usb2_callback_t ufoma_intr_callback;
 static usb2_callback_t ufoma_bulk_write_callback;
-static usb2_callback_t ufoma_bulk_write_clear_stall_callback;
 static usb2_callback_t ufoma_bulk_read_callback;
-static usb2_callback_t ufoma_bulk_read_clear_stall_callback;
 
-static void	ufoma_cfg_do_request(struct ufoma_softc *,
-		    struct usb2_device_request *, void *);
 static void	*ufoma_get_intconf(struct usb2_config_descriptor *,
 		    struct usb2_interface_descriptor *, uint8_t, uint8_t);
 static void	ufoma_cfg_link_state(struct ufoma_softc *);
@@ -247,17 +234,6 @@ static const struct usb2_config
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.bufsize = sizeof(struct usb2_cdc_notification),
 		.mh.callback = &ufoma_intr_callback,
-	},
-
-	[UFOMA_CTRL_ENDPT_INTR_CLEAR] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &ufoma_intr_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 
 	[UFOMA_CTRL_ENDPT_READ] = {
@@ -300,28 +276,6 @@ static const struct usb2_config
 		.mh.bufsize = UFOMA_BULK_BUF_SIZE,
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.callback = &ufoma_bulk_read_callback,
-	},
-
-	[UFOMA_BULK_ENDPT_WRITE_CLEAR] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &ufoma_bulk_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
-	[UFOMA_BULK_ENDPT_READ_CLEAR] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &ufoma_bulk_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 };
 
@@ -407,9 +361,6 @@ ufoma_attach(device_t dev)
 	uint8_t elements;
 	int32_t error;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = dev;
 	sc->sc_unit = device_get_unit(dev);
@@ -449,9 +400,9 @@ ufoma_attach(device_t dev)
 	}
 	if ((mad->bType == UMCPC_ACM_TYPE_AB5) ||
 	    (mad->bType == UMCPC_ACM_TYPE_AB6)) {
-		sc->sc_is_pseudo = 1;
+		sc->sc_nobulk = 1;
 	} else {
-		sc->sc_is_pseudo = 0;
+		sc->sc_nobulk = 0;
 		if (ufoma_modem_setup(dev, sc, uaa)) {
 			goto detach;
 		}
@@ -472,9 +423,9 @@ ufoma_attach(device_t dev)
 	sc->sc_currentmode = UMCPC_ACM_MODE_UNLINKED;
 	sc->sc_modetoactivate = mad->bMode[0];
 
-	/* clear stall at first run */
-	sc->sc_flags |= (UFOMA_FLAG_BULK_WRITE_STALL |
-	    UFOMA_FLAG_BULK_READ_STALL);
+	/* clear stall at first run, if any */
+	usb2_transfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE]);
+	usb2_transfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ]);
 
 	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &ufoma_callback, &Giant);
@@ -527,33 +478,6 @@ ufoma_detach(device_t dev)
 	return (0);
 }
 
-static void
-ufoma_cfg_do_request(struct ufoma_softc *sc, struct usb2_device_request *req,
-    void *data)
-{
-	uint16_t length;
-	usb2_error_t err;
-
-	if (usb2_com_cfg_is_gone(&sc->sc_ucom)) {
-		goto error;
-	}
-	err = usb2_do_request_flags
-	    (sc->sc_udev, &Giant, req, data, 0, NULL, 1000);
-
-	if (err) {
-
-		DPRINTFN(0, "device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
-
-error:
-		length = UGETW(req->wLength);
-
-		if ((req->bmRequestType & UT_READ) && length) {
-			bzero(data, length);
-		}
-	}
-}
-
 static void *
 ufoma_get_intconf(struct usb2_config_descriptor *cd, struct usb2_interface_descriptor *id,
     uint8_t type, uint8_t subtype)
@@ -585,7 +509,8 @@ ufoma_cfg_link_state(struct ufoma_softc *sc)
 	USETW(req.wIndex, sc->sc_ctrl_iface_no);
 	USETW(req.wLength, sc->sc_modetable[0]);
 
-	ufoma_cfg_do_request(sc, &req, sc->sc_modetable);
+	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, sc->sc_modetable, 0, 1000);
 
 	error = usb2_cv_timedwait(&sc->sc_cv, &Giant, hz);
 
@@ -606,7 +531,8 @@ ufoma_cfg_activate_state(struct ufoma_softc *sc, uint16_t state)
 	USETW(req.wIndex, sc->sc_ctrl_iface_no);
 	USETW(req.wLength, 0);
 
-	ufoma_cfg_do_request(sc, &req, NULL);
+	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, NULL, 0, 1000);
 
 	error = usb2_cv_timedwait(&sc->sc_cv, &Giant,
 	    (UFOMA_MAX_TIMEOUT * hz));
@@ -711,19 +637,6 @@ tr_setup:
 }
 
 static void
-ufoma_intr_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct ufoma_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_INTR];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UFOMA_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
-	}
-}
-
-static void
 ufoma_intr_callback(struct usb2_xfer *xfer)
 {
 	struct ufoma_softc *sc = xfer->priv_sc;
@@ -764,7 +677,7 @@ ufoma_intr_callback(struct usb2_xfer *xfer)
 		}
 		switch (pkt.bNotification) {
 		case UCDC_N_RESPONSE_AVAILABLE:
-			if (!(sc->sc_is_pseudo)) {
+			if (!(sc->sc_nobulk)) {
 				DPRINTF("Wrong serial state!\n");
 				break;
 			}
@@ -775,7 +688,7 @@ ufoma_intr_callback(struct usb2_xfer *xfer)
 			break;
 
 		case UCDC_N_SERIAL_STATE:
-			if (sc->sc_is_pseudo) {
+			if (sc->sc_nobulk) {
 				DPRINTF("Wrong serial state!\n");
 				break;
 			}
@@ -815,22 +728,17 @@ ufoma_intr_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 tr_setup:
-		if (sc->sc_flags & UFOMA_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_INTR_CLEAR]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			/* start clear stall */
-			sc->sc_flags |= UFOMA_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_INTR_CLEAR]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
 	}
 }
 
@@ -843,10 +751,7 @@ ufoma_bulk_write_callback(struct usb2_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
-		if (sc->sc_flags & UFOMA_FLAG_BULK_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE_CLEAR]);
-			return;
-		}
+tr_setup:
 		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    UFOMA_BULK_BUF_SIZE, &actlen)) {
 			xfer->frlengths[0] = actlen;
@@ -856,24 +761,11 @@ ufoma_bulk_write_callback(struct usb2_xfer *xfer)
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flags |= UFOMA_FLAG_BULK_WRITE_STALL;
-			usb2_transfer_start(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE_CLEAR]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
-	}
-}
-
-static void
-ufoma_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct ufoma_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UFOMA_FLAG_BULK_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -888,34 +780,18 @@ ufoma_bulk_read_callback(struct usb2_xfer *xfer)
 		    xfer->actlen);
 
 	case USB_ST_SETUP:
-		if (sc->sc_flags & UFOMA_FLAG_BULK_READ_STALL) {
-			usb2_transfer_start(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ_CLEAR]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+tr_setup:
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			sc->sc_flags |= UFOMA_FLAG_BULK_READ_STALL;
-			usb2_transfer_start(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ_CLEAR]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
-	}
-}
-
-static void
-ufoma_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct ufoma_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UFOMA_FLAG_BULK_READ_STALL;
-		usb2_transfer_start(xfer_other);
 	}
 }
 
@@ -952,7 +828,7 @@ ufoma_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 	struct usb2_device_request req;
 	uint16_t wValue;
 
-	if (sc->sc_is_pseudo ||
+	if (sc->sc_nobulk ||
 	    (sc->sc_currentmode == UMCPC_ACM_MODE_OBEX)) {
 		return;
 	}
@@ -968,7 +844,8 @@ ufoma_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ufoma_cfg_do_request(sc, &req, 0);
+	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, NULL, 0, 1000);
 }
 
 static void
@@ -996,7 +873,8 @@ ufoma_cfg_set_line_state(struct ufoma_softc *sc)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ufoma_cfg_do_request(sc, &req, 0);
+	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, NULL, 0, 1000);
 }
 
 static void
@@ -1004,7 +882,7 @@ ufoma_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
-	if (sc->sc_is_pseudo) {
+	if (sc->sc_nobulk) {
 		return;
 	}
 	if (onoff)
@@ -1020,7 +898,7 @@ ufoma_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
-	if (sc->sc_is_pseudo) {
+	if (sc->sc_nobulk) {
 		return;
 	}
 	if (onoff)
@@ -1044,7 +922,7 @@ ufoma_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 	struct usb2_device_request req;
 	struct usb2_cdc_line_state ls;
 
-	if (sc->sc_is_pseudo ||
+	if (sc->sc_nobulk ||
 	    (sc->sc_currentmode == UMCPC_ACM_MODE_OBEX)) {
 		return;
 	}
@@ -1092,7 +970,8 @@ ufoma_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, UCDC_LINE_STATE_LENGTH);
 
-	ufoma_cfg_do_request(sc, &req, &ls);
+	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, &ls, 0, 1000);
 }
 
 static int
@@ -1175,7 +1054,7 @@ ufoma_start_read(struct usb2_com_softc *ucom)
 	usb2_transfer_start(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_INTR]);
 
 	/* start data transfer */
-	if (sc->sc_is_pseudo) {
+	if (sc->sc_nobulk) {
 		usb2_transfer_start(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_READ]);
 	} else {
 		usb2_transfer_start(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ]);
@@ -1189,13 +1068,11 @@ ufoma_stop_read(struct usb2_com_softc *ucom)
 
 	/* stop interrupt transfer */
 	usb2_transfer_stop(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_INTR]);
-	usb2_transfer_stop(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_INTR_CLEAR]);
 
 	/* stop data transfer */
-	if (sc->sc_is_pseudo) {
+	if (sc->sc_nobulk) {
 		usb2_transfer_stop(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_READ]);
 	} else {
-		usb2_transfer_stop(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ_CLEAR]);
 		usb2_transfer_stop(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ]);
 	}
 }
@@ -1205,7 +1082,7 @@ ufoma_start_write(struct usb2_com_softc *ucom)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
-	if (sc->sc_is_pseudo) {
+	if (sc->sc_nobulk) {
 		usb2_transfer_start(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_WRITE]);
 	} else {
 		usb2_transfer_start(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE]);
@@ -1217,10 +1094,9 @@ ufoma_stop_write(struct usb2_com_softc *ucom)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
-	if (sc->sc_is_pseudo) {
+	if (sc->sc_nobulk) {
 		usb2_transfer_stop(sc->sc_ctrl_xfer[UFOMA_CTRL_ENDPT_WRITE]);
 	} else {
-		usb2_transfer_stop(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE_CLEAR]);
 		usb2_transfer_stop(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE]);
 	}
 }

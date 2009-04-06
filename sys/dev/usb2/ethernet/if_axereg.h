@@ -166,50 +166,31 @@ struct axe_sframe_hdr {
 	uint16_t ilen;
 } __packed;
 
-#define	GET_MII(sc)	((sc)->sc_miibus ?				\
-			    device_get_softc((sc)->sc_miibus) : NULL)
+#define	GET_MII(sc)		usb2_ether_getmii(&(sc)->sc_ue)
 
 /* The interrupt endpoint is currently unused by the ASIX part. */
 enum {
 	AXE_BULK_DT_WR,
 	AXE_BULK_DT_RD,
-	AXE_BULK_CS_WR,
-	AXE_BULK_CS_RD,
 	AXE_INTR_DT_RD,
-	AXE_INTR_CS_RD,
-	AXE_N_TRANSFER = 6,
+	AXE_N_TRANSFER,
 };
 
 struct axe_softc {
-	struct ifnet *sc_ifp;
+	struct usb2_ether	sc_ue;
+	struct mtx		sc_mtx;
+	struct usb2_xfer	*sc_xfer[AXE_N_TRANSFER];
+	int			sc_phyno;
 
-	struct usb2_config_td sc_config_td;
-	struct usb2_callout sc_watchdog;
-	struct mtx sc_mtx;
-
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[AXE_N_TRANSFER];
-	device_t sc_miibus;
-	device_t sc_dev;
-
-	int sc_phyno;
-
-	uint32_t sc_unit;
-	uint32_t sc_media_active;
-	uint32_t sc_media_status;
-
-	uint16_t sc_flags;
+	int			sc_flags;
 #define	AXE_FLAG_LINK		0x0001
-#define	AXE_FLAG_INTR_STALL	0x0002
-#define	AXE_FLAG_READ_STALL	0x0004
-#define	AXE_FLAG_WRITE_STALL	0x0008
-#define	AXE_FLAG_LL_READY	0x0010
-#define	AXE_FLAG_HL_READY	0x0020
-#define	AXE_FLAG_772		0x0040	/* AX88772 */
-#define	AXE_FLAG_178		0x0080	/* AX88178 */
+#define	AXE_FLAG_772		0x1000	/* AX88772 */
+#define	AXE_FLAG_178		0x2000	/* AX88178 */
 
-	uint8_t	sc_ipgs[3];
-	uint8_t	sc_phyaddrs[2];
-
-	uint8_t	sc_name[16];
+	uint8_t			sc_ipgs[3];
+	uint8_t			sc_phyaddrs[2];
 };
+
+#define	AXE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	AXE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	AXE_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->sc_mtx, t)

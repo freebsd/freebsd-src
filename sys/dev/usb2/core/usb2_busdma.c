@@ -351,7 +351,7 @@ usb2_dma_tag_create(struct usb2_dma_tag *udt,
 	    (2 + (size / USB_PAGE_SIZE)) : 1,
 	     /* maxsegsz  */ (align == 1) ?
 	    USB_PAGE_SIZE : size,
-	     /* flags     */ 0,
+	     /* flags     */ BUS_DMA_KEEP_PG_OFFSET,
 	     /* lockfn    */ &usb2_dma_lock_cb,
 	     /* lockarg   */ NULL,
 	    &tag)) {

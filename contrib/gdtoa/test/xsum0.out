@@ -1,11 +1,11 @@
-README	e86e9133	2692
+README	e3adb571	3095
 Qtest.c	e8353ffc	5046
 dItest.c	e33800ce	2371
 ddtest.c	f9d06e7b	4984
 dtest.c	ee533ac3	4078
 dt.c	7eeda57	6384
 ftest.c	ec8a6654	3999
-getround.c	161043dd	2143
+getround.c	fe659fe7	2503
 strtoIdSI.c	7bfb88b	49
 strtoIddSI.c	72e8852	50
 strtodISI.c	ed08b740	49
@@ -32,4 +32,4 @@ x.ou1	f1af5a00	34581
 xL.ou1	e349e5c	37165
 Q.ou0	e4592b85	28742
 Q.ou1	ea0b344d	39572
-makefile	b77232c	4939
+makefile	13d36c85	5148

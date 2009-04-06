@@ -52,7 +52,7 @@
  *  $NetBSD: uaudio.c,v 1.97 2005/02/24 08:19:38 martin Exp $
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -539,9 +539,12 @@ uaudio_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb2_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
+
+	if (uaa->use_generic == 0)
+		return (ENXIO);
+
 	/* trigger on the control interface */
 
 	if ((uaa->info.bInterfaceClass == UICLASS_AUDIO) &&
@@ -562,9 +565,6 @@ uaudio_attach(device_t dev)
 	struct usb2_interface_descriptor *id;
 	device_t child;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_play_chan.priv_sc = sc;
 	sc->sc_rec_chan.priv_sc = sc;
 	sc->sc_udev = uaa->device;
@@ -728,9 +728,7 @@ repeat:
 
 	if (error) {
 		device_printf(dev, "Waiting for sound application to exit!\n");
-		mtx_lock(&Giant);
-		usb2_pause_mtx(&Giant, 2000);
-		mtx_unlock(&Giant);
+		usb2_pause_mtx(NULL, 2 * hz);
 		goto repeat;		/* try again */
 	}
 	return (0);			/* success */

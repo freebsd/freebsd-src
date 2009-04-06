@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 23, 2008
+.Dd Feb 14, 2009
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -308,8 +308,32 @@ This function returns a zero terminated string describing the backend used.
 .
 .Pp
 .
+.Fn libusb20_dev_get_info pdev pinfo
+This function retrives the BSD specific usb2_device_info structure into the memory location given by 
+.Fa pinfo .
+The USB device given by
+.Fa pdev
+must be opened before this function will succeed.
+This function returns zero on success else a LIBUSB20_ERROR value is returned.
+.
+.Pp
+.
+.Fn libusb20_dev_get_iface_desc pdev iface_index pbuf len
+This function retrieves the kernel interface description for the given USB
+.Fa iface_index .
+The format of the USB interface description is: "drivername<unit>: <description>"
+The description string is always zero terminated.
+A zero length string is written in case no driver is attached to the given interface.
+The USB device given by
+.Fa pdev
+must be opened before this function will succeed.
+This function returns zero on success else a LIBUSB20_ERROR value is returned.
+.
+.Pp
+.
 .Fn libusb20_dev_get_desc pdev
 This function returns a zero terminated string describing the given USB device.
+The format of the string is: "drivername<unit>: <description>"
 .
 .Pp
 .

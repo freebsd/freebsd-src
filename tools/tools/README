@@ -12,6 +12,7 @@ ansify		Convert K&R-style function definitions to ANSI style
 ath		Tools specific to the Atheros 802.11 support
 backout_commit	A tool for reading in a commit message and generating
 		a script that will backout the commit.
+cfi		Common Flash Interface (CFI) tool
 commitsdb	A tool for reconstructing commit history using md5
 		checksums of the commit logs.
 crypto		Test and exercise tools related to the crypto framework

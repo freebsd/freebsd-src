@@ -468,7 +468,6 @@ typedef struct ehci_softc {
 	struct ehci_sitd *sc_isoc_fs_p_last[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	struct ehci_itd *sc_isoc_hs_p_last[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	void   *sc_intr_hdl;
-	device_t sc_dev;
 	bus_size_t sc_io_size;
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;

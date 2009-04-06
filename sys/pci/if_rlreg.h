@@ -779,7 +779,7 @@ struct rl_stats {
 #define RE_RX_DESC_BUFLEN	MCLBYTES
 #endif
 
-#define	RL_MSI_MESSAGES	2
+#define	RL_MSI_MESSAGES	1
 
 #define RL_ADDR_LO(y)		((uint64_t) (y) & 0xFFFFFFFF)
 #define RL_ADDR_HI(y)		((uint64_t) (y) >> 32)

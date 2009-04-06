@@ -1074,7 +1074,7 @@ devfs_readdir(struct vop_readdir_args *ap)
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
-	off_t off, oldoff;
+	off_t off;
 	int *tmp_ncookies = NULL;
 
 	if (ap->a_vp->v_type != VDIR)
@@ -1113,7 +1113,6 @@ devfs_readdir(struct vop_readdir_args *ap)
 	error = 0;
 	de = ap->a_vp->v_data;
 	off = 0;
-	oldoff = uio->uio_offset;
 	TAILQ_FOREACH(dd, &de->de_dlist, de_list) {
 		KASSERT(dd->de_cdp != (void *)0xdeadc0de, ("%s %d\n", __func__, __LINE__));
 		if (dd->de_flags & DE_WHITEOUT)

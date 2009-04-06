@@ -165,7 +165,7 @@ icmp_init(void)
  * in response to bad packet ip.
  */
 void
-icmp_error(struct mbuf *n, int type, int code, n_long dest, int mtu)
+icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 {
 	INIT_VNET_INET(curvnet);
 	register struct ip *oip = mtod(n, struct ip *), *nip;
@@ -852,7 +852,10 @@ icmp_send(struct mbuf *m, struct mbuf *opts)
 	(void) ip_output(m, opts, NULL, 0, NULL, NULL);
 }
 
-n_time
+/*
+ * Return milliseconds since 00:00 GMT in network format.
+ */
+uint32_t
 iptime(void)
 {
 	struct timeval atv;

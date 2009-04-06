@@ -179,7 +179,6 @@ ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
 {
 	struct nwmount *nmp;
 	struct nwnode *dnp;
-	struct ncp_conn *conn;
 	int error;
 
 	if (!dvp || dvp->v_type != VDIR) {
@@ -188,7 +187,6 @@ ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
 	}
 	dnp = VTONW(dvp);
 	nmp = VTONWFS(dvp);
-	conn = NWFSTOCONN(nmp);
 
 	if (len == 1 && name[0] == '.') {
 		if (dnp->n_flag & NVOLUME) {

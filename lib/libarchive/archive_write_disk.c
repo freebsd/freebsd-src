@@ -178,6 +178,8 @@ struct archive_write_disk {
 	int			 fd;
 	/* Current offset for writing data to the file. */
 	off_t			 offset;
+	/* Last offset actually written to disk. */
+	off_t			 fd_offset;
 	/* Maximum size of file, -1 if unknown. */
 	off_t			 filesize;
 	/* Dir we were in before this restore; only for deep paths. */
@@ -187,8 +189,6 @@ struct archive_write_disk {
 	/* UID/GID to use in restoring this entry. */
 	uid_t			 uid;
 	gid_t			 gid;
-	/* Last offset written to disk. */
-	off_t			 last_offset;
 };
 
 /*
@@ -235,7 +235,7 @@ static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 static gid_t	trivial_lookup_gid(void *, const char *, gid_t);
 static uid_t	trivial_lookup_uid(void *, const char *, uid_t);
 static ssize_t	write_data_block(struct archive_write_disk *,
-		    const char *, size_t, off_t);
+		    const char *, size_t);
 
 static struct archive_vtable *archive_write_disk_vtable(void);
 
@@ -337,7 +337,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	}
 	a->entry = archive_entry_clone(entry);
 	a->fd = -1;
-	a->last_offset = 0;
+	a->fd_offset = 0;
 	a->offset = 0;
 	a->uid = a->user_uid;
 	a->mode = archive_entry_mode(a->entry);
@@ -513,9 +513,9 @@ archive_write_disk_set_skip_file(struct archive *_a, dev_t d, ino_t i)
 }
 
 static ssize_t
-write_data_block(struct archive_write_disk *a,
-    const char *buff, size_t size, off_t offset)
+write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 {
+	uint64_t start_size = size;
 	ssize_t bytes_written = 0;
 	ssize_t block_size = 0, bytes_to_write;
 
@@ -538,8 +538,9 @@ write_data_block(struct archive_write_disk *a,
 #endif
 	}
 
-	if (a->filesize >= 0 && (off_t)(offset + size) > a->filesize)
-		size = (size_t)(a->filesize - offset);
+	/* If this write would run beyond the file size, truncate it. */
+	if (a->filesize >= 0 && (off_t)(a->offset + size) > a->filesize)
+		start_size = size = (size_t)(a->filesize - a->offset);
 
 	/* Write the data. */
 	while (size > 0) {
@@ -555,7 +556,7 @@ write_data_block(struct archive_write_disk *a,
 				if (*p != '\0')
 					break;
 			}
-			offset += p - buff;
+			a->offset += p - buff;
 			size -= p - buff;
 			buff = p;
 			if (size == 0)
@@ -563,22 +564,25 @@ write_data_block(struct archive_write_disk *a,
 
 			/* Calculate next block boundary after offset. */
 			block_end
-			    = (offset / block_size) * block_size + block_size;
+			    = (a->offset / block_size + 1) * block_size;
 
 			/* If the adjusted write would cross block boundary,
 			 * truncate it to the block boundary. */
 			bytes_to_write = size;
-			if (offset + bytes_to_write > block_end)
-				bytes_to_write = block_end - offset;
+			if (a->offset + bytes_to_write > block_end)
+				bytes_to_write = block_end - a->offset;
 		}
 
 		/* Seek if necessary to the specified offset. */
-		if (offset != a->last_offset) {
-			if (lseek(a->fd, offset, SEEK_SET) < 0) {
+		if (a->offset != a->fd_offset) {
+			if (lseek(a->fd, a->offset, SEEK_SET) < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
 				return (ARCHIVE_FATAL);
 			}
+			a->fd_offset = a->offset;
+			a->archive.file_position = a->offset;
+			a->archive.raw_position = a->offset;
  		}
 		bytes_written = write(a->fd, buff, bytes_to_write);
 		if (bytes_written < 0) {
@@ -587,12 +591,12 @@ write_data_block(struct archive_write_disk *a,
 		}
 		buff += bytes_written;
 		size -= bytes_written;
-		offset += bytes_written;
+		a->offset += bytes_written;
 		a->archive.file_position += bytes_written;
 		a->archive.raw_position += bytes_written;
-		a->last_offset = a->offset = offset;
+		a->fd_offset = a->offset;
 	}
-	return (bytes_written);
+	return (start_size - size);
 }
 
 static ssize_t
@@ -605,9 +609,9 @@ _archive_write_data_block(struct archive *_a,
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_disk_block");
 
-	r = write_data_block(a, buff, size, offset);
-
-	if (r < 0)
+	a->offset = offset;
+	r = write_data_block(a, buff, size);
+	if (r < ARCHIVE_OK)
 		return (r);
 	if ((size_t)r < size) {
 		archive_set_error(&a->archive, 0,
@@ -625,7 +629,7 @@ _archive_write_data(struct archive *_a, const void *buff, size_t size)
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_data");
 
-	return (write_data_block(a, buff, size, a->offset));
+	return (write_data_block(a, buff, size));
 }
 
 static int
@@ -646,7 +650,7 @@ _archive_write_finish_entry(struct archive *_a)
 		/* There's no file. */
 	} else if (a->filesize < 0) {
 		/* File size is unknown, so we can't set the size. */
-	} else if (a->last_offset == a->filesize) {
+	} else if (a->fd_offset == a->filesize) {
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
 	} else {

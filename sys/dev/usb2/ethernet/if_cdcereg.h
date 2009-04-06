@@ -35,58 +35,34 @@
 #ifndef _USB_IF_CDCEREG_H_
 #define	_USB_IF_CDCEREG_H_
 
-#define	CDCE_IND_SIZE_MAX 32		/* bytes */
-#define	CDCE_512X4_IFQ_MAXLEN MAX((2*CDCE_512X4_FRAMES_MAX), IFQ_MAXLEN)
-
-union cdce_eth_rx {			/* multiframe header */
-	struct usb2_cdc_mf_eth_512x4_header hdr;
-	uint8_t	data[MCLBYTES];
-} __aligned(USB_HOST_ALIGN);
-
-union cdce_eth_tx {			/* multiframe header */
-	struct usb2_cdc_mf_eth_512x4_header hdr;
-} __aligned(USB_HOST_ALIGN);
-
-struct cdce_mq {			/* mini-queue */
-	struct mbuf *ifq_head;
-	struct mbuf *ifq_tail;
-	uint16_t ifq_len;
-};
+#define	CDCE_FRAMES_MAX	8		/* units */
+#define	CDCE_IND_SIZE_MAX 32            /* bytes */
 
 enum {
 	CDCE_BULK_A,
 	CDCE_BULK_B,
 	CDCE_INTR,
-	CDCE_N_TRANSFER = 3,
+	CDCE_N_TRANSFER,
 };
 
 struct cdce_softc {
-	struct ifnet *sc_ifp;
+	struct usb2_ether	sc_ue;
+	struct mtx		sc_mtx;
+	struct usb2_xfer	*sc_xfer[CDCE_N_TRANSFER];
+	struct mbuf		*sc_rx_buf[CDCE_FRAMES_MAX];
+	struct mbuf		*sc_tx_buf[CDCE_FRAMES_MAX];
 
-	union cdce_eth_tx sc_tx;
-	union cdce_eth_rx sc_rx;
-	struct ifmedia sc_ifmedia;
-	struct mtx sc_mtx;
-	struct cdce_mq sc_rx_mq;
-	struct cdce_mq sc_tx_mq;
-
-	struct usb2_xfer *sc_xfer[CDCE_N_TRANSFER];
-	struct usb2_device *sc_udev;
-	device_t sc_dev;
-
-	uint32_t sc_unit;
-
-	uint16_t sc_flags;
+	int 			sc_flags;
 #define	CDCE_FLAG_ZAURUS	0x0001
 #define	CDCE_FLAG_NO_UNION	0x0002
-#define	CDCE_FLAG_LL_READY	0x0004
-#define	CDCE_FLAG_HL_READY	0x0008
 #define	CDCE_FLAG_RX_DATA	0x0010
 
-	uint8_t	sc_name[16];
+	uint8_t sc_eaddr_str_index;
 	uint8_t	sc_data_iface_no;
 	uint8_t	sc_ifaces_index[2];
-	uint8_t	sc_iface_protocol;
 };
 
+#define	CDCE_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
+#define	CDCE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	CDCE_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->sc_mtx, t)
 #endif					/* _USB_IF_CDCEREG_H_ */

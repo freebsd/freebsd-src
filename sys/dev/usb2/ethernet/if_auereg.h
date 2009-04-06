@@ -42,7 +42,7 @@
  * are 8 bits wide.
  *
  * Packet transfer is done in 64 byte chunks. The last chunk in a
- * transfer is denoted by having a length less that 64 bytes.  For
+ * transfer is denoted by having a length less that 64 bytes. For
  * the RX case, the data includes an optional RX status word.
  */
 
@@ -63,11 +63,8 @@
 enum {
 	AUE_BULK_DT_WR,
 	AUE_BULK_DT_RD,
-	AUE_BULK_CS_WR,
-	AUE_BULK_CS_RD,
 	AUE_INTR_DT_RD,
-	AUE_INTR_CS_RD,
-	AUE_N_TRANSFER = 6,
+	AUE_N_TRANSFER,
 };
 
 #define	AUE_INTR_PKTLEN		0x8
@@ -186,8 +183,7 @@ enum {
 #define	AUE_RXSTAT_DRIBBLE	0x10
 #define	AUE_RXSTAT_MASK		0x1E
 
-#define	GET_MII(sc)	((sc)->sc_miibus ?				\
-			    device_get_softc((sc)->sc_miibus) : NULL)
+#define	GET_MII(sc)		usb2_ether_getmii(&(sc)->sc_ue)
 
 struct aue_intrpkt {
 	uint8_t	aue_txstat0;
@@ -202,37 +198,23 @@ struct aue_intrpkt {
 struct aue_rxpkt {
 	uint16_t aue_pktlen;
 	uint8_t	aue_rxstat;
+	uint8_t	pad;
 } __packed;
 
 struct aue_softc {
-	struct ifnet *sc_ifp;
+	struct usb2_ether	sc_ue;
+	struct mtx		sc_mtx;
+	struct usb2_xfer	*sc_xfer[AUE_N_TRANSFER];
 
-	struct usb2_config_td sc_config_td;
-	struct usb2_callout sc_watchdog;
-	struct mtx sc_mtx;
-	struct aue_rxpkt sc_rxpkt;
-
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[AUE_N_TRANSFER];
-	device_t sc_miibus;
-	device_t sc_dev;
-
-	uint32_t sc_unit;
-	uint32_t sc_media_active;
-	uint32_t sc_media_status;
-
-	uint16_t sc_flags;
+	int			sc_flags;
 #define	AUE_FLAG_LSYS		0x0001	/* use Linksys reset */
 #define	AUE_FLAG_PNA		0x0002	/* has Home PNA */
 #define	AUE_FLAG_PII		0x0004	/* Pegasus II chip */
-#define	AUE_FLAG_WAIT_LINK	0x0008	/* wait for link to come up */
-#define	AUE_FLAG_READ_STALL	0x0010	/* wait for clearing of stall */
-#define	AUE_FLAG_WRITE_STALL	0x0020	/* wait for clearing of stall */
-#define	AUE_FLAG_LL_READY	0x0040	/* Lower Layer Ready */
-#define	AUE_FLAG_HL_READY	0x0080	/* Higher Layer Ready */
-#define	AUE_FLAG_INTR_STALL	0x0100	/* wait for clearing of stall */
+#define	AUE_FLAG_LINK		0x0008	/* wait for link to come up */
 #define	AUE_FLAG_VER_2		0x0200	/* chip is version 2 */
 #define	AUE_FLAG_DUAL_PHY	0x0400	/* chip has two transcivers */
-
-	uint8_t	sc_name[16];
 };
+
+#define	AUE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	AUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	AUE_LOCK_ASSERT(_sc, t)	mtx_assert(&(_sc)->sc_mtx, t)

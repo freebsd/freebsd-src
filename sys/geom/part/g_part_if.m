@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2006-2008 Marcel Moolenaar
+# Copyright (c) 2006-2009 Marcel Moolenaar
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,16 @@
 
 INTERFACE g_part;
 
+# Default implementations of methods.
+CODE {
+	static int
+	default_precheck(struct g_part_table *t __unused,
+	    enum g_part_ctl r __unused, struct g_part_parms *p __unused)
+	{
+		return (0);
+	}
+};
+
 # add() - scheme specific processing for the add verb.
 METHOD int add {
 	struct g_part_table *table;
@@ -63,6 +73,15 @@ METHOD int create {
 METHOD int destroy {
 	struct g_part_table *table;
 	struct g_part_parms *gpp;
+};
+
+# devalias() - return the name (if any) to be used as an alias for
+# the device special file created for the partition entry.
+METHOD int devalias {
+	struct g_part_table *table;
+	struct g_part_entry *entry;
+	char *buf;
+	size_t bufsz;
 };
 
 # dumpconf()
@@ -94,6 +113,19 @@ METHOD const char * name {
 	char *buf;
 	size_t bufsz;
 };
+
+# precheck() - method to allow schemes to check the parameters given
+# to the mentioned ctl request. This only applies to the requests that
+# operate on a GEOM. In other words, it does not apply to the create
+# request.
+# It is allowed (intended actually) to change the parameters according
+# to the schemes needs before they are used. Returning an error will
+# terminate the request immediately.
+METHOD int precheck {
+	struct g_part_table *table;
+	enum g_part_ctl req;
+	struct g_part_parms *gpp;
+} DEFAULT default_precheck;
 
 # probe() - probe the provider attached to the given consumer for the
 # existence of the scheme implemented by the G_PART interface handler.

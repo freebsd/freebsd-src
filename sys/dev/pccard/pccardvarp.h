@@ -75,7 +75,23 @@ struct pccard_config_entry {
 };
 
 struct pccard_funce_disk {
-	int pfd_interface;
+	uint8_t pfd_interface;
+#define	PFD_I_V_MASK		0x3
+#define PFD_I_V_NONE_REQUIRED	0x0
+#define PFD_I_V_REQ_MOD_ACC	0x1
+#define PFD_I_V_REQ_ACC		0x2
+#define PFD_I_V_REQ_ALWYS	0x1
+#define PFD_I_S			0x4	/* 0 rotating, 1 silicon */
+#define PFD_I_U			0x8	/* SN Uniq? */
+#define	PFD_I_D			0x10	/* 0 - 1 drive, 1 - 2 drives */
+	uint8_t pfd_power;
+#define PFD_P_P0		0x1
+#define PFD_P_P1		0x2
+#define PFD_P_P2		0x4
+#define PFD_P_P3		0x8
+#define PFD_P_N			0x10	/* 3f7/377 excluded? */
+#define PFD_P_E			0x20	/* Index bit supported? */
+#define	PFD_P_I			0x40	/* twincard */
 };
 
 struct pccard_funce_lan {
@@ -119,6 +135,7 @@ struct pccard_function {
 
 	union pccard_funce pf_funce; /* CISTPL_FUNCE */
 #define pf_funce_disk_interface pf_funce.pfv_disk.pfd_interface
+#define pf_funce_disk_power pf_funce.pfv_disk.pfd_power
 #define pf_funce_lan_nid pf_funce.pfv_lan.pfl_nid
 #define pf_funce_lan_nidlen pf_funce.pfv_lan.pfl_nidlen
 };

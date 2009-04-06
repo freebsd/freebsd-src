@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/syscons/teken/teken.h>
 
 static void scteken_revattr(unsigned char, teken_attr_t *);
+static unsigned int scteken_attr(const teken_attr_t *);
 
 static sc_term_init_t	scteken_init;
 static sc_term_term_t	scteken_term;
@@ -165,21 +166,25 @@ static int
 scteken_ioctl(scr_stat *scp, struct tty *tp, u_long cmd, caddr_t data,
 	     struct thread *td)
 {
+	teken_stat *ts = scp->ts;
 	vid_info_t *vi;
+	unsigned int attr;
 
 	switch (cmd) {
 	case GIO_ATTR:      	/* get current attributes */
-		*(int*)data = SC_NORM_ATTR;
+		*(int*)data =
+		    scteken_attr(teken_get_curattr(&ts->ts_teken));
 		return (0);
 	case CONS_GETINFO:  	/* get current (virtual) console info */
-		/* XXX: INCORRECT! */
 		vi = (vid_info_t *)data;
 		if (vi->size != sizeof(struct vid_info))
 			return EINVAL;
-		vi->mv_norm.fore = SC_NORM_ATTR & 0x0f;
-		vi->mv_norm.back = (SC_NORM_ATTR >> 4) & 0x0f;
-		vi->mv_rev.fore = SC_NORM_ATTR & 0x0f;
-		vi->mv_rev.back = (SC_NORM_ATTR >> 4) & 0x0f;
+
+		attr = scteken_attr(teken_get_defattr(&ts->ts_teken));
+		vi->mv_norm.fore = attr & 0x0f;
+		vi->mv_norm.back = (attr >> 4) & 0x0f;
+		vi->mv_rev.fore = vi->mv_norm.back;
+		vi->mv_rev.back = vi->mv_norm.fore;
 		/*
 		 * The other fields are filled by the upper routine. XXX
 		 */
@@ -280,7 +285,7 @@ scteken_revattr(unsigned char color, teken_attr_t *a)
 	}
 }
 
-static inline unsigned int
+static unsigned int
 scteken_attr(const teken_attr_t *a)
 {
 	unsigned int attr = 0;
@@ -300,7 +305,7 @@ scteken_attr(const teken_attr_t *a)
 		attr |= FG_BLINK;
 #endif /* FG_BLINK */
 
-	return (attr << 8);
+	return (attr);
 }
 
 static void
@@ -337,7 +342,7 @@ scteken_putchar(void *arg, const teken_pos_t *tp, teken_char_t c,
 	} else
 #endif /* TEKEN_UTF8 */
 	{
-		attr = scteken_attr(a);
+		attr = scteken_attr(a) << 8;
 		ch = c;
 	}
 
@@ -373,7 +378,7 @@ scteken_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 	} else
 #endif /* TEKEN_UTF8 */
 	{
-		attr = scteken_attr(a);
+		attr = scteken_attr(a) << 8;
 		ch = c;
 	}
 

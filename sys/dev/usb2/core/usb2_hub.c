@@ -335,7 +335,8 @@ repeat:
 
 		/* wait for maximum device power up time */
 
-		usb2_pause_mtx(&Giant, USB_PORT_POWERUP_DELAY);
+		usb2_pause_mtx(&Giant, 
+		    USB_MS_TO_TICKS(USB_PORT_POWERUP_DELAY));
 
 		/* reset port, which implies enabling it */
 
@@ -649,9 +650,6 @@ uhub_attach(device_t dev)
 	uint8_t iface_index;
 	usb2_error_t err;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	sc->sc_udev = udev;
 	sc->sc_dev = dev;
 
@@ -739,7 +737,7 @@ uhub_attach(device_t dev)
 		goto error;
 	}
 	/* wait with power off for a while */
-	usb2_pause_mtx(&Giant, USB_POWER_DOWN_TIME);
+	usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(USB_POWER_DOWN_TIME));
 
 	/*
 	 * To have the best chance of success we do things in the exact same
@@ -797,7 +795,7 @@ uhub_attach(device_t dev)
 		    portno);
 
 		/* wait for stable power */
-		usb2_pause_mtx(&Giant, pwrdly);
+		usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(pwrdly));
 	}
 
 	device_printf(dev, "%d port%s with %d "
@@ -1503,7 +1501,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 	unsigned int temp;
 	unsigned int limit;
 	unsigned int mintime;
-	uint32_t type_refs[4];
+	uint32_t type_refs[5];
 	uint8_t x;
 	uint8_t rem_wakeup;
 
@@ -1564,6 +1562,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 	type_refs[1] = 0;
 	type_refs[2] = 0;
 	type_refs[3] = 0;
+	type_refs[4] = 0;
 
 	/* Re-loop all the devices to get the actual state */
 
@@ -1573,6 +1572,9 @@ usb2_bus_powerd(struct usb2_bus *bus)
 		udev = bus->devices[x];
 		if (udev == NULL)
 			continue;
+
+		/* we found a non-Root-Hub USB device */
+		type_refs[4] += 1;
 
 		/* "last_xfer_time" can be updated by a resume */
 		temp = ticks - udev->pwr_save.last_xfer_time;
@@ -1604,6 +1606,8 @@ usb2_bus_powerd(struct usb2_bus *bus)
 			bus->hw_power_state |= USB_HW_POWER_INTERRUPT;
 		if (type_refs[UE_ISOCHRONOUS] != 0)
 			bus->hw_power_state |= USB_HW_POWER_ISOC;
+		if (type_refs[4] != 0)
+			bus->hw_power_state |= USB_HW_POWER_NON_ROOT_HUB;
 	}
 	USB_BUS_UNLOCK(bus);
 
@@ -1663,7 +1667,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 		return;
 	}
 	/* resume settle time */
-	usb2_pause_mtx(&Giant, USB_PORT_RESUME_DELAY);
+	usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
 
 	if (bus->methods->device_resume != NULL) {
 		/* resume USB device on the USB controller */
@@ -1799,7 +1803,7 @@ repeat:
 
 		/* do DMA delay */
 		temp = usb2_get_dma_delay(udev->bus);
-		usb2_pause_mtx(&Giant, temp);
+		usb2_pause_mtx(&Giant, USB_MS_TO_TICKS(temp));
 
 	}
 	/* suspend current port */

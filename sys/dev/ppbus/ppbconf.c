@@ -393,8 +393,10 @@ ppbus_attach(device_t dev)
 	ppb->ppc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE);
 	if (ppb->ppc_irq_res != NULL) {
+		mtx_lock(ppb->ppc_lock);
 		error = BUS_WRITE_IVAR(device_get_parent(dev), dev,
 		    PPC_IVAR_INTR_HANDLER, (uintptr_t)&ppbus_intr);
+		mtx_unlock(ppb->ppc_lock);
 		if (error) {
 			device_printf(dev, "Unable to set interrupt handler\n");
 			return (error);

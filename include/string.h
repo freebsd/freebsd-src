@@ -78,7 +78,7 @@ int	 strcoll(const char *, const char *);
 char	*strcpy(char * __restrict, const char * __restrict);
 size_t	 strcspn(const char *, const char *) __pure;
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
-char	*strdup(const char *);
+char	*strdup(const char *) __malloc_like;
 #endif
 char	*strerror(int);
 #if __POSIX_VISIBLE >= 200112
@@ -96,7 +96,7 @@ char	*strncat(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
 char	*strncpy(char * __restrict, const char * __restrict, size_t);
 #if __BSD_VISIBLE
-char	*strndup(const char *, size_t);
+char	*strndup(const char *, size_t) __malloc_like;
 char	*strnstr(const char *, const char *, size_t) __pure;
 #endif
 char	*strpbrk(const char *, const char *) __pure;

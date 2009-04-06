@@ -1466,13 +1466,13 @@ usb2_dev_init_post(void *arg)
 	 * should never be opened. Therefore a space character is
 	 * appended after the USB device name.
 	 *
-	 * NOTE: The permissions of this device is 0777, because we
+	 * NOTE: The permissions of this device is 0666, because we
 	 * check the permissions again in the open routine against the
-	 * real USB permissions which are not 0777. Else USB access
+	 * real USB permissions which are not 0666. Else USB access
 	 * will be limited to one user and one group.
 	 */
 	usb2_dev = make_dev(&usb2_devsw, 0, UID_ROOT, GID_OPERATOR,
-	    0777, USB_DEVICE_NAME " ");
+	    0666, USB_DEVICE_NAME " ");
 	if (usb2_dev == NULL) {
 		DPRINTFN(0, "Could not create usb bus device!\n");
 	}

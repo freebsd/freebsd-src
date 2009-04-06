@@ -216,7 +216,12 @@ char * os_readfile(const char *name, size_t *len)
 		return NULL;
 	}
 
-	fread(buf, 1, *len, f);
+	if (fread(buf, 1, *len, f) != *len) {
+		fclose(f);
+		free(buf);
+		return NULL;
+	}
+
 	fclose(f);
 
 	return buf;

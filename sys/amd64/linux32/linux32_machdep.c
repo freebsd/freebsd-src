@@ -560,7 +560,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	/* wait for the children to exit, ie. emulate vfork */
 	PROC_LOCK(p2);
 	while (p2->p_flag & P_PPWAIT)
-	   	msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
+		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
 
 	return (0);
@@ -749,7 +749,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		/* wait for the children to exit, ie. emulate vfork */
 		PROC_LOCK(p2);
 		while (p2->p_flag & P_PPWAIT)
-			msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
+			cv_wait(&p2->p_pwait, &p2->p_mtx);
 		PROC_UNLOCK(p2);
 	}
 

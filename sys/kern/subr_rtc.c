@@ -154,7 +154,7 @@ inittodr(time_t base)
  * Write system time back to RTC
  */
 void
-resettodr()
+resettodr(void)
 {
 	struct timespec ts;
 	int error;

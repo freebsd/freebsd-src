@@ -6,6 +6,7 @@ SUBDIR= \
 	bt3cfw \
 	bthidcontrol \
 	bthidd \
+	btpand \
 	hccontrol \
 	hcsecd \
 	hcseriald \

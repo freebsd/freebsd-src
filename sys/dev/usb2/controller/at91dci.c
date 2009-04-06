@@ -275,7 +275,7 @@ at91dci_wakeup_peer(struct usb2_xfer *xfer)
 		DELAY(8000);
 	} else {
 		/* Wait for reset to complete. */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 8);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
 	}
 
 	AT91_UDP_WRITE_4(sc, AT91_UDP_GSTATE, 0);
@@ -1395,7 +1395,7 @@ at91dci_init(struct at91dci_softc *sc)
 		(sc->sc_clocks_on) (sc->sc_clocks_arg);
 	}
 	/* wait a little for things to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 	/* disable and clear all interrupts */
 

@@ -206,6 +206,7 @@ struct cpu_info {
 	int	cpu_disabled:1;
 } static cpu_info[MAX_APIC_ID + 1];
 int cpu_apic_ids[MAXCPU];
+int apic_cpuids[MAX_APIC_ID + 1];
 
 /* Holds pending bitmap based IPIs per CPU */
 static volatile u_int cpu_ipi_pending[MAXCPU];
@@ -397,6 +398,7 @@ cpu_mp_start(void)
 		KASSERT(boot_cpu_id == PCPU_GET(apic_id),
 		    ("BSP's APIC ID doesn't match boot_cpu_id"));
 	cpu_apic_ids[0] = boot_cpu_id;
+	apic_cpuids[boot_cpu_id] = 0;
 
 	assign_cpu_ids();
 
@@ -705,6 +707,7 @@ assign_cpu_ids(void)
 
 		if (mp_ncpus < MAXCPU) {
 			cpu_apic_ids[mp_ncpus] = i;
+			apic_cpuids[i] = mp_ncpus;
 			mp_ncpus++;
 		} else
 			cpu_info[i].cpu_disabled = 1;

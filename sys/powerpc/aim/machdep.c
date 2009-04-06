@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
+#include <machine/altivec.h>
 #include <machine/bat.h>
 #include <machine/cpu.h>
 #include <machine/elf.h>
@@ -238,7 +239,6 @@ extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
 extern void     *extint, *extsize;
 extern void	*dblow, *dbsize;
-extern void	*vectrap, *vectrapsize;
 
 u_int
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
@@ -340,7 +340,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(&trapcode, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_TRC,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_FPA,  (size_t)&trapsize);
-	bcopy(&vectrap,  (void *)EXC_VEC,  (size_t)&vectrapsize);
+	bcopy(&trapcode, (void *)EXC_VEC,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_VECAST, (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_THRM, (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_BPT,  (size_t)&trapsize);
@@ -647,7 +647,21 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		memcpy(mcp->mc_fpreg, pcb->pcb_fpu.fpr, 32*sizeof(double));
 	}
 
-	/* XXX Altivec context ? */
+	/*
+	 * Repeat for Altivec context
+	 */
+
+	if (pcb->pcb_flags & PCB_VEC) {
+		KASSERT(td == curthread,
+			("get_mcontext: fp save not curthread"));
+		critical_enter();
+		save_vec(td);
+		critical_exit();
+		mcp->mc_flags |= _MC_AV_VALID;
+		mcp->mc_vscr  = pcb->pcb_vec.vscr;
+		mcp->mc_vrsave =  pcb->pcb_vec.vrsave;
+		memcpy(mcp->mc_avec, pcb->pcb_vec.vr, sizeof(mcp->mc_avec));
+	}
 
 	mcp->mc_len = sizeof(*mcp);
 
@@ -701,7 +715,17 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		memcpy(pcb->pcb_fpu.fpr, mcp->mc_fpreg, 32*sizeof(double));
 	}
 
-	/* XXX Altivec context? */
+	if (mcp->mc_flags & _MC_AV_VALID) {
+		if ((pcb->pcb_flags & PCB_VEC) != PCB_VEC) {
+			critical_enter();
+			enable_vec(td);
+			critical_exit();
+		}
+		pcb->pcb_vec.vscr = mcp->mc_vscr;
+		pcb->pcb_vec.vrsave = mcp->mc_vrsave;
+		memcpy(pcb->pcb_vec.vr, mcp->mc_avec, sizeof(mcp->mc_avec));
+	}
+
 
 	return (0);
 }

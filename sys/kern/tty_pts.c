@@ -290,12 +290,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 
 		/* Reverse device name lookups, for ptsname() and ttyname(). */
 		fgn = data;
-#ifdef PTS_EXTERNAL
-		if (psc->pts_cdev != NULL)
-			p = devtoname(psc->pts_cdev);
-		else
-#endif /* PTS_EXTERNAL */
-			p = tty_devname(tp);
+		p = tty_devname(tp);
 		i = strlen(p) + 1;
 		if (i > fgn->len)
 			return (EINVAL);
@@ -385,6 +380,8 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	tty_lock(tp);
 	error = tty_ioctl(tp, cmd, data, td);
 	tty_unlock(tp);
+	if (error == ENOIOCTL)
+		error = ENOTTY;
 
 	return (error);
 }

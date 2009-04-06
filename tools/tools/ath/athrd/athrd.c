@@ -31,6 +31,10 @@
 #include "opt_ah.h"
 
 #include "ah.h"
+
+#include <net80211/_ieee80211.h>
+#include <net80211/ieee80211_regdomain.h>
+
 #include "ah_internal.h"
 #include "ah_eeprom_v3.h"		/* XXX */
 
@@ -40,13 +44,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#define	IEEE80211_CHAN_MAX	255
-#define IEEE80211_REGCLASSIDS_MAX	10
-
 int		ath_hal_debug = 0;
 HAL_CTRY_CODE	cc = CTRY_DEFAULT;
 HAL_REG_DOMAIN	rd = 169;		/* FCC */
-HAL_BOOL	outdoor = AH_TRUE;
 HAL_BOOL	Amode = 1;
 HAL_BOOL	Bmode = 1;
 HAL_BOOL	Gmode = 1;
@@ -169,12 +169,12 @@ getChannelEdges(struct ath_hal *ah, u_int16_t flags, u_int16_t *low, u_int16_t *
 	struct ath_hal_private *ahp = AH_PRIVATE(ah);
 	HAL_CAPABILITIES *pCap = &ahp->ah_caps;
 
-	if (flags & CHANNEL_5GHZ) {
+	if (flags & IEEE80211_CHAN_5GHZ) {
 		*low = pCap->halLow5GhzChan;
 		*high = pCap->halHigh5GhzChan;
 		return AH_TRUE;
 	}
-	if (flags & CHANNEL_2GHZ) {
+	if (flags & IEEE80211_CHAN_2GHZ) {
 		*low = pCap->halLow2GhzChan;
 		*high = pCap->halHigh2GhzChan;
 		return AH_TRUE;
@@ -208,158 +208,6 @@ getWirelessModes(struct ath_hal *ah)
 	return mode;
 }
 
-/*
- * Country/Region Codes from MS WINNLS.H
- * Numbering from ISO 3166
- */
-enum CountryCode {
-    CTRY_ALBANIA              = 8,       /* Albania */
-    CTRY_ALGERIA              = 12,      /* Algeria */
-    CTRY_ARGENTINA            = 32,      /* Argentina */
-    CTRY_ARMENIA              = 51,      /* Armenia */
-    CTRY_AUSTRALIA            = 36,      /* Australia */
-    CTRY_AUSTRIA              = 40,      /* Austria */
-    CTRY_AZERBAIJAN           = 31,      /* Azerbaijan */
-    CTRY_BAHRAIN              = 48,      /* Bahrain */
-    CTRY_BELARUS              = 112,     /* Belarus */
-    CTRY_BELGIUM              = 56,      /* Belgium */
-    CTRY_BELIZE               = 84,      /* Belize */
-    CTRY_BOLIVIA              = 68,      /* Bolivia */
-    CTRY_BRAZIL               = 76,      /* Brazil */
-    CTRY_BRUNEI_DARUSSALAM    = 96,      /* Brunei Darussalam */
-    CTRY_BULGARIA             = 100,     /* Bulgaria */
-    CTRY_CANADA               = 124,     /* Canada */
-    CTRY_CHILE                = 152,     /* Chile */
-    CTRY_CHINA                = 156,     /* People's Republic of China */
-    CTRY_COLOMBIA             = 170,     /* Colombia */
-    CTRY_COSTA_RICA           = 188,     /* Costa Rica */
-    CTRY_CROATIA              = 191,     /* Croatia */
-    CTRY_CYPRUS               = 196,
-    CTRY_CZECH                = 203,     /* Czech Republic */
-    CTRY_DENMARK              = 208,     /* Denmark */
-    CTRY_DOMINICAN_REPUBLIC   = 214,     /* Dominican Republic */
-    CTRY_ECUADOR              = 218,     /* Ecuador */
-    CTRY_EGYPT                = 818,     /* Egypt */
-    CTRY_EL_SALVADOR          = 222,     /* El Salvador */
-    CTRY_ESTONIA              = 233,     /* Estonia */
-    CTRY_FAEROE_ISLANDS       = 234,     /* Faeroe Islands */
-    CTRY_FINLAND              = 246,     /* Finland */
-    CTRY_FRANCE               = 250,     /* France */
-    CTRY_FRANCE2              = 255,     /* France2 */
-    CTRY_GEORGIA              = 268,     /* Georgia */
-    CTRY_GERMANY              = 276,     /* Germany */
-    CTRY_GREECE               = 300,     /* Greece */
-    CTRY_GSM                  = 843,     /* 900MHz/GSM */
-    CTRY_GUATEMALA            = 320,     /* Guatemala */
-    CTRY_HONDURAS             = 340,     /* Honduras */
-    CTRY_HONG_KONG            = 344,     /* Hong Kong S.A.R., P.R.C. */
-    CTRY_HUNGARY              = 348,     /* Hungary */
-    CTRY_ICELAND              = 352,     /* Iceland */
-    CTRY_INDIA                = 356,     /* India */
-    CTRY_INDONESIA            = 360,     /* Indonesia */
-    CTRY_IRAN                 = 364,     /* Iran */
-    CTRY_IRAQ                 = 368,     /* Iraq */
-    CTRY_IRELAND              = 372,     /* Ireland */
-    CTRY_ISRAEL               = 376,     /* Israel */
-    CTRY_ITALY                = 380,     /* Italy */
-    CTRY_JAMAICA              = 388,     /* Jamaica */
-    CTRY_JAPAN                = 392,     /* Japan */
-    CTRY_JAPAN1               = 393,     /* Japan (JP1) */
-    CTRY_JAPAN2               = 394,     /* Japan (JP0) */
-    CTRY_JAPAN3               = 395,     /* Japan (JP1-1) */
-    CTRY_JAPAN4               = 396,     /* Japan (JE1) */
-    CTRY_JAPAN5               = 397,     /* Japan (JE2) */
-    CTRY_JAPAN6               = 399,     /* Japan (JP6) */
-
-    CTRY_JAPAN7		      = 4007,	 /* Japan (J7) */
-    CTRY_JAPAN8		      = 4008,	 /* Japan (J8) */
-    CTRY_JAPAN9		      = 4009,	 /* Japan (J9) */
-
-    CTRY_JAPAN10	      = 4010,	 /* Japan (J10) */
-    CTRY_JAPAN11	      = 4011,	 /* Japan (J11) */
-    CTRY_JAPAN12	      = 4012,	 /* Japan (J12) */
-
-    CTRY_JAPAN13	      = 4013,	 /* Japan (J13) */
-    CTRY_JAPAN14	      = 4014,	 /* Japan (J14) */
-    CTRY_JAPAN15	      = 4015,	 /* Japan (J15) */
-
-    CTRY_JAPAN16	      = 4016,	 /* Japan (J16) */
-    CTRY_JAPAN17	      = 4017,	 /* Japan (J17) */
-    CTRY_JAPAN18	      = 4018,	 /* Japan (J18) */
-
-    CTRY_JAPAN19	      = 4019,	 /* Japan (J19) */
-    CTRY_JAPAN20	      = 4020,	 /* Japan (J20) */
-    CTRY_JAPAN21	      = 4021,	 /* Japan (J21) */
-
-    CTRY_JAPAN22	      = 4022,	 /* Japan (J22) */
-    CTRY_JAPAN23	      = 4023,	 /* Japan (J23) */
-    CTRY_JAPAN24	      = 4024,	 /* Japan (J24) */
- 
-    CTRY_JORDAN               = 400,     /* Jordan */
-    CTRY_KAZAKHSTAN           = 398,     /* Kazakhstan */
-    CTRY_KENYA                = 404,     /* Kenya */
-    CTRY_KOREA_NORTH          = 408,     /* North Korea */
-    CTRY_KOREA_ROC            = 410,     /* South Korea */
-    CTRY_KOREA_ROC2           = 411,     /* South Korea */
-    CTRY_KOREA_ROC3           = 412,     /* South Korea */
-    CTRY_KUWAIT               = 414,     /* Kuwait */
-    CTRY_LATVIA               = 428,     /* Latvia */
-    CTRY_LEBANON              = 422,     /* Lebanon */
-    CTRY_LIBYA                = 434,     /* Libya */
-    CTRY_LIECHTENSTEIN        = 438,     /* Liechtenstein */
-    CTRY_LITHUANIA            = 440,     /* Lithuania */
-    CTRY_LUXEMBOURG           = 442,     /* Luxembourg */
-    CTRY_MACAU                = 446,     /* Macau */
-    CTRY_MACEDONIA            = 807,     /* the Former Yugoslav Republic of Macedonia */
-    CTRY_MALAYSIA             = 458,     /* Malaysia */
-    CTRY_MALTA		          = 470,	 /* Malta */
-    CTRY_MEXICO               = 484,     /* Mexico */
-    CTRY_MONACO               = 492,     /* Principality of Monaco */
-    CTRY_MOROCCO              = 504,     /* Morocco */
-    CTRY_NETHERLANDS          = 528,     /* Netherlands */
-    CTRY_NEW_ZEALAND          = 554,     /* New Zealand */
-    CTRY_NICARAGUA            = 558,     /* Nicaragua */
-    CTRY_NORWAY               = 578,     /* Norway */
-    CTRY_OMAN                 = 512,     /* Oman */
-    CTRY_PAKISTAN             = 586,     /* Islamic Republic of Pakistan */
-    CTRY_PANAMA               = 591,     /* Panama */
-    CTRY_PARAGUAY             = 600,     /* Paraguay */
-    CTRY_PERU                 = 604,     /* Peru */
-    CTRY_PHILIPPINES          = 608,     /* Republic of the Philippines */
-    CTRY_POLAND               = 616,     /* Poland */
-    CTRY_PORTUGAL             = 620,     /* Portugal */
-    CTRY_PUERTO_RICO          = 630,     /* Puerto Rico */
-    CTRY_QATAR                = 634,     /* Qatar */
-    CTRY_ROMANIA              = 642,     /* Romania */
-    CTRY_RUSSIA               = 643,     /* Russia */
-    CTRY_SAUDI_ARABIA         = 682,     /* Saudi Arabia */
-    CTRY_SINGAPORE            = 702,     /* Singapore */
-    CTRY_SLOVAKIA             = 703,     /* Slovak Republic */
-    CTRY_SLOVENIA             = 705,     /* Slovenia */
-    CTRY_SOUTH_AFRICA         = 710,     /* South Africa */
-    CTRY_SPAIN                = 724,     /* Spain */
-    CTRY_SWEDEN               = 752,     /* Sweden */
-    CTRY_SWITZERLAND          = 756,     /* Switzerland */
-    CTRY_SYRIA                = 760,     /* Syria */
-    CTRY_TAIWAN               = 158,     /* Taiwan */
-    CTRY_THAILAND             = 764,     /* Thailand */
-    CTRY_TRINIDAD_Y_TOBAGO    = 780,     /* Trinidad y Tobago */
-    CTRY_TUNISIA              = 788,     /* Tunisia */
-    CTRY_TURKEY               = 792,     /* Turkey */
-    CTRY_UAE                  = 784,     /* U.A.E. */
-    CTRY_UKRAINE              = 804,     /* Ukraine */
-    CTRY_UNITED_KINGDOM       = 826,     /* United Kingdom */
-    CTRY_UNITED_STATES        = 840,     /* United States */
-    CTRY_UNITED_STATES_FCC49  = 842,     /* United States (Public Safety)*/
-    CTRY_URUGUAY              = 858,     /* Uruguay */
-    CTRY_UZBEKISTAN           = 860,     /* Uzbekistan */
-    CTRY_VENEZUELA            = 862,     /* Venezuela */
-    CTRY_VIET_NAM             = 704,     /* Viet Nam */
-    CTRY_YEMEN                = 887,     /* Yemen */
-    CTRY_ZIMBABWE             = 716      /* Zimbabwe */
-};
-
-
 /* Enumerated Regulatory Domain Information 8 bit values indicate that
  * the regdomain is really a pair of unitary regdomains.  12 bit values
  * are the real unitary regdomains and are the only ones which have the
@@ -381,7 +229,6 @@ enum EnumRd {
 	NULL1_WORLD	= 0x03,		/* For 11b-only countries (no 11a allowed) */
 	NULL1_ETSIB	= 0x07,		/* Israel */
 	NULL1_ETSIC	= 0x08,
-	NULL1_GSM	= 0x09,		/* GSM-only operation */
 	FCC1_FCCA	= 0x10,		/* USA */
 	FCC1_WORLD	= 0x11,		/* Hong Kong */
 	FCC4_FCCA	= 0x12,		/* USA - Public Safety */
@@ -531,7 +378,6 @@ enum EnumRd {
 
 	NULL1		= 0x0198,
 	WORLD		= 0x0199,
-	GSM		= 0x019a,
 	DEBUG_REG_DMN	= 0x01ff,
 };
 #define DEF_REGDMN		FCC1_FCCA
@@ -545,7 +391,6 @@ static struct {
 	D(NULL1_WORLD),		/* For 11b-only countries (no 11a allowed) */
 	D(NULL1_ETSIB),		/* Israel */
 	D(NULL1_ETSIC),
-	D(NULL1_GSM),		/* GSM-only operation */
 	D(FCC1_FCCA),		/* USA */
 	D(FCC1_WORLD),		/* Hong Kong */
 	D(FCC4_FCCA),		/* USA - Public Safety */
@@ -682,7 +527,6 @@ static struct {
 
 	D(NULL1),
 	D(WORLD),
-	D(GSM),
 	D(DEBUG_REG_DMN),
 #undef D
 };
@@ -734,163 +578,151 @@ typedef struct {
 	HAL_REG_DOMAIN	regDmnEnum;
 	const char*	isoName;
 	const char*	name;
-	HAL_BOOL	allow11g;
-	HAL_BOOL	allow11aTurbo;
-	HAL_BOOL	allow11gTurbo;
-	u_int16_t	outdoorChanStart;
 } COUNTRY_CODE_TO_ENUM_RD;
  
-#define	YES	AH_TRUE
-#define	NO	AH_FALSE
-/* Index into table to avoid DEBUG and NO COUNTRY SET entries */
-#define CTRY_ONLY_INDEX 2
 /*
  * Country Code Table to Enumerated RD
  */
-
 static COUNTRY_CODE_TO_ENUM_RD allCountries[] = {
-    {CTRY_DEBUG,       NO_ENUMRD,     "DB", "DEBUG", YES, YES, YES, 7000 },
-    {CTRY_DEFAULT,     DEF_REGDMN,    "NA", "NO_COUNTRY_SET", YES, YES, YES, 7000 },
-    {CTRY_ALBANIA,     NULL1_WORLD,   "AL", "ALBANIA",        YES, NO,  YES, 7000 },
-    {CTRY_ALGERIA,     NULL1_WORLD,   "DZ", "ALGERIA",        YES, NO,  YES, 7000 },
-    {CTRY_ARGENTINA,   APL3_WORLD,    "AR", "ARGENTINA",      NO,  NO,  NO,  7000 },
-    {CTRY_ARMENIA,     ETSI4_WORLD,   "AM", "ARMENIA",        YES, NO,  YES, 7000 },
-    {CTRY_AUSTRALIA,   FCC2_WORLD,    "AU", "AUSTRALIA",      YES, YES, YES, 7000 },
-    {CTRY_AUSTRIA,     ETSI1_WORLD,   "AT", "AUSTRIA",        YES, NO,  YES, 7000 },
-    {CTRY_AZERBAIJAN,  ETSI4_WORLD,   "AZ", "AZERBAIJAN",     YES, YES, YES, 7000 },
-    {CTRY_BAHRAIN,     APL6_WORLD,   "BH", "BAHRAIN",        YES, NO,  YES, 7000 },
-    {CTRY_BELARUS,     NULL1_WORLD,   "BY", "BELARUS",        YES, NO,  YES, 7000 },
-    {CTRY_BELGIUM,     ETSI1_WORLD,   "BE", "BELGIUM",        YES, NO,  YES, 7000 },
-    {CTRY_BELIZE,      APL1_ETSIC,    "BZ", "BELIZE",         YES, YES, YES, 7000 },
-    {CTRY_BOLIVIA,     APL1_ETSIC,    "BO", "BOLVIA",         YES, YES, YES, 7000 },
-    {CTRY_BRAZIL,      FCC3_WORLD,    "BR", "BRAZIL",         YES,  NO,  NO, 7000 },
-    {CTRY_BRUNEI_DARUSSALAM,APL1_WORLD,"BN", "BRUNEI DARUSSALAM", YES, YES, YES, 7000 },
-    {CTRY_BULGARIA,    ETSI6_WORLD,   "BG", "BULGARIA",       YES, NO,  YES, 7000 },
-    {CTRY_CANADA,      FCC2_FCCA,     "CA", "CANADA",         YES, YES, YES, 7000 },
-    {CTRY_CHILE,       APL6_WORLD,    "CL", "CHILE",          YES, YES, YES, 7000 },
-    {CTRY_CHINA,       APL1_WORLD,    "CN", "CHINA",          YES, YES, YES, 7000 },
-    {CTRY_COLOMBIA,    FCC1_FCCA,     "CO", "COLOMBIA",       YES, NO,  YES, 7000 },
-    {CTRY_COSTA_RICA,  NULL1_WORLD,   "CR", "COSTA RICA",     YES, NO,  YES, 7000 },
-    {CTRY_CROATIA,     ETSI3_WORLD,   "HR", "CROATIA",        YES, NO,  YES, 7000 },
-    {CTRY_CYPRUS,      ETSI1_WORLD,   "CY", "CYPRUS",         YES, YES, YES, 7000 },
-    {CTRY_CZECH,       ETSI3_WORLD,   "CZ", "CZECH REPUBLIC", YES,  NO, YES,  7000 },
-    {CTRY_DENMARK,     ETSI1_WORLD,   "DK", "DENMARK",        YES,  NO, YES, 7000 },
-    {CTRY_DOMINICAN_REPUBLIC,FCC1_FCCA,"DO", "DOMINICAN REPUBLIC", YES, YES, YES, 7000 },
-    {CTRY_ECUADOR,     NULL1_WORLD,   "EC", "ECUADOR",        NO,  NO,  NO,  7000 },
-    {CTRY_EGYPT,       ETSI3_WORLD,   "EG", "EGYPT",          YES, NO,  YES, 7000 },
-    {CTRY_EL_SALVADOR, NULL1_WORLD,   "SV", "EL SALVADOR",    YES, NO,  YES, 7000 },    
-    {CTRY_ESTONIA,     ETSI1_WORLD,   "EE", "ESTONIA",        YES, NO,  YES, 7000 },
-    {CTRY_FINLAND,     ETSI1_WORLD,   "FI", "FINLAND",        YES, NO,  YES, 7000 },
-    {CTRY_FRANCE,      ETSI3_WORLD,   "FR", "FRANCE",         YES, NO,  YES, 7000 },
-    {CTRY_FRANCE2,     ETSI3_WORLD,   "F2", "FRANCE_RES",     YES, NO,  YES, 7000 },
-    {CTRY_GEORGIA,     ETSI4_WORLD,   "GE", "GEORGIA",        YES, YES, YES, 7000 },
-    {CTRY_GERMANY,     ETSI1_WORLD,   "DE", "GERMANY",        YES, NO,  YES, 7000 },
-    {CTRY_GREECE,      ETSI1_WORLD,   "GR", "GREECE",         YES, NO,  YES, 7000 },
-    {CTRY_GSM,         NULL1_GSM,     "GS", "GSM",            YES, NO,   NO, 7000 },
-    {CTRY_GUATEMALA,   FCC1_FCCA,     "GT", "GUATEMALA",      YES, YES, YES, 7000 },
-    {CTRY_HONDURAS,    NULL1_WORLD,   "HN", "HONDURAS",       YES, NO,  YES, 7000 },
-    {CTRY_HONG_KONG,   FCC2_WORLD,    "HK", "HONG KONG",      YES, YES, YES, 7000 },
-    {CTRY_HUNGARY,     ETSI1_WORLD,   "HU", "HUNGARY",        YES, NO,  YES, 7000 },
-    {CTRY_ICELAND,     ETSI1_WORLD,   "IS", "ICELAND",        YES, NO,  YES, 7000 },
-    {CTRY_INDIA,       APL6_WORLD,    "IN", "INDIA",          YES, NO,  YES, 7000 },
-    {CTRY_INDONESIA,   APL1_WORLD,    "ID", "INDONESIA",      YES, NO,  YES, 7000 },
-    {CTRY_IRAN,        APL1_WORLD,    "IR", "IRAN",           YES, YES, YES, 7000 },
-    {CTRY_IRELAND,     ETSI1_WORLD,   "IE", "IRELAND",        YES, NO,  YES, 7000 },
-    {CTRY_ISRAEL,      NULL1_WORLD,   "IL", "ISRAEL",         YES, NO,  YES, 7000 },
-    {CTRY_ITALY,       ETSI1_WORLD,   "IT", "ITALY",          YES, NO,  YES, 7000 },
-    {CTRY_JAPAN,       MKK1_MKKA,     "JP", "JAPAN",          YES, NO,  NO,  7000 },
-    {CTRY_JAPAN1,      MKK1_MKKB,     "JP", "JAPAN1",         YES, NO,  NO,  7000 },
-    {CTRY_JAPAN2,      MKK1_FCCA,     "JP", "JAPAN2",         YES, NO,  NO,  7000 },    
-    {CTRY_JAPAN3,      MKK2_MKKA,     "JP", "JAPAN3",         YES, NO,  NO,  7000 },
-    {CTRY_JAPAN4,      MKK1_MKKA1,    "JP", "JAPAN4",         YES, NO,  NO,  7000 },
-    {CTRY_JAPAN5,      MKK1_MKKA2,    "JP", "JAPAN5",         YES, NO,  NO,  7000 },    
-    {CTRY_JAPAN6,      MKK1_MKKC,     "JP", "JAPAN6",         YES, NO,  NO,  7000 },    
+    {CTRY_DEBUG,       NO_ENUMRD,     "DB", "DEBUG" },
+    {CTRY_DEFAULT,     DEF_REGDMN,    "NA", "NO_COUNTRY_SET" },
+    {CTRY_ALBANIA,     NULL1_WORLD,   "AL", "ALBANIA" },
+    {CTRY_ALGERIA,     NULL1_WORLD,   "DZ", "ALGERIA" },
+    {CTRY_ARGENTINA,   APL3_WORLD,    "AR", "ARGENTINA" },
+    {CTRY_ARMENIA,     ETSI4_WORLD,   "AM", "ARMENIA" },
+    {CTRY_AUSTRALIA,   FCC2_WORLD,    "AU", "AUSTRALIA" },
+    {CTRY_AUSTRIA,     ETSI1_WORLD,   "AT", "AUSTRIA" },
+    {CTRY_AZERBAIJAN,  ETSI4_WORLD,   "AZ", "AZERBAIJAN" },
+    {CTRY_BAHRAIN,     APL6_WORLD,   "BH", "BAHRAIN" },
+    {CTRY_BELARUS,     NULL1_WORLD,   "BY", "BELARUS" },
+    {CTRY_BELGIUM,     ETSI1_WORLD,   "BE", "BELGIUM" },
+    {CTRY_BELIZE,      APL1_ETSIC,    "BZ", "BELIZE" },
+    {CTRY_BOLIVIA,     APL1_ETSIC,    "BO", "BOLVIA" },
+    {CTRY_BRAZIL,      FCC3_WORLD,    "BR", "BRAZIL" },
+    {CTRY_BRUNEI_DARUSSALAM,APL1_WORLD,"BN", "BRUNEI DARUSSALAM" },
+    {CTRY_BULGARIA,    ETSI6_WORLD,   "BG", "BULGARIA" },
+    {CTRY_CANADA,      FCC2_FCCA,     "CA", "CANADA" },
+    {CTRY_CHILE,       APL6_WORLD,    "CL", "CHILE" },
+    {CTRY_CHINA,       APL1_WORLD,    "CN", "CHINA" },
+    {CTRY_COLOMBIA,    FCC1_FCCA,     "CO", "COLOMBIA" },
+    {CTRY_COSTA_RICA,  NULL1_WORLD,   "CR", "COSTA RICA" },
+    {CTRY_CROATIA,     ETSI3_WORLD,   "HR", "CROATIA" },
+    {CTRY_CYPRUS,      ETSI1_WORLD,   "CY", "CYPRUS" },
+    {CTRY_CZECH,       ETSI3_WORLD,   "CZ", "CZECH REPUBLIC" },
+    {CTRY_DENMARK,     ETSI1_WORLD,   "DK", "DENMARK" },
+    {CTRY_DOMINICAN_REPUBLIC,FCC1_FCCA,"DO", "DOMINICAN REPUBLIC" },
+    {CTRY_ECUADOR,     NULL1_WORLD,   "EC", "ECUADOR" },
+    {CTRY_EGYPT,       ETSI3_WORLD,   "EG", "EGYPT" },
+    {CTRY_EL_SALVADOR, NULL1_WORLD,   "SV", "EL SALVADOR" },    
+    {CTRY_ESTONIA,     ETSI1_WORLD,   "EE", "ESTONIA" },
+    {CTRY_FINLAND,     ETSI1_WORLD,   "FI", "FINLAND" },
+    {CTRY_FRANCE,      ETSI3_WORLD,   "FR", "FRANCE" },
+    {CTRY_FRANCE2,     ETSI3_WORLD,   "F2", "FRANCE_RES" },
+    {CTRY_GEORGIA,     ETSI4_WORLD,   "GE", "GEORGIA" },
+    {CTRY_GERMANY,     ETSI1_WORLD,   "DE", "GERMANY" },
+    {CTRY_GREECE,      ETSI1_WORLD,   "GR", "GREECE" },
+    {CTRY_GUATEMALA,   FCC1_FCCA,     "GT", "GUATEMALA" },
+    {CTRY_HONDURAS,    NULL1_WORLD,   "HN", "HONDURAS" },
+    {CTRY_HONG_KONG,   FCC2_WORLD,    "HK", "HONG KONG" },
+    {CTRY_HUNGARY,     ETSI1_WORLD,   "HU", "HUNGARY" },
+    {CTRY_ICELAND,     ETSI1_WORLD,   "IS", "ICELAND" },
+    {CTRY_INDIA,       APL6_WORLD,    "IN", "INDIA" },
+    {CTRY_INDONESIA,   APL1_WORLD,    "ID", "INDONESIA" },
+    {CTRY_IRAN,        APL1_WORLD,    "IR", "IRAN" },
+    {CTRY_IRELAND,     ETSI1_WORLD,   "IE", "IRELAND" },
+    {CTRY_ISRAEL,      NULL1_WORLD,   "IL", "ISRAEL" },
+    {CTRY_ITALY,       ETSI1_WORLD,   "IT", "ITALY" },
+    {CTRY_JAPAN,       MKK1_MKKA,     "JP", "JAPAN" },
+    {CTRY_JAPAN1,      MKK1_MKKB,     "JP", "JAPAN1" },
+    {CTRY_JAPAN2,      MKK1_FCCA,     "JP", "JAPAN2" },    
+    {CTRY_JAPAN3,      MKK2_MKKA,     "JP", "JAPAN3" },
+    {CTRY_JAPAN4,      MKK1_MKKA1,    "JP", "JAPAN4" },
+    {CTRY_JAPAN5,      MKK1_MKKA2,    "JP", "JAPAN5" },    
+    {CTRY_JAPAN6,      MKK1_MKKC,     "JP", "JAPAN6" },    
 
-    {CTRY_JAPAN7,      MKK3_MKKB,     "JP", "JAPAN7",         YES, NO,  NO,  7000 },
-    {CTRY_JAPAN8,      MKK3_MKKA2,    "JP", "JAPAN8",       YES, NO,  NO,  7000 },    
-    {CTRY_JAPAN9,      MKK3_MKKC,     "JP", "JAPAN9",       YES, NO,  NO,  7000 },    
+    {CTRY_JAPAN7,      MKK3_MKKB,     "JP", "JAPAN7" },
+    {CTRY_JAPAN8,      MKK3_MKKA2,    "JP", "JAPAN8" },    
+    {CTRY_JAPAN9,      MKK3_MKKC,     "JP", "JAPAN9" },    
 
-    {CTRY_JAPAN10,      MKK4_MKKB,     "JP", "JAPAN10",       YES, NO,  NO,  7000 },
-    {CTRY_JAPAN11,      MKK4_MKKA2,    "JP", "JAPAN11",       YES, NO,  NO,  7000 },    
-    {CTRY_JAPAN12,      MKK4_MKKC,     "JP", "JAPAN12",       YES, NO,  NO,  7000 },    
+    {CTRY_JAPAN10,      MKK4_MKKB,     "JP", "JAPAN10" },
+    {CTRY_JAPAN11,      MKK4_MKKA2,    "JP", "JAPAN11" },    
+    {CTRY_JAPAN12,      MKK4_MKKC,     "JP", "JAPAN12" },    
 
-    {CTRY_JAPAN13,      MKK5_MKKB,     "JP", "JAPAN13",       YES, NO,  NO,  7000 },
-    {CTRY_JAPAN14,      MKK5_MKKA2,    "JP", "JAPAN14",       YES, NO,  NO,  7000 },    
-    {CTRY_JAPAN15,      MKK5_MKKC,     "JP", "JAPAN15",       YES, NO,  NO,  7000 },    
+    {CTRY_JAPAN13,      MKK5_MKKB,     "JP", "JAPAN13" },
+    {CTRY_JAPAN14,      MKK5_MKKA2,    "JP", "JAPAN14" },    
+    {CTRY_JAPAN15,      MKK5_MKKC,     "JP", "JAPAN15" },    
 
-    {CTRY_JAPAN16,      MKK6_MKKB,     "JP", "JAPAN16",       YES, NO,  NO,  7000 },
-    {CTRY_JAPAN17,      MKK6_MKKA2,    "JP", "JAPAN17",       YES, NO,  NO,  7000 },    
-    {CTRY_JAPAN18,      MKK6_MKKC,     "JP", "JAPAN18",       YES, NO,  NO,  7000 },    
+    {CTRY_JAPAN16,      MKK6_MKKB,     "JP", "JAPAN16" },
+    {CTRY_JAPAN17,      MKK6_MKKA2,    "JP", "JAPAN17" },    
+    {CTRY_JAPAN18,      MKK6_MKKC,     "JP", "JAPAN18" },    
 
-    {CTRY_JAPAN19,      MKK7_MKKB,     "JP", "JAPAN19",       YES, NO,  NO,  7000 },
-    {CTRY_JAPAN20,      MKK7_MKKA2,    "JP", "JAPAN20",       YES, NO,  NO,  7000 },    
-    {CTRY_JAPAN21,      MKK7_MKKC,     "JP", "JAPAN21",       YES, NO,  NO,  7000 },    
+    {CTRY_JAPAN19,      MKK7_MKKB,     "JP", "JAPAN19" },
+    {CTRY_JAPAN20,      MKK7_MKKA2,    "JP", "JAPAN20" },    
+    {CTRY_JAPAN21,      MKK7_MKKC,     "JP", "JAPAN21" },    
 
-    {CTRY_JAPAN22,      MKK8_MKKB,     "JP", "JAPAN22",       YES, NO,  NO,  7000 },
-    {CTRY_JAPAN23,      MKK8_MKKA2,    "JP", "JAPAN23",       YES, NO,  NO,  7000 },    
-    {CTRY_JAPAN24,      MKK8_MKKC,     "JP", "JAPAN24",       YES, NO,  NO,  7000 },    
+    {CTRY_JAPAN22,      MKK8_MKKB,     "JP", "JAPAN22" },
+    {CTRY_JAPAN23,      MKK8_MKKA2,    "JP", "JAPAN23" },    
+    {CTRY_JAPAN24,      MKK8_MKKC,     "JP", "JAPAN24" },    
 
-    {CTRY_JORDAN,      APL4_WORLD,    "JO", "JORDAN",         YES, NO,  YES, 7000 },
-    {CTRY_KAZAKHSTAN,  NULL1_WORLD,   "KZ", "KAZAKHSTAN",     YES, NO,  YES, 7000 },
-    {CTRY_KOREA_NORTH, APL2_WORLD,    "KP", "NORTH KOREA",    YES, YES, YES, 7000 },
-    {CTRY_KOREA_ROC,   APL2_WORLD,    "KR", "KOREA REPUBLIC", YES, NO,   NO, 7000 },
-    {CTRY_KOREA_ROC2,  APL2_WORLD,    "K2", "KOREA REPUBLIC2",YES, NO,   NO, 7000 },
-    {CTRY_KOREA_ROC3,  APL9_WORLD,    "K3", "KOREA REPUBLIC3",YES, NO,   NO, 7000 },
-    {CTRY_KUWAIT,      NULL1_WORLD,   "KW", "KUWAIT",         YES, NO,  YES, 7000 },
-    {CTRY_LATVIA,      ETSI1_WORLD,   "LV", "LATVIA",         YES, NO,  YES, 7000 },
-    {CTRY_LEBANON,     NULL1_WORLD,   "LB", "LEBANON",        YES, NO,  YES, 7000 },
-    {CTRY_LIECHTENSTEIN,ETSI1_WORLD,  "LI", "LIECHTENSTEIN",  YES, NO,  YES, 7000 },
-    {CTRY_LITHUANIA,   ETSI1_WORLD,   "LT", "LITHUANIA",      YES, NO,  YES, 7000 },
-    {CTRY_LUXEMBOURG,  ETSI1_WORLD,   "LU", "LUXEMBOURG",     YES, NO,  YES, 7000 },
-    {CTRY_MACAU,       FCC2_WORLD,    "MO", "MACAU",          YES, YES, YES, 7000 },
-    {CTRY_MACEDONIA,   NULL1_WORLD,   "MK", "MACEDONIA",      YES, NO,  YES, 7000 },
-    {CTRY_MALAYSIA,    APL8_WORLD,    "MY", "MALAYSIA",       YES, NO,  NO, 7000 },
-    {CTRY_MALTA,       ETSI1_WORLD,   "MT", "MALTA",          YES, NO,  YES, 7000 },
-    {CTRY_MEXICO,      FCC1_FCCA,     "MX", "MEXICO",         YES, YES, YES, 7000 },
-    {CTRY_MONACO,      ETSI4_WORLD,   "MC", "MONACO",         YES, YES, YES, 7000 },
-    {CTRY_MOROCCO,     NULL1_WORLD,   "MA", "MOROCCO",        YES, NO,  YES, 7000 },
-    {CTRY_NETHERLANDS, ETSI1_WORLD,   "NL", "NETHERLANDS",    YES, NO,  YES, 7000 },
-    {CTRY_NEW_ZEALAND, FCC2_ETSIC,    "NZ", "NEW ZEALAND",    YES, NO,  YES, 7000 },
-    {CTRY_NORWAY,      ETSI1_WORLD,   "NO", "NORWAY",         YES, NO,  YES, 7000 },
-    {CTRY_OMAN,        APL6_WORLD,    "OM", "OMAN",           YES, NO,  YES, 7000 },
-    {CTRY_PAKISTAN,    NULL1_WORLD,   "PK", "PAKISTAN",       YES, NO,  YES, 7000 },
-    {CTRY_PANAMA,      FCC1_FCCA,     "PA", "PANAMA",         YES, YES, YES, 7000 },
-    {CTRY_PERU,        APL1_WORLD,    "PE", "PERU",           YES, NO,  YES, 7000 },
-    {CTRY_PHILIPPINES, APL1_WORLD,    "PH", "PHILIPPINES",    YES, YES, YES, 7000 },
-    {CTRY_POLAND,      ETSI1_WORLD,   "PL", "POLAND",         YES, NO,  YES, 7000 },
-    {CTRY_PORTUGAL,    ETSI1_WORLD,   "PT", "PORTUGAL",       YES, NO,  YES, 7000 },
-    {CTRY_PUERTO_RICO, FCC1_FCCA,     "PR", "PUERTO RICO",    YES, YES, YES, 7000 },
-    {CTRY_QATAR,       NULL1_WORLD,   "QA", "QATAR",          YES, NO,  YES, 7000 },
-    {CTRY_ROMANIA,     NULL1_WORLD,   "RO", "ROMANIA",        YES, NO,  YES, 7000 },
-    {CTRY_RUSSIA,      NULL1_WORLD,   "RU", "RUSSIA",         YES, NO,  YES, 7000 },
-    {CTRY_SAUDI_ARABIA,NULL1_WORLD,   "SA", "SAUDI ARABIA",   YES, NO,  YES, 7000 },
-    {CTRY_SINGAPORE,   APL6_WORLD,    "SG", "SINGAPORE",      YES, YES, YES, 7000 },
-    {CTRY_SLOVAKIA,    ETSI1_WORLD,   "SK", "SLOVAK REPUBLIC",YES, NO,  YES, 7000 },
-    {CTRY_SLOVENIA,    ETSI1_WORLD,   "SI", "SLOVENIA",       YES, NO,  YES, 7000 },
-    {CTRY_SOUTH_AFRICA,FCC3_WORLD,    "ZA", "SOUTH AFRICA",   YES,  NO, YES, 7000 },
-    {CTRY_SPAIN,       ETSI1_WORLD,   "ES", "SPAIN",          YES, NO,  YES, 7000 },
-    {CTRY_SWEDEN,      ETSI1_WORLD,   "SE", "SWEDEN",         YES, NO,  YES, 7000 },
-    {CTRY_SWITZERLAND, ETSI1_WORLD,   "CH", "SWITZERLAND",    YES, NO,  YES, 7000 },
-    {CTRY_SYRIA,       NULL1_WORLD,   "SY", "SYRIA",          YES, NO,  YES, 7000 },
-    {CTRY_TAIWAN,      APL3_FCCA,    "TW", "TAIWAN",         YES, YES, YES, 7000 },
-    {CTRY_THAILAND,    NULL1_WORLD,   "TH", "THAILAND",       YES, NO, YES, 7000 },
-    {CTRY_TRINIDAD_Y_TOBAGO,ETSI4_WORLD,"TT", "TRINIDAD & TOBAGO", YES, NO, YES, 7000 },
-    {CTRY_TUNISIA,     ETSI3_WORLD,   "TN", "TUNISIA",        YES, NO,  YES, 7000 },
-    {CTRY_TURKEY,      ETSI3_WORLD,   "TR", "TURKEY",         YES, NO,  YES, 7000 },
-    {CTRY_UKRAINE,     NULL1_WORLD,   "UA", "UKRAINE",        YES, NO,  YES, 7000 },
-    {CTRY_UAE,         NULL1_WORLD,   "AE", "UNITED ARAB EMIRATES", YES, NO, YES, 7000 },
-    {CTRY_UNITED_KINGDOM, ETSI1_WORLD,"GB", "UNITED KINGDOM", YES, NO,  YES, 7000 },
-    {CTRY_UNITED_STATES, FCC1_FCCA,   "US", "UNITED STATES",  YES, YES, YES, 5825 },
-    {CTRY_UNITED_STATES_FCC49, FCC4_FCCA,   "PS", "UNITED STATES (PUBLIC SAFETY)",  YES, YES, YES, 7000 },
-    {CTRY_URUGUAY,     APL2_WORLD,    "UY", "URUGUAY",        YES, NO,  YES, 7000 },
-    {CTRY_UZBEKISTAN,  FCC3_FCCA,     "UZ", "UZBEKISTAN",     YES, YES, YES, 7000 },    
-    {CTRY_VENEZUELA,   APL2_ETSIC,    "VE", "VENEZUELA",      YES, NO,  YES, 7000 },
-    {CTRY_VIET_NAM,    NULL1_WORLD,   "VN", "VIET NAM",       YES, NO,  YES, 7000 },
-    {CTRY_YEMEN,       NULL1_WORLD,   "YE", "YEMEN",          YES, NO,  YES, 7000 },
-    {CTRY_ZIMBABWE,    NULL1_WORLD,   "ZW", "ZIMBABWE",       YES, NO,  YES, 7000 }    
+    {CTRY_JORDAN,      APL4_WORLD,    "JO", "JORDAN" },
+    {CTRY_KAZAKHSTAN,  NULL1_WORLD,   "KZ", "KAZAKHSTAN" },
+    {CTRY_KOREA_NORTH, APL2_WORLD,    "KP", "NORTH KOREA" },
+    {CTRY_KOREA_ROC,   APL2_WORLD,    "KR", "KOREA REPUBLIC" },
+    {CTRY_KOREA_ROC2,  APL2_WORLD,    "K2", "KOREA REPUBLIC2" },
+    {CTRY_KOREA_ROC3,  APL9_WORLD,    "K3", "KOREA REPUBLIC3" },
+    {CTRY_KUWAIT,      NULL1_WORLD,   "KW", "KUWAIT" },
+    {CTRY_LATVIA,      ETSI1_WORLD,   "LV", "LATVIA" },
+    {CTRY_LEBANON,     NULL1_WORLD,   "LB", "LEBANON" },
+    {CTRY_LIECHTENSTEIN,ETSI1_WORLD,  "LI", "LIECHTENSTEIN" },
+    {CTRY_LITHUANIA,   ETSI1_WORLD,   "LT", "LITHUANIA" },
+    {CTRY_LUXEMBOURG,  ETSI1_WORLD,   "LU", "LUXEMBOURG" },
+    {CTRY_MACAU,       FCC2_WORLD,    "MO", "MACAU" },
+    {CTRY_MACEDONIA,   NULL1_WORLD,   "MK", "MACEDONIA" },
+    {CTRY_MALAYSIA,    APL8_WORLD,    "MY", "MALAYSIA" },
+    {CTRY_MALTA,       ETSI1_WORLD,   "MT", "MALTA" },
+    {CTRY_MEXICO,      FCC1_FCCA,     "MX", "MEXICO" },
+    {CTRY_MONACO,      ETSI4_WORLD,   "MC", "MONACO" },
+    {CTRY_MOROCCO,     NULL1_WORLD,   "MA", "MOROCCO" },
+    {CTRY_NETHERLANDS, ETSI1_WORLD,   "NL", "NETHERLANDS" },
+    {CTRY_NEW_ZEALAND, FCC2_ETSIC,    "NZ", "NEW ZEALAND" },
+    {CTRY_NORWAY,      ETSI1_WORLD,   "NO", "NORWAY" },
+    {CTRY_OMAN,        APL6_WORLD,    "OM", "OMAN" },
+    {CTRY_PAKISTAN,    NULL1_WORLD,   "PK", "PAKISTAN" },
+    {CTRY_PANAMA,      FCC1_FCCA,     "PA", "PANAMA" },
+    {CTRY_PERU,        APL1_WORLD,    "PE", "PERU" },
+    {CTRY_PHILIPPINES, APL1_WORLD,    "PH", "PHILIPPINES" },
+    {CTRY_POLAND,      ETSI1_WORLD,   "PL", "POLAND" },
+    {CTRY_PORTUGAL,    ETSI1_WORLD,   "PT", "PORTUGAL" },
+    {CTRY_PUERTO_RICO, FCC1_FCCA,     "PR", "PUERTO RICO" },
+    {CTRY_QATAR,       NULL1_WORLD,   "QA", "QATAR" },
+    {CTRY_ROMANIA,     NULL1_WORLD,   "RO", "ROMANIA" },
+    {CTRY_RUSSIA,      NULL1_WORLD,   "RU", "RUSSIA" },
+    {CTRY_SAUDI_ARABIA,NULL1_WORLD,   "SA", "SAUDI ARABIA" },
+    {CTRY_SINGAPORE,   APL6_WORLD,    "SG", "SINGAPORE" },
+    {CTRY_SLOVAKIA,    ETSI1_WORLD,   "SK", "SLOVAK REPUBLIC" },
+    {CTRY_SLOVENIA,    ETSI1_WORLD,   "SI", "SLOVENIA" },
+    {CTRY_SOUTH_AFRICA,FCC3_WORLD,    "ZA", "SOUTH AFRICA" },
+    {CTRY_SPAIN,       ETSI1_WORLD,   "ES", "SPAIN" },
+    {CTRY_SWEDEN,      ETSI1_WORLD,   "SE", "SWEDEN" },
+    {CTRY_SWITZERLAND, ETSI1_WORLD,   "CH", "SWITZERLAND" },
+    {CTRY_SYRIA,       NULL1_WORLD,   "SY", "SYRIA" },
+    {CTRY_TAIWAN,      APL3_FCCA,    "TW", "TAIWAN" },
+    {CTRY_THAILAND,    NULL1_WORLD,   "TH", "THAILAND" },
+    {CTRY_TRINIDAD_Y_TOBAGO,ETSI4_WORLD,"TT", "TRINIDAD & TOBAGO" },
+    {CTRY_TUNISIA,     ETSI3_WORLD,   "TN", "TUNISIA" },
+    {CTRY_TURKEY,      ETSI3_WORLD,   "TR", "TURKEY" },
+    {CTRY_UKRAINE,     NULL1_WORLD,   "UA", "UKRAINE" },
+    {CTRY_UAE,         NULL1_WORLD,   "AE", "UNITED ARAB EMIRATES" },
+    {CTRY_UNITED_KINGDOM, ETSI1_WORLD,"GB", "UNITED KINGDOM" },
+    {CTRY_UNITED_STATES, FCC1_FCCA,   "US", "UNITED STATES" },
+    {CTRY_UNITED_STATES_FCC49, FCC4_FCCA,   "PS", "UNITED STATES (PUBLIC SAFETY)" },
+    {CTRY_URUGUAY,     APL2_WORLD,    "UY", "URUGUAY" },
+    {CTRY_UZBEKISTAN,  FCC3_FCCA,     "UZ", "UZBEKISTAN" },    
+    {CTRY_VENEZUELA,   APL2_ETSIC,    "VE", "VENEZUELA" },
+    {CTRY_VIET_NAM,    NULL1_WORLD,   "VN", "VIET NAM" },
+    {CTRY_YEMEN,       NULL1_WORLD,   "YE", "YEMEN" },
+    {CTRY_ZIMBABWE,    NULL1_WORLD,   "ZW", "ZIMBABWE" }    
 };
-#undef	YES
-#undef	NO
 
 static HAL_BOOL
 cclookup(const char *name, HAL_REG_DOMAIN *rd, HAL_CTRY_CODE *cc)
@@ -952,12 +784,13 @@ cclist()
 }
 
 static HAL_BOOL
-setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan, 
+setRateTable(struct ath_hal *ah, const struct ieee80211_channel *chan, 
 		   int16_t tpcScaleReduction, int16_t powerLimit,
                    int16_t *pMinPower, int16_t *pMaxPower);
 
 static void
-calctxpower(struct ath_hal *ah, int nchan, HAL_CHANNEL *chans,
+calctxpower(struct ath_hal *ah,
+	int nchan, const struct ieee80211_channel *chans,
 	int16_t tpcScaleReduction, int16_t powerLimit, int16_t *txpow)
 {
 	int16_t minpow;
@@ -979,12 +812,12 @@ int	isdfs = 0;
 int	is4ms = 0;
 
 static int
-anychan(const HAL_CHANNEL *chans, int nc, int flag)
+anychan(const struct ieee80211_channel *chans, int nc, int flag)
 {
 	int i;
 
 	for (i = 0; i < nc; i++)
-		if ((chans[i].privFlags & flag) != 0)
+		if ((chans[i].ic_flags & flag) != 0)
 			return 1;
 	return 0;
 }
@@ -993,9 +826,9 @@ static __inline int
 mapgsm(u_int freq, u_int flags)
 {
 	freq *= 10;
-	if (flags & CHANNEL_QUARTER)
+	if (flags & IEEE80211_CHAN_QUARTER)
 		freq += 5;
-	else if (flags & CHANNEL_HALF)
+	else if (flags & IEEE80211_CHAN_HALF)
 		freq += 10;
 	else
 		freq += 20;
@@ -1014,93 +847,85 @@ mappsb(u_int freq, u_int flags)
 int
 ath_hal_mhz2ieee(struct ath_hal *ah, u_int freq, u_int flags)
 {
-	if (flags & CHANNEL_2GHZ) {	/* 2GHz band */
+	if (flags & IEEE80211_CHAN_2GHZ) {	/* 2GHz band */
 		if (freq == 2484)
 			return 14;
-		if (freq < 2484) {
-			if (ath_hal_isgsmsku(ah))
-				return mapgsm(freq, flags);
+		if (freq < 2484)
 			return ((int)freq - 2407) / 5;
-		} else
+		else
 			return 15 + ((freq - 2512) / 20);
-	} else if (flags & CHANNEL_5GHZ) {/* 5Ghz band */
-		if (ath_hal_ispublicsafetysku(ah) &&
-		    IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq)) {
+	} else if (flags & IEEE80211_CHAN_5GHZ) {/* 5Ghz band */
+		if (IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq))
 			return mappsb(freq, flags);
-		} else if ((flags & CHANNEL_A) && (freq <= 5000)) {
+		else if ((flags & IEEE80211_CHAN_A) && (freq <= 5000))
 			return (freq - 4000) / 5;
-		} else {
+		else
 			return (freq - 5000) / 5;
-		}
 	} else {			/* either, guess */
 		if (freq == 2484)
 			return 14;
-		if (freq < 2484) {
-			if (ath_hal_isgsmsku(ah))
-				return mapgsm(freq, flags);
+		if (freq < 2484)
 			return ((int)freq - 2407) / 5;
-		}
 		if (freq < 5000) {
-			if (ath_hal_ispublicsafetysku(ah) &&
-			    IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq)) {
+			if (IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq))
 				return mappsb(freq, flags);
-			} else if (freq > 4900) {
+			else if (freq > 4900)
 				return (freq - 4000) / 5;
-			} else {
+			else
 				return 15 + ((freq - 2512) / 20);
-			}
 		}
 		return (freq - 5000) / 5;
 	}
 }
 
-#define	IS_CHAN_DFS(_c)	(((_c)->privFlags & CHANNEL_DFS) != 0)
-#define	IS_CHAN_4MS(_c)	(((_c)->privFlags & CHANNEL_4MS_LIMIT) != 0)
+#define	IEEE80211_IS_CHAN_4MS(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_4MSXMIT) != 0)
 
 static void
-dumpchannels(struct ath_hal *ah, int nc, HAL_CHANNEL *chans, int16_t *txpow)
+dumpchannels(struct ath_hal *ah, int nc,
+	const struct ieee80211_channel *chans, int16_t *txpow)
 {
 	int i;
 
 	for (i = 0; i < nc; i++) {
-		HAL_CHANNEL *c = &chans[i];
+		const struct ieee80211_channel *c = &chans[i];
 		int type;
 
 		if (showchannels)
 			printf("%s%3d", sep,
-			    ath_hal_mhz2ieee(ah, c->channel, c->channelFlags));
+			    ath_hal_mhz2ieee(ah, c->ic_freq, c->ic_flags));
 		else
-			printf("%s%u", sep, c->channel);
-		if (IS_CHAN_HALF_RATE(c))
+			printf("%s%u", sep, c->ic_freq);
+		if (IEEE80211_IS_CHAN_HALF(c))
 			type = 'H';
-		else if (IS_CHAN_QUARTER_RATE(c))
+		else if (IEEE80211_IS_CHAN_QUARTER(c))
 			type = 'Q';
-		else if (IS_CHAN_TURBO(c))
+		else if (IEEE80211_IS_CHAN_TURBO(c))
 			type = 'T';
-		else if (IS_CHAN_HT(c))
+		else if (IEEE80211_IS_CHAN_HT(c))
 			type = 'N';
-		else if (IS_CHAN_A(c))
+		else if (IEEE80211_IS_CHAN_A(c))
 			type = 'A';
-		else if (IS_CHAN_108G(c))
+		else if (IEEE80211_IS_CHAN_108G(c))
 			type = 'T';
-		else if (IS_CHAN_G(c))
+		else if (IEEE80211_IS_CHAN_G(c))
 			type = 'G';
 		else
 			type = 'B';
-		if (dopassive && IS_CHAN_PASSIVE(c))
+		if (dopassive && IEEE80211_IS_CHAN_PASSIVE(c))
 			type = tolower(type);
 		if (isdfs && is4ms)
 			printf("%c%c%c %d.%d", type,
-			    IS_CHAN_DFS(c) ? '*' : ' ',
-			    IS_CHAN_4MS(c) ? '4' : ' ',
+			    IEEE80211_IS_CHAN_DFS(c) ? '*' : ' ',
+			    IEEE80211_IS_CHAN_4MS(c) ? '4' : ' ',
 			    txpow[i]/2, (txpow[i]%2)*5);
 		else if (isdfs)
 			printf("%c%c %d.%d", type,
-			    IS_CHAN_DFS(c) ? '*' : ' ',
+			    IEEE80211_IS_CHAN_DFS(c) ? '*' : ' ',
 			    txpow[i]/2, (txpow[i]%2)*5);
 		else if (is4ms)
 			printf("%c%c %d.%d", type,
-			    IS_CHAN_4MS(c) ? '4' : ' ',
+			    IEEE80211_IS_CHAN_4MS(c) ? '4' : ' ',
 			    txpow[i]/2, (txpow[i]%2)*5);
 		else
 			printf("%c %d.%d", type, txpow[i]/2, (txpow[i]%2)*5);
@@ -1112,25 +937,12 @@ dumpchannels(struct ath_hal *ah, int nc, HAL_CHANNEL *chans, int16_t *txpow)
 }
 
 static void
-checkchannels(struct ath_hal *ah, HAL_CHANNEL *chans, int nchan)
-{
-	int i;
-
-	for (i = 0; i < nchan; i++) {
-		HAL_CHANNEL *c = &chans[i];
-		if (!ath_hal_checkchannel(ah, c))
-			printf("Channel %u (0x%x) disallowed\n",
-				c->channel, c->channelFlags);
-	}
-}
-
-static void
-intersect(HAL_CHANNEL *dst, int16_t *dtxpow, int *nd,
-    const HAL_CHANNEL *src, int16_t *stxpow, int ns)
+intersect(struct ieee80211_channel *dst, int16_t *dtxpow, int *nd,
+    const struct ieee80211_channel *src, int16_t *stxpow, int ns)
 {
 	int i = 0, j, k, l;
 	while (i < *nd) {
-		for (j = 0; j < ns && dst[i].channel != src[j].channel; j++)
+		for (j = 0; j < ns && dst[i].ic_freq != src[j].ic_freq; j++)
 			;
 		if (j < ns && dtxpow[i] == stxpow[j]) {
 			for (k = i+1, l = i; k < *nd; k++, l++)
@@ -1149,7 +961,7 @@ usage(const char *progname)
 }
 
 static HAL_BOOL
-getChipPowerLimits(struct ath_hal *ah, HAL_CHANNEL *chans, u_int32_t nchan)
+getChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
 }
 
@@ -1199,25 +1011,23 @@ main(int argc, char *argv[])
 	static const u_int16_t tpcScaleReductionTable[5] =
 		{ 0, 3, 6, 9, MAX_RATE_POWER };
 	struct ath_hal_private ahp;
-	HAL_CHANNEL achans[IEEE80211_CHAN_MAX];
+	struct ieee80211_channel achans[IEEE80211_CHAN_MAX];
 	int16_t atxpow[IEEE80211_CHAN_MAX];
-	HAL_CHANNEL bchans[IEEE80211_CHAN_MAX];
+	struct ieee80211_channel bchans[IEEE80211_CHAN_MAX];
 	int16_t btxpow[IEEE80211_CHAN_MAX];
-	HAL_CHANNEL gchans[IEEE80211_CHAN_MAX];
+	struct ieee80211_channel gchans[IEEE80211_CHAN_MAX];
 	int16_t gtxpow[IEEE80211_CHAN_MAX];
-	HAL_CHANNEL tchans[IEEE80211_CHAN_MAX];
+	struct ieee80211_channel tchans[IEEE80211_CHAN_MAX];
 	int16_t ttxpow[IEEE80211_CHAN_MAX];
-	HAL_CHANNEL tgchans[IEEE80211_CHAN_MAX];
+	struct ieee80211_channel tgchans[IEEE80211_CHAN_MAX];
 	int16_t tgtxpow[IEEE80211_CHAN_MAX];
-	HAL_CHANNEL nchans[IEEE80211_CHAN_MAX];
+	struct ieee80211_channel nchans[IEEE80211_CHAN_MAX];
 	int16_t ntxpow[IEEE80211_CHAN_MAX];
 	int i, na, nb, ng, nt, ntg, nn;
 	HAL_BOOL showall = AH_FALSE;
 	HAL_BOOL extendedChanMode = AH_TRUE;
 	int modes = 0;
 	int16_t tpcReduction, powerLimit;
-	int8_t regids[IEEE80211_REGCLASSIDS_MAX];
-	int nregids;
 	int showdfs = 0;
 	int show4ms = 0;
 
@@ -1239,7 +1049,7 @@ main(int argc, char *argv[])
 	tpcReduction = tpcScaleReductionTable[0];
 	powerLimit =  MAX_RATE_POWER;
 
-	while ((i = getopt(argc, argv, "acdefoilm:pr4ABGhHNT")) != -1)
+	while ((i = getopt(argc, argv, "acdeflm:pr4ABGhHNT")) != -1)
 		switch (i) {
 		case 'a':
 			showall = AH_TRUE;
@@ -1255,12 +1065,6 @@ main(int argc, char *argv[])
 			break;
 		case 'f':
 			showchannels = AH_FALSE;
-			break;
-		case 'o':
-			outdoor = AH_TRUE;
-			break;
-		case 'i':
-			outdoor = AH_FALSE;
 			break;
 		case 'l':
 			cclist();
@@ -1362,93 +1166,76 @@ main(int argc, char *argv[])
 		printf("\n%s (0x%x, %u)\n",
 			getrdname(rd), rd, rd);
 
-	if (modes == 0)
+	if (modes == 0) {
+		/* NB: no HAL_MODE_HT */
 		modes = HAL_MODE_11A | HAL_MODE_11B |
-			HAL_MODE_11G | HAL_MODE_TURBO | HAL_MODE_108G |
-			HAL_MODE_HT;
+			HAL_MODE_11G | HAL_MODE_TURBO | HAL_MODE_108G;
+	}
 	na = nb = ng = nt = ntg = nn = 0;
 	if (modes & HAL_MODE_11G) {
 		ahp.ah_currentRD = rd;
-		if (ath_hal_init_channels(&ahp.h,
-		    gchans, IEEE80211_CHAN_MAX, &ng,
-		    regids, IEEE80211_REGCLASSIDS_MAX, &nregids,
-		    cc, HAL_MODE_11G, outdoor, extendedChanMode)) {
-			checkchannels(&ahp.h, gchans, ng);
+		if (ath_hal_getchannels(&ahp.h, gchans, IEEE80211_CHAN_MAX, &ng,
+		    HAL_MODE_11G, cc, rd, extendedChanMode) == HAL_OK) {
 			calctxpower(&ahp.h, ng, gchans, tpcReduction, powerLimit, gtxpow);
 			if (showdfs)
-				isdfs |= anychan(gchans, ng, CHANNEL_DFS);
+				isdfs |= anychan(gchans, ng, IEEE80211_CHAN_DFS);
 			if (show4ms)
-				is4ms |= anychan(gchans, ng, CHANNEL_4MS_LIMIT);
+				is4ms |= anychan(gchans, ng, IEEE80211_CHAN_4MSXMIT);
 		}
 	}
 	if (modes & HAL_MODE_11B) {
 		ahp.ah_currentRD = rd;
-		if (ath_hal_init_channels(&ahp.h,
-		    bchans, IEEE80211_CHAN_MAX, &nb,
-		    regids, IEEE80211_REGCLASSIDS_MAX, &nregids,
-		    cc, HAL_MODE_11B, outdoor, extendedChanMode)) {
-			checkchannels(&ahp.h, bchans, nb);
+		if (ath_hal_getchannels(&ahp.h, bchans, IEEE80211_CHAN_MAX, &nb,
+		    HAL_MODE_11B, cc, rd, extendedChanMode) == HAL_OK) {
 			calctxpower(&ahp.h, nb, bchans, tpcReduction, powerLimit, btxpow);
 			if (showdfs)
-				isdfs |= anychan(bchans, nb, CHANNEL_DFS);
+				isdfs |= anychan(bchans, nb, IEEE80211_CHAN_DFS);
 			if (show4ms)
-				is4ms |= anychan(bchans, nb, CHANNEL_4MS_LIMIT);
+				is4ms |= anychan(bchans, nb, IEEE80211_CHAN_4MSXMIT);
 		}
 	}
 	if (modes & HAL_MODE_11A) {
 		ahp.ah_currentRD = rd;
-		if (ath_hal_init_channels(&ahp.h,
-		    achans, IEEE80211_CHAN_MAX, &na,
-		    regids, IEEE80211_REGCLASSIDS_MAX, &nregids,
-		    cc, HAL_MODE_11A, outdoor, extendedChanMode)) {
-			checkchannels(&ahp.h, achans, na);
+		if (ath_hal_getchannels(&ahp.h, achans, IEEE80211_CHAN_MAX, &na,
+		    HAL_MODE_11A, cc, rd, extendedChanMode) == HAL_OK) {
 			calctxpower(&ahp.h, na, achans, tpcReduction, powerLimit, atxpow);
 			if (showdfs)
-				isdfs |= anychan(achans, na, CHANNEL_DFS);
+				isdfs |= anychan(achans, na, IEEE80211_CHAN_DFS);
 			if (show4ms)
-				is4ms |= anychan(achans, na, CHANNEL_4MS_LIMIT);
+				is4ms |= anychan(achans, na, IEEE80211_CHAN_4MSXMIT);
 		}
 	}
 	if (modes & HAL_MODE_TURBO) {
 		ahp.ah_currentRD = rd;
-		if (ath_hal_init_channels(&ahp.h,
-		    tchans, IEEE80211_CHAN_MAX, &nt,
-		    regids, IEEE80211_REGCLASSIDS_MAX, &nregids,
-		    cc, HAL_MODE_TURBO, outdoor, extendedChanMode)) {
-			checkchannels(&ahp.h, tchans, nt);
+		if (ath_hal_getchannels(&ahp.h, tchans, IEEE80211_CHAN_MAX, &nt,
+		    HAL_MODE_TURBO, cc, rd, extendedChanMode) == HAL_OK) {
 			calctxpower(&ahp.h, nt, tchans, tpcReduction, powerLimit, ttxpow);
 			if (showdfs)
-				isdfs |= anychan(tchans, nt, CHANNEL_DFS);
+				isdfs |= anychan(tchans, nt, IEEE80211_CHAN_DFS);
 			if (show4ms)
-				is4ms |= anychan(tchans, nt, CHANNEL_4MS_LIMIT);
+				is4ms |= anychan(tchans, nt, IEEE80211_CHAN_4MSXMIT);
 		}
 	}	
 	if (modes & HAL_MODE_108G) {
 		ahp.ah_currentRD = rd;
-		if (ath_hal_init_channels(&ahp.h,
-		    tgchans, IEEE80211_CHAN_MAX, &ntg,
-		    regids, IEEE80211_REGCLASSIDS_MAX, &nregids,
-		    cc, HAL_MODE_108G, outdoor, extendedChanMode)) {
-			checkchannels(&ahp.h, tgchans, ntg);
+		if (ath_hal_getchannels(&ahp.h, tgchans, IEEE80211_CHAN_MAX, &ntg,
+		    HAL_MODE_108G, cc, rd, extendedChanMode) == HAL_OK) {
 			calctxpower(&ahp.h, ntg, tgchans, tpcReduction, powerLimit, tgtxpow);
 			if (showdfs)
-				isdfs |= anychan(tgchans, ntg, CHANNEL_DFS);
+				isdfs |= anychan(tgchans, ntg, IEEE80211_CHAN_DFS);
 			if (show4ms)
-				is4ms |= anychan(tgchans, ntg, CHANNEL_4MS_LIMIT);
+				is4ms |= anychan(tgchans, ntg, IEEE80211_CHAN_4MSXMIT);
 		}
 	}
 	if (modes & HAL_MODE_HT) {
 		ahp.ah_currentRD = rd;
-		if (ath_hal_init_channels(&ahp.h,
-		    nchans, IEEE80211_CHAN_MAX, &nn,
-		    regids, IEEE80211_REGCLASSIDS_MAX, &nregids,
-		    cc, modes & HAL_MODE_HT, outdoor, extendedChanMode)) {
-			checkchannels(&ahp.h, nchans, nn);
+		if (ath_hal_getchannels(&ahp.h, nchans, IEEE80211_CHAN_MAX, &nn,
+		    modes & HAL_MODE_HT, cc, rd, extendedChanMode) == HAL_OK) {
 			calctxpower(&ahp.h, nn, nchans, tpcReduction, powerLimit, ntxpow);
 			if (showdfs)
-				isdfs |= anychan(nchans, nn, CHANNEL_DFS);
+				isdfs |= anychan(nchans, nn, IEEE80211_CHAN_DFS);
 			if (show4ms)
-				is4ms |= anychan(nchans, nn, CHANNEL_4MS_LIMIT);
+				is4ms |= anychan(nchans, nn, IEEE80211_CHAN_4MSXMIT);
 		}
 	}
 
@@ -1623,7 +1410,7 @@ interpolate(u_int16_t target, u_int16_t srcLeft, u_int16_t srcRight,
  * channel, and number of channels
  */
 static void
-ar5212GetTargetPowers(struct ath_hal *ah, HAL_CHANNEL *chan,
+ar5212GetTargetPowers(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	TRGT_POWER_INFO *powInfo,
 	u_int16_t numChannels, TRGT_POWER_INFO *pNewPower)
 {
@@ -1636,7 +1423,7 @@ ar5212GetTargetPowers(struct ath_hal *ah, HAL_CHANNEL *chan,
 	for (i = 0; i < numChannels; i++)
 		tempChannelList[i] = powInfo[i].testChannel;
 
-	ar5212GetLowerUpperValues(chan->channel, tempChannelList,
+	ar5212GetLowerUpperValues(chan->ic_freq, tempChannelList,
 		numChannels, &clo, &chi);
 
 	/* Get the indices for the channel */
@@ -1655,13 +1442,13 @@ ar5212GetTargetPowers(struct ath_hal *ah, HAL_CHANNEL *chan,
 	 * Get the lower and upper channels, target powers,
 	 * and interpolate between them.
 	 */
-	pNewPower->twicePwr6_24 = interpolate(chan->channel, clo, chi,
+	pNewPower->twicePwr6_24 = interpolate(chan->ic_freq, clo, chi,
 		powInfo[ixlo].twicePwr6_24, powInfo[ixhi].twicePwr6_24);
-	pNewPower->twicePwr36 = interpolate(chan->channel, clo, chi,
+	pNewPower->twicePwr36 = interpolate(chan->ic_freq, clo, chi,
 		powInfo[ixlo].twicePwr36, powInfo[ixhi].twicePwr36);
-	pNewPower->twicePwr48 = interpolate(chan->channel, clo, chi,
+	pNewPower->twicePwr48 = interpolate(chan->ic_freq, clo, chi,
 		powInfo[ixlo].twicePwr48, powInfo[ixhi].twicePwr48);
-	pNewPower->twicePwr54 = interpolate(chan->channel, clo, chi,
+	pNewPower->twicePwr54 = interpolate(chan->ic_freq, clo, chi,
 		powInfo[ixlo].twicePwr54, powInfo[ixhi].twicePwr54);
 }
 
@@ -1681,7 +1468,7 @@ findEdgePower(struct ath_hal *ah, u_int ctl)
  * operating channel and mode.
  */
 static HAL_BOOL
-setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan, 
+setRateTable(struct ath_hal *ah, const struct ieee80211_channel *chan, 
 		   int16_t tpcScaleReduction, int16_t powerLimit,
                    int16_t *pMinPower, int16_t *pMaxPower)
 {
@@ -1694,7 +1481,7 @@ setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan,
 	int16_t scaledPower;
 	u_int8_t cfgCtl;
 
-	twiceMaxRDPower = chan->maxRegTxPower * 2;
+	twiceMaxRDPower = chan->ic_maxregpower * 2;
 	*pMaxPower = -MAX_RATE_POWER;
 	*pMinPower = MAX_RATE_POWER;
 
@@ -1702,16 +1489,16 @@ setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan,
 	cfgCtl = ath_hal_getctl(ah, chan);
 	rep = findEdgePower(ah, cfgCtl);
 	if (rep != AH_NULL)
-		twiceMaxEdgePower = ar5212GetMaxEdgePower(chan->channel, rep);
+		twiceMaxEdgePower = ar5212GetMaxEdgePower(chan->ic_freq, rep);
 	else
 		twiceMaxEdgePower = MAX_RATE_POWER;
 
-	if (IS_CHAN_G(chan)) {
+	if (IEEE80211_IS_CHAN_G(chan)) {
 		/* Check for a CCK CTL for 11G CCK powers */
 		cfgCtl = (cfgCtl & 0xFC) | 0x01;
 		rep = findEdgePower(ah, cfgCtl);
 		if (rep != AH_NULL)
-			twiceMaxEdgePowerCck = ar5212GetMaxEdgePower(chan->channel, rep);
+			twiceMaxEdgePowerCck = ar5212GetMaxEdgePower(chan->ic_freq, rep);
 		else
 			twiceMaxEdgePowerCck = MAX_RATE_POWER;
 	} else {
@@ -1720,7 +1507,7 @@ setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan,
 	}
 
 	/* Get Antenna Gain reduction */
-	if (IS_CHAN_5GHZ(chan)) {
+	if (IEEE80211_IS_CHAN_5GHZ(chan)) {
 		twiceAntennaGain = antennaGainMax[0];
 	} else {
 		twiceAntennaGain = antennaGainMax[1];
@@ -1728,9 +1515,9 @@ setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan,
 	twiceAntennaReduction =
 		ath_hal_getantennareduction(ah, chan, twiceAntennaGain);
 
-	if (IS_CHAN_OFDM(chan)) {
+	if (IEEE80211_IS_CHAN_OFDM(chan)) {
 		/* Get final OFDM target powers */
-		if (IS_CHAN_G(chan)) { 
+		if (IEEE80211_IS_CHAN_G(chan)) { 
 			/* TODO - add Turbo 2.4 to this mode check */
 			ar5212GetTargetPowers(ah, chan, trgtPwr_11g,
 				numTargetPwr_11g, &targetPowerOfdm);
@@ -1750,7 +1537,7 @@ setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan,
 		 * this unless specially configured.  Then we limit
 		 * power only for non-AP operation.
 		 */
-		if (IS_CHAN_TURBO(chan)
+		if (IEEE80211_IS_CHAN_TURBO(chan)
 #ifdef AH_ENABLE_AP_SUPPORT
 		    && AH_PRIVATE(ah)->ah_opmode != HAL_M_HOSTAP
 #endif
@@ -1767,7 +1554,7 @@ setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan,
 			 * constraint on 2.4GHz channels.
 			 */
 			if (eeversion >= AR_EEPROM_VER4_0 &&
-			    IS_CHAN_2GHZ(chan))
+			    IEEE80211_IS_CHAN_2GHZ(chan))
 				scaledPower = AH_MIN(scaledPower,
 					turbo2WMaxPower2);
 		}
@@ -1811,7 +1598,7 @@ setRateTable(struct ath_hal *ah, HAL_CHANNEL *chan,
 		    twiceMaxEdgePower, tpcScaleReduction * 2);
 	}
 
-	if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan)) {
+	if (IEEE80211_IS_CHAN_CCK(chan)) {
 		/* Get final CCK target powers */
 		ar5212GetTargetPowers(ah, chan, trgtPwr_11b,
 			numTargetPwr_11b, &targetPowerCck);

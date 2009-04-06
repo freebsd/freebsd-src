@@ -80,12 +80,12 @@ teken_state.h		optional sc					   \
 	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
-usbdevs.h			optional usb				   \
+usbdevs.h			optional usb | usb2_core		   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"usbdevs.h"
-usbdevs_data.h			optional usb				   \
+usbdevs_data.h			optional usb | usb2_core		   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
 	no-obj no-implicit-rule before-depend				   \
@@ -1036,7 +1036,7 @@ iwnfw.fwo			optional iwnfw				\
 	dependency	"iwn.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn.fw" \
 	no-implicit-rule						\
-	clean		"iwn.fwo"
+	clean		"iwnfw.fwo"
 iwn.fw			optional iwnfw					\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-4.44.17.fw.uu"	\
@@ -1234,7 +1234,7 @@ rt2561fw.fwo			optional rt2561fw | ralfw		\
 	dependency	"rt2561.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561.fw" \
 	no-implicit-rule						\
-	clean		"rt2561.fwo"
+	clean		"rt2561fw.fwo"
 rt2561.fw			optional rt2561fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561.fw.uu" \
@@ -1248,7 +1248,7 @@ rt2561sfw.fwo			optional rt2561sfw | ralfw		\
 	dependency	"rt2561s.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561s.fw" \
 	no-implicit-rule						\
-	clean		"rt2561s.fwo"
+	clean		"rt2561sfw.fwo"
 rt2561s.fw			optional rt2561sfw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561s.fw.uu"	\
@@ -1262,7 +1262,7 @@ rt2661fw.fwo			optional rt2661fw | ralfw		\
 	dependency	"rt2661.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2661.fw" \
 	no-implicit-rule						\
-	clean		"rt2661.fwo"
+	clean		"rt2661fw.fwo"
 rt2661.fw			optional rt2661fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2661.fw.uu"	\
@@ -1276,7 +1276,7 @@ rt2860fw.fwo			optional rt2860fw | ralfw		\
 	dependency	"rt2860.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2860.fw" \
 	no-implicit-rule						\
-	clean		"rt2860.fwo"
+	clean		"rt2860fw.fwo"
 rt2860.fw			optional rt2860fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2860.fw.uu"	\
@@ -1567,7 +1567,6 @@ dev/usb2/ndis/usb2_ndis.c		optional usb2_core usb2_ndis
 #
 dev/usb2/core/usb2_busdma.c		optional usb2_core
 dev/usb2/core/usb2_compat_linux.c	optional usb2_core
-dev/usb2/core/usb2_config_td.c		optional usb2_core
 dev/usb2/core/usb2_core.c		optional usb2_core
 dev/usb2/core/usb2_debug.c		optional usb2_core
 dev/usb2/core/usb2_dev.c		optional usb2_core
@@ -1624,6 +1623,7 @@ dev/usb2/serial/umct2.c		optional usb2_core usb2_serial usb2_serial_mct
 dev/usb2/serial/umodem2.c	optional usb2_core usb2_serial usb2_serial_modem
 dev/usb2/serial/umoscom2.c	optional usb2_core usb2_serial usb2_serial_moscom
 dev/usb2/serial/uplcom2.c	optional usb2_core usb2_serial usb2_serial_plcom
+dev/usb2/serial/uslcom2.c	optional usb2_core usb2_serial usb2_serial_slcom
 dev/usb2/serial/usb2_serial.c	optional usb2_core usb2_serial
 dev/usb2/serial/uvisor2.c	optional usb2_core usb2_serial usb2_serial_visor
 dev/usb2/serial/uvscom2.c	optional usb2_core usb2_serial usb2_serial_vscom
@@ -1697,7 +1697,7 @@ wpifw.fwo			optional wpifw				\
 	dependency	"wpi.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} wpi.fw" \
 	no-implicit-rule						\
-	clean		"wpi.fwo"
+	clean		"wpifw.fwo"
 wpi.fw			optional wpifw					\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/wpi/iwlwifi-3945-2.14.4.fw.uu"	\
@@ -1840,6 +1840,7 @@ geom/part/g_part.c		standard
 geom/part/g_part_if.m		standard
 geom/part/g_part_apm.c		optional geom_part_apm
 geom/part/g_part_bsd.c		optional geom_part_bsd
+geom/part/g_part_ebr.c		optional geom_part_ebr
 geom/part/g_part_gpt.c		optional geom_part_gpt
 geom/part/g_part_mbr.c		optional geom_part_mbr
 geom/part/g_part_pc98.c		optional geom_part_pc98
@@ -2388,6 +2389,7 @@ netinet/libalias/alias_db.c	optional libalias | netgraph_nat
 netinet/libalias/alias_mod.c	optional libalias | netgraph_nat
 netinet/libalias/alias_proxy.c	optional libalias | netgraph_nat
 netinet/libalias/alias_util.c	optional libalias | netgraph_nat
+netinet/libalias/alias_sctp.c	optional libalias | netgraph_nat
 netinet6/dest6.c		optional inet6
 netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6

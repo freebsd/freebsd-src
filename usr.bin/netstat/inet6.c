@@ -512,8 +512,6 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		}
 	}
 
-	p1a(ip6s_forward_cachehit, "\t%ju forward cache hit\n");
-	p1a(ip6s_forward_cachemiss, "\t%ju forward cache miss\n");
 	printf("\tSource addresses selection rule applied:\n");
 	for (i = 0; i < 16; i++) {
 		if (ip6stat.ip6s_sources_rule[i])

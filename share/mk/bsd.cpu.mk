@@ -118,6 +118,8 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke
 _CPUCFLAGS = -Wa,-me500 -msoft-float
+.  else
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
 . elif ${MACHINE_ARCH} == "mips"
 .  if ${CPUTYPE} == "mips32"
