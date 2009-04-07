@@ -1196,14 +1196,15 @@ ed_pccard_tick(void *arg)
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    media != mii->mii_media_status) {
 			if (sc->chip_type == ED_CHIP_TYPE_DL10022) {
-				printf("Enabling 10022 workaround\n");
 				ed_asic_outb(sc, ED_DL10022_DIAG,
 				    (mii->mii_media_active & IFM_FDX) ?
 				    ED_DL10022_COLLISON_DIS : 0);
+#ifdef notyet
 			} else if (sc->chip_type == ED_CHIP_TYPE_DL10019) {
 				write_asic(sc, ED_DL10019_MAGIC,
 				    (mii->mii_media_active & IFM_FDX) ?
 				    DL19FDUPLX : 0);
+#endif
 			}
 		}
 		
