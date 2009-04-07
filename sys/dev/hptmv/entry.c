@@ -158,7 +158,7 @@ static ST_HPT_DPC DpcQueue[MAX_DPC];
 static int DpcQueue_First=0;
 static int DpcQueue_Last = 0;
 
-char DRIVER_VERSION[] = "v1.12";
+char DRIVER_VERSION[] = "v1.16";
 
 #if (__FreeBSD_version >= 500000)
 static struct mtx driver_lock;
@@ -204,7 +204,7 @@ void unlock_driver(intrmask_t spl)
  *
  *	Description:	free allocated queues for the given channel
  *
- *	Parameters:    	pMvSataAdapter - pointer to the RR182x controler this 
+ *	Parameters:    	pMvSataAdapter - pointer to the RR18xx controler this 
  * 					channel connected to. 
  *			channelNum - channel number. 
  *     
@@ -238,7 +238,6 @@ static void failDevice(PVDevice pVDev)
 }
 
 int MvSataResetChannel(MV_SATA_ADAPTER *pMvSataAdapter, MV_U8 channel);
-/*void fDeviceSendCommand(_VBUS_ARG PCommand pCmd); */
 
 static void
 handleEdmaError(_VBUS_ARG PCommand pCmd)
@@ -292,7 +291,7 @@ hptmv_init_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 
 	if (channelNum >= MV_SATA_CHANNELS_NUM)
 	{
-		MV_ERROR("RR182x[%d]: Bad channelNum=%d",
+		MV_ERROR("RR18xx[%d]: Bad channelNum=%d",
 				 pAdapter->mvSataAdapter.adapterId, channelNum);
 		return -1;
 	}
@@ -313,14 +312,14 @@ hptmv_init_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 	/* check the 1K alignment of the request queue*/
 	if (req_dma_addr & 0x3ff)
 	{
-		MV_ERROR("RR182x[%d]: request queue allocated isn't 1 K aligned,"
+		MV_ERROR("RR18xx[%d]: request queue allocated isn't 1 K aligned,"
 				 " dma_addr=%llx channel=%d\n", pAdapter->mvSataAdapter.adapterId,
 				 (HPT_U64)(ULONG_PTR)req_dma_addr, channelNum);
 		return -1;
 	}
 	pMvSataChannel->requestQueuePciLowAddress = req_dma_addr;
 	pMvSataChannel->requestQueuePciHiAddress = 0;
-	KdPrint(("RR182x[%d,%d]: request queue allocated: 0x%p",
+	KdPrint(("RR18xx[%d,%d]: request queue allocated: 0x%p",
 			  pAdapter->mvSataAdapter.adapterId, channelNum,
 			  pMvSataChannel->requestQueue));
 	pMvSataChannel->responseQueue = (struct mvDmaResponseQueueEntry *)
@@ -330,14 +329,14 @@ hptmv_init_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 	/* check the 256 alignment of the response queue*/
 	if (rsp_dma_addr & 0xff)
 	{
-		MV_ERROR("RR182x[%d,%d]: response queue allocated isn't 256 byte "
+		MV_ERROR("RR18xx[%d,%d]: response queue allocated isn't 256 byte "
 				 "aligned, dma_addr=%llx\n",
 				 pAdapter->mvSataAdapter.adapterId, channelNum, (HPT_U64)(ULONG_PTR)rsp_dma_addr);
 		return -1;
 	}
 	pMvSataChannel->responseQueuePciLowAddress = rsp_dma_addr;
 	pMvSataChannel->responseQueuePciHiAddress = 0;
-	KdPrint(("RR182x[%d,%d]: response queue allocated: 0x%p",
+	KdPrint(("RR18xx[%d,%d]: response queue allocated: 0x%p",
 			  pAdapter->mvSataAdapter.adapterId, channelNum,
 			  pMvSataChannel->responseQueue));
 
@@ -349,7 +348,7 @@ hptmv_init_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
  *	Name: hptmv_parse_identify_results
  *
  *	Description:	this functions parses the identify command results, checks
- *					that the connected deives can be accesed by RR182x EDMA,
+ *					that the connected deives can be accesed by RR18xx EDMA,
  *					and updates the channel stucture accordingly.
  *
  *	Parameters:     pMvSataChannel, pointer to the channel data structure.
@@ -507,14 +506,14 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 	MV_CHANNEL		*pChannelInfo = &(pAdapter->mvChannel[channelNum]);
 	MV_U32          udmaMode,pioMode;
 
-	KdPrint(("RR182x [%d]: start channel (%d)", pMvSataAdapter->adapterId, 
+	KdPrint(("RR18xx [%d]: start channel (%d)", pMvSataAdapter->adapterId, 
 			 channelNum));
 
 
 	/* Software reset channel */
 	if (mvStorageDevATASoftResetDevice(pMvSataAdapter, channelNum) == MV_FALSE)
 	{
-		MV_ERROR("RR182x [%d,%d]: failed to perform Software reset\n",
+		MV_ERROR("RR18xx [%d,%d]: failed to perform Software reset\n",
 				 pMvSataAdapter->adapterId, channelNum);
 		return -1;
 	}
@@ -527,7 +526,7 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 		StallExec(5000000); /* wait 5 sec before trying again */
 		if (mvSataChannelHardReset(pMvSataAdapter, channelNum) == MV_FALSE)
 		{
-			MV_ERROR("RR182x [%d,%d]: failed to perform Hard reset\n",
+			MV_ERROR("RR18xx [%d,%d]: failed to perform Hard reset\n",
 					 pMvSataAdapter->adapterId, channelNum);
 			return -1;
 		}
@@ -536,13 +535,13 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 	/* identify device*/
 	if (mvStorageDevATAIdentifyDevice(pMvSataAdapter, channelNum) == MV_FALSE)
 	{
-		MV_ERROR("RR182x [%d,%d]: failed to perform ATA Identify command\n"
+		MV_ERROR("RR18xx [%d,%d]: failed to perform ATA Identify command\n"
 				 , pMvSataAdapter->adapterId, channelNum);
 		return -1;
 	}
 	if (hptmv_parse_identify_results(pMvSataChannel))
 	{
-		MV_ERROR("RR182x [%d,%d]: Error in parsing ATA Identify message\n"
+		MV_ERROR("RR18xx [%d,%d]: Error in parsing ATA Identify message\n"
 				 , pMvSataAdapter->adapterId, channelNum);
 		return -1;
 	}
@@ -551,13 +550,13 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 	/* Disable 8 bit PIO in case CFA enabled */
 	if (pMvSataChannel->identifyDevice[86] & 4)
 	{
-		KdPrint(("RR182x [%d]: Disable 8 bit PIO (CFA enabled) \n",
+		KdPrint(("RR18xx [%d]: Disable 8 bit PIO (CFA enabled) \n",
 				  pMvSataAdapter->adapterId));
 		if (mvStorageDevATASetFeatures(pMvSataAdapter, channelNum,
 									   MV_ATA_SET_FEATURES_DISABLE_8_BIT_PIO, 0,
 									   0, 0, 0) == MV_FALSE)
 		{
-			MV_ERROR("RR182x [%d]: channel %d: mvStorageDevATASetFeatures"
+			MV_ERROR("RR18xx [%d]: channel %d: mvStorageDevATASetFeatures"
 					 " failed\n", pMvSataAdapter->adapterId, channelNum); 
 			return -1;
 		}
@@ -572,48 +571,48 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 										   MV_ATA_SET_FEATURES_ENABLE_WCACHE, 0,
 										   0, 0, 0) == MV_FALSE)
 			{
-				MV_ERROR("RR182x [%d]: channel %d: mvStorageDevATASetFeatures failed\n",
+				MV_ERROR("RR18xx [%d]: channel %d: mvStorageDevATASetFeatures failed\n",
 						 pMvSataAdapter->adapterId, channelNum); 
 				return -1;
 			}
 		}
-		KdPrint(("RR182x [%d]: channel %d, write cache enabled\n",
+		KdPrint(("RR18xx [%d]: channel %d, write cache enabled\n",
 				  pMvSataAdapter->adapterId, channelNum));
 	}
 	else
 	{
-		KdPrint(("RR182x [%d]: channel %d, write cache not supported\n",
+		KdPrint(("RR18xx [%d]: channel %d, write cache not supported\n",
 				  pMvSataAdapter->adapterId, channelNum));
 	}
 #else /* disable write cache */
 	{
 		if (pMvSataChannel->identifyDevice[85] & 0x20)
 		{
-			KdPrint(("RR182x [%d]: channel =%d, disable write cache\n",
+			KdPrint(("RR18xx [%d]: channel =%d, disable write cache\n",
 					  pMvSataAdapter->adapterId, channelNum));
 			if (mvStorageDevATASetFeatures(pMvSataAdapter, channelNum,
 										   MV_ATA_SET_FEATURES_DISABLE_WCACHE, 0,
 										   0, 0, 0) == MV_FALSE)
 			{
-				MV_ERROR("RR182x [%d]: channel %d: mvStorageDevATASetFeatures failed\n",
+				MV_ERROR("RR18xx [%d]: channel %d: mvStorageDevATASetFeatures failed\n",
 						 pMvSataAdapter->adapterId, channelNum); 
 				return -1;
 			}
 		}
-		KdPrint(("RR182x [%d]: channel=%d, write cache disabled\n",
+		KdPrint(("RR18xx [%d]: channel=%d, write cache disabled\n",
 				  pMvSataAdapter->adapterId, channelNum));
 	}
 #endif
 
 	/* Set transfer mode */
-	KdPrint(("RR182x [%d] Set transfer mode XFER_PIO_SLOW\n",
+	KdPrint(("RR18xx [%d] Set transfer mode XFER_PIO_SLOW\n",
 			  pMvSataAdapter->adapterId));
 	if (mvStorageDevATASetFeatures(pMvSataAdapter, channelNum,
 								   MV_ATA_SET_FEATURES_TRANSFER,
 								   MV_ATA_TRANSFER_PIO_SLOW, 0, 0, 0) == 
 		MV_FALSE)
 	{
-		MV_ERROR("RR182x [%d] channel %d: Set Features failed\n",
+		MV_ERROR("RR18xx [%d] channel %d: Set Features failed\n",
 				 pMvSataAdapter->adapterId, channelNum); 
 		return -1;
 	}
@@ -632,14 +631,14 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 		pioMode = MV_ATA_TRANSFER_PIO_SLOW;
 	}
 
-	KdPrint(("RR182x [%d] Set transfer mode XFER_PIO_4\n",
+	KdPrint(("RR18xx [%d] Set transfer mode XFER_PIO_4\n",
 			  pMvSataAdapter->adapterId));
 	pAdapter->mvChannel[channelNum].maxPioModeSupported = pioMode;
 	if (mvStorageDevATASetFeatures(pMvSataAdapter, channelNum,
 								   MV_ATA_SET_FEATURES_TRANSFER,
 								   pioMode, 0, 0, 0) == MV_FALSE)
 	{
-		MV_ERROR("RR182x [%d] channel %d: Set Features failed\n",
+		MV_ERROR("RR18xx [%d] channel %d: Set Features failed\n",
 				 pMvSataAdapter->adapterId, channelNum); 
 		return -1;
 	}
@@ -666,7 +665,7 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 		udmaMode =  MV_ATA_TRANSFER_UDMA_2;
 	}
 
-	KdPrint(("RR182x [%d] Set transfer mode XFER_UDMA_%d\n",
+	KdPrint(("RR18xx [%d] Set transfer mode XFER_UDMA_%d\n",
 			  pMvSataAdapter->adapterId, udmaMode & 0xf));
 	pChannelInfo->maxUltraDmaModeSupported = udmaMode;
 
@@ -674,7 +673,7 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 								   MV_ATA_SET_FEATURES_TRANSFER, udmaMode,
 								   0, 0, 0) == MV_FALSE)
 	{
-		MV_ERROR("RR182x [%d] channel %d: Set Features failed\n",
+		MV_ERROR("RR18xx [%d] channel %d: Set Features failed\n",
 				 pMvSataAdapter->adapterId, channelNum); 
 		return -1;
 	}*/
@@ -721,48 +720,48 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 										   MV_ATA_SET_FEATURES_ENABLE_RLA, 0, 0,
 										   0, 0) == MV_FALSE)
 			{
-				MV_ERROR("RR182x [%d] channel %d: Set Features failed\n",
+				MV_ERROR("RR18xx [%d] channel %d: Set Features failed\n",
 						 pMvSataAdapter->adapterId, channelNum); 
 				return -1;
 			}
 		}
-		KdPrint(("RR182x [%d]: channel=%d, read look ahead enabled\n", 
+		KdPrint(("RR18xx [%d]: channel=%d, read look ahead enabled\n", 
 				  pMvSataAdapter->adapterId, channelNum));
 	}
 	else
 	{
-		KdPrint(("RR182x [%d]: channel %d, Read Look Ahead not supported\n",
+		KdPrint(("RR18xx [%d]: channel %d, Read Look Ahead not supported\n",
 				  pMvSataAdapter->adapterId, channelNum));
 	}
 #else 
 	{
 		if (pMvSataChannel->identifyDevice[86] & 0x20)
 		{
-			KdPrint(("RR182x [%d]:channel %d, disable read look ahead\n",
+			KdPrint(("RR18xx [%d]:channel %d, disable read look ahead\n",
 					  pMvSataAdapter->adapterId, channelNum));
 			if (mvStorageDevATASetFeatures(pMvSataAdapter, channelNum,
 										   MV_ATA_SET_FEATURES_DISABLE_RLA, 0, 0,
 										   0, 0) == MV_FALSE)
 			{
-				MV_ERROR("RR182x [%d]:channel %d:  ATA Set Features failed\n",
+				MV_ERROR("RR18xx [%d]:channel %d:  ATA Set Features failed\n",
 						 pMvSataAdapter->adapterId, channelNum); 
 				return -1;
 			}
 		}
-		KdPrint(("RR182x [%d]:channel %d, read look ahead disabled\n",
+		KdPrint(("RR18xx [%d]:channel %d, read look ahead disabled\n",
 				  pMvSataAdapter->adapterId, channelNum));
 	}    
 #endif
 
 
 	{
-		KdPrint(("RR182x [%d]: channel %d config EDMA, Non Queued Mode\n",
+		KdPrint(("RR18xx [%d]: channel %d config EDMA, Non Queued Mode\n",
 				  pMvSataAdapter->adapterId, 
 				  channelNum));
 		if (mvSataConfigEdmaMode(pMvSataAdapter, channelNum,
 								 MV_EDMA_MODE_NOT_QUEUED, 0) == MV_FALSE)
 		{
-			MV_ERROR("RR182x [%d] channel %d Error: mvSataConfigEdmaMode failed\n",
+			MV_ERROR("RR18xx [%d] channel %d Error: mvSataConfigEdmaMode failed\n",
 					 pMvSataAdapter->adapterId, channelNum);
 			return -1;
 		}
@@ -770,11 +769,11 @@ start_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 	/* Enable EDMA */
 	if (mvSataEnableChannelDma(pMvSataAdapter, channelNum) == MV_FALSE)
 	{
-		MV_ERROR("RR182x [%d] Failed to enable DMA, channel=%d\n",
+		MV_ERROR("RR18xx [%d] Failed to enable DMA, channel=%d\n",
 				 pMvSataAdapter->adapterId, channelNum);
 		return -1;
 	}
-	MV_ERROR("RR182x [%d,%d]: channel started successfully\n",
+	MV_ERROR("RR18xx [%d,%d]: channel started successfully\n",
 			 pMvSataAdapter->adapterId, channelNum);
 
 #ifndef FOR_DEMO
@@ -799,12 +798,12 @@ hptmv_handle_event(void * data, int flag)
 				/* Handle only connects */
 				if (flag == 1)
 					break;
-				KdPrint(("RR182x [%d,%d]: new device connected\n",
+				KdPrint(("RR18xx [%d,%d]: new device connected\n",
 						 pMvSataAdapter->adapterId, channelIndex));
 				hptmv_init_channel(pAdapter, channelIndex);
 				if (mvSataConfigureChannel( pMvSataAdapter, channelIndex) == MV_FALSE)
 				{
-					MV_ERROR("RR182x [%d,%d] Failed to configure\n",
+					MV_ERROR("RR18xx [%d,%d] Failed to configure\n",
 							 pMvSataAdapter->adapterId, channelIndex);
 					hptmv_free_channel(pAdapter, channelIndex);
 				}
@@ -813,7 +812,7 @@ hptmv_handle_event(void * data, int flag)
 					/*mvSataChannelHardReset(pMvSataAdapter, channel);*/
 					if (start_channel( pAdapter, channelIndex))
 					{
-						MV_ERROR("RR182x [%d,%d]Failed to start channel\n",
+						MV_ERROR("RR18xx [%d,%d]Failed to start channel\n",
 								 pMvSataAdapter->adapterId, channelIndex);
 						hptmv_free_channel(pAdapter, channelIndex);
 					}
@@ -829,7 +828,7 @@ hptmv_handle_event(void * data, int flag)
 				/* Handle only disconnects */
 				if (flag == 0)
 					break;
-				KdPrint(("RR182x [%d,%d]: device disconnected\n",
+				KdPrint(("RR18xx [%d,%d]: device disconnected\n",
 						 pMvSataAdapter->adapterId, channelIndex));
 					/* Flush pending commands */
 				if(pMvSataAdapter->sataChannel[channelIndex])
@@ -841,14 +840,14 @@ hptmv_handle_event(void * data, int flag)
 					mvSataRemoveChannel(pMvSataAdapter,channelIndex);
 					hptmv_free_channel(pAdapter, channelIndex);
 					pMvSataAdapter->sataChannel[channelIndex] = NULL;
-					KdPrint(("RR182x [%d,%d]: channel removed\n",
+					KdPrint(("RR18xx [%d,%d]: channel removed\n",
 						 pMvSataAdapter->adapterId, channelIndex));
 					if (pAdapter->outstandingCommands==0 && DPC_Request_Nums==0)
 						Check_Idle_Call(pAdapter);
 				}
 				else
 				{
-					KdPrint(("RR182x [%d,%d]: channel already removed!!\n",
+					KdPrint(("RR18xx [%d,%d]: channel already removed!!\n",
 							 pMvSataAdapter->adapterId, channelIndex));
 				}
 				pAdapter->sataEvents[channelIndex] = SATA_EVENT_NO_CHANGE;
@@ -894,7 +893,7 @@ hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter, MV_EVENT_TYPE eventType,
 				if (param1 == EVENT_CONNECT)
 				{
 					pAdapter->sataEvents[channel] = SATA_EVENT_CHANNEL_CONNECTED;
-					KdPrint(("RR182x [%d,%d]: device connected event received\n",
+					KdPrint(("RR18xx [%d,%d]: device connected event received\n",
 							 pMvSataAdapter->adapterId, channel));
 					/* Delete previous timers (if multiple drives connected in the same time */
 					pAdapter->event_timer_connect = timeout(hptmv_handle_event_connect, pAdapter, 10*hz);
@@ -902,7 +901,7 @@ hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter, MV_EVENT_TYPE eventType,
 				else if (param1 == EVENT_DISCONNECT)
 				{
 					pAdapter->sataEvents[channel] = SATA_EVENT_CHANNEL_DISCONNECTED;
-					KdPrint(("RR182x [%d,%d]: device disconnected event received \n",
+					KdPrint(("RR18xx [%d,%d]: device disconnected event received \n",
 							 pMvSataAdapter->adapterId, channel));
 					device_change(pAdapter, channel, FALSE);
 					/* Delete previous timers (if multiple drives disconnected in the same time */
@@ -913,7 +912,7 @@ hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter, MV_EVENT_TYPE eventType,
 				else
 				{
 
-					MV_ERROR("RR182x: illigal value for param1(%d) at "
+					MV_ERROR("RR18xx: illigal value for param1(%d) at "
 							 "connect/disconect event, host=%d\n", param1,
 							 pMvSataAdapter->adapterId );
 
@@ -921,11 +920,11 @@ hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter, MV_EVENT_TYPE eventType,
 			}
 			break;
 		case MV_EVENT_TYPE_ADAPTER_ERROR:
-			KdPrint(("RR182x: DEVICE error event received, pci cause "
+			KdPrint(("RR18xx: DEVICE error event received, pci cause "
 					  "reg=%x,  don't how to handle this\n", param1));
 			return MV_TRUE;
 		default:
-			MV_ERROR("RR182x[%d]: unknown event type (%d)\n",
+			MV_ERROR("RR18xx[%d]: unknown event type (%d)\n",
 					 pMvSataAdapter->adapterId, eventType);
 			return MV_FALSE;
 	}
@@ -939,7 +938,7 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 			M_DEVBUF, M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0ul);
 	if (pAdapter->requestsArrayBaseAddr == NULL)
 	{
-		MV_ERROR("RR182x[%d]: Failed to allocate memory for EDMA request"
+		MV_ERROR("RR18xx[%d]: Failed to allocate memory for EDMA request"
 				 " queues\n", pAdapter->mvSataAdapter.adapterId);
 		return -1;
 	}
@@ -955,7 +954,7 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 	if ((pAdapter->requestsArrayBaseDmaAlignedAddr - pAdapter->requestsArrayBaseDmaAddr) != 
 		(pAdapter->requestsArrayBaseAlignedAddr - pAdapter->requestsArrayBaseAddr))
 	{
-		MV_ERROR("RR182x[%d]: Error in Request Quueues Alignment\n",
+		MV_ERROR("RR18xx[%d]: Error in Request Quueues Alignment\n",
 				 pAdapter->mvSataAdapter.adapterId);
 		contigfree(pAdapter->requestsArrayBaseAddr, REQUESTS_ARRAY_SIZE, M_DEVBUF);
 		return -1;
@@ -965,7 +964,7 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 			M_DEVBUF, M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0ul);
 	if (pAdapter->responsesArrayBaseAddr == NULL)
 	{
-		MV_ERROR("RR182x[%d]: Failed to allocate memory for EDMA response"
+		MV_ERROR("RR18xx[%d]: Failed to allocate memory for EDMA response"
 				 " queues\n", pAdapter->mvSataAdapter.adapterId);
 		contigfree(pAdapter->requestsArrayBaseAddr, RESPONSES_ARRAY_SIZE, M_DEVBUF);
 		return -1;
@@ -982,7 +981,7 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 	if ((pAdapter->responsesArrayBaseDmaAlignedAddr - pAdapter->responsesArrayBaseDmaAddr) != 
 		(pAdapter->responsesArrayBaseAlignedAddr - pAdapter->responsesArrayBaseAddr))
 	{
-		MV_ERROR("RR182x[%d]: Error in Response Quueues Alignment\n",
+		MV_ERROR("RR18xx[%d]: Error in Response Quueues Alignment\n",
 				 pAdapter->mvSataAdapter.adapterId);
 		contigfree(pAdapter->requestsArrayBaseAddr, REQUESTS_ARRAY_SIZE, M_DEVBUF);
 		contigfree(pAdapter->responsesArrayBaseAddr, RESPONSES_ARRAY_SIZE, M_DEVBUF);
@@ -1065,8 +1064,8 @@ PVDevice
 GetSpareDisk(_VBUS_ARG PVDevice pArray)
 {
 	IAL_ADAPTER_T *pAdapter = (IAL_ADAPTER_T *)pArray->pVBus->OsExt;
-	ULONG capacity = LongDiv(pArray->VDeviceCapacity, pArray->u.array.bArnMember-1);
-	ULONG thiscap, maxcap = MAX_LBA_T;
+	LBA_T capacity = LongDiv(pArray->VDeviceCapacity, pArray->u.array.bArnMember-1);
+	LBA_T thiscap, maxcap = MAX_LBA_T;
 	PVDevice pVDevice, pFind = NULL;
 	int i;
 
@@ -1131,6 +1130,127 @@ void HPTLIBAPI fDeSelectMode(PDevice pDev, UCHAR NewMode)
 		KdPrint(("Failed to enable DMA, channel=%d", channelIndex));
 }
 
+int HPTLIBAPI fDeSetTCQ(PDevice pDev, int enable, int depth)
+{
+	MV_SATA_CHANNEL *pSataChannel = pDev->mv;
+	MV_SATA_ADAPTER *pSataAdapter = pSataChannel->mvSataAdapter;
+	MV_U8 channelIndex = pSataChannel->channelNumber;
+	IAL_ADAPTER_T *pAdapter = pSataAdapter->IALData;
+	MV_CHANNEL		*channelInfo = &(pAdapter->mvChannel[channelIndex]);
+	int dmaActive = pSataChannel->queueCommandsEnabled;
+	int ret = 0;
+
+	if (dmaActive) {
+		mvSataDisableChannelDma(pSataAdapter, channelIndex);
+		mvSataFlushDmaQueue(pSataAdapter,channelIndex,MV_FLUSH_TYPE_CALLBACK);
+	}
+
+	if (enable) {
+		if (pSataChannel->queuedDMA == MV_EDMA_MODE_NOT_QUEUED &&
+			(pSataChannel->identifyDevice[IDEN_SUPPORTED_COMMANDS2] & (0x2))) {
+			UCHAR depth = ((pSataChannel->identifyDevice[IDEN_QUEUE_DEPTH]) & 0x1f) + 1;
+			channelInfo->queueDepth = (depth==32)? 31 : depth;
+			mvSataConfigEdmaMode(pSataAdapter, channelIndex, MV_EDMA_MODE_QUEUED, depth);
+			ret = 1;
+		}
+	}
+	else
+	{
+		if (pSataChannel->queuedDMA != MV_EDMA_MODE_NOT_QUEUED) {
+			channelInfo->queueDepth = 2;
+			mvSataConfigEdmaMode(pSataAdapter, channelIndex, MV_EDMA_MODE_NOT_QUEUED, 0);
+			ret = 1;
+		}
+	}
+
+	if (dmaActive)
+		mvSataEnableChannelDma(pSataAdapter,channelIndex);
+	return ret;
+}
+
+int HPTLIBAPI fDeSetNCQ(PDevice pDev, int enable, int depth)
+{
+	return 0;
+}
+
+int HPTLIBAPI fDeSetWriteCache(PDevice pDev, int enable)
+{
+	MV_SATA_CHANNEL *pSataChannel = pDev->mv;
+	MV_SATA_ADAPTER *pSataAdapter = pSataChannel->mvSataAdapter;
+	MV_U8 channelIndex = pSataChannel->channelNumber;
+	IAL_ADAPTER_T *pAdapter = pSataAdapter->IALData;
+	MV_CHANNEL		*channelInfo = &(pAdapter->mvChannel[channelIndex]);
+	int dmaActive = pSataChannel->queueCommandsEnabled;
+	int ret = 0;
+
+	if (dmaActive) {
+		mvSataDisableChannelDma(pSataAdapter, channelIndex);
+		mvSataFlushDmaQueue(pSataAdapter,channelIndex,MV_FLUSH_TYPE_CALLBACK);
+	}
+
+	if ((pSataChannel->identifyDevice[82] & (0x20))) {
+		if (enable) {
+			if (mvStorageDevATASetFeatures(pSataAdapter, channelIndex,
+				MV_ATA_SET_FEATURES_ENABLE_WCACHE, 0, 0, 0, 0))
+			{
+				channelInfo->writeCacheEnabled = MV_TRUE;
+				ret = 1;
+			}
+		}
+		else {
+			if (mvStorageDevATASetFeatures(pSataAdapter, channelIndex,
+				MV_ATA_SET_FEATURES_DISABLE_WCACHE, 0, 0, 0, 0))
+			{
+				channelInfo->writeCacheEnabled = MV_FALSE;
+				ret = 1;
+			}
+		}
+	}
+
+	if (dmaActive)
+		mvSataEnableChannelDma(pSataAdapter,channelIndex);
+	return ret;
+}
+
+int HPTLIBAPI fDeSetReadAhead(PDevice pDev, int enable)
+{
+	MV_SATA_CHANNEL *pSataChannel = pDev->mv;
+	MV_SATA_ADAPTER *pSataAdapter = pSataChannel->mvSataAdapter;
+	MV_U8 channelIndex = pSataChannel->channelNumber;
+	IAL_ADAPTER_T *pAdapter = pSataAdapter->IALData;
+	MV_CHANNEL		*channelInfo = &(pAdapter->mvChannel[channelIndex]);
+	int dmaActive = pSataChannel->queueCommandsEnabled;
+	int ret = 0;
+
+	if (dmaActive) {
+		mvSataDisableChannelDma(pSataAdapter, channelIndex);
+		mvSataFlushDmaQueue(pSataAdapter,channelIndex,MV_FLUSH_TYPE_CALLBACK);
+	}
+
+	if ((pSataChannel->identifyDevice[82] & (0x40))) {
+		if (enable) {
+			if (mvStorageDevATASetFeatures(pSataAdapter, channelIndex,
+				MV_ATA_SET_FEATURES_ENABLE_RLA, 0, 0, 0, 0))
+			{
+				channelInfo->readAheadEnabled = MV_TRUE;
+				ret = 1;
+			}
+		}
+		else {
+			if (mvStorageDevATASetFeatures(pSataAdapter, channelIndex,
+				MV_ATA_SET_FEATURES_DISABLE_RLA, 0, 0, 0, 0))
+			{
+				channelInfo->readAheadEnabled = MV_FALSE;
+				ret = 1;
+			}
+		}
+	}
+
+	if (dmaActive)
+		mvSataEnableChannelDma(pSataAdapter,channelIndex);
+	return ret;
+}
+
 #ifdef SUPPORT_ARRAY
 #define IdeRegisterVDevice  fCheckArray
 #else 
@@ -1166,9 +1286,12 @@ dmamap_put(PBUS_DMAMAP p)
 
 /*Since mtx not provide the initialize when declare, so we Final init here to initialize the global mtx*/
 #if __FreeBSD_version >= 500000
+#define override_kernel_driver()
+
 static void hpt_init(void *dummy)
 {
-	mtx_init(&driver_lock, "hptlock", NULL, MTX_DEF);
+	override_kernel_driver();	
+	mtx_init(&driver_lock, "hptsleeplock", NULL, MTX_DEF);
 }
 SYSINIT(hptinit, SI_SUB_CONFIGURE, SI_ORDER_FIRST, hpt_init, NULL);
 #endif
@@ -1182,6 +1305,8 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	int i, channel, rid;
 
 	PVDevice pVDev;
+
+	intrmask_t oldspl = lock_driver();
 
 	pAdapter->next = 0;
 
@@ -1222,7 +1347,8 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 
 	if (hptmv_allocate_edma_queues(pAdapter))
 	{
-		MV_ERROR("RR182x: Failed to allocate memory for EDMA queues\n");
+		MV_ERROR("RR18xx: Failed to allocate memory for EDMA queues\n");
+		unlock_driver(oldspl);
 		return ENOMEM;
 	}
 
@@ -1233,13 +1359,14 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 		||
 		!(pMvSataAdapter->adapterIoBaseAddress = rman_get_virtual(pAdapter->mem_res)))
 	{
-		MV_ERROR("RR182x: Failed to remap memory space\n");
+		MV_ERROR("RR18xx: Failed to remap memory space\n");
 		hptmv_free_edma_queues(pAdapter);
+		unlock_driver(oldspl);
 		return ENXIO;
 	}
 	else
 	{
-		KdPrint(("RR182x: io base address 0x%p\n", pMvSataAdapter->adapterIoBaseAddress));
+		KdPrint(("RR18xx: io base address 0x%p\n", pMvSataAdapter->adapterIoBaseAddress));
 	}
 
 	pMvSataAdapter->adapterId = num_adapters++;
@@ -1247,7 +1374,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	pMvSataAdapter->pciConfigRevisionId = pci_read_config(pAdapter->hpt_dev, PCIR_REVID, 1);
 	pMvSataAdapter->pciConfigDeviceId = pci_get_device(pAdapter->hpt_dev);
 	
-	/* init RR182x */
+	/* init RR18xx */
 	pMvSataAdapter->intCoalThre[0]= 1;
 	pMvSataAdapter->intCoalThre[1]= 1;
 	pMvSataAdapter->intTimeThre[0] = 1;
@@ -1259,11 +1386,12 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 
 	if (mvSataInitAdapter(pMvSataAdapter) == MV_FALSE)
 	{
-		MV_ERROR("RR182x[%d]: core failed to initialize the adapter\n",
+		MV_ERROR("RR18xx[%d]: core failed to initialize the adapter\n",
 				 pMvSataAdapter->adapterId);
 unregister:
 		bus_release_resource(pAdapter->hpt_dev, SYS_RES_MEMORY, rid, pAdapter->mem_res);
 		hptmv_free_edma_queues(pAdapter);
+		unlock_driver(oldspl);
 		return ENXIO;
 	}
 	pAdapter->ver_601 = pMvSataAdapter->pcbVersion;
@@ -1341,14 +1469,14 @@ unregister:
 		if (mvSataIsStorageDeviceConnected(pMvSataAdapter, channel)
 			== MV_TRUE)
 		{
-			KdPrint(("RR182x[%d]: channel %d is connected\n",
+			KdPrint(("RR18xx[%d]: channel %d is connected\n",
 					  pMvSataAdapter->adapterId, channel));
 
 			if (hptmv_init_channel(pAdapter, channel) == 0)
 			{
 				if (mvSataConfigureChannel(pMvSataAdapter, channel) == MV_FALSE)
 				{
-					MV_ERROR("RR182x[%d]: Failed to configure channel"
+					MV_ERROR("RR18xx[%d]: Failed to configure channel"
 							 " %d\n",pMvSataAdapter->adapterId, channel);
 					hptmv_free_channel(pAdapter, channel);
 				}
@@ -1356,7 +1484,7 @@ unregister:
 				{
 					if (start_channel(pAdapter, channel))
 					{
-						MV_ERROR("RR182x[%d]: Failed to start channel,"
+						MV_ERROR("RR18xx[%d]: Failed to start channel,"
 								 " channel=%d\n",pMvSataAdapter->adapterId,
 								 channel);
 						hptmv_free_channel(pAdapter, channel);
@@ -1402,10 +1530,11 @@ unregister:
 #if defined(SUPPORT_ARRAY) && defined(_RAID5N_)
 	init_raid5_memory(_VBUS_P0);
 	_vbus_(r5).enable_write_back = 1;
-	printf("RR182x: RAID5 write-back %s\n", _vbus_(r5).enable_write_back? "enabled" : "disabled");
+	printf("RR18xx: RAID5 write-back %s\n", _vbus_(r5).enable_write_back? "enabled" : "disabled");
 #endif
 
 	mvSataUnmaskAdapterInterrupt(pMvSataAdapter);
+	unlock_driver(oldspl);
 	return 0;
 }
 
@@ -1421,7 +1550,7 @@ MvSataResetChannel(MV_SATA_ADAPTER *pMvSataAdapter, MV_U8 channel)
 	/* Software reset channel */
 	if (mvStorageDevATASoftResetDevice(pMvSataAdapter, channel) == MV_FALSE)
 	{
-		MV_ERROR("RR182x [%d,%d]: failed to perform Software reset\n",
+		MV_ERROR("RR18xx [%d,%d]: failed to perform Software reset\n",
 				 pMvSataAdapter->adapterId, channel);
 		hptmv_free_channel(pAdapter, channel);
 		return -1;
@@ -1430,7 +1559,7 @@ MvSataResetChannel(MV_SATA_ADAPTER *pMvSataAdapter, MV_U8 channel)
 	/* Hardware reset channel */
 	if (mvSataChannelHardReset(pMvSataAdapter, channel)== MV_FALSE)
 	{
-		MV_ERROR("RR182x [%d,%d] Failed to Hard reser the SATA channel\n",
+		MV_ERROR("RR18xx [%d,%d] Failed to Hard reser the SATA channel\n",
 				 pMvSataAdapter->adapterId, channel);
 		hptmv_free_channel(pAdapter, channel);
 		return -1;
@@ -1438,7 +1567,7 @@ MvSataResetChannel(MV_SATA_ADAPTER *pMvSataAdapter, MV_U8 channel)
 
 	if (mvSataIsStorageDeviceConnected(pMvSataAdapter, channel) == MV_FALSE)
 	{
-		 MV_ERROR("RR182x [%d,%d] Failed to Connect Device\n",
+		 MV_ERROR("RR18xx [%d,%d] Failed to Connect Device\n",
 				 pMvSataAdapter->adapterId, channel);
 		hptmv_free_channel(pAdapter, channel);
 		return -1;
@@ -1632,7 +1761,7 @@ fDeviceSendCommand(_VBUS_ARG PCommand pCmd)
 	MV_SATA_CHANNEL *pMvSataChannel;
 	PVDevice pVDevice = pCmd->pVDevice;
 	PDevice  pDevice = &pVDevice->u.disk;
-	ULONG    Lba = pCmd->uCmd.Ide.Lba;
+	LBA_T    Lba = pCmd->uCmd.Ide.Lba;
 	USHORT   nSector = pCmd->uCmd.Ide.nSectors;
 
 	MV_QUEUE_COMMAND_RESULT result;
@@ -1640,7 +1769,7 @@ fDeviceSendCommand(_VBUS_ARG PCommand pCmd)
 	MV_UDMA_COMMAND_PARAMS  *pUdmaParams = &commandInfo.commandParams.udmaCommand;
 	MV_NONE_UDMA_COMMAND_PARAMS *pNoUdmaParams = &commandInfo.commandParams.NoneUdmaCommand;
 
-	MV_BOOLEAN is48bit = MV_FALSE;
+	MV_BOOLEAN is48bit;
 	MV_U8      channel;
 	int        i=0;
 	
@@ -1667,9 +1796,12 @@ fDeviceSendCommand(_VBUS_ARG PCommand pCmd)
 		return;
 	}
 	
-	if(Lba & 0xF0000000){
-		is48bit = MV_TRUE;
-	}
+	/*
+	 * always use 48bit LBA if drive supports it.
+	 * Some Seagate drives report error if you use a 28-bit command
+	 * to access sector 0xfffffff.
+	 */
+	is48bit = pMvSataChannel->lba48Address;
 
 	switch (pCmd->uCmd.Ide.Command)
 	{
@@ -1929,7 +2061,13 @@ hpt_attach(device_t dev)
 		return(ENXIO);
 	}
 
-	if(bus_setup_intr(pAdapter->hpt_dev, pAdapter->hpt_irq, INTR_TYPE_CAM, NULL, hpt_intr, pAdapter, &pAdapter->hpt_intr))
+#if __FreeBSD_version <700000
+	if (bus_setup_intr(pAdapter->hpt_dev, pAdapter->hpt_irq, INTR_TYPE_CAM,
+				hpt_intr, pAdapter, &pAdapter->hpt_intr))
+#else 
+	if (bus_setup_intr(pAdapter->hpt_dev, pAdapter->hpt_irq, INTR_TYPE_CAM,
+				NULL, hpt_intr, pAdapter, &pAdapter->hpt_intr))
+#endif
 	{
 		hpt_printk(("can't set up interrupt\n"));
 		free(pAdapter, M_DEVBUF);
@@ -1959,14 +2097,23 @@ hpt_attach(device_t dev)
 	/*
 	 * Construct our SIM entry
 	 */
-	if ((hpt_vsim = cam_sim_alloc(hpt_action, hpt_poll, __str(PROC_DIR_NAME),
-			pAdapter, device_get_unit(pAdapter->hpt_dev),
-			&Giant, /*untagged*/1, /*tagged*/8,  devq)) == NULL)	{
+#if __FreeBSD_version <700000
+	hpt_vsim = cam_sim_alloc(hpt_action, hpt_poll, __str(PROC_DIR_NAME),
+			pAdapter, device_get_unit(pAdapter->hpt_dev), 1, 8, devq);
+#else 
+	hpt_vsim = cam_sim_alloc(hpt_action, hpt_poll, __str(PROC_DIR_NAME),
+			pAdapter, device_get_unit(pAdapter->hpt_dev), &Giant, 1, 8, devq);
+#endif
+	if (hpt_vsim == NULL) {
 		cam_simq_free(devq);
 		return ENOMEM;
 	}
 
-	if(xpt_bus_register(hpt_vsim, dev, 0) != CAM_SUCCESS)
+#if __FreeBSD_version <700000
+	if (xpt_bus_register(hpt_vsim, 0) != CAM_SUCCESS)
+#else 
+	if (xpt_bus_register(hpt_vsim, dev, 0) != CAM_SUCCESS)
+#endif
 	{
 		cam_sim_free(hpt_vsim, /*free devq*/ TRUE);
 		hpt_vsim = NULL;
@@ -2358,7 +2505,11 @@ static void hpt_worker_thread(void)
 #if (__FreeBSD_version < 500000)
 			YIELD_THREAD;
 #else 
+#if (__FreeBSD_version > 700033)
 			pause("sched", 1);
+#else
+			tsleep((caddr_t)hpt_worker_thread, PPAUSE, "sched", 1); 
+#endif
 #endif
 			if (SIGISMEMBER(curproc->p_siglist, SIGSTOP)) {
 				/* abort rebuilding process. */
@@ -2392,15 +2543,25 @@ static void hpt_worker_thread(void)
 /*
 #ifdef DEBUG
 		if (SIGISMEMBER(curproc->p_siglist, SIGSTOP))
+#if (__FreeBSD_version > 700033)
 			pause("hptrdy", 2*hz);
+#else
+			tsleep((caddr_t)hpt_worker_thread, PPAUSE, "hptrdy", 2*hz);
+#endif
 #endif
 */
-	#if (__FreeBSD_version >= 500043)
+	#if (__FreeBSD_version >= 800002)
 		kproc_suspend_check(curproc);
+	#elif (__FreeBSD_version >= 500043)
+		kthread_suspend_check(curproc);
 	#else 
 		kproc_suspend_loop(curproc);
 	#endif
+#if (__FreeBSD_version > 700033)
 		pause("hptrdy", 2*hz);  /* wait for something to do */
+#else
+		tsleep((caddr_t)hpt_worker_thread, PPAUSE, "hptrdy", 2*hz);  /* wait for something to do */
+#endif
 	}
 }
 
@@ -2537,7 +2698,7 @@ SetInquiryData(PINQUIRYDATA inquiryData, PVDevice pVDev)
 		}
 		break;
 	default:
-		memcpy(&inquiryData->VendorId, "RR182x  ", 8);
+		memcpy(&inquiryData->VendorId, "RR18xx  ", 8);
 #ifdef SUPPORT_ARRAY
 		switch(pVDev->VDeviceType){
 		case VD_RAID_0:
@@ -2659,20 +2820,57 @@ OsSendCommand(_VBUS_ARG union ccb *ccb)
 
 		case READ_CAPACITY:
 		{		
-			UCHAR swip[4];
+			UCHAR *rbuf=csio->data_ptr;
+			unsigned int cap;
+
+			if (pVDev->VDeviceCapacity > 0xfffffffful) {
+				cap = 0xfffffffful;
+			} else {
+				cap = pVDev->VDeviceCapacity - 1;
+			}
+
+			rbuf[0] = (UCHAR)(cap>>24);
+			rbuf[1] = (UCHAR)(cap>>16);
+			rbuf[2] = (UCHAR)(cap>>8);
+			rbuf[3] = (UCHAR)cap;
 			/* Claim 512 byte blocks (big-endian). */
-			((PREAD_CAPACITY_DATA)csio->data_ptr)->BytesPerBlock = 0x20000;
-			*(ULONG*)swip = pVDev->VDeviceCapacity - 1;
-			((PREAD_CAPACITY_DATA)csio->data_ptr)->LogicalBlockAddress =
-				(swip[0] << 24) |  (swip[1] << 16) | (swip[2] << 8) | swip[3];
+			rbuf[4] = 0;
+			rbuf[5] = 0;
+			rbuf[6] = 2;
+			rbuf[7] = 0;
+			
 			ccb_h->status = CAM_REQ_CMP;
 			break;
+		}
+
+		case 0x9e: /*SERVICE_ACTION_IN*/ 
+		{
+			UCHAR *rbuf = csio->data_ptr;
+			LBA_T cap = pVDev->VDeviceCapacity - 1;
+			
+			rbuf[0] = (UCHAR)(cap>>56);
+			rbuf[1] = (UCHAR)(cap>>48);
+			rbuf[2] = (UCHAR)(cap>>40);
+			rbuf[3] = (UCHAR)(cap>>32);
+			rbuf[4] = (UCHAR)(cap>>24);
+			rbuf[5] = (UCHAR)(cap>>16);
+			rbuf[6] = (UCHAR)(cap>>8);
+			rbuf[7] = (UCHAR)cap;
+			rbuf[8] = 0;
+			rbuf[9] = 0;
+			rbuf[10] = 2;
+			rbuf[11] = 0;
+			
+			ccb_h->status = CAM_REQ_CMP;
+			break;	
 		}
 
 		case READ_6:
 		case WRITE_6:
 		case READ_10:
 		case WRITE_10:
+		case 0x88: /* READ_16 */
+		case 0x8a: /* WRITE_16 */
 		case 0x13:
 		case 0x2f:
 		{
@@ -2716,6 +2914,20 @@ OsSendCommand(_VBUS_ARG union ccb *ccb)
 					pCmd->uCmd.Ide.nSectors = (USHORT) Cdb[4];
 					break;
 
+				case 0x88: /* READ_16 */
+				case 0x8a: /* WRITE_16 */
+					pCmd->uCmd.Ide.Lba = 
+						(HPT_U64)Cdb[2] << 56 |
+						(HPT_U64)Cdb[3] << 48 |
+						(HPT_U64)Cdb[4] << 40 |
+						(HPT_U64)Cdb[5] << 32 |
+						(HPT_U64)Cdb[6] << 24 |
+						(HPT_U64)Cdb[7] << 16 |
+						(HPT_U64)Cdb[8] << 8 |
+						(HPT_U64)Cdb[9];
+					pCmd->uCmd.Ide.nSectors = (USHORT)Cdb[12] << 8 | (USHORT)Cdb[13];
+					break;
+					
 				default:
 					pCmd->uCmd.Ide.Lba = (ULONG)Cdb[5] | ((ULONG)Cdb[4] << 8) | ((ULONG)Cdb[3] << 16) | ((ULONG)Cdb[2] << 24);
 					pCmd->uCmd.Ide.nSectors = (USHORT) Cdb[8] | ((USHORT)Cdb[7]<<8);
@@ -2726,12 +2938,14 @@ OsSendCommand(_VBUS_ARG union ccb *ccb)
 			{
 				case READ_6:
 				case READ_10:
+				case 0x88: /* READ_16 */
 					pCmd->uCmd.Ide.Command = IDE_COMMAND_READ;
 					pCmd->cf_data_in = 1;
 					break;
 
 				case WRITE_6:
 				case WRITE_10:
+				case 0x8a: /* WRITE_16 */
 					pCmd->uCmd.Ide.Command = IDE_COMMAND_WRITE;
 					pCmd->cf_data_out = 1;
 					break;
