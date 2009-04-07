@@ -52,6 +52,20 @@ __FBSDID("$FreeBSD$");
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
 
+#define KASSERT_PN_IS_DIR(pn)						\
+	KASSERT((pn)->pn_type == pfstype_root ||			\
+	    (pn)->pn_type == pfstype_dir ||				\
+	    (pn)->pn_type == pfstype_procdir,				\
+	    ("%s(): VDIR vnode refers to non-directory pfs_node", __func__))
+
+#define KASSERT_PN_IS_FILE(pn)						\
+	KASSERT((pn)->pn_type == pfstype_file,				\
+	    ("%s(): VREG vnode refers to non-file pfs_node", __func__))
+
+#define KASSERT_PN_IS_LINK(pn)						\
+	KASSERT((pn)->pn_type == pfstype_symlink,			\
+	    ("%s(): VLNK vnode refers to non-link pfs_node", __func__))
+
 /*
  * Returns the fileno, adjusted for target pid
  */
@@ -257,6 +271,7 @@ pfs_ioctl(struct vop_ioctl_args *va)
 
 	if (vn->v_type != VREG)
 		PFS_RETURN (EINVAL);
+	KASSERT_PN_IS_FILE(pn);
 
 	if (pn->pn_ioctl == NULL)
 		PFS_RETURN (ENOTTY);
@@ -411,6 +426,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 
 	if (vn->v_type != VDIR)
 		PFS_RETURN (ENOTDIR);
+	KASSERT_PN_IS_DIR(pd);
 
 	error = VOP_ACCESS(vn, VEXEC, cnp->cn_cred, cnp->cn_thread);
 	if (error)
@@ -565,6 +581,7 @@ pfs_read(struct vop_read_args *va)
 
 	if (vn->v_type != VREG)
 		PFS_RETURN (EINVAL);
+	KASSERT_PN_IS_FILE(pn);
 
 	if (!(pn->pn_flags & PFS_RD))
 		PFS_RETURN (EBADF);
@@ -707,6 +724,7 @@ pfs_readdir(struct vop_readdir_args *va)
 
 	if (vn->v_type != VDIR)
 		PFS_RETURN (ENOTDIR);
+	KASSERT_PN_IS_DIR(pd);
 	uio = va->a_uio;
 
 	/* only allow reading entire entries */
@@ -815,6 +833,7 @@ pfs_readlink(struct vop_readlink_args *va)
 
 	if (vn->v_type != VLNK)
 		PFS_RETURN (EINVAL);
+	KASSERT_PN_IS_LINK(pn);
 
 	if (pn->pn_fill == NULL)
 		PFS_RETURN (EIO);
@@ -900,8 +919,7 @@ pfs_write(struct vop_write_args *va)
 
 	if (vn->v_type != VREG)
 		PFS_RETURN (EINVAL);
-	KASSERT(pn->pn_type != pfstype_file,
-	    ("%s(): VREG vnode refers to non-file pfs_node", __func__));
+	KASSERT_PN_IS_FILE(pn);
 
 	if (!(pn->pn_flags & PFS_WR))
 		PFS_RETURN (EBADF);
