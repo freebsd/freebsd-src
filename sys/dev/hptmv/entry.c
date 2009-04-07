@@ -2138,14 +2138,15 @@ hpt_attach(device_t dev)
 	xpt_action((union ccb *)ccb);
 	free(ccb, M_DEVBUF);
 
-	/* Register shutdown handler, and start the work thread. */
-	if (device_get_unit(dev) == 0) {
-		pAdapter->eh = EVENTHANDLER_REGISTER(shutdown_final, 
-			hpt_shutdown, dev, SHUTDOWN_PRI_DEFAULT);
-		if (pAdapter->eh)
-			launch_worker_thread();
-		else
-			hpt_printk(("shutdown event registration failed\n"));
+	/* Register a shutdown handler to flush data for the current adapter */
+	pAdapter->eh =  EVENTHANDLER_REGISTER(shutdown_final, 
+		hpt_shutdown, dev, SHUTDOWN_PRI_DEFAULT);
+	if (pAdapter->eh == NULL) {
+	    device_printf(pAdapter->hpt_dev,
+		"shutdown event registration failed\n");
+	} else if (device_get_unit(dev) == 0) {
+		/* Start the work thread.  XXX */
+		launch_worker_thread();
 	}
 
 	return 0;
