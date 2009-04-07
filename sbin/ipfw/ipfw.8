@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2009
+.Dd April 5, 2009
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -881,9 +881,10 @@ and
 which limit, respectively, the maximum number of processable fragments (default: 800) and
 the maximum number of fragments per packet (default: 16).
 .Pp
-NOTA BENE: since fragments don't contain port numbers, beware not to use them whe issuing a
+NOTA BENE: since fragments do not contain port numbers, they should be avoided with the
 .Nm reass
-rule. Alternatively, direction-based (like 
+rule.
+Alternatively, direction-based (like 
 .Nm in
 /
 .Nm out
