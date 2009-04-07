@@ -45,6 +45,7 @@
  *	2 loopback
  *      1 gdlink (tpi mode only) 1 tp good, 0 tp bad
  *	0 0-no mam, 1 mam connected
+ *
  * NS83926 appears to be a NS pcmcia glue chip used on the IBM Ethernet II
  * and the NEC PC9801N-J12 ccr base 0x2000!
  *
@@ -64,8 +65,6 @@
  *	0-1 PHY01	00 auto, 01 res, 10 10B5, 11 TPI
  *	2 GDLINK	1 disable checking of link
  *	6 LINK		0 bad link, 1 good link
- * TMI tc5299 10/100 chip, has a different MII interaction than
- * dl100xx and ax88x90.
  *
  * EN5017A, EN5020	no data, but very popular
  * Other chips?
@@ -114,9 +113,12 @@
  * memory somewhere that isn't in the CIS.  Some new chipsets have it
  * in special registers in the ASIC part of the chip.
  *
- * For those cards that have the MAC adress stored in attribute memory,
- * nearly all of them have it at a fixed offset (0xff0).  We use that
- * offset as a source of last resource if other offsets have failed.
+ * For those cards that have the MAC adress stored in attribute memory
+ * outside of a FUNCE entry in the CIS, nearly all of them have it at
+ * a fixed offset (0xff0).  We use that offset as a source of last
+ * resource if other offsets have failed.  This is the address of the
+ * National Semiconductor DP83903A, which is the only chip's datasheet
+ * I've found.
  */
 #define ED_DEFAULT_MAC_OFFSET	0xff0
 
