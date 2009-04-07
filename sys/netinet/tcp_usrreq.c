@@ -1173,7 +1173,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
-	    (TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
+	    (TCP_MAXWIN << tp->request_r_scale) < sb_max)
 		tp->request_r_scale++;
 
 	soisconnecting(so);
