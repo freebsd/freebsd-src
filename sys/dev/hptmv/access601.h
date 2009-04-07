@@ -28,6 +28,8 @@
 #ifndef _ACCESS601_H_
 #define _ACCESS601_H_
 
+#ifndef FOR_DEMO
+
 void HPTLIBAPI BeepOn(MV_BUS_ADDR_T BaseAddr);
 void HPTLIBAPI BeepOff(MV_BUS_ADDR_T BaseAddr);
 UCHAR HPTLIBAPI check_protect_circuit(MV_BUS_ADDR_T BaseAddr);
@@ -38,6 +40,23 @@ void HPTLIBAPI set_fail_leds(MV_SATA_ADAPTER *pAdapter, UCHAR mask);
 #else 
 #define set_fail_led(pAdapter, channel, state)
 #define set_fail_leds(pAdapter, mask)
+#endif
+
+int HPTLIBAPI sx508x_ioctl(MV_SATA_ADAPTER *pSataAdapter, UCHAR *indata, ULONG inlen,
+			UCHAR *outdata, ULONG maxoutlen, ULONG *poutlen);
+
+MV_BOOLEAN HPTLIBAPI sx508x_flash_access(MV_SATA_ADAPTER *pSataAdapter,
+			MV_U32 offset, void *value, int size, int reading);
+#else 
+
+#define BeepOn(addr)
+#define BeepOff(addr)
+#define check_protect_circuit(addr) 1
+#define set_fail_led(pAdapter, channel, state)
+#define set_fail_leds(pAdapter, mask)
+#define sx508x_ioctl(pSataAdapter, indata, inlen, outdata, maxoutlen, poutlen) 0
+#define sx508x_flash_access(pSataAdapter, offset, value, size, reading) 0
+
 #endif
 
 #endif
