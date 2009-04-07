@@ -239,6 +239,7 @@ static const struct ed_product {
  */
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
+static void	ed_pccard_tick(void *);
 
 static int	ed_pccard_dl100xx(device_t dev, const struct ed_product *);
 static void	ed_pccard_dl100xx_mii_reset(struct ed_softc *sc);
@@ -424,30 +425,6 @@ ed_pccard_mediachg(struct ed_softc *sc)
 		return;
 	mii = device_get_softc(sc->miibus);
 	mii_mediachg(mii);
-}
-
-static void
-ed_pccard_tick(void *arg)
-{
-	struct ed_softc *sc = arg;
-	struct mii_data *mii;
-	int media = 0;
-
-	ED_ASSERT_LOCKED(sc);
-	if (sc->miibus != NULL) {
-		mii = device_get_softc(sc->miibus);
-		media = mii->mii_media_status;
-		mii_tick(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    media != mii->mii_media_status && 0 &&
-		    sc->chip_type == ED_CHIP_TYPE_DL10022) {
-			ed_asic_outb(sc, ED_DL10022_DIAG,
-			    (mii->mii_media_active & IFM_FDX) ?
-			    ED_DL10022_COLLISON_DIS : 0);
-		}
-		
-	}
-	callout_reset(&sc->tick_ch, hz, ed_pccard_tick, sc);
 }
 
 static int
@@ -1202,6 +1179,36 @@ ed_child_detached(device_t dev, device_t child)
 	sc = device_get_softc(dev);
 	if (child == sc->miibus)
 		sc->miibus = NULL;
+}
+
+static void
+ed_pccard_tick(void *arg)
+{
+	struct ed_softc *sc = arg;
+	struct mii_data *mii;
+	int media = 0;
+
+	ED_ASSERT_LOCKED(sc);
+	if (sc->miibus != NULL) {
+		mii = device_get_softc(sc->miibus);
+		media = mii->mii_media_status;
+		mii_tick(mii);
+		if (mii->mii_media_status & IFM_ACTIVE &&
+		    media != mii->mii_media_status) {
+			if (sc->chip_type == ED_CHIP_TYPE_DL10022) {
+				printf("Enabling 10022 workaround\n");
+				ed_asic_outb(sc, ED_DL10022_DIAG,
+				    (mii->mii_media_active & IFM_FDX) ?
+				    ED_DL10022_COLLISON_DIS : 0);
+			} else if (sc->chip_type == ED_CHIP_TYPE_DL10019) {
+				write_asic(sc, ED_DL10019_MAGIC,
+				    (mii->mii_media_active & IFM_FDX) ?
+				    DL19FDUPLX : 0);
+			}
+		}
+		
+	}
+	callout_reset(&sc->tick_ch, hz, ed_pccard_tick, sc);
 }
 
 static device_method_t ed_pccard_methods[] = {
