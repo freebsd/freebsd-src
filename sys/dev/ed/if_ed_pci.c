@@ -91,11 +91,9 @@ ed_pci_attach(device_t dev)
 	int	error = ENXIO;
 
 	/*
-	 * If this card claims to be a RTL8029, probe it as such.
-	 * However, allow that probe to fail.  Some versions of qemu
-	 * claim to be a 8029 in the PCI register, but it doesn't
-	 * implement the 8029 specific registers.  In that case, fall
-	 * back to a normal NE2000.
+	 * Probe RTL8029 cards, but allow failure and try as a generic
+	 * ne-2000.  QEMU 0.9 and earlier use the RTL8029 PCI ID, but
+	 * are areally just generic ne-2000 cards.
 	 */
 	if (pci_get_devid(dev) == ED_RTL8029_PCI_ID)
 		error = ed_probe_RTL80x9(dev, PCIR_BAR(0), flags);
@@ -118,7 +116,8 @@ ed_pci_attach(device_t dev)
 		ed_release_resources(dev);
 		return (error);
 	}
-
+	if (sc->sc_media_ioctl == NULL)
+		ed_gen_ifmedia_init(sc);
 	error = ed_attach(dev);
 	if (error)
 		ed_release_resources(dev);
