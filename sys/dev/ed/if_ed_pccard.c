@@ -622,10 +622,6 @@ bad:
 /*
  * Probe the Ethernet MAC addrees for PCMCIA Linksys EtherFast 10/100 
  * and compatible cards (DL10019C Ethernet controller).
- *
- * Note: The PAO patches try to use more memory for the card, but that
- * seems to fail for my card.  A future optimization would add this back
- * conditionally.
  */
 static int
 ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
@@ -633,6 +629,7 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
 	uint8_t id;
+	u_int   memsize;
 	int i, error;
 
 	if (!(pp->flags & NE2000DVF_DL100XX))
@@ -666,8 +663,26 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
 	id = ed_asic_inb(sc, 0xf);
 	sc->isa16bit = 1;
-	sc->vendor = ED_VENDOR_NOVELL;
+	/*
+	 * Hard code values based on the datasheet.  We're NE-2000 compatible
+	 * NIC with 24kb of packet memory starting at 24k offset.  These
+	 * cards also work with 16k at 16k, but don't work with 24k at 16k
+	 * or 32k at 16k.
+	 */
 	sc->type = ED_TYPE_NE2000;
+	sc->mem_start = 24 * 1024;
+	memsize = sc->mem_size = 24 * 1024;
+	sc->mem_end = sc->mem_start + memsize;
+	sc->tx_page_start = memsize / ED_PAGE_SIZE;
+	sc->txb_cnt = 3;
+	sc->rec_page_start = sc->tx_page_start + sc->txb_cnt * ED_TXBUF_SIZE;
+	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
+
+	sc->mem_ring = sc->mem_start + sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
+
+	ed_nic_outb(sc, ED_P0_PSTART, sc->mem_start / ED_PAGE_SIZE);
+	ed_nic_outb(sc, ED_P0_PSTOP, sc->mem_end / ED_PAGE_SIZE);
+	sc->vendor = ED_VENDOR_NOVELL;
 	sc->chip_type = (id & 0x90) == 0x90 ?
 	    ED_CHIP_TYPE_DL10022 : ED_CHIP_TYPE_DL10019;
 	sc->type_str = ((id & 0x90) == 0x90) ? "DL10022" : "DL10019";
