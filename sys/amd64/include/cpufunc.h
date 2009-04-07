@@ -535,12 +535,9 @@ cpu_mwait(int extensions, int hints)
 static __inline void
 load_fs(u_int sel)
 {
-	register u_int32_t fsbase __asm("ecx");
-
 	/* Preserve the fsbase value across the selector load */
-	fsbase = MSR_FSBASE;
-        __asm __volatile("rdmsr; mov %0,%%fs; wrmsr"
-            : : "rm" (sel), "c" (fsbase) : "eax", "edx");
+	__asm __volatile("rdmsr; mov %0,%%fs; wrmsr"
+	    : : "rm" (sel), "c" (MSR_FSBASE) : "eax", "edx");
 }
 
 #ifndef	MSR_GSBASE
@@ -549,16 +546,13 @@ load_fs(u_int sel)
 static __inline void
 load_gs(u_int sel)
 {
-	register u_int32_t gsbase __asm("ecx");
-
 	/*
 	 * Preserve the gsbase value across the selector load.
 	 * Note that we have to disable interrupts because the gsbase
 	 * being trashed happens to be the kernel gsbase at the time.
 	 */
-	gsbase = MSR_GSBASE;
-        __asm __volatile("pushfq; cli; rdmsr; mov %0,%%gs; wrmsr; popfq"
-            : : "rm" (sel), "c" (gsbase) : "eax", "edx");
+	__asm __volatile("pushfq; cli; rdmsr; mov %0,%%gs; wrmsr; popfq"
+	    : : "rm" (sel), "c" (MSR_GSBASE) : "eax", "edx");
 }
 #else
 /* Usable by userland */
