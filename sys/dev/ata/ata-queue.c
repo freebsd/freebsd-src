@@ -444,8 +444,7 @@ ata_completed(void *context, int dummy)
 	}
 
 	if (!request->result &&
-	     (request->u.atapi.sense.key & ATA_SENSE_KEY_MASK ?
-	     request->u.atapi.sense.key & ATA_SENSE_KEY_MASK : 
+	     (request->u.atapi.sense.key & ATA_SENSE_KEY_MASK ||
 	     request->error))
 	    request->result = EIO;
     }
