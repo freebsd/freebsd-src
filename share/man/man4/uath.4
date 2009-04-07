@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2009
+.Dd April 7, 2009
 .Dt UATH 4
 .Os
 .Sh NAME
@@ -80,7 +80,9 @@ when the device is inserted.
 includes the firmware in the binary program.
 This firmware is licensed for general use and is included in the base system.
 .Sh HARDWARE
-The following adapters should work:
+The
+.Nm
+driver should work with the following adapters:
 .Pp
 .Bl -column -compact "TRENDware International TEW-444UB" "AR5005UX" -offset 6n
 .It Em "Adapter	Chipset"
@@ -162,8 +164,8 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr devd 8 ,
-.Xr uathload 8 ,
 .Xr ifconfig 8 ,
+.Xr uathload 8 ,
 .Xr wpa_supplicant 8 .
 .Sh HISTORY
 The
