@@ -1739,3 +1739,38 @@ ed_shmem_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 	}
 	return (len);
 }
+
+/*
+ * Generic ifmedia support.  By default, the DP8390-based cards don't know
+ * what their network attachment really is, or even if it is valid (except
+ * upon successful transmission of a packet).  To play nicer with dhclient, as
+ * well as to fit in with a framework where some cards can provde more
+ * detailed information, make sure that we use this as a fallback.
+ */
+static int
+ed_gen_ifmedia_ioctl(struct ed_softc *sc, struct ifreq *ifr, u_long command)
+{
+	return (ifmedia_ioctl(sc->ifp, ifr, &sc->ifmedia, command));
+}
+
+static int
+ed_gen_ifmedia_upd(struct ifnet *ifp)
+{
+	return 0;
+}
+
+static void
+ed_gen_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+	ifmr->ifm_active = IFM_ETHER | IFM_AUTO;
+	ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;
+}
+
+void
+ed_gen_ifmedia_init(struct ed_softc *sc)
+{
+	sc->sc_media_ioctl = &ed_gen_ifmedia_ioctl;
+	ifmedia_init(&sc->ifmedia, 0, ed_gen_ifmedia_upd, ed_gen_ifmedia_sts);
+	ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_AUTO, 0, 0);
+	ifmedia_set(&sc->ifmedia, IFM_ETHER | IFM_AUTO);
+}
