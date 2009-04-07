@@ -77,7 +77,7 @@ smbios_detect(void)
 	uint8_t		*smbios, *dmi, *addr;
 	uint16_t	i, length, count;
 	uint32_t	paddr;
-	char		buf[4];
+	char		buf[16];
 
 	/* locate and validate the SMBIOS */
 	smbios = smbios_sigsearch(PTOV(SMBIOS_START), SMBIOS_LENGTH);
