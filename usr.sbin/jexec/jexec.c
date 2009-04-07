@@ -29,8 +29,10 @@
 
 #include <sys/param.h>
 #include <sys/jail.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
+
 #include <err.h>
 #include <errno.h>
 #include <login_cap.h>
@@ -117,8 +119,8 @@ lookup_jail(int jid, char *jailname)
 
 	j = len;
 	for (i = 0; i < 4; i++) {
-		if (len <= 0)
-			exit(0);	
+		if (len == 0)
+			return (-1);
 		p = q = malloc(len);
 		if (p == NULL)
 			err(1, "malloc()");
@@ -172,27 +174,21 @@ lookup_jail(int jid, char *jailname)
 			/* NOTREACHED */
 			break;
 		}
-		/* Possible match. */
-		if (id > 0) {
-			/* Do we have a jail ID to match as well? */
-			if (jid > 0) {
-				if (jid == id) {
-					xid = id;
-					count++;
-				}
-			} else {
-				xid = id;
-				count++;
-			}
+		/* Possible match; see if we have a jail ID to match as well.  */
+		if (id > 0 && (jid <= 0 || id == jid)) {
+			xid = id;
+			count++;
 		}
 	}
 
 	free(p);
 
-	if (count != 1)
+	if (count == 1)
+		return (xid);
+	else if (count > 1)
 		errx(1, "Could not uniquely identify the jail.");
-
-	return (xid);
+	else
+		return (-1);
 }
 
 #define GET_USER_INFO do {						\
