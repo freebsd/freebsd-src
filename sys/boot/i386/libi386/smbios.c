@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <bootstrap.h>
+#include <sys/endian.h>
 
 #include "btxv86.h"
 #include "libi386.h"
@@ -37,17 +38,18 @@ __FBSDID("$FreeBSD$");
  * Detect SMBIOS and export information about the SMBIOS into the
  * environment.
  *
- * System Management BIOS Reference Specification, v2.4 Final
- * http://www.dmtf.org/standards/published_documents/DSP0134.pdf
+ * System Management BIOS Reference Specification, v2.6 Final
+ * http://www.dmtf.org/standards/published_documents/DSP0134_2.6.0.pdf
  */
 
 /*
- * Spec. 2.1.1 SMBIOS Structure Table Entry Point
+ * 2.1.1 SMBIOS Structure Table Entry Point
  *
- * 'The SMBIOS Entry Point structure, described below, can be located by
- * application software by searching for the anchor-string on paragraph
- * (16-byte) boundaries within the physical memory address range
- * 000F0000h to 000FFFFFh.'
+ * "On non-EFI systems, the SMBIOS Entry Point structure, described below, can
+ * be located by application software by searching for the anchor-string on
+ * paragraph (16-byte) boundaries within the physical memory address range
+ * 000F0000h to 000FFFFFh. This entry point encapsulates an intermediate anchor
+ * string that is used by some existing DMI browsers."
  */
 #define	SMBIOS_START		0xf0000
 #define	SMBIOS_LENGTH		0x10000
@@ -55,100 +57,174 @@ __FBSDID("$FreeBSD$");
 #define	SMBIOS_SIG		"_SM_"
 #define	SMBIOS_DMI_SIG		"_DMI_"
 
+#define	SMBIOS_GET8(base, off)	(*(uint8_t *)((base) + (off)))
+#define	SMBIOS_GET16(base, off)	(*(uint16_t *)((base) + (off)))
+#define	SMBIOS_GET32(base, off)	(*(uint32_t *)((base) + (off)))
+
+#define	SMBIOS_GETLEN(base)	SMBIOS_GET8(base, 0x01)
+#define	SMBIOS_GETSTR(base)	((base) + SMBIOS_GETLEN(base))
+
 static uint32_t	smbios_enabled_memory = 0;
 static uint32_t	smbios_old_enabled_memory = 0;
 static uint8_t	smbios_enabled_sockets = 0;
 static uint8_t	smbios_populated_sockets = 0;
 
-static uint8_t	*smbios_parse_table(const uint8_t *dmi);
-static void	smbios_setenv(const char *name, const uint8_t *dmi,
-		    const int offset);
-static uint8_t	smbios_checksum(const caddr_t addr, const uint8_t len);
-static uint8_t	*smbios_sigsearch(const caddr_t addr, const uint32_t len);
-
-#ifdef SMBIOS_SERIAL_NUMBERS
-static void	smbios_setuuid(const char *name, const uint8_t *dmi,
-		    const int offset);
-#endif
-
-void
-smbios_detect(void)
+static uint8_t
+smbios_checksum(const caddr_t addr, const uint8_t len)
 {
-	uint8_t		*smbios, *dmi, *addr;
-	uint16_t	i, length, count;
-	uint32_t	paddr;
-	char		buf[16];
+	uint8_t		sum;
+	int		i;
 
-	/* locate and validate the SMBIOS */
-	smbios = smbios_sigsearch(PTOV(SMBIOS_START), SMBIOS_LENGTH);
-	if (smbios == NULL)
-		return;
+	for (sum = 0, i = 0; i < len; i++)
+		sum += SMBIOS_GET8(addr, i);
+	return (sum);
+}
 
-	length = *(uint16_t *)(smbios + 0x16);	/* Structure Table Length */
-	paddr = *(uint32_t *)(smbios + 0x18);	/* Structure Table Address */
-	count = *(uint16_t *)(smbios + 0x1c);	/* No of SMBIOS Structures */
+static caddr_t
+smbios_sigsearch(const caddr_t addr, const uint32_t len)
+{
+	caddr_t		cp;
 
-	for (dmi = addr = PTOV(paddr), i = 0;
-	     dmi - addr < length && i < count; i++)
-		dmi = smbios_parse_table(dmi);
-	if (smbios_enabled_memory > 0 || smbios_old_enabled_memory > 0) {
-		sprintf(buf, "%u", smbios_enabled_memory > 0 ?
-		    smbios_enabled_memory : smbios_old_enabled_memory);
-		setenv("smbios.memory.enabled", buf, 1);
-	}
-	if (smbios_enabled_sockets > 0) {
-		sprintf(buf, "%u", smbios_enabled_sockets);
-		setenv("smbios.socket.enabled", buf, 1);
-	}
-	if (smbios_populated_sockets > 0) {
-		sprintf(buf, "%u", smbios_populated_sockets);
-		setenv("smbios.socket.populated", buf, 1);
+	/* Search on 16-byte boundaries. */
+	for (cp = addr; cp < addr + len; cp += SMBIOS_STEP)
+		if (strncmp(cp, SMBIOS_SIG, 4) == 0 &&
+		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x05)) == 0 &&
+		    strncmp(cp + 0x10, SMBIOS_DMI_SIG, 5) == 0 &&
+		    smbios_checksum(cp + 0x10, 0x0f) == 0)
+			return (cp);
+	return (NULL);
+}
+
+static void
+smbios_setenv(const char *name, caddr_t addr, const int offset)
+{
+	caddr_t		cp;
+	int		i, idx;
+
+	idx = SMBIOS_GET8(addr, offset);
+	if (idx != 0) {
+		cp = SMBIOS_GETSTR(addr);
+		for (i = 1; i < idx; i++)
+			cp += strlen(cp) + 1;
+		setenv(name, cp, 1);
 	}
 }
 
-static uint8_t *
-smbios_parse_table(const uint8_t *dmi)
+#ifdef SMBIOS_SERIAL_NUMBERS
+
+#define	UUID_SIZE		16
+#define	UUID_TYPE		uint32_t
+#define	UUID_STEP		sizeof(UUID_TYPE)
+#define	UUID_ALL_BITS		(UUID_SIZE / UUID_STEP)
+#define	UUID_GET(base, off)	(*(UUID_TYPE *)((base) + (off)))
+
+static void
+smbios_setuuid(const char *name, const caddr_t addr, const int ver)
 {
-	uint8_t		*dp;
-	uint16_t	size;
-	uint8_t		osize;
+	char		uuid[37];
+	int		i, ones, zeros;
+	UUID_TYPE	n;
+	uint32_t	f1;
+	uint16_t	f2, f3;
 
-	switch(dmi[0]) {
-	case 0:		/* Type 0: BIOS */
-		smbios_setenv("smbios.bios.vendor", dmi, 0x04);
-		smbios_setenv("smbios.bios.version", dmi, 0x05);
-		smbios_setenv("smbios.bios.reldate", dmi, 0x08);
+	for (i = 0, ones = 0, zeros = 0; i < UUID_SIZE; i += UUID_STEP) {
+		n = UUID_GET(addr, i) + 1;
+		if (zeros == 0 && n == 0)
+			ones++;
+		else if (ones == 0 && n == 1)
+			zeros++;
+		else
+			break;
+	}
+
+	if (ones != UUID_ALL_BITS && zeros != UUID_ALL_BITS) {
+		/*
+		 * 3.3.2.1 System UUID
+		 *
+		 * "Although RFC 4122 recommends network byte order for all
+		 * fields, the PC industry (including the ACPI, UEFI, and
+		 * Microsoft specifications) has consistently used
+		 * little-endian byte encoding for the first three fields:
+		 * time_low, time_mid, time_hi_and_version. The same encoding,
+		 * also known as wire format, should also be used for the
+		 * SMBIOS representation of the UUID."
+		 *
+		 * Note: We use network byte order for backward compatibility
+		 * unless SMBIOS version is 2.6+ or little-endian is forced.
+		 */
+#ifndef SMBIOS_LITTLE_ENDIAN_UUID
+		if (ver < 0x0206) {
+			f1 = ntohl(SMBIOS_GET32(addr, 0));
+			f2 = ntohs(SMBIOS_GET16(addr, 4));
+			f3 = ntohs(SMBIOS_GET16(addr, 6));
+		} else
+#endif
+		{
+			f1 = le32toh(SMBIOS_GET32(addr, 0));
+			f2 = le16toh(SMBIOS_GET16(addr, 4));
+			f3 = le16toh(SMBIOS_GET16(addr, 6));
+		}
+		sprintf(uuid,
+		    "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		    f1, f2, f3, SMBIOS_GET8(addr, 8), SMBIOS_GET8(addr, 9),
+		    SMBIOS_GET8(addr, 10), SMBIOS_GET8(addr, 11),
+		    SMBIOS_GET8(addr, 12), SMBIOS_GET8(addr, 13),
+		    SMBIOS_GET8(addr, 14), SMBIOS_GET8(addr, 15));
+		setenv(name, uuid, 1);
+	}
+}
+
+#undef UUID_SIZE
+#undef UUID_TYPE
+#undef UUID_STEP
+#undef UUID_ALL_BITS
+#undef UUID_GET
+
+#endif
+
+static caddr_t
+smbios_parse_table(const caddr_t addr, const int ver)
+{
+	caddr_t		cp;
+	int		proc, size, osize, type;
+
+	type = SMBIOS_GET8(addr, 0);	/* 3.1.2 Structure Header Format */
+	switch(type) {
+	case 0:		/* 3.3.1 BIOS Information (Type 0) */
+		smbios_setenv("smbios.bios.vendor", addr, 0x04);
+		smbios_setenv("smbios.bios.version", addr, 0x05);
+		smbios_setenv("smbios.bios.reldate", addr, 0x08);
 		break;
 
-	case 1:		/* Type 1: System */
-		smbios_setenv("smbios.system.maker", dmi, 0x04);
-		smbios_setenv("smbios.system.product", dmi, 0x05);
-		smbios_setenv("smbios.system.version", dmi, 0x06);
+	case 1:		/* 3.3.2 System Information (Type 1) */
+		smbios_setenv("smbios.system.maker", addr, 0x04);
+		smbios_setenv("smbios.system.product", addr, 0x05);
+		smbios_setenv("smbios.system.version", addr, 0x06);
 #ifdef SMBIOS_SERIAL_NUMBERS
-		smbios_setenv("smbios.system.serial", dmi, 0x07);
-		smbios_setuuid("smbios.system.uuid", dmi, 0x08);
+		smbios_setenv("smbios.system.serial", addr, 0x07);
+		smbios_setuuid("smbios.system.uuid", addr + 0x08, ver);
 #endif
 		break;
 
-	case 2:		/* Type 2: Base Board (or Module) */
-		smbios_setenv("smbios.planar.maker", dmi, 0x04);
-		smbios_setenv("smbios.planar.product", dmi, 0x05);
-		smbios_setenv("smbios.planar.version", dmi, 0x06);
+	case 2:		/* 3.3.3 Base Board (or Module) Information (Type 2) */
+		smbios_setenv("smbios.planar.maker", addr, 0x04);
+		smbios_setenv("smbios.planar.product", addr, 0x05);
+		smbios_setenv("smbios.planar.version", addr, 0x06);
 #ifdef SMBIOS_SERIAL_NUMBERS
-		smbios_setenv("smbios.planar.serial", dmi, 0x07);
+		smbios_setenv("smbios.planar.serial", addr, 0x07);
 #endif
 		break;
 
-	case 3:		/* Type 3: System Enclosure or Chassis */
-		smbios_setenv("smbios.chassis.maker", dmi, 0x04);
-		smbios_setenv("smbios.chassis.version", dmi, 0x06);
+	case 3:		/* 3.3.4 System Enclosure or Chassis (Type 3) */
+		smbios_setenv("smbios.chassis.maker", addr, 0x04);
+		smbios_setenv("smbios.chassis.version", addr, 0x06);
 #ifdef SMBIOS_SERIAL_NUMBERS
-		smbios_setenv("smbios.chassis.serial", dmi, 0x07);
-		smbios_setenv("smbios.chassis.tag", dmi, 0x08);
+		smbios_setenv("smbios.chassis.serial", addr, 0x07);
+		smbios_setenv("smbios.chassis.tag", addr, 0x08);
 #endif
 		break;
 
-	case 4:		/* Type 4: Processor Information */
+	case 4:		/* 3.3.5 Processor Information (Type 4) */
 		/*
 		 * Offset 18h: Processor Status
 		 *
@@ -166,13 +242,14 @@ smbios_parse_table(const uint8_t *dmi)
 		 *		5-6h - Reserved
 		 *		7h - Other
 		 */
-		if ((dmi[0x18] & 0x07) == 1)
+		proc = SMBIOS_GET8(addr, 0x18);
+		if ((proc & 0x07) == 1)
 			smbios_enabled_sockets++;
-		if (dmi[0x18] & 0x40)
+		if ((proc & 0x40) != 0)
 			smbios_populated_sockets++;
 		break;
 
-	case 6:		/* Type 6: Memory Module Information (Obsolete) */
+	case 6:		/* 3.3.7 Memory Module Information (Type 6, Obsolete) */
 		/*
 		 * Offset 0Ah: Enabled Size
 		 *
@@ -185,12 +262,12 @@ smbios_parse_table(const uint8_t *dmi)
 		 *		      has been enabled
 		 *		7Fh - Not installed
 		 */
-		osize = dmi[0x0a] & 0x7f;
+		osize = SMBIOS_GET8(addr, 0x0a) & 0x7f;
 		if (osize > 0 && osize < 22)
-			smbios_old_enabled_memory += (1U << (osize + 10));
+			smbios_old_enabled_memory += 1 << (osize + 10);
 		break;
 
-	case 17:	/* Type 17: Memory Device */
+	case 17:	/* 3.3.18 Memory Device (Type 17) */
 		/*
 		 * Offset 0Ch: Size
 		 *
@@ -199,99 +276,72 @@ smbios_parse_table(const uint8_t *dmi)
 		 *		0 - Value is in megabytes units
 		 * Bit 14:0	Size
 		 */
-		size = *(uint16_t *)(dmi + 0x0c);
+		size = SMBIOS_GET16(addr, 0x0c);
 		if (size != 0 && size != 0xffff)
 			smbios_enabled_memory += (size & 0x8000) != 0 ?
-			    (size & 0x7fff) : ((uint32_t)size << 10);
+			    (size & 0x7fff) : (size << 10);
 		break;
 
-	default: /* skip other types */
+	default:	/* skip other types */
 		break;
 	}
 
-	/* find structure terminator */
-	dp = __DECONST(uint8_t *, dmi + dmi[1]);
-	while (dp[0] != 0 || dp[1] != 0)
-		dp++;
+	/* Find structure terminator. */
+	cp = SMBIOS_GETSTR(addr);
+	while (SMBIOS_GET16(cp, 0) != 0)
+		cp++;
 
-	return(dp + 2);
+	return (cp + 2);
 }
 
-static void
-smbios_setenv(const char *name, const uint8_t *dmi, const int offset)
+void
+smbios_detect(void)
 {
-	char		*cp = __DECONST(char *, dmi + dmi[1]);
-	int		i;
+	char		buf[16];
+	caddr_t		addr, dmi, smbios;
+	size_t		count, length;
+	uint32_t	paddr;
+	int		i, major, minor, ver;
 
-	/* skip undefined string */
-	if (dmi[offset] == 0)
+	/* Search signatures and validate checksums. */
+	smbios = smbios_sigsearch(PTOV(SMBIOS_START), SMBIOS_LENGTH);
+	if (smbios == NULL)
 		return;
 
-	for (i = 0; i < dmi[offset] - 1; i++)
-		cp += strlen(cp) + 1;
-	setenv(name, cp, 1);
-}
+	length = SMBIOS_GET16(smbios, 0x16);	/* Structure Table Length */
+	paddr = SMBIOS_GET32(smbios, 0x18);	/* Structure Table Address */
+	count = SMBIOS_GET16(smbios, 0x1c);	/* No of SMBIOS Structures */
+	ver = SMBIOS_GET8(smbios, 0x1e);	/* SMBIOS BCD Revision */
 
-static uint8_t
-smbios_checksum(const caddr_t addr, const uint8_t len)
-{
-	const uint8_t	*cp = addr;
-	uint8_t		sum;
-	int		i;
-
-	for (sum = 0, i = 0; i < len; i++)
-		sum += cp[i];
-
-	return(sum);
-}
-
-static uint8_t *
-smbios_sigsearch(const caddr_t addr, const uint32_t len)
-{
-	caddr_t		cp;
-
-	/* search on 16-byte boundaries */
-	for (cp = addr; cp < addr + len; cp += SMBIOS_STEP) {
-		/* compare signature, validate checksum */
-		if (!strncmp(cp, SMBIOS_SIG, 4)) {
-			if (smbios_checksum(cp, *(uint8_t *)(cp + 0x05)))
-				continue;
-			if (strncmp(cp + 0x10, SMBIOS_DMI_SIG, 5))
-				continue;
-			if (smbios_checksum(cp + 0x10, 0x0f))
-				continue;
-
-			return(cp);
-		}
+	if (ver != 0) {
+		major = ver >> 4;
+		minor = ver & 0x0f;
+		if (major > 9 || minor > 9)
+			ver = 0;
 	}
-
-	return(NULL);
-}
-
-#ifdef SMBIOS_SERIAL_NUMBERS
-static void
-smbios_setuuid(const char *name, const uint8_t *dmi, const int offset)
-{
-	const uint8_t	*idp = dmi + offset;
-	int		i, f = 0, z = 0;
-	char		uuid[37];
-
-	for (i = 0; i < 16; i++) {
-		if (idp[i] == 0xff)
-			f++;
-		else if (idp[i] == 0x00)
-			z++;
-		else
-			break;
+	if (ver == 0) {
+		major = SMBIOS_GET8(smbios, 0x06); /* SMBIOS Major Version */
+		minor = SMBIOS_GET8(smbios, 0x07); /* SMBIOS Minor Version */
 	}
-	if (f != 16 && z != 16) {
-		sprintf(uuid, "%02x%02x%02x%02x-"
-		    "%02x%02x-%02x%02x-%02x%02x-"
-		    "%02x%02x%02x%02x%02x%02x",
-		    idp[0], idp[1], idp[2], idp[3],
-		    idp[4], idp[5], idp[6], idp[7], idp[8], idp[9],
-		    idp[10], idp[11], idp[12], idp[13], idp[14], idp[15]);
-		setenv(name, uuid, 1);
+	ver = (major << 8) | minor;
+
+	addr = PTOV(paddr);
+	for (dmi = addr, i = 0; dmi < addr + length && i < count; i++)
+		dmi = smbios_parse_table(dmi, ver);
+
+	sprintf(buf, "%d.%d", major, minor);
+	setenv("smbios.version", buf, 1);
+	if (smbios_enabled_memory > 0 || smbios_old_enabled_memory > 0) {
+		sprintf(buf, "%u", smbios_enabled_memory > 0 ?
+		    smbios_enabled_memory : smbios_old_enabled_memory);
+		setenv("smbios.memory.enabled", buf, 1);
+	}
+	if (smbios_enabled_sockets > 0) {
+		sprintf(buf, "%u", smbios_enabled_sockets);
+		setenv("smbios.socket.enabled", buf, 1);
+	}
+	if (smbios_populated_sockets > 0) {
+		sprintf(buf, "%u", smbios_populated_sockets);
+		setenv("smbios.socket.populated", buf, 1);
 	}
 }
-#endif
