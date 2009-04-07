@@ -180,6 +180,7 @@ SUBDIR=	${_ac} \
 	${_traceroute6} \
 	trpt \
 	tzsetup \
+	${_uathload} \
 	ugidfw \
 	${_usbdevs} \
 	${_usbconfig} \
@@ -396,6 +397,7 @@ _crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
+_uathload=	uathload
 #_usbdevs=	usbdevs
 _usbconfig=	usbconfig
 .endif
