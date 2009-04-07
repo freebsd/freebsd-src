@@ -239,7 +239,7 @@ struct cp {
 #define SPPP_LOCK(sp)	mtx_lock (&(sp)->mtx)
 #define SPPP_UNLOCK(sp)	mtx_unlock (&(sp)->mtx)
 #define SPPP_LOCK_ASSERT(sp)	mtx_assert (&(sp)->mtx, MA_OWNED)
-#define SPPP_LOCK_OWNED(sp)	mtx_owned (&sp->mtx)
+#define SPPP_LOCK_OWNED(sp)	mtx_owned (&(sp)->mtx)
 
 #ifdef INET
 /*
