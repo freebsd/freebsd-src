@@ -508,8 +508,7 @@ ed_pccard_attach(device_t dev)
 	 * data from the standard NE-2000 data roms.  If that fails,
 	 * check to see if the card has a hint about where to look in
 	 * its CIS.  If that fails, maybe we should look at some
-	 * default value.  In all fails, we should fail the attach,
-	 * but don't right now.
+	 * default value.  In all fails, we fail the attach.
 	 */
 	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 		sum |= sc->enaddr[i];
