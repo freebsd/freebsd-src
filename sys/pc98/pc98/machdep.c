@@ -525,6 +525,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigacts *psp;
 	char *sp;
 	struct trapframe *regs;
+	struct segment_descriptor *sdp;
 	int sig;
 	int oonstack;
 
@@ -561,6 +562,15 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
+	/*
+	 * Unconditionally fill the fsbase and gsbase into the mcontext.
+	 */
+	sdp = &td->td_pcb->pcb_gsd;
+	sf.sf_uc.uc_mcontext.mc_fsbase = sdp->sd_hibase << 24 |
+	    sdp->sd_lobase;
+	sdp = &td->td_pcb->pcb_fsd;
+	sf.sf_uc.uc_mcontext.mc_gsbase = sdp->sd_hibase << 24 |
+	    sdp->sd_lobase;
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -2410,6 +2420,7 @@ int
 get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 {
 	struct trapframe *tp;
+	struct segment_descriptor *sdp;
 
 	tp = td->td_frame;
 
@@ -2441,6 +2452,11 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
 	get_fpcontext(td, mcp);
+	sdp = &td->td_pcb->pcb_gsd;
+	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
+	sdp = &td->td_pcb->pcb_fsd;
+	mcp->mc_gsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
+
 	return (0);
 }
 
