@@ -338,7 +338,6 @@ struct ath_softc {
 	u_int32_t		sc_tdmabintval;	/* TDMA beacon interval (TU) */
 	u_int32_t		sc_tdmaguard;	/* TDMA guard time (usec) */
 	u_int			sc_tdmaslotlen;	/* TDMA slot length (usec) */
-	u_int			sc_tdmabintcnt;	/* TDMA beacon intvl (slots) */
 	struct ath_rx_status	*sc_tdmars;	/* TDMA status of last rx */
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
