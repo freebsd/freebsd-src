@@ -939,9 +939,7 @@ pfs_write(struct vop_write_args *va)
 	}
 
 	if (pn->pn_flags & PFS_RAWWR) {
-		pfs_lock(pn);
 		error = pn_fill(curthread, proc, pn, NULL, uio);
-		pfs_unlock(pn);
 		if (proc != NULL)
 			PRELE(proc);
 		PFS_RETURN (error);
