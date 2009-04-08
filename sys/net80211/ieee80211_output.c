@@ -253,14 +253,16 @@ ieee80211_start(struct ifnet *ifp)
 			}
 		}
 #endif /* IEEE80211_SUPPORT_SUPERG */
-		/*
-		 * Encapsulate the packet in prep for transmission.
-		 */
-		m = ieee80211_encap(vap, ni, m);
-		if (m == NULL) {
-			/* NB: stat+msg handled in ieee80211_encap */
-			ieee80211_free_node(ni);
-			continue;
+		if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
+			/*
+			 * Encapsulate the packet in prep for transmission.
+			 */
+			m = ieee80211_encap(vap, ni, m);
+			if (m == NULL) {
+				/* NB: stat+msg handled in ieee80211_encap */
+				ieee80211_free_node(ni);
+				continue;
+			}
 		}
 
 		/*
