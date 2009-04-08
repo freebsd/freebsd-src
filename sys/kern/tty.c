@@ -371,23 +371,31 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		 *   exit
 		 * - the signal to send to the process isn't masked
 		 */
-		if (!tty_is_ctty(tp, p) ||
-		    p->p_pgrp == tp->t_pgrp || p->p_flag & P_PPWAIT ||
-		    SIGISMEMBER(p->p_sigacts->ps_sigignore, sig) ||
-		    SIGISMEMBER(td->td_sigmask, sig)) {
+		if (!tty_is_ctty(tp, p) || p->p_pgrp == tp->t_pgrp) {
 			/* Allow the action to happen. */
 			PROC_UNLOCK(p);
 			return (0);
 		}
 
+		if (SIGISMEMBER(p->p_sigacts->ps_sigignore, sig) ||
+		    SIGISMEMBER(td->td_sigmask, sig)) {
+			/* Only allow them in write()/ioctl(). */
+			PROC_UNLOCK(p);
+			return (sig == SIGTTOU ? 0 : EIO);
+		}
+
+		pg = p->p_pgrp;
+		if (p->p_flag & P_PPWAIT || pg->pg_jobc == 0) {
+			/* Don't allow the action to happen. */
+			PROC_UNLOCK(p);
+			return (EIO);
+		}
+		PROC_UNLOCK(p);
+
 		/*
 		 * Send the signal and sleep until we're the new
 		 * foreground process group.
 		 */
-		pg = p->p_pgrp;
-		PROC_UNLOCK(p);
-		if (pg->pg_jobc == 0)
-			return (EIO);
 		PGRP_LOCK(pg);
 		pgsignal(pg, sig, 1);
 		PGRP_UNLOCK(pg);
