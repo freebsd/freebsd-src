@@ -520,7 +520,8 @@ dab_fatal(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
 	printf(", pc =%08x\n\n", tf->tf_pc);
 
 #ifdef KDB
-	kdb_trap(fsr, 0, tf);
+	if (debugger_on_panic || kdb_active)
+		kdb_trap(fsr, 0, tf);
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/
