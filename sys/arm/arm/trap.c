@@ -531,7 +531,7 @@ dab_fatal(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
  * dab_align() handles the following data aborts:
  *
  *  FAULT_ALIGN_0 - Alignment fault
- *  FAULT_ALIGN_0 - Alignment fault
+ *  FAULT_ALIGN_1 - Alignment fault
  *
  * These faults are fatal if they happen in kernel mode. Otherwise, we
  * deliver a bus error to the process.
