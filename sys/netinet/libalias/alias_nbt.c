@@ -77,7 +77,7 @@ static int
 AliasHandleUdpNbtNS(struct libalias *, struct ip *, struct alias_link *,
 		    struct in_addr *, u_short *, struct in_addr *, u_short *);
 static int 
-fingerprint1(struct libalias *la, struct ip *pip, struct alias_data *ah)
+fingerprint1(struct libalias *la, struct alias_data *ah)
 {
 
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL || 
@@ -98,7 +98,7 @@ protohandler1(struct libalias *la, struct ip *pip, struct alias_data *ah)
 }
 
 static int 
-fingerprint2(struct libalias *la, struct ip *pip, struct alias_data *ah)
+fingerprint2(struct libalias *la, struct alias_data *ah)
 {
 
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL || 
