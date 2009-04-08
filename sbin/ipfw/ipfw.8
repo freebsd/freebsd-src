@@ -136,12 +136,13 @@ If the ruleset includes one or more rules with the
 .Cm keep-state
 or
 .Cm limit
-option, then
+option,
 .Nm
-assumes a
+will have a
 .Em stateful
 behaviour, i.e., upon a match it will create dynamic rules matching
-the exact parameters (addresses and ports) of the matching packet.
+the exact parameters (source and destination addresses and ports)
+of the matching packet.
 .Pp
 These dynamic rules, which have a limited lifetime, are checked
 at the first occurrence of a
@@ -165,6 +166,21 @@ Counters can be displayed or reset with
 .Nm
 commands.
 .Pp
+Each rule belongs to one of 32 different
+.Em sets
+, and there are
+.Nm
+commands to atomically manipulate sets, such as enable,
+disable, swap sets, move all rules in a set to another
+one, delete all rules in a set.
+These can be useful to
+install temporary configurations, or to test them.
+See Section
+.Sx SETS OF RULES
+for more information on
+.Em sets .
+.Pp
+.Pp
 Rules can be added with the
 .Cm add
 command; deleted individually or in groups with the
@@ -183,48 +199,36 @@ and
 .Cm resetlog
 commands.
 .Pp
-Also, each rule belongs to one of 32 different
-.Em sets
-, and there are
-.Nm
-commands to atomically manipulate sets, such as enable,
-disable, swap sets, move all rules in a set to another
-one, delete all rules in a set.
-These can be useful to
-install temporary configurations, or to test them.
-See Section
-.Sx SETS OF RULES
-for more information on
-.Em sets .
-.Pp
-The following options are available:
+.Ss COMMAND OPTIONS
+The following genral options are available when invoking
+.Nm :
 .Bl -tag -width indent
 .It Fl a
-While listing, show counter values.
+Show counter values when listing rules.
 The
 .Cm show
-command just implies this option.
+command implies this option.
 .It Fl b
 Only show the action and the comment, not the body of a rule.
 Implies
 .Fl c .
 .It Fl c
 When entering or showing rules, print them in compact form,
-i.e., without the optional "ip from any to any" string
+i.e., omitting the "ip from any to any" string
 when this does not carry any additional information.
 .It Fl d
-While listing, show dynamic rules in addition to static ones.
+When listing, show dynamic rules in addition to static ones.
 .It Fl e
-While listing, if the
+When listing and
 .Fl d
-option was specified, also show expired dynamic rules.
+is specified, also show expired dynamic rules.
 .It Fl f
 Do not ask for confirmation for commands that can cause problems
 if misused,
 .No i.e. Cm flush .
 If there is no tty associated with the process, this is implied.
 .It Fl i
-While listing a table (see the
+When listing a table (see the
 .Sx LOOKUP TABLES
 section below for more information on lookup tables), format values
 as IP addresses. By default, values are shown as integers.
@@ -234,47 +238,48 @@ them to the kernel.
 .It Fl N
 Try to resolve addresses and service names in output.
 .It Fl q
-While
-.Cm add Ns ing ,
-.Cm nat Ns ing ,
-.Cm zero Ns ing ,
-.Cm resetlog Ns ging
+Be quiet when executing the
+.Cm add ,
+.Cm nat ,
+.Cm zero ,
+.Cm resetlog
 or
-.Cm flush Ns ing ,
-be quiet about actions
+.Cm flush
+commands;
 (implies
 .Fl f ) .
-This is useful for adjusting rules by executing multiple
+This is useful when updating rulesets by executing multiple
 .Nm
 commands in a script
 (e.g.,
 .Ql sh\ /etc/rc.firewall ) ,
-or by processing a file of many
+or by processing a file with many
 .Nm
 rules across a remote login session.
 It also stops a table add or delete
 from failing if the entry already exists or is not present.
-If a
-.Cm flush
-is performed in normal (verbose) mode (with the default kernel
-configuration), it prints a message.
-Because all rules are flushed, the message might not be delivered
-to the login session, causing the remote login session to be closed
-and the remainder of the ruleset to not be processed.
+.Pp
+The reason why this option may be important is that
+for some of these actions,
+.Nm
+may print a message; if the action results in blocking the
+traffic to the remote client,
+the remote login session will be closed
+and the rest of the ruleset will not be processed.
 Access to the console would then be required to recover.
 .It Fl S
-While listing rules, show the
+When listing rules, show the
 .Em set
 each rule belongs to.
 If this flag is not specified, disabled rules will not be
 listed.
 .It Fl s Op Ar field
-While listing pipes, sort according to one of the four
+When listing pipes, sort according to one of the four
 counters (total or current packets or bytes).
 .It Fl t
-While listing, show last match timestamp (converted with ctime()).
+When listing, show last match timestamp converted with ctime().
 .It Fl T
-While listing, show last match timestamp (as seconds from the epoch).
+When listing, show last match timestamp as seconds from the epoch.
 This form can be more convenient for postprocessing by scripts.
 .El
 .Pp
@@ -1817,17 +1822,47 @@ for more examples on how to use dynamic rules.
 .Nm
 is also the user interface for the
 .Nm dummynet
-traffic shaper.
+traffic shaper and network emulator, a subsystem that
+can artificially queue, delay or drop packets
+emulator the behaviour of certain network links
+or queueing systems.
 .Pp
 .Nm dummynet
-operates by first using the firewall to classify packets and divide them into
-.Em flows ,
+operates by first using the firewall to select packets
 using any match pattern that can be used in
 .Nm
 rules.
-Depending on local policies, a flow can contain packets for a single
-TCP connection, or from/to a given host, or entire subnet, or a
-protocol type, etc.
+Matching packets are then passed to either of two
+different objects, which implement the traffic regulation:
+.Bl -hang -offset XXXX
+.It Em pipe
+A pipe emulates a link with given bandwidth, propagation delay,
+queue size and packet loss rate.
+Packets are queued in front of the pipe as they come out from the classifier,
+and then transferred to the pipe according to the pipe's parameters.
+.It Em queue
+A queue
+is an abstraction used to implement the WF2Q+
+(Worst-case Fair Weighted Fair Queueing) policy, which is
+an efficient variant of the WFQ policy.
+.Pp
+The queue associates a
+.Em weight
+and a reference pipe to each flow (a flow is a set of packets
+with the same addresses and ports after masking).
+All backlogged flows (i.e., those
+with packets queued) linked to the same pipe share the pipe's
+bandwidth proportionally to their weights.
+Note that weights are not priorities; a flow with a lower weight
+is still guaranteed to get its fraction of the bandwidth even if a
+flow with a higher weight is permanently backlogged.
+.El
+.Pp
+In practice,
+.Em pipes
+can be used to set hard limits to the bandwidth that a flow can use, whereas
+.Em queues
+can be used to determine how different flows share the available bandwidth.
 .Pp
 There are two modes of
 .Nm dummynet
@@ -1860,36 +1895,7 @@ mode can be enabled by setting the
 .Xr sysctl 8
 variable to a non-zero value.
 .Pp
-Packets belonging to the same flow are then passed to either of two
-different objects, which implement the traffic regulation:
-.Bl -hang -offset XXXX
-.It Em pipe
-A pipe emulates a link with given bandwidth, propagation delay,
-queue size and packet loss rate.
-Packets are queued in front of the pipe as they come out from the classifier,
-and then transferred to the pipe according to the pipe's parameters.
-.It Em queue
-A queue
-is an abstraction used to implement the WF2Q+
-(Worst-case Fair Weighted Fair Queueing) policy, which is
-an efficient variant of the WFQ policy.
-.Pp
-The queue associates a
-.Em weight
-and a reference pipe to each flow, and then all backlogged (i.e.,
-with packets queued) flows linked to the same pipe share the pipe's
-bandwidth proportionally to their weights.
-Note that weights are not priorities; a flow with a lower weight
-is still guaranteed to get its fraction of the bandwidth even if a
-flow with a higher weight is permanently backlogged.
-.El
-.Pp
-In practice,
-.Em pipes
-can be used to set hard limits to the bandwidth that a flow can use, whereas
-.Em queues
-can be used to determine how different flows share the available bandwidth.
-.Pp
+.Ss PIPE AND QUEUE CONFIGURATION
 The
 .Em pipe
 and
@@ -2163,6 +2169,11 @@ If no socket is bound to the destination port, or if the divert module is
 not loaded, or if the kernel was not compiled with divert socket support,
 the packets are dropped.
 .Sh NETWORK ADDRESS TRANSLATION (NAT)
+.Pp
+.Nm
+support in-kernel NAT using the kernel version of
+.Xr libalias 3 .
+.Pp
 The nat configuration command is the following:
 .Bd -ragged -offset indent
 .Bk -words
@@ -2206,13 +2217,13 @@ For more information about aliasing modes, refer to
 See Section
 .Sx EXAMPLES
 for some examples about nat usage.
-.Sh REDIRECT AND LSNAT SUPPORT IN IPFW
+.Ss REDIRECT AND LSNAT SUPPORT IN IPFW
 Redirect and LSNAT support follow closely the syntax used in
 .Xr natd 8 . 
 See Section
 .Sx EXAMPLES
 for some examples on how to do redirect and lsnat.
-.Sh SCTP NAT SUPPORT
+.Ss SCTP NAT SUPPORT
 SCTP nat can be configured in a similar manner to TCP through the
 .Nm
 command line tool.
@@ -2855,7 +2866,7 @@ Or a redirect rule with mixed modes could looks like:
 .Dl "			 redirect_port tcp 192.168.0.1:80,192.168.0.10:22" 
 .Dl "			 	    500		# LSNAT"
 .Pp
-or it could be splitted in:
+or it could be split in:
 .Pp
 .Dl "ipfw nat 1 config redirect_addr 10.0.0.1 10.0.0.66"
 .Dl "ipfw nat 2 config redirect_port tcp 192.168.0.1:80 500"
@@ -2906,14 +2917,14 @@ API based upon code written by
 .An Daniel Boulet
 for BSDI.
 .Pp
+Some early work (1999-2000) on the
+.Nm dummynet
+traffic shaper supported by Akamba Corp.
+.Pp
 .An -nosplit
 In-kernel NAT support written by
 .An Paolo Pisati Aq piso@FreeBSD.org
 as part of a Summer of Code 2005 project.
-.Pp
-Work on
-.Nm dummynet
-traffic shaper supported by Akamba Corp.
 .Pp
 SCTP
 .Nm nat
