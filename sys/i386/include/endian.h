@@ -69,25 +69,6 @@ extern "C" {
 
 #if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE_BUILTIN_CONSTANT_P)
 
-#define __word_swap_int_var(x) \
-__extension__ ({ register __uint32_t __X = (x); \
-   __asm ("rorl $16, %0" : "+r" (__X)); \
-   __X; })
-
-#ifdef __OPTIMIZE__
-
-#define	__word_swap_int_const(x) \
-	((((x) & 0xffff0000) >> 16) | \
-	 (((x) & 0x0000ffff) << 16))
-#define	__word_swap_int(x) (__builtin_constant_p(x) ? \
-	__word_swap_int_const(x) : __word_swap_int_var(x))
-
-#else	/* __OPTIMIZE__ */
-
-#define	__word_swap_int(x) __word_swap_int_var(x)
-
-#endif	/* __OPTIMIZE__ */
-
 #define __byte_swap_int_var(x) \
 __extension__ ({ register __uint32_t __X = (x); \
    __asm ("bswap %0" : "+r" (__X)); \
