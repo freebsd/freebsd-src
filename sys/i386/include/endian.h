@@ -109,26 +109,6 @@ __extension__ ({ register __uint32_t __X = (x); \
 
 #endif	/* __OPTIMIZE__ */
 
-#define __byte_swap_word_var(x) \
-__extension__ ({ register __uint16_t __X = (x); \
-   __asm ("xchgb %h0, %b0" : "+q" (__X)); \
-   __X; })
-
-#ifdef __OPTIMIZE__
-
-#define	__byte_swap_word_const(x) \
-	((((x) & 0xff00) >> 8) | \
-	 (((x) & 0x00ff) << 8))
-
-#define	__byte_swap_word(x) (__builtin_constant_p(x) ? \
-	__byte_swap_word_const(x) : __byte_swap_word_var(x))
-
-#else	/* __OPTIMIZE__ */
-
-#define	__byte_swap_word(x) __byte_swap_word_var(x)
-
-#endif	/* __OPTIMIZE__ */
-
 static __inline __uint64_t
 __bswap64(__uint64_t _x)
 {
@@ -149,8 +129,7 @@ __bswap32(__uint32_t _x)
 static __inline __uint16_t
 __bswap16(__uint16_t _x)
 {
-
-	return (__byte_swap_word(_x));
+	return (_x << 8 | _x >> 8);
 }
 
 #define	__htonl(x)	__bswap32(x)
