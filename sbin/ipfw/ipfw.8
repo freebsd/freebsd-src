@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2009
+.Dd April 9, 2009
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1942,6 +1942,80 @@ with
 to reduce
 the granularity to 1ms or less).
 Default value is 0, meaning no delay.
+.Pp
+.It Cm profile Ar filename
+A file specifying the additional overhead incurred in the transmission
+of a packet on the link.
+.Pp
+Some link types introduce extra delays in the transmission
+of a packet, e.g. because of MAC level framing, contention on
+the use of the channel, MAC level retransmissions and so on.
+From our point of view, the channel is effectively unavailable
+for this extra time, which is constant or variable depending
+on the link type. Additionally, packets may be dropped after this
+time (e.g. on a wireless link after too many retransmissions).
+We can model the additional delay with an empirical curve
+that represents its distribution.
+.Bd -literal -offset indent
+      cumulative probability
+      1.0 ^
+          |
+      L   +-- loss-level          x
+          |                 ******
+          |                *
+          |           *****
+          |          *
+          |        **
+          |       *
+          +-------*------------------->
+                      delay
+.Ed
+The empirical curve may have both vertical and horizontal lines.
+Vertical lines represent constant delay for a range of
+probabilities.
+Horizontal lines correspond to a discontinuty in the delay
+distribution: the pipe will use the largest delay for a
+given probability.
+.Pp
+The file format is the following, with whitespace acting as
+a separator and '#' indicating the beginning a comment:
+.Bl -tag -width indent
+.It Cm samples Ar N
+the number of samples used in the internal
+representation (2..1024; default 100);
+.It Cm loss-level Ar L
+The probability above which packets are lost.
+(0.0 <= L <= 1.0, default 1.0 i.e. no loss);
+.It Cm name Ar identifier
+Optional a name (listed by "ipfw pipe show")
+to identify the distribution;
+.It Cm "delay prob" | "prob delay"
+One of these two lines is mandatory and defines
+the format of the following lines with data points.
+.It Ar XXX Ar YYY
+2 or more lines representing points in the curve,
+with either delay or probability first, according
+to the chosen format.
+The unit for delay is milliseconds.
+Data points do not need to be ordered or equal to the number
+specified in the "samples" line. ipfw will sort and interpolate
+the curve as needed.
+.El
+.Pp
+Example of a profile file:
+.Bd -literal -offset indent
+name    bla_bla_bla
+samples 100
+loss-level    0.86
+prob    delay
+0       200	# minimum overhead is 200ms
+0.5     200
+0.5     300
+0.8     1000
+0.9     1300
+1       1300
+#configuration file end
+.Ed
 .El
 .Pp
 The following parameters can be configured for a queue:
@@ -2917,9 +2991,16 @@ API based upon code written by
 .An Daniel Boulet
 for BSDI.
 .Pp
+Dummynet has been introduced by Luigi Rizzo in 1997-1998.
+.Pp
 Some early work (1999-2000) on the
 .Nm dummynet
 traffic shaper supported by Akamba Corp.
+.Pp
+The ipfw core (ipfw2) has been completely redesigned and
+reimplemented by Luigi Rizzo in summer 2002. Further
+actions and
+options have been added by various developer over the years.
 .Pp
 .An -nosplit
 In-kernel NAT support written by
@@ -2933,6 +3014,10 @@ support has been developed by
 The primary developers and maintainers are David Hayes and Jason But.
 For further information visit:
 .Aq http://www.caia.swin.edu.au/urp/SONATA
+.Pp
+Delay profiles have been developed by Alessandro Cerri and
+Luigi Rizzo, supported by the
+European Commission within Projects Onelab and Onelab2.
 .Sh BUGS
 The syntax has grown over the years and sometimes it might be confusing.
 Unfortunately, backward compatibility prevents cleaning up mistakes
