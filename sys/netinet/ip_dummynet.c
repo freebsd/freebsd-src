@@ -519,14 +519,64 @@ transmit_event(struct dn_pipe *pipe, struct mbuf **head, struct mbuf **tail)
 	}
 }
 
+#define div64(a, b)	((int64_t)(a) / (int64_t)(b))
+#define DN_TO_DROP	0xffff
 /*
- * the following macro computes how many ticks we have to wait
- * before being able to transmit a packet. The credit is taken from
- * either a pipe (WF2Q) or a flow_queue (per-flow queueing)
+ * Compute how many ticks we have to wait before being able to send
+ * a packet. This is computed as the "wire time" for the packet
+ * (length + extra bits), minus the credit available, scaled to ticks.
+ * Check that the result is not be negative (it could be if we have
+ * too much leftover credit in q->numbytes).
  */
-#define SET_TICKS(_m, q, p)	\
-    ((_m)->m_pkthdr.len * 8 * hz - (q)->numbytes + p->bandwidth - 1) / \
-    p->bandwidth;
+static inline dn_key
+set_ticks(struct mbuf *m, struct dn_flow_queue *q, struct dn_pipe *p)
+{
+	int64_t ret;
+
+	ret = div64( (m->m_pkthdr.len * 8 + q->extra_bits) * hz
+		- q->numbytes + p->bandwidth - 1 , p->bandwidth);
+#if 0
+	printf("%s %d extra_bits %d numb %d ret %d\n",
+		__FUNCTION__, __LINE__,
+		(int)(q->extra_bits & 0xffffffff),
+		(int)(q->numbytes & 0xffffffff),
+		(int)(ret & 0xffffffff));
+#endif
+	if (ret < 0)
+		ret = 0;
+	return ret;
+}
+
+/*
+ * Convert the additional MAC overheads/delays into an equivalent
+ * number of bits for the given data rate. The samples are in milliseconds
+ * so we need to divide by 1000.
+ */
+static dn_key
+compute_extra_bits(struct mbuf *pkt, struct dn_pipe *p)
+{
+	int index;
+	dn_key extra_bits;
+
+	if (!p->samples || p->samples_no == 0)
+		return 0;
+	index  = random() % p->samples_no;
+	extra_bits = ((dn_key)p->samples[index] * p->bandwidth) / 1000;
+	if (index >= p->loss_level) {
+		struct dn_pkt_tag *dt = dn_tag_get(pkt);
+		if (dt)
+			dt->dn_dir = DN_TO_DROP;
+	}
+	return extra_bits;
+}
+
+static void
+free_pipe(struct dn_pipe *p)
+{
+	if (p->samples)
+		free(p->samples, M_DUMMYNET);
+	free(p, M_DUMMYNET);
+}
 
 /*
  * extract pkt from queue, compute output time (could be now)
@@ -585,12 +635,16 @@ ready_event(struct dn_flow_queue *q, struct mbuf **head, struct mbuf **tail)
 	q->numbytes += (curr_time - q->sched_time) * p->bandwidth;
 	while ((pkt = q->head) != NULL) {
 		int len = pkt->m_pkthdr.len;
-		int len_scaled = p->bandwidth ? len * 8 * hz : 0;
+		dn_key len_scaled = p->bandwidth ? len*8*hz
+			+ q->extra_bits*hz
+			: 0;
 
-		if (len_scaled > q->numbytes)
+		if (DN_KEY_GT(len_scaled, q->numbytes))
 			break;
 		q->numbytes -= len_scaled;
 		move_pkt(pkt, q, p, len);
+		if (q->head)
+			q->extra_bits = compute_extra_bits(q->head, p);
 	}
 	/*
 	 * If we have more packets queued, schedule next ready event
@@ -600,7 +654,7 @@ ready_event(struct dn_flow_queue *q, struct mbuf **head, struct mbuf **tail)
 	 * ticks to go for the finish time of the packet.
 	 */
 	if ((pkt = q->head) != NULL) {	/* this implies bandwidth != 0 */
-		dn_key t = SET_TICKS(pkt, q, p); /* ticks i have to wait */
+		dn_key t = set_ticks(pkt, q, p); /* ticks i have to wait */
 
 		q->sched_time = curr_time;
 		heap_insert(&ready_heap, curr_time + t, (void *)q);
@@ -933,6 +987,12 @@ dummynet_send(struct mbuf *m)
 		case DN_TO_ETH_OUT:
 			ether_output_frame(pkt->ifp, m);
 			break;
+
+		case DN_TO_DROP:
+			/* drop the packet after some time */
+			m_freem(m);
+			break;
+
 		default:
 			printf("dummynet: bad switch %d!\n", pkt->dn_dir);
 			m_freem(m);
@@ -1367,8 +1427,10 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 		/* Fixed-rate queue: just insert into the ready_heap. */
 		dn_key t = 0;
 
-		if (pipe->bandwidth && m->m_pkthdr.len * 8 * hz > q->numbytes)
-			t = SET_TICKS(m, q, pipe);
+		if (pipe->bandwidth) {
+			q->extra_bits = compute_extra_bits(m, pipe);
+			t = set_ticks(m, q, pipe);
+		}
 		q->sched_time = curr_time;
 		if (t == 0)		/* Must process it now. */
 			ready_event(q, &head, &tail);
@@ -1555,7 +1617,7 @@ dummynet_flush(void)
 		SLIST_FOREACH_SAFE(pipe, &pipehash[i], next, pipe1) {
 			SLIST_REMOVE(&pipehash[i], pipe, dn_pipe, next);
 			purge_pipe(pipe);
-			free(pipe, M_DUMMYNET);
+			free_pipe(pipe);
 		}
 	DUMMYNET_UNLOCK();
 }
@@ -1775,11 +1837,38 @@ config_pipe(struct dn_pipe *p)
 		pipe->delay = p->delay;
 		set_fs_parms(&(pipe->fs), pfs);
 
+		/* Handle changes in the delay profile. */
+		if (p->samples_no > 0) {
+			if (pipe->samples_no != p->samples_no) {
+				if (pipe->samples != NULL)
+					free(pipe->samples, M_DUMMYNET);
+				pipe->samples =
+				    malloc(p->samples_no*sizeof(dn_key),
+					M_DUMMYNET, M_NOWAIT | M_ZERO);
+				if (pipe->samples == NULL) {
+					DUMMYNET_UNLOCK();
+					printf("dummynet: no memory "
+						"for new samples\n");
+					return (ENOMEM);
+				}
+				pipe->samples_no = p->samples_no;
+			}
+
+			strncpy(pipe->name,p->name,sizeof(pipe->name));
+			pipe->loss_level = p->loss_level;
+			for (i = 0; i<pipe->samples_no; ++i)
+				pipe->samples[i] = p->samples[i];
+		} else if (pipe->samples != NULL) {
+			free(pipe->samples, M_DUMMYNET);
+			pipe->samples = NULL;
+			pipe->samples_no = 0;
+		}
+
 		if (pipe->fs.rq == NULL) {	/* a new pipe */
 			error = alloc_hash(&(pipe->fs), pfs);
 			if (error) {
 				DUMMYNET_UNLOCK();
-				free(pipe, M_DUMMYNET);
+				free_pipe(pipe);
 				return (error);
 			}
 			SLIST_INSERT_HEAD(&pipehash[HASH(pipe->pipe_nr)],
@@ -1957,7 +2046,7 @@ delete_pipe(struct dn_pipe *p)
 	pipe_remove_from_heap(&wfq_ready_heap, pipe);
 	DUMMYNET_UNLOCK();
 
-	free(pipe, M_DUMMYNET);
+	free_pipe(pipe);
     } else { /* this is a WF2Q queue (dn_flow_set) */
 	struct dn_flow_set *fs;
 
@@ -2095,6 +2184,7 @@ dummynet_get(struct sockopt *sopt)
 		pipe_bp->fs.next.sle_next = NULL;
 		pipe_bp->fs.pipe = NULL;
 		pipe_bp->fs.rq = NULL;
+		pipe_bp->samples = NULL;
 
 		bp += sizeof(*pipe) ;
 		bp = dn_copy_set(&(pipe->fs), bp);
@@ -2127,7 +2217,8 @@ static int
 ip_dn_ctl(struct sockopt *sopt)
 {
     int error = 0 ;
-    struct dn_pipe *p, tmp_pipe;
+    struct dn_pipe *p;
+    struct dn_pipe_max tmp_pipe;	/* pipe + large buffer */
 
     error = priv_check(sopt->sopt_td, PRIV_NETINET_DUMMYNET);
     if (error)
@@ -2159,15 +2250,18 @@ ip_dn_ctl(struct sockopt *sopt)
 	break ;
 
     case IP_DUMMYNET_CONFIGURE :
-	p = &tmp_pipe ;
-	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
+	p = (struct dn_pipe *)&tmp_pipe ;
+	error = sooptcopyin(sopt, p, sizeof(tmp_pipe), sizeof *p);
 	if (error)
 	    break ;
+	if (p->samples_no > 0)
+	    p->samples = &tmp_pipe.samples[0];
+
 	error = config_pipe(p);
 	break ;
 
     case IP_DUMMYNET_DEL :	/* remove a pipe or queue */
-	p = &tmp_pipe ;
+	p = (struct dn_pipe *)&tmp_pipe ;
 	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
 	if (error)
 	    break ;
