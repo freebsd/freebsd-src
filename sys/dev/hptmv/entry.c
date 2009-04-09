@@ -93,7 +93,7 @@ static device_method_t driver_methods[] = {
 	DEVMETHOD(device_attach,	hpt_attach),
 	DEVMETHOD(device_detach,	hpt_detach),
 
-/*	DEVMETHOD(device_shutdown,	hpt_shutdown), */
+	DEVMETHOD(device_shutdown,	hpt_shutdown),
 	{ 0, 0 }
 };
 
@@ -2138,13 +2138,7 @@ hpt_attach(device_t dev)
 	xpt_action((union ccb *)ccb);
 	free(ccb, M_DEVBUF);
 
-	/* Register a shutdown handler to flush data for the current adapter */
-	pAdapter->eh =  EVENTHANDLER_REGISTER(shutdown_final, 
-		hpt_shutdown, dev, SHUTDOWN_PRI_DEFAULT);
-	if (pAdapter->eh == NULL) {
-	    device_printf(pAdapter->hpt_dev,
-		"shutdown event registration failed\n");
-	} else if (device_get_unit(dev) == 0) {
+	if (device_get_unit(dev) == 0) {
 		/* Start the work thread.  XXX */
 		launch_worker_thread();
 	}
