@@ -174,7 +174,7 @@ typedef struct keyboard_switch {
 	(*kbdsw[(kbd)->kb_index]->intr)((kbd), (arg))
 #define kbdd_test_if(kbd)						\
 	(*kbdsw[(kbd)->kb_index]->test_if)((kbd))
-#define kbdd_enable(kbd)							\
+#define kbdd_enable(kbd)						\
 	(*kbdsw[(kbd)->kb_index]->enable)((kbd))
 #define kbdd_disable(kbd)						\
 	(*kbdsw[(kbd)->kb_index]->disable)((kbd))
@@ -198,7 +198,7 @@ typedef struct keyboard_switch {
 	(*kbdsw[(kbd)->kb_index]->get_state)((kbd), (buf), (len))
 #define kbdd_set_state(kbd, buf, len)					\
 	(*kbdsw[(kbd)->kb_index]->set_state)((kbd), (buf), (len))
-#define kbdd_get_fkeystr(kbd, fkey, len)					\
+#define kbdd_get_fkeystr(kbd, fkey, len)				\
 	(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
 #define kbdd_poll(kbd, on)						\
 	(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
