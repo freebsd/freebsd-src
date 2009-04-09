@@ -333,8 +333,10 @@ struct ath_hal_private {
 #define	ath_hal_disablePCIE(_ah) \
 	(_ah)->ah_disablePCIE(_ah)
 
-#define	ath_hal_eepromDetach(_ah) \
-	AH_PRIVATE(_ah)->ah_eepromDetach(_ah)
+#define	ath_hal_eepromDetach(_ah) do {				\
+	if (AH_PRIVATE(_ah)->ah_eepromDetach != AH_NULL)	\
+		AH_PRIVATE(_ah)->ah_eepromDetach(_ah);		\
+} while (0)
 #define	ath_hal_eepromGet(_ah, _param, _val) \
 	AH_PRIVATE(_ah)->ah_eepromGet(_ah, _param, _val)
 #define	ath_hal_eepromSet(_ah, _param, _val) \
