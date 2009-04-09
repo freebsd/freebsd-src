@@ -164,7 +164,6 @@ SUBDIR=	${_ac} \
 	setfmac \
 	setpmac \
 	${_sicontrol} \
-	${_slstat} \
 	smbmsg \
 	snapinfo \
 	${_spkrtest} \
