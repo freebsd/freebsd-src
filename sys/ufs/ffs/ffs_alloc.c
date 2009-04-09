@@ -930,7 +930,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 	struct timespec ts;
 	struct ufsmount *ump;
 	ino_t ino, ipref;
-	int cg, error;
+	int cg, error, error1;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -967,11 +967,21 @@ ffs_valloc(pvp, mode, cred, vpp)
 		goto noinodes;
 	error = ffs_vget(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
 	if (error) {
+		error1 = ffs_vgetf(pvp->v_mount, ino, LK_EXCLUSIVE, vpp,
+		    FFSV_FORCEINSMQ);
 		ffs_vfree(pvp, ino, mode);
+		if (error1 == 0) {
+			ip = VTOI(*vpp);
+			if (ip->i_mode)
+				goto dup_alloc;
+			ip->i_flag |= IN_MODIFIED;
+			vput(*vpp);
+		}
 		return (error);
 	}
 	ip = VTOI(*vpp);
 	if (ip->i_mode) {
+dup_alloc:
 		printf("mode = 0%o, inum = %lu, fs = %s\n",
 		    ip->i_mode, (u_long)ip->i_number, fs->fs_fsmnt);
 		panic("ffs_valloc: dup alloc");
@@ -1848,7 +1858,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	struct cdev *dev;
 
 	cg = dtog(fs, bno);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VTOI(devvp)->i_devvp->v_rdev;
 		cgblkno = fragstoblks(fs, cgtod(fs, cg));
@@ -1893,7 +1903,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	if (size == fs->fs_bsize) {
 		fragno = fragstoblks(fs, cgbno);
 		if (!ffs_isfreeblock(fs, blksfree, fragno)) {
-			if (devvp->v_type != VCHR) {
+			if (devvp->v_type == VREG) {
 				UFS_UNLOCK(ump);
 				/* devvp is a snapshot */
 				brelse(bp);
@@ -2046,7 +2056,7 @@ ffs_freefile(ump, fs, devvp, ino, mode)
 	struct cdev *dev;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VTOI(devvp)->i_devvp->v_rdev;
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
@@ -2112,7 +2122,7 @@ ffs_checkfreefile(fs, devvp, ino)
 	u_int8_t *inosused;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
 	} else {

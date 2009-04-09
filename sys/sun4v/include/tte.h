@@ -41,11 +41,15 @@
 
 #define	TD_SOFT2_BITS	(9)
 #define	TD_DIAG_BITS	(9)
+#define	TD_PA_CH_BITS	(30)
+#define	TD_PA_SF_BITS	(28)
 #define	TD_PA_BITS	(42)
 #define	TD_SOFT_BITS	(6)
 
 #define	TD_SOFT2_MASK	((1UL << TD_SOFT2_BITS) - 1)
 #define	TD_DIAG_MASK	((1UL << TD_DIAG_BITS) - 1)
+#define	TD_PA_CH_MASK	((1UL << TD_PA_CH_BITS) - 1)
+#define	TD_PA_SF_MASK	((1UL << TD_PA_SF_BITS) - 1)
 #define	TD_PA_MASK	((1UL << TD_PA_BITS) - 1)
 #define	TD_SOFT_MASK	((1UL << TD_SOFT_BITS) - 1)
 

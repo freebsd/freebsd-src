@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd March 19, 2007
+.Dd September 8, 2008
 .Os
 .Dt TAP 4
 .Sh NAME
@@ -163,6 +163,14 @@ calls are supported
 (defined in
 .In net/if_tap.h ) :
 .Bl -tag -width VMIO_SIOCSETMACADDR
+.It Dv TAPSIFINFO
+Set network interface information (line speed, MTU and type).
+The argument should be a pointer to a
+.Va struct tapinfo .
+.It Dv TAPGIFINFO
+Retrieve network interface information (line speed, MTU and type).
+The argument should be a pointer to a
+.Va struct tapinfo .
 .It Dv TAPSDEBUG
 The argument should be a pointer to an
 .Va int ;
@@ -174,6 +182,13 @@ code.
 The argument should be a pointer to an
 .Va int ;
 this stores the internal debugging variable's value into it.
+.It Dv TAPGIFNAME
+Retrieve network interface name.
+The argument should be a pointer to a
+.Va struct ifreq .
+The interface name will be returned in the
+.Va ifr_name
+field.
 .It Dv FIONBIO
 Turn non-blocking I/O for reads off or on, according as the argument
 .Va int Ns 's

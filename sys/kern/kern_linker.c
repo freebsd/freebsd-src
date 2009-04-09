@@ -292,10 +292,10 @@ linker_file_register_sysctls(linker_file_t lf)
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 		return;
 
-	mtx_lock(&Giant);
+	sysctl_lock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_register_oid(*oidp);
-	mtx_unlock(&Giant);
+	sysctl_unlock();
 }
 
 static void
@@ -309,10 +309,10 @@ linker_file_unregister_sysctls(linker_file_t lf)
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 		return;
 
-	mtx_lock(&Giant);
+	sysctl_lock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_unregister_oid(*oidp);
-	mtx_unlock(&Giant);
+	sysctl_unlock();
 }
 
 static int
@@ -642,8 +642,11 @@ linker_file_unload(linker_file_t file, int flags)
 	 * link error.
 	 */
 	if (file->flags & LINKER_FILE_LINKED) {
+		file->flags &= ~LINKER_FILE_LINKED;
+		KLD_UNLOCK();
 		linker_file_sysuninit(file);
 		linker_file_unregister_sysctls(file);
+		KLD_LOCK();
 	}
 	TAILQ_REMOVE(&linker_files, file, link);
 

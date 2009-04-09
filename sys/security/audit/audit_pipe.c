@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2006 Robert N. M. Watson
- * Copyright (c) 2008 Apple, Inc.
+ * Copyright (c) 2008-2009 Apple, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sigio.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
@@ -56,10 +57,10 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Implementation of a clonable special device providing a live stream of BSM
- * audit data.  This is a "tee" of the data going to the file.  It provides
- * unreliable but timely access to audit events.  Consumers of this interface
- * should be very careful to avoid introducing event cycles.  Consumers may
- * express interest via a set of preselection ioctls.
+ * audit data.  Consumers receive a "tee" of the system audit trail by
+ * default, but may also define alternative event selections using ioctls.
+ * This interface provides unreliable but timely access to audit events.
+ * Consumers should be very careful to avoid introducing event cycles.
  */
 
 /*
@@ -68,14 +69,14 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_AUDIT_PIPE, "audit_pipe", "Audit pipes");
 static MALLOC_DEFINE(M_AUDIT_PIPE_ENTRY, "audit_pipeent",
     "Audit pipe entries and buffers");
-static MALLOC_DEFINE(M_AUDIT_PIPE_PRESELECT, "audit_pipe_preselect",
+static MALLOC_DEFINE(M_AUDIT_PIPE_PRESELECT, "audit_pipe_presel",
     "Audit pipe preselection structure");
 
 /*
  * Audit pipe buffer parameters.
  */
 #define	AUDIT_PIPE_QLIMIT_DEFAULT	(128)
-#define	AUDIT_PIPE_QLIMIT_MIN		(0)
+#define	AUDIT_PIPE_QLIMIT_MIN		(1)
 #define	AUDIT_PIPE_QLIMIT_MAX		(1024)
 
 /*
@@ -120,7 +121,15 @@ struct audit_pipe {
 	/*
 	 * Per-pipe mutex protecting most fields in this data structure.
 	 */
-	struct mtx			 ap_lock;
+	struct mtx			 ap_mtx;
+
+	/*
+	 * Per-pipe sleep lock serializing user-generated reads and flushes.
+	 * uiomove() is called to copy out the current head record's data
+	 * while the record remains in the queue, so we prevent other threads
+	 * from removing it using this lock.
+	 */
+	struct sx			 ap_sx;
 
 	/*
 	 * Condition variable to signal when data has been delivered to a
@@ -128,13 +137,24 @@ struct audit_pipe {
 	 */
 	struct cv			 ap_cv;
 
+	/*
+	 * Various queue-reated variables: qlen and qlimit are a count of
+	 * records in the queue; qbyteslen is the number of bytes of data
+	 * across all records, and qoffset is the amount read so far of the
+	 * first record in the queue.  The number of bytes available for
+	 * reading in the queue is qbyteslen - qoffset.
+	 */
 	u_int				 ap_qlen;
 	u_int				 ap_qlimit;
+	u_int				 ap_qbyteslen;
+	u_int				 ap_qoffset;
 
+	/*
+	 * Per-pipe operation statistics.
+	 */
 	u_int64_t			 ap_inserts;	/* Records added. */
 	u_int64_t			 ap_reads;	/* Records read. */
 	u_int64_t			 ap_drops;	/* Records dropped. */
-	u_int64_t			 ap_truncates;	/* Records too long. */
 
 	/*
 	 * Fields relating to pipe interest: global masks for unmatched
@@ -147,7 +167,10 @@ struct audit_pipe {
 	TAILQ_HEAD(, audit_pipe_preselect)	ap_preselect_list;
 
 	/*
-	 * Current pending record list.
+	 * Current pending record list.  Protected by a combination of ap_mtx
+	 * and ap_sx.  Note particularly that *both* locks are required to
+	 * remove a record from the head of the queue, as an in-progress read
+	 * may sleep while copying and therefore cannot hold ap_mtx.
 	 */
 	TAILQ_HEAD(, audit_pipe_entry)	 ap_queue;
 
@@ -157,13 +180,19 @@ struct audit_pipe {
 	TAILQ_ENTRY(audit_pipe)		 ap_list;
 };
 
-#define	AUDIT_PIPE_LOCK(ap)	mtx_lock(&(ap)->ap_lock)
-#define	AUDIT_PIPE_LOCK_ASSERT(ap)	mtx_assert(&(ap)->ap_lock, MA_OWNED)
-#define	AUDIT_PIPE_LOCK_DESTROY(ap)	mtx_destroy(&(ap)->ap_lock)
-#define	AUDIT_PIPE_LOCK_INIT(ap)	mtx_init(&(ap)->ap_lock, \
-					    "audit_pipe_lock", NULL, MTX_DEF)
-#define	AUDIT_PIPE_UNLOCK(ap)	mtx_unlock(&(ap)->ap_lock)
-#define	AUDIT_PIPE_MTX(ap)	(&(ap)->ap_lock)
+#define	AUDIT_PIPE_LOCK(ap)		mtx_lock(&(ap)->ap_mtx)
+#define	AUDIT_PIPE_LOCK_ASSERT(ap)	mtx_assert(&(ap)->ap_mtx, MA_OWNED)
+#define	AUDIT_PIPE_LOCK_DESTROY(ap)	mtx_destroy(&(ap)->ap_mtx)
+#define	AUDIT_PIPE_LOCK_INIT(ap)	mtx_init(&(ap)->ap_mtx, \
+					    "audit_pipe_mtx", NULL, MTX_DEF)
+#define	AUDIT_PIPE_UNLOCK(ap)		mtx_unlock(&(ap)->ap_mtx)
+#define	AUDIT_PIPE_MTX(ap)		(&(ap)->ap_mtx)
+
+#define	AUDIT_PIPE_SX_LOCK_DESTROY(ap)	sx_destroy(&(ap)->ap_sx)
+#define	AUDIT_PIPE_SX_LOCK_INIT(ap)	sx_init(&(ap)->ap_sx, "audit_pipe_sx")
+#define	AUDIT_PIPE_SX_XLOCK_ASSERT(ap)	sx_assert(&(ap)->ap_sx, SA_XLOCKED)
+#define	AUDIT_PIPE_SX_XLOCK_SIG(ap)	sx_xlock_sig(&(ap)->ap_sx)
+#define	AUDIT_PIPE_SX_XUNLOCK(ap)	sx_xunlock(&(ap)->ap_sx)
 
 /*
  * Global list of audit pipes, rwlock to protect it.  Individual record
@@ -407,6 +436,10 @@ audit_pipe_preselect(au_id_t auid, au_event_t event, au_class_t class,
 {
 	struct audit_pipe *ap;
 
+	/* Lockless read to avoid acquiring the global lock if not needed. */
+	if (TAILQ_EMPTY(&audit_pipe_list))
+		return (0);
+
 	AUDIT_PIPE_LIST_RLOCK();
 	TAILQ_FOREACH(ap, &audit_pipe_list, ap_list) {
 		AUDIT_PIPE_LOCK(ap);
@@ -461,6 +494,7 @@ audit_pipe_append(struct audit_pipe *ap, void *record, u_int record_len)
 	TAILQ_INSERT_TAIL(&ap->ap_queue, ape, ape_queue);
 	ap->ap_inserts++;
 	ap->ap_qlen++;
+	ap->ap_qbyteslen += ape->ape_record_len;
 	selwakeuppri(&ap->ap_selinfo, PSOCK);
 	KNOTE_LOCKED(&ap->ap_selinfo.si_note, 0);
 	if (ap->ap_flags & AUDIT_PIPE_ASYNC)
@@ -530,26 +564,6 @@ audit_pipe_submit_user(void *record, u_int record_len)
 }
 
 /*
- * Pop the next record off of an audit pipe.
- */
-static struct audit_pipe_entry *
-audit_pipe_pop(struct audit_pipe *ap)
-{
-	struct audit_pipe_entry *ape;
-
-	AUDIT_PIPE_LOCK_ASSERT(ap);
-
-	ape = TAILQ_FIRST(&ap->ap_queue);
-	KASSERT((ape == NULL && ap->ap_qlen == 0) ||
-	    (ape != NULL && ap->ap_qlen != 0), ("audit_pipe_pop: qlen"));
-	if (ape == NULL)
-		return (NULL);
-	TAILQ_REMOVE(&ap->ap_queue, ape, ape_queue);
-	ap->ap_qlen--;
-	return (ape);
-}
-
-/*
  * Allocate a new audit pipe.  Connects the pipe, on success, to the global
  * list and updates statistics.
  */
@@ -568,6 +582,7 @@ audit_pipe_alloc(void)
 	knlist_init(&ap->ap_selinfo.si_note, AUDIT_PIPE_MTX(ap), NULL, NULL,
 	    NULL);
 	AUDIT_PIPE_LOCK_INIT(ap);
+	AUDIT_PIPE_SX_LOCK_INIT(ap);
 	cv_init(&ap->ap_cv, "audit_pipe");
 
 	/*
@@ -604,10 +619,14 @@ audit_pipe_flush(struct audit_pipe *ap)
 
 	while ((ape = TAILQ_FIRST(&ap->ap_queue)) != NULL) {
 		TAILQ_REMOVE(&ap->ap_queue, ape, ape_queue);
+		ap->ap_qbyteslen -= ape->ape_record_len;
 		audit_pipe_entry_free(ape);
 		ap->ap_qlen--;
 	}
-	KASSERT(ap->ap_qlen == 0, ("audit_pipe_free: ap_qlen"));
+	ap->ap_qoffset = 0;
+
+	KASSERT(ap->ap_qlen == 0, ("audit_pipe_free: ap_qbyteslen"));
+	KASSERT(ap->ap_qbyteslen == 0, ("audit_pipe_flush: ap_qbyteslen"));
 }
 
 /*
@@ -626,6 +645,7 @@ audit_pipe_free(struct audit_pipe *ap)
 	audit_pipe_preselect_flush_locked(ap);
 	audit_pipe_flush(ap);
 	cv_destroy(&ap->ap_cv);
+	AUDIT_PIPE_SX_LOCK_DESTROY(ap);
 	AUDIT_PIPE_LOCK_DESTROY(ap);
 	knlist_destroy(&ap->ap_selinfo.si_note);
 	TAILQ_REMOVE(&audit_pipe_list, ap, ap_list);
@@ -717,9 +737,6 @@ audit_pipe_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 /*
  * Audit pipe ioctl() routine.  Handle file descriptor and audit pipe layer
  * commands.
- *
- * Would be desirable to support filtering, although perhaps something simple
- * like an event mask, as opposed to something complicated like BPF.
  */
 static int
 audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
@@ -752,11 +769,7 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 
 	case FIONREAD:
 		AUDIT_PIPE_LOCK(ap);
-		if (TAILQ_FIRST(&ap->ap_queue) != NULL)
-			*(int *)data =
-			    TAILQ_FIRST(&ap->ap_queue)->ape_record_len;
-		else
-			*(int *)data = 0;
+		*(int *)data = ap->ap_qbyteslen - ap->ap_qoffset;
 		AUDIT_PIPE_UNLOCK(ap);
 		error = 0;
 		break;
@@ -888,9 +901,12 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		break;
 
 	case AUDITPIPE_FLUSH:
+		if (AUDIT_PIPE_SX_XLOCK_SIG(ap) != 0)
+			return (EINTR);
 		AUDIT_PIPE_LOCK(ap);
 		audit_pipe_flush(ap);
 		AUDIT_PIPE_UNLOCK(ap);
+		AUDIT_PIPE_SX_XUNLOCK(ap);
 		error = 0;
 		break;
 
@@ -915,7 +931,7 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		break;
 
 	case AUDITPIPE_GET_TRUNCATES:
-		*(u_int *)data = ap->ap_truncates;
+		*(u_int *)data = 0;
 		error = 0;
 		break;
 
@@ -926,65 +942,86 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 }
 
 /*
- * Audit pipe read.  Pull one record off the queue and copy to user space.
- * On error, the record is dropped.
- *
- * Providing more sophisticated behavior, such as partial reads, is tricky
- * due to the potential for parallel I/O.  If partial read support is
- * required, it will require a per-pipe "current record being read" along
- * with an offset into that trecord which has already been read.  Threads
- * performing partial reads will need to allocate per-thread copies of the
- * data so that if another thread completes the read of the record, it can be
- * freed without adding reference count logic.  If this is added, a flag to
- * indicate that only atomic record reads are desired would be useful, as if
- * different threads are all waiting for records on the pipe, they will want
- * independent record reads, which is currently the behavior.
+ * Audit pipe read.  Read one or more partial or complete records to user
+ * memory.
  */
 static int
 audit_pipe_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct audit_pipe_entry *ape;
 	struct audit_pipe *ap;
+	u_int toread;
 	int error;
 
 	ap = dev->si_drv1;
 	KASSERT(ap != NULL, ("audit_pipe_read: ap == NULL"));
 
+	/*
+	 * We hold an sx(9) lock over read and flush because we rely on the
+	 * stability of a record in the queue during uiomove(9).
+	 */
+	if (AUDIT_PIPE_SX_XLOCK_SIG(ap) != 0)
+		return (EINTR);
 	AUDIT_PIPE_LOCK(ap);
-	do {
-		/*
-		 * Wait for a record that fits into the read buffer, dropping
-		 * records that would be truncated if actually passed to the
-		 * process.  This helps maintain the discreet record read
-		 * interface.
-		 */
-		while ((ape = audit_pipe_pop(ap)) == NULL) {
-			if (ap->ap_flags & AUDIT_PIPE_NBIO) {
-				AUDIT_PIPE_UNLOCK(ap);
-				return (EAGAIN);
-			}
-			error = cv_wait_sig(&ap->ap_cv, AUDIT_PIPE_MTX(ap));
-			if (error) {
-				AUDIT_PIPE_UNLOCK(ap);
-				return (error);
-			}
+	while (TAILQ_EMPTY(&ap->ap_queue)) {
+		if (ap->ap_flags & AUDIT_PIPE_NBIO) {
+			AUDIT_PIPE_UNLOCK(ap);
+			AUDIT_PIPE_SX_XUNLOCK(ap);
+			return (EAGAIN);
 		}
-		if (ape->ape_record_len <= uio->uio_resid)
-			break;
-		audit_pipe_entry_free(ape);
-		ap->ap_truncates++;
-	} while (1);
-	ap->ap_reads++;
-	AUDIT_PIPE_UNLOCK(ap);
+		error = cv_wait_sig(&ap->ap_cv, AUDIT_PIPE_MTX(ap));
+		if (error) {
+			AUDIT_PIPE_UNLOCK(ap);
+			AUDIT_PIPE_SX_XUNLOCK(ap);
+			return (error);
+		}
+	}
 
 	/*
-	 * Now read record to user space memory.  Even if the read is short,
-	 * we abandon the remainder of the record, supporting only discreet
-	 * record reads.
+	 * Copy as many remaining bytes from the current record to userspace
+	 * as we can.  Keep processing records until we run out of records in
+	 * the queue, or until the user buffer runs out of space.
+	 *
+	 * Note: we rely on the SX lock to maintain ape's stability here.
 	 */
-	error = uiomove(ape->ape_record, ape->ape_record_len, uio);
-	audit_pipe_entry_free(ape);
-	return (error);
+	ap->ap_reads++;
+	while ((ape = TAILQ_FIRST(&ap->ap_queue)) != NULL &&
+	    uio->uio_resid > 0) {
+		AUDIT_PIPE_LOCK_ASSERT(ap);
+
+		KASSERT(ape->ape_record_len > ap->ap_qoffset,
+		    ("audit_pipe_read: record_len > qoffset (1)"));
+		toread = MIN(ape->ape_record_len - ap->ap_qoffset,
+		    uio->uio_resid);
+		AUDIT_PIPE_UNLOCK(ap);
+		error = uiomove((char *)ape->ape_record + ap->ap_qoffset,
+		    toread, uio);
+		if (error) {
+			AUDIT_PIPE_SX_XUNLOCK(ap);
+			return (error);
+		}
+
+		/*
+		 * If the copy succeeded, update book-keeping, and if no
+		 * bytes remain in the current record, free it.
+		 */
+		AUDIT_PIPE_LOCK(ap);
+		KASSERT(TAILQ_FIRST(&ap->ap_queue) == ape,
+		    ("audit_pipe_read: queue out of sync after uiomove"));
+		ap->ap_qoffset += toread;
+		KASSERT(ape->ape_record_len >= ap->ap_qoffset,
+		    ("audit_pipe_read: record_len >= qoffset (2)"));
+		if (ap->ap_qoffset == ape->ape_record_len) {
+			TAILQ_REMOVE(&ap->ap_queue, ape, ape_queue);
+			ap->ap_qbyteslen -= ape->ape_record_len;
+			audit_pipe_entry_free(ape);
+			ap->ap_qlen--;
+			ap->ap_qoffset = 0;
+		}
+	}
+	AUDIT_PIPE_UNLOCK(ap);
+	AUDIT_PIPE_SX_XUNLOCK(ap);
+	return (0);
 }
 
 /*
@@ -1040,19 +1077,14 @@ audit_pipe_kqfilter(struct cdev *dev, struct knote *kn)
 static int
 audit_pipe_kqread(struct knote *kn, long hint)
 {
-	struct audit_pipe_entry *ape;
 	struct audit_pipe *ap;
 
 	ap = (struct audit_pipe *)kn->kn_hook;
 	KASSERT(ap != NULL, ("audit_pipe_kqread: ap == NULL"));
-
 	AUDIT_PIPE_LOCK_ASSERT(ap);
 
 	if (ap->ap_qlen != 0) {
-		ape = TAILQ_FIRST(&ap->ap_queue);
-		KASSERT(ape != NULL, ("audit_pipe_kqread: ape == NULL"));
-
-		kn->kn_data = ape->ape_record_len;
+		kn->kn_data = ap->ap_qbyteslen - ap->ap_qoffset;
 		return (1);
 	} else {
 		kn->kn_data = 0;

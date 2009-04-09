@@ -158,7 +158,6 @@ ufs_lookup(ap)
 	struct thread *td = cnp->cn_thread;
 	ino_t ino;
 	int ltype;
-	struct mount *mp;
 
 	bp = NULL;
 	slotoffset = -1;
@@ -579,27 +578,7 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		ltype = VOP_ISLOCKED(pdp, td);
-		mp = pdp->v_mount;
-		for (;;) {
-			error = vfs_busy(mp, LK_NOWAIT, NULL, td);
-			if (error == 0)
-				break;
-			VOP_UNLOCK(pdp, 0, td);
-			pause("ufs_dd", 1);
-			vn_lock(pdp, ltype | LK_RETRY, td);
-			if (pdp->v_iflag & VI_DOOMED)
-				return (ENOENT);
-		}
-		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
-		error = VFS_VGET(mp, ino, cnp->cn_lkflags, &tdp);
-		vfs_unbusy(mp, td);
-		vn_lock(pdp, ltype | LK_RETRY, td);
-		if (pdp->v_iflag & VI_DOOMED) {
-			if (error == 0)
-				vput(tdp);
-			error = ENOENT;
-		}
+		error = vn_vget_ino(pdp, ino, cnp->cn_lkflags, &tdp);
 		if (error)
 			return (error);
 		*vpp = tdp;

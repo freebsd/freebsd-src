@@ -251,6 +251,7 @@ struct xvnode {
 #define	VV_NOKNOTE	0x0200	/* don't activate knotes on this vnode */
 #define	VV_DELETED	0x0400	/* should be removed */
 #define	VV_MD		0x0800	/* vnode backs the md device */
+#define	VV_FORCEINSMQ	0x1000	/* force the insmntque to succeed */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -395,6 +396,9 @@ extern void	(*lease_updatetime)(int deltat);
 #define	VI_TRYLOCK(vp)	mtx_trylock(&(vp)->v_interlock)
 #define	VI_UNLOCK(vp)	mtx_unlock(&(vp)->v_interlock)
 #define	VI_MTX(vp)	(&(vp)->v_interlock)
+
+#define	VN_LOCK_AREC(vp)	((vp)->v_vnlock->lk_flags |= LK_CANRECURSE)
+#define	VN_LOCK_ASHARE(vp)	((vp)->v_vnlock->lk_flags &= ~LK_NOSHARE)
 
 #endif /* _KERNEL */
 
@@ -577,6 +581,8 @@ int	speedup_syncer(void);
 	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
 int	vn_fullpath(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
+int	vn_fullpath_global(struct thread *td, struct vnode *vn,
+	    char **retbuf, char **freebuf);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, mode_t acc_mode, struct ucred *cred,
 	    int *privused);
@@ -632,6 +638,9 @@ int	vn_extattr_set(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, int buflen, char *buf, struct thread *td);
 int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
+int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
+	    struct vnode **rvp);
+
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp);

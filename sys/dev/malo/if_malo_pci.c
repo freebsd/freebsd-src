@@ -245,7 +245,7 @@ malo_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR,	/* maxsize */
 			       0,			/* nsegments */
 			       BUS_SPACE_MAXADDR,	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
+			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
 			       &sc->malo_dmat)) {
@@ -260,12 +260,13 @@ malo_pci_attach(device_t dev)
 
 	error = malo_attach(pci_get_device(dev), sc);
 
-	if (error != 0) {
-		malo_pci_detach(dev);
-		return (error);
-	}
+	if (error != 0)
+		goto bad2;
 
 	return (error);
+
+bad2:
+	bus_dma_tag_destroy(sc->malo_dmat);
 bad1:
 	if (psc->malo_msi == 0)
 		bus_teardown_intr(dev, psc->malo_res_irq[0],
@@ -275,10 +276,11 @@ bad1:
 			bus_teardown_intr(dev, psc->malo_res_irq[i],
 			    psc->malo_intrhand[i]);
 	}
-
+	bus_release_resources(dev, psc->malo_irq_spec, psc->malo_res_irq);
 bad:
 	if (psc->malo_msi != 0)
 		pci_release_msi(dev);
+	bus_release_resources(dev, psc->malo_mem_spec, psc->malo_res_mem);
 
 	return (error);
 }

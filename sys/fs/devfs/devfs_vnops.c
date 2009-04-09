@@ -387,14 +387,6 @@ devfs_access(struct vop_access_args *ap)
 
 /* ARGSUSED */
 static int
-devfs_advlock(struct vop_advlock_args *ap)
-{
-
-	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
-}
-
-/* ARGSUSED */
-static int
 devfs_close(struct vop_close_args *ap)
 {
 	struct vnode *vp = ap->a_vp, *oldvp;
@@ -481,12 +473,28 @@ devfs_close_f(struct file *fp, struct thread *td)
 	return (error);
 }
 
-/* ARGSUSED */
 static int
 devfs_fsync(struct vop_fsync_args *ap)
 {
-	if (!vn_isdisk(ap->a_vp, NULL))
+	int error;
+	struct bufobj *bo;
+	struct devfs_dirent *de;
+
+	if (!vn_isdisk(ap->a_vp, &error)) {
+		bo = &ap->a_vp->v_bufobj;
+		de = ap->a_vp->v_data;
+		if (error == ENXIO && bo->bo_dirty.bv_cnt > 0) {
+			printf("Device %s went missing before all of the data "
+			    "could be written to it; expect data loss.\n",
+			    de->de_dirent->d_name);
+
+			error = vop_stdfsync(ap);
+			if (bo->bo_dirty.bv_cnt != 0 || error != 0)
+				panic("devfs_fsync: vop_stdfsync failed.");
+		}
+
 		return (0);
+	}
 
 	return (vop_stdfsync(ap));
 }
@@ -957,7 +965,7 @@ devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw);
 	if (error)
-		return (error);
+		return (poll_no_poll(events));
 	error = dsw->d_poll(dev, events, td);
 	td->td_fpop = fpop;
 	dev_relthread(dev);
@@ -1485,7 +1493,6 @@ static struct vop_vector devfs_specops = {
 	.vop_default =		&default_vnodeops,
 
 	.vop_access =		devfs_access,
-	.vop_advlock =		devfs_advlock,
 	.vop_bmap =		VOP_PANIC,
 	.vop_close =		devfs_close,
 	.vop_create =		VOP_PANIC,

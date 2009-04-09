@@ -33,7 +33,7 @@
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
 .Nm
-.Fl l Op Fl cv
+.Fl l Op Fl bcv
 .Nm
 .Fl a Ar selector
 .Nm
@@ -110,6 +110,32 @@ device, it is a
 .Em multi-function
 device, which contains several (similar or independent) functions on
 one chip.
+.Pp
+If the
+.Fl b
+option is supplied,
+.Nm
+will list any base address registers
+.Pq BARs
+that are assigned resources for each device.
+Each BAR will be enumerated via a line in the following format:
+.Bd -literal
+    bar   [10] = type Memory, range 32, base 0xda060000, size 131072, enabled
+.Ed
+.Pp
+The first value after the
+.Dq Li bar
+prefix in the square brackets is the offset of the BAR in config space in
+hexadecimal.
+The type of a BAR is one of
+.Dq Memory ,
+.Dq Prefetchable Memory ,
+or
+.Dq I/O Port .
+The range indicates the maximum address the BAR decodes.
+The base and size indicate the start and length of the BAR's address window,
+respectively.
+Finally, the last flag indicates if the BAR is enabled or disabled.
 .Pp
 If the
 .Fl c

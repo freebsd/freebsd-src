@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec6.h>
 #endif
 #include <netipsec/key.h>
+#include <sys/syslog.h>
 #endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
@@ -345,7 +346,7 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 
 		ip6 = (struct ip6_hdr *)ip_ptr;
 		ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
-			(inp->in6p_flowinfo & IPV6_FLOWINFO_MASK);
+			(inp->inp_flow & IPV6_FLOWINFO_MASK);
 		ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
 			(IPV6_VERSION & IPV6_VERSION_MASK);
 		ip6->ip6_nxt = IPPROTO_TCP;
@@ -489,7 +490,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		} else
 #endif /* INET6 */
 	      {
-		xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, n_long);
+		xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
 		nth = (struct tcphdr *)(ip + 1);
 	      }
 		if (th != nth) {
@@ -501,7 +502,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			nth->th_sport = th->th_sport;
 			nth->th_dport = th->th_dport;
 		}
-		xchg(nth->th_dport, nth->th_sport, n_short);
+		xchg(nth->th_dport, nth->th_sport, uint16_t);
 #undef xchg
 	}
 #ifdef INET6
@@ -807,10 +808,10 @@ tcp_close(struct tcpcb *tp)
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
-	if (inp->inp_vflag & INP_SOCKREF) {
+	if (inp->inp_flags & INP_SOCKREF) {
 		KASSERT(so->so_state & SS_PROTOREF,
 		    ("tcp_close: !SS_PROTOREF"));
-		inp->inp_vflag &= ~INP_SOCKREF;
+		inp->inp_flags &= ~INP_SOCKREF;
 		INP_WUNLOCK(inp);
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
@@ -840,7 +841,7 @@ tcp_drain(void)
 	 */
 		INP_INFO_RLOCK(&tcbinfo);
 		LIST_FOREACH(inpb, tcbinfo.ipi_listhead, inp_list) {
-			if (inpb->inp_vflag & INP_TIMEWAIT)
+			if (inpb->inp_flags & INP_TIMEWAIT)
 				continue;
 			INP_WLOCK(inpb);
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
@@ -876,8 +877,8 @@ tcp_notify(struct inpcb *inp, int error)
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -976,7 +977,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			 * TCP state changes, is not quite right, but for
 			 * now, better than nothing.
 			 */
-			if (inp->inp_vflag & INP_TIMEWAIT) {
+			if (inp->inp_flags & INP_TIMEWAIT) {
 				if (intotw(inp) != NULL)
 					error = cr_cansee(req->td->td_ucred,
 					    intotw(inp)->tw_cred);
@@ -1007,7 +1008,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			inp_ppcb = inp->inp_ppcb;
 			if (inp_ppcb == NULL)
 				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
-			else if (inp->inp_vflag & INP_TIMEWAIT) {
+			else if (inp->inp_flags & INP_TIMEWAIT) {
 				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
 				xt.xt_tp.t_state = TCPS_TIME_WAIT;
 			} else
@@ -1202,8 +1203,8 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		    ip->ip_src, th->th_sport, 0, NULL);
 		if (inp != NULL)  {
 			INP_WLOCK(inp);
-			if (!(inp->inp_vflag & INP_TIMEWAIT) &&
-			    !(inp->inp_vflag & INP_DROPPED) &&
+			if (!(inp->inp_flags & INP_TIMEWAIT) &&
+			    !(inp->inp_flags & INP_DROPPED) &&
 			    !(inp->inp_socket == NULL)) {
 				icmp_tcp_seq = htonl(th->th_seq);
 				tp = intotcpcb(inp);
@@ -1217,7 +1218,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					     * value (if given) and then notify.
 					     */
 					    bzero(&inc, sizeof(inc));
-					    inc.inc_flags = 0;	/* IPv4 */
 					    inc.inc_faddr = faddr;
 					    inc.inc_fibnum =
 						inp->inp_inc.inc_fibnum;
@@ -1254,13 +1254,11 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 			if (inp != NULL)
 				INP_WUNLOCK(inp);
 		} else {
+			bzero(&inc, sizeof(inc));
 			inc.inc_fport = th->th_dport;
 			inc.inc_lport = th->th_sport;
 			inc.inc_faddr = faddr;
 			inc.inc_laddr = ip->ip_src;
-#ifdef INET6
-			inc.inc_isipv6 = 0;
-#endif
 			syncache_unreach(&inc, th);
 		}
 		INP_INFO_WUNLOCK(&tcbinfo);
@@ -1329,11 +1327,12 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		    (struct sockaddr *)ip6cp->ip6c_src,
 		    th.th_sport, cmd, NULL, notify);
 
+		bzero(&inc, sizeof(inc));
 		inc.inc_fport = th.th_dport;
 		inc.inc_lport = th.th_sport;
 		inc.inc6_faddr = ((struct sockaddr_in6 *)sa)->sin6_addr;
 		inc.inc6_laddr = ip6cp->ip6c_src->sin6_addr;
-		inc.inc_isipv6 = 1;
+		inc.inc_flags |= INC_ISIPV6;
 		INP_INFO_WLOCK(&tcbinfo);
 		syncache_unreach(&inc, &th);
 		INP_INFO_WUNLOCK(&tcbinfo);
@@ -1476,8 +1475,8 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -1510,8 +1509,8 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 #endif /* INET6 */
 
 	INP_WLOCK_ASSERT(inp);
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -1879,11 +1878,11 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
 }
 
 /*
- * Compute TCP-MD5 hash of a TCPv4 segment. (RFC2385)
+ * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
  *
  * Parameters:
  * m		pointer to head of mbuf chain
- * off0		offset to TCP header within the mbuf chain
+ * _unused	
  * len		length of TCP segment data, excluding options
  * optlen	length of TCP segment options
  * buf		pointer to storage for computed MD5 digest
@@ -1892,9 +1891,6 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
  * We do this over ip, tcphdr, segment data, and the key in the SADB.
  * When called from tcp_input(), we can be sure that th_sum has been
  * zeroed out and verified already.
- *
- * This function is for IPv4 use only. Calling this function with an
- * IPv6 packet in the mbuf chain will yield undefined results.
  *
  * Return 0 if successful, otherwise return -1.
  *
@@ -1905,7 +1901,7 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
  * specify per-application flows but it is unstable.
  */
 int
-tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
+tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
     u_char *buf, u_int direction)
 {
 	union sockaddr_union dst;
@@ -1916,34 +1912,62 @@ tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
 	struct ipovly *ipovly;
 	struct secasvar *sav;
 	struct tcphdr *th;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+	struct in6_addr in6;
+	char ip6buf[INET6_ADDRSTRLEN];
+	uint32_t plen;
+	uint16_t nhdr;
+#endif
 	u_short savecsum;
 
 	KASSERT(m != NULL, ("NULL mbuf chain"));
 	KASSERT(buf != NULL, ("NULL signature pointer"));
 
 	/* Extract the destination from the IP header in the mbuf. */
-	ip = mtod(m, struct ip *);
 	bzero(&dst, sizeof(union sockaddr_union));
-	dst.sa.sa_len = sizeof(struct sockaddr_in);
-	dst.sa.sa_family = AF_INET;
-	dst.sin.sin_addr = (direction == IPSEC_DIR_INBOUND) ?
-	    ip->ip_src : ip->ip_dst;
+	ip = mtod(m, struct ip *);
+#ifdef INET6
+	ip6 = NULL;	/* Make the compiler happy. */
+#endif
+	switch (ip->ip_v) {
+	case IPVERSION:
+		dst.sa.sa_len = sizeof(struct sockaddr_in);
+		dst.sa.sa_family = AF_INET;
+		dst.sin.sin_addr = (direction == IPSEC_DIR_INBOUND) ?
+		    ip->ip_src : ip->ip_dst;
+		break;
+#ifdef INET6
+	case (IPV6_VERSION >> 4):
+		ip6 = mtod(m, struct ip6_hdr *);
+		dst.sa.sa_len = sizeof(struct sockaddr_in6);
+		dst.sa.sa_family = AF_INET6;
+		dst.sin6.sin6_addr = (direction == IPSEC_DIR_INBOUND) ?
+		    ip6->ip6_src : ip6->ip6_dst;
+		break;
+#endif
+	default:
+		return (EINVAL);
+		/* NOTREACHED */
+		break;
+	}
 
 	/* Look up an SADB entry which matches the address of the peer. */
 	sav = KEY_ALLOCSA(&dst, IPPROTO_TCP, htonl(TCP_SIG_SPI));
 	if (sav == NULL) {
-		printf("%s: SADB lookup failed for %s\n", __func__,
-		    inet_ntoa(dst.sin.sin_addr));
+		ipseclog((LOG_ERR, "%s: SADB lookup failed for %s\n", __func__,
+		    (ip->ip_v == IPVERSION) ? inet_ntoa(dst.sin.sin_addr) :
+#ifdef INET6
+			(ip->ip_v == (IPV6_VERSION >> 4)) ?
+			    ip6_sprintf(ip6buf, &dst.sin6.sin6_addr) :
+#endif
+			"(unsupported)"));
 		return (EINVAL);
 	}
 
 	MD5Init(&ctx);
-	ipovly = (struct ipovly *)ip;
-	th = (struct tcphdr *)((u_char *)ip + off0);
-	doff = off0 + sizeof(struct tcphdr) + optlen;
-
 	/*
-	 * Step 1: Update MD5 hash with IP pseudo-header.
+	 * Step 1: Update MD5 hash with IP(v6) pseudo-header.
 	 *
 	 * XXX The ippseudo header MUST be digested in network byte order,
 	 * or else we'll fail the regression test. Assume all fields we've
@@ -1951,12 +1975,55 @@ tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
 	 * XXX One cannot depend on ipovly->ih_len here. When called from
 	 * tcp_output(), the underlying ip_len member has not yet been set.
 	 */
-	ippseudo.ippseudo_src = ipovly->ih_src;
-	ippseudo.ippseudo_dst = ipovly->ih_dst;
-	ippseudo.ippseudo_pad = 0;
-	ippseudo.ippseudo_p = IPPROTO_TCP;
-	ippseudo.ippseudo_len = htons(len + sizeof(struct tcphdr) + optlen);
-	MD5Update(&ctx, (char *)&ippseudo, sizeof(struct ippseudo));
+	switch (ip->ip_v) {
+	case IPVERSION:
+		ipovly = (struct ipovly *)ip;
+		ippseudo.ippseudo_src = ipovly->ih_src;
+		ippseudo.ippseudo_dst = ipovly->ih_dst;
+		ippseudo.ippseudo_pad = 0;
+		ippseudo.ippseudo_p = IPPROTO_TCP;
+		ippseudo.ippseudo_len = htons(len + sizeof(struct tcphdr) +
+		    optlen);
+		MD5Update(&ctx, (char *)&ippseudo, sizeof(struct ippseudo));
+
+		th = (struct tcphdr *)((u_char *)ip + sizeof(struct ip));
+		doff = sizeof(struct ip) + sizeof(struct tcphdr) + optlen;
+		break;
+#ifdef INET6
+	/*
+	 * RFC 2385, 2.0  Proposal
+	 * For IPv6, the pseudo-header is as described in RFC 2460, namely the
+	 * 128-bit source IPv6 address, 128-bit destination IPv6 address, zero-
+	 * extended next header value (to form 32 bits), and 32-bit segment
+	 * length.
+	 * Note: Upper-Layer Packet Length comes before Next Header.
+	 */
+	case (IPV6_VERSION >> 4):
+		in6 = ip6->ip6_src;
+		in6_clearscope(&in6);
+		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
+		in6 = ip6->ip6_dst;
+		in6_clearscope(&in6);
+		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
+		plen = htonl(len + sizeof(struct tcphdr) + optlen);
+		MD5Update(&ctx, (char *)&plen, sizeof(uint32_t));
+		nhdr = 0;
+		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
+		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
+		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
+		nhdr = IPPROTO_TCP;
+		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
+
+		th = (struct tcphdr *)((u_char *)ip6 + sizeof(struct ip6_hdr));
+		doff = sizeof(struct ip6_hdr) + sizeof(struct tcphdr) + optlen;
+		break;
+#endif
+	default:
+		return (EINVAL);
+		/* NOTREACHED */
+		break;
+	}
+
 
 	/*
 	 * Step 2: Update MD5 hash with TCP header, excluding options.
@@ -2068,7 +2135,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	}
 	if (inp != NULL) {
 		INP_WLOCK(inp);
-		if (inp->inp_vflag & INP_TIMEWAIT) {
+		if (inp->inp_flags & INP_TIMEWAIT) {
 			/*
 			 * XXXRW: There currently exists a state where an
 			 * inpcb is present, but its timewait state has been
@@ -2080,7 +2147,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 				tcp_twclose(tw, 0);
 			else
 				INP_WUNLOCK(inp);
-		} else if (!(inp->inp_vflag & INP_DROPPED) &&
+		} else if (!(inp->inp_flags & INP_DROPPED) &&
 			   !(inp->inp_socket->so_options & SO_ACCEPTCONN)) {
 			tp = intotcpcb(inp);
 			tp = tcp_drop(tp, ECONNABORTED);
@@ -2146,7 +2213,7 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	strcat(s, "TCP: [");
 	sp = s + strlen(s);
 
-	if (inc && inc->inc_isipv6 == 0) {
+	if (inc && ((inc->inc_flags & INC_ISIPV6) == 0)) {
 		inet_ntoa_r(inc->inc_faddr, sp);
 		sp = s + strlen(s);
 		sprintf(sp, "]:%i to [", ntohs(inc->inc_fport));

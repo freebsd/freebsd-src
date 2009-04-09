@@ -117,7 +117,7 @@ SYSCTL_INT(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
     "Amount of presently outstanding async buffer io");
 static int bufspace;
 SYSCTL_INT(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
-    "KVA memory used for bufs");
+    "Virtual memory used for buffers");
 static int maxbufspace;
 SYSCTL_INT(_vfs, OID_AUTO, maxbufspace, CTLFLAG_RD, &maxbufspace, 0,
     "Maximum allowed value of bufspace (including buf_daemon)");
@@ -1170,6 +1170,7 @@ brelse(struct buf *bp)
 
 	if (bp->b_iocmd == BIO_WRITE &&
 	    (bp->b_ioflags & BIO_ERROR) &&
+	    bp->b_error != ENXIO &&
 	    !(bp->b_flags & B_INVAL)) {
 		/*
 		 * Failed write, redirty.  Must clear BIO_ERROR to prevent
@@ -1177,6 +1178,9 @@ brelse(struct buf *bp)
 		 * this case is not run and the next case is run to 
 		 * destroy the buffer.  B_INVAL can occur if the buffer
 		 * is outside the range supported by the underlying device.
+		 * If the error is that the device went away (ENXIO), we
+		 * shouldn't redirty the buffer either, but discard the
+		 * data too.
 		 */
 		bp->b_ioflags &= ~BIO_ERROR;
 		bdirty(bp);
@@ -3920,9 +3924,10 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
-	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd\n",
+	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd, b_dep = %p\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
-	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno);
+	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno,
+	    bp->b_dep.lh_first);
 	if (bp->b_npages) {
 		int i;
 		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);
@@ -3950,6 +3955,28 @@ DB_SHOW_COMMAND(lockedbufs, lockedbufs)
 			db_show_buffer((uintptr_t)bp, 1, 0, NULL);
 			db_printf("\n");
 		}
+	}
+}
+
+DB_SHOW_COMMAND(vnodebufs, db_show_vnodebufs)
+{
+	struct vnode *vp;
+	struct buf *bp;
+
+	if (!have_addr) {
+		db_printf("usage: show vnodebufs <addr>\n");
+		return;
+	}
+	vp = (struct vnode *)addr;
+	db_printf("Clean buffers:\n");
+	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_clean.bv_hd, b_bobufs) {
+		db_show_buffer((uintptr_t)bp, 1, 0, NULL);
+		db_printf("\n");
+	}
+	db_printf("Dirty buffers:\n");
+	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs) {
+		db_show_buffer((uintptr_t)bp, 1, 0, NULL);
+		db_printf("\n");
 	}
 }
 #endif /* DDB */

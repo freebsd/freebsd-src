@@ -662,11 +662,7 @@ send:
 		}
 #ifdef TCP_SIGNATURE
 		/* TCP-MD5 (RFC2385). */
-#ifdef INET6
-		if (!isipv6 && (tp->t_flags & TF_SIGNATURE))
-#else
 		if (tp->t_flags & TF_SIGNATURE)
-#endif /* INET6 */
 			to.to_flags |= TOF_SIGNATURE;
 #endif /* TCP_SIGNATURE */
 
@@ -935,12 +931,9 @@ send:
 		tp->snd_up = tp->snd_una;		/* drag it along */
 
 #ifdef TCP_SIGNATURE
-#ifdef INET6
-	if (!isipv6)
-#endif
 	if (tp->t_flags & TF_SIGNATURE) {
 		int sigoff = to.to_signature - opt;
-		tcp_signature_compute(m, sizeof(struct ip), len, optlen,
+		tcp_signature_compute(m, 0, len, optlen,
 		    (u_char *)(th + 1) + sigoff, IPSEC_DIR_OUTBOUND);
 	}
 #endif
@@ -1101,7 +1094,7 @@ timer:
     {
 	ip->ip_len = m->m_pkthdr.len;
 #ifdef INET6
-	if (INP_CHECK_SOCKAF(so, AF_INET6))
+	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
 		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
 #endif /* INET6 */
 	/*

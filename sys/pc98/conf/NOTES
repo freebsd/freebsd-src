@@ -437,6 +437,7 @@ device		ural
 
 device		ath
 device		ath_hal		# Atheros HAL (includes binary component)
+options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 #device		ath_rate_amrr	# AMRR rate control for ath driver
 #device		ath_rate_onoe	# Onoe rate control for ath driver
 device		ath_rate_sample	# SampleRate rate control for the ath driver

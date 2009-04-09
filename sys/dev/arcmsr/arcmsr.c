@@ -2150,7 +2150,8 @@ static void arcmsr_action(struct cam_sim * psim, union ccb * pccb)
 				spi->sync_offset=32;
 				spi->bus_width=MSG_EXT_WDTR_BUS_16_BIT;
 				scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
-				spi->valid = CTS_SPI_VALID_SYNC_RATE
+				spi->valid = CTS_SPI_VALID_DISC
+					| CTS_SPI_VALID_SYNC_RATE
 					| CTS_SPI_VALID_SYNC_OFFSET
 					| CTS_SPI_VALID_BUS_WIDTH;
 				scsi->valid = CTS_SCSI_VALID_TQ;

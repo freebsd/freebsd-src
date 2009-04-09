@@ -283,7 +283,7 @@ Client specified lock/mutex manipulation method.
 This will be called from
 within busdma whenever a client lock needs to be manipulated.
 In its current form, the function will be called immediately before
-the callback for a dma load operation that has been deferred with
+the callback for a DMA load operation that has been deferred with
 .Dv BUS_DMA_LOCK
 and immediately after with
 .Dv BUS_DMA_UNLOCK .
@@ -364,17 +364,26 @@ indicates that there are no boundary restrictions.
 Bounds of the window of bus address space that
 .Em cannot
 be directly accessed by the device.
-The window contains all addresses greater than lowaddr and
-less than or equal to highaddr.
-For example, a device incapable of DMA above 4GB, would specify
-a highaddr of
+The window contains all addresses greater than
+.Fa lowaddr
+and less than or equal to
+.Fa highaddr .
+For example, a device incapable of DMA above 4GB, would specify a
+.Fa highaddr
+of
 .Dv BUS_SPACE_MAXADDR
-and a lowaddr of
+and a
+.Fa lowaddr
+of
 .Dv BUS_SPACE_MAXADDR_32BIT .
-Similarly a device that can only dma to addresses bellow 16MB would
-specify a highaddr of
+Similarly a device that can only perform DMA to addresses below
+16MB would specify a
+.Fa highaddr
+of
 .Dv BUS_SPACE_MAXADDR
-and a lowaddr of
+and a
+.Fa lowaddr
+of
 .Dv BUS_SPACE_MAXADDR_24BIT .
 Some implementations requires that some region of device visible
 address space, overlapping available host memory, be outside the

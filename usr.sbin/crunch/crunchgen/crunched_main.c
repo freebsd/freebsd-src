@@ -34,6 +34,7 @@
  *	the crunched binary without creating all the links.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct stub {
@@ -41,6 +42,7 @@ struct stub {
     int (*f)();
 };
 
+extern char *__progname;
 extern struct stub entry_points[];
 
 int main(int argc, char **argv, char **envp)
@@ -83,11 +85,15 @@ int crunched_here(char *path)
 
 int crunched_main(int argc, char **argv, char **envp)
 {
+    char *slash;
     struct stub *ep;
     int columns, len;
 
     if(argc <= 1)
 	crunched_usage();
+
+    slash = strrchr(argv[1], '/');
+    __progname = slash? slash+1 : argv[1];
 
     return main(--argc, ++argv, envp);
 }

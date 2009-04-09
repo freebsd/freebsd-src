@@ -80,6 +80,7 @@ void	ffs_snapremove(struct vnode *vp);
 int	ffs_snapshot(struct mount *mp, char *snapfile);
 void	ffs_snapshot_mount(struct mount *mp);
 void	ffs_snapshot_unmount(struct mount *mp);
+void	process_deferred_inactive(struct mount *mp);
 int	ffs_syncvnode(struct vnode *vp, int waitfor);
 int	ffs_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
 int	ffs_update(struct vnode *, int);
@@ -87,6 +88,9 @@ int	ffs_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 
 int	ffs_vfree(struct vnode *, ino_t, int);
 vfs_vget_t ffs_vget;
+int	ffs_vgetf(struct mount *, ino_t, int, struct vnode **, int);
+
+#define	FFSV_FORCEINSMQ	0x0001
 
 extern struct vop_vector ffs_vnodeops1;
 extern struct vop_vector ffs_fifoops1;
@@ -127,5 +131,7 @@ int	softdep_sync_metadata(struct vnode *);
 int     softdep_process_worklist(struct mount *, int);
 int     softdep_fsync(struct vnode *);
 int	softdep_waitidle(struct mount *);
+
+int	ffs_rdonly(struct inode *);
 
 #endif /* !_UFS_FFS_EXTERN_H */

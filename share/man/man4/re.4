@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2006
+.Dd February 9, 2009
 .Dt RE 4
 .Os
 .Sh NAME
@@ -168,6 +168,16 @@ PLANEX COMMUNICATIONS Inc.\& GN-1200TC (8169S)
 USRobotics USR997902 Gigabit Ethernet (8169S)
 .It
 Xterasys XN-152 10/100/1000 NIC (8169)
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.re.msi_disable
+This tunable disables MSI support on the Ethernet hardware.
+The default value is 0.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

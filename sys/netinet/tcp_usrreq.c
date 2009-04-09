@@ -155,9 +155,6 @@ static void
 tcp_detach(struct socket *so, struct inpcb *inp)
 {
 	struct tcpcb *tp;
-#ifdef INET6
-	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
-#endif
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -167,7 +164,7 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 
 	tp = intotcpcb(inp);
 
-	if (inp->inp_vflag & INP_TIMEWAIT) {
+	if (inp->inp_flags & INP_TIMEWAIT) {
 		/*
 		 * There are two cases to handle: one in which the time wait
 		 * state is being discarded (INP_DROPPED), and one in which
@@ -180,27 +177,13 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		 *
 		 * XXXRW: Would it be cleaner to free the tcptw here?
 		 */
-		if (inp->inp_vflag & INP_DROPPED) {
+		if (inp->inp_flags & INP_DROPPED) {
 			KASSERT(tp == NULL, ("tcp_detach: INP_TIMEWAIT && "
 			    "INP_DROPPED && tp != NULL"));
-#ifdef INET6
-			if (isipv6) {
-				in6_pcbdetach(inp);
-				in6_pcbfree(inp);
-			} else {
-#endif
-				in_pcbdetach(inp);
-				in_pcbfree(inp);
-#ifdef INET6
-			}
-#endif
+			in_pcbdetach(inp);
+			in_pcbfree(inp);
 		} else {
-#ifdef INET6
-			if (isipv6)
-				in6_pcbdetach(inp);
-			else
-#endif
-				in_pcbdetach(inp);
+			in_pcbdetach(inp);
 			INP_WUNLOCK(inp);
 		}
 	} else {
@@ -213,28 +196,13 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		 *
 		 * XXXRW: Does the second case still occur?
 		 */
-		if (inp->inp_vflag & INP_DROPPED ||
+		if (inp->inp_flags & INP_DROPPED ||
 		    tp->t_state < TCPS_SYN_SENT) {
 			tcp_discardcb(tp);
-#ifdef INET6
-			if (isipv6) {
-				in6_pcbdetach(inp);
-				in6_pcbfree(inp);
-			} else {
-#endif
-				in_pcbdetach(inp);
-				in_pcbfree(inp);
-#ifdef INET6
-			}
-#endif
-		} else {
-#ifdef INET6
-			if (isipv6)
-				in6_pcbdetach(inp);
-			else
-#endif
-				in_pcbdetach(inp);
-		}
+			in_pcbdetach(inp);
+			in_pcbfree(inp);
+		} else
+			in_pcbdetach(inp);
 	}
 }
 
@@ -287,7 +255,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_bind: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = EINVAL;
 		goto out;
 	}
@@ -327,7 +295,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_bind: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = EINVAL;
 		goto out;
 	}
@@ -373,7 +341,7 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_listen: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = EINVAL;
 		goto out;
 	}
@@ -410,7 +378,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_listen: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = EINVAL;
 		goto out;
 	}
@@ -462,15 +430,15 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (sinp->sin_family == AF_INET
 	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
 		return (EAFNOSUPPORT);
-	if (prison_remote_ip4(td->td_ucred, &sinp->sin_addr) != 0)
-		return (EINVAL);
+	if ((error = prison_remote_ip4(td->td_ucred, &sinp->sin_addr)) != 0)
+		return (error);
 
 	TCPDEBUG0;
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = EINVAL;
 		goto out;
 	}
@@ -511,7 +479,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = EINVAL;
 		goto out;
 	}
@@ -528,10 +496,9 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		in6_sin6_2_sin(&sin, sin6p);
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
-		if (prison_remote_ip4(td->td_ucred, &sin.sin_addr) != 0) {
-			error = EINVAL;
+		if ((error = prison_remote_ip4(td->td_ucred,
+		    &sin.sin_addr)) != 0)
 			goto out;
-		}
 		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
 			goto out;
 		error = tcp_output_connect(so, nam);
@@ -539,11 +506,9 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
-	inp->inp_inc.inc_isipv6 = 1;
-	if (prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr) != 0) {
-		error = EINVAL;
+	inp->inp_inc.inc_flags |= INC_ISIPV6;
+	if ((error = prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr)) != 0)
 		goto out;
-	}
 	if ((error = tcp6_connect(tp, nam, td)) != 0)
 		goto out;
 	error = tcp_output_connect(so, nam);
@@ -579,7 +544,7 @@ tcp_usr_disconnect(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_disconnect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNRESET;
 		goto out;
 	}
@@ -615,7 +580,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	KASSERT(inp != NULL, ("tcp_usr_accept: inp == NULL"));
 	INP_INFO_RLOCK(&tcbinfo);
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNABORTED;
 		goto out;
 	}
@@ -658,7 +623,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_accept: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNABORTED;
 		goto out;
 	}
@@ -707,7 +672,7 @@ tcp_usr_shutdown(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNRESET;
 		goto out;
 	}
@@ -715,7 +680,8 @@ tcp_usr_shutdown(struct socket *so)
 	TCPDEBUG1();
 	socantsendmore(so);
 	tcp_usrclosed(tp);
-	error = tcp_output_disconnect(tp);
+	if (!(inp->inp_flags & INP_DROPPED))
+		error = tcp_output_disconnect(tp);
 
 out:
 	TCPDEBUG2(PRU_SHUTDOWN);
@@ -739,7 +705,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_rcvd: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNRESET;
 		goto out;
 	}
@@ -789,7 +755,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_send: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		if (control)
 			m_freem(control);
 		if (m)
@@ -847,7 +813,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			INP_INFO_WUNLOCK(&tcbinfo);
 			headlocked = 0;
 		}
-		if (tp != NULL) {
+		if (!(inp->inp_flags & INP_DROPPED)) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
 			error = tcp_output_send(tp);
@@ -934,18 +900,18 @@ tcp_usr_abort(struct socket *so)
 	/*
 	 * If we still have full TCP state, and we're not dropped, drop.
 	 */
-	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
-	    !(inp->inp_vflag & INP_DROPPED)) {
+	if (!(inp->inp_flags & INP_TIMEWAIT) &&
+	    !(inp->inp_flags & INP_DROPPED)) {
 		tp = intotcpcb(inp);
 		TCPDEBUG1();
 		tcp_drop(tp, ECONNABORTED);
 		TCPDEBUG2(PRU_ABORT);
 	}
-	if (!(inp->inp_vflag & INP_DROPPED)) {
+	if (!(inp->inp_flags & INP_DROPPED)) {
 		SOCK_LOCK(so);
 		so->so_state |= SS_PROTOREF;
 		SOCK_UNLOCK(so);
-		inp->inp_vflag |= INP_SOCKREF;
+		inp->inp_flags |= INP_SOCKREF;
 	}
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
@@ -973,18 +939,18 @@ tcp_usr_close(struct socket *so)
 	 * If we still have full TCP state, and we're not dropped, initiate
 	 * a disconnect.
 	 */
-	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
-	    !(inp->inp_vflag & INP_DROPPED)) {
+	if (!(inp->inp_flags & INP_TIMEWAIT) &&
+	    !(inp->inp_flags & INP_DROPPED)) {
 		tp = intotcpcb(inp);
 		TCPDEBUG1();
 		tcp_disconnect(tp);
 		TCPDEBUG2(PRU_CLOSE);
 	}
-	if (!(inp->inp_vflag & INP_DROPPED)) {
+	if (!(inp->inp_flags & INP_DROPPED)) {
 		SOCK_LOCK(so);
 		so->so_state |= SS_PROTOREF;
 		SOCK_UNLOCK(so);
-		inp->inp_vflag |= INP_SOCKREF;
+		inp->inp_flags |= INP_SOCKREF;
 	}
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
@@ -1004,7 +970,7 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_rcvoob: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNRESET;
 		goto out;
 	}
@@ -1179,9 +1145,9 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;
 	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
-	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
-	if (inp->in6p_flags & IN6P_AUTOFLOWLABEL)
-		inp->in6p_flowinfo |=
+	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
+	if (inp->inp_flags & IN6P_AUTOFLOWLABEL)
+		inp->inp_flow |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 	in_pcbrehash(inp);
 
@@ -1255,7 +1221,7 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
  */
 #define INP_WLOCK_RECHECK(inp) do {					\
 	INP_WLOCK(inp);							\
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {		\
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {		\
 		INP_WUNLOCK(inp);					\
 		return (ECONNRESET);					\
 	}								\
@@ -1278,7 +1244,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	INP_WLOCK(inp);
 	if (sopt->sopt_level != IPPROTO_TCP) {
 #ifdef INET6
-		if (INP_CHECK_SOCKAF(so, AF_INET6)) {
+		if (inp->inp_vflag & INP_IPV6PROTO) {
 			INP_WUNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
 		} else {
@@ -1290,7 +1256,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 #endif
 		return (error);
 	}
-	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
 	}
@@ -1515,9 +1481,6 @@ tcp_attach(struct socket *so)
 	struct tcpcb *tp;
 	struct inpcb *inp;
 	int error;
-#ifdef INET6
-	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
-#endif
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = soreserve(so, tcp_sendspace, tcp_recvspace);
@@ -1534,7 +1497,7 @@ tcp_attach(struct socket *so)
 	}
 	inp = sotoinpcb(so);
 #ifdef INET6
-	if (isipv6) {
+	if (inp->inp_vflag & INP_IPV6PROTO) {
 		inp->inp_vflag |= INP_IPV6;
 		inp->in6p_hops = -1;	/* use kernel default */
 	}
@@ -1543,17 +1506,8 @@ tcp_attach(struct socket *so)
 	inp->inp_vflag |= INP_IPV4;
 	tp = tcp_newtcpcb(inp);
 	if (tp == NULL) {
-#ifdef INET6
-		if (isipv6) {
-			in6_pcbdetach(inp);
-			in6_pcbfree(inp);
-		} else {
-#endif
-			in_pcbdetach(inp);
-			in_pcbfree(inp);
-#ifdef INET6
-		}
-#endif
+		in_pcbdetach(inp);
+		in_pcbfree(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return (ENOBUFS);
 	}
@@ -1596,7 +1550,7 @@ tcp_disconnect(struct tcpcb *tp)
 		soisdisconnecting(so);
 		sbflush(&so->so_rcv);
 		tcp_usrclosed(tp);
-		if (!(inp->inp_vflag & INP_DROPPED))
+		if (!(inp->inp_flags & INP_DROPPED))
 			tcp_output_disconnect(tp);
 	}
 }

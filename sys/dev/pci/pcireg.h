@@ -60,6 +60,7 @@
 #define	PCIM_CMD_PERRESPEN	0x0040
 #define	PCIM_CMD_SERRESPEN	0x0100
 #define	PCIM_CMD_BACKTOBACK	0x0200
+#define	PCIM_CMD_INTxDIS	0x0400
 #define	PCIR_STATUS	0x06
 #define	PCIM_STATUS_CAPPRESENT	0x0010
 #define	PCIM_STATUS_66CAPABLE	0x0020
@@ -117,7 +118,7 @@
 
 #define	PCIR_BARS	0x10
 #define	PCIR_BAR(x)		(PCIR_BARS + (x) * 4)
-#define	PCI_MAX_BAR_0		5	/* Number of standard bars */
+#define	PCIR_MAX_BAR_0		5
 #define	PCI_RID2BAR(rid)	(((rid) - PCIR_BARS) / 4)
 #define	PCI_BAR_IO(x)		(((x) & PCIM_BAR_SPACE) == PCIM_BAR_IO_SPACE)
 #define	PCI_BAR_MEM(x)		(((x) & PCIM_BAR_SPACE) == PCIM_BAR_MEM_SPACE)
@@ -158,6 +159,7 @@
 
 /* config registers for header type 1 (PCI-to-PCI bridge) devices */
 
+#define	PCIR_MAX_BAR_1	1
 #define	PCIR_SECSTAT_1	0x1e
 
 #define	PCIR_PRIBUS_1	0x18
@@ -188,6 +190,7 @@
 
 /* config registers for header type 2 (CardBus) devices */
 
+#define	PCIR_MAX_BAR_2	0
 #define	PCIR_CAP_PTR_2	0x14
 #define	PCIR_SECSTAT_2	0x16
 

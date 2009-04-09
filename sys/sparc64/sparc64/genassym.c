@@ -66,10 +66,13 @@ ASSYM(PCPU_PAGES, PCPU_PAGES);
 
 ASSYM(TAR_VPN_SHIFT, TAR_VPN_SHIFT);
 
-ASSYM(TLB_DEMAP_NUCLEUS, TLB_DEMAP_NUCLEUS);
-ASSYM(TLB_DEMAP_PRIMARY, TLB_DEMAP_PRIMARY);
+#ifdef SUN4U
+ASSYM(TLB_DEMAP_ALL, TLB_DEMAP_ALL);
+#endif
 ASSYM(TLB_DEMAP_CONTEXT, TLB_DEMAP_CONTEXT);
+ASSYM(TLB_DEMAP_NUCLEUS, TLB_DEMAP_NUCLEUS);
 ASSYM(TLB_DEMAP_PAGE, TLB_DEMAP_PAGE);
+ASSYM(TLB_DEMAP_PRIMARY, TLB_DEMAP_PRIMARY);
 
 ASSYM(INT_SHIFT, INT_SHIFT);
 ASSYM(PTR_SHIFT, PTR_SHIFT);
@@ -80,16 +83,19 @@ ASSYM(PAGE_SHIFT_4M, PAGE_SHIFT_4M);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(PAGE_SIZE_4M, PAGE_SIZE_4M);
 
+#ifdef SMP
 ASSYM(CSA_PCPU, offsetof(struct cpu_start_args, csa_pcpu));
 ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
 #ifdef SUN4U
-ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
-ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
 ASSYM(CSA_MID, offsetof(struct cpu_start_args, csa_mid));
+ASSYM(CSA_STICK, offsetof(struct cpu_start_args, csa_stick));
+ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
 ASSYM(CSA_TTES, offsetof(struct cpu_start_args, csa_ttes));
+ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
 #endif
 #ifdef SUN4V
 ASSYM(CSA_CPUID, offsetof(struct cpu_start_args, csa_cpuid));
+#endif
 #endif
 
 #ifdef SUN4U
@@ -99,7 +105,9 @@ ASSYM(IC_SIZE, offsetof(struct cacheinfo, ic_size));
 ASSYM(IC_LINESIZE, offsetof(struct cacheinfo, ic_linesize));
 #endif
 
+#ifdef SMP
 ASSYM(ICA_PA, offsetof(struct ipi_cache_args, ica_pa));
+#endif
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
 ASSYM(KTR_LINE, offsetof(struct ktr_entry, ktr_line));
@@ -119,15 +127,19 @@ ASSYM(TTE_SHIFT, TTE_SHIFT);
 ASSYM(TTE_VPN, offsetof(struct tte, tte_vpn));
 ASSYM(TTE_DATA, offsetof(struct tte, tte_data));
 
+ASSYM(TD_V, TD_V);
 ASSYM(TD_EXEC, TD_EXEC);
 ASSYM(TD_REF, TD_REF);
 ASSYM(TD_SW, TD_SW);
+ASSYM(TD_L, TD_L);
 ASSYM(TD_CP, TD_CP);
 ASSYM(TD_CV, TD_CV);
 ASSYM(TD_W, TD_W);
 
 ASSYM(TS_MIN, TS_MIN);
 ASSYM(TS_MAX, TS_MAX);
+ASSYM(TLB_DAR_SLOT_SHIFT, TLB_DAR_SLOT_SHIFT);
+ASSYM(TLB_PCXR_PGSZ_MASK, TLB_PCXR_PGSZ_MASK);
 ASSYM(TLB_DIRECT_TO_TTE_MASK, TLB_DIRECT_TO_TTE_MASK);
 ASSYM(TV_SIZE_BITS, TV_SIZE_BITS);
 #endif
@@ -188,11 +200,12 @@ ASSYM(PM_TSB_MISS_COUNT, offsetof(struct pmap, pm_tsb_miss_count));
 ASSYM(PM_TSB_CAP_MISS_COUNT, offsetof(struct pmap, pm_tsb_cap_miss_count));
 #endif
 #ifdef SUN4U
+ASSYM(PC_CACHE, offsetof(struct pcpu, pc_cache));
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
+ASSYM(PC_PMAP, offsetof(struct pcpu, pc_pmap));
 ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
 ASSYM(PC_TLB_CTX_MAX, offsetof(struct pcpu, pc_tlb_ctx_max));
 ASSYM(PC_TLB_CTX_MIN, offsetof(struct pcpu, pc_tlb_ctx_min));
-ASSYM(PC_PMAP, offsetof(struct pcpu, pc_pmap));
 #endif
 
 ASSYM(IR_NEXT, offsetof(struct intr_request, ir_next));
@@ -201,11 +214,13 @@ ASSYM(IR_ARG, offsetof(struct intr_request, ir_arg));
 ASSYM(IR_PRI, offsetof(struct intr_request, ir_pri));
 ASSYM(IR_VEC, offsetof(struct intr_request, ir_vec));
 
+#ifdef SMP
 ASSYM(ITA_MASK, offsetof(struct ipi_tlb_args, ita_mask));
 ASSYM(ITA_PMAP, offsetof(struct ipi_tlb_args, ita_pmap));
 ASSYM(ITA_START, offsetof(struct ipi_tlb_args, ita_start));
 ASSYM(ITA_END, offsetof(struct ipi_tlb_args, ita_end));
 ASSYM(ITA_VA, offsetof(struct ipi_tlb_args, ita_va));
+#endif
 
 ASSYM(IV_FUNC, offsetof(struct intr_vector, iv_func));
 ASSYM(IV_ARG, offsetof(struct intr_vector, iv_arg));

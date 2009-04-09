@@ -647,7 +647,7 @@ ENTRY(spitfire_block_copy)
 	stda	%f32, [%o1] %asi
 	add	%o0, 64, %o0
 	sub	%o2, 64, %o2
-	ba	%xcc, 2b
+	ba,pt	%xcc, 2b
 	 add	%o1, 64, %o1
 
 3:	membar	#Sync
@@ -655,10 +655,8 @@ ENTRY(spitfire_block_copy)
 	stda	%f16, [%o1] %asi
 	membar	#Sync
 
-	wr	%g0, 0, %fprs
-
 	retl
-	 nop
+	 wr	%g0, 0, %fprs
 END(spitfire_block_copy)
 
 /*
@@ -704,14 +702,12 @@ ENTRY(spitfire_block_zero)
 	stda	%f0, [%o0 + 128] %asi
 	stda	%f0, [%o0 + 192] %asi
 	sub	%o1, 256, %o1
-	brnz	%o1, 1b
+	brnz,pt	%o1, 1b
 	 add	%o0, 256, %o0
 	membar	#Sync
 
-	wr	%g0, 0, %fprs
-
 	retl
-	 nop
+	 wr	%g0, 0, %fprs
 END(spitfire_block_zero)
 
 	.globl	fpu_fault_end
@@ -780,8 +776,9 @@ ENTRY(openfirmware_exit)
 	sub	%l0, SPOFF, %fp			! setup a stack in a locked page
 	sub	%l0, SPOFF + CCFSZ, %sp
 	mov	AA_DMMU_PCXR, %l3		! force primary DMMU context 0
+	sethi	%hi(KERNBASE), %l5
 	stxa	%g0, [%l3] ASI_DMMU
-	membar	#Sync
+	flush	%l5
 	wrpr	%g0, 0, %tl			! force trap level 0
 	call	%l6
 	 mov	%i0, %o0
@@ -804,7 +801,6 @@ ENTRY(bintr)
 
 ENTRY(eintr)
 	nop
-
 
 /*
  * XXX including sys/gmon.h in genassym.c is not possible due to uintfptr_t

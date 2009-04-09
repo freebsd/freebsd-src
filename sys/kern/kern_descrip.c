@@ -1261,7 +1261,7 @@ fpathconf(struct thread *td, struct fpathconf_args *uap)
 	if (vp != NULL) {
 		int vfslocked;
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_SHARED | LK_RETRY, td);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
 		VOP_UNLOCK(vp, 0, td);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -1613,7 +1613,8 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		if (fdisused(fdp, i) &&
-		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE) {
+		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE &&
+		    fdp->fd_ofiles[i]->f_ops != &badfileops) {
 			newfdp->fd_ofiles[i] = fdp->fd_ofiles[i];
 			newfdp->fd_ofileflags[i] = fdp->fd_ofileflags[i];
 			fhold(newfdp->fd_ofiles[i]);
@@ -2836,10 +2837,9 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 	freepath = NULL;
 	fullpath = "-";
 	FILEDESC_SUNLOCK(fdp);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 	vn_fullpath(curthread, vp, &fullpath, &freepath);
-	vput(vp);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	vrele(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
 	if (freepath != NULL)
@@ -2933,6 +2933,10 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			kif->kf_type = KF_TYPE_MQUEUE;
 			break;
 
+		case DTYPE_SEM:
+			kif->kf_type = KF_TYPE_SEM;
+			break;
+
 		default:
 			kif->kf_type = KF_TYPE_UNKNOWN;
 			break;
@@ -2997,10 +3001,9 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			freepath = NULL;
 			fullpath = "-";
 			FILEDESC_SUNLOCK(fdp);
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 			vn_fullpath(curthread, vp, &fullpath, &freepath);
-			vput(vp);
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			vrele(vp);
 			VFS_UNLOCK_GIANT(vfslocked);
 			strlcpy(kif->kf_path, fullpath,
 			    sizeof(kif->kf_path));
@@ -3070,6 +3073,8 @@ file_type_to_name(short type)
 		return ("crpt");
 	case DTYPE_MQUEUE:
 		return ("mque");
+	case DTYPE_SEM:
+		return ("ksem");
 	default:
 		return ("unkn");
 	}

@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <amd64/linux32/linux32_proto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
@@ -353,11 +354,11 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
 	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__bits[0];
-        frame.sf_sc.uc_mcontext.sc_gs     = rgs();
-        frame.sf_sc.uc_mcontext.sc_fs     = rfs();
-        __asm __volatile("movl %%es,%0" :
+	frame.sf_sc.uc_mcontext.sc_gs     = rgs();
+	frame.sf_sc.uc_mcontext.sc_fs     = rfs();
+	__asm __volatile("movl %%es,%0" :
 	    "=rm" (frame.sf_sc.uc_mcontext.sc_es));
-        __asm __volatile("movl %%ds,%0" :
+	__asm __volatile("movl %%ds,%0" :
 	    "=rm" (frame.sf_sc.uc_mcontext.sc_ds));
 	frame.sf_sc.uc_mcontext.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.uc_mcontext.sc_esi    = regs->tf_rsi;
@@ -487,10 +488,10 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build the signal context to be used by sigreturn.
 	 */
 	frame.sf_sc.sc_mask   = lmask.__bits[0];
-        frame.sf_sc.sc_gs     = rgs();
-        frame.sf_sc.sc_fs     = rfs();
-        __asm __volatile("movl %%es,%0" : "=rm" (frame.sf_sc.sc_es));
-        __asm __volatile("movl %%ds,%0" : "=rm" (frame.sf_sc.sc_ds));
+	frame.sf_sc.sc_gs     = rgs();
+	frame.sf_sc.sc_fs     = rfs();
+	__asm __volatile("movl %%es,%0" : "=rm" (frame.sf_sc.sc_es));
+	__asm __volatile("movl %%ds,%0" : "=rm" (frame.sf_sc.sc_ds));
 	frame.sf_sc.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.sc_ebp    = regs->tf_rbp;
@@ -772,35 +773,36 @@ static int	exec_linux_imgact_try(struct image_params *iparams);
 static int
 exec_linux_imgact_try(struct image_params *imgp)
 {
-    const char *head = (const char *)imgp->image_header;
-    char *rpath;
-    int error = -1, len;
+	const char *head = (const char *)imgp->image_header;
+	char *rpath;
+	int error = -1, len;
 
-    /*
-     * The interpreter for shell scripts run from a linux binary needs
-     * to be located in /compat/linux if possible in order to recursively
-     * maintain linux path emulation.
-     */
-    if (((const short *)head)[0] == SHELLMAGIC) {
-	    /*
-	     * Run our normal shell image activator.  If it succeeds attempt
-	     * to use the alternate path for the interpreter.  If an alternate
-	     * path is found, use our stringspace to store it.
-	     */
-	    if ((error = exec_shell_imgact(imgp)) == 0) {
-		    linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
-			imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0);
-		    if (rpath != NULL) {
-			    len = strlen(rpath) + 1;
+	/*
+	 * The interpreter for shell scripts run from a linux binary needs
+	 * to be located in /compat/linux if possible in order to recursively
+	 * maintain linux path emulation.
+	 */
+	if (((const short *)head)[0] == SHELLMAGIC) {
+		/*
+		 * Run our normal shell image activator.  If it succeeds
+		 * attempt to use the alternate path for the interpreter.  If
+		 * an alternate path is found, use our stringspace to store it.
+		 */
+		if ((error = exec_shell_imgact(imgp)) == 0) {
+			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
+			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0);
+			if (rpath != NULL) {
+				len = strlen(rpath) + 1;
 
-			    if (len <= MAXSHELLCMDLEN) {
-				    memcpy(imgp->interpreter_name, rpath, len);
-			    }
-			    free(rpath, M_TEMP);
-		    }
-	    }
-    }
-    return(error);
+				if (len <= MAXSHELLCMDLEN) {
+					memcpy(imgp->interpreter_name, rpath,
+					    len);
+				}
+				free(rpath, M_TEMP);
+			}
+		}
+	}
+	return(error);
 }
 
 /*
@@ -831,6 +833,7 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_es = _udatasel;
 	pcb->pcb_fs = _udatasel;
 	pcb->pcb_gs = _udatasel;
+	pcb->pcb_initial_fpucw = __LINUX_NPXCW__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
@@ -868,7 +871,7 @@ linux_copyout_strings(struct image_params *imgp)
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
 	sigcodesz = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - sigcodesz - SPARE_USRSPACE -
-		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
+	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
 	 * install sigcode
@@ -886,23 +889,24 @@ linux_copyout_strings(struct image_params *imgp)
 		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
 		 * lower compatibility.
 		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
-			: (AT_COUNT * 2);
+		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size :
+		    (AT_COUNT * 2);
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets,and imgp->auxarg_size is room
 		 * for argument of Runtime loader.
 		 */
-		vectp = (u_int32_t *) (destp - (imgp->args->argc + imgp->args->envc + 2 +
-				       imgp->auxarg_size) * sizeof(u_int32_t));
+		vectp = (u_int32_t *)(destp - (imgp->args->argc +
+		    imgp->args->envc + 2 + imgp->auxarg_size) *
+		    sizeof(u_int32_t));
 
 	} else
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets
 		 */
-		vectp = (u_int32_t *)
-			(destp - (imgp->args->argc + imgp->args->envc + 2) * sizeof(u_int32_t));
+		vectp = (u_int32_t *)(destp - (imgp->args->argc +
+		    imgp->args->envc + 2) * sizeof(u_int32_t));
 
 	/*
 	 * vectp also becomes our initial stack base
@@ -974,7 +978,7 @@ linux32_fixlimit(struct rlimit *rl, int which)
 
 	switch (which) {
 	case RLIMIT_DATA:
-		if (linux32_maxdsiz != 0) {			
+		if (linux32_maxdsiz != 0) {
 			if (rl->rlim_cur > linux32_maxdsiz)
 				rl->rlim_cur = linux32_maxdsiz;
 			if (rl->rlim_max > linux32_maxdsiz)
@@ -1030,6 +1034,16 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_maxssiz	= &linux32_maxssiz,
 };
 
+static char GNULINUX_ABI_VENDOR[] = "GNU";
+
+static Elf_Brandnote linux32_brandnote = {
+	.hdr.n_namesz	= sizeof(GNULINUX_ABI_VENDOR),
+	.hdr.n_descsz	= 16,
+	.hdr.n_type	= 1,
+	.vendor		= GNULINUX_ABI_VENDOR,
+	.flags		= 0
+};
+
 static Elf32_Brandinfo linux_brand = {
 	.brand		= ELFOSABI_LINUX,
 	.machine	= EM_386,
@@ -1038,7 +1052,8 @@ static Elf32_Brandinfo linux_brand = {
 	.interp_path	= "/lib/ld-linux.so.1",
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &linux32_brandnote,
+	.flags		= BI_CAN_EXEC_DYN
 };
 
 static Elf32_Brandinfo linux_glibc2brand = {
@@ -1049,7 +1064,8 @@ static Elf32_Brandinfo linux_glibc2brand = {
 	.interp_path	= "/lib/ld-linux.so.2",
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &linux32_brandnote,
+	.flags		= BI_CAN_EXEC_DYN
 };
 
 Elf32_Brandinfo *linux_brandlist[] = {
@@ -1083,12 +1099,12 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			sx_init(&emul_shared_lock, "emuldata->shared lock");
 			LIST_INIT(&futex_list);
 			sx_init(&futex_sx, "futex protection lock");
-			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit, linux_proc_exit,
-			      NULL, 1000);
-			linux_schedtail_tag = EVENTHANDLER_REGISTER(schedtail, linux_schedtail,
-			      NULL, 1000);
-			linux_exec_tag = EVENTHANDLER_REGISTER(process_exec, linux_proc_exec,
-			      NULL, 1000);
+			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
+			    linux_proc_exit, NULL, 1000);
+			linux_schedtail_tag = EVENTHANDLER_REGISTER(schedtail,
+			    linux_schedtail, NULL, 1000);
+			linux_exec_tag = EVENTHANDLER_REGISTER(process_exec,
+			    linux_proc_exec, NULL, 1000);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else

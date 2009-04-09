@@ -307,6 +307,16 @@ device_sysctl_init(device_t dev)
 }
 
 static void
+device_sysctl_update(device_t dev)
+{
+	devclass_t dc = dev->devclass;
+
+	if (dev->sysctl_tree == NULL)
+		return;
+	sysctl_rename_oid(dev->sysctl_tree, dev->nameunit + strlen(dc->name));
+}
+
+static void
 device_sysctl_fini(device_t dev)
 {
 	if (dev->sysctl_tree == NULL)
@@ -1725,8 +1735,13 @@ device_probe_child(device_t dev, device_t child)
 		     dl = next_matching_driver(dc, child, dl)) {
 			PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
 			device_set_driver(child, dl->driver);
-			if (!hasclass)
-				device_set_devclass(child, dl->driver->name);
+			if (!hasclass) {
+				if (device_set_devclass(child, dl->driver->name)) {
+					PDEBUG(("Unable to set device class"));
+					device_set_driver(child, NULL);
+					continue;
+				}
+			}
 
 			/* Fetch any flags for the device before probing. */
 			resource_int_value(dl->driver->name, child->unit,
@@ -1804,8 +1819,11 @@ device_probe_child(device_t dev, device_t child)
 				return (result);
 
 		/* Set the winning driver, devclass, and flags. */
-		if (!child->devclass)
-			device_set_devclass(child, best->driver->name);
+		if (!child->devclass) {
+			result = device_set_devclass(child, best->driver->name);
+			if (result != 0)
+				return (result);
+		}
 		device_set_driver(child, best->driver);
 		resource_int_value(best->driver->name, child->unit,
 		    "flags", &child->devflags);
@@ -2396,6 +2414,7 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
+	device_sysctl_update(dev);
 	dev->state = DS_ATTACHED;
 	devadded(dev);
 	return (0);
@@ -2433,7 +2452,8 @@ device_detach(device_t dev)
 	if ((error = DEVICE_DETACH(dev)) != 0)
 		return (error);
 	devremoved(dev);
-	device_printf(dev, "detached\n");
+	if (!device_is_quiet(dev))
+		device_printf(dev, "detached\n");
 	if (dev->parent)
 		BUS_CHILD_DETACHED(dev->parent, dev);
 

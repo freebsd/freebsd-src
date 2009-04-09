@@ -29,10 +29,12 @@
 #ifndef	_MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
-extern u_long tick_increment;
-extern u_long tick_freq;
-extern u_long tick_MHz;
+extern void (*delay_func)(int usec);
+extern u_long clock_boot;
 
-int	sysbeep(int, int);
+void delay_boot(int usec);
+void delay_tick(int usec);
+
+int	sysbeep(int pitch, int period);
 
 #endif /* !_MACHINE_CLOCK_H_ */

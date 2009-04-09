@@ -82,6 +82,11 @@ str2mode(char *str)
 	if (!strcasecmp(str, "UDMA100")) return ATA_UDMA5;
 	if (!strcasecmp(str, "UDMA6")) return ATA_UDMA6;
 	if (!strcasecmp(str, "UDMA133")) return ATA_UDMA6;
+	if (!strcasecmp(str, "SATA150")) return ATA_SA150;
+	if (!strcasecmp(str, "SATA300")) return ATA_SA300;
+	if (!strcasecmp(str, "USB")) return ATA_USB;
+	if (!strcasecmp(str, "USB1")) return ATA_USB1;
+	if (!strcasecmp(str, "USB2")) return ATA_USB2;
 	if (!strcasecmp(str, "BIOSDMA")) return ATA_DMA;
 	return -1;
 }
@@ -127,11 +132,11 @@ param_print(struct ata_params *parm)
 	printf("<%.40s/%.8s> ", parm->model, parm->revision);
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		if (parm->satacapabilities & ATA_SATA_GEN2)
-			printf("Serial ATA II\n");
+			printf("SATA revision 2.x\n");
 		else if (parm->satacapabilities & ATA_SATA_GEN1)
-			printf("Serial ATA v1.0\n");
+			printf("SATA revision 1.x\n");
 		else
-			printf("Unknown serial ATA version\n");
+			printf("Unknown SATA revision\n");
 	}
 	else
 		printf("ATA/ATAPI revision %d\n", version(parm->version_major));
@@ -152,11 +157,11 @@ cap_print(struct ata_params *parm)
 	printf("Protocol              ");
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		if (parm->satacapabilities & ATA_SATA_GEN2)
-			printf("Serial ATA II\n");
+			printf("SATA revision 2.x\n");
 		else if (parm->satacapabilities & ATA_SATA_GEN1)
-			printf("Serial ATA v1.0\n");
+			printf("SATA revision 1.x\n");
 		else
-			printf("Unknown serial ATA version\n");
+			printf("Unknown SATA revision\n");
 	}
 	else
 		printf("ATA/ATAPI revision %d\n", version(parm->version_major));
@@ -364,6 +369,8 @@ main(int argc, char **argv)
 		fd = open_dev(argv[2], O_RDONLY);
 		if (argc == 4) {
 			mode = str2mode(argv[3]);
+			if (mode == -1)
+				errx(1, "unknown mode");
 			if (ioctl(fd, IOCATASMODE, &mode) < 0)
 				warn("ioctl(IOCATASMODE)");
 		}

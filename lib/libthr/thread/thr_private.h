@@ -39,6 +39,8 @@
 #include <sys/time.h>
 #include <sys/cdefs.h>
 #include <sys/queue.h>
+#include <sys/param.h>
+#include <sys/cpuset.h>
 #include <machine/atomic.h>
 #include <errno.h>
 #include <limits.h>
@@ -116,27 +118,20 @@ struct pthread_mutex {
 	struct umutex			m_lock;
 	enum pthread_mutextype		m_type;
 	struct pthread			*m_owner;
-	int				m_flags;
 	int				m_count;
 	int				m_refcount;
+	int				m_spinloops;
+	int				m_yieldloops;
 	/*
 	 * Link for all mutexes a thread currently owns.
 	 */
 	TAILQ_ENTRY(pthread_mutex)	m_qe;
 };
 
-/*
- * Flags for mutexes. 
- */
-#define MUTEX_FLAGS_PRIVATE	0x01
-#define MUTEX_FLAGS_INITED	0x02
-#define MUTEX_FLAGS_BUSY	0x04
-
 struct pthread_mutex_attr {
 	enum pthread_mutextype	m_type;
 	int			m_protocol;
 	int			m_ceiling;
-	int			m_flags;
 };
 
 #define PTHREAD_MUTEXATTR_STATIC_INITIALIZER \
@@ -181,10 +176,10 @@ struct pthread_spinlock {
  * Cleanup definitions.
  */
 struct pthread_cleanup {
-	struct pthread_cleanup	*next;
-	void			(*routine)(void *args);
+	struct pthread_cleanup	*prev;
+	void			(*routine)(void *);
 	void			*routine_arg;
-	int			onstack;
+	int			onheap;
 };
 
 #define	THR_CLEANUP_PUSH(td, func, arg) {		\
@@ -192,12 +187,12 @@ struct pthread_cleanup {
 							\
 	__cup.routine = func;				\
 	__cup.routine_arg = arg;			\
-	__cup.onstack = 1;				\
-	__cup.next = (td)->cleanup;			\
+	__cup.onheap = 0;				\
+	__cup.prev = (td)->cleanup;			\
 	(td)->cleanup = &__cup;
 
 #define	THR_CLEANUP_POP(td, exec)			\
-	(td)->cleanup = __cup.next;			\
+	(td)->cleanup = __cup.prev;			\
 	if ((exec) != 0)				\
 		__cup.routine(__cup.routine_arg);	\
 }
@@ -219,6 +214,8 @@ struct pthread_attr {
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
 	size_t	guardsize_attr;
+	cpuset_t	*cpuset;
+	size_t	cpusetsize;
 };
 
 /*
@@ -309,7 +306,7 @@ struct pthread {
 	struct umutex		lock;
 
 	/* Internal condition variable cycle number. */
-	long			cycle;
+	uint32_t		cycle;
 
 	/* How many low level locks the thread held. */
 	int			locklevel;
@@ -370,10 +367,13 @@ struct pthread {
 	sigset_t		sigmask;
 
 	/* Thread is in SIGCANCEL handler. */
-	int                     in_sigcancel_handler;
+	int			in_sigcancel_handler;
 
 	/* New thread should unblock SIGCANCEL. */
-	int                     unblock_sigcancel;
+	int			unblock_sigcancel;
+
+	/* Force new thread to exit. */
+	int			force_exit;
 
 	/* Thread state: */
 	enum pthread_state 	state;
@@ -451,8 +451,10 @@ struct pthread {
 	(thrd)->critical_count++
 
 #define	THR_CRITICAL_LEAVE(thrd)			\
-	(thrd)->critical_count--;			\
-	_thr_ast(thrd);
+	do {						\
+		(thrd)->critical_count--;		\
+		_thr_ast(thrd);				\
+	} while (0)
 
 #define THR_UMUTEX_TRYLOCK(thrd, lck)			\
 	_thr_umutex_trylock((lck), TID(thrd))
@@ -608,7 +610,6 @@ int	_mutex_cv_lock(pthread_mutex_t *, int count) __hidden;
 int	_mutex_cv_unlock(pthread_mutex_t *, int *count) __hidden;
 int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
-void	_mutex_unlock_private(struct pthread *) __hidden;
 void	_libpthread_init(struct pthread *) __hidden;
 struct pthread *_thr_alloc(struct pthread *) __hidden;
 void	_thread_exit(const char *, int, const char *) __hidden __dead2;
@@ -659,6 +660,9 @@ int	_schedparam_to_rtp(int policy, const struct sched_param *param,
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 int	_sched_yield(void);
+
+void	_pthread_cleanup_push(void (*)(void *), void *);
+void	_pthread_cleanup_pop(int);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_

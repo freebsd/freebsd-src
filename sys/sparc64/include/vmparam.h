@@ -40,7 +40,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef	_MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_
 
@@ -122,6 +121,13 @@
 #define	VM_NFREEORDER		12
 
 /*
+ * Disable superpage reservations.
+ */
+#ifndef	VM_NRESERVLEVEL
+#define	VM_NRESERVLEVEL		0
+#endif
+
+/*
  * Address space layout.
  *
  * UltraSPARC I and II implement a 44 bit virtual address space.  The address
@@ -187,7 +193,7 @@
 #define	VM_MAX_KERNEL_ADDRESS	(vm_max_kernel_address)
 
 #define	VM_MIN_PROM_ADDRESS	(0x00000000f0000000UL)
-#define	VM_MAX_PROM_ADDRESS	(0x00000000ffffe000UL)
+#define	VM_MAX_PROM_ADDRESS	(0x00000000ffffffffUL)
 
 #define	VM_MIN_USER_ADDRESS	(0x0000000000000000UL)
 #define	VM_MAX_USER_ADDRESS	(0x000007fe00000000UL)
@@ -196,6 +202,7 @@
 #define	VM_MAXUSER_ADDRESS	(VM_MAX_USER_ADDRESS)
 
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
+#define	PROMBASE		(VM_MIN_PROM_ADDRESS)
 #define	USRSTACK		(VM_MAX_USER_ADDRESS)
 
 /*

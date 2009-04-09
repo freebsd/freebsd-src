@@ -466,7 +466,7 @@ ommap(td, uap)
 #ifndef _SYS_SYSPROTO_H_
 struct msync_args {
 	void *addr;
-	int len;
+	size_t len;
 	int flags;
 };
 #endif
@@ -1401,17 +1401,15 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		maxprot |= VM_PROT_EXECUTE;
 #endif
 
-	if (fitit)
-		*addr = pmap_addr_hint(object, *addr, size);
-
 	if (flags & MAP_STACK)
 		rv = vm_map_stack(map, *addr, size, prot, maxprot,
 		    docow | MAP_STACK_GROWS_DOWN);
 	else if (fitit)
-		rv = vm_map_find(map, object, foff, addr, size, TRUE,
-				 prot, maxprot, docow);
+		rv = vm_map_find(map, object, foff, addr, size,
+		    object != NULL && object->type == OBJT_DEVICE ?
+		    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, prot, maxprot, docow);
 	else
-		rv = vm_map_fixed(map, object, foff, addr, size,
+		rv = vm_map_fixed(map, object, foff, *addr, size,
 				 prot, maxprot, docow);
 
 	if (rv != KERN_SUCCESS) {

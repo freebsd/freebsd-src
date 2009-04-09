@@ -56,6 +56,7 @@ struct sctp_event_subscribe {
 	uint8_t sctp_partial_delivery_event;
 	uint8_t sctp_adaptation_layer_event;
 	uint8_t sctp_authentication_event;
+	uint8_t sctp_sender_dry_event;
 	uint8_t sctp_stream_reset_events;
 };
 
@@ -139,17 +140,18 @@ struct sctp_snd_all_completes {
 };
 
 /* Flags that go into the sinfo->sinfo_flags field */
-#define SCTP_EOF 	  0x0100/* Start shutdown procedures */
-#define SCTP_ABORT	  0x0200/* Send an ABORT to peer */
-#define SCTP_UNORDERED 	  0x0400/* Message is un-ordered */
-#define SCTP_ADDR_OVER	  0x0800/* Override the primary-address */
-#define SCTP_SENDALL      0x1000/* Send this on all associations */
-#define SCTP_EOR          0x2000/* end of message signal */
-#define SCTP_PR_POLICY_VALID 0x4000	/* pr sctp policy valid */
+#define SCTP_EOF              0x0100	/* Start shutdown procedures */
+#define SCTP_ABORT            0x0200	/* Send an ABORT to peer */
+#define SCTP_UNORDERED        0x0400	/* Message is un-ordered */
+#define SCTP_ADDR_OVER        0x0800	/* Override the primary-address */
+#define SCTP_SENDALL          0x1000	/* Send this on all associations */
+#define SCTP_EOR              0x2000	/* end of message signal */
+#define SCTP_SACK_IMMEDIATELY 0x4000	/* Set I-Bit */
 
 #define INVALID_SINFO_FLAG(x) (((x) & 0xffffff00 \
                                     & ~(SCTP_EOF | SCTP_ABORT | SCTP_UNORDERED |\
-				        SCTP_ADDR_OVER | SCTP_SENDALL | SCTP_EOR)) != 0)
+				        SCTP_ADDR_OVER | SCTP_SENDALL | SCTP_EOR |\
+					SCTP_SACK_IMMEDIATELY)) != 0)
 /* for the endpoint */
 
 /* The lower byte is an enumeration of PR-SCTP policies */
@@ -346,6 +348,16 @@ struct sctp_authkey_event {
 
 /* indication values */
 #define SCTP_AUTH_NEWKEY	0x0001
+#define SCTP_AUTH_NO_AUTH	0x0002
+#define SCTP_AUTH_FREE_KEY	0x0003
+
+
+struct sctp_sender_dry_event {
+	uint16_t sender_dry_type;
+	uint16_t sender_dry_flags;
+	uint32_t sender_dry_length;
+	sctp_assoc_t sender_dry_assoc_id;
+};
 
 
 /*
@@ -386,6 +398,7 @@ union sctp_notification {
 	struct sctp_adaption_event sn_adaption_event;
 	struct sctp_pdapi_event sn_pdapi_event;
 	struct sctp_authkey_event sn_auth_event;
+	struct sctp_sender_dry_event sn_sender_dry_event;
 	struct sctp_stream_reset_event sn_strreset_event;
 };
 
@@ -401,7 +414,7 @@ union sctp_notification {
 #define SCTP_PARTIAL_DELIVERY_EVENT	0x0007
 #define SCTP_AUTHENTICATION_EVENT	0x0008
 #define SCTP_STREAM_RESET_EVENT		0x0009
-
+#define SCTP_SENDER_DRY_EVENT           0x000a
 
 /*
  * socket option structs
@@ -539,6 +552,7 @@ struct sctp_assoc_value {
 };
 
 struct sctp_assoc_ids {
+	uint32_t gaids_number_of_ids;
 	sctp_assoc_t gaids_assoc_id[0];
 };
 

@@ -162,6 +162,7 @@
 #define	ASI_ITLB_DATA_IN_REG			0x54
 #define	ASI_ITLB_DATA_ACCESS_REG		0x55
 #define	ASI_ITLB_TAG_READ_REG			0x56
+#define	ASI_IMMU_DEMAP				0x57
 #define	ASI_DMMU				0x58
 #define	ASI_DTLB_DATA_IN_REG			0x5c
 #define	ASI_DTLB_DATA_ACCESS_REG		0x5d

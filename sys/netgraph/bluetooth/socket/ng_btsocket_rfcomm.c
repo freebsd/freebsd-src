@@ -518,13 +518,9 @@ ng_btsocket_rfcomm_connect(struct socket *so, struct sockaddr *nam,
 		return (EDESTADDRREQ);
 
 	/*
-	 * XXX FIXME - This is FUBAR. socreate() will call soalloc(1), i.e.
-	 * soalloc() is allowed to sleep in MALLOC. This creates "could sleep"
-	 * WITNESS warnings. To work around this problem we will create L2CAP
-	 * socket first and then check if we actually need it. Note that we 
-	 * will not check for errors in socreate() because if we failed to 
-	 * create L2CAP socket at this point we still might have already open
-	 * session.
+	 * Note that we will not check for errors in socreate() because
+	 * if we failed to create L2CAP socket at this point we still
+	 * might have already open session.
 	 */
 
 	error = socreate(PF_BLUETOOTH, &l2so, SOCK_SEQPACKET,
@@ -857,13 +853,9 @@ ng_btsocket_rfcomm_listen(struct socket *so, int backlog, struct thread *td)
 	mtx_unlock(&pcb->pcb_mtx);
 
 	/*
-	 * XXX FIXME - This is FUBAR. socreate() will call soalloc(1), i.e.
-	 * soalloc() is allowed to sleep in MALLOC. This creates "could sleep"
-	 * WITNESS warnings. To work around this problem we will create L2CAP
-	 * socket first and then check if we actually need it. Note that we 
-	 * will not check for errors in socreate() because if we failed to 
-	 * create L2CAP socket at this point we still might have already open
-	 * session.
+	 * Note that we will not check for errors in socreate() because
+	 * if we failed to create L2CAP socket at this point we still
+	 * might have already open session.
 	 */
 
 	socreate_error = socreate(PF_BLUETOOTH, &l2so, SOCK_SEQPACKET,

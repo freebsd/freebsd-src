@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -356,6 +356,8 @@ struct sctp_tmit_chunk {
 	uint16_t send_size;
 	uint16_t book_size;
 	uint16_t mbcnt;
+	uint16_t auth_keyid;
+	uint8_t holds_key_ref;	/* flag if auth keyid refcount is held */
 	uint8_t pad_inplace;
 	uint8_t do_rtt;
 	uint8_t book_size_scale;
@@ -435,6 +437,8 @@ struct sctp_stream_queue_pending {
 	uint16_t stream;
 	uint16_t strseq;
 	uint16_t act_flags;
+	uint16_t auth_keyid;
+	uint8_t holds_key_ref;
 	uint8_t msg_is_complete;
 	uint8_t some_taken;
 	uint8_t addr_over;
@@ -472,6 +476,8 @@ struct sctp_asconf_addr {
 	struct sctp_asconf_addr_param ap;
 	struct sctp_ifa *ifa;	/* save the ifa for add/del ip */
 	uint8_t sent;		/* has this been sent yet? */
+	uint8_t special_del;	/* not to be used in lookup */
+
 };
 
 struct sctp_scoping {
@@ -763,6 +769,12 @@ struct sctp_association {
 	 */
 	uint32_t highest_tsn_inside_map;
 
+	/* EY - new NR variables used for nr_sack based on mapping_array */
+	uint8_t *nr_mapping_array;
+	uint32_t nr_mapping_array_base_tsn;
+	uint32_t highest_tsn_inside_nr_map;
+	uint16_t nr_mapping_array_size;
+
 	uint32_t last_echo_tsn;
 	uint32_t last_cwr_tsn;
 	uint32_t fast_recovery_tsn;
@@ -992,6 +1004,8 @@ struct sctp_association {
 
 	/* flag to indicate if peer can do asconf */
 	uint8_t peer_supports_asconf;
+	/* EY - flag to indicate if peer can do nr_sack */
+	uint8_t peer_supports_nr_sack;
 	/* pr-sctp support flag */
 	uint8_t peer_supports_prsctp;
 	/* peer authentication support flag */
@@ -999,6 +1013,7 @@ struct sctp_association {
 	/* stream resets are supported by the peer */
 	uint8_t peer_supports_strreset;
 
+	uint8_t peer_supports_nat;
 	/*
 	 * packet drop's are supported by the peer, we don't really care
 	 * about this but we bookkeep it anyway.
@@ -1028,7 +1043,9 @@ struct sctp_association {
 	uint8_t delayed_connection;
 	uint8_t ifp_had_enobuf;
 	uint8_t saw_sack_with_frags;
-	uint8_t in_restart_hash;
+	/* EY */
+	uint8_t saw_sack_with_nr_frags;
+	uint8_t in_asocid_hash;
 	uint8_t assoc_up_sent;
 	uint8_t adaptation_needed;
 	uint8_t adaptation_sent;
@@ -1037,6 +1054,8 @@ struct sctp_association {
 	uint8_t sctp_cmt_on_off;
 	uint8_t iam_blocking;
 	uint8_t cookie_how[8];
+	/* EY 05/05/08 - NR_SACK variable */
+	uint8_t sctp_nr_sack_on_off;
 	/* JRS 5/21/07 - CMT PF variable */
 	uint8_t sctp_cmt_pf;
 	/*

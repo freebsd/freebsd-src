@@ -74,6 +74,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -429,6 +431,13 @@ RetryFault:;
 			 */
 			fs.m = NULL;
 			if (!vm_page_count_severe()) {
+#if VM_NRESERVLEVEL > 0
+				if ((fs.object->flags & OBJ_COLORED) == 0) {
+					fs.object->flags |= OBJ_COLORED;
+					fs.object->pg_color = atop(vaddr) -
+					    fs.pindex;
+				}
+#endif
 				fs.m = vm_page_alloc(fs.object, fs.pindex,
 				    (fs.vp || fs.object->backing_object)? VM_ALLOC_NORMAL: VM_ALLOC_ZERO);
 			}
@@ -475,7 +484,8 @@ readrest:
 			      fs.pindex < fs.entry->lastr + VM_FAULT_READ)) &&
 			    (fs.first_object == fs.object ||
 			     (is_first_object_locked = VM_OBJECT_TRYLOCK(fs.first_object))) &&
-			    fs.first_object->type != OBJT_DEVICE) {
+			    fs.first_object->type != OBJT_DEVICE &&
+			    fs.first_object->type != OBJT_PHYS) {
 				vm_pindex_t firstpindex, tmppindex;
 
 				if (fs.first_pindex < 2 * VM_FAULT_READ)
@@ -499,7 +509,6 @@ readrest:
 						break;
 					if (mt->busy ||
 					    (mt->oflags & VPO_BUSY) ||
-					    (mt->flags & (PG_FICTITIOUS | PG_UNMANAGED)) ||
 						mt->hold_count ||
 						mt->wire_count) 
 						continue;
@@ -879,7 +888,7 @@ readrest:
 	 * back on the active queue until later so that the pageout daemon
 	 * won't find it (yet).
 	 */
-	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, wired);
+	pmap_enter(fs.map->pmap, vaddr, fault_type, fs.m, prot, wired);
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
@@ -1107,6 +1116,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	 */
 	dst_object = vm_object_allocate(OBJT_DEFAULT,
 	    OFF_TO_IDX(dst_entry->end - dst_entry->start));
+#if VM_NRESERVLEVEL > 0
+	dst_object->flags |= OBJ_COLORED;
+	dst_object->pg_color = atop(dst_entry->start);
+#endif
 
 	VM_OBJECT_LOCK(dst_object);
 	dst_entry->object.vm_object = dst_object;
@@ -1164,9 +1177,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		VM_OBJECT_UNLOCK(dst_object);
 
 		/*
-		 * Enter it in the pmap...
+		 * Enter it in the pmap as a read and/or execute access.
 		 */
-		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
+		pmap_enter(dst_map->pmap, vaddr, prot & ~VM_PROT_WRITE, dst_m,
+		    prot, FALSE);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.

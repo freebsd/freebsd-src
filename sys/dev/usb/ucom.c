@@ -176,6 +176,10 @@ ucom_attach_tty(struct ucom_softc *sc, int flags, char* fmt, int unit)
 	tp->t_modem = ucommodem;
 	tp->t_ioctl = ucomioctl;
 
+	/* Leave the settings of this level to the drivers if needed. */
+	tp->t_ispeedwat = (speed_t)-1;
+	tp->t_ospeedwat = (speed_t)-1;
+
 	return ttycreate(tp, flags, fmt, unit);
 }
 
@@ -505,7 +509,7 @@ ucomparam(struct tty *tp, struct termios *t)
 		return (0);
 
 	/* And copy to tty. */
-	tp->t_ispeed = 0;
+	tp->t_ispeed = t->c_ospeed;
 	tp->t_ospeed = t->c_ospeed;
 	tp->t_cflag = t->c_cflag;
 
@@ -810,7 +814,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			ucomstart(tp);
 		}
 		if (lostcc > 0)
-			printf("%s: lost %d chars\n", device_get_nameunit(sc->sc_dev),
+			printf("%s: lost %d chars (t_rawq)\n", device_get_nameunit(sc->sc_dev),
 			       lostcc);
 	} else {
 		/* Give characters to tty layer. */
@@ -818,7 +822,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
 			if (ttyld_rint(tp, *cp) == -1) {
 				/* XXX what should we do? */
-				printf("%s: lost %d chars\n",
+				printf("%s: lost %d chars (ttyld_rint)\n",
 				       device_get_nameunit(sc->sc_dev), cc);
 				break;
 			}

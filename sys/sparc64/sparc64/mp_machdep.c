@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/asi.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
@@ -90,6 +91,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/tte.h>
 #include <machine/ver.h>
+
+#define	SUNW_STARTCPU		"SUNW,start-cpu"
+#define	SUNW_STOPSELF		"SUNW,stop-self"
 
 static ih_func_t cpu_ipi_ast;
 static ih_func_t cpu_ipi_preempt;
@@ -101,7 +105,7 @@ static ih_func_t cpu_ipi_stop;
  * since the other processors will use it before the boot CPU enters the
  * kernel.
  */
-struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0 };
+struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0, 0 };
 struct	ipi_cache_args ipi_cache_args;
 struct	ipi_tlb_args ipi_tlb_args;
 struct	pcb stoppcbs[MAXCPU];
@@ -118,7 +122,6 @@ static volatile u_int shutdown_cpus;
 static void cpu_mp_unleash(void *v);
 static void spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
 static void sun4u_startcpu(phandle_t cpu, void *func, u_long arg);
-static void sun4u_stopself(void);
 
 static cpu_ipi_selected_t cheetah_ipi_selected;
 static cpu_ipi_selected_t spitfire_ipi_selected;
@@ -202,7 +205,7 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 		cell_t	func;
 		cell_t	arg;
 	} args = {
-		(cell_t)"SUNW,start-cpu",
+		(cell_t)SUNW_STARTCPU,
 		3,
 	};
 
@@ -210,24 +213,6 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 	args.func = (cell_t)func;
 	args.arg = (cell_t)arg;
 	openfirmware(&args);
-}
-
-/*
- * Stop the calling CPU.
- */
-static void
-sun4u_stopself(void)
-{
-	static struct {
-		cell_t	name;
-		cell_t	nargs;
-		cell_t	nreturns;
-	} args = {
-		(cell_t)"SUNW,stop-self",
-	};
-
-	openfirmware_exit(&args);
-	panic("%s: failed.", __func__);
 }
 
 /*
@@ -270,17 +255,25 @@ cpu_mp_start(void)
 		if (OF_getprop(child, "clock-frequency", &clock,
 		    sizeof(clock)) <= 0)
 			panic("%s: can't get clock", __func__);
+		if (clock != PCPU_GET(clock))
+			hardclock_use_stick = 1;
 
 		csa->csa_state = 0;
 		sun4u_startcpu(child, (void *)mp_tramp, 0);
 		s = intr_disable();
-		while (csa->csa_state != CPU_CLKSYNC)
+		while (csa->csa_state != CPU_TICKSYNC)
 			;
 		membar(StoreLoad);
 		csa->csa_tick = rd(tick);
+		if (cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
+			while (csa->csa_state != CPU_STICKSYNC)
+				;
+			membar(StoreLoad);
+			csa->csa_stick = rdstick();
+		}
 		while (csa->csa_state != CPU_INIT)
 			;
-		csa->csa_tick = 0;
+		csa->csa_tick = csa->csa_stick = 0;
 		intr_restore(s);
 
 		cpuid = mp_ncpus++;
@@ -291,8 +284,11 @@ cpu_mp_start(void)
 		pc = (struct pcpu *)(va + (PCPU_PAGES * PAGE_SIZE)) - 1;
 		pcpu_init(pc, cpuid, sizeof(*pc));
 		pc->pc_addr = va;
+		pc->pc_clock = clock;
 		pc->pc_mid = mid;
 		pc->pc_node = child;
+
+		cache_init(pc);
 
 		all_cpus |= 1 << cpuid;
 		intr_add_cpu(cpuid);
@@ -367,6 +363,9 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+		cheetah_init();
+	cache_enable();
 	pmap_map_tsb();
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
@@ -407,8 +406,6 @@ cpu_mp_shutdown(void)
 			break;
 		}
 	}
-	/* XXX: delay a bit to allow the CPUs to actually enter the PROM. */
-	DELAY(100000);
 	critical_exit();
 }
 
@@ -428,7 +425,9 @@ cpu_ipi_stop(struct trapframe *tf)
 	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
 		if ((shutdown_cpus & PCPU_GET(cpumask)) != 0) {
 			atomic_clear_int(&shutdown_cpus, PCPU_GET(cpumask));
-			sun4u_stopself();
+			(void)intr_disable();
+			for (;;)
+				;
 		}
 	}
 	atomic_clear_rel_int(&started_cpus, PCPU_GET(cpumask));
@@ -504,15 +503,12 @@ spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		 */
 		DELAY(2);
 	}
-	if (
-#ifdef KDB
-	    kdb_active ||
-#endif
-	    panicstr != NULL)
+	if (kdb_active != 0 || panicstr != NULL)
 		printf("%s: couldn't send IPI to module 0x%u\n",
 		    __func__, mid);
 	else
-		panic("%s: couldn't send IPI", __func__);
+		panic("%s: couldn't send IPI to module 0x%u",
+		    __func__, mid);
 }
 
 static void
@@ -566,40 +562,23 @@ cheetah_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
 			}
 		}
 		/*
+		 * On at least Fire V880 we may receive IDR_NACKs for
+		 * CPUs we actually haven't tried to send an IPI to,
+		 * but which apparently can be safely ignored.
+		 */
+		if (cpus == 0)
+			return;
+		/*
 		 * Leave interrupts enabled for a bit before retrying
 		 * in order to avoid deadlocks if the other CPUs are
 		 * also trying to send IPIs.
 		 */
-		DELAY(2 * bnp);
+		DELAY(2 * mp_ncpus);
 	}
-	if (
-#ifdef KDB
-	    kdb_active ||
-#endif
-	    panicstr != NULL)
+	if (kdb_active != 0 || panicstr != NULL)
 		printf("%s: couldn't send IPI (cpus=0x%u ids=0x%lu)\n",
 		    __func__, cpus, ids);
 	else
-		panic("%s: couldn't send IPI", __func__);
-}
-
-void
-ipi_selected(u_int cpus, u_int ipi)
-{
-
-	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
-}
-
-void
-ipi_all(u_int ipi)
-{
-
-	panic("%s", __func__);
-}
-
-void
-ipi_all_but_self(u_int ipi)
-{
-
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)tl_ipi_level, ipi);
+		panic("%s: couldn't send IPI (cpus=0x%u ids=0x%lu)",
+		    __func__, cpus, ids);
 }

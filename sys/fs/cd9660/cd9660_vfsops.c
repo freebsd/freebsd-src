@@ -154,14 +154,14 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(&ndp)))
 		return (error);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	devvp = ndp.ni_vp;
 
 	if (!vn_isdisk(devvp, &error)) {
-		vrele(devvp);
+		vput(devvp);
 		return (error);
 	}
 
@@ -170,7 +170,6 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	 * or has superuser abilities
 	 */
 	accessmode = VREAD;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
@@ -178,22 +177,20 @@ cd9660_mount(struct mount *mp, struct thread *td)
 		vput(devvp);
 		return (error);
 	}
-	VOP_UNLOCK(devvp, 0, td);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		error = iso_mountfs(devvp, mp, td);
+		if (error)
+			vrele(devvp);
 	} else {
 		if (devvp != imp->im_devvp)
 			error = EINVAL;	/* needs translation */
-		else
-			vrele(devvp);
+		vput(devvp);
 	}
-	if (error) {
-		vrele(devvp);
-		return error;
-	}
+	if (error)
+		return (error);
 	vfs_mountedfrom(mp, fspec);
-	return 0;
+	return (0);
 }
 
 /*
@@ -208,7 +205,7 @@ iso_mountfs(devvp, mp, td)
 	struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
 	struct buf *pribp = NULL, *supbp = NULL;
-	struct cdev *dev = devvp->v_rdev;
+	struct cdev *dev;
 	int error = EINVAL;
 	int high_sierra = 0;
 	int iso_bsize;
@@ -224,7 +221,8 @@ iso_mountfs(devvp, mp, td)
 	struct bufobj *bo;
 	char *cs_local, *cs_disk;
 
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	dev = devvp->v_rdev;
+	dev_ref(dev);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);
@@ -232,27 +230,21 @@ iso_mountfs(devvp, mp, td)
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
-		return error;
+		goto out;
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
 
 	bo = &devvp->v_bufobj;
-	bo->bo_private = cp;
-	bo->bo_ops = g_vfs_bufops;
 
 	/* This is the "logical sector size".  The standard says this
 	 * should be 2048 or the physical sector size on the device,
 	 * whichever is greater.
 	 */
 	if ((ISO_DEFAULT_BLOCK_SIZE % cp->provider->sectorsize) != 0) {
-		DROP_GIANT();
-		g_topology_lock();
-		g_vfs_close(cp, td);
-		g_topology_unlock();
-                PICKUP_GIANT();
-		return (EINVAL);
+		error = EINVAL;
+		goto out;
 	}
 
 	iso_bsize = cp->provider->sectorsize;
@@ -381,6 +373,7 @@ iso_mountfs(devvp, mp, td)
 	mp->mnt_maxsymlinklen = 0;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED;
 	MNT_IUNLOCK(mp);
 	isomp->im_mountp = mp;
 	isomp->im_dev = dev;
@@ -490,6 +483,7 @@ out:
 		free((caddr_t)isomp, M_ISOFSMNT);
 		mp->mnt_data = (qaddr_t)0;
 	}
+	dev_rel(dev);
 	return error;
 }
 
@@ -529,6 +523,7 @@ cd9660_unmount(mp, mntflags, td)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(isomp->im_devvp);
+	dev_rel(isomp->im_dev);
 	free((caddr_t)isomp, M_ISOFSMNT);
 	mp->mnt_data = (qaddr_t)0;
 	MNT_ILOCK(mp);
@@ -556,7 +551,7 @@ cd9660_root(mp, flags, vpp, td)
 	 * With RRIP we must use the `.' entry of the root directory.
 	 * Simply tell vget, that it's a relocated directory.
 	 */
-	return (cd9660_vget_internal(mp, ino, LK_EXCLUSIVE, vpp,
+	return (cd9660_vget_internal(mp, ino, flags, vpp,
 	    imp->iso_ftype == ISO_FTYPE_RRIP, dp));
 }
 
@@ -670,6 +665,22 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	if (error || *vpp != NULL)
 		return (error);
 
+	/*
+	 * We must promote to an exclusive lock for vnode creation.  This
+	 * can happen if lookup is passed LOCKSHARED.
+ 	 */
+	if ((flags & LK_TYPE_MASK) == LK_SHARED) {
+		flags &= ~LK_TYPE_MASK;
+		flags |= LK_EXCLUSIVE;
+	}
+
+	/*
+	 * We do not lock vnode creation as it is believed to be too
+	 * expensive for such rare case as simultaneous creation of vnode
+	 * for same ino by different processes. We just allow them to race
+	 * and check later to decide who wins. Let the race begin!
+	 */
+
 	imp = VFSTOISOFS(mp);
 	dev = imp->im_dev;
 
@@ -750,7 +761,6 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		bp = 0;
 
 	ip->i_mnt = imp;
-	VREF(imp->im_devvp);
 
 	if (relocated) {
 		/*
@@ -808,6 +818,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		vp->v_op = &cd9660_fifoops;
 		break;
 	default:
+		vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 		break;
 	}
 

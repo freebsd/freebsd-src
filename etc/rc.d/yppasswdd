@@ -6,6 +6,7 @@
 # PROVIDE: yppasswdd
 # REQUIRE: ypserv ypbind
 # BEFORE:  LOGIN
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 

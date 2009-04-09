@@ -44,7 +44,7 @@
 /*
  * Include the appropriate definition for the file attributes we support.
  * There are two different files: fattr_bsd.h for BSD-like systems that
- * support the extended file flags à la chflags() and fattr_posix.h for
+ * support the extended file flags a la chflags() and fattr_posix.h for
  * bare POSIX systems that don't.
  */
 #ifdef HAVE_FFLAGS
@@ -449,7 +449,7 @@ fattr_encode(const struct fattr *fa, fattr_support_t support, int ignore)
 		piece++;
 	}
 	if (mask & FA_DEV) {
-		vallen = snprintf(piece->val, sizeof(piece->val), "%lld",
+		vallen = snprintf(piece->val, sizeof(piece->val), "%llx",
 		    (long long)fa->dev);
 		len += snprintf(piece->len, sizeof(piece->len), "%lld",
 		    (long long)vallen) + vallen + 1;
@@ -532,6 +532,13 @@ fattr_getlinkcount(const struct fattr *fa)
 {
 
 	return (fa->linkcount);
+}
+
+char *
+fattr_getlinktarget(const struct fattr *fa)
+{
+
+	return (fa->linktarget);
 }
 
 /*
@@ -732,18 +739,28 @@ fattr_makenode(const struct fattr *fa, const char *path)
 	mode_t modemask, mode;
 	int error;
 
+	error = 0;
+
 	if (fa->mask & FA_OWNER && fa->mask & FA_GROUP)
 		modemask = FA_SETIDMASK | FA_PERMMASK;
 	else
 		modemask = FA_PERMMASK;
 
 	/* We only implement fattr_makenode() for dirs for now. */
-	assert(fa->type == FT_DIRECTORY);
 	if (fa->mask & FA_MODE)
 		mode = fa->mode & modemask;
 	else
 		mode = 0700;
-	error = mkdir(path, mode);
+
+	if (fa->type == FT_DIRECTORY)
+		error = mkdir(path, mode);
+	else if (fa->type == FT_SYMLINK) {
+		error = symlink(fa->linktarget, path);
+	} else if (fa->type == FT_CDEV) {
+		lprintf(-1, "Character devices not supported!\n");
+	} else if (fa->type == FT_BDEV) {
+		lprintf(-1, "Block devices not supported!\n");
+	}
 	return (error);
 }
 
@@ -823,6 +840,19 @@ fattr_install(struct fattr *fa, const char *topath, const char *frompath)
 		}
 #endif
 
+		/*
+		 * If it is changed from a file to a symlink, remove the file
+		 * and create the symlink.
+		 */
+		if (inplace && (fa->type == FT_SYMLINK) &&
+		    (old->type == FT_FILE)) {
+			error = unlink(topath);
+			if (error)
+				goto bad;
+			error = symlink(fa->linktarget, topath);
+			if (error)
+				goto bad;
+		}
 		/* Determine whether we need to remove the target first. */
 		if (!inplace && (fa->type == FT_DIRECTORY) !=
 		    (old->type == FT_DIRECTORY)) {
@@ -853,8 +883,9 @@ fattr_install(struct fattr *fa, const char *topath, const char *frompath)
 		if (mask & FA_GROUP)
 			gid = fa->gid;
 		error = chown(frompath, uid, gid);
-		if (error)
+		if (error) {
 			goto bad;
+		}
 	}
 	if (mask & FA_MODE) {
 		newmode = fa->mode & modemask;
@@ -901,6 +932,9 @@ fattr_equal(const struct fattr *fa1, const struct fattr *fa2)
 	mask = fa1->mask & fa2->mask;
 	if (fa1->type == FT_UNKNOWN || fa2->type == FT_UNKNOWN)
 		return (0);
+	if (mask & FA_FILETYPE)
+		if (fa1->type != fa2->type)
+			return (0);
 	if (mask & FA_MODTIME)
 		if (fa1->modtime != fa2->modtime)
 			return (0);
@@ -935,4 +969,13 @@ fattr_equal(const struct fattr *fa1, const struct fattr *fa2)
 		if (fa1->inode != fa2->inode)
 			return (0);
 	return (1);
+}
+
+/*
+ * Must have to get the correct filesize sendt by the server.
+ */
+off_t
+fattr_filesize(const struct fattr *fa)
+{
+	return (fa->size);
 }

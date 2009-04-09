@@ -949,7 +949,7 @@ alloc:
 	mac_init_vnode(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
 		mac_associate_vnode_singlelabel(mp, vp);
-	else if (mp == NULL)
+	else if (mp == NULL && vops != &dead_vnodeops)
 		printf("NULL mp in getnewvnode()\n");
 #endif
 	if (mp != NULL) {
@@ -1007,17 +1007,30 @@ int
 insmntque1(struct vnode *vp, struct mount *mp,
 	void (*dtr)(struct vnode *, void *), void *dtr_arg)
 {
+	int locked;
 
 	KASSERT(vp->v_mount == NULL,
 		("insmntque: vnode already on per mount vnode list"));
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
+#if 0
+#ifdef DEBUG_VFS_LOCKS
+	if (!VFS_NEEDSGIANT(mp))
+		ASSERT_VOP_ELOCKED(vp,
+		    "insmntque: mp-safe fs and non-locked vp");
+#endif
+#endif
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_NOINSMNTQ) != 0 &&
-	    mp->mnt_nvnodelistsize == 0) {
-		MNT_IUNLOCK(mp);
-		if (dtr != NULL)
-			dtr(vp, dtr_arg);
-		return (EBUSY);
+	    ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0 ||
+	     mp->mnt_nvnodelistsize == 0)) {
+		locked = VOP_ISLOCKED(vp, curthread);
+		if (!locked || (locked == LK_EXCLUSIVE &&
+		     (vp->v_vflag & VV_FORCEINSMQ) == 0)) {
+			MNT_IUNLOCK(mp);
+			if (dtr != NULL)
+				dtr(vp, dtr_arg);
+			return (EBUSY);
+		}
 	}
 	vp->v_mount = mp;
 	MNT_REF(mp);
@@ -1103,7 +1116,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL) {
+	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
@@ -2699,6 +2712,163 @@ DB_SHOW_COMMAND(vnode, db_show_vnode)
 	vp = (struct vnode *)addr;
 	vn_printf(vp, "vnode ");
 }
+
+/*
+ * Show details about the given mount point.
+ */
+DB_SHOW_COMMAND(mount, db_show_mount)
+{
+	struct mount *mp;
+	struct statfs *sp;
+	struct vnode *vp;
+	char buf[512];
+	u_int flags;
+
+	if (!have_addr) {
+		/* No address given, print short info about all mount points. */
+		TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+			db_printf("%p %s on %s (%s)\n", mp,
+			    mp->mnt_stat.f_mntfromname,
+			    mp->mnt_stat.f_mntonname,
+			    mp->mnt_stat.f_fstypename);
+			if (db_pager_quit)
+				break;
+		}
+		db_printf("\nMore info: show mount <addr>\n");
+		return;
+	}
+
+	mp = (struct mount *)addr;
+	db_printf("%p %s on %s (%s)\n", mp, mp->mnt_stat.f_mntfromname,
+	    mp->mnt_stat.f_mntonname, mp->mnt_stat.f_fstypename);
+
+	buf[0] = '\0';
+	flags = mp->mnt_flag;
+#define	MNT_FLAG(flag)	do {						\
+	if (flags & (flag)) {						\
+		if (buf[0] != '\0')					\
+			strlcat(buf, ", ", sizeof(buf));		\
+		strlcat(buf, (#flag) + 4, sizeof(buf));			\
+		flags &= ~(flag);					\
+	}								\
+} while (0)
+	MNT_FLAG(MNT_RDONLY);
+	MNT_FLAG(MNT_SYNCHRONOUS);
+	MNT_FLAG(MNT_NOEXEC);
+	MNT_FLAG(MNT_NOSUID);
+	MNT_FLAG(MNT_UNION);
+	MNT_FLAG(MNT_ASYNC);
+	MNT_FLAG(MNT_SUIDDIR);
+	MNT_FLAG(MNT_SOFTDEP);
+	MNT_FLAG(MNT_NOSYMFOLLOW);
+	MNT_FLAG(MNT_GJOURNAL);
+	MNT_FLAG(MNT_MULTILABEL);
+	MNT_FLAG(MNT_ACLS);
+	MNT_FLAG(MNT_NOATIME);
+	MNT_FLAG(MNT_NOCLUSTERR);
+	MNT_FLAG(MNT_NOCLUSTERW);
+	MNT_FLAG(MNT_EXRDONLY);
+	MNT_FLAG(MNT_EXPORTED);
+	MNT_FLAG(MNT_DEFEXPORTED);
+	MNT_FLAG(MNT_EXPORTANON);
+	MNT_FLAG(MNT_EXKERB);
+	MNT_FLAG(MNT_EXPUBLIC);
+	MNT_FLAG(MNT_LOCAL);
+	MNT_FLAG(MNT_QUOTA);
+	MNT_FLAG(MNT_ROOTFS);
+	MNT_FLAG(MNT_USER);
+	MNT_FLAG(MNT_IGNORE);
+	MNT_FLAG(MNT_UPDATE);
+	MNT_FLAG(MNT_DELEXPORT);
+	MNT_FLAG(MNT_RELOAD);
+	MNT_FLAG(MNT_FORCE);
+	MNT_FLAG(MNT_SNAPSHOT);
+	MNT_FLAG(MNT_BYFSID);
+#undef MNT_FLAG
+	if (flags != 0) {
+		if (buf[0] != '\0')
+			strlcat(buf, ", ", sizeof(buf));
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+		    "0x%08x", flags);
+	}
+	db_printf("    mnt_flag = %s\n", buf);
+
+	buf[0] = '\0';
+	flags = mp->mnt_kern_flag;
+#define	MNT_KERN_FLAG(flag)	do {					\
+	if (flags & (flag)) {						\
+		if (buf[0] != '\0')					\
+			strlcat(buf, ", ", sizeof(buf));		\
+		strlcat(buf, (#flag) + 5, sizeof(buf));			\
+		flags &= ~(flag);					\
+	}								\
+} while (0)
+	MNT_KERN_FLAG(MNTK_UNMOUNTF);
+	MNT_KERN_FLAG(MNTK_ASYNC);
+	MNT_KERN_FLAG(MNTK_SOFTDEP);
+	MNT_KERN_FLAG(MNTK_NOINSMNTQ);
+	MNT_KERN_FLAG(MNTK_UNMOUNT);
+	MNT_KERN_FLAG(MNTK_MWAIT);
+	MNT_KERN_FLAG(MNTK_SUSPEND);
+	MNT_KERN_FLAG(MNTK_SUSPEND2);
+	MNT_KERN_FLAG(MNTK_SUSPENDED);
+	MNT_KERN_FLAG(MNTK_MPSAFE);
+	MNT_KERN_FLAG(MNTK_NOKNOTE);
+	MNT_KERN_FLAG(MNTK_LOOKUP_SHARED);
+#undef MNT_KERN_FLAG
+	if (flags != 0) {
+		if (buf[0] != '\0')
+			strlcat(buf, ", ", sizeof(buf));
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+		    "0x%08x", flags);
+	}
+	db_printf("    mnt_kern_flag = %s\n", buf);
+
+	sp = &mp->mnt_stat;
+	db_printf("    mnt_stat = { version=%u type=%u flags=0x%016jx "
+	    "bsize=%ju iosize=%ju blocks=%ju bfree=%ju bavail=%jd files=%ju "
+	    "ffree=%jd syncwrites=%ju asyncwrites=%ju syncreads=%ju "
+	    "asyncreads=%ju namemax=%u owner=%u fsid=[%d, %d] }\n",
+	    (u_int)sp->f_version, (u_int)sp->f_type, (uintmax_t)sp->f_flags,
+	    (uintmax_t)sp->f_bsize, (uintmax_t)sp->f_iosize,
+	    (uintmax_t)sp->f_blocks, (uintmax_t)sp->f_bfree,
+	    (intmax_t)sp->f_bavail, (uintmax_t)sp->f_files,
+	    (intmax_t)sp->f_ffree, (uintmax_t)sp->f_syncwrites,
+	    (uintmax_t)sp->f_asyncwrites, (uintmax_t)sp->f_syncreads,
+	    (uintmax_t)sp->f_asyncreads, (u_int)sp->f_namemax,
+	    (u_int)sp->f_owner, (int)sp->f_fsid.val[0], (int)sp->f_fsid.val[1]);
+
+	db_printf("    mnt_cred = { uid=%u ruid=%u",
+	    (u_int)mp->mnt_cred->cr_uid, (u_int)mp->mnt_cred->cr_ruid);
+	if (mp->mnt_cred->cr_prison != NULL)
+		db_printf(", jail=%d", mp->mnt_cred->cr_prison->pr_id);
+	db_printf(" }\n");
+	db_printf("    mnt_ref = %d\n", mp->mnt_ref);
+	db_printf("    mnt_gen = %d\n", mp->mnt_gen);
+	db_printf("    mnt_nvnodelistsize = %d\n", mp->mnt_nvnodelistsize);
+	db_printf("    mnt_writeopcount = %d\n", mp->mnt_writeopcount);
+	db_printf("    mnt_noasync = %u\n", mp->mnt_noasync);
+	db_printf("    mnt_maxsymlinklen = %d\n", mp->mnt_maxsymlinklen);
+	db_printf("    mnt_iosize_max = %d\n", mp->mnt_iosize_max);
+	db_printf("    mnt_hashseed = %u\n", mp->mnt_hashseed);
+	db_printf("    mnt_markercnt = %d\n", mp->mnt_markercnt);
+	db_printf("    mnt_holdcnt = %d\n", mp->mnt_holdcnt);
+	db_printf("    mnt_holdcntwaiters = %d\n", mp->mnt_holdcntwaiters);
+	db_printf("    mnt_secondary_writes = %d\n", mp->mnt_secondary_writes);
+	db_printf("    mnt_secondary_accwrites = %d\n",
+	    mp->mnt_secondary_accwrites);
+	db_printf("    mnt_gjprovider = %s\n",
+	    mp->mnt_gjprovider != NULL ? mp->mnt_gjprovider : "NULL");
+	db_printf("\n");
+
+	TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
+		if (vp->v_type != VMARKER) {
+			vn_printf(vp, "vnode ");
+			if (db_pager_quit)
+				break;
+		}
+	}
+}
 #endif	/* DDB */
 
 /*
@@ -3140,9 +3310,13 @@ vfs_allocate_syncvnode(struct mount *mp)
 		return (error);
 	}
 	vp->v_type = VNON;
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);
 	if (error != 0)
 		panic("vfs_allocate_syncvnode: insmntque failed");
+	vp->v_vflag &= ~VV_FORCEINSMQ;
+	VOP_UNLOCK(vp, 0, curthread);
 	/*
 	 * Place the vnode onto the syncer worklist. We attempt to
 	 * scatter them about on the list so that they will go off

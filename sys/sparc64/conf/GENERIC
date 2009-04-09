@@ -95,9 +95,8 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
-#device		mpt		# LSI-Logic MPT-Fusion
-#device		ncr		# NCR/Symbios Logic
-device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
+device		mpt		# LSI-Logic MPT-Fusion
+device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 device		esp		# NCR53c9x (FEPS/FAS366)
 
 # SCSI peripherals
@@ -156,7 +155,7 @@ device		uart		# Multi-uart driver
 device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
 #device		ixgb		# Intel PRO/10GbE Ethernet Card
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
-#device		txp		# 3Com 3cR990 (``Typhoon'')
+device		txp		# 3Com 3cR990 (``Typhoon'')
 #device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
@@ -192,6 +191,7 @@ device		wlan_scan_ap	# 802.11 AP mode scanning
 device		wlan_scan_sta	# 802.11 STA mode scanning
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# Atheros HAL (Hardware Access Layer)
+options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
 # Pseudo devices.

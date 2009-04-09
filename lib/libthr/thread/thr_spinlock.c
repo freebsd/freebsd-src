@@ -63,16 +63,16 @@ static void	init_spinlock(spinlock_t *lck);
 void
 _spinunlock(spinlock_t *lck)
 {
-	struct spinlock_extra	*extra;
+	struct spinlock_extra	*_extra;
 
-	extra = (struct spinlock_extra *)lck->fname;
-	THR_UMUTEX_UNLOCK(_get_curthread(), &extra->lock);
+	_extra = (struct spinlock_extra *)lck->fname;
+	THR_UMUTEX_UNLOCK(_get_curthread(), &_extra->lock);
 }
 
 void
 _spinlock(spinlock_t *lck)
 {
-	struct spinlock_extra *extra;
+	struct spinlock_extra *_extra;
 
 	if (!__isthreaded)
 		PANIC("Spinlock called when not threaded.");
@@ -80,8 +80,8 @@ _spinlock(spinlock_t *lck)
 		PANIC("Spinlocks not initialized.");
 	if (lck->fname == NULL)
 		init_spinlock(lck);
-	extra = (struct spinlock_extra *)lck->fname;
-	THR_UMUTEX_LOCK(_get_curthread(), &extra->lock);
+	_extra = (struct spinlock_extra *)lck->fname;
+	THR_UMUTEX_LOCK(_get_curthread(), &_extra->lock);
 }
 
 void

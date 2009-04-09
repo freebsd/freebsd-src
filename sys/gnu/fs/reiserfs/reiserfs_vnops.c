@@ -350,8 +350,13 @@ reiserfs_strategy(struct vop_strategy_args /* {
 		bp->b_ioflags |= BIO_ERROR;
 	}
 
+	if (error) {
+		bp->b_ioflags |= BIO_ERROR;
+		bp->b_error = error;
+	}
+
 	bufdone(bp);
-	return (error);
+	return (0);
 }
 
 /*

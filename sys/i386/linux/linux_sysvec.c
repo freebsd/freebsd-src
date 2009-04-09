@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
@@ -85,9 +86,6 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
  */
 #define	LINUX_SYS_linux_rt_sendsig	0
 #define	LINUX_SYS_linux_sendsig		0
-
-#define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
-#define	__LINUX_NPXCW__		0x37f
 
 extern char linux_sigcode[];
 extern int linux_szsigcode;
@@ -800,16 +798,15 @@ static void
 exec_linux_setregs(struct thread *td, u_long entry,
 		   u_long stack, u_long ps_strings)
 {
-	static const u_short control = __LINUX_NPXCW__;
 	struct pcb *pcb = td->td_pcb;
 
 	exec_setregs(td, entry, stack, ps_strings);
 
 	/* Linux sets %gs to 0, we default to _udatasel */
-	pcb->pcb_gs = 0; load_gs(0);
+	pcb->pcb_gs = 0;
+	load_gs(0);
 
-	/* Linux sets the i387 to extended precision. */
-	fldcw(&control);
+	pcb->pcb_initial_npxcw = __LINUX_NPXCW__;
 }
 
 struct sysentvec linux_sysvec = {
@@ -872,6 +869,16 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_maxssiz	= NULL
 };
 
+static char GNULINUX_ABI_VENDOR[] = "GNU";
+
+static Elf_Brandnote linux_brandnote = {
+	.hdr.n_namesz	= sizeof(GNULINUX_ABI_VENDOR),
+	.hdr.n_descsz	= 16,
+	.hdr.n_type	= 1,
+	.vendor		= GNULINUX_ABI_VENDOR,
+	.flags		= 0
+};
+
 static Elf32_Brandinfo linux_brand = {
 	.brand		= ELFOSABI_LINUX,
 	.machine	= EM_386,
@@ -880,7 +887,8 @@ static Elf32_Brandinfo linux_brand = {
 	.interp_path	= "/lib/ld-linux.so.1",
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &linux_brandnote,
+	.flags		= BI_CAN_EXEC_DYN
 };
 
 static Elf32_Brandinfo linux_glibc2brand = {
@@ -891,7 +899,8 @@ static Elf32_Brandinfo linux_glibc2brand = {
 	.interp_path	= "/lib/ld-linux.so.2",
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &linux_brandnote,
+	.flags		= BI_CAN_EXEC_DYN
 };
 
 Elf32_Brandinfo *linux_brandlist[] = {

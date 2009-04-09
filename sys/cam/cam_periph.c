@@ -171,6 +171,10 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 			break;
 	}
 	xpt_unlock_buses();
+	if (*p_drv == NULL) {
+		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
+		return (CAM_REQ_INVALID);
+	}
 
 	sim = xpt_path_sim(path);
 	path_id = xpt_path_path_id(path);
@@ -290,7 +294,7 @@ cam_periph_acquire(struct cam_periph *periph)
 }
 
 void
-cam_periph_release(struct cam_periph *periph)
+cam_periph_release_locked(struct cam_periph *periph)
 {
 
 	if (periph == NULL)
@@ -302,7 +306,21 @@ cam_periph_release(struct cam_periph *periph)
 		camperiphfree(periph);
 	}
 	xpt_unlock_buses();
+}
 
+void
+cam_periph_release(struct cam_periph *periph)
+{
+	struct cam_sim *sim;
+
+	if (periph == NULL)
+		return;
+	
+	sim = periph->sim;
+	mtx_assert(sim->mtx, MA_NOTOWNED);
+	mtx_lock(sim->mtx);
+	cam_periph_release_locked(periph);
+	mtx_unlock(sim->mtx);
 }
 
 int
@@ -310,8 +328,6 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 {
 	struct mtx *mtx;
 	int error;
-
-	mtx_assert(periph->sim->mtx, MA_OWNED);
 
 	/*
 	 * Increment the reference count on the peripheral
@@ -324,13 +340,14 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 		return (ENXIO);
 
 	mtx = periph->sim->mtx;
+	mtx_assert(mtx, MA_OWNED);
 	if (mtx == &Giant)
 		mtx = NULL;
 
 	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
 		periph->flags |= CAM_PERIPH_LOCK_WANTED;
 		if ((error = msleep(periph, mtx, priority, "caplck", 0)) != 0) {
-			cam_periph_release(periph);
+			cam_periph_release_locked(periph);
 			return (error);
 		}
 	}
@@ -351,7 +368,7 @@ cam_periph_unhold(struct cam_periph *periph)
 		wakeup(periph);
 	}
 
-	cam_periph_release(periph);
+	cam_periph_release_locked(periph);
 }
 
 /*
@@ -1615,7 +1632,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 		} else {
-			action_string = "Retries Exausted";
+			action_string = "Retries Exhausted";
 			error = EIO;
 		}
 		break;

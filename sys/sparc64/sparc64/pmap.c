@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/tte.h>
 #include <machine/tsb.h>
+#include <machine/ver.h>
 
 #define	PMAP_DEBUG
 
@@ -333,12 +334,22 @@ pmap_bootstrap(vm_offset_t ekva)
 
 	/*
 	 * Calculate the size of kernel virtual memory, and the size and mask
-	 * for the kernel TSB.
+	 * for the kernel TSB based on the phsyical memory size but limited
+	 * by letting the kernel TSB take up no more than half of the dTLB
+	 * slots available for locked entries.
 	 */
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
+	virtsz = MIN(virtsz,
+	    (dtlb_slots / 2 * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT));
 	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
 	tsb_kernel_size = virtsz >> (PAGE_SHIFT - TTE_SHIFT);
 	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
+
+	if (kernel_tlb_slots + PCPU_PAGES + tsb_kernel_size / PAGE_SIZE_4M +
+	    1 /* PROM page */ + 1 /* spare */ > dtlb_slots)
+		panic("pmap_bootstrap: insufficient dTLB entries");
+	if (kernel_tlb_slots + 1 /* PROM page */ + 1 /* spare */ > itlb_slots)
+		panic("pmap_bootstrap: insufficient iTLB entries");
 
 	/*
 	 * Allocate the kernel TSB and lock it in the TLB.
@@ -473,6 +484,8 @@ pmap_bootstrap(vm_offset_t ekva)
 		    "translation: start=%#lx size=%#lx tte=%#lx",
 		    translations[i].om_start, translations[i].om_size,
 		    translations[i].om_tte);
+		if ((translations[i].om_tte & TD_V) == 0)
+			continue;
 		if (translations[i].om_start < VM_MIN_PROM_ADDRESS ||
 		    translations[i].om_start > VM_MAX_PROM_ADDRESS)
 			continue;
@@ -483,7 +496,11 @@ pmap_bootstrap(vm_offset_t ekva)
 			tp->tte_vpn = TV_VPN(va, TS_8K);
 			tp->tte_data =
 			    ((translations[i].om_tte &
-			      ~(TD_SOFT_MASK << TD_SOFT_SHIFT)) | TD_EXEC) +
+			    ~((TD_SOFT2_MASK << TD_SOFT2_SHIFT) |
+			    (cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+			    (TD_DIAG_SF_MASK << TD_DIAG_SF_SHIFT) :
+			    (TD_RSVD_CH_MASK << TD_RSVD_CH_SHIFT)) |
+			    (TD_SOFT_MASK << TD_SOFT_SHIFT))) | TD_EXEC) +
 			    off;
 		}
 	}
@@ -538,7 +555,6 @@ pmap_map_tsb(void)
 		pa = tsb_kernel_phys + i;
 		data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP | TD_CV |
 		    TD_P | TD_W;
-		/* XXX - cheetah */
 		stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) |
 		    TLB_TAR_CTX(TLB_CTX_KERNEL));
 		stxa_sync(0, ASI_DTLB_DATA_IN_REG, data);
@@ -548,8 +564,9 @@ pmap_map_tsb(void)
 	 * Set the secondary context to be the kernel context (needed for
 	 * FP block operations in the kernel).
 	 */
-	stxa(AA_DMMU_SCXR, ASI_DMMU, TLB_CTX_KERNEL);
-	membar(Sync);
+	stxa(AA_DMMU_SCXR, ASI_DMMU, (ldxa(AA_DMMU_SCXR, ASI_DMMU) &
+	    TLB_SCXR_PGSZ_MASK) | TLB_CTX_KERNEL);
+	flush(KERNBASE);
 
 	intr_restore(s);
 }
@@ -603,6 +620,8 @@ pmap_init(void)
 	for (i = 0; i < translations_size; i++) {
 		addr = translations[i].om_start;
 		size = translations[i].om_size;
+		if ((translations[i].om_tte & TD_V) == 0)
+			continue;
 		if (addr < VM_MIN_PROM_ADDRESS || addr > VM_MAX_PROM_ADDRESS)
 			continue;
 		result = vm_map_find(kernel_map, NULL, 0, &addr, size, FALSE,
@@ -1280,8 +1299,8 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  * will be wired down.
  */
 void
-pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-	   boolean_t wired)
+pmap_enter(pmap_t pm, vm_offset_t va, vm_prot_t access, vm_page_t m,
+    vm_prot_t prot, boolean_t wired)
 {
 
 	vm_page_lock_queues();
@@ -1951,8 +1970,9 @@ pmap_activate(struct thread *td)
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
-	stxa(AA_DMMU_PCXR, ASI_DMMU, context);
-	membar(Sync);
+	stxa(AA_DMMU_PCXR, ASI_DMMU, (ldxa(AA_DMMU_PCXR, ASI_DMMU) &
+	    TLB_PCXR_PGSZ_MASK) | context);
+	flush(KERNBASE);
 
 	mtx_unlock_spin(&sched_lock);
 }
@@ -1962,4 +1982,14 @@ pmap_addr_hint(vm_object_t object, vm_offset_t va, vm_size_t size)
 {
 
 	return (va);
+}
+
+/*
+ *	Increase the starting virtual address of the given mapping if a
+ *	different alignment might result in more superpage mappings.
+ */
+void
+pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
+    vm_offset_t *addr, vm_size_t size)
+{
 }

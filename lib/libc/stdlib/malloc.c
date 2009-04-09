@@ -4693,6 +4693,17 @@ malloc_usable_size(const void *ptr)
 /*
  * End non-standard functions.
  */
+
+/*
+ * We provide an unpublished interface in order to receive notifications from
+ * the pthreads library whenever a thread exits.  This allows us to clean up
+ * thread caches.
+ */
+void
+_malloc_thread_cleanup(void)
+{
+}
+
 /******************************************************************************/
 /*
  * Begin library-private functions, used by threading libraries for protection

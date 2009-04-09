@@ -249,6 +249,12 @@ Invokes the disk partition (MBR) editor.
 .Bl -tag -width findx
 .It geometry
 The disk geometry, as a cyls/heads/sectors formatted string.
+The word "sane" instructs
+.Nm
+to calculate a safe (not necessarily optimal) geometry if the
+current one has more than 65535 cylinders, more than 256 heads or
+more than 63 sectors per track (255 sectors on the PC98
+architecture).
 Default: no
 change to geometry.
 .It partition

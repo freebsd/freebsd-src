@@ -39,6 +39,7 @@ struct pmap;
 	int		pc_inside_intr;					\
 	struct pmap	*pc_curpmap;		/* current pmap */	\
         struct thread   *pc_fputhread;          /* current fpu user */  \
+	struct thread	*pc_vecthread;		/* current vec user */  \
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\
 	register_t	pc_dbsave[CPUSAVE_LEN];

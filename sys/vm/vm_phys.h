@@ -38,6 +38,8 @@
 #ifndef	_VM_PHYS_H_
 #define	_VM_PHYS_H_
 
+#ifdef _KERNEL
+
 void vm_phys_add_page(vm_paddr_t pa);
 vm_page_t vm_phys_alloc_contig(unsigned long npages,
     vm_paddr_t low, vm_paddr_t high,
@@ -47,7 +49,8 @@ vm_paddr_t vm_phys_bootstrap_alloc(vm_size_t size, unsigned long alignment);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
 void vm_phys_set_pool(int pool, vm_page_t m, int order);
-void vm_phys_unfree_page(vm_page_t m);
+boolean_t vm_phys_unfree_page(vm_page_t m);
 boolean_t vm_phys_zero_pages_idle(void);
 
+#endif	/* _KERNEL */
 #endif	/* !_VM_PHYS_H_ */

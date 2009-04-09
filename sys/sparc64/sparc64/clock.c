@@ -29,23 +29,56 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <machine/clock.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 
-u_long tick_increment;
-u_long tick_freq;
-u_long tick_MHz;
+#include <machine/clock.h>
+#include <machine/cpu.h>
+#include <machine/cpufunc.h>
+
+void (*delay_func)(int usec);
+u_long clock_boot;
 
 void
-DELAY(int n)
+DELAY(int usec)
 {
-	u_long start, end;
 
-	start = rd(tick);
-	if (n < 0)
+	(*delay_func)(usec);
+}
+
+void
+delay_boot(int usec)
+{
+	u_long end;
+
+	if (usec < 0)
 		return;
-	end = start + (u_long)n * tick_MHz;
+
+	end = rd(tick) + (u_long)usec * clock_boot / 1000000;
 	while (rd(tick) < end)
-		;
+		cpu_spinwait();
+}
+
+void
+delay_tick(int usec)
+{
+	u_long end;
+
+	if (usec < 0)
+		return;
+
+	/*
+	 * We avoid being migrated to another CPU with a possibly
+	 * unsynchronized TICK timer while spinning.
+	 */
+	sched_pin();
+
+	end = rd(tick) + (u_long)usec * PCPU_GET(clock) / 1000000;
+	while (rd(tick) < end)
+		cpu_spinwait();
+
+	sched_unpin();
 }
 
 void

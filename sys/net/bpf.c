@@ -129,7 +129,7 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
 static int bpf_maxinsns = BPF_MAXINSNS;
 SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
     &bpf_maxinsns, 0, "Maximum bpf program instructions");
-SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_RW,
+SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
 static	d_open_t	bpfopen;

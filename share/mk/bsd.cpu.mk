@@ -109,6 +109,8 @@ _CPUCFLAGS = -march=armv5te -D__XSCALE__
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
+. elif ${MACHINE_ARCH} == "powerpc"
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 . endif
 
 # Set up the list of CPU features based on the CPU type.  This is an

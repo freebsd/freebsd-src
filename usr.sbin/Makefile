@@ -86,6 +86,7 @@ SUBDIR=	${_ac} \
 	${_lptcontrol} \
 	${_mailstats} \
 	mailwrapper \
+	makefs \
 	${_makemap} \
 	manctl \
 	memcontrol \

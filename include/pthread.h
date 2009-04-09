@@ -135,6 +135,10 @@ enum pthread_mutextype {
 
 #define PTHREAD_MUTEX_DEFAULT		PTHREAD_MUTEX_ERRORCHECK
 
+struct _pthread_cleanup_info {
+	__uintptr_t	pthread_cleanup_pad[8];
+};
+
 /*
  * Thread function prototype definitions:
  */
@@ -185,6 +189,7 @@ int		pthread_detach(pthread_t);
 int		pthread_equal(pthread_t, pthread_t);
 void		pthread_exit(void *) __dead2;
 void		*pthread_getspecific(pthread_key_t);
+int		pthread_getcpuclockid(pthread_t, clockid_t *);
 int		pthread_join(pthread_t, void **);
 int		pthread_key_create(pthread_key_t *,
 			void (*) (void *));
@@ -267,6 +272,10 @@ int		pthread_setschedparam(pthread_t, int,
 			const struct sched_param *);
 int		pthread_getconcurrency(void);
 int		pthread_setconcurrency(int);
+
+void		__pthread_cleanup_push_imp(void (*)(void *), void *,
+			struct _pthread_cleanup_info *);
+void		__pthread_cleanup_pop_imp(int);
 __END_DECLS
 
 #endif

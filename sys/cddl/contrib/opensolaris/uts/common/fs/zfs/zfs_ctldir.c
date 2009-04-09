@@ -176,6 +176,8 @@ zfsctl_create(zfsvfs_t *zfsvfs)
 	vp->v_vflag &= ~VV_ROOT;
 
 	zfsvfs->z_ctldir = vp;
+
+	VOP_UNLOCK(vp, 0, curthread);
 }
 
 /*
@@ -789,6 +791,7 @@ zfsctl_mknode_snapdir(vnode_t *pvp)
 	mutex_init(&sdp->sd_lock, NULL, MUTEX_DEFAULT, NULL);
 	avl_create(&sdp->sd_snaps, snapentry_compare,
 	    sizeof (zfs_snapentry_t), offsetof(zfs_snapentry_t, se_node));
+	VOP_UNLOCK(vp, 0, curthread);
 	return (vp);
 }
 
@@ -862,6 +865,7 @@ zfsctl_snapshot_mknode(vnode_t *pvp, uint64_t objset)
 	    &zfsctl_ops_snapshot, NULL, NULL, MAXNAMELEN, NULL, NULL);
 	zcp = vp->v_data;
 	zcp->zc_id = objset;
+	VOP_UNLOCK(vp, 0, curthread);
 
 	return (vp);
 }

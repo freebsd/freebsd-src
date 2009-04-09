@@ -3270,8 +3270,6 @@ syncache_add_accept_req(struct cpl_pass_accept_req *req, struct socket *lso, str
 
 	toep->tp_iss = toep->tp_delack_seq = toep->tp_rcv_wup = toep->tp_copied_seq = rcv_isn + 1;
 
-	
-	inc.inc_isipv6 = 0;
 	inc.inc_len = 0;
 	inc.inc_faddr.s_addr = req->peer_ip;
 	inc.inc_laddr.s_addr = req->local_ip;
@@ -3611,7 +3609,6 @@ syncache_expand_establish_req(struct cpl_pass_establish *req, struct socket **so
 	th.th_seq = req->rcv_isn;
 	th.th_flags = TH_ACK;
 	
-	inc.inc_isipv6 = 0;
 	inc.inc_len = 0;
 	inc.inc_faddr.s_addr = req->peer_ip;
 	inc.inc_laddr.s_addr = req->local_ip;

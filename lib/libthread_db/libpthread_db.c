@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <sys/linker_set.h>
 #include <sys/kse.h>
 #include <sys/ptrace.h>
 #include <proc_service.h>
@@ -1147,3 +1148,5 @@ struct ta_ops libpthread_db_ops = {
 	.to_thr_setxmmregs	= pt_thr_setxmmregs,
 #endif
 };
+
+DATA_SET(__ta_ops, libpthread_db_ops);

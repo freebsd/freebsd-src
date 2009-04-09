@@ -68,10 +68,7 @@ struct mca_device {
 
 /* Not supposed to use this function! */
 void
-mca_pos_set (dev, reg, data)
-	device_t	dev;
-	u_int8_t	reg;
-	u_int8_t	data;
+mca_pos_set (device_t dev, u_int8_t reg, u_int8_t data)
 {
 	struct mca_device *	m_dev = device_get_ivars(dev);
 	u_int8_t		slot = mca_get_slot(dev);
@@ -98,9 +95,7 @@ mca_pos_set (dev, reg, data)
 }
 
 u_int8_t
-mca_pos_get (dev, reg)
-	device_t	dev;
-	u_int8_t	reg;
+mca_pos_get (device_t dev, u_int8_t reg)
 {
 	u_int8_t	slot = mca_get_slot(dev);
 	u_int8_t	data = 0;
@@ -158,9 +153,7 @@ mca_pos_get (dev, reg)
 }
 
 const char *
-mca_match_id (id, mca_devs)
-	u_int16_t		id;
-	struct mca_ident *	mca_devs;
+mca_match_id (u_int16_t id, struct mca_ident *mca_devs)
 {
 	struct mca_ident *	m = mca_devs;
 	while(m->name != NULL) {
@@ -172,9 +165,7 @@ mca_match_id (id, mca_devs)
 }
 
 u_int8_t
-mca_pos_read (dev, reg)
-	device_t		dev;
-	u_int8_t		reg;
+mca_pos_read (device_t dev, u_int8_t reg)
 {
 	struct mca_device *	m_dev = device_get_ivars(dev);
 

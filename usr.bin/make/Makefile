@@ -8,7 +8,6 @@ SRCS=	arch.c buf.c cond.c dir.c for.c hash.c hash_tables.c job.c	\
 	lst.c main.c make.c parse.c proc.c shell.c str.c suff.c targ.c	\
 	util.c var.c
 
-NO_WERROR=
 WARNS?=	6
 NO_SHARED?=	YES
 
@@ -52,7 +51,7 @@ hash:
 	  echo ' * DO NOT EDIT' ;					\
 	  echo ' * $$''FreeBSD$$' ;					\
 	  echo -n ' * auto-generated from ' ;				\
-	  sed -nEe '/\$$FreeBSD/s/^.*\$$(.*)\$$.*$$/\1/p'		\
+	  sed -nEe '/\$$FreeBSD$/\1/p'		\
 		${.CURDIR}/parse.c ;					\
 	  echo ' * DO NOT EDIT' ;					\
 	  echo ' */' ;							\

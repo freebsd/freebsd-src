@@ -112,6 +112,12 @@ struct inode {
 		struct ufs1_dinode *din1;	/* UFS1 on-disk dinode. */
 		struct ufs2_dinode *din2;	/* UFS2 on-disk dinode. */
 	} dinode_u;
+
+	/*
+	 * i_ea_refs is added at the end of the structure to
+	 * keep struct inode layout on releng branch.
+	 */
+	int	  i_ea_refs;	/* Number of users of EA area */
 };
 /*
  * These flags are kept in i_flag.
@@ -125,6 +131,8 @@ struct inode {
 #define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
 #define	IN_LAZYACCESS	0x0100		/* Process IN_ACCESS after the
 					   suspension finished */
+#define	IN_EA_LOCKED	0x0200
+#define	IN_EA_LOCKWAIT	0x0400
 
 #define i_devvp i_ump->um_devvp
 #define i_umbufobj i_ump->um_bo

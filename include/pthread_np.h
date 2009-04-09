@@ -10,10 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by John Birrell.
- * 4. Neither the name of the author nor the names of any co-contributors
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,6 +31,9 @@
 #ifndef _PTHREAD_NP_H_
 #define _PTHREAD_NP_H_
 
+#include <sys/param.h>
+#include <sys/cpuset.h>
+
 /*
  * Non-POSIX type definitions:
  */
@@ -45,6 +45,9 @@ typedef void	(*pthread_switch_routine_t)(pthread_t, pthread_t);
 __BEGIN_DECLS
 int pthread_attr_setcreatesuspend_np(pthread_attr_t *);
 int pthread_attr_get_np(pthread_t, pthread_attr_t *);
+int pthread_attr_getaffinity_np(const pthread_attr_t *, size_t, cpuset_t *);
+int pthread_attr_setaffinity_np(pthread_attr_t *, size_t, const cpuset_t *);
+int pthread_getaffinity_np(pthread_t, size_t, cpuset_t *);
 int pthread_main_np(void);
 int pthread_multi_np(void);
 int pthread_mutexattr_getkind_np(pthread_mutexattr_t);
@@ -52,6 +55,12 @@ int pthread_mutexattr_setkind_np(pthread_mutexattr_t *, int);
 void pthread_resume_all_np(void);
 int pthread_resume_np(pthread_t);
 void pthread_set_name_np(pthread_t, const char *);
+int pthread_mutex_getspinloops_np(pthread_mutex_t *mutex, int *count);
+int pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
+int pthread_mutex_getyieldloops_np(pthread_mutex_t *mutex, int *count);
+int pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
+int pthread_mutex_isowned_np(pthread_mutex_t *mutex);
+int pthread_setaffinity_np(pthread_t, size_t, const cpuset_t *);
 int pthread_single_np(void);
 void pthread_suspend_all_np(void);
 int pthread_suspend_np(pthread_t);

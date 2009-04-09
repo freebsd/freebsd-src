@@ -255,7 +255,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			if (iap->ia_ifp == ifp &&
 			    iap->ia_addr.sin_addr.s_addr == dst.s_addr) {
 				if (td == NULL || prison_check_ip4(
-				    td->td_ucred, &dst))
+				    td->td_ucred, &dst) == 0)
 					ia = iap;
 				break;
 			}
@@ -264,8 +264,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				iap = ifatoia(ifa);
 				if (iap->ia_addr.sin_family == AF_INET) {
 					if (td != NULL &&
-					    !prison_check_ip4(td->td_ucred,
-					    &iap->ia_addr.sin_addr))
+					    prison_check_ip4(td->td_ucred,
+					    &iap->ia_addr.sin_addr) != 0)
 						continue;
 					ia = iap;
 					break;

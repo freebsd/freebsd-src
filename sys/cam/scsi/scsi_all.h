@@ -612,24 +612,26 @@ struct ata_pass_16 {
 /*
  * Device Types
  */
-#define T_DIRECT	0x00
-#define T_SEQUENTIAL	0x01
-#define T_PRINTER	0x02
-#define T_PROCESSOR	0x03
-#define T_WORM		0x04
-#define T_CDROM		0x05
-#define T_SCANNER 	0x06
-#define T_OPTICAL 	0x07
-#define T_CHANGER	0x08
-#define T_COMM		0x09
-#define T_ASC0		0x0a
-#define T_ASC1		0x0b
+#define	T_DIRECT	0x00
+#define	T_SEQUENTIAL	0x01
+#define	T_PRINTER	0x02
+#define	T_PROCESSOR	0x03
+#define	T_WORM		0x04
+#define	T_CDROM		0x05
+#define	T_SCANNER	0x06
+#define	T_OPTICAL 	0x07
+#define	T_CHANGER	0x08
+#define	T_COMM		0x09
+#define	T_ASC0		0x0a
+#define	T_ASC1		0x0b
 #define	T_STORARRAY	0x0c
 #define	T_ENCLOSURE	0x0d
 #define	T_RBC		0x0e
 #define	T_OCRW		0x0f
-#define T_NODEVICE	0x1F
-#define	T_ANY		0xFF	/* Used in Quirk table matches */
+#define	T_OSD		0x11
+#define	T_ADC		0x12
+#define	T_NODEVICE	0x1f
+#define	T_ANY		0xff	/* Used in Quirk table matches */
 
 #define T_REMOV		1
 #define	T_FIXED		0
@@ -993,7 +995,7 @@ struct asc_table_entry {
 
 struct op_table_entry {
 	u_int8_t    opcode;
-	u_int16_t   opmask;
+	u_int32_t   opmask;
 	const char  *desc;
 };
 

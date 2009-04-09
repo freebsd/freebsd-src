@@ -38,38 +38,61 @@
 
 #include "thr_private.h"
 
+#undef pthread_cleanup_push
+#undef pthread_cleanup_pop
+
+/* old binary compatible interfaces */
 __weak_reference(_pthread_cleanup_push, pthread_cleanup_push);
 __weak_reference(_pthread_cleanup_pop, pthread_cleanup_pop);
 
 void
-_pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
+__pthread_cleanup_push_imp(void (*routine)(void *), void *arg,
+	struct _pthread_cleanup_info *info)
 {
 	struct pthread	*curthread = _get_curthread();
-	struct pthread_cleanup *new;
+	struct pthread_cleanup *newbuf;
 
-	if ((new = (struct pthread_cleanup *)
-	    malloc(sizeof(struct pthread_cleanup))) != NULL) {
-		new->routine = routine;
-		new->routine_arg = routine_arg;
-		new->onstack = 0;
-		new->next = curthread->cleanup;
+	newbuf = (void *)info;
+	newbuf->routine = routine;
+	newbuf->routine_arg = arg;
+	newbuf->onheap = 0;
+	newbuf->prev = curthread->cleanup;
+	curthread->cleanup = newbuf;
+}
 
-		curthread->cleanup = new;
+void
+__pthread_cleanup_pop_imp(int execute)
+{
+	struct pthread	*curthread = _get_curthread();
+	struct pthread_cleanup *old;
+
+	if ((old = curthread->cleanup) != NULL) {
+		curthread->cleanup = old->prev;
+		if (execute)
+			old->routine(old->routine_arg);
+		if (old->onheap)
+			free(old);
+	}
+}
+
+void
+_pthread_cleanup_push(void (*routine) (void *), void *arg)
+{
+	struct pthread	*curthread = _get_curthread();
+	struct pthread_cleanup *newbuf;
+
+	if ((newbuf = (struct pthread_cleanup *)
+	    malloc(sizeof(struct _pthread_cleanup_info))) != NULL) {
+		newbuf->routine = routine;
+		newbuf->routine_arg = arg;
+		newbuf->onheap = 1;
+		newbuf->prev = curthread->cleanup;
+		curthread->cleanup = newbuf;
 	}
 }
 
 void
 _pthread_cleanup_pop(int execute)
 {
-	struct pthread	*curthread = _get_curthread();
-	struct pthread_cleanup *old;
-
-	if ((old = curthread->cleanup) != NULL) {
-		curthread->cleanup = old->next;
-		if (execute) {
-			old->routine(old->routine_arg);
-		}
-		if (old->onstack == 0)
-			free(old);
-	}
+	__pthread_cleanup_pop_imp(execute);
 }

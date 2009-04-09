@@ -140,6 +140,7 @@
 #define		AA_DMMU_TSB_PEXT_REG		0x48
 #define		AA_DMMU_TSB_SEXT_REG		0x50
 #define		AA_DMMU_TSB_NEXT_REG		0x58
+#define		AA_DMMU_TAG_ACCESS_EXT		0x60	/* US-III family */
 
 #define	ASI_DMMU_TSB_8KB_PTR_REG		0x59
 #define	ASI_DMMU_TSB_64KB_PTR_REG		0x5a

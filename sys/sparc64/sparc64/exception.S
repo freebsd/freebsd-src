@@ -498,6 +498,11 @@ END(rsf_fatal)
 	wr	%g0, ASI_IMMU, %asi
 	rdpr	%tpc, %g3
 	ldxa	[%g0 + AA_IMMU_SFSR] %asi, %g4
+	/*
+	 * XXX in theory, a store to AA_IMMU_SFSR must be immediately
+	 * followed by a DONE, FLUSH or RETRY for USIII.  In practice,
+	 * this triggers a RED state exception though.
+	 */
 	stxa	%g0, [%g0 + AA_IMMU_SFSR] %asi
 	membar	#Sync
 	ba	%xcc, tl0_sfsr_trap
@@ -550,7 +555,7 @@ END(tl0_sfsr_trap)
 	tl ## traplvl ## _intr	level, 1 << level
 
 #define	TICK(traplvl) \
-	tl ## traplvl ## _intr	PIL_TICK, 1
+	tl ## traplvl ## _intr	PIL_TICK, 0x10001
 
 #define	INTR_LEVEL(tl)							\
 	INTR(1, tl) ;							\
@@ -716,8 +721,9 @@ ENTRY(tl0_immu_miss_trap)
 	 * Put back the contents of the tag access register, in case we
 	 * faulted.
 	 */
+	sethi	%hi(KERNBASE), %g2
 	stxa	%g1, [%g0 + AA_IMMU_TAR] %asi
-	membar	#Sync
+	flush	%g2
 
 	/*
 	 * Switch to alternate globals.
@@ -1213,6 +1219,11 @@ END(tl0_fp_restore)
 	wr	%g0, ASI_IMMU, %asi
 	rdpr	%tpc, %g3
 	ldxa	[%g0 + AA_IMMU_SFSR] %asi, %g4
+	/*
+	 * XXX in theory, a store to AA_IMMU_SFSR must be immediately
+	 * followed by a DONE, FLUSH or RETRY for USIII.  In practice,
+	 * this triggers a RED state exception though.
+	 */
 	stxa	%g0, [%g0 + AA_IMMU_SFSR] %asi
 	membar	#Sync
 	ba	%xcc, tl1_insn_exceptn_trap
@@ -2737,6 +2748,10 @@ ENTRY(tl1_ret)
 	set	VM_MIN_PROM_ADDRESS, %l5
 	cmp	%l1, %l5
 	bl,a,pt	%xcc, 1f
+	 nop
+	set	VM_MAX_PROM_ADDRESS, %l5
+	cmp	%l1, %l5
+	bg,a,pt	%xcc, 1f
 	 nop
 
 	wrpr	%g0, PSTATE_NORMAL, %pstate

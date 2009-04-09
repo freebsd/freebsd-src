@@ -1968,6 +1968,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
 								 data,
 								 ifp, td));
+	if (error == EOPNOTSUPP && ifp != NULL && ifp->if_ioctl != NULL)
+		error = (*ifp->if_ioctl)(ifp, cmd, data);
 #else
 	{
 		int ocmd = cmd;
@@ -2009,6 +2011,9 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 								   cmd,
 								   data,
 								   ifp, td));
+		if (error == EOPNOTSUPP && ifp != NULL &&
+		    ifp->if_ioctl != NULL)
+			error = (*ifp->if_ioctl)(ifp, cmd, data);
 		switch (ocmd) {
 
 		case OSIOCGIFADDR:
@@ -2196,8 +2201,7 @@ again:
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa = ifa->ifa_addr;
 
-			if (jailed(curthread->td_ucred) &&
-			    !prison_if(curthread->td_ucred, sa))
+			if (prison_if(curthread->td_ucred, sa) != 0)
 				continue;
 			addrs++;
 #ifdef COMPAT_43

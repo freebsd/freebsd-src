@@ -98,6 +98,6 @@ _get_curthread(void)
 	return (TCB_GET64(tcb_thread));
 }
 
-#define HAS__UMTX_OP_ERR	1
+#define	HAS__UMTX_OP_ERR	1
 
 #endif

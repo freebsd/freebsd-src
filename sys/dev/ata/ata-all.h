@@ -534,7 +534,7 @@ int ata_detach(device_t dev);
 int ata_reinit(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
-int ata_interrupt(void *data);
+void ata_interrupt(void *data);
 int ata_device_ioctl(device_t dev, u_long cmd, caddr_t data);
 int ata_identify(device_t dev);
 void ata_default_registers(device_t dev);

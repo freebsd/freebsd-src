@@ -610,7 +610,7 @@ vn_statfile(fp, sb, active_cred, td)
 	int error;
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
 	error = vn_stat(vp, sb, active_cred, fp->f_cred, td);
 	VOP_UNLOCK(vp, 0, td);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -916,15 +916,18 @@ vn_start_write(vp, mpp, flags)
 	/*
 	 * Check on status of suspension.
 	 */
-	while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
-		if (flags & V_NOWAIT) {
-			error = EWOULDBLOCK;
-			goto unlock;
+	if ((curthread->td_pflags & TDP_IGNSUSP) == 0 ||
+	    mp->mnt_susp_owner != curthread) {
+		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
+			if (flags & V_NOWAIT) {
+				error = EWOULDBLOCK;
+				goto unlock;
+			}
+			error = msleep(&mp->mnt_flag, MNT_MTX(mp),
+			    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
+			if (error)
+				goto unlock;
 		}
-		error = msleep(&mp->mnt_flag, MNT_MTX(mp), 
-		    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
-		if (error)
-			goto unlock;
 	}
 	if (flags & V_XSLEEP)
 		goto unlock;
@@ -1048,11 +1051,14 @@ vfs_write_suspend(mp)
 	int error;
 
 	MNT_ILOCK(mp);
-	if (mp->mnt_kern_flag & MNTK_SUSPEND) {
+	if (mp->mnt_susp_owner == curthread) {
 		MNT_IUNLOCK(mp);
-		return (0);
+		return (EALREADY);
 	}
+	while (mp->mnt_kern_flag & MNTK_SUSPEND)
+		msleep(&mp->mnt_flag, MNT_MTX(mp), PUSER - 1, "wsuspfs", 0);
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
+	mp->mnt_susp_owner = curthread;
 	if (mp->mnt_writeopcount > 0)
 		(void) msleep(&mp->mnt_writeopcount, 
 		    MNT_MTX(mp), (PUSER - 1)|PDROP, "suspwt", 0);
@@ -1073,12 +1079,17 @@ vfs_write_resume(mp)
 
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
+		KASSERT(mp->mnt_susp_owner == curthread, ("mnt_susp_owner"));
 		mp->mnt_kern_flag &= ~(MNTK_SUSPEND | MNTK_SUSPEND2 |
 				       MNTK_SUSPENDED);
+		mp->mnt_susp_owner = NULL;
 		wakeup(&mp->mnt_writeopcount);
 		wakeup(&mp->mnt_flag);
-	}
-	MNT_IUNLOCK(mp);
+		curthread->td_pflags &= ~TDP_IGNSUSP;
+		MNT_IUNLOCK(mp);
+		VFS_SUSP_CLEAN(mp);
+	} else
+		MNT_IUNLOCK(mp);
 }
 
 /*
@@ -1208,5 +1219,37 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 		VOP_UNLOCK(vp, 0, td);
 	}
 
+	return (error);
+}
+
+int
+vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
+{
+	struct mount *mp;
+	int ltype, error;
+
+	mp = vp->v_mount;
+	ltype = VOP_ISLOCKED(vp, curthread);
+	KASSERT(ltype == LK_EXCLUSIVE || ltype == LK_SHARED,
+	    ("vn_vget_ino: vp not locked"));
+	for (;;) {
+		error = vfs_busy(mp, LK_NOWAIT, NULL, curthread);
+		if (error == 0)
+			break;
+		VOP_UNLOCK(vp, 0, curthread);
+		pause("vn_vget", 1);
+		vn_lock(vp, ltype | LK_RETRY, curthread);
+		if (vp->v_iflag & VI_DOOMED)
+			return (ENOENT);
+	}
+	VOP_UNLOCK(vp, 0, curthread);
+	error = VFS_VGET(mp, ino, lkflags, rvp);
+	vfs_unbusy(mp, curthread);
+	vn_lock(vp, ltype | LK_RETRY, curthread);
+	if (vp->v_iflag & VI_DOOMED) {
+		if (error == 0)
+			vput(*rvp);
+		error = ENOENT;
+	}
 	return (error);
 }

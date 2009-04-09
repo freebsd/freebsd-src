@@ -340,6 +340,10 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  NO_QUIRKS
 	},
+	{ USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_TRANSCEND, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  NO_GETMAXLUN
+	},
 	{ USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_UMCR_9361, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  NO_GETMAXLUN
@@ -414,7 +418,8 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	},
 	{ USB_VENDOR_GENESYS,  USB_PRODUCT_GENESYS_GL641USB2IDE, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
-	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE
+	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE |
+	  NO_SYNCHRONIZE_CACHE
 	},
 	{ USB_VENDOR_GENESYS,  USB_PRODUCT_GENESYS_GL641USB2IDE_2, RID_WILDCARD,
 	  UMASS_PROTO_ATAPI | UMASS_PROTO_BBB,
@@ -564,7 +569,11 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	},
 	{ USB_VENDOR_MYSON,  USB_PRODUCT_MYSON_HEDEN, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
-	  NO_INQUIRY | IGNORE_RESIDUE
+	  NO_INQUIRY | IGNORE_RESIDUE | NO_SYNCHRONIZE_CACHE
+	},
+	{ USB_VENDOR_MYSON, USB_PRODUCT_MYSON_STARREADER, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  NO_SYNCHRONIZE_CACHE
 	},
 	{ USB_VENDOR_NEODIO, USB_PRODUCT_NEODIO_ND3260, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
@@ -798,6 +807,10 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  NO_QUIRKS
 	},
+	{ USB_VENDOR_SUPERTOP, USB_PRODUCT_SUPERTOP_IDE, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  IGNORE_RESIDUE | NO_SYNCHRONIZE_CACHE
+	},
 	{ USB_VENDOR_TAUGA, USB_PRODUCT_TAUGA_CAMERAMATE, RID_WILDCARD,
 	  UMASS_PROTO_SCSI,
 	  NO_QUIRKS
@@ -869,6 +882,10 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	{ USB_VENDOR_ZORAN, USB_PRODUCT_ZORAN_EX20DSC, RID_WILDCARD,
 	  UMASS_PROTO_ATAPI | UMASS_PROTO_CBI,
 	  NO_QUIRKS
+	},
+	{ USB_VENDOR_MEIZU, USB_PRODUCT_MEIZU_M6_SL, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  NO_INQUIRY | NO_SYNCHRONIZE_CACHE
 	},
 	{ VID_EOT, PID_EOT, RID_EOT, 0, 0 }
 };
@@ -1855,6 +1872,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 {
 	struct umass_softc *sc = (struct umass_softc *) priv;
 	usbd_xfer_handle next_xfer;
+	int Residue;
 
 	KASSERT(sc->proto & UMASS_PROTO_BBB,
 		("%s: umass_bbb_state: wrong sc->proto 0x%02x\n",
@@ -2039,10 +2057,8 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 				USETDW(sc->csw.dCSWSignature, CSWSIGNATURE);
 		}
 
-		int Residue;
 		Residue = UGETDW(sc->csw.dCSWDataResidue);
-		if (Residue == 0 &&
-		    sc->transfer_datalen - sc->transfer_actlen != 0)
+		if (Residue == 0 || (sc->quirks & IGNORE_RESIDUE))
 			Residue = sc->transfer_datalen - sc->transfer_actlen;
 
 		/* Check CSW and handle any error */

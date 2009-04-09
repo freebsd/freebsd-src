@@ -165,12 +165,15 @@ vfs_register(struct vfsconf *vfc)
 	 * preserved by re-registering the oid after modifying its
 	 * number.
 	 */
+	sysctl_lock();
 	SLIST_FOREACH(oidp, &sysctl__vfs_children, oid_link)
 		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
 			sysctl_unregister_oid(oidp);
 			oidp->oid_number = vfc->vfc_typenum;
 			sysctl_register_oid(oidp);
+			break;
 		}
+	sysctl_unlock();
 
 	/*
 	 * Initialise unused ``struct vfsops'' fields, to use

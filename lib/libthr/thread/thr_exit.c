@@ -29,11 +29,14 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
+#include "libc_private.h"
 #include "thr_private.h"
 
 void	_pthread_exit(void *status);
@@ -60,22 +63,6 @@ _thread_exit(const char *fname, int lineno, const char *msg)
 void
 _thr_exit_cleanup(void)
 {
-	struct pthread	*curthread = _get_curthread();
-
-	/*
-	 * POSIX states that cancellation/termination of a thread should
-	 * not release any visible resources (such as mutexes) and that
-	 * it is the applications responsibility.  Resources that are
-	 * internal to the threads library, including file and fd locks,
-	 * are not visible to the application and need to be released.
-	 */
-	/* Unlock all private mutexes: */
-	_mutex_unlock_private(curthread);
-
-	/*
-	 * This still isn't quite correct because we don't account
-	 * for held spinlocks (see libc/stdlib/malloc.c).
-	 */
 }
 
 void
@@ -100,7 +87,7 @@ _pthread_exit(void *status)
 	/* Save the return value: */
 	curthread->ret = status;
 	while (curthread->cleanup != NULL) {
-		pthread_cleanup_pop(1);
+		_pthread_cleanup_pop(1);
 	}
 
 	/* Check if there is thread specific data: */
@@ -119,8 +106,18 @@ _pthread_exit(void *status)
 		exit(0);
 		/* Never reach! */
 	}
+	THREAD_LIST_UNLOCK(curthread);
+
+	/* Tell malloc that the thread is exiting. */
+	_malloc_thread_cleanup();
+
+	THREAD_LIST_LOCK(curthread);
 	THR_LOCK(curthread);
 	curthread->state = PS_DEAD;
+	if (curthread->flags & THR_FLAGS_NEED_SUSPEND) {
+		curthread->cycle++;
+		_thr_umtx_wake(&curthread->cycle, INT_MAX, 0);
+	}
 	THR_UNLOCK(curthread);
 	/*
 	 * Thread was created with initial refcount 1, we drop the
@@ -130,7 +127,7 @@ _pthread_exit(void *status)
 	if (curthread->tlflags & TLFLAGS_DETACHED)
 		THR_GCLIST_ADD(curthread);
 	THREAD_LIST_UNLOCK(curthread);
-	if (SHOULD_REPORT_EVENT(curthread, TD_DEATH))
+	if (!curthread->force_exit && SHOULD_REPORT_EVENT(curthread, TD_DEATH))
 		_thr_report_death(curthread);
 
 	/*

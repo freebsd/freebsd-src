@@ -247,20 +247,20 @@ static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
  * Definitions of protocols supported in the LOCAL domain.
  */
 static struct domain localdomain;
-static struct pr_usrreqs uipc_usrreqs;
+static struct pr_usrreqs uipc_usrreqs_dgram, uipc_usrreqs_stream;
 static struct protosw localsw[] = {
 {
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&localdomain,
 	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
 	.pr_ctloutput =		&uipc_ctloutput,
-	.pr_usrreqs =		&uipc_usrreqs
+	.pr_usrreqs =		&uipc_usrreqs_stream
 },
 {
 	.pr_type =		SOCK_DGRAM,
 	.pr_domain =		&localdomain,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
-	.pr_usrreqs =		&uipc_usrreqs
+	.pr_usrreqs =		&uipc_usrreqs_dgram
 },
 };
 
@@ -990,7 +990,7 @@ uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 	return (0);
 }
 
-static struct pr_usrreqs uipc_usrreqs = {
+static struct pr_usrreqs uipc_usrreqs_dgram = {
 	.pru_abort = 		uipc_abort,
 	.pru_accept =		uipc_accept,
 	.pru_attach =		uipc_attach,
@@ -1006,6 +1006,27 @@ static struct pr_usrreqs uipc_usrreqs = {
 	.pru_sense =		uipc_sense,
 	.pru_shutdown =		uipc_shutdown,
 	.pru_sockaddr =		uipc_sockaddr,
+	.pru_soreceive =	soreceive_dgram,
+	.pru_close =		uipc_close,
+};
+
+static struct pr_usrreqs uipc_usrreqs_stream = {
+	.pru_abort = 		uipc_abort,
+	.pru_accept =		uipc_accept,
+	.pru_attach =		uipc_attach,
+	.pru_bind =		uipc_bind,
+	.pru_connect =		uipc_connect,
+	.pru_connect2 =		uipc_connect2,
+	.pru_detach =		uipc_detach,
+	.pru_disconnect =	uipc_disconnect,
+	.pru_listen =		uipc_listen,
+	.pru_peeraddr =		uipc_peeraddr,
+	.pru_rcvd =		uipc_rcvd,
+	.pru_send =		uipc_send,
+	.pru_sense =		uipc_sense,
+	.pru_shutdown =		uipc_shutdown,
+	.pru_sockaddr =		uipc_sockaddr,
+	.pru_soreceive =	soreceive_generic,
 	.pru_close =		uipc_close,
 };
 
@@ -1857,6 +1878,7 @@ unp_gc(__unused void *arg, int pending)
 {
 	struct file *fp, *nextfp;
 	struct socket *so;
+	struct socket *soa;
 	struct file **extra_ref, **fpp;
 	int nunref, i;
 	int nfiles_snap;
@@ -1961,6 +1983,20 @@ unp_gc(__unused void *arg, int pending)
 			SOCKBUF_LOCK(&so->so_rcv);
 			unp_scan(so->so_rcv.sb_mb, unp_mark);
 			SOCKBUF_UNLOCK(&so->so_rcv);
+
+			/*
+			 * If socket is in listening state, then sockets
+			 * in its accept queue are accessible, and so
+			 * are any descriptors in those sockets' receive
+			 * queues.
+			 */
+			ACCEPT_LOCK();
+			TAILQ_FOREACH(soa, &so->so_comp, so_list) {
+			    SOCKBUF_LOCK(&soa->so_rcv);
+			    unp_scan(soa->so_rcv.sb_mb, unp_mark);
+			    SOCKBUF_UNLOCK(&soa->so_rcv);
+			}
+			ACCEPT_UNLOCK();
 
 			/*
 			 * Wake up any threads waiting in fdrop().

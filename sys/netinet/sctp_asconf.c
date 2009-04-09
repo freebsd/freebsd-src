@@ -761,6 +761,9 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 			m_result = sctp_process_asconf_set_primary(m, aph,
 			    stcb, error);
 			break;
+		case SCTP_NAT_VTAGS:
+			SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf: sees a NAT VTAG state parameter\n");
+			break;
 		case SCTP_SUCCESS_REPORT:
 			/* not valid in an ASCONF chunk */
 			break;
@@ -1349,6 +1352,7 @@ sctp_asconf_queue_mgmt(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "asconf_queue_mgmt: failed to get memory!\n");
 		return (-1);
 	}
+	aa->special_del = 0;
 	/* fill in asconf address parameter fields */
 	/* top level elements are "networked" during send */
 	aa->ap.aph.ph.param_type = type;
@@ -1555,6 +1559,7 @@ sctp_asconf_queue_sa_delete(struct sctp_tcb *stcb, struct sockaddr *sa)
 		    "sctp_asconf_queue_sa_delete: failed to get memory!\n");
 		return (-1);
 	}
+	aa->special_del = 0;
 	/* fill in asconf address parameter fields */
 	/* top level elements are "networked" during send */
 	aa->ap.aph.ph.param_type = SCTP_DEL_IP_ADDRESS;
@@ -2691,6 +2696,7 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen, int addr_locked)
 		 * case)
 		 */
 		if (lookup_used == 0 &&
+		    (aa->special_del == 0) &&
 		    aa->ap.aph.ph.param_type == SCTP_DEL_IP_ADDRESS) {
 			struct sctp_ipv6addr_param *lookup;
 			uint16_t p_size, addr_size;
@@ -3233,4 +3239,196 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 		return (EADDRNOTAVAIL);
 	}
 	return (0);
+}
+
+void
+sctp_asconf_send_nat_state_update(struct sctp_tcb *stcb,
+    struct sctp_nets *net)
+{
+	struct sctp_asconf_addr *aa;
+	struct sctp_ifa *sctp_ifap;
+	struct sctp_asconf_tag_param *vtag;
+	struct sockaddr_in *to;
+
+#ifdef INET6
+	struct sockaddr_in6 *to6;
+
+#endif
+	if (net == NULL) {
+		SCTPDBG(SCTP_DEBUG_ASCONF1, "sctp_asconf_send_nat_state_update: Missing net\n");
+		return;
+	}
+	if (stcb == NULL) {
+		SCTPDBG(SCTP_DEBUG_ASCONF1, "sctp_asconf_send_nat_state_update: Missing stcb\n");
+		return;
+	}
+	/*
+	 * Need to have in the asconf: - vtagparam(my_vtag/peer_vtag) -
+	 * add(0.0.0.0) - del(0.0.0.0) - Any global addresses add(addr)
+	 */
+	SCTP_MALLOC(aa, struct sctp_asconf_addr *, sizeof(*aa),
+	    SCTP_M_ASC_ADDR);
+	if (aa == NULL) {
+		/* didn't get memory */
+		SCTPDBG(SCTP_DEBUG_ASCONF1,
+		    "sctp_asconf_send_nat_state_update: failed to get memory!\n");
+		return;
+	}
+	aa->special_del = 0;
+	/* fill in asconf address parameter fields */
+	/* top level elements are "networked" during send */
+	aa->ifa = NULL;
+	aa->sent = 0;		/* clear sent flag */
+	vtag = (struct sctp_asconf_tag_param *)&aa->ap.aph;
+	vtag->aph.ph.param_type = SCTP_NAT_VTAGS;
+	vtag->aph.ph.param_length = sizeof(struct sctp_asconf_tag_param);
+	vtag->local_vtag = htonl(stcb->asoc.my_vtag);
+	vtag->remote_vtag = htonl(stcb->asoc.peer_vtag);
+	TAILQ_INSERT_TAIL(&stcb->asoc.asconf_queue, aa, next);
+
+	SCTP_MALLOC(aa, struct sctp_asconf_addr *, sizeof(*aa),
+	    SCTP_M_ASC_ADDR);
+	if (aa == NULL) {
+		/* didn't get memory */
+		SCTPDBG(SCTP_DEBUG_ASCONF1,
+		    "sctp_asconf_send_nat_state_update: failed to get memory!\n");
+		return;
+	}
+	memset(aa, 0, sizeof(struct sctp_asconf_addr));
+	/* fill in asconf address parameter fields */
+	/* ADD(0.0.0.0) */
+	if (net->ro._l_addr.sa.sa_family == AF_INET) {
+		aa->ap.aph.ph.param_type = SCTP_ADD_IP_ADDRESS;
+		aa->ap.aph.ph.param_length = sizeof(struct sctp_asconf_addrv4_param);
+		aa->ap.addrp.ph.param_type = SCTP_IPV4_ADDRESS;
+		aa->ap.addrp.ph.param_length = sizeof(struct sctp_ipv4addr_param);
+		/* No need to add an address, we are using 0.0.0.0 */
+		TAILQ_INSERT_TAIL(&stcb->asoc.asconf_queue, aa, next);
+	}
+#ifdef INET6
+	else if (net->ro._l_addr.sa.sa_family == AF_INET6) {
+		aa->ap.aph.ph.param_type = SCTP_ADD_IP_ADDRESS;
+		aa->ap.aph.ph.param_length = sizeof(struct sctp_asconf_addr_param);
+		aa->ap.addrp.ph.param_type = SCTP_IPV6_ADDRESS;
+		aa->ap.addrp.ph.param_length = sizeof(struct sctp_ipv6addr_param);
+		/* No need to add an address, we are using 0.0.0.0 */
+		TAILQ_INSERT_TAIL(&stcb->asoc.asconf_queue, aa, next);
+	}
+#endif				/* INET6 */
+	SCTP_MALLOC(aa, struct sctp_asconf_addr *, sizeof(*aa),
+	    SCTP_M_ASC_ADDR);
+	if (aa == NULL) {
+		/* didn't get memory */
+		SCTPDBG(SCTP_DEBUG_ASCONF1,
+		    "sctp_asconf_send_nat_state_update: failed to get memory!\n");
+		return;
+	}
+	memset(aa, 0, sizeof(struct sctp_asconf_addr));
+	/* fill in asconf address parameter fields */
+	/* ADD(0.0.0.0) */
+	if (net->ro._l_addr.sa.sa_family == AF_INET) {
+		aa->ap.aph.ph.param_type = SCTP_ADD_IP_ADDRESS;
+		aa->ap.aph.ph.param_length = sizeof(struct sctp_asconf_addrv4_param);
+		aa->ap.addrp.ph.param_type = SCTP_IPV4_ADDRESS;
+		aa->ap.addrp.ph.param_length = sizeof(struct sctp_ipv4addr_param);
+		/* No need to add an address, we are using 0.0.0.0 */
+		TAILQ_INSERT_TAIL(&stcb->asoc.asconf_queue, aa, next);
+	}
+#ifdef INET6
+	else if (net->ro._l_addr.sa.sa_family == AF_INET6) {
+		aa->ap.aph.ph.param_type = SCTP_DEL_IP_ADDRESS;
+		aa->ap.aph.ph.param_length = sizeof(struct sctp_asconf_addr_param);
+		aa->ap.addrp.ph.param_type = SCTP_IPV6_ADDRESS;
+		aa->ap.addrp.ph.param_length = sizeof(struct sctp_ipv6addr_param);
+		/* No need to add an address, we are using 0.0.0.0 */
+		TAILQ_INSERT_TAIL(&stcb->asoc.asconf_queue, aa, next);
+	}
+#endif				/* INET6 */
+	/* Now we must hunt the addresses and add all global addresses */
+	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
+		struct sctp_vrf *vrf = NULL;
+		struct sctp_ifn *sctp_ifnp;
+		uint32_t vrf_id;
+
+		vrf_id = stcb->sctp_ep->def_vrf_id;
+		vrf = sctp_find_vrf(vrf_id);
+		if (vrf == NULL) {
+			goto skip_rest;
+		}
+		SCTP_IPI_ADDR_RLOCK();
+		LIST_FOREACH(sctp_ifnp, &vrf->ifnlist, next_ifn) {
+			LIST_FOREACH(sctp_ifap, &sctp_ifnp->ifalist, next_ifa) {
+				if (sctp_ifap->address.sa.sa_family == AF_INET) {
+					to = &sctp_ifap->address.sin;
+
+					if (IN4_ISPRIVATE_ADDRESS(&to->sin_addr)) {
+						continue;
+					}
+					if (IN4_ISLOOPBACK_ADDRESS(&to->sin_addr)) {
+						continue;
+					}
+				}
+#ifdef INET6
+				else if (sctp_ifap->address.sa.sa_family == AF_INET6) {
+					to6 = &sctp_ifap->address.sin6;
+					if (IN6_IS_ADDR_LOOPBACK(&to6->sin6_addr)) {
+						continue;
+					}
+					if (IN6_IS_ADDR_LINKLOCAL(&to6->sin6_addr)) {
+						continue;
+					}
+				}
+#endif
+				sctp_asconf_queue_mgmt(stcb, sctp_ifap, SCTP_ADD_IP_ADDRESS);
+			}
+		}
+		SCTP_IPI_ADDR_RUNLOCK();
+	} else {
+		struct sctp_laddr *laddr;
+
+		LIST_FOREACH(laddr, &stcb->sctp_ep->sctp_addr_list, sctp_nxt_addr) {
+			if (laddr->ifa == NULL) {
+				continue;
+			}
+			if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED)
+				/*
+				 * Address being deleted by the system, dont
+				 * list.
+				 */
+				continue;
+			if (laddr->action == SCTP_DEL_IP_ADDRESS) {
+				/*
+				 * Address being deleted on this ep don't
+				 * list.
+				 */
+				continue;
+			}
+			sctp_ifap = laddr->ifa;
+			if (sctp_ifap->address.sa.sa_family == AF_INET) {
+				to = &sctp_ifap->address.sin;
+
+				if (IN4_ISPRIVATE_ADDRESS(&to->sin_addr)) {
+					continue;
+				}
+				if (IN4_ISLOOPBACK_ADDRESS(&to->sin_addr)) {
+					continue;
+				}
+			}
+#ifdef INET6
+			else if (sctp_ifap->address.sa.sa_family == AF_INET6) {
+				to6 = &sctp_ifap->address.sin6;
+				if (IN6_IS_ADDR_LOOPBACK(&to6->sin6_addr)) {
+					continue;
+				}
+				if (IN6_IS_ADDR_LINKLOCAL(&to6->sin6_addr)) {
+					continue;
+				}
+			}
+#endif
+			sctp_asconf_queue_mgmt(stcb, sctp_ifap, SCTP_ADD_IP_ADDRESS);
+		}
+	}
+skip_rest:
+	/* Now we must send the asconf into the queue */
+	sctp_send_asconf(stcb, net, 0);
 }

@@ -71,6 +71,16 @@ g_vfs_done(struct bio *bip)
 	struct buf *bp;
 	int vfslocked;
 
+	/*
+	 * Provider ('bio_to') could have withered away sometime
+	 * between incrementing the 'nend' in g_io_deliver() and now,
+	 * making 'bio_to' a dangling pointer.  We cannot do that
+	 * in g_wither_geom(), as it would require going over
+	 * the 'g_bio_run_up' list, resetting the pointer.
+	 */
+	if (bip->bio_from->provider == NULL)
+		bip->bio_to = NULL;
+
 	if (bip->bio_error) {
 		printf("g_vfs_done():");
 		g_print_bio(bip);
@@ -93,9 +103,22 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 {
 	struct g_consumer *cp;
 	struct bio *bip;
+	int vfslocked;
 
 	cp = bo->bo_private;
 	G_VALID_CONSUMER(cp);
+
+	/*
+	 * If the the provider has orphaned us, just return EXIO.
+	 */
+	if (cp->provider == NULL) {
+		bp->b_error = ENXIO;
+		bp->b_ioflags |= BIO_ERROR;
+		vfslocked = VFS_LOCK_GIANT(((struct mount *)NULL));
+		bufdone(bp);
+		VFS_UNLOCK_GIANT(vfslocked);
+		return;
+	}
 
 	bip = g_alloc_bio();
 	bip->bio_cmd = bp->b_iocmd;
@@ -110,18 +133,20 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 static void
 g_vfs_orphan(struct g_consumer *cp)
 {
+	struct g_geom *gp;
+	struct bufobj *bo;
+
+	g_topology_assert();
+
+	gp = cp->geom;
+	bo = gp->softc;
+	g_trace(G_T_TOPOLOGY, "g_vfs_orphan(%p(%s))", cp, gp->name);
+	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
+		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+	g_detach(cp);
 
 	/*
-	 * Don't do anything here yet.
-	 *
-	 * Ideally we should detach the consumer already now, but that
-	 * leads to a locking requirement in the I/O path to see if we have
-	 * a consumer or not.  Considering how ugly things are going to get
-	 * anyway as none of our filesystems are graceful about i/o errors,
-	 * this is not important right now.
-	 *
-	 * Down the road, this is the place where we could give the user
-	 * a "Abort, Retry or Ignore" option to replace the media again.
+	 * Do not destroy the geom.  Filesystem will do that during unmount.
 	 */
 }
 

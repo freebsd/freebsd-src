@@ -768,7 +768,7 @@ ifmcstat_getifmaddrs(void)
 		/* Link-layer mapping, if present. */
 		pllsa = (sockunion_t *)ifma->ifma_lladdr;
 		if (pllsa != NULL) {
-			error = getnameinfo(&pifasa->sa, pifasa->sa.sa_len,
+			error = getnameinfo(&pllsa->sa, pllsa->sa.sa_len,
 			    addrbuf, sizeof(addrbuf), NULL, 0, NI_NUMERICHOST);
 			fprintf(stdout, "\t\t\tmcast-macaddr %s\n", addrbuf);
 		}

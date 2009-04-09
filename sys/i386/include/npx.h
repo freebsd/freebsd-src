@@ -151,7 +151,7 @@ void	npxdrop(void);
 void	npxexit(struct thread *td);
 int	npxformat(void);
 int	npxgetregs(struct thread *td, union savefpu *addr);
-void	npxinit(u_short control);
+void	npxinit(void);
 void	npxsave(union savefpu *addr);
 void	npxsetregs(struct thread *td, union savefpu *addr);
 int	npxtrap(void);

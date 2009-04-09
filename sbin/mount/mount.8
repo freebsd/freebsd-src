@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2006
+.Dd March 11, 2008
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -163,6 +163,15 @@ is run with the
 flag but without the
 .Fl l
 flag.
+.It Cm mountprog Ns = Ns Aq Ar program
+Force
+.Nm
+to use the specified program to mount the file system, instead of calling
+.Xr nmount 2
+directly.  For example:
+.Bd -literal
+mount -t foofs -o mountprog=/mydir/fooprog /dev/acd0 /mnt
+.Ed
 .It Cm multilabel
 Enable multi-label Mandatory Access Control, or MAC, on the specified file
 system.
@@ -335,14 +344,14 @@ For example, the
 .Nm
 command:
 .Bd -literal -offset indent
-mount -t unionfs -o -b /sys $HOME/sys
+mount -t cd9660 -o -e /dev/cd0 /cdrom
 .Ed
 .Pp
 causes
 .Nm
 to execute the equivalent of:
 .Bd -literal -offset indent
-/sbin/mount_unionfs -b /sys $HOME/sys
+/sbin/mount_cd9660 -e /dev/cd0 /cdrom
 .Ed
 .Pp
 Additional options specific to file system types
@@ -510,7 +519,6 @@ support for a particular file system might be provided either on a static
 .Xr mount_nwfs 8 ,
 .Xr mount_portalfs 8 ,
 .Xr mount_smbfs 8 ,
-.Xr mount_std 8 ,
 .Xr mount_udf 8 ,
 .Xr mount_unionfs 8 ,
 .Xr umount 8

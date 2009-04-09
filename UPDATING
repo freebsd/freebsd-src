@@ -8,6 +8,41 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090326:
+	Following bug-fixes to TCP connection state flags, netstat, systat,
+	and sockstat will need to be rebuilt in order to properly print
+	connections in the TIMEWAIT state.
+
+20090318:
+	Change IPv6 ephemeral port allocation from sequential to
+	random allocation, like IPv4 has done for more than four years.
+ 	The implementation shares infrastructure with IPv4. This
+	means that there is only one set of sysctls to control both
+	IPv4 and IPv6. See ip(4) man page for details.
+
+20090312:
+	A workaround is committed to allow the creation of System V shared
+	memory segment of size > 2 GB on the 64-bit architectures.
+	Due to a limitation of the existing ABI, the shm_segsz member
+	of the struct shmid_ds, returned by shmctl(IPC_STAT) call is
+	wrong for large segments. Note that limits must be explicitely
+	raised to allow such segments to be created.
+
+	The management interface that is used by ipcs(1) has to be changed
+	in incompatible way. Rebuild the ipcs(1) utility with the new
+	headers after the update. Buildworld/installworld takes care
+	of this issue automatically.
+
+20090312:
+	The open-source Atheros HAL has been merged from HEAD
+	to STABLE.
+	The kernel compile-time option AH_SUPPORT_AR5416 has been
+	added to support certain newer Atheros parts, particularly
+	PCI-Express chipsets.
+	The following modules are no longer available, and should be
+	removed from MODULES_OVERRIDE and/or loader.conf:-
+	 ath_hal ath_rate_amrr ath_rate_onoe ath_rate_sample
+
 20090207:
 	ZFS users on amd64 machines with 4GB or more of RAM should
 	reevaluate their need for setting vm.kmem_size_max and

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2003
+.Dd May 10, 2008
 .Dt VM_MAP_FIND 9
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Ft int
 .Fo vm_map_find
 .Fa "vm_map_t map" "vm_object_t object" "vm_ooffset_t offset"
-.Fa "vm_offset_t *addr" "vm_size_t length" "boolean_t find_space"
+.Fa "vm_offset_t *addr" "vm_size_t length" "int find_space"
 .Fa "vm_prot_t prot" "vm_prot_t max" "int cow"
 .Fc
 .Sh DESCRIPTION
@@ -70,11 +70,25 @@ by the caller before calling this function to account for the new entry.
 .Pp
 If
 .Fa find_space
-is
-.Dv TRUE ,
+is either
+.Dv VMFS_ALIGNED_SPACE 
+or
+.Dv VMFS_ANY_SPACE ,
 the function will call
 .Xr vm_map_findspace 9
 to discover a free region.
+Moreover, if
+.Fa find_space
+is
+.Dv VMFS_ALIGNED_SPACE ,
+the address of the free region will be optimized for the use of superpages.
+Otherwise, if
+.Fa find_space
+is
+.Dv VMFS_NO_SPACE ,
+.Xr vm_map_insert 9
+is called with the given address,
+.Fa addr .
 .Sh IMPLEMENTATION NOTES
 This function acquires a lock on
 .Fa map
@@ -90,9 +104,14 @@ The
 .Fn vm_map_find
 function returns
 .Dv KERN_SUCCESS
-if space for the mapping could be found and
-the mapping was successfully created.
-If space could not be found in the map,
+if the mapping was successfully created.
+If space could not be found or
+.Fa find_space
+was
+.Dv VMFS_NO_SPACE
+and the given address,
+.Fa addr ,
+was already mapped,
 .Dv KERN_NO_SPACE
 will be returned.
 If the discovered range turned out to be bogus,

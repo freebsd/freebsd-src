@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -50,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/uma.h>
 
@@ -163,8 +168,8 @@ static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits);
 static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps);
 static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits);
 
-SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
-	sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
+SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
+	&nchstats, sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
 
 
 
@@ -179,6 +184,7 @@ static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
  */
 #define NCF_WHITE	1
 
+#ifdef DIAGNOSTIC
 /*
  * Grab an atomic snapshot of the name cache hash chain lengths
  */
@@ -209,8 +215,9 @@ sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 	}
 	return (0);
 }
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_debug_hashstat_rawnchash, "S,int", "nchash chain lengths");
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD|
+	CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_rawnchash, "S,int",
+	"nchash chain lengths");
 
 static int
 sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
@@ -255,8 +262,10 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 		return (error);
 	return (0);
 }
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_debug_hashstat_nchash, "I", "nchash chain lengths");
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
+	CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_nchash, "I",
+	"nchash chain lengths");
+#endif
 
 /*
  * cache_zap():
@@ -484,6 +493,12 @@ cache_enter(dvp, vp, cnp)
 	    ("cahe_enter: Adding a doomed vnode"));
 
 	if (!doingcache)
+		return;
+
+	/*
+	 * Avoid blowout in namecache entries.
+	 */
+	if (numcache >= desiredvnodes * 2)
 		return;
 
 	if (cnp->cn_nameptr[0] == '.') {
@@ -733,6 +748,10 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 			bcopy(bp, buf, strlen(bp) + 1);
 		else
 			error = copyout(bp, buf, strlen(bp) + 1);
+#ifdef KTRACE
+	if (KTRPOINT(curthread, KTR_NAMEI))
+		ktrnamei(bp);
+#endif
 	}
 	free(tmpbuf, M_TEMP);
 	return (error);
@@ -780,6 +799,32 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	error = vn_fullpath1(td, vn, fdp->fd_rdir, buf, retbuf, MAXPATHLEN);
 	FILEDESC_SUNLOCK(fdp);
 
+	if (!error)
+		*freebuf = buf;
+	else
+		free(buf, M_TEMP);
+	return (error);
+}
+
+/*
+ * This function is similar to vn_fullpath, but it attempts to lookup the
+ * pathname relative to the global root mount point.  This is required for the
+ * auditing sub-system, as audited pathnames must be absolute, relative to the
+ * global root mount point.
+ */
+int
+vn_fullpath_global(struct thread *td, struct vnode *vn,
+    char **retbuf, char **freebuf)
+{
+	char *buf;
+	int error;
+
+	if (disablefullpath)
+		return (ENODEV);
+	if (vn == NULL)
+		return (EINVAL);
+	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	error = vn_fullpath1(td, vn, rootvnode, buf, retbuf, MAXPATHLEN);
 	if (!error)
 		*freebuf = buf;
 	else

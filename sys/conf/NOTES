@@ -2429,6 +2429,8 @@ device		uscanner
 #
 # USB serial support
 device		ucom
+# USB support for 3G modem cards by Option, Novatel, Huawei and Sierra
+device          u3g
 # USB support for Technologies ARK3116 based serial adapters
 device		uark
 # USB support for Belkin F5U103 and compatible serial adapters

@@ -764,6 +764,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_EXECVE:
+	case AUE_MAC_EXECVE:
 		if (ARG_IS_VALID(kar, ARG_ARGV)) {
 			tok = au_to_exec_args(ar->ar_arg_argv,
 			    ar->ar_arg_argc);

@@ -555,6 +555,8 @@ VFS_BIO_DEBUG		opt_global.h
 VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
+VM_NRESERVLEVEL		opt_vm.h
+VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
 MALLOC_PROFILE		opt_vm.h
@@ -617,6 +619,7 @@ UKBD_DFLT_KEYMAP	opt_ukbd.h
 UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
+U3G_DEBUG		opt_u3g.h
 
 # Embedded system options
 INIT_PATH
@@ -726,6 +729,21 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
+
+# options for the Atheros hal
+AH_SUPPORT_AR5416	opt_ah.h
+
+AH_DEBUG		opt_ah.h
+AH_ASSERT		opt_ah.h
+AH_DEBUG_ALQ		opt_ah.h
+AH_REGOPS_FUNC		opt_ah.h
+AH_WRITE_REGDOMAIN	opt_ah.h
+AH_DEBUG_COUNTRY	opt_ah.h
+AH_WRITE_EEPROM		opt_ah.h
+AH_PRIVATE_DIAG		opt_ah.h
+AH_NEED_DESC_SWAP	opt_ah.h
+AH_USE_INIPDGAIN	opt_ah.h
+AH_SUPPORT_11D		opt_ah.h
 
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h

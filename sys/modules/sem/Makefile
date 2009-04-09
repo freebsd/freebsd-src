@@ -3,6 +3,6 @@
 .PATH: ${.CURDIR}/../../kern
 
 KMOD=	sem
-SRCS=	uipc_sem.c opt_mac.h opt_posix.h
+SRCS=	uipc_sem.c opt_mac.h opt_posix.h vnode_if.h
 
 .include <bsd.kmod.mk>

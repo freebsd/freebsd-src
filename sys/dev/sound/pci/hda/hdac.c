@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090131_0127"
+#define HDA_DRV_TEST_REV	"20090329_0131"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -253,6 +253,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ACER_A4715_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x0133)
 #define ACER_3681WXM_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x0110)
 #define ACER_T6292_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x011b)
+#define ACER_T5320_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x011f)
 #define ACER_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0xffff)
 
 /* Asus */
@@ -2459,13 +2460,14 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			patch = "seq=15 device=Headphones";
 			break;
 		}
-	} else if (id == HDA_CODEC_ALC268 &&
-	    HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, sc->pci_subvendor)) {
+	} else if (id == HDA_CODEC_ALC268) {
+	    if (sc->pci_subvendor == ACER_T5320_SUBVENDOR) {
 		switch (nid) {
-		case 28:
-			patch = "device=CD conn=fixed";
+		case 20: /* Headphones Jack */
+			patch = "as=1 seq=15";
 			break;
 		}
+	    }
 	}
 
 	if (patch != NULL)
@@ -4981,7 +4983,7 @@ hdac_audio_trace_as_out(struct hdac_devinfo *devinfo, int as, int seq)
 	/* Find next pin */
 	for (i = seq; i < 16 && ases[as].pins[i] == 0; i++)
 		;
-	/* Check if there is no any left. If so - we succeded. */
+	/* Check if there is no any left. If so - we succeeded. */
 	if (i == 16)
 		return (1);
 	
@@ -5027,7 +5029,7 @@ hdac_audio_trace_as_out(struct hdac_devinfo *devinfo, int as, int seq)
 		hdac_audio_trace_dac(devinfo, as, i,
 		    ases[as].pins[i], hpredir, min, res, 0);
 		ases[as].dacs[i] = res;
-		/* We succeded, so call next. */
+		/* We succeeded, so call next. */
 		if (hdac_audio_trace_as_out(devinfo, as, i + 1))
 			return (1);
 		/* If next failed, we should retry with next min */
@@ -5262,7 +5264,7 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 		    sizeof(struct hdac_chan) * cnt,
 		    M_HDAC, M_ZERO | M_NOWAIT);
 		if (sc->chans == NULL) {
-			device_printf(devinfo->codec->sc->dev,
+			device_printf(sc->dev,
 			    "Channels memory allocation failed!\n");
 			return;
 		}
@@ -5272,17 +5274,20 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 		    M_HDAC, M_ZERO | M_NOWAIT);
 		if (sc->chans == NULL) {
 			sc->num_chans = 0;
-			device_printf(devinfo->codec->sc->dev,
+			device_printf(sc->dev,
 			    "Channels memory allocation failed!\n");
 			return;
 		}
+		/* Fixup relative pointers after realloc */
+		for (j = 0; j < sc->num_chans; j++)
+			sc->chans[j].caps.fmtlist = sc->chans[j].fmtlist;
 	}
 	free = sc->num_chans;
 	sc->num_chans += cnt;
 
 	for (j = free; j < free + cnt; j++) {
-		devinfo->codec->sc->chans[j].devinfo = devinfo;
-		devinfo->codec->sc->chans[j].as = -1;
+		sc->chans[j].devinfo = devinfo;
+		sc->chans[j].as = -1;
 	}
 
 	/* Assign associations in order of their numbers, */
@@ -5291,10 +5296,10 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 			continue;
 		
 		as[j].chan = free;
-		devinfo->codec->sc->chans[free].as = j;
-		devinfo->codec->sc->chans[free].dir =
+		sc->chans[free].as = j;
+		sc->chans[free].dir =
 		    (as[j].dir == HDA_CTL_IN) ? PCMDIR_REC : PCMDIR_PLAY;
-		hdac_pcmchannel_setup(&devinfo->codec->sc->chans[free]);
+		hdac_pcmchannel_setup(&sc->chans[free]);
 		free++;
 	}
 }
@@ -6002,7 +6007,7 @@ retry:
 		if (res) {
 			HDA_BOOTVERBOSE(
 				device_printf(devinfo->codec->sc->dev,
-				    "Association %d (%d) trace succeded\n",
+				    "Association %d (%d) trace succeeded\n",
 				    j, as[j].index);
 			);
 		} else {
@@ -7907,9 +7912,9 @@ hdac_pcm_attach(device_t dev)
 		device_printf(dev, "+--------------------------------------+\n");
 		hdac_dump_pcmchannels(pdevinfo);
 		device_printf(dev, "\n");
-		device_printf(dev, "+--------------------------------+\n");
-		device_printf(dev, "| DUMPING Playback/Record Pathes |\n");
-		device_printf(dev, "+--------------------------------+\n");
+		device_printf(dev, "+-------------------------------+\n");
+		device_printf(dev, "| DUMPING Playback/Record Paths |\n");
+		device_printf(dev, "+-------------------------------+\n");
 		hdac_dump_dac(pdevinfo);
 		hdac_dump_adc(pdevinfo);
 		hdac_dump_mix(pdevinfo);
