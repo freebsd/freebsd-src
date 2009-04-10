@@ -167,7 +167,7 @@ struct inpcb {
 	u_char	inp_ip_ttl;		/* (i) time to live proto */
 	u_char	inp_ip_p;		/* (c) protocol proto */
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
-	uint32_t inp_ispare1;		/* (x) connection id / queue id */
+	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	u_int	inp_refcount;		/* (i) refcount */
 	void	*inp_pspare[2];		/* (x) rtentry / general use */
 
@@ -416,6 +416,8 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
 #define	INP_DROPPED		0x04000000 /* protocol drop flag */
 #define	INP_SOCKREF		0x08000000 /* strong socket reference */
+#define	INP_SW_FLOWID           0x10000000 /* software generated flow id */
+#define	INP_HW_FLOWID           0x20000000 /* hardware generated flow id */
 #define	IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
 #define	IN6P_MTU		0x80000000 /* receive path MTU */
 

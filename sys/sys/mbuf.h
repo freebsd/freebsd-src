@@ -199,6 +199,7 @@ struct mbuf {
 #define	M_PROTO6	0x00080000 /* protocol-specific */
 #define	M_PROTO7	0x00100000 /* protocol-specific */
 #define	M_PROTO8	0x00200000 /* protocol-specific */
+#define	M_FLOWID	0x00400000 /* flowid is valid */
 /*
  * For RELENG_{6,7} steal these flags for limited multiple routing table
  * support. In RELENG_8 and beyond, use just one flag and a tag.
