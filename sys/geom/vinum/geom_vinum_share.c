@@ -367,6 +367,73 @@ gv_plexorg_short(int org)
 	}
 }
 
+struct gv_sd *
+gv_alloc_sd(void)
+{
+	struct gv_sd *s;
+
+#ifdef _KERNEL
+	s = g_malloc(sizeof(struct gv_sd), M_NOWAIT);
+#else
+	s = malloc(sizeof(struct gv_sd));
+#endif
+	if (s == NULL)
+		return (NULL);
+	bzero(s, sizeof(struct gv_sd));
+	s->plex_offset = -1;
+	s->size = -1;
+	s->drive_offset = -1;
+	return (s);
+}
+
+struct gv_drive *
+gv_alloc_drive(void)
+{
+	struct gv_drive *d;
+
+#ifdef _KERNEL
+	d = g_malloc(sizeof(struct gv_drive), M_NOWAIT);
+#else
+	d = malloc(sizeof(struct gv_drive));
+#endif
+	if (d == NULL)
+		return (NULL);
+	bzero(d, sizeof(struct gv_drive));
+	return (d);
+}
+
+struct gv_volume *
+gv_alloc_volume(void)
+{
+	struct gv_volume *v;
+
+#ifdef _KERNEL
+	v = g_malloc(sizeof(struct gv_volume), M_NOWAIT);
+#else
+	v = malloc(sizeof(struct gv_volume));
+#endif
+	if (v == NULL)
+		return (NULL);
+	bzero(v, sizeof(struct gv_volume));
+	return (v);
+}
+
+struct gv_plex *
+gv_alloc_plex(void)
+{
+	struct gv_plex *p;
+
+#ifdef _KERNEL
+	p = g_malloc(sizeof(struct gv_plex), M_NOWAIT);
+#else
+	p = malloc(sizeof(struct gv_plex));
+#endif
+	if (p == NULL)
+		return (NULL);
+	bzero(p, sizeof(struct gv_plex));
+	return (p);
+}
+
 /* Get a new drive object. */
 struct gv_drive *
 gv_new_drive(int max, char *token[])
@@ -377,16 +444,9 @@ gv_new_drive(int max, char *token[])
 
 	if (token[1] == NULL || *token[1] == '\0')
 		return (NULL);
-
-#ifdef _KERNEL
-	d = g_malloc(sizeof(struct gv_drive), M_NOWAIT);
-#else
-	d = malloc(sizeof(struct gv_drive));
-#endif
+	d = gv_alloc_drive();
 	if (d == NULL)
 		return (NULL);
-	bzero(d, sizeof(struct gv_drive));
-
 	errors = 0;
 	for (j = 1; j < max; j++) {
 		if (!strcmp(token[j], "state")) {
@@ -434,14 +494,9 @@ gv_new_volume(int max, char *token[])
 	if (token[1] == NULL || *token[1] == '\0')
 		return (NULL);
 
-#ifdef _KERNEL
-	v = g_malloc(sizeof(struct gv_volume), M_NOWAIT);
-#else
-	v = malloc(sizeof(struct gv_volume));
-#endif
+	v = gv_alloc_volume();
 	if (v == NULL)
 		return (NULL);
-	bzero(v, sizeof(struct gv_volume));
 
 	errors = 0;
 	for (j = 1; j < max; j++) {
@@ -479,14 +534,9 @@ gv_new_plex(int max, char *token[])
 	if (token[1] == NULL || *token[1] == '\0')
 		return (NULL);
 
-#ifdef _KERNEL
-	p = g_malloc(sizeof(struct gv_plex), M_NOWAIT);
-#else
-	p = malloc(sizeof(struct gv_plex));
-#endif
+	p = gv_alloc_plex();
 	if (p == NULL)
 		return (NULL);
-	bzero(p, sizeof(struct gv_plex));
 
 	errors = 0;
 	for (j = 1; j < max; j++) {
@@ -546,6 +596,8 @@ gv_new_plex(int max, char *token[])
 	return (p);
 }
 
+
+
 /* Get a new subdisk object. */
 struct gv_sd *
 gv_new_sd(int max, char *token[])
@@ -556,18 +608,10 @@ gv_new_sd(int max, char *token[])
 	if (token[1] == NULL || *token[1] == '\0')
 		return (NULL);
 
-#ifdef _KERNEL
-	s = g_malloc(sizeof(struct gv_sd), M_NOWAIT);
-#else
-	s = malloc(sizeof(struct gv_sd));
-#endif
+	s = gv_alloc_sd();
 	if (s == NULL)
 		return (NULL);
-	bzero(s, sizeof(struct gv_sd));
 
-	s->plex_offset = -1;
-	s->size = -1;
-	s->drive_offset = -1;
 	errors = 0;
 	for (j = 1; j < max; j++) {
 		if (!strcmp(token[j], "name")) {

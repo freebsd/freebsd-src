@@ -433,10 +433,9 @@ create_drive(char *device)
 	req = gctl_get_handle();
 	gctl_ro_param(req, "class", -1, "VINUM");
 	gctl_ro_param(req, "verb", -1, "create");
-	d = malloc(sizeof(struct gv_drive));
+	d = gv_alloc_drive();
 	if (d == NULL)
 		err(1, "unable to allocate for gv_drive object");
-	memset(d, 0, sizeof(struct gv_drive));
 
 	strlcpy(d->name, drivename, sizeof(d->name));
 	strlcpy(d->device, device, sizeof(d->device));
