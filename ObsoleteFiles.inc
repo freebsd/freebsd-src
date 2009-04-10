@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090410: VOP_LEASE.9 removed
+OLD_FILES+=usr/share/man/man9/VOP_LEASE.9
 # 20090405: removal of if_ppp(4) and if_sl(4)
 OLD_FILES+=sbin/slattach rescue/slattach
 OLD_FILES+=sbin/startslip rescue/startslip
