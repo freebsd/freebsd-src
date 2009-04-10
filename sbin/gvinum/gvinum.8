@@ -79,6 +79,10 @@ flag is given.
 .It Ic detach Oo Fl f Oc Op Ar plex | subdisk
 Detach a plex or subdisk from the volume or plex to which it is
 attached.
+.It Ic grow Ar plex device
+Grow a plex by creating a gvinum drive and subdisk on device and attach it to
+the plex.
+If required by the plex organization, it will be put into the growable state.
 .It Ic help
 Provides a synopsis of
 .Nm
@@ -333,16 +337,11 @@ Then, initiate the rebuild:
 The plex will go up form degraded mode after the rebuild is finished.
 The plex can still be used while the rebuild is in progress, although requests
 might be delayed.
-For a more advanced usage and detailed explanation of gvinum, the
-handbook is recommended.
 .Pp
 Given the configuration as in the previous example, growing a RAID-5 or STRIPED
-array is accomplished by adding a new subdisk to the plex with a
-.Ar description-file
-similar to this:
+array is accomplished by using the grow command:
 .Pp
-.Dl "drive newdrive device /dev/ad4"
-.Dl "sd drive newdrive plex myraid5vol.p0"
+.Dl "gvinum grow myraid5vol.p0 /dev/ad4"
 .Pp
 If everything went ok, the plex state should now be set to growable.
 You can then start the growing with the
@@ -354,6 +353,9 @@ command:
 As with rebuilding, you can watch the progress using the
 .Ic list
 command.
+.Pp
+For a more advanced usage and detailed explanation of gvinum, the
+handbook is recommended.
 .Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
