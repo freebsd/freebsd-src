@@ -594,7 +594,14 @@ findpcb:
 		goto dropwithreset;
 	}
 	INP_WLOCK(inp);
-
+	if (!(inp->inp_flags & INP_HW_FLOWID)
+	    && (m->m_flags & M_FLOWID)
+	    && ((inp->inp_socket == NULL)
+		|| !(inp->inp_socket->so_options & SO_ACCEPTCONN))) {
+		inp->inp_flags |= INP_HW_FLOWID;
+		inp->inp_flags &= ~INP_SW_FLOWID;
+		inp->inp_flowid = m->m_pkthdr.flowid;
+	}
 #ifdef IPSEC
 #ifdef INET6
 	if (isipv6 && ipsec6_in_reject(m, inp)) {
