@@ -512,7 +512,7 @@ ed_pccard_attach(device_t dev)
 	 */
 	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 		sum |= sc->enaddr[i];
-	if (sc->chip_type == ED_CHIP_TYPE_DP8390 && sum == 0) {
+	if (sum == 0) {
 		pccard_get_ether(dev, enaddr);
 		if (bootverbose)
 			device_printf(dev, "CIS MAC %6D\n", enaddr, ":");
