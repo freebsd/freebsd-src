@@ -114,7 +114,7 @@ usb2_attach(device_t dev)
 	}
 
 	/* delay vfs_mountroot until the bus is explored */
-	bus->bus_roothold = root_mount_hold(device_get_nameunit(dev), M_WAITOK);
+	bus->bus_roothold = root_mount_hold(device_get_nameunit(dev));
 
 	if (usb2_post_init_called) {
 		mtx_lock(&Giant);
