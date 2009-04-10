@@ -1474,7 +1474,7 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 	}
 
-	rht = root_mount_hold(mp->name, M_WAITOK);
+	rht = root_mount_hold(mp->name);
 	g_topology_unlock();
 
 	/*
