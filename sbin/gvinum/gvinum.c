@@ -630,7 +630,7 @@ char *
 find_drive(const char *device)
 {
 
-	/* Strip away eventual /dev/ in front. */
+	/* Strip possible /dev/ in front. */
 	if (strncmp(device, "/dev/", 5) == 0)
 		device += 5;
 	return (find_name("gvinumdrive", GV_TYPE_DRIVE, GV_MAXDRIVENAME));
