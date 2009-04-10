@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2009
+.Dd April 9, 2009
 .Dt ED 4
 .Os
 .Sh NAME
@@ -65,12 +65,6 @@ DLink's DL10019 and DL10022; and
 Tamarack's TC5299J chips all support internal or external MII/PHY combinations.
 Realtek's PCI and ISA RTL80x9-based cards are also supported.
 For these chipsets, autonegotiation and status reporting are supported.
-.Pp
-The
-.Nm
-driver uses a unique multi-buffering mechanism to achieve high transmit performance.
-When using 16bit ISA cards, as high as 97% of the theoretical maximum performance of
-the IEEE 802.3 CSMA Ethernet is possible.
 .Pp
 In addition to the standard port and IRQ specifications, the
 .Nm
@@ -183,7 +177,7 @@ Danpex EN-6200P2
 .It
 D-Link DE-298, DE-298P (flags 0x500000) (PC-98)
 .It
-D-Link DE-650/660
+D-Link DE-660, DE-660+
 .It
 D-Link IC-CARD/IC-CARD+ Ethernet
 .It
@@ -317,6 +311,8 @@ driver does not support the following Ethernet NICs:
 .Bl -bullet -compact
 .It
 Mitsubishi LAN Adapter B8895
+.It
+D-Link DE-650
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -373,6 +369,8 @@ The device is using a different I/O port than the driver knows about.
 Attempts to get the MAC address failed.
 .It "ed%d: Missing mii!"
 Probing for an MII bus has failed.
+This indicates a coding error in the PC Card attachment, because a PHY
+is required for the chips that generate this error message.
 .El
 .Sh CAVEATS
 Early revision DS8390 chips have problems.
@@ -393,18 +391,17 @@ on the 16bit cards.
 This can lead to ring-buffer overruns resulting in
 dropped packets during heavy network traffic.
 .Pp
-16bit Compex cards identify themselves as being 8bit.
-While these cards will
-work in 8bit mode, much higher performance can be achieved by specifying
-.Cd "flags 0x04"
-(force 16bit mode) in your kernel config file.
-In addition, you should also specify
-.Cd "iosiz 16384"
-to take advantage of the extra 8K of shared memory that 16bit mode provides.
-.Pp
 The Mitsubishi B8895 PC Card uses a DP83902, but its ASIC part is
 undocumented.
 Neither the NE2000 nor the WD83x0 drivers work with this card.
+.Pp
+The D-LINK DE-650 has funky resources that differ from other cards and could
+likely be made to work.
+Its shared memory interface conflicts with other resources on many
+laptops and cannot be moved.
+The pccard(4) layer does not support activating a CFE that it fails to
+allocate all the resources for.
+.Pp
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
@@ -431,7 +428,9 @@ packets are received.
 As a result, it may throw out some good packets which
 have been received but not yet transferred from the card to main memory.
 .Pp
-The
-.Nm
+The 
+.Nm 
+driver is slow by today's standards.
+.Pp
 PC Card attachment supports the D-Link DMF650TX LAN/Modem card's Ethernet
 port only at this time.
