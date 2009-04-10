@@ -91,8 +91,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     /*
      * Scan the program header entries, and save key information.
      *
-     * We rely on there being exactly two load segments, text and data,
-     * in that order.
+     * We expect that the loadable segments are ordered by load address.
      */
     phdr = (Elf_Phdr *) ((char *)hdr + hdr->e_phoff);
     phsize  = hdr->e_phnum * sizeof (phdr[0]);
@@ -167,7 +166,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 	return NULL;
     }
 
-    for (i = 0; i <=  nsegs; i++) {
+    for (i = 0; i <= nsegs; i++) {
 	/* Overlay the segment onto the proper region. */
 	data_offset = trunc_page(segs[i]->p_offset);
 	data_vaddr = trunc_page(segs[i]->p_vaddr);
