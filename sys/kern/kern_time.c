@@ -74,7 +74,6 @@ static uma_zone_t	itimer_zone = NULL;
 
 static int	settime(struct thread *, struct timeval *);
 static void	timevalfix(struct timeval *);
-static void	no_lease_updatetime(int);
 
 static void	itimer_start(void);
 static int	itimer_init(void *, int, int);
@@ -105,14 +104,6 @@ int		itimespecfix(struct timespec *ts);
 
 SYSINIT(posix_timer, SI_SUB_P1003_1B, SI_ORDER_FIRST+4, itimer_start, NULL);
 
-
-static void 
-no_lease_updatetime(deltat)
-	int deltat;
-{
-}
-
-void (*lease_updatetime)(int)  = no_lease_updatetime;
 
 static int
 settime(struct thread *td, struct timeval *tv)
@@ -168,9 +159,6 @@ settime(struct thread *td, struct timeval *tv)
 	ts.tv_nsec = tv->tv_usec * 1000;
 	mtx_lock(&Giant);
 	tc_setclock(&ts);
-	(void) splsoftclock();
-	lease_updatetime(delta.tv_sec);
-	splx(s);
 	resettodr();
 	mtx_unlock(&Giant);
 	return (0);
