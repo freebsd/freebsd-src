@@ -258,7 +258,6 @@ static int	ed_ifmedia_upd(struct ifnet *);
 static void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int	ed_pccard_tc5299j(device_t dev, const struct ed_product *);
-static void	ed_pccard_tc5299j_mii_reset(struct ed_softc *sc);
 static u_int	ed_pccard_tc5299j_mii_readbits(struct ed_softc *sc, int nbits);
 static void	ed_pccard_tc5299j_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
@@ -574,7 +573,6 @@ ed_pccard_attach(device_t dev)
 		}
 		    
 	} else if (sc->chip_type == ED_CHIP_TYPE_TC5299J) {
-		ed_pccard_tc5299j_mii_reset(sc);
 		if ((error = mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
 		     ed_ifmedia_sts)) != 0) {
 			device_printf(dev, "Missing mii!\n");
@@ -1009,36 +1007,24 @@ ed_pccard_tc5299j(device_t dev, const struct ed_product *pp)
 	return (0);
 }
 
-/* MII bit-twiddling routines for cards using TC5299J chipset */
-#define TC5299J_MIISET(sc, x) ed_nic_outb(sc, ED_TC5299J_MIIBUS, \
-    ed_nic_inb(sc, ED_TC5299J_MIIBUS) | (x))
-#define TC5299J_MIICLR(sc, x) ed_nic_outb(sc, ED_TC5299J_MIIBUS, \
-    ed_nic_inb(sc, ED_TC5299J_MIIBUS) & ~(x))
-
-static void
-ed_pccard_tc5299j_mii_reset(struct ed_softc *sc)
-{
-	/* Do nothing! */
-}
-
 static void
 ed_pccard_tc5299j_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
 {
 	int i;
-	uint8_t cr;
+	uint8_t cr, data;
 
+	/* Select page 3 */
 	cr = ed_nic_inb(sc, ED_P0_CR);
 	ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
 
-	TC5299J_MIICLR(sc, ED_TC5299J_MII_DIROUT);
 	for (i = nbits - 1; i >= 0; i--) {
-		if ((val >> i) & 1)
-			TC5299J_MIISET(sc, ED_TC5299J_MII_DATAOUT);
-		else
-			TC5299J_MIICLR(sc, ED_TC5299J_MII_DATAOUT);
-		TC5299J_MIISET(sc, ED_TC5299J_MII_CLK);
-		TC5299J_MIICLR(sc, ED_TC5299J_MII_CLK);
+		data = (val >> i) & 1 ? ED_TC5299J_MII_DATAOUT : 0;
+		ed_nic_outb(sc, ED_TC5299J_MIIBUS, data);
+		ed_nic_outb(sc, ED_TC5299J_MIIBUS, data | ED_TC5299J_MII_CLK);
 	}
+	ed_nic_outb(sc, ED_TC5299J_MIIBUS, 0);
+		
+	/* Restore prior page */
 	ed_nic_outb(sc, ED_P0_CR, cr);
 }
 
@@ -1049,17 +1035,21 @@ ed_pccard_tc5299j_mii_readbits(struct ed_softc *sc, int nbits)
 	u_int val = 0;
 	uint8_t cr;
 
+	/* Select page 3 */
 	cr = ed_nic_inb(sc, ED_P0_CR);
 	ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
 
-	TC5299J_MIISET(sc, ED_TC5299J_MII_DIROUT);
+	ed_asic_outb(sc, ED_TC5299J_MIIBUS, ED_TC5299J_MII_DIROUT);
 	for (i = nbits - 1; i >= 0; i--) {
-		TC5299J_MIISET(sc, ED_TC5299J_MII_CLK);
+		ed_nic_outb(sc, ED_TC5299J_MIIBUS,
+		    ED_TC5299J_MII_CLK | ED_TC5299J_MII_DIROUT);
 		val <<= 1;
 		if (ed_nic_inb(sc, ED_TC5299J_MIIBUS) & ED_TC5299J_MII_DATAIN)
 			val++;
-		TC5299J_MIICLR(sc, ED_TC5299J_MII_CLK);
+		ed_nic_outb(sc, ED_TC5299J_MIIBUS, ED_TC5299J_MII_DIROUT);
 	}
+
+	/* Restore prior page */
 	ed_nic_outb(sc, ED_P0_CR, cr);
 	return val;
 }
