@@ -554,8 +554,15 @@ success:
 	else
 		CACHE_RUNLOCK();
 	error = vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, cnp->cn_thread);
-	if (cnp->cn_flags & ISDOTDOT)
+	if (cnp->cn_flags & ISDOTDOT) {
 		vn_lock(dvp, ltype | LK_RETRY);
+		if (dvp->v_iflag & VI_DOOMED) {
+			if (error == 0)
+				vput(*vpp);
+			*vpp = NULL;
+			return (ENOENT);
+		}
+	}
 	if (error) {
 		*vpp = NULL;
 		goto retry;

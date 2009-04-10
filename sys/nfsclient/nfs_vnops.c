@@ -978,6 +978,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			vrele(newvp);
 		*vpp = NULLVP;
 	} else if (error == ENOENT) {
+		if (dvp->v_iflag & VI_DOOMED)
+			return (ENOENT);
 		/*
 		 * We only accept a negative hit in the cache if the
 		 * modification time of the parent directory matches
