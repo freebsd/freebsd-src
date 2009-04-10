@@ -217,7 +217,6 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (rw == UIO_WRITE) {
 		ioflag = IO_SYNC;
-		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	} else {
 		ioflag = IO_DIRECT;
 	}
