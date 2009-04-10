@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -64,6 +64,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
 #include <netinet/udp.h>
 
 #include <machine/in_cksum.h>
@@ -83,8 +84,12 @@
 #include <sys/taskqueue.h>
 #include <sys/pcpu.h>
 
+#ifdef IXGBE_TIMESYNC
+#include <sys/ioccom.h>
+#include <sys/time.h>
+#endif
+
 #include "ixgbe_api.h"
-#include "tcp_lro.h"
 
 /* Tunables */
 
@@ -95,7 +100,7 @@
  * bytes. Performance tests have show the 2K value to be optimal for top
  * performance.
  */
-#define DEFAULT_TXD	256
+#define DEFAULT_TXD	1024
 #define PERFORM_TXD	2048
 #define MAX_TXD		4096
 #define MIN_TXD		64
@@ -110,7 +115,7 @@
  *	against the system mbuf pool limit, you can tune nmbclusters
  *	to adjust for this.
  */
-#define DEFAULT_RXD	256
+#define DEFAULT_RXD	1024
 #define PERFORM_RXD	2048
 #define MAX_RXD		4096
 #define MIN_RXD		64
@@ -159,7 +164,8 @@
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
 
 #define MAX_NUM_MULTICAST_ADDRESSES     128
-#define IXGBE_MAX_SCATTER		100
+#define IXGBE_82598_SCATTER		100
+#define IXGBE_82599_SCATTER		32
 #define MSIX_82598_BAR			3
 #define MSIX_82599_BAR			4
 #define IXGBE_TSO_SIZE			65535
@@ -171,12 +177,13 @@
 #define IXGBE_MSGS			18
 
 /* For 6.X code compatibility */
-#if __FreeBSD_version < 700000
+#if !defined(ETHER_BPF_MTAP)
 #define ETHER_BPF_MTAP		BPF_MTAP
+#endif
+
+#if __FreeBSD_version < 700000
 #define CSUM_TSO		0
 #define IFCAP_TSO4		0
-#define FILTER_STRAY
-#define FILTER_HANDLED
 #endif
 
 /*
@@ -214,6 +221,7 @@ typedef struct _ixgbe_vendor_info_t {
 
 
 struct ixgbe_tx_buf {
+	u32		eop_index;
 	struct mbuf	*m_head;
 	bus_dmamap_t	map;
 };
@@ -314,8 +322,6 @@ struct adapter {
 
 	/*
 	 * Interrupt resources:
-	 *  Oplin has 20 MSIX messages
-	 *  so allocate that for now.
 	 */
 	void		*tag[IXGBE_MSGS];
 	struct resource *res[IXGBE_MSGS];
@@ -334,6 +340,7 @@ struct adapter {
 	bool		link_active;
 	u16		max_frame_size;
 	u32		link_speed;
+	bool		link_up;
 	u32 		linkvec;
 	u32		tx_int_delay;
 	u32		tx_abs_int_delay;
@@ -343,8 +350,12 @@ struct adapter {
 	/* Mbuf cluster size */
 	u32		rx_mbuf_sz;
 
-	/* Check for missing optics */
+	/* Support for pluggable optics */
 	bool		sfp_probe;
+	struct task     link_task; 	/* Link tasklet */
+	struct task     mod_task; 	/* SFP tasklet */
+	struct task     msf_task; 	/* Multispeed Fiber tasklet */
+	struct taskqueue	*tq;
 
 	/*
 	 * Transmit rings:
@@ -364,6 +375,12 @@ struct adapter {
 	u32		rx_mask;
 	u32		rx_process_limit;
 
+#ifdef IXGBE_TIMESYNC
+	u64		last_stamp;
+	u64		last_sec;
+	u32		last_ns;
+#endif
+
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
 	unsigned long   mbuf_defrag_failed;
@@ -378,6 +395,32 @@ struct adapter {
 	struct ixgbe_hw_stats stats;
 };
 
+#ifdef IXGBE_TIMESYNC
+/* Precision Time Sync (IEEE 1588) defines */
+#define ETHERTYPE_IEEE1588      0x88F7
+#define PICOSECS_PER_TICK       20833
+#define TSYNC_UDP_PORT          319 /* UDP port for the protocol */
+#define IXGBE_ADVTXD_TSTAMP	0x00080000
+
+/* TIMESYNC IOCTL defines */
+#define IXGBE_TIMESYNC_READTS     _IOWR('i', 127, struct ixgbe_tsync_read)
+#define IXGBE_TIMESTAMP           5       /* A unique return value */
+ 
+/* Used in the READTS IOCTL */
+struct ixgbe_tsync_read {
+        int read_current_time;
+        struct timespec system_time;
+        u64 network_time;
+        u64 rx_stamp;
+        u64 tx_stamp;
+        u16 seqid;
+        unsigned char srcid[6];
+        int rx_valid;
+        int tx_valid;
+};
+
+#endif /* IXGBE_TIMESYNC */
+
 #define IXGBE_CORE_LOCK_INIT(_sc, _name) \
         mtx_init(&(_sc)->core_mtx, _name, "IXGBE Core Lock", MTX_DEF)
 #define IXGBE_CORE_LOCK_DESTROY(_sc)      mtx_destroy(&(_sc)->core_mtx)
@@ -385,6 +428,7 @@ struct adapter {
 #define IXGBE_RX_LOCK_DESTROY(_sc)                mtx_destroy(&(_sc)->rx_mtx)
 #define IXGBE_CORE_LOCK(_sc)              mtx_lock(&(_sc)->core_mtx)
 #define IXGBE_TX_LOCK(_sc)                        mtx_lock(&(_sc)->tx_mtx)
+#define IXGBE_TX_TRYLOCK(_sc)                     mtx_trylock(&(_sc)->tx_mtx)
 #define IXGBE_RX_LOCK(_sc)                        mtx_lock(&(_sc)->rx_mtx)
 #define IXGBE_CORE_UNLOCK(_sc)            mtx_unlock(&(_sc)->core_mtx)
 #define IXGBE_TX_UNLOCK(_sc)              mtx_unlock(&(_sc)->tx_mtx)
@@ -392,5 +436,21 @@ struct adapter {
 #define IXGBE_CORE_LOCK_ASSERT(_sc)       mtx_assert(&(_sc)->core_mtx, MA_OWNED)
 #define IXGBE_TX_LOCK_ASSERT(_sc)         mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 
+
+static inline bool
+ixgbe_is_sfp(struct ixgbe_hw *hw)
+{
+	switch (hw->phy.type) {
+	case ixgbe_phy_sfp_avago:
+	case ixgbe_phy_sfp_ftl:
+	case ixgbe_phy_sfp_intel:
+	case ixgbe_phy_sfp_unknown:
+	case ixgbe_phy_tw_tyco:
+	case ixgbe_phy_tw_unknown:
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
 
 #endif /* _IXGBE_H_ */
