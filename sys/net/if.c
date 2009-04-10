@@ -141,6 +141,7 @@ static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
+static void	if_delgroups(struct ifnet *);
 
 #ifdef INET6
 /*
@@ -887,7 +888,7 @@ if_detach(struct ifnet *ifp)
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 	devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
-	if_delgroup(ifp, IFG_ALL);
+	if_delgroups(ifp);
 
 	IF_AFDATA_LOCK(ifp);
 	for (dp = domains; dp; dp = dp->dom_next) {
@@ -1022,6 +1023,54 @@ if_delgroup(struct ifnet *ifp, const char *groupname)
 	EVENTHANDLER_INVOKE(group_change_event, groupname);
 
 	return (0);
+}
+
+/*
+ * Remove an interface from all groups
+ */
+static void
+if_delgroups(struct ifnet *ifp)
+{
+	INIT_VNET_NET(ifp->if_vnet);
+	struct ifg_list		*ifgl;
+	struct ifg_member	*ifgm;
+	char groupname[IFNAMSIZ];
+
+	IFNET_WLOCK();
+	while (!TAILQ_EMPTY(&ifp->if_groups)) {
+		ifgl = TAILQ_FIRST(&ifp->if_groups);
+
+		strlcpy(groupname, ifgl->ifgl_group->ifg_group, IFNAMSIZ);
+
+		IF_ADDR_LOCK(ifp);
+		TAILQ_REMOVE(&ifp->if_groups, ifgl, ifgl_next);
+		IF_ADDR_UNLOCK(ifp);
+
+		TAILQ_FOREACH(ifgm, &ifgl->ifgl_group->ifg_members, ifgm_next)
+			if (ifgm->ifgm_ifp == ifp)
+				break;
+
+		if (ifgm != NULL) {
+			TAILQ_REMOVE(&ifgl->ifgl_group->ifg_members, ifgm,
+			    ifgm_next);
+			free(ifgm, M_TEMP);
+		}
+
+		if (--ifgl->ifgl_group->ifg_refcnt == 0) {
+			TAILQ_REMOVE(&V_ifg_head, ifgl->ifgl_group, ifg_next);
+			EVENTHANDLER_INVOKE(group_detach_event,
+			    ifgl->ifgl_group);
+			free(ifgl->ifgl_group, M_TEMP);
+		}
+		IFNET_WUNLOCK();
+
+		free(ifgl, M_TEMP);
+
+		EVENTHANDLER_INVOKE(group_change_event, groupname);
+
+		IFNET_WLOCK();
+	}
+	IFNET_WUNLOCK();
 }
 
 /*
