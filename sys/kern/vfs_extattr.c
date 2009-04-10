@@ -175,7 +175,6 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	aiov.iov_base = data;
@@ -341,7 +340,6 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	int error;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	/*
@@ -522,7 +520,6 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 #ifdef MAC
@@ -664,7 +661,6 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 	int error;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	auiop = NULL;

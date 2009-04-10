@@ -173,7 +173,6 @@ struct vop_vector nfs4_vnodeops = {
 	.vop_getpages =		nfs_getpages,
 	.vop_putpages =		nfs_putpages,
 	.vop_inactive =		nfs_inactive,
-	.vop_lease =		VOP_NULL,
 	.vop_link =		nfs4_link,
 	.vop_lookup =		nfs4_lookup,
 	.vop_mkdir =		nfs4_mkdir,
