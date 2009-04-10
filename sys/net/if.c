@@ -887,6 +887,7 @@ if_detach(struct ifnet *ifp)
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 	devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
+	if_delgroup(ifp, IFG_ALL);
 
 	IF_AFDATA_LOCK(ifp);
 	for (dp = domains; dp; dp = dp->dom_next) {
