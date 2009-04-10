@@ -412,14 +412,6 @@ extern	struct uma_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 
-/*
- * Macro/function to check for client cache inconsistency w.r.t. leasing.
- */
-#define	LEASE_READ	0x1		/* Check lease for readers */
-#define	LEASE_WRITE	0x2		/* Check lease for modifiers */
-
-extern void	(*lease_updatetime)(int deltat);
-
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
 #define	VI_LOCK_FLAGS(vp, flags) mtx_lock_flags(&(vp)->v_interlock, (flags))
 #define	VI_TRYLOCK(vp)	mtx_trylock(&(vp)->v_interlock)
@@ -587,8 +579,6 @@ struct uio;
 struct vattr;
 struct vnode;
 
-extern int	(*lease_check_hook)(struct vop_lease_args *);
-
 /* cache_* may belong in namei.h. */
 void	cache_enter(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);
@@ -607,7 +597,6 @@ int	insmntque1(struct vnode *vp, struct mount *mp,
 	    void (*dtr)(struct vnode *, void *), void *dtr_arg);
 int	insmntque(struct vnode *vp, struct mount *mp);
 u_quad_t init_va_filerev(void);
-int	lease_check(struct vop_lease_args *ap);
 int	speedup_syncer(void);
 #define textvp_fullpath(p, rb, rfb) \
 	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
