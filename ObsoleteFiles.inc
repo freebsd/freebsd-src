@@ -15,7 +15,7 @@
 #
 
 # 20090410: VOP_LEASE.9 removed
-OLD_FILES+=usr/share/man/man9/VOP_LEASE.9
+OLD_FILES+=usr/share/man/man9/VOP_LEASE.9.gz
 # 20090405: removal of if_ppp(4) and if_sl(4)
 OLD_FILES+=sbin/slattach rescue/slattach
 OLD_FILES+=sbin/startslip rescue/startslip
