@@ -2217,6 +2217,16 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 *
 		 */
 		if (entry->wired_count == 0) {
+			if ((entry->protection & (VM_PROT_READ|VM_PROT_EXECUTE))
+			    == 0) {
+				if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
+					end = entry->end;
+					rv = KERN_INVALID_ADDRESS;
+					goto done;
+				}
+				entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
+				goto next_entry;
+			}
 			entry->wired_count++;
 			saved_start = entry->start;
 			saved_end = entry->end;
@@ -2274,6 +2284,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * Check the map for holes in the specified region.
 		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
 		 */
+	next_entry:
 		if (((flags & VM_MAP_WIRE_HOLESOK) == 0) &&
 		    (entry->end < end && (entry->next == &map->header ||
 		    entry->next->start > entry->end))) {
@@ -2295,6 +2306,8 @@ done:
 	}
 	entry = first_entry;
 	while (entry != &map->header && entry->start < end) {
+		if ((entry->eflags & MAP_ENTRY_WIRE_SKIPPED) != 0)
+			goto next_entry_done;
 		if (rv == KERN_SUCCESS) {
 			if (user_wire)
 				entry->eflags |= MAP_ENTRY_USER_WIRED;
@@ -2317,9 +2330,10 @@ done:
 				    entry->object.vm_object->type == OBJT_DEVICE);
 			}
 		}
+	next_entry_done:
 		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
 			("vm_map_wire: in-transition flag missing"));
-		entry->eflags &= ~MAP_ENTRY_IN_TRANSITION;
+		entry->eflags &= ~(MAP_ENTRY_IN_TRANSITION|MAP_ENTRY_WIRE_SKIPPED);
 		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
 			need_wakeup = TRUE;
