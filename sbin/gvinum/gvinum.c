@@ -82,6 +82,7 @@ void	printconfig(FILE *, char *);
 char	*create_drive(char *);
 void	 create_volume(int, char **, char *);
 char	*find_name(const char *, int, int);
+char	*find_drive(const char *);
 char	*find_pattern(char *, char *);
 
 int
@@ -422,11 +423,7 @@ create_drive(char *device)
 	drives = 1;
 	dname = NULL;
 
-	/* Strip away eventual /dev/ in front. */
-	if (strncmp(device, "/dev/", 5) == 0)
-		device += 5;
-
-	drivename = find_name("gvinumdrive", GV_TYPE_DRIVE, GV_MAXDRIVENAME);
+	drivename = find_drive(device);
 	if (drivename == NULL)
 		return (NULL);
 
@@ -626,6 +623,16 @@ find_name(const char *prefix, int type, int namelen)
 	}
 	free(sname);
 	return (NULL);
+}
+
+char *
+find_drive(const char *device)
+{
+
+	/* Strip away eventual /dev/ in front. */
+	if (strncmp(device, "/dev/", 5) == 0)
+		device += 5;
+	return (find_name("gvinumdrive", GV_TYPE_DRIVE, GV_MAXDRIVENAME));
 }
 
 /* Detach a plex or subdisk from its parent. */
