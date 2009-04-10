@@ -1376,7 +1376,10 @@ ip_ctloutput_pcbinfo(so, sopt, pcbinfo)
 				error = EINVAL;
 				break;
 			}
+			INP_LOCK(inp);
+			INP_INFO_WUNLOCK(pcbinfo);
 			error = ipsec4_set_policy(inp, optname, req, len, priv);
+			INP_UNLOCK(inp);
 			m_freem(m);
 			break;
 		}
