@@ -367,10 +367,15 @@ main(int argc, char *argv[])
 	err(1, "%s", fname);
     if (fstat(fd, &sb))
 	err(1, "%s", fname);
+    if (opt_create) {
+	if (!S_ISREG(sb.st_mode))
+	    warnx("warning, %s is not a regular file", fname);
+    } else {
+	if (!S_ISCHR(sb.st_mode))
+	    warnx("warning, %s is not a character device", fname);
+    }
     if (!opt_N)
 	check_mounted(fname, sb.st_mode);
-    if (!S_ISCHR(sb.st_mode))
-	warnx("warning, %s is not a character device", fname);
     if (opt_ofs && opt_ofs != lseek(fd, opt_ofs, SEEK_SET))
 	errx(1, "cannot seek to %jd", (intmax_t)opt_ofs);
     memset(&bpb, 0, sizeof(bpb));
