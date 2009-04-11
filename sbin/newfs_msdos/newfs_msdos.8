@@ -96,10 +96,11 @@ Get bootstrap from file.
 Create the image file with the specified size. A suffix character appended
 to the size is interpreted as for the
 .Fl @
-option. The file is created by truncating any existing file with the
-same name, seeking just before the required size and writing
-a single 0 byte. As a consequence, the space occupied on disk
-may be smaller than the size specified as a parameter.
+option.
+The file is created by truncating any existing file with the same name and
+resizing it to the requested size.
+If the file system supports sparse files, the space occupied on disk may be
+smaller than the size specified as parameter.
 .It Fl F Ar FAT-type
 FAT type (one of 12, 16, or 32).
 .It Fl I Ar volid
