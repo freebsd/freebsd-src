@@ -172,7 +172,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	    (V_tcp_reass_qsize + 1 >= V_tcp_reass_maxseg ||
 	     tp->t_segqlen >= V_tcp_reass_maxqlen)) {
 		V_tcp_reass_overflows++;
-		V_tcpstat.tcps_rcvmemdrop++;
+		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
 		*tlenp = 0;
 		return (0);
@@ -184,7 +184,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 */
 	te = uma_zalloc(V_tcp_reass_zone, M_NOWAIT);
 	if (te == NULL) {
-		V_tcpstat.tcps_rcvmemdrop++;
+		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
 		*tlenp = 0;
 		return (0);
@@ -212,8 +212,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		i = p->tqe_th->th_seq + p->tqe_len - th->th_seq;
 		if (i > 0) {
 			if (i >= *tlenp) {
-				V_tcpstat.tcps_rcvduppack++;
-				V_tcpstat.tcps_rcvdupbyte += *tlenp;
+				TCPSTAT_INC(tcps_rcvduppack);
+				TCPSTAT_ADD(tcps_rcvdupbyte, *tlenp);
 				m_freem(m);
 				uma_zfree(V_tcp_reass_zone, te);
 				tp->t_segqlen--;
@@ -231,8 +231,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 			th->th_seq += i;
 		}
 	}
-	V_tcpstat.tcps_rcvoopack++;
-	V_tcpstat.tcps_rcvoobyte += *tlenp;
+	TCPSTAT_INC(tcps_rcvoopack);
+	TCPSTAT_ADD(tcps_rcvoobyte, *tlenp);
 
 	/*
 	 * While we overlap succeeding segments trim them or,

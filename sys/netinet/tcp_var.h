@@ -458,6 +458,9 @@ struct	tcpstat {
 	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
 };
 
+#define	TCPSTAT_ADD(name, val)	V_tcpstat.name += (val)
+#define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
+
 /*
  * TCB structure exported to user-land via sysctl(3).
  * Evil hack: declare only if in_pcb.h and sys/socketvar.h have been

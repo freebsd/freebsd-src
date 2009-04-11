@@ -3829,7 +3829,7 @@ socket_act_establish(struct socket *so, struct mbuf *m)
 #endif
 
 	toep->tp_state = tp->t_state;
-	V_tcpstat.tcps_connects++;
+	TCPSTAT_INC(tcps_connects);
 				
 }
 
