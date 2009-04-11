@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2007
+.Dd April 11, 2009
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -72,9 +72,11 @@ to determine geometry, if required.
 If
 .Ar special
 does not contain a
-.Ar / ,
-it is assumed to be a device name and
-.Ar /dev
+.Ar /
+and
+.Fl C
+is not used, it is assumed to be a device name and
+.Ar /dev/
 is prepended to the name to construct the actual device name.
 To work a file in the current directory use
 .Ar ./filename
