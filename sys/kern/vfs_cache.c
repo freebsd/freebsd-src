@@ -678,14 +678,19 @@ cache_enter(dvp, vp, cnp)
 		}
 	}
 
-	/*
-	 * See if we are trying to add .. entry, but some other lookup
-	 * has populated v_cache_dd pointer already.
-	 */
-	if (flag == NCF_ISDOTDOT && dvp->v_cache_dd != NULL) {
-		CACHE_WUNLOCK();
-		cache_free(ncp);
-		return;
+	if (flag == NCF_ISDOTDOT) {
+		/*
+		 * See if we are trying to add .. entry, but some other lookup
+		 * has populated v_cache_dd pointer already.
+		 */
+		if (dvp->v_cache_dd != NULL) {
+		    CACHE_WUNLOCK();
+		    cache_free(ncp);
+		    return;
+		}
+		KASSERT(vp == NULL || vp->v_type == VDIR,
+		    ("wrong vnode type %p", vp));
+		dvp->v_cache_dd = ncp;
 	}
 
 	numcache++;
@@ -694,11 +699,7 @@ cache_enter(dvp, vp, cnp)
 		if (cnp->cn_flags & ISWHITEOUT)
 			ncp->nc_flag |= NCF_WHITE;
 	} else if (vp->v_type == VDIR) {
-		if (flag == NCF_ISDOTDOT) {
-			KASSERT(dvp->v_cache_dd == NULL,
-			    ("dangling v_cache_dd"));
-			dvp->v_cache_dd = ncp;
-		} else {
+		if (flag != NCF_ISDOTDOT) {
 			if ((n2 = vp->v_cache_dd) != NULL &&
 			    (n2->nc_flag & NCF_ISDOTDOT) != 0)
 				cache_zap(n2);
