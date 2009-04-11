@@ -260,7 +260,7 @@ tcp_sackhole_alloc(struct tcpcb *tp, tcp_seq start, tcp_seq end)
 
 	if (tp->snd_numholes >= V_tcp_sack_maxholes ||
 	    V_tcp_sack_globalholes >= V_tcp_sack_globalmaxholes) {
-		V_tcpstat.tcps_sack_sboverflow++;
+		TCPSTAT_INC(tcps_sack_sboverflow);
 		return NULL;
 	}
 

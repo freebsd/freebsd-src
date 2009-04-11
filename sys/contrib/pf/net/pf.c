@@ -6291,7 +6291,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		}
 		/* Update relevant hardware checksum stats for TCP/UDP */
 		if (m0->m_pkthdr.csum_flags & M_TCPV4_CSUM_OUT)
-			V_tcpstat.tcps_outhwcsum++;
+			TCPSTAT_INC(tcpstat.tcps_outhwcsum);
 		else if (m0->m_pkthdr.csum_flags & M_UDPV4_CSUM_OUT)
 			V_udpstat.udps_outhwcsum++;
 		error = (*ifp->if_output)(ifp, m0, sintosa(dst), NULL);
@@ -6635,7 +6635,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 		case IPPROTO_TCP:
 		    {
 			INIT_VNET_INET(curvnet);
-			V_tcpstat.tcps_rcvbadsum++;
+			TCPSTAT_INC(tcps_rcvbadsum);
 			break;
 		    }
 		case IPPROTO_UDP:
@@ -6741,7 +6741,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p,
 		m->m_pkthdr.csum_flags |= flag_bad;
 		switch (p) {
 		case IPPROTO_TCP:
-			V_tcpstat.tcps_rcvbadsum++;
+			TCPSTAT_INC(tcps_rcvbadsum);
 			break;
 		case IPPROTO_UDP:
 			V_udpstat.udps_badsum++;
