@@ -381,31 +381,31 @@ ip_input(struct mbuf *m)
 		goto ours;
 	}
 
-	V_ipstat.ips_total++;
+	IPSTAT_INC(ips_total);
 
 	if (m->m_pkthdr.len < sizeof(struct ip))
 		goto tooshort;
 
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-		V_ipstat.ips_toosmall++;
+		IPSTAT_INC(ips_toosmall);
 		return;
 	}
 	ip = mtod(m, struct ip *);
 
 	if (ip->ip_v != IPVERSION) {
-		V_ipstat.ips_badvers++;
+		IPSTAT_INC(ips_badvers);
 		goto bad;
 	}
 
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) {	/* minimum header length */
-		V_ipstat.ips_badhlen++;
+		IPSTAT_INC(ips_badhlen);
 		goto bad;
 	}
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == NULL) {
-			V_ipstat.ips_badhlen++;
+			IPSTAT_INC(ips_badhlen);
 			return;
 		}
 		ip = mtod(m, struct ip *);
@@ -415,7 +415,7 @@ ip_input(struct mbuf *m)
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
 		if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
-			V_ipstat.ips_badaddr++;
+			IPSTAT_INC(ips_badaddr);
 			goto bad;
 		}
 	}
@@ -430,7 +430,7 @@ ip_input(struct mbuf *m)
 		}
 	}
 	if (sum) {
-		V_ipstat.ips_badsum++;
+		IPSTAT_INC(ips_badsum);
 		goto bad;
 	}
 
@@ -445,7 +445,7 @@ ip_input(struct mbuf *m)
 	 */
 	ip->ip_len = ntohs(ip->ip_len);
 	if (ip->ip_len < hlen) {
-		V_ipstat.ips_badlen++;
+		IPSTAT_INC(ips_badlen);
 		goto bad;
 	}
 	ip->ip_off = ntohs(ip->ip_off);
@@ -458,7 +458,7 @@ ip_input(struct mbuf *m)
 	 */
 	if (m->m_pkthdr.len < ip->ip_len) {
 tooshort:
-		V_ipstat.ips_tooshort++;
+		IPSTAT_INC(ips_tooshort);
 		goto bad;
 	}
 	if (m->m_pkthdr.len > ip->ip_len) {
@@ -609,7 +609,7 @@ passin:
 	}
 	/* RFC 3927 2.7: Do not forward datagrams for 169.254.0.0/16. */
 	if (IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr))) {
-		V_ipstat.ips_cantforward++;
+		IPSTAT_INC(ips_cantforward);
 		m_freem(m);
 		return;
 	}
@@ -625,7 +625,7 @@ passin:
 			 */
 			if (ip_mforward &&
 			    ip_mforward(ip, m->m_pkthdr.rcvif, m, 0) != 0) {
-				V_ipstat.ips_cantforward++;
+				IPSTAT_INC(ips_cantforward);
 				m_freem(m);
 				return;
 			}
@@ -637,7 +637,7 @@ passin:
 			 */
 			if (ip->ip_p == IPPROTO_IGMP)
 				goto ours;
-			V_ipstat.ips_forward++;
+			IPSTAT_INC(ips_forward);
 		}
 		/*
 		 * Assume the packet is for us, to avoid prematurely taking
@@ -667,7 +667,7 @@ passin:
 	 * Not for us; forward if possible and desirable.
 	 */
 	if (V_ipforwarding == 0) {
-		V_ipstat.ips_cantforward++;
+		IPSTAT_INC(ips_cantforward);
 		m_freem(m);
 	} else {
 #ifdef IPSEC
@@ -727,7 +727,7 @@ ours:
 	/*
 	 * Switch out to protocol's input routine.
 	 */
-	V_ipstat.ips_delivered++;
+	IPSTAT_INC(ips_delivered);
 
 	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
 	return;
@@ -825,8 +825,8 @@ ip_reass(struct mbuf *m)
 
 	/* If maxnipq or maxfragsperpacket are 0, never accept fragments. */
 	if (V_maxnipq == 0 || V_maxfragsperpacket == 0) {
-		V_ipstat.ips_fragments++;
-		V_ipstat.ips_fragdropped++;
+		IPSTAT_INC(ips_fragments);
+		IPSTAT_INC(ips_fragdropped);
 		m_freem(m);
 		return (NULL);
 	}
@@ -868,14 +868,14 @@ ip_reass(struct mbuf *m)
 			for (i = 0; i < IPREASS_NHASH; i++) {
 				struct ipq *r = TAILQ_LAST(&V_ipq[i], ipqhead);
 				if (r) {
-					V_ipstat.ips_fragtimeout +=
-					    r->ipq_nfrags;
+					IPSTAT_ADD(ips_fragtimeout,
+					    r->ipq_nfrags);
 					ip_freef(&V_ipq[i], r);
 					break;
 				}
 			}
 		} else {
-			V_ipstat.ips_fragtimeout += q->ipq_nfrags;
+			IPSTAT_ADD(ips_fragtimeout, q->ipq_nfrags);
 			ip_freef(head, q);
 		}
 	}
@@ -892,7 +892,7 @@ found:
 		 * that's a non-zero multiple of 8 bytes.
 		 */
 		if (ip->ip_len == 0 || (ip->ip_len & 0x7) != 0) {
-			V_ipstat.ips_toosmall++; /* XXX */
+			IPSTAT_INC(ips_toosmall); /* XXX */
 			goto dropfrag;
 		}
 		m->m_flags |= M_FRAG;
@@ -905,7 +905,7 @@ found:
 	 * Attempt reassembly; if it succeeds, proceed.
 	 * ip_reass() will return a different mbuf.
 	 */
-	V_ipstat.ips_fragments++;
+	IPSTAT_INC(ips_fragments);
 	m->m_pkthdr.header = ip;
 
 	/* Previous ip_reass() started here. */
@@ -1016,7 +1016,7 @@ found:
 		}
 		nq = q->m_nextpkt;
 		m->m_nextpkt = nq;
-		V_ipstat.ips_fragdropped++;
+		IPSTAT_INC(ips_fragdropped);
 		fp->ipq_nfrags--;
 		m_freem(q);
 	}
@@ -1035,7 +1035,7 @@ found:
 	for (p = NULL, q = fp->ipq_frags; q; p = q, q = q->m_nextpkt) {
 		if (GETIP(q)->ip_off != next) {
 			if (fp->ipq_nfrags > V_maxfragsperpacket) {
-				V_ipstat.ips_fragdropped += fp->ipq_nfrags;
+				IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
 				ip_freef(head, fp);
 			}
 			goto done;
@@ -1045,7 +1045,7 @@ found:
 	/* Make sure the last packet didn't have the IP_MF flag */
 	if (p->m_flags & M_FRAG) {
 		if (fp->ipq_nfrags > V_maxfragsperpacket) {
-			V_ipstat.ips_fragdropped += fp->ipq_nfrags;
+			IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
 			ip_freef(head, fp);
 		}
 		goto done;
@@ -1057,8 +1057,8 @@ found:
 	q = fp->ipq_frags;
 	ip = GETIP(q);
 	if (next + (ip->ip_hl << 2) > IP_MAXPACKET) {
-		V_ipstat.ips_toolong++;
-		V_ipstat.ips_fragdropped += fp->ipq_nfrags;
+		IPSTAT_INC(ips_toolong);
+		IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
 		ip_freef(head, fp);
 		goto done;
 	}
@@ -1107,12 +1107,12 @@ found:
 	/* some debugging cruft by sklower, below, will go away soon */
 	if (m->m_flags & M_PKTHDR)	/* XXX this should be done elsewhere */
 		m_fixhdr(m);
-	V_ipstat.ips_reassembled++;
+	IPSTAT_INC(ips_reassembled);
 	IPQ_UNLOCK();
 	return (m);
 
 dropfrag:
-	V_ipstat.ips_fragdropped++;
+	IPSTAT_INC(ips_fragdropped);
 	if (fp != NULL)
 		fp->ipq_nfrags--;
 	m_freem(m);
@@ -1169,8 +1169,8 @@ ip_slowtimo(void)
 				fpp = fp;
 				fp = TAILQ_NEXT(fp, ipq_list);
 				if(--fpp->ipq_ttl == 0) {
-					V_ipstat.ips_fragtimeout +=
-					    fpp->ipq_nfrags;
+					IPSTAT_ADD(ips_fragtimeout,
+					    fpp->ipq_nfrags);
 					ip_freef(&V_ipq[i], fpp);
 				}
 			}
@@ -1184,8 +1184,8 @@ ip_slowtimo(void)
 			for (i = 0; i < IPREASS_NHASH; i++) {
 				while (V_nipq > V_maxnipq &&
 				    !TAILQ_EMPTY(&V_ipq[i])) {
-					V_ipstat.ips_fragdropped +=
-					    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags;
+					IPSTAT_ADD(ips_fragdropped,
+					    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
 					ip_freef(&V_ipq[i],
 					    TAILQ_FIRST(&V_ipq[i]));
 				}
@@ -1213,8 +1213,8 @@ ip_drain(void)
 		INIT_VNET_INET(vnet_iter);
 		for (i = 0; i < IPREASS_NHASH; i++) {
 			while(!TAILQ_EMPTY(&V_ipq[i])) {
-				V_ipstat.ips_fragdropped +=
-				    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags;
+				IPSTAT_ADD(ips_fragdropped,
+				    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
 				ip_freef(&V_ipq[i], TAILQ_FIRST(&V_ipq[i]));
 			}
 		}
@@ -1346,7 +1346,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	int error, type = 0, code = 0, mtu = 0;
 
 	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
-		V_ipstat.ips_cantforward++;
+		IPSTAT_INC(ips_cantforward);
 		m_freem(m);
 		return;
 	}
@@ -1465,11 +1465,11 @@ ip_forward(struct mbuf *m, int srcrt)
 		RTFREE(ro.ro_rt);
 
 	if (error)
-		V_ipstat.ips_cantforward++;
+		IPSTAT_INC(ips_cantforward);
 	else {
-		V_ipstat.ips_forward++;
+		IPSTAT_INC(ips_forward);
 		if (type)
-			V_ipstat.ips_redirectsent++;
+			IPSTAT_INC(ips_redirectsent);
 		else {
 			if (mcopy)
 				m_freem(mcopy);
@@ -1521,7 +1521,7 @@ ip_forward(struct mbuf *m, int srcrt)
 			else
 				mtu = ip_next_mtu(ip->ip_len, 0);
 		}
-		V_ipstat.ips_cantfrag++;
+		IPSTAT_INC(ips_cantfrag);
 		break;
 
 	case ENOBUFS:
