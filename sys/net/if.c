@@ -183,9 +183,13 @@ static struct vnet_symmap vnet_net_symmap[] = {
 	VNET_SYMMAP_END
 };
 
-VNET_MOD_DECLARE(NET, net, vnet_net_iattach, vnet_net_idetach,
-    NONE, vnet_net_symmap)
-#endif
+static const vnet_modinfo_t vnet_net_modinfo = {
+	.vmi_id		= VNET_MOD_NET,
+	.vmi_name	= "net",
+	.vmi_symmap	= vnet_net_symmap,
+	.vmi_iattach	= vnet_net_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
 
 /*
  * System initialization

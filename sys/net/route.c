@@ -108,6 +108,14 @@ static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
 static int vnet_route_iattach(const void *);
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_rtable_modinfo = {
+	.vmi_id		= VNET_MOD_RTABLE,
+	.vmi_name	= "rtable",
+	.vmi_iattach	= vnet_route_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
+
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
 
@@ -161,7 +169,11 @@ route_init(void)
 		rt_numfibs = 1;
 	rn_init();	/* initialize all zeroes, all ones, mask table */
 
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_rtable_modinfo);
+#else
 	vnet_route_iattach(NULL);
+#endif
 }
 
 static int vnet_route_iattach(const void *unused __unused)
