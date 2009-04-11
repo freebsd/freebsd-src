@@ -410,6 +410,8 @@ retry_wlocked:
 				goto unlock;
 			}
 			if ((cnp->cn_flags & MAKEENTRY) == 0) {
+				if (!wlocked && !CACHE_UPGRADE_LOCK())
+					goto wlock;
 				if (dvp->v_cache_dd->nc_flag & NCF_ISDOTDOT)
 					cache_zap(dvp->v_cache_dd);
 				dvp->v_cache_dd = NULL;
