@@ -6153,7 +6153,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (r->rt == PF_FASTROUTE) {
 		in_rtalloc(ro, 0);
 		if (ro->ro_rt == 0) {
-			V_ipstat.ips_noroute++;
+			IPSTAT_INC(ips_noroute);
 			goto bad;
 		}
 
@@ -6284,7 +6284,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if ((ifp->if_capabilities & IFCAP_CSUM_IPv4) &&
 		    ifp->if_bridge == NULL) {
 			m0->m_pkthdr.csum_flags |= M_IPV4_CSUM_OUT;
-			V_ipstat.ips_outhwcsum++;
+			IPSTAT_INC(ips_outhwcsum);
 		} else {
 			ip->ip_sum = 0;
 			ip->ip_sum = in_cksum(m0, ip->ip_hl << 2);
@@ -6303,7 +6303,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	 * Must be able to put at least 8 bytes per fragment.
 	 */
 	if (ip->ip_off & htons(IP_DF)) {
-		V_ipstat.ips_cantfrag++;
+		IPSTAT_INC(ips_cantfrag);
 		if (r->rt != PF_DUPTO) {
 #ifdef __FreeBSD__
 			/* icmp_error() expects host byte ordering */
@@ -6360,7 +6360,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	}
 
 	if (error == 0)
-		V_ipstat.ips_fragmented++;
+		IPSTAT_INC(ips_fragmented);
 
 done:
 	if (r->rt != PF_DUPTO)

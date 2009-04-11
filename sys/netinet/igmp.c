@@ -3413,7 +3413,7 @@ igmp_intr(struct mbuf *m)
 		CTR3(KTR_IGMPV3, "%s: dropped %p as ifindex %u went away.",
 		    __func__, m, ifindex);
 		m_freem(m);
-		V_ipstat.ips_noroute++;
+		IPSTAT_INC(ips_noroute);
 		goto out;
 	}
 
@@ -3441,7 +3441,7 @@ igmp_intr(struct mbuf *m)
 		if (m0 == NULL) {
 			CTR2(KTR_IGMPV3, "%s: dropped %p", __func__, m);
 			m_freem(m);
-			V_ipstat.ips_odropped++;
+			IPSTAT_INC(ips_odropped);
 			goto out;
 		}
 	}

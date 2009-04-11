@@ -439,7 +439,7 @@ udp_input(struct mbuf *m, int off)
 					(struct sockaddr *)&udp_in);
 				if (blocked != MCAST_PASS) {
 					if (blocked == MCAST_NOTGMEMBER)
-						V_ipstat.ips_notmember++;
+						IPSTAT_INC(ips_notmember);
 					if (blocked == MCAST_NOTSMEMBER ||
 					    blocked == MCAST_MUTED)
 						V_udpstat.udps_filtermcast++;
