@@ -435,6 +435,7 @@ epinit_locked(struct ep_softc *sc)
 	if (!sc->epb.mii_trans)
 		ep_ifmedia_upd(ifp);
 
+	CSR_WRITE_2(sc, EP_COMMAND, TX_PLL_ENABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, RX_ENABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 
@@ -895,8 +896,24 @@ static void
 ep_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct ep_softc *sc = ifp->if_softc;
+	uint16_t ms;
 
-	ifmr->ifm_active = sc->ifmedia.ifm_media;
+	switch (IFM_SUBTYPE(sc->ifmedia.ifm_media)) {
+	case IFM_10_T:
+		GO_WINDOW(sc, 4);
+		ms = CSR_READ_2(sc, EP_W4_MEDIA_TYPE);
+		GO_WINDOW(sc, 0);
+		ifmr->ifm_status = IFM_AVALID;
+		if (ms & MT_LB) {
+			ifmr->ifm_status |= IFM_ACTIVE;
+			ifmr->ifm_active = IFM_ETHER | IFM_10_T;
+		} else {
+			ifmr->ifm_active = IFM_ETHER | IFM_NONE;
+		}
+	default:
+		ifmr->ifm_active = sc->ifmedia.ifm_media;
+		break;
+	}
 }
 
 static int
