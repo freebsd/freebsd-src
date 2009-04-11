@@ -334,10 +334,10 @@ void	pcap_freealldevs(pcap_if_t *);
 const char *pcap_lib_version(void);
 
 /* XXX this guy lives in the bpf tree */
-/* u_int	bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int); 
-int	bpf_validate(const struct bpf_insn *f, int len); */
-char	*bpf_image(const struct bpf_insn *, int);
-void	bpf_dump(const struct bpf_program *, int);
+u_int	bpf_filter(struct bpf_insn *, u_char *, u_int, u_int); 
+int	bpf_validate(struct bpf_insn *f, int len);
+char	*bpf_image(struct bpf_insn *, int);
+void	bpf_dump(struct bpf_program *, int);
 
 #if defined(WIN32)
 
