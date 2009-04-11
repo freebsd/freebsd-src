@@ -163,9 +163,8 @@ __bt_open(fname, flags, mode, openinfo, dflags)
 		goto einval;
 
 	/* Allocate and initialize DB and BTREE structures. */
-	if ((t = (BTREE *)malloc(sizeof(BTREE))) == NULL)
+	if ((t = (BTREE *)calloc(1, sizeof(BTREE))) == NULL)
 		goto err;
-	memset(t, 0, sizeof(BTREE));
 	t->bt_fd = -1;			/* Don't close unopened fd on error. */
 	t->bt_lorder = b.lorder;
 	t->bt_order = NOT;
@@ -173,9 +172,8 @@ __bt_open(fname, flags, mode, openinfo, dflags)
 	t->bt_pfx = b.prefix;
 	t->bt_rfd = -1;
 
-	if ((t->bt_dbp = dbp = (DB *)malloc(sizeof(DB))) == NULL)
+	if ((t->bt_dbp = dbp = (DB *)calloc(1, sizeof(DB))) == NULL)
 		goto err;
-	memset(t->bt_dbp, 0, sizeof(DB));
 	if (t->bt_lorder != machine_lorder)
 		F_SET(t, B_NEEDSWAP);
 
