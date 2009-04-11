@@ -460,9 +460,7 @@ disitrap:
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_R30)(%r1) /* save r30 */
 	lwz	%r31,(PC_DISISAVE+CPUSAVE_R31)(%r1) /* get  r31 */
 	stw	%r31,(PC_DBSAVE  +CPUSAVE_R31)(%r1) /* save r31 */
-	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha	/* get new SP */
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
-	b	dbtrap
+	bla	dbtrap
 #endif
 
 	/* XXX need stack probe here */
@@ -631,7 +629,7 @@ dbtrap:
 	mflr	%r28
 	mfcr	%r29
 	lwz	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)
-	mtlr	%r31
+	mtsprg3	%r31			/* SPRG3 was clobbered by FRAME_LEAVE */
 	mfsprg1	%r1
 	b	realtrap
 dbleave:
