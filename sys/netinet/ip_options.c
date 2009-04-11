@@ -218,7 +218,7 @@ nosourcerouting:
 #ifdef IPSTEALTH
 dropit:
 #endif
-					V_ipstat.ips_cantforward++;
+					IPSTAT_INC(ips_cantforward);
 					m_freem(m);
 					return (1);
 				}
@@ -366,7 +366,7 @@ dropit:
 	return (0);
 bad:
 	icmp_error(m, type, code, 0, 0);
-	V_ipstat.ips_badoptions++;
+	IPSTAT_INC(ips_badoptions);
 	return (1);
 }
 
