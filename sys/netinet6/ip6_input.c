@@ -155,6 +155,25 @@ static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
 #endif
 
+#ifndef VIMAGE_GLOBALS
+static void vnet_inet6_register(void);
+ 
+static const vnet_modinfo_t vnet_inet6_modinfo = {
+	.vmi_id		= VNET_MOD_INET6,
+	.vmi_name	= "inet6",
+	.vmi_dependson	= VNET_MOD_INET	/* XXX revisit - TCP/UDP needs this? */
+};
+ 
+static void
+vnet_inet6_register(void)
+{
+
+	vnet_mod_register(&vnet_inet6_modinfo);
+}
+ 
+SYSINIT(inet6, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet6_register, 0);
+#endif
+
 /*
  * IP6 initialization: fill in IP6 protocol switch table.
  * All protocols not implemented in kernel go to raw IP6 protocol handler.
