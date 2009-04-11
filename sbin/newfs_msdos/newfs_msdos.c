@@ -349,7 +349,7 @@ main(int argc, char *argv[])
     if (argc < 1 || argc > 2)
 	usage();
     fname = *argv++;
-    if (!strchr(fname, '/')) {
+    if (!opt_create && !strchr(fname, '/')) {
 	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
 	if (!(fname = strdup(buf)))
 	    err(1, NULL);
