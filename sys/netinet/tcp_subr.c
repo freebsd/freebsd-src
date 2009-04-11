@@ -764,9 +764,9 @@ tcp_drop(struct tcpcb *tp, int errno)
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
 		(void) tcp_output_reset(tp);
-		V_tcpstat.tcps_drops++;
+		TCPSTAT_INC(tcps_drops);
 	} else
-		V_tcpstat.tcps_conndrops++;
+		TCPSTAT_INC(tcps_conndrops);
 	if (errno == ETIMEDOUT && tp->t_softerror)
 		errno = tp->t_softerror;
 	so->so_error = errno;
@@ -889,7 +889,7 @@ tcp_close(struct tcpcb *tp)
 	if (tp->t_state == TCPS_LISTEN)
 		tcp_offload_listen_close(tp);
 	in_pcbdrop(inp);
-	V_tcpstat.tcps_closed++;
+	TCPSTAT_INC(tcps_closed);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
@@ -1638,7 +1638,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 		tp->t_maxseg = so->so_snd.sb_hiwat;
 	SOCKBUF_UNLOCK(&so->so_snd);
 
-	V_tcpstat.tcps_mturesent++;
+	TCPSTAT_INC(tcps_mturesent);
 	tp->t_rtttime = 0;
 	tp->snd_nxt = tp->snd_una;
 	tcp_free_sackholes(tp);

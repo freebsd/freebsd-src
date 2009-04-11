@@ -472,7 +472,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 		}
 	} else
 		in_pcbfree(inp);
-	V_tcpstat.tcps_closed++;
+	TCPSTAT_INC(tcps_closed);
 	crfree(tw->tw_cred);
 	tw->tw_cred = NULL;
 	if (reuse)
@@ -567,10 +567,10 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		    NULL, inp);
 	}
 	if (flags & TH_ACK)
-		V_tcpstat.tcps_sndacks++;
+		TCPSTAT_INC(tcps_sndacks);
 	else
-		V_tcpstat.tcps_sndctrl++;
-	V_tcpstat.tcps_sndtotal++;
+		TCPSTAT_INC(tcps_sndctrl);
+	TCPSTAT_INC(tcps_sndtotal);
 	return (error);
 }
 
