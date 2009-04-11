@@ -244,6 +244,15 @@ static void vshiftl __P((unsigned char *, int, int));
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_ipsec_modinfo = {
+	.vmi_id		= VNET_MOD_IPSEC,
+	.vmi_name	= "ipsec",
+	.vmi_dependson	= VNET_MOD_INET,	/* XXX revisit - INET6 ? */
+	.vmi_iattach	= ipsec_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
+
 void
 ipsec_init(void)
 {
@@ -1760,7 +1769,12 @@ static void
 ipsec_attach(void)
 {
 
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_ipsec_modinfo);
+#else
 	ipsec_iattach(NULL);
+#endif
+
 }
 
 static int

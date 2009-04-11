@@ -224,6 +224,23 @@ int fw_one_pass;
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
+#ifndef VIMAGE_GLOBALS
+static void vnet_inet_register(void);
+ 
+static const vnet_modinfo_t vnet_inet_modinfo = {
+	.vmi_id		= VNET_MOD_INET,
+	.vmi_name	= "inet",
+};
+ 
+static void vnet_inet_register()
+{
+  
+	vnet_mod_register(&vnet_inet_modinfo);
+}
+ 
+SYSINIT(inet, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet_register, 0);
+#endif
+
 /*
  * IP initialization: fill in IP protocol switch table.
  * All protocols not implemented in kernel go to raw IP protocol handler.

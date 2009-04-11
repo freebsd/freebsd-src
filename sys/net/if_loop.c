@@ -111,6 +111,14 @@ static int	vnet_loif_iattach(const void *);
 struct ifnet *loif;			/* Used externally */
 #endif
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_loif_modinfo = {
+	.vmi_id		= VNET_MOD_LOIF,
+	.vmi_name	= "loif",
+	.vmi_iattach	= vnet_loif_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
+
 IFC_SIMPLE_DECLARE(lo, 1);
 
 static void
@@ -170,7 +178,11 @@ loop_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_loif_modinfo);
+#else
 		vnet_loif_iattach(NULL);
+#endif
 		break;
 
 	case MOD_UNLOAD:

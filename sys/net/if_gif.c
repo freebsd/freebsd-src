@@ -123,6 +123,15 @@ static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
 static int	vnet_gif_iattach(const void *);
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_gif_modinfo = {
+	.vmi_id		= VNET_MOD_GIF,
+	.vmi_name	= "gif",
+	.vmi_dependson	= VNET_MOD_NET,
+	.vmi_iattach	= vnet_gif_iattach
+};
+#endif
+
 IFC_SIMPLE_DECLARE(gif, 0);
 
 static int gifmodevent(module_t, int, void *);
@@ -282,7 +291,11 @@ gifmodevent(mod, type, data)
 	case MOD_LOAD:
 		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
 
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_gif_modinfo);
+#else
 		vnet_gif_iattach(NULL);
+#endif
 		if_clone_attach(&gif_cloner);
 
 		break;

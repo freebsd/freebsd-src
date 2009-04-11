@@ -75,6 +75,15 @@
 
 static int ah_iattach(const void *);
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_ah_modinfo = {
+	.vmi_id		= VNET_MOD_AH,
+	.vmi_name	= "ipsec_ah",
+	.vmi_dependson	= VNET_MOD_IPSEC,
+	.vmi_iattach	= ah_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
+
 /*
  * Return header size in bytes.  The old protocol did not support
  * the replay counter; the new protocol always includes the counter.
@@ -1223,7 +1232,11 @@ ah_attach(void)
 {
 
 	xform_register(&ah_xformsw);
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_ah_modinfo);
+#else
 	ah_iattach(NULL);
+#endif
 }
 
 static int

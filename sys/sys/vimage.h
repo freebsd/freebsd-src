@@ -35,6 +35,15 @@
 
 #include <sys/queue.h>
 
+#if defined(VIMAGE) && defined(VIMAGE_GLOBALS)
+#error "You cannot have both option VIMAGE and option VIMAGE_GLOBALS!"
+#endif
+
+typedef int vnet_attach_fn(const void *);
+typedef int vnet_detach_fn(const void *);
+
+#ifndef VIMAGE_GLOBALS
+
 struct kld_sym_lookup;
 
 struct vnet_symmap {
@@ -42,27 +51,78 @@ struct vnet_symmap {
 	void	*base;
 	size_t	size;
 };
+typedef struct vnet_symmap vnet_symmap_t;
 
 struct vnet_modinfo {
+	u_int				 vmi_id;
+	u_int				 vmi_dependson;
 	char				*vmi_name;
+	vnet_attach_fn			*vmi_iattach;
+	vnet_detach_fn			*vmi_idetach;
+	size_t				 vmi_struct_size;
 	struct vnet_symmap		*vmi_symmap;
 };
+typedef struct vnet_modinfo vnet_modinfo_t;
 
 struct vnet_modlink {
-	TAILQ_ENTRY(vnet_modlink)	vml_mod_le;
+	TAILQ_ENTRY(vnet_modlink)	 vml_mod_le;
 	const struct vnet_modinfo	*vml_modinfo;
+	const void			*vml_iarg;
+	const char			*vml_iname;
 };
 
-#define VNET_MOD_DECLARE(m_name_uc, m_name_lc, m_iattach, m_idetach, 	\
-    m_dependson, m_symmap)						\
-	static const struct vnet_modinfo vnet_##m_name_lc##_modinfo = {	\
-		.vmi_name		= #m_name_lc,			\
-		.vmi_symmap		= m_symmap			\
-};
+#define	VNET_SYMMAP(mod, name)						\
+	{ #name, &(vnet_ ## mod ## _0._ ## name),			\
+	sizeof(vnet_ ## mod ## _0._ ## name) }
 
-#if defined(VIMAGE) && defined(VIMAGE_GLOBALS)
-#error "You cannot have both option VIMAGE and option VIMAGE_GLOBALS!"
-#endif
+#define	VNET_SYMMAP_END		{ NULL, 0 }
+
+/* stateful modules */
+#define	VNET_MOD_NET		 0	/* MUST be 0 - implicit dependency */
+#define	VNET_MOD_NETGRAPH	 1
+#define	VNET_MOD_INET		 2
+#define	VNET_MOD_INET6		 3
+#define	VNET_MOD_IPSEC		 4
+#define	VNET_MOD_IPFW		 5
+#define	VNET_MOD_DUMMYNET	 6
+#define	VNET_MOD_PF		 7
+#define	VNET_MOD_ALTQ		 8
+#define	VNET_MOD_IPX		 9
+#define	VNET_MOD_ATALK		10
+#define	VNET_MOD_ACCF_HTTP	11
+#define	VNET_MOD_IGMP		12
+
+/* stateless modules */
+#define	VNET_MOD_NG_ETHER	20
+#define	VNET_MOD_NG_IFACE	21
+#define	VNET_MOD_NG_EIFACE	22
+#define	VNET_MOD_ESP		23
+#define	VNET_MOD_IPIP		24
+#define	VNET_MOD_AH		25
+#define	VNET_MOD_IPCOMP	 	26	
+#define	VNET_MOD_GIF		27
+#define	VNET_MOD_ARP		28
+#define	VNET_MOD_RTABLE		29
+#define	VNET_MOD_LOIF		30
+#define	VNET_MOD_DOMAIN		31
+#define	VNET_MOD_DYNAMIC_START	32
+#define	VNET_MOD_MAX		64
+
+/* Sysctl virtualization macros need these name mappings bellow */
+#define	V_MOD_vnet_net		VNET_MOD_NET
+#define	V_MOD_vnet_netgraph	VNET_MOD_NETGRAPH
+#define	V_MOD_vnet_inet		VNET_MOD_INET
+#define	V_MOD_vnet_inet6	VNET_MOD_INET6
+#define	V_MOD_vnet_ipfw		VNET_MOD_IPFW
+#define	V_MOD_vnet_pf		VNET_MOD_PF
+#define	V_MOD_vnet_gif		VNET_MOD_GIF
+#define	V_MOD_vnet_ipsec	VNET_MOD_IPSEC
+
+int	vi_symlookup(struct kld_sym_lookup *, char *);
+void	vnet_mod_register(const struct vnet_modinfo *);
+void	vnet_mod_register_multi(const struct vnet_modinfo *, void *, char *);
+
+#endif /* !VIMAGE_GLOBALS */
 
 #ifdef VIMAGE_GLOBALS
 #define	VSYM(base, sym) (sym)
@@ -73,12 +133,6 @@ struct vnet_modlink {
 #define	VSYM(base, sym) (base ## _0._ ## sym)
 #endif
 #endif
-
-#define VNET_SYMMAP(mod, name)						\
-	{ #name, &(vnet_ ## mod ## _0._ ## name),			\
-	sizeof(vnet_ ## mod ## _0._ ## name) }
-
-#define VNET_SYMMAP_END		{ NULL, 0 }
 
 /* Non-VIMAGE null-macros */
 #define	IS_DEFAULT_VNET(arg) 1
@@ -109,9 +163,6 @@ struct vnet_modlink {
 #define	V_hostname		VPROCG(hostname)
 #define	G_hostname		VPROCG(hostname) /* global hostname */
 #define	V_domainname		VPROCG(domainname)
-
-int	vi_symlookup(struct kld_sym_lookup *, char *);
-void	vnet_mod_register(const struct vnet_modinfo *);
 
 /*
  * Size-guards for the vimage structures.
