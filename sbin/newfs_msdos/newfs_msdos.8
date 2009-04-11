@@ -93,8 +93,8 @@ number is in sectors, kilobytes, megabytes or gigabytes, respectively.
 .It Fl B Ar boot
 Get bootstrap from file.
 .It Fl C Ar create-size
-Create the image file with the specified size. A suffix character appended
-to the size is interpreted as for the
+Create the image file with the specified size.
+A suffix character appended to the size is interpreted as for the
 .Fl @
 option.
 The file is created by truncating any existing file with the same name and
@@ -164,13 +164,14 @@ Number of sectors per track.
 .El
 .Sh NOTES
 If some parameters (e.g. size, number of sectors, etc.) are not specified
-through options or disktype, the program tries to generate them
-automatically. In particular, the size is determined as the
-device or file size minus the offset specified with the
+through options or disktype, the program tries to generate them automatically.
+In particular, the size is determined as the device or file size minus the
+offset specified with the
 .Fl @
-option. When the geometry is not available, it is assumed to be
-63 sectors, 255 heads. The size is then rounded to become
-a multiple of the track size and avoid complaints by some filesystem code.
+option.
+When the geometry is not available, it is assumed to be 63 sectors, 255 heads.
+The size is then rounded to become a multiple of the track size and avoid
+complaints by some filesystem code.
 .Pp
 FAT file system parameters occupy a "Boot Sector BPB (BIOS Parameter
 Block)" in the first of the "reserved" sectors which precede the actual
