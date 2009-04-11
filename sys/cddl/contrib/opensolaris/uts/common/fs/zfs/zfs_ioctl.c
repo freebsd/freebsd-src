@@ -3087,7 +3087,7 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 	error = EOPNOTSUPP;
 	switch (type) {
 	case MOD_LOAD:
-		zfs_root_token = root_mount_hold("ZFS", M_WAITOK);
+		zfs_root_token = root_mount_hold("ZFS");
 		printf("WARNING: ZFS is considered to be an experimental "
 		    "feature in FreeBSD.\n");
 		TASK_INIT(&zfs_start_task, 0, zfs_start, NULL);

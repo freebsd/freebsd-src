@@ -1549,7 +1549,6 @@ static struct vop_vector devfs_specops = {
 	.vop_create =		VOP_PANIC,
 	.vop_fsync =		devfs_fsync,
 	.vop_getattr =		devfs_getattr,
-	.vop_lease =		VOP_NULL,
 	.vop_link =		VOP_PANIC,
 	.vop_mkdir =		VOP_PANIC,
 	.vop_mknod =		VOP_PANIC,

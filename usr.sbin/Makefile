@@ -164,7 +164,6 @@ SUBDIR=	${_ac} \
 	setfmac \
 	setpmac \
 	${_sicontrol} \
-	${_slstat} \
 	smbmsg \
 	snapinfo \
 	${_spkrtest} \
@@ -180,6 +179,7 @@ SUBDIR=	${_ac} \
 	${_traceroute6} \
 	trpt \
 	tzsetup \
+	${_uathload} \
 	ugidfw \
 	${_usbdevs} \
 	${_usbconfig} \
@@ -396,6 +396,9 @@ _crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
+.if ${MACHINE_ARCH} != "ia64"
+_uathload=	uathload
+.endif
 #_usbdevs=	usbdevs
 _usbconfig=	usbconfig
 .endif

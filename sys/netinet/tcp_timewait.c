@@ -94,7 +94,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static uma_zone_t tcptw_zone;
 static int	maxtcptw;
 
 /*
@@ -104,6 +103,7 @@ static int	maxtcptw;
  * tcbinfo lock, which must be held over queue iteration and modification.
  */
 #ifdef VIMAGE_GLOBALS
+static uma_zone_t tcptw_zone;
 static TAILQ_HEAD(, tcptw)	twq_2msl;
 int	nolocaltimewait;
 #endif
@@ -142,7 +142,7 @@ sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 	if (error == 0 && req->newptr)
 		if (new >= 32) {
 			maxtcptw = new;
-			uma_zone_set_max(tcptw_zone, maxtcptw);
+			uma_zone_set_max(V_tcptw_zone, maxtcptw);
 		}
 	return (error);
 }
@@ -160,7 +160,7 @@ tcp_tw_zone_change(void)
 {
 
 	if (maxtcptw == 0)
-		uma_zone_set_max(tcptw_zone, tcptw_auto_size());
+		uma_zone_set_max(V_tcptw_zone, tcptw_auto_size());
 }
 
 void
@@ -168,13 +168,13 @@ tcp_tw_init(void)
 {
 	INIT_VNET_INET(curvnet);
 
-	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),
+	V_tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	TUNABLE_INT_FETCH("net.inet.tcp.maxtcptw", &maxtcptw);
 	if (maxtcptw == 0)
-		uma_zone_set_max(tcptw_zone, tcptw_auto_size());
+		uma_zone_set_max(V_tcptw_zone, tcptw_auto_size());
 	else
-		uma_zone_set_max(tcptw_zone, maxtcptw);
+		uma_zone_set_max(V_tcptw_zone, maxtcptw);
 	TAILQ_INIT(&V_twq_2msl);
 }
 
@@ -204,7 +204,7 @@ tcp_twstart(struct tcpcb *tp)
 		return;
 	}
 
-	tw = uma_zalloc(tcptw_zone, M_NOWAIT);
+	tw = uma_zalloc(V_tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
 		tw = tcp_tw_2msl_scan(1);
 		if (tw == NULL) {
@@ -477,7 +477,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	tw->tw_cred = NULL;
 	if (reuse)
 		return;
-	uma_zfree(tcptw_zone, tw);
+	uma_zfree(V_tcptw_zone, tw);
 }
 
 int

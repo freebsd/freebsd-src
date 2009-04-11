@@ -226,6 +226,8 @@ u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, bus_size_t);
 void	ed_disable_16bit_access(struct ed_softc *);
 void	ed_enable_16bit_access(struct ed_softc *);
 
+void	ed_gen_ifmedia_init(struct ed_softc *);
+
 driver_intr_t	edintr;
 
 extern devclass_t ed_devclass;

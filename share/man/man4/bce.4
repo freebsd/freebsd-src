@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2009
+.Dd April 7, 2009
 .Dt BCE 4
 .Os
 .Sh NAME
@@ -109,8 +109,18 @@ option can also be used to select either
 or
 .Cm half-duplex
 modes.
-.It Cm 1000baseTX
-Set 1000baseTX operation over twisted pair.
+.It Cm 1000baseSX
+Sets 1000Mbps operation.
+Only
+.Cm full-duplex
+mode is supported at this speed.
+.It Cm 1000baseT
+Set 1000baseT operation over twisted pair.
+Only
+.Cm full-duplex
+mode is supported.
+.It Cm 2500BaseSX
+Set 2500Mbps operation.
 Only
 .Cm full-duplex
 mode is supported.

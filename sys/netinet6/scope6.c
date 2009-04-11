@@ -83,8 +83,12 @@ scope6_init(void)
 #else
 	V_ip6_use_defzone = 0;
 #endif
-	SCOPE6_LOCK_INIT();
 	bzero(&V_sid_default, sizeof(V_sid_default));
+
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
+	SCOPE6_LOCK_INIT();
 }
 
 struct scope6_id *

@@ -344,6 +344,7 @@ product FUJITSU WL110		0x2003 PEGA-WL110 Wireless LAN
 product GEMPLUS GPR400		0x3004 GPR400 Smartcard Reader
 
 /* GlobalVillage */
+product GLOBALVILLAGE POWERPORT	0x0103 GlobalVillage PowerPort PlatinumPro
 product GLOBALVILLAGE LANMODEM	0x0105 GlobalVillage Ethernet + Modem
 
 /* Grey Cell Systems, Ltd */

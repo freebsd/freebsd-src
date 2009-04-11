@@ -248,7 +248,8 @@ ed_cbus_attach(dev)
 		ed_release_resources(dev);
 		return (error);
 	}
-
+	if (sc->sc_media_ioctl == NULL)
+		ed_gen_ifmedia_init(sc);
 	return ed_attach(dev);
 }
 

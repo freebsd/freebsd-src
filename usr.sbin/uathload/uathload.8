@@ -1,9 +1,6 @@
-.\" Copyright (c) 1990, 1991, 1993
-.\"	The Regents of the University of California.  All rights reserved.
 .\"
-.\" This code is derived from software contributed to Berkeley by
-.\" Chris Torek and the American National Standards Committee X3,
-.\" on Information Processing Systems.
+.\" Copyright (c) 2009 Weongyo Jeong.
+.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -13,14 +10,11 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 .\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 .\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 .\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,42 +23,47 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)memset.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
-.Dt MEMSET 3
+.Dd April 7, 2009
+.Dt UATHLOAD 8
 .Os
 .Sh NAME
-.Nm memset
-.Nd write a byte to byte string
-.Sh LIBRARY
-.Lb libc
+.Nm uathload
+.Nd "firmware loader for Atheros USB wireless driver"
 .Sh SYNOPSIS
-.In string.h
-.Ft void *
-.Fn memset "void *b" "int c" "size_t len"
+.Nm
+.Op Fl v
+.Op Fl d Ar ugen-device
+.Op Ar firmware-file
 .Sh DESCRIPTION
 The
-.Fn memset
-function
-writes
-.Fa len
-bytes of value
-.Fa c
-(converted to an unsigned char) to the string
-.Fa b .
-.Sh RETURN VALUES
-The
-.Fn memset
-function returns its first argument.
+.Nm
+utility provides a way to load the firmware for Atheros USB wireless
+devices with AR5005UG and AR5005UX chipsets.
+.Pp
+The following options are accepted.
+.Bl -tag -width ".Fl f Ar file"
+.It Fl d Ar ugen-device
+Use a specific
+.Xr ugen 4
+device.
+.It Fl v
+Enable debugging messages.
+.El
+.Pp
+If
+.Ar firmware-file
+is specified
+.Nm
+tries to load it instead of the built-in firmware image.
+.Sh EXAMPLES
+Load the built-in firmware image into a specific
+.Xr ugen 4
+device:
+.Pp
+.Dl "uathload -d /dev/ugen0.2"
 .Sh SEE ALSO
-.Xr bzero 3 ,
-.Xr swab 3 ,
-.Xr wmemset 3
-.Sh STANDARDS
-The
-.Fn memset
-function
-conforms to
-.St -isoC .
+.Xr uath 4
+.Sh AUTHORS
+.An Weongyo Jeong

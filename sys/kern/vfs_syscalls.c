@@ -1161,7 +1161,6 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	if (flags & O_TRUNC) {
 		if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 			goto bad;
-		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		VATTR_NULL(&vat);
 		vat.va_size = 0;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -1353,7 +1352,6 @@ restart:
 		    &nd.ni_cnd, &vattr);
 #endif
 	if (!error) {
-		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		if (whiteout)
 			error = VOP_WHITEOUT(nd.ni_dvp, &nd.ni_cnd, CREATE);
 		else {
@@ -1460,7 +1458,6 @@ restart:
 	if (error)
 		goto out;
 #endif
-	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	if (error == 0)
 		vput(nd.ni_vp);
@@ -1606,8 +1603,6 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 			error = EEXIST;
 		} else if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY))
 		    == 0) {
-			VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
-			VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 			error = can_hardlink(vp, td->td_ucred);
 			if (error == 0)
 #ifdef MAC
@@ -1727,7 +1722,6 @@ restart:
 	if (error)
 		goto out2;
 #endif
-	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, syspath);
 	if (error == 0)
 		vput(nd.ni_vp);
@@ -1787,7 +1781,6 @@ restart:
 			return (error);
 		goto restart;
 	}
-	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_WHITEOUT(nd.ni_dvp, &nd.ni_cnd, DELETE);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
@@ -1893,7 +1886,6 @@ restart:
 		if (error)
 			goto out;
 #endif
-		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
 #ifdef MAC
 out:
@@ -2667,7 +2659,6 @@ setfflags(td, vp, flags)
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VATTR_NULL(&vattr);
 	vattr.va_flags = flags;
@@ -2795,7 +2786,6 @@ setfmode(td, vp, mode)
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VATTR_NULL(&vattr);
 	vattr.va_mode = mode & ALLPERMS;
@@ -2958,7 +2948,6 @@ setfown(td, vp, uid, gid)
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VATTR_NULL(&vattr);
 	vattr.va_uid = uid;
@@ -3172,7 +3161,6 @@ setutimes(td, vp, ts, numtimes, nullflag)
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	setbirthtime = 0;
 	if (numtimes < 3 && !VOP_GETATTR(vp, &vattr, td->td_ucred) &&
@@ -3403,7 +3391,6 @@ kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
 		return (error);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_type == VDIR)
 		error = EISDIR;
@@ -3647,13 +3634,6 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 #endif
 out:
 	if (!error) {
-		VOP_LEASE(tdvp, td, td->td_ucred, LEASE_WRITE);
-		if (fromnd.ni_dvp != tdvp) {
-			VOP_LEASE(fromnd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
-		}
-		if (tvp) {
-			VOP_LEASE(tvp, td, td->td_ucred, LEASE_WRITE);
-		}
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
 		NDFREE(&fromnd, NDF_ONLY_PNBUF);
@@ -3779,7 +3759,6 @@ restart:
 	if (error)
 		goto out;
 #endif
-	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 #ifdef MAC
 out:
@@ -3872,8 +3851,6 @@ restart:
 			return (error);
 		goto restart;
 	}
-	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_RMDIR(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	vn_finished_write(mp);
 out:
@@ -4462,7 +4439,6 @@ fhopen(td, uap)
 			vrele(vp);
 			goto out;
 		}
-		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);	/* XXX */
 #ifdef MAC
 		/*

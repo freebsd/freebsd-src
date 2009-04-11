@@ -168,7 +168,6 @@ struct vop_vector nfs_vnodeops = {
 	.vop_getpages =		nfs_getpages,
 	.vop_putpages =		nfs_putpages,
 	.vop_inactive =		nfs_inactive,
-	.vop_lease =		VOP_NULL,
 	.vop_link =		nfs_link,
 	.vop_lookup =		nfs_lookup,
 	.vop_mkdir =		nfs_mkdir,
@@ -978,6 +977,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			vrele(newvp);
 		*vpp = NULLVP;
 	} else if (error == ENOENT) {
+		if (dvp->v_iflag & VI_DOOMED)
+			return (ENOENT);
 		/*
 		 * We only accept a negative hit in the cache if the
 		 * modification time of the parent directory matches

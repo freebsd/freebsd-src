@@ -63,7 +63,7 @@
 #define	NFS_MAXATTRTIMO 60
 #endif
 #ifndef NFS_MINDIRATTRTIMO
-#define	NFS_MINDIRATTRTIMO 30		/* VDIR attrib cache timeout in sec */
+#define	NFS_MINDIRATTRTIMO 3		/* VDIR attrib cache timeout in sec */
 #endif
 #ifndef NFS_MAXDIRATTRTIMO
 #define	NFS_MAXDIRATTRTIMO 60
@@ -322,6 +322,7 @@ void	nfs_down(struct nfsreq *, struct nfsmount *, struct thread *,
 #endif /* ! NFS4_USE_RPCCLNT */
 #endif
 
+void	nfs_purgecache(struct vnode *);
 int	nfs_vinvalbuf(struct vnode *, int, struct thread *, int);
 int	nfs_readrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_writerpc(struct vnode *, struct uio *, struct ucred *, int *,

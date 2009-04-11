@@ -141,6 +141,7 @@ static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
+static void	if_delgroups(struct ifnet *);
 
 #ifdef INET6
 /*
@@ -149,6 +150,8 @@ static int	if_getgroupmembers(struct ifgroupreq *);
  */
 extern void	nd6_setmtu(struct ifnet *);
 #endif
+
+static int	vnet_net_iattach(const void *);
 
 #ifdef VIMAGE_GLOBALS
 struct	ifnethead ifnet;	/* depend on static init XXX */
@@ -391,24 +394,33 @@ filt_netdev(struct knote *kn, long hint)
 static void
 if_init(void *dummy __unused)
 {
-	INIT_VNET_NET(curvnet);
 
 #ifndef VIMAGE_GLOBALS
 	vnet_mod_register(&vnet_net_modinfo);
 #endif
+	vnet_net_iattach(NULL);
+
+	IFNET_LOCK_INIT();
+	ifdev_setbyindex(0, make_dev(&net_cdevsw, 0, UID_ROOT, GID_WHEEL,
+	    0600, "network"));
+	if_clone_init();
+}
+
+static int
+vnet_net_iattach(const void *unused __unused)
+{
+	INIT_VNET_NET(curvnet);
 
 	V_if_index = 0;
 	V_ifindex_table = NULL;
 	V_if_indexlim = 8;
 
-	IFNET_LOCK_INIT();
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
 	knlist_init(&V_ifklist, NULL, NULL, NULL, NULL);
 	if_grow();				/* create initial table */
-	ifdev_setbyindex(0, make_dev(&net_cdevsw, 0, UID_ROOT, GID_WHEEL,
-	    0600, "network"));
-	if_clone_init();
+
+	return (0);
 }
 
 static void
@@ -876,6 +888,7 @@ if_detach(struct ifnet *ifp)
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 	devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
+	if_delgroups(ifp);
 
 	IF_AFDATA_LOCK(ifp);
 	for (dp = domains; dp; dp = dp->dom_next) {
@@ -1010,6 +1023,54 @@ if_delgroup(struct ifnet *ifp, const char *groupname)
 	EVENTHANDLER_INVOKE(group_change_event, groupname);
 
 	return (0);
+}
+
+/*
+ * Remove an interface from all groups
+ */
+static void
+if_delgroups(struct ifnet *ifp)
+{
+	INIT_VNET_NET(ifp->if_vnet);
+	struct ifg_list		*ifgl;
+	struct ifg_member	*ifgm;
+	char groupname[IFNAMSIZ];
+
+	IFNET_WLOCK();
+	while (!TAILQ_EMPTY(&ifp->if_groups)) {
+		ifgl = TAILQ_FIRST(&ifp->if_groups);
+
+		strlcpy(groupname, ifgl->ifgl_group->ifg_group, IFNAMSIZ);
+
+		IF_ADDR_LOCK(ifp);
+		TAILQ_REMOVE(&ifp->if_groups, ifgl, ifgl_next);
+		IF_ADDR_UNLOCK(ifp);
+
+		TAILQ_FOREACH(ifgm, &ifgl->ifgl_group->ifg_members, ifgm_next)
+			if (ifgm->ifgm_ifp == ifp)
+				break;
+
+		if (ifgm != NULL) {
+			TAILQ_REMOVE(&ifgl->ifgl_group->ifg_members, ifgm,
+			    ifgm_next);
+			free(ifgm, M_TEMP);
+		}
+
+		if (--ifgl->ifgl_group->ifg_refcnt == 0) {
+			TAILQ_REMOVE(&V_ifg_head, ifgl->ifgl_group, ifg_next);
+			EVENTHANDLER_INVOKE(group_detach_event,
+			    ifgl->ifgl_group);
+			free(ifgl->ifgl_group, M_TEMP);
+		}
+		IFNET_WUNLOCK();
+
+		free(ifgl, M_TEMP);
+
+		EVENTHANDLER_INVOKE(group_change_event, groupname);
+
+		IFNET_WLOCK();
+	}
+	IFNET_WUNLOCK();
 }
 
 /*

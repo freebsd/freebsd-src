@@ -73,6 +73,8 @@
 
 #include <opencrypto/cryptodev.h>
 
+static int ah_iattach(const void *);
+
 /*
  * Return header size in bytes.  The old protocol did not support
  * the replay counter; the new protocol always includes the counter.
@@ -1220,9 +1222,18 @@ static void
 ah_attach(void)
 {
 
+	xform_register(&ah_xformsw);
+	ah_iattach(NULL);
+}
+
+static int
+ah_iattach(const void *unused __unused)
+{
+	INIT_VNET_IPSEC(curvnet);
+
 	V_ah_enable = 1;	/* control flow of packets with AH */
 	V_ah_cleartos = 1;	/* clear ip_tos when doing AH calc */
 
-	xform_register(&ah_xformsw);
+	return (0);
 }
 SYSINIT(ah_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ah_attach, NULL);

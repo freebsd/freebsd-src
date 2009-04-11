@@ -123,9 +123,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-extern struct uma_zone *sack_hole_zone;
-
 #ifdef VIMAGE_GLOBALS
+extern struct uma_zone *sack_hole_zone;
 int tcp_do_sack;
 int tcp_sack_maxholes;
 int tcp_sack_globalmaxholes;
@@ -265,7 +264,7 @@ tcp_sackhole_alloc(struct tcpcb *tp, tcp_seq start, tcp_seq end)
 		return NULL;
 	}
 
-	hole = (struct sackhole *)uma_zalloc(sack_hole_zone, M_NOWAIT);
+	hole = (struct sackhole *)uma_zalloc(V_sack_hole_zone, M_NOWAIT);
 	if (hole == NULL)
 		return NULL;
 
@@ -287,7 +286,7 @@ tcp_sackhole_free(struct tcpcb *tp, struct sackhole *hole)
 {
 	INIT_VNET_INET(tp->t_vnet);
 
-	uma_zfree(sack_hole_zone, hole);
+	uma_zfree(V_sack_hole_zone, hole);
 
 	tp->snd_numholes--;
 	V_tcp_sack_globalholes--;

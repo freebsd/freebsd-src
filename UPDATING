@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090407:
+	The size of structs vnet_net, vnet_inet and vnet_ipfw has changed;
+	kernel modules referencing any of the above need to be recompiled.
+	Bump __FreeBSD_version to 800075.
+
 20090320:
 	GEOM_PART has become the default partition slicer for storage devices,
 	replacing GEOM_MBR, GEOM_BSD, GEOM_PC98 and GEOM_GPT slicers. It
