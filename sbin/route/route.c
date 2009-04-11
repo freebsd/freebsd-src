@@ -818,7 +818,8 @@ inet_makenetandmask(net, sin, bits)
 		/* i holds the first non zero bit */
 		bits = 32 - (i*8);	
 	}
-	mask = 0xffffffff << (32 - bits);
+	if (bits != 0)
+		mask = 0xffffffff << (32 - bits);
 
 	sin->sin_addr.s_addr = htonl(addr);
 	sin = &so_mask.sin;
