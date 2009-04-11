@@ -986,7 +986,9 @@ usage(void)
 	fprintf(stderr,
 	    "usage: newfs_msdos [ -options ] special [disktype]\n"
 	    "where the options are:\n"
+	    "\t-@ create file system at specified offset\n"                         
 	    "\t-B get bootstrap from file\n"
+	    "\t-C create image file with specified size\n"
 	    "\t-F FAT type (12, 16, or 32)\n"
 	    "\t-I volume ID\n"
 	    "\t-L volume label\n"
