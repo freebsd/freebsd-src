@@ -356,17 +356,13 @@ main(int argc, char *argv[])
     }
     dtype = *argv;
     if (opt_create) {
-	off_t pos;
-
 	if (opt_N)
 	    errx(1, "create (-C) is incompatible with -N");
 	fd = open(fname, O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (fd == -1)
 	    errx(1, "failed to create %s", fname);
-	pos = lseek(fd, opt_create - 1, SEEK_SET);
-	if (write(fd, "\0", 1) != 1)
+	if (ftruncate(fd, opt_create))
 	    errx(1, "failed to initialize %jd bytes", (intmax_t)opt_create);
-	pos = lseek(fd, 0, SEEK_SET);
     } else if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1 ||
 	fstat(fd, &sb))
 	err(1, "%s", fname);
