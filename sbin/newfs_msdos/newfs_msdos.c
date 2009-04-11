@@ -363,8 +363,9 @@ main(int argc, char *argv[])
 	    errx(1, "failed to create %s", fname);
 	if (ftruncate(fd, opt_create))
 	    errx(1, "failed to initialize %jd bytes", (intmax_t)opt_create);
-    } else if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1 ||
-	fstat(fd, &sb))
+    } else if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1)
+	err(1, "%s", fname);
+    if (fstat(fd, &sb))
 	err(1, "%s", fname);
     if (!opt_N)
 	check_mounted(fname, sb.st_mode);
