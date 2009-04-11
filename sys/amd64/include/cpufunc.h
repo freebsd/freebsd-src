@@ -164,70 +164,12 @@ halt(void)
 	__asm __volatile("hlt");
 }
 
-#if !defined(__GNUCLIKE_BUILTIN_CONSTANT_P) || __GNUCLIKE_ASM < 3
-
-#define	inb(port)		inbv(port)
-#define	outb(port, data)	outbv(port, data)
-
-#else /* __GNUCLIKE_BUILTIN_CONSTANT_P && __GNUCLIKE_ASM >= 3 */
-
-/*
- * The following complications are to get around gcc not having a
- * constraint letter for the range 0..255.  We still put "d" in the
- * constraint because "i" isn't a valid constraint when the port
- * isn't constant.  This only matters for -O0 because otherwise
- * the non-working version gets optimized away.
- * 
- * Use an expression-statement instead of a conditional expression
- * because gcc-2.6.0 would promote the operands of the conditional
- * and produce poor code for "if ((inb(var) & const1) == const2)".
- *
- * The unnecessary test `(port) < 0x10000' is to generate a warning if
- * the `port' has type u_short or smaller.  Such types are pessimal.
- * This actually only works for signed types.  The range check is
- * careful to avoid generating warnings.
- */
-#define	inb(port) __extension__ ({					\
-	u_char	_data;							\
-	if (__builtin_constant_p(port) && ((port) & 0xffff) < 0x100	\
-	    && (port) < 0x10000)					\
-		_data = inbc(port);					\
-	else								\
-		_data = inbv(port);					\
-	_data; })
-
-#define	outb(port, data) (						\
-	__builtin_constant_p(port) && ((port) & 0xffff) < 0x100		\
-	&& (port) < 0x10000						\
-	? outbc(port, data) : outbv(port, data))
-
 static __inline u_char
-inbc(u_int port)
+inb(u_int port)
 {
 	u_char	data;
 
-	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
-	return (data);
-}
-
-static __inline void
-outbc(u_int port, u_char data)
-{
-	__asm __volatile("outb %0,%1" : : "a" (data), "id" ((u_short)(port)));
-}
-
-#endif /* __GNUCLIKE_BUILTIN_CONSTANT_P  && __GNUCLIKE_ASM >= 3*/
-
-static __inline u_char
-inbv(u_int port)
-{
-	u_char	data;
-	/*
-	 * We use %%dx and not %1 here because i/o is done at %dx and not at
-	 * %edx, while gcc generates inferior code (movw instead of movl)
-	 * if we tell it to load (u_short) port.
-	 */
-	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
+	__asm volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -236,7 +178,7 @@ inl(u_int port)
 {
 	u_int	data;
 
-	__asm __volatile("inl %%dx,%0" : "=a" (data) : "d" (port));
+	__asm volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -278,33 +220,20 @@ inw(u_int port)
 {
 	u_short	data;
 
-	__asm __volatile("inw %%dx,%0" : "=a" (data) : "d" (port));
+	__asm volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
 static __inline void
-outbv(u_int port, u_char data)
+outb(u_int port, u_char data)
 {
-	u_char	al;
-	/*
-	 * Use an unnecessary assignment to help gcc's register allocator.
-	 * This make a large difference for gcc-1.40 and a tiny difference
-	 * for gcc-2.6.0.  For gcc-1.40, al had to be ``asm("ax")'' for
-	 * best results.  gcc-2.6.0 can't handle this.
-	 */
-	al = data;
-	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
+	__asm volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
 outl(u_int port, u_int data)
 {
-	/*
-	 * outl() and outw() aren't used much so we haven't looked at
-	 * possible micro-optimizations such as the unnecessary
-	 * assignment for them.
-	 */
-	__asm __volatile("outl %0,%%dx" : : "a" (data), "d" (port));
+	__asm volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
@@ -334,7 +263,7 @@ outsl(u_int port, const void *addr, size_t cnt)
 static __inline void
 outw(u_int port, u_short data)
 {
-	__asm __volatile("outw %0,%%dx" : : "a" (data), "d" (port));
+	__asm volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
