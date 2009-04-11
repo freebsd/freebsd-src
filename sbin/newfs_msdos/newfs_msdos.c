@@ -168,7 +168,7 @@ struct bpb {
 static struct {
     const char *name;
     struct bpb bpb;
-} stdfmt[] = {
+} const stdfmt[] = {
     {"160",  {512, 1, 1, 2,  64,  320, 0xfe, 1,  8, 1, BPBGAP}},
     {"180",  {512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1, BPBGAP}},
     {"320",  {512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2, BPBGAP}},
@@ -181,7 +181,7 @@ static struct {
     {"2880", {512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2, BPBGAP}}
 };
 
-static u_int8_t bootcode[] = {
+static const u_int8_t bootcode[] = {
     0xfa,			/* cli		    */
     0x31, 0xc0, 		/* xor	   ax,ax    */
     0x8e, 0xd0, 		/* mov	   ss,ax    */
@@ -232,13 +232,13 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-    static char opts[] = "@:NB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:u:";
-    static const char *opt_B, *opt_L, *opt_O, *opt_f;
-    static u_int opt_F, opt_I, opt_S, opt_a, opt_b, opt_c, opt_e;
-    static u_int opt_h, opt_i, opt_k, opt_m, opt_n, opt_o, opt_r;
-    static u_int opt_s, opt_u;
-    static int opt_N;
-    static int Iflag, mflag, oflag;
+    static const char opts[] = "@:NB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:u:";
+    const char *opt_B = NULL, *opt_L = NULL, *opt_O = NULL, *opt_f = NULL;
+    u_int opt_F = 0, opt_I = 0, opt_S = 0, opt_a = 0, opt_b = 0, opt_c = 0;
+    u_int opt_e = 0, opt_h = 0, opt_i = 0, opt_k = 0, opt_m = 0, opt_n = 0;
+    u_int opt_o = 0, opt_r = 0, opt_s = 0, opt_u = 0;
+    int opt_N = 0;
+    int Iflag = 0, mflag = 0, oflag = 0;
     char buf[MAXPATHLEN];
     struct stat sb;
     struct timeval tv;
@@ -255,7 +255,7 @@ main(int argc, char *argv[])
     time_t now;
     u_int fat, bss, rds, cls, dir, lsn, x, x1, x2;
     int ch, fd, fd1;
-    static off_t opt_create=0, opt_ofs=0;
+    off_t opt_create = 0, opt_ofs = 0;
 
     while ((ch = getopt(argc, argv, opts)) != -1)
 	switch (ch) {
