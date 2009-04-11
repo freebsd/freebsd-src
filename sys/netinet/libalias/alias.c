@@ -1226,7 +1226,6 @@ FragmentOut(struct libalias *la, struct in_addr *ip_src, u_short *ip_sum)
 (prototypes in alias.h)
 */
 
-// XXX ip free
 int
 LibAliasSaveFragment(struct libalias *la, char *ptr)
 {
@@ -1246,7 +1245,6 @@ LibAliasSaveFragment(struct libalias *la, char *ptr)
 	return (iresult);
 }
 
-// XXX ip free
 char           *
 LibAliasGetFragment(struct libalias *la, char *ptr)
 {
@@ -1268,7 +1266,6 @@ LibAliasGetFragment(struct libalias *la, char *ptr)
 	return (fptr);
 }
 
-// XXX ip free
 void
 LibAliasFragmentIn(struct libalias *la, char *ptr,	/* Points to correctly
 							 * de-aliased header
