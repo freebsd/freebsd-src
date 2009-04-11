@@ -742,7 +742,7 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 		u_short alias_port;
 		u_short proxy_port;
 		int accumulate;
-		int r = 0, error;
+		int error;
 		struct alias_data ad = {
 			.lnk = lnk, 
 			.oaddr = &original_address, 
@@ -804,7 +804,7 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 		/*
 		 * If we cannot figure out the packet, ignore it.
 		 */
-		if (r < 0)
+		if (error < 0)
 			return (PKT_ALIAS_IGNORED);
 		else
 			return (PKT_ALIAS_OK);
