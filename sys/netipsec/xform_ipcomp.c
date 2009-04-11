@@ -82,6 +82,15 @@ static int ipcomp_input_cb(struct cryptop *crp);
 static int ipcomp_output_cb(struct cryptop *crp);
 static int ipcomp_iattach(const void *);
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_ipcomp_modinfo = {
+	.vmi_id		= VNET_MOD_IPCOMP,
+	.vmi_name	= "ipsec_ipcomp",
+	.vmi_dependson	= VNET_MOD_IPSEC,
+	.vmi_iattach	= ipcomp_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
+
 struct comp_algo *
 ipcomp_algorithm_lookup(int alg)
 {
@@ -602,7 +611,11 @@ ipcomp_attach(void)
 {
 
 	xform_register(&ipcomp_xformsw);
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_ipcomp_modinfo);
+#else
 	ipcomp_iattach(NULL);
+#endif
 }
 
 static int

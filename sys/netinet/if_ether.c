@@ -120,6 +120,15 @@ static void	arptimer(void *);
 static void	in_arpinput(struct mbuf *);
 #endif
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_arp_modinfo = {
+	.vmi_id		= VNET_MOD_ARP,
+	.vmi_name	= "arp",
+	.vmi_dependson	= VNET_MOD_INET,
+	.vmi_iattach	= arp_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
+
 #ifdef AF_INET
 void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
 
@@ -808,7 +817,11 @@ static void
 arp_init(void)
 {
 
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_arp_modinfo);
+#else
 	arp_iattach(NULL);
+#endif
 
 	arpintrq.ifq_maxlen = 50;
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);
