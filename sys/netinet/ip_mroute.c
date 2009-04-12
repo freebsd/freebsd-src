@@ -1515,7 +1515,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	if (pim_assert_enabled && (vifi < numvifs) && viftable[vifi].v_ifp) {
 
 	    if (ifp == &multicast_register_if)
-		pimstat.pims_rcv_registers_wrongiif++;
+		PIMSTAT_INC(pims_rcv_registers_wrongiif);
 
 	    /* Get vifi for the incoming packet */
 	    for (vifi=0; vifi < numvifs && viftable[vifi].v_ifp != ifp; vifi++)
@@ -2440,8 +2440,8 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
     }
 
     /* Keep statistics */
-    pimstat.pims_snd_registers_msgs++;
-    pimstat.pims_snd_registers_bytes += len;
+    PIMSTAT_INC(pims_snd_registers_msgs);
+    PIMSTAT_ADD(pims_snd_registers_bytes, len);
 
     return 0;
 }
@@ -2511,8 +2511,8 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
     send_packet(vifp, mb_first);
 
     /* Keep statistics */
-    pimstat.pims_snd_registers_msgs++;
-    pimstat.pims_snd_registers_bytes += len;
+    PIMSTAT_INC(pims_snd_registers_msgs);
+    PIMSTAT_ADD(pims_snd_registers_bytes, len);
 
     return 0;
 }
@@ -2554,14 +2554,14 @@ pim_input(struct mbuf *m, int off)
     int iphlen = off;
 
     /* Keep statistics */
-    pimstat.pims_rcv_total_msgs++;
-    pimstat.pims_rcv_total_bytes += datalen;
+    PIMSTAT_INC(pims_rcv_total_msgs);
+    PIMSTAT_ADD(pims_rcv_total_bytes, datalen);
 
     /*
      * Validate lengths
      */
     if (datalen < PIM_MINLEN) {
-	pimstat.pims_rcv_tooshort++;
+	PIMSTAT_INC(pims_rcv_tooshort);
 	CTR3(KTR_IPMF, "%s: short packet (%d) from %s",
 	    __func__, datalen, inet_ntoa(ip->ip_src));
 	m_freem(m);
@@ -2606,7 +2606,7 @@ pim_input(struct mbuf *m, int off)
     if (PIM_VT_T(pim->pim_vt) == PIM_REGISTER && in_cksum(m, PIM_MINLEN) == 0) {
 	/* do nothing, checksum okay */
     } else if (in_cksum(m, datalen)) {
-	pimstat.pims_rcv_badsum++;
+	PIMSTAT_INC(pims_rcv_badsum);
 	CTR1(KTR_IPMF, "%s: invalid checksum", __func__);
 	m_freem(m);
 	return;
@@ -2614,7 +2614,7 @@ pim_input(struct mbuf *m, int off)
 
     /* PIM version check */
     if (PIM_VT_V(pim->pim_vt) < PIM_VERSION) {
-	pimstat.pims_rcv_badversion++;
+	PIMSTAT_INC(pims_rcv_badversion);
 	CTR3(KTR_IPMF, "%s: bad version %d expect %d", __func__,
 	    (int)PIM_VT_V(pim->pim_vt), PIM_VERSION);
 	m_freem(m);
@@ -2653,8 +2653,8 @@ pim_input(struct mbuf *m, int off)
 	 * Validate length
 	 */
 	if (datalen < PIM_REG_MINLEN) {
-	    pimstat.pims_rcv_tooshort++;
-	    pimstat.pims_rcv_badregisters++;
+	    PIMSTAT_INC(pims_rcv_tooshort);
+	    PIMSTAT_INC(pims_rcv_badregisters);
 	    CTR1(KTR_IPMF, "%s: register packet size too small", __func__);
 	    m_freem(m);
 	    return;
@@ -2668,7 +2668,7 @@ pim_input(struct mbuf *m, int off)
 
 	/* verify the version number of the inner packet */
 	if (encap_ip->ip_v != IPVERSION) {
-	    pimstat.pims_rcv_badregisters++;
+	    PIMSTAT_INC(pims_rcv_badregisters);
 	    CTR1(KTR_IPMF, "%s: bad encap ip version", __func__);
 	    m_freem(m);
 	    return;
@@ -2676,7 +2676,7 @@ pim_input(struct mbuf *m, int off)
 
 	/* verify the inner packet is destined to a mcast group */
 	if (!IN_MULTICAST(ntohl(encap_ip->ip_dst.s_addr))) {
-	    pimstat.pims_rcv_badregisters++;
+	    PIMSTAT_INC(pims_rcv_badregisters);
 	    CTR2(KTR_IPMF, "%s: bad encap ip dest %s", __func__,
 		inet_ntoa(encap_ip->ip_dst));
 	    m_freem(m);
@@ -2724,8 +2724,8 @@ pim_input(struct mbuf *m, int off)
 
 	/* Keep statistics */
 	/* XXX: registers_bytes include only the encap. mcast pkt */
-	pimstat.pims_rcv_registers_msgs++;
-	pimstat.pims_rcv_registers_bytes += ntohs(encap_ip->ip_len);
+	PIMSTAT_INC(pims_rcv_registers_msgs);
+	PIMSTAT_ADD(pims_rcv_registers_bytes, ntohs(encap_ip->ip_len));
 
 	/*
 	 * forward the inner ip packet; point m_data at the inner ip.
