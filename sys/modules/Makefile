@@ -187,6 +187,7 @@ SUBDIR=	${_3dfx} \
 	nfsclient \
 	nfslockd \
 	nfsserver \
+	nfssvc \
 	nge \
 	nmdm \
 	${_nsp} \
