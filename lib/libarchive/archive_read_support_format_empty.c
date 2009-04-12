@@ -59,13 +59,14 @@ archive_read_support_format_empty(struct archive *_a)
 static int
 archive_read_format_empty_bid(struct archive_read *a)
 {
-	const void *h;
 	ssize_t avail;
 
-	h = __archive_read_ahead(a, 1, &avail);
-	if (avail != 0)
-		return (-1);
-	return (1);
+	(void)__archive_read_ahead(a, 1, &avail);
+	/* Bid 1 if we successfully read exactly zero bytes. */
+	if (avail == 0)
+		return (1);
+	/* Otherwise, we don't bid on this. */
+	return (-1);
 }
 
 static int
