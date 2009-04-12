@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_LIMITS_H
 #  include <limits.h>
 #endif
+#ifdef HAVE_SIGNAL_H
+#  include <signal.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #  include <stdlib.h>
 #endif
@@ -119,6 +122,8 @@ static int	program_bidder_free(struct archive_read_filter_bidder *);
 struct program_filter {
 	char		*description;
 	pid_t		 child;
+	int		 exit_status;
+	int		 waitpid_return;
 	int		 child_stdin, child_stdout;
 
 	char		*out_buf;
@@ -211,6 +216,73 @@ program_bidder_bid(struct archive_read_filter_bidder *self,
 }
 
 /*
+ * Shut down the child, return ARCHIVE_OK if it exited normally.
+ *
+ * Note that the return value is sticky; if we're called again,
+ * we won't reap the child again, but we will return the same status
+ * (including error message if the child came to a bad end).
+ */
+static int
+child_stop(struct archive_read_filter *self, struct program_filter *state)
+{
+	/* Close our side of the I/O with the child. */
+	if (state->child_stdin != -1) {
+		close(state->child_stdin);
+		state->child_stdin = -1;
+	}
+	if (state->child_stdout != -1) {
+		close(state->child_stdout);
+		state->child_stdout = -1;
+	}
+
+	if (state->child != 0) {
+		/* Reap the child. */
+		do {
+			state->waitpid_return
+			    = waitpid(state->child, &state->exit_status, 0);
+		} while (state->waitpid_return == -1 && errno == EINTR);
+		state->child = 0;
+	}
+
+	if (state->waitpid_return < 0) {
+		/* waitpid() failed?  This is ugly. */
+		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+		    "Child process exited badly");
+		return (ARCHIVE_WARN);
+	}
+
+	if (WIFSIGNALED(state->exit_status)) {
+#ifdef SIGPIPE
+		/* If the child died because we stopped reading before
+		 * it was done, that's okay.  Some archive formats
+		 * have padding at the end that we routinely ignore. */
+		/* The alternative to this would be to add a step
+		 * before close(child_stdout) above to read from the
+		 * child until the child has no more to write. */
+		if (WTERMSIG(state->exit_status) == SIGPIPE)
+			return (ARCHIVE_OK);
+#endif
+		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+		    "Child process exited with signal %d",
+		    WTERMSIG(state->exit_status));
+		return (ARCHIVE_WARN);
+	}
+
+	if (WIFEXITED(state->exit_status)) {
+		if (WEXITSTATUS(state->exit_status) == 0)
+			return (ARCHIVE_OK);
+
+		archive_set_error(&self->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "Child process exited with status %d",
+		    WEXITSTATUS(state->exit_status));
+		return (ARCHIVE_WARN);
+	}
+
+	return (ARCHIVE_WARN);
+}
+
+/*
  * Use select() to decide whether the child is ready for read or write.
  */
 static ssize_t
@@ -229,11 +301,10 @@ child_read(struct archive_read_filter *self, char *buf, size_t buf_len)
 
 		if (ret > 0)
 			return (ret);
-		if (ret == 0 || (ret == -1 && errno == EPIPE)) {
-			close(state->child_stdout);
-			state->child_stdout = -1;
-			return (0);
-		}
+		if (ret == 0 || (ret == -1 && errno == EPIPE))
+			/* Child has closed its output; reap the child
+			 * and return the status. */
+			return (child_stop(self, state));
 		if (ret == -1 && errno != EAGAIN)
 			return (-1);
 
@@ -352,8 +423,11 @@ program_filter_read(struct archive_read_filter *self, const void **buff)
 	while (state->child_stdout != -1 && total < state->out_buf_len) {
 		bytes = child_read(self, p, state->out_buf_len - total);
 		if (bytes < 0)
-			return (bytes);
+			/* No recovery is possible if we can no longer
+			 * read from the child. */
+			return (ARCHIVE_FATAL);
 		if (bytes == 0)
+			/* We got EOF from the child. */
 			break;
 		total += bytes;
 		p += bytes;
@@ -367,24 +441,17 @@ static int
 program_filter_close(struct archive_read_filter *self)
 {
 	struct program_filter	*state;
-	int status;
+	int e;
 
 	state = (struct program_filter *)self->data;
-
-	/* Shut down the child. */
-	if (state->child_stdin != -1)
-		close(state->child_stdin);
-	if (state->child_stdout != -1)
-		close(state->child_stdout);
-	while (waitpid(state->child, &status, 0) == -1 && errno == EINTR)
-		continue;
+	e = child_stop(self, state);
 
 	/* Release our private data. */
 	free(state->out_buf);
 	free(state->description);
 	free(state);
 
-	return (ARCHIVE_OK);
+	return (e);
 }
 
 #endif /* !defined(HAVE_PIPE) || !defined(HAVE_VFORK) || !defined(HAVE_FCNTL) */
