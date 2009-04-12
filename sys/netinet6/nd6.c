@@ -374,7 +374,7 @@ nd6_options(union nd_opts *ndopts)
 			 * Message validation requires that all included
 			 * options have a length that is greater than zero.
 			 */
-			V_icmp6stat.icp6s_nd_badopt++;
+			ICMP6STAT_INC(icp6s_nd_badopt);
 			bzero(ndopts, sizeof(*ndopts));
 			return -1;
 		}
@@ -418,7 +418,7 @@ nd6_options(union nd_opts *ndopts)
 skip1:
 		i++;
 		if (i > V_nd6_maxndopt) {
-			V_icmp6stat.icp6s_nd_toomanyopt++;
+			ICMP6STAT_INC(icp6s_nd_toomanyopt);
 			nd6log((LOG_INFO, "too many loop in nd opt\n"));
 			break;
 		}
