@@ -147,4 +147,6 @@
  * 7457: XBSEN = Extended BAT Block Size Enable
  */
 
+#define HID5_970_DCBZ_SIZE_HI	0x01000000	/* dcbz does a 32-byte store */
+
 #endif /* _POWERPC_HID_H_ */
