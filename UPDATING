@@ -22,6 +22,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090408:
+	Do not use Giant for kbdmux(4) locking. This is wrong and
+	apparently causing more problems than it solves. This will
+	re-open the issue where interrupt handlers may race with
+	kbdmux(4) in polling mode. Typical symptoms include (but
+	not limited to) duplicated and/or missing characters when
+	low level console functions (such as gets) are used while
+	interrupts are enabled (for example geli password prompt,
+	mountroot prompt etc.). Disabling kbdmux(4) may help.
+
 20090407:
 	The size of structs vnet_net, vnet_inet and vnet_ipfw has changed;
 	kernel modules referencing any of the above need to be recompiled.
