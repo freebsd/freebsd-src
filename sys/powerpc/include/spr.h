@@ -391,6 +391,8 @@
 #define	SPR_SRR3		0x3df	/* 4.. Save/Restore Register 3 */
 #define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
+#define	SPR_HID4		0x3f4	/* ..8 Hardware Implementation Register 4 */
+#define	SPR_HID5		0x3f6	/* ..8 Hardware Implementation Register 5 */
 
 #if defined(AIM)
 #define	SPR_DBSR		0x3f0	/* 4.. Debug Status Register */

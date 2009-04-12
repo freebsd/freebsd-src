@@ -117,6 +117,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/powerpc.h>
 #include <machine/reg.h>
 #include <machine/sigframe.h>
+#include <machine/spr.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
@@ -254,8 +255,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	size_t		trap_offset;
 	void		*kmdp;
         char		*env;
-	int		vers;
 	uint32_t	msr, scratch;
+	uint8_t		*cache_check;
 
 	end = 0;
 	kmdp = NULL;
@@ -326,35 +327,59 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	}
 
 	/*
-	 * Set cacheline_size based on the CPU model.
-	 */
-
-	vers = mfpvr() >> 16;
-	switch (vers) {
-		case IBM970:
-		case IBM970FX:
-		case IBM970MP:
-		case IBM970GX:
-			cacheline_size = 128;
-			break;
-		default:
-			cacheline_size = 32;
-	}
-
-	/*
 	 * Init KDB
 	 */
 
 	kdb_init();
 
 	/*
-	 * XXX: Initialize the interrupt tables.
-	 *      Disable translation in case the vector area
-	 *      hasn't been mapped (G5)
+	 * PowerPC 970 CPUs have a misfeature requested by Apple that makes
+	 * them pretend they have a 32-byte cacheline. Turn this off
+	 * before we measure the cacheline size.
 	 */
+
+	switch (mfpvr() >> 16) {
+		case IBM970:
+		case IBM970FX:
+		case IBM970MP:
+		case IBM970GX:
+			scratch = mfspr64upper(SPR_HID5,msr);
+			scratch &= ~HID5_970_DCBZ_SIZE_HI;
+			mtspr64(SPR_HID5, scratch, mfspr(SPR_HID5), msr);
+			break;
+	}
+
+	/*
+	 * Initialize the interrupt tables and figure out our cache line
+	 * size and whether or not we need the 64-bit bridge code.
+	 */
+
+	/*
+	 * Disable translation in case the vector area hasn't been
+	 * mapped (G5).
+	 */
+
 	msr = mfmsr();
 	mtmsr(msr & ~(PSL_IR | PSL_DR));
 	isync();
+
+	/*
+	 * Measure the cacheline size using dcbz
+	 *
+	 * Use EXC_PGM as a playground. We are about to overwrite it
+	 * anyway, we know it exists, and we know it is cache-aligned.
+	 */
+
+	cache_check = (void *)EXC_PGM;
+
+	for (cacheline_size = 0; cacheline_size < 0x100; cacheline_size++)
+		cache_check[cacheline_size] = 0xff;
+
+	__asm __volatile("dcbz %0,0":: "r" (cache_check) : "memory");
+
+	/* Find the first byte dcbz did not zero to get the cache line size */
+	for (cacheline_size = 0; cacheline_size < 0x100 &&
+	    cache_check[cacheline_size] == 0; cacheline_size++);
 
 	/*
 	 * Figure out whether we need to use the 64 bit PMAP. This works by
