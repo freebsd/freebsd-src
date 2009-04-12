@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_WCHAR_H
 #include <wchar.h>
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
 #endif
 
@@ -165,56 +165,18 @@ __archive_strappend_char(struct archive_string *as, char c)
 	return (__archive_string_append(as, &c, 1));
 }
 
-#ifndef _WIN32
 /*
- * Home-grown wctomb for UTF-8.
+ * Translates a wide character string into UTF-8 and appends
+ * to the archive_string.  Note: returns NULL if conversion fails,
+ * but still leaves a best-effort conversion in the argument as.
  */
-static int
-my_wctomb_utf8(char *p, wchar_t wc)
+struct archive_string *
+__archive_strappend_w_utf8(struct archive_string *as, const wchar_t *w)
 {
-	if (p == NULL)
-		/* UTF-8 doesn't use shift states. */
-		return (0);
-	if (wc <= 0x7f) {
-		p[0] = (char)wc;
-		return (1);
-	}
-	if (wc <= 0x7ff) {
-		p[0] = 0xc0 | ((wc >> 6) & 0x1f);
-		p[1] = 0x80 | (wc & 0x3f);
-		return (2);
-	}
-	if (wc <= 0xffff) {
-		p[0] = 0xe0 | ((wc >> 12) & 0x0f);
-		p[1] = 0x80 | ((wc >> 6) & 0x3f);
-		p[2] = 0x80 | (wc & 0x3f);
-		return (3);
-	}
-	if (wc <= 0x1fffff) {
-		p[0] = 0xf0 | ((wc >> 18) & 0x07);
-		p[1] = 0x80 | ((wc >> 12) & 0x3f);
-		p[2] = 0x80 | ((wc >> 6) & 0x3f);
-		p[3] = 0x80 | (wc & 0x3f);
-		return (4);
-	}
-	/* Unicode has no codes larger than 0x1fffff. */
-	/*
-	 * Awkward point:  UTF-8 <-> wchar_t conversions
-	 * can actually fail.
-	 */
-	return (-1);
-}
-
-static int
-my_wcstombs(struct archive_string *as, const wchar_t *w,
-    int (*func)(char *, wchar_t))
-{
-	int n;
 	char *p;
+	unsigned wc;
 	char buff[256];
-
-	/* Clear the shift state before starting. */
-	(*func)(NULL, L'\0');
+	struct archive_string *return_val = as;
 
 	/*
 	 * Convert one wide char at a time into 'buff', whenever that
@@ -229,66 +191,49 @@ my_wcstombs(struct archive_string *as, const wchar_t *w,
 			archive_strcat(as, buff);
 			p = buff;
 		}
-		n = (*func)(p, *w++);
-		if (n == -1)
-			return (-1);
-		p += n;
+		wc = *w++;
+		/* If this is a surrogate pair, assemble the full code point.*/
+		/* Note: wc must not be wchar_t here, because the full code
+		 * point can be more than 16 bits! */
+		if (wc >= 0xD800 && wc <= 0xDBff
+		    && *w >= 0xDC00 && *w <= 0xDFFF) {
+			wc -= 0xD800;
+			wc *= 0x400;
+			wc += (*w - 0xDC00);
+			wc += 0x10000;
+			++w;
+		}
+		/* Translate code point to UTF8 */
+		if (wc <= 0x7f) {
+			*p++ = (char)wc;
+		} else if (wc <= 0x7ff) {
+			*p++ = 0xc0 | ((wc >> 6) & 0x1f);
+			*p++ = 0x80 | (wc & 0x3f);
+		} else if (wc <= 0xffff) {
+			*p++ = 0xe0 | ((wc >> 12) & 0x0f);
+			*p++ = 0x80 | ((wc >> 6) & 0x3f);
+			*p++ = 0x80 | (wc & 0x3f);
+		} else if (wc <= 0x1fffff) {
+			*p++ = 0xf0 | ((wc >> 18) & 0x07);
+			*p++ = 0x80 | ((wc >> 12) & 0x3f);
+			*p++ = 0x80 | ((wc >> 6) & 0x3f);
+			*p++ = 0x80 | (wc & 0x3f);
+		} else {
+			/* Unicode has no codes larger than 0x1fffff. */
+			/* TODO: use \uXXXX escape here instead of ? */
+			*p++ = '?';
+			return_val = NULL;
+		}
 	}
 	*p = '\0';
 	archive_strcat(as, buff);
-	return (0);
+	return (return_val);
 }
 
-/*
- * Translates a wide character string into UTF-8 and appends
- * to the archive_string.  Note: returns NULL if conversion fails.
- */
-struct archive_string *
-__archive_strappend_w_utf8(struct archive_string *as, const wchar_t *w)
-{
-	if (my_wcstombs(as, w, my_wctomb_utf8))
-		return (NULL);
-	return (as);
-}
-
-/*
- * Translates a wide character string into current locale character set
- * and appends to the archive_string.  Note: returns NULL if conversion
- * fails.
- */
-struct archive_string *
-__archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
-{
-#if HAVE_WCTOMB
-	if (my_wcstombs(as, w, wctomb))
-		return (NULL);
-#else
-	/* TODO: Can we do better than this?  Are there platforms
-	 * that have locale support but don't have wctomb()? */
-	if (my_wcstombs(as, w, my_wctomb_utf8))
-		return (NULL);
-#endif
-	return (as);
-}
-
-
-/*
- * Home-grown mbtowc for UTF-8.  Some systems lack UTF-8
- * (or even lack mbtowc()) and we need UTF-8 support for pax
- * format.  So please don't replace this with a call to the
- * standard mbtowc() function!
- */
 static int
-my_mbtowc_utf8(wchar_t *pwc, const char *s, size_t n)
+utf8_to_unicode(int *pwc, const char *s, size_t n)
 {
         int ch;
-
-	/* Standard behavior:  a NULL value for 's' just resets shift state. */
-        if (s == NULL)
-                return (0);
-	/* If length argument is zero, don't look at the first character. */
-	if (n <= 0)
-		return (-1);
 
         /*
 	 * Decode 1-4 bytes depending on the value of the first byte.
@@ -335,13 +280,15 @@ my_mbtowc_utf8(wchar_t *pwc, const char *s, size_t n)
 }
 
 /*
- * Return a wide-character string by converting this archive_string
- * from UTF-8.
+ * Return a wide-character Unicode string by converting this archive_string
+ * from UTF-8.  We assume that systems with 16-bit wchar_t always use
+ * UTF16 and systems with 32-bit wchar_t can accept UCS4.
  */
 wchar_t *
 __archive_string_utf8_w(struct archive_string *as)
 {
 	wchar_t *ws, *dest;
+	int wc, wc2;/* Must be large enough for a 21-bit Unicode code point. */
 	const char *src;
 	int n;
 	int err;
@@ -353,25 +300,68 @@ __archive_string_utf8_w(struct archive_string *as)
 	dest = ws;
 	src = as->s;
 	while (*src != '\0') {
-		n = my_mbtowc_utf8(dest, src, 8);
+		n = utf8_to_unicode(&wc, src, 8);
 		if (n == 0)
 			break;
 		if (n < 0) {
 			free(ws);
 			return (NULL);
 		}
-		dest++;
 		src += n;
+		if (wc >= 0xDC00 && wc <= 0xDBFF) {
+			/* This is a leading surrogate; some idiot
+			 * has translated UTF16 to UTF8 without combining
+			 * surrogates; rebuild the full code point before
+			 * continuing. */
+			n = utf8_to_unicode(&wc2, src, 8);
+			if (n < 0) {
+				free(ws);
+				return (NULL);
+			}
+			if (n == 0) /* Ignore the leading surrogate */
+				break;
+			if (wc2 < 0xDC00 || wc2 > 0xDFFF) {
+				/* If the second character isn't a
+				 * trailing surrogate, then someone
+				 * has really screwed up and this is
+				 * invalid. */
+				free(ws);
+				return (NULL);
+			} else {
+				src += n;
+				wc -= 0xD800;
+				wc *= 0x400;
+				wc += wc2 - 0xDC00;
+				wc += 0x10000;
+			}
+		}
+		if ((sizeof(wchar_t) < 4) && (wc > 0xffff)) {
+			/* We have a code point that won't fit into a
+			 * wchar_t; convert it to a surrogate pair. */
+			wc -= 0x10000;
+			*dest++ = ((wc >> 10) & 0x3ff) + 0xD800;
+			*dest++ = (wc & 0x3ff) + 0xDC00;
+		} else
+			*dest++ = wc;
 	}
 	*dest++ = L'\0';
 	return (ws);
 }
 
-#else
+#if defined(_WIN32) && !defined(__CYGWIN__)
 
-static struct archive_string *
-my_archive_strappend_w(struct archive_string *as,
-    unsigned int codepage, const wchar_t *w)
+/*
+ * Translates a wide character string into current locale character set
+ * and appends to the archive_string.  Note: returns NULL if conversion
+ * fails.
+ *
+ * Win32 builds use WideCharToMultiByte from the Windows API.
+ * (Maybe Cygwin should too?  WideCharToMultiByte will know a
+ * lot more about local character encodings than the wcrtomb()
+ * wrapper is going to know.)
+ */
+struct archive_string *
+__archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
 {
 	char *p;
 	int l, wl;
@@ -388,9 +378,8 @@ my_archive_strappend_w(struct archive_string *as,
 	 * And to set NULL for last argument is necessary when a codepage
 	 * is not CP_ACP(current locale).
 	 */
-	l = WideCharToMultiByte(codepage, 0, w, wl, p, l, NULL,
-		(codepage == CP_ACP) ? &useDefaultChar : NULL);
-	if (l == 0 || useDefaultChar) {
+	l = WideCharToMultiByte(CP_ACP, 0, w, wl, p, l, NULL, &useDefaultChar);
+	if (l == 0) {
 		free(p);
 		return (NULL);
 	}
@@ -399,50 +388,68 @@ my_archive_strappend_w(struct archive_string *as,
 	return (as);
 }
 
-/*
- * Translates a wide character string into UTF-8 and appends
- * to the archive_string.  Note: returns NULL if conversion fails.
- */
-struct archive_string *
-__archive_strappend_w_utf8(struct archive_string *as, const wchar_t *w)
-{
-
-	return (my_archive_strappend_w(as, CP_UTF8, w));
-}
+#else
 
 /*
  * Translates a wide character string into current locale character set
  * and appends to the archive_string.  Note: returns NULL if conversion
  * fails.
+ *
+ * Non-Windows uses ISO C wcrtomb() or wctomb() to perform the conversion
+ * one character at a time.  If a non-Windows platform doesn't have
+ * either of these, fall back to the built-in UTF8 conversion.
  */
 struct archive_string *
 __archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
 {
-
-	return (my_archive_strappend_w(as, CP_ACP, w));
-}
-
-/*
- * Return a wide-character string by converting this archive_string
- * from UTF-8.
- */
-wchar_t *
-__archive_string_utf8_w(struct archive_string *as)
-{
-	wchar_t *ws;
+#if !defined(HAVE_WCTOMB) && !defined(HAVE_WCRTOMB)
+	/* If there's no built-in locale support, fall back to UTF8 always. */
+	return __archive_strappend_w_utf8(as, w);
+#else
+	/* We cannot use the standard wcstombs() here because it
+	 * cannot tell us how big the output buffer should be.  So
+	 * I've built a loop around wcrtomb() or wctomb() that
+	 * converts a character at a time and resizes the string as
+	 * needed.  We prefer wcrtomb() when it's available because
+	 * it's thread-safe. */
 	int n;
+	char *p;
+	char buff[256];
+#if HAVE_WCRTOMB
+	mbstate_t shift_state;
 
-	ws = (wchar_t *)malloc((as->length + 1) * sizeof(wchar_t));
-	if (ws == NULL)
-		__archive_errx(1, "Out of memory");
-	n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
-		as->s, (int)as->length, ws, (int)as->length);
-	if (n == 0) {
-		free(ws);
-		return (NULL);
+	memset(&shift_state, 0, sizeof(shift_state));
+#else
+	/* Clear the shift state before starting. */
+	wctomb(NULL, L'\0');
+#endif
+
+	/*
+	 * Convert one wide char at a time into 'buff', whenever that
+	 * fills, append it to the string.
+	 */
+	p = buff;
+	while (*w != L'\0') {
+		/* Flush the buffer when we have <=16 bytes free. */
+		/* (No encoding has a single character >16 bytes.) */
+		if ((size_t)(p - buff) >= (size_t)(sizeof(buff) - MB_CUR_MAX)) {
+			*p = '\0';
+			archive_strcat(as, buff);
+			p = buff;
+		}
+#if HAVE_WCRTOMB
+		n = wcrtomb(p, *w++, &shift_state);
+#else
+		n = wctomb(p, *w++);
+#endif
+		if (n == -1)
+			return (NULL);
+		p += n;
 	}
-	ws[n] = L'\0';
-	return (ws);
+	*p = '\0';
+	archive_strcat(as, buff);
+	return (as);
+#endif
 }
 
-#endif /* !_WIN32 */
+#endif /* _WIN32 && ! __CYGWIN__ */
