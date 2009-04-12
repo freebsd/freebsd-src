@@ -106,6 +106,11 @@ struct igmpstat {
 #define IGPS_VERSION_3	3		/* as of FreeBSD 8.x */
 #define IGPS_VERSION3_LEN		168
 
+#ifdef _KERNEL
+#define	IGMPSTAT_ADD(name, val)		V_igmpstat.name += (val)
+#define	IGMPSTAT_INC(name)		IGMPSTAT_ADD(name, 1)
+#endif
+
 #ifdef CTASSERT
 CTASSERT(sizeof(struct igmpstat) == 168);
 #endif
