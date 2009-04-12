@@ -6293,7 +6293,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if (m0->m_pkthdr.csum_flags & M_TCPV4_CSUM_OUT)
 			TCPSTAT_INC(tcpstat.tcps_outhwcsum);
 		else if (m0->m_pkthdr.csum_flags & M_UDPV4_CSUM_OUT)
-			V_udpstat.udps_outhwcsum++;
+			UDPSTAT_INC(udps_outhwcsum);
 		error = (*ifp->if_output)(ifp, m0, sintosa(dst), NULL);
 		goto done;
 	}
@@ -6641,7 +6641,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 		case IPPROTO_UDP:
 		    {
 			INIT_VNET_INET(curvnet);
-			V_udpstat.udps_badsum++;
+			UDPSTAT_INC(udps_badsum);
 			break;
 		    }
 		case IPPROTO_ICMP:
@@ -6744,7 +6744,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p,
 			TCPSTAT_INC(tcps_rcvbadsum);
 			break;
 		case IPPROTO_UDP:
-			V_udpstat.udps_badsum++;
+			UDPSTAT_INC(udps_badsum);
 			break;
 		case IPPROTO_ICMP:
 			V_icmpstat.icps_checksum++;
