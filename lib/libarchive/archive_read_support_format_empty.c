@@ -60,9 +60,10 @@ static int
 archive_read_format_empty_bid(struct archive_read *a)
 {
 	const void *h;
+	ssize_t avail;
 
-	h = __archive_read_ahead(a, 1, NULL);
-	if (h != NULL)
+	h = __archive_read_ahead(a, 1, &avail);
+	if (avail != 0)
 		return (-1);
 	return (1);
 }
