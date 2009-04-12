@@ -122,7 +122,7 @@ lookup_gid(void *private_data, const char *gname, gid_t gid)
 		if (grent != NULL)
 			gid = grent->gr_gid;
 	}
-#elif _WIN32
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	/* TODO: do a gname->gid lookup for Windows. */
 #endif
 	b->id = gid;
@@ -159,7 +159,7 @@ lookup_uid(void *private_data, const char *uname, uid_t uid)
 		if (pwent != NULL)
 			uid = pwent->pw_uid;
 	}
-#elif _WIN32
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	/* TODO: do a uname->uid lookup for Windows. */
 #endif
 	b->id = uid;
