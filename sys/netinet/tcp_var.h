@@ -458,8 +458,10 @@ struct	tcpstat {
 	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
 };
 
+#ifdef _KERNEL
 #define	TCPSTAT_ADD(name, val)	V_tcpstat.name += (val)
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
+#endif
 
 /*
  * TCB structure exported to user-land via sysctl(3).
