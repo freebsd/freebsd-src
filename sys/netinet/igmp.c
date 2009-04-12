@@ -762,11 +762,11 @@ igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip)
 	 * daemon may wish to see it.
 	 */
 	if (!in_allhosts(ip->ip_dst)) {
-		++V_igmpstat.igps_rcv_badqueries;
+		IGMPSTAT_INC(igps_rcv_badqueries);
 		return (0);
 	}
 
-	++V_igmpstat.igps_rcv_gen_queries;
+	IGMPSTAT_INC(igps_rcv_gen_queries);
 
 	/*
 	 * Switch to IGMPv1 host compatibility mode.
@@ -875,7 +875,7 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 			    inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
 			igmp_v2_update_group(inm, timer);
 		}
-		++V_igmpstat.igps_rcv_group_queries;
+		IGMPSTAT_INC(igps_rcv_group_queries);
 	} else {
 		/*
 		 * IGMPv2 General Query.
@@ -900,7 +900,7 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 			}
 			IF_ADDR_UNLOCK(ifp);
 		}
-		++V_igmpstat.igps_rcv_gen_queries;
+		IGMPSTAT_INC(igps_rcv_gen_queries);
 	}
 
 out_locked:
@@ -1041,7 +1041,7 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 		 * Schedule a current-state report on this ifp for
 		 * all groups, possibly containing source lists.
 		 */
-		++V_igmpstat.igps_rcv_gen_queries;
+		IGMPSTAT_INC(igps_rcv_gen_queries);
 
 		if (!in_allhosts(ip->ip_dst) || nsrc > 0) {
 			/*
@@ -1049,7 +1049,7 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 			 * A general query with a source list has undefined
 			 * behaviour; discard it.
 			 */
-			++V_igmpstat.igps_rcv_badqueries;
+			IGMPSTAT_INC(igps_rcv_badqueries);
 			goto out_locked;
 		}
 
@@ -1079,16 +1079,16 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 		if (inm == NULL)
 			goto out_locked;
 		if (nsrc > 0) {
-			++V_igmpstat.igps_rcv_gsr_queries;
+			IGMPSTAT_INC(igps_rcv_gsr_queries);
 			if (!ratecheck(&inm->inm_lastgsrtv,
 			    &V_igmp_gsrdelay)) {
 				CTR1(KTR_IGMPV3, "%s: GS query throttled.",
 				    __func__);
-				++V_igmpstat.igps_drop_gsr_queries;
+				IGMPSTAT_INC(igps_drop_gsr_queries);
 				goto out_locked;
 			}
 		} else {
-			++V_igmpstat.igps_rcv_group_queries;
+			IGMPSTAT_INC(igps_rcv_group_queries);
 		}
 		CTR3(KTR_IGMPV3, "process v3 %s query on ifp %p(%s)",
 		     inet_ntoa(igmpv3->igmp_group), ifp, ifp->if_xname);
@@ -1224,14 +1224,14 @@ igmp_input_v1_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	struct in_ifaddr *ia;
 	struct in_multi *inm;
 
-	++V_igmpstat.igps_rcv_reports;
+	IGMPSTAT_INC(igps_rcv_reports);
 
 	if (ifp->if_flags & IFF_LOOPBACK)
 		return (0);
 
 	if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr) ||
 	    !in_hosteq(igmp->igmp_group, ip->ip_dst))) {
-		++V_igmpstat.igps_rcv_badreports;
+		IGMPSTAT_INC(igps_rcv_badreports);
 		return (EINVAL);
 	}
 
@@ -1268,7 +1268,7 @@ igmp_input_v1_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 			goto out_locked;
 		}
 
-		++V_igmpstat.igps_rcv_ourreports;
+		IGMPSTAT_INC(igps_rcv_ourreports);
 
 		/*
 		 * If we are in IGMPv3 host mode, do not allow the
@@ -1339,14 +1339,14 @@ igmp_input_v2_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	if (ia != NULL && in_hosteq(ip->ip_src, IA_SIN(ia)->sin_addr))
 		return (0);
 
-	++V_igmpstat.igps_rcv_reports;
+	IGMPSTAT_INC(igps_rcv_reports);
 
 	if (ifp->if_flags & IFF_LOOPBACK)
 		return (0);
 
 	if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
 	    !in_hosteq(igmp->igmp_group, ip->ip_dst)) {
-		++V_igmpstat.igps_rcv_badreports;
+		IGMPSTAT_INC(igps_rcv_badreports);
 		return (EINVAL);
 	}
 
@@ -1379,7 +1379,7 @@ igmp_input_v2_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 		igi = inm->inm_igi;
 		KASSERT(igi != NULL, ("%s: no igi for ifp %p", __func__, ifp));
 
-		++V_igmpstat.igps_rcv_ourreports;
+		IGMPSTAT_INC(igps_rcv_ourreports);
 
 		/*
 		 * If we are in IGMPv3 host mode, do not allow the
@@ -1437,7 +1437,7 @@ igmp_input(struct mbuf *m, int off)
 	ifp = m->m_pkthdr.rcvif;
 	INIT_VNET_INET(ifp->if_vnet);
 
-	++V_igmpstat.igps_rcv_total;
+	IGMPSTAT_INC(igps_rcv_total);
 
 	ip = mtod(m, struct ip *);
 	iphlen = off;
@@ -1447,7 +1447,7 @@ igmp_input(struct mbuf *m, int off)
 	 * Validate lengths.
 	 */
 	if (igmplen < IGMP_MINLEN) {
-		++V_igmpstat.igps_rcv_tooshort;
+		IGMPSTAT_INC(igps_rcv_tooshort);
 		m_freem(m);
 		return;
 	}
@@ -1463,13 +1463,13 @@ igmp_input(struct mbuf *m, int off)
 		minlen += IGMP_MINLEN;
 	if ((m->m_flags & M_EXT || m->m_len < minlen) &&
 	    (m = m_pullup(m, minlen)) == 0) {
-		++V_igmpstat.igps_rcv_tooshort;
+		IGMPSTAT_INC(igps_rcv_tooshort);
 		return;
 	}
 	ip = mtod(m, struct ip *);
 
 	if (ip->ip_ttl != 1) {
-		++V_igmpstat.igps_rcv_badttl;
+		IGMPSTAT_INC(igps_rcv_badttl);
 		m_freem(m);
 		return;
 	}
@@ -1481,7 +1481,7 @@ igmp_input(struct mbuf *m, int off)
 	m->m_len -= iphlen;
 	igmp = mtod(m, struct igmp *);
 	if (in_cksum(m, igmplen)) {
-		++V_igmpstat.igps_rcv_badsum;
+		IGMPSTAT_INC(igps_rcv_badsum);
 		m_freem(m);
 		return;
 	}
@@ -1498,14 +1498,14 @@ igmp_input(struct mbuf *m, int off)
 		} else if (igmplen >= IGMP_V3_QUERY_MINLEN) {
 			queryver = IGMP_VERSION_3;
 		} else {
-			++V_igmpstat.igps_rcv_tooshort;
+			IGMPSTAT_INC(igps_rcv_tooshort);
 			m_freem(m);
 			return;
 		}
 
 		switch (queryver) {
 		case IGMP_VERSION_1:
-			++V_igmpstat.igps_rcv_v1v2_queries;
+			IGMPSTAT_INC(igps_rcv_v1v2_queries);
 			if (!V_igmp_v1enable)
 				break;
 			if (igmp_input_v1_query(ifp, ip) != 0) {
@@ -1515,7 +1515,7 @@ igmp_input(struct mbuf *m, int off)
 			break;
 
 		case IGMP_VERSION_2:
-			++V_igmpstat.igps_rcv_v1v2_queries;
+			IGMPSTAT_INC(igps_rcv_v1v2_queries);
 			if (!V_igmp_v2enable)
 				break;
 			if (igmp_input_v2_query(ifp, ip, igmp) != 0) {
@@ -1530,7 +1530,7 @@ igmp_input(struct mbuf *m, int off)
 				uint16_t srclen;
 				int nsrc;
 
-				++V_igmpstat.igps_rcv_v3_queries;
+				IGMPSTAT_INC(igps_rcv_v3_queries);
 				igmpv3 = (struct igmpv3 *)igmp;
 				/*
 				 * Validate length based on source count.
@@ -1538,7 +1538,7 @@ igmp_input(struct mbuf *m, int off)
 				nsrc = ntohs(igmpv3->igmp_numsrc);
 				srclen = sizeof(struct in_addr) * nsrc;
 				if (nsrc * sizeof(in_addr_t) > srclen) {
-					++V_igmpstat.igps_rcv_tooshort;
+					IGMPSTAT_INC(igps_rcv_tooshort);
 					return;
 				}
 				/*
@@ -1550,7 +1550,7 @@ igmp_input(struct mbuf *m, int off)
 				if ((m->m_flags & M_EXT ||
 				     m->m_len < igmpv3len) &&
 				    (m = m_pullup(m, igmpv3len)) == NULL) {
-					++V_igmpstat.igps_rcv_tooshort;
+					IGMPSTAT_INC(igps_rcv_tooshort);
 					return;
 				}
 				igmpv3 = (struct igmpv3 *)(mtod(m, uint8_t *)
@@ -1577,7 +1577,7 @@ igmp_input(struct mbuf *m, int off)
 		if (!V_igmp_v2enable)
 			break;
 		if (!ip_checkrouteralert(m))
-			++V_igmpstat.igps_rcv_nora;
+			IGMPSTAT_INC(igps_rcv_nora);
 		if (igmp_input_v2_report(ifp, ip, igmp) != 0) {
 			m_freem(m);
 			return;
@@ -1590,7 +1590,7 @@ igmp_input(struct mbuf *m, int off)
 		 * as report suppression is no longer required.
 		 */
 		if (!ip_checkrouteralert(m))
-			++V_igmpstat.igps_rcv_nora;
+			IGMPSTAT_INC(igps_rcv_nora);
 		break;
 
 	default:
@@ -3458,7 +3458,7 @@ igmp_intr(struct mbuf *m)
 		goto out;
 	}
 
-	++V_igmpstat.igps_snd_reports;
+	IGMPSTAT_INC(igps_snd_reports);
 
 out:
 	/*
