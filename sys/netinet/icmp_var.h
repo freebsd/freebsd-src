@@ -57,6 +57,11 @@ struct	icmpstat {
 	u_long	icps_noroute;		/* no route back */
 };
 
+#ifdef _KERNEL
+#define	ICMPSTAT_ADD(name, val)	V_icmpstat.name += (val)
+#define	ICMPSTAT_INC(name)	ICMPSTAT_ADD(name, 1)
+#endif
+
 /*
  * Names for ICMP sysctl objects
  */

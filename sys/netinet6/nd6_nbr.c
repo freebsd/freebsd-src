@@ -128,7 +128,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_ns, struct nd_neighbor_solicit *, m, off, icmp6len);
 	if (nd_ns == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -365,7 +365,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		ip6_sprintf(ip6bufs, &daddr6)));
 	nd6log((LOG_ERR, "nd6_ns_input: tgt=%s\n",
 		ip6_sprintf(ip6bufs, &taddr6)));
-	V_icmp6stat.icp6s_badns++;
+	ICMP6STAT_INC(icp6s_badns);
 	m_freem(m);
 }
 
@@ -563,7 +563,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	ip6_output(m, NULL, &ro, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
-	V_icmp6stat.icp6s_outhist[ND_NEIGHBOR_SOLICIT]++;
+	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_SOLICIT]);
 
 	if (ro.ro_rt) {		/* we don't cache this route. */
 		RTFREE(ro.ro_rt);
@@ -625,7 +625,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_na, struct nd_neighbor_advert *, m, off, icmp6len);
 	if (nd_na == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -897,7 +897,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	if (ln != NULL)
 		LLE_WUNLOCK(ln);
 
-	V_icmp6stat.icp6s_badna++;
+	ICMP6STAT_INC(icp6s_badna);
 	m_freem(m);
 }
 
@@ -1065,7 +1065,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighboradvert);
-	V_icmp6stat.icp6s_outhist[ND_NEIGHBOR_ADVERT]++;
+	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_ADVERT]);
 
 	if (ro.ro_rt) {		/* we don't cache this route. */
 		RTFREE(ro.ro_rt);

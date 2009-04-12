@@ -155,7 +155,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_rs, struct nd_router_solicit *, m, off, icmp6len);
 	if (nd_rs == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -190,7 +190,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	return;
 
  bad:
-	V_icmp6stat.icp6s_badrs++;
+	ICMP6STAT_INC(icp6s_badrs);
 	m_freem(m);
 }
 
@@ -246,7 +246,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_ra, struct nd_router_advert *, m, off, icmp6len);
 	if (nd_ra == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -422,7 +422,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	return;
 
  bad:
-	V_icmp6stat.icp6s_badra++;
+	ICMP6STAT_INC(icp6s_badra);
 	m_freem(m);
 }
 
