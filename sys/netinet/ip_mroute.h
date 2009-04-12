@@ -221,6 +221,11 @@ struct mrtstat {
     u_long	mrts_upq_sockfull;	/* upcalls dropped - socket full */
 };
 
+#ifdef _KERNEL
+#define	MRTSTAT_ADD(name, val)	mrtstat.name += (val)
+#define	MRTSTAT_INC(name)	MRTSTAT_ADD(name, 1)
+#endif
+
 /*
  * Argument structure used by mrouted to get src-grp pkt counts
  */
