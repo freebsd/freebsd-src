@@ -1266,7 +1266,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
     /*
      * Determine forwarding vifs from the forwarding cache table
      */
-    ++mrtstat.mrts_mfc_lookups;
+    MRTSTAT_INC(mrts_mfc_lookups);
     rt = mfc_find(&ip->ip_src, &ip->ip_dst);
 
     /* Entry exists, so forward if necessary */
@@ -1286,9 +1286,8 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	u_long hash;
 	int hlen = ip->ip_hl << 2;
 
-	++mrtstat.mrts_mfc_misses;
-
-	mrtstat.mrts_no_route++;
+	MRTSTAT_INC(mrts_mfc_misses);
+	MRTSTAT_INC(mrts_no_route);
 	CTR2(KTR_IPMF, "ip_mforward: no mfc for (%s,%lx)",
 	    inet_ntoa(ip->ip_src), (u_long)ntohl(ip->ip_dst.s_addr));
 
@@ -1360,12 +1359,12 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	    im->im_mbz = 0;
 	    im->im_vif = vifi;
 
-	    mrtstat.mrts_upcalls++;
+	    MRTSTAT_INC(mrts_upcalls);
 
 	    k_igmpsrc.sin_addr = ip->ip_src;
 	    if (socket_send(V_ip_mrouter, mm, &k_igmpsrc) < 0) {
 		CTR0(KTR_IPMF, "ip_mforward: socket queue full");
-		++mrtstat.mrts_upq_sockfull;
+		MRTSTAT_INC(mrts_upq_sockfull);
 fail1:
 		free(rt, M_MRTABLE);
 fail:
@@ -1399,7 +1398,7 @@ fail:
 	} else {
 	    /* determine if queue has overflowed */
 	    if (rt->mfc_nstall > MAX_UPQ) {
-		mrtstat.mrts_upq_ovflw++;
+		MRTSTAT_INC(mrts_upq_ovflw);
 non_fatal:
 		free(rte, M_MRTABLE);
 		m_freem(mb0);
@@ -1456,7 +1455,7 @@ expire_upcalls(void *unused)
 		    free(x, M_BWMETER);
 		}
 
-		++mrtstat.mrts_cache_cleanups;
+		MRTSTAT_INC(mrts_cache_cleanups);
 		CTR3(KTR_IPMF, "%s: expire (%lx, %lx)", __func__,
 		    (u_long)ntohl(rt->mfc_origin.s_addr),
 		    (u_long)ntohl(rt->mfc_mcastgrp.s_addr));
@@ -1503,7 +1502,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
     if ((vifi >= numvifs) || (viftable[vifi].v_ifp != ifp)) {
 	CTR4(KTR_IPMF, "%s: rx on wrong ifp %p (vifi %d, v_ifp %p)",
 	    __func__, ifp, (int)vifi, viftable[vifi].v_ifp);
-	++mrtstat.mrts_wrong_if;
+	MRTSTAT_INC(mrts_wrong_if);
 	++rt->mfc_wrong_if;
 	/*
 	 * If we are doing PIM assert processing, send a message
@@ -1543,12 +1542,12 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		im->im_mbz		= 0;
 		im->im_vif		= vifi;
 
-		mrtstat.mrts_upcalls++;
+		MRTSTAT_INC(mrts_upcalls);
 
 		k_igmpsrc.sin_addr = im->im_src;
 		if (socket_send(V_ip_mrouter, mm, &k_igmpsrc) < 0) {
 		    CTR1(KTR_IPMF, "%s: socket queue full", __func__);
-		    ++mrtstat.mrts_upq_sockfull;
+		    MRTSTAT_INC(mrts_upq_sockfull);
 		    return ENOBUFS;
 		}
 	    }
@@ -2082,10 +2081,10 @@ bw_upcalls_send(void)
      * Send the upcalls
      * XXX do we need to set the address in k_igmpsrc ?
      */
-    mrtstat.mrts_upcalls++;
+    MRTSTAT_INC(mrts_upcalls);
     if (socket_send(V_ip_mrouter, m, &k_igmpsrc) < 0) {
 	log(LOG_WARNING, "bw_upcalls_send: ip_mrouter socket queue full\n");
-	++mrtstat.mrts_upq_sockfull;
+	MRTSTAT_INC(mrts_upq_sockfull);
     }
 }
 
@@ -2432,11 +2431,11 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
 
     k_igmpsrc.sin_addr	= ip->ip_src;
 
-    mrtstat.mrts_upcalls++;
+    MRTSTAT_INC(mrts_upcalls);
 
     if (socket_send(V_ip_mrouter, mb_first, &k_igmpsrc) < 0) {
 	CTR1(KTR_IPMF, "%s: socket queue full", __func__);
-	++mrtstat.mrts_upq_sockfull;
+	MRTSTAT_INC(mrts_upq_sockfull);
 	return ENOBUFS;
     }
 
