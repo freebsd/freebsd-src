@@ -256,7 +256,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 #ifndef nolint
 	sfp = NULL;
 #endif
-	error = vfs_busy(mp, LK_NOWAIT, NULL, td);
+	error = vfs_busy(mp, 0, NULL, td);
 	if (error)
 		return (error);
 	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np, LK_EXCLUSIVE);
