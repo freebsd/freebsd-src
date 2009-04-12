@@ -6647,14 +6647,14 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 		case IPPROTO_ICMP:
 		    {
 			INIT_VNET_INET(curvnet);
-			V_icmpstat.icps_checksum++;
+			ICMPSTAT_INC(icps_checksum);
 			break;
 		    }
 #ifdef INET6
 		case IPPROTO_ICMPV6:
 		    {
 			INIT_VNET_INET6(curvnet);
-			V_icmp6stat.icp6s_checksum++;
+			ICMP6STAT_INC(icp6s_checksum);
 			break;
 		    }
 #endif /* INET6 */
@@ -6747,11 +6747,11 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p,
 			UDPSTAT_INC(udps_badsum);
 			break;
 		case IPPROTO_ICMP:
-			V_icmpstat.icps_checksum++;
+			ICMPSTAT_INC(icps_checksum);
 			break;
 #ifdef INET6
 		case IPPROTO_ICMPV6:
-			V_icmp6stat.icp6s_checksum++;
+			ICMP6STAT_INC(icp6s_checksum);
 			break;
 #endif /* INET6 */
 		}
