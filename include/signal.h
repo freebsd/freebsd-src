@@ -72,8 +72,10 @@ int	raise(int);
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE
 int	kill(__pid_t, int);
+#ifndef _PTH_PTHREAD_H_	/* XXX kludge to work around GNU Pth brokenness */
 int	pthread_kill(__pthread_t, int);
 int	pthread_sigmask(int, const __sigset_t *, __sigset_t *);
+#endif
 int	sigaction(int, const struct sigaction * __restrict,
 	    struct sigaction * __restrict);
 int	sigaddset(sigset_t *, int);

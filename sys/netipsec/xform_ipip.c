@@ -108,6 +108,16 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipip, IPSECCTL_STATS,
 #define	M_IPSEC	(M_AUTHIPHDR|M_AUTHIPDGM|M_DECRYPTED)
 
 static void _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp);
+static int ipe4_iattach(const void *);
+
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_ipip_modinfo = {
+	.vmi_id		= VNET_MOD_IPIP,
+	.vmi_name	= "ipsec_ipip",
+	.vmi_dependson	= VNET_MOD_IPSEC,
+	.vmi_iattach	= ipe4_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
 
 #ifdef INET6
 /*
@@ -719,7 +729,11 @@ ipe4_attach(void)
 	(void) encap_attach_func(AF_INET6, -1,
 		ipe4_encapcheck, (struct protosw *)&ipe6_protosw, NULL);
 #endif
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_ipip_modinfo);
+#else
 	ipe4_iattach(NULL);
+#endif
 }
 SYSINIT(ipe4_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipe4_attach, NULL);
 #endif	/* IPSEC */

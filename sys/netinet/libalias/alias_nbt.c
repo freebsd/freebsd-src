@@ -93,8 +93,7 @@ static int
 protohandler1(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 	
-	AliasHandleUdpNbt(la, pip, ah->lnk, ah->aaddr, *ah->aport);
-	return (0);
+	return (AliasHandleUdpNbt(la, pip, ah->lnk, ah->aaddr, *ah->aport));
 }
 
 static int 
@@ -123,9 +122,8 @@ static int
 protohandler2out(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 	
-	AliasHandleUdpNbtNS(la, pip, ah->lnk, &pip->ip_src, ah->sport,
- 			    ah->aaddr, ah->aport);
-	return (0);
+	return (AliasHandleUdpNbtNS(la, pip, ah->lnk, &pip->ip_src, ah->sport,
+ 	    ah->aaddr, ah->aport));
 }
 
 /* Kernel module definition. */

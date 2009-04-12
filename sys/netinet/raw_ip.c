@@ -345,7 +345,7 @@ rip_input(struct mbuf *m, int off)
 			    (struct sockaddr *)&group,
 			    (struct sockaddr *)&ripsrc);
 			if (blocked != MCAST_PASS) {
-				V_ipstat.ips_notmember++;
+				IPSTAT_INC(ips_notmember);
 				continue;
 			}
 		}
@@ -364,12 +364,12 @@ rip_input(struct mbuf *m, int off)
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
 	if (last != NULL) {
 		if (rip_append(last, ip, m, &ripsrc) != 0)
-			V_ipstat.ips_delivered--;
+			IPSTAT_INC(ips_delivered);
 		INP_RUNLOCK(last);
 	} else {
 		m_freem(m);
-		V_ipstat.ips_noproto++;
-		V_ipstat.ips_delivered--;
+		IPSTAT_INC(ips_noproto);
+		IPSTAT_DEC(ips_delivered);
 	}
 }
 
@@ -450,7 +450,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		 * XXX prevent ip_output from overwriting header fields.
 		 */
 		flags |= IP_RAWOUTPUT;
-		V_ipstat.ips_rawout++;
+		IPSTAT_INC(ips_rawout);
 	}
 
 	if (inp->inp_flags & INP_ONESBCAST)

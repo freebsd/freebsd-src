@@ -92,6 +92,15 @@ static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
 static int esp_iattach(const void *);
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_esp_modinfo = {
+	.vmi_id		= VNET_MOD_ESP,
+	.vmi_name	= "ipsec_esp",
+	.vmi_dependson	= VNET_MOD_IPSEC,
+	.vmi_iattach	= esp_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
+
 /*
  * NB: this is public for use by the PF_KEY support.
  * NB: if you add support here; be sure to add code to esp_attach below!
@@ -993,7 +1002,11 @@ esp_attach(void)
 {
 
 	xform_register(&esp_xformsw);
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_esp_modinfo);
+#else
 	esp_iattach(NULL);
+#endif
 }
 
 static int

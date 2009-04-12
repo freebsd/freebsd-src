@@ -191,7 +191,7 @@ tcp_timer_delack(void *xtp)
 	callout_deactivate(&tp->t_timers->tt_delack);
 
 	tp->t_flags |= TF_ACKNOW;
-	V_tcpstat.tcps_delack++;
+	TCPSTAT_INC(tcps_delack);
 	(void) tcp_output(tp);
 	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
@@ -250,7 +250,7 @@ tcp_timer_2msl(void *xtp)
 	if (tcp_fast_finwait2_recycle && tp->t_state == TCPS_FIN_WAIT_2 &&
 	    tp->t_inpcb && tp->t_inpcb->inp_socket && 
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
-		V_tcpstat.tcps_finwait2_drops++;
+		TCPSTAT_INC(tcps_finwait2_drops);
 		tp = tcp_close(tp);             
 	} else {
 		if (tp->t_state != TCPS_TIME_WAIT &&
@@ -313,7 +313,7 @@ tcp_timer_keep(void *xtp)
 	 * Keep-alive timer went off; send something
 	 * or drop connection if idle for too long.
 	 */
-	V_tcpstat.tcps_keeptimeo++;
+	TCPSTAT_INC(tcps_keeptimeo);
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
 	if ((always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
@@ -332,7 +332,7 @@ tcp_timer_keep(void *xtp)
 		 * by the protocol spec, this requires the
 		 * correspondent TCP to respond.
 		 */
-		V_tcpstat.tcps_keepprobe++;
+		TCPSTAT_INC(tcps_keepprobe);
 		t_template = tcpip_maketemplate(inp);
 		if (t_template) {
 			tcp_respond(tp, t_template->tt_ipgen,
@@ -355,7 +355,7 @@ tcp_timer_keep(void *xtp)
 	return;
 
 dropit:
-	V_tcpstat.tcps_keepdrops++;
+	TCPSTAT_INC(tcps_keepdrops);
 	tp = tcp_drop(tp, ETIMEDOUT);
 
 #ifdef TCPDEBUG
@@ -409,7 +409,7 @@ tcp_timer_persist(void *xtp)
 	 * Persistance timer into zero window.
 	 * Force a byte to be output, if possible.
 	 */
-	V_tcpstat.tcps_persisttimeo++;
+	TCPSTAT_INC(tcps_persisttimeo);
 	/*
 	 * Hack: if the peer is dead/unreachable, we do not
 	 * time out if the window is closed.  After a full
@@ -420,7 +420,7 @@ tcp_timer_persist(void *xtp)
 	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
 	    ((ticks - tp->t_rcvtime) >= tcp_maxpersistidle ||
 	     (ticks - tp->t_rcvtime) >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
-		V_tcpstat.tcps_persistdrop++;
+		TCPSTAT_INC(tcps_persistdrop);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		goto out;
 	}
@@ -487,7 +487,7 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	if (++tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
-		V_tcpstat.tcps_timeoutdrop++;
+		TCPSTAT_INC(tcps_timeoutdrop);
 		tp = tcp_drop(tp, tp->t_softerror ?
 			      tp->t_softerror : ETIMEDOUT);
 		goto out;
@@ -513,7 +513,7 @@ tcp_timer_rexmt(void * xtp)
 		  tp->t_flags &= ~TF_WASFRECOVERY;
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
 	}
-	V_tcpstat.tcps_rexmttimeo++;
+	TCPSTAT_INC(tcps_rexmttimeo);
 	if (tp->t_state == TCPS_SYN_SENT)
 		rexmt = TCP_REXMTVAL(tp) * tcp_syn_backoff[tp->t_rxtshift];
 	else
