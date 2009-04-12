@@ -717,7 +717,7 @@ tcp_newtcpcb(struct inpcb *inp)
 
 	/* if the cc module fails to init, stop building the control block */
 	if (CC_ALGO(tp)->init(tp) > 0) {
-		uma_zfree(tcpcb_zone, tp);
+		uma_zfree(V_tcpcb_zone, tp);
 		return NULL;
 	}
 
