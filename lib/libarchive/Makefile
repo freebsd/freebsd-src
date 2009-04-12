@@ -77,6 +77,7 @@ SRCS=	archive_check_magic.c				\
 # Man pages to be installed.
 MAN=	archive_entry.3					\
 	archive_read.3					\
+	archive_read_disk.3				\
 	archive_util.3					\
 	archive_write.3					\
 	archive_write_disk.3				\
@@ -186,6 +187,16 @@ MLINKS+=	archive_read.3 archive_read_support_format_cpio.3
 MLINKS+=	archive_read.3 archive_read_support_format_iso9660.3
 MLINKS+=	archive_read.3 archive_read_support_format_tar.3
 MLINKS+=	archive_read.3 archive_read_support_format_zip.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_entry_from_file.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_gname.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_new.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_gname_lookup.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_standard_lookup.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_symlink_hybrid.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_symlink_logical.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_symlink_physical.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_uname_lookup.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_uname.3
 MLINKS+=	archive_util.3 archive_clear_error.3
 MLINKS+=	archive_util.3 archive_compression.3
 MLINKS+=	archive_util.3 archive_compression_name.3
