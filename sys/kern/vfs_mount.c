@@ -508,6 +508,11 @@ vfs_mount_destroy(struct mount *mp)
 	int i;
 
 	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_REFEXPIRE;
+	if (mp->mnt_kern_flag & MNTK_MWAIT) {
+		mp->mnt_kern_flag &= ~MNTK_MWAIT;
+		wakeup(mp);
+        }
 	for (i = 0; mp->mnt_ref && i < 3; i++)
 		msleep(mp, MNT_MTX(mp), PVFS, "mntref", hz);
 	/*
