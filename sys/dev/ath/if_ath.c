@@ -6987,7 +6987,6 @@ ath_tdma_bintvalsetup(struct ath_softc *sc,
 {
 	/* copy from vap state (XXX check all vaps have same value?) */
 	sc->sc_tdmaslotlen = tdma->tdma_slotlen;
-	sc->sc_tdmabintcnt = tdma->tdma_bintval;
 
 	sc->sc_tdmabintval = roundup((sc->sc_tdmaslotlen+sc->sc_tdmaguard) *
 		tdma->tdma_slotcnt, 1024);
