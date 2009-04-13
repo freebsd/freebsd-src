@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ioctl.h>
@@ -47,6 +46,8 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+
+#if USB_HAVE_UGEN
 
 /* defines */
 
@@ -221,28 +222,29 @@ ugen_open_pipe_write(struct usb2_fifo *f)
 	usb2_config[1].type = UE_CONTROL;
 	usb2_config[1].endpoint = 0;
 	usb2_config[1].direction = UE_DIR_ANY;
-	usb2_config[1].mh.timeout = 1000;	/* 1 second */
-	usb2_config[1].mh.interval = 50;/* 50 milliseconds */
-	usb2_config[1].mh.bufsize = sizeof(struct usb2_device_request);
-	usb2_config[1].mh.callback = &ugen_write_clear_stall_callback;
+	usb2_config[1].timeout = 1000;	/* 1 second */
+	usb2_config[1].interval = 50;/* 50 milliseconds */
+	usb2_config[1].bufsize = sizeof(struct usb2_device_request);
+	usb2_config[1].callback = &ugen_write_clear_stall_callback;
+	usb2_config[1].usb_mode = USB_MODE_HOST;
 
 	usb2_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 	usb2_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
-	usb2_config[0].direction = ed->bEndpointAddress & (UE_DIR_OUT | UE_DIR_IN);
-	usb2_config[0].mh.interval = USB_DEFAULT_INTERVAL;
-	usb2_config[0].mh.flags.proxy_buffer = 1;
+	usb2_config[0].direction = UE_DIR_TX;
+	usb2_config[0].interval = USB_DEFAULT_INTERVAL;
+	usb2_config[0].flags.proxy_buffer = 1;
+	usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
 
 	switch (ed->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
 	case UE_BULK:
 		if (f->flag_short) {
-			usb2_config[0].mh.flags.force_short_xfer = 1;
+			usb2_config[0].flags.force_short_xfer = 1;
 		}
-		usb2_config[0].mh.callback = &ugen_default_write_callback;
-		usb2_config[0].mh.timeout = f->timeout;
-		usb2_config[0].mh.frames = 1;
-		usb2_config[0].mh.bufsize = f->bufsize;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].callback = &ugen_default_write_callback;
+		usb2_config[0].timeout = f->timeout;
+		usb2_config[0].frames = 1;
+		usb2_config[0].bufsize = f->bufsize;
 		if (ugen_transfer_setup(f, usb2_config, 2)) {
 			return (EIO);
 		}
@@ -251,12 +253,11 @@ ugen_open_pipe_write(struct usb2_fifo *f)
 		break;
 
 	case UE_ISOCHRONOUS:
-		usb2_config[0].mh.flags.short_xfer_ok = 1;
-		usb2_config[0].mh.bufsize = 0;	/* use default */
-		usb2_config[0].mh.frames = f->nframes;
-		usb2_config[0].mh.callback = &ugen_isoc_write_callback;
-		usb2_config[0].mh.timeout = 0;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].flags.short_xfer_ok = 1;
+		usb2_config[0].bufsize = 0;	/* use default */
+		usb2_config[0].frames = f->nframes;
+		usb2_config[0].callback = &ugen_isoc_write_callback;
+		usb2_config[0].timeout = 0;
 
 		/* clone configuration */
 		usb2_config[1] = usb2_config[0];
@@ -289,28 +290,29 @@ ugen_open_pipe_read(struct usb2_fifo *f)
 	usb2_config[1].type = UE_CONTROL;
 	usb2_config[1].endpoint = 0;
 	usb2_config[1].direction = UE_DIR_ANY;
-	usb2_config[1].mh.timeout = 1000;	/* 1 second */
-	usb2_config[1].mh.interval = 50;/* 50 milliseconds */
-	usb2_config[1].mh.bufsize = sizeof(struct usb2_device_request);
-	usb2_config[1].mh.callback = &ugen_read_clear_stall_callback;
+	usb2_config[1].timeout = 1000;	/* 1 second */
+	usb2_config[1].interval = 50;/* 50 milliseconds */
+	usb2_config[1].bufsize = sizeof(struct usb2_device_request);
+	usb2_config[1].callback = &ugen_read_clear_stall_callback;
+	usb2_config[1].usb_mode = USB_MODE_HOST;
 
 	usb2_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 	usb2_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
-	usb2_config[0].direction = UE_DIR_IN;
-	usb2_config[0].mh.interval = USB_DEFAULT_INTERVAL;
-	usb2_config[0].mh.flags.proxy_buffer = 1;
+	usb2_config[0].direction = UE_DIR_RX;
+	usb2_config[0].interval = USB_DEFAULT_INTERVAL;
+	usb2_config[0].flags.proxy_buffer = 1;
+	usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
 
 	switch (ed->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
 	case UE_BULK:
 		if (f->flag_short) {
-			usb2_config[0].mh.flags.short_xfer_ok = 1;
+			usb2_config[0].flags.short_xfer_ok = 1;
 		}
-		usb2_config[0].mh.timeout = f->timeout;
-		usb2_config[0].mh.frames = 1;
-		usb2_config[0].mh.callback = &ugen_default_read_callback;
-		usb2_config[0].mh.bufsize = f->bufsize;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].timeout = f->timeout;
+		usb2_config[0].frames = 1;
+		usb2_config[0].callback = &ugen_default_read_callback;
+		usb2_config[0].bufsize = f->bufsize;
 
 		if (ugen_transfer_setup(f, usb2_config, 2)) {
 			return (EIO);
@@ -320,12 +322,11 @@ ugen_open_pipe_read(struct usb2_fifo *f)
 		break;
 
 	case UE_ISOCHRONOUS:
-		usb2_config[0].mh.flags.short_xfer_ok = 1;
-		usb2_config[0].mh.bufsize = 0;	/* use default */
-		usb2_config[0].mh.frames = f->nframes;
-		usb2_config[0].mh.callback = &ugen_isoc_read_callback;
-		usb2_config[0].mh.timeout = 0;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].flags.short_xfer_ok = 1;
+		usb2_config[0].bufsize = 0;	/* use default */
+		usb2_config[0].frames = f->nframes;
+		usb2_config[0].callback = &ugen_isoc_read_callback;
+		usb2_config[0].timeout = 0;
 
 		/* clone configuration */
 		usb2_config[1] = usb2_config[0];
@@ -417,6 +418,8 @@ ugen_default_read_callback(struct usb2_xfer *xfer)
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
+			/* send a zero length packet to userland */
+			usb2_fifo_put_data(f, xfer->frbuffers, 0, 0, 1);
 			f->flag_stall = 1;
 			f->fifo_zlp = 0;
 			usb2_transfer_start(f->xfer[1]);
@@ -429,7 +432,7 @@ static void
 ugen_default_write_callback(struct usb2_xfer *xfer)
 {
 	struct usb2_fifo *f = xfer->priv_sc;
-	uint32_t actlen;
+	usb2_frlength_t actlen;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -501,8 +504,8 @@ static void
 ugen_isoc_read_callback(struct usb2_xfer *xfer)
 {
 	struct usb2_fifo *f = xfer->priv_sc;
-	uint32_t offset;
-	uint16_t n;
+	usb2_frlength_t offset;
+	usb2_frcount_t n;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -540,9 +543,9 @@ static void
 ugen_isoc_write_callback(struct usb2_xfer *xfer)
 {
 	struct usb2_fifo *f = xfer->priv_sc;
-	uint32_t actlen;
-	uint32_t offset;
-	uint16_t n;
+	usb2_frlength_t actlen;
+	usb2_frlength_t offset;
+	usb2_frcount_t n;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -798,12 +801,14 @@ usb2_gen_fill_deviceinfo(struct usb2_fifo *f, struct usb2_device_info *di)
 	di->udi_bus = device_get_unit(udev->bus->bdev);
 	di->udi_addr = udev->address;
 	di->udi_index = udev->device_index;
+#if USB_HAVE_STRINGS
 	strlcpy(di->udi_serial, udev->serial,
 	    sizeof(di->udi_serial));
 	strlcpy(di->udi_vendor, udev->manufacturer,
 	    sizeof(di->udi_vendor));
 	strlcpy(di->udi_product, udev->product,
 	    sizeof(di->udi_product));
+#endif
 	usb2_printBCD(di->udi_release, sizeof(di->udi_release),
 	    UGETW(udev->ddesc.bcdDevice));
 	di->udi_vendorNo = UGETW(udev->ddesc.idVendor);
@@ -1021,10 +1026,10 @@ ugen_fs_copy_in(struct usb2_fifo *f, uint8_t ep_index)
 	struct usb2_fs_endpoint fs_ep;
 	void *uaddr;			/* userland pointer */
 	void *kaddr;
-	uint32_t offset;
+	usb2_frlength_t offset;
+	usb2_frlength_t rem;
+	usb2_frcount_t n;
 	uint32_t length;
-	uint32_t n;
-	uint32_t rem;
 	int error;
 	uint8_t isread;
 
@@ -1198,21 +1203,21 @@ ugen_fs_copy_out(struct usb2_fifo *f, uint8_t ep_index)
 	struct usb2_fs_endpoint *fs_ep_uptr;	/* userland ptr */
 	void *uaddr;			/* userland ptr */
 	void *kaddr;
-	uint32_t offset;
+	usb2_frlength_t offset;
+	usb2_frlength_t rem;
+	usb2_frcount_t n;
 	uint32_t length;
 	uint32_t temp;
-	uint32_t n;
-	uint32_t rem;
 	int error;
 	uint8_t isread;
 
-	if (ep_index >= f->fs_ep_max) {
+	if (ep_index >= f->fs_ep_max)
 		return (EINVAL);
-	}
+
 	xfer = f->fs_xfer[ep_index];
-	if (xfer == NULL) {
+	if (xfer == NULL)
 		return (EINVAL);
-	}
+
 	mtx_lock(f->priv_mtx);
 	if (usb2_transfer_pending(xfer)) {
 		mtx_unlock(f->priv_mtx);
@@ -1458,13 +1463,13 @@ ugen_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags)
 		usb2_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 		usb2_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
 		usb2_config[0].direction = ed->bEndpointAddress & (UE_DIR_OUT | UE_DIR_IN);
-		usb2_config[0].mh.interval = USB_DEFAULT_INTERVAL;
-		usb2_config[0].mh.flags.proxy_buffer = 1;
-		usb2_config[0].mh.callback = &ugen_default_fs_callback;
-		usb2_config[0].mh.timeout = 0;	/* no timeout */
-		usb2_config[0].mh.frames = u.popen->max_frames;
-		usb2_config[0].mh.bufsize = u.popen->max_bufsize;
-		usb2_config[0].md = usb2_config[0].mh;	/* symmetric config */
+		usb2_config[0].interval = USB_DEFAULT_INTERVAL;
+		usb2_config[0].flags.proxy_buffer = 1;
+		usb2_config[0].callback = &ugen_default_fs_callback;
+		usb2_config[0].timeout = 0;	/* no timeout */
+		usb2_config[0].frames = u.popen->max_frames;
+		usb2_config[0].bufsize = u.popen->max_bufsize;
+		usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
 
 		if (usb2_config[0].type == UE_CONTROL) {
 			if (f->udev->flags.usb2_mode != USB_MODE_HOST) {
@@ -1615,10 +1620,10 @@ ugen_get_frame_size(struct usb2_fifo *f, void *addr)
 static int
 ugen_set_buffer_size(struct usb2_fifo *f, void *addr)
 {
-	uint32_t t;
+	usb2_frlength_t t;
 
-	if (*(int *)addr < 1024)
-		t = 1024;
+	if (*(int *)addr < 0)
+		t = 0;		/* use "wMaxPacketSize" */
 	else if (*(int *)addr < (256 * 1024))
 		t = *(int *)addr;
 	else
@@ -2182,3 +2187,4 @@ ugen_default_fs_callback(struct usb2_xfer *xfer)
 		break;
 	}
 }
+#endif	/* USB_HAVE_UGEN */

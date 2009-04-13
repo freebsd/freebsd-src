@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -172,7 +172,7 @@
 #define IGB_DEFAULT_PBA			0x00000030
 #define IGB_SMARTSPEED_DOWNSHIFT	3
 #define IGB_SMARTSPEED_MAX		15
-#define IGB_MAX_INTR			10
+#define IGB_MAX_LOOP			10
 #define IGB_RX_PTHRESH			16
 #define IGB_RX_HTHRESH			8
 #define IGB_RX_WTHRESH			1
@@ -184,12 +184,16 @@
 #define IGB_FC_PAUSE_TIME		0x0680
 #define IGB_EEPROM_APME			0x400;
 
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR		1000000000/(MAX_INTS_PER_SEC * 256)
-
 /* Code compatilbility between 6 and 7 */
 #ifndef ETHER_BPF_MTAP
 #define ETHER_BPF_MTAP			BPF_MTAP
+#endif
+
+#if __FreeBSD_version < 700000
+#define CSUM_TSO                0
+#define IFCAP_TSO4              0
+#define FILTER_STRAY
+#define FILTER_HANDLED
 #endif
 
 /*
@@ -230,9 +234,21 @@
 #define IGB_MAX_SCATTER		64
 #define IGB_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define IGB_TSO_SEG_SIZE	4096	/* Max dma segment size */
+#define IGB_HDR_BUF		128
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
-#define CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
+
+/* Offload bits in mbuf flag */
+#if __FreeBSD_version >= 800000
+#define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
+#else
+#define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)
+#endif
+
+/* Header split codes for get_buf */
+#define IGB_CLEAN_HEADER		1
+#define IGB_CLEAN_PAYLOAD		2
+#define IGB_CLEAN_BOTH			3
 
 /*
  * Interrupt Moderation parameters
@@ -305,7 +321,7 @@ struct tx_ring {
 	u32			next_avail_desc;
 	u32			next_to_clean;
 	volatile u16		tx_avail;
-	struct igb_buffer	*tx_buffers;
+	struct igb_tx_buffer	*tx_buffers;
 	bus_dma_tag_t		txtag;		/* dma tag for tx */
 	u32			watchdog_timer;
 	u64			no_desc_avail;
@@ -329,7 +345,7 @@ struct rx_ring {
 	char			mtx_name[16];
 	u32			last_cleaned;
 	u32			next_to_check;
-	struct igb_buffer	*rx_buffers;
+	struct igb_rx_buffer	*rx_buffers;
 	bus_dma_tag_t		rxtag;		/* dma tag for tx */
 	bus_dmamap_t		rx_spare_map;
 	/*
@@ -344,6 +360,7 @@ struct rx_ring {
 
 	/* Soft stats */
 	u64			rx_irq;
+	u64			rx_split_packets;
 	u64			rx_packets;
 	u64			rx_bytes;
 };
@@ -380,6 +397,7 @@ struct adapter {
 	struct taskqueue *tq;           /* private task queue */
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
+
 	/* Management and WOL features */
 	int		wol;
 	int		has_manage;
@@ -402,15 +420,18 @@ struct adapter {
 	 * Receive rings
 	 */
 	struct rx_ring		*rx_rings;
+	bool			rx_hdr_split;
         u16			num_rx_desc;
         u16			num_rx_queues;
 	int			rx_process_limit;
-	u32			rx_buffer_len;
+	u32			rx_mbuf_sz;
+	u32			rx_mask;
 
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;
-	unsigned long	mbuf_alloc_failed;
-	unsigned long	mbuf_cluster_failed;
+	unsigned long	mbuf_defrag_failed;
+	unsigned long	mbuf_header_failed;
+	unsigned long	mbuf_packet_failed;
 	unsigned long	no_tx_map_avail;
         unsigned long	no_tx_dma_setup;
 	unsigned long	watchdog_events;
@@ -443,9 +464,15 @@ typedef struct _igb_vendor_info_t {
 } igb_vendor_info_t;
 
 
-struct igb_buffer {
+struct igb_tx_buffer {
 	int		next_eop;  /* Index of the desc to watch */
         struct mbuf    *m_head;
+        bus_dmamap_t    map;         /* bus_dma map for packet */
+};
+
+struct igb_rx_buffer {
+        struct mbuf    *m_head;
+        struct mbuf    *m_pack;
         bus_dmamap_t    map;         /* bus_dma map for packet */
 };
 

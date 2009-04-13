@@ -60,6 +60,11 @@ IDTVEC(int0x80_syscall)
 	movq	%r13,TF_R13(%rsp)
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
+	movw	%fs,TF_FS(%rsp)
+	movw	%gs,TF_GS(%rsp)
+	movw	%es,TF_ES(%rsp)
+	movw	%ds,TF_DS(%rsp)
+	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp, %rdi
 	call	ia32_syscall

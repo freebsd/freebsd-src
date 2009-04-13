@@ -432,6 +432,9 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	if (error != 0)
 		return (error);
 
+	/* XXX ifma_protospec must be covered by IF_ADDR_LOCK */
+	IF_ADDR_LOCK(ifp);
+
 	/*
 	 * If something other than netinet is occupying the link-layer
 	 * group, print a meaningful error message and back out of
@@ -454,8 +457,11 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 #endif
 		++inm->inm_refcount;
 		*pinm = inm;
+		IF_ADDR_UNLOCK(ifp);
 		return (0);
 	}
+
+	IF_ADDR_LOCK_ASSERT(ifp);
 
 	/*
 	 * A new in_multi record is needed; allocate and initialize it.
@@ -467,6 +473,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm = malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
 		if_delmulti_ifma(ifma);
+		IF_ADDR_UNLOCK(ifp);
 		return (ENOMEM);
 	}
 	inm->inm_addr = *group;
@@ -489,6 +496,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 
 	*pinm = inm;
 
+	IF_ADDR_UNLOCK(ifp);
 	return (0);
 }
 
@@ -522,6 +530,7 @@ inm_release_locked(struct in_multi *inm)
 
 	ifma = inm->inm_ifma;
 
+	/* XXX this access is not covered by IF_ADDR_LOCK */
 	CTR2(KTR_IGMPV3, "%s: purging ifma %p", __func__, ifma);
 	KASSERT(ifma->ifma_protospec == inm,
 	    ("%s: ifma_protospec != inm", __func__));
@@ -1100,11 +1109,9 @@ in_joingroup(struct ifnet *ifp, const struct in_addr *gina,
 {
 	int error;
 
-	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
 	error = in_joingroup_locked(ifp, gina, imf, pinm);
 	IN_MULTI_UNLOCK();
-	IFF_UNLOCKGIANT(ifp);
 
 	return (error);
 }
@@ -1181,19 +1188,13 @@ int
 in_leavegroup(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 {
 	struct ifnet *ifp;
-	int detached, error;
+	int error;
 
-	detached = inm_is_ifp_detached(inm);
 	ifp = inm->inm_ifp;
-	if (!detached)
-		IFF_LOCKGIANT(ifp);
 
 	IN_MULTI_LOCK();
 	error = in_leavegroup_locked(inm, imf);
 	IN_MULTI_UNLOCK();
-
-	if (!detached)
-		IFF_UNLOCKGIANT(ifp);
 
 	return (error);
 }
@@ -1396,8 +1397,6 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
-	IFF_LOCKGIANT(ifp);
-
 	/*
 	 * Check if we are actually a member of this group.
 	 */
@@ -1486,7 +1485,6 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
-	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -1978,8 +1976,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
 
-	IFF_LOCKGIANT(ifp);
-
 	/*
 	 * MCAST_JOIN_SOURCE on an exclusive membership is an error.
 	 * On an existing inclusive membership, it just adds the
@@ -2102,7 +2098,6 @@ out_imo_free:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
-	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -2215,9 +2210,6 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
-	if (ifp)
-		IFF_LOCKGIANT(ifp);
-
 	/*
 	 * Find the membership in the membership array.
 	 */
@@ -2312,8 +2304,6 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
-	if (ifp)
-		IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -2432,8 +2422,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
 
-	IFF_LOCKGIANT(ifp);
-
 	/*
 	 * Take the INP write lock.
 	 * Check if this socket is a member of this group.
@@ -2551,7 +2539,6 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
-	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -2851,7 +2838,7 @@ inm_print(const struct in_multi *inm)
 {
 	int t;
 
-	if ((KTR_COMPILE & KTR_IGMPV3) == 0)
+	if ((ktr_mask & KTR_IGMPV3) == 0)
 		return;
 
 	printf("%s: --- begin inm %p ---\n", __func__, inm);

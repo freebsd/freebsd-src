@@ -397,10 +397,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		oldaddr = ia->ia_dstaddr;
 		ia->ia_dstaddr = *(struct sockaddr_in *)&ifr->ifr_dstaddr;
 		if (ifp->if_ioctl != NULL) {
-			IFF_LOCKGIANT(ifp);
 			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR,
 			    (caddr_t)ia);
-			IFF_UNLOCKGIANT(ifp);
 			if (error) {
 				ia->ia_dstaddr = oldaddr;
 				return (error);
@@ -507,10 +505,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	default:
 		if (ifp == NULL || ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
-		IFF_LOCKGIANT(ifp);
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
-		IFF_UNLOCKGIANT(ifp);
-		return (error);
+		return ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
 
 	/*
@@ -531,7 +526,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		IFP_TO_IA(ifp, oia);
 		if (oia == NULL) {
 			ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
-			IFF_LOCKGIANT(ifp);
 			IN_MULTI_LOCK();
 			if (ii->ii_allhosts) {
 				(void)in_leavegroup_locked(ii->ii_allhosts,
@@ -539,7 +533,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				ii->ii_allhosts = NULL;
 			}
 			IN_MULTI_UNLOCK();
-			IFF_UNLOCKGIANT(ifp);
 		}
 	}
 	IFAFREE(&ia->ia_ifa);
@@ -753,9 +746,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	 * and to validate the address if necessary.
 	 */
 	if (ifp->if_ioctl != NULL) {
-		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-		IFF_UNLOCKGIANT(ifp);
 		if (error) {
 			splx(s);
 			/* LIST_REMOVE(ia, ia_hash) is done in in_control */
@@ -1020,6 +1011,8 @@ in_ifdetach(struct ifnet *ifp)
  * Delete all IPv4 multicast address records, and associated link-layer
  * multicast address records, associated with ifp.
  * XXX It looks like domifdetach runs AFTER the link layer cleanup.
+ * XXX This should not race with ifma_protospec being set during
+ * a new allocation, if it does, we have bigger problems.
  */
 static void
 in_purgemaddrs(struct ifnet *ifp)
@@ -1040,8 +1033,13 @@ in_purgemaddrs(struct ifnet *ifp)
 	 */
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_INET)
+		if (ifma->ifma_addr->sa_family != AF_INET ||
+		    ifma->ifma_protospec == NULL)
 			continue;
+#if 0
+		KASSERT(ifma->ifma_protospec != NULL,
+		    ("%s: ifma_protospec is NULL", __func__));
+#endif
 		inm = (struct in_multi *)ifma->ifma_protospec;
 		LIST_INSERT_HEAD(&purgeinms, inm, inm_link);
 	}

@@ -135,7 +135,7 @@ struct vnode {
 	 */
 	LIST_HEAD(, namecache) v_cache_src;	/* c Cache entries from us */
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* c Cache entries to us */
-	struct	vnode *v_dd;			/* c .. vnode */
+	struct namecache *v_cache_dd;		/* c Cache entry for .. vnode */
 
 	/*
 	 * clustering stuff
@@ -308,15 +308,48 @@ struct vattr {
 #define IO_SEQSHIFT	16		/* seq heuristic in upper 16 bits */
 
 /*
- *  Flags for accmode_t.
+ * Flags for accmode_t.
  */
-#define	VEXEC	000100		/* execute/search permission */
-#define	VWRITE	000200		/* write permission */
-#define	VREAD	000400		/* read permission */
-#define	VADMIN	010000		/* permission to administer */
-#define	VSTAT	020000		/* permission to retrieve attrs */
-#define	VAPPEND	040000		/* permission to write/append */
-#define	VALLPERM	(VEXEC | VWRITE | VREAD | VADMIN | VSTAT | VAPPEND)
+#define	VEXEC			000000000100 /* execute/search permission */
+#define	VWRITE			000000000200 /* write permission */
+#define	VREAD			000000000400 /* read permission */
+#define	VADMIN			000000010000 /* being the file owner */
+#define	VAPPEND			000000040000 /* permission to write/append */
+/*
+ * VEXPLICIT_DENY makes VOP_ACCESS(9) return EPERM or EACCES only
+ * if permission was denied explicitly, by a "deny" rule in NFS4 ACL,
+ * and 0 otherwise.  This never happens with ordinary unix access rights
+ * or POSIX.1e ACLs.  Obviously, VEXPLICIT_DENY must be OR-ed with
+ * some other V* constant.
+ */
+#define	VEXPLICIT_DENY		000000100000
+#define	VREAD_NAMED_ATTRS 	000000200000 /* not used */
+#define	VWRITE_NAMED_ATTRS 	000000400000 /* not used */
+#define	VDELETE_CHILD	 	000001000000
+#define	VREAD_ATTRIBUTES 	000002000000 /* permission to stat(2) */
+#define	VWRITE_ATTRIBUTES 	000004000000 /* change {m,c,a}time */
+#define	VDELETE		 	000010000000
+#define	VREAD_ACL	 	000020000000 /* read ACL and file mode */
+#define	VWRITE_ACL	 	000040000000 /* change ACL and/or file mode */
+#define	VWRITE_OWNER	 	000100000000 /* change file owner */
+#define	VSYNCHRONIZE	 	000200000000 /* not used */
+
+/*
+ * Permissions that were traditionally granted only to the file owner.
+ */
+#define VADMIN_PERMS	(VADMIN | VWRITE_ATTRIBUTES | VWRITE_ACL | \
+    VWRITE_OWNER)
+
+/*
+ * Permissions that were traditionally granted to everyone.
+ */
+#define VSTAT_PERMS	(VREAD_ATTRIBUTES | VREAD_ACL)
+
+/*
+ * Permissions that allow to change the state of the file in any way.
+ */
+#define VMODIFY_PERMS	(VWRITE | VAPPEND | VADMIN_PERMS | VDELETE_CHILD | \
+    VDELETE)
 
 /*
  * Token indicating no attribute value yet assigned.
@@ -378,14 +411,6 @@ extern	int desiredvnodes;		/* number of vnodes desired */
 extern	struct uma_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
-
-/*
- * Macro/function to check for client cache inconsistency w.r.t. leasing.
- */
-#define	LEASE_READ	0x1		/* Check lease for readers */
-#define	LEASE_WRITE	0x2		/* Check lease for modifiers */
-
-extern void	(*lease_updatetime)(int deltat);
 
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
 #define	VI_LOCK_FLAGS(vp, flags) mtx_lock_flags(&(vp)->v_interlock, (flags))
@@ -554,8 +579,6 @@ struct uio;
 struct vattr;
 struct vnode;
 
-extern int	(*lease_check_hook)(struct vop_lease_args *);
-
 /* cache_* may belong in namei.h. */
 void	cache_enter(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);
@@ -574,7 +597,6 @@ int	insmntque1(struct vnode *vp, struct mount *mp,
 	    void (*dtr)(struct vnode *, void *), void *dtr_arg);
 int	insmntque(struct vnode *vp, struct mount *mp);
 u_quad_t init_va_filerev(void);
-int	lease_check(struct vop_lease_args *ap);
 int	speedup_syncer(void);
 #define textvp_fullpath(p, rb, rfb) \
 	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)

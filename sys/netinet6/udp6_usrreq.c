@@ -166,7 +166,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 		m_freem(n);
 		if (opts)
 			m_freem(opts);
-		V_udpstat.udps_fullsock++;
+		UDPSTAT_INC(udps_fullsock);
 	} else
 		sorwakeup_locked(so);
 }
@@ -202,7 +202,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 #endif
 
-	V_udpstat.udps_ipackets++;
+	UDPSTAT_INC(udps_ipackets);
 
 	/*
 	 * Destination port of 0 is illegal, based on RFC768.
@@ -214,7 +214,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	ulen = ntohs((u_short)uh->uh_ulen);
 
 	if (plen != ulen) {
-		V_udpstat.udps_badlen++;
+		UDPSTAT_INC(udps_badlen);
 		goto badunlocked;
 	}
 
@@ -222,11 +222,11 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	 * Checksum extended UDP header and data.
 	 */
 	if (uh->uh_sum == 0) {
-		V_udpstat.udps_nosum++;
+		UDPSTAT_INC(udps_nosum);
 		goto badunlocked;
 	}
 	if (in6_cksum(m, IPPROTO_UDP, off, ulen) != 0) {
-		V_udpstat.udps_badsum++;
+		UDPSTAT_INC(udps_badsum);
 		goto badunlocked;
 	}
 
@@ -327,8 +327,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			 * to send an ICMP Port Unreachable for a broadcast
 			 * or multicast datgram.)
 			 */
-			V_udpstat.udps_noport++;
-			V_udpstat.udps_noportmcast++;
+			UDPSTAT_INC(udps_noport);
+			UDPSTAT_INC(udps_noportmcast);
 			goto badheadlocked;
 		}
 		INP_RLOCK(last);
@@ -365,10 +365,10 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ntohs(uh->uh_sport));
 		}
-		V_udpstat.udps_noport++;
+		UDPSTAT_INC(udps_noport);
 		if (m->m_flags & M_MCAST) {
 			printf("UDP6: M_MCAST is set in a unicast packet.\n");
-			V_udpstat.udps_noportmcast++;
+			UDPSTAT_INC(udps_noportmcast);
 			goto badheadlocked;
 		}
 		INP_INFO_RUNLOCK(&V_udbinfo);
@@ -719,7 +719,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 
 		flags = 0;
 
-		V_udpstat.udps_opackets++;
+		UDPSTAT_INC(udps_opackets);
 		error = ip6_output(m, optp, NULL, flags, inp->in6p_moptions,
 		    NULL, inp);
 		break;

@@ -22,6 +22,71 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090408:
+	Do not use Giant for kbdmux(4) locking. This is wrong and
+	apparently causing more problems than it solves. This will
+	re-open the issue where interrupt handlers may race with
+	kbdmux(4) in polling mode. Typical symptoms include (but
+	not limited to) duplicated and/or missing characters when
+	low level console functions (such as gets) are used while
+	interrupts are enabled (for example geli password prompt,
+	mountroot prompt etc.). Disabling kbdmux(4) may help.
+
+20090407:
+	The size of structs vnet_net, vnet_inet and vnet_ipfw has changed;
+	kernel modules referencing any of the above need to be recompiled.
+	Bump __FreeBSD_version to 800075.
+
+20090320:
+	GEOM_PART has become the default partition slicer for storage devices,
+	replacing GEOM_MBR, GEOM_BSD, GEOM_PC98 and GEOM_GPT slicers. It
+	introduces some changes:
+	
+	MSDOS/EBR: the devices created from MSDOS extended partition entries
+	(EBR) can be named differently than with GEOM_MBR and are now symlinks
+	to devices with offset-based names. fstabs may need to be modified.
+
+	BSD: the "geometry does not match label" warning is harmless in most
+	cases but it points to problems in file system misalignment with
+	disk geometry. The "c" partition is now implicit, covers the whole
+	top-level drive and cannot be (mis)used by users.
+	
+	General: Kernel dumps are now not allowed to be written to devices
+	whose partition types indicate they are meant to be used for file
+	systems (or, in case of MSDOS partitions, as something else than
+	the "386BSD" type).
+
+	Most of these changes date approximately from 200812.
+
+20090319:
+	The uscanner(4) driver has been removed from the kernel. This follows
+	Linux removing theirs in 2.6 and making libusb the default interface
+	(supported by sane).
+
+20090319:
+	The multicast forwarding code has been cleaned up. netstat(1)
+	only relies on KVM now for printing bandwidth upcall meters.
+	The IPv4 and IPv6 modules are split into ip_mroute_mod and
+	ip6_mroute_mod respectively. The config(5) options for statically
+	compiling this code remain the same, i.e. 'options MROUTING'.
+
+20090315:
+	Support for the IFF_NEEDSGIANT network interface flag has been
+	removed, which means that non-MPSAFE network device drivers are no
+	longer supported.  In particular, if_ar, if_sr, and network device
+	drivers from the old (legacy) USB stack can no longer be built or
+	used.
+
+20090313:
+	POSIX.1 Native Language Support (NLS) has been enabled in libc and
+	a bunch of new language catalog files have also been added.
+	This means that some common libc messages are now localized and
+	they depend on the LC_MESSAGES environmental variable.
+
+20090313:
+	The k8temp(4) driver has been renamed to amdtemp(4) since
+	support for K10 and K11 CPU families was added.
+
 20090309:
 	IGMPv3 and Source-Specific Multicast (SSM) have been merged
 	to the IPv4 stack. VIMAGE hooks are in but not yet used.

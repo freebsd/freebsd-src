@@ -114,8 +114,6 @@ struct rt2661_softc {
 	int				sc_tx_timer;
 	int                             sc_invalid;
 	int				sc_debug;
-
-	const struct ieee80211_rate_table *sc_rates;
 /*
  * The same in both up to here
  * ------------------------------------------------

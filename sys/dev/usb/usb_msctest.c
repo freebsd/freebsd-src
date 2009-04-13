@@ -32,7 +32,6 @@
  * mass storage quirks for not supported SCSI commands!
  */
 
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
@@ -110,10 +109,10 @@ struct bbb_transfer {
 
 	uint8_t *data_ptr;
 
-	uint32_t data_len;		/* bytes */
-	uint32_t data_rem;		/* bytes */
-	uint32_t data_timeout;		/* ms */
-	uint32_t actlen;		/* bytes */
+	usb2_size_t data_len;		/* bytes */
+	usb2_size_t data_rem;		/* bytes */
+	usb2_timeout_t data_timeout;	/* ms */
+	usb2_frlength_t actlen;		/* bytes */
 
 	uint8_t	cmd_len;		/* bytes */
 	uint8_t	dir;
@@ -138,60 +137,57 @@ static const struct usb2_config bbb_config[ST_MAX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = sizeof(struct bbb_cbw),
-		.mh.flags = {},
-		.mh.callback = &bbb_command_callback,
-		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
+		.bufsize = sizeof(struct bbb_cbw),
+		.callback = &bbb_command_callback,
+		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
 
 	[ST_DATA_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = BULK_SIZE,
-		.mh.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
-		.mh.callback = &bbb_data_read_callback,
-		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
+		.bufsize = BULK_SIZE,
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.callback = &bbb_data_read_callback,
+		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
 
 	[ST_DATA_RD_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &bbb_data_rd_cs_callback,
-		.mh.timeout = 1 * USB_MS_HZ,	/* 1 second  */
+		.bufsize = sizeof(struct usb2_device_request),
+		.callback = &bbb_data_rd_cs_callback,
+		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
 
 	[ST_DATA_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = BULK_SIZE,
-		.mh.flags = {.proxy_buffer = 1,},
-		.mh.callback = &bbb_data_write_callback,
-		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
+		.bufsize = BULK_SIZE,
+		.flags = {.proxy_buffer = 1,},
+		.callback = &bbb_data_write_callback,
+		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
 
 	[ST_DATA_WR_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &bbb_data_wr_cs_callback,
-		.mh.timeout = 1 * USB_MS_HZ,	/* 1 second  */
+		.bufsize = sizeof(struct usb2_device_request),
+		.callback = &bbb_data_wr_cs_callback,
+		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
 
 	[ST_STATUS] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = sizeof(struct bbb_csw),
-		.mh.flags = {.short_xfer_ok = 1,},
-		.mh.callback = &bbb_status_callback,
-		.mh.timeout = 1 * USB_MS_HZ,	/* 1 second  */
+		.bufsize = sizeof(struct bbb_csw),
+		.flags = {.short_xfer_ok = 1,},
+		.callback = &bbb_status_callback,
+		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
 };
 
@@ -266,7 +262,7 @@ bbb_command_callback(struct usb2_xfer *xfer)
 		tag = UGETDW(sc->cbw.dCBWTag) + 1;
 		USETDW(sc->cbw.dCBWSignature, CBWSIGNATURE);
 		USETDW(sc->cbw.dCBWTag, tag);
-		USETDW(sc->cbw.dCBWDataTransferLength, sc->data_len);
+		USETDW(sc->cbw.dCBWDataTransferLength, (uint32_t)sc->data_len);
 		sc->cbw.bCBWFlags = ((sc->dir == DIR_IN) ? CBWFLAGS_IN : CBWFLAGS_OUT);
 		sc->cbw.bCBWLUN = sc->lun;
 		sc->cbw.bCDBLength = sc->cmd_len;
@@ -290,7 +286,7 @@ static void
 bbb_data_read_callback(struct usb2_xfer *xfer)
 {
 	struct bbb_transfer *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	usb2_frlength_t max_bulk = xfer->max_data_length;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -341,7 +337,7 @@ static void
 bbb_data_write_callback(struct usb2_xfer *xfer)
 {
 	struct bbb_transfer *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	usb2_frlength_t max_bulk = xfer->max_data_length;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -439,8 +435,8 @@ bbb_status_callback(struct usb2_xfer *xfer)
  *------------------------------------------------------------------------*/
 static uint8_t
 bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
-    void *data_ptr, uint32_t data_len, uint8_t cmd_len,
-    uint32_t data_timeout)
+    void *data_ptr, usb2_size_t data_len, uint8_t cmd_len,
+    usb2_timeout_t data_timeout)
 {
 	sc->lun = lun;
 	sc->dir = data_len ? dir : DIR_NONE;

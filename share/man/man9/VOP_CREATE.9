@@ -80,67 +80,6 @@ If successful, the vnode for the new object is placed in
 .Fa *vpp
 and zero is returned.
 Otherwise, an appropriate error is returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_create(struct vnode *dvp,
-	   struct vnode **vpp,
-	   struct componentname *cnp
-	   struct vattr *vap)
-{
-    int mode = MAKEIMODE(vap->va_type, vap->va_mode);
-    struct vnode *vp;
-    int error;
-
-    *vpp = NULL;
-    if ((mode & IFMT) == 0)
-	mode |= IFREG;
-
-    error = SOMEFS_VALLOC(dvp, mode, cnp->cn_cred, &vp);
-    if (error)
-	return error;
-
-    /*
-     * Update the permissions for the new vnode, including
-     * copying the group from the directory.
-     */
-    ...;
-
-#ifdef QUOTA
-    /*
-     * Possibly check quota information.
-     */
-    ...;
-#endif
-
-    /*
-     * Enter new vnode in directory, taking care that the vnode
-     * hits the disk before the directory contents are changed.
-     */
-    error = ...;
-
-    if (error)
-	goto bad;
-
-    *vpp = vp;
-
-    return 0;
-
-bad:
-    /*
-     * Write error occurred trying to update the inode
-     * or the directory so must deallocate the inode.
-     */
-    vput(vp);
-
-    /*
-     * Deallocate file system resources for vp.
-     */
-    ...;
-
-    return error;
-}
-.Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOSPC

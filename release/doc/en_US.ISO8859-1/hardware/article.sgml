@@ -858,6 +858,8 @@
 
       &hwlist.rum;
 
+      &hwlist.uath;
+
       &hwlist.upgt;
 
       &hwlist.ural;
@@ -1467,8 +1469,6 @@
       &hwlist.uplcom;
 
       &hwlist.umct;
-
-      &hwlist.uscanner;
 
       &hwlist.umass;
 

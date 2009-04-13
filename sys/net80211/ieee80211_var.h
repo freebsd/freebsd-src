@@ -47,6 +47,7 @@
 #include <net80211/ieee80211_crypto.h>
 #include <net80211/ieee80211_dfs.h>
 #include <net80211/ieee80211_ioctl.h>		/* for ieee80211_stats */
+#include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_power.h>
 #include <net80211/ieee80211_node.h>
 #include <net80211/ieee80211_proto.h>
@@ -106,6 +107,13 @@ struct ieee80211_appie {
 };
 
 struct ieee80211_tdma_param;
+struct ieee80211_rate_table;
+
+struct ieee80211_stageq {
+	struct mbuf		*head;		/* frames linked w/ m_nextpkt */
+	struct mbuf		*tail;		/* last frame in queue */
+	int			depth;		/* # items on head */
+};
 
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
@@ -115,7 +123,6 @@ struct ieee80211com {
 	enum ieee80211_phytype	ic_phytype;	/* XXX wrong for multi-mode */
 	enum ieee80211_opmode	ic_opmode;	/* operation mode */
 	struct ifmedia		ic_media;	/* interface media config */
-	uint8_t			ic_myaddr[IEEE80211_ADDR_LEN];
 	struct callout		ic_inact;	/* inactivity processing */
 	struct task		ic_parent_task;	/* deferred parent processing */
 
@@ -162,6 +169,7 @@ struct ieee80211com {
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];
 	struct ieee80211_channel *ic_curchan;	/* current channel */
+	const struct ieee80211_rate_table *ic_rt; /* table for ic_curchan */
 	struct ieee80211_channel *ic_bsschan;	/* bss channel */
 	struct ieee80211_channel *ic_prevchan;	/* previous channel */
 	struct ieee80211_regdomain ic_regdomain;/* regulatory data */
@@ -196,6 +204,10 @@ struct ieee80211com {
 	int			ic_lastnonerp;	/* last time non-ERP sta noted*/
 	int			ic_lastnonht;	/* last time non-HT sta noted */
 
+	/* fast-frames staging q */
+	struct ieee80211_stageq	ic_ff_stageq[WME_NUM_AC];
+	int			ic_stageqdepth;	/* cumulative depth */
+
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,
 				    const char name[IFNAMSIZ], int unit,
@@ -229,7 +241,7 @@ struct ieee80211com {
 	void			(*ic_newassoc)(struct ieee80211_node *, int);
 	/* TDMA update notification */
 	void			(*ic_tdma_update)(struct ieee80211_node *,
-				    const struct ieee80211_tdma_param *);
+				    const struct ieee80211_tdma_param *, int);
 	/* node state management */
 	struct ieee80211_node*	(*ic_node_alloc)(struct ieee80211vap *,
 				    const uint8_t [IEEE80211_ADDR_LEN]);
@@ -520,8 +532,9 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FVEN_BITS	"\20"
 
 /* ic_caps/iv_caps: device driver capabilities */
-/* 0x2f available */
+/* 0x2e available */
 #define	IEEE80211_C_STA		0x00000001	/* CAPABILITY: STA available */
+#define	IEEE80211_C_8023ENCAP	0x00000002	/* CAPABILITY: 802.3 encap */
 #define	IEEE80211_C_FF		0x00000040	/* CAPABILITY: ATH FF avail */
 #define	IEEE80211_C_TURBOP	0x00000080	/* CAPABILITY: ATH Turbo avail*/
 #define	IEEE80211_C_IBSS	0x00000100	/* CAPABILITY: IBSS available */
@@ -553,7 +566,7 @@ MALLOC_DECLARE(M_80211_VAP);
 	 IEEE80211_C_TDMA)
 
 #define	IEEE80211_C_BITS \
-	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
+	"\20\1STA\002803ENCAP\7FF\10TURBOP\11IBSS\12PMGT" \
 	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
 	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
 	"\37TXFRAG\40TDMA"
@@ -575,7 +588,8 @@ MALLOC_DECLARE(M_80211_VAP);
 	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
 	"\21AMPDU\22AMSDU\23HT\24SMPS\25RIFS"
 
-void	ieee80211_ifattach(struct ieee80211com *);
+void	ieee80211_ifattach(struct ieee80211com *,
+		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 void	ieee80211_ifdetach(struct ieee80211com *);
 int	ieee80211_vap_setup(struct ieee80211com *, struct ieee80211vap *,
 		const char name[IFNAMSIZ], int unit, int opmode, int flags,
@@ -702,7 +716,7 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 #define	IEEE80211_MSG_DOT1XSM	0x00010000	/* 802.1x state machine */
 #define	IEEE80211_MSG_RADIUS	0x00008000	/* 802.1x radius client */
 #define	IEEE80211_MSG_RADDUMP	0x00004000	/* dump 802.1x radius packets */
-#define	IEEE80211_MSG_RADKEYS	0x00002000	/* dump 802.1x keys */
+#define	IEEE80211_MSG_MESH	0x00002000	/* mesh networking */
 #define	IEEE80211_MSG_WPA	0x00001000	/* WPA/RSN protocol */
 #define	IEEE80211_MSG_ACL	0x00000800	/* ACL handling */
 #define	IEEE80211_MSG_WME	0x00000400	/* WME protocol */

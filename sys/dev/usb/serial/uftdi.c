@@ -150,18 +150,18 @@ static const struct usb2_config uftdi_config[UFTDI_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UFTDI_OBUFSIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &uftdi_write_callback,
+		.bufsize = UFTDI_OBUFSIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &uftdi_write_callback,
 	},
 
 	[UFTDI_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UFTDI_IBUFSIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &uftdi_read_callback,
+		.bufsize = UFTDI_IBUFSIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &uftdi_read_callback,
 	},
 };
 

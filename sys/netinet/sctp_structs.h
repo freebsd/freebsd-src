@@ -196,6 +196,7 @@ struct sctp_nets {
 	/* smoothed average things for RTT and RTO itself */
 	int lastsa;
 	int lastsv;
+	int rtt;		/* last measured rtt value in ms */
 	unsigned int RTO;
 
 	/* This is used for SHUTDOWN/SHUTDOWN-ACK/SEND or INIT timers */
@@ -309,7 +310,7 @@ struct sctp_data_chunkrec {
 
 	/* ECN Nonce: Nonce Value for this chunk */
 	uint8_t ect_nonce;
-
+	uint8_t fwd_tsn_cnt;
 	/*
 	 * part of the Highest sacked algorithm to be able to stroke counts
 	 * on ones that are FR'd.
@@ -445,6 +446,7 @@ struct sctp_stream_queue_pending {
 	uint8_t pr_sctp_on;
 	uint8_t sender_all_done;
 	uint8_t put_last_out;
+	uint8_t discard_rest;
 };
 
 /*
@@ -676,7 +678,7 @@ struct sctp_association {
 	/* primary destination to use */
 	struct sctp_nets *primary_destination;
 	/* For CMT */
-	struct sctp_nets *last_net_data_came_from;
+	struct sctp_nets *last_net_cmt_send_started;
 	/* last place I got a data chunk from */
 	struct sctp_nets *last_data_chunk_from;
 	/* last place I got a control from */

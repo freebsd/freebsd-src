@@ -64,7 +64,7 @@ AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip,
 		     struct in_addr original_addr);
 
 static int 
-fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
 	if (ah->dport == NULL || ah->oaddr == NULL)

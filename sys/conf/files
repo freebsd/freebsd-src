@@ -515,16 +515,19 @@ dev/ath/if_ath_pci.c		optional ath pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+#
 dev/ath/ath_hal/ah.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_eeprom_v1.c	optional ath_hal | ath_ar5210 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_eeprom_v3.c	optional ath_hal | ath_ar5211 | ath_ar5212 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
-dev/ath/ath_hal/ah_eeprom_v14.c optional ath_hal | ath_ar5416 | ath_ar9160 \
+dev/ath/ath_hal/ah_eeprom_v14.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_regdomain.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+# ar5210
 dev/ath/ath_hal/ar5210/ar5210_attach.c		optional ath_hal | ath_ar5210 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5210/ar5210_beacon.c		optional ath_hal | ath_ar5210 \
@@ -545,6 +548,7 @@ dev/ath/ath_hal/ar5210/ar5210_reset.c		optional ath_hal | ath_ar5210 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5210/ar5210_xmit.c		optional ath_hal | ath_ar5210 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# ar5211
 dev/ath/ath_hal/ar5211/ar5211_attach.c		optional ath_hal | ath_ar5211 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5211/ar5211_beacon.c		optional ath_hal | ath_ar5211 \
@@ -565,48 +569,108 @@ dev/ath/ath_hal/ar5211/ar5211_reset.c		optional ath_hal | ath_ar5211 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5211/ar5211_xmit.c		optional ath_hal | ath_ar5211 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# ar5212
 dev/ath/ath_hal/ar5212/ar5212_ani.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_attach.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_beacon.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_eeprom.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_gpio.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_interrupts.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_keycache.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_misc.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_phy.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_power.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_recv.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_reset.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_rfgain.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5212_xmit.c \
-	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 \
+	optional ath_hal | ath_ar5212 | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# ar5416 (depends on ar5212)
+dev/ath/ath_hal/ar5416/ar5416_ani.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_attach.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_beacon.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_cal.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_cal_iq.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_cal_adcgain.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_cal_adcdc.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_eeprom.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_gpio.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_interrupts.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_keycache.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_misc.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_phy.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_power.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_recv.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_reset.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_xmit.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# ar9160 (depends on ar5416)
+dev/ath/ath_hal/ar5416/ar9160_attach.c optional ath_hal | ath_ar9160 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# ar9280 (depends on ar5416)
+dev/ath/ath_hal/ar5416/ar9280_attach.c optional ath_hal | ath_ar9280 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# rf backends
 dev/ath/ath_hal/ar5212/ar2316.c	optional ath_rf2316 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar2317.c	optional ath_rf2317 \
@@ -621,67 +685,18 @@ dev/ath/ath_hal/ar5212/ar5112.c	optional ath_hal | ath_rf5112 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5413.c	optional ath_hal | ath_rf5413 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar2133.c	optional ath_hal | ath_ar5416 | ath_ar9160 \
+dev/ath/ath_hal/ar5416/ar2133.c optional ath_hal | ath_ar5416 | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_ani.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
+dev/ath/ath_hal/ar5416/ar9280.c optional ath_hal | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_attach.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_beacon.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_cal.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_cal_iq.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_cal_adcgain.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_cal_adcdc.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_eeprom.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_gpio.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_interrupts.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_keycache.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_misc.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_phy.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_power.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_recv.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_reset.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar5416_xmit.c \
-	optional ath_hal | ath_ar5416 | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar9160_attach.c optional ath_hal | ath_ar9160 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# ath rate control algorithms
 dev/ath/ath_rate/amrr/amrr.c	optional ath_rate_amrr \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_rate/onoe/onoe.c	optional ath_rate_onoe \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_rate/sample/sample.c	optional ath_rate_sample \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+#
 dev/bce/if_bce.c		optional bce
 dev/bfe/if_bfe.c		optional bfe
 dev/bge/if_bge.c		optional bge
@@ -1058,6 +1073,8 @@ dev/ixgbe/ixgbe_common.c	optional ixgbe \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82598.c		optional ixgbe \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_82599.c		optional ixgbe \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
@@ -1088,6 +1105,7 @@ dev/mfi/mfi_cam.c		optional mfip scbus
 dev/mii/acphy.c			optional miibus | acphy
 dev/mii/amphy.c			optional miibus | amphy
 dev/mii/atphy.c			optional miibus | atphy
+dev/mii/axphy.c			optional miibus | axphy
 dev/mii/bmtphy.c		optional miibus | bmtphy
 dev/mii/brgphy.c		optional miibus | brgphy
 dev/mii/ciphy.c			optional miibus | ciphy
@@ -1291,7 +1309,6 @@ dev/random/probe.c		optional random
 dev/random/randomdev.c		optional random
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
-dev/ray/if_ray.c		optional ray pccard
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rndtest/rndtest.c		optional rndtest
@@ -1409,8 +1426,6 @@ dev/sound/midi/synth_if.m	optional sound
 dev/spibus/spibus.c		optional spibus				\
 	dependency	"spibus_if.h"
 dev/spibus/spibus_if.m		optional spibus
-dev/sr/if_sr.c			optional sr
-dev/sr/if_sr_pci.c		optional sr pci
 dev/ste/if_ste.c		optional ste pci
 dev/stg/tmc18c30.c		optional stg
 dev/stg/tmc18c30_isa.c		optional stg isa
@@ -1487,15 +1502,6 @@ legacy/dev/usb/ehci_ddb.c	optional oehci
 legacy/dev/usb/ehci_pci.c	optional oehci pci
 legacy/dev/usb/hid.c		optional ousb
 legacy/dev/usb/if_aue.c		optional oaue
-legacy/dev/usb/if_axe.c		optional oaxe
-legacy/dev/usb/if_cdce.c	optional ocdce
-legacy/dev/usb/if_cue.c		optional ocue
-legacy/dev/usb/if_kue.c		optional okue
-legacy/dev/usb/if_ural.c	optional oural
-legacy/dev/usb/if_rue.c		optional orue
-legacy/dev/usb/if_rum.c		optional orum
-legacy/dev/usb/if_udav.c	optional oudav
-legacy/dev/usb/if_zyd.c		optional ozyd
 legacy/dev/usb/ohci.c		optional oohci
 legacy/dev/usb/ohci_pci.c	optional oohci pci
 legacy/dev/usb/sl811hs.c	optional oslhci
@@ -1581,7 +1587,6 @@ dev/usb/usb_msctest.c		optional usb
 dev/usb/usb_parse.c		optional usb
 dev/usb/usb_process.c		optional usb
 dev/usb/usb_request.c		optional usb
-dev/usb/usb_sw_transfer.c	optional usb
 dev/usb/usb_transfer.c		optional usb
 dev/usb/usb_util.c		optional usb
 #
@@ -1652,10 +1657,6 @@ dev/usb/template/usb_template.c	optional usb_template
 dev/usb/template/usb_template_cdce.c	optional usb_template
 dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
-#
-# USB image drivers
-#
-dev/usb/image/uscanner.c	optional uscanner
 #
 # USB END
 #
@@ -2145,7 +2146,6 @@ net/bpf_jitter.c		optional bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
-net/bsd_comp.c			optional ppp_bsdcomp
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
@@ -2169,8 +2169,6 @@ net/if_loop.c			optional loop
 net/if_llatbl.c			standard
 net/if_media.c			standard
 net/if_mib.c			standard
-net/if_ppp.c			optional ppp
-net/if_sl.c			optional sl
 net/if_spppfr.c			optional sppp | netgraph_sppp
 net/if_spppsubr.c		optional sppp | netgraph_sppp
 net/if_stf.c			optional stf
@@ -2180,8 +2178,6 @@ net/if_vlan.c			optional vlan
 net/mppcc.c			optional netgraph_mppc_compression
 net/mppcd.c			optional netgraph_mppc_compression
 net/netisr.c			standard
-net/ppp_deflate.c		optional ppp_deflate
-net/ppp_tty.c			optional ppp
 net/pfil.c			optional ether | inet
 net/radix.c			standard
 net/radix_mpath.c		standard
@@ -2189,20 +2185,20 @@ net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
 net/rtsock.c			standard
-net/slcompress.c		optional netgraph_vjc | ppp | sl | sppp | \
+net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
-					 mxge | ppp_deflate | netgraph_deflate | \
+					 mxge | netgraph_deflate | \
 					 ddb_ctf
 net80211/ieee80211.c		optional wlan
-net80211/ieee80211_acl.c	optional wlan_acl
+net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_adhoc.c	optional wlan
-net80211/ieee80211_amrr.c	optional wlan_amrr
+net80211/ieee80211_amrr.c	optional wlan wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan
-net80211/ieee80211_crypto_ccmp.c optional wlan_ccmp
+net80211/ieee80211_crypto_ccmp.c optional wlan wlan_ccmp
 net80211/ieee80211_crypto_none.c optional wlan
-net80211/ieee80211_crypto_tkip.c optional wlan_tkip
-net80211/ieee80211_crypto_wep.c	optional wlan_wep
+net80211/ieee80211_crypto_tkip.c optional wlan wlan_tkip
+net80211/ieee80211_crypto_wep.c	optional wlan wlan_wep
 net80211/ieee80211_ddb.c	optional wlan ddb
 net80211/ieee80211_dfs.c	optional wlan
 net80211/ieee80211_freebsd.c	optional wlan
@@ -2217,13 +2213,14 @@ net80211/ieee80211_phy.c	optional wlan
 net80211/ieee80211_power.c	optional wlan
 net80211/ieee80211_proto.c	optional wlan
 net80211/ieee80211_regdomain.c	optional wlan
-net80211/ieee80211_rssadapt.c	optional wlan_rssadapt
+net80211/ieee80211_rssadapt.c	optional wlan wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan
 net80211/ieee80211_scan_sta.c	optional wlan
 net80211/ieee80211_sta.c	optional wlan
-net80211/ieee80211_tdma.c	optional wlan
+net80211/ieee80211_superg.c	optional wlan ieee80211_support_superg
+net80211/ieee80211_tdma.c	optional wlan ieee80211_support_tdma
 net80211/ieee80211_wds.c	optional wlan
-net80211/ieee80211_xauth.c	optional wlan_xauth
+net80211/ieee80211_xauth.c	optional wlan wlan_xauth
 netatalk/aarp.c			optional netatalk
 netatalk/at_control.c		optional netatalk
 netatalk/at_proto.c		optional netatalk
@@ -2472,6 +2469,7 @@ nfsserver/nfs_srvsock.c		optional nfsserver
 nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
+nfs/nfs_nfssvc.c		optional nfsserver
 nlm/nlm_advlock.c		optional nfslockd nfsclient
 nlm/nlm_prot_clnt.c		optional nfslockd
 nlm/nlm_prot_impl.c		optional nfslockd

@@ -101,7 +101,6 @@ struct rum_softc {
 	struct usb2_device		*sc_udev;
 	struct usb2_process		sc_tq;
 
-	const struct ieee80211_rate_table *sc_rates;
 	struct usb2_xfer		*sc_xfer[RUM_N_TRANSFER];
 	struct rum_task			*sc_last_task;
 

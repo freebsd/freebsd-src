@@ -1316,39 +1316,6 @@ ieee80211_resume_all(struct ieee80211com *ic)
 	IEEE80211_UNLOCK(ic);
 }
 
-/*
- * Switch between turbo and non-turbo operating modes.
- * Use the specified channel flags to locate the new
- * channel, update 802.11 state, and then call back into
- * the driver to effect the change.
- */
-void
-ieee80211_dturbo_switch(struct ieee80211vap *vap, int newflags)
-{
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_channel *chan;
-
-	chan = ieee80211_find_channel(ic, ic->ic_bsschan->ic_freq, newflags);
-	if (chan == NULL) {		/* XXX should not happen */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-		    "%s: no channel with freq %u flags 0x%x\n",
-		    __func__, ic->ic_bsschan->ic_freq, newflags);
-		return;
-	}
-
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-	    "%s: %s -> %s (freq %u flags 0x%x)\n", __func__,
-	    ieee80211_phymode_name[ieee80211_chan2mode(ic->ic_bsschan)],
-	    ieee80211_phymode_name[ieee80211_chan2mode(chan)],
-	    chan->ic_freq, chan->ic_flags);
-
-	ic->ic_bsschan = chan;
-	ic->ic_prevchan = ic->ic_curchan;
-	ic->ic_curchan = chan;
-	ic->ic_set_channel(ic);
-	/* NB: do not need to reset ERP state 'cuz we're in sta mode */
-}
-
 void
 ieee80211_beacon_miss(struct ieee80211com *ic)
 {

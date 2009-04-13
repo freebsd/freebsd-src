@@ -179,8 +179,8 @@ struct l_mmap_argv {
 	l_int		prot;
 	l_int		flags;
 	l_int		fd;
-	l_off_t		pgoff;
-} __packed;
+	l_ulong		pgoff;
+};
 
 /*
  * stat family of syscalls

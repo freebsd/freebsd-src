@@ -240,17 +240,23 @@ typedef u_int8_t u8;
 #endif
 
 #define DRM_READ8(map, offset)						\
-	*(volatile u_int8_t *) (((unsigned long)(map)->handle) + (offset))
+	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset))
 #define DRM_READ16(map, offset)						\
-	*(volatile u_int16_t *) (((unsigned long)(map)->handle) + (offset))
+	*(volatile u_int16_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset))
 #define DRM_READ32(map, offset)						\
-	*(volatile u_int32_t *)(((unsigned long)(map)->handle) + (offset))
+	*(volatile u_int32_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset))
 #define DRM_WRITE8(map, offset, val)					\
-	*(volatile u_int8_t *) (((unsigned long)(map)->handle) + (offset)) = val
+	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset)) = val
 #define DRM_WRITE16(map, offset, val)					\
-	*(volatile u_int16_t *) (((unsigned long)(map)->handle) + (offset)) = val
+	*(volatile u_int16_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset)) = val
 #define DRM_WRITE32(map, offset, val)					\
-	*(volatile u_int32_t *)(((unsigned long)(map)->handle) + (offset)) = val
+	*(volatile u_int32_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset)) = val
 
 #define DRM_VERIFYAREA_READ( uaddr, size )		\
 	(!useracc(__DECONST(caddr_t, uaddr), size, VM_PROT_READ))
@@ -474,9 +480,7 @@ typedef struct drm_sg_mem {
 	void			 *virtual;
 	int			  pages;
 	dma_addr_t		 *busaddr;
-	struct drm_dma_handle	 *sg_dmah;	/* Handle for sg_pages   */
 	struct drm_dma_handle	 *dmah;		/* Handle to PCI memory  */
-						/* for ATI PCIGART table */
 } drm_sg_mem_t;
 
 typedef TAILQ_HEAD(drm_map_list, drm_local_map) drm_map_list_t;
@@ -537,6 +541,7 @@ struct drm_ati_pcigart_info {
 	struct drm_dma_handle *table_handle;
 	drm_local_map_t mapping;
 	int table_size;
+	struct drm_dma_handle *dmah; /* handle for ATI PCIGART table */
 };
 
 #ifndef DMA_BIT_MASK
@@ -607,7 +612,7 @@ struct drm_driver_info {
 };
 
 /* Length for the array of resource pointers for drm_get_resource_*. */
-#define DRM_MAX_PCI_RESOURCE	3
+#define DRM_MAX_PCI_RESOURCE	6
 
 /** 
  * DRM device functions structure

@@ -477,7 +477,7 @@ rip6_output(m, va_alist)
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
-		V_icmp6stat.icp6s_outhist[type]++;
+		ICMP6STAT_INC(icp6s_outhist[type]);
 	} else
 		V_rip6stat.rip6s_opackets++;
 

@@ -107,7 +107,7 @@ static void
 mac_sysv_msgmsg_label_free(struct label *label)
 {
 
-	MAC_PERFORM(sysvmsg_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(sysvmsg_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -125,7 +125,7 @@ static void
 mac_sysv_msgqueue_label_free(struct label *label)
 {
 
-	MAC_PERFORM(sysvmsq_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(sysvmsq_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -144,7 +144,7 @@ mac_sysvmsg_create(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct msg *msgptr)
 {
 
-	MAC_PERFORM(sysvmsg_create, cred, msqkptr, msqkptr->label,
+	MAC_PERFORM_NOSLEEP(sysvmsg_create, cred, msqkptr, msqkptr->label,
 		msgptr, msgptr->label);
 }
 
@@ -152,21 +152,21 @@ void
 mac_sysvmsq_create(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 
-	MAC_PERFORM(sysvmsq_create, cred, msqkptr, msqkptr->label);
+	MAC_PERFORM_NOSLEEP(sysvmsq_create, cred, msqkptr, msqkptr->label);
 }
 
 void
 mac_sysvmsg_cleanup(struct msg *msgptr)
 {
 
-	MAC_PERFORM(sysvmsg_cleanup, msgptr->label);
+	MAC_PERFORM_NOSLEEP(sysvmsg_cleanup, msgptr->label);
 }
 
 void
 mac_sysvmsq_cleanup(struct msqid_kernel *msqkptr)
 {
 
-	MAC_PERFORM(sysvmsq_cleanup, msqkptr->label);
+	MAC_PERFORM_NOSLEEP(sysvmsq_cleanup, msqkptr->label);
 }
 
 MAC_CHECK_PROBE_DEFINE3(sysvmsq_check_msgmsq, "struct ucred *",
@@ -178,7 +178,7 @@ mac_sysvmsq_check_msgmsq(struct ucred *cred, struct msg *msgptr,
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msgmsq, cred, msgptr, msgptr->label,
+	MAC_CHECK_NOSLEEP(sysvmsq_check_msgmsq, cred, msgptr, msgptr->label,
 	    msqkptr, msqkptr->label);
 	MAC_CHECK_PROBE3(sysvmsq_check_msgmsq, error, cred, msgptr, msqkptr);
 
@@ -193,7 +193,7 @@ mac_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr)
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msgrcv, cred, msgptr, msgptr->label);
+	MAC_CHECK_NOSLEEP(sysvmsq_check_msgrcv, cred, msgptr, msgptr->label);
 	MAC_CHECK_PROBE2(sysvmsq_check_msgrcv, error, cred, msgptr);
 
 	return (error);
@@ -207,7 +207,8 @@ mac_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr)
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msgrmid, cred, msgptr, msgptr->label);
+	MAC_CHECK_NOSLEEP(sysvmsq_check_msgrmid, cred, msgptr,
+	    msgptr->label);
 	MAC_CHECK_PROBE2(sysvmsq_check_msgrmid, error, cred, msgptr);
 
 	return (error);
@@ -221,7 +222,8 @@ mac_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msqget, cred, msqkptr, msqkptr->label);
+	MAC_CHECK_NOSLEEP(sysvmsq_check_msqget, cred, msqkptr,
+	    msqkptr->label);
 	MAC_CHECK_PROBE2(sysvmsq_check_msqget, error, cred, msqkptr);
 
 	return (error);
@@ -235,7 +237,8 @@ mac_sysvmsq_check_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msqsnd, cred, msqkptr, msqkptr->label);
+	MAC_CHECK_NOSLEEP(sysvmsq_check_msqsnd, cred, msqkptr,
+	    msqkptr->label);
 	MAC_CHECK_PROBE2(sysvmsq_check_msqsnd, error, cred, msqkptr);
 
 	return (error);
@@ -249,7 +252,8 @@ mac_sysvmsq_check_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msqrcv, cred, msqkptr, msqkptr->label);
+	MAC_CHECK_NOSLEEP(sysvmsq_check_msqrcv, cred, msqkptr,
+	    msqkptr->label);
 	MAC_CHECK_PROBE2(sysvmsq_check_msqrcv, error, cred, msqkptr);
 
 	return (error);
@@ -264,7 +268,8 @@ mac_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
 {
 	int error;
 
-	MAC_CHECK(sysvmsq_check_msqctl, cred, msqkptr, msqkptr->label, cmd);
+	MAC_CHECK_NOSLEEP(sysvmsq_check_msqctl, cred, msqkptr,
+	    msqkptr->label, cmd);
 	MAC_CHECK_PROBE3(sysvmsq_check_msqctl, error, cred, msqkptr, cmd);
 
 	return (error);

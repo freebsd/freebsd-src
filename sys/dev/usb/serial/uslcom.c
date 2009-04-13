@@ -128,18 +128,18 @@ static const struct usb2_config uslcom_config[USLCOM_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = USLCOM_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &uslcom_write_callback,
+		.bufsize = USLCOM_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &uslcom_write_callback,
 	},
 
 	[USLCOM_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = USLCOM_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &uslcom_read_callback,
+		.bufsize = USLCOM_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &uslcom_read_callback,
 	},
 };
 

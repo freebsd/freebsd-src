@@ -33,7 +33,7 @@
 #include <locale.h>
 #include <stdarg.h>
 #include <time.h>
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #include <crtdbg.h>
 #include <windows.h>
 #include <winbase.h>
@@ -93,7 +93,7 @@ static int assertions = 0;
 static const char *refdir;
 
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 
 static void
 invalid_parameter_handler(const wchar_t * expression,
@@ -798,7 +798,7 @@ static int test_run(int i, const char *tmpdir)
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 			systemf("rm -rf %s", tests[i].name);
 #else
 			systemf("rmdir /S /Q %s", tests[i].name);
@@ -894,7 +894,7 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define DEV_NULL "NUL"
 #else
 #define DEV_NULL "/dev/null"
@@ -966,7 +966,7 @@ get_refdir(void)
 		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
 	}
 
-#if defined(_WIN32) && defined(_DEBUG)
+#if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	DebugBreak();
 #endif
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
@@ -992,7 +992,7 @@ int main(int argc, char **argv)
 
 	(void)argc; /* UNUSED */
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_parameter_handler);
 	/* for open() to a binary mode. */

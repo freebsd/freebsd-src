@@ -211,7 +211,8 @@ static void	wpi_set_channel(struct ieee80211com *);
 static void	wpi_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	wpi_scan_mindwell(struct ieee80211_scan_state *);
 static int	wpi_ioctl(struct ifnet *, u_long, caddr_t);
-static void	wpi_read_eeprom(struct wpi_softc *);
+static void	wpi_read_eeprom(struct wpi_softc *,
+		    uint8_t macaddr[IEEE80211_ADDR_LEN]);
 static void	wpi_read_eeprom_channels(struct wpi_softc *, int);
 static void	wpi_read_eeprom_group(struct wpi_softc *, int);
 static int	wpi_cmd(struct wpi_softc *, int, const void *, int, int);
@@ -493,6 +494,7 @@ wpi_attach(device_t dev)
 	int ac, error, supportsa = 1;
 	uint32_t tmp;
 	const struct wpi_ident *ident;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
 
@@ -650,7 +652,7 @@ wpi_attach(device_t dev)
 	 * Read in the eeprom and also setup the channels for
 	 * net80211. We don't set the rates as net80211 does this for us
 	 */
-	wpi_read_eeprom(sc);
+	wpi_read_eeprom(sc, macaddr);
 
 	if (bootverbose || WPI_DEBUG_SET) {
 	    device_printf(sc->sc_dev, "Regulatory Domain: %.4s\n", sc->domain);
@@ -675,7 +677,7 @@ wpi_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	/* override default methods */
 	ic->ic_node_alloc = wpi_node_alloc;
 	ic->ic_newassoc = wpi_newassoc;
@@ -1473,6 +1475,20 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	    le16toh(head->len), (int8_t)stat->rssi, head->rate, head->chan,
 	    (uintmax_t)le64toh(tail->tstamp)));
 
+	/* discard Rx frames with bad CRC early */
+	if ((le32toh(tail->flags) & WPI_RX_NOERROR) != WPI_RX_NOERROR) {
+		DPRINTFN(WPI_DEBUG_RX, ("%s: rx flags error %x\n", __func__,
+		    le32toh(tail->flags)));
+		ifp->if_ierrors++;
+		return;
+	}
+	if (le16toh(head->len) < sizeof (struct ieee80211_frame)) {
+		DPRINTFN(WPI_DEBUG_RX, ("%s: frame too short: %d\n", __func__,
+		    le16toh(head->len)));
+		ifp->if_ierrors++;
+		return;
+	}
+
 	/* XXX don't need mbuf, just dma buffer */
 	mnew = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 	if (mnew == NULL) {
@@ -1573,7 +1589,7 @@ wpi_tx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	 */
 	wn->amn.amn_txcnt++;
 	if (stat->ntries > 0) {
-		DPRINTFN(3, ("%d retries\n", stat->ntries));
+		DPRINTFN(WPI_DEBUG_TX, ("%d retries\n", stat->ntries));
 		wn->amn.amn_retrycnt++;
 	}
 
@@ -2029,10 +2045,9 @@ wpi_start_locked(struct ifnet *ifp)
 		return;
 
 	for (;;) {
-		IFQ_POLL(&ifp->if_snd, m);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		/* no QoS encapsulation for EAPOL frames */
 		ac = M_WME_GETAC(m);
 		if (sc->txq[ac].queued > sc->txq[ac].count - 8) {
 			/* there is no place left in this ring */
@@ -2040,14 +2055,7 @@ wpi_start_locked(struct ifnet *ifp)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
-			continue;
-		}
 		if (wpi_tx_data(sc, m, ni, ac) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
@@ -2137,10 +2145,8 @@ wpi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * Extract various information from EEPROM.
  */
 static void
-wpi_read_eeprom(struct wpi_softc *sc)
+wpi_read_eeprom(struct wpi_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	int i;
 
 	/* read the hardware capabilities, revision and SKU type */
@@ -2152,7 +2158,7 @@ wpi_read_eeprom(struct wpi_softc *sc)
 	wpi_read_prom_data(sc, WPI_EEPROM_DOMAIN, sc->domain, 4);
 
 	/* read in the hw MAC address */
-	wpi_read_prom_data(sc, WPI_EEPROM_MAC, ic->ic_myaddr, 6);
+	wpi_read_prom_data(sc, WPI_EEPROM_MAC, macaddr, 6);
 
 	/* read the list of authorized channels */
 	for (i = 0; i < WPI_CHAN_BANDS_COUNT; i++)
@@ -2625,7 +2631,7 @@ wpi_scan(struct wpi_softc *sc)
 		IEEE80211_FC0_SUBTYPE_PROBE_REQ;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
-	IEEE80211_ADDR_COPY(wh->i_addr2, ic->ic_myaddr);
+	IEEE80211_ADDR_COPY(wh->i_addr2, IF_LLADDR(ifp));
 	IEEE80211_ADDR_COPY(wh->i_addr3, ifp->if_broadcastaddr);
 	*(u_int16_t *)&wh->i_dur[0] = 0;	/* filled by h/w */
 	*(u_int16_t *)&wh->i_seq[0] = 0;	/* filled by h/w */
@@ -2797,7 +2803,7 @@ wpi_config(struct wpi_softc *sc)
 
 	/* configure adapter */
 	memset(&sc->config, 0, sizeof (struct wpi_config));
-	IEEE80211_ADDR_COPY(sc->config.myaddr, ic->ic_myaddr);
+	IEEE80211_ADDR_COPY(sc->config.myaddr, IF_LLADDR(ifp));
 	/*set default channel*/
 	sc->config.chan = htole16(ieee80211_chan2ieee(ic, ic->ic_curchan));
 	sc->config.flags = htole32(WPI_CONFIG_TSF);

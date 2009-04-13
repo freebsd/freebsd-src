@@ -174,8 +174,7 @@ typedef uint32_t pt_entry_t;
 #endif
 
 /*
- * Address of current and alternate address space page table maps
- * and directories.
+ * Address of current address space page table maps and directories.
  */
 #ifdef _KERNEL
 extern pt_entry_t PTmap[];

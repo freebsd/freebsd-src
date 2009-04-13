@@ -129,7 +129,7 @@ ip_ipsec_fwd(struct mbuf *m)
 	KEY_FREESP(&sp);
 	splx(s);
 	if (error) {
-		V_ipstat.ips_cantforward++;
+		IPSTAT_INC(ips_cantforward);
 		return 1;
 	}
 #endif /* IPSEC */

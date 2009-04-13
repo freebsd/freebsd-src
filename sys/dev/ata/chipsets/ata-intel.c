@@ -517,7 +517,7 @@ ata_intel_31244_tf_write(struct ata_request *request)
 static void
 ata_intel_31244_reset(device_t dev)
 {
-    if (ata_sata_phy_reset(dev))
+    if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
 }
 

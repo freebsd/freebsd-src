@@ -73,6 +73,35 @@ void	yyerror(char *);
 int	yyparse(void);
 int	ls_main(int, char **);
 
+extern	int assumeutf8;
+extern	char cbuf[];
+extern	union sockunion data_dest;
+extern	int epsvall;
+extern	int form;
+extern	int ftpdebug;
+extern	int guest;
+extern	union sockunion his_addr;
+extern	char *homedir;
+extern	int hostinfo;
+extern	char *hostname;
+extern	int maxtimeout;
+extern	int logged_in;
+extern	int logging;
+extern	int noepsv;
+extern	int noguestretr;
+extern	int noretr;
+extern	int paranoid;
+extern	struct passwd *pw;
+extern	int pdata;
+extern	char proctitle[];
+extern	int readonly;
+extern	off_t restart_point;
+extern	int timeout;
+extern  char tmpline[];
+extern	int type;
+extern	char *typenames[]; /* defined in <arpa/ftp.h> included from ftpd.c */
+extern	int usedefault;
+
 struct sockaddr_in;
 struct sockaddr_in6;
 union sockunion {

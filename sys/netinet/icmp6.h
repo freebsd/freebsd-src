@@ -596,6 +596,11 @@ struct icmp6stat {
 	u_quad_t icp6s_badredirect;	/* bad redirect message */
 };
 
+#ifdef _KERNEL
+#define	ICMP6STAT_ADD(name, val)	V_icmp6stat.name += (val)
+#define	ICMP6STAT_INC(name)		ICMP6STAT_ADD(name, 1)
+#endif
+
 /*
  * Names for ICMP sysctl objects
  */

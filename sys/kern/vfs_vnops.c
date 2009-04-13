@@ -153,14 +153,10 @@ restart:
 #ifdef MAC
 			error = mac_vnode_check_create(cred, ndp->ni_dvp,
 			    &ndp->ni_cnd, vap);
-			if (error == 0) {
+			if (error == 0)
 #endif
-				VOP_LEASE(ndp->ni_dvp, td, cred, LEASE_WRITE);
 				error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
 						   &ndp->ni_cnd, vap);
-#ifdef MAC
-			}
-#endif
 			vput(ndp->ni_dvp);
 			vn_finished_write(mp);
 			if (error) {
@@ -521,7 +517,6 @@ vn_read(fp, uio, active_cred, flags, td)
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	VOP_LEASE(vp, td, fp->f_cred, LEASE_READ);
 	/*
 	 * According to McKusick the vn lock was protecting f_offset here.
 	 * It is now protected by the FOFFSET_LOCKED flag.
@@ -598,7 +593,6 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR &&
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
-	VOP_LEASE(vp, td, fp->f_cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
@@ -642,7 +636,6 @@ vn_truncate(fp, length, active_cred, td)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	VOP_LEASE(vp, td, active_cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_type == VDIR) {
 		error = EISDIR;

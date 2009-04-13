@@ -155,6 +155,25 @@ static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
 #endif
 
+#ifndef VIMAGE_GLOBALS
+static void vnet_inet6_register(void);
+ 
+static const vnet_modinfo_t vnet_inet6_modinfo = {
+	.vmi_id		= VNET_MOD_INET6,
+	.vmi_name	= "inet6",
+	.vmi_dependson	= VNET_MOD_INET	/* XXX revisit - TCP/UDP needs this? */
+};
+ 
+static void
+vnet_inet6_register(void)
+{
+
+	vnet_mod_register(&vnet_inet6_modinfo);
+}
+ 
+SYSINIT(inet6, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet6_register, 0);
+#endif
+
 /*
  * IP6 initialization: fill in IP6 protocol switch table.
  * All protocols not implemented in kernel go to raw IP6 protocol handler.
@@ -234,6 +253,17 @@ ip6_init(void)
 					/* 40 1K datagrams */
 	V_dad_init = 0;
 
+	scope6_init();
+	addrsel_policy_init();
+	nd6_init();
+	frag6_init();
+
+	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
+
+	/* Skip global initialization stuff for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
 #ifdef DIAGNOSTIC
 	if (sizeof(struct protosw) != sizeof(struct ip6protosw))
 		panic("sizeof(protosw) != sizeof(ip6protosw)");
@@ -265,18 +295,13 @@ ip6_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
-	ip6intrq.ifq_maxlen = V_ip6qmaxlen;
+	ip6intrq.ifq_maxlen = V_ip6qmaxlen; /* XXX */
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, 0);
-	scope6_init();
-	addrsel_policy_init();
-	nd6_init();
-	frag6_init();
-	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 }
 
-static void
-ip6_init2(void *dummy)
+static int
+ip6_init2_vnet(const void *unused __unused)
 {
 	INIT_VNET_INET6(curvnet);
 
@@ -290,6 +315,15 @@ ip6_init2(void *dummy)
 		      (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
 		       V_ip6_temp_regen_advance) * hz,
 		      in6_tmpaddrtimer, NULL);
+
+	return (0);
+}
+
+static void
+ip6_init2(void *dummy)
+{
+
+	ip6_init2_vnet(NULL);
 }
 
 /* cheat */

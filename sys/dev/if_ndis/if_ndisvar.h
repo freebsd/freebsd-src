@@ -146,6 +146,7 @@ struct ndisusb_task {
 	unsigned		nt_type;
 #define	NDISUSB_TASK_TSTART	0
 #define	NDISUSB_TASK_IRPCANCEL	1
+#define	NDISUSB_TASK_VENDOR	2
 	void			*nt_ctx;
 	list_entry		nt_tasklist;
 };
@@ -229,6 +230,8 @@ struct ndis_softc {
 
 	struct usb2_device	*ndisusb_dev;
 	struct mtx		ndisusb_mtx;
+	struct ndisusb_ep	ndisusb_dread_ep;
+	struct ndisusb_ep	ndisusb_dwrite_ep;
 #define	NDISUSB_GET_ENDPT(addr) \
 	((UE_GET_DIR(addr) >> 7) | (UE_GET_ADDR(addr) << 1))
 #define	NDISUSB_ENDPT_MAX	((UE_ADDR + 1) * 2)
@@ -241,6 +244,7 @@ struct ndis_softc {
 	kspin_lock		ndisusb_tasklock;
 	int			ndisusb_status;
 #define NDISUSB_STATUS_DETACH	0x1
+#define	NDISUSB_STATUS_SETUP_EP	0x2
 };
 
 #define	NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)

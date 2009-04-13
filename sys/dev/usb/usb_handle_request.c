@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
@@ -212,7 +211,7 @@ tr_repeat:
 	    (iface->subdev != NULL) &&
 	    device_is_attached(iface->subdev)) {
 #if 0
-		DEVMETHOD(usb2_handle_request, NULL);	/* dummy */
+		DEVMETHOD(usb_handle_request, NULL);	/* dummy */
 #endif
 		error = USB_HANDLE_REQUEST(iface->subdev,
 		    &req, ppdata, plen,
@@ -399,9 +398,7 @@ usb2_handle_remote_wakeup(struct usb2_xfer *xfer, uint8_t is_on)
 	USB_BUS_UNLOCK(bus);
 
 	/* In case we are out of sync, update the power state. */
-
 	usb2_bus_power_update(udev->bus);
-
 	return (0);			/* success */
 }
 

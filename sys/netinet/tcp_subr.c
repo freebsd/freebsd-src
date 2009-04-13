@@ -243,7 +243,9 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, stab,
     CTLFLAG_RW, tcp_inflight_stab, 0,
     "Inflight Algorithm Stabilization 20 = 2 packets");
 
+#ifdef VIMAGE_GLOBALS
 uma_zone_t sack_hole_zone;
+#endif
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static void	tcp_isn_tick(void *);
@@ -269,7 +271,9 @@ struct tcpcb_mem {
 	struct	tcp_timer	tt;
 };
 
+#ifdef VIMAGE_GLOBALS
 static uma_zone_t tcpcb_zone;
+#endif
 MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
 struct callout isn_callout;
 static struct mtx isn_mtx;
@@ -286,7 +290,7 @@ tcp_zone_change(void *tag)
 {
 
 	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
-	uma_zone_set_max(tcpcb_zone, maxsockets);
+	uma_zone_set_max(V_tcpcb_zone, maxsockets);
 	tcp_tw_zone_change();
 }
 
@@ -348,18 +352,7 @@ tcp_init(void)
 	V_tcp_sack_globalmaxholes = 65536;
 	V_tcp_sack_globalholes = 0;
 
-	tcp_delacktime = TCPTV_DELACK;
-	tcp_keepinit = TCPTV_KEEP_INIT;
-	tcp_keepidle = TCPTV_KEEP_IDLE;
-	tcp_keepintvl = TCPTV_KEEPINTVL;
-	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
-	tcp_msl = TCPTV_MSL;
-	tcp_rexmit_min = TCPTV_MIN;
-	if (tcp_rexmit_min < 1)
-		tcp_rexmit_min = 1;
-	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	V_tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
-	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 
@@ -372,7 +365,6 @@ tcp_init(void)
 		printf("WARNING: TCB hash size not a power of 2\n");
 		hashsize = 512; /* safe default */
 	}
-	tcp_tcbhashsize = hashsize;
 	V_tcbinfo.ipi_hashbase = hashinit(hashsize, M_PCB,
 	    &V_tcbinfo.ipi_hashmask);
 	V_tcbinfo.ipi_porthashbase = hashinit(hashsize, M_PCB,
@@ -380,6 +372,37 @@ tcp_init(void)
 	V_tcbinfo.ipi_zone = uma_zcreate("inpcb", sizeof(struct inpcb),
 	    NULL, NULL, tcp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
+	/*
+	 * These have to be type stable for the benefit of the timers.
+	 */
+	V_tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(V_tcpcb_zone, maxsockets);
+	tcp_tw_init();
+	syncache_init();
+	tcp_hc_init();
+	tcp_reass_init();
+	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+
+	/* Skip initialization of globals for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
+	/* XXX virtualize those bellow? */
+	tcp_delacktime = TCPTV_DELACK;
+	tcp_keepinit = TCPTV_KEEP_INIT;
+	tcp_keepidle = TCPTV_KEEP_IDLE;
+	tcp_keepintvl = TCPTV_KEEPINTVL;
+	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
+	tcp_msl = TCPTV_MSL;
+	tcp_rexmit_min = TCPTV_MIN;
+	if (tcp_rexmit_min < 1)
+		tcp_rexmit_min = 1;
+	tcp_rexmit_slop = TCPTV_CPU_VAR;
+	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
+	tcp_tcbhashsize = hashsize;
+
 #ifdef INET6
 #define TCP_MINPROTOHDR (sizeof(struct ip6_hdr) + sizeof(struct tcphdr))
 #else /* INET6 */
@@ -390,23 +413,12 @@ tcp_init(void)
 	if (max_linkhdr + TCP_MINPROTOHDR > MHLEN)
 		panic("tcp_init");
 #undef TCP_MINPROTOHDR
-	/*
-	 * These have to be type stable for the benefit of the timers.
-	 */
-	tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(tcpcb_zone, maxsockets);
-	tcp_tw_init();
-	syncache_init();
-	tcp_hc_init();
-	tcp_reass_init();
+
 	ISN_LOCK_INIT();
 	callout_init(&isn_callout, CALLOUT_MPSAFE);
-	tcp_isn_tick(NULL);
+	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
 		SHUTDOWN_PRI_DEFAULT);
-	sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
 		EVENTHANDLER_PRI_ANY);
 }
@@ -686,7 +698,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif /* INET6 */
 
-	tm = uma_zalloc(tcpcb_zone, M_NOWAIT | M_ZERO);
+	tm = uma_zalloc(V_tcpcb_zone, M_NOWAIT | M_ZERO);
 	if (tm == NULL)
 		return (NULL);
 	tp = &tm->tcb;
@@ -752,9 +764,9 @@ tcp_drop(struct tcpcb *tp, int errno)
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
 		(void) tcp_output_reset(tp);
-		V_tcpstat.tcps_drops++;
+		TCPSTAT_INC(tcps_drops);
 	} else
-		V_tcpstat.tcps_conndrops++;
+		TCPSTAT_INC(tcps_conndrops);
 	if (errno == ETIMEDOUT && tp->t_softerror)
 		errno = tp->t_softerror;
 	so->so_error = errno;
@@ -846,7 +858,7 @@ tcp_discardcb(struct tcpcb *tp)
 	while ((q = LIST_FIRST(&tp->t_segq)) != NULL) {
 		LIST_REMOVE(q, tqe_q);
 		m_freem(q->tqe_m);
-		uma_zfree(tcp_reass_zone, q);
+		uma_zfree(V_tcp_reass_zone, q);
 		tp->t_segqlen--;
 		V_tcp_reass_qsize--;
 	}
@@ -856,7 +868,7 @@ tcp_discardcb(struct tcpcb *tp)
 	tcp_free_sackholes(tp);
 	inp->inp_ppcb = NULL;
 	tp->t_inpcb = NULL;
-	uma_zfree(tcpcb_zone, tp);
+	uma_zfree(V_tcpcb_zone, tp);
 }
 
 /*
@@ -877,14 +889,14 @@ tcp_close(struct tcpcb *tp)
 	if (tp->t_state == TCPS_LISTEN)
 		tcp_offload_listen_close(tp);
 	in_pcbdrop(inp);
-	V_tcpstat.tcps_closed++;
+	TCPSTAT_INC(tcps_closed);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
-	if (inp->inp_vflag & INP_SOCKREF) {
+	if (inp->inp_flags & INP_SOCKREF) {
 		KASSERT(so->so_state & SS_PROTOREF,
 		    ("tcp_close: !SS_PROTOREF"));
-		inp->inp_vflag &= ~INP_SOCKREF;
+		inp->inp_flags &= ~INP_SOCKREF;
 		INP_WUNLOCK(inp);
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
@@ -921,7 +933,7 @@ tcp_drain(void)
 	 */
 		INP_INFO_RLOCK(&V_tcbinfo);
 		LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
-			if (inpb->inp_vflag & INP_TIMEWAIT)
+			if (inpb->inp_flags & INP_TIMEWAIT)
 				continue;
 			INP_WLOCK(inpb);
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
@@ -929,7 +941,7 @@ tcp_drain(void)
 			            != NULL) {
 					LIST_REMOVE(te, tqe_q);
 					m_freem(te->tqe_m);
-					uma_zfree(tcp_reass_zone, te);
+					uma_zfree(V_tcp_reass_zone, te);
 					tcpb->t_segqlen--;
 					V_tcp_reass_qsize--;
 				}
@@ -962,8 +974,8 @@ tcp_notify(struct inpcb *inp, int error)
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -1063,7 +1075,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			 * TCP state changes, is not quite right, but for
 			 * now, better than nothing.
 			 */
-			if (inp->inp_vflag & INP_TIMEWAIT) {
+			if (inp->inp_flags & INP_TIMEWAIT) {
 				if (intotw(inp) != NULL)
 					error = cr_cansee(req->td->td_ucred,
 					    intotw(inp)->tw_cred);
@@ -1094,7 +1106,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			inp_ppcb = inp->inp_ppcb;
 			if (inp_ppcb == NULL)
 				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
-			else if (inp->inp_vflag & INP_TIMEWAIT) {
+			else if (inp->inp_flags & INP_TIMEWAIT) {
 				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
 				xt.xt_tp.t_state = TCPS_TIME_WAIT;
 			} else
@@ -1293,8 +1305,8 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		    ip->ip_src, th->th_sport, 0, NULL);
 		if (inp != NULL)  {
 			INP_WLOCK(inp);
-			if (!(inp->inp_vflag & INP_TIMEWAIT) &&
-			    !(inp->inp_vflag & INP_DROPPED) &&
+			if (!(inp->inp_flags & INP_TIMEWAIT) &&
+			    !(inp->inp_flags & INP_DROPPED) &&
 			    !(inp->inp_socket == NULL)) {
 				icmp_tcp_seq = htonl(th->th_seq);
 				tp = intotcpcb(inp);
@@ -1546,8 +1558,8 @@ tcp_isn_tick(void *xtp)
 	VNET_ITERATOR_DECL(vnet_iter);
 	u_int32_t projected_offset;
 
-	ISN_LOCK();
 	VNET_LIST_RLOCK();
+	ISN_LOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter); /* XXX appease INVARIANTS */
 		INIT_VNET_INET(curvnet);
@@ -1560,9 +1572,9 @@ tcp_isn_tick(void *xtp)
 		V_isn_offset_old = V_isn_offset;
 		CURVNET_RESTORE();
 	}
+	ISN_UNLOCK();
 	VNET_LIST_RUNLOCK();
 	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
-	ISN_UNLOCK();
 }
 
 /*
@@ -1581,8 +1593,8 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -1610,8 +1622,8 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	struct socket *so;
 
 	INP_WLOCK_ASSERT(inp);
-	if ((inp->inp_vflag & INP_TIMEWAIT) ||
-	    (inp->inp_vflag & INP_DROPPED))
+	if ((inp->inp_flags & INP_TIMEWAIT) ||
+	    (inp->inp_flags & INP_DROPPED))
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -1626,7 +1638,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 		tp->t_maxseg = so->so_snd.sb_hiwat;
 	SOCKBUF_UNLOCK(&so->so_snd);
 
-	V_tcpstat.tcps_mturesent++;
+	TCPSTAT_INC(tcps_mturesent);
 	tp->t_rtttime = 0;
 	tp->snd_nxt = tp->snd_una;
 	tcp_free_sackholes(tp);
@@ -2114,7 +2126,6 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	struct sockaddr_in *fin, *lin;
 #ifdef INET6
 	struct sockaddr_in6 *fin6, *lin6;
-	struct in6_addr f6, l6;
 #endif
 	int error;
 
@@ -2174,8 +2185,9 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	switch (addrs[0].ss_family) {
 #ifdef INET6
 	case AF_INET6:
-		inp = in6_pcblookup_hash(&V_tcbinfo, &f6, fin6->sin6_port,
-		    &l6, lin6->sin6_port, 0, NULL);
+		inp = in6_pcblookup_hash(&V_tcbinfo, &fin6->sin6_addr,
+		    fin6->sin6_port, &lin6->sin6_addr, lin6->sin6_port, 0,
+		    NULL);
 		break;
 #endif
 	case AF_INET:
@@ -2185,7 +2197,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	}
 	if (inp != NULL) {
 		INP_WLOCK(inp);
-		if (inp->inp_vflag & INP_TIMEWAIT) {
+		if (inp->inp_flags & INP_TIMEWAIT) {
 			/*
 			 * XXXRW: There currently exists a state where an
 			 * inpcb is present, but its timewait state has been
@@ -2197,7 +2209,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 				tcp_twclose(tw, 0);
 			else
 				INP_WUNLOCK(inp);
-		} else if (!(inp->inp_vflag & INP_DROPPED) &&
+		} else if (!(inp->inp_flags & INP_DROPPED) &&
 			   !(inp->inp_socket->so_options & SO_ACCEPTCONN)) {
 			tp = intotcpcb(inp);
 			tp = tcp_drop(tp, ECONNABORTED);

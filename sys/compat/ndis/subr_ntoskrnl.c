@@ -1197,6 +1197,11 @@ IofCompleteRequest(irp *ip, uint8_t prioboost)
 		sl++;
 	} while (ip->irp_currentstackloc <= (ip->irp_stackcnt + 1));
 
+	if (ip->irp_usriostat != NULL)
+		*ip->irp_usriostat = ip->irp_iostat;
+	if (ip->irp_usrevent != NULL)
+		KeSetEvent(ip->irp_usrevent, prioboost, FALSE);
+
 	/* Handle any associated IRPs. */
 
 	if (ip->irp_flags & IRP_ASSOCIATED_IRP) {
@@ -1220,16 +1225,10 @@ IofCompleteRequest(irp *ip, uint8_t prioboost)
 
 	/* With any luck, these conditions will never arise. */
 
-	if (ip->irp_flags & (IRP_PAGING_IO|IRP_CLOSE_OPERATION)) {
-		if (ip->irp_usriostat != NULL)
-			*ip->irp_usriostat = ip->irp_iostat;
-		if (ip->irp_usrevent != NULL)
-			KeSetEvent(ip->irp_usrevent, prioboost, FALSE);
-		if (ip->irp_flags & IRP_PAGING_IO) {
-			if (ip->irp_mdl != NULL)
-				IoFreeMdl(ip->irp_mdl);
-			IoFreeIrp(ip);
-		}
+	if (ip->irp_flags & IRP_PAGING_IO) {
+		if (ip->irp_mdl != NULL)
+			IoFreeMdl(ip->irp_mdl);
+		IoFreeIrp(ip);
 	}
 
 	return;

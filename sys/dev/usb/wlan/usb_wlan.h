@@ -46,7 +46,6 @@
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_regdomain.h>
-#include <net80211/ieee80211_phy.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

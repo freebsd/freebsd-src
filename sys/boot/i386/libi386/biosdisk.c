@@ -1125,14 +1125,6 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, siz
 /* Max number of sectors to bounce-buffer if the request crosses a 64k boundary */
 #define FLOPPY_BOUNCEBUF	18
 
-struct edd_packet {
-    uint16_t	len;
-    uint16_t	count;
-    uint16_t	offset;
-    uint16_t	seg;
-    uint64_t	lba;
-};
-
 static int
 bd_edd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 {

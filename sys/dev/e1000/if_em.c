@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "6.9.6";
+char em_driver_version[] = "6.9.9";
 
 
 /*********************************************************************
@@ -278,10 +278,8 @@ static void	em_set_multi(struct adapter *);
 static void	em_print_hw_stats(struct adapter *);
 static void	em_update_link_status(struct adapter *);
 static int	em_get_buf(struct adapter *, int);
-
 static void	em_register_vlan(void *, struct ifnet *, u16);
 static void	em_unregister_vlan(void *, struct ifnet *, u16);
-
 static int	em_xmit(struct adapter *, struct mbuf **);
 static void	em_smartspeed(struct adapter *);
 static int	em_82547_fifo_workaround(struct adapter *, int);
@@ -322,17 +320,19 @@ static void	em_irq_fast(void *);
 #else
 static int	em_irq_fast(void *);
 #endif
+
 /* MSIX handlers */
 static void	em_msix_tx(void *);
 static void	em_msix_rx(void *);
 static void	em_msix_link(void *);
-static void	em_add_rx_process_limit(struct adapter *, const char *,
-		    const char *, int *, int);
-static void	em_handle_rxtx(void *context, int pending);
 static void	em_handle_rx(void *context, int pending);
 static void	em_handle_tx(void *context, int pending);
+
+static void	em_handle_rxtx(void *context, int pending);
 static void	em_handle_link(void *context, int pending);
-#endif /* EM_LEGACY_IRQ */
+static void	em_add_rx_process_limit(struct adapter *, const char *,
+		    const char *, int *, int);
+#endif /* ~EM_LEGACY_IRQ */
 
 #ifdef DEVICE_POLLING
 static poll_handler_t em_poll;
@@ -514,8 +514,8 @@ em_attach(device_t dev)
 	** identified
 	*/
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan)) {
+	    (adapter->hw.mac.type == e1000_ich9lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan)) {
 		int rid = EM_BAR_TYPE_FLASH;
 		adapter->flash = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -644,6 +644,13 @@ em_attach(device_t dev)
 	adapter->rx_desc_base =
 	    (struct e1000_rx_desc *)adapter->rxdma.dma_vaddr;
 
+	/*
+	** Start from a known state, this is
+	** important in reading the nvm and
+	** mac from that.
+	*/
+	e1000_reset_hw(&adapter->hw);
+
 	/* Make sure we have a good EEPROM before we read from it */
 	if (e1000_validate_nvm_checksum(&adapter->hw) < 0) {
 		/*
@@ -659,13 +666,6 @@ em_attach(device_t dev)
 		}
 	}
 
-	/* Initialize the hardware */
-	if (em_hardware_init(adapter)) {
-		device_printf(dev, "Unable to initialize the hardware\n");
-		error = EIO;
-		goto err_hw_init;
-	}
-
 	/* Copy the permanent MAC address out of the EEPROM */
 	if (e1000_read_mac_addr(&adapter->hw) < 0) {
 		device_printf(dev, "EEPROM read error while reading MAC"
@@ -676,6 +676,13 @@ em_attach(device_t dev)
 
 	if (!em_is_valid_ether_addr(adapter->hw.mac.addr)) {
 		device_printf(dev, "Invalid MAC address\n");
+		error = EIO;
+		goto err_hw_init;
+	}
+
+	/* Initialize the hardware */
+	if (em_hardware_init(adapter)) {
+		device_printf(dev, "Unable to initialize the hardware\n");
 		error = EIO;
 		goto err_hw_init;
 	}
@@ -1463,8 +1470,6 @@ em_init_locked(struct adapter *adapter)
 	/* Setup VLAN support, basic and offload if available */
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
-	/* New register interface replaces this but
-	   waiting on kernel support to be added */
 	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) &&
 	    ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)) {
 		u32 ctrl;
@@ -1472,6 +1477,7 @@ em_init_locked(struct adapter *adapter)
 		ctrl |= E1000_CTRL_VME;
 		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
 	}
+
 
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -1622,49 +1628,35 @@ em_intr(void *arg)
 		return;
 
 	EM_CORE_LOCK(adapter);
-	for (;;) {
-		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+	if ((reg_icr == 0xffffffff) || (reg_icr == 0)||
+	    (adapter->hw.mac.type >= e1000_82571 &&
+	    (reg_icr & E1000_ICR_INT_ASSERTED) == 0))
+			goto out;
 
-		if (adapter->hw.mac.type >= e1000_82571 &&
-	    	    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
-			break;
-		else if (reg_icr == 0)
-			break;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			goto out;
 
-		/*
-		 * XXX: some laptops trigger several spurious interrupts
-		 * on em(4) when in the resume cycle. The ICR register
-		 * reports all-ones value in this case. Processing such
-		 * interrupts would lead to a freeze. I don't know why.
-		 */
-		if (reg_icr == 0xffffffff)
-			break;
+	EM_TX_LOCK(adapter);
+	em_txeof(adapter);
+	em_rxeof(adapter, -1);
+	em_txeof(adapter);
+	EM_TX_UNLOCK(adapter);
 
-		EM_CORE_UNLOCK(adapter);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			em_rxeof(adapter, -1);
-			EM_TX_LOCK(adapter);
-			em_txeof(adapter);
-			EM_TX_UNLOCK(adapter);
-		}
-		EM_CORE_LOCK(adapter);
-
-		/* Link status change */
-		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-			callout_stop(&adapter->timer);
-			adapter->hw.mac.get_link_status = 1;
-			em_update_link_status(adapter);
-			/* Deal with TX cruft when link lost */
-			em_tx_purge(adapter);
-			callout_reset(&adapter->timer, hz,
-			    em_local_timer, adapter);
-		}
-
-		if (reg_icr & E1000_ICR_RXO)
-			adapter->rx_overruns++;
+	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+		callout_stop(&adapter->timer);
+		adapter->hw.mac.get_link_status = 1;
+		em_update_link_status(adapter);
+		/* Deal with TX cruft when link lost */
+		em_tx_purge(adapter);
+		callout_reset(&adapter->timer, hz,
+		    em_local_timer, adapter);
 	}
-	EM_CORE_UNLOCK(adapter);
 
+	if (reg_icr & E1000_ICR_RXO)
+		adapter->rx_overruns++;
+out:
+	EM_CORE_UNLOCK(adapter);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		em_start(ifp);
@@ -1711,33 +1703,6 @@ em_handle_rxtx(void *context, int pending)
 	}
 
 	em_enable_intr(adapter);
-}
-
-static void
-em_handle_rx(void *context, int pending)
-{
-	struct adapter	*adapter = context;
-	struct ifnet	*ifp = adapter->ifp;
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-	    (em_rxeof(adapter, adapter->rx_process_limit) != 0))
-		taskqueue_enqueue(adapter->tq, &adapter->rx_task);
-
-}
-
-static void
-em_handle_tx(void *context, int pending)
-{
-	struct adapter	*adapter = context;
-	struct ifnet	*ifp = adapter->ifp;
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		EM_TX_LOCK(adapter);
-		em_txeof(adapter);
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			em_start_locked(ifp);
-		EM_TX_UNLOCK(adapter);
-	}
 }
 
 /*********************************************************************
@@ -1867,6 +1832,33 @@ em_msix_link(void *arg)
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS,
 	    EM_MSIX_LINK | E1000_IMS_LSC);
 	return;
+}
+
+static void
+em_handle_rx(void *context, int pending)
+{
+	struct adapter	*adapter = context;
+	struct ifnet	*ifp = adapter->ifp;
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+	    (em_rxeof(adapter, adapter->rx_process_limit) != 0))
+		taskqueue_enqueue(adapter->tq, &adapter->rx_task);
+
+}
+
+static void
+em_handle_tx(void *context, int pending)
+{
+	struct adapter	*adapter = context;
+	struct ifnet	*ifp = adapter->ifp;
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		EM_TX_LOCK(adapter);
+		em_txeof(adapter);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			em_start_locked(ifp);
+		EM_TX_UNLOCK(adapter);
+	}
 }
 #endif /* EM_FAST_IRQ */
 
@@ -2468,7 +2460,7 @@ em_set_multi(struct adapter *adapter)
 	struct ifnet	*ifp = adapter->ifp;
 	struct ifmultiaddr *ifma;
 	u32 reg_rctl = 0;
-	u8  mta[512]; /* Largest MTS is 4096 bits */
+	u8  *mta; /* Multicast array memory */
 	int mcnt = 0;
 
 	IOCTL_DEBUGOUT("em_set_multi: begin");
@@ -2482,6 +2474,13 @@ em_set_multi(struct adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 		msec_delay(5);
 	}
+
+	/* Allocate temporary memory to setup array */
+	mta = malloc(sizeof(u8) *
+	    (ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (mta == NULL)
+		panic("em_set_multi memory failure\n");
 
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -2502,8 +2501,7 @@ em_set_multi(struct adapter *adapter)
 		reg_rctl |= E1000_RCTL_MPE;
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 	} else
-		e1000_update_mc_addr_list(&adapter->hw, mta,
-		    mcnt, 1, adapter->hw.mac.rar_entry_count);
+		e1000_update_mc_addr_list(&adapter->hw, mta, mcnt);
 
 	if (adapter->hw.mac.type == e1000_82542 && 
 	    adapter->hw.revision_id == E1000_REVISION_2) {
@@ -2514,6 +2512,7 @@ em_set_multi(struct adapter *adapter)
 		if (adapter->hw.bus.pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
 			e1000_pci_set_mwi(&adapter->hw);
 	}
+	free(mta, M_DEVBUF);
 }
 
 
@@ -2925,6 +2924,7 @@ em_allocate_msix(struct adapter *adapter)
 	return (0);
 }
 
+
 static void
 em_free_pci_resources(struct adapter *adapter)
 {
@@ -2973,7 +2973,7 @@ em_free_pci_resources(struct adapter *adapter)
 }
 
 /*
- * Setup MSI/X
+ * Setup MSI or MSI/X
  */
 static int
 em_setup_msix(struct adapter *adapter)

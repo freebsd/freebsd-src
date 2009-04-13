@@ -71,12 +71,7 @@ extern	void ath_hal_assert_failed(const char* filename,
 		int lineno, const char* msg);
 #endif
 #ifdef AH_DEBUG
-#if HAL_ABI_VERSION >= 0x08090101
 extern	void HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
-#else
-extern	void HALDEBUG(struct ath_hal *ah, const char* fmt, ...);
-extern	void HALDEBUGn(struct ath_hal *ah, u_int level, const char* fmt, ...);
-#endif
 #endif /* AH_DEBUG */
 
 /* NB: put this here instead of the driver to avoid circular references */
@@ -140,7 +135,6 @@ ath_hal_ether_sprintf(const u_int8_t *mac)
 }
 
 #ifdef AH_DEBUG
-#if HAL_ABI_VERSION >= 0x08090101
 void
 HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
@@ -151,29 +145,6 @@ HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 		va_end(ap);
 	}
 }
-#else
-void
-HALDEBUG(struct ath_hal *ah, const char* fmt, ...)
-{
-	if (ath_hal_debug) {
-		__va_list ap;
-		va_start(ap, fmt);
-		ath_hal_vprintf(ah, fmt, ap);
-		va_end(ap);
-	}
-}
-
-void
-HALDEBUGn(struct ath_hal *ah, u_int level, const char* fmt, ...)
-{
-	if (ath_hal_debug >= level) {
-		__va_list ap;
-		va_start(ap, fmt);
-		ath_hal_vprintf(ah, fmt, ap);
-		va_end(ap);
-	}
-}
-#endif
 #endif /* AH_DEBUG */
 
 #ifdef AH_DEBUG_ALQ

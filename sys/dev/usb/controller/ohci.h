@@ -39,9 +39,9 @@
 #ifndef _OHCI_H_
 #define	_OHCI_H_
 
-#define	OHCI_MAX_DEVICES USB_MAX_DEVICES
+#define	OHCI_MAX_DEVICES MIN(USB_MAX_DEVICES, 128)
 
-/* PCI config registers */
+/* PCI config registers  */
 #define	PCI_CBMEM		0x10	/* configuration base memory */
 #define	PCI_INTERFACE_OHCI	0x10
 
@@ -322,8 +322,6 @@ typedef struct ohci_softc {
 	struct usb2_bus sc_bus;		/* base device */
 	struct usb2_callout sc_tmo_rhsc;
 	union ohci_hub_desc sc_hub_desc;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 
 	struct usb2_device *sc_devices[OHCI_MAX_DEVICES];
 	struct resource *sc_io_res;

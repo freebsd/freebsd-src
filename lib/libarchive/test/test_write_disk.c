@@ -52,7 +52,7 @@ static void create(struct archive_entry *ae, const char *msg)
 	 * that automatically. */
 	if (archive_entry_filetype(ae) == AE_IFDIR)
 		st.st_mode &= ~S_ISGID;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(st.st_mode, archive_entry_mode(ae) & ~UMASK);
 #endif
 }
@@ -99,7 +99,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
 #endif
 	assertEqualInt(st.st_size, sizeof(data));
@@ -146,7 +146,7 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
 #endif
 	assertEqualInt(st.st_size, i);
@@ -183,7 +183,7 @@ static void create_reg_file3(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
 #endif
 	assertEqualInt(st.st_size, 5);
@@ -212,14 +212,14 @@ static void create_reg_file4(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
 #endif
 	failure(msg);
 	assertEqualInt(st.st_size, sizeof(data));
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 static void create_reg_file_win(struct archive_entry *ae, const char *msg)
 {
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
@@ -257,7 +257,7 @@ static void create_reg_file_win(struct archive_entry *ae, const char *msg)
 	    st.st_mode, archive_entry_mode(ae));
 	assertEqualInt(st.st_size, sizeof(data));
 }
-#endif /* _WIN32 */
+#endif /* _WIN32 && !__CYGWIN__ */
 #endif
 
 DEFINE_TEST(test_write_disk)
@@ -326,7 +326,7 @@ DEFINE_TEST(test_write_disk)
 	create(ae, "Test creating a file over an existing dir.");
 	archive_entry_free(ae);
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* A file with unusable characters in its file name. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "f:i*l?e\"f<i>l|e");
@@ -342,6 +342,6 @@ DEFINE_TEST(test_write_disk)
 	create_reg_file_win(ae, "Test creating a regular file"
 	    " with unusable characters in its file name");
 	archive_entry_free(ae);
-#endif /* _WIN32 */
+#endif /* _WIN32 && !__CYGWIN__ */
 #endif
 }

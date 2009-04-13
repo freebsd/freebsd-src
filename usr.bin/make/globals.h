@@ -81,6 +81,7 @@ extern Boolean	noExecute;	/* True if should execute nothing */
 extern Boolean	allPrecious;	/* True if every target is precious */
 extern Boolean	is_posix;	/* .POSIX target seen */
 extern Boolean	mfAutoDeps;	/* .MAKEFILEDEPS target seen */
+extern Boolean	remakingMakefiles; /* True if remaking makefiles is in progress */
 
 /* True if should continue on unaffected portions of the graph
  * when have an error in one portion */

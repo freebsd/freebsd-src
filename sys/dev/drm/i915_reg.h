@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #define INTEL_GMCH_MEM_64M	0x1
 #define INTEL_GMCH_MEM_128M	0
 
-#define INTEL_855_GMCH_GMS_MASK		(0x7 << 4)
+#define INTEL_GMCH_GMS_MASK		(0xf << 4)
 #define INTEL_855_GMCH_GMS_DISABLED	(0x0 << 4)
 #define INTEL_855_GMCH_GMS_STOLEN_1M	(0x1 << 4)
 #define INTEL_855_GMCH_GMS_STOLEN_4M	(0x2 << 4)
@@ -48,6 +48,12 @@ __FBSDID("$FreeBSD$");
 
 #define INTEL_915G_GMCH_GMS_STOLEN_48M	(0x6 << 4)
 #define INTEL_915G_GMCH_GMS_STOLEN_64M	(0x7 << 4)
+#define INTEL_GMCH_GMS_STOLEN_128M	(0x8 << 4)
+#define INTEL_GMCH_GMS_STOLEN_256M	(0x9 << 4)
+#define INTEL_GMCH_GMS_STOLEN_96M	(0xa << 4)
+#define INTEL_GMCH_GMS_STOLEN_160M	(0xb << 4)
+#define INTEL_GMCH_GMS_STOLEN_224M	(0xc << 4)
+#define INTEL_GMCH_GMS_STOLEN_352M	(0xd << 4)
 
 /* PCI config space */
 
@@ -178,9 +184,27 @@ __FBSDID("$FreeBSD$");
 #define   DISPLAY_PLANE_B           (1<<20)
 
 /*
+ * Fence registers
+ */
+#define FENCE_REG_830_0			0x2000
+#define FENCE_REG_945_8			0x3000
+#define   I830_FENCE_START_MASK		0x07f80000
+#define   I830_FENCE_TILING_Y_SHIFT	12
+#define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)
+#define   I830_FENCE_PITCH_SHIFT	4
+#define   I830_FENCE_REG_VALID		(1<<0)
+
+#define   I915_FENCE_START_MASK		0x0ff00000
+#define   I915_FENCE_SIZE_BITS(size)	((ffs((size) >> 20) - 1) << 8)
+
+#define FENCE_REG_965_0			0x03000
+#define   I965_FENCE_PITCH_SHIFT	2
+#define   I965_FENCE_TILING_Y_SHIFT	1
+#define   I965_FENCE_REG_VALID		(1<<0)
+
+/*
  * Instruction and interrupt control regs
  */
-
 #define PRB0_TAIL	0x02030
 #define PRB0_HEAD	0x02034
 #define PRB0_START	0x02038
@@ -247,6 +271,7 @@ __FBSDID("$FreeBSD$");
 #define   CM0_DEPTH_WRITE_DISABLE (1<<1)
 #define   CM0_RC_OP_FLUSH_DISABLE (1<<0)
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
+
 
 /*
  * Framebuffer compression (915+ only)
@@ -525,10 +550,16 @@ __FBSDID("$FreeBSD$");
 #define DCC_ADDRESSING_MODE_DUAL_CHANNEL_INTERLEAVED	(2 << 0)
 #define DCC_ADDRESSING_MODE_MASK			(3 << 0)
 #define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
+#define DCC_CHANNEL_XOR_BIT_17				(1 << 9)
 
 /** 965 MCH register controlling DRAM channel configuration */
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
+
+/** GM965 GM45 render standby register */
+#define MCHBAR_RENDER_STANDBY	0x111B8
+
+#define PEG_BAND_GAP_DATA	0x14d68
 
 /*
  * Overlay regs
@@ -593,6 +624,9 @@ __FBSDID("$FreeBSD$");
 
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN		0x61110
+#define   HDMIB_HOTPLUG_INT_EN			(1 << 29)
+#define   HDMIC_HOTPLUG_INT_EN			(1 << 28)
+#define   HDMID_HOTPLUG_INT_EN			(1 << 27)
 #define   SDVOB_HOTPLUG_INT_EN			(1 << 26)
 #define   SDVOC_HOTPLUG_INT_EN			(1 << 25)
 #define   TV_HOTPLUG_INT_EN			(1 << 18)
@@ -600,6 +634,9 @@ __FBSDID("$FreeBSD$");
 #define   CRT_HOTPLUG_FORCE_DETECT		(1 << 3)
 
 #define PORT_HOTPLUG_STAT	0x61114
+#define   HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
+#define   HDMIC_HOTPLUG_INT_STATUS		(1 << 28)
+#define   HDMID_HOTPLUG_INT_STATUS		(1 << 27)
 #define   CRT_HOTPLUG_INT_STATUS		(1 << 11)
 #define   TV_HOTPLUG_INT_STATUS			(1 << 10)
 #define   CRT_HOTPLUG_MONITOR_MASK		(3 << 8)
@@ -629,7 +666,16 @@ __FBSDID("$FreeBSD$");
 #define   SDVO_PHASE_SELECT_DEFAULT	(6 << 19)
 #define   SDVO_CLOCK_OUTPUT_INVERT	(1 << 18)
 #define   SDVOC_GANG_MODE		(1 << 16)
+#define   SDVO_ENCODING_SDVO		(0x0 << 10)
+#define   SDVO_ENCODING_HDMI		(0x2 << 10)
+/** Requird for HDMI operation */
+#define   SDVO_NULL_PACKETS_DURING_VSYNC (1 << 9)
 #define   SDVO_BORDER_ENABLE		(1 << 7)
+#define   SDVO_AUDIO_ENABLE		(1 << 6)
+/** New with 965, default is to be set */
+#define   SDVO_VSYNC_ACTIVE_HIGH	(1 << 4)
+/** New with 965, default is to be set */
+#define   SDVO_HSYNC_ACTIVE_HIGH	(1 << 3)
 #define   SDVOB_PCIE_CONCURRENCY	(1 << 3)
 #define   SDVO_DETECTED			(1 << 2)
 /* Bits to be preserved when writing */
@@ -1402,6 +1448,7 @@ __FBSDID("$FreeBSD$");
 #define PIPEBFRAMEPIXEL		0x71044
 #define PIPEB_FRMCOUNT_GM45	0x71040
 #define PIPEB_FLIPCOUNT_GM45	0x71044
+
 
 /* Display B control */
 #define DSPBCNTR		0x71180

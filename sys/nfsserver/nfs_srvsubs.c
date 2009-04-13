@@ -100,10 +100,6 @@ struct nfsd_head nfsd_head;
 int nfsd_head_flag;
 #endif
 
-static int nfssvc_offset = SYS_nfssvc;
-static struct sysent nfssvc_prev_sysent;
-MAKE_SYSENT(nfssvc);
-
 struct mtx nfsd_mtx;
 
 /*
@@ -519,13 +515,14 @@ static const short *nfsrv_v3errmap[] = {
 	nfsv3err_commit,
 };
 
+extern int (*nfsd_call_nfsserver)(struct thread *, struct nfssvc_args *);
+
 /*
  * Called once to initialize data structures...
  */
 static int
 nfsrv_modevent(module_t mod, int type, void *data)
 {
-	static int registered;
 	int error = 0;
 
 	switch (type) {
@@ -560,11 +557,7 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		NFSD_UNLOCK();
 #endif
 
-		error = syscall_register(&nfssvc_offset, &nfssvc_sysent,
-		    &nfssvc_prev_sysent);
-		if (error)
-			break;
-		registered = 1;
+		nfsd_call_nfsserver = nfssvc_nfsserver;
 		break;
 
 	case MOD_UNLOAD:
@@ -573,8 +566,7 @@ nfsrv_modevent(module_t mod, int type, void *data)
 			break;
 		}
 
-		if (registered)
-			syscall_deregister(&nfssvc_offset, &nfssvc_prev_sysent);
+		nfsd_call_nfsserver = NULL;
 		callout_drain(&nfsrv_callout);
 #ifdef NFS_LEGACYRPC
 		nfsrv_destroycache();	/* Free the server request cache */
@@ -596,6 +588,7 @@ DECLARE_MODULE(nfsserver, nfsserver_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfsserver, 1);
+MODULE_DEPEND(nfsserver, nfssvc, 1, 1, 1);
 #ifndef NFS_LEGACYRPC
 MODULE_DEPEND(nfsserver, krpc, 1, 1, 1);
 #endif

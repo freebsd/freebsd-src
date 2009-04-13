@@ -150,7 +150,7 @@ static void
 mac_devfs_label_free(struct label *label)
 {
 
-	MAC_PERFORM(devfs_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(devfs_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -168,7 +168,7 @@ static void
 mac_mount_label_free(struct label *label)
 {
 
-	MAC_PERFORM(mount_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(mount_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -186,7 +186,7 @@ void
 mac_vnode_label_free(struct label *label)
 {
 
-	MAC_PERFORM(vnode_destroy_label, label);
+	MAC_PERFORM_NOSLEEP(vnode_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -204,7 +204,7 @@ void
 mac_vnode_copy_label(struct label *src, struct label *dest)
 {
 
-	MAC_PERFORM(vnode_copy_label, src, dest);
+	MAC_PERFORM_NOSLEEP(vnode_copy_label, src, dest);
 }
 
 int
@@ -232,7 +232,8 @@ void
 mac_devfs_update(struct mount *mp, struct devfs_dirent *de, struct vnode *vp)
 {
 
-	MAC_PERFORM(devfs_update, mp, de, de->de_label, vp, vp->v_label);
+	MAC_PERFORM_NOSLEEP(devfs_update, mp, de, de->de_label, vp,
+	    vp->v_label);
 }
 
 void
@@ -240,7 +241,7 @@ mac_devfs_vnode_associate(struct mount *mp, struct devfs_dirent *de,
     struct vnode *vp)
 {
 
-	MAC_PERFORM(devfs_vnode_associate, mp, mp->mnt_label, de,
+	MAC_PERFORM_NOSLEEP(devfs_vnode_associate, mp, mp->mnt_label, de,
 	    de->de_label, vp, vp->v_label);
 }
 
@@ -261,8 +262,8 @@ void
 mac_vnode_associate_singlelabel(struct mount *mp, struct vnode *vp)
 {
 
-	MAC_PERFORM(vnode_associate_singlelabel, mp, mp->mnt_label, vp,
-	    vp->v_label);
+	MAC_PERFORM_NOSLEEP(vnode_associate_singlelabel, mp, mp->mnt_label,
+	    vp, vp->v_label);
 }
 
 /*
@@ -360,8 +361,9 @@ mac_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_execve_will_transition");
 
 	result = 0;
-	MAC_BOOLEAN(vnode_execve_will_transition, ||, old, vp, vp->v_label,
-	    interpvplabel, imgp, imgp->execlabel);
+	/* No sleeping since the process lock will be held by the caller. */
+	MAC_BOOLEAN_NOSLEEP(vnode_execve_will_transition, ||, old, vp,
+	    vp->v_label, interpvplabel, imgp, imgp->execlabel);
 
 	return (result);
 }
@@ -960,7 +962,7 @@ mac_mount_check_stat(struct ucred *cred, struct mount *mount)
 {
 	int error;
 
-	MAC_CHECK(mount_check_stat, cred, mount, mount->mnt_label);
+	MAC_CHECK_NOSLEEP(mount_check_stat, cred, mount, mount->mnt_label);
 	MAC_CHECK_PROBE2(mount_check_stat, error, cred, mount);
 
 	return (error);
@@ -971,7 +973,8 @@ mac_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(devfs_create_device, cred, mp, dev, de, de->de_label);
+	MAC_PERFORM_NOSLEEP(devfs_create_device, cred, mp, dev, de,
+	    de->de_label);
 }
 
 void
@@ -979,8 +982,8 @@ mac_devfs_create_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(devfs_create_symlink, cred, mp, dd, dd->de_label, de,
-	    de->de_label);
+	MAC_PERFORM_NOSLEEP(devfs_create_symlink, cred, mp, dd,
+	    dd->de_label, de, de->de_label);
 }
 
 void
@@ -988,8 +991,8 @@ mac_devfs_create_directory(struct mount *mp, char *dirname, int dirnamelen,
     struct devfs_dirent *de)
 {
 
-	MAC_PERFORM(devfs_create_directory, mp, dirname, dirnamelen, de,
-	    de->de_label);
+	MAC_PERFORM_NOSLEEP(devfs_create_directory, mp, dirname, dirnamelen,
+	    de, de->de_label);
 }
 
 /*

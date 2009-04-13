@@ -15,8 +15,8 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvahipCP] [-m /path]'
-  echo '         [-t /path] [-d] [-u N] [-w N] [-D /path]'
+  echo 'Usage: mergemaster [-scrvahipFCPU]'
+  echo '    [-m /path] [-t /path] [-d] [-u N] [-w N] [-A arch] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
   echo "  -c  Use context diff instead of unified diff"
@@ -26,8 +26,11 @@ display_usage () {
   echo "  -h  Display more complete help"
   echo '  -i  Automatically install files that do not exist in destination directory'
   echo '  -p  Pre-buildworld mode, only compares crucial files'
+  echo '  -F  Install files that differ only by revision control Id ($FreeBSD)'
   echo '  -C  Compare local rc.conf variables to the defaults'
   echo '  -P  Preserve files that are overwritten'
+  echo "  -U  Attempt to auto upgrade files that have not been user modified"
+  echo ''
   echo "  -m /path/directory  Specify location of source to do the make in"
   echo "  -t /path/directory  Specify temp root directory"
   echo "  -d  Add date and time to directory name (e.g., /var/tmp/temproot.`date +%m%d.%H.%M`)"
@@ -35,7 +38,6 @@ display_usage () {
   echo "  -w N  Specify a screen width in columns to sdiff"
   echo "  -A architecture  Alternative architecture name to pass to make"
   echo '  -D /path/directory  Specify the destination directory to install files to'
-  echo "  -U Attempt to auto upgrade files that have not been user modified."
   echo ''
 }
 
@@ -263,10 +265,13 @@ MTREEFILE="${MTREEDB}/mergemaster.mtree"
 
 # Check the command line options
 #
-while getopts ":ascrvhipCPm:t:du:w:D:A:U" COMMAND_LINE_ARGUMENT ; do
+while getopts ":ascrvhipCPm:t:du:w:D:A:FU" COMMAND_LINE_ARGUMENT ; do
   case "${COMMAND_LINE_ARGUMENT}" in
   A)
     ARCHSTRING='TARGET_ARCH='${OPTARG}
+    ;;
+  F)
+    FREEBSD_ID=yes
     ;;
   U)
     AUTO_UPGRADE=yes
@@ -671,7 +676,7 @@ find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
 # Build the mtree database in a temporary location.
 MTREENEW=`mktemp -t mergemaster.mtree`
 case "${PRE_WORLD}" in
-'') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${DESTDIR}${MTREENEW} 2>/dev/null
+'') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
     ;;
 *) # We don't want to mess with the mtree database on a pre-world run.
    ;;
@@ -1020,6 +1025,19 @@ for COMPFILE in `find . -type f -size +0`; do
       # Use more if not.
       # Use unified diffs by default.  Context diffs give me a headache. :)
       #
+      # If the user chose the -F option, test for that before proceeding
+      #
+      if [ -n "$FREEBSD_ID" ]; then
+        if diff -q -I'[$]FreeBSD:.*$' "${DESTDIR}${COMPFILE#.}" "${COMPFILE}" > \
+            /dev/null 2>&1; then
+          if mm_install "${COMPFILE}"; then
+            echo "*** Updated revision control Id for ${DESTDIR}${COMPFILE#.}"
+          else
+            echo "*** Problem installing ${COMPFILE}, it will remain to merge by hand later"
+          fi
+          continue
+        fi
+      fi
       case "${AUTO_RUN}" in
       '')
         # prompt user to install/delete/merge changes
@@ -1032,15 +1050,15 @@ for COMPFILE in `find . -type f -size +0`; do
       esac # Auto run test
     fi # Yes, the files are different
   fi # Yes, the file still remains to be checked
-done # This is for the do way up there at the beginning of the comparison
+done # This is for the for way up there at the beginning of the comparison
 
 echo ''
 echo "*** Comparison complete"
 
-if [ -f "${DESTDIR}${MTREENEW}" ]; then
+if [ -f "${MTREENEW}" ]; then
   echo "*** Saving mtree database for future upgrades"
-  test -e "${MTREEFILE}" && unlink ${MTREEFILE}
-  mv ${DESTDIR}${MTREENEW} ${DESTDIR}${MTREEFILE}
+  test -e "${DESTDIR}${MTREEFILE}" && unlink ${DESTDIR}${MTREEFILE}
+  mv ${MTREENEW} ${DESTDIR}${MTREEFILE}
 fi
 
 echo ''

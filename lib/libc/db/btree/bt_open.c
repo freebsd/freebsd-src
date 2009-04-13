@@ -96,7 +96,7 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 	DB *dbp;
 	pgno_t ncache;
 	ssize_t nr;
-	int machine_lorder;
+	int machine_lorder, saved_errno;
 
 	t = NULL;
 
@@ -156,9 +156,8 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 		goto einval;
 
 	/* Allocate and initialize DB and BTREE structures. */
-	if ((t = (BTREE *)malloc(sizeof(BTREE))) == NULL)
+	if ((t = (BTREE *)calloc(1, sizeof(BTREE))) == NULL)
 		goto err;
-	memset(t, 0, sizeof(BTREE));
 	t->bt_fd = -1;			/* Don't close unopened fd on error. */
 	t->bt_lorder = b.lorder;
 	t->bt_order = NOT;
@@ -166,9 +165,8 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 	t->bt_pfx = b.prefix;
 	t->bt_rfd = -1;
 
-	if ((t->bt_dbp = dbp = (DB *)malloc(sizeof(DB))) == NULL)
+	if ((t->bt_dbp = dbp = (DB *)calloc(1, sizeof(DB))) == NULL)
 		goto err;
-	memset(t->bt_dbp, 0, sizeof(DB));
 	if (t->bt_lorder != machine_lorder)
 		F_SET(t, B_NEEDSWAP);
 
@@ -327,13 +325,15 @@ einval:	errno = EINVAL;
 eftype:	errno = EFTYPE;
 	goto err;
 
-err:	if (t) {
+err:	saved_errno = errno;
+	if (t) {
 		if (t->bt_dbp)
 			free(t->bt_dbp);
 		if (t->bt_fd != -1)
 			(void)_close(t->bt_fd);
 		free(t);
 	}
+	errno = saved_errno;
 	return (NULL);
 }
 
@@ -352,18 +352,25 @@ nroot(BTREE *t)
 	PAGE *meta, *root;
 	pgno_t npg;
 
-	if ((meta = mpool_get(t->bt_mp, 0, 0)) != NULL) {
-		mpool_put(t->bt_mp, meta, 0);
-		return (RET_SUCCESS);
+	if ((root = mpool_get(t->bt_mp, 1, 0)) != NULL) {
+		if (root->lower == 0 &&
+		    root->pgno == 0 &&
+		    root->linp[0] == 0) {
+			mpool_delete(t->bt_mp, root);
+			errno = EINVAL;
+		} else {
+			mpool_put(t->bt_mp, root, 0);
+			return (RET_SUCCESS);
+		}
 	}
 	if (errno != EINVAL)		/* It's OK to not exist. */
 		return (RET_ERROR);
 	errno = 0;
 
-	if ((meta = mpool_new(t->bt_mp, &npg)) == NULL)
+	if ((meta = mpool_new(t->bt_mp, &npg, MPOOL_PAGE_NEXT)) == NULL)
 		return (RET_ERROR);
 
-	if ((root = mpool_new(t->bt_mp, &npg)) == NULL)
+	if ((root = mpool_new(t->bt_mp, &npg, MPOOL_PAGE_NEXT)) == NULL)
 		return (RET_ERROR);
 
 	if (npg != P_ROOT)
@@ -383,14 +390,18 @@ static int
 tmp(void)
 {
 	sigset_t set, oset;
-	int fd;
+	int fd, len;
 	char *envtmp = NULL;
 	char path[MAXPATHLEN];
 
 	if (issetugid() == 0)
 		envtmp = getenv("TMPDIR");
-	(void)snprintf(path,
+	len = snprintf(path,
 	    sizeof(path), "%s/bt.XXXXXXXXXX", envtmp ? envtmp : "/tmp");
+	if (len < 0 || len >= (int)sizeof(path)) {
+		errno = ENAMETOOLONG;
+		return(-1);
+	}
 
 	(void)sigfillset(&set);
 	(void)_sigprocmask(SIG_BLOCK, &set, &oset);

@@ -28,8 +28,8 @@
 #define	_USB2_BUS_H_
 
 /*
- * The following structure defines the USB explore message sent to the
- * USB explore process.
+ * The following structure defines the USB explore message sent to the USB
+ * explore process.
  */
 
 struct usb2_bus_msg {
@@ -45,6 +45,17 @@ struct usb2_bus_stat {
 };
 
 /*
+ * The following structure is used to keep the state of a standard
+ * root transfer.
+ */
+struct usb2_sw_transfer {
+	struct usb2_device_request req;
+	uint8_t *ptr;
+	uint16_t len;
+	usb2_error_t err;
+};
+
+/*
  * The following structure defines an USB BUS. There is one USB BUS
  * for every Host or Device controller.
  */
@@ -52,7 +63,7 @@ struct usb2_bus {
 	struct usb2_bus_stat stats_err;
 	struct usb2_bus_stat stats_ok;
 	struct usb2_process explore_proc;
-	struct usb2_process roothub_proc;
+	struct usb2_sw_transfer roothub_req;
 	struct root_hold_token *bus_roothold;
 	/*
 	 * There are two callback processes. One for Giant locked
@@ -64,7 +75,6 @@ struct usb2_bus {
 	struct usb2_bus_msg explore_msg[2];
 	struct usb2_bus_msg detach_msg[2];
 	struct usb2_bus_msg attach_msg[2];
-	struct usb2_bus_msg roothub_msg[2];
 	/*
 	 * This mutex protects the USB hardware:
 	 */
@@ -75,15 +85,16 @@ struct usb2_bus {
 	device_t parent;
 	device_t bdev;			/* filled by HC driver */
 
+#if USB_HAVE_BUSDMA
 	struct usb2_dma_parent_tag dma_parent_tag[1];
 	struct usb2_dma_tag dma_tags[USB_BUS_DMA_TAG_MAX];
-
+#endif
 	struct usb2_bus_methods *methods;	/* filled by HC driver */
 	struct usb2_device **devices;
 
-	uint32_t hw_power_state;	/* see USB_HW_POWER_XXX */
-	uint32_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
-	uint32_t transfer_count[4];
+	usb2_power_mask_t hw_power_state;	/* see USB_HW_POWER_XXX */
+	usb2_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
+
 	uint16_t isoc_time_last;	/* in milliseconds */
 
 	uint8_t	alloc_failed;		/* Set if memory allocation failed. */
