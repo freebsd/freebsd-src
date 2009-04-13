@@ -42,6 +42,51 @@ $ getfacl xxx
 $ ls -l xxx | cut -d' ' -f1
 > -rw-rw-r--+
 
+# Same as above, but for symlinks.
+$ ln -s xxx lll
+$ getfacl -h lll
+> # file: lll
+> # owner: root
+> # group: wheel
+> user::rwx
+> group::r-x
+> other::r-x
+
+$ getfacl -qh lll
+> user::rwx
+> group::r-x
+> other::r-x
+
+$ getfacl -q lll
+> user::rw-
+> user:42:r--
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+$ setfacl -hm u:44:x,g:45:w lll
+$ getfacl -h lll
+> # file: lll
+> # owner: root
+> # group: wheel
+> user::rwx
+> user:44:--x
+> group::r-x
+> group:45:-w-
+> mask::rwx
+> other::r-x
+
+# XXX: Why doesn't ls(1) print '+' for symbolic links with ACL set?
+$ ls -l lll | cut -d' ' -f1
+> lrwxrwxr-x
+
+# Check whether the original file is left untouched.
+$ ls -l xxx | cut -d' ' -f1
+> -rw-rw-r--+
+
+$ rm lll
+
 # Test removing entries.
 $ setfacl -x user:42: xxx
 $ getfacl xxx
@@ -173,6 +218,15 @@ $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > -rw-r--r--+
 > -rw-r--r--+
 
+$ setfacl -bn nnn xxx yyy zzz
+> setfacl: stat() of nnn failed: No such file or directory
+
+$ ls -l nnn xxx yyy zzz | cut -d' ' -f1
+> ls: nnn: No such file or directory
+> -rw-r--r--
+> -rw-r--r--
+> -rw-r--r--
+
 $ rm xxx yyy zzz
 
 # Check whether chmod actually does what it should do.
@@ -210,13 +264,20 @@ $ getfacl -q ddd
 > group::r-x
 > other::r-x
 
+$ ls -l | grep ddd | cut -d' ' -f1
+> drwxr-xr-x
+
 $ getfacl -dq ddd
-$ setfacl -d -m u::rwx,g::rx,o::rx,mask::rwx ddd
+$ setfacl -dm u::rwx,g::rx,o::rx,mask::rwx ddd
 $ getfacl -dq ddd
 > user::rwx
 > group::r-x
 > mask::rwx
 > other::r-x
+
+# No change - ls(1) output doesn't take into account default ACLs.
+$ ls -l | grep ddd | cut -d' ' -f1
+> drwxr-xr-x
 
 $ setfacl -dm g:42:rwx,u:42:r ddd
 $ setfacl -dm g::w ddd
@@ -236,8 +297,59 @@ $ getfacl -dq ddd
 > mask::rw-
 > other::r-x
 
-> # XXX: Test inheritance.
+$ ls -l | grep ddd | cut -d' ' -f1
+> drwxr-xr-x
 
 $ rmdir ddd
 $ rm xxx
+
+# Test inheritance.
+$ mkdir ddd
+
+$ touch ddd/xxx
+$ getfacl -q ddd/xxx
+> user::rw-
+> group::r--
+> other::r--
+
+$ mkdir ddd/ddd
+$ getfacl -q ddd/ddd
+> user::rwx
+> group::r-x
+> other::r-x
+
+$ rmdir ddd/ddd
+$ rm ddd/xxx
+
+$ setfacl -dm u::rwx,g::rx,o::rx,mask::rwx ddd
+$ setfacl -dm g:42:rwx,u:43:r ddd
+$ getfacl -dq ddd
+> user::rwx
+> user:43:r--
+> group::r-x
+> group:42:rwx
+> mask::rwx
+> other::r-x
+
+$ touch ddd/xxx
+$ getfacl -q ddd/xxx
+> user::rw-
+> user:43:r--
+> group::r-x		# effective: r--
+> group:42:rwx		# effective: r--
+> mask::r--
+> other::r--
+
+$ mkdir ddd/ddd
+$ getfacl -q ddd/ddd
+> user::rwx
+> user:43:r--
+> group::r-x
+> group:42:rwx		# effective: r-x
+> mask::r-x
+> other::r-x
+
+$ rmdir ddd/ddd
+$ rm ddd/xxx
+$ rmdir ddd
 
