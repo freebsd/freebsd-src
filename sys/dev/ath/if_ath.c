@@ -7120,6 +7120,8 @@ ath_tdma_update(struct ieee80211_node *ni,
 		const struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 		ath_tdma_bintvalsetup(sc, ts);
+		if (changed & TDMA_UPDATE_SLOTLEN)
+			ath_wme_update(ic);
 
 		DPRINTF(sc, ATH_DEBUG_TDMA,
 		    "%s: adopt slot %u slotcnt %u slotlen %u us "
@@ -7127,7 +7129,6 @@ ath_tdma_update(struct ieee80211_node *ni,
 		    ts->tdma_slot, ts->tdma_slotcnt, ts->tdma_slotlen,
 		    sc->sc_tdmabintval);
 
-		ath_beaconq_config(sc);
 		/* XXX right? */
 		ath_hal_intrset(ah, sc->sc_imask);
 		/* NB: beacon timers programmed below */
