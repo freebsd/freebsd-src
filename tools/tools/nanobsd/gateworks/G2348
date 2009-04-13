@@ -108,16 +108,11 @@ options		AH_DEBUG
 #options		AH_ASSERT
 options		AH_SUPPORT_AR5416
 
-# NB: must use old usb stack; new one does not work
-makeoptions	WITH_LEGACY	# NB: required to get includes
-device		ousb
+device		usb
 #options		USB_DEBUG
-device		oohci
-device		oehci
-device		ougen
+device		ohci
+device		ehci
 
-device		oaxe
-
-device		oumass
+device		umass
 device		scbus           # SCSI bus (required for SCSI)
 device		da              # Direct Access (disks)
