@@ -4577,7 +4577,6 @@ vop_deleteextattr {
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
-	VOP_LEASE(nd.ni_dvp, td, ap->a_cred, LEASE_WRITE);
 	error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
 
 	vput(nd.ni_dvp);
@@ -4639,7 +4638,6 @@ vop_setextattr {
 		return (error);
 	}
 
-	VOP_LEASE(vp, td, ap->a_cred, LEASE_WRITE);
 	VATTR_NULL(&va);
 	va.va_size = 0;
 	error = VOP_SETATTR(vp, &va, ap->a_cred);

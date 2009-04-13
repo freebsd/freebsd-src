@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 
 #include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_amrr.h>
@@ -155,7 +154,7 @@ static int		rt2661_wme_update(struct ieee80211com *) __unused;
 static void		rt2661_update_slot(struct ifnet *);
 static const char	*rt2661_get_rf(int);
 static void		rt2661_read_eeprom(struct rt2661_softc *,
-			    struct ieee80211com *);
+			    uint8_t macaddr[IEEE80211_ADDR_LEN]);
 static int		rt2661_bbp_init(struct rt2661_softc *);
 static void		rt2661_init_locked(struct rt2661_softc *);
 static void		rt2661_init(void *);
@@ -204,6 +203,7 @@ rt2661_attach(device_t dev, int id)
 	uint32_t val;
 	int error, ac, ntries;
 	uint8_t bands;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_id = id;
 	sc->sc_dev = dev;
@@ -234,7 +234,7 @@ rt2661_attach(device_t dev, int id)
 	}
 
 	/* retrieve RF rev. no and various other things from EEPROM */
-	rt2661_read_eeprom(sc, ic);
+	rt2661_read_eeprom(sc, macaddr);
 
 	device_printf(dev, "MAC/BBP RT%X, RF %s\n", val,
 	    rt2661_get_rf(sc->rf_rev));
@@ -303,7 +303,7 @@ rt2661_attach(device_t dev, int id)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_newassoc = rt2661_newassoc;
 	ic->ic_node_alloc = rt2661_node_alloc;
 #if 0
@@ -318,8 +318,6 @@ rt2661_attach(device_t dev, int id)
 
 	ic->ic_vap_create = rt2661_vap_create;
 	ic->ic_vap_delete = rt2661_vap_delete;
-
-	sc->sc_rates = ieee80211_get_ratetable(ic->ic_curchan);
 
 	bpfattach(ifp, DLT_IEEE802_11_RADIO,
 	    sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap));
@@ -1301,7 +1299,7 @@ rt2661_setup_tx_desc(struct rt2661_softc *sc, struct rt2661_tx_desc *desc,
 	desc->plcp_service = 4;
 
 	len += IEEE80211_CRC_LEN;
-	if (ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_OFDM) {
+	if (ieee80211_rate2phytype(ic->ic_rt, rate) == IEEE80211_T_OFDM) {
 		desc->flags |= htole32(RT2661_TX_OFDM);
 
 		plcp_length = len & 0xfff;
@@ -1387,7 +1385,7 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2661_TX_NEED_ACK;
 
-		dur = ieee80211_ack_duration(sc->sc_rates,
+		dur = ieee80211_ack_duration(ic->ic_rt,
 		    rate, ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		*(uint16_t *)wh->i_dur = htole16(dur);
 
@@ -1437,16 +1435,16 @@ rt2661_sendprot(struct rt2661_softc *sc, int ac,
 	wh = mtod(m, const struct ieee80211_frame *);
 	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
 
-	protrate = ieee80211_ctl_rate(sc->sc_rates, rate);
-	ackrate = ieee80211_ack_rate(sc->sc_rates, rate);
+	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
+	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(sc->sc_rates, pktlen, rate, isshort)
-	    + ieee80211_ack_duration(sc->sc_rates, rate, isshort);
+	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
+	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 	flags = RT2661_TX_MORE_FRAG;
 	if (prot == IEEE80211_PROT_RTSCTS) {
 		/* NB: CTS is the same size as an ACK */
-		dur += ieee80211_ack_duration(sc->sc_rates, rate, isshort);
+		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 		flags |= RT2661_TX_NEED_ACK;
 		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
 	} else {
@@ -1543,7 +1541,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 		if (m0->m_pkthdr.len + IEEE80211_CRC_LEN > vap->iv_rtsthreshold)
 			prot = IEEE80211_PROT_RTSCTS;
 		else if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
-		    ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_OFDM)
+		    ieee80211_rate2phytype(ic->ic_rt, rate) == IEEE80211_T_OFDM)
 			prot = ic->ic_protmode;
 		if (prot != IEEE80211_PROT_NONE) {
 			error = rt2661_sendprot(sc, ac, m0, ni, prot, rate);
@@ -1614,7 +1612,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 	if (!noack && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2661_TX_NEED_ACK;
 
-		dur = ieee80211_ack_duration(sc->sc_rates,
+		dur = ieee80211_ack_duration(ic->ic_rt,
 		    rate, ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		*(uint16_t *)wh->i_dur = htole16(dur);
 	}
@@ -1662,15 +1660,7 @@ rt2661_start_locked(struct ifnet *ifp)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
-			continue;
-		}
-
 		if (rt2661_tx_data(sc, m, ni, ac) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
@@ -2040,8 +2030,6 @@ rt2661_set_chan(struct rt2661_softc *sc, struct ieee80211_channel *c)
 	chan = ieee80211_chan2ieee(ic, c);
 	KASSERT(chan != 0 && chan != IEEE80211_CHAN_ANY, ("chan 0x%x", chan));
 
-	sc->sc_rates = ieee80211_get_ratetable(c);
-
 	/* select the appropriate RF settings based on what EEPROM says */
 	rfprog = (sc->rfprog == 0) ? rt2661_rf5225_1 : rt2661_rf5225_2;
 
@@ -2219,23 +2207,23 @@ rt2661_get_rf(int rev)
 }
 
 static void
-rt2661_read_eeprom(struct rt2661_softc *sc, struct ieee80211com *ic)
+rt2661_read_eeprom(struct rt2661_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	uint16_t val;
 	int i;
 
 	/* read MAC address */
 	val = rt2661_eeprom_read(sc, RT2661_EEPROM_MAC01);
-	ic->ic_myaddr[0] = val & 0xff;
-	ic->ic_myaddr[1] = val >> 8;
+	macaddr[0] = val & 0xff;
+	macaddr[1] = val >> 8;
 
 	val = rt2661_eeprom_read(sc, RT2661_EEPROM_MAC23);
-	ic->ic_myaddr[2] = val & 0xff;
-	ic->ic_myaddr[3] = val >> 8;
+	macaddr[2] = val & 0xff;
+	macaddr[3] = val >> 8;
 
 	val = rt2661_eeprom_read(sc, RT2661_EEPROM_MAC45);
-	ic->ic_myaddr[4] = val & 0xff;
-	ic->ic_myaddr[5] = val >> 8;
+	macaddr[4] = val & 0xff;
+	macaddr[5] = val >> 8;
 
 	val = rt2661_eeprom_read(sc, RT2661_EEPROM_ANTENNA);
 	/* XXX: test if different from 0xffff? */
@@ -2413,8 +2401,7 @@ rt2661_init_locked(struct rt2661_softc *sc)
 	for (i = 0; i < N(rt2661_def_mac); i++)
 		RAL_WRITE(sc, rt2661_def_mac[i].reg, rt2661_def_mac[i].val);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	rt2661_set_macaddr(sc, ic->ic_myaddr);
+	rt2661_set_macaddr(sc, IF_LLADDR(ifp));
 
 	/* set host ready */
 	RAL_WRITE(sc, RT2661_MAC_CSR1, 3);

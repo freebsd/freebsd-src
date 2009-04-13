@@ -42,7 +42,7 @@
  * a callback when scanning on a ``passive channel'' when the
  * IEEE80211_FEXT_PROBECHAN flag is set.
  *
- * A scan operation involves constructing a set of channels to inspec
+ * A scan operation involves constructing a set of channels to inspect
  * (the scan set), visiting each channel and collecting information
  * (e.g. what bss are present), and then analyzing the results to make
  * decisions like which bss to join.  This process needs to be as fast

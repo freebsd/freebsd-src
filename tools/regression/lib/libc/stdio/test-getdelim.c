@@ -100,7 +100,7 @@ main(int argc, char *argv[])
 		assert(line[0] == '\0' && line[1] == '\0');
 		/* Third line: EOF */
 		line[0] = 'X';
-		assert(getline(&line, &linecap, fp) == 0);
+		assert(getline(&line, &linecap, fp) == -1);
 		assert(line[0] == '\0');
 		free(line);
 		assert(feof(fp));
@@ -139,7 +139,7 @@ main(int argc, char *argv[])
 	free(line);
 	line = NULL;
 	linecap = 0;
-	assert(getline(&line, &linecap, fp) == 0);
+	assert(getline(&line, &linecap, fp) == -1);
 	assert(line[0] == '\0');
 	assert(linecap > 0);
 	assert(errno == 0);

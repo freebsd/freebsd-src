@@ -129,8 +129,6 @@ SUBDIR=	${_ac} \
 	powerd \
 	${_ppp} \
 	${_pppctl} \
-	${_pppd} \
-	${_pppstats} \
 	${_praliases} \
 	${_praudit} \
 	procctl \
@@ -166,8 +164,6 @@ SUBDIR=	${_ac} \
 	setfmac \
 	setpmac \
 	${_sicontrol} \
-	${_sliplogin} \
-	${_slstat} \
 	smbmsg \
 	snapinfo \
 	${_spkrtest} \
@@ -183,6 +179,7 @@ SUBDIR=	${_ac} \
 	${_traceroute6} \
 	trpt \
 	tzsetup \
+	${_uathload} \
 	ugidfw \
 	${_usbdevs} \
 	${_usbconfig} \
@@ -363,8 +360,6 @@ _portsnap=	portsnap
 .if ${MK_PPP} != "no"
 _ppp=		ppp
 #_pppctl handled below
-_pppd=		pppd
-_pppstats=	pppstats
 .endif
 
 .if ${MK_QUOTAS} != "no"
@@ -385,11 +380,6 @@ _praliases=	praliases
 _sendmail=	sendmail
 .endif
 
-.if ${MK_SLIP} != "no"
-_sliplogin=	sliplogin
-_slstat=	slstat
-.endif
-
 .if ${MK_SYSINSTALL} != "no"
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
     ${MACHINE_ARCH} == "sparc64"
@@ -406,6 +396,9 @@ _crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
+.if ${MACHINE_ARCH} != "ia64"
+_uathload=	uathload
+.endif
 #_usbdevs=	usbdevs
 _usbconfig=	usbconfig
 .endif

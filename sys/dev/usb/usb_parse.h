@@ -27,15 +27,28 @@
 #ifndef _USB2_PARSE_H_
 #define	_USB2_PARSE_H_
 
+/* structures */
+
+struct usb2_idesc_parse_state {
+	struct usb2_descriptor *desc;
+	uint8_t iface_index;		/* current interface index */
+	uint8_t iface_no_last;
+	uint8_t iface_index_alt;	/* current alternate setting */
+};
+
+/* prototypes */
+
 struct usb2_descriptor *usb2_desc_foreach(struct usb2_config_descriptor *cd,
 	    struct usb2_descriptor *desc);
-struct usb2_interface_descriptor *usb2_find_idesc(
-	    struct usb2_config_descriptor *cd, uint8_t iface_index,
-	    uint8_t alt_index);
-struct usb2_endpoint_descriptor *usb2_find_edesc(
-	    struct usb2_config_descriptor *cd, uint8_t iface_index,
-	    uint8_t alt_index, uint8_t ep_index);
-uint16_t usb2_get_no_endpoints(struct usb2_config_descriptor *cd);
-uint16_t usb2_get_no_alts(struct usb2_config_descriptor *cd, uint8_t ifaceno);
+struct usb2_interface_descriptor *usb2_idesc_foreach(
+	    struct usb2_config_descriptor *cd,
+	    struct usb2_idesc_parse_state *ps);
+struct usb2_endpoint_descriptor *usb2_edesc_foreach(
+	    struct usb2_config_descriptor *cd,
+	    struct usb2_endpoint_descriptor *ped);
+uint8_t usb2_get_no_descriptors(struct usb2_config_descriptor *cd,
+	    uint8_t type);
+uint8_t usb2_get_no_alts(struct usb2_config_descriptor *cd,
+	    struct usb2_interface_descriptor *id);
 
 #endif					/* _USB2_PARSE_H_ */

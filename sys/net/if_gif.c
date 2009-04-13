@@ -121,6 +121,16 @@ void	(*ng_gif_detach_p)(struct ifnet *ifp);
 static void	gif_start(struct ifnet *);
 static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
+static int	vnet_gif_iattach(const void *);
+
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_gif_modinfo = {
+	.vmi_id		= VNET_MOD_GIF,
+	.vmi_name	= "gif",
+	.vmi_dependson	= VNET_MOD_NET,
+	.vmi_iattach	= vnet_gif_iattach
+};
+#endif
 
 IFC_SIMPLE_DECLARE(gif, 0);
 
@@ -251,6 +261,26 @@ gif_clone_destroy(ifp)
 }
 
 static int
+vnet_gif_iattach(const void *unused __unused)
+{
+	INIT_VNET_GIF(curvnet);
+
+	LIST_INIT(&V_gif_softc_list);
+	V_max_gif_nesting = MAX_GIF_NEST;
+#ifdef XBONEHACK
+	V_parallel_tunnels = 1;
+#else
+	V_parallel_tunnels = 0;
+#endif
+	V_ip_gif_ttl = GIF_TTL;
+#ifdef INET6
+	V_ip6_gif_hlim = GIF_HLIM;
+#endif
+  
+	return (0);
+}
+
+static int
 gifmodevent(mod, type, data)
 	module_t mod;
 	int type;
@@ -261,18 +291,10 @@ gifmodevent(mod, type, data)
 	case MOD_LOAD:
 		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
 
-		LIST_INIT(&V_gif_softc_list);
-		V_max_gif_nesting = MAX_GIF_NEST;
-#ifdef XBONEHACK
-		V_parallel_tunnels = 1;
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_gif_modinfo);
 #else
-		V_parallel_tunnels = 0;
-#endif
-#ifdef INET
-		V_ip_gif_ttl = GIF_TTL;
-#endif
-#ifdef INET6
-		V_ip6_gif_hlim = GIF_HLIM;
+		vnet_gif_iattach(NULL);
 #endif
 		if_clone_attach(&gif_cloner);
 
@@ -281,7 +303,7 @@ gifmodevent(mod, type, data)
 		if_clone_detach(&gif_cloner);
 		mtx_destroy(&gif_mtx);
 #ifdef INET6
-		V_ip6_gif_hlim = 0;
+		V_ip6_gif_hlim = 0;	/* XXX -> vnet_gif_idetach() */
 #endif
 		break;
 	default:

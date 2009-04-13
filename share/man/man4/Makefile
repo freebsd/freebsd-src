@@ -26,6 +26,7 @@ MAN=	aac.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
+	${_amdtemp.4} \
 	${_amdsmb.4} \
 	amr.4 \
 	an.4 \
@@ -94,7 +95,6 @@ MAN=	aac.4 \
 	fd.4 \
 	fdc.4 \
 	firewire.4 \
-	fla.4 \
 	fpa.4 \
 	fwe.4 \
 	fwip.4 \
@@ -155,7 +155,6 @@ MAN=	aac.4 \
 	ixgbe.4 \
 	jme.4 \
 	joy.4 \
-	${_k8temp.4} \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
@@ -290,7 +289,6 @@ MAN=	aac.4 \
 	ppbus.4 \
 	ppc.4 \
 	ppi.4 \
-	ppp.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
@@ -325,7 +323,6 @@ MAN=	aac.4 \
 	sio.4 \
 	sis.4 \
 	sk.4 \
-	sl.4 \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
@@ -391,6 +388,7 @@ MAN=	aac.4 \
 	u3g.4 \
 	uark.4 \
 	uart.4 \
+	uath.4 \
 	ubsa.4 \
 	ubsec.4 \
 	ubser.4 \
@@ -421,7 +419,6 @@ MAN=	aac.4 \
 	urio.4 \
 	${_urtw.4} \
 	usb.4 \
-	uscanner.4 \
 	uslcom.4 \
 	utopia.4 \
 	uvisor.4 \
@@ -533,7 +530,6 @@ MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
 MLINKS+=pcn.4 if_pcn.4
-MLINKS+=ppp.4 if_ppp.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
@@ -546,7 +542,6 @@ MLINKS+=scsi.4 CAM.4 \
 MLINKS+=sf.4 if_sf.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
-MLINKS+=sl.4 if_sl.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=sn.4 if_sn.4
 MLINKS+=snd_envy24.4 snd_ak452x.4
@@ -567,6 +562,7 @@ MLINKS+=tun.4 if_tun.4
 MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
 MLINKS+=u3g.4 u3gstub.4
+MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
 MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
@@ -593,6 +589,7 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _amdsmb.4=	amdsmb.4
+_amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
@@ -610,7 +607,6 @@ _ipmi.4=	ipmi.4
 _io.4=		io.4
 _linux.4=	linux.4
 _ndis.4=	ndis.4
-_k8temp.4=	k8temp.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4

@@ -118,7 +118,7 @@ CRUNCH_PROGS_sbin= atacontrol badsect				\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
 	restore rcorder route routed rtquery rtsol savecore	\
-	slattach spppcontrol startslip swapon sysctl tunefs umount 
+	spppcontrol swapon sysctl tunefs umount 
 
 .if ${MK_ATM} != "no"
 CRUNCH_PROGS_sbin+= atmconfig

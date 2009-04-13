@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 #include <net/bpf.h>
 
@@ -183,6 +186,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	ic->ic_csa_newchan = NULL;
 	/* arbitrarily pick the first channel */
 	ic->ic_curchan = &ic->ic_channels[0];
+	ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 
 	/* fillin well-known rate sets if driver has not specified */
 	DEFAULTRATES(IEEE80211_MODE_11B,	 ieee80211_rateset_11b);
@@ -236,7 +240,8 @@ null_input(struct ifnet *ifp, struct mbuf *m)
  * the driver on attach to prior to creating any vap's.
  */
 void
-ieee80211_ifattach(struct ieee80211com *ic)
+ieee80211_ifattach(struct ieee80211com *ic,
+	const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct sockaddr_dl *sdl;
@@ -264,6 +269,9 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	ieee80211_node_attach(ic);
 	ieee80211_power_attach(ic);
 	ieee80211_proto_attach(ic);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_attach(ic);
+#endif
 	ieee80211_ht_attach(ic);
 	ieee80211_scan_attach(ic);
 	ieee80211_regdomain_attach(ic);
@@ -284,7 +292,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;		/* XXX IFT_IEEE80211? */
 	sdl->sdl_alen = IEEE80211_ADDR_LEN;
-	IEEE80211_ADDR_COPY(LLADDR(sdl), ic->ic_myaddr);
+	IEEE80211_ADDR_COPY(LLADDR(sdl), macaddr);
 }
 
 /*
@@ -306,6 +314,9 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_sysctl_detach(ic);
 	ieee80211_regdomain_detach(ic);
 	ieee80211_scan_detach(ic);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_detach(ic);
+#endif
 	ieee80211_ht_detach(ic);
 	/* NB: must be called before ieee80211_node_detach */
 	ieee80211_proto_detach(ic);
@@ -415,10 +426,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 		vap->iv_flags |= IEEE80211_F_WME;
 	if (vap->iv_caps & IEEE80211_C_BURST)
 		vap->iv_flags |= IEEE80211_F_BURST;
-	if (vap->iv_caps & IEEE80211_C_FF)
-		vap->iv_flags |= IEEE80211_F_FF;
-	if (vap->iv_caps & IEEE80211_C_TURBOP)
-		vap->iv_flags |= IEEE80211_F_TURBOP;
 	/* NB: bg scanning only makes sense for station mode right now */
 	if (vap->iv_opmode == IEEE80211_M_STA &&
 	    (vap->iv_caps & IEEE80211_C_BGSCAN))
@@ -445,6 +452,9 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_node_vattach(vap);
 	ieee80211_power_vattach(vap);
 	ieee80211_proto_vattach(vap);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_vattach(vap);
+#endif
 	ieee80211_ht_vattach(vap);
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
@@ -497,7 +507,9 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 	IEEE80211_LOCK(ic);
 	TAILQ_INSERT_TAIL(&ic->ic_vaps, vap, iv_next);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
+#ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
+#endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
@@ -545,7 +557,9 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 
 	TAILQ_REMOVE(&ic->ic_vaps, vap, iv_next);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
+#ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
+#endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
@@ -562,6 +576,9 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 
 	ieee80211_regdomain_vdetach(vap);
 	ieee80211_scan_vdetach(vap);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_vdetach(vap);
+#endif
 	ieee80211_ht_vdetach(vap);
 	/* NB: must be before ieee80211_node_vdetach */
 	ieee80211_proto_vdetach(vap);

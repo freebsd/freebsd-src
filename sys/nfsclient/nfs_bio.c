@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
@@ -61,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
+#include <nfsclient/nfs_kdtrace.h>
 
 #include <nfs4client/nfs4.h>
 
@@ -403,6 +406,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 				goto out;
 		}
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			goto out;
@@ -915,6 +919,7 @@ nfs_write(struct vop_write_args *ap)
 #endif
 flush_and_restart:
 			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
 			if (error)
 				return (error);
@@ -928,6 +933,7 @@ flush_and_restart:
 	 */
 	if (ioflag & IO_APPEND) {
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			return (error);
@@ -1756,6 +1762,7 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 			mtx_lock(&np->n_mtx);
 			np->n_flag |= NWRITEERR;
 			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			mtx_unlock(&np->n_mtx);
 		    }
 		    bp->b_dirtyoff = bp->b_dirtyend = 0;

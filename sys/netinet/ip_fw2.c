@@ -898,6 +898,9 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		case O_NAT:
 			action = "Nat";
  			break;
+		case O_REASS:
+			action = "Reass";
+			break;
 		default:
 			action = "UNKNOWN";
 			break;
@@ -3375,6 +3378,55 @@ check_body:
 				goto done;
 			}
 
+			case O_REASS: {
+				int ip_off;
+
+				f->pcnt++;
+				f->bcnt += pktlen;
+				ip_off = (args->eh != NULL) ? ntohs(ip->ip_off) : ip->ip_off;
+				if (ip_off & (IP_MF | IP_OFFMASK)) {
+					/* 
+					 * ip_reass() expects len & off in host
+					 * byte order: fix them in case we come
+					 * from layer2.
+					 */
+					if (args->eh != NULL) {
+						ip->ip_len = ntohs(ip->ip_len);
+						ip->ip_off = ntohs(ip->ip_off);
+					}
+
+					m = ip_reass(m);
+					args->m = m;
+					
+					/*
+					 * IP header checksum fixup after 
+					 * reassembly and leave header
+					 * in network byte order.
+					 */
+					if (m != NULL) {
+						int hlen;
+					
+						ip = mtod(m, struct ip *);
+						hlen = ip->ip_hl << 2;
+						/* revert len & off for layer2 pkts */
+						if (args->eh != NULL)
+							ip->ip_len = htons(ip->ip_len);
+						ip->ip_sum = 0;
+						if (hlen == sizeof(struct ip))
+							ip->ip_sum = in_cksum_hdr(ip);
+						else
+							ip->ip_sum = in_cksum(m, hlen);
+						retval = IP_FW_REASS;
+						args->rule = f;
+						goto done;
+					} else {
+						retval = IP_FW_DENY;
+						goto done;
+					}
+				}
+				goto next_rule;
+			}
+
 			default:
 				panic("-- unknown opcode %d\n", cmd->opcode);
 			} /* end of switch() on opcodes */
@@ -4024,6 +4076,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_UNREACH6:
 #endif
 		case O_SKIPTO:
+		case O_REASS:
 check_size:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;

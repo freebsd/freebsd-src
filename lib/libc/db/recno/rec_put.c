@@ -251,7 +251,7 @@ __rec_iput(BTREE *t, recno_t nrec, const DBT *data, u_int flags)
 	 * the offset array, shift the pointers up.
 	 */
 	nbytes = NRLEAFDBT(data->size);
-	if (h->upper - h->lower < nbytes + sizeof(indx_t)) {
+	if ((u_int32_t)(h->upper - h->lower) < nbytes + sizeof(indx_t)) {
 		status = __bt_split(t, h, NULL, data, dflags, nbytes, idx);
 		if (status == RET_SUCCESS)
 			++t->bt_nrecs;

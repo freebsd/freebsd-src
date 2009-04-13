@@ -67,16 +67,6 @@ If successful, zero is returned, otherwise an appropriate error code.
 If the ioctl is not recognized or not handled,
 .Er ENOTTY
 should be returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_ioctl(struct vnode *vp, int command, caddr_t data, int fflag,
-	  struct ucred *cred, struct thread *td)
-{
-
-    return ENOTTY;
-}
-.Ed
 .Sh SEE ALSO
 .Xr vnode 9
 .Sh AUTHORS

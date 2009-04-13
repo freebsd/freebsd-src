@@ -216,6 +216,8 @@ fastfind
 			count += c - OFFSET;
 		}
 
+		if (count < 0 || count > MAXPATHLEN)
+			errx(1, "corrupted database: %s", database);
 		/* overlay old path */
 		p = path + count;
 		foundchar = p - 1;

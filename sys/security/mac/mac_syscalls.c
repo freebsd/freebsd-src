@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2006 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2006, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
@@ -16,6 +16,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract 
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -617,7 +620,7 @@ mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 {
 	struct mac_policy_conf *mpc;
 	char target[MAC_MAX_POLICY_NAME];
-	int entrycount, error;
+	int error;
 
 	error = copyinstr(uap->policy, target, sizeof(target), NULL);
 	if (error)
@@ -633,7 +636,8 @@ mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 		}
 	}
 
-	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {
+	if (!LIST_EMPTY(&mac_policy_list)) {
+		mac_policy_slock_sleep();
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {
 			if (strcmp(mpc->mpc_name, target) == 0 &&
 			    mpc->mpc_ops->mpo_syscall != NULL) {
@@ -642,7 +646,7 @@ mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 				break;
 			}
 		}
-		mac_policy_list_unbusy();
+		mac_policy_sunlock_sleep();
 	}
 out:
 	return (error);

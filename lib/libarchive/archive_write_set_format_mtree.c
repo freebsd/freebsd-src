@@ -320,7 +320,7 @@ mtree_indent(struct mtree_writer *mtree)
 	archive_string_empty(&mtree->ebuf);
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 static size_t
 dir_len(struct archive_entry *entry)
 {
@@ -334,7 +334,7 @@ dir_len(struct archive_entry *entry)
 	return (r - path + 1);
 }
 
-#else
+#else /* _WIN32 && !__CYGWIN__ */
 /*
  * Note: We should use wide-character for findng '\' character,
  * a directory separator on Windows, because some character-set have
@@ -376,7 +376,7 @@ alen:
 		return (0);
 	return (al + 1);
 }
-#endif /* _WIN32 */
+#endif /* _WIN32 && !__CYGWIN__ */
 
 static int
 parent_dir_changed(struct archive_string *dir, struct archive_entry *entry)

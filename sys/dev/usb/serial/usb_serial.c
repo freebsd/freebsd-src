@@ -412,6 +412,12 @@ usb2_com_queue_command(struct usb2_com_softc *sc,
 	if (fn == usb2_com_cfg_close)
 		usb2_proc_mwait(&ssc->sc_tq, t0, t1);
 
+	/*
+	 * In case of multiple configure requests,
+	 * keep track of the last one!
+	 */
+	if (fn == usb2_com_cfg_start_transfers)
+		sc->sc_last_start_xfer = &task->hdr;
 }
 
 static void
@@ -458,7 +464,9 @@ usb2_com_cfg_start_transfers(struct usb2_proc_msg *_task)
 		/* TTY device closed */
 		return;
 	}
-	sc->sc_flag |= UCOM_FLAG_GP_DATA;
+
+	if (_task == sc->sc_last_start_xfer)
+		sc->sc_flag |= UCOM_FLAG_GP_DATA;
 
 	if (sc->sc_callback->usb2_com_start_read) {
 		(sc->sc_callback->usb2_com_start_read) (sc);

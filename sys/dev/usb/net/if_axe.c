@@ -182,10 +182,10 @@ static const struct usb2_config axe_config[AXE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = AXE_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = axe_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = AXE_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = axe_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[AXE_BULK_DT_RD] = {
@@ -195,19 +195,19 @@ static const struct usb2_config axe_config[AXE_N_TRANSFER] = {
 #if (MCLBYTES < 2048)
 #error "(MCLBYTES < 2048)"
 #endif
-		.mh.bufsize = MCLBYTES,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = axe_bulk_read_callback,
-		.mh.timeout = 0,	/* no timeout */
+		.bufsize = MCLBYTES,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = axe_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
 	},
 
 	[AXE_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = axe_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = axe_intr_callback,
 	},
 };
 

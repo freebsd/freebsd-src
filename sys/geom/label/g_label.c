@@ -77,7 +77,8 @@ struct g_class g_label_class = {
  * 6. Add your file system to manual page sbin/geom/class/label/glabel.8.
  */
 const struct g_label_desc *g_labels[] = {
-	&g_label_ufs,
+	&g_label_ufs_id,
+	&g_label_ufs_volume,
 	&g_label_iso9660,
 	&g_label_msdosfs,
 	&g_label_ext2fs,

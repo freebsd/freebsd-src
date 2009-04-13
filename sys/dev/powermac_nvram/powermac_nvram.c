@@ -131,19 +131,25 @@ powermac_nvram_attach(device_t dev)
 {
 	struct powermac_nvram_softc *sc;
 	phandle_t node;
-	u_int32_t reg[2];
-	int gen0, gen1;
+	u_int32_t reg[3];
+	int gen0, gen1, i;
 
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 
-	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
+	if ((i = OF_getprop(node, "reg", reg, sizeof(reg))) < 8)
 		return ENXIO;
 
 	sc->sc_dev = dev;
 	sc->sc_node = node;
 
-	sc->sc_bank0 = (vm_offset_t)pmap_mapdev(reg[0], NVRAM_SIZE * 2);
+	/*
+	 * Find which byte of reg corresponds to the 32-bit physical address.
+	 * We should probably read #address-cells from /chosen instead.
+	 */
+	i = (i/4) - 2;
+
+	sc->sc_bank0 = (vm_offset_t)pmap_mapdev(reg[i], NVRAM_SIZE * 2);
 	sc->sc_bank1 = sc->sc_bank0 + NVRAM_SIZE;
 
 	gen0 = powermac_nvram_check((void *)sc->sc_bank0);

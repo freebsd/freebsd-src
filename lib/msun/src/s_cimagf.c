@@ -27,10 +27,12 @@
  */
 
 #include <complex.h>
+#include "math_private.h"
 
 float
 cimagf(float complex z)
 {
+	const float_complex z1 = { .f = z };
 
-	return (__imag__ z);
+	return (IMAGPART(z1));
 }

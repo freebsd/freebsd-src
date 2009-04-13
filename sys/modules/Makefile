@@ -18,12 +18,12 @@ SUBDIR=	${_3dfx} \
 	aic7xxx \
 	aio \
 	${_amd} \
+	${_amdtemp} \
 	ale \
 	amr \
 	${_an} \
 	${_aout} \
 	${_apm} \
-	${_ar} \
 	${_arcmsr} \
 	${_arcnet} \
 	${_asmc} \
@@ -137,7 +137,6 @@ SUBDIR=	${_3dfx} \
 	${_ixgb} \
 	jme \
 	joy \
-	${_k8temp} \
 	kbdmux \
 	krpc \
 	le \
@@ -188,6 +187,7 @@ SUBDIR=	${_3dfx} \
 	nfsclient \
 	nfslockd \
 	nfsserver \
+	nfssvc \
 	nge \
 	nmdm \
 	${_nsp} \
@@ -219,7 +219,6 @@ SUBDIR=	${_3dfx} \
 	puc \
 	ral \
 	${_random} \
-	${_ray} \
 	rc4 \
 	${_rdma} \
 	re \
@@ -244,7 +243,6 @@ SUBDIR=	${_3dfx} \
 	${_speaker} \
 	${_splash} \
 	${_sppp} \
-	${_sr} \
 	ste \
 	${_stg} \
 	stge \
@@ -332,7 +330,6 @@ _amd=		amd
 _an=		an
 _aout=		aout
 _apm=		apm
-_ar=		ar
 _arcnet=	arcnet
 _bktr=		bktr
 _cardbus=	cardbus
@@ -385,7 +382,6 @@ _opensolaris=	opensolaris
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pst=		pst
-_ray=		ray
 _rdma=		rdma
 _safe=		safe
 _sbni=		sbni
@@ -395,7 +391,6 @@ _sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
-_sr=		sr
 _stg=		stg
 _streams=	streams
 _svr4=		svr4
@@ -409,6 +404,7 @@ _zfs=		zfs
 _aac=		aac
 _acpi=		acpi
 _ahb=		ahb
+_amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _asr=		asr
@@ -435,7 +431,6 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
-_k8temp=	k8temp
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
@@ -464,6 +459,7 @@ _aac=		aac
 _acpi=		acpi
 _agp=		agp
 _an=		an
+_amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _cardbus=	cardbus
@@ -502,7 +498,6 @@ _ipwfw=		ipwfw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
-_k8temp=	k8temp
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -587,6 +582,9 @@ _auxio=		auxio
 _em=		em
 _i2c=		i2c
 _igb=		igb
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_opensolaris=	opensolaris
+.endif
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs

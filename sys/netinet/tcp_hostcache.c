@@ -341,7 +341,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 		TAILQ_REMOVE(&hc_head->hch_bucket, hc_entry, rmx_q);
 		V_tcp_hostcache.hashbase[hash].hch_length--;
 		V_tcp_hostcache.cache_count--;
-		V_tcpstat.tcps_hc_bucketoverflow++;
+		TCPSTAT_INC(tcps_hc_bucketoverflow);
 #if 0
 		uma_zfree(V_tcp_hostcache.zone, hc_entry);
 #endif
@@ -373,7 +373,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 	TAILQ_INSERT_HEAD(&hc_head->hch_bucket, hc_entry, rmx_q);
 	V_tcp_hostcache.hashbase[hash].hch_length++;
 	V_tcp_hostcache.cache_count++;
-	V_tcpstat.tcps_hc_added++;
+	TCPSTAT_INC(tcps_hc_added);
 
 	return hc_entry;
 }
@@ -508,7 +508,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		else
 			hc_entry->rmx_rtt =
 			    (hc_entry->rmx_rtt + hcml->rmx_rtt) / 2;
-		V_tcpstat.tcps_cachedrtt++;
+		TCPSTAT_INC(tcps_cachedrtt);
 	}
 	if (hcml->rmx_rttvar != 0) {
 	        if (hc_entry->rmx_rttvar == 0)
@@ -516,7 +516,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		else
 			hc_entry->rmx_rttvar =
 			    (hc_entry->rmx_rttvar + hcml->rmx_rttvar) / 2;
-		V_tcpstat.tcps_cachedrttvar++;
+		TCPSTAT_INC(tcps_cachedrttvar);
 	}
 	if (hcml->rmx_ssthresh != 0) {
 		if (hc_entry->rmx_ssthresh == 0)
@@ -524,7 +524,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		else
 			hc_entry->rmx_ssthresh =
 			    (hc_entry->rmx_ssthresh + hcml->rmx_ssthresh) / 2;
-		V_tcpstat.tcps_cachedssthresh++;
+		TCPSTAT_INC(tcps_cachedssthresh);
 	}
 	if (hcml->rmx_bandwidth != 0) {
 		if (hc_entry->rmx_bandwidth == 0)
@@ -532,7 +532,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		else
 			hc_entry->rmx_bandwidth =
 			    (hc_entry->rmx_bandwidth + hcml->rmx_bandwidth) / 2;
-		/* V_tcpstat.tcps_cachedbandwidth++; */
+		/* TCPSTAT_INC(tcps_cachedbandwidth); */
 	}
 	if (hcml->rmx_cwnd != 0) {
 		if (hc_entry->rmx_cwnd == 0)
@@ -540,7 +540,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		else
 			hc_entry->rmx_cwnd =
 			    (hc_entry->rmx_cwnd + hcml->rmx_cwnd) / 2;
-		/* V_tcpstat.tcps_cachedcwnd++; */
+		/* TCPSTAT_INC(tcps_cachedcwnd); */
 	}
 	if (hcml->rmx_sendpipe != 0) {
 		if (hc_entry->rmx_sendpipe == 0)
@@ -548,7 +548,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		else
 			hc_entry->rmx_sendpipe =
 			    (hc_entry->rmx_sendpipe + hcml->rmx_sendpipe) /2;
-		/* V_tcpstat.tcps_cachedsendpipe++; */
+		/* TCPSTAT_INC(tcps_cachedsendpipe); */
 	}
 	if (hcml->rmx_recvpipe != 0) {
 		if (hc_entry->rmx_recvpipe == 0)
@@ -556,7 +556,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		else
 			hc_entry->rmx_recvpipe =
 			    (hc_entry->rmx_recvpipe + hcml->rmx_recvpipe) /2;
-		/* V_tcpstat.tcps_cachedrecvpipe++; */
+		/* TCPSTAT_INC(tcps_cachedrecvpipe); */
 	}
 
 	TAILQ_REMOVE(&hc_entry->rmx_head->hch_bucket, hc_entry, rmx_q);

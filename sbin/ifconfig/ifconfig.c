@@ -441,22 +441,23 @@ static const struct cmd setifdstaddr_cmd =
 	DEF_CMD("ifdstaddr", 0, setifdstaddr);
 
 static int
-ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *afp)
+ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp)
 {
-	const struct afswtch *nafp;
+	const struct afswtch *afp, *nafp;
 	const struct cmd *p;
 	struct callback *cb;
 	int s;
 
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
+	afp = uafp != NULL ? uafp : af_getbyname("inet");
 top:
-	if (afp == NULL)
-		afp = af_getbyname("inet");
 	ifr.ifr_addr.sa_family =
 		afp->af_af == AF_LINK || afp->af_af == AF_UNSPEC ?
-		AF_INET : afp->af_af;
+		AF_LOCAL : afp->af_af;
 
-	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
+	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0 &&
+	    (uafp != NULL || errno != EPROTONOSUPPORT ||
+	     (s = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0))
 		err(1, "socket(family %u,SOCK_DGRAM", ifr.ifr_addr.sa_family);
 
 	while (argc > 0) {
@@ -803,11 +804,12 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 
 	if (afp == NULL) {
 		allfamilies = 1;
-		afp = af_getbyname("inet");
-	} else
+		ifr.ifr_addr.sa_family = AF_LOCAL;
+	} else {
 		allfamilies = 0;
-
-	ifr.ifr_addr.sa_family = afp->af_af == AF_LINK ? AF_INET : afp->af_af;
+		ifr.ifr_addr.sa_family =
+		    afp->af_af == AF_LINK ? AF_LOCAL : afp->af_af;
+	}
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
 	s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0);

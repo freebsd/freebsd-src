@@ -77,8 +77,9 @@ __ElfType(Auxinfo);
 #define	AT_DCACHEBSIZE	10	/* Data cache block size for the processor. */
 #define	AT_ICACHEBSIZE	11	/* Instruction cache block size for the uP. */
 #define	AT_UCACHEBSIZE	12	/* Cache block size, or `0' if cache not unified. */
+#define	AT_EXECPATH	13	/* Path to the executable. */
 
-#define	AT_COUNT	13	/* Count of defined aux entry types. */
+#define	AT_COUNT	14	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.

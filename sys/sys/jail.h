@@ -7,7 +7,6 @@
  * ----------------------------------------------------------------------------
  *
  * $FreeBSD$
- *
  */
 
 #ifndef _SYS_JAIL_H_
@@ -32,7 +31,7 @@ struct jail {
 	struct in_addr	*ip4;
 	struct in6_addr	*ip6;
 };
-#define	JAIL_API_VERSION 2
+#define	JAIL_API_VERSION	2
 
 /*
  * For all xprison structs, always keep the pr_version an int and
@@ -54,8 +53,8 @@ struct xprison {
 	int		 pr_state;
 	cpusetid_t	 pr_cpusetid;
 	char		 pr_path[MAXPATHLEN];
-	char 		 pr_host[MAXHOSTNAMELEN];
-	char 		 pr_name[MAXHOSTNAMELEN];
+	char		 pr_host[MAXHOSTNAMELEN];
+	char		 pr_name[MAXHOSTNAMELEN];
 	uint32_t	 pr_ip4s;
 	uint32_t	 pr_ip6s;
 #if 0
@@ -128,8 +127,8 @@ struct prison {
 	char		 pr_path[MAXPATHLEN];		/* (c) chroot path */
 	struct cpuset	*pr_cpuset;			/* (p) cpuset */
 	struct vnode	*pr_root;			/* (c) vnode to rdir */
-	char 		 pr_host[MAXHOSTNAMELEN];	/* (p) jail hostname */
-	char 		 pr_name[MAXHOSTNAMELEN];	/* (c) admin jail name */
+	char		 pr_host[MAXHOSTNAMELEN];	/* (p) jail hostname */
+	char		 pr_name[MAXHOSTNAMELEN];	/* (c) admin jail name */
 	void		*pr_linux;			/* (p) linux abi */
 	int		 pr_securelevel;		/* (p) securelevel */
 	struct task	 pr_task;			/* (d) destroy task */

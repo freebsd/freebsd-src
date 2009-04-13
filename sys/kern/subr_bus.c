@@ -532,6 +532,12 @@ devctl_queue_data(char *data)
 	struct dev_event_info *n1 = NULL;
 	struct proc *p;
 
+	/*
+	 * Do not allow empty strings to be queued, as they
+	 * cause devd to exit prematurely.
+	 */
+	if (strlen(data) == 0)
+		return;
 	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
 	if (n1 == NULL)
 		return;
@@ -814,7 +820,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	 */
 	if (parentname && dc && !dc->parent &&
 	    strcmp(classname, parentname) != 0) {
-		dc->parent = devclass_find_internal(parentname, NULL, FALSE);
+		dc->parent = devclass_find_internal(parentname, NULL, TRUE);
 		dc->parent->flags |= DC_HAS_CHILDREN;
 	}
 

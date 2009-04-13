@@ -40,18 +40,17 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include "opt_compat.h"
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/imgact.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
-#include <sys/malloc.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -60,8 +59,8 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
-#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
+#include <compat/linux/linux_emul.h>
 
 struct futex;
 
@@ -275,13 +274,6 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 		FUTEX_SYSTEM_UNLOCK;
 		break;
-
-	case LINUX_FUTEX_FD:
-#ifdef DEBUG
-		printf("linux_sys_futex: unimplemented op %d\n",
-		    args->op);
-#endif
-		return (ENOSYS);
 
 	case LINUX_FUTEX_WAKE_OP:
 		FUTEX_SYSTEM_LOCK;

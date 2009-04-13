@@ -1,5 +1,6 @@
 /*-
- *  Copyright (c) 2004 Lukas Ertl
+ *  Copyright (c) 2004, 2007 Lukas Ertl
+ *  Copyright (c) 2007, 2009 Ulf Lilleengen
  *  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -41,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
-#include <geom/vinum/geom_vinum_share.h>
+#include <geom/vinum/geom_vinum_raid5.h>
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, vinum, CTLFLAG_RW, 0, "GEOM_VINUM stuff");
@@ -50,14 +52,18 @@ TUNABLE_INT("kern.geom.vinum.debug", &g_vinum_debug);
 SYSCTL_UINT(_kern_geom_vinum, OID_AUTO, debug, CTLFLAG_RW, &g_vinum_debug, 0,
     "Debug level");
 
-int	gv_create(struct g_geom *, struct gctl_req *);
+static int	gv_create(struct g_geom *, struct gctl_req *);
+static void	gv_attach(struct gv_softc *, struct gctl_req *);
+static void	gv_detach(struct gv_softc *, struct gctl_req *);
+static void	gv_parityop(struct gv_softc *, struct gctl_req *);
+
 
 static void
 gv_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct gv_softc *sc;
-	int error;
+	struct gv_drive *d;
 	
 	g_topology_assert();
 
@@ -65,59 +71,90 @@ gv_orphan(struct g_consumer *cp)
 	gp = cp->geom;
 	KASSERT(gp != NULL, ("gv_orphan: null gp"));
 	sc = gp->softc;
+	KASSERT(sc != NULL, ("gv_orphan: null sc"));
+	d = cp->private;
+	KASSERT(d != NULL, ("gv_orphan: null d"));
 
 	g_trace(G_T_TOPOLOGY, "gv_orphan(%s)", gp->name);
 
-	if (cp->acr != 0 || cp->acw != 0 || cp->ace != 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-	error = cp->provider->error;
-	if (error == 0)
-		error = ENXIO;
-	g_detach(cp);
-	g_destroy_consumer(cp);
-	if (!LIST_EMPTY(&gp->consumer))
-		return;
-	g_free(sc);
-	g_wither_geom(gp, error);
+	gv_post_event(sc, GV_EVENT_DRIVE_LOST, d, NULL, 0, 0);
 }
 
-static void
+void
 gv_start(struct bio *bp)
 {
-	struct bio *bp2;
 	struct g_geom *gp;
+	struct gv_softc *sc;
 	
 	gp = bp->bio_to->geom;
-	switch(bp->bio_cmd) {
+	sc = gp->softc;
+
+	switch (bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		bp2 = g_clone_bio(bp);
-		if (bp2 == NULL)
-			g_io_deliver(bp, ENOMEM);
-		else {
-			bp2->bio_done = g_std_done;
-			g_io_request(bp2, LIST_FIRST(&gp->consumer));
-		}
-		return;
+		break;
+	case BIO_GETATTR:
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
+
+	mtx_lock(&sc->queue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	wakeup(sc);
+	mtx_unlock(&sc->queue_mtx);
 }
 
-static int
+void
+gv_done(struct bio *bp)
+{
+	struct g_geom *gp;
+	struct gv_softc *sc;
+	
+	KASSERT(bp != NULL, ("NULL bp"));
+
+	gp = bp->bio_from->geom;
+	sc = gp->softc;
+	bp->bio_cflags |= GV_BIO_DONE;
+
+	mtx_lock(&sc->queue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	wakeup(sc);
+	mtx_unlock(&sc->queue_mtx);
+}
+
+int
 gv_access(struct g_provider *pp, int dr, int dw, int de)
 {
 	struct g_geom *gp;
-	struct g_consumer *cp;
+	struct gv_softc *sc;
+	struct gv_drive *d, *d2;
 	int error;
 	
-	gp = pp->geom;
 	error = ENXIO;
-	cp = LIST_FIRST(&gp->consumer);
-	error = g_access(cp, dr, dw, de);
-	return (error);
+	gp = pp->geom;
+	sc = gp->softc;
+	if (dw > 0 && dr == 0)
+		dr = 1;
+	else if (dw < 0 && dr == 0)
+		dr = -1;
+	LIST_FOREACH(d, &sc->drives, drive) {
+		if (d->consumer == NULL)
+			continue;
+		error = g_access(d->consumer, dr, dw, de);
+		if (error) {
+			LIST_FOREACH(d2, &sc->drives, drive) {
+				if (d == d2)
+					break;
+				g_access(d2->consumer, -dr, -dw, -de);
+			}
+			G_VINUM_DEBUG(0, "g_access '%s' failed: %d", d->name,
+			    error);
+			return (error);
+		}
+	}
+	return (0);
 }
 
 static void
@@ -136,14 +173,132 @@ gv_init(struct g_class *mp)
 	gp->softc = g_malloc(sizeof(struct gv_softc), M_WAITOK | M_ZERO);
 	sc = gp->softc;
 	sc->geom = gp;
+	sc->bqueue = g_malloc(sizeof(struct bio_queue_head), M_WAITOK | M_ZERO);
+	bioq_init(sc->bqueue);
 	LIST_INIT(&sc->drives);
 	LIST_INIT(&sc->subdisks);
 	LIST_INIT(&sc->plexes);
 	LIST_INIT(&sc->volumes);
+	TAILQ_INIT(&sc->equeue);
+	mtx_init(&sc->config_mtx, "gv_config", NULL, MTX_DEF);
+	mtx_init(&sc->queue_mtx, "gv_queue", NULL, MTX_DEF);
+	kproc_create(gv_worker, sc, NULL, 0, 0, "gv_worker");
+}
+
+static int
+gv_unload(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
+{
+	struct gv_softc *sc;
+
+	g_trace(G_T_TOPOLOGY, "gv_unload(%p)", mp);
+
+	g_topology_assert();
+	sc = gp->softc;
+
+	if (sc != NULL) {
+		gv_post_event(sc, GV_EVENT_THREAD_EXIT, NULL, NULL, 0, 0);
+		gp->softc = NULL;
+		g_wither_geom(gp, ENXIO);
+		return (EAGAIN);
+	}
+
+	return (0);
+}
+
+/* Handle userland request of attaching object. */
+static void
+gv_attach(struct gv_softc *sc, struct gctl_req *req)
+{
+	struct gv_volume *v;
+	struct gv_plex *p;
+	struct gv_sd *s;
+	off_t *offset;
+	int *rename, type_child, type_parent;
+	char *child, *parent;
+
+	child = gctl_get_param(req, "child", NULL);
+	if (child == NULL) {
+		gctl_error(req, "no child given");
+		return;
+	}
+	parent = gctl_get_param(req, "parent", NULL);
+	if (parent == NULL) {
+		gctl_error(req, "no parent given");
+		return;
+	}
+	offset = gctl_get_paraml(req, "offset", sizeof(*offset));
+	if (offset == NULL) {
+		gctl_error(req, "no offset given");
+		return;
+	}
+	rename = gctl_get_paraml(req, "rename", sizeof(*rename));
+	if (rename == NULL) {
+		gctl_error(req, "no rename flag given");
+		return;
+	}
+
+	type_child = gv_object_type(sc, child);
+	type_parent = gv_object_type(sc, parent);
+
+	switch (type_child) {
+	case GV_TYPE_PLEX:
+		if (type_parent != GV_TYPE_VOL) {
+			gctl_error(req, "no such volume to attach to");
+			return;
+		}
+		v = gv_find_vol(sc, parent);
+		p = gv_find_plex(sc, child);
+		gv_post_event(sc, GV_EVENT_ATTACH_PLEX, p, v, *offset, *rename);
+		break;
+	case GV_TYPE_SD:
+		if (type_parent != GV_TYPE_PLEX) {
+			gctl_error(req, "no such plex to attach to");
+			return;
+		}
+		p = gv_find_plex(sc, parent);
+		s = gv_find_sd(sc, child);
+		gv_post_event(sc, GV_EVENT_ATTACH_SD, s, p, *offset, *rename);
+		break;
+	default:
+		gctl_error(req, "invalid child type");
+		break;
+	}
+}
+
+/* Handle userland request of detaching object. */
+static void
+gv_detach(struct gv_softc *sc, struct gctl_req *req)
+{
+	struct gv_plex *p;
+	struct gv_sd *s;
+	int *flags, type;
+	char *object;
+
+	object = gctl_get_param(req, "object", NULL);
+	if (object == NULL) {
+		gctl_error(req, "no argument given");
+		return;
+	}
+
+	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
+	type = gv_object_type(sc, object);
+	switch (type) {
+	case GV_TYPE_PLEX:
+		p = gv_find_plex(sc, object);
+		gv_post_event(sc, GV_EVENT_DETACH_PLEX, p, NULL, *flags, 0);
+		break;
+	case GV_TYPE_SD:
+		s = gv_find_sd(sc, object);
+		gv_post_event(sc, GV_EVENT_DETACH_SD, s, NULL, *flags, 0);
+		break;
+	default:
+		gctl_error(req, "invalid object type");
+		break;
+	}
 }
 
 /* Handle userland requests for creating new objects. */
-int
+static int
 gv_create(struct g_geom *gp, struct gctl_req *req)
 {
 	struct gv_softc *sc;
@@ -151,10 +306,9 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 	struct gv_plex *p, *p2;
 	struct gv_sd *s, *s2;
 	struct gv_volume *v, *v2;
-	struct g_consumer *cp;
 	struct g_provider *pp;
-	int error, i, *drives, *plexes, *subdisks, *volumes;
-	char buf[20], errstr[ERRBUFSIZ];
+	int error, i, *drives, *flags, *plexes, *subdisks, *volumes;
+	char buf[20];
 
 	g_topology_assert();
 
@@ -170,6 +324,11 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 		gctl_error(req, "number of objects not given");
 		return (-1);
 	}
+	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
+	if (flags == NULL) {
+		gctl_error(req, "flags not given");
+		return (-1);
+	}
 
 	/* First, handle drive definitions ... */
 	for (i = 0; i < *drives; i++) {
@@ -179,33 +338,33 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 			gctl_error(req, "no drive definition given");
 			return (-1);
 		}
-		d = gv_find_drive(sc, d2->name);
-		if (d != NULL) {
-			gctl_error(req, "drive '%s' is already known",
-			    d->name);
-			continue;
+		/*
+		 * Make sure that the device specified in the drive config is
+		 * an active GEOM provider.
+		 */
+		pp = g_provider_by_name(d2->device);
+		if (pp == NULL) {
+			gctl_error(req, "%s: device not found", d2->device);
+			goto error;
 		}
+		if (gv_find_drive(sc, d2->name) != NULL) {
+			/* Ignore error. */
+			if (*flags & GV_FLAG_F)
+				continue;
+			gctl_error(req, "drive '%s' already exists", d2->name);
+			goto error;
+		}
+		if (gv_find_drive_device(sc, d2->device) != NULL) {
+			gctl_error(req, "device '%s' already configured in "
+			    "gvinum", d2->device);
+			goto error;
+		}
+
 
 		d = g_malloc(sizeof(*d), M_WAITOK | M_ZERO);
 		bcopy(d2, d, sizeof(*d));
 
-		/*
-		 * Make sure that the provider specified in the drive
-		 * specification is an active GEOM provider.
-		 */
-		pp = g_provider_by_name(d->device);
-		if (pp == NULL) {
-			gctl_error(req, "%s: drive not found", d->device);
-			g_free(d);
-			return (-1);
-		}
-		d->size = pp->mediasize - GV_DATA_START;
-		d->avail = d->size;
-
-		gv_config_new_drive(d);
-
-		d->flags |= GV_DRIVE_NEWBORN;
-		LIST_INSERT_HEAD(&sc->drives, d, drive);
+		gv_post_event(sc, GV_EVENT_CREATE_DRIVE, d, NULL, 0, 0);
 	}
 
 	/* ... then volume definitions ... */
@@ -217,19 +376,18 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 			gctl_error(req, "no volume definition given");
 			return (-1);
 		}
-		v = gv_find_vol(sc, v2->name);
-		if (v != NULL) {
-			gctl_error(req, "volume '%s' is already known",
-			    v->name);
-			return (-1);
+		if (gv_find_vol(sc, v2->name) != NULL) {
+			/* Ignore error. */
+			if (*flags & GV_FLAG_F)
+				continue;
+			gctl_error(req, "volume '%s' already exists", v2->name);
+			goto error;
 		}
 
 		v = g_malloc(sizeof(*v), M_WAITOK | M_ZERO);
 		bcopy(v2, v, sizeof(*v));
 
-		v->vinumconf = sc;
-		LIST_INIT(&v->plexes);
-		LIST_INSERT_HEAD(&sc->volumes, v, volume);
+		gv_post_event(sc, GV_EVENT_CREATE_VOLUME, v, NULL, 0, 0);
 	}
 
 	/* ... then plex definitions ... */
@@ -241,35 +399,21 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 			gctl_error(req, "no plex definition given");
 			return (-1);
 		}
-		p = gv_find_plex(sc, p2->name);
-		if (p != NULL) {
-			gctl_error(req, "plex '%s' is already known", p->name);
-			return (-1);
+		if (gv_find_plex(sc, p2->name) != NULL) {
+			/* Ignore error. */
+			if (*flags & GV_FLAG_F)
+				continue;
+			gctl_error(req, "plex '%s' already exists", p2->name);
+			goto error;
 		}
 
 		p = g_malloc(sizeof(*p), M_WAITOK | M_ZERO);
 		bcopy(p2, p, sizeof(*p));
 
-		/* Find the volume this plex should be attached to. */
-		v = gv_find_vol(sc, p->volume);
-		if (v == NULL) {
-			gctl_error(req, "volume '%s' not found", p->volume);
-			g_free(p);
-			continue;
-		}
-		if (v->plexcount)
-			p->flags |= GV_PLEX_ADDED;
-		p->vol_sc = v;
-		v->plexcount++;
-		LIST_INSERT_HEAD(&v->plexes, p, in_volume);
-
-		p->vinumconf = sc;
-		p->flags |= GV_PLEX_NEWBORN;
-		LIST_INIT(&p->subdisks);
-		LIST_INSERT_HEAD(&sc->plexes, p, plex);
+		gv_post_event(sc, GV_EVENT_CREATE_PLEX, p, NULL, 0, 0);
 	}
 
-	/* ... and finally, subdisk definitions. */
+	/* ... and, finally, subdisk definitions. */
 	for (i = 0; i < *subdisks; i++) {
 		error = 0;
 		snprintf(buf, sizeof(buf), "sd%d", i);
@@ -278,122 +422,23 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 			gctl_error(req, "no subdisk definition given");
 			return (-1);
 		}
-		s = gv_find_sd(sc, s2->name);
-		if (s != NULL) {
-			gctl_error(req, "subdisk '%s' is already known",
-			    s->name);
-			return (-1);
+		if (gv_find_sd(sc, s2->name) != NULL) {
+			/* Ignore error. */
+			if (*flags & GV_FLAG_F)
+				continue;
+			gctl_error(req, "sd '%s' already exists", s2->name);
+			goto error;
 		}
 
 		s = g_malloc(sizeof(*s), M_WAITOK | M_ZERO);
 		bcopy(s2, s, sizeof(*s));
 
-		/* Find the drive where this subdisk should be put on. */
-		d = gv_find_drive(sc, s->drive);
-
-		/* drive not found - XXX */
-		if (d == NULL) {
-			gctl_error(req, "drive '%s' not found", s->drive);
-			g_free(s);
-			continue;
-		}
-
-		/* Find the plex where this subdisk belongs to. */
-		p = gv_find_plex(sc, s->plex);
-
-		/* plex not found - XXX */
-		if (p == NULL) {
-			gctl_error(req, "plex '%s' not found\n", s->plex);
-			g_free(s);
-			continue;
-		}
-
-		/*
-		 * First we give the subdisk to the drive, to handle autosized
-		 * values ...
-		 */
-		error = gv_sd_to_drive(sc, d, s, errstr, sizeof(errstr));
-		if (error) {
-			gctl_error(req, errstr);
-			g_free(s);
-			continue;
-		}
-
-		/*
-		 * Then, we give the subdisk to the plex; we check if the
-		 * given values are correct and maybe adjust them.
-		 */
-		error = gv_sd_to_plex(p, s, 1);
-		if (error) {
-			gctl_error(req, "GEOM_VINUM: couldn't give sd '%s' "
-			    "to plex '%s'\n", s->name, p->name);
-			if (s->drive_sc)
-				LIST_REMOVE(s, from_drive);
-			gv_free_sd(s);
-			g_free(s);
-			/*
-			 * If this subdisk can't be created, we won't create
-			 * the attached plex either, if it is also a new one.
-			 */
-			if (!(p->flags & GV_PLEX_NEWBORN))
-				continue;
-			LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2) {
-				if (s->drive_sc)
-					LIST_REMOVE(s, from_drive);
-				p->sdcount--;
-				LIST_REMOVE(s, in_plex);
-				LIST_REMOVE(s, sd);
-				gv_free_sd(s);
-				g_free(s);
-			}
-			if (p->vol_sc != NULL) {
-				LIST_REMOVE(p, in_volume);
-				p->vol_sc->plexcount--;
-			}
-			LIST_REMOVE(p, plex);
-			g_free(p);
-			continue;
-		}
-		s->flags |= GV_SD_NEWBORN;
-
-		s->vinumconf = sc;
-		LIST_INSERT_HEAD(&sc->subdisks, s, sd);
+		gv_post_event(sc, GV_EVENT_CREATE_SD, s, NULL, 0, 0);
 	}
 
-	LIST_FOREACH(s, &sc->subdisks, sd)
-		gv_update_sd_state(s);
-	LIST_FOREACH(p, &sc->plexes, plex)
-		gv_update_plex_config(p);
-	LIST_FOREACH(v, &sc->volumes, volume)
-		gv_update_vol_state(v);
-
-	/*
-	 * Write out the configuration to each drive.  If the drive doesn't
-	 * have a valid geom_slice geom yet, attach it temporarily to our VINUM
-	 * geom.
-	 */
-	LIST_FOREACH(d, &sc->drives, drive) {
-		if (d->geom == NULL) {
-			/*
-			 * XXX if the provider disapears before we get a chance
-			 * to write the config out to the drive, should this
-			 * be handled any differently?
-			 */
-			pp = g_provider_by_name(d->device);
-			if (pp == NULL) {
-				G_VINUM_DEBUG(0, "%s: drive disappeared?",
-				    d->device);
-				continue;
-			}
-			cp = g_new_consumer(gp);
-			g_attach(cp, pp);
-			gv_save_config(cp, d, sc);
-			g_detach(cp);
-			g_destroy_consumer(cp);
-		} else
-			gv_save_config(NULL, d, sc);
-		d->flags &= ~GV_DRIVE_NEWBORN;
-	}
+error:
+	gv_post_event(sc, GV_EVENT_SETUP_OBJECTS, sc, NULL, 0, 0);
+	gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 
 	return (0);
 }
@@ -411,13 +456,21 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 	gp = LIST_FIRST(&mp->geom);
 	sc = gp->softc;
 
-	if (!strcmp(verb, "list")) {
+	if (!strcmp(verb, "attach")) {
+		gv_attach(sc, req);
+
+	} else if (!strcmp(verb, "concat")) {
+		gv_concat(gp, req);
+
+	} else if (!strcmp(verb, "detach")) {
+		gv_detach(sc, req);
+
+	} else if (!strcmp(verb, "list")) {
 		gv_list(gp, req);
 
 	/* Save our configuration back to disk. */
 	} else if (!strcmp(verb, "saveconfig")) {
-
-		gv_save_config_all(sc);
+		gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 
 	/* Return configuration in string form. */
 	} else if (!strcmp(verb, "getconfig")) {
@@ -435,11 +488,18 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 	} else if (!strcmp(verb, "create")) {
 		gv_create(gp, req);
 
+	} else if (!strcmp(verb, "mirror")) {
+		gv_mirror(gp, req);
+
 	} else if (!strcmp(verb, "move")) {
 		gv_move(gp, req);
 
-	} else if (!strcmp(verb, "parityop")) {
-		gv_parityop(gp, req);
+	} else if (!strcmp(verb, "raid5")) {
+		gv_raid5(gp, req);
+
+	} else if (!strcmp(verb, "rebuildparity") ||
+	    !strcmp(verb, "checkparity")) {
+		gv_parityop(sc, req);
 
 	} else if (!strcmp(verb, "remove")) {
 		gv_remove(gp, req);
@@ -448,100 +508,509 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 		gv_rename(gp, req);
 	
 	} else if (!strcmp(verb, "resetconfig")) {
-		gv_resetconfig(gp, req);
+		gv_post_event(sc, GV_EVENT_RESET_CONFIG, sc, NULL, 0, 0);
 
 	} else if (!strcmp(verb, "start")) {
 		gv_start_obj(gp, req);
 
+	} else if (!strcmp(verb, "stripe")) {
+		gv_stripe(gp, req);
+
 	} else if (!strcmp(verb, "setstate")) {
 		gv_setstate(gp, req);
-
 	} else
 		gctl_error(req, "Unknown verb parameter");
 }
 
-#if 0
-static int
-gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
+static void
+gv_parityop(struct gv_softc *sc, struct gctl_req *req)
 {
-	struct g_geom *gp2;
+	struct gv_plex *p;
+	int *flags, *rebuild, type;
+	char *plex;
+
+	plex = gctl_get_param(req, "plex", NULL);
+	if (plex == NULL) {
+		gctl_error(req, "no plex given");
+		return;
+	}
+
+	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
+	if (flags == NULL) {
+		gctl_error(req, "no flags given");
+		return;
+	}
+
+	rebuild = gctl_get_paraml(req, "rebuild", sizeof(*rebuild));
+	if (rebuild == NULL) {
+		gctl_error(req, "no operation given");
+		return;
+	}
+
+	type = gv_object_type(sc, plex);
+	if (type != GV_TYPE_PLEX) {
+		gctl_error(req, "'%s' is not a plex", plex);
+		return;
+	}
+	p = gv_find_plex(sc, plex);
+
+	if (p->state != GV_PLEX_UP) {
+		gctl_error(req, "plex %s is not completely accessible",
+		    p->name);
+		return;
+	}
+
+	if (p->org != GV_PLEX_RAID5) {
+		gctl_error(req, "plex %s is not a RAID5 plex", p->name);
+		return;
+	}
+
+	/* Put it in the event queue. */
+	/* XXX: The state of the plex might have changed when this event is
+	 * picked up ... We should perhaps check this afterwards. */
+	if (*rebuild)
+		gv_post_event(sc, GV_EVENT_PARITY_REBUILD, p, NULL, 0, 0);
+	else
+		gv_post_event(sc, GV_EVENT_PARITY_CHECK, p, NULL, 0, 0);
+}
+
+
+static struct g_geom *
+gv_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
+{
+	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct gv_softc *sc;
-	struct gv_drive *d, *d2;
-	struct gv_plex *p, *p2;
-	struct gv_sd *s, *s2;
-	struct gv_volume *v, *v2;
-	struct gv_freelist *fl, *fl2;
+	struct gv_hdr vhdr;
+	int error;
 
-	g_trace(G_T_TOPOLOGY, "gv_destroy_geom: %s", gp->name);
-	g_topology_assert();
+ 	g_topology_assert();
+	g_trace(G_T_TOPOLOGY, "gv_taste(%s, %s)", mp->name, pp->name);
 
-	KASSERT(gp != NULL, ("gv_destroy_geom: null gp"));
-	KASSERT(gp->softc != NULL, ("gv_destroy_geom: null sc"));
-
+	gp = LIST_FIRST(&mp->geom);
+	if (gp == NULL) {
+		G_VINUM_DEBUG(0, "error: tasting, but not initialized?");
+		return (NULL);
+	}
 	sc = gp->softc;
 
-	/*
-	 * Check if any of our drives is still open; if so, refuse destruction.
-	 */
-	LIST_FOREACH(d, &sc->drives, drive) {
-		gp2 = d->geom;
-		cp = LIST_FIRST(&gp2->consumer);
-		if (cp != NULL)
-			g_access(cp, -1, -1, -1);
-		if (gv_is_open(gp2))
-			return (EBUSY);
+	cp = g_new_consumer(gp);
+	if (g_attach(cp, pp) != 0) {
+		g_destroy_consumer(cp);
+		return (NULL);
 	}
-
-	/* Clean up and deallocate what we allocated. */
-	LIST_FOREACH_SAFE(d, &sc->drives, drive, d2) {
-		LIST_REMOVE(d, drive);
-		g_free(d->hdr);
-		d->hdr = NULL;
-		LIST_FOREACH_SAFE(fl, &d->freelist, freelist, fl2) {
-			d->freelist_entries--;
-			LIST_REMOVE(fl, freelist);
-			g_free(fl);
-			fl = NULL;
-		}
-		d->geom->softc = NULL;
-		g_free(d);
+	if (g_access(cp, 1, 0, 0) != 0) {
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		return (NULL);
 	}
+	g_topology_unlock();
 
-	LIST_FOREACH_SAFE(s, &sc->subdisks, sd, s2) {
-		LIST_REMOVE(s, sd);
-		s->drive_sc = NULL;
-		s->plex_sc = NULL;
-		s->provider = NULL;
-		s->consumer = NULL;
-		g_free(s);
-	}
+	error = gv_read_header(cp, &vhdr);
 
-	LIST_FOREACH_SAFE(p, &sc->plexes, plex, p2) {
-		LIST_REMOVE(p, plex);
-		gv_kill_thread(p);
-		p->vol_sc = NULL;
-		p->geom->softc = NULL;
-		p->provider = NULL;
-		p->consumer = NULL;
-		if (p->org == GV_PLEX_RAID5) {
-			mtx_destroy(&p->worklist_mtx);
-		}
-		g_free(p);
-	}
+	g_topology_lock();
+	g_access(cp, -1, 0, 0);
+	g_detach(cp);
+	g_destroy_consumer(cp);
 
-	LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2) {
-		LIST_REMOVE(v, volume);
-		v->geom->softc = NULL;
-		g_free(v);
-	}
+	/* Check if what we've been given is a valid vinum drive. */
+	if (!error)
+		gv_post_event(sc, GV_EVENT_DRIVE_TASTED, pp, NULL, 0, 0);
 
-	gp->softc = NULL;
-	g_free(sc);
-	g_wither_geom(gp, ENXIO);
-	return (0);
+	return (NULL);
 }
-#endif
+
+void
+gv_worker(void *arg)
+{
+	struct g_provider *pp;
+	struct gv_softc *sc;
+	struct gv_event *ev;
+	struct gv_volume *v;
+	struct gv_plex *p;
+	struct gv_sd *s;
+	struct gv_drive *d;
+	struct bio *bp;
+	int newstate, flags, err, rename;
+	char *newname;
+	off_t offset;
+
+	sc = arg;
+	KASSERT(sc != NULL, ("NULL sc"));
+	mtx_lock(&sc->queue_mtx);
+	for (;;) {
+		/* Look at the events first... */
+		ev = TAILQ_FIRST(&sc->equeue);
+		if (ev != NULL) {
+			TAILQ_REMOVE(&sc->equeue, ev, events);
+			mtx_unlock(&sc->queue_mtx);
+
+			switch (ev->type) {
+			case GV_EVENT_DRIVE_TASTED:
+				G_VINUM_DEBUG(2, "event 'drive tasted'");
+				pp = ev->arg1;
+				gv_drive_tasted(sc, pp);
+				break;
+
+			case GV_EVENT_DRIVE_LOST:
+				G_VINUM_DEBUG(2, "event 'drive lost'");
+				d = ev->arg1;
+				gv_drive_lost(sc, d);
+				break;
+
+			case GV_EVENT_CREATE_DRIVE:
+				G_VINUM_DEBUG(2, "event 'create drive'");
+				d = ev->arg1;
+				gv_create_drive(sc, d);
+				break;
+
+			case GV_EVENT_CREATE_VOLUME:
+				G_VINUM_DEBUG(2, "event 'create volume'");
+				v = ev->arg1;
+				gv_create_volume(sc, v);
+				break;
+
+			case GV_EVENT_CREATE_PLEX:
+				G_VINUM_DEBUG(2, "event 'create plex'");
+				p = ev->arg1;
+				gv_create_plex(sc, p);
+				break;
+
+			case GV_EVENT_CREATE_SD:
+				G_VINUM_DEBUG(2, "event 'create sd'");
+				s = ev->arg1;
+				gv_create_sd(sc, s);
+				break;
+
+			case GV_EVENT_RM_DRIVE:
+				G_VINUM_DEBUG(2, "event 'remove drive'");
+				d = ev->arg1;
+				flags = ev->arg3;
+				gv_rm_drive(sc, d, flags);
+				/*gv_setup_objects(sc);*/
+				break;
+
+			case GV_EVENT_RM_VOLUME:
+				G_VINUM_DEBUG(2, "event 'remove volume'");
+				v = ev->arg1;
+				gv_rm_vol(sc, v);
+				/*gv_setup_objects(sc);*/
+				break;
+
+			case GV_EVENT_RM_PLEX:
+				G_VINUM_DEBUG(2, "event 'remove plex'");
+				p = ev->arg1;
+				gv_rm_plex(sc, p);
+				/*gv_setup_objects(sc);*/
+				break;
+
+			case GV_EVENT_RM_SD:
+				G_VINUM_DEBUG(2, "event 'remove sd'");
+				s = ev->arg1;
+				gv_rm_sd(sc, s);
+				/*gv_setup_objects(sc);*/
+				break;
+
+			case GV_EVENT_SAVE_CONFIG:
+				G_VINUM_DEBUG(2, "event 'save config'");
+				gv_save_config(sc);
+				break;
+
+			case GV_EVENT_SET_SD_STATE:
+				G_VINUM_DEBUG(2, "event 'setstate sd'");
+				s = ev->arg1;
+				newstate = ev->arg3;
+				flags = ev->arg4;
+				err = gv_set_sd_state(s, newstate, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error setting subdisk"
+					    " state: error code %d", err);
+				break;
+
+			case GV_EVENT_SET_DRIVE_STATE:
+				G_VINUM_DEBUG(2, "event 'setstate drive'");
+				d = ev->arg1;
+				newstate = ev->arg3;
+				flags = ev->arg4;
+				err = gv_set_drive_state(d, newstate, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error setting drive "
+					    "state: error code %d", err);
+				break;
+
+			case GV_EVENT_SET_VOL_STATE:
+				G_VINUM_DEBUG(2, "event 'setstate volume'");
+				v = ev->arg1;
+				newstate = ev->arg3;
+				flags = ev->arg4;
+				err = gv_set_vol_state(v, newstate, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error setting volume "
+					    "state: error code %d", err);
+				break;
+
+			case GV_EVENT_SET_PLEX_STATE:
+				G_VINUM_DEBUG(2, "event 'setstate plex'");
+				p = ev->arg1;
+				newstate = ev->arg3;
+				flags = ev->arg4;
+				err = gv_set_plex_state(p, newstate, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error setting plex "
+					    "state: error code %d", err);
+				break;
+
+			case GV_EVENT_SETUP_OBJECTS:
+				G_VINUM_DEBUG(2, "event 'setup objects'");
+				gv_setup_objects(sc);
+				break;
+
+			case GV_EVENT_RESET_CONFIG:
+				G_VINUM_DEBUG(2, "event 'resetconfig'");
+				err = gv_resetconfig(sc);
+				if (err)
+					G_VINUM_DEBUG(0, "error resetting "
+					    "config: error code %d", err);
+				break;
+
+			case GV_EVENT_PARITY_REBUILD:
+				/*
+				 * Start the rebuild. The gv_plex_done will
+				 * handle issuing of the remaining rebuild bio's
+				 * until it's finished. 
+				 */
+				G_VINUM_DEBUG(2, "event 'rebuild'");
+				p = ev->arg1;
+				if (p->state != GV_PLEX_UP) {
+					G_VINUM_DEBUG(0, "plex %s is not "
+					    "completely accessible", p->name);
+					break;
+				}
+				p->synced = 0;
+				g_topology_assert_not();
+				g_topology_lock();
+				err = gv_access(p->vol_sc->provider, 1, 1, 0);
+				if (err) {
+					G_VINUM_DEBUG(0, "unable to access "
+					    "provider");
+					break;
+				}
+				g_topology_unlock();
+				gv_parity_request(p, GV_BIO_CHECK |
+				    GV_BIO_PARITY, 0);
+				break;
+
+			case GV_EVENT_PARITY_CHECK:
+				/* Start parity check. */
+				G_VINUM_DEBUG(2, "event 'check'");
+				p = ev->arg1;
+				if (p->state != GV_PLEX_UP) {
+					G_VINUM_DEBUG(0, "plex %s is not "
+					    "completely accessible", p->name);
+					break;
+				}
+				p->synced = 0;
+				g_topology_assert_not();
+				g_topology_lock();
+				err = gv_access(p->vol_sc->provider, 1, 1, 0);
+				if (err) {
+					G_VINUM_DEBUG(0, "unable to access "
+					    "provider");
+					break;
+				}
+				g_topology_unlock();
+				gv_parity_request(p, GV_BIO_CHECK, 0);
+				break;
+
+			case GV_EVENT_START_PLEX:
+				G_VINUM_DEBUG(2, "event 'start' plex");
+				p = ev->arg1;
+				gv_start_plex(p);
+				break;
+
+			case GV_EVENT_START_VOLUME:
+				G_VINUM_DEBUG(2, "event 'start' volume");
+				v = ev->arg1;
+				gv_start_vol(v);
+				break;
+
+			case GV_EVENT_ATTACH_PLEX:
+				G_VINUM_DEBUG(2, "event 'attach' plex");
+				p = ev->arg1;
+				v = ev->arg2;
+				rename = ev->arg4;
+				err = gv_attach_plex(p, v, rename);
+				if (err)
+					G_VINUM_DEBUG(0, "error attaching %s to"
+					    " %s: error code %d", p->name,
+					    v->name, err);
+				break;
+
+			case GV_EVENT_ATTACH_SD:
+				G_VINUM_DEBUG(2, "event 'attach' sd");
+				s = ev->arg1;
+				p = ev->arg2;
+				offset = ev->arg3;
+				rename = ev->arg4;
+				err = gv_attach_sd(s, p, offset, rename);
+				if (err)
+					G_VINUM_DEBUG(0, "error attaching %s to"
+					    " %s: error code %d", s->name,
+					    p->name, err);
+				break;
+
+			case GV_EVENT_DETACH_PLEX:
+				G_VINUM_DEBUG(2, "event 'detach' plex");
+				p = ev->arg1;
+				flags = ev->arg3;
+				err = gv_detach_plex(p, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error detaching %s: "
+					    "error code %d", p->name, err);
+				break;
+
+			case GV_EVENT_DETACH_SD:
+				G_VINUM_DEBUG(2, "event 'detach' sd");
+				s = ev->arg1;
+				flags = ev->arg3;
+				err = gv_detach_sd(s, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error detaching %s: "
+					    "error code %d", s->name, err);
+				break;
+
+			case GV_EVENT_RENAME_VOL:
+				G_VINUM_DEBUG(2, "event 'rename' volume");
+				v = ev->arg1;
+				newname = ev->arg2;
+				flags = ev->arg3;
+				err = gv_rename_vol(sc, v, newname, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error renaming %s to "
+					    "%s: error code %d", v->name,
+					    newname, err);
+				g_free(newname);
+				/* Destroy and recreate the provider if we can. */
+				if (gv_provider_is_open(v->provider)) {
+					G_VINUM_DEBUG(0, "unable to rename "
+					    "provider to %s: provider in use",
+					    v->name);
+					break;
+				}
+				g_wither_provider(v->provider, ENOENT);
+				v->provider = NULL;
+				gv_post_event(sc, GV_EVENT_SETUP_OBJECTS, sc,
+				    NULL, 0, 0);
+				break;
+
+			case GV_EVENT_RENAME_PLEX:
+				G_VINUM_DEBUG(2, "event 'rename' plex");
+				p = ev->arg1;
+				newname = ev->arg2;
+				flags = ev->arg3;
+				err = gv_rename_plex(sc, p, newname, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error renaming %s to "
+					    "%s: error code %d", p->name,
+					    newname, err);
+				g_free(newname);
+				break;
+
+			case GV_EVENT_RENAME_SD:
+				G_VINUM_DEBUG(2, "event 'rename' sd");
+				s = ev->arg1;
+				newname = ev->arg2;
+				flags = ev->arg3;
+				err = gv_rename_sd(sc, s, newname, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error renaming %s to "
+					    "%s: error code %d", s->name,
+					    newname, err);
+				g_free(newname);
+				break;
+
+			case GV_EVENT_RENAME_DRIVE:
+				G_VINUM_DEBUG(2, "event 'rename' drive");
+				d = ev->arg1;
+				newname = ev->arg2;
+				flags = ev->arg3;
+				err = gv_rename_drive(sc, d, newname, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error renaming %s to "
+					    "%s: error code %d", d->name,
+					    newname, err);
+				g_free(newname);
+				break;
+
+			case GV_EVENT_MOVE_SD:
+				G_VINUM_DEBUG(2, "event 'move' sd");
+				s = ev->arg1;
+				d = ev->arg2;
+				flags = ev->arg3;
+				err = gv_move_sd(sc, s, d, flags);
+				if (err)
+					G_VINUM_DEBUG(0, "error moving %s to "
+					    "%s: error code %d", s->name,
+					    d->name, err);
+				break;
+
+			case GV_EVENT_THREAD_EXIT:
+				G_VINUM_DEBUG(2, "event 'thread exit'");
+				g_free(ev);
+				mtx_lock(&sc->queue_mtx);
+				gv_cleanup(sc);
+				mtx_destroy(&sc->queue_mtx);
+				g_free(sc->bqueue);
+				g_free(sc);
+				kproc_exit(ENXIO);
+				break;			/* not reached */
+
+			default:
+				G_VINUM_DEBUG(1, "unknown event %d", ev->type);
+			}
+
+			g_free(ev);
+
+			mtx_lock(&sc->queue_mtx);
+			continue;
+		}
+
+		/* ... then do I/O processing. */
+		bp = bioq_takefirst(sc->bqueue);
+		if (bp == NULL) {
+			msleep(sc, &sc->queue_mtx, PRIBIO, "-", hz/10);
+			continue;
+		}
+		mtx_unlock(&sc->queue_mtx);
+
+		/* A bio that is coming up from an underlying device. */
+		if (bp->bio_cflags & GV_BIO_DONE) {
+			gv_bio_done(sc, bp);
+		/* A bio that interfered with another bio. */
+		} else if (bp->bio_cflags & GV_BIO_ONHOLD) {
+			s = bp->bio_caller1;
+			p = s->plex_sc;
+			/* Is it still locked out? */
+			if (gv_stripe_active(p, bp)) {
+				/* Park the bio on the waiting queue. */
+				bioq_disksort(p->wqueue, bp);
+			} else {
+				bp->bio_cflags &= ~GV_BIO_ONHOLD;
+				g_io_request(bp, s->drive_sc->consumer);
+			}
+		/* A special request requireing special handling. */
+		} else if (bp->bio_cflags & GV_BIO_INTERNAL ||
+		    bp->bio_pflags & GV_BIO_INTERNAL) {
+			p = bp->bio_caller1;
+			gv_plex_start(p, bp);
+		/* A fresh bio, scheduled it down. */
+		} else {
+			gv_volume_start(sc, bp);
+		}
+
+		mtx_lock(&sc->queue_mtx);
+	}
+}
 
 #define	VINUM_CLASS_NAME "VINUM"
 
@@ -549,8 +1018,9 @@ static struct g_class g_vinum_class	= {
 	.name = VINUM_CLASS_NAME,
 	.version = G_VERSION,
 	.init = gv_init,
-	/*.destroy_geom = gv_destroy_geom,*/
+	.taste = gv_taste,
 	.ctlreq = gv_config,
+	.destroy_geom = gv_unload,
 };
 
 DECLARE_GEOM_CLASS(g_vinum_class, g_vinum);

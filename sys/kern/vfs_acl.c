@@ -91,7 +91,6 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 	error = mac_vnode_check_setacl(td->td_ucred, vp, type, &inkernacl);
@@ -117,7 +116,6 @@ vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	struct acl inkernelacl;
 	int error;
 
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 	error = mac_vnode_check_getacl(td->td_ucred, vp, type);
@@ -146,7 +144,6 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 	error = mac_vnode_check_deleteacl(td->td_ucred, vp, type);

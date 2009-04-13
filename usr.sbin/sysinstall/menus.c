@@ -152,7 +152,9 @@ DMenu MenuIndex = {
       { " Console settings",	"Customize system console behavior.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
 #endif
       { " Configure",		"The system configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
-      { " Defaults, Load",	"Load default settings.",		NULL, dispatch_load_floppy },
+      { " Defaults, Load (FDD)","Load default settings from floppy.",	NULL, dispatch_load_floppy },
+      { " Defaults, Load (CD)",	"Load default settings from CDROM.",	NULL, dispatch_load_cdrom },
+      { " Defaults, Load",	"Load default settings (all devices).",	NULL, dispatch_load_menu },
 #ifdef WITH_MICE
       { " Device, Mouse",	"The mouse configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuMouse },
 #endif
@@ -256,7 +258,7 @@ DMenu MenuInitial = {
       { "Options",	"View/Set various installation options",	NULL, optionsEditor },
       { "Fixit",	"Repair mode with CDROM/DVD/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
-      { "Load Config","Load default install configuration",		NULL, dispatch_load_floppy },
+      { "Load Config..","Load default install configuration",		NULL, dispatch_load_menu },
       { "Index",	"Glossary of functions",			NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },
 };
@@ -813,6 +815,17 @@ DMenu MenuKLD = {
     DMENU_NORMAL_TYPE,
     "KLD Menu",
     "Load a KLD from a floppy\n",
+    NULL,
+    NULL,
+    { { NULL } },
+};
+
+/* Prototype config file load menu */
+DMenu MenuConfig = {
+    DMENU_NORMAL_TYPE,
+    "Config Menu",
+    "Please select the device to load your configuration file from.\n"
+    "Note that a USB key will show up as daNs1.",
     NULL,
     NULL,
     { { NULL } },

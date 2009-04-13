@@ -101,29 +101,29 @@ static const struct usb2_config udav_config[UDAV_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = (MCLBYTES + 2),
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = udav_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = (MCLBYTES + 2),
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = udav_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[UDAV_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (MCLBYTES + 3),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = udav_bulk_read_callback,
-		.mh.timeout = 0,	/* no timeout */
+		.bufsize = (MCLBYTES + 3),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = udav_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
 	},
 
 	[UDAV_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = udav_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = udav_intr_callback,
 	},
 };
 

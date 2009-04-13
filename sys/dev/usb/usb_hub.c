@@ -27,10 +27,9 @@
  */
 
 /*
- * USB spec: http://www.usb.org/developers/docs/usbspec.zip
+ * USB spec: http://www.usb.org/developers/docs/usbspec.zip 
  */
 
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
@@ -63,10 +62,12 @@ SYSCTL_INT(_hw_usb2_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
     "Debug level");
 #endif
 
+#if USB_HAVE_POWERD
 static int usb2_power_timeout = 30;	/* seconds */
 
 SYSCTL_INT(_hw_usb2, OID_AUTO, power_timeout, CTLFLAG_RW,
     &usb2_power_timeout, 0, "USB power timeout");
+#endif
 
 struct uhub_current_state {
 	uint16_t port_change;
@@ -110,11 +111,11 @@ static const struct usb2_config uhub_config[UHUB_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_ANY,
-		.mh.timeout = 0,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &uhub_intr_callback,
-		.mh.interval = UHUB_INTR_INTERVAL,
+		.timeout = 0,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &uhub_intr_callback,
+		.interval = UHUB_INTR_INTERVAL,
 	},
 };
 
@@ -124,23 +125,24 @@ static const struct usb2_config uhub_config[UHUB_N_TRANSFER] = {
  */
 static devclass_t uhub_devclass;
 
-static driver_t uhub_driver =
-{
+static device_method_t uhub_methods[] = {
+	DEVMETHOD(device_probe, uhub_probe),
+	DEVMETHOD(device_attach, uhub_attach),
+	DEVMETHOD(device_detach, uhub_detach),
+
+	DEVMETHOD(device_suspend, uhub_suspend),
+	DEVMETHOD(device_resume, uhub_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+
+	DEVMETHOD(bus_child_location_str, uhub_child_location_string),
+	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
+	DEVMETHOD(bus_driver_added, uhub_driver_added),
+	{0, 0}
+};
+
+static driver_t uhub_driver = {
 	.name = "uhub",
-	.methods = (device_method_t[]){
-		DEVMETHOD(device_probe, uhub_probe),
-		DEVMETHOD(device_attach, uhub_attach),
-		DEVMETHOD(device_detach, uhub_detach),
-
-		DEVMETHOD(device_suspend, uhub_suspend),
-		DEVMETHOD(device_resume, uhub_resume),
-		DEVMETHOD(device_shutdown, bus_generic_shutdown),
-
-		DEVMETHOD(bus_child_location_str, uhub_child_location_string),
-		DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
-		DEVMETHOD(bus_driver_added, uhub_driver_added),
-		{0, 0}
-	},
+	.methods = uhub_methods,
 	.size = sizeof(struct uhub_softc)
 };
 
@@ -298,8 +300,9 @@ repeat:
 	/* detach any existing devices */
 
 	if (child) {
-		usb2_detach_device(child, USB_IFACE_INDEX_ANY, 1);
-		usb2_free_device(child);
+		usb2_free_device(child,
+		    USB_UNCFG_FLAG_FREE_SUBDEV |
+		    USB_UNCFG_FLAG_FREE_EP0);
 		child = NULL;
 	}
 	/* get fresh status */
@@ -418,8 +421,9 @@ repeat:
 
 error:
 	if (child) {
-		usb2_detach_device(child, USB_IFACE_INDEX_ANY, 1);
-		usb2_free_device(child);
+		usb2_free_device(child,
+		    USB_UNCFG_FLAG_FREE_SUBDEV |
+		    USB_UNCFG_FLAG_FREE_EP0);
 		child = NULL;
 	}
 	if (err == 0) {
@@ -497,6 +501,21 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 	}
 done:
 	return (err);
+}
+
+/*------------------------------------------------------------------------*
+ *	uhub_root_interrupt
+ *
+ * This function is called when a Root HUB interrupt has
+ * happened. "ptr" and "len" makes up the Root HUB interrupt
+ * packet. This function is called having the "bus_mtx" locked.
+ *------------------------------------------------------------------------*/
+void
+uhub_root_intr(struct usb2_bus *bus, const uint8_t *ptr, uint8_t len)
+{
+	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
+
+	usb2_needs_explore(bus, 0);
 }
 
 /*------------------------------------------------------------------------*
@@ -711,9 +730,10 @@ uhub_attach(device_t dev)
 	}
 	udev->hub = hub;
 
+#if USB_HAVE_TT_SUPPORT
 	/* init FULL-speed ISOCHRONOUS schedule */
 	usb2_fs_isoc_schedule_init_all(hub->fs_isoc_schedule);
-
+#endif
 	/* initialize HUB structure */
 	hub->hubsoftc = sc;
 	hub->explore = &uhub_explore;
@@ -729,8 +749,14 @@ uhub_attach(device_t dev)
 
 	/* set up interrupt pipe */
 	iface_index = 0;
-	err = usb2_transfer_setup(udev, &iface_index, sc->sc_xfer,
-	    uhub_config, UHUB_N_TRANSFER, sc, &Giant);
+	if (udev->parent_hub == NULL) {
+		/* root HUB is special */
+		err = 0;
+	} else {
+		/* normal HUB */
+		err = usb2_transfer_setup(udev, &iface_index, sc->sc_xfer,
+		    uhub_config, UHUB_N_TRANSFER, sc, &Giant);
+	}
 	if (err) {
 		DPRINTFN(0, "cannot setup interrupt transfer, "
 		    "errstr=%s!\n", usb2_errstr(err));
@@ -802,11 +828,13 @@ uhub_attach(device_t dev)
 	    "removable, %s powered\n", nports, (nports != 1) ? "s" : "",
 	    removable, udev->flags.self_powered ? "self" : "bus");
 
-	/* start the interrupt endpoint */
+	/* Start the interrupt endpoint, if any */
 
-	USB_XFER_LOCK(sc->sc_xfer[0]);
-	usb2_transfer_start(sc->sc_xfer[0]);
-	USB_XFER_UNLOCK(sc->sc_xfer[0]);
+	if (sc->sc_xfer[0] != NULL) {
+		USB_XFER_LOCK(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[0]);
+		USB_XFER_UNLOCK(sc->sc_xfer[0]);
+	}
 
 	/* Enable automatic power save on all USB HUBs */
 
@@ -853,9 +881,8 @@ uhub_detach(device_t dev)
 		 * Subdevices are not freed, because the caller of
 		 * uhub_detach() will do that.
 		 */
-		usb2_detach_device(child, USB_IFACE_INDEX_ANY, 0);
-		usb2_free_device(child);
-		child = NULL;
+		usb2_free_device(child,
+		    USB_UNCFG_FLAG_FREE_EP0);
 	}
 
 	usb2_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
@@ -979,7 +1006,11 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
+#if USB_HAVE_STRINGS
 		    res.udev->serial,
+#else
+		    "",
+#endif
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass);
 	} else {
@@ -1031,9 +1062,9 @@ done:
  *   The best Transaction Translation slot for an interrupt endpoint.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_intr_find_best_slot(uint32_t *ptr, uint8_t start, uint8_t end)
+usb2_intr_find_best_slot(usb2_size_t *ptr, uint8_t start, uint8_t end)
 {
-	uint32_t max = 0xffffffff;
+	usb2_size_t max = 0 - 1;
 	uint8_t x;
 	uint8_t y;
 
@@ -1111,6 +1142,7 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
  * This function initialises an USB FULL speed isochronous schedule
  * entry.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
 static void
 usb2_fs_isoc_schedule_init_sub(struct usb2_fs_isoc_schedule *fss)
 {
@@ -1119,6 +1151,7 @@ usb2_fs_isoc_schedule_init_sub(struct usb2_fs_isoc_schedule *fss)
 	fss->frame_bytes = (USB_FS_BYTES_PER_HS_UFRAME);
 	fss->frame_slot = 0;
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_fs_isoc_schedule_init_all
@@ -1126,6 +1159,7 @@ usb2_fs_isoc_schedule_init_sub(struct usb2_fs_isoc_schedule *fss)
  * This function will reset the complete USB FULL speed isochronous
  * bandwidth schedule.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
 void
 usb2_fs_isoc_schedule_init_all(struct usb2_fs_isoc_schedule *fss)
 {
@@ -1136,6 +1170,7 @@ usb2_fs_isoc_schedule_init_all(struct usb2_fs_isoc_schedule *fss)
 		fss++;
 	}
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_isoc_time_expand
@@ -1183,6 +1218,7 @@ usb2_isoc_time_expand(struct usb2_bus *bus, uint16_t isoc_time_curr)
  * NOTE: This function depends on being called regularly with
  * intervals less than "USB_ISOC_TIME_MAX".
  *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
 uint16_t
 usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev,
     struct usb2_fs_isoc_schedule **pp_start,
@@ -1229,6 +1265,7 @@ usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev,
 	}
 	return (isoc_time);
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_fs_isoc_schedule_alloc
@@ -1243,6 +1280,7 @@ usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev,
  *    0: Success
  * Else: Error
  *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
 uint8_t
 usb2_fs_isoc_schedule_alloc(struct usb2_fs_isoc_schedule *fss,
     uint8_t *pstart, uint16_t len)
@@ -1275,6 +1313,7 @@ usb2_fs_isoc_schedule_alloc(struct usb2_fs_isoc_schedule *fss,
 	*pstart = slot;
 	return (0);			/* success */
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_bus_port_get_device
@@ -1346,13 +1385,25 @@ usb2_bus_port_set_device(struct usb2_bus *bus, struct usb2_port *up,
 void
 usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe)
 {
+	uint8_t do_unlock;
+
 	DPRINTF("\n");
 
 	if (bus == NULL) {
 		DPRINTF("No bus pointer!\n");
 		return;
 	}
-	USB_BUS_LOCK(bus);
+	if ((bus->devices == NULL) ||
+	    (bus->devices[USB_ROOT_HUB_ADDR] == NULL)) {
+		DPRINTF("No root HUB\n");
+		return;
+	}
+	if (mtx_owned(&bus->bus_mtx)) {
+		do_unlock = 0;
+	} else {
+		USB_BUS_LOCK(bus);
+		do_unlock = 1;
+	}
 	if (do_probe) {
 		bus->do_probe = 1;
 	}
@@ -1360,7 +1411,9 @@ usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe)
 	    &bus->explore_msg[0], &bus->explore_msg[1])) {
 		/* ignore */
 	}
-	USB_BUS_UNLOCK(bus);
+	if (do_unlock) {
+		USB_BUS_UNLOCK(bus);
+	}
 }
 
 /*------------------------------------------------------------------------*
@@ -1407,11 +1460,13 @@ usb2_needs_explore_all(void)
  * properly suspended or resumed according to the device transfer
  * state.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_POWERD
 void
 usb2_bus_power_update(struct usb2_bus *bus)
 {
 	usb2_needs_explore(bus, 0 /* no probe */ );
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_transfer_power_ref
@@ -1420,10 +1475,11 @@ usb2_bus_power_update(struct usb2_bus *bus)
  * wakeup the USB device associated with the given USB transfer, if
  * needed.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_POWERD
 void
 usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 {
-	static const uint32_t power_mask[4] = {
+	static const usb2_power_mask_t power_mask[4] = {
 		[UE_CONTROL] = USB_HW_POWER_CONTROL,
 		[UE_BULK] = USB_HW_POWER_BULK,
 		[UE_INTERRUPT] = USB_HW_POWER_INTERRUPT,
@@ -1489,8 +1545,8 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 			(udev->bus->methods->set_hw_power) (udev->bus);
 		}
 	}
-	return;
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_bus_powerd
@@ -1498,14 +1554,15 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
  * This function implements the USB power daemon and is called
  * regularly from the USB explore thread.
  *------------------------------------------------------------------------*/
+#if USB_HAVE_POWERD
 void
 usb2_bus_powerd(struct usb2_bus *bus)
 {
 	struct usb2_device *udev;
-	unsigned int temp;
-	unsigned int limit;
-	unsigned int mintime;
-	uint32_t type_refs[5];
+	usb2_ticks_t temp;
+	usb2_ticks_t limit;
+	usb2_ticks_t mintime;
+	usb2_size_t type_refs[5];
 	uint8_t x;
 	uint8_t rem_wakeup;
 
@@ -1621,6 +1678,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 	}
 	return;
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_dev_resume_peer
@@ -1680,6 +1738,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 	USB_BUS_LOCK(bus);
 	/* set that this device is now resumed */
 	udev->pwr_save.suspended = 0;
+#if USB_HAVE_POWERD
 	/* make sure that we don't go into suspend right away */
 	udev->pwr_save.last_xfer_time = ticks;
 
@@ -1692,6 +1751,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 		bus->hw_power_state |= USB_HW_POWER_INTERRUPT;
 	if (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0)
 		bus->hw_power_state |= USB_HW_POWER_ISOC;
+#endif
 	USB_BUS_UNLOCK(bus);
 
 	if (bus->methods->set_hw_power != NULL) {
@@ -1728,7 +1788,6 @@ usb2_dev_suspend_peer(struct usb2_device *udev)
 {
 	struct usb2_device *hub;
 	struct usb2_device *child;
-	uint32_t temp;
 	int err;
 	uint8_t x;
 	uint8_t nports;
@@ -1801,6 +1860,7 @@ repeat:
 	USB_BUS_UNLOCK(udev->bus);
 
 	if (udev->bus->methods->device_suspend != NULL) {
+		usb2_timeout_t temp;
 
 		/* suspend device on the USB controller */
 		(udev->bus->methods->device_suspend) (udev);
@@ -1840,7 +1900,7 @@ usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode)
 	}
 	udev->power_mode = power_mode;	/* update copy of power mode */
 
+#if USB_HAVE_POWERD
 	usb2_bus_power_update(udev->bus);
-
-	return;
+#endif
 }

@@ -226,6 +226,8 @@ u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, bus_size_t);
 void	ed_disable_16bit_access(struct ed_softc *);
 void	ed_enable_16bit_access(struct ed_softc *);
 
+void	ed_gen_ifmedia_init(struct ed_softc *);
+
 driver_intr_t	edintr;
 
 extern devclass_t ed_devclass;
@@ -267,12 +269,15 @@ extern devclass_t ed_devclass;
 #define ED_FLAGS_FORCE_PIO		0x0010
 
 /*
+ * This forces a PC Card, and disables ISA memory range checks
+ */
+#define ED_FLAGS_PCCARD			0x0020
+
+/*
  * These are flags describing the chip type.
  */
 #define ED_FLAGS_TOSH_ETHER		0x10000
 #define ED_FLAGS_GWETHER		0x20000
-#define ED_FLAGS_AX88190		0x30000
-#define ED_FLAGS_LINKSYS		0x80000
 
 #define ED_FLAGS_GETTYPE(flg)		((flg) & 0xff0000)
 

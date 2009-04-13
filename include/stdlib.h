@@ -80,7 +80,6 @@ extern int __mb_cur_max;
 
 __BEGIN_DECLS
 void	 abort(void) __dead2;
-void	 abort2(const char *, int, void **) __dead2;
 int	 abs(int) __pure2;
 int	 atexit(void (*)(void));
 double	 atof(const char *);
@@ -196,7 +195,7 @@ long	 jrand48(unsigned short[3]);
 char	*l64a(long);
 void	 lcong48(unsigned short[7]);
 long	 lrand48(void);
-#if !defined(_MKTEMP_DECLARED) && __XSI_VISIBLE <= 600
+#if !defined(_MKTEMP_DECLARED) && (__BSD_VISIBLE || __XSI_VISIBLE <= 600)
 char	*mktemp(char *);
 #define	_MKTEMP_DECLARED
 #endif
@@ -240,6 +239,7 @@ extern void (*_malloc_message)(const char *, const char *, const char *,
 void	*alloca(size_t);
 #endif
 
+void	 abort2(const char *, int, void **) __dead2;
 __uint32_t
 	 arc4random(void);
 void	 arc4random_addrandom(unsigned char *, int);

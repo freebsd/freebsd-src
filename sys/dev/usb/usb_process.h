@@ -51,7 +51,7 @@ typedef void (usb2_proc_callback_t)(struct usb2_proc_msg *hdr);
 struct usb2_proc_msg {
 	TAILQ_ENTRY(usb2_proc_msg) pm_qentry;
 	usb2_proc_callback_t *pm_callback;
-	uint32_t pm_num;
+	usb2_size_t pm_num;
 };
 
 /*
@@ -66,7 +66,7 @@ struct usb2_process {
 	struct thread *up_curtd;
 	struct mtx *up_mtx;
 
-	uint32_t up_msg_num;
+	usb2_size_t up_msg_num;
 
 	uint8_t	up_prio;
 	uint8_t	up_gone;

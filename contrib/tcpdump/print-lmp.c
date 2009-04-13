@@ -10,6 +10,8 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
+ * Support for the Link Management Protocol as per rfc 4204.
+ *
  * Original code by Hannes Gredler (hannes@juniper.net)
  * Support for LMP service discovery extensions (defined by UNI 1.0) added
  * by Manu Pathak (mapathak@cisco.com), May 2005
@@ -17,7 +19,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-lmp.c,v 1.5.2.4 2006/06/23 02:07:27 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-lmp.c,v 1.11 2007-08-02 17:32:49 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -91,21 +93,21 @@ static const struct tok lmp_obj_begin_verify_flag_values[] = {
 };
 
 static const struct tok lmp_obj_begin_verify_error_values[] = {
-    { 0x01, "\n\t\tLink Verification Procedure Not supported"},
-    { 0x02, "\n\t\tUnwilling to verify"},
-    { 0x04, "\n\t\tUnsupported verification transport mechanism"},
-    { 0x08, "\n\t\tLink_Id configuration error"},
-    { 0x10, "\n\t\tUnknown object c-type"},
+    { 0x01, "Link Verification Procedure Not supported"},
+    { 0x02, "Unwilling to verify"},
+    { 0x04, "Unsupported verification transport mechanism"},
+    { 0x08, "Link-Id configuration error"},
+    { 0x10, "Unknown object c-type"},
     { 0, NULL}
 };
 
 static const struct tok lmp_obj_link_summary_error_values[] = {
-    { 0x01, "\n\t\tUnacceptable non-negotiable LINK_SUMMARY parameters"},
-    { 0x02, "\n\t\tRenegotiate LINK_SUMMARY parameters"},
-    { 0x04, "\n\t\tInvalid TE-LINK Object"},
-    { 0x08, "\n\t\tInvalid DATA-LINK Object"},
-    { 0x10, "\n\t\tUnknown TE-LINK Object c-type"},
-    { 0x20, "\n\t\tUnknown DATA-LINK Object c-type"},
+    { 0x01, "Unacceptable non-negotiable LINK-SUMMARY parameters"},
+    { 0x02, "Renegotiate LINK-SUMMARY parameters"},
+    { 0x04, "Invalid TE-LINK Object"},
+    { 0x08, "Invalid DATA-LINK Object"},
+    { 0x10, "Unknown TE-LINK Object c-type"},
+    { 0x20, "Unknown DATA-LINK Object c-type"},
     { 0, NULL}
 };
 
@@ -532,7 +534,7 @@ lmp_print(register const u_char *pptr, register u_int len) {
         case LMP_OBJ_HELLO:
             switch(lmp_obj_ctype) {
 	    case LMP_CTYPE_HELLO:
-                printf("\n\t    TxSeqNum: %u\n\t    RcvSeqNum: %u",
+                printf("\n\t    Tx Seq: %u, Rx Seq: %u",
                        EXTRACT_32BITS(obj_tptr),
                        EXTRACT_32BITS(obj_tptr+4));
                 break;

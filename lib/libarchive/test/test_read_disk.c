@@ -111,6 +111,11 @@ DEFINE_TEST(test_read_disk)
 	if (archive_read_disk_set_standard_lookup(a) != ARCHIVE_OK) {
 		skipping("standard uname/gname lookup");
 	} else {
+#if defined(__CYGWIN__)
+		skipping("standard uname/gname lookup; typically no user with uid=0 on cygwin platform");
+		i = 0;
+		p = zero_groups[0]; /* avoid unused warnings */
+#else
 		/* XXX Someday, we may need to generalize this the
 		 * same way we generalized the group name check below.
 		 * That's needed only if we encounter a system where
@@ -135,6 +140,7 @@ DEFINE_TEST(test_read_disk)
 			failure("group 0 didn't have any of the expected names");
 			assertEqualString(p, zero_groups[0]);
 		}
+#endif
 	}
 
 	/* Deregister again and verify the default lookups again. */

@@ -62,12 +62,20 @@
 	char	pc_monitorbuf[128] __aligned(128); /* cache line */	\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
 	struct	pmap *pc_curpmap;					\
-	struct	amd64tss *pc_tssp;					\
+	struct	amd64tss *pc_tssp;	/* TSS segment active on CPU */	\
+	struct	amd64tss *pc_commontssp;/* Common TSS for the CPU */	\
 	register_t pc_rsp0;						\
 	register_t pc_scratch_rsp;	/* User %rsp in syscall */	\
 	u_int	pc_apic_id;						\
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
-	struct user_segment_descriptor	*pc_gs32p			\
+	/* Pointer to the CPU %fs descriptor */				\
+	struct user_segment_descriptor	*pc_fs32p;			\
+	/* Pointer to the CPU %gs descriptor */				\
+	struct user_segment_descriptor	*pc_gs32p;			\
+	/* Pointer to the CPU LDT descriptor */				\
+	struct system_segment_descriptor *pc_ldt;			\
+	/* Pointer to the CPU TSS descriptor */				\
+	struct system_segment_descriptor *pc_tss
 	PCPU_XEN_FIELDS
 
 #ifdef _KERNEL

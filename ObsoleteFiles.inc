@@ -14,14 +14,57 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090410: VOP_LEASE.9 removed
+OLD_FILES+=usr/share/man/man9/VOP_LEASE.9.gz
+# 20090405: removal of if_ppp(4) and if_sl(4)
+OLD_FILES+=sbin/slattach rescue/slattach
+OLD_FILES+=sbin/startslip rescue/startslip
+OLD_FILES+=usr/include/net/if_ppp.h
+OLD_FILES+=usr/include/net/if_pppvar.h
+OLD_FILES+=usr/include/net/if_slvar.h
+OLD_FILES+=usr/include/net/ppp_comp.h
+OLD_FILES+=usr/include/net/slip.h
+OLD_FILES+=usr/sbin/sliplogin
+OLD_FILES+=usr/sbin/slstat
+OLD_FILES+=usr/sbin/pppd
+OLD_FILES+=usr/sbin/pppstats
+OLD_FILES+=usr/share/man/man1/startslip.1.gz
+OLD_FILES+=usr/share/man/man4/if_ppp.4.gz
+OLD_FILES+=usr/share/man/man4/if_sl.4.gz
+OLD_FILES+=usr/share/man/man4/ppp.4.gz
+OLD_FILES+=usr/share/man/man4/sl.4.gz
+OLD_FILES+=usr/share/man/man8/pppd.8.gz
+OLD_FILES+=usr/share/man/man8/pppstats.8.gz
+OLD_FILES+=usr/share/man/man8/slattach.8.gz
+OLD_FILES+=usr/share/man/man8/slip.8.gz
+OLD_FILES+=usr/share/man/man8/sliplogin.8.gz
+OLD_FILES+=usr/share/man/man8/slstat.8.gz
+# 20090321: libpcap upgraded to 1.0.0
+OLD_LIBS+=lib/libpcap.so.5
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libpcap.so.5
+.endif
+# 20090319: uscanner(4) has been removed
+OLD_FILES+=usr/share/man/man4/uscanner.4.gz
+# 20090313: k8temp(4) renamed to amdtemp(4)
+OLD_FILES+=usr/share/man/man4/k8temp.4.gz
 # 20090308: libusb.so.1 renamed
 OLD_LIBS+=usr/lib/libusb20.so.1
 OLD_FILES+=usr/lib/libusb20.a
 OLD_FILES+=usr/lib/libusb20.so
 OLD_FILES+=usr/lib/libusb20_p.a
 OLD_FILES+=usr/include/libusb20_compat01.h
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libusb20.so.1
+OLD_FILES+=usr/lib32/libusb20.a
+OLD_FILES+=usr/lib32/libusb20.so
+OLD_FILES+=usr/lib32/libusb20_p.a
+.endif
 # 20090226: libmp(3) functions renamed
 OLD_LIBS+=usr/lib/libmp.so.6
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libmp.so.6
+.endif
 # 20090223: changeover of USB stacks
 OLD_FILES+=usr/include/dev/usb2/include/ufm2_ioctl.h
 OLD_FILES+=usr/include/dev/usb2/include/urio2_ioctl.h
@@ -1436,6 +1479,8 @@ OLD_FILES+=lib/geom/geom_concat.so.1
 OLD_FILES+=lib/geom/geom_label.so.1
 OLD_FILES+=lib/geom/geom_nop.so.1
 OLD_FILES+=lib/geom/geom_stripe.so.1
+# 20040713: fla(4) removed.
+OLD_FILES+=usr/share/man/man4/fla.4.gz
 # 200407XX
 OLD_FILES+=usr/sbin/kernbb
 OLD_FILES+=usr/sbin/ntp-genkeys

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -128,6 +128,7 @@ struct e1000_adv_context_desc {
 #define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION           0x06000000
 #define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION_LARGE_PKT 0x08000000
 #define E1000_SRRCTL_DESCTYPE_MASK                      0x0E000000
+#define E1000_SRRCTL_DROP_EN                            0x80000000
 
 #define E1000_SRRCTL_BSIZEPKT_MASK      0x0000007F
 #define E1000_SRRCTL_BSIZEHDR_MASK      0x00003F00
@@ -137,6 +138,7 @@ struct e1000_adv_context_desc {
 
 #define E1000_MRQC_ENABLE_RSS_4Q            0x00000002
 #define E1000_MRQC_ENABLE_VMDQ              0x00000003
+#define E1000_MRQC_ENABLE_VMDQ_RSS_2Q       0x00000005
 #define E1000_MRQC_RSS_FIELD_IPV4_UDP       0x00400000
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP       0x00800000
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP_EX    0x01000000
@@ -313,6 +315,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_ADVTXD_TUCMD_IPV6    0x00000000  /* IP Packet Type: 0=IPv6 */
 #define E1000_ADVTXD_TUCMD_L4T_UDP 0x00000000  /* L4 Packet TYPE of UDP */
 #define E1000_ADVTXD_TUCMD_L4T_TCP 0x00000800  /* L4 Packet TYPE of TCP */
+#define E1000_ADVTXD_TUCMD_L4T_SCTP 0x00001000  /* L4 Packet TYPE of SCTP */
 #define E1000_ADVTXD_TUCMD_IPSEC_TYPE_ESP    0x00002000 /* IPSec Type ESP */
 /* IPSec Encrypt Enable for ESP */
 #define E1000_ADVTXD_TUCMD_IPSEC_ENCRYPT_EN  0x00004000
@@ -381,6 +384,8 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DTXSWC_MAC_SPOOF_MASK   0x000000FF /* Per VF MAC spoof control */
 #define E1000_DTXSWC_VLAN_SPOOF_MASK  0x0000FF00 /* Per VF VLAN spoof control */
 #define E1000_DTXSWC_LLE_MASK         0x00FF0000 /* Per VF Local LB enables */
+#define E1000_DTXSWC_VLAN_SPOOF_SHIFT 8
+#define E1000_DTXSWC_LLE_SHIFT        16
 #define E1000_DTXSWC_VMDQ_LOOPBACK_EN (1 << 31)  /* global VF LB enable */
 
 /* Easy defines for setting default pool, would normally be left a zero */
@@ -393,82 +398,44 @@ struct e1000_adv_tx_context_desc {
 #define E1000_VT_CTL_VM_REPL_EN         (1 << 30)
 
 /* Per VM Offload register setup */
+#define E1000_VMOLR_RLPML_MASK 0x00003FFF /* Long Packet Maximum Length mask */
 #define E1000_VMOLR_LPE        0x00010000 /* Accept Long packet */
+#define E1000_VMOLR_RSSE       0x00020000 /* Enable RSS */
 #define E1000_VMOLR_AUPE       0x01000000 /* Accept untagged packets */
+#define E1000_VMOLR_ROMPE      0x02000000 /* Accept overflow multicast */
+#define E1000_VMOLR_ROPE       0x04000000 /* Accept overflow unicast */
 #define E1000_VMOLR_BAM        0x08000000 /* Accept Broadcast packets */
 #define E1000_VMOLR_MPME       0x10000000 /* Multicast promiscuous mode */
 #define E1000_VMOLR_STRVLAN    0x40000000 /* Vlan stripping enable */
+#define E1000_VMOLR_STRCRC     0x80000000 /* CRC stripping enable */
 
-#define E1000_V2PMAILBOX_REQ   0x00000001 /* Request for PF Ready bit */
-#define E1000_V2PMAILBOX_ACK   0x00000002 /* Ack PF message received */
-#define E1000_V2PMAILBOX_VFU   0x00000004 /* VF owns the mailbox buffer */
-#define E1000_V2PMAILBOX_PFU   0x00000008 /* PF owns the mailbox buffer */
-#define E1000_V2PMAILBOX_PFSTS 0x00000010 /* PF wrote a message in the MB */
-#define E1000_V2PMAILBOX_PFACK 0x00000020 /* PF ack the previous VF msg */
-#define E1000_V2PMAILBOX_RSTI  0x00000040 /* PF has reset indication */
+#define E1000_VLVF_ARRAY_SIZE     32
+#define E1000_VLVF_VLANID_MASK    0x00000FFF
+#define E1000_VLVF_POOLSEL_SHIFT  12
+#define E1000_VLVF_POOLSEL_MASK   (0xFF << E1000_VLVF_POOLSEL_SHIFT)
+#define E1000_VLVF_LVLAN          0x00100000
+#define E1000_VLVF_VLANID_ENABLE  0x80000000
 
-#define E1000_P2VMAILBOX_STS   0x00000001 /* Initiate message send to VF */
-#define E1000_P2VMAILBOX_ACK   0x00000002 /* Ack message recv'd from VF */
-#define E1000_P2VMAILBOX_VFU   0x00000004 /* VF owns the mailbox buffer */
-#define E1000_P2VMAILBOX_PFU   0x00000008 /* PF owns the mailbox buffer */
-#define E1000_P2VMAILBOX_RVFU  0x00000010 /* Reset VFU - used when VF stuck */
+#define E1000_VF_INIT_TIMEOUT 200 /* Number of retries to clear RSTI */
 
-#define E1000_VFMAILBOX_SIZE   16 /* 16 32 bit words - 64 bytes */
-
-/* If it's a E1000_VF_* msg then it originates in the VF and is sent to the
- * PF.  The reverse is TRUE if it is E1000_PF_*.
- * Message ACK's are the value or'd with 0xF0000000
- */
-#define E1000_VT_MSGTYPE_ACK      0xF0000000  /* Messages below or'd with
-                                               * this are the ACK */
-#define E1000_VT_MSGTYPE_NACK     0xFF000000  /* Messages below or'd with
-                                               * this are the NACK */
-#define E1000_VT_MSGINFO_SHIFT    16
-/* bits 23:16 are used for exra info for certain messages */
-#define E1000_VT_MSGINFO_MASK     (0xFF << E1000_VT_MSGINFO_SHIFT)
-
-#define E1000_VF_MSGTYPE_REQ_MAC  1 /* VF needs to know its MAC */
-#define E1000_VF_MSGTYPE_VFLR     2 /* VF notifies VFLR to PF */
-#define E1000_VF_SET_MULTICAST    3 /* VF requests PF to set MC addr */
-#define E1000_VF_SET_VLAN         4 /* VF requests PF to set VLAN */
-
-/* Add 100h to all PF msgs, leaves room for up to 255 discrete message types
- * from VF to PF - way more than we'll ever need */
-#define E1000_PF_MSGTYPE_RESET    (1 + 0x100) /* PF notifies global reset
-                                               * imminent to VF */
-#define E1000_PF_MSGTYPE_LSC      (2 + 0x100) /* PF notifies VF of LSC... VF
-                                               * will see extra msg info for
-                                               * status */
-
-#define E1000_PF_MSG_LSCDOWN      (1 << E1000_VT_MSGINFO_SHIFT)
-#define E1000_PF_MSG_LSCUP        (2 << E1000_VT_MSGINFO_SHIFT)
+#define E1000_IOVCTL 0x05BBC
+#define E1000_IOVCTL_REUSE_VFQ 0x00000001
 
 #define ALL_QUEUES   0xFFFF
 
-s32  e1000_send_mail_to_pf_vf(struct e1000_hw *hw, u32 *msg,
-                              s16 size);
-s32  e1000_receive_mail_from_pf_vf(struct e1000_hw *hw,
-                                   u32 *msg, s16 size);
-s32  e1000_send_mail_to_vf(struct e1000_hw *hw, u32 *msg,
-                           u32 vf_number, s16 size);
-s32  e1000_receive_mail_from_vf(struct e1000_hw *hw, u32 *msg,
-                                u32 vf_number, s16 size);
-void e1000_vmdq_loopback_enable_vf(struct e1000_hw *hw);
-void e1000_vmdq_loopback_disable_vf(struct e1000_hw *hw);
-void e1000_vmdq_replication_enable_vf(struct e1000_hw *hw, u32 enables);
-void e1000_vmdq_replication_disable_vf(struct e1000_hw *hw);
-void e1000_vmdq_enable_replication_mode_vf(struct e1000_hw *hw);
-void e1000_vmdq_broadcast_replication_enable_vf(struct e1000_hw *hw,
+void e1000_vmdq_loopback_enable_pf(struct e1000_hw *hw);
+void e1000_vmdq_loopback_disable_pf(struct e1000_hw *hw);
+void e1000_vmdq_replication_enable_pf(struct e1000_hw *hw, u32 enables);
+void e1000_vmdq_replication_disable_pf(struct e1000_hw *hw);
+void e1000_vmdq_enable_replication_mode_pf(struct e1000_hw *hw);
+void e1000_vmdq_broadcast_replication_enable_pf(struct e1000_hw *hw,
 						u32 enables);
-void e1000_vmdq_multicast_replication_enable_vf(struct e1000_hw *hw,
+void e1000_vmdq_multicast_promiscuous_enable_pf(struct e1000_hw *hw,
 						u32 enables);
-void e1000_vmdq_broadcast_replication_disable_vf(struct e1000_hw *hw,
+void e1000_vmdq_broadcast_replication_disable_pf(struct e1000_hw *hw,
 						u32 disables);
-void e1000_vmdq_multicast_replication_disable_vf(struct e1000_hw *hw,
+void e1000_vmdq_multicast_promiscuous_disable_pf(struct e1000_hw *hw,
 						u32 disables);
-bool e1000_check_for_pf_ack_vf(struct e1000_hw *hw);
-
-bool e1000_check_for_pf_mail_vf(struct e1000_hw *hw, u32*);
-
-
-#endif
+void e1000_vmdq_aupe_enable_pf(struct e1000_hw *hw, u32 enables);
+void e1000_vmdq_aupe_disable_pf(struct e1000_hw *hw, u32 disables);
+#endif /* _E1000_82575_H_ */

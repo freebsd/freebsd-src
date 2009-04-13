@@ -28,7 +28,7 @@
 #define	_USB2_HUB_H_
 
 /*
- * The following structure defines an USB port.
+ * The following structure defines an USB port. 
  */
 struct usb2_port {
 	uint8_t	restartcnt;
@@ -52,11 +52,13 @@ struct usb2_fs_isoc_schedule {
  * The following structure defines an USB HUB.
  */
 struct usb2_hub {
+#if USB_HAVE_TT_SUPPORT
 	struct usb2_fs_isoc_schedule fs_isoc_schedule[USB_ISOC_TIME_MAX];
+#endif
 	struct usb2_device *hubudev;	/* the HUB device */
 	usb2_error_t (*explore) (struct usb2_device *hub);
 	void   *hubsoftc;
-	uint32_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
+	usb2_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
 	uint16_t portpower;		/* mA per USB port */
 	uint8_t	isoc_last_time;
 	uint8_t	nports;
@@ -76,5 +78,6 @@ void	usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe);
 void	usb2_needs_explore_all(void);
 void	usb2_bus_power_update(struct usb2_bus *bus);
 void	usb2_bus_powerd(struct usb2_bus *bus);
+void	uhub_root_intr(struct usb2_bus *, const uint8_t *, uint8_t);
 
 #endif					/* _USB2_HUB_H_ */
