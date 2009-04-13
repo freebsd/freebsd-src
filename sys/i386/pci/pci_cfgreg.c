@@ -206,6 +206,7 @@ pci_docfgregread(int bus, int slot, int func, int reg, int bytes)
 {
 
 	if (cfgmech == CFGMECH_PCIE &&
+	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
 	    (bus != 0 || !(1 << slot & pcie_badslots)))
 		return (pciereg_cfgread(bus, slot, func, reg, bytes));
 	else
@@ -240,6 +241,7 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
 
 	if (cfgmech == CFGMECH_PCIE &&
+	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
 	    (bus != 0 || !(1 << slot & pcie_badslots)))
 		pciereg_cfgwrite(bus, slot, func, reg, data, bytes);
 	else

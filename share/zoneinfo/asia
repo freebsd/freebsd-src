@@ -1,4 +1,4 @@
-# @(#)asia	8.25
+# @(#)asia	8.26
 # <pre>
 
 # This data is by no means authoritative; if you think you know better,
@@ -1969,8 +1969,29 @@ Rule	Syria	2007	only	-	Nov	 Fri>=1	0:00	0	-
 # http://sana.sy/ara/2/2008/10/07/195459.htm
 # </a>
 
-Rule	Syria	2008	max	-	Apr	Fri>=1	0:00	1:00	S
+# From Steffen Thorsen (2009-03-19):
+# Syria will start DST on 2009-03-27 00:00 this year according to many sources,
+# two examples:
+#
+# <a href="http://www.sana.sy/eng/21/2009/03/17/217563.htm">
+# http://www.sana.sy/eng/21/2009/03/17/217563.htm
+# </a>
+# (English, Syrian Arab News # Agency)
+# <a href="http://thawra.alwehda.gov.sy/_View_news2.asp?FileName=94459258720090318012209">
+# http://thawra.alwehda.gov.sy/_View_news2.asp?FileName=94459258720090318012209
+# </a>
+# (Arabic, gov-site)
+#
+# We have not found any sources saying anything about when DST ends this year.
+#
+# Our summary
+# <a href="http://www.timeanddate.com/news/time/syria-dst-starts-march-27-2009.html">
+# http://www.timeanddate.com/news/time/syria-dst-starts-march-27-2009.html
+# </a>
+
+Rule	Syria	2008	only	-	Apr	Fri>=1	0:00	1:00	S
 Rule	Syria	2008	max	-	Nov	1	0:00	0	-
+Rule	Syria	2009	max	-	Mar	lastFri	0:00	1:00	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Damascus	2:25:12 -	LMT	1920	# Dimashq

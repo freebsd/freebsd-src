@@ -106,6 +106,13 @@
  */
 #define UMA_MD_SMALL_ALLOC
 
+/*
+ * On 64-bit systems in bridge mode, we have no direct map, so we fake
+ * the small_alloc() calls. But we need the VM to be in a reasonable
+ * state first.
+ */
+#define UMA_MD_SMALL_ALLOC_NEEDS_VM
+
 #else
 
 /*

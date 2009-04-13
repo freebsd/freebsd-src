@@ -197,7 +197,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD, cred);
 				if (t &&
-				    ((t->inp_vflag & INP_TIMEWAIT) == 0) &&
+				    ((t->inp_flags & INP_TIMEWAIT) == 0) &&
 				    (so->so_type != SOCK_STREAM ||
 				     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
 				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
@@ -215,7 +215,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 					    sin.sin_addr, lport,
 					    INPLOOKUP_WILDCARD, cred);
 					if (t &&
-					    ((t->inp_vflag &
+					    ((t->inp_flags &
 					      INP_TIMEWAIT) == 0) &&
 					    (so->so_type != SOCK_STREAM ||
 					     ntohl(t->inp_faddr.s_addr) ==
@@ -227,7 +227,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
 			    lport, wild, cred);
-			if (t && (reuseport & ((t->inp_vflag & INP_TIMEWAIT) ?
+			if (t && (reuseport & ((t->inp_flags & INP_TIMEWAIT) ?
 			    intotw(t)->tw_so_options :
 			    t->inp_socket->so_options)) == 0)
 				return (EADDRINUSE);
@@ -238,7 +238,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				in6_sin6_2_sin(&sin, sin6);
 				t = in_pcblookup_local(pcbinfo, sin.sin_addr,
 				    lport, wild, cred);
-				if (t && t->inp_vflag & INP_TIMEWAIT) {
+				if (t && t->inp_flags & INP_TIMEWAIT) {
 					if ((reuseport &
 					    intotw(t)->tw_so_options) == 0 &&
 					    (ntohl(t->inp_laddr.s_addr) !=

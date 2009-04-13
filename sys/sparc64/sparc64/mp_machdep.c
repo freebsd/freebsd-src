@@ -413,8 +413,6 @@ cpu_mp_shutdown(void)
 			break;
 		}
 	}
-	/* XXX: delay a bit to allow the CPUs to actually enter the PROM. */
-	DELAY(100000);
 	critical_exit();
 }
 
@@ -505,11 +503,7 @@ spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		 */
 		DELAY(2);
 	}
-	if (
-#ifdef KDB
-	    kdb_active ||
-#endif
-	    panicstr != NULL)
+	if (kdb_active != 0 || panicstr != NULL)
 		printf("%s: couldn't send IPI to module 0x%u\n",
 		    __func__, mid);
 	else
@@ -581,11 +575,7 @@ cheetah_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
 		 */
 		DELAY(2 * mp_ncpus);
 	}
-	if (
-#ifdef KDB
-	    kdb_active ||
-#endif
-	    panicstr != NULL)
+	if (kdb_active != 0 || panicstr != NULL)
 		printf("%s: couldn't send IPI (cpus=0x%u ids=0x%lu)\n",
 		    __func__, cpus, ids);
 	else

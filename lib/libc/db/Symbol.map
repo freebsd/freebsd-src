@@ -16,12 +16,16 @@ FBSD_1.0 {
 	dbm_dirfno;
 	mpool_open;
 	mpool_filter;
-	mpool_new;
 	mpool_get;
 	mpool_put;
 	mpool_close;
 	mpool_sync;
 	mpool_stat;
+};
+
+FBSD_1.1 {
+	mpool_new;
+	mpool_delete;
 };
 
 FBSDprivate_1.0 {

@@ -187,9 +187,9 @@ static const struct usb2_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UPLCOM_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &uplcom_write_callback,
+		.bufsize = UPLCOM_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &uplcom_write_callback,
 		.if_index = 0,
 	},
 
@@ -197,9 +197,9 @@ static const struct usb2_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UPLCOM_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &uplcom_read_callback,
+		.bufsize = UPLCOM_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &uplcom_read_callback,
 		.if_index = 0,
 	},
 
@@ -207,9 +207,9 @@ static const struct usb2_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &uplcom_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &uplcom_intr_callback,
 		.if_index = 1,
 	},
 };
@@ -441,7 +441,7 @@ uplcom_reset(struct uplcom_softc *sc, struct usb2_device *udev)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	return (usb2_do_request(udev, &Giant, &req, NULL));
+	return (usb2_do_request(udev, NULL, &req, NULL));
 }
 
 struct pl2303x_init {
@@ -485,7 +485,7 @@ uplcom_pl2303x_init(struct usb2_device *udev)
 		USETW(req.wIndex, pl2303x[i].index);
 		USETW(req.wLength, pl2303x[i].length);
 
-		err = usb2_do_request(udev, &Giant, &req, buf);
+		err = usb2_do_request(udev, NULL, &req, buf);
 		if (err) {
 			DPRINTF("error=%s\n", usb2_errstr(err));
 			return (EIO);

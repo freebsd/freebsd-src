@@ -117,7 +117,9 @@ void	semexit(struct proc *p);
 #else /* ! _KERNEL */
 
 __BEGIN_DECLS
+#if __BSD_VISIBLE
 int semsys(int, ...);
+#endif
 int semctl(int, int, int, ...);
 int semget(key_t, int, int);
 int semop(int, struct sembuf *, size_t);

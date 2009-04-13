@@ -32,7 +32,7 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2002
+.Dd April 1, 2009
 .Os
 .Dt DLOPEN 3
 .Sh NAME
@@ -123,7 +123,7 @@ call to
 One of the following flags may be ORed into the
 .Fa mode
 argument:
-.Bl -tag -width RTLD_GLOBALX
+.Bl -tag -width RTLD_NODELETE
 .It Dv RTLD_GLOBAL
 Symbols from this shared object and its directed acyclic graph (DAG)
 of needed objects will be available for resolving undefined references
@@ -141,6 +141,13 @@ the absolute pathnames of all objects, to standard output.
 With this flag
 .Fn dlopen
 will return to the caller only in the case of error.
+.It Dv RTLD_NODELETE
+Prevents unload of the loaded object on
+.Fn dlclose .
+The same behaviour may be requested by
+.Fl "z nodelete"
+option of the static linker
+.Xr ld 1 .
 .El
 .Pp
 If

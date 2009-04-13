@@ -1,4 +1,5 @@
 #	@(#)README	8.27 (Berkeley) 9/1/94
+# $FreeBSD$
 
 This is version 1.85 of the Berkeley DB code.
 
@@ -31,10 +32,3 @@ mpool		The memory pool routines.
 recno		The fixed/variable length record routines.
 test		Test package.
 
-============================================
-Debugging:
-
-If you're running a memory checker (e.g. Purify) on DB, make sure that
-you recompile it with "-DPURIFY" in the CFLAGS, first.  By default,
-allocated pages are not initialized by the DB code, and they will show
-up as reads of uninitialized memory in the buffer write routines.

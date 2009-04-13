@@ -55,7 +55,7 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Write a symlink to the dir above. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link_to_dir");
@@ -187,7 +187,7 @@ DEFINE_TEST(test_write_disk_secure)
 	assert(0 == archive_write_finish(a));
 #endif
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Test the entries on disk. */
 	assert(0 == lstat("dir", &st));
 	failure("dir: st.st_mode=%o", st.st_mode);

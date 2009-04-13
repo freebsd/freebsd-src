@@ -71,10 +71,6 @@
 #define	ATH_KEYMAX	128		/* max key cache size we handle */
 #define	ATH_KEYBYTES	(ATH_KEYMAX/NBBY)	/* storage space in bytes */
 
-#define	ATH_FF_TXQMIN	2		/* min txq depth for staging */
-#define	ATH_FF_TXQMAX	50		/* maximum # of queued frames allowed */
-#define	ATH_FF_STAGEMAX	5		/* max waiting period for staged frame*/
-
 struct taskqueue;
 struct kthread;
 struct ath_buf;
@@ -106,8 +102,6 @@ struct ath_node {
 
 struct ath_buf {
 	STAILQ_ENTRY(ath_buf)	bf_list;
-	TAILQ_ENTRY(ath_buf)	bf_stagelist;	/* stage queue list */
-	u_int32_t		bf_age;		/* age when placed on stageq */
 	int			bf_nseg;
 	uint16_t		bf_txflags;	/* tx descriptor flags */
 	uint16_t		bf_flags;	/* status flags (below) */
@@ -151,6 +145,7 @@ struct ath_descdma {
 struct ath_txq {
 	u_int			axq_qnum;	/* hardware q number */
 #define	ATH_TXQ_SWQ	(HAL_NUM_TX_QUEUES+1)	/* qnum for s/w only queue */
+	u_int			axq_ac;		/* WME AC */
 	u_int			axq_flags;
 #define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
 	u_int			axq_depth;	/* queue depth (stat only) */
@@ -159,13 +154,6 @@ struct ath_txq {
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
-	/*
-	 * Fast-frame state.  The staging queue holds awaiting
-	 * a fast-frame pairing.  Buffers on this queue are
-	 * assigned an ``age'' and flushed when they wait too long.
-	 */
-	TAILQ_HEAD(axq_headtype, ath_buf) axq_stageq;
-	u_int32_t		axq_curage;	/* queue age */
 };
 
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
@@ -181,7 +169,6 @@ struct ath_txq {
 #define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
 	STAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
-	(_tq)->axq_curage++; \
 } while (0)
 #define ATH_TXQ_REMOVE_HEAD(_tq, _field) do { \
 	STAILQ_REMOVE_HEAD(&(_tq)->axq_q, _field); \
@@ -345,18 +332,15 @@ struct ath_softc {
 	int			sc_lastlongcal;	/* last long cal completed */
 	int			sc_lastcalreset;/* last cal reset done */
 	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
-#ifdef ATH_SUPPORT_TDMA
 	u_int			sc_tdmadbaprep;	/* TDMA DBA prep time */
 	u_int			sc_tdmaswbaprep;/* TDMA SWBA prep time */
 	u_int			sc_tdmaswba;	/* TDMA SWBA counter */
 	u_int32_t		sc_tdmabintval;	/* TDMA beacon interval (TU) */
 	u_int32_t		sc_tdmaguard;	/* TDMA guard time (usec) */
 	u_int			sc_tdmaslotlen;	/* TDMA slot length (usec) */
-	u_int			sc_tdmabintcnt;	/* TDMA beacon intvl (slots) */
 	struct ath_rx_status	*sc_tdmars;	/* TDMA status of last rx */
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
-#endif
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -462,16 +446,10 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setChannel)((_ah), (_chan)))
 #define	ath_hal_calibrate(_ah, _chan, _iqcal) \
 	((*(_ah)->ah_perCalibration)((_ah), (_chan), (_iqcal)))
-#if HAL_ABI_VERSION >= 0x08111000
 #define	ath_hal_calibrateN(_ah, _chan, _lcal, _isdone) \
 	((*(_ah)->ah_perCalibrationN)((_ah), (_chan), 0x1, (_lcal), (_isdone)))
 #define	ath_hal_calreset(_ah, _chan) \
 	((*(_ah)->ah_resetCalValid)((_ah), (_chan)))
-#else
-#define	ath_hal_calibrateN(_ah, _chan, _lcal, _isdone) \
-	ath_hal_calibrate(_ah, _chan, _isdone)
-#define	ath_hal_calreset(_ah, _chan)	(0)
-#endif
 #define	ath_hal_setledstate(_ah, _state) \
 	((*(_ah)->ah_setLedState)((_ah), (_state)))
 #define	ath_hal_beaconinit(_ah, _nextb, _bperiod) \
@@ -545,19 +523,8 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_CIPHER, _cipher, NULL) == HAL_OK)
 #define	ath_hal_getregdomain(_ah, _prd) \
 	(ath_hal_getcapability(_ah, HAL_CAP_REG_DMN, 0, (_prd)) == HAL_OK)
-#if HAL_ABI_VERSION < 0x08090100
-/* XXX wrong for anything but amd64 and i386 */
-#if defined(__LP64__)
-#define	ath_hal_setregdomain(_ah, _rd) \
-	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 176) = (_rd))
-#else
-#define	ath_hal_setregdomain(_ah, _rd) \
-	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 128) = (_rd))
-#endif
-#else
 #define	ath_hal_setregdomain(_ah, _rd) \
 	ath_hal_setcapability(_ah, HAL_CAP_REG_DMN, 0, _rd, NULL)
-#endif
 #define	ath_hal_getcountrycode(_ah, _pcc) \
 	(*(_pcc) = (_ah)->ah_countryCode)
 #define	ath_hal_gettkipmic(_ah) \
@@ -656,31 +623,6 @@ void	ath_intr(void *);
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, 1, _v, NULL)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
-#if HAL_ABI_VERSION < 0x05122200
-#define	HAL_TXQ_TXOKINT_ENABLE	TXQ_FLAG_TXOKINT_ENABLE
-#define	HAL_TXQ_TXERRINT_ENABLE	TXQ_FLAG_TXERRINT_ENABLE
-#define	HAL_TXQ_TXDESCINT_ENABLE TXQ_FLAG_TXDESCINT_ENABLE
-#define	HAL_TXQ_TXEOLINT_ENABLE	TXQ_FLAG_TXEOLINT_ENABLE
-#define	HAL_TXQ_TXURNINT_ENABLE	TXQ_FLAG_TXURNINT_ENABLE
-#endif
-#if HAL_ABI_VERSION < 0x06102501
-#define	ath_hal_ispublicsafetysku(ah) \
-	(((ah)->ah_regdomain == 0 && (ah)->ah_countryCode == 842) || \
-	 (ah)->ah_regdomain == 0x12)
-#endif
-#if HAL_ABI_VERSION < 0x06122400
-/* XXX yech, can't get to regdomain so just hack a compat shim */
-#define	ath_hal_isgsmsku(ah) \
-	((ah)->ah_countryCode == 843)
-#endif
-#if HAL_ABI_VERSION < 0x07050400
-/* compat shims so code compilers--it won't work though */
-#define	CHANNEL_HT20		0x10000
-#define	CHANNEL_HT40PLUS 	0x20000
-#define	CHANNEL_HT40MINUS 	0x40000
-#define	HAL_MODE_11NG_HT20	0x008000
-#define HAL_MODE_11NA_HT20  	0x010000
-#endif
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))

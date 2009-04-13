@@ -182,7 +182,10 @@ int drm_probe(device_t kdev, drm_pci_id_list_t *idlist)
 
 	id_entry = drm_find_description(vendor, device, idlist);
 	if (id_entry != NULL) {
-		device_set_desc(kdev, id_entry->name);
+		if (!device_get_desc(kdev)) {
+			DRM_DEBUG("desc : %s\n", device_get_desc(kdev));
+			device_set_desc(kdev, id_entry->name);
+		}
 		return 0;
 	}
 
@@ -290,7 +293,8 @@ drm_pci_id_list_t *drm_find_description(int vendor, int device,
 	
 	for (i = 0; idlist[i].vendor != 0; i++) {
 		if ((idlist[i].vendor == vendor) &&
-		    (idlist[i].device == device)) {
+		    ((idlist[i].device == device) ||
+		    (idlist[i].device == 0))) {
 			return &idlist[i];
 		}
 	}
@@ -666,7 +670,7 @@ void drm_close(void *data)
 			}
 			/* Contention */
 			retcode = mtx_sleep((void *)&dev->lock.lock_queue,
-			    &dev->dev_lock, PZERO | PCATCH, "drmlk2", 0);
+			    &dev->dev_lock, PCATCH, "drmlk2", 0);
 			if (retcode)
 				break;
 		}

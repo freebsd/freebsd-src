@@ -41,6 +41,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/utsname.h>
 #include <sys/ktrace.h>
 
 #include <dlfcn.h>
@@ -118,6 +119,7 @@ static void objlist_remove_unref(Objlist *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *);
 static int rtld_dirname(const char *, char *);
+static int rtld_dirname_abs(const char *, char *);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static const void **get_program_var_addr(const char *);
@@ -134,6 +136,9 @@ static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
+static int origin_subst_one(char **res, const char *real, const char *kw,
+  const char *subst, char *may_free);
+static char *origin_subst(const char *real, const char *origin_path);
 static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
@@ -157,6 +162,7 @@ static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_preload;	/* Environment variable for libraries to
 				   load first */
+static char *ld_elf_hints_path;	/* Environment variable for alternative hints path */
 static char *ld_tracing;	/* Called from ldd to print libs */
 static char *ld_utrace;		/* Use utrace() to log events. */
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
@@ -194,6 +200,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dlerror,
     (func_ptr_type) &dlopen,
     (func_ptr_type) &dlsym,
+    (func_ptr_type) &dlfunc,
     (func_ptr_type) &dlvsym,
     (func_ptr_type) &dladdr,
     (func_ptr_type) &dllockinit,
@@ -365,16 +372,22 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
         unsetenv(LD_ "LIBRARY_PATH");
         unsetenv(LD_ "LIBMAP_DISABLE");
         unsetenv(LD_ "DEBUG");
+        unsetenv(LD_ "ELF_HINTS_PATH");
     }
     ld_debug = getenv(LD_ "DEBUG");
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
     libmap_override = getenv(LD_ "LIBMAP");
     ld_library_path = getenv(LD_ "LIBRARY_PATH");
     ld_preload = getenv(LD_ "PRELOAD");
+    ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
-	(ld_library_path != NULL) || (ld_preload != NULL);
+	(ld_library_path != NULL) || (ld_preload != NULL) ||
+	(ld_elf_hints_path != NULL);
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
     ld_utrace = getenv(LD_ "UTRACE");
+
+    if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
+	ld_elf_hints_path = _PATH_ELF_HINTS;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -412,7 +425,25 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    die();
     }
 
-    obj_main->path = xstrdup(argv0);
+    if (aux_info[AT_EXECPATH] != 0) {
+	    char *kexecpath;
+	    char buf[MAXPATHLEN];
+
+	    kexecpath = aux_info[AT_EXECPATH]->a_un.a_ptr;
+	    dbg("AT_EXECPATH %p %s", kexecpath, kexecpath);
+	    if (kexecpath[0] == '/')
+		    obj_main->path = kexecpath;
+	    else if (getcwd(buf, sizeof(buf)) == NULL ||
+		     strlcat(buf, "/", sizeof(buf)) >= sizeof(buf) ||
+		     strlcat(buf, kexecpath, sizeof(buf)) >= sizeof(buf))
+		    obj_main->path = xstrdup(argv0);
+	    else
+		    obj_main->path = xstrdup(buf);
+    } else {
+	    dbg("No AT_EXECPATH");
+	    obj_main->path = xstrdup(argv0);
+    }
+    dbg("obj_main path %s", obj_main->path);
     obj_main->mainprog = true;
 
     /*
@@ -614,6 +645,83 @@ basename(const char *name)
     return p != NULL ? p + 1 : name;
 }
 
+static struct utsname uts;
+
+static int
+origin_subst_one(char **res, const char *real, const char *kw, const char *subst,
+    char *may_free)
+{
+    const char *p, *p1;
+    char *res1;
+    int subst_len;
+    int kw_len;
+
+    res1 = *res = NULL;
+    p = real;
+    subst_len = kw_len = 0;
+    for (;;) {
+	 p1 = strstr(p, kw);
+	 if (p1 != NULL) {
+	     if (subst_len == 0) {
+		 subst_len = strlen(subst);
+		 kw_len = strlen(kw);
+	     }
+	     if (*res == NULL) {
+		 *res = xmalloc(PATH_MAX);
+		 res1 = *res;
+	     }
+	     if ((res1 - *res) + subst_len + (p1 - p) >= PATH_MAX) {
+		 _rtld_error("Substitution of %s in %s cannot be performed",
+		     kw, real);
+		 if (may_free != NULL)
+		     free(may_free);
+		 free(res);
+		 return (false);
+	     }
+	     memcpy(res1, p, p1 - p);
+	     res1 += p1 - p;
+	     memcpy(res1, subst, subst_len);
+	     res1 += subst_len;
+	     p = p1 + kw_len;
+	 } else {
+	    if (*res == NULL) {
+		if (may_free != NULL)
+		    *res = may_free;
+		else
+		    *res = xstrdup(real);
+		return (true);
+	    }
+	    *res1 = '\0';
+	    if (may_free != NULL)
+		free(may_free);
+	    if (strlcat(res1, p, PATH_MAX - (res1 - *res)) >= PATH_MAX) {
+		free(res);
+		return (false);
+	    }
+	    return (true);
+	 }
+    }
+}
+
+static char *
+origin_subst(const char *real, const char *origin_path)
+{
+    char *res1, *res2, *res3, *res4;
+
+    if (uts.sysname[0] == '\0') {
+	if (uname(&uts) != 0) {
+	    _rtld_error("utsname failed: %d", errno);
+	    return (NULL);
+	}
+    }
+    if (!origin_subst_one(&res1, real, "$ORIGIN", origin_path, NULL) ||
+	!origin_subst_one(&res2, res1, "$OSNAME", uts.sysname, res1) ||
+	!origin_subst_one(&res3, res2, "$OSREL", uts.release, res2) ||
+	!origin_subst_one(&res4, res3, "$PLATFORM", uts.machine, res3))
+	    return (NULL);
+    return (res4);
+}
+
 static void
 die(void)
 {
@@ -790,11 +898,8 @@ digest_dynamic(Obj_Entry *obj, int early)
 #endif
 
 	case DT_FLAGS:
-		if (dynp->d_un.d_val & DF_ORIGIN) {
-		    obj->origin_path = xmalloc(PATH_MAX);
-		    if (rtld_dirname(obj->path, obj->origin_path) == -1)
-			die();
-		}
+		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
+		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_SYMBOLIC)
 		    obj->symbolic = true;
 		if (dynp->d_un.d_val & DF_TEXTREL)
@@ -826,6 +931,17 @@ digest_dynamic(Obj_Entry *obj, int early)
 		break;
 #endif
 
+	case DT_FLAGS_1:
+		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
+		    obj->z_origin = true;
+		if (dynp->d_un.d_val & DF_1_GLOBAL)
+			/* XXX */;
+		if (dynp->d_un.d_val & DF_1_BIND_NOW)
+		    obj->bind_now = true;
+		if (dynp->d_un.d_val & DF_1_NODELETE)
+		    obj->z_nodelete = true;
+	    break;
+
 	default:
 	    if (!early) {
 		dbg("Ignoring d_tag %ld = %#lx", (long)dynp->d_tag,
@@ -844,8 +960,17 @@ digest_dynamic(Obj_Entry *obj, int early)
 	obj->pltrelsize = 0;
     }
 
-    if (dyn_rpath != NULL)
-	obj->rpath = obj->strtab + dyn_rpath->d_un.d_val;
+    if (obj->z_origin && obj->origin_path == NULL) {
+	obj->origin_path = xmalloc(PATH_MAX);
+	if (rtld_dirname_abs(obj->path, obj->origin_path) == -1)
+	    die();
+    }
+
+    if (dyn_rpath != NULL) {
+	obj->rpath = (char *)obj->strtab + dyn_rpath->d_un.d_val;
+	if (obj->z_origin)
+	    obj->rpath = origin_subst(obj->rpath, obj->origin_path);
+    }
 
     if (dyn_soname != NULL)
 	object_add_name(obj, obj->strtab + dyn_soname->d_un.d_val);
@@ -1003,7 +1128,10 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	      xname);
 	    return NULL;
 	}
-	return xstrdup(xname);
+	if (refobj != NULL && refobj->z_origin)
+	    return origin_subst(xname, refobj->origin_path);
+	else
+	    return xstrdup(xname);
     }
 
     if (libmap_disable || (refobj == NULL) ||
@@ -1122,7 +1250,7 @@ gethints(void)
 	/* Keep from trying again in case the hints file is bad. */
 	hints = "";
 
-	if ((fd = open(_PATH_ELF_HINTS, O_RDONLY)) == -1)
+	if ((fd = open(ld_elf_hints_path, O_RDONLY)) == -1)
 	    return NULL;
 	if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
 	  hdr.magic != ELFHINTS_MAGIC ||
@@ -1297,15 +1425,21 @@ is_exported(const Elf_Sym *def)
 static int
 load_needed_objects(Obj_Entry *first)
 {
-    Obj_Entry *obj;
+    Obj_Entry *obj, *obj1;
 
     for (obj = first;  obj != NULL;  obj = obj->next) {
 	Needed_Entry *needed;
 
 	for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
-	    needed->obj = load_object(obj->strtab + needed->name, obj);
-	    if (needed->obj == NULL && !ld_tracing)
+	    obj1 = needed->obj = load_object(obj->strtab + needed->name, obj);
+	    if (obj1 == NULL && !ld_tracing)
 		return -1;
+	    if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
+		dbg("obj %s nodelete", obj1->path);
+		init_dag(obj1);
+		ref_dag(obj1);
+		obj1->ref_nodel = true;
+	    }
 	}
     }
 
@@ -1851,12 +1985,13 @@ dlopen(const char *name, int mode)
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    int result, lockstate;
+    int result, lockstate, nodelete;
 
     LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL)
 	environ = (char **)*get_program_var_addr("environ");
+    nodelete = mode & RTLD_NODELETE;
 
     objlist_init(&initlist);
 
@@ -1903,6 +2038,11 @@ dlopen(const char *name, int mode)
 
 	    if (ld_tracing)
 		goto trace;
+	}
+	if (obj != NULL && (nodelete || obj->z_nodelete) && !obj->ref_nodel) {
+	    dbg("obj %s nodelete", obj->path);
+	    ref_dag(obj);
+	    obj->z_nodelete = obj->ref_nodel = true;
 	}
     }
 
@@ -2029,6 +2169,19 @@ dlsym(void *handle, const char *name)
 {
 	return do_dlsym(handle, name, __builtin_return_address(0), NULL,
 	    SYMLOOK_DLSYM);
+}
+
+dlfunc_t
+dlfunc(void *handle, const char *name)
+{
+	union {
+		void *d;
+		dlfunc_t f;
+	} rv;
+
+	rv.d = do_dlsym(handle, name, __builtin_return_address(0), NULL,
+	    SYMLOOK_DLSYM);
+	return (rv.f);
 }
 
 void *
@@ -2307,6 +2460,23 @@ rtld_dirname(const char *path, char *bname)
     strncpy(bname, path, endp - path + 1);
     bname[endp - path + 1] = '\0';
     return (0);
+}
+
+static int
+rtld_dirname_abs(const char *path, char *base)
+{
+	char base_rel[PATH_MAX];
+
+	if (rtld_dirname(path, base) == -1)
+		return (-1);
+	if (base[0] == '/')
+		return (0);
+	if (getcwd(base_rel, sizeof(base_rel)) == NULL ||
+	    strlcat(base_rel, "/", sizeof(base_rel)) >= sizeof(base_rel) ||
+	    strlcat(base_rel, base, sizeof(base_rel)) >= sizeof(base_rel))
+		return (-1);
+	strcpy(base, base_rel);
+	return (0);
 }
 
 static void

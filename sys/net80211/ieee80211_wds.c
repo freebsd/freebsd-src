@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 static void wds_vattach(struct ieee80211vap *);
 static int wds_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -247,9 +250,7 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		if (ifp == m->m_pkthdr.rcvif)
 			continue;
 		/*
-		 * Duplicate the frame and send it.  We don't need
-		 * to classify or lookup the tx node; this was already
-		 * done by the caller so we can just re-use the info.
+		 * Duplicate the frame and send it.
 		 */
 		mcopy = m_copypacket(m, M_DONTWAIT);
 		if (mcopy == NULL) {
@@ -264,6 +265,7 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 			m_freem(mcopy);
 			continue;
 		}
+		/* calculate priority so drivers can find the tx queue */
 		if (ieee80211_classify(ni, mcopy)) {
 			IEEE80211_DISCARD_MAC(vap,
 			    IEEE80211_MSG_OUTPUT | IEEE80211_MSG_WDS,
@@ -275,7 +277,16 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 			ieee80211_free_node(ni);
 			continue;
 		}
-		mcopy->m_flags |= M_MCAST | M_WDS;
+		/*
+		 * Encapsulate the packet in prep for transmission.
+		 */
+		mcopy = ieee80211_encap(vap, ni, mcopy);
+		if (m == NULL) {
+			/* NB: stat+msg handled in ieee80211_encap */
+			ieee80211_free_node(ni);
+			continue;
+		}
+		mcopy->m_flags |= M_MCAST;
 		mcopy->m_pkthdr.rcvif = (void *) ni;
 
 		err = parent->if_transmit(parent, mcopy);
@@ -728,32 +739,13 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-		} else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) &&
-#define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
-		    m->m_pkthdr.len >= 3*FF_LLC_SIZE) {
-			struct llc *llc;
-
-			/*
-			 * Check for fast-frame tunnel encapsulation.
-			 */
-			if (m->m_len < FF_LLC_SIZE &&
-			    (m = m_pullup(m, FF_LLC_SIZE)) == NULL) {
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-				    ni->ni_macaddr, "fast-frame",
-				    "%s", "m_pullup(llc) failed");
-				vap->iv_stats.is_rx_tooshort++;
+		} else {
+#ifdef IEEE80211_SUPPORT_SUPERG
+			m = ieee80211_decap_fastframe(vap, ni, m);
+			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-			}
-			llc = (struct llc *)(mtod(m, uint8_t *) + 
-				sizeof(struct ether_header));
-			if (llc->llc_snap.ether_type == htons(ATH_FF_ETH_TYPE)) {
-				m_adj(m, FF_LLC_SIZE);
-				m = ieee80211_decap_fastframe(ni, m);
-				if (m == NULL)
-					return IEEE80211_FC0_TYPE_DATA;
-			}
+#endif
 		}
-#undef FF_LLC_SIZE
 		ieee80211_deliver_data(vap, ni, m);
 		return IEEE80211_FC0_TYPE_DATA;
 

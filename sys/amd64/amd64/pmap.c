@@ -542,7 +542,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
-	kernel_pmap->pm_pml4 = (pdp_entry_t *) (KERNBASE + KPML4phys);
+	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	kernel_pmap->pm_root = NULL;
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
@@ -1351,7 +1351,7 @@ pmap_pinit0(pmap_t pmap)
 {
 
 	PMAP_LOCK_INIT(pmap);
-	pmap->pm_pml4 = (pml4_entry_t *)(KERNBASE + KPML4phys);
+	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	pmap->pm_root = NULL;
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -1442,8 +1442,6 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 	 * it isn't already there.
 	 */
 
-	pmap->pm_stats.resident_count++;
-
 	if (ptepindex >= (NUPDE + NUPDPE)) {
 		pml4_entry_t *pml4;
 		vm_pindex_t pml4index;
@@ -1469,7 +1467,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 			if (_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index,
 			    flags) == NULL) {
 				--m->wire_count;
-				vm_page_free(m);
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+				vm_page_free_zero(m);
 				return (NULL);
 			}
 		} else {
@@ -1501,7 +1500,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 			if (_pmap_allocpte(pmap, NUPDE + pdpindex,
 			    flags) == NULL) {
 				--m->wire_count;
-				vm_page_free(m);
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+				vm_page_free_zero(m);
 				return (NULL);
 			}
 			pdp = (pdp_entry_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
@@ -1514,7 +1514,9 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 				if (_pmap_allocpte(pmap, NUPDE + pdpindex,
 				    flags) == NULL) {
 					--m->wire_count;
-					vm_page_free(m);
+					atomic_subtract_int(&cnt.v_wire_count,
+					    1);
+					vm_page_free_zero(m);
 					return (NULL);
 				}
 			} else {
@@ -1529,6 +1531,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, int flags)
 		pd = &pd[ptepindex & ((1ul << NPDEPGSHIFT) - 1)];
 		*pd = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V | PG_A | PG_M;
 	}
+
+	pmap->pm_stats.resident_count++;
 
 	return m;
 }
@@ -2338,6 +2342,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		mpte = pmap_lookup_pt_page(pmap, sva);
 		if (mpte != NULL) {
 			pmap_remove_pt_page(pmap, mpte);
+			pmap->pm_stats.resident_count--;
 			KASSERT(mpte->wire_count == NPTEPG,
 			    ("pmap_remove_pde: pte page wire count error"));
 			mpte->wire_count = 0;
@@ -3847,6 +3852,7 @@ pmap_remove_pages(pmap_t pmap)
 					mpte = pmap_lookup_pt_page(pmap, pv->pv_va);
 					if (mpte != NULL) {
 						pmap_remove_pt_page(pmap, mpte);
+						pmap->pm_stats.resident_count--;
 						KASSERT(mpte->wire_count == NPTEPG,
 						    ("pmap_remove_pages: pte page wire count error"));
 						mpte->wire_count = 0;
@@ -4689,7 +4695,7 @@ if (oldpmap)	/* XXX FIXME */
 	oldpmap->pm_active &= ~PCPU_GET(cpumask);
 	pmap->pm_active |= PCPU_GET(cpumask);
 #endif
-	cr3 = vtophys(pmap->pm_pml4);
+	cr3 = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4);
 	td->td_pcb->pcb_cr3 = cr3;
 	load_cr3(cr3);
 	critical_exit();

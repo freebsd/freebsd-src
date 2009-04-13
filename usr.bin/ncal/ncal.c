@@ -40,6 +40,8 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 /* Width of one month with backward compatibility */
 #define MONTH_WIDTH_B_J 27
@@ -53,13 +55,13 @@ static const char rcsid[] =
 typedef struct date date;
 
 struct monthlines {
-	char name[MAX_WIDTH + 1];
+	wchar_t name[MAX_WIDTH + 1];
 	char lines[7][MAX_WIDTH + 1];
 	char weeks[MAX_WIDTH + 1];
 };
 
 struct weekdays {
-	char names[7][4];
+	wchar_t names[7][4];
 };
 
 /* The switches from Julian to Gregorian in some countries */
@@ -159,6 +161,7 @@ int     nswitch;		/* user defined switch date */
 int	nswitchb;		/* switch date for backward compatibility */
 
 char   *center(char *s, char *t, int w);
+wchar_t *wcenter(wchar_t *s, wchar_t *t, int w);
 void	mkmonth(int year, int month, int jd_flag, struct monthlines * monthl);
 void    mkmonthb(int year, int month, int jd_flag, struct monthlines * monthl);
 void    mkweekdays(struct weekdays * wds);
@@ -418,9 +421,9 @@ printmonth(int y, int m, int jd_flag)
 
 	mkmonth(y, m - 1, jd_flag, &month);
 	mkweekdays(&wds);
-	printf("    %s %d\n", month.name, y);
+	printf("    %ls %d\n", month.name, y);
 	for (i = 0; i != 7; i++)
-		printf("%.2s%s\n", wds.names[i], month.lines[i]);
+		printf("%.2ls%s\n", wds.names[i], month.lines[i]);
 	if (flag_weeks)
 		printf("  %s\n", month.weeks);
 }
@@ -430,7 +433,7 @@ printmonthb(int y, int m, int jd_flag)
 {
 	struct monthlines month;
 	struct weekdays wds;
-	char s[MAX_WIDTH], t[MAX_WIDTH];
+	wchar_t s[MAX_WIDTH], t[MAX_WIDTH];
 	int i;
 	int mw;
 
@@ -439,16 +442,17 @@ printmonthb(int y, int m, int jd_flag)
 
 	mw = jd_flag ? MONTH_WIDTH_B_J : MONTH_WIDTH_B;
 
-	sprintf(s, "%s %d", month.name, y);
-	printf("%s\n", center(t, s, mw));
+	swprintf(s, MAX_WIDTH, L"%ls %d", month.name, y);
+	wprintf(L"%ls\n", wcenter(t, s, mw));
 
 	if (jd_flag)
-		printf(" %s %s %s %s %s %s %.2s\n", wds.names[6], wds.names[0],
+		wprintf(L" %ls %ls %ls %ls %ls %ls %.2ls\n",
+			wds.names[6], wds.names[0],
 			wds.names[1], wds.names[2], wds.names[3],
 			wds.names[4], wds.names[5]);
 	else
-		printf("%s%s%s%s%s%s%.2s\n", wds.names[6], wds.names[0],
-			wds.names[1], wds.names[2], wds.names[3],
+		wprintf(L"%ls%ls%ls%ls%ls%ls%.2ls\n", wds.names[6],
+			wds.names[0], wds.names[1], wds.names[2], wds.names[3],
 			wds.names[4], wds.names[5]);
 
 	for (i = 0; i != 6; i++)
@@ -475,17 +479,17 @@ printyear(int y, int jd_flag)
 	printf("%s\n", center(t, s, mpl * mw));
 
 	for (j = 0; j != 12; j += mpl) {
-		printf("    %-*s%-*s",
+		printf("    %-*ls%-*ls",
 		    mw, year[j].name,
 		    mw, year[j + 1].name);
 		if (mpl == 3)
-			printf("%s\n", year[j + 2].name);
+			printf("%ls\n", year[j + 2].name);
 		else
-			printf("%-*s%s\n",
+			printf("%-*ls%ls\n",
 		    	    mw, year[j + 2].name,
 		    	    year[j + 3].name);
 		for (i = 0; i != 7; i++) {
-			printf("%.2s%-*s%-*s",
+			printf("%.2ls%-*s%-*s",
 			    wds.names[i],
 			    mw, year[j].lines[i],
 			    mw, year[j + 1].lines[i]);
@@ -518,6 +522,7 @@ printyearb(int y, int jd_flag)
 	struct monthlines year[12];
 	struct weekdays wds;
 	char	s[80], t[80];
+	wchar_t	ws[80], wt[80];
 	int     i, j;
 	int     mpl;
 	int     mw;
@@ -532,17 +537,17 @@ printyearb(int y, int jd_flag)
 	printf("%s\n\n", center(t, s, mw * mpl + mpl));
 
 	for (j = 0; j != 12; j += mpl) {
-		printf("%-*s  ", mw, center(s, year[j].name, mw));
+		printf("%-*ls  ", mw, wcenter(ws, year[j].name, mw));
 		if (mpl == 2)
-			printf("%s\n", center(s, year[j + 1].name, mw));
+			printf("%ls\n", wcenter(ws, year[j + 1].name, mw));
 		else
-			printf("%-*s  %s\n", mw,
-			    center(s, year[j + 1].name, mw),
-			    center(t, year[j + 2].name, mw));
+			printf("%-*ls  %ls\n", mw,
+			    wcenter(ws, year[j + 1].name, mw),
+			    wcenter(wt, year[j + 2].name, mw));
 
 		if (mpl == 2)
-			printf(" %s %s %s %s %s %s %s "
-			       " %s %s %s %s %s %s %.2s\n",
+			wprintf(L" %ls %ls %ls %ls %ls %ls %ls "
+				" %ls %ls %ls %ls %ls %ls %.2ls\n",
 				wds.names[6], wds.names[0], wds.names[1],
 				wds.names[2], wds.names[3], wds.names[4],
 				wds.names[5],
@@ -550,9 +555,9 @@ printyearb(int y, int jd_flag)
 				wds.names[2], wds.names[3], wds.names[4],
 				wds.names[5]);
 		else
-			printf("%s%s%s%s%s%s%s "
-				"%s%s%s%s%s%s%s "
-				"%s%s%s%s%s%s%.2s\n",
+			wprintf(L"%ls%ls%ls%ls%ls%ls%ls "
+				"%ls%ls%ls%ls%ls%ls%ls "
+				"%ls%ls%ls%ls%ls%ls%.2ls\n",
 				wds.names[6], wds.names[0], wds.names[1],
 				wds.names[2], wds.names[3], wds.names[4],
 				wds.names[5],
@@ -596,8 +601,9 @@ mkmonth(int y, int m, int jd_flag, struct monthlines *mlines)
 	/* Set name of month. */
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
-	strftime(mlines->name, sizeof(mlines->name), "%OB", &tm);
-	mlines->name[0] = toupper((unsigned char)mlines->name[0]);
+	wcsftime(mlines->name, sizeof(mlines->name) / sizeof(mlines->name[0]),
+		 L"%OB", &tm);
+	mlines->name[0] = towupper(mlines->name[0]);
 
 	/*
 	 * Set first and last to the day number of the first day of this
@@ -688,8 +694,9 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 	/* Set name of month centered */
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
-	strftime(mlines->name, sizeof(mlines->name), "%OB", &tm);
-	mlines->name[0] = toupper((unsigned char)mlines->name[0]);
+	wcsftime(mlines->name, sizeof(mlines->name) / sizeof(mlines->name[0]),
+		 L"%OB", &tm);
+	mlines->name[0] = towupper(mlines->name[0]);
 
 	/*
 	 * Set first and last to the day number of the first day of this
@@ -754,18 +761,18 @@ mkweekdays(struct weekdays *wds)
 {
 	int i, len;
 	struct tm tm;
-	char buf[20];
+	wchar_t buf[20];
 
 	memset(&tm, 0, sizeof(tm));
 
 	for (i = 0; i != 7; i++) {
 		tm.tm_wday = (i+1) % 7;
-		strftime(buf, sizeof(buf), "%a", &tm);
-		len = strlen(buf);
+		wcsftime(buf, sizeof(buf), L"%a", &tm);
+		len = wcslen(buf);
 		if (len > 2)
 			len = 2;
-		strcpy(wds->names[i], "   ");
-		strncpy(wds->names[i] + 2 - len, buf, len);
+		wcscpy(wds->names[i], L"   ");
+		wcsncpy(wds->names[i] + 2 - len, buf, len);
 	}
 }
 
@@ -855,6 +862,17 @@ center(char *s, char *t, int w)
 
 	memset(blanks, ' ', sizeof(blanks));
 	sprintf(s, "%.*s%s", (int)(w - strlen(t)) / 2, blanks, t);
+	return (s);
+}
+
+/* Center string t in string s of length w by putting enough leading blanks */
+wchar_t *
+wcenter(wchar_t *s, wchar_t *t, int w)
+{
+	char blanks[80];
+
+	memset(blanks, ' ', sizeof(blanks));
+	swprintf(s, MAX_WIDTH, L"%.*s%ls", (int)(w - wcslen(t)) / 2, blanks, t);
 	return (s);
 }
 

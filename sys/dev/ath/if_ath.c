@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_ath.h"
+#include "opt_wlan.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -70,7 +71,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
+#ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
 
@@ -87,11 +91,6 @@ __FBSDID("$FreeBSD$");
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
-
-/*
- * We require a HAL w/ the changes for split tx/rx MIC.
- */
-CTASSERT(HAL_ABI_VERSION > 0x06052200);
 
 /*
  * ATH_BCBUF determines the number of vap's that can transmit
@@ -218,14 +217,14 @@ static int	ath_raw_xmit(struct ieee80211_node *,
 static void	ath_bpfattach(struct ath_softc *);
 static void	ath_announce(struct ath_softc *);
 
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 static void	ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt,
 		    u_int32_t bintval);
 static void	ath_tdma_bintvalsetup(struct ath_softc *sc,
 		    const struct ieee80211_tdma_state *tdma);
 static void	ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap);
 static void	ath_tdma_update(struct ieee80211_node *ni,
-		    const struct ieee80211_tdma_param *tdma);
+		    const struct ieee80211_tdma_param *tdma, int);
 static void	ath_tdma_beacon_send(struct ath_softc *sc,
 		    struct ieee80211vap *vap);
 
@@ -260,7 +259,7 @@ ath_hal_getcca(struct ath_hal *ah)
 #define	TDMA_EP_RND(x,mul) \
 	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
 #define	TDMA_AVG(x)		TDMA_EP_RND(x, TDMA_EP_MULTIPLIER)
-#endif /* ATH_SUPPORT_TDMA */
+#endif /* IEEE80211_SUPPORT_TDMA */
 
 SYSCTL_DECL(_hw_ath);
 
@@ -358,6 +357,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	HAL_STATUS status;
 	int error = 0, i;
 	u_int wmodes;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
 
@@ -377,13 +377,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (ah == NULL) {
 		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
 			status);
-		error = ENXIO;
-		goto bad;
-	}
-	if (ah->ah_abi != HAL_ABI_VERSION) {
-		if_printf(ifp, "HAL ABI mismatch detected "
-			"(HAL:0x%x != driver:0x%x)\n",
-			ah->ah_abi, HAL_ABI_VERSION);
 		error = ENXIO;
 		goto bad;
 	}
@@ -669,7 +662,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	wmodes = ath_hal_getwirelessmodes(ah);
 	if (wmodes & (HAL_MODE_108G|HAL_MODE_TURBO))
 		ic->ic_caps |= IEEE80211_C_TURBOP;
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		ic->ic_caps |= IEEE80211_C_TDMA; /* capable of TDMA */
 		ic->ic_tdma_update = ath_tdma_update;
@@ -693,14 +686,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasveol = ath_hal_hasveol(ah);
 
 	/* get mac address from hardware */
-	ath_hal_getmac(ah, ic->ic_myaddr);
+	ath_hal_getmac(ah, macaddr);
 	if (sc->sc_hasbmask)
 		ath_hal_getbssidmask(ah, sc->sc_hwbssidmask);
 
 	/* NB: used to size node table key mapping array */
 	ic->ic_max_keyix = sc->sc_keymax;
 	/* call MI attach routine. */
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_setregdomain = ath_setregdomain;
 	ic->ic_getradiocaps = ath_getradiocaps;
 	sc->sc_opmode = HAL_M_STA;
@@ -898,7 +891,7 @@ ath_vap_create(struct ieee80211com *ic,
 		needbeacon = 1;
 		break;
 	case IEEE80211_M_AHDEMO:
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 		if (flags & IEEE80211_CLONE_TDMA) {
 			needbeacon = 1;
 			flags |= IEEE80211_CLONE_NOBEACONS;
@@ -1023,7 +1016,7 @@ ath_vap_create(struct ieee80211com *ic,
 		sc->sc_opmode = HAL_M_STA;
 		break;
 	case IEEE80211_M_AHDEMO:
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 		if (vap->iv_caps & IEEE80211_C_TDMA) {
 			sc->sc_tdma = 1;
 			/* NB: disable tsf adjust */
@@ -1129,7 +1122,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 	}
 	if (vap->iv_opmode != IEEE80211_M_WDS)
 		sc->sc_nvaps--;
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 	/* TDMA operation ceases when the last vap is destroyed */
 	if (sc->sc_tdma && sc->sc_nvaps == 0) {
 		sc->sc_tdma = 0;
@@ -1290,7 +1283,7 @@ ath_intr(void *arg)
 			 * this is too slow to meet timing constraints
 			 * under load.
 			 */
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 			if (sc->sc_tdma) {
 				if (sc->sc_tdmaswba == 0) {
 					struct ieee80211com *ic = ifp->if_l2com;
@@ -1303,7 +1296,17 @@ ath_intr(void *arg)
 					sc->sc_tdmaswba--;
 			} else
 #endif
+			{
 				ath_beacon_proc(sc, 0);
+#ifdef IEEE80211_SUPPORT_SUPERG
+				/*
+				 * Schedule the rx taskq in case there's no
+				 * traffic so any frames held on the staging
+				 * queue are aged and potentially flushed.
+				 */
+				taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+#endif
+			}
 		}
 		if (status & HAL_INT_RXEOL) {
 			/*
@@ -1637,7 +1640,7 @@ ath_reset(struct ifnet *ifp)
 	 */
 	ath_chan_change(sc, ic->ic_curchan);
 	if (sc->sc_beacons) {
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 		if (sc->sc_tdma)
 			ath_tdma_config(sc, NULL);
 		else
@@ -1670,320 +1673,6 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 		return 0;
 	}
 	return ath_reset(ifp);
-}
-
-static int 
-ath_ff_always(struct ath_txq *txq, struct ath_buf *bf)
-{
-	return 0;
-}
-
-#if 0
-static int 
-ath_ff_ageflushtestdone(struct ath_txq *txq, struct ath_buf *bf)
-{
-	return (txq->axq_curage - bf->bf_age) < ATH_FF_STAGEMAX;
-}
-#endif
-
-/*
- * Flush FF staging queue.
- */
-static void
-ath_ff_stageq_flush(struct ath_softc *sc, struct ath_txq *txq,
-	int (*ath_ff_flushdonetest)(struct ath_txq *txq, struct ath_buf *bf))
-{
-	struct ath_buf *bf;
-	struct ieee80211_node *ni;
-	int pktlen, pri;
-	
-	for (;;) {
-		ATH_TXQ_LOCK(txq);
-		/*
-		 * Go from the back (oldest) to front so we can
-		 * stop early based on the age of the entry.
-		 */
-		bf = TAILQ_LAST(&txq->axq_stageq, axq_headtype);
-		if (bf == NULL || ath_ff_flushdonetest(txq, bf)) {
-			ATH_TXQ_UNLOCK(txq);
-			break;
-		}
-
-		ni = bf->bf_node;
-		pri = M_WME_GETAC(bf->bf_m);
-		KASSERT(ATH_NODE(ni)->an_ff_buf[pri],
-			("no bf on staging queue %p", bf));
-		ATH_NODE(ni)->an_ff_buf[pri] = NULL;
-		TAILQ_REMOVE(&txq->axq_stageq, bf, bf_stagelist);
-		
-		ATH_TXQ_UNLOCK(txq);
-
-		DPRINTF(sc, ATH_DEBUG_FF, "%s: flush frame, age %u\n",
-			__func__, bf->bf_age);
-
-		sc->sc_stats.ast_ff_flush++;
-		
-		/* encap and xmit */
-		bf->bf_m = ieee80211_encap(ni, bf->bf_m);
-		if (bf->bf_m == NULL) {
-			DPRINTF(sc, ATH_DEBUG_XMIT | ATH_DEBUG_FF,
-				"%s: discard, encapsulation failure\n",
-				__func__);
-			sc->sc_stats.ast_tx_encap++;
-			goto bad;
-		}
-		pktlen = bf->bf_m->m_pkthdr.len; /* NB: don't reference below */
-		if (ath_tx_start(sc, ni, bf, bf->bf_m) == 0) {
-#if 0 /*XXX*/
-			ifp->if_opackets++;
-#endif
-			continue;
-		}
-	bad:
-		if (ni != NULL)
-			ieee80211_free_node(ni);
-		bf->bf_node = NULL;
-		if (bf->bf_m != NULL) {
-			m_freem(bf->bf_m);
-			bf->bf_m = NULL;
-		}
-
-		ATH_TXBUF_LOCK(sc);
-		STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
-		ATH_TXBUF_UNLOCK(sc);
-	}
-}
-
-static __inline u_int32_t
-ath_ff_approx_txtime(struct ath_softc *sc, struct ath_node *an, struct mbuf *m)
-{
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	u_int32_t framelen;
-	struct ath_buf *bf;
-
-	/*
-	 * Approximate the frame length to be transmitted. A swag to add
-	 * the following maximal values to the skb payload:
-	 *   - 32: 802.11 encap + CRC
-	 *   - 24: encryption overhead (if wep bit)
-	 *   - 4 + 6: fast-frame header and padding
-	 *   - 16: 2 LLC FF tunnel headers
-	 *   - 14: 1 802.3 FF tunnel header (skb already accounts for 2nd)
-	 */
-	framelen = m->m_pkthdr.len + 32 + 4 + 6 + 16 + 14;
-	if (ic->ic_flags & IEEE80211_F_PRIVACY)
-		framelen += 24;
-	bf = an->an_ff_buf[M_WME_GETAC(m)];
-	if (bf != NULL)
-		framelen += bf->bf_m->m_pkthdr.len;
-	return ath_hal_computetxtime(sc->sc_ah, sc->sc_currates, framelen,
-			sc->sc_lastdatarix, AH_FALSE);
-}
-
-/*
- * Determine if a data frame may be aggregated via ff tunnelling.
- * Note the caller is responsible for checking if the destination
- * supports fast frames.
- *
- *  NB: allowing EAPOL frames to be aggregated with other unicast traffic.
- *      Do 802.1x EAPOL frames proceed in the clear? Then they couldn't
- *      be aggregated with other types of frames when encryption is on?
- *
- *  NB: assumes lock on an_ff_buf effectively held by txq lock mechanism.
- */
-static __inline int 
-ath_ff_can_aggregate(struct ath_softc *sc,
-	struct ath_node *an, struct mbuf *m, int *flushq)
-{
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	struct ath_txq *txq;
-	u_int32_t txoplimit;
-	u_int pri;
-
-	*flushq = 0;
-
-	/*
-	 * If there is no frame to combine with and the txq has
-	 * fewer frames than the minimum required; then do not
-	 * attempt to aggregate this frame.
-	 */
-	pri = M_WME_GETAC(m);
-	txq = sc->sc_ac2q[pri];
-	if (an->an_ff_buf[pri] == NULL && txq->axq_depth < sc->sc_fftxqmin)
-		return 0;
-	/*
-	 * When not in station mode never aggregate a multicast
-	 * frame; this insures, for example, that a combined frame
-	 * does not require multiple encryption keys when using
-	 * 802.1x/WPA.
-	 */
-	if (ic->ic_opmode != IEEE80211_M_STA &&
-	    ETHER_IS_MULTICAST(mtod(m, struct ether_header *)->ether_dhost))
-		return 0;		
-	/*
-	 * Consult the max bursting interval to insure a combined
-	 * frame fits within the TxOp window.
-	 */
-	txoplimit = IEEE80211_TXOP_TO_US(
-		ic->ic_wme.wme_chanParams.cap_wmeParams[pri].wmep_txopLimit);
-	if (txoplimit != 0 && ath_ff_approx_txtime(sc, an, m) > txoplimit) {
-		DPRINTF(sc, ATH_DEBUG_XMIT | ATH_DEBUG_FF,
-			"%s: FF TxOp violation\n", __func__);
-		if (an->an_ff_buf[pri] != NULL)
-			*flushq = 1;
-		return 0;
-	}
-	return 1;		/* try to aggregate */
-}
-
-/*
- * Check if the supplied frame can be partnered with an existing
- * or pending frame.  Return a reference to any frame that should be
- * sent on return; otherwise return NULL.
- */
-static struct mbuf *
-ath_ff_check(struct ath_softc *sc, struct ath_txq *txq,
-	struct ath_buf *bf, struct mbuf *m, struct ieee80211_node *ni)
-{
-	struct ath_node *an = ATH_NODE(ni);
-	struct ath_buf *bfstaged;
-	int ff_flush, pri;
-
-	/*
-	 * Check if the supplied frame can be aggregated.
-	 *
-	 * NB: we use the txq lock to protect references to
-	 *     an->an_ff_txbuf in ath_ff_can_aggregate().
-	 */
-	ATH_TXQ_LOCK(txq);
-	pri = M_WME_GETAC(m);
-	if (ath_ff_can_aggregate(sc, an, m, &ff_flush)) {
-		struct ath_buf *bfstaged = an->an_ff_buf[pri];
-		if (bfstaged != NULL) {
-			/*
-			 * A frame is available for partnering; remove
-			 * it, chain it to this one, and encapsulate.
-			 */
-			an->an_ff_buf[pri] = NULL;
-			TAILQ_REMOVE(&txq->axq_stageq, bfstaged, bf_stagelist);
-			ATH_TXQ_UNLOCK(txq);
-
-			/* 
-			 * Chain mbufs and add FF magic.
-			 */
-			DPRINTF(sc, ATH_DEBUG_FF,
-				"[%s] aggregate fast-frame, age %u\n",
-				ether_sprintf(ni->ni_macaddr), txq->axq_curage);
-			m->m_nextpkt = NULL;
-			bfstaged->bf_m->m_nextpkt = m;
-			m = bfstaged->bf_m;
-			bfstaged->bf_m = NULL;
-			m->m_flags |= M_FF;
-			/*
-			 * Release the node reference held while
-			 * the packet sat on an_ff_buf[]
-			 */
-			bfstaged->bf_node = NULL;
-			ieee80211_free_node(ni);
-
-			/*
-			 * Return bfstaged to the free list.
-			 */
-			ATH_TXBUF_LOCK(sc);
-			STAILQ_INSERT_HEAD(&sc->sc_txbuf, bfstaged, bf_list);
-			ATH_TXBUF_UNLOCK(sc);
-
-			return m;		/* ready to go */
-		} else {
-			/*
-			 * No frame available, queue this frame to wait
-			 * for a partner.  Note that we hold the buffer
-			 * and a reference to the node; we need the
-			 * buffer in particular so we're certain we
-			 * can flush the frame at a later time.
-			 */
-			DPRINTF(sc, ATH_DEBUG_FF,
-				"[%s] stage fast-frame, age %u\n",
-				ether_sprintf(ni->ni_macaddr), txq->axq_curage);
-
-			bf->bf_m = m;
-			bf->bf_node = ni;	/* NB: held reference */
-			bf->bf_age = txq->axq_curage;
-			an->an_ff_buf[pri] = bf;
-			TAILQ_INSERT_HEAD(&txq->axq_stageq, bf, bf_stagelist);
-			ATH_TXQ_UNLOCK(txq);
-
-			return NULL;		/* consumed */
-		}
-	}
-	/*
-	 * Frame could not be aggregated, it needs to be returned
-	 * to the caller for immediate transmission.  In addition
-	 * we check if we should first flush a frame from the
-	 * staging queue before sending this one.
-	 *
-	 * NB: ath_ff_can_aggregate only marks ff_flush if a frame
-	 *     is present to flush.
-	 */
-	if (ff_flush) {
-		int pktlen;
-
-		bfstaged = an->an_ff_buf[pri];
-		an->an_ff_buf[pri] = NULL;
-		TAILQ_REMOVE(&txq->axq_stageq, bfstaged, bf_stagelist);
-		ATH_TXQ_UNLOCK(txq);
-
-		DPRINTF(sc, ATH_DEBUG_FF, "[%s] flush staged frame\n",
-			ether_sprintf(an->an_node.ni_macaddr));
-
-		/* encap and xmit */
-		bfstaged->bf_m = ieee80211_encap(ni, bfstaged->bf_m);
-		if (bfstaged->bf_m == NULL) {
-			DPRINTF(sc, ATH_DEBUG_XMIT | ATH_DEBUG_FF,
-				"%s: discard, encap failure\n", __func__);
-			sc->sc_stats.ast_tx_encap++;
-			goto ff_flushbad;
-		}
-		pktlen = bfstaged->bf_m->m_pkthdr.len;
-		if (ath_tx_start(sc, ni, bfstaged, bfstaged->bf_m)) {
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-				"%s: discard, xmit failure\n", __func__);
-	ff_flushbad:
-			/*
-			 * Unable to transmit frame that was on the staging
-			 * queue.  Reclaim the node reference and other
-			 * resources.
-			 */
-			if (ni != NULL)
-				ieee80211_free_node(ni);
-			bfstaged->bf_node = NULL;
-			if (bfstaged->bf_m != NULL) {
-				m_freem(bfstaged->bf_m);
-				bfstaged->bf_m = NULL;
-			}
-
-			ATH_TXBUF_LOCK(sc);
-			STAILQ_INSERT_HEAD(&sc->sc_txbuf, bfstaged, bf_list);
-			ATH_TXBUF_UNLOCK(sc);
-		} else {
-#if 0
-			ifp->if_opackets++;
-#endif
-		}
-	} else {
-		if (an->an_ff_buf[pri] != NULL) {
-			/* 
-			 * XXX: out-of-order condition only occurs for AP
-			 * mode and multicast.  There may be no valid way
-			 * to get this condition.
-			 */
-			DPRINTF(sc, ATH_DEBUG_FF, "[%s] out-of-order frame\n",
-				ether_sprintf(an->an_node.ni_macaddr));
-			/* XXX stat */
-		}
-		ATH_TXQ_UNLOCK(txq);
-	}
-	return m;
 }
 
 static struct ath_buf *
@@ -2080,9 +1769,7 @@ ath_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
-	struct ath_txq *txq;
 	ath_bufhead frags;
-	int pri;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
@@ -2101,47 +1788,14 @@ ath_start(struct ifnet *ifp)
 			ATH_TXBUF_UNLOCK(sc);
 			break;
 		}
-		STAILQ_INIT(&frags);
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		pri = M_WME_GETAC(m);
-		txq = sc->sc_ac2q[pri];
-		if (IEEE80211_ATH_CAP(ni->ni_vap, ni, IEEE80211_NODE_FF)) {
-			/*
-			 * Check queue length; if too deep drop this
-			 * frame (tail drop considered good).
-			 */
-			if (txq->axq_depth >= sc->sc_fftxqmax) {
-				DPRINTF(sc, ATH_DEBUG_FF,
-				    "[%s] tail drop on q %u depth %u\n",
-				    ether_sprintf(ni->ni_macaddr),
-				    txq->axq_qnum, txq->axq_depth);
-				sc->sc_stats.ast_tx_qfull++;
-				m_freem(m);
-				goto reclaim;
-			}
-			m = ath_ff_check(sc, txq, bf, m, ni);
-			if (m == NULL) {
-				/* NB: ni ref & bf held on stageq */
-				continue;
-			}
-		}
-		ifp->if_opackets++;
-		/*
-		 * Encapsulate the packet in prep for transmission.
-		 */
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: encapsulation failure\n", __func__);
-			sc->sc_stats.ast_tx_encap++;
-			goto bad;
-		}
 		/*
 		 * Check for fragmentation.  If this frame
 		 * has been broken up verify we have enough
 		 * buffers to send all the fragments so all
 		 * go out or none...
 		 */
+		STAILQ_INIT(&frags);
 		if ((m->m_flags & M_FRAG) && 
 		    !ath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, ATH_DEBUG_XMIT,
@@ -2150,6 +1804,7 @@ ath_start(struct ifnet *ifp)
 			ath_freetx(m);
 			goto bad;
 		}
+		ifp->if_opackets++;
 	nextfrag:
 		/*
 		 * Pass the frame to the h/w for transmission.
@@ -2199,13 +1854,6 @@ ath_start(struct ifnet *ifp)
 		}
 
 		sc->sc_wd_timer = 5;
-#if 0
-		/*
-		 * Flush stale frames from the fast-frame staging queue.
-		 */
-		if (ic->ic_opmode != IEEE80211_M_STA)
-			ath_ff_stageq_flush(sc, txq, ath_ff_ageflushtestdone);
-#endif
 	}
 }
 
@@ -2689,17 +2337,8 @@ ath_calcrxfilter(struct ath_softc *sc)
 	u_int32_t rfilt;
 
 	rfilt = HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
-#if HAL_ABI_VERSION < 0x08011600
-	rfilt |= (ath_hal_getrxfilter(sc->sc_ah) &
-		(HAL_RX_FILTER_PHYRADAR | HAL_RX_FILTER_PHYERR));
-#elif HAL_ABI_VERSION < 0x08060100
-	if (ic->ic_opmode == IEEE80211_M_STA &&
-	    !sc->sc_needmib && !sc->sc_scanning)
-		rfilt |= HAL_RX_FILTER_PHYERR;
-#else
 	if (!sc->sc_needmib && !sc->sc_scanning)
 		rfilt |= HAL_RX_FILTER_PHYERR;
-#endif
 	if (ic->ic_opmode != IEEE80211_M_STA)
 		rfilt |= HAL_RX_FILTER_PROBEREQ;
 	if (ic->ic_opmode == IEEE80211_M_MONITOR || (ifp->if_flags & IFF_PROMISC))
@@ -2776,7 +2415,6 @@ static void
 ath_mode_init(struct ath_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	u_int32_t rfilt;
 
@@ -2787,16 +2425,8 @@ ath_mode_init(struct ath_softc *sc)
 	/* configure operational mode */
 	ath_hal_setopmode(ah);
 
-	/*
-	 * Handle any link-level address change.  Note that we only
-	 * need to force ic_myaddr; any other addresses are handled
-	 * as a byproduct of the ifnet code marking the interface
-	 * down then up.
-	 *
-	 * XXX should get from lladdr instead of arpcom but that's more work
-	 */
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	ath_hal_setmac(ah, ic->ic_myaddr);
+	/* handle any link-level address change */
+	ath_hal_setmac(ah, IF_LLADDR(ifp));
 
 	/* calculate and install multicast filter */
 	ath_update_mcast(ifp);
@@ -4305,7 +3935,7 @@ rx_accept:
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 			sc->sc_tdmars = rs;
 #endif
 			type = ieee80211_input(ni, m,
@@ -4363,10 +3993,18 @@ rx_next:
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
-	    !IFQ_IS_EMPTY(&ifp->if_snd))
-		ath_start(ifp);
-
+	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+#ifdef IEEE80211_SUPPORT_SUPERG
+		if (ic->ic_stageqdepth) {
+			ieee80211_age_stageq(ic, WME_AC_VO, 100);
+			ieee80211_age_stageq(ic, WME_AC_VI, 100);
+			ieee80211_age_stageq(ic, WME_AC_BE, 100);
+			ieee80211_age_stageq(ic, WME_AC_BK, 100);
+		}
+#endif
+		if (!IFQ_IS_EMPTY(&ifp->if_snd))
+			ath_start(ifp);
+	}
 #undef PA2DESC
 }
 
@@ -4374,13 +4012,12 @@ static void
 ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 {
 	txq->axq_qnum = qnum;
+	txq->axq_ac = 0;
 	txq->axq_depth = 0;
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
 	STAILQ_INIT(&txq->axq_q);
 	ATH_TXQ_LOCK_INIT(sc, txq);
-	TAILQ_INIT(&txq->axq_stageq);
-	txq->axq_curage = 0;
 }
 
 /*
@@ -4457,6 +4094,7 @@ ath_tx_setup(struct ath_softc *sc, int ac, int haltype)
 	}
 	txq = ath_txq_setup(sc, HAL_TX_QUEUE_DATA, haltype);
 	if (txq != NULL) {
+		txq->axq_ac = ac;
 		sc->sc_ac2q[ac] = txq;
 		return 1;
 	} else
@@ -4480,7 +4118,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 	HAL_TXQ_INFO qi;
 
 	ath_hal_gettxqueueprops(ah, txq->axq_qnum, &qi);
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 	if (sc->sc_tdma) {
 		/*
 		 * AIFS is zero so there's no pre-transmit wait.  The
@@ -4514,7 +4152,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 		qi.tqi_cwmax = ATH_EXPONENT_TO_VALUE(wmep->wmep_logcwmax);
 		qi.tqi_readyTime = 0;
 		qi.tqi_burstTime = ATH_TXOP_TO_US(wmep->wmep_txopLimit);
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 	}
 #endif
 
@@ -4704,7 +4342,7 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	     ("busy status 0x%x", bf->bf_flags));
 	if (txq->axq_qnum != ATH_TXQ_SWQ) {
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 		int qbusy;
 
 		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
@@ -4774,7 +4412,7 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 			    txq->axq_qnum, txq->axq_link,
 			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
 		}
-#endif /* ATH_SUPPORT_TDMA */
+#endif /* IEEE80211_SUPPORT_TDMA */
 		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
 		ath_hal_txstart(ah, txq->axq_qnum);
 	} else {
@@ -5009,7 +4647,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	}
 	if (flags & HAL_TXDESC_NOACK)		/* NB: avoid double counting */
 		sc->sc_stats.ast_tx_noack++;
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 	if (sc->sc_tdma && (flags & HAL_TXDESC_NOACK) == 0) {
 		DPRINTF(sc, ATH_DEBUG_TDMA,
 		    "%s: discard frame, ACK required w/ TDMA\n", __func__);
@@ -5251,7 +4889,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 		if (txq->axq_depth > 0) {
 			/*
 			 * More frames follow.  Mark the buffer busy
@@ -5320,13 +4958,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				ieee80211_process_callback(ni, bf->bf_m,
 				    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0 ?
 				        ts->ts_status : HAL_TXERR_XRETRY);
-			/*
-			 * Reclaim reference to node.
-			 *
-			 * NB: the node may be reclaimed here if, for example
-			 *     this is a DEAUTH message that was sent and the
-			 *     node was timed out due to inactivity.
-			 */
 			ieee80211_free_node(ni);
 		}
 		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
@@ -5344,11 +4975,13 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
 	}
+#ifdef IEEE80211_SUPPORT_SUPERG
 	/*
 	 * Flush fast-frame staging queue when traffic slows.
 	 */
 	if (txq->axq_depth <= 1)
-		ath_ff_stageq_flush(sc, txq, ath_ff_always);
+		ieee80211_flush_stageq(ic, txq->axq_ac);
+#endif
 	return nacked;
 }
 
@@ -5962,7 +5595,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		    ni->ni_capinfo, ieee80211_chan2ieee(ic, ic->ic_curchan));
 
 		switch (vap->iv_opmode) {
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 		case IEEE80211_M_AHDEMO:
 			if ((vap->iv_caps & IEEE80211_C_TDMA) == 0)
 				break;
@@ -5996,7 +5629,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    ni->ni_tstamp.tsf != 0) {
 				sc->sc_syncbeacon = 1;
 			} else if (!sc->sc_beacons) {
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 				if (vap->iv_caps & IEEE80211_C_TDMA)
 					ath_tdma_config(sc, vap);
 				else
@@ -6064,7 +5697,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			taskqueue_block(sc->sc_tq);
 			sc->sc_beacons = 0;
 		}
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 		ath_hal_setcca(ah, AH_TRUE);
 #endif
 	}
@@ -6273,10 +5906,6 @@ ath_rate_setup(struct ath_softc *sc, u_int mode)
 		break;
 	case IEEE80211_MODE_TURBO_A:
 		rt = ath_hal_getratetable(ah, HAL_MODE_108A);
-#if HAL_ABI_VERSION < 0x07013100
-		if (rt == NULL)		/* XXX bandaid for old hal's */
-			rt = ath_hal_getratetable(ah, HAL_MODE_TURBO);
-#endif
 		break;
 	case IEEE80211_MODE_TURBO_G:
 		rt = ath_hal_getratetable(ah, HAL_MODE_108G);
@@ -6576,7 +6205,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->sc_stats.ast_rx_packets = ifp->if_ipackets;
 		sc->sc_stats.ast_tx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgtxrssi);
 		sc->sc_stats.ast_rx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgrssi);
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 		sc->sc_stats.ast_tdma_tsfadjp = TDMA_AVG(sc->sc_avgtsfdeltap);
 		sc->sc_stats.ast_tdma_tsfadjm = TDMA_AVG(sc->sc_avgtsfdeltam);
 #endif
@@ -6866,7 +6495,7 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	return !ath_hal_setintmit(sc->sc_ah, intmit) ? EINVAL : 0;
 }
 
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 static int
 ath_sysctl_setcca(SYSCTL_HANDLER_ARGS)
 {
@@ -6880,7 +6509,7 @@ ath_sysctl_setcca(SYSCTL_HANDLER_ARGS)
 	sc->sc_setcca = (setcca != 0);
 	return 0;
 }
-#endif /* ATH_SUPPORT_TDMA */
+#endif /* IEEE80211_SUPPORT_TDMA */
 
 static void
 ath_sysctlattach(struct ath_softc *sc)
@@ -6952,16 +6581,6 @@ ath_sysctlattach(struct ath_softc *sc)
 			"tpcts", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_tpcts, "I", "tx power for cts frames");
 	}
-	if (ath_hal_hasfastframes(sc->sc_ah)) {
-		sc->sc_fftxqmin = ATH_FF_TXQMIN;
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"fftxqmin", CTLFLAG_RW, &sc->sc_fftxqmin, 0,
-			"min frames before fast-frame staging");
-		sc->sc_fftxqmax = ATH_FF_TXQMAX;
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"fftxqmax", CTLFLAG_RW, &sc->sc_fftxqmax, 0,
-			"max queued frames before tail drop");
-	}
 	if (ath_hal_hasrfsilent(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"rfsilent", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -6979,7 +6598,7 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"monpass", CTLFLAG_RW, &sc->sc_monpass, 0,
 		"mask of error frames to pass when monitoring");
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		sc->sc_tdmadbaprep = 2;
 		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -7318,7 +6937,7 @@ ath_announce(struct ath_softc *sc)
 		if_printf(ifp, "using %u tx buffers\n", ath_txbuf);
 }
 
-#ifdef ATH_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 static __inline uint32_t
 ath_hal_getnexttbtt(struct ath_hal *ah)
 {
@@ -7477,7 +7096,7 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
  */
 static void
 ath_tdma_update(struct ieee80211_node *ni,
-	const struct ieee80211_tdma_param *tdma)
+	const struct ieee80211_tdma_param *tdma, int changed)
 {
 #define	TSF_TO_TU(_h,_l) \
 	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
@@ -7498,7 +7117,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 	/*
 	 * Check for and adopt configuration changes.
 	 */
-	if (isset(ATH_VAP(vap)->av_boff.bo_flags, IEEE80211_BEACON_TDMA)) {
+	if (changed != 0) {
 		const struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 		ath_tdma_bintvalsetup(sc, ts);
@@ -7678,4 +7297,4 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 		vap->iv_bss->ni_tstamp.tsf = ath_hal_gettsf64(ah);
 	}
 }
-#endif /* ATH_SUPPORT_TDMA */
+#endif /* IEEE80211_SUPPORT_TDMA */

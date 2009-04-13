@@ -232,38 +232,38 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = ZYD_MAX_TXBUFSZ,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = zyd_bulk_write_callback,
+		.bufsize = ZYD_MAX_TXBUFSZ,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = zyd_bulk_write_callback,
 		.ep_index = 0,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.timeout = 10000,	/* 10 seconds */
 	},
 	[ZYD_BULK_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = ZYX_MAX_RXBUFSZ,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = zyd_bulk_read_callback,
+		.bufsize = ZYX_MAX_RXBUFSZ,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = zyd_bulk_read_callback,
 		.ep_index = 0,
 	},
 	[ZYD_INTR_WR] = {
 		.type = UE_BULK_INTR,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = sizeof(struct zyd_cmd),
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = zyd_intr_write_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = sizeof(struct zyd_cmd),
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = zyd_intr_write_callback,
+		.timeout = 1000,	/* 1 second */
 		.ep_index = 1,
 	},
 	[ZYD_INTR_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = sizeof(struct zyd_cmd),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = zyd_intr_read_callback,
+		.bufsize = sizeof(struct zyd_cmd),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = zyd_intr_read_callback,
 	},
 };
 #define zyd_read16_m(sc, val, data)	do {				\
@@ -396,7 +396,6 @@ zyd_attach_post(struct usb2_proc_msg *pm)
 	ic->ic_ifp = ifp;
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->sc_bssid);
 
 	/* set device capabilities */
 	ic->ic_caps =
@@ -413,7 +412,7 @@ zyd_attach_post(struct usb2_proc_msg *pm)
 	setbit(&bands, IEEE80211_MODE_11G);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, sc->sc_bssid);
 	ic->ic_newassoc = zyd_newassoc;
 	ic->ic_raw_xmit = zyd_raw_xmit;
 	ic->ic_node_alloc = zyd_node_alloc;
@@ -2698,12 +2697,6 @@ zyd_start(struct ifnet *ifp)
 			break;
 		}
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
-			continue;
-		}
 		if (zyd_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
@@ -2859,10 +2852,9 @@ zyd_init_task(struct usb2_proc_msg *pm)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		zyd_stop_task(pm);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	DPRINTF(sc, ZYD_DEBUG_INIT, "setting MAC address to %s\n",
-	    ether_sprintf(ic->ic_myaddr));
-	error = zyd_set_macaddr(sc, ic->ic_myaddr);
+	DPRINTF(sc, ZYD_DEBUG_INIT, "setting MAC address to %6D\n",
+	    IF_LLADDR(ifp), ":");
+	error = zyd_set_macaddr(sc, IF_LLADDR(ifp));
 	if (error != 0)
 		return;
 

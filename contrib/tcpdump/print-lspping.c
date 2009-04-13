@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-lspping.c,v 1.12.2.6 2006/06/23 02:07:27 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-lspping.c,v 1.18.2.1 2008-01-28 13:48:16 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -574,10 +574,11 @@ lspping_print(register const u_char *pptr, register u_int len) {
         lspping_tlv_type=EXTRACT_16BITS(lspping_tlv_header->type);
         lspping_tlv_len=EXTRACT_16BITS(lspping_tlv_header->length);
 
-        if (lspping_tlv_len == 0)
+        /* some little sanity checking */
+        if (lspping_tlv_type == 0 || lspping_tlv_len == 0)
             return;
 
-        if(lspping_tlv_len % 4 || lspping_tlv_len < 4) { /* aligned to four octet boundary */
+        if(lspping_tlv_len < 4) {
             printf("\n\t  ERROR: TLV %u bogus size %u",lspping_tlv_type,lspping_tlv_len);
             return;
         }
@@ -857,6 +858,12 @@ lspping_print(register const u_char *pptr, register u_int len) {
         if (vflag > 1 || tlv_hexdump==TRUE)
             print_unknown_data(tptr+sizeof(sizeof(struct lspping_tlv_header)),"\n\t    ",
                                lspping_tlv_len);
+
+
+        /* All TLVs are aligned to four octet boundary */
+        if (lspping_tlv_len % 4) {
+            lspping_tlv_len += (4 - lspping_tlv_len % 4);
+        }
 
         tptr+=lspping_tlv_len+sizeof(struct lspping_tlv_header);
         tlen-=lspping_tlv_len+sizeof(struct lspping_tlv_header);

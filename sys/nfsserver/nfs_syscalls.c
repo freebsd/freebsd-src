@@ -113,6 +113,9 @@ extern u_long sb_max_adj;
  */
 
 /*
+ * This is now called from nfssvc() in nfs/nfs_nfssvc.c.
+ */
+/*
  * Nfs server psuedo system call for the nfsd's
  * Based on the flag value it either:
  * - adds a socket to the selection list
@@ -123,27 +126,14 @@ extern u_long sb_max_adj;
  *  - sockaddr with no IPv4-mapped addresses
  *  - mask for both INET and INET6 families if there is IPv4-mapped overlap
  */
-#ifndef _SYS_SYSPROTO_H_
-struct nfssvc_args {
-	int flag;
-	caddr_t argp;
-};
-#endif
 int
-nfssvc(struct thread *td, struct nfssvc_args *uap)
+nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 {
 	struct file *fp;
 	struct sockaddr *nam;
 	struct nfsd_addsock_args nfsdarg;
 	int error;
 
-	KASSERT(!mtx_owned(&Giant), ("nfssvc(): called with Giant"));
-
-	AUDIT_ARG(cmd, uap->flag);
-
-	error = priv_check(td, PRIV_NFS_DAEMON);
-	if (error)
-		return (error);
 	NFSD_LOCK();
 	while (nfssvc_sockhead_flag & SLP_INIT) {
 		 nfssvc_sockhead_flag |= SLP_WANTINIT;
@@ -181,8 +171,6 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	} else {
 		error = ENXIO;
 	}
-	if (error == EINTR || error == ERESTART)
-		error = 0;
 	return (error);
 }
 

@@ -106,6 +106,15 @@ static int	rttrash;		/* routes not in table but not freed */
 
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
+static int vnet_route_iattach(const void *);
+
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_rtable_modinfo = {
+	.vmi_id		= VNET_MOD_RTABLE,
+	.vmi_name	= "rtable",
+	.vmi_iattach	= vnet_route_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -122,7 +131,9 @@ static void rt_maskedcopy(struct sockaddr *,
  */
 #define RNTORT(p)	((struct rtentry *)(p))
 
+#ifdef VIMAGE_GLOBALS
 static uma_zone_t rtzone;		/* Routing table UMA zone. */
+#endif
 
 #if 0
 /* default fib for tunnels to use */
@@ -150,20 +161,30 @@ SYSCTL_PROC(_net, OID_AUTO, my_fibnum, CTLTYPE_INT|CTLFLAG_RD,
 static void
 route_init(void)
 {
-	INIT_VNET_INET(curvnet);
-	int table;
-	struct domain *dom;
-	int fam;
 
 	/* whack the tunable ints into  line. */
 	if (rt_numfibs > RT_MAXFIBS)
 		rt_numfibs = RT_MAXFIBS;
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
-	rtzone = uma_zcreate("rtentry", sizeof(struct rtentry), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	rn_init();	/* initialize all zeroes, all ones, mask table */
 
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_rtable_modinfo);
+#else
+	vnet_route_iattach(NULL);
+#endif
+}
+
+static int vnet_route_iattach(const void *unused __unused)
+{
+	INIT_VNET_INET(curvnet);
+	int table;
+	struct domain *dom;
+	int fam;
+
+	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	for (dom = domains; dom; dom = dom->dom_next) {
 		if (dom->dom_rtattach)  {
 			for  (table = 0; table < rt_numfibs; table++) {
@@ -186,6 +207,8 @@ route_init(void)
 			}
 		}
 	}
+
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -402,7 +425,7 @@ rtfree(struct rtentry *rt)
 		 * and the rtentry itself of course
 		 */
 		RT_LOCK_DESTROY(rt);
-		uma_zfree(rtzone, rt);
+		uma_zfree(V_rtzone, rt);
 		return;
 	}
 done:
@@ -958,7 +981,7 @@ deldone:
 		if (info->rti_ifa == NULL && (error = rt_getifa_fib(info, fibnum)))
 			senderr(error);
 		ifa = info->rti_ifa;
-		rt = uma_zalloc(rtzone, M_NOWAIT | M_ZERO);
+		rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
 		if (rt == NULL)
 			senderr(ENOBUFS);
 		RT_LOCK_INIT(rt);
@@ -971,7 +994,7 @@ deldone:
 		RT_LOCK(rt);
 		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
 			RT_LOCK_DESTROY(rt);
-			uma_zfree(rtzone, rt);
+			uma_zfree(V_rtzone, rt);
 			senderr(error);
 		}
 
@@ -1006,7 +1029,7 @@ deldone:
 			}
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
-			uma_zfree(rtzone, rt);
+			uma_zfree(V_rtzone, rt);
 			senderr(EEXIST);
 		}
 #endif
@@ -1022,7 +1045,7 @@ deldone:
 				IFAFREE(rt->rt_ifa);
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
-			uma_zfree(rtzone, rt);
+			uma_zfree(V_rtzone, rt);
 			senderr(EEXIST);
 		}
 

@@ -25,8 +25,8 @@
  */
 
 /*
- * Thanks to Mentor Graphics for providing a reference driver for this
- * USB chip at their homepage.
+ * Thanks to Mentor Graphics for providing a reference driver for this USB chip
+ * at their homepage.
  */
 
 /*
@@ -39,7 +39,6 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR musbotgdebug
 
@@ -47,7 +46,6 @@
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_transfer.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_hub.h>
@@ -64,7 +62,7 @@
    USB_P2U(&(((struct musbotg_softc *)0)->sc_bus))))
 
 #define	MUSBOTG_PC2SC(pc) \
-   MUSBOTG_BUS2SC((pc)->tag_parent->info->bus)
+   MUSBOTG_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
 #if USB_DEBUG
 static int musbotgdebug = 0;
@@ -81,8 +79,6 @@ struct usb2_pipe_methods musbotg_device_bulk_methods;
 struct usb2_pipe_methods musbotg_device_ctrl_methods;
 struct usb2_pipe_methods musbotg_device_intr_methods;
 struct usb2_pipe_methods musbotg_device_isoc_methods;
-struct usb2_pipe_methods musbotg_root_ctrl_methods;
-struct usb2_pipe_methods musbotg_root_intr_methods;
 
 static musbotg_cmd_t musbotg_setup_rx;
 static musbotg_cmd_t musbotg_setup_data_rx;
@@ -92,12 +88,9 @@ static musbotg_cmd_t musbotg_data_rx;
 static musbotg_cmd_t musbotg_data_tx;
 static void	musbotg_device_done(struct usb2_xfer *, usb2_error_t);
 static void	musbotg_do_poll(struct usb2_bus *);
-static void	musbotg_root_ctrl_poll(struct musbotg_softc *);
 static void	musbotg_standard_done(struct usb2_xfer *);
 static void	musbotg_interrupt_poll(struct musbotg_softc *);
-
-static usb2_sw_transfer_func_t musbotg_root_intr_done;
-static usb2_sw_transfer_func_t musbotg_root_ctrl_done;
+static void	musbotg_root_intr(struct musbotg_softc *);
 
 /*
  * Here is a configuration that the chip supports.
@@ -202,9 +195,8 @@ musbotg_pull_down(struct musbotg_softc *sc)
 }
 
 static void
-musbotg_wakeup_peer(struct usb2_xfer *xfer)
+musbotg_wakeup_peer(struct musbotg_softc *sc)
 {
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint8_t temp;
 
 	if (!(sc->sc_flags.status_suspend)) {
@@ -256,6 +248,8 @@ musbotg_setup_rx(struct musbotg_td *td)
 	 * callback, hence the status stage is not complete.
 	 */
 	if (csr & MUSB2_MASK_CSR0L_DATAEND) {
+		/* do not stall at this point */
+		td->did_stall = 1;
 		/* wait for interrupt */
 		goto not_complete;
 	}
@@ -277,18 +271,13 @@ musbotg_setup_rx(struct musbotg_td *td)
 		sc->sc_ep0_busy = 0;
 	}
 	if (sc->sc_ep0_busy) {
-		/* abort any ongoing transfer */
-		if (!td->did_stall) {
-			DPRINTFN(4, "stalling\n");
-			MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
-			    MUSB2_MASK_CSR0L_SENDSTALL);
-			td->did_stall = 1;
-		}
 		goto not_complete;
 	}
 	if (!(csr & MUSB2_MASK_CSR0L_RXPKTRDY)) {
 		goto not_complete;
 	}
+	/* clear did stall flag */
+	td->did_stall = 0;
 	/* get the packet byte count */
 	count = MUSB2_READ_2(sc, MUSB2_REG_RXCOUNT);
 
@@ -296,11 +285,15 @@ musbotg_setup_rx(struct musbotg_td *td)
 	if (count != td->remainder) {
 		DPRINTFN(0, "Invalid SETUP packet "
 		    "length, %d bytes\n", count);
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		      MUSB2_MASK_CSR0L_RXPKTRDY_CLR);
 		goto not_complete;
 	}
 	if (count != sizeof(req)) {
 		DPRINTFN(0, "Unsupported SETUP packet "
 		    "length, %d bytes\n", count);
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		      MUSB2_MASK_CSR0L_RXPKTRDY_CLR);
 		goto not_complete;
 	}
 	/* receive data */
@@ -329,6 +322,13 @@ musbotg_setup_rx(struct musbotg_td *td)
 	return (0);			/* complete */
 
 not_complete:
+	/* abort any ongoing transfer */
+	if (!td->did_stall) {
+		DPRINTFN(4, "stalling\n");
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		    MUSB2_MASK_CSR0L_SENDSTALL);
+		td->did_stall = 1;
+	}
 	return (1);			/* not complete */
 }
 
@@ -958,9 +958,7 @@ musbotg_vbus_interrupt(struct musbotg_softc *sc, uint8_t is_on)
 			sc->sc_flags.status_vbus = 1;
 
 			/* complete root HUB interrupt endpoint */
-
-			usb2_sw_transfer(&sc->sc_root_intr,
-			    &musbotg_root_intr_done);
+			musbotg_root_intr(sc);
 		}
 	} else {
 		if (sc->sc_flags.status_vbus) {
@@ -971,9 +969,7 @@ musbotg_vbus_interrupt(struct musbotg_softc *sc, uint8_t is_on)
 			sc->sc_flags.change_connect = 1;
 
 			/* complete root HUB interrupt endpoint */
-
-			usb2_sw_transfer(&sc->sc_root_intr,
-			    &musbotg_root_intr_done);
+			musbotg_root_intr(sc);
 		}
 	}
 
@@ -1067,9 +1063,7 @@ repeat:
 			}
 		}
 		/* complete root HUB interrupt endpoint */
-
-		usb2_sw_transfer(&sc->sc_root_intr,
-		    &musbotg_root_intr_done);
+		musbotg_root_intr(sc);
 	}
 	/* check for any endpoint interrupts */
 
@@ -1133,8 +1127,8 @@ musbotg_setup_standard_chain(struct usb2_xfer *xfer)
 
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
 	temp.offset = 0;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
 
 	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
@@ -1181,7 +1175,13 @@ musbotg_setup_standard_chain(struct usb2_xfer *xfer)
 		x++;
 
 		if (x == xfer->nframes) {
-			temp.setup_alt_next = 0;
+			if (xfer->flags_int.control_xfr) {
+				if (xfer->flags_int.control_act) {
+					temp.setup_alt_next = 0;
+				}
+			} else {
+				temp.setup_alt_next = 0;
+			}
 		}
 		if (temp.len == 0) {
 
@@ -1206,23 +1206,24 @@ musbotg_setup_standard_chain(struct usb2_xfer *xfer)
 		}
 	}
 
-	/* always setup a valid "pc" pointer for status and sync */
-	temp.pc = xfer->frbuffers + 0;
+	/* check for control transfer */
+	if (xfer->flags_int.control_xfr) {
 
-	/* check if we should append a status stage */
-
-	if (xfer->flags_int.control_xfr &&
-	    !xfer->flags_int.control_act) {
-
-		/*
-		 * Send a DATA1 message and invert the current
-		 * endpoint direction.
-		 */
-		temp.func = &musbotg_setup_status;
+		/* always setup a valid "pc" pointer for status and sync */
+		temp.pc = xfer->frbuffers + 0;
 		temp.len = 0;
 		temp.short_pkt = 0;
+		temp.setup_alt_next = 0;
 
-		musbotg_setup_standard_chain_sub(&temp);
+		/* check if we should append a status stage */
+		if (!xfer->flags_int.control_act) {
+			/*
+			 * Send a DATA1 message and invert the current
+			 * endpoint direction.
+			 */
+			temp.func = &musbotg_setup_status;
+			musbotg_setup_standard_chain_sub(&temp);
+		}
 	}
 	/* must have at least one frame! */
 	td = temp.td;
@@ -1306,31 +1307,17 @@ musbotg_start_standard_chain(struct usb2_xfer *xfer)
 }
 
 static void
-musbotg_root_intr_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
+musbotg_root_intr(struct musbotg_softc *sc)
 {
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-
 	DPRINTFN(8, "\n");
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_PRE_DATA) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			musbotg_device_done(xfer, std->err);
-		}
-		goto done;
-	}
-	/* setup buffer */
-	std->ptr = sc->sc_hub_idata;
-	std->len = sizeof(sc->sc_hub_idata);
-
 	/* set port bit */
 	sc->sc_hub_idata[0] = 0x02;	/* we only have one port */
 
-done:
-	return;
+	uhub_root_intr(&sc->sc_bus, sc->sc_hub_idata,
+	    sizeof(sc->sc_hub_idata));
 }
 
 static usb2_error_t
@@ -1873,7 +1860,6 @@ musbotg_do_poll(struct usb2_bus *bus)
 
 	USB_BUS_LOCK(&sc->sc_bus);
 	musbotg_interrupt_poll(sc);
-	musbotg_root_ctrl_poll(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -1912,8 +1898,6 @@ struct usb2_pipe_methods musbotg_device_bulk_methods =
 	.close = musbotg_device_bulk_close,
 	.enter = musbotg_device_bulk_enter,
 	.start = musbotg_device_bulk_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1951,8 +1935,6 @@ struct usb2_pipe_methods musbotg_device_ctrl_methods =
 	.close = musbotg_device_ctrl_close,
 	.enter = musbotg_device_ctrl_enter,
 	.start = musbotg_device_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -1990,8 +1972,6 @@ struct usb2_pipe_methods musbotg_device_intr_methods =
 	.close = musbotg_device_intr_close,
 	.enter = musbotg_device_intr_enter,
 	.start = musbotg_device_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
@@ -2081,36 +2061,13 @@ struct usb2_pipe_methods musbotg_device_isoc_methods =
 	.close = musbotg_device_isoc_close,
 	.enter = musbotg_device_isoc_enter,
 	.start = musbotg_device_isoc_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
  * musbotg root control support
  *------------------------------------------------------------------------*
- * simulate a hardware HUB by handling
- * all the necessary requests
+ * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-static void
-musbotg_root_ctrl_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-musbotg_root_ctrl_close(struct usb2_xfer *xfer)
-{
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_ctrl.xfer == xfer) {
-		sc->sc_root_ctrl.xfer = NULL;
-	}
-	musbotg_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-/*
- * USB descriptors for the virtual Root HUB:
- */
 
 static const struct usb2_device_descriptor musbotg_devd = {
 	.bLength = sizeof(struct usb2_device_descriptor),
@@ -2156,7 +2113,6 @@ static const struct musbotg_config_desc musbotg_confd = {
 		.bInterfaceSubClass = UISUBCLASS_HUB,
 		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
 	},
-
 	.endpd = {
 		.bLength = sizeof(struct usb2_endpoint_descriptor),
 		.bDescriptorType = UDESC_ENDPOINT,
@@ -2197,44 +2153,15 @@ USB_MAKE_STRING_DESC(STRING_VENDOR, musbotg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, musbotg_product);
 
 static void
-musbotg_root_ctrl_enter(struct usb2_xfer *xfer)
+musbotg_roothub_exec(struct usb2_bus *bus)
 {
-	return;
-}
-
-static void
-musbotg_root_ctrl_start(struct usb2_xfer *xfer)
-{
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-
-	sc->sc_root_ctrl.xfer = xfer;
-
-	usb2_bus_roothub_exec(xfer->xroot->bus);
-}
-
-static void
-musbotg_root_ctrl_task(struct usb2_bus *bus)
-{
-	musbotg_root_ctrl_poll(MUSBOTG_BUS2SC(bus));
-}
-
-static void
-musbotg_root_ctrl_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
-{
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(bus);
+	struct usb2_sw_transfer *std = &sc->sc_bus.roothub_req;
 	uint16_t value;
 	uint16_t index;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_SETUP) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			musbotg_device_done(xfer, std->err);
-		}
-		goto done;
-	}
 	/* buffer reset */
 	std->ptr = USB_ADD_BYTES(&sc->sc_hub_temp, 0);
 	std->len = 0;
@@ -2493,7 +2420,7 @@ tr_handle_clear_port_feature:
 
 	switch (value) {
 	case UHF_PORT_SUSPEND:
-		musbotg_wakeup_peer(xfer);
+		musbotg_wakeup_peer(sc);
 		break;
 
 	case UHF_PORT_ENABLE:
@@ -2620,67 +2547,6 @@ done:
 }
 
 static void
-musbotg_root_ctrl_poll(struct musbotg_softc *sc)
-{
-	usb2_sw_transfer(&sc->sc_root_ctrl,
-	    &musbotg_root_ctrl_done);
-}
-
-struct usb2_pipe_methods musbotg_root_ctrl_methods =
-{
-	.open = musbotg_root_ctrl_open,
-	.close = musbotg_root_ctrl_close,
-	.enter = musbotg_root_ctrl_enter,
-	.start = musbotg_root_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 0,
-};
-
-/*------------------------------------------------------------------------*
- * musbotg root interrupt support
- *------------------------------------------------------------------------*/
-static void
-musbotg_root_intr_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-musbotg_root_intr_close(struct usb2_xfer *xfer)
-{
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_intr.xfer == xfer) {
-		sc->sc_root_intr.xfer = NULL;
-	}
-	musbotg_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-musbotg_root_intr_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-musbotg_root_intr_start(struct usb2_xfer *xfer)
-{
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-
-	sc->sc_root_intr.xfer = xfer;
-}
-
-struct usb2_pipe_methods musbotg_root_intr_methods =
-{
-	.open = musbotg_root_intr_open,
-	.close = musbotg_root_intr_close,
-	.enter = musbotg_root_intr_enter,
-	.start = musbotg_root_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
-
-static void
 musbotg_xfer_setup(struct usb2_setup_params *parm)
 {
 	const struct usb2_hw_ep_profile *pf;
@@ -2804,24 +2670,7 @@ musbotg_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *ede
 	    edesc->bEndpointAddress, udev->flags.usb2_mode,
 	    sc->sc_rt_addr);
 
-	if (udev->device_index == sc->sc_rt_addr) {
-
-		if (udev->flags.usb2_mode != USB_MODE_HOST) {
-			/* not supported */
-			return;
-		}
-		switch (edesc->bEndpointAddress) {
-		case USB_CONTROL_ENDPOINT:
-			pipe->methods = &musbotg_root_ctrl_methods;
-			break;
-		case UE_DIR_IN | MUSBOTG_INTR_ENDPT:
-			pipe->methods = &musbotg_root_intr_methods;
-			break;
-		default:
-			/* do nothing */
-			break;
-		}
-	} else {
+	if (udev->device_index != sc->sc_rt_addr) {
 
 		if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
 			/* not supported */
@@ -2860,5 +2709,5 @@ struct usb2_bus_methods musbotg_bus_methods =
 	.get_hw_ep_profile = &musbotg_get_hw_ep_profile,
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,
-	.roothub_exec = &musbotg_root_ctrl_task,
+	.roothub_exec = &musbotg_roothub_exec,
 };

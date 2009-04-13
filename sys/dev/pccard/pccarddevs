@@ -146,8 +146,8 @@ vendor ARTEM			0x0268	ARtem
 vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor BROMAX			0x0274	Bromax communications, Inc
-vendor IODATA2			0x028a	I-O DATA
 vendor NECINFORTIA		0x0288	NEC Inforntia
+vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
 vendor UNGERMANN		0x02c0	Ungermann Bass
@@ -181,6 +181,7 @@ vendor RALINK			0x1814	Ralink Technology
  * with '0xc' look coherent enough that maybe somebody other than PCMCIA is
  * assigning numbers in that range.  Maybe JEITA?
  */
+vendor RIOS			0x492f	RIOS Systems Co
 vendor AIRVAST			0x50c2	AirVast Technology
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
@@ -265,6 +266,7 @@ product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
 
 /* Bromax Communications, Inc (Linksys OEM) */
 product BROMAX IPORT		0x1103 iPort 10/100 Ethernet
+product BROMAX AXNET		0x1106 AXNET based 10/100 Ethernet
 product BROMAX IPORT2		0x1121 iPort 10Mbps Ethernet
 product BROMAX IWN		0x1612 Instant Wireless Network PC Card
 product BROMAX IWN3		0x1613 Instant Wireless Network PC Card, V3
@@ -342,6 +344,7 @@ product FUJITSU WL110		0x2003 PEGA-WL110 Wireless LAN
 product GEMPLUS GPR400		0x3004 GPR400 Smartcard Reader
 
 /* GlobalVillage */
+product GLOBALVILLAGE POWERPORT	0x0103 GlobalVillage PowerPort PlatinumPro
 product GLOBALVILLAGE LANMODEM	0x0105 GlobalVillage Ethernet + Modem
 
 /* Grey Cell Systems, Ltd */
@@ -545,6 +548,9 @@ product RAYTHEON WLAN		0x0000 WLAN Adapter
 /* RELIA Technologies Corporation */
 product RELIA COMBO		0x2452 Reliable Combo-L/M-56K
 
+/* RIOS Systems Co */
+product RIOS PCCARD3		0x0000 PC Card Ethernet
+
 /* Roland */
 product ROLAND SCP55		0x0001 Roland SCP-55
 
@@ -671,6 +677,7 @@ vendor IODATA3			-1	I-O DATA
 vendor LANTECH			-1	Lantech Computer Company
 vendor MELCO2			-1	Melco Corporation
 vendor MICRORESEARCH		-1	Micro Research
+vendor MITSUBISHI		-1	Mitsubishi Electronics Corp
 vendor NDC			-1	NDC
 vendor NEC			-1	NEC
 vendor OEM2			-1	Generic OEM
@@ -745,6 +752,7 @@ product MACNICA MPS100		{ "MACNICA", "MIRACLE&spSCSI", "mPS100", "D.0" } Macnica
 product MEGAHERTZ XJ2288 	{ "MEGAHERTZ", "MODEM&spXJ2288", NULL, NULL } Megahertz XJ2288 Modem
 product MELCO2 LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
 product MICRORESEARCH MR10TPC	{ "MICRO-RESEARCH-MR10TPC", "Ethernet", NULL, NULL } Micro Research MR10TPC
+product MITSUBISHI B8895	{ "MITSUBISHI&spELECTRIC&spCORPORATION", "B8895", NULL, NULL } Mitsubishi Electronics Corporation B8895
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
 product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 Compatible Card
 product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01", NULL } NEC Wireless Card CMZ-RT-WP

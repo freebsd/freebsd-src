@@ -816,8 +816,6 @@
 
     &hwlist.umct;
 
-    &hwlist.uscanner;
-
     &hwlist.umass;
 
     <para arch="i386,pc98,amd64">Аудио устройства (драйвер &man.uaudio.4;)

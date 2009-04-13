@@ -98,7 +98,6 @@ struct vop_vector default_vnodeops = {
 	.vop_ioctl =		VOP_ENOTTY,
 	.vop_kqfilter =		vop_stdkqfilter,
 	.vop_islocked =		vop_stdislocked,
-	.vop_lease =		VOP_NULL,
 	.vop_lock1 =		vop_stdlock,
 	.vop_lookup =		vop_nolookup,
 	.vop_open =		VOP_NULL,

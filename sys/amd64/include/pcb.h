@@ -62,10 +62,6 @@ struct pcb {
 #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
 #define	PCB_FULLCTX	0x80	/* full context restore on sysret */
 
-	u_int32_t	pcb_ds;
-	u_int32_t	pcb_es;
-	u_int32_t	pcb_fs;
-	u_int32_t	pcb_gs;
 	u_int64_t	pcb_dr0;
 	u_int64_t	pcb_dr1;
 	u_int64_t	pcb_dr2;
@@ -80,6 +76,20 @@ struct pcb {
 
 	/* 32-bit segment descriptor */
 	struct user_segment_descriptor	pcb_gs32sd;
+	/* local tss, with i/o bitmap; NULL for common */
+	struct amd64tss *pcb_tssp;
+};
+
+struct xpcb {
+	struct pcb	xpcb_pcb;
+	register_t	xpcb_cr0;
+	register_t	xpcb_cr2;
+	register_t	xpcb_cr4;
+	register_t	xpcb_kgsbase;
+	struct region_descriptor xpcb_gdt;
+	struct region_descriptor xpcb_idt;
+	struct region_descriptor xpcb_ldt;
+	uint16_t	xpcb_tr;
 };
 
 #ifdef _KERNEL
@@ -87,6 +97,7 @@ struct trapframe;
 
 void	makectx(struct trapframe *, struct pcb *);
 void	savectx(struct pcb *);
+int	savectx2(struct xpcb *);
 #endif
 
 #endif /* _AMD64_PCB_H_ */

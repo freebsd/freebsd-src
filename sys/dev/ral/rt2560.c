@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 
 #include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_amrr.h>
@@ -202,6 +201,7 @@ rt2560_attach(device_t dev, int id)
 	struct ifnet *ifp;
 	int error;
 	uint8_t bands;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
 
@@ -260,7 +260,7 @@ rt2560_attach(device_t dev, int id)
 	ic = ifp->if_l2com;
 
 	/* retrieve MAC address */
-	rt2560_get_macaddr(sc, ic->ic_myaddr);
+	rt2560_get_macaddr(sc, macaddr);
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -300,7 +300,7 @@ rt2560_attach(device_t dev, int id)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_newassoc = rt2560_newassoc;
 	ic->ic_raw_xmit = rt2560_raw_xmit;
 	ic->ic_updateslot = rt2560_update_slot;
@@ -1476,7 +1476,7 @@ rt2560_setup_tx_desc(struct rt2560_softc *sc, struct rt2560_tx_desc *desc,
 	desc->plcp_service = 4;
 
 	len += IEEE80211_CRC_LEN;
-	if (ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_OFDM) {
+	if (ieee80211_rate2phytype(ic->ic_rt, rate) == IEEE80211_T_OFDM) {
 		desc->flags |= htole32(RT2560_TX_OFDM);
 
 		plcp_length = len & 0xfff;
@@ -1621,7 +1621,7 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2560_TX_ACK;
 
-		dur = ieee80211_ack_duration(sc->sc_rates,
+		dur = ieee80211_ack_duration(ic->ic_rt,
 		    rate, ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		*(uint16_t *)wh->i_dur = htole16(dur);
 
@@ -1671,16 +1671,16 @@ rt2560_sendprot(struct rt2560_softc *sc,
 	wh = mtod(m, const struct ieee80211_frame *);
 	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
 
-	protrate = ieee80211_ctl_rate(sc->sc_rates, rate);
-	ackrate = ieee80211_ack_rate(sc->sc_rates, rate);
+	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
+	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(sc->sc_rates, pktlen, rate, isshort)
-	    + ieee80211_ack_duration(sc->sc_rates, rate, isshort);
+	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
+	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 	flags = RT2560_TX_MORE_FRAG;
 	if (prot == IEEE80211_PROT_RTSCTS) {
 		/* NB: CTS is the same size as an ACK */
-		dur += ieee80211_ack_duration(sc->sc_rates, rate, isshort);
+		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 		flags |= RT2560_TX_ACK;
 		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
 	} else {
@@ -1851,7 +1851,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 		if (m0->m_pkthdr.len + IEEE80211_CRC_LEN > vap->iv_rtsthreshold)
 			prot = IEEE80211_PROT_RTSCTS;
 		else if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
-		    ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_OFDM)
+		    ieee80211_rate2phytype(ic->ic_rt, rate) == IEEE80211_T_OFDM)
 			prot = ic->ic_protmode;
 		if (prot != IEEE80211_PROT_NONE) {
 			error = rt2560_sendprot(sc, m0, ni, prot, rate);
@@ -1921,7 +1921,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2560_TX_ACK;
 
-		dur = ieee80211_ack_duration(sc->sc_rates,
+		dur = ieee80211_ack_duration(ic->ic_rt,
 		    rate, ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		*(uint16_t *)wh->i_dur = htole16(dur);
 	}
@@ -1963,15 +1963,7 @@ rt2560_start_locked(struct ifnet *ifp)
 			sc->sc_flags |= RT2560_F_DATA_OACTIVE;
 			break;
 		}
-
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
-			continue;
-		}
-
 		if (rt2560_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
@@ -2144,8 +2136,6 @@ rt2560_set_chan(struct rt2560_softc *sc, struct ieee80211_channel *c)
 
 	chan = ieee80211_chan2ieee(ic, c);
 	KASSERT(chan != 0 && chan != IEEE80211_CHAN_ANY, ("chan 0x%x", chan));
-
-	sc->sc_rates = ieee80211_get_ratetable(c);
 
 	if (IEEE80211_IS_CHAN_2GHZ(c))
 		power = min(sc->txpow[chan - 1], 31);
@@ -2683,8 +2673,7 @@ rt2560_init_locked(struct rt2560_softc *sc)
 	for (i = 0; i < N(rt2560_def_mac); i++)
 		RAL_WRITE(sc, rt2560_def_mac[i].reg, rt2560_def_mac[i].val);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	rt2560_set_macaddr(sc, ic->ic_myaddr);
+	rt2560_set_macaddr(sc, IF_LLADDR(ifp));
 
 	/* set basic rate set (will be updated later) */
 	RAL_WRITE(sc, RT2560_ARSP_PLCP_1, 0x153);

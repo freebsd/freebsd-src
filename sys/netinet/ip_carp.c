@@ -530,7 +530,7 @@ carp_input(struct mbuf *m, int hlen)
 	struct carp_header *ch;
 	int iplen, len;
 
-	carpstats.carps_ipackets++;
+	CARPSTATS_INC(carps_ipackets);
 
 	if (!carp_opts[CARPCTL_ALLOW]) {
 		m_freem(m);
@@ -539,7 +539,7 @@ carp_input(struct mbuf *m, int hlen)
 
 	/* check if received on a valid carp interface */
 	if (m->m_pkthdr.rcvif->if_carp == NULL) {
-		carpstats.carps_badif++;
+		CARPSTATS_INC(carps_badif);
 		CARP_LOG("carp_input: packet received on non-carp "
 		    "interface: %s\n",
 		    m->m_pkthdr.rcvif->if_xname);
@@ -549,7 +549,7 @@ carp_input(struct mbuf *m, int hlen)
 
 	/* verify that the IP TTL is 255.  */
 	if (ip->ip_ttl != CARP_DFLTTL) {
-		carpstats.carps_badttl++;
+		CARPSTATS_INC(carps_badttl);
 		CARP_LOG("carp_input: received ttl %d != 255i on %s\n",
 		    ip->ip_ttl,
 		    m->m_pkthdr.rcvif->if_xname);
@@ -560,7 +560,7 @@ carp_input(struct mbuf *m, int hlen)
 	iplen = ip->ip_hl << 2;
 
 	if (m->m_pkthdr.len < iplen + sizeof(*ch)) {
-		carpstats.carps_badlen++;
+		CARPSTATS_INC(carps_badlen);
 		CARP_LOG("carp_input: received len %zd < "
 		    "sizeof(struct carp_header)\n",
 		    m->m_len - sizeof(struct ip));
@@ -570,7 +570,7 @@ carp_input(struct mbuf *m, int hlen)
 
 	if (iplen + sizeof(*ch) < m->m_len) {
 		if ((m = m_pullup(m, iplen + sizeof(*ch))) == NULL) {
-			carpstats.carps_hdrops++;
+			CARPSTATS_INC(carps_hdrops);
 			CARP_LOG("carp_input: pullup failed\n");
 			return;
 		}
@@ -584,7 +584,7 @@ carp_input(struct mbuf *m, int hlen)
 	 */
 	len = iplen + sizeof(*ch);
 	if (len > m->m_pkthdr.len) {
-		carpstats.carps_badlen++;
+		CARPSTATS_INC(carps_badlen);
 		CARP_LOG("carp_input: packet too short %d on %s\n",
 		    m->m_pkthdr.len,
 		    m->m_pkthdr.rcvif->if_xname);
@@ -593,7 +593,7 @@ carp_input(struct mbuf *m, int hlen)
 	}
 
 	if ((m = m_pullup(m, len)) == NULL) {
-		carpstats.carps_hdrops++;
+		CARPSTATS_INC(carps_hdrops);
 		return;
 	}
 	ip = mtod(m, struct ip *);
@@ -602,7 +602,7 @@ carp_input(struct mbuf *m, int hlen)
 	/* verify the CARP checksum */
 	m->m_data += iplen;
 	if (carp_cksum(m, len - iplen)) {
-		carpstats.carps_badsum++;
+		CARPSTATS_INC(carps_badsum);
 		CARP_LOG("carp_input: checksum failed on %s\n",
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
@@ -622,7 +622,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	struct carp_header *ch;
 	u_int len;
 
-	carpstats.carps_ipackets6++;
+	CARPSTATS_INC(carps_ipackets6);
 
 	if (!carp_opts[CARPCTL_ALLOW]) {
 		m_freem(m);
@@ -631,7 +631,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 
 	/* check if received on a valid carp interface */
 	if (m->m_pkthdr.rcvif->if_carp == NULL) {
-		carpstats.carps_badif++;
+		CARPSTATS_INC(carps_badif);
 		CARP_LOG("carp6_input: packet received on non-carp "
 		    "interface: %s\n",
 		    m->m_pkthdr.rcvif->if_xname);
@@ -641,7 +641,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 
 	/* verify that the IP TTL is 255 */
 	if (ip6->ip6_hlim != CARP_DFLTTL) {
-		carpstats.carps_badttl++;
+		CARPSTATS_INC(carps_badttl);
 		CARP_LOG("carp6_input: received ttl %d != 255 on %s\n",
 		    ip6->ip6_hlim,
 		    m->m_pkthdr.rcvif->if_xname);
@@ -653,7 +653,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	len = m->m_len;
 	IP6_EXTHDR_GET(ch, struct carp_header *, m, *offp, sizeof(*ch));
 	if (ch == NULL) {
-		carpstats.carps_badlen++;
+		CARPSTATS_INC(carps_badlen);
 		CARP_LOG("carp6_input: packet size %u too small\n", len);
 		return (IPPROTO_DONE);
 	}
@@ -662,7 +662,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	/* verify the CARP checksum */
 	m->m_data += *offp;
 	if (carp_cksum(m, sizeof(*ch))) {
-		carpstats.carps_badsum++;
+		CARPSTATS_INC(carps_badsum);
 		CARP_LOG("carp6_input: checksum failed, on %s\n",
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
@@ -691,7 +691,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 
 	if (!sc || !((SC2IFP(sc)->if_flags & IFF_UP) &&
 	    (SC2IFP(sc)->if_drv_flags & IFF_DRV_RUNNING))) {
-		carpstats.carps_badvhid++;
+		CARPSTATS_INC(carps_badvhid);
 		CARP_UNLOCK(ifp->if_carp);
 		m_freem(m);
 		return;
@@ -713,7 +713,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 
 	/* verify the CARP version. */
 	if (ch->carp_version != CARP_VERSION) {
-		carpstats.carps_badver++;
+		CARPSTATS_INC(carps_badver);
 		SC2IFP(sc)->if_ierrors++;
 		CARP_UNLOCK(ifp->if_carp);
 		CARP_LOG("%s; invalid version %d\n",
@@ -725,7 +725,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 
 	/* verify the hash */
 	if (carp_hmac_verify(sc, ch->carp_counter, ch->carp_md)) {
-		carpstats.carps_badauth++;
+		CARPSTATS_INC(carps_badauth);
 		SC2IFP(sc)->if_ierrors++;
 		CARP_UNLOCK(ifp->if_carp);
 		CARP_LOG("%s: incorrect hash\n", SC2IFP(sc)->if_xname);
@@ -915,7 +915,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		MGETHDR(m, M_DONTWAIT, MT_HEADER);
 		if (m == NULL) {
 			SC2IFP(sc)->if_oerrors++;
-			carpstats.carps_onomem++;
+			CARPSTATS_INC(carps_onomem);
 			/* XXX maybe less ? */
 			if (advbase != 255 || advskew != 255)
 				callout_reset(&sc->sc_ad_tmo, tvtohz(&tv),
@@ -953,7 +953,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		getmicrotime(&SC2IFP(sc)->if_lastchange);
 		SC2IFP(sc)->if_opackets++;
 		SC2IFP(sc)->if_obytes += len;
-		carpstats.carps_opackets++;
+		CARPSTATS_INC(carps_opackets);
 
 		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo, NULL)) {
 			SC2IFP(sc)->if_oerrors++;
@@ -987,7 +987,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		MGETHDR(m, M_DONTWAIT, MT_HEADER);
 		if (m == NULL) {
 			SC2IFP(sc)->if_oerrors++;
-			carpstats.carps_onomem++;
+			CARPSTATS_INC(carps_onomem);
 			/* XXX maybe less ? */
 			if (advbase != 255 || advskew != 255)
 				callout_reset(&sc->sc_ad_tmo, tvtohz(&tv),
@@ -1030,7 +1030,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		getmicrotime(&SC2IFP(sc)->if_lastchange);
 		SC2IFP(sc)->if_opackets++;
 		SC2IFP(sc)->if_obytes += len;
-		carpstats.carps_opackets6++;
+		CARPSTATS_INC(carps_opackets6);
 
 		if (ip6_output(m, NULL, NULL, 0, &sc->sc_im6o, NULL, NULL)) {
 			SC2IFP(sc)->if_oerrors++;

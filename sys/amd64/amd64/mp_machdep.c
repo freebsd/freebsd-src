@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/apicreg.h>
 #include <machine/cputypes.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
@@ -100,9 +101,8 @@ extern pt_entry_t *KPTphys;
 /* SMP page table page */
 extern pt_entry_t *SMPpt;
 
-extern int  _udatasel;
-
 struct pcb stoppcbs[MAXCPU];
+struct xpcb *stopxpcbs = NULL;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -344,6 +344,9 @@ cpu_mp_start(void)
 	/* Install an inter-CPU IPI for CPU stop/restart */
 	setidt(IPI_STOP, IDTVEC(cpustop), SDT_SYSIGT, SEL_KPL, 0);
 
+	/* Install an inter-CPU IPI for CPU suspend/resume */
+	setidt(IPI_SUSPEND, IDTVEC(cpususpend), SDT_SYSIGT, SEL_KPL, 0);
+
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
 		boot_cpu_id = PCPU_GET(apic_id);
@@ -458,7 +461,8 @@ init_secondary(void)
 	/* Init tss */
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
-	common_tss[cpu].tss_iobase = sizeof(struct amd64tss);
+	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
+	    IOPAGES * PAGE_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
 	/* The NMI stack runs on IST2. */
@@ -467,12 +471,13 @@ init_secondary(void)
 
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
-	ssdtosyssd(&gdt_segs[GPROC0_SEL],
-	   (struct system_segment_descriptor *)&gdt[NGDT * cpu + GPROC0_SEL]);
 	for (x = 0; x < NGDT; x++) {
-		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1))
+		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
+		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1))
 			ssdtosd(&gdt_segs[x], &gdt[NGDT * cpu + x]);
 	}
+	ssdtosyssd(&gdt_segs[GPROC0_SEL],
+	    (struct system_segment_descriptor *)&gdt[NGDT * cpu + GPROC0_SEL]);
 	ap_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	ap_gdt.rd_base =  (long) &gdt[NGDT * cpu];
 	lgdt(&ap_gdt);			/* does magic intra-segment return */
@@ -486,8 +491,14 @@ init_secondary(void)
 	pc->pc_prvspace = pc;
 	pc->pc_curthread = 0;
 	pc->pc_tssp = &common_tss[cpu];
+	pc->pc_commontssp = &common_tss[cpu];
 	pc->pc_rsp0 = 0;
+	pc->pc_tss = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
+	    GPROC0_SEL];
+	pc->pc_fs32p = &gdt[NGDT * cpu + GUFS32_SEL];
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
+	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
+	    GUSERLDT_SEL];
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
 	np->np_pcpu = (register_t) pc;
@@ -596,7 +607,7 @@ init_secondary(void)
 	load_cr4(rcr4() | CR4_PGE);
 	load_ds(_udatasel);
 	load_es(_udatasel);
-	load_fs(_udatasel);
+	load_fs(_ufssel);
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* wait until all the AP's are up */
@@ -1142,6 +1153,41 @@ cpustop_handler(void)
 		cpustop_restartfunc();
 		cpustop_restartfunc = NULL;
 	}
+}
+
+/*
+ * Handle an IPI_SUSPEND by saving our current context and spinning until we
+ * are resumed.
+ */
+void
+cpususpend_handler(void)
+{
+	struct savefpu *stopfpu;
+	register_t cr3, rf;
+	int cpu = PCPU_GET(cpuid);
+	int cpumask = PCPU_GET(cpumask);
+
+	rf = intr_disable();
+	cr3 = rcr3();
+	stopfpu = &stopxpcbs[cpu].xpcb_pcb.pcb_save;
+	if (savectx2(&stopxpcbs[cpu])) {
+		fpugetregs(curthread, stopfpu);
+		wbinvd();
+		atomic_set_int(&stopped_cpus, cpumask);
+	} else
+		fpusetregs(curthread, stopfpu);
+
+	/* Wait for resume */
+	while (!(started_cpus & cpumask))
+		ia32_pause();
+
+	atomic_clear_int(&started_cpus, cpumask);
+	atomic_clear_int(&stopped_cpus, cpumask);
+
+	/* Restore CR3 and enable interrupts */
+	load_cr3(cr3);
+	lapic_setup(0);
+	intr_restore(rf);
 }
 
 /*

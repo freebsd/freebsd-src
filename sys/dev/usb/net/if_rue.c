@@ -141,29 +141,29 @@ static const struct usb2_config rue_config[RUE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = MCLBYTES,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = rue_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = MCLBYTES,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = rue_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[RUE_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (MCLBYTES + 4),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = rue_bulk_read_callback,
-		.mh.timeout = 0,	/* no timeout */
+		.bufsize = (MCLBYTES + 4),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = rue_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
 	},
 
 	[RUE_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = rue_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = rue_intr_callback,
 	},
 };
 

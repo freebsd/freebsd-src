@@ -33,8 +33,6 @@ SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} \
 		${KERNEL_SRCS} ${LIST_SRCS} ${ATOMIC_SRCS} \
 		${UNICODE_SRCS}
 
-CFLAGS+=	-std=c99
-
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris
 CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
@@ -59,5 +57,7 @@ LDADD=		-lpthread -lz
 
 # atomic.S doesn't like profiling.
 NO_PROFILE=
+
+CSTD=	c99
 
 .include <bsd.lib.mk>

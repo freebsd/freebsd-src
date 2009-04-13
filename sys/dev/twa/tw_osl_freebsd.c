@@ -491,8 +491,8 @@ tw_osli_alloc_mem(struct twa_softc *sc)
 	/* Create the parent dma tag. */
 	if (bus_dma_tag_create(NULL,			/* parent */
 				sc->alignment,		/* alignment */
-				0,			/* boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				TW_OSLI_DMA_BOUNDARY,	/* boundary */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR, 	/* highaddr */
 				NULL, NULL, 		/* filter, filterarg */
 				TW_CL_MAX_IO_SIZE,	/* maxsize */
@@ -515,7 +515,7 @@ tw_osli_alloc_mem(struct twa_softc *sc)
 	if (bus_dma_tag_create(sc->parent_tag,		/* parent */
 				sc->alignment,		/* alignment */
 				0,			/* boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR, 	/* highaddr */
 				NULL, NULL, 		/* filter, filterarg */
 				dma_mem_size,		/* maxsize */
@@ -562,7 +562,7 @@ tw_osli_alloc_mem(struct twa_softc *sc)
 	if (bus_dma_tag_create(sc->parent_tag,		/* parent */
 				sc->alignment,		/* alignment */
 				0,			/* boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR, 	/* highaddr */
 				NULL, NULL, 		/* filter, filterarg */
 				TW_CL_MAX_IO_SIZE,	/* maxsize */
@@ -588,7 +588,7 @@ tw_osli_alloc_mem(struct twa_softc *sc)
 	if (bus_dma_tag_create(sc->parent_tag,		/* parent */
 				sc->alignment,		/* alignment */
 				0,			/* boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR, 	/* highaddr */
 				NULL, NULL, 		/* filter, filterarg */
 				TW_CL_MAX_IO_SIZE,	/* maxsize */
@@ -1347,7 +1347,7 @@ static TW_VOID
 twa_map_load_callback(TW_VOID *arg, bus_dma_segment_t *segs,
 	TW_INT32 nsegments, TW_INT32 error)
 {
-	*((bus_addr_t *)arg) = segs[0].ds_addr;
+	*((TW_UINT64 *)arg) = segs[0].ds_addr;
 }
 
 

@@ -120,19 +120,18 @@ static const struct usb2_config ucycom_config[UCYCOM_N_TRANSFER] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = (sizeof(struct usb2_device_request) + UCYCOM_MAX_IOLEN),
-		.mh.flags = {},
-		.mh.callback = &ucycom_ctrl_write_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = (sizeof(struct usb2_device_request) + UCYCOM_MAX_IOLEN),
+		.callback = &ucycom_ctrl_write_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 
 	[UCYCOM_INTR_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = UCYCOM_MAX_IOLEN,
-		.mh.callback = &ucycom_intr_read_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = UCYCOM_MAX_IOLEN,
+		.callback = &ucycom_intr_read_callback,
 	},
 };
 
@@ -222,8 +221,7 @@ ucycom_attach(device_t dev)
 
 	/* get report descriptor */
 
-	error = usb2_req_get_hid_desc
-	    (uaa->device, &Giant,
+	error = usb2_req_get_hid_desc(uaa->device, NULL,
 	    &urd_ptr, &urd_len, M_USBDEV,
 	    UCYCOM_IFACE_INDEX);
 

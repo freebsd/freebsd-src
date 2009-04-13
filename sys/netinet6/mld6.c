@@ -288,7 +288,7 @@ mld6_input(struct mbuf *m, int off)
 #else
 	IP6_EXTHDR_GET(mldh, struct mld_hdr *, m, off, sizeof(*mldh));
 	if (mldh == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -517,7 +517,7 @@ mld6_sendpkt(struct in6_multi *in6m, int type, const struct in6_addr *dst)
 	im6o.im6o_multicast_loop = (ip6_mrouter != NULL);
 
 	/* increment output statictics */
-	V_icmp6stat.icp6s_outhist[type]++;
+	ICMP6STAT_INC(icp6s_outhist[type]);
 
 	ip6_output(mh, &V_ip6_opts, NULL, 0, &im6o, &outif, NULL);
 	if (outif) {
@@ -550,7 +550,6 @@ in6_addmulti(struct in6_addr *maddr6, struct ifnet *ifp,
 	*errorp = 0;
 	in6m = NULL;
 
-	IFF_LOCKGIANT(ifp);
 	/*IN6_MULTI_LOCK();*/
 
 	IN6_LOOKUP_MULTI(*maddr6, ifp, in6m);
@@ -622,7 +621,6 @@ in6_addmulti(struct in6_addr *maddr6, struct ifnet *ifp,
 	} while (0);
 
 	/*IN6_MULTI_UNLOCK();*/
-	IFF_UNLOCKGIANT(ifp);
 
 	return (in6m);
 }

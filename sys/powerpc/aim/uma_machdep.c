@@ -35,9 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_extern.h>
+#include <vm/uma.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
+#include <machine/md_var.h>
 #include <machine/vmparam.h>
 
 static int hw_uma_mdpages;
@@ -51,6 +55,13 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	void *va;
 	vm_page_t m;
 	int pflags;
+	
+	if (!hw_direct_map) {
+		*flags = UMA_SLAB_KMEM;
+		va = (void *)kmem_malloc(kmem_map, bytes, wait);
+	
+		return va;
+	}
 
 	*flags = UMA_SLAB_PRIV;
 	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
@@ -82,6 +93,12 @@ void
 uma_small_free(void *mem, int size, u_int8_t flags)
 {
 	vm_page_t m;
+
+	if (!hw_direct_map) {
+		kmem_free(kmem_map, (vm_offset_t)mem, size);
+
+		return;
+	}
 
 	m = PHYS_TO_VM_PAGE((u_int32_t)mem);
 	m->wire_count--;

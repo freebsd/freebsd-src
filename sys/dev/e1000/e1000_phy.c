@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -237,6 +237,12 @@ s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 
 	E1000_WRITE_REG(hw, E1000_MDIC, mdic);
 
+#if defined(HANKSVILLE_HW) && !defined(NO_PCH_A_SUPPORT)
+	/* Workaround for Si errata */
+	if ((hw->phy.type == e1000_phy_lsi) && (hw->revision_id <= 2 ))
+		msec_delay(10);
+
+#endif /* HANKSVILLE_HW && !NO_PCH_A_SUPPORT */
 	/*
 	 * Poll the ready bit to see if the MDI read completed
 	 * Increasing the time out as testing showed failures with
@@ -292,6 +298,12 @@ s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 
 	E1000_WRITE_REG(hw, E1000_MDIC, mdic);
 
+#if defined(HANKSVILLE_HW) && !defined(NO_PCH_A_SUPPORT)
+	/* Workaround for Si errata */
+	if ((hw->phy.type == e1000_phy_lsi) && (hw->revision_id <= 2))
+		msec_delay(10);
+
+#endif /* HANKSVILLE_HW && !NO_PCH_A_SUPPORT */
 	/*
 	 * Poll the ready bit to see if the MDI read completed
 	 * Increasing the time out as testing showed failures with
@@ -563,8 +575,8 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	/* For newer PHYs this bit is downshift enable */
-	if (phy->type == e1000_phy_m88)
+	/* For BM PHY this bit is downshift enable */
+	if (phy->type != e1000_phy_bm)
 		phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
 
 	/*
@@ -1670,15 +1682,15 @@ s32 e1000_get_cable_length_m88(struct e1000_hw *hw)
 
 	index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
 	        M88E1000_PSSR_CABLE_LENGTH_SHIFT;
-	if (index < M88E1000_CABLE_LENGTH_TABLE_SIZE + 1) {
-		phy->min_cable_length = e1000_m88_cable_length_table[index];
-		phy->max_cable_length = e1000_m88_cable_length_table[index+1];
-
-		phy->cable_length = (phy->min_cable_length +
-		                     phy->max_cable_length) / 2;
-	} else {
+	if (index >= M88E1000_CABLE_LENGTH_TABLE_SIZE + 1) {
 		ret_val = E1000_ERR_PHY;
+		goto out;
 	}
+
+	phy->min_cable_length = e1000_m88_cable_length_table[index];
+	phy->max_cable_length = e1000_m88_cable_length_table[index+1];
+
+	phy->cable_length = (phy->min_cable_length + phy->max_cable_length) / 2;
 
 out:
 	return ret_val;
@@ -2140,6 +2152,8 @@ s32 e1000_determine_phy_address(struct e1000_hw *hw)
 	u32 i;
 	enum e1000_phy_type phy_type = e1000_phy_unknown;
 
+	hw->phy.id = phy_type;
+
 	for (phy_addr = 0; phy_addr < E1000_MAX_PHY_ADDR; phy_addr++) {
 		hw->phy.addr = phy_addr;
 		i = 0;
@@ -2427,11 +2441,11 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
                                           u16 *data, bool read)
 {
 	s32 ret_val;
-	u16 reg = ((u16)offset);
+	u16 reg = BM_PHY_REG_NUM(offset);
 	u16 phy_reg = 0;
 	u8  phy_acquired = 1;
 
-	DEBUGFUNC("e1000_read_phy_wakeup_reg_bm");
+	DEBUGFUNC("e1000_access_phy_wakeup_reg_bm");
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
@@ -2484,15 +2498,15 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 	if (read) {
 	        /* Read the page 800 value using opcode 0x12 */
 		ret_val = e1000_read_phy_reg_mdic(hw, BM_WUC_DATA_OPCODE,
-							data);
+		                                  data);
 	} else {
-	        /* Read the page 800 value using opcode 0x12 */
+	        /* Write the page 800 value using opcode 0x12 */
 		ret_val = e1000_write_phy_reg_mdic(hw, BM_WUC_DATA_OPCODE,
-							*data);
+		                                   *data);
 	}
 
 	if (ret_val) {
-		DEBUGOUT("Could not read data value from page 800\n");
+		DEBUGOUT("Could not access data value from page 800\n");
 		goto out;
 	}
 

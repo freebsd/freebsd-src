@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Lukas Ertl
+ * Copyright (c) 2004, 2007 Lukas Ertl
  * Copyright (c) 1997, 1998, 1999
  *      Nan Yang Computer Services Limited.  All rights reserved.
  *
@@ -112,11 +112,29 @@
 #define	GV_BIO_MALLOC	0x02
 #define	GV_BIO_ONHOLD	0x04
 #define	GV_BIO_SYNCREQ	0x08
-#define	GV_BIO_SUCCEED	0x10
+#define	GV_BIO_INIT	0x10
 #define	GV_BIO_REBUILD	0x20
 #define	GV_BIO_CHECK	0x40
 #define	GV_BIO_PARITY	0x80
 #define	GV_BIO_RETRY	0x100
+#define GV_BIO_INTERNAL \
+    (GV_BIO_SYNCREQ | GV_BIO_INIT | GV_BIO_REBUILD |GV_BIO_CHECK)
+
+/* Error codes to be used within gvinum. */
+#define	GV_ERR_SETSTATE		(-1)	/* Error setting state. */
+#define	GV_ERR_BADSIZE		(-2)	/* Object has wrong size. */
+#define	GV_ERR_INVTYPE		(-3)    /* Invalid object type. */
+#define	GV_ERR_CREATE		(-4)	/* Error creating gvinum object. */
+#define	GV_ERR_ISBUSY		(-5)	/* Object is busy. */
+#define	GV_ERR_ISATTACHED	(-6)	/* Object is attached to another. */
+#define	GV_ERR_INVFLAG		(-7)	/* Invalid flag passed. */
+#define	GV_ERR_INVSTATE		(-8)	/* Invalid state. */
+#define	GV_ERR_NOTFOUND		(-9)	/* Object not found. */
+#define	GV_ERR_NAMETAKEN	(-10)	/* Object name is taken. */
+#define	GV_ERR_NOSPACE		(-11)	/* No space left on drive/subdisk. */
+#define	GV_ERR_BADOFFSET	(-12)	/* Invalid offset specified. */
+#define	GV_ERR_INVNAME		(-13)	/* Invalid object name. */
+#define	GV_ERR_PLEXORG		(-14)	/* Invalid plex organization. */
 
 /*
  * hostname is 256 bytes long, but we don't need to shlep multiple copies in
@@ -162,16 +180,65 @@ struct gv_bioq {
 	TAILQ_ENTRY(gv_bioq)	queue;
 };
 
+#define	GV_EVENT_DRIVE_TASTED		1
+#define	GV_EVENT_DRIVE_LOST		2
+#define	GV_EVENT_THREAD_EXIT		3
+#define	GV_EVENT_CREATE_DRIVE		4
+#define	GV_EVENT_CREATE_VOLUME		5
+#define	GV_EVENT_CREATE_PLEX		6
+#define	GV_EVENT_CREATE_SD		7
+#define	GV_EVENT_SAVE_CONFIG		8
+#define	GV_EVENT_RM_VOLUME		9
+#define	GV_EVENT_RM_PLEX		10
+#define	GV_EVENT_RM_SD			11
+#define	GV_EVENT_RM_DRIVE		12
+#define	GV_EVENT_SET_SD_STATE		13
+#define	GV_EVENT_SET_DRIVE_STATE	14
+#define	GV_EVENT_SET_VOL_STATE		15
+#define	GV_EVENT_SET_PLEX_STATE		16
+#define	GV_EVENT_RESET_CONFIG		17
+#define	GV_EVENT_PARITY_REBUILD		18
+#define	GV_EVENT_PARITY_CHECK		19
+#define	GV_EVENT_START_PLEX		20
+#define	GV_EVENT_START_VOLUME		21
+#define	GV_EVENT_ATTACH_PLEX		22
+#define	GV_EVENT_ATTACH_SD		23
+#define	GV_EVENT_DETACH_PLEX		24
+#define	GV_EVENT_DETACH_SD		25
+#define	GV_EVENT_RENAME_VOL		26
+#define	GV_EVENT_RENAME_PLEX		27
+#define	GV_EVENT_RENAME_SD		28
+#define	GV_EVENT_RENAME_DRIVE		29
+#define	GV_EVENT_MOVE_SD		30
+#define	GV_EVENT_SETUP_OBJECTS		31
+
+#ifdef _KERNEL
+struct gv_event {
+	int	type;
+	void	*arg1;
+	void	*arg2;
+	intmax_t arg3;
+	intmax_t arg4;
+	TAILQ_ENTRY(gv_event)	events;
+};
+#endif
+
 /* This struct contains the main vinum config. */
 struct gv_softc {
-	/*struct mtx config_mtx; XXX not yet */
-
 	/* Linked lists of all objects in our setup. */
 	LIST_HEAD(,gv_drive)	drives;		/* All drives. */
 	LIST_HEAD(,gv_plex)	plexes;		/* All plexes. */
 	LIST_HEAD(,gv_sd)	subdisks;	/* All subdisks. */
 	LIST_HEAD(,gv_volume)	volumes;	/* All volumes. */
 
+	TAILQ_HEAD(,gv_event)	equeue;		/* Event queue. */
+	struct mtx		queue_mtx;	/* Queue lock. */
+	struct mtx		config_mtx;	/* Configuration lock. */
+#ifdef	_KERNEL
+	struct bio_queue_head	*bqueue;	/* BIO queue. */
+#else
+	char			*padding;
+#endif
 	struct g_geom		*geom;		/* Pointer to our VINUM geom. */
 };
 
@@ -188,26 +255,19 @@ struct gv_drive {
 	int	sdcount;			/* Number of subdisks. */
 
 	int	flags;
-#define	GV_DRIVE_THREAD_ACTIVE	0x01	/* Drive has an active worker thread. */
-#define	GV_DRIVE_THREAD_DIE	0x02	/* Signal the worker thread to die. */
-#define	GV_DRIVE_THREAD_DEAD	0x04	/* The worker thread has died. */
-#define	GV_DRIVE_NEWBORN	0x08	/* The drive was just created. */
+#define	GV_DRIVE_REFERENCED	0x01	/* The drive isn't really existing,
+					   but was referenced by a subdisk
+					   during taste. */
 
-	struct gv_hdr	*hdr;			/* The drive header. */
+	struct gv_hdr	*hdr;		/* The drive header. */
+
+	struct g_consumer *consumer;	/* Consumer attached to this drive. */
 
 	int freelist_entries;			/* Count of freelist entries. */
 	LIST_HEAD(,gv_freelist)	freelist;	/* List of freelist entries. */
 	LIST_HEAD(,gv_sd)	subdisks;	/* Subdisks on this drive. */
 	LIST_ENTRY(gv_drive)	drive;		/* Entry in the vinum config. */
 
-#ifdef _KERNEL
-	struct bio_queue_head	*bqueue;	/* BIO queue of this drive. */
-#else
-	char			*padding;
-#endif
-	struct mtx		bqueue_mtx;	/* Mtx. to protect the queue. */
-
-	struct g_geom	*geom;			/* The geom of this drive. */
 	struct gv_softc	*vinumconf;		/* Pointer to the vinum conf. */
 };
 
@@ -230,17 +290,16 @@ struct gv_sd {
 	int	init_error;		/* Flag error on initialization. */
 
 	int	flags;
-#define	GV_SD_NEWBORN		0x01	/* Subdisk was just created. */
-#define	GV_SD_INITCANCEL	0x02	/* Cancel initialization process. */
+#define	GV_SD_NEWBORN		0x01	/* Subdisk is created by user. */
+#define	GV_SD_TASTED		0x02	/* Subdisk is created during taste. */
+#define	GV_SD_CANGOUP		0x04	/* Subdisk can go up immediately. */
+#define GV_SD_GROW		0x08	/* Subdisk is added to striped plex. */
 
 	char drive[GV_MAXDRIVENAME];	/* Name of underlying drive. */
 	char plex[GV_MAXPLEXNAME];	/* Name of associated plex. */
 
 	struct gv_drive	*drive_sc;	/* Pointer to underlying drive. */
 	struct gv_plex	*plex_sc;	/* Pointer to associated plex. */
-
-	struct g_provider *provider;	/* The provider this sd represents. */
-	struct g_consumer *consumer;	/* Consumer attached to our provider. */
 
 	LIST_ENTRY(gv_sd) from_drive;	/* Subdisk list of underlying drive. */
 	LIST_ENTRY(gv_sd) in_plex;	/* Subdisk list of associated plex. */
@@ -257,7 +316,8 @@ struct gv_plex {
 #define	GV_PLEX_DOWN		0
 #define	GV_PLEX_INITIALIZING	1
 #define	GV_PLEX_DEGRADED	2
-#define	GV_PLEX_UP		3
+#define GV_PLEX_GROWABLE	3
+#define	GV_PLEX_UP		4
 
 	int	org;			/* The plex organisation. */
 #define	GV_PLEX_DISORG	0
@@ -270,6 +330,7 @@ struct gv_plex {
 	char	volume[GV_MAXVOLNAME];	/* Name of associated volume. */
 	struct gv_volume *vol_sc;	/* Pointer to associated volume. */
 
+	int	sddetached;		/* Number of detached subdisks. */
 	int	sdcount;		/* Number of subdisks in this plex. */
 	int	sddown;			/* Number of subdisks that are down. */
 	int	flags;
@@ -279,26 +340,25 @@ struct gv_plex {
 #define	GV_PLEX_THREAD_DIE	0x08	/* Signal the RAID5 thread to die. */
 #define	GV_PLEX_THREAD_DEAD	0x10	/* The RAID5 thread has died. */
 #define	GV_PLEX_NEWBORN		0x20	/* The plex was just created. */
+#define GV_PLEX_REBUILDING	0x40	/* The plex is rebuilding. */
+#define GV_PLEX_GROWING		0x80	/* The plex is growing. */
 
 	off_t	synced;			/* Count of synced bytes. */
 
-	struct mtx		bqueue_mtx; /* Lock for the BIO queue. */
-#ifdef _KERNEL
-	struct bio_queue_head	*bqueue; /* BIO queue. */
-	struct bio_queue_head	*wqueue; /* Waiting BIO queue. */
-#else
-	char			*bpad, *wpad;
-#endif
 	TAILQ_HEAD(,gv_raid5_packet)	packets; /* RAID5 sub-requests. */
 
 	LIST_HEAD(,gv_sd)   subdisks;	/* List of attached subdisks. */
 	LIST_ENTRY(gv_plex) in_volume;	/* Plex list of associated volume. */
 	LIST_ENTRY(gv_plex) plex;	/* Entry in the vinum config. */
 
-	struct g_provider *provider;	/* The provider this plex represents. */
-	struct g_consumer *consumer;	/* Consumer attached to our provider. */
+#ifdef	_KERNEL
+	struct bio_queue_head	*bqueue;	/* BIO queue. */
+	struct bio_queue_head	*wqueue;	/* Waiting BIO queue. */
+	struct bio_queue_head	*rqueue;	/* Rebuild waiting BIO queue. */
+#else
+	char			*bpad, *wpad, *rpad; /* Padding for userland. */
+#endif
 
-	struct g_geom	*geom;		/* The geom of this plex. */
 	struct gv_softc	*vinumconf;	/* Pointer to the vinum config. */
 };
 
@@ -315,19 +375,20 @@ struct gv_volume {
 #define	GV_VOL_THREAD_ACTIVE	0x01	/* Volume has an active thread. */
 #define	GV_VOL_THREAD_DIE	0x02	/* Signal the thread to die. */
 #define	GV_VOL_THREAD_DEAD	0x04	/* The thread has died. */
+#define GV_VOL_NEWBORN		0x08	/* The volume was just created. */
 
-	struct mtx		bqueue_mtx; /* Lock for the BIO queue. */
-#ifdef _KERNEL
-	struct bio_queue_head	*bqueue; /* BIO queue. */
+	LIST_HEAD(,gv_plex)	plexes;		/* List of attached plexes. */
+	LIST_ENTRY(gv_volume)	volume;		/* Entry in vinum config. */
+
+	struct g_provider	*provider;	/* Provider of this volume. */
+
+#ifdef	_KERNEL
+	struct bio_queue_head	*wqueue;	/* BIO delayed request queue. */
 #else
-	char			*padding;
+	char			*wpad; /* Padding for userland. */
 #endif
 
-	LIST_HEAD(,gv_plex)   plexes;	/* List of attached plexes. */
-	LIST_ENTRY(gv_volume) volume;	/* Entry in vinum config. */
-
 	struct gv_plex	*last_read_plex;
-	struct g_geom	*geom;		/* The geom of this volume. */
 	struct gv_softc	*vinumconf;	/* Pointer to the vinum config. */
 };
 

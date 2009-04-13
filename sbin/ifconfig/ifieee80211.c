@@ -78,6 +78,9 @@
 #include <net/route.h>
 
 #include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_freebsd.h>
+#include <net80211/ieee80211_superg.h>
+#include <net80211/ieee80211_tdma.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -3019,13 +3022,6 @@ list_scan(int s)
 		cp += sr->isr_len, len -= sr->isr_len;
 	} while (len >= sizeof(struct ieee80211req_scan_result));
 }
-
-#ifdef __FreeBSD__
-#include <net80211/ieee80211_freebsd.h>
-#endif
-#ifdef __NetBSD__
-#include <net80211/ieee80211_netbsd.h>
-#endif
 
 static void
 scan_and_wait(int s)

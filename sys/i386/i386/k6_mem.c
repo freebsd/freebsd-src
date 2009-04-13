@@ -70,6 +70,7 @@ static struct mem_range_ops k6_mrops =
 {
 	k6_mrinit,
 	k6_mrset,
+	NULL,
 	NULL
 };
 
