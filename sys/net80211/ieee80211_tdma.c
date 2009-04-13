@@ -344,7 +344,7 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		/*
 		 * Check for state updates.
 		 */
-		if (IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_bssid)) {
+		if (IEEE80211_ADDR_EQ(wh->i_addr3, ni->ni_bssid)) {
 			/*
 			 * Count frame now that we know it's to be processed.
 			 */
