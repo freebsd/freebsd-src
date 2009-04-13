@@ -539,7 +539,7 @@ dbtrap:
 	mflr	%r28
 	mfcr	%r29
 	lwz	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)
-	mtlr	%r31
+	mtsprg3	%r31			/* SPRG3 was clobbered by FRAME_LEAVE */
 	mfsprg1	%r1
 	b	realtrap
 dbleave:
