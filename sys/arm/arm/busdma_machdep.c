@@ -669,8 +669,8 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 }
 
 static int
-_bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-			bus_size_t buflen, int flags)
+_bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
+    void *buf, bus_size_t buflen, int flags)
 {
 	vm_offset_t vaddr;
 	vm_offset_t vendaddr;
@@ -689,7 +689,10 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			paddr = pmap_kextract(vaddr);
+			if (pmap != NULL)
+				paddr = pmap_extract(pmap, vaddr);
+			else
+				paddr = pmap_kextract(vaddr);
 			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 			    run_filter(dmat, paddr) != 0)
 				map->pagesneeded++;
@@ -745,7 +748,8 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 	bmask = ~(dmat->boundary - 1);
 
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
-		error = _bus_dmamap_count_pages(dmat, map, buf, buflen, flags);
+		error = _bus_dmamap_count_pages(dmat, map, pmap, buf, buflen,
+		    flags);
 		if (error)
 			return (error);
 	}

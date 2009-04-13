@@ -142,8 +142,8 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
-int _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-			    bus_size_t buflen, int flags);
+int _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
+    void *buf, bus_size_t buflen, int flags);
 
 #ifdef XEN
 #undef pmap_kextract
@@ -577,8 +577,8 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 }
 
 int
-_bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-			bus_size_t buflen, int flags)
+_bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
+    void *buf, bus_size_t buflen, int flags)
 {
 	vm_offset_t vaddr;
 	vm_offset_t vendaddr;
@@ -598,7 +598,10 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			paddr = pmap_kextract(vaddr);
+			if (pmap)
+				paddr = pmap_extract(pmap, vaddr);
+			else
+				paddr = pmap_kextract(vaddr);
 			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 			    run_filter(dmat, paddr) != 0) {
 				map->pagesneeded++;
@@ -660,7 +663,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		map = &nobounce_dmamap;
 
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
-		error = _bus_dmamap_count_pages(dmat, map, buf, buflen, flags);
+		error = _bus_dmamap_count_pages(dmat, map, pmap, buf, buflen, flags);
 		if (error)
 			return (error);
 	}
