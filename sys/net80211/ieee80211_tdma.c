@@ -467,7 +467,7 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_TDMA,
 		    "%s: slot %u slotcnt %u slotlen %u us bintval %u\n",
 		    __func__, ts->tdma_slot, ts->tdma_slotcnt,
-		    100*ts->tdma_slotlen, ts->tdma_bintval);
+		    ts->tdma_slotlen, ts->tdma_bintval);
 	}
 	/*
 	 * Notify driver.  Note we can be called before
