@@ -1442,8 +1442,8 @@ nfs_timer(void *arg)
 				nfs_softterm(rep);
 				mtx_unlock(&rep->r_mtx);
 				continue;
-			}				
-			mtx_unlock(&rep->r_mtx);			
+			}
+			mtx_unlock(&rep->r_mtx);
 		}
 		if (nfs_sigintr(nmp, rep, rep->r_td))
 			continue;
