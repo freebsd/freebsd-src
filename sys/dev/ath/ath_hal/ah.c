@@ -287,8 +287,7 @@ ath_hal_computetxtime(struct ath_hal *ah,
 				+ (numSymbols * OFDM_QUARTER_SYMBOL_TIME);
 		break;
 	case IEEE80211_T_TURBO:
-		/* we still save OFDM rates in kbps - so double them */
-		bitsPerSymbol = ((kbps << 1) * TURBO_SYMBOL_TIME) / 1000;
+		bitsPerSymbol	= (kbps * TURBO_SYMBOL_TIME) / 1000;
 		HALASSERT(bitsPerSymbol != 0);
 
 		numBits		= TURBO_PLCP_BITS + (frameLen << 3);
