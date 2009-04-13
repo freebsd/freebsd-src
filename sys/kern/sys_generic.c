@@ -73,6 +73,7 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
+static int	pollout(struct pollfd *, struct pollfd *, u_int);
 static int	pollscan(struct thread *, struct pollfd *, u_int);
 static int	selscan(struct thread *, fd_mask **, fd_mask **, int);
 static int	dofileread(struct thread *, int, struct file *, struct uio *,
@@ -992,7 +993,7 @@ done_nosellock:
 	if (error == EWOULDBLOCK)
 		error = 0;
 	if (error == 0) {
-		error = copyout(bits, uap->fds, ni);
+		error = pollout(bits, uap->fds, nfds);
 		if (error)
 			goto out;
 	}
@@ -1001,6 +1002,26 @@ out:
 		free(bits, M_TEMP);
 done2:
 	return (error);
+}
+
+static int
+pollout(fds, ufds, nfd)
+	struct pollfd *fds;
+	struct pollfd *ufds;
+	u_int nfd;
+{
+	int error = 0;
+	u_int i = 0;
+
+	for (i = 0; i < nfd; i++) {
+		error = copyout(&fds->revents, &ufds->revents,
+		    sizeof(ufds->revents));
+		if (error)
+			return (error);
+		fds++;
+		ufds++;
+	}
+	return (0);
 }
 
 static int
