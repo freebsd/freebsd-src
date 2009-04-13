@@ -472,7 +472,7 @@ dtlb_enter_sun4u(u_long vpn, u_long data)
 	reg = rdpr(pstate);
 	wrpr(pstate, reg & ~PSTATE_IE, 0);
 	stxa(AA_DMMU_TAR, ASI_DMMU,
-	     TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
+	    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
 	stxa(0, ASI_DTLB_DATA_IN_REG, data);
 	membar(Sync);
 	wrpr(pstate, reg, 0);
@@ -497,7 +497,7 @@ itlb_enter_sun4u(u_long vpn, u_long data)
 				continue;
 
 			stxa(AA_IMMU_TAR, ASI_IMMU,
-			     TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
+			    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
 			stxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, data);
 			flush(PROMBASE);
 			break;
@@ -509,7 +509,7 @@ itlb_enter_sun4u(u_long vpn, u_long data)
 	}
 
 	stxa(AA_IMMU_TAR, ASI_IMMU,
-	     TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
+	    TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
 	stxa(0, ASI_ITLB_DATA_IN_REG, data);
 	flush(PROMBASE);
 	wrpr(pstate, reg, 0);
