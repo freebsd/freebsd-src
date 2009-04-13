@@ -606,7 +606,10 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			paddr = pmap_kextract(vaddr);
+			if (pmap)
+				paddr = pmap_extract(pmap, vaddr);
+			else
+				paddr = pmap_kextract(vaddr);
 			if (run_filter(dmat, paddr) != 0)
 				map->pagesneeded++;
 			vaddr += (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
