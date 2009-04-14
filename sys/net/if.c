@@ -1509,6 +1509,8 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	ifp->if_qflush(ifp);
+	if (ifp->if_snd.ifq_head != NULL)
+		if_qflush(ifp);
 	
 #ifdef DEV_CARP
 	if (ifp->if_carp)
