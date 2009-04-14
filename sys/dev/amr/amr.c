@@ -259,15 +259,6 @@ amr_attach(struct amr_softc *sc)
      */
     amr_init_sysctl(sc);
 
-#if AMR_ENABLE_CAM != 0
-    /*
-     * Attach our 'real' SCSI channels to CAM.
-     */
-    if (amr_cam_attach(sc))
-	return(ENXIO);
-    debug(2, "CAM attach done");
-#endif
-
     /*
      * Create the control device.
      */
@@ -356,6 +347,15 @@ amr_startup(void *arg)
      * Start the timeout routine.
      */
 /*    sc->amr_timeout = timeout(amr_periodic, sc, hz);*/
+
+#if AMR_ENABLE_CAM != 0
+    /*
+     * Attach our 'real' SCSI channels to CAM.
+     */
+    if (amr_cam_attach(sc))
+	device_printf(sc->amr_dev, "CAM passthrough attachment failed\n");
+    debug(2, "CAM attach done");
+#endif
 
     return;
 }
