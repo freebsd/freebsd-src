@@ -671,6 +671,7 @@ vendor FUJITSU2			-1	Fujitsu
 vendor FUTUREDOMAIN		-1	FutureDomain
 vendor FREECOM			-1	Freecom
 vendor GEMTEK			-1	Gem Tek
+vendor GVC			-1	GVC
 vendor ICOM			-1	ICOM Inc
 vendor INTERSIL2		-1	Intersil
 vendor IODATA3			-1	I-O DATA
@@ -740,6 +741,7 @@ product FUJITSU2 FMV_J182A	{ "FUJITSU", "LAN&spCard(FMV-J182)", "Ver.02", NULL }
 product FUJITSU2 ITCFJ182A	{ "FUJITSU", "LAN&spCard(ITCFJ182)", "Ver.01", NULL } FUJITSU ITCFJ182A CompactCard
 product FUTUREDOMAIN SCSI2GO	{ "Future&spDomain&spCorporation", "SCSI&spPCMCIA&spCredit&spCard&spController", NULL, NULL } Future Domain SCSI2GO
 product GEMTEK WLAN		{ "Intersil", "PRISM&sp2_5&spPCMCIA&spADAPTER", "ISL37300P", "Eval-RevA" } GEMTEK Prism2_5 WaveLAN Card
+product GVC NIC_2000P		{ "GVC", "NIC-2000p", "ETHERNET", NULL } GVC PCMCIA Ethernet Adapeter
 product IBM SCSICARD		{ "IBM&spCorp.", "SCSI&spPCMCIA&spCard", NULL, NULL } IBM SCSI PCMCIA Card
 product ICOM SL200		{ "Icom", "SL-200", NULL, NULL } Icom SL-200
 product INTERSIL2 PRISM2	{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL } Intersil Prism II
