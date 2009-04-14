@@ -58,6 +58,7 @@ struct rt_metrics_lite {
 	u_long	rmx_mtu;	/* MTU for this path */
 	u_long	rmx_expire;	/* lifetime for route, e.g. redirect */
 	u_long	rmx_pksent;	/* packets sent using this route */
+	u_long	rmx_weight;	/* absolute weight */ 
 };
 
 struct rt_metrics {
@@ -71,7 +72,8 @@ struct rt_metrics {
 	u_long	rmx_rtt;	/* estimated round trip time */
 	u_long	rmx_rttvar;	/* estimated rtt variance */
 	u_long	rmx_pksent;	/* packets sent using this route */
-	u_long	rmx_filler[4];	/* will be used for T/TCP later */
+	u_long	rmx_weight;	/* route weight */
+	u_long	rmx_filler[3];	/* will be used for T/TCP later */
 };
 
 /*
@@ -193,13 +195,15 @@ struct ortentry {
 #define	RTF_LOCAL	0x200000 	/* route represents a local address */
 #define	RTF_BROADCAST	0x400000	/* route represents a bcast address */
 #define	RTF_MULTICAST	0x800000	/* route represents a mcast address */
-					/* 0x1000000 and up unassigned */
-#define	RTF_RNH_LOCKED	 0x40000000	/* radix node head locked by caller */
+					/* 0x8000000 and up unassigned */
+#define	RTF_STICKY	 0x10000000	/* always route dst->src */
+
+#define	RTF_RNH_LOCKED	 0x40000000	/* radix node head is locked */
 
 /* Mask of RTF flags that are allowed to be modified by RTM_CHANGE. */
 #define RTF_FMASK	\
 	(RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_BLACKHOLE | \
-	 RTF_REJECT | RTF_STATIC)
+	 RTF_REJECT | RTF_STATIC | RTF_STICKY)
 
 /*
  * Routing statistics.
@@ -225,12 +229,11 @@ struct rt_msghdr {
 	int	rtm_seq;	/* for sender to identify action */
 	int	rtm_errno;	/* why failed */
 	int	rtm_fmask;	/* bitmask used in RTM_CHANGE message */
-#define	rtm_use	rtm_fmask	/* deprecated, use rtm_rmx->rmx_pksent */
 	u_long	rtm_inits;	/* which metrics we are initializing */
 	struct	rt_metrics rtm_rmx; /* metrics themselves */
 };
 
-#define RTM_VERSION	5	/* Up the ante and ignore older versions */
+#define RTM_VERSION	6	/* Up the ante and ignore older versions */
 
 /*
  * Message types.
@@ -265,6 +268,7 @@ struct rt_msghdr {
 #define RTV_SSTHRESH	0x20	/* init or lock _ssthresh */
 #define RTV_RTT		0x40	/* init or lock _rtt */
 #define RTV_RTTVAR	0x80	/* init or lock _rttvar */
+#define RTV_WEIGHT	0x100	/* init or lock _weight */
 
 /*
  * Bitmask values for rtm_addrs.
