@@ -94,7 +94,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.5.2";
+char igb_driver_version[] = "version - 1.5.3";
 
 
 /*********************************************************************
@@ -4002,7 +4002,7 @@ igb_rxeof(struct rx_ring *rxr, int count)
 		accept_frame = 1;
 		hlen = plen = len_adj = 0;
 		sendmp = mh = mp = NULL;
-		ptype = (u16)cur->wb.lower.lo_dword.data;
+		ptype = (u16)(cur->wb.lower.lo_dword.data >> 4);
 
 		/* Sync the buffers */
 		bus_dmamap_sync(rxr->rxtag, rxr->rx_buffers[i].map,
@@ -4103,16 +4103,16 @@ igb_rxeof(struct rx_ring *rxr, int count)
 					rxr->lmp = mh->m_next;
 				}
 			} else {
-				/* Chain mbuf's together */
-				mh->m_flags &= ~M_PKTHDR;
-				rxr->lmp->m_next = mh;
-				rxr->lmp = rxr->lmp->m_next;
-				rxr->fmp->m_pkthdr.len += mh->m_len;
 				/* Adjust for CRC frag */
 				if (len_adj) {
 					rxr->lmp->m_len -= len_adj;
 					rxr->fmp->m_pkthdr.len -= len_adj;
 				}
+				/* Chain mbuf's together */
+				mh->m_flags &= ~M_PKTHDR;
+				rxr->lmp->m_next = mh;
+				rxr->lmp = rxr->lmp->m_next;
+				rxr->fmp->m_pkthdr.len += mh->m_len;
 			}
 
 			if (eop) {
@@ -4256,7 +4256,7 @@ igb_rx_checksum(u32 staterr, struct mbuf *mp, bool sctp)
 #endif
 		/* Did it pass? */
 		if (!(errors & E1000_RXD_ERR_TCPE)) {
-			mp->m_pkthdr.csum_flags = type;
+			mp->m_pkthdr.csum_flags |= type;
 			if (!sctp)
 				mp->m_pkthdr.csum_data = htons(0xffff);
 		}
