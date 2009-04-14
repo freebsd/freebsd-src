@@ -1710,6 +1710,16 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 	int ifindex;
 	int s;
 
+	/*
+	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
+	 * or is a divert socket, reject it.
+	 * XXX Unlocked read of inp_socket believed OK.
+	 */
+	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
+	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
+	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM))
+		return (EOPNOTSUPP);
+
 	switch (sopt->sopt_name) {
 	/* store an index number for the vif you wanna use in the send */
 	case IP_MULTICAST_VIF:
@@ -1995,6 +2005,16 @@ ip_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	INP_LOCK(inp);
 	imo = inp->inp_moptions;
+	/*
+	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
+	 * or is a divert socket, reject it.
+	 */
+	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
+	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
+	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM)) {
+		INP_UNLOCK(inp);
+		return (EOPNOTSUPP);
+	}
 
 	error = 0;
 	switch (sopt->sopt_name) {
