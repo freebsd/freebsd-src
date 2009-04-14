@@ -421,6 +421,18 @@ retry_wlocked:
 				*vpp = dvp->v_cache_dd->nc_vp;
 			else
 				*vpp = dvp->v_cache_dd->nc_dvp;
+			/* Return failure if negative entry was found. */
+			if (*vpp == NULL) {
+				numneghits++;
+				nchstats.ncs_neghits++;
+				SDT_PROBE(vfs, namecache, lookup, hit_negative,
+				    dvp, "..", 0, 0, 0);
+				if (wlocked)
+					CACHE_WUNLOCK();
+				else
+					CACHE_RUNLOCK();
+				return (ENOENT);
+			}
 			CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
 			    dvp, cnp->cn_nameptr, *vpp);
 			SDT_PROBE(vfs, namecache, lookup, hit, dvp, "..",
