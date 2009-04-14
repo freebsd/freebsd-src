@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -85,6 +85,7 @@ s32 ixgbe_read_eeprom(struct ixgbe_hw *hw, u16 offset, u16 *data);
 s32 ixgbe_validate_eeprom_checksum(struct ixgbe_hw *hw, u16 *checksum_val);
 s32 ixgbe_update_eeprom_checksum(struct ixgbe_hw *hw);
 
+s32 ixgbe_insert_mac_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq);
 s32 ixgbe_set_rar(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
                   u32 enable_addr);
 s32 ixgbe_clear_rar(struct ixgbe_hw *hw, u32 index);
@@ -102,7 +103,7 @@ s32 ixgbe_clear_vfta(struct ixgbe_hw *hw);
 s32 ixgbe_set_vfta(struct ixgbe_hw *hw, u32 vlan,
                    u32 vind, bool vlan_on);
 
-s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num);
+s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num);
 
 void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr);
 s32 ixgbe_get_phy_firmware_version(struct ixgbe_hw *hw,
@@ -112,5 +113,54 @@ s32 ixgbe_write_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 val);
 s32 ixgbe_init_uta_tables(struct ixgbe_hw *hw);
 s32 ixgbe_read_i2c_eeprom(struct ixgbe_hw *hw, u8 byte_offset, u8 *eeprom_data);
 u32 ixgbe_get_supported_physical_layer(struct ixgbe_hw *hw);
+s32 ixgbe_enable_rx_dma(struct ixgbe_hw *hw, u32 regval);
+s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);
+s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 pballoc);
+s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc);
+s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
+                                          struct ixgbe_atr_input *input,
+                                          u8 queue);
+s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
+                                        struct ixgbe_atr_input *input,
+                                        u16 soft_id,
+                                        u8 queue);
+u16 ixgbe_atr_compute_hash_82599(struct ixgbe_atr_input *input, u32 key);
+s32 ixgbe_atr_set_vlan_id_82599(struct ixgbe_atr_input *input, u16 vlan_id);
+s32 ixgbe_atr_set_src_ipv4_82599(struct ixgbe_atr_input *input, u32 src_addr);
+s32 ixgbe_atr_set_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 dst_addr);
+s32 ixgbe_atr_set_src_ipv6_82599(struct ixgbe_atr_input *input, u32 src_addr_1,
+                                 u32 src_addr_2, u32 src_addr_3,
+                                 u32 src_addr_4);
+s32 ixgbe_atr_set_dst_ipv6_82599(struct ixgbe_atr_input *input, u32 dst_addr_1,
+                                 u32 dst_addr_2, u32 dst_addr_3,
+                                 u32 dst_addr_4);
+s32 ixgbe_atr_set_src_port_82599(struct ixgbe_atr_input *input, u16 src_port);
+s32 ixgbe_atr_set_dst_port_82599(struct ixgbe_atr_input *input, u16 dst_port);
+s32 ixgbe_atr_set_flex_byte_82599(struct ixgbe_atr_input *input, u16 flex_byte);
+s32 ixgbe_atr_set_vm_pool_82599(struct ixgbe_atr_input *input, u8 vm_pool);
+s32 ixgbe_atr_set_l4type_82599(struct ixgbe_atr_input *input, u8 l4type);
+s32 ixgbe_atr_get_vlan_id_82599(struct ixgbe_atr_input *input, u16 *vlan_id);
+s32 ixgbe_atr_get_src_ipv4_82599(struct ixgbe_atr_input *input, u32 *src_addr);
+s32 ixgbe_atr_get_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 *dst_addr);
+s32 ixgbe_atr_get_src_ipv6_82599(struct ixgbe_atr_input *input, u32 *src_addr_1,
+                                 u32 *src_addr_2, u32 *src_addr_3,
+                                 u32 *src_addr_4);
+s32 ixgbe_atr_get_dst_ipv6_82599(struct ixgbe_atr_input *input, u32 *dst_addr_1,
+                                 u32 *dst_addr_2, u32 *dst_addr_3,
+                                 u32 *dst_addr_4);
+s32 ixgbe_atr_get_src_port_82599(struct ixgbe_atr_input *input, u16 *src_port);
+s32 ixgbe_atr_get_dst_port_82599(struct ixgbe_atr_input *input, u16 *dst_port);
+s32 ixgbe_atr_get_flex_byte_82599(struct ixgbe_atr_input *input,
+                                  u16 *flex_byte);
+s32 ixgbe_atr_get_vm_pool_82599(struct ixgbe_atr_input *input, u8 *vm_pool);
+s32 ixgbe_atr_get_l4type_82599(struct ixgbe_atr_input *input, u8 *l4type);
+s32 ixgbe_read_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,
+                        u8 *data);
+s32 ixgbe_write_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,
+                         u8 data);
+s32 ixgbe_write_i2c_eeprom(struct ixgbe_hw *hw, u8 byte_offset, u8 eeprom_data);
+s32 ixgbe_get_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr);
+s32 ixgbe_set_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr);
+s32 ixgbe_get_device_caps(struct ixgbe_hw *hw, u16 *device_caps);
 
 #endif /* _IXGBE_API_H_ */
