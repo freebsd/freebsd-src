@@ -39,6 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf_ring.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -897,6 +898,9 @@ em_detach(device_t dev)
 	bus_generic_detach(dev);
 	if_free(ifp);
 
+#ifdef IFNET_BUF_RING
+	drbr_free(adapter->br, M_DEVBUF);
+#endif
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -991,6 +995,110 @@ em_resume(device_t dev)
  *  the packet is requeued.
  **********************************************************************/
 
+#ifdef IFNET_BUF_RING
+static int
+em_transmit_locked(struct ifnet *ifp, struct mbuf *m)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	int error;
+
+	EM_TX_LOCK_ASSERT(adapter);
+	if (((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+	    || (!adapter->link_active)) {
+		error = drbr_enqueue(ifp, adapter->br, m);
+		return (error);
+	}
+	
+	if (ADAPTER_RING_EMPTY(adapter) &&
+	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
+		if (em_xmit(adapter, &m)) {
+			if (m && (error = drbr_enqueue(ifp, adapter->br, m)) != 0) {
+				return (error);
+			}
+		} else{
+			/* Send a copy of the frame to the BPF listener */
+			ETHER_BPF_MTAP(ifp, m);
+		}
+	} else if ((error = drbr_enqueue(ifp, adapter->br, m)) != 0)
+		return (error);
+	
+	if (!ADAPTER_RING_EMPTY(adapter))
+		em_start_locked(ifp);
+
+	return (0);
+}
+	
+static int
+em_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	
+	struct adapter *adapter = ifp->if_softc;
+	int error = 0;
+
+	if(EM_TX_TRYLOCK(adapter)) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			error = em_transmit_locked(ifp, m);
+		EM_TX_UNLOCK(adapter);
+	} else 
+		error = drbr_enqueue(ifp, adapter->br, m);
+
+	return (error);
+}
+
+static void
+em_qflush(struct ifnet *ifp)
+{
+	struct mbuf *m;
+	struct adapter *adapter = (struct adapter *)ifp->if_softc;
+
+	EM_TX_LOCK(adapter);
+	while ((m = buf_ring_dequeue_sc(adapter->br)) != NULL)
+		m_freem(m);
+	EM_TX_UNLOCK(adapter);
+}
+
+static void
+em_start_locked(struct ifnet *ifp)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	struct mbuf	*m_head;
+
+	EM_TX_LOCK_ASSERT(adapter);
+
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return;
+	if (!adapter->link_active)
+		return;
+
+	while ((adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)
+	    && (!ADAPTER_RING_EMPTY(adapter))) {
+
+		m_head = buf_ring_dequeue_sc(adapter->br);
+		if (m_head == NULL)
+			break;
+		/*
+		 *  Encapsulation can modify our pointer, and or make it
+		 *  NULL on failure.  In that event, we can't requeue.
+		 */
+		if (em_xmit(adapter, &m_head)) {
+			if (m_head == NULL)
+				break;
+			break;
+		}
+
+		/* Send a copy of the frame to the BPF listener */
+		ETHER_BPF_MTAP(ifp, m_head);
+
+		/* Set timeout in case hardware has problems transmitting. */
+		adapter->watchdog_timer = EM_TX_TIMEOUT;
+	}
+	if ((adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD))
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+
+}
+#else
 static void
 em_start_locked(struct ifnet *ifp)
 {
@@ -1029,6 +1137,8 @@ em_start_locked(struct ifnet *ifp)
 		adapter->watchdog_timer = EM_TX_TIMEOUT;
 	}
 }
+
+#endif
 
 static void
 em_start(struct ifnet *ifp)
@@ -1603,7 +1713,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	EM_TX_LOCK(adapter);
 	em_txeof(adapter);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!ADAPTER_RING_EMPTY(adapter))
 		em_start_locked(ifp);
 	EM_TX_UNLOCK(adapter);
 }
@@ -1658,7 +1768,7 @@ em_intr(void *arg)
 out:
 	EM_CORE_UNLOCK(adapter);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	    !ADAPTER_RING_EMPTY(adapter))
 		em_start(ifp);
 }
 
@@ -1697,7 +1807,7 @@ em_handle_rxtx(void *context, int pending)
 		EM_TX_LOCK(adapter);
 		em_txeof(adapter);
 
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!ADAPTER_RING_EMPTY(adapter))
 			em_start_locked(ifp);
 		EM_TX_UNLOCK(adapter);
 	}
@@ -1853,9 +1963,15 @@ em_handle_tx(void *context, int pending)
 	struct ifnet	*ifp = adapter->ifp;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+#ifdef IFNET_BUF_RING
+		if (!EM_TX_TRYLOCK(adapter))
+			return;
+#else
 		EM_TX_LOCK(adapter);
+#endif
+
 		em_txeof(adapter);
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!ADAPTER_RING_EMPTY(adapter))
 			em_start_locked(ifp);
 		EM_TX_UNLOCK(adapter);
 	}
@@ -2075,22 +2191,14 @@ em_xmit(struct adapter *adapter, struct mbuf **m_headp)
 		error = bus_dmamap_load_mbuf_sg(adapter->txtag, map,
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
-		if (error == ENOMEM) {
-			adapter->no_tx_dma_setup++;
-			return (error);
-		} else if (error != 0) {
+		if (error) {
 			adapter->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
-	} else if (error == ENOMEM) {
-		adapter->no_tx_dma_setup++;
-		return (error);
 	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
-		m_freem(*m_headp);
-		*m_headp = NULL;
 		return (error);
 	}
 
@@ -2531,6 +2639,8 @@ em_local_timer(void *arg)
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
+	taskqueue_enqueue(adapter->tq,
+	    &adapter->rxtx_task);
 	em_update_link_status(adapter);
 	em_update_stats_counters(adapter);
 
@@ -3126,6 +3236,11 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
+#ifdef IFNET_BUF_RING
+	ifp->if_transmit = em_transmit;
+	ifp->if_qflush = em_qflush;
+	adapter->br = buf_ring_alloc(2048, M_DEVBUF, M_WAITOK, &adapter->tx_mtx);
+#endif	
 	if (adapter->hw.mac.type >= e1000_82543) {
 		int version_cap;
 #if __FreeBSD_version < 700000
