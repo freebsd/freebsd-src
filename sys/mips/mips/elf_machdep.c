@@ -86,8 +86,7 @@ static Elf32_Brandinfo freebsd_brand_info = {
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf32_freebsd_sysvec,
 	.interp_newpath	= NULL,
-	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_BRAND_NOTE
+	.flags		= 0
 };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,

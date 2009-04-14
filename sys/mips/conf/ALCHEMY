@@ -1,4 +1,4 @@
-# MALTA -- Kernel config for MALTA boards
+# ALCHEMY -- Generic kernel for Alchemy Au1xxx CPUs.
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
@@ -17,22 +17,17 @@
 #
 # $FreeBSD$
 
-ident		MALTA
+ident		ALCHEMY
 
-#makeoptions	ARCH_FLAGS=-march=mips32
+makeoptions	ARCH_FLAGS=-march=mips32
 makeoptions	MIPS_LITTLE_ENDIAN=defined
-
-options		YAMON
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 
-options		TICK_USE_YAMON_FREQ=defined
-#options		TICK_USE_MALTA_RTC=defined
+include		"../alchemy/std.alchemy"
 
-include		"../malta/std.malta"
-
-hints		"MALTA.hints"		#Default places to look for devices.
+hints		"ALCHEMY.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
@@ -44,13 +39,19 @@ options		INET			#InterNETworking
 options		NFSCLIENT		#Network Filesystem Client
 options		NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 options		PSEUDOFS		#Pseudo-filesystem framework
-options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+# options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
-options         FFS                     #Berkeley Fast Filesystem
-options         SOFTUPDATES             #Enable FFS soft updates support
-options         UFS_ACL                 #Support for access control lists
-options         UFS_DIRHASH             #Improve performance on big directories
-options		ROOTDEVNAME=\"ufs:ad0s1a\"
+options BOOTP
+options BOOTP_NFSROOT
+options BOOTP_NFSV3
+options BOOTP_WIRED_TO=admsw0
+options BOOTP_COMPAT
+
+# options         FFS                     #Berkeley Fast Filesystem
+# options         SOFTUPDATES             #Enable FFS soft updates support
+# options         UFS_ACL                 #Support for access control lists
+# options         UFS_DIRHASH             #Improve performance on big directories
+options		ROOTDEVNAME=\"nfs:10.0.0.1:/mnt/bsd\"
 
 
 # Debugging for use in -current
@@ -61,7 +62,5 @@ options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 
 device		loop
 device		ether
-device		le
-device		miibus
-device		md
 device		uart
+# device		md
