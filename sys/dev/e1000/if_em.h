@@ -36,6 +36,7 @@
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
 
+#define	IFNET_BUF_RING
 /* Tunables */
 
 /*
@@ -301,6 +302,9 @@ struct em_dma_alloc {
 /* Our adapter structure */
 struct adapter {
 	struct ifnet	*ifp;
+#ifdef IFNET_BUF_RING
+	struct buf_ring	*br;
+#endif
 	struct e1000_hw	hw;
 
 	/* FreeBSD operating-system-specific structures. */
@@ -482,6 +486,7 @@ typedef struct _DESCRIPTOR_PAIR
 #define	EM_RX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->rx_mtx)
 #define	EM_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
 #define	EM_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
+#define	EM_TX_TRYLOCK(_sc)		mtx_trylock(&(_sc)->tx_mtx)
 #define	EM_RX_LOCK(_sc)			mtx_lock(&(_sc)->rx_mtx)
 #define	EM_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
 #define	EM_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
@@ -489,4 +494,9 @@ typedef struct _DESCRIPTOR_PAIR
 #define	EM_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
 #define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 
+#ifdef IFNET_BUF_RING
+#define ADAPTER_RING_EMPTY(adapter) drbr_empty((adapter)->ifp, (adapter)->br)
+#else
+#define ADAPTER_RING_EMPTY(adapter) IFQ_DRV_IS_EMPTY(&((adapter)->ifp->if_snd))
+#endif
 #endif /* _EM_H_DEFINED_ */
