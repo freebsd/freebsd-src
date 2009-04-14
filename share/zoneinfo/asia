@@ -1,4 +1,4 @@
-# @(#)asia	8.29
+# @(#)asia	8.30
 # <pre>
 
 # This data is by no means authoritative; if you think you know better,
@@ -1589,11 +1589,46 @@ Zone	Asia/Muscat	3:54:20 -	LMT	1920
 # http://dailymailnews.com/200808/28/news/dmbrn03.html
 # </a>
 
+# From Alexander Krivenyshev (2009-04-08):
+# Based on previous media reports that "... proposed plan to
+# advance clocks by one hour from May 1 will cause disturbance
+# to the working schedules rather than bringing discipline in
+# official working."
+# <a href="http://www.thenews.com.pk/daily_detail.asp?id=171280">
+# http://www.thenews.com.pk/daily_detail.asp?id=171280
+# </a>
+#
+# recent news that instead of May 2009 - Pakistan plan to
+# introduce DST from April 15, 2009
+#
+# FYI: Associated Press Of Pakistan
+# April 08, 2009
+# Cabinet okays proposal to advance clocks by one hour from April 15
+# <a href="http://www.app.com.pk/en_/index.php?option=com_content&task=view&id=73043&Itemid=1">
+# http://www.app.com.pk/en_/index.php?option=com_content&task=view&id=73043&Itemid=1
+# </a>
+#
+# or
+#
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_pakistan05.html">
+# http://www.worldtimezone.com/dst_news/dst_news_pakistan05.html
+# </a>
+#
+# ....
+# The Federal Cabinet on Wednesday approved the proposal to
+# advance clocks in the country by one hour from April 15 to
+# conserve energy"
+
+# From Arthur David Olson (2009-04-10):
+# Assume for now that Pakistan will end DST in 2009 as it did in 2008.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Pakistan	2002	only	-	Apr	Sun>=2	0:01	1:00	S
 Rule Pakistan	2002	only	-	Oct	Sun>=2	0:01	0	-
 Rule Pakistan	2008	only	-	Jun	1	0:00	1:00	S
 Rule Pakistan	2008	only	-	Nov	1	0:00	0	-
+Rule Pakistan	2009	only	-	Apr	15	0:00	1:00	S
+Rule Pakistan	2009	only	-	Nov	1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	IST	1942 Sep
