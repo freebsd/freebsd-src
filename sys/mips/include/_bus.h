@@ -43,7 +43,7 @@ typedef uintptr_t bus_size_t;
 /*
  * Access methods for bus resources and address space.
  */
-typedef long bus_space_tag_t;
+typedef struct bus_space *bus_space_tag_t;
 typedef u_long bus_space_handle_t;
 #endif
 #endif /* MIPS_INCLUDE__BUS_H */
