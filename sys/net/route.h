@@ -47,6 +47,7 @@
  */
 struct route {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
 	struct	sockaddr ro_dst;
 };
 
