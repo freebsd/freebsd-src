@@ -245,9 +245,9 @@ static void
 g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
     struct g_part_entry *entry)
 {
-	char buf[32];
 	struct g_consumer *cp;
 	struct g_provider *pp;
+	struct sbuf *sb;
 	off_t offset;
 
 	cp = LIST_FIRST(&gp->consumer);
@@ -258,8 +258,11 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 		entry->gpe_offset = offset;
 
 	if (entry->gpe_pp == NULL) {
-		entry->gpe_pp = g_new_providerf(gp, "%s%s", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		sb = sbuf_new_auto();
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_finish(sb);
+		entry->gpe_pp = g_new_providerf(gp, "%s", sbuf_data(sb));
+		sbuf_delete(sb);
 		entry->gpe_pp->private = entry;		/* Close the circle. */
 	}
 	entry->gpe_pp->index = entry->gpe_index - 1;	/* index is 1-based. */
@@ -413,7 +416,6 @@ done:
 static int
 g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	char buf[32];
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_part_entry *delent, *last, *entry;
@@ -509,8 +511,8 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s%s added\n", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_cat(sb, " added\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -773,7 +775,6 @@ fail:
 static int
 g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	char buf[32];
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_part_entry *entry;
@@ -822,8 +823,8 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s%s deleted\n", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_cat(sb, " deleted\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -889,7 +890,6 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 static int
 g_part_ctl_modify(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	char buf[32];
 	struct g_geom *gp;
 	struct g_part_entry *entry;
 	struct g_part_table *table;
@@ -925,8 +925,8 @@ g_part_ctl_modify(struct gctl_req *req, struct g_part_parms *gpp)
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s%s modified\n", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_cat(sb, " modified\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -959,7 +959,6 @@ static int
 g_part_ctl_setunset(struct gctl_req *req, struct g_part_parms *gpp,
     unsigned int set)
 {
-	char buf[32];
 	struct g_geom *gp;
 	struct g_part_entry *entry;
 	struct g_part_table *table;
@@ -992,9 +991,9 @@ g_part_ctl_setunset(struct gctl_req *req, struct g_part_parms *gpp,
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s%s has %s %sset\n", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)),
-		    gpp->gpp_attrib, (set) ? "" : "un");
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_printf(sb, " has %s %sset\n", gpp->gpp_attrib,
+		    (set) ? "" : "un");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);

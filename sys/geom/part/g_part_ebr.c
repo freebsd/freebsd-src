@@ -24,6 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_geom.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -54,18 +56,19 @@ struct g_part_ebr_table {
 struct g_part_ebr_entry {
 	struct g_part_entry	base;
 	struct dos_partition	ent;
-	int	alias;
 };
 
 static int g_part_ebr_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static int g_part_ebr_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_ebr_destroy(struct g_part_table *, struct g_part_parms *);
-static int g_part_ebr_devalias(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
 static void g_part_ebr_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_ebr_dumpto(struct g_part_table *, struct g_part_entry *);
+#if defined(GEOM_PART_EBR_COMPAT)
+static void g_part_ebr_fullname(struct g_part_table *, struct g_part_entry *,
+    struct sbuf *, const char *);
+#endif
 static int g_part_ebr_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
 static const char *g_part_ebr_name(struct g_part_table *, struct g_part_entry *,
@@ -84,9 +87,11 @@ static kobj_method_t g_part_ebr_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_ebr_add),
 	KOBJMETHOD(g_part_create,	g_part_ebr_create),
 	KOBJMETHOD(g_part_destroy,	g_part_ebr_destroy),
-	KOBJMETHOD(g_part_devalias,	g_part_ebr_devalias),
 	KOBJMETHOD(g_part_dumpconf,	g_part_ebr_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_ebr_dumpto),
+#if defined(GEOM_PART_EBR_COMPAT)
+	KOBJMETHOD(g_part_fullname,	g_part_ebr_fullname),
+#endif
 	KOBJMETHOD(g_part_modify,	g_part_ebr_modify),
 	KOBJMETHOD(g_part_name,		g_part_ebr_name),
 	KOBJMETHOD(g_part_precheck,	g_part_ebr_precheck),
@@ -274,25 +279,6 @@ g_part_ebr_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 	return (0);
 }
 
-static int
-g_part_ebr_devalias(struct g_part_table *table, struct g_part_entry *baseentry,
-    char *buf, size_t bufsz)
-{
-	struct g_part_ebr_entry *entry;
-	size_t len;
-
-	entry = (struct g_part_ebr_entry *)baseentry;
-	if (entry->alias == 0)
-		return (ENOENT);
-
-	len = strlcpy(buf, table->gpt_gp->name, bufsz);
-	if (len == 0)
-		return (EINVAL);
-
-	snprintf(buf + len - 1, bufsz - len, "%d", entry->alias);
-	return (0);
-}
-
 static void
 g_part_ebr_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
     struct sbuf *sb, const char *indent)
@@ -324,6 +310,24 @@ g_part_ebr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 	return ((entry->ent.dp_typ == DOSPTYP_386BSD) ? 1 : 0);
 }
 
+#if defined(GEOM_PART_EBR_COMPAT)
+static void
+g_part_ebr_fullname(struct g_part_table *table, struct g_part_entry *entry,
+    struct sbuf *sb, const char *pfx)
+{
+	struct g_part_entry *iter;
+	u_int idx;
+
+	idx = 5;
+	LIST_FOREACH(iter, &table->gpt_entry, gpe_entry) {
+		if (iter == entry)
+			break;
+		idx++;
+	}
+	sbuf_printf(sb, "%.*s%u", strlen(pfx) - 1, pfx, idx);
+}
+#endif
+
 static int
 g_part_ebr_modify(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
@@ -352,7 +356,9 @@ static int
 g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
     struct g_part_parms *gpp)
 {
-
+#if defined(GEOM_PART_EBR_COMPAT)
+	return (ECANCELED);
+#else
 	/*
 	 * The index is a function of the start of the partition.
 	 * This is not something the user can override, nor is it
@@ -361,8 +367,8 @@ g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
 	 */
 	if (req == G_PART_CTL_ADD)
 		gpp->gpp_index = (gpp->gpp_start / table->gpt_sectors) + 1;
-
 	return (0);
+#endif
 }
 
 static int
@@ -444,13 +450,12 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	u_char *buf;
 	off_t ofs, msize;
 	u_int lba;
-	int alias, error, index;
+	int error, index;
 
 	pp = cp->provider;
 	table = (struct g_part_ebr_table *)basetable;
 	msize = pp->mediasize / pp->sectorsize;
 
-	alias = 5;
 	lba = 0;
 	while (1) {
 		ofs = (off_t)lba * pp->sectorsize;
@@ -477,7 +482,6 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 		    pp->sectorsize;
 		entry = (struct g_part_ebr_entry *)baseentry;
 		entry->ent = ent[0];
-		entry->alias = alias++;
 
 		if (ent[1].dp_typ == 0)
 			break;
