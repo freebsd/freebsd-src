@@ -371,6 +371,7 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 #if __BSD_VISIBLE
 struct route_in6 {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
 	struct	sockaddr_in6 ro_dst;
 };
 #endif

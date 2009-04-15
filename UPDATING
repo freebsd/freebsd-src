@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090415:
+	Add an llentry to struct route and struct route_in6. Modules
+	embedding a struct route will need to be recompiled. 
+	Bump __FreeBSD_version to 800079.
+
 20090414:
 	The size of rt_metrics_lite and by extension rtentry has changed.
 	Networking administration apps will need to be recompiled.
