@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
+#undef NEXUS_DEBUG
 #ifdef NEXUS_DEBUG
 #define dprintf printf
 #else 
@@ -76,20 +77,6 @@ struct nexus_device {
 
 static struct rman irq_rman;
 static struct rman mem_rman;
-
-#ifdef notyet
-/*
- * XXX: TODO: Implement bus space barrier functions.
- * Currently tag and handle are set when memory resources
- * are activated.
- */
-struct bus_space_tag nexus_bustag = {
-	NULL,			/* cookie */
-	NULL,			/* parent bus tag */
-	NEXUS_BUS_SPACE,	/* type */
-	nexus_bus_barrier,	/* bus_space_barrier */
-};
-#endif
 
 static struct resource *
 		nexus_alloc_resource(device_t, device_t, int, int *, u_long,
@@ -386,22 +373,22 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
 #ifdef TARGET_OCTEON
-        uint64_t temp;
+	uint64_t temp;
 #endif		
 	/*
 	 * If this is a memory resource, track the direct mapping
 	 * in the uncached MIPS KSEG1 segment.
 	 */
 	if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
-                caddr_t vaddr = 0;
-                u_int32_t paddr;
-                u_int32_t psize;
-                u_int32_t poffs;
-                
-                paddr = rman_get_start(r);
-                psize = rman_get_size(r);
-                poffs = paddr - trunc_page(paddr);
-                vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
+		caddr_t vaddr = 0;
+		u_int32_t paddr;
+		u_int32_t psize;
+		u_int32_t poffs;
+		
+		paddr = rman_get_start(r);
+		psize = rman_get_size(r);
+		poffs = paddr - trunc_page(paddr);
+		vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
 
 		rman_set_virtual(r, vaddr);
 		rman_set_bustag(r, MIPS_BUS_SPACE_MEM);
