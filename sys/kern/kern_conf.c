@@ -513,23 +513,21 @@ notify_destroy(struct cdev *dev)
 }
 
 static struct cdev *
-newdev(struct cdevsw *csw, int y, struct cdev *si)
+newdev(struct cdevsw *csw, int unit, struct cdev *si)
 {
 	struct cdev *si2;
-	dev_t	udev;
 
 	mtx_assert(&devmtx, MA_OWNED);
-	udev = y;
 	if (csw->d_flags & D_NEEDMINOR) {
 		/* We may want to return an existing device */
 		LIST_FOREACH(si2, &csw->d_devs, si_list) {
-			if (dev2unit(si2) == udev) {
+			if (dev2unit(si2) == unit) {
 				dev_free_devlocked(si);
 				return (si2);
 			}
 		}
 	}
-	si->si_drv0 = udev;
+	si->si_drv0 = unit;
 	si->si_devsw = csw;
 	LIST_INSERT_HEAD(&csw->d_devs, si, si_list);
 	return (si);
