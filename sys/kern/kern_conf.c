@@ -523,7 +523,7 @@ newdev(struct cdevsw *csw, int y, struct cdev *si)
 	if (csw->d_flags & D_NEEDMINOR) {
 		/* We may want to return an existing device */
 		LIST_FOREACH(si2, &csw->d_devs, si_list) {
-			if (si2->si_drv0 == udev) {
+			if (dev2unit(si2) == udev) {
 				dev_free_devlocked(si);
 				return (si2);
 			}
@@ -1042,7 +1042,7 @@ clone_cleanup(struct clonedevs **cdp)
 		if (!(cp->cdp_flags & CDP_SCHED_DTR)) {
 			cp->cdp_flags |= CDP_SCHED_DTR;
 			KASSERT(dev->si_flags & SI_NAMED,
-				("Driver has goofed in cloning underways udev %x", dev->si_drv0));
+				("Driver has goofed in cloning underways udev %x unit %x", dev2udev(dev), dev2unit(dev)));
 			destroy_devl(dev);
 		}
 	}
