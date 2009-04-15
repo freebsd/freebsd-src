@@ -170,7 +170,8 @@ struct inpcb {
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	u_int	inp_refcount;		/* (i) refcount */
-	void	*inp_pspare[2];		/* (x) rtentry / general use */
+	struct llentry	*inp_lle;	/* cached L2 information */
+	struct rtentry	*inp_rt;	/* cached L3 information */
 
 	/* Local and foreign ports, local and foreign addr. */
 	struct	in_conninfo inp_inc;	/* (i/p) list for PCB's local port */
@@ -433,6 +434,8 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 /*
  * Flags for inp_flags2.
  */
+#define	INP_LLE_VALID		0x00000001 /* cached lle is valid */	
+#define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
 
 #define	INPLOOKUP_WILDCARD	1
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)
