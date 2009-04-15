@@ -28,25 +28,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/module.h>
-#include <sys/mutex.h>
-#include <sys/bus.h>
-#include <sys/queue.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-
+#include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usbdivar.h>
-#include <dev/usb/usb_mem.h>
 
-#include <dev/usb/ohcireg.h>
-#include <dev/usb/ohcivar.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/controller/ohci.h>
+
+#include <sys/rman.h>
 
 static int ar71xx_ohci_attach(device_t dev);
 static int ar71xx_ohci_detach(device_t dev);
@@ -72,19 +66,20 @@ ar71xx_ohci_attach(device_t dev)
 	int rid;
 
 	rid = 0;
-	sc->sc_ohci.io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	sc->sc_ohci.sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
-	if (sc->sc_ohci.io_res == NULL) {
+	if (sc->sc_ohci.sc_io_res == NULL) {
 		err = ENOMEM;
 		goto error;
 	}
-	sc->sc_ohci.iot = rman_get_bustag(sc->sc_ohci.io_res);
-	sc->sc_ohci.ioh = rman_get_bushandle(sc->sc_ohci.io_res);
+	sc->sc_ohci.sc_io_tag = rman_get_bustag(sc->sc_ohci.sc_io_res);
+	sc->sc_ohci.sc_io_hdl = rman_get_bushandle(sc->sc_ohci.sc_io_res);
+	sc->sc_ohci.sc_io_size = rman_get_size(sc->sc_ohci.sc_io_res);
 
 	rid = 0;
-	sc->sc_ohci.irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	sc->sc_ohci.sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
-	if (sc->sc_ohci.irq_res == NULL) {
+	if (sc->sc_ohci.sc_irq_res == NULL) {
 		err = ENOMEM;
 		goto error;
 	}
@@ -95,44 +90,20 @@ ar71xx_ohci_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_ohci.sc_bus.bdev, &sc->sc_ohci.sc_bus);
 
-	/* Allocate a parent dma tag for DMA maps */
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    BUS_SPACE_MAXSIZE_32BIT, USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    NULL, NULL, &sc->sc_ohci.sc_bus.parent_dmatag);
-	if (err) {
-		device_printf(dev, "Could not allocate parent DMA tag (%d)\n",
-		    err);
-		err = ENXIO;
-		goto error;
-	}
-
-	/* Allocate a dma tag for transfer buffers */
-	err = bus_dma_tag_create(sc->sc_ohci.sc_bus.parent_dmatag, 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    BUS_SPACE_MAXSIZE_32BIT, USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    busdma_lock_mutex, &Giant, &sc->sc_ohci.sc_bus.buffer_dmatag);
-	if (err) {
-		device_printf(dev, "Could not allocate transfer tag (%d)\n",
-		    err);
-		err = ENXIO;
-		goto error;
-	}
-
-	err = bus_setup_intr(dev, sc->sc_ohci.irq_res, INTR_TYPE_BIO, NULL, 
-	    ohci_intr, sc, &sc->sc_ohci.ih);
+	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, 
+	    INTR_TYPE_BIO | INTR_MPSAFE, NULL, 
+	    (driver_intr_t *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
 	if (err) {
 		err = ENXIO;
 		goto error;
 	}
-	strlcpy(sc->sc_ohci.sc_vendor, "Atheros", 
-	    sizeof(sc->sc_ohci.sc_vendor));
 
-	bus_space_write_4(sc->sc_ohci.iot, sc->sc_ohci.ioh, OHCI_CONTROL, 0);
+	strlcpy(sc->sc_ohci.sc_vendor, "Atheros", sizeof(sc->sc_ohci.sc_vendor));
+
+	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl, OHCI_CONTROL, 0);
 
 	err = ohci_init(&sc->sc_ohci);
 	if (!err) {
-		sc->sc_ohci.sc_flags |= OHCI_SCFLG_DONEINIT;
 		err = device_probe_and_attach(sc->sc_ohci.sc_bus.bdev);
 	}
 
@@ -149,34 +120,23 @@ ar71xx_ohci_detach(device_t dev)
 {
 	struct ar71xx_ohci_softc *sc = device_get_softc(dev);
 
-	if (sc->sc_ohci.sc_flags & OHCI_SCFLG_DONEINIT) {
-		ohci_detach(&sc->sc_ohci, 0);
-		sc->sc_ohci.sc_flags &= ~OHCI_SCFLG_DONEINIT;
+	if (sc->sc_ohci.sc_intr_hdl) {
+		bus_teardown_intr(dev, sc->sc_ohci.sc_irq_res, sc->sc_ohci.sc_intr_hdl);
+		sc->sc_ohci.sc_intr_hdl = NULL;
 	}
-
-	if (sc->sc_ohci.ih) {
-		bus_teardown_intr(dev, sc->sc_ohci.irq_res, sc->sc_ohci.ih);
-		sc->sc_ohci.ih = NULL;
-	}
-
-	if (sc->sc_ohci.sc_bus.parent_dmatag != NULL)
-		bus_dma_tag_destroy(sc->sc_ohci.sc_bus.parent_dmatag);
-	if (sc->sc_ohci.sc_bus.buffer_dmatag != NULL)
-		bus_dma_tag_destroy(sc->sc_ohci.sc_bus.buffer_dmatag);
-
 	if (sc->sc_ohci.sc_bus.bdev) {
 		device_delete_child(dev, sc->sc_ohci.sc_bus.bdev);
 		sc->sc_ohci.sc_bus.bdev = NULL;
 	}
-	if (sc->sc_ohci.irq_res) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_ohci.irq_res);
-		sc->sc_ohci.irq_res = NULL;
+	if (sc->sc_ohci.sc_irq_res) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_ohci.sc_irq_res);
+		sc->sc_ohci.sc_irq_res = NULL;
 	}
-	if (sc->sc_ohci.io_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_ohci.io_res);
-		sc->sc_ohci.io_res = NULL;
-		sc->sc_ohci.iot = 0;
-		sc->sc_ohci.ioh = 0;
+	if (sc->sc_ohci.sc_io_res) {
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_ohci.sc_io_res);
+		sc->sc_ohci.sc_io_res = NULL;
+		sc->sc_ohci.sc_io_tag = 0;
+		sc->sc_ohci.sc_io_hdl = 0;
 	}
 	return (0);
 }
