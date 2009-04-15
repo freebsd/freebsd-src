@@ -67,7 +67,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;
-	di->bas.bst = 0;
+	di->bas.bst = &mips_bus_space_generic;
+	di->bas.bsh = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
 	di->baudrate = 115200;
@@ -75,8 +76,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
 
-	uart_bus_space_io = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
-	uart_bus_space_mem = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
-	di->bas.bsh = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
+	uart_bus_space_io = NULL;
+	uart_bus_space_mem = &mips_bus_space_generic;
 	return (0);
 }

@@ -54,6 +54,7 @@ mips/mips/pm_machdep.c		standard
 mips/mips/swtch.S		standard
 mips/mips/tlb.S			standard
 
+mips/mips/bus_space_generic.c 	standard
 mips/mips/busdma_machdep.c 	standard
 mips/mips/cache.c		standard
 mips/mips/cache_mipsNN.c	standard
