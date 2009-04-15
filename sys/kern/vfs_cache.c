@@ -370,6 +370,11 @@ retry:
 				*vpp = dvp->v_cache_dd->nc_vp;
 			else
 				*vpp = dvp->v_cache_dd->nc_dvp;
+			/* Return failure if negative entry was found. */
+			if (*vpp == NULL) {
+				ncp = dvp->v_cache_dd;
+				goto negative_success;
+			}
 			CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
 			    dvp, cnp->cn_nameptr, *vpp);
 			goto success;
@@ -416,6 +421,7 @@ retry:
 		goto success;
 	}
 
+negative_success:
 	/* We found a negative match, and want to create it, so purge */
 	if (cnp->cn_nameiop == CREATE) {
 		numnegzaps++;
