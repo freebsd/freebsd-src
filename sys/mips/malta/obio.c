@@ -84,7 +84,7 @@ obio_attach(device_t dev)
 {
 	struct obio_softc *sc = device_get_softc(dev);
 
-	sc->oba_st = MIPS_BUS_SPACE_IO;
+	sc->oba_st = &mips_bus_space_generic;
 	sc->oba_addr = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
 	sc->oba_size = MALTA_PCIMEM3_SIZE;
 	sc->oba_rman.rm_type = RMAN_ARRAY;

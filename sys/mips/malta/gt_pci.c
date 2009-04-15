@@ -94,8 +94,6 @@ __FBSDID("$FreeBSD$");
 struct gt_pci_softc {
 	device_t 		sc_dev;
 	bus_space_tag_t 	sc_st;
-	bus_space_tag_t		sc_pciio;
-	bus_space_tag_t		sc_pcimem;
 	bus_space_handle_t	sc_ioh_icu1;
 	bus_space_handle_t	sc_ioh_icu2;
 	bus_space_handle_t	sc_ioh_elcr;
@@ -126,14 +124,14 @@ gt_pci_set_icus(struct gt_pci_softc *sc)
 	else
 		sc->sc_imask |= (1U << 2);
 
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, PIC_OCW1,
 	    sc->sc_imask & 0xff);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, PIC_OCW1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, PIC_OCW1,
 	    (sc->sc_imask >> 8) & 0xff);
 
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_elcr, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_elcr, 0,
 	    sc->sc_elcr & 0xff);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_elcr, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_elcr, 1,
 	    (sc->sc_elcr >> 8) & 0xff);
 }
 
@@ -145,9 +143,9 @@ gt_pci_intr(void *v)
 	int irq;
 
 	for (;;) {
-		bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW3,
+		bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, PIC_OCW3,
 		    OCW3_SEL | OCW3_P);
-		irq = bus_space_read_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW3);
+		irq = bus_space_read_1(sc->sc_st, sc->sc_ioh_icu1, PIC_OCW3);
 		if ((irq & OCW3_POLL_PENDING) == 0)
 		{
 			return FILTER_HANDLED;
@@ -156,9 +154,9 @@ gt_pci_intr(void *v)
 		irq = OCW3_POLL_IRQ(irq);
 
 		if (irq == 2) {
-			bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2,
+			bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2,
 			    PIC_OCW3, OCW3_SEL | OCW3_P);
-			irq = bus_space_read_1(sc->sc_pciio, sc->sc_ioh_icu2,
+			irq = bus_space_read_1(sc->sc_st, sc->sc_ioh_icu2,
 			    PIC_OCW3);
 			if (irq & OCW3_POLL_PENDING)
 				irq = OCW3_POLL_IRQ(irq) + 8;
@@ -177,13 +175,13 @@ gt_pci_intr(void *v)
 
 		/* Send a specific EOI to the 8259. */
 		if (irq > 7) {
-			bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2,
+			bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2,
 			    PIC_OCW2, OCW2_SELECT | OCW2_EOI | OCW2_SL |
 			    OCW2_ILS(irq & 7));
 			irq = 2;
 		}
 
-		bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW2,
+		bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, PIC_OCW2,
 		    OCW2_SELECT | OCW2_EOI | OCW2_SL | OCW2_ILS(irq));
 	}
 
@@ -208,8 +206,7 @@ gt_pci_attach(device_t dev)
 	busno = 0;
 	sc->sc_dev = dev;
 	sc->sc_busno = busno;
-	sc->sc_pciio = MIPS_BUS_SPACE_IO;
-	sc->sc_pcimem = MIPS_BUS_SPACE_MEM;
+	sc->sc_st = &mips_bus_space_generic;
 
 	/* Use KSEG1 to access IO ports for it is uncached */
 	sc->sc_io = MIPS_PHYS_TO_KSEG1(MALTA_PCI0_IO_BASE);
@@ -239,11 +236,11 @@ gt_pci_attach(device_t dev)
 	 * Map the PIC/ELCR registers.
 	 */
 #if 0
-	if (bus_space_map(sc->sc_pciio, 0x4d0, 2, 0, &sc->sc_ioh_elcr) != 0)
+	if (bus_space_map(sc->sc_st, 0x4d0, 2, 0, &sc->sc_ioh_elcr) != 0)
 		device_printf(dev, "unable to map ELCR registers\n");
-	if (bus_space_map(sc->sc_pciio, IO_ICU1, 2, 0, &sc->sc_ioh_icu1) != 0)
+	if (bus_space_map(sc->sc_st, IO_ICU1, 2, 0, &sc->sc_ioh_icu1) != 0)
 		device_printf(dev, "unable to map ICU1 registers\n");
-	if (bus_space_map(sc->sc_pciio, IO_ICU2, 2, 0, &sc->sc_ioh_icu2) != 0)
+	if (bus_space_map(sc->sc_st, IO_ICU2, 2, 0, &sc->sc_ioh_icu2) != 0)
 		device_printf(dev, "unable to map ICU2 registers\n");
 #else
 	sc->sc_ioh_elcr = sc->sc_io + 0x4d0;
@@ -262,58 +259,58 @@ gt_pci_attach(device_t dev)
 	 * Initialize the 8259s.
 	 */
 	/* reset, program device, 4 bytes */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 0,
 	    ICW1_RESET | ICW1_IC4);
 	/*
 	 * XXX: values from NetBSD's <dev/ic/i8259reg.h>
 	 */	 
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    0/*XXX*/);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    1 << 2);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    ICW4_8086);
 
 	/* mask all interrupts */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 0,
 	    sc->sc_imask & 0xff);
 
 	/* enable special mask mode */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    OCW3_SEL | OCW3_ESMM | OCW3_SMM);
 
 	/* read IRR by default */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    OCW3_SEL | OCW3_RR);
 
 	/* reset, program device, 4 bytes */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 0,
 	    ICW1_RESET | ICW1_IC4);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    0/*XXX*/);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    1 << 2);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    ICW4_8086);
 
 	/* mask all interrupts */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 0,
 	    sc->sc_imask & 0xff);
 
 	/* enable special mask mode */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    OCW3_SEL | OCW3_ESMM | OCW3_SMM);
 
 	/* read IRR by default */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    OCW3_SEL | OCW3_RR);
 
 	/*
 	 * Default all interrupts to edge-triggered.
 	 */
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_elcr, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_elcr, 0,
 	    sc->sc_elcr & 0xff);
-	bus_space_write_1(sc->sc_pciio, sc->sc_ioh_elcr, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_elcr, 1,
 	    (sc->sc_elcr >> 8) & 0xff);
 
 	/*
@@ -570,12 +567,12 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
-		bt = sc->sc_pcimem;
+		bt = sc->sc_st;
 		bh = sc->sc_mem;
 		break;
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_io_rman;
-		bt = sc->sc_pciio;
+		bt = sc->sc_st;
 		bh = sc->sc_io;
 		break;
 	default:
