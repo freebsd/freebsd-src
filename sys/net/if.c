@@ -401,8 +401,9 @@ if_init(void *dummy __unused)
 
 #ifndef VIMAGE_GLOBALS
 	vnet_mod_register(&vnet_net_modinfo);
-#endif
+#else
 	vnet_net_iattach(NULL);
+#endif
 
 	IFNET_LOCK_INIT();
 	ifdev_setbyindex(0, make_dev(&net_cdevsw, 0, UID_ROOT, GID_WHEEL,
