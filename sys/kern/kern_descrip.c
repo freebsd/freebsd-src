@@ -2027,10 +2027,8 @@ finit(struct file *fp, u_int flag, short type, void *data, struct fileops *ops)
  * Extract the file pointer associated with the specified descriptor for the
  * current user process.
  *
- * If the descriptor doesn't exist, EBADF is returned.
- *
- * If the descriptor exists but doesn't match 'flags' then return EBADF for
- * read attempts and EINVAL for write attempts.
+ * If the descriptor doesn't exist or doesn't match 'flags', EBADF is
+ * returned.
  *
  * If 'hold' is set (non-zero) the file's refcount will be bumped on return.
  * It should be dropped with fdrop().  If it is not set, then the refcount
