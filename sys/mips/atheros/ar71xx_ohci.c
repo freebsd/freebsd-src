@@ -65,6 +65,19 @@ ar71xx_ohci_attach(device_t dev)
 	int err;
 	int rid;
 
+	/* initialise some bus fields */
+	sc->sc_ohci.sc_bus.parent = dev;
+	sc->sc_ohci.sc_bus.devices = sc->sc_ohci.sc_devices;
+	sc->sc_ohci.sc_bus.devices_max = OHCI_MAX_DEVICES;
+
+	/* get all DMA memory */
+	if (usb2_bus_mem_alloc_all(&sc->sc_ohci.sc_bus,
+	    USB_GET_DMA_TAG(dev), &ohci_iterate_hw_softc)) {
+		return (ENOMEM);
+	}
+
+	sc->sc_ohci.sc_dev = dev;
+
 	rid = 0;
 	sc->sc_ohci.sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -83,7 +96,7 @@ ar71xx_ohci_attach(device_t dev)
 		err = ENOMEM;
 		goto error;
 	}
-	sc->sc_ohci.sc_bus.bdev = device_add_child(dev, "usb", -1);
+	sc->sc_ohci.sc_bus.bdev = device_add_child(dev, "usbus", -1);
 	if (sc->sc_ohci.sc_bus.bdev == NULL) {
 		err = ENOMEM;
 		goto error;
@@ -103,9 +116,12 @@ ar71xx_ohci_attach(device_t dev)
 	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl, OHCI_CONTROL, 0);
 
 	err = ohci_init(&sc->sc_ohci);
-	if (!err) {
+	if (!err)
 		err = device_probe_and_attach(sc->sc_ohci.sc_bus.bdev);
-	}
+
+	if (err)
+		goto error;
+	return (0);
 
 error:
 	if (err) {
@@ -119,16 +135,39 @@ static int
 ar71xx_ohci_detach(device_t dev)
 {
 	struct ar71xx_ohci_softc *sc = device_get_softc(dev);
+	device_t bdev;
+
+	if (sc->sc_ohci.sc_bus.bdev) {
+		bdev = sc->sc_ohci.sc_bus.bdev;
+		device_detach(bdev);
+		device_delete_child(dev, bdev);
+	}
+	/* during module unload there are lots of children leftover */
+	device_delete_all_children(dev);
+
+	/*
+	 * Put the controller into reset, then disable clocks and do
+	 * the MI tear down.  We have to disable the clocks/hardware
+	 * after we do the rest of the teardown.  We also disable the
+	 * clocks in the opposite order we acquire them, but that
+	 * doesn't seem to be absolutely necessary.  We free up the
+	 * clocks after we disable them, so the system could, in
+	 * theory, reuse them.
+	 */
+	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl,
+	    OHCI_CONTROL, 0);
 
 	if (sc->sc_ohci.sc_intr_hdl) {
 		bus_teardown_intr(dev, sc->sc_ohci.sc_irq_res, sc->sc_ohci.sc_intr_hdl);
 		sc->sc_ohci.sc_intr_hdl = NULL;
 	}
-	if (sc->sc_ohci.sc_bus.bdev) {
-		device_delete_child(dev, sc->sc_ohci.sc_bus.bdev);
-		sc->sc_ohci.sc_bus.bdev = NULL;
-	}
-	if (sc->sc_ohci.sc_irq_res) {
+
+	if (sc->sc_ohci.sc_irq_res && sc->sc_ohci.sc_intr_hdl) {
+		/*
+		 * only call ohci_detach() after ohci_init()
+		 */
+		ohci_detach(&sc->sc_ohci);
+
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_ohci.sc_irq_res);
 		sc->sc_ohci.sc_irq_res = NULL;
 	}
@@ -138,6 +177,8 @@ ar71xx_ohci_detach(device_t dev)
 		sc->sc_ohci.sc_io_tag = 0;
 		sc->sc_ohci.sc_io_hdl = 0;
 	}
+	usb2_bus_mem_free_all(&sc->sc_ohci.sc_bus, &ohci_iterate_hw_softc);
+
 	return (0);
 }
 
