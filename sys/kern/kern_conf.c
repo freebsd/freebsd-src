@@ -859,24 +859,7 @@ destroy_dev(struct cdev *dev)
 const char *
 devtoname(struct cdev *dev)
 {
-	char *p;
-	struct cdevsw *csw;
-	int mynor;
 
-	if (dev->si_name[0] == '#' || dev->si_name[0] == '\0') {
-		p = dev->si_name;
-		csw = dev_refthread(dev);
-		if (csw != NULL) {
-			sprintf(p, "(%s)", csw->d_name);
-			dev_relthread(dev);
-		}
-		p += strlen(p);
-		mynor = dev2unit(dev);
-		if (mynor < 0 || mynor > 255)
-			sprintf(p, "/%#x", (u_int)mynor);
-		else
-			sprintf(p, "/%d", mynor);
-	}
 	return (dev->si_name);
 }
 
