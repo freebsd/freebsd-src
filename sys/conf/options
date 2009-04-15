@@ -93,6 +93,7 @@ GEOM_NOP	opt_geom.h
 GEOM_PART_APM	opt_geom.h
 GEOM_PART_BSD	opt_geom.h
 GEOM_PART_EBR	opt_geom.h
+GEOM_PART_EBR_COMPAT	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
 GEOM_PART_MBR	opt_geom.h
 GEOM_PART_PC98	opt_geom.h

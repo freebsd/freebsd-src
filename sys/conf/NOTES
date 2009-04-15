@@ -148,6 +148,7 @@ options 	GEOM_NOP		# Test class.
 options 	GEOM_PART_APM		# Apple partitioning
 options 	GEOM_PART_BSD		# BSD disklabel
 options 	GEOM_PART_EBR		# Extended Boot Records
+options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
 options 	GEOM_PART_MBR		# MBR partitioning
 options 	GEOM_PART_PC98		# PC-9800 disk partitioning
