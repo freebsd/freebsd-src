@@ -23,6 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090415:
+	Anticipate overflowing inp_flags - add inp_flags2. 
+	This changes most offsets in inpcb, so checking v4 connection
+	state will require a world rebuild. 
+	Bump __FreeBSD_version to 800080.
+20090415:
 	Add an llentry to struct route and struct route_in6. Modules
 	embedding a struct route will need to be recompiled. 
 	Bump __FreeBSD_version to 800079.
