@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2006-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,7 @@
  *
  * Note we query only internal state which means if we don't see
  * a vap created we won't handle leave/delete properly.  Also there
- * are several fixed pathnames/strings.  Some require fixing
- * kernel support (e.g. sysctl to find parent device of a vap).
+ * are several fixed pathnames/strings.
  *
  * Code liberaly swiped from wlanwatch; probably should nuke printfs.
  */
@@ -84,10 +83,9 @@ struct wds {
 };
 static struct wds *wds;
 
-static	const char *bridge = "bridge0";
-static	const char *parent = "mv0";		/* XXX no sysctl to find this */
 static	const char *script = "/usr/local/bin/wdsup";
 static	int verbose = 0;
+static	int discover_on_join = 0;
 
 static	void handle_rtmsg(struct rt_msghdr *rtm, int msglen);
 static	void wds_discovery(const char *ifname,
@@ -103,13 +101,10 @@ main(int argc, char *argv[])
 	int n, s, c;
 	char msg[2048];
 
-	while ((c = getopt(argc, argv, "b:p:s:vn")) != -1)
+	while ((c = getopt(argc, argv, "js:vn")) != -1)
 		switch (c) {
-		case 'b':
-			bridge = optarg;
-			break;
-		case 'p':
-			parent = optarg;
+		case 'j':
+			discover_on_join = 1;
 			break;
 		case 's':
 			script = optarg;
@@ -118,8 +113,9 @@ main(int argc, char *argv[])
 			verbose = 1;
 			break;
 		case '?':
-			errx(1, "usage: %s [-b <bridgename>] [-p <parentname>] [-s <set_scriptname>]\n"
-				" [-v (for verbose)]\n", argv[0]);
+			errx(1, "usage: %s [-s <set_scriptname>]\n"
+				" [-v (for verbose)]\n"
+				" [-j (act on join/rejoin events)]\n", argv[0]);
 			/*NOTREACHED*/
 		}
 
@@ -188,20 +184,23 @@ handle_rtmsg(struct rt_msghdr *rtm, int msglen)
 			if (verbose)
 				printf("\n");
 			break;
+		case RTM_IEEE80211_JOIN:
+		case RTM_IEEE80211_REJOIN:
+			if (!discover_on_join)
+				break;
+			/* fall thru... */
 		case RTM_IEEE80211_WDS:
 			if (verbose)
 				printf("%.19s %s wds discovery", cnow,
 				    ether_sprintf(V(ieee80211_wds_event)->iev_addr));
-			/* XXX wlan0 */
-			wds_discovery("wlan0", V(ieee80211_wds_event)->iev_addr);
+			wds_discovery(ifan->ifan_name,
+			    V(ieee80211_wds_event)->iev_addr);
 			if (verbose)
 				printf("\n");
 			break;
 		case RTM_IEEE80211_ASSOC:
 		case RTM_IEEE80211_REASSOC:
 		case RTM_IEEE80211_DISASSOC:
-		case RTM_IEEE80211_JOIN:
-		case RTM_IEEE80211_REJOIN:
 		case RTM_IEEE80211_SCAN:
 		case RTM_IEEE80211_REPLAY:
 		case RTM_IEEE80211_MICHAEL:
@@ -221,6 +220,8 @@ static void
 wds_discovery(const char *ifname, const uint8_t bssid[IEEE80211_ADDR_LEN])
 {
 	struct wds *p;
+	char oid[256], parent[256];
+	int parentlen;
 
 	for (p = wds; p != NULL; p = p->next)
 		if (IEEE80211_ADDR_EQ(p->bssid, bssid)) {
@@ -228,13 +229,22 @@ wds_discovery(const char *ifname, const uint8_t bssid[IEEE80211_ADDR_LEN])
 				printf(" (already created)");
 			return;
 		}
+
+	/* fetch parent interface name */
+	snprintf(oid, sizeof(oid), "net.wlan.%s.%%parent", ifname+4);
+	parentlen = sizeof(parent);
+	if (sysctlbyname(oid, parent, &parentlen, NULL, 0) < 0) {
+		warn("%s: no pointer to parent interface", __func__);
+		return;
+	}
+	parent[parentlen] = '\0';
+
 	p = malloc(sizeof(struct wds));
 	if (p == NULL) {
 		warn("%s: malloc", __func__);
 		return;
 	}
 	IEEE80211_ADDR_COPY(p->bssid, bssid);
-	/* XXX mv0: no sysctl to find parent device */
 	if (wds_vap_create(parent, p) >= 0) {
 		char cmd[1024];
 		int status;
@@ -249,8 +259,7 @@ wds_discovery(const char *ifname, const uint8_t bssid[IEEE80211_ADDR_LEN])
 		/*
 		 * XXX launch script to setup bridge, etc.
 		 */
-		snprintf(cmd, sizeof(cmd), "%s %s %s",
-			script, p->ifname, bridge);
+		snprintf(cmd, sizeof(cmd), "%s %s", script, p->ifname);
 		status = system(cmd);
 		if (status)
 			warnx("vap setup script %s exited with status %d\n",
