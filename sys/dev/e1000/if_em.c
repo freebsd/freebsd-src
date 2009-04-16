@@ -1055,6 +1055,7 @@ em_qflush(struct ifnet *ifp)
 	EM_TX_LOCK(adapter);
 	while ((m = buf_ring_dequeue_sc(adapter->br)) != NULL)
 		m_freem(m);
+	if_qflush(ifp);
 	EM_TX_UNLOCK(adapter);
 }
 
