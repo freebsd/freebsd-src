@@ -102,7 +102,7 @@ u_int8_t  arcbroadcastaddr = 0;
  */
 int
 arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-    struct rtentry *rt0)
+    struct route *ro)
 {
 	struct arc_header	*ah;
 	int			error;
@@ -129,7 +129,8 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
 		else {
-			error = arpresolve(ifp, rt0, m, dst, &adst, &lle);
+			error = arpresolve(ifp, ro ? ro->ro_rt : NULL,
+			                   m, dst, &adst, &lle);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}

@@ -75,6 +75,7 @@
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/netisr.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 
@@ -121,7 +122,7 @@ typedef struct ng_iface_private *priv_p;
 static void	ng_iface_start(struct ifnet *ifp);
 static int	ng_iface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int	ng_iface_output(struct ifnet *ifp, struct mbuf *m0,
-			struct sockaddr *dst, struct rtentry *rt0);
+    			struct sockaddr *dst, struct route *ro);
 static void	ng_iface_bpftap(struct ifnet *ifp,
 			struct mbuf *m, sa_family_t family);
 static int	ng_iface_send(struct ifnet *ifp, struct mbuf *m,
@@ -354,7 +355,7 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 static int
 ng_iface_output(struct ifnet *ifp, struct mbuf *m,
-		struct sockaddr *dst, struct rtentry *rt0)
+    		struct sockaddr *dst, struct route *ro)
 {
 	struct m_tag *mtag;
 	uint32_t af;

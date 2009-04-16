@@ -178,7 +178,7 @@ static int stfmodevent(module_t, int, void *);
 static int stf_encapcheck(const struct mbuf *, int, int, void *);
 static struct in6_ifaddr *stf_getsrcifa6(struct ifnet *);
 static int stf_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-	struct rtentry *);
+	struct route *);
 static int isrfc1918addr(struct in_addr *);
 static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
 	struct ifnet *);
@@ -403,11 +403,11 @@ stf_getsrcifa6(ifp)
 }
 
 static int
-stf_output(ifp, m, dst, rt)
+stf_output(ifp, m, dst, ro)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
-	struct rtentry *rt;
+	struct route *ro;
 {
 	struct stf_softc *sc;
 	struct sockaddr_in6 *dst6;
