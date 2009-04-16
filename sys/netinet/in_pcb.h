@@ -170,8 +170,7 @@ struct inpcb {
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	u_int	inp_refcount;		/* (i) refcount */
-	struct llentry	*inp_lle;	/* cached L2 information */
-	struct rtentry	*inp_rt;	/* cached L3 information */
+	void	inp_pspare[2];		/* (x) rtentry / general use */
 
 	/* Local and foreign ports, local and foreign addr. */
 	struct	in_conninfo inp_inc;	/* (i/p) list for PCB's local port */
@@ -203,6 +202,8 @@ struct inpcb {
 	struct	inpcbport *inp_phd;	/* (i/p) head of this list */
 #define inp_zero_size offsetof(struct inpcb, inp_gencnt)
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
+	struct llentry	*inp_lle;	/* cached L2 information */
+	struct rtentry	*inp_rt;	/* cached L3 information */
 	struct rwlock	inp_lock;
 };
 #define	inp_fport	inp_inc.inc_fport
