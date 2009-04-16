@@ -2189,7 +2189,7 @@ SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
 static int
 flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 {
-	struct buf sentinel;
+	struct buf *sentinel;
 	struct vnode *vp;
 	struct mount *mp;
 	struct buf *bp;
@@ -2205,14 +2205,15 @@ flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 		target = flushbufqtarget;
 	flushed = 0;
 	bp = NULL;
-	sentinel.b_qindex = QUEUE_SENTINEL;
+	sentinel = malloc(sizeof(struct buf), M_TEMP, M_WAITOK | M_ZERO);
+	sentinel->b_qindex = QUEUE_SENTINEL;
 	mtx_lock(&bqlock);
-	TAILQ_INSERT_HEAD(&bufqueues[queue], &sentinel, b_freelist);
+	TAILQ_INSERT_HEAD(&bufqueues[queue], sentinel, b_freelist);
 	while (flushed != target) {
-		bp = TAILQ_NEXT(&sentinel, b_freelist);
+		bp = TAILQ_NEXT(sentinel, b_freelist);
 		if (bp != NULL) {
-			TAILQ_REMOVE(&bufqueues[queue], &sentinel, b_freelist);
-			TAILQ_INSERT_AFTER(&bufqueues[queue], bp, &sentinel,
+			TAILQ_REMOVE(&bufqueues[queue], sentinel, b_freelist);
+			TAILQ_INSERT_AFTER(&bufqueues[queue], bp, sentinel,
 			    b_freelist);
 		} else
 			break;
@@ -2304,8 +2305,9 @@ flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 		vn_finished_write(mp);
 		BUF_UNLOCK(bp);
 	}
-	TAILQ_REMOVE(&bufqueues[queue], &sentinel, b_freelist);
+	TAILQ_REMOVE(&bufqueues[queue], sentinel, b_freelist);
 	mtx_unlock(&bqlock);
+	free(sentinel, M_TEMP);
 	return (flushed);
 }
 
