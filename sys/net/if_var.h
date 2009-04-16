@@ -757,6 +757,7 @@ void	if_free_type(struct ifnet *, u_char);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
+void	if_qflush(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 void	if_up(struct ifnet *);
 /*void	ifinit(void);*/ /* declared in systm.h for main() */
