@@ -239,7 +239,8 @@ mge_ver_params(struct mge_softc *sc)
 	uint32_t d, r;
 
 	soc_id(&d, &r);
-	if (d == MV_DEV_88F6281 || d == MV_DEV_MV78100) {
+	if (d == MV_DEV_88F6281 || d == MV_DEV_MV78100 ||
+	    d == MV_DEV_MV78100_Z0) {
 		sc->mge_ver = 2;
 		sc->mge_mtu = 0x4e8;
 		sc->mge_tfut_ipg_max = 0xFFFF;
