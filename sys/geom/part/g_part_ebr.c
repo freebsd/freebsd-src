@@ -324,7 +324,7 @@ g_part_ebr_fullname(struct g_part_table *table, struct g_part_entry *entry,
 			break;
 		idx++;
 	}
-	sbuf_printf(sb, "%.*s%u", strlen(pfx) - 1, pfx, idx);
+	sbuf_printf(sb, "%.*s%u", (int)strlen(pfx) - 1, pfx, idx);
 }
 #endif
 
