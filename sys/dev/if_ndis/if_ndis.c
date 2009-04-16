@@ -2083,7 +2083,8 @@ ndis_init(xsc)
 	NDIS_UNLOCK(sc);
 
 	/* XXX force handling */
-	ieee80211_start_all(ic);		/* start all vap's */
+	if (sc->ndis_80211)
+		ieee80211_start_all(ic);	/* start all vap's */
 }
 
 /*
