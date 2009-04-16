@@ -459,7 +459,17 @@ pcib_mbus_probe(device_t self)
 		id = "88F6281";
 		break;
 	case 0x6381:
+		id = "MV78100 Z0";
+		break;
+	case 0x7810:
 		id = "MV78100";
+		break;
+	case 0x7820:
+		/*
+		 * According to documentation ID 0x7820 is assigned to MV78200.
+		 * However some MV78100 chips also use it.
+		 */
+		id = "MV78100/MV78200";
 		break;
 	default:
 		device_printf(self, "unknown Marvell PCI bridge: %x\n", val);

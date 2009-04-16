@@ -123,12 +123,13 @@ mv_gpio_attach(device_t dev)
 		return (ENXIO);
 	mv_gpio_softc = sc;
 
-	/* Get board id and revision */
+	/* Get chip id and revision */
 	soc_id(&dev_id, &rev_id);
 
 	if (dev_id == MV_DEV_88F5182 ||
 	    dev_id == MV_DEV_88F5281 ||
-	    dev_id == MV_DEV_MV78100) {
+	    dev_id == MV_DEV_MV78100 ||
+	    dev_id == MV_DEV_MV78100_Z0 ) {
 		sc->pin_num = 32;
 		sc->irq_num = 4;
 		sc->use_high = 0;
@@ -139,7 +140,7 @@ mv_gpio_attach(device_t dev)
 		sc->use_high = 1;
 
 	} else {
-		device_printf(dev, "unknown board id=0x%x\n", dev_id);
+		device_printf(dev, "unknown chip id=0x%x\n", dev_id);
 		return (ENXIO);
 	}
 
