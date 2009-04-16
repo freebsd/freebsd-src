@@ -294,7 +294,7 @@ ieee80211_start(struct ifnet *ifp)
  */
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct rtentry *rt0)
+	struct sockaddr *dst, struct route *ro)
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
 	struct ieee80211_node *ni = NULL;
@@ -320,7 +320,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	 * a raw 802.11 frame.
 	 */
 	if (dst->sa_family != AF_IEEE80211)
-		return vap->iv_output(ifp, m, dst, rt0);
+		return vap->iv_output(ifp, m, dst, ro);
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
 	if (error)

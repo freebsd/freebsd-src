@@ -102,7 +102,7 @@
 int		loioctl(struct ifnet *, u_long, caddr_t);
 static void	lortrequest(int, struct rtentry *, struct rt_addrinfo *);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
-		    struct sockaddr *dst, struct rtentry *rt);
+		    struct sockaddr *dst, struct route *ro);
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
 static void	lo_clone_destroy(struct ifnet *);
 static int	vnet_loif_iattach(const void *);
@@ -205,15 +205,18 @@ DECLARE_MODULE(loop, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 int
 looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-    struct rtentry *rt)
+    struct route *ro)
 {
 	u_int32_t af;
+	struct rtentry *rt = NULL;
 #ifdef MAC
 	int error;
 #endif
 
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
+	if (ro != NULL)
+		rt = ro->ro_rt;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {

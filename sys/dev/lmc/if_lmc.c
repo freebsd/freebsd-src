@@ -114,6 +114,7 @@
 # include <net/if_types.h>
 # include <net/if_media.h>
 # include <net/netisr.h>
+# include <net/route.h>
 # include <machine/bus.h>
 # include <machine/resource.h>
 # include <sys/rman.h>
@@ -4583,7 +4584,7 @@ lmc_ifnet_start(struct ifnet *ifp)
 /* Called from a syscall (user context; no spinlocks). */
 static int
 lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
- struct sockaddr *dst, struct rtentry *rt)
+ struct sockaddr *dst, struct route *ro)
   {
   softc_t *sc = IFP2SC(ifp);
   int error = 0;
