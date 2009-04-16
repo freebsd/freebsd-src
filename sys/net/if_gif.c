@@ -409,11 +409,11 @@ gif_start(struct ifnet *ifp)
 }
 
 int
-gif_output(ifp, m, dst, rt)
+gif_output(ifp, m, dst, ro)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
-	struct rtentry *rt;	/* added in net2 */
+	struct route *ro;
 {
 	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;

@@ -238,7 +238,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
 	m->m_flags |= M_BCAST;
-	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
+	(*ifp->if_output)(ifp, m, &sa, NULL);
 }
 
 /*
@@ -753,7 +753,7 @@ reply:
 	m->m_pkthdr.len = m->m_len;   
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
-	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
+	(*ifp->if_output)(ifp, m, &sa, NULL);
 	return;
 
 drop:

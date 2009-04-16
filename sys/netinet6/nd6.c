@@ -1939,7 +1939,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 
 int
 nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
-    struct sockaddr_in6 *dst, struct rtentry *rt)
+    struct sockaddr_in6 *dst, struct route *ro)
 {
 	struct mbuf *m, *m_head;
 	struct ifnet *outifp;
@@ -1954,7 +1954,7 @@ nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, rt);			       
+		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, ro);			       
 	}
 
 	/*

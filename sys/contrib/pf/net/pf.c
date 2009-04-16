@@ -6245,7 +6245,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			}
 		}
 		PF_UNLOCK();
-		error = (*ifp->if_output)(ifp, m0, sintosa(dst), ro->ro_rt);
+		error = (*ifp->if_output)(ifp, m0, sintosa(dst), ro);
 		PF_LOCK();
 		goto done;
 	}

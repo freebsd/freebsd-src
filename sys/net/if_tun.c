@@ -129,7 +129,7 @@ static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static int	tuninit(struct ifnet *);
 static int	tunmodevent(module_t, int, void *);
 static int	tunoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct rtentry *rt);
+		    struct route *ro);
 static void	tunstart(struct ifnet *);
 
 static int	tun_clone_create(struct if_clone *, int, caddr_t);
@@ -591,7 +591,7 @@ tunoutput(
 	struct ifnet *ifp,
 	struct mbuf *m0,
 	struct sockaddr *dst,
-	struct rtentry *rt)
+	struct route *ro)
 {
 	struct tun_softc *tp = ifp->if_softc;
 	u_short cached_tun_flags;

@@ -207,7 +207,7 @@ static void	carp_master_down(void *);
 static void	carp_master_down_locked(struct carp_softc *);
 static int	carp_ioctl(struct ifnet *, u_long, caddr_t);
 static int	carp_looutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct rtentry *);
+    		    struct route *);
 static void	carp_start(struct ifnet *);
 static void	carp_setrun(struct carp_softc *, sa_family_t);
 static void	carp_set_state(struct carp_softc *, int);
@@ -2011,12 +2011,15 @@ carp_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr)
  */
 static int
 carp_looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-    struct rtentry *rt)
+    struct route *ro)
 {
 	u_int32_t af;
+	struct rtentry *rt = NULL;
 
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
+	if (ro != NULL)
+		rt = ro->ro_rt;
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
 		m_freem(m);
 		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
