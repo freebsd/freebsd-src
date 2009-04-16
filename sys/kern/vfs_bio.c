@@ -202,6 +202,9 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW, &getnewbufrestarts, 0,
 static int flushbufqtarget = 100;
 SYSCTL_INT(_vfs, OID_AUTO, flushbufqtarget, CTLFLAG_RW, &flushbufqtarget, 0,
     "Amount of work to do in flushbufqueues when helping bufdaemon");
+static long notbufdflashes;
+SYSCTL_LONG(_vfs, OID_AUTO, notbufdflashes, CTLFLAG_RD, &notbufdflashes, 0,
+    "Number of dirty buffer flushes done by the bufdaemon helpers");
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -2281,6 +2284,7 @@ flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 			else {
 				bremfree(bp);
 				bwrite(bp);
+				notbufdflashes++;
 			}
 			vn_finished_write(mp);
 			VOP_UNLOCK(vp, 0);
