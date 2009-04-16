@@ -70,6 +70,7 @@ struct	socket;
 struct	ether_header;
 struct	carp_if;
 struct  ifvlantrunk;
+struct	route;
 #endif
 
 #include <sys/queue.h>		/* get TAILQ macros */
@@ -149,7 +150,7 @@ struct ifnet {
 /* procedure handles */
 	int	(*if_output)		/* output routine (enqueue) */
 		(struct ifnet *, struct mbuf *, struct sockaddr *,
-		     struct rtentry *);
+		     struct route *);
 	void	(*if_input)		/* input routine (from h/w driver) */
 		(struct ifnet *, struct mbuf *);
 	void	(*if_start)		/* initiate output routine */

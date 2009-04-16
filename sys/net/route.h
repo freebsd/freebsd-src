@@ -41,9 +41,10 @@
  */
 
 /*
- * A route consists of a destination address and a reference
- * to a routing entry.  These are often held by protocols
- * in their control blocks, e.g. inpcb.
+ * A route consists of a destination address, a reference
+ * to a routing entry, and a reference to an llentry.  
+ * These are often held by protocols in their control
+ * blocks, e.g. inpcb.
  */
 struct route {
 	struct	rtentry *ro_rt;
