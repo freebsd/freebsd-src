@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2008 Swinburne University of Technology, Melbourne, Australia
+ * Copyright (c) 2007-2009
+ * 	Swinburne University of Technology, Melbourne, Australia
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
@@ -33,7 +34,7 @@
 /*
  * HTCP
  *
- * An implementation of HTCP congestion algorithm for FreeBSD 7.0
+ * An implementation of HTCP congestion algorithm for FreeBSD.
  * The algorithm is based on the one described in "H-TCP: A framework
  * for congestion control in high-speed and long-distance networks" by
  * Leith, Shorten and Lee.
