@@ -291,7 +291,7 @@ TUNABLE_INT("hw.igb.bulk_latency", &igb_bulk_latency);
 ** 0, it will then be based on number of cpus.
 */
 static int igb_tx_queues = 1;
-static int igb_rx_queues = 4;
+static int igb_rx_queues = 1;
 TUNABLE_INT("hw.igb.tx_queues", &igb_tx_queues);
 TUNABLE_INT("hw.igb.rx_queues", &igb_rx_queues);
 

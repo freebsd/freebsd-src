@@ -337,8 +337,8 @@ vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
 
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
-	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		if (flags & LK_NOWAIT) {
+	while (mp->mnt_kern_flag & MNTK_UNMOUNT) {
+		if (flags & LK_NOWAIT || mp->mnt_kern_flag & MNTK_REFEXPIRE) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
 			return (ENOENT);
@@ -353,11 +353,8 @@ vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
 		 * exclusive lock at the end of dounmount.
 		 */
 		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
-		MNT_REL(mp);
-		MNT_IUNLOCK(mp);
 		if (interlkp)
 			mtx_lock(interlkp);
-		return (ENOENT);
 	}
 	if (interlkp)
 		mtx_unlock(interlkp);
@@ -803,6 +800,7 @@ vdestroy(struct vnode *vp)
 	VNASSERT(bo->bo_dirty.bv_root == NULL, vp, ("dirtyblkroot not NULL"));
 	VNASSERT(TAILQ_EMPTY(&vp->v_cache_dst), vp, ("vp has namecache dst"));
 	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
+	VNASSERT(vp->v_cache_dd == NULL, vp, ("vp has namecache for .."));
 	VI_UNLOCK(vp);
 #ifdef MAC
 	mac_destroy_vnode(vp);

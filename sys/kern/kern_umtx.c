@@ -975,7 +975,7 @@ do_wait(struct thread *td, void *addr, u_long id,
 	if (compat32 == 0)
 		tmp = fuword(addr);
         else
-		tmp = fuword32(addr);
+		tmp = (unsigned int)fuword32(addr);
 	if (tmp != id) {
 		umtxq_lock(&uq->uq_key);
 		umtxq_remove(uq);
