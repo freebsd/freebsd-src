@@ -14,6 +14,12 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090416: removal of ar(4), ray(4), sr(4), raycontrol(8)
+OLD_FILES+=usr/sbin/raycontrol
+OLD_FILES+=usr/share/man/man4/i386/ar.4.gz
+OLD_FILES+=usr/share/man/man4/i386/ray.4.gz
+OLD_FILES+=usr/share/man/man4/i386/sr.4.gz
+OLD_FILES+=usr/share/man/man8/raycontrol.8.gz
 # 20090410: VOP_LEASE.9 removed
 OLD_FILES+=usr/share/man/man9/VOP_LEASE.9.gz
 # 20090405: removal of if_ppp(4) and if_sl(4)
