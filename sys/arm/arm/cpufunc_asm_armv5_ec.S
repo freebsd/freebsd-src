@@ -204,3 +204,4 @@ ENTRY(armv5_ec_dcache_wbinv_all)
 	bne	1b			/* More to do? */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+
