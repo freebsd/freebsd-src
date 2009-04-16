@@ -642,6 +642,7 @@ mge_attach(device_t dev)
 	sc->tx_desc_curr = 0;
 	sc->rx_desc_curr = 0;
 	sc->tx_desc_used_idx = 0;
+	sc->tx_desc_used_count = 0;
 
 	/* Configure defaults for interrupts coalescing */
 	sc->rx_ic_time = 768;
@@ -899,6 +900,7 @@ mge_init_locked(void *arg)
 	sc->tx_desc_curr = 0;
 	sc->rx_desc_curr = 0;
 	sc->tx_desc_used_idx = 0;
+	sc->tx_desc_used_count = 0;
 
 	/* Enable RX descriptors */
 	for (i = 0; i < MGE_RX_DESC_NUM; i++) {
@@ -1022,7 +1024,7 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 
 	MGE_RECEIVE_LOCK_ASSERT(sc);
 
-	while(count != 0) {
+	while (count != 0) {
 		dw = &sc->mge_rx_desc[sc->rx_desc_curr];
 		bus_dmamap_sync(sc->mge_desc_dtag, dw->desc_dmap,
 		    BUS_DMASYNC_POSTREAD);
@@ -1033,7 +1035,6 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 		if ((status & MGE_DMA_OWNED) != 0)
 			break;
 
-		sc->rx_desc_curr = (++sc->rx_desc_curr % MGE_RX_DESC_NUM);
 		if (dw->mge_desc->byte_count &&
 		    ~(status & MGE_ERR_SUMMARY)) {
 
@@ -1043,6 +1044,10 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 			mb = m_devget(dw->buffer->m_data,
 			    dw->mge_desc->byte_count - ETHER_CRC_LEN,
 			    0, ifp, NULL);
+
+			if (mb == NULL)
+				/* Give up if no mbufs */
+				break;
 
 			mb->m_len -= 2;
 			mb->m_pkthdr.len -= 2;
@@ -1058,6 +1063,7 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 
 		dw->mge_desc->byte_count = 0;
 		dw->mge_desc->cmd_status = MGE_RX_ENABLE_INT | MGE_DMA_OWNED;
+		sc->rx_desc_curr = (++sc->rx_desc_curr % MGE_RX_DESC_NUM);
 		bus_dmamap_sync(sc->mge_desc_dtag, dw->desc_dmap,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
@@ -1514,7 +1520,8 @@ mge_stop(struct mge_softc *sc)
 	MGE_WRITE(sc, MGE_RX_QUEUE_CMD, MGE_DISABLE_RXQ_ALL);
 
 	/* Remove pending data from TX queue */
-	while (sc->tx_desc_used_idx < sc->tx_desc_curr) {
+	while (sc->tx_desc_used_idx != sc->tx_desc_curr &&
+	    sc->tx_desc_used_count) {
 		/* Get the descriptor */
 		dw = &sc->mge_tx_desc[sc->tx_desc_used_idx];
 		desc = dw->mge_desc;
@@ -1529,6 +1536,7 @@ mge_stop(struct mge_softc *sc)
 
 		sc->tx_desc_used_idx = (++sc->tx_desc_used_idx) %
 		    MGE_TX_DESC_NUM;
+		sc->tx_desc_used_count--;
 
 		bus_dmamap_sync(sc->mge_tx_dtag, dw->buffer_dmap,
 		    BUS_DMASYNC_POSTWRITE);
