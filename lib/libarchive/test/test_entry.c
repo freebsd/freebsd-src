@@ -137,11 +137,17 @@ DEFINE_TEST(test_entry)
 	assertEqualString(archive_entry_hardlink(e), "hardlinkname2");
 	memset(buff, 0, sizeof(buff));
 	assertEqualString(archive_entry_hardlink(e), "hardlinkname2");
+	archive_entry_copy_hardlink(e, NULL);
+	assertEqualString(archive_entry_hardlink(e), NULL);
+	assertEqualWString(archive_entry_hardlink_w(e), NULL);
 	wcscpy(wbuff, L"whardlink");
 	archive_entry_copy_hardlink_w(e, wbuff);
 	assertEqualWString(archive_entry_hardlink_w(e), L"whardlink");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_hardlink_w(e), L"whardlink");
+	archive_entry_copy_hardlink_w(e, NULL);
+	assertEqualString(archive_entry_hardlink(e), NULL);
+	assertEqualWString(archive_entry_hardlink_w(e), NULL);
 #if ARCHIVE_VERSION_NUMBER >= 1009000
 	/* ino */
 	archive_entry_set_ino(e, 8593);
@@ -233,6 +239,10 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_size(e), 0);
 	assert(!archive_entry_size_is_set(e));
 
+	/* sourcepath */
+	archive_entry_copy_sourcepath(e, "path1");
+	assertEqualString(archive_entry_sourcepath(e), "path1");
+
 	/* symlink */
 	archive_entry_set_symlink(e, "symlinkname");
 	assertEqualString(archive_entry_symlink(e), "symlinkname");
@@ -243,8 +253,14 @@ DEFINE_TEST(test_entry)
 	memset(buff, 0, sizeof(buff));
 	assertEqualString(archive_entry_symlink(e), "symlinkname2");
 #endif
+	archive_entry_copy_symlink_w(e, NULL);
+	assertEqualWString(archive_entry_symlink_w(e), NULL);
+	assertEqualString(archive_entry_symlink(e), NULL);
 	archive_entry_copy_symlink_w(e, L"wsymlink");
 	assertEqualWString(archive_entry_symlink_w(e), L"wsymlink");
+	archive_entry_copy_symlink(e, NULL);
+	assertEqualWString(archive_entry_symlink_w(e), NULL);
+	assertEqualString(archive_entry_symlink(e), NULL);
 
 	/* uid */
 	archive_entry_set_uid(e, 83);
@@ -271,9 +287,13 @@ DEFINE_TEST(test_entry)
 	/* TODO: Make this system-independent. */
 	assertEqualString(archive_entry_fflags_text(e),
 	    "uappnd,nouchg,nodump,noopaque,uunlnk");
-	/* TODO: Test archive_entry_copy_fflags_text_w() */
+	/* Test archive_entry_copy_fflags_text_w() */
+	archive_entry_copy_fflags_text_w(e, L" ,nouappnd, nouchg, dump,uunlnk");
+	archive_entry_fflags(e, &set, &clear);
+	assertEqualInt(16, set);
+	assertEqualInt(7, clear);
 	/* Test archive_entry_copy_fflags_text() */
-	archive_entry_copy_fflags_text(e, "nouappnd, nouchg, dump,uunlnk");
+	archive_entry_copy_fflags_text(e, " ,nouappnd, nouchg, dump,uunlnk");
 	archive_entry_fflags(e, &set, &clear);
 	assertEqualInt(16, set);
 	assertEqualInt(7, clear);
@@ -343,6 +363,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_rdev(e, 532);
 #endif
 	archive_entry_set_size(e, 987654321);
+	archive_entry_copy_sourcepath(e, "source");
 	archive_entry_set_symlink(e, "symlinkname");
 	archive_entry_set_uid(e, 83);
 	archive_entry_set_uname(e, "user");
@@ -385,6 +406,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_rdev(e2), 532);
 #endif
 	assertEqualInt(archive_entry_size(e2), 987654321);
+	assertEqualString(archive_entry_sourcepath(e2), "source");
 	assertEqualString(archive_entry_symlink(e2), "symlinkname");
 	assertEqualInt(archive_entry_uid(e2), 83);
 	assertEqualString(archive_entry_uname(e2), "user");
@@ -472,6 +494,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_rdev(e, 132);
 #endif
 	archive_entry_set_size(e, 987456321);
+	archive_entry_copy_sourcepath(e, "source2");
 	archive_entry_set_symlink(e, "symlinkpath");
 	archive_entry_set_uid(e, 93);
 	archive_entry_set_uname(e, "username");
@@ -508,6 +531,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_rdev(e2), 532);
 #endif
 	assertEqualInt(archive_entry_size(e2), 987654321);
+	assertEqualString(archive_entry_sourcepath(e2), "source");
 	assertEqualString(archive_entry_symlink(e2), "symlinkname");
 	assertEqualInt(archive_entry_uid(e2), 83);
 	assertEqualString(archive_entry_uname(e2), "user");

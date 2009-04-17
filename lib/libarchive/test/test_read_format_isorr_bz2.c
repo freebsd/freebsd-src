@@ -55,15 +55,16 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualInt(0, archive_read_support_compression_bzip2(a));
-	assertEqualInt(0, archive_read_support_format_all(a));
-	r = archive_read_open_filename(a, refname, 10240);
-	if (r == ARCHIVE_FATAL) {
-		skipping("Bzip2 decompression unsupported on this platform");
-		archive_read_finish(a);
+	r = archive_read_support_compression_bzip2(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("bzip2 reading not fully supported on this platform");
+		assertEqualInt(0, archive_read_finish(a));
 		return;
 	}
 	assertEqualInt(0, r);
+	assertEqualInt(0, archive_read_support_format_all(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
 
 	/* First entry is '.' root directory. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));

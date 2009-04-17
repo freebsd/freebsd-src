@@ -52,6 +52,15 @@ DEFINE_TEST(test_read_format_mtree)
 	struct archive_entry *ae;
 	struct archive *a;
 
+	/*
+	 * An access error occurred on some platform when mtree
+	 * format handling open a directory. It is for through
+	 * the routine which open a directory that we create
+	 * "dir" and "dir2" directories.
+	 */
+	assertEqualInt(0, mkdir("dir", 0775));
+	assertEqualInt(0, mkdir("dir2", 0775));
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_compression_all(a));
