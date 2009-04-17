@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002 Bang Jun-Young
+ * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,33 +27,6 @@
  *
  *	from: NetBSD: machfb.c,v 1.23 2005/03/07 21:45:24 martin Exp
  */
-/*-
- * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -66,11 +40,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/consio.h>
+#include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/resource.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
@@ -78,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/bus_private.h>
 #include <machine/ofw_machdep.h>
+#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/sc_machdep.h>
 
@@ -104,58 +83,53 @@ struct machfb_softc {
 	uint16_t		sc_chip_id;
 	uint8_t			sc_chip_rev;
 
-	int			sc_memrid;
-	int			sc_viorid;
-	int			sc_vmemrid;
 	struct resource		*sc_memres;
-	struct resource		*sc_viores;
 	struct resource		*sc_vmemres;
 	bus_space_tag_t		sc_memt;
 	bus_space_tag_t		sc_regt;
-	bus_space_tag_t		sc_viot;
-	bus_space_tag_t		sc_vmemt;
 	bus_space_handle_t	sc_memh;
 	bus_space_handle_t	sc_regh;
-	bus_space_handle_t	sc_vioh;
-	bus_space_handle_t	sc_vmemh;
+	u_long			sc_mem;
+	u_long			sc_vmem;
 
-	int			sc_height;
-	int			sc_width;
-	int			sc_depth;
-	int			sc_xmargin;
-	int			sc_ymargin;
+	u_int			sc_height;
+	u_int			sc_width;
+	u_int			sc_depth;
+	u_int			sc_xmargin;
+	u_int			sc_ymargin;
 
 	size_t			sc_memsize;
-	int			sc_memtype;
-	int			sc_mem_freq;
-	int			sc_ramdac_freq;
-	int			sc_ref_freq;
+	u_int			sc_memtype;
+	u_int			sc_mem_freq;
+	u_int			sc_ramdac_freq;
+	u_int			sc_ref_freq;
 
-	int			sc_ref_div;
-	int			sc_mclk_post_div;
-	int			sc_mclk_fb_div;
+	u_int			sc_ref_div;
+	u_int			sc_mclk_post_div;
+	u_int			sc_mclk_fb_div;
 
 	const u_char		*sc_font;
-	int			sc_cbwidth;
+	u_int			sc_cbwidth;
 	vm_offset_t		sc_curoff;
 
 	int			sc_bg_cache;
 	int			sc_fg_cache;
-	int			sc_draw_cache;
+	u_int			sc_draw_cache;
 #define	MACHFB_DRAW_CHAR	(1 << 0)
 #define	MACHFB_DRAW_FILLRECT	(1 << 1)
 
-	int			sc_flags;
+	u_int			sc_flags;
 #define	MACHFB_CONSOLE		(1 << 0)
 #define	MACHFB_CUREN		(1 << 1)
 #define	MACHFB_DSP		(1 << 2)
+#define	MACHFB_SWAP		(1 << 3)
 };
 
 static const struct {
 	uint16_t	chip_id;
 	const char	*name;
 	uint32_t	ramdac_freq;
-} machfb_info[] = {
+} const machfb_info[] = {
 	{ ATI_MACH64_CT, "ATI Mach64 CT", 135000 },
 	{ ATI_RAGE_PRO_AGP, "ATI 3D Rage Pro (AGP)", 230000 },
 	{ ATI_RAGE_PRO_AGP1X, "ATI 3D Rage Pro (AGP 1x)", 230000 },
@@ -193,7 +167,7 @@ static const struct machfb_cmap {
 	uint8_t red;
 	uint8_t green;
 	uint8_t blue;
-} machfb_default_cmap[16] = {
+} const machfb_default_cmap[16] = {
 	{0x00, 0x00, 0x00},	/* black */
 	{0x00, 0x00, 0xff},	/* blue */
 	{0x00, 0xff, 0x00},	/* green */
@@ -214,7 +188,7 @@ static const struct machfb_cmap {
 
 #define	MACHFB_CMAP_OFF		16
 
-static const u_char machfb_mouse_pointer_bits[64][8] = {
+static const u_char const machfb_mouse_pointer_bits[64][8] = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
 	{ 0xc0, 0x00, },	/* **.......... */
@@ -243,12 +217,12 @@ static const u_char machfb_mouse_pointer_bits[64][8] = {
  * Lookup table to perform a bit-swap of the mouse pointer bits,
  * map set bits to CUR_CLR0 and unset bits to transparent.
  */
-static const u_char machfb_mouse_pointer_lut[] = {
+static const u_char const machfb_mouse_pointer_lut[] = {
 	0xaa, 0x2a, 0x8a, 0x0a, 0xa2, 0x22, 0x82, 0x02,
 	0xa8, 0x28, 0x88, 0x08, 0xa0, 0x20, 0x80, 0x00
 };
 
-static const char *machfb_memtype_names[] = {
+static const char *const machfb_memtype_names[] = {
 	"(N/A)", "DRAM", "EDO DRAM", "EDO DRAM", "SDRAM", "SGRAM", "WRAM",
 	"(unknown type)"
 };
@@ -351,8 +325,6 @@ static video_switch_t machfbvidsw = {
 	.clear			= machfb_clear,
 	.fill_rect		= machfb_fill_rect,
 	.bitblt			= machfb_bitblt,
-	NULL,
-	NULL,
 	.diag			= machfb_diag,
 	.save_cursor_palette	= machfb_save_cursor_palette,
 	.load_cursor_palette	= machfb_load_cursor_palette,
@@ -698,7 +670,7 @@ machfb_set_mode(video_adapter_t *adp, int mode)
 
 	sc->sc_bg_cache = -1;
 	sc->sc_fg_cache = -1;
-	sc->sc_draw_cache = -1;
+	sc->sc_draw_cache = 0;
 
 	return (0);
 }
@@ -869,30 +841,28 @@ machfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
     int prot)
 {
 	struct machfb_softc *sc;
+	video_info_t *vi;
 
 	sc = (struct machfb_softc *)adp;
+	vi = &adp->va_info;
 
-	if (adp->va_io_base != 0 && offset >= adp->va_io_base &&
-	    offset < adp->va_io_base + adp->va_io_size) {
-		*paddr = sc->sc_vioh + offset - adp->va_io_size;
+	/* BAR 2 - VGA memory */
+	if (sc->sc_vmem != 0 && offset >= sc->sc_vmem &&
+	    offset < sc->sc_vmem + vi->vi_registers_size) {
+		*paddr = vi->vi_registers + offset - sc->sc_vmem;
 		return (0);
 	}
 
-	if (adp->va_mem_base != 0 && offset >= adp->va_mem_base &&
-	    offset < adp->va_mem_base + adp->va_mem_size) {
-		*paddr = sc->sc_vmemh + offset - adp->va_mem_base;
-		return (0);
-	}
-
-	if (offset >= adp->va_registers &&
-	    offset < adp->va_registers + adp->va_registers_size) {
-		*paddr = sc->sc_memh + offset - adp->va_registers;
+	/* BAR 0 - framebuffer */
+	if (offset >= sc->sc_mem &&
+	    offset < sc->sc_mem + vi->vi_buffer_size) {
+		*paddr = vi->vi_buffer + offset - sc->sc_mem;
 		return (0);
 	}
 
 	/* 'regular' framebuffer mmap()ing */
 	if (offset < adp->va_window_size) {
-		*paddr = adp->va_window + offset;
+		*paddr = vi->vi_window + offset;
 		return (0);
 	}
 
@@ -1184,10 +1154,11 @@ machfb_pci_attach(device_t dev)
 	struct machfb_softc *sc;
 	video_adapter_t *adp;
 	video_switch_t *sw;
+	video_info_t *vi;
 	phandle_t node;
-	uint32_t *p32, saved_value;
+	int error, i, rid;
+	uint32_t *p32, u32;
 	uint8_t *p;
-	int error, i;
 
 	node = ofw_bus_get_node(dev);
 	if ((sc = (struct machfb_softc *)vid_get_adapter(vid_find_adapter(
@@ -1196,18 +1167,19 @@ machfb_pci_attach(device_t dev)
 		device_set_softc(dev, sc);
 	} else {
 		sc = device_get_softc(dev);
-		bzero(sc, sizeof(struct machfb_softc));
 
 		sc->sc_node = node;
 		sc->sc_chip_id = pci_get_device(dev);
 		sc->sc_chip_rev = pci_get_revid(dev);
 	}
 	adp = &sc->sc_va;
+	vi = &adp->va_info;
 
 	/*
-	 * Regardless whether we are the console and already allocated
-	 * resources in machfb_configure() or not we have to allocate
-	 * them here (again) in order for rman_get_virtual() to work.
+	 * Allocate resources regardless of whether we are the console
+	 * and already obtained the bus tag and handle for the framebuffer
+	 * in machfb_configure() or not so the resources are marked as
+	 * taken in the respective RMAN.
 	 */
 
 	/* Enable memory and IO access. */
@@ -1215,21 +1187,44 @@ machfb_pci_attach(device_t dev)
 	    pci_read_config(dev, PCIR_COMMAND, 2) | PCIM_CMD_PORTEN |
 	    PCIM_CMD_MEMEN, 2);
 
-	sc->sc_memrid = PCIR_BAR(0);
+	/*
+	 * NB: we need to take care that the framebuffer isn't mapped
+	 * in twice as besides wasting resources this isn't possible with
+	 * all MMUs.
+	 */
+	rid = PCIR_BAR(0);
 	if ((sc->sc_memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->sc_memrid, RF_ACTIVE)) == NULL) {
+	    &rid, 0)) == NULL) {
 		device_printf(dev, "cannot allocate memory resources\n");
 		return (ENXIO);
 	}
+	if (OF_getprop(sc->sc_node, "address", &u32, sizeof(u32)) > 0 &&
+		vtophys(u32) == rman_get_bushandle(sc->sc_memres))
+		adp->va_mem_base = u32;
+	else {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_memres), sc->sc_memres);
+		rid = PCIR_BAR(0);
+		if ((sc->sc_memres = bus_alloc_resource_any(dev,
+		    SYS_RES_MEMORY, &rid, RF_ACTIVE)) == NULL) {
+			device_printf(dev,
+			    "cannot allocate memory resources\n");
+			return (ENXIO);
+		}
+		adp->va_mem_base =
+		    (vm_offset_t)rman_get_virtual(sc->sc_memres);
+	}
 	sc->sc_memt = rman_get_bustag(sc->sc_memres);
 	sc->sc_memh = rman_get_bushandle(sc->sc_memres);
-	adp->va_registers = rman_get_start(sc->sc_memres);
-	adp->va_registers_size = rman_get_size(sc->sc_memres);
 	sc->sc_regt = sc->sc_memt;
 	bus_space_subregion(sc->sc_regt, sc->sc_memh, MACH64_REG_OFF,
 	    MACH64_REG_SIZE, &sc->sc_regh);
-	adp->va_buffer = (vm_offset_t)rman_get_virtual(sc->sc_memres);
-	adp->va_buffer_size = rman_get_size(sc->sc_memres);
+	adp->va_mem_size = rman_get_size(sc->sc_memres);
+	adp->va_buffer = adp->va_mem_base;
+	adp->va_buffer_size = adp->va_mem_size;
+	sc->sc_mem = rman_get_start(sc->sc_memres);
+	vi->vi_buffer = sc->sc_memh;
+	vi->vi_buffer_size = adp->va_buffer_size;
 
 	/*
 	 * Depending on the firmware version the VGA I/O and/or memory
@@ -1239,45 +1234,26 @@ machfb_pci_attach(device_t dev)
 	 * mean that we get valid ones.  Invalid resources seem to have
 	 * in common that they start at address 0.  We don't allocate
 	 * them in this case in order to avoid warnings in apb(4) and
-	 * crashes when using these invalid resources.  Xorg is aware
+	 * crashes when using these invalid resources.  X.Org is aware
 	 * of this and doesn't use the VGA resources in this case (but
 	 * demands them if they are valid).
 	 */
-	sc->sc_viorid = PCIR_BAR(1);
-	if (bus_get_resource_start(dev, SYS_RES_IOPORT, sc->sc_viorid) != 0) {
-		if ((sc->sc_viores = bus_alloc_resource_any(dev,
-		    SYS_RES_IOPORT, &sc->sc_viorid, RF_ACTIVE)) == NULL) {
-			device_printf(dev,
-			    "cannot allocate VGA I/O resources\n");
-			error = ENXIO;
-			goto fail_memres;
-		}
-		sc->sc_viot = rman_get_bustag(sc->sc_viores);
-		sc->sc_vioh = rman_get_bushandle(sc->sc_viores);
-		adp->va_io_base = rman_get_start(sc->sc_viores);
-		adp->va_io_size = rman_get_size(sc->sc_viores);
-	}
-
-	sc->sc_vmemrid = PCIR_BAR(2);
-	if (bus_get_resource_start(dev, SYS_RES_MEMORY, sc->sc_vmemrid) != 0) {
+	rid = PCIR_BAR(2);
+	if (bus_get_resource_start(dev, SYS_RES_MEMORY, rid) != 0) {
 		if ((sc->sc_vmemres = bus_alloc_resource_any(dev,
-		    SYS_RES_MEMORY, &sc->sc_vmemrid, RF_ACTIVE)) == NULL) {
+		    SYS_RES_MEMORY, &rid, RF_ACTIVE)) == NULL) {
 			device_printf(dev,
 			    "cannot allocate VGA memory resources\n");
 			error = ENXIO;
-			goto fail_viores;
+			goto fail_memres;
 		}
-		sc->sc_vmemt = rman_get_bustag(sc->sc_vmemres);
-		sc->sc_vmemh = rman_get_bushandle(sc->sc_vmemres);
-		adp->va_mem_base = rman_get_start(sc->sc_vmemres);
-		adp->va_mem_size = rman_get_size(sc->sc_vmemres);
+		adp->va_registers =
+		    (vm_offset_t)rman_get_virtual(sc->sc_vmemres);
+		adp->va_registers_size = rman_get_size(sc->sc_vmemres);
+		sc->sc_vmem = rman_get_start(sc->sc_vmemres);
+		vi->vi_registers = rman_get_bushandle(sc->sc_vmemres);
+		vi->vi_registers_size = adp->va_registers_size;
 	}
-
-	device_printf(dev,
-	    "%d MB aperture at 0x%08x, %d KB registers at 0x%08x\n",
-	    (u_int)(adp->va_buffer_size / (1024 * 1024)),
-	    (u_int)adp->va_buffer, MACH64_REG_SIZE / 1024,
-	    (u_int)sc->sc_regh);
 
 	if (!(sc->sc_flags & MACHFB_CONSOLE)) {
 		if ((sw = vid_get_switch(MACHFB_DRIVER_NAME)) == NULL) {
@@ -1303,6 +1279,37 @@ machfb_pci_attach(device_t dev)
 		}
 	}
 
+	/*
+	 * Test whether the aperture is byte swapped or not, set
+	 * va_window and va_window_size as appropriate.  Note that
+	 * the aperture could be mapped either big or little endian
+	 * on independently of the endianess of the host so this
+	 * has to be a runtime test.
+	 */
+	p32 = (uint32_t *)adp->va_buffer;
+	u32 = *p32;
+	p = (uint8_t *)adp->va_buffer;
+	*p32 = 0x12345678;
+	if (!(p[0] == 0x12 && p[1] == 0x34 && p[2] == 0x56 && p[3] == 0x78)) {
+		adp->va_window = adp->va_buffer + 0x800000;
+		adp->va_window_size = adp->va_buffer_size - 0x800000;
+		vi->vi_window = vi->vi_buffer + 0x800000;
+		vi->vi_window_size = vi->vi_buffer_size - 0x800000;
+		sc->sc_flags |= MACHFB_SWAP;
+	} else {
+		adp->va_window = adp->va_buffer;
+		adp->va_window_size = adp->va_buffer_size;
+		vi->vi_window = vi->vi_buffer;
+		vi->vi_window_size = vi->vi_buffer_size;
+	}
+	*p32 = u32;
+	adp->va_window_gran = adp->va_window_size;
+
+	device_printf(dev,
+	    "%d MB aperture at %p %sswapped\n",
+	    (u_int)(adp->va_window_size / (1024 * 1024)),
+	    (void *)adp->va_window, (sc->sc_flags & MACHFB_SWAP) ?
+	    "" : "not ");
 	device_printf(dev,
 	    "%ld KB %s %d.%d MHz, maximum RAMDAC clock %d MHz, %sDSP\n",
 	    (u_long)sc->sc_memsize, machfb_memtype_names[sc->sc_memtype],
@@ -1311,24 +1318,6 @@ machfb_pci_attach(device_t dev)
 	    (sc->sc_flags & MACHFB_DSP) ? "" : "no ");
 	device_printf(dev, "resolution %dx%d at %d bpp\n",
 	    sc->sc_width, sc->sc_height, sc->sc_depth);
-
-	/*
-	 * Test whether the aperture is byte swapped or not, set
-	 * va_window and va_window_size as appropriate.
-	 */
-	p32 = (uint32_t *)adp->va_buffer;
-	saved_value = *p32;
-	p = (uint8_t *)adp->va_buffer;
-	*p32 = 0x12345678;
-	if (!(p[0] == 0x12 && p[1] == 0x34 && p[2] == 0x56 && p[3] == 0x78)) {
-		adp->va_window = adp->va_buffer + 0x800000;
-		adp->va_window_size = adp->va_buffer_size - 0x800000;
-	} else {
-		adp->va_window = adp->va_buffer;
-		adp->va_window_size = adp->va_buffer_size;
-	}
-	*p32 = saved_value;
-	adp->va_window_gran = adp->va_window_size;
 
 	/*
 	 * Allocate one page for the mouse pointer image at the end of
@@ -1359,14 +1348,11 @@ machfb_pci_attach(device_t dev)
 
  fail_vmemres:
 	if (sc->sc_vmemres != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_vmemrid,
-		    sc->sc_vmemres);
- fail_viores:
-	if (sc->sc_viores != NULL)
-		bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_viorid,
-		    sc->sc_viores);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_vmemres), sc->sc_vmemres);
  fail_memres:
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_memrid, sc->sc_memres);
+	bus_release_resource(dev, SYS_RES_MEMORY,
+	    rman_get_rid(sc->sc_memres), sc->sc_memres);
 
 	return (error);
 }
@@ -1396,7 +1382,7 @@ machfb_cursor_enable(struct machfb_softc *sc, int onoff)
 static int
 machfb_cursor_install(struct machfb_softc *sc)
 {
-	uint16_t *p;
+	uint16_t *p, v;
 	uint8_t fg;
 	int i, j;
 
@@ -1410,12 +1396,18 @@ machfb_cursor_install(struct machfb_softc *sc)
 	    machfb_default_cmap[fg].green << 16 |
 	    machfb_default_cmap[fg].blue << 8);
 	p = (uint16_t *)(sc->sc_va.va_buffer + sc->sc_curoff);
-	for (i = 0; i < 64; i++)
-		for (j = 0; j < 8; j++)
-			*(p++) = machfb_mouse_pointer_lut[
-			    machfb_mouse_pointer_bits[i][j] >> 4] |
+	for (i = 0; i < 64; i++) {
+		for (j = 0; j < 8; j++) {
+			v = machfb_mouse_pointer_lut[
+			    machfb_mouse_pointer_bits[i][j] >> 4] << 8 |
 			    machfb_mouse_pointer_lut[
-			    machfb_mouse_pointer_bits[i][j] & 0x0f] << 8;
+			    machfb_mouse_pointer_bits[i][j] & 0x0f];
+			if (sc->sc_flags & MACHFB_SWAP)
+				*(p++) = bswap16(v);
+			else
+				*(p++) = v;
+		}
+	}
 
 	return (0);
 }
@@ -1424,7 +1416,7 @@ static int
 machfb_get_memsize(struct machfb_softc *sc)
 {
 	int tmp, memsize;
-	int mem_tab[] = {
+	const int const mem_tab[] = {
 		512, 1024, 2048, 4096, 6144, 8192, 12288, 16384
 	};
 
