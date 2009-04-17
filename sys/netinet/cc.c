@@ -185,7 +185,7 @@ cc_deregister_algorithm(struct cc_algo *remove_cc)
 		INP_INFO_RLOCK(&tcbinfo);
 		LIST_FOREACH(inp, &tcb, inp_list) {
 			/* skip tcptw structs */
-			if (inp->inp_vflag & INP_TIMEWAIT)
+			if (inp->inp_flags & INP_TIMEWAIT)
 				continue;
 			INP_WLOCK(inp);
 			if ((tp = intotcpcb(inp)) != NULL) {
