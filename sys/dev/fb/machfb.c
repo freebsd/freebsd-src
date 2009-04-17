@@ -53,12 +53,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
- 
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for ATI Mach64 graphics chips. Some code is derived from the
+ * Driver for ATI Mach64 graphics chips.  Some code is derived from the
  * ATI Rage Pro and Derivatives Programmer's Guide.
  */
 
@@ -100,7 +100,7 @@ __FBSDID("$FreeBSD$");
 struct machfb_softc {
 	video_adapter_t		sc_va;		/* must be first */
 
-	phandle_t		sc_node;	
+	phandle_t		sc_node;
 	uint16_t		sc_chip_id;
 	uint8_t			sc_chip_rev;
 
@@ -572,7 +572,7 @@ machfb_init(int unit, video_adapter_t *adp, int flags)
 
 	vid_init_struct(adp, MACHFB_DRIVER_NAME, -1, unit);
 
- 	if (OF_getprop(sc->sc_node, "height", &sc->sc_height,
+	if (OF_getprop(sc->sc_node, "height", &sc->sc_height,
 	    sizeof(sc->sc_height)) == -1)
 		return (ENXIO);
 	if (OF_getprop(sc->sc_node, "width", &sc->sc_width,
@@ -630,12 +630,12 @@ machfb_init(int unit, video_adapter_t *adp, int flags)
 
 	machfb_init_engine(sc);
 #if 0
-	mach64_adjust_frame(0, 0);
+	machfb_adjust_frame(0, 0);
 #endif
 	machfb_set_mode(adp, 0);
 
 	/*
-	 * Install our 16-color color map. This is done only once and with
+	 * Install our 16-color color map.  This is done only once and with
 	 * an offset of 16 on sparc64 as there the OBP driver expects white
 	 * to be at index 0 and black at 255 (some versions also use 1 - 8
 	 * for color text support or the full palette for the boot banner
@@ -880,13 +880,13 @@ machfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
 
 	if (adp->va_mem_base != 0 && offset >= adp->va_mem_base &&
 	    offset < adp->va_mem_base + adp->va_mem_size) {
-	    	*paddr = sc->sc_vmemh + offset - adp->va_mem_base;
+		*paddr = sc->sc_vmemh + offset - adp->va_mem_base;
 		return (0);
 	}
 
 	if (offset >= adp->va_registers &&
 	    offset < adp->va_registers + adp->va_registers_size) {
-	    	*paddr = sc->sc_memh + offset - adp->va_registers;
+		*paddr = sc->sc_memh + offset - adp->va_registers;
 		return (0);
 	}
 
@@ -1083,7 +1083,7 @@ machfb_puts(video_adapter_t *adp, vm_offset_t off, uint16_t *s, int len)
 	for (i = 0; i < len; i++) {
 		/*
 		 * Accelerate continuous blanks by drawing a respective
-		 * rectangle instead. Drawing a rectangle of any size
+		 * rectangle instead.  Drawing a rectangle of any size
 		 * takes about the same number of operations as drawing
 		 * a single character.
 		 */
@@ -1091,7 +1091,7 @@ machfb_puts(video_adapter_t *adp, vm_offset_t off, uint16_t *s, int len)
 		a = (s[i] & 0xff00) >> 8;
 		if (c == 0x00 || c == 0x20 || c == 0xdb || c == 0xff) {
 			color2 = (a >> (c == 0xdb ? 0 : 4) & 0xf);
-	    		x2 = (((off + i) % adp->va_info.vi_width) *
+			x2 = (((off + i) % adp->va_info.vi_width) *
 			    adp->va_info.vi_cwidth) + sc->sc_xmargin;
 			y2 = (((off + i) / adp->va_info.vi_width) *
 			    adp->va_info.vi_cheight) + sc->sc_ymargin;
@@ -1135,7 +1135,7 @@ machfb_putm(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 
 	if ((!(sc->sc_flags & MACHFB_CUREN)) &&
 	    (error = machfb_cursor_install(sc)) < 0)
-	    	return (error);
+		return (error);
 	else {
 		/*
 		 * The hardware cursor always must be disabled when
@@ -1174,7 +1174,7 @@ machfb_pci_probe(device_t dev)
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
-	
+
 	return (ENXIO);
 }
 
@@ -1192,8 +1192,8 @@ machfb_pci_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	if ((sc = (struct machfb_softc *)vid_get_adapter(vid_find_adapter(
 	    MACHFB_DRIVER_NAME, 0))) != NULL && sc->sc_node == node) {
-	    	device_printf(dev, "console\n");
-	    	device_set_softc(dev, sc);
+		device_printf(dev, "console\n");
+		device_set_softc(dev, sc);
 	} else {
 		sc = device_get_softc(dev);
 		bzero(sc, sizeof(struct machfb_softc));
@@ -1203,7 +1203,7 @@ machfb_pci_attach(device_t dev)
 		sc->sc_chip_rev = pci_get_revid(dev);
 	}
 	adp = &sc->sc_va;
-		
+
 	/*
 	 * Regardless whether we are the console and already allocated
 	 * resources in machfb_configure() or not we have to allocate
@@ -1214,7 +1214,7 @@ machfb_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND,
 	    pci_read_config(dev, PCIR_COMMAND, 2) | PCIM_CMD_PORTEN |
 	    PCIM_CMD_MEMEN, 2);
-	
+
 	sc->sc_memrid = PCIR_BAR(0);
 	if ((sc->sc_memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->sc_memrid, RF_ACTIVE)) == NULL) {
@@ -1228,18 +1228,18 @@ machfb_pci_attach(device_t dev)
 	sc->sc_regt = sc->sc_memt;
 	bus_space_subregion(sc->sc_regt, sc->sc_memh, MACH64_REG_OFF,
 	    MACH64_REG_SIZE, &sc->sc_regh);
-    	adp->va_buffer = (vm_offset_t)rman_get_virtual(sc->sc_memres);
+	adp->va_buffer = (vm_offset_t)rman_get_virtual(sc->sc_memres);
 	adp->va_buffer_size = rman_get_size(sc->sc_memres);
 
 	/*
 	 * Depending on the firmware version the VGA I/O and/or memory
-	 * resources of the Mach64 chips come up disabled. We generally
+	 * resources of the Mach64 chips come up disabled.  We generally
 	 * enable them above (pci(4) actually already did this unless
 	 * pci_enable_io_modes is not set) but this doesn't necessarily
-	 * mean that we get valid ones. Invalid resources seem to have
-	 * in common that they start at address 0. We don't allocate
+	 * mean that we get valid ones.  Invalid resources seem to have
+	 * in common that they start at address 0.  We don't allocate
 	 * them in this case in order to avoid warnings in apb(4) and
-	 * crashes when using these invalid resources. Xorg is aware
+	 * crashes when using these invalid resources.  Xorg is aware
 	 * of this and doesn't use the VGA resources in this case (but
 	 * demands them if they are valid).
 	 */
@@ -1288,9 +1288,9 @@ machfb_pci_attach(device_t dev)
 		/*
 		 * During device configuration we don't necessarily probe
 		 * the adapter which is the console first so we can't use
-		 * the device unit number for the video adapter unit. The
+		 * the device unit number for the video adapter unit.  The
 		 * worst case would be that we use the video adapter unit
-		 * 0 twice. As it doesn't really matter which unit number
+		 * 0 twice.  As it doesn't really matter which unit number
 		 * the corresponding video adapter has just use the next
 		 * unused one.
 		 */
@@ -1299,7 +1299,7 @@ machfb_pci_attach(device_t dev)
 				break;
 		if ((error = sw->init(i, adp, 0)) != 0) {
 			device_printf(dev, "cannot initialize adapter\n");
-		    	goto fail_vmemres;
+			goto fail_vmemres;
 		}
 	}
 
@@ -1333,7 +1333,7 @@ machfb_pci_attach(device_t dev)
 	/*
 	 * Allocate one page for the mouse pointer image at the end of
 	 * the little endian aperture, right before the memory mapped
-	 * registers that might also reside there. Must be done after
+	 * registers that might also reside there.  Must be done after
 	 * sc_memsize was set and possibly adjusted to account for the
 	 * memory mapped registers.
 	 */
@@ -1346,7 +1346,7 @@ machfb_pci_attach(device_t dev)
 	/*
 	 * Register a handler that performs some cosmetic surgery like
 	 * turning off the mouse pointer on halt in preparation for
-	 * handing the screen over to the OFW. Register another handler
+	 * handing the screen over to the OFW.  Register another handler
 	 * that turns off the CRTC when resetting, otherwise the OFW
 	 * boot command issued by cpu_reset() just doesn't work.
 	 */
@@ -1358,12 +1358,12 @@ machfb_pci_attach(device_t dev)
 	return (0);
 
  fail_vmemres:
- 	if (sc->sc_vmemres != NULL)
-	 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_vmemrid,
+	if (sc->sc_vmemres != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_vmemrid,
 		    sc->sc_vmemres);
  fail_viores:
- 	if (sc->sc_viores != NULL)
-	 	bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_viorid,
+	if (sc->sc_viores != NULL)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_viorid,
 		    sc->sc_viores);
  fail_memres:
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_memrid, sc->sc_memres);
@@ -1556,7 +1556,7 @@ machfb_adjust_frame(struct machfb_softc *sc, int x, int y)
 	offset = ((x + y * sc->sc_width) * (sc->sc_depth >> 3)) >> 3;
 
 	regw(sc, CRTC_OFF_PITCH, (regr(sc, CRTC_OFF_PITCH) & 0xfff00000) |
-	     offset);
+	    offset);
 }
 #endif
 
