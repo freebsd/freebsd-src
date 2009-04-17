@@ -75,6 +75,7 @@
 #define	HAVE_LIMITS_H 1
 #define	HAVE_LUTIMES 1
 #define	HAVE_MALLOC 1
+#define	HAVE_MD5 1
 #define	HAVE_MD5_H 1
 #define	HAVE_MEMMOVE 1
 #define	HAVE_MEMSET 1
@@ -89,11 +90,16 @@
 #define	HAVE_POLL_H 1
 #define	HAVE_PWD_H 1
 #define	HAVE_READLINK 1
-#define	HAVE_RIPEMD_H 1
+#define	HAVE_RMD160 1
 #define	HAVE_SELECT 1
 #define	HAVE_SETENV 1
 #define	HAVE_SHA_H 1
+#define	HAVE_SHA1 1
+#define	HAVE_SHA256 1
 #define	HAVE_SHA256_H 1
+#define	HAVE_SHA384 1
+#define	HAVE_SHA512 1
+#define	HAVE_SIGNAL_H 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
 #define	HAVE_STRCHR 1
