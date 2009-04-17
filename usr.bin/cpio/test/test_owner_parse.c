@@ -27,24 +27,67 @@ __FBSDID("$FreeBSD$");
 
 #include "../cpio.h"
 
+#if defined(__CYGWIN__)
+/* On cygwin, the Administrator user most likely exists (unless
+ * it has been renamed or is in a non-English localization), but
+ * its primary group membership depends on how the user set up
+ * their /etc/passwd. Likely values are 513 (None), 545 (Users),
+ * or 544 (Administrators). Just check for one of those...
+ * TODO: Handle non-English localizations...e.g. French 'Administrateur'
+ *       Use CreateWellKnownSID() and LookupAccountName()?
+ */
+#define ROOT "Administrator"
+#define ROOT_UID 500
+#define ROOT_GID1 513
+#define ROOT_GID2 545
+#define ROOT_GID3 544
+#else
+#define ROOT "root"
+#define ROOT_UID 0
+#define ROOT_GID 0
+#endif
+
+
 DEFINE_TEST(test_owner_parse)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* TODO: Does this need cygwin style handling of uid/gid ? */
+	skipping("Windows cannot handle uid/gid as UNIX like system");
+#else
 	int uid, gid;
 
 	cpio_progname = "Ignore this message";
 
-	assertEqualInt(0, owner_parse("root", &uid, &gid));
-	assertEqualInt(0, uid);
+	assertEqualInt(0, owner_parse(ROOT, &uid, &gid));
+	assertEqualInt(ROOT_UID, uid);
 	assertEqualInt(-1, gid);
 
 
-	assertEqualInt(0, owner_parse("root:", &uid, &gid));
-	assertEqualInt(0, uid);
-	assertEqualInt(0, gid);
+	assertEqualInt(0, owner_parse(ROOT ":", &uid, &gid));
+	assertEqualInt(ROOT_UID, uid);
+#if defined(__CYGWIN__)
+	{
+		int gidIsOneOf = (ROOT_GID1 == gid)
+			|| (ROOT_GID2 == gid)
+			|| (ROOT_GID3 == gid);
+		assertEqualInt(1, gidIsOneOf);
+	}
+#else
+	assertEqualInt(ROOT_GID, gid);
+#endif
 
-	assertEqualInt(0, owner_parse("root.", &uid, &gid));
-	assertEqualInt(0, uid);
-	assertEqualInt(0, gid);
+	assertEqualInt(0, owner_parse(ROOT ".", &uid, &gid));
+	assertEqualInt(ROOT_UID, uid);
+#if defined(__CYGWIN__)
+	{
+		int gidIsOneOf = (ROOT_GID1 == gid)
+			|| (ROOT_GID2 == gid)
+			|| (ROOT_GID3 == gid);
+		assertEqualInt(1, gidIsOneOf);
+	}
+#else
+	assertEqualInt(ROOT_GID, gid);
+#endif
 
 	/*
 	 * TODO: Lookup current user/group name, build strings and
@@ -62,7 +105,8 @@ DEFINE_TEST(test_owner_parse)
 	 */
 
 	assertEqualInt(1, owner_parse(":nonexistentgroup", &uid, &gid));
-	assertEqualInt(1, owner_parse("root:nonexistentgroup", &uid, &gid));
+	assertEqualInt(1, owner_parse(ROOT ":nonexistentgroup", &uid, &gid));
 	assertEqualInt(1,
 	    owner_parse("nonexistentuser:nonexistentgroup", &uid, &gid));
+#endif
 }
