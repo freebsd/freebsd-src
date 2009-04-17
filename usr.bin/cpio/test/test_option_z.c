@@ -44,9 +44,16 @@ DEFINE_TEST(test_option_z)
 	failure("-z option seems to be broken");
 	assertEqualInt(r, 0);
 	if (r == 0) {
-		/* Check that the archive file has a gzip signature. */
-		p = slurpfile(&s, "archive.out");
-		assert(s > 2);
-		assertEqualMem(p, "\x1f\x8b\x08\x00", 4);
+		p = slurpfile(&s, "archive.err");
+		p[s] = '\0';
+		if (strstr(p, "gzip compression not supported") != NULL) {
+			skipping("This version of bsdcpio was compiled "
+			    "without gzip support");
+		} else {
+			/* Check that the archive file has a gzip signature. */
+			p = slurpfile(&s, "archive.out");
+			assert(s > 2);
+			assertEqualMem(p, "\x1f\x8b\x08\x00", 4);
+		}
 	}
 }

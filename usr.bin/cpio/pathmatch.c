@@ -101,11 +101,10 @@ pm_list(const char *start, const char *end, const char c, int flags)
  */
 static const char *
 pm_slashskip(const char *s) {
-	while (*s == '.' || *s == '/') {
-		if (s[0] != '/' && s[1] != '/')
-			break;
+	while ((*s == '/')
+	    || (s[0] == '.' && s[1] == '/')
+	    || (s[0] == '.' && s[1] == '\0'))
 		++s;
-	}
 	return (s);
 }
 
@@ -130,8 +129,6 @@ pm(const char *p, const char *s, int flags)
 					return (1);
 				/* "dir" == "dir/" == "dir/." */
 				s = pm_slashskip(s);
-				if (s[0] == '.' && s[1] == '\0')
-					return (1);
 			}
 			return (*s == '\0');
 			break;
@@ -176,19 +173,6 @@ pm(const char *p, const char *s, int flags)
 				if (*p != *s)
 					return (0);
 			break;
-		default:
-			if (*p == *s)
-				break;
-			if ((*s == '\0') && (*p == '/')) {
-				p = pm_slashskip(p);
-				if (*p == '\0')
-					return (1);
-				if (p[0] == '.' && p[1] == '\0')
-					return (1);
-				return (0);
-			}
-			return (0);
-			break;
 		case '\\':
 			/* Trailing '\\' matches itself. */
 			if (p[1] == '\0') {
@@ -200,19 +184,34 @@ pm(const char *p, const char *s, int flags)
 					return (0);
 			}
 			break;
-		}
-		/*
-		 * TODO: pattern of "\/\.\/" should not match plain "/",
-		 * it should only match explicit "/./".
-		 */
-		if (*p == '/')
+		case '/':
+			if (*s != '/' && *s != '\0')
+				return (0);
+			/* Note: pattern "/\./" won't match "/";
+			 * pm_slashskip() correctly stops at backslash. */
 			p = pm_slashskip(p);
-		else
-			++p;
-		if (*s == '/')
 			s = pm_slashskip(s);
-		else
-			++s;
+			if (*p == '\0' && (flags & PATHMATCH_NO_ANCHOR_END))
+				return (1);
+			--p; /* Counteract the increment below. */
+			--s;
+			break;
+		case '$':
+			/* '$' is special only at end of pattern and only
+			 * if PATHMATCH_NO_ANCHOR_END is specified. */
+			if (p[1] == '\0' && (flags & PATHMATCH_NO_ANCHOR_END)){
+				/* "dir" == "dir/" == "dir/." */
+				return (*pm_slashskip(s) == '\0');
+			}
+			/* Otherwise, '$' is not special. */
+			/* FALL THROUGH */
+		default:
+			if (*p != *s)
+				return (0);
+			break;
+		}
+		++p;
+		++s;
 	}
 }
 
@@ -236,9 +235,9 @@ pathmatch(const char *p, const char *s, int flags)
 
 	/* If start is unanchored, try to match start of each path element. */
 	if (flags & PATHMATCH_NO_ANCHOR_START) {
-		for ( ; p != NULL; p = strchr(p, '/')) {
-			if (*p == '/')
-				p++;
+		for ( ; s != NULL; s = strchr(s, '/')) {
+			if (*s == '/')
+				s++;
 			if (pm(p, s, flags))
 				return (1);
 		}

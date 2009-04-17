@@ -33,28 +33,45 @@
  */
 #if defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
-#include "../../config.h"
+#include "config.h"
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
-#include "../config_freebsd.h"
-#elif defined(_WIN32)
+#include "config_freebsd.h"
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 /* Win32 can't run the 'configure' script. */
-#include "../config_windows.h"
+#include "config_windows.h"
 #else
 /* Warn if the library hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <dirent.h>
+#else
+#include "../cpio_windows.h"
+#endif
+#if defined(__CYGWIN__)
+/* In cygwin-1.7.x, the .nlinks field of directories is
+ * deliberately inaccurate, because to populate it requires
+ * stat'ing every file in the directory, which is slow.
+ * So, as an optimization cygwin doesn't do that in newer
+ * releases; all correct applications on any platform should
+ * never rely on it being > 1, so this optimization doesn't
+ * impact the operation of correctly coded applications.
+ * Therefore, the cpio test should not check its accuracy
+ */
+# define NLINKS_INACCURATE_FOR_DIRS
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
 #endif
+#include <time.h>
 #include <wchar.h>
 
 #ifdef USE_DMALLOC
@@ -65,7 +82,8 @@
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
-#define	__FBSDID(a)     /* null */
+#undef __FBSDID
+#define	__FBSDID(a)     struct _undefined_hack
 #endif
 
 /*
@@ -107,6 +125,8 @@
 /* Assert that file contents match a string; supports printf-style arguments. */
 #define assertFileContents             \
   test_setup(__FILE__, __LINE__);test_assert_file_contents
+#define assertTextFileContents         \
+  test_setup(__FILE__, __LINE__);test_assert_text_file_contents
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -129,6 +149,7 @@ int test_assert_equal_string(const char *, int, const char *v1, const char *, co
 int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
 int test_assert_equal_mem(const char *, int, const char *, const char *, const char *, const char *, size_t, const char *, void *);
 int test_assert_file_contents(const void *, int, const char *, ...);
+int test_assert_text_file_contents(const char *buff, const char *f);
 int test_assert_file_exists(const char *, ...);
 int test_assert_file_not_exists(const char *, ...);
 
@@ -147,4 +168,4 @@ void extract_reference_file(const char *);
  */
 
 /* Pathname of exe to be tested. */
-char *testprog;
+const char *testprog;
