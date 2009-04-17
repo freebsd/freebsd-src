@@ -404,10 +404,13 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 		len = readline(a, mtree, &p, 256);
 		if (len == 0) {
 			mtree->this_entry = mtree->entries;
+			free_options(global);
 			return (ARCHIVE_OK);
 		}
-		if (len < 0)
+		if (len < 0) {
+			free_options(global);
 			return (len);
+		}
 		/* Leading whitespace is never significant, ignore it. */
 		while (*p == ' ' || *p == '\t') {
 			++p;
@@ -432,13 +435,16 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 		} else
 			break;
 
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			free_options(global);
 			return r;
+		}
 	}
 
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "Can't parse line %ju", counter);
-	return ARCHIVE_FATAL;
+	free_options(global);
+	return (ARCHIVE_FATAL);
 }
 
 /*
