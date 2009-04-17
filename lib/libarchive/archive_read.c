@@ -120,7 +120,11 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 	size_t i;
 	int len, r;
 
+	if (s == NULL || *s == '\0')
+		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
+	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_set_format_options");
 	len = 0;
 	for (i = 0; i < sizeof(a->formats)/sizeof(a->formats[0]); i++) {
 		format = &a->formats[i];
@@ -160,7 +164,11 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 	char key[64], val[64];
 	int len, r;
 
+	if (s == NULL || *s == '\0')
+		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
+	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_set_filter_options");
 	filter = a->filter;
 	len = 0;
 	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
@@ -368,18 +376,15 @@ build_stream(struct archive_read *a)
  * Read header of next entry.
  */
 int
-archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_entry *entry;
 	int slot, ret;
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_next_header");
 
-	*entryp = NULL;
-	entry = a->entry;
 	archive_entry_clear(entry);
 	archive_clear_error(&a->archive);
 
@@ -437,10 +442,20 @@ archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 		break;
 	}
 
-	*entryp = entry;
 	a->read_data_output_offset = 0;
 	a->read_data_remaining = 0;
 	return (ret);
+}
+
+int
+archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+{
+	int ret;
+	struct archive_read *a = (struct archive_read *)_a;
+	*entryp = NULL;
+	ret = archive_read_next_header2(_a, a->entry);
+	*entryp = a->entry;
+	return ret;
 }
 
 /*
@@ -680,7 +695,9 @@ _archive_read_close(struct archive *_a)
 
 	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_close");
+	archive_clear_error(&a->archive);
 	a->archive.state = ARCHIVE_STATE_CLOSED;
+
 
 	/* Call cleanup functions registered by optional components. */
 	if (a->cleanup_archive_extract != NULL)
