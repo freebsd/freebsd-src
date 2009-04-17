@@ -417,9 +417,9 @@ ipw_detach(device_t dev)
 	ieee80211_ifdetach(ic);
 
 	callout_drain(&sc->sc_wdtimer);
-	taskqueue_drain(taskqueue_fast, &sc->sc_init_task);
-	taskqueue_drain(taskqueue_fast, &sc->sc_scan_task);
-	taskqueue_drain(taskqueue_fast, &sc->sc_bmiss_task);
+	taskqueue_drain(taskqueue_swi, &sc->sc_init_task);
+	taskqueue_drain(taskqueue_swi, &sc->sc_scan_task);
+	taskqueue_drain(taskqueue_swi, &sc->sc_bmiss_task);
 
 	ipw_release(sc);
 
