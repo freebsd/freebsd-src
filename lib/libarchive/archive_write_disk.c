@@ -1278,6 +1278,8 @@ _archive_write_finish(struct archive *_a)
 		(a->cleanup_gid)(a->lookup_gid_data);
 	if (a->cleanup_uid != NULL && a->lookup_uid_data != NULL)
 		(a->cleanup_uid)(a->lookup_uid_data);
+	if (a->entry)
+		archive_entry_free(a->entry);
 	archive_string_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
 	archive_string_free(&a->path_safe);
