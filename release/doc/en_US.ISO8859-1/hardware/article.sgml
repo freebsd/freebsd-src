@@ -853,9 +853,6 @@
 
       &hwlist.ral;
 
-      <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz
-	wireless adapters (&man.ray.4; driver)</para>
-
       &hwlist.rum;
 
       &hwlist.uath;
@@ -1039,9 +1036,6 @@
       <para>[&arch.amd64;, &arch.i386;] AST 4 port serial card using
 	shared IRQ</para>
 
-      <para>[&arch.i386;] ARNET serial cards (&man.ar.4;
-	driver)</para>
-
       <itemizedlist>
 	<listitem>
 	  <para>ARNET 8 port serial card using shared IRQ</para>
@@ -1206,8 +1200,6 @@
       </itemizedlist>
 
       &hwlist.rc;
-
-      &hwlist.sr;
 
       <para>[&arch.i386;, &arch.amd64;] Specialix SI/XIO/SX multiport
 	serial cards, with both the older SIHOST2.x and the
