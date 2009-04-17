@@ -44,29 +44,17 @@ DEFINE_TEST(test_read_format_pax_bz2)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	int r;
 
 	assert((a = archive_read_new()) != NULL);
-	assert(0 == archive_read_support_compression_all(a));
-	assert(0 == archive_read_support_format_all(a));
-	assert(0 == archive_read_open_memory(a, archive, sizeof(archive)));
-	r = archive_read_next_header(a, &ae);
-	if (UnsupportedCompress(r, a)) {
-		skipping("Skipping BZIP2 compression check: "
-		    "This version of libarchive was compiled "
-		    "without bzip2 support");
-		goto finish;
-	}
-	assert(0 == r);
-	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);
-	assert(archive_format(a) == ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE);
-	assert(0 == archive_read_close(a));
-finish:
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assert(0 == archive_read_finish(a));
-#endif
+	assertEqualIntA(a,ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a,ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a,ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a,ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE);
+	assertEqualIntA(a,ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 

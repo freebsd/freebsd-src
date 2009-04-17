@@ -96,7 +96,7 @@ read_open_memory_internal(struct archive *a, void *buff,
 			    memory_read, memory_read_skip, memory_read_close));
 	else
 		return (archive_read_open2(a, mine, NULL,
-			    memory_read, NULL, NULL));
+			    memory_read, NULL, memory_read_close));
 }
 
 /*

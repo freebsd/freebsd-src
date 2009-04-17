@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2008 Miklos Vajna
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,53 @@
 __FBSDID("$FreeBSD$");
 
 static unsigned char archive[] = {
-'B','Z','h','9','1','A','Y','&','S','Y',237,7,140,'W',0,0,27,251,144,208,
-128,0,' ','@',1,'o',128,0,0,224,'"',30,0,0,'@',0,8,' ',0,'T','2',26,163,'&',
-129,160,211,212,18,'I',169,234,13,168,26,6,150,'1',155,134,'p',8,173,3,183,
-'J','S',26,20,'2',222,'b',240,160,'a','>',205,'f',29,170,227,'[',179,139,
-'\'','L','o',211,':',178,'0',162,134,'*','>','8',24,153,230,147,'R','?',23,
-'r','E','8','P',144,237,7,140,'W'};
+0x5d, 0x0, 0x0, 0x80, 0x0, 0x0, 0x28, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+0x17, 0xb, 0xbc, 0x1c, 0x7d, 0x1, 0x95, 0xc0, 0x1d, 0x4a, 0x46, 0x9c,
+0x1c, 0xc5, 0x8, 0x82, 0x10, 0xed, 0x84, 0xf6, 0xea, 0x7a, 0xfe, 0x63,
+0x5a, 0x34, 0x5e, 0xf7, 0xc, 0x60, 0xd6, 0x8b, 0xc1, 0x47, 0xaf, 0x11,
+0x6f, 0x18, 0x94, 0x81, 0x74, 0x8a, 0xf8, 0x47, 0xcc, 0xdd, 0xc0, 0xd9,
+0x40, 0xa, 0xc3, 0xac, 0x43, 0x47, 0xb5, 0xac, 0x2b, 0x31, 0xd3, 0x6,
+0xa4, 0x2c, 0x44, 0x80, 0x24, 0x4b, 0xfe, 0x43, 0x22, 0x4e, 0x14, 0x30,
+0x7a, 0xef, 0x99, 0x6e, 0xf, 0x8b, 0xc1, 0x79, 0x93, 0x88, 0x54, 0x73,
+0x59, 0x3f, 0xc, 0xfb, 0xee, 0x9c, 0x83, 0x49, 0x93, 0x33, 0xad, 0x44,
+0xbe, 0x0};
 
-DEFINE_TEST(test_read_format_tbz)
+DEFINE_TEST(test_read_format_gtar_lzma)
 {
+	int r;
+
 	struct archive_entry *ae;
 	struct archive *a;
-
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+	    archive_read_support_compression_all(a));
+	r = archive_read_support_compression_lzma(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("lzma reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		return;
+	}
+
+	assertEqualIntA(a, ARCHIVE_OK, r);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	r = archive_read_open_memory2(a, archive, sizeof(archive), 3);
+	if (r != ARCHIVE_OK) {
+		skipping("Skipping LZMA compression check: %s",
+		    archive_error_string(a));
+		goto finish;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_LZMA);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_GNUTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+finish:
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_read_finish(a);
+#else
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+#endif
 }
 
 
