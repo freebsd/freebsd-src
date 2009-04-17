@@ -83,9 +83,6 @@ typedef struct ubtbcmfw_softc	*ubtbcmfw_softc_p;
  * Device methods
  */
 
-#define UBTBCMFW_UNIT(n)	((dev2unit(n) >> 4) & 0xf)
-#define UBTBCMFW_ENDPOINT(n)	(dev2unit(n) & 0xf)
-#define UBTBCMFW_MINOR(u, e)	(((u) << 4) | (e))
 #define UBTBCMFW_BSIZE		1024
 
 static d_open_t		ubtbcmfw_open;
@@ -210,19 +207,19 @@ ubtbcmfw_attach(device_t self)
 
 	/* Create device nodes */
 	sc->sc_ctrl_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), 0),
-		UID_ROOT, GID_OPERATOR, 0644,
+		0, UID_ROOT, GID_OPERATOR, 0644,
 		"%s", device_get_nameunit(sc->sc_dev));
+	sc->sc_ctrl_dev->si_drv1 = sc;
 
 	sc->sc_intr_in_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), UBTBCMFW_INTR_IN),
-		UID_ROOT, GID_OPERATOR, 0644,
+		UBTBCMFW_INTR_IN, UID_ROOT, GID_OPERATOR, 0644,
 		"%s.%d", device_get_nameunit(sc->sc_dev), UBTBCMFW_INTR_IN);
+	sc->sc_intr_in_dev->si_drv1 = sc;
 
 	sc->sc_bulk_out_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), UBTBCMFW_BULK_OUT),
-		UID_ROOT, GID_OPERATOR, 0644,
+		UBTBCMFW_BULK_OUT, UID_ROOT, GID_OPERATOR, 0644,
 		"%s.%d", device_get_nameunit(sc->sc_dev), UBTBCMFW_BULK_OUT);
+	sc->sc_bulk_out_dev->si_drv1 = sc;
 
 	return 0;
 bad:
@@ -288,17 +285,13 @@ ubtbcmfw_detach(device_t self)
 static int
 ubtbcmfw_open(struct cdev *dev, int flag, int mode, struct thread *p)
 {
-	ubtbcmfw_softc_p	sc = NULL;
+	ubtbcmfw_softc_p	sc = dev->si_drv1;
 	int			error = 0;
 
-	/* checks for sc != NULL */
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL)
-		return (ENXIO);
 	if (sc->sc_dying)
 		return (ENXIO);
 
-	switch (UBTBCMFW_ENDPOINT(dev)) {
+	switch (dev2unit(dev)) {
 	case USB_CONTROL_ENDPOINT:
 		if (!(sc->sc_flags & UBTBCMFW_CTRL_DEV))
 			sc->sc_flags |= UBTBCMFW_CTRL_DEV;
@@ -342,13 +335,9 @@ ubtbcmfw_open(struct cdev *dev, int flag, int mode, struct thread *p)
 static int
 ubtbcmfw_close(struct cdev *dev, int flag, int mode, struct thread *p)
 {
-	ubtbcmfw_softc_p	sc = NULL;
+	ubtbcmfw_softc_p	sc = dev->si_drv1;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL)
-		return (ENXIO);
-
-	switch (UBTBCMFW_ENDPOINT(dev)) {
+	switch (dev2unit(dev)) {
 	case USB_CONTROL_ENDPOINT:
 		sc->sc_flags &= ~UBTBCMFW_CTRL_DEV;
 		break;
@@ -379,17 +368,16 @@ ubtbcmfw_close(struct cdev *dev, int flag, int mode, struct thread *p)
 static int
 ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
 {
-	ubtbcmfw_softc_p	sc = NULL;
+	ubtbcmfw_softc_p	sc = dev->si_drv1;
 	u_int8_t		buf[UBTBCMFW_BSIZE];
 	usbd_xfer_handle	xfer;
 	usbd_status		err;
 	int			n, tn, error = 0;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL || sc->sc_dying)
+	if (sc->sc_dying)
 		return (ENXIO);
 
-	if (UBTBCMFW_ENDPOINT(dev) != UBTBCMFW_INTR_IN)
+	if (dev2unit(dev) != UBTBCMFW_INTR_IN)
 		return (EOPNOTSUPP);
 	if (sc->sc_intr_in_pipe == NULL)
 		return (ENXIO);
@@ -443,17 +431,16 @@ ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
 static int
 ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
 {
-	ubtbcmfw_softc_p	sc = NULL;
+	ubtbcmfw_softc_p	sc = dev->si_drv1;
 	u_int8_t		buf[UBTBCMFW_BSIZE];
 	usbd_xfer_handle	xfer;
 	usbd_status		err;
 	int			n, error = 0;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL || sc->sc_dying)
+	if (sc->sc_dying)
 		return (ENXIO);
 
-	if (UBTBCMFW_ENDPOINT(dev) != UBTBCMFW_BULK_OUT)
+	if (dev2unit(dev) != UBTBCMFW_BULK_OUT)
 		return (EOPNOTSUPP);
 	if (sc->sc_bulk_out_pipe == NULL)
 		return (ENXIO);
@@ -509,14 +496,13 @@ static int
 ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
   struct thread *p)
 {
-	ubtbcmfw_softc_p	sc = NULL;
+	ubtbcmfw_softc_p	sc = dev->si_drv1;
 	int			error = 0;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL || sc->sc_dying)
+	if (sc->sc_dying)
 		return (ENXIO);
 
-	if (UBTBCMFW_ENDPOINT(dev) != USB_CONTROL_ENDPOINT)
+	if (dev2unit(dev) != USB_CONTROL_ENDPOINT)
 		return (EOPNOTSUPP);
 
 	sc->sc_refcnt ++;
@@ -546,14 +532,10 @@ ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 static int
 ubtbcmfw_poll(struct cdev *dev, int events, struct thread *p)
 {
-	ubtbcmfw_softc_p	sc = NULL;
+	ubtbcmfw_softc_p	sc = dev->si_drv1;
 	int			revents = 0;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL)
-		return (ENXIO);
-
-	switch (UBTBCMFW_ENDPOINT(dev)) {
+	switch (dev2unit(dev)) {
 	case UBTBCMFW_INTR_IN:
 		if (sc->sc_intr_in_pipe != NULL)
 			revents |= events & (POLLIN | POLLRDNORM);
