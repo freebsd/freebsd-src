@@ -83,7 +83,7 @@ struct open_disk {
     int			od_cyl;			/* BIOS geometry */
     int			od_hds;
     int			od_sec;
-    int			od_boff;		/* block offset from beginning of BIOS disk */
+    daddr_t			od_boff;		/* block offset from beginning of BIOS disk */
     int			od_flags;
 #define BD_MODEINT13		0x0000
 #define BD_MODEEDD1		0x0001
