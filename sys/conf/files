@@ -1501,7 +1501,6 @@ legacy/dev/usb/ehci.c		optional oehci
 legacy/dev/usb/ehci_ddb.c	optional oehci
 legacy/dev/usb/ehci_pci.c	optional oehci pci
 legacy/dev/usb/hid.c		optional ousb
-legacy/dev/usb/if_aue.c		optional oaue
 legacy/dev/usb/ohci.c		optional oohci
 legacy/dev/usb/ohci_pci.c	optional oohci pci
 legacy/dev/usb/sl811hs.c	optional oslhci
