@@ -124,21 +124,23 @@ DEFINE_TEST(test_read_disk)
 
 		/* Get the group name for group 0 and see if it makes sense. */
 		p = archive_read_disk_gname(a, 0);
-		i = 0;
-		while (i < sizeof(zero_groups)/sizeof(zero_groups[0])) {
-			if (strcmp(zero_groups[i], p) == 0)
-				break;
-			++i;
-		}
-		if (i == sizeof(zero_groups)/sizeof(zero_groups[0])) {
-			/* If you get a failure here, either
-			 * archive_read_disk_gname() isn't working or
-			 * your system uses a different name for group
-			 * number zero.  If the latter, please add a
-			 * new entry to the zero_groups[] array above.
-			 */
-			failure("group 0 didn't have any of the expected names");
-			assertEqualString(p, zero_groups[0]);
+		if (assert(p != NULL)) {
+			i = 0;
+			while (i < sizeof(zero_groups)/sizeof(zero_groups[0])) {
+				if (strcmp(zero_groups[i], p) == 0)
+					break;
+				++i;
+			}
+			if (i == sizeof(zero_groups)/sizeof(zero_groups[0])) {
+				/* If you get a failure here, either
+				 * archive_read_disk_gname() isn't working or
+				 * your system uses a different name for group
+				 * number zero.  If the latter, please add a
+				 * new entry to the zero_groups[] array above.
+				 */
+				failure("group 0 didn't have any of the expected names");
+				assertEqualString(p, zero_groups[0]);
+			}
 		}
 #endif
 	}

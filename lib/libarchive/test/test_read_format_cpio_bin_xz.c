@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -26,28 +27,44 @@
 __FBSDID("$FreeBSD$");
 
 static unsigned char archive[] = {
-'B','Z','h','9','1','A','Y','&','S','Y',237,7,140,'W',0,0,27,251,144,208,
-128,0,' ','@',1,'o',128,0,0,224,'"',30,0,0,'@',0,8,' ',0,'T','2',26,163,'&',
-129,160,211,212,18,'I',169,234,13,168,26,6,150,'1',155,134,'p',8,173,3,183,
-'J','S',26,20,'2',222,'b',240,160,'a','>',205,'f',29,170,227,'[',179,139,
-'\'','L','o',211,':',178,'0',162,134,'*','>','8',24,153,230,147,'R','?',23,
-'r','E','8','P',144,237,7,140,'W'};
+ 0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00, 0x00, 0x04,
+ 0xe6, 0xd6, 0xb4, 0x46, 0x02, 0x00, 0x21, 0x01,
+ 0x16, 0x00, 0x00, 0x00, 0x74, 0x2f, 0xe5, 0xa3,
+ 0xe0, 0x01, 0xff, 0x00, 0x33, 0x5d, 0x00, 0x63,
+ 0x9c, 0x3e, 0xa0, 0x43, 0x7c, 0xe6, 0x5d, 0xdc,
+ 0xeb, 0x76, 0x1d, 0x4b, 0x1b, 0xe2, 0x9e, 0x43,
+ 0x95, 0x97, 0x60, 0x16, 0x36, 0xc6, 0xd1, 0x3f,
+ 0x68, 0xd1, 0x94, 0xf9, 0xee, 0x47, 0xbb, 0xc9,
+ 0xf3, 0xa2, 0x01, 0x2a, 0x2f, 0x2b, 0xb2, 0x23,
+ 0x5a, 0x06, 0x9c, 0xd0, 0x4a, 0x6b, 0x5b, 0x14,
+ 0xb4, 0x00, 0x00, 0x00, 0x91, 0x62, 0x1e, 0x15,
+ 0x04, 0x46, 0x6b, 0x4d, 0x00, 0x01, 0x4f, 0x80,
+ 0x04, 0x00, 0x00, 0x00, 0xa1, 0x4b, 0xdf, 0x03,
+ 0xb1, 0xc4, 0x67, 0xfb, 0x02, 0x00, 0x00, 0x00,
+ 0x00, 0x04, 0x59, 0x5a      
+};
 
-DEFINE_TEST(test_read_format_tbz)
+DEFINE_TEST(test_read_format_cpio_bin_xz)
 {
 	struct archive_entry *ae;
 	struct archive *a;
+	int r;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	r = archive_read_support_compression_xz(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xz reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_XZ);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
-
 
