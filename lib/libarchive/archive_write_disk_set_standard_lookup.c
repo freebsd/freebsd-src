@@ -118,12 +118,34 @@ lookup_gid(void *private_data, const char *gname, gid_t gid)
 	b->hash = h;
 #if HAVE_GRP_H
 	{
-		struct group	*grent = getgrnam(gname);
-		if (grent != NULL)
-			gid = grent->gr_gid;
+		char _buffer[128];
+		size_t bufsize = 128;
+		char *buffer = _buffer;
+		struct group	grent, *result;
+		int r;
+
+		for (;;) {
+			r = getgrnam_r(gname, &grent, buffer, bufsize, &result);
+			if (r == 0)
+				break;
+			if (r != ERANGE)
+				break;
+			bufsize *= 2;
+			if (buffer != _buffer)
+				free(buffer);
+			buffer = malloc(bufsize);
+			if (buffer == NULL)
+				break;
+		}
+		if (result != NULL)
+			gid = result->gr_gid;
+		if (buffer != _buffer)
+			free(buffer);
 	}
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	/* TODO: do a gname->gid lookup for Windows. */
+#else
+	#error No way to perform gid lookups on this platform
 #endif
 	b->id = gid;
 
@@ -155,12 +177,34 @@ lookup_uid(void *private_data, const char *uname, uid_t uid)
 	b->hash = h;
 #if HAVE_PWD_H
 	{
-		struct passwd	*pwent = getpwnam(uname);
-		if (pwent != NULL)
-			uid = pwent->pw_uid;
+		char _buffer[128];
+		size_t bufsize = 128;
+		char *buffer = _buffer;
+		struct passwd	pwent, *result;
+		int r;
+
+		for (;;) {
+			r = getpwnam_r(uname, &pwent, buffer, bufsize, &result);
+			if (r == 0)
+				break;
+			if (r != ERANGE)
+				break;
+			bufsize *= 2;
+			if (buffer != _buffer)
+				free(buffer);
+			buffer = malloc(bufsize);
+			if (buffer == NULL)
+				break;
+		}
+		if (result != NULL)
+			uid = result->pw_uid;
+		if (buffer != _buffer)
+			free(buffer);
 	}
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	/* TODO: do a uname->uid lookup for Windows. */
+#else
+	#error No way to look up uids on this platform
 #endif
 	b->id = uid;
 
