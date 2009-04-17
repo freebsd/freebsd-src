@@ -55,7 +55,6 @@ struct read_FILE_data {
 };
 
 static int	file_close(struct archive *, void *);
-static int	file_open(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
 #if ARCHIVE_API_VERSION < 2
 static ssize_t	file_skip(struct archive *, void *, size_t request);
@@ -66,45 +65,36 @@ static off_t	file_skip(struct archive *, void *, off_t request);
 int
 archive_read_open_FILE(struct archive *a, FILE *f)
 {
+	struct stat st;
 	struct read_FILE_data *mine;
+	size_t block_size = 128 * 1024;
+	void *b;
 
 	mine = (struct read_FILE_data *)malloc(sizeof(*mine));
-	if (mine == NULL) {
-		archive_set_error(a, ENOMEM, "No memory");
-		return (ARCHIVE_FATAL);
-	}
-	mine->block_size = 128 * 1024;
-	mine->buffer = malloc(mine->block_size);
-	if (mine->buffer == NULL) {
+	b = malloc(block_size);
+	if (mine == NULL || b == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
 		free(mine);
+		free(b);
 		return (ARCHIVE_FATAL);
 	}
+	mine->block_size = block_size;
+	mine->buffer = b;
 	mine->f = f;
-	/* Suppress skip by default. See below. */
-	mine->can_skip = 0;
-	return (archive_read_open2(a, mine, file_open, file_read,
-		    file_skip, file_close));
-}
-
-static int
-file_open(struct archive *a, void *client_data)
-{
-	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
-	struct stat st;
-
 	/*
-	 * If we can't fstat() the file, it may just be that
-	 * it's not a file.  (FILE * objects can wrap many kinds
-	 * of I/O streams.)
+	 * If we can't fstat() the file, it may just be that it's not
+	 * a file.  (FILE * objects can wrap many kinds of I/O
+	 * streams, some of which don't support fileno()).)
 	 */
 	if (fstat(fileno(mine->f), &st) == 0 && S_ISREG(st.st_mode)) {
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
-		/* Enable the seek optimization for regular files. */
+		/* Enable the seek optimization only for regular files. */
 		mine->can_skip = 1;
-	}
+	} else
+		mine->can_skip = 0;
 
-	return (ARCHIVE_OK);
+	return (archive_read_open2(a, mine, NULL, file_read,
+		    file_skip, file_close));
 }
 
 static ssize_t
