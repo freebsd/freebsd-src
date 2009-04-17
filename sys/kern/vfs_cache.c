@@ -630,18 +630,23 @@ cache_enter(dvp, vp, cnp)
 			 * to new parent vnode, otherwise continue with new
 			 * namecache entry allocation.
 			 */
-			if ((ncp = dvp->v_cache_dd) != NULL) {
-				if (ncp->nc_flag & NCF_ISDOTDOT) {
-					KASSERT(ncp->nc_dvp == dvp,
-					    ("wrong isdotdot parent"));
+			if ((ncp = dvp->v_cache_dd) != NULL &&
+			    ncp->nc_flag & NCF_ISDOTDOT) {
+				KASSERT(ncp->nc_dvp == dvp,
+				    ("wrong isdotdot parent"));
+				if (ncp->nc_vp != NULL)
 					TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst,
 					    ncp, nc_dst);
+				else
+					TAILQ_REMOVE(&ncneg, ncp, nc_dst);
+				if (vp != NULL)
 					TAILQ_INSERT_HEAD(&vp->v_cache_dst,
 					    ncp, nc_dst);
-					ncp->nc_vp = vp;
-					CACHE_WUNLOCK();
-					return;
-				}
+				else
+					TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+				ncp->nc_vp = vp;
+				CACHE_WUNLOCK();
+				return;
 			}
 			dvp->v_cache_dd = NULL;
 			SDT_PROBE(vfs, namecache, enter, done, dvp, "..", vp,
