@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/proc.h>
@@ -754,6 +755,38 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 }
 
 /*
+ * Same as bread, but also checks that cached indirect block
+ * buffers were not tampered with.
+ */
+int
+breadi(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
+    struct buf **bpp)
+{
+	struct buf *bp;
+	int rv = 0;
+
+	CTR3(KTR_BUF, "breadi(%p, %jd, %d)", vp, blkno, size);
+	*bpp = bp = getblk(vp, blkno, size, 0, 0, GB_INDIR);
+
+	/* if not found in cache, do some I/O */
+	if ((bp->b_flags & B_CACHE) == 0) {
+		if (!TD_IS_IDLETHREAD(curthread))
+			curthread->td_ru.ru_inblock++;
+		bp->b_iocmd = BIO_READ;
+		bp->b_flags &= ~B_INVAL;
+		bp->b_ioflags &= ~BIO_ERROR;
+		if (bp->b_rcred == NOCRED && cred != NOCRED)
+			bp->b_rcred = crhold(cred);
+		vfs_busy_pages(bp, 0);
+		bp->b_iooffset = dbtob(bp->b_blkno);
+		bstrategy(bp);
+		rv = bufwait(bp);
+	}
+
+	return (rv);
+}
+
+/*
  * Attempt to initiate asynchronous I/O on read-ahead blocks.  We must
  * clear BIO_ERROR and B_INVAL prior to initiating I/O . If B_CACHE is set,
  * the buffer is valid and we do not have to do anything.
@@ -1218,6 +1251,10 @@ brelse(struct buf *bp)
 		}
 	}
 
+	/* Validate indirect buffer before VMIO buffer rundown. */
+	if ((bp->b_flags & B_INDIR) && !(bp->b_flags & B_INVAL))
+		BO_INDIR_CHECK(bp->b_bufobj, bp);
+
 	/*
 	 * We must clear B_RELBUF if B_DELWRI is set.  If vfs_vmio_release() 
 	 * is called with B_DELWRI set, the underlying pages may wind up
@@ -1441,6 +1478,9 @@ brelse(struct buf *bp)
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF | B_DIRECT);
 	if ((bp->b_flags & B_DELWRI) == 0 && (bp->b_xflags & BX_VNDIRTY))
 		panic("brelse: not dirty");
+
+	if ((bp->b_flags & B_INDIR) && !(bp->b_flags & B_INVAL))
+		BO_INDIR_CHECK(bp->b_bufobj, bp);
 	/* unlock */
 	BUF_UNLOCK(bp);
 }
@@ -1530,6 +1570,10 @@ bqrelse(struct buf *bp)
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	if ((bp->b_flags & B_DELWRI) == 0 && (bp->b_xflags & BX_VNDIRTY))
 		panic("bqrelse: not dirty");
+
+	if ((bp->b_flags & B_INDIR) && !(bp->b_flags & B_INVAL))
+		BO_INDIR_CHECK(bp->b_bufobj, bp);
+
 	/* unlock */
 	BUF_UNLOCK(bp);
 }
@@ -2658,6 +2702,18 @@ loop:
 			goto loop;
 		}
 		bp->b_flags &= ~B_DONE;
+
+		if (flags & GB_INDIR) {
+			if (bp->b_flags & B_INDIR) {
+				if (bp->b_flags & B_CACHE)
+					BO_INDIR_CHECK(bo, bp);
+			} else {
+				printf("XXKAN: Looking incore indirect buffer "
+					"found non-indirect one");
+				kdb_backtrace();
+				bp->b_flags |= B_INDIR;
+			}
+		}
 	} else {
 		int bsize, maxsize, vmio;
 		off_t offset;
@@ -2742,6 +2798,8 @@ loop:
 
 		allocbuf(bp, size);
 		bp->b_flags &= ~B_DONE;
+		if (flags & GB_INDIR)
+			bp->b_flags |= B_INDIR;
 	}
 	CTR4(KTR_BUF, "getblk(%p, %ld, %d) = %p", vp, (long)blkno, size, bp);
 	BUF_ASSERT_HELD(bp);
@@ -3250,6 +3308,12 @@ bufdone(struct buf *bp)
 	if (bp->b_iodone != NULL) {
 		biodone = bp->b_iodone;
 		bp->b_iodone = NULL;
+		if (bp->b_flags & B_INDIR) {
+			if ((bp->b_flags & B_INVAL) == 0  &&
+			    (bp->b_ioflags & BIO_ERROR) == 0) {
+				BO_INDIR_CHECK(bp->b_bufobj, bp);
+			}
+		}
 		(*biodone) (bp);
 		if (dropobj)
 			bufobj_wdrop(dropobj);
@@ -3393,6 +3457,12 @@ bufdone_finish(struct buf *bp)
 		VM_OBJECT_UNLOCK(obj);
 	}
 
+	if (bp->b_flags & B_INDIR) {
+		if ((bp->b_flags & B_INVAL) == 0  &&
+		    (bp->b_ioflags & BIO_ERROR) == 0) {
+			BO_INDIR_CHECK(bp->b_bufobj, bp);
+		}
+	}
 	/*
 	 * For asynchronous completions, release the buffer now. The brelse
 	 * will do a wakeup there if necessary - so no need to do a wakeup
