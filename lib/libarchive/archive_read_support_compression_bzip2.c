@@ -86,7 +86,13 @@ archive_read_support_compression_bzip2(struct archive *_a)
 	reader->init = bzip2_reader_init;
 	reader->options = NULL;
 	reader->free = bzip2_reader_free;
+#if HAVE_BZLIB_H
 	return (ARCHIVE_OK);
+#else
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	    "Using external bunzip2 program");
+	return (ARCHIVE_WARN);
+#endif
 }
 
 static int
@@ -150,10 +156,15 @@ bzip2_reader_bid(struct archive_read_filter_bidder *self, struct archive_read_fi
 static int
 bzip2_reader_init(struct archive_read_filter *self)
 {
+	int r;
 
-	archive_set_error(&self->archive->archive, -1,
-	    "This version of libarchive was compiled without bzip2 support");
-	return (ARCHIVE_FATAL);
+	r = __archive_read_program(self, "bunzip2");
+	/* Note: We set the format here even if __archive_read_program()
+	 * above fails.  We do, after all, know what the format is
+	 * even if we weren't able to read it. */
+	self->code = ARCHIVE_COMPRESSION_BZIP2;
+	self->name = "bzip2";
+	return (r);
 }
 
 
