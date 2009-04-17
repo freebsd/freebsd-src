@@ -61,7 +61,6 @@ struct read_file_data {
 };
 
 static int	file_close(struct archive *, void *);
-static int	file_open(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
 #if ARCHIVE_API_VERSION < 2
 static ssize_t	file_skip(struct archive *, void *, size_t request);
@@ -80,78 +79,54 @@ int
 archive_read_open_filename(struct archive *a, const char *filename,
     size_t block_size)
 {
-	struct read_file_data *mine;
-
-	if (filename == NULL || filename[0] == '\0') {
-		mine = (struct read_file_data *)malloc(sizeof(*mine));
-		if (mine == NULL) {
-			archive_set_error(a, ENOMEM, "No memory");
-			return (ARCHIVE_FATAL);
-		}
-		mine->filename[0] = '\0';
-	} else {
-		mine = (struct read_file_data *)malloc(sizeof(*mine) + strlen(filename));
-		if (mine == NULL) {
-			archive_set_error(a, ENOMEM, "No memory");
-			return (ARCHIVE_FATAL);
-		}
-		strcpy(mine->filename, filename);
-	}
-	mine->block_size = block_size;
-	mine->buffer = NULL;
-	mine->fd = -1;
-	/* lseek() almost never works; disable it by default.  See below. */
-	mine->can_skip = 0;
-	return (archive_read_open2(a, mine, file_open, file_read, file_skip, file_close));
-}
-
-static int
-file_open(struct archive *a, void *client_data)
-{
-	struct read_file_data *mine = (struct read_file_data *)client_data;
 	struct stat st;
+	struct read_file_data *mine;
+	void *b;
+	int fd;
 
-	mine->buffer = malloc(mine->block_size);
-	if (mine->buffer == NULL) {
+	if (filename == NULL || filename[0] == '\0')
+		return (archive_read_open_fd(a, 0, block_size));
+
+	fd = open(filename, O_RDONLY | O_BINARY);
+	if (fd < 0) {
+		archive_set_error(a, errno, "Failed to open '%s'", filename);
+		return (ARCHIVE_FATAL);
+	}
+	if (fstat(fd, &st) != 0) {
+		archive_set_error(a, errno, "Can't stat '%s'", filename);
+		return (ARCHIVE_FATAL);
+	}
+
+	mine = (struct read_file_data *)malloc(sizeof(*mine) + strlen(filename));
+	b = malloc(block_size);
+	if (mine == NULL || b == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
+		free(mine);
+		free(b);
 		return (ARCHIVE_FATAL);
 	}
-	if (mine->filename[0] != '\0')
-		mine->fd = open(mine->filename, O_RDONLY | O_BINARY);
-	else
-		mine->fd = 0; /* Fake "open" for stdin. */
-	if (mine->fd < 0) {
-		archive_set_error(a, errno, "Failed to open '%s'",
-		    mine->filename);
-		return (ARCHIVE_FATAL);
-	}
-	if (fstat(mine->fd, &st) == 0) {
-		/* If we're reading a file from disk, ensure that we don't
-		   overwrite it with an extracted file. */
-		if (S_ISREG(st.st_mode)) {
-			archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
-			/*
-			 * Enabling skip here is a performance
-			 * optimization for anything that supports
-			 * lseek().  On FreeBSD, only regular files
-			 * and raw disk devices support lseek() and
-			 * there's no portable way to determine if a
-			 * device is a raw disk device, so we only
-			 * enable this optimization for regular files.
-			 */
-			mine->can_skip = 1;
-		}
-		/* Remember mode so close can decide whether to flush. */
-		mine->st_mode = st.st_mode;
-	} else {
-		if (mine->filename[0] == '\0')
-			archive_set_error(a, errno, "Can't stat stdin");
-		else
-			archive_set_error(a, errno, "Can't stat '%s'",
-			    mine->filename);
-		return (ARCHIVE_FATAL);
-	}
-	return (0);
+	strcpy(mine->filename, filename);
+	mine->block_size = block_size;
+	mine->buffer = b;
+	mine->fd = fd;
+	/* Remember mode so close can decide whether to flush. */
+	mine->st_mode = st.st_mode;
+	/* If we're reading a file from disk, ensure that we don't
+	   overwrite it with an extracted file. */
+	if (S_ISREG(st.st_mode)) {
+		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
+		/*
+		 * Skip is a performance optimization for anything
+		 * that supports lseek().  Generally, that only
+		 * includes regular files and possibly raw disk
+		 * devices, but there's no good portable way to detect
+		 * raw disks.
+		 */
+		mine->can_skip = 1;
+	} else
+		mine->can_skip = 0;
+	return (archive_read_open2(a, mine,
+		NULL, file_read, file_skip, file_close));
 }
 
 static ssize_t
@@ -163,11 +138,8 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	*buff = mine->buffer;
 	bytes_read = read(mine->fd, mine->buffer, mine->block_size);
 	if (bytes_read < 0) {
-		if (mine->filename[0] == '\0')
-			archive_set_error(a, errno, "Error reading stdin");
-		else
-			archive_set_error(a, errno, "Error reading '%s'",
-			    mine->filename);
+		archive_set_error(a, errno, "Error reading '%s'",
+		    mine->filename);
 	}
 	return (bytes_read);
 }
@@ -217,15 +189,8 @@ file_skip(struct archive *a, void *client_data, off_t request)
 		 * likely caused by a programmer error (too large request)
 		 * or a corrupted archive file.
 		 */
-		if (mine->filename[0] == '\0')
-			/*
-			 * Should never get here, since lseek() on stdin ought
-			 * to return an ESPIPE error.
-			 */
-			archive_set_error(a, errno, "Error seeking in stdin");
-		else
-			archive_set_error(a, errno, "Error seeking in '%s'",
-			    mine->filename);
+		archive_set_error(a, errno, "Error seeking in '%s'",
+		    mine->filename);
 		return (-1);
 	}
 	return (new_offset - old_offset);
@@ -259,9 +224,7 @@ file_close(struct archive *a, void *client_data)
 				    mine->block_size);
 			} while (bytesRead > 0);
 		}
-		/* If a named file was opened, then it needs to be closed. */
-		if (mine->filename[0] != '\0')
-			close(mine->fd);
+		close(mine->fd);
 	}
 	free(mine->buffer);
 	free(mine);
