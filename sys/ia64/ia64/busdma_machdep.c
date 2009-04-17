@@ -940,9 +940,7 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	mtx_unlock(&bounce_lock);
 
 	if (dmat->flags & BUS_DMA_KEEP_PG_OFFSET) {
-		/* page offset needs to be preserved */
-		bpage->vaddr &= ~PAGE_MASK;
-		bpage->busaddr &= ~PAGE_MASK;
+		/* Page offset needs to be preserved. */
 		bpage->vaddr |= vaddr & PAGE_MASK;
 		bpage->busaddr |= vaddr & PAGE_MASK;
 	}
@@ -959,6 +957,15 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 
 	bpage->datavaddr = 0;
 	bpage->datacount = 0;
+	if (dmat->flags & BUS_DMA_KEEP_PG_OFFSET) {
+		/*
+		 * Reset the bounce page to start at offset 0.  Other uses
+		 * of this bounce page may need to store a full page of
+		 * data and/or assume it starts on a page boundary.
+		 */
+		bpage->vaddr &= ~PAGE_MASK;
+		bpage->busaddr &= ~PAGE_MASK;
+	}
 
 	mtx_lock(&bounce_lock);
 	STAILQ_INSERT_HEAD(&bounce_page_list, bpage, links);
