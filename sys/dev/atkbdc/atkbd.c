@@ -476,7 +476,7 @@ atkbd_term(keyboard_t *kbd)
 static int
 atkbd_intr(keyboard_t *kbd, void *arg)
 {
-	atkbd_state_t *state;
+	atkbd_state_t *state = (atkbd_state_t *)kbd->kb_data;
 	int delay[2];
 	int c;
 
@@ -485,7 +485,6 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 		 * The keyboard was not detected before;
 		 * it must have been reconnected!
 		 */
-		state = (atkbd_state_t *)kbd->kb_data;
 		init_keyboard(state->kbdc, &kbd->kb_type,
 			      kbd->kb_config);
 		KBD_FOUND_DEVICE(kbd);
@@ -495,6 +494,9 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 		delay[1] = kbd->kb_delay2;
 		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
 	}
+
+	if (state->ks_polling)
+		return 0;
 
 	if (KBD_IS_ACTIVE(kbd) && KBD_IS_BUSY(kbd)) {
 		/* let the callback function to process the input */
