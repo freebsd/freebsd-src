@@ -51,7 +51,7 @@ options 	NFSCLIENT		#Network Filesystem Client
 #options 	NFSLOCKD		#Network Lock Manager
 options		NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 options		BOOTP_NFSROOT
-options	BOOTP
+options		BOOTP
 
 #options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
@@ -83,7 +83,7 @@ device		rlswitch
 #options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
-#options		DIAGNOSTIC
+#options	DIAGNOSTIC
 
 device		md
 device		at91_twi		# TWI: Two Wire Interface
@@ -101,7 +101,7 @@ device		ds1672		# DS1672 on I2C bus
 #device		smb
 # SPI bus
 device		spibus
-#device  	at45d		# at45db642 and maybe others
+#device		at45d		# at45db642 and maybe others
 
 device		bpf		# Berkeley packet filter
 
@@ -109,5 +109,3 @@ device		bpf		# Berkeley packet filter
 #device		ohci
 #device		usb
 #device		umass		# Disks/Mass storage - Requires scbus and da
-
-#device		at91_qdmmc
