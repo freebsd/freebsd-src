@@ -118,7 +118,7 @@ CRUNCH_PROGS_sbin= atacontrol badsect				\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
 	restore rcorder route routed rtquery rtsol savecore	\
-	spppcontrol swapon sysctl tunefs umount 
+	spppcontrol swapon sysctl tunefs umount
 
 .if ${MK_ATM} != "no"
 CRUNCH_PROGS_sbin+= atmconfig
@@ -188,7 +188,7 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 
 ##################################################################
 # Programs from stock /usr/bin
-# 
+#
 CRUNCH_SRCDIRS+= usr.bin
 
 CRUNCH_PROGS_usr.bin= head mt sed tail tee
@@ -211,7 +211,7 @@ CRUNCH_ALIAS_id= groups whoami
 
 ##################################################################
 # Programs from stock /usr/sbin
-# 
+#
 CRUNCH_SRCDIRS+= usr.sbin
 
 CRUNCH_PROGS_usr.sbin= chroot
@@ -303,7 +303,7 @@ objs: $(OUTMK)
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
 # shell scripts so we can remove this nonsense.
 build-tools:
-.for _tool in bin/csh bin/sh 
+.for _tool in bin/csh bin/sh
 	cd $(.CURDIR)/../../${_tool}; \
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} obj; \
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} build-tools
