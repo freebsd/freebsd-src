@@ -116,6 +116,7 @@ verify_write_data(struct archive *a, int sparse)
 	/* XXX more XXX */
 
 	assertEqualInt(0, close(fd));
+	archive_entry_free(ae);
 	free(buff);
 }
 
@@ -249,6 +250,7 @@ verify_write_data_block(struct archive *a, int sparse)
 
 	assertEqualInt(0, close(fd));
 	free(buff);
+	archive_entry_free(ae);
 }
 
 DEFINE_TEST(test_write_disk_sparse)

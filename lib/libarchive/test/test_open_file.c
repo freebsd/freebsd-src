@@ -25,97 +25,84 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-char buff[1000000];
-char buff2[64];
-
-DEFINE_TEST(test_write_compress_program)
+DEFINE_TEST(test_open_file)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("archive_write_set_compress_program()");
-#else
+	char buff[64];
 	struct archive_entry *ae;
 	struct archive *a;
-	size_t used;
-	int blocksize = 1024;
-	int r;
-	const char *compprog, *decompprog;
+	FILE *f;
 
-	decompprog = external_gzip_program(1);
-	if ((compprog = external_gzip_program(0)) == NULL) {
-		skipping("There is no gzip compression "
-		    "program in this platform");
+	f = fopen("test.tar", "w");
+	assert(f != NULL);
+	if (f == NULL)
 		return;
-	}
 
-	/* Create a new archive in memory. */
-	/* Write it through an external "gzip" program. */
+	/* Write an archive through this FILE *. */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_ustar(a));
-	r = archive_write_set_compression_program(a, compprog);
-	if (r == ARCHIVE_FATAL) {
-		skipping("Write compression via external "
-		    "program unsupported on this platform");
-		archive_write_finish(a);
-		return;
-	}
-	assertA(0 == archive_write_set_bytes_per_block(a, blocksize));
-	assertA(0 == archive_write_set_bytes_in_last_block(a, blocksize));
-	assertA(blocksize == archive_write_get_bytes_in_last_block(a));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
-	assertA(blocksize == archive_write_get_bytes_in_last_block(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_FILE(a, f));
 
 	/*
 	 * Write a file to it.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_set_mtime(ae, 1, 0);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
-
-	assertA(0 == archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
-	assertA(8 == archive_write_data(a, "12345678", 9));
-
-	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 
 	/*
-	 * Now, read the data back through the built-in gzip support.
+	 * Write a second file to it.
 	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file2");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_size(ae, 819200);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/* Close out the archive. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	fclose(f);
+
+	/*
+	 * Now, read the data back.
+	 */
+	f = fopen("test.tar", "r");
+	assert(f != NULL);
+	if (f == NULL)
+		return;
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
-	r = archive_read_support_compression_gzip(a);
-	/* The compression_gzip() handler will fall back to gunzip
-	 * automatically, but if we know gunzip isn't available, then
-	 * skip the rest. */
-	if (r != ARCHIVE_OK && decompprog == NULL) {
-		skipping("No gzip decompression is available; "
-		    "unable to verify gzip compression");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-		return;
-	}
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_FILE(a, f));
 
-	if (!assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae))) {
-		archive_read_finish(a);
-		return;
-	}
-
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file", archive_entry_pathname(ae));
-	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
+	assert((S_IFREG | 0755) == archive_entry_mode(ae));
 	assertEqualInt(8, archive_entry_size(ae));
-	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
-	assertEqualMem(buff2, "12345678", 8);
+	assertEqualIntA(a, 8, archive_read_data(a, buff, 10));
+	assertEqualMem(buff, "12345678", 8);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("file2", archive_entry_pathname(ae));
+	assert((S_IFREG | 0755) == archive_entry_mode(ae));
+	assertEqualInt(819200, archive_entry_size(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));
 
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
+
+	fclose(f);
 }

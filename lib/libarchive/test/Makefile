@@ -17,6 +17,7 @@ TESTS= \
 	test_compat_gtar.c			\
 	test_compat_gzip.c			\
 	test_compat_tar_hardlink.c		\
+	test_compat_xz.c			\
 	test_compat_zip.c			\
 	test_empty_write.c			\
 	test_entry.c				\
@@ -24,10 +25,14 @@ TESTS= \
 	test_extattr_freebsd.c			\
 	test_fuzz.c				\
 	test_link_resolver.c			\
+	test_open_fd.c				\
+	test_open_file.c			\
+	test_open_filename.c			\
 	test_pax_filename_encoding.c		\
 	test_read_compress_program.c		\
 	test_read_data_large.c			\
 	test_read_disk.c			\
+	test_read_disk_entry_from_file.c	\
 	test_read_extract.c			\
 	test_read_file_nonexistent.c		\
 	test_read_format_ar.c			\
@@ -35,13 +40,16 @@ TESTS= \
 	test_read_format_cpio_bin_Z.c		\
 	test_read_format_cpio_bin_bz2.c		\
 	test_read_format_cpio_bin_gz.c		\
+	test_read_format_cpio_bin_xz.c		\
 	test_read_format_cpio_odc.c		\
 	test_read_format_cpio_svr4_gzip.c	\
 	test_read_format_cpio_svr4c_Z.c		\
 	test_read_format_empty.c		\
 	test_read_format_gtar_gz.c		\
+	test_read_format_gtar_lzma.c		\
 	test_read_format_gtar_sparse.c		\
 	test_read_format_iso_gz.c		\
+	test_read_format_isojoliet_bz2.c	\
 	test_read_format_isorr_bz2.c		\
 	test_read_format_mtree.c		\
 	test_read_format_pax_bz2.c		\
@@ -49,6 +57,7 @@ TESTS= \
 	test_read_format_tar_empty_filename.c	\
 	test_read_format_tbz.c			\
 	test_read_format_tgz.c			\
+	test_read_format_txz.c			\
 	test_read_format_tz.c			\
 	test_read_format_zip.c			\
 	test_read_large.c			\
@@ -59,7 +68,11 @@ TESTS= \
 	test_tar_large.c			\
 	test_ustar_filenames.c			\
 	test_write_compress.c			\
+	test_write_compress_bzip2.c		\
+	test_write_compress_gzip.c		\
+	test_write_compress_lzma.c		\
 	test_write_compress_program.c		\
+	test_write_compress_xz.c		\
 	test_write_disk.c			\
 	test_write_disk_failures.c		\
 	test_write_disk_hardlink.c		\
@@ -72,6 +85,7 @@ TESTS= \
 	test_write_format_cpio_empty.c		\
 	test_write_format_cpio_newc.c		\
 	test_write_format_cpio_odc.c		\
+	test_write_format_mtree.c		\
 	test_write_format_pax.c			\
 	test_write_format_shar_empty.c		\
 	test_write_format_tar.c			\
@@ -93,9 +107,17 @@ PROG=libarchive_test
 INTERNALPROG=yes  # Don't install this; it's just for testing
 DPADD=${LIBBZ2} ${LIBZ}
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
-LDADD= -lz -lbz2
-CFLAGS+= -static -g
+LDADD= -lz -lbz2 -lmd -lcrypto
+CFLAGS+= -g
 CFLAGS+= -I${LA_SRCDIR} -I.
+
+# Uncomment to build and test lzma support via liblzmadec
+#CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMADEC=1 -DHAVE_LZMADEC_H=1
+#LDADD+= -L/usr/local/lib -llzmadec
+
+# Uncomment to build and test lzma and xz support via liblzma
+CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+LDADD+= -L/usr/local/lib -llzma
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
@@ -108,9 +130,10 @@ check test: libarchive_test
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 list.h: ${TESTS} Makefile
-	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
+	(cd ${.CURDIR}; cat test_*.c) | grep DEFINE_TEST > list.h
 
-CLEANFILES += *.out *.o *.core *~ list.h
+CLEANFILES += *.out *.o *.core *~ list.h .dirstamp .depend
+CLEANDIRS += .deps .libs
 
 cleantest:
 	-chmod -R +w /tmp/libarchive_test.*

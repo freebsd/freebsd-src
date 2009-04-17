@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2003-2008 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,29 +26,59 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-static unsigned char archive[] = {
-'B','Z','h','9','1','A','Y','&','S','Y',237,7,140,'W',0,0,27,251,144,208,
-128,0,' ','@',1,'o',128,0,0,224,'"',30,0,0,'@',0,8,' ',0,'T','2',26,163,'&',
-129,160,211,212,18,'I',169,234,13,168,26,6,150,'1',155,134,'p',8,173,3,183,
-'J','S',26,20,'2',222,'b',240,160,'a','>',205,'f',29,170,227,'[',179,139,
-'\'','L','o',211,':',178,'0',162,134,'*','>','8',24,153,230,147,'R','?',23,
-'r','E','8','P',144,237,7,140,'W'};
+/*
+ * Verify our ability to read sample files compatibly with unxz.
+ *
+ * In particular:
+ *  * unxz will read multiple xz streams, concatenating the output
+ */
 
-DEFINE_TEST(test_read_format_tbz)
+/*
+ * All of the sample files have the same contents; they're just
+ * compressed in different ways.
+ */
+static void
+compat_xz(const char *name)
 {
+	const char *n[7] = { "f1", "f2", "f3", "d1/f1", "d1/f2", "d1/f3", NULL };
 	struct archive_entry *ae;
 	struct archive *a;
+	int i, r;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	r = archive_read_support_compression_xz(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xz reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 2));
+
+	/* Read entries, match up names with list above. */
+	for (i = 0; i < 6; ++i) {
+		failure("Could not read file %d (%s) from %s", i, n[i], name);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+		assertEqualString(n[i], archive_entry_pathname(ae));
+	}
+
+	/* Verify the end-of-archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify that the format detection worked. */
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_XZ);
+	assertEqualString(archive_compression_name(a), "xz");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 
+DEFINE_TEST(test_compat_xz)
+{
+	compat_xz("test_compat_xz_1.txz");
+}
