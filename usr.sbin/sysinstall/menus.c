@@ -1824,6 +1824,7 @@ DMenu MenuSysconsKeymap = {
       { " Finnish ISO",  "Finnish ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=finnish.iso" },
       { " French ISO (accent)", "French ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=fr.iso.acc" },
       { " French ISO",	"French ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=fr.iso" },
+      { " French ISO/Macbook",	"French ISO keymap on macbook",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=fr.macbook.acc" },
       { "German CP850",	"German Code Page 850 keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=german.cp850"	},
       { " German ISO",	"German ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=german.iso" },
       { " Greek 101",	"Greek ISO keymap (101 keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=gr.us101.acc" },
