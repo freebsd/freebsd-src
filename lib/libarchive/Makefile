@@ -1,4 +1,5 @@
 # $FreeBSD$
+.include <bsd.own.mk>
 
 LIB=	archive
 DPADD=	${LIBBZ2} ${LIBZ}
@@ -10,6 +11,11 @@ SHLIB_MAJOR= 4
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I${.OBJDIR}
+
+.if ${MK_OPENSSL} != "no"
+CFLAGS+=	-DWITH_OPENSSL
+.endif
+
 
 WARNS?=	6
 
