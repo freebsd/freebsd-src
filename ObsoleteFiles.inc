@@ -14,6 +14,21 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090417: removal of legacy versions of USB network interface drivers
+OLD_FILES+=usr/include/legacy/dev/usb/if_auereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_axereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_cdcereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_cuereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_kuereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_ruereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_rumreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_rumvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_udavreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_uralreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_uralvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_zydfw.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_zydreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/kue_fw.h
 # 20090416: removal of ar(4), ray(4), sr(4), raycontrol(8)
 OLD_FILES+=usr/sbin/raycontrol
 OLD_FILES+=usr/share/man/man4/i386/ar.4.gz
@@ -22,6 +37,8 @@ OLD_FILES+=usr/share/man/man4/i386/sr.4.gz
 OLD_FILES+=usr/share/man/man8/raycontrol.8.gz
 # 20090410: VOP_LEASE.9 removed
 OLD_FILES+=usr/share/man/man9/VOP_LEASE.9.gz
+# 20090406: usb_sw_transfer.h removed
+OLD_FILES+=usr/include/dev/usb/usb_sw_transfer.h
 # 20090405: removal of if_ppp(4) and if_sl(4)
 OLD_FILES+=sbin/slattach rescue/slattach
 OLD_FILES+=sbin/startslip rescue/startslip
@@ -60,6 +77,7 @@ OLD_FILES+=usr/lib/libusb20.a
 OLD_FILES+=usr/lib/libusb20.so
 OLD_FILES+=usr/lib/libusb20_p.a
 OLD_FILES+=usr/include/libusb20_compat01.h
+OLD_FILES+=usr/include/libusb20_compat10.h
 .if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libusb20.so.1
 OLD_FILES+=usr/lib32/libusb20.a
@@ -103,6 +121,8 @@ OLD_FILES+=usr/include/dev/usb/if_udavreg.h
 OLD_FILES+=usr/include/dev/usb/if_upgtvar.h
 OLD_FILES+=usr/include/dev/usb/if_uralreg.h
 OLD_FILES+=usr/include/dev/usb/if_uralvar.h
+OLD_FILES+=usr/include/dev/usb/if_urtwreg.h
+OLD_FILES+=usr/include/dev/usb/if_urtwvar.h
 OLD_FILES+=usr/include/dev/usb/if_zydfw.h
 OLD_FILES+=usr/include/dev/usb/if_zydreg.h
 OLD_FILES+=usr/include/dev/usb/kue_fw.h
@@ -128,6 +148,8 @@ OLD_FILES+=usr/include/dev/usb/usbdi.h
 OLD_FILES+=usr/include/dev/usb/usbdi_util.h
 OLD_FILES+=usr/include/dev/usb/usbdivar.h
 OLD_FILES+=usr/include/dev/usb/uxb360gp_rdesc.h
+OLD_FILES+=usr/sbin/usbdevs
+OLD_FILES+=usr/share/man/man8/usbdevs.8.gz
 # 20090203: removal of pccard header files
 OLD_FILES+=usr/include/pccard/cardinfo.h
 OLD_FILES+=usr/include/pccard/cis.h
