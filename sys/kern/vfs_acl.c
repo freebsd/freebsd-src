@@ -81,28 +81,31 @@ static int
 vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
-	struct acl inkernacl;
+	struct acl *inkernelacl;
 	struct mount *mp;
 	int error;
 
-	error = copyin(aclp, &inkernacl, sizeof(struct acl));
+	inkernelacl = acl_alloc(M_WAITOK);
+	error = copyin(aclp, inkernelacl, sizeof(struct acl));
 	if (error)
-		return(error);
+		goto out;
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error != 0)
-		return (error);
+		goto out;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
-	error = mac_vnode_check_setacl(td->td_ucred, vp, type, &inkernacl);
+	error = mac_vnode_check_setacl(td->td_ucred, vp, type, inkernelacl);
 	if (error != 0)
-		goto out;
+		goto out_unlock;
 #endif
-	error = VOP_SETACL(vp, type, &inkernacl, td->td_ucred, td);
+	error = VOP_SETACL(vp, type, inkernelacl, td->td_ucred, td);
 #ifdef MAC
-out:
+out_unlock:
 #endif
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
+out:
+	acl_free(inkernelacl);
 	return(error);
 }
 
@@ -113,22 +116,24 @@ static int
 vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
-	struct acl inkernelacl;
+	struct acl *inkernelacl;
 	int error;
 
+	inkernelacl = acl_alloc(M_WAITOK);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 	error = mac_vnode_check_getacl(td->td_ucred, vp, type);
 	if (error != 0)
 		goto out;
 #endif
-	error = VOP_GETACL(vp, type, &inkernelacl, td->td_ucred, td);
+	error = VOP_GETACL(vp, type, inkernelacl, td->td_ucred, td);
 #ifdef MAC
 out:
 #endif
 	VOP_UNLOCK(vp, 0);
 	if (error == 0)
-		error = copyout(&inkernelacl, aclp, sizeof(struct acl));
+		error = copyout(inkernelacl, aclp, sizeof(struct acl));
+	acl_free(inkernelacl);
 	return (error);
 }
 
@@ -166,13 +171,16 @@ static int
 vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
-	struct acl inkernelacl;
+	struct acl *inkernelacl;
 	int error;
 
-	error = copyin(aclp, &inkernelacl, sizeof(struct acl));
+	inkernelacl = acl_alloc(M_WAITOK);
+	error = copyin(aclp, inkernelacl, sizeof(struct acl));
 	if (error)
-		return(error);
-	error = VOP_ACLCHECK(vp, type, &inkernelacl, td->td_ucred, td);
+		goto out;
+	error = VOP_ACLCHECK(vp, type, inkernelacl, td->td_ucred, td);
+out:
+	acl_free(inkernelacl);
 	return (error);
 }
 
@@ -415,6 +423,23 @@ __acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	return (error);
+}
+
+struct acl *
+acl_alloc(int flags)
+{
+	struct acl *aclp;
+
+	aclp = uma_zalloc(acl_zone, flags);
+
+	return (aclp);
+}
+
+void
+acl_free(struct acl *aclp)
+{
+
+	uma_zfree(acl_zone, aclp);
 }
 
 /* ARGUSED */
