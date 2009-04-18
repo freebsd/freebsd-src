@@ -148,8 +148,6 @@ OLD_FILES+=usr/include/dev/usb/usbdi.h
 OLD_FILES+=usr/include/dev/usb/usbdi_util.h
 OLD_FILES+=usr/include/dev/usb/usbdivar.h
 OLD_FILES+=usr/include/dev/usb/uxb360gp_rdesc.h
-OLD_FILES+=usr/sbin/usbdevs
-OLD_FILES+=usr/share/man/man8/usbdevs.8.gz
 # 20090203: removal of pccard header files
 OLD_FILES+=usr/include/pccard/cardinfo.h
 OLD_FILES+=usr/include/pccard/cis.h
