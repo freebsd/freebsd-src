@@ -330,7 +330,7 @@ static int
 ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	uint8_t romdata[32];
+	uint8_t romdata[32], sum;
 	int i;
 
 	/*
@@ -370,6 +370,10 @@ ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 	if (bootverbose)
 		device_printf(dev, "ROM DATA: %32D\n", romdata, " ");
 	if (romdata[28] != 0x57 || romdata[30] != 0x57)
+		return (0);
+	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
+		sum |= romdata[i * 2];
+	if (sum == 0)
 		return (0);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		enaddr[i] = romdata[i * 2];
