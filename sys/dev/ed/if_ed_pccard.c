@@ -495,13 +495,6 @@ ed_pccard_attach(device_t dev)
 	if (error)
 		goto bad;
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, edintr, sc, &sc->irq_handle);
-	if (error) {
-		device_printf(dev, "setup intr failed %d \n", error);
-		goto bad;
-	}	      
-
 	/*
 	 * There are several ways to get the MAC address for the card.
 	 * Some of the above probe routines can fill in the enaddr.  If
@@ -589,6 +582,14 @@ ed_pccard_attach(device_t dev)
 	}
 	if (sc->modem_rid != -1)
 		ed_pccard_add_modem(dev);
+
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, edintr, sc, &sc->irq_handle);
+	if (error) {
+		device_printf(dev, "setup intr failed %d \n", error);
+		goto bad;
+	}	      
+
 	return (0);
 bad:
 	ed_detach(dev);
