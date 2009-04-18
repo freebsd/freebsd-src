@@ -585,7 +585,6 @@ ed_pccard_attach(device_t dev)
 		sc->sc_media_ioctl = ed_pccard_media_ioctl;
 		ed_pccard_kick_phy(sc);
 	} else {
-		printf("Generic ifmedia\n");
 		ed_gen_ifmedia_init(sc);
 	}
 	if (sc->modem_rid != -1)
