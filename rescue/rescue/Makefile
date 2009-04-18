@@ -73,9 +73,6 @@ CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv	\
 	 pkill ps pwd realpath rm rmdir setfacl sh stty sync test
 CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -lm -ltermcap -lutil
-.if ${MK_OPENSSL} != "no"
-CRUNCH_LIBS+= -lcrypto
-.endif
 
 # Additional options for specific programs
 CRUNCH_ALIAS_test= [
@@ -201,7 +198,10 @@ CRUNCH_ALIAS_bzip2= bunzip2 bzcat
 CRUNCH_LIBS+= -lbz2
 
 CRUNCH_PROGS_usr.bin+= tar
-CRUNCH_LIBS+= -larchive
+CRUNCH_LIBS+= -larchive -lmd
+.if ${MK_OPENSSL} != "no"
+CRUNCH_LIBS+= -lcrypto
+.endif
 
 CRUNCH_PROGS_usr.bin+= vi
 CRUNCH_ALIAS_vi= ex
