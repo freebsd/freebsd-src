@@ -311,8 +311,6 @@ driver does not support the following Ethernet NICs:
 .Bl -bullet -compact
 .It
 Mitsubishi LAN Adapter B8895
-.It
-D-Link DE-650
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -394,13 +392,6 @@ dropped packets during heavy network traffic.
 The Mitsubishi B8895 PC Card uses a DP83902, but its ASIC part is
 undocumented.
 Neither the NE2000 nor the WD83x0 drivers work with this card.
-.Pp
-The D-LINK DE-650 has funky resources that differ from other cards and could
-likely be made to work.
-Its shared memory interface conflicts with other resources on many
-laptops and cannot be moved.
-The pccard(4) layer does not support activating a CFE that it fails to
-allocate all the resources for.
 .Pp
 .Sh SEE ALSO
 .Xr altq 4 ,
