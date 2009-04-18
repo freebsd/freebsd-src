@@ -897,7 +897,9 @@ gv_worker(void *arg)
 					    v->name);
 					break;
 				}
+				g_topology_lock();
 				g_wither_provider(v->provider, ENOENT);
+				g_topology_unlock();
 				v->provider = NULL;
 				gv_post_event(sc, GV_EVENT_SETUP_OBJECTS, sc,
 				    NULL, 0, 0);
