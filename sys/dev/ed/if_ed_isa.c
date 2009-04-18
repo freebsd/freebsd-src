@@ -169,15 +169,18 @@ ed_isa_attach(device_t dev)
 
 	ed_alloc_irq(dev, sc->irq_rid, 0);
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, edintr, sc, &sc->irq_handle);
+	if (sc->sc_media_ioctl == NULL)
+		ed_gen_ifmedia_init(sc);
+	error = ed_attach(dev);
 	if (error) {
 		ed_release_resources(dev);
 		return (error);
 	}
-	if (sc->sc_media_ioctl == NULL)
-		ed_gen_ifmedia_init(sc);
-	return ed_attach(dev);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, edintr, sc, &sc->irq_handle);
+	if (error)
+		ed_release_resources(dev);
+	return (error);
 }
 
 static device_method_t ed_isa_methods[] = {
