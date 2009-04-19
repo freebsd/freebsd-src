@@ -78,7 +78,7 @@ SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 #define OFSFMT(vp)	((vp)->v_mount->mnt_maxsymlinklen <= 0)
 
 static int ufs_lookup_(struct vnode *, struct vnode **, struct componentname *,
-    ino_t);
+    ino_t *);
 
 /*
  * Convert a component of a pathname into a pointer to a locked inode.
@@ -134,12 +134,12 @@ ufs_lookup(ap)
 	} */ *ap;
 {
 
-	return (ufs_lookup_(ap->a_dvp, ap->a_vpp, ap->a_cnp, 0));
+	return (ufs_lookup_(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
 }
 
 static int
 ufs_lookup_(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
-    ino_t dd_ino)
+    ino_t *dd_ino)
 {
 	struct inode *dp;		/* inode for directory being searched */
 	struct buf *bp;			/* a buffer of directory entries */
@@ -163,15 +163,9 @@ ufs_lookup_(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	ino_t ino;
+	ino_t ino, ino1;
 	int ltype;
 
-	bp = NULL;
-	slotoffset = -1;
-/*
- *  XXX there was a soft-update diff about this I couldn't merge.
- * I think this was the equiv.
- */
 	if (vpp != NULL)
 		*vpp = NULL;
 
@@ -184,6 +178,12 @@ ufs_lookup_(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	 * that are never used.
 	 */
 	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
+
+	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+
+restart:
+	bp = NULL;
+	slotoffset = -1;
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
@@ -202,7 +202,6 @@ ufs_lookup_(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 		slotstatus = NONE;
 		slotneeded = DIRECTSIZ(cnp->cn_namelen);
 	}
-	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
 
 #ifdef UFS_DIRHASH
 	/*
@@ -487,9 +486,8 @@ found:
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
 		dp->i_diroff = i_offset &~ (DIRBLKSIZ - 1);
 
-	if (dd_ino != 0) {
-		if (ino != dd_ino)
-			return (ENOENT);
+	if (dd_ino != NULL) {
+		*dd_ino = ino;
 		return (0);
 	}
 
@@ -600,10 +598,14 @@ found:
 		 * to the inode we looked up before vdp lock was
 		 * dropped.
 		 */
-		error = ufs_lookup_(pdp, NULL, cnp, ino);
+		error = ufs_lookup_(pdp, NULL, cnp, &ino1);
 		if (error) {
 			vput(tdp);
 			return (error);
+		}
+		if (ino1 != ino) {
+			vput(tdp);
+			goto restart;
 		}
 
 		*vpp = tdp;
