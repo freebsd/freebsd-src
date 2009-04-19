@@ -1183,6 +1183,7 @@ vm_pageout_oom(int shortage)
 	struct proc *p, *bigproc;
 	vm_offset_t size, bigsize;
 	struct thread *td;
+	struct vmspace *vm;
 
 	/*
 	 * We keep the process bigproc locked once we find it to keep anyone
@@ -1203,8 +1204,8 @@ vm_pageout_oom(int shortage)
 		/*
 		 * If this is a system or protected process, skip it.
 		 */
-		if ((p->p_flag & P_SYSTEM) || (p->p_pid == 1) ||
-		    (p->p_flag & P_PROTECTED) ||
+		if ((p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
+		    (p->p_pid == 1) ||
 		    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
 			PROC_UNLOCK(p);
 			continue;
@@ -1232,14 +1233,21 @@ vm_pageout_oom(int shortage)
 		/*
 		 * get the process size
 		 */
-		if (!vm_map_trylock_read(&p->p_vmspace->vm_map)) {
+		vm = vmspace_acquire_ref(p);
+		if (vm == NULL) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		if (!vm_map_trylock_read(&vm->vm_map)) {
+			vmspace_free(vm);
 			PROC_UNLOCK(p);
 			continue;
 		}
 		size = vmspace_swap_count(p->p_vmspace);
-		vm_map_unlock_read(&p->p_vmspace->vm_map);
+		vm_map_unlock_read(&vm->vm_map);
 		if (shortage == VM_OOM_MEM)
-			size += vmspace_resident_count(p->p_vmspace);
+			size += vmspace_resident_count(vm);
+		vmspace_free(vm);
 		/*
 		 * if the this process is bigger than the biggest one
 		 * remember it.
@@ -1532,6 +1540,7 @@ vm_daemon()
 	struct rlimit rsslim;
 	struct proc *p;
 	struct thread *td;
+	struct vmspace *vm;
 	int breakout, swapout_flags;
 
 	while (TRUE) {
@@ -1556,7 +1565,7 @@ vm_daemon()
 			 * looked at this process, skip it.
 			 */
 			PROC_LOCK(p);
-			if (p->p_flag & (P_SYSTEM | P_WEXIT)) {
+			if (p->p_flag & (P_INEXEC | P_SYSTEM | P_WEXIT)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1594,13 +1603,17 @@ vm_daemon()
 			 */
 			if ((p->p_flag & P_INMEM) == 0)
 				limit = 0;	/* XXX */
+			vm = vmspace_acquire_ref(p);
 			PROC_UNLOCK(p);
+			if (vm == NULL)
+				continue;
 
-			size = vmspace_resident_count(p->p_vmspace);
+			size = vmspace_resident_count(vm);
 			if (limit >= 0 && size >= limit) {
 				vm_pageout_map_deactivate_pages(
-				    &p->p_vmspace->vm_map, limit);
+				    &vm->vm_map, limit);
 			}
+			vmspace_free(vm);
 		}
 		sx_sunlock(&allproc_lock);
 	}
