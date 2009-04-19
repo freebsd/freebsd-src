@@ -573,6 +573,7 @@ _an=		an
 _bm=		bm
 _nvram=		powermac_nvram
 _smbfs=		smbfs
+_sound=		sound
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
