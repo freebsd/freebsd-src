@@ -2,6 +2,7 @@
 
 mips/atheros/apb.c		standard
 mips/atheros/ar71xx_machdep.c	standard
+mips/atheros/ar71xx_ehci.c	optional ehci
 mips/atheros/ar71xx_ohci.c	optional ohci
 mips/atheros/ar71xx_pci.c	optional pci
 mips/atheros/if_arge.c		optional arge
