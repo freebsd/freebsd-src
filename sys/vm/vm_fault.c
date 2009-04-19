@@ -1027,7 +1027,6 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			break;
 		}
 		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-			(m->busy == 0) &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
 
 			vm_page_lock_queues();
