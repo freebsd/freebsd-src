@@ -461,24 +461,37 @@ mode_out(struct cpio *cpio)
 	if (cpio->archive == NULL)
 		cpio_errc(1, 0, "Failed to allocate archive object");
 	switch (cpio->compress) {
-#ifdef HAVE_BZLIB_H
+#ifndef SMALLER
 	case 'j': case 'y':
-		archive_write_set_compression_bzip2(cpio->archive);
+		r = archive_write_set_compression_bzip2(cpio->archive);
 		break;
-#endif
-#ifdef HAVE_ZLIB_H
 	case 'z':
-		archive_write_set_compression_gzip(cpio->archive);
+		r = archive_write_set_compression_gzip(cpio->archive);
+		break;
+	case 'Z':
+		r = archive_write_set_compression_compress(cpio->archive);
 		break;
 #endif
-	case 'Z':
-		archive_write_set_compression_compress(cpio->archive);
+	case '\0':
+		r = archive_write_set_compression_none(cpio->archive);
 		break;
 	default:
-		archive_write_set_compression_none(cpio->archive);
-		break;
+		cpio_errc(1, 0, "Unrecognized compression option");
 	}
+	if (r != ARCHIVE_OK)
+		cpio_errc(1, 0, "Unsupported compression format");
+#ifdef SMALLER
+	if (strcmp(cpio->format, "cpio"))
+		r = archive_write_set_format_cpio(cpio->archive);
+	else if (strcmp(cpio->format, "odc"))
+		r = archive_write_set_format_cpio(cpio->archive);
+	else if (strcmp(cpio->format, "newc"))
+		r = archive_write_set_format_cpio(cpio->archive);
+	else if (strcmp(cpio->format, "ustar"))
+		r = archive_write_set_format_cpio(cpio->archive);
+#else
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
+#endif
 	if (r != ARCHIVE_OK)
 		cpio_errc(1, 0, archive_error_string(cpio->archive));
 	archive_write_set_bytes_per_block(cpio->archive, cpio->bytes_per_block);
@@ -815,8 +828,13 @@ mode_in(struct cpio *cpio)
 	a = archive_read_new();
 	if (a == NULL)
 		cpio_errc(1, 0, "Couldn't allocate archive object");
+#ifdef SMALLER
+	archive_read_support_format_cpio(a);
+	archive_read_support_format_tar(a);
+#else
 	archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
+#endif
 
 	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
 		cpio_errc(1, archive_errno(a),
@@ -907,8 +925,13 @@ mode_list(struct cpio *cpio)
 	a = archive_read_new();
 	if (a == NULL)
 		cpio_errc(1, 0, "Couldn't allocate archive object");
+#ifdef SMALLER
+	archive_read_support_format_cpio(a);
+	archive_read_support_format_tar(a);
+#else
 	archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
+#endif
 
 	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
 		cpio_errc(1, archive_errno(a),
