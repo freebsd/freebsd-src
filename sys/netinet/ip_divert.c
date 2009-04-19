@@ -244,18 +244,22 @@ divert_packet(struct mbuf *m, int incoming)
 	divsrc.sin_port = divert_cookie(mtag);	/* record matching rule */
 	if (incoming) {
 		struct ifaddr *ifa;
+		struct ifnet *ifp;
 
 		/* Sanity check */
 		M_ASSERTPKTHDR(m);
 
 		/* Find IP address for receive interface */
-		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+		ifp = m->m_pkthdr.rcvif;
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			divsrc.sin_addr =
 			    ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
 			break;
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/*
 	 * Record the incoming interface name whenever we have one.
