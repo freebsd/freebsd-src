@@ -313,8 +313,11 @@ static uma_zone_t ipv6_zone;
 
 /*
  * TODO:
- * - Add per flowtable sysctls for statistics and configuring timeouts
+ * - Make flowtable stats per-cpu, aggregated at sysctl call time,
+ *   to avoid extra cache evictions caused by incrementing a shared
+ *   counter
  * - add IPv6 support to flow lookup
+ * - Add per flowtable sysctls for statistics and configuring timeouts
  * - add saturation counter to rtentry to support per-packet load-balancing
  *   add flag to indicate round-robin flow, add list lookup from head
      for flows
