@@ -27,16 +27,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_fcntl.c#2
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/fcntl.h>
 
-#include <config/config.h>
+#include <security/audit/audit.h>
 
 #include <bsm/audit_fcntl.h>
-#include <bsm/libbsm.h>
+#include <bsm/audit_record.h>
 
 struct bsm_fcntl_cmd {
 	u_short	bfc_bsm_fcntl_cmd;
