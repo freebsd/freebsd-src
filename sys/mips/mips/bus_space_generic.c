@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cache.h>
 
-struct bus_space mips_bus_space_generic = {
+static struct bus_space generic_space = {
 	/* cookie */
 	(void *) 0,
 
@@ -196,7 +196,8 @@ struct bus_space mips_bus_space_generic = {
 	NULL,
 };
 
-
+/* generic bus_space tag */
+bus_space_tag_t mips_bus_space_generic = &generic_space;
 
 int
 generic_bs_map(void *t __unused, bus_addr_t addr,

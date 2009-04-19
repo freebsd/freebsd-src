@@ -717,7 +717,7 @@ void	__bs_c(f,_bs_c_8) (void *t, bus_space_handle_t bsh1,	\
  * declare generic bus space, it suits all needs in 
  */
 DECLARE_BUS_SPACE_PROTOTYPES(generic);
-extern struct bus_space mips_bus_space_generic;
+extern bus_space_tag_t mips_bus_space_generic;
 #include <machine/bus_dma.h>
 
 #endif /* _MACHINE_BUS_H_ */
