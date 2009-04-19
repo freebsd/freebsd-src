@@ -282,14 +282,12 @@ union flentryp {
 };
 
 struct flowtable {
-	union flentryp	ft_table;
 	int 		ft_size;
-	bitstr_t 	*ft_masks[MAXCPU];
-	struct mtx	*ft_locks;
 	int 		ft_lock_count;
 	uint32_t	ft_flags;
 	uint32_t	ft_collisions;
 	uint32_t	ft_allocated;
+	uint32_t	ft_misses;
 	uint64_t	ft_hits;
 
 	uint32_t	ft_udp_idle;
@@ -300,8 +298,11 @@ struct flowtable {
 	fl_lock_t	*ft_lock;
 	fl_lock_t 	*ft_unlock;
 	fl_rtalloc_t	*ft_rtalloc;
+	struct mtx	*ft_locks;
 
 	struct flowtable *ft_next;
+	union flentryp	ft_table;
+	bitstr_t 	*ft_masks[MAXCPU];
 };
 
 static struct proc *flowcleanerproc;
@@ -991,10 +992,11 @@ flowtable_free_stale(struct flowtable *ft)
 	flefreehead = flefreetail = NULL;
 	mask = flowtable_mask(ft);
 	while ((curbit = bit_fns(mask, ft->ft_size, curbit, &mask_tmp)) != -1) {
-		if (curbit >= ft->ft_size) {
-			log(LOG_DEBUG,
-			    "warning curbit=%d exceeds ft_size\n",
+		if (curbit >= ft->ft_size || curbit < -1) {
+			log(LOG_ALERT,
+			    "warning: bad curbit value %d \n",
 			    curbit);
+			break;
 		}
 		
 		FL_ENTRY_LOCK(ft, curbit);
@@ -1002,14 +1004,13 @@ flowtable_free_stale(struct flowtable *ft)
 		fle = fleprev = *flehead;
 
 		flowtable_free_checks++;
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 		if (fle == NULL && curbit > 0) {
-			log(LOG_DEBUG,
-			    "warning bit=%d set, but no fle found index=%d p=%p index=%d p=%p\n",
-			    curbit, curbit-1, FL_ENTRY(ft, curbit - 1),
-			    curbit+1, FL_ENTRY(ft, curbit + 1));
+			log(LOG_ALERT,
+			    "warning bit=%d set, but no fle found\n",
+			    curbit);
 		}
-#endif
+#endif		
 		while (fle != NULL) {	
 			if (!flow_stale(ft, fle)) {
 				fleprev = fle;
@@ -1037,8 +1038,11 @@ flowtable_free_stale(struct flowtable *ft)
 			
 			if (flefreehead == NULL)
 				flefreehead = flefreetail = fletmp;
-			else
+			else {
 				flefreetail->f_next = fletmp;
+				flefreetail = fletmp;
+			}
+			fletmp->f_next = NULL;
 		}
 		if (*flehead == NULL)
 			bit_clear(mask, curbit);
