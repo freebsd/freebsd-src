@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
+#include <net/flowtable.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -211,6 +212,11 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     ipstealth, 0, "IP stealth mode, no TTL decrementation on forwarding");
 #endif
+static int ip_output_flowtable_size = 2048;
+TUNABLE_INT("net.inet.ip.output_flowtable_size", &ip_output_flowtable_size);
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, output_flowtable_size,
+    CTLFLAG_RDTUN, ip_output_flowtable_size, 2048,
+    "number of entries in the per-cpu output flow caches");
 
 /*
  * ipfw_ether and ipfw_bridge hooks.
@@ -221,6 +227,7 @@ ip_dn_io_t *ip_dn_io_ptr = NULL;
 #ifdef VIMAGE_GLOBALS
 int fw_one_pass;
 #endif
+struct flowtable *ip_ft;
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
@@ -342,6 +349,8 @@ ip_init(void)
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IP, ip_input, &ipintrq, 0);
+
+	ip_ft = flowtable_alloc(ip_output_flowtable_size, FL_PCPU);
 }
 
 void
