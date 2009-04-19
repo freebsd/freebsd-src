@@ -216,6 +216,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 	 */
 	switch (uap->cmd) {
 	case A_OLDGETPOLICY:
+	case A_GETPOLICY:
 		if (uap->length == sizeof(udata.au_policy64)) {
 			if (!audit_fail_stop)
 				udata.au_policy64 |= AUDIT_CNT;
@@ -227,8 +228,6 @@ auditon(struct thread *td, struct auditon_args *uap)
 				udata.au_policy64 |= AUDIT_ARGE;
 			break;
 		}
-		/* FALLTHROUGH */
-	case A_GETPOLICY:
 		if (uap->length != sizeof(udata.au_policy))
 			return (EINVAL);
 		if (!audit_fail_stop)
@@ -242,6 +241,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_OLDSETPOLICY:
+	case A_SETPOLICY:
 		if (uap->length == sizeof(udata.au_policy64)) {
 			if (udata.au_policy & (~AUDIT_CNT|AUDIT_AHLT|
 			    AUDIT_ARGV|AUDIT_ARGE))
@@ -254,8 +254,6 @@ auditon(struct thread *td, struct auditon_args *uap)
 			audit_arge = (udata.au_policy64 & AUDIT_ARGE);
 			break;
 		}
-		/* FALLTHROUGH */
-	case A_SETPOLICY:
 		if (uap->length != sizeof(udata.au_policy))
 			return (EINVAL);
 		if (udata.au_policy & ~(AUDIT_CNT|AUDIT_AHLT|AUDIT_ARGV|
@@ -283,6 +281,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_OLDGETQCTRL:
+	case A_GETQCTRL:
 		if (uap->length == sizeof(udata.au_qctrl64)) {
 			udata.au_qctrl64.aq64_hiwater =
 			    (u_int64_t)audit_qctrl.aq_hiwater;
@@ -294,14 +293,13 @@ auditon(struct thread *td, struct auditon_args *uap)
 			    (u_int64_t)audit_qctrl.aq_minfree;
 			break;
 		}
-		/* FALLTHROUGH */
-	case A_GETQCTRL:
 		if (uap->length != sizeof(udata.au_qctrl))
 			return (EINVAL);
 		udata.au_qctrl = audit_qctrl;
 		break;
 
 	case A_OLDSETQCTRL:
+	case A_SETQCTRL:
 		if (uap->length == sizeof(udata.au_qctrl64)) {
 			if ((udata.au_qctrl64.aq64_hiwater > AQ_MAXHIGH) ||
 			    (udata.au_qctrl64.aq64_lowater >=
@@ -321,8 +319,6 @@ auditon(struct thread *td, struct auditon_args *uap)
 			audit_qctrl.aq_delay = -1;	/* Not used. */
 			break;
 		}
-		/* FALLTHROUGH */
-	case A_SETQCTRL:
 		if (uap->length != sizeof(udata.au_qctrl))
 			return (EINVAL);
 		if ((udata.au_qctrl.aq_hiwater > AQ_MAXHIGH) ||
@@ -362,6 +358,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_OLDGETCOND:
+	case A_GETCOND:
 		if (uap->length == sizeof(udata.au_cond64)) {
 			if (audit_enabled && !audit_suspended)
 				udata.au_cond64 = AUC_AUDITING;
@@ -369,8 +366,6 @@ auditon(struct thread *td, struct auditon_args *uap)
 				udata.au_cond64 = AUC_NOAUDIT;
 			break;
 		}
-		/* FALLTHROUGH */
-	case A_GETCOND:
 		if (uap->length != sizeof(udata.au_cond))
 			return (EINVAL);
 		if (audit_enabled && !audit_suspended)
@@ -380,6 +375,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_OLDSETCOND:
+	case A_SETCOND:
 		if (uap->length == sizeof(udata.au_cond64)) {
 			if (udata.au_cond64 == AUC_NOAUDIT)
 				audit_suspended = 1;
@@ -391,8 +387,6 @@ auditon(struct thread *td, struct auditon_args *uap)
 			}
 			break;
 		}
-		/* FALLTHROUGH */
-	case A_SETCOND:
 		if (uap->length != sizeof(udata.au_cond))
 			return (EINVAL);
 		if (udata.au_cond == AUC_NOAUDIT)
