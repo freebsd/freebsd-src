@@ -42,6 +42,8 @@
  * using assembly language sequences in "rtld_start.S".
  */
 
+#include <machine/param.h>
+
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
