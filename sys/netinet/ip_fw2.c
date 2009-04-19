@@ -480,14 +480,17 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 	} else {
 		struct ifaddr *ia;
 
-		/* XXX lock? */
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 			if (ia->ifa_addr->sa_family != AF_INET)
 				continue;
 			if (cmd->p.ip.s_addr == ((struct sockaddr_in *)
-			    (ia->ifa_addr))->sin_addr.s_addr)
+			    (ia->ifa_addr))->sin_addr.s_addr) {
+				IF_ADDR_UNLOCK(ifp);
 				return(1);	/* match */
+			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	return(0);	/* no match, fail ... */
 }
@@ -589,17 +592,22 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 	struct in6_ifaddr *fdm;
 	struct in6_addr copia;
 
-	TAILQ_FOREACH(mdc, &V_ifnet, if_link)
-		TAILQ_FOREACH(mdc2, &mdc->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(mdc, &V_ifnet, if_link) {
+		IF_ADDR_LOCK(mdc);
+		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_list) {
 			if (mdc2->ifa_addr->sa_family == AF_INET6) {
 				fdm = (struct in6_ifaddr *)mdc2;
 				copia = fdm->ia_addr.sin6_addr;
 				/* need for leaving scope_id in the sock_addr */
 				in6_clearscope(&copia);
-				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia))
+				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia)) {
+					IF_ADDR_UNLOCK(mdc);
 					return 1;
+				}
 			}
 		}
+		IF_ADDR_UNLOCK(mdc);
+	}
 	return 0;
 }
 
