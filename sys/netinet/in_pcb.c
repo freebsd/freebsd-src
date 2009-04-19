@@ -605,6 +605,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 		ifp = ia->ia_ifp;
 		ia = NULL;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
@@ -618,8 +619,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			IF_ADDR_UNLOCK(ifp);
 			goto done;
 		}
+		IF_ADDR_UNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -636,6 +639,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * 3. as a last resort return the 'default' jail address.
 	 */
 	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) {
+		struct ifnet *ifp;
 
 		/* If not jailed, use the default returned. */
 		if (cred == NULL || !jailed(cred)) {
@@ -657,7 +661,9 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		 * 2. Check if we have any address on the outgoing interface
 		 *    belonging to this jail.
 		 */
-		TAILQ_FOREACH(ifa, &sro.ro_rt->rt_ifp->if_addrhead, ifa_link) {
+		ifp = sro.ro_rt->rt_ifp;
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
@@ -670,8 +676,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			IF_ADDR_UNLOCK(ifp);
 			goto done;
 		}
+		IF_ADDR_UNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -718,6 +726,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 			ifp = ia->ia_ifp;
 			ia = NULL;
+			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 				sa = ifa->ifa_addr;
@@ -732,8 +741,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			}
 			if (ia != NULL) {
 				laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
+			IF_ADDR_UNLOCK(ifp);
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
