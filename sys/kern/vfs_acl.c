@@ -56,9 +56,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#include <vm/uma.h>
+static MALLOC_DEFINE(M_ACL, "acl", "Access Control Lists");
 
-uma_zone_t	acl_zone;
 static int	vacl_set_acl(struct thread *td, struct vnode *vp,
 		    acl_type_t type, struct acl *aclp);
 static int	vacl_get_acl(struct thread *td, struct vnode *vp,
@@ -430,7 +429,7 @@ acl_alloc(int flags)
 {
 	struct acl *aclp;
 
-	aclp = uma_zalloc(acl_zone, flags);
+	aclp = malloc(sizeof(*aclp), M_ACL, flags);
 
 	return (aclp);
 }
@@ -439,16 +438,5 @@ void
 acl_free(struct acl *aclp)
 {
 
-	uma_zfree(acl_zone, aclp);
+	free(aclp, M_ACL);
 }
-
-/* ARGUSED */
-
-static void
-aclinit(void *dummy __unused)
-{
-
-	acl_zone = uma_zcreate("ACL UMA zone", sizeof(struct acl),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-}
-SYSINIT(acls, SI_SUB_ACL, SI_ORDER_FIRST, aclinit, NULL);
