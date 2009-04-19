@@ -72,6 +72,7 @@ struct vnet_inet {
 	int	_ip_sendsourcequench;
 	int	_ip_do_randomid;
 	int	_ip_checkinterface;
+	int	_ip_output_flowtable_size;
 	u_short	_ip_id;
 
 	uma_zone_t _ipq_zone;
