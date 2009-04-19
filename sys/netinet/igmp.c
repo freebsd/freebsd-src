@@ -161,8 +161,8 @@ static int	vnet_igmp_idetach(const void *);
  *  * The permitted lock order is: IN_MULTI_LOCK, IGMP_LOCK, IF_ADDR_LOCK.
  *    Any may be taken independently; if any are held at the same
  *    time, the above lock order must be followed.
- *  * All output is delegated to the netisr to handle IFF_NEEDSGIANT.
- *    Most of the time, direct dispatch will be fine.
+ *  * All output is delegated to the netisr.
+ *    Now that Giant has been eliminated, the netisr may be inlined.
  *  * IN_MULTI_LOCK covers in_multi.
  *  * IGMP_LOCK covers igmp_ifinfo and any global variables in this file,
  *    including the output queue.
@@ -190,19 +190,12 @@ static int	vnet_igmp_idetach(const void *);
  * So check for ifma_protospec being NULL before proceeding.
  */
 struct mtx		 igmp_mtx;
-int			 mpsafe_igmp = 0;
-SYSCTL_INT(_debug, OID_AUTO, mpsafe_igmp, CTLFLAG_RDTUN, &mpsafe_igmp, 0,
-    "Enable SMP-safe IGMPv3");
 
 struct mbuf		*m_raopt;		 /* Router Alert option */
 MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 
 /*
  * Global netisr output queue.
- * This is only used as a last resort if we cannot directly dispatch.
- * As IN_MULTI_LOCK is no longer in the bottom half of IP, we can do
- * this, providing mpsafe_igmp is set. If it is not, we take Giant,
- * and queueing is forced.
  */
 struct ifqueue		 igmpoq;
 
@@ -655,32 +648,6 @@ igmp_ifdetach(struct ifnet *ifp)
 	}
 
 	IGMP_UNLOCK();
-
-#ifdef VIMAGE
-	/*
-	 * Plug the potential race which may occur when a VIMAGE
-	 * is detached and we are forced to queue pending IGMP output for
-	 * output netisr processing due to !mpsafe_igmp. In this case it
-	 * is possible that igmp_intr() is about to see mbuf chains with
-	 * invalid cached curvnet pointers.
-	 * This is a rare condition, so just blow them all away.
-	 * FUTURE: This may in fact not be needed, because IFF_NEEDSGIANT
-	 * is being removed in 8.x and the netisr may then be eliminated;
-	 * it is needed only if VIMAGE and IFF_NEEDSGIANT need to co-exist
-	 */
-	if (!mpsafe_igmp) {
-		int drops;
-
-		IF_LOCK(&igmpoq);
-		drops = igmpoq.ifq_len;
-		_IF_DRAIN(&igmpoq);
-		IF_UNLOCK(&igmpoq);
-		if (bootverbose && drops) {
-			printf("%s: dropped %d pending IGMP output packets\n",
-			    __func__, drops);
-		}
-	}
-#endif /* VIMAGE */
 
 	CURVNET_RESTORE();
 }
@@ -1659,9 +1626,6 @@ igmp_fasttimo_vnet(void)
 	    !V_state_change_timers_running)
 		return;
 
-	if (!mpsafe_igmp)
-		mtx_lock(&Giant);
-
 	IN_MULTI_LOCK();
 	IGMP_LOCK();
 
@@ -1754,8 +1718,6 @@ igmp_fasttimo_vnet(void)
 out_locked:
 	IGMP_UNLOCK();
 	IN_MULTI_UNLOCK();
-	if (!mpsafe_igmp)
-		mtx_unlock(&Giant);
 }
 
 /*
@@ -3580,20 +3542,13 @@ igmp_sysinit(void)
 	CTR1(KTR_IGMPV3, "%s: initializing", __func__);
 
 	IGMP_LOCK_INIT();
-	TUNABLE_INT_FETCH("debug.mpsafeigmp", &mpsafe_igmp);
 
 	mtx_init(&igmpoq.ifq_mtx, "igmpoq_mtx", NULL, MTX_DEF);
 	IFQ_SET_MAXLEN(&igmpoq, IFQ_MAXLEN);
 
 	m_raopt = igmp_ra_alloc();
 
-#if __FreeBSD_version < 800000
-	netisr_register(NETISR_IGMP, igmp_intr, &igmpoq,
-	    mpsafe_igmp ? NETISR_MPSAFE : 0);
-#else
-	netisr_register(NETISR_IGMP, igmp_intr, &igmpoq,
-	    mpsafe_igmp ? 0 : NETISR_FORCEQUEUE);
-#endif
+	netisr_register(NETISR_IGMP, igmp_intr, &igmpoq, 0);
 }
 
 static void
