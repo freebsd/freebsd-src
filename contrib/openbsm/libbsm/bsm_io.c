@@ -32,7 +32,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#61 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#62 $
  */
 
 #include <sys/types.h>
@@ -365,6 +365,10 @@ close_tag(FILE *fp, u_char type)
 		fprintf(fp, "/>");
 		break;
 
+	case AUT_SOCKINET128:
+		fprintf(fp, "/>");
+		break;
+
 	case AUT_SUBJECT32:
 		fprintf(fp, "/>");
 		break;
@@ -529,12 +533,15 @@ print_tok_type(FILE *fp, u_char type, const char *tokname, char raw, int xml)
 			break;
 
 		case AUT_SOCKINET32:
-			fprintf(fp, "<old_socket");
+			fprintf(fp, "<socket-inet ");
 			break;
 
 		case AUT_SOCKUNIX:
-			fprintf(fp, "<old_socket");
+			fprintf(fp, "<socket-unix ");
 			break;
+
+		case AUT_SOCKINET128:
+			fprintf(fp, "<socket-inet6 ");
 
 		case AUT_SUBJECT32:
 			fprintf(fp, "<subject ");
@@ -3067,18 +3074,18 @@ fetch_sock_inet32_tok(tokenstr_t *tok, u_char *buf, int len)
 {
 	int err = 0;
 
-	READ_TOKEN_U_INT16(buf, len, tok->tt.sockinet32.family, tok->len,
+	READ_TOKEN_U_INT16(buf, len, tok->tt.sockinet_ex32.family, tok->len,
 	    err);
 	if (err)
 		return (-1);
 
-	READ_TOKEN_BYTES(buf, len, &tok->tt.sockinet32.port,
+	READ_TOKEN_BYTES(buf, len, &tok->tt.sockinet_ex32.port,
 	    sizeof(uint16_t), tok->len, err);
 	if (err)
 		return (-1);
 
-	READ_TOKEN_BYTES(buf, len, &tok->tt.sockinet32.addr,
-	    sizeof(tok->tt.sockinet32.addr), tok->len, err);
+	READ_TOKEN_BYTES(buf, len, &tok->tt.sockinet_ex32.addr,
+	    sizeof(tok->tt.sockinet_ex32.addr[0]), tok->len, err);
 	if (err)
 		return (-1);
 
@@ -3093,22 +3100,77 @@ print_sock_inet32_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 	print_tok_type(fp, tok->id, "socket-inet", raw, xml);
 	if (xml) {
 		open_attr(fp, "type");
-		print_2_bytes(fp, tok->tt.sockinet32.family, "%u");
+		print_2_bytes(fp, tok->tt.sockinet_ex32.family, "%u");
 		close_attr(fp);
 		open_attr(fp, "port");
-		print_2_bytes(fp, ntohs(tok->tt.sockinet32.port), "%u");
+		print_2_bytes(fp, ntohs(tok->tt.sockinet_ex32.port), "%u");
 		close_attr(fp);
 		open_attr(fp, "addr");
-		print_ip_address(fp, tok->tt.sockinet32.addr);
+		print_ip_address(fp, tok->tt.sockinet_ex32.addr[0]);
 		close_attr(fp);
 		close_tag(fp, tok->id);
 	} else {
 		print_delim(fp, del);
-		print_2_bytes(fp, tok->tt.sockinet32.family, "%u");
+		print_2_bytes(fp, tok->tt.sockinet_ex32.family, "%u");
 		print_delim(fp, del);
-		print_2_bytes(fp, ntohs(tok->tt.sockinet32.port), "%u");
+		print_2_bytes(fp, ntohs(tok->tt.sockinet_ex32.port), "%u");
 		print_delim(fp, del);
-		print_ip_address(fp, tok->tt.sockinet32.addr);
+		print_ip_address(fp, tok->tt.sockinet_ex32.addr[0]);
+	}
+}
+
+/*
+ * socket family	 2 bytes
+ * local port		 2 bytes
+ * socket address	16 bytes
+ */
+static int
+fetch_sock_inet128_tok(tokenstr_t *tok, u_char *buf, int len)
+{
+	int err = 0;
+
+	READ_TOKEN_U_INT16(buf, len, tok->tt.sockinet_ex32.family, tok->len,
+	    err);
+	if (err)
+		return (-1);
+
+	READ_TOKEN_BYTES(buf, len, &tok->tt.sockinet_ex32.port,
+	    sizeof(uint16_t), tok->len, err);
+	if (err)
+		return (-1);
+
+	READ_TOKEN_BYTES(buf, len, &tok->tt.sockinet_ex32.addr,
+	    sizeof(tok->tt.sockinet_ex32.addr), tok->len, err);
+	if (err)
+		return (-1);
+
+	return (0);
+}
+
+static void
+print_sock_inet128_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
+    __unused char sfrm, int xml)
+{
+
+	print_tok_type(fp, tok->id, "socket-inet6", raw, xml);
+	if (xml) {
+		open_attr(fp, "type");
+		print_2_bytes(fp, tok->tt.sockinet_ex32.family, "%u");
+		close_attr(fp);
+		open_attr(fp, "port");
+		print_2_bytes(fp, ntohs(tok->tt.sockinet_ex32.port), "%u");
+		close_attr(fp);
+		open_attr(fp, "addr");
+		print_ip_ex_address(fp, AU_IPv6, tok->tt.sockinet_ex32.addr);
+		close_attr(fp);
+		close_tag(fp, tok->id);
+	} else {
+		print_delim(fp, del);
+		print_2_bytes(fp, tok->tt.sockinet_ex32.family, "%u");
+		print_delim(fp, del);
+		print_2_bytes(fp, ntohs(tok->tt.sockinet_ex32.port), "%u");
+		print_delim(fp, del);
+		print_ip_ex_address(fp, AU_IPv6, tok->tt.sockinet_ex32.addr);
 	}
 }
 
@@ -4057,6 +4119,9 @@ au_fetch_tok(tokenstr_t *tok, u_char *buf, int len)
 	case AUT_SOCKUNIX:
 		return (fetch_sock_unix_tok(tok, buf, len));
 
+	case AUT_SOCKINET128:
+		return (fetch_sock_inet128_tok(tok, buf, len));
+
 	case AUT_SUBJECT32:
 		return (fetch_subject32_tok(tok, buf, len));
 
@@ -4224,6 +4289,10 @@ au_print_tok(FILE *outfp, tokenstr_t *tok, char *del, char raw, char sfrm)
 
 	case AUT_SOCKUNIX:
 		print_sock_unix_tok(outfp, tok, del, raw, sfrm, AU_PLAIN);
+		return;
+
+	case AUT_SOCKINET128:
+		print_sock_inet128_tok(outfp, tok, del, raw, sfrm, AU_PLAIN);
 		return;
 
 	case AUT_SUBJECT32:

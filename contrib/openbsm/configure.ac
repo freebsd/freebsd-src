@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.1beta1], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
-AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#50 $])
+AC_INIT([OpenBSM], [1.1], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
+AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#52 $])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER([config/config.h])
@@ -36,6 +36,8 @@ AC_SEARCH_LIBS(clock_gettime, rt)
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([endian.h mach/mach.h machine/endian.h sys/endian.h stdint.h])
+
+AC_DEFINE([_GNU_SOURCE],,[Use extended API on platforms that require it])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
