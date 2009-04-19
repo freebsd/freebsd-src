@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Apple Inc.
+ * Copyright (c) 2005-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_record.h#9 $
+ * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_record.h#10 $
  */
 
 #ifndef _BSM_AUDIT_RECORD_H_
@@ -285,10 +285,12 @@ token_t	*au_to_zonename(const char *zonename);
  */
 int	 au_bsm_to_domain(u_short bsm_domain, int *local_domainp);
 int	 au_bsm_to_errno(u_char bsm_error, int *errorp);
+int	 au_bsm_to_fcntl_cmd(u_short bsm_fcntl_cmd, int *local_fcntl_cmdp);
 int	 au_bsm_to_socket_type(u_short bsm_socket_type,
 	    int *local_socket_typep);
 u_short	 au_domain_to_bsm(int local_domain);
 u_char	 au_errno_to_bsm(int local_errno);
+u_short	 au_fcntl_cmd_to_bsm(int local_fcntl_command);
 u_short	 au_socket_type_to_bsm(int local_socket_type);
 
 __END_DECLS
