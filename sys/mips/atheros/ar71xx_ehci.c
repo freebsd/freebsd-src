@@ -111,7 +111,6 @@ ar71xx_ehci_probe(device_t self)
 {
 
 	device_set_desc(self, EHCI_HC_DEVSTR);
-	printf("EHCI probed\n");
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -124,7 +123,6 @@ ar71xx_ehci_attach(device_t self)
 	int err;
 	int rid;
 
-	printf("EHCI attach\n");
 	/* initialise some bus fields */
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
@@ -151,7 +149,7 @@ ar71xx_ehci_attach(device_t self)
 	 * Craft special resource for bus space ops that handle
 	 * byte-alignment of non-word addresses.  
 	 */
-	sc->sc_io_tag = &ar71xx_bus_space_reversed;
+	sc->sc_io_tag = ar71xx_bus_space_reversed;
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
