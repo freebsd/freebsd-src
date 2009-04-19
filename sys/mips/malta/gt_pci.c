@@ -206,7 +206,7 @@ gt_pci_attach(device_t dev)
 	busno = 0;
 	sc->sc_dev = dev;
 	sc->sc_busno = busno;
-	sc->sc_st = &mips_bus_space_generic;
+	sc->sc_st = mips_bus_space_generic;
 
 	/* Use KSEG1 to access IO ports for it is uncached */
 	sc->sc_io = MIPS_PHYS_TO_KSEG1(MALTA_PCI0_IO_BASE);

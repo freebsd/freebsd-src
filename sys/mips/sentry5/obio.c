@@ -119,7 +119,6 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	struct resource *rv;
 	struct rman *rm;
-	bus_space_tag_t bt = 0;
 	bus_space_handle_t bh = 0;
 	struct obio_softc *sc = device_get_softc(bus);
 
@@ -131,7 +130,6 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (NULL);
 	case SYS_RES_IOPORT:
 		rm = &sc->oba_rman;
-		bt = sc->oba_st;
 		bh = sc->oba_addr;
 		start = bh;
 		break;
@@ -146,7 +144,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (type == SYS_RES_IRQ)
 		return (rv);
 	rman_set_rid(rv, *rid);
-	rman_set_bustag(rv, bt);
+	rman_set_bustag(rv, mips_bus_space_generic);
 	rman_set_bushandle(rv, bh);
 	
 	if (0) {
