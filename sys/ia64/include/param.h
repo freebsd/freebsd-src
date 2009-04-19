@@ -99,6 +99,11 @@
 #define	ALIGN(p)		_ALIGN(p)
 #define ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
+#ifndef CACHE_LINE_SHIFT
+#define	CACHE_LINE_SHIFT	6
+#endif
+#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
+
 #ifndef LOG2_PAGE_SIZE
 #define	LOG2_PAGE_SIZE		13		/* 8K pages by default. */
 #endif
