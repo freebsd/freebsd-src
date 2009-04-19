@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
+#include <net/flowtable.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
@@ -135,6 +136,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int hlen = sizeof (struct ip);
 	int mtu;
 	int len, error = 0;
+	int nortfree = 0;
 	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
@@ -157,6 +159,10 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			m->m_flags |= M_FLOWID;
 		}
+	}
+	if ((ro == &iproute) && (ro->ro_rt == NULL) && (ro->ro_lle == NULL)) {
+		if (flowtable_lookup(ip_ft, m, ro) == 0)
+			nortfree = 1;
 	}
 
 	if (opt) {
@@ -199,7 +205,8 @@ again:
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		RTFREE(ro->ro_rt);
+		if (!nortfree)
+			RTFREE(ro->ro_rt);
 		ro->ro_rt = (struct rtentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
@@ -638,7 +645,7 @@ passout:
 		IPSTAT_INC(ips_fragmented);
 
 done:
-	if (ro == &iproute && ro->ro_rt) {
+	if (ro == &iproute && ro->ro_rt && !nortfree) {
 		RTFREE(ro->ro_rt);
 	}
 	return (error);
