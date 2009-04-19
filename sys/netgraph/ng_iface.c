@@ -668,6 +668,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			struct ifaddr *ifa;
 
 			/* Return the first configured IP address */
+			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct ng_cisco_ipaddr *ips;
 
@@ -685,6 +686,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 						ifa->ifa_netmask)->sin_addr;
 				break;
 			}
+			IF_ADDR_UNLOCK(ifp);
 
 			/* No IP addresses on this interface? */
 			if (ifa == NULL)
