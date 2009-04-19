@@ -462,7 +462,6 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 			 * essentially lose the changes by pretending it
 			 * worked.
 			 */
-			pmap_clear_modify(mt);
 			vm_page_undirty(mt);
 			break;
 		case VM_PAGER_ERROR:
