@@ -1,7 +1,7 @@
 # $FreeBSD$
 hint.apb.0.at="nexus0"
 hint.apb.0.maddr=0x18000000
-hint.apb.0.msize=0x01000000
+hint.apb.0.msize=0x06000000
 hint.apb.0.irq=4
 
 # uart0
@@ -10,6 +10,18 @@ hint.uart.0.at="apb0"
 hint.uart.0.maddr=0x18020000
 hint.uart.0.msize=0x18
 hint.uart.0.irq=3
+
+#ohci
+hint.ohci.0.at="apb0"
+hint.ohci.0.maddr=0x1c000000
+hint.ohci.0.msize=0x01000000
+hint.ohci.0.irq=6
+
+#ehci
+hint.ehci.0.at="nexus0"
+hint.ehci.0.maddr=0x1b000000
+hint.ehci.0.msize=0x01000000
+hint.ehci.0.irq=1
 
 # pci
 hint.pcib.0.at="nexus0"
