@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Apple Inc.
+ * Copyright (c) 2004-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#28 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#31 $
  */
 
 #ifdef __APPLE__
@@ -63,7 +63,7 @@ audit_submit(short au_event, au_id_t auid, char status,
 {
 	char text[MAX_AUDITSTRING_LEN];
 	token_t *token;
-	long acond;
+	int acond;
 	va_list ap;
 	pid_t pid;
 	int error, afd, subj_ex;
@@ -71,7 +71,7 @@ audit_submit(short au_event, au_id_t auid, char status,
 	struct auditinfo_addr aia;
 	au_tid_t atid;
 
-	if (auditon(A_GETCOND, &acond, sizeof(acond)) < 0) {
+	if (audit_get_cond(&acond) != 0) {
 		/*
 		 * If auditon(2) returns ENOSYS, then audit has not been
 		 * compiled into the kernel, so just return.
@@ -178,7 +178,7 @@ audit_submit(short au_event, au_id_t auid, char status,
 			return (-1);
 		}
 	}
-	token = au_to_return32(status, au_errno_to_bsm(reterr));
+	token = au_to_return32(au_errno_to_bsm(status), reterr);
 	if (token == NULL) {
 		syslog(LOG_AUTH | LOG_ERR,
 		    "audit: enable to build return token");
@@ -488,3 +488,336 @@ audit_token_to_au32(audit_token_t atoken, uid_t *auidp, uid_t *euidp,
 	}
 }
 #endif /* !__APPLE__ */
+
+int
+audit_get_cond(int *cond)
+{
+	int ret;
+
+	ret = auditon(A_GETCOND, cond, sizeof(*cond));
+#ifdef A_OLDGETCOND
+	if ((0 != ret) && EINVAL == errno) {
+		long lcond = *cond;
+
+		ret = auditon(A_OLDGETCOND, &lcond, sizeof(lcond));
+		*cond = (int)lcond;
+	}
+#endif
+	return (ret);
+}
+
+int 
+audit_set_cond(int *cond)
+{
+	int ret;
+
+	ret = auditon(A_SETCOND, cond, sizeof(*cond));
+#ifdef A_OLDSETCOND
+	if ((0 != ret) && (EINVAL == errno)) {
+		long lcond = (long)*cond;
+
+		ret = auditon(A_OLDSETCOND, &lcond, sizeof(lcond)); 
+		*cond = (int)lcond;
+	}
+#endif
+	return (ret);
+}
+
+int
+audit_get_policy(int *policy)
+{
+	int ret;
+
+	ret = auditon(A_GETPOLICY, policy, sizeof(*policy));
+#ifdef A_OLDGETPOLICY
+	if ((0 != ret) && (EINVAL == errno)){
+		long lpolicy = (long)*policy;
+
+		ret = auditon(A_OLDGETPOLICY, &lpolicy, sizeof(lpolicy)); 
+		*policy = (int)lpolicy;
+	}
+#endif
+	return (ret);
+}
+
+int 
+audit_set_policy(int *policy)
+{
+	int ret;
+
+	ret = auditon(A_SETPOLICY, policy, sizeof(*policy));
+#ifdef A_OLDSETPOLICY
+	if ((0 != ret) && (EINVAL == errno)){
+		long lpolicy = (long)*policy;
+
+		ret = auditon(A_OLDSETPOLICY, &lpolicy, sizeof(lpolicy)); 
+		*policy = (int)lpolicy;
+	}
+#endif
+	return (ret);
+}
+
+int
+audit_get_qctrl(au_qctrl_t *qctrl, size_t sz)
+{
+	int ret;
+
+	if (sizeof(*qctrl) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	ret = auditon(A_GETQCTRL, qctrl, sizeof(*qctrl));
+#ifdef A_OLDGETQCTRL
+	if ((0 != ret) && (EINVAL == errno)){
+		struct old_qctrl {
+			size_t   oq_hiwater;
+			size_t   oq_lowater;
+			size_t   oq_bufsz;
+			clock_t  oq_delay;
+			int	 oq_minfree;
+		} oq;
+
+		oq.oq_hiwater = (size_t)qctrl->aq_hiwater;
+		oq.oq_lowater = (size_t)qctrl->aq_lowater;
+		oq.oq_bufsz = (size_t)qctrl->aq_bufsz;
+		oq.oq_delay = (clock_t)qctrl->aq_delay;
+		oq.oq_minfree = qctrl->aq_minfree;
+
+		ret = auditon(A_OLDGETQCTRL, &oq, sizeof(oq)); 
+
+		qctrl->aq_hiwater = (int)oq.oq_hiwater;
+		qctrl->aq_lowater = (int)oq.oq_lowater;
+		qctrl->aq_bufsz = (int)oq.oq_bufsz;
+		qctrl->aq_delay = (int)oq.oq_delay;
+		qctrl->aq_minfree = oq.oq_minfree;
+	}
+#endif /* A_OLDGETQCTRL */
+	return (ret);
+}
+
+int
+audit_set_qctrl(au_qctrl_t *qctrl, size_t sz)
+{
+	int ret;
+
+	if (sizeof(*qctrl) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	ret = auditon(A_SETQCTRL, qctrl, sz); 
+#ifdef	A_OLDSETQCTRL
+	if ((0 != ret) && (EINVAL == errno)) {
+		struct old_qctrl {
+			size_t   oq_hiwater;
+			size_t   oq_lowater;
+			size_t   oq_bufsz;
+			clock_t  oq_delay;
+			int	 oq_minfree;
+		} oq;
+
+		oq.oq_hiwater = (size_t)qctrl->aq_hiwater;
+		oq.oq_lowater = (size_t)qctrl->aq_lowater;
+		oq.oq_bufsz = (size_t)qctrl->aq_bufsz;
+		oq.oq_delay = (clock_t)qctrl->aq_delay;
+		oq.oq_minfree = qctrl->aq_minfree;
+
+		ret = auditon(A_OLDSETQCTRL, &oq, sizeof(oq)); 
+
+		qctrl->aq_hiwater = (int)oq.oq_hiwater;
+		qctrl->aq_lowater = (int)oq.oq_lowater;
+		qctrl->aq_bufsz = (int)oq.oq_bufsz;
+		qctrl->aq_delay = (int)oq.oq_delay;
+		qctrl->aq_minfree = oq.oq_minfree;
+	}
+#endif /* A_OLDSETQCTRL */
+	return (ret);
+}
+
+int
+audit_send_trigger(int *trigger)
+{
+
+	return (auditon(A_SENDTRIGGER, trigger, sizeof(*trigger)));
+}
+
+int
+audit_get_kaudit(auditinfo_addr_t *aia, size_t sz)
+{
+
+	if (sizeof(*aia) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETKAUDIT, aia, sz));
+}
+
+int
+audit_set_kaudit(auditinfo_addr_t *aia, size_t sz)
+{
+
+	if (sizeof(*aia) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_SETKAUDIT, aia, sz));
+}
+
+int
+audit_get_class(au_evclass_map_t *evc_map, size_t sz)
+{
+
+	if (sizeof(*evc_map) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETCLASS, evc_map, sz));
+}
+
+int
+audit_set_class(au_evclass_map_t *evc_map, size_t sz) 
+{
+
+	if (sizeof(*evc_map) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_SETCLASS, evc_map, sz));
+}
+
+int
+audit_get_kmask(au_mask_t *kmask, size_t sz)
+{
+	if (sizeof(*kmask) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETKMASK, kmask, sz));
+}
+
+int
+audit_set_kmask(au_mask_t *kmask, size_t sz)
+{
+	if (sizeof(*kmask) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_SETKMASK, kmask, sz));
+}
+
+int
+audit_get_fsize(au_fstat_t *fstat, size_t sz)
+{
+
+	if (sizeof(*fstat) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETFSIZE, fstat, sz));
+}
+
+int
+audit_set_fsize(au_fstat_t *fstat, size_t sz)
+{
+
+	if (sizeof(*fstat) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_SETFSIZE, fstat, sz));
+}
+
+int
+audit_set_pmask(auditpinfo_t *api, size_t sz)
+{
+	
+	if (sizeof(*api) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_SETPMASK, api, sz));
+}
+
+int 
+audit_get_pinfo(auditpinfo_t *api, size_t sz)
+{
+	
+	if (sizeof(*api) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETPINFO, api, sz));
+}
+
+int
+audit_get_pinfo_addr(auditpinfo_addr_t *apia, size_t sz)
+{
+	
+	if (sizeof(*apia) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETPINFO_ADDR, apia, sz));
+}
+
+int
+audit_get_sinfo_addr(auditinfo_addr_t *aia, size_t sz)
+{
+	
+	if (sizeof(*aia) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETSINFO_ADDR, aia, sz));
+}
+
+int
+audit_get_stat(au_stat_t *stats, size_t sz)
+{
+
+	if (sizeof(*stats) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETSTAT, stats, sz));
+}
+
+int
+audit_set_stat(au_stat_t *stats, size_t sz)
+{
+
+	if (sizeof(*stats) != sz) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (auditon(A_GETSTAT, stats, sz));
+}
+
+int
+audit_get_cwd(char *path, size_t sz)
+{
+
+	return (auditon(A_GETCWD, path, sz));
+}
+
+int
+audit_get_car(char *path, size_t sz)
+{
+
+	return (auditon(A_GETCAR, path, sz));
+}
