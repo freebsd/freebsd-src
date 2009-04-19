@@ -452,10 +452,12 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Determine size of response and allocate it */
 			buflen = 0;
+			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 				buflen += SA_SIZE(ifa->ifa_addr);
 			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
 			if (resp == NULL) {
+				IF_ADDR_UNLOCK(ifp);
 				error = ENOMEM;
 				break;
 			}
@@ -474,6 +476,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ptr += len;
 				buflen -= len;
 			}
+			IF_ADDR_UNLOCK(ifp);
 			break;
 		    }
 
