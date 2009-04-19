@@ -330,14 +330,12 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * Protect from ipintr() traversing address list
 			 * while we're modifying it.
 			 */
-			s = splnet();
 			ifa = &ia->ia_ifa;
 			IFA_LOCK_INIT(ifa);
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
 			ifa->ifa_refcnt = 1;
-			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 
 			ia->ia_sockmask.sin_len = 8;
 			ia->ia_sockmask.sin_family = AF_INET;
@@ -347,6 +345,10 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			}
 			ia->ia_ifp = ifp;
 
+			IF_ADDR_LOCK(ifp);
+			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
+			IF_ADDR_UNLOCK(ifp);
+			s = splnet();
 			TAILQ_INSERT_TAIL(&V_in_ifaddrhead, ia, ia_link);
 			splx(s);
 			iaIsNew = 1;
@@ -512,8 +514,10 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	 * Protect from ipintr() traversing address list while we're modifying
 	 * it.
 	 */
-	s = splnet();
+	IF_ADDR_LOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+	IF_ADDR_UNLOCK(ifp);
+	s = splnet();
 	TAILQ_REMOVE(&V_in_ifaddrhead, ia, ia_link);
 	if (ia->ia_addr.sin_family == AF_INET) {
 		LIST_REMOVE(ia, ia_hash);
