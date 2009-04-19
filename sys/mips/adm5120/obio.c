@@ -269,7 +269,7 @@ obio_activate_resource(device_t bus, device_t child, int type, int rid,
 
 		vaddr = (void *)MIPS_PHYS_TO_KSEG1((intptr_t)rman_get_start(r));
 		rman_set_virtual(r, vaddr);
-		rman_set_bustag(r, &mips_bus_space_generic);
+		rman_set_bustag(r, mips_bus_space_generic);
 		rman_set_bushandle(r, (bus_space_handle_t)vaddr);
 	}
 
