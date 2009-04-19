@@ -99,6 +99,10 @@
 #define	ALIGN(p)		_ALIGN(p)
 #define ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
+/*
+ * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
+ * architecture.  It should be used with appropriate caution.
+ */
 #ifndef CACHE_LINE_SHIFT
 #define	CACHE_LINE_SHIFT	6
 #endif
