@@ -71,6 +71,11 @@
 #define ALIGNBYTES	_ALIGNBYTES
 #define ALIGN(p)	_ALIGN(p)
 
+#ifndef CACHE_LINE_SHIFT
+#define	CACHE_LINE_SHIFT	6
+#endif
+#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
+
 #define	PAGE_SHIFT_8K	13
 #define	PAGE_SIZE_8K	(1L<<PAGE_SHIFT_8K)
 #define	PAGE_MASK_8K	(PAGE_SIZE_8K-1)

@@ -89,6 +89,10 @@
 #define	ALIGN(p)		_ALIGN(p)
 #define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
+#ifndef CACHE_LINE_SHIFT
+#define	CACHE_LINE_SHIFT	6
+#endif
+#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
 /* Size of the level 1 page table units */
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
