@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2005 Apple Inc.
+ * Copyright (c) 1999-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -187,12 +187,15 @@ auditon(struct thread *td, struct auditon_args *uap)
 	 */
 	switch (uap->cmd) {
 	case A_SETPOLICY:
+	case A_OLDSETPOLICY:
 	case A_SETKMASK:
 	case A_SETQCTRL:
+	case A_OLDSETQCTRL:
 	case A_SETSTAT:
 	case A_SETUMASK:
 	case A_SETSMASK:
 	case A_SETCOND:
+	case A_OLDSETCOND:
 	case A_SETCLASS:
 	case A_SETPMASK:
 	case A_SETFSIZE:
@@ -212,7 +215,22 @@ auditon(struct thread *td, struct auditon_args *uap)
 	 * XXXAUDIT: Locking?
 	 */
 	switch (uap->cmd) {
+	case A_OLDGETPOLICY:
+		if (uap->length == sizeof(udata.au_policy64)) {
+			if (!audit_fail_stop)
+				udata.au_policy64 |= AUDIT_CNT;
+			if (audit_panic_on_write_fail)
+				udata.au_policy64 |= AUDIT_AHLT;
+			if (audit_argv)
+				udata.au_policy64 |= AUDIT_ARGV;
+			if (audit_arge)
+				udata.au_policy64 |= AUDIT_ARGE;
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_GETPOLICY:
+		if (uap->length != sizeof(udata.au_policy))
+			return (EINVAL);
 		if (!audit_fail_stop)
 			udata.au_policy |= AUDIT_CNT;
 		if (audit_panic_on_write_fail)
@@ -223,7 +241,23 @@ auditon(struct thread *td, struct auditon_args *uap)
 			udata.au_policy |= AUDIT_ARGE;
 		break;
 
+	case A_OLDSETPOLICY:
+		if (uap->length == sizeof(udata.au_policy64)) {
+			if (udata.au_policy & (~AUDIT_CNT|AUDIT_AHLT|
+			    AUDIT_ARGV|AUDIT_ARGE))
+				return (EINVAL);
+			audit_fail_stop = ((udata.au_policy64 & AUDIT_CNT) ==
+			    0);
+			audit_panic_on_write_fail = (udata.au_policy64 &
+			    AUDIT_AHLT);
+			audit_argv = (udata.au_policy64 & AUDIT_ARGV);
+			audit_arge = (udata.au_policy64 & AUDIT_ARGE);
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_SETPOLICY:
+		if (uap->length != sizeof(udata.au_policy))
+			return (EINVAL);
 		if (udata.au_policy & ~(AUDIT_CNT|AUDIT_AHLT|AUDIT_ARGV|
 		    AUDIT_ARGE))
 			return (EINVAL);
@@ -237,18 +271,60 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_GETKMASK:
+		if (uap->length != sizeof(udata.au_mask))
+			return (EINVAL);
 		udata.au_mask = audit_nae_mask;
 		break;
 
 	case A_SETKMASK:
+		if (uap->length != sizeof(udata.au_mask))
+			return (EINVAL);
 		audit_nae_mask = udata.au_mask;
 		break;
 
+	case A_OLDGETQCTRL:
+		if (uap->length == sizeof(udata.au_qctrl64)) {
+			udata.au_qctrl64.aq64_hiwater =
+			    (u_int64_t)audit_qctrl.aq_hiwater;
+			udata.au_qctrl64.aq64_lowater =
+			    (u_int64_t)audit_qctrl.aq_lowater;
+			udata.au_qctrl64.aq64_bufsz =
+			    (u_int64_t)audit_qctrl.aq_bufsz;
+			udata.au_qctrl64.aq64_minfree =
+			    (u_int64_t)audit_qctrl.aq_minfree;
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_GETQCTRL:
+		if (uap->length != sizeof(udata.au_qctrl))
+			return (EINVAL);
 		udata.au_qctrl = audit_qctrl;
 		break;
 
+	case A_OLDSETQCTRL:
+		if (uap->length == sizeof(udata.au_qctrl64)) {
+			if ((udata.au_qctrl64.aq64_hiwater > AQ_MAXHIGH) ||
+			    (udata.au_qctrl64.aq64_lowater >=
+			    udata.au_qctrl.aq_hiwater) ||
+			    (udata.au_qctrl64.aq64_bufsz > AQ_MAXBUFSZ) ||
+			    (udata.au_qctrl64.aq64_minfree < 0) ||
+			    (udata.au_qctrl64.aq64_minfree > 100))
+				return (EINVAL);
+			audit_qctrl.aq_hiwater =
+			    (int)udata.au_qctrl64.aq64_hiwater;
+			audit_qctrl.aq_lowater =
+			    (int)udata.au_qctrl64.aq64_lowater;
+			audit_qctrl.aq_bufsz =
+			    (int)udata.au_qctrl64.aq64_bufsz;
+			audit_qctrl.aq_minfree =
+			    (int)udata.au_qctrl64.aq64_minfree;
+			audit_qctrl.aq_delay = -1;	/* Not used. */
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_SETQCTRL:
+		if (uap->length != sizeof(udata.au_qctrl))
+			return (EINVAL);
 		if ((udata.au_qctrl.aq_hiwater > AQ_MAXHIGH) ||
 		    (udata.au_qctrl.aq_lowater >= udata.au_qctrl.aq_hiwater) ||
 		    (udata.au_qctrl.aq_bufsz > AQ_MAXBUFSZ) ||
@@ -285,14 +361,40 @@ auditon(struct thread *td, struct auditon_args *uap)
 		return (ENOSYS);
 		break;
 
+	case A_OLDGETCOND:
+		if (uap->length == sizeof(udata.au_cond64)) {
+			if (audit_enabled && !audit_suspended)
+				udata.au_cond64 = AUC_AUDITING;
+			else
+				udata.au_cond64 = AUC_NOAUDIT;
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_GETCOND:
+		if (uap->length != sizeof(udata.au_cond))
+			return (EINVAL);
 		if (audit_enabled && !audit_suspended)
 			udata.au_cond = AUC_AUDITING;
 		else
 			udata.au_cond = AUC_NOAUDIT;
 		break;
 
+	case A_OLDSETCOND:
+		if (uap->length == sizeof(udata.au_cond64)) {
+			if (udata.au_cond64 == AUC_NOAUDIT)
+				audit_suspended = 1;
+			if (udata.au_cond64 == AUC_AUDITING)
+				audit_suspended = 0;
+			if (udata.au_cond64 == AUC_DISABLED) {
+				audit_suspended = 1;
+				audit_shutdown(NULL, 0);
+			}
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_SETCOND:
+		if (uap->length != sizeof(udata.au_cond))
+			return (EINVAL);
 		if (udata.au_cond == AUC_NOAUDIT)
 			audit_suspended = 1;
 		if (udata.au_cond == AUC_AUDITING)
@@ -304,16 +406,22 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_GETCLASS:
+		if (uap->length != sizeof(udata.au_evclass))
+			return (EINVAL);
 		udata.au_evclass.ec_class = au_event_class(
 		    udata.au_evclass.ec_number);
 		break;
 
 	case A_SETCLASS:
+		if (uap->length != sizeof(udata.au_evclass))
+			return (EINVAL);
 		au_evclassmap_insert(udata.au_evclass.ec_number,
 		    udata.au_evclass.ec_class);
 		break;
 
 	case A_GETPINFO:
+		if (uap->length != sizeof(udata.au_aupinfo))
+			return (EINVAL);
 		if (udata.au_aupinfo.ap_pid < 1)
 			return (ESRCH);
 		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL)
@@ -341,6 +449,8 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_SETPMASK:
+		if (uap->length != sizeof(udata.au_aupinfo))
+			return (EINVAL);
 		if (udata.au_aupinfo.ap_pid < 1)
 			return (ESRCH);
 		newcred = crget();
@@ -365,6 +475,8 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_SETFSIZE:
+		if (uap->length != sizeof(udata.au_fstat))
+			return (EINVAL);
 		if ((udata.au_fstat.af_filesz != 0) &&
 		   (udata.au_fstat.af_filesz < MIN_AUDIT_FILE_SIZE))
 			return (EINVAL);
@@ -372,11 +484,15 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_GETFSIZE:
+		if (uap->length != sizeof(udata.au_fstat))
+			return (EINVAL);
 		udata.au_fstat.af_filesz = audit_fstat.af_filesz;
 		udata.au_fstat.af_currsz = audit_fstat.af_currsz;
 		break;
 
 	case A_GETPINFO_ADDR:
+		if (uap->length != sizeof(udata.au_aupinfo_addr))
+			return (EINVAL);
 		if (udata.au_aupinfo_addr.ap_pid < 1)
 			return (ESRCH);
 		if ((tp = pfind(udata.au_aupinfo_addr.ap_pid)) == NULL)
@@ -393,10 +509,14 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_GETKAUDIT:
+		if (uap->length != sizeof(udata.au_kau_info))
+			return (EINVAL);
 		audit_get_kinfo(&udata.au_kau_info);
 		break;
 
 	case A_SETKAUDIT:
+		if (uap->length != sizeof(udata.au_kau_info))
+			return (EINVAL);
 		if (udata.au_kau_info.ai_termid.at_type != AU_IPv4 &&
 		    udata.au_kau_info.ai_termid.at_type != AU_IPv6)
 			return (EINVAL);
@@ -404,6 +524,8 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_SENDTRIGGER:
+		if (uap->length != sizeof(udata.au_trigger))
+			return (EINVAL);
 		if ((udata.au_trigger < AUDIT_TRIGGER_MIN) ||
 		    (udata.au_trigger > AUDIT_TRIGGER_MAX))
 			return (EINVAL);
@@ -418,12 +540,15 @@ auditon(struct thread *td, struct auditon_args *uap)
 	 */
 	switch (uap->cmd) {
 	case A_GETPOLICY:
+	case A_OLDGETPOLICY:
 	case A_GETKMASK:
 	case A_GETQCTRL:
+	case A_OLDGETQCTRL:
 	case A_GETCWD:
 	case A_GETCAR:
 	case A_GETSTAT:
 	case A_GETCOND:
+	case A_OLDGETCOND:
 	case A_GETCLASS:
 	case A_GETPINFO:
 	case A_GETFSIZE:
