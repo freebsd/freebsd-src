@@ -9,6 +9,11 @@ WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2}
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
+.ifdef RELEASE_CRUNCH
+# FreeBSD's installer uses cpio in crunched binaries that are
+# statically linked, cannot use -lcrypto, and are size sensitive.
+CFLAGS+= -DSMALLER
+.endif
 LDADD+=	-larchive -lz -lbz2 -lmd
 .if ${MK_OPENSSL} != "no"
 LDADD+= -lcrypto
