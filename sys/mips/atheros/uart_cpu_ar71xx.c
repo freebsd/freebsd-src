@@ -55,7 +55,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;
-	di->bas.bst = &ar71xx_bus_space_reversed;
+	di->bas.bst = ar71xx_bus_space_reversed;
 	di->bas.regshft = 2;
 	/* TODO: calculate proper AHB freq using PLL registers */
 	di->bas.rclk = 85000000;
@@ -66,7 +66,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	/* TODO: check if uart_bus_space_io mandatory to set */
 	uart_bus_space_io = NULL;
-	uart_bus_space_mem = &ar71xx_bus_space_reversed;
+	uart_bus_space_mem = ar71xx_bus_space_reversed;
 	/* 
 	 * FIXME:
 	 * 3 is to compensate big endian, uart operates 
