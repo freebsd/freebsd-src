@@ -650,7 +650,7 @@ icmp_reflect(struct mbuf *m)
 	INIT_VNET_INET(curvnet);
 	struct ip *ip = mtod(m, struct ip *);
 	struct ifaddr *ifa;
-	struct ifnet *ifn;
+	struct ifnet *ifp;
 	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct mbuf *opts = 0;
@@ -673,24 +673,32 @@ icmp_reflect(struct mbuf *m)
 	 * If the incoming packet was addressed directly to one of our
 	 * own addresses, use dst as the src for the reply.
 	 */
-	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash)
-		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
+	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash) {
+		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr) {
+			t = IA_SIN(ia)->sin_addr;
 			goto match;
+		}
+	}
 	/*
 	 * If the incoming packet was addressed to one of our broadcast
 	 * addresses, use the first non-broadcast address which corresponds
 	 * to the incoming interface.
 	 */
-	if (m->m_pkthdr.rcvif != NULL &&
-	    m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
-		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+	ifp = m->m_pkthdr.rcvif;
+	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
-			    t.s_addr)
+			    t.s_addr) {
+				t = IA_SIN(ia)->sin_addr;
+				IF_ADDR_UNLOCK(ifp);
 				goto match;
+			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/*
 	 * If the packet was transiting through us, use the address of
@@ -698,13 +706,17 @@ icmp_reflect(struct mbuf *m)
 	 * doesn't have a suitable IP address, the normal selection
 	 * criteria apply.
 	 */
-	if (V_icmp_rfi && m->m_pkthdr.rcvif != NULL) {
-		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+	if (V_icmp_rfi && ifp != NULL) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
+			t = IA_SIN(ia)->sin_addr;
+			IF_ADDR_UNLOCK(ifp);
 			goto match;
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/*
 	 * If the incoming packet was not addressed directly to us, use
@@ -712,13 +724,17 @@ icmp_reflect(struct mbuf *m)
 	 * net.inet.icmp.reply_src (default not set). Otherwise continue
 	 * with normal source selection.
 	 */
-	if (V_reply_src[0] != '\0' && (ifn = ifunit(V_reply_src))) {
-		TAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
+	if (V_reply_src[0] != '\0' && (ifp = ifunit(V_reply_src))) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
+			t = IA_SIN(ia)->sin_addr;
+			IF_ADDR_UNLOCK(ifp);
 			goto match;
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/*
 	 * If the packet was transiting through us, use the address of
@@ -732,11 +748,11 @@ icmp_reflect(struct mbuf *m)
 		ICMPSTAT_INC(icps_noroute);
 		goto done;
 	}
+	t = IA_SIN(ia)->sin_addr;
 match:
 #ifdef MAC
 	mac_netinet_icmp_replyinplace(m);
 #endif
-	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
 	ip->ip_ttl = V_ip_defttl;
 
