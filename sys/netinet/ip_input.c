@@ -371,6 +371,7 @@ ip_input(struct mbuf *m)
 	struct ip *ip = NULL;
 	struct in_ifaddr *ia = NULL;
 	struct ifaddr *ifa;
+	struct ifnet *ifp;
 	int    checkif, hlen = 0;
 	u_short sum;
 	int dchg = 0;				/* dest changed after fw */
@@ -421,9 +422,10 @@ ip_input(struct mbuf *m)
 	}
 
 	/* 127/8 must not appear on wire - RFC1122 */
+	ifp = m->m_pkthdr.rcvif;
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
-		if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
+		if ((ifp->if_flags & IFF_LOOPBACK) == 0) {
 			IPSTAT_INC(ips_badaddr);
 			goto bad;
 		}
@@ -498,14 +500,14 @@ tooshort:
 		goto passin;
 
 	odst = ip->ip_dst;
-	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif,
-	    PFIL_IN, NULL) != 0)
+	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_IN, NULL) != 0)
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
 
 	ip = mtod(m, struct ip *);
 	dchg = (odst.s_addr != ip->ip_dst.s_addr);
+	ifp = m->m_pkthdr.rcvif;
 
 #ifdef IPFIREWALL_FORWARD
 	if (m->m_flags & M_FASTFWD_OURS) {
@@ -571,10 +573,9 @@ passin:
 	 * checked with carp_iamatch() and carp_forus().
 	 */
 	checkif = V_ip_checkinterface && (V_ipforwarding == 0) && 
-	    m->m_pkthdr.rcvif != NULL &&
-	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
+	    ifp != NULL && ((ifp->if_flags & IFF_LOOPBACK) == 0) &&
 #ifdef DEV_CARP
-	    !m->m_pkthdr.rcvif->if_carp &&
+	    !ifp->if_carp &&
 #endif
 	    (dchg == 0);
 
@@ -588,7 +589,7 @@ passin:
 		 * enabled.
 		 */
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
-		    (!checkif || ia->ia_ifp == m->m_pkthdr.rcvif))
+		    (!checkif || ia->ia_ifp == ifp))
 			goto ours;
 	}
 	/*
@@ -599,22 +600,29 @@ passin:
 	 * be handled via ip_forward() and ether_output() with the loopback
 	 * into the stack for SIMPLEX interfaces handled by ether_output().
 	 */
-	if (m->m_pkthdr.rcvif != NULL &&
-	    m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
-	        TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
+		IF_ADDR_LOCK(ifp);
+	        TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
-			    ip->ip_dst.s_addr)
+			    ip->ip_dst.s_addr) {
+				IF_ADDR_UNLOCK(ifp);
 				goto ours;
-			if (ia->ia_netbroadcast.s_addr == ip->ip_dst.s_addr)
+			}
+			if (ia->ia_netbroadcast.s_addr == ip->ip_dst.s_addr) {
+				IF_ADDR_UNLOCK(ifp);
 				goto ours;
+			}
 #ifdef BOOTP_COMPAT
-			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
+			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY) {
+				IF_ADDR_UNLOCK(ifp);
 				goto ours;
+			}
 #endif
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/* RFC 3927 2.7: Do not forward datagrams for 169.254.0.0/16. */
 	if (IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr))) {
@@ -632,8 +640,7 @@ passin:
 			 * ip_mforward() returns a non-zero value, the packet
 			 * must be discarded, else it may be accepted below.
 			 */
-			if (ip_mforward &&
-			    ip_mforward(ip, m->m_pkthdr.rcvif, m, 0) != 0) {
+			if (ip_mforward && ip_mforward(ip, ifp, m, 0) != 0) {
 				IPSTAT_INC(ips_cantforward);
 				m_freem(m);
 				return;
@@ -663,7 +670,7 @@ passin:
 	/*
 	 * FAITH(Firewall Aided Internet Translator)
 	 */
-	if (m->m_pkthdr.rcvif && m->m_pkthdr.rcvif->if_type == IFT_FAITH) {
+	if (ifp && ifp->if_type == IFT_FAITH) {
 		if (V_ip_keepfaith) {
 			if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_ICMP) 
 				goto ours;
