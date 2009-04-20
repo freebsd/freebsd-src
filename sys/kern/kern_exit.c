@@ -507,7 +507,7 @@ exit1(struct thread *td, int rv)
 
 		/*
 		 * Notify parent, so in case he was wait(2)ing or
-		 * executiing waitpid(2) with our pid, he will
+		 * executing waitpid(2) with our pid, he will
 		 * continue.
 		 */
 		wakeup(pp);
