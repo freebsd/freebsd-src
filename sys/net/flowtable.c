@@ -300,9 +300,11 @@ struct flowtable {
 	fl_rtalloc_t	*ft_rtalloc;
 	struct mtx	*ft_locks;
 
-	struct flowtable *ft_next;
+	
 	union flentryp	ft_table;
 	bitstr_t 	*ft_masks[MAXCPU];
+	bitstr_t	*ft_tmpmask;
+	struct flowtable *ft_next;
 };
 
 static struct proc *flowcleanerproc;
@@ -317,6 +319,7 @@ static uma_zone_t ipv6_zone;
  *   to avoid extra cache evictions caused by incrementing a shared
  *   counter
  * - add IPv6 support to flow lookup
+ * - add sysctls to resize && flush flow tables 
  * - Add per flowtable sysctls for statistics and configuring timeouts
  * - add saturation counter to rtentry to support per-packet load-balancing
  *   add flag to indicate round-robin flow, add list lookup from head
@@ -872,6 +875,7 @@ flowtable_alloc(int nentry, int flags)
 
 		ft->ft_masks[0] = bit_alloc(nentry);
 	}
+	ft->ft_tmpmask = bit_alloc(nentry);
 
 	/*
 	 * In the local transmit case the table truly is 
@@ -888,6 +892,7 @@ flowtable_alloc(int nentry, int flags)
 		    ft->ft_syn_idle = ft->ft_tcp_idle = 30;
 		
 	}
+
 	/*
 	 * hook in to the cleaner list
 	 */
@@ -936,65 +941,24 @@ fle_free(struct flentry *fle)
 	uma_zfree((fle->f_flags & FL_IPV6) ? ipv6_zone : ipv4_zone, fle);
 }
 
-/*
- * Find the next bit set where lastbit is the last bit index 
- * that was set, mask is a pointer to a uint8_t that stores
- * the current temporary mask because the caller can't clear
- * bits in name and the lookup granularity is 1 byte
- *
- * This could be improved (4x reduction in overhead) for the sparse
- * case by replacing bit_ffs with a more efficient function that works
- * at the 4-byte granularity and change *mask to a uint32_t
- * 
- */
-static __inline int
-bit_fns(bitstr_t *name, int nbits, int lastbit, uint8_t *mask)
-{
-	bitstr_t *bitstr_start = &name[lastbit/8];
-	int value = 0;
-	int bitsleft = nbits - lastbit;
-
-	if (bitsleft <= 0)
-		return (-1);
-	/*
-	 * Note that not only is bit_ffs inefficient, 
-	 * but it doesn't call the first bit set 1
-	 */
-	if ((lastbit & 0x7) == 0) {
-		bit_ffs(bitstr_start, bitsleft, &value);
-		*mask = *bitstr_start;
-		if (value > 0)
-			bit_clear(mask, value);
-	} else {
-		bit_ffs(mask, 8, &value);
-		if (value == -1 && bitsleft > 8) {
-			lastbit = (lastbit & ~0x7) + 8;
-			bit_ffs((bitstr_start + 1),
-			    ((bitsleft - 1) & ~0x7), &value);
-			if (value > 0) {
-				*mask = (bitstr_start + 1)[value/8];
-				bit_clear(mask, (value % 8));
-			}
-		} else {
-			bit_clear(mask, value);
-		}
-	}
-
-	return (value > 0) ? (value + lastbit) : (-1);
-}
-
 static void
 flowtable_free_stale(struct flowtable *ft)
 {
 	int curbit = 0, count;
 	struct flentry *fle,  **flehead, *fleprev;
 	struct flentry *flefreehead, *flefreetail, *fletmp;
-	bitstr_t *mask;
-	uint8_t mask_tmp;
+	bitstr_t *mask, *tmpmask;
 	
 	flefreehead = flefreetail = NULL;
 	mask = flowtable_mask(ft);
-	while ((curbit = bit_fns(mask, ft->ft_size, curbit, &mask_tmp)) != -1) {
+	tmpmask = ft->ft_tmpmask;
+	memcpy(tmpmask, mask, ft->ft_size/8);
+	/*
+	 * XXX Note to self, bit_ffs operates at the byte level
+	 * and thus adds gratuitous overhead
+	 */
+	bit_ffs(tmpmask, ft->ft_size, &curbit);
+	while (curbit != -1) {
 		if (curbit >= ft->ft_size || curbit < -1) {
 			log(LOG_ALERT,
 			    "warning: bad curbit value %d \n",
@@ -1050,7 +1014,8 @@ flowtable_free_stale(struct flowtable *ft)
 		if (*flehead == NULL)
 			bit_clear(mask, curbit);
 		FL_ENTRY_UNLOCK(ft, curbit);
-		curbit++;
+		bit_clear(tmpmask, curbit);
+		bit_ffs(tmpmask, ft->ft_size, &curbit);
 	}
 	count = 0;
 	while ((fle = flefreehead) != NULL) {
@@ -1074,10 +1039,7 @@ flowtable_cleaner(void)
 	while (1) {
 		ft = flow_list_head;
 		while (ft != NULL) {
-			if ((ft->ft_flags & FL_PCPU) == 0) {
-				flowtable_free_stale(ft);
-			} else {
-
+			if (ft->ft_flags & FL_PCPU) {
 				for (i = 0; i <= mp_maxid; i++) {
 					if (CPU_ABSENT(i))
 						continue;
@@ -1092,6 +1054,8 @@ flowtable_cleaner(void)
 					sched_unbind(curthread);
 					thread_unlock(curthread);
 				}
+			} else {
+				flowtable_free_stale(ft);
 			}
 			ft = ft->ft_next;
 		}
