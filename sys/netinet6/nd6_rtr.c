@@ -442,7 +442,7 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 	if (rt->rt_ifp) {
 		info.rti_info[RTAX_IFP] =
-		    TAILQ_FIRST(&rt->rt_ifp->if_addrlist)->ifa_addr;
+		    TAILQ_FIRST(&rt->rt_ifp->if_addrhead)->ifa_addr;
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 	}
 
@@ -1120,7 +1120,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	 * consider autoconfigured addresses while RFC2462 simply said
 	 * "address".
 	 */
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 		struct in6_ifaddr *ifa6;
 		u_int32_t remaininglifetime;
 
@@ -1592,7 +1592,7 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	    IN6_IFF_NOTREADY | IN6_IFF_ANYCAST);
 	if (ifa == NULL) {
 		/* XXX: freebsd does not have ifa_ifwithaf */
-		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 			if (ifa->ifa_addr->sa_family == AF_INET6)
 				break;
 		}
