@@ -1036,6 +1036,7 @@ ufs_rename(ap)
 	struct direct newdir;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
 	int error = 0, ioflag;
+	ino_t fvp_ino;
 
 #ifdef INVARIANTS
 	if ((tcnp->cn_flags & HASBUF) == 0 ||
@@ -1146,6 +1147,7 @@ abortit:
 	 * call to checkpath().
 	 */
 	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
+	fvp_ino = ip->i_number;
 	VOP_UNLOCK(fvp, 0);
 	if (oldparent != dp->i_number)
 		newparent = dp->i_number;
@@ -1154,7 +1156,7 @@ abortit:
 			goto bad;
 		if (xp != NULL)
 			vput(tvp);
-		error = ufs_checkpath(ip, dp, tcnp->cn_cred);
+		error = ufs_checkpath(fvp_ino, dp, tcnp->cn_cred);
 		if (error)
 			goto out;
 		if ((tcnp->cn_flags & SAVESTART) == 0)
