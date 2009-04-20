@@ -520,6 +520,7 @@ tuninit(struct ifnet *ifp)
 	getmicrotime(&ifp->if_lastchange);
 
 #ifdef INET
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			struct sockaddr_in *si;
@@ -535,6 +536,7 @@ tuninit(struct ifnet *ifp)
 			mtx_unlock(&tp->tun_mtx);
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 #endif
 	return (error);
 }
