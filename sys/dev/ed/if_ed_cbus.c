@@ -233,14 +233,14 @@ ed_cbus_attach(dev)
 
 	if (sc->port_used > 0) {
 		if (ED_TYPE98(flags) == ED_TYPE98_GENERIC)
-			ed_alloc_port(dev, sc->port_rid, sc->port_used);
+			ed_alloc_port(dev, 0, sc->port_used);
 		else
-			ed98_alloc_port(dev, sc->port_rid);
+			ed98_alloc_port(dev, 0);
 	}
 	if (sc->mem_used)
-		ed_alloc_memory(dev, sc->mem_rid, sc->mem_used);
+		ed_alloc_memory(dev, 0, sc->mem_used);
 
-	ed_alloc_irq(dev, sc->irq_rid, 0);
+	ed_alloc_irq(dev, 0, 0);
 
 	if (sc->sc_media_ioctl == NULL)
 		ed_gen_ifmedia_init(sc);
@@ -541,7 +541,6 @@ ed98_alloc_port(device_t dev, int rid)
 	if (!res)
 		return (ENOENT);
 
-	sc->port_rid = rid;
 	sc->port_res = res;
 	sc->port_used = n;
 	sc->port_bst = rman_get_bustag(res);

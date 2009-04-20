@@ -164,7 +164,6 @@ ed_alloc_port(device_t dev, int rid, int size)
 	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 	    0ul, ~0ul, size, RF_ACTIVE);
 	if (res) {
-		sc->port_rid = rid;
 		sc->port_res = res;
 		sc->port_used = size;
 		sc->port_bst = rman_get_bustag(res);
@@ -186,7 +185,6 @@ ed_alloc_memory(device_t dev, int rid, int size)
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 	    0ul, ~0ul, size, RF_ACTIVE);
 	if (res) {
-		sc->mem_rid = rid;
 		sc->mem_res = res;
 		sc->mem_used = size;
 		sc->mem_bst = rman_get_bustag(res);
@@ -207,7 +205,6 @@ ed_alloc_irq(device_t dev, int rid, int flags)
 
 	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE | flags);
 	if (res) {
-		sc->irq_rid = rid;
 		sc->irq_res = res;
 		return (0);
 	}
@@ -222,21 +219,18 @@ ed_release_resources(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 
-	if (sc->port_res) {
-		bus_release_resource(dev, SYS_RES_IOPORT,
-		    sc->port_rid, sc->port_res);
-		sc->port_res = 0;
-	}
-	if (sc->mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    sc->mem_rid, sc->mem_res);
-		sc->mem_res = 0;
-	}
-	if (sc->irq_res) {
-		bus_release_resource(dev, SYS_RES_IRQ,
-		    sc->irq_rid, sc->irq_res);
-		sc->irq_res = 0;
-	}
+	if (sc->port_res)
+		bus_free_resource(dev, SYS_RES_IOPORT, sc->port_res);
+	if (sc->port_res2)
+		bus_free_resource(dev, SYS_RES_IOPORT, sc->port_res2);
+	if (sc->mem_res)
+		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
+	if (sc->irq_res)
+		bus_free_resource(dev, SYS_RES_IRQ, sc->irq_res);
+	sc->port_res = 0;
+	sc->port_res2 = 0;
+	sc->mem_res = 0;
+	sc->irq_res = 0;
 	if (sc->ifp)
 		if_free(sc->ifp);
 }
