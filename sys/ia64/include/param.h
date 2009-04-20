@@ -103,9 +103,7 @@
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
  * architecture.  It should be used with appropriate caution.
  */
-#ifndef CACHE_LINE_SHIFT
-#define	CACHE_LINE_SHIFT	6
-#endif
+#define	CACHE_LINE_SHIFT	7
 #define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
 #ifndef LOG2_PAGE_SIZE
