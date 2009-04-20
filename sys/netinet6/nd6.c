@@ -727,6 +727,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 	struct in6_ifaddr *public_ifa6 = NULL;
 
 	ifp = ia6->ia_ifa.ifa_ifp;
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 		struct in6_ifaddr *it6;
 
@@ -770,13 +771,16 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		int e;
 
 		if ((e = in6_tmpifadd(public_ifa6, 0, 0)) != 0) {
+			IF_ADDR_UNLOCK(ifp);
 			log(LOG_NOTICE, "regen_tmpaddr: failed to create a new"
 			    " tmp addr,errno=%d\n", e);
 			return (-1);
 		}
+		IF_ADDR_UNLOCK(ifp);
 		return (0);
 	}
 
+	IF_ADDR_UNLOCK(ifp);
 	return (-1);
 }
 
