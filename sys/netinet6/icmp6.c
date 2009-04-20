@@ -1688,6 +1688,7 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
 		addrsofif = 0;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
@@ -1738,6 +1739,7 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 			}
 			addrsofif++; /* count the address */
 		}
+		IF_ADDR_UNLOCK(ifp);
 		if (iffound) {
 			*ifpp = ifp;
 			IFNET_RUNLOCK();
@@ -1773,6 +1775,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
   again:
 
 	for (; ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+		IF_ADDR_LOCK(ifp);
 		for (ifa = ifp->if_addrlist.tqh_first; ifa;
 		     ifa = ifa->ifa_list.tqe_next) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -1828,6 +1831,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 			/* now we can copy the address */
 			if (resid < sizeof(struct in6_addr) +
 			    sizeof(u_int32_t)) {
+				IF_ADDR_UNLOCK(ifp);
 				/*
 				 * We give up much more copy.
 				 * Set the truncate flag and return.
@@ -1874,6 +1878,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 			resid -= (sizeof(struct in6_addr) + sizeof(u_int32_t));
 			copied += (sizeof(struct in6_addr) + sizeof(u_int32_t));
 		}
+		IF_ADDR_UNLOCK(ifp);
 		if (ifp0)	/* we need search only on the specified IF */
 			break;
 	}
