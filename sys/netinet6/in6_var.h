@@ -503,6 +503,7 @@ MALLOC_DECLARE(M_IP6MADDR);
 /* struct in6_ifaddr *ia; */				\
 do {									\
 	struct ifaddr *ifa;						\
+	IF_ADDR_LOCK_ASSERT(ifp);					\
 	TAILQ_FOREACH(ifa, &(ifp)->if_addrhead, ifa_link) {		\
 		if (ifa->ifa_addr->sa_family == AF_INET6)		\
 			break;						\
