@@ -50,7 +50,11 @@ __FBSDID("$FreeBSD$");
 #define	DS1672_CTRL	4	/* control (1 byte) */
 #define	DS1672_TRICKLE	5	/* trickle charger (1 byte) */
 
+#define	DS1672_CTRL_EOSC	(1 << 7)	/* Stop/start flag. */
+
 #define NANOSEC		1000000000
+
+#define	MAX_IIC_DATA_SIZE	4
 
 struct ds1672_softc {
 	device_t		sc_dev;
@@ -65,12 +69,64 @@ ds1672_probe(device_t dev)
 }
 
 static int
+ds1672_read(device_t dev, uint8_t addr, uint8_t *data, uint8_t size)
+{
+	struct iic_msg msgs[2] = {
+	     { DS1672_ADDR, IIC_M_WR, 1, &addr },
+	     { DS1672_ADDR, IIC_M_RD, size, data }
+	};
+
+	return (iicbus_transfer(dev, msgs, 2));
+}
+
+static int
+ds1672_write(device_t dev, uint8_t addr, uint8_t *data, uint8_t size)
+{
+	uint8_t buffer[MAX_IIC_DATA_SIZE + 1];
+	struct iic_msg msgs[1] = {
+	     { DS1672_ADDR, IIC_M_WR, size + 1, buffer },
+	};
+	
+	if (size > MAX_IIC_DATA_SIZE)
+		return (ENOMEM);
+	/* NB: register pointer precedes actual data */
+	buffer[0] = addr;
+	memcpy(buffer + 1, data, size);
+	return (iicbus_transfer(dev, msgs, 1));
+}
+
+static int
+ds1672_init(device_t dev)
+{
+	uint8_t ctrl;
+	int error;
+
+	error = ds1672_read(dev, DS1672_CTRL, &ctrl, 1);
+	if (error)
+		return (error);
+
+	/*
+	 * Check if oscialltor is not runned.
+	 */
+	if (ctrl & DS1672_CTRL_EOSC) {
+		device_printf(dev, "RTC oscillator was stopped. Check system"
+		    " time and RTC battery.\n");
+		ctrl &= ~DS1672_CTRL_EOSC;	/* Start oscillator. */
+		error = ds1672_write(dev, DS1672_CTRL, &ctrl, 1);
+	}
+	return (error);
+}
+
+static int
 ds1672_attach(device_t dev)
 {
 	struct ds1672_softc *sc = device_get_softc(dev);
+	int error;
 
 	sc->sc_dev = dev;
-
+	error = ds1672_init(dev);
+	if (error)
+		return (error);
 	clock_register(dev, 1000);
 	return (0);
 }
@@ -78,39 +134,30 @@ ds1672_attach(device_t dev)
 static int
 ds1672_gettime(device_t dev, struct timespec *ts)
 {
-	uint8_t addr[1] = { DS1672_COUNTER };
 	uint8_t secs[4];
-	struct iic_msg msgs[2] = {
-	     { DS1672_ADDR, IIC_M_WR, 1, addr },
-	     { DS1672_ADDR, IIC_M_RD, 4, secs },
-	};
 	int error;
 
-	error = iicbus_transfer(dev, msgs, 2);
+	error = ds1672_read(dev, DS1672_COUNTER, secs, 4);
 	if (error == 0) {
 		/* counter has seconds since epoch */
 		ts->tv_sec = (secs[3] << 24) | (secs[2] << 16)
 			   | (secs[1] <<  8) | (secs[0] <<  0);
 		ts->tv_nsec = NANOSEC / 2;
 	}
-	return error;
+	return (error);
 }
 
 static int
 ds1672_settime(device_t dev, struct timespec *ts)
 {
-	/* NB: register pointer precedes actual data */
-	uint8_t data[5] = { DS1672_COUNTER };
-	struct iic_msg msgs[1] = {
-	     { DS1672_ADDR, IIC_M_WR, 5, data },
-	};
+	uint8_t data[4];
 
-	data[1] = (ts->tv_sec >> 0) & 0xff;
-	data[2] = (ts->tv_sec >> 8) & 0xff;
-	data[3] = (ts->tv_sec >> 16) & 0xff;
-	data[4] = (ts->tv_sec >> 24) & 0xff;
+	data[0] = (ts->tv_sec >> 0) & 0xff;
+	data[1] = (ts->tv_sec >> 8) & 0xff;
+	data[2] = (ts->tv_sec >> 16) & 0xff;
+	data[3] = (ts->tv_sec >> 24) & 0xff;
 
-	return iicbus_transfer(dev, msgs, 1);
+	return (ds1672_write(dev, DS1672_COUNTER, data, 4));
 }
 
 static device_method_t ds1672_methods[] = {
@@ -124,7 +171,7 @@ static device_method_t ds1672_methods[] = {
 };
 
 static driver_t ds1672_driver = {
-	"ds1672",
+	"rtc",
 	ds1672_methods,
 	sizeof(struct ds1672_softc),
 };
