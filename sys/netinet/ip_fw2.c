@@ -594,7 +594,7 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 
 	TAILQ_FOREACH(mdc, &V_ifnet, if_link) {
 		IF_ADDR_LOCK(mdc);
-		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_list) {
+		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_link) {
 			if (mdc2->ifa_addr->sa_family == AF_INET6) {
 				fdm = (struct in6_ifaddr *)mdc2;
 				copia = fdm->ia_addr.sin6_addr;
