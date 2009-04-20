@@ -816,7 +816,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 
 		ia->ia_ifa.ifa_refcnt = 1;
 		IF_ADDR_LOCK(ifp);
-		TAILQ_INSERT_TAIL(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
+		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_list);
 		IF_ADDR_UNLOCK(ifp);
 	}
 
@@ -1178,7 +1178,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	int	s = splnet();
 
 	IF_ADDR_LOCK(ifp);
-	TAILQ_REMOVE(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
+	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_list);
 	IF_ADDR_UNLOCK(ifp);
 
 	oia = ia;
@@ -1231,8 +1231,7 @@ in6_purgeif(struct ifnet *ifp)
 {
 	struct ifaddr *ifa, *nifa;
 
-	for (ifa = TAILQ_FIRST(&ifp->if_addrlist); ifa != NULL; ifa = nifa) {
-		nifa = TAILQ_NEXT(ifa, ifa_list);
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_list, nifa) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		in6_purgeaddr(ifa);
@@ -1415,7 +1414,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 		}
 
 		IF_ADDR_LOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
 			if (!cmp)
@@ -1514,7 +1513,7 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 * and to validate the address if necessary.
 	 */
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ifacount++;
@@ -1630,7 +1629,7 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 	struct ifaddr *ifa;
 
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_IS_ADDR_LINKLOCAL(IFA_IN6(ifa))) {
@@ -1654,7 +1653,7 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(addr, IFA_IN6(ifa)))
@@ -1859,7 +1858,7 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 	 * If none, return one of global addresses assigned other ifs.
 	 */
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST)
@@ -1895,7 +1894,7 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		return (besta);
 	}
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST)
@@ -1934,7 +1933,7 @@ in6_if_up(struct ifnet *ifp)
 	struct in6_ifaddr *ia;
 
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ia = (struct in6_ifaddr *)ifa;
