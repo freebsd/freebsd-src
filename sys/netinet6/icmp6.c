@@ -1689,7 +1689,7 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
 		addrsofif = 0;
 		IF_ADDR_LOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
 			ifa6 = (struct in6_ifaddr *)ifa;
@@ -1776,7 +1776,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 
 	for (; ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
 		IF_ADDR_LOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
 			ifa6 = (struct in6_ifaddr *)ifa;

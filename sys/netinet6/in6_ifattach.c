@@ -234,7 +234,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -766,14 +766,14 @@ in6_ifdetach(struct ifnet *ifp)
 	nd6_purge(ifp);
 
 	/* nuke any of IPv6 addresses we have */
-	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_list, next) {
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		in6_purgeaddr(ifa);
 	}
 
 	/* undo everything done by in6_ifattach(), just in case */
-	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_list, next) {
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6
 		 || !IN6_IS_ADDR_LINKLOCAL(&satosin6(&ifa->ifa_addr)->sin6_addr)) {
 			continue;
@@ -802,7 +802,7 @@ in6_ifdetach(struct ifnet *ifp)
 
 		/* remove from the linked list */
 		IF_ADDR_LOCK(ifp);
-		TAILQ_REMOVE(&ifp->if_addrhead, (struct ifaddr *)ia, ifa_list);
+		TAILQ_REMOVE(&ifp->if_addrhead, (struct ifaddr *)ia, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
 		IFAFREE(&ia->ia_ifa);
 
