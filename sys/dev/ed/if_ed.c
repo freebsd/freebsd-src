@@ -373,7 +373,8 @@ ed_detach(device_t dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->ifp;
 
-	ED_ASSERT_UNLOCKED(sc);
+	if (mtx_initialized(ED_MUTEX(sc)))
+		ED_ASSERT_UNLOCKED(sc);
 	if (ifp) {
 		ED_LOCK(sc);
 		if (bus_child_present(dev))
@@ -388,7 +389,8 @@ ed_detach(device_t dev)
 	ed_release_resources(dev);
 	if (sc->miibus)
 		device_delete_child(dev, sc->miibus);
-	ED_LOCK_DESTROY(sc);
+	if (mtx_initialized(ED_MUTEX(sc)))
+		ED_LOCK_DESTROY(sc);
 	bus_generic_detach(dev);
 	return (0);
 }
