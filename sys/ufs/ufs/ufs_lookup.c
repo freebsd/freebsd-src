@@ -1237,69 +1237,81 @@ ufs_dirempty(ip, parentino, cred)
 	return (1);
 }
 
+static int
+ufs_dir_dd_ino(struct vnode *vp, struct ucred *cred, ino_t *dd_ino)
+{
+	struct dirtemplate dirbuf;
+	int error, namlen;
+
+	if (vp->v_type != VDIR)
+		return (ENOTDIR);
+	error = vn_rdwr(UIO_READ, vp, (caddr_t)&dirbuf,
+	    sizeof (struct dirtemplate), (off_t)0, UIO_SYSSPACE,
+	    IO_NODELOCKED | IO_NOMACCHECK, cred, NOCRED, (int *)0, NULL);
+	if (error != 0)
+		return (error);
+#if (BYTE_ORDER == LITTLE_ENDIAN)
+	if (OFSFMT(vp))
+		namlen = dirbuf.dotdot_type;
+	else
+		namlen = dirbuf.dotdot_namlen;
+#else
+	namlen = dirbuf.dotdot_namlen;
+#endif
+	if (namlen != 2 || dirbuf.dotdot_name[0] != '.' ||
+	    dirbuf.dotdot_name[1] != '.')
+		return (ENOTDIR);
+	*dd_ino = dirbuf.dotdot_ino;
+	return (0);
+}
+
 /*
  * Check if source directory is in the path of the target directory.
  * Target is supplied locked, source is unlocked.
  * The target is always vput before returning.
  */
 int
-ufs_checkpath(source, target, cred)
-	struct inode *source, *target;
-	struct ucred *cred;
+ufs_checkpath(ino_t source_ino, struct inode *target, struct ucred *cred)
 {
-	struct vnode *vp;
-	int error, namlen;
-	ino_t rootino;
-	struct dirtemplate dirbuf;
+	struct vnode *vp, *vp1;
+	int error;
+	ino_t dd_ino;
 
 	vp = ITOV(target);
-	if (target->i_number == source->i_number) {
+	if (target->i_number == source_ino) {
 		error = EEXIST;
 		goto out;
 	}
-	rootino = ROOTINO;
 	error = 0;
-	if (target->i_number == rootino)
+	if (target->i_number == ROOTINO)
 		goto out;
 
 	for (;;) {
-		if (vp->v_type != VDIR) {
-			error = ENOTDIR;
-			break;
-		}
-		error = vn_rdwr(UIO_READ, vp, (caddr_t)&dirbuf,
-			sizeof (struct dirtemplate), (off_t)0, UIO_SYSSPACE,
-			IO_NODELOCKED | IO_NOMACCHECK, cred, NOCRED, (int *)0,
-			(struct thread *)0);
+		error = ufs_dir_dd_ino(vp, cred, &dd_ino);
 		if (error != 0)
 			break;
-#		if (BYTE_ORDER == LITTLE_ENDIAN)
-			if (OFSFMT(vp))
-				namlen = dirbuf.dotdot_type;
-			else
-				namlen = dirbuf.dotdot_namlen;
-#		else
-			namlen = dirbuf.dotdot_namlen;
-#		endif
-		if (namlen != 2 ||
-		    dirbuf.dotdot_name[0] != '.' ||
-		    dirbuf.dotdot_name[1] != '.') {
-			error = ENOTDIR;
-			break;
-		}
-		if (dirbuf.dotdot_ino == source->i_number) {
+		if (dd_ino == source_ino) {
 			error = EINVAL;
 			break;
 		}
-		if (dirbuf.dotdot_ino == rootino)
+		if (dd_ino == ROOTINO)
 			break;
-		vput(vp);
-		error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino,
-		    LK_EXCLUSIVE, &vp);
-		if (error) {
-			vp = NULL;
+		error = vn_vget_ino(vp, dd_ino, LK_EXCLUSIVE, &vp1);
+		if (error != 0)
+			break;
+		/* Recheck that ".." still points to vp1 after relock of vp */
+		error = ufs_dir_dd_ino(vp, cred, &dd_ino);
+		if (error != 0) {
+			vput(vp1);
 			break;
 		}
+		/* Redo the check of ".." if directory was reparented */
+		if (dd_ino != VTOI(vp1)->i_number) {
+			vput(vp1);
+			continue;
+		}
+		vput(vp);
+		vp = vp1;
 	}
 
 out:
