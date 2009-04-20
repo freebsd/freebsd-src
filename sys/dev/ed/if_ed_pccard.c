@@ -383,10 +383,7 @@ ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 static int
 ed_pccard_add_modem(device_t dev)
 {
-	struct ed_softc *sc = device_get_softc(dev);
-
-	device_printf(dev, "Need to write this code: modem rid is %d\n",
-	    sc->modem_rid);
+	device_printf(dev, "Need to write this code\n");
 	return 0;
 }
 
@@ -439,7 +436,7 @@ ed_pccard_attach(device_t dev)
 	u_char sum;
 	u_char enaddr[ETHER_ADDR_LEN];
 	const struct ed_product *pp;
-	int	error, i, flags;
+	int	error, i, flags, port_rid, modem_rid;
 	struct ed_softc *sc = device_get_softc(dev);
 	u_long size;
 	static uint16_t *intr_vals[] = {NULL, NULL};
@@ -447,29 +444,42 @@ ed_pccard_attach(device_t dev)
 	sc->dev = dev;
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
-	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
+		 sizeof(ed_pccard_products[0]), NULL)) == NULL) {
+		printf("Can't find\n");
 		return (ENXIO);
-	sc->modem_rid = -1;
+	}
+	modem_rid = port_rid = -1;
 	if (pp->flags & NE2000DVF_MODEM) {
-		sc->port_rid = -1;
 		for (i = 0; i < 4; i++) {
 			size = bus_get_resource_count(dev, SYS_RES_IOPORT, i);
 			if (size == ED_NOVELL_IO_PORTS)
-				sc->port_rid = i;
+				port_rid = i;
 			else if (size == 8)
-				sc->modem_rid = i;
+				modem_rid = i;
 		}
-		if (sc->port_rid == -1) {
+		if (port_rid == -1) {
 			device_printf(dev, "Cannot locate my ports!\n");
 			return (ENXIO);
 		}
 	} else {
-		sc->port_rid = 0;
+		port_rid = 0;
 	}
 	/* Allocate the port resource during setup. */
-	error = ed_alloc_port(dev, sc->port_rid, ED_NOVELL_IO_PORTS);
-	if (error)
+	error = ed_alloc_port(dev, port_rid, ED_NOVELL_IO_PORTS);
+	if (error) {
+		printf("alloc_port failed\n");
 		return (error);
+	}
+	if (rman_get_size(sc->port_res) == ED_NOVELL_IO_PORTS / 2) {
+		port_rid++;
+		sc->port_res2 = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		    &port_rid, 0ul, ~0ul, 1, RF_ACTIVE);
+		if (sc->port_res2 == NULL ||
+		    rman_get_size(sc->port_res2) != ED_NOVELL_IO_PORTS / 2) {
+			error = ENXIO;
+			goto bad;
+		}
+	}
 	error = ed_alloc_irq(dev, 0, 0);
 	if (error)
 		goto bad;
@@ -489,8 +499,10 @@ ed_pccard_attach(device_t dev)
 		error = ed_pccard_ax88x90(dev, pp);
 	if (error != 0)
 		error = ed_pccard_tc5299j(dev, pp);
-	if (error != 0)
+	if (error != 0) {
 		error = ed_probe_Novell_generic(dev, flags);
+		printf("Novell probe generic %d\n", error);
+	}
 	if (error != 0 && (pp->flags & NE2000DVF_TOSHIBA)) {
 		flags |= ED_FLAGS_TOSH_ETHER;
 		flags |= ED_FLAGS_PCCARD;
@@ -586,7 +598,7 @@ ed_pccard_attach(device_t dev)
 	} else {
 		ed_gen_ifmedia_init(sc);
 	}
-	if (sc->modem_rid != -1)
+	if (modem_rid != -1)
 		ed_pccard_add_modem(dev);
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
