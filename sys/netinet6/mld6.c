@@ -360,9 +360,12 @@ mld6_input(struct mbuf *m, int off)
 		 */
 		timer = ntohs(mldh->mld_maxdelay);
 
+		IF_ADDR_LOCK(ifp);
 		IFP_TO_IA6(ifp, ia);
-		if (ia == NULL)
+		if (ia == NULL) {
+			IF_ADDR_UNLOCK(ifp);
 			break;
+		}
 
 		/*
 		 * XXX: System timer resolution is too low to handle Max
@@ -374,7 +377,6 @@ mld6_input(struct mbuf *m, int off)
 		if (timer == 0 && mldh->mld_maxdelay)
 			timer = 1;
 
-		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET6)
 				continue;
