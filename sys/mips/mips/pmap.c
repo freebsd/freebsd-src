@@ -171,6 +171,8 @@ static PMAP_INLINE void free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t locked_pmap);
 static __inline void pmap_changebit(vm_page_t m, int bit, boolean_t setem);
 
+static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
+    vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static int pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m, vm_offset_t va);
@@ -178,6 +180,8 @@ static boolean_t pmap_testbit(vm_page_t m, int bit);
 static void 
 pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte,
     vm_page_t m, boolean_t wired);
+static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_page_t mpte,
+    vm_offset_t va, vm_page_t m);
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
@@ -1461,6 +1465,32 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m,
 }
 
 /*
+ * Conditionally create a pv entry.
+ */
+static boolean_t
+pmap_try_insert_pv_entry(pmap_t pmap, vm_page_t mpte, vm_offset_t va,
+    vm_page_t m)
+{
+	pv_entry_t pv;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (pv_entry_count < pv_entry_high_water && 
+	    (pv = uma_zalloc(pvzone, M_NOWAIT)) != NULL) {
+		pv_entry_count++;
+		pv->pv_va = va;
+		pv->pv_pmap = pmap;
+		pv->pv_ptem = mpte;
+		pv->pv_wired = FALSE;
+		TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		m->md.pv_list_count++;
+		return (TRUE);
+	} else
+		return (FALSE);
+}
+
+/*
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
@@ -1919,20 +1949,28 @@ validate:
  * but is *MUCH* faster than pmap_enter...
  */
 
-
 void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
+
+	PMAP_LOCK(pmap);
+	(void)pmap_enter_quick_locked(pmap, va, m, prot, NULL);
+	PMAP_UNLOCK(pmap);
+}
+
+static vm_page_t
+pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
+    vm_prot_t prot, vm_page_t mpte)
+{
 	pt_entry_t *pte;
 	vm_offset_t pa;
-	vm_page_t mpte = NULL;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
 	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
-	    ("pmap_enter_quick: managed mapping within the clean submap"));
+	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	PMAP_LOCK(pmap);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
 	/*
 	 * In the case that a page table page is not resident, we are
 	 * creating it here.
@@ -1948,7 +1986,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		if (mpte && (mpte->pindex == ptepindex)) {
 			mpte->wire_count++;
 		} else {
-	retry:
 			/*
 			 * Get the page directory entry
 			 */
@@ -1968,19 +2005,10 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 				}
 				mpte->wire_count++;
 			} else {
-				mpte = _pmap_allocpte(pmap, ptepindex, M_NOWAIT);
-				if (mpte == NULL) {
-					PMAP_UNLOCK(pmap);
-					vm_page_busy(m);
-					vm_page_unlock_queues();
-					VM_OBJECT_UNLOCK(m->object);
-					VM_WAIT;
-					VM_OBJECT_LOCK(m->object);
-					vm_page_lock_queues();
-					vm_page_wakeup(m);
-					PMAP_LOCK(pmap);
-					goto retry;
-				}
+				mpte = _pmap_allocpte(pmap, ptepindex,
+				    M_NOWAIT);
+				if (mpte == NULL)
+					return (mpte);
 			}
 		}
 	} else {
@@ -1989,18 +2017,24 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 
 	pte = pmap_pte(pmap, va);
 	if (pmap_pte_v(pte)) {
-		if (mpte)
-			pmap_unwire_pte_hold(pmap, mpte);
-		PMAP_UNLOCK(pmap);
-		return;
+		if (mpte != NULL) {
+			mpte->wire_count--;
+			mpte = NULL;
+		}
+		return (mpte);
 	}
+
 	/*
-	 * Enter on the PV list if part of our managed memory. Note that we
-	 * raise IPL while manipulating pv_table since pmap_enter can be
-	 * called at interrupt time.
+	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
-		pmap_insert_entry(pmap, va, mpte, m, FALSE);
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0 &&
+	    !pmap_try_insert_pv_entry(pmap, mpte, va, m)) {
+		if (mpte != NULL) {
+			pmap_unwire_pte_hold(pmap, mpte);
+			mpte = NULL;
+		}
+		return (mpte);
+	}
 
 	/*
 	 * Increment counters
@@ -2033,9 +2067,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 			mips_dcache_wbinv_range(va, NBPG);
 		}
 	}
-
-	PMAP_UNLOCK(pmap);
-	return;
+	return (mpte);
 }
 
 /*
@@ -2114,21 +2146,20 @@ void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
     vm_page_t m_start, vm_prot_t prot)
 {
-	vm_page_t m;
+	vm_page_t m, mpte;
 	vm_pindex_t diff, psize;
 
+	VM_OBJECT_LOCK_ASSERT(m_start->object, MA_OWNED);
 	psize = atop(end - start);
+	mpte = NULL;
 	m = m_start;
+	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-	        /* FIX ME FIX ME - prot is passed in both the
-		 * the normal spot m, prot but also as the fault_type
-		 * which we don't use. If we ever use it in pmap_enter
-		 * we will have to fix this.
-	         */
-		pmap_enter(pmap, start + ptoa(diff), prot, m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+		mpte = pmap_enter_quick_locked(pmap, start + ptoa(diff), m,
+		    prot, mpte);
 		m = TAILQ_NEXT(m, listq);
 	}
+ 	PMAP_UNLOCK(pmap);
 }
 
 /*
