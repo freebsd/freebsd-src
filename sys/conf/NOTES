@@ -727,7 +727,7 @@ device		loop
 device		ether
 
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
-#  according to IEEE 802.1Q.  It requires `device miibus'.
+#  according to IEEE 802.1Q.
 device		vlan
 
 #  The `wlan' device provides generic code to support 802.11
