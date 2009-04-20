@@ -163,11 +163,10 @@ ed_isa_attach(device_t dev)
 	int error;
 	
 	if (sc->port_used > 0)
-		ed_alloc_port(dev, sc->port_rid, sc->port_used);
+		ed_alloc_port(dev, 0, sc->port_used);
 	if (sc->mem_used)
-		ed_alloc_memory(dev, sc->mem_rid, sc->mem_used);
-
-	ed_alloc_irq(dev, sc->irq_rid, 0);
+		ed_alloc_memory(dev, 0, sc->mem_used);
+	ed_alloc_irq(dev, 0, 0);
 
 	if (sc->sc_media_ioctl == NULL)
 		ed_gen_ifmedia_init(sc);
