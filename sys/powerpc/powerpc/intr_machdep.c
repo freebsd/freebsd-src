@@ -96,6 +96,7 @@ struct powerpc_intr {
 	u_int	vector;
 };
 
+static struct mtx intr_table_lock;
 static struct powerpc_intr *powerpc_intrs[INTR_VECTORS];
 static u_int nvectors;		/* Allocated vectors */
 static u_int stray_count;
@@ -109,8 +110,17 @@ static u_int ipi_irq;
 device_t pic;
 
 static void
+intr_init(void *dummy __unused)
+{
+
+	mtx_init(&intr_table_lock, "intr sources lock", NULL, MTX_DEF);
+}
+SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+
+static void
 intrcnt_setname(const char *name, int index)
 {
+
 	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
 	    MAXCOMLEN, name);
 }
@@ -122,11 +132,15 @@ intr_lookup(u_int irq)
 	struct powerpc_intr *i, *iscan;
 	int vector;
 
+	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->irq == irq)
+		if (i != NULL && i->irq == irq) {
+			mtx_unlock(&intr_table_lock);
 			return (i);
+		}
 	}
+	mtx_unlock(&intr_table_lock);
 
 	i = malloc(sizeof(*i), M_INTR, M_NOWAIT);
 	if (i == NULL)
@@ -139,8 +153,7 @@ intr_lookup(u_int irq)
 	i->irq = irq;
 	i->vector = -1;
 
-	/* XXX LOCK */
-
+	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < INTR_VECTORS && vector <= nvectors;
 	    vector++) {
 		iscan = powerpc_intrs[vector];
@@ -157,8 +170,7 @@ intr_lookup(u_int irq)
 		intrcnt_setname(intrname, i->vector);
 		nvectors++;
 	}
-
-	/* XXX UNLOCK */
+	mtx_unlock(&intr_table_lock);
 
 	if (iscan != NULL || i->vector == -1) {
 		free(i, M_INTR);
@@ -263,7 +275,10 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 
 	error = intr_event_add_handler(i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);
+
+	mtx_lock(&intr_table_lock);
 	intrcnt_setname(i->event->ie_fullname, i->vector);
+	mtx_unlock(&intr_table_lock);
 
 	if (!cold && enable)
 		PIC_ENABLE(pic, i->irq, i->vector);
