@@ -52,6 +52,7 @@
 #include <sys/protosw.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/refcount.h>
 #include <sys/rwlock.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
@@ -204,10 +205,10 @@ static struct ifnet *
 ifnet_byindex_locked(u_short idx)
 {
 	INIT_VNET_NET(curvnet);
-	struct ifnet *ifp;
 
-	ifp = V_ifindex_table[idx].ife_ifnet;
-	return (ifp);
+	if (idx > V_if_index)
+		return (NULL);
+	return (V_ifindex_table[idx].ife_ifnet);
 }
 
 struct ifnet *
@@ -217,6 +218,22 @@ ifnet_byindex(u_short idx)
 
 	IFNET_RLOCK();
 	ifp = ifnet_byindex_locked(idx);
+	IFNET_RUNLOCK();
+	return (ifp);
+}
+
+struct ifnet *
+ifnet_byindex_ref(u_short idx)
+{
+	struct ifnet *ifp;
+
+	IFNET_RLOCK();
+	ifp = ifnet_byindex_locked(idx);
+	if (ifp == NULL) {
+		IFNET_RUNLOCK();
+		return (NULL);
+	}
+	if_ref(ifp);
 	IFNET_RUNLOCK();
 	return (ifp);
 }
@@ -490,6 +507,7 @@ if_alloc(u_char type)
 		if_grow();
 
 	ifp->if_type = type;
+	ifp->if_alloctype = type;
 
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
@@ -498,11 +516,12 @@ if_alloc(u_char type)
 			return (NULL);
 		}
 	}
+
+	IF_ADDR_LOCK_INIT(ifp);
+	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
 	IFNET_WLOCK();
 	ifnet_setbyindex(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
-	IF_ADDR_LOCK_INIT(ifp);
-
 	return (ifp);
 }
 
@@ -516,7 +535,7 @@ void
 if_free(struct ifnet *ifp)
 {
 
-	if_free_type(ifp, ifp->if_type);
+	if_free_type(ifp, ifp->if_alloctype);
 }
 
 /*
@@ -529,25 +548,47 @@ if_free_type(struct ifnet *ifp, u_char type)
 {
 	INIT_VNET_NET(curvnet); /* ifp->if_vnet can be NULL here ! */
 
-	if (ifp != ifnet_byindex(ifp->if_index)) {
-		if_printf(ifp, "%s: value was not if_alloced, skipping\n",
-		    __func__);
+	/*
+	 * Some drivers modify if_type, so we can't rely on it being the
+	 * same in free as it was in alloc.  Now that we have if_alloctype,
+	 * we should just use that, but drivers expect to pass a type.
+	 */
+	KASSERT(ifp->if_alloctype == type,
+	    ("if_free_type: type (%d) != alloctype (%d)", type,
+	    ifp->if_alloctype));
+
+	if (!refcount_release(&ifp->if_refcount))
 		return;
-	}
 
 	IFNET_WLOCK();
+	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
+	    ("%s: freeing unallocated ifnet", ifp->if_xname));
 	ifnet_setbyindex(ifp->if_index, NULL);
-
-	/* XXX: should be locked with if_findindex() */
 	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
 		V_if_index--;
 	IFNET_WUNLOCK();
 
-	if (if_com_free[type] != NULL)
-		if_com_free[type](ifp->if_l2com, type);
+	if (if_com_free[ifp->if_alloctype] != NULL)
+		if_com_free[ifp->if_alloctype](ifp->if_l2com,
+		    ifp->if_alloctype);
 
 	IF_ADDR_LOCK_DESTROY(ifp);
 	free(ifp, M_IFNET);
+}
+
+void
+if_ref(struct ifnet *ifp)
+{
+
+	/* We don't assert the ifnet list lock here, but arguably should. */
+	refcount_acquire(&ifp->if_refcount);
+}
+
+void
+if_rele(struct ifnet *ifp)
+{
+
+	if_free(ifp);
 }
 
 void
