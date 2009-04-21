@@ -121,6 +121,7 @@ struct ifnet {
 	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
 	const char *if_dname;		/* driver name */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
+	u_int	if_refcount;		/* reference count */
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
 		/*
 		 * if_addrhead is the list of all addresses associated to
@@ -190,12 +191,14 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
+	u_char	 if_alloctype;		/* if_type at time of allocation */
 
 	/*
 	 * Spare fields are added so that we can modify sensitive data
 	 * structures without changing the kernel binary interface, and must
 	 * be used with care where binary compatibility is required.
 	 */
+	char	 if_cspare[3];
 	void	*if_pspare[8];
 	int	if_ispare[4];
 };
@@ -721,7 +724,13 @@ struct ifindex_entry {
 	struct cdev *ife_dev;
 };
 
+/*
+ * Look up an ifnet given its index; the _ref variant also acquires a
+ * reference that must be freed using if_rele().  It is almost always a bug
+ * to call ifnet_byindex() instead if ifnet_byindex_ref().
+ */
 struct ifnet	*ifnet_byindex(u_short idx);
+struct ifnet	*ifnet_byindex_ref(u_short idx);
 
 /*
  * Given the index, ifaddr_byindex() returns the one and only
@@ -758,6 +767,8 @@ void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
 void	if_qflush(struct ifnet *);
+void	if_ref(struct ifnet *);
+void	if_rele(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 void	if_up(struct ifnet *);
 /*void	ifinit(void);*/ /* declared in systm.h for main() */
