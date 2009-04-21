@@ -1249,19 +1249,26 @@ ifa_ifwithaddr(struct sockaddr *addr)
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
-			if (sa_equal(addr, ifa->ifa_addr))
+			if (sa_equal(addr, ifa->ifa_addr)) {
+				IF_ADDR_UNLOCK(ifp);
 				goto done;
+			}
 			/* IP6 doesn't have broadcast */
 			if ((ifp->if_flags & IFF_BROADCAST) &&
 			    ifa->ifa_broadaddr &&
 			    ifa->ifa_broadaddr->sa_len != 0 &&
-			    sa_equal(ifa->ifa_broadaddr, addr))
+			    sa_equal(ifa->ifa_broadaddr, addr)) {
+				IF_ADDR_UNLOCK(ifp);
 				goto done;
+			}
 		}
+		IF_ADDR_UNLOCK(ifp);
+	}
 	ifa = NULL;
 done:
 	IFNET_RUNLOCK();
@@ -1280,16 +1287,21 @@ ifa_ifwithbroadaddr(struct sockaddr *addr)
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
 			if ((ifp->if_flags & IFF_BROADCAST) &&
 			    ifa->ifa_broadaddr &&
 			    ifa->ifa_broadaddr->sa_len != 0 &&
-			    sa_equal(ifa->ifa_broadaddr, addr))
+			    sa_equal(ifa->ifa_broadaddr, addr)) {
+				IF_ADDR_UNLOCK(ifp);
 				goto done;
+			}
 		}
+		IF_ADDR_UNLOCK(ifp);
+	}
 	ifa = NULL;
 done:
 	IFNET_RUNLOCK();
@@ -1311,13 +1323,17 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			continue;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
 			if (ifa->ifa_dstaddr != NULL &&
-			    sa_equal(addr, ifa->ifa_dstaddr))
+			    sa_equal(addr, ifa->ifa_dstaddr)) {
+				IF_ADDR_UNLOCK(ifp);
 				goto done;
+			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	ifa = NULL;
 done:
@@ -1355,6 +1371,7 @@ ifa_ifwithnet(struct sockaddr *addr)
 	 */
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			char *cp, *cp2, *cp3;
 
@@ -1370,16 +1387,20 @@ next:				continue;
 				 * netmask for the remote end.
 				 */
 				if (ifa->ifa_dstaddr != NULL &&
-				    sa_equal(addr, ifa->ifa_dstaddr))
+				    sa_equal(addr, ifa->ifa_dstaddr)) {
+					IF_ADDR_UNLOCK(ifp);
 					goto done;
+				}
 			} else {
 				/*
 				 * if we have a special address handler,
 				 * then use it instead of the generic one.
 				 */
 				if (ifa->ifa_claim_addr) {
-					if ((*ifa->ifa_claim_addr)(ifa, addr))
+					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
+						IF_ADDR_UNLOCK(ifp);
 						goto done;
+					}
 					continue;
 				}
 
@@ -1413,6 +1434,7 @@ next:				continue;
 					ifa_maybe = ifa;
 			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	ifa = ifa_maybe;
 done:
@@ -1435,6 +1457,7 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 
 	if (af >= AF_MAX)
 		return (0);
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != af)
 			continue;
@@ -1464,6 +1487,7 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	}
 	ifa = ifa_maybe;
 done:
+	IF_ADDR_UNLOCK(ifp);
 	return (ifa);
 }
 
@@ -2326,6 +2350,7 @@ again:
 		}
 
 		addrs = 0;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa = ifa->ifa_addr;
 
@@ -2357,6 +2382,7 @@ again:
 			if (!sbuf_overflowed(sb))
 				valid_len = sbuf_len(sb);
 		}
+		IF_ADDR_UNLOCK(ifp);
 		if (addrs == 0) {
 			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
 			sbuf_bcat(sb, &ifr, sizeof(ifr));
