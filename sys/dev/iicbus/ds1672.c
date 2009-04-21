@@ -171,7 +171,7 @@ static device_method_t ds1672_methods[] = {
 };
 
 static driver_t ds1672_driver = {
-	"rtc",
+	"ds1672_rtc",
 	ds1672_methods,
 	sizeof(struct ds1672_softc),
 };
