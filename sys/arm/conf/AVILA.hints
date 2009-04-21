@@ -44,5 +44,5 @@ hint.ad7418.0.at="iicbus0"
 hint.ad7418.0.addr=0x50
 
 # Dallas Semiconductor DS1672 RTC
-hint.rtc.0.at="iicbus0"
-hint.rtc.0.addr=0xd0
+hint.ds1672_rtc.0.at="iicbus0"
+hint.ds1672_rtc.0.addr=0xd0
