@@ -88,16 +88,16 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 
 	if (namelen != 2)
 		return EINVAL;
-
-	if (name[0] <= 0 || name[0] > V_if_index ||
-	    ifnet_byindex(name[0]) == NULL)
-		return ENOENT;
-
-	ifp = ifnet_byindex(name[0]);
+	if (name[0] <= 0)
+		return (ENOENT);
+	ifp = ifnet_byindex_ref(name[0]);
+	if (ifp == NULL)
+		return (ENOENT);
 
 	switch(name[1]) {
 	default:
-		return ENOENT;
+		error = ENOENT;
+		goto out;
 
 	case IFDATA_GENERAL:
 		bzero(&ifmd, sizeof(ifmd));
@@ -114,11 +114,11 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 
 		error = SYSCTL_OUT(req, &ifmd, sizeof ifmd);
 		if (error || !req->newptr)
-			return error;
+			goto out;
 
 		error = SYSCTL_IN(req, &ifmd, sizeof ifmd);
 		if (error)
-			return error;
+			goto out;
 
 #define DONTCOPY(fld) ifmd.ifmd_data.ifi_##fld = ifp->if_data.ifi_##fld
 		DONTCOPY(type);
@@ -139,18 +139,20 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 	case IFDATA_LINKSPECIFIC:
 		error = SYSCTL_OUT(req, ifp->if_linkmib, ifp->if_linkmiblen);
 		if (error || !req->newptr)
-			return error;
+			goto out;
 
 		error = SYSCTL_IN(req, ifp->if_linkmib, ifp->if_linkmiblen);
 		if (error)
-			return error;
+			goto out;
 		break;
 
 	case IFDATA_DRIVERNAME:
 		/* 20 is enough for 64bit ints */
 		dlen = strlen(ifp->if_dname) + 20 + 1;
-		if ((dbuf = malloc(dlen, M_TEMP, M_NOWAIT)) == NULL)
-			return (ENOMEM);
+		if ((dbuf = malloc(dlen, M_TEMP, M_NOWAIT)) == NULL) {
+			error = ENOMEM;
+			goto out;
+		}
 		if (ifp->if_dunit == IF_DUNIT_NONE)
 			strcpy(dbuf, ifp->if_dname);
 		else
@@ -160,9 +162,11 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		if (error == 0 && req->newptr != NULL)
 			error = EPERM;
 		free(dbuf, M_TEMP);
-		return (error);
+		goto out;
 	}
-	return 0;
+out:
+	if_rele(ifp);
+	return error;
 }
 
 SYSCTL_NODE(_net_link_generic, IFMIB_IFDATA, ifdata, CTLFLAG_RW,
