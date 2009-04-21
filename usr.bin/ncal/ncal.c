@@ -209,12 +209,12 @@ main(int argc, char *argv[])
 
 	term_e = term_r = NULL;
 	today = 0;
-	if (isatty(1) && tgetent(tbuf, getenv("TERM")) == 1) {
+	if (isatty(STDOUT_FILENO) && tgetent(tbuf, NULL) == 1) {
 		date	dt;		/* handy date */
 
 		b = cbuf;
-		term_r = tgetstr("mr", &b);
-		term_e = tgetstr("me", &b);
+		term_r = tgetstr("so", &b);
+		term_e = tgetstr("se", &b);
 		t = time(NULL);
 		tm1 = localtime(&t);
 		dt.y = tm1->tm_year + 1900;
@@ -263,13 +263,16 @@ main(int argc, char *argv[])
 	if (flag_backward)
 		nswitchb = ndaysj(&ukswitch);
 
-	while ((ch = getopt(argc, argv, "Jejm:ops:wy")) != -1)
+	while ((ch = getopt(argc, argv, "Jehjm:ops:wy")) != -1)
 		switch (ch) {
 		case 'J':
 			if (flag_backward)
 				usage();
 			nswitch = ndaysj(&never);
 			flag_julian_cal = 1;
+			break;
+		case 'h':
+			term_r = term_e = NULL;
 			break;
 		case 'e':
 			if (flag_backward)
