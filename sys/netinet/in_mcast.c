@@ -399,9 +399,6 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	struct in_multi		*inm;
 	int error;
 
-#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
-	IFF_ASSERTGIANT(ifp);
-#endif
 	IN_MULTI_LOCK_ASSERT();
 
 	ii = (struct in_ifinfo *)ifp->if_afdata[AF_INET];
@@ -510,11 +507,6 @@ void
 inm_release_locked(struct in_multi *inm)
 {
 	struct ifmultiaddr *ifma;
-
-#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
-	if (!inm_is_ifp_detached(inm))
-		IFF_ASSERTGIANT(ifp);
-#endif
 
 	IN_MULTI_LOCK_ASSERT();
 
@@ -1219,11 +1211,6 @@ in_leavegroup_locked(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 	int			 error;
 
 	error = 0;
-
-#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
-	if (!inm_is_ifp_detached(inm))
-		IFF_ASSERTGIANT(inm->inm_ifp);
-#endif
 
 	IN_MULTI_LOCK_ASSERT();
 
