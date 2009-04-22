@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090422
+	Implement low-level Bluetooth HCI API.
+	Bump __FreeBSD_version to 800083.
+
 20090415:
 	Anticipate overflowing inp_flags - add inp_flags2. 
 	This changes most offsets in inpcb, so checking v4 connection
