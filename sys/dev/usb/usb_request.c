@@ -172,6 +172,18 @@ tr_setup:
 	USB_BUS_UNLOCK(udev->bus);
 }
 
+static usb2_handle_request_t *
+usb2_get_hr_func(struct usb2_device *udev)
+{
+	/* figure out if there is a Handle Request function */
+	if (udev->flags.usb2_mode == USB_MODE_DEVICE)
+		return (usb2_temp_get_desc_p);
+	else if (udev->parent_hub == NULL)
+		return (udev->bus->methods->roothub_exec);
+	else
+		return (NULL);
+}
+
 /*------------------------------------------------------------------------*
  *	usb2_do_request_flags and usb2_do_request
  *
@@ -232,6 +244,7 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
     struct usb2_device_request *req, void *data, uint16_t flags,
     uint16_t *actlen, usb2_timeout_t timeout)
 {
+	usb2_handle_request_t *hr_func;
 	struct usb2_xfer *xfer;
 	const void *desc;
 	int err = 0;
@@ -269,29 +282,6 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	if (flags & USB_USER_DATA_PTR)
 		return (USB_ERR_INVAL);
 #endif
-	if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
-		DPRINTF("USB device mode\n");
-		(usb2_temp_get_desc_p) (udev, req, &desc, &temp);
-		if (length > temp) {
-			if (!(flags & USB_SHORT_XFER_OK))
-				return (USB_ERR_SHORT_XFER);
-			length = temp;
-		}
-		if (actlen)
-			*actlen = length;
-
-		if (length > 0) {
-#if USB_HAVE_USER_IO
-			if (flags & USB_USER_DATA_PTR) {
-				if (copyout(desc, data, length)) {
-					return (USB_ERR_INVAL);
-				}
-			} else
-#endif
-				bcopy(desc, data, length);
-		}
-		return (0);		/* success */
-	}
 	if (mtx) {
 		mtx_unlock(mtx);
 		if (mtx != &Giant) {
@@ -305,57 +295,54 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 
 	sx_xlock(udev->default_sx);
 
-	if (udev->parent_hub == NULL) {
-		struct usb2_sw_transfer *std = &udev->bus->roothub_req;
+	hr_func = usb2_get_hr_func(udev);
 
-		/* root HUB code - stripped down */
+	if (hr_func != NULL) {
+		DPRINTF("Handle Request function is set\n");
 
-		if (req->bmRequestType & UT_READ) {
-			std->ptr = NULL;
-		} else {
+		desc = NULL;
+		temp = 0;
+
+		if (!(req->bmRequestType & UT_READ)) {
 			if (length != 0) {
-			    DPRINTFN(1, "Root HUB does not support "
-				"writing data!\n");
-			    err = USB_ERR_INVAL;
-			    goto done;
-			}
-		}
-		/* setup request */
-		std->req = *req;
-		std->err = 0;
-		std->len = 0;
-
-		USB_BUS_LOCK(udev->bus);
-		(udev->bus->methods->roothub_exec) (udev->bus);
-		USB_BUS_UNLOCK(udev->bus);
-
-		err = std->err;
-		if (err)
-			goto done;
-
-		if (length > std->len) {
-			length = std->len;
-			if (!(flags & USB_SHORT_XFER_OK)) {
-				err = USB_ERR_SHORT_XFER;
+				DPRINTFN(1, "The handle request function "
+				    "does not support writing data!\n");
+				err = USB_ERR_INVAL;
 				goto done;
 			}
 		}
 
+		/* The root HUB code needs the BUS lock locked */
+
+		USB_BUS_LOCK(udev->bus);
+		err = (hr_func) (udev, req, &desc, &temp);
+		USB_BUS_UNLOCK(udev->bus);
+
+		if (err)
+			goto done;
+
+		if (length > temp) {
+			if (!(flags & USB_SHORT_XFER_OK)) {
+				err = USB_ERR_SHORT_XFER;
+				goto done;
+			}
+			length = temp;
+		}
 		if (actlen)
 			*actlen = length;
 
 		if (length > 0) {
 #if USB_HAVE_USER_IO
 			if (flags & USB_USER_DATA_PTR) {
-				if (copyout(std->ptr, data, length)) {
+				if (copyout(desc, data, length)) {
 					err = USB_ERR_INVAL;
 					goto done;
 				}
 			} else
 #endif
-				bcopy(std->ptr, data, length);
+				bcopy(desc, data, length);
 		}
-		goto done;
+		goto done;		/* success */
 	}
 
 	/*
@@ -898,26 +885,42 @@ usb2_req_get_string_desc(struct usb2_device *udev, struct mtx *mtx, void *sdesc,
  * Else: Failure
  *------------------------------------------------------------------------*/
 usb2_error_t
-usb2_req_get_config_desc_ptr(struct usb2_device *udev,
-    struct usb2_config_descriptor **ppcd, uint8_t config_index)
+usb2_req_get_descriptor_ptr(struct usb2_device *udev,
+    struct usb2_config_descriptor **ppcd, uint16_t wValue)
 {
-	uint16_t len;
-
 	struct usb2_device_request req;
-
-	if (udev->flags.usb2_mode != USB_MODE_DEVICE)
-		return (USB_ERR_INVAL);
+	usb2_handle_request_t *hr_func;
+	const void *ptr;
+	uint16_t len;
+	usb2_error_t err;
 
 	req.bmRequestType = UT_READ_DEVICE;
 	req.bRequest = UR_GET_DESCRIPTOR;
-	USETW2(req.wValue, UDESC_CONFIG, config_index);
+	USETW(req.wValue, wValue);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
 
-	(usb2_temp_get_desc_p) (udev, &req, 
-	    __DECONST(const void **, ppcd), &len);
+	ptr = NULL;
+	len = 0;
 
-	return (*ppcd ? USB_ERR_NORMAL_COMPLETION : USB_ERR_INVAL);
+	hr_func = usb2_get_hr_func(udev);
+
+	if (hr_func == NULL)
+		err = USB_ERR_INVAL;
+	else {
+		USB_BUS_LOCK(udev->bus);
+		err = (hr_func) (udev, &req, &ptr, &len);
+		USB_BUS_UNLOCK(udev->bus);
+	}
+
+	if (err)
+		ptr = NULL;
+	else if (ptr == NULL)
+		err = USB_ERR_INVAL;
+
+	*ppcd = __DECONST(struct usb2_config_descriptor *, ptr);
+
+	return (err);
 }
 
 /*------------------------------------------------------------------------*

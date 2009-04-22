@@ -81,7 +81,7 @@ static const void *usb2_temp_get_string_desc(struct usb2_device *, uint16_t,
 static const void *usb2_temp_get_vendor_desc(struct usb2_device *,
 		    const struct usb2_device_request *);
 static const void *usb2_temp_get_hub_desc(struct usb2_device *);
-static void	usb2_temp_get_desc(struct usb2_device *,
+static usb2_error_t usb2_temp_get_desc(struct usb2_device *,
 		    struct usb2_device_request *, const void **, uint16_t *);
 static usb2_error_t usb2_temp_setup(struct usb2_device *,
 		    const struct usb2_temp_device_desc *);
@@ -1072,7 +1072,7 @@ usb2_temp_get_hub_desc(struct usb2_device *udev)
  * This function is a demultiplexer for local USB device side control
  * endpoint requests.
  *------------------------------------------------------------------------*/
-static void
+static usb2_error_t
 usb2_temp_get_desc(struct usb2_device *udev, struct usb2_device_request *req,
     const void **pPtr, uint16_t *pLength)
 {
@@ -1157,11 +1157,12 @@ tr_valid:
 	}
 	*pPtr = buf;
 	*pLength = len;
-	return;
+	return (0);	/* success */
 
 tr_stalled:
 	*pPtr = NULL;
 	*pLength = 0;
+	return (0);	/* we ignore failures */
 }
 
 /*------------------------------------------------------------------------*

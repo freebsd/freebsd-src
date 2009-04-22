@@ -45,24 +45,12 @@ struct usb2_bus_stat {
 };
 
 /*
- * The following structure is used to keep the state of a standard
- * root transfer.
- */
-struct usb2_sw_transfer {
-	struct usb2_device_request req;
-	uint8_t *ptr;
-	uint16_t len;
-	usb2_error_t err;
-};
-
-/*
  * The following structure defines an USB BUS. There is one USB BUS
  * for every Host or Device controller.
  */
 struct usb2_bus {
 	struct usb2_bus_stat stats_err;
 	struct usb2_bus_stat stats_ok;
-	struct usb2_sw_transfer roothub_req;
 	struct root_hold_token *bus_roothold;
 	/*
 	 * There are two callback processes. One for Giant locked
