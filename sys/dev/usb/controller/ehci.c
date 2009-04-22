@@ -3651,8 +3651,8 @@ ehci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
 		if ((udev->speed != USB_SPEED_HIGH) &&
 		    ((udev->hs_hub_addr == 0) ||
 		    (udev->hs_port_no == 0) ||
-		    (udev->bus->devices[udev->hs_hub_addr] == NULL) ||
-		    (udev->bus->devices[udev->hs_hub_addr]->hub == NULL))) {
+		    (udev->parent_hs_hub == NULL) ||
+		    (udev->parent_hs_hub->hub == NULL))) {
 			/* We need a transaction translator */
 			goto done;
 		}
