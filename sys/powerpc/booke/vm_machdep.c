@@ -248,15 +248,6 @@ cpu_exit(struct thread *td)
 
 }
 
-/* Temporary helper */
-void
-cpu_throw(struct thread *old, struct thread *new)
-{
-
-	cpu_switch(old, new, NULL);
-	panic("cpu_throw() didn't");
-}
-
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
  */

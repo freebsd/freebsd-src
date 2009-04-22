@@ -69,11 +69,20 @@
 #include <machine/spr.h>
 
 /*
- * void cpu_switch(struct thread *old, struct thread *new)
+ * void cpu_throw(struct thread *old, struct thread *new)
+ */
+ENTRY(cpu_throw)
+	mr	%r15, %r4
+	b	cpu_switchin
+
+/*
+ * void cpu_switch(struct thread *old, struct thread *new, struct mutex *mtx);)
  *
  * Switch to a new thread saving the current state in the old thread.
  */
 ENTRY(cpu_switch)
+	stw	%r5, TD_LOCK(%r3)
+
 	lwz	%r5, TD_PCB(%r3)	/* Get the old thread's PCB ptr */
 
 	mr	%r12, %r2	
@@ -98,6 +107,7 @@ ENTRY(cpu_switch)
 
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
+cpu_switchin:
 	mr	%r3, %r15		/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 
