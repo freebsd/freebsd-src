@@ -103,7 +103,6 @@ static const struct usb2_hw_ep_profile
 		.max_in_frame_size = 64,
 		.max_out_frame_size = 64,
 		.is_simplex = 1,
-		.support_multi_buffer = 1,
 		.support_bulk = 1,
 		.support_interrupt = 1,
 		.support_isochronous = 1,
@@ -451,11 +450,13 @@ repeat:
 		td->error = 1;
 		return (0);		/* complete */
 	}
-	if (!(temp & (ATMEGA_UEINTX_FIFOCON |
-	    ATMEGA_UEINTX_TXINI))) {
-		/* cannot write any data */
+
+	temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
+	if (temp & 3) {
+		/* cannot write any data - a bank is busy */
 		goto not_complete;
 	}
+
 	count = td->max_packet_size;
 	if (td->remainder < count) {
 		/* we have a short packet */
@@ -529,9 +530,9 @@ atmegadci_data_tx_sync(struct atmegadci_td *td)
 	 * The control endpoint has only got one bank, so if that bank
 	 * is free the packet has been transferred!
 	 */
-	if (!(temp & (ATMEGA_UEINTX_FIFOCON |
-	    ATMEGA_UEINTX_TXINI))) {
-		/* cannot write any data */
+	temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
+	if (temp & 3) {
+		/* cannot write any data - a bank is busy */
 		goto not_complete;
 	}
 	if (sc->sc_dv_addr != 0xFF) {
@@ -1166,7 +1167,7 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 		ATMEGA_WRITE_1(sc, ATMEGA_UECFG0X, temp);
 		ATMEGA_WRITE_1(sc, ATMEGA_UECFG1X,
 		    ATMEGA_UECFG1X_ALLOC |
-		    ATMEGA_UECFG1X_EPBK1 |
+		    ATMEGA_UECFG1X_EPBK0 |	/* one bank */
 		    ATMEGA_UECFG1X_EPSIZE(3));
 
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
