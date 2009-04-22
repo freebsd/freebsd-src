@@ -1111,7 +1111,8 @@ usb2_probe_and_attach_sub(struct usb2_device *udev,
 
 		if (udev->flags.suspended) {
 			err = DEVICE_SUSPEND(iface->subdev);
-			device_printf(iface->subdev, "Suspend failed\n");
+			if (err)
+				device_printf(iface->subdev, "Suspend failed\n");
 		}
 		return (0);		/* success */
 	} else {
