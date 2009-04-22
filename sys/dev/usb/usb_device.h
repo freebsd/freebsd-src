@@ -121,6 +121,7 @@ struct usb2_device {
 	struct usb2_bus *bus;		/* our USB BUS */
 	device_t parent_dev;		/* parent device */
 	struct usb2_device *parent_hub;
+	struct usb2_device *parent_hs_hub;	/* high-speed parent HUB */
 	struct usb2_config_descriptor *cdesc;	/* full config descr */
 	struct usb2_hub *hub;		/* only if this is a hub */
 #if USB_HAVE_COMPAT_LINUX

@@ -1117,7 +1117,7 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
 	         * access.
 	         */
 
-		hub = bus->devices[udev->hs_hub_addr]->hub;
+		hub = udev->parent_hs_hub->hub;
 		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
 			slot = usb2_intr_find_best_slot(hub->uframe_usage,
 			    USB_FS_ISOC_UFRAME_MAX, 6);
@@ -1232,7 +1232,7 @@ usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev,
 
 	isoc_time = usb2_isoc_time_expand(udev->bus, isoc_time);
 
-	hs_hub = udev->bus->devices[udev->hs_hub_addr]->hub;
+	hs_hub = udev->parent_hs_hub->hub;
 
 	if (hs_hub != NULL) {
 
