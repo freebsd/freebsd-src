@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090422:	p12	FreeBSD-SA-09:07.libc, FreeBSD-SA-09:08.openssl
+	Don't leak information via uninitialized space in db(3) records.
+	[09:07]
+
+	Sanity-check string lengths in order to stop OpenSSL crashing
+	when printing corrupt BMPString or UniversalString objects. [09:08]
+
 20090323:	p11	FreeBSD-SA-09:06.ktimer, FreeBSD-EN-09:01.kenv
 	Correctly sanity-check timer IDs. [SA-09:06]
 
