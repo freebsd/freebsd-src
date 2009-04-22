@@ -34,7 +34,7 @@
 #include <dev/usb/usb_dynamic.h>
 
 /* function prototypes */
-static usb2_temp_get_desc_t usb2_temp_get_desc_w;
+static usb2_handle_request_t usb2_temp_get_desc_w;
 static usb2_temp_setup_by_index_t usb2_temp_setup_by_index_w;
 static usb2_temp_unsetup_t usb2_temp_unsetup_w;
 static usb2_test_quirk_t usb2_test_quirk_w;
@@ -42,7 +42,7 @@ static usb2_test_huawei_autoinst_t usb2_test_huawei_autoinst_w;
 static usb2_quirk_ioctl_t usb2_quirk_ioctl_w;
 
 /* global variables */
-usb2_temp_get_desc_t *usb2_temp_get_desc_p = &usb2_temp_get_desc_w;
+usb2_handle_request_t *usb2_temp_get_desc_p = &usb2_temp_get_desc_w;
 usb2_temp_setup_by_index_t *usb2_temp_setup_by_index_p = &usb2_temp_setup_by_index_w;
 usb2_temp_unsetup_t *usb2_temp_unsetup_p = &usb2_temp_unsetup_w;
 usb2_test_quirk_t *usb2_test_quirk_p = &usb2_test_quirk_w;
@@ -68,12 +68,11 @@ usb2_quirk_ioctl_w(unsigned long cmd, caddr_t data, int fflag, struct thread *td
 	return (ENOIOCTL);
 }
 
-static void
+static usb2_error_t
 usb2_temp_get_desc_w(struct usb2_device *udev, struct usb2_device_request *req, const void **pPtr, uint16_t *pLength)
 {
 	/* stall */
-	*pPtr = NULL;
-	*pLength = 0;
+	return (USB_ERR_STALLED);
 }
 
 static void

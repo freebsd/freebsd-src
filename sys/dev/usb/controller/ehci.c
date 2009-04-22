@@ -2987,35 +2987,39 @@ ehci_disown(ehci_softc_t *sc, uint16_t index, uint8_t lowspeed)
 	EOWRITE4(sc, port, v | EHCI_PS_PO);
 }
 
-static void
-ehci_roothub_exec(struct usb2_bus *bus)
+static usb2_error_t
+ehci_roothub_exec(struct usb2_device *udev,
+    struct usb2_device_request *req, const void **pptr, uint16_t *plength)
 {
-	ehci_softc_t *sc = EHCI_BUS2SC(bus);
-	struct usb2_sw_transfer *std = &sc->sc_bus.roothub_req;
-	char *ptr;
+	ehci_softc_t *sc = EHCI_BUS2SC(udev->bus);
+	const char *str_ptr;
+	const void *ptr;
 	uint32_t port;
 	uint32_t v;
+	uint16_t len;
 	uint16_t i;
 	uint16_t value;
 	uint16_t index;
 	uint8_t l;
+	usb2_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	/* buffer reset */
-	std->ptr = sc->sc_hub_desc.temp;
-	std->len = 0;
+	ptr = (const void *)&sc->sc_hub_desc;
+	len = 0;
+	err = 0;
 
-	value = UGETW(std->req.wValue);
-	index = UGETW(std->req.wIndex);
+	value = UGETW(req->wValue);
+	index = UGETW(req->wIndex);
 
 	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
-	    std->req.bmRequestType, std->req.bRequest,
-	    UGETW(std->req.wLength), value, index);
+	    req->bmRequestType, req->bRequest,
+	    UGETW(req->wLength), value, index);
 
 #define	C(x,y) ((x) | ((y) << 8))
-	switch (C(std->req.bRequest, std->req.bmRequestType)) {
+	switch (C(req->bRequest, req->bmRequestType)) {
 	case C(UR_CLEAR_FEATURE, UT_WRITE_DEVICE):
 	case C(UR_CLEAR_FEATURE, UT_WRITE_INTERFACE):
 	case C(UR_CLEAR_FEATURE, UT_WRITE_ENDPOINT):
@@ -3025,18 +3029,18 @@ ehci_roothub_exec(struct usb2_bus *bus)
 		 */
 		break;
 	case C(UR_GET_CONFIG, UT_READ_DEVICE):
-		std->len = 1;
+		len = 1;
 		sc->sc_hub_desc.temp[0] = sc->sc_conf;
 		break;
 	case C(UR_GET_DESCRIPTOR, UT_READ_DEVICE):
 		switch (value >> 8) {
 		case UDESC_DEVICE:
 			if ((value & 0xff) != 0) {
-				std->err = USB_ERR_IOERROR;
+				err = USB_ERR_IOERROR;
 				goto done;
 			}
-			std->len = sizeof(ehci_devd);
-			sc->sc_hub_desc.devd = ehci_devd;
+			len = sizeof(ehci_devd);
+			ptr = (const void *)&ehci_devd;
 			break;
 			/*
 			 * We can't really operate at another speed,
@@ -3045,74 +3049,74 @@ ehci_roothub_exec(struct usb2_bus *bus)
 			 */
 		case UDESC_DEVICE_QUALIFIER:
 			if ((value & 0xff) != 0) {
-				std->err = USB_ERR_IOERROR;
+				err = USB_ERR_IOERROR;
 				goto done;
 			}
-			std->len = sizeof(ehci_odevd);
-			sc->sc_hub_desc.odevd = ehci_odevd;
+			len = sizeof(ehci_odevd);
+			ptr = (const void *)&ehci_odevd;
 			break;
 
 		case UDESC_CONFIG:
 			if ((value & 0xff) != 0) {
-				std->err = USB_ERR_IOERROR;
+				err = USB_ERR_IOERROR;
 				goto done;
 			}
-			std->len = sizeof(ehci_confd);
-			std->ptr = USB_ADD_BYTES(&ehci_confd, 0);
+			len = sizeof(ehci_confd);
+			ptr = (const void *)&ehci_confd;
 			break;
 
 		case UDESC_STRING:
 			switch (value & 0xff) {
 			case 0:	/* Language table */
-				ptr = "\001";
+				str_ptr = "\001";
 				break;
 
 			case 1:	/* Vendor */
-				ptr = sc->sc_vendor;
+				str_ptr = sc->sc_vendor;
 				break;
 
 			case 2:	/* Product */
-				ptr = "EHCI root HUB";
+				str_ptr = "EHCI root HUB";
 				break;
 
 			default:
-				ptr = "";
+				str_ptr = "";
 				break;
 			}
 
-			std->len = usb2_make_str_desc
-			    (sc->sc_hub_desc.temp,
+			len = usb2_make_str_desc(
+			    sc->sc_hub_desc.temp,
 			    sizeof(sc->sc_hub_desc.temp),
-			    ptr);
+			    str_ptr);
 			break;
 		default:
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		break;
 	case C(UR_GET_INTERFACE, UT_READ_INTERFACE):
-		std->len = 1;
+		len = 1;
 		sc->sc_hub_desc.temp[0] = 0;
 		break;
 	case C(UR_GET_STATUS, UT_READ_DEVICE):
-		std->len = 2;
+		len = 2;
 		USETW(sc->sc_hub_desc.stat.wStatus, UDS_SELF_POWERED);
 		break;
 	case C(UR_GET_STATUS, UT_READ_INTERFACE):
 	case C(UR_GET_STATUS, UT_READ_ENDPOINT):
-		std->len = 2;
+		len = 2;
 		USETW(sc->sc_hub_desc.stat.wStatus, 0);
 		break;
 	case C(UR_SET_ADDRESS, UT_WRITE_DEVICE):
 		if (value >= EHCI_MAX_DEVICES) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		sc->sc_addr = value;
 		break;
 	case C(UR_SET_CONFIG, UT_WRITE_DEVICE):
 		if ((value != 0) && (value != 1)) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		sc->sc_conf = value;
@@ -3122,7 +3126,7 @@ ehci_roothub_exec(struct usb2_bus *bus)
 	case C(UR_SET_FEATURE, UT_WRITE_DEVICE):
 	case C(UR_SET_FEATURE, UT_WRITE_INTERFACE):
 	case C(UR_SET_FEATURE, UT_WRITE_ENDPOINT):
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	case C(UR_SET_INTERFACE, UT_WRITE_INTERFACE):
 		break;
@@ -3136,7 +3140,7 @@ ehci_roothub_exec(struct usb2_bus *bus)
 
 		if ((index < 1) ||
 		    (index > sc->sc_noport)) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		port = EHCI_PORTSC(index);
@@ -3191,13 +3195,13 @@ ehci_roothub_exec(struct usb2_bus *bus)
 			sc->sc_isreset = 0;
 			break;
 		default:
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		break;
 	case C(UR_GET_DESCRIPTOR, UT_READ_CLASS_DEVICE):
 		if ((value & 0xff) != 0) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		v = EOREAD4(sc, EHCI_HCSPARAMS);
@@ -3216,10 +3220,10 @@ ehci_roothub_exec(struct usb2_bus *bus)
 		}
 		sc->sc_hub_desc.hubd.bDescLength =
 		    8 + ((sc->sc_noport + 7) / 8);
-		std->len = sc->sc_hub_desc.hubd.bDescLength;
+		len = sc->sc_hub_desc.hubd.bDescLength;
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_DEVICE):
-		std->len = 16;
+		len = 16;
 		bzero(sc->sc_hub_desc.temp, 16);
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_OTHER):
@@ -3227,7 +3231,7 @@ ehci_roothub_exec(struct usb2_bus *bus)
 		    index);
 		if ((index < 1) ||
 		    (index > sc->sc_noport)) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		v = EOREAD4(sc, EHCI_PORTSC(index));
@@ -3267,17 +3271,17 @@ ehci_roothub_exec(struct usb2_bus *bus)
 		if (sc->sc_isreset)
 			i |= UPS_C_PORT_RESET;
 		USETW(sc->sc_hub_desc.ps.wPortChange, i);
-		std->len = sizeof(sc->sc_hub_desc.ps);
+		len = sizeof(sc->sc_hub_desc.ps);
 		break;
 	case C(UR_SET_DESCRIPTOR, UT_WRITE_CLASS_DEVICE):
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	case C(UR_SET_FEATURE, UT_WRITE_CLASS_DEVICE):
 		break;
 	case C(UR_SET_FEATURE, UT_WRITE_CLASS_OTHER):
 		if ((index < 1) ||
 		    (index > sc->sc_noport)) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		port = EHCI_PORTSC(index);
@@ -3328,7 +3332,7 @@ ehci_roothub_exec(struct usb2_bus *bus)
 			if (v & EHCI_PS_PR) {
 				device_printf(sc->sc_bus.bdev,
 				    "port reset timeout\n");
-				std->err = USB_ERR_TIMEOUT;
+				err = USB_ERR_TIMEOUT;
 				goto done;
 			}
 			if (!(v & EHCI_PS_PE) &&
@@ -3357,7 +3361,7 @@ ehci_roothub_exec(struct usb2_bus *bus)
 			break;
 
 		default:
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		break;
@@ -3367,11 +3371,13 @@ ehci_roothub_exec(struct usb2_bus *bus)
 	case C(UR_STOP_TT, UT_WRITE_CLASS_OTHER):
 		break;
 	default:
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	}
 done:
-	return;
+	*plength = len;
+	*pptr = ptr;
+	return (err);
 }
 
 static void
