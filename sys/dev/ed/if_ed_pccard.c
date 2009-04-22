@@ -106,8 +106,6 @@
 #include "miibus_if.h"
 #include "pccarddevs.h"
 
-#define bootverbose 1
-
 /*
  * NE-2000 based PC Cards have a number of ways to get the MAC address.
  * Some cards encode this as a FUNCE.  Others have this in the ROMs the
