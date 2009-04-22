@@ -716,7 +716,8 @@ cpuset_thread0(void)
  * Create a cpuset, which would be cpuset_create() but
  * mark the new 'set' as root.
  *
- * We are not going to reparent the td to it. Use cpuset_reparentproc() for that.
+ * We are not going to reparent the td to it.  Use cpuset_setproc_update_set()
+ * for that.
  *
  * In case of no error, returns the set in *setp locked with a reference.
  */
