@@ -822,7 +822,16 @@ usb2_transfer_setup(struct usb2_device *udev,
 			info->done_m[1].hdr.pm_callback = &usb2_callback_proc;
 			info->done_m[1].xroot = info;
 
-			if (xfer_mtx == &Giant)
+			/* 
+			 * In device side mode control endpoint
+			 * requests need to run from a separate
+			 * context, else there is a chance of
+			 * deadlock!
+			 */
+			if (setup_start == usb2_control_ep_cfg)
+				info->done_p = 
+				    &udev->bus->control_xfer_proc;
+			else if (xfer_mtx == &Giant)
 				info->done_p = 
 				    &udev->bus->giant_callback_proc;
 			else

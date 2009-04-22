@@ -62,7 +62,6 @@ struct usb2_sw_transfer {
 struct usb2_bus {
 	struct usb2_bus_stat stats_err;
 	struct usb2_bus_stat stats_ok;
-	struct usb2_process explore_proc;
 	struct usb2_sw_transfer roothub_req;
 	struct root_hold_token *bus_roothold;
 	/*
@@ -72,6 +71,13 @@ struct usb2_bus {
 	 */
 	struct usb2_process giant_callback_proc;
 	struct usb2_process non_giant_callback_proc;
+
+	/* Explore process */
+	struct usb2_process explore_proc;
+
+	/* Control request process */
+	struct usb2_process control_xfer_proc;
+
 	struct usb2_bus_msg explore_msg[2];
 	struct usb2_bus_msg detach_msg[2];
 	struct usb2_bus_msg attach_msg[2];
