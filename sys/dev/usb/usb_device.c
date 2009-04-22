@@ -724,22 +724,33 @@ usb2_config_parse(struct usb2_device *udev, uint8_t iface_index, uint8_t cmd)
 				goto done;
 			}
 		}
-		udev->pipes_max = ep_max;
-		udev->pipes = NULL;
-		if (udev->pipes_max != 0) {
-			udev->pipes = malloc(sizeof(*pipe) * udev->pipes_max,
+		if (ep_max != 0) {
+			udev->pipes = malloc(sizeof(*pipe) * ep_max,
 			        M_USB, M_WAITOK | M_ZERO);
 			if (udev->pipes == NULL) {
 				err = USB_ERR_NOMEM;
 				goto done;
 			}
+		} else {
+			udev->pipes = NULL;
 		}
+		USB_BUS_LOCK(udev->bus);
+		udev->pipes_max = ep_max;
+		/* reset any ongoing clear-stall */
+		udev->pipe_curr = NULL;
+		USB_BUS_UNLOCK(udev->bus);
 	}
 
 done:
 	if (err) {
 		if (cmd == USB_CFG_ALLOC) {
 cleanup:
+			USB_BUS_LOCK(udev->bus);
+			udev->pipes_max = 0;
+			/* reset any ongoing clear-stall */
+			udev->pipe_curr = NULL;
+			USB_BUS_UNLOCK(udev->bus);
+
 			/* cleanup */
 			if (udev->ifaces != NULL)
 				free(udev->ifaces, M_USB);
@@ -749,7 +760,6 @@ cleanup:
 			udev->ifaces = NULL;
 			udev->pipes = NULL;
 			udev->ifaces_max = 0;
-			udev->pipes_max = 0;
 		}
 	}
 	return (err);
