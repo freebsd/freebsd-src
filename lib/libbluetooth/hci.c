@@ -30,13 +30,503 @@
  * $FreeBSD$
  */
 
+#include <assert.h>
 #include <bluetooth.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#undef	MIN
+#define	MIN(a, b)	(((a) < (b))? (a) : (b))
+
+static int    bt_devany_cb(int s, struct bt_devinfo const *di, void *xdevname);
 static char * bt_dev2node (char const *devname, char *nodename, int nnlen);
+
+int
+bt_devopen(char const *devname)
+{
+	struct sockaddr_hci	ha;
+	bdaddr_t		ba;
+	int			s;
+
+	if (devname == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	memset(&ha, 0, sizeof(ha));
+	ha.hci_len = sizeof(ha);
+	ha.hci_family = AF_BLUETOOTH;
+
+	if (bt_aton(devname, &ba)) {
+		if (!bt_devname(ha.hci_node, &ba))
+			return (-1);
+	} else if (bt_dev2node(devname, ha.hci_node,
+					sizeof(ha.hci_node)) == NULL) {
+		errno = ENXIO;
+		return (-1);
+	}
+
+	s = socket(PF_BLUETOOTH, SOCK_RAW, BLUETOOTH_PROTO_HCI);
+	if (s < 0)
+		return (-1);
+
+	if (bind(s, (struct sockaddr *) &ha, sizeof(ha)) < 0 ||
+	    connect(s, (struct sockaddr *) &ha, sizeof(ha)) < 0) {
+		close(s);
+		return (-1);
+	}
+
+	return (s);
+}
+
+int
+bt_devclose(int s)
+{
+	return (close(s));
+}
+
+int
+bt_devsend(int s, uint16_t opcode, void *param, size_t plen)
+{
+	ng_hci_cmd_pkt_t	h;
+	struct iovec		iv[2];
+	int			ivn;
+
+	if ((plen == 0 && param != NULL) ||
+	    (plen > 0 && param == NULL) ||
+	    plen > UINT8_MAX) { 
+		errno = EINVAL;
+		return (-1);
+	}
+
+	iv[0].iov_base = &h;
+	iv[0].iov_len = sizeof(h);
+	ivn = 1;
+
+	h.type = NG_HCI_CMD_PKT;
+	h.opcode = htole16(opcode);
+	if (plen > 0) {
+		h.length = plen;
+
+		iv[1].iov_base = param;
+		iv[1].iov_len = plen;
+		ivn = 2;
+	} else
+		h.length = 0;
+
+	while (writev(s, iv, ivn) < 0) {
+		if (errno == EAGAIN || errno == EINTR)
+			continue;
+
+		return (-1);
+	}
+
+	return (0);
+}
+
+ssize_t
+bt_devrecv(int s, void *buf, size_t size, time_t to)
+{
+	ssize_t	n;
+
+	if (buf == NULL || size == 0) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (to >= 0) {
+		fd_set		rfd;
+		struct timeval	tv;
+
+		FD_ZERO(&rfd);
+		FD_SET(s, &rfd);
+
+		tv.tv_sec = to;
+		tv.tv_usec = 0;
+
+		while ((n = select(s + 1, &rfd, NULL, NULL, &tv)) < 0) {
+			if (errno == EAGAIN || errno == EINTR)
+				continue;
+
+			return (-1);
+		}
+
+		if (n == 0) {
+			errno = ETIMEDOUT;
+			return (-1);
+		}
+
+		assert(FD_ISSET(s, &rfd));
+	}
+
+	while ((n = read(s, buf, size)) < 0) {
+		if (errno == EAGAIN || errno == EINTR)
+			continue;
+
+		return (-1);
+	}
+
+	switch (*((uint8_t *) buf)) {
+	case NG_HCI_CMD_PKT: {
+		ng_hci_cmd_pkt_t	*h = (ng_hci_cmd_pkt_t *) buf;
+
+		if (n >= sizeof(*h) && n == (sizeof(*h) + h->length))
+			return (n);
+		} break;
+
+	case NG_HCI_ACL_DATA_PKT: {
+		ng_hci_acldata_pkt_t	*h = (ng_hci_acldata_pkt_t *) buf;
+
+		if (n >= sizeof(*h) && n == (sizeof(*h) + le16toh(h->length)))
+			return (n);
+		} break;
+
+	case NG_HCI_SCO_DATA_PKT: {
+		ng_hci_scodata_pkt_t	*h = (ng_hci_scodata_pkt_t *) buf;
+
+		if (n >= sizeof(*h) && n == (sizeof(*h) + h->length))
+			return (n);
+		} break;
+
+	case NG_HCI_EVENT_PKT: {
+		ng_hci_event_pkt_t	*h = (ng_hci_event_pkt_t *) buf;
+
+		if (n >= sizeof(*h) && n == (sizeof(*h) + h->length))
+			return (n);
+		} break;
+	}
+
+	errno = EIO;
+	return (-1);
+}
+
+int
+bt_devreq(int s, struct bt_devreq *r, time_t to)
+{
+	uint8_t				buf[320]; /* more than enough */
+	ng_hci_event_pkt_t		*e = (ng_hci_event_pkt_t *) buf;
+	ng_hci_command_compl_ep		*cc = (ng_hci_command_compl_ep *)(e+1);
+	ng_hci_command_status_ep	*cs = (ng_hci_command_status_ep*)(e+1);
+	struct bt_devfilter		old, new;
+	time_t				t_end;
+	uint16_t			opcode;
+	ssize_t				n;
+	int				error;
+
+	if (s < 0 || r == NULL || to < 0) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if ((r->rlen == 0 && r->rparam != NULL) ||
+	    (r->rlen > 0 && r->rparam == NULL)) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	memset(&new, 0, sizeof(new));
+	bt_devfilter_pkt_set(&new, NG_HCI_EVENT_PKT);
+	bt_devfilter_evt_set(&new, NG_HCI_EVENT_COMMAND_COMPL);
+	bt_devfilter_evt_set(&new, NG_HCI_EVENT_COMMAND_STATUS);
+	if (r->event != 0)
+		bt_devfilter_evt_set(&new, r->event);
+
+	if (bt_devfilter(s, &new, &old) < 0)
+		return (-1);
+
+	error = 0;
+
+	n = bt_devsend(s, r->opcode, r->cparam, r->clen);
+	if (n < 0) {
+		error = errno;
+		goto out;	
+	}
+
+	opcode = htole16(r->opcode);
+	t_end = time(NULL) + to;
+
+	do {
+		to = t_end - time(NULL);
+		if (to < 0)
+			to = 0;
+
+		n = bt_devrecv(s, buf, sizeof(buf), to);
+		if (n < 0) {
+			error = errno;
+			goto out;
+		}
+
+		if (e->type != NG_HCI_EVENT_PKT) {
+			error = EIO;
+			goto out;
+		}
+
+		n -= sizeof(*e);
+
+		switch (e->event) {
+		case NG_HCI_EVENT_COMMAND_COMPL:
+			if (cc->opcode == opcode) {
+				n -= sizeof(*cc);
+
+				if (r->rlen >= n) {
+					r->rlen = n;
+					memcpy(r->rparam, cc + 1, r->rlen);
+				}
+
+				goto out;
+			}
+			break;
+
+		case NG_HCI_EVENT_COMMAND_STATUS:
+			if (cs->opcode == opcode) {
+				if (r->event != NG_HCI_EVENT_COMMAND_STATUS) {
+					if (cs->status != 0) {
+						error = EIO;
+						goto out;
+					}
+				} else {
+					if (r->rlen >= n) {
+						r->rlen = n;
+						memcpy(r->rparam, cs, r->rlen);
+					}
+
+					goto out;
+				}
+			}
+			break;
+
+		default:
+			if (e->event == r->event) {
+				if (r->rlen >= n) {
+					r->rlen = n;
+					memcpy(r->rparam, e + 1, r->rlen);
+				}
+
+				goto out;
+			}
+			break;
+		}
+	} while (to > 0);
+
+	error = ETIMEDOUT;
+out:
+	bt_devfilter(s, &old, NULL);
+
+	if (error != 0) {
+		errno = error;
+		return (-1);
+	}
+
+	return (0);
+}
+
+int
+bt_devfilter(int s, struct bt_devfilter const *new, struct bt_devfilter *old)
+{
+	struct ng_btsocket_hci_raw_filter	f;
+	socklen_t				len;
+
+	if (new == NULL && old == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (old != NULL) {
+		len = sizeof(f);
+		if (getsockopt(s, SOL_HCI_RAW, SO_HCI_RAW_FILTER, &f, &len) < 0)
+			return (-1);
+
+		memset(old, 0, sizeof(*old));
+		memcpy(old->packet_mask, &f.packet_mask,
+			MIN(sizeof(old->packet_mask), sizeof(f.packet_mask)));
+		memcpy(old->event_mask, &f.event_mask,
+			MIN(sizeof(old->event_mask), sizeof(f.packet_mask)));
+	}
+
+	if (new != NULL) {
+		memset(&f, 0, sizeof(f));
+		memcpy(&f.packet_mask, new->packet_mask,
+			MIN(sizeof(f.packet_mask), sizeof(new->event_mask)));
+		memcpy(&f.event_mask, new->event_mask,
+			MIN(sizeof(f.event_mask), sizeof(new->event_mask)));
+
+		len = sizeof(f);
+		if (setsockopt(s, SOL_HCI_RAW, SO_HCI_RAW_FILTER, &f, len) < 0)
+			return (-1);
+	}
+
+	return (0);
+}
+
+void
+bt_devfilter_pkt_set(struct bt_devfilter *filter, uint8_t type)
+{
+	bit_set(filter->packet_mask, type - 1);
+}
+
+void
+bt_devfilter_pkt_clr(struct bt_devfilter *filter, uint8_t type)
+{
+	bit_clear(filter->packet_mask, type - 1);
+}
+
+int
+bt_devfilter_pkt_tst(struct bt_devfilter const *filter, uint8_t type)
+{
+	return (bit_test(filter->packet_mask, type - 1));
+}
+
+void
+bt_devfilter_evt_set(struct bt_devfilter *filter, uint8_t event)
+{
+	bit_set(filter->event_mask, event - 1);
+}
+
+void
+bt_devfilter_evt_clr(struct bt_devfilter *filter, uint8_t event)
+{
+	bit_clear(filter->event_mask, event - 1);
+}
+
+int
+bt_devfilter_evt_tst(struct bt_devfilter const *filter, uint8_t event)
+{
+	return (bit_test(filter->event_mask, event - 1));
+}
+
+int
+bt_devinquiry(char const *devname, time_t length, int num_rsp,
+		struct bt_devinquiry **ii)
+{
+	uint8_t				buf[320];
+	char				_devname[HCI_DEVNAME_SIZE];
+	struct bt_devfilter		f;
+	ng_hci_inquiry_cp		*cp = (ng_hci_inquiry_cp *) buf;
+	ng_hci_event_pkt_t		*e = (ng_hci_event_pkt_t *) buf;
+	ng_hci_inquiry_result_ep	*ep = (ng_hci_inquiry_result_ep *)(e+1);
+	ng_hci_inquiry_response		*ir;
+	struct bt_devinquiry		*i;
+	int				s, n;
+	time_t				to;
+
+	if (ii == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (devname == NULL) {
+		memset(_devname, 0, sizeof(_devname));
+		devname = _devname;
+
+		n = bt_devenum(bt_devany_cb, _devname);
+		if (n <= 0) {
+			if (n == 0)
+				*ii = NULL;
+
+			return (n);
+		}
+	}
+
+	s = bt_devopen(devname);
+	if (s < 0)
+		return (-1);
+
+	if (bt_devfilter(s, NULL, &f) < 0) {
+		bt_devclose(s);
+		return (-1);
+	}
+
+	bt_devfilter_evt_set(&f, NG_HCI_EVENT_INQUIRY_COMPL);
+	bt_devfilter_evt_set(&f, NG_HCI_EVENT_INQUIRY_RESULT);
+
+	if (bt_devfilter(s, &f, NULL) < 0) {
+		bt_devclose(s);
+		return (-1);
+	}
+
+	/* Always use GIAC LAP */
+	cp->lap[0] = 0x33;
+	cp->lap[1] = 0x8b;
+	cp->lap[2] = 0x9e;
+
+	/* Calculate inquire length in 1.28 second units */
+	to = (time_t) ((double) length / 1.28);
+	if (to <= 0)
+		cp->inquiry_length = 4;		/* 5.12 seconds */
+	else if (to > 254)
+		cp->inquiry_length = 255;	/* 326.40 seconds */
+	else
+		cp->inquiry_length = to + 1;
+
+	to = (time_t)((double) cp->inquiry_length * 1.28) + 1;
+
+	if (num_rsp <= 0 || num_rsp > 255)
+		num_rsp = 8;
+	cp->num_responses = (uint8_t) num_rsp;
+
+	i = *ii = calloc(num_rsp, sizeof(struct bt_devinquiry));
+	if (i == NULL) {
+		bt_devclose(s);
+		errno = ENOMEM;
+		return (-1);
+	}
+
+	if (bt_devsend(s,
+		NG_HCI_OPCODE(NG_HCI_OGF_LINK_CONTROL, NG_HCI_OCF_INQUIRY),
+			cp, sizeof(*cp)) < 0) {
+		free(i);
+		bt_devclose(s);
+		return (-1);
+	}
+
+wait_for_more:
+
+	n = bt_devrecv(s, buf, sizeof(buf), to);
+	if (n < 0) {
+		free(i);
+		bt_devclose(s);
+		return (-1);
+	}
+
+	if (n < sizeof(ng_hci_event_pkt_t)) {
+		free(i);
+		bt_devclose(s);
+		errno = EIO;
+		return (-1);
+	}
+
+	switch (e->event) {
+	case NG_HCI_EVENT_INQUIRY_COMPL:
+		break;
+
+	case NG_HCI_EVENT_INQUIRY_RESULT:
+		ir = (ng_hci_inquiry_response *)(ep + 1);
+
+		for (n = 0; n < MIN(ep->num_responses, num_rsp); n ++) {
+			bdaddr_copy(&i->bdaddr, &ir->bdaddr);
+			i->pscan_rep_mode = ir->page_scan_rep_mode;
+			i->pscan_period_mode = ir->page_scan_period_mode;
+			memcpy(i->dev_class, ir->uclass, sizeof(i->dev_class));
+			i->clock_offset = le16toh(ir->clock_offset);
+
+			ir ++;
+			i ++;
+			num_rsp --;
+		}
+		/* FALLTHROUGH */
+
+	default:
+		goto wait_for_more;
+		/* NOT REACHED */
+	}
+
+	bt_devclose(s);
+		
+	return (i - *ii);
+}
 
 int
 bt_devinfo(struct bt_devinfo *di)
@@ -53,6 +543,7 @@ bt_devinfo(struct bt_devinfo *di)
 		struct ng_btsocket_hci_raw_node_debug		r8;
 	}						rp;
 	struct sockaddr_hci				ha;
+	socklen_t					halen;
 	int						s, rval;
 
 	if (di == NULL) {
@@ -60,27 +551,14 @@ bt_devinfo(struct bt_devinfo *di)
 		return (-1);
 	}
 
-	memset(&ha, 0, sizeof(ha));
-	ha.hci_len = sizeof(ha);
-	ha.hci_family = AF_BLUETOOTH;
-
-	if (bt_aton(di->devname, &rp.r1.bdaddr)) {
-		if (!bt_devname(ha.hci_node, &rp.r1.bdaddr))
-			return (-1);
-	} else if (bt_dev2node(di->devname, ha.hci_node,
-					sizeof(ha.hci_node)) == NULL) {
-		errno = ENXIO;
-		return (-1);
-	}
-
-	s = socket(PF_BLUETOOTH, SOCK_RAW, BLUETOOTH_PROTO_HCI);
+	s = bt_devopen(di->devname);
 	if (s < 0)
 		return (-1);
 
 	rval = -1;
 
-	if (bind(s, (struct sockaddr *) &ha, sizeof(ha)) < 0 ||
-	    connect(s, (struct sockaddr *) &ha, sizeof(ha)) < 0)
+	halen = sizeof(ha);
+	if (getsockname(s, (struct sockaddr *) &ha, &halen) < 0)
 		goto bad;
 	strlcpy(di->devname, ha.hci_node, sizeof(di->devname));
 
@@ -138,7 +616,7 @@ bt_devinfo(struct bt_devinfo *di)
 
 	rval = 0;
 bad:
-	close(s);
+	bt_devclose(s);
 
 	return (rval);
 }
@@ -203,6 +681,13 @@ bt_devenum(bt_devenum_cb_t cb, void *arg)
 	free(rp.names);
 
 	return (count);
+}
+
+static int
+bt_devany_cb(int s, struct bt_devinfo const *di, void *xdevname)
+{
+	strlcpy((char *) xdevname, di->devname, HCI_DEVNAME_SIZE);
+	return (1);
 }
 
 static char *
