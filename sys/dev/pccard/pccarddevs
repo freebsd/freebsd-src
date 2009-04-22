@@ -699,7 +699,11 @@ product ACCTON EN2212		{ "ACCTON", "EN2212", NULL, NULL } Accton EN2212
 product ACCTON EN2216		{ "ACCTON", "EN2216-PCMCIA-ETHERNET", "EN2216R01", NULL } Accton EN2216
 product ADDTRON AWP100		{ "Addtron", "AWP-100&spWireless&spPCMCIA", "Version&sp01.02", NULL }
 product ALLIEDTELESIS WR211PCM	{ "Allied&spTelesis&spK.K.", "WR211PCM", NULL, NULL } Allied Telesis WR211PCM
+product AMBICOM AMB8002		{ "AmbiCom&spInc", "AMB8002", NULL, NULL } AmbiCom AMB8002
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
+product AMBICOM AMB8010		{ "AmbiCom&spInc", "AMB8010", NULL, NULL } AmbiCom AMB8010
+product AMBICOM AMB8010_ALT	{ "AmbiCom", "AMB8010", NULL, NULL } AmbiCom AMB8010
+product AMBICOM AMB8610		{ "AmbiCom", "AMB8610", NULL, NULL } AmbiCom AMB8010
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product ARGOSY SP320		{ "PCMCIA", "RS-COM 2P", NULL, NULL } ARGOSY SP320 Dual port serial PCMCIA
 product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionton CFLT10N
