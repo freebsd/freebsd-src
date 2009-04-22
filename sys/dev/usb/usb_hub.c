@@ -1786,12 +1786,10 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 static void
 usb2_dev_suspend_peer(struct usb2_device *udev)
 {
-	struct usb2_device *hub;
 	struct usb2_device *child;
 	int err;
 	uint8_t x;
 	uint8_t nports;
-	uint8_t suspend_parent;
 
 repeat:
 	/* be NULL safe */
@@ -1808,16 +1806,15 @@ repeat:
 
 	DPRINTF("udev=%p\n", udev);
 
-	/* check if all devices on the parent hub are suspended */
-	hub = udev->parent_hub;
-	if (hub != NULL) {
-		nports = hub->hub->nports;
-		suspend_parent = 1;
+	/* check if the current device is a HUB */
+	if (udev->hub != NULL) {
+		nports = udev->hub->nports;
 
+		/* check if all devices on the HUB are suspended */
 		for (x = 0; x != nports; x++) {
 
-			child = usb2_bus_port_get_device(hub->bus,
-			    hub->hub->ports + x);
+			child = usb2_bus_port_get_device(udev->bus,
+			    udev->hub->ports + x);
 
 			if (child == NULL)
 				continue;
@@ -1825,16 +1822,9 @@ repeat:
 			if (child->pwr_save.suspended)
 				continue;
 
-			if (child == udev)
-				continue;
-
-			/* another device on the HUB is not suspended */
-			suspend_parent = 0;
-
-			break;
+			DPRINTFN(1, "Port %u is busy on the HUB!\n", x + 1);
+			return;
 		}
-	} else {
-		suspend_parent = 0;
 	}
 
 	sx_xlock(udev->default_sx + 1);
@@ -1877,11 +1867,9 @@ repeat:
 		DPRINTFN(0, "Suspending port failed\n");
 		return;
 	}
-	if (suspend_parent) {
-		udev = udev->parent_hub;
-		goto repeat;
-	}
-	return;
+
+	udev = udev->parent_hub;
+	goto repeat;
 }
 
 /*------------------------------------------------------------------------*
