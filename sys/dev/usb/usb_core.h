@@ -266,6 +266,7 @@
 struct file;
 struct usb2_bus;
 struct usb2_device;
+struct usb2_device_request;
 struct usb2_page;
 struct usb2_page_cache;
 struct usb2_xfer;
@@ -302,6 +303,9 @@ typedef uint32_t usb2_ticks_t;		/* system defined */
 #ifndef USB_HAVE_POWER_MASK_T
 typedef uint16_t usb2_power_mask_t;	/* see "USB_HW_POWER_XXX" */
 #endif
+
+typedef usb2_error_t (usb2_handle_request_t)(struct usb2_device *, 
+    struct usb2_device_request *, const void **, uint16_t *);
 
 /* structures */
 
