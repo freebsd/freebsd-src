@@ -44,8 +44,8 @@ usb2_error_t usb2_req_get_alt_interface_no(struct usb2_device *udev,
 		    uint8_t iface_index);
 usb2_error_t usb2_req_get_config(struct usb2_device *udev, struct mtx *mtx,
 		    uint8_t *pconf);
-usb2_error_t usb2_req_get_config_desc_ptr(struct usb2_device *udev,
-		    struct usb2_config_descriptor **ppcd, uint8_t config_index);
+usb2_error_t usb2_req_get_descriptor_ptr(struct usb2_device *udev,
+		    struct usb2_config_descriptor **ppcd, uint16_t wValue);
 usb2_error_t usb2_req_get_config_desc(struct usb2_device *udev, struct mtx *mtx,
 		    struct usb2_config_descriptor *d, uint8_t conf_index);
 usb2_error_t usb2_req_get_config_desc_full(struct usb2_device *udev,

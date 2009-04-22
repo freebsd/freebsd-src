@@ -243,7 +243,6 @@ struct uhci_config_desc {
 union uhci_hub_desc {
 	struct usb2_status stat;
 	struct usb2_port_status ps;
-	struct usb2_device_descriptor devd;
 	uint8_t	temp[128];
 };
 

@@ -462,7 +462,8 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 	/* get the full config descriptor */
 	if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
 		/* save some memory */
-		err = usb2_req_get_config_desc_ptr(udev, &cdp, index);
+		err = usb2_req_get_descriptor_ptr(udev, &cdp, 
+		    (UDESC_CONFIG << 8) | index);
 	} else {
 		/* normal request */
 		err = usb2_req_get_config_desc_full(udev,
