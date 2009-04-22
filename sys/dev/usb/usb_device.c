@@ -1490,6 +1490,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	while (hub) {
 		if (hub->speed == USB_SPEED_HIGH) {
 			udev->hs_hub_addr = hub->address;
+			udev->parent_hs_hub = hub;
 			udev->hs_port_no = adev->port_no;
 			break;
 		}
