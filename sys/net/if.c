@@ -929,6 +929,11 @@ if_detach(struct ifnet *ifp)
 	if_purgemaddrs(ifp);
 
 	/*
+	 * Prevent further calls into the device driver via ifnet.
+	 */
+	if_dead(ifp);
+
+	/*
 	 * Remove link ifaddr pointer and maybe decrement if_index.
 	 * Clean up all addresses.
 	 */
