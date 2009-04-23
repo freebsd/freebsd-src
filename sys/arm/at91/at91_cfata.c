@@ -57,9 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 struct at91_cfata_softc {
-        device_t                dev;
-        struct resource		*mem_res;
-        struct resource		irq;
+	device_t		dev;
+	struct resource		*mem_res;
+	struct resource		irq;
 	void			(*isr_cb)(void *);
 	void			*isr_arg;
 	struct callout		tick;
@@ -156,7 +156,7 @@ ata_at91_setup_intr(device_t dev, device_t child, struct resource *irq,
 
 static int
 ata_at91_teardown_intr(device_t dev, device_t child, struct resource *irq,
-                      void *cookie)
+    void *cookie)
 {
 	struct at91_cfata_softc *sc = device_get_softc(dev);
 
@@ -182,10 +182,10 @@ at91_channel_probe(device_t dev)
 	struct ata_channel *ch = device_get_softc(dev);
 
 	ch->unit = 0;
-        ch->flags |= ATA_USE_16BIT | ATA_NO_SLAVE;
-        device_set_desc_copy(dev, "ATA channel 0");
+	ch->flags |= ATA_USE_16BIT | ATA_NO_SLAVE;
+	device_set_desc_copy(dev, "ATA channel 0");
 
-        return (ata_probe(dev));
+	return (ata_probe(dev));
 }
 
 static int
