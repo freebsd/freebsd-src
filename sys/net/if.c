@@ -1788,9 +1788,26 @@ if_slowtimo(void *arg)
 }
 
 /*
- * Map interface name to
- * interface structure pointer.
+ * Map interface name to interface structure pointer, with or without
+ * returning a reference.
  */
+struct ifnet *
+ifunit_ref(const char *name)
+{
+	INIT_VNET_NET(curvnet);
+	struct ifnet *ifp;
+
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0)
+			break;
+	}
+	if (ifp != NULL)
+		if_ref(ifp);
+	IFNET_RUNLOCK();
+	return (ifp);
+}
+
 struct ifnet *
 ifunit(const char *name)
 {
@@ -2167,17 +2184,21 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		return (if_getgroupmembers((struct ifgroupreq *)data));
 	}
 
-	ifp = ifunit(ifr->ifr_name);
-	if (ifp == 0)
+	ifp = ifunit_ref(ifr->ifr_name);
+	if (ifp == NULL)
 		return (ENXIO);
 
 	error = ifhwioctl(cmd, ifp, data, td);
-	if (error != ENOIOCTL)
+	if (error != ENOIOCTL) {
+		if_rele(ifp);
 		return (error);
+	}
 
 	oif_flags = ifp->if_flags;
-	if (so->so_proto == 0)
+	if (so->so_proto == NULL) {
+		if_rele(ifp);
 		return (EOPNOTSUPP);
+	}
 #ifndef COMPAT_43
 	error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
 								 data,
@@ -2250,6 +2271,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		}
 #endif
 	}
+	if_rele(ifp);
 	return (error);
 }
 
