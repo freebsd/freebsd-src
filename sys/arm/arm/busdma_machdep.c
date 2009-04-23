@@ -114,7 +114,6 @@ struct bounce_zone {
 	int		total_deferred;
 	int		map_count;
 	bus_size_t	alignment;
-	bus_size_t	boundary;
 	bus_addr_t	lowaddr;
 	char		zoneid[8];
 	char		lowaddrid[20];
@@ -689,10 +688,10 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			if (pmap != NULL)
-				paddr = pmap_extract(pmap, vaddr);
-			else
+			if (__predict_true(pmap == pmap_kernel()))
 				paddr = pmap_kextract(vaddr);
+			else
+				paddr = pmap_extract(pmap, vaddr);
 			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 			    run_filter(dmat, paddr) != 0)
 				map->pagesneeded++;
@@ -1267,7 +1266,6 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	/* Check to see if we already have a suitable zone */
 	STAILQ_FOREACH(bz, &bounce_zone_list, links) {
 		if ((dmat->alignment <= bz->alignment)
-		 && (dmat->boundary <= bz->boundary)
 		 && (dmat->lowaddr >= bz->lowaddr)) {
 			dmat->bounce_zone = bz;
 			return (0);
@@ -1283,8 +1281,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	bz->reserved_bpages = 0;
 	bz->active_bpages = 0;
 	bz->lowaddr = dmat->lowaddr;
-	bz->alignment = dmat->alignment;
-	bz->boundary = dmat->boundary;
+	bz->alignment = MAX(dmat->alignment, PAGE_SIZE);
 	bz->map_count = 0;
 	snprintf(bz->zoneid, 8, "zone%d", busdma_zonecount);
 	busdma_zonecount++;
@@ -1331,9 +1328,6 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "boundary", CTLFLAG_RD, &bz->boundary, 0, "");
 
 	return (0);
 }
@@ -1358,7 +1352,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 							 M_NOWAIT, 0ul,
 							 bz->lowaddr,
 							 PAGE_SIZE,
-							 bz->boundary);
+							 0);
 		if (bpage->vaddr == 0) {
 			free(bpage, M_DEVBUF);
 			break;
