@@ -1799,7 +1799,8 @@ ifunit_ref(const char *name)
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0)
+		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0 &&
+		    !(ifp->if_flags & IFF_DYING))
 			break;
 	}
 	if (ifp != NULL)
