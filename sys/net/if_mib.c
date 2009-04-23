@@ -82,10 +82,8 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		return EINVAL;
 
 	if (name[0] <= 0 || name[0] > if_index ||
-	    ifnet_byindex(name[0]) == NULL)
+	    (ifp = ifnet_byindex(name[0])) == NULL)
 		return ENOENT;
-
-	ifp = ifnet_byindex(name[0]);
 
 	switch(name[1]) {
 	default:
