@@ -1148,7 +1148,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 * We process beacon/probe response frames:
 		 *    o when scanning, or
 		 *    o station mode when associated (to collect state
-		 *      updates such as 802.11g slot time), or
+		 *      updates such as 802.11g slot time)
 		 * Frames otherwise received are discarded.
 		 */ 
 		if (!((ic->ic_flags & IEEE80211_F_SCAN) || ni->ni_associd)) {
