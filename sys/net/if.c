@@ -229,7 +229,7 @@ ifnet_byindex_ref(u_short idx)
 
 	IFNET_RLOCK();
 	ifp = ifnet_byindex_locked(idx);
-	if (ifp == NULL) {
+	if (ifp == NULL || (ifp->if_flags & IFF_DYING)) {
 		IFNET_RUNLOCK();
 		return (NULL);
 	}
@@ -526,43 +526,21 @@ if_alloc(u_char type)
 }
 
 /*
- * Free the struct ifnet, the associated index, and the layer 2 common
- * structure if needed.  All the work is done in if_free_type().
- *
- * Do not add code to this function!  Add it to if_free_type().
+ * Do the actual work of freeing a struct ifnet, associated index, and layer
+ * 2 common structure.  This call is made when the last reference to an
+ * interface is released.
  */
-void
-if_free(struct ifnet *ifp)
+static void
+if_free_internal(struct ifnet *ifp)
 {
 
-	if_free_type(ifp, ifp->if_alloctype);
-}
-
-/*
- * Do the actual work of freeing a struct ifnet, associated index, and
- * layer 2 common structure.  This version should only be called by
- * intefaces that switch their type after calling if_alloc().
- */
-void
-if_free_type(struct ifnet *ifp, u_char type)
-{
-	INIT_VNET_NET(curvnet); /* ifp->if_vnet can be NULL here ! */
-
-	/*
-	 * Some drivers modify if_type, so we can't rely on it being the
-	 * same in free as it was in alloc.  Now that we have if_alloctype,
-	 * we should just use that, but drivers expect to pass a type.
-	 */
-	KASSERT(ifp->if_alloctype == type,
-	    ("if_free_type: type (%d) != alloctype (%d)", type,
-	    ifp->if_alloctype));
-
-	if (!refcount_release(&ifp->if_refcount))
-		return;
+	KASSERT((ifp->if_flags & IFF_DYING),
+	    ("if_free_internal: interface not dying"));
 
 	IFNET_WLOCK();
 	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
+
 	ifnet_setbyindex(ifp->if_index, NULL);
 	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
 		V_if_index--;
@@ -576,6 +554,44 @@ if_free_type(struct ifnet *ifp, u_char type)
 	free(ifp, M_IFNET);
 }
 
+/*
+ * This version should only be called by intefaces that switch their type
+ * after calling if_alloc().  if_free_type() will go away again now that we
+ * have if_alloctype to cache the original allocation type.  For now, assert
+ * that they match, since we require that in practice.
+ */
+void
+if_free_type(struct ifnet *ifp, u_char type)
+{
+	INIT_VNET_NET(curvnet); /* ifp->if_vnet can be NULL here ! */
+
+	KASSERT(ifp->if_alloctype == type,
+	    ("if_free_type: type (%d) != alloctype (%d)", type,
+	    ifp->if_alloctype));
+
+	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
+	if (!refcount_release(&ifp->if_refcount))
+		return;
+	if_free_internal(ifp);
+}
+
+/*
+ * This is the normal version of if_free(), used by device drivers to free a
+ * detached network interface.  The contents of if_free_type() will move into
+ * here when if_free_type() goes away.
+ */
+void
+if_free(struct ifnet *ifp)
+{
+
+	if_free_type(ifp, ifp->if_alloctype);
+}
+
+/*
+ * Interfaces to keep an ifnet type-stable despite the possibility of the
+ * driver calling if_free().  If there are additional references, we defer
+ * freeing the underlying data structure.
+ */
 void
 if_ref(struct ifnet *ifp)
 {
@@ -588,7 +604,9 @@ void
 if_rele(struct ifnet *ifp)
 {
 
-	if_free(ifp);
+	if (!refcount_release(&ifp->if_refcount))
+		return;
+	if_free_internal(ifp);
 }
 
 void
