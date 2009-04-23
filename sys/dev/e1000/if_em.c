@@ -2986,6 +2986,11 @@ em_allocate_msix(struct adapter *adapter)
 	 */
 	TASK_INIT(&adapter->rx_task, 0, em_handle_rx, adapter);
 	TASK_INIT(&adapter->tx_task, 0, em_handle_tx, adapter);
+	/*
+	 * Handle compatibility for msi case for deferral due to
+	 * trylock failure
+	 */
+	TASK_INIT(&adapter->rxtx_task, 0, em_handle_tx, adapter);
 	TASK_INIT(&adapter->link_task, 0, em_handle_link, adapter);
 	adapter->tq = taskqueue_create_fast("em_taskq", M_NOWAIT,
 	    taskqueue_thread_enqueue, &adapter->tq);
