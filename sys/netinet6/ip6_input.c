@@ -269,7 +269,7 @@ ip6_init(void)
 		panic("sizeof(protosw) != sizeof(ip6protosw)");
 #endif
 	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
-	if (pr == 0)
+	if (pr == NULL)
 		panic("ip6_init");
 
 	/* Initialize the entire ip6_protox[] array to IPPROTO_RAW. */
