@@ -33,7 +33,7 @@ def disc1_packages():
 		 'x11-servers/xorg-nestserver',
 		 'x11-servers/xorg-vfbserver',
                  'devel/imake'])
-    if arch == 'i386':
+    if arch == 'amd64' or arch == 'i386':
         pkgs.append('emulators/linux_base-fc4')
     return pkgs
 
@@ -47,17 +47,17 @@ def disc2_packages():
 		'x11/kde-lite']
     else:
 	pkgs = ['x11/gnome2',
-		'x11/kdebase3',
-		'x11/kdelibs3',
-		'games/kdegames3',
-		'graphics/kdegraphics3',
-		'misc/kdeutils3',
-		'multimedia/kdemultimedia3',
-		'net/kdenetwork3']
+		'x11/kdebase4',
+		'x11/kdelibs4',
+		'games/kdegames4',
+		'graphics/kdegraphics4',
+		'misc/kdeutils4',
+		'multimedia/kdemultimedia4',
+		'net/kdenetwork4']
     return pkgs
 
 def disc3_packages():
-    pkgs = ['x11/kde3',
+    pkgs = ['x11/kde4',
 	    'x11-wm/afterstep',
             'x11-wm/windowmaker',
             'x11-wm/fvwm2',
