@@ -2152,6 +2152,7 @@ net/if_arcsubr.c		optional arcnet
 net/if_atmsubr.c		optional atm
 net/if_bridge.c			optional bridge | if_bridge
 net/if_clone.c			standard
+net/if_dead.c			standard
 net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
 net/if_ef.c			optional ef
