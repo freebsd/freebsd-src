@@ -776,6 +776,7 @@ void	if_up(struct ifnet *);
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
+struct	ifnet *ifunit_ref(const char *);
 
 void	ifq_attach(struct ifaltq *, struct ifnet *ifp);
 void	ifq_detach(struct ifaltq *);
