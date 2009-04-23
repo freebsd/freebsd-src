@@ -478,7 +478,7 @@ if_check(void *dummy __unused)
  * common structure will also be allocated if an allocation routine is
  * registered for the passed type.
  */
-struct ifnet*
+struct ifnet *
 if_alloc(u_char type)
 {
 	INIT_VNET_NET(curvnet);
@@ -518,6 +518,18 @@ if_alloc(u_char type)
 	}
 
 	IF_ADDR_LOCK_INIT(ifp);
+	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
+	IF_AFDATA_LOCK_INIT(ifp);
+	ifp->if_afdata_initialized = 0;
+	TAILQ_INIT(&ifp->if_addrhead);
+	TAILQ_INIT(&ifp->if_prefixhead);
+	TAILQ_INIT(&ifp->if_multiaddrs);
+	TAILQ_INIT(&ifp->if_groups);
+	knlist_init(&ifp->if_klist, NULL, NULL, NULL, NULL);
+#ifdef MAC
+	mac_ifnet_init(ifp);
+#endif
+
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
 	IFNET_WLOCK();
 	ifnet_setbyindex(ifp->if_index, ifp);
@@ -550,6 +562,13 @@ if_free_internal(struct ifnet *ifp)
 		if_com_free[ifp->if_alloctype](ifp->if_l2com,
 		    ifp->if_alloctype);
 
+#ifdef MAC
+	mac_ifnet_destroy(ifp);
+#endif /* MAC */
+	KNOTE_UNLOCKED(&ifp->if_klist, NOTE_EXIT);
+	knlist_clear(&ifp->if_klist, 0);
+	knlist_destroy(&ifp->if_klist);
+	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	free(ifp, M_IFNET);
 }
@@ -638,8 +657,6 @@ ifq_detach(struct ifaltq *ifq)
  * XXX:
  *  - The decision to return void and thus require this function to
  *    succeed is questionable.
- *  - We do more initialization here then is probably a good idea.
- *    Some of this should probably move to if_alloc().
  *  - We should probably do more sanity checking.  For instance we don't
  *    do anything to insure if_xname is unique or non-empty.
  */
@@ -656,32 +673,21 @@ if_attach(struct ifnet *ifp)
 		panic ("%s: BUG: if_attach called without if_alloc'd input()\n",
 		    ifp->if_xname);
 
-	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
-	IF_AFDATA_LOCK_INIT(ifp);
-	ifp->if_afdata_initialized = 0;
-
-	TAILQ_INIT(&ifp->if_addrhead);
-	TAILQ_INIT(&ifp->if_prefixhead);
-	TAILQ_INIT(&ifp->if_multiaddrs);
-	TAILQ_INIT(&ifp->if_groups);
-
 	if_addgroup(ifp, IFG_ALL);
 
-	knlist_init(&ifp->if_klist, NULL, NULL, NULL, NULL);
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_data.ifi_epoch = time_uptime;
 	ifp->if_data.ifi_datalen = sizeof(struct if_data);
+
 	KASSERT((ifp->if_transmit == NULL && ifp->if_qflush == NULL) ||
 	    (ifp->if_transmit != NULL && ifp->if_qflush != NULL),
 	    ("transmit and qflush must both either be set or both be NULL"));
-
 	if (ifp->if_transmit == NULL) {
 		ifp->if_transmit = if_transmit;
 		ifp->if_qflush = if_qflush;
 	}
 	
 #ifdef MAC
-	mac_ifnet_init(ifp);
 	mac_ifnet_create(ifp);
 #endif
 
@@ -728,7 +734,6 @@ if_attach(struct ifnet *ifp)
 	ifa->ifa_refcnt = 1;
 	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	ifp->if_broadcastaddr = NULL; /* reliably crash if used uninitialized */
-
 
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
@@ -967,15 +972,7 @@ if_detach(struct ifnet *ifp)
 			    ifp->if_afdata[dp->dom_family]);
 	}
 	IF_AFDATA_UNLOCK(ifp);
-
-#ifdef MAC
-	mac_ifnet_destroy(ifp);
-#endif /* MAC */
-	KNOTE_UNLOCKED(&ifp->if_klist, NOTE_EXIT);
-	knlist_clear(&ifp->if_klist, 0);
-	knlist_destroy(&ifp->if_klist);
 	ifq_detach(&ifp->if_snd);
-	IF_AFDATA_DESTROY(ifp);
 	splx(s);
 }
 
