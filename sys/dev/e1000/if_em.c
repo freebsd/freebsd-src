@@ -1076,7 +1076,7 @@ em_start_locked(struct ifnet *ifp)
 	while ((adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)
 	    && (!ADAPTER_RING_EMPTY(adapter))) {
 
-		m_head = drbr_dequeue(adapter->br);
+		m_head = drbr_dequeue(ifp, adapter->br);
 		if (m_head == NULL)
 			break;
 		/*
