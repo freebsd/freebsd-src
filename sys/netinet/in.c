@@ -202,7 +202,8 @@ in_len2mask(struct in_addr *mask, int len)
 
 /*
  * Generic internet control operations (ioctl's).
- * Ifp is 0 if not an interface-specific ioctl.
+ *
+ * ifp is NULL if not an interface-specific ioctl.
  */
 /* ARGSUSED */
 int
@@ -227,7 +228,23 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	iaIsNew = 0;
 	allhosts_addr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
 
+	/*
+	 * Filter out ioctls we implement directly; forward the rest on to
+	 * in_lifaddr_ioctl() and ifp->if_ioctl().
+	 */
 	switch (cmd) {
+	case SIOCAIFADDR:
+	case SIOCDIFADDR:
+	case SIOCGIFADDR:
+	case SIOCGIFBRDADDR:
+	case SIOCGIFDSTADDR:
+	case SIOCGIFNETMASK:
+	case SIOCSIFADDR:
+	case SIOCSIFBRDADDR:
+	case SIOCSIFDSTADDR:
+	case SIOCSIFNETMASK:
+		break;
+
 	case SIOCALIFADDR:
 		if (td != NULL) {
 			error = priv_check(td, PRIV_NET_ADDIFADDR);
@@ -252,46 +269,51 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		if (ifp == NULL)
 			return (EINVAL);
 		return in_lifaddr_ioctl(so, cmd, data, ifp, td);
+
+	default:
+		if (ifp == NULL || ifp->if_ioctl == NULL)
+			return (EOPNOTSUPP);
+		return ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
+
+	if (ifp == NULL)
+		return (EADDRNOTAVAIL);
 
 	/*
 	 * Find address for this interface, if it exists.
 	 *
-	 * If an alias address was specified, find that one instead of
-	 * the first one on the interface, if possible.
+	 * If an alias address was specified, find that one instead of the
+	 * first one on the interface, if possible.
 	 */
-	if (ifp != NULL) {
-		dst = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr;
-		LIST_FOREACH(iap, INADDR_HASH(dst.s_addr), ia_hash)
-			if (iap->ia_ifp == ifp &&
-			    iap->ia_addr.sin_addr.s_addr == dst.s_addr) {
-				if (td == NULL || prison_check_ip4(
-				    td->td_ucred, &dst) == 0)
-					ia = iap;
+	dst = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr;
+	LIST_FOREACH(iap, INADDR_HASH(dst.s_addr), ia_hash) {
+		if (iap->ia_ifp == ifp &&
+		    iap->ia_addr.sin_addr.s_addr == dst.s_addr) {
+			if (td == NULL || prison_check_ip4(td->td_ucred,
+			    &dst) == 0)
+				ia = iap;
+			break;
+		}
+	}
+	if (ia == NULL) {
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			iap = ifatoia(ifa);
+			if (iap->ia_addr.sin_family == AF_INET) {
+				if (td != NULL &&
+				    prison_check_ip4(td->td_ucred,
+				    &iap->ia_addr.sin_addr) != 0)
+					continue;
+				ia = iap;
 				break;
 			}
-		if (ia == NULL)
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				iap = ifatoia(ifa);
-				if (iap->ia_addr.sin_family == AF_INET) {
-					if (td != NULL &&
-					    prison_check_ip4(td->td_ucred,
-					    &iap->ia_addr.sin_addr) != 0)
-						continue;
-					ia = iap;
-					break;
-				}
-			}
-		if (ia == NULL)
-			iaIsFirst = 1;
+		}
 	}
+	if (ia == NULL)
+		iaIsFirst = 1;
 
 	switch (cmd) {
-
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
-		if (ifp == NULL)
-			return (EADDRNOTAVAIL);
 		if (ifra->ifra_addr.sin_family == AF_INET) {
 			for (oia = ia; ia; ia = TAILQ_NEXT(ia, ia_link)) {
 				if (ia->ia_ifp == ifp  &&
@@ -319,8 +341,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				return (error);
 		}
 
-		if (ifp == NULL)
-			return (EADDRNOTAVAIL);
 		if (ia == NULL) {
 			ia = (struct in_ifaddr *)
 				malloc(sizeof *ia, M_IFADDR, M_WAITOK | M_ZERO);
@@ -505,9 +525,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		break;
 
 	default:
-		if (ifp == NULL || ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		return ((*ifp->if_ioctl)(ifp, cmd, data));
+		panic("in_control: unsupported ioctl");
 	}
 
 	/*
