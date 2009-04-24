@@ -212,18 +212,24 @@ MIPS_RDRW32_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
 MIPS_RDRW32_COP0(prid, MIPS_COP_0_PRID);
 MIPS_RDRW32_COP0(watchlo, MIPS_COP_0_WATCH_LO);
 MIPS_RDRW32_COP0(watchhi, MIPS_COP_0_WATCH_HI);
+#undef	MIPS_RDRW32_COP0
 
-static __inline uint32_t
-mips_rd_config_sel1(void)
-{
-	int v0;
-	__asm __volatile("mfc0 %[v0], $16, 1 ;"
-			 : [v0] "=&r" (v0));
-	mips_barrier();
-	return (v0);
+#define MIPS_RD_CONFIG_SEL(sel) \
+static __inline uint32_t				\
+mips_rd_config_sel##sel(void)				\
+{							\
+	int v0;						\
+	__asm __volatile("mfc0 %[v0], $16, " #sel " ;"	\
+			 : [v0] "=&r" (v0));		\
+	mips_barrier();					\
+	return (v0);					\
 }
 
-#undef	MIPS_RDRW32_COP0
+
+MIPS_RD_CONFIG_SEL(1);
+MIPS_RD_CONFIG_SEL(2);
+MIPS_RD_CONFIG_SEL(3);
+#undef	MIPS_RD_CONFIG_SEL
 
 static __inline register_t
 intr_disable(void)
