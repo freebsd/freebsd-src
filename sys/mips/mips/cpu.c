@@ -242,7 +242,7 @@ cpu_identify(void)
 	/* If config register selection 3 does not exist, exit. */
 	if (!(cfg2 & MIPS3_CONFIG_CM))
 		return;
-	cfg3 = mips_rd_config_sel2();
+	cfg3 = mips_rd_config_sel3();
 
 	/* Print Config3 if it contains any useful info */
 	if (cfg3 & ~(0x80000000))
