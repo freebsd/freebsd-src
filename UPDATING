@@ -49,6 +49,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	of routes, sticky and nostick flags to alter the behavior of stateful
 	load balancing.
 	Bump __FreeBSD_version to 800078.
+
 20090408:
 	Do not use Giant for kbdmux(4) locking. This is wrong and
 	apparently causing more problems than it solves. This will
