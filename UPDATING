@@ -33,19 +33,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	Bump __FreeBSD_version to 800081.
 
 20090415:
-	Anticipate overflowing inp_flags - add inp_flags2. 
+	Anticipate overflowing inp_flags - add inp_flags2.
 	This changes most offsets in inpcb, so checking v4 connection
-	state will require a world rebuild. 
+	state will require a world rebuild.
 	Bump __FreeBSD_version to 800080.
+
 20090415:
 	Add an llentry to struct route and struct route_in6. Modules
-	embedding a struct route will need to be recompiled. 
+	embedding a struct route will need to be recompiled.
 	Bump __FreeBSD_version to 800079.
 
 20090414:
 	The size of rt_metrics_lite and by extension rtentry has changed.
 	Networking administration apps will need to be recompiled.
-	The route command now supports show as an alias for get, weighting 
+	The route command now supports show as an alias for get, weighting
 	of routes, sticky and nostick flags to alter the behavior of stateful
 	load balancing.
 	Bump __FreeBSD_version to 800078.
@@ -69,7 +70,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	GEOM_PART has become the default partition slicer for storage devices,
 	replacing GEOM_MBR, GEOM_BSD, GEOM_PC98 and GEOM_GPT slicers. It
 	introduces some changes:
-	
+
 	MSDOS/EBR: the devices created from MSDOS extended partition entries
 	(EBR) can be named differently than with GEOM_MBR and are now symlinks
 	to devices with offset-based names. fstabs may need to be modified.
@@ -78,7 +79,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	cases but it points to problems in file system misalignment with
 	disk geometry. The "c" partition is now implicit, covers the whole
 	top-level drive and cannot be (mis)used by users.
-	
+
 	General: Kernel dumps are now not allowed to be written to devices
 	whose partition types indicate they are meant to be used for file
 	systems (or, in case of MSDOS partitions, as something else than
