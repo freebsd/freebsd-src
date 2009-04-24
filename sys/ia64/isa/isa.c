@@ -73,17 +73,6 @@ isa_init(device_t dev)
 {
 }
 
-intrmask_t
-isa_irq_pending(void)
-{
-	u_char irr1;
-	u_char irr2;
-
-	irr1 = inb(IO_ICU1);
-	irr2 = inb(IO_ICU2);
-	return ((irr2 << 8) | irr1);
-}
-
 /*
  * This implementation simply passes the request up to the parent
  * bus, which in our case is the special i386 nexus, substituting any
