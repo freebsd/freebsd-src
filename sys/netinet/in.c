@@ -1079,8 +1079,8 @@ in_purgemaddrs(struct ifnet *ifp)
 	IF_ADDR_UNLOCK(ifp);
 
 	LIST_FOREACH_SAFE(inm, &purgeinms, inm_link, tinm) {
-		inm_release_locked(inm);
 		LIST_REMOVE(inm, inm_link);
+		inm_release_locked(inm);
 	}
 	igmp_ifdetach(ifp);
 
