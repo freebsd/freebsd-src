@@ -57,6 +57,7 @@ device		da
 device		em
 device		ether
 device		fxp
+device		isa
 device		loop
 device		md
 device		miibus

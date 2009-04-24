@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/resource.h>
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <machine/ocpbus.h>
 #include <machine/spr.h>
 
@@ -75,6 +76,8 @@ __FBSDID("$FreeBSD$");
 #define	REG_PIWBEAR(n)	(0x0e0c - 0x20 * (n))
 #define	REG_PIWAR(n)	(0x0e10 - 0x20 * (n))
 
+#define	DEVFN(b, s, f)	((b << 16) | (s << 8) | f)
+
 struct pci_ocp_softc {
 	device_t	sc_dev;
 
@@ -92,6 +95,10 @@ struct pci_ocp_softc {
 
 	int		sc_busnr;
 	int		sc_pcie:1;
+
+	/* Devices that need special attention. */
+	int		sc_devfn_tundra;
+	int		sc_devfn_via_ide;
 };
 
 static int pci_ocp_attach(device_t);
@@ -262,9 +269,15 @@ pci_ocp_read_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
 	struct pci_ocp_softc *sc = device_get_softc(dev);
+	u_int devfn;
 
 	if (bus == sc->sc_busnr && !sc->sc_pcie && slot < 10)
 		return (~0);
+	devfn = DEVFN(bus, slot, func);
+	if (devfn == sc->sc_devfn_tundra)
+		return (~0);
+	if (devfn == sc->sc_devfn_via_ide && reg == PCIR_INTPIN)
+		return (1);
 	return (pci_ocp_cfgread(sc, bus, slot, func, reg, bytes));
 }
 
@@ -372,6 +385,22 @@ out:
 	return (error);
 }
 
+static void
+pci_ocp_init_via(struct pci_ocp_softc *sc, uint16_t device, int bus,
+    int slot, int fn)
+{
+
+	if (device == 0x0686) {
+		pci_ocp_write_config(sc->sc_dev, bus, slot, fn, 0x52, 0x34, 1);
+		pci_ocp_write_config(sc->sc_dev, bus, slot, fn, 0x77, 0x00, 1);
+		pci_ocp_write_config(sc->sc_dev, bus, slot, fn, 0x83, 0x98, 1);
+		pci_ocp_write_config(sc->sc_dev, bus, slot, fn, 0x85, 0x03, 1);
+	} else if (device == 0x0571) {
+		sc->sc_devfn_via_ide = DEVFN(bus, slot, fn);
+		pci_ocp_write_config(sc->sc_dev, bus, slot, fn, 0x40, 0x0b, 1);
+	}
+}
+
 static int
 pci_ocp_init_bar(struct pci_ocp_softc *sc, int bus, int slot, int func,
     int barno)
@@ -381,6 +410,20 @@ pci_ocp_init_bar(struct pci_ocp_softc *sc, int bus, int slot, int func,
 	int reg, width;
 
 	reg = PCIR_BAR(barno);
+
+	if (DEVFN(bus, slot, func) == sc->sc_devfn_via_ide) {
+		switch (barno) {
+		case 0:	addr = 0x1f0; break;
+		case 1: addr = 0x3f4; break;
+		case 2: addr = 0x170; break;
+		case 3: addr = 0x374; break;
+		case 4: addr = 0xcc0; break;
+		default: return (1);
+		}
+		pci_ocp_write_config(sc->sc_dev, bus, slot, func, reg, addr, 4);
+		return (1);
+	}
+
 	pci_ocp_write_config(sc->sc_dev, bus, slot, func, reg, ~0, 4);
 	size = pci_ocp_read_config(sc->sc_dev, bus, slot, func, reg, 4);
 	if (size == 0)
@@ -421,17 +464,23 @@ static u_int
 pci_ocp_route_int(struct pci_ocp_softc *sc, u_int bus, u_int slot, u_int func,
     u_int intpin)
 {
-	u_int intline;
+	u_int devfn, intline;
 
-	/*
-	 * Default interrupt routing.
-	 */
-	if (intpin != 0) {
-		intline = intpin - 1;
-		intline += (bus != sc->sc_busnr) ? slot : 0;
-		intline = PIC_IRQ_EXT(intline & 3);
-	} else
-		intline = 0xff;
+	devfn = DEVFN(bus, slot, func);
+	if (devfn == sc->sc_devfn_via_ide)
+		intline = 14;
+	else if (devfn == sc->sc_devfn_via_ide + 1)
+		intline = 10;
+	else if (devfn == sc->sc_devfn_via_ide + 2)
+		intline = 10;
+	else {
+		if (intpin != 0) {
+			intline = intpin - 1;
+			intline += (bus != sc->sc_busnr) ? slot : 0;
+			intline = PIC_IRQ_EXT(intline & 3);
+		} else
+			intline = 0xff;
+	}
 
 	if (bootverbose)
 		printf("PCI %u:%u:%u:%u: intpin %u: intline=%u\n",
@@ -448,7 +497,7 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus, int maxslot)
 	int func, maxfunc;
 	int bar, maxbar;
 	uint16_t vendor, device;
-	uint8_t cr8, command, hdrtype, class, subclass;
+	uint8_t command, hdrtype, class, subclass;
 	uint8_t intline, intpin;
 
 	secbus = bus;
@@ -463,45 +512,24 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus, int maxslot)
 			if (func == 0 && (hdrtype & PCIM_MFDEV))
 				maxfunc = PCI_FUNCMAX;
 
+			vendor = pci_ocp_read_config(sc->sc_dev, bus, slot,
+			    func, PCIR_VENDOR, 2);
+			device = pci_ocp_read_config(sc->sc_dev, bus, slot,
+			    func, PCIR_DEVICE, 2);
+
+			if (vendor == 0x1957 && device == 0x3fff) {
+				sc->sc_devfn_tundra = DEVFN(bus, slot, func);
+				continue;
+			}
+
 			command = pci_ocp_read_config(sc->sc_dev, bus, slot,
 			    func, PCIR_COMMAND, 1);
 			command &= ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN);
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
 			    PCIR_COMMAND, command, 1);
 
-			vendor = pci_ocp_read_config(sc->sc_dev, bus, slot,
-			    func, PCIR_VENDOR, 2);
-			device = pci_ocp_read_config(sc->sc_dev, bus, slot,
-			    func, PCIR_DEVICE, 2);
-
-			/*
-			 * Make sure the ATA controller on the VIA82C686
-			 * South bridge is enabled.
-			 */
-			if (vendor == 0x1106 && device == 0x0686) {
-				/* Enable the ATA controller. */
-				cr8 = pci_ocp_read_config(sc->sc_dev, bus,
-				    slot, func, 0x48, 1);
-				if (cr8 & 2) {
-					device_printf(sc->sc_dev,
-					    "enabling ATA controller\n");
-					pci_ocp_write_config(sc->sc_dev, bus,
-					    slot, func, 0x48, cr8 & ~2, 1);
-				}
-			}
-			if (vendor == 0x1106 && device == 0x0571) {
-				pci_ocp_write_config(sc->sc_dev, bus, slot,
-				    func, 0xc4, 0x00, 1);
-				/* Set legacy mode. */
-				pci_ocp_write_config(sc->sc_dev, bus, slot,
-				    func, 0x40, 0x08, 1);
-				pci_ocp_write_config(sc->sc_dev, bus, slot,
-				    func, PCIR_PROGIF, 0x00, 1);
-				pci_ocp_write_config(sc->sc_dev, bus, slot,
-				    func, 0x42, 0x09, 1);
-				pci_ocp_write_config(sc->sc_dev, bus, slot,
-				    func, 0x40, 0x0b, 1);
-			}
+			if (vendor == 0x1106)
+				pci_ocp_init_via(sc, device, bus, slot, func);
 
 			/* Program the base address registers. */
 			maxbar = (hdrtype & PCIM_HDRTYPE) ? 1 : 6;
@@ -518,8 +546,7 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus, int maxslot)
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
 			    PCIR_INTLINE, intline, 1);
 
-			command |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN |
-			    PCIM_CMD_PORTEN;
+			command |= PCIM_CMD_MEMEN | PCIM_CMD_PORTEN;
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
 			    PCIR_COMMAND, command, 1);
 
@@ -723,6 +750,9 @@ pci_ocp_attach(device_t dev)
 	pci_ocp_inbound(sc, 2, -1, 0, 0, 0);
 	pci_ocp_inbound(sc, 3, OCP85XX_TGTIF_RAM1, 0, 2U*1024U*1024U*1024U, 0);
 
+	sc->sc_devfn_tundra = -1;
+	sc->sc_devfn_via_ide = -1;
+
 	maxslot = (sc->sc_pcie) ? 1 : 31;
 	pci_ocp_init(sc, sc->sc_busnr, maxslot);
 
@@ -749,12 +779,9 @@ pci_ocp_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		va = sc->sc_iomem_va;
 		break;
 	case SYS_RES_IRQ:
-		/* ISA interrupts are routed to IRQ 0 on the PIC. */
 		if (start < PIC_IRQ_START) {
 			device_printf(dev, "%s requested ISA interrupt %lu\n",
 			    device_get_nameunit(child), start);
-			/* XXX */
-			start = PIC_IRQ_EXT(0);
 		}
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 		    type, rid, start, end, count, flags));
