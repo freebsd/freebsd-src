@@ -280,6 +280,31 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (EADDRNOTAVAIL);
 
 	/*
+	 * Security checks before we get involved in any work.
+	 */
+	switch (cmd) {
+	case SIOCAIFADDR:
+	case SIOCSIFADDR:
+	case SIOCSIFBRDADDR:
+	case SIOCSIFNETMASK:
+	case SIOCSIFDSTADDR:
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NET_ADDIFADDR);
+			if (error)
+				return (error);
+		}
+		break;
+
+	case SIOCDIFADDR:
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NET_DELIFADDR);
+			if (error)
+				return (error);
+		}
+		break;
+	}
+
+	/*
 	 * Find address for this interface, if it exists.
 	 *
 	 * If an alias address was specified, find that one instead of the
@@ -334,13 +359,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCSIFADDR:
 	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
-		if (td != NULL) {
-			error = priv_check(td, (cmd == SIOCDIFADDR) ? 
-			    PRIV_NET_DELIFADDR : PRIV_NET_ADDIFADDR);
-			if (error)
-				return (error);
-		}
-
 		if (ia == NULL) {
 			ia = (struct in_ifaddr *)
 				malloc(sizeof *ia, M_IFADDR, M_WAITOK | M_ZERO);
@@ -376,13 +394,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		break;
 
 	case SIOCSIFBRDADDR:
-		if (td != NULL) {
-			error = priv_check(td, PRIV_NET_ADDIFADDR);
-			if (error)
-				return (error);
-		}
-		/* FALLTHROUGH */
-
 	case SIOCGIFADDR:
 	case SIOCGIFNETMASK:
 	case SIOCGIFDSTADDR:
