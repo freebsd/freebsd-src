@@ -64,61 +64,66 @@ union	cpuprid fpu_id;
 static void
 mips_get_identity(struct mips_cpuinfo *cpuinfo)
 {
-    u_int32_t prid;
-    u_int32_t cfg0;
-    u_int32_t cfg1;
-    u_int32_t tmp;
+	u_int32_t prid;
+	u_int32_t cfg0;
+	u_int32_t cfg1;
+	u_int32_t tmp;
 
-    memset(cpuinfo, 0, sizeof(struct mips_cpuinfo));
+	memset(cpuinfo, 0, sizeof(struct mips_cpuinfo));
 
-    /* Read and store the PrID ID for CPU identification. */
-    prid = mips_rd_prid();
-    cpuinfo->cpu_vendor = MIPS_PRID_CID(prid);
-    cpuinfo->cpu_rev = MIPS_PRID_REV(prid);
-    cpuinfo->cpu_impl = MIPS_PRID_IMPL(prid);
+	/* Read and store the PrID ID for CPU identification. */
+	prid = mips_rd_prid();
+	cpuinfo->cpu_vendor = MIPS_PRID_CID(prid);
+	cpuinfo->cpu_rev = MIPS_PRID_REV(prid);
+	cpuinfo->cpu_impl = MIPS_PRID_IMPL(prid);
 
-    /* Read config register selection 0 to learn TLB type. */
-    cfg0 = mips_rd_config();
+	/* Read config register selection 0 to learn TLB type. */
+	cfg0 = mips_rd_config();
 
-    cpuinfo->tlb_type = ((cfg0 & MIPS_CONFIG0_MT_MASK) >> MIPS_CONFIG0_MT_SHIFT);
-    cpuinfo->icache_virtual = cfg0 & MIPS_CONFIG0_VI;
+	cpuinfo->tlb_type = 
+	    ((cfg0 & MIPS_CONFIG0_MT_MASK) >> MIPS_CONFIG0_MT_SHIFT);
+	cpuinfo->icache_virtual = cfg0 & MIPS_CONFIG0_VI;
 
-    /* If config register selection 1 does not exist, exit. */
-    if (!(cfg0 & MIPS3_CONFIG_CM))
-	return;
+	/* If config register selection 1 does not exist, exit. */
+	if (!(cfg0 & MIPS3_CONFIG_CM))
+		return;
 
-    /* Learn TLB size and L1 cache geometry. */
-    cfg1 = mips_rd_config_sel1();
-    cpuinfo->tlb_nentries = ((cfg1 & MIPS_CONFIG1_TLBSZ_MASK) >> MIPS_CONFIG1_TLBSZ_SHIFT) + 1;
+	/* Learn TLB size and L1 cache geometry. */
+	cfg1 = mips_rd_config_sel1();
+	cpuinfo->tlb_nentries = 
+	    ((cfg1 & MIPS_CONFIG1_TLBSZ_MASK) >> MIPS_CONFIG1_TLBSZ_SHIFT) + 1;
 
-    /* L1 instruction cache. */
-    tmp = 1 << (((cfg1 & MIPS_CONFIG1_IL_MASK) >> MIPS_CONFIG1_IL_SHIFT) + 1);
-    if (tmp != 0) {
-	cpuinfo->l1.ic_linesize = tmp;
-	cpuinfo->l1.ic_nways = (((cfg1 & MIPS_CONFIG1_IA_MASK) >> MIPS_CONFIG1_IA_SHIFT)) + 1;
-	cpuinfo->l1.ic_nsets = 1 << (((cfg1 & MIPS_CONFIG1_IS_MASK) >> MIPS_CONFIG1_IS_SHIFT) + 6);
-	cpuinfo->l1.ic_size = cpuinfo->l1.ic_linesize * cpuinfo->l1.ic_nsets 
-	    * cpuinfo->l1.ic_nways;
-    }
+	/* L1 instruction cache. */
+	tmp = 1 << (((cfg1 & MIPS_CONFIG1_IL_MASK) >> MIPS_CONFIG1_IL_SHIFT) + 1);
+	if (tmp != 0) {
+		cpuinfo->l1.ic_linesize = tmp;
+		cpuinfo->l1.ic_nways = (((cfg1 & MIPS_CONFIG1_IA_MASK) >> MIPS_CONFIG1_IA_SHIFT)) + 1;
+		cpuinfo->l1.ic_nsets = 
+	    		1 << (((cfg1 & MIPS_CONFIG1_IS_MASK) >> MIPS_CONFIG1_IS_SHIFT) + 6);
+		cpuinfo->l1.ic_size = 
+		    cpuinfo->l1.ic_linesize * cpuinfo->l1.ic_nsets * cpuinfo->l1.ic_nways;
+	}
 
-    /* L1 data cache. */
-    tmp = 1 << (((cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT) + 1);
-    if (tmp != 0) {
-	cpuinfo->l1.dc_linesize = tmp;
-	cpuinfo->l1.dc_nways = (((cfg1 & MIPS_CONFIG1_DA_MASK) >> MIPS_CONFIG1_DA_SHIFT)) + 1;
-	cpuinfo->l1.dc_nsets = 1 << (((cfg1 & MIPS_CONFIG1_DS_MASK) >> MIPS_CONFIG1_DS_SHIFT) + 6);
+	/* L1 data cache. */
+	tmp = 1 << (((cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT) + 1);
+	if (tmp != 0) {
+		cpuinfo->l1.dc_linesize = tmp;
+		cpuinfo->l1.dc_nways = 
+		    (((cfg1 & MIPS_CONFIG1_DA_MASK) >> MIPS_CONFIG1_DA_SHIFT)) + 1;
+		cpuinfo->l1.dc_nsets = 
+		    1 << (((cfg1 & MIPS_CONFIG1_DS_MASK) >> MIPS_CONFIG1_DS_SHIFT) + 6);
 #ifdef TARGET_OCTEON
-        /*
-         * Octeon does 128 byte line-size. But Config-Sel1 doesn't show
-         * 128 line-size, 1 Set, 64 ways.
-         */
-	cpuinfo->l1.dc_linesize = 128;
-	cpuinfo->l1.dc_nsets = 1;
-	cpuinfo->l1.dc_nways = 64;
+		/*
+		 * Octeon does 128 byte line-size. But Config-Sel1 doesn't show
+		 * 128 line-size, 1 Set, 64 ways.
+		 */
+		cpuinfo->l1.dc_linesize = 128;
+		cpuinfo->l1.dc_nsets = 1;
+		cpuinfo->l1.dc_nways = 64;
 #endif
-	cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize * cpuinfo->l1.dc_nsets 
-	    * cpuinfo->l1.dc_nways;
-    }
+		cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize 
+		    * cpuinfo->l1.dc_nsets * cpuinfo->l1.dc_nways;
+	}
 }
 
 void
@@ -141,77 +146,80 @@ mips_cpu_init(void)
 void
 cpu_identify(void)
 {
-    printf("cpu%d: ", 0);   /* XXX per-cpu */
-    switch (cpuinfo.cpu_vendor) {
-    case MIPS_PRID_CID_MTI:
-	printf("MIPS Technologies");
-	break;
-    case MIPS_PRID_CID_BROADCOM:
-    case MIPS_PRID_CID_SIBYTE:
-	printf("Broadcom");
-	break;
-    case MIPS_PRID_CID_ALCHEMY:
-	printf("AMD");
-	break;
-    case MIPS_PRID_CID_SANDCRAFT:
-	printf("Sandcraft");
-	break;
-    case MIPS_PRID_CID_PHILIPS:
-	printf("Philips");
-	break;
-    case MIPS_PRID_CID_TOSHIBA:
-	printf("Toshiba");
-	break;
-    case MIPS_PRID_CID_LSI:
-	printf("LSI");
-	break;
-    case MIPS_PRID_CID_LEXRA:
-	printf("Lexra");
-	break;
-    case MIPS_PRID_CID_PREHISTORIC:
-    default:
-	printf("Unknown");
-	break;
-    }
-    printf(" processor v%d.%d\n", cpuinfo.cpu_rev, cpuinfo.cpu_impl);
-
-    printf("  MMU: ");
-    if (cpuinfo.tlb_type == MIPS_MMU_NONE) {
-	printf("none present\n");
-    } else {
-	if (cpuinfo.tlb_type == MIPS_MMU_TLB) {
-	    printf("Standard TLB");
-	} else if (cpuinfo.tlb_type == MIPS_MMU_BAT) {
-	    printf("Standard BAT");
-	} else if (cpuinfo.tlb_type == MIPS_MMU_FIXED) {
-	    printf("Fixed mapping");
+	printf("cpu%d: ", 0);   /* XXX per-cpu */
+	switch (cpuinfo.cpu_vendor) {
+	case MIPS_PRID_CID_MTI:
+		printf("MIPS Technologies");
+		break;
+	case MIPS_PRID_CID_BROADCOM:
+	case MIPS_PRID_CID_SIBYTE:
+		printf("Broadcom");
+		break;
+	case MIPS_PRID_CID_ALCHEMY:
+		printf("AMD");
+		break;
+	case MIPS_PRID_CID_SANDCRAFT:
+		printf("Sandcraft");
+		break;
+	case MIPS_PRID_CID_PHILIPS:
+		printf("Philips");
+		break;
+	case MIPS_PRID_CID_TOSHIBA:
+		printf("Toshiba");
+		break;
+	case MIPS_PRID_CID_LSI:
+		printf("LSI");
+		break;
+	case MIPS_PRID_CID_LEXRA:
+		printf("Lexra");
+		break;
+	case MIPS_PRID_CID_PREHISTORIC:
+	default:
+		printf("Unknown");
+		break;
 	}
-	printf(", %d entries\n", cpuinfo.tlb_nentries);
-    }
+	printf(" processor v%d.%d\n", cpuinfo.cpu_rev, cpuinfo.cpu_impl);
 
-    printf("  L1 i-cache: ");
-    if (cpuinfo.l1.ic_linesize == 0) {
-	printf("disabled");
-    } else {
-	if (cpuinfo.l1.ic_nways == 1) {
-	    printf("direct-mapped with");
+	printf("  MMU: ");
+	if (cpuinfo.tlb_type == MIPS_MMU_NONE) {
+		printf("none present\n");
 	} else {
-	    printf ("%d ways of", cpuinfo.l1.ic_nways);
+		if (cpuinfo.tlb_type == MIPS_MMU_TLB) {
+			printf("Standard TLB");
+		} else if (cpuinfo.tlb_type == MIPS_MMU_BAT) {
+			printf("Standard BAT");
+		} else if (cpuinfo.tlb_type == MIPS_MMU_FIXED) {
+			printf("Fixed mapping");
+		}
+		printf(", %d entries\n", cpuinfo.tlb_nentries);
 	}
-	printf(" %d sets, %d bytes per line\n", cpuinfo.l1.ic_nsets, cpuinfo.l1.ic_linesize);
-    }
 
-    printf("  L1 d-cache: ");
-    if (cpuinfo.l1.dc_linesize == 0) {
-	printf("disabled");
-    } else {
-	if (cpuinfo.l1.dc_nways == 1) {
-	    printf("direct-mapped with");
+	printf("  L1 i-cache: ");
+	if (cpuinfo.l1.ic_linesize == 0) {
+		printf("disabled");
 	} else {
-	    printf ("%d ways of", cpuinfo.l1.dc_nways);
+		if (cpuinfo.l1.ic_nways == 1) {
+			printf("direct-mapped with");
+		} else {
+			printf ("%d ways of", cpuinfo.l1.ic_nways);
+		}
+		printf(" %d sets, %d bytes per line\n", 
+		    cpuinfo.l1.ic_nsets, cpuinfo.l1.ic_linesize);
 	}
-	printf(" %d sets, %d bytes per line\n", cpuinfo.l1.dc_nsets, cpuinfo.l1.dc_linesize);
-    }
+
+	printf("  L1 d-cache: ");
+	if (cpuinfo.l1.dc_linesize == 0) {
+		printf("disabled");
+	} else {
+		if (cpuinfo.l1.dc_nways == 1) {
+			printf("direct-mapped with");
+		} else {
+			printf ("%d ways of", cpuinfo.l1.dc_nways);
+		}
+		printf(" %d sets, %d bytes per line\n", 
+		    cpuinfo.l1.dc_nsets, cpuinfo.l1.dc_linesize);
+	}
+
 }
 
 static struct rman cpu_hardirq_rman;
