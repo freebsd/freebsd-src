@@ -146,6 +146,7 @@ mips_cpu_init(void)
 void
 cpu_identify(void)
 {
+	uint32_t cfg0, cfg1, cfg2, cfg3;
 	printf("cpu%d: ", 0);   /* XXX per-cpu */
 	switch (cpuinfo.cpu_vendor) {
 	case MIPS_PRID_CID_MTI:
@@ -220,6 +221,32 @@ cpu_identify(void)
 		    cpuinfo.l1.dc_nsets, cpuinfo.l1.dc_linesize);
 	}
 
+	cfg0 = mips_rd_config();
+	/* If config register selection 1 does not exist, exit. */
+	if (!(cfg0 & MIPS3_CONFIG_CM))
+		return;
+
+	cfg1 = mips_rd_config_sel1();
+	printf("  Config1=0x%b\n", cfg1, 
+	    "\20\7COP2\6MDMX\5PerfCount\4WatchRegs\3MIPS16\2EJTAG\1FPU");
+
+	/* If config register selection 2 does not exist, exit. */
+	if (!(cfg1 & MIPS3_CONFIG_CM))
+		return;
+	cfg2 = mips_rd_config_sel2();
+	/* 
+	 * Config2 contains no useful information other then Config3 
+	 * existence flag
+	 */
+
+	/* If config register selection 3 does not exist, exit. */
+	if (!(cfg2 & MIPS3_CONFIG_CM))
+		return;
+	cfg3 = mips_rd_config_sel2();
+
+	/* Print Config3 if it contains any useful info */
+	if (cfg3 & ~(0x80000000))
+		printf("  Config3=0x%b\n", cfg3, "\20\2SmartMIPS\1TraceLogic");
 }
 
 static struct rman cpu_hardirq_rman;
