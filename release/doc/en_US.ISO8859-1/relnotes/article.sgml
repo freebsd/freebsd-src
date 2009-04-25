@@ -124,7 +124,89 @@
     <sect2 id="security">
       <title>Security Advisories</title>
 
-      <para></para>
+      <para>Problems described in the following security advisories have
+	been fixed.  For more information, consult the individual
+	advisories available from
+	<ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="3">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="3*">
+	    <thead>
+	      <row>
+		<entry>Advisory</entry>
+		<entry>Date</entry>
+		<entry>Topic</entry>
+	      </row>
+	    </thead>
+
+	    <tbody>
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:01.lukemftpd.asc"
+			      >SA-09:01.lukemftpd</ulink></entry>
+		<entry>07&nbsp;January&nbsp;2009</entry>
+		<entry><para>Cross-site request forgery in
+		  &man.lukemftpd.8;</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:02.openssl.asc"
+			      >SA-09:02.openssl</ulink></entry>
+		<entry>07&nbsp;January&nbsp;2009</entry>
+		<entry><para>OpenSSL incorrectly checks for malformed
+		  signatures</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:03.ntpd.asc"
+			      >SA-09:03.ntpd</ulink></entry>
+		<entry>13&nbsp;January&nbsp;2009</entry>
+		<entry><para>ntpd cryptographic signature
+		  bypass</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:04.bind.asc"
+			      >SA-09:04.bind</ulink></entry>
+		<entry>13&nbsp;January&nbsp;2009</entry>
+		<entry><para>BIND DNSSEC incorrect checks for
+		  malformed signatures</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:05.telnetd.asc"
+			      >SA-09:05.telnetd</ulink></entry>
+		<entry>16&nbsp;February&nbsp;2009</entry>
+		<entry><para>telnetd code execution
+		  vulnerability</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:06.ktimer.asc"
+			      >SA-09:06.ktimer</ulink></entry>
+		<entry>23&nbsp;March&nbsp;2009</entry>
+		<entry><para>Local privilege escalation</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:07.libc.asc"
+			      >SA-09:07.libc</ulink></entry>
+		<entry>04&nbsp;April&nbsp;2009</entry>
+		<entry><para>Information leak in &man.db.3;</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:08.openssl.asc"
+			      >SA-09:08.openssl</ulink></entry>
+		<entry>22&nbsp;April&nbsp;2009</entry>
+		<entry><para>Remotely exploitable crash in
+		  OpenSSL</para></entry>
+	      </row>
+	    </tbody>
+	</tgroup>
+      </informaltable>
     </sect2>
 
     <sect2 id="kernel">
