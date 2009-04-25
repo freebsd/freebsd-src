@@ -470,7 +470,7 @@
 
       <para>The following systems are partially supported by &os;.  In
 	particular the fibre channel controllers in SBus-based systems are not
-	supported.  However, it's possible to use these with a SCSI controller
+	supported.  However, it is possible to use these with a SCSI controller
 	supported by the &man.esp.4 driver (&sun; ESP SCSI, &sun; FAS Fast-SCSI
 	and &sun; FAS366 Fast-Wide SCSI controllers).</para>
 
