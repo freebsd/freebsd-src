@@ -331,10 +331,13 @@
       <para>SMP is supported on all systems with more than 1
 	processor.</para>
 
-      <para>In general, &os;/&arch.sparc64; systems must use serial
-	consoles.  While it is possible to boot or install a system
-	using the OpenFirmware console, the console device is not
-	usable.</para>
+      <para>When using the <filename>GENERIC</filename> kernel,
+	&os;/&arch.sparc64; systems not equipped with a framebuffer
+	supported by the &man.creator.4; (&sun; Creator, &sun; Creator3D
+	and &sun; Elite3D) or &man.machfb.4; (&sun; PGX and &sun; PGX64
+	as well as the ATI Mach64 chips found onboard in for example
+	&sun.blade; 100, &sun.blade; 150, &sun.ultra; 5	and &sun.ultra; 10)
+	driver must use the serial console.</para>
 
       <para>If you have a system that is not listed here, it may not
 	have been tested with &os; &release.current;.  We encourage
@@ -350,6 +353,10 @@
 
 	<listitem>
 	  <para>&sun.blade; 150</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.enterprise; 100</para>
 	</listitem>
 
 	<listitem>
@@ -409,6 +416,14 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sparcengine; Ultra AX1105</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sparcengine; Ultra AXe</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sparcengine; Ultra AXi</para>
 	</listitem>
 
@@ -447,11 +462,17 @@
 	<listitem>
 	  <para>&sun.ultra; 80</para>
 	</listitem>
+
+	<listitem>
+	  <para>&sun.ultra; 450</para>
+	</listitem>
       </itemizedlist>
 
       <para>The following systems are partially supported by &os;.  In
-	particular the onboard SCSI controller in sbus systems is not
-	supported.</para>
+	particular the fibre channel controllers in SBus-based systems are not
+	supported.  However, it's possible to use these with a SCSI controller
+	supported by the &man.esp.4 driver (&sun; ESP SCSI, &sun; FAS Fast-SCSI
+	and &sun; FAS366 Fast-Wide SCSI controllers).</para>
 
       <itemizedlist>
 	<listitem>
@@ -463,15 +484,54 @@
 	</listitem>
       </itemizedlist>
 
-      <para>The following systems are not supported by &os;.  This may
-	be due to lack of processor support (&ultrasparc; III), due to
-	a quirk in the system design that makes &os; unstable, or due
-	to lack of support for sufficient onboard devices to make &os;
-	generally useful.</para>
+      <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on
+	&ultrasparc; III and beyond are also supported by &os, which includes
+	the following known working systems:</para>
 
       <itemizedlist>
 	<listitem>
-	  <para>All systems containing &ultrasparc; III processor(s).</para>
+	  <para>&sun.blade; 1000</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.blade; 1500</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.blade; 2000</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; 280R</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V210</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V440 (except for the on-board NICs)</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V880</para>
+	</listitem>
+
+	<listitem>
+	  <para>&netra; 20/&netra; T4</para>
+	</listitem>
+      </itemizedlist>
+
+      <para>The following &ultrasparc; IIIi systems are not tested but
+	believed to be also supported by &os.</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>&sun.fire; V125</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V240</para>
 	</listitem>
       </itemizedlist>
     </sect2>
@@ -1618,9 +1678,6 @@
 
       <para>[&arch.pc98;] Power Management Controller of NEC PC-98
 	Note (pmc driver)</para>
-
-      <para>[&arch.sparc64;] OpenFirmware console (ofwcons
-	driver)</para>
     </sect2>
   </sect1>
 </article>
