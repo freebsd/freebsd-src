@@ -30,6 +30,7 @@
     <year>2006</year>
     <year>2007</year>
     <year>2008</year>
+    <year>2009</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -362,10 +363,10 @@
           <para>&sun.fire; V120</para>
         </listitem>
         <listitem>
-          <para>&netra; t1 105</para> 
+          <para>&netra; t1 105</para>
         </listitem>
         <listitem>
-          <para>&netra; T1 AC200/DC200</para> 
+          <para>&netra; T1 AC200/DC200</para>
         </listitem>
         <listitem>
           <para>&netra; t 1100</para>
@@ -465,7 +466,7 @@
 
 	We give manpage references using the &man entities where
 	possible.  If a driver has no manpage (and consequently no
-	&man entity, we simply give the name of the driver).  
+	&man entity, we simply give the name of the driver).
 	Please avoid doing &man entity conversions unless you
 	know for sure that an entity and manpage exist; sweeps through
 	this file to fix "missed" conversions are likely to break the
@@ -496,8 +497,9 @@
   <sect2 id="disk">
     <title>Disk Controllers</title>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;, &arch.sparc64;] IDE/ATA controllers (&man.ata.4; driver)</para>
-    <para>[&arch.pc98;] IDE/ATA controllers (wdc driver)
+    <para arch="amd64,i386,ia64,pc98,sparc64">IDE/ATA controllers (&man.ata.4; driver)</para>
+
+    <para arch="pc98">IDE/ATA controllers (wdc driver)
       <itemizedlist>
         <listitem>
 	  <para>On-board IDE controller</para>
@@ -537,7 +539,7 @@
 
     &hwlist.dpt;
       <note>
-	<para>[&arch.amd64;, &arch.i386;] Booting from these controllers is supported.  EISA
+	<para arch="amd64,i386">Booting from these controllers is supported.  EISA
 	adapters are not supported.</para>
       </note>
 
@@ -562,7 +564,7 @@
     &hwlist.mlx;
 
       <note>
-	<para>[&arch.amd64;, &arch.i386;] Booting from these controllers is supported. EISA adapters
+	<para arch="amd64,i386">Booting from these controllers is supported. EISA adapters
 	are not supported.</para>
       </note>
 
@@ -590,7 +592,7 @@
 
     &hwlist.vpo;
 
-    <para>[&arch.i386;] The wds(4) driver supports the WD7000 SCSI
+    <para arch="i386">The wds(4) driver supports the WD7000 SCSI
       controller.</para>
 
     <para>With all supported SCSI controllers, full support is
@@ -612,7 +614,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.i386;] Sony proprietary interface (all models) (&man.scd.4;)</para>
+	  <para arch="i386">Sony proprietary interface (all models) (&man.scd.4;)</para>
 	</listitem>
 
 	<listitem>
@@ -621,7 +623,7 @@
       </itemizedlist>
     </para>
 
-    <para>[&arch.i386;] The following device is unmaintained:
+    <para arch="i386">The following device is unmaintained:
       <itemizedlist>
         <listitem>
 	  <para>Mitsumi proprietary CD-ROM interface (all
@@ -642,14 +644,14 @@
 
     &hwlist.bce;
 
-    <para>[&arch.amd64;, &arch.i386;] Broadcom BCM4401 based Fast Ethernet adapters
+    <para arch="amd64,i386">Broadcom BCM4401 based Fast Ethernet adapters
       (&man.bfe.4; driver)</para>
 
     &hwlist.bge;
 
     &hwlist.cdce;
 
-    <para>[&arch.amd64;, &arch.i386;] Crystal Semiconductor CS89x0-based NICs 
+    <para arch="amd64,i386">Crystal Semiconductor CS89x0-based NICs
     (&man.cs.4; driver)
     </para>
 
@@ -727,7 +729,7 @@
 
     &hwlist.tl;
 
-    <para>[&arch.amd64;, &arch.i386, &arch.pc98;] SMC 83c17x (EPIC)-based Ethernet NICs (&man.tx.4; driver)
+    <para arch="amd64,i386,pc98">SMC 83c17x (EPIC)-based Ethernet NICs (&man.tx.4; driver)
     </para>
 
     &hwlist.txp;
@@ -757,33 +759,33 @@
 
   <sect2 id="fddi">
     <title>FDDI Interfaces</title>
-    <para>[&arch.i386, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4; driver)</para>
-    <para>[&arch.i386;] DEC DEFEA EISA (&man.fpa.4; driver)</para>
+    <para arch="i386,pc98">DEC DEFPA PCI (&man.fpa.4; driver)</para>
+    <para>arch="i386">DEC DEFEA EISA (&man.fpa.4; driver)</para>
   </sect2>
 
   <sect2 id="atm">
     <title>ATM Interfaces</title>
 
-    <para>[&arch.i386, &arch.pc98;] Midway-based ATM interfaces (&man.en.4;
+    <para arch="i386,pc98">Midway-based ATM interfaces (&man.en.4;
       driver)</para>
 
-    <para>[&arch.i386, &arch.pc98; &arch.sparc64;] FORE Systems, Inc. PCA-200E ATM PCI
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. PCA-200E ATM PCI
       Adapters (hfa and &man.fatm.4; drivers)</para>
 
-    <para>[&arch.i386;, &arch.pc98;] IDT NICStAR 77201/211-based ATM Adapters (&man.idt.4;
+    <para arch="i386,pc98">IDT NICStAR 77201/211-based ATM Adapters (&man.idt.4;
     driver)</para>
 
-    <para>[&arch.i386, &arch.pc98; &arch.sparc64;] FORE Systems, Inc. HE155 and HE622
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. HE155 and HE622
       ATM interfaces (&man.hatm.4; driver)</para>
 
-    <para>[&arch.i386;, &arch.pc98;] IDT77252-based ATM cards (&man.patm.4;
+    <para arch="i386,pc98">IDT77252-based ATM cards (&man.patm.4;
       driver)</para>
 
   </sect2>
   <sect2 id="wlan">
     <title>Wireless Network Interfaces</title>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Cisco/Aironet 802.11b wireless adapters (&man.an.4; driver)
+    <para arch="amd64,i386,pc98">Cisco/Aironet 802.11b wireless adapters (&man.an.4; driver)
     </para>
 
     &hwlist.ath;
@@ -792,32 +794,32 @@
 
     &hwlist.cnw;
 
-    <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100 MiniPCI network
+    <para arch="i386,amd64">Intel PRO/Wireless 2100 MiniPCI network
       adapter (&man.ipw.4; driver)</para>
 
-    <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2200BG/2915ABG MiniPCI
+    <para arch="i386,amd64">Intel PRO/Wireless 2200BG/2915ABG MiniPCI
       and 2225BG PCI network adapters (&man.iwi.4; driver)</para>
 
     &hwlist.ral;
 
-    <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
+    <para arch="i386,pc98">Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
     </para>
 
     &hwlist.rum;
 
     &hwlist.ural;
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent Technologies WaveLAN/IEEE 802.11b
+    <para arch="amd64,i386,pc98">Lucent Technologies WaveLAN/IEEE 802.11b
       wireless network
       adapters and workalikes using the Lucent Hermes, Intersil
       PRISM-II, Intersil PRISM-2.5, Intersil Prism-3, and Symbol
       Spectrum24 chipsets (&man.wi.4; driver)
     </para>
 
-    <para>[&arch.i386;] NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
+    <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
     ISA/radio LAN cards (&man.wl.4; driver)</para>
 
-    <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 3945ABG MiniPCI
+    <para arch="i386,amd64">Intel PRO/Wireless 3945ABG MiniPCI
       network adapters (&man.wpi.4; driver)</para>
 
     &hwlist.zyd;
@@ -835,11 +837,11 @@
 
     &hwlist.ctau;
 
-    <para>[&arch.i386;] Granch SBNI12 point-to-point communications
+    <para arch="i386">Granch SBNI12 point-to-point communications
     adapters (&man.sbni.4; driver)
     </para>
 
-    <para>[&arch.i386;] Granch SBNI16 SHDSL modems (&man.sbsh.4;
+    <para arch="i386">Granch SBNI16 SHDSL modems (&man.sbsh.4;
       driver)</para>
 
     &hwlist.cm;
@@ -848,10 +850,10 @@
 
   <sect2 id="isdn">
     <title>ISDN Interfaces</title>
-    <para>[&arch.i386;] AcerISDN P10 ISA PnP (experimental)</para>
-    <para>[&arch.i386;] Asuscom ISDNlink 128K ISA</para>
-    <para>[&arch.i386;] ASUSCOM P-IN100-ST-D (and other Winbond W6692-based cards)</para>
-    <para>[&arch.i386;] AVM
+    <para arch="i386">AcerISDN P10 ISA PnP (experimental)</para>
+    <para arch="i386">Asuscom ISDNlink 128K ISA</para>
+    <para arch="i386">ASUSCOM P-IN100-ST-D (and other Winbond W6692-based cards)</para>
+    <para arch="i386">AVM
       <itemizedlist>
         <listitem>
 	  <para>A1</para>
@@ -879,7 +881,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>[&arch.i386;] Creatix
+    <para arch="i386">Creatix
       <itemizedlist>
         <listitem>
 	  <para>ISDN-S0</para>
@@ -889,11 +891,11 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>[&arch.i386;] Compaq Microcom 610 ISDN (Compaq series PSB2222I) ISA PnP</para>
-    <para>[&arch.i386;] Dr. Neuhaus Niccy Go@ and compatibles</para>
-    <para>[&arch.i386;] Dynalink IS64PPH and IS64PPH+</para>
-    <para>[&arch.i386;] Eicon Diehl DIVA 2.0 and 2.02</para>
-    <para>[&arch.i386;] ELSA
+    <para arch="i386">Compaq Microcom 610 ISDN (Compaq series PSB2222I) ISA PnP</para>
+    <para arch="i386">Dr. Neuhaus Niccy Go@ and compatibles</para>
+    <para arch="i386">Dynalink IS64PPH and IS64PPH+</para>
+    <para arch="i386">Eicon Diehl DIVA 2.0 and 2.02</para>
+    <para arch="i386">ELSA
       <itemizedlist>
         <listitem>
 	  <para>ELSA PCC-16</para>
@@ -909,11 +911,11 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>[&arch.i386;] ITK ix1 Micro ( &lt; V.3, non-PnP version )</para>
-    <para>[&arch.i386;] Sedlbauer Win Speed</para>
-    <para>[&arch.i386;] Siemens I-Surf 2.0</para>
-    <para>[&arch.i386;] TELEINT ISDN SPEED No.1 (experimental)</para>
-    <para>[&arch.i386;] Teles
+    <para arch="i386">ITK ix1 Micro ( &lt; V.3, non-PnP version )</para>
+    <para arch="i386">Sedlbauer Win Speed</para>
+    <para arch="i386">Siemens I-Surf 2.0</para>
+    <para arch="i386">TELEINT ISDN SPEED No.1 (experimental)</para>
+    <para arch="i386">Teles
       <itemizedlist>
         <listitem>
 	  <para>S0/8</para>
@@ -935,23 +937,23 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>[&arch.i386;] Traverse Technologies NETjet-S PCI</para>
-    <para>[&arch.i386;] USRobotics Sportster ISDN TA intern</para>
-    <para>[&arch.i386;] Winbond W6692 based PCI cards</para>
+    <para arch="i386">Traverse Technologies NETjet-S PCI</para>
+    <para arch="i386">USRobotics Sportster ISDN TA intern</para>
+    <para arch="i386">Winbond W6692 based PCI cards</para>
   </sect2>
 
   <sect2 id="serial">
     <title>Serial Interfaces</title>
 
-    <para>[&arch.amd64; &arch.i386;] <quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
+    <para arch="amd64,i386"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     &hwlist.uart;
 
     &hwlist.scc;
 
-    <para>[&arch.amd64; &arch.i386;] AST 4 port serial card using shared IRQ</para>
+    <para arch="amd64,i386">AST 4 port serial card using shared IRQ</para>
 
-    <para>[&arch.i386;] ARNET serial cards (&man.ar.4; driver)
+    <para arch="i386">ARNET serial cards (&man.ar.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>ARNET 8 port serial card using shared IRQ</para>
@@ -961,8 +963,8 @@
 	</listitem>
       </itemizedlist>
     </para>
-    
-    <para>[&arch.i386;] Boca multi-port serial cards
+
+    <para arch="i386">Boca multi-port serial cards
       <itemizedlist>
         <listitem>
 	  <para>Boca BB1004 4-Port serial card (Modems
@@ -981,86 +983,86 @@
       </itemizedlist>
     </para>
 
-    <para>[&arch.i386;] Comtrol Rocketport card (&man.rp.4; driver)</para>
+    <para arch="i386">Comtrol Rocketport card (&man.rp.4; driver)</para>
 
-    <para>[&arch.i386;] Cyclades Cyclom-Y serial board (&man.cy.4; driver)</para>
+    <para arch="i386">Cyclades Cyclom-Y serial board (&man.cy.4; driver)</para>
 
-    <para>[&arch.i386;] STB 4 port card using shared IRQ</para>
+    <para arch="i386">STB 4 port card using shared IRQ</para>
 
-    <para>[&arch.i386;] DigiBoard intelligent serial cards (digi driver)
+    <para arch="i386">DigiBoard intelligent serial cards (digi driver)
     </para>
 
-    <para>[&arch.amd64;, &arch.i386, &arch.ia64;] PCI-Based multi-port serial boards (&man.puc.4;
+    <para arch="amd64,i386,ia64">PCI-Based multi-port serial boards (&man.puc.4;
     driver)
       <itemizedlist>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Actiontech 56K PCI</para>
+	  <para arch="amd64,i386">Actiontech 56K PCI</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.amd64; &arch.i386;] Avlab Technology, PCI IO 2S and PCI IO 4S</para>
+	  <para arch="amd64,i386">Avlab Technology, PCI IO 2S and PCI IO 4S</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Comtrol RocketPort 550</para>
+	  <para arch="amd64,i386">Comtrol RocketPort 550</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Decision Computers PCCOM 4-port serial and dual port RS232/422/485</para>
+	  <para arch="amd64,i386">Decision Computers PCCOM 4-port serial and dual port RS232/422/485</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.ia64;] Diva Serial (GSP) Multiport UART</para>
+	  <para arch="ia64">Diva Serial (GSP) Multiport UART</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Dolphin Peripherals 4025/4035/4036</para>
+	  <para arch="amd64,i386">Dolphin Peripherals 4025/4035/4036</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] IC Book Labs Dreadnought 16x Lite and Pro</para>
+	  <para arch="amd64,i386">IC Book Labs Dreadnought 16x Lite and Pro</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
+	  <para arch="amd64,i386">Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Middle Digital, Weasle serial port</para>
+	  <para arch="amd64,i386">Middle Digital, Weasle serial port</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.amd64; &arch.i386;] Moxa Industio CP-114, Smartio C104H-PCI and C168H/PCI</para>
+	  <para arch="amd64,i386">Moxa Industio CP-114, Smartio C104H-PCI and C168H/PCI</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] NEC PK-UG-X001 and PK-UG-X008</para>
+	  <para arch="amd64,i386">NEC PK-UG-X001 and PK-UG-X008</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.amd64; &arch.i386;] Netmos NM9835 PCI-2S-550</para>
+	  <para arch="amd64,i386">Netmos NM9835 PCI-2S-550</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Oxford Semiconductor OX16PCI954 PCI UART</para>
+	  <para arch="amd64,i386">Oxford Semiconductor OX16PCI954 PCI UART</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Syba Tech SD-LAB PCI-4S2P-550-ECP</para>
+	  <para arch="amd64,i386">Syba Tech SD-LAB PCI-4S2P-550-ECP</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber I/O PCI 16C550/16C650/16C850</para>
+	  <para arch="amd64,i386">SIIG Cyber I/O PCI 16C550/16C650/16C850</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber 2P1S PCI 16C550/16C650/16C850</para>
+	  <para arch="amd64,i386">SIIG Cyber 2P1S PCI 16C550/16C650/16C850</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber 2S1P PCI 16C550/16C650/16C850</para>
+	  <para arch="amd64,i386">SIIG Cyber 2S1P PCI 16C550/16C650/16C850</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber 4S PCI 16C550/16C650/16C850</para>
+	  <para arch="amd64,i386">SIIG Cyber 4S PCI 16C550/16C650/16C850</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] SIIG Cyber Serial (Single and Dual) PCI 16C550/16C650/16C850</para>
+	  <para arch="amd64,i386">SIIG Cyber Serial (Single and Dual) PCI 16C550/16C650/16C850</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.amd64; &arch.i386;] Syba Tech Ltd. PCI-4S2P-550-ECP</para>
+	  <para arch="amd64,i386">Syba Tech Ltd. PCI-4S2P-550-ECP</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] Titan PCI-200H and PCI-800H</para>
+	  <para arch="amd64,i386">Titan PCI-200H and PCI-800H</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] US Robotics (3Com) 3CP5609 modem</para>
+	  <para arch="amd64,i386">US Robotics (3Com) 3CP5609 modem</para>
 	</listitem>
 	<listitem>
-	  <para>[&arch.amd64; &arch.i386;] VScom PCI-400 and PCI-800</para>
+	  <para arch="amd64,i386">VScom PCI-400 and PCI-800</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -1069,13 +1071,13 @@
 
     &hwlist.sr;
 
-    <para>[&arch.i386;, &arch.amd64;] Specialix SI/XIO/SX multiport serial cards, with both the
+    <para arch="i386,amd64">Specialix SI/XIO/SX multiport serial cards, with both the
     older SIHOST2.x and the <quote>enhanced</quote> (transputer
     based, aka JET) host cards (ISA, EISA and PCI) are supported.
     Note that the newer SX+ PCI cards are not currently supported.
     (&man.si.4; driver)</para>
 
-    <para>[&arch.pc98;] Internel serial interfaces (&man.sio.4; driver)
+    <para arch="pc98">Internel serial interfaces (&man.sio.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>PC-9801 on-board</para>
@@ -1086,7 +1088,7 @@
       </itemizedlist>
     </para>
 
-    <para>[&arch.pc98;] NEC PC-9861K, PC-9801-101 and Midori-Denshi MDC-926Rs (&man.sio.4; driver)
+    <para arch="pc98">NEC PC-9861K, PC-9801-101 and Midori-Denshi MDC-926Rs (&man.sio.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>COM2 (flags 0x01000000)</para>
@@ -1097,32 +1099,32 @@
       </itemizedlist>
     </para>
 
-    <para>[&arch.pc98;] NEC PC-9801-120 (&man.sio.4; driver)</para>
+    <para arch="pc98">NEC PC-9801-120 (&man.sio.4; driver)</para>
       <note>
         <para>"flags 0x11000000" is necessary in kernel configuration.</para>
       </note>
 
-    <para>[&arch.pc98;] Microcore MC-16550, MC-16550II, MC-RS98 (&man.sio.4; driver)</para>
+    <para arch="pc98">Microcore MC-16550, MC-16550II, MC-RS98 (&man.sio.4; driver)</para>
       <note>
         <para>"flags 0x14000?01" is necessary in kernel configuration.</para>
       </note>
 
-    <para>[&arch.pc98;] Media Intelligent RSB-2000, RSB-3000 and AIWA B98-02 (&man.sio.4; driver)</para>
+    <para arch="pc98">Media Intelligent RSB-2000, RSB-3000 and AIWA B98-02 (&man.sio.4; driver)</para>
       <note>
         <para>"flags 0x15000?01" is necessary in kernel configuration.</para>
       </note>
 
-    <para>[&arch.pc98;] Media Intelligent RSB-384 (&man.sio.4; driver)</para>
+    <para arch="pc98">Media Intelligent RSB-384 (&man.sio.4; driver)</para>
       <note>
         <para>"flags 0x16000001" is necessary in kernel configuration.</para>
       </note>
 
-    <para>[&arch.pc98;] I-O DATA RSA-98III (&man.sio.4; driver)</para>
+    <para arch="pc98">I-O DATA RSA-98III (&man.sio.4; driver)</para>
       <note>
         <para>"flags 0x18000?01" is necessary in kernel configuration.</para>
       </note>
 
-    <para>[&arch.pc98;] Hayes ESP98 (&man.sio.4; driver)</para>
+    <para arch="pc98">Hayes ESP98 (&man.sio.4; driver)</para>
       <note>
         <para>"options COM_ESP" and "flags 0x19000000" are necessary in kernel configuration.</para>
       </note>
@@ -1189,7 +1191,7 @@
 
     &hwlist.snd.vibes;
 
-    <para>[&arch.pc98;] NEC PC-9801-73, 86 and compatibles (nss driver)
+    <para arch="pc98">NEC PC-9801-73, 86 and compatibles (nss driver)
       <itemizedlist>
         <listitem>
           <para>NEC A-MATE internal sound</para>
@@ -1200,14 +1202,14 @@
       </itemizedlist>
     </para>
 
-    <para>[&arch.pc98;] NEC X-MATE, CanBe, ValueStar internal (mss driver)</para>
+    <para arch="pc98">NEC X-MATE, CanBe, ValueStar internal (mss driver)</para>
 
-    <para>[&arch.pc98;] Creative Technologies SoundBlaster(98) (&man.sb.4;
+    <para arch="pc98">Creative Technologies SoundBlaster(98) (&man.sb.4;
     driver)</para>
 
-    <para>[&arch.pc98;] I-O DATA CD-BOX (&man.sb.4; driver)</para>
+    <para arch="pc98">I-O DATA CD-BOX (&man.sb.4; driver)</para>
 
-    <para>[&arch.pc98;] MPU-401 and compatible interfaces (mpu driver)
+    <para arch="pc98">MPU-401 and compatible interfaces (mpu driver)
       <itemizedlist>
         <listitem>
           <para>Q-Vision WaveStar</para>
@@ -1221,25 +1223,25 @@
 
     &hwlist.bktr;
 
-    <para>[&arch.i386;] Connectix QuickCam</para>
+    <para arch="i386">Connectix QuickCam</para>
   </sect2>
 
   <sect2 id="usb">
     <title>USB Devices</title>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] A range of USB peripherals are supported; devices known to
+    <para arch="amd64,i386,ia64,pc98">A range of USB peripherals are supported; devices known to
     work are listed in this section.  Owing to the
     generic nature of most USB devices, with some exceptions any
     device of a given class will be supported, even if not explicitly
     listed here.</para>
 
     <note>
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB Ethernet adapters can be found in the section listing <link
+      <para arch="amd64,i386,ia64,pc98">USB Ethernet adapters can be found in the section listing <link
       linkend="ethernet">Ethernet interfaces</link>.</para>
     </note>
 
     <note>
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB Bluetooth adapters can be found in <link
+      <para arch="amd64,i386,ia64,pc98">USB Bluetooth adapters can be found in <link
       linkend="bluetooth">Bluetooth</link> section.</para>
     </note>
 
@@ -1247,14 +1249,14 @@
 
     &hwlist.uhci;
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB 2.0 controllers using the EHCI
+    <para arch="amd64,i386,ia64,pc98">USB 2.0 controllers using the EHCI
       interface (&man.ehci.4; driver)</para>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] Hubs
+    <para arch="amd64,i386,ia64,pc98">Hubs
     </para>
-    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] Keyboards (&man.ukbd.4; driver)
+    <para arch="amd64,i386,ia64,pc98">Keyboards (&man.ukbd.4; driver)
     </para>
-    <para>[&arch.amd64;, &arch.i386, &arch.pc98;] Miscellaneous
+    <para arch="amd64,i386,pc98">Miscellaneous
       <itemizedlist>
         <listitem>
 	  <para>Assist Computer Systems PC Camera C-M1</para>
@@ -1278,7 +1280,7 @@
 
     &hwlist.umodem;
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] Mice (&man.ums.4; driver)
+    <para arch="amd64,i386,ia64,pc98">Mice (&man.ums.4; driver)
     </para>
 
     &hwlist.ulpt;
@@ -1297,7 +1299,7 @@
 
     &hwlist.umass;
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Audio Devices (&man.uaudio.4; driver)
+    <para arch="amd64,i386,pc98">Audio Devices (&man.uaudio.4; driver)
     </para>
 
     &hwlist.uvisor;
@@ -1309,7 +1311,7 @@
 
     &hwlist.fwohci;
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.sparc64;] Serial Bus Protocol 2 (SBP-2)
+    <para arch="amd64,i386,sparc64">Serial Bus Protocol 2 (SBP-2)
       storage devices (&man.sbp.4; driver)</para>
 
   </sect2>
@@ -1336,7 +1338,7 @@
   <sect2 id="misc">
     <title>Miscellaneous</title>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] FAX-Modem/PCCARD
+    <para arch="amd64,i386,pc98">FAX-Modem/PCCARD
       <itemizedlist>
         <listitem>
 	  <para>MELCO IGM-PCM56K/IGM-PCM56KH</para>
@@ -1347,9 +1349,9 @@
       </itemizedlist>
     </para>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Floppy drives (&man.fdc.4; driver)</para>
+    <para arch="amd64,i386,pc98">Floppy drives (&man.fdc.4; driver)</para>
 
-    <para>[&arch.amd64; &arch.i386;] VGA-compatible video cards
+    <para arch="amd64,i386">VGA-compatible video cards
       (&man.vga.4; driver)
 
       <note>
@@ -1361,37 +1363,37 @@
 
       </para>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] Keyboards including:
+    <para arch="amd64,i386,ia64,pc98">Keyboards including:
       <itemizedlist>
         <listitem>
-	  <para>[&arch.i386;] AT-style keyboards (&man.atkbd.4; driver)</para>
+	  <para arch="i386">AT-style keyboards (&man.atkbd.4; driver)</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.amd64;, &arch.i386;] PS/2 keyboards (&man.atkbd.4; driver)</para>
+	  <para arch="amd64,i386">PS/2 keyboards (&man.atkbd.4; driver)</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.pc98;] Standard keyboards</para>
+	  <para arch="pc98">Standard keyboards</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB keyboards (&man.ukbd.4; driver)</para>
+	  <para arch="amd64,i386,ia64,pc98">USB keyboards (&man.ukbd.4; driver)</para>
 	</listitem>
       </itemizedlist>
     </para>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] Pointing devices including:
+    <para arch="amd64,i386,ia64,pc98">Pointing devices including:
       <itemizedlist>
         <listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Bus mice and compatible devices (&man.mse.4; driver)</para>
+	  <para arch="amd64,i386,pc98">Bus mice and compatible devices (&man.mse.4; driver)</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.amd64;, &arch.i386;] PS/2 mice and compatible devices, including many laptop
+	  <para arch="amd64,i386">PS/2 mice and compatible devices, including many laptop
 	    pointing devices (&man.psm.4; driver)</para>
 	</listitem>
         <listitem>
 	  <para>Serial mice and compatible devices</para>
 	</listitem>
         <listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB mice (&man.ums.4; driver)</para>
+	  <para arch="amd64,i386,ia64,pc98">USB mice (&man.ums.4; driver)</para>
 	</listitem>
       </itemizedlist>
 
@@ -1403,15 +1405,15 @@
       </note>
     </para>
 
-    <para>[&arch.amd64;, &arch.i386;] <quote>PC standard</quote> parallel ports (&man.ppc.4; driver)</para>
-    <para>[&arch.pc98;] <quote>PC-9821 standard</quote> parallel ports (&man.ppc.4; driver)</para>
+    <para arch="amd64,i386"><quote>PC standard</quote> parallel ports (&man.ppc.4; driver)</para>
+    <para arch="pc98"><quote>PC-9821 standard</quote> parallel ports (&man.ppc.4; driver)</para>
 
-    <para>[&arch.i386;, &arch.amd64;] PC-compatible joysticks (&man.joy.4; driver)</para>
+    <para arch="i386,amd64">PC-compatible joysticks (&man.joy.4; driver)</para>
 
-    <para>[&arch.pc98;] Joystick port of SoundBlaster(98) (&man.joy.4;
+    <para arch="pc98">Joystick port of SoundBlaster(98) (&man.joy.4;
     driver)</para>
 
-    <para>[&arch.i386;, &arch.pc98;] PHS Data Communication Card/PCCARD
+    <para arch="i386,pc98">PHS Data Communication Card/PCCARD
       <itemizedlist>
         <listitem>
 	  <para>NTT DoCoMo P-in Comp@ct</para>
@@ -1425,14 +1427,14 @@
       </itemizedlist>
     </para>
 
-    <para>[&arch.i386;] Xilinx XC6200-based reconfigurable hardware cards compatible
+    <para arch="i386">Xilinx XC6200-based reconfigurable hardware cards compatible
     with the HOT1 from <ulink url="http://www.vcc.com/">Virtual
     Computers</ulink> (xrpu driver).</para>
 
-    <para>[&arch.pc98;] Power Management Controller of NEC PC-98 Note (pmc
+    <para arch="pc98">Power Management Controller of NEC PC-98 Note (pmc
     driver)</para>
 
-    <para>[&arch.sparc64;] OpenFirmware console (ofwcons driver)</para>
+    <para arch="sparc64">OpenFirmware console (ofwcons driver)</para>
 
   </sect2>
 </sect1>
