@@ -944,8 +944,12 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * Read filled up entire page.
 			 */
 			mt->valid = VM_PAGE_BITS_ALL;
-			vm_page_undirty(mt);	/* should be an assert? XXX */
-			pmap_clear_modify(mt);
+			KASSERT(mt->dirty == 0,
+			    ("vnode_pager_generic_getpages: page %p is dirty",
+			    mt));
+			KASSERT(!pmap_page_is_mapped(mt),
+			    ("vnode_pager_generic_getpages: page %p is mapped",
+			    mt));
 		} else {
 			/*
 			 * Read did not fill up entire page.  Since this

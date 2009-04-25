@@ -1407,10 +1407,6 @@ swp_pager_async_iodone(struct buf *bp)
 			}
 		} else if (bp->b_iocmd == BIO_READ) {
 			/*
-			 * For read success, clear dirty bits.  Nobody should
-			 * have this page mapped but don't take any chances,
-			 * make sure the pmap modify bits are also cleared.
-			 *
 			 * NOTE: for reads, m->dirty will probably be 
 			 * overridden by the original caller of getpages so
 			 * we cannot set them in order to free the underlying
@@ -1427,9 +1423,11 @@ swp_pager_async_iodone(struct buf *bp)
 			 * vm_page_wakeup().  We do not set reqpage's
 			 * valid bits here, it is up to the caller.
 			 */
-			pmap_clear_modify(m);
+			KASSERT(!pmap_page_is_mapped(m),
+			    ("swp_pager_async_iodone: page %p is mapped", m));
 			m->valid = VM_PAGE_BITS_ALL;
-			vm_page_undirty(m);
+			KASSERT(m->dirty == 0,
+			    ("swp_pager_async_iodone: page %p is dirty", m));
 
 			/*
 			 * We have to wake specifically requested pages
@@ -1447,11 +1445,13 @@ swp_pager_async_iodone(struct buf *bp)
 			}
 		} else {
 			/*
-			 * For write success, clear the modify and dirty 
+			 * For write success, clear the dirty
 			 * status, then finish the I/O ( which decrements the 
 			 * busy count and possibly wakes waiter's up ).
 			 */
-			pmap_clear_modify(m);
+			KASSERT((m->flags & PG_WRITEABLE) == 0,
+			    ("swp_pager_async_iodone: page %p is not write"
+			    " protected", m));
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
 			if (vm_page_count_severe())
