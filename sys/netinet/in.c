@@ -320,6 +320,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			break;
 		}
 	}
+	IF_ADDR_LOCK(ifp);
 	if (ia == NULL) {
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			iap = ifatoia(ifa);
@@ -336,6 +337,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	if (ia == NULL)
 		iaIsFirst = 1;
 
+	error = 0;
 	switch (cmd) {
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
@@ -350,24 +352,27 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			    && (cmd == SIOCAIFADDR)
 			    && (ifra->ifra_dstaddr.sin_addr.s_addr
 				== INADDR_ANY)) {
-				return (EDESTADDRREQ);
+				error = EDESTADDRREQ;
+				goto out_unlock;
 			}
 		}
-		if (cmd == SIOCDIFADDR && ia == NULL)
-			return (EADDRNOTAVAIL);
+		if (cmd == SIOCDIFADDR && ia == NULL) {
+			error = EADDRNOTAVAIL;
+			goto out_unlock;
+		}
 		/* FALLTHROUGH */
 	case SIOCSIFADDR:
 	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
 		if (ia == NULL) {
 			ia = (struct in_ifaddr *)
-				malloc(sizeof *ia, M_IFADDR, M_WAITOK | M_ZERO);
-			if (ia == NULL)
-				return (ENOBUFS);
-			/*
-			 * Protect from ipintr() traversing address list
-			 * while we're modifying it.
-			 */
+				malloc(sizeof *ia, M_IFADDR, M_NOWAIT |
+				    M_ZERO);
+			if (ia == NULL) {
+				error = ENOBUFS;
+				goto out_unlock;
+			}
+
 			ifa = &ia->ia_ifa;
 			IFA_LOCK_INIT(ifa);
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
@@ -383,9 +388,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			}
 			ia->ia_ifp = ifp;
 
-			IF_ADDR_LOCK(ifp);
 			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
-			IF_ADDR_UNLOCK(ifp);
 			s = splnet();
 			TAILQ_INSERT_TAIL(&V_in_ifaddrhead, ia, ia_link);
 			splx(s);
@@ -398,37 +401,60 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCGIFNETMASK:
 	case SIOCGIFDSTADDR:
 	case SIOCGIFBRDADDR:
-		if (ia == NULL)
-			return (EADDRNOTAVAIL);
+		if (ia == NULL) {
+			error = EADDRNOTAVAIL;
+			goto out_unlock;
+		}
 		break;
 	}
-	switch (cmd) {
 
+	/*
+	 * Most paths in this switch return directly or via out_unlock.  Only
+	 * paths that remove the address break in order to hit common removal
+	 * code.
+	 *
+	 * XXXRW: We enter the switch with IF_ADDR_LOCK() held, but leave
+	 * without it.  This is a bug.
+	 */
+	IF_ADDR_LOCK_ASSERT(ifp);
+	switch (cmd) {
 	case SIOCGIFADDR:
 		*((struct sockaddr_in *)&ifr->ifr_addr) = ia->ia_addr;
-		return (0);
+		goto out_unlock;
 
 	case SIOCGIFBRDADDR:
-		if ((ifp->if_flags & IFF_BROADCAST) == 0)
-			return (EINVAL);
+		if ((ifp->if_flags & IFF_BROADCAST) == 0) {
+			error = EINVAL;
+			goto out_unlock;
+		}
 		*((struct sockaddr_in *)&ifr->ifr_dstaddr) = ia->ia_broadaddr;
-		return (0);
+		goto out_unlock;
 
 	case SIOCGIFDSTADDR:
-		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
-			return (EINVAL);
+		if ((ifp->if_flags & IFF_POINTOPOINT) == 0) {
+			error = EINVAL;
+			goto out_unlock;
+		}
 		*((struct sockaddr_in *)&ifr->ifr_dstaddr) = ia->ia_dstaddr;
-		return (0);
+		goto out_unlock;
 
 	case SIOCGIFNETMASK:
 		*((struct sockaddr_in *)&ifr->ifr_addr) = ia->ia_sockmask;
-		return (0);
+		goto out_unlock;
 
 	case SIOCSIFDSTADDR:
-		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
-			return (EINVAL);
+		if ((ifp->if_flags & IFF_POINTOPOINT) == 0) {
+			error = EINVAL;
+			goto out_unlock;
+		}
 		oldaddr = ia->ia_dstaddr;
 		ia->ia_dstaddr = *(struct sockaddr_in *)&ifr->ifr_dstaddr;
+		IF_ADDR_UNLOCK(ifp);
+
+		/*
+		 * XXXRW: Locks dropped for if_ioctl and rtinit, but ia is
+		 * still being used.
+		 */
 		if (ifp->if_ioctl != NULL) {
 			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR,
 			    (caddr_t)ia);
@@ -447,12 +473,20 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (0);
 
 	case SIOCSIFBRDADDR:
-		if ((ifp->if_flags & IFF_BROADCAST) == 0)
-			return (EINVAL);
+		if ((ifp->if_flags & IFF_BROADCAST) == 0) {
+			error = EINVAL;
+			goto out_unlock;
+		}
 		ia->ia_broadaddr = *(struct sockaddr_in *)&ifr->ifr_broadaddr;
-		return (0);
+		goto out_unlock;
 
 	case SIOCSIFADDR:
+		IF_ADDR_UNLOCK(ifp);
+
+		/*
+		 * XXXRW: Locks dropped for in_ifinit and in_joingroup, but ia
+		 * is still being used.
+		 */
 		error = in_ifinit(ifp, ia,
 		    (struct sockaddr_in *) &ifr->ifr_addr, 1);
 		if (error != 0 && iaIsNew)
@@ -471,7 +505,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCSIFNETMASK:
 		ia->ia_sockmask.sin_addr = ifra->ifra_addr.sin_addr;
 		ia->ia_subnetmask = ntohl(ia->ia_sockmask.sin_addr.s_addr);
-		return (0);
+		goto out_unlock;
 
 	case SIOCAIFADDR:
 		maskIsNew = 0;
@@ -485,6 +519,12 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 					       ia->ia_addr.sin_addr.s_addr)
 				hostIsNew = 0;
 		}
+		IF_ADDR_UNLOCK(ifp);
+
+		/*
+		 * XXXRW: Locks dropped for in_ifscrub and in_ifinit, but ia
+		 * is still being used.
+		 */
 		if (ifra->ifra_mask.sin_len) {
 			in_ifscrub(ifp, ia);
 			ia->ia_sockmask = ifra->ifra_mask;
@@ -520,10 +560,16 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (error);
 
 	case SIOCDIFADDR:
+		IF_ADDR_UNLOCK(ifp);
+
 		/*
+		 * XXXRW: Locks dropped for in_ifscrub and in_ifadown, but ia
+		 * is still being used.
+		 *
 		 * in_ifscrub kills the interface route.
 		 */
 		in_ifscrub(ifp, ia);
+
 		/*
 		 * in_ifadown gets rid of all the rest of
 		 * the routes.  This is not quite the right
@@ -540,8 +586,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	}
 
 	/*
-	 * Protect from ipintr() traversing address list while we're modifying
-	 * it.
+	 * XXXRW: In a more ideal world, we would still be holding
+	 * IF_ADDR_LOCK here.
 	 */
 	IF_ADDR_LOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
@@ -571,6 +617,10 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	IFAFREE(&ia->ia_ifa);
 	splx(s);
 
+	return (error);
+
+out_unlock:
+	IF_ADDR_UNLOCK(ifp);
 	return (error);
 }
 
