@@ -4,11 +4,6 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-
-<!-- Text constants which probably don't need to be changed.-->
-
-<!ENTITY % include.historic "IGNORE">
-<!ENTITY % no.include.historic "IGNORE">
 ]>
 
 <article>
@@ -212,7 +207,7 @@
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
-      <para></para>
+      <para>&os; DTrace subsystem now supports a probes for process execution.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -228,7 +223,29 @@
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
-	  <para></para>
+	  <para>The &man.agp.4; now supports Intel G4X series graphics
+	    chipsets.</para>
+
+	  <para>The DRM, a kernel module named Direct Rendering
+	    Manager that gives direct hardware access to DRI clients,
+	    has been updated.  Support for AMD/ATI r500 and IGP based
+	    chips, XGI V3XE/V5/V8, and Intel i915 chipsets has been
+	    improved.</para>
+
+	  <para>The &man.snd.hda.4; driver has been updated.  Changes
+	    include: multiple codec per HDA bus, multiple functional
+	    gropups per codec, multiple audio devices per functional
+	    group, digital (SPDIF/HDMI) audio input/output,
+	    suspend/resume, and part of multichannel audio.</para>
+
+	  <para>Note that due to added HDMI audio and logical audio
+	    devices support, updated driver often provides several PCM
+	    devices.  In some cases it can make system default audio
+	    device no longer corresponding to the users's habbitual
+	    audio connectors.  In such cases the default device can be
+	    specified in audio application setup or defined globally
+	    via <varname>hw.snd.default_unit sysctl</varname>
+	    as described in the &man.sound.4; manual page.</para>
 	</sect4>
 
 	<sect4 id="net-if">
@@ -242,15 +259,28 @@
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
-	<para></para>
+	<para>The &man.jail.8; subsystem now supports start with a
+	  specific route FIB.</para>
 
+	<para>The &man.ng.netflow.4; Netgraph node now supports
+	  ability to generate egress netflow instead or in addition to
+	  ingress.  A <literal>NGM_NETFLOW_SETCONFIG</literal> control
+	  message has been added to control the new functionality.</para>
       </sect3>
 
       <sect3 id="disks">
 	<title>Disks and Storage</title>
 
-	<para></para>
+	<para>The &man.mmc.4; and &man.mmcsd.4; driver now support MMC
+	  and SDHC cards, high speed timing, wide bus, and multiblock
+	  transfers.</para>
 
+	<para>The &man.sdhci.4; driver has been added.  This supports
+	  PCI devices with class 8 and subclass 5 accord- ing to SD Host
+	  Controller Specification.</para>
+
+	<para>The &man.mmc.4; &man.mmcsd.4;, and &man.sdhci.4; driver
+	  are now included as a kernel module.</para>
       </sect3>
 
       <sect3 id="fs">
@@ -263,7 +293,35 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
-      <para></para>
+      <para>The &man.fetch.1; utility now supports an
+	<option>-i</option> flag which supports If-Modified-Since HTTP
+	request.</para>
+
+      <para>The &man.fsck.8; utility now supports a
+	<option>-C</option> flag for catastriphic recovery mode, which
+	will enable certain aggressive operations that can make
+	&man.fsck.8; to survive with file systems that has very
+	serious data damage, which is an useful last resort when on
+	disk data damage is very serious and causes &man.fsck.8; to
+	crash otherwise.</para>
+
+      <para>A bug in the &man.ipfw.8; utility which displays extra
+	messages for a NAT rule even when a <option>-q</option> flag
+	is specified.</para>
+
+      <para>The &man.powerd.8; program has been improved.  Changes
+	include reasonable CPU load estimation on SMP systems and a
+	new mode named as <literal>hiadaptive</literal> for AC-powered
+	systems which rises frequency twice faster, drops it 4 times
+	slower, prefers twice lower CPU load and has additional delay
+	before leaving the highest frequency after the period of
+	maximum load.</para>
+
+      <para>The &man.strndup.3; function has been added.</para>
+
+      <para>A bug in the &man.rpc.yppasswdd.8; program which leaves a
+	zombie process when a password or default shell is changed has
+	been fixed.</para>
 
       <sect3 id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
@@ -281,14 +339,13 @@
       <para>The timezone database has been updated from
 	the <application>tzdata2008h</application> release to
 	the <application>tzdata2009f</application> release.</para>
-
     </sect2>
 
     <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
-      <para></para>
-
+      <para>A bug in the &man.pkg.create.1; which prevents the
+	<option>-n</option> flag from working has been fixed.</para>
     </sect2>
 
     <sect2 id="releng">
