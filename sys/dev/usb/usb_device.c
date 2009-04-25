@@ -90,6 +90,22 @@ int	usb2_template = 0;
 SYSCTL_INT(_hw_usb2, OID_AUTO, template, CTLFLAG_RW,
     &usb2_template, 0, "Selected USB device side template");
 
+static const char* statestr[USB_STATE_MAX] = {
+	[USB_STATE_DETACHED]	= "DETACHED",
+	[USB_STATE_ATTACHED]	= "ATTACHED",
+	[USB_STATE_POWERED]	= "POWERED",
+	[USB_STATE_ADDRESSED]	= "ADDRESSED",
+	[USB_STATE_CONFIGURED]	= "CONFIGURED",
+	[USB_STATE_SUSPENDED]	= "SUSPENDED"
+};
+
+const char *
+usb2_statestr(enum usb_dev_state state)
+{
+	KASSERT(state < USB_STATE_MAX, ("invalid udev state"));
+
+	return (statestr[state]);
+}
 
 /*------------------------------------------------------------------------*
  *	usb2_get_pipe_by_addr
@@ -2448,19 +2464,11 @@ usb2_peer_can_wakeup(struct usb2_device *udev)
 void
 usb2_set_device_state(struct usb2_device *udev, enum usb_dev_state state)
 {
-	static const char* statestr[USB_STATE_MAX] = {
-		[USB_STATE_DETACHED]	= "DETACHED",
-		[USB_STATE_ATTACHED]	= "ATTACHED",
-		[USB_STATE_POWERED]	= "POWERED",
-		[USB_STATE_ADDRESSED]	= "ADDRESSED",
-		[USB_STATE_CONFIGURED]	= "CONFIGURED",
-		[USB_STATE_SUSPENDED]	= "SUSPENDED"
-	};
 
 	KASSERT(state < USB_STATE_MAX, ("invalid udev state"));
 
 	DPRINTF("udev %p state %s -> %s\n", udev,
-	    statestr[udev->state], statestr[state]);
+	    usb2_statestr(udev->state), usb2_statestr(state));
 	udev->state = state;
 }
 
