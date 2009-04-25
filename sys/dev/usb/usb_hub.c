@@ -544,7 +544,7 @@ uhub_explore(struct usb2_device *udev)
 	if (udev->depth > USB_HUB_MAX_DEPTH) {
 		return (USB_ERR_TOO_DEEP);
 	}
-	if (udev->pwr_save.suspended) {
+	if (udev->state == USB_STATE_SUSPENDED) {
 		/* need to wait until the child signals resume */
 		DPRINTF("Device is suspended!\n");
 		return (0);
@@ -1518,7 +1518,7 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 		udev->pwr_save.write_refs += val;
 	}
 
-	if (udev->pwr_save.suspended)
+	if (udev->state == USB_STATE_SUSPENDED)
 		needs_explore =
 		    (udev->pwr_save.write_refs != 0) ||
 		    ((udev->pwr_save.read_refs != 0) &&
@@ -1600,7 +1600,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 		    (rem_wakeup == 0))) {
 
 			/* check if we are suspended */
-			if (udev->pwr_save.suspended != 0) {
+			if (udev->state == USB_STATE_SUSPENDED) {
 				USB_BUS_UNLOCK(bus);
 				usb2_dev_resume_peer(udev);
 				USB_BUS_LOCK(bus);
@@ -1608,7 +1608,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 		} else if (temp >= limit) {
 
 			/* check if we are not suspended */
-			if (udev->pwr_save.suspended == 0) {
+			if (udev->state != USB_STATE_SUSPENDED) {
 				USB_BUS_UNLOCK(bus);
 				usb2_dev_suspend_peer(udev);
 				USB_BUS_LOCK(bus);
@@ -1647,7 +1647,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 		if (temp < mintime)
 			mintime = temp;
 
-		if (udev->pwr_save.suspended == 0) {
+		if (udev->state != USB_STATE_SUSPENDED) {
 			type_refs[0] += udev->pwr_save.type_refs[0];
 			type_refs[1] += udev->pwr_save.type_refs[1];
 			type_refs[2] += udev->pwr_save.type_refs[2];
@@ -1697,7 +1697,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 		return;
 
 	/* check if already resumed */
-	if (udev->pwr_save.suspended == 0)
+	if (udev->state != USB_STATE_SUSPENDED)
 		return;
 
 	/* we need a parent HUB to do resume */
@@ -1737,7 +1737,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 	}
 	USB_BUS_LOCK(bus);
 	/* set that this device is now resumed */
-	udev->pwr_save.suspended = 0;
+	usb2_set_device_state(udev, USB_STATE_CONFIGURED);
 #if USB_HAVE_POWERD
 	/* make sure that we don't go into suspend right away */
 	udev->pwr_save.last_xfer_time = ticks;
@@ -1797,7 +1797,7 @@ repeat:
 		return;
 
 	/* check if already suspended */
-	if (udev->pwr_save.suspended)
+	if (udev->state == USB_STATE_SUSPENDED)
 		return;
 
 	/* we need a parent HUB to do suspend */
@@ -1819,7 +1819,7 @@ repeat:
 			if (child == NULL)
 				continue;
 
-			if (child->pwr_save.suspended)
+			if (child->state == USB_STATE_SUSPENDED)
 				continue;
 
 			DPRINTFN(1, "Port %u is busy on the HUB!\n", x + 1);
@@ -1846,7 +1846,7 @@ repeat:
 	 * Set that this device is suspended. This variable must be set
 	 * before calling USB controller suspend callbacks.
 	 */
-	udev->pwr_save.suspended = 1;
+	usb2_set_device_state(udev, USB_STATE_SUSPENDED);
 	USB_BUS_UNLOCK(udev->bus);
 
 	if (udev->bus->methods->device_suspend != NULL) {

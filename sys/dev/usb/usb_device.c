@@ -457,6 +457,8 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 		 * the current config number and index.
 		 */
 		err = usb2_req_set_config(udev, NULL, USB_UNCONFIG_NO);
+		if (udev->state == USB_STATE_CONFIGURED)
+			usb2_set_device_state(udev, USB_STATE_ADDRESSED);
 		goto done;
 	}
 	/* get the full config descriptor */
@@ -524,6 +526,7 @@ usb2_set_config_index(struct usb2_device *udev, uint8_t index)
 	udev->power = power;
 	udev->curr_config_no = cdp->bConfigurationValue;
 	udev->curr_config_index = index;
+	usb2_set_device_state(udev, USB_STATE_CONFIGURED);
 
 	/* Set the actual configuration value. */
 	err = usb2_req_set_config(udev, NULL, cdp->bConfigurationValue);
@@ -980,7 +983,7 @@ usb2_detach_device_sub(struct usb2_device *udev, device_t *ppdev,
 		    udev->port_no, udev->address);
 
 		if (device_is_attached(dev)) {
-			if (udev->flags.suspended) {
+			if (udev->state == USB_STATE_SUSPENDED) {
 				err = DEVICE_RESUME(dev);
 				if (err) {
 					device_printf(dev, "Resume failed!\n");
@@ -1120,7 +1123,7 @@ usb2_probe_and_attach_sub(struct usb2_device *udev,
 		uaa->temp_dev = NULL;
 		device_set_ivars(iface->subdev, NULL);
 
-		if (udev->flags.suspended) {
+		if (udev->state == USB_STATE_SUSPENDED) {
 			err = DEVICE_SUSPEND(iface->subdev);
 			if (err)
 				device_printf(iface->subdev, "Suspend failed\n");
@@ -1341,12 +1344,12 @@ usb2_suspend_resume(struct usb2_device *udev, uint8_t do_suspend)
 
 	USB_BUS_LOCK(udev->bus);
 	/* filter the suspend events */
-	if (udev->flags.suspended == do_suspend) {
+	if ((udev->state == USB_STATE_SUSPENDED && do_suspend) ||
+	    (udev->state != USB_STATE_SUSPENDED && !do_suspend)) {
 		USB_BUS_UNLOCK(udev->bus);
 		/* nothing to do */
 		return (0);
 	}
-	udev->flags.suspended = do_suspend;
 	USB_BUS_UNLOCK(udev->bus);
 
 	/* do the suspend or resume */
@@ -1471,6 +1474,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	udev->bus = bus;
 	udev->address = USB_START_ADDR;	/* default value */
 	udev->plugtime = (usb2_ticks_t)ticks;
+	usb2_set_device_state(udev, USB_STATE_POWERED);
 	/*
 	 * We need to force the power mode to "on" because there are plenty
 	 * of USB devices out there that do not work very well with
@@ -1572,6 +1576,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 			goto done;
 		}
 	}
+	usb2_set_device_state(udev, USB_STATE_ADDRESSED);
 
 	/*
 	 * Get the first 8 bytes of the device descriptor !
@@ -1927,7 +1932,8 @@ usb2_free_device(struct usb2_device *udev, uint8_t flag)
 
 	DPRINTFN(4, "udev=%p port=%d\n", udev, udev->port_no);
 
-	bus = udev->bus;;
+	bus = udev->bus;
+	usb2_set_device_state(udev, USB_STATE_DETACHED);
 
 #if USB_HAVE_UGEN
 	usb2_notify_addq("-", udev);
@@ -2437,4 +2443,29 @@ usb2_peer_can_wakeup(struct usb2_device *udev)
 		return (cdp->bmAttributes & UC_REMOTE_WAKEUP);
 	}
 	return (0);			/* not supported */
+}
+
+void
+usb2_set_device_state(struct usb2_device *udev, enum usb_dev_state state)
+{
+	static const char* statestr[USB_STATE_MAX] = {
+		[USB_STATE_DETACHED]	= "DETACHED",
+		[USB_STATE_ATTACHED]	= "ATTACHED",
+		[USB_STATE_POWERED]	= "POWERED",
+		[USB_STATE_ADDRESSED]	= "ADDRESSED",
+		[USB_STATE_CONFIGURED]	= "CONFIGURED",
+		[USB_STATE_SUSPENDED]	= "SUSPENDED"
+	};
+
+	KASSERT(state < USB_STATE_MAX, ("invalid udev state"));
+
+	DPRINTF("udev %p state %s -> %s\n", udev,
+	    statestr[udev->state], statestr[state]);
+	udev->state = state;
+}
+
+int
+usb2_device_attached(struct usb2_device *udev)
+{
+	return (udev->state > USB_STATE_DETACHED);
 }
