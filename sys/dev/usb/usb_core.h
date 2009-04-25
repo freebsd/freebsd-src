@@ -552,5 +552,6 @@ void	usb2_set_parent_iface(struct usb2_device *udev, uint8_t iface_index,
 uint8_t	usb2_get_bus_index(struct usb2_device *udev);
 uint8_t	usb2_get_device_index(struct usb2_device *udev);
 void	usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode);
+int	usb2_device_attached(struct usb2_device *udev);
 
 #endif					/* _USB2_CORE_H_ */

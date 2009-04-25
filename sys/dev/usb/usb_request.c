@@ -271,6 +271,12 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	    req->wIndex[1], req->wIndex[0],
 	    req->wLength[1], req->wLength[0]);
 
+	/* Check if the device is still alive */
+	if (udev->state < USB_STATE_POWERED) {
+		DPRINTF("usb device has gone\n");
+		return (USB_ERR_NOT_CONFIGURED);
+	}
+
 	/*
 	 * Set "actlen" to a known value in case the caller does not
 	 * check the return value:

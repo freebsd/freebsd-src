@@ -62,4 +62,16 @@ enum {
 	USB_MODE_MAX
 };
 
+/*
+ * The "USB_MODE" macro defines all the supported device states.
+ */
+enum usb_dev_state {
+	USB_STATE_DETACHED,
+	USB_STATE_ATTACHED,
+	USB_STATE_POWERED,
+	USB_STATE_ADDRESSED,
+	USB_STATE_CONFIGURED,
+	USB_STATE_SUSPENDED,
+	USB_STATE_MAX,
+};
 #endif					/* _USB2_REVISION_H_ */
