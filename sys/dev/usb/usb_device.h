@@ -85,7 +85,6 @@ struct usb2_interface {
 struct usb2_device_flags {
 	uint8_t	usb2_mode:1;		/* USB mode (see USB_MODE_XXX) */
 	uint8_t	self_powered:1;		/* set if USB device is self powered */
-	uint8_t	suspended:1;		/* set if USB device is suspended */
 	uint8_t	no_strings:1;		/* set if USB device does not support
 					 * strings */
 	uint8_t	remote_wakeup:1;	/* set if remote wakeup is enabled */
@@ -101,7 +100,6 @@ struct usb2_power_save {
 	usb2_size_t type_refs[4];	/* transfer reference count */
 	usb2_size_t read_refs;		/* data read references */
 	usb2_size_t write_refs;		/* data write references */
-	uint8_t	suspended;		/* set if USB device is suspended */
 };
 
 /*
@@ -139,6 +137,7 @@ struct usb2_device {
 #endif
 	usb2_ticks_t plugtime;		/* copy of "ticks" */
 
+	enum usb_dev_state state;
 	uint16_t refcount;
 #define	USB_DEV_REF_MAX 0xffff
 
@@ -205,5 +204,7 @@ void	*usb2_find_descriptor(struct usb2_device *udev, void *id,
 void	usb_linux_free_device(struct usb_device *dev);
 uint8_t	usb2_peer_can_wakeup(struct usb2_device *udev);
 struct usb2_pipe *usb2_pipe_foreach(struct usb2_device *udev, struct usb2_pipe *pipe);
+void	usb2_set_device_state(struct usb2_device *udev,
+	    enum usb_dev_state state);
 
 #endif					/* _USB2_DEVICE_H_ */
