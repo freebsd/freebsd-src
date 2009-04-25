@@ -515,6 +515,7 @@ typedef struct malloc_type *usb2_malloc_type;
 /* prototypes */
 
 const char *usb2_errstr(usb2_error_t error);
+const char *usb2_statestr(enum usb_dev_state state);
 struct usb2_config_descriptor *usb2_get_config_descriptor(
 	    struct usb2_device *udev);
 struct usb2_device_descriptor *usb2_get_device_descriptor(
