@@ -1020,7 +1020,7 @@ ohci_check_transfer_sub(struct usb2_xfer *xfer)
 		 * writing the BLF and CLF bits:
 		 */
 
-		if (xfer->xroot->udev->pwr_save.suspended) {
+		if (xfer->xroot->udev->state == USB_STATE_SUSPENDED) {
 			/* nothing to do */
 		} else if (xfer->pipe->methods == &ohci_device_bulk_methods) {
 			ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
@@ -1589,7 +1589,7 @@ ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
 
 	ed->ed_headp = td->td_self;
 
-	if (xfer->xroot->udev->pwr_save.suspended == 0) {
+	if (xfer->xroot->udev->state != USB_STATE_SUSPENDED) {
 		/* the append function will flush the endpoint descriptor */
 		OHCI_APPEND_QH(ed, *ed_last);
 
