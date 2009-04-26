@@ -273,6 +273,10 @@ ieee80211_start(struct ifnet *ifp)
 		 */
 		m->m_pkthdr.rcvif = (void *)ni;
 
+		/* XXX fragmented frames not handled */
+		if (bpf_peers_present(vap->iv_rawbpf))
+			bpf_mtap(vap->iv_rawbpf, m);
+
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
