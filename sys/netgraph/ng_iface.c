@@ -209,8 +209,21 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
+static vnet_attach_fn ng_iface_iattach;
+static vnet_detach_fn ng_iface_idetach;
+
 #ifdef VIMAGE_GLOBALS
 static struct unrhdr	*ng_iface_unit;
+#endif
+
+#ifndef VIMAGE_GLOBALS
+static vnet_modinfo_t vnet_ng_iface_modinfo = {
+	.vmi_id		= VNET_MOD_NG_IFACE,
+	.vmi_name	= "ng_iface",
+	.vmi_dependson	= VNET_MOD_NETGRAPH,
+	.vmi_iattach	= ng_iface_iattach,
+	.vmi_idetach	= ng_iface_idetach
+};
 #endif
 
 /************************************************************************
@@ -836,14 +849,40 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_ng_iface_modinfo);
+#else
+		ng_iface_iattach(NULL);
+#endif
 		break;
 	case MOD_UNLOAD:
-		delete_unrhdr(V_ng_iface_unit);
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_deregister(&vnet_ng_iface_modinfo);
+#else
+		ng_iface_idetach(NULL);
+#endif
 		break;
 	default:
 		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);
+}
+
+static int ng_iface_iattach(const void *unused)
+{
+	INIT_VNET_NETGRAPH(curvnet);
+
+	V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
+
+	return (0);
+}
+
+static int ng_iface_idetach(const void *unused)
+{
+	INIT_VNET_NETGRAPH(curvnet);
+
+	delete_unrhdr(V_ng_iface_unit);
+
+	return (0);
 }

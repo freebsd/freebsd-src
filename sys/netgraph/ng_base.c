@@ -84,6 +84,8 @@ struct vnet_netgraph vnet_netgraph_0;
 /* Mutex to protect topology events. */
 static struct mtx	ng_topo_mtx;
 
+static vnet_attach_fn vnet_netgraph_iattach;
+
 #ifdef	NETGRAPH_DEBUG
 static struct mtx	ng_nodelist_mtx; /* protects global node/hook lists */
 static struct mtx	ngq_mtx;	/* protects the queue item list */
@@ -227,7 +229,6 @@ static int	ng_mkpeer(node_p node, const char *name,
 
 /* Imported, these used to be externally visible, some may go back. */
 void	ng_destroy_hook(hook_p hook);
-node_p	ng_name2noderef(node_p node, const char *name);
 int	ng_path2noderef(node_p here, const char *path,
 	node_p *dest, hook_p *lasthook);
 int	ng_make_node(const char *type, node_p *nodepp);
@@ -3068,6 +3069,27 @@ ng_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_netgraph_modinfo = {
+	.vmi_id		= VNET_MOD_NETGRAPH,
+	.vmi_name	= "netgraph",
+#ifdef VIMAGE
+	.vmi_size	= sizeof(struct vnet_netgraph),
+#endif
+	.vmi_iattach	= vnet_netgraph_iattach
+};
+#endif
+
+static int
+vnet_netgraph_iattach(const void *arg __unused)
+{
+	INIT_VNET_NETGRAPH(curvnet);
+
+	V_nextID = 1;
+
+	return (0);
+}
+
 /*
  * Handle loading and unloading for this code.
  * The only thing we need to link into is the NETISR strucure.
@@ -3082,7 +3104,11 @@ ngb_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Initialize everything. */
-		V_nextID = 1;
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_netgraph_modinfo);
+#else
+		vnet_netgraph_iattach(NULL);
+#endif
 		NG_WORKLIST_LOCK_INIT();
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
 		    MTX_DEF);
