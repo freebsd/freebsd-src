@@ -915,10 +915,13 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_BSSID:
 		if (ireq->i_len != IEEE80211_ADDR_LEN)
 			return EINVAL;
-		error = copyout(vap->iv_state == IEEE80211_S_RUN ?
-					vap->iv_bss->ni_bssid :
-					vap->iv_des_bssid,
-				ireq->i_data, ireq->i_len);
+		if (vap->iv_state == IEEE80211_S_RUN) {
+			error = copyout(vap->iv_opmode == IEEE80211_M_WDS ?
+			    vap->iv_bss->ni_macaddr : vap->iv_bss->ni_bssid,
+			    ireq->i_data, ireq->i_len);
+		} else
+			error = copyout(vap->iv_des_bssid, ireq->i_data,
+			    ireq->i_len);
 		break;
 	case IEEE80211_IOC_WPAIE:
 		error = ieee80211_ioctl_getwpaie(vap, ireq, ireq->i_type);
