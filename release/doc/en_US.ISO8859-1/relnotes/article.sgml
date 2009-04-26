@@ -265,6 +265,14 @@
 	<literal>KTR_CALLOUT</literal> class to note when a callout
 	routine finishes executing.</para>
 
+      <para>Types of variables used to track amount of allocated
+	System V shared memory from <literal>int</literal> to
+	<literal>size_t</literal>.  This makes it possible to use more
+	than 2 GB shared memory segments on 64-bit architectures.
+	Please note the new BUGS section in &man.shmctl.2; and
+	<filename>/usr/src/UPDATING</filename> for limitations of this
+	temporal solution.</para>
+
       <para>The &os; 32-bit system call translation layer now
 	supports installing 32-bit system calls for
 	<literal>VFS_AIO</literal>.</para>
@@ -307,6 +315,9 @@
 	<para>The &man.acpi.asus.4; driver now supports Asus A8Sr
 	  notebooks.</para>
 
+	<para arch="powerpc">Support for the AltiVec, a floating point
+	  and integer SIMD instruction set has been added.</para>
+
 	<para>The &man.cpuctl.4; driver, which provides a special
 	  device <filename>/dev/cpuctl</filename> as an interface to
 	  the system CPU and functionality to retrieve CPUID
@@ -327,6 +338,13 @@
 	  added to force this behavior by setting it to
 	  non-zero.</para>
 
+	<para>In the &man.pci.4; subsystem INTx is now disabled when
+	  MSI/MSIX is enabled.  This change fixes interrupt storm
+	  related issues.</para>
+
+	<para>A &man.sysctl.3; leaf node has a flag to tag itself as
+	  MPSAFE now.</para>
+
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
@@ -338,6 +356,10 @@
 	    has been updated.  Support for AMD/ATI r500 and IGP based
 	    chips, XGI V3XE/V5/V8, and Intel i915 chipsets has been
 	    improved.</para>
+
+	  <para>A new loader tunable <varname>hw.drm.msi</varname>
+	    which controls if DRM uses MSI or not.  This is set to
+	    <literal>1</literal> (enabled) by default.</para>
 
 	  <para>The snd_au88x0(4) driver for Aureal Vortex
 	    1/2/Advantage PCI has been removed because this was
@@ -361,6 +383,13 @@
 
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
+
+	  <para arch="amd64,i386">The &man.ale.4; driver are now
+	    included in the <filename>GENERIC</filename>
+	    kernel.</para>
+
+	  <para>The &man.ath.hal.4;, Atheros Hardware Access Layer,
+	    has been updated to the open source version.</para>
 
 	  <para>The &man.axe.4; driver has been improved in
 	    performance by eliminating extra context switch and now
@@ -481,6 +510,25 @@
 
 	<para>The &man.ata.4; driver now supports Marvell PATA M88SX6121.</para>
 
+	<para>The &man.ataraid.4; driver now has an initial support
+	  for DDF metadata found on Adaptec HostRAID controllers.
+	  Note that spares and rebuilds are not supported yet.</para>
+
+	<para>The &man.cam.4; SCSI subsystem now supports a sysctl
+	  variable <varname>kern.cam.cd.retry_count</varname>.  This
+	  controls the number of retries for the CD media.  When
+	  trying to read scratched or damaged CDs and DVDs, the
+	  default mechanism is sub-optimal, and programs like
+	  <application>ddrescue</application> do much better if you
+	  turn off the retries entirely since their algorithms do it
+	  by themselves.  This value is set to <literal>4</literal>
+	  (for a total 5 attempts) by default.  Setting to 0 turns off
+	  all retry attempts.</para>
+
+	<para>A bug in the &man.ciss.4; driver which caused low
+	  <quote>max device openings</quote> count that has led
+	  to poor performance has been fixed.</para>
+
 	<para>An issue in the &man.gvinum.8; with access permissions
 	  to underlying disks used by a gvinum plex has been fixed.
 	  If the plex is a raid5 plex and is being written to, parity data might
@@ -539,6 +587,11 @@
 	invoked from <filename>/rescue</filename>, has been
 	fixed.</para>
 
+      <para>The &man.btpand.8; daemon from NetBSD has been added.
+	This daemon provides support for Bluetooth Network Access
+	Point (NAP), Group Ad-hoc Network (GN) and Personal Area
+	Network User (PANU) profiles.</para>
+
       <para>The &man.config.8; utility now supports
 	multiple <varname>makeoption</varname> lines.</para>
 
@@ -564,7 +617,11 @@
 
       <para>The &man.fetch.1; utility now supports an
 	<option>-i</option> flag which supports If-Modified-Since HTTP
-	request.</para>
+	1.1 request.  If specified it will cause the file to be
+	downloaded only if it is more recent than the mtime of the
+	file.  Also, <application>libfetch</application> now accepts
+	the mtime in the url structure and a flag to indicate when
+	this behavior is desired.</para>
 
       <para>The &man.fsck.8; utility now supports a
 	<option>-D</option> flag for damaged recovery mode, which
