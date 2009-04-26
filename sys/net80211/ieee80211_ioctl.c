@@ -3048,8 +3048,13 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 			    vap->iv_opmode != IEEE80211_M_STA)
 				return EINVAL;
 			vap->iv_flags |= IEEE80211_F_DWDS;
-		} else
+			if (vap->iv_opmode == IEEE80211_M_STA)
+				vap->iv_flags_ext |= IEEE80211_FEXT_4ADDR;
+		} else {
 			vap->iv_flags &= ~IEEE80211_F_DWDS;
+			if (vap->iv_opmode == IEEE80211_M_STA)
+				vap->iv_flags_ext &= ~IEEE80211_FEXT_4ADDR;
+		}
 		break;
 	case IEEE80211_IOC_INACTIVITY:
 		if (ireq->i_val)
