@@ -292,6 +292,12 @@ struct ieee80211com {
 	/* BAR response received */
 	void			(*ic_bar_response)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *, int status);
+	/* start/stop doing A-MPDU rx processing for a station */
+	int			(*ic_ampdu_rx_start)(struct ieee80211_node *,
+				    struct ieee80211_rx_ampdu *, int baparamset,
+				    int batimeout, int baseqctl);
+	void			(*ic_ampdu_rx_stop)(struct ieee80211_node *,
+				    struct ieee80211_rx_ampdu *);
 };
 
 struct ieee80211_aclator;
