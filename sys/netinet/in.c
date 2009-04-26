@@ -1100,7 +1100,6 @@ in_ifdetach(struct ifnet *ifp)
 static void
 in_purgemaddrs(struct ifnet *ifp)
 {
-	INIT_VNET_INET(ifp->if_vnet);
 	LIST_HEAD(,in_multi) purgeinms;
 	struct in_multi		*inm, *tinm;
 	struct ifmultiaddr	*ifma;

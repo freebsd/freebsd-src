@@ -1206,7 +1206,6 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 static void
 rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 {
-	INIT_VNET_NET(curvnet);
 	struct m_tag *tag;
 
 	/*
