@@ -384,7 +384,17 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (ieee80211_classify(ni, m))
 		senderr(EIO);		/* XXX */
 
-	BPF_MTAP(ifp, m);
+	if (bpf_peers_present(vap->iv_rawbpf))
+		bpf_mtap(vap->iv_rawbpf, m);
+
+	IEEE80211_NODE_STAT(ni, tx_data);
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		IEEE80211_NODE_STAT(ni, tx_mcast);
+		m->m_flags |= M_MCAST;
+	} else
+		IEEE80211_NODE_STAT(ni, tx_ucast);
+	/* NB: ieee80211_encap does not include 802.11 header */
+	IEEE80211_NODE_STAT_ADD(ni, tx_bytes, m->m_pkthdr.len);
 
 	/*
 	 * NB: DLT_IEEE802_11_RADIO identifies the parameters are
