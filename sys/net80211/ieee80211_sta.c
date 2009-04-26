@@ -877,6 +877,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
 		vap->iv_recv_ctl(ni, m, subtype);
 		goto out;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 		    wh, NULL, "bad frame type 0x%x", type);
