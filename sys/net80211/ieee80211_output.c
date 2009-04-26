@@ -1138,10 +1138,6 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		IEEE80211_NODE_STAT(ni, tx_ucast);
 	IEEE80211_NODE_STAT_ADD(ni, tx_bytes, datalen);
 
-	/* XXX fragmented frames not handled */
-	if (bpf_peers_present(vap->iv_rawbpf))
-		bpf_mtap(vap->iv_rawbpf, m);
-
 	return m;
 bad:
 	if (m != NULL)
