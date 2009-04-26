@@ -108,6 +108,8 @@ struct ieee80211_appie {
 
 struct ieee80211_tdma_param;
 struct ieee80211_rate_table;
+struct ieee80211_tx_ampdu;
+struct ieee80211_rx_ampdu;
 
 struct ieee80211_stageq {
 	struct mbuf		*head;		/* frames linked w/ m_nextpkt */
