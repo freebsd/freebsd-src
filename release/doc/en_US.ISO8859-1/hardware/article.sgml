@@ -29,6 +29,7 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -344,7 +345,7 @@
 	you to try it and send a note to the &a.sparc; with your
 	results, including which devices work and which do not.</para>
 
-      <para>The following systems are fully supported by &os;.</para>
+      <para>The following systems are fully supported by &os;:</para>
 
       <itemizedlist>
 	<listitem>
@@ -485,7 +486,7 @@
       </itemizedlist>
 
       <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on
-	&ultrasparc; III and beyond are also supported by &os, which includes
+	&ultrasparc; III and beyond are also supported by &os;, which includes
 	the following known working systems:</para>
 
       <itemizedlist>
