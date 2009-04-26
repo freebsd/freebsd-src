@@ -132,6 +132,7 @@ tcptw_auto_size(void)
 static int
 sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int error, new;
 
 	if (maxtcptw == 0)
@@ -158,6 +159,7 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, nolocaltimewait,
 void
 tcp_tw_zone_change(void)
 {
+	INIT_VNET_INET(curvnet);
 
 	if (maxtcptw == 0)
 		uma_zone_set_max(V_tcptw_zone, tcptw_auto_size());

@@ -1709,6 +1709,7 @@ X_ip_rsvp_force_done(struct socket *so __unused)
 static void
 X_rsvp_input(struct mbuf *m, int off __unused)
 {
+	INIT_VNET_INET(curvnet);
 
 	if (!V_rsvp_on)
 		m_freem(m);

@@ -289,8 +289,7 @@ static void
 in6_rtqtimo(void *rock)
 {
 	CURVNET_SET_QUIET((struct vnet *) rock);
-	INIT_VNET_NET((struct vnet *) rock);
-	INIT_VNET_INET6((struct vnet *) rock);
+	INIT_VNET_INET6(curvnet);
 	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
 	struct timeval atv;
@@ -377,8 +376,7 @@ static void
 in6_mtutimo(void *rock)
 {
 	CURVNET_SET_QUIET((struct vnet *) rock);
-	INIT_VNET_NET((struct vnet *) rock);
-	INIT_VNET_INET6((struct vnet *) rock);
+	INIT_VNET_INET6(curvnet);
 	struct radix_node_head *rnh = rock;
 	struct mtuex_arg arg;
 	struct timeval atv;

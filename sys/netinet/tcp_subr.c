@@ -288,6 +288,7 @@ static struct mtx isn_mtx;
 static void
 tcp_zone_change(void *tag)
 {
+	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);

@@ -213,6 +213,7 @@ char *s;
 
 int ipfattach()
 {
+	INIT_VNET_INET(curvnet);
 #ifdef USE_SPL
 	int s;
 #endif
@@ -264,6 +265,7 @@ int ipfattach()
  */
 int ipfdetach()
 {
+	INIT_VNET_INET(curvnet);
 #ifdef USE_SPL
 	int s;
 #endif
@@ -646,6 +648,7 @@ static int fr_send_ip(fin, m, mpp)
 fr_info_t *fin;
 mb_t *m, **mpp;
 {
+	INIT_VNET_INET(curvnet);
 	fr_info_t fnew;
 	ip_t *ip, *oip;
 	int hlen;

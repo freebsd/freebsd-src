@@ -174,7 +174,6 @@ static int vnet_loif_iattach(const void *unused __unused)
 static int
 loop_modevent(module_t mod, int type, void *data)
 {
-	INIT_VNET_NET(curvnet);
 
 	switch (type) {
 	case MOD_LOAD:

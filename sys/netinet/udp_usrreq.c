@@ -155,6 +155,7 @@ static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 static void
 udp_zone_change(void *tag)
 {
+	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_udbinfo.ipi_zone, maxsockets);
 }
