@@ -416,6 +416,8 @@ struct ieee80211vap {
 				    uint32_t rstamp);
 	void			(*iv_recv_mgmt)(struct ieee80211_node *,
 				    struct mbuf *, int, int, int, uint32_t);
+	void			(*iv_recv_ctl)(struct ieee80211_node *,
+				    struct mbuf *, int);
 	void			(*iv_deliver_data)(struct ieee80211vap *,
 				    struct ieee80211_node *, struct mbuf *);
 #if 0

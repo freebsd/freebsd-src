@@ -70,6 +70,7 @@ static	int sta_input(struct ieee80211_node *, struct mbuf *,
 	    int rssi, int noise, uint32_t rstamp);
 static void sta_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	    int subtype, int rssi, int noise, uint32_t rstamp);
+static void sta_recv_ctl(struct ieee80211_node *, struct mbuf *, int subtype);
 
 void
 ieee80211_sta_attach(struct ieee80211com *ic)
@@ -93,6 +94,7 @@ sta_vattach(struct ieee80211vap *vap)
 	vap->iv_newstate = sta_newstate;
 	vap->iv_input = sta_input;
 	vap->iv_recv_mgmt = sta_recv_mgmt;
+	vap->iv_recv_ctl = sta_recv_ctl;
 	vap->iv_opdetach = sta_vdetach;
 	vap->iv_bmiss = sta_beacon_miss;
 }
@@ -872,6 +874,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
+		vap->iv_recv_ctl(ni, m, subtype);
 		goto out;
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
@@ -1596,4 +1599,9 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	}
 #undef ISREASSOC
 #undef ISPROBE
+}
+
+static void
+sta_recv_ctl(struct ieee80211_node *ni, struct mbuf *m0, int subtype)
+{
 }
