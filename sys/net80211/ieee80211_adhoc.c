@@ -637,11 +637,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 			goto out;
 		}
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
 		vap->iv_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
-		m_freem(m);
-		return IEEE80211_FC0_TYPE_MGT;
+		goto out;
 
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
@@ -657,7 +654,7 @@ err:
 	ifp->if_ierrors++;
 out:
 	if (m != NULL) {
-		if (bpf_peers_present(vap->iv_rawbpf) && need_tap)
+		if (need_tap && bpf_peers_present(vap->iv_rawbpf))
 			bpf_mtap(vap->iv_rawbpf, m);
 		m_freem(m);
 	}
