@@ -683,7 +683,7 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 	if (bytes_read == 0)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Truncated input file");
-	if (buff == NULL)
+	if (*buff == NULL)
 		return (ARCHIVE_FATAL);
 	if (bytes_read > iso9660->entry_bytes_remaining)
 		bytes_read = iso9660->entry_bytes_remaining;
