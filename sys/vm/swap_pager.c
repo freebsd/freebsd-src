@@ -1420,8 +1420,7 @@ swp_pager_async_iodone(struct buf *bp)
 			 * Note that the requested page, reqpage, is left
 			 * busied, but we still have to wake it up.  The
 			 * other pages are released (unbusied) by 
-			 * vm_page_wakeup().  We do not set reqpage's
-			 * valid bits here, it is up to the caller.
+			 * vm_page_wakeup().
 			 */
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("swp_pager_async_iodone: page %p is mapped", m));
