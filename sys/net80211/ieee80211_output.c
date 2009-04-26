@@ -241,6 +241,13 @@ ieee80211_start(struct ifnet *ifp)
 			ieee80211_free_node(ni);
 			continue;
 		}
+		/*
+		 * Stash the node pointer.  Note that we do this after
+		 * any call to ieee80211_dwds_mcast because that code
+		 * uses any existing value for rcvif to identify the
+		 * interface it (might have been) received on.
+		 */
+		m->m_pkthdr.rcvif = (void *)ni;
 
 		BPF_MTAP(ifp, m);		/* 802.3 tx */
  
@@ -264,14 +271,6 @@ ieee80211_start(struct ifnet *ifp)
 				continue;
 			}
 		}
-
-		/*
-		 * Stash the node pointer and hand the frame off to
-		 * the underlying device.  Note that we do this after
-		 * any call to ieee80211_dwds_mcast because that code
-		 * uses any existing value for rcvif.
-		 */
-		m->m_pkthdr.rcvif = (void *)ni;
 
 		/* XXX fragmented frames not handled */
 		if (bpf_peers_present(vap->iv_rawbpf))
