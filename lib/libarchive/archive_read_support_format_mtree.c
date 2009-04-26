@@ -990,8 +990,8 @@ read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset
 		if (mtree->buff == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
+			return (ARCHIVE_FATAL);
 		}
-		return (ARCHIVE_FATAL);
 	}
 
 	*buff = mtree->buff;
