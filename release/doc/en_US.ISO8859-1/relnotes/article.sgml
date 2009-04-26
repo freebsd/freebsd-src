@@ -254,7 +254,7 @@
 	</listitem>
       </itemizedlist>
 
-      <para>The &man.jail.8; subsystem now supports SCTP(&man.sctp.4;)
+      <para>The &man.jail.8; subsystem now supports SCTP (&man.sctp.4;)
 	with IPv6 in jails.</para>
 
       <para>The &man.kld.4; now supports installing 32-bit system
@@ -445,7 +445,7 @@
 	    fixed.</para>
 
 	  <para>The &man.mxge.4; driver now supports some newer
-	    revisions and 10GBASE-LRM and 10GBASE-Twinax* media
+	    revisions and 10GBASE-LRM and 10GBASE-Twinax media
 	    types.</para>
 
 	  <para>The &man.re.4; driver has been improved.  It now
