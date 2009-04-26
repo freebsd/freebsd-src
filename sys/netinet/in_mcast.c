@@ -392,7 +392,6 @@ static int
 in_getmulti(struct ifnet *ifp, const struct in_addr *group,
     struct in_multi **pinm)
 {
-	INIT_VNET_INET(ifp->if_vnet);
 	struct sockaddr_in	 gsin;
 	struct ifmultiaddr	*ifma;
 	struct in_ifinfo	*ii;
@@ -1808,6 +1807,7 @@ static struct ifnet *
 inp_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in *gsin, const struct in_addr ina)
 {
+	INIT_VNET_INET(curvnet);
 	struct ifnet *ifp;
 
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
@@ -1853,7 +1853,6 @@ static int
 inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -2306,6 +2305,7 @@ static int
 inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	struct in_addr		 addr;
 	struct ip_mreqn		 mreqn;
 	struct ifnet		*ifp;

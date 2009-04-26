@@ -1818,7 +1818,6 @@ static int
 add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint8_t mlen, uint32_t value)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct radix_node_head *rnh;
 	struct table_entry *ent;
 	struct radix_node *rn;
@@ -4535,6 +4534,7 @@ struct ip_fw *ip_fw_default_rule;
 static void
 ipfw_tick(void * __unused unused)
 {
+	INIT_VNET_IPFW(curvnet);
 	struct mbuf *m0, *m, *mnext, **mtailp;
 	int i;
 	ipfw_dyn_rule *q;
@@ -4718,6 +4718,7 @@ ipfw_init(void)
 void
 ipfw_destroy(void)
 {
+	INIT_VNET_IPFW(curvnet);
 	struct ip_fw *reap;
 
 	ip_fw_chk_ptr = NULL;

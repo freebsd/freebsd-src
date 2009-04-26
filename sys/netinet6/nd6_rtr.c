@@ -1549,6 +1549,7 @@ pfxlist_onlink_check()
 int
 nd6_prefix_onlink(struct nd_prefix *pr)
 {
+	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	struct ifaddr *ifa;
 	struct ifnet *ifp = pr->ndpr_ifp;

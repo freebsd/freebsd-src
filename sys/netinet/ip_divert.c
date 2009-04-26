@@ -132,6 +132,7 @@ static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 static void
 div_zone_change(void *tag)
 {
+	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
 }
@@ -723,6 +724,7 @@ struct protosw div_protosw = {
 static int
 div_modevent(module_t mod, int type, void *unused)
 {
+	INIT_VNET_INET(curvnet); /* XXX move to iattach - revisit!!! */
 	int err = 0;
 	int n;
 

@@ -250,6 +250,8 @@ static void in_rtqtimo_one(void *rock);
 static void
 in_rtqtimo(void *rock)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	int fibnum;
 	void *newrock;
 	struct timeval atv;
