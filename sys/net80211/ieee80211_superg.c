@@ -725,8 +725,6 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		mstaged->m_nextpkt = m;
 		mstaged->m_flags |= M_FF; /* NB: mark for encap work */
 	} else {
-		m->m_pkthdr.rcvif = (void *)ni;	/* NB: hold node reference */
-
 		KASSERT(tap->txa_private == NULL,
 		    ("txa_private %p", tap->txa_private));
 		tap->txa_private = m;
