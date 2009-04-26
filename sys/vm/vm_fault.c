@@ -916,13 +916,11 @@ vnode_locked:
 	KASSERT(fs.m->oflags & VPO_BUSY,
 		("vm_fault: page %p not busy!", fs.m));
 	/*
-	 * Sanity check: page must be completely valid or it is not fit to
+	 * Page must be completely valid or it is not fit to
 	 * map into user space.  vm_pager_get_pages() ensures this.
 	 */
-	if (fs.m->valid != VM_PAGE_BITS_ALL) {
-		vm_page_zero_invalid(fs.m, TRUE);
-		printf("Warning: page %p partially invalid on fault\n", fs.m);
-	}
+	KASSERT(fs.m->valid == VM_PAGE_BITS_ALL,
+	    ("vm_fault: page %p partially invalid", fs.m));
 	VM_OBJECT_UNLOCK(fs.object);
 
 	/*
