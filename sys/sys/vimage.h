@@ -121,6 +121,8 @@ struct vnet_modlink {
 int	vi_symlookup(struct kld_sym_lookup *, char *);
 void	vnet_mod_register(const struct vnet_modinfo *);
 void	vnet_mod_register_multi(const struct vnet_modinfo *, void *, char *);
+void	vnet_mod_deregister(const struct vnet_modinfo *);
+void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 
 #endif /* !VIMAGE_GLOBALS */
 

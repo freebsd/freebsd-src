@@ -47,6 +47,7 @@ static TAILQ_HEAD(vnet_modlink_head, vnet_modlink) vnet_modlink_head;
 static TAILQ_HEAD(vnet_modpending_head, vnet_modlink) vnet_modpending_head;
 static void vnet_mod_complete_registration(struct vnet_modlink *);
 static int vnet_mod_constructor(struct vnet_modlink *);
+static int vnet_mod_destructor(struct vnet_modlink *);
 
 void
 vnet_mod_register(const struct vnet_modinfo *vmi)
@@ -144,6 +145,37 @@ vnet_mod_complete_registration(struct vnet_modlink *vml)
 	} while (vml_iter != NULL);
 }
 
+void
+vnet_mod_deregister(const struct vnet_modinfo *vmi)
+{
+
+	vnet_mod_deregister_multi(vmi, NULL, NULL);
+}
+
+void
+vnet_mod_deregister_multi(const struct vnet_modinfo *vmi, void *iarg,
+    char *iname)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+	struct vnet_modlink *vml;
+
+	TAILQ_FOREACH(vml, &vnet_modlink_head, vml_mod_le)
+		if (vml->vml_modinfo == vmi && vml->vml_iarg == iarg)
+			break;
+	if (vml == NULL)
+		panic("cannot deregister unregistered vnet module %s",
+		    vmi->vmi_name);
+
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET_QUIET(vnet_iter);
+		vnet_mod_destructor(vml);
+		CURVNET_RESTORE();
+	}
+
+	TAILQ_REMOVE(&vnet_modlink_head, vml, vml_mod_le);
+	free(vml, M_VIMAGE);
+}
+
 static int vnet_mod_constructor(struct vnet_modlink *vml)
 {
 	const struct vnet_modinfo *vmi = vml->vml_modinfo;
@@ -153,16 +185,18 @@ static int vnet_mod_constructor(struct vnet_modlink *vml)
 	if (vml->vml_iarg)
 		printf("/%s", vml->vml_iname);
 	printf(": ");
-	if (vmi->vmi_struct_size)
-		printf("malloc(%zu); ", vmi->vmi_struct_size);
+#ifdef VIMAGE
+	if (vmi->vmi_size)
+		printf("malloc(%zu); ", vmi->vmi_size);
+#endif
 	if (vmi->vmi_iattach != NULL)
 		printf("iattach()");
 	printf("\n");
 #endif
 
 #ifdef VIMAGE
-	if (vmi->vmi_struct_size) {
-		void *mem = malloc(vmi->vmi_struct_size, M_VNET,
+	if (vmi->vmi_size) {
+		void *mem = malloc(vmi->vmi_size, M_VNET,
 		    M_NOWAIT | M_ZERO);
 		if (mem == NULL) /* XXX should return error, not panic. */
 			panic("vi_alloc: malloc for %s\n", vmi->vmi_name);
@@ -172,6 +206,41 @@ static int vnet_mod_constructor(struct vnet_modlink *vml)
 
 	if (vmi->vmi_iattach != NULL)
 		vmi->vmi_iattach(vml->vml_iarg);
+
+	return (0);
+}
+
+
+static int
+vnet_mod_destructor(struct vnet_modlink *vml)
+{
+	const struct vnet_modinfo *vmi = vml->vml_modinfo;
+
+#ifdef DEBUG_ORDERING
+	printf("destroying vnet_%s", vmi->vmi_name);
+	if (vml->vml_iarg)
+		printf("/%s", vml->vml_iname);
+	printf(": ");
+	if (vmi->vmi_idetach != NULL)
+		printf("idetach(); ");
+#ifdef VIMAGE
+	if (vmi->vmi_size)
+		printf("free()");
+#endif
+	printf("\n");
+#endif
+
+	if (vmi->vmi_idetach)
+		vmi->vmi_idetach(vml->vml_iarg);
+
+#ifdef VIMAGE
+	if (vmi->vmi_size) {
+		if (curvnet->mod_data[vmi->vmi_id] == NULL)
+			panic("vi_destroy: %s\n", vmi->vmi_name);
+		free(curvnet->mod_data[vmi->vmi_id], M_VNET);
+		curvnet->mod_data[vmi->vmi_id] = NULL;
+	}
+#endif
 
 	return (0);
 }
