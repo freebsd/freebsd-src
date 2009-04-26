@@ -74,6 +74,7 @@ static void adhoc_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	int subtype, int rssi, int noise, uint32_t rstamp);
 static void ahdemo_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	int subtype, int rssi, int noise, uint32_t rstamp);
+static void adhoc_recv_ctl(struct ieee80211_node *, struct mbuf *, int subtype);
 
 void
 ieee80211_adhoc_attach(struct ieee80211com *ic)
@@ -101,6 +102,7 @@ adhoc_vattach(struct ieee80211vap *vap)
 		vap->iv_recv_mgmt = adhoc_recv_mgmt;
 	else
 		vap->iv_recv_mgmt = ahdemo_recv_mgmt;
+	vap->iv_recv_ctl = adhoc_recv_ctl;
 	vap->iv_opdetach = adhoc_vdetach;
 #ifdef IEEE80211_SUPPORT_TDMA
 	/*
@@ -643,6 +645,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
+		vap->iv_recv_ctl(ni, m, subtype);
 		goto out;
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
@@ -920,4 +923,9 @@ ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		adhoc_recv_mgmt(ni, m0, subtype, rssi, noise, rstamp);
 	else
 		vap->iv_stats.is_rx_mgtdiscard++;
+}
+
+static void
+adhoc_recv_ctl(struct ieee80211_node *ni, struct mbuf *m0, int subtype)
+{
 }
