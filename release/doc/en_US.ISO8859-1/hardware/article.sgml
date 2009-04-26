@@ -339,7 +339,7 @@
     try it and send a note to the &a.sparc; with your results,
     including which devices work and which do not.</para>
 
-    <para>The following systems are fully supported by &os;.</para>
+    <para>The following systems are fully supported by &os;:</para>
 
       <itemizedlist>
         <listitem>
@@ -450,7 +450,7 @@
       </itemizedlist>
 
   <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on
-    &ultrasparc; III and beyond are also supported by &os, which includes
+    &ultrasparc; III and beyond are also supported by &os:, which includes
     the following known working systems:</para>
 
       <itemizedlist>
@@ -481,7 +481,7 @@
       </itemizedlist>
 
   <para>The following &ultrasparc; IIIi systems are not tested but
-    believed to be also supported by &os:</para>
+    believed to be also supported by &os;:</para>
 
       <itemizedlist>
 	<listitem>
