@@ -178,7 +178,7 @@ route_init(void)
 
 static int vnet_route_iattach(const void *unused __unused)
 {
-	INIT_VNET_INET(curvnet);
+	INIT_VNET_NET(curvnet);
 	int table;
 	struct domain *dom;
 	int fam;

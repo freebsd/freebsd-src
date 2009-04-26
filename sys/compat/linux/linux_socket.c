@@ -584,7 +584,9 @@ static int
 linux_socket(struct thread *td, struct linux_socket_args *args)
 {
 #ifdef INET6
+#ifndef KLD_MODULE
 	INIT_VNET_INET6(curvnet);
+#endif
 #endif
 	struct socket_args /* {
 		int domain;
