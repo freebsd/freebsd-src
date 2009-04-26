@@ -277,6 +277,9 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 			ieee80211_free_node(ni);
 			continue;
 		}
+
+		BPF_MTAP(ifp, m);		/* 802.3 tx */
+
 		/*
 		 * Encapsulate the packet in prep for transmission.
 		 */
@@ -288,6 +291,9 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		}
 		mcopy->m_flags |= M_MCAST;
 		mcopy->m_pkthdr.rcvif = (void *) ni;
+
+		if (bpf_peers_present(vap->iv_rawbpf))
+			bpf_mtap(vap->iv_rawbpf, m);
 
 		err = parent->if_transmit(parent, mcopy);
 		if (err) {
