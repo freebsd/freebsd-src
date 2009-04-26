@@ -216,6 +216,18 @@
 	to 3.6GB.  Note that the ceiling as a fraction of the kernel
 	map size rather than an absolute quantity.</para>
 
+      <para>The &man.kld.4; now supports installing 32-bit system
+	call to the &os; system call translation layer from kernel
+	modules.</para>
+
+      <para>The &os; 32-bit system call translation layer now
+	supports installing 32-bit system calls for
+	<literal>VFS_AIO</literal>.</para>
+
+      <para>The &man.ktr.4; now supports a new KTR tracepoint in the
+	<literal>KTR_CALLOUT</literal> class to note when a callout
+	routine finishes executing.</para>
+
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
 
@@ -247,6 +259,20 @@
 	  the system CPU and functionality to retrieve CPUID
 	  information, read/write machine specific registers (MSR) and
 	  perform CPU firmware updates.</para>
+
+	<para>The &man.cpufreq.4; driver now supports a
+	  <varname>hw.est.msr_info</varname> loader tunable.  When
+	  this set to <literal>1</literal>, it attempts to build a
+	  simple list containing just the high and low frequencies if
+	  it cannot obtain a frequency list from either ACPI or the
+	  static tables.  This is disabled by default.</para>
+
+	<para arch="amd64,i386">CPU frequency change notifiers are now
+	  disabled when the TSC is P-state invariant.  Also, a new
+	  loader tunable
+	  <varname>kern.timecounter.invariant_tsc</varname> has been
+	  added to force this behavior by setting it to
+	  non-zero.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -337,7 +363,13 @@
       <sect3 id="fs">
 	<title>File Systems</title>
 
-	<para></para>
+	<para>The shared vnode locking for pathname lookups in
+	  &man.VFS.9; subsystem has been improved.  This is disabled
+	  by default.  Setting a sysctl variable
+	  <varname>vfs.lookup_shared</varname> to <literal>1</literal>
+	  enables it for better performance.  Note that the
+	  <literal>LOOKUP_SHARED</literal> equivalent to the sysctl
+	  variable kernel option has been removed.</para>
       </sect3>
     </sect2>
 
@@ -372,6 +404,10 @@
 	versions:</para>
 
       <screen>&prompt.user; netstat -m -N foo</screen>
+
+      <para>A bug in the &man.netstat.1; utility has been fixed.  The
+	<option>-ss</option> now works in the icmp6 section as
+	expected.</para>
 
       <para>The &man.powerd.8; program has been improved.  Changes
 	include reasonable CPU load estimation on SMP systems and a
