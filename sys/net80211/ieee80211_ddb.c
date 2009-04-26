@@ -49,14 +49,18 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <net80211/ieee80211_var.h>
+#ifdef IEEE80211_SUPPORT_TDMA
+#include <net80211/ieee80211_tdma.h>
+#endif
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
-#define DB_PRINTSYM(prefix, addr) \
-	db_printf(prefix " "); \
+#define DB_PRINTSYM(prefix, name, addr) do { \
+	db_printf("%s%-25s : ",  prefix, name); \
 	db_printsym((db_addr_t) addr, DB_STGY_ANY); \
-	db_printf("\n");
+	db_printf("\n"); \
+} while (0)
 
 static void _db_show_sta(const struct ieee80211_node *);
 static void _db_show_vap(const struct ieee80211vap *, int);
@@ -179,26 +183,35 @@ DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 static void
 _db_show_txampdu(const char *sep, int ix, const struct ieee80211_tx_ampdu *tap)
 {
-	db_printf("%stxampdu[%d]: %p flags %b ac %u\n",
-		sep, ix, tap, tap->txa_flags, IEEE80211_AGGR_BITS, tap->txa_ac);
-	db_printf("%s  token %u qbytes %d qframes %d start %u wnd %u\n",
-		sep, tap->txa_token, tap->txa_qbytes, tap->txa_qframes,
-		tap->txa_start, tap->txa_wnd);
-	db_printf("%s  attempts %d nextrequest %d\n",
-		sep, tap->txa_attempts, tap->txa_nextrequest);
-	/* XXX packet q + timer */
+	db_printf("%stxampdu[%d]: %p flags %b ac %s\n",
+		sep, ix, tap, tap->txa_flags, IEEE80211_AGGR_BITS,
+		ieee80211_wme_acnames[tap->txa_ac]);
+	db_printf("%s  token %u lastsample %d pkts %d avgpps %d qbytes %d qframes %d\n",
+		sep, tap->txa_token, tap->txa_lastsample, tap->txa_pkts,
+		tap->txa_avgpps, tap->txa_qbytes, tap->txa_qframes);
+	db_printf("%s  start %u seqpending %u wnd %u attempts %d nextrequest %d\n",
+		sep, tap->txa_start, tap->txa_seqpending, tap->txa_wnd,
+		tap->txa_attempts, tap->txa_nextrequest);
+	/* XXX timer */
 }
 
 static void
 _db_show_rxampdu(const char *sep, int ix, const struct ieee80211_rx_ampdu *rap)
 {
+	int i;
+
 	db_printf("%srxampdu[%d]: %p flags 0x%x tid %u\n",
 		sep, ix, rap, rap->rxa_flags, ix /*XXX */);
 	db_printf("%s  qbytes %d qframes %d seqstart %u start %u wnd %u\n",
 		sep, rap->rxa_qbytes, rap->rxa_qframes,
 		rap->rxa_seqstart, rap->rxa_start, rap->rxa_wnd);
-	db_printf("%s  age %d nframes %d\n",
-		sep, rap->rxa_age, rap->rxa_nframes);
+	db_printf("%s  age %d nframes %d\n", sep,
+		rap->rxa_age, rap->rxa_nframes);
+	for (i = 0; i < IEEE80211_AGGR_BAWMAX; i++)
+		if (rap->rxa_m[i] != NULL)
+			db_printf("%s  m[%2u:%4u] %p\n", sep, i,
+			    IEEE80211_SEQ_ADD(rap->rxa_start, i),
+			    rap->rxa_m[i]);
 }
 
 static void
@@ -258,14 +271,42 @@ _db_show_sta(const struct ieee80211_node *ni)
 		if (ni->ni_tx_ampdu[i].txa_flags & IEEE80211_AGGR_SETUP)
 			_db_show_txampdu("\t", i, &ni->ni_tx_ampdu[i]);
 	for (i = 0; i < WME_NUM_TID; i++)
-		if (ni->ni_rx_ampdu[i].rxa_nframes)
+		if (ni->ni_rx_ampdu[i].rxa_nframes ||
+		    ni->ni_rx_ampdu[i].rxa_qframes)
 			_db_show_rxampdu("\t", i, &ni->ni_rx_ampdu[i]);
 
 	db_printf("\tinact %u inact_reload %u txrate %u\n",
 		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate);
-	/* XXX savedq */
 	/* XXX wdsq */
 }
+
+#ifdef IEEE80211_SUPPORT_TDMA
+static void
+_db_show_tdma(const char *sep, const struct ieee80211_tdma_state *ts, int showprocs)
+{
+	const char *cp;
+	int i;
+
+	db_printf("%stdma %p:\n", sep, ts);
+	db_printf("%s  features %b version %u slot %u txrate %u bintval %u peer %p\n", sep,
+	    ts->tdma_features, TDMA_F_BITS, ts->tdma_version, ts->tdma_slot,
+	    ts->tdma_txrate, ts->tdma_bintval, ts->tdma_peer);
+	db_printf("%s  slotlen %u slotcnt %u bw[", sep,
+	    ts->tdma_slotlen, ts->tdma_slotcnt);
+	cp = "";
+	for (i = 0; i < TDMA_MAXSLOTS; i++) {
+		db_printf("%s%u", cp, ts->tdma_bw[i]);
+		cp = ":";
+	}
+	db_printf("] inuse 0x%x active 0x%x count %d\n",
+	    ts->tdma_inuse[0], ts->tdma_active[0], ts->tdma_count);
+	if (showprocs) {
+		DB_PRINTSYM(sep, "  tdma_newstate", ts->tdma_newstate);
+		DB_PRINTSYM(sep, "  tdma_recv_mgmt", ts->tdma_recv_mgmt);
+		DB_PRINTSYM(sep, "  tdma_opdetach", ts->tdma_opdetach);
+	}
+}
+#endif /* IEEE80211_SUPPORT_TDMA */
 
 static void
 _db_show_vap(const struct ieee80211vap *vap, int showprocs)
@@ -280,7 +321,7 @@ _db_show_vap(const struct ieee80211vap *vap, int showprocs)
 
 	db_printf("\topmode %s", ieee80211_opmode_name[vap->iv_opmode]);
 	db_printf(" state %s", ieee80211_state_name[vap->iv_state]);
-	db_printf(" ifp %p", vap->iv_ifp);
+	db_printf(" ifp %p(%s)", vap->iv_ifp, vap->iv_ifp->if_xname);
 	db_printf("\n");
 
 	db_printf("\tic %p", vap->iv_ic);
@@ -328,8 +369,8 @@ _db_show_vap(const struct ieee80211vap *vap, int showprocs)
 	db_printf(" scanreq_mindwell %u", vap->iv_scanreq_mindwell);
 	db_printf(" scanreq_maxdwell %u", vap->iv_scanreq_maxdwell);
 	db_printf("\n");
-	db_printf(" scanreq_flags 0x%x", vap->iv_scanreq_flags);
-	db_printf("\tscanreq_nssid %d", vap->iv_scanreq_nssid);
+	db_printf("\tscanreq_flags 0x%x", vap->iv_scanreq_flags);
+	db_printf(" scanreq_nssid %d", vap->iv_scanreq_nssid);
 	for (i = 0; i < vap->iv_scanreq_nssid; i++)
 		_db_show_ssid(" scanreq_ssid[%u]", i,
 		    vap->iv_scanreq_ssid[i].len, vap->iv_scanreq_ssid[i].ssid);
@@ -403,28 +444,31 @@ _db_show_vap(const struct ieee80211vap *vap, int showprocs)
 	for (i = 0; i < IEEE80211_WEP_NKID; i++)
 		_db_show_key("\tnw_keys[%u]", i, &vap->iv_nw_keys[i]);
 
-	db_printf("\tauth %p", vap->iv_auth);
+	db_printf("\tauth %p(%s)", vap->iv_auth, vap->iv_auth->ia_name);
 	db_printf(" ec %p", vap->iv_ec);
 
 	db_printf(" acl %p", vap->iv_acl);
 	db_printf(" as %p", vap->iv_as);
 	db_printf("\n");
-
+#ifdef IEEE80211_SUPPORT_TDMA
+	if (vap->iv_tdma != NULL)
+		_db_show_tdma("\t", vap->iv_tdma, showprocs);
+#endif /* IEEE80211_SUPPORT_TDMA */
 	if (showprocs) {
-		DB_PRINTSYM("\tiv_key_alloc", vap->iv_key_alloc);
-		DB_PRINTSYM("\tiv_key_delete", vap->iv_key_delete);
-		DB_PRINTSYM("\tiv_key_set", vap->iv_key_set);
-		DB_PRINTSYM("\tiv_key_update_begin", vap->iv_key_update_begin);
-		DB_PRINTSYM("\tiv_key_update_end", vap->iv_key_update_end);
-		DB_PRINTSYM("\tiv_opdetach", vap->iv_opdetach);
-		DB_PRINTSYM("\tiv_input", vap->iv_input);
-		DB_PRINTSYM("\tiv_recv_mgmt", vap->iv_recv_mgmt);
-		DB_PRINTSYM("\tiv_deliver_data", vap->iv_deliver_data);
-		DB_PRINTSYM("\tiv_bmiss", vap->iv_bmiss);
-		DB_PRINTSYM("\tiv_reset", vap->iv_reset);
-		DB_PRINTSYM("\tiv_update_beacon", vap->iv_update_beacon);
-		DB_PRINTSYM("\tiv_newstate", vap->iv_newstate);
-		DB_PRINTSYM("\tiv_output", vap->iv_output);
+		DB_PRINTSYM("\t", "iv_key_alloc", vap->iv_key_alloc);
+		DB_PRINTSYM("\t", "iv_key_delete", vap->iv_key_delete);
+		DB_PRINTSYM("\t", "iv_key_set", vap->iv_key_set);
+		DB_PRINTSYM("\t", "iv_key_update_begin", vap->iv_key_update_begin);
+		DB_PRINTSYM("\t", "iv_key_update_end", vap->iv_key_update_end);
+		DB_PRINTSYM("\t", "iv_opdetach", vap->iv_opdetach);
+		DB_PRINTSYM("\t", "iv_input", vap->iv_input);
+		DB_PRINTSYM("\t", "iv_recv_mgmt", vap->iv_recv_mgmt);
+		DB_PRINTSYM("\t", "iv_deliver_data", vap->iv_deliver_data);
+		DB_PRINTSYM("\t", "iv_bmiss", vap->iv_bmiss);
+		DB_PRINTSYM("\t", "iv_reset", vap->iv_reset);
+		DB_PRINTSYM("\t", "iv_update_beacon", vap->iv_update_beacon);
+		DB_PRINTSYM("\t", "iv_newstate", vap->iv_newstate);
+		DB_PRINTSYM("\t", "iv_output", vap->iv_output);
 	}
 }
 
@@ -437,7 +481,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
 		db_printf(" %s(%p)", vap->iv_ifp->if_xname, vap);
 	db_printf("\n");
-	db_printf("\tifp %p", ic->ic_ifp);
+	db_printf("\tifp %p(%s)", ic->ic_ifp, ic->ic_ifp->if_xname);
 	db_printf(" comlock %p", &ic->ic_comlock);
 	db_printf("\n");
 	db_printf("\theadroom %d", ic->ic_headroom);
@@ -542,36 +586,36 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf("\n");
 
 	if (showprocs) {
-		DB_PRINTSYM("\tic_vap_create", ic->ic_vap_create);
-		DB_PRINTSYM("\tic_vap_delete", ic->ic_vap_delete);
+		DB_PRINTSYM("\t", "ic_vap_create", ic->ic_vap_create);
+		DB_PRINTSYM("\t", "ic_vap_delete", ic->ic_vap_delete);
 #if 0
 		/* operating mode attachment */
 		ieee80211vap_attach	ic_vattach[IEEE80211_OPMODE_MAX];
 #endif
-		DB_PRINTSYM("\tic_newassoc", ic->ic_newassoc);
-		DB_PRINTSYM("\tic_getradiocaps", ic->ic_getradiocaps);
-		DB_PRINTSYM("\tic_setregdomain", ic->ic_setregdomain);
-		DB_PRINTSYM("\tic_send_mgmt", ic->ic_send_mgmt);
-		DB_PRINTSYM("\tic_raw_xmit", ic->ic_raw_xmit);
-		DB_PRINTSYM("\tic_updateslot", ic->ic_updateslot);
-		DB_PRINTSYM("\tic_update_mcast", ic->ic_update_mcast);
-		DB_PRINTSYM("\tic_update_promisc", ic->ic_update_promisc);
-		DB_PRINTSYM("\tic_node_alloc", ic->ic_node_alloc);
-		DB_PRINTSYM("\tic_node_free", ic->ic_node_free);
-		DB_PRINTSYM("\tic_node_cleanup", ic->ic_node_cleanup);
-		DB_PRINTSYM("\tic_node_getrssi", ic->ic_node_getrssi);
-		DB_PRINTSYM("\tic_node_getsignal", ic->ic_node_getsignal);
-		DB_PRINTSYM("\tic_node_getmimoinfo", ic->ic_node_getmimoinfo);
-		DB_PRINTSYM("\tic_scan_start", ic->ic_scan_start);
-		DB_PRINTSYM("\tic_scan_end", ic->ic_scan_end);
-		DB_PRINTSYM("\tic_set_channel", ic->ic_set_channel);
-		DB_PRINTSYM("\tic_scan_curchan", ic->ic_scan_curchan);
-		DB_PRINTSYM("\tic_scan_mindwell", ic->ic_scan_mindwell);
-		DB_PRINTSYM("\tic_recv_action", ic->ic_recv_action);
-		DB_PRINTSYM("\tic_send_action", ic->ic_send_action);
-		DB_PRINTSYM("\tic_addba_request", ic->ic_addba_request);
-		DB_PRINTSYM("\tic_addba_response", ic->ic_addba_response);
-		DB_PRINTSYM("\tic_addba_stop", ic->ic_addba_stop);
+		DB_PRINTSYM("\t", "ic_newassoc", ic->ic_newassoc);
+		DB_PRINTSYM("\t", "ic_getradiocaps", ic->ic_getradiocaps);
+		DB_PRINTSYM("\t", "ic_setregdomain", ic->ic_setregdomain);
+		DB_PRINTSYM("\t", "ic_send_mgmt", ic->ic_send_mgmt);
+		DB_PRINTSYM("\t", "ic_raw_xmit", ic->ic_raw_xmit);
+		DB_PRINTSYM("\t", "ic_updateslot", ic->ic_updateslot);
+		DB_PRINTSYM("\t", "ic_update_mcast", ic->ic_update_mcast);
+		DB_PRINTSYM("\t", "ic_update_promisc", ic->ic_update_promisc);
+		DB_PRINTSYM("\t", "ic_node_alloc", ic->ic_node_alloc);
+		DB_PRINTSYM("\t", "ic_node_free", ic->ic_node_free);
+		DB_PRINTSYM("\t", "ic_node_cleanup", ic->ic_node_cleanup);
+		DB_PRINTSYM("\t", "ic_node_getrssi", ic->ic_node_getrssi);
+		DB_PRINTSYM("\t", "ic_node_getsignal", ic->ic_node_getsignal);
+		DB_PRINTSYM("\t", "ic_node_getmimoinfo", ic->ic_node_getmimoinfo);
+		DB_PRINTSYM("\t", "ic_scan_start", ic->ic_scan_start);
+		DB_PRINTSYM("\t", "ic_scan_end", ic->ic_scan_end);
+		DB_PRINTSYM("\t", "ic_set_channel", ic->ic_set_channel);
+		DB_PRINTSYM("\t", "ic_scan_curchan", ic->ic_scan_curchan);
+		DB_PRINTSYM("\t", "ic_scan_mindwell", ic->ic_scan_mindwell);
+		DB_PRINTSYM("\t", "ic_recv_action", ic->ic_recv_action);
+		DB_PRINTSYM("\t", "ic_send_action", ic->ic_send_action);
+		DB_PRINTSYM("\t", "ic_addba_request", ic->ic_addba_request);
+		DB_PRINTSYM("\t", "ic_addba_response", ic->ic_addba_response);
+		DB_PRINTSYM("\t", "ic_addba_stop", ic->ic_addba_stop);
 	}
 	if (showvaps && !TAILQ_EMPTY(&ic->ic_vaps)) {
 		db_printf("\n");
