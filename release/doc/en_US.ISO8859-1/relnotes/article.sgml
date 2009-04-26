@@ -208,7 +208,13 @@
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
-      <para>&os; DTrace subsystem now supports a probe for process execution.</para>
+      <para>The &os; DTrace subsystem now supports a probe for
+	process execution.</para>
+
+      <para arch="amd64">The &os; kernel virtual address space has
+	been increased to 6GB and the ceiling on the kmem map size
+	to 3.6GB.  Note that the ceiling as a fraction of the kernel
+	map size rather than an absolute quantity.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -219,10 +225,22 @@
 
 	<para>The &man.loader.8; is now able to obtain DHCP options
 	  via &man.kenv.2; variables in the case of network boot.</para>
+
+	<para>A bug in the &man.loader.8; has been fixed.  Now the
+	  following line works as expected:</para>
+
+	<programlisting>loader_conf_files="<replaceable>foo</replaceable> <replaceable>bar</replaceable> ${<replaceable>variable</replaceable>}"</programlisting>
       </sect3>
 
       <sect3 id="proc">
 	<title>Hardware Support</title>
+
+	<para>The &man.acpi.4; subsystem now supports a &man.sysctl.8;
+	  variable <varname>debug.batt.batt_sleep_ms</varname>.  On
+	  some laptops with smart batteries, enabling battery
+	  monitoring software causes keystrokes from &man.atkbd.4; to
+	  be lost.  This sysctl variable adds a delay in millisecond
+	  to the status checking code as a workaround.</para>
 
 	<para>The &man.cpuctl.4; driver, which provides a special
 	  device <filename>/dev/cpuctl</filename> as an interface to
@@ -241,6 +259,10 @@
 	    has been updated.  Support for AMD/ATI r500 and IGP based
 	    chips, XGI V3XE/V5/V8, and Intel i915 chipsets has been
 	    improved.</para>
+
+	  <para>The snd_au88x0(4) driver for Aureal Vortex
+	    1/2/Advantage PCI has been removed because this was
+	    broken for a long time.</para>
 
 	  <para>The &man.snd.hda.4; driver has been updated.  Changes
 	    include: multiple codec per HDA bus, multiple functional
@@ -263,6 +285,10 @@
 
 	  <para>The ciphy(4) driver now supports Vitesse VSC8211
 	    PHY.</para>
+
+	  <para>A bug in &man.igb.4; driver which prevents a tunable
+	    <varname>hw.igb.ave_latency</varname> from working has
+	    been fixed.</para>
 
 	  <para>The &man.jme.4; driver now supports newer JMicron
 	    JMC250/JMC260 revisions.</para>
@@ -290,6 +316,12 @@
 
 	<para>The &man.ata.4; driver now supports Marvell PATA M88SX6121.</para>
 
+	<para>An issue in the &man.gvinum.8; with access permissions
+	  to underlying disks used by a gvinum plex has been fixed.
+	  If the plex is a raid5 plex and is being written to, parity data might
+	  have to be read from the underlying disks, requiring them to be opened for
+	  reading as well as writing.</para>
+
 	<para>The &man.mmc.4; and &man.mmcsd.4; driver now support MMC
 	  and SDHC cards, high speed timing, wide bus, and multiblock
 	  transfers.</para>
@@ -315,6 +347,10 @@
       <para>The &man.config.8; utility now supports
 	multiple <varname>makeoption</varname> lines.</para>
 
+      <para>The &man.du.1; utility now supports an <option>-l</option>
+	flag.  When specified, the &man.du.1; counts a file with
+	multiple hard links as multiple different files.</para>
+
       <para>The &man.fetch.1; utility now supports an
 	<option>-i</option> flag which supports If-Modified-Since HTTP
 	request.</para>
@@ -331,6 +367,12 @@
 	messages for a NAT rule even when a <option>-q</option> flag
 	is specified.</para>
 
+      <para>A bug in the &man.netstat.1; utility has been fixed.  It
+	crashed with the following options in the previous
+	versions:</para>
+
+      <screen>&prompt.user; netstat -m -N foo</screen>
+
       <para>The &man.powerd.8; program has been improved.  Changes
 	include reasonable CPU load estimation on SMP systems and a
 	new mode named as <literal>hiadaptive</literal> for AC-powered
@@ -340,6 +382,10 @@
 	maximum load.</para>
 
       <para>The &man.strndup.3; function has been added.</para>
+
+      <para>The &man.wc.1; utility now supports an <option>-L</option>
+	flag to output the number of characters in the longest input
+	line.</para>
 
       <para>A bug in the &man.rpc.yppasswdd.8; program which leaves a
 	zombie process when a password or default shell is changed has
