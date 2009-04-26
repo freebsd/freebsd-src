@@ -424,13 +424,15 @@ bad:
 static void
 ieee80211_send_setup(
 	struct ieee80211_node *ni,
-	struct ieee80211_frame *wh,
+	struct mbuf *m,
 	int type, int tid,
 	const uint8_t sa[IEEE80211_ADDR_LEN],
 	const uint8_t da[IEEE80211_ADDR_LEN],
 	const uint8_t bssid[IEEE80211_ADDR_LEN])
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)wh)
+	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
+	ieee80211_seq seqno;
 
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | type;
 	if ((type & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_DATA) {
@@ -473,9 +475,12 @@ ieee80211_send_setup(
 		IEEE80211_ADDR_COPY(wh->i_addr3, bssid);
 	}
 	*(uint16_t *)&wh->i_dur[0] = 0;
-	*(uint16_t *)&wh->i_seq[0] =
-	    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
-	ni->ni_txseqs[tid]++;
+
+	seqno = ni->ni_txseqs[tid]++;
+	*(uint16_t *)&wh->i_seq[0] = htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		m->m_flags |= M_MCAST;
 #undef WH4
 }
 
@@ -516,7 +521,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	}
 
 	wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_send_setup(ni, wh,
+	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | type, IEEE80211_NONQOS_TID,
 	     vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
 	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
@@ -607,7 +612,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 		const int tid = WME_AC_TO_TID(WME_AC_BE);
 		uint8_t *qos;
 
-		ieee80211_send_setup(ni, wh,
+		ieee80211_send_setup(ni, m,
 		    IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_QOS_NULL,
 		    tid, vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
 
@@ -620,7 +625,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 			qos[0] |= IEEE80211_QOS_ACKPOLICY_NOACK;
 		qos[1] = 0;
 	} else {
-		ieee80211_send_setup(ni, wh,
+		ieee80211_send_setup(ni, m,
 		    IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_NODATA,
 		    IEEE80211_NONQOS_TID,
 		    vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
@@ -879,6 +884,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_key *key;
 	struct llc *llc;
 	int hdrsize, hdrspace, datalen, addqos, txfrag, is4addr;
+	ieee80211_seq seqno;
 
 	/*
 	 * Copy existing Ethernet header to a safe place.  The
@@ -1091,14 +1097,14 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			 * capability; this may also change when we pull
 			 * aggregation up into net80211
 			 */
+			seqno = ni->ni_txseqs[tid]++;
 			*(uint16_t *)wh->i_seq =
-			    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
-			ni->ni_txseqs[tid]++;
+			    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 		}
 	} else {
+		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
 		*(uint16_t *)wh->i_seq =
-		    htole16(ni->ni_txseqs[IEEE80211_NONQOS_TID] << IEEE80211_SEQ_SEQ_SHIFT);
-		ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 	}
 	/* check if xmit fragmentation is required */
 	txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
@@ -1132,9 +1138,10 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
 	IEEE80211_NODE_STAT(ni, tx_data);
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		IEEE80211_NODE_STAT(ni, tx_mcast);
-	else
+		m->m_flags |= M_MCAST;
+	} else
 		IEEE80211_NODE_STAT(ni, tx_ucast);
 	IEEE80211_NODE_STAT_ADD(ni, tx_bytes, datalen);
 
@@ -1591,7 +1598,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	}
 
 	wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_send_setup(ni, wh,
+	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
 	     IEEE80211_NONQOS_TID, sa, da, bssid);
 	/* XXX power management? */
@@ -2195,7 +2202,7 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	KASSERT(m != NULL, ("no room for header"));
 
 	wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_send_setup(bss, wh,
+	ieee80211_send_setup(bss, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP,
 	     IEEE80211_NONQOS_TID, vap->iv_myaddr, da, bss->ni_bssid);
 	/* XXX power management? */
