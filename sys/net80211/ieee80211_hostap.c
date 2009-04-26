@@ -72,6 +72,7 @@ static void hostap_deliver_data(struct ieee80211vap *,
 	    struct ieee80211_node *, struct mbuf *);
 static void hostap_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	    int subtype, int rssi, int noise, uint32_t rstamp);
+static void hostap_recv_ctl(struct ieee80211_node *, struct mbuf *, int);
 static void hostap_recv_pspoll(struct ieee80211_node *, struct mbuf *);
 
 void
@@ -96,6 +97,7 @@ hostap_vattach(struct ieee80211vap *vap)
 	vap->iv_newstate = hostap_newstate;
 	vap->iv_input = hostap_input;
 	vap->iv_recv_mgmt = hostap_recv_mgmt;
+	vap->iv_recv_ctl = hostap_recv_ctl;
 	vap->iv_opdetach = hostap_vdetach;
 	vap->iv_deliver_data = hostap_deliver_data;
 }
@@ -837,14 +839,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
-		switch (subtype) {
-		case IEEE80211_FC0_SUBTYPE_PS_POLL:
-			hostap_recv_pspoll(ni, m);
-			break;
-		case IEEE80211_FC0_SUBTYPE_BAR:
-			ieee80211_recv_bar(ni, m);
-			break;
-		}
+		vap->iv_recv_ctl(ni, m, subtype);
 		goto out;
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
@@ -2158,6 +2153,19 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 		     wh, "mgt", "subtype 0x%x not handled", subtype);
 		vap->iv_stats.is_rx_badsubtype++;
+		break;
+	}
+}
+
+static void
+hostap_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
+{
+	switch (subtype) {
+	case IEEE80211_FC0_SUBTYPE_PS_POLL:
+		hostap_recv_pspoll(ni, m);
+		break;
+	case IEEE80211_FC0_SUBTYPE_BAR:
+		ieee80211_recv_bar(ni, m);
 		break;
 	}
 }
