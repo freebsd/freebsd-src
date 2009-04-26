@@ -216,17 +216,67 @@
 	to 3.6GB.  Note that the ceiling as a fraction of the kernel
 	map size rather than an absolute quantity.</para>
 
+      <para>The &man.jail.8; subsystem has been updated.  Changes include:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Multiple addresses of both IPv4 and IPv6 per jail has
+	    been supported.  It is even possible to have jails without
+	    an IP address at all, which basically gives one a chrooted
+	    environment with restricted process view and no
+	    networking.</para>
+	</listitem>
+
+	<listitem>
+	  <para>SCTP (&man.sctp.4;) with IPv6 in jails has been supported.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Specific CPU binding by using &man.cpuset.1; has been supported.</para>
+	</listitem>
+
+	<listitem>
+	  <para>A <literal>show jails</literal> subcommand in
+	    &man.ddb.8; has been added.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Compatibility support which permits 32bit jail
+	    binaries to be used on 64bit systems to manage jails has
+	    been added.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Note that both version numbers of
+	    <literal>jail</literal> and <literal>prison</literal> in
+	    the &man.jail.8; have been updated for the new
+	    features.</para>
+	</listitem>
+      </itemizedlist>
+
+      <para>The &man.jail.8; subsystem now supports SCTP(&man.sctp.4;)
+	with IPv6 in jails.</para>
+
       <para>The &man.kld.4; now supports installing 32-bit system
 	call to the &os; system call translation layer from kernel
 	modules.</para>
+
+      <para>The &man.ktr.4; now supports a new KTR tracepoint in the
+	<literal>KTR_CALLOUT</literal> class to note when a callout
+	routine finishes executing.</para>
 
       <para>The &os; 32-bit system call translation layer now
 	supports installing 32-bit system calls for
 	<literal>VFS_AIO</literal>.</para>
 
-      <para>The &man.ktr.4; now supports a new KTR tracepoint in the
-	<literal>KTR_CALLOUT</literal> class to note when a callout
-	routine finishes executing.</para>
+      <para arch="amd64,i386">The &os; virtual memory subsystem now
+	supports Superpages.  The Superpages is a feature in modern
+	CPUs that enables each entry in the TLB (translation lookaside
+	buffer) to map a large physical memory region into a virtual
+	address space.  This provides possible memory savings for
+	applications that share large amounts of memory between the
+	address spaces and performance improvements due to fewer TLB
+	misses.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -253,6 +303,9 @@
 	  monitoring software causes keystrokes from &man.atkbd.4; to
 	  be lost.  This sysctl variable adds a delay in millisecond
 	  to the status checking code as a workaround.</para>
+
+	<para>The &man.acpi.asus.4; driver now supports Asus A8Sr
+	  notebooks.</para>
 
 	<para>The &man.cpuctl.4; driver, which provides a special
 	  device <filename>/dev/cpuctl</filename> as an interface to
@@ -309,8 +362,47 @@
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para>The &man.axe.4; driver has been improved in
+	    performance by eliminating extra context switch and now
+	    supports Apple USB Ethernet adapter.</para>
+
 	  <para>The ciphy(4) driver now supports Vitesse VSC8211
 	    PHY.</para>
+
+	  <para>The &man.fxp.4; driver has been improved.  Changes include:</para>
+
+	  <itemizedlist>
+	    <listitem>
+	      <para>The checksum offload feature can be controlled by
+		&man.ifconfig.8;.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>Rx checksum offload support for 82559 or later
+		controllers has been added.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>TSO (TCP Segmentation Offload) support for 82550
+		and 82551 controllers has been added.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>WoL (Wake on LAN) support for 82550, 82551, 82558,
+		and 82559-based controllers has been added.  Note that
+		ICH based controllers are treated as 82559, and 82557,
+		earlier revision of 82558, and 82559ER have no WOL
+		capability.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>VLAN hardware tag insertion/stripping support and
+		Tx/Rx checksum offload for VLAN frames support have
+		been added.  Note that the VLAN hardware assistance is
+		available only on 82550 or 82551-based
+		controllers.</para>
+	    </listitem>
+	  </itemizedlist>
 
 	  <para>A bug in &man.igb.4; driver which prevents a tunable
 	    <varname>hw.igb.ave_latency</varname> from working has
@@ -319,14 +411,51 @@
 	  <para>The &man.jme.4; driver now supports newer JMicron
 	    JMC250/JMC260 revisions.</para>
 
-	  <para>The &man.rl.4; driver has been improved.  A bug which
-	    prevents it from working on systems with more than 4GB
-	    memory has been fixed.</para>
+	  <para>The &man.msk.4; driver has been improved.  An issue
+	    which makes it hang up in a certain condition has been
+	    fixed.</para>
+
+	  <para>The &man.mxge.4; driver now supports some newer
+	    revisions and 10GBASE-LRM and 10GBASE-Twinax* media
+	    types.</para>
+
+	  <para>The &man.re.4; driver has been improved.  It now
+	    detects the link status.</para>
+
+	  <para>The &man.rl.4; driver has been improved.  It now
+	    detects the link status and a bug which prevents it from
+	    working on systems with more than 4GB memory has been
+	    fixed.</para>
 	</sect4>
       </sect3>
 
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
+
+	<para>IPv4 source address selection for unbound sockets has
+	  been implemented as follows:</para>
+
+	<orderedlist>
+	  <listitem>
+	    <para>If we found a route, use the address corresponding
+	      to the outgoing interface.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Otherwise we assume the foreign address is reachable
+	      on a directly connected network and try to find a
+	      corresponding interface to take the source address
+	      from.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>As a last resort use the default jail address.</para>
+	  </listitem>
+	</orderedlist>
+
+	<para>This also changes the semantics of selecting the IP for
+	  processes within a &man.jail.8; as it now uses the same
+	  logic as outside the &man.jail.8;.</para>
 
 	<para>The &man.jail.8; subsystem now supports start with a
 	  specific route FIB.</para>
@@ -335,6 +464,16 @@
 	  ability to generate egress netflow instead or in addition to
 	  ingress.  A <literal>NGM_NETFLOW_SETCONFIG</literal> control
 	  message has been added to control the new functionality.</para>
+
+	<para>The &man.tap.4;, Ethernet tunnel software network
+	  interface now supports <literal>TAPGIFNAME</literal>
+	  character device ioctl.  This is a convenient shortcut to
+	  obtain network interface name using file descriptor for
+	  character device.</para>
+
+	<para>The domains list for handling the list of supported
+	  domains in the &man.unix.4; (UNIX domain protocol family)
+	  subsystem is now MPSAFE.</para>
       </sect3>
 
       <sect3 id="disks">
@@ -356,12 +495,31 @@
 	  PCI devices with class 8 and subclass 5 according to SD Host
 	  Controller Specification.</para>
 
+	<para>The &man.sdhci.4; driver now supports kernel dumping and
+	  a sysctl variable <varname>hw.sdhci.debug</varname> for debug
+	  level.</para>
+
 	<para>The &man.mmc.4; &man.mmcsd.4;, and &man.sdhci.4; driver
 	  are now included as a kernel module.</para>
       </sect3>
 
       <sect3 id="fs">
 	<title>File Systems</title>
+
+	<para>The semantics of &man.acl.3; extended access control
+	  list has been changed as follows:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>The inode modification time (mtime) is not updated
+	      when extended attribute are added, modified, or removed.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The inode access time (atime) is not updated
+	      when extended attribute are queried.</para>
+	  </listitem>
+	</itemizedlist>
 
 	<para>The shared vnode locking for pathname lookups in
 	  &man.VFS.9; subsystem has been improved.  This is disabled
@@ -376,19 +534,40 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
+      <para>A bug in the &man.atacontrol.8; utility which prevents it
+	from working when <filename>/usr</filename> is not mounted or
+	invoked from <filename>/rescue</filename>, has been
+	fixed.</para>
+
       <para>The &man.config.8; utility now supports
 	multiple <varname>makeoption</varname> lines.</para>
+
+      <para>The &man.dirname.1; utility now accepts multiple arguments
+	in the same way that &man.basename.1; does.</para>
 
       <para>The &man.du.1; utility now supports an <option>-l</option>
 	flag.  When specified, the &man.du.1; counts a file with
 	multiple hard links as multiple different files.</para>
+
+      <para>The &man.dumpfs.8; utility now supports an
+	<option>-f</option> flag, which causes it to list all free
+	fragments in the file system by fragment (block) number.  This
+	new mode does the necessary arithmetic to generate absolute
+	fragment numbers rather than than the cg-relative numbers
+	printed in the default mode.</para>
+
+      <para>If <option>-f</option> is passed once, contiguous fragment
+	ranges are collapsed into an X-Y format as free block lists are
+	currently printed in regular dumpfs output, but if specified twice,
+	all block numbers are printed individually, allowing both compact
+	and more script-friendly representation.</para>
 
       <para>The &man.fetch.1; utility now supports an
 	<option>-i</option> flag which supports If-Modified-Since HTTP
 	request.</para>
 
       <para>The &man.fsck.8; utility now supports a
-	<option>-C</option> flag for catastrophic recovery mode, which
+	<option>-D</option> flag for damaged recovery mode, which
 	will enable certain aggressive operations that can make
 	&man.fsck.8; to survive with file systems that has very
 	serious data damage, which is an useful last resort when on
@@ -398,6 +577,15 @@
       <para>A bug in the &man.ipfw.8; utility which displays extra
 	messages for a NAT rule even when a <option>-q</option> flag
 	is specified.</para>
+
+      <para>The &man.ln.1; utility now supports a <option>-w</option>
+	flag to check if the source file actually exists.  When the
+	flag is specified and the file does not exist, the &man.ln.1;
+	will put a warning message.</para>
+
+      <para>The &man.netstat.1; utility now reports &man.unix.4;
+	sockets listen queue statistics when an <option>-L</option>
+	flag.</para>
 
       <para>A bug in the &man.netstat.1; utility has been fixed.  It
 	crashed with the following options in the previous
@@ -409,6 +597,11 @@
 	<option>-ss</option> now works in the icmp6 section as
 	expected.</para>
 
+      <para>The &man.pciconf.8; utility now supports a
+	<option>-b</option> flag, which lists any base address
+	registers (BAR) that are assigned resources for each
+	device.</para>
+
       <para>The &man.powerd.8; program has been improved.  Changes
 	include reasonable CPU load estimation on SMP systems and a
 	new mode named as <literal>hiadaptive</literal> for AC-powered
@@ -416,6 +609,10 @@
 	slower, prefers twice lower CPU load and has additional delay
 	before leaving the highest frequency after the period of
 	maximum load.</para>
+
+      <para>The &man.stat.1; utility now displays an octal
+	representation of suid, sgid and sticky bits when an
+	<option>-x</option> flag is specified.</para>
 
       <para>The &man.strndup.3; function has been added.</para>
 
