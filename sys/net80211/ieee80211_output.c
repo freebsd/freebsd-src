@@ -292,9 +292,7 @@ ieee80211_start(struct ifnet *ifp)
 /*
  * 802.11 output routine. This is (currently) used only to
  * connect bpf write calls to the 802.11 layer for injecting
- * raw 802.11 frames.  Note we locate the ieee80211com from
- * the ifnet using a spare field setup at attach time.  This
- * will go away when the virtual ap support comes in.
+ * raw 802.11 frames.
  */
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
