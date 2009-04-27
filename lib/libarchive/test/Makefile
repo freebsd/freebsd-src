@@ -55,6 +55,7 @@ TESTS= \
 	test_read_format_isorr_bz2.c		\
 	test_read_format_mtree.c		\
 	test_read_format_pax_bz2.c		\
+	test_read_format_raw.c			\
 	test_read_format_tar.c			\
 	test_read_format_tar_empty_filename.c	\
 	test_read_format_tbz.c			\
@@ -118,8 +119,8 @@ CFLAGS+= -I${LA_SRCDIR} -I.
 #LDADD+= -L/usr/local/lib -llzmadec
 
 # Uncomment to build and test lzma and xz support via liblzma
-CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
-LDADD+= -L/usr/local/lib -llzma
+#CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+#LDADD+= -L/usr/local/lib -llzma
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
