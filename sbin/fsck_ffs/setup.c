@@ -65,7 +65,7 @@ static struct disklabel *getdisklabel(char *s, int fd);
 /*
  * Read in a superblock finding an alternate if necessary.
  * Return 1 if successful, 0 if unsuccessful, -1 if file system
- * is already clean (preen mode only).
+ * is already clean (ckclean and preen mode only).
  */
 int
 setup(char *dev)
@@ -201,7 +201,7 @@ setup(char *dev)
 		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
 		bflag = 0;
 	}
-	if (skipclean && preen && sblock.fs_clean) {
+	if (skipclean && ckclean && sblock.fs_clean) {
 		pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
 		return (-1);
 	}
