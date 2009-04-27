@@ -40,7 +40,8 @@ __FBSDID("$FreeBSD$");
  * the right filename returned and that we get a warning only
  * if the header isn't marked as binary.
  */
-DEFINE_TEST(test_pax_filename_encoding_1)
+static void
+test_pax_filename_encoding_1(void)
 {
 	static const char testname[] = "test_pax_filename_encoding.tar";
 	/*
@@ -84,7 +85,8 @@ DEFINE_TEST(test_pax_filename_encoding_1)
  * This should work; the underlying implementation should automatically
  * fall back to storing the pathname in binary.
  */
-DEFINE_TEST(test_pax_filename_encoding_2)
+static void
+test_pax_filename_encoding_2(void)
 {
 	char filename[] = "abc\314\214mno\374xyz";
 	struct archive *a;
@@ -191,7 +193,8 @@ DEFINE_TEST(test_pax_filename_encoding_2)
  * read it back into "C" locale, which doesn't support the name.
  * TODO: Figure out the "right" behavior here.
  */
-DEFINE_TEST(test_pax_filename_encoding_3)
+static void
+test_pax_filename_encoding_3(void)
 {
 	wchar_t badname[] = L"xxxAyyyBzzz";
 	const char badname_utf8[] = "xxx\xE1\x88\xB4yyy\xE5\x99\xB8zzz";
@@ -324,4 +327,11 @@ DEFINE_TEST(test_pax_filename_encoding_3)
 #else
 	assertEqualInt(0, archive_read_finish(a));
 #endif
+}
+
+DEFINE_TEST(test_pax_filename_encoding)
+{
+	test_pax_filename_encoding_1();
+	test_pax_filename_encoding_2();
+	test_pax_filename_encoding_3();
 }
