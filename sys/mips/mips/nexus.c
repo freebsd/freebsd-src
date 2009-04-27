@@ -255,13 +255,14 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	if ((mem_hints_count > 0) && (mem_hints_count < 2)) {
 		printf("Either maddr or msize hint is missing for %s%d\n",
 		    dname, dunit);
-	} else if (mem_hints_count) {
+	} 
+	else if (mem_hints_count) {
 		dprintf("%s: discovered hinted child %s at maddr %p(%d)\n",
 		    __func__, device_get_nameunit(child),
 		    (void *)(intptr_t)maddr, msize);
 
-		result = bus_set_resource(child, SYS_RES_MEMORY, MIPS_MEM_RID,
-		    maddr, msize);
+		result = bus_set_resource(child, SYS_RES_MEMORY, 0, maddr, 
+		    msize);
 		if (result != 0) {
 			device_printf(bus, 
 			    "warning: bus_set_resource() failed\n");
@@ -351,7 +352,8 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0) {
-		printf("%s: could not reserve resource\n", __func__);
+		printf("%s: could not reserve resource for %s\n", __func__,
+		    device_get_nameunit(child));
 		return (0);
 	}
 
@@ -391,7 +393,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
 
 		rman_set_virtual(r, vaddr);
-		rman_set_bustag(r, MIPS_BUS_SPACE_MEM);
+		rman_set_bustag(r, mips_bus_space_generic);
 #ifdef TARGET_OCTEON
 		temp = 0x0000000000000000;
 		temp |= (uint32_t)vaddr;
