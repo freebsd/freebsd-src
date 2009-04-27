@@ -30,6 +30,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define IFNET_BUF_RING
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/linker.h>
@@ -66,6 +68,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
 #include <machine/resource.h>
+#ifdef IFNET_BUF_RING
+#include <sys/buf_ring.h>
+#endif
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
@@ -1223,6 +1228,9 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 		 */
 		cmd.data0 = sc->num_slices;
 		cmd.data1 = MXGEFW_SLICE_INTR_MODE_ONE_PER_SLICE;
+#ifdef IFNET_BUF_RING
+		cmd.data1 |= MXGEFW_SLICE_ENABLE_MULTIPLE_TX_QUEUES;
+#endif
 		status = mxge_send_cmd(sc, MXGEFW_CMD_ENABLE_RSS_QUEUES,
 					   &cmd);
 		if (status != 0) {
@@ -1282,6 +1290,9 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 		ss->tx.req = 0;
 		ss->tx.done = 0;
 		ss->tx.pkt_done = 0;
+		ss->tx.queue_active = 0;
+		ss->tx.activate = 0;
+		ss->tx.deactivate = 0;
 		ss->tx.wake = 0;
 		ss->tx.defrag = 0;
 		ss->tx.stall = 0;
@@ -1614,10 +1625,6 @@ mxge_add_sysctls(mxge_softc_t *sc)
 			       "rx_big_cnt",
 			       CTLFLAG_RD, &ss->rx_big.cnt,
 			       0, "rx_small_cnt");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
-			       "tx_req",
-			       CTLFLAG_RD, &ss->tx.req,
-			       0, "tx_req");
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "lro_flushed", CTLFLAG_RD, &ss->lro_flushed,
 			       0, "number of lro merge queues flushed");
@@ -1627,9 +1634,15 @@ mxge_add_sysctls(mxge_softc_t *sc)
 			       0, "number of frames appended to lro merge"
 			       "queues");
 
+#ifndef IFNET_BUF_RING
 		/* only transmit from slice 0 for now */
 		if (slice > 0)
 			continue;
+#endif
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+			       "tx_req",
+			       CTLFLAG_RD, &ss->tx.req,
+			       0, "tx_req");
 
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 			       "tx_done",
@@ -1651,6 +1664,18 @@ mxge_add_sysctls(mxge_softc_t *sc)
 			       "tx_defrag",
 			       CTLFLAG_RD, &ss->tx.defrag,
 			       0, "tx_defrag");
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+			       "tx_queue_active",
+			       CTLFLAG_RD, &ss->tx.queue_active,
+			       0, "tx_queue_active");
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+			       "tx_activate",
+			       CTLFLAG_RD, &ss->tx.activate,
+			       0, "tx_activate");
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+			       "tx_deactivate",
+			       CTLFLAG_RD, &ss->tx.deactivate,
+			       0, "tx_deactivate");
 	}
 }
 
@@ -1873,12 +1898,21 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 
 	tx->info[((cnt - 1) + tx->req) & tx->mask].flag = 1;
 	mxge_submit_req(tx, tx->req_list, cnt);
+#ifdef IFNET_BUF_RING
+	if ((ss->sc->num_slices > 1) && tx->queue_active == 0) {
+		/* tell the NIC to start polling this slice */
+		*tx->send_go = 1;
+		tx->queue_active = 1;
+		tx->activate++;
+		wmb();
+	}
+#endif
 	return;
 
 drop:
 	bus_dmamap_unload(tx->dmat, tx->info[tx->req & tx->mask].map);
 	m_freem(m);
-	ss->sc->ifp->if_oerrors++;
+	ss->oerrors++;
 	if (!once) {
 		printf("tx->max_desc exceeded via TSO!\n");
 		printf("mss = %d, %ld, %d!\n", mss,
@@ -2075,16 +2109,131 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 #endif
 	tx->info[((cnt - 1) + tx->req) & tx->mask].flag = 1;
 	mxge_submit_req(tx, tx->req_list, cnt);
+#ifdef IFNET_BUF_RING
+	if ((ss->sc->num_slices > 1) && tx->queue_active == 0) {
+		/* tell the NIC to start polling this slice */
+		*tx->send_go = 1;
+		tx->queue_active = 1;
+		tx->activate++;
+		wmb();
+	}
+#endif
 	return;
 
 drop:
 	m_freem(m);
-	ifp->if_oerrors++;
+	ss->oerrors++;
 	return;
 }
 
+#ifdef IFNET_BUF_RING
+static void
+mxge_qflush(struct ifnet *ifp)
+{
+	mxge_softc_t *sc = ifp->if_softc;
+	mxge_tx_ring_t *tx;
+	struct mbuf *m;
+	int slice;
 
+	for (slice = 0; slice < sc->num_slices; slice++) {
+		tx = &sc->ss[slice].tx;
+		mtx_lock(&tx->mtx);
+		while ((m = buf_ring_dequeue_sc(tx->br)) != NULL)
+			m_freem(m);
+		mtx_unlock(&tx->mtx);
+	}
+	if_qflush(ifp);
+}
 
+static inline void
+mxge_start_locked(struct mxge_slice_state *ss)
+{
+	mxge_softc_t *sc;
+	struct mbuf *m;
+	struct ifnet *ifp;
+	mxge_tx_ring_t *tx;
+
+	sc = ss->sc;
+	ifp = sc->ifp;
+	tx = &ss->tx;
+
+	while ((tx->mask - (tx->req - tx->done)) > tx->max_desc) {
+		m = drbr_dequeue(ifp, tx->br);
+		if (m == NULL) {
+			return;
+		}
+		/* let BPF see it */
+		BPF_MTAP(ifp, m);
+
+		/* give it to the nic */
+		mxge_encap(ss, m);
+	}
+	/* ran out of transmit slots */
+	if (((ss->if_drv_flags & IFF_DRV_OACTIVE) == 0)
+	    && (!drbr_empty(ifp, tx->br))) {
+		ss->if_drv_flags |= IFF_DRV_OACTIVE;
+		tx->stall++;
+	}
+}
+
+static int
+mxge_transmit_locked(struct mxge_slice_state *ss, struct mbuf *m)
+{
+	mxge_softc_t *sc;
+	struct ifnet *ifp;
+	mxge_tx_ring_t *tx;
+	int err;
+
+	sc = ss->sc;
+	ifp = sc->ifp;
+	tx = &ss->tx;
+
+	if ((ss->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) {
+		err = drbr_enqueue(ifp, tx->br, m);
+		return (err);
+	}
+
+	if (drbr_empty(ifp, tx->br) &&
+	    ((tx->mask - (tx->req - tx->done)) > tx->max_desc)) {
+		/* let BPF see it */
+		BPF_MTAP(ifp, m);
+		/* give it to the nic */
+		mxge_encap(ss, m);
+	} else if ((err = drbr_enqueue(ifp, tx->br, m)) != 0) {
+		return (err);
+	}
+	if (!drbr_empty(ifp, tx->br))
+		mxge_start_locked(ss);
+	return (0);
+}
+
+static int
+mxge_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	mxge_softc_t *sc = ifp->if_softc;
+	struct mxge_slice_state *ss;
+	mxge_tx_ring_t *tx;
+	int err = 0;
+	int slice;
+
+	slice = m->m_pkthdr.flowid;
+	slice &= (sc->num_slices - 1);  /* num_slices always power of 2 */
+
+	ss = &sc->ss[slice];
+	tx = &ss->tx;
+
+	if (mtx_trylock(&tx->mtx)) {
+		err = mxge_transmit_locked(ss, m);
+		mtx_unlock(&tx->mtx);
+	} else {
+		err = drbr_enqueue(ifp, tx->br, m);
+	}
+
+	return (err);
+}
+
+#else
 
 static inline void
 mxge_start_locked(struct mxge_slice_state *ss)
@@ -2114,7 +2263,7 @@ mxge_start_locked(struct mxge_slice_state *ss)
 		tx->stall++;
 	}
 }
-
+#endif
 static void
 mxge_start(struct ifnet *ifp)
 {
@@ -2381,6 +2530,11 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len, uint32_t csum)
 		m->m_pkthdr.csum_data = 0xffff;
 		m->m_pkthdr.csum_flags = CSUM_PSEUDO_HDR | CSUM_DATA_VALID;
 	}
+	/* flowid only valid if RSS hashing is enabled */
+	if (sc->num_slices > 1) {
+		m->m_pkthdr.flowid = (ss - sc->ss);
+		m->m_flags |= M_FLOWID;
+	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
 }
@@ -2441,6 +2595,11 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len, uint32_t csum)
 		m->m_pkthdr.csum_data = 0xffff;
 		m->m_pkthdr.csum_flags = CSUM_PSEUDO_HDR | CSUM_DATA_VALID;
 	}
+	/* flowid only valid if RSS hashing is enabled */
+	if (sc->num_slices > 1) {
+		m->m_pkthdr.flowid = (ss - sc->ss);
+		m->m_flags |= M_FLOWID;
+	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
 }
@@ -2486,6 +2645,7 @@ mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 	struct mbuf *m;
 	bus_dmamap_t map;
 	int idx;
+	int *flags;
 
 	tx = &ss->tx;
 	ifp = ss->sc->ifp;
@@ -2496,7 +2656,12 @@ mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 		/* mbuf and DMA map only attached to the first
 		   segment per-mbuf */
 		if (m != NULL) {
-			ifp->if_opackets++;
+#ifdef IFNET_BUF_RING			
+			ss->obytes += m->m_pkthdr.len;
+			if (m->m_flags & M_MCAST)
+				ss->omcasts++;
+#endif
+			ss->opackets++;
 			tx->info[idx].m = NULL;
 			map = tx->info[idx].map;
 			bus_dmamap_unload(tx->dmat, map);
@@ -2510,15 +2675,32 @@ mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 	
 	/* If we have space, clear IFF_OACTIVE to tell the stack that
            its OK to send packets */
-
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE &&
+#ifdef IFNET_BUF_RING
+	flags = &ss->if_drv_flags;
+#else
+	flags = &ifp->if_drv_flags;
+#endif
+	mtx_lock(&ss->tx.mtx);
+	if ((*flags) & IFF_DRV_OACTIVE &&
 	    tx->req - tx->done < (tx->mask + 1)/4) {
-		mtx_lock(&ss->tx.mtx);
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		*(flags) &= ~IFF_DRV_OACTIVE;
 		ss->tx.wake++;
 		mxge_start_locked(ss);
-		mtx_unlock(&ss->tx.mtx);
 	}
+#ifdef IFNET_BUF_RING
+	if ((ss->sc->num_slices > 1) && (tx->req == tx->done)) {
+		/* let the NIC stop polling this queue, since there
+		 * are no more transmits pending */
+		if (tx->req == tx->done) {
+			*tx->send_stop = 1;
+			tx->queue_active = 0;
+			tx->deactivate++;
+			wmb();
+		}
+	}
+#endif
+	mtx_unlock(&ss->tx.mtx);
+
 }
 
 static struct mxge_media_type mxge_xfp_media_types[] =
@@ -2701,6 +2883,7 @@ mxge_intr(void *arg)
 	uint8_t valid;
 
 
+#ifndef IFNET_BUF_RING
 	/* an interrupt on a non-zero slice is implicitly valid
 	   since MSI-X irqs are not shared */
 	if (ss != sc->ss) {
@@ -2708,6 +2891,7 @@ mxge_intr(void *arg)
 		*ss->irq_claim = be32toh(3);
 		return;
 	}
+#endif
 
 	/* make sure the DMA has finished */
 	if (!stats->valid) {
@@ -2731,7 +2915,8 @@ mxge_intr(void *arg)
 		send_done_count = be32toh(stats->send_done_count);
 		while ((send_done_count != tx->pkt_done) ||
 		       (rx_done->entry[rx_done->idx].length != 0)) {
-			mxge_tx_done(ss, (int)send_done_count);
+			if (send_done_count != tx->pkt_done)
+				mxge_tx_done(ss, (int)send_done_count);
 			mxge_clean_rx_done(ss);
 			send_done_count = be32toh(stats->send_done_count);
 		}
@@ -2739,7 +2924,8 @@ mxge_intr(void *arg)
 			wmb();
 	} while (*((volatile uint8_t *) &stats->valid));
 
-	if (__predict_false(stats->stats_updated)) {
+	/* fw link & error stats meaningful only on the first slice */
+	if (__predict_false((ss == sc->ss) && stats->stats_updated)) {
 		if (sc->link_state != stats->link_up) {
 			sc->link_state = stats->link_up;
 			if (sc->link_state) {
@@ -3029,9 +3215,11 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 
 	/* now allocate TX resouces */
 
+#ifndef IFNET_BUF_RING
 	/* only use a single TX ring for now */
 	if (ss != ss->sc->ss)
 		return 0;
+#endif
 
 	ss->tx.mask = tx_ring_entries - 1;
 	ss->tx.max_desc = MIN(MXGE_MAX_SEND_DESC, tx_ring_entries / 4);
@@ -3197,13 +3385,21 @@ mxge_slice_open(struct mxge_slice_state *ss, int nbufs, int cl_size)
 	/* get the lanai pointers to the send and receive rings */
 
 	err = 0;
+#ifndef IFNET_BUF_RING
 	/* We currently only send from the first slice */
 	if (slice == 0) {
+#endif
 		cmd.data0 = slice;
 		err = mxge_send_cmd(sc, MXGEFW_CMD_GET_SEND_OFFSET, &cmd);
 		ss->tx.lanai = 
 			(volatile mcp_kreq_ether_send_t *)(sc->sram + cmd.data0);
+		ss->tx.send_go = (volatile uint32_t *)
+			(sc->sram + MXGEFW_ETH_SEND_GO + 64 * slice);
+		ss->tx.send_stop = (volatile uint32_t *)
+		(sc->sram + MXGEFW_ETH_SEND_STOP + 64 * slice);
+#ifndef IFNET_BUF_RING
 	}
+#endif
 	cmd.data0 = slice;
 	err |= mxge_send_cmd(sc, 
 			     MXGEFW_CMD_GET_SMALL_RX_OFFSET, &cmd);
@@ -3255,6 +3451,7 @@ mxge_open(mxge_softc_t *sc)
 	int err, big_bytes, nbufs, slice, cl_size, i;
 	bus_addr_t bus;
 	volatile uint8_t *itable;
+	struct mxge_slice_state *ss;
 
 	/* Copy the MAC address in case it was overridden */
 	bcopy(IF_LLADDR(sc->ifp), sc->mac_addr, ETHER_ADDR_LEN);
@@ -3324,10 +3521,22 @@ mxge_open(mxge_softc_t *sc)
 	}
 
 	/* Now give him the pointer to the stats block */
-	cmd.data0 = MXGE_LOWPART_TO_U32(sc->ss->fw_stats_dma.bus_addr);
-	cmd.data1 = MXGE_HIGHPART_TO_U32(sc->ss->fw_stats_dma.bus_addr);
-	cmd.data2 = sizeof(struct mcp_irq_data);
-	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_STATS_DMA_V2, &cmd);
+	for (slice = 0; 
+#ifdef IFNET_BUF_RING
+	     slice < sc->num_slices;
+#else
+	     slice < 1;
+#endif
+	     slice++) {
+		ss = &sc->ss[slice];
+		cmd.data0 =
+			MXGE_LOWPART_TO_U32(ss->fw_stats_dma.bus_addr);
+		cmd.data1 =
+			MXGE_HIGHPART_TO_U32(ss->fw_stats_dma.bus_addr);
+		cmd.data2 = sizeof(struct mcp_irq_data);
+		cmd.data2 |= (slice << 16);
+		err |= mxge_send_cmd(sc, MXGEFW_CMD_SET_STATS_DMA_V2, &cmd);
+	}
 
 	if (err != 0) {
 		bus = sc->ss->fw_stats_dma.bus_addr;
@@ -3363,6 +3572,13 @@ mxge_open(mxge_softc_t *sc)
 		device_printf(sc->dev, "Couldn't bring up link\n");
 		goto abort;
 	}
+#ifdef IFNET_BUF_RING
+	for (slice = 0; slice < sc->num_slices; slice++) {
+		ss = &sc->ss[slice];
+		ss->if_drv_flags |= IFF_DRV_RUNNING;
+		ss->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	}
+#endif
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
@@ -3381,8 +3597,18 @@ mxge_close(mxge_softc_t *sc)
 {
 	mxge_cmd_t cmd;
 	int err, old_down_cnt;
+#ifdef IFNET_BUF_RING
+	struct mxge_slice_state *ss;	
+	int slice;
+#endif
 
 	callout_stop(&sc->co_hdl);
+#ifdef IFNET_BUF_RING
+	for (slice = 0; slice < sc->num_slices; slice++) {
+		ss = &sc->ss[slice];
+		ss->if_drv_flags &= ~IFF_DRV_RUNNING;
+	}
+#endif
 	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	old_down_cnt = sc->down_cnt;
 	wmb();
@@ -3448,9 +3674,10 @@ mxge_read_reboot(mxge_softc_t *sc)
 }
 
 static int
-mxge_watchdog_reset(mxge_softc_t *sc)
+mxge_watchdog_reset(mxge_softc_t *sc, int slice)
 {
 	struct pci_devinfo *dinfo;
+	mxge_tx_ring_t *tx;
 	int err;
 	uint32_t reboot;
 	uint16_t cmd;
@@ -3497,11 +3724,17 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 			err = mxge_open(sc);
 		}
 	} else {
-		device_printf(sc->dev, "NIC did not reboot, ring state:\n");
-		device_printf(sc->dev, "tx.req=%d tx.done=%d\n",
-			      sc->ss->tx.req, sc->ss->tx.done);
+		tx = &sc->ss[slice].tx;
+		device_printf(sc->dev,
+			      "NIC did not reboot, slice %d ring state:\n",
+			      slice);
+		device_printf(sc->dev,
+			      "tx.req=%d tx.done=%d, tx.queue_active=%d\n",
+			      tx->req, tx->done, tx->queue_active);
+		device_printf(sc->dev, "tx.activate=%d tx.deactivate=%d\n",
+			      tx->activate, tx->deactivate);
 		device_printf(sc->dev, "pkt_done=%d fw=%d\n",
-			      sc->ss->tx.pkt_done,
+			      tx->pkt_done,
 			      be32toh(sc->ss->fw_stats->send_done_count));
 		device_printf(sc->dev, "not resetting\n");
 	}
@@ -3511,26 +3744,35 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 static int
 mxge_watchdog(mxge_softc_t *sc)
 {
-	mxge_tx_ring_t *tx = &sc->ss->tx;
+	mxge_tx_ring_t *tx;
 	uint32_t rx_pause = be32toh(sc->ss->fw_stats->dropped_pause);
-	int err = 0;
+	int i, err = 0;
 
 	/* see if we have outstanding transmits, which
 	   have been pending for more than mxge_ticks */
-	if (tx->req != tx->done &&
-	    tx->watchdog_req != tx->watchdog_done &&
-	    tx->done == tx->watchdog_done) {
-		/* check for pause blocking before resetting */
-		if (tx->watchdog_rx_pause == rx_pause)
-			err = mxge_watchdog_reset(sc);
-		else
-			device_printf(sc->dev, "Flow control blocking "
-				      "xmits, check link partner\n");
-	}
+	for (i = 0; 
+#ifdef IFNET_BUF_RING
+	     (i < sc->num_slices) && (err == 0);
+#else
+	     (i < 1) && (err == 0);
+#endif
+	     i++) {
+		tx = &sc->ss[i].tx;		
+		if (tx->req != tx->done &&
+		    tx->watchdog_req != tx->watchdog_done &&
+		    tx->done == tx->watchdog_done) {
+			/* check for pause blocking before resetting */
+			if (tx->watchdog_rx_pause == rx_pause)
+				err = mxge_watchdog_reset(sc, i);
+			else
+				device_printf(sc->dev, "Flow control blocking "
+					      "xmits, check link partner\n");
+		}
 
-	tx->watchdog_req = tx->req;
-	tx->watchdog_done = tx->done;
-	tx->watchdog_rx_pause = rx_pause;
+		tx->watchdog_req = tx->req;
+		tx->watchdog_done = tx->done;
+		tx->watchdog_rx_pause = rx_pause;
+	}
 
 	if (sc->need_media_probe)
 		mxge_media_probe(sc);
@@ -3542,15 +3784,36 @@ mxge_update_stats(mxge_softc_t *sc)
 {
 	struct mxge_slice_state *ss;
 	u_long ipackets = 0;
+	u_long opackets = 0;
+#ifdef IFNET_BUF_RING
+	u_long obytes = 0;
+	u_long omcasts = 0;
+	u_long odrops = 0;
+#endif
+	u_long oerrors = 0;
 	int slice;
 
-	for(slice = 0; slice < sc->num_slices; slice++) {
+	for (slice = 0; slice < sc->num_slices; slice++) {
 		ss = &sc->ss[slice];
 		ipackets += ss->ipackets;
+		opackets += ss->opackets;
+#ifdef IFNET_BUF_RING
+		obytes += ss->obytes;
+		omcasts += ss->omcasts;
+		odrops += ss->tx.br->br_drops;
+#endif
+		oerrors += ss->oerrors;
 	}
 	sc->ifp->if_ipackets = ipackets;
-
+	sc->ifp->if_opackets = opackets;
+#ifdef IFNET_BUF_RING
+	sc->ifp->if_obytes = obytes;
+	sc->ifp->if_omcasts = omcasts;
+	sc->ifp->if_snd.ifq_drops = odrops;
+#endif
+	sc->ifp->if_oerrors = oerrors;
 }
+
 static void
 mxge_tick(void *arg)
 {
@@ -3772,6 +4035,12 @@ mxge_free_slices(mxge_softc_t *sc)
 		if (ss->fw_stats != NULL) {
 			mxge_dma_free(&ss->fw_stats_dma);
 			ss->fw_stats = NULL;
+#ifdef IFNET_BUF_RING
+			if (ss->tx.br != NULL) {
+				drbr_free(ss->tx.br, M_DEVBUF);
+				ss->tx.br = NULL;
+			}
+#endif
 			mtx_destroy(&ss->tx.mtx);
 		}
 		if (ss->rx_done.entry != NULL) {
@@ -3822,8 +4091,10 @@ mxge_alloc_slices(mxge_softc_t *sc)
 		 * (including tx) are used used only on the first
 		 * slice for now
 		 */
+#ifndef IFNET_BUF_RING
 		if (i > 0)
 			continue;
+#endif
 
 		bytes = sizeof (*ss->fw_stats);
 		err = mxge_dma_alloc(sc, &ss->fw_stats_dma, 
@@ -3834,6 +4105,10 @@ mxge_alloc_slices(mxge_softc_t *sc)
 		snprintf(ss->tx.mtx_name, sizeof(ss->tx.mtx_name),
 			 "%s:tx(%d)", device_get_nameunit(sc->dev), i);
 		mtx_init(&ss->tx.mtx, ss->tx.mtx_name, NULL, MTX_DEF);
+#ifdef IFNET_BUF_RING
+		ss->tx.br = buf_ring_alloc(2048, M_DEVBUF, M_WAITOK,
+					   &ss->tx.mtx);
+#endif
 	}
 
 	return (0);
@@ -4307,6 +4582,10 @@ mxge_attach(device_t dev)
 		ifp->if_mtu = 9000;
 
 	mxge_add_sysctls(sc);
+#ifdef IFNET_BUF_RING
+	ifp->if_transmit = mxge_transmit;
+	ifp->if_qflush = mxge_qflush;
+#endif
 	return 0;
 
 abort_with_rings:
