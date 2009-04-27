@@ -89,7 +89,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 		return;
 
 	/* Learn TLB size and L1 cache geometry. */
-	cfg1 = mips_rd_config_sel1();
+	cfg1 = mips_rd_config1();
 	cpuinfo->tlb_nentries = 
 	    ((cfg1 & MIPS_CONFIG1_TLBSZ_MASK) >> MIPS_CONFIG1_TLBSZ_SHIFT) + 1;
 
@@ -226,14 +226,14 @@ cpu_identify(void)
 	if (!(cfg0 & MIPS3_CONFIG_CM))
 		return;
 
-	cfg1 = mips_rd_config_sel1();
+	cfg1 = mips_rd_config1();
 	printf("  Config1=0x%b\n", cfg1, 
 	    "\20\7COP2\6MDMX\5PerfCount\4WatchRegs\3MIPS16\2EJTAG\1FPU");
 
 	/* If config register selection 2 does not exist, exit. */
 	if (!(cfg1 & MIPS3_CONFIG_CM))
 		return;
-	cfg2 = mips_rd_config_sel2();
+	cfg2 = mips_rd_config2();
 	/* 
 	 * Config2 contains no useful information other then Config3 
 	 * existence flag
@@ -242,7 +242,7 @@ cpu_identify(void)
 	/* If config register selection 3 does not exist, exit. */
 	if (!(cfg2 & MIPS3_CONFIG_CM))
 		return;
-	cfg3 = mips_rd_config_sel3();
+	cfg3 = mips_rd_config3();
 
 	/* Print Config3 if it contains any useful info */
 	if (cfg3 & ~(0x80000000))
