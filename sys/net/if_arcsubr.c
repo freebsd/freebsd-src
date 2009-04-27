@@ -237,7 +237,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	BPF_MTAP(ifp, m);
 
-	IFQ_HANDOFF(ifp, m, error);
+	error = ifp->if_transmit(ifp, m);
 
 	return (error);
 
