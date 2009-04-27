@@ -85,7 +85,7 @@ ata_ahci_probe(device_t dev)
 
     /* is this PCI device flagged as an AHCI compliant chip ? */
     if (pci_read_config(dev, PCIR_PROGIF, 1) != PCIP_STORAGE_SATA_AHCI_1_0)
-	return ENXIO;
+	return (ENXIO);
 
     if (bootverbose)
 	sprintf(buffer, "%s (ID=%08x) AHCI controller", 
@@ -94,7 +94,7 @@ ata_ahci_probe(device_t dev)
 	sprintf(buffer, "%s AHCI controller", ata_pcivendor2str(dev));
     device_set_desc_copy(dev, buffer);
     ctlr->chipinit = ata_ahci_chipinit;
-    return 0;
+    return (BUS_PROBE_GENERIC);
 }
 
 int
