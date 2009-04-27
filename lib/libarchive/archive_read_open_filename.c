@@ -84,6 +84,7 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	void *b;
 	int fd;
 
+	archive_clear_error(a);
 	if (filename == NULL || filename[0] == '\0')
 		return (archive_read_open_fd(a, 0, block_size));
 
