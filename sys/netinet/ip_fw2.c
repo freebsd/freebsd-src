@@ -2515,16 +2515,7 @@ do {									\
 		/*
 		 * Packet has already been tagged. Look for the next rule
 		 * to restart processing.
-		 *
-		 * If fw_one_pass != 0 then just accept it.
-		 * XXX should not happen here, but optimized out in
-		 * the caller.
 		 */
-		if (V_fw_one_pass) {
-			IPFW_RUNLOCK(chain);
-			return (IP_FW_PASS);
-		}
-
 		f = args->rule->next_rule;
 		if (f == NULL)
 			f = lookup_next_rule(args->rule, 0);
