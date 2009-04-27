@@ -70,6 +70,7 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	size_t block_size = 128 * 1024;
 	void *b;
 
+	archive_clear_error(a);
 	mine = (struct read_FILE_data *)malloc(sizeof(*mine));
 	b = malloc(block_size);
 	if (mine == NULL || b == NULL) {

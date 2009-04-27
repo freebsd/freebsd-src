@@ -100,6 +100,7 @@ archive_read_support_compression_xz(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder = __archive_read_get_bidder(a);
 
+	archive_clear_error(_a);
 	if (bidder == NULL)
 		return (ARCHIVE_FATAL);
 
@@ -123,6 +124,7 @@ archive_read_support_compression_lzma(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder = __archive_read_get_bidder(a);
 
+	archive_clear_error(_a);
 	if (bidder == NULL)
 		return (ARCHIVE_FATAL);
 
