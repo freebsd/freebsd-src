@@ -684,6 +684,7 @@ found:
 	return sp;
 }
 
+#if 0
 /*
  * return a policy that matches this particular inbound packet.
  * XXX slow
@@ -760,6 +761,7 @@ done:
 			sp, sp ? sp->id : 0, sp ? sp->refcnt : 0));
 	return sp;
 }
+#endif
 
 /*
  * allocating an SA entry for an *OUTBOUND* packet.
