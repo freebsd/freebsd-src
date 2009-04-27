@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2009
+.Dd January 25, 2009
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -46,9 +46,9 @@
 .Ar ...
 .Sh DESCRIPTION
 The specified disk partitions and/or file systems are checked.
-In "preen" mode the clean flag of each file system's superblock is examined
-and only those file systems that
-are not marked clean are checked.
+In "preen" or "check clean" mode the clean flag of each file system's
+superblock is examined and only those file systems that are not marked clean
+are checked.
 File systems are marked clean when they are unmounted,
 when they have been mounted read-only, or when
 .Nm
@@ -175,6 +175,14 @@ Use the block specified immediately after the flag as
 the super block for the file system.
 An alternate super block is usually located at block 32 for UFS1,
 and block 160 for UFS2.
+.It Fl C
+Check if file system was dismouted cleanly.
+If so, skip file system checks (like "preen").
+However, if the file system was not cleanly dismounted, do full checks,
+is if
+.Nm
+was invoked without
+.Fl C .
 .It Fl c
 Convert the file system to the specified level.
 Note that the level of a file system can only be raised.
