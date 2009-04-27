@@ -125,7 +125,7 @@ typedef struct
 typedef struct
 {
 	struct mtx mtx;
-#ifdef IFNET_MULTIQUEUE
+#ifdef IFNET_BUF_RING
 	struct buf_ring *br;
 #endif
 	volatile mcp_kreq_ether_send_t *lanai;	/* lanai ptr for sendq	*/
