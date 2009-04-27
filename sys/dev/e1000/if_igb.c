@@ -3308,6 +3308,7 @@ igb_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
         int first, last, done, num_avail;
+	u32 cleaned = 0;
         struct igb_tx_buffer *tx_buffer;
         struct e1000_tx_desc   *tx_desc, *eop_desc;
 	struct ifnet   *ifp = adapter->ifp;
@@ -3343,7 +3344,7 @@ igb_txeof(struct tx_ring *txr)
                 	tx_desc->upper.data = 0;
                 	tx_desc->lower.data = 0;
                 	tx_desc->buffer_addr = 0;
-                	num_avail++;
+                	++num_avail; ++cleaned;
 
 			if (tx_buffer->m_head) {
 				ifp->if_opackets++;
@@ -3380,23 +3381,21 @@ igb_txeof(struct tx_ring *txr)
         txr->next_to_clean = first;
 
         /*
-         * If we have enough room, clear IFF_DRV_OACTIVE to tell the stack
-         * that it is OK to send packets.
-         * If there are no pending descriptors, clear the timeout. Otherwise,
-         * if some descriptors have been freed, restart the timeout.
+         * If we have enough room, clear IFF_DRV_OACTIVE to
+         * tell the stack that it is OK to send packets.
+         * If there are no pending descriptors, clear the timeout.
          */
         if (num_avail > IGB_TX_CLEANUP_THRESHOLD) {                
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		/* All clean, turn off the timer */
                 if (num_avail == adapter->num_tx_desc) {
 			txr->watchdog_timer = 0;
         		txr->tx_avail = num_avail;
 			return FALSE;
 		}
-		/* Some cleaned, reset the timer */
-                else if (num_avail != txr->tx_avail)
-			txr->watchdog_timer = IGB_TX_TIMEOUT;
         }
+	/* Some descriptors cleaned, reset the watchdog */
+	if (cleaned)
+		txr->watchdog_timer = IGB_TX_TIMEOUT;
         txr->tx_avail = num_avail;
         return TRUE;
 }
