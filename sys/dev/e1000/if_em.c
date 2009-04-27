@@ -1021,7 +1021,7 @@ em_transmit_locked(struct ifnet *ifp, struct mbuf *m)
 			** listener and set the watchdog on.
 			*/
 			ETHER_BPF_MTAP(ifp, m);
-			addapter->watchdog_timer = EM_TX_TIMEOUT;
+			adapter->watchdog_timer = EM_TX_TIMEOUT;
 		}
 	} else if ((error = drbr_enqueue(ifp, adapter->br, m)) != 0)
 		return (error);
