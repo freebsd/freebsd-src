@@ -11,6 +11,9 @@ SHLIB_MAJOR= 4
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I${.OBJDIR}
+#Uncomment to build with full lzma/xz support via liblzma
+#CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+#LDADD+= -L/usr/local/lib -llzma
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL
