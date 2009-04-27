@@ -70,18 +70,18 @@ ata_pci_probe(device_t dev)
 
     /* is this a storage class device ? */
     if (pci_get_class(dev) != PCIC_STORAGE)
-	return ENXIO;
+	return (ENXIO);
 
     /* is this an IDE/ATA type device ? */
     if (pci_get_subclass(dev) != PCIS_STORAGE_IDE)
-	return ENXIO;
+	return (ENXIO);
     
     sprintf(buffer, "%s ATA controller", ata_pcivendor2str(dev));
     device_set_desc_copy(dev, buffer);
     ctlr->chipinit = ata_generic_chipinit;
 
     /* we are a low priority handler */
-    return -100;
+    return (BUS_PROBE_GENERIC);
 }
 
 int
