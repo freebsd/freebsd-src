@@ -248,6 +248,13 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_AGE_GET(m)		(m->m_pkthdr.csum_data)
 #define	M_AGE_SUB(m,adj)	(m->m_pkthdr.csum_data -= adj)
 
+/*
+ * Store the sequence number.
+ */
+#define	M_SEQNO_SET(m, seqno) \
+	((m)->m_pkthdr.tso_segsz = (seqno))
+#define	M_SEQNO_GET(m)	((m)->m_pkthdr.tso_segsz)
+
 #define	MTAG_ABI_NET80211	1132948340	/* net80211 ABI */
 
 struct ieee80211_cb {

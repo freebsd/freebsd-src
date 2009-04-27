@@ -512,6 +512,7 @@ ieee80211_send_setup(
 
 	seqno = ni->ni_txseqs[tid]++;
 	*(uint16_t *)&wh->i_seq[0] = htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+	M_SEQNO_SET(m, seqno);
 
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		m->m_flags |= M_MCAST;
@@ -1097,12 +1098,15 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			seqno = ni->ni_txseqs[tid]++;
 			*(uint16_t *)wh->i_seq =
 			    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+			M_SEQNO_SET(m, seqno);
 		}
 	} else {
 		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
 		*(uint16_t *)wh->i_seq =
 		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+		M_SEQNO_SET(m, seqno);
 	}
+
 	/* check if xmit fragmentation is required */
 	txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
 	    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
