@@ -66,6 +66,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	struct read_fd_data *mine;
 	void *b;
 
+	archive_clear_error(a);
 	if (fstat(fd, &st) != 0) {
 		archive_set_error(a, errno, "Can't stat fd %d", fd);
 		return (ARCHIVE_FATAL);
