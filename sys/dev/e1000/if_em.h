@@ -304,6 +304,8 @@ struct adapter {
 	struct ifnet	*ifp;
 #ifdef IFNET_BUF_RING
 	struct buf_ring	*br;
+#else
+        void		*br;
 #endif
 	struct e1000_hw	hw;
 
@@ -496,7 +498,25 @@ typedef struct _DESCRIPTOR_PAIR
 
 #ifdef IFNET_BUF_RING
 #define ADAPTER_RING_EMPTY(adapter) drbr_empty((adapter)->ifp, (adapter)->br)
+#define	em_dequeue     	drbr_dequeue
+
 #else
 #define ADAPTER_RING_EMPTY(adapter) IFQ_DRV_IS_EMPTY(&((adapter)->ifp->if_snd))
+#define	drbr_free(br, type)
+static __inline struct mbuf *
+em_dequeue(struct ifnet *ifp, struct buf_ring *br)
+{
+    struct mbuf *m;
+    
+    IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+    return (m);
+}
+#ifdef BUF_RING_UNDEFINED
+
+struct buf_ring {
+};
+
 #endif
+#endif
+
 #endif /* _EM_H_DEFINED_ */
