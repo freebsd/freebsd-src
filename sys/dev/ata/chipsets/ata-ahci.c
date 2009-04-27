@@ -84,7 +84,7 @@ ata_ahci_probe(device_t dev)
 	    return (ENXIO);
 
     /* is this PCI device flagged as an AHCI compliant chip ? */
-    if (pci_read_config(dev, PCIR_PROGIF, 1) != PCIP_STORAGE_SATA_AHCI_1_0)
+    if (pci_get_progif(dev) != PCIP_STORAGE_SATA_AHCI_1_0)
 	return (ENXIO);
 
     if (bootverbose)
