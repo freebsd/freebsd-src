@@ -438,7 +438,6 @@ static void
 flowtable_pcpu_unlock(struct flowtable *table, uint32_t hash)
 {
 
-	mb();
 	critical_exit();
 }
 
