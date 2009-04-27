@@ -775,26 +775,26 @@ ata_match_chip(device_t dev, struct ata_chip_id *index)
 struct ata_chip_id *
 ata_find_chip(device_t dev, struct ata_chip_id *index, int slot)
 {
+    struct ata_chip_id *idx;
     device_t *children;
     int nchildren, i;
+    uint8_t s;
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
-	return 0;
+	return (NULL);
 
-    while (index->chipid != 0) {
-	for (i = 0; i < nchildren; i++) {
-	    if (((slot >= 0 && pci_get_slot(children[i]) == slot) || 
-		 (slot < 0 && pci_get_slot(children[i]) <= -slot)) &&
-		pci_get_devid(children[i]) == index->chipid &&
-		pci_get_revid(children[i]) >= index->chiprev) {
+    for (i = 0; i < nchildren; i++) {
+	s = pci_get_slot(children[i]);
+	if ((slot >= 0 && s == slot) || (slot < 0 && s <= -slot)) {
+	    idx = ata_match_chip(children[i], index);
+	    if (idx != NULL) {
 		free(children, M_TEMP);
-		return index;
+		return (idx);
 	    }
 	}
-	index++;
     }
     free(children, M_TEMP);
-    return NULL;
+    return (NULL);
 }
 
 void
