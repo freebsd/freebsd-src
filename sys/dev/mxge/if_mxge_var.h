@@ -125,7 +125,12 @@ typedef struct
 typedef struct
 {
 	struct mtx mtx;
+#ifdef IFNET_MULTIQUEUE
+	struct buf_ring *br;
+#endif
 	volatile mcp_kreq_ether_send_t *lanai;	/* lanai ptr for sendq	*/
+	volatile uint32_t *send_go;		/* doorbell for sendq */
+	volatile uint32_t *send_stop;		/* doorbell for sendq */
 	mcp_kreq_ether_send_t *req_list;	/* host shadow of sendq */
 	char *req_bytes;
 	bus_dma_segment_t *seg_list;
@@ -136,6 +141,9 @@ typedef struct
 	int done;			/* transmits completed	*/
 	int pkt_done;			/* packets completed */
 	int max_desc;			/* max descriptors per xmit */
+	int queue_active;		/* fw currently polling this queue*/
+	int activate;
+	int deactivate;
 	int stall;			/* #times hw queue exhausted */
 	int wake;			/* #times irq re-enabled xmit */
 	int watchdog_req;		/* cache of req */
@@ -182,6 +190,11 @@ struct mxge_slice_state {
 	mcp_irq_data_t *fw_stats;
 	volatile uint32_t *irq_claim;
 	u_long ipackets;
+	u_long opackets;
+	u_long obytes;
+	u_long omcasts;
+	u_long oerrors;
+	int if_drv_flags;
 	struct lro_head lro_active;
 	struct lro_head lro_free;
 	int lro_queued;
