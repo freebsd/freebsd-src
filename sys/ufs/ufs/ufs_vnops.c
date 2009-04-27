@@ -157,11 +157,11 @@ ufs_itimes_locked(struct vnode *vp)
 	if (ip->i_flag & IN_UPDATE) {
 		DIP_SET(ip, i_mtime, ts.tv_sec);
 		DIP_SET(ip, i_mtimensec, ts.tv_nsec);
-		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE) {
 		DIP_SET(ip, i_ctime, ts.tv_sec);
 		DIP_SET(ip, i_ctimensec, ts.tv_nsec);
+		DIP_SET(ip, i_modrev, DIP(ip, i_modrev) + 1);
 	}
 
  out:
@@ -446,6 +446,7 @@ ufs_getattr(ap)
 		vap->va_ctime.tv_sec = ip->i_din1->di_ctime;
 		vap->va_ctime.tv_nsec = ip->i_din1->di_ctimensec;
 		vap->va_bytes = dbtob((u_quad_t)ip->i_din1->di_blocks);
+		vap->va_filerev = ip->i_din1->di_modrev;
 	} else {
 		vap->va_rdev = ip->i_din2->di_rdev;
 		vap->va_size = ip->i_din2->di_size;
@@ -456,12 +457,12 @@ ufs_getattr(ap)
 		vap->va_birthtime.tv_sec = ip->i_din2->di_birthtime;
 		vap->va_birthtime.tv_nsec = ip->i_din2->di_birthnsec;
 		vap->va_bytes = dbtob((u_quad_t)ip->i_din2->di_blocks);
+		vap->va_filerev = ip->i_din2->di_modrev;
 	}
 	vap->va_flags = ip->i_flags;
 	vap->va_gen = ip->i_gen;
 	vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
 	vap->va_type = IFTOVT(ip->i_mode);
-	vap->va_filerev = ip->i_modrev;
 	return (0);
 }
 
@@ -2225,7 +2226,6 @@ ufs_vinit(mntp, fifoops, vpp)
 	ASSERT_VOP_LOCKED(vp, "ufs_vinit");
 	if (ip->i_number == ROOTINO)
 		vp->v_vflag |= VV_ROOT;
-	ip->i_modrev = init_va_filerev();
 	*vpp = vp;
 	return (0);
 }
