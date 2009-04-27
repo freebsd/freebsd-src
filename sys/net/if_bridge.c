@@ -1761,24 +1761,15 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 		}
 
 		if (err == 0)
-			IFQ_ENQUEUE(&dst_ifp->if_snd, m, err);
+			dst_ifp->if_transmit(dst_ifp, m);
 	}
 
 	if (err == 0) {
-
 		sc->sc_ifp->if_opackets++;
 		sc->sc_ifp->if_obytes += len;
-
-		dst_ifp->if_obytes += len;
-
-		if (mflags & M_MCAST) {
+		if (mflags & M_MCAST)
 			sc->sc_ifp->if_omcasts++;
-			dst_ifp->if_omcasts++;
-		}
 	}
-
-	if ((dst_ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-		(*dst_ifp->if_start)(dst_ifp);
 }
 
 /*
