@@ -898,9 +898,7 @@ em_detach(device_t dev)
 	bus_generic_detach(dev);
 	if_free(ifp);
 
-#ifdef IFNET_BUF_RING
 	drbr_free(adapter->br, M_DEVBUF);
-#endif
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -1061,6 +1059,7 @@ em_qflush(struct ifnet *ifp)
 	if_qflush(ifp);
 	EM_TX_UNLOCK(adapter);
 }
+#endif
 
 static void
 em_start_locked(struct ifnet *ifp)
@@ -1079,7 +1078,7 @@ em_start_locked(struct ifnet *ifp)
 	while ((adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)
 	    && (!ADAPTER_RING_EMPTY(adapter))) {
 
-		m_head = drbr_dequeue(ifp, adapter->br);
+		m_head = em_dequeue(ifp, adapter->br);
 		if (m_head == NULL)
 			break;
 		/*
@@ -1089,8 +1088,10 @@ em_start_locked(struct ifnet *ifp)
 		if (em_xmit(adapter, &m_head)) {
 			if (m_head == NULL)
 				break;
+#ifndef IFNET_BUFRING
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+#endif
 			break;
 		}
 
@@ -1104,47 +1105,6 @@ em_start_locked(struct ifnet *ifp)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 }
-#else
-static void
-em_start_locked(struct ifnet *ifp)
-{
-	struct adapter	*adapter = ifp->if_softc;
-	struct mbuf	*m_head;
-
-	EM_TX_LOCK_ASSERT(adapter);
-
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
-		return;
-	if (!adapter->link_active)
-		return;
-
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
-		if (m_head == NULL)
-			break;
-		/*
-		 *  Encapsulation can modify our pointer, and or make it
-		 *  NULL on failure.  In that event, we can't requeue.
-		 */
-		if (em_xmit(adapter, &m_head)) {
-			if (m_head == NULL)
-				break;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			break;
-		}
-
-		/* Send a copy of the frame to the BPF listener */
-		ETHER_BPF_MTAP(ifp, m_head);
-
-		/* Set timeout in case hardware has problems transmitting. */
-		adapter->watchdog_timer = EM_TX_TIMEOUT;
-	}
-}
-
-#endif
 
 static void
 em_start(struct ifnet *ifp)
@@ -1969,12 +1929,8 @@ em_handle_tx(void *context, int pending)
 	struct ifnet	*ifp = adapter->ifp;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-#ifdef IFNET_BUF_RING
 		if (!EM_TX_TRYLOCK(adapter))
 			return;
-#else
-		EM_TX_LOCK(adapter);
-#endif
 
 		em_txeof(adapter);
 		if (!ADAPTER_RING_EMPTY(adapter))
