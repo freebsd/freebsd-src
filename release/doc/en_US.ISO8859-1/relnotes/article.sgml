@@ -208,6 +208,9 @@
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
+      <para>The &man.ddb.8; kernel debugger now supports a
+	<command>show mount</command> subcommand.</para>
+
       <para>The &os; DTrace subsystem now supports a probe for
 	process execution.</para>
 
@@ -305,6 +308,9 @@
       <sect3 id="proc">
 	<title>Hardware Support</title>
 
+	<para arch="sparc64">The &os; now supports Ultra SPARC III
+	  (Cheetah) family.</para>
+
 	<para>The &man.acpi.4; subsystem now supports a &man.sysctl.8;
 	  variable <varname>debug.batt.batt_sleep_ms</varname>.  On
 	  some laptops with smart batteries, enabling battery
@@ -353,9 +359,9 @@
 
 	  <para>The DRM, a kernel module named Direct Rendering
 	    Manager that gives direct hardware access to DRI clients,
-	    has been updated.  Support for AMD/ATI r500 and IGP based
-	    chips, XGI V3XE/V5/V8, and Intel i915 chipsets has been
-	    improved.</para>
+	    has been updated.  Support for AMD/ATI r500, r600, r700,
+	    and IGP based chips, XGI V3XE/V5/V8, and Intel i915
+	    chipsets has been improved.</para>
 
 	  <para>A new loader tunable <varname>hw.drm.msi</varname>
 	    which controls if DRM uses MSI or not.  This is set to
@@ -384,6 +390,9 @@
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para>The &man.ae.4; driver now supports WoL
+	    (Wake on LAN).</para>
+
 	  <para arch="amd64,i386">The &man.ale.4; driver are now
 	    included in the <filename>GENERIC</filename>
 	    kernel.</para>
@@ -397,6 +406,9 @@
 
 	  <para>The ciphy(4) driver now supports Vitesse VSC8211
 	    PHY.</para>
+
+	  <para>The &man.cxgb.4; driver now supports hardware MAC
+	    statistics.</para>
 
 	  <para>The &man.fxp.4; driver has been improved.  Changes include:</para>
 
@@ -442,19 +454,34 @@
 
 	  <para>The &man.msk.4; driver has been improved.  An issue
 	    which makes it hang up in a certain condition has been
-	    fixed.</para>
+	    fixed.  A hardware MAC statistics support has been added
+	    and users can get the information via sysctl variables
+	    named
+	    <varname>dev.msk.<replaceable>N</replaceable>.stats</varname>.</para>
 
 	  <para>The &man.mxge.4; driver now supports some newer
 	    revisions and 10GBASE-LRM and 10GBASE-Twinax media
 	    types.</para>
 
+	  <para>The &man.nfe.4; driver now supports hardware MAC
+	    statistics.</para>
+
 	  <para>The &man.re.4; driver has been improved.  It now
-	    detects the link status.</para>
+	    detects the link status.  A new loader tunable
+	    <varname>hw.re.prefer_iomap</varname> to disable memory
+	    register mapping.  This tunable is <literal>0</literal>
+	    for all controllers except RTL8169SC family.</para>
 
 	  <para>The &man.rl.4; driver has been improved.  It now
 	    detects the link status and a bug which prevents it from
 	    working on systems with more than 4GB memory has been
 	    fixed.</para>
+
+	  <para>A bug in &man.sis.4; on VLAN tagged frame handling has
+	    been fixed.</para>
+
+	  <para>The &man.txp.4; driver has been updated to the latest
+	    firmware.</para>
 	</sect4>
       </sect3>
 
@@ -481,6 +508,10 @@
 	    <para>As a last resort use the default jail address.</para>
 	  </listitem>
 	</orderedlist>
+
+	<para>The TCP MD5 Signature Option (RFC 2385) for IPv6 has
+	  been implemented in the same way it has been implemented for
+	  IPv4.</para>
 
 	<para>This also changes the semantics of selecting the IP for
 	  processes within a &man.jail.8; as it now uses the same
@@ -527,7 +558,13 @@
 
 	<para>A bug in the &man.ciss.4; driver which caused low
 	  <quote>max device openings</quote> count that has led
-	  to poor performance has been fixed.</para>
+ 	  to poor performance has been fixed.</para>
+
+	<para>The &man.gpart.8; utility has been updated.  The APM
+	  scheme now supports Tivo Series 1 partitions (read only), a
+	  new EBR scheme to support Extended Boot Records has been
+	  added, the BSD scheme now support bootcode, and bugs in PC98
+	  and VTOC8 scheme have been fixed.</para>
 
 	<para>An issue in the &man.gvinum.8; with access permissions
 	  to underlying disks used by a gvinum plex has been fixed.
@@ -538,6 +575,9 @@
 	<para>The &man.mmc.4; and &man.mmcsd.4; driver now support MMC
 	  and SDHC cards, high speed timing, wide bus, and multiblock
 	  transfers.</para>
+
+	<para arch="sparc64">The &man.mpt.4; driver is now in the
+	  <filename>GENERIC</filename> kernel.</para>
 
 	<para>The &man.sdhci.4; driver has been added.  This supports
 	  PCI devices with class 8 and subclass 5 according to SD Host
@@ -569,6 +609,17 @@
 	  </listitem>
 	</itemizedlist>
 
+	<para>The &os; NFS file system now supports a sysctl variable
+	  <varname>vfs.nfs.prime_access_cache</varname> to determine
+	  whether or not <function>nfs_getattr()</function> will use
+	  an ACCESS RPC to prime the access cache instead of a simple
+	  GETATTR RPC.  This is because on many NFS servers an ACCESS
+	  RPC is much more expensive to service than a GETATTR RPC for
+	  files in a NFSv3 mount.  The sysctl variables is enabled by
+	  default to maintain the previous behavior.</para>
+
+	<para>The &os; UDF file system now supports fifo.</para>
+
 	<para>The shared vnode locking for pathname lookups in
 	  &man.VFS.9; subsystem has been improved.  This is disabled
 	  by default.  Setting a sysctl variable
@@ -592,8 +643,15 @@
 	Point (NAP), Group Ad-hoc Network (GN) and Personal Area
 	Network User (PANU) profiles.</para>
 
+      <para>The &man.ncal.1; utility now supports multibyte
+	characters.</para>
+
       <para>The &man.config.8; utility now supports
 	multiple <varname>makeoption</varname> lines.</para>
+
+      <para>The &man.csup.1; utility now supports CVSMode to fetch a
+	complete CVS repository.  Note that the rsync transfer mode is
+	currently disabled.</para>
 
       <para>The &man.dirname.1; utility now accepts multiple arguments
 	in the same way that &man.basename.1; does.</para>
@@ -601,6 +659,21 @@
       <para>The &man.du.1; utility now supports an <option>-l</option>
 	flag.  When specified, the &man.du.1; counts a file with
 	multiple hard links as multiple different files.</para>
+
+      <para>The &man.du.1; utility now supports an <option>-A</option> flag
+	to display the apparent size instead of the disk usage.  This can be
+	helpful when operating on compressed volumes or sparse files.</para>
+
+      <para>The &man.du.1; utility now supports a <option>-B
+	<replaceable>blocksize</replaceable></option> option to
+	calculate block counts in blocksize byte blocks.  This is
+	different from the <option>-k</option>, <option>-m</option>
+	options or setting <varname>BLOCKSIZE</varname> and gives an
+	estimate of how much space the examined file hierarchy would
+	require on a filesystem with the given
+	<replaceable>blocksize</replaceable>.  Unless in
+	<option>-A</option> mode, <replaceable>blocksize</replaceable>
+	is rounded up to the next multiple of 512.</para>
 
       <para>The &man.dumpfs.8; utility now supports an
 	<option>-f</option> flag, which causes it to list all free
@@ -639,6 +712,13 @@
 	flag to check if the source file actually exists.  When the
 	flag is specified and the file does not exist, the &man.ln.1;
 	will put a warning message.</para>
+
+      <para>The &man.makefs.8; utility to create a file system image
+	from a directory tree has been added.</para>
+
+      <para>The &man.mergemaster.8; utility now supports an
+	<option>-F</option> option to automatically install files that
+	differ only in version control ID strings.</para>
 
       <para>The &man.netstat.1; utility now reports &man.unix.4;
 	sockets listen queue statistics when an <option>-L</option>
