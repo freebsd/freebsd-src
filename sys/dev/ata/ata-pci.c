@@ -759,13 +759,17 @@ ata_set_desc(device_t dev)
 struct ata_chip_id *
 ata_match_chip(device_t dev, struct ata_chip_id *index)
 {
+    uint32_t devid;
+    uint8_t revid;
+
+    devid = pci_get_devid(dev);
+    revid = pci_get_revid(dev);
     while (index->chipid != 0) {
-	if (pci_get_devid(dev) == index->chipid &&
-	    pci_get_revid(dev) >= index->chiprev)
-	    return index;
+	if (devid == index->chipid && revid >= index->chiprev)
+	    return (index);
 	index++;
     }
-    return NULL;
+    return (NULL);
 }
 
 struct ata_chip_id *
