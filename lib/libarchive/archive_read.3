@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2006
+.Dd April 13, 2009
 .Dt archive_read 3
 .Os
 .Sh NAME
@@ -36,12 +36,18 @@
 .Nm archive_read_support_compression_bzip2 ,
 .Nm archive_read_support_compression_compress ,
 .Nm archive_read_support_compression_gzip ,
+.Nm archive_read_support_compression_lzma ,
 .Nm archive_read_support_compression_none ,
+.Nm archive_read_support_compression_xz ,
 .Nm archive_read_support_compression_program ,
+.Nm archive_read_support_compression_program_signature ,
 .Nm archive_read_support_format_all ,
+.Nm archive_read_support_format_ar ,
 .Nm archive_read_support_format_cpio ,
 .Nm archive_read_support_format_empty ,
 .Nm archive_read_support_format_iso9660 ,
+.Nm archive_read_support_format_mtree,
+.Nm archive_read_support_format_raw,
 .Nm archive_read_support_format_tar ,
 .Nm archive_read_support_format_zip ,
 .Nm archive_read_open ,
@@ -78,20 +84,37 @@
 .Ft int
 .Fn archive_read_support_compression_gzip "struct archive *"
 .Ft int
+.Fn archive_read_support_compression_lzma "struct archive *"
+.Ft int
 .Fn archive_read_support_compression_none "struct archive *"
+.Ft int
+.Fn archive_read_support_compression_xz "struct archive *"
 .Ft int
 .Fo archive_read_support_compression_program
 .Fa "struct archive *"
 .Fa "const char *cmd"
 .Fc
 .Ft int
+.Fo archive_read_support_compression_program_signature
+.Fa "struct archive *"
+.Fa "const char *cmd"
+.Fa "const void *signature"
+.Fa "size_t signature_length"
+.Fc
+.Ft int
 .Fn archive_read_support_format_all "struct archive *"
+.Ft int
+.Fn archive_read_support_format_ar "struct archive *"
 .Ft int
 .Fn archive_read_support_format_cpio "struct archive *"
 .Ft int
 .Fn archive_read_support_format_empty "struct archive *"
 .Ft int
 .Fn archive_read_support_format_iso9660 "struct archive *"
+.Ft int
+.Fn archive_read_support_format_mtree "struct archive *"
+.Ft int
+.Fn archive_read_support_format_raw "struct archive *"
 .Ft int
 .Fn archive_read_support_format_tar "struct archive *"
 .Ft int
@@ -189,30 +212,43 @@ Allocates and initializes a
 .Tn struct archive
 object suitable for reading from an archive.
 .It Xo
-.Fn archive_read_support_compression_all ,
 .Fn archive_read_support_compression_bzip2 ,
 .Fn archive_read_support_compression_compress ,
 .Fn archive_read_support_compression_gzip ,
-.Fn archive_read_support_compression_none
+.Fn archive_read_support_compression_lzma ,
+.Fn archive_read_support_compression_none ,
+.Fn archive_read_support_compression_xz
 .Xc
 Enables auto-detection code and decompression support for the
 specified compression.
+Returns
+.Cm ARCHIVE_OK
+if the compression is fully supported, or
+.Cm ARCHIVE_WARN
+if the compression is supported only through an external program.
+Note that decompression using an external program is usually slower than
+decompression through built-in libraries.
 Note that
 .Dq none
 is always enabled by default.
-For convenience,
-.Fn archive_read_support_compression_all
-enables all available decompression code.
+.It Fn archive_read_support_compression_all
+Enables all available decompression filters.
 .It Fn archive_read_support_compression_program
 Data is fed through the specified external program before being dearchived.
 Note that this disables automatic detection of the compression format,
 so it makes no sense to specify this in conjunction with any other
 decompression option.
+.It Fn archive_read_support_compression_program_signature
+This feeds data through the specified external program
+but only if the initial bytes of the data match the specified
+signature value.
 .It Xo
 .Fn archive_read_support_format_all ,
+.Fn archive_read_support_format_ar ,
 .Fn archive_read_support_format_cpio ,
 .Fn archive_read_support_format_empty ,
 .Fn archive_read_support_format_iso9660 ,
+.Fn archive_read_support_format_mtree ,
 .Fn archive_read_support_format_tar ,
 .Fn archive_read_support_format_zip
 .Xc
@@ -226,6 +262,17 @@ For convenience,
 .Fn archive_read_support_format_all
 enables support for all available formats.
 Only empty archives are supported by default.
+.It Fn archive_read_support_format_raw
+The
+.Dq raw
+format handler allows libarchive to be used to read arbitrary data.
+It treats any data stream as an archive with a single entry.
+The pathname of this entry is
+.Dq data ;
+all other entry fields are unset.
+This is not enabled by
+.Fn archive_read_support_format_all
+in order to avoid erroneous handling of damaged archives.
 .It Xo
 .Fn archive_read_set_filter_options ,
 .Fn archive_read_set_format_options ,
@@ -322,9 +369,9 @@ a
 .Tn struct archive_entry .
 This is a convenience wrapper around
 .Fn archive_read_next_header2
-that uses an internal
+that reuses an internal
 .Tn struct archive_entry
-object.
+object for each request.
 .It Fn archive_read_next_header2
 Read the header for the next entry and populate the provided
 .Tn struct archive_entry .
