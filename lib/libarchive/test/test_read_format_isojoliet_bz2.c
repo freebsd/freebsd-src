@@ -177,11 +177,7 @@ joliettest(int withrr)
 DEFINE_TEST(test_read_format_isojoliet_bz2)
 {
 	joliettest(0);
-}
 
-
-DEFINE_TEST(test_read_format_isojolietrr_bz2)
-{
 	/* XXXX This doesn't work today; can it be made to work? */
 #if 0
 	joliettest(1);
