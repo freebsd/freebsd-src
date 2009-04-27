@@ -1013,12 +1013,15 @@ em_transmit_locked(struct ifnet *ifp, struct mbuf *m)
 	if (ADAPTER_RING_EMPTY(adapter) &&
 	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
 		if (em_xmit(adapter, &m)) {
-			if (m && (error = drbr_enqueue(ifp, adapter->br, m)) != 0) {
+			if (m && (error = drbr_enqueue(ifp, adapter->br, m)) != 0)
 				return (error);
-			}
-		} else{
-			/* Send a copy of the frame to the BPF listener */
+		} else {
+			/*
+			** Send a copy of the frame to the BPF
+			** listener and set the watchdog on.
+			*/
 			ETHER_BPF_MTAP(ifp, m);
+			addapter->watchdog_timer = EM_TX_TIMEOUT;
 		}
 	} else if ((error = drbr_enqueue(ifp, adapter->br, m)) != 0)
 		return (error);
@@ -1086,6 +1089,8 @@ em_start_locked(struct ifnet *ifp)
 		if (em_xmit(adapter, &m_head)) {
 			if (m_head == NULL)
 				break;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			break;
 		}
 
@@ -4029,6 +4034,7 @@ static void
 em_txeof(struct adapter *adapter)
 {
         int first, last, done, num_avail;
+	u32 cleaned = 0;
         struct em_buffer *tx_buffer;
         struct e1000_tx_desc   *tx_desc, *eop_desc;
 	struct ifnet   *ifp = adapter->ifp;
@@ -4064,7 +4070,7 @@ em_txeof(struct adapter *adapter)
                 	tx_desc->upper.data = 0;
                 	tx_desc->lower.data = 0;
                 	tx_desc->buffer_addr = 0;
-                	num_avail++;
+                	++num_avail; ++cleaned;
 
 			if (tx_buffer->m_head) {
 				ifp->if_opackets++;
@@ -4101,21 +4107,22 @@ em_txeof(struct adapter *adapter)
         adapter->next_tx_to_clean = first;
 
         /*
-         * If we have enough room, clear IFF_DRV_OACTIVE to tell the stack
-         * that it is OK to send packets.
-         * If there are no pending descriptors, clear the timeout. Otherwise,
-         * if some descriptors have been freed, restart the timeout.
+         * If we have enough room, clear IFF_DRV_OACTIVE to
+         * tell the stack that it is OK to send packets.
+         * If there are no pending descriptors, clear the timeout.
          */
         if (num_avail > EM_TX_CLEANUP_THRESHOLD) {                
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		/* All clean, turn off the timer */
                 if (num_avail == adapter->num_tx_desc) {
 			adapter->watchdog_timer = 0;
-		} else
-		/* Some cleaned, reset the timer */
-                if (num_avail != adapter->num_tx_desc_avail)
-			adapter->watchdog_timer = EM_TX_TIMEOUT;
+        		adapter->num_tx_desc_avail = num_avail;
+			return;
+		} 
         }
+
+	/* If any descriptors cleaned, reset the watchdog */
+	if (cleaned)
+		adapter->watchdog_timer = EM_TX_TIMEOUT;
         adapter->num_tx_desc_avail = num_avail;
 	return;
 }
