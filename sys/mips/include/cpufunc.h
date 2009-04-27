@@ -183,6 +183,28 @@ mips_wr_ ## n (uint32_t a0)					\
 	mips_barrier();						\
 } struct __hack
 
+#define	MIPS_RDRW32_COP0_SEL(n,r,s)					\
+static __inline uint32_t					\
+mips_rd_ ## n ## s(void)						\
+{								\
+	int v0;							\
+	__asm __volatile ("mfc0 %[v0], $"__XSTRING(r)", "__XSTRING(s)";"	\
+			  : [v0] "=&r"(v0));			\
+	mips_barrier();						\
+	return (v0);						\
+}								\
+static __inline void						\
+mips_wr_ ## n ## s(uint32_t a0)					\
+{								\
+	__asm __volatile ("mtc0 %[a0], $"__XSTRING(r)", "__XSTRING(s)";"	\
+			 __XSTRING(COP0_SYNC)";"		\
+			 "nop;"					\
+			 "nop;"					\
+			 :					\
+			 : [a0] "r"(a0));			\
+	mips_barrier();						\
+} struct __hack
+
 #ifdef TARGET_OCTEON
 static __inline void mips_sync_icache (void)
 {
@@ -197,6 +219,9 @@ static __inline void mips_sync_icache (void)
 
 MIPS_RDRW32_COP0(compare, MIPS_COP_0_COMPARE);
 MIPS_RDRW32_COP0(config, MIPS_COP_0_CONFIG);
+MIPS_RDRW32_COP0_SEL(config, MIPS_COP_0_CONFIG, 1);
+MIPS_RDRW32_COP0_SEL(config, MIPS_COP_0_CONFIG, 2);
+MIPS_RDRW32_COP0_SEL(config, MIPS_COP_0_CONFIG, 3);
 MIPS_RDRW32_COP0(count, MIPS_COP_0_COUNT);
 MIPS_RDRW32_COP0(index, MIPS_COP_0_TLB_INDEX);
 MIPS_RDRW32_COP0(wired, MIPS_COP_0_TLB_WIRED);
@@ -211,25 +236,14 @@ MIPS_RDRW32_COP0(entryhi, MIPS_COP_0_TLB_HI);
 MIPS_RDRW32_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
 MIPS_RDRW32_COP0(prid, MIPS_COP_0_PRID);
 MIPS_RDRW32_COP0(watchlo, MIPS_COP_0_WATCH_LO);
+MIPS_RDRW32_COP0_SEL(watchlo, MIPS_COP_0_WATCH_LO, 1);
+MIPS_RDRW32_COP0_SEL(watchlo, MIPS_COP_0_WATCH_LO, 2);
+MIPS_RDRW32_COP0_SEL(watchlo, MIPS_COP_0_WATCH_LO, 3);
 MIPS_RDRW32_COP0(watchhi, MIPS_COP_0_WATCH_HI);
+MIPS_RDRW32_COP0_SEL(watchhi, MIPS_COP_0_WATCH_HI, 1);
+MIPS_RDRW32_COP0_SEL(watchhi, MIPS_COP_0_WATCH_HI, 2);
+MIPS_RDRW32_COP0_SEL(watchhi, MIPS_COP_0_WATCH_HI, 3);
 #undef	MIPS_RDRW32_COP0
-
-#define MIPS_RD_CONFIG_SEL(sel) \
-static __inline uint32_t				\
-mips_rd_config_sel##sel(void)				\
-{							\
-	int v0;						\
-	__asm __volatile("mfc0 %[v0], $16, " #sel " ;"	\
-			 : [v0] "=&r" (v0));		\
-	mips_barrier();					\
-	return (v0);					\
-}
-
-
-MIPS_RD_CONFIG_SEL(1);
-MIPS_RD_CONFIG_SEL(2);
-MIPS_RD_CONFIG_SEL(3);
-#undef	MIPS_RD_CONFIG_SEL
 
 static __inline register_t
 intr_disable(void)
