@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local prototypes */
-static int ata_ahci_ctlr_reset(device_t dev);
 static int ata_ahci_suspend(device_t dev);
 static int ata_ahci_status(device_t dev);
 static int ata_ahci_begin_transaction(struct ata_request *request);
@@ -155,7 +154,7 @@ ata_ahci_chipinit(device_t dev)
     return 0;
 }
 
-static int
+int
 ata_ahci_ctlr_reset(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
