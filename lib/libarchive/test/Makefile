@@ -39,6 +39,7 @@ TESTS= \
 	test_read_format_ar.c			\
 	test_read_format_cpio_bin.c		\
 	test_read_format_cpio_bin_Z.c		\
+	test_read_format_cpio_bin_be.c		\
 	test_read_format_cpio_bin_bz2.c		\
 	test_read_format_cpio_bin_gz.c		\
 	test_read_format_cpio_bin_xz.c		\
