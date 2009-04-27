@@ -222,7 +222,7 @@ ef_start(struct ifnet *ifp)
 		if (m == 0)
 			break;
 		BPF_MTAP(ifp, m);
-		IFQ_HANDOFF(p, m, error);
+		error = p->if_transmit(p, m);
 		if (error) {
 			ifp->if_oerrors++;
 			continue;
