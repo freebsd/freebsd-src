@@ -1112,7 +1112,24 @@ __archive_read_filter_consume(struct archive_read_filter * filter,
 int64_t
 __archive_read_skip(struct archive_read *a, int64_t request)
 {
-	return (__archive_read_filter_skip(a->filter, request));
+	int64_t skipped = __archive_read_skip_lenient(a, request);
+	if (skipped == request)
+		return (skipped);
+	/* We hit EOF before we satisfied the skip request. */
+	archive_set_error(&a->archive,
+	    ARCHIVE_ERRNO_MISC,
+	    "Truncated input file (needed %jd bytes, only %jd available)",
+	    (intmax_t)request, (intmax_t)skipped);
+	return (ARCHIVE_FATAL);
+}
+
+int64_t
+__archive_read_skip_lenient(struct archive_read *a, int64_t request)
+{
+	int64_t skipped = __archive_read_filter_skip(a->filter, request);
+	if (skipped > 0)
+		a->archive.file_position += skipped;
+	return (skipped);
 }
 
 int64_t
@@ -1128,13 +1145,13 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 	 */
 	if (filter->avail > 0) {
 		min = minimum(request, (off_t)filter->avail);
-		bytes_skipped = __archive_read_consume(filter->archive, min);
+		bytes_skipped = __archive_read_filter_consume(filter, min);
 		request -= bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 	}
 	if (filter->client_avail > 0) {
 		min = minimum(request, (off_t)filter->client_avail);
-		bytes_skipped = __archive_read_consume(filter->archive, min);
+		bytes_skipped = __archive_read_filter_consume(filter, min);
 		request -= bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 	}
@@ -1155,7 +1172,6 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 			filter->fatal = 1;
 			return (bytes_skipped);
 		}
-		filter->archive->archive.file_position += bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 		request -= bytes_skipped;
 		filter->client_next = filter->client_buff;
@@ -1170,20 +1186,15 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 	while (request > 0) {
 		const void* dummy_buffer;
 		ssize_t bytes_read;
-		dummy_buffer = __archive_read_ahead(filter->archive,
+		dummy_buffer = __archive_read_filter_ahead(filter,
 		    1, &bytes_read);
 		if (bytes_read < 0)
 			return (bytes_read);
 		if (bytes_read == 0) {
-			/* We hit EOF before we satisfied the skip request. */
-			archive_set_error(&filter->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Truncated input file (need to skip %jd bytes)",
-			    (intmax_t)request);
-			return (ARCHIVE_FATAL);
+			return (total_bytes_skipped);
 		}
 		min = (size_t)(minimum(bytes_read, request));
-		bytes_read = __archive_read_consume(filter->archive, min);
+		bytes_read = __archive_read_filter_consume(filter, min);
 		total_bytes_skipped += bytes_read;
 		request -= bytes_read;
 	}
