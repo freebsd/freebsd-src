@@ -147,7 +147,7 @@ int test_assert_equal_file(const char *, const char *, ...);
 int test_assert_equal_int(const char *, int, int, const char *, int, const char *, void *);
 int test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
 int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
-int test_assert_equal_mem(const char *, int, const char *, const char *, const char *, const char *, size_t, const char *, void *);
+int test_assert_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int test_assert_file_contents(const void *, int, const char *, ...);
 int test_assert_file_exists(const char *, ...);
 int test_assert_file_not_exists(const char *, ...);
