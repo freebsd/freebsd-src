@@ -2255,12 +2255,12 @@ SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD, sysctl_vm_swap_info,
     "Swap statistics by device");
 
 /*
- * vmspace_swap_count() - count the approximate swap useage in pages for a
+ * vmspace_swap_count() - count the approximate swap usage in pages for a
  *			  vmspace.
  *
  *	The map must be locked.
  *
- *	Swap useage is determined by taking the proportional swap used by
+ *	Swap usage is determined by taking the proportional swap used by
  *	VM objects backing the VM map.  To make up for fractional losses,
  *	if the VM object has any swap use at all the associated map entries
  *	count for at least 1 swap page.
