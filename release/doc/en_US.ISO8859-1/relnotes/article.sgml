@@ -348,6 +348,10 @@
 	  MSI/MSIX is enabled.  This change fixes interrupt storm
 	  related issues.</para>
 
+	<para arch="sparc64">The schizo(4) driver for Schizo
+	  Fireplane/Safari to PCI 2.1 and Tomatillo JBus to PCI 2.2
+	  bridges has been added.</para>
+
 	<para>A &man.sysctl.3; leaf node has a flag to tag itself as
 	  MPSAFE now.</para>
 
@@ -480,8 +484,18 @@
 	  <para>A bug in &man.sis.4; on VLAN tagged frame handling has
 	    been fixed.</para>
 
-	  <para>The &man.txp.4; driver has been updated to the latest
-	    firmware.</para>
+	  <para>The &man.txp.4; driver now works on all supported
+	    architecture.  Also, &man.altq.4; support, WoL support,
+	    checksum offload when VLAN enabled, better link state
+	    change handling, a new sysctl variable
+	    <varname>dev.txp.<replaceable>N</replaceable>.stats</varname>
+	    for MAC statistics have been added.  A new sysctl
+	    variable
+	    <varname>dev.txp.<varname>N</varname>.process_limit</varname>
+	    to control how many received frames should be served in Rx
+	    handler (set to 64 by default and valid ranges are 16 to
+	    128 in unit of frames) has been added.  The firmware has
+	    been updated to the latest version.</para>
 	</sect4>
       </sect3>
 
@@ -530,6 +544,13 @@
 	  character device ioctl.  This is a convenient shortcut to
 	  obtain network interface name using file descriptor for
 	  character device.</para>
+
+	<para>The &man.tap.4; now supports
+	  <literal>SIOCSIFMTU</literal> ioctl to set a higher MTU than
+	  1500 (ETHERMTU).  This allows &man.tap.4; device to be added
+	  to a bridge, which requires all interface members to have
+	  the same MTU, with an interface configured for jumbo
+	  frames.</para>
 
 	<para>The domains list for handling the list of supported
 	  domains in the &man.unix.4; (UNIX domain protocol family)
