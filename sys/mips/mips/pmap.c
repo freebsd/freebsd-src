@@ -699,6 +699,11 @@ pmap_kremove(vm_offset_t va)
 {
 	register pt_entry_t *pte;
 
+	/*
+	 * Write back all caches from the page being destroyed
+	 */
+	mips_dcache_wbinv_range(va, NBPG);
+
 	pte = pmap_pte(kernel_pmap, va);
 	*pte = PTE_G;
 	pmap_invalidate_page(kernel_pmap, va);
@@ -1523,6 +1528,12 @@ pmap_remove_page(struct pmap *pmap, vm_offset_t va)
 	if (!ptq || !pmap_pte_v(ptq)) {
 		return;
 	}
+
+	/*
+	 * Write back all caches from the page being destroyed
+	 */
+	mips_dcache_wbinv_range(va, NBPG);
+
 	/*
 	 * get a local va for mappings for this pmap.
 	 */
@@ -1608,6 +1619,14 @@ pmap_remove_all(vm_page_t m)
 
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		PMAP_LOCK(pv->pv_pmap);
+
+		/*
+		 * If it's last mapping writeback all caches from 
+		 * the page being destroyed
+	 	 */
+		if (m->md.pv_list_count == 1) 
+			mips_dcache_wbinv_range(pv->pv_va, NBPG);
+
 		pv->pv_pmap->pm_stats.resident_count--;
 
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
@@ -2501,9 +2520,7 @@ pmap_remove_pages(pmap_t pmap)
 	PMAP_LOCK(pmap);
 	sched_pin();
 	//XXX need to be TAILQ_FOREACH_SAFE ?
-	    for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
-	    pv;
-	    pv = npv) {
+	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		if (!pmap_pte_v(pte))
