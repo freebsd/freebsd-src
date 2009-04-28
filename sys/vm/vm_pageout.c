@@ -1243,7 +1243,7 @@ vm_pageout_oom(int shortage)
 			PROC_UNLOCK(p);
 			continue;
 		}
-		size = vmspace_swap_count(p->p_vmspace);
+		size = vmspace_swap_count(vm);
 		vm_map_unlock_read(&vm->vm_map);
 		if (shortage == VM_OOM_MEM)
 			size += vmspace_resident_count(vm);
