@@ -33,10 +33,10 @@
 __FBSDID("$FreeBSD$");
 
 ENTRY(strncmp)
-/* if ((len - 1) < 0) return 0 */
-	subs	r2, r2, #1
-	movmi	r0, #0
-	movmi	pc, lr
+/* if (len == 0) return 0 */
+	cmp	r2, #0
+	moveq	r0, #0
+	RETeq
 
 /* ip == last src address to compare */
 	add	ip, r0, r2
