@@ -145,6 +145,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
 #endif
+#ifdef IPSEC
+	int no_route_but_check_spd = 0;
+#endif
 	M_ASSERTPKTHDR(m);
 
 	if (ro == NULL) {
@@ -272,6 +275,15 @@ again:
 			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 #endif
 		if (ro->ro_rt == NULL) {
+#ifdef IPSEC
+			/*
+			 * There is no route for this packet, but it is
+			 * possible that a matching SPD entry exists.
+			 */
+			no_route_but_check_spd = 1;
+			mtu = 0; /* Silence GCC warning. */
+			goto sendit;
+#endif
 			IPSTAT_INC(ips_noroute);
 			error = EHOSTUNREACH;
 			goto bad;
@@ -466,6 +478,14 @@ sendit:
 	case 0:
 	default:
 		break;	/* Continue with packet processing. */
+	}
+	/*
+	 * Check if there was a route for this packet; return error if not.
+	 */
+	if (no_route_but_check_spd) {
+		IPSTAT_INC(ips_noroute);
+		error = EHOSTUNREACH;
+		goto bad;
 	}
 	/* Update variables that are affected by ipsec4_output(). */
 	ip = mtod(m, struct ip *);
