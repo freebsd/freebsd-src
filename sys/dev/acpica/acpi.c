@@ -2482,6 +2482,18 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
+    if (state < ACPI_STATE_S1 || state > ACPI_STATE_S5)
+	return_ACPI_STATUS (AE_BAD_PARAMETER);
+
+    if (state == ACPI_STATE_S5) {
+	/*
+	 * Shut down cleanly and power off.  This will call us back through the
+	 * shutdown handlers.
+	 */
+	shutdown_nice(RB_POWEROFF);
+	return_ACPI_STATUS (AE_OK);
+    }
+
     /* Re-entry once we're suspending is not allowed. */
     status = acpi_sleep_disable(sc);
     if (ACPI_FAILURE(status)) {
@@ -2502,92 +2514,74 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     mtx_lock(&Giant);
 
     slp_state = ACPI_SS_NONE;
-    switch (state) {
-    case ACPI_STATE_S1:
-    case ACPI_STATE_S2:
-    case ACPI_STATE_S3:
-    case ACPI_STATE_S4:
-	status = AcpiGetSleepTypeData(state, &TypeA, &TypeB);
-	if (status == AE_NOT_FOUND) {
-	    device_printf(sc->acpi_dev,
-			  "Sleep state S%d not supported by BIOS\n", state);
-	    break;
-	} else if (ACPI_FAILURE(status)) {
-	    device_printf(sc->acpi_dev, "AcpiGetSleepTypeData failed - %s\n",
-			  AcpiFormatException(status));
-	    break;
-	}
-
-	sc->acpi_sstate = state;
-
-	/* Enable any GPEs as appropriate and requested by the user. */
-	acpi_wake_prep_walk(state);
-	slp_state = ACPI_SS_GPE_SET;
-
-	/*
-	 * Inform all devices that we are going to sleep.  If at least one
-	 * device fails, DEVICE_SUSPEND() automatically resumes the tree.
-	 *
-	 * XXX Note that a better two-pass approach with a 'veto' pass
-	 * followed by a "real thing" pass would be better, but the current
-	 * bus interface does not provide for this.
-	 */
-	if (DEVICE_SUSPEND(root_bus) != 0) {
-	    device_printf(sc->acpi_dev, "device_suspend failed\n");
-	    break;
-	}
-	slp_state = ACPI_SS_DEV_SUSPEND;
-
-	/* If testing device suspend only, back out of everything here. */
-	if (acpi_susp_bounce)
-	    break;
-
-	status = AcpiEnterSleepStatePrep(state);
-	if (ACPI_FAILURE(status)) {
-	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
-			  AcpiFormatException(status));
-	    break;
-	}
-	slp_state = ACPI_SS_SLP_PREP;
-
-	if (sc->acpi_sleep_delay > 0)
-	    DELAY(sc->acpi_sleep_delay * 1000000);
-
-	if (state != ACPI_STATE_S1) {
-	    acpi_sleep_machdep(sc, state);
-
-	    /* Re-enable ACPI hardware on wakeup from sleep state 4. */
-	    if (state == ACPI_STATE_S4)
-		AcpiEnable();
-	} else {
-	    ACPI_DISABLE_IRQS();
-	    status = AcpiEnterSleepState(state);
-	    if (ACPI_FAILURE(status)) {
-		device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
-			      AcpiFormatException(status));
-		break;
-	    }
-	}
-	slp_state = ACPI_SS_SLEPT;
-	break;
-    case ACPI_STATE_S5:
-	/*
-	 * Shut down cleanly and power off.  This will call us back through the
-	 * shutdown handlers.
-	 */
-	shutdown_nice(RB_POWEROFF);
-	status = AE_OK;
-	break;
-    case ACPI_STATE_S0:
-    default:
-	status = AE_BAD_PARAMETER;
-	break;
+    status = AcpiGetSleepTypeData(state, &TypeA, &TypeB);
+    if (status == AE_NOT_FOUND) {
+	device_printf(sc->acpi_dev,
+		      "Sleep state S%d not supported by BIOS\n", state);
+	goto backout;
+    } else if (ACPI_FAILURE(status)) {
+	device_printf(sc->acpi_dev, "AcpiGetSleepTypeData failed - %s\n",
+		      AcpiFormatException(status));
+	goto backout;
     }
+
+    sc->acpi_sstate = state;
+
+    /* Enable any GPEs as appropriate and requested by the user. */
+    acpi_wake_prep_walk(state);
+    slp_state = ACPI_SS_GPE_SET;
+
+    /*
+     * Inform all devices that we are going to sleep.  If at least one
+     * device fails, DEVICE_SUSPEND() automatically resumes the tree.
+     *
+     * XXX Note that a better two-pass approach with a 'veto' pass
+     * followed by a "real thing" pass would be better, but the current
+     * bus interface does not provide for this.
+     */
+    if (DEVICE_SUSPEND(root_bus) != 0) {
+	device_printf(sc->acpi_dev, "device_suspend failed\n");
+	goto backout;
+    }
+    slp_state = ACPI_SS_DEV_SUSPEND;
+
+    /* If testing device suspend only, back out of everything here. */
+    if (acpi_susp_bounce)
+	goto backout;
+
+    status = AcpiEnterSleepStatePrep(state);
+    if (ACPI_FAILURE(status)) {
+	device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
+		      AcpiFormatException(status));
+	goto backout;
+    }
+    slp_state = ACPI_SS_SLP_PREP;
+
+    if (sc->acpi_sleep_delay > 0)
+	DELAY(sc->acpi_sleep_delay * 1000000);
+
+    if (state != ACPI_STATE_S1) {
+	acpi_sleep_machdep(sc, state);
+
+	/* Re-enable ACPI hardware on wakeup from sleep state 4. */
+	if (state == ACPI_STATE_S4)
+	    AcpiEnable();
+    } else {
+	ACPI_DISABLE_IRQS();
+	status = AcpiEnterSleepState(state);
+	if (ACPI_FAILURE(status)) {
+	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
+			  AcpiFormatException(status));
+	    goto backout;
+	}
+    }
+    slp_state = ACPI_SS_SLEPT;
 
     /*
      * Back out state according to how far along we got in the suspend
      * process.  This handles both the error and success cases.
      */
+backout:
     sc->acpi_next_sstate = 0;
     if (slp_state >= ACPI_SS_GPE_SET) {
 	acpi_wake_prep_walk(state);
@@ -2609,8 +2603,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 #endif
 
     /* Allow another sleep request after a while. */
-    if (state != ACPI_STATE_S5)
-	timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+    timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
 
     /* Run /etc/rc.resume after we are back. */
     if (devctl_process_running())
