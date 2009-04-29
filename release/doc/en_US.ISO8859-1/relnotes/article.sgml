@@ -253,8 +253,8 @@
 	</listitem>
 
 	<listitem>
-	  <para>Compatibility support which permits 32bit jail
-	    binaries to be used on 64bit systems to manage jails has
+	  <para>Compatibility support which permits 32-bit jail
+	    binaries to be used on 64-bit systems to manage jails has
 	    been added.</para>
 	</listitem>
 
