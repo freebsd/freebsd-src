@@ -2516,6 +2516,13 @@ sched_sizeof_thread(void)
 	return (sizeof(struct thread) + sizeof(struct td_sched));
 }
 
+#ifdef SMP
+#define	TDQ_IDLESPIN(tdq)						\
+    ((tdq)->tdq_cg != NULL && ((tdq)->tdq_cg->cg_flags & CG_FLAG_THREAD) == 0)
+#else
+#define	TDQ_IDLESPIN(tdq)	1
+#endif
+
 /*
  * The actual idle process.
  */
@@ -2543,8 +2550,7 @@ sched_idletd(void *dummy)
 		 * loops while on SMT machines as this simply steals
 		 * cycles from cores doing useful work.
 		 */
-		if ((tdq->tdq_cg->cg_flags & CG_FLAG_THREAD) == 0 &&
-		    switchcnt > sched_idlespinthresh) {
+		if (TDQ_IDLESPIN(tdq) && switchcnt > sched_idlespinthresh) {
 			for (i = 0; i < sched_idlespins; i++) {
 				if (tdq->tdq_load)
 					break;
