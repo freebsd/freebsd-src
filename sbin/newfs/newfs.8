@@ -85,6 +85,9 @@ wear levelling algorithms.
 NB: Erasing may take as long time as writing every sector on the disk.
 .It Fl J
 Enable journaling on the new file system via gjournal.
+See
+.Xr gjournal 8
+for details.
 .It Fl L Ar volname
 Add a volume label to the new file system.
 .It Fl N
@@ -278,6 +281,7 @@ on file systems that contain many small files.
 .Xr dump 8 ,
 .Xr dumpfs 8 ,
 .Xr fsck 8 ,
+.Xr gjournal 8 ,
 .Xr mount 8 ,
 .Xr tunefs 8 ,
 .Xr gvinum 8
