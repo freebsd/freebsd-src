@@ -491,7 +491,7 @@ smp_topo(void)
 	case 7:
 		/* quad core with a shared l3, 8 threads sharing L2.  */
 		top = smp_topo_2level(CG_SHARE_L3, 4, CG_SHARE_L2, 8,
-		    CG_FLAG_THREAD);
+		    CG_FLAG_SMT);
 		break;
 	default:
 		/* Default, ask the system what it wants. */
