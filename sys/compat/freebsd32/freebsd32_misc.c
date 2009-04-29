@@ -28,6 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -76,6 +78,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sem.h>
 #include <sys/shm.h>
 
+#ifdef INET
+#include <netinet/in.h>
+#endif
+
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
@@ -105,6 +111,8 @@ CTASSERT(sizeof(struct iovec32) == 8);
 CTASSERT(sizeof(struct msghdr32) == 28);
 CTASSERT(sizeof(struct stat32) == 96);
 CTASSERT(sizeof(struct sigaction32) == 24);
+
+extern int jail_max_af_ips;
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
@@ -2036,9 +2044,17 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 int
 freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 {
+	struct iovec optiov[10];
+	struct uio opt;
+	char *u_path, *u_hostname, *u_name;
+#ifdef INET
+	struct in_addr *u_ip4;
+#endif
+#ifdef INET6
+	struct in6_addr *u_ip6;
+#endif
 	uint32_t version;
 	int error;
-	struct jail j;
 
 	error = copyin(uap->jail, &version, sizeof(uint32_t));
 	if (error)
@@ -2050,14 +2066,45 @@ freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 		/* FreeBSD single IPv4 jails. */
 		struct jail32_v0 j32_v0;
 
-		bzero(&j, sizeof(struct jail));
 		error = copyin(uap->jail, &j32_v0, sizeof(struct jail32_v0));
 		if (error)
 			return (error);
-		CP(j32_v0, j, version);
-		PTRIN_CP(j32_v0, j, path);
-		PTRIN_CP(j32_v0, j, hostname);
-		j.ip4s = j32_v0.ip_number;
+		u_path = malloc(MAXPATHLEN + MAXHOSTNAMELEN, M_TEMP, M_WAITOK);
+		u_hostname = u_path + MAXPATHLEN;
+		opt.uio_iov = optiov;
+		opt.uio_iovcnt = 4;
+		opt.uio_offset = -1;
+		opt.uio_resid = -1;
+		opt.uio_segflg = UIO_SYSSPACE;
+		opt.uio_rw = UIO_READ;
+		opt.uio_td = td;
+		optiov[0].iov_base = "path";
+		optiov[0].iov_len = sizeof("path");
+		optiov[1].iov_base = u_path;
+		error = copyinstr(PTRIN(j32_v0.path), u_path, MAXPATHLEN,
+		    &optiov[1].iov_len);
+		if (error) {
+			free(u_path, M_TEMP);
+			return (error);
+		}
+		optiov[2].iov_base = "host.hostname";
+		optiov[2].iov_len = sizeof("host.hostname");
+		optiov[3].iov_base = u_hostname;
+		error = copyinstr(PTRIN(j32_v0.hostname), u_hostname,
+		    MAXHOSTNAMELEN, &optiov[3].iov_len);
+		if (error) {
+			free(u_path, M_TEMP);
+			return (error);
+		}
+#ifdef INET
+		optiov[opt.uio_iovcnt].iov_base = "ip4.addr";
+		optiov[opt.uio_iovcnt].iov_len = sizeof("ip4.addr");
+		opt.uio_iovcnt++;
+		optiov[opt.uio_iovcnt].iov_base = &j32_v0.ip_number;
+		j32_v0.ip_number = htonl(j32_v0.ip_number);
+		optiov[opt.uio_iovcnt].iov_len = sizeof(j32_v0.ip_number);
+		opt.uio_iovcnt++;
+#endif
 		break;
 	}
 
@@ -2072,18 +2119,109 @@ freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 	{
 		/* FreeBSD multi-IPv4/IPv6,noIP jails. */
 		struct jail32 j32;
+		size_t tmplen;
 
 		error = copyin(uap->jail, &j32, sizeof(struct jail32));
 		if (error)
 			return (error);
-		CP(j32, j, version);
-		PTRIN_CP(j32, j, path);
-		PTRIN_CP(j32, j, hostname);
-		PTRIN_CP(j32, j, jailname);
-		CP(j32, j, ip4s);
-		CP(j32, j, ip6s);
-		PTRIN_CP(j32, j, ip4);
-		PTRIN_CP(j32, j, ip6);
+		tmplen = MAXPATHLEN + MAXHOSTNAMELEN + MAXHOSTNAMELEN;
+#ifdef INET
+		if (j32.ip4s > jail_max_af_ips)
+			return (EINVAL);
+		tmplen += j32.ip4s * sizeof(struct in_addr);
+#else
+		if (j32.ip4s > 0)
+			return (EINVAL);
+#endif
+#ifdef INET6
+		if (j32.ip6s > jail_max_af_ips)
+			return (EINVAL);
+		tmplen += j32.ip6s * sizeof(struct in6_addr);
+#else
+		if (j32.ip6s > 0)
+			return (EINVAL);
+#endif
+		u_path = malloc(tmplen, M_TEMP, M_WAITOK);
+		u_hostname = u_path + MAXPATHLEN;
+		u_name = u_hostname + MAXHOSTNAMELEN;
+#ifdef INET
+		u_ip4 =  (struct in_addr *)(u_name + MAXHOSTNAMELEN);
+#endif
+#ifdef INET6
+#ifdef INET
+		u_ip6 = (struct in6_addr *)(u_ip4 + j32.ip4s);
+#else
+		u_ip6 = (struct in6_addr *)(u_name + MAXHOSTNAMELEN);
+#endif
+#endif
+		opt.uio_iov = optiov;
+		opt.uio_iovcnt = 4;
+		opt.uio_offset = -1;
+		opt.uio_resid = -1;
+		opt.uio_segflg = UIO_SYSSPACE;
+		opt.uio_rw = UIO_READ;
+		opt.uio_td = td;
+		optiov[0].iov_base = "path";
+		optiov[0].iov_len = sizeof("path");
+		optiov[1].iov_base = u_path;
+		error = copyinstr(PTRIN(j32.path), u_path, MAXPATHLEN,
+		    &optiov[1].iov_len);
+		if (error) {
+			free(u_path, M_TEMP);
+			return (error);
+		}
+		optiov[2].iov_base = "host.hostname";
+		optiov[2].iov_len = sizeof("host.hostname");
+		optiov[3].iov_base = u_hostname;
+		error = copyinstr(PTRIN(j32.hostname), u_hostname,
+		    MAXHOSTNAMELEN, &optiov[3].iov_len);
+		if (error) {
+			free(u_path, M_TEMP);
+			return (error);
+		}
+		if (PTRIN(j32.jailname) != NULL) {
+			optiov[opt.uio_iovcnt].iov_base = "name";
+			optiov[opt.uio_iovcnt].iov_len = sizeof("name");
+			opt.uio_iovcnt++;
+			optiov[opt.uio_iovcnt].iov_base = u_name;
+			error = copyinstr(PTRIN(j32.jailname), u_name,
+			    MAXHOSTNAMELEN, &optiov[opt.uio_iovcnt].iov_len);
+			if (error) {
+				free(u_path, M_TEMP);
+				return (error);
+			}
+			opt.uio_iovcnt++;
+		}
+#ifdef INET
+		optiov[opt.uio_iovcnt].iov_base = "ip4.addr";
+		optiov[opt.uio_iovcnt].iov_len = sizeof("ip4.addr");
+		opt.uio_iovcnt++;
+		optiov[opt.uio_iovcnt].iov_base = u_ip4;
+		optiov[opt.uio_iovcnt].iov_len =
+		    j32.ip4s * sizeof(struct in_addr);
+		error = copyin(PTRIN(j32.ip4), u_ip4,
+		    optiov[opt.uio_iovcnt].iov_len);
+		if (error) {
+			free(u_path, M_TEMP);
+			return (error);
+		}
+		opt.uio_iovcnt++;
+#endif
+#ifdef INET6
+		optiov[opt.uio_iovcnt].iov_base = "ip6.addr";
+		optiov[opt.uio_iovcnt].iov_len = sizeof("ip6.addr");
+		opt.uio_iovcnt++;
+		optiov[opt.uio_iovcnt].iov_base = u_ip6;
+		optiov[opt.uio_iovcnt].iov_len =
+		    j32.ip6s * sizeof(struct in6_addr);
+		error = copyin(PTRIN(j32.ip6), u_ip6,
+		    optiov[opt.uio_iovcnt].iov_len);
+		if (error) {
+			free(u_path, M_TEMP);
+			return (error);
+		}
+		opt.uio_iovcnt++;
+#endif
 		break;
 	}
 
@@ -2091,7 +2229,54 @@ freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 		/* Sci-Fi jails are not supported, sorry. */
 		return (EINVAL);
 	}
-	return (kern_jail(td, &j));
+	error = kern_jail_set(td, &opt, JAIL_CREATE | JAIL_ATTACH);
+	free(u_path, M_TEMP);
+	return (error);
+}
+
+int
+freebsd32_jail_set(struct thread *td, struct freebsd32_jail_set_args *uap)
+{
+	struct uio *auio;
+	int error;
+
+	/* Check that we have an even number of iovecs. */
+	if (uap->iovcnt & 1)
+		return (EINVAL);
+
+	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_jail_set(td, auio, uap->flags);
+	free(auio, M_IOV);
+	return (error);
+}
+
+int
+freebsd32_jail_get(struct thread *td, struct freebsd32_jail_get_args *uap)
+{
+	struct iovec32 iov32;
+	struct uio *auio;
+	int error, i;
+
+	/* Check that we have an even number of iovecs. */
+	if (uap->iovcnt & 1)
+		return (EINVAL);
+
+	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_jail_get(td, auio, uap->flags);
+	if (error == 0)
+		for (i = 0; i < uap->iovcnt; i++) {
+			PTROUT_CP(auio->uio_iov[i], iov32, iov_base);
+			CP(auio->uio_iov[i], iov32, iov_len);
+			error = copyout(&iov32, uap->iovp + i, sizeof(iov32));
+			if (error != 0)
+				break;
+		}
+	free(auio, M_IOV);
+	return (error);
 }
 
 int
