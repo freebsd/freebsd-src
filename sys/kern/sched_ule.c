@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$);
+__FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
