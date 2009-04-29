@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD$);
 
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
@@ -213,7 +213,6 @@ struct tdq {
 	volatile int	tdq_load;		/* Aggregate load. */
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
 	int		tdq_transferable;	/* Transferable thread count. */
-	volatile int	tdq_idlestate;		/* State of the idle thread. */
 	short		tdq_switchcnt;		/* Switches this tick. */
 	short		tdq_oldswitchcnt;	/* Switches last tick. */
 	u_char		tdq_lowpri;		/* Lowest priority thread. */
@@ -360,7 +359,6 @@ tdq_print(int cpu)
 	printf("\tload:           %d\n", tdq->tdq_load);
 	printf("\tswitch cnt:     %d\n", tdq->tdq_switchcnt);
 	printf("\told switch cnt: %d\n", tdq->tdq_oldswitchcnt);
-	printf("\tidle state:     %d\n", tdq->tdq_idlestate);
 	printf("\ttimeshare idx:  %d\n", tdq->tdq_idx);
 	printf("\ttimeshare ridx: %d\n", tdq->tdq_ridx);
 	printf("\tload transferable: %d\n", tdq->tdq_transferable);
@@ -913,7 +911,7 @@ tdq_idled(struct tdq *tdq)
 	/* We don't want to be preempted while we're iterating. */
 	spinlock_enter();
 	for (cg = tdq->tdq_cg; cg != NULL; ) {
-		if ((cg->cg_flags & (CG_FLAG_HTT | CG_FLAG_THREAD)) == 0)
+		if ((cg->cg_flags & CG_FLAG_THREAD) == 0)
 			thresh = steal_thresh;
 		else
 			thresh = 1;
@@ -968,13 +966,6 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 	if (!sched_shouldpreempt(pri, ctd->td_priority, 1))
 		return;
 	if (TD_IS_IDLETHREAD(ctd)) {
-		/*
-		 * If the idle thread is still 'running' it's probably
-		 * waiting on us to release the tdq spinlock already.  No
-		 * need to ipi.
-		 */
-		if (tdq->tdq_idlestate == TDQ_RUNNING)
-			return;
 		/*
 		 * If the MD code has an idle wakeup routine try that before
 		 * falling back to IPI.
@@ -2536,12 +2527,10 @@ sched_idletd(void *dummy)
 	int switchcnt;
 	int i;
 
+	mtx_assert(&Giant, MA_NOTOWNED);
 	td = curthread;
 	tdq = TDQ_SELF();
-	mtx_assert(&Giant, MA_NOTOWNED);
-	/* ULE relies on preemption for idle interruption. */
 	for (;;) {
-		tdq->tdq_idlestate = TDQ_RUNNING;
 #ifdef SMP
 		if (tdq_idled(tdq) == 0)
 			continue;
@@ -2550,26 +2539,21 @@ sched_idletd(void *dummy)
 		/*
 		 * If we're switching very frequently, spin while checking
 		 * for load rather than entering a low power state that 
-		 * requires an IPI.
+		 * may require an IPI.  However, don't do any busy
+		 * loops while on SMT machines as this simply steals
+		 * cycles from cores doing useful work.
 		 */
-		if (switchcnt > sched_idlespinthresh) {
+		if ((tdq->tdq_cg->cg_flags & CG_FLAG_THREAD) == 0 &&
+		    switchcnt > sched_idlespinthresh) {
 			for (i = 0; i < sched_idlespins; i++) {
 				if (tdq->tdq_load)
 					break;
 				cpu_spinwait();
 			}
 		}
-		/*
-		 * We must set our state to IDLE before checking
-		 * tdq_load for the last time to avoid a race with
-		 * tdq_notify().
-		 */
-		if (tdq->tdq_load == 0) {
-			switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-			tdq->tdq_idlestate = TDQ_IDLE;
-			if (tdq->tdq_load == 0)
-				cpu_idle(switchcnt > 1);
-		}
+		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+		if (tdq->tdq_load == 0)
+			cpu_idle(switchcnt > 1);
 		if (tdq->tdq_load) {
 			thread_lock(td);
 			mi_switch(SW_VOL | SWT_IDLE, NULL);
@@ -2683,7 +2667,7 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	if (cg->cg_flags != 0) {
 		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
 			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>\n");
-		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
+		if ((cg->cg_flags & CG_FLAG_SMT) != 0)
 			sbuf_printf(sb, "<flag name=\"THREAD\">SMT group</flag>\n");
 	}
 	sbuf_printf(sb, "</flags>\n");
