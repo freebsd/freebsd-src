@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #ifndef KTR_IGMPV3
-#define KTR_IGMPV3 KTR_SUBSYS
+#define KTR_IGMPV3 KTR_INET
 #endif
 
 static struct igmp_ifinfo *
@@ -2983,7 +2983,7 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 	struct ip_msource	*ims, *nims;
 	struct mbuf		*m, *m0, *md;
 	in_addr_t		 naddr;
-	int			 m0srcs, nbytes, off, rsrcs, schanged;
+	int			 m0srcs, nbytes, npbytes, off, rsrcs, schanged;
 	int			 nallow, nblock;
 	uint8_t			 mode, now, then;
 	rectype_t		 crt, drt, nrt;
@@ -3001,6 +3001,7 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 	nrt = REC_NONE;	/* record type for current node */
 	m0srcs = 0;	/* # source which will fit in current mbuf chain */
 	nbytes = 0;	/* # of bytes appended to group's state-change queue */
+	npbytes = 0;	/* # of bytes appended this packet */
 	rsrcs = 0;	/* # sources encoded in current record */
 	schanged = 0;	/* # nodes encoded in overall filter change */
 	nallow = 0;	/* # of source entries in ALLOW_NEW */
@@ -3047,6 +3048,7 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 				m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
 				    sizeof(struct igmp_grouprec)) /
 				    sizeof(in_addr_t);
+				npbytes = 0;
 				CTR1(KTR_IGMPV3,
 				    "%s: allocated new packet", __func__);
 			}
@@ -3066,15 +3068,19 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 				    "%s: m_append() failed", __func__);
 				return (-ENOMEM);
 			}
-			nbytes += sizeof(struct igmp_grouprec);
-			if (m == m0) {
-				md = m_last(m);
-				pig = (struct igmp_grouprec *)(mtod(md,
-				    uint8_t *) + md->m_len - nbytes);
-			} else {
-				md = m_getptr(m, 0, &off);
+			npbytes += sizeof(struct igmp_grouprec);
+			if (m != m0) {
+				/* new packet; offset in c hain */
+				md = m_getptr(m, npbytes -
+				    sizeof(struct igmp_grouprec), &off);
 				pig = (struct igmp_grouprec *)(mtod(md,
 				    uint8_t *) + off);
+			} else {
+				/* current packet; offset from last append */
+				md = m_last(m);
+				pig = (struct igmp_grouprec *)(mtod(md,
+				    uint8_t *) + md->m_len -
+				    sizeof(struct igmp_grouprec));
 			}
 			/*
 			 * Begin walking the tree for this record type
@@ -3133,7 +3139,7 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 			 * pass, back out of allocations.
 			 */
 			if (rsrcs == 0) {
-				nbytes -= sizeof(struct igmp_grouprec);
+				npbytes -= sizeof(struct igmp_grouprec);
 				if (m != m0) {
 					CTR1(KTR_IGMPV3,
 					    "%s: m_free(m)", __func__);
@@ -3146,7 +3152,7 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 				}
 				continue;
 			}
-			nbytes += (rsrcs * sizeof(in_addr_t));
+			npbytes += (rsrcs * sizeof(in_addr_t));
 			if (crt == REC_ALLOW)
 				pig->ig_type = IGMP_ALLOW_NEW_SOURCES;
 			else if (crt == REC_BLOCK)
@@ -3159,6 +3165,7 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 			m->m_pkthdr.PH_vt.vt_nrecs++;
 			if (m != m0)
 				_IF_ENQUEUE(ifq, m);
+			nbytes += npbytes;
 		} while (nims != NULL);
 		drt |= crt;
 		crt = (~crt & REC_FULL);
