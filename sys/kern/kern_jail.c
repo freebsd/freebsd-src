@@ -121,13 +121,13 @@ int	prisoncount = 0;
 
 static void init_prison(void *);
 static void prison_complete(void *context, int pending);
-static int sysctl_jail_list(SYSCTL_HANDLER_ARGS);
 #ifdef INET
 static int _prison_check_ip4(struct prison *pr, struct in_addr *ia);
 #endif
 #ifdef INET6
 static int _prison_check_ip6(struct prison *pr, struct in6_addr *ia6);
 #endif
+static int sysctl_jail_list(SYSCTL_HANDLER_ARGS);
 
 static void
 init_prison(void *data __unused)
@@ -765,7 +765,7 @@ prison_hold_locked(struct prison *pr)
 
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
 	KASSERT(pr->pr_ref > 0,
-	    ("Trying to hold dead prison (id=%d).", pr->pr_id));
+	    ("Trying to hold dead prison (jid=%d).", pr->pr_id));
 	pr->pr_ref++;
 }
 
@@ -784,7 +784,8 @@ prison_proc_hold(struct prison *pr)
 
 	mtx_lock(&pr->pr_mtx);
 	KASSERT(pr->pr_state == PRISON_STATE_ALIVE,
-	    ("Cannot add a process to a non-alive prison (id=%d).", pr->pr_id));
+	    ("Cannot add a process to a non-alive prison (jid=%d).",
+	    pr->pr_id));
 	pr->pr_nprocs++;
 	mtx_unlock(&pr->pr_mtx);
 }
@@ -795,7 +796,7 @@ prison_proc_free(struct prison *pr)
 
 	mtx_lock(&pr->pr_mtx);
 	KASSERT(pr->pr_state == PRISON_STATE_ALIVE && pr->pr_nprocs > 0,
-	    ("Trying to kill a process in a dead prison (id=%d).", pr->pr_id));
+	    ("Trying to kill a process in a dead prison (jid=%d).", pr->pr_id));
 	pr->pr_nprocs--;
 	if (pr->pr_nprocs == 0)
 		pr->pr_state = PRISON_STATE_DYING;
@@ -821,7 +822,6 @@ prison_get_ip4(struct ucred *cred, struct in_addr *ia)
 	KASSERT(ia != NULL, ("%s: ia is NULL", __func__));
 
 	if (!jailed(cred))
-		/* Do not change address passed in. */
 		return (0);
 	if (cred->cr_prison->pr_ip4 == NULL)
 		return (EAFNOSUPPORT);
