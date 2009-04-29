@@ -243,6 +243,11 @@
 	</listitem>
 
 	<listitem>
+	  <para>A &man.jail.8; can start with a specific route
+	    FIB now.</para>
+	</listitem>
+
+	<listitem>
 	  <para>A <literal>show jails</literal> subcommand in
 	    &man.ddb.8; has been added.</para>
 	</listitem>
@@ -270,22 +275,22 @@
 	routine finishes executing.</para>
 
       <para>Types of variables used to track amount of allocated
-	System V shared memory from <literal>int</literal> to
-	<literal>size_t</literal>.  This makes it possible to use more
-	than 2 GB shared memory segments on 64-bit architectures.
-	Please note the new BUGS section in &man.shmctl.2; and
-	<filename>/usr/src/UPDATING</filename> for limitations of this
-	temporal solution.</para>
+	System V shared memory have been changed from
+	<literal>int</literal> to <literal>size_t</literal>.  This
+	makes it possible to use more than 2 GB shared memory segments
+	on 64-bit architectures.  Please note the new BUGS section in
+	&man.shmctl.2; and <filename>/usr/src/UPDATING</filename> for
+	limitations of this temporal solution.</para>
 
       <para>The &os; 32-bit system call translation layer now
 	supports installing 32-bit system calls for
 	<literal>VFS_AIO</literal>.</para>
 
       <para arch="amd64,i386">The &os; virtual memory subsystem now
-	supports Superpages.  The Superpages is a feature in modern
-	CPUs that enables each entry in the TLB (translation lookaside
-	buffer) to map a large physical memory region into a virtual
-	address space.  This provides possible memory savings for
+	supports Superpages.  The Superpages is a feature that enables
+	each entry in the TLB (translation lookaside buffer) to map a
+	large physical memory region into a virtual address space in
+	modern CPUs.  This provides possible memory savings for
 	applications that share large amounts of memory between the
 	address spaces and performance improvements due to fewer TLB
 	misses.</para>
@@ -298,7 +303,7 @@
 	  PXE by pressing F6 key on some supported BIOSes.</para>
 
 	<para>The &man.loader.8; is now able to obtain DHCP options
-	  via &man.kenv.2; variables in the case of network boot.</para>
+	  from network boot via &man.kenv.2; variables.</para>
 
 	<para>A bug in the &man.loader.8; has been fixed.  Now the
 	  following line works as expected:</para>
@@ -327,13 +332,13 @@
 
 	<para>The &man.cpuctl.4; driver, which provides a special
 	  device <filename>/dev/cpuctl</filename> as an interface to
-	  the system CPU and functionality to retrieve CPUID
-	  information, read/write machine specific registers (MSR) and
-	  perform CPU firmware updates.</para>
+	  the system CPU has been added.  The functionality includes
+	  to retrieve CPUID information, read/write machine specific
+	  registers (MSR), and perform CPU firmware updates.</para>
 
-	<para>The &man.cpufreq.4; driver now supports a
+	<para>The &man.cpufreq.4; driver now supports an
 	  <varname>hw.est.msr_info</varname> loader tunable.  When
-	  this set to <literal>1</literal>, it attempts to build a
+	  this is set to <literal>1</literal>, it attempts to build a
 	  simple list containing just the high and low frequencies if
 	  it cannot obtain a frequency list from either ACPI or the
 	  static tables.  This is disabled by default.</para>
@@ -359,13 +364,13 @@
 	  Fireplane/Safari to PCI 2.1 and Tomatillo JBus to PCI 2.2
 	  bridges has been added.</para>
 
-	<para>A &man.sysctl.3; leaf node has a flag to tag itself as
-	  MPSAFE now.</para>
-
 	<para>The &man.sched.ule.4; scheduler now supports a loader
 	  tunable <varname>machdep.hyperthreading_enabled</varname> as
 	  the &man.sched.4bsd.4; does.  Note that it cannot be
 	  modified at run-time.</para>
+
+	<para>A &man.sysctl.3; leaf node has a flag to tag itself as
+	  MPSAFE now.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -409,7 +414,7 @@
 	  <para>The &man.ae.4; driver now supports WoL
 	    (Wake on LAN).</para>
 
-	  <para arch="amd64,i386">The &man.ale.4; driver are now
+	  <para arch="amd64,i386">The &man.ale.4; driver is now
 	    included in the <filename>GENERIC</filename>
 	    kernel.</para>
 
@@ -417,7 +422,7 @@
 	    has been updated to the open source version.</para>
 
 	  <para>The &man.axe.4; driver has been improved in
-	    performance by eliminating extra context switch and now
+	    performance by eliminating extra context switches and now
 	    supports Apple USB Ethernet adapter.</para>
 
 	  <para>The &man.bce.4; driver's firmware has been updated to
@@ -435,7 +440,7 @@
 	  <itemizedlist>
 	    <listitem>
 	      <para>The checksum offload feature can be controlled by
-		&man.ifconfig.8;.</para>
+		&man.ifconfig.8; now.</para>
 	    </listitem>
 
 	    <listitem>
@@ -452,7 +457,7 @@
 	      <para>WoL (Wake on LAN) support for 82550, 82551, 82558,
 		and 82559-based controllers has been added.  Note that
 		ICH based controllers are treated as 82559, and 82557,
-		earlier revision of 82558, and 82559ER have no WOL
+		earlier revision of 82558, and 82559ER have no WoL
 		capability.</para>
 	    </listitem>
 
@@ -465,9 +470,9 @@
 	    </listitem>
 	  </itemizedlist>
 
-	  <para>A bug in &man.igb.4; driver which prevents a tunable
-	    <varname>hw.igb.ave_latency</varname> from working has
-	    been fixed.</para>
+	  <para>A bug in &man.igb.4; driver which prevents a loader
+	    tunable <varname>hw.igb.ave_latency</varname> from working
+	    has been fixed.</para>
 
 	  <para>A bug in &man.ixgbe.4; driver has been updated to
 	    version 1.7.4.</para>
@@ -542,20 +547,17 @@
 	  </listitem>
 	</orderedlist>
 
-	<para>The TCP MD5 Signature Option (RFC 2385) for IPv6 has
-	  been implemented in the same way it has been implemented for
-	  IPv4.</para>
-
 	<para>This also changes the semantics of selecting the IP for
 	  processes within a &man.jail.8; as it now uses the same
 	  logic as outside the &man.jail.8;.</para>
 
-	<para>The &man.jail.8; subsystem now supports start with a
-	  specific route FIB.</para>
+	<para>The TCP MD5 Signature Option (RFC 2385) for IPv6 has
+	  been implemented in the same way it has been implemented for
+	  IPv4.</para>
 
 	<para>The &man.ng.netflow.4; Netgraph node now supports
 	  ability to generate egress netflow instead or in addition to
-	  ingress.  A <literal>NGM_NETFLOW_SETCONFIG</literal> control
+	  ingress.  An <literal>NGM_NETFLOW_SETCONFIG</literal> control
 	  message has been added to control the new functionality.</para>
 
 	<para>The &man.tap.4;, Ethernet tunnel software network
@@ -615,7 +617,7 @@
 	  controllers.</para>
 
 	<para>The &man.gjournal.8; GEOM class now supports the root
-	  filesystem.  Previously, an unclean shutdown would make it
+	  file system.  Previously, an unclean shutdown would make it
 	  impossible to mount root file system at boot.</para>
 
 	<para>The &man.gpart.8; utility has been updated.  The APM
@@ -678,18 +680,18 @@
 	  an ACCESS RPC to prime the access cache instead of a simple
 	  GETATTR RPC.  This is because on many NFS servers an ACCESS
 	  RPC is much more expensive to service than a GETATTR RPC for
-	  files in a NFSv3 mount.  The sysctl variables is enabled by
+	  files in an NFSv3 mount.  The sysctl variable is enabled by
 	  default to maintain the previous behavior.</para>
 
-	<para>The &os; UDF file system now supports fifo.</para>
+	<para>The &os; UDF file system now supports a fifo.</para>
 
 	<para>The shared vnode locking for pathname lookups in
 	  &man.VFS.9; subsystem has been improved.  This is disabled
 	  by default.  Setting a sysctl variable
 	  <varname>vfs.lookup_shared</varname> to <literal>1</literal>
 	  enables it for better performance.  Note that the
-	  <literal>LOOKUP_SHARED</literal> equivalent to the sysctl
-	  variable kernel option has been removed.</para>
+	  <literal>LOOKUP_SHARED</literal> kernel option equivalent to
+	  the sysctl variable has been removed.</para>
       </sect3>
     </sect2>
 
@@ -730,10 +732,10 @@
       <para>The &man.du.1; utility now supports a <option>-B
 	<replaceable>blocksize</replaceable></option> option to
 	calculate block counts in blocksize byte blocks.  This is
-	different from the <option>-k</option>, <option>-m</option>
+	different from the <option>-k</option> or <option>-m</option>
 	options or setting <varname>BLOCKSIZE</varname> and gives an
 	estimate of how much space the examined file hierarchy would
-	require on a filesystem with the given
+	require on a file system with the given
 	<replaceable>blocksize</replaceable>.  Unless in
 	<option>-A</option> mode, <replaceable>blocksize</replaceable>
 	is rounded up to the next multiple of 512.</para>
@@ -742,14 +744,14 @@
 	<option>-f</option> flag, which causes it to list all free
 	fragments in the file system by fragment (block) number.  This
 	new mode does the necessary arithmetic to generate absolute
-	fragment numbers rather than than the cg-relative numbers
-	printed in the default mode.</para>
+	fragment numbers rather than the cg-relative numbers printed
+	in the default mode.</para>
 
       <para>If <option>-f</option> is passed once, contiguous fragment
-	ranges are collapsed into an X-Y format as free block lists are
-	currently printed in regular dumpfs output, but if specified twice,
-	all block numbers are printed individually, allowing both compact
-	and more script-friendly representation.</para>
+	ranges are collapsed into an X-Y format as free block lists
+	are currently printed in regular dumpfs output.  If specified
+	twice, all block numbers are printed individually, allowing
+	both compact and more script-friendly representation.</para>
 
       <para>The &man.fetch.1; utility now supports an
 	<option>-i</option> flag which supports If-Modified-Since HTTP
@@ -766,10 +768,10 @@
 	does full checks.</para>
 
       <para>The &man.fsck.8; utility now supports a
-	<option>-D</option> flag for damaged recovery mode, which
-	will enable certain aggressive operations that can make
+	<option>-D</option> flag for damaged recovery mode, which will
+	enable certain aggressive operations that can make
 	&man.fsck.8; to survive with file systems that has very
-	serious data damage, which is an useful last resort when on
+	serious data damage.  This is an useful last resort when on
 	disk data damage is very serious and causes &man.fsck.8; to
 	crash otherwise.</para>
 
@@ -825,7 +827,7 @@
 
       <para>The &man.netstat.1; utility now reports &man.unix.4;
 	sockets listen queue statistics when an <option>-L</option>
-	flag.</para>
+	flag is specified.</para>
 
       <para>A bug in the &man.netstat.1; utility has been fixed.  It
 	crashed with the following options in the previous
@@ -864,11 +866,13 @@
 	zombie process when a password or default shell is changed has
 	been fixed.</para>
 
+<!--
       <sect3 id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
 	<para></para>
       </sect3>
+-->
     </sect2>
 
     <sect2 id="contrib">
@@ -904,11 +908,13 @@
 	role="package">x11/kde4</filename>).</para>
     </sect2>
 
+<!--
     <sect2 id="doc">
       <title>Documentation</title>
 
       <para></para>
     </sect2>
+-->
   </sect1>
 
   <sect1 id="upgrade">
