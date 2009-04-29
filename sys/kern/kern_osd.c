@@ -72,7 +72,9 @@ static LIST_HEAD(, osd)	osd_list[OSD_LAST + 1];		/* (m) */
 static osd_method_t *osd_methods[OSD_LAST + 1];		/* (m) */
 static u_int osd_nslots[OSD_LAST + 1];			/* (m) */
 static osd_destructor_t *osd_destructors[OSD_LAST + 1];	/* (o) */
-static const u_int osd_nmethods[OSD_LAST + 1];
+static const u_int osd_nmethods[OSD_LAST + 1] = {
+	[OSD_JAIL] = 5,
+};
 
 static struct sx osd_module_lock[OSD_LAST + 1];
 static struct rmlock osd_object_lock[OSD_LAST + 1];
@@ -345,9 +347,9 @@ osd_call(u_int type, u_int method, void *obj, void *data)
 	 */
 	error = 0;
 	sx_slock(&osd_module_lock[type]);
-	for (i = 1; i <= osd_nslots[type]; i++) {
+	for (i = 0; i < osd_nslots[type]; i++) {
 		methodfun =
-		    osd_methods[type][(i - 1) * osd_nmethods[type] + method];
+		    osd_methods[type][i * osd_nmethods[type] + method];
 		if (methodfun != NULL && (error = methodfun(obj, data)) != 0)
 			break;
 	}
