@@ -119,7 +119,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #ifndef KTR_IPMF
-#define KTR_IPMF KTR_SUBSYS
+#define KTR_IPMF KTR_INET
 #endif
 
 #define		VIFI_INVALID	((vifi_t) -1)
