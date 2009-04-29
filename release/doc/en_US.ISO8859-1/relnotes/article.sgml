@@ -215,9 +215,13 @@
 	process execution.</para>
 
       <para arch="amd64">The &os; kernel virtual address space has
-	been increased to 6GB and the ceiling on the kmem map size
-	to 3.6GB.  Note that the ceiling as a fraction of the kernel
-	map size rather than an absolute quantity.</para>
+	been increased to 6GB.  This allows subsystems to use larger
+	virtual memory space than before.  For example, &man.zfs.8;
+	adaptive replacement cache (ARC) requires large kernel memory
+	space to cache file system data, so it benefits from the
+	increased address space.  Note that the ceiling on the kernel
+	map size is now 60% of the size rather than an absolute
+	quantity.</para>
 
       <para>The &man.jail.8; subsystem has been updated.  Changes include:</para>
 
@@ -231,12 +235,13 @@
 	</listitem>
 
 	<listitem>
-	  <para>SCTP (&man.sctp.4;) with IPv6 in jails has been supported.</para>
+	  <para>SCTP (&man.sctp.4;) with IPv6 in jails has been
+	    implemented.</para>
 	</listitem>
 
 	<listitem>
 	  <para>Specific CPU binding by using &man.cpuset.1; has been
-	    supported.  Note that the current implementation allows
+	    implemented.  Note that the current implementation allows
 	    the superuser inside of the jail to change the CPU
 	    bindings specified.  This behavior will be fixed in the
 	    next release.</para>
@@ -267,7 +272,7 @@
       </itemizedlist>
 
       <para>The &man.kld.4; now supports installing 32-bit system
-	call to the &os; system call translation layer from kernel
+	calls to the &os; system call translation layer from kernel
 	modules.</para>
 
       <para>The &man.ktr.4; now supports a new KTR tracepoint in the
@@ -280,7 +285,10 @@
 	makes it possible to use more than 2 GB shared memory segments
 	on 64-bit architectures.  Please note the new BUGS section in
 	&man.shmctl.2; and <filename>/usr/src/UPDATING</filename> for
-	limitations of this temporal solution.</para>
+	limitations of this temporary solution.</para>
+
+      <para>A &man.sysctl.3; leaf node has a flag to tag itself as
+	MPSAFE now.</para>
 
       <para>The &os; 32-bit system call translation layer now
 	supports installing 32-bit system calls for
@@ -293,7 +301,10 @@
 	modern CPUs.  This provides possible memory savings for
 	applications that share large amounts of memory between the
 	address spaces and performance improvements due to fewer TLB
-	misses.</para>
+	misses.  This is disabled by default and can be enabled by
+	setting a loader tunable
+	<varname>vm.pmap.pg_ps_enabled</varname> to
+	<literal>1</literal>.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -301,6 +312,10 @@
 	<para>The &man.boot.8; now supports 4-byte volume ID that
 	  certain versions of &windows; put into the MBR and invoking
 	  PXE by pressing F6 key on some supported BIOSes.</para>
+
+	<para arch="i386">The &man.boot.8; BTX loader has been
+	  improved.  This fixes several boot issues on recent machines
+	  reported for 7.1-RELEASE and before.</para>
 
 	<para>The &man.loader.8; is now able to obtain DHCP options
 	  from network boot via &man.kenv.2; variables.</para>
@@ -364,13 +379,18 @@
 	  Fireplane/Safari to PCI 2.1 and Tomatillo JBus to PCI 2.2
 	  bridges has been added.</para>
 
+	<para>The &man.u3g.4; driver for USB based 3G cards and
+	  dongles including Vodafone Mobile Connect Card 3G, Qualcomm
+	  CDMA MSM, Huawei E220, Novatel U740, Sierra MC875U, and so
+	  on has been added.  This provides support for the multiple
+	  USB-to-serial interfaces exposed by many 3G USB/PC Card
+	  modems, and the device is accessed through the &man.ucom.4;
+	  driver which makes it behave like a &man.tty.4;.</para>
+
 	<para>The &man.sched.ule.4; scheduler now supports a loader
 	  tunable <varname>machdep.hyperthreading_enabled</varname> as
 	  the &man.sched.4bsd.4; does.  Note that it cannot be
 	  modified at run-time.</para>
-
-	<para>A &man.sysctl.3; leaf node has a flag to tag itself as
-	  MPSAFE now.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -771,20 +791,20 @@
 	<option>-D</option> flag for damaged recovery mode, which will
 	enable certain aggressive operations that can make
 	&man.fsck.8; to survive with file systems that has very
-	serious data damage.  This is an useful last resort when on
+	serious data damage.  This is a useful last resort when on
 	disk data damage is very serious and causes &man.fsck.8; to
 	crash otherwise.</para>
 
       <para>The &man.getaddrinfo.3; function now supports SCTP.</para>
 
-      <para>A bug in the &man.ipfw.8; utility which displays extra
-	messages for a NAT rule even when a <option>-q</option> flag
-	is specified.</para>
+      <para>A bug was fixed in the &man.ipfw.8; utility which displays
+	extra messages for a NAT rule even when a <option>-q</option>
+	flag is specified.</para>
 
       <para>The &man.ln.1; utility now supports a <option>-w</option>
 	flag to check if the source file actually exists.  When the
-	flag is specified and the file does not exist, the &man.ln.1;
-	will put a warning message.</para>
+	flag is specified and the file does not exist, &man.ln.1; will
+	issue a warning message.</para>
 
       <para>The &man.make.1; utility now supports a
 	<option>-p</option> flag to print the input graph only, not
@@ -799,7 +819,7 @@
 	<option>-q</option> flag when a <option>-j</option> option is
 	specified.</para>
 
-      <para>The &man.make.1; utility now supports
+      <para>The &man.make.1; utility now supports the
 	<varname>.MAKE.JOB.PREFIX</varname> variable.  If
 	<option>-j</option> and <option>-v</option> are specified, it
 	outputs for each target is prefixed with a token <literal>---
@@ -836,7 +856,7 @@
       <screen>&prompt.user; netstat -m -N foo</screen>
 
       <para>A bug in the &man.netstat.1; utility has been fixed.  The
-	<option>-ss</option> now works in the icmp6 section as
+	<option>-ss</option> option now works in the icmp6 section as
 	expected.</para>
 
       <para>The &man.pciconf.8; utility now supports a
@@ -889,8 +909,20 @@
     <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
-      <para>A bug in the &man.pkg.create.1; which prevents the
+      <para>A bug in &man.pkg.create.1; which prevents the
 	<option>-n</option> flag from working has been fixed.</para>
+
+      <para>The &os; Ports Collection now supports multiple
+	&man.make.1; jobs in some supported ports.  This is
+	automatically enabled when a port is marked as
+	<varname>MAKE_JOBS_SAFE</varname> and improves CPU utilization
+	at the build stage by passing an option
+	<option>-j<replaceable>X</replaceable></option> to the top
+	level <filename>Makefile</filename> from the vendor.  The
+	number <replaceable>X</replaceable> is set to the number of
+	CPUs by default, and can be set by users via a &man.make.1;
+	variable <varname>MAKE_JOBS_NUMBER</varname>.  For more
+	details, see <filename>ports/Mk/bsd.port.mk</filename>.</para>
     </sect2>
 
     <sect2 id="releng">
