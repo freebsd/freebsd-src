@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -140,6 +141,7 @@ static int	set_pim6(int *);
 static int	socket_send(struct socket *, struct mbuf *,
 		    struct sockaddr_in6 *);
 
+extern int in6_mcast_loop;
 extern struct domain inet6domain;
 
 static const struct encaptab *pim6_encap_cookie;
@@ -367,7 +369,7 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 	struct mf6cctl mfcc;
 	mifi_t mifi;
 
-	if (so != ip6_mrouter && sopt->sopt_name != MRT6_INIT)
+	if (so != V_ip6_mrouter && sopt->sopt_name != MRT6_INIT)
 		return (EACCES);
 
 	switch (sopt->sopt_name) {
@@ -432,7 +434,7 @@ X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 	INIT_VNET_INET6(curvnet);
 	int error = 0;
 
-	if (so != ip6_mrouter)
+	if (so != V_ip6_mrouter)
 		return (EACCES);
 
 	switch (sopt->sopt_name) {
@@ -560,12 +562,12 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 
 	MROUTER6_LOCK();
 
-	if (ip6_mrouter != NULL) {
+	if (V_ip6_mrouter != NULL) {
 		MROUTER6_UNLOCK();
 		return (EADDRINUSE);
 	}
 
-	ip6_mrouter = so;
+	V_ip6_mrouter = so;
 	V_ip6_mrouter_ver = cmd;
 
 	bzero((caddr_t)mf6ctable, sizeof(mf6ctable));
@@ -601,7 +603,7 @@ X_ip6_mrouter_done(void)
 
 	MROUTER6_LOCK();
 
-	if (ip6_mrouter == NULL) {
+	if (V_ip6_mrouter == NULL) {
 		MROUTER6_UNLOCK();
 		return (EINVAL);
 	}
@@ -657,7 +659,7 @@ X_ip6_mrouter_done(void)
 		multicast_register_if6 = NULL;
 	}
 
-	ip6_mrouter = NULL;
+	V_ip6_mrouter = NULL;
 	V_ip6_mrouter_ver = 0;
 
 	MROUTER6_UNLOCK();
@@ -1293,7 +1295,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 				break;
 			}
 
-			if (socket_send(ip6_mrouter, mm, &sin6) < 0) {
+			if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
 				log(LOG_WARNING, "ip6_mforward: ip6_mrouter "
 				    "socket queue full\n");
 				mrt6stat.mrt6s_upq_sockfull++;
@@ -1531,7 +1533,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 
 				mrt6stat.mrt6s_upcalls++;
 
-				if (socket_send(ip6_mrouter, mm, &sin6) < 0) {
+				if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
 #ifdef MRT6DEBUG
 					if (V_mrt6debug)
 						log(LOG_WARNING, "mdq, ip6_mrouter socket queue full\n");
@@ -1603,9 +1605,10 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	struct mbuf *mb_copy;
 	struct ifnet *ifp = mifp->m6_ifp;
 	int error = 0;
-	struct	in6_multi *in6m;
 	struct sockaddr_in6 *dst6;
 	u_long linkmtu;
+
+	dst6 = &mifp->m6_route.ro_dst;
 
 	/*
 	 * Make a new reference to the packet; make sure that
@@ -1648,17 +1651,16 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	}
 
 	/*
-	 * If we belong to the destination multicast group
-	 * on the outgoing interface, loop back a copy.
+	 * If configured to loop back multicasts by default,
+	 * loop back a copy now.
 	 */
-	dst6 = &mifp->m6_route.ro_dst;
-	IN6_LOOKUP_MULTI(ip6->ip6_dst, ifp, in6m);
-	if (in6m != NULL) {
+	if (in6_mcast_loop) {
 		dst6->sin6_len = sizeof(struct sockaddr_in6);
 		dst6->sin6_family = AF_INET6;
 		dst6->sin6_addr = ip6->ip6_dst;
 		ip6_mloopback(ifp, m, &mifp->m6_route.ro_dst);
 	}
+
 	/*
 	 * Put the packet into the sending queue of the outgoing interface
 	 * if it would fit in the MTU of the interface.
@@ -1759,7 +1761,7 @@ register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 	/* iif info is not given for reg. encap.n */
 	mrt6stat.mrt6s_upcalls++;
 
-	if (socket_send(ip6_mrouter, mm, &sin6) < 0) {
+	if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
 #ifdef MRT6DEBUG
 		if (V_mrt6debug)
 			log(LOG_WARNING,
@@ -2056,7 +2058,7 @@ ip6_mroute_modevent(module_t mod, int type, void *unused)
 		break;
 
 	case MOD_UNLOAD:
-		if (ip6_mrouter != NULL)
+		if (V_ip6_mrouter != NULL)
 			return EINVAL;
 
 		if (pim6_encap_cookie) {

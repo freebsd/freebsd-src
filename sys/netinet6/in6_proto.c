@@ -236,6 +236,7 @@ struct ip6protosw inet6sw[] = {
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_init =		icmp6_init,
 	.pr_fasttimo =		icmp6_fasttimo,
+	.pr_slowtimo =		icmp6_slowtimo,
 	.pr_usrreqs =		&rip6_usrreqs
 },
 {
