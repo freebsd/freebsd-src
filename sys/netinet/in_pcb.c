@@ -927,7 +927,8 @@ in_pcbfree_internal(struct inpcb *inp)
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		ip6_freepcbopts(inp->in6p_outputopts);
-		ip6_freemoptions(inp->in6p_moptions);
+		if (inp->in6p_moptions != NULL)
+			ip6_freemoptions(inp->in6p_moptions);
 	}
 #endif
 	if (inp->inp_options)
