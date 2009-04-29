@@ -556,6 +556,9 @@ ata_pcichannel_attach(device_t dev)
 
     ch->unit = (intptr_t)device_get_ivars(dev);
 
+    resource_int_value(device_get_name(dev),
+	device_get_unit(dev), "pm_level", &ch->pm_level);
+
     if ((error = ctlr->ch_attach(dev)))
 	return error;
 
