@@ -147,8 +147,6 @@ icmp6_init(void)
 	INIT_VNET_INET6(curvnet);
 
 	V_icmp6errpps_count = 0;
-
-	mld6_init();
 }
 
 static void
@@ -429,6 +427,23 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	/*
+	 * Check multicast group membership.
+	 * Note: SSM filters are not applied for ICMPv6 traffic.
+	 */
+	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+		struct ifnet *ifp;
+		struct in6_multi *inm;
+
+		ifp = m->m_pkthdr.rcvif;
+		inm = in6m_lookup(ifp, &ip6->ip6_dst);
+		if (inm == NULL) {
+			IP6STAT_INC(ip6s_notmember);
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
+			goto freeit;
+		}
+	}
+
+	/*
 	 * calculate the checksum
 	 */
 #ifndef PULLDOWN_TEST
@@ -615,33 +630,19 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 
 	case MLD_LISTENER_QUERY:
 	case MLD_LISTENER_REPORT:
-		if (icmp6len < sizeof(struct mld_hdr))
-			goto badlen;
-		if (icmp6->icmp6_type == MLD_LISTENER_QUERY) /* XXX: ugly... */
-			icmp6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mldquery);
-		else
-			icmp6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mldreport);
-		if ((n = m_copym(m, 0, M_COPYALL, M_DONTWAIT)) == NULL) {
-			/* give up local */
-			mld6_input(m, off);
-			m = NULL;
+	case MLD_LISTENER_DONE:
+	case MLDV2_LISTENER_REPORT:
+		/*
+		 * Drop MLD traffic which is not link-local.
+		 * XXX Should we also sanity check that these messages
+		 * were directed to a link-local multicast prefix?
+		 */
+		if (ip6->ip6_hlim != 1)
 			goto freeit;
-		}
-		mld6_input(n, off);
+		if (mld_input(m, off, icmp6len) != 0)
+			return (IPPROTO_DONE);
 		/* m stays. */
 		break;
-
-	case MLD_LISTENER_DONE:
-		icmp6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mlddone);
-		if (icmp6len < sizeof(struct mld_hdr))	/* necessary? */
-			goto badlen;
-		break;		/* nothing to be done in kernel */
-
-	case MLD_MTRACE_RESP:
-	case MLD_MTRACE:
-		/* XXX: these two are experimental.  not officially defined. */
-		/* XXX: per-interface statistics? */
-		break;		/* just pass it to applications */
 
 	case ICMP6_WRUREQUEST:	/* ICMP6_FQDN_QUERY */
 	    {
@@ -2050,7 +2051,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		INP_RUNLOCK(last);
 	} else {
 		m_freem(m);
-		V_ip6stat.ip6s_delivered--;
+		IP6STAT_DEC(ip6s_delivered);
 	}
 	return IPPROTO_DONE;
 }
@@ -2222,7 +2223,14 @@ void
 icmp6_fasttimo(void)
 {
 
-	return;
+	mld_fasttimo();
+}
+
+void
+icmp6_slowtimo(void)
+{
+
+	mld_slowtimo();
 }
 
 static const char *

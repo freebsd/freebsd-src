@@ -106,8 +106,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/vinet6.h>
 
-MALLOC_DEFINE(M_IP6MADDR, "in6_multi", "internet multicast address");
-
 /*
  * Definitions of some costant IP6 addresses.
  */
@@ -119,6 +117,8 @@ const struct in6_addr in6addr_linklocal_allnodes =
 	IN6ADDR_LINKLOCAL_ALLNODES_INIT;
 const struct in6_addr in6addr_linklocal_allrouters =
 	IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
+const struct in6_addr in6addr_linklocal_allv2routers =
+	IN6ADDR_LINKLOCAL_ALLV2ROUTERS_INIT;
 
 const struct in6_addr in6mask0 = IN6MASK0;
 const struct in6_addr in6mask32 = IN6MASK32;
@@ -135,7 +135,6 @@ static int in6_ifinit __P((struct ifnet *, struct in6_ifaddr *,
 	struct sockaddr_in6 *, int));
 static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
-struct in6_multihead in6_multihead;	/* XXX BSS initialization */
 int	(*faithprefix_p)(struct in6_addr *);
 
 
@@ -1110,10 +1109,12 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			 * should be larger than the MLD delay (this could be
 			 * relaxed a bit, but this simple logic is at least
 			 * safe).
+			 * XXX: Break data hiding guidelines and look at
+			 * state for the solicited multicast group.
 			 */
 			mindelay = 0;
 			if (in6m_sol != NULL &&
-			    in6m_sol->in6m_state == MLD_REPORTPENDING) {
+			    in6m_sol->in6m_state == MLD_REPORTING_MEMBER) {
 				mindelay = in6m_sol->in6m_timer;
 			}
 			maxdelay = MAX_RTR_SOLICITATION_DELAY * hz;
@@ -1588,36 +1589,6 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	}
 
 	return (error);
-}
-
-struct in6_multi_mship *
-in6_joingroup(struct ifnet *ifp, struct in6_addr *addr,
-    int *errorp, int delay)
-{
-	struct in6_multi_mship *imm;
-
-	imm = malloc(sizeof(*imm), M_IP6MADDR, M_NOWAIT);
-	if (!imm) {
-		*errorp = ENOBUFS;
-		return NULL;
-	}
-	imm->i6mm_maddr = in6_addmulti(addr, ifp, errorp, delay);
-	if (!imm->i6mm_maddr) {
-		/* *errorp is alrady set */
-		free(imm, M_IP6MADDR);
-		return NULL;
-	}
-	return imm;
-}
-
-int
-in6_leavegroup(struct in6_multi_mship *imm)
-{
-
-	if (imm->i6mm_maddr)
-		in6_delmulti(imm->i6mm_maddr);
-	free(imm,  M_IP6MADDR);
-	return 0;
 }
 
 /*
@@ -2328,6 +2299,9 @@ in6_domifattach(struct ifnet *ifp)
 		ext->lltable->llt_lookup = in6_lltable_lookup;
 		ext->lltable->llt_dump = in6_lltable_dump;
 	}
+
+	ext->mld_ifinfo = mld_domifattach(ifp);
+
 	return ext;
 }
 
@@ -2336,6 +2310,7 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
 {
 	struct in6_ifextra *ext = (struct in6_ifextra *)aux;
 
+	mld_domifdetach(ifp);
 	scope6_ifdetach(ext->scope6_id);
 	nd6_ifdetach(ext->nd_ifinfo);
 	lltable_free(ext->lltable);
