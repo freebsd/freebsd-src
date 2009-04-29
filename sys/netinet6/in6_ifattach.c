@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/mld6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/vinet6.h>
 
@@ -918,11 +919,35 @@ in6_tmpaddrtimer(void *ignored_arg)
 static void
 in6_purgemaddrs(struct ifnet *ifp)
 {
-	struct in6_multi *in6m;
-	struct in6_multi *oin6m;
+	INIT_VNET_INET6(ifp->if_vnet);
+	LIST_HEAD(,in6_multi)	 purgeinms;
+	struct in6_multi	*inm, *tinm;
+	struct ifmultiaddr	*ifma;
 
-	LIST_FOREACH_SAFE(in6m, &in6_multihead, in6m_entry, oin6m) {
-		if (in6m->in6m_ifp == ifp)
-			in6_delmulti(in6m);
+	LIST_INIT(&purgeinms);
+	IN6_MULTI_LOCK();
+
+	/*
+	 * Extract list of in6_multi associated with the detaching ifp
+	 * which the PF_INET6 layer is about to release.
+	 * We need to do this as IF_ADDR_LOCK() may be re-acquired
+	 * by code further down.
+	 */
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_INET6 ||
+		    ifma->ifma_protospec == NULL)
+			continue;
+		inm = (struct in6_multi *)ifma->ifma_protospec;
+		LIST_INSERT_HEAD(&purgeinms, inm, in6m_entry);
 	}
+	IF_ADDR_UNLOCK(ifp);
+
+	LIST_FOREACH_SAFE(inm, &purgeinms, in6m_entry, tinm) {
+		LIST_REMOVE(inm, in6m_entry);
+		in6m_release_locked(inm);
+	}
+	mld_ifdetach(ifp);
+
+	IN6_MULTI_UNLOCK();
 }

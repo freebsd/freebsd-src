@@ -128,9 +128,20 @@ extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
 
 /*
- * Hooks for multicast forwarding.
+ * Hooks for multicast routing. They all default to NULL, so leave them not
+ * initialized and rely on BSS being set to 0.
  */
-struct socket *ip6_mrouter = NULL;
+
+/*
+ * The socket used to communicate with the multicast routing daemon.
+ */
+#ifdef VIMAGE_GLOBALS
+struct socket *ip6_mrouter;
+#endif
+
+/*
+ * The various mrouter functions.
+ */
 int (*ip6_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_get)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_done)(void);
@@ -149,6 +160,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 #ifdef IPSEC
 	INIT_VNET_IPSEC(curvnet);
 #endif
+	struct ifnet *ifp;
 	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	register struct inpcb *in6p;
@@ -166,6 +178,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	init_sin6(&fromsa, m); /* general init */
 
+	ifp = m->m_pkthdr.rcvif;
+
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		/* XXX inp locking */
@@ -180,15 +194,48 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
 			continue;
-		if (prison_check_ip6(in6p->inp_cred, &ip6->ip6_dst) != 0)
-			continue;
-		INP_RLOCK(in6p);
+		if (jailed(in6p->inp_cred)) {
+			/*
+			 * Allow raw socket in jail to receive multicast;
+			 * assume process had PRIV_NETINET_RAW at attach,
+			 * and fall through into normal filter path if so.
+			 */
+			if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
+			    prison_check_ip6(in6p->inp_cred,
+			    &ip6->ip6_dst) != 0)
+				continue;
+		}
 		if (in6p->in6p_cksum != -1) {
 			V_rip6stat.rip6s_isum++;
 			if (in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				INP_RUNLOCK(in6p);
 				V_rip6stat.rip6s_badsum++;
+				continue;
+			}
+		}
+		INP_RLOCK(in6p);
+		/*
+		 * If this raw socket has multicast state, and we
+		 * have received a multicast, check if this socket
+		 * should receive it, as multicast filtering is now
+		 * the responsibility of the transport layer.
+		 */
+		if (in6p->in6p_moptions &&
+		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+			struct sockaddr_in6 mcaddr;
+			int blocked;
+
+			bzero(&mcaddr, sizeof(struct sockaddr_in6));
+			mcaddr.sin6_len = sizeof(struct sockaddr_in6);
+			mcaddr.sin6_family = AF_INET6;
+			mcaddr.sin6_addr = ip6->ip6_dst;
+
+			blocked = im6o_mc_filter(in6p->in6p_moptions, ifp,
+			    (struct sockaddr *)&mcaddr,
+			    (struct sockaddr *)&fromsa);
+			if (blocked != MCAST_PASS) {
+				IP6STAT_INC(ip6s_notmember);
 				continue;
 			}
 		}
@@ -604,13 +651,13 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 static void
 rip6_detach(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
+	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_detach: inp == NULL"));
 
-	if (so == ip6_mrouter && ip6_mrouter_done)
+	if (so == V_ip6_mrouter && ip6_mrouter_done)
 		ip6_mrouter_done();
 	/* xxx: RSVP */
 	INP_INFO_WLOCK(&V_ripcbinfo);

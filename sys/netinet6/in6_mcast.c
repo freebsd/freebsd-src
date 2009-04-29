@@ -29,6 +29,7 @@
 
 /*
  * IPv6 multicast socket, group, and socket option processing module.
+ * Normative references: RFC 2292, RFC 3492, RFC 3542, RFC 3678, RFC 3810.
  */
 
 #include <sys/cdefs.h>
@@ -142,6 +143,9 @@ static struct ip6_moptions *
 static int	in6p_get_source_filters(struct inpcb *, struct sockopt *);
 static int	in6p_join_group(struct inpcb *, struct sockopt *);
 static int	in6p_leave_group(struct inpcb *, struct sockopt *);
+static struct ifnet *
+		in6p_lookup_mcast_ifp(const struct inpcb *,
+		    const struct sockaddr_in6 *);
 static int	in6p_block_unblock_source(struct inpcb *, struct sockopt *);
 static int	in6p_set_multicast_if(struct inpcb *, struct sockopt *);
 static int	in6p_set_source_filters(struct inpcb *, struct sockopt *);
@@ -1655,12 +1659,12 @@ int
 ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_INET6(curvnet);
-	struct ip6_moptions	*imo;
-	int			 error, optval;
-	u_char			 coptval;
+	struct ip6_moptions	*im6o;
+	int			 error;
+	u_int			 optval;
 
 	INP_WLOCK(inp);
-	imo = inp->in6p_moptions;
+	im6o = inp->in6p_moptions;
 	/*
 	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
 	 * or is a divert socket, reject it.
@@ -1674,38 +1678,36 @@ ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	error = 0;
 	switch (sopt->sopt_name) {
-#if 0 /* XXX FIXME */
 	case IPV6_MULTICAST_IF:
-		if (imo == NULL || imo->im6o_multicast_ifp == NULL) {
+		if (im6o == NULL || im6o->im6o_multicast_ifp == NULL) {
 			optval = 0;
 		} else {
-			optval = imo->im6o_multicast_ifp->if_index;
+			optval = im6o->im6o_multicast_ifp->if_index;
 		}
 		INP_WUNLOCK(inp);
-		error = sooptcopyout(sopt, &ifindex, sizeof(u_int));
+		error = sooptcopyout(sopt, &optval, sizeof(u_int));
 		break;
-#endif
 
 	case IPV6_MULTICAST_HOPS:
-		if (imo == 0)
-			optval = coptval = V_ip6_defmcasthlim;
+		if (im6o == NULL)
+			optval = V_ip6_defmcasthlim;
 		else
-			optval = coptval = imo->im6o_multicast_loop;
+			optval = im6o->im6o_multicast_loop;
 		INP_WUNLOCK(inp);
 		error = sooptcopyout(sopt, &optval, sizeof(u_int));
 		break;
 
 	case IPV6_MULTICAST_LOOP:
-		if (imo == 0)
-			optval = coptval = IPV6_DEFAULT_MULTICAST_LOOP;
+		if (im6o == NULL)
+			optval = in6_mcast_loop; /* XXX VIMAGE */
 		else
-			optval = coptval = imo->im6o_multicast_loop;
+			optval = im6o->im6o_multicast_loop;
 		INP_WUNLOCK(inp);
 		error = sooptcopyout(sopt, &optval, sizeof(u_int));
 		break;
 
 	case IPV6_MSFILTER:
-		if (imo == NULL) {
+		if (im6o == NULL) {
 			error = EADDRNOTAVAIL;
 			INP_WUNLOCK(inp);
 		} else {
@@ -1725,7 +1727,57 @@ ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 }
 
 /*
+ * Look up the ifnet to use for a multicast group membership,
+ * given the address of an IPv6 group.
+ *
+ * This routine exists to support legacy IPv6 multicast applications.
+ *
+ * If inp is non-NULL, use this socket's current FIB number for any
+ * required FIB lookup. Look up the group address in the unicast FIB,
+ * and use its ifp; usually, this points to the default next-hop.
+ * If the FIB lookup fails, return NULL.
+ *
+ * FUTURE: Support multiple forwarding tables for IPv6.
+ *
+ * Returns NULL if no ifp could be found.
+ */
+static struct ifnet *
+in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
+    const struct sockaddr_in6 *gsin6)
+{
+	INIT_VNET_INET6(curvnet);
+	struct route_in6	 ro6;
+	struct ifnet		*ifp;
+
+	KASSERT(in6p->inp_vflag & INP_IPV6,
+	    ("%s: not INP_IPV6 inpcb", __func__));
+	KASSERT(gsin6->sin6_family == AF_INET6,
+	    ("%s: not AF_INET6 group", __func__));
+	KASSERT(IN6_IS_ADDR_MULTICAST(&gsin6->sin6_addr),
+	    ("%s: not multicast", __func__));
+
+	ifp = NULL;
+	memset(&ro6, 0, sizeof(struct route_in6));
+	memcpy(&ro6.ro_dst, gsin6, sizeof(struct sockaddr_in6));
+#ifdef notyet
+	rtalloc_ign_fib(&ro6, 0, inp ? inp->inp_inc.inc_fibnum : 0);
+#else
+	rtalloc_ign((struct route *)&ro6, 0);
+#endif
+	if (ro6.ro_rt != NULL) {
+		ifp = ro6.ro_rt->rt_ifp;
+		KASSERT(ifp != NULL, ("%s: null ifp", __func__));
+		RTFREE(ro6.ro_rt);
+	}
+
+	return (ifp);
+}
+
+/*
  * Join an IPv6 multicast group, possibly with a source.
+ *
+ * FIXME: The KAME use of the unspecified address (::)
+ * to join *all* multicast groups is currently unsupported.
  */
 static int
 in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
@@ -1765,8 +1817,14 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		gsa->sin6.sin6_len = sizeof(struct sockaddr_in6);
 		gsa->sin6.sin6_addr = mreq.ipv6mr_multiaddr;
 
-		ifp = ifnet_byindex(mreq.ipv6mr_interface);
-
+		if (mreq.ipv6mr_interface == 0) {
+			ifp = in6p_lookup_mcast_ifp(inp, &gsa->sin6);
+		} else {
+			if (mreq.ipv6mr_interface < 0 ||
+			    V_if_index < mreq.ipv6mr_interface)
+				return (EADDRNOTAVAIL);
+			ifp = ifnet_byindex(mreq.ipv6mr_interface);
+		}
 		CTR3(KTR_MLD, "%s: ipv6mr_interface = %d, ifp = %p",
 		    __func__, mreq.ipv6mr_interface, ifp);
 	} break;
@@ -1813,11 +1871,34 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		break;
 	}
 
+#ifdef notyet
+	/*
+	 * FIXME: Check for unspecified address (all groups).
+	 * Do we have a normative reference for this 'feature'?
+	 *
+	 * We use the unspecified address to specify to accept
+	 * all multicast addresses. Only super user is allowed
+	 * to do this.
+	 * XXX-BZ might need a better PRIV_NETINET_x for this
+	 */
+	if (IN6_IS_ADDR_UNSPECIFIED(&gsa->sin6.sin6_addr)) {
+		error = priv_check(curthread, PRIV_NETINET_MROUTE);
+		if (error)
+		break;
+	} else
+#endif
 	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))
 		return (EINVAL);
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
+
+#ifdef notyet
+	/*
+	 * FIXME: Set interface scope in group address.
+	 */
+	(void)in6_setscope(&gsa->sin6.sin_addr, ifp, NULL);
+#endif
 
 	/*
 	 * MCAST_JOIN_SOURCE on an exclusive membership is an error.
@@ -1987,7 +2068,23 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		gsa->sin6.sin6_family = AF_INET6;
 		gsa->sin6.sin6_len = sizeof(struct sockaddr_in6);
 		gsa->sin6.sin6_addr = mreq.ipv6mr_multiaddr;
-		ifp = ifnet_byindex(mreq.ipv6mr_interface);
+
+		if (mreq.ipv6mr_interface == 0) {
+#ifdef notyet
+			/*
+			 * FIXME: Resolve scope ambiguity when interface
+			 * index is unspecified.
+			 */
+			ifp = in6p_lookup_mcast_ifp(inp, &gsa->sin6);
+#else
+			return (EADDRNOTAVAIL);
+#endif
+		} else {
+			if (mreq.ipv6mr_interface < 0 ||
+			    V_if_index < mreq.ipv6mr_interface)
+				return (EADDRNOTAVAIL);
+			ifp = ifnet_byindex(mreq.ipv6mr_interface);
+		}
 
 		CTR3(KTR_MLD, "%s: ipv6mr_interface = %d, ifp = %p",
 		    __func__, mreq.ipv6mr_interface, ifp);
@@ -2032,6 +2129,15 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 
 	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))
 		return (EINVAL);
+
+#ifdef notyet
+	/*
+	 * FIXME: Need to embed ifp's scope ID in the address
+	 * handed down to MLD.
+	 * See KAME IPV6_LEAVE_GROUP implementation.
+	 */
+	(void)in6_setscope(&mreq->ipv6mr_multiaddr, ifp, NULL);
+#endif
 
 	/*
 	 * Find the membership in the membership array.
@@ -2348,7 +2454,7 @@ out_in6p_locked:
 int
 ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
-	struct ip6_moptions	*imo;
+	struct ip6_moptions	*im6o;
 	int			 error;
 
 	error = 0;
@@ -2364,7 +2470,6 @@ ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	switch (sopt->sopt_name) {
 	case IPV6_MULTICAST_IF:
-		/* XXX in v6 this one is far more involved */
 		error = in6p_set_multicast_if(inp, sopt);
 		break;
 
@@ -2381,9 +2486,11 @@ ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		if (hlim < -1 || hlim > 255) {
 			error = EINVAL;
 			break;
+		} else if (hlim == -1) {
+			hlim = V_ip6_defmcasthlim;
 		}
-		imo = in6p_findmoptions(inp);
-		imo->im6o_multicast_hlim = hlim;
+		im6o = in6p_findmoptions(inp);
+		im6o->im6o_multicast_hlim = hlim;
 		INP_WUNLOCK(inp);
 		break;
 	}
@@ -2393,9 +2500,7 @@ ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 		/*
 		 * Set the loopback flag for outgoing multicast packets.
-		 * Must be zero or one.  The orimcaddrl multicast API required a
-		 * char argument, which is inconsistent with the rest
-		 * of the socket API.  We allow either a char or an int.
+		 * Must be zero or one.
 		 */
 		if (sopt->sopt_valsize != sizeof(u_int)) {
 			error = EINVAL;
@@ -2404,8 +2509,12 @@ ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		error = sooptcopyin(sopt, &loop, sizeof(u_int), sizeof(u_int));
 		if (error)
 			break;
-		imo = in6p_findmoptions(inp);
-		imo->im6o_multicast_loop = loop;
+		if (loop > 1) {
+			error = EINVAL;
+			break;
+		}
+		im6o = in6p_findmoptions(inp);
+		im6o->im6o_multicast_loop = loop;
 		INP_WUNLOCK(inp);
 		break;
 	}
