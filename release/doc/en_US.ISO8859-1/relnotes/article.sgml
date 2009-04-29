@@ -474,7 +474,7 @@
 	    tunable <varname>hw.igb.ave_latency</varname> from working
 	    has been fixed.</para>
 
-	  <para>A bug in &man.ixgbe.4; driver has been updated to
+	  <para>The &man.ixgbe.4; driver has been updated to
 	    version 1.7.4.</para>
 
 	  <para>The &man.jme.4; driver now supports newer JMicron
