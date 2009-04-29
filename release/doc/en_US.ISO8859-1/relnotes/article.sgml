@@ -235,7 +235,11 @@
 	</listitem>
 
 	<listitem>
-	  <para>Specific CPU binding by using &man.cpuset.1; has been supported.</para>
+	  <para>Specific CPU binding by using &man.cpuset.1; has been
+	    supported.  Note that the current implementation allows
+	    the superuser inside of the jail to change the CPU
+	    bindings specified.  This behavior will be fixed in the
+	    next release.</para>
 	</listitem>
 
 	<listitem>
@@ -256,9 +260,6 @@
 	    features.</para>
 	</listitem>
       </itemizedlist>
-
-      <para>The &man.jail.8; subsystem now supports SCTP (&man.sctp.4;)
-	with IPv6 in jails.</para>
 
       <para>The &man.kld.4; now supports installing 32-bit system
 	call to the &os; system call translation layer from kernel
@@ -344,6 +345,12 @@
 	  added to force this behavior by setting it to
 	  non-zero.</para>
 
+	<para>The &man.atkbd.4; now disables the interrupt handler
+	  which is called from the keyboard callback function when
+	  polled mode is enabled.  This fixes duplicated/missing
+	  characters problem at mountroot on multi CPU systems while
+	  &man.kbdmux.4; is enabled.</para>
+
 	<para>In the &man.pci.4; subsystem INTx is now disabled when
 	  MSI/MSIX is enabled.  This change fixes interrupt storm
 	  related issues.</para>
@@ -354,6 +361,11 @@
 
 	<para>A &man.sysctl.3; leaf node has a flag to tag itself as
 	  MPSAFE now.</para>
+
+	<para>The &man.sched.ule.4; scheduler now supports a loader
+	  tunable <varname>machdep.hyperthreading_enabled</varname> as
+	  the &man.sched.4bsd.4; does.  Note that it cannot be
+	  modified at run-time.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -408,10 +420,14 @@
 	    performance by eliminating extra context switch and now
 	    supports Apple USB Ethernet adapter.</para>
 
+	  <para>The &man.bce.4; driver's firmware has been updated to
+	    the latest version (4.6.X).</para>
+
 	  <para>The ciphy(4) driver now supports Vitesse VSC8211
 	    PHY.</para>
 
-	  <para>The &man.cxgb.4; driver now supports hardware MAC
+	  <para>The &man.cxgb.4; driver has been updated to the
+	    firmware revision 4.7 and now supports hardware MAC
 	    statistics.</para>
 
 	  <para>The &man.fxp.4; driver has been improved.  Changes include:</para>
@@ -453,6 +469,9 @@
 	    <varname>hw.igb.ave_latency</varname> from working has
 	    been fixed.</para>
 
+	  <para>A bug in &man.ixgbe.4; driver has been updated to
+	    version 1.7.4.</para>
+
 	  <para>The &man.jme.4; driver now supports newer JMicron
 	    JMC250/JMC260 revisions.</para>
 
@@ -491,7 +510,7 @@
 	    <varname>dev.txp.<replaceable>N</replaceable>.stats</varname>
 	    for MAC statistics have been added.  A new sysctl
 	    variable
-	    <varname>dev.txp.<varname>N</varname>.process_limit</varname>
+	    <varname>dev.txp.<replaceable>N</replaceable>.process_limit</varname>
 	    to control how many received frames should be served in Rx
 	    handler (set to 64 by default and valid ranges are 16 to
 	    128 in unit of frames) has been added.  The firmware has
@@ -562,6 +581,9 @@
 
 	<para>The &man.ata.4; driver now supports Marvell PATA M88SX6121.</para>
 
+	<para>The &man.ata.4; driver now recognizes nForce MCP67 and
+	  MCP73 SATA controllers as AHCI.</para>
+
 	<para>The &man.ataraid.4; driver now has an initial support
 	  for DDF metadata found on Adaptec HostRAID controllers.
 	  Note that spares and rebuilds are not supported yet.</para>
@@ -581,6 +603,21 @@
 	  <quote>max device openings</quote> count that has led
  	  to poor performance has been fixed.</para>
 
+	<para>The &man.glabel.8; GEOM class now supports a new
+	  UFS-based label called <literal>ufsid</literal> that can be
+	  used to reference UFS-carrying devices by the unique file
+	  system ID.  This file system ID is automatically generated
+	  and detected when &man.glabel.8; GEOM class is enabled.  An
+	  example of this new label is:
+	  <filename>/dev/ufsid/48e69c8b5c8e1b43</filename>.  The
+	  benefit of using GEOM labels in general is to avoid problems
+	  of device renaming when shifting drives or
+	  controllers.</para>
+
+	<para>The &man.gjournal.8; GEOM class now supports the root
+	  filesystem.  Previously, an unclean shutdown would make it
+	  impossible to mount root file system at boot.</para>
+
 	<para>The &man.gpart.8; utility has been updated.  The APM
 	  scheme now supports Tivo Series 1 partitions (read only), a
 	  new EBR scheme to support Extended Boot Records has been
@@ -592,6 +629,9 @@
 	  If the plex is a raid5 plex and is being written to, parity data might
 	  have to be read from the underlying disks, requiring them to be opened for
 	  reading as well as writing.</para>
+
+	<para>The &man.hptmv.4; driver has been updated to version
+	  1.16 from the vendor.</para>
 
 	<para>The &man.mmc.4; and &man.mmcsd.4; driver now support MMC
 	  and SDHC cards, high speed timing, wide bus, and multiblock
@@ -607,6 +647,8 @@
 	<para>The &man.sdhci.4; driver now supports kernel dumping and
 	  a sysctl variable <varname>hw.sdhci.debug</varname> for debug
 	  level.</para>
+
+	<para>The &man.twa.4; driver now supports 64-bit DMA.</para>
 
 	<para>The &man.mmc.4; &man.mmcsd.4;, and &man.sdhci.4; driver
 	  are now included as a kernel module.</para>
@@ -718,12 +760,20 @@
 	this behavior is desired.</para>
 
       <para>The &man.fsck.8; utility now supports a
+	<option>-C</option> flag for <literal>check clean</literal>
+	mode.  This checks if the file system was dismounted cleanly
+	first and then skip file system checks if true.  Otherwise it
+	does full checks.</para>
+
+      <para>The &man.fsck.8; utility now supports a
 	<option>-D</option> flag for damaged recovery mode, which
 	will enable certain aggressive operations that can make
 	&man.fsck.8; to survive with file systems that has very
 	serious data damage, which is an useful last resort when on
 	disk data damage is very serious and causes &man.fsck.8; to
 	crash otherwise.</para>
+
+      <para>The &man.getaddrinfo.3; function now supports SCTP.</para>
 
       <para>A bug in the &man.ipfw.8; utility which displays extra
 	messages for a NAT rule even when a <option>-q</option> flag
@@ -734,12 +784,44 @@
 	flag is specified and the file does not exist, the &man.ln.1;
 	will put a warning message.</para>
 
+      <para>The &man.make.1; utility now supports a
+	<option>-p</option> flag to print the input graph only, not
+	executing any commands.  The output is the same as <option>-d
+	g1</option>.  When combined with <option>-f
+	/dev/null</option>, only the built-in rules of make are
+	displayed.</para>
+
+      <para>The &man.make.1; utility now supports a
+	<option>-Q</option> flag to cause file banners not to be
+	generated in addition to the same effect of a
+	<option>-q</option> flag when a <option>-j</option> option is
+	specified.</para>
+
+      <para>The &man.make.1; utility now supports
+	<varname>.MAKE.JOB.PREFIX</varname> variable.  If
+	<option>-j</option> and <option>-v</option> are specified, it
+	outputs for each target is prefixed with a token <literal>---
+	  <replaceable>target</replaceable> ---</literal> the first part
+	of which can be controlled via the variable.</para>
+
+      <para>The &man.make.1; utility now supports
+	<varname>.MAKE.PID</varname> and <varname>.MAKE.PPID</varname>
+	variable.  These are set to process ID of the &man.make.1;
+	process and one of its parent process respectively.</para>
+
       <para>The &man.makefs.8; utility to create a file system image
 	from a directory tree has been added.</para>
 
       <para>The &man.mergemaster.8; utility now supports an
 	<option>-F</option> option to automatically install files that
 	differ only in version control ID strings.</para>
+
+      <para>The &man.mount.8; utility now supports an <option>-o
+	mountprog=<replaceable>/somewhere/mount_xxx</replaceable></option>
+	option to force it to use the specified program to mount the
+	file system instead of calling &man.nmount.2; directly.  This
+	is useful when you want to use third party programs such as
+	FUSE, for example.</para>
 
       <para>The &man.netstat.1; utility now reports &man.unix.4;
 	sockets listen queue statistics when an <option>-L</option>
