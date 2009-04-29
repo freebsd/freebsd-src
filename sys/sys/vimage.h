@@ -91,6 +91,7 @@ struct vnet_modlink {
 #define	VNET_MOD_ATALK		10
 #define	VNET_MOD_ACCF_HTTP	11
 #define	VNET_MOD_IGMP		12
+#define	VNET_MOD_MLD		13
 
 /* stateless modules */
 #define	VNET_MOD_NG_ETHER	20
