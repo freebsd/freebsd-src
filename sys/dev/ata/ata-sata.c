@@ -60,7 +60,7 @@ ata_sata_phy_check_events(device_t dev)
     ATA_IDX_OUTL(ch, ATA_SERROR, error);
 
     /* if we have a connection event deal with it */
-    if (error & ATA_SE_PHY_CHANGED) {
+    if ((error & ATA_SE_PHY_CHANGED) && (ch->pm_level == 0)) {
 	if (bootverbose) {
 	    u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
 	    if (((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) ||
@@ -199,9 +199,8 @@ ata_sata_phy_reset(device_t dev, int port, int quick)
 	ata_udelay(5000);
 	for (loop = 0; loop < 10; loop++) {
 	    if (ata_sata_scr_write(ch, port, ATA_SCONTROL,
-					ATA_SC_DET_IDLE |
-					ATA_SC_IPM_DIS_PARTIAL |
-					ATA_SC_IPM_DIS_SLUMBER))
+		    ATA_SC_DET_IDLE | ((ch->pm_level > 0) ? 0 :
+		    ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)))
 		return (0);
 	    ata_udelay(100);
 	    if (ata_sata_scr_read(ch, port, ATA_SCONTROL, &val))

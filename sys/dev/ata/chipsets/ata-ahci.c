@@ -131,7 +131,7 @@ ata_ahci_chipinit(device_t dev)
     ctlr->ichannels = ATA_INL(ctlr->r_res2, ATA_AHCI_PI);
     ctlr->channels =
 	MAX(flsl(ctlr->ichannels),
-	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1);
+	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_NPMASK) + 1);
 
     ctlr->reset = ata_ahci_reset;
     ctlr->ch_attach = ata_ahci_ch_attach;
@@ -148,7 +148,7 @@ ata_ahci_chipinit(device_t dev)
 		  "AHCI Version %x%x.%x%x controller with %d ports PM %s\n",
 		  (version >> 24) & 0xff, (version >> 16) & 0xff,
 		  (version >> 8) & 0xff, version & 0xff,
-		  (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1,
+		  (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_NPMASK) + 1,
 		  (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) ?
 		  "supported" : "not supported");
     return 0;
@@ -286,7 +286,9 @@ ata_ahci_ch_resume(device_t dev)
 
     /* activate the channel and power/spin up device */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
-	     (ATA_AHCI_P_CMD_ACTIVE | ATA_AHCI_P_CMD_POD | ATA_AHCI_P_CMD_SUD));
+	     (ATA_AHCI_P_CMD_ACTIVE | ATA_AHCI_P_CMD_POD | ATA_AHCI_P_CMD_SUD |
+	     ((ch->pm_level > 1) ? ATA_AHCI_P_CMD_ALPE : 0) |
+	     ((ch->pm_level > 2) ? ATA_AHCI_P_CMD_ASP : 0 )));
     ata_ahci_start_fr(dev);
     ata_ahci_start(dev);
 
@@ -818,9 +820,9 @@ ata_ahci_reset(device_t dev)
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IE + offset,
 	     (ATA_AHCI_P_IX_CPD | ATA_AHCI_P_IX_TFE | ATA_AHCI_P_IX_HBF |
 	      ATA_AHCI_P_IX_HBD | ATA_AHCI_P_IX_IF | ATA_AHCI_P_IX_OF |
-	      ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC | ATA_AHCI_P_IX_DP |
-	      ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB | ATA_AHCI_P_IX_DS |
-	      ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
+	      ((ch->pm_level == 0) ? ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC : 0) |
+	      ATA_AHCI_P_IX_DP | ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB |
+	      ATA_AHCI_P_IX_DS | ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
 
     /* only probe for PortMultiplier if HW has support */
     if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) {
