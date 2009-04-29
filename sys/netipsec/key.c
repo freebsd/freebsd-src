@@ -3765,13 +3765,16 @@ key_ismyaddr6(sin6)
 {
 	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
+#if 0
 	struct in6_multi *in6m;
+#endif
 
 	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
 		if (key_sockaddrcmp((struct sockaddr *)&sin6,
 		    (struct sockaddr *)&ia->ia_addr, 0) == 0)
 			return 1;
 
+#if 0
 		/*
 		 * XXX Multicast
 		 * XXX why do we care about multlicast here while we don't care
@@ -3782,6 +3785,7 @@ key_ismyaddr6(sin6)
 		IN6_LOOKUP_MULTI(sin6->sin6_addr, ia->ia_ifp, in6m);
 		if (in6m)
 			return 1;
+#endif
 	}
 
 	/* loopback, just for safety */
