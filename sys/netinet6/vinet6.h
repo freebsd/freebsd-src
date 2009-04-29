@@ -145,6 +145,7 @@ struct vnet_inet6 {
 	u_int32_t			_ip6_temp_preferred_lifetime;
 	u_int32_t			_ip6_temp_valid_lifetime;
 
+	struct socket *			_ip6_mrouter;
 	int				_ip6_mrouter_ver;
 	int				_pim6;
 	u_int				_mrt6debug;
@@ -153,6 +154,12 @@ struct vnet_inet6 {
 	int				_ip6_use_defzone;
 
 	struct ip6_pktopts		_ip6_opts;
+
+	struct timeval			_mld_gsrdelay;
+	LIST_HEAD(, mld_ifinfo)		_mli_head;
+	int				_interface_timers_running6;
+	int				_state_change_timers_running6;
+	int				_current_state_timers_running6;
 };
 
 /* Size guard. See sys/vimage.h. */
@@ -173,6 +180,8 @@ extern struct vnet_inet6 vnet_inet6_0;
  * Symbol translation macros
  */
 #define	V_addrsel_policytab		VNET_INET6(addrsel_policytab)
+#define	V_current_state_timers_running6	\
+	VNET_INET6(current_state_timers_running6)
 #define	V_dad_ignore_ns			VNET_INET6(dad_ignore_ns)
 #define	V_dad_init			VNET_INET6(dad_init)
 #define	V_dad_maxtry			VNET_INET6(dad_maxtry)
@@ -190,6 +199,8 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_in6_ifaddr			VNET_INET6(in6_ifaddr)
 #define	V_in6_maxmtu			VNET_INET6(in6_maxmtu)
 #define	V_in6_tmpaddrtimer_ch		VNET_INET6(in6_tmpaddrtimer_ch)
+#define	V_interface_timers_running6	\
+	VNET_INET6(interface_timers_running6)
 #define	V_ip6_accept_rtadv		VNET_INET6(ip6_accept_rtadv)
 #define	V_ip6_auto_flowlabel		VNET_INET6(ip6_auto_flowlabel)
 #define	V_ip6_auto_linklocal		VNET_INET6(ip6_auto_linklocal)
@@ -205,6 +216,7 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_ip6_maxfragpackets		VNET_INET6(ip6_maxfragpackets)
 #define	V_ip6_maxfrags			VNET_INET6(ip6_maxfrags)
 #define	V_ip6_mcast_pmtu		VNET_INET6(ip6_mcast_pmtu)
+#define	V_ip6_mrouter			VNET_INET6(ip6_mrouter)
 #define	V_ip6_mrouter_ver		VNET_INET6(ip6_mrouter_ver)
 #define	V_ip6_opts			VNET_INET6(ip6_opts)
 #define	V_ip6_prefer_tempaddr		VNET_INET6(ip6_prefer_tempaddr)
@@ -223,6 +235,8 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_ip6stealth			VNET_INET6(ip6stealth)
 #define	V_llinfo_nd6			VNET_INET6(llinfo_nd6)
 #define	V_mrt6debug			VNET_INET6(mrt6debug)
+#define	V_mld_gsrdelay			VNET_INET6(mld_gsrdelay)
+#define	V_mli_head			VNET_INET6(mli_head)
 #define	V_nd6_allocated			VNET_INET6(nd6_allocated)
 #define	V_nd6_debug			VNET_INET6(nd6_debug)
 #define	V_nd6_defifindex		VNET_INET6(nd6_defifindex)
@@ -256,6 +270,8 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_rtq_timer6			VNET_INET6(rtq_timer6)
 #define	V_rtq_toomany6			VNET_INET6(rtq_toomany6)
 #define	V_sid_default			VNET_INET6(sid_default)
+#define	V_state_change_timers_running6	\
+	VNET_INET6(state_change_timers_running6)
 #define	V_udp6_recvspace		VNET_INET6(udp6_recvspace)	
 #define	V_udp6_sendspace		VNET_INET6(udp6_sendspace)
 

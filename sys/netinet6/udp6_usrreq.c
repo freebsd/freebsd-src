@@ -177,6 +177,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	INIT_VNET_INET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
+	struct ifnet *ifp;
 	struct ip6_hdr *ip6;
 	struct udphdr *uh;
 	struct inpcb *inp;
@@ -184,6 +185,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	int plen, ulen;
 	struct sockaddr_in6 fromsa;
 
+	ifp = m->m_pkthdr.rcvif;
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
@@ -239,6 +241,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	INP_INFO_RLOCK(&V_udbinfo);
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		struct inpcb *last;
+		struct ip6_moptions *imo;
 
 		/*
 		 * In the event that laddr should be set to the link-local
@@ -261,12 +264,6 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				continue;
 			if (inp->inp_lport != uh->uh_dport)
 				continue;
-			/*
-			 * XXX: Do not check source port of incoming datagram
-			 * unless inp_connect() has been called to bind the
-			 * fport part of the 4-tuple; the source could be
-			 * trying to talk to us with an ephemeral port.
-			 */
 			if (inp->inp_fport != 0 &&
 			    inp->inp_fport != uh->uh_sport)
 				continue;
@@ -282,6 +279,35 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 					continue;
 			}
 
+			INP_RLOCK(inp);
+
+			/*
+			 * Handle socket delivery policy for any-source
+			 * and source-specific multicast. [RFC3678]
+			 */
+			imo = inp->in6p_moptions;
+			if (imo && IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+				struct sockaddr_in6	 mcaddr;
+				int			 blocked;
+
+				bzero(&mcaddr, sizeof(struct sockaddr_in6));
+				mcaddr.sin6_len = sizeof(struct sockaddr_in6);
+				mcaddr.sin6_family = AF_INET6;
+				mcaddr.sin6_addr = ip6->ip6_dst;
+
+				blocked = im6o_mc_filter(imo, ifp,
+					(struct sockaddr *)&mcaddr,
+					(struct sockaddr *)&fromsa);
+				if (blocked != MCAST_PASS) {
+					if (blocked == MCAST_NOTGMEMBER)
+						IP6STAT_INC(ip6s_notmember);
+					if (blocked == MCAST_NOTSMEMBER ||
+					    blocked == MCAST_MUTED)
+						UDPSTAT_INC(udps_filtermcast);
+					INP_RUNLOCK(inp);
+					continue;
+				}
+			}
 			if (last != NULL) {
 				struct mbuf *n;
 
@@ -397,6 +423,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 
 badheadlocked:
+	if (inp)
+		INP_RUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_udbinfo);
 badunlocked:
 	if (m)

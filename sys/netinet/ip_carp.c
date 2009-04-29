@@ -400,15 +400,20 @@ carp_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->sc_advskew = 0;
 	sc->sc_init_counter = 1;
 	sc->sc_naddrs = sc->sc_naddrs6 = 0; /* M_ZERO? */
-#ifdef INET6
-	sc->sc_im6o.im6o_multicast_hlim = CARP_DFLTTL;
-#endif
 	sc->sc_imo.imo_membership = (struct in_multi **)malloc(
 	    (sizeof(struct in_multi *) * IP_MIN_MEMBERSHIPS), M_CARP,
 	    M_WAITOK);
 	sc->sc_imo.imo_mfilters = NULL;
 	sc->sc_imo.imo_max_memberships = IP_MIN_MEMBERSHIPS;
 	sc->sc_imo.imo_multicast_vif = -1;
+#ifdef INET6
+	sc->sc_im6o.im6o_membership = (struct in6_multi **)malloc(
+	    (sizeof(struct in6_multi *) * IPV6_MIN_MEMBERSHIPS), M_CARP,
+	    M_WAITOK);
+	sc->sc_im6o.im6o_mfilters = NULL;
+	sc->sc_im6o.im6o_max_memberships = IPV6_MIN_MEMBERSHIPS;
+	sc->sc_im6o.im6o_multicast_hlim = CARP_DFLTTL;
+#endif
 
 	callout_init(&sc->sc_ad_tmo, CALLOUT_MPSAFE);
 	callout_init(&sc->sc_md_tmo, CALLOUT_MPSAFE);
@@ -448,6 +453,9 @@ carp_clone_destroy(struct ifnet *ifp)
 	if_detach(ifp);
 	if_free_type(ifp, IFT_ETHER);
 	free(sc->sc_imo.imo_membership, M_CARP);
+#ifdef INET6
+	free(sc->sc_im6o.im6o_membership, M_CARP);
+#endif
 	free(sc, M_CARP);
 }
 
@@ -1449,14 +1457,17 @@ static void
 carp_multicast6_cleanup(struct carp_softc *sc)
 {
 	struct ip6_moptions *im6o = &sc->sc_im6o;
+	u_int16_t n = im6o->im6o_num_memberships;
 
-	while (!LIST_EMPTY(&im6o->im6o_memberships)) {
-		struct in6_multi_mship *imm =
-		    LIST_FIRST(&im6o->im6o_memberships);
-
-		LIST_REMOVE(imm, i6mm_chain);
-		in6_leavegroup(imm);
+	while (n-- > 0) {
+		if (im6o->im6o_membership[n] != NULL) {
+			in6_mc_leave(im6o->im6o_membership[n], NULL);
+			im6o->im6o_membership[n] = NULL;
+		}
 	}
+	KASSERT(im6o->im6o_mfilters == NULL,
+	   ("%s: im6o_mfilters != NULL", __func__));
+	im6o->im6o_num_memberships = 0;
 	im6o->im6o_multicast_ifp = NULL;
 }
 #endif
@@ -1635,9 +1646,10 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 	struct carp_if *cif;
 	struct in6_ifaddr *ia, *ia_if;
 	struct ip6_moptions *im6o = &sc->sc_im6o;
-	struct in6_multi_mship *imm;
 	struct in6_addr in6;
 	int own, error;
+
+	error = 0;
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 		if (!(SC2IFP(sc)->if_flags & IFF_UP))
@@ -1686,6 +1698,8 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		return (EADDRNOTAVAIL);
 
 	if (!sc->sc_naddrs6) {
+		struct in6_multi *in6m;
+
 		im6o->im6o_multicast_ifp = ifp;
 
 		/* join CARP multicast address */
@@ -1694,9 +1708,12 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		in6.s6_addr8[15] = 0x12;
 		if (in6_setscope(&in6, ifp, NULL) != 0)
 			goto cleanup;
-		if ((imm = in6_joingroup(ifp, &in6, &error, 0)) == NULL)
+		in6m = NULL;
+		error = in6_mc_join(ifp, &in6, NULL, &in6m, 0);
+		if (error)
 			goto cleanup;
-		LIST_INSERT_HEAD(&im6o->im6o_memberships, imm, i6mm_chain);
+		im6o->im6o_membership[0] = in6m;
+		im6o->im6o_num_memberships++;
 
 		/* join solicited multicast address */
 		bzero(&in6, sizeof(in6));
@@ -1707,9 +1724,12 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		in6.s6_addr8[12] = 0xff;
 		if (in6_setscope(&in6, ifp, NULL) != 0)
 			goto cleanup;
-		if ((imm = in6_joingroup(ifp, &in6, &error, 0)) == NULL)
+		in6m = NULL;
+		error = in6_mc_join(ifp, &in6, NULL, &in6m, 0);
+		if (error)
 			goto cleanup;
-		LIST_INSERT_HEAD(&im6o->im6o_memberships, imm, i6mm_chain);
+		im6o->im6o_membership[1] = in6m;
+		im6o->im6o_num_memberships++;
 	}
 
 	if (!ifp->if_carp) {
@@ -1781,14 +1801,8 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 	return (0);
 
 cleanup:
-	/* clean up multicast memberships */
-	if (!sc->sc_naddrs6) {
-		while (!LIST_EMPTY(&im6o->im6o_memberships)) {
-			imm = LIST_FIRST(&im6o->im6o_memberships);
-			LIST_REMOVE(imm, i6mm_chain);
-			in6_leavegroup(imm);
-		}
-	}
+	if (!sc->sc_naddrs6)
+		carp_multicast6_cleanup(sc);
 	return (error);
 }
 
@@ -1799,21 +1813,13 @@ carp_del_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 
 	if (!--sc->sc_naddrs6) {
 		struct carp_if *cif = (struct carp_if *)sc->sc_carpdev->if_carp;
-		struct ip6_moptions *im6o = &sc->sc_im6o;
 
 		CARP_LOCK(cif);
 		callout_stop(&sc->sc_ad_tmo);
 		SC2IFP(sc)->if_flags &= ~IFF_UP;
 		SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 		sc->sc_vhid = -1;
-		while (!LIST_EMPTY(&im6o->im6o_memberships)) {
-			struct in6_multi_mship *imm =
-			    LIST_FIRST(&im6o->im6o_memberships);
-
-			LIST_REMOVE(imm, i6mm_chain);
-			in6_leavegroup(imm);
-		}
-		im6o->im6o_multicast_ifp = NULL;
+		carp_multicast6_cleanup(sc);
 		TAILQ_REMOVE(&cif->vhif_vrs, sc, sc_list);
 		if (!--cif->vhif_nvrs) {
 			CARP_LOCK_DESTROY(cif);

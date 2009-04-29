@@ -22,6 +22,92 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090429:
+	MLDv2 and Source-Specific Multicast (SSM) have been merged
+	to the IPv6 stack. VIMAGE hooks are in but not yet used.
+	The implementation of SSM within FreeBSD's IPv6 stack closely
+	follows the IPv4 implementation.
+
+	For kernel developers:
+
+	* The most important changes are that the ip6_output() and
+	  ip6_input() paths no longer take the IN6_MULTI_LOCK,
+	  and this lock has been downgraded to a non-recursive mutex.
+
+	* As with the changes to the IPv4 stack to support SSM, filtering
+	  of inbound multicast traffic must now be performed by transport
+	  protocols within the IPv6 stack. This does not apply to TCP and
+	  SCTP, however, it does apply to UDP in IPv6 and raw IPv6.
+
+	* The KPIs used by IPv6 multicast are similar to those used by
+	  the IPv4 stack, with the following differences:
+	   * im6o_mc_filter() is analogous to imo_multicast_filter().
+	   * The legacy KAME entry points in6_joingroup and in6_leavegroup()
+	     are shimmed to in6_mc_join() and in6_mc_leave() respectively.
+	   * IN6_LOOKUP_MULTI() has been deprecated and removed.
+	   * IPv6 relies on MLD for the DAD mechanism. KAME's internal KPIs
+	     for MLDv1 have an additional 'timer' argument which is used to
+	     jitter the initial membership report for the solicited-node
+	     multicast membership on-link.
+	   * This is not strictly needed for MLDv2, which already jitters
+	     its report transmissions.  However, the 'timer' argument is
+	     preserved in case MLDv1 is active on the interface.
+
+	* The KAME linked-list based IPv6 membership implementation has
+	  been refactored to use a vector similar to that used by the IPv4
+	  stack.
+	  Code which maintains a list of its own multicast memberships
+	  internally, e.g. carp, has been updated to reflect the new
+	  semantics.
+
+	* There is a known Lock Order Reversal (LOR) due to in6_setscope()
+	  acquiring the IF_AFDATA_LOCK and being called within ip6_output().
+	  Whilst MLDv2 tries to avoid this otherwise benign LOR, it is an
+	  implementation constraint which needs to be addressed in HEAD.
+
+	For application developers:
+
+	* The changes are broadly similar to those made for the IPv4
+	  stack.
+
+	* The use of IPv4 and IPv6 multicast socket options on the same
+	  socket, using mapped addresses, HAS NOT been tested or supported.
+
+	* There are a number of issues with the implementation of various
+	  IPv6 multicast APIs which need to be resolved in the API surface
+	  before the implementation is fully compatible with KAME userland
+	  use, and these are mostly to do with interface index treatment.
+
+	* The literature available discusses the use of either the delta / ASM
+	  API with setsockopt(2)/getsockopt(2), or the full-state / ASM API
+	  using setsourcefilter(3)/getsourcefilter(3). For more information
+	  please refer to RFC 3768, 'Socket Interface Extensions for
+	  Multicast Source Filters'.
+
+	* Applications which use the published RFC 3678 APIs should be fine.
+
+	For systems administrators:
+
+	* The mtest(8) utility has been refactored to support IPv6, in
+	  addition to IPv4. Interface addresses are no longer accepted
+	  as arguments, their names must be used instead. The utility
+	  will map the interface name to its first IPv4 address as
+	  returned by getifaddrs(3).
+
+	* The ifmcstat(8) utility has also been updated to print the MLDv2
+	  endpoint state and source filter lists via sysctl(3).
+
+	* The net.inet6.ip6.mcast.loop sysctl may be tuned to 0 to disable
+	  loopback of IPv6 multicast datagrams by default; it defaults to 1
+	  to preserve the existing behaviour. Disabling multicast loopback is
+	  recommended for optimal system performance.
+
+	* The IPv6 MROUTING code has been changed to examine this sysctl
+	  instead of attempting to perform a group lookup before looping
+	  back forwarded datagrams.
+
+	Bump __FreeBSD_version to 800084.
+
 20090422:
 	Implement low-level Bluetooth HCI API.
 	Bump __FreeBSD_version to 800083.

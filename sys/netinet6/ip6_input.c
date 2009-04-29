@@ -555,25 +555,12 @@ passin:
 	}
 
 	/*
-	 * Multicast check
+	 * Multicast check. Assume packet is for us to avoid
+	 * prematurely taking locks.
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		struct in6_multi *in6m = 0;
-
+		ours = 1;
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mcast);
-		/*
-		 * See if we belong to the destination multicast group on the
-		 * arrival interface.
-		 */
-		IN6_LOOKUP_MULTI(ip6->ip6_dst, m->m_pkthdr.rcvif, in6m);
-		if (in6m)
-			ours = 1;
-		else if (!ip6_mrouter) {
-			V_ip6stat.ip6s_notmember++;
-			V_ip6stat.ip6s_cantforward++;
-			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
-			goto bad;
-		}
 		deliverifp = m->m_pkthdr.rcvif;
 		goto hbhcheck;
 	}
@@ -823,7 +810,8 @@ passin:
 	/*
 	 * Forward if desirable.
 	 */
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+	if (V_ip6_mrouter &&
+	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		/*
 		 * If we are acting as a multicast router, all
 		 * incoming multicast packets are passed to the
@@ -832,13 +820,12 @@ passin:
 		 * ip6_mforward() returns a non-zero value, the packet
 		 * must be discarded, else it may be accepted below.
 		 */
-		if (ip6_mrouter && ip6_mforward &&
+		if (ip6_mforward &&
 		    ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
-			V_ip6stat.ip6s_cantforward++;
+			IP6STAT_INC(ip6s_cantforward);
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
 			goto bad;
 		}
-		if (!ours)
-			goto bad;
 	} else if (!ours) {
 		ip6_forward(m, srcrt);
 		goto out;

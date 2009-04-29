@@ -167,6 +167,7 @@ static void		in_ifinfo(struct igmp_ifinfo *);
 static const char *	inm_mode(u_int mode);
 #endif
 #ifdef INET6
+static void		in6_ifinfo(struct mld_ifinfo *);
 static const char *	inet6_n2a(struct in6_addr *);
 #endif
 int			main(int, char **);
@@ -441,8 +442,35 @@ ll_addrlist(struct ifaddr *ifap)
 #ifdef INET6
 
 static void
+in6_ifinfo(struct mld_ifinfo *mli)
+{
+
+	printf("\t");
+	switch (mli->mli_version) {
+	case MLD_VERSION_1:
+	case MLD_VERSION_2:
+		printf("mldv%d", mli->mli_version);
+		break;
+	default:
+		printf("mldv?(%d)", mli->mli_version);
+		break;
+	}
+	printb(" flags", mli->mli_flags, "\020\1SILENT");
+	if (mli->mli_version == MLD_VERSION_2) {
+		printf(" rv %u qi %u qri %u uri %u",
+		    mli->mli_rv, mli->mli_qi, mli->mli_qri, mli->mli_uri);
+	}
+	if (vflag >= 2) {
+		printf(" v1timer %u v2timer %u", mli->mli_v1_timer,
+		   mli->mli_v2_timer);
+	}
+	printf("\n");
+}
+
+static void
 if6_addrlist(struct ifaddr *ifap)
 {
+	struct ifnet ifnet;
 	struct ifaddr ifa;
 	struct sockaddr sa;
 	struct in6_ifaddr if6a;
@@ -460,6 +488,21 @@ if6_addrlist(struct ifaddr *ifap)
 			goto nextifap;
 		KREAD(ifap, &if6a, struct in6_ifaddr);
 		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr));
+		/*
+		 * Print per-link MLD information, if available.
+		 */
+		if (ifa.ifa_ifp != NULL) {
+			struct in6_ifextra ie;
+			struct mld_ifinfo mli;
+
+			KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
+			KREAD(ifnet.if_afdata[AF_INET6], &ie,
+			    struct in6_ifextra);
+			if (ie.mld_ifinfo != NULL) {
+				KREAD(ie.mld_ifinfo, &mli, struct mld_ifinfo);
+				in6_ifinfo(&mli);
+			}
+		}
 	nextifap:
 		ifap = ifa.ifa_link.tqe_next;
 	}
@@ -842,6 +885,110 @@ out_free:
 
 #endif /* INET */
 
+#ifdef INET6
+/*
+ * Retrieve MLD per-group source filter mode and lists via sysctl.
+ *
+ * Note: The 128-bit IPv6 group addres needs to be segmented into
+ * 32-bit pieces for marshaling to sysctl. So the MIB name ends
+ * up looking like this:
+ *  a.b.c.d.e.ifindex.g[0].g[1].g[2].g[3]
+ * Assumes that pgroup originated from the kernel, so its components
+ * are already in network-byte order.
+ */
+static void
+in6m_print_sources_sysctl(uint32_t ifindex, struct in6_addr *pgroup)
+{
+#define	MAX_SYSCTL_TRY	5
+	char addrbuf[INET6_ADDRSTRLEN];
+	int mib[10];
+	int ntry = 0;
+	int *pi;
+	size_t mibsize;
+	size_t len;
+	size_t needed;
+	size_t cnt;
+	int i;
+	char *buf;
+	struct in6_addr *pina;
+	uint32_t *p;
+	uint32_t fmode;
+	const char *modestr;
+
+	mibsize = sizeof(mib) / sizeof(mib[0]);
+	if (sysctlnametomib("net.inet6.ip6.mcast.filters", mib,
+	    &mibsize) == -1) {
+		perror("sysctlnametomib");
+		return;
+	}
+
+	needed = 0;
+	mib[5] = ifindex;
+	pi = (int *)pgroup;
+	for (i = 0; i < 4; i++)
+		mib[6 + i] = *pi++;
+
+	mibsize = sizeof(mib) / sizeof(mib[0]);
+	do {
+		if (sysctl(mib, mibsize, NULL, &needed, NULL, 0) == -1) {
+			perror("sysctl net.inet6.ip6.mcast.filters");
+			return;
+		}
+		if ((buf = malloc(needed)) == NULL) {
+			perror("malloc");
+			return;
+		}
+		if (sysctl(mib, mibsize, buf, &needed, NULL, 0) == -1) {
+			if (errno != ENOMEM || ++ntry >= MAX_SYSCTL_TRY) {
+				perror("sysctl");
+				goto out_free;
+			}
+			free(buf);
+			buf = NULL;
+		} 
+	} while (buf == NULL);
+
+	len = needed;
+	if (len < sizeof(uint32_t)) {
+		perror("sysctl");
+		goto out_free;
+	}
+
+	p = (uint32_t *)buf;
+	fmode = *p++;
+	len -= sizeof(uint32_t);
+
+	modestr = inm_mode(fmode);
+	if (modestr)
+		printf(" mode %s", modestr);
+	else
+		printf(" mode (%u)", fmode);
+
+	if (vflag == 0)
+		goto out_free;
+
+	cnt = len / sizeof(struct in6_addr);
+	pina = (struct in6_addr *)p;
+
+	for (i = 0; i < cnt; i++) {
+		if (i == 0)
+			printf(" srcs ");
+		inet_ntop(AF_INET6, (const char *)pina++, addrbuf,
+		    INET6_ADDRSTRLEN);
+		fprintf(stdout, "%s%s", (i == 0 ? "" : ","), addrbuf);
+		len -= sizeof(struct in6_addr);
+	}
+	if (len > 0) {
+		fprintf(stderr, "warning: %u trailing bytes from %s\n",
+		    (unsigned int)len, "net.inet6.ip6.mcast.filters");
+	}
+
+out_free:
+	free(buf);
+#undef	MAX_SYSCTL_TRY
+}
+#endif /* INET6 */
+
 static int
 ifmcstat_getifmaddrs(void)
 {
@@ -1015,6 +1162,33 @@ ifmcstat_getifmaddrs(void)
 				}
 				in_ifinfo(&igi);
 			}
+#endif /* INET */
+#ifdef INET6
+			/*
+			 * Print per-link MLD information, if available.
+			 */
+			if (pifasa->sa.sa_family == AF_INET6) {
+				struct mld_ifinfo mli;
+				size_t mibsize, len;
+				int mib[5];
+
+				mibsize = sizeof(mib) / sizeof(mib[0]);
+				if (sysctlnametomib("net.inet6.mld.ifinfo",
+				    mib, &mibsize) == -1) {
+					perror("sysctlnametomib");
+					goto next_ifnet;
+				}
+				mib[mibsize] = thisifindex;
+				len = sizeof(struct mld_ifinfo);
+				if (sysctl(mib, mibsize + 1, &mli, &len, NULL,
+				    0) == -1) {
+					perror("sysctl net.inet6.mld.ifinfo");
+					goto next_ifnet;
+				}
+				in6_ifinfo(&mli);
+			}
+#endif /* INET6 */
+#if defined(INET) || defined(INET6)
 next_ifnet:
 #endif
 			lastifasa = *pifasa;
@@ -1039,6 +1213,12 @@ next_ifnet:
 		if (pgsa->sa.sa_family == AF_INET) {
 			inm_print_sources_sysctl(thisifindex,
 			    pgsa->sin.sin_addr);
+		}
+#endif
+#ifdef INET6
+		if (pgsa->sa.sa_family == AF_INET6) {
+			in6m_print_sources_sysctl(thisifindex,
+			    &pgsa->sin6.sin6_addr);
 		}
 #endif
 		fprintf(stdout, "\n");
