@@ -3040,6 +3040,31 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* jail_get */
+	case 506: {
+		struct jail_get_args *p = params;
+		uarg[0] = (intptr_t) p->iovp; /* struct iovec * */
+		uarg[1] = p->iovcnt; /* unsigned int */
+		iarg[2] = p->flags; /* int */
+		*n_args = 3;
+		break;
+	}
+	/* jail_set */
+	case 507: {
+		struct jail_set_args *p = params;
+		uarg[0] = (intptr_t) p->iovp; /* struct iovec * */
+		uarg[1] = p->iovcnt; /* unsigned int */
+		iarg[2] = p->flags; /* int */
+		*n_args = 3;
+		break;
+	}
+	/* jail_remove */
+	case 508: {
+		struct jail_remove_args *p = params;
+		iarg[0] = p->jid; /* int */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8065,6 +8090,48 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* jail_get */
+	case 506:
+		switch(ndx) {
+		case 0:
+			p = "struct iovec *";
+			break;
+		case 1:
+			p = "unsigned int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* jail_set */
+	case 507:
+		switch(ndx) {
+		case 0:
+			p = "struct iovec *";
+			break;
+		case 1:
+			p = "unsigned int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* jail_remove */
+	case 508:
+		switch(ndx) {
+		case 0:
+			p = "int";
 			break;
 		default:
 			break;
