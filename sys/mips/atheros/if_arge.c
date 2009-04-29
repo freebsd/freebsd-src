@@ -1471,7 +1471,7 @@ arge_intr_filter(void *arg)
 			ARGE_CLEAR_BITS(sc, AR71XX_DMA_INTR, 
 			    DMA_INTR_TX_UNDERRUN | DMA_INTR_TX_PKT_SENT);
 
-		sc->arge_intr_status = status;
+		sc->arge_intr_status |= status;
 		return (FILTER_SCHEDULE_THREAD);
 	}
 
