@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/vinet.h>
 
 #ifndef KTR_IGMPV3
-#define KTR_IGMPV3 KTR_SUBSYS
+#define KTR_IGMPV3 KTR_INET
 #endif
 
 #ifndef __SOCKUNION_DECLARED
@@ -1647,11 +1647,14 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		    lims->imsl_st[0] != imf->imf_st[0])
 			continue;
 		++ncsrcs;
-		if (tss != NULL && nsrcs-- > 0) {
-			psin = (struct sockaddr_in *)ptss++;
+		if (tss != NULL && nsrcs > 0) {
+			psin = (struct sockaddr_in *)ptss;
 			psin->sin_family = AF_INET;
 			psin->sin_len = sizeof(struct sockaddr_in);
 			psin->sin_addr.s_addr = htonl(lims->ims_haddr);
+			psin->sin_port = 0;
+			++ptss;
+			--nsrcs;
 		}
 	}
 
