@@ -159,9 +159,6 @@ static struct {
 #endif
 };
 
-int cpu_cores;
-int cpu_logical;
-
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 #endif
@@ -690,7 +687,6 @@ printcpuinfo(void)
 		if (cpu_vendor_id == CPU_VENDOR_CYRIX)
 			printf("  DIR=0x%04x", cyrix_did);
 		if (cpu_high > 0) {
-			u_int cmp = 1, htt = 1;
 
 			/*
 			 * Here we should probably set up flags indicating
@@ -895,28 +891,6 @@ printcpuinfo(void)
 			if (tsc_is_invariant)
 				printf("\n  TSC: P-state invariant");
 
-			/*
-			 * If this CPU supports HTT or CMP then mention the
-			 * number of physical/logical cores it contains.
-			 */
-			if (cpu_feature & CPUID_HTT)
-				htt = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-			if (cpu_vendor_id == CPU_VENDOR_AMD &&
-			    (amd_feature2 & AMDID2_CMP))
-				cmp = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
-			else if (cpu_vendor_id == CPU_VENDOR_INTEL &&
-			    (cpu_high >= 4)) {
-				cpuid_count(4, 0, regs);
-				if ((regs[0] & 0x1f) != 0)
-					cmp = ((regs[0] >> 26) & 0x3f) + 1;
-			}
-			cpu_cores = cmp;
-			cpu_logical = htt / cmp;
-			if (cmp > 1)
-				printf("\n  Cores per package: %d", cmp);
-			if ((htt / cmp) > 1)
-				printf("\n  Logical CPUs per core: %d",
-				    cpu_logical);
 		}
 	} else if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
 		printf("  DIR=0x%04x", cyrix_did);
