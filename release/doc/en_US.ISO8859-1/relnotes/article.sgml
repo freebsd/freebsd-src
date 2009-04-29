@@ -279,29 +279,31 @@
 	<literal>KTR_CALLOUT</literal> class to note when a callout
 	routine finishes executing.</para>
 
-      <para>Types of variables used to track amount of allocated
+      <para>Types of variables used to track the amount of allocated
 	System V shared memory have been changed from
 	<literal>int</literal> to <literal>size_t</literal>.  This
-	makes it possible to use more than 2 GB shared memory segments
-	on 64-bit architectures.  Please note the new BUGS section in
-	&man.shmctl.2; and <filename>/usr/src/UPDATING</filename> for
-	limitations of this temporary solution.</para>
+	makes it possible to use more than 2 GB of memory for shared
+	memory segments on 64-bit architectures.  Please note the new
+	BUGS section in &man.shmctl.2; and
+	<filename>/usr/src/UPDATING</filename> for limitations of this
+	temporary solution.</para>
 
-      <para>A &man.sysctl.3; leaf node has a flag to tag itself as
-	MPSAFE now.</para>
+      <para>The &man.sysctl.3; leaf nodes have a flag to tag
+	themselves as MPSAFE now.</para>
 
       <para>The &os; 32-bit system call translation layer now
 	supports installing 32-bit system calls for
 	<literal>VFS_AIO</literal>.</para>
 
       <para arch="amd64,i386">The &os; virtual memory subsystem now
-	supports Superpages.  The Superpages is a feature that enables
-	each entry in the TLB (translation lookaside buffer) to map a
-	large physical memory region into a virtual address space in
-	modern CPUs.  This provides possible memory savings for
-	applications that share large amounts of memory between the
-	address spaces and performance improvements due to fewer TLB
-	misses.  This is disabled by default and can be enabled by
+	supports <application>Superpages</application>.  The
+	<application>Superpages</application> is a feature that
+	enables each entry in the TLB (translation lookaside buffer)
+	to map a large physical memory region into a virtual address
+	space in modern CPUs.  This provides possible memory savings
+	for applications that share large amounts of memory between
+	the address spaces and performance improvements due to fewer
+	TLB misses.  This is disabled by default and can be enabled by
 	setting a loader tunable
 	<varname>vm.pmap.pg_ps_enabled</varname> to
 	<literal>1</literal>.</para>
@@ -330,7 +332,7 @@
 	<title>Hardware Support</title>
 
 	<para arch="sparc64">The &os; now supports Ultra SPARC III
-	  (Cheetah) family.</para>
+	  (Cheetah) processor family.</para>
 
 	<para>The &man.acpi.4; subsystem now supports a &man.sysctl.8;
 	  variable <varname>debug.batt.batt_sleep_ms</varname>.  On
@@ -347,9 +349,10 @@
 
 	<para>The &man.cpuctl.4; driver, which provides a special
 	  device <filename>/dev/cpuctl</filename> as an interface to
-	  the system CPU has been added.  The functionality includes
-	  to retrieve CPUID information, read/write machine specific
-	  registers (MSR), and perform CPU firmware updates.</para>
+	  the system CPU has been added.  The &man.cpuctl.4;
+	  functionality includes the ability to retrieve CPUID
+	  information, read/write machine specific registers (MSR),
+	  and perform CPU firmware updates.</para>
 
 	<para>The &man.cpufreq.4; driver now supports an
 	  <varname>hw.est.msr_info</varname> loader tunable.  When
@@ -365,11 +368,11 @@
 	  added to force this behavior by setting it to
 	  non-zero.</para>
 
-	<para>The &man.atkbd.4; now disables the interrupt handler
-	  which is called from the keyboard callback function when
-	  polled mode is enabled.  This fixes duplicated/missing
-	  characters problem at mountroot on multi CPU systems while
-	  &man.kbdmux.4; is enabled.</para>
+	<para>The &man.atkbd.4; driver now disables the interrupt
+	  handler which is called from the keyboard callback function
+	  when polled mode is enabled.  This fixes the problem of
+	  duplicated/missing characters at the mountroot prompt on
+	  multi CPU systems while &man.kbdmux.4; is enabled.</para>
 
 	<para>In the &man.pci.4; subsystem INTx is now disabled when
 	  MSI/MSIX is enabled.  This change fixes interrupt storm
@@ -395,8 +398,8 @@
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
-	  <para>The &man.agp.4; now supports Intel G4X series graphics
-	    chipsets.</para>
+	  <para>The &man.agp.4; driver now supports Intel G4X series
+	    graphics chipsets.</para>
 
 	  <para>The DRM, a kernel module named Direct Rendering
 	    Manager that gives direct hardware access to DRI clients,
@@ -404,28 +407,30 @@
 	    and IGP based chips, XGI V3XE/V5/V8, and Intel i915
 	    chipsets has been improved.</para>
 
-	  <para>A new loader tunable <varname>hw.drm.msi</varname>
-	    which controls if DRM uses MSI or not.  This is set to
-	    <literal>1</literal> (enabled) by default.</para>
+	  <para>A new loader tunable <varname>hw.drm.msi</varname> has
+	    been added to control if DRM uses MSI or not.  This is set
+	    to <literal>1</literal> (enabled) by default.</para>
 
 	  <para>The snd_au88x0(4) driver for Aureal Vortex
 	    1/2/Advantage PCI has been removed because this was
 	    broken for a long time.</para>
 
-	  <para>The &man.snd.hda.4; driver has been updated.  Changes
-	    include: multiple codec per HDA bus, multiple functional
-	    groups per codec, multiple audio devices per functional
-	    group, digital (SPDIF/HDMI) audio input/output,
-	    suspend/resume, and part of multichannel audio.</para>
+	  <para>The &man.snd.hda.4; driver has been updated.  This
+	    changes include support for multiple codec per HDA bus,
+	    multiple functional groups per codec, multiple audio
+	    devices per functional group, digital (SPDIF/HDMI) audio
+	    input/output, suspend/resume, and part of multichannel
+	    audio.</para>
 
 	  <para>Note that due to added HDMI audio and logical audio
-	    devices support, updated driver often provides several PCM
-	    devices.  In some cases it can make system default audio
-	    device no longer corresponding to the users's habitual
-	    audio connectors.  In such cases the default device can be
-	    specified in audio application setup or defined globally
-	    via <varname>hw.snd.default_unit sysctl</varname>
-	    as described in the &man.sound.4; manual page.</para>
+	    devices support, the updated driver often provides several
+	    PCM devices.  This means that in some cases the system
+	    default audio device no longer corresponds to the users's
+	    habitual audio connectors.  In such cases the default
+	    device can be specified in audio applications' setup or
+	    defined globally via <varname>hw.snd.default_unit
+	    sysctl</varname>, as described in the &man.sound.4; manual
+	    page.</para>
 	</sect4>
 
 	<sect4 id="net-if">
@@ -451,8 +456,8 @@
 	  <para>The ciphy(4) driver now supports Vitesse VSC8211
 	    PHY.</para>
 
-	  <para>The &man.cxgb.4; driver has been updated to the
-	    firmware revision 4.7 and now supports hardware MAC
+	  <para>The &man.cxgb.4; driver has been updated to firmware
+	    revision 4.7 and now supports hardware MAC
 	    statistics.</para>
 
 	  <para>The &man.fxp.4; driver has been improved.  Changes include:</para>
@@ -477,7 +482,7 @@
 	      <para>WoL (Wake on LAN) support for 82550, 82551, 82558,
 		and 82559-based controllers has been added.  Note that
 		ICH based controllers are treated as 82559, and 82557,
-		earlier revision of 82558, and 82559ER have no WoL
+		earlier revisions of 82558, and 82559ER have no WoL
 		capability.</para>
 	    </listitem>
 
@@ -490,9 +495,9 @@
 	    </listitem>
 	  </itemizedlist>
 
-	  <para>A bug in &man.igb.4; driver which prevents a loader
-	    tunable <varname>hw.igb.ave_latency</varname> from working
-	    has been fixed.</para>
+	  <para>A bug in the &man.igb.4; driver, which prevents the
+	    loader tunable <varname>hw.igb.ave_latency</varname> from
+	    working, has been fixed.</para>
 
 	  <para>The &man.ixgbe.4; driver has been updated to
 	    version 1.7.4.</para>
@@ -502,7 +507,7 @@
 
 	  <para>The &man.msk.4; driver has been improved.  An issue
 	    which makes it hang up in a certain condition has been
-	    fixed.  A hardware MAC statistics support has been added
+	    fixed.  Hardware MAC statistics support has been added
 	    and users can get the information via sysctl variables
 	    named
 	    <varname>dev.msk.<replaceable>N</replaceable>.stats</varname>.</para>
@@ -516,9 +521,10 @@
 
 	  <para>The &man.re.4; driver has been improved.  It now
 	    detects the link status.  A new loader tunable
-	    <varname>hw.re.prefer_iomap</varname> to disable memory
-	    register mapping.  This tunable is <literal>0</literal>
-	    for all controllers except RTL8169SC family.</para>
+	    <varname>hw.re.prefer_iomap</varname> has been added, to
+	    disable memory register mapping.  This tunable is
+	    <literal>0</literal> for all controllers except RTL8169SC
+	    family.</para>
 
 	  <para>The &man.rl.4; driver has been improved.  It now
 	    detects the link status and a bug which prevents it from
@@ -529,16 +535,16 @@
 	    been fixed.</para>
 
 	  <para>The &man.txp.4; driver now works on all supported
-	    architecture.  Also, &man.altq.4; support, WoL support,
-	    checksum offload when VLAN enabled, better link state
-	    change handling, a new sysctl variable
+	    architectures.  Support has been added for &man.altq.4;,
+	    WoL, checksum offload when VLAN enabled, and link state
+	    change handling has been improved, and new sysctl
+	    variables
 	    <varname>dev.txp.<replaceable>N</replaceable>.stats</varname>
-	    for MAC statistics have been added.  A new sysctl
-	    variable
+	    for MAC statistics have been added.  New sysctl variables
 	    <varname>dev.txp.<replaceable>N</replaceable>.process_limit</varname>
-	    to control how many received frames should be served in Rx
-	    handler (set to 64 by default and valid ranges are 16 to
-	    128 in unit of frames) has been added.  The firmware has
+	    has been added, to control how many received frames should
+	    be served in Rx handler (set to 64 by default and valid
+	    ranges are 16 to 128 in unit of frames).  The firmware has
 	    been updated to the latest version.</para>
 	</sect4>
       </sect3>
@@ -575,23 +581,24 @@
 	  been implemented in the same way it has been implemented for
 	  IPv4.</para>
 
-	<para>The &man.ng.netflow.4; Netgraph node now supports
-	  ability to generate egress netflow instead or in addition to
-	  ingress.  An <literal>NGM_NETFLOW_SETCONFIG</literal> control
-	  message has been added to control the new functionality.</para>
+	<para>The &man.ng.netflow.4; Netgraph node now includes
+	 support for generating egress netflow instead or in addition
+	 to ingress.  An <literal>NGM_NETFLOW_SETCONFIG</literal>
+	 control message has been added to control the new
+	 functionality.</para>
 
-	<para>The &man.tap.4;, Ethernet tunnel software network
-	  interface now supports <literal>TAPGIFNAME</literal>
+	<para>The &man.tap.4; Ethernet tunnel software network
+	  interface now supports a new <literal>TAPGIFNAME</literal>
 	  character device ioctl.  This is a convenient shortcut to
-	  obtain network interface name using file descriptor for
-	  character device.</para>
+	  obtain the network interface name using a file descriptor to
+	  a character device.</para>
 
 	<para>The &man.tap.4; now supports
 	  <literal>SIOCSIFMTU</literal> ioctl to set a higher MTU than
-	  1500 (ETHERMTU).  This allows &man.tap.4; device to be added
-	  to a bridge, which requires all interface members to have
-	  the same MTU, with an interface configured for jumbo
-	  frames.</para>
+	  1500 (ETHERMTU).  This allows &man.tap.4; devices to be
+	  added to the same bridge (which requires all interface
+	  members to have the same MTU) with an interface configured
+	  for jumbo frames.</para>
 
 	<para>The domains list for handling the list of supported
 	  domains in the &man.unix.4; (UNIX domain protocol family)
@@ -606,11 +613,11 @@
 	<para>The &man.ata.4; driver now recognizes nForce MCP67 and
 	  MCP73 SATA controllers as AHCI.</para>
 
-	<para>The &man.ataraid.4; driver now has an initial support
+	<para>The &man.ataraid.4; driver now includes preliminary support
 	  for DDF metadata found on Adaptec HostRAID controllers.
 	  Note that spares and rebuilds are not supported yet.</para>
 
-	<para>The &man.cam.4; SCSI subsystem now supports a sysctl
+	<para>The &man.cam.4; SCSI subsystem now supports a new sysctl
 	  variable <varname>kern.cam.cd.retry_count</varname>.  This
 	  controls the number of retries for the CD media.  When
 	  trying to read scratched or damaged CDs and DVDs, the
@@ -618,18 +625,18 @@
 	  <application>ddrescue</application> do much better if you
 	  turn off the retries entirely since their algorithms do it
 	  by themselves.  This value is set to <literal>4</literal>
-	  (for a total 5 attempts) by default.  Setting to 0 turns off
-	  all retry attempts.</para>
+	  (for a total of 5 attempts) by default.  Setting it to
+	  <literal>0</literal> turns off all retry attempts.</para>
 
 	<para>A bug in the &man.ciss.4; driver which caused low
-	  <quote>max device openings</quote> count that has led
- 	  to poor performance has been fixed.</para>
+	  <quote>max device openings</quote> count and led to poor
+	  performance has been fixed.</para>
 
 	<para>The &man.glabel.8; GEOM class now supports a new
 	  UFS-based label called <literal>ufsid</literal> that can be
 	  used to reference UFS-carrying devices by the unique file
 	  system ID.  This file system ID is automatically generated
-	  and detected when &man.glabel.8; GEOM class is enabled.  An
+	  and detected when the &man.glabel.8; GEOM class is enabled.  An
 	  example of this new label is:
 	  <filename>/dev/ufsid/48e69c8b5c8e1b43</filename>.  The
 	  benefit of using GEOM labels in general is to avoid problems
@@ -638,15 +645,15 @@
 
 	<para>The &man.gjournal.8; GEOM class now supports the root
 	  file system.  Previously, an unclean shutdown would make it
-	  impossible to mount root file system at boot.</para>
+	  impossible to mount the root file system at boot.</para>
 
 	<para>The &man.gpart.8; utility has been updated.  The APM
 	  scheme now supports Tivo Series 1 partitions (read only), a
 	  new EBR scheme to support Extended Boot Records has been
-	  added, the BSD scheme now support bootcode, and bugs in PC98
-	  and VTOC8 scheme have been fixed.</para>
+	  added, the BSD scheme now support bootcode, and bugs in the
+	  PC98 and VTOC8 schemes have been fixed.</para>
 
-	<para>An issue in the &man.gvinum.8; with access permissions
+	<para>An issue in &man.gvinum.8; with access permissions
 	  to underlying disks used by a gvinum plex has been fixed.
 	  If the plex is a raid5 plex and is being written to, parity data might
 	  have to be read from the underlying disks, requiring them to be opened for
@@ -655,7 +662,7 @@
 	<para>The &man.hptmv.4; driver has been updated to version
 	  1.16 from the vendor.</para>
 
-	<para>The &man.mmc.4; and &man.mmcsd.4; driver now support MMC
+	<para>The &man.mmc.4; and &man.mmcsd.4; drivers now support MMC
 	  and SDHC cards, high speed timing, wide bus, and multiblock
 	  transfers.</para>
 
@@ -663,8 +670,8 @@
 	  <filename>GENERIC</filename> kernel.</para>
 
 	<para>The &man.sdhci.4; driver has been added.  This supports
-	  PCI devices with class 8 and subclass 5 according to SD Host
-	  Controller Specification.</para>
+	  PCI devices with class 8 and subclass 5 according to the SD
+	  Host Controller Specification.</para>
 
 	<para>The &man.sdhci.4; driver now supports kernel dumping and
 	  a sysctl variable <varname>hw.sdhci.debug</varname> for debug
@@ -673,24 +680,24 @@
 	<para>The &man.twa.4; driver now supports 64-bit DMA.</para>
 
 	<para>The &man.mmc.4; &man.mmcsd.4;, and &man.sdhci.4; driver
-	  are now included as a kernel module.</para>
+	  are now included as kernel modules.</para>
       </sect3>
 
       <sect3 id="fs">
 	<title>File Systems</title>
 
 	<para>The semantics of &man.acl.3; extended access control
-	  list has been changed as follows:</para>
+	  lists has been changed as follows:</para>
 
 	<itemizedlist>
 	  <listitem>
 	    <para>The inode modification time (mtime) is not updated
-	      when extended attribute are added, modified, or removed.</para>
+	      when extended attributes are added, modified, or removed.</para>
 	  </listitem>
 
 	  <listitem>
 	    <para>The inode access time (atime) is not updated
-	      when extended attribute are queried.</para>
+	      when extended attributes are queried.</para>
 	  </listitem>
 	</itemizedlist>
 
@@ -706,7 +713,7 @@
 	<para>The &os; UDF file system now supports a fifo.</para>
 
 	<para>The shared vnode locking for pathname lookups in
-	  &man.VFS.9; subsystem has been improved.  This is disabled
+	  the &man.VFS.9; subsystem has been improved.  This is disabled
 	  by default.  Setting a sysctl variable
 	  <varname>vfs.lookup_shared</varname> to <literal>1</literal>
 	  enables it for better performance.  Note that the
@@ -718,7 +725,7 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
-      <para>A bug in the &man.atacontrol.8; utility which prevents it
+      <para>A bug in the &man.atacontrol.8; utility, which prevents it
 	from working when <filename>/usr</filename> is not mounted or
 	invoked from <filename>/rescue</filename>, has been
 	fixed.</para>
@@ -742,8 +749,8 @@
 	in the same way that &man.basename.1; does.</para>
 
       <para>The &man.du.1; utility now supports an <option>-l</option>
-	flag.  When specified, the &man.du.1; counts a file with
-	multiple hard links as multiple different files.</para>
+	flag.  When specified, the &man.du.1; utility counts a file
+	with multiple hard links as multiple different files.</para>
 
       <para>The &man.du.1; utility now supports an <option>-A</option> flag
 	to display the apparent size instead of the disk usage.  This can be
@@ -751,11 +758,12 @@
 
       <para>The &man.du.1; utility now supports a <option>-B
 	<replaceable>blocksize</replaceable></option> option to
-	calculate block counts in blocksize byte blocks.  This is
-	different from the <option>-k</option> or <option>-m</option>
-	options or setting <varname>BLOCKSIZE</varname> and gives an
-	estimate of how much space the examined file hierarchy would
-	require on a file system with the given
+	calculate block counts in blocks of
+	<replaceable>blocksize</replaceable> bytes.  This is different
+	from the <option>-k</option> or <option>-m</option> options or
+	setting <varname>BLOCKSIZE</varname> and gives an estimate of
+	how much space the examined file hierarchy would require on a
+	file system with the given
 	<replaceable>blocksize</replaceable>.  Unless in
 	<option>-A</option> mode, <replaceable>blocksize</replaceable>
 	is rounded up to the next multiple of 512.</para>
@@ -774,12 +782,12 @@
 	both compact and more script-friendly representation.</para>
 
       <para>The &man.fetch.1; utility now supports an
-	<option>-i</option> flag which supports If-Modified-Since HTTP
-	1.1 request.  If specified it will cause the file to be
+	<option>-i</option> flag which supports the If-Modified-Since
+	HTTP 1.1 request.  If specified it will cause the file to be
 	downloaded only if it is more recent than the mtime of the
-	file.  Also, <application>libfetch</application> now accepts
-	the mtime in the url structure and a flag to indicate when
-	this behavior is desired.</para>
+	local file.  Also, <application>libfetch</application> now
+	accepts the mtime in the url structure and a flag to indicate
+	when this behavior is desired.</para>
 
       <para>The &man.fsck.8; utility now supports a
 	<option>-C</option> flag for <literal>check clean</literal>
@@ -793,7 +801,7 @@
 	&man.fsck.8; to survive with file systems that has very
 	serious data damage.  This is a useful last resort when on
 	disk data damage is very serious and causes &man.fsck.8; to
-	crash otherwise.</para>
+	crash.</para>
 
       <para>The &man.getaddrinfo.3; function now supports SCTP.</para>
 
@@ -807,9 +815,9 @@
 	issue a warning message.</para>
 
       <para>The &man.make.1; utility now supports a
-	<option>-p</option> flag to print the input graph only, not
-	executing any commands.  The output is the same as <option>-d
-	g1</option>.  When combined with <option>-f
+	<option>-p</option> flag to print the input graph only,
+	without executing any commands.  The output is the same as
+	<option>-d g1</option>.  When combined with <option>-f
 	/dev/null</option>, only the built-in rules of make are
 	displayed.</para>
 
@@ -821,22 +829,22 @@
 
       <para>The &man.make.1; utility now supports the
 	<varname>.MAKE.JOB.PREFIX</varname> variable.  If
-	<option>-j</option> and <option>-v</option> are specified, it
-	outputs for each target is prefixed with a token <literal>---
+	<option>-j</option> and <option>-v</option> are specified, its
+	output for each target is prefixed with a token <literal>---
 	  <replaceable>target</replaceable> ---</literal> the first part
 	of which can be controlled via the variable.</para>
 
       <para>The &man.make.1; utility now supports
 	<varname>.MAKE.PID</varname> and <varname>.MAKE.PPID</varname>
 	variable.  These are set to process ID of the &man.make.1;
-	process and one of its parent process respectively.</para>
+	process and its parent process respectively.</para>
 
       <para>The &man.makefs.8; utility to create a file system image
 	from a directory tree has been added.</para>
 
       <para>The &man.mergemaster.8; utility now supports an
 	<option>-F</option> option to automatically install files that
-	differ only in version control ID strings.</para>
+	differ only in their version control ID strings.</para>
 
       <para>The &man.mount.8; utility now supports an <option>-o
 	mountprog=<replaceable>/somewhere/mount_xxx</replaceable></option>
@@ -846,7 +854,7 @@
 	FUSE, for example.</para>
 
       <para>The &man.netstat.1; utility now reports &man.unix.4;
-	sockets listen queue statistics when an <option>-L</option>
+	sockets' listen queue statistics when an <option>-L</option>
 	flag is specified.</para>
 
       <para>A bug in the &man.netstat.1; utility has been fixed.  It
@@ -867,13 +875,14 @@
       <para>The &man.powerd.8; program has been improved.  Changes
 	include reasonable CPU load estimation on SMP systems and a
 	new mode named as <literal>hiadaptive</literal> for AC-powered
-	systems which rises frequency twice faster, drops it 4 times
-	slower, prefers twice lower CPU load and has additional delay
-	before leaving the highest frequency after the period of
-	maximum load.</para>
+	systems.  The <literal>hiadaptive</literal> mode raises the
+	CPU frequency twice as fast as <literal>adaptive</literal>, it
+	drops the CPU frequency 4 times slower, prefers twice lower
+	CPU load and has an additional delay before leaving the
+	highest frequency after the period of maximum load.</para>
 
       <para>The &man.stat.1; utility now displays an octal
-	representation of suid, sgid and sticky bits when an
+	representation of suid, sgid and sticky bits when the
 	<option>-x</option> flag is specified.</para>
 
       <para>The &man.strndup.3; function has been added.</para>
@@ -882,9 +891,9 @@
 	flag to output the number of characters in the longest input
 	line.</para>
 
-      <para>A bug in the &man.rpc.yppasswdd.8; program which leaves a
-	zombie process when a password or default shell is changed has
-	been fixed.</para>
+      <para>A bug in the &man.rpc.yppasswdd.8; program, which causes
+	it to leave a zombie process when a password or default shell
+	is changed, has been fixed.</para>
 
 <!--
       <sect3 id="rc-scripts">
@@ -909,8 +918,9 @@
     <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
-      <para>A bug in &man.pkg.create.1; which prevents the
-	<option>-n</option> flag from working has been fixed.</para>
+      <para>A bug in the &man.pkg.create.1; utility, which prevents
+	the <option>-n</option> flag from working has been
+	fixed.</para>
 
       <para>The &os; Ports Collection now supports multiple
 	&man.make.1; jobs in some supported ports.  This is
@@ -959,7 +969,7 @@
       will update unmodified userland utilities, as well as unmodified
       GENERIC or SMP kernels distributed as a part of an official &os;
       release.  The &man.freebsd-update.8; utility requires that the
-      host being upgraded have Internet connectivity.</para>
+      host being upgraded has Internet connectivity.</para>
 
     <para>An older form of binary upgrade is supported through the
       <command>Upgrade</command> option from the main
