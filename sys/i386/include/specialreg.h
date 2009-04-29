@@ -182,6 +182,13 @@
 #define	CPUID_HTT_CORES		0x00ff0000
 #define	CPUID_LOCAL_APIC_ID	0xff000000
 
+/* 
+ * CPUID instruction 0xb ebx info.
+ */
+#define	CPUID_TYPE_INVAL	0
+#define	CPUID_TYPE_SMT		1
+#define	CPUID_TYPE_CORE		2
+
 /*
  * AMD extended function 8000_0007h edx info
  */
