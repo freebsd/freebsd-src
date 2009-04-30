@@ -16,7 +16,7 @@
   <articleinfo>
     <title>&os; &release.current; 自述</title>
 
-    <corpauthor>The &os; Project</corpauthor>
+    <corpauthor>&os; 项目组</corpauthor>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -29,7 +29,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
-      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+      <holder role="mailto:doc@FreeBSD.org">&os; 文档项目组</holder>
     </copyright>
 
     <legalnotice id="trademarks" role="trademarks">
@@ -387,14 +387,14 @@
   <sect1 id="acknowledgements">
     <title>感谢</title>
 
-    <para>&os; 有全世界的成百上千的人工作无数个小时才带来这个
-      &release.type;。要查看 &os; 开发者和捐献者的完整列表，请查看
-      &os; Web 站点或者任何一个镜像站点上的 <ulink
+    <para>&os; 的这个 &release.type; 是全世界成百上千的人工作无数小时的成果。
+      要查看 &os; 开发者和捐献者的完整列表，请查看
+      &os; Web 站点或其镜像站点上的 <ulink
       url="&url.articles.contributors;/"><quote>&os;
-      捐献者</quote></ulink>。</para>
+      捐献者名录</quote></ulink>。</para>
 
     <para>在此也要特别感谢众多的 &os; 用户和全世界的测试人员，
-      没有他们就根本不会有这个 &release.type;。</para>
+      是他们使这个 &release.type; 成为可能。</para>
   </sect1>
 </article>
 
