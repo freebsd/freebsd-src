@@ -77,10 +77,12 @@ static void	prthumanval(int64_t);
 static void	ignoreadd(const char *);
 static void	ignoreclean(void);
 static int	ignorep(FTSENT *);
+static void	siginfo(int __unused);
 
 static int	nodumpflag = 0;
 static int	Aflag;
 static long	blocksize, cblocksize;
+static volatile sig_atomic_t info;
 
 int
 main(int argc, char *argv[])
@@ -248,6 +250,8 @@ main(int argc, char *argv[])
 
 	rval = 0;
 
+	(void)signal(SIGINFO, siginfo);
+
 	if ((fts = fts_open(argv, ftsoptions, NULL)) == NULL)
 		err(1, "fts_open");
 
@@ -277,6 +281,10 @@ main(int argc, char *argv[])
 					    cblocksize, blocksize),
 					    p->fts_path);
 				}
+			}
+			if (info) {
+				info = 0;
+				(void)printf("\t%s\n", p->fts_path);
 			}
 			break;
 		case FTS_DC:			/* Ignore. */
@@ -530,4 +538,11 @@ ignorep(FTSENT *ent)
 		if (fnmatch(ign->mask, ent->fts_name, 0) != FNM_NOMATCH)
 			return 1;
 	return 0;
+}
+
+static void
+siginfo(int sig __unused)
+{
+
+	info = 1;
 }
