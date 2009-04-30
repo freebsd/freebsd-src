@@ -158,7 +158,7 @@ static int	acpi_wake_set_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_system_eventhandler_sleep(void *arg, int state);
 static void	acpi_system_eventhandler_wakeup(void *arg, int state);
 static int	acpi_sname2sstate(const char *sname);
-static const char* acpi_sstate2sname(int sstate);
+static const char *acpi_sstate2sname(int sstate);
 static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_pm_func(u_long cmd, void *arg, ...);
@@ -3274,7 +3274,7 @@ acpi_sname2sstate(const char *sname)
     return (-1);
 }
 
-static const char*
+static const char *
 acpi_sstate2sname(int sstate)
 {
     static const char *snames[] = { "S0", "S1", "S2", "S3", "S4", "S5" };
