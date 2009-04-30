@@ -297,8 +297,10 @@ do_osd_del(u_int type, struct osd *osd, u_int slot, int list_locked)
 		OSD_DEBUG("Slot doesn't exist (type=%u, slot=%u).", type, slot);
 		return;
 	}
-	osd_destructors[type][slot - 1](osd->osd_slots[slot - 1]);
-	osd->osd_slots[slot - 1] = NULL;
+	if (osd->osd_slots[slot - 1] != NULL) {
+		osd_destructors[type][slot - 1](osd->osd_slots[slot - 1]);
+		osd->osd_slots[slot - 1] = NULL;
+	}
 	for (i = osd->osd_nslots - 1; i >= 0; i--) {
 		if (osd->osd_slots[i] != NULL) {
 			OSD_DEBUG("Slot still has a value (type=%u, slot=%u).",
