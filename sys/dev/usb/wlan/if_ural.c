@@ -760,7 +760,7 @@ ural_task(struct usb2_proc_msg *pm)
 				    "could not allocate beacon\n");
 				return;
 			}
-
+			ieee80211_ref_node(ni);
 			if (ural_tx_bcn(sc, m, ni) != 0) {
 				device_printf(sc->sc_dev,
 				    "could not send beacon\n");
