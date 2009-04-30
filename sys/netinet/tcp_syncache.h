@@ -96,6 +96,7 @@ struct syncache {
 #define	SYNCOOKIE_LIFETIME	16	/* seconds */
 
 struct syncache_head {
+	struct vnet	*sch_vnet;
 	struct mtx	sch_mtx;
 	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
 	struct callout	sch_timer;

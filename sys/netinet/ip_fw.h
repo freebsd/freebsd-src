@@ -695,7 +695,6 @@ struct vnet_ipfw {
 	int	_fw_deny_unknown_exthdrs;
 	int	_fw_verbose;
 	int	_verbose_limit;
-	int	_fw_debug;		/* actually unused */
 	int	_autoinc_step;
 	ipfw_dyn_rule **_ipfw_dyn_v;
 	uma_zone_t _ipfw_dyn_rule_zone;
@@ -740,7 +739,6 @@ extern struct vnet_ipfw vnet_ipfw_0;
 #define	V_fw_deny_unknown_exthdrs VNET_IPFW(fw_deny_unknown_exthdrs)
 #define	V_fw_verbose		VNET_IPFW(fw_verbose)
 #define	V_verbose_limit		VNET_IPFW(verbose_limit)
-#define	V_fw_debug		VNET_IPFW(fw_debug)
 #define	V_autoinc_step		VNET_IPFW(autoinc_step)
 #define	V_ipfw_dyn_v		VNET_IPFW(ipfw_dyn_v)
 #define	V_ipfw_dyn_rule_zone	VNET_IPFW(ipfw_dyn_rule_zone)

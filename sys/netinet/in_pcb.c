@@ -126,7 +126,9 @@ sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 	INIT_VNET_INET(curvnet);
 	int error;
 
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	SYSCTL_RESOLVE_V_ARG1();
+
+	error = sysctl_handle_int(oidp, arg1, arg2, req);
 	if (error == 0) {
 		RANGECHK(V_ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
 		RANGECHK(V_ipport_lowlastauto, 1, IPPORT_RESERVED - 1);

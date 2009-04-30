@@ -130,6 +130,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/jail.h>
+#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -284,6 +285,9 @@ soalloc(void)
 	mtx_lock(&so_global_mtx);
 	so->so_gencnt = ++so_gencnt;
 	++numopensockets;
+#ifdef VIMAGE
+	so->so_vnet = curvnet;
+#endif
 	mtx_unlock(&so_global_mtx);
 	return (so);
 }
