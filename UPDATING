@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090430:
+	The layout of the following structs has changed: sysctl_oid,
+	socket, ifnet, inpcbinfo, tcpcb, syncache_head, vnet_inet,
+	vnet_inet6 and vnet_ipfw.  Most modules need to be rebuild or
+	panics may be experienced.  World rebuild is required for
+	correctly checking networking state from userland.
+	Bump __FreeBSD_version to 800085.
+
 20090429:
 	MLDv2 and Source-Specific Multicast (SSM) have been merged
 	to the IPv6 stack. VIMAGE hooks are in but not yet used.

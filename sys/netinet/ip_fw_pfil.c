@@ -95,6 +95,7 @@ int
 ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip_fw_args args;
 	struct ng_ipfw_tag *ng_tag;
 	struct m_tag *dn_tag;
@@ -224,6 +225,7 @@ int
 ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip_fw_args args;
 	struct ng_ipfw_tag *ng_tag;
 	struct m_tag *dn_tag;

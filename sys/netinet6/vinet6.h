@@ -54,8 +54,6 @@ struct vnet_inet6 {
 	u_int				_frag6_nfrags;
 	struct ip6q			_ip6q;
 
-	struct route_in6 		_ip6_forward_rt;	/* XXX remove */
-
 	struct in6_addrpolicy 		_defaultaddrpolicy;
 	TAILQ_HEAD(, addrsel_policyent) _addrsel_policytab;
 	u_int				_in6_maxmtu;
@@ -122,10 +120,6 @@ struct vnet_inet6 {
 	int				_udp6_recvspace;
 	int				_ip6qmaxlen;
 	int				_ip6_prefer_tempaddr;
-	int				_ip6_forward_srcrt;	/* XXX remove */
-	int				_ip6_sourcecheck;	/* XXX remove */
-	int				_ip6_sourcecheck_interval; /* XXX remove */
-	int				_ip6_ours_check_algorithm; /* XXX remove */
 
 	int				_nd6_prune;
 	int				_nd6_delay;

@@ -187,6 +187,9 @@ rip_init(void)
 
 	INP_INFO_LOCK_INIT(&V_ripcbinfo, "rip");
 	LIST_INIT(&V_ripcb);
+#ifdef VIMAGE
+	V_ripcbinfo.ipi_vnet = curvnet;
+#endif
 	V_ripcbinfo.ipi_listhead = &V_ripcb;
 	V_ripcbinfo.ipi_hashbase =
 	    hashinit(INP_PCBHASH_RAW_SIZE, M_PCB, &V_ripcbinfo.ipi_hashmask);

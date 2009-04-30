@@ -359,6 +359,9 @@ tcp_init(void)
 
 	INP_INFO_LOCK_INIT(&V_tcbinfo, "tcp");
 	LIST_INIT(&V_tcb);
+#ifdef VIMAGE
+	V_tcbinfo.ipi_vnet = curvnet;
+#endif
 	V_tcbinfo.ipi_listhead = &V_tcb;
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
@@ -703,6 +706,9 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (tm == NULL)
 		return (NULL);
 	tp = &tm->tcb;
+#ifdef VIMAGE
+	tp->t_vnet = inp->inp_vnet;
+#endif
 	tp->t_timers = &tm->tt;
 	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
 	tp->t_maxseg = tp->t_maxopd =
