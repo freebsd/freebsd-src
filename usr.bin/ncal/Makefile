@@ -2,7 +2,7 @@
 
 PROG=	ncal
 
-DPADD=	${LIBCALENDAR}
+DPADD=	${LIBCALENDAR} ${LIBTERMCAP}
 LDADD=	-lcalendar -ltermcap
 WARNS?=	1
 
