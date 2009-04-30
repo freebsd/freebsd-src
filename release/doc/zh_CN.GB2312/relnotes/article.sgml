@@ -6,7 +6,7 @@
 %release;
 
 <!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 191669 -->
+<!-- Original Revision: 191705 -->
 ]>
 
 <article>
@@ -263,15 +263,17 @@
       <para>&os; 32-位 系统调用翻译层新增了为
 	<literal>VFS_AIO</literal> 安装 32-位 系统调用的支持。</para>
 
-      <para arch="amd64,i386">&os; 虚拟内存子系统新增了对于
-	<application>Superpages</application> 的支持。
-	<application>Superpages</application> 是一项旨在现代处理器上令
+      <para arch="amd64,i386">&os; 虚拟内存子系统新增了针对应用程序的透明
+	<application>superpages</application> 支持；
+	应用程序的内存页会根据使用情况动态地升级为 superpage，
+	或反之降级为普通内存页， 而无须对程序代码进行任何修改。
+	这一变动在发挥现代处理器对大内存页支持的优势，
+	包括提高虚拟内存系统的空间效率， 以及降低
 	TLB (translation lookaside buffer， 快速页表转换缓冲)
-	能够将大块物理内存区域映射到虚拟地址空间中的技术。
-	这可以帮助使用大量共享内存的应用节省内存开销，
-	并且由于减少了 TLB 缓冲未命中现象从而改善性能。
-	默认情况下这一特性并不开启， 您可以通过将引导加载器变量
-	<varname>vm.pmap.pg_ps_enabled</varname> 设为
+	未命中現象而改善性能的同时，
+	又避免了需要修改应用程序以及降低虚拟内存灵活性的缺点。
+	这一特性默认并不开启， 您可以通过将引导加载器变量
+ 	<varname>vm.pmap.pg_ps_enabled</varname> 设为
 	<literal>1</literal> 来启用它。</para>
 
       <sect3 id="boot">
@@ -318,7 +320,7 @@
 	  信息、 读写机器专用寄存器 (machine specific registers, MSR)，
 	  以及更新 CPU 固件等。</para>
 
-	<para>&man.cpufreq.4; 驱动新增了加载器变量
+	<para>&man.cpufreq.4; 驱动新增了引导加载器变量
 	  <varname>hw.est.msr_info</varname>。
 	  当此变量设为 <literal>1</literal> 时，
 	  驱动会尝试创建只包含最高和最低时钟频率的简单列表，
