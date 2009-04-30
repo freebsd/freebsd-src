@@ -3317,7 +3317,7 @@ acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 	new_state = acpi_sname2sstate(sleep_state);
 	if (new_state < ACPI_STATE_S1)
 	    return (EINVAL);
-	if (new_state < ACPI_S_STATES_MAX && !acpi_sleep_states[new_state])
+	if (new_state < ACPI_S_STATE_COUNT && !acpi_sleep_states[new_state])
 	    return (EOPNOTSUPP);
 	if (new_state != old_state)
 	    *(int *)oidp->oid_arg1 = new_state;
