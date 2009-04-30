@@ -345,6 +345,10 @@ topo_probe_0x4(void)
 static void
 topo_probe(void)
 {
+	static int cpu_topo_probed = 0;
+
+	if (cpu_topo_probed)
+		return;
 
 	logical_cpus = logical_cpus_mask = 0;
 	if (cpu_high >= 0xb)
@@ -352,9 +356,10 @@ topo_probe(void)
 	else if (cpu_high)
 		topo_probe_0x4();
 	if (cpu_cores == 0)
-		cpu_cores = mp_ncpus;
+		cpu_cores = mp_ncpus > 0 ? mp_ncpus : 1;
 	if (cpu_logical == 0)
 		cpu_logical = 1;
+	cpu_topo_probed = 1;
 }
 
 struct cpu_group *
@@ -366,6 +371,7 @@ cpu_topo(void)
 	 * Determine whether any threading flags are
 	 * necessry.
 	 */
+	topo_probe();
 	if (cpu_logical > 1 && hyperthreading_cpus)
 		cg_flags = CG_FLAG_HTT;
 	else if (cpu_logical > 1)
