@@ -162,6 +162,9 @@ div_init(void)
 	INP_INFO_LOCK_INIT(&V_divcbinfo, "div");
 	LIST_INIT(&V_divcb);
 	V_divcbinfo.ipi_listhead = &V_divcb;
+#ifdef VIMAGE
+	V_divcbinfo.ipi_vnet = curvnet;
+#endif
 	/*
 	 * XXX We don't use the hash list for divert IP, but it's easier
 	 * to allocate a one entry hash list than it is to check all

@@ -435,7 +435,6 @@ mld_dispatch_queue(struct ifqueue *ifq, int limit)
 static __inline int
 mld_is_addr_reported(const struct in6_addr *addr)
 {
-	INIT_VNET_INET6(curvnet);
 
 	KASSERT(IN6_IS_ADDR_MULTICAST(addr), ("%s: not multicast", __func__));
 
@@ -639,7 +638,6 @@ static int
 mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
     const struct mld_hdr *mld)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct ifmultiaddr	*ifma;
 	struct mld_ifinfo	*mli;
 	struct in6_multi	*inm;
@@ -1034,7 +1032,6 @@ static int
 mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
     const struct mld_hdr *mld)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr	*ia;
 	struct in6_multi	*inm;
 #ifdef KTR
@@ -1646,7 +1643,6 @@ mld_slowtimo_vnet(void)
 static void
 mld_v1_process_querier_timers(struct mld_ifinfo *mli)
 {
-	INIT_VNET_INET6(curvnet);
 
 	MLD_LOCK_ASSERT();
 
@@ -3009,7 +3005,6 @@ out:
 static struct mbuf *
 mld_v2_encap_report(struct ifnet *ifp, struct mbuf *m)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf		*mh;
 	struct mldv2_report	*mld;
 	struct ip6_hdr		*ip6;

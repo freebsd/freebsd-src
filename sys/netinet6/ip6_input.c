@@ -161,6 +161,7 @@ static void vnet_inet6_register(void);
 static const vnet_modinfo_t vnet_inet6_modinfo = {
 	.vmi_id		= VNET_MOD_INET6,
 	.vmi_name	= "inet6",
+	.vmi_size	= sizeof(struct vnet_inet6),
 	.vmi_dependson	= VNET_MOD_INET	/* XXX revisit - TCP/UDP needs this? */
 };
  
@@ -307,14 +308,14 @@ ip6_init2_vnet(const void *unused __unused)
 
 	/* nd6_timer_init */
 	callout_init(&V_nd6_timer_ch, 0);
-	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, NULL);
+	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, curvnet);
 
 	/* timer for regeneranation of temporary addresses randomize ID */
 	callout_init(&V_in6_tmpaddrtimer_ch, 0);
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 		      (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
 		       V_ip6_temp_regen_advance) * hz,
-		      in6_tmpaddrtimer, NULL);
+		      in6_tmpaddrtimer, curvnet);
 
 	return (0);
 }

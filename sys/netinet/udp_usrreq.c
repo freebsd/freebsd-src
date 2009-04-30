@@ -179,6 +179,9 @@ udp_init(void)
 
 	INP_INFO_LOCK_INIT(&V_udbinfo, "udp");
 	LIST_INIT(&V_udb);
+#ifdef VIMAGE
+	V_udbinfo.ipi_vnet = curvnet;
+#endif
 	V_udbinfo.ipi_listhead = &V_udb;
 	V_udbinfo.ipi_hashbase = hashinit(UDBHASHSIZE, M_PCB,
 	    &V_udbinfo.ipi_hashmask);

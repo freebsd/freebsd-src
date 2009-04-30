@@ -651,6 +651,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 static void
 rip6_detach(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 

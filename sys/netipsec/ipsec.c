@@ -248,6 +248,7 @@ MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 static const vnet_modinfo_t vnet_ipsec_modinfo = {
 	.vmi_id		= VNET_MOD_IPSEC,
 	.vmi_name	= "ipsec",
+	.vmi_size	= sizeof(struct vnet_ipsec),
 	.vmi_dependson	= VNET_MOD_INET,	/* XXX revisit - INET6 ? */
 	.vmi_iattach	= ipsec_iattach
 };

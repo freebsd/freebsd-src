@@ -1302,7 +1302,6 @@ static int
 in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -1463,6 +1462,7 @@ out_in6p_locked:
 static struct ip6_moptions *
 in6p_findmoptions(struct inpcb *inp)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6_moptions	 *imo;
 	struct in6_multi		**immp;
 	struct in6_mfilter	 *imfp;
@@ -1745,7 +1745,6 @@ static struct ifnet *
 in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
     const struct sockaddr_in6 *gsin6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct route_in6	 ro6;
 	struct ifnet		*ifp;
 
@@ -2032,7 +2031,6 @@ static int
 in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -2249,7 +2247,6 @@ static int
 in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct ifnet		*ifp;
 	struct ip6_moptions	*imo;
 	u_int			 ifindex;
@@ -2454,6 +2451,7 @@ out_in6p_locked:
 int
 ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6_moptions	*im6o;
 	int			 error;
 
