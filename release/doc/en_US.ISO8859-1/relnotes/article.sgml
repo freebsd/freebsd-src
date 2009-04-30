@@ -296,15 +296,16 @@
 	<literal>VFS_AIO</literal>.</para>
 
       <para arch="amd64,i386">The &os; virtual memory subsystem now
-	supports <application>Superpages</application>.  The
-	<application>Superpages</application> is a feature that
-	enables each entry in the TLB (translation lookaside buffer)
-	to map a large physical memory region into a virtual address
-	space in modern CPUs.  This provides possible memory savings
-	for applications that share large amounts of memory between
-	the address spaces and performance improvements due to fewer
-	TLB misses.  This is disabled by default and can be enabled by
-	setting a loader tunable
+	supports fully transparent use of
+	<application>superpages</application> for application memory;
+	application memory pages are dynamically promoted to or
+	demoted from superpages without any modification to
+	application code.  This change offers the benefit of large
+	page sizes such as improved virtual memory efficiency and
+	reduced TLB (translation lookaside buffer) misses without
+	downsides like application changes and virtual memory
+	inflexibility.  This is disabled by default and can be enabled
+	by setting a loader tunable
 	<varname>vm.pmap.pg_ps_enabled</varname> to
 	<literal>1</literal>.</para>
 
