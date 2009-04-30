@@ -186,6 +186,7 @@ static struct vnet_symmap vnet_net_symmap[] = {
 static const vnet_modinfo_t vnet_net_modinfo = {
 	.vmi_id		= VNET_MOD_NET,
 	.vmi_name	= "net",
+	.vmi_size	= sizeof(struct vnet_net),
 	.vmi_symmap	= vnet_net_symmap,
 	.vmi_iattach	= vnet_net_iattach
 };
@@ -545,6 +546,7 @@ if_alloc(u_char type)
 static void
 if_free_internal(struct ifnet *ifp)
 {
+	INIT_VNET_NET(ifp->if_vnet);
 
 	KASSERT((ifp->if_flags & IFF_DYING),
 	    ("if_free_internal: interface not dying"));
@@ -582,7 +584,6 @@ if_free_internal(struct ifnet *ifp)
 void
 if_free_type(struct ifnet *ifp, u_char type)
 {
-	INIT_VNET_NET(curvnet); /* ifp->if_vnet can be NULL here ! */
 
 	KASSERT(ifp->if_alloctype == type,
 	    ("if_free_type: type (%d) != alloctype (%d)", type,
@@ -672,6 +673,10 @@ if_attach(struct ifnet *ifp)
 	if (ifp->if_index == 0 || ifp != ifnet_byindex(ifp->if_index))
 		panic ("%s: BUG: if_attach called without if_alloc'd input()\n",
 		    ifp->if_xname);
+
+#ifdef VIMAGE
+	ifp->if_vnet = curvnet;
+#endif
 
 	if_addgroup(ifp, IFG_ALL);
 
@@ -978,6 +983,9 @@ if_detach(struct ifnet *ifp)
 	}
 	IF_AFDATA_UNLOCK(ifp);
 	ifq_detach(&ifp->if_snd);
+#ifdef VIMAGE
+	ifp->if_vnet = NULL;
+#endif
 	splx(s);
 }
 

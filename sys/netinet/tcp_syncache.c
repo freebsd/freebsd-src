@@ -259,6 +259,9 @@ syncache_init(void)
 
 	/* Initialize the hash buckets. */
 	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
+#ifdef VIMAGE
+		V_tcp_syncache.hashbase[i].sch_vnet = curvnet;
+#endif
 		TAILQ_INIT(&V_tcp_syncache.hashbase[i].sch_bucket);
 		mtx_init(&V_tcp_syncache.hashbase[i].sch_mtx, "tcp_sc_head",
 			 NULL, MTX_DEF);

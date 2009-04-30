@@ -42,12 +42,19 @@ __FBSDID("$FreeBSD$");
 #ifndef VIMAGE_GLOBALS
 
 MALLOC_DEFINE(M_VIMAGE, "vimage", "vimage resource container");
+MALLOC_DEFINE(M_VNET, "vnet", "network stack control block");
 
 static TAILQ_HEAD(vnet_modlink_head, vnet_modlink) vnet_modlink_head;
 static TAILQ_HEAD(vnet_modpending_head, vnet_modlink) vnet_modpending_head;
 static void vnet_mod_complete_registration(struct vnet_modlink *);
 static int vnet_mod_constructor(struct vnet_modlink *);
 static int vnet_mod_destructor(struct vnet_modlink *);
+
+#ifdef VIMAGE
+/* curvnet should be thread-local - this is only a temporary step. */
+struct vnet *curvnet;
+struct vnet_list_head vnet_head;
+#endif
 
 void
 vnet_mod_register(const struct vnet_modinfo *vmi)
@@ -263,7 +270,14 @@ vi_symlookup(struct kld_sym_lookup *lookup, char *symstr)
 		for (mapentry = vml->vml_modinfo->vmi_symmap;
 		    mapentry->name != NULL; mapentry++) {
 			if (strcmp(symstr, mapentry->name) == 0) {
-				lookup->symvalue = (u_long) mapentry->base;
+#ifdef VIMAGE
+				lookup->symvalue =
+				    (u_long) curvnet->mod_data[
+				    vml->vml_modinfo->vmi_id];
+				lookup->symvalue += mapentry->offset;
+#else
+				lookup->symvalue = (u_long) mapentry->offset;
+#endif
 				lookup->symsize = mapentry->size;
 				return (0);
 			}
@@ -275,9 +289,23 @@ vi_symlookup(struct kld_sym_lookup *lookup, char *symstr)
 static void
 vi_init(void *unused)
 {
+#ifdef VIMAGE
+	struct vnet *vnet;
+#endif
 
 	TAILQ_INIT(&vnet_modlink_head);
 	TAILQ_INIT(&vnet_modpending_head);
+
+#ifdef VIMAGE
+	LIST_INIT(&vnet_head);
+
+	vnet = malloc(sizeof(struct vnet), M_VNET, M_NOWAIT | M_ZERO);
+	if (vnet == NULL)
+		panic("vi_alloc: malloc failed");
+	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
+
+	curvnet = LIST_FIRST(&vnet_head);
+#endif
 }
 
 static void

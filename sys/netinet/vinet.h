@@ -54,7 +54,6 @@ struct vnet_inet {
 	struct	in_ifaddrhashhead *_in_ifaddrhashtbl;
 	struct	in_ifaddrhead _in_ifaddrhead;
 	u_long	_in_ifaddrhmask;
-	struct	in_multihead _in_multihead;	/* XXX unused */
 
 	int	_arpt_keep;
 	int	_arp_maxtries;
@@ -269,7 +268,6 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_in_ifaddrhashtbl	VNET_INET(in_ifaddrhashtbl)
 #define	V_in_ifaddrhead		VNET_INET(in_ifaddrhead)
 #define	V_in_ifaddrhmask	VNET_INET(in_ifaddrhmask)
-#define	V_in_multihead		VNET_INET(in_multihead)
 #define	V_ip_checkinterface	VNET_INET(ip_checkinterface)
 #define	V_ip_defttl		VNET_INET(ip_defttl)
 #define	V_ip_do_randomid	VNET_INET(ip_do_randomid)

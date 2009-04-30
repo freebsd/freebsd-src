@@ -237,6 +237,7 @@ static void vnet_inet_register(void);
 static const vnet_modinfo_t vnet_inet_modinfo = {
 	.vmi_id		= VNET_MOD_INET,
 	.vmi_name	= "inet",
+	.vmi_size	= sizeof(struct vnet_inet)
 };
  
 static void vnet_inet_register()

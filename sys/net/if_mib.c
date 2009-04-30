@@ -77,7 +77,6 @@ SYSCTL_V_INT(V_NET, vnet_net, _net_link_generic_system, IFMIB_IFCOUNT,
 static int
 sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 {
-	INIT_VNET_NET(curvnet);
 	int *name = (int *)arg1;
 	int error;
 	u_int namelen = arg2;

@@ -888,8 +888,9 @@ in6_get_tmpifid(struct ifnet *ifp, u_int8_t *retbuf,
 }
 
 void
-in6_tmpaddrtimer(void *ignored_arg)
+in6_tmpaddrtimer(void *arg)
 {
+	CURVNET_SET((struct vnet *) arg);
 	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	struct nd_ifinfo *ndi;
@@ -898,7 +899,7 @@ in6_tmpaddrtimer(void *ignored_arg)
 
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 	    (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
-	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, NULL);
+	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, curvnet);
 
 	bzero(nullbuf, sizeof(nullbuf));
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
@@ -914,12 +915,12 @@ in6_tmpaddrtimer(void *ignored_arg)
 		}
 	}
 
+	CURVNET_RESTORE();
 }
 
 static void
 in6_purgemaddrs(struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	LIST_HEAD(,in6_multi)	 purgeinms;
 	struct in6_multi	*inm, *tinm;
 	struct ifmultiaddr	*ifma;
