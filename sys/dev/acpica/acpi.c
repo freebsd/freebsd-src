@@ -902,7 +902,7 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
     struct acpi_device	*ad;
 
     if ((ad = device_get_ivars(child)) == NULL) {
-	printf("device has no ivars\n");
+	device_printf(child, "device has no ivars\n");
 	return (ENOENT);
     }
 
@@ -941,7 +941,7 @@ acpi_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
     struct acpi_device	*ad;
 
     if ((ad = device_get_ivars(child)) == NULL) {
-	printf("device has no ivars\n");
+	device_printf(child, "device has no ivars\n");
 	return (ENOENT);
     }
 
@@ -1819,7 +1819,7 @@ acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data)
 static void
 acpi_shutdown_final(void *arg, int howto)
 {
-    struct acpi_softc *sc;
+    struct acpi_softc *sc = (struct acpi_softc *)arg;
     ACPI_STATUS status;
 
     /*
@@ -1827,22 +1827,22 @@ acpi_shutdown_final(void *arg, int howto)
      * Some chipsets do not power off the system correctly if called from
      * an AP.
      */
-    sc = arg;
     if ((howto & RB_POWEROFF) != 0) {
 	status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
 	if (ACPI_FAILURE(status)) {
-	    printf("AcpiEnterSleepStatePrep failed - %s\n",
-		   AcpiFormatException(status));
+	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
+		AcpiFormatException(status));
 	    return;
 	}
-	printf("Powering system off using ACPI\n");
+	device_printf(sc->acpi_dev, "Powering system off\n");
 	ACPI_DISABLE_IRQS();
 	status = AcpiEnterSleepState(ACPI_STATE_S5);
-	if (ACPI_FAILURE(status)) {
-	    printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
-	} else {
+	if (ACPI_FAILURE(status))
+	    device_printf(sc->acpi_dev, "power-off failed - %s\n",
+		AcpiFormatException(status));
+	else {
 	    DELAY(1000000);
-	    printf("ACPI power-off failed - timeout\n");
+	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
 	}
     } else if ((howto & RB_HALT) == 0 &&
 	(AcpiGbl_FADT.Flags & ACPI_FADT_RESET_REGISTER) &&
@@ -1851,18 +1851,19 @@ acpi_shutdown_final(void *arg, int howto)
 	status = AcpiHwLowLevelWrite(
 	    AcpiGbl_FADT.ResetRegister.BitWidth,
 	    AcpiGbl_FADT.ResetValue, &AcpiGbl_FADT.ResetRegister);
-	if (ACPI_FAILURE(status)) {
-	    printf("ACPI reset failed - %s\n", AcpiFormatException(status));
-	} else {
+	if (ACPI_FAILURE(status))
+	    device_printf(sc->acpi_dev, "reset failed - %s\n",
+		AcpiFormatException(status));
+	else {
 	    DELAY(1000000);
-	    printf("ACPI reset failed - timeout\n");
+	    device_printf(sc->acpi_dev, "reset failed - timeout\n");
 	}
     } else if (sc->acpi_do_disable && panicstr == NULL) {
 	/*
 	 * Only disable ACPI if the user requested.  On some systems, writing
 	 * the disable value to SMI_CMD hangs the system.
 	 */
-	printf("Shutting down ACPI\n");
+	device_printf(sc->acpi_dev, "Shutting down\n");
 	AcpiTerminate();
     }
 }
@@ -2293,7 +2294,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     static int once;
 
     if (!once) {
-	printf(
+	device_printf(sc->acpi_dev,
 "warning: acpi_SetSleepState() deprecated, need to update your software\n");
 	once = 1;
     }
@@ -2304,12 +2305,13 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 static void
 acpi_sleep_force(void *arg)
 {
-    struct acpi_softc *sc;
+    struct acpi_softc *sc = (struct acpi_softc *)arg;
 
-    printf("acpi: suspend request timed out, forcing sleep now\n");
-    sc = arg;
+    device_printf(sc->acpi_dev,
+	"suspend request timed out, forcing sleep now\n");
     if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
-	printf("acpi: force sleep state S%d failed\n", sc->acpi_next_sstate);
+	device_printf(sc->acpi_dev, "force sleep state S%d failed\n",
+	    sc->acpi_next_sstate);
 }
 #endif
 
@@ -2415,7 +2417,8 @@ acpi_AckSleepState(struct apm_clone_data *clone, int error)
     if (error) {
 	sc->acpi_next_sstate = 0;
 	callout_stop(&sc->susp_force_to);
-	printf("acpi: listener on %s cancelled the pending suspend\n",
+	device_printf(sc->acpi_dev,
+	    "listener on %s cancelled the pending suspend\n",
 	    devtoname(clone->cdev));
     	ACPI_UNLOCK(acpi);
 	return (0);
@@ -2953,6 +2956,7 @@ out:
 static void
 acpi_system_eventhandler_sleep(void *arg, int state)
 {
+    struct acpi_softc *sc = (struct acpi_softc *)arg;
     int ret;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
@@ -2962,10 +2966,10 @@ acpi_system_eventhandler_sleep(void *arg, int state)
 	return;
 
     /* Request that the system prepare to enter the given suspend state. */
-    ret = acpi_ReqSleepState((struct acpi_softc *)arg, state);
+    ret = acpi_ReqSleepState(sc, state);
     if (ret != 0)
-	printf("acpi: request to enter state S%d failed (err %d)\n",
-	    state, ret);
+	device_printf(sc->acpi_dev,
+	    "request to enter state S%d failed (err %d)\n", state, ret);
 
     return_VOID;
 }
