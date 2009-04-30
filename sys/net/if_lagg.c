@@ -1604,7 +1604,10 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
 
-	p = lagg_hashmbuf(m, lb->lb_key);
+	if (m->m_flags & M_FLOWID)
+		p = m->m_pkthdr.flowid;
+	else
+		p = lagg_hashmbuf(m, lb->lb_key);
 	p %= sc->sc_count;
 	lp = lb->lb_ports[p];
 
