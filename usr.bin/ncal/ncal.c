@@ -452,7 +452,7 @@ printmonth(int y, int m, int jd_flag)
 	mkweekdays(&wds);
 	printf("    %ls %d\n", month.name, y);
 	for (i = 0; i != 7; i++)
-		printf("%.2ls%s\n", wds.names[i], month.lines[i]);
+		wprintf(L"%.2ls%s\n", wds.names[i], month.lines[i]);
 	if (flag_weeks)
 		printf("  %s\n", month.weeks);
 }
@@ -508,17 +508,17 @@ printyear(int y, int jd_flag)
 	printf("%s\n", center(t, s, mpl * mw));
 
 	for (j = 0; j != 12; j += mpl) {
-		printf("    %-*ls%-*ls",
+		wprintf(L"    %-*ls%-*ls",
 		    mw, year[j].name,
 		    mw, year[j + 1].name);
 		if (mpl == 3)
 			printf("%ls\n", year[j + 2].name);
 		else
-			printf("%-*ls%ls\n",
+			wprintf(L"%-*ls%ls\n",
 		    	    mw, year[j + 2].name,
 		    	    year[j + 3].name);
 		for (i = 0; i != 7; i++) {
-			printf("%.2ls%-*s%-*s",
+			wprintf(L"%.2ls%-*s%-*s",
 			    wds.names[i],
 			    mw, year[j].lines[i],
 			    mw, year[j + 1].lines[i]);
@@ -566,11 +566,11 @@ printyearb(int y, int jd_flag)
 	printf("%s\n\n", center(t, s, mw * mpl + mpl));
 
 	for (j = 0; j != 12; j += mpl) {
-		printf("%-*ls  ", mw, wcenter(ws, year[j].name, mw));
+		wprintf(L"%-*ls  ", mw, wcenter(ws, year[j].name, mw));
 		if (mpl == 2)
 			printf("%ls\n", wcenter(ws, year[j + 1].name, mw));
 		else
-			printf("%-*ls  %ls\n", mw,
+			wprintf(L"%-*ls  %ls\n", mw,
 			    wcenter(ws, year[j + 1].name, mw),
 			    wcenter(wt, year[j + 2].name, mw));
 
