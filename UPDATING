@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090504:
+	FreeBSD 7.2-RELEASE
+
 20090422:		FreeBSD-SA-09:07.libc, FreeBSD-SA-09:08.openssl
 	Don't leak information via uninitialized space in db(3) records.
 	[09:07]
