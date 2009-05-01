@@ -218,6 +218,7 @@ SUBDIR=	${_3dfx} \
 	${_pst} \
 	puc \
 	ral \
+	ralfw \
 	${_random} \
 	rc4 \
 	${_rdma} \
