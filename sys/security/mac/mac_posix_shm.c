@@ -61,7 +61,7 @@ mac_posixshm_label_alloc(void)
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(posixshm_init_label, label);
+	MAC_POLICY_PERFORM(posixshm_init_label, label);
 	return (label);
 }
 
@@ -79,7 +79,7 @@ static void
 mac_posixshm_label_free(struct label *label)
 {
 
-	MAC_PERFORM_NOSLEEP(posixshm_destroy_label, label);
+	MAC_POLICY_PERFORM_NOSLEEP(posixshm_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -97,7 +97,8 @@ void
 mac_posixshm_create(struct ucred *cred, struct shmfd *shmfd)
 {
 
-	MAC_PERFORM_NOSLEEP(posixshm_create, cred, shmfd, shmfd->shm_label);
+	MAC_POLICY_PERFORM_NOSLEEP(posixshm_create, cred, shmfd,
+	    shmfd->shm_label);
 }
 
 MAC_CHECK_PROBE_DEFINE4(posixshm_check_mmap, "struct ucred *",
@@ -109,8 +110,8 @@ mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd, int prot,
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(posixshm_check_mmap, cred, shmfd, shmfd->shm_label,
-	    prot, flags);
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_mmap, cred, shmfd,
+	    shmfd->shm_label, prot, flags);
 	MAC_CHECK_PROBE4(posixshm_check_mmap, error, cred, shmfd, prot,
 	    flags);
 
@@ -125,7 +126,8 @@ mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd)
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(posixshm_check_open, cred, shmfd, shmfd->shm_label);
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_open, cred, shmfd,
+	    shmfd->shm_label);
 	MAC_CHECK_PROBE2(posixshm_check_open, error, cred, shmfd);
 
 	return (error);
@@ -140,8 +142,8 @@ mac_posixshm_check_stat(struct ucred *active_cred, struct ucred *file_cred,
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(posixshm_check_stat, active_cred, file_cred, shmfd,
-	    shmfd->shm_label);
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_stat, active_cred, file_cred,
+	    shmfd, shmfd->shm_label);
 	MAC_CHECK_PROBE3(posixshm_check_stat, error, active_cred, file_cred,
 	    shmfd);
 
@@ -157,8 +159,8 @@ mac_posixshm_check_truncate(struct ucred *active_cred, struct ucred *file_cred,
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(posixshm_check_truncate, active_cred, file_cred,
-	    shmfd, shmfd->shm_label);
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_truncate, active_cred,
+	    file_cred, shmfd, shmfd->shm_label);
 	MAC_CHECK_PROBE3(posixshm_check_truncate, error, active_cred,
 	    file_cred, shmfd);
 
@@ -173,7 +175,7 @@ mac_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd)
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(posixshm_check_unlink, cred, shmfd,
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_unlink, cred, shmfd,
 	    shmfd->shm_label);
 	MAC_CHECK_PROBE2(posixshm_check_unlink, error, cred, shmfd);
 
