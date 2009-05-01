@@ -12,7 +12,7 @@
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/tcpdmatch.c,v 1.3.34.1 2009/04/15 03:14:26 kensmith Exp $
   */
 
 #ifndef lint

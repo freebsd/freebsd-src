@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	$KAME: pim6.h,v 1.3 2000/03/25 07:23:58 sumikawa Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/pim6.h,v 1.3.10.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 /*
  * Protocol Independent Multicast (PIM) definitions

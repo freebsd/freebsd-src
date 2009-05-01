@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efierr.h,v 1.2.8.1 2009/04/15 03:14:26 kensmith Exp $ */
 #ifndef _EFI_ERR_H
 #define _EFI_ERR_H
 

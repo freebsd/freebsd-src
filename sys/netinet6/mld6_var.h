@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	$KAME: mld6_var.h,v 1.4 2000/03/25 07:23:54 sumikawa Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/mld6_var.h,v 1.7.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _NETINET6_MLD6_VAR_H_

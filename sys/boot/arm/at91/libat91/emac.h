@@ -17,7 +17,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/emac.h,v 1.6.8.1 2009/04/15 03:14:26 kensmith Exp $
  *****************************************************************************/
 
 

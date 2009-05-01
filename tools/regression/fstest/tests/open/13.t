@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/13.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="open returns EISDIR when he named file is a directory, and the arguments specify it is to be modified"
 

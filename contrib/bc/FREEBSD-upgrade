@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/bc/FREEBSD-upgrade,v 1.6.28.1 2009/04/15 03:14:26 kensmith Exp $
 
 bc 1.0.5a
 	originals can be found at: ftp://prep.ai.mit.edu/pub/gnu/

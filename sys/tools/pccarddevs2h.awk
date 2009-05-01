@@ -1,6 +1,6 @@
 #! /usr/bin/awk -f
 #	$NetBSD: devlist2h.awk,v 1.3 1998/09/05 14:42:06 christos Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/tools/pccarddevs2h.awk,v 1.4.20.1 2009/04/15 03:14:26 kensmith Exp $
 
 #-
 # Copyright (c) 1998 The NetBSD Foundation, Inc.

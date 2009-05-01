@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_eli/nokey.t,v 1.2.10.1 2009/04/15 03:14:26 kensmith Exp $
 
 base=`basename $0`
 no=45

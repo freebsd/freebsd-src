@@ -29,7 +29,7 @@
 #if 0
 __FBSDID("FreeBSD: src/lib/libc/string/strxfrm.c,v 1.15 2002/09/06 11:24:06 tjr Exp ");
 #endif
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/wcsxfrm.c,v 1.3.28.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <stdlib.h>
 #include <string.h>

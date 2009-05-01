@@ -18,7 +18,7 @@
 
   <corpauthor>&os; 文档项目组</corpauthor>
 
-  <pubdate>$FreeBSD$</pubdate>
+  <pubdate>$FreeBSD: src/release/doc/zh_CN.GB2312/hardware/article.sgml,v 1.1.2.6.4.2 2009/04/30 06:17:56 delphij Exp $</pubdate>
 
   <copyright>
     <year>2000</year>

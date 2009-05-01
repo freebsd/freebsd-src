@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)rpcinfo.c 1.16 89/04/05 Copyr 1986 Sun Micro";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/rpcinfo/rpcinfo.c,v 1.17.28.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * rpcinfo: ping a particular rpc program

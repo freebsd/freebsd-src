@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/ypxfr/ypxfr_main.c,v 1.20.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <errno.h>
 #include <stdio.h>

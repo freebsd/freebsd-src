@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkdir/02.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="mkdir returns ENAMETOOLONG if a component of a pathname exceeded 255 characters"
 

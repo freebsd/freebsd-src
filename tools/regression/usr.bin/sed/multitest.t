@@ -30,7 +30,7 @@
 #
 #	@(#)sed.test	8.1 (Berkeley) 6/6/93
 #
-#	$FreeBSD$
+#	$FreeBSD: src/tools/regression/usr.bin/sed/multitest.t,v 1.13.8.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 # sed Regression Tests

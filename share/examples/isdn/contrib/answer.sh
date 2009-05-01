@@ -6,7 +6,7 @@
 #
 #	last edit-date: [Fri May 25 15:21:05 2001]
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/isdn/contrib/answer.sh,v 1.1.36.1 2009/04/15 03:14:26 kensmith Exp $
 #
 #---------------------------------------------------------------------------
 VARDIR=/var/isdn

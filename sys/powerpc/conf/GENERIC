@@ -16,7 +16,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first 
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/powerpc/conf/GENERIC,v 1.71.2.8.4.1 2009/04/15 03:14:26 kensmith Exp $
 
 cpu		OEA
 ident		GENERIC

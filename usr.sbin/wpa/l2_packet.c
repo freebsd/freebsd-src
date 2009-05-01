@@ -12,7 +12,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/wpa/l2_packet.c,v 1.4.2.1.6.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /*

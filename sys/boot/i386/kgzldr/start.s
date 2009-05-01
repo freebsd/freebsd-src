@@ -23,7 +23,7 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/kgzldr/start.s,v 1.4.34.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 		.set entry,0x10			# kgz.entry

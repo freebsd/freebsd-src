@@ -5,7 +5,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/i387/s_copysignf.S,v 1.1.22.1 2009/04/15 03:14:26 kensmith Exp $");
 /* RCSID("$NetBSD: s_copysignf.S,v 1.3 1995/05/08 23:53:25 jtc Exp $") */
 
 ENTRY(copysignf)

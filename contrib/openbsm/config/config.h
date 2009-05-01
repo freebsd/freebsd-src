@@ -1,6 +1,6 @@
 /* config/config.h.  Generated from config.h.in by configure.  */
 /* config/config.h.in.  Generated from configure.ac by autoheader.  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/openbsm/config/config.h,v 1.6.2.1.6.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 /* Define to 1 if you have the `alarm' function. */
 #define HAVE_ALARM 1

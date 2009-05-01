@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/usr.sbin/ktutil/Makefile,v 1.17.28.1 2009/04/15 03:14:26 kensmith Exp $
 
 PROG=	ktutil
 MAN=	ktutil.8

@@ -68,7 +68,7 @@
 #define	RB_H_
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/rb.h,v 1.4.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /* Node structure. */
 #define	rb_node(a_type)							\

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 8/14/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/usd/04.csh/Makefile,v 1.7.20.1 2009/04/15 03:14:26 kensmith Exp $
 
 VOLUME=		usd/04.csh
 SRCS=		tabs csh.1 csh.2 csh.3 csh.4 csh.a csh.g

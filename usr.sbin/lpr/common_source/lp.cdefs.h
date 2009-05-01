@@ -29,7 +29,7 @@
  * official policies, either expressed or implied, of the FreeBSD Project.
  *
  * ------+---------+---------+---------+---------+---------+---------+---------*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/lpr/common_source/lp.cdefs.h,v 1.1.32.1 2009/04/15 03:14:26 kensmith Exp $
  * ------+---------+---------+---------+---------+---------+---------+---------*
  */
 

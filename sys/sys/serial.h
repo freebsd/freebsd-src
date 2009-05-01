@@ -27,7 +27,7 @@
  * (both async and sync), but which do not necessarily have anything to
  * do with tty processing.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/serial.h,v 1.5.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _SYS_SERIAL_H_

@@ -23,7 +23,7 @@
  * SUCH DAMAGE.
  *
  *	from: BSDI: asi.h,v 1.3 1997/08/08 14:31:42 torek
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/asi.h,v 1.2.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef	_MACHINE_ASI_H_

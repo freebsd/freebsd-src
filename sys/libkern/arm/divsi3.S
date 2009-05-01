@@ -15,7 +15,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/arm/divsi3.S,v 1.4.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /* 
  * stack is aligned as there's a possibility of branching to L_overflow

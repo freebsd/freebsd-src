@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/hostapd/wpa.c,v 1.5.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include "includes.h"

@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/e1000/e1000_82575.c,v 1.1.2.2.2.1 2009/04/15 03:14:26 kensmith Exp $*/
 
 /*
  * 82575EB Gigabit Network Connection

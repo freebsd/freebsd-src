@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/filter.h,v 1.29.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /* Operations - f_srcop, f_dstop */

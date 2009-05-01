@@ -35,7 +35,7 @@ static const char copyright[] =
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/ed/main.c,v 1.29.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * CREDITS

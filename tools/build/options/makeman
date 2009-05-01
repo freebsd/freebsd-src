@@ -2,7 +2,7 @@
 #
 # This file is in the public domain.
 
-ident='$FreeBSD$'
+ident='$FreeBSD: src/tools/build/options/makeman,v 1.6.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $'
 
 #
 # usage: show { settings | options } ...

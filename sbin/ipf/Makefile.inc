@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/ipf/Makefile.inc,v 1.2.20.1 2009/04/15 03:14:26 kensmith Exp $
 
 CFLAGS+=	-I${.CURDIR}/../../../contrib/ipfilter
 CFLAGS+=	-I${.CURDIR}/../../../contrib/ipfilter/tools

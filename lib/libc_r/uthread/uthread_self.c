@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_self.c,v 1.6.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 #include <pthread.h>
 #include "pthread_private.h"

@@ -34,7 +34,7 @@ static char *sccsid2 = "from: @(#)pmap_getport.c 1.9 87/08/11 Copyr 1984 Sun Mic
 static char *sccsid = "from: @(#)pmap_getport.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/pmap_getport.c,v 1.15.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * pmap_getport.c

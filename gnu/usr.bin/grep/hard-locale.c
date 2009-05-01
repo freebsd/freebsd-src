@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/hard-locale.c,v 1.2.28.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 #if HAVE_CONFIG_H
 # include <config.h>

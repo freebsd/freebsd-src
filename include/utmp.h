@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utmp.h	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/include/utmp.h,v 1.10.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef	_UTMP_H_

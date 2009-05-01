@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/dns/code.h,v 1.5.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 /*
  * Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")

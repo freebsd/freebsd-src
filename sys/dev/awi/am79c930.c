@@ -65,7 +65,7 @@
 __KERNEL_RCSID(0, "$NetBSD: am79c930.c,v 1.9 2004/01/15 09:33:48 onoe Exp $");
 #endif
 #ifdef __FreeBSD__
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/awi/am79c930.c,v 1.7.20.1 2009/04/15 03:14:26 kensmith Exp $");
 #endif
 
 #include <sys/param.h>

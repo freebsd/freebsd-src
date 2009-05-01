@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/Osd/OsdDebug.c,v 1.13.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include "opt_ddb.h"
 #include <sys/param.h>

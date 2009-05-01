@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/tdfx_drv.c,v 1.10.2.2.2.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include "dev/drm/tdfx_drv.h"
 #include "dev/drm/drmP.h"

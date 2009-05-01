@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pc98/cbus/cbus_dma.c,v 1.23.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * code to manage AT bus

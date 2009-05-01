@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/libexec/hprop/Makefile,v 1.15.28.1 2009/04/15 03:14:26 kensmith Exp $
 
 PROG=	hprop
 MAN=	hprop.8

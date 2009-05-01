@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
 #	$Id: Makefile,v 1.6 1994/06/30 05:33:39 cgd Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/make/Makefile,v 1.65.2.2.2.1 2009/04/15 03:14:26 kensmith Exp $
 
 PROG=	make
 CFLAGS+=-I${.CURDIR}
@@ -51,7 +51,7 @@ hash:
 	  echo ' * DO NOT EDIT' ;					\
 	  echo ' * $$''FreeBSD$$' ;					\
 	  echo -n ' * auto-generated from ' ;				\
-	  sed -nEe '/\$$FreeBSD$/\1/p'		\
+	  sed -nEe '/\$$FreeBSD: src/usr.bin/make/Makefile,v 1.65.2.2.2.1 2009/04/15 03:14:26 kensmith Exp $/\1/p'		\
 		${.CURDIR}/parse.c ;					\
 	  echo ' * DO NOT EDIT' ;					\
 	  echo ' */' ;							\

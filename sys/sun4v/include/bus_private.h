@@ -25,7 +25,7 @@
  *
  *	from: FreeBSD: src/sys/i386/i386/busdma_machdep.c,v 1.25 2002/01/05
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/bus_private.h,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef	_MACHINE_BUS_PRIVATE_H_

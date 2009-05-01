@@ -15,7 +15,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/lib/libdialog/TESTS/menu2.c,v 1.9.32.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

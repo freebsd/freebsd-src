@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ggate/ggatel/ggatel.c,v 1.6.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <stdio.h>

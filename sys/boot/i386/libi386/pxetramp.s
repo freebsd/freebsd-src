@@ -12,7 +12,7 @@
 # warranties of merchantability and fitness for a particular
 # purpose.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/libi386/pxetramp.s,v 1.3.34.1 2009/04/15 03:14:26 kensmith Exp $
 
 # ph33r this
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/iplist.h,v 1.4.56.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 struct iplist_cur {

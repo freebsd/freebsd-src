@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/ftp/config.h,v 1.3.34.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 
 /* config.h.  Generated automatically by configure.  */

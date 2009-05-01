@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/s_finite.S,v 1.7.54.1 2009/04/15 03:14:26 kensmith Exp $")
 
 ENTRY(finite)
 	movl	8(%esp),%eax

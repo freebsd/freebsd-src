@@ -20,7 +20,7 @@
  * \author vix 09sep95 [initial]
  *
  * $Id: eventlib_p.h,v 1.5.18.4 2006/03/10 00:20:08 marka Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/isc/eventlib_p.h,v 1.5.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _EVENTLIB_P_H

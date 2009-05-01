@@ -31,7 +31,7 @@
 /* $KAME: sctp_input.h,v 1.6 2005/03/06 16:04:17 itojun Exp $	 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_input.h,v 1.7.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #ifndef __sctp_input_h__
 #define __sctp_input_h__

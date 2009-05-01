@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/tools/tools/kttcp/Makefile,v 1.2.30.1 2009/04/15 03:14:26 kensmith Exp $
 
 SHELL=	/bin/sh
 

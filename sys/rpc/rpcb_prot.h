@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/rpc/rpcb_prot.h,v 1.1.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  *
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape

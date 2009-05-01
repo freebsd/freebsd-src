@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/ttys.c,v 1.4.34.1 2009/04/15 03:14:26 kensmith Exp $
  *
  * Copyright (c) 2001
  *      Andrey A. Chernov.  All rights reserved.

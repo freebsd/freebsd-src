@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/ufs/ufs/README.acls,v 1.6.34.1 2009/04/15 03:14:26 kensmith Exp $
 
   UFS Access Control Lists Copyright
 

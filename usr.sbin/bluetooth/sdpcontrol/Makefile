@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.1 2003/09/08 02:27:27 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bluetooth/sdpcontrol/Makefile,v 1.1.30.1 2009/04/15 03:14:26 kensmith Exp $
 
 PROG=		sdpcontrol
 MAN=		sdpcontrol.8

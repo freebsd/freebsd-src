@@ -37,7 +37,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)parser1.c	8.1 (Berkeley) 6/6/93";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/window/parser1.c,v 1.3.34.1 2009/04/15 03:14:26 kensmith Exp $";
 #endif /* not lint */
 
 #include "parser.h"

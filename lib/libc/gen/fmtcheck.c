@@ -35,7 +35,7 @@
 
 /*	$NetBSD: fmtcheck.c,v 1.2 2000/11/01 01:17:20 briggs Exp $	*/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/fmtcheck.c,v 1.8.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <stdio.h>
 #include <string.h>

@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/db/mpool/mpool.c,v 1.13.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

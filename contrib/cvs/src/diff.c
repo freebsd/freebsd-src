@@ -18,7 +18,7 @@
  * Without any file arguments, runs diff against all the currently modified
  * files.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/diff.c,v 1.21.18.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <assert.h>

@@ -28,7 +28,7 @@
  *
  *	from: @(#)float.h	7.1 (Berkeley) 5/8/90
  *	from: FreeBSD: src/sys/i386/include/float.h,v 1.8 1999/08/28 00:44:11
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/float.h,v 1.8.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _MACHINE_FLOAT_H_

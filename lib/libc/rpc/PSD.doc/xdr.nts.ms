@@ -2,7 +2,7 @@
 .\" Must use --  eqn -- with this one
 .\"
 .\" @(#)xdr.nts.ms	2.2 88/08/05 4.0 RPCSRC
-.\" $FreeBSD$
+.\" $FreeBSD: src/lib/libc/rpc/PSD.doc/xdr.nts.ms,v 1.4.32.1 2009/04/15 03:14:26 kensmith Exp $
 .\"
 .EQ
 delim $$

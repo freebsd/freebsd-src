@@ -1,7 +1,7 @@
 /*
  * Computer
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.computer,v 1.11.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _calendar_computer_

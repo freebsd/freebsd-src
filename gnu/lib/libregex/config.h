@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/lib/libregex/config.h,v 1.1.20.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 #define	_REGEX_RE_COMP	1
 #define	HAVE_LANGINFO_H	1

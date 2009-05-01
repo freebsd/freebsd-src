@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#40
- * $FreeBSD$
+ * $FreeBSD: src/sys/bsm/audit.h,v 1.9.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _BSM_AUDIT_H

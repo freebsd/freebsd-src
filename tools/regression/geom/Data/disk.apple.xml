@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
-  <FreeBSD>$FreeBSD$</FreeBSD>
+  <FreeBSD>$FreeBSD: src/tools/regression/geom/Data/disk.apple.xml,v 1.1.32.1 2009/04/15 03:14:26 kensmith Exp $</FreeBSD>
   <sectorsize>512</sectorsize>
   <mediasize>366530560</mediasize>
   <fwsectors>0</fwsectors>

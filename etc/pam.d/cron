@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/cron,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 #
 # PAM configuration for the "cron" service
 #

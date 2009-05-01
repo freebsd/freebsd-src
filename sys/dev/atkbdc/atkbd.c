@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/atkbdc/atkbd.c,v 1.52.8.2 2009/04/20 17:09:53 emax Exp $");
 
 #include "opt_compat.h"
 #include "opt_kbd.h"

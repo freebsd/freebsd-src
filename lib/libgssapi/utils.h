@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libgssapi/utils.h,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 extern int _gss_oid_equal(const gss_OID, const gss_OID);

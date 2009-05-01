@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/15.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="rename returns EXDEV if the link named by 'to' and the file named by 'from' are on different file systems"
 

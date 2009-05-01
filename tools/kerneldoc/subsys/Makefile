@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/kerneldoc/subsys/Makefile,v 1.7.8.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 _ALL!=	cd ${.CURDIR} && ls Doxyfile-*

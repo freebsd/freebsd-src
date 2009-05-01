@@ -1,6 +1,6 @@
 #
 # $RISS: if_arl/arlconfig/Makefile,v 1.5 2003/01/13 08:05:29 frol Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/arlcontrol/Makefile,v 1.3.20.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 PROG=	arlcontrol

@@ -5,7 +5,7 @@
 # Read and display random numbers.
 # Try tapping shift/alt/ctrl to get more randomness.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/test/devrandom/hammer.random,v 1.4.54.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 for (;;) {

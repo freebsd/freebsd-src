@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/cpuctl.h,v 1.1.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _CPUCTL_H_

@@ -1,6 +1,6 @@
 #!/bin/sh
 # This file is in the public domain
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/build_option_survey/option_survey.sh,v 1.3.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 set -ex
 

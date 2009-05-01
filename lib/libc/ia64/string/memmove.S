@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/string/memmove.S,v 1.3.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 ENTRY(memmove,3)
 	mov	r8 = in0

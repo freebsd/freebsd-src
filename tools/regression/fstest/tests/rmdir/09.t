@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rmdir/09.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="rmdir returns EPERM if the named file has its immutable, undeletable or append-only flag set"
 

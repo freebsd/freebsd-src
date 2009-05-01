@@ -48,7 +48,7 @@
 #include "opt_msgbuf.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/ixp425/avila_machdep.c,v 1.5.2.6.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>

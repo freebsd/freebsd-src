@@ -1,5 +1,5 @@
 /*	$NetBSD$	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/wi/spectrum24t_cf.h,v 1.2.20.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 /*-
  * Copyright (c) 2001 Symbol Technologies Inc. -- http://www.symbol.com

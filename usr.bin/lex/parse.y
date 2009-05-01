@@ -34,7 +34,7 @@
  */
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/parse.y,v 2.28 95/04/21 11:51:51 vern Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/parse.y,v 1.3.54.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 
 /* Some versions of bison are broken in that they use alloca() but don't

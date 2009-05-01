@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/00.t,v 1.2.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="open opens (and eventually creates) a file"
 

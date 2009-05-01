@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/reg.h,v 1.38.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _MACHINE_REG_H_

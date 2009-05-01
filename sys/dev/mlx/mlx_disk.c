@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mlx/mlx_disk.c,v 1.34.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * Disk driver for Mylex DAC960 RAID adapters.

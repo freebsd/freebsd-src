@@ -16,7 +16,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/patch/backupfile.h,v 1.5.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /* When to make backup files. */

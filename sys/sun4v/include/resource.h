@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/resource.h,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _MACHINE_RESOURCE_H_

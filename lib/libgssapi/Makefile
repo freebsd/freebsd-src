@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libgssapi/Makefile,v 1.2.2.1.6.1 2009/04/15 03:14:26 kensmith Exp $
 
 LIB=		gssapi
 SHLIB_MAJOR=	9

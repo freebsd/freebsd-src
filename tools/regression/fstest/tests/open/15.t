@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/15.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="open returns EROFS when O_CREAT is specified and the named file would reside on a read-only file system"
 

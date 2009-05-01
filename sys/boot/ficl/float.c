@@ -41,7 +41,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/float.c,v 1.2.8.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>

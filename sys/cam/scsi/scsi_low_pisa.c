@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/scsi/scsi_low_pisa.c,v 1.8.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #ifdef	__NetBSD__
 #include <sys/param.h>

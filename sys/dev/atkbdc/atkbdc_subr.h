@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/isa/atkbdc_isa.c,v 1.31 2005/05/29 04:42:28 nyan Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/atkbdc/atkbdc_subr.h,v 1.1.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _DEV_ATKBDC_ATKBDC_SUBR_H_

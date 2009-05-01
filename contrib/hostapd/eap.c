@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/hostapd/eap.c,v 1.4.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include "includes.h"

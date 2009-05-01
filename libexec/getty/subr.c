@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)from: subr.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/getty/subr.c,v 1.19.28.1 2009/04/15 03:14:26 kensmith Exp $";
 #endif /* not lint */
 
 /*

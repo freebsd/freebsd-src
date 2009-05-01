@@ -1,7 +1,7 @@
 /*
  * getif.c : get an interface structure
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/getif.c,v 1.8.28.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <sys/types.h>

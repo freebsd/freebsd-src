@@ -7,7 +7,7 @@
 #
 # Mark Santcroos <marks@ripe.net>
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/zzz/zzz.sh,v 1.2.30.1 2009/04/15 03:14:26 kensmith Exp $
 
 PATH=/sbin:/usr/sbin:/usr/bin:/bin
 

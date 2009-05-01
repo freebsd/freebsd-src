@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/12.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="rename returns ENOTDIR if a component of either path prefix is not a directory"
 

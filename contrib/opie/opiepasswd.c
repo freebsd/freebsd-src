@@ -44,7 +44,7 @@ License Agreement applies to this software.
 	Written at Bellcore for the S/Key Version 1 software distribution
 		(skeyinit.c).
 
- $FreeBSD$
+ $FreeBSD: src/contrib/opie/opiepasswd.c,v 1.4.8.1 2009/04/15 03:14:26 kensmith Exp $
 */
 #include "opie_cfg.h"
 

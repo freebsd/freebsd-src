@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/at91/hints.at91rm9200,v 1.1.10.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 # These are the wiring for the at91rm9200.  These are the built-in devices

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/CHANGES,v 1.1.10.1 2009/04/15 03:14:26 kensmith Exp $
 
 0.9:
 - Added function personal_directories, you can create on conf dir your custom 

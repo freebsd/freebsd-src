@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efidef.h,v 1.3.8.1 2009/04/15 03:14:26 kensmith Exp $ */
 #ifndef _EFI_DEF_H
 #define _EFI_DEF_H
 

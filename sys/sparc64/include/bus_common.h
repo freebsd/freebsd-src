@@ -33,7 +33,7 @@
  *	form: @(#)sbusreg.h	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: iommureg.h,v 1.6 2001/07/20 00:07:13 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/bus_common.h,v 1.7.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _MACHINE_BUS_COMMON_H_

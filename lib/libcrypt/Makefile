@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libcrypt/Makefile,v 1.39.8.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 SHLIBDIR?=	/lib

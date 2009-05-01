@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chflags/06.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="chflags returns ELOOP if too many symbolic links were encountered in translating the pathname"
 

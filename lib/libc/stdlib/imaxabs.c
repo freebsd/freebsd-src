@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/imaxabs.c,v 1.1.34.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <inttypes.h>
 

@@ -35,7 +35,7 @@
 #ifndef lint
 __RCSID("$NetBSD: fat.c,v 1.12 2000/10/10 20:24:52 is Exp $");
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/fsck_msdosfs/fat.c,v 1.7.28.1 2009/04/15 03:14:26 kensmith Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/man/man4/man4.i386/Makefile,v 1.185.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $
 
 MAN=	acpi_aiboost.4 \
 	acpi_asus.4 \

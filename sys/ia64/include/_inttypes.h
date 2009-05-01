@@ -34,7 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: $NetBSD: int_fmtio.h,v 1.2 2001/04/26 16:25:21 kleink Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/_inttypes.h,v 1.2.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _MACHINE_INTTYPES_H_

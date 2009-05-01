@@ -29,7 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/rdma_user_cm.h,v 1.1.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef RDMA_USER_CM_H

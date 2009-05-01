@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/boot0.5/Makefile,v 1.6.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 PROG=	${BOOT}.out
 INTERNALPROG=

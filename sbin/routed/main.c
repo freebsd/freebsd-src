@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/main.c,v 1.19.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include "defs.h"
@@ -45,7 +45,7 @@ __COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n"
 __RCSID("$NetBSD$");
 #include <util.h>
 #elif defined(__FreeBSD__)
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/sbin/routed/main.c,v 1.19.8.1 2009/04/15 03:14:26 kensmith Exp $");
 #else
 __RCSID("$Revision: 2.31 $");
 #ident "$Revision: 2.31 $"

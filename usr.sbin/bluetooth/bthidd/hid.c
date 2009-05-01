@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: hid.c,v 1.5 2006/09/07 21:06:53 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/bthidd/hid.c,v 1.6.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <sys/consio.h>

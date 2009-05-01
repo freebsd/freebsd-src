@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libarchive/test/test_read_format_tar_empty_filename.tar.uu,v 1.2.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $
 begin 644 test_compat_tar_1.tar
 M````````````````````````````````````````````````````````````
 M````````````````````````````````````````````````````````````

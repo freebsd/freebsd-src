@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.i386,v 1.23.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 NATIVE_EMULATION= elf_i386_fbsd
 

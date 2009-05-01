@@ -1,7 +1,7 @@
 #
 # DEFAULTS -- Default kernel configuration file for FreeBSD/ia64
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/conf/DEFAULTS,v 1.11.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 machine		ia64
 

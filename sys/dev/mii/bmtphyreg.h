@@ -35,7 +35,7 @@
  *
  *	from NetBSD: bmtphyreg.h,v 1.1 2001/06/02 21:42:10 thorpej Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/bmtphyreg.h,v 1.2.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _DEV_MII_BMTPHYREG_H_

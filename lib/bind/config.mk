@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/bind/config.mk,v 1.19.2.1.6.1 2009/04/15 03:14:26 kensmith Exp $
 
 .include <bsd.own.mk>
 

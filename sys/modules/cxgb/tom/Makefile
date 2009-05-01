@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cxgb/tom/Makefile,v 1.5.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
 
 TOM = ${.CURDIR}/../../../dev/cxgb/ulp/tom
 .PATH: ${TOM} 

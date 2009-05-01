@@ -59,7 +59,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/isic/i4b_itk_ix1.c,v 1.13.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include "opt_i4b.h"
 

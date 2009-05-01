@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/kern/opensolaris_string.c,v 1.3.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.

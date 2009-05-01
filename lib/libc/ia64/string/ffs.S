@@ -32,7 +32,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/string/ffs.S,v 1.3.32.1 2009/04/15 03:14:26 kensmith Exp $");
 
 ENTRY(ffs, 1)
 	sxt4	r14=in0 ;;

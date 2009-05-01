@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mount_udf/mount_udf.c,v 1.13.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /*

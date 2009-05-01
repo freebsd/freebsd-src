@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/als4000/Makefile,v 1.2.32.1 2009/04/15 03:14:26 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../../dev/sound/pci
 

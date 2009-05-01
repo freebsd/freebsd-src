@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/share/mk/doc.relnotes.mk,v 1.14.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $
 
 DOC_PREFIX?= ${RELN_ROOT}/../../../doc
 

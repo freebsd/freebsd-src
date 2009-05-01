@@ -33,7 +33,7 @@
 
 /* 
  * $Id: ktutil_locl.h,v 1.18 2002/09/10 20:03:45 joda Exp $
- * $FreeBSD$
+ * $FreeBSD: src/crypto/heimdal/admin/ktutil_locl.h,v 1.7.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef __KTUTIL_LOCL_H__

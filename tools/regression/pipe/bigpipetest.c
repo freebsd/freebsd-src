@@ -12,7 +12,7 @@
  * Test for the non-blocking big pipe bug (write(2) returning
  * EAGAIN while select(2) returns the descriptor as ready for write).
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/pipe/bigpipetest.c,v 1.3.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 void write_frame(int fd, char *buf, unsigned long buflen)

@@ -4,7 +4,7 @@
  * 
  * Ported to FreeBSD by Jean-Sébastien Pédron <jspedron@club-internet.fr>
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/reiserfs/reiserfs_hashes.c,v 1.1.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <gnu/fs/reiserfs/reiserfs_fs.h>

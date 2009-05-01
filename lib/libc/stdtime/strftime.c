@@ -32,7 +32,7 @@ static const char	elsieid[] = "@(#)strftime.c	7.64";
 static const char	sccsid[] = "@(#)strftime.c	5.4 (Berkeley) 3/14/89";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdtime/strftime.c,v 1.41.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include "tzfile.h"
 #include <fcntl.h>

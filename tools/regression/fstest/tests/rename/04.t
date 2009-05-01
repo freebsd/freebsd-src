@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/04.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="rename returns EACCES when a component of either path prefix denies search permission"
 

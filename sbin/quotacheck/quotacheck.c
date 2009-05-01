@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)quotacheck.c	8.3 (Berkeley) 1/29/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/quotacheck/quotacheck.c,v 1.33.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * Fix up / report on disk quotas & usage

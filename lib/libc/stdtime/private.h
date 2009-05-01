@@ -6,7 +6,7 @@
 ** This file is in the public domain, so clarified as of
 ** 1996-06-05 by Arthur David Olson (arthur_david_olson@nih.gov).
 **
-** $FreeBSD$
+** $FreeBSD: src/lib/libc/stdtime/private.h,v 1.10.28.1 2009/04/15 03:14:26 kensmith Exp $
 */
 
 /* Stuff moved from Makefile.inc to reduce clutter */

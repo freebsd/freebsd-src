@@ -25,7 +25,7 @@
 #include "opt_at91.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/at91/at91_pmc.c,v 1.5.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

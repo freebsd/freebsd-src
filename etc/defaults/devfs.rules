@@ -13,7 +13,7 @@
 # references must include a dollar sign '$' in front of the
 # name to be expanded properly.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/defaults/devfs.rules,v 1.4.2.1.6.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 # Very basic and secure ruleset: Hide everything.

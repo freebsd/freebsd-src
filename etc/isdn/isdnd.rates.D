@@ -3,7 +3,7 @@
 #	i4b - Deutsche Telekom charging rates config file
 #	-------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/isdnd.rates.D,v 1.4.28.1 2009/04/15 03:14:26 kensmith Exp $
 #
 #	last edit-date: [Sun Jan 17 18:38:29 1999]
 #

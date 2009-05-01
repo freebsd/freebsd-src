@@ -16,7 +16,7 @@ set -e
 # that the auto_*_type() functions are inappropriate for.
 # MANUAL: Manually entered and must therefore be manually updated.
 
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/kdump/mksubr,v 1.9.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
 
 LC_ALL=C; export LC_ALL
 

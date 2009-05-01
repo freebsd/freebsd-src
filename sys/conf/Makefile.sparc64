@@ -1,7 +1,7 @@
 # Makefile.sparc64 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/Makefile.sparc64,v 1.40.8.1 2009/04/15 03:14:26 kensmith Exp $
 #
 # Makefile for FreeBSD
 #

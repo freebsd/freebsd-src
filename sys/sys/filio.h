@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filio.h	8.1 (Berkeley) 3/28/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/filio.h,v 1.10.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef	_SYS_FILIO_H_

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsd/Celler/ip_compat.h,v 1.2.20.1 2009/04/15 03:14:26 kensmith Exp $	*/
 
 /*
  * (C)opyright 1995 by Darren Reed.

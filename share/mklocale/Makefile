@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mklocale/Makefile,v 1.65.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 LOCALES=	UTF-8 \
 		am_ET.UTF-8 \

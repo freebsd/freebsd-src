@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  * at_rmx.c,v 1.13 1995/05/30 08:09:31 rgrimes Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/at_rmx.c,v 1.10.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /* This code generates debugging traces to the radix code. */

@@ -39,7 +39,7 @@
 
 #include <machine/armreg.h>
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/fiq_subr.S,v 1.3.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * MODE_CHANGE_NOP should be inserted between a mode change and a

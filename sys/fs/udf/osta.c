@@ -3,7 +3,7 @@
  * each code segment.  Slight whitespace modifications have been made for
  * formatting purposes.  Typos/bugs have been fixed.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/udf/osta.c,v 1.4.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <fs/udf/osta.h>

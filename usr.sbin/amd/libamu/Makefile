@@ -3,7 +3,7 @@
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/amd/libamu/Makefile,v 1.8.10.1.4.1 2009/04/15 03:14:26 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/amd/libamu \
        ${.CURDIR}/../../../contrib/amd/conf/transp \

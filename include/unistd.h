@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.12 (Berkeley) 4/27/95
- * $FreeBSD$
+ * $FreeBSD: src/include/unistd.h,v 1.80.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _UNISTD_H_

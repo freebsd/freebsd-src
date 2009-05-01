@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: asm.h,v 1.6.18.1 2000/07/25 08:37:14 kleink Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/asm.h,v 1.10.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _MACHINE_ASM_H_

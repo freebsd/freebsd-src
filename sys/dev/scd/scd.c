@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/scd/scd.c,v 1.86.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 
 #undef	SCD_DEBUG

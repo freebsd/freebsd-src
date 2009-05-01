@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/indent/parse.c,v 1.10.30.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <stdio.h>
 #include "indent_globs.h"

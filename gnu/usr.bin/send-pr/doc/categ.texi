@@ -1,4 +1,4 @@
-@c $FreeBSD$
+@c $FreeBSD: src/gnu/usr.bin/send-pr/doc/categ.texi,v 1.2.34.1 2009/04/15 03:14:26 kensmith Exp $
 
 @node Valid Categories
 @unnumberedsec Valid Categories

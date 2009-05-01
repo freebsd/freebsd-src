@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/isapnp.c,v 1.7.30.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * Machine-independant ISA PnP enumerator implementing a subset of the

@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/malloc.h,v 1.83.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _SYS_MALLOC_H_

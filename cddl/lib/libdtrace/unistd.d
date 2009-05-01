@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/cddl/lib/libdtrace/unistd.d,v 1.1.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/sysvshm/Makefile,v 1.3.20.1 2009/04/15 03:14:26 kensmith Exp $
 # SysV Shared Memory Regression Utility
 # Obtained from: $NetBSD: Makefile,v 1.3 2002/03/05 21:57:00 thorpej Exp $
 

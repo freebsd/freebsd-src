@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hwpmc/hwpmc_piv.h,v 1.1.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /* Machine dependent interfaces */

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/BSD_daemon/eps.patch,v 1.2.36.1 2009/04/15 03:14:26 kensmith Exp $
 --- beastie.eps.ref	Sun Feb 11 22:46:59 2001
 +++ beastie.eps	Sun Feb 11 23:01:43 2001
 @@ -19,6 +19,23 @@

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/dev/oltr/trlldmac.c,v 1.4.34.1 2009/04/15 03:14:26 kensmith Exp $
  *
  *      Copyright (c) 1997
  *      OLICOM A/S

@@ -17,7 +17,7 @@
 
 /* cron.h - header for vixie's cron
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/cron/cron/cron.h,v 1.17.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  *
  * vix 14nov88 [rest of log is in RCS]
  * vix 14jan87 [0 or 7 can be sunday; thanks, mwm@berkeley]

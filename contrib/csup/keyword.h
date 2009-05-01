@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/csup/keyword.h,v 1.1.1.1.4.1.2.1 2009/04/15 03:14:26 kensmith Exp $
  */
 #ifndef _KEYWORD_H_
 #define _KEYWORD_H_

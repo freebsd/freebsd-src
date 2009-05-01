@@ -1,6 +1,6 @@
 #---------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/i4b/g711conv/Makefile,v 1.6.34.1 2009/04/15 03:14:26 kensmith Exp $
 #
 #	last edit-date: [Thu May 20 11:58:43 1999]
 #

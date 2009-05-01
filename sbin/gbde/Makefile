@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/gbde/Makefile,v 1.11.30.1 2009/04/15 03:14:26 kensmith Exp $
 
 PROG=	gbde
 SRCS=	gbde.c template.c

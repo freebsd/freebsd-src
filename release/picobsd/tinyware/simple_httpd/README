@@ -164,4 +164,4 @@ This program was originally contributed by Marc Nicholas <marc@netstor.com>
 
 Major rewrite by William Lloyd <wlloyd@slap.net>
 
-$FreeBSD$
+$FreeBSD: src/release/picobsd/tinyware/simple_httpd/README,v 1.6.54.1 2009/04/15 03:14:26 kensmith Exp $

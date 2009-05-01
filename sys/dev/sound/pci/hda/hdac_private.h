@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/hda/hdac_private.h,v 1.8.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _HDAC_PRIVATE_H_

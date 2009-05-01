@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sis/Makefile,v 1.11.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../dev/sis
 

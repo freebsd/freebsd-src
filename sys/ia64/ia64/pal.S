@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/ia64/pal.S,v 1.8.30.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <machine/asm.h>

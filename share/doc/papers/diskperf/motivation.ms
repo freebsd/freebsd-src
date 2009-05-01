@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)motivation.ms	6.2 (Berkeley) 4/16/91
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/share/doc/papers/diskperf/motivation.ms,v 1.2.32.1 2009/04/15 03:14:26 kensmith Exp $
 .\"
 .ds RH Motivation
 .NH

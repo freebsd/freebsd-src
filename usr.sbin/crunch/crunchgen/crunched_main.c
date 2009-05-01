@@ -23,7 +23,7 @@
  *			   Computer Science Department
  *			   University of Maryland at College Park
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/crunch/crunchgen/crunched_main.c,v 1.8.24.1.2.1 2009/04/15 03:14:26 kensmith Exp $
  */
 /*
  * crunched_main.c - main program for crunched binaries, it branches to a

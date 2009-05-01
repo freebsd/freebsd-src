@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/truncate/11.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="truncate returns ETXTBSY the file is a pure procedure (shared text) file that is being executed"
 

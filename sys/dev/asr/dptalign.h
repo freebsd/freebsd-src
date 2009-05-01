@@ -20,7 +20,7 @@
  *
  * DPT Alignment Description File
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/dptalign.h,v 1.6.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 #if (!defined(__DPTALIGN_H))
 #define	      __DPTALIGN_H

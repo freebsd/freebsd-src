@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/elf_machdep.c,v 1.26.2.2.2.2 2009/04/17 17:05:31 dchagin Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

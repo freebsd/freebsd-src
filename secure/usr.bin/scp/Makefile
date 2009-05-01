@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.bin/scp/Makefile,v 1.16.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 PROG=	scp
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h

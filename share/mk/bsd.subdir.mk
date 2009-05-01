@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.subdir.mk,v 1.50.20.1 2009/04/15 03:14:26 kensmith Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories.

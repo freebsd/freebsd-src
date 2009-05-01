@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/17.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="rename returns EFAULT if one of the pathnames specified is outside the process's allocated address space"
 

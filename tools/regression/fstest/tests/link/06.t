@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/link/06.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="link returns EACCES when a component of either path prefix denies search permission"
 

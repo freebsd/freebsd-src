@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ukbd/Makefile,v 1.22.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../dev/usb
 

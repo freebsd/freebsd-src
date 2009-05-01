@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/regress.sh,v 1.3.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 COUNTER=1
 

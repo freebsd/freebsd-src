@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cue/Makefile,v 1.7.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 S=	${.CURDIR}/../..
 .PATH: $S/dev/usb

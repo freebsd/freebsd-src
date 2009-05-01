@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/420.status-network,v 1.6.34.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 # If there is a global system configuration file, suck it in.

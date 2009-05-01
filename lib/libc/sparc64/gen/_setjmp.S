@@ -40,7 +40,7 @@
 #endif
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/gen/_setjmp.S,v 1.6.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include "assym.s"
 

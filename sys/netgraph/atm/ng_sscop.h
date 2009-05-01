@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/atm/ng_sscop.h,v 1.3.20.1 2009/04/15 03:14:26 kensmith Exp $
  *
  * Netgraph module for Q.2110 SSCOP
  */

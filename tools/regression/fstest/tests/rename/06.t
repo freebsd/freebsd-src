@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/06.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="rename returns EPERM if the file pointed at by the 'from' argument has its immutable, undeletable or append-only flag set"
 

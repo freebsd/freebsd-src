@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/locale/test-wcrtomb.c,v 1.4.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <assert.h>
 #include <errno.h>

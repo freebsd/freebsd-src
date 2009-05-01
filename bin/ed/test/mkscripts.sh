@@ -1,7 +1,7 @@
 #!/bin/sh -
 # This script generates ed test scripts (.ed) from .t files
 #	
-# $FreeBSD$
+# $FreeBSD: src/bin/ed/test/mkscripts.sh,v 1.6.54.1 2009/04/15 03:14:26 kensmith Exp $
 
 PATH="/bin:/usr/bin:/usr/local/bin/:."
 ED=$1

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chmod/07.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="chmod returns EPERM if the operation would change the ownership, but the effective user ID is not the super-user"
 

@@ -35,7 +35,7 @@ static char sccsid[] = "@(#)rpc_scan.c 1.11 89/02/22 (C) 1987 SMI";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/rpcgen/rpc_scan.c,v 1.10.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * rpc_scan.c, Scanner for the RPC protocol compiler

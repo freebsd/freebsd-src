@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/smp.h,v 1.85.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _SYS_SMP_H_

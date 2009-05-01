@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tcp_wrappers/inetcf.c,v 1.3.32.1 2009/04/15 03:14:26 kensmith Exp $ */
  /*
   * Routines to parse an inetd.conf or tlid.conf file. This would be a great
   * job for a PERL script.

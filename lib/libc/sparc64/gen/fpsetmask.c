@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/gen/fpsetmask.c,v 1.2.34.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <machine/fsr.h>
 #include <ieeefp.h>

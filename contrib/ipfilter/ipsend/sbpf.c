@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ipfilter/ipsend/sbpf.c,v 1.8.8.1 2009/04/15 03:14:26 kensmith Exp $ */
 /*
  * (C)opyright 1995-1998 Darren Reed. (from tcplog)
  *

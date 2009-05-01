@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/gen/_ctx_start.S,v 1.1.32.1 2009/04/15 03:14:26 kensmith Exp $");
 
 ENTRY(_ctx_start)
 	call	%g1

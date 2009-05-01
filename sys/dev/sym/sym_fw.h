@@ -55,7 +55,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sym/sym_fw.h,v 1.5.10.1.4.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 #ifndef	SYM_FW_H
 #define	SYM_FW_H

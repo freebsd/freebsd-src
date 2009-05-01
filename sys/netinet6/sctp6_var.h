@@ -33,7 +33,7 @@
 #define _NETINET6_SCTP6_VAR_H_
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet6/sctp6_var.h,v 1.8.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /* TODO __Userspace__ IPv6 stuff... */
 #if defined(_KERNEL)

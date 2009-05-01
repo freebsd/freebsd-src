@@ -2,7 +2,7 @@
 # Last update: gwr, Sun Dec 12 19:00:00 EDT 1993
 # Blank lines and lines beginning with '#' are ignored.
 #
-# $FreeBSD$
+# $FreeBSD: src/libexec/bootpd/bootptab.mcs,v 1.5.54.1 2009/04/15 03:14:26 kensmith Exp $
 #
 # Legend:	(see bootptab.5)
 #	first field -- hostname (not indented)

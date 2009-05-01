@@ -1,6 +1,6 @@
 #---------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/i4b/dtmfdecode/Makefile,v 1.9.34.1 2009/04/15 03:14:26 kensmith Exp $
 #
 #	last edit-date: [Tue Dec 14 21:17:46 1999]
 #

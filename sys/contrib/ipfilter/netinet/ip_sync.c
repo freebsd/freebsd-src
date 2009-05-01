@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_sync.c,v 1.5.2.1.6.1 2009/04/15 03:14:26 kensmith Exp $	*/
 
 /*
  * Copyright (C) 1995-1998 by Darren Reed.

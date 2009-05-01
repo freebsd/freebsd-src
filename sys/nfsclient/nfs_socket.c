@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsclient/nfs_socket.c,v 1.154.2.3.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * Socket operations for use by nfs

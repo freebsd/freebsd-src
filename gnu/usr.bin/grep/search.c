@@ -18,7 +18,7 @@
 
 /* Written August 1992 by Mike Haertel. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/search.c,v 1.25.8.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE 1

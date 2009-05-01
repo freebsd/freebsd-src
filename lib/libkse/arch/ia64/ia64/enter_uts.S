@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/ia64/ia64/enter_uts.S,v 1.2.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * void _ia64_enter_uts(kse_func_t uts, struct kse_mailbox *km, void *stack,

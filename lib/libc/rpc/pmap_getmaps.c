@@ -34,7 +34,7 @@ static char *sccsid2 = "@(#)pmap_getmaps.c 1.10 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)pmap_getmaps.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/pmap_getmaps.c,v 1.16.20.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * pmap_getmap.c

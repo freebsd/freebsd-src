@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/hostapd/eap.h,v 1.4.8.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 /*
  * hostapd / EAP Standalone Authenticator state machine (RFC 4137)

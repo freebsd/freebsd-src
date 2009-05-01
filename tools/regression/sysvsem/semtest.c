@@ -35,7 +35,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * Obtained from: $NetBSD: semtest.c,v 1.4 2002/07/20 08:36:25 grant Exp $
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/sysvsem/semtest.c,v 1.1.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /*

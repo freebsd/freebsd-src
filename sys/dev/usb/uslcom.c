@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/usb/uslcom.c,v 1.2.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $ */
 /*	$OpenBSD: uslcom.c,v 1.17 2007/11/24 10:52:12 jsg Exp $	*/
 
 /*

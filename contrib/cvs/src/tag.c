@@ -16,7 +16,7 @@
  * Tag uses the checked out revision in the current directory, rtag uses
  * the modules database, if necessary.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/tag.c,v 1.2.18.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include "cvs.h"

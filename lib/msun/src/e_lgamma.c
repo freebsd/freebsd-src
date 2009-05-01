@@ -13,7 +13,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/e_lgamma.c,v 1.8.20.1 2009/04/15 03:14:26 kensmith Exp $";
 #endif
 
 /* __ieee754_lgamma(x)

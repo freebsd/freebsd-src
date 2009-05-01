@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/altq/altq/if_altq.h,v 1.3.28.1 2009/04/15 03:14:26 kensmith Exp $	*/
 /*	$KAME: if_altq.h,v 1.11 2003/07/10 12:07:50 kjc Exp $	*/
 
 /*

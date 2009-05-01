@@ -41,7 +41,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/ssh.c,v 1.32.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <sys/types.h>
 #ifdef HAVE_SYS_STAT_H

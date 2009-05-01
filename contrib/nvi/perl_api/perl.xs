@@ -10,7 +10,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/nvi/perl_api/perl.xs,v 1.3.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include "config.h"

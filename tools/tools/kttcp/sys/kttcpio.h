@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/tools/tools/kttcp/sys/kttcpio.h,v 1.1.30.1 2009/04/15 03:14:26 kensmith Exp $	*/
 /*	$NetBSD$	*/
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/cs4281.h,v 1.4.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _CS4281_H_

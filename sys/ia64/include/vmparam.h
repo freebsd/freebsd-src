@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/vmparam.h,v 1.17.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $ */
 /* From: NetBSD: vmparam.h,v 1.6 1997/09/23 23:23:23 mjacob Exp */
 #ifndef	_MACHINE_VMPARAM_H
 #define	_MACHINE_VMPARAM_H

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libexpat/Makefile,v 1.6.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 EXPAT=		${.CURDIR}/../../contrib/expat
 

@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/cbus/cbus.h,v 1.22.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _PC98_PC98_PC98_H_

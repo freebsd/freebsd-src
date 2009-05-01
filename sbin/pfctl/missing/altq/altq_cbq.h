@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/pfctl/missing/altq/altq_cbq.h,v 1.1.28.1 2009/04/15 03:14:26 kensmith Exp $	*/
 /*	$KAME: altq_cbq.h,v 1.10 2003/08/20 23:30:23 itojun Exp $	*/
 
 /*

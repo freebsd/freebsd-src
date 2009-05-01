@@ -31,7 +31,7 @@
  *
  * $Id: core_priv.h 1349 2004-12-16 21:09:43Z roland $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/core_priv.h,v 1.1.2.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _CORE_PRIV_H

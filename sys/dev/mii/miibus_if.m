@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/mii/miibus_if.m,v 1.4.34.1 2009/04/15 03:14:26 kensmith Exp $
 
 #include <sys/bus.h>
 

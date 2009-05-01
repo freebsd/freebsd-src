@@ -32,7 +32,7 @@
  *
  *	@(#)pw_util.h	8.2 (Berkeley) 4/1/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/picobsd/tinyware/passwd/pw_util.h,v 1.1.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 void	pw_edit(int);

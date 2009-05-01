@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/clone.c,v 1.4.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <sys/param.h>

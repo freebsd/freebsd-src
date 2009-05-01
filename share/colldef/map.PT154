@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/map.PT154,v 1.1.28.1 2009/04/15 03:14:26 kensmith Exp $
 # Birsh T <birsh@mail.kz>, 2003-12-12
 NU \x00
 SH \x01

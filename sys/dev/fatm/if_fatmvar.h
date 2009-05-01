@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fatm/if_fatmvar.h,v 1.6.20.1 2009/04/15 03:14:26 kensmith Exp $
  *
  * Fore PCA200E driver definitions.
  */

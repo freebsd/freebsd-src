@@ -16,7 +16,7 @@
 
 /* $Id: sha2.h,v 1.2.2.6 2006/08/16 03:18:14 marka Exp $ */
 
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/bind9/lib/isc/include/isc/sha2.h,v 1.1.1.1.8.1 2009/04/15 03:14:26 kensmith Exp $	*/
 /*	$KAME: sha2.h,v 1.3 2001/03/12 08:27:48 itojun Exp $	*/
 
 /*

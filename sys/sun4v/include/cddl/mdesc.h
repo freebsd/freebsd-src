@@ -17,7 +17,7 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/cddl/mdesc.h,v 1.2.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/zoneinfo/Makefile,v 1.22.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 #
 # HOW TO UPDATE THE ZONEINFO DATA

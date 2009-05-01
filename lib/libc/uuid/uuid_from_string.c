@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/uuid/uuid_from_string.c,v 1.2.30.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <stdio.h>

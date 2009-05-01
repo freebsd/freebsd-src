@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_gc.c,v 1.18.8.1 2009/04/15 03:14:26 kensmith Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/kdump/kdump_subr.h,v 1.3.8.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 void signame (int);
 void semctlname (int);

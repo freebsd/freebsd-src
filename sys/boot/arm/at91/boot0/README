@@ -4,4 +4,4 @@ of the booting process (or the recovery program) and jump to it.  It loads
 the program at a 1MB offset into SDRAM.  Programs are expected to be
 smaller than this and copy themselves to the right location.
 
-$FreeBSD$
+$FreeBSD: src/sys/boot/arm/at91/boot0/README,v 1.1.10.1 2009/04/15 03:14:26 kensmith Exp $

@@ -32,5 +32,5 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"	http://www.opengroup.org/unix/online.html.
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/examples/mdoc/POSIX-copyright,v 1.1.20.1 2009/04/15 03:14:26 kensmith Exp $
 .\"

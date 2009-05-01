@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/fpu/fpu_explode.c,v 1.7.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * FPU subroutines: `explode' the machine's `packed binary' format numbers

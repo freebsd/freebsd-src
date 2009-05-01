@@ -1,7 +1,7 @@
 /*
  * Proverbes liés au calendrier
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/fr_FR.ISO8859-1/calendar.proverbes,v 1.1.36.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _fr_FR_ISO8859_1_proverbes_

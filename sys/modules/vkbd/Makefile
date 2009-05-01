@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.1 2004/08/13 18:30:24 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/vkbd/Makefile,v 1.4.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../dev/vkbd
 

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/tools/kttcp/README,v 1.1.30.1 2009/04/15 03:14:26 kensmith Exp $
 
 This is a port of Jason Thorpe's kttcp tool for testing network
 performance for in-kernel applications (like NFS).  The tool consists

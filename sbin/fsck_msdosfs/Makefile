@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.6 1997/05/08 21:11:11 gwr Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/fsck_msdosfs/Makefile,v 1.5.28.1 2009/04/15 03:14:26 kensmith Exp $
 
 FSCK=	${.CURDIR}/../fsck
 .PATH: ${FSCK}

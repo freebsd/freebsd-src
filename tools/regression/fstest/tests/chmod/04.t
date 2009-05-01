@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chmod/04.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="chmod returns ENOENT if the named file does not exist"
 

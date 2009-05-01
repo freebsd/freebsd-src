@@ -10,7 +10,7 @@
  * software, nor does the author assume any responsibility for damages
  * incurred with its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/termcap.c,v 1.31.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include "sysinstall.h"

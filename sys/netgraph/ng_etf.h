@@ -30,7 +30,7 @@
  *
  * Author: Julian Elischer <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_etf.h,v 1.5.20.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _NETGRAPH_NG_ETF_H_

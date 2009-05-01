@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/drm/tdfx/Makefile,v 1.3.28.1 2009/04/15 03:14:26 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../../dev/drm
 KMOD	= tdfx

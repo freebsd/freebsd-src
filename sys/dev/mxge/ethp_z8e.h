@@ -25,7 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/mxge/ethp_z8e.h,v 1.2.4.4.2.1 2009/04/15 03:14:26 kensmith Exp $
 ***************************************************************************/
 
 static unsigned int ethp_z8e_uncompressed_length = 368132 ;

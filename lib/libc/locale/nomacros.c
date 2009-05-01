@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/nomacros.c,v 1.5.34.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * Tell <ctype.h> to generate extern versions of all its inline

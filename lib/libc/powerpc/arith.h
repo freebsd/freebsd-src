@@ -1,7 +1,7 @@
 /*
  * MD header for contrib/gdtoa
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/powerpc/arith.h,v 1.2.24.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/gate/g_gate.h,v 1.10.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _G_GATE_H_

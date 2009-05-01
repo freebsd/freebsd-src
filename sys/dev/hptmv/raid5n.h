@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/raid5n.h,v 1.3.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $
  */
 #ifdef _RAID5N_
 

@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/string/strcat.S,v 1.10.24.1.4.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * strcat(s, append)

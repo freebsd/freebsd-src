@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/keylogout/keylogout.c,v 1.5.34.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * unset the secret key on local machine

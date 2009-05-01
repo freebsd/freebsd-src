@@ -3,7 +3,7 @@
 # remove all the #if's from a source file
 #
 #	$dotat: things/unifdefall.sh,v 1.9 2002/09/24 19:43:57 fanf2 Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/unifdef/unifdefall.sh,v 1.2.34.1 2009/04/15 03:14:26 kensmith Exp $
 
 set -e
 

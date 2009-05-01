@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_crypto_none.c,v 1.7.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * IEEE 802.11 NULL crypto support.

@@ -4,7 +4,7 @@
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
  *  University of Utah, Department of Computer Science
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/ext2_linux_ialloc.c,v 1.25.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 /*-
  *  linux/fs/ext2/ialloc.c

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/amd64/Symbol.map,v 1.2.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 FBSD_1.0 {
 	fesetexceptflag;

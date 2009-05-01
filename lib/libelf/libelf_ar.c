@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libelf/libelf_ar.c,v 1.3.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <ar.h>
 #include <assert.h>

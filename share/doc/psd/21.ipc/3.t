@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)3.t	8.1 (Berkeley) 6/8/93
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/share/doc/psd/21.ipc/3.t,v 1.3.30.1 2009/04/15 03:14:26 kensmith Exp $
 .\"
 .\".ds RH "Network Library Routines
 .bp

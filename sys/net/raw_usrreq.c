@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/raw_usrreq.c,v 1.44.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <sys/param.h>

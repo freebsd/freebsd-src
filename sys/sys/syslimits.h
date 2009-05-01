@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslimits.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/syslimits.h,v 1.23.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _SYS_SYSLIMITS_H_

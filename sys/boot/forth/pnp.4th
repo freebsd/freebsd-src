@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/forth/pnp.4th,v 1.2.24.1.2.1 2009/04/15 03:14:26 kensmith Exp $
 
 
 \ The following pnp code is used in pnp.4th and pnp.c

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ipfilter/example.14,v 1.1.36.1 2009/04/15 03:14:26 kensmith Exp $
 #
 # log all inbound packet on le0 which has IP options present
 #

@@ -12,7 +12,7 @@
  *
  *	last edit-date: [Fri May 25 15:21:33 2001]
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/isdn/contrib/hplay.c,v 1.2.8.1 2009/04/15 03:14:26 kensmith Exp $
  *
  *---------------------------------------------------------------------------*/
 

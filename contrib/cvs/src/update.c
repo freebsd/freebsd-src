@@ -37,7 +37,7 @@
  * directories added to the repository are automatically created and updated
  * as well.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/update.c,v 1.14.18.1.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include "cvs.h"

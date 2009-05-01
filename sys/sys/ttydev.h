@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydev.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ttydev.h,v 1.12.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /* COMPATIBILITY HEADER FILE */

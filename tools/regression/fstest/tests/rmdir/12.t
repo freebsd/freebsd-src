@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rmdir/12.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="rmdir returns EINVAL if the last component of the path is '.' or '..'"
 

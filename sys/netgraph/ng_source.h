@@ -36,7 +36,7 @@
  *
  * Author: Dave Chapeskie <dchapeskie@sandvine.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_source.h,v 1.9.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _NETGRAPH_NG_SOURCE_H_

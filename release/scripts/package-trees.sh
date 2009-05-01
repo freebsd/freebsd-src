@@ -7,7 +7,7 @@
 #
 # Usage: package-tress.sh <copy method> <INDEX> <package tree> <destination>
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/package-trees.sh,v 1.2.20.1 2009/04/15 03:14:26 kensmith Exp $
 
 # Verify the command line
 if [ $# -ne 4 ]; then

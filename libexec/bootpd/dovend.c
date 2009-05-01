@@ -1,7 +1,7 @@
 /*
  * dovend.c : Inserts all but the first few vendor options.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/dovend.c,v 1.8.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <sys/types.h>

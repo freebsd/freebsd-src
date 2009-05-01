@@ -11,7 +11,7 @@
 # -----------------------------------------------------------------
 # 08 Apr 2000
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/checkindex.pl,v 1.1.34.1 2009/04/15 03:14:26 kensmith Exp $
 #
 
 use Getopt::Long;

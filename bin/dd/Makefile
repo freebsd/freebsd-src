@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/bin/dd/Makefile,v 1.19.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 PROG=	dd
 SRCS=	args.c conv.c conv_tab.c dd.c misc.c position.c

@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libarchive/config_freebsd.h,v 1.5.2.3.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /* FreeBSD 5.0 and later have ACL support. */

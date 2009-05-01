@@ -97,7 +97,7 @@
  *	from: @(#)sbus.c	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: iommu.c,v 1.42 2001/08/06 22:02:58 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/sun4v/hviommu.c,v 1.5.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #include <sys/param.h>

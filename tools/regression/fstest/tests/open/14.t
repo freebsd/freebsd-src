@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/14.t,v 1.1.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 desc="open returns EROFS if the named file resides on a read-only file system, and the file is to be modified"
 

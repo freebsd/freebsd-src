@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/kmemcpywrap.c,v 1.3.8.1 2009/04/15 03:14:26 kensmith Exp $	*/
 
 /*
  * Copyright (C) 2002 by Darren Reed.

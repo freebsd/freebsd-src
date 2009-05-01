@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcs_id[] =
-    "@(#) $FreeBSD$";
+    "@(#) $FreeBSD: src/usr.sbin/flowctl/flowctl.c,v 1.5.20.1 2009/04/15 03:14:26 kensmith Exp $";
 #endif
 
 #include <sys/types.h>

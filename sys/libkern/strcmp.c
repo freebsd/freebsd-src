@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/strcmp.c,v 1.10.28.1 2009/04/15 03:14:26 kensmith Exp $");
 
 #include <sys/libkern.h>
 

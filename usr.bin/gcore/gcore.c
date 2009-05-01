@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/gcore/gcore.c,v 1.31.28.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * Originally written by Eric Cooper in Fall 1981.

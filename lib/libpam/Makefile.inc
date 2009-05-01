@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/Makefile.inc,v 1.18.8.1 2009/04/15 03:14:26 kensmith Exp $
 
 .ifdef PAM_DEBUG
 DEBUG_FLAGS+=	-DDEBUG

@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/bluetooth/btpand/btpand.h,v 1.2.2.1.2.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 #include <sys/types.h>
 #include <sys/queue.h>

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/share/examples/netgraph/udp.tunnel,v 1.2.30.1 2009/04/15 03:14:26 kensmith Exp $
 
 # This script sets up a virtual point-to-point WAN link between
 # two subnets, using UDP packets as the ``WAN connection.''

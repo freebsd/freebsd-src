@@ -29,7 +29,7 @@
  *
  *	$Id: curses.c,v 1.10 1999/12/13 21:25:25 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnmonitor/curses.c,v 1.2.34.1 2009/04/15 03:14:26 kensmith Exp $
  *
  *      last edit-date: [Mon Dec 13 21:51:47 1999]
  *

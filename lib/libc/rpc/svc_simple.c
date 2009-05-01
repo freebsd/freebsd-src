@@ -34,7 +34,7 @@
 
 /* #pragma ident	"@(#)svc_simple.c	1.18	94/04/24 SMI" */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/svc_simple.c,v 1.16.8.1 2009/04/15 03:14:26 kensmith Exp $");
 
 /*
  * svc_simple.c

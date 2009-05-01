@@ -27,7 +27,7 @@
  *	FSM for isdnd
  *	-------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/fsm.c,v 1.10.8.1 2009/04/15 03:14:26 kensmith Exp $
  *
  *      last edit-date: [Sat May 13 13:06:40 2006]
  *

@@ -1,5 +1,5 @@
 /*	$NetBSD: if_arcsubr.c,v 1.36 2001/06/14 05:44:23 itojun Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/net/if_arcsubr.c,v 1.30.8.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1994, 1995 Ignatios Souvatzis

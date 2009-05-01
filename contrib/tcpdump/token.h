@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/token.h,v 1.4.28.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #define TOKEN_HDRLEN		14

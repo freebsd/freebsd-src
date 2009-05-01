@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/proc.h,v 1.491.2.12.2.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _SYS_PROC_H_

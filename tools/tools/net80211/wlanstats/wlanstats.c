@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/net80211/wlanstats/wlanstats.c,v 1.4.2.1.6.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /*

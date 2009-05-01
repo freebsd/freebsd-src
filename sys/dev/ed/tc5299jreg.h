@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ed/tc5299jreg.h,v 1.1.10.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 /* Tamarack TC5299J */

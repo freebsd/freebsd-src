@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mdef.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/m4/mdef.h,v 1.10.34.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #define MACRTYPE        1

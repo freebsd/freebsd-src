@@ -1,5 +1,5 @@
 #! @LOCALPREFIX@/bin/perl
-# $FreeBSD$
+# $FreeBSD: src/sbin/setkey/scriptdump.pl,v 1.4.26.1 2009/04/15 03:14:26 kensmith Exp $
 
 if ($< != 0) {
 	print STDERR "must be root to invoke this\n";

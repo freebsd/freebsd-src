@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/printlog.c,v 1.5.8.1 2009/04/15 03:14:26 kensmith Exp $	*/
 
 /*
  * Copyright (C) 2000-2005 by Darren Reed.

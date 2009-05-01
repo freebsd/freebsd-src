@@ -98,7 +98,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(keepId, "$FreeBSD$")
+libId(keepId, "$FreeBSD: src/gnu/usr.bin/rcs/lib/rcskeep.c,v 1.8.54.1 2009/04/15 03:14:26 kensmith Exp $")
 
 static int badly_terminated P((void));
 static int checknum P((char const*));

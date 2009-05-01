@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: sdp.h,v 1.3 2003/09/05 00:33:59 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libsdp/sdp.h,v 1.7.2.2.4.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _SDP_H_

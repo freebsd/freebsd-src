@@ -1,4 +1,4 @@
-$ $FreeBSD$
+$ $FreeBSD: src/lib/libc/nls/C.msg,v 1.1.20.1 2009/04/15 03:14:26 kensmith Exp $
 $
 $ Message catalog for C locale (template)
 $

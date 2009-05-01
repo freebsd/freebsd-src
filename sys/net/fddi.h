@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_fddi.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/fddi.h,v 1.15.8.1 2009/04/15 03:14:26 kensmith Exp $
  */
 
 #ifndef _NETINET_IF_FDDI_H_

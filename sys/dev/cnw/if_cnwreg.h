@@ -1,5 +1,5 @@
 /*	$NetBSD: if_cnwreg.h,v 1.3 2000/07/05 18:42:19 itojun Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/cnw/if_cnwreg.h,v 1.1.34.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

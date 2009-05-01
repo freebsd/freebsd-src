@@ -33,7 +33,7 @@ static const char rcsid[] _U_ =
     "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.253.2.13 2007/09/12 19:48:51 guy Exp $ (LBL)";
 #endif
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tcpdump/tcpdump.c,v 1.11.2.2.6.1 2009/04/15 03:14:26 kensmith Exp $ */
 
 /*
  * tcpdump - monitor tcp/ip traffic on an ethernet.
