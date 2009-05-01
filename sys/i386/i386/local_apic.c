@@ -954,11 +954,15 @@ apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 u_int
 apic_idt_to_irq(u_int apic_id, u_int vector)
 {
+	int irq;
 
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
-	return (lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS]);
+	irq = lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS];
+	if (irq < 0)
+		irq = 0;
+	return (irq);
 }
 
 #ifdef DDB
