@@ -279,8 +279,6 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 					continue;
 			}
 
-			INP_RLOCK(inp);
-
 			/*
 			 * Handle socket delivery policy for any-source
 			 * and source-specific multicast. [RFC3678]
@@ -289,6 +287,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			if (imo && IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 				struct sockaddr_in6	 mcaddr;
 				int			 blocked;
+
+				INP_RLOCK(inp);
 
 				bzero(&mcaddr, sizeof(struct sockaddr_in6));
 				mcaddr.sin6_len = sizeof(struct sockaddr_in6);
@@ -304,9 +304,11 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 					if (blocked == MCAST_NOTSMEMBER ||
 					    blocked == MCAST_MUTED)
 						UDPSTAT_INC(udps_filtermcast);
-					INP_RUNLOCK(inp);
+					INP_RUNLOCK(inp); /* XXX */
 					continue;
 				}
+
+				INP_RUNLOCK(inp);
 			}
 			if (last != NULL) {
 				struct mbuf *n;
@@ -423,8 +425,6 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 
 badheadlocked:
-	if (inp)
-		INP_RUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_udbinfo);
 badunlocked:
 	if (m)
