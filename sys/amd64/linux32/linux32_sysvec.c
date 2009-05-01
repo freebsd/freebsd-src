@@ -128,7 +128,7 @@ static void	exec_linux_setregs(struct thread *td, u_long entry,
 static void	linux32_fixlimit(struct rlimit *rl, int which);
 
 extern LIST_HEAD(futex_list, futex) futex_list;
-extern struct sx futex_sx;
+extern struct mtx futex_mtx;
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_schedtail_tag;
@@ -1117,7 +1117,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			mtx_init(&emul_lock, "emuldata lock", NULL, MTX_DEF);
 			sx_init(&emul_shared_lock, "emuldata->shared lock");
 			LIST_INIT(&futex_list);
-			sx_init(&futex_sx, "futex protection lock");
+			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
 			    linux_proc_exit, NULL, 1000);
 			linux_schedtail_tag = EVENTHANDLER_REGISTER(schedtail,
@@ -1149,7 +1149,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_device_unregister_handler(*ldhp);
 			mtx_destroy(&emul_lock);
 			sx_destroy(&emul_shared_lock);
-			sx_destroy(&futex_sx);
+			mtx_destroy(&futex_mtx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
 			EVENTHANDLER_DEREGISTER(schedtail, linux_schedtail_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
