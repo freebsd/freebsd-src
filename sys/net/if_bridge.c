@@ -893,29 +893,6 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	if (!gone) {
-		switch (ifs->if_type) {
-		case IFT_ETHER:
-		case IFT_L2VLAN:
-			/*
-			 * Take the interface out of promiscuous mode.
-			 */
-			(void) ifpromisc(ifs, 0);
-			break;
-
-		case IFT_GIF:
-			break;
-
-		default:
-#ifdef DIAGNOSTIC
-			panic("bridge_delete_member: impossible");
-#endif
-			break;
-		}
-		/* reneable any interface capabilities */
-		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
-	}
-
 	if (bif->bif_flags & IFBIF_STP)
 		bstp_disable(&bif->bif_stp);
 
@@ -948,6 +925,28 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	    ("%s: %d bridge routes referenced", __func__, bif->bif_addrcnt));
 
 	BRIDGE_UNLOCK(sc);
+	if (!gone) {
+		switch (ifs->if_type) {
+		case IFT_ETHER:
+		case IFT_L2VLAN:
+			/*
+			 * Take the interface out of promiscuous mode.
+			 */
+			(void) ifpromisc(ifs, 0);
+			break;
+
+		case IFT_GIF:
+			break;
+
+		default:
+#ifdef DIAGNOSTIC
+			panic("bridge_delete_member: impossible");
+#endif
+			break;
+		}
+		/* reneable any interface capabilities */
+		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
+	}
 	bstp_destroy(&bif->bif_stp);	/* prepare to free */
 	BRIDGE_LOCK(sc);
 	free(bif, M_DEVBUF);
@@ -1017,17 +1016,9 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	switch (ifs->if_type) {
 	case IFT_ETHER:
 	case IFT_L2VLAN:
-		/*
-		 * Place the interface into promiscuous mode.
-		 */
-		error = ifpromisc(ifs, 1);
-		if (error)
-			goto out;
-		break;
-
 	case IFT_GIF:
+		/* permitted interface types */
 		break;
-
 	default:
 		error = EINVAL;
 		goto out;
@@ -1055,6 +1046,20 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 
 	/* Set interface capabilities to the intersection set of all members */
 	bridge_mutecaps(sc);
+
+	switch (ifs->if_type) {
+	case IFT_ETHER:
+	case IFT_L2VLAN:
+		/*
+		 * Place the interface into promiscuous mode.
+		 */
+		BRIDGE_UNLOCK(sc);
+		error = ifpromisc(ifs, 1);
+		BRIDGE_LOCK(sc);
+		break;
+	}
+	if (error)
+		bridge_delete_member(sc, bif, 0);
 out:
 	if (error) {
 		if (bif != NULL)
