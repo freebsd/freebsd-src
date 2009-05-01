@@ -190,6 +190,13 @@ atrtc_attach(device_t dev)
 	return(0);
 }
 
+static int
+atrtc_resume(device_t dev)
+{
+
+	atrtc_restore();
+	return(0);
+}
 
 static int
 atrtc_settime(device_t dev __unused, struct timespec *ts)
@@ -264,8 +271,7 @@ static device_method_t atrtc_methods[] = {
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 		/* XXX stop statclock? */
-	DEVMETHOD(device_resume,	bus_generic_resume),
-		/* XXX restart statclock? */
+	DEVMETHOD(device_resume,	atrtc_resume),
 
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	atrtc_gettime),
