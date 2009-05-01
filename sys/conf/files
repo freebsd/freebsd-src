@@ -1604,6 +1604,7 @@ dev/usb/net/usb_ethernet.c \
 # USB WLAN drivers
 #
 dev/usb/wlan/if_rum.c		optional rum
+dev/usb/wlan/if_uath.c		optional uath
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_zyd.c		optional zyd
 #
