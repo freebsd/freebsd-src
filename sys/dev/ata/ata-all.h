@@ -584,6 +584,7 @@ void ata_finish(struct ata_request *request);
 void ata_timeout(struct ata_request *);
 void ata_catch_inflight(device_t dev);
 void ata_fail_requests(device_t dev);
+void ata_drop_requests(device_t dev);
 char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
