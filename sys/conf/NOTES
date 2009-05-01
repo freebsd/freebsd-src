@@ -2474,14 +2474,17 @@ device		rue
 device		udav
 
 #
-# ZyDas ZD1211/ZD1211B wireless ethernet driver
-device		zyd
+# Ralink Technology RT2501USB/RT2601USB wireless driver
+device		rum
 #
-# Ralink Technology RT2500USB chispet driver
+# Atheros AR5523 wireless driver
+device		uath
+#
+# Ralink Technology RT2500USB wireless driver
 device		ural
 #
-# Ralink Technology RT2501USB/RT2601USB chispet driver
-device		rum
+# ZyDas ZD1211/ZD1211B wireless driver
+device		zyd
 
 # 
 # debugging options for the USB subsystem
