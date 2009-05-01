@@ -376,6 +376,17 @@ set_i8254_freq(u_int freq, int intr_freq)
 	mtx_unlock_spin(&clock_lock);
 }
 
+static void
+i8254_restore(void)
+{
+
+	mtx_lock_spin(&clock_lock);
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+	outb(TIMER_CNTR0, i8254_real_max_count & 0xff);
+	outb(TIMER_CNTR0, i8254_real_max_count >> 8);
+	mtx_unlock_spin(&clock_lock);
+}
+
 /* This is separate from startrtclock() so that it can be called early. */
 void
 i8254_init(void)
@@ -558,6 +569,14 @@ attimer_attach(device_t dev)
 	return(0);
 }
 
+static int
+attimer_resume(device_t dev)
+{
+
+	i8254_restore();
+	return(0);
+}
+
 static device_method_t attimer_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		attimer_probe),
@@ -565,7 +584,7 @@ static device_method_t attimer_methods[] = {
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_resume,	attimer_resume),
 	{ 0, 0 }
 };
 
