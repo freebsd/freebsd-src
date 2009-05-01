@@ -800,6 +800,11 @@ TDMA_BINTVAL_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11B_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11G_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11A_DEFAULT	opt_tdma.h
+TDMA_TXRATE_TURBO_DEFAULT	opt_tdma.h
+TDMA_TXRATE_HALF_DEFAULT	opt_tdma.h
+TDMA_TXRATE_QUARTER_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11NA_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11NG_DEFAULT	opt_tdma.h
 
 # Virtualize the network stack
 VIMAGE			opt_global.h
