@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090504:
+	FreeBSD 7.2-RELEASE
+
 20090326:
 	Following bug-fixes to TCP connection state flags, netstat, systat,
 	and sockstat will need to be rebuilt in order to properly print
