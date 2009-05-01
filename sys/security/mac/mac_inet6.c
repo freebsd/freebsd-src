@@ -71,11 +71,11 @@ mac_ip6q_label_alloc(int flag)
 		return (NULL);
 
 	if (flag & M_WAITOK)
-		MAC_CHECK(ip6q_init_label, label, flag);
+		MAC_POLICY_CHECK(ip6q_init_label, label, flag);
 	else
-		MAC_CHECK_NOSLEEP(ip6q_init_label, label, flag);
+		MAC_POLICY_CHECK_NOSLEEP(ip6q_init_label, label, flag);
 	if (error) {
-		MAC_PERFORM_NOSLEEP(ip6q_destroy_label, label);
+		MAC_POLICY_PERFORM_NOSLEEP(ip6q_destroy_label, label);
 		mac_labelzone_free(label);
 		return (NULL);
 	}
@@ -99,7 +99,7 @@ static void
 mac_ip6q_label_free(struct label *label)
 {
 
-	MAC_PERFORM_NOSLEEP(ip6q_destroy_label, label);
+	MAC_POLICY_PERFORM_NOSLEEP(ip6q_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -120,7 +120,8 @@ mac_ip6q_reassemble(struct ip6q *q6, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM_NOSLEEP(ip6q_reassemble, q6, q6->ip6q_label, m, label);
+	MAC_POLICY_PERFORM_NOSLEEP(ip6q_reassemble, q6, q6->ip6q_label, m,
+	    label);
 }
 
 void
@@ -130,7 +131,8 @@ mac_ip6q_create(struct mbuf *m, struct ip6q *q6)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM_NOSLEEP(ip6q_create, m, label, q6, q6->ip6q_label);
+	MAC_POLICY_PERFORM_NOSLEEP(ip6q_create, m, label, q6,
+	    q6->ip6q_label);
 }
 
 int
@@ -142,7 +144,8 @@ mac_ip6q_match(struct mbuf *m, struct ip6q *q6)
 	label = mac_mbuf_to_label(m);
 
 	result = 1;
-	MAC_BOOLEAN_NOSLEEP(ip6q_match, &&, m, label, q6, q6->ip6q_label);
+	MAC_POLICY_BOOLEAN_NOSLEEP(ip6q_match, &&, m, label, q6,
+	    q6->ip6q_label);
 
 	return (result);
 }
@@ -154,7 +157,8 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM_NOSLEEP(ip6q_update, m, label, q6, q6->ip6q_label);
+	MAC_POLICY_PERFORM_NOSLEEP(ip6q_update, m, label, q6,
+	    q6->ip6q_label);
 }
 
 void
@@ -164,6 +168,6 @@ mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)
 
 	mlabel = mac_mbuf_to_label(m);
 
-	MAC_PERFORM_NOSLEEP(netinet6_nd6_send, ifp, ifp->if_label, m,
+	MAC_POLICY_PERFORM_NOSLEEP(netinet6_nd6_send, ifp, ifp->if_label, m,
 	    mlabel);
 }
