@@ -112,7 +112,7 @@ struct lapic {
 	u_long la_stat_ticks;
 	u_long la_prof_ticks;
 	/* Include IDT_SYSCALL to make indexing easier. */
-	u_int la_ioint_irqs[APIC_NUM_IOINTS + 1];
+	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
 
 /* XXX: should thermal be an NMI? */
@@ -256,6 +256,8 @@ lapic_create(u_int apic_id, int boot_cpu)
 		lapics[apic_id].la_lvts[i] = lvts[i];
 		lapics[apic_id].la_lvts[i].lvt_active = 0;
 	}
+	for (i = 0; i <= APIC_NUM_IOINTS; i++)
+	    lapics[apic_id].la_ioint_irqs[i] = -1;
 	lapics[apic_id].la_ioint_irqs[IDT_SYSCALL - APIC_IO_INTS] = IRQ_SYSCALL;
 	lapics[apic_id].la_ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] =
 	    IRQ_TIMER;
@@ -365,9 +367,13 @@ int
 lapic_setup_clock(void)
 {
 	u_long value;
+	int i;
 
 	/* Can't drive the timer without a local APIC. */
 	if (lapic == NULL)
+		return (0);
+
+	if (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0)
 		return (0);
 
 	/* Start off with a divisor of 2 (power on reset default). */
@@ -809,7 +815,7 @@ apic_alloc_vector(u_int apic_id, u_int irq)
 	 */
 	mtx_lock_spin(&icu_lock);
 	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
-		if (lapics[apic_id].la_ioint_irqs[vector] != 0)
+		if (lapics[apic_id].la_ioint_irqs[vector] != -1)
 			continue;
 		lapics[apic_id].la_ioint_irqs[vector] = irq;
 		mtx_unlock_spin(&icu_lock);
@@ -849,7 +855,7 @@ apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
 	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
 
 		/* Vector is in use, end run. */
-		if (lapics[apic_id].la_ioint_irqs[vector] != 0) {
+		if (lapics[apic_id].la_ioint_irqs[vector] != -1) {
 			run = 0;
 			first = 0;
 			continue;
@@ -936,7 +942,7 @@ apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 	sched_bind(td, apic_cpuid(apic_id));
 	thread_unlock(td);
 	mtx_lock_spin(&icu_lock);
-	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = 0;
+	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = -1;
 	mtx_unlock_spin(&icu_lock);
 	thread_lock(td);
 	sched_unbind(td);
@@ -978,7 +984,7 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 		db_printf("Interrupts bound to lapic %u\n", apic_id);
 		for (i = 0; i < APIC_NUM_IOINTS + 1 && !db_pager_quit; i++) {
 			irq = lapics[apic_id].la_ioint_irqs[i];
-			if (irq == 0 || irq == IRQ_SYSCALL)
+			if (irq == -1 || irq == IRQ_SYSCALL)
 				continue;
 			db_printf("vec 0x%2x -> ", i + APIC_IO_INTS);
 			if (irq == IRQ_TIMER)
