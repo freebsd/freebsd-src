@@ -284,21 +284,12 @@ _db_show_sta(const struct ieee80211_node *ni)
 static void
 _db_show_tdma(const char *sep, const struct ieee80211_tdma_state *ts, int showprocs)
 {
-	const char *cp;
-	int i;
-
 	db_printf("%stdma %p:\n", sep, ts);
-	db_printf("%s  features %b version %u slot %u txrate %u bintval %u peer %p\n", sep,
-	    ts->tdma_features, TDMA_F_BITS, ts->tdma_version, ts->tdma_slot,
-	    ts->tdma_txrate, ts->tdma_bintval, ts->tdma_peer);
-	db_printf("%s  slotlen %u slotcnt %u bw[", sep,
+	db_printf("%s  version %u slot %u bintval %u peer %p\n", sep,
+	    ts->tdma_version, ts->tdma_slot, ts->tdma_bintval, ts->tdma_peer);
+	db_printf("%s  slotlen %u slotcnt %u", sep,
 	    ts->tdma_slotlen, ts->tdma_slotcnt);
-	cp = "";
-	for (i = 0; i < TDMA_MAXSLOTS; i++) {
-		db_printf("%s%u", cp, ts->tdma_bw[i]);
-		cp = ":";
-	}
-	db_printf("] inuse 0x%x active 0x%x count %d\n",
+	db_printf(" inuse 0x%x active 0x%x count %d\n",
 	    ts->tdma_inuse[0], ts->tdma_active[0], ts->tdma_count);
 	if (showprocs) {
 		DB_PRINTSYM(sep, "  tdma_newstate", ts->tdma_newstate);
