@@ -54,12 +54,6 @@ struct rum_tx_radiotap_header {
 
 struct rum_softc;
 
-struct rum_task {
-	struct usb2_proc_msg	hdr;
-	usb2_proc_callback_t	*func;
-	struct rum_softc	*sc;
-};
-
 struct rum_tx_data {
 	STAILQ_ENTRY(rum_tx_data)	next;
 	struct rum_softc		*sc;
@@ -78,11 +72,10 @@ struct rum_node {
 
 struct rum_vap {
 	struct ieee80211vap		vap;
-	struct rum_softc		*sc;
 	struct ieee80211_beacon_offsets	bo;
 	struct ieee80211_amrr		amrr;
 	struct usb2_callout		amrr_ch;
-	struct rum_task			amrr_task[2];
+	struct task			amrr_task;
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
@@ -99,24 +92,11 @@ struct rum_softc {
 	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
 	struct usb2_device		*sc_udev;
-	struct usb2_process		sc_tq;
 
 	struct usb2_xfer		*sc_xfer[RUM_N_TRANSFER];
-	struct rum_task			*sc_last_task;
 
 	uint8_t				rf_rev;
 	uint8_t				rffreq;
-
-	enum ieee80211_state		sc_state;
-	int				sc_arg;
-	struct rum_task			sc_synctask[2];
-	struct rum_task			sc_task[2];
-	struct rum_task			sc_promisctask[2];
-	struct rum_task			sc_scantask[2];
-	int				sc_scan_action;
-#define RUM_SCAN_START	0
-#define RUM_SCAN_END	1
-#define RUM_SET_CHANNEL	2
 
 	struct rum_tx_data		tx_data[RUM_TX_LIST_COUNT];
 	rum_txdhead			tx_q;
@@ -124,7 +104,6 @@ struct rum_softc {
 	int				tx_nfree;
 	struct rum_rx_desc		sc_rx_desc;
 
-	struct cv			sc_cmd_cv;
 	struct mtx			sc_mtx;
 
 	uint32_t			sta[6];

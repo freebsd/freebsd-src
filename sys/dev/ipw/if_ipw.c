@@ -118,10 +118,6 @@ static void	ipw_media_status(struct ifnet *, struct ifmediareq *);
 static int	ipw_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static uint16_t	ipw_read_prom_word(struct ipw_softc *, uint8_t);
 static void	ipw_rx_cmd_intr(struct ipw_softc *, struct ipw_soft_buf *);
-static void	ipw_assocsuccess(void *, int);
-static void	ipw_assocfailed(void *, int);
-static void	ipw_scandone(void *, int);
-static void	ipw_bmiss(void *, int);
 static void	ipw_rx_newstate_intr(struct ipw_softc *, struct ipw_soft_buf *);
 static void	ipw_rx_data_intr(struct ipw_softc *, struct ipw_status *,
 		    struct ipw_soft_bd *, struct ipw_soft_buf *);
@@ -147,8 +143,8 @@ static int	ipw_reset(struct ipw_softc *);
 static int	ipw_load_ucode(struct ipw_softc *, const char *, int);
 static int	ipw_load_firmware(struct ipw_softc *, const char *, int);
 static int	ipw_config(struct ipw_softc *);
-static void	ipw_assoc_task(void *, int);
-static void	ipw_disassoc_task(void *, int);
+static void	ipw_assoc(struct ieee80211com *, struct ieee80211vap *);
+static void	ipw_disassoc(struct ieee80211com *, struct ieee80211vap *);
 static void	ipw_init_task(void *, int);
 static void	ipw_init(void *);
 static void	ipw_init_locked(struct ipw_softc *);
@@ -166,7 +162,6 @@ static void	ipw_read_mem_1(struct ipw_softc *, bus_size_t, uint8_t *,
 #endif
 static void	ipw_write_mem_1(struct ipw_softc *, bus_size_t,
 		    const uint8_t *, bus_size_t);
-static void	ipw_scan_task(void *, int);
 static int	ipw_scan(struct ipw_softc *);
 static void	ipw_scan_start(struct ieee80211com *);
 static void	ipw_scan_end(struct ieee80211com *);
@@ -239,8 +234,6 @@ ipw_attach(device_t dev)
 	    MTX_DEF | MTX_RECURSE);
 
 	TASK_INIT(&sc->sc_init_task, 0, ipw_init_task, sc);
-	TASK_INIT(&sc->sc_scan_task, 0, ipw_scan_task, sc);
-	TASK_INIT(&sc->sc_bmiss_task, 0, ipw_bmiss, sc);
 	callout_init_mtx(&sc->sc_wdtimer, &sc->sc_mtx, 0);
 
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
@@ -417,9 +410,7 @@ ipw_detach(device_t dev)
 	ieee80211_ifdetach(ic);
 
 	callout_drain(&sc->sc_wdtimer);
-	taskqueue_drain(taskqueue_swi, &sc->sc_init_task);
-	taskqueue_drain(taskqueue_swi, &sc->sc_scan_task);
-	taskqueue_drain(taskqueue_swi, &sc->sc_bmiss_task);
+	ieee80211_draintask(ic, &sc->sc_init_task);
 
 	ipw_release(sc);
 
@@ -510,12 +501,6 @@ ipw_vap_create(struct ieee80211com *ic,
 	if (ivp == NULL)
 		return NULL;
 	vap = &ivp->vap;
-
-	TASK_INIT(&ivp->assoc_task, 0, ipw_assoc_task, vap);
-	TASK_INIT(&ivp->disassoc_task, 0, ipw_disassoc_task, vap);
-	TASK_INIT(&ivp->assoc_success_task, 0, ipw_assocsuccess, vap);
-	TASK_INIT(&ivp->assoc_failed_task, 0, ipw_assocfailed, vap);
-	TASK_INIT(&ivp->scandone_task, 0, ipw_scandone, vap);
 
 	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
 	/* override with driver methods */
@@ -894,10 +879,14 @@ ipw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ipw_softc *sc = ifp->if_softc;
+	enum ieee80211_state ostate;
 
 	DPRINTF(("%s: %s -> %s flags 0x%x\n", __func__,
 		ieee80211_state_name[vap->iv_state],
 		ieee80211_state_name[nstate], sc->flags));
+
+	ostate = vap->iv_state;
+	IEEE80211_UNLOCK(ic);
 
 	switch (nstate) {
 	case IEEE80211_S_RUN:
@@ -910,39 +899,33 @@ ipw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * AUTH -> RUN transition and we want to do nothing.
 			 * This is all totally bogus and needs to be redone.
 			 */
-			if (vap->iv_state == IEEE80211_S_SCAN) {
-				taskqueue_enqueue(taskqueue_swi,
-				    &IPW_VAP(vap)->assoc_task);
-				return EINPROGRESS;
-			}
+			if (ostate == IEEE80211_S_SCAN)
+				ipw_assoc(ic, vap);
 		}
 		break;
 
 	case IEEE80211_S_INIT:
 		if (sc->flags & IPW_FLAG_ASSOCIATED)
-			taskqueue_enqueue(taskqueue_swi,
-			    &IPW_VAP(vap)->disassoc_task);
+			ipw_disassoc(ic, vap);
 		break;
 
 	case IEEE80211_S_AUTH:
-		taskqueue_enqueue(taskqueue_swi, &IPW_VAP(vap)->assoc_task);
-		return EINPROGRESS;
+		ipw_assoc(ic, vap);
+		break;
 
 	case IEEE80211_S_ASSOC:
 		/*
 		 * If we are not transitioning from AUTH the resend the
 		 * association request.
 		 */
-		if (vap->iv_state != IEEE80211_S_AUTH) {
-			taskqueue_enqueue(taskqueue_swi,
-			    &IPW_VAP(vap)->assoc_task);
-			return EINPROGRESS;
-		}
+		if (ostate != IEEE80211_S_AUTH)
+			ipw_assoc(ic, vap);
 		break;
 
 	default:
 		break;
 	}
+	IEEE80211_LOCK(ic);
 	return ivp->newstate(vap, nstate, arg);
 }
 
@@ -1020,38 +1003,6 @@ ipw_rx_cmd_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 }
 
 static void
-ipw_assocsuccess(void *arg, int npending)
-{
-	struct ieee80211vap *vap = arg;
-
-	ieee80211_new_state(vap, IEEE80211_S_RUN, -1);
-}
-
-static void
-ipw_assocfailed(void *arg, int npending)
-{
-	struct ieee80211vap *vap = arg;
-
-	ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
-}
-
-static void
-ipw_scandone(void *arg, int npending)
-{
-	struct ieee80211vap *vap = arg;
-
-	ieee80211_scan_done(vap);
-}
-
-static void
-ipw_bmiss(void *arg, int npending)
-{
-	struct ieee80211com *ic = arg;
-
-	ieee80211_beacon_miss(ic);
-}
-
-static void
 ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 {
 #define	IEEESTATE(vap)	ieee80211_state_name[vap->iv_state]
@@ -1076,8 +1027,7 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 		}
 		sc->flags &= ~IPW_FLAG_ASSOCIATING;
 		sc->flags |= IPW_FLAG_ASSOCIATED;
-		taskqueue_enqueue(taskqueue_swi,
-		    &IPW_VAP(vap)->assoc_success_task);
+		ieee80211_new_state(vap, IEEE80211_S_RUN, -1);
 		break;
 
 	case IPW_STATE_SCANNING:
@@ -1091,7 +1041,7 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 		 */
 		if (sc->flags & IPW_FLAG_ASSOCIATED) {
 			/* XXX probably need to issue disassoc to fw */
-			taskqueue_enqueue(taskqueue_swi, &sc->sc_bmiss_task);
+			ieee80211_beacon_miss(ic);
 		}
 		break;
 
@@ -1110,8 +1060,7 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 			break;
 		}
 		if (sc->flags & IPW_FLAG_SCANNING) {
-			taskqueue_enqueue(taskqueue_swi,
-			    &IPW_VAP(vap)->scandone_task);
+			ieee80211_scan_done(vap);
 			sc->flags &= ~IPW_FLAG_SCANNING;
 			sc->sc_scan_timer = 0;
 		}
@@ -1122,8 +1071,7 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 			IEEESTATE(vap), sc->flags));
 		sc->flags &= ~(IPW_FLAG_ASSOCIATING | IPW_FLAG_ASSOCIATED);
 		if (vap->iv_state == IEEE80211_S_RUN)
-			taskqueue_enqueue(taskqueue_swi,
-			    &IPW_VAP(vap)->assoc_failed_task);
+			ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
 		break;
 
 	case IPW_STATE_DISABLED:
@@ -1432,6 +1380,16 @@ ipw_tx_intr(struct ipw_softc *sc)
 }
 
 static void
+ipw_fatal_error_intr(struct ipw_softc *sc)
+{
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	device_printf(sc->sc_dev, "firmware error\n");
+	ieee80211_runtask(ic, &sc->sc_init_task);
+}
+
+static void
 ipw_intr(void *arg)
 {
 	struct ipw_softc *sc = arg;
@@ -1440,10 +1398,9 @@ ipw_intr(void *arg)
 
 	IPW_LOCK(sc);
 
-	if ((r = CSR_READ_4(sc, IPW_CSR_INTR)) == 0 || r == 0xffffffff) {
-		IPW_UNLOCK(sc);
-		return;
-	}
+	r = CSR_READ_4(sc, IPW_CSR_INTR);
+	if (r == 0 || r == 0xffffffff)
+		goto done;
 
 	/* disable interrupts */
 	CSR_WRITE_4(sc, IPW_CSR_INTR_MASK, 0);
@@ -1452,9 +1409,8 @@ ipw_intr(void *arg)
 	CSR_WRITE_4(sc, IPW_CSR_INTR, r);
 
 	if (r & (IPW_INTR_FATAL_ERROR | IPW_INTR_PARITY_ERROR)) {
-		device_printf(sc->sc_dev, "firmware error\n");
-		taskqueue_enqueue(taskqueue_swi, &sc->sc_init_task);
-		r = 0;	/* don't process more interrupts */
+		ipw_fatal_error_intr(sc);
+		goto done;
 	}
 
 	if (r & IPW_INTR_FW_INIT_DONE)
@@ -1468,7 +1424,7 @@ ipw_intr(void *arg)
 
 	/* re-enable interrupts */
 	CSR_WRITE_4(sc, IPW_CSR_INTR_MASK, IPW_INTR_MASK);
-
+done:
 	IPW_UNLOCK(sc);
 }
 
@@ -2181,20 +2137,6 @@ ipw_setscanopts(struct ipw_softc *sc, uint32_t chanmask, uint32_t flags)
 	return ipw_cmd(sc, IPW_CMD_SET_SCAN_OPTIONS, &opts, sizeof(opts));
 }
 
-/*
- * Handler for sc_scan_task.  This is a simple wrapper around ipw_scan().
- */
-static void
-ipw_scan_task(void *context, int pending)
-{
-	struct ipw_softc *sc = context;
-	IPW_LOCK_DECL;
-
-	IPW_LOCK(sc);
-	ipw_scan(sc);
-	IPW_UNLOCK(sc);
-}
-
 static int
 ipw_scan(struct ipw_softc *sc)
 {
@@ -2258,11 +2200,9 @@ ipw_setchannel(struct ipw_softc *sc, struct ieee80211_channel *chan)
 }
 
 static void
-ipw_assoc_task(void *context, int pending)
+ipw_assoc(struct ieee80211com *ic, struct ieee80211vap *vap)
 {
-	struct ieee80211vap *vap = context;
 	struct ifnet *ifp = vap->iv_ic->ic_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ipw_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct ipw_security security;
@@ -2353,9 +2293,8 @@ done:
 }
 
 static void
-ipw_disassoc_task(void *context, int pending)
+ipw_disassoc(struct ieee80211com *ic, struct ieee80211vap *vap)
 {
-	struct ieee80211vap *vap = context;
 	struct ifnet *ifp = vap->iv_ic->ic_ifp;
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct ipw_softc *sc = ifp->if_softc;
@@ -2729,8 +2668,7 @@ ipw_scan_start(struct ieee80211com *ic)
 	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
-	if (!(sc->flags & IPW_FLAG_SCANNING))
-		taskqueue_enqueue(taskqueue_swi, &sc->sc_scan_task);
+	ipw_scan(sc);
 	IPW_UNLOCK(sc);
 }
 

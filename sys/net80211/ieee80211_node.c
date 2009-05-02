@@ -629,16 +629,18 @@ ieee80211_sync_curchan(struct ieee80211com *ic)
 		ic->ic_curchan = c;
 		ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
 		ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
+		IEEE80211_UNLOCK(ic);
 		ic->ic_set_channel(ic);
+		IEEE80211_LOCK(ic);
 	}
 }
 
 /*
- * Change the current channel.  The request channel may be
+ * Setup the current channel.  The request channel may be
  * promoted if other vap's are operating with HT20/HT40.
  */
 void
-ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
+ieee80211_setupcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 {
 	if (ic->ic_htcaps & IEEE80211_HTC_HT) {
 		int flags = gethtadjustflags(ic);
@@ -654,7 +656,17 @@ ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 	ic->ic_bsschan = ic->ic_curchan = c;
 	ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
 	ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
-	ic->ic_set_channel(ic);
+}
+
+/*
+ * Change the current channel.  The channel change is guaranteed to have
+ * happened before the next state change.
+ */
+void
+ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
+{
+	ieee80211_setupcurchan(ic, c);
+	ieee80211_runtask(ic, &ic->ic_chan_task);
 }
 
 /*
