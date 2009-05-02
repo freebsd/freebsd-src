@@ -143,11 +143,13 @@
 >>18	leshort		91		picoJava,
 >>18	leshort		92		OpenRISC,
 >>18	leshort		93		ARC Cores Tangent-A5,
->>18	leshort		0x3426		OpenRISC (obsolete),
->>18	leshort		0x8472		OpenRISC (obsolete),
 >>18	leshort		94		Tensilica Xtensa,
 >>18	leshort		97		NatSemi 32k,
 >>18	leshort		106		Analog Devices Blackfin,
+>>18	leshort		113		Altera Nios II,
+>>18	leshort		0xae		META,
+>>18	leshort		0x3426		OpenRISC (obsolete),
+>>18	leshort		0x8472		OpenRISC (obsolete),
 >>18	leshort		0x9026		Alpha (unofficial),
 >>20	lelong		0		invalid version
 >>20	lelong		1		version 1
