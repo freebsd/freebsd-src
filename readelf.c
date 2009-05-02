@@ -26,6 +26,10 @@
  */
 #include "file.h"
 
+#ifndef lint
+FILE_RCSID("@(#)$File: readelf.c,v 1.81 2008/11/04 16:38:28 christos Exp $")
+#endif
+
 #ifdef BUILTIN_ELF
 #include <string.h>
 #include <ctype.h>
@@ -36,10 +40,6 @@
 
 #include "readelf.h"
 #include "magic.h"
-
-#ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.76 2008/07/16 18:00:57 christos Exp $")
-#endif
 
 #ifdef	ELFCORE
 private int dophn_core(struct magic_set *, int, int, int, off_t, int, size_t,
@@ -875,7 +875,7 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 
 			noff = 0;
 			for (;;) {
-				if (noff >= (size_t)xsh_size)
+				if (noff >= (off_t)xsh_size)
 					break;
 				noff = donote(ms, nbuf, (size_t)noff,
 				    (size_t)xsh_size, clazz, swap, 4,
@@ -907,8 +907,9 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 			for (;;) {
 				Elf32_Cap cap32;
 				Elf64_Cap cap64;
-				char cbuf[MAX(sizeof cap32, sizeof cap64)];
-				if ((coff += xcap_sizeof) >= (size_t)xsh_size)
+				char cbuf[/*CONSTCOND*/
+				    MAX(sizeof cap32, sizeof cap64)];
+				if ((coff += xcap_sizeof) >= (off_t)xsh_size)
 					break;
 				if (read(fd, cbuf, (size_t)xcap_sizeof) !=
 				    (ssize_t)xcap_sizeof) {
@@ -929,7 +930,8 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 					if (file_printf(ms,
 					    ", with unknown capability "
 					    "0x%llx = 0x%llx",
-					    xcap_tag, xcap_val) == -1)
+					    (unsigned long long)xcap_tag,
+					    (unsigned long long)xcap_val) == -1)
 						return -1;
 					break;
 				}
@@ -976,11 +978,12 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 			if (cap_hw1)
 				if (file_printf(ms,
 				    " unknown hardware capability 0x%llx",
-				    cap_hw1) == -1)
+				    (unsigned long long)cap_hw1) == -1)
 					return -1;
 		} else {
 			if (file_printf(ms,
-			    " hardware capability 0x%llx", cap_hw1) == -1)
+			    " hardware capability 0x%llx",
+			    (unsigned long long)cap_hw1) == -1)
 				return -1;
 		}
 	}
@@ -996,7 +999,7 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 		if (cap_sf1)
 			if (file_printf(ms,
 			    ", with unknown software capability 0x%llx",
-			    cap_sf1) == -1)
+			    (unsigned long long)cap_sf1) == -1)
 				return -1;
 	}
 	return 0;
@@ -1138,7 +1141,7 @@ file_tryelf(struct magic_set *ms, int fd, const unsigned char *buf,
 	Elf64_Ehdr elf64hdr;
 	uint16_t type;
 
-	if (ms->flags & MAGIC_MIME)
+	if (ms->flags & (MAGIC_MIME|MAGIC_APPLE))
 		return 0;
 	/*
 	 * ELF executables have multiple section headers in arbitrary
