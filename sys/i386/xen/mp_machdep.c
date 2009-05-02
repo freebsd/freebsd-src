@@ -142,6 +142,9 @@ int apic_cpuids[MAX_APIC_ID + 1];
 /* Holds pending bitmap based IPIs per CPU */
 static volatile u_int cpu_ipi_pending[MAXCPU];
 
+static int cpu_logical;
+static int cpu_cores;
+
 static void	assign_cpu_ids(void);
 static void	set_interrupt_apic_ids(void);
 int	start_all_aps(void);
