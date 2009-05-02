@@ -238,6 +238,15 @@ _db_show_sta(const struct ieee80211_node *ni)
 		ni->ni_ies.ath_ie);
 	db_printf("\t htcap_ie %p htinfo_ie %p]\n",
 		ni->ni_ies.htcap_ie, ni->ni_ies.htinfo_ie);
+	if (ni->ni_flags & IEEE80211_NODE_QOS) {
+		for (i = 0; i < WME_NUM_TID; i++) {
+			if (ni->ni_txseqs[i] || ni->ni_rxseqs[i])
+				db_printf("\t[%u] txseq %u rxseq %u fragno %u\n",
+				    i, ni->ni_txseqs[i],
+				    ni->ni_rxseqs[i] >> IEEE80211_SEQ_SEQ_SHIFT,
+				    ni->ni_rxseqs[i] & IEEE80211_SEQ_FRAG_MASK);
+		}
+	}
 	db_printf("\ttxseq %u rxseq %u fragno %u rxfragstamp %u\n",
 		ni->ni_txseqs[IEEE80211_NONQOS_TID],
 		ni->ni_rxseqs[IEEE80211_NONQOS_TID] >> IEEE80211_SEQ_SEQ_SHIFT,
@@ -271,8 +280,7 @@ _db_show_sta(const struct ieee80211_node *ni)
 		if (ni->ni_tx_ampdu[i].txa_flags & IEEE80211_AGGR_SETUP)
 			_db_show_txampdu("\t", i, &ni->ni_tx_ampdu[i]);
 	for (i = 0; i < WME_NUM_TID; i++)
-		if (ni->ni_rx_ampdu[i].rxa_nframes ||
-		    ni->ni_rx_ampdu[i].rxa_qframes)
+		if (ni->ni_rx_ampdu[i].rxa_flags)
 			_db_show_rxampdu("\t", i, &ni->ni_rx_ampdu[i]);
 
 	db_printf("\tinact %u inact_reload %u txrate %u\n",
