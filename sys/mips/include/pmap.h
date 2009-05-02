@@ -74,7 +74,7 @@ struct pv_entry;
 struct md_page {
 	int pv_list_count;
 	int pv_flags;
-	    TAILQ_HEAD(, pv_entry)pv_list;
+	TAILQ_HEAD(, pv_entry) pv_list;
 };
 
 #define	PV_TABLE_MOD		0x01	/* modified */
@@ -86,8 +86,8 @@ struct md_page {
 
 struct pmap {
 	pd_entry_t *pm_segtab;	/* KVA of segment table */
-	           TAILQ_HEAD(, pv_entry)pm_pvlist;	/* list of mappings in
-							 * pmap */
+	TAILQ_HEAD(, pv_entry) pm_pvlist;	/* list of mappings in
+						 * pmap */
 	int pm_active;		/* active on cpus */
 	struct {
 		u_int32_t asid:ASID_BITS;	/* TLB address space tag */
@@ -105,9 +105,11 @@ typedef struct pmap *pmap_t;
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
 pd_entry_t pmap_segmap(pmap_t pmap, vm_offset_t va);
 vm_offset_t pmap_kextract(vm_offset_t va);
-extern pmap_t kernel_pmap;
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+
+extern struct pmap	kernel_pmap_store;
+#define kernel_pmap	(&kernel_pmap_store)
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_ASSERT(pmap, type)	mtx_assert(&(pmap)->pm_mtx, (type))
@@ -132,8 +134,8 @@ extern pmap_t kernel_pmap;
 typedef struct pv_entry {
 	pmap_t pv_pmap;		/* pmap where mapping lies */
 	vm_offset_t pv_va;	/* virtual address for mapping */
-	            TAILQ_ENTRY(pv_entry)pv_list;
-	            TAILQ_ENTRY(pv_entry)pv_plist;
+	TAILQ_ENTRY(pv_entry) pv_list;
+	TAILQ_ENTRY(pv_entry) pv_plist;
 	vm_page_t pv_ptem;	/* VM page for pte */
 	boolean_t pv_wired;	/* whether this entry is wired */
 }       *pv_entry_t;
@@ -143,8 +145,6 @@ typedef struct pv_entry {
 #define	PMAP_DIAGNOSTIC
 #endif
 
-extern vm_offset_t avail_end;
-extern vm_offset_t avail_start;
 extern vm_offset_t phys_avail[];
 extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
