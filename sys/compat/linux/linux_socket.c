@@ -859,7 +859,10 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 		return (EINVAL);
 
 	bsd_args.type = args->type;
-	bsd_args.protocol = args->protocol;
+	if (bsd_args.domain == AF_LOCAL && args->protocol == PF_UNIX)
+		bsd_args.protocol = 0;
+	else
+		bsd_args.protocol = args->protocol;
 	bsd_args.rsv = (int *)PTRIN(args->rsv);
 	return (socketpair(td, &bsd_args));
 }
