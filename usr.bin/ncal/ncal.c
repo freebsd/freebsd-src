@@ -161,7 +161,7 @@ char jdaystr[] = "       1   2   3   4   5   6   7   8   9"
 int     flag_weeks;		/* user wants number of week */
 int     nswitch;		/* user defined switch date */
 int	nswitchb;		/* switch date for backward compatibility */
-const char	*term_r, *term_e;
+const char	*term_so, *term_se;
 int	today;
 
 char   *center(char *s, char *t, int w);
@@ -207,14 +207,14 @@ main(int argc, char *argv[])
 	time_t t;
 	struct tm *tm1;
 
-	term_e = term_r = NULL;
+	term_se = term_so = NULL;
 	today = 0;
 	if (isatty(STDOUT_FILENO) && tgetent(tbuf, NULL) == 1) {
 		date	dt;		/* handy date */
 
 		b = cbuf;
-		term_r = tgetstr("so", &b);
-		term_e = tgetstr("se", &b);
+		term_so = tgetstr("so", &b);
+		term_se = tgetstr("se", &b);
 		t = time(NULL);
 		tm1 = localtime(&t);
 		dt.y = tm1->tm_year + 1900;
@@ -272,7 +272,7 @@ main(int argc, char *argv[])
 			flag_julian_cal = 1;
 			break;
 		case 'h':
-			term_r = term_e = NULL;
+			term_so = term_se = NULL;
 			break;
 		case 'e':
 			if (flag_backward)
@@ -382,10 +382,10 @@ usage(void)
 {
 
 	fputs(
-	    "usage: cal [-jy] [[month] year]\n"
-	    "       cal [-j] [-m month] [year]\n"
-	    "       ncal [-Jjpwy] [-s country_code] [[month] year]\n"
-	    "       ncal [-Jeo] [year]\n", stderr);
+	    "usage: cal [-hjy] [[month] year]\n"
+	    "       cal [-hj] [-m month] [year]\n"
+	    "       ncal [-hJjpwy] [-s country_code] [[month] year]\n"
+	    "       ncal [-hJeo] [year]\n", stderr);
 	exit(EX_USAGE);
 }
 
@@ -671,8 +671,8 @@ mkmonth(int y, int m, int jd_flag, struct monthlines *mlines)
 	for (i = 0; i != 7; i++) {
 		l = 0;
 		for (j = firstm + i, k = 0; j < last; j += 7, k += dw) {
-			if (j == today && (term_r != NULL && term_e != NULL)) {
-				l = strlen(term_r);
+			if (j == today && (term_so != NULL && term_se != NULL)) {
+				l = strlen(term_so);
 				if (jd_flag)
 					dt.d = j - jan1 + 1;
 				else
@@ -683,11 +683,11 @@ mkmonth(int y, int m, int jd_flag, struct monthlines *mlines)
 				memcpy(mlines->lines[i] + k + l,
 				    ds + dt.d * dw, dw);
 				/* highlight on */
-				memcpy(mlines->lines[i] + k + 1, term_r, l);
+				memcpy(mlines->lines[i] + k + 1, term_so, l);
 				/* highlight off */
-				memcpy(mlines->lines[i] + k + l + dw, term_e,
-				    strlen(term_e));
-				l = strlen(term_e) + strlen(term_r);
+				memcpy(mlines->lines[i] + k + l + dw, term_se,
+				    strlen(term_se));
+				l = strlen(term_se) + strlen(term_so);
 				continue;
 			}
 			if (j >= first) {
@@ -790,8 +790,8 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 		l = 0;
 		for (j = firsts + 7 * i, k = 0; j < last && k != dw * 7;
 		    j++, k += dw) { 
-			if (j == today && (term_r != NULL && term_e != NULL)) {
-				l = strlen(term_r);
+			if (j == today && (term_so != NULL && term_se != NULL)) {
+				l = strlen(term_so);
 				if (jd_flag)
 					dt.d = j - jan1 + 1;
 				else
@@ -802,11 +802,11 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 				memcpy(mlines->lines[i] + k + l,
 				    ds + dt.d * dw, dw);
 				/* highlight on */
-				memcpy(mlines->lines[i] + k + 1, term_r, l);
+				memcpy(mlines->lines[i] + k + 1, term_so, l);
 				/* highlight off */
-				memcpy(mlines->lines[i] + k + l + dw, term_e,
-				    strlen(term_e));
-				l = strlen(term_e) + strlen(term_r);
+				memcpy(mlines->lines[i] + k + l + dw, term_se,
+				    strlen(term_se));
+				l = strlen(term_se) + strlen(term_so);
 				continue;
 			}
 			if (j >= first) {
