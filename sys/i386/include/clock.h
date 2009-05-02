@@ -24,6 +24,12 @@ extern int	tsc_is_invariant;
 
 void	i8254_init(void);
 
+struct trapframe;
+ 
+int	hardclockintr(struct trapframe *frame);
+int	statclockintr(struct trapframe *frame);
+int	profclockintr(struct trapframe *frame);
+
 /*
  * Driver to clock driver interface.
  */
