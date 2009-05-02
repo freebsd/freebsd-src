@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
@@ -126,9 +127,6 @@ static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
-
-extern LIST_HEAD(futex_list, futex) futex_list;
-extern struct mtx futex_mtx;
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_schedtail_tag;
