@@ -126,7 +126,12 @@ struct ieee80211com {
 	enum ieee80211_opmode	ic_opmode;	/* operation mode */
 	struct ifmedia		ic_media;	/* interface media config */
 	struct callout		ic_inact;	/* inactivity processing */
+	struct taskqueue	*ic_tq;		/* deferred state thread */
 	struct task		ic_parent_task;	/* deferred parent processing */
+	struct task		ic_promisc_task;/* deferred promisc update */
+	struct task		ic_mcast_task;	/* deferred mcast update */
+	struct task		ic_chan_task;	/* deferred channel change */
+	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 
 	uint32_t		ic_flags;	/* state flags */
 	uint32_t		ic_flags_ext;	/* extended state flags */
@@ -325,8 +330,10 @@ struct ieee80211vap {
 	uint32_t		iv_htcaps;	/* HT capabilities */
 	enum ieee80211_opmode	iv_opmode;	/* operation mode */
 	enum ieee80211_state	iv_state;	/* state machine state */
-	void			(*iv_newstate_cb)(struct ieee80211vap *,
-				    enum ieee80211_state, int);
+	enum ieee80211_state	iv_nstate;	/* pending state */
+	int			iv_nstate_arg;	/* pending state arg */
+	struct task		iv_nstate_task;	/* deferred state processing */
+	struct task		iv_swbmiss_task;/* deferred iv_bmiss call */
 	struct callout		iv_mgtsend;	/* mgmt frame response timer */
 						/* inactivity timer settings */
 	int			iv_inact_init;	/* setting for new station */
@@ -519,6 +526,8 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_SWBMISS	 0x00000400	/* CONF: do bmiss in s/w */
 #define	IEEE80211_FEXT_DFS	 0x00000800	/* CONF: DFS enabled */
 #define	IEEE80211_FEXT_DOTD	 0x00001000	/* CONF: 11d enabled */
+#define	IEEE80211_FEXT_STATEWAIT 0x00002000	/* STATUS: awaiting state chg */
+#define	IEEE80211_FEXT_REINIT	 0x00004000	/* STATUS: INIT state first */
 /* NB: immutable: should be set only when creating a vap */
 #define	IEEE80211_FEXT_WDSLEGACY 0x00010000	/* CONF: legacy WDS operation */
 #define	IEEE80211_FEXT_PROBECHAN 0x00020000	/* CONF: probe passive channel*/
@@ -536,9 +545,10 @@ MALLOC_DECLARE(M_80211_VAP);
 
 #define	IEEE80211_FEXT_BITS \
 	"\20\1NONHT_PR\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
-	"\0114ADDR\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\22WDSLEGACY\23PROBECHAN" \
-	"\24HT\25AMDPU_TX\26AMPDU_TX\27AMSDU_TX\30AMSDU_RX\31USEHT40\32PUREN" \
-	"\33SHORTGI20\34SHORTGI40\35HTCOMPAT\36RIFS"
+	"\0114ADDR\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\16STATEWAIT\17REINIT" \
+	"\22WDSLEGACY\23PROBECHAN\24HT\25AMDPU_TX\26AMPDU_TX\27AMSDU_TX" \
+	"\30AMSDU_RX\31USEHT40\32PUREN\33SHORTGI20\34SHORTGI40\35HTCOMPAT" \
+	"\36RIFS"
 
 #define	IEEE80211_FVEN_BITS	"\20"
 
@@ -632,6 +642,24 @@ struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,
 		int ieee, int flags);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
+
+/*
+ * Enqueue a task on the state thread.
+ */
+static __inline void
+ieee80211_runtask(struct ieee80211com *ic, struct task *task)
+{
+	taskqueue_enqueue(ic->ic_tq, task);
+}
+
+/*
+ * Wait for a queued task to complete.
+ */
+static __inline void
+ieee80211_draintask(struct ieee80211com *ic, struct task *task)
+{
+	taskqueue_drain(ic->ic_tq, task);
+}
 
 /* 
  * Key update synchronization methods.  XXX should not be visible.

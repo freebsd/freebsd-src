@@ -32,6 +32,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/taskqueue.h>
 
 /*
  * Common state locking definitions.
