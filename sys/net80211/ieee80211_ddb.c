@@ -183,7 +183,7 @@ DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 static void
 _db_show_txampdu(const char *sep, int ix, const struct ieee80211_tx_ampdu *tap)
 {
-	db_printf("%stxampdu[%d]: %p flags %b ac %s\n",
+	db_printf("%stxampdu[%d]: %p flags %b %s\n",
 		sep, ix, tap, tap->txa_flags, IEEE80211_AGGR_BITS,
 		ieee80211_wme_acnames[tap->txa_ac]);
 	db_printf("%s  token %u lastsample %d pkts %d avgpps %d qbytes %d qframes %d\n",
