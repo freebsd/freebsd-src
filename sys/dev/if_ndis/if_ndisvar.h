@@ -180,6 +180,7 @@ struct ndis_softc {
 	ndis_miniport_block	*ndis_block;
 	ndis_miniport_characteristics	*ndis_chars;
 	interface_type		ndis_type;
+	struct callout		ndis_scan_callout;
 	struct callout		ndis_stat_callout;
 	int			ndis_maxpkts;
 	ndis_oid		*ndis_oids;
@@ -219,10 +220,6 @@ struct ndis_softc {
 	struct ifqueue		ndis_rxqueue;
 	kspin_lock		ndis_rxlock;
 
-	struct taskqueue	*ndis_tq;		/* private task queue */
-	struct task		ndis_scantask;
-	struct task		ndis_authtask;
-	struct task		ndis_assoctask;
 	int			(*ndis_newstate)(struct ieee80211com *,
 				    enum ieee80211_state, int);
 	int			ndis_tx_timer;
