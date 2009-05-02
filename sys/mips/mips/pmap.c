@@ -135,12 +135,9 @@ __FBSDID("$FreeBSD$");
 #define	pmap_va_asid(pmap, va)	((va) | ((pmap)->pm_asid[PCPU_GET(cpuid)].asid << VMTLB_PID_SHIFT))
 #define	is_kernel_pmap(x)	((x) == kernel_pmap)
 
-static struct pmap kernel_pmap_store;
-pmap_t kernel_pmap;
+struct pmap kernel_pmap_store;
 pd_entry_t *kernel_segmap;
 
-vm_offset_t avail_start;	/* PA of first available physical page */
-vm_offset_t avail_end;		/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
@@ -161,7 +158,6 @@ static void pmap_asid_alloc(pmap_t pmap);
 static uma_zone_t pvzone;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
-int pmap_pagedaemon_waken = 0;
 
 struct fpage fpages_shared[FPAGES_SHARED];
 
@@ -412,25 +408,20 @@ again:
 	for (i = 0, j = (virtual_avail >> SEGSHIFT); i < nkpt; i++, j++)
 		kernel_segmap[j] = (pd_entry_t)(pgtab + (i * NPTEPG));
 
-	avail_start = phys_avail[0];
 	for (i = 0; phys_avail[i + 2]; i += 2)
 		continue;
-	avail_end = phys_avail[i + 1];
+	printf("avail_start:0x%x avail_end:0x%x\n",
+	    phys_avail[0], phys_avail[i + 1]);
 
 	/*
 	 * The kernel's pmap is statically allocated so we don't have to use
 	 * pmap_create, which is unlikely to work correctly at this part of
 	 * the boot sequence (XXX and which no longer exists).
 	 */
-	kernel_pmap = &kernel_pmap_store;
-
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_segtab = kernel_segmap;
 	kernel_pmap->pm_active = ~0;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
-	printf("avail_start:0x%x avail_end:0x%x\n",
-	    avail_start, avail_end);
-
 	kernel_pmap->pm_asid[PCPU_GET(cpuid)].asid = PMAP_ASID_RESERVED;
 	kernel_pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
 	pmap_max_asid = VMNUM_PIDS;
@@ -1011,18 +1002,10 @@ pmap_pinit(pmap_t pmap)
 	/*
 	 * allocate the page directory page
 	 */
-	ptdpg = vm_page_alloc(NULL, NUSERPGTBLS, req);
+	while ((ptdpg = vm_page_alloc(NULL, NUSERPGTBLS, req)) == NULL)
+		VM_WAIT;
 
-#if 0
-	/* I think we can just delete these, now that PG_BUSY is gone */
-	vm_page_lock_queues();
-	vm_page_flag_clear(ptdpg, PTE_BUSY);	/* not usually mapped */
-#endif
 	ptdpg->valid = VM_PAGE_BITS_ALL;
-
-#if 0
-	vm_page_unlock_queues();
-#endif
 
 	pmap->pm_segtab = (pd_entry_t *)
 	    MIPS_PHYS_TO_CACHED(VM_PAGE_TO_PHYS(ptdpg));
@@ -1193,12 +1176,9 @@ pmap_release(pmap_t pmap)
 	    pmap->pm_stats.resident_count));
 
 	ptdpg = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pmap->pm_segtab));
-
-	vm_page_lock_queues();
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(ptdpg);
-	vm_page_unlock_queues();
 }
 
 /*
@@ -1447,7 +1427,6 @@ static void
 pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m,
     boolean_t wired)
 {
-
 	pv_entry_t pv;
 
 	pv = get_pv_entry(pmap);
@@ -1461,7 +1440,6 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m,
 	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
-
 }
 
 /*
@@ -1532,7 +1510,6 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va)
 		pmap_remove_entry(pmap, m, va);
 	}
 	return pmap_unuse_pt(pmap, va, NULL);
-
 }
 
 /*
@@ -1623,14 +1600,8 @@ pmap_remove_all(vm_page_t m)
 	register pv_entry_t pv;
 	register pt_entry_t *pte, tpte;
 
-#if defined(PMAP_DEBUG)
-	/*
-	 * XXX This makes pmap_remove_all() illegal for non-managed pages!
-	 */
-	if (m->flags & PG_FICTITIOUS) {
-		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%x", VM_PAGE_TO_PHYS(m));
-	}
-#endif
+	KASSERT((m->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_remove_all: page %p is fictitious", m));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
 	if (m->md.pv_flags & PV_TABLE_REF)
@@ -2484,28 +2455,18 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	if (m->flags & PG_FICTITIOUS)
 		return FALSE;
 
-	vm_page_lock_queues();
-	PMAP_LOCK(pmap);
-
-	/*
-	 * Not found, check current mappings returning immediately if found.
-	 */
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
-			PMAP_UNLOCK(pmap);
-			vm_page_unlock_queues();
 			return TRUE;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	PMAP_UNLOCK(pmap);
-	vm_page_unlock_queues();
 	return (FALSE);
 }
 
-#define	PMAP_REMOVE_PAGES_CURPROC_ONLY
 /*
  * Remove all pages from specified address space
  * this aids process exit speeds.  Also, this code
@@ -2521,13 +2482,10 @@ pmap_remove_pages(pmap_t pmap)
 	pv_entry_t pv, npv;
 	vm_page_t m;
 
-#ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
 	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
-#endif
-
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	sched_pin();
@@ -3272,7 +3230,8 @@ pmap_kextract(vm_offset_t va)
 	else if (va >= MIPS_KSEG2_START && va < VM_MAX_KERNEL_ADDRESS) {
 		pt_entry_t *ptep;
 
-		if (kernel_pmap) {
+		/* Is the kernel pmap initialized? */
+		if (kernel_pmap->pm_active) {
 			if (va >= (vm_offset_t)virtual_sys_start) {
 				/* Its inside the virtual address range */
 				ptep = pmap_pte(kernel_pmap, va);
