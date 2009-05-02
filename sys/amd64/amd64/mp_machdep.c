@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/apicreg.h>
+#include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
@@ -1124,6 +1125,15 @@ ipi_bitmap_handler(struct trapframe frame)
 		sched_preempt(curthread);
 
 	/* Nothing to do for AST */
+
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
+		hardclockintr(&frame);
+
+	if (ipi_bitmap & (1 << IPI_STATCLOCK))
+		statclockintr(&frame);
+
+	if (ipi_bitmap & (1 << IPI_PROFCLOCK))
+		profclockintr(&frame);
 }
 
 /*
