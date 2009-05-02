@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/kernel.h>
 
 #include <sys/socket.h>
@@ -251,6 +251,12 @@ ieee80211_ifattach(struct ieee80211com *ic,
 
 	IEEE80211_LOCK_INIT(ic, ifp->if_xname);
 	TAILQ_INIT(&ic->ic_vaps);
+
+	/* Create a taskqueue for all state changes */
+	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
+	    taskqueue_thread_enqueue, &ic->ic_tq);
+	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s taskq",
+	    ifp->if_xname);
 	/*
 	 * Fill in 802.11 available channel set, mark all
 	 * available channels as active, and pick a default
@@ -325,6 +331,7 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_node_detach(ic);
 	ifmedia_removeall(&ic->ic_media);
 
+	taskqueue_free(ic->ic_tq);
 	IEEE80211_LOCK_DESTROY(ic);
 	if_detach(ifp);
 }
@@ -554,7 +561,17 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	 * while we cleanup internal state but that is hard.
 	 */
 	ieee80211_stop_locked(vap);
+	IEEE80211_UNLOCK(ic);
 
+	/*
+	 * Flush any deferred vap tasks.
+	 * NB: must be before ether_ifdetach() and removal from ic_vaps list
+	 */
+	ieee80211_draintask(ic, &vap->iv_nstate_task);
+	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
+
+	IEEE80211_LOCK(ic);
+	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
 	TAILQ_REMOVE(&ic->ic_vaps, vap, iv_next);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
 #ifdef IEEE80211_SUPPORT_SUPERG
@@ -627,9 +644,9 @@ ieee80211_syncifflag_locked(struct ieee80211com *ic, int flag)
 		/* XXX should we return 1/0 and let caller do this? */
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			if (flag == IFF_PROMISC)
-				ic->ic_update_promisc(ifp);
+				ieee80211_runtask(ic, &ic->ic_promisc_task);
 			else if (flag == IFF_ALLMULTI)
-				ic->ic_update_mcast(ifp);
+				ieee80211_runtask(ic, &ic->ic_mcast_task);
 		}
 	}
 }

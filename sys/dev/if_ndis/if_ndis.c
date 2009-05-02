@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/kthread.h>
-#include <sys/taskqueue.h>
 
 
 #include <net/if.h>
@@ -173,7 +172,7 @@ static int ndis_newstate	(struct ieee80211vap *, enum ieee80211_state,
 	int);
 static int ndis_nettype_chan	(uint32_t);
 static int ndis_nettype_mode	(uint32_t);
-static void ndis_scan		(void *, int);
+static void ndis_scan		(void *);
 static void ndis_scan_results	(struct ndis_softc *);
 static void ndis_scan_start	(struct ieee80211com *);
 static void ndis_scan_end	(struct ieee80211com *);
@@ -184,8 +183,6 @@ static void ndis_init		(void *);
 static void ndis_stop		(struct ndis_softc *);
 static int ndis_ifmedia_upd	(struct ifnet *);
 static void ndis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
-static void ndis_auth		(void *, int);
-static void ndis_assoc		(void *, int);
 static int ndis_get_assoc	(struct ndis_softc *, ndis_wlan_bssid_ex **);
 static int ndis_probe_offload	(struct ndis_softc *);
 static int ndis_set_offload	(struct ndis_softc *);
@@ -741,13 +738,7 @@ ndis_attach(dev)
 		uint32_t		arg;
 		int			r;
 
-		sc->ndis_tq = taskqueue_create("nids_taskq", M_NOWAIT | M_ZERO,
-		    taskqueue_thread_enqueue, &sc->ndis_tq);
-		taskqueue_start_threads(&sc->ndis_tq, 1, PI_NET, "%s taskq",
-		    device_get_nameunit(dev));
-		TASK_INIT(&sc->ndis_scantask, 0, ndis_scan, sc);
-		TASK_INIT(&sc->ndis_authtask, 0, ndis_auth, sc);
-		TASK_INIT(&sc->ndis_assoctask, 0, ndis_assoc, sc);
+		callout_init(&sc->ndis_scan_callout, CALLOUT_MPSAFE);
 
 		ifp->if_ioctl = ndis_ioctl_80211;
 		ic->ic_ifp = ifp;
@@ -1054,12 +1045,6 @@ ndis_detach(dev)
 	} else
 		NDIS_UNLOCK(sc);
 
-	if (sc->ndis_80211) {
-		taskqueue_drain(sc->ndis_tq, &sc->ndis_scantask);
-		taskqueue_drain(sc->ndis_tq, &sc->ndis_authtask);
-		taskqueue_drain(sc->ndis_tq, &sc->ndis_assoctask);
-	}
-
 	if (sc->ndis_tickitem != NULL)
 		IoFreeWorkItem(sc->ndis_tickitem);
 	if (sc->ndis_startitem != NULL)
@@ -1121,8 +1106,6 @@ ndis_detach(dev)
 	if (sc->ndis_iftype == PCIBus)
 		bus_dma_tag_destroy(sc->ndis_parent_tag);
 
-	if (sc->ndis_80211)
-		taskqueue_free(sc->ndis_tq);
 	return(0);
 }
 
@@ -2419,30 +2402,6 @@ ndis_setstate_80211(sc)
 }
 
 static void
-ndis_auth(void *arg, int npending)
-{
-	struct ndis_softc *sc = arg;
-	struct ifnet *ifp = sc->ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-
-	vap->iv_state = IEEE80211_S_AUTH;
-	ndis_auth_and_assoc(sc, vap);
-}
-
-static void
-ndis_assoc(void *arg, int npending)
-{
-	struct ndis_softc *sc = arg;
-	struct ifnet *ifp = sc->ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-
-	vap->iv_state = IEEE80211_S_ASSOC;
-	ndis_auth_and_assoc(sc, vap);
-}
-
-static void
 ndis_auth_and_assoc(sc, vap)
 	struct ndis_softc	*sc;
 	struct ieee80211vap	*vap;
@@ -2655,9 +2614,6 @@ ndis_auth_and_assoc(sc, vap)
 
 	if (rval)
 		device_printf (sc->ndis_dev, "set ssid failed: %d\n", rval);
-
-	if (vap->iv_state == IEEE80211_S_AUTH)
-		ieee80211_new_state(vap, IEEE80211_S_ASSOC, 0);
 
 	return;
 }
@@ -3304,13 +3260,18 @@ ndis_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		return nvp->newstate(vap, nstate, arg);
 	case IEEE80211_S_ASSOC:
 		if (ostate != IEEE80211_S_AUTH) {
-			taskqueue_enqueue(sc->ndis_tq, &sc->ndis_assoctask);
-			return EINPROGRESS;
+			IEEE80211_UNLOCK(ic);
+			ndis_auth_and_assoc(sc, vap);
+			IEEE80211_LOCK(ic);
 		}
 		break;
 	case IEEE80211_S_AUTH:
-		taskqueue_enqueue(sc->ndis_tq, &sc->ndis_authtask);
-		return EINPROGRESS;
+		IEEE80211_UNLOCK(ic);
+		ndis_auth_and_assoc(sc, vap);
+		if (vap->iv_state == IEEE80211_S_AUTH) /* XXX */
+			ieee80211_new_state(vap, IEEE80211_S_ASSOC, 0);
+		IEEE80211_LOCK(ic);
+		break;
 	default:
 		break;
 	}
@@ -3318,54 +3279,18 @@ ndis_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 }
 
 static void
-ndis_scan(void *arg, int npending)
+ndis_scan(void *arg)
 {
 	struct ndis_softc *sc = arg;
 	struct ieee80211com *ic;
 	struct ieee80211vap *vap;
-	struct ieee80211_scan_state *ss;
-	ndis_80211_ssid ssid;
-	int error, len;
 
 	ic = sc->ifp->if_l2com;
-	ss = ic->ic_scan;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	if (!NDIS_INITIALIZED(sc)) {
-		DPRINTF(("%s: scan aborted\n", __func__));
-		ieee80211_cancel_scan(vap);
-		return;
-	}
-
-	len = sizeof(ssid);
-	bzero((char *)&ssid, len);
-	if (ss->ss_nssid == 0)
-		ssid.ns_ssidlen = 1;
-	else {
-		/* Perform a directed scan */
-		ssid.ns_ssidlen = ss->ss_ssid[0].len;
-		bcopy(ss->ss_ssid[0].ssid, ssid.ns_ssid, ssid.ns_ssidlen);
-	}
-
-	error = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
-	if (error)
-		DPRINTF(("%s: set ESSID failed\n", __func__));
-
-	len = 0;
-	error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN,
-	    NULL, &len);
-	if (error) {
-		DPRINTF(("%s: scan command failed\n", __func__));
-		ieee80211_cancel_scan(vap);
-		return;
-	}
-
-	pause("ssidscan", hz * 3);
-	if (!NDIS_INITIALIZED(sc))
-		/* The interface was downed while we were sleeping */
-		return;
-
+	NDIS_LOCK(sc);
 	ndis_scan_results(sc);
+	NDIS_UNLOCK(sc);
 	ieee80211_scan_done(vap);
 }
 
@@ -3496,8 +3421,48 @@ ndis_scan_start(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ndis_softc *sc = ifp->if_softc;
+	struct ieee80211vap *vap;
+	struct ieee80211_scan_state *ss;
+	ndis_80211_ssid ssid;
+	int error, len;
 
-	taskqueue_enqueue(sc->ndis_tq, &sc->ndis_scantask);
+	ss = ic->ic_scan;
+	vap = TAILQ_FIRST(&ic->ic_vaps);
+
+	NDIS_LOCK(sc);
+	if (!NDIS_INITIALIZED(sc)) {
+		DPRINTF(("%s: scan aborted\n", __func__));
+		NDIS_UNLOCK(sc);
+		ieee80211_cancel_scan(vap);
+		return;
+	}
+
+	len = sizeof(ssid);
+	bzero((char *)&ssid, len);
+	if (ss->ss_nssid == 0)
+		ssid.ns_ssidlen = 1;
+	else {
+		/* Perform a directed scan */
+		ssid.ns_ssidlen = ss->ss_ssid[0].len;
+		bcopy(ss->ss_ssid[0].ssid, ssid.ns_ssid, ssid.ns_ssidlen);
+	}
+
+	error = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
+	if (error)
+		DPRINTF(("%s: set ESSID failed\n", __func__));
+
+	len = 0;
+	error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN,
+	    NULL, &len);
+	if (error) {
+		DPRINTF(("%s: scan command failed\n", __func__));
+		NDIS_UNLOCK(sc);
+		ieee80211_cancel_scan(vap);
+		return;
+	}
+	NDIS_UNLOCK(sc);
+	/* Set a timer to collect the results */
+	callout_reset(&sc->ndis_scan_callout, hz * 3, ndis_scan, sc);
 }
 
 static void

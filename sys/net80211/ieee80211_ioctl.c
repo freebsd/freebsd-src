@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
-#include <sys/taskqueue.h>
  
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -3196,8 +3195,7 @@ ieee80211_ioctl_updatemulti(struct ieee80211com *ic)
 			(void) if_addmulti(parent, ifma->ifma_addr, NULL);
 	}
 	parent->if_ioctl = ioctl;
-
-	ic->ic_update_mcast(ic->ic_ifp);
+	ieee80211_runtask(ic, &ic->ic_mcast_task);
 	IEEE80211_UNLOCK(ic);
 }
 

@@ -116,9 +116,6 @@ struct iwi_fw {
 
 struct iwi_vap {
 	struct ieee80211vap	iwi_vap;
-	struct task		iwi_authsuccess_task;
-	struct task		iwi_assocsuccess_task;
-	struct task		iwi_assocfailed_task;
 
 	int			(*iwi_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
@@ -131,12 +128,8 @@ struct iwi_softc {
 	device_t		sc_dev;
 
 	struct mtx		sc_mtx;
-	struct mtx		sc_cmdlock;
-	char			sc_cmdname[12];	/* e.g. "iwi0_cmd" */
 	uint8_t			sc_mcast[IEEE80211_ADDR_LEN];
 	struct unrhdr		*sc_unr;
-	struct taskqueue	*sc_tq;		/* private task queue */
-	struct taskqueue	*sc_tq2;	/* reset task queue */
 
 	uint32_t		flags;
 #define IWI_FLAG_FW_INITED	(1 << 0)
@@ -195,9 +188,8 @@ struct iwi_softc {
 
 	struct task		sc_radiontask;	/* radio on processing */
 	struct task		sc_radiofftask;	/* radio off processing */
-	struct task		sc_scanaborttask;	/* cancel active scan */
 	struct task		sc_restarttask;	/* restart adapter processing */
-	struct task		sc_opstask;	/* scan / auth processing */
+	struct task		sc_disassoctask;
 
 	unsigned int		sc_softled : 1,	/* enable LED gpio status */
 				sc_ledstate: 1,	/* LED on/off state */
@@ -218,21 +210,6 @@ struct iwi_softc {
 	int			sc_tx_timer;
 	int			sc_state_timer;	/* firmware state timer */
 	int			sc_busy_timer;	/* firmware cmd timer */
-
-#define	IWI_CMD_MAXOPS		10
-	int			sc_cmd[IWI_CMD_MAXOPS];
-	unsigned long		sc_arg[IWI_CMD_MAXOPS];
-	int			sc_cmd_cur;	/* current queued scan task */
-	int			sc_cmd_next;	/* last queued scan task */
-#define	IWI_CMD_FREE		0		/* for marking slots unused */
-#define IWI_SCAN_START		1
-#define IWI_SET_CHANNEL	        2
-#define	IWI_AUTH		3
-#define	IWI_ASSOC		4
-#define	IWI_DISASSOC		5
-#define	IWI_SCAN_CURCHAN	6
-#define	IWI_SCAN_ALLCHAN	7
-#define	IWI_SET_WME		8
 
 	struct iwi_rx_radiotap_header sc_rxtap;
 	int			sc_rxtap_len;
@@ -277,11 +254,3 @@ struct iwi_softc {
 	if (!__waslocked)			\
 		mtx_unlock(&(sc)->sc_mtx);	\
 } while (0)
-#define	IWI_CMD_LOCK_INIT(sc) do { \
-	snprintf((sc)->sc_cmdname, sizeof((sc)->sc_cmdname), "%s_cmd", \
-		device_get_nameunit((sc)->sc_dev)); \
-	mtx_init(&(sc)->sc_cmdlock, (sc)->sc_cmdname, NULL, MTX_DEF); \
-} while (0)
-#define	IWI_CMD_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->sc_cmdlock)
-#define	IWI_CMD_LOCK(sc)		mtx_lock(&(sc)->sc_cmdlock)
-#define	IWI_CMD_UNLOCK(sc)		mtx_unlock(&(sc)->sc_cmdlock)
