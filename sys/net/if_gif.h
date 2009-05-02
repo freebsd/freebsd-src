@@ -117,11 +117,11 @@ int gif_encapcheck(const struct mbuf *, int, int, void *);
  */
 
 struct vnet_gif {
-	LIST_HEAD(, gif_softc) _gif_softc_list;
-	int	_max_gif_nesting;
-	int	_parallel_tunnels;
-	int	_ip_gif_ttl;
-	int	_ip6_gif_hlim;
+	LIST_HEAD(, gif_softc)	_gif_softc_list;
+	int			_max_gif_nesting;
+	int			_parallel_tunnels;
+	int			_ip_gif_ttl;
+	int			_ip6_gif_hlim;
 };
 
 #ifndef VIMAGE
