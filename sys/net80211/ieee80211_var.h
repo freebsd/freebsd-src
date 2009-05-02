@@ -110,12 +110,7 @@ struct ieee80211_tdma_param;
 struct ieee80211_rate_table;
 struct ieee80211_tx_ampdu;
 struct ieee80211_rx_ampdu;
-
-struct ieee80211_stageq {
-	struct mbuf		*head;		/* frames linked w/ m_nextpkt */
-	struct mbuf		*tail;		/* last frame in queue */
-	int			depth;		/* # items on head */
-};
+struct ieee80211_superg;
 
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
@@ -211,9 +206,8 @@ struct ieee80211com {
 	int			ic_lastnonerp;	/* last time non-ERP sta noted*/
 	int			ic_lastnonht;	/* last time non-HT sta noted */
 
-	/* fast-frames staging q */
-	struct ieee80211_stageq	ic_ff_stageq[WME_NUM_AC];
-	int			ic_stageqdepth;	/* cumulative depth */
+	/* optional state for Atheros SuperG protocol extensions */
+	struct ieee80211_superg	*ic_superg;
 
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,

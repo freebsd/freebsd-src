@@ -57,6 +57,18 @@ struct ieee80211_ath_ie {
 #define	ATH_OUI_SUBTYPE		0x01
 
 #ifdef _KERNEL
+struct ieee80211_stageq {
+	struct mbuf		*head;		/* frames linked w/ m_nextpkt */
+	struct mbuf		*tail;		/* last frame in queue */
+	int			depth;		/* # items on head */
+};
+
+struct ieee80211_superg {
+	/* fast-frames staging q */
+	struct ieee80211_stageq	ff_stageq[WME_NUM_AC];
+	int			ff_stageqdepth;	/* cumulative depth */
+};
+
 void	ieee80211_superg_attach(struct ieee80211com *);
 void	ieee80211_superg_detach(struct ieee80211com *);
 void	ieee80211_superg_vattach(struct ieee80211vap *);
@@ -72,20 +84,33 @@ void	ieee80211_ff_node_init(struct ieee80211_node *);
 void	ieee80211_ff_node_cleanup(struct ieee80211_node *);
 
 struct mbuf *ieee80211_ff_check(struct ieee80211_node *, struct mbuf *);
-void	ieee80211_ff_age(struct ieee80211com *, struct ieee80211_stageq *, int);
+void	ieee80211_ff_age(struct ieee80211com *, struct ieee80211_stageq *,
+	     int quanta);
 
 static __inline void
-ieee80211_flush_stageq(struct ieee80211com *ic, int ac)
+ieee80211_ff_flush(struct ieee80211com *ic, int ac)
 {
-	if (ic->ic_ff_stageq[ac].depth)
-		ieee80211_ff_age(ic, &ic->ic_ff_stageq[ac], 0x7fffffff);
+	struct ieee80211_superg *sg = ic->ic_superg;
+
+	if (sg != NULL && sg->ff_stageq[ac].depth)
+		ieee80211_ff_age(ic, &sg->ff_stageq[ac], 0x7fffffff);
 }
 
 static __inline void
-ieee80211_age_stageq(struct ieee80211com *ic, int ac, int quanta)
+ieee80211_ff_age_all(struct ieee80211com *ic, int quanta)
 {
-	if (ic->ic_ff_stageq[ac].depth)
-		ieee80211_ff_age(ic, &ic->ic_ff_stageq[ac], quanta);
+	struct ieee80211_superg *sg = ic->ic_superg;
+
+	if (sg != NULL && sg->ff_stageqdepth) {
+		if (sg->ff_stageq[WME_AC_VO].depth)
+			ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_VO], quanta);
+		if (sg->ff_stageq[WME_AC_VI].depth)
+			ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_VI], quanta);
+		if (sg->ff_stageq[WME_AC_BE].depth)
+			ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_BE], quanta);
+		if (sg->ff_stageq[WME_AC_BK].depth)
+			ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_BK], quanta);
+	}
 }
 
 struct mbuf *ieee80211_ff_encap(struct ieee80211vap *, struct mbuf *,

@@ -3995,12 +3995,7 @@ rx_next:
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
-		if (ic->ic_stageqdepth) {
-			ieee80211_age_stageq(ic, WME_AC_VO, 100);
-			ieee80211_age_stageq(ic, WME_AC_VI, 100);
-			ieee80211_age_stageq(ic, WME_AC_BE, 100);
-			ieee80211_age_stageq(ic, WME_AC_BK, 100);
-		}
+		ieee80211_ff_age_all(ic, 100);
 #endif
 		if (!IFQ_IS_EMPTY(&ifp->if_snd))
 			ath_start(ifp);
@@ -4980,7 +4975,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	 * Flush fast-frame staging queue when traffic slows.
 	 */
 	if (txq->axq_depth <= 1)
-		ieee80211_flush_stageq(ic, txq->axq_ac);
+		ieee80211_ff_flush(ic, txq->axq_ac);
 #endif
 	return nacked;
 }
