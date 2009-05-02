@@ -188,9 +188,7 @@ tcp_tw_init(void)
 void
 tcp_twstart(struct tcpcb *tp)
 {
-#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 	INIT_VNET_INET(tp->t_vnet);
-#endif
 	struct tcptw *tw;
 	struct inpcb *inp = tp->t_inpcb;
 	int acknow;
