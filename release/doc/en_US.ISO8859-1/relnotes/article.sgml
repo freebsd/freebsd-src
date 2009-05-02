@@ -226,7 +226,7 @@
       will update unmodified userland utilities, as well as unmodified
       GENERIC or SMP kernels distributed as a part of an official &os;
       release.  The &man.freebsd-update.8; utility requires that the
-      host being upgraded have Internet connectivity.</para>
+      host being upgraded has Internet connectivity.</para>
 
     <para>An older form of binary upgrade is supported through the
       <command>Upgrade</command> option from the main
