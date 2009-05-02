@@ -3617,7 +3617,9 @@ vnet_igmp_iattach(const void *unused __unused)
 static int
 vnet_igmp_idetach(const void *unused __unused)
 {
+#ifdef INVARIANTS
 	INIT_VNET_INET(curvnet);
+#endif
 
 	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
 

@@ -1131,10 +1131,10 @@ bad:
 int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 {
-	INIT_VNET_NET(curvnet);
 	/* XXX dst may be overwritten, can we move this to below */
 	int dlen = SA_SIZE(dst), glen = SA_SIZE(gate);
 #ifdef INVARIANTS
+	INIT_VNET_NET(curvnet);
 	struct radix_node_head *rnh =
 	    V_rt_tables[rt->rt_fibnum][dst->sa_family];
 #endif
