@@ -674,8 +674,9 @@ dcons_modevent(module_t mode, int type, void *data)
 	case MOD_LOAD:
 		ret = dcons_drv_init(1);
 #if __FreeBSD_version >= 500000
-		if (ret == 0) {
+		if (ret != -1)
 			dcons_attach();
+		if (ret == 0) {
 			dcons_cnprobe(&dcons_consdev);
 			dcons_cninit(&dcons_consdev);
 			cnadd(&dcons_consdev);
