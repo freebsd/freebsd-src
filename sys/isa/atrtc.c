@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #define	RTC_LOCK	mtx_lock_spin(&clock_lock)
 #define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
 
+int	atrtcclock_disable = 0;
+
 static	int	rtc_reg = -1;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR;
@@ -133,6 +135,27 @@ atrtc_restore(void)
 	rtcin(RTC_INTR);
 }
 
+int
+atrtc_setup_clock(void)
+{
+	int diag;
+
+	if (atrtcclock_disable)
+		return (0);
+
+	diag = rtcin(RTC_DIAG);
+	if (diag != 0) {
+		printf("RTC BIOS diagnostic error %b\n",
+		    diag, RTCDG_BITS);
+		return (0);
+	}
+
+	stathz = RTC_NOPROFRATE;
+	profhz = RTC_PROFRATE;
+
+	return (1);
+}
+
 /**********************************************************************
  * RTC driver for subr_rtc
  */
@@ -173,6 +196,7 @@ static int
 atrtc_attach(device_t dev)
 {
 	struct atrtc_softc *sc;
+	int i;
 
 	/*
 	 * Not that we need them or anything, but grab our resources
@@ -187,6 +211,8 @@ atrtc_attach(device_t dev)
 	    &sc->intr_rid, 8, 8, 1, RF_ACTIVE)))
 		device_printf(dev,"Warning: Couldn't map Interrupt.\n");
 	clock_register(dev, 1000000);
+	if (resource_int_value("atrtc", 0, "clock", &i) == 0 && i == 0)
+		atrtcclock_disable = 1;
 	return(0);
 }
 
