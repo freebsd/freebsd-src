@@ -79,7 +79,6 @@ struct acpi_cpu_softc {
     int			 cpu_features;	/* Child driver supported features. */
     /* Runtime state. */
     int			 cpu_non_c3;	/* Index of lowest non-C3 state. */
-    int			 cpu_short_slp;	/* Count of < 1us sleeps. */
     u_int		 cpu_cx_stats[MAX_CX_STATES];/* Cx usage history. */
     /* Values for sysctl. */
     struct sysctl_ctx_list cpu_sysctl_ctx;
@@ -882,7 +881,7 @@ acpi_cpu_idle()
 	return;
     }
 
-    /* Find the lowest state that has small enougth latency. */
+    /* Find the lowest state that has small enough latency. */
     cx_next_idx = 0;
     for (i = sc->cpu_cx_lowest; i >= 0; i--) {
 	if (sc->cpu_cx_states[i].trans_lat * 3 <= sc->cpu_prev_sleep) {
