@@ -1105,8 +1105,9 @@ acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS)
 	    sbuf_printf(&sb, "%u.%02u%% ", (u_int)(whole / sum),
 		(u_int)(fract / sum));
 	} else
-	    sbuf_printf(&sb, "0%% ");
+	    sbuf_printf(&sb, "0.00%% ");
     }
+    sbuf_printf(&sb, "last %dus", sc->cpu_prev_sleep);
     sbuf_trim(&sb);
     sbuf_finish(&sb);
     sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
