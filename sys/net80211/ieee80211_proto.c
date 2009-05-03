@@ -1722,19 +1722,21 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 			 * state changes until this is completed.
 			 */
 			return -1;
-		}
+		} else if (vap->iv_state != vap->iv_nstate) {
 #if 0
-		/* Warn if the previous state hasn't completed. */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
-		    "%s: pending %s -> %s transition lost\n", __func__,
-		    ieee80211_state_name[vap->iv_state],
-		    ieee80211_state_name[vap->iv_nstate]);
+			/* Warn if the previous state hasn't completed. */
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+			    "%s: pending %s -> %s transition lost\n", __func__,
+			    ieee80211_state_name[vap->iv_state],
+			    ieee80211_state_name[vap->iv_nstate]);
 #else
-		/* XXX temporarily enable to identify issues */
-		if_printf(vap->iv_ifp, "%s: pending %s -> %s transition lost\n",
-		    __func__, ieee80211_state_name[vap->iv_state],
-		    ieee80211_state_name[vap->iv_nstate]);
+			/* XXX temporarily enable to identify issues */
+			if_printf(vap->iv_ifp,
+			    "%s: pending %s -> %s transition lost\n",
+			    __func__, ieee80211_state_name[vap->iv_state],
+			    ieee80211_state_name[vap->iv_nstate]);
 #endif
+		}
 	}
 
 	nrunning = nscanning = 0;
