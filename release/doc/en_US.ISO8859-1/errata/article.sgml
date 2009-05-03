@@ -169,6 +169,14 @@
       workaround, you can boot using the bootonly or livefs CDROM and
       then swap in disc1 once sysinstall starts.</para>
 
+    <para>[20090504] A lock handling error has been found in
+      interaction between &man.malloc.3; implementation and threading
+      library.  When a multi-threaded process calls the &man.fork.2;
+      system call in a thread and the &man.malloc.3; function in
+      another thread, it can cause a deadlock in the child process.
+      An Errata Notice to fix this problem is planned for this problem
+      after the release.</para>
+
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
