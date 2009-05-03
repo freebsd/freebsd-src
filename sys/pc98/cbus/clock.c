@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #define	TIMER_DIV(x) ((i8254_freq + (x) / 2) / (x))
 
 int	clkintr_pending;
-int	statclock_disable;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   2457600
 #endif
