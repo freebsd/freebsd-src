@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
@@ -71,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
+#include <machine/smp.h>
 
 #include <pc98/pc98/pc98_machdep.h>
 #ifdef DEV_ISA
@@ -123,6 +125,31 @@ static struct timecounter i8254_timecounter = {
 	0			/* quality */
 };
 
+int
+hardclockintr(struct trapframe *frame)
+{
+
+	if (PCPU_GET(cpuid) == 0)
+		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	else
+		hardclock_cpu(TRAPF_USERMODE(frame));
+	return (FILTER_HANDLED);
+}
+
+int
+statclockintr(struct trapframe *frame)
+{
+
+	return (FILTER_HANDLED);
+}
+
+int
+profclockintr(struct trapframe *frame)
+{
+
+	return (FILTER_HANDLED);
+}
+
 static int
 clkintr(struct trapframe *frame)
 {
@@ -151,7 +178,14 @@ clkintr(struct trapframe *frame)
 		(*lapic_cyclic_clock_func[cpu])(frame);
 #endif
 
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+#ifdef SMP
+	if (smp_started)
+		ipi_all_but_self(IPI_HARDCLOCK);
+#endif 
+	if (PCPU_GET(cpuid) == 0)
+		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	else
+		hardclock_cpu(TRAPF_USERMODE(frame));
 	return (FILTER_HANDLED);
 }
 
