@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 int	clkintr_pending;
 static int pscnt = 1;
 static int psdiv = 1;
-int	statclock_disable;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   1193182
 #endif
@@ -91,6 +90,7 @@ static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
+static	int	using_atrtc_timer;
 static	int	using_lapic_timer;
 
 /* Values for timerX_state: */
@@ -122,6 +122,8 @@ hardclockintr(struct trapframe *frame)
 		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	else
 		hardclock_cpu(TRAPF_USERMODE(frame));
+	if (!using_atrtc_timer)
+		statclockintr(frame);
 	return (FILTER_HANDLED);
 }
 
@@ -163,10 +165,7 @@ clkintr(struct trapframe *frame)
 	if (smp_started)
 		ipi_all_but_self(IPI_HARDCLOCK);
 #endif
-	if (PCPU_GET(cpuid) == 0)
-		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-	else
-		hardclock_cpu(TRAPF_USERMODE(frame));
+	hardclockintr(frame);
 	return (FILTER_HANDLED);
 }
 
@@ -461,7 +460,6 @@ startrtclock()
 void
 cpu_initclocks()
 {
-	int diag;
 
 	using_lapic_timer = lapic_setup_clock();
 	/*
@@ -493,21 +491,17 @@ cpu_initclocks()
 	 * kernel clocks, then setup the RTC to periodically interrupt to
 	 * drive statclock() and profclock().
 	 */
-	if (!statclock_disable && !using_lapic_timer) {
-		diag = rtcin(RTC_DIAG);
-		if (diag != 0)
-			printf("RTC BIOS diagnostic error %b\n",
-			    diag, RTCDG_BITS);
-
-	        /* Setting stathz to nonzero early helps avoid races. */
-		stathz = RTC_NOPROFRATE;
-		profhz = RTC_PROFRATE;
-
-		/* Enable periodic interrupts from the RTC. */
-		intr_add_handler("rtc", 8,
-		    (driver_filter_t *)rtcintr, NULL, NULL,
-		    INTR_TYPE_CLK, NULL);
-		atrtc_enable_intr();
+	if (!using_lapic_timer) {
+		using_atrtc_timer = atrtc_setup_clock();
+		if (using_atrtc_timer) {
+			/* Enable periodic interrupts from the RTC. */
+			intr_add_handler("rtc", 8,
+			    (driver_filter_t *)rtcintr, NULL, NULL,
+			    INTR_TYPE_CLK, NULL);
+			atrtc_enable_intr();
+		} else {
+			profhz = stathz = hz;
+		}
 	}
 
 	init_TSC_tc();
