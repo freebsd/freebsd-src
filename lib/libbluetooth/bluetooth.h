@@ -39,6 +39,7 @@
 #include <sys/endian.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <sys/un.h>
 #include <errno.h>
 #include <netdb.h>
@@ -46,6 +47,7 @@
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_l2cap.h>
 #include <netgraph/bluetooth/include/ng_btsocket.h>
+#include <time.h>
 
 __BEGIN_DECLS
 
@@ -129,8 +131,48 @@ struct bt_devinfo
 	uint8_t		_padding[20];	/* leave space for future additions */
 };
 
+struct bt_devreq
+{
+	uint16_t	opcode;
+	uint8_t		event;
+	void		*cparam;
+	size_t		clen;
+	void		*rparam;
+	size_t		rlen;
+};
+
+struct bt_devfilter {
+	bitstr_t	bit_decl(packet_mask, 8);
+	bitstr_t	bit_decl(event_mask, 256);
+};
+
+struct bt_devinquiry {
+	bdaddr_t        bdaddr;
+	uint8_t         pscan_rep_mode;
+	uint8_t         pscan_period_mode;
+	uint8_t         dev_class[3];
+	uint16_t        clock_offset;
+	int8_t          rssi;
+	uint8_t         data[240];
+};
+
 typedef int	(bt_devenum_cb_t)(int, struct bt_devinfo const *, void *);
 
+int		bt_devopen (char const *devname);
+int		bt_devclose(int s);
+int		bt_devsend (int s, uint16_t opcode, void *param, size_t plen);
+ssize_t		bt_devrecv (int s, void *buf, size_t size, time_t to);
+int		bt_devreq  (int s, struct bt_devreq *r, time_t to);
+int		bt_devfilter(int s, struct bt_devfilter const *new,
+			     struct bt_devfilter *old);
+void		bt_devfilter_pkt_set(struct bt_devfilter *filter, uint8_t type);
+void		bt_devfilter_pkt_clr(struct bt_devfilter *filter, uint8_t type);
+int		bt_devfilter_pkt_tst(struct bt_devfilter const *filter, uint8_t type);
+void		bt_devfilter_evt_set(struct bt_devfilter *filter, uint8_t event);
+void		bt_devfilter_evt_clr(struct bt_devfilter *filter, uint8_t event);
+int		bt_devfilter_evt_tst(struct bt_devfilter const *filter, uint8_t event);
+int		bt_devinquiry(char const *devname, time_t length, int num_rsp,
+			      struct bt_devinquiry **ii);
 int		bt_devinfo (struct bt_devinfo *di);
 int		bt_devenum (bt_devenum_cb_t *cb, void *arg);
 
