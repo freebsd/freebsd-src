@@ -1155,8 +1155,10 @@ apm_attach(device_t dev)
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "apm", MTX_DEF);
 	cv_init(&sc->cv, "cbb cv");
 
+#ifdef PC98
 	if (device_get_flags(dev) & 0x20)
 		atrtcclock_disable = 1;
+#endif
 
 	sc->initialized = 0;
 
