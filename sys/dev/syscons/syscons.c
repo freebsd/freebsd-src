@@ -184,7 +184,6 @@ static void scshutdown(void *arg, int howto);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
-static int sccngetch(int flags);
 static void sccnupdate(scr_stat *scp);
 static scr_stat *alloc_scp(sc_softc_t *sc, int vty);
 static void init_scp(sc_softc_t *sc, int vty, scr_stat *scp);
@@ -1569,12 +1568,6 @@ sc_cnputc(struct consdev *cd, int c)
 static int
 sc_cngetc(struct consdev *cd)
 {
-    return sccngetch(SCGETC_NONBLOCK);
-}
-
-static int
-sccngetch(int flags)
-{
     static struct fkeytab fkey;
     static int fkeycp;
     scr_stat *scp;
@@ -1615,7 +1608,7 @@ sccngetch(int flags)
     kbd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
 
     kbd_poll(scp->sc->kbd, TRUE);
-    c = scgetc(scp->sc, SCGETC_CN | flags);
+    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
     kbd_poll(scp->sc->kbd, FALSE);
 
     scp->kbd_mode = cur_mode;
