@@ -43,6 +43,7 @@
 #define CONF2_ENABLE_CHK   0x0e
 #define CONF2_ENABLE_RES   0x0e
 
+int		pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus);
 int		pci_cfgregopen(void);
 u_int32_t	pci_cfgregread(int bus, int slot, int func, int reg, int bytes);
 void		pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes);
