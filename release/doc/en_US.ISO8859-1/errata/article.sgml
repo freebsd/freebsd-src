@@ -167,19 +167,28 @@
       bootable and fall through to booting off the next boot device.
       All affected machines did see the other discs as bootable.  As a
       workaround, you can boot using the bootonly or livefs CDROM and
-      then swap in disc1 once sysinstall starts.</para>
+      then swap in disc1 once &man.sysinstall.8; starts.</para>
 
     <para>[20090504] A lock handling error has been found in
       interaction between &man.malloc.3; implementation and threading
       library.  When a multi-threaded process calls the &man.fork.2;
       system call in a thread and the &man.malloc.3; function in
       another thread, it can cause a deadlock in the child process.
-      An Errata Notice to fix this problem is planned for this problem
-      after the release.</para>
+      An Errata Notice to fix this problem is planned after the
+      release.</para>
+
+    <para>[20090505] A bug was found in the &man.bce.4; driver.  This
+      prevents it from working with the &man.lagg.4; driver in the
+      LACP (IEEE 802.3ad Link Aggregation Control Protocol) mode.  An
+      Errata Notice to fix this problem is planned after the
+      release.</para>
 
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-    <para>No news.</para>
+    <para>[20090504] A patch to solve the locking issue in the
+      &man.malloc.3; implementation and threading library has been
+      committed to the <literal>RELENG_7</literal> branch for public
+      testing.</para>
   </sect1>
 </article>
