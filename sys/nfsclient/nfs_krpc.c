@@ -498,8 +498,7 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 			probe_procnum = procnum;
 		} else {
 			probe_id = nfsclient_nfs2_start_probes[procnum];
-			probe_procnum = (nmp->nm_flag & NFSMNT_NFSV3) ?
-			    procnum : nfsv2_procid[procnum];
+			probe_procnum = nfsv2_procid[procnum];
 		}
 		if (probe_id != 0)
 			(dtrace_nfsclient_nfs23_start_probe)(probe_id, vp,
