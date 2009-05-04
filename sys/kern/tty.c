@@ -1473,7 +1473,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 			return (0);
 		}
 
-		if (!SESS_LEADER(p) || p->p_session->s_ttyvp != NULL ||
+		if (p->p_session->s_ttyvp != NULL ||
 		    (tp->t_session != NULL && tp->t_session->s_ttyvp != NULL)) {
 			/*
 			 * There is already a relation between a TTY and
