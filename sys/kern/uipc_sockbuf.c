@@ -576,10 +576,6 @@ sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0)
 
 	if (m0 == 0)
 		return;
-	m = sb->sb_mb;
-	if (m)
-		while (m->m_nextpkt)
-			m = m->m_nextpkt;
 	/*
 	 * Put the first mbuf on the queue.  Note this permits zero length
 	 * records.
@@ -587,16 +583,14 @@ sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0)
 	sballoc(sb, m0);
 	SBLASTRECORDCHK(sb);
 	SBLINKRECORD(sb, m0);
-	if (m)
-		m->m_nextpkt = m0;
-	else
-		sb->sb_mb = m0;
+	sb->sb_mbtail = m0;
 	m = m0->m_next;
 	m0->m_next = 0;
 	if (m && (m0->m_flags & M_EOR)) {
 		m0->m_flags &= ~M_EOR;
 		m->m_flags |= M_EOR;
 	}
+	/* always call sbcompress() so it can do SBLASTMBUFCHK() */
 	sbcompress(sb, m, m0);
 }
 
