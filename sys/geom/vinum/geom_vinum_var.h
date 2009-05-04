@@ -221,7 +221,6 @@ struct gv_event {
 	intmax_t arg4;
 	TAILQ_ENTRY(gv_event)	events;
 };
-#endif
 
 /* This struct contains the main vinum config. */
 struct gv_softc {
@@ -234,13 +233,10 @@ struct gv_softc {
 	TAILQ_HEAD(,gv_event)	equeue;		/* Event queue. */
 	struct mtx		queue_mtx;	/* Queue lock. */
 	struct mtx		config_mtx;	/* Configuration lock. */
-#ifdef	_KERNEL
 	struct bio_queue_head	*bqueue;	/* BIO queue. */
-#else
-	char			*padding;
-#endif
 	struct g_geom		*geom;		/* Pointer to our VINUM geom. */
 };
+#endif
 
 /* softc for a drive. */
 struct gv_drive {
