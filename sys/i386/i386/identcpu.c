@@ -209,7 +209,6 @@ printcpuinfo(void)
 	if (cpu_vendor_id == CPU_VENDOR_INTEL) {
 		if ((cpu_id & 0xf00) > 0x300) {
 			u_int brand_index;
-			u_int model;
 
 			cpu_model[0] = '\0';
 
@@ -322,16 +321,6 @@ printcpuinfo(void)
 			case 0xf00:
 				strcat(cpu_model, "Pentium 4");
 				cpu = CPU_P4;
-				model = (cpu_id & 0x0f0) >> 4;
-				if (model == 3 || model == 4 || model == 6) {
-					uint64_t tmp;
-
-					tmp = rdmsr(MSR_IA32_MISC_ENABLE);
-					wrmsr(MSR_IA32_MISC_ENABLE,
-					      tmp & ~(1LL << 22));
-					do_cpuid(0, regs);
-					cpu_high = regs[0];
-				}
 				break;
 			default:
 				strcat(cpu_model, "unknown");
@@ -1109,6 +1098,24 @@ finishidentcpu(void)
 	u_int	regs[4];
 
 	cpu_vendor_id = find_cpu_vendor_id();
+
+	/*
+	 * Clear "Limit CPUID Maxval" bit and get the largest standard CPUID
+	 * function number again if it is set from BIOS.  It is necessary
+	 * for probing correct CPU topology later.
+	 * XXX This is only done on the BSP package.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_high > 0 && cpu_high < 4 &&
+	    ((I386_CPU_FAMILY(cpu_id) == 0xf && I386_CPU_MODEL(cpu_id) >= 0x3) ||
+	    (I386_CPU_FAMILY(cpu_id) == 0x6 && I386_CPU_MODEL(cpu_id) >= 0xe))) {
+		uint64_t msr;
+		msr = rdmsr(MSR_IA32_MISC_ENABLE);
+		if ((msr & 0x400000ULL) != 0) {
+			wrmsr(MSR_IA32_MISC_ENABLE, msr & ~0x400000ULL);
+			do_cpuid(0, regs);
+			cpu_high = regs[0];
+		}
+	}
 
 	/* Detect AMD features (PTE no-execute bit, 3dnow, 64 bit mode etc) */
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
