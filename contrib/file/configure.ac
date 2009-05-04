@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(file, 4.26, christos@astron.com)
+AC_INIT(file, 5.00, christos@astron.com)
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
 
@@ -75,6 +75,8 @@ AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_CHECK_MEMBERS([struct stat.st_rdev])
 
+AC_STRUCT_TM
+AC_CHECK_MEMBERS([struct tm.tm_gmtoff, struct tm.tm_zone])
 AC_STRUCT_TIMEZONE_DAYLIGHT
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
@@ -139,7 +141,7 @@ dnl Checks for functions
 AC_CHECK_FUNCS(mmap strerror strndup strtoul mbrtowc mkstemp utimes utime wcwidth strtof)
 
 dnl Provide implementation of some required functions if necessary
-AC_REPLACE_FUNCS(getopt_long asprintf vasprintf)
+AC_REPLACE_FUNCS(getopt_long asprintf vasprintf strlcpy strlcat)
 
 dnl Checks for libraries
 AC_CHECK_LIB(z,gzopen)
