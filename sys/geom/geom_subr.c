@@ -1157,8 +1157,11 @@ db_show_geom_provider(int indent, struct g_provider *pp)
 		printf("\n");
 	}
 	if (!LIST_EMPTY(&pp->consumers)) {
-		LIST_FOREACH(cp, &pp->consumers, consumers)
+		LIST_FOREACH(cp, &pp->consumers, consumers) {
 			db_show_geom_consumer(indent + 2, cp);
+			if (db_pager_quit)
+				break;
+		}
 	}
 }
 
@@ -1189,12 +1192,18 @@ db_show_geom_geom(int indent, struct g_geom *gp)
 		printf("\n");
 	}
 	if (!LIST_EMPTY(&gp->provider)) {
-		LIST_FOREACH(pp, &gp->provider, provider)
+		LIST_FOREACH(pp, &gp->provider, provider) {
 			db_show_geom_provider(indent + 2, pp);
+			if (db_pager_quit)
+				break;
+		}
 	}
 	if (!LIST_EMPTY(&gp->consumer)) {
-		LIST_FOREACH(cp, &gp->consumer, consumer)
+		LIST_FOREACH(cp, &gp->consumer, consumer) {
 			db_show_geom_consumer(indent + 2, cp);
+			if (db_pager_quit)
+				break;
+		}
 	}
 }
 
@@ -1204,8 +1213,11 @@ db_show_geom_class(struct g_class *mp)
 	struct g_geom *gp;
 
 	printf("class: %s (%p)\n", mp->name, mp);
-	LIST_FOREACH(gp, &mp->geom, geom)
+	LIST_FOREACH(gp, &mp->geom, geom) {
 		db_show_geom_geom(2, gp);
+		if (db_pager_quit)
+			break;
+	}
 }
 
 /*
@@ -1220,6 +1232,8 @@ DB_SHOW_COMMAND(geom, db_show_geom)
 		LIST_FOREACH(mp, &g_classes, class) {
 			db_show_geom_class(mp);
 			printf("\n");
+			if (db_pager_quit)
+				break;
 		}
 	} else {
 		switch (g_valid_obj((void *)addr)) {
