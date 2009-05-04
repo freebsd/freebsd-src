@@ -4,15 +4,15 @@
 #
 
 # .BAT files (Daniel Quinlan, quinlan@yggdrasil.com)
-# updated by Joerg Jenderek
+# updated by Joerg Jenderek at Oct 2008
 0	string	@			
->1	string/cB	\ echo\ off	MS-DOS batch file text
+>1	string/cB	\ echo\ off	DOS batch file text
 !:mime	text/x-msdos-batch
->1	string/cB	echo\ off	MS-DOS batch file text
+>1	string/cB	echo\ off	DOS batch file text
 !:mime	text/x-msdos-batch
->1	string/cB	rem\ 		MS-DOS batch file text
+>1	string/cB	rem\ 		DOS batch file text
 !:mime	text/x-msdos-batch
->1	string/cB	set\ 		MS-DOS batch file text
+>1	string/cB	set\ 		DOS batch file text
 !:mime	text/x-msdos-batch
 
 
@@ -285,8 +285,9 @@
 # Uncommenting only the first two lines will cover about 2/3 of COM files,
 # but it isn't feasible to match all COM files since there must be at least
 # two dozen different one-byte "magics".
-#0	byte		0xe9		DOS executable (COM)
-#>0x1FE leshort		0xAA55		\b, boot code
+# test too generic ?
+0	byte		0xe9		DOS executable (COM)
+>0x1FE leshort		0xAA55		\b, boot code
 >6	string		SFX\ of\ LHarc	(%s)
 0	belong	0xffffffff		DOS executable (device driver)
 #CMD640X2.SYS
@@ -309,25 +310,38 @@
 >>77	string	>\x40			
 >>>77	string	<\x5B			
 >>>>77	string	x			\b, name: %.8s
-#0	byte		0x8c		DOS executable (COM)
-# 0xeb conflicts with "sequent" magic
-#0	byte		0xeb		DOS executable (COM)
-#>0x1FE leshort		0xAA55		\b, boot code
-#>85	string		UPX		\b, UPX compressed
-#>4	string		\ $ARX		\b, ARX self-extracting archive
-#>4	string		\ $LHarc	\b, LHarc self-extracting archive
-#>0x20e string		SFX\ by\ LARC	\b, LARC self-extracting archive
+# test too generic ?
+0	byte		0x8c		DOS executable (COM)
+# updated by Joerg Jenderek at Oct 2008
+0	ulelong		0xffff10eb	DR-DOS executable (COM)
+# byte 0xeb conflicts with "sequent" magic leshort 0xn2eb
+0	ubeshort&0xeb8d	>0xeb00		
+# DR-DOS STACKER.COM SCREATE.SYS missed
+>0	byte		0xeb		DOS executable (COM)
+>>0x1FE leshort		0xAA55		\b, boot code
+>>85	string		UPX		\b, UPX compressed
+>>4	string		\ $ARX		\b, ARX self-extracting archive
+>>4	string		\ $LHarc	\b, LHarc self-extracting archive
+>>0x20e string		SFX\ by\ LARC	\b, LARC self-extracting archive
+# updated by Joerg Jenderek at Oct 2008
 #0	byte		0xb8		COM executable
+0	uleshort&0x80ff	0x00b8		
 # modified by Joerg Jenderek
->1	lelong		!0x21cd4cff	for DOS
+>1	lelong		!0x21cd4cff	COM executable for DOS
 # http://syslinux.zytor.com/comboot.php
 # (32-bit COMBOOT) programs *.C32 contain 32-bit code and run in flat-memory 32-bit protected mode
 # start with assembler instructions mov eax,21cd4cffh
->1	lelong		0x21cd4cff	(32-bit COMBOOT)
+0	uleshort&0xc0ff	0xc0b8		
+>1	lelong		0x21cd4cff	COM executable (32-bit COMBOOT)
 0	string	\x81\xfc		
 >4	string	\x77\x02\xcd\x20\xb9	
 >>36	string	UPX!			FREE-DOS executable (COM), UPX compressed
 252	string Must\ have\ DOS\ version DR-DOS executable (COM)
+# added by Joerg Jenderek at Oct 2008
+# GRR search is not working
+#34	search/2	UPX!		FREE-DOS executable (COM), UPX compressed
+34	string	UPX!			FREE-DOS executable (COM), UPX compressed
+35	string	UPX!			FREE-DOS executable (COM), UPX compressed
 # GRR search is not working
 #2	search/28	\xcd\x21	COM executable for MS-DOS
 #WHICHFAT.cOM
@@ -564,6 +578,7 @@
 # From Stuart Caie <kyzer@4u.net> (developer of cabextract)
 # Microsoft Cabinet files
 0	string		MSCF\0\0\0\0	Microsoft Cabinet archive data
+!:mime application/vnd.ms-cab-compressed
 >8	lelong		x		\b, %u bytes
 >28	leshort		1		\b, 1 file
 >28	leshort		>1		\b, %u files

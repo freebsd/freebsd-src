@@ -23,7 +23,6 @@
 # by Dmitry V. Levin and Alexey Tourbin
 # check the first line
 0	search/1	package
-0	regex		\^package[\ \t]+[A-Za-z_]
 >0	regex		\^package[\ \t]+[0-9A-Za-z_:]+\ *;	Perl5 module source text
 # not 'p', check other lines
 0	search/1	!p
