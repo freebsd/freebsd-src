@@ -559,9 +559,6 @@ vnode_pager_input_smlfs(object, m)
 		}
 	}
 	sf_buf_free(sf);
-	vm_page_lock_queues();
-	pmap_clear_modify(m);
-	vm_page_unlock_queues();
 	if (error) {
 		return VM_PAGER_ERROR;
 	}
