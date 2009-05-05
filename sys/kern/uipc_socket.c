@@ -264,7 +264,7 @@ SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
  * soalloc() returns a socket with a ref count of 0.
  */
 static struct socket *
-soalloc(void)
+soalloc(struct vnet *vnet)
 {
 	struct socket *so;
 
@@ -286,7 +286,8 @@ soalloc(void)
 	so->so_gencnt = ++so_gencnt;
 	++numopensockets;
 #ifdef VIMAGE
-	so->so_vnet = curvnet;
+	++vnet->sockcnt;	/* locked with so_global_mtx */
+	so->so_vnet = vnet;
 #endif
 	mtx_unlock(&so_global_mtx);
 	return (so);
@@ -307,6 +308,9 @@ sodealloc(struct socket *so)
 	mtx_lock(&so_global_mtx);
 	so->so_gencnt = ++so_gencnt;
 	--numopensockets;	/* Could be below, but faster here. */
+#ifdef VIMAGE
+	--so->so_vnet->sockcnt;
+#endif
 	mtx_unlock(&so_global_mtx);
 	if (so->so_rcv.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
@@ -356,7 +360,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	so = soalloc();
+	so = soalloc(TD_TO_VNET(td));
 	if (so == NULL)
 		return (ENOBUFS);
 
@@ -382,7 +386,9 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	 * Auto-sizing of socket buffers is managed by the protocols and
 	 * the appropriate flags must be set in the pru_attach function.
 	 */
+	CURVNET_SET(so->so_vnet);
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
+	CURVNET_RESTORE();
 	if (error) {
 		KASSERT(so->so_count == 1, ("socreate: so_count %d",
 		    so->so_count));
@@ -424,7 +430,8 @@ sonewconn(struct socket *head, int connstatus)
 	if (over)
 #endif
 		return (NULL);
-	so = soalloc();
+	VNET_ASSERT(head->so_vnet);
+	so = soalloc(head->so_vnet);
 	if (so == NULL)
 		return (NULL);
 	if ((head->so_options & SO_ACCEPTFILTER) != 0)
@@ -496,8 +503,12 @@ sonewconn(struct socket *head, int connstatus)
 int
 sobind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	int error;
 
-	return ((*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td));
+	CURVNET_SET(so->so_vnet);
+	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td);
+	CURVNET_RESTORE();
+	return error;
 }
 
 /*
@@ -645,6 +656,7 @@ soclose(struct socket *so)
 
 	KASSERT(!(so->so_state & SS_NOFDREF), ("soclose: SS_NOFDREF on enter"));
 
+	CURVNET_SET(so->so_vnet);
 	funsetown(&so->so_sigio);
 	if (so->so_state & SS_ISCONNECTED) {
 		if ((so->so_state & SS_ISDISCONNECTING) == 0) {
@@ -696,6 +708,7 @@ drop:
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;
 	sorele(so);
+	CURVNET_RESTORE();
 	return (error);
 }
 
@@ -771,7 +784,9 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * biting us.
 		 */
 		so->so_error = 0;
+		CURVNET_SET(so->so_vnet);
 		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
+		CURVNET_RESTORE();
 	}
 
 	return (error);
@@ -1287,9 +1302,13 @@ int
 sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
     struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
+	int error;
 
-	return (so->so_proto->pr_usrreqs->pru_sosend(so, addr, uio, top,
-	    control, flags, td));
+	CURVNET_SET(so->so_vnet);
+	error = so->so_proto->pr_usrreqs->pru_sosend(so, addr, uio, top,
+		control, flags, td);
+	CURVNET_RESTORE();
+	return (error);
 }
 
 /*
@@ -2037,6 +2056,7 @@ int
 soshutdown(struct socket *so, int how)
 {
 	struct protosw *pr = so->so_proto;
+	int error;
 
 	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
 		return (EINVAL);
@@ -2045,8 +2065,12 @@ soshutdown(struct socket *so, int how)
 	}
 	if (how != SHUT_WR)
 		sorflush(so);
-	if (how != SHUT_RD)
-		return ((*pr->pr_usrreqs->pru_shutdown)(so));
+	if (how != SHUT_RD) {
+		CURVNET_SET(so->so_vnet);
+		error = (*pr->pr_usrreqs->pru_shutdown)(so);
+		CURVNET_RESTORE();
+		return (error);
+	}
 	return (0);
 }
 
@@ -2070,6 +2094,7 @@ sorflush(struct socket *so)
 	 * socket buffer.  Don't let our acquire be interrupted by a signal
 	 * despite any existing socket disposition on interruptable waiting.
 	 */
+	CURVNET_SET(so->so_vnet);
 	socantrcvmore(so);
 	(void) sblock(sb, SBL_WAIT | SBL_NOINTR);
 
@@ -2093,6 +2118,7 @@ sorflush(struct socket *so)
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
 		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
 	sbrelease_internal(&asb, so);
+	CURVNET_RESTORE();
 }
 
 /*

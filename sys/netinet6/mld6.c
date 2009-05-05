@@ -2908,7 +2908,6 @@ mld_dispatch_packet(struct mbuf *m)
 	 * indexes to guard against interface detach, they are
 	 * unique to each VIMAGE and must be retrieved.
 	 */
-	CURVNET_SET(m->m_pkthdr.header);
 	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	ifindex = mld_restore_context(m);
@@ -2987,10 +2986,7 @@ mld_dispatch_packet(struct mbuf *m)
 		}
 	}
 out:
-	/*
-	 * We must restore the existing vnet pointer before continuing.
-	 */
-	CURVNET_RESTORE();
+	return;
 }
 
 /*
@@ -3142,7 +3138,9 @@ vnet_mld_iattach(const void *unused __unused)
 static int
 vnet_mld_idetach(const void *unused __unused)
 {
+#ifdef INVARIANTS
 	INIT_VNET_INET6(curvnet);
+#endif
 
 	CTR1(KTR_MLD, "%s: tearing down", __func__);
 

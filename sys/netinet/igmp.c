@@ -1117,6 +1117,9 @@ igmp_input_v3_group_query(struct in_multi *inm, struct igmp_ifinfo *igi,
 
 	nsrc = ntohs(igmpv3->igmp_numsrc);
 
+	if (!IS_DEFAULT_VNET(curvnet))
+		return (retval);
+
 	/*
 	 * Deal with group-specific queries upfront.
 	 * If any group query is already pending, purge any recorded
@@ -3372,7 +3375,7 @@ igmp_intr(struct mbuf *m)
 	 * indexes to guard against interface detach, they are
 	 * unique to each VIMAGE and must be retrieved.
 	 */
-	CURVNET_SET(m->m_pkthdr.header);
+	CURVNET_SET((struct vnet *)(m->m_pkthdr.header));
 	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET(curvnet);
 	ifindex = igmp_restore_context(m);
@@ -3654,9 +3657,7 @@ igmp_modevent(module_t mod, int type, void *unused __unused)
 	break;
     case MOD_UNLOAD:
 #ifndef VIMAGE_GLOBALS
-#ifdef NOTYET
 	vnet_mod_deregister(&vnet_igmp_modinfo);
-#endif
 #else
 	vnet_igmp_idetach(NULL);
 #endif

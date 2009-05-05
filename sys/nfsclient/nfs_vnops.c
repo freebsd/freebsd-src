@@ -1522,7 +1522,6 @@ again:
 	if (v3) {
 		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 		if (fmode & O_EXCL) {
-			CURVNET_SET(VFSTONFS(dvp->v_mount)->nm_so->so_vnet);
 			*tl = txdr_unsigned(NFSV3CREATE_EXCLUSIVE);
 			tl = nfsm_build(u_int32_t *, NFSX_V3CREATEVERF);
 #ifdef INET
@@ -1533,7 +1532,6 @@ again:
 #endif
 				*tl++ = create_verf;
 			*tl = ++create_verf;
-			CURVNET_RESTORE();
 		} else {
 			*tl = txdr_unsigned(NFSV3CREATE_UNCHECKED);
 			nfsm_v3attrbuild(vap, FALSE);

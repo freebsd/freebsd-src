@@ -250,14 +250,13 @@ static void in_rtqtimo_one(void *rock);
 static void
 in_rtqtimo(void *rock)
 {
+	CURVNET_SET((struct vnet *) rock);
 	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET(curvnet);
 	int fibnum;
 	void *newrock;
 	struct timeval atv;
 
-	KASSERT((rock == (void *)V_rt_tables[0][AF_INET]),
-			("in_rtqtimo: unexpected arg"));
 	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
 		if ((newrock = V_rt_tables[fibnum][AF_INET]) != NULL)
 			in_rtqtimo_one(newrock);
@@ -265,6 +264,7 @@ in_rtqtimo(void *rock)
 	atv.tv_usec = 0;
 	atv.tv_sec = V_rtq_timeout;
 	callout_reset(&V_rtq_timer, tvtohz(&atv), in_rtqtimo, rock);
+	CURVNET_RESTORE();
 }
 
 static void
@@ -377,7 +377,7 @@ in_inithead(void **head, int off)
 	rnh->rnh_close = in_clsroute;
 	if (_in_rt_was_here == 0 ) {
 		callout_init(&V_rtq_timer, CALLOUT_MPSAFE);
-		in_rtqtimo(rnh);	/* kick off timeout first time */
+		callout_reset(&V_rtq_timer, 1, in_rtqtimo, curvnet);
 		_in_rt_was_here = 1;
 	}
 	return 1;
