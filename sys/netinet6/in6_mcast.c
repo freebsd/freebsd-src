@@ -2691,7 +2691,7 @@ in6m_print(const struct in6_multi *inm)
 	int t;
 	char ip6tbuf[INET6_ADDRSTRLEN];
 
-	if ((KTR_COMPILE & KTR_MLD) == 0)
+	if ((ktr_mask & KTR_MLD) == 0)
 		return;
 
 	printf("%s: --- begin in6m %p ---\n", __func__, inm);
