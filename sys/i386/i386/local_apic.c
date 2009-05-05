@@ -321,7 +321,7 @@ lapic_setup(int boot)
 	}
 
 	/* We don't setup the timer during boot on the BSP until later. */
-	if (!(boot && PCPU_GET(cpuid) == 0)) {
+	if (!(boot && PCPU_GET(cpuid) == 0) && lapic_timer_hz != 0) {
 		KASSERT(lapic_timer_period != 0, ("lapic%u: zero divisor",
 		    lapic_id()));
 		lapic_timer_set_divisor(lapic_timer_divisor);
