@@ -33,7 +33,6 @@
 #ifndef	_SYS_VIMAGE_H_
 #define	_SYS_VIMAGE_H_
 
-#include <sys/proc.h>
 #include <sys/queue.h>
 
 #if defined(VIMAGE) && defined(VIMAGE_GLOBALS)

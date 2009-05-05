@@ -138,6 +138,7 @@ struct ng_node ng_deadnode = {
 		STAILQ_HEAD_INITIALIZER(ng_deadnode.nd_input_queue.queue),
 	},
 	1,	/* refs */
+	NULL,	/* vnet */
 #ifdef	NETGRAPH_DEBUG
 	ND_MAGIC,
 	__FILE__,
