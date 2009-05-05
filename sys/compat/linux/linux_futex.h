@@ -63,4 +63,10 @@
 #define FUTEX_OP_CMP_GT         4	/* if (oldval > CMPARG) wake */
 #define FUTEX_OP_CMP_GE         5	/* if (oldval >= CMPARG) wake */
 
+#define	FUTEX_WAITERS		0x80000000
+#define	FUTEX_OWNER_DIED	0x40000000
+#define	FUTEX_TID_MASK		0x3fffffff
+
+void	release_futexes(struct proc *);
+
 #endif	/* !_LINUX_FUTEX_H */
