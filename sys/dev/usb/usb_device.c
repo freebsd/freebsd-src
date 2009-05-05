@@ -96,15 +96,12 @@ static const char* statestr[USB_STATE_MAX] = {
 	[USB_STATE_POWERED]	= "POWERED",
 	[USB_STATE_ADDRESSED]	= "ADDRESSED",
 	[USB_STATE_CONFIGURED]	= "CONFIGURED",
-	[USB_STATE_SUSPENDED]	= "SUSPENDED"
 };
 
 const char *
-usb2_statestr(enum usb_dev_state state)
+usb2_statestr(enum usb2_dev_state state)
 {
-	KASSERT(state < USB_STATE_MAX, ("invalid udev state"));
-
-	return (statestr[state]);
+	return ((state < USB_STATE_MAX) ? statestr[state] : "UNKNOWN");
 }
 
 /*------------------------------------------------------------------------*
@@ -999,7 +996,7 @@ usb2_detach_device_sub(struct usb2_device *udev, device_t *ppdev,
 		    udev->port_no, udev->address);
 
 		if (device_is_attached(dev)) {
-			if (udev->state == USB_STATE_SUSPENDED) {
+			if (udev->flags.peer_suspended) {
 				err = DEVICE_RESUME(dev);
 				if (err) {
 					device_printf(dev, "Resume failed!\n");
@@ -1139,7 +1136,7 @@ usb2_probe_and_attach_sub(struct usb2_device *udev,
 		uaa->temp_dev = NULL;
 		device_set_ivars(iface->subdev, NULL);
 
-		if (udev->state == USB_STATE_SUSPENDED) {
+		if (udev->flags.peer_suspended) {
 			err = DEVICE_SUSPEND(iface->subdev);
 			if (err)
 				device_printf(iface->subdev, "Suspend failed\n");
@@ -1360,12 +1357,12 @@ usb2_suspend_resume(struct usb2_device *udev, uint8_t do_suspend)
 
 	USB_BUS_LOCK(udev->bus);
 	/* filter the suspend events */
-	if ((udev->state == USB_STATE_SUSPENDED && do_suspend) ||
-	    (udev->state != USB_STATE_SUSPENDED && !do_suspend)) {
+	if (udev->flags.peer_suspended == do_suspend) {
 		USB_BUS_UNLOCK(udev->bus);
 		/* nothing to do */
 		return (0);
 	}
+	udev->flags.peer_suspended = do_suspend;
 	USB_BUS_UNLOCK(udev->bus);
 
 	/* do the suspend or resume */
@@ -2462,7 +2459,7 @@ usb2_peer_can_wakeup(struct usb2_device *udev)
 }
 
 void
-usb2_set_device_state(struct usb2_device *udev, enum usb_dev_state state)
+usb2_set_device_state(struct usb2_device *udev, enum usb2_dev_state state)
 {
 
 	KASSERT(state < USB_STATE_MAX, ("invalid udev state"));
@@ -2472,7 +2469,7 @@ usb2_set_device_state(struct usb2_device *udev, enum usb_dev_state state)
 	udev->state = state;
 }
 
-int
+uint8_t
 usb2_device_attached(struct usb2_device *udev)
 {
 	return (udev->state > USB_STATE_DETACHED);

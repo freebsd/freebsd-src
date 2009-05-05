@@ -89,6 +89,14 @@ struct usb2_device_flags {
 					 * strings */
 	uint8_t	remote_wakeup:1;	/* set if remote wakeup is enabled */
 	uint8_t	uq_bus_powered:1;	/* set if BUS powered quirk is present */
+
+	/*
+	 * NOTE: Although the flags below will reach the same value
+	 * over time, but the instant values may differ, and
+	 * consequently the flags cannot be merged into one!
+	 */
+	uint8_t peer_suspended:1;	/* set if peer is suspended */
+	uint8_t self_suspended:1;	/* set if self is suspended */
 };
 
 /*
@@ -137,7 +145,7 @@ struct usb2_device {
 #endif
 	usb2_ticks_t plugtime;		/* copy of "ticks" */
 
-	enum usb_dev_state state;
+	enum usb2_dev_state state;
 	uint16_t refcount;
 #define	USB_DEV_REF_MAX 0xffff
 
@@ -205,6 +213,6 @@ void	usb_linux_free_device(struct usb_device *dev);
 uint8_t	usb2_peer_can_wakeup(struct usb2_device *udev);
 struct usb2_pipe *usb2_pipe_foreach(struct usb2_device *udev, struct usb2_pipe *pipe);
 void	usb2_set_device_state(struct usb2_device *udev,
-	    enum usb_dev_state state);
+	    enum usb2_dev_state state);
 
 #endif					/* _USB2_DEVICE_H_ */
