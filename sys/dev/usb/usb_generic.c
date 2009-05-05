@@ -823,11 +823,7 @@ usb2_gen_fill_deviceinfo(struct usb2_fifo *f, struct usb2_device_info *di)
 	di->udi_speed = udev->speed;
 	di->udi_mode = udev->flags.usb2_mode;
 	di->udi_power_mode = udev->power_mode;
-	if (udev->state == USB_STATE_SUSPENDED) {
-		di->udi_suspended = 1;
-	} else {
-		di->udi_suspended = 0;
-	}
+	di->udi_suspended = udev->flags.peer_suspended;
 
 	hub = udev->parent_hub;
 	if (hub) {

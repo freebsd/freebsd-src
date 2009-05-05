@@ -1964,7 +1964,7 @@ ehci_setup_standard_chain(struct usb2_xfer *xfer, ehci_qh_t **qh_last)
 
 	usb2_pc_cpu_flush(qh->page_cache);
 
-	if (xfer->xroot->udev->state != USB_STATE_SUSPENDED) {
+	if (xfer->xroot->udev->flags.self_suspended == 0) {
 		EHCI_APPEND_QH(qh, *qh_last);
 	}
 }
