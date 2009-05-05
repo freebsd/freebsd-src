@@ -380,6 +380,7 @@ do {									\
 #define	TDP_INBDFLUSH	0x00100000 /* Already in BO_BDFLUSH, do not recurse */
 #define	TDP_IGNSUSP	0x00800000 /* Permission to ignore the MNTK_SUSPEND* */
 #define	TDP_AUDITREC	0x01000000 /* Audit record pending on thread */
+#define	TDP_BUFNEED	0x02000000 /* Do not recurse into the buf flush */
 
 /*
  * Reasons that the current thread can not be run yet.
