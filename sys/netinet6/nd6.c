@@ -489,6 +489,14 @@ nd6_llinfo_timer(void *arg)
 	if ((ifp = ((ln->lle_tbl != NULL) ? ln->lle_tbl->llt_ifp : NULL)) == NULL)
 		panic("ln ifp == NULL");
 
+/*
+ * XXX XXX XXX XXX XXX
+ *
+ * Why the ^%(@)*&%^) is this #define MIN() needed for CURVNET_SET()?!?
+ * And #define MIN() is in sys/param.h already, which is #included first
+ * here?!?
+ */
+#define       MIN(a,b) (((a)<(b))?(a):(b))
 	CURVNET_SET(ifp->if_vnet);
 	INIT_VNET_INET6(curvnet);
 
@@ -592,7 +600,7 @@ done:
 void
 nd6_timer(void *arg)
 {
-	CURVNET_SET_QUIET((struct vnet *) arg);
+	CURVNET_SET((struct vnet *) arg);
 	INIT_VNET_INET6(curvnet);
 	int s;
 	struct nd_defrouter *dr;

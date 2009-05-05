@@ -1217,7 +1217,7 @@ install_offload_ops(struct socket *so)
  * receive window.
  */
 static __inline int
-select_rcv_wscale(int space)
+select_rcv_wscale(int space, struct vnet *vnet)
 {
 	INIT_VNET_INET(so->so_vnet);
 	int wscale = 0;
@@ -1326,7 +1326,7 @@ static inline unsigned int
 calc_opt0h(struct socket *so, int mtu_idx)
 {
 	struct tcpcb *tp = so_sototcpcb(so);
-	int wscale = select_rcv_wscale(tp->rcv_wnd);
+	int wscale = select_rcv_wscale(tp->rcv_wnd, so->so_vnet);
 	
 	return V_NAGLE((tp->t_flags & TF_NODELAY) == 0) |
 	    V_KEEP_ALIVE((so_options_get(so) & SO_KEEPALIVE) != 0) | F_TCAM_BYPASS |

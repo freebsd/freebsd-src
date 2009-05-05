@@ -602,6 +602,8 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 #endif
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
+
 	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
 		if (ETHER_IS_BROADCAST(eh->ether_dhost))
 			m->m_flags |= M_BCAST;
@@ -638,6 +640,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	/* Allow monitor mode to claim this frame, after stats are updated. */
 	if (ifp->if_flags & IFF_MONITOR) {
 		m_freem(m);
+		CURVNET_RESTORE();
 		return;
 	}
 
@@ -686,8 +689,10 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		    ("%s: ng_ether_input_p is NULL", __func__));
 		m->m_flags &= ~M_PROMISC;
 		(*ng_ether_input_p)(ifp, &m);
-		if (m == NULL)
+		if (m == NULL) {
+			CURVNET_RESTORE();
 			return;
+		}
 	}
 
 	/*
@@ -698,8 +703,10 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	if (ifp->if_bridge != NULL) {
 		m->m_flags &= ~M_PROMISC;
 		BRIDGE_INPUT(ifp, m);
-		if (m == NULL)
+		if (m == NULL) {
+			CURVNET_RESTORE();
 			return;
+		}
 	}
 
 #ifdef DEV_CARP
@@ -735,6 +742,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
 
 	ether_demux(ifp, m);
+	CURVNET_RESTORE();
 }
 
 /*

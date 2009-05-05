@@ -731,7 +731,9 @@ struct ifindex_entry {
  * to call ifnet_byindex() instead if ifnet_byindex_ref().
  */
 struct ifnet	*ifnet_byindex(u_short idx);
+struct ifnet	*ifnet_byindex_locked(u_short idx);
 struct ifnet	*ifnet_byindex_ref(u_short idx);
+void ifnet_setbyindex(u_short idx, struct ifnet *ifp);
 
 /*
  * Given the index, ifaddr_byindex() returns the one and only
@@ -755,6 +757,7 @@ int	if_allmulti(struct ifnet *, int);
 struct	ifnet* if_alloc(u_char);
 void	if_attach(struct ifnet *);
 void	if_dead(struct ifnet *);
+void	if_grow(void);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
