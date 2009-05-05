@@ -31,8 +31,6 @@
 #ifndef _LINUX_EMUL_H_
 #define	_LINUX_EMUL_H_
 
-#include <compat/linux/linux_futex.h>
-
 struct linux_emuldata_shared {
 	int	refs;
 	pid_t	group_pid;
