@@ -35,12 +35,16 @@ struct uboot_devdesc
 	union {
 		struct {
 			void	*data;
-			int	partition;
+			int	pnum;
+			int	ptype;
 		} disk;
 	} d_kind;
 };
 
 #define d_disk d_kind.disk
+
+#define PTYPE_BSDLABEL	1
+#define PTYPE_GPT	2
 
 /*
  * Default network packet alignment in memory
