@@ -132,6 +132,7 @@ extern struct usb2_pipe_methods uhci_device_ctrl_methods;
 extern struct usb2_pipe_methods uhci_device_intr_methods;
 extern struct usb2_pipe_methods uhci_device_isoc_methods;
 
+static uint8_t	uhci_restart(uhci_softc_t *sc);
 static void	uhci_do_poll(struct usb2_bus *);
 static void	uhci_device_done(struct usb2_xfer *, usb2_error_t);
 static void	uhci_transfer_intr_enqueue(struct usb2_xfer *);
@@ -246,10 +247,51 @@ uhci_mem_layout_fixup(struct uhci_mem_layout *ml, struct uhci_td *td)
 	ml->buf_offset += td->len;
 }
 
+/*
+ * Return values:
+ * 0: Success
+ * Else: Failure
+ */
+static uint8_t
+uhci_restart(uhci_softc_t *sc)
+{
+	struct usb2_page_search buf_res;
+
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
+
+  	if (UREAD2(sc, UHCI_CMD) & UHCI_CMD_RS) {
+		DPRINTFN(2, "Already started\n");
+		return (0);
+	}
+
+	DPRINTFN(2, "Restarting\n");
+
+	usb2_get_page(&sc->sc_hw.pframes_pc, 0, &buf_res);
+
+	/* Reload fresh base address */
+	UWRITE4(sc, UHCI_FLBASEADDR, buf_res.physaddr);
+
+	/*
+	 * Assume 64 byte packets at frame end and start HC controller:
+	 */
+	UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
+
+	/* wait 10 milliseconds */
+
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+
+	/* check that controller has started */
+
+	if (UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) {
+		DPRINTFN(2, "Failed\n");
+		return (1);
+	}
+	return (0);
+}
+
 void
 uhci_reset(uhci_softc_t *sc)
 {
-	struct usb2_page_search buf_res;
 	uint16_t n;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -309,8 +351,6 @@ done_1:
 done_2:
 
 	/* reload the configuration */
-	usb2_get_page(&sc->sc_hw.pframes_pc, 0, &buf_res);
-	UWRITE4(sc, UHCI_FLBASEADDR, buf_res.physaddr);
 	UWRITE2(sc, UHCI_FRNUM, sc->sc_saved_frnum);
 	UWRITE1(sc, UHCI_SOF, sc->sc_saved_sof);
 
@@ -337,30 +377,11 @@ uhci_start(uhci_softc_t *sc)
 	    UHCI_INTR_IOCE |
 	    UHCI_INTR_SPIE));
 
-	/*
-	 * assume 64 byte packets at frame end and start HC controller
-	 */
-
-	UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
-
-	uint8_t n = 10;
-
-	while (n--) {
-		/* wait one millisecond */
-
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
-
-		/* check that controller has started */
-
-		if (!(UREAD2(sc, UHCI_STS) & UHCI_STS_HCH)) {
-			goto done;
-		}
+	if (uhci_restart(sc)) {
+		device_printf(sc->sc_bus.bdev,
+		    "cannot start HC controller\n");
 	}
 
-	device_printf(sc->sc_bus.bdev,
-	    "cannot start HC controller\n");
-
-done:
 	/* start root interrupt */
 	uhci_root_intr(sc);
 }
@@ -2389,15 +2410,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index)
 	 * Before we do anything, turn on SOF messages on the USB
 	 * BUS. Some USB devices do not cope without them!
 	 */
-  	if (!(UREAD2(sc, UHCI_CMD) & UHCI_CMD_RS)) {
-
-		DPRINTF("Activating SOFs!\n");
-
-		UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
-
-		/* wait a little bit */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
-	}
+	uhci_restart(sc);
 
 	x = URWMASK(UREAD2(sc, port));
 	UWRITE2(sc, port, x | UHCI_PORTSC_PR);
@@ -3194,11 +3207,11 @@ uhci_set_hw_power(struct usb2_bus *bus)
 	    USB_HW_POWER_INTERRUPT |
 	    USB_HW_POWER_ISOC)) {
 		DPRINTF("Some USB transfer is "
-		    "active on %u.\n",
+		    "active on unit %u.\n",
 		    device_get_unit(sc->sc_bus.bdev));
-		UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
+		uhci_restart(sc);
 	} else {
-		DPRINTF("Power save on %u.\n",
+		DPRINTF("Power save on unit %u.\n",
 		    device_get_unit(sc->sc_bus.bdev));
 		UHCICMD(sc, UHCI_CMD_MAXP);
 	}
