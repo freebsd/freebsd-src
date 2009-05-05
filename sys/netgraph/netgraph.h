@@ -352,6 +352,7 @@ struct ng_node {
 	LIST_ENTRY(ng_node)	  nd_idnodes;	/* ID hash collision list */
 	struct	ng_queue	  nd_input_queue; /* input queue for locking */
 	int	nd_refs;		/* # of references to this node */
+	struct	vnet		 *nd_vnet;	/* network stack instance */
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define ND_MAGIC 0x59264837
 	int	nd_magic;

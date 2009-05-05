@@ -39,6 +39,7 @@
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -49,6 +50,7 @@
 #include <net/if_var.h>
 #include <net/radix.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 static void	if_clone_free(struct if_clone *ifc);
 static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
@@ -203,15 +205,14 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 {
 	int err;
 
-	if (ifc->ifc_destroy == NULL) {
-		err = EOPNOTSUPP;
-		goto done;
-	}
+	if (ifc->ifc_destroy == NULL)
+		return(EOPNOTSUPP);
 
 	IF_CLONE_LOCK(ifc);
 	IFC_IFLIST_REMOVE(ifc, ifp);
 	IF_CLONE_UNLOCK(ifc);
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	if_delgroup(ifp, ifc->ifc_name);
 
 	err =  (*ifc->ifc_destroy)(ifc, ifp);
@@ -223,8 +224,7 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 		IFC_IFLIST_INSERT(ifc, ifp);
 		IF_CLONE_UNLOCK(ifc);
 	}
-
-done:
+	CURVNET_RESTORE();
 	return (err);
 }
 

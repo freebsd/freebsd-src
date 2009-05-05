@@ -55,7 +55,8 @@ struct ucred {
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(2) */
-	void 		*cr_pspare[3];	/* vimage 2; general use 1 */
+	struct vnet	*cr_vnet;	/* vimage / vnet */
+	void 		*cr_pspare[2];	/* general use 2 */
 #define	cr_endcopy	cr_label
 	struct label	*cr_label;	/* MAC label */
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/ucred.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -74,16 +75,19 @@ soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
 	struct socket *so = fp->f_data;
-#ifdef MAC
 	int error;
 
+#ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_socket_check_receive(active_cred, so);
 	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif
-	return (soreceive(so, 0, uio, 0, 0, 0));
+	CURVNET_SET(so->so_vnet);
+	error = soreceive(so, 0, uio, 0, 0, 0);
+	CURVNET_RESTORE();
+	return (error);
 }
 
 /* ARGSUSED */
@@ -125,6 +129,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 	struct socket *so = fp->f_data;
 	int error = 0;
 
+	CURVNET_SET(so->so_vnet);
 	switch (cmd) {
 	case FIONBIO:
 		SOCK_LOCK(so);
@@ -205,6 +210,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 			    (so, cmd, data, 0, td));
 		break;
 	}
+	CURVNET_RESTORE();
 	return (error);
 }
 

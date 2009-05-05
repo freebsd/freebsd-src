@@ -86,7 +86,7 @@ struct dadq;
 static struct dadq *nd6_dad_find(struct ifaddr *);
 static void nd6_dad_starttimer(struct dadq *, int);
 static void nd6_dad_stoptimer(struct dadq *);
-static void nd6_dad_timer(struct ifaddr *);
+static void nd6_dad_timer(struct dadq *);
 static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
@@ -1105,7 +1105,6 @@ nd6_ifptomac(struct ifnet *ifp)
 	}
 }
 
-TAILQ_HEAD(dadq_head, dadq);
 struct dadq {
 	TAILQ_ENTRY(dadq) dad_list;
 	struct ifaddr *dad_ifa;
@@ -1115,10 +1114,11 @@ struct dadq {
 	int dad_ns_icount;
 	int dad_na_icount;
 	struct callout dad_timer_ch;
+	struct vnet *dad_vnet;
 };
 
 #ifdef VIMAGE_GLOBALS
-static struct dadq_head dadq;
+static TAILQ_HEAD(, dadq) dadq;
 int dad_init;
 #endif
 
@@ -1140,7 +1140,7 @@ nd6_dad_starttimer(struct dadq *dp, int ticks)
 {
 
 	callout_reset(&dp->dad_timer_ch, ticks,
-	    (void (*)(void *))nd6_dad_timer, (void *)dp->dad_ifa);
+	    (void (*)(void *))nd6_dad_timer, (void *)dp);
 }
 
 static void
@@ -1208,6 +1208,9 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	}
 	bzero(dp, sizeof(*dp));
 	callout_init(&dp->dad_timer_ch, 0);
+#ifdef VIMAGE
+	dp->dad_vnet = curvnet;
+#endif
 	TAILQ_INSERT_TAIL(&V_dadq, (struct dadq *)dp, dad_list);
 
 	nd6log((LOG_DEBUG, "%s: starting DAD for %s\n", if_name(ifa->ifa_ifp),
@@ -1259,13 +1262,13 @@ nd6_dad_stop(struct ifaddr *ifa)
 }
 
 static void
-nd6_dad_timer(struct ifaddr *ifa)
+nd6_dad_timer(struct dadq *dp)
 {
 	CURVNET_SET(dp->dad_vnet);
 	INIT_VNET_INET6(curvnet);
 	int s;
+	struct ifaddr *ifa = dp->dad_ifa;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
-	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	s = splnet();		/* XXX */
@@ -1273,11 +1276,6 @@ nd6_dad_timer(struct ifaddr *ifa)
 	/* Sanity check */
 	if (ia == NULL) {
 		log(LOG_ERR, "nd6_dad_timer: called with null parameter\n");
-		goto done;
-	}
-	dp = nd6_dad_find(ifa);
-	if (dp == NULL) {
-		log(LOG_ERR, "nd6_dad_timer: DAD structure not found\n");
 		goto done;
 	}
 	if (ia->ia6_flags & IN6_IFF_DUPLICATED) {

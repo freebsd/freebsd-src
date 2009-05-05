@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/kernel.h>
@@ -38,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/vimage.h>
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #ifndef VIMAGE_GLOBALS
 
@@ -51,8 +56,6 @@ static int vnet_mod_constructor(struct vnet_modlink *);
 static int vnet_mod_destructor(struct vnet_modlink *);
 
 #ifdef VIMAGE
-/* curvnet should be thread-local - this is only a temporary step. */
-struct vnet *curvnet;
 struct vnet_list_head vnet_head;
 #endif
 
@@ -183,7 +186,8 @@ vnet_mod_deregister_multi(const struct vnet_modinfo *vmi, void *iarg,
 	free(vml, M_VIMAGE);
 }
 
-static int vnet_mod_constructor(struct vnet_modlink *vml)
+static int
+vnet_mod_constructor(struct vnet_modlink *vml)
 {
 	const struct vnet_modinfo *vmi = vml->vml_modinfo;
 
@@ -303,7 +307,9 @@ vi_init(void *unused)
 	if (vnet == NULL)
 		panic("vi_alloc: malloc failed");
 	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
+	vnet->vnet_magic_n = VNET_MAGIC_N;
 
+	/* We MUST clear curvnet in vi_init_done before going SMP. */
 	curvnet = LIST_FIRST(&vnet_head);
 #endif
 }
@@ -312,6 +318,10 @@ static void
 vi_init_done(void *unused)
 {
 	struct vnet_modlink *vml_iter;
+
+#ifdef VIMAGE
+	curvnet = NULL;
+#endif
 
 	if (TAILQ_EMPTY(&vnet_modpending_head))
 		return;
@@ -327,5 +337,45 @@ vi_init_done(void *unused)
 
 SYSINIT(vimage, SI_SUB_VIMAGE, SI_ORDER_FIRST, vi_init, NULL);
 SYSINIT(vimage_done, SI_SUB_VIMAGE_DONE, SI_ORDER_FIRST, vi_init_done, NULL);
-
 #endif /* !VIMAGE_GLOBALS */
+
+#ifdef VIMAGE
+#ifdef DDB
+static void
+db_vnet_ptr(void *arg)
+{
+
+	if (arg)
+		db_printf(" %p", arg);
+	else
+#if SIZE_MAX == UINT32_MAX /* 32-bit arch */
+		db_printf("          0");
+#else /* 64-bit arch, most probaly... */
+		db_printf("                  0");
+#endif
+}
+
+DB_SHOW_COMMAND(vnets, db_show_vnets)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+
+#if SIZE_MAX == UINT32_MAX /* 32-bit arch */
+	db_printf("      vnet ifs socks");
+	db_printf("        net       inet      inet6      ipsec   netgraph\n");
+#else /* 64-bit arch, most probaly... */
+	db_printf("              vnet ifs socks");
+	db_printf("                net               inet              inet6              ipsec           netgraph\n");
+#endif
+	VNET_FOREACH(vnet_iter) {
+		db_printf("%p %3d %5d",
+		    vnet_iter, vnet_iter->ifccnt, vnet_iter->sockcnt);
+		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_NET]);
+		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_INET]);
+		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_INET6]);
+		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_IPSEC]);
+		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_NETGRAPH]);
+		db_printf("\n");
+	}
+}
+#endif
+#endif /* VIMAGE */

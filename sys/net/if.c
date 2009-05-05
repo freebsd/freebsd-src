@@ -53,6 +53,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/refcount.h>
+#include <sys/module.h>
 #include <sys/rwlock.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
@@ -126,7 +127,6 @@ static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
-static void	if_grow(void);
 static void	if_init(void *);
 static void	if_check(void *);
 static void	if_route(struct ifnet *, int flag, int fam);
@@ -202,7 +202,7 @@ MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
-static struct ifnet *
+struct ifnet *
 ifnet_byindex_locked(u_short idx)
 {
 	INIT_VNET_NET(curvnet);
@@ -239,7 +239,7 @@ ifnet_byindex_ref(u_short idx)
 	return (ifp);
 }
 
-static void
+void
 ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 {
 	INIT_VNET_NET(curvnet);
@@ -445,7 +445,7 @@ vnet_net_iattach(const void *unused __unused)
 	return (0);
 }
 
-static void
+void
 if_grow(void)
 {
 	INIT_VNET_NET(curvnet);
@@ -696,11 +696,13 @@ if_attach(struct ifnet *ifp)
 	mac_ifnet_create(ifp);
 #endif
 
-	ifdev_setbyindex(ifp->if_index, make_dev(&net_cdevsw,
-	    ifp->if_index, UID_ROOT, GID_WHEEL, 0600, "%s/%s",
-	    net_cdevsw.d_name, ifp->if_xname));
-	make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
-	    net_cdevsw.d_name, ifp->if_index);
+	if (IS_DEFAULT_VNET(curvnet)) {
+		ifdev_setbyindex(ifp->if_index, make_dev(&net_cdevsw,
+		    ifp->if_index, UID_ROOT, GID_WHEEL, 0600, "%s/%s",
+		    net_cdevsw.d_name, ifp->if_xname));
+		make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
+		    net_cdevsw.d_name, ifp->if_index);
+	}
 
 	ifq_attach(&ifp->if_snd, ifp);
 
@@ -742,13 +744,17 @@ if_attach(struct ifnet *ifp)
 
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
+#ifdef VIMAGE
+	curvnet->ifccnt++;
+#endif
 	IFNET_WUNLOCK();
 
 	if (domain_init_status >= 2)
 		if_attachdomain1(ifp);
 
 	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
-	devctl_notify("IFNET", ifp->if_xname, "ATTACH", NULL);
+	if (IS_DEFAULT_VNET(curvnet))
+		devctl_notify("IFNET", ifp->if_xname, "ATTACH", NULL);
 
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
@@ -895,6 +901,10 @@ if_detach(struct ifnet *ifp)
 			found = 1;
 			break;
 		}
+#ifdef VIMAGE
+	if (found)
+		curvnet->ifccnt--;
+#endif
 	IFNET_WUNLOCK();
 	if (!found)
 		return;
@@ -943,7 +953,8 @@ if_detach(struct ifnet *ifp)
 	 * Clean up all addresses.
 	 */
 	ifp->if_addr = NULL;
-	destroy_dev(ifdev_byindex(ifp->if_index));
+	if (IS_DEFAULT_VNET(curvnet))
+		destroy_dev(ifdev_byindex(ifp->if_index));
 	ifdev_setbyindex(ifp->if_index, NULL);	
 
 	/* We can now free link ifaddr. */
@@ -972,7 +983,8 @@ if_detach(struct ifnet *ifp)
 	/* Announce that the interface is gone. */
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
-	devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
+	if (IS_DEFAULT_VNET(curvnet))
+		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
 	if_delgroups(ifp);
 
 	IF_AFDATA_LOCK(ifp);
@@ -1701,8 +1713,10 @@ do_link_state_change(void *arg, int pending)
 		(*lagg_linkstate_p)(ifp, link_state);
 	}
 
-	devctl_notify("IFNET", ifp->if_xname,
-	    (link_state == LINK_STATE_UP) ? "LINK_UP" : "LINK_DOWN", NULL);
+	if (IS_DEFAULT_VNET(curvnet))
+		devctl_notify("IFNET", ifp->if_xname,
+		    (link_state == LINK_STATE_UP) ? "LINK_UP" : "LINK_DOWN",
+		    NULL);
 	if (pending > 1)
 		if_printf(ifp, "%d link states coalesced\n", pending);
 	if (log_link_state_change)
