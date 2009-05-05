@@ -43,6 +43,7 @@
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/vimage.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/stdarg.h>
@@ -142,7 +143,10 @@ netisr_processqueue(struct netisr *ni)
 		IF_DEQUEUE(ni->ni_queue, m);
 		if (m == NULL)
 			break;
+		VNET_ASSERT(m->m_pkthdr.rcvif != NULL);
+		CURVNET_SET(m->m_pkthdr.rcvif->if_vnet);
 		ni->ni_handler(m);
+		CURVNET_RESTORE();
 	}
 }
 

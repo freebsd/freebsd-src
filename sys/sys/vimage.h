@@ -33,6 +33,7 @@
 #ifndef	_SYS_VIMAGE_H_
 #define	_SYS_VIMAGE_H_
 
+#include <sys/proc.h>
 #include <sys/queue.h>
 
 #if defined(VIMAGE) && defined(VIMAGE_GLOBALS)
@@ -161,14 +162,68 @@ struct vnet {
 	void		*mod_data[VNET_MOD_MAX];
 	LIST_ENTRY(vnet) vnet_le;	/* all vnets list */
 	u_int		 vnet_magic_n;
+	u_int		 ifccnt;
+	u_int		 sockcnt;
 };
 #endif
 
 #ifdef VIMAGE
-extern struct vnet *curvnet;	/* XXX will become thread-local soon */
+#define curvnet curthread->td_vnet
 #else
 #define	curvnet NULL
 #endif
+
+#define VNET_MAGIC_N 0x3e0d8f29
+
+#ifdef VIMAGE
+#ifdef VNET_DEBUG
+#define VNET_ASSERT(condition)						\
+	if (!(condition)) {						\
+		printf("VNET_ASSERT @ %s:%d %s():\n",			\
+			__FILE__, __LINE__, __FUNCTION__);		\
+		panic(#condition);					\
+	}
+
+#define CURVNET_SET_QUIET(arg)						\
+	VNET_ASSERT((arg)->vnet_magic_n == VNET_MAGIC_N);		\
+	struct vnet *saved_vnet = curvnet;				\
+	const char *saved_vnet_lpush = curthread->td_vnet_lpush;	\
+	curvnet = arg;							\
+	curthread->td_vnet_lpush = __FUNCTION__;
+ 
+#define CURVNET_SET_VERBOSE(arg)					\
+	CURVNET_SET_QUIET(arg)						\
+	if (saved_vnet)							\
+		printf("curvnet_set(%p) in %s() on cpu %d, prev %p in %s()\n", curvnet,			\
+		       curthread->td_vnet_lpush, curcpu,		\
+		       saved_vnet, saved_vnet_lpush);
+
+#define CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
+ 
+#define CURVNET_RESTORE()						\
+	VNET_ASSERT(saved_vnet == NULL ||				\
+		    saved_vnet->vnet_magic_n == VNET_MAGIC_N);		\
+	curvnet = saved_vnet;						\
+	curthread->td_vnet_lpush = saved_vnet_lpush;
+#else /* !VNET_DEBUG */
+#define VNET_ASSERT(condition)
+
+#define CURVNET_SET(arg)						\
+	struct vnet *saved_vnet = curvnet;				\
+	curvnet = arg;	
+ 
+#define CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
+#define CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
+ 
+#define CURVNET_RESTORE()						\
+	curvnet = saved_vnet;
+#endif /* !VNET_DEBUG */
+#else /* !VIMAGE */
+#define	VNET_ASSERT(condition)
+#define	CURVNET_SET(arg)
+#define	CURVNET_SET_QUIET(arg)
+#define	CURVNET_RESTORE()
+#endif /* !VIMAGE */
 
 #ifdef VIMAGE
 #ifdef VNET_DEBUG
@@ -196,14 +251,10 @@ extern struct vnet_list_head vnet_head;
 #define	VNET_FOREACH(arg)
 #endif
 
-#define	TD_TO_VNET(td)	curvnet
+#define	TD_TO_VNET(td)	(td)->td_ucred->cr_vnet
 
 /* Non-VIMAGE null-macros */
 #define	IS_DEFAULT_VNET(arg) 1
-#define	CURVNET_SET(arg)
-#define	CURVNET_SET_QUIET(arg)
-#define	CURVNET_RESTORE()
-#define	VNET_ASSERT(condition)
 #define	VNET_LIST_RLOCK()
 #define	VNET_LIST_RUNLOCK()
 #define	INIT_VPROCG(arg)

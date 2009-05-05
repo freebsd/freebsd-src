@@ -219,7 +219,7 @@ static struct mtx mif6_mtx;
 
 #ifdef MRT6DEBUG
 #ifdef VIMAGE_GLOBALS
-static u_int mrt6debug = 0;		/* debug level */
+static u_int mrt6debug;		/* debug level */
 #endif
 #define DEBUG_MFC	0x02
 #define DEBUG_FORWARD	0x04
@@ -546,7 +546,11 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 {
 	INIT_VNET_INET6(curvnet);
 
+	V_ip6_mrouter_ver = 0;
+
 #ifdef MRT6DEBUG
+	V_mrt6debug = 0;
+
 	if (V_mrt6debug)
 		log(LOG_DEBUG,
 		    "ip6_mrouter_init: so_type = %d, pr_protocol = %d\n",

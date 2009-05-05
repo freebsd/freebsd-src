@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/unpcb.h>
 #include <sys/vnode.h>
+#include <sys/vimage.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -1647,6 +1648,10 @@ static void
 unp_init(void)
 {
 
+#ifdef VIMAGE
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+#endif
 	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (unp_zone == NULL)
