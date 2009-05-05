@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/errno.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -73,7 +74,7 @@ static osd_method_t *osd_methods[OSD_LAST + 1];		/* (m) */
 static u_int osd_nslots[OSD_LAST + 1];			/* (m) */
 static osd_destructor_t *osd_destructors[OSD_LAST + 1];	/* (o) */
 static const u_int osd_nmethods[OSD_LAST + 1] = {
-	[OSD_JAIL] = 5,
+	[OSD_JAIL] = PR_MAXMETHOD,
 };
 
 static struct sx osd_module_lock[OSD_LAST + 1];
