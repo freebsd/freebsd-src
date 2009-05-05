@@ -132,7 +132,6 @@ static device_method_t uhub_methods[] = {
 
 	DEVMETHOD(device_suspend, uhub_suspend),
 	DEVMETHOD(device_resume, uhub_resume),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD(bus_child_location_str, uhub_child_location_string),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
