@@ -28,9 +28,9 @@
 #define	_USB2_REVISION_H_
 
 /*
- * The "USB_SPEED" macro defines all the supported USB speeds.
+ * The "USB_SPEED" macros defines all the supported USB speeds.
  */
-enum {
+enum usb2_speed {
 	USB_SPEED_VARIABLE,
 	USB_SPEED_LOW,
 	USB_SPEED_FULL,
@@ -40,9 +40,9 @@ enum {
 };
 
 /*
- * The "USB_REV" macro defines all the supported USB revisions.
+ * The "USB_REV" macros defines all the supported USB revisions.
  */
-enum {
+enum usb2_revision {
 	USB_REV_UNKNOWN,
 	USB_REV_PRE_1_0,
 	USB_REV_1_0,
@@ -54,24 +54,23 @@ enum {
 };
 
 /*
- * The "USB_MODE" macro defines all the supported USB modes.
+ * The "USB_MODE" macros defines all the supported USB modes.
  */
-enum {
+enum usb2_mode {
 	USB_MODE_HOST,
 	USB_MODE_DEVICE,
 	USB_MODE_MAX
 };
 
 /*
- * The "USB_MODE" macro defines all the supported device states.
+ * The "USB_MODE" macros defines all the supported device states.
  */
-enum usb_dev_state {
+enum usb2_dev_state {
 	USB_STATE_DETACHED,
 	USB_STATE_ATTACHED,
 	USB_STATE_POWERED,
 	USB_STATE_ADDRESSED,
 	USB_STATE_CONFIGURED,
-	USB_STATE_SUSPENDED,
 	USB_STATE_MAX,
 };
 #endif					/* _USB2_REVISION_H_ */

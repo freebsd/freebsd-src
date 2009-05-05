@@ -1376,14 +1376,6 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	    xfer, xfer->pipe, xfer->nframes, USB_GET_DATA_ISREAD(xfer) ?
 	    "read" : "write");
 
-	/* Check if the device is still alive */
-	if (info->udev->state < USB_STATE_POWERED) {
-		USB_BUS_LOCK(bus);
-		usb2_transfer_done(xfer, USB_ERR_NOT_CONFIGURED);
-		USB_BUS_UNLOCK(bus);
-		return;
-	}
-
 #if USB_DEBUG
 	if (USB_DEBUG_VAR > 0) {
 		USB_BUS_LOCK(bus);
@@ -1444,8 +1436,15 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	/* clear any previous errors */
 	xfer->error = 0;
 
-	/* sanity check */
+	/* Check if the device is still alive */
+	if (info->udev->state < USB_STATE_POWERED) {
+		USB_BUS_LOCK(bus);
+		usb2_transfer_done(xfer, USB_ERR_NOT_CONFIGURED);
+		USB_BUS_UNLOCK(bus);
+		return;
+	}
 
+	/* sanity check */
 	if (xfer->nframes == 0) {
 		if (xfer->flags.stall_pipe) {
 			/*

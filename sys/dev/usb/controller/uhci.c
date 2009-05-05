@@ -1921,7 +1921,7 @@ uhci_device_bulk_start(struct usb2_xfer *xfer)
 	qh->e_next = td;
 	qh->qh_e_next = td->td_self;
 
-	if (xfer->xroot->udev->state != USB_STATE_SUSPENDED) {
+	if (xfer->xroot->udev->flags.self_suspended == 0) {
 		UHCI_APPEND_QH(qh, sc->sc_bulk_p_last);
 		uhci_add_loop(sc);
 		xfer->flags_int.bandwidth_reclaimed = 1;
@@ -1982,7 +1982,7 @@ uhci_device_ctrl_start(struct usb2_xfer *xfer)
 	 * NOTE: some devices choke on bandwidth- reclamation for control
 	 * transfers
 	 */
-	if (xfer->xroot->udev->state != USB_STATE_SUSPENDED) {
+	if (xfer->xroot->udev->flags.self_suspended == 0) {
 		if (xfer->xroot->udev->speed == USB_SPEED_LOW) {
 			UHCI_APPEND_QH(qh, sc->sc_ls_ctl_p_last);
 		} else {
@@ -2071,11 +2071,9 @@ uhci_device_intr_start(struct usb2_xfer *xfer)
 	qh->e_next = td;
 	qh->qh_e_next = td->td_self;
 
-	if (xfer->xroot->udev->state != USB_STATE_SUSPENDED) {
-
+	if (xfer->xroot->udev->flags.self_suspended == 0) {
 		/* enter QHs into the controller data structures */
 		UHCI_APPEND_QH(qh, sc->sc_intr_p_last[xfer->qh_pos]);
-
 	} else {
 		usb2_pc_cpu_flush(qh->page_cache);
 	}
