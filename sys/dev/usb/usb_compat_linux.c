@@ -59,7 +59,6 @@ static device_attach_t usb_linux_attach;
 static device_detach_t usb_linux_detach;
 static device_suspend_t usb_linux_suspend;
 static device_resume_t usb_linux_resume;
-static device_shutdown_t usb_linux_shutdown;
 
 static usb2_callback_t usb_linux_isoc_callback;
 static usb2_callback_t usb_linux_non_isoc_callback;
@@ -92,7 +91,6 @@ static device_method_t usb_linux_methods[] = {
 	DEVMETHOD(device_detach, usb_linux_detach),
 	DEVMETHOD(device_suspend, usb_linux_suspend),
 	DEVMETHOD(device_resume, usb_linux_resume),
-	DEVMETHOD(device_shutdown, usb_linux_shutdown),
 
 	{0, 0}
 };
@@ -355,23 +353,6 @@ usb_linux_resume(device_t dev)
 
 	if (udrv && udrv->resume) {
 		err = (udrv->resume) (sc->sc_ui);
-	}
-	return (0);
-}
-
-/*------------------------------------------------------------------------*
- *	usb_linux_shutdown
- *
- * This function is the FreeBSD shutdown callback. Usually it does nothing.
- *------------------------------------------------------------------------*/
-static int
-usb_linux_shutdown(device_t dev)
-{
-	struct usb_linux_softc *sc = device_get_softc(dev);
-	struct usb_driver *udrv = usb_linux_get_usb_driver(sc);
-
-	if (udrv && udrv->shutdown) {
-		(udrv->shutdown) (sc->sc_ui);
 	}
 	return (0);
 }

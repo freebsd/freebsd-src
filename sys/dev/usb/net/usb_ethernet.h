@@ -118,6 +118,5 @@ int		usb2_ether_rxbuf(struct usb2_ether *,
 		    struct usb2_page_cache *, 
 		    unsigned int, unsigned int);
 void		usb2_ether_rxflush(struct usb2_ether *);
-void		usb2_ether_ifshutdown(struct usb2_ether *);
 uint8_t		usb2_ether_is_gone(struct usb2_ether *);
 #endif					/* _USB2_ETHERNET_H_ */
