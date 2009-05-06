@@ -81,6 +81,17 @@ gv_orphan(struct g_consumer *cp)
 }
 
 void
+gv_post_bio(struct gv_softc *sc, struct bio *bp)
+{
+
+	KASSERT(sc != NULL, ("NULL sc"));
+	mtx_lock(&sc->bqueue_mtx);
+	bioq_disksort(sc->bqueue, bp);
+	wakeup(sc);
+	mtx_unlock(&sc->bqueue_mtx);
+}
+
+void
 gv_start(struct bio *bp)
 {
 	struct g_geom *gp;
@@ -100,10 +111,7 @@ gv_start(struct bio *bp)
 		return;
 	}
 
-	mtx_lock(&sc->queue_mtx);
-	bioq_disksort(sc->bqueue, bp);
-	wakeup(sc);
-	mtx_unlock(&sc->queue_mtx);
+	gv_post_bio(sc, bp);
 }
 
 void
@@ -118,10 +126,7 @@ gv_done(struct bio *bp)
 	sc = gp->softc;
 	bp->bio_cflags |= GV_BIO_DONE;
 
-	mtx_lock(&sc->queue_mtx);
-	bioq_disksort(sc->bqueue, bp);
-	wakeup(sc);
-	mtx_unlock(&sc->queue_mtx);
+	gv_post_bio(sc, bp);
 }
 
 int
@@ -181,7 +186,8 @@ gv_init(struct g_class *mp)
 	LIST_INIT(&sc->volumes);
 	TAILQ_INIT(&sc->equeue);
 	mtx_init(&sc->config_mtx, "gv_config", NULL, MTX_DEF);
-	mtx_init(&sc->queue_mtx, "gv_queue", NULL, MTX_DEF);
+	mtx_init(&sc->equeue_mtx, "gv_equeue", NULL, MTX_DEF);
+	mtx_init(&sc->bqueue_mtx, "gv_bqueue", NULL, MTX_DEF);
 	kproc_create(gv_worker, sc, NULL, 0, 0, "gv_worker");
 }
 
@@ -637,13 +643,11 @@ gv_worker(void *arg)
 
 	sc = arg;
 	KASSERT(sc != NULL, ("NULL sc"));
-	mtx_lock(&sc->queue_mtx);
 	for (;;) {
 		/* Look at the events first... */
-		ev = TAILQ_FIRST(&sc->equeue);
+		ev = gv_get_event(sc);
 		if (ev != NULL) {
-			TAILQ_REMOVE(&sc->equeue, ev, events);
-			mtx_unlock(&sc->queue_mtx);
+			gv_remove_event(sc, ev);
 
 			switch (ev->type) {
 			case GV_EVENT_DRIVE_TASTED:
@@ -959,9 +963,11 @@ gv_worker(void *arg)
 			case GV_EVENT_THREAD_EXIT:
 				G_VINUM_DEBUG(2, "event 'thread exit'");
 				g_free(ev);
-				mtx_lock(&sc->queue_mtx);
+				mtx_lock(&sc->equeue_mtx);
+				mtx_lock(&sc->bqueue_mtx);
 				gv_cleanup(sc);
-				mtx_destroy(&sc->queue_mtx);
+				mtx_destroy(&sc->bqueue_mtx);
+				mtx_destroy(&sc->equeue_mtx);
 				g_free(sc->bqueue);
 				g_free(sc);
 				kproc_exit(ENXIO);
@@ -972,18 +978,18 @@ gv_worker(void *arg)
 			}
 
 			g_free(ev);
-
-			mtx_lock(&sc->queue_mtx);
 			continue;
 		}
 
 		/* ... then do I/O processing. */
+		mtx_lock(&sc->bqueue_mtx);
 		bp = bioq_takefirst(sc->bqueue);
 		if (bp == NULL) {
-			msleep(sc, &sc->queue_mtx, PRIBIO, "-", hz/10);
+			msleep(sc, &sc->bqueue_mtx, PRIBIO, "-", hz/10);
+			mtx_unlock(&sc->bqueue_mtx);
 			continue;
 		}
-		mtx_unlock(&sc->queue_mtx);
+		mtx_unlock(&sc->bqueue_mtx);
 
 		/* A bio that is coming up from an underlying device. */
 		if (bp->bio_cflags & GV_BIO_DONE) {
@@ -1009,8 +1015,6 @@ gv_worker(void *arg)
 		} else {
 			gv_volume_start(sc, bp);
 		}
-
-		mtx_lock(&sc->queue_mtx);
 	}
 }
 
