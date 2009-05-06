@@ -863,23 +863,26 @@ ath_vap_create(struct ieee80211com *ic,
 	IEEE80211_ADDR_COPY(mac, mac0);
 
 	ATH_LOCK(sc);
+	ic_opmode = opmode;		/* default to opmode of new vap */
 	switch (opmode) {
 	case IEEE80211_M_STA:
-		if (sc->sc_nstavaps != 0) {	/* XXX only 1 sta for now */
+		if (sc->sc_nstavaps != 0) {	/* XXX only 1 for now */
 			device_printf(sc->sc_dev, "only 1 sta vap supported\n");
 			goto bad;
 		}
 		if (sc->sc_nvaps) {
 			/*
-			 * When there are multiple vaps we must fall
-			 * back to s/w beacon miss handling.
+			 * With multiple vaps we must fall back
+			 * to s/w beacon miss handling.
 			 */
 			flags |= IEEE80211_CLONE_NOBEACONS;
 		}
-		if (flags & IEEE80211_CLONE_NOBEACONS)
+		if (flags & IEEE80211_CLONE_NOBEACONS) {
+			/*
+			 * Station mode w/o beacons are implemented w/ AP mode.
+			 */
 			ic_opmode = IEEE80211_M_HOSTAP;
-		else
-			ic_opmode = opmode;
+		}
 		break;
 	case IEEE80211_M_IBSS:
 		if (sc->sc_nvaps != 0) {	/* XXX only 1 for now */
@@ -887,12 +890,16 @@ ath_vap_create(struct ieee80211com *ic,
 			    "only 1 ibss vap supported\n");
 			goto bad;
 		}
-		ic_opmode = opmode;
 		needbeacon = 1;
 		break;
 	case IEEE80211_M_AHDEMO:
 #ifdef IEEE80211_SUPPORT_TDMA
 		if (flags & IEEE80211_CLONE_TDMA) {
+			if (sc->sc_nvaps != 0) {
+				device_printf(sc->sc_dev,
+				    "only 1 tdma vap supported\n");
+				goto bad;
+			}
 			needbeacon = 1;
 			flags |= IEEE80211_CLONE_NOBEACONS;
 		}
@@ -900,29 +907,34 @@ ath_vap_create(struct ieee80211com *ic,
 #endif
 	case IEEE80211_M_MONITOR:
 		if (sc->sc_nvaps != 0 && ic->ic_opmode != opmode) {
+			/*
+			 * Adopt existing mode.  Adding a monitor or ahdemo
+			 * vap to an existing configuration is of dubious
+			 * value but should be ok.
+			 */
 			/* XXX not right for monitor mode */
 			ic_opmode = ic->ic_opmode;
-		} else
-			ic_opmode = opmode;
+		}
 		break;
 	case IEEE80211_M_HOSTAP:
 		needbeacon = 1;
-		/* fall thru... */
+		break;
 	case IEEE80211_M_WDS:
-		if (sc->sc_nvaps && ic->ic_opmode == IEEE80211_M_STA) {
+		if (sc->sc_nvaps != 0 && ic->ic_opmode == IEEE80211_M_STA) {
 			device_printf(sc->sc_dev,
 			    "wds not supported in sta mode\n");
 			goto bad;
 		}
-		if (opmode == IEEE80211_M_WDS) {
-			/*
-			 * Silently remove any request for a unique
-			 * bssid; WDS vap's always share the local
-			 * mac address.
-			 */
-			flags &= ~IEEE80211_CLONE_BSSID;
-		}
-		ic_opmode = IEEE80211_M_HOSTAP;
+		/*
+		 * Silently remove any request for a unique
+		 * bssid; WDS vap's always share the local
+		 * mac address.
+		 */
+		flags &= ~IEEE80211_CLONE_BSSID;
+		if (sc->sc_nvaps == 0)
+			ic_opmode = IEEE80211_M_HOSTAP;
+		else
+			ic_opmode = ic->ic_opmode;
 		break;
 	default:
 		device_printf(sc->sc_dev, "unknown opmode %d\n", opmode);
