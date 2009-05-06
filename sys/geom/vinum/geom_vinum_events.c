@@ -52,10 +52,33 @@ gv_post_event(struct gv_softc *sc, int event, void *arg1, void *arg2,
 	ev->arg3 = arg3;
 	ev->arg4 = arg4;
 
-	mtx_lock(&sc->queue_mtx);
+	mtx_lock(&sc->equeue_mtx);
 	TAILQ_INSERT_TAIL(&sc->equeue, ev, events);
 	wakeup(sc);
-	mtx_unlock(&sc->queue_mtx);
+	mtx_unlock(&sc->equeue_mtx);
+}
+
+struct gv_event *
+gv_get_event(struct gv_softc *sc)
+{
+	struct gv_event *ev;
+
+	KASSERT(sc != NULL, ("NULL sc"));
+	mtx_lock(&sc->equeue_mtx);
+	ev = TAILQ_FIRST(&sc->equeue);
+	mtx_unlock(&sc->equeue_mtx);
+	return (ev);
+}
+
+void
+gv_remove_event(struct gv_softc *sc, struct gv_event *ev)
+{
+
+	KASSERT(sc != NULL, ("NULL sc"));
+	KASSERT(ev != NULL, ("NULL ev"));
+	mtx_lock(&sc->equeue_mtx);
+	TAILQ_REMOVE(&sc->equeue, ev, events);
+	mtx_unlock(&sc->equeue_mtx);
 }
 
 void

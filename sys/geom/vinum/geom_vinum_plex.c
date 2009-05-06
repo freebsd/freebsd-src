@@ -360,9 +360,7 @@ gv_plex_raid5_done(struct gv_plex *p, struct bio *bp)
 				/* Bring the waiting bios back into the game. */
 				pbp = bioq_takefirst(p->wqueue);
 				while (pbp != NULL) {
-					mtx_lock(&sc->queue_mtx);
-					bioq_disksort(sc->bqueue, pbp);
-					mtx_unlock(&sc->queue_mtx);
+					gv_post_bio(sc, pbp);
 					pbp = bioq_takefirst(p->wqueue);
 				}
 			}
@@ -406,9 +404,7 @@ gv_plex_raid5_done(struct gv_plex *p, struct bio *bp)
 				/* Bring the waiting bios back into the game. */
 				pbp = bioq_takefirst(p->wqueue);
 				while (pbp != NULL) {
-					mtx_lock(&sc->queue_mtx);
-					bioq_disksort(sc->bqueue, pbp);
-					mtx_unlock(&sc->queue_mtx);
+					gv_post_bio(sc, pbp);
 					pbp = bioq_takefirst(p->wqueue);
 				}
 				g_free(wp);
@@ -581,9 +577,7 @@ gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
 	bp->bio_data = data;
 
 	/* Send down next. */
-	mtx_lock(&sc->queue_mtx);
-	bioq_disksort(sc->bqueue, bp);
-	mtx_unlock(&sc->queue_mtx);
+	gv_post_bio(sc, bp);
 	//gv_plex_start(from, bp);
 	return (0);
 }
@@ -696,9 +690,7 @@ gv_grow_request(struct gv_plex *p, off_t offset, off_t length, int type,
 	bp->bio_cflags |= GV_BIO_MALLOC;
 	bp->bio_data = data;
 
-	mtx_lock(&sc->queue_mtx);
-	bioq_disksort(sc->bqueue, bp);
-	mtx_unlock(&sc->queue_mtx);
+	gv_post_bio(sc, bp);
 	//gv_plex_start(p, bp);
 	return (0);
 }
@@ -921,9 +913,7 @@ gv_parity_request(struct gv_plex *p, int flags, off_t offset)
 
 	/* We still have more parity to build. */
 	bp->bio_offset = offset;
-	mtx_lock(&sc->queue_mtx);
-	bioq_disksort(sc->bqueue, bp);
-	mtx_unlock(&sc->queue_mtx);
+	gv_post_bio(sc, bp);
 	//gv_plex_start(p, bp); /* Send it down to the plex. */
 }
 
