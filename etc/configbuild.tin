@@ -1,0 +1,9 @@
+   config.in        *configure*      Makefile.in
+      |                  |               |
+      |                  v               |
+      |             config.status        |
+      |                  |               |
+   *config.status*<======+==========>*config.status*
+      |                                  |
+      v                                  v
+   config.h                          Makefile
