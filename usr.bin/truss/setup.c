@@ -1,4 +1,4 @@
-/*
+/*-
  * Copryight 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -214,8 +214,8 @@ waitevent(struct trussinfo *info)
 		}
 	}
 	if (WIFSIGNALED(waitval)) {
-	        info->pr_why = S_EXIT;
-		info->pr_why = 0;
-                return;
+		info->pr_why = S_EXIT;
+		info->pr_data = 0;
+		return;
 	}
 }
