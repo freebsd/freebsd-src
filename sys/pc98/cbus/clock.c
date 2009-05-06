@@ -181,10 +181,7 @@ clkintr(struct trapframe *frame)
 	if (smp_started)
 		ipi_all_but_self(IPI_HARDCLOCK);
 #endif 
-	if (PCPU_GET(cpuid) == 0)
-		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-	else
-		hardclock_cpu(TRAPF_USERMODE(frame));
+	hardclockintr(frame);
 	return (FILTER_HANDLED);
 }
 
