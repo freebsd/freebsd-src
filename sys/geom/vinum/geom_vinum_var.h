@@ -231,7 +231,8 @@ struct gv_softc {
 	LIST_HEAD(,gv_volume)	volumes;	/* All volumes. */
 
 	TAILQ_HEAD(,gv_event)	equeue;		/* Event queue. */
-	struct mtx		queue_mtx;	/* Queue lock. */
+	struct mtx		equeue_mtx;	/* Event queue lock. */
+	struct mtx		bqueue_mtx;	/* BIO queue lock. */
 	struct mtx		config_mtx;	/* Configuration lock. */
 	struct bio_queue_head	*bqueue;	/* BIO queue. */
 	struct g_geom		*geom;		/* Pointer to our VINUM geom. */
