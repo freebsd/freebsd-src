@@ -187,6 +187,7 @@ static int init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot);
 static void pmap_TLB_invalidate_kernel(vm_offset_t);
 static void pmap_TLB_update_kernel(vm_offset_t, pt_entry_t);
 static void pmap_init_fpage(void);
+static void pmap_flush_pvcache(vm_page_t m);
 
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
@@ -702,7 +703,7 @@ pmap_kremove(vm_offset_t va)
 	/*
 	 * Write back all caches from the page being destroyed
 	 */
-	mips_dcache_wbinv_range(va, NBPG);
+	mips_dcache_wbinv_range_index(va, NBPG);
 
 	pte = pmap_pte(kernel_pmap, va);
 	*pte = PTE_G;
@@ -1532,7 +1533,7 @@ pmap_remove_page(struct pmap *pmap, vm_offset_t va)
 	/*
 	 * Write back all caches from the page being destroyed
 	 */
-	mips_dcache_wbinv_range(va, NBPG);
+	mips_dcache_wbinv_range_index(va, NBPG);
 
 	/*
 	 * get a local va for mappings for this pmap.
@@ -1625,7 +1626,7 @@ pmap_remove_all(vm_page_t m)
 		 * the page being destroyed
 	 	 */
 		if (m->md.pv_list_count == 1) 
-			mips_dcache_wbinv_range(pv->pv_va, NBPG);
+			mips_dcache_wbinv_range_index(pv->pv_va, NBPG);
 
 		pv->pv_pmap->pm_stats.resident_count--;
 
@@ -2373,7 +2374,6 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	vm_paddr_t phy_src = VM_PAGE_TO_PHYS(src);
 	vm_paddr_t phy_dst = VM_PAGE_TO_PHYS(dst);
 
-
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		struct fpage *fp1, *fp2;
@@ -2403,9 +2403,14 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 #endif
 	{
 		if ((phy_src < MIPS_KSEG0_LARGEST_PHYS) && (phy_dst < MIPS_KSEG0_LARGEST_PHYS)) {
-			/* easy case, all can be accessed via KSEG0 */
-			va_src = MIPS_PHYS_TO_CACHED(phy_src);
-			va_dst = MIPS_PHYS_TO_CACHED(phy_dst);
+			/* easy case, all can be accessed via KSEG1 */
+			/*
+			 * Flush all caches for VA that are mapped to this page
+			 * to make sure that data in SDRAM is up to date
+			 */
+			pmap_flush_pvcache(src);
+			va_src = MIPS_PHYS_TO_UNCACHED(phy_src);
+			va_dst = MIPS_PHYS_TO_UNCACHED(phy_dst);
 			bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
 		} else {
 			int cpu;
@@ -3290,4 +3295,17 @@ pmap_kextract(vm_offset_t va)
 		}
 	}
 	return pa;
+}
+
+static void 
+pmap_flush_pvcache(vm_page_t m)
+{
+	pv_entry_t pv;
+
+	if (m != NULL) {
+		for (pv = TAILQ_FIRST(&m->md.pv_list); pv;
+	    	    pv = TAILQ_NEXT(pv, pv_list)) {
+			mips_dcache_wbinv_range_index(pv->pv_va, NBPG);
+		}
+	}
 }
