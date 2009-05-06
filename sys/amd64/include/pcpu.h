@@ -75,7 +75,7 @@
 	/* Pointer to the CPU LDT descriptor */				\
 	struct system_segment_descriptor *pc_ldt;			\
 	/* Pointer to the CPU TSS descriptor */				\
-	struct system_segment_descriptor *pc_tss
+	struct system_segment_descriptor *pc_tss			\
 	PCPU_XEN_FIELDS
 
 #ifdef _KERNEL
