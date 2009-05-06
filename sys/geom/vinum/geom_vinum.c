@@ -81,18 +81,6 @@ gv_orphan(struct g_consumer *cp)
 }
 
 void
-gv_post_bio(struct gv_softc *sc, struct bio *bp)
-{
-
-	KASSERT(sc != NULL, ("NULL sc"));
-	KASSERT(bp != NULL, ("NULL bp"));
-	mtx_lock(&sc->bqueue_mtx);
-	bioq_disksort(sc->bqueue, bp);
-	wakeup(sc);
-	mtx_unlock(&sc->bqueue_mtx);
-}
-
-void
 gv_start(struct bio *bp)
 {
 	struct g_geom *gp;
@@ -111,8 +99,10 @@ gv_start(struct bio *bp)
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
-
-	gv_post_bio(sc, bp);
+	mtx_lock(&sc->bqueue_mtx);
+	bioq_disksort(sc->bqueue_down, bp);
+	wakeup(sc);
+	mtx_unlock(&sc->bqueue_mtx);
 }
 
 void
@@ -125,9 +115,11 @@ gv_done(struct bio *bp)
 
 	gp = bp->bio_from->geom;
 	sc = gp->softc;
-	bp->bio_cflags |= GV_BIO_DONE;
 
-	gv_post_bio(sc, bp);
+	mtx_lock(&sc->bqueue_mtx);
+	bioq_disksort(sc->bqueue_up, bp);
+	wakeup(sc);
+	mtx_unlock(&sc->bqueue_mtx);
 }
 
 int
@@ -179,8 +171,12 @@ gv_init(struct g_class *mp)
 	gp->softc = g_malloc(sizeof(struct gv_softc), M_WAITOK | M_ZERO);
 	sc = gp->softc;
 	sc->geom = gp;
-	sc->bqueue = g_malloc(sizeof(struct bio_queue_head), M_WAITOK | M_ZERO);
-	bioq_init(sc->bqueue);
+	sc->bqueue_down = g_malloc(sizeof(struct bio_queue_head),
+	    M_WAITOK | M_ZERO);
+	sc->bqueue_up = g_malloc(sizeof(struct bio_queue_head),
+	    M_WAITOK | M_ZERO);
+	bioq_init(sc->bqueue_down);
+	bioq_init(sc->bqueue_up);
 	LIST_INIT(&sc->drives);
 	LIST_INIT(&sc->subdisks);
 	LIST_INIT(&sc->plexes);
@@ -969,7 +965,8 @@ gv_worker(void *arg)
 				gv_cleanup(sc);
 				mtx_destroy(&sc->bqueue_mtx);
 				mtx_destroy(&sc->equeue_mtx);
-				g_free(sc->bqueue);
+				g_free(sc->bqueue_down);
+				g_free(sc->bqueue_up);
 				g_free(sc);
 				kproc_exit(ENXIO);
 				break;			/* not reached */
@@ -984,38 +981,40 @@ gv_worker(void *arg)
 
 		/* ... then do I/O processing. */
 		mtx_lock(&sc->bqueue_mtx);
-		bp = bioq_takefirst(sc->bqueue);
+		/* First do new requests. */
+		bp = bioq_takefirst(sc->bqueue_down);
+		if (bp != NULL) {
+			mtx_unlock(&sc->bqueue_mtx);
+			/* A bio that interfered with another bio. */
+			if (bp->bio_pflags & GV_BIO_ONHOLD) {
+				s = bp->bio_caller1;
+				p = s->plex_sc;
+				/* Is it still locked out? */
+				if (gv_stripe_active(p, bp)) {
+					/* Park the bio on the waiting queue. */
+					bioq_disksort(p->wqueue, bp);
+				} else {
+					bp->bio_pflags &= ~GV_BIO_ONHOLD;
+					g_io_request(bp, s->drive_sc->consumer);
+				}
+			/* A special request requireing special handling. */
+			} else if (bp->bio_pflags & GV_BIO_INTERNAL) {
+				p = bp->bio_caller1;
+				gv_plex_start(p, bp);
+			} else {
+				gv_volume_start(sc, bp);
+			}
+			mtx_lock(&sc->bqueue_mtx);
+		}
+		/* Then do completed requests. */
+		bp = bioq_takefirst(sc->bqueue_up);
 		if (bp == NULL) {
 			msleep(sc, &sc->bqueue_mtx, PRIBIO, "-", hz/10);
 			mtx_unlock(&sc->bqueue_mtx);
 			continue;
 		}
 		mtx_unlock(&sc->bqueue_mtx);
-
-		/* A bio that is coming up from an underlying device. */
-		if (bp->bio_cflags & GV_BIO_DONE) {
-			gv_bio_done(sc, bp);
-		/* A bio that interfered with another bio. */
-		} else if (bp->bio_cflags & GV_BIO_ONHOLD) {
-			s = bp->bio_caller1;
-			p = s->plex_sc;
-			/* Is it still locked out? */
-			if (gv_stripe_active(p, bp)) {
-				/* Park the bio on the waiting queue. */
-				bioq_disksort(p->wqueue, bp);
-			} else {
-				bp->bio_cflags &= ~GV_BIO_ONHOLD;
-				g_io_request(bp, s->drive_sc->consumer);
-			}
-		/* A special request requireing special handling. */
-		} else if (bp->bio_cflags & GV_BIO_INTERNAL ||
-		    bp->bio_pflags & GV_BIO_INTERNAL) {
-			p = bp->bio_caller1;
-			gv_plex_start(p, bp);
-		/* A fresh bio, scheduled it down. */
-		} else {
-			gv_volume_start(sc, bp);
-		}
+		gv_bio_done(sc, bp);
 	}
 }
 
