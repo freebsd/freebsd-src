@@ -528,9 +528,6 @@ igmp_ra_alloc(void)
 
 /*
  * Attach IGMP when PF_INET is attached to an interface.
- *
- * VIMAGE: Currently we set the vnet pointer, although it is
- * likely that it was already set by our caller.
  */
 struct igmp_ifinfo *
 igmp_domifattach(struct ifnet *ifp)
@@ -540,7 +537,6 @@ igmp_domifattach(struct ifnet *ifp)
 	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)",
 	    __func__, ifp, ifp->if_xname);
 
-	CURVNET_SET(ifp->if_vnet);
 	IGMP_LOCK();
 
 	igi = igi_alloc_locked(ifp);
@@ -548,7 +544,6 @@ igmp_domifattach(struct ifnet *ifp)
 		igi->igi_flags |= IGIF_SILENT;
 
 	IGMP_UNLOCK();
-	CURVNET_RESTORE();
 
 	return (igi);
 }
@@ -600,9 +595,6 @@ out:
  *
  * SMPNG: igmp_ifdetach() needs to take IF_ADDR_LOCK().
  * XXX This is also bitten by unlocked ifma_protospec access.
- *
- * VIMAGE: curvnet should have been set by caller, but let's not assume
- * that for now.
  */
 void
 igmp_ifdetach(struct ifnet *ifp)
@@ -613,8 +605,6 @@ igmp_ifdetach(struct ifnet *ifp)
 
 	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)", __func__, ifp,
 	    ifp->if_xname);
-
-	CURVNET_SET(ifp->if_vnet);
 
 	IGMP_LOCK();
 
@@ -648,15 +638,10 @@ igmp_ifdetach(struct ifnet *ifp)
 	}
 
 	IGMP_UNLOCK();
-
-	CURVNET_RESTORE();
 }
 
 /*
  * Hook for domifdetach.
- *
- * VIMAGE: curvnet should have been set by caller, but let's not assume
- * that for now.
  */
 void
 igmp_domifdetach(struct ifnet *ifp)
@@ -666,14 +651,12 @@ igmp_domifdetach(struct ifnet *ifp)
 	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)",
 	    __func__, ifp, ifp->if_xname);
 
-	CURVNET_SET(ifp->if_vnet);
 	IGMP_LOCK();
 
 	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
 	igi_delete_locked(ifp);
 
 	IGMP_UNLOCK();
-	CURVNET_RESTORE();
 }
 
 static void

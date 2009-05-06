@@ -292,11 +292,9 @@ static __inline uint32_t
 mld_restore_context(struct mbuf *m)
 {
 
-#ifdef notyet
 #if defined(VIMAGE) && defined(INVARIANTS)
-	KASSERT(curvnet == (m->m_pkthdr.header),
+	KASSERT(curvnet == m->m_pkthdr.header,
 	    ("%s: called when curvnet was not restored", __func__));
-#endif
 #endif
 	return (m->m_pkthdr.flowid);
 }
@@ -455,8 +453,6 @@ mld_is_addr_reported(const struct in6_addr *addr)
  * Attach MLD when PF_INET6 is attached to an interface.
  *
  * SMPng: Normally called with IF_AFDATA_LOCK held.
- * VIMAGE: Currently we set the vnet pointer, although it is
- * likely that it was already set by our caller.
  */
 struct mld_ifinfo *
 mld_domifattach(struct ifnet *ifp)
@@ -466,7 +462,6 @@ mld_domifattach(struct ifnet *ifp)
 	CTR3(KTR_MLD, "%s: called for ifp %p(%s)",
 	    __func__, ifp, ifp->if_xname);
 
-	CURVNET_SET(ifp->if_vnet);
 	MLD_LOCK();
 
 	mli = mli_alloc_locked(ifp);
@@ -474,7 +469,6 @@ mld_domifattach(struct ifnet *ifp)
 		mli->mli_flags |= MLIF_SILENT;
 
 	MLD_UNLOCK();
-	CURVNET_RESTORE();
 
 	return (mli);
 }
@@ -528,9 +522,6 @@ out:
  * SMPng: Caller must hold IN6_MULTI_LOCK().
  * Must take IF_ADDR_LOCK() to cover if_multiaddrs iterator.
  * XXX This routine is also bitten by unlocked ifma_protospec access.
- *
- * VIMAGE: curvnet should have been set by caller, but let's not assume
- * that for now.
  */
 void
 mld_ifdetach(struct ifnet *ifp)
@@ -541,8 +532,6 @@ mld_ifdetach(struct ifnet *ifp)
 
 	CTR3(KTR_MLD, "%s: called for ifp %p(%s)", __func__, ifp,
 	    ifp->if_xname);
-
-	CURVNET_SET(ifp->if_vnet);
 
 	IN6_MULTI_LOCK_ASSERT();
 	MLD_LOCK();
@@ -570,7 +559,6 @@ mld_ifdetach(struct ifnet *ifp)
 	}
 
 	MLD_UNLOCK();
-	CURVNET_RESTORE();
 }
 
 /*
@@ -578,8 +566,6 @@ mld_ifdetach(struct ifnet *ifp)
  * Runs after link-layer cleanup; free MLD state.
  *
  * SMPng: Normally called with IF_AFDATA_LOCK held.
- * VIMAGE: curvnet should have been set by caller, but let's not assume
- * that for now.
  */
 void
 mld_domifdetach(struct ifnet *ifp)
@@ -588,13 +574,9 @@ mld_domifdetach(struct ifnet *ifp)
 	CTR3(KTR_MLD, "%s: called for ifp %p(%s)",
 	    __func__, ifp, ifp->if_xname);
 
-	CURVNET_SET(ifp->if_vnet);
-
 	MLD_LOCK();
 	mli_delete_locked(ifp);
 	MLD_UNLOCK();
-
-	CURVNET_RESTORE();
 }
 
 static void
