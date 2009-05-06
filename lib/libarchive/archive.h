@@ -118,13 +118,13 @@ extern "C" {
  *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
  * #endif
  */
-#define	ARCHIVE_VERSION_NUMBER 2006901
+#define	ARCHIVE_VERSION_NUMBER 2007000
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 2.6.901a"
+#define	ARCHIVE_VERSION_STRING "libarchive 2.7.0"
 __LA_DECL const char *	archive_version_string(void);
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -272,6 +272,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_AR_GNU			(ARCHIVE_FORMAT_AR | 1)
 #define	ARCHIVE_FORMAT_AR_BSD			(ARCHIVE_FORMAT_AR | 2)
 #define	ARCHIVE_FORMAT_MTREE			0x80000
+#define	ARCHIVE_FORMAT_RAW			0x90000
 
 /*-
  * Basic outline for reading an archive:
@@ -298,12 +299,15 @@ __LA_DECL int		 archive_read_support_compression_all(struct archive *);
 __LA_DECL int		 archive_read_support_compression_bzip2(struct archive *);
 __LA_DECL int		 archive_read_support_compression_compress(struct archive *);
 __LA_DECL int		 archive_read_support_compression_gzip(struct archive *);
+__LA_DECL int		 archive_read_support_compression_lzma(struct archive *);
 __LA_DECL int		 archive_read_support_compression_none(struct archive *);
 __LA_DECL int		 archive_read_support_compression_program(struct archive *,
 		     const char *command);
 __LA_DECL int		 archive_read_support_compression_program_signature
 				(struct archive *, const char *,
 				    const void * /* match */, size_t);
+
+__LA_DECL int		 archive_read_support_compression_xz(struct archive *);
 
 __LA_DECL int		 archive_read_support_format_all(struct archive *);
 __LA_DECL int		 archive_read_support_format_ar(struct archive *);
@@ -312,6 +316,7 @@ __LA_DECL int		 archive_read_support_format_empty(struct archive *);
 __LA_DECL int		 archive_read_support_format_gnutar(struct archive *);
 __LA_DECL int		 archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int		 archive_read_support_format_mtree(struct archive *);
+__LA_DECL int		 archive_read_support_format_raw(struct archive *);
 __LA_DECL int		 archive_read_support_format_tar(struct archive *);
 __LA_DECL int		 archive_read_support_format_zip(struct archive *);
 
@@ -351,6 +356,10 @@ __LA_DECL int		 archive_read_open_FILE(struct archive *, FILE *_file);
 /* Parses and returns next entry header. */
 __LA_DECL int		 archive_read_next_header(struct archive *,
 		     struct archive_entry **);
+
+/* Parses and returns next entry header using the archive_entry passed in */
+__LA_DECL int		 archive_read_next_header2(struct archive *,
+		     struct archive_entry *);
 
 /*
  * Retrieve the byte offset in UNCOMPRESSED data where last-read
@@ -499,9 +508,11 @@ __LA_DECL int		 archive_write_set_skip_file(struct archive *, dev_t, ino_t);
 __LA_DECL int		 archive_write_set_compression_bzip2(struct archive *);
 __LA_DECL int		 archive_write_set_compression_compress(struct archive *);
 __LA_DECL int		 archive_write_set_compression_gzip(struct archive *);
+__LA_DECL int		 archive_write_set_compression_lzma(struct archive *);
 __LA_DECL int		 archive_write_set_compression_none(struct archive *);
 __LA_DECL int		 archive_write_set_compression_program(struct archive *,
 		     const char *cmd);
+__LA_DECL int		 archive_write_set_compression_xz(struct archive *);
 /* A convenience function to set the format based on the code or name. */
 __LA_DECL int		 archive_write_set_format(struct archive *, int format_code);
 __LA_DECL int		 archive_write_set_format_by_name(struct archive *,
@@ -584,10 +595,12 @@ __LA_DECL int		archive_write_set_options(struct archive *_a,
 
 
 /*-
+ * ARCHIVE_WRITE_DISK API
+ *
  * To create objects on disk:
  *   1) Ask archive_write_disk_new for a new archive_write_disk object.
- *   2) Set any global properties.  In particular, you should set
- *      the compression and format to use.
+ *   2) Set any global properties.  In particular, you probably
+ *      want to set the options.
  *   3) For each entry:
  *      - construct an appropriate struct archive_entry structure
  *      - archive_write_header to create the file/dir/etc on disk
@@ -601,7 +614,8 @@ __LA_DECL struct archive	*archive_write_disk_new(void);
 /* This file will not be overwritten. */
 __LA_DECL int		 archive_write_disk_set_skip_file(struct archive *,
 		     dev_t, ino_t);
-/* Set flags to control how the next item gets created. */
+/* Set flags to control how the next item gets created.
+ * This accepts a bitmask of ARCHIVE_EXTRACT_XXX flags defined above. */
 __LA_DECL int		 archive_write_disk_set_options(struct archive *,
 		     int flags);
 /*

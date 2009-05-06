@@ -29,7 +29,9 @@ static void
 verify_files(const char *target)
 {
 	struct stat st, st2;
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	char buff[128];
+#endif
 	int r;
 
 	/*
@@ -42,7 +44,12 @@ verify_files(const char *target)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* Group members bits and others bits do not work. */
+		assertEqualInt(0600, st.st_mode & 0700);
+#else
 		assertEqualInt(0644, st.st_mode & 0777);
+#endif
 		assertEqualInt(10, st.st_size);
 		failure("file %s/file should have 2 links", target);
 		assertEqualInt(2, st.st_nlink);
@@ -54,7 +61,12 @@ verify_files(const char *target)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st2.st_mode));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* Group members bits and others bits do not work. */
+		assertEqualInt(0600, st2.st_mode & 0700);
+#else
 		assertEqualInt(0644, st2.st_mode & 0777);
+#endif
 		assertEqualInt(10, st2.st_size);
 		failure("file %s/linkfile should have 2 links", target);
 		assertEqualInt(2, st2.st_nlink);
@@ -69,6 +81,7 @@ verify_files(const char *target)
 	r = lstat("symlink", &st);
 	failure("Failed to stat file %s/symlink, errno=%d", target, errno);
 	assertEqualInt(r, 0);
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (r == 0) {
 		failure("symlink should be a symlink; actual mode is %o",
 		    st.st_mode);
@@ -80,6 +93,7 @@ verify_files(const char *target)
 			assertEqualString(buff, "file");
 		}
 	}
+#endif
 
 	/* Another file with 1 link and different permissions. */
 	r = lstat("file2", &st);
@@ -88,7 +102,13 @@ verify_files(const char *target)
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
 		failure("%s/file2: st.st_mode = %o", target, st.st_mode);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* Execution bit and group members bits and others
+		 * bits do not work. */
+		assertEqualInt(0600, st.st_mode & 0700);
+#else
 		assertEqualInt(0777, st.st_mode & 0777);
+#endif
 		assertEqualInt(10, st.st_size);
 		failure("file %s/file2 should have 1 link", target);
 		assertEqualInt(1, st.st_nlink);
@@ -100,7 +120,11 @@ verify_files(const char *target)
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
 		failure("%s/dir: st.st_mode = %o", target, st.st_mode);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		assertEqualInt(0700, st.st_mode & 0700);
+#else
 		assertEqualInt(0775, st.st_mode & 0777);
+#endif
 	}
 }
 
@@ -125,7 +149,7 @@ basic_cpio(const char *target,
 
 	/* Verify stderr. */
 	failure("Expected: %s, options=%s", se, pack_options);
-	assertFileContents(se, strlen(se), "pack.err");
+	assertTextFileContents(se, "pack.err");
 
 	/*
 	 * Use cpio to unpack the archive into another directory.
@@ -137,7 +161,7 @@ basic_cpio(const char *target,
 
 	/* Verify stderr. */
 	failure("Error invoking %s -i %s in dir %s", testprog, unpack_options, target);
-	assertFileContents(se, strlen(se), "unpack.err");
+	assertTextFileContents(se, "unpack.err");
 
 	verify_files(target);
 
@@ -165,7 +189,7 @@ passthrough(const char *target)
 	/* Verify stderr. */
 	failure("Error invoking %s -p in dir %s",
 	    testprog, target);
-	assertFileContents("1 block\n", 8, "stderr");
+	assertTextFileContents("1 block\n", "stderr");
 
 	verify_files(target);
 	chdir("..");
@@ -219,7 +243,16 @@ DEFINE_TEST(test_basic)
 	basic_cpio("copy_odc", "--format=odc", "", "2 blocks\n");
 	basic_cpio("copy_newc", "-H newc", "", "2 blocks\n");
 	basic_cpio("copy_cpio", "-H odc", "", "2 blocks\n");
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * On Windows, symbolic link does not work.
+	 * Currentry copying file instead. therefore block size is
+	 * different.
+	 */
+	basic_cpio("copy_ustar", "-H ustar", "", "10 blocks\n");
+#else
 	basic_cpio("copy_ustar", "-H ustar", "", "9 blocks\n");
+#endif
 	/* Copy in one step using -p */
 	passthrough("passthrough");
 

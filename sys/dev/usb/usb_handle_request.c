@@ -595,10 +595,11 @@ usb2_handle_request(struct usb2_xfer *xfer)
 	goto tr_valid;
 
 tr_handle_get_descriptor:
-	(usb2_temp_get_desc_p) (udev, &req, &src_zcopy, &max_len);
-	if (src_zcopy == NULL) {
+	err = (usb2_temp_get_desc_p) (udev, &req, &src_zcopy, &max_len);
+	if (err)
 		goto tr_stalled;
-	}
+	if (src_zcopy == NULL)
+		goto tr_stalled;
 	goto tr_valid;
 
 tr_handle_get_config:

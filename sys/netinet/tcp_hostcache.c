@@ -227,7 +227,7 @@ tcp_hc_init(void)
 	 */
 	callout_init(&V_tcp_hc_callout, CALLOUT_MPSAFE);
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
-	    tcp_hc_purge, 0);
+	    tcp_hc_purge, curvnet);
 }
 
 /*
@@ -634,9 +634,10 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 static void
 tcp_hc_purge(void *arg)
 {
+	CURVNET_SET((struct vnet *) arg);
 	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry, *hc_next;
-	int all = (intptr_t)arg;
+	int all = 0;	/* XXX was: (intptr_t)arg - makes no sense? */
 	int i;
 
 	if (V_tcp_hostcache.purgeall) {
@@ -662,4 +663,5 @@ tcp_hc_purge(void *arg)
 
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
 	    tcp_hc_purge, arg);
+	CURVNET_RESTORE();
 }

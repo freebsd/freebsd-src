@@ -135,29 +135,6 @@ cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 	return (err);
 }
 
-int
-cxgb_pcpu_enqueue_packet(struct ifnet *ifp, struct mbuf *m)
-{
-	struct port_info *pi = ifp->if_softc;
-	struct sge_qset *qs;
-	int err = 0, qidx;
-#ifdef IFNET_MULTIQUEUE
-	int32_t calc_cookie;
-
-	calc_cookie = m->m_pkthdr.flowid;
-	qidx = cxgb_pcpu_cookie_to_qidx(pi, calc_cookie);
-#else
-	qidx = 0;
-#endif	    
-	qs = &pi->adapter->sge.qs[qidx];
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		IFQ_ENQUEUE(qs->txq[0].txq_ifq, m, err);
-	} else {
-		err = cxgb_pcpu_enqueue_packet_(qs, m);
-	}
-	return (err);
-}
-
 static int
 cxgb_dequeue_packet(struct sge_txq *txq, struct mbuf **m_vec)
 {
@@ -166,20 +143,7 @@ cxgb_dequeue_packet(struct sge_txq *txq, struct mbuf **m_vec)
 	int count, size, coalesced;
 	struct adapter *sc;
 
-#ifndef IFNET_MULTIQUEUE
-	struct port_info *pi = txq->port;
-
-	mtx_assert(&txq->lock, MA_OWNED);
-	if (txq->immpkt != NULL)
-		panic("immediate packet set");
-
-	IFQ_DRV_DEQUEUE(&pi->ifp->if_snd, m);
-	if (m == NULL)
-		return (0);
-	
-	m_vec[0] = m;
-	return (1);
-#endif
+#ifdef ALTQ
 	if (ALTQ_IS_ENABLED(txq->txq_ifq)) {
 		IFQ_DRV_DEQUEUE(txq->txq_ifq, m);
 		if (m == NULL)
@@ -188,7 +152,7 @@ cxgb_dequeue_packet(struct sge_txq *txq, struct mbuf **m_vec)
 		m_vec[0] = m;
 		return (1);		
 	}
-	
+#endif
 	mtx_assert(&txq->lock, MA_OWNED);
 	coalesced = count = size = 0;
 	qs = txq_to_qset(txq, TXQ_ETH);
@@ -332,20 +296,14 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	}
 
 	stopped = isset(&qs->txq_stopped, TXQ_ETH);
-	flush = ((
-#ifdef IFNET_MULTIQUEUE
-		 !buf_ring_empty(txq->txq_mr)
-#else			     
-		 !IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd)
-#endif
+	flush = ((drbr_empty(pi->ifp, txq->txq_mr)
 		 && !stopped) || txq->immpkt); 
 	max_desc = tx_flush ? TX_ETH_Q_SIZE : TX_START_MAX_DESC;
 	
 	err = flush ? cxgb_tx(qs, max_desc) : 0;
 
 	if ((tx_flush && flush && err == 0) &&
-	    (!buf_ring_empty(txq->txq_mr)  ||
-		!IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd))) {
+	    !drbr_empty(pi->ifp, txq->txq_mr)) {
 		struct thread *td = curthread;
 
 		if (++i > 1) {
@@ -406,9 +364,6 @@ cxgb_start(struct ifnet *ifp)
 	struct port_info *p = ifp->if_softc;
 		
 	if (!p->link_config.link_ok)
-		return;
-
-	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return;
 
 	cxgb_pcpu_transmit(ifp, NULL);

@@ -120,7 +120,11 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 	size_t i;
 	int len, r;
 
+	if (s == NULL || *s == '\0')
+		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
+	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_set_format_options");
 	len = 0;
 	for (i = 0; i < sizeof(a->formats)/sizeof(a->formats[0]); i++) {
 		format = &a->formats[i];
@@ -160,7 +164,11 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 	char key[64], val[64];
 	int len, r;
 
+	if (s == NULL || *s == '\0')
+		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
+	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_set_filter_options");
 	filter = a->filter;
 	len = 0;
 	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
@@ -368,18 +376,15 @@ build_stream(struct archive_read *a)
  * Read header of next entry.
  */
 int
-archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_entry *entry;
 	int slot, ret;
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_next_header");
 
-	*entryp = NULL;
-	entry = a->entry;
 	archive_entry_clear(entry);
 	archive_clear_error(&a->archive);
 
@@ -437,10 +442,20 @@ archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 		break;
 	}
 
-	*entryp = entry;
 	a->read_data_output_offset = 0;
 	a->read_data_remaining = 0;
 	return (ret);
+}
+
+int
+archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+{
+	int ret;
+	struct archive_read *a = (struct archive_read *)_a;
+	*entryp = NULL;
+	ret = archive_read_next_header2(_a, a->entry);
+	*entryp = a->entry;
+	return ret;
 }
 
 /*
@@ -680,7 +695,9 @@ _archive_read_close(struct archive *_a)
 
 	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_close");
+	archive_clear_error(&a->archive);
 	a->archive.state = ARCHIVE_STATE_CLOSED;
+
 
 	/* Call cleanup functions registered by optional components. */
 	if (a->cleanup_archive_extract != NULL)
@@ -1095,7 +1112,24 @@ __archive_read_filter_consume(struct archive_read_filter * filter,
 int64_t
 __archive_read_skip(struct archive_read *a, int64_t request)
 {
-	return (__archive_read_filter_skip(a->filter, request));
+	int64_t skipped = __archive_read_skip_lenient(a, request);
+	if (skipped == request)
+		return (skipped);
+	/* We hit EOF before we satisfied the skip request. */
+	archive_set_error(&a->archive,
+	    ARCHIVE_ERRNO_MISC,
+	    "Truncated input file (needed %jd bytes, only %jd available)",
+	    (intmax_t)request, (intmax_t)skipped);
+	return (ARCHIVE_FATAL);
+}
+
+int64_t
+__archive_read_skip_lenient(struct archive_read *a, int64_t request)
+{
+	int64_t skipped = __archive_read_filter_skip(a->filter, request);
+	if (skipped > 0)
+		a->archive.file_position += skipped;
+	return (skipped);
 }
 
 int64_t
@@ -1111,13 +1145,13 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 	 */
 	if (filter->avail > 0) {
 		min = minimum(request, (off_t)filter->avail);
-		bytes_skipped = __archive_read_consume(filter->archive, min);
+		bytes_skipped = __archive_read_filter_consume(filter, min);
 		request -= bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 	}
 	if (filter->client_avail > 0) {
 		min = minimum(request, (off_t)filter->client_avail);
-		bytes_skipped = __archive_read_consume(filter->archive, min);
+		bytes_skipped = __archive_read_filter_consume(filter, min);
 		request -= bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 	}
@@ -1138,7 +1172,6 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 			filter->fatal = 1;
 			return (bytes_skipped);
 		}
-		filter->archive->archive.file_position += bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 		request -= bytes_skipped;
 		filter->client_next = filter->client_buff;
@@ -1153,20 +1186,15 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 	while (request > 0) {
 		const void* dummy_buffer;
 		ssize_t bytes_read;
-		dummy_buffer = __archive_read_ahead(filter->archive,
+		dummy_buffer = __archive_read_filter_ahead(filter,
 		    1, &bytes_read);
 		if (bytes_read < 0)
 			return (bytes_read);
 		if (bytes_read == 0) {
-			/* We hit EOF before we satisfied the skip request. */
-			archive_set_error(&filter->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Truncated input file (need to skip %jd bytes)",
-			    (intmax_t)request);
-			return (ARCHIVE_FATAL);
+			return (total_bytes_skipped);
 		}
 		min = (size_t)(minimum(bytes_read, request));
-		bytes_read = __archive_read_consume(filter->archive, min);
+		bytes_read = __archive_read_filter_consume(filter, min);
 		total_bytes_skipped += bytes_read;
 		request -= bytes_read;
 	}

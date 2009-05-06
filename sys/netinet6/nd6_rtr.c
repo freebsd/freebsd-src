@@ -435,14 +435,18 @@ static void
 nd6_rtmsg(int cmd, struct rtentry *rt)
 {
 	struct rt_addrinfo info;
+	struct ifnet *ifp;
 
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-	if (rt->rt_ifp) {
+	ifp = rt->rt_ifp;
+	if (ifp != NULL) {
+		IF_ADDR_LOCK(ifp);
 		info.rti_info[RTAX_IFP] =
-		    TAILQ_FIRST(&rt->rt_ifp->if_addrlist)->ifa_addr;
+		    TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
+		IF_ADDR_UNLOCK(ifp);
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 	}
 
@@ -1120,7 +1124,8 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	 * consider autoconfigured addresses while RFC2462 simply said
 	 * "address".
 	 */
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *ifa6;
 		u_int32_t remaininglifetime;
 
@@ -1242,6 +1247,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		ifa6->ia6_lifetime = lt6_tmp;
 		ifa6->ia6_updatetime = time_second;
 	}
+	IF_ADDR_UNLOCK(ifp);
 	if (ia6_match == NULL && new->ndpr_vltime) {
 		int ifidlen;
 
@@ -1543,6 +1549,7 @@ pfxlist_onlink_check()
 int
 nd6_prefix_onlink(struct nd_prefix *pr)
 {
+	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	struct ifaddr *ifa;
 	struct ifnet *ifp = pr->ndpr_ifp;
@@ -1592,7 +1599,7 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	    IN6_IFF_NOTREADY | IN6_IFF_ANYCAST);
 	if (ifa == NULL) {
 		/* XXX: freebsd does not have ifa_ifwithaf */
-		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family == AF_INET6)
 				break;
 		}

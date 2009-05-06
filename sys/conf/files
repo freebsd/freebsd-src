@@ -712,6 +712,11 @@ dev/buslogic/bt_eisa.c		optional bt eisa
 dev/buslogic/bt_isa.c		optional bt isa
 dev/buslogic/bt_mca.c		optional bt mca
 dev/buslogic/bt_pci.c		optional bt pci
+dev/bwi/bwiirf.c		optional bwi
+dev/bwi/bwimac.c		optional bwi
+dev/bwi/bwiphy.c		optional bwi
+dev/bwi/if_bwi.c		optional bwi
+dev/bwi/if_bwi_pci.c		optional bwi pci
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -1501,7 +1506,6 @@ legacy/dev/usb/ehci.c		optional oehci
 legacy/dev/usb/ehci_ddb.c	optional oehci
 legacy/dev/usb/ehci_pci.c	optional oehci pci
 legacy/dev/usb/hid.c		optional ousb
-legacy/dev/usb/if_aue.c		optional oaue
 legacy/dev/usb/ohci.c		optional oohci
 legacy/dev/usb/ohci_pci.c	optional oohci pci
 legacy/dev/usb/sl811hs.c	optional oslhci
@@ -1605,6 +1609,7 @@ dev/usb/net/usb_ethernet.c \
 # USB WLAN drivers
 #
 dev/usb/wlan/if_rum.c		optional rum
+dev/usb/wlan/if_uath.c		optional uath
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_zyd.c		optional zyd
 #
@@ -1947,8 +1952,8 @@ kern/kern_time.c		standard
 kern/kern_timeout.c		standard
 kern/kern_umtx.c		standard
 kern/kern_uuid.c		standard
-kern/kern_xxx.c			standard
 kern/kern_vimage.c		standard
+kern/kern_xxx.c			standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
 kern/md4c.c			optional netsmb
@@ -2146,12 +2151,14 @@ net/bpf_jitter.c		optional bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
+net/flowtable.c			optional flowtable
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
 net/if_atmsubr.c		optional atm
 net/if_bridge.c			optional bridge | if_bridge
 net/if_clone.c			standard
+net/if_dead.c			standard
 net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
 net/if_ef.c			optional ef
@@ -2380,6 +2387,7 @@ netinet6/in6.c			optional inet6
 netinet6/in6_cksum.c		optional inet6
 netinet6/in6_gif.c		optional gif inet6
 netinet6/in6_ifattach.c		optional inet6
+netinet6/in6_mcast.c		optional inet6
 netinet6/in6_pcb.c		optional inet6
 netinet6/in6_proto.c		optional inet6
 netinet6/in6_rmx.c		optional inet6
@@ -2528,6 +2536,7 @@ security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
 security/audit/audit_bsm_domain.c	optional audit
 security/audit/audit_bsm_errno.c	optional audit
+security/audit/audit_bsm_fcntl.c	optional audit
 security/audit/audit_bsm_klib.c	optional audit
 security/audit/audit_bsm_socket_type.c	optional audit
 security/audit/audit_bsm_token.c	optional audit

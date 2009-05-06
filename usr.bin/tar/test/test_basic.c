@@ -31,7 +31,7 @@ basic_tar(const char *target, const char *pack_options,
     const char *unpack_options, const char *flist)
 {
 	struct stat st, st2;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	char buff[128];
 #endif
 	int r;
@@ -39,7 +39,7 @@ basic_tar(const char *target, const char *pack_options,
 	assertEqualInt(0, mkdir(target, 0775));
 
 	/* Use the tar program to create an archive. */
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	r = systemf("%s cf - %s `cat %s` >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
 #else
 	r = systemf("%s cf - %s %s >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
@@ -72,7 +72,7 @@ basic_tar(const char *target, const char *pack_options,
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 		assertEqualInt(0644, st.st_mode & 0777);
 #else
 		assertEqualInt(0600, st.st_mode & 0700);
@@ -88,7 +88,7 @@ basic_tar(const char *target, const char *pack_options,
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st2.st_mode));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 		assertEqualInt(0644, st2.st_mode & 0777);
 #else
 		assertEqualInt(0600, st2.st_mode & 0700);
@@ -102,7 +102,7 @@ basic_tar(const char *target, const char *pack_options,
 		assertEqualInt(st.st_ino, st2.st_ino);
 	}
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Symlink */
 	r = lstat("symlink", &st);
 	failure("Failed to stat file %s/symlink, errno=%d", target, errno);
@@ -125,7 +125,7 @@ basic_tar(const char *target, const char *pack_options,
 	if (r == 0) {
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 		assertEqualInt(0775, st.st_mode & 0777);
 #else
 		assertEqualInt(0700, st.st_mode & 0700);
@@ -170,7 +170,7 @@ DEFINE_TEST(test_basic)
 	/* All done. */
 	close(filelist);
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	flist = "filelist";
 #else
 	flist = "file linkfile symlink dir";

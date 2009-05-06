@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
@@ -66,8 +68,16 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+/*
+ * Our utmp(5) format is limited to 8-byte TTY line names.  This means
+ * we can at most allocate 1000 pseudo-terminals ("pts/999").  Allow
+ * users to increase this number, assuming they have manually increased
+ * UT_LINESIZE.
+ */
 static struct unrhdr *pts_pool;
-#define MAXPTSDEVS 999
+static unsigned int pts_maxdev = 999;
+SYSCTL_UINT(_kern, OID_AUTO, pts_maxdev, CTLFLAG_RW, &pts_maxdev, 0,
+    "Maximum amount of pts(4) pseudo-terminals");
 
 static MALLOC_DEFINE(M_PTS, "pts", "pseudo tty device");
 
@@ -716,6 +726,11 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 		chgptscnt(uid, -1, 0);
 		return (EAGAIN);
 	}
+	if (unit > pts_maxdev) {
+		free_unr(pts_pool, unit);
+		chgptscnt(uid, -1, 0);
+		return (EAGAIN);
+	}
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
@@ -829,7 +844,7 @@ static void
 pts_init(void *unused)
 {
 
-	pts_pool = new_unrhdr(0, MAXPTSDEVS, NULL);
+	pts_pool = new_unrhdr(0, INT_MAX, NULL);
 #if defined(PTS_COMPAT) || defined(PTS_LINUX)
 	make_dev(&ptmx_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "ptmx");
 #endif /* PTS_COMPAT || PTS_LINUX */

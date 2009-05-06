@@ -480,14 +480,17 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 	} else {
 		struct ifaddr *ia;
 
-		/* XXX lock? */
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 			if (ia->ifa_addr->sa_family != AF_INET)
 				continue;
 			if (cmd->p.ip.s_addr == ((struct sockaddr_in *)
-			    (ia->ifa_addr))->sin_addr.s_addr)
+			    (ia->ifa_addr))->sin_addr.s_addr) {
+				IF_ADDR_UNLOCK(ifp);
 				return(1);	/* match */
+			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	return(0);	/* no match, fail ... */
 }
@@ -589,17 +592,22 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 	struct in6_ifaddr *fdm;
 	struct in6_addr copia;
 
-	TAILQ_FOREACH(mdc, &V_ifnet, if_link)
-		TAILQ_FOREACH(mdc2, &mdc->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(mdc, &V_ifnet, if_link) {
+		IF_ADDR_LOCK(mdc);
+		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_link) {
 			if (mdc2->ifa_addr->sa_family == AF_INET6) {
 				fdm = (struct in6_ifaddr *)mdc2;
 				copia = fdm->ia_addr.sin6_addr;
 				/* need for leaving scope_id in the sock_addr */
 				in6_clearscope(&copia);
-				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia))
+				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia)) {
+					IF_ADDR_UNLOCK(mdc);
 					return 1;
+				}
 			}
 		}
+		IF_ADDR_UNLOCK(mdc);
+	}
 	return 0;
 }
 
@@ -1810,7 +1818,6 @@ static int
 add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint8_t mlen, uint32_t value)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct radix_node_head *rnh;
 	struct table_entry *ent;
 	struct radix_node *rn;
@@ -2508,16 +2515,7 @@ do {									\
 		/*
 		 * Packet has already been tagged. Look for the next rule
 		 * to restart processing.
-		 *
-		 * If fw_one_pass != 0 then just accept it.
-		 * XXX should not happen here, but optimized out in
-		 * the caller.
 		 */
-		if (V_fw_one_pass) {
-			IPFW_RUNLOCK(chain);
-			return (IP_FW_PASS);
-		}
-
 		f = args->rule->next_rule;
 		if (f == NULL)
 			f = lookup_next_rule(args->rule, 0);
@@ -4527,6 +4525,7 @@ struct ip_fw *ip_fw_default_rule;
 static void
 ipfw_tick(void * __unused unused)
 {
+	INIT_VNET_IPFW(curvnet);
 	struct mbuf *m0, *m, *mnext, **mtailp;
 	int i;
 	ipfw_dyn_rule *q;
@@ -4710,6 +4709,7 @@ ipfw_init(void)
 void
 ipfw_destroy(void)
 {
+	INIT_VNET_IPFW(curvnet);
 	struct ip_fw *reap;
 
 	ip_fw_chk_ptr = NULL;

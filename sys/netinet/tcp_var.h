@@ -35,6 +35,8 @@
 
 #include <netinet/tcp.h>
 
+struct vnet;
+
 /*
  * Kernel variables for tcp.
  */
@@ -105,6 +107,8 @@ struct tcpcb {
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
 	int	t_state;		/* state of this connection */
 	u_int	t_flags;
+
+	struct	vnet *t_vnet;		/* back pointer to parent vnet */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
@@ -186,8 +190,8 @@ struct tcpcb {
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
-	void	*t_pspare[3];		/* toe usrreqs / toepcb * / congestion algo / vimage / 1 general use */
-	struct toe_usrreqs *t_tu;       /* offload operations vector */
+	void	*t_pspare[3];		/* toe usrreqs / toepcb * / congestion algo / 1 general use */
+	struct toe_usrreqs *t_tu;	/* offload operations vector */
 	void	*t_toe;			/* TOE pcb pointer */
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
 };

@@ -71,7 +71,7 @@ static dtrace_pattr_t dtnfsclient_attr = {
 };
 
 /*
- * Descrition of NFSv3 and (optional) NFSv2 probes for a procedure.
+ * Description of NFSv3 and (optional) NFSv2 probes for a procedure.
  */
 struct dtnfsclient_rpc {
 	char		*nr_v3_name;

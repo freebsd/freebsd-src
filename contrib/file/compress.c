@@ -33,15 +33,18 @@
  *					    using method, return sizeof new
  */
 #include "file.h"
+
+#ifndef lint
+FILE_RCSID("@(#)$File: compress.c,v 1.61 2009/02/03 20:27:51 christos Exp $")
+#endif
+
 #include "magic.h"
-#include <stdio.h>
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <string.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <sys/ioctl.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -52,11 +55,6 @@
 #if defined(HAVE_ZLIB_H) && defined(HAVE_LIBZ)
 #define BUILTIN_DECOMPRESS
 #include <zlib.h>
-#endif
-
-
-#ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.57 2008/07/16 18:00:57 christos Exp $")
 #endif
 
 private const struct {
@@ -77,6 +75,7 @@ private const struct {
 	{ "PK\3\4",   4, { "gzip", "-cdq", NULL }, 1 },		/* pkzipped, */
 					    /* ...only first file examined */
 	{ "BZh",      3, { "bzip2", "-cd", NULL }, 1 },		/* bzip2-ed */
+	{ "LZIP",     4, { "lzip", "-cdq", NULL }, 1 },
 };
 
 private size_t ncompr = sizeof(compr) / sizeof(compr[0]);
@@ -237,7 +236,7 @@ file_pipe2file(struct magic_set *ms, int fd, const void *startbuf,
 	char buf[4096];
 	int r, tfd;
 
-	(void)strcpy(buf, "/tmp/file.XXXXXX");
+	(void)strlcpy(buf, "/tmp/file.XXXXXX", sizeof buf);
 #ifndef HAVE_MKSTEMP
 	{
 		char *ptr = mktemp(buf);

@@ -119,7 +119,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #ifndef KTR_IPMF
-#define KTR_IPMF KTR_SUBSYS
+#define KTR_IPMF KTR_INET
 #endif
 
 #define		VIFI_INVALID	((vifi_t) -1)
@@ -1709,6 +1709,7 @@ X_ip_rsvp_force_done(struct socket *so __unused)
 static void
 X_rsvp_input(struct mbuf *m, int off __unused)
 {
+	INIT_VNET_INET(curvnet);
 
 	if (!V_rsvp_on)
 		m_freem(m);

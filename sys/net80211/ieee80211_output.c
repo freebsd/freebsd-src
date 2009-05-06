@@ -241,11 +241,53 @@ ieee80211_start(struct ifnet *ifp)
 			ieee80211_free_node(ni);
 			continue;
 		}
+		/*
+		 * Stash the node pointer.  Note that we do this after
+		 * any call to ieee80211_dwds_mcast because that code
+		 * uses any existing value for rcvif to identify the
+		 * interface it (might have been) received on.
+		 */
+		m->m_pkthdr.rcvif = (void *)ni;
 
 		BPF_MTAP(ifp, m);		/* 802.3 tx */
  
+		/*
+		 * Check if A-MPDU tx aggregation is setup or if we
+		 * should try to enable it.  The sta must be associated
+		 * with HT and A-MPDU enabled for use.  When the policy
+		 * routine decides we should enable A-MPDU we issue an
+		 * ADDBA request and wait for a reply.  The frame being
+		 * encapsulated will go out w/o using A-MPDU, or possibly
+		 * it might be collected by the driver and held/retransmit.
+		 * The default ic_ampdu_enable routine handles staggering
+		 * ADDBA requests in case the receiver NAK's us or we are
+		 * otherwise unable to establish a BA stream.
+		 */
+		if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_AMPDU_TX) &&
+		    (m->m_flags & M_EAPOL) == 0) {
+			const int ac = M_WME_GETAC(m);
+			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
+
+			ieee80211_txampdu_count_packet(tap);
+			if (IEEE80211_AMPDU_RUNNING(tap)) {
+				/*
+				 * Operational, mark frame for aggregation.
+				 *
+				 * XXX do tx aggregation here
+				 */
+				m->m_flags |= M_AMPDU_MPDU;
+			} else if (!IEEE80211_AMPDU_REQUESTED(tap) &&
+			    ic->ic_ampdu_enable(ni, tap)) {
+				/*
+				 * Not negotiated yet, request service.
+				 */
+				ieee80211_ampdu_request(ni, tap);
+				/* XXX hold frame for reply? */
+			}
+		}
 #ifdef IEEE80211_SUPPORT_SUPERG
-		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
+		else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
 			m = ieee80211_ff_check(ni, m);
 			if (m == NULL) {
 				/* NB: any ni ref held on stageq */
@@ -265,13 +307,9 @@ ieee80211_start(struct ifnet *ifp)
 			}
 		}
 
-		/*
-		 * Stash the node pointer and hand the frame off to
-		 * the underlying device.  Note that we do this after
-		 * any call to ieee80211_dwds_mcast because that code
-		 * uses any existing value for rcvif.
-		 */
-		m->m_pkthdr.rcvif = (void *)ni;
+		/* XXX fragmented frames not handled */
+		if (bpf_peers_present(vap->iv_rawbpf))
+			bpf_mtap(vap->iv_rawbpf, m);
 
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
@@ -288,13 +326,11 @@ ieee80211_start(struct ifnet *ifp)
 /*
  * 802.11 output routine. This is (currently) used only to
  * connect bpf write calls to the 802.11 layer for injecting
- * raw 802.11 frames.  Note we locate the ieee80211com from
- * the ifnet using a spare field setup at attach time.  This
- * will go away when the virtual ap support comes in.
+ * raw 802.11 frames.
  */
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct rtentry *rt0)
+	struct sockaddr *dst, struct route *ro)
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
 	struct ieee80211_node *ni = NULL;
@@ -320,7 +356,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	 * a raw 802.11 frame.
 	 */
 	if (dst->sa_family != AF_IEEE80211)
-		return vap->iv_output(ifp, m, dst, rt0);
+		return vap->iv_output(ifp, m, dst, ro);
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
 	if (error)
@@ -384,7 +420,17 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (ieee80211_classify(ni, m))
 		senderr(EIO);		/* XXX */
 
-	BPF_MTAP(ifp, m);
+	if (bpf_peers_present(vap->iv_rawbpf))
+		bpf_mtap(vap->iv_rawbpf, m);
+
+	IEEE80211_NODE_STAT(ni, tx_data);
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		IEEE80211_NODE_STAT(ni, tx_mcast);
+		m->m_flags |= M_MCAST;
+	} else
+		IEEE80211_NODE_STAT(ni, tx_ucast);
+	/* NB: ieee80211_encap does not include 802.11 header */
+	IEEE80211_NODE_STAT_ADD(ni, tx_bytes, m->m_pkthdr.len);
 
 	/*
 	 * NB: DLT_IEEE802_11_RADIO identifies the parameters are
@@ -412,13 +458,15 @@ bad:
 static void
 ieee80211_send_setup(
 	struct ieee80211_node *ni,
-	struct ieee80211_frame *wh,
+	struct mbuf *m,
 	int type, int tid,
 	const uint8_t sa[IEEE80211_ADDR_LEN],
 	const uint8_t da[IEEE80211_ADDR_LEN],
 	const uint8_t bssid[IEEE80211_ADDR_LEN])
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)wh)
+	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
+	ieee80211_seq seqno;
 
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | type;
 	if ((type & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_DATA) {
@@ -461,9 +509,13 @@ ieee80211_send_setup(
 		IEEE80211_ADDR_COPY(wh->i_addr3, bssid);
 	}
 	*(uint16_t *)&wh->i_dur[0] = 0;
-	*(uint16_t *)&wh->i_seq[0] =
-	    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
-	ni->ni_txseqs[tid]++;
+
+	seqno = ni->ni_txseqs[tid]++;
+	*(uint16_t *)&wh->i_seq[0] = htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+	M_SEQNO_SET(m, seqno);
+
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		m->m_flags |= M_MCAST;
 #undef WH4
 }
 
@@ -504,7 +556,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	}
 
 	wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_send_setup(ni, wh,
+	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | type, IEEE80211_NONQOS_TID,
 	     vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
 	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
@@ -595,7 +647,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 		const int tid = WME_AC_TO_TID(WME_AC_BE);
 		uint8_t *qos;
 
-		ieee80211_send_setup(ni, wh,
+		ieee80211_send_setup(ni, m,
 		    IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_QOS_NULL,
 		    tid, vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
 
@@ -608,7 +660,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 			qos[0] |= IEEE80211_QOS_ACKPOLICY_NOACK;
 		qos[1] = 0;
 	} else {
-		ieee80211_send_setup(ni, wh,
+		ieee80211_send_setup(ni, m,
 		    IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_NODATA,
 		    IEEE80211_NONQOS_TID,
 		    vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
@@ -867,6 +919,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_key *key;
 	struct llc *llc;
 	int hdrsize, hdrspace, datalen, addqos, txfrag, is4addr;
+	ieee80211_seq seqno;
 
 	/*
 	 * Copy existing Ethernet header to a safe place.  The
@@ -922,12 +975,11 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	/*
 	 * 4-address frames need to be generated for:
 	 * o packets sent through a WDS vap (IEEE80211_M_WDS)
-	 * o packets relayed by a station operating with dynamic WDS
-	 *   (IEEE80211_M_STA+IEEE80211_F_DWDS and src address)
+	 * o packets sent through a vap marked for relaying
+	 *   (e.g. a station operating with dynamic WDS)
 	 */
 	is4addr = vap->iv_opmode == IEEE80211_M_WDS ||
-	    (vap->iv_opmode == IEEE80211_M_STA &&
-	     (vap->iv_flags & IEEE80211_F_DWDS) &&
+	    ((vap->iv_flags_ext & IEEE80211_FEXT_4ADDR) &&
 	     !IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr));
 	if (is4addr)
 		hdrsize += IEEE80211_ADDR_LEN;
@@ -1025,42 +1077,6 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		/* map from access class/queue to 11e header priorty value */
 		tid = WME_AC_TO_TID(ac);
 		qos[0] = tid & IEEE80211_QOS_TID;
-		/*
-		 * Check if A-MPDU tx aggregation is setup or if we
-		 * should try to enable it.  The sta must be associated
-		 * with HT and A-MPDU enabled for use.  When the policy
-		 * routine decides we should enable A-MPDU we issue an
-		 * ADDBA request and wait for a reply.  The frame being
-		 * encapsulated will go out w/o using A-MPDU, or possibly
-		 * it might be collected by the driver and held/retransmit.
-		 * The default ic_ampdu_enable routine handles staggering
-		 * ADDBA requests in case the receiver NAK's us or we are
-		 * otherwise unable to establish a BA stream.
-		 */
-		if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_AMPDU_TX)) {
-			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
-
-			ieee80211_txampdu_count_packet(tap);
-			if (IEEE80211_AMPDU_RUNNING(tap)) {
-				/*
-				 * Operational, mark frame for aggregation.
-				 *
-				 * NB: We support only immediate BA's for
-				 * AMPDU which means we set the QoS control
-				 * field to "normal ack" (0) to get "implicit
-				 * block ack" behaviour.
-				 */
-				m->m_flags |= M_AMPDU_MPDU;
-			} else if (!IEEE80211_AMPDU_REQUESTED(tap) &&
-			    ic->ic_ampdu_enable(ni, tap)) {
-				/*
-				 * Not negotiated yet, request service.
-				 */
-				ieee80211_ampdu_request(ni, tap);
-			}
-		}
-		/* XXX works even when BA marked above */
 		if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[ac].wmep_noackPolicy)
 			qos[0] |= IEEE80211_QOS_ACKPOLICY_NOACK;
 		qos[1] = 0;
@@ -1079,20 +1095,23 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			 * capability; this may also change when we pull
 			 * aggregation up into net80211
 			 */
+			seqno = ni->ni_txseqs[tid]++;
 			*(uint16_t *)wh->i_seq =
-			    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
-			ni->ni_txseqs[tid]++;
+			    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+			M_SEQNO_SET(m, seqno);
 		}
 	} else {
+		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
 		*(uint16_t *)wh->i_seq =
-		    htole16(ni->ni_txseqs[IEEE80211_NONQOS_TID] << IEEE80211_SEQ_SEQ_SHIFT);
-		ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+		M_SEQNO_SET(m, seqno);
 	}
+
 	/* check if xmit fragmentation is required */
 	txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
 	    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
 	    (vap->iv_caps & IEEE80211_C_TXFRAG) &&
-	    (m->m_flags & M_FF) == 0);		/* NB: don't fragment ff's */
+	    (m->m_flags & (M_FF | M_AMPDU_MPDU)) == 0);
 	if (key != NULL) {
 		/*
 		 * IEEE 802.1X: send EAPOL frames always in the clear.
@@ -1120,15 +1139,12 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
 	IEEE80211_NODE_STAT(ni, tx_data);
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		IEEE80211_NODE_STAT(ni, tx_mcast);
-	else
+		m->m_flags |= M_MCAST;
+	} else
 		IEEE80211_NODE_STAT(ni, tx_ucast);
 	IEEE80211_NODE_STAT_ADD(ni, tx_bytes, datalen);
-
-	/* XXX fragmented frames not handled */
-	if (bpf_peers_present(vap->iv_rawbpf))
-		bpf_mtap(vap->iv_rawbpf, m);
 
 	return m;
 bad:
@@ -1583,7 +1599,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	}
 
 	wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_send_setup(ni, wh,
+	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
 	     IEEE80211_NONQOS_TID, sa, da, bssid);
 	/* XXX power management? */
@@ -2187,7 +2203,7 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	KASSERT(m != NULL, ("no room for header"));
 
 	wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_send_setup(bss, wh,
+	ieee80211_send_setup(bss, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP,
 	     IEEE80211_NONQOS_TID, vap->iv_myaddr, da, bss->ni_bssid);
 	/* XXX power management? */

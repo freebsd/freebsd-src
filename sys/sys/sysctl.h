@@ -163,6 +163,8 @@ struct sysctl_oid {
 	const char	*oid_fmt;
 	int		oid_refcnt;
 	const char	*oid_descr;
+	short		oid_v_subs;
+	short		oid_v_mod;
 };
 
 #define SYSCTL_IN(r, p, l) (r->newfunc)(r, p, l)
@@ -292,7 +294,8 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 
 #ifdef VIMAGE
 #define	SYSCTL_V_INT(subs, mod, parent, nbr, name, access, sym, val, descr) \
-	SYSCTL_V_OID(subs, mod, parent, nbr, name, CTLTYPE_INT|(access), \
+	SYSCTL_V_OID(subs, mod, parent, nbr, name,			    \
+		CTLTYPE_INT|CTLFLAG_MPSAFE|(access),			    \
 		sym, val, sysctl_handle_v_int, "I", descr)
 #else
 #ifdef VIMAGE_GLOBALS
@@ -317,7 +320,8 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 
 #ifdef VIMAGE
 #define	SYSCTL_V_UINT(subs, mod, parent, nbr, name, access, sym, val, descr) \
-	SYSCTL_V_OID(subs, mod, parent, nbr, name, CTLTYPE_UINT|(access), \
+	SYSCTL_V_OID(subs, mod, parent, nbr, name, 			     \
+		CTLTYPE_UINT|CTLFLAG_MPSAFE|(access),			     \
 		sym, val, sysctl_handle_v_int, "IU", descr)
 #else
 #ifdef VIMAGE_GLOBALS
@@ -440,6 +444,29 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	FEATURE(name, desc)						\
 	SYSCTL_INT(_kern_features, OID_AUTO, name, CTLFLAG_RD, 0, 1, desc)
 	
+/*
+ * Resolve void *arg1 in a proper virtualization container.
+ */
+#ifdef VIMAGE
+#define SYSCTL_RESOLVE_V_ARG1() do {					\
+	char *cp;							\
+	switch (oidp->oid_v_subs) {					\
+	case V_GLOBAL:							\
+		/* do nothing - this is NOT a virtualized variable! */	\
+		break;							\
+	case V_NET:							\
+		cp = (char *)						\
+		    TD_TO_VNET(curthread)->mod_data[oidp->oid_v_mod];	\
+		arg1 = cp + (size_t) arg1;				\
+		break;							\
+	default:							\
+		panic("unsupported module id %d", oidp->oid_v_subs);	\
+	}								\
+} while (0)
+#else
+#define SYSCTL_RESOLVE_V_ARG1()
+#endif
+
 #endif /* _KERNEL */
 
 /*

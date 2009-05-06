@@ -70,6 +70,7 @@ struct	socket;
 struct	ether_header;
 struct	carp_if;
 struct  ifvlantrunk;
+struct	route;
 #endif
 
 #include <sys/queue.h>		/* get TAILQ macros */
@@ -116,10 +117,12 @@ struct	ifqueue {
 struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
 	void	*if_l2com;		/* pointer to protocol bits */
+	struct vnet *if_vnet;		/* pointer to network stack instance */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
 	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
 	const char *if_dname;		/* driver name */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
+	u_int	if_refcount;		/* reference count */
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
 		/*
 		 * if_addrhead is the list of all addresses associated to
@@ -149,7 +152,7 @@ struct ifnet {
 /* procedure handles */
 	int	(*if_output)		/* output routine (enqueue) */
 		(struct ifnet *, struct mbuf *, struct sockaddr *,
-		     struct rtentry *);
+		     struct route *);
 	void	(*if_input)		/* input routine (from h/w driver) */
 		(struct ifnet *, struct mbuf *);
 	void	(*if_start)		/* initiate output routine */
@@ -189,12 +192,14 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
+	u_char	 if_alloctype;		/* if_type at time of allocation */
 
 	/*
 	 * Spare fields are added so that we can modify sensitive data
 	 * structures without changing the kernel binary interface, and must
 	 * be used with care where binary compatibility is required.
 	 */
+	char	 if_cspare[3];
 	void	*if_pspare[8];
 	int	if_ispare[4];
 };
@@ -560,6 +565,12 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 	int len = m->m_pkthdr.len;
 	int mflags = m->m_flags;
 
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		IFQ_ENQUEUE(&ifp->if_snd, m, error);
+		return (error);
+	}
+#endif
 	if ((error = buf_ring_enqueue(br, m)) == ENOBUFS) {
 		br->br_drops++;
 		_IF_DROP(&ifp->if_snd);
@@ -580,8 +591,31 @@ drbr_free(struct buf_ring *br, struct malloc_type *type)
 
 	buf_ring_free(br, type);
 }
-#endif
 
+static __inline struct mbuf *
+drbr_dequeue(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	struct mbuf *m;
+
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {	
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		return (m);
+	}
+#endif
+	return (buf_ring_dequeue_sc(br));
+}
+
+static __inline int
+drbr_empty(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		return (IFQ_DRV_IS_EMPTY(&ifp->if_snd));
+#endif
+	return (buf_ring_empty(br));
+}
+#endif
 /*
  * 72 was chosen below because it is the size of a TCP/IP
  * header (40) + the minimum mss (32).
@@ -691,7 +725,15 @@ struct ifindex_entry {
 	struct cdev *ife_dev;
 };
 
+/*
+ * Look up an ifnet given its index; the _ref variant also acquires a
+ * reference that must be freed using if_rele().  It is almost always a bug
+ * to call ifnet_byindex() instead if ifnet_byindex_ref().
+ */
 struct ifnet	*ifnet_byindex(u_short idx);
+struct ifnet	*ifnet_byindex_locked(u_short idx);
+struct ifnet	*ifnet_byindex_ref(u_short idx);
+void ifnet_setbyindex(u_short idx, struct ifnet *ifp);
 
 /*
  * Given the index, ifaddr_byindex() returns the one and only
@@ -714,6 +756,8 @@ int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
 int	if_allmulti(struct ifnet *, int);
 struct	ifnet* if_alloc(u_char);
 void	if_attach(struct ifnet *);
+void	if_dead(struct ifnet *);
+void	if_grow(void);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
@@ -727,12 +771,16 @@ void	if_free_type(struct ifnet *, u_char);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
+void	if_qflush(struct ifnet *);
+void	if_ref(struct ifnet *);
+void	if_rele(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 void	if_up(struct ifnet *);
 /*void	ifinit(void);*/ /* declared in systm.h for main() */
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
+struct	ifnet *ifunit_ref(const char *);
 
 void	ifq_attach(struct ifaltq *, struct ifnet *ifp);
 void	ifq_detach(struct ifaltq *);

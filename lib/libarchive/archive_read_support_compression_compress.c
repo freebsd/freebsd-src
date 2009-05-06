@@ -278,7 +278,7 @@ compress_filter_read(struct archive_read_filter *self, const void **pblock)
 			*p++ = *--state->stackp;
 		} else {
 			ret = next_code(self);
-			if (ret == ARCHIVE_EOF)
+			if (ret == -1)
 				state->end_of_stream = ret;
 			else if (ret != ARCHIVE_OK)
 				return (ret);
@@ -424,7 +424,7 @@ getbits(struct archive_read_filter *self, int n)
 			    = __archive_read_filter_ahead(self->upstream,
 				1, &ret);
 			if (ret == 0)
-				return (ARCHIVE_EOF);
+				return (-1);
 			if (ret < 0 || state->next_in == NULL)
 				return (ARCHIVE_FATAL);
 			state->avail_in = ret;

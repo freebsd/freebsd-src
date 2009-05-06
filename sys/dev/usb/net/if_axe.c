@@ -151,7 +151,6 @@ static const struct usb2_device_id axe_devs[] = {
 static device_probe_t axe_probe;
 static device_attach_t axe_attach;
 static device_detach_t axe_detach;
-static device_shutdown_t axe_shutdown;
 
 static usb2_callback_t axe_intr_callback;
 static usb2_callback_t axe_bulk_read_callback;
@@ -216,7 +215,6 @@ static device_method_t axe_methods[] = {
 	DEVMETHOD(device_probe, axe_probe),
 	DEVMETHOD(device_attach, axe_attach),
 	DEVMETHOD(device_detach, axe_detach),
-	DEVMETHOD(device_shutdown, axe_shutdown),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -1059,18 +1057,4 @@ axe_stop(struct usb2_ether *ue)
 	usb2_transfer_stop(sc->sc_xfer[AXE_INTR_DT_RD]);
 
 	axe_reset(sc);
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-axe_shutdown(device_t dev)
-{
-	struct axe_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

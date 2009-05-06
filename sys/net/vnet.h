@@ -36,25 +36,25 @@
 #include <net/if_var.h>
 
 struct vnet_net {
-	int	_if_index;
-	struct	ifindex_entry *_ifindex_table;
-	struct	ifnethead _ifnet;
-	struct	ifgrouphead _ifg_head;
+	int			_if_index;
+	struct ifindex_entry *	_ifindex_table;
+	struct ifnethead	_ifnet;
+	struct ifgrouphead	_ifg_head;
 
-	int	_if_indexlim;
-	struct	knlist _ifklist;
+	int			_if_indexlim;
+	struct knlist		_ifklist;
 
-	struct	rtstat _rtstat;
-	struct	radix_node_head *_rt_tables[RT_MAXFIBS][AF_MAX+1];
-	int	_rttrash;
-	uma_zone_t _rtzone;
+	struct rtstat		_rtstat;
+	struct radix_node_head *_rt_tables[RT_MAXFIBS][AF_MAX+1];
+	int			_rttrash;
+	uma_zone_t		_rtzone;
 
-	struct	ifnet *_loif;
-	LIST_HEAD(, lo_softc) _lo_list;
+	struct ifnet *		_loif;
+	LIST_HEAD(, lo_softc)	_lo_list;
 
-	LIST_HEAD(, rawcb) _rawcb_list;
+	LIST_HEAD(, rawcb)	_rawcb_list;
 
-	int	_ether_ipfw;
+	int			_ether_ipfw;
 };
 
 /* Size guard. See sys/vimage.h. */

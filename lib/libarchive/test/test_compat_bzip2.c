@@ -44,7 +44,7 @@ compat_bzip2(const char *name)
 	const char *n[7] = { "f1", "f2", "f3", "d1/f1", "d1/f2", "d1/f3", NULL };
 	struct archive_entry *ae;
 	struct archive *a;
-	int i,r;
+	int i;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
@@ -54,19 +54,9 @@ compat_bzip2(const char *name)
 
 	/* Read entries, match up names with list above. */
 	for (i = 0; i < 6; ++i) {
-		r = archive_read_next_header(a, &ae);
-		if (UnsupportedCompress(r, a)) {
-			skipping("Skipping BZIP2 compression check: "
-				"This version of libarchive was compiled "
-			    "without bzip2 support");
-			goto finish;
-		}
 		failure("Could not read file %d (%s) from %s", i, n[i], name);
-		assertEqualIntA(a, ARCHIVE_OK, r);
-		if (r != ARCHIVE_OK) {
-			archive_read_finish(a);
-			return;
-		}
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
 		assertEqualString(n[i], archive_entry_pathname(ae));
 	}
 
@@ -79,12 +69,7 @@ compat_bzip2(const char *name)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-finish:
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
 }
 
 

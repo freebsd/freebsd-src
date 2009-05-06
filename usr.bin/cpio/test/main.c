@@ -44,6 +44,7 @@
 #undef	EXTRA_DUMP	     /* How to dump extra data */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
+#define KNOWNREF	"test_option_f.cpio.uu"
 __FBSDID("$FreeBSD$");
 
 /*
@@ -80,7 +81,7 @@ static int skips = 0;
 static int assertions = 0;
 
 /* Directory where uuencoded reference files can be found. */
-static char *refdir;
+static const char *refdir;
 
 /*
  * My own implementation of the standard assert() macro emits the
@@ -324,10 +325,10 @@ test_assert_equal_string(const char *file, int line,
 	    file, line);
 	fprintf(stderr, "      %s = ", e1);
 	strdump(v1);
-	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : strlen(v1));
+	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : (int)strlen(v1));
 	fprintf(stderr, "      %s = ", e2);
 	strdump(v2);
-	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : strlen(v2));
+	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : (int)strlen(v2));
 	report_failure(extra);
 	return (0);
 }
@@ -402,7 +403,7 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 	char sep;
 
 	for(i=0; i < l; i+=16) {
-		fprintf(stderr, "%04x", i + offset);
+		fprintf(stderr, "%04x", (unsigned)(i + offset));
 		sep = ' ';
 		for (j = 0; j < 16 && i + j < l; j++) {
 			if (ref != NULL && p[i + j] != ref[i + j])
@@ -497,6 +498,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 		s = sizeof(buff) < st.st_size ? sizeof(buff) : st.st_size;
 		s = read(fd, buff, s);
 		hexdump(buff, NULL, s, 0);
+		close(fd);
 	}
 	report_failure(NULL);
 	return (0);
@@ -525,11 +527,16 @@ test_assert_equal_file(const char *f1, const char *f2pattern, ...)
 		n2 = read(fd2, buff2, sizeof(buff2));
 		if (n1 != n2)
 			break;
-		if (n1 == 0 && n2 == 0)
+		if (n1 == 0 && n2 == 0) {
+			close(fd1);
+			close(fd2);
 			return (1);
+		}
 		if (memcmp(buff1, buff2, n1) != 0)
 			break;
 	}
+	close(fd1);
+	close(fd2);
 	failures ++;
 	if (!verbose && previous_failures(test_filename, test_line))
 		return (0);
@@ -600,7 +607,62 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	fd = open(f, O_RDONLY);
 	contents = malloc(s * 2 + 128);
 	n = read(fd, contents, s * 2 + 128);
+	close(fd);
 	if (n == s && memcmp(buff, contents, s) == 0) {
+		free(contents);
+		return (1);
+	}
+	failures ++;
+	if (!previous_failures(test_filename, test_line)) {
+		fprintf(stderr, "%s:%d: File contents don't match\n",
+		    test_filename, test_line);
+		fprintf(stderr, "  file=\"%s\"\n", f);
+		if (n > 0)
+			hexdump(contents, buff, n, 0);
+		else {
+			fprintf(stderr, "  File empty, contents should be:\n");
+			hexdump(buff, NULL, s, 0);
+		}
+		report_failure(test_extra);
+	}
+	free(contents);
+	return (0);
+}
+
+/* assertTextFileContents() asserts the contents of a text file. */
+int
+test_assert_text_file_contents(const char *buff, const char *f)
+{
+	char *contents;
+	const char *btxt, *ftxt;
+	int fd;
+	int n, s;
+
+	fd = open(f, O_RDONLY);
+	s = strlen(buff);
+	contents = malloc(s * 2 + 128);
+	n = read(fd, contents, s * 2 + 128 -1);
+	if (n >= 0)
+		contents[n] = '\0';
+	close(fd);
+	/* Compare texts. */
+	btxt = buff;
+	ftxt = (const char *)contents;
+	while (*btxt != '\0' && *ftxt != '\0') {
+		if (*btxt == *ftxt) {
+			++btxt;
+			++ftxt;
+			continue;
+		}
+		if (btxt[0] == '\n' && ftxt[0] == '\r' && ftxt[1] == '\n') {
+			/* Pass over different new line characters. */
+			++btxt;
+			ftxt += 2;
+			continue;
+		}
+		break;
+	}
+	if (*btxt == '\0' && *ftxt == '\0') {
 		free(contents);
 		return (1);
 	}
@@ -750,7 +812,11 @@ static int test_run(int i, const char *tmpdir)
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			systemf("rmdir /S /Q %s", tests[i].name);
+#else
 			systemf("rm -rf %s", tests[i].name);
+#endif
 		}
 	}
 	/* Return appropriate status. */
@@ -843,23 +909,94 @@ extract_reference_file(const char *name)
 }
 
 
+static char *
+get_refdir(void)
+{
+	char tried[512] = { '\0' };
+	char buff[128];
+	char *pwd, *p;
+
+	/* Get the current dir. */
+	pwd = getcwd(NULL, 0);
+	while (pwd[strlen(pwd) - 1] == '\n')
+		pwd[strlen(pwd) - 1] = '\0';
+	printf("PWD: %s\n", pwd);
+
+	/* Look for a known file. */
+	snprintf(buff, sizeof(buff), "%s", pwd);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	snprintf(buff, sizeof(buff), "%s/test", pwd);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	if (memcmp(pwd, "/usr/obj", 8) == 0) {
+		snprintf(buff, sizeof(buff), "%s", pwd + 8);
+		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+		if (p != NULL) goto success;
+		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+		snprintf(buff, sizeof(buff), "%s/test", pwd + 8);
+		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+		if (p != NULL) goto success;
+		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	}
+
+#if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
+	DebugBreak();
+#endif
+	printf("Unable to locate known reference file %s\n", KNOWNREF);
+	printf("  Checked following directories:\n%s\n", tried);
+	exit(1);
+
+success:
+	free(p);
+	free(pwd);
+	return strdup(buff);
+}
+
 int main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
 	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char *refdir_alloc = NULL;
-	char *progname, *p;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	char *testprg;
+#endif
+	const char *opt_arg, *progname, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
+	(void)argc; /* UNUSED */
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Make sure open() function will be used with a binary mode. */
+	/* on cygwin, we need something similar, but instead link against */
+	/* a special startup object, binmode.o */
+	_set_fmode(_O_BINARY);
+#endif
 	/*
 	 * Name of this program, used to build root of our temp directory
 	 * tree.
 	 */
 	progname = p = argv[0];
 	while (*p != '\0') {
-		if (*p == '/')
+		/* Support \ or / dir separators for Windows compat. */
+		if (*p == '/' || *p == '\\')
 			progname = p + 1;
 		++p;
 	}
@@ -877,39 +1014,61 @@ int main(int argc, char **argv)
 	refdir = getenv(ENVBASE "_TEST_FILES");
 
 	/*
-	 * Parse options.
+	 * Parse options, without using getopt(), which isn't available
+	 * on all platforms.
 	 */
-	while ((opt = getopt(argc, argv, "dkp:qr:v")) != -1) {
-		switch (opt) {
-		case 'd':
-			dump_on_failure = 1;
+	++argv; /* Skip program name */
+	while (*argv != NULL) {
+		if (**argv != '-')
 			break;
-		case 'k':
-			keep_temp_files = 1;
-			break;
-		case 'p':
+		p = *argv++;
+		++p; /* Skip '-' */
+		while (*p != '\0') {
+			opt = *p++;
+			opt_arg = NULL;
+			/* If 'opt' takes an argument, parse that. */
+			if (opt == 'p' || opt == 'r') {
+				if (*p != '\0')
+					opt_arg = p;
+				else if (*argv == NULL) {
+					fprintf(stderr,
+					    "Option -%c requires argument.\n",
+					    opt);
+					usage(progname);
+				} else
+					opt_arg = *argv++;
+				p = ""; /* End of this option word. */
+			}
+
+			switch (opt) {
+			case 'd':
+				dump_on_failure = 1;
+				break;
+			case 'k':
+				keep_temp_files = 1;
+				break;
+			case 'p':
 #ifdef PROGRAM
-			testprog = optarg;
+				testprog = opt_arg;
 #else
-			usage(progname);
+				usage(progname);
 #endif
-			break;
-		case 'q':
-			quiet_flag++;
-			break;
-		case 'r':
-			refdir = optarg;
-			break;
-		case 'v':
-			verbose = 1;
-			break;
-		case '?':
-		default:
-			usage(progname);
+				break;
+			case 'q':
+				quiet_flag++;
+				break;
+			case 'r':
+				refdir = opt_arg;
+				break;
+			case 'v':
+				verbose = 1;
+				break;
+			case '?':
+			default:
+				usage(progname);
+			}
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
 	/*
 	 * Sanity-check that our options make sense.
@@ -917,6 +1076,18 @@ int main(int argc, char **argv)
 #ifdef PROGRAM
 	if (testprog == NULL)
 		usage(progname);
+#endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * Command.exe cannot accept the command used '/' with drive
+	 * name such as c:/xxx/command.exe when use '|' pipe handling.
+	 */
+	testprg = strdup(testprog);
+	for (i = 0; testprg[i] != '\0'; i++) {
+		if (testprg[i] == '/')
+			testprg[i] = '\\';
+	}
+	testprog = testprg;
 #endif
 
 	/*
@@ -943,16 +1114,8 @@ int main(int argc, char **argv)
 	 * If the user didn't specify a directory for locating
 	 * reference files, use the current directory for that.
 	 */
-	if (refdir == NULL) {
-		systemf("/bin/pwd > %s/refdir", tmpdir);
-		refdir = refdir_alloc = slurpfile(NULL, "%s/refdir", tmpdir);
-		p = refdir + strlen(refdir);
-		while (p[-1] == '\n') {
-			--p;
-			*p = '\0';
-		}
-		systemf("rm %s/refdir", tmpdir);
-	}
+	if (refdir == NULL)
+		refdir = refdir_alloc = get_refdir();
 
 	/*
 	 * Banner with basic information.
@@ -971,7 +1134,7 @@ int main(int argc, char **argv)
 	/*
 	 * Run some or all of the individual tests.
 	 */
-	if (argc == 0) {
+	if (*argv == NULL) {
 		/* Default: Run all tests. */
 		for (i = 0; i < limit; i++) {
 			if (test_run(i, tmpdir))

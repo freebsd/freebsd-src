@@ -275,6 +275,8 @@ struct thread {
 	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
 	int		td_errno;	/* Error returned by last syscall. */
+	struct vnet	*td_vnet;	/* (*) Effective vnet */
+	const char	*td_vnet_lpush;	/* (*) Debugging vnet push / pop */
 };
 
 struct mtx *thread_lock_block(struct thread *);

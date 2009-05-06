@@ -59,9 +59,6 @@
 struct wi_vap {
 	struct ieee80211vap	wv_vap;
 	struct ieee80211_beacon_offsets	wv_bo;
-	struct task		wv_connected_task;
-	struct task		wv_disconnected_task;
-	struct task		wv_assoc_failed_task;
 
 	void		(*wv_recv_mgmt)(struct ieee80211_node *,
 			    struct mbuf *, int, int, int, u_int32_t);
@@ -75,7 +72,6 @@ struct wi_softc	{
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
 	struct callout		sc_watchdog;
-	struct task		sc_oor_task;
 	int			sc_unit;
 	int			wi_gone;
 	int			sc_enabled;

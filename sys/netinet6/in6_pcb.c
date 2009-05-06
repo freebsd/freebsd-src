@@ -733,36 +733,36 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 {
 	struct inpcb *in6p;
 	struct ip6_moptions *im6o;
-	struct in6_multi_mship *imm, *nimm;
+	int i, gap;
 
 	INP_INFO_RLOCK(pcbinfo);
 	LIST_FOREACH(in6p, pcbinfo->ipi_listhead, inp_list) {
 		INP_WLOCK(in6p);
 		im6o = in6p->in6p_moptions;
-		if ((in6p->inp_vflag & INP_IPV6) &&
-		    im6o) {
+		if ((in6p->inp_vflag & INP_IPV6) && im6o != NULL) {
 			/*
-			 * Unselect the outgoing interface if it is being
-			 * detached.
+			 * Unselect the outgoing ifp for multicast if it
+			 * is being detached.
 			 */
 			if (im6o->im6o_multicast_ifp == ifp)
 				im6o->im6o_multicast_ifp = NULL;
-
 			/*
 			 * Drop multicast group membership if we joined
 			 * through the interface being detached.
-			 * XXX controversial - is it really legal for kernel
-			 * to force this?
 			 */
-			for (imm = im6o->im6o_memberships.lh_first;
-			     imm != NULL; imm = nimm) {
-				nimm = imm->i6mm_chain.le_next;
-				if (imm->i6mm_maddr->in6m_ifp == ifp) {
-					LIST_REMOVE(imm, i6mm_chain);
-					in6_delmulti(imm->i6mm_maddr);
-					free(imm, M_IP6MADDR);
+			gap = 0;
+			for (i = 0; i < im6o->im6o_num_memberships; i++) {
+				if (im6o->im6o_membership[i]->in6m_ifp ==
+				    ifp) {
+					in6_mc_leave(im6o->im6o_membership[i],
+					    NULL);
+					gap++;
+				} else if (gap != 0) {
+					im6o->im6o_membership[i - gap] =
+					    im6o->im6o_membership[i];
 				}
 			}
+			im6o->im6o_num_memberships -= gap;
 		}
 		INP_WUNLOCK(in6p);
 	}

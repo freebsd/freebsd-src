@@ -689,34 +689,33 @@ struct eventhandler_entry;
  * Stack virtualization support.
  */
 struct vnet_ipfw {
-	int	_fw_enable;
-	int	_fw6_enable;
-	u_int32_t _set_disable;
-	int	_fw_deny_unknown_exthdrs;
-	int	_fw_verbose;
-	int	_verbose_limit;
-	int	_fw_debug;		/* actually unused */
-	int	_autoinc_step;
-	ipfw_dyn_rule **_ipfw_dyn_v;
-	uma_zone_t _ipfw_dyn_rule_zone;
-	struct ip_fw_chain _layer3_chain;
-	u_int32_t _dyn_buckets;
-	u_int32_t _curr_dyn_buckets;
-	u_int32_t _dyn_ack_lifetime;
-	u_int32_t _dyn_syn_lifetime;
-	u_int32_t _dyn_fin_lifetime;
-	u_int32_t _dyn_rst_lifetime;
-	u_int32_t _dyn_udp_lifetime;
-	u_int32_t _dyn_short_lifetime;
-	u_int32_t _dyn_keepalive_interval;
-	u_int32_t _dyn_keepalive_period;
-	u_int32_t _dyn_keepalive;
-	u_int32_t _static_count;
-	u_int32_t _static_len;
-	u_int32_t _dyn_count;
-	u_int32_t _dyn_max;
-	u_int64_t _norule_counter;
-	struct callout _ipfw_timeout;
+	int			_fw_enable;
+	int			_fw6_enable;
+	u_int32_t		_set_disable;
+	int			_fw_deny_unknown_exthdrs;
+	int			_fw_verbose;
+	int			_verbose_limit;
+	int			_autoinc_step;
+	ipfw_dyn_rule **	_ipfw_dyn_v;
+	uma_zone_t 		_ipfw_dyn_rule_zone;
+	struct ip_fw_chain	_layer3_chain;
+	u_int32_t		_dyn_buckets;
+	u_int32_t		_curr_dyn_buckets;
+	u_int32_t		_dyn_ack_lifetime;
+	u_int32_t		_dyn_syn_lifetime;
+	u_int32_t		_dyn_fin_lifetime;
+	u_int32_t		_dyn_rst_lifetime;
+	u_int32_t		_dyn_udp_lifetime;
+	u_int32_t		_dyn_short_lifetime;
+	u_int32_t		_dyn_keepalive_interval;
+	u_int32_t		_dyn_keepalive_period;
+	u_int32_t		_dyn_keepalive;
+	u_int32_t		_static_count;
+	u_int32_t		_static_len;
+	u_int32_t		_dyn_count;
+	u_int32_t		_dyn_max;
+	u_int64_t		_norule_counter;
+	struct callout		_ipfw_timeout;
 	struct eventhandler_entry *_ifaddr_event_tag;
 };
 
@@ -740,7 +739,6 @@ extern struct vnet_ipfw vnet_ipfw_0;
 #define	V_fw_deny_unknown_exthdrs VNET_IPFW(fw_deny_unknown_exthdrs)
 #define	V_fw_verbose		VNET_IPFW(fw_verbose)
 #define	V_verbose_limit		VNET_IPFW(verbose_limit)
-#define	V_fw_debug		VNET_IPFW(fw_debug)
 #define	V_autoinc_step		VNET_IPFW(autoinc_step)
 #define	V_ipfw_dyn_v		VNET_IPFW(ipfw_dyn_v)
 #define	V_ipfw_dyn_rule_zone	VNET_IPFW(ipfw_dyn_rule_zone)

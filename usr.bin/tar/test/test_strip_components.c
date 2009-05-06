@@ -64,7 +64,7 @@ DEFINE_TEST(test_strip_components)
 	failure("d0/d1/ is too short and should not get restored");
 	assertEqualInt(-1, lstat("target/d1", &st));
 	failure("d0/d1/s2 is a symlink to something that won't be extracted");
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(-1, stat("target/s2", &st));
 #else
 	skipping("symlink with stat()");

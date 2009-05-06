@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
+#include <net/flowtable.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
@@ -135,6 +136,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int hlen = sizeof (struct ip);
 	int mtu;
 	int len, error = 0;
+	int nortfree = 0;
 	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
@@ -142,6 +144,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct in_addr odst;
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
+#endif
+#ifdef IPSEC
+	int no_route_but_check_spd = 0;
 #endif
 	M_ASSERTPKTHDR(m);
 
@@ -157,6 +162,10 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			m->m_flags |= M_FLOWID;
 		}
+	}
+	if ((ro == &iproute) && (ro->ro_rt == NULL) && (ro->ro_lle == NULL)) {
+		if (flowtable_lookup(ip_ft, m, ro) == 0)
+			nortfree = 1;
 	}
 
 	if (opt) {
@@ -199,7 +208,8 @@ again:
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		RTFREE(ro->ro_rt);
+		if (!nortfree)
+			RTFREE(ro->ro_rt);
 		ro->ro_rt = (struct rtentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
@@ -265,6 +275,15 @@ again:
 			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 #endif
 		if (ro->ro_rt == NULL) {
+#ifdef IPSEC
+			/*
+			 * There is no route for this packet, but it is
+			 * possible that a matching SPD entry exists.
+			 */
+			no_route_but_check_spd = 1;
+			mtu = 0; /* Silence GCC warning. */
+			goto sendit;
+#endif
 			IPSTAT_INC(ips_noroute);
 			error = EHOSTUNREACH;
 			goto bad;
@@ -460,6 +479,14 @@ sendit:
 	default:
 		break;	/* Continue with packet processing. */
 	}
+	/*
+	 * Check if there was a route for this packet; return error if not.
+	 */
+	if (no_route_but_check_spd) {
+		IPSTAT_INC(ips_noroute);
+		error = EHOSTUNREACH;
+		goto bad;
+	}
 	/* Update variables that are affected by ipsec4_output(). */
 	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
@@ -595,7 +622,7 @@ passout:
 		 */
 		m->m_flags &= ~(M_PROTOFLAGS);
 		error = (*ifp->if_output)(ifp, m,
-				(struct sockaddr *)dst, ro->ro_rt);
+		    		(struct sockaddr *)dst, ro);
 		goto done;
 	}
 
@@ -629,7 +656,7 @@ passout:
 			m->m_flags &= ~(M_PROTOFLAGS);
 
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)dst, ro->ro_rt);
+			    (struct sockaddr *)dst, ro);
 		} else
 			m_freem(m);
 	}
@@ -638,7 +665,7 @@ passout:
 		IPSTAT_INC(ips_fragmented);
 
 done:
-	if (ro == &iproute && ro->ro_rt) {
+	if (ro == &iproute && ro->ro_rt && !nortfree) {
 		RTFREE(ro->ro_rt);
 	}
 	return (error);

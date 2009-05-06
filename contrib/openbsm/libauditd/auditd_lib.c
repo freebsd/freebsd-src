@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libauditd/auditd_lib.c#7 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libauditd/auditd_lib.c#10 $
  */
 
 #include <sys/param.h>
@@ -34,13 +34,13 @@
 #include <config/config.h>
 
 #include <sys/dirent.h>
-#include <sys/mount.h>
-#include <sys/socket.h>
 #ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
 #else /* !HAVE_FULL_QUEUE_H */
 #include <compat/queue.h>
 #endif /* !HAVE_FULL_QUEUE_H */
+#include <sys/mount.h>
+#include <sys/socket.h>
 
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -247,7 +247,7 @@ auditd_set_host(void)
 		 */
 		bzero(&aia, sizeof(aia));
 		aia.ai_termid.at_type = AU_IPv4;
-		error = auditon(A_SETKAUDIT, &aia, sizeof(aia));
+		error = audit_set_kaudit(&aia, sizeof(aia));
 		if (error < 0 && errno != ENOSYS)
 			ret = ADE_AUDITON;
 		return (ret);
@@ -277,7 +277,7 @@ auditd_set_host(void)
 		return (ADE_ADDRFAM);
 	}
 
-	if (auditon(A_SETKAUDIT, &aia, sizeof(aia)) < 0)
+	if (audit_set_kaudit(&aia, sizeof(aia)) < 0)
 		ret = ADE_AUDITON;
 
 	return (ret);
@@ -298,12 +298,12 @@ auditd_set_minfree(void)
 	if (getacmin(&auditd_minval) != 0)
 		return (ADE_PARSE);
 	
-	if (auditon(A_GETQCTRL, &qctrl, sizeof(qctrl)) != 0)
+	if (audit_get_qctrl(&qctrl, sizeof(qctrl)) != 0)
 		return (ADE_AUDITON);
 
 	if (qctrl.aq_minfree != auditd_minval) {
 		qctrl.aq_minfree = auditd_minval;
-		if (auditon(A_SETQCTRL, &qctrl, sizeof(qctrl)) != 0)
+		if (audit_set_qctrl(&qctrl, sizeof(qctrl)) != 0)
 			return (ADE_AUDITON);
 	}
 
@@ -687,8 +687,7 @@ auditd_set_evcmap(void)
 	while ((evp = getauevent_r(evp)) != NULL) {
 		evc_map.ec_number = evp->ae_number;
 		evc_map.ec_class = evp->ae_class;
-		if (auditon(A_SETCLASS, &evc_map, sizeof(au_evclass_map_t))
-		    == 0)
+		if (audit_set_class(&evc_map, sizeof(evc_map)) == 0)
 			ctr++;
 	}
 	endauevent();
@@ -714,7 +713,7 @@ auditd_set_namask(void)
 	    (getauditflagsbin(naeventstr, &aumask) != 0)) 
 		return (ADE_PARSE);
 
-	if (auditon(A_SETKMASK, &aumask, sizeof(au_mask_t)))
+	if (audit_set_kmask(&aumask, sizeof(aumask)) != 0)
 		return (ADE_AUDITON);
 
 	return (ADE_NOERR);
@@ -732,18 +731,18 @@ auditd_set_namask(void)
 int
 auditd_set_policy(void)
 {
-	long policy;
+	int policy;
 	char polstr[POL_STR_SIZE];
 
 	if ((getacpol(polstr, POL_STR_SIZE) != 0) || 
             (au_strtopol(polstr, &policy) != 0)) {
 		policy = AUDIT_CNT;
-		if (auditon(A_SETPOLICY, &policy, sizeof(policy)))
+		if (audit_set_policy(&policy) != 0)
 			return (ADE_AUDITON);
 		return (ADE_PARSE);
         }
 
-	if (auditon(A_SETPOLICY, &policy, sizeof(policy)))
+	if (audit_set_policy(&policy) != 0)
 		return (ADE_AUDITON);
 
 	return (ADE_NOERR);
@@ -769,7 +768,7 @@ auditd_set_fsize(void)
 
 	bzero(&au_fstat, sizeof(au_fstat));
 	au_fstat.af_filesz = filesz;
-	if (auditon(A_SETFSIZE, &au_fstat, sizeof(au_fstat)) < 0)
+	if (audit_set_fsize(&au_fstat, sizeof(au_fstat)) != 0)
 		return (ADE_AUDITON);
 
         return (ADE_NOERR);
@@ -1124,7 +1123,7 @@ int
 audit_quick_stop(void)
 {
 	int len;
-	long cond;
+	int cond;
 	char *ptr;
 	time_t tt;
 	char oldname[MAXPATHLEN];
@@ -1134,7 +1133,7 @@ audit_quick_stop(void)
 	/*
 	 * Auditing already disabled?
 	 */
-	if (auditon(A_GETCOND, &cond, sizeof(cond)) < 0)
+	if (audit_get_cond(&cond) != 0)
 		return (-1);
 	if (cond == AUC_NOAUDIT)
 		return (0);
@@ -1148,7 +1147,7 @@ audit_quick_stop(void)
 	 * Shutdown auditing in the kernel.
 	 */
 	cond = AUC_DISABLED;
-	if (auditon(A_SETCOND, &cond, sizeof(cond)) != 0)
+	if (audit_set_cond(&cond) != 0)
 		return (-1);
 #ifdef	__BSM_INTERNAL_NOTIFY_KEY
 	notify_post(__BSM_INTERNAL_NOTIFY_KEY);

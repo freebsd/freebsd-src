@@ -36,10 +36,6 @@ extern int			boot_cpu_id;
 extern struct pcb		stoppcbs[];
 extern int			cpu_apic_ids[];
 
-/* global data in identcpu.c */
-extern int			cpu_cores;
-extern int			cpu_logical;
-
 /* IPI handlers */
 inthand_t
 	IDTVEC(invltlb),	/* TLB shootdowns - global */
