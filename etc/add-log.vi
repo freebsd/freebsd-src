@@ -1,0 +1,11 @@
+Here is a vi macro to create entries in the recommended format for
+GDB's ChangeLogs.
+
+map  1GO:r !date '+\%Y-\%m-\%d'2GA  Jason Molenda  (:r !whoamikJxA@:r !hostnameA)kJxkddjO	* k$
+
+It contains control and escape sequences, so don't just cut and paste it.
+You'll need to change the "Jason Molenda" bit, of course. :-)  Put this
+in your $HOME/.exrc and when you type control-X in move-around-mode,
+you'll have a changelog template inserted.
+
+--- Jason Molenda
