@@ -34,6 +34,7 @@
 
 struct apb_softc {
 	struct rman		apb_irq_rman;
+	struct rman		apb_mem_rman;
 	/* IRQ events structs for child devices */
 	struct intr_event	*sc_eventstab[APB_NIRQS];	
 	/* Resources and cookies for MIPS CPU INTs */

@@ -101,6 +101,16 @@ apb_attach(device_t dev)
 	int rid = 0;
 
 	device_set_desc(dev, "APB Bus bridge");
+
+	sc->apb_mem_rman.rm_type = RMAN_ARRAY;
+	sc->apb_mem_rman.rm_descr = "APB memory window";
+
+	if (rman_init(&sc->apb_mem_rman) != 0 ||
+	    rman_manage_region(&sc->apb_mem_rman, 
+			AR71XX_APB_BASE, 
+			AR71XX_APB_BASE + AR71XX_APB_SIZE - 1) != 0)
+		panic("apb_attach: failed to set up memory rman");
+
 	sc->apb_irq_rman.rm_type = RMAN_ARRAY;
 	sc->apb_irq_rman.rm_descr = "APB IRQ";
 
@@ -145,17 +155,18 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	/*
 	 * Pass memory requests to nexus device
 	 */
-	passthrough = (device_get_parent(child) != bus) ||
-		(type == SYS_RES_MEMORY);
+	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 
-	dprintf("%s: entry (%p, %p, %d, %p, %p, %p, %ld, %d)\n",
-	    __func__, bus, child, type, rid, (void *)(intptr_t)start,
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %ld, %d)\n",
+	    __func__, bus, child, type, *rid, (void *)(intptr_t)start,
 	    (void *)(intptr_t)end, count, flags);
 
 	if (passthrough)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type,
 		    rid, start, end, count, flags));
+
+	printf("not pass through\n");
 
 	/*
 	 * If this is an allocation of the "default" range for a given RID,
@@ -184,6 +195,9 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_IRQ:
 		rm = &sc->apb_irq_rman;
+		break;
+	case SYS_RES_MEMORY:
+		rm = &sc->apb_mem_rman;
 		break;
 	default:
 		printf("%s: unknown resource type %d\n", __func__, type);
@@ -275,6 +289,8 @@ apb_setup_intr(device_t bus, device_t child, struct resource *ires,
 	intr_event_add_handler(event, device_get_nameunit(child), filt,
 	    handler, arg, intr_priority(flags), flags, cookiep);
 
+	apb_unmask_irq(irq);
+
 	return (0);
 }
 
@@ -313,7 +329,9 @@ apb_intr(void *arg)
 		if (reg & (1 << irq)) {
 			event = sc->sc_eventstab[irq];
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
-				printf("Stray IRQ %d\n", irq);
+				/* Ignore timer interrupts */
+				if (irq != 0)
+					printf("Stray IRQ %d\n", irq);
 				continue;
 			}
 
