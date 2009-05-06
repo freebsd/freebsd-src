@@ -172,6 +172,13 @@ gv_resetconfig(struct gv_softc *sc)
 			return (GV_ERR_ISBUSY);
 		}
 	}
+
+	/* Make sure nothing is going on internally. */
+	LIST_FOREACH_SAFE(p, &sc->plexes, plex, p2) {
+		if (p->flags & (GV_PLEX_REBUILDING | GV_PLEX_GROWING))
+			return (GV_ERR_ISBUSY);
+	}
+
 	/* Then if not, we remove everything. */
 	LIST_FOREACH_SAFE(s, &sc->subdisks, sd, s2)
 		gv_rm_sd(sc, s);
