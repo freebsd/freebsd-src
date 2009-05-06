@@ -77,7 +77,11 @@ verify(const char *p, size_t s)
 	/* All terminated by a newline. */
 	assert(s >= 1);
 	failure("Version: %s", p);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	assertEqualMem(q, "\r\n", 2);
+#else
 	assertEqualMem(q, "\n", 1);
+#endif
 }
 
 

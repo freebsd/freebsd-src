@@ -559,9 +559,6 @@ vnode_pager_input_smlfs(object, m)
 		}
 	}
 	sf_buf_free(sf);
-	vm_page_lock_queues();
-	pmap_clear_modify(m);
-	vm_page_unlock_queues();
 	if (error) {
 		return VM_PAGER_ERROR;
 	}
@@ -944,8 +941,12 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * Read filled up entire page.
 			 */
 			mt->valid = VM_PAGE_BITS_ALL;
-			vm_page_undirty(mt);	/* should be an assert? XXX */
-			pmap_clear_modify(mt);
+			KASSERT(mt->dirty == 0,
+			    ("vnode_pager_generic_getpages: page %p is dirty",
+			    mt));
+			KASSERT(!pmap_page_is_mapped(mt),
+			    ("vnode_pager_generic_getpages: page %p is mapped",
+			    mt));
 		} else {
 			/*
 			 * Read did not fill up entire page.  Since this

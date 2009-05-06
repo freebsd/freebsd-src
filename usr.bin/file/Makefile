@@ -28,13 +28,13 @@ PROG=	file
 MAGICPATH?=	/usr/share/misc
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
-CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${.CURDIR}/../../lib/libmagic
 
 DPADD=	${LIBMAGIC} ${LIBZ}
 LDADD=	-lmagic -lz
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
-			${.CURDIR}/config.h
+			${.CURDIR}/../../lib/libmagic/config.h
 
 CLEANFILES+=	${MAN}
 

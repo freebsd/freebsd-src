@@ -33,13 +33,13 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_OPENSSL_MD5_H
-#include <openssl/md5.h>
-#else /* HAVE_OPENSSL_MD5_H */
 #ifdef HAVE_MD5_H
 #include <md5.h>
-#endif
+#else
+#ifdef HAVE_OPENSSL_MD5_H
+#include <openssl/md5.h>
 #endif /* HAVE_OPENSSL_MD5_H */
+#endif /* HAVE_MD5_H */
 #ifdef HAVE_OPENSSL_RIPEMD_H
 #include <openssl/ripemd.h>
 #else /* HAVE_OPENSSL_RIPEMD_H */
@@ -618,7 +618,7 @@ archive_write_mtree_header(struct archive_write *a,
 	if ((mtree->keys & F_MD5) != 0 &&
 	    archive_entry_filetype(entry) == AE_IFREG) {
 		mtree->compute_sum |= F_MD5;
-		MD5_Init(&mtree->md5ctx);
+		MD5Init(&mtree->md5ctx);
 	} else
 		mtree->compute_sum &= ~F_MD5;
 #endif
@@ -803,7 +803,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	if (mtree->compute_sum & F_MD5) {
 		unsigned char buf[16];
 
-		MD5_Final(buf, &mtree->md5ctx);
+		MD5Final(buf, &mtree->md5ctx);
 		archive_strcat(str, " md5digest=");
 		strappend_bin(str, buf, sizeof(buf));
 	}
@@ -901,7 +901,7 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 	}
 #ifdef HAVE_MD5
 	if (mtree->compute_sum & F_MD5)
-		MD5_Update(&mtree->md5ctx, buff, n);
+		MD5Update(&mtree->md5ctx, buff, n);
 #endif
 #ifdef HAVE_RMD160
 	if (mtree->compute_sum & F_RMD160)
@@ -962,8 +962,10 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 	case 'd':
 		if (strcmp(key, "device") == 0)
 			keybit = F_DEV;
-		else if (strcmp(key, "dironly") == 0)
+		else if (strcmp(key, "dironly") == 0) {
 			mtree->dironly = (value != NULL)? 1: 0;
+			return (ARCHIVE_OK);
+		}
 		break;
 	case 'f':
 		if (strcmp(key, "flags") == 0)
@@ -976,8 +978,10 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 			keybit = F_GNAME;
 		break;
 	case 'i':
-		if (strcmp(key, "indent") == 0)
+		if (strcmp(key, "indent") == 0) {
 			mtree->indent = (value != NULL)? 1: 0;
+			return (ARCHIVE_OK);
+		}
 		break;
 	case 'l':
 		if (strcmp(key, "link") == 0)
@@ -1039,8 +1043,10 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 			keybit = F_UID;
 		else if (strcmp(key, "uname") == 0)
 			keybit = F_UNAME;
-		else if (strcmp(key, "use-set") == 0)
+		else if (strcmp(key, "use-set") == 0) {
 			mtree->set.output = (value != NULL)? 1: 0;
+			return (ARCHIVE_OK);
+		}
 		break;
 	}
 	if (keybit != 0) {

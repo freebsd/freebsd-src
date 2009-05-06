@@ -71,6 +71,13 @@
 #define ALIGNBYTES	_ALIGNBYTES
 #define ALIGN(p)	_ALIGN(p)
 
+/*
+ * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
+ * architecture.  It should be used with appropriate caution.
+ */
+#define	CACHE_LINE_SHIFT	7
+#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
+
 #define	PAGE_SHIFT_8K	13
 #define	PAGE_SIZE_8K	(1L<<PAGE_SHIFT_8K)
 #define	PAGE_MASK_8K	(PAGE_SIZE_8K-1)

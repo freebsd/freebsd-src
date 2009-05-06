@@ -148,6 +148,7 @@ options 	GEOM_NOP		# Test class.
 options 	GEOM_PART_APM		# Apple partitioning
 options 	GEOM_PART_BSD		# BSD disklabel
 options 	GEOM_PART_EBR		# Extended Boot Records
+options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
 options 	GEOM_PART_MBR		# MBR partitioning
 options 	GEOM_PART_PC98		# PC-9800 disk partitioning
@@ -552,6 +553,9 @@ options 	LIBMCHAIN
 # libalias library, performing NAT
 options		LIBALIAS
 
+# flowtable cache
+options		FLOWTABLE
+
 #
 # SCTP is a NEW transport protocol defined by
 # RFC2960 updated by RFC3309 and RFC3758.. and
@@ -723,7 +727,7 @@ device		loop
 device		ether
 
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
-#  according to IEEE 802.1Q.  It requires `device miibus'.
+#  according to IEEE 802.1Q.
 device		vlan
 
 #  The `wlan' device provides generic code to support 802.11
@@ -2470,14 +2474,17 @@ device		rue
 device		udav
 
 #
-# ZyDas ZD1211/ZD1211B wireless ethernet driver
-device		zyd
+# Ralink Technology RT2501USB/RT2601USB wireless driver
+device		rum
 #
-# Ralink Technology RT2500USB chispet driver
+# Atheros AR5523 wireless driver
+device		uath
+#
+# Ralink Technology RT2500USB wireless driver
 device		ural
 #
-# Ralink Technology RT2501USB/RT2601USB chispet driver
-device		rum
+# ZyDas ZD1211/ZD1211B wireless driver
+device		zyd
 
 # 
 # debugging options for the USB subsystem

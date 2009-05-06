@@ -61,7 +61,7 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
-	 * If we have "gunzip", try using that.
+	 * If we have "gzip -d", try using that.
 	 */
 	if ((extprog = external_gzip_program(1)) == NULL) {
 		skipping("There is no gzip uncompression "

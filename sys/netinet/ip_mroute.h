@@ -52,7 +52,6 @@
  * bandwidth metering and signaling.
  */
 
-
 /*
  * Multicast Routing set/getsockopt commands.
  */
@@ -85,6 +84,7 @@ typedef u_short vifi_t;		/* type of a vif index */
 #define	VIFM_COPY(mfrom, mto)	((mto) = (mfrom))
 #define	VIFM_SAME(m1, m2)	((m1) == (m2))
 
+struct mfc;
 
 /*
  * Argument structure for MRT_ADD_VIF.
@@ -265,6 +265,7 @@ struct vif {
     struct route	v_route;	/* cached route */
 };
 
+#ifdef _KERNEL
 /*
  * The kernel's multicast forwarding cache entry structure
  */
@@ -285,6 +286,7 @@ struct mfc {
 	u_long		mfc_nstall;		/* # of packets awaiting mfc */
 	TAILQ_HEAD(, rtdetq) mfc_stall;		/* q of packets awaiting mfc */
 };
+#endif /* _KERNEL */
 
 /*
  * Struct used to communicate from kernel to multicast router
@@ -304,6 +306,7 @@ struct igmpmsg {
     struct in_addr  im_src, im_dst;
 };
 
+#ifdef _KERNEL
 /*
  * Argument structure used for pkt info. while upcall is made
  */
@@ -314,6 +317,7 @@ struct rtdetq {
     vifi_t		xmt_vif;	/* Saved copy of imo_multicast_vif  */
 };
 #define MAX_UPQ	4		/* max. no of pkts in upcall Q */
+#endif /* _KERNEL */
 
 /*
  * Structure for measuring the bandwidth and sending an upcall if the

@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
-#include <sys/taskqueue.h>
  
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -915,10 +914,13 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_BSSID:
 		if (ireq->i_len != IEEE80211_ADDR_LEN)
 			return EINVAL;
-		error = copyout(vap->iv_state == IEEE80211_S_RUN ?
-					vap->iv_bss->ni_bssid :
-					vap->iv_des_bssid,
-				ireq->i_data, ireq->i_len);
+		if (vap->iv_state == IEEE80211_S_RUN) {
+			error = copyout(vap->iv_opmode == IEEE80211_M_WDS ?
+			    vap->iv_bss->ni_macaddr : vap->iv_bss->ni_bssid,
+			    ireq->i_data, ireq->i_len);
+		} else
+			error = copyout(vap->iv_des_bssid, ireq->i_data,
+			    ireq->i_len);
 		break;
 	case IEEE80211_IOC_WPAIE:
 		error = ieee80211_ioctl_getwpaie(vap, ireq, ireq->i_type);
@@ -3045,8 +3047,13 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 			    vap->iv_opmode != IEEE80211_M_STA)
 				return EINVAL;
 			vap->iv_flags |= IEEE80211_F_DWDS;
-		} else
+			if (vap->iv_opmode == IEEE80211_M_STA)
+				vap->iv_flags_ext |= IEEE80211_FEXT_4ADDR;
+		} else {
 			vap->iv_flags &= ~IEEE80211_F_DWDS;
+			if (vap->iv_opmode == IEEE80211_M_STA)
+				vap->iv_flags_ext &= ~IEEE80211_FEXT_4ADDR;
+		}
 		break;
 	case IEEE80211_IOC_INACTIVITY:
 		if (ireq->i_val)
@@ -3188,8 +3195,7 @@ ieee80211_ioctl_updatemulti(struct ieee80211com *ic)
 			(void) if_addmulti(parent, ifma->ifma_addr, NULL);
 	}
 	parent->if_ioctl = ioctl;
-
-	ic->ic_update_mcast(ic->ic_ifp);
+	ieee80211_runtask(ic, &ic->ic_mcast_task);
 	IEEE80211_UNLOCK(ic);
 }
 

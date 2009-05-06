@@ -113,17 +113,17 @@ MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
  *     "ifp" = ATM interface to output to
  *     "m0" = the packet to output
  *     "dst" = the sockaddr to send to (either IP addr, or raw VPI/VCI)
- *     "rt0" = the route to use
+ *     "ro" = the route to use
  *   returns: error code   [0 == ok]
  *
  *   note: special semantic: if (dst == NULL) then we assume "m" already
  *		has an atm_pseudohdr on it and just send it directly.
  *		[for native mode ATM output]   if dst is null, then
- *		rt0 must also be NULL.
+ *		ro->ro_rt must also be NULL.
  */
 int
 atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
-    struct rtentry *rt0)
+    struct route *ro)
 {
 	u_int16_t etype = 0;			/* if using LLC/SNAP */
 	int error = 0, sz;
@@ -157,7 +157,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 			        etype = ETHERTYPE_IPV6;
 			else
 			        etype = ETHERTYPE_IP;
-			if (!atmresolve(rt0, m, dst, &atmdst)) {
+			if (!atmresolve(ro->ro_rt, m, dst, &atmdst)) {
 				m = NULL; 
 				/* XXX: atmresolve already free'd it */
 				senderr(EHOSTUNREACH);

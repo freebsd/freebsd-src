@@ -94,7 +94,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.5.2";
+char igb_driver_version[] = "version - 1.5.3";
 
 
 /*********************************************************************
@@ -3308,6 +3308,7 @@ igb_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
         int first, last, done, num_avail;
+	u32 cleaned = 0;
         struct igb_tx_buffer *tx_buffer;
         struct e1000_tx_desc   *tx_desc, *eop_desc;
 	struct ifnet   *ifp = adapter->ifp;
@@ -3343,7 +3344,7 @@ igb_txeof(struct tx_ring *txr)
                 	tx_desc->upper.data = 0;
                 	tx_desc->lower.data = 0;
                 	tx_desc->buffer_addr = 0;
-                	num_avail++;
+                	++num_avail; ++cleaned;
 
 			if (tx_buffer->m_head) {
 				ifp->if_opackets++;
@@ -3380,23 +3381,21 @@ igb_txeof(struct tx_ring *txr)
         txr->next_to_clean = first;
 
         /*
-         * If we have enough room, clear IFF_DRV_OACTIVE to tell the stack
-         * that it is OK to send packets.
-         * If there are no pending descriptors, clear the timeout. Otherwise,
-         * if some descriptors have been freed, restart the timeout.
+         * If we have enough room, clear IFF_DRV_OACTIVE to
+         * tell the stack that it is OK to send packets.
+         * If there are no pending descriptors, clear the timeout.
          */
         if (num_avail > IGB_TX_CLEANUP_THRESHOLD) {                
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		/* All clean, turn off the timer */
                 if (num_avail == adapter->num_tx_desc) {
 			txr->watchdog_timer = 0;
         		txr->tx_avail = num_avail;
 			return FALSE;
 		}
-		/* Some cleaned, reset the timer */
-                else if (num_avail != txr->tx_avail)
-			txr->watchdog_timer = IGB_TX_TIMEOUT;
         }
+	/* Some descriptors cleaned, reset the watchdog */
+	if (cleaned)
+		txr->watchdog_timer = IGB_TX_TIMEOUT;
         txr->tx_avail = num_avail;
         return TRUE;
 }
@@ -4002,7 +4001,7 @@ igb_rxeof(struct rx_ring *rxr, int count)
 		accept_frame = 1;
 		hlen = plen = len_adj = 0;
 		sendmp = mh = mp = NULL;
-		ptype = (u16)cur->wb.lower.lo_dword.data;
+		ptype = (u16)(cur->wb.lower.lo_dword.data >> 4);
 
 		/* Sync the buffers */
 		bus_dmamap_sync(rxr->rxtag, rxr->rx_buffers[i].map,
@@ -4103,16 +4102,16 @@ igb_rxeof(struct rx_ring *rxr, int count)
 					rxr->lmp = mh->m_next;
 				}
 			} else {
-				/* Chain mbuf's together */
-				mh->m_flags &= ~M_PKTHDR;
-				rxr->lmp->m_next = mh;
-				rxr->lmp = rxr->lmp->m_next;
-				rxr->fmp->m_pkthdr.len += mh->m_len;
 				/* Adjust for CRC frag */
 				if (len_adj) {
 					rxr->lmp->m_len -= len_adj;
 					rxr->fmp->m_pkthdr.len -= len_adj;
 				}
+				/* Chain mbuf's together */
+				mh->m_flags &= ~M_PKTHDR;
+				rxr->lmp->m_next = mh;
+				rxr->lmp = rxr->lmp->m_next;
+				rxr->fmp->m_pkthdr.len += mh->m_len;
 			}
 
 			if (eop) {
@@ -4256,7 +4255,7 @@ igb_rx_checksum(u32 staterr, struct mbuf *mp, bool sctp)
 #endif
 		/* Did it pass? */
 		if (!(errors & E1000_RXD_ERR_TCPE)) {
-			mp->m_pkthdr.csum_flags = type;
+			mp->m_pkthdr.csum_flags |= type;
 			if (!sctp)
 				mp->m_pkthdr.csum_data = htons(0xffff);
 		}

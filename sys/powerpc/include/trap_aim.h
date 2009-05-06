@@ -103,4 +103,15 @@
 #define EXC_ALI_RST(dsisr) ((dsisr >> 5) & 0x1f)   /* source or target */
 #define EXC_ALI_RA(dsisr) (dsisr & 0x1f)
 
+/*
+ * SRR1 bits for program exception traps. These identify what caused
+ * the program exception. See section 6.5.9 of the Power ISA Version
+ * 2.05.
+ */
+
+#define	EXC_PGM_FPENABLED	(1UL << 20)
+#define	EXC_PGM_ILLEGAL		(1UL << 19)
+#define	EXC_PGM_PRIV		(1UL << 18)
+#define	EXC_PGM_TRAP		(1UL << 17)
+
 #endif	/* _POWERPC_TRAP_H_ */

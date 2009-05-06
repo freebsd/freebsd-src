@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NANO_CFGDIR=${NANO_SRC}/${NANO_TOOLS}/gateworks/cfg
+NANO_CFGDIR=${NANO_CFGDIR:-${NANO_SRC}/${NANO_TOOLS}/gateworks/cfg}
 test -d ${NANO_CFGDIR} || NANO_CFGDIR=/var/empty
 NANO_PMAKE="make"					# NB: disable -j 3
 

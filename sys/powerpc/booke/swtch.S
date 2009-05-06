@@ -69,11 +69,20 @@
 #include <machine/spr.h>
 
 /*
- * void cpu_switch(struct thread *old, struct thread *new)
+ * void cpu_throw(struct thread *old, struct thread *new)
+ */
+ENTRY(cpu_throw)
+	mr	%r15, %r4
+	b	cpu_switchin
+
+/*
+ * void cpu_switch(struct thread *old, struct thread *new, struct mutex *mtx);)
  *
  * Switch to a new thread saving the current state in the old thread.
  */
 ENTRY(cpu_switch)
+	stw	%r5, TD_LOCK(%r3)
+
 	lwz	%r5, TD_PCB(%r3)	/* Get the old thread's PCB ptr */
 
 	mr	%r12, %r2	
@@ -98,6 +107,7 @@ ENTRY(cpu_switch)
 
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
+cpu_switchin:
 	mr	%r3, %r15		/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 
@@ -128,10 +138,10 @@ ENTRY(cpu_switch)
  * Update pcb, saving current processor state
  */
 ENTRY(savectx)
-	mr	%r12,%r2
-	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
+	mr	%r12, %r2
+	stmw	%r12, PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
 	mfcr	%r4			/* Save the condition register */
-	stw	%r4,PCB_CONTEXT(%r3)
+	stw	%r4, PCB_CONTEXT(%r3)
 	blr
 
 /*
@@ -139,11 +149,11 @@ ENTRY(savectx)
  * Set up the return from cpu_fork()
  */
 ENTRY(fork_trampoline)
-	lwz	%r3,CF_FUNC(%r1)
-	lwz	%r4,CF_ARG0(%r1)
-	lwz	%r5,CF_ARG1(%r1)
+	lwz	%r3, CF_FUNC(%r1)
+	lwz	%r4, CF_ARG0(%r1)
+	lwz	%r5, CF_ARG1(%r1)
 	bl	fork_exit
-	addi	%r1,%r1,CF_SIZE-FSP	/* Allow 8 bytes in front of
+	addi	%r1, %r1, CF_SIZE-FSP	/* Allow 8 bytes in front of
 					   trapframe to simulate FRAME_SETUP
 					   does when allocating space for
 					   a frame pointer/saved LR */

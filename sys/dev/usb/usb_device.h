@@ -85,11 +85,18 @@ struct usb2_interface {
 struct usb2_device_flags {
 	uint8_t	usb2_mode:1;		/* USB mode (see USB_MODE_XXX) */
 	uint8_t	self_powered:1;		/* set if USB device is self powered */
-	uint8_t	suspended:1;		/* set if USB device is suspended */
 	uint8_t	no_strings:1;		/* set if USB device does not support
 					 * strings */
 	uint8_t	remote_wakeup:1;	/* set if remote wakeup is enabled */
 	uint8_t	uq_bus_powered:1;	/* set if BUS powered quirk is present */
+
+	/*
+	 * NOTE: Although the flags below will reach the same value
+	 * over time, but the instant values may differ, and
+	 * consequently the flags cannot be merged into one!
+	 */
+	uint8_t peer_suspended:1;	/* set if peer is suspended */
+	uint8_t self_suspended:1;	/* set if self is suspended */
 };
 
 /*
@@ -101,7 +108,6 @@ struct usb2_power_save {
 	usb2_size_t type_refs[4];	/* transfer reference count */
 	usb2_size_t read_refs;		/* data read references */
 	usb2_size_t write_refs;		/* data write references */
-	uint8_t	suspended;		/* set if USB device is suspended */
 };
 
 /*
@@ -121,6 +127,7 @@ struct usb2_device {
 	struct usb2_bus *bus;		/* our USB BUS */
 	device_t parent_dev;		/* parent device */
 	struct usb2_device *parent_hub;
+	struct usb2_device *parent_hs_hub;	/* high-speed parent HUB */
 	struct usb2_config_descriptor *cdesc;	/* full config descr */
 	struct usb2_hub *hub;		/* only if this is a hub */
 #if USB_HAVE_COMPAT_LINUX
@@ -138,6 +145,7 @@ struct usb2_device {
 #endif
 	usb2_ticks_t plugtime;		/* copy of "ticks" */
 
+	enum usb2_dev_state state;
 	uint16_t refcount;
 #define	USB_DEV_REF_MAX 0xffff
 
@@ -204,5 +212,7 @@ void	*usb2_find_descriptor(struct usb2_device *udev, void *id,
 void	usb_linux_free_device(struct usb_device *dev);
 uint8_t	usb2_peer_can_wakeup(struct usb2_device *udev);
 struct usb2_pipe *usb2_pipe_foreach(struct usb2_device *udev, struct usb2_pipe *pipe);
+void	usb2_set_device_state(struct usb2_device *udev,
+	    enum usb2_dev_state state);
 
 #endif					/* _USB2_DEVICE_H_ */

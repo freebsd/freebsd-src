@@ -147,7 +147,7 @@ int test_assert_equal_file(const char *, const char *, ...);
 int test_assert_equal_int(const char *, int, int, const char *, int, const char *, void *);
 int test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
 int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
-int test_assert_equal_mem(const char *, int, const char *, const char *, const char *, const char *, size_t, const char *, void *);
+int test_assert_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int test_assert_file_contents(const void *, int, const char *, ...);
 int test_assert_file_exists(const char *, ...);
 int test_assert_file_not_exists(const char *, ...);
@@ -194,14 +194,3 @@ int read_open_memory2(struct archive *, void *, size_t, size_t);
   test_assert_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
 #define assertEqualStringA(a,v1,v2)   \
   test_assert_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
-
-/*
- * A compression is not supported
- * Use this define after archive_read_next_header() is called
- */
-#define UnsupportedCompress(r, a) \
-	(r != ARCHIVE_OK && \
-	 (strcmp(archive_error_string(a), \
-	    "Unrecognized archive format") == 0 && \
-	  archive_compression(a) == ARCHIVE_COMPRESSION_NONE))
-

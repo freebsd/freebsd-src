@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#endif
 #ifdef HAVE_ACL_LIBACL_H
 #include <acl/libacl.h>
 #endif
@@ -84,7 +87,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
     int fd, const struct stat *st)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	const char *path;
+	const char *path, *name;
 	struct stat s;
 	int initial_fd = fd;
 	int r, r1;
@@ -127,6 +130,14 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		st = &s;
 	}
 	archive_entry_copy_stat(entry, st);
+
+	/* Lookup uname/gname */
+	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+	if (name != NULL)
+		archive_entry_copy_uname(entry, name);
+	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+	if (name != NULL)
+		archive_entry_copy_gname(entry, name);
 
 #ifdef HAVE_STRUCT_STAT_ST_FLAGS
 	/* On FreeBSD, we get flags for free with the stat. */

@@ -67,10 +67,10 @@ au_login_success(void)
 	uid_t uid = pwd->pw_uid;
 	gid_t gid = pwd->pw_gid;
 	pid_t pid = getpid();
-	long au_cond;
+	int au_cond;
 
 	/* If we are not auditing, don't cut an audit record; just return. */
- 	if (auditon(A_GETCOND, &au_cond, sizeof(long)) < 0) {
+ 	if (auditon(A_GETCOND, &au_cond, sizeof(au_cond)) < 0) {
 		if (errno == ENOSYS)
 			return;
 		errx(1, "login: Could not determine audit condition");
@@ -115,13 +115,13 @@ au_login_fail(const char *errmsg, int na)
 {
 	token_t *tok;
 	int aufd;
-	long au_cond;
+	int au_cond;
 	uid_t uid;
 	gid_t gid;
 	pid_t pid = getpid();
 
 	/* If we are not auditing, don't cut an audit record; just return. */
- 	if (auditon(A_GETCOND, &au_cond, sizeof(long)) < 0) {
+ 	if (auditon(A_GETCOND, &au_cond, sizeof(au_cond)) < 0) {
 		if (errno == ENOSYS)
 			return;
 		errx(1, "login: Could not determine audit condition");
@@ -175,10 +175,10 @@ audit_logout(void)
 	uid_t uid = pwd->pw_uid;
 	gid_t gid = pwd->pw_gid;
 	pid_t pid = getpid();
-	long au_cond;
+	int au_cond;
 
 	/* If we are not auditing, don't cut an audit record; just return. */
- 	if (auditon(A_GETCOND, &au_cond, sizeof(long)) < 0) {
+ 	if (auditon(A_GETCOND, &au_cond, sizeof(int)) < 0) {
 		if (errno == ENOSYS)
 			return;
 		errx(1, "login: Could not determine audit condition");

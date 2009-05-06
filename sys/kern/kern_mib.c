@@ -208,9 +208,8 @@ static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
     machine_arch, 0, "System architecture");
 
-#ifndef VIMAGE
+/* should become #ifndef VIMAGE */
 char hostname[MAXHOSTNAMELEN];
-#endif
 
 /*
  * This mutex is used to protect the hostname and domainname variables, and
@@ -349,9 +348,8 @@ SYSCTL_PROC(_kern, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RW,
     0, 0, sysctl_kern_config, "", "Kernel configuration file");
 #endif
 
-#ifndef VIMAGE
+/* should become #ifndef VIMAGE */
 char domainname[MAXHOSTNAMELEN];	/* Protected by hostname_mtx. */
-#endif
 
 static int
 sysctl_domainname(SYSCTL_HANDLER_ARGS)

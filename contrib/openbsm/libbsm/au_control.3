@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#10 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#11 $
 .\"
 .Dd April 19, 2005
 .Dt AU_CONTROL 3
@@ -64,9 +64,9 @@
 .Ft int
 .Fn getacpol "char *auditstr" "size_t len"
 .Ft ssize_t
-.Fn au_poltostr "long policy" "size_t maxsize" "char *buf"
+.Fn au_poltostr "int policy" "size_t maxsize" "char *buf"
 .Ft int
-.Fn au_strtopol "const char *polstr" "long *policy"
+.Fn au_strtopol "const char *polstr" "int *policy"
 .Sh DESCRIPTION
 These interfaces may be used to look up information from the
 .Xr audit_control 5

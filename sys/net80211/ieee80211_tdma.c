@@ -78,8 +78,8 @@ __FBSDID("$FreeBSD$");
 #ifndef TDMA_TXRATE_11A_DEFAULT
 #define	TDMA_TXRATE_11A_DEFAULT	2*24
 #endif
-#ifndef TDMA_TXRATE_STURBO_A_DEFAULT
-#define	TDMA_TXRATE_STURBO_A_DEFAULT	2*24
+#ifndef TDMA_TXRATE_TURBO_DEFAULT
+#define	TDMA_TXRATE_TURBO_DEFAULT	2*24
 #endif
 #ifndef TDMA_TXRATE_HALF_DEFAULT
 #define	TDMA_TXRATE_HALF_DEFAULT	2*12
@@ -161,7 +161,9 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	settxparms(vap, IEEE80211_MODE_11A, TDMA_TXRATE_11A_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_11B, TDMA_TXRATE_11B_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_11G, TDMA_TXRATE_11G_DEFAULT);
-	settxparms(vap, IEEE80211_MODE_STURBO_A, TDMA_TXRATE_STURBO_A_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_TURBO_A, TDMA_TXRATE_TURBO_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_TURBO_G, TDMA_TXRATE_TURBO_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_STURBO_A, TDMA_TXRATE_TURBO_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_11NA, TDMA_TXRATE_11NA_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_11NG, TDMA_TXRATE_11NG_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_HALF, TDMA_TXRATE_HALF_DEFAULT);
@@ -344,7 +346,7 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		/*
 		 * Check for state updates.
 		 */
-		if (IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_bssid)) {
+		if (IEEE80211_ADDR_EQ(wh->i_addr3, ni->ni_bssid)) {
 			/*
 			 * Count frame now that we know it's to be processed.
 			 */
@@ -467,7 +469,7 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_TDMA,
 		    "%s: slot %u slotcnt %u slotlen %u us bintval %u\n",
 		    __func__, ts->tdma_slot, ts->tdma_slotcnt,
-		    100*ts->tdma_slotlen, ts->tdma_bintval);
+		    ts->tdma_slotlen, ts->tdma_bintval);
 	}
 	/*
 	 * Notify driver.  Note we can be called before

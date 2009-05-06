@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_uevents.h#10 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_uevents.h#11 $
  */
 
 #ifndef _BSM_AUDIT_UEVENTS_H_
@@ -138,5 +138,6 @@
 #define	AUE_calife		45027		/* OpenBSM-allocated. */
 #define	AUE_sudo		45028		/* OpenBSM-allocated. */
 #define	AUE_audit_recovery	45029		/* OpenBSM-allocated. */
+#define	AUE_ssauthmech		45030		/* Darwin-specific. */
 
 #endif /* !_BSM_AUDIT_UEVENTS_H_ */

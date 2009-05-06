@@ -74,6 +74,7 @@ static void adhoc_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	int subtype, int rssi, int noise, uint32_t rstamp);
 static void ahdemo_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	int subtype, int rssi, int noise, uint32_t rstamp);
+static void adhoc_recv_ctl(struct ieee80211_node *, struct mbuf *, int subtype);
 
 void
 ieee80211_adhoc_attach(struct ieee80211com *ic)
@@ -101,6 +102,7 @@ adhoc_vattach(struct ieee80211vap *vap)
 		vap->iv_recv_mgmt = adhoc_recv_mgmt;
 	else
 		vap->iv_recv_mgmt = ahdemo_recv_mgmt;
+	vap->iv_recv_ctl = adhoc_recv_ctl;
 	vap->iv_opdetach = adhoc_vdetach;
 #ifdef IEEE80211_SUPPORT_TDMA
 	/*
@@ -339,7 +341,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
 	    IEEE80211_FC0_VERSION_0) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, NULL, "wrong version %x", wh->i_fc[0]);
+		    ni->ni_macaddr, NULL, "wrong version, fc %02x:%02x",
+		    wh->i_fc[0], wh->i_fc[1]);
 		vap->iv_stats.is_rx_badversion++;
 		goto err;
 	}
@@ -637,16 +640,15 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 			goto out;
 		}
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
 		vap->iv_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
-		m_freem(m);
-		return IEEE80211_FC0_TYPE_MGT;
+		goto out;
 
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
+		vap->iv_recv_ctl(ni, m, subtype);
 		goto out;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 		    wh, "bad", "frame type 0x%x", type);
@@ -657,7 +659,7 @@ err:
 	ifp->if_ierrors++;
 out:
 	if (m != NULL) {
-		if (bpf_peers_present(vap->iv_rawbpf) && need_tap)
+		if (need_tap && bpf_peers_present(vap->iv_rawbpf))
 			bpf_mtap(vap->iv_rawbpf, m);
 		m_freem(m);
 	}
@@ -923,4 +925,9 @@ ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		adhoc_recv_mgmt(ni, m0, subtype, rssi, noise, rstamp);
 	else
 		vap->iv_stats.is_rx_mgtdiscard++;
+}
+
+static void
+adhoc_recv_ctl(struct ieee80211_node *ni, struct mbuf *m0, int subtype)
+{
 }

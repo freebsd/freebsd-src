@@ -452,8 +452,14 @@ archive_write_pax_header(struct archive_write *a,
 				free(t);
 			}
 			break;
+		case AE_IFSOCK:
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "tar format cannot archive socket");
+			return (ARCHIVE_WARN);
 		default:
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this (type=0%lo)",
 			    (unsigned long)archive_entry_filetype(entry_original));
 			return (ARCHIVE_WARN);

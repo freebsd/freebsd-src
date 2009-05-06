@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <i386/bios/apm.h>
+#include <isa/rtc.h>
 
 /* Used by the apm_saver screen saver module */
 int apm_display(int newstate);
@@ -1154,8 +1155,10 @@ apm_attach(device_t dev)
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "apm", MTX_DEF);
 	cv_init(&sc->cv, "cbb cv");
 
+#ifndef PC98
 	if (device_get_flags(dev) & 0x20)
-		statclock_disable = 1;
+		atrtcclock_disable = 1;
+#endif
 
 	sc->initialized = 0;
 

@@ -78,7 +78,7 @@ linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, osname,
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
 	    0, 0, linux_sysctl_osname, "A",
 	    "Linux kernel OS name");
 
@@ -100,7 +100,7 @@ linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, osrelease,
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
 	    0, 0, linux_sysctl_osrelease, "A",
 	    "Linux kernel OS release");
 
@@ -121,7 +121,7 @@ linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, oss_version,
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
 	    0, 0, linux_sysctl_oss_version, "I",
 	    "Linux OSS version");
 

@@ -11,6 +11,7 @@
 # standard unix compress
 0	string		\037\235	compress'd data
 !:mime	application/x-compress
+!:apple	LZIVZIVU
 >2	byte&0x80	>0		block compressed
 >2	byte&0x1f	x		%d bits
 
@@ -75,6 +76,11 @@
 0	string		BZh		bzip2 compressed data
 !:mime	application/x-bzip2
 >3	byte		>47		\b, block size = %c00k
+
+# lzip
+0	string		LZIP		lzip compressed data
+!:mime application/x-lzip
+>4	byte		x		\b, version: %d
 
 # squeeze and crunch
 # Michael Haardt <michael@cantor.informatik.rwth-aachen.de>

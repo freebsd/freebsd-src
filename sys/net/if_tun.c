@@ -129,7 +129,7 @@ static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static int	tuninit(struct ifnet *);
 static int	tunmodevent(module_t, int, void *);
 static int	tunoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct rtentry *rt);
+		    struct route *ro);
 static void	tunstart(struct ifnet *);
 
 static int	tun_clone_create(struct if_clone *, int, caddr_t);
@@ -520,6 +520,7 @@ tuninit(struct ifnet *ifp)
 	getmicrotime(&ifp->if_lastchange);
 
 #ifdef INET
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			struct sockaddr_in *si;
@@ -535,6 +536,7 @@ tuninit(struct ifnet *ifp)
 			mtx_unlock(&tp->tun_mtx);
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 #endif
 	return (error);
 }
@@ -591,7 +593,7 @@ tunoutput(
 	struct ifnet *ifp,
 	struct mbuf *m0,
 	struct sockaddr *dst,
-	struct rtentry *rt)
+	struct route *ro)
 {
 	struct tun_softc *tp = ifp->if_softc;
 	u_short cached_tun_flags;

@@ -137,9 +137,14 @@ static const struct ed_product {
 	{ PCMCIA_CARD(ACCTON, EN2212), 0},
 	{ PCMCIA_CARD(ACCTON, EN2216), 0},
 	{ PCMCIA_CARD(ALLIEDTELESIS, LA_PCM), 0},
+	{ PCMCIA_CARD(AMBICOM, AMB8002), 0},
 	{ PCMCIA_CARD(AMBICOM, AMB8002T), 0},
+	{ PCMCIA_CARD(AMBICOM, AMB8010), 0},
+	{ PCMCIA_CARD(AMBICOM, AMB8010_ALT), 0},
+	{ PCMCIA_CARD(AMBICOM, AMB8610), 0},
 	{ PCMCIA_CARD(BILLIONTON, CFLT10N), 0},
 	{ PCMCIA_CARD(BILLIONTON, LNA100B), NE2000DVF_AX88X90},
+	{ PCMCIA_CARD(BILLIONTON, LNT10TB), 0},
 	{ PCMCIA_CARD(BILLIONTON, LNT10TN), 0},
 	{ PCMCIA_CARD(BROMAX, AXNET), NE2000DVF_AX88X90},
 	{ PCMCIA_CARD(BROMAX, IPORT), 0},
@@ -176,6 +181,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(GREY_CELL, TDK3000), 0},
 	{ PCMCIA_CARD(GREY_CELL, DMF650TX),
 	    NE2000DVF_ANYFUNC | NE2000DVF_DL100XX | NE2000DVF_MODEM},
+	{ PCMCIA_CARD(GVC, NIC_2000P), 0},
 	{ PCMCIA_CARD(IBM, HOME_AND_AWAY), 0},
 	{ PCMCIA_CARD(IBM, INFOMOVER), 0},
 	{ PCMCIA_CARD(IODATA3, PCLAT), 0},
@@ -193,6 +199,8 @@ static const struct ed_product {
 	{ PCMCIA_CARD(MAGICRAM, ETHER), 0},
 	{ PCMCIA_CARD(MELCO, LPC3_CLX), NE2000DVF_AX88X90},
 	{ PCMCIA_CARD(MELCO, LPC3_TX), NE2000DVF_AX88X90},
+	{ PCMCIA_CARD(MELCO2, LPC2_T), 0},
+	{ PCMCIA_CARD(MELCO2, LPC2_TX), 0},
 	{ PCMCIA_CARD(MITSUBISHI, B8895), NE2000DVF_ANYFUNC}, /* NG */
 	{ PCMCIA_CARD(MICRORESEARCH, MR10TPC), 0},
 	{ PCMCIA_CARD(NDC, ND5100_E), 0},
@@ -200,9 +208,11 @@ static const struct ed_product {
 	/* Same ID as DLINK DFE-670TXD.  670 has DL10022, fa411 has ax88790 */
 	{ PCMCIA_CARD(NETGEAR, FA411), NE2000DVF_AX88X90 | NE2000DVF_DL100XX},
 	{ PCMCIA_CARD(NEXTCOM, NEXTHAWK), 0},
-	{ PCMCIA_CARD(NEWMEDIA, LANSURFER), 0},
+	{ PCMCIA_CARD(NEWMEDIA, LANSURFER), NE2000DVF_ANYFUNC},
+	{ PCMCIA_CARD(NEWMEDIA, LIVEWIRE), 0},
+	{ PCMCIA_CARD(OEM2, 100BASE), NE2000DVF_AX88X90},
 	{ PCMCIA_CARD(OEM2, ETHERNET), 0},
-	{ PCMCIA_CARD(OEM2, FAST_ETHERNET), NE2000DVF_AX88X90 },
+	{ PCMCIA_CARD(OEM2, FAST_ETHERNET), NE2000DVF_AX88X90},
 	{ PCMCIA_CARD(OEM2, NE2000), 0},
 	{ PCMCIA_CARD(PLANET, SMARTCOM2000), 0 },
 	{ PCMCIA_CARD(PREMAX, PE200), 0},
@@ -328,7 +338,7 @@ static int
 ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	uint8_t romdata[32];
+	uint8_t romdata[32], sum;
 	int i;
 
 	/*
@@ -369,6 +379,10 @@ ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 		device_printf(dev, "ROM DATA: %32D\n", romdata, " ");
 	if (romdata[28] != 0x57 || romdata[30] != 0x57)
 		return (0);
+	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
+		sum |= romdata[i * 2];
+	if (sum == 0)
+		return (0);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		enaddr[i] = romdata[i * 2];
 	return (1);
@@ -377,10 +391,7 @@ ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
 static int
 ed_pccard_add_modem(device_t dev)
 {
-	struct ed_softc *sc = device_get_softc(dev);
-
-	device_printf(dev, "Need to write this code: modem rid is %d\n",
-	    sc->modem_rid);
+	device_printf(dev, "Need to write this code\n");
 	return 0;
 }
 
@@ -433,7 +444,7 @@ ed_pccard_attach(device_t dev)
 	u_char sum;
 	u_char enaddr[ETHER_ADDR_LEN];
 	const struct ed_product *pp;
-	int	error, i, flags;
+	int	error, i, flags, port_rid, modem_rid;
 	struct ed_softc *sc = device_get_softc(dev);
 	u_long size;
 	static uint16_t *intr_vals[] = {NULL, NULL};
@@ -441,29 +452,42 @@ ed_pccard_attach(device_t dev)
 	sc->dev = dev;
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
-	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
+		 sizeof(ed_pccard_products[0]), NULL)) == NULL) {
+		printf("Can't find\n");
 		return (ENXIO);
-	sc->modem_rid = -1;
+	}
+	modem_rid = port_rid = -1;
 	if (pp->flags & NE2000DVF_MODEM) {
-		sc->port_rid = -1;
 		for (i = 0; i < 4; i++) {
 			size = bus_get_resource_count(dev, SYS_RES_IOPORT, i);
 			if (size == ED_NOVELL_IO_PORTS)
-				sc->port_rid = i;
+				port_rid = i;
 			else if (size == 8)
-				sc->modem_rid = i;
+				modem_rid = i;
 		}
-		if (sc->port_rid == -1) {
+		if (port_rid == -1) {
 			device_printf(dev, "Cannot locate my ports!\n");
 			return (ENXIO);
 		}
 	} else {
-		sc->port_rid = 0;
+		port_rid = 0;
 	}
 	/* Allocate the port resource during setup. */
-	error = ed_alloc_port(dev, sc->port_rid, ED_NOVELL_IO_PORTS);
-	if (error)
+	error = ed_alloc_port(dev, port_rid, ED_NOVELL_IO_PORTS);
+	if (error) {
+		printf("alloc_port failed\n");
 		return (error);
+	}
+	if (rman_get_size(sc->port_res) == ED_NOVELL_IO_PORTS / 2) {
+		port_rid++;
+		sc->port_res2 = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		    &port_rid, 0ul, ~0ul, 1, RF_ACTIVE);
+		if (sc->port_res2 == NULL ||
+		    rman_get_size(sc->port_res2) != ED_NOVELL_IO_PORTS / 2) {
+			error = ENXIO;
+			goto bad;
+		}
+	}
 	error = ed_alloc_irq(dev, 0, 0);
 	if (error)
 		goto bad;
@@ -483,8 +507,10 @@ ed_pccard_attach(device_t dev)
 		error = ed_pccard_ax88x90(dev, pp);
 	if (error != 0)
 		error = ed_pccard_tc5299j(dev, pp);
-	if (error != 0)
+	if (error != 0) {
 		error = ed_probe_Novell_generic(dev, flags);
+		printf("Novell probe generic %d\n", error);
+	}
 	if (error != 0 && (pp->flags & NE2000DVF_TOSHIBA)) {
 		flags |= ED_FLAGS_TOSH_ETHER;
 		flags |= ED_FLAGS_PCCARD;
@@ -494,13 +520,6 @@ ed_pccard_attach(device_t dev)
 	}
 	if (error)
 		goto bad;
-
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, edintr, sc, &sc->irq_handle);
-	if (error) {
-		device_printf(dev, "setup intr failed %d \n", error);
-		goto bad;
-	}	      
 
 	/*
 	 * There are several ways to get the MAC address for the card.
@@ -585,11 +604,18 @@ ed_pccard_attach(device_t dev)
 		sc->sc_media_ioctl = ed_pccard_media_ioctl;
 		ed_pccard_kick_phy(sc);
 	} else {
-		printf("Generic ifmedia\n");
 		ed_gen_ifmedia_init(sc);
 	}
-	if (sc->modem_rid != -1)
+	if (modem_rid != -1)
 		ed_pccard_add_modem(dev);
+
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, edintr, sc, &sc->irq_handle);
+	if (error) {
+		device_printf(dev, "setup intr failed %d \n", error);
+		goto bad;
+	}	      
+
 	return (0);
 bad:
 	ed_detach(dev);
@@ -966,11 +992,16 @@ ed_pccard_tc5299j(device_t dev, const struct ed_product *pp)
 	if (bootverbose)
 		device_printf(dev, "Checking Tc5299j\n");
 
+	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
+	if (bootverbose)
+		device_printf(dev, "probe novel returns %d\n", error);
+	if (error != 0)
+		return (error);
+
 	/*
-	 * Check to see if we have a MII PHY ID at any of the first 32
-	 * locations.  All TC5299J devices have MII and a PHY, so we use
-	 * this to weed out chips that would otherwise make it through
-	 * the tests we have after this point.
+	 * Check to see if we have a MII PHY ID at any address.  All TC5299J
+	 * devices have MII and a PHY, so we use this to weed out chips that
+	 * would otherwise make it through the tests we have after this point.
 	 */
 	sc->mii_readbits = ed_pccard_tc5299j_mii_readbits;
 	sc->mii_writebits = ed_pccard_tc5299j_mii_writebits;
@@ -984,16 +1015,7 @@ ed_pccard_tc5299j(device_t dev, const struct ed_product *pp)
 		sc->mii_writebits = 0;
 		return (ENXIO);
 	}
-
 	ts = "TC5299J";
-	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
-	if (bootverbose)
-		device_printf(dev, "probe novel returns %d\n", error);
-	if (error != 0) {
-		sc->mii_readbits = 0;
-		sc->mii_writebits = 0;
-		return (error);
-	}
 	if (ed_pccard_rom_mac(dev, sc->enaddr) == 0) {
 		sc->mii_readbits = 0;
 		sc->mii_writebits = 0;

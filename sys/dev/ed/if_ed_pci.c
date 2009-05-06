@@ -110,15 +110,15 @@ ed_pci_attach(device_t dev)
 		ed_release_resources(dev);
 		return (error);
 	}
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, edintr, sc, &sc->irq_handle);
+	if (sc->sc_media_ioctl == NULL)
+		ed_gen_ifmedia_init(sc);
+	error = ed_attach(dev);
 	if (error) {
 		ed_release_resources(dev);
 		return (error);
 	}
-	if (sc->sc_media_ioctl == NULL)
-		ed_gen_ifmedia_init(sc);
-	error = ed_attach(dev);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, edintr, sc, &sc->irq_handle);
 	if (error)
 		ed_release_resources(dev);
 	return (error);

@@ -138,7 +138,6 @@ SUBDIR=	${_ac} \
 	quot \
 	${_quotaon} \
 	rarpd \
-	${_raycontrol} \
 	${_repquota} \
 	${_rip6query} \
 	rmt \
@@ -405,7 +404,6 @@ _usbconfig=	usbconfig
 
 .if ${MK_WIRELESS} != "no"
 _ancontrol=	ancontrol
-_raycontrol=	raycontrol
 _wlandebug=	wlandebug
 _wpa=		wpa
 .endif
