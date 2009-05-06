@@ -122,7 +122,7 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 		/* If internal, stop and reset state. */
 		if (bp->bio_cflags & GV_BIO_INTERNAL) {
 			if (bp->bio_cflags & GV_BIO_MALLOC)
-				g_free(cbp->bio_data);
+				g_free(bp->bio_data);
 			g_destroy_bio(bp);
 			/* Reset flags. */
 			p->flags &= ~(GV_PLEX_SYNCING | GV_PLEX_REBUILDING |
