@@ -85,6 +85,7 @@ gv_post_bio(struct gv_softc *sc, struct bio *bp)
 {
 
 	KASSERT(sc != NULL, ("NULL sc"));
+	KASSERT(bp != NULL, ("NULL bp"));
 	mtx_lock(&sc->bqueue_mtx);
 	bioq_disksort(sc->bqueue, bp);
 	wakeup(sc);
