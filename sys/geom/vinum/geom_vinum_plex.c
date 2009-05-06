@@ -48,6 +48,8 @@ static int	gv_plex_offset(struct gv_plex *, off_t, off_t, off_t *, off_t *,
 		    int *, int);
 static int 	gv_plex_normal_request(struct gv_plex *, struct bio *, off_t,
 		    off_t,  caddr_t);
+static void	gv_post_bio(struct gv_softc *, struct bio *);
+
 void
 gv_plex_start(struct gv_plex *p, struct bio *bp)
 {
@@ -111,7 +113,7 @@ gv_plex_start(struct gv_plex *p, struct bio *bp)
 		 */
 		if (cbp->bio_caller2 != NULL && gv_stripe_active(p, cbp)) {
 			/* Park the bio on the waiting queue. */
-			cbp->bio_cflags |= GV_BIO_ONHOLD;
+			cbp->bio_pflags |= GV_BIO_ONHOLD;
 			bioq_disksort(p->wqueue, cbp);
 		} else {
 			s = cbp->bio_caller1;
@@ -209,7 +211,7 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 		goto bad;
 
 	err = gv_plex_offset(p, boff, bcount, &real_off,
-	    &real_len, &sdno, (bp->bio_pflags & GV_BIO_SYNCREQ));
+	    &real_len, &sdno, (bp->bio_pflags & GV_BIO_GROW));
 	/* If the request was blocked, put it into wait. */
 	if (err == GV_ERR_ISBUSY) {
 		bioq_disksort(p->rqueue, bp);
@@ -239,12 +241,12 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 		/* If the subdisk is up, just continue. */
 		break;
 	case GV_SD_DOWN:
-		if (bp->bio_cflags & GV_BIO_INTERNAL)
+		if (bp->bio_pflags & GV_BIO_INTERNAL)
 			G_VINUM_DEBUG(0, "subdisk must be in the stale state in"
 			    " order to perform administrative requests");
 		goto bad;
 	case GV_SD_STALE:
-		if (!(bp->bio_cflags & GV_BIO_SYNCREQ)) {
+		if (!(bp->bio_pflags & GV_BIO_SYNCREQ)) {
 			G_VINUM_DEBUG(0, "subdisk stale, unable to perform "
 			    "regular requests");
 			goto bad;
@@ -273,8 +275,6 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 	cbp->bio_data = addr;
 	cbp->bio_done = gv_done;
 	cbp->bio_caller1 = s;
-	if ((bp->bio_cflags & GV_BIO_SYNCREQ))
-		cbp->bio_cflags |= GV_BIO_SYNCREQ;
 
 	/* Store the sub-requests now and let others issue them. */
 	bioq_insert_tail(p->bqueue, cbp); 
@@ -282,8 +282,8 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 bad:
 	G_VINUM_LOGREQ(0, bp, "plex request failed.");
 	/* Building the sub-request failed. If internal BIO, do not deliver. */
-	if (bp->bio_cflags & GV_BIO_INTERNAL) {
-		if (bp->bio_cflags & GV_BIO_MALLOC)
+	if (bp->bio_pflags & GV_BIO_INTERNAL) {
+		if (bp->bio_pflags & GV_BIO_MALLOC)
 			g_free(bp->bio_data);
 		g_destroy_bio(bp);
 		p->flags &= ~(GV_PLEX_SYNCING | GV_PLEX_REBUILDING |
@@ -311,9 +311,9 @@ gv_plex_normal_done(struct gv_plex *p, struct bio *bp)
 		/* Just set it to length since multiple plexes will
 		 * screw things up. */
 		pbp->bio_completed = pbp->bio_length;
-		if (pbp->bio_cflags & GV_BIO_SYNCREQ)
+		if (pbp->bio_pflags & GV_BIO_SYNCREQ)
 			gv_sync_complete(p, pbp);
-		else if (pbp->bio_pflags & GV_BIO_SYNCREQ)
+		else if (pbp->bio_pflags & GV_BIO_GROW)
 			gv_grow_complete(p, pbp);
 		else
 			g_io_deliver(pbp, pbp->bio_error);
@@ -392,7 +392,7 @@ gv_plex_raid5_done(struct gv_plex *p, struct bio *bp)
 
 		/* Handle parity data. */
 		if (TAILQ_EMPTY(&wp->bits)) {
-			if (bp->bio_parent->bio_cflags & GV_BIO_CHECK)
+			if (bp->bio_parent->bio_pflags & GV_BIO_CHECK)
 				i = gv_check_parity(p, bp, wp);
 			else
 				i = gv_normal_parity(p, bp, wp);
@@ -424,16 +424,16 @@ gv_plex_raid5_done(struct gv_plex *p, struct bio *bp)
 	if (pbp->bio_inbed == pbp->bio_children) {
 		/* Hand it over for checking or delivery. */
 		if (pbp->bio_cmd == BIO_WRITE &&
-		    (pbp->bio_cflags & GV_BIO_CHECK)) {
+		    (pbp->bio_pflags & GV_BIO_CHECK)) {
 			gv_parity_complete(p, pbp);
 		} else if (pbp->bio_cmd == BIO_WRITE &&
-		    (pbp->bio_cflags & GV_BIO_REBUILD)) {
+		    (pbp->bio_pflags & GV_BIO_REBUILD)) {
 			gv_rebuild_complete(p, pbp);
-		} else if (pbp->bio_cflags & GV_BIO_INIT) {
+		} else if (pbp->bio_pflags & GV_BIO_INIT) {
 			gv_init_complete(p, pbp);
-		} else if (pbp->bio_cflags & GV_BIO_SYNCREQ) {
-			gv_sync_complete(p, pbp);
 		} else if (pbp->bio_pflags & GV_BIO_SYNCREQ) {
+			gv_sync_complete(p, pbp);
+		} else if (pbp->bio_pflags & GV_BIO_GROW) {
 			gv_grow_complete(p, pbp);
 		} else {
 			g_io_deliver(pbp, pbp->bio_error);
@@ -480,7 +480,7 @@ gv_check_parity(struct gv_plex *p, struct bio *bp, struct gv_raid5_packet *wp)
 			bp->bio_parent->bio_error = EAGAIN;
 
 			/* ... but we rebuild it. */
-			if (bp->bio_parent->bio_cflags & GV_BIO_PARITY) {
+			if (bp->bio_parent->bio_pflags & GV_BIO_PARITY) {
 				s = pbp->bio_caller1;
 				g_io_request(pbp, s->drive_sc->consumer);
 				finished = 0;
@@ -546,6 +546,18 @@ gv_plex_flush(struct gv_plex *p)
 	}
 }
 
+static void
+gv_post_bio(struct gv_softc *sc, struct bio *bp)
+{
+
+	KASSERT(sc != NULL, ("NULL sc"));
+	KASSERT(bp != NULL, ("NULL bp"));
+	mtx_lock(&sc->bqueue_mtx);
+	bioq_disksort(sc->bqueue_down, bp);
+	wakeup(sc);
+	mtx_unlock(&sc->bqueue_mtx);
+}
+
 int
 gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
     off_t length, int type, caddr_t data)
@@ -566,14 +578,14 @@ gv_sync_request(struct gv_plex *from, struct gv_plex *to, off_t offset,
 	}
 	bp->bio_length = length;
 	bp->bio_done = gv_done;
-	bp->bio_cflags |= GV_BIO_SYNCREQ;
+	bp->bio_pflags |= GV_BIO_SYNCREQ;
 	bp->bio_offset = offset;
 	bp->bio_caller1 = from;		
 	bp->bio_caller2 = to;
 	bp->bio_cmd = type;
 	if (data == NULL)
 		data = g_malloc(length, M_WAITOK);
-	bp->bio_cflags |= GV_BIO_MALLOC; /* Free on the next run. */
+	bp->bio_pflags |= GV_BIO_MALLOC; /* Free on the next run. */
 	bp->bio_data = data;
 
 	/* Send down next. */
@@ -613,7 +625,7 @@ gv_sync_complete(struct gv_plex *to, struct bio *bp)
 	    	    BIO_WRITE, bp->bio_data);
 	/* If it was a write, read the next one. */
 	} else if (bp->bio_cmd == BIO_WRITE) {
-		if (bp->bio_cflags & GV_BIO_MALLOC)
+		if (bp->bio_pflags & GV_BIO_MALLOC)
 			g_free(bp->bio_data);
 		to->synced += bp->bio_length;
 		/* If we're finished, clean up. */
@@ -684,10 +696,10 @@ gv_grow_request(struct gv_plex *p, off_t offset, off_t length, int type,
 	bp->bio_caller1 = p;
 	bp->bio_offset = offset;
 	bp->bio_length = length;
-	bp->bio_pflags |= GV_BIO_SYNCREQ; /* XXX: misuse of pflags AND syncreq.*/
+	bp->bio_pflags |= GV_BIO_GROW;
 	if (data == NULL)
 		data = g_malloc(length, M_WAITOK);
-	bp->bio_cflags |= GV_BIO_MALLOC;
+	bp->bio_pflags |= GV_BIO_MALLOC;
 	bp->bio_data = data;
 
 	gv_post_bio(sc, bp);
@@ -720,7 +732,7 @@ gv_grow_complete(struct gv_plex *p, struct bio *bp)
 		    BIO_WRITE, bp->bio_data);
 	/* If it was a write, read next. */
 	} else if (bp->bio_cmd == BIO_WRITE) {
-		if (bp->bio_cflags & GV_BIO_MALLOC)
+		if (bp->bio_pflags & GV_BIO_MALLOC)
 			g_free(bp->bio_data);
 
 		/* Find the real size of the plex. */
@@ -790,7 +802,7 @@ gv_init_request(struct gv_sd *s, off_t start, caddr_t data, off_t length)
 	bp->bio_done = gv_done;
 	bp->bio_error = 0;
 	bp->bio_length = length;
-	bp->bio_cflags |= GV_BIO_INIT;
+	bp->bio_pflags |= GV_BIO_INIT;
 	bp->bio_offset = start;
 	bp->bio_caller1 = s;
 
@@ -908,8 +920,8 @@ gv_parity_request(struct gv_plex *p, int flags, off_t offset)
 		return;
 	}
 
-	bp->bio_cflags = flags;
-	bp->bio_cflags |= GV_BIO_MALLOC;
+	bp->bio_pflags = flags;
+	bp->bio_pflags |= GV_BIO_MALLOC;
 
 	/* We still have more parity to build. */
 	bp->bio_offset = offset;
@@ -927,14 +939,14 @@ gv_parity_complete(struct gv_plex *p, struct bio *bp)
 	int error, flags;
 
 	error = bp->bio_error;
-	flags = bp->bio_cflags;
+	flags = bp->bio_pflags;
 	flags &= ~GV_BIO_MALLOC;
 
 	sc = p->vinumconf;
 	KASSERT(sc != NULL, ("gv_parity_complete: NULL sc"));
 
 	/* Clean up what we allocated. */
-	if (bp->bio_cflags & GV_BIO_MALLOC)
+	if (bp->bio_pflags & GV_BIO_MALLOC)
 		g_free(bp->bio_data);
 	g_destroy_bio(bp);
 
@@ -986,14 +998,14 @@ gv_rebuild_complete(struct gv_plex *p, struct bio *bp)
 	off_t offset;
 
 	error = bp->bio_error;
-	flags = bp->bio_cflags;
+	flags = bp->bio_pflags;
 	offset = bp->bio_offset;
 	flags &= ~GV_BIO_MALLOC;
 	sc = p->vinumconf;
 	KASSERT(sc != NULL, ("gv_rebuild_complete: NULL sc"));
 
 	/* Clean up what we allocated. */
-	if (bp->bio_cflags & GV_BIO_MALLOC)
+	if (bp->bio_pflags & GV_BIO_MALLOC)
 		g_free(bp->bio_data);
 	g_destroy_bio(bp);
 

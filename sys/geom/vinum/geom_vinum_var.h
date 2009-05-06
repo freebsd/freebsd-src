@@ -108,7 +108,7 @@
 #define	GV_DFLT_SYNCSIZE	65536
 
 /* Flags for BIOs, as they are processed within vinum. */
-#define	GV_BIO_DONE	0x01
+#define	GV_BIO_GROW	0x01
 #define	GV_BIO_MALLOC	0x02
 #define	GV_BIO_ONHOLD	0x04
 #define	GV_BIO_SYNCREQ	0x08
@@ -117,7 +117,7 @@
 #define	GV_BIO_CHECK	0x40
 #define	GV_BIO_PARITY	0x80
 #define GV_BIO_INTERNAL \
-    (GV_BIO_SYNCREQ | GV_BIO_INIT | GV_BIO_REBUILD |GV_BIO_CHECK)
+    (GV_BIO_SYNCREQ | GV_BIO_INIT | GV_BIO_REBUILD | GV_BIO_CHECK | GV_BIO_GROW)
 
 /* Error codes to be used within gvinum. */
 #define	GV_ERR_SETSTATE		(-1)	/* Error setting state. */
@@ -233,7 +233,10 @@ struct gv_softc {
 	struct mtx		equeue_mtx;	/* Event queue lock. */
 	struct mtx		bqueue_mtx;	/* BIO queue lock. */
 	struct mtx		config_mtx;	/* Configuration lock. */
-	struct bio_queue_head	*bqueue;	/* BIO queue. */
+	struct bio_queue_head	*bqueue_down;	/* BIO queue incoming
+						   requests. */
+	struct bio_queue_head	*bqueue_up;	/* BIO queue for completed
+						   requests. */
 	struct g_geom		*geom;		/* Pointer to our VINUM geom. */
 };
 #endif

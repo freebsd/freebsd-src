@@ -127,7 +127,6 @@ void	gv_remove_event(struct gv_softc *, struct gv_event *);
 void	gv_drive_tasted(struct gv_softc *, struct g_provider *);
 void	gv_drive_lost(struct gv_softc *, struct gv_drive *);
 void	gv_setup_objects(struct gv_softc *);
-void	gv_post_bio(struct gv_softc *, struct bio *);
 void	gv_start(struct bio *);
 int	gv_access(struct g_provider *, int, int, int);
 void	gv_cleanup(struct gv_softc *);
