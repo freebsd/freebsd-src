@@ -65,9 +65,9 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 	wp->parity = NULL;
 	TAILQ_INIT(&wp->bits);
 
-	if (bp->bio_cflags & GV_BIO_REBUILD)
+	if (bp->bio_pflags & GV_BIO_REBUILD)
 		err = gv_raid5_rebuild(p, wp, bp, addr, boff, bcount);
-	else if (bp->bio_cflags & GV_BIO_CHECK)
+	else if (bp->bio_pflags & GV_BIO_CHECK)
 		err = gv_raid5_check(p, wp, bp, addr, boff, bcount);
 	else
 		err = gv_raid5_request(p, wp, bp, addr, boff, bcount, &delay);
@@ -120,8 +120,8 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 		}
 
 		/* If internal, stop and reset state. */
-		if (bp->bio_cflags & GV_BIO_INTERNAL) {
-			if (bp->bio_cflags & GV_BIO_MALLOC)
+		if (bp->bio_pflags & GV_BIO_INTERNAL) {
+			if (bp->bio_pflags & GV_BIO_MALLOC)
 				g_free(bp->bio_data);
 			g_destroy_bio(bp);
 			/* Reset flags. */
@@ -277,7 +277,7 @@ gv_raid5_rebuild(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 		return (EINVAL);
 
 	case GV_SD_STALE:
-		if (!(bp->bio_cflags & GV_BIO_REBUILD))
+		if (!(bp->bio_pflags & GV_BIO_REBUILD))
 			return (ENXIO);
 
 		G_VINUM_DEBUG(1, "sd %s is reviving", broken->name);
@@ -326,7 +326,6 @@ gv_raid5_rebuild(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 	cbp = gv_raid5_clone_bio(bp, broken, wp, NULL, 1);
 	if (cbp == NULL)
 		return (ENOMEM);
-	cbp->bio_cflags |= GV_BIO_REBUILD;
 	wp->parity = cbp;
 
 	p->synced = boff;
@@ -400,7 +399,7 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 
 	/* If synchronizing request, just write it if disks are stale. */
 	if (original->state == GV_SD_STALE && parity->state == GV_SD_STALE &&
-	    bp->bio_cflags & GV_BIO_SYNCREQ && bp->bio_cmd == BIO_WRITE) {
+	    bp->bio_pflags & GV_BIO_SYNCREQ && bp->bio_cmd == BIO_WRITE) {
 		type = REQ_TYPE_NORMAL;
 	/* Our parity stripe is missing. */
 	} else if (parity->state != GV_SD_UP) {
