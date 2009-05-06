@@ -60,6 +60,15 @@
 #define	AR71XX_PCI_AHB_ERROR_ADDR	0x17010028
 
 /* APB region */
+/*
+ * Size is not really true actual APB window size is 
+ * 0x01000000 but it should handle OHCI memory as well
+ * because this controller's interrupt is routed through 
+ * APB. 
+ */
+#define AR71XX_APB_BASE         0x18000000
+#define AR71XX_APB_SIZE         0x06000000
+
 /* DDR registers */
 #define AR71XX_DDR_CONFIG		0x18000000
 #define AR71XX_DDR_CONFIG2		0x18000004
