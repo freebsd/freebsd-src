@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Short options for cpio.  Please keep this sorted.
  */
-static const char *short_options = "0AaBC:F:O:cdE:f:H:hijLlmopR:rtuvW:yZz";
+static const char *short_options = "0AaBC:F:O:cdE:f:H:hijLlmnopR:rtuvW:yZz";
 
 /*
  * Long options for cpio.  Please keep this sorted.
@@ -71,6 +71,7 @@ static const struct option {
 	{ "make-directories",		0, 'd' },
 	{ "no-preserve-owner",		0, OPTION_NO_PRESERVE_OWNER },
 	{ "null",			0, '0' },
+	{ "numeric-uid-gid",		0, 'n' },
 	{ "owner",			1, 'R' },
 	{ "pass-through",		0, 'p' },
 	{ "preserve-modification-time", 0, 'm' },

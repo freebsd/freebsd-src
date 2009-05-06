@@ -45,10 +45,6 @@ extern u_long *ipi_rendezvous_counts[MAXCPU];
 extern u_long *ipi_lazypmap_counts[MAXCPU];
 #endif
 
-/* global data in identcpu.c */
-extern int			cpu_cores;
-extern int			cpu_logical;
-
 /* IPI handlers */
 inthand_t
 	IDTVEC(invltlb),	/* TLB shootdowns - global */

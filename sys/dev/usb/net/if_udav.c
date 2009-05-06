@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 static device_probe_t udav_probe;
 static device_attach_t udav_attach;
 static device_detach_t udav_detach;
-static device_shutdown_t udav_shutdown;
 
 static usb2_callback_t udav_bulk_write_callback;
 static usb2_callback_t udav_bulk_read_callback;
@@ -132,7 +131,6 @@ static device_method_t udav_methods[] = {
 	DEVMETHOD(device_probe, udav_probe),
 	DEVMETHOD(device_attach, udav_attach),
 	DEVMETHOD(device_detach, udav_detach),
-	DEVMETHOD(device_shutdown, udav_shutdown),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -839,18 +837,4 @@ static void
 udav_miibus_statchg(device_t dev)
 {
 	/* nothing to do */
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-udav_shutdown(device_t dev)
-{
-	struct udav_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

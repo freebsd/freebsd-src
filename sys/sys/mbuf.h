@@ -867,7 +867,7 @@ struct mbuf	*m_unshare(struct mbuf *, int how);
 #define	PACKET_TAG_PF				21 /* PF + ALTQ information */
 #define	PACKET_TAG_RTSOCKFAM			25 /* rtsock sa family */
 #define	PACKET_TAG_IPOPTIONS			27 /* Saved IP options */
-#define	PACKET_TAG_CARP                         28 /* CARP info */
+#define	PACKET_TAG_CARP				28 /* CARP info */
 
 /* Specific cookies and tags. */
 

@@ -379,14 +379,8 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 			    != 0)
 				return (error);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		} else {
-			/*
-			 * XXX This should be LK_SHARED but I don't trust VFS
-			 * enough to leave it like that until it has been
-			 * reviewed further.
-			 */
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		}
+		} else
+			vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	}
 	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");

@@ -120,6 +120,9 @@ static void ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status);
 static void ampdu_tx_stop(struct ieee80211_tx_ampdu *tap);
 static void bar_stop_timer(struct ieee80211_tx_ampdu *tap);
+static int ampdu_rx_start(struct ieee80211_node *, struct ieee80211_rx_ampdu *,
+	int baparamset, int batimeout, int baseqctl);
+static void ampdu_rx_stop(struct ieee80211_node *, struct ieee80211_rx_ampdu *);
 
 void
 ieee80211_ht_attach(struct ieee80211com *ic)
@@ -132,6 +135,8 @@ ieee80211_ht_attach(struct ieee80211com *ic)
 	ic->ic_addba_response = ieee80211_addba_response;
 	ic->ic_addba_stop = ieee80211_addba_stop;
 	ic->ic_bar_response = ieee80211_bar_response;
+	ic->ic_ampdu_rx_start = ampdu_rx_start;
+	ic->ic_ampdu_rx_stop = ampdu_rx_stop;
 
 	ic->ic_htprotmode = IEEE80211_PROT_RTSCTS;
 	ic->ic_curhtprotmode = IEEE80211_HTINFO_OPMODE_PURE;
@@ -317,9 +322,12 @@ ampdu_rx_purge(struct ieee80211_rx_ampdu *rap)
 /*
  * Start A-MPDU rx/re-order processing for the specified TID.
  */
-static void
-ampdu_rx_start(struct ieee80211_rx_ampdu *rap, int bufsiz, int start)
+static int
+ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
+	int baparamset, int batimeout, int baseqctl)
 {
+	int bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
+
 	if (rap->rxa_flags & IEEE80211_AGGR_RUNNING) {
 		/*
 		 * AMPDU previously setup and not terminated with a DELBA,
@@ -330,15 +338,17 @@ ampdu_rx_start(struct ieee80211_rx_ampdu *rap, int bufsiz, int start)
 	memset(rap, 0, sizeof(*rap));
 	rap->rxa_wnd = (bufsiz == 0) ?
 	    IEEE80211_AGGR_BAWMAX : min(bufsiz, IEEE80211_AGGR_BAWMAX);
-	rap->rxa_start = start;
+	rap->rxa_start = MS(baseqctl, IEEE80211_BASEQ_START);
 	rap->rxa_flags |=  IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND;
+
+	return 0;
 }
 
 /*
  * Stop A-MPDU rx processing for the specified TID.
  */
 static void
-ampdu_rx_stop(struct ieee80211_rx_ampdu *rap)
+ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 {
 	ampdu_rx_purge(rap);
 	rap->rxa_flags &= ~(IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND);
@@ -823,6 +833,7 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 void
 ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	int i;
 
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT node"));
@@ -834,7 +845,7 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 			ampdu_tx_stop(tap);
 	}
 	for (i = 0; i < WME_NUM_TID; i++)
-		ampdu_rx_stop(&ni->ni_rx_ampdu[i]);
+		ic->ic_ampdu_rx_stop(ni, &ni->ni_rx_ampdu[i]);
 
 	ni->ni_htcap = 0;
 	ni->ni_flags &= ~IEEE80211_NODE_HT_ALL;
@@ -1579,14 +1590,15 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 			baseqctl = LE_READ_2(frm+7);
 
 			tid = MS(baparamset, IEEE80211_BAPS_TID);
-			bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 
 			IEEE80211_NOTE(vap,
 			    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
 			    "recv ADDBA request: dialogtoken %u "
 			    "baparamset 0x%x (tid %d bufsiz %d) batimeout %d "
 			    "baseqctl %d:%d",
-			    dialogtoken, baparamset, tid, bufsiz, batimeout,
+			    dialogtoken, baparamset,
+			    tid, MS(baparamset, IEEE80211_BAPS_BUFSIZ),
+			    batimeout,
 			    MS(baseqctl, IEEE80211_BASEQ_START),
 			    MS(baseqctl, IEEE80211_BASEQ_FRAG));
 
@@ -1601,8 +1613,9 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 			 */
 			if ((ni->ni_flags & IEEE80211_NODE_AMPDU_RX) &&
 			    (vap->iv_flags_ext & IEEE80211_FEXT_AMPDU_RX)) {
-				ampdu_rx_start(rap, bufsiz,
-				    MS(baseqctl, IEEE80211_BASEQ_START));
+				/* XXX handle ampdu_rx_start failure */
+				ic->ic_ampdu_rx_start(ni, rap,
+				    baparamset, batimeout, baseqctl);
 
 				args[1] = IEEE80211_STATUS_SUCCESS;
 			} else {
@@ -1708,7 +1721,7 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 				ic->ic_addba_stop(ni, tap);
 			} else {
 				rap = &ni->ni_rx_ampdu[tid];
-				ampdu_rx_stop(rap);
+				ic->ic_ampdu_rx_stop(ni, rap);
 			}
 			return;
 		}

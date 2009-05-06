@@ -149,7 +149,7 @@ struct if_data {
 #define	IFF_PPROMISC	0x20000		/* (n) user-requested promisc mode */
 #define	IFF_MONITOR	0x40000		/* (n) user-requested monitor mode */
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
-#define	IFF_NEEDSGIANT	0x100000	/* (i) hold Giant over if_start calls */
+#define	IFF_DYING	0x200000	/* (n) interface is winding down */
 
 /*
  * Old names for driver flags so that user space tools can continue to use
@@ -164,7 +164,7 @@ struct if_data {
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_DRV_RUNNING|IFF_DRV_OACTIVE|\
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC|\
-	    IFF_NEEDSGIANT)
+	    IFF_DYING)
 
 /*
  * Values for if_link_state.

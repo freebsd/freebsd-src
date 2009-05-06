@@ -42,7 +42,7 @@ DEFINE_TEST(test_option_d)
 	/* Create an archive. */
 	r = systemf("echo dir/file | %s -o > archive.cpio 2>archive.err", testprog);
 	assertEqualInt(r, 0);
-	assertFileContents("1 block\n", 8, "archive.err");
+	assertTextFileContents("1 block\n", "archive.err");
 	assertEqualInt(0, stat("archive.cpio", &st));
 	assertEqualInt(512, st.st_size);
 
@@ -62,7 +62,7 @@ DEFINE_TEST(test_option_d)
 	r = systemf("%s -id < ../archive.cpio >out 2>err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("out");
-	assertFileContents("1 block\n", 8, "err");
+	assertTextFileContents("1 block\n", "err");
 	/* And the file should be restored. */
 	assertEqualInt(0, stat("dir/file", &st));
 }

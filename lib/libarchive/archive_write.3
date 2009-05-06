@@ -43,6 +43,9 @@
 .Nm archive_write_set_compression_gzip ,
 .Nm archive_write_set_compression_none ,
 .Nm archive_write_set_compression_program ,
+.Nm archive_write_set_compressor_options ,
+.Nm archive_write_set_format_options ,
+.Nm archive_write_set_options ,
 .Nm archive_write_open ,
 .Nm archive_write_open_fd ,
 .Nm archive_write_open_FILE ,
@@ -73,10 +76,7 @@
 .Ft int
 .Fn archive_write_set_compression_none "struct archive *"
 .Ft int
-.Fo archive_write_set_compression_program
-.Fa "struct archive *"
-.Fa "const char * cmd"
-.Fc
+.Fn archive_write_set_compression_program "struct archive *" "const char * cmd"
 .Ft int
 .Fn archive_write_set_format_cpio "struct archive *"
 .Ft int
@@ -89,6 +89,12 @@
 .Fn archive_write_set_format_shar_binary "struct archive *"
 .Ft int
 .Fn archive_write_set_format_ustar "struct archive *"
+.Ft int
+.Fn archive_write_set_format_options "struct archive *" "const char *"
+.Ft int
+.Fn archive_write_set_compressor_options "struct archive *" "const char *"
+.Ft int
+.Fn archive_write_set_options "struct archive *" "const char *"
 .Ft int
 .Fo archive_write_open
 .Fa "struct archive *"
@@ -210,6 +216,68 @@ Note that the compressed output is always properly blocked.
 The archive will be fed into the specified compression program.
 The output of that program is blocked and written to the client
 write callbacks.
+.It Xo
+.Fn archive_write_set_compressor_options ,
+.Fn archive_write_set_format_options ,
+.Fn archive_write_set_options
+.Xc
+Specifies options that will be passed to the currently-enabled
+compressor and/or format writer.
+The argument is a comma-separated list of individual options.
+Individual options have one of the following forms:
+.Bl -tag -compact -width indent
+.It Ar option=value
+The option/value pair will be provided to every module.
+Modules that do not accept an option with this name will ignore it.
+.It Ar option
+The option will be provided to every module with a value of
+.Dq 1 .
+.It Ar !option
+The option will be provided to every module with a NULL value.
+.It Ar module:option=value , Ar module:option , Ar module:!option
+As above, but the corresponding option and value will be provided
+only to modules whose name matches
+.Ar module .
+.El
+The return value will be
+.Cm ARCHIVE_OK
+if any module accepts the option, or
+.Cm ARCHIVE_WARN
+if no module accepted the option, or
+.Cm ARCHIVE_FATAL
+if there was a fatal error while attempting to process the option.
+.Pp
+The currently supported options are:
+.Bl -tag -compact -width indent
+.It Compressor gzip
+.Bl -tag -compact -width indent
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+gzip compression level.
+.El
+.It Compressor xz
+.Bl -tag -compact -width indent
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+compression level.
+.El
+.It Format mtree
+.Bl -tag -compact -width indent
+.It Cm cksum , Cm device , Cm flags , Cm gid , Cm gname , Cm indent , Cm link , Cm md5 , Cm mode , Cm nlink , Cm rmd160 , Cm sha1 , Cm sha256 , Cm sha384 , Cm sha512 , Cm size , Cm time , Cm uid , Cm uname
+Enable a particular keyword in the mtree output.
+Prefix with an exclamation mark to disable the corresponding keyword.
+The default is equivalent to
+.Dq device, flags, gid, gname, link, mode, nlink, size, time, type, uid, uname .
+.It Cm all
+Enables all of the above keywords.
+.It Cm use-set
+Enables generation of
+.Cm /set
+lines that specify default values for the following files and/or directories.
+.It Cm indent
+XXX needs explanation XXX
+.El
+.El
 .It Fn archive_write_open
 Freeze the settings, open the archive, and prepare for writing entries.
 This is the most generic form of this function, which accepts

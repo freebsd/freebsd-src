@@ -29,6 +29,7 @@
 #include "assym.s"
 
 #include <machine/asm.h>
+#include <machine/hid.h>
 #include <machine/param.h>
 #include <machine/spr.h>
 #include <machine/psl.h>
@@ -101,6 +102,15 @@ __start:
  */
 	li	%r3, PSL_DE	/* Keep debug exceptions for CodeWarrior. */
 	mtmsr	%r3
+	isync
+
+	lis	%r3, HID0_E500_DEFAULT_SET@h
+	ori	%r3, %r3, HID0_E500_DEFAULT_SET@l
+	mtspr	SPR_HID0, %r3
+	isync
+	lis	%r3, HID1_E500_DEFAULT_SET@h
+	ori	%r3, %r3, HID1_E500_DEFAULT_SET@l
+	mtspr	SPR_HID1, %r3
 	isync
 
 	/* Invalidate all entries in TLB0 */

@@ -213,6 +213,7 @@ char *s;
 
 int ipfattach()
 {
+	INIT_VNET_INET(curvnet);
 #ifdef USE_SPL
 	int s;
 #endif
@@ -264,6 +265,7 @@ int ipfattach()
  */
 int ipfdetach()
 {
+	INIT_VNET_INET(curvnet);
 #ifdef USE_SPL
 	int s;
 #endif
@@ -646,6 +648,7 @@ static int fr_send_ip(fin, m, mpp)
 fr_info_t *fin;
 mb_t *m, **mpp;
 {
+	INIT_VNET_INET(curvnet);
 	fr_info_t fnew;
 	ip_t *ip, *oip;
 	int hlen;
@@ -1046,7 +1049,7 @@ frdest_t *fdp;
 		if (!ip->ip_sum)
 			ip->ip_sum = in_cksum(m, hlen);
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
-					  ro->ro_rt);
+					  ro);
 		goto done;
 	}
 	/*
@@ -1127,7 +1130,7 @@ sendorfree:
 		m->m_act = 0;
 		if (error == 0)
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)dst, ro->ro_rt);
+			    (struct sockaddr *)dst, ro);
 		else
 			FREE_MB_T(m);
 	}

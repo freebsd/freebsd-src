@@ -161,6 +161,7 @@ static void vnet_inet6_register(void);
 static const vnet_modinfo_t vnet_inet6_modinfo = {
 	.vmi_id		= VNET_MOD_INET6,
 	.vmi_name	= "inet6",
+	.vmi_size	= sizeof(struct vnet_inet6),
 	.vmi_dependson	= VNET_MOD_INET	/* XXX revisit - TCP/UDP needs this? */
 };
  
@@ -269,7 +270,7 @@ ip6_init(void)
 		panic("sizeof(protosw) != sizeof(ip6protosw)");
 #endif
 	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
-	if (pr == 0)
+	if (pr == NULL)
 		panic("ip6_init");
 
 	/* Initialize the entire ip6_protox[] array to IPPROTO_RAW. */
@@ -307,14 +308,14 @@ ip6_init2_vnet(const void *unused __unused)
 
 	/* nd6_timer_init */
 	callout_init(&V_nd6_timer_ch, 0);
-	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, NULL);
+	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, curvnet);
 
 	/* timer for regeneranation of temporary addresses randomize ID */
 	callout_init(&V_in6_tmpaddrtimer_ch, 0);
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 		      (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
 		       V_ip6_temp_regen_advance) * hz,
-		      in6_tmpaddrtimer, NULL);
+		      in6_tmpaddrtimer, curvnet);
 
 	return (0);
 }
@@ -555,25 +556,12 @@ passin:
 	}
 
 	/*
-	 * Multicast check
+	 * Multicast check. Assume packet is for us to avoid
+	 * prematurely taking locks.
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		struct in6_multi *in6m = 0;
-
+		ours = 1;
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mcast);
-		/*
-		 * See if we belong to the destination multicast group on the
-		 * arrival interface.
-		 */
-		IN6_LOOKUP_MULTI(ip6->ip6_dst, m->m_pkthdr.rcvif, in6m);
-		if (in6m)
-			ours = 1;
-		else if (!ip6_mrouter) {
-			V_ip6stat.ip6s_notmember++;
-			V_ip6stat.ip6s_cantforward++;
-			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
-			goto bad;
-		}
 		deliverifp = m->m_pkthdr.rcvif;
 		goto hbhcheck;
 	}
@@ -823,7 +811,8 @@ passin:
 	/*
 	 * Forward if desirable.
 	 */
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+	if (V_ip6_mrouter &&
+	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		/*
 		 * If we are acting as a multicast router, all
 		 * incoming multicast packets are passed to the
@@ -832,13 +821,12 @@ passin:
 		 * ip6_mforward() returns a non-zero value, the packet
 		 * must be discarded, else it may be accepted below.
 		 */
-		if (ip6_mrouter && ip6_mforward &&
+		if (ip6_mforward &&
 		    ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
-			V_ip6stat.ip6s_cantforward++;
+			IP6STAT_INC(ip6s_cantforward);
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
 			goto bad;
 		}
-		if (!ours)
-			goto bad;
 	} else if (!ours) {
 		ip6_forward(m, srcrt);
 		goto out;

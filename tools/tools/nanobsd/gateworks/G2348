@@ -100,7 +100,6 @@ device		wlan_tkip	# 802.11 TKIP support
 
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_rate_sample	# SampleRate tx rate control for ath
-options		ATH_SUPPORT_TDMA
 options		ATH_DEBUG	# enable athdebug msgs
 options		ATH_DIAGAPI	# enable api for athregs
 
@@ -109,16 +108,11 @@ options		AH_DEBUG
 #options		AH_ASSERT
 options		AH_SUPPORT_AR5416
 
-# NB: must use old usb stack; new one does not work
-makeoptions	WITH_LEGACY	# NB: required to get includes
-device		ousb
+device		usb
 #options		USB_DEBUG
-device		oohci
-device		oehci
-device		ougen
+device		ohci
+device		ehci
 
-device		oaxe
-
-device		oumass
+device		umass
 device		scbus           # SCSI bus (required for SCSI)
 device		da              # Direct Access (disks)

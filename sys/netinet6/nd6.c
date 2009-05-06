@@ -191,7 +191,7 @@ nd6_init(void)
 	/* start timer */
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
-	    nd6_slowtimo, NULL);
+	    nd6_slowtimo, curvnet);
 
 	nd6_init_done = 1;
 
@@ -489,6 +489,14 @@ nd6_llinfo_timer(void *arg)
 	if ((ifp = ((ln->lle_tbl != NULL) ? ln->lle_tbl->llt_ifp : NULL)) == NULL)
 		panic("ln ifp == NULL");
 
+/*
+ * XXX XXX XXX XXX XXX
+ *
+ * Why the ^%(@)*&%^) is this #define MIN() needed for CURVNET_SET()?!?
+ * And #define MIN() is in sys/param.h already, which is #included first
+ * here?!?
+ */
+#define       MIN(a,b) (((a)<(b))?(a):(b))
 	CURVNET_SET(ifp->if_vnet);
 	INIT_VNET_INET6(curvnet);
 
@@ -592,8 +600,8 @@ done:
 void
 nd6_timer(void *arg)
 {
-	CURVNET_SET_QUIET((struct vnet *) arg);
-	INIT_VNET_INET6((struct vnet *) arg);
+	CURVNET_SET((struct vnet *) arg);
+	INIT_VNET_INET6(curvnet);
 	int s;
 	struct nd_defrouter *dr;
 	struct nd_prefix *pr;
@@ -601,7 +609,7 @@ nd6_timer(void *arg)
 	struct in6_addrlifetime *lt6;
 
 	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
-	    nd6_timer, NULL);
+	    nd6_timer, curvnet);
 
 	/* expire default router list */
 	s = splnet();
@@ -727,8 +735,8 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 	struct in6_ifaddr *public_ifa6 = NULL;
 
 	ifp = ia6->ia_ifa.ifa_ifp;
-	for (ifa = ifp->if_addrlist.tqh_first; ifa;
-	     ifa = ifa->ifa_list.tqe_next) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *it6;
 
 		if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -771,13 +779,16 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		int e;
 
 		if ((e = in6_tmpifadd(public_ifa6, 0, 0)) != 0) {
+			IF_ADDR_UNLOCK(ifp);
 			log(LOG_NOTICE, "regen_tmpaddr: failed to create a new"
 			    " tmp addr,errno=%d\n", e);
 			return (-1);
 		}
+		IF_ADDR_UNLOCK(ifp);
 		return (0);
 	}
 
+	IF_ADDR_UNLOCK(ifp);
 	return (-1);
 }
 
@@ -869,7 +880,6 @@ nd6_purge(struct ifnet *ifp)
 struct llentry *
 nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct sockaddr_in6 sin6;
 	struct llentry *ln;
 	int llflags = 0;
@@ -1666,7 +1676,7 @@ nd6_slowtimo(void *arg)
 	struct ifnet *ifp;
 
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
-	    nd6_slowtimo, NULL);
+	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
 	    ifp = TAILQ_NEXT(ifp, if_list)) {
@@ -1939,7 +1949,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 
 int
 nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
-    struct sockaddr_in6 *dst, struct rtentry *rt)
+    struct sockaddr_in6 *dst, struct route *ro)
 {
 	struct mbuf *m, *m_head;
 	struct ifnet *outifp;
@@ -1954,7 +1964,7 @@ nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, rt);			       
+		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, ro);			       
 	}
 
 	/*

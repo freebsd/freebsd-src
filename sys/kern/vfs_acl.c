@@ -56,9 +56,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#include <vm/uma.h>
+static MALLOC_DEFINE(M_ACL, "acl", "Access Control Lists");
 
-uma_zone_t	acl_zone;
 static int	vacl_set_acl(struct thread *td, struct vnode *vp,
 		    acl_type_t type, struct acl *aclp);
 static int	vacl_get_acl(struct thread *td, struct vnode *vp,
@@ -81,28 +80,31 @@ static int
 vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
-	struct acl inkernacl;
+	struct acl *inkernelacl;
 	struct mount *mp;
 	int error;
 
-	error = copyin(aclp, &inkernacl, sizeof(struct acl));
+	inkernelacl = acl_alloc(M_WAITOK);
+	error = copyin(aclp, inkernelacl, sizeof(struct acl));
 	if (error)
-		return(error);
+		goto out;
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error != 0)
-		return (error);
+		goto out;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
-	error = mac_vnode_check_setacl(td->td_ucred, vp, type, &inkernacl);
+	error = mac_vnode_check_setacl(td->td_ucred, vp, type, inkernelacl);
 	if (error != 0)
-		goto out;
+		goto out_unlock;
 #endif
-	error = VOP_SETACL(vp, type, &inkernacl, td->td_ucred, td);
+	error = VOP_SETACL(vp, type, inkernelacl, td->td_ucred, td);
 #ifdef MAC
-out:
+out_unlock:
 #endif
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
+out:
+	acl_free(inkernelacl);
 	return(error);
 }
 
@@ -113,22 +115,24 @@ static int
 vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
-	struct acl inkernelacl;
+	struct acl *inkernelacl;
 	int error;
 
+	inkernelacl = acl_alloc(M_WAITOK);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 	error = mac_vnode_check_getacl(td->td_ucred, vp, type);
 	if (error != 0)
 		goto out;
 #endif
-	error = VOP_GETACL(vp, type, &inkernelacl, td->td_ucred, td);
+	error = VOP_GETACL(vp, type, inkernelacl, td->td_ucred, td);
 #ifdef MAC
 out:
 #endif
 	VOP_UNLOCK(vp, 0);
 	if (error == 0)
-		error = copyout(&inkernelacl, aclp, sizeof(struct acl));
+		error = copyout(inkernelacl, aclp, sizeof(struct acl));
+	acl_free(inkernelacl);
 	return (error);
 }
 
@@ -166,13 +170,16 @@ static int
 vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
-	struct acl inkernelacl;
+	struct acl *inkernelacl;
 	int error;
 
-	error = copyin(aclp, &inkernelacl, sizeof(struct acl));
+	inkernelacl = acl_alloc(M_WAITOK);
+	error = copyin(aclp, inkernelacl, sizeof(struct acl));
 	if (error)
-		return(error);
-	error = VOP_ACLCHECK(vp, type, &inkernelacl, td->td_ucred, td);
+		goto out;
+	error = VOP_ACLCHECK(vp, type, inkernelacl, td->td_ucred, td);
+out:
+	acl_free(inkernelacl);
 	return (error);
 }
 
@@ -417,13 +424,19 @@ __acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 	return (error);
 }
 
-/* ARGUSED */
+struct acl *
+acl_alloc(int flags)
+{
+	struct acl *aclp;
 
-static void
-aclinit(void *dummy __unused)
+	aclp = malloc(sizeof(*aclp), M_ACL, flags);
+
+	return (aclp);
+}
+
+void
+acl_free(struct acl *aclp)
 {
 
-	acl_zone = uma_zcreate("ACL UMA zone", sizeof(struct acl),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	free(aclp, M_ACL);
 }
-SYSINIT(acls, SI_SUB_ACL, SI_ORDER_FIRST, aclinit, NULL);

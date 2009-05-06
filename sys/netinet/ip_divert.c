@@ -132,6 +132,7 @@ static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 static void
 div_zone_change(void *tag)
 {
+	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
 }
@@ -161,6 +162,9 @@ div_init(void)
 	INP_INFO_LOCK_INIT(&V_divcbinfo, "div");
 	LIST_INIT(&V_divcb);
 	V_divcbinfo.ipi_listhead = &V_divcb;
+#ifdef VIMAGE
+	V_divcbinfo.ipi_vnet = curvnet;
+#endif
 	/*
 	 * XXX We don't use the hash list for divert IP, but it's easier
 	 * to allocate a one entry hash list than it is to check all
@@ -244,18 +248,22 @@ divert_packet(struct mbuf *m, int incoming)
 	divsrc.sin_port = divert_cookie(mtag);	/* record matching rule */
 	if (incoming) {
 		struct ifaddr *ifa;
+		struct ifnet *ifp;
 
 		/* Sanity check */
 		M_ASSERTPKTHDR(m);
 
 		/* Find IP address for receive interface */
-		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+		ifp = m->m_pkthdr.rcvif;
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			divsrc.sin_addr =
 			    ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
 			break;
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/*
 	 * Record the incoming interface name whenever we have one.
@@ -719,6 +727,7 @@ struct protosw div_protosw = {
 static int
 div_modevent(module_t mod, int type, void *unused)
 {
+	INIT_VNET_INET(curvnet); /* XXX move to iattach - revisit!!! */
 	int err = 0;
 	int n;
 

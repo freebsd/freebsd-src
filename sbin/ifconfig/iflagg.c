@@ -167,8 +167,7 @@ lagg_status(int s)
 			for (i = 0; i < (sizeof(lpr) / sizeof(lpr[0])); i++)
 				printf("\t\tlaggproto %s\n", lpr[i].lpr_name);
 		}
-	} else if (isport)
-		printf("\tlagg: laggdev %s\n", rp.rp_ifname);
+	}
 }
 
 static struct cmd lagg_cmds[] = {

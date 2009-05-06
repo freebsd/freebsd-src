@@ -127,6 +127,7 @@ static int	vnet_gif_iattach(const void *);
 static const vnet_modinfo_t vnet_gif_modinfo = {
 	.vmi_id		= VNET_MOD_GIF,
 	.vmi_name	= "gif",
+	.vmi_size	= sizeof(struct vnet_gif),
 	.vmi_dependson	= VNET_MOD_NET,
 	.vmi_iattach	= vnet_gif_iattach
 };
@@ -303,7 +304,9 @@ gifmodevent(mod, type, data)
 		if_clone_detach(&gif_cloner);
 		mtx_destroy(&gif_mtx);
 #ifdef INET6
+#ifndef VIMAGE
 		V_ip6_gif_hlim = 0;	/* XXX -> vnet_gif_idetach() */
+#endif
 #endif
 		break;
 	default:
@@ -409,11 +412,11 @@ gif_start(struct ifnet *ifp)
 }
 
 int
-gif_output(ifp, m, dst, rt)
+gif_output(ifp, m, dst, ro)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
-	struct rtentry *rt;	/* added in net2 */
+	struct route *ro;
 {
 	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;

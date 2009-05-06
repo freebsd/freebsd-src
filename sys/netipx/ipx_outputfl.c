@@ -154,7 +154,7 @@ gotif:
 			ipx_watch_output(m0, ifp);
 		}
 		error = (*ifp->if_output)(ifp, m0,
-					(struct sockaddr *)dst, ro->ro_rt);
+					(struct sockaddr *)dst, ro);
 		goto done;
 	} else {
 		ipxstat.ipxs_mtutoosmall++;

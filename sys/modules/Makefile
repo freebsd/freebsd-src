@@ -218,6 +218,7 @@ SUBDIR=	${_3dfx} \
 	${_pst} \
 	puc \
 	ral \
+	ralfw \
 	${_random} \
 	rc4 \
 	${_rdma} \
@@ -539,7 +540,6 @@ _zfs=		zfs
 #	nsp s3 sbni stg vesa
 # acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
-#_ar=		ar	not 64-bit clean
 _an=		an
 _arcnet=	arcnet
 _asr=		asr
@@ -564,7 +564,6 @@ _smbfs=		smbfs
 _sound=		sound
 _splash=	splash
 _sppp=		sppp
-#_sr=		sr		not 64bit clean
 _streams=	streams
 _wi=		wi
 _xe=		xe
@@ -575,6 +574,7 @@ _an=		an
 _bm=		bm
 _nvram=		powermac_nvram
 _smbfs=		smbfs
+_sound=		sound
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"

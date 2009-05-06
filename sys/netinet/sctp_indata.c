@@ -3833,8 +3833,29 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			}
 		}
 		if (tp1->sent == SCTP_DATAGRAM_RESEND) {
-			/* Increment the count to resend */
 			struct sctp_nets *alt;
+
+			/* fix counts and things */
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
+				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND,
+				    (tp1->whoTo ? (tp1->whoTo->flight_size) : 0),
+				    tp1->book_size,
+				    (uintptr_t) tp1->whoTo,
+				    tp1->rec.data.TSN_seq);
+			}
+			if (tp1->whoTo) {
+				tp1->whoTo->net_ack++;
+				sctp_flight_size_decrease(tp1);
+			}
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_RWND_ENABLE) {
+				sctp_log_rwnd(SCTP_INCREASE_PEER_RWND,
+				    asoc->peers_rwnd, tp1->send_size, SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
+			}
+			/* add back to the rwnd */
+			asoc->peers_rwnd += (tp1->send_size + SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
+
+			/* remove from the total flight */
+			sctp_total_flight_decrease(stcb, tp1);
 
 			if ((stcb->asoc.peer_supports_prsctp) &&
 			    (PR_SCTP_RTX_ENABLED(tp1->flags))) {
@@ -3957,27 +3978,6 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 */
 				tp1->do_rtt = 0;
 			}
-			/* fix counts and things */
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
-				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND,
-				    (tp1->whoTo ? (tp1->whoTo->flight_size) : 0),
-				    tp1->book_size,
-				    (uintptr_t) tp1->whoTo,
-				    tp1->rec.data.TSN_seq);
-			}
-			if (tp1->whoTo) {
-				tp1->whoTo->net_ack++;
-				sctp_flight_size_decrease(tp1);
-			}
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_RWND_ENABLE) {
-				sctp_log_rwnd(SCTP_INCREASE_PEER_RWND,
-				    asoc->peers_rwnd, tp1->send_size, SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
-			}
-			/* add back to the rwnd */
-			asoc->peers_rwnd += (tp1->send_size + SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
-
-			/* remove from the total flight */
-			sctp_total_flight_decrease(stcb, tp1);
 			if (alt != tp1->whoTo) {
 				/* yes, there is an alternate. */
 				sctp_free_remote_addr(tp1->whoTo);

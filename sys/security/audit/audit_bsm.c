@@ -287,13 +287,20 @@ audit_sys_auditon(struct audit_record *ar, struct au_record *rec)
 	struct au_token *tok;
 
 	switch (ar->ar_arg_cmd) {
+	case A_OLDSETPOLICY:
+		if ((size_t)ar->ar_arg_len == sizeof(int64_t)) {
+			tok = au_to_arg32(3, "length", ar->ar_arg_len);
+			kau_write(rec, tok);
+			tok = au_to_arg64(2, "policy",
+			    ar->ar_arg_auditon.au_policy64);
+			kau_write(rec, tok);
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_SETPOLICY:
-		if (sizeof(ar->ar_arg_auditon.au_flags) > 4)
-			tok = au_to_arg64(1, "policy",
-			    ar->ar_arg_auditon.au_flags);
-		else
-			tok = au_to_arg32(1, "policy",
-			    ar->ar_arg_auditon.au_flags);
+		tok = au_to_arg32(3, "length", ar->ar_arg_len);
+		kau_write(rec, tok);
+		tok = au_to_arg32(1, "policy", ar->ar_arg_auditon.au_policy);
 		kau_write(rec, tok);
 		break;
 
@@ -306,20 +313,42 @@ audit_sys_auditon(struct audit_record *ar, struct au_record *rec)
 		kau_write(rec, tok);
 		break;
 
+	case A_OLDSETQCTRL:
+		if ((size_t)ar->ar_arg_len == sizeof(au_qctrl64_t)) {
+			tok = au_to_arg32(3, "length", ar->ar_arg_len);
+			kau_write(rec, tok);
+			tok = au_to_arg64(2, "setqctrl:aq_hiwater",
+			    ar->ar_arg_auditon.au_qctrl64.aq64_hiwater);
+			kau_write(rec, tok);
+			tok = au_to_arg64(2, "setqctrl:aq_lowater",
+			    ar->ar_arg_auditon.au_qctrl64.aq64_lowater);
+			kau_write(rec, tok);
+			tok = au_to_arg64(2, "setqctrl:aq_bufsz",
+			    ar->ar_arg_auditon.au_qctrl64.aq64_bufsz);
+			kau_write(rec, tok);
+			tok = au_to_arg64(2, "setqctrl:aq_delay",
+			    ar->ar_arg_auditon.au_qctrl64.aq64_delay);
+			kau_write(rec, tok);
+			tok = au_to_arg64(2, "setqctrl:aq_minfree",
+			    ar->ar_arg_auditon.au_qctrl64.aq64_minfree);
+			kau_write(rec, tok);
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_SETQCTRL:
 		tok = au_to_arg32(3, "setqctrl:aq_hiwater",
 		    ar->ar_arg_auditon.au_qctrl.aq_hiwater);
 		kau_write(rec, tok);
-		tok = au_to_arg32(3, "setqctrl:aq_lowater",
+		tok = au_to_arg32(2, "setqctrl:aq_lowater",
 		    ar->ar_arg_auditon.au_qctrl.aq_lowater);
 		kau_write(rec, tok);
-		tok = au_to_arg32(3, "setqctrl:aq_bufsz",
+		tok = au_to_arg32(2, "setqctrl:aq_bufsz",
 		    ar->ar_arg_auditon.au_qctrl.aq_bufsz);
 		kau_write(rec, tok);
-		tok = au_to_arg32(3, "setqctrl:aq_delay",
+		tok = au_to_arg32(2, "setqctrl:aq_delay",
 		    ar->ar_arg_auditon.au_qctrl.aq_delay);
 		kau_write(rec, tok);
-		tok = au_to_arg32(3, "setqctrl:aq_minfree",
+		tok = au_to_arg32(2, "setqctrl:aq_minfree",
 		    ar->ar_arg_auditon.au_qctrl.aq_minfree);
 		kau_write(rec, tok);
 		break;
@@ -334,34 +363,47 @@ audit_sys_auditon(struct audit_record *ar, struct au_record *rec)
 		break;
 
 	case A_SETSMASK:
-		tok = au_to_arg32(3, "setsmask:as_success",
+		tok = au_to_arg32(3, "length", ar->ar_arg_len);
+		kau_write(rec, tok);
+		tok = au_to_arg32(2, "setsmask:as_success",
 		    ar->ar_arg_auditon.au_auinfo.ai_mask.am_success);
 		kau_write(rec, tok);
-		tok = au_to_arg32(3, "setsmask:as_failure",
+		tok = au_to_arg32(2, "setsmask:as_failure",
 		    ar->ar_arg_auditon.au_auinfo.ai_mask.am_failure);
 		kau_write(rec, tok);
 		break;
 
+	case A_OLDSETCOND:
+		if ((size_t)ar->ar_arg_len == sizeof(int64_t)) {
+			tok = au_to_arg32(3, "length", ar->ar_arg_len);
+			kau_write(rec, tok);
+			tok = au_to_arg64(2, "setcond",
+			    ar->ar_arg_auditon.au_cond64);
+			kau_write(rec, tok);
+			break;
+		}
+		/* FALLTHROUGH */
 	case A_SETCOND:
-		if (sizeof(ar->ar_arg_auditon.au_cond) > 4)
-			tok = au_to_arg64(3, "setcond",
-			    ar->ar_arg_auditon.au_cond);
-		else
-			tok = au_to_arg32(3, "setcond",
-			    ar->ar_arg_auditon.au_cond);
+		tok = au_to_arg32(3, "length", ar->ar_arg_len);
+		kau_write(rec, tok);
+		tok = au_to_arg32(3, "setcond", ar->ar_arg_auditon.au_cond);
 		kau_write(rec, tok);
 		break;
 
 	case A_SETCLASS:
+		tok = au_to_arg32(3, "length", ar->ar_arg_len);
+		kau_write(rec, tok);
 		tok = au_to_arg32(2, "setclass:ec_event",
 		    ar->ar_arg_auditon.au_evclass.ec_number);
 		kau_write(rec, tok);
-		tok = au_to_arg32(3, "setclass:ec_class",
+		tok = au_to_arg32(2, "setclass:ec_class",
 		    ar->ar_arg_auditon.au_evclass.ec_class);
 		kau_write(rec, tok);
 		break;
 
 	case A_SETPMASK:
+		tok = au_to_arg32(3, "length", ar->ar_arg_len);
+		kau_write(rec, tok);
 		tok = au_to_arg32(2, "setpmask:as_success",
 		    ar->ar_arg_auditon.au_aupinfo.ap_mask.am_success);
 		kau_write(rec, tok);
@@ -371,6 +413,8 @@ audit_sys_auditon(struct audit_record *ar, struct au_record *rec)
 		break;
 
 	case A_SETFSIZE:
+		tok = au_to_arg32(3, "length", ar->ar_arg_len);
+		kau_write(rec, tok);
 		tok = au_to_arg32(2, "setfsize:filesize",
 		    ar->ar_arg_auditon.au_fstat.af_filesz);
 		kau_write(rec, tok);
@@ -847,12 +891,13 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_FCNTL:
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(2, "cmd",
+			    au_fcntl_cmd_to_bsm(ar->ar_arg_cmd));
+			kau_write(rec, tok);
+		}
 		if (ar->ar_arg_cmd == F_GETLK || ar->ar_arg_cmd == F_SETLK ||
 		    ar->ar_arg_cmd == F_SETLKW) {
-			if (ARG_IS_VALID(kar, ARG_CMD)) {
-				tok = au_to_arg32(2, "cmd", ar->ar_arg_cmd);
-				kau_write(rec, tok);
-			}
 			FD_VNODE1_TOKENS;
 		}
 		break;

@@ -41,6 +41,14 @@ init_variables()
 	eval _ip=\"\$jail_${_j}_ip\"
 	eval _interface=\"\${jail_${_j}_interface:-${jail_interface}}\"
 	eval _exec=\"\$jail_${_j}_exec\"
+
+	i=0
+	while : ; do
+		eval _exec_prestart${i}=\"\${jail_${_j}_exec_prestart${i}:-\${jail_exec_prestart${i}}}\"
+		[ -z "$(eval echo \"\$_exec_prestart${i}\")" ] && break
+		i=$((i + 1))
+	done
+
 	eval _exec_start=\"\${jail_${_j}_exec_start:-${jail_exec_start}}\"
 
 	i=1
@@ -49,8 +57,30 @@ init_variables()
 		[ -z "$(eval echo \"\$_exec_afterstart${i}\")" ] &&  break
 		i=$((i + 1))
 	done
-	
+
+	i=0
+	while : ; do
+		eval _exec_poststart${i}=\"\${jail_${_j}_exec_poststart${i}:-\${jail_exec_poststart${i}}}\"
+		[ -z "$(eval echo \"\$_exec_poststart${i}\")" ] && break
+		i=$((i + 1))
+	done
+
+	i=0
+	while : ; do
+		eval _exec_prestop${i}=\"\${jail_${_j}_exec_prestop${i}:-\${jail_exec_prestop${i}}}\"
+		[ -z "$(eval echo \"\$_exec_prestop${i}\")" ] && break
+		i=$((i + 1))
+	done
+
 	eval _exec_stop=\"\${jail_${_j}_exec_stop:-${jail_exec_stop}}\"
+
+	i=0
+	while : ; do
+		eval _exec_poststop${i}=\"\${jail_${_j}_exec_poststop${i}:-\${jail_exec_poststop${i}}}\"
+		[ -z "$(eval echo \"\$_exec_poststop${i}\")" ] && break
+		i=$((i + 1))
+	done
+
 	if [ -n "${_exec}" ]; then
 		#   simple/backward-compatible execution
 		_exec_start="${_exec}"
@@ -102,8 +132,19 @@ init_variables()
 	debug "$_j procdir: $_procdir"
 	debug "$_j ruleset: $_ruleset"
 	debug "$_j fstab: $_fstab"
-	debug "$_j exec start: $_exec_start"
 	debug "$_j consolelog: $_consolelog"
+
+	i=0
+	while : ; do
+		eval out=\"\${_exec_prestart${i}:-''}\"
+		if [ -z "$out" ]; then
+			break
+		fi
+		debug "$_j exec pre-start #${i}: ${out}"
+		i=$((i + 1))
+	done
+
+	debug "$_j exec start: $_exec_start"
 
 	i=1
 	while [ true ]; do
@@ -117,7 +158,38 @@ init_variables()
 		i=$((i + 1))
 	done
 
+	i=0
+	while : ; do
+		eval out=\"\${_exec_poststart${i}:-''}\"
+		if [ -z "$out" ]; then
+			break
+		fi
+		debug "$_j exec post-start #${i}: ${out}"
+		i=$((i + 1))
+	done
+
+	i=0
+	while : ; do
+		eval out=\"\${_exec_prestop${i}:-''}\"
+		if [ -z "$out" ]; then
+			break
+		fi
+		debug "$_j exec pre-stop #${i}: ${out}"
+		i=$((i + 1))
+	done
+
 	debug "$_j exec stop: $_exec_stop"
+
+	i=0
+	while : ; do
+		eval out=\"\${_exec_poststop${i}:-''}\"
+		if [ -z "$out" ]; then
+			break
+		fi
+		debug "$_j exec post-stop #${i}: ${out}"
+		i=$((i + 1))
+	done
+
 	debug "$_j flags: $_flags"
 	debug "$_j consolelog: $_consolelog"
 
@@ -555,6 +627,15 @@ jail_start()
 			fi
 		fi
 		_tmp_jail=${_tmp_dir}/jail.$$
+
+		i=0
+		while : ; do
+			eval out=\"\${_exec_prestart${i}:-''}\"
+			[ -z "$out" ] && break
+			${out}
+			i=$((i + 1))
+		done
+
 		eval ${_setfib} jail ${_flags} -i ${_rootdir} ${_hostname} \
 			\"${_addrl}\" ${_exec_start} > ${_tmp_jail} 2>&1
 
@@ -575,6 +656,14 @@ jail_start()
 			echo -n " $_hostname"
 			tail +2 ${_tmp_jail} >${_consolelog}
 			echo ${_jail_id} > /var/run/jail_${_jail}.id
+
+			i=0
+			while : ; do
+				eval out=\"\${_exec_poststart${i}:-''}\"
+				[ -z "$out" ] && break
+				${out}
+				i=$((i + 1))
+			done
 		else
 			jail_umount_fs
 			jail_ips "del"
@@ -596,6 +685,15 @@ jail_stop()
 			_jail_id=$(cat /var/run/jail_${_jail}.id)
 			if [ ! -z "${_jail_id}" ]; then
 				init_variables $_jail
+
+				i=0
+				while : ; do
+					eval out=\"\${_exec_prestop${i}:-''}\"
+					[ -z "$out" ] && break
+					${out}
+					i=$((i + 1))
+				done
+
 				if [ -n "${_exec_stop}" ]; then
 					eval env -i /usr/sbin/jexec ${_jail_id} ${_exec_stop} \
 						>> ${_consolelog} 2>&1
@@ -605,6 +703,14 @@ jail_stop()
 				killall -j ${_jail_id} -KILL > /dev/null 2>&1
 				jail_umount_fs
 				echo -n " $_hostname"
+
+				i=0
+				while : ; do
+					eval out=\"\${_exec_poststop${i}:-''}\"
+					[ -z "$out" ] && break
+					${out}
+					i=$((i + 1))
+				done
 			fi
 			jail_ips "del"
 			rm /var/run/jail_${_jail}.id

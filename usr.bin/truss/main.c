@@ -1,4 +1,4 @@
-/*
+/*-
  * Copryight 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -164,6 +165,8 @@ main(int ac, char **av)
 {
 	int c;
 	int i;
+	pid_t childpid;
+	int status;
 	char **command;
 	struct ex_types *funcs;
 	int initial_open;
@@ -288,8 +291,6 @@ START_TRACE:
 
 			if (trussinfo->curthread->in_fork &&
 			    (trussinfo->flags & FOLLOWFORKS)) {
-				int childpid;
-
 				trussinfo->curthread->in_fork = 0;
 				childpid =
 				    funcs->exit_syscall(trussinfo,
@@ -360,6 +361,11 @@ START_TRACE:
 		}
 	} while (trussinfo->pr_why != S_EXIT);
 	fflush(trussinfo->outfile);
-	
+
+	if (trussinfo->flags & FOLLOWFORKS)
+		do {
+			childpid = wait(&status);
+		} while (childpid != -1);
+
 	return (0);
 }
