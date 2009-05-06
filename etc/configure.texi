@@ -1,0 +1,2644 @@
+\input texinfo
+@c %**start of header
+@setfilename configure.info
+@settitle The GNU configure and build system
+@setchapternewpage off
+@c %**end of header
+
+@dircategory GNU admin
+@direntry
+* configure: (configure).	The GNU configure and build system
+@end direntry
+
+@ifinfo
+This file documents the GNU configure and build system.
+
+Copyright (C) 1998 Cygnus Solutions.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end ifinfo
+
+@titlepage
+@title The GNU configure and build system
+@author Ian Lance Taylor
+
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1998 Cygnus Solutions
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation
+approved by the Free Software Foundation.
+@end titlepage
+
+@ifinfo
+@node Top
+@top GNU configure and build system
+
+The GNU configure and build system.
+
+@menu
+* Introduction::		Introduction.
+* Getting Started::		Getting Started.
+* Files::			Files.
+* Configuration Names::		Configuration Names.
+* Cross Compilation Tools::	Cross Compilation Tools.
+* Canadian Cross::		Canadian Cross.
+* Cygnus Configure::		Cygnus Configure.
+* Multilibs::			Multilibs.
+* FAQ::				Frequently Asked Questions.
+* Index::			Index.
+@end menu
+
+@end ifinfo
+
+@node Introduction
+@chapter Introduction
+
+This document describes the GNU configure and build systems.  It
+describes how autoconf, automake, libtool, and make fit together.  It
+also includes a discussion of the older Cygnus configure system.
+
+This document does not describe in detail how to use each of the tools;
+see the respective manuals for that.  Instead, it describes which files
+the developer must write, which files are machine generated and how they
+are generated, and where certain common problems should be addressed.
+
+@ifnothtml
+This document draws on several sources, including the autoconf manual by
+David MacKenzie (@pxref{Top, , autoconf overview, autoconf, Autoconf}),
+the automake manual by David MacKenzie and Tom Tromey (@pxref{Top, ,
+automake overview, automake, GNU Automake}), the libtool manual by
+Gordon Matzigkeit (@pxref{Top, , libtool overview, libtool, GNU
+libtool}), and the Cygnus configure manual by K. Richard Pixley.
+@end ifnothtml
+@ifhtml
+This document draws on several sources, including
+@uref{http://www.delorie.com/gnu/docs/autoconf/autoconf_toc.html, the
+autoconf manual} by David MacKenzie,
+@uref{http://www.delorie.com/gnu/docs/automake/automake_toc.html, the
+automake manual} by David MacKenzie and Tom Tromey,
+@uref{http://www.delorie.com/gnu/docs/libtool/libtool_toc.html, the
+libtool manual} by Gordon Matzigkeit, and the Cygnus configure manual by
+K. Richard Pixley.
+@end ifhtml
+
+@menu
+* Goals::			Goals.
+* Tools::			The tools.
+* History::			History.
+* Building::			Building.
+@end menu
+
+@node Goals
+@section Goals
+@cindex goals
+
+The GNU configure and build system has two main goals.
+
+The first is to simplify the development of portable programs.  The
+system permits the developer to concentrate on writing the program,
+simplifying many details of portability across Unix and even Windows
+systems, and permitting the developer to describe how to build the
+program using simple rules rather than complex Makefiles.
+
+The second is to simplify the building of programs distributed as source
+code.  All programs are built using a simple, standardized, two step
+process.  The program builder need not install any special tools in
+order to build the program.
+
+@node Tools
+@section Tools
+
+The GNU configure and build system is comprised of several different
+tools.  Program developers must build and install all of these tools.
+
+People who just want to build programs from distributed sources normally
+do not need any special tools beyond a Unix shell, a make program, and a
+C compiler.
+
+@table @asis
+@item autoconf
+provides a general portability framework, based on testing the features
+of the host system at build time.
+@item automake
+a system for describing how to build a program, permitting the developer
+to write a simplified @file{Makefile}.
+@item libtool
+a standardized approach to building shared libraries.
+@item gettext
+provides a framework for translation of text messages into other
+languages; not really discussed in this document.
+@item m4
+autoconf requires the GNU version of m4; the standard Unix m4 does not
+suffice.
+@item perl
+automake requires perl.
+@end table
+
+@node History
+@section History
+@cindex history
+
+This is a very brief and probably inaccurate history.
+
+As the number of Unix variants increased during the 1980s, it became
+harder to write programs which could run on all variants.  While it was
+often possible to use @code{#ifdef} to identify particular systems,
+developers frequently did not have access to every system, and the
+characteristics of some systems changed from version to version.
+
+By 1992, at least three different approaches had been developed:
+@itemize @bullet
+@item
+The Metaconfig program, by Larry Wall, Harlan Stenn, and Raphael
+Manfredi.
+@item
+The Cygnus configure script, by K. Richard Pixley, and the gcc configure
+script, by Richard Stallman.  These use essentially the same approach,
+and the developers communicated regularly.
+@item
+The autoconf program, by David MacKenzie.
+@end itemize
+
+The Metaconfig program is still used for Perl and a few other programs.
+It is part of the Dist package.  I do not know if it is being developed.
+
+In 1994, David MacKenzie and others modified autoconf to incorporate all
+the features of Cygnus configure.  Since then, there has been a slow but
+steady conversion of GNU programs from Cygnus configure to autoconf. gcc
+has been converted, eliminating the gcc configure script.
+
+GNU autoconf was regularly maintained until late 1996.  As of this
+writing in June, 1998, it has no public maintainer.
+
+Most programs are built using the make program, which requires the
+developer to write Makefiles describing how to build the programs.
+Since most programs are built in pretty much the same way, this led to a
+lot of duplication.
+
+The X Window system is built using the imake tool, which uses a database
+of rules to eliminate the duplication.  However, building a tool which
+was developed using imake requires that the builder have imake
+installed, violating one of the goals of the GNU system.
+
+The new BSD make provides a standard library of Makefile fragments,
+which permits developers to write very simple Makefiles.  However, this
+requires that the builder install the new BSD make program.
+
+In 1994, David MacKenzie wrote the first version of automake, which
+permitted writing a simple build description which was converted into a
+Makefile which could be used by the standard make program.  In 1995, Tom
+Tromey completely rewrote automake in Perl, and he continues to enhance
+it.
+
+Various free packages built libraries, and by around 1995 several
+included support to build shared libraries on various platforms.
+However, there was no consistent approach.  In early 1996, Gordon
+Matzigkeit began working on libtool, which provided a standardized
+approach to building shared libraries.  This was integrated into
+automake from the start.
+
+The development of automake and libtool was driven by the GNITS project,
+a group of GNU maintainers who designed standardized tools to help meet
+the GNU coding standards.
+
+@node Building
+@section Building
+
+Most readers of this document should already know how to build a tool by
+running @samp{configure} and @samp{make}.  This section may serve as a
+quick introduction or reminder.
+
+Building a tool is normally as simple as running @samp{configure}
+followed by @samp{make}.  You should normally run @samp{configure} from
+an empty directory, using some path to refer to the @samp{configure}
+script in the source directory.  The directory in which you run
+@samp{configure} is called the @dfn{object directory}.
+
+In order to use a object directory which is different from the source
+directory, you must be using the GNU version of @samp{make}, which has
+the required @samp{VPATH} support.  Despite this restriction, using a
+different object directory is highly recommended:
+@itemize @bullet
+@item
+It keeps the files generated during the build from cluttering up your
+sources.
+@item 
+It permits you to remove the built files by simply removing the entire
+build directory.
+@item
+It permits you to build from the same sources with several sets of
+configure options simultaneously.
+@end itemize
+
+If you don't have GNU @samp{make}, you will have to run @samp{configure}
+in the source directory.  All GNU packages should support this; in
+particular, GNU packages should not assume the presence of GNU
+@samp{make}.
+
+After running @samp{configure}, you can build the tools by running
+@samp{make}.
+
+To install the tools, run @samp{make install}.  Installing the tools
+will copy the programs and any required support files to the
+@dfn{installation directory}.  The location of the installation
+directory is controlled by @samp{configure} options, as described below.
+
+In the Cygnus tree at present, the info files are built and installed as
+a separate step.  To build them, run @samp{make info}.  To install them,
+run @samp{make install-info}.
+
+All @samp{configure} scripts support a wide variety of options.  The
+most interesting ones are @samp{--with} and @samp{--enable} options
+which are generally specific to particular tools.  You can usually use
+the @samp{--help} option to get a list of interesting options for a
+particular configure script.
+
+The only generic options you are likely to use are the @samp{--prefix}
+and @samp{--exec-prefix} options.  These options are used to specify the
+installation directory.
+
+The directory named by the @samp{--prefix} option will hold machine
+independent files such as info files.
+
+The directory named by the @samp{--exec-prefix} option, which is
+normally a subdirectory of the @samp{--prefix} directory, will hold
+machine dependent files such as executables.
+
+The default for @samp{--prefix} is @file{/usr/local}.  The default for
+@samp{--exec-prefix} is the value used for @samp{--prefix}.
+
+The convention used in Cygnus releases is to use a @samp{--prefix}
+option of @file{/usr/cygnus/@var{release}}, where @var{release} is the
+name of the release, and to use a @samp{--exec-prefix} option of
+@file{/usr/cygnus/@var{release}/H-@var{host}}, where @var{host} is the
+configuration name of the host system (@pxref{Configuration Names}).
+
+Do not use either the source or the object directory as the installation
+directory.  That will just lead to confusion.
+
+@node Getting Started
+@chapter Getting Started
+
+To start using the GNU configure and build system with your software
+package, you must write three files, and you must run some tools to
+manually generate additional files.
+
+@menu
+* Write configure.in::		Write configure.in.
+* Write Makefile.am::		Write Makefile.am.
+* Write acconfig.h::		Write acconfig.h.
+* Generate files::		Generate files.
+* Getting Started Example::	Example.
+@end menu
+
+@node Write configure.in
+@section Write configure.in
+@cindex @file{configure.in}, writing
+
+You must first write the file @file{configure.in}.  This is an autoconf
+input file, and the autoconf manual describes in detail what this file
+should look like.
+
+You will write tests in your @file{configure.in} file to check for
+conditions that may change from one system to another, such as the
+presence of particular header files or functions.
+
+For example, not all systems support the @samp{gettimeofday} function.
+If you want to use the @samp{gettimeofday} function when it is
+available, and to use some other function when it is not, you would
+check for this by putting @samp{AC_CHECK_FUNCS(gettimeofday)} in
+@file{configure.in}.
+
+When the configure script is run at build time, this will arrange to
+define the preprocessor macro @samp{HAVE_GETTIMEOFDAY} to the value 1 if
+the @samp{gettimeofday} function is available, and to not define the
+macro at all if the function is not available.  Your code can then use
+@samp{#ifdef} to test whether it is safe to call @samp{gettimeofday}.
+
+If you have an existing body of code, the @samp{autoscan} program may
+help identify potential portability problems, and hence configure tests
+that you will want to use.
+@ifnothtml
+@xref{Invoking autoscan, , , autoconf, the autoconf manual}.
+@end ifnothtml
+@ifhtml
+See @uref{http://www.delorie.com/gnu/docs/autoconf/autoconf_4.html, the
+autoscan documentation}.
+@end ifhtml
+
+Another handy tool for an existing body of code is @samp{ifnames}.  This
+will show you all the preprocessor conditionals that the code already
+uses.
+@ifnothtml
+@xref{Invoking ifnames, , , autoconf, the autoconf manual}.
+@end ifnothtml
+@ifhtml
+See @uref{http://www.delorie.com/gnu/docs/autoconf/autoconf_5.html, the
+ifnames documentation}.
+@end ifhtml
+
+Besides the portability tests which are specific to your particular
+package, every @file{configure.in} file should contain the following
+macros.
+
+@table @samp
+@item AC_INIT
+@cindex @samp{AC_INIT}
+This macro takes a single argument, which is the name of a file in your
+package.  For example, @samp{AC_INIT(foo.c)}.
+
+@item AC_PREREQ(@var{VERSION})
+@cindex @samp{AC_PREREQ}
+This macro is optional.  It may be used to indicate the version of
+@samp{autoconf} that you are using.  This will prevent users from
+running an earlier version of @samp{autoconf} and perhaps getting an
+invalid @file{configure} script.  For example, @samp{AC_PREREQ(2.12)}.
+
+@item AM_INIT_AUTOMAKE
+@cindex @samp{AM_INIT_AUTOMAKE}
+This macro takes two arguments: the name of the package, and a version
+number.  For example, @samp{AM_INIT_AUTOMAKE(foo, 1.0)}.  (This macro is
+not needed if you are not using automake).
+
+@item AM_CONFIG_HEADER
+@cindex @samp{AM_CONFIG_HEADER}
+This macro names the header file which will hold the preprocessor macro
+definitions at run time.  Normally this should be @file{config.h}.  Your
+sources would then use @samp{#include "config.h"} to include it.
+
+This macro may optionally name the input file for that header file; by
+default, this is @file{config.h.in}, but that file name works poorly on
+DOS filesystems.  Therefore, it is often better to name it explicitly as
+@file{config.in}.
+
+This is what you should normally put in @file{configure.in}:
+@example
+AM_CONFIG_HEADER(config.h:config.in)
+@end example
+
+@cindex @samp{AC_CONFIG_HEADER}
+(If you are not using automake, use @samp{AC_CONFIG_HEADER} rather than
+@samp{AM_CONFIG_HEADER}).
+
+@item AM_MAINTAINER_MODE
+@cindex @samp{AM_MAINTAINER_MODE}
+This macro always appears in Cygnus configure scripts.  Other programs
+may or may not use it.
+
+If this macro is used, the @samp{--enable-maintainer-mode} option is
+required to enable automatic rebuilding of generated files used by the
+configure system.  This of course requires that developers be aware of,
+and use, that option.
+
+If this macro is not used, then the generated files will always be
+rebuilt automatically.  This will cause problems if the wrong versions
+of autoconf, automake, or others are in the builder's @samp{PATH}.
+
+(If you are not using automake, you do not need to use this macro).
+
+@item AC_EXEEXT
+@cindex @samp{AC_EXEEXT}
+@cindex @samp{AM_EXEEXT}
+Either this macro or @samp{AM_EXEEXT} always appears in Cygnus configure
+files.  Other programs may or may not use one of them.
+
+This macro looks for the executable suffix used on the host system.  On
+Unix systems, this is the empty string.  On Windows systems, this is
+@samp{.exe}.  This macro directs automake to use the executable suffix
+as appropriate when creating programs.  This macro does not take any
+arguments.
+
+The @samp{AC_EXEEXT} form is new, and is part of a Cygnus patch to
+autoconf to support compiling with Visual C++.  Older programs use
+@samp{AM_EXEEXT} instead.
+
+(Programs which do not use automake use neither @samp{AC_EXEEXT} nor
+@samp{AM_EXEEXT}).
+
+@item AC_PROG_CC
+@cindex @samp{AC_PROG_CC}
+If you are writing C code, you will normally want to use this macro.  It
+locates the C compiler to use.  It does not take any arguments.
+
+However, if this @file{configure.in} file is for a library which is to
+be compiled by a cross compiler which may not fully work, then you will
+not want to use @samp{AC_PROG_CC}.  Instead, you will want to use a
+variant which does not call the macro @samp{AC_PROG_CC_WORKS}.  Examples
+can be found in various @file{configure.in} files for libraries that are
+compiled with cross compilers, such as libiberty or libgloss.  This is
+essentially a bug in autoconf, and there will probably be a better
+workaround at some point.
+
+@item AC_PROG_CXX
+@cindex @samp{AC_PROG_CXX}
+If you are writing C++ code, you will want to use this macro.  It
+locates the C++ compiler to use.  It does not take any arguments.  The
+same cross compiler comments apply as for @samp{AC_PROG_CC}.
+
+@item AM_PROG_LIBTOOL
+@cindex @samp{AM_PROG_LIBTOOL}
+If you want to build libraries, and you want to permit them to be
+shared, or you want to link against libraries which were built using
+libtool, then you will need this macro.  This macro is required in order
+to use libtool.
+
+@cindex @samp{AM_DISABLE_SHARED}
+By default, this will cause all libraries to be built as shared
+libraries.  To prevent this--to change the default--use
+@samp{AM_DISABLE_SHARED} before @samp{AM_PROG_LIBTOOL}.  The configure
+options @samp{--enable-shared} and @samp{--disable-shared} may be used
+to override the default at build time.
+
+@item AC_DEFINE(_GNU_SOURCE)
+@cindex @samp{_GNU_SOURCE}
+GNU packages should normally include this line before any other feature
+tests.  This defines the macro @samp{_GNU_SOURCE} when compiling, which
+directs the libc header files to provide the standard GNU system
+interfaces including all GNU extensions.  If this macro is not defined,
+certain GNU extensions may not be available.
+
+@item AC_OUTPUT
+@cindex @samp{AC_OUTPUT}
+This macro takes a list of file names which the configure process should
+produce.  This is normally a list of one or more @file{Makefile} files
+in different directories.  If your package lives entirely in a single
+directory, you would use simply @samp{AC_OUTPUT(Makefile)}.  If you also
+have, for example, a @file{lib} subdirectory, you would use
+@samp{AC_OUTPUT(Makefile lib/Makefile)}.
+@end table
+
+If you want to use locally defined macros in your @file{configure.in}
+file, then you will need to write a @file{acinclude.m4} file which
+defines them (if not using automake, this file is called
+@file{aclocal.m4}).  Alternatively, you can put separate macros in an
+@file{m4} subdirectory, and put @samp{ACLOCAL_AMFLAGS = -I m4} in your
+@file{Makefile.am} file so that the @samp{aclocal} program will be able
+to find them.
+
+The different macro prefixes indicate which tool defines the macro.
+Macros which start with @samp{AC_} are part of autoconf.  Macros which
+start with @samp{AM_} are provided by automake or libtool.
+
+@node Write Makefile.am
+@section Write Makefile.am
+@cindex @file{Makefile.am}, writing
+
+You must write the file @file{Makefile.am}.  This is an automake input
+file, and the automake manual describes in detail what this file should
+look like.
+
+The automake commands in @file{Makefile.am} mostly look like variable
+assignments in a @file{Makefile}.  automake recognizes special variable
+names, and automatically add make rules to the output as needed.
+
+There will be one @file{Makefile.am} file for each directory in your
+package.  For each directory with subdirectories, the @file{Makefile.am}
+file should contain the line
+@smallexample
+SUBDIRS = @var{dir} @var{dir} @dots{}
+@end smallexample
+@noindent
+where each @var{dir} is the name of a subdirectory.
+
+For each @file{Makefile.am}, there should be a corresponding
+@file{Makefile} in the @samp{AC_OUTPUT} macro in @file{configure.in}.
+
+Every @file{Makefile.am} written at Cygnus should contain the line
+@smallexample
+AUTOMAKE_OPTIONS = cygnus
+@end smallexample
+@noindent
+This puts automake into Cygnus mode.  See the automake manual for
+details.
+
+You may to include the version number of @samp{automake} that you are
+using on the @samp{AUTOMAKE_OPTIONS} line.  For example,
+@smallexample
+AUTOMAKE_OPTIONS = cygnus 1.3
+@end smallexample
+@noindent
+This will prevent users from running an earlier version of
+@samp{automake} and perhaps getting an invalid @file{Makefile.in}.
+
+If your package builds a program, then in the directory where that
+program is built you will normally want a line like
+@smallexample
+bin_PROGRAMS = @var{program}
+@end smallexample
+@noindent
+where @var{program} is the name of the program.  You will then want a
+line like
+@smallexample
+@var{program}_SOURCES = @var{file} @var{file} @dots{}
+@end smallexample
+@noindent
+where each @var{file} is the name of a source file to link into the
+program (e.g., @samp{foo.c}).
+
+If your package builds a library, and you do not want the library to
+ever be built as a shared library, then in the directory where that
+library is built you will normally want a line like
+@smallexample
+lib_LIBRARIES = lib@var{name}.a
+@end smallexample
+@noindent
+where @samp{lib@var{name}.a} is the name of the library.  You will then
+want a line like
+@smallexample
+lib@var{name}_a_SOURCES = @var{file} @var{file} @dots{}
+@end smallexample
+@noindent
+where each @var{file} is the name of a source file to add to the
+library.
+
+If your package builds a library, and you want to permit building the
+library as a shared library, then in the directory where that library is
+built you will normally want a line like
+@smallexample
+lib_LTLIBRARIES = lib@var{name}.la
+@end smallexample
+The use of @samp{LTLIBRARIES}, and the @samp{.la} extension, indicate a
+library to be built using libtool.  As usual, you will then want a line
+like
+@smallexample
+lib@var{name}_la_SOURCES = @var{file} @var{file} @dots{}
+@end smallexample
+
+The strings @samp{bin} and @samp{lib} that appear above in
+@samp{bin_PROGRAMS} and @samp{lib_LIBRARIES} are not arbitrary.  They
+refer to particular directories, which may be set by the @samp{--bindir}
+and @samp{--libdir} options to @file{configure}.  If those options are
+not used, the default values are based on the @samp{--prefix} or
+@samp{--exec-prefix} options to @file{configure}.  It is possible to use
+other names if the program or library should be installed in some other
+directory.
+
+The @file{Makefile.am} file may also contain almost anything that may
+appear in a normal @file{Makefile}.  automake also supports many other
+special variables, as well as conditionals.
+
+See the automake manual for more information.
+
+@node Write acconfig.h
+@section Write acconfig.h
+@cindex @file{acconfig.h}, writing
+
+If you are generating a portability header file, (i.e., you are using
+@samp{AM_CONFIG_HEADER} in @file{configure.in}), then you will have to
+write a @file{acconfig.h} file.  It will have to contain the following
+lines.
+
+@smallexample
+/* Name of package.  */
+#undef PACKAGE
+
+/* Version of package.  */
+#undef VERSION
+@end smallexample
+
+This requirement is really a bug in the system, and the requirement may
+be eliminated at some later date.
+
+The @file{acconfig.h} file will also similar comment and @samp{#undef}
+lines for any unusual macros in the @file{configure.in} file, including
+any macro which appears in a @samp{AC_DEFINE} macro.
+
+In particular, if you are writing a GNU package and therefore include
+@samp{AC_DEFINE(_GNU_SOURCE)} in @file{configure.in} as suggested above,
+you will need lines like this in @file{acconfig.h}:
+@smallexample
+/* Enable GNU extensions.  */
+#undef _GNU_SOURCE
+@end smallexample
+
+Normally the @samp{autoheader} program will inform you of any such
+requirements by printing an error message when it is run.  However, if
+you do anything particular odd in your @file{configure.in} file, you
+will have to make sure that the right entries appear in
+@file{acconfig.h}, since otherwise the results of the tests may not be
+available in the @file{config.h} file which your code will use.
+
+(Thee @samp{PACKAGE} and @samp{VERSION} lines are not required if you
+are not using automake, and in that case you may not need a
+@file{acconfig.h} file at all).
+
+@node Generate files
+@section Generate files
+
+Once you have written @file{configure.in}, @file{Makefile.am},
+@file{acconfig.h}, and possibly @file{acinclude.m4}, you must use
+autoconf and automake programs to produce the first versions of the
+generated files.  This is done by executing the following sequence of
+commands.
+
+@smallexample
+aclocal
+autoconf
+autoheader
+automake
+@end smallexample
+
+The @samp{aclocal} and @samp{automake} commands are part of the automake
+package, and the @samp{autoconf} and @samp{autoheader} commands are part
+of the autoconf package.
+
+If you are using a @file{m4} subdirectory for your macros, you will need
+to use the @samp{-I m4} option when you run @samp{aclocal}.
+
+If you are not using the Cygnus tree, use the @samp{-a} option when
+running @samp{automake} command in order to copy the required support
+files into your source directory.
+
+If you are using libtool, you must build and install the libtool package
+with the same @samp{--prefix} and @samp{--exec-prefix} options as you
+used with the autoconf and automake packages.  You must do this before
+running any of the above commands.  If you are not using the Cygnus
+tree, you will need to run the @samp{libtoolize} program to copy the
+libtool support files into your directory.
+
+Once you have managed to run these commands without getting any errors,
+you should create a new empty directory, and run the @samp{configure}
+script which will have been created by @samp{autoconf} with the
+@samp{--enable-maintainer-mode} option.  This will give you a set of
+Makefiles which will include rules to automatically rebuild all the
+generated files.
+
+After doing that, whenever you have changed some of the input files and
+want to regenerated the other files, go to your object directory and run
+@samp{make}.  Doing this is more reliable than trying to rebuild the
+files manually, because there are complex order dependencies and it is
+easy to forget something.
+
+@node Getting Started Example
+@section Example
+
+Let's consider a trivial example.
+
+Suppose we want to write a simple version of @samp{touch}.  Our program,
+which we will call @samp{poke}, will take a single file name argument,
+and use the @samp{utime} system call to set the modification and access
+times of the file to the current time.  We want this program to be
+highly portable.
+
+We'll first see what this looks like without using autoconf and
+automake, and then see what it looks like with them.
+
+@menu
+* Getting Started Example 1::		First Try.
+* Getting Started Example 2::		Second Try.
+* Getting Started Example 3::		Third Try.
+* Generate Files in Example::		Generate Files.
+@end menu
+
+@node Getting Started Example 1
+@subsection First Try
+
+Here is our first try at @samp{poke.c}.  Note that we've written it
+without ANSI/ISO C prototypes, since we want it to be highly portable.
+
+@example
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <utime.h>
+
+int
+main (argc, argv)
+     int argc;
+     char **argv;
+@{
+  if (argc != 2)
+    @{
+      fprintf (stderr, "Usage: poke file\n");
+      exit (1);
+    @}
+
+  if (utime (argv[1], NULL) < 0)
+    @{
+      perror ("utime");
+      exit (1);
+    @}
+
+  exit (0);
+@}
+@end example
+
+We also write a simple @file{Makefile}.
+
+@example
+CC = gcc
+CFLAGS = -g -O2
+
+all: poke
+
+poke: poke.o
+	$(CC) -o poke $(CFLAGS) $(LDFLAGS) poke.o
+@end example
+
+So far, so good.
+
+Unfortunately, there are a few problems.
+
+On older Unix systems derived from BSD 4.3, the @samp{utime} system call
+does not accept a second argument of @samp{NULL}.  On those systems, we
+need to pass a pointer to @samp{struct utimbuf} structure.
+Unfortunately, even older systems don't define that structure; on those
+systems, we need to pass an array of two @samp{long} values.
+
+The header file @file{stdlib.h} was invented by ANSI C, and older
+systems don't have a copy.  We included it above to get a declaration of
+@samp{exit}.
+
+We can find some of these portability problems by running
+@samp{autoscan}, which will create a @file{configure.scan} file which we
+can use as a prototype for our @file{configure.in} file.  I won't show
+the output, but it will notice the potential problems with @samp{utime}
+and @file{stdlib.h}.
+
+In our @file{Makefile}, we don't provide any way to install the program.
+This doesn't matter much for such a simple example, but a real program
+will need an @samp{install} target.  For that matter, we will also want
+a @samp{clean} target.
+
+@node Getting Started Example 2
+@subsection Second Try
+
+Here is our second try at this program.
+
+We modify @file{poke.c} to use preprocessor macros to control what
+features are available.  (I've cheated a bit by using the same macro
+names which autoconf will use).
+
+@example
+#include <stdio.h>
+
+#ifdef STDC_HEADERS
+#include <stdlib.h>
+#endif
+
+#include <sys/types.h>
+
+#ifdef HAVE_UTIME_H
+#include <utime.h>
+#endif
+
+#ifndef HAVE_UTIME_NULL
+
+#include <time.h>
+
+#ifndef HAVE_STRUCT_UTIMBUF
+
+struct utimbuf
+@{
+  long actime;
+  long modtime;
+@};
+
+#endif
+
+static int
+utime_now (file)
+     char *file;
+@{
+  struct utimbuf now;
+
+  now.actime = now.modtime = time (NULL);
+  return utime (file, &now);
+@}
+
+#define utime(f, p) utime_now (f)
+
+#endif /* HAVE_UTIME_NULL  */
+
+int
+main (argc, argv)
+     int argc;
+     char **argv;
+@{
+  if (argc != 2)
+    @{
+      fprintf (stderr, "Usage: poke file\n");
+      exit (1);
+    @}
+
+  if (utime (argv[1], NULL) < 0)
+    @{
+      perror ("utime");
+      exit (1);
+    @}
+
+  exit (0);
+@}
+@end example
+
+Here is the associated @file{Makefile}.  We've added support for the
+preprocessor flags we use.  We've also added @samp{install} and
+@samp{clean} targets.
+
+@example
+# Set this to your installation directory.
+bindir = /usr/local/bin
+
+# Uncomment this if you have the standard ANSI/ISO C header files.
+# STDC_HDRS = -DSTDC_HEADERS
+
+# Uncomment this if you have utime.h.
+# UTIME_H = -DHAVE_UTIME_H
+
+# Uncomment this if utime (FILE, NULL) works on your system.
+# UTIME_NULL = -DHAVE_UTIME_NULL
+
+# Uncomment this if struct utimbuf is defined in utime.h.
+# UTIMBUF = -DHAVE_STRUCT_UTIMBUF
+
+CC = gcc
+CFLAGS = -g -O2
+
+ALL_CFLAGS = $(STDC_HDRS) $(UTIME_H) $(UTIME_NULL) $(UTIMBUF) $(CFLAGS)
+
+all: poke
+
+poke: poke.o
+	$(CC) -o poke $(ALL_CFLAGS) $(LDFLAGS) poke.o
+
+.c.o:
+	$(CC) -c $(ALL_CFLAGS) poke.c
+
+install: poke
+	cp poke $(bindir)/poke
+
+clean:
+	rm poke poke.o
+@end example
+
+Some problems with this approach should be clear.
+
+Users who want to compile poke will have to know how @samp{utime} works
+on their systems, so that they can uncomment the @file{Makefile}
+correctly.
+
+The installation is done using @samp{cp}, but many systems have an
+@samp{install} program which may be used, and which supports optional
+features such as stripping debugging information out of the installed
+binary.
+
+The use of @file{Makefile} variables like @samp{CC}, @samp{CFLAGS} and
+@samp{LDFLAGS} follows the requirements of the GNU standards.  This is
+convenient for all packages, since it reduces surprises for users.
+However, it is easy to get the details wrong, and wind up with a
+slightly nonstandard distribution.
+
+@node Getting Started Example 3
+@subsection Third Try
+
+For our third try at this program, we will write a @file{configure.in}
+script to discover the configuration features on the host system, rather
+than requiring the user to edit the @file{Makefile}.  We will also write
+a @file{Makefile.am} rather than a @file{Makefile}.
+
+The only change to @file{poke.c} is to add a line at the start of the
+file:
+@smallexample
+#include "config.h"
+@end smallexample
+
+The new @file{configure.in} file is as follows.
+
+@example
+AC_INIT(poke.c)
+AM_INIT_AUTOMAKE(poke, 1.0)
+AM_CONFIG_HEADER(config.h:config.in)
+AC_PROG_CC
+AC_HEADER_STDC
+AC_CHECK_HEADERS(utime.h)
+AC_EGREP_HEADER(utimbuf, utime.h, AC_DEFINE(HAVE_STRUCT_UTIMBUF))
+AC_FUNC_UTIME_NULL
+AC_OUTPUT(Makefile)
+@end example
+
+The first four macros in this file, and the last one, were described
+above; see @ref{Write configure.in}.  If we omit these macros, then when
+we run @samp{automake} we will get a reminder that we need them.
+
+The other macros are standard autoconf macros.
+
+@table @samp
+@item AC_HEADER_STDC
+Check for standard C headers.
+@item AC_CHECK_HEADERS
+Check whether a particular header file exists.
+@item AC_EGREP_HEADER
+Check for a particular string in a particular header file, in this case
+checking for @samp{utimbuf} in @file{utime.h}.
+@item AC_FUNC_UTIME_NULL
+Check whether @samp{utime} accepts a NULL second argument to set the
+file change time to the current time.
+@end table
+
+See the autoconf manual for a more complete description.
+
+The new @file{Makefile.am} file is as follows.  Note how simple this is
+compared to our earlier @file{Makefile}.
+
+@example
+bin_PROGRAMS = poke
+
+poke_SOURCES = poke.c
+@end example
+
+This means that we should build a single program name @samp{poke}.  It
+should be installed in the binary directory, which we called
+@samp{bindir} earlier.  The program @samp{poke} is built from the source
+file @file{poke.c}.
+
+We must also write a @file{acconfig.h} file.  Besides @samp{PACKAGE} and
+@samp{VERSION}, which must be mentioned for all packages which use
+automake, we must include @samp{HAVE_STRUCT_UTIMBUF}, since we mentioned
+it in an @samp{AC_DEFINE}.
+
+@example
+/* Name of package.  */
+#undef PACKAGE
+
+/* Version of package.  */
+#undef VERSION
+
+/* Whether utime.h defines struct utimbuf.  */
+#undef HAVE_STRUCT_UTIMBUF
+@end example
+
+@node Generate Files in Example
+@subsection Generate Files
+
+We must now generate the other files, using the following commands.
+
+@smallexample
+aclocal
+autoconf
+autoheader
+automake
+@end smallexample
+
+When we run @samp{autoheader}, it will remind us of any macros we forgot
+to add to @file{acconfig.h}.
+
+When we run @samp{automake}, it will want to add some files to our
+distribution.  It will add them automatically if we use the
+@samp{--add-missing} option.
+
+By default, @samp{automake} will run in GNU mode, which means that it
+will want us to create certain additional files; as of this writing, it
+will want @file{NEWS}, @file{README}, @file{AUTHORS}, and
+@file{ChangeLog}, all of which are files which should appear in a
+standard GNU distribution.  We can either add those files, or run
+@samp{automake} with the @samp{--foreign} option.
+
+Running these tools will generate the following files, all of which are
+described in the next chapter.
+
+@itemize @bullet
+@item
+@file{aclocal.m4}
+@item
+@file{configure}
+@item
+@file{config.in}
+@item
+@file{Makefile.in}
+@item
+@file{stamp-h.in}
+@end itemize
+
+@node Files
+@chapter Files
+
+As was seen in the previous chapter, the GNU configure and build system
+uses a number of different files.  The developer must write a few files.
+The others are generated by various tools.
+
+The system is rather flexible, and can be used in many different ways.
+In describing the files that it uses, I will describe the common case,
+and mention some other cases that may arise.
+
+@menu
+* Developer Files::		Developer Files.
+* Build Files::			Build Files.
+* Support Files::		Support Files.
+@end menu
+
+@node Developer Files
+@section Developer Files
+
+This section describes the files written or generated by the developer
+of a package.
+
+@menu
+* Developer Files Picture::	Developer Files Picture.
+* Written Developer Files::	Written Developer Files.
+* Generated Developer Files::	Generated Developer Files.
+@end menu
+
+@node Developer Files Picture
+@subsection Developer Files Picture
+
+Here is a picture of the files which are written by the developer, the
+generated files which would be included with a complete source
+distribution, and the tools which create those files.
+@ifinfo
+The file names are plain text and the tool names are enclosed by
+@samp{*} characters
+@end ifinfo
+@ifnotinfo
+The file names are in rectangles with square corners and the tool names
+are in rectangles with rounded corners
+@end ifnotinfo
+(e.g., @samp{autoheader} is the name of a tool, not the name of a file).
+
+@image{configdev}
+
+@node Written Developer Files
+@subsection Written Developer Files
+
+The following files would be written by the developer.
+
+@table @file
+@item configure.in
+@cindex @file{configure.in}
+This is the configuration script.  This script contains invocations of
+autoconf macros.  It may also contain ordinary shell script code.  This
+file will contain feature tests for portability issues.  The last thing
+in the file will normally be an @samp{AC_OUTPUT} macro listing which
+files to create when the builder runs the configure script.  This file
+is always required when using the GNU configure system.  @xref{Write
+configure.in}.
+
+@item Makefile.am
+@cindex @file{Makefile.am}
+This is the automake input file.  It describes how the code should be
+built.  It consists of definitions of automake variables.  It may also
+contain ordinary Makefile targets.  This file is only needed when using
+automake (newer tools normally use automake, but there are still older
+tools which have not been converted, in which the developer writes
+@file{Makefile.in} directly).  @xref{Write Makefile.am}.
+
+@item acconfig.h
+@cindex @file{acconfig.h}
+When the configure script creates a portability header file, by using
+@samp{AM_CONFIG_HEADER} (or, if not using automake,
+@samp{AC_CONFIG_HEADER}), this file is used to describe macros which are
+not recognized by the @samp{autoheader} command.  This is normally a
+fairly uninteresting file, consisting of a collection of @samp{#undef}
+lines with comments.  Normally any call to @samp{AC_DEFINE} in
+@file{configure.in} will require a line in this file. @xref{Write
+acconfig.h}.
+
+@item acinclude.m4
+@cindex @file{acinclude.m4}
+This file is not always required.  It defines local autoconf macros.
+These macros may then be used in @file{configure.in}.  If you don't need
+any local autoconf macros, then you don't need this file at all.  In
+fact, in general, you never need local autoconf macros, since you can
+put everything in @file{configure.in}, but sometimes a local macro is
+convenient.
+
+Newer tools may omit @file{acinclude.m4}, and instead use a
+subdirectory, typically named @file{m4}, and define
+@samp{ACLOCAL_AMFLAGS = -I m4} in @file{Makefile.am} to force
+@samp{aclocal} to look there for macro definitions.  The macro
+definitions are then placed in separate files in that directory.
+
+The @file{acinclude.m4} file is only used when using automake; in older
+tools, the developer writes @file{aclocal.m4} directly, if it is needed.
+@end table
+
+@node Generated Developer Files
+@subsection Generated Developer Files
+
+The following files would be generated by the developer.
+
+When using automake, these files are normally not generated manually
+after the first time.  Instead, the generated @file{Makefile} contains
+rules to automatically rebuild the files as required.  When
+@samp{AM_MAINTAINER_MODE} is used in @file{configure.in} (the normal
+case in Cygnus code), the automatic rebuilding rules will only be
+defined if you configure using the @samp{--enable-maintainer-mode}
+option.
+
+When using automatic rebuilding, it is important to ensure that all the
+various tools have been built and installed on your @samp{PATH}.  Using
+automatic rebuilding is highly recommended, so much so that I'm not
+going to explain what you have to do if you don't use it.
+
+@table @file
+@item configure
+@cindex @file{configure}
+This is the configure script which will be run when building the
+package.  This is generated by @samp{autoconf} from @file{configure.in}
+and @file{aclocal.m4}.  This is a shell script.
+
+@item Makefile.in
+@cindex @file{Makefile.in}
+This is the file which the configure script will turn into the
+@file{Makefile} at build time.  This file is generated by
+@samp{automake} from @file{Makefile.am}.  If you aren't using automake,
+you must write this file yourself.  This file is pretty much a normal
+@file{Makefile}, with some configure substitutions for certain
+variables.
+
+@item aclocal.m4
+@cindex @file{aclocal.m4}
+This file is created by the @samp{aclocal} program, based on the
+contents of @file{configure.in} and @file{acinclude.m4} (or, as noted in
+the description of @file{acinclude.m4} above, on the contents of an
+@file{m4} subdirectory).  This file contains definitions of autoconf
+macros which @samp{autoconf} will use when generating the file
+@file{configure}.  These autoconf macros may be defined by you in
+@file{acinclude.m4} or they may be defined by other packages such as
+automake, libtool or gettext.  If you aren't using automake, you will
+normally write this file yourself; in that case, if @file{configure.in}
+uses only standard autoconf macros, this file will not be needed at all.
+
+@item config.in
+@cindex @file{config.in}
+@cindex @file{config.h.in}
+This file is created by @samp{autoheader} based on @file{acconfig.h} and
+@file{configure.in}.  At build time, the configure script will define
+some of the macros in it to create @file{config.h}, which may then be
+included by your program.  This permits your C code to use preprocessor
+conditionals to change its behaviour based on the characteristics of the
+host system.  This file may also be called @file{config.h.in}.
+
+@item stamp.h-in
+@cindex @file{stamp-h.in}
+This rather uninteresting file, which I omitted from the picture, is
+generated by @samp{automake}.  It always contains the string
+@samp{timestamp}.  It is used as a timestamp file indicating whether
+@file{config.in} is up to date.  Using a timestamp file means that
+@file{config.in} can be marked as up to date without actually changing
+its modification time.  This is useful since @file{config.in} depends
+upon @file{configure.in}, but it is easy to change @file{configure.in}
+in a way which does not affect @file{config.in}.
+@end table
+
+@node Build Files
+@section Build Files
+
+This section describes the files which are created at configure and
+build time.  These are the files which somebody who builds the package
+will see.
+
+Of course, the developer will also build the package.  The distinction
+between developer files and build files is not that the developer does
+not see the build files, but that somebody who only builds the package
+does not have to worry about the developer files.
+
+@menu
+* Build Files Picture::		Build Files Picture.
+* Build Files Description::	Build Files Description.
+@end menu
+
+@node Build Files Picture
+@subsection Build Files Picture
+
+Here is a picture of the files which will be created at build time.
+@file{config.status} is both a created file and a shell script which is
+run to create other files, and the picture attempts to show that.
+
+@image{configbuild}
+
+@node Build Files Description
+@subsection Build Files Description
+
+This is a description of the files which are created at build time.
+
+@table @file
+@item config.status
+@cindex @file{config.status}
+The first step in building a package is to run the @file{configure}
+script.  The @file{configure} script will create the file
+@file{config.status}, which is itself a shell script.  When you first
+run @file{configure}, it will automatically run @file{config.status}.
+An @file{Makefile} derived from an automake generated @file{Makefile.in}
+will contain rules to automatically run @file{config.status} again when
+necessary to recreate certain files if their inputs change.
+
+@item Makefile
+@cindex @file{Makefile}
+This is the file which make will read to build the program.  The
+@file{config.status} script will transform @file{Makefile.in} into
+@file{Makefile}.
+
+@item config.h
+@cindex @file{config.h}
+This file defines C preprocessor macros which C code can use to adjust
+its behaviour on different systems.  The @file{config.status} script
+will transform @file{config.in} into @file{config.h}.
+
+@item config.cache
+@cindex @file{config.cache}
+This file did not fit neatly into the picture, and I omitted it.  It is
+used by the @file{configure} script to cache results between runs.  This
+can be an important speedup.  If you modify @file{configure.in} in such
+a way that the results of old tests should change (perhaps you have
+added a new library to @samp{LDFLAGS}), then you will have to remove
+@file{config.cache} to force the tests to be rerun.
+
+The autoconf manual explains how to set up a site specific cache file.
+This can speed up running @file{configure} scripts on your system.
+
+@item stamp.h
+@cindex @file{stamp-h}
+This file, which I omitted from the picture, is similar to
+@file{stamp-h.in}.  It is used as a timestamp file indicating whether
+@file{config.h} is up to date.  This is useful since @file{config.h}
+depends upon @file{config.status}, but it is easy for
+@file{config.status} to change in a way which does not affect
+@file{config.h}.
+@end table
+
+@node Support Files
+@section Support Files
+
+The GNU configure and build system requires several support files to be
+included with your distribution.  You do not normally need to concern
+yourself with these.  If you are using the Cygnus tree, most are already
+present.  Otherwise, they will be installed with your source by
+@samp{automake} (with the @samp{--add-missing} option) and
+@samp{libtoolize}.
+
+You don't have to put the support files in the top level directory.  You
+can put them in a subdirectory, and use the @samp{AC_CONFIG_AUX_DIR}
+macro in @file{configure.in} to tell @samp{automake} and the
+@file{configure} script where they are.
+
+In this section, I describe the support files, so that you can know what
+they are and why they are there.
+
+@table @file
+@item ABOUT-NLS
+Added by automake if you are using gettext.  This is a documentation
+file about the gettext project.
+@item ansi2knr.c
+Used by an automake generated @file{Makefile} if you put @samp{ansi2knr}
+in @samp{AUTOMAKE_OPTIONS} in @file{Makefile.am}.  This permits
+compiling ANSI C code with a K&R C compiler.
+@item ansi2knr.1
+The man page which goes with @file{ansi2knr.c}.
+@item config.guess
+A shell script which determines the configuration name for the system on
+which it is run.
+@item config.sub
+A shell script which canonicalizes a configuration name entered by a
+user.
+@item elisp-comp
+Used to compile Emacs LISP files.
+@item install-sh
+A shell script which installs a program.  This is used if the configure
+script can not find an install binary.
+@item ltconfig
+Used by libtool.  This is a shell script which configures libtool for
+the particular system on which it is used.
+@item ltmain.sh
+Used by libtool.  This is the actual libtool script which is used, after
+it is configured by @file{ltconfig} to build a library.
+@item mdate-sh
+A shell script used by an automake generated @file{Makefile} to pretty
+print the modification time of a file.  This is used to maintain version
+numbers for texinfo files.
+@item missing
+A shell script used if some tool is missing entirely.  This is used by
+an automake generated @file{Makefile} to avoid certain sorts of
+timestamp problems.
+@item mkinstalldirs
+A shell script which creates a directory, including all parent
+directories.  This is used by an automake generated @file{Makefile}
+during installation.
+@item texinfo.tex
+Required if you have any texinfo files.  This is used when converting
+Texinfo files into DVI using @samp{texi2dvi} and @TeX{}.
+@item ylwrap
+A shell script used by an automake generated @file{Makefile} to run
+programs like @samp{bison}, @samp{yacc}, @samp{flex}, and @samp{lex}.
+These programs default to producing output files with a fixed name, and
+the @file{ylwrap} script runs them in a subdirectory to avoid file name
+conflicts when using a parallel make program.
+@end table
+
+@node Configuration Names
+@chapter Configuration Names
+@cindex configuration names
+@cindex configuration triplets
+@cindex triplets
+@cindex host names
+@cindex host triplets
+@cindex canonical system names
+@cindex system names
+@cindex system types
+
+The GNU configure system names all systems using a @dfn{configuration
+name}.  All such names used to be triplets (they may now contain four
+parts in certain cases), and the term @dfn{configuration triplet} is
+still seen.
+
+@menu
+* Configuration Name Definition::	Configuration Name Definition.
+* Using Configuration Names::		Using Configuration Names.
+@end menu
+
+@node Configuration Name Definition
+@section Configuration Name Definition
+
+This is a string of the form
+@var{cpu}-@var{manufacturer}-@var{operating_system}.  In some cases,
+this is extended to a four part form:
+@var{cpu}-@var{manufacturer}-@var{kernel}-@var{operating_system}.
+
+When using a configuration name in a configure option, it is normally
+not necessary to specify an entire name.  In particular, the
+@var{manufacturer} field is often omitted, leading to strings such as
+@samp{i386-linux} or @samp{sparc-sunos}.  The shell script
+@file{config.sub} will translate these shortened strings into the
+canonical form.  autoconf will arrange for @file{config.sub} to be run
+automatically when it is needed.
+
+The fields of a configuration name are as follows:
+
+@table @var
+@item cpu
+The type of processor.  This is typically something like @samp{i386} or
+@samp{sparc}.  More specific variants are used as well, such as
+@samp{mipsel} to indicate a little endian MIPS processor.
+@item manufacturer
+A somewhat freeform field which indicates the manufacturer of the
+system.  This is often simply @samp{unknown}.  Other common strings are
+@samp{pc} for an IBM PC compatible system, or the name of a workstation
+vendor, such as @samp{sun}.
+@item operating_system
+The name of the operating system which is run on the system.  This will
+be something like @samp{solaris2.5} or @samp{irix6.3}.  There is no
+particular restriction on the version number, and strings like
+@samp{aix4.1.4.0} are seen.  For an embedded system, which has no
+operating system, this field normally indicates the type of object file
+format, such as @samp{elf} or @samp{coff}.
+@item kernel
+This is used mainly for GNU/Linux.  A typical GNU/Linux configuration
+name is @samp{i586-pc-linux-gnulibc1}.  In this case the kernel,
+@samp{linux}, is separated from the operating system, @samp{gnulibc1}.
+@end table
+
+The shell script @file{config.guess} will normally print the correct
+configuration name for the system on which it is run.  It does by
+running @samp{uname} and by examining other characteristics of the
+system.
+
+Because @file{config.guess} can normally determine the configuration
+name for a machine, it is normally only necessary to specify a
+configuration name when building a cross-compiler or when building using
+a cross-compiler.
+
+@node Using Configuration Names
+@section Using Configuration Names
+
+A configure script will sometimes have to make a decision based on a
+configuration name.  You will need to do this if you have to compile
+code differently based on something which can not be tested using a
+standard autoconf feature test.
+
+It is normally better to test for particular features, rather than to
+test for a particular system.  This is because as Unix evolves,
+different systems copy features from one another.  Even if you need to
+determine whether the feature is supported based on a configuration
+name, you should define a macro which describes the feature, rather than
+defining a macro which describes the particular system you are on.
+
+Testing for a particular system is normally done using a case statement
+in @file{configure.in}.  The case statement might look something like
+the following, assuming that @samp{host} is a shell variable holding a
+canonical configuration name (which will be the case if
+@file{configure.in} uses the @samp{AC_CANONICAL_HOST} or
+@samp{AC_CANONICAL_SYSTEM} macro).
+
+@smallexample
+case "$@{host@}" in
+i[3456]86-*-linux-gnu*) do something ;;
+sparc*-sun-solaris2.[56789]*) do something ;;
+sparc*-sun-solaris*) do something ;;
+mips*-*-elf*) do something ;;
+esac
+@end smallexample
+
+It is particularly important to use @samp{*} after the operating system
+field, in order to match the version number which will be generated by
+@file{config.guess}.
+
+In most cases you must be careful to match a range of processor types.
+For most processor families, a trailing @samp{*} suffices, as in
+@samp{mips*} above.  For the i386 family, something along the lines of
+@samp{i[3456]86} suffices at present.  For the m68k family, you will
+need something like @samp{m68*}.  Of course, if you do not need to match
+on the processor, it is simpler to just replace the entire field by a
+@samp{*}, as in @samp{*-*-irix*}.
+
+@node Cross Compilation Tools
+@chapter Cross Compilation Tools
+@cindex cross tools
+
+The GNU configure and build system can be used to build @dfn{cross
+compilation} tools.  A cross compilation tool is a tool which runs on
+one system and produces code which runs on another system.
+
+@menu
+* Cross Compilation Concepts::		Cross Compilation Concepts.
+* Host and Target::			Host and Target.
+* Using the Host Type::			Using the Host Type.
+* Specifying the Target::       	Specifying the Target.
+* Using the Target Type::		Using the Target Type.
+* Cross Tools in the Cygnus Tree::	Cross Tools in the Cygnus Tree
+@end menu
+
+@node Cross Compilation Concepts
+@section Cross Compilation Concepts
+
+@cindex cross compiler
+A compiler which produces programs which run on a different system is a
+cross compilation compiler, or simply a @dfn{cross compiler}.
+Similarly, we speak of cross assemblers, cross linkers, etc.
+
+In the normal case, a compiler produces code which runs on the same
+system as the one on which the compiler runs.  When it is necessary to
+distinguish this case from the cross compilation case, such a compiler
+is called a @dfn{native compiler}.  Similarly, we speak of native
+assemblers, etc.
+
+Although the debugger is not strictly speaking a compilation tool, it is
+nevertheless meaningful to speak of a cross debugger: a debugger which
+is used to debug code which runs on another system.  Everything that is
+said below about configuring cross compilation tools applies to the
+debugger as well.
+
+@node Host and Target
+@section Host and Target
+@cindex host system
+@cindex target system
+
+When building cross compilation tools, there are two different systems
+involved: the system on which the tools will run, and the system for
+which the tools generate code.
+
+The system on which the tools will run is called the @dfn{host} system.
+
+The system for which the tools generate code is called the @dfn{target}
+system.
+
+For example, suppose you have a compiler which runs on a GNU/Linux
+system and generates ELF programs for a MIPS embedded system.  In this
+case the GNU/Linux system is the host, and the MIPS ELF system is the
+target.  Such a compiler could be called a GNU/Linux cross MIPS ELF
+compiler, or, equivalently, a @samp{i386-linux-gnu} cross
+@samp{mips-elf} compiler.
+
+Naturally, most programs are not cross compilation tools.  For those
+programs, it does not make sense to speak of a target.  It only makes
+sense to speak of a target for tools like @samp{gcc} or the
+@samp{binutils} which actually produce running code.  For example, it
+does not make sense to speak of the target of a tool like @samp{bison}
+or @samp{make}.
+
+Most cross compilation tools can also serve as native tools.  For a
+native compilation tool, it is still meaningful to speak of a target.
+For a native tool, the target is the same as the host.  For example, for
+a GNU/Linux native compiler, the host is GNU/Linux, and the target is
+also GNU/Linux.
+
+@node Using the Host Type
+@section Using the Host Type
+
+In almost all cases the host system is the system on which you run the
+@samp{configure} script, and on which you build the tools (for the case
+when they differ, @pxref{Canadian Cross}).
+
+@cindex @samp{AC_CANONICAL_HOST}
+If your configure script needs to know the configuration name of the
+host system, and the package is not a cross compilation tool and
+therefore does not have a target, put @samp{AC_CANONICAL_HOST} in
+@file{configure.in}.  This macro will arrange to define a few shell
+variables when the @samp{configure} script is run.
+
+@table @samp
+@item host
+The canonical configuration name of the host.  This will normally be
+determined by running the @file{config.guess} shell script, although the
+user is permitted to override this by using an explicit @samp{--host}
+option.
+@item host_alias
+In the unusual case that the user used an explicit @samp{--host} option,
+this will be the argument to @samp{--host}.  In the normal case, this
+will be the same as the @samp{host} variable.
+@item host_cpu
+@itemx host_vendor
+@itemx host_os
+The first three parts of the canonical configuration name.
+@end table
+
+The shell variables may be used by putting shell code in
+@file{configure.in}.  For an example, see @ref{Using Configuration
+Names}.
+
+@node Specifying the Target
+@section Specifying the Target
+
+By default, the @samp{configure} script will assume that the target is
+the same as the host.  This is the more common case; for example, it
+leads to a native compiler rather than a cross compiler.
+
+@cindex @samp{--target} option
+@cindex target option
+@cindex configure target
+If you want to build a cross compilation tool, you must specify the
+target explicitly by using the @samp{--target} option when you run
+@samp{configure}.  The argument to @samp{--target} is the configuration
+name of the system for which you wish to generate code.
+@xref{Configuration Names}.
+
+For example, to build tools which generate code for a MIPS ELF embedded
+system, you would use @samp{--target mips-elf}.
+
+@node Using the Target Type
+@section Using the Target Type
+
+@cindex @samp{AC_CANONICAL_SYSTEM}
+When writing @file{configure.in} for a cross compilation tool, you will
+need to use information about the target.  To do this, put
+@samp{AC_CANONICAL_SYSTEM} in @file{configure.in}.
+
+@samp{AC_CANONICAL_SYSTEM} will look for a @samp{--target} option and
+canonicalize it using the @file{config.sub} shell script.  It will also
+run @samp{AC_CANONICAL_HOST} (@pxref{Using the Host Type}).
+
+The target type will be recorded in the following shell variables.  Note
+that the host versions of these variables will also be defined by
+@samp{AC_CANONICAL_HOST}.
+
+@table @samp
+@item target
+The canonical configuration name of the target.
+@item target_alias
+The argument to the @samp{--target} option.  If the user did not specify
+a @samp{--target} option, this will be the same as @samp{host_alias}.
+@item target_cpu
+@itemx target_vendor
+@itemx target_os
+The first three parts of the canonical target configuration name.
+@end table
+
+Note that if @samp{host} and @samp{target} are the same string, you can
+assume a native configuration.  If they are different, you can assume a
+cross configuration.
+
+It is arguably possible for @samp{host} and @samp{target} to represent
+the same system, but for the strings to not be identical.  For example,
+if @samp{config.guess} returns @samp{sparc-sun-sunos4.1.4}, and somebody
+configures with @samp{--target sparc-sun-sunos4.1}, then the slight
+differences between the two versions of SunOS may be unimportant for
+your tool.  However, in the general case it can be quite difficult to
+determine whether the differences between two configuration names are
+significant or not.  Therefore, by convention, if the user specifies a
+@samp{--target} option without specifying a @samp{--host} option, it is
+assumed that the user wants to configure a cross compilation tool.
+
+The variables @samp{target} and @samp{target_alias} should be handled
+differently.
+
+In general, whenever the user may actually see a string,
+@samp{target_alias} should be used.  This includes anything which may
+appear in the file system, such as a directory name or part of a tool
+name.  It also includes any tool output, unless it is clearly labelled
+as the canonical target configuration name.  This permits the user to
+use the @samp{--target} option to specify how the tool will appear to
+the outside world.
+
+On the other hand, when checking for characteristics of the target
+system, @samp{target} should be used.  This is because a wide variety of
+@samp{--target} options may map into the same canonical configuration
+name.  You should not attempt to duplicate the canonicalization done by
+@samp{config.sub} in your own code.
+
+By convention, cross tools are installed with a prefix of the argument
+used with the @samp{--target} option, also known as @samp{target_alias}
+(@pxref{Using the Target Type}).  If the user does not use the
+@samp{--target} option, and thus is building a native tool, no prefix is
+used.
+
+For example, if gcc is configured with @samp{--target mips-elf}, then
+the installed binary will be named @samp{mips-elf-gcc}.  If gcc is
+configured without a @samp{--target} option, then the installed binary
+will be named @samp{gcc}.
+
+The autoconf macro @samp{AC_ARG_PROGRAM} will handle this for you.  If
+you are using automake, no more need be done; the programs will
+automatically be installed with the correct prefixes.  Otherwise, see
+the autoconf documentation for @samp{AC_ARG_PROGRAM}.
+
+@node Cross Tools in the Cygnus Tree
+@section Cross Tools in the Cygnus Tree
+
+The Cygnus tree is used for various packages including gdb, the GNU
+binutils, and egcs.  It is also, of course, used for Cygnus releases.
+
+In the Cygnus tree, the top level @file{configure} script uses the old
+Cygnus configure system, not autoconf.  The top level @file{Makefile.in}
+is written to build packages based on what is in the source tree, and
+supports building a large number of tools in a single
+@samp{configure}/@samp{make} step.
+
+The Cygnus tree may be configured with a @samp{--target} option.  The
+@samp{--target} option applies recursively to every subdirectory, and
+permits building an entire set of cross tools at once.
+
+@menu
+* Host and Target Libraries::		Host and Target Libraries.
+* Target Library Configure Scripts::	Target Library Configure Scripts.
+* Make Targets in Cygnus Tree::         Make Targets in Cygnus Tree.
+* Target libiberty::			Target libiberty
+@end menu
+
+@node Host and Target Libraries
+@subsection Host and Target Libraries
+
+The Cygnus tree distinguishes host libraries from target libraries.
+
+Host libraries are built with the compiler used to build the programs
+which run on the host, which is called the host compiler.  This includes
+libraries such as @samp{bfd} and @samp{tcl}.  These libraries are built
+with the host compiler, and are linked into programs like the binutils
+or gcc which run on the host.
+
+Target libraries are built with the target compiler.  If gcc is present
+in the source tree, then the target compiler is the gcc that is built
+using the host compiler.  Target libraries are libraries such as
+@samp{newlib} and @samp{libstdc++}.  These libraries are not linked into
+the host programs, but are instead made available for use with programs
+built with the target compiler.
+
+For the rest of this section, assume that gcc is present in the source
+tree, so that it will be used to build the target libraries.
+
+There is a complication here.  The configure process needs to know which
+compiler you are going to use to build a tool; otherwise, the feature
+tests will not work correctly.  The Cygnus tree handles this by not
+configuring the target libraries until the target compiler is built.  In
+order to permit everything to build using a single
+@samp{configure}/@samp{make}, the configuration of the target libraries
+is actually triggered during the make step.
+
+When the target libraries are configured, the @samp{--target} option is
+not used.  Instead, the @samp{--host} option is used with the argument
+of the @samp{--target} option for the overall configuration.  If no
+@samp{--target} option was used for the overall configuration, the
+@samp{--host} option will be passed with the output of the
+@file{config.guess} shell script.  Any @samp{--build} option is passed
+down unchanged.
+
+This translation of configuration options is done because since the
+target libraries are compiled with the target compiler, they are being
+built in order to run on the target of the overall configuration.  By
+the definition of host, this means that their host system is the same as
+the target system of the overall configuration.
+
+The same process is used for both a native configuration and a cross
+configuration.  Even when using a native configuration, the target
+libraries will be configured and built using the newly built compiler.
+This is particularly important for the C++ libraries, since there is no
+reason to assume that the C++ compiler used to build the host tools (if
+there even is one) uses the same ABI as the g++ compiler which will be
+used to build the target libraries.
+
+There is one difference between a native configuration and a cross
+configuration.  In a native configuration, the target libraries are
+normally configured and built as siblings of the host tools.  In a cross
+configuration, the target libraries are normally built in a subdirectory
+whose name is the argument to @samp{--target}.  This is mainly for
+historical reasons.
+
+To summarize, running @samp{configure} in the Cygnus tree configures all
+the host libraries and tools, but does not configure any of the target
+libraries.  Running @samp{make} then does the following steps:
+
+@itemize @bullet
+@item
+Build the host libraries.
+@item
+Build the host programs, including gcc.  Note that we call gcc both a
+host program (since it runs on the host) and a target compiler (since it
+generates code for the target).
+@item
+Using the newly built target compiler, configure the target libraries.
+@item
+Build the target libraries.
+@end itemize
+
+The steps need not be done in precisely this order, since they are
+actually controlled by @file{Makefile} targets.
+
+@node Target Library Configure Scripts
+@subsection Target Library Configure Scripts
+
+There are a few things you must know in order to write a configure
+script for a target library.  This is just a quick sketch, and beginners
+shouldn't worry if they don't follow everything here.
+
+The target libraries are configured and built using a newly built target
+compiler.  There may not be any startup files or libraries for this
+target compiler.  In fact, those files will probably be built as part of
+some target library, which naturally means that they will not exist when
+your target library is configured.
+
+This means that the configure script for a target library may not use
+any test which requires doing a link.  This unfortunately includes many
+useful autoconf macros, such as @samp{AC_CHECK_FUNCS}.  autoconf macros
+which do a compile but not a link, such as @samp{AC_CHECK_HEADERS}, may
+be used.
+
+This is a severe restriction, but normally not a fatal one, as target
+libraries can often assume the presence of other target libraries, and
+thus know which functions will be available.
+
+As of this writing, the autoconf macro @samp{AC_PROG_CC} does a link to
+make sure that the compiler works.  This may fail in a target library,
+so target libraries must use a different set of macros to locate the
+compiler.  See the @file{configure.in} file in a directory like
+@file{libiberty} or @file{libgloss} for an example.
+
+As noted in the previous section, target libraries are sometimes built
+in directories which are siblings to the host tools, and are sometimes
+built in a subdirectory.  The @samp{--with-target-subdir} configure
+option will be passed when the library is configured.  Its value will be
+an empty string if the target library is a sibling.  Its value will be
+the name of the subdirectory if the target library is in a subdirectory.
+
+If the overall build is not a native build (i.e., the overall configure
+used the @samp{--target} option), then the library will be configured
+with the @samp{--with-cross-host} option.  The value of this option will
+be the host system of the overall build.  Recall that the host system of
+the library will be the target of the overall build.  If the overall
+build is a native build, the @samp{--with-cross-host} option will not be
+used.
+
+A library which can be built both standalone and as a target library may
+want to install itself into different directories depending upon the
+case.  When built standalone, or when built native, the library should
+be installed in @samp{$(libdir)}.  When built as a target library which
+is not native, the library should be installed in @samp{$(tooldir)/lib}.
+The @samp{--with-cross-host} option may be used to distinguish these
+cases.
+
+This same test of @samp{--with-cross-host} may be used to see whether it
+is OK to use link tests in the configure script.  If the
+@samp{--with-cross-host} option is not used, then the library is being
+built either standalone or native, and a link should work.
+
+@node Make Targets in Cygnus Tree
+@subsection Make Targets in Cygnus Tree
+
+The top level @file{Makefile} in the Cygnus tree defines targets for
+every known subdirectory.
+
+For every subdirectory @var{dir} which holds a host library or program,
+the @file{Makefile} target @samp{all-@var{dir}} will build that library
+or program.
+
+There are dependencies among host tools.  For example, building gcc
+requires first building gas, because the gcc build process invokes the
+target assembler.  These dependencies are reflected in the top level
+@file{Makefile}.
+
+For every subdirectory @var{dir} which holds a target library, the
+@file{Makefile} target @samp{configure-target-@var{dir}} will configure
+that library.  The @file{Makefile} target @samp{all-target-@var{dir}}
+will build that library.
+
+Every @samp{configure-target-@var{dir}} target depends upon
+@samp{all-gcc}, since gcc, the target compiler, is required to configure
+the tool.  Every @samp{all-target-@var{dir}} target depends upon the
+corresponding @samp{configure-target-@var{dir}} target.
+
+There are several other targets which may be of interest for each
+directory: @samp{install-@var{dir}}, @samp{clean-@var{dir}}, and
+@samp{check-@var{dir}}.  There are also corresponding @samp{target}
+versions of these for the target libraries , such as
+@samp{install-target-@var{dir}}.
+
+@node Target libiberty
+@subsection Target libiberty
+
+The @file{libiberty} subdirectory is currently a special case, in that
+it is the only directory which is built both using the host compiler and
+using the target compiler.
+
+This is because the files in @file{libiberty} are used when building the
+host tools, and they are also incorporated into the @file{libstdc++}
+target library as support code.
+
+This duality does not pose any particular difficulties.  It means that
+there are targets for both @samp{all-libiberty} and
+@samp{all-target-libiberty}.
+
+In a native configuration, when target libraries are not built in a
+subdirectory, the same objects are normally used as both the host build
+and the target build.  This is normally OK, since libiberty contains
+only C code, and in a native configuration the results of the host
+compiler and the target compiler are normally interoperable.
+
+Irix 6 is again an exception here, since the SGI native compiler
+defaults to using the @samp{O32} ABI, and gcc defaults to using the
+@samp{N32} ABI.  On Irix 6, the target libraries are built in a
+subdirectory even for a native configuration, avoiding this problem.
+
+There are currently no other libraries built for both the host and the
+target, but there is no conceptual problem with adding more.
+
+@node Canadian Cross
+@chapter Canadian Cross
+@cindex canadian cross
+@cindex building with a cross compiler
+@cindex cross compiler, building with
+
+It is possible to use the GNU configure and build system to build a
+program which will run on a system which is different from the system on
+which the tools are built.  In other words, it is possible to build
+programs using a cross compiler.
+
+This is referred to as a @dfn{Canadian Cross}.
+
+@menu
+* Canadian Cross Example::		Canadian Cross Example.
+* Canadian Cross Concepts::		Canadian Cross Concepts.
+* Build Cross Host Tools::		Build Cross Host Tools.
+* Build and Host Options::		Build and Host Options.
+* CCross not in Cygnus Tree::		Canadian Cross not in Cygnus Tree.
+* CCross in Cygnus Tree::		Canadian Cross in Cygnus Tree.
+* Supporting Canadian Cross::		Supporting Canadian Cross.
+@end menu
+
+@node Canadian Cross Example
+@section Canadian Cross Example
+
+Here is an example of a Canadian Cross.
+
+While running on a GNU/Linux, you can build a program which will run on
+a Solaris system.  You would use a GNU/Linux cross Solaris compiler to
+build the program.
+
+Of course, you could not run the resulting program on your GNU/Linux
+system.  You would have to copy it over to a Solaris system before you
+would run it.
+
+Of course, you could also simply build the programs on the Solaris
+system in the first place.  However, perhaps the Solaris system is not
+available for some reason; perhaps you actually don't have one, but you
+want to build the tools for somebody else to use.  Or perhaps your
+GNU/Linux system is much faster than your Solaris system.
+
+A Canadian Cross build is most frequently used when building programs to
+run on a non-Unix system, such as DOS or Windows.  It may be simpler to
+configure and build on a Unix system than to support the configuration
+machinery on a non-Unix system.
+
+@node Canadian Cross Concepts
+@section Canadian Cross Concepts
+
+When building a Canadian Cross, there are at least two different systems
+involved: the system on which the tools are being built, and the system
+on which the tools will run.
+
+The system on which the tools are being built is called the @dfn{build}
+system.
+
+The system on which the tools will run is called the host system.
+
+For example, if you are building a Solaris program on a GNU/Linux
+system, as in the previous section, the build system would be GNU/Linux,
+and the host system would be Solaris.
+
+It is, of course, possible to build a cross compiler using a Canadian
+Cross (i.e., build a cross compiler using a cross compiler).  In this
+case, the system for which the resulting cross compiler generates code
+is called the target system.  (For a more complete discussion of host
+and target systems, @pxref{Host and Target}).
+
+An example of building a cross compiler using a Canadian Cross would be
+building a Windows cross MIPS ELF compiler on a GNU/Linux system.  In
+this case the build system would be GNU/Linux, the host system would be
+Windows, and the target system would be MIPS ELF.
+
+The name Canadian Cross comes from the case when the build, host, and
+target systems are all different.  At the time that these issues were
+all being hashed out, Canada had three national political parties.
+
+@node Build Cross Host Tools
+@section Build Cross Host Tools
+
+In order to configure a program for a Canadian Cross build, you must
+first build and install the set of cross tools you will use to build the
+program.
+
+These tools will be build cross host tools.  That is, they will run on
+the build system, and will produce code that runs on the host system.
+
+It is easy to confuse the meaning of build and host here.  Always
+remember that the build system is where you are doing the build, and the
+host system is where the resulting program will run.  Therefore, you
+need a build cross host compiler.
+
+In general, you must have a complete cross environment in order to do
+the build.  This normally means a cross compiler, cross assembler, and
+so forth, as well as libraries and include files for the host system.
+
+@node Build and Host Options
+@section Build and Host Options
+@cindex configuring a canadian cross
+@cindex canadian cross, configuring
+
+When you run @file{configure}, you must use both the @samp{--build} and
+@samp{--host} options.
+
+@cindex @samp{--build} option
+@cindex build option
+@cindex configure build system
+The @samp{--build} option is used to specify the configuration name of
+the build system.  This can normally be the result of running the
+@file{config.guess} shell script, and it is reasonable to use
+@samp{--build=`config.guess`}.
+
+@cindex @samp{--host} option
+@cindex host option
+@cindex configure host
+The @samp{--host} option is used to specify the configuration name of
+the host system.
+
+As we explained earlier, @file{config.guess} is used to set the default
+value for the @samp{--host} option (@pxref{Using the Host Type}).  We
+can now see that since @file{config.guess} returns the type of system on
+which it is run, it really identifies the build system.  Since the host
+system is normally the same as the build system (i.e., people do not
+normally build using a cross compiler), it is reasonable to use the
+result of @file{config.guess} as the default for the host system when
+the @samp{--host} option is not used.
+
+It might seem that if the @samp{--host} option were used without the
+@samp{--build} option that the configure script could run
+@file{config.guess} to determine the build system, and presume a
+Canadian Cross if the result of @file{config.guess} differed from the
+@samp{--host} option.  However, for historical reasons, some configure
+scripts are routinely run using an explicit @samp{--host} option, rather
+than using the default from @file{config.guess}.  As noted earlier, it
+is difficult or impossible to reliably compare configuration names
+(@pxref{Using the Target Type}).  Therefore, by convention, if the
+@samp{--host} option is used, but the @samp{--build} option is not used,
+then the build system defaults to the host system.
+
+@node CCross not in Cygnus Tree
+@section Canadian Cross not in Cygnus Tree.
+
+If you are not using the Cygnus tree, you must explicitly specify the
+cross tools which you want to use to build the program.  This is done by
+setting environment variables before running the @file{configure}
+script.
+
+You must normally set at least the environment variables @samp{CC},
+@samp{AR}, and @samp{RANLIB} to the cross tools which you want to use to
+build.
+
+For some programs, you must set additional cross tools as well, such as
+@samp{AS}, @samp{LD}, or @samp{NM}.
+
+You would set these environment variables to the build cross tools which
+you are going to use.
+
+For example, if you are building a Solaris program on a GNU/Linux
+system, and your GNU/Linux cross Solaris compiler were named
+@samp{solaris-gcc}, then you would set the environment variable
+@samp{CC} to @samp{solaris-gcc}.
+
+@node CCross in Cygnus Tree
+@section Canadian Cross in Cygnus Tree
+@cindex canadian cross in cygnus tree
+
+This section describes configuring and building a Canadian Cross when
+using the Cygnus tree.
+
+@menu
+* Standard Cygnus CCross::	Building a Normal Program.
+* Cross Cygnus CCross::		Building a Cross Program.
+@end menu
+
+@node Standard Cygnus CCross
+@subsection Building a Normal Program
+
+When configuring a Canadian Cross in the Cygnus tree, all the
+appropriate environment variables are automatically set to
+@samp{@var{host}-@var{tool}}, where @var{host} is the value used for the
+@samp{--host} option, and @var{tool} is the name of the tool (e.g.,
+@samp{gcc}, @samp{as}, etc.).  These tools must be on your @samp{PATH}.
+
+Adding a prefix of @var{host} will give the usual name for the build
+cross host tools.  To see this, consider that when these cross tools
+were built, they were configured to run on the build system and to
+produce code for the host system.  That is, they were configured with a
+@samp{--target} option that is the same as the system which we are now
+calling the host.  Recall that the default name for installed cross
+tools uses the target system as a prefix (@pxref{Using the Target
+Type}).  Since that is the system which we are now calling the host,
+@var{host} is the right prefix to use.
+
+For example, if you configure with @samp{--build=i386-linux-gnu} and
+@samp{--host=solaris}, then the Cygnus tree will automatically default
+to using the compiler @samp{solaris-gcc}.  You must have previously
+built and installed this compiler, probably by doing a build with no
+@samp{--host} option and with a @samp{--target} option of
+@samp{solaris}.
+
+@node Cross Cygnus CCross
+@subsection Building a Cross Program
+
+There are additional considerations if you want to build a cross
+compiler, rather than a native compiler, in the Cygnus tree using a
+Canadian Cross.
+
+When you build a cross compiler using the Cygnus tree, then the target
+libraries will normally be built with the newly built target compiler
+(@pxref{Host and Target Libraries}).  However, this will not work when
+building with a Canadian Cross.  This is because the newly built target
+compiler will be a program which runs on the host system, and therefore
+will not be able to run on the build system.
+
+Therefore, when building a cross compiler with the Cygnus tree, you must
+first install a set of build cross target tools.  These tools will be
+used when building the target libraries.
+
+Note that this is not a requirement of a Canadian Cross in general.  For
+example, it would be possible to build just the host cross target tools
+on the build system, to copy the tools to the host system, and to build
+the target libraries on the host system.  The requirement for build
+cross target tools is imposed by the Cygnus tree, which expects to be
+able to build both host programs and target libraries in a single
+@samp{configure}/@samp{make} step.  Because it builds these in a single
+step, it expects to be able to build the target libraries on the build
+system, which means that it must use a build cross target toolchain.
+
+For example, suppose you want to build a Windows cross MIPS ELF compiler
+on a GNU/Linux system.  You must have previously installed both a
+GNU/Linux cross Windows compiler and a GNU/Linux cross MIPS ELF
+compiler.
+
+In order to build the Windows (configuration name @samp{i386-cygwin32})
+cross MIPS ELF (configure name @samp{mips-elf}) compiler, you might
+execute the following commands (long command lines are broken across
+lines with a trailing backslash as a continuation character).
+
+@example
+mkdir linux-x-cygwin32
+cd linux-x-cygwin32
+@var{srcdir}/configure --target i386-cygwin32 --prefix=@var{installdir} \
+  --exec-prefix=@var{installdir}/H-i386-linux
+make
+make install
+cd ..
+mkdir linux-x-mips-elf
+cd linux-x-mips-elf
+@var{srcdir}/configure --target mips-elf --prefix=@var{installdir} \
+  --exec-prefix=@var{installdir}/H-i386-linux
+make
+make install
+cd ..
+mkdir cygwin32-x-mips-elf
+cd cygwin32-x-mips-elf
+@var{srcdir}/configure --build=i386-linux-gnu --host=i386-cygwin32 \
+  --target=mips-elf --prefix=@var{wininstalldir} \
+  --exec-prefix=@var{wininstalldir}/H-i386-cygwin32
+make
+make install
+@end example
+
+You would then copy the contents of @var{wininstalldir} over to the
+Windows machine, and run the resulting programs.
+
+@node Supporting Canadian Cross
+@section Supporting Canadian Cross
+
+If you want to make it possible to build a program you are developing
+using a Canadian Cross, you must take some care when writing your
+configure and make rules.  Simple cases will normally work correctly.
+However, it is not hard to write configure and make tests which will
+fail in a Canadian Cross.
+
+@menu
+* CCross in Configure::		Supporting Canadian Cross in Configure Scripts.
+* CCross in Make::		Supporting Canadian Cross in Makefiles.
+@end menu
+
+@node CCross in Configure
+@subsection Supporting Canadian Cross in Configure Scripts
+@cindex canadian cross in configure
+
+In a @file{configure.in} file, after calling @samp{AC_PROG_CC}, you can
+find out whether this is a Canadian Cross configure by examining the
+shell variable @samp{cross_compiling}.  In a Canadian Cross, which means
+that the compiler is a cross compiler, @samp{cross_compiling} will be
+@samp{yes}.  In a normal configuration, @samp{cross_compiling} will be
+@samp{no}.
+
+You ordinarily do not need to know the type of the build system in a
+configure script.  However, if you do need that information, you can get
+it by using the macro @samp{AC_CANONICAL_SYSTEM}, the same macro that is
+used to determine the target system.  This macro will set the variables
+@samp{build}, @samp{build_alias}, @samp{build_cpu}, @samp{build_vendor},
+and @samp{build_os}, which correspond to the similar @samp{target} and
+@samp{host} variables, except that they describe the build system.
+
+When writing tests in @file{configure.in}, you must remember that you
+want to test the host environment, not the build environment.
+
+Macros like @samp{AC_CHECK_FUNCS} which use the compiler will test the
+host environment.  That is because the tests will be done by running the
+compiler, which is actually a build cross host compiler.  If the
+compiler can find the function, that means that the function is present
+in the host environment.
+
+Tests like @samp{test -f /dev/ptyp0}, on the other hand, will test the
+build environment.  Remember that the configure script is running on the
+build system, not the host system.  If your configure scripts examines
+files, those files will be on the build system.  Whatever you determine
+based on those files may or may not be the case on the host system.
+
+Most autoconf macros will work correctly for a Canadian Cross.  The main
+exception is @samp{AC_TRY_RUN}.  This macro tries to compile and run a
+test program.  This will fail in a Canadian Cross, because the program
+will be compiled for the host system, which means that it will not run
+on the build system.
+
+The @samp{AC_TRY_RUN} macro provides an optional argument to tell the
+configure script what to do in a Canadian Cross.  If that argument is
+not present, you will get a warning when you run @samp{autoconf}:
+@smallexample
+warning: AC_TRY_RUN called without default to allow cross compiling
+@end smallexample
+@noindent
+This tells you that the resulting @file{configure} script will not work
+with a Canadian Cross.
+
+In some cases while it may better to perform a test at configure time,
+it is also possible to perform the test at run time.  In such a case you
+can use the cross compiling argument to @samp{AC_TRY_RUN} to tell your
+program that the test could not be performed at configure time.
+
+There are a few other autoconf macros which will not work correctly with
+a Canadian Cross: a partial list is @samp{AC_FUNC_GETPGRP},
+@samp{AC_FUNC_SETPGRP}, @samp{AC_FUNC_SETVBUF_REVERSED}, and
+@samp{AC_SYS_RESTARTABLE_SYSCALLS}.  The @samp{AC_CHECK_SIZEOF} macro is
+generally not very useful with a Canadian Cross; it permits an optional
+argument indicating the default size, but there is no way to know what
+the correct default should be.
+
+@node CCross in Make
+@subsection Supporting Canadian Cross in Makefiles.
+@cindex canadian cross in makefile
+
+The main Canadian Cross issue in a @file{Makefile} arises when you want
+to use a subsidiary program to generate code or data which you will then
+include in your real program.
+
+If you compile this subsidiary program using @samp{$(CC)} in the usual
+way, you will not be able to run it.  This is because @samp{$(CC)} will
+build a program for the host system, but the program is being built on
+the build system.
+
+You must instead use a compiler for the build system, rather than the
+host system.  In the Cygnus tree, this make variable
+@samp{$(CC_FOR_BUILD)} will hold a compiler for the build system.
+
+Note that you should not include @file{config.h} in a file you are
+compiling with @samp{$(CC_FOR_BUILD)}.  The @file{configure} script will
+build @file{config.h} with information for the host system.  However,
+you are compiling the file using a compiler for the build system (a
+native compiler).  Subsidiary programs are normally simple filters which
+do no user interaction, and it is normally possible to write them in a
+highly portable fashion so that the absence of @file{config.h} is not
+crucial.
+
+@cindex @samp{HOST_CC}
+The gcc @file{Makefile.in} shows a complex situation in which certain
+files, such as @file{rtl.c}, must be compiled into both subsidiary
+programs run on the build system and into the final program.  This
+approach may be of interest for advanced build system hackers.  Note
+that the build system compiler is rather confusingly called
+@samp{HOST_CC}.
+
+@node Cygnus Configure
+@chapter Cygnus Configure
+@cindex cygnus configure
+
+The Cygnus configure script predates autoconf.  All of its interesting
+features have been incorporated into autoconf.  No new programs should
+be written to use the Cygnus configure script.
+
+However, the Cygnus configure script is still used in a few places: at
+the top of the Cygnus tree and in a few target libraries in the Cygnus
+tree.  Until those uses have been replaced with autoconf, some brief
+notes are appropriate here.  This is not complete documentation, but it
+should be possible to use this as a guide while examining the scripts
+themselves.
+
+@menu
+* Cygnus Configure Basics::		Cygnus Configure Basics.
+* Cygnus Configure in C++ Libraries::	Cygnus Configure in C++ Libraries.
+@end menu
+
+@node Cygnus Configure Basics
+@section Cygnus Configure Basics
+
+Cygnus configure does not use any generated files; there is no program
+corresponding to @samp{autoconf}.  Instead, there is a single shell
+script named @samp{configure} which may be found at the top of the
+Cygnus tree.  This shell script was written by hand; it was not
+generated by autoconf, and it is incorrect, and indeed harmful, to run
+@samp{autoconf} in the top level of a Cygnus tree.
+
+Cygnus configure works in a particular directory by examining the file
+@file{configure.in} in that directory.  That file is broken into four
+separate shell scripts.
+
+The first is the contents of @file{configure.in} up to a line that
+starts with @samp{# per-host:}.  This is the common part.
+
+The second is the rest of @file{configure.in} up to a line that starts
+with @samp{# per-target:}.  This is the per host part.
+
+The third is the rest of @file{configure.in} up to a line that starts
+with @samp{# post-target:}.  This is the per target part.
+
+The fourth is the remainder of @file{configure.in}.  This is the post
+target part.
+
+If any of these comment lines are missing, the corresponding shell
+script is empty.
+
+Cygnus configure will first execute the common part.  This must set the
+shell variable @samp{srctrigger} to the name of a source file, to
+confirm that Cygnus configure is looking at the right directory.  This
+may set the shell variables @samp{package_makefile_frag} and
+@samp{package_makefile_rules_frag}.
+
+Cygnus configure will next set the @samp{build} and @samp{host} shell
+variables, and execute the per host part.  This may set the shell
+variable @samp{host_makefile_frag}.
+
+Cygnus configure will next set the @samp{target} variable, and execute
+the per target part.  This may set the shell variable
+@samp{target_makefile_frag}.
+
+Any of these scripts may set the @samp{subdirs} shell variable.  This
+variable is a list of subdirectories where a @file{Makefile.in} file may
+be found.  Cygnus configure will automatically look for a
+@file{Makefile.in} file in the current directory.  The @samp{subdirs}
+shell variable is not normally used, and I believe that the only
+directory which uses it at present is @file{newlib}.
+
+For each @file{Makefile.in}, Cygnus configure will automatically create
+a @file{Makefile} by adding definitions for @samp{make} variables such
+as @samp{host} and @samp{target}, and automatically editing the values
+of @samp{make} variables such as @samp{prefix} if they are present.
+
+Also, if any of the @samp{makefile_frag} shell variables are set, Cygnus
+configure will interpret them as file names relative to either the
+working directory or the source directory, and will read the contents of
+the file into the generated @file{Makefile}.  The file contents will be
+read in after the first line in @file{Makefile.in} which starts with
+@samp{####}.
+
+These @file{Makefile} fragments are used to customize behaviour for a
+particular host or target.  They serve to select particular files to
+compile, and to define particular preprocessor macros by providing
+values for @samp{make} variables which are then used during compilation.
+Cygnus configure, unlike autoconf, normally does not do feature tests,
+and normally requires support to be added manually for each new host.
+
+The @file{Makefile} fragment support is similar to the autoconf
+@samp{AC_SUBST_FILE} macro.
+
+After creating each @file{Makefile}, the post target script will be run
+(i.e., it may be run several times).  This script may further customize
+the @file{Makefile}.  When it is run, the shell variable @samp{Makefile}
+will hold the name of the @file{Makefile}, including the appropriate
+directory component.
+
+Like an autoconf generated @file{configure} script, Cygnus configure
+will create a file named @file{config.status} which, when run, will
+automatically recreate the configuration.  The @file{config.status} file
+will simply execute the Cygnus configure script again with the
+appropriate arguments.
+
+Any of the parts of @file{configure.in} may set the shell variables
+@samp{files} and @samp{links}.  Cygnus configure will set up symlinks
+from the names in @samp{links} to the files named in @samp{files}.  This
+is similar to the autoconf @samp{AC_LINK_FILES} macro.
+
+Finally, any of the parts of @file{configure.in} may set the shell
+variable @samp{configdirs} to a set of subdirectories.  If it is set,
+Cygnus configure will recursively run the configure process in each
+subdirectory.  If the subdirectory uses Cygnus configure, it will
+contain a @file{configure.in} file but no @file{configure} file, in
+which case Cygnus configure will invoke itself recursively.  If the
+subdirectory has a @file{configure} file, Cygnus configure assumes that
+it is an autoconf generated @file{configure} script, and simply invokes
+it directly.
+
+@node Cygnus Configure in C++ Libraries
+@section Cygnus Configure in C++ Libraries
+@cindex @file{libstdc++} configure
+@cindex @file{libio} configure
+@cindex @file{libg++} configure
+
+The C++ library configure system, written by Per Bothner, deserves
+special mention.  It uses Cygnus configure, but it does feature testing
+like that done by autoconf generated @file{configure} scripts.  This
+approach is used in the libraries @file{libio}, @file{libstdc++}, and
+@file{libg++}.
+
+Most of the @file{Makefile} information is written out by the shell
+script @file{libio/config.shared}.  Each @file{configure.in} file sets
+certain shell variables, and then invokes @file{config.shared} to create
+two package @file{Makefile} fragments.  These fragments are then
+incorporated into the resulting @file{Makefile} by the Cygnus configure
+script.
+
+The file @file{_G_config.h} is created in the @file{libio} object
+directory by running the shell script @file{libio/gen-params}.  This
+shell script uses feature tests to define macros and typedefs in
+@file{_G_config.h}.
+
+@node Multilibs
+@chapter Multilibs
+@cindex multilibs
+
+For some targets gcc may have different processor requirements depending
+upon command line options.  An obvious example is the
+@samp{-msoft-float} option supported on several processors.  This option
+means that the floating point registers are not available, which means
+that floating point operations must be done by calling an emulation
+subroutine rather than by using machine instructions.
+
+For such options, gcc is often configured to compile target libraries
+twice: once with @samp{-msoft-float} and once without.  When gcc
+compiles target libraries more than once, the resulting libraries are
+called @dfn{multilibs}.
+
+Multilibs are not really part of the GNU configure and build system, but
+we discuss them here since they require support in the @file{configure}
+scripts and @file{Makefile}s used for target libraries.
+
+@menu
+* Multilibs in gcc::		        Multilibs in gcc.
+* Multilibs in Target Libraries::	Multilibs in Target Libraries.
+@end menu
+
+@node Multilibs in gcc
+@section Multilibs in gcc
+
+In gcc, multilibs are defined by setting the variable
+@samp{MULTILIB_OPTIONS} in the target @file{Makefile} fragment.  Several
+other @samp{MULTILIB} variables may also be defined there.  @xref{Target
+Fragment, , The Target Makefile Fragment, gcc, Using and Porting GNU
+CC}.
+
+If you have built gcc, you can see what multilibs it uses by running it
+with the @samp{-print-multi-lib} option.  The output @samp{.;} means
+that no multilibs are used.  In general, the output is a sequence of
+lines, one per multilib.  The first part of each line, up to the
+@samp{;}, is the name of the multilib directory.  The second part is a
+list of compiler options separated by @samp{@@} characters.
+
+Multilibs are built in a tree of directories.  The top of the tree,
+represented by @samp{.} in the list of multilib directories, is the
+default library to use when no special compiler options are used.  The
+subdirectories of the tree hold versions of the library to use when
+particular compiler options are used.
+
+@node Multilibs in Target Libraries
+@section Multilibs in Target Libraries
+
+The target libraries in the Cygnus tree are automatically built with
+multilibs.  That means that each library is built multiple times.
+
+This default is set in the top level @file{configure.in} file, by adding
+@samp{--enable-multilib} to the list of arguments passed to configure
+when it is run for the target libraries (@pxref{Host and Target
+Libraries}).
+
+Each target library uses the shell script @file{config-ml.in}, written
+by Doug Evans, to prepare to build target libraries.  This shell script
+is invoked after the @file{Makefile} has been created by the
+@file{configure} script.  If multilibs are not enabled, it does nothing,
+otherwise it modifies the @file{Makefile} to support multilibs.
+
+The @file{config-ml.in} script makes one copy of the @file{Makefile} for
+each multilib in the appropriate subdirectory.  When configuring in the
+source directory (which is not recommended), it will build a symlink
+tree of the sources in each subdirectory.
+
+The @file{config-ml.in} script sets several variables in the various
+@file{Makefile}s.  The @file{Makefile.in} must have definitions for
+these variables already; @file{config-ml.in} simply changes the existing
+values.  The @file{Makefile} should use default values for these
+variables which will do the right thing in the subdirectories.
+
+@table @samp
+@item MULTISRCTOP
+@file{config-ml.in} will set this to a sequence of @samp{../} strings,
+where the number of strings is the number of multilib levels in the
+source tree.  The default value should be the empty string.
+@item MULTIBUILDTOP
+@file{config-ml.in} will set this to a sequence of @samp{../} strings,
+where the number of strings is number of multilib levels in the object
+directory.  The default value should be the empty string.  This will
+differ from @samp{MULTISRCTOP} when configuring in the source tree
+(which is not recommended).
+@item MULTIDIRS
+In the top level @file{Makefile} only, @file{config-ml.in} will set this
+to the list of multilib subdirectories.  The default value should be the
+empty string.
+@item MULTISUBDIR
+@file{config-ml.in} will set this to the installed subdirectory name to
+use for this subdirectory, with a leading @samp{/}.  The default value
+shold be the empty string.
+@item MULTIDO
+@itemx MULTICLEAN
+In the top level @file{Makefile} only, @file{config-ml.in} will set
+these variables to commands to use when doing a recursive make.  These
+variables should both default to the string @samp{true}, so that by
+default nothing happens.
+@end table
+
+All references to the parent of the source directory should use the
+variable @samp{MULTISRCTOP}.  Instead of writing @samp{$(srcdir)/..},
+you must write @samp{$(srcdir)/$(MULTISRCTOP)..}.
+
+Similarly, references to the parent of the object directory should use
+the variable @samp{MULTIBUILDTOP}.
+
+In the installation target, the libraries should be installed in the
+subdirectory @samp{MULTISUBDIR}.  Instead of installing
+@samp{$(libdir)/libfoo.a}, install
+@samp{$(libdir)$(MULTISUBDIR)/libfoo.a}.
+
+The @file{config-ml.in} script also modifies the top level
+@file{Makefile} to add @samp{multi-do} and @samp{multi-clean} targets
+which are used when building multilibs.
+
+The default target of the @file{Makefile} should include the following
+command:
+@smallexample
+@@$(MULTIDO) $(FLAGS_TO_PASS) DO=all multi-do
+@end smallexample
+@noindent
+This assumes that @samp{$(FLAGS_TO_PASS)} is defined as a set of
+variables to pass to a recursive invocation of @samp{make}.  This will
+build all the multilibs.  Note that the default value of @samp{MULTIDO}
+is @samp{true}, so by default this command will do nothing.  It will
+only do something in the top level @file{Makefile} if multilibs were
+enabled.
+
+The @samp{install} target of the @file{Makefile} should include the
+following command:
+@smallexample
+@@$(MULTIDO) $(FLAGS_TO_PASS) DO=install multi-do
+@end smallexample
+
+In general, any operation, other than clean, which should be performed
+on all the multilibs should use a @samp{$(MULTIDO)} line, setting the
+variable @samp{DO} to the target of each recursive call to @samp{make}.
+
+The @samp{clean} targets (@samp{clean}, @samp{mostlyclean}, etc.) should
+use @samp{$(MULTICLEAN)}.  For example, the @samp{clean} target should
+do this:
+@smallexample
+@@$(MULTICLEAN) DO=clean multi-clean
+@end smallexample
+
+@node FAQ
+@chapter Frequently Asked Questions
+
+@table @asis
+@item Which do I run first, @samp{autoconf} or @samp{automake}?
+Except when you first add autoconf or automake support to a package, you
+shouldn't run either by hand.  Instead, configure with the
+@samp{--enable-maintainer-mode} option, and let @samp{make} take care of
+it.
+
+@cindex undefined macros
+@item @samp{autoconf} says something about undefined macros.
+This means that you have macros in your @file{configure.in} which are
+not defined by @samp{autoconf}.  You may be using an old version of
+@samp{autoconf}; try building and installing a newer one.  Make sure the
+newly installled @samp{autoconf} is first on your @samp{PATH}.  Also,
+see the next question.
+
+@cindex @samp{CY_GNU_GETTEXT} in @file{configure}
+@cindex @samp{AM_PROG_LIBTOOL} in @file{configure}
+@item My @file{configure} script has stuff like @samp{CY_GNU_GETTEXT} in it.
+This means that you have macros in your @file{configure.in} which should
+be defined in your @file{aclocal.m4} file, but aren't.  This usually
+means that @samp{aclocal} was not able to appropriate definitions of the
+macros.  Make sure that you have installed all the packages you need.
+In particular, make sure that you have installed libtool (this is where
+@samp{AM_PROG_LIBTOOL} is defined) and gettext (this is where
+@samp{CY_GNU_GETTEXT} is defined, at least in the Cygnus version of
+gettext).
+
+@cindex @file{Makefile}, garbage characters
+@item My @file{Makefile} has @samp{@@} characters in it.
+This may mean that you tried to use an autoconf substitution in your
+@file{Makefile.in} without adding the appropriate @samp{AC_SUBST} call
+to your @file{configure} script.  Or it may just mean that you need to
+rebuild @file{Makefile} in your build directory.  To rebuild
+@file{Makefile} from @file{Makefile.in}, run the shell script
+@file{config.status} with no arguments.  If you need to force
+@file{configure} to run again, first run @samp{config.status --recheck}.
+These runs are normally done automatically by @file{Makefile} targets,
+but if your @file{Makefile} has gotten messed up you'll need to help
+them along.
+
+@cindex @samp{config.status --recheck}
+@item Why do I have to run both @samp{config.status --recheck} and @samp{config.status}?
+Normally, you don't; they will be run automatically by @file{Makefile}
+targets.  If you do need to run them, use @samp{config.status --recheck}
+to run the @file{configure} script again with the same arguments as the
+first time you ran it.  Use @samp{config.status} (with no arguments) to
+regenerate all files (@file{Makefile}, @file{config.h}, etc.) based on
+the results of the configure script.  The two cases are separate because
+it isn't always necessary to regenerate all the files after running
+@samp{config.status --recheck}.  The @file{Makefile} targets generated
+by automake will use the environment variables @samp{CONFIG_FILES} and
+@samp{CONFIG_HEADERS} to only regenerate files as they are needed.
+
+@item What is the Cygnus tree?
+The Cygnus tree is used for various packages including gdb, the GNU
+binutils, and egcs.  It is also, of course, used for Cygnus releases.
+It is the build system which was developed at Cygnus, using the Cygnus
+configure script.  It permits building many different packages with a
+single configure and make.  The configure scripts in the tree are being
+converted to autoconf, but the general build structure remains intact.
+
+@item Why do I have to keep rebuilding and reinstalling the tools?
+I know, it's a pain.  Unfortunately, there are bugs in the tools
+themselves which need to be fixed, and each time that happens everybody
+who uses the tools need to reinstall new versions of them.  I don't know
+if there is going to be a clever fix until the tools stabilize.
+
+@item Why not just have a Cygnus tree @samp{make} target to update the tools?
+The tools unfortunately need to be installed before they can be used.
+That means that they must be built using an appropriate prefix, and it
+seems unwise to assume that every configuration uses an appropriate
+prefix.  It might be possible to make them work in place, or it might be
+possible to install them in some subdirectory; so far these approaches
+have not been implemented.
+@end table
+
+@node Index
+@unnumbered Index
+
+@printindex cp
+
+@contents
+@bye
