@@ -58,7 +58,7 @@ SYSCTL_INT(_hw_usb2_u3g, OID_AUTO, debug, CTLFLAG_RW,
     &u3g_debug, 0, "Debug level");
 #endif
 
-#define	U3G_MAXPORTS		4
+#define	U3G_MAXPORTS		8
 #define	U3G_CONFIG_INDEX	0
 #define	U3G_BSIZE		2048
 
@@ -202,6 +202,7 @@ static const struct usb2_device_id u3g_devs[] = {
 	U3G_DEV(SIERRA, AC881, 0),
 	U3G_DEV(SIERRA, AC881E, 0),
 	U3G_DEV(SIERRA, AC881U, 0),
+	U3G_DEV(SIERRA, AC885U, 0),
 	U3G_DEV(SIERRA, EM5625, 0),
 	U3G_DEV(SIERRA, MC5720, 0),
 	U3G_DEV(SIERRA, MC5720_2, 0),
