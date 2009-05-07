@@ -1,4 +1,4 @@
-.\" Copyright (c) 2008 David Xu <davidxu@freebsd.org>
+.\" Copyright (c) 2009 Ed Schouten <ed@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,28 +24,40 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 15, 2008
-.Dt TCGETSID 3
+.Dd May 4, 2009
+.Dt TCSETSID 3
 .Os
 .Sh NAME
-.Nm tcgetsid
-.Nd get session ID associated with a controlling terminal
+.Nm tcsetsid
+.Nd set session ID associated with a controlling terminal
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In sys/types.h
 .In termios.h
-.Ft pid_t
-.Fn tcgetsid "int fd"
+.Ft int
+.Fn tcsetsid "int fd" "pid_t pid"
 .Sh DESCRIPTION
 The
-.Fn tcgetsid
-function returns the process group ID of the session leader for a
-controlling terminal specified by
+.Fn tcsetsid
+function sets associates a session identified by
+.Fa pid
+with a controlling terminal specified by
 .Fa fd .
+.Pp
+This implementation only allows the controlling terminal to be changed
+by the session leader itself.
+This implies that
+.Fa pid
+always has to be equal to the process ID.
+.Pp
+It is unsupported to associate with a terminal that already has an
+associated session.
+Conversely, it is also unsupported to associate to a terminal when
+the session is already associated with a different terminal.
 .Sh ERRORS
 If an error occurs,
-.Fn tcgetsid
+.Fn tcsetsid
 returns -1 and the global variable
 .Va errno
 is set to indicate the error, as follows:
@@ -55,18 +67,26 @@ The
 .Fa fd
 argument is not a valid file descriptor.
 .It Bq Er ENOTTY
-The calling process does not have a controlling terminal or the
-underlying terminal device represented by
+The file descriptor represented by
 .Fa fd
-is not the controlling terminal.
+is not a terminal.
+.It Bq Er EINVAL
+The
+.Fa pid
+argument is not equal to the session ID of the calling process.
+.It Bq Er EPERM
+The calling process is not a session leader.
+.It Bq Er EPERM
+The session already has an associated terminal or the terminal already
+has an associated session.
 .El
 .Sh SEE ALSO
 .Xr getsid 2 ,
 .Xr setsid 2 ,
 .Xr tcgetpgrp 3 ,
-.Xr tcsetsid 3
-.Sh STANDARDS
-The
-.Fn tcgetsid
-function conforms to
-.St -xpg4.2 .
+.Xr tcgetsid 3
+.Sh HISTORY
+A
+.Fn tcsetsid
+function first appeared in QNX.
+It does not comply to any standard.
