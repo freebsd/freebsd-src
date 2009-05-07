@@ -1199,7 +1199,9 @@ dmu_init(void)
 void
 dmu_fini(void)
 {
+#ifdef _KERNEL
 	vn_rele_async_fini();
+#endif
 	arc_fini();
 	dnode_fini();
 	dbuf_fini();
