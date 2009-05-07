@@ -31,6 +31,9 @@
 #ifndef _LINUX_MIB_H_
 #define _LINUX_MIB_H_
 
+void	linux_osd_jail_register(void);
+void	linux_osd_jail_deregister(void);
+
 void	linux_get_osname(struct thread *td, char *dst);
 int	linux_set_osname(struct thread *td, char *osname);
 
