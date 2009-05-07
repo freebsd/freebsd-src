@@ -599,7 +599,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	bsd_args.type = args->type;
 	bsd_args.domain = linux_to_bsd_domain(args->domain);
 	if (bsd_args.domain == -1)
-		return (EINVAL);
+		return (EAFNOSUPPORT);
 
 	retval_socket = socket(td, &bsd_args);
 	if (bsd_args.type == SOCK_RAW
