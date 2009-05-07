@@ -223,8 +223,7 @@ linux_prison_check(void *obj __unused, void *data)
 {
 	struct vfsoptlist *opts = data;
 	char *osname, *osrelease;
-	size_t len;
-	int error, oss_version;
+	int error, len, oss_version;
 
 	/* Check that the parameters are correct. */
 	(void)vfs_flagopt(opts, "linux", NULL, 0);
@@ -263,8 +262,7 @@ linux_prison_set(void *obj, void *data)
 	struct prison *pr = obj;
 	struct vfsoptlist *opts = data;
 	char *osname, *osrelease;
-	size_t len;
-	int error, gotversion, nolinux, oss_version, yeslinux;
+	int error, gotversion, len, nolinux, oss_version, yeslinux;
 
 	/* Set the parameters, which should be correct. */
 	yeslinux = vfs_flagopt(opts, "linux", NULL, 0);
