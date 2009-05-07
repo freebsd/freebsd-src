@@ -342,7 +342,7 @@ The following when placed in the file
 will cause a bridge called
 .Dq Li bridge0
 to be created, and will add the interfaces
-.Dq Li ath0
+.Dq Li wlan0
 and
 .Dq Li fxp0
 to the bridge, and then enable packet forwarding.
@@ -351,14 +351,14 @@ Such a configuration could be used to implement a simple
 in ad-hoc mode).
 .Bd -literal -offset indent
 cloned_interfaces="bridge0"
-ifconfig_bridge0="addm ath0 addm fxp0 up"
+ifconfig_bridge0="addm wlan0 addm fxp0 up"
 .Ed
 .Pp
 For the bridge to forward packets all member interfaces and the bridge need
 to be up.
 The above example would also require:
 .Bd -literal -offset indent
-ifconfig_ath0="up ssid my_ap mode 11g mediaopt hostap"
+ifconfig_wlan0="up ssid my_ap mode 11g mediaopt hostap"
 ifconfig_fxp0="up"
 .Ed
 .Pp
