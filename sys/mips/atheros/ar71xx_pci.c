@@ -68,9 +68,33 @@ struct ar71xx_pci_softc {
 	struct rman		sc_mem_rman;
 	struct rman		sc_irq_rman;
 
+	struct intr_event	*sc_eventstab[AR71XX_PCI_NIRQS];	
 	struct resource		*sc_irq;
 	void			*sc_ih;
 };
+
+static int ar71xx_pci_setup_intr(device_t, device_t, struct resource *, int, 
+		    driver_filter_t *, driver_intr_t *, void *, void **);
+static int ar71xx_pci_teardown_intr(device_t, device_t, struct resource *,
+		    void *);
+static int ar71xx_pci_intr(void *);
+
+static void ar71xx_pci_mask_irq(unsigned int irq)
+{
+	uint32_t reg;
+
+	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
+	ATH_WRITE_REG(AR71XX_PCI_INTR_MASK, reg & ~(1 << irq));
+
+}
+
+static void ar71xx_pci_unmask_irq(unsigned int irq)
+{
+	uint32_t reg;
+
+	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
+	ATH_WRITE_REG(AR71XX_PCI_INTR_MASK, reg | (1 << irq));
+}
 
 /* 
  * get bitmask for bytes of interest: 
@@ -213,13 +237,6 @@ ar71xx_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
 }
 
 static int
-at71xx_pci_intr(void *v)
-{
-	panic("Implement me: %s\n", __func__);
-	return FILTER_HANDLED;
-}
-
-static int
 ar71xx_pci_probe(device_t dev)
 {
 
@@ -261,7 +278,7 @@ ar71xx_pci_attach(device_t dev)
 	}
 
 	if ((bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC,
-			    at71xx_pci_intr, NULL, sc, &sc->sc_ih))) {
+			    ar71xx_pci_intr, NULL, sc, &sc->sc_ih))) {
 		device_printf(dev, 
 		    "WARNING: unable to register interrupt handler\n");
 		return ENXIO;
@@ -369,11 +386,85 @@ ar71xx_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-ar71xx_pci_teardown_intr(device_t dev, device_t child, struct resource *res,
+ar71xx_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
+		int flags, driver_filter_t *filt, driver_intr_t *handler,
+		void *arg, void **cookiep)
+{
+	struct ar71xx_pci_softc *sc = device_get_softc(bus);
+	struct intr_event *event;
+	int irq, error;
+
+	irq = rman_get_start(ires);
+
+	if (irq > AR71XX_PCI_IRQ_END)
+		panic("%s: bad irq %d", __func__, irq);
+
+	event = sc->sc_eventstab[irq];
+	if (event == NULL) {
+		error = intr_event_create(&event, (void *)irq, 0, irq, 
+		    (mask_fn)ar71xx_pci_mask_irq, 
+		    (mask_fn)ar71xx_pci_unmask_irq,
+		    NULL, NULL,
+		    "ar71xx_pci intr%d:", irq);
+
+		sc->sc_eventstab[irq] = event;
+	}
+
+	intr_event_add_handler(event, device_get_nameunit(child), filt,
+	    handler, arg, intr_priority(flags), flags, cookiep);
+
+	ar71xx_pci_unmask_irq(irq);
+
+	return (0);
+}
+
+static int
+ar71xx_pci_teardown_intr(device_t dev, device_t child, struct resource *ires,
     void *cookie)
 {
+	struct ar71xx_pci_softc *sc = device_get_softc(dev);
+	int irq, result;
 
-	return (intr_event_remove_handler(cookie));
+	irq = rman_get_start(ires);
+	if (irq > AR71XX_PCI_IRQ_END)
+		panic("%s: bad irq %d", __func__, irq);
+
+	if (sc->sc_eventstab[irq] == NULL)
+		panic("Trying to teardown unoccupied IRQ");
+
+	ar71xx_pci_mask_irq(irq);
+
+	result = intr_event_remove_handler(cookie);
+	if (!result)
+		sc->sc_eventstab[irq] = NULL;
+
+	return (result);
+}
+
+static int
+ar71xx_pci_intr(void *arg)
+{
+	struct ar71xx_pci_softc *sc = arg;
+	struct intr_event *event;
+	uint32_t reg, irq;
+
+	reg = ATH_READ_REG(AR71XX_PCI_INTR_STATUS);
+	for (irq = AR71XX_PCI_IRQ_START; irq <= AR71XX_PCI_IRQ_END; irq++) {
+		if (reg & (1 << irq)) {
+			event = sc->sc_eventstab[irq];
+			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+				/* Ignore timer interrupts */
+				if (irq != 0)
+					printf("Stray IRQ %d\n", irq);
+				continue;
+			}
+
+			/* TODO: frame instead of NULL? */
+			intr_event_handle(event, NULL);
+		}
+	}
+
+	return (FILTER_HANDLED);
 }
 
 static int
@@ -406,7 +497,7 @@ static device_method_t ar71xx_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_setup_intr,	ar71xx_pci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ar71xx_pci_teardown_intr),
 
 	/* pcib interface */

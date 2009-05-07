@@ -41,6 +41,7 @@
 #define AR71XX_PCI_MEM_SIZE		0x07000000
 #define AR71XX_PCI_IRQ_START		0
 #define AR71XX_PCI_IRQ_END		2
+#define AR71XX_PCI_NIRQS		3
 
 /* PCI config registers */
 #define	AR71XX_PCI_LCONF_CMD		0x17010000
