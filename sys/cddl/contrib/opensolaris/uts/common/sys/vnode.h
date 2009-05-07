@@ -381,11 +381,6 @@ struct taskq;
 void	vn_rele_async(struct vnode *vp, struct taskq *taskq);
 void	vn_rele_async_fini(void);
 	
-	
-#define	VN_RELE_ASYNC(vp, taskq)	{ \
-	vn_rele_async(vp, taskq); \
-}
-
 /*
  * Flags to VOP_SETATTR/VOP_GETATTR.
  */
