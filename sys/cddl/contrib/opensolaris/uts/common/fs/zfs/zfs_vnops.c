@@ -93,6 +93,7 @@
  *	pushing cached pages (which acquires range locks) and syncing out
  *	cached atime changes.  Third, zfs_zinactive() may require a new tx,
  *	which could deadlock the system if you were already holding one.
+ *	If you must call VN_RELE() within a tx then use VN_RELE_ASYNC().
  *
  *  (3)	All range locks must be grabbed before calling dmu_tx_assign(),
  *	as they can span dmu_tx_assign() calls.
@@ -928,7 +929,11 @@ zfs_get_done(dmu_buf_t *db, void *vzgd)
 	vfslocked = VFS_LOCK_GIANT(vp->v_vfsp);
 	dmu_buf_rele(db, vzgd);
 	zfs_range_unlock(rl);
-	VN_RELE(vp);
+	/*
+	 * Release the vnode asynchronously as we currently have the
+	 * txg stopped from syncing.
+	 */
+	VN_RELE_ASYNC(vp, NULL);
 	zil_add_block(zgd->zgd_zilog, zgd->zgd_bp);
 	kmem_free(zgd, sizeof (zgd_t));
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -959,7 +964,12 @@ zfs_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	if (zfs_zget(zfsvfs, lr->lr_foid, &zp) != 0)
 		return (ENOENT);
 	if (zp->z_unlinked) {
-		VN_RELE(ZTOV(zp));
+		/*
+		 * Release the vnode asynchronously as we currently have the
+		 * txg stopped from syncing.
+		 */
+		VN_RELE_ASYNC(ZTOV(zp), NULL);
+
 		return (ENOENT);
 	}
 
@@ -1031,7 +1041,11 @@ zfs_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	}
 out:
 	zfs_range_unlock(rl);
-	VN_RELE(ZTOV(zp));
+	/*
+	 * Release the vnode asynchronously as we currently have the
+	 * txg stopped from syncing.
+	 */
+	VN_RELE_ASYNC(ZTOV(zp), NULL);
 	return (error);
 }
 
