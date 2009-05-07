@@ -1712,14 +1712,23 @@ arc_adjust(void)
 static void
 arc_do_user_evicts(void)
 {
+	static arc_buf_t *tmp_arc_eviction_list;
+
+	/*
+	 * Move list over to avoid LOR
+	 */
+restart:	
 	mutex_enter(&arc_eviction_mtx);
-	while (arc_eviction_list != NULL) {
-		arc_buf_t *buf = arc_eviction_list;
-		arc_eviction_list = buf->b_next;
+	tmp_arc_eviction_list = arc_eviction_list;
+	arc_eviction_list = NULL;
+	mutex_exit(&arc_eviction_mtx);
+
+	while (tmp_arc_eviction_list != NULL) {
+		arc_buf_t *buf = tmp_arc_eviction_list;
+		tmp_arc_eviction_list = buf->b_next;
 		rw_enter(&buf->b_lock, RW_WRITER);
 		buf->b_hdr = NULL;
 		rw_exit(&buf->b_lock);
-		mutex_exit(&arc_eviction_mtx);
 
 		if (buf->b_efunc != NULL)
 			VERIFY(buf->b_efunc(buf) == 0);
@@ -1727,9 +1736,10 @@ arc_do_user_evicts(void)
 		buf->b_efunc = NULL;
 		buf->b_private = NULL;
 		kmem_cache_free(buf_cache, buf);
-		mutex_enter(&arc_eviction_mtx);
 	}
-	mutex_exit(&arc_eviction_mtx);
+
+	if (arc_eviction_list != NULL)
+		goto restart;
 }
 
 /*
