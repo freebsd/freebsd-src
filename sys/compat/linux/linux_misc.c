@@ -653,10 +653,10 @@ linux_time(struct thread *td, struct linux_time_args *args)
 }
 
 struct l_times_argv {
-	l_long	tms_utime;
-	l_long	tms_stime;
-	l_long	tms_cutime;
-	l_long	tms_cstime;
+	l_clock_t	tms_utime;
+	l_clock_t	tms_stime;
+	l_clock_t	tms_cutime;
+	l_clock_t	tms_cstime;
 };
 
 #define CLK_TCK 100			/* Linux uses 100 */
