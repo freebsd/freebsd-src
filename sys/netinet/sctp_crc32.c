@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_crc32.h>
 #include <netinet/sctp_pcb.h>
 
+
 #if !defined(SCTP_WITH_NO_CSUM)
 
 static uint32_t
