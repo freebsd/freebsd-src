@@ -1199,6 +1199,7 @@ dmu_init(void)
 void
 dmu_fini(void)
 {
+	vn_rele_async_fini();
 	arc_fini();
 	dnode_fini();
 	dbuf_fini();
