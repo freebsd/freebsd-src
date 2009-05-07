@@ -440,7 +440,8 @@ u3g_attach(device_t dev)
 	struct u3g_softc *sc = device_get_softc(dev);
 	struct usb2_interface *iface;
 	struct usb2_interface_descriptor *id;
-	int error, iface_valid, flags, nports;
+	uint32_t iface_valid;
+	int error, flags, nports;
 	int ep, n;
 	uint8_t i;
 
