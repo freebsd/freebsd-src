@@ -55,6 +55,9 @@ linux${SFX}_genassym.o: linux${SFX}_genassym.c linux.h @ machine
 .if !defined(KERNBUILDDIR)
 opt_inet6.h:
 	echo "#define INET6 1" > ${.TARGET}
+.if defined(KTR)
+CFLAGS+=	-DKTR
+.endif
 .endif
 
 .include <bsd.kmod.mk>
