@@ -439,12 +439,9 @@ u3g_attach(device_t dev)
 	struct u3g_softc *sc = device_get_softc(dev);
 	struct usb2_interface *iface;
 	struct usb2_interface_descriptor *id;
-	uint32_t flags;
-	uint8_t m;
-	uint8_t n;
+	int error, iface_valid, flags, nports;
+	int ep, n;
 	uint8_t i;
-	uint8_t x;
-	int error;
 
 	DPRINTF("sc=%p\n", sc);
 
@@ -462,72 +459,68 @@ u3g_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	x = 0;		/* interface index */
-	i = 0;		/* endpoint index */
-	m = 0;		/* number of ports */
+	/* Claim all interfaces on the device */
+	iface_valid = 0;
+	for (i = uaa->info.bIfaceIndex; i < USB_IFACE_MAX; i++) {
+		iface = usb2_get_iface(uaa->device, i);
+		if (iface == NULL)
+			break;
+		id = usb2_get_interface_descriptor(iface);
+		if (id == NULL || id->bInterfaceClass != UICLASS_VENDOR)
+			continue;
+		usb2_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
+		iface_valid |= (1<<i);
+	}
 
-	while (m != U3G_MAXPORTS) {
+	i = 0;		/* interface index */
+	ep = 0;		/* endpoint index */
+	nports = 0;	/* number of ports */
+	while (i < USB_IFACE_MAX) {
+		if ((iface_valid & (1<<i)) == 0) {
+			i++;
+			continue;
+		}
 
 		/* update BULK endpoint index */
-		for (n = 0; n != U3G_N_TRANSFER; n++) 
-			u3g_config_tmp[n].ep_index = i;
-
-		iface = usb2_get_iface(uaa->device, x);
-		if (iface == NULL) {
-			if (m != 0)
-				break;	/* end of interfaces */
-			DPRINTF("did not find any modem endpoints\n");
-			goto detach;
-		}
-
-		id = usb2_get_interface_descriptor(iface);
-		if ((id == NULL) || 
-		    (id->bInterfaceClass != UICLASS_VENDOR)) {
-			/* next interface */
-			x++;
-			i = 0;
-			continue;
-		}
+		for (n = 0; n < U3G_N_TRANSFER; n++)
+			u3g_config_tmp[n].ep_index = ep;
 
 		/* try to allocate a set of BULK endpoints */
-		error = usb2_transfer_setup(uaa->device, &x,
-		    sc->sc_xfer[m], u3g_config_tmp, U3G_N_TRANSFER, 
-		    &sc->sc_ucom[m], &sc->sc_mtx);
+		error = usb2_transfer_setup(uaa->device, &i,
+		    sc->sc_xfer[nports], u3g_config_tmp, U3G_N_TRANSFER,
+		    &sc->sc_ucom[nports], &sc->sc_mtx);
 		if (error) {
 			/* next interface */
-			x++;
-			i = 0;
+			i++;
+			ep = 0;
 			continue;
 		}
-
-		/* grab other interface, if any */
-                if (x != uaa->info.bIfaceIndex)
-                        usb2_set_parent_iface(uaa->device, x,
-                            uaa->info.bIfaceIndex);
 
 		/* set stall by default */
 		mtx_lock(&sc->sc_mtx);
-		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_WR]);
-		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_RD]);
+		usb2_transfer_set_stall(sc->sc_xfer[nports][U3G_BULK_WR]);
+		usb2_transfer_set_stall(sc->sc_xfer[nports][U3G_BULK_RD]);
 		mtx_unlock(&sc->sc_mtx);
 
-		m++;	/* found one port */
-		i++;	/* next endpoint index */
+		nports++;	/* found one port */
+		ep++;
+		if (nports == U3G_MAXPORTS)
+			break;
 	}
+	if (nports == 0) {
+		device_printf(dev, "no ports found\n");
+		goto detach;
+	}
+	sc->sc_numports = nports;
 
-	sc->sc_numports = m;
-
-	error = usb2_com_attach(&sc->sc_super_ucom, sc->sc_ucom, 
+	error = usb2_com_attach(&sc->sc_super_ucom, sc->sc_ucom,
 	    sc->sc_numports, sc, &u3g_callback, &sc->sc_mtx);
 	if (error) {
 		DPRINTF("usb2_com_attach failed\n");
 		goto detach;
 	}
-	if (sc->sc_numports != 1) {
-		/* be verbose */
-		device_printf(dev, "Found %u ports.\n",
-		    (unsigned int)sc->sc_numports);
-	}
+	if (sc->sc_numports > 1)
+		device_printf(dev, "Found %u ports.\n", sc->sc_numports);
 	return (0);
 
 detach:
