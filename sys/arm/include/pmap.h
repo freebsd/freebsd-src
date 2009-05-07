@@ -138,7 +138,8 @@ struct	pmap {
 typedef struct pmap *pmap_t;
 
 #ifdef _KERNEL
-extern pmap_t	kernel_pmap;
+extern struct pmap	kernel_pmap_store;
+#define kernel_pmap	(&kernel_pmap_store)
 #define pmap_kernel() kernel_pmap
 
 #define	PMAP_ASSERT_LOCKED(pmap) \
@@ -165,8 +166,6 @@ typedef struct pv_entry {
 	TAILQ_ENTRY(pv_entry)	pv_plist;
 	int		pv_flags;	/* flags (wired, etc...) */
 } *pv_entry_t;
-
-#define PV_ENTRY_NULL   ((pv_entry_t) 0)
 
 #ifdef _KERNEL
 
