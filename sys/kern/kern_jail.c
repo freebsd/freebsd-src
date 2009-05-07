@@ -1713,7 +1713,6 @@ prison_deref(struct prison *pr, int flags)
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	mtx_destroy(&pr->pr_mtx);
-	free(pr->pr_linux, M_PRISON);
 #ifdef INET
 	free(pr->pr_ip4, M_PRISON);
 #endif
