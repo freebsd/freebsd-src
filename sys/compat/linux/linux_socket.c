@@ -855,14 +855,21 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 	} */ bsd_args;
 
 	bsd_args.domain = linux_to_bsd_domain(args->domain);
-	if (bsd_args.domain == -1)
-		return (EINVAL);
+	if (bsd_args.domain != PF_LOCAL)
+		return (EAFNOSUPPORT);
 
 	bsd_args.type = args->type;
-	if (bsd_args.domain == AF_LOCAL && args->protocol == PF_UNIX)
-		bsd_args.protocol = 0;
+	if (args->protocol != 0 && args->protocol != PF_UNIX)
+
+		/*
+		 * Use of PF_UNIX as protocol argument is not right,
+		 * but Linux does it.
+		 * Do not map PF_UNIX as its Linux value is identical
+		 * to FreeBSD one.
+		 */
+		return (EPROTONOSUPPORT);
 	else
-		bsd_args.protocol = args->protocol;
+		bsd_args.protocol = 0;
 	bsd_args.rsv = (int *)PTRIN(args->rsv);
 	return (socketpair(td, &bsd_args));
 }
