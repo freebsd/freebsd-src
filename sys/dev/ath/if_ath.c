@@ -4222,17 +4222,15 @@ ath_tx_cleanup(struct ath_softc *sc)
 }
 
 /*
- * Return h/w rate index for an IEEE rate (w/o basic rate bit).
+ * Return h/w rate index for an IEEE rate (w/o basic rate bit)
+ * using the current rates in sc_rixmap.
  */
-static int
-ath_tx_findrix(const HAL_RATE_TABLE *rt, int rate)
+static __inline int
+ath_tx_findrix(const struct ath_softc *sc, uint8_t rate)
 {
-	int i;
-
-	for (i = 0; i < rt->rateCount; i++)
-		if ((rt->info[i].dot11Rate & IEEE80211_RATE_VAL) == rate)
-			return i;
-	return 0;		/* NB: lowest rate */
+	int rix = sc->sc_rixmap[rate];
+	/* NB: return lowest rix for invalid rate */
+	return (rix == 0xff ? 0 : rix);
 }
 
 /*
@@ -5760,8 +5758,8 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
 
-	an->an_mcastrix = ath_tx_findrix(sc->sc_currates, tp->mcastrate);
-	an->an_mgmtrix = ath_tx_findrix(sc->sc_currates, tp->mgmtrate);
+	an->an_mcastrix = ath_tx_findrix(sc, tp->mcastrate);
+	an->an_mgmtrix = ath_tx_findrix(sc, tp->mgmtrate);
 
 	ath_rate_newassoc(sc, an, isnew);
 	if (isnew && 
@@ -6009,9 +6007,9 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	 * 11g, otherwise at 1Mb/s.
 	 */
 	if (mode == IEEE80211_MODE_11G)
-		sc->sc_protrix = ath_tx_findrix(rt, 2*2);
+		sc->sc_protrix = ath_tx_findrix(sc, 2*2);
 	else
-		sc->sc_protrix = ath_tx_findrix(rt, 2*1);
+		sc->sc_protrix = ath_tx_findrix(sc, 2*1);
 	/* NB: caller is responsible for reseting rate control state */
 #undef N
 }
@@ -6749,7 +6747,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	rt = sc->sc_currates;
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
-	rix = ath_tx_findrix(rt, params->ibp_rate0);
+	rix = ath_tx_findrix(sc, params->ibp_rate0);
 	txrate = rt->info[rix].rateCode;
 	if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 		txrate |= rt->info[rix].shortPreamble;
@@ -6761,7 +6759,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		txantenna = sc->sc_txantenna;
 	ctsduration = 0;
 	if (flags & (HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA)) {
-		cix = ath_tx_findrix(rt, params->ibp_ctsrate);
+		cix = ath_tx_findrix(sc, params->ibp_ctsrate);
 		ctsrate = rt->info[cix].rateCode;
 		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE) {
 			ctsrate |= rt->info[cix].shortPreamble;
@@ -6827,19 +6825,19 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_txflags = flags;
 
 	if (ismrr) {
-		rix = ath_tx_findrix(rt, params->ibp_rate1);
+		rix = ath_tx_findrix(sc, params->ibp_rate1);
 		rate1 = rt->info[rix].rateCode;
 		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 			rate1 |= rt->info[rix].shortPreamble;
 		if (params->ibp_try2) {
-			rix = ath_tx_findrix(rt, params->ibp_rate2);
+			rix = ath_tx_findrix(sc, params->ibp_rate2);
 			rate2 = rt->info[rix].rateCode;
 			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 				rate2 |= rt->info[rix].shortPreamble;
 		} else
 			rate2 = 0;
 		if (params->ibp_try3) {
-			rix = ath_tx_findrix(rt, params->ibp_rate3);
+			rix = ath_tx_findrix(sc, params->ibp_rate3);
 			rate3 = rt->info[rix].rateCode;
 			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 				rate3 |= rt->info[rix].shortPreamble;
@@ -7063,9 +7061,9 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	 */
 	tdma = vap->iv_tdma;
 	if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
-		rix = ath_tx_findrix(sc->sc_currates, tp->ucastrate);
+		rix = ath_tx_findrix(sc, tp->ucastrate);
 	else
-		rix = ath_tx_findrix(sc->sc_currates, tp->mcastrate);
+		rix = ath_tx_findrix(sc, tp->mcastrate);
 	/* XXX short preamble assumed */
 	sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
 		ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
