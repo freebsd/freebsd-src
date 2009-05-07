@@ -659,9 +659,7 @@ struct l_times_argv {
 	l_clock_t	tms_cstime;
 };
 
-#define CLK_TCK 100			/* Linux uses 100 */
-
-#define CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
+#define CONVTCK(r)	(r.tv_sec * hz + r.tv_usec / (1000000 / hz))
 
 int
 linux_times(struct thread *td, struct linux_times_args *args)
