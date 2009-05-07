@@ -85,20 +85,32 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	int fd;
 
 	archive_clear_error(a);
-	if (filename == NULL || filename[0] == '\0')
-		return (archive_read_open_fd(a, 0, block_size));
-
-	fd = open(filename, O_RDONLY | O_BINARY);
-	if (fd < 0) {
-		archive_set_error(a, errno, "Failed to open '%s'", filename);
-		return (ARCHIVE_FATAL);
+	if (filename == NULL || filename[0] == '\0') {
+		/* We used to invoke archive_read_open_fd(a,0,block_size)
+		 * here, but that doesn't (and shouldn't) handle the
+		 * end-of-file flush when reading stdout from a pipe.
+		 * Basically, read_open_fd() is intended for folks who
+		 * are willing to handle such details themselves.  This
+		 * API is intended to be a little smarter for folks who
+		 * want easy handling of the common case.
+		 */
+		filename = ""; /* Normalize NULL to "" */
+		fd = 0;
+	} else {
+		fd = open(filename, O_RDONLY | O_BINARY);
+		if (fd < 0) {
+			archive_set_error(a, errno,
+			    "Failed to open '%s'", filename);
+			return (ARCHIVE_FATAL);
+		}
 	}
 	if (fstat(fd, &st) != 0) {
 		archive_set_error(a, errno, "Can't stat '%s'", filename);
 		return (ARCHIVE_FATAL);
 	}
 
-	mine = (struct read_file_data *)malloc(sizeof(*mine) + strlen(filename));
+	mine = (struct read_file_data *)calloc(1,
+	    sizeof(*mine) + strlen(filename));
 	b = malloc(block_size);
 	if (mine == NULL || b == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
@@ -117,15 +129,20 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	if (S_ISREG(st.st_mode)) {
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		/*
-		 * Skip is a performance optimization for anything
-		 * that supports lseek().  Generally, that only
-		 * includes regular files and possibly raw disk
-		 * devices, but there's no good portable way to detect
-		 * raw disks.
+		 * Enabling skip here is a performance optimization
+		 * for anything that supports lseek().  On FreeBSD
+		 * (and probably many other systems), only regular
+		 * files and raw disk devices support lseek() (on
+		 * other input types, lseek() returns success but
+		 * doesn't actually change the file pointer, which
+		 * just completely screws up the position-tracking
+		 * logic).  In addition, I've yet to find a portable
+		 * way to determine if a device is a raw disk device.
+		 * So I don't see a way to do much better than to only
+		 * enable this optimization for regular files.
 		 */
 		mine->can_skip = 1;
-	} else
-		mine->can_skip = 0;
+	}
 	return (archive_read_open2(a, mine,
 		NULL, file_read, file_skip, file_close));
 }
@@ -139,8 +156,11 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	*buff = mine->buffer;
 	bytes_read = read(mine->fd, mine->buffer, mine->block_size);
 	if (bytes_read < 0) {
-		archive_set_error(a, errno, "Error reading '%s'",
-		    mine->filename);
+		if (mine->filename[0] == '\0')
+			archive_set_error(a, errno, "Error reading stdin");
+		else
+			archive_set_error(a, errno, "Error reading '%s'",
+			    mine->filename);
 	}
 	return (bytes_read);
 }
@@ -190,8 +210,15 @@ file_skip(struct archive *a, void *client_data, off_t request)
 		 * likely caused by a programmer error (too large request)
 		 * or a corrupted archive file.
 		 */
-		archive_set_error(a, errno, "Error seeking in '%s'",
-		    mine->filename);
+		if (mine->filename[0] == '\0')
+			/*
+			 * Should never get here, since lseek() on stdin ought
+			 * to return an ESPIPE error.
+			 */
+			archive_set_error(a, errno, "Error seeking in stdin");
+		else
+			archive_set_error(a, errno, "Error seeking in '%s'",
+			    mine->filename);
 		return (-1);
 	}
 	return (new_offset - old_offset);
@@ -225,7 +252,9 @@ file_close(struct archive *a, void *client_data)
 				    mine->block_size);
 			} while (bytesRead > 0);
 		}
-		close(mine->fd);
+		/* If a named file was opened, then it needs to be closed. */
+		if (mine->filename[0] != '\0')
+			close(mine->fd);
 	}
 	free(mine->buffer);
 	free(mine);
