@@ -43,6 +43,7 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <sys/systm.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -61,6 +62,7 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #endif
 #include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_util.h>
 
 MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
 MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futexes wp");
@@ -131,11 +133,15 @@ futex_put(struct futex *f, struct waiting_proc *wp)
 		FUTEXES_UNLOCK;
 		FUTEX_UNLOCK(f);
 
+		LINUX_CTR2(sys_futex, "futex_put destroy uaddr %p ref %d",
+		    f->f_uaddr, f->f_refcount);
 		FUTEX_DESTROY(f);
 		free(f, M_FUTEX);
 		return;
 	}
 
+	LINUX_CTR2(sys_futex, "futex_put uaddr %p ref %d",
+	    f->f_uaddr, f->f_refcount);
 	FUTEXES_UNLOCK;
 	FUTEX_UNLOCK(f);
 }
@@ -170,12 +176,15 @@ retry:
 
 			FUTEX_LOCK(f);
 			*newf = f;
+			LINUX_CTR2(sys_futex, "futex_get uaddr %p ref %d",
+			    uaddr, f->f_refcount);
 			return (0);
 		}
 	}
 
 	if (flags & FUTEX_DONTCREATE) {
 		FUTEXES_UNLOCK;
+		LINUX_CTR1(sys_futex, "futex_get uaddr %p null", uaddr);
 		return (0);
 	}
 
@@ -198,6 +207,8 @@ retry:
 	LIST_INSERT_HEAD(&futex_list, tmpf, f_list);
 	FUTEXES_UNLOCK;
 
+	LINUX_CTR2(sys_futex, "futex_get uaddr %p ref %d new",
+	    uaddr, tmpf->f_refcount);
 	*newf = tmpf;
 	return (0);
 }
@@ -232,13 +243,21 @@ futex_sleep(struct futex *f, struct waiting_proc *wp, unsigned long timeout)
 	int error;
 
 	FUTEX_ASSERT_LOCKED(f);
+	LINUX_CTR4(sys_futex, "futex_sleep enter uaddr %p wp %p timo %ld ref %d",
+	    f->f_uaddr, wp, timeout, f->f_refcount);
 	error = sx_sleep(wp, &f->f_lck, PCATCH, "futex", timeout);
 	if (wp->wp_flags & FUTEX_WP_REQUEUED) {
 		KASSERT(f != wp->wp_futex, ("futex != wp_futex"));
+		LINUX_CTR5(sys_futex, "futex_sleep out error %d uaddr %p w"
+		    " %p requeued uaddr %p ref %d",
+		    error, f->f_uaddr, wp, wp->wp_futex->f_uaddr,
+		    wp->wp_futex->f_refcount);
 		futex_put(f, NULL);
 		f = wp->wp_futex;
 		FUTEX_LOCK(f);
-	}
+	} else
+		LINUX_CTR3(sys_futex, "futex_sleep out error %d uaddr %p wp %p",
+		    error, f->f_uaddr, wp);
 
 	futex_put(f, wp);
 	return (error);
@@ -252,6 +271,8 @@ futex_wake(struct futex *f, int n)
 
 	FUTEX_ASSERT_LOCKED(f);
 	TAILQ_FOREACH_SAFE(wp, &f->f_waiting_proc, wp_list, wpt) {
+		LINUX_CTR3(sys_futex, "futex_wake uaddr %p wp %p ref %d",
+		    f->f_uaddr, wp, f->f_refcount);
 		wp->wp_flags |= FUTEX_WP_REMOVED;
 		TAILQ_REMOVE(&f->f_waiting_proc, wp, wp_list);
 		wakeup_one(wp);
@@ -273,10 +294,14 @@ futex_requeue(struct futex *f, int n, struct futex *f2, int n2)
 
 	TAILQ_FOREACH_SAFE(wp, &f->f_waiting_proc, wp_list, wpt) {
 		if (++count <= n) {
+			LINUX_CTR2(sys_futex, "futex_req_wake uaddr %p wp %p",
+			    f->f_uaddr, wp);
 			wp->wp_flags |= FUTEX_WP_REMOVED;
 			TAILQ_REMOVE(&f->f_waiting_proc, wp, wp_list);
 			wakeup_one(wp);
 		} else {
+			LINUX_CTR3(sys_futex, "futex_requeue uaddr %p wp %p to %p",
+			    f->f_uaddr, wp, f2->f_uaddr);
 			wp->wp_flags |= FUTEX_WP_REQUEUED;
 			/* Move wp to wp_list of f2 futex */
 			TAILQ_REMOVE(&f->f_waiting_proc, wp, wp_list);
@@ -421,6 +446,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
 
+		LINUX_CTR2(sys_futex, "WAIT val %d uaddr %p",
+		    args->val, args->uaddr);
 #ifdef DEBUG
 		if (ldebug(sys_futex))
 			printf(ARGS(sys_futex, "futex_wait val %d uaddr %p"),
@@ -431,15 +458,14 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			return (error);
 		error = copyin(args->uaddr, &val, sizeof(val));
 		if (error) {
+			LINUX_CTR1(sys_futex, "WAIT copyin failed %d",
+			    error);
 			futex_put(f, wp);
 			return (error);
 		}
 		if (val != args->val) {
-#ifdef DEBUG
-			if (ldebug(sys_futex))
-				printf(ARGS(sys_futex, "futex_wait uaddr %p WHOOPS %d != %d"),
-				    args->uaddr, args->val, val);
-#endif
+			LINUX_CTR3(sys_futex, "WAIT uaddr %p val %d != uval %d",
+			    args->uaddr, args->val, val);
 			futex_put(f, wp);
 			return (EWOULDBLOCK);
 		}
@@ -448,6 +474,9 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		break;
 
 	case LINUX_FUTEX_WAKE:
+
+		LINUX_CTR2(sys_futex, "WAKE val %d uaddr %p",
+		    args->val, args->uaddr);
 
 		/*
 		 * XXX: Linux is able to cope with different addresses
@@ -471,6 +500,11 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		break;
 
 	case LINUX_FUTEX_CMP_REQUEUE:
+
+		LINUX_CTR5(sys_futex, "CMP_REQUEUE uaddr %p "
+		    "val %d val3 %d uaddr2 %p val2 %d",
+		    args->uaddr, args->val, args->val3, args->uaddr2,
+		    (int)(unsigned long)args->timeout);
 
 #ifdef DEBUG
 		if (ldebug(sys_futex))
@@ -505,16 +539,15 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		}
 		error = copyin(args->uaddr, &val, sizeof(val));
 		if (error) {
+			LINUX_CTR1(sys_futex, "CMP_REQUEUE copyin failed %d",
+			    error);
 			futex_put(f2, NULL);
 			futex_put(f, NULL);
 			return (error);
 		}
 		if (val != args->val3) {
-#ifdef DEBUG
-			if (ldebug(sys_futex))
-				printf(ARGS(sys_futex, "futex_cmp_requeue WHOOPS"
-				    " VAL %d != UVAL %d"), args->val, val);
-#endif
+			LINUX_CTR2(sys_futex, "CMP_REQUEUE val %d != uval %d",
+			    args->val, val);
 			futex_put(f2, NULL);
 			futex_put(f, NULL);
 			return (EAGAIN);
@@ -527,6 +560,11 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		break;
 
 	case LINUX_FUTEX_WAKE_OP:
+
+		LINUX_CTR5(sys_futex, "WAKE_OP "
+		    "uaddr %p op %d val %x uaddr2 %p val3 %x",
+		    args->uaddr, args->op, args->val,
+		    args->uaddr2, args->val3);
 
 #ifdef DEBUG
 		if (ldebug(sys_futex))
