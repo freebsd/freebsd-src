@@ -1091,6 +1091,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			linux_get_machine(&linux_platform);
 			linux_szplatform = roundup(strlen(linux_platform) + 1,
 			    sizeof(char *));
+			linux_osd_jail_register();
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else
@@ -1118,6 +1119,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
 			EVENTHANDLER_DEREGISTER(schedtail, linux_schedtail_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
+			linux_osd_jail_deregister();
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else
