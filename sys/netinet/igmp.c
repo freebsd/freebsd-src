@@ -1100,9 +1100,6 @@ igmp_input_v3_group_query(struct in_multi *inm, struct igmp_ifinfo *igi,
 
 	nsrc = ntohs(igmpv3->igmp_numsrc);
 
-	if (!IS_DEFAULT_VNET(curvnet))
-		return (retval);
-
 	/*
 	 * Deal with group-specific queries upfront.
 	 * If any group query is already pending, purge any recorded
