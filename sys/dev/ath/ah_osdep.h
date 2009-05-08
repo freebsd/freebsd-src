@@ -70,8 +70,6 @@ extern void *ath_hal_memcpy(void *, const void *, size_t);
 #define	abs(_a)		__builtin_abs(_a)
 
 struct ath_hal;
-extern	u_int32_t ath_hal_getuptime(struct ath_hal *);
-#define	OS_GETUPTIME(_ah)	ath_hal_getuptime(_ah)
 
 /*
  * Register read/write operations are either handled through
