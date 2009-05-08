@@ -363,15 +363,6 @@ ath_hal_delay(int n)
 	DELAY(n);
 }
 
-u_int32_t
-ath_hal_getuptime(struct ath_hal *ah)
-{
-	struct bintime bt;
-	getbinuptime(&bt);
-	return (bt.sec * 1000) +
-		(((uint64_t)1000 * (uint32_t)(bt.frac >> 32)) >> 32);
-}
-
 void
 ath_hal_memzero(void *dst, size_t n)
 {
