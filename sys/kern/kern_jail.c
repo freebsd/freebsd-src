@@ -2218,6 +2218,10 @@ prison_check(struct ucred *cred1, struct ucred *cred2)
 		if (cred2->cr_prison != cred1->cr_prison)
 			return (ESRCH);
 	}
+#ifdef VIMAGE
+	if (cred2->cr_vimage->v_procg != cred1->cr_vimage->v_procg)
+		return (ESRCH);
+#endif
 
 	return (0);
 }

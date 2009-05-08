@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_VIMAGE, "vimage", "vimage resource container");
 MALLOC_DEFINE(M_VNET, "vnet", "network stack control block");
+MALLOC_DEFINE(M_VPROCG, "vprocg", "process group control block");
 
 static TAILQ_HEAD(vnet_modlink_head, vnet_modlink) vnet_modlink_head;
 static TAILQ_HEAD(vnet_modpending_head, vnet_modlink) vnet_modpending_head;
@@ -56,7 +57,13 @@ static int vnet_mod_constructor(struct vnet_modlink *);
 static int vnet_mod_destructor(struct vnet_modlink *);
 
 #ifdef VIMAGE
+struct vimage_list_head vimage_head;
 struct vnet_list_head vnet_head;
+struct vprocg_list_head vprocg_head;
+#else
+#ifndef VIMAGE_GLOBALS
+struct vprocg vprocg_0;
+#endif
 #endif
 
 void
@@ -294,6 +301,8 @@ static void
 vi_init(void *unused)
 {
 #ifdef VIMAGE
+	struct vimage *vip;
+	struct vprocg *vprocg;
 	struct vnet *vnet;
 #endif
 
@@ -301,13 +310,27 @@ vi_init(void *unused)
 	TAILQ_INIT(&vnet_modpending_head);
 
 #ifdef VIMAGE
+	LIST_INIT(&vimage_head);
+	LIST_INIT(&vprocg_head);
 	LIST_INIT(&vnet_head);
+
+	vip = malloc(sizeof(struct vimage), M_VIMAGE, M_NOWAIT | M_ZERO);
+	if (vip == NULL)
+		panic("malloc failed for struct vimage");
+	LIST_INSERT_HEAD(&vimage_head, vip, vi_le);
+
+	vprocg = malloc(sizeof(struct vprocg), M_VPROCG, M_NOWAIT | M_ZERO);
+	if (vprocg == NULL)
+		panic("malloc failed for struct vprocg");
+	vip->v_procg = vprocg;
+	LIST_INSERT_HEAD(&vprocg_head, vprocg, vprocg_le);
 
 	vnet = malloc(sizeof(struct vnet), M_VNET, M_NOWAIT | M_ZERO);
 	if (vnet == NULL)
 		panic("vi_alloc: malloc failed");
 	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
+	vip->v_net = vnet;
 
 	/* We MUST clear curvnet in vi_init_done before going SMP. */
 	curvnet = LIST_FIRST(&vnet_head);
