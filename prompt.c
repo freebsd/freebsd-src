@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -22,7 +22,6 @@
 #include "position.h"
 
 extern int pr_type;
-extern int hit_eof;
 extern int new_file;
 extern int sc_width;
 extern int so_s_width, so_e_width;
@@ -196,7 +195,7 @@ cond(c, where)
 	case 'c':
 		return (hshift != 0);
 	case 'e':	/* At end of file? */
-		return (hit_eof);
+		return (eof_displayed());
 	case 'f':	/* Filename known? */
 		return (strcmp(get_filename(curr_ifile), "-") != 0);
 	case 'l':	/* Line number known? */
