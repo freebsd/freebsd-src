@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -65,6 +65,7 @@
 #define	A_REMOVE_FILE		52
 #define	A_NEXT_TAG		53
 #define	A_PREV_TAG		54
+#define	A_FILTER		55
 
 #define	A_INVALID		100
 #define	A_NOACTION		101

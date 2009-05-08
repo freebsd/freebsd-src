@@ -12,6 +12,62 @@
 
 ======================================================================
 
+	Major changes between "less" versions 424 and 429
+
+* LESSOPEN pipe will now be used on standard input, if the LESSOPEN
+  environment variable begins with "|-".
+
+* The -D option with one number now means use the normal background color.
+
+* Don't change permissions on history file if it is not a regular file.
+
+* Fix non-ANSI-compliant code that caused problems with some compilers.
+
+* Fix binary file detection in UTF-8 mode.
+
+* Fix display problems with long lines on "ignaw" terminals.
+
+* Fix problem interrupting the line number calculation for initial prompt.
+
+* Fix SGR emulation when dealing with multiple attributes (eg. bold+underline).
+
+* Fix highlight bug when searching for underlined/overstruck text.
+
+======================================================================
+
+	Major changes between "less" versions 418 and 424
+
+* New "&" command allows filtering of lines based on a pattern.
+
+* Status column now displays a search match, even if the matched
+  string is scrolled off screen because -S is in effect.
+
+* Improve behavior of -F option.
+
+* Allow CSI character (0x9B) to work in UTF-8 mode.
+
+* Output carriage return at startup in case terminal doesn't default
+  to column 1.
+
+* Fix bug in '' (quote, quote) command after G command.
+
+======================================================================
+
+	Major changes between "less" versions 416 and 418
+
+* Color escape sequences are now supported in WIN32 build.
+
+* Makefile now uses EXEEXT feature of autoconf.
+
+* Fix search bug when using -R and text contains ANSI color escape sequences.
+
+* Fix crash when using -r with UTF-8 text containing 0x9B bytes.
+
+* Fix display bug when using ' command to move less than one page forward.
+
+* Update GPL to version 3.
+
+======================================================================
 
 	Major changes between "less" versions 409 and 416
 
