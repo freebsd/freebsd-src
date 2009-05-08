@@ -999,7 +999,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 #endif
 
 	/*
-	 * It's possible that kldloaded module will attach a new ifnet,
+	 * It is possible that kldloaded module will attach a new ifnet,
 	 * so vnet context must be set when this ocurs.
 	 */
 	CURVNET_SET(TD_TO_VNET(td));
