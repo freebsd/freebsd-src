@@ -200,51 +200,51 @@ extern struct vprocg vprocg_0;
 #endif
 #endif
  
-#define curvnet curthread->td_vnet
+#define	curvnet curthread->td_vnet
 
-#define VNET_MAGIC_N 0x3e0d8f29
+#define	VNET_MAGIC_N 0x3e0d8f29
 
 #ifdef VIMAGE
 #ifdef VNET_DEBUG
-#define VNET_ASSERT(condition)						\
+#define	VNET_ASSERT(condition)						\
 	if (!(condition)) {						\
 		printf("VNET_ASSERT @ %s:%d %s():\n",			\
 			__FILE__, __LINE__, __FUNCTION__);		\
 		panic(#condition);					\
 	}
 
-#define CURVNET_SET_QUIET(arg)						\
+#define	CURVNET_SET_QUIET(arg)						\
 	VNET_ASSERT((arg)->vnet_magic_n == VNET_MAGIC_N);		\
 	struct vnet *saved_vnet = curvnet;				\
 	const char *saved_vnet_lpush = curthread->td_vnet_lpush;	\
 	curvnet = arg;							\
 	curthread->td_vnet_lpush = __FUNCTION__;
  
-#define CURVNET_SET_VERBOSE(arg)					\
+#define	CURVNET_SET_VERBOSE(arg)					\
 	CURVNET_SET_QUIET(arg)						\
 	if (saved_vnet)							\
-		printf("curvnet_set(%p) in %s() on cpu %d, prev %p in %s()\n", curvnet,			\
-		       curthread->td_vnet_lpush, curcpu,		\
+		printf("CURVNET_SET(%p) in %s() on cpu %d, prev %p in %s()\n", \
+		       curvnet,	curthread->td_vnet_lpush, curcpu,	\
 		       saved_vnet, saved_vnet_lpush);
 
-#define CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
+#define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  
-#define CURVNET_RESTORE()						\
+#define	CURVNET_RESTORE()						\
 	VNET_ASSERT(saved_vnet == NULL ||				\
 		    saved_vnet->vnet_magic_n == VNET_MAGIC_N);		\
 	curvnet = saved_vnet;						\
 	curthread->td_vnet_lpush = saved_vnet_lpush;
 #else /* !VNET_DEBUG */
-#define VNET_ASSERT(condition)
+#define	VNET_ASSERT(condition)
 
-#define CURVNET_SET(arg)						\
+#define	CURVNET_SET(arg)						\
 	struct vnet *saved_vnet = curvnet;				\
 	curvnet = arg;	
  
-#define CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
-#define CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
+#define	CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
+#define	CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
  
-#define CURVNET_RESTORE()						\
+#define	CURVNET_RESTORE()						\
 	curvnet = saved_vnet;
 #endif /* !VNET_DEBUG */
 #else /* !VIMAGE */
