@@ -404,13 +404,13 @@ ipw_detach(device_t dev)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
+	ieee80211_draintask(ic, &sc->sc_init_task);
 	ipw_stop(sc);
 
 	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
 
 	callout_drain(&sc->sc_wdtimer);
-	ieee80211_draintask(ic, &sc->sc_init_task);
 
 	ipw_release(sc);
 
