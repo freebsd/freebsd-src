@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <sys/vimage.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -737,6 +738,7 @@ loop:
 		nfound++;
 		PROC_SLOCK(p);
 		if (p->p_state == PRS_ZOMBIE) {
+			INIT_VPROCG(P_TO_VPROCG(p));
 			if (rusage) {
 				*rusage = p->p_ru;
 				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
@@ -837,6 +839,9 @@ loop:
 			uma_zfree(proc_zone, p);
 			sx_xlock(&allproc_lock);
 			nprocs--;
+#ifdef VIMAGE
+			vprocg->nprocs--;
+#endif
 			sx_xunlock(&allproc_lock);
 			return (0);
 		}
