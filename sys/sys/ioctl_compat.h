@@ -40,6 +40,10 @@
 
 #ifdef _KERNEL
 
+#ifndef COMPAT_43TTY
+#error "Definitions not available without TTY ioctl compat."
+#endif
+
 struct tchars {
 	char	t_intrc;	/* interrupt */
 	char	t_quitc;	/* quit */
