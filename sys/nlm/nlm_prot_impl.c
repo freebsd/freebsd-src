@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/syslog.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
@@ -103,6 +104,16 @@ static bool_t nlm_syscall_registered = FALSE;
  */
 static int nlm_debug_level;
 SYSCTL_INT(_debug, OID_AUTO, nlm_debug, CTLFLAG_RW, &nlm_debug_level, 0, "");
+
+#define NLM_DEBUG(_level, args...)			\
+	do {						\
+		if (nlm_debug_level >= (_level))	\
+			log(LOG_DEBUG, args);		\
+	} while(0)
+#define NLM_ERR(args...)			\
+	do {					\
+		log(LOG_ERR, args);		\
+	} while(0)
 
 /*
  * Grace period handling. The value of nlm_grace_threshold is the
@@ -254,7 +265,7 @@ nlm_init(void *dummy)
 	error = syscall_register(&nlm_syscall_offset, &nlm_syscall_sysent,
 	    &nlm_syscall_prev_sysent);
 	if (error)
-		printf("Can't register NLM syscall\n");
+		NLM_ERR("Can't register NLM syscall\n");
 	else
 		nlm_syscall_registered = TRUE;
 }
@@ -450,9 +461,8 @@ again:
 		}
 
 		/* Otherwise, bad news. */
-		printf("NLM: failed to contact remote rpcbind, "
-		    "stat = %d, port = %d\n",
-		    (int) stat, port);
+		NLM_ERR("NLM: failed to contact remote rpcbind, "
+		    "stat = %d, port = %d\n", (int) stat, port);
 		CLNT_DESTROY(rpcb);
 		return (NULL);
 	}
@@ -506,10 +516,8 @@ nlm_lock_callback(void *arg, int pending)
 	struct nlm_async_lock *af = (struct nlm_async_lock *) arg;
 	struct rpc_callextra ext;
 
-	if (nlm_debug_level >= 2)
-		printf("NLM: async lock %p for %s (sysid %d) granted\n",
-		    af, af->af_host->nh_caller_name,
-		    af->af_host->nh_sysid);
+	NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) granted\n",
+	    af, af->af_host->nh_caller_name, af->af_host->nh_sysid);
 
 	/*
 	 * Send the results back to the host.
@@ -608,10 +616,8 @@ nlm_cancel_async_lock(struct nlm_async_lock *af)
 	mtx_lock(&host->nh_lock);
 	
 	if (!error) {
-		if (nlm_debug_level >= 2)
-			printf("NLM: async lock %p for %s (sysid %d) "
-			    "cancelled\n",
-			    af, host->nh_caller_name, host->nh_sysid);
+		NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) "
+		    "cancelled\n", af, host->nh_caller_name, host->nh_sysid);
 
 		/*
 		 * Remove from the nh_pending list and free now that
@@ -672,15 +678,13 @@ nlm_client_recovery_start(void *arg)
 {
 	struct nlm_host *host = (struct nlm_host *) arg;
 
-	if (nlm_debug_level >= 1)
-		printf("NLM: client lock recovery for %s started\n",
-		    host->nh_caller_name);
+	NLM_DEBUG(1, "NLM: client lock recovery for %s started\n",
+	    host->nh_caller_name);
 
 	nlm_client_recovery(host);
 
-	if (nlm_debug_level >= 1)
-		printf("NLM: client lock recovery for %s completed\n",
-		    host->nh_caller_name);
+	NLM_DEBUG(1, "NLM: client lock recovery for %s completed\n",
+	    host->nh_caller_name);
 
 	host->nh_monstate = NLM_MONITORED;
 	nlm_host_release(host);
@@ -703,10 +707,9 @@ nlm_host_notify(struct nlm_host *host, int newstate)
 	struct nlm_async_lock *af;
 
 	if (newstate) {
-		if (nlm_debug_level >= 1)
-			printf("NLM: host %s (sysid %d) rebooted, new "
-			    "state is %d\n",
-			    host->nh_caller_name, host->nh_sysid, newstate);
+		NLM_DEBUG(1, "NLM: host %s (sysid %d) rebooted, new "
+		    "state is %d\n", host->nh_caller_name,
+		    host->nh_sysid, newstate);
 	}
 
 	/*
@@ -786,9 +789,8 @@ nlm_create_host(const char* caller_name)
 
 	mtx_assert(&nlm_global_lock, MA_OWNED);
 
-	if (nlm_debug_level >= 1)
-		printf("NLM: new host %s (sysid %d)\n",
-		    caller_name, nlm_next_sysid);
+	NLM_DEBUG(1, "NLM: new host %s (sysid %d)\n",
+	    caller_name, nlm_next_sysid);
 	host = malloc(sizeof(struct nlm_host), M_NLM, M_NOWAIT|M_ZERO);
 	if (!host)
 		return (NULL);
@@ -1078,9 +1080,8 @@ nlm_host_unmonitor(struct nlm_host *host)
 	struct timeval timo;
 	enum clnt_stat stat;
 
-	if (nlm_debug_level >= 1)
-		printf("NLM: unmonitoring %s (sysid %d)\n",
-		    host->nh_caller_name, host->nh_sysid);
+	NLM_DEBUG(1, "NLM: unmonitoring %s (sysid %d)\n",
+	    host->nh_caller_name, host->nh_sysid);
 
 	/*
 	 * We put our assigned system ID value in the priv field to
@@ -1100,11 +1101,11 @@ nlm_host_unmonitor(struct nlm_host *host)
 	    (xdrproc_t) xdr_sm_stat, &smstat, timo);
 
 	if (stat != RPC_SUCCESS) {
-		printf("Failed to contact local NSM - rpc error %d\n", stat);
+		NLM_ERR("Failed to contact local NSM - rpc error %d\n", stat);
 		return;
 	}
 	if (smstat.res_stat == stat_fail) {
-		printf("Local NSM refuses to unmonitor %s\n",
+		NLM_ERR("Local NSM refuses to unmonitor %s\n",
 		    host->nh_caller_name);
 		return;
 	}
@@ -1131,9 +1132,8 @@ nlm_host_monitor(struct nlm_host *host, int state)
 		 * detect host reboots.
 		 */
 		host->nh_state = state;
-		if (nlm_debug_level >= 1)
-			printf("NLM: host %s (sysid %d) has NSM state %d\n",
-			    host->nh_caller_name, host->nh_sysid, state);
+		NLM_DEBUG(1, "NLM: host %s (sysid %d) has NSM state %d\n",
+		    host->nh_caller_name, host->nh_sysid, state);
 	}
 
 	mtx_lock(&host->nh_lock);
@@ -1144,9 +1144,8 @@ nlm_host_monitor(struct nlm_host *host, int state)
 	host->nh_monstate = NLM_MONITORED;
 	mtx_unlock(&host->nh_lock);
 
-	if (nlm_debug_level >= 1)
-		printf("NLM: monitoring %s (sysid %d)\n",
-		    host->nh_caller_name, host->nh_sysid);
+	NLM_DEBUG(1, "NLM: monitoring %s (sysid %d)\n",
+	    host->nh_caller_name, host->nh_sysid);
 
 	/*
 	 * We put our assigned system ID value in the priv field to
@@ -1167,11 +1166,11 @@ nlm_host_monitor(struct nlm_host *host, int state)
 	    (xdrproc_t) xdr_sm_stat, &smstat, timo);
 
 	if (stat != RPC_SUCCESS) {
-		printf("Failed to contact local NSM - rpc error %d\n", stat);
+		NLM_ERR("Failed to contact local NSM - rpc error %d\n", stat);
 		return;
 	}
 	if (smstat.res_stat == stat_fail) {
-		printf("Local NSM refuses to monitor %s\n",
+		NLM_ERR("Local NSM refuses to monitor %s\n",
 		    host->nh_caller_name);
 		mtx_lock(&host->nh_lock);
 		host->nh_monstate = NLM_MONITOR_FAILED;
@@ -1369,7 +1368,7 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 	int i, j, error;
 
 	if (!addr_count) {
-		printf("NLM: no service addresses given - can't start server");
+		NLM_ERR("NLM: no service addresses given - can't start server");
 		return (EINVAL);
 	}
 
@@ -1402,7 +1401,7 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 					goto out;
 				nconf = getnetconfigent(netid);
 				if (!nconf) {
-					printf("Can't lookup netid %s\n",
+					NLM_ERR("Can't lookup netid %s\n",
 					    netid);
 					error = EINVAL;
 					goto out;
@@ -1410,7 +1409,7 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 				xprts[j] = svc_tp_create(pool, dispatchers[i],
 				    NLM_PROG, versions[i], uaddr, nconf);
 				if (!xprts[j]) {
-					printf("NLM: unable to create "
+					NLM_ERR("NLM: unable to create "
 					    "(NLM_PROG, %d).\n", versions[i]);
 					error = EINVAL;
 					goto out;
@@ -1421,7 +1420,7 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 				rpcb_unset(NLM_PROG, versions[i], nconf);
 				if (!svc_reg(xprts[j], NLM_PROG, versions[i],
 					dispatchers[i], nconf)) {
-					printf("NLM: can't register "
+					NLM_ERR("NLM: can't register "
 					    "(NLM_PROG, %d)\n", versions[i]);
 					error = EINVAL;
 					goto out;
@@ -1469,7 +1468,8 @@ nlm_server_main(int addr_count, char **addrs)
 #endif
 
 	if (nlm_socket) {
-		printf("NLM: can't start server - it appears to be running already\n");
+		NLM_ERR("NLM: can't start server - "
+		    "it appears to be running already\n");
 		return (EPERM);
 	}
 
@@ -1479,7 +1479,7 @@ nlm_server_main(int addr_count, char **addrs)
 	error = socreate(AF_INET, &nlm_socket, SOCK_DGRAM, 0,
 	    td->td_ucred, td);
 	if (error) {
-		printf("NLM: can't create IPv4 socket - error %d\n", error);
+		NLM_ERR("NLM: can't create IPv4 socket - error %d\n", error);
 		return (error);
 	}
 	opt.sopt_dir = SOPT_SET;
@@ -1495,7 +1495,7 @@ nlm_server_main(int addr_count, char **addrs)
 	error = socreate(AF_INET6, &nlm_socket6, SOCK_DGRAM, 0,
 	    td->td_ucred, td);
 	if (error) {
-		printf("NLM: can't create IPv6 socket - error %d\n", error);
+		NLM_ERR("NLM: can't create IPv6 socket - error %d\n", error);
 		goto out;
 		return (error);
 	}
@@ -1529,7 +1529,7 @@ nlm_server_main(int addr_count, char **addrs)
 #endif
 
 	if (!nlm_nsm) {
-		printf("Can't start NLM - unable to contact NSM\n");
+		NLM_ERR("Can't start NLM - unable to contact NSM\n");
 		error = EINVAL;
 		goto out;
 	}
@@ -1553,14 +1553,13 @@ nlm_server_main(int addr_count, char **addrs)
 		struct rpc_err err;
 
 		CLNT_GETERR(nlm_nsm, &err);
-		printf("NLM: unexpected error contacting NSM, stat=%d, errno=%d\n",
-		    stat, err.re_errno);
+		NLM_ERR("NLM: unexpected error contacting NSM, "
+		    "stat=%d, errno=%d\n", stat, err.re_errno);
 		error = EINVAL;
 		goto out;
 	}
 
-	if (nlm_debug_level >= 1)
-		printf("NLM: local NSM state is %d\n", smstat.state);
+	NLM_DEBUG(1, "NLM: local NSM state is %d\n", smstat.state);
 	nlm_nsm_state = smstat.state;
 
 #ifdef NFSCLIENT
@@ -1692,8 +1691,7 @@ nlm_sm_notify(struct nlm_sm_status *argp)
 	uint32_t sysid;
 	struct nlm_host *host;
 
-	if (nlm_debug_level >= 3)
-		printf("nlm_sm_notify(): mon_name = %s\n", argp->mon_name);
+	NLM_DEBUG(3, "nlm_sm_notify(): mon_name = %s\n", argp->mon_name);
 	memcpy(&sysid, &argp->priv, sizeof(sysid));
 	host = nlm_find_host_by_sysid(sysid);
 	if (host) {
@@ -1822,9 +1820,8 @@ nlm_do_test(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp,
 		return (ENOMEM);
 	}
 
-	if (nlm_debug_level >= 3)
-		printf("nlm_do_test(): caller_name = %s (sysid = %d)\n",
-		    host->nh_caller_name, host->nh_sysid);
+	NLM_DEBUG(3, "nlm_do_test(): caller_name = %s (sysid = %d)\n",
+	    host->nh_caller_name, host->nh_sysid);
 
 	nlm_free_finished_locks(host);
 	sysid = host->nh_sysid;
@@ -1919,9 +1916,8 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		return (ENOMEM);
 	}
 
-	if (nlm_debug_level >= 3)
-		printf("nlm_do_lock(): caller_name = %s (sysid = %d)\n",
-		    host->nh_caller_name, host->nh_sysid);
+	NLM_DEBUG(3, "nlm_do_lock(): caller_name = %s (sysid = %d)\n",
+	    host->nh_caller_name, host->nh_sysid);
 
 	if (monitor && host->nh_state && argp->state
 	    && host->nh_state != argp->state) {
@@ -2043,10 +2039,8 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 			    &af->af_granted);
 			free(af, M_NLM);
 		} else {
-			if (nlm_debug_level >= 2)
-				printf("NLM: pending async lock %p for %s "
-				    "(sysid %d)\n",
-				    af, host->nh_caller_name, sysid);
+			NLM_DEBUG(2, "NLM: pending async lock %p for %s "
+			    "(sysid %d)\n", af, host->nh_caller_name, sysid);
 			/*
 			 * Don't vrele the vnode just yet - this must
 			 * wait until either the async callback
@@ -2103,9 +2097,8 @@ nlm_do_cancel(nlm4_cancargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		return (ENOMEM);
 	}
 
-	if (nlm_debug_level >= 3)
-		printf("nlm_do_cancel(): caller_name = %s (sysid = %d)\n",
-		    host->nh_caller_name, host->nh_sysid);
+	NLM_DEBUG(3, "nlm_do_cancel(): caller_name = %s (sysid = %d)\n",
+	    host->nh_caller_name, host->nh_sysid);
 
 	nlm_free_finished_locks(host);
 	sysid = host->nh_sysid;
@@ -2193,9 +2186,8 @@ nlm_do_unlock(nlm4_unlockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		return (ENOMEM);
 	}
 
-	if (nlm_debug_level >= 3)
-		printf("nlm_do_unlock(): caller_name = %s (sysid = %d)\n",
-		    host->nh_caller_name, host->nh_sysid);
+	NLM_DEBUG(3, "nlm_do_unlock(): caller_name = %s (sysid = %d)\n",
+	    host->nh_caller_name, host->nh_sysid);
 
 	nlm_free_finished_locks(host);
 	sysid = host->nh_sysid;
