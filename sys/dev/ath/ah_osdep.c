@@ -353,24 +353,3 @@ ath_hal_assert_failed(const char* filename, int lineno, const char *msg)
 	panic("ath_hal_assert");
 }
 #endif /* AH_ASSERT */
-
-/*
- * Delay n microseconds.
- */
-void
-ath_hal_delay(int n)
-{
-	DELAY(n);
-}
-
-void
-ath_hal_memzero(void *dst, size_t n)
-{
-	bzero(dst, n);
-}
-
-void *
-ath_hal_memcpy(void *dst, const void *src, size_t n)
-{
-	return memcpy(dst, src, n);
-}
