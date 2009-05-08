@@ -44,12 +44,14 @@
 #define	VNET_DEBUG
 #endif
 
+struct vprocg;
+struct vnet;
+struct kld_sym_lookup;
+
 typedef int vnet_attach_fn(const void *);
 typedef int vnet_detach_fn(const void *);
 
 #ifndef VIMAGE_GLOBALS
-
-struct kld_sym_lookup;
 
 struct vnet_symmap {
 	char	*name;
@@ -111,6 +113,7 @@ struct vnet_modlink {
 /* Major module IDs for vimage sysctl virtualization. */
 #define	V_GLOBAL		0	/* global variable - no indirection */
 #define	V_NET			1
+#define	V_PROCG			2
 
 /* Name mappings for minor module IDs in vimage sysctl virtualization. */
 #define	V_MOD_vnet_net		VNET_MOD_NET
@@ -121,6 +124,8 @@ struct vnet_modlink {
 #define	V_MOD_vnet_pf		VNET_MOD_PF
 #define	V_MOD_vnet_gif		VNET_MOD_GIF
 #define	V_MOD_vnet_ipsec	VNET_MOD_IPSEC
+ 
+#define	V_MOD_vprocg		0	/* no minor module ids like in vnet */
 
 int	vi_symlookup(struct kld_sym_lookup *, char *);
 void	vnet_mod_register(const struct vnet_modinfo *);
@@ -157,21 +162,45 @@ void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 #define	VNET_SYMMAP_END		{ NULL, 0 }
 #endif /* !VIMAGE_GLOBALS */
 
-#ifdef VIMAGE
-struct vnet {
-	void		*mod_data[VNET_MOD_MAX];
-	LIST_ENTRY(vnet) vnet_le;	/* all vnets list */
-	u_int		 vnet_magic_n;
-	u_int		 ifccnt;
-	u_int		 sockcnt;
+struct vimage {
+	LIST_ENTRY(vimage)	 vi_le;		/* all vimage list */
+	LIST_ENTRY(vimage)	 vi_sibling;	/* vimages with same parent */
+	LIST_HEAD(, vimage)	 vi_child_head;	/* direct offspring list */
+	struct vimage		*vi_parent;	/* ptr to parent vimage */
+	u_int			 vi_id;		/* ID num */
+	u_int			 vi_ucredrefc;	/* # of ucreds pointing to us */
+	char			 vi_name[MAXHOSTNAMELEN];
+	struct vnet		*v_net;
+	struct vprocg		*v_procg;
 };
-#endif
 
+struct vnet {
+	void			*mod_data[VNET_MOD_MAX];
+	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
+	u_int			 vnet_magic_n;
+	u_int			 vnet_id;	/* ID num */
+	u_int			 ifccnt;
+	u_int			 sockcnt;
+};
+
+struct vprocg {
+	LIST_ENTRY(vprocg)	 vprocg_le;
+	u_int			 vprocg_id;	/* ID num */
+	u_int			 nprocs;
+	char			 _hostname[MAXHOSTNAMELEN];
+	char			 _domainname[MAXHOSTNAMELEN];
+};
+
+#ifndef VIMAGE_GLOBALS
 #ifdef VIMAGE
-#define curvnet curthread->td_vnet
+LIST_HEAD(vimage_list_head, vimage);
+extern struct vimage_list_head vimage_head;
 #else
-#define	curvnet NULL
+extern struct vprocg vprocg_0;
 #endif
+#endif
+ 
+#define curvnet curthread->td_vnet
 
 #define VNET_MAGIC_N 0x3e0d8f29
 
@@ -251,28 +280,57 @@ extern struct vnet_list_head vnet_head;
 #define	VNET_FOREACH(arg)
 #endif
 
-#define	TD_TO_VNET(td)	(td)->td_ucred->cr_vnet
+#ifdef VIMAGE
+LIST_HEAD(vprocg_list_head, vprocg);
+extern struct vprocg_list_head vprocg_head;
+#define	INIT_VPROCG(arg)	struct vprocg *vprocg = (arg);
+#else
+#define	INIT_VPROCG(arg)
+#endif
+
+#ifdef VIMAGE
+#define	IS_DEFAULT_VIMAGE(arg)	((arg)->vi_id == 0)
+#define	IS_DEFAULT_VNET(arg)	((arg)->vnet_id == 0)
+#else
+#define	IS_DEFAULT_VIMAGE(arg)	1
+#define	IS_DEFAULT_VNET(arg)	1
+#endif
+
+#ifdef VIMAGE
+#define	TD_TO_VIMAGE(td)	(td)->td_ucred->cr_vimage
+#define	TD_TO_VNET(td)		(td)->td_ucred->cr_vimage->v_net
+#define	TD_TO_VPROCG(td)	(td)->td_ucred->cr_vimage->v_procg
+#define	P_TO_VIMAGE(p)		(p)->p_ucred->cr_vimage
+#define	P_TO_VNET(p)		(p)->p_ucred->cr_vimage->v_net
+#define	P_TO_VPROCG(p)		(p)->p_ucred->cr_vimage->v_procg
+#else
+#define	TD_TO_VIMAGE(td)	NULL
+#define	TD_TO_VNET(td)		NULL
+#define	P_TO_VIMAGE(p)		NULL
+#define	P_TO_VNET(p)		NULL
+#ifdef VIMAGE_GLOBALS
+#define	TD_TO_VPROCG(td)	NULL
+#define	P_TO_VPROCG(p)		NULL
+#else
+#define	TD_TO_VPROCG(td)	&vprocg_0
+#define	P_TO_VPROCG(p)		&vprocg_0
+#endif
+#endif
 
 /* Non-VIMAGE null-macros */
-#define	IS_DEFAULT_VNET(arg) 1
 #define	VNET_LIST_RLOCK()
 #define	VNET_LIST_RUNLOCK()
-#define	INIT_VPROCG(arg)
-#define	INIT_VCPU(arg)
-#define	TD_TO_VIMAGE(td)
-#define	TD_TO_VPROCG(td)
-#define	TD_TO_VCPU(td)
-#define	P_TO_VIMAGE(p)
-#define	P_TO_VNET(p)
-#define	P_TO_VPROCG(p)
-#define	P_TO_VCPU(p)
 
 /* XXX those defines bellow should probably go into vprocg.h and vcpu.h */
-#define	VPROCG(sym)		(sym)
-#define	VCPU(sym)		(sym)
+#define	VPROCG(sym)		VSYM(vprocg, sym)
+
+#ifdef VIMAGE
+#define	G_hostname		TD_TO_VPROCG(&thread0)->_hostname
+#else
+#define	G_hostname		VPROCG(hostname)
+#endif
 
 #define	V_hostname		VPROCG(hostname)
-#define	G_hostname		VPROCG(hostname) /* global hostname */
 #define	V_domainname		VPROCG(domainname)
 
 /*

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
+#include <sys/vimage.h>
 #include <sys/vnode.h>
 
 #include <rpc/rpcclnt.h>
@@ -1222,12 +1223,12 @@ nlm_init_lock(struct flock *fl, int flags, int svid,
 	}
 
 	mtx_lock(&hostname_mtx);
-	snprintf(oh_space, 32, "%d@%s", svid, hostname);
+	snprintf(oh_space, 32, "%d@%s", svid, G_hostname);
 	mtx_unlock(&hostname_mtx);
 	oh_len = strlen(oh_space);
 
 	memset(lock, 0, sizeof(*lock));
-	lock->caller_name = hostname;
+	lock->caller_name = G_hostname;
 	lock->fh.n_len = fhlen;
 	lock->fh.n_bytes = fh;
 	lock->oh.n_len = oh_len;
