@@ -459,16 +459,16 @@ iwi_detach(device_t dev)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
-	iwi_stop(sc);
-
-	bpfdetach(ifp);
-	ieee80211_ifdetach(ic);
-
 	/* NB: do early to drain any pending tasks */
 	ieee80211_draintask(ic, &sc->sc_radiontask);
 	ieee80211_draintask(ic, &sc->sc_radiofftask);
 	ieee80211_draintask(ic, &sc->sc_restarttask);
 	ieee80211_draintask(ic, &sc->sc_disassoctask);
+
+	iwi_stop(sc);
+
+	bpfdetach(ifp);
+	ieee80211_ifdetach(ic);
 
 	iwi_put_firmware(sc);
 	iwi_release_fw_dma(sc);
