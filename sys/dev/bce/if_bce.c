@@ -4204,8 +4204,7 @@ bce_init_ctx(struct bce_softc *sc)
 
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
 		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
-		/* DRC: Replace this constant value with a #define. */
-		int i, retry_cnt = 10;
+		int i, retry_cnt = CTX_INIT_RETRY_COUNT;
 		u32 val;
 
 		DBPRINT(sc, BCE_INFO_CTX, "Initializing 5709 context.\n");
@@ -5895,6 +5894,9 @@ bce_rx_intr(struct bce_softc *sc)
 			/* Set the total packet length. */
 			m0->m_pkthdr.len = m0->m_len = pkt_len;
 		}
+#else
+        /* Set the total packet length. */
+		m0->m_pkthdr.len = m0->m_len = pkt_len;
 #endif
 
 		/* Remove the trailing Ethernet FCS. */
