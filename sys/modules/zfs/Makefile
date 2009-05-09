@@ -28,7 +28,7 @@ SRCS+=	opensolaris_zone.c
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
 .PATH:	${SUNW}/common/atomic/${MACHINE_ARCH}
-SRCS+=	atomic.S
+SRCS+=	opensolaris_atomic.S
 .else
 .PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_atomic.c
@@ -51,7 +51,7 @@ SRCS+=	xdr_mem.c
 
 .PATH:	${SUNW}/uts/common/zmod
 SRCS+=	adler32.c
-SRCS+=	crc32.c
+SRCS+=	opensolaris_crc32.c
 SRCS+=	deflate.c
 SRCS+=	inffast.c
 SRCS+=	inflate.c
