@@ -30,6 +30,8 @@
 	public void backspace ();
 	public void putbs ();
 	public char WIN32getch ();
+	public void WIN32setcolors ();
+	public void WIN32textout ();
 	public void match_brac ();
 	public void ch_ungetchar ();
 	public void end_logfile ();
@@ -122,6 +124,8 @@
 	public char * bad_file ();
 	public POSITION filesize ();
 	public char * shell_coption ();
+	public int eof_displayed ();
+	public int entire_file_displayed ();
 	public void squish_check ();
 	public void forw ();
 	public void back ();
@@ -164,6 +168,7 @@
 	public int pappend ();
 	public int pflushmbc ();
 	public void pdone ();
+	public void set_status_col ();
 	public int gline ();
 	public void null_line ();
 	public POSITION forw_raw_line ();
@@ -246,12 +251,17 @@
 	public void repaint_hilite ();
 	public void clear_attn ();
 	public void undo_search ();
+	public void clr_hlist ();
 	public void clr_hilite ();
+	public void clr_filter ();
+	public int is_filtered ();
 	public int is_hilited ();
 	public void chg_caseless ();
 	public void chg_hilite ();
 	public int search ();
 	public void prep_hilite ();
+	public void set_filter_pattern ();
+	public int is_filtering ();
 	public RETSIGTYPE winch ();
 	public RETSIGTYPE winch ();
 	public void init_signals ();
