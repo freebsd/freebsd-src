@@ -13,7 +13,7 @@
 # ATOMIC_SRCS
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
-ATOMIC_SRCS=	atomic.S
+ATOMIC_SRCS=	opensolaris_atomic.S
 .else
 .PATH: ${.CURDIR}/../../../sys/cddl/compat/opensolaris/kern
 ATOMIC_SRCS=	opensolaris_atomic.c
