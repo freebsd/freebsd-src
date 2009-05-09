@@ -476,7 +476,7 @@ vnode_pager_input_smlfs(object, m)
 	vm_object_t object;
 	vm_page_t m;
 {
-	int i;
+	int bits, i;
 	struct vnode *vp;
 	struct bufobj *bo;
 	struct buf *bp;
@@ -498,7 +498,8 @@ vnode_pager_input_smlfs(object, m)
 	for (i = 0; i < PAGE_SIZE / bsize; i++) {
 		vm_ooffset_t address;
 
-		if (vm_page_bits(i * bsize, bsize) & m->valid)
+		bits = vm_page_bits(i * bsize, bsize);
+		if (m->valid & bits)
 			continue;
 
 		address = IDX_TO_OFF(m->pindex) + i * bsize;
@@ -543,29 +544,20 @@ vnode_pager_input_smlfs(object, m)
 			relpbuf(bp, &vnode_pbuf_freecnt);
 			if (error)
 				break;
-
-			VM_OBJECT_LOCK(object);
-			vm_page_lock_queues();
-			vm_page_set_validclean(m, (i * bsize) & PAGE_MASK, bsize);
-			vm_page_unlock_queues();
-			VM_OBJECT_UNLOCK(object);
-		} else {
-			VM_OBJECT_LOCK(object);
-			vm_page_lock_queues();
-			vm_page_set_validclean(m, (i * bsize) & PAGE_MASK, bsize);
-			vm_page_unlock_queues();
-			VM_OBJECT_UNLOCK(object);
+		} else
 			bzero((caddr_t)sf_buf_kva(sf) + i * bsize, bsize);
-		}
+		KASSERT((m->dirty & bits) == 0,
+		    ("vnode_pager_input_smlfs: page %p is dirty", m));
+		VM_OBJECT_LOCK(object);
+		m->valid |= bits;
+		VM_OBJECT_UNLOCK(object);
 	}
 	sf_buf_free(sf);
 	if (error) {
 		return VM_PAGER_ERROR;
 	}
 	return VM_PAGER_OK;
-
 }
-
 
 /*
  * old style vnode pager input routine
@@ -627,10 +619,7 @@ vnode_pager_input_old(object, m)
 
 		VM_OBJECT_LOCK(object);
 	}
-	vm_page_lock_queues();
-	pmap_clear_modify(m);
-	vm_page_undirty(m);
-	vm_page_unlock_queues();
+	KASSERT(m->dirty == 0, ("vnode_pager_input_old: page %p is dirty", m));
 	if (!error)
 		m->valid = VM_PAGE_BITS_ALL;
 	return error ? VM_PAGER_ERROR : VM_PAGER_OK;
@@ -960,8 +949,6 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 */
 			vm_page_set_validclean(mt, 0,
 			    object->un_pager.vnp.vnp_size - tfoff);
-			/* handled by vm_fault now */
-			/* vm_page_zero_invalid(mt, FALSE); */
 		}
 		
 		if (i != reqpage) {
