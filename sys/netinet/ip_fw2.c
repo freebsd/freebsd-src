@@ -127,6 +127,11 @@ static struct callout ipfw_timeout;
 static int verbose_limit;
 #endif
 
+#ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
+static int default_to_accept = 1;
+#else
+static int default_to_accept;
+#endif
 static uma_zone_t ipfw_dyn_rule_zone;
 
 /*
@@ -190,6 +195,9 @@ SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     NULL, IPFW_DEFAULT_RULE, "The default/max possible rule number.");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
     NULL, IPFW_TABLES_MAX, "The maximum number of tables.");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
+    &default_to_accept, 0, "Make the default rule accept all packets.");
+TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
 #endif /* SYSCTL_NODE */
 
 /*
@@ -4636,11 +4644,7 @@ ipfw_init(void)
 	default_rule.set = RESVD_SET;
 
 	default_rule.cmd[0].len = 1;
-	default_rule.cmd[0].opcode =
-#ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
-				1 ? O_ACCEPT :
-#endif
-				O_DENY;
+	default_rule.cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
 
 	error = add_rule(&V_layer3_chain, &default_rule);
 	if (error != 0) {
