@@ -603,10 +603,6 @@ kmeminit(void *dummy)
 		vm_kmem_size = vm_kmem_size_max;
 
 	/* Allow final override from the kernel environment */
-#ifndef BURN_BRIDGES
-	if (TUNABLE_ULONG_FETCH("kern.vm.kmem.size", &vm_kmem_size) != 0)
-		printf("kern.vm.kmem.size is now called vm.kmem_size!\n");
-#endif
 	TUNABLE_ULONG_FETCH("vm.kmem_size", &vm_kmem_size);
 
 	/*
