@@ -312,6 +312,7 @@ nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 	enum clnt_stat stat = RPC_SUCCESS;
 	int rpcvers = RPCBVERS4;
 	bool_t do_tcp = FALSE;
+	bool_t tryagain = FALSE;
 	struct portmap mapping;
 	u_short port = 0;
 
@@ -373,14 +374,7 @@ again:
 		stat = CLNT_CALL(rpcb, (rpcprog_t) RPCBPROC_GETADDR,
 		    (xdrproc_t) xdr_rpcb, &parms,
 		    (xdrproc_t) xdr_wrapstring, &uaddr, timo);
-		if (stat == RPC_PROGVERSMISMATCH) {
-			if (rpcvers == RPCBVERS4)
-				rpcvers = RPCBVERS;
-			else if (rpcvers == RPCBVERS)
-				rpcvers = PMAPVERS;
-			CLNT_CONTROL(rpcb, CLSET_VERS, &rpcvers);
-			goto again;
-		} else if (stat == RPC_SUCCESS) {
+		if (stat == RPC_SUCCESS) {
 			/*
 			 * We have a reply from the remote RPCBIND - turn it
 			 * into an appropriate address and make a new client
@@ -391,13 +385,22 @@ again:
 			struct netbuf *a;
 			a = __rpc_uaddr2taddr_af(ss.ss_family, uaddr);
 			if (!a) {
-				CLNT_DESTROY(rpcb);
-				return (NULL);
+				tryagain = TRUE;
+			} else {
+				tryagain = FALSE;
+				memcpy(&ss, a->buf, a->len);
+				free(a->buf, M_RPC);
+				free(a, M_RPC);
+				xdr_free((xdrproc_t) xdr_wrapstring, &uaddr);
 			}
-			memcpy(&ss, a->buf, a->len);
-			free(a->buf, M_RPC);
-			free(a, M_RPC);
-			xdr_free((xdrproc_t) xdr_wrapstring, &uaddr);
+		}
+		if (tryagain || stat == RPC_PROGVERSMISMATCH) {
+			if (rpcvers == RPCBVERS4)
+				rpcvers = RPCBVERS;
+			else if (rpcvers == RPCBVERS)
+				rpcvers = PMAPVERS;
+			CLNT_CONTROL(rpcb, CLSET_VERS, &rpcvers);
+			goto again;
 		}
 		break;
 	case PMAPVERS:
