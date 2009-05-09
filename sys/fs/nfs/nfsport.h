@@ -446,16 +446,6 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 #define	VT_NFSV4ROOT		"nfsv4root"
 
 /*
- * XXX - not in any system .h file, just vfs_export.c
- * Network address lookup element
- */
-struct netcred {
-	struct	radix_node netc_rnodes[2];
-	int	netc_exflags;
-	struct	ucred netc_anon;
-};
-
-/*
  * Define whatever it takes to do a vn_rdwr().
  */
 #define	NFSD_RDWR(r, v, b, l, o, s, i, c, a, p) \

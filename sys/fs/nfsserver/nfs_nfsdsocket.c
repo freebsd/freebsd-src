@@ -870,6 +870,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				    if (!nd->nd_repstat)
 					nd->nd_repstat = nfsd_excred(nd,
 					    &nes, credanon);
+				    if (credanon != NULL)
+					crfree(credanon);
 				    if (!nd->nd_repstat) {
 					if (vpnes.nes_vfslocked)
 					    nfsvno_unlockvfs(mp);
