@@ -2565,6 +2565,8 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp,
 		if (nd->nd_repstat)
 			vput(*vpp);
 	}
+	if (credanon != NULL)
+		crfree(credanon);
 	if (nd->nd_repstat) {
 		if (startwrite)
 			vn_finished_write(mp);
@@ -2596,16 +2598,6 @@ fp_getfvp(struct thread *p, int fd, struct file **fpp, struct vnode **vpp)
 	*fpp = fp;
 	return (0);
 }
-
-/*
- * Network export information
- */
-struct netexport {
-	struct	netcred ne_defexported;		      /* Default export */
-	struct	radix_node_head *ne_rtable[AF_MAX+1]; /* Individual exports */
-};
-
-struct netexport nfsv4root_export;
 
 /*
  * Called from newnfssvc() to update the exports list. Just call
@@ -2861,6 +2853,8 @@ nfsvno_v4rootexport(struct nfsrv_descript *nd)
 		return (NFSERR_PROGUNAVAIL);
 	if ((exflags & MNT_EXGSSONLY))
 		nd->nd_flag |= ND_EXGSSONLY;
+	if (credanon != NULL)
+		crfree(credanon);
 	return (0);
 }
 
