@@ -38,8 +38,6 @@
 #ifndef _SYS_IOCTL_COMPAT_H_
 #define	_SYS_IOCTL_COMPAT_H_
 
-#ifdef _KERNEL
-
 #ifndef COMPAT_43TTY
 #error "Definitions not available without TTY ioctl compat."
 #endif
@@ -150,7 +148,5 @@ struct sgttyb {
 #define	TIOCSLTC	_IOW('t',117,struct ltchars)/* set local special chars*/
 #define	TIOCGLTC	_IOR('t',116,struct ltchars)/* get local special chars*/
 #define OTIOCCONS	_IO('t', 98)	/* for hp300 -- sans int arg */
-
-#endif /* _KERNEL */
 
 #endif /* !_SYS_IOCTL_COMPAT_H_ */
