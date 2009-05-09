@@ -1752,7 +1752,8 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 	}
 	if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
 		crfree(cred);
-		cred = crhold(credanon);
+		cred = credanon;
+		credanon = NULL;
 	}
 
 	/*
@@ -1772,6 +1773,8 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 out:
 	if (cred)
 		crfree(cred);
+	if (credanon)
+		crfree(credanon);
 
 	return (error);
 }

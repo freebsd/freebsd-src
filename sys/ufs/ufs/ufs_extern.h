@@ -38,7 +38,6 @@ struct direct;
 struct indir;
 struct inode;
 struct mount;
-struct netcred;
 struct thread;
 struct sockaddr;
 struct ucred;
