@@ -190,6 +190,7 @@ struct iwi_softc {
 	struct task		sc_radiofftask;	/* radio off processing */
 	struct task		sc_restarttask;	/* restart adapter processing */
 	struct task		sc_disassoctask;
+	struct task		sc_wmetask;	/* set wme parameters */
 
 	unsigned int		sc_softled : 1,	/* enable LED gpio status */
 				sc_ledstate: 1,	/* LED on/off state */
@@ -220,7 +221,7 @@ struct iwi_softc {
 
 #define	IWI_STATE_BEGIN(_sc, _state)	do {			\
 	KASSERT(_sc->fw_state == IWI_FW_IDLE,			\
-	    ("iwi firmware not idle"));				\
+	    ("iwi firmware not idle, state %s", iwi_fw_states[_sc->fw_state]));\
 	_sc->fw_state = _state;					\
 	_sc->sc_state_timer = 5;				\
 	DPRINTF(("enter %s state\n", iwi_fw_states[_state]));	\
