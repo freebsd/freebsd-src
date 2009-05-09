@@ -95,15 +95,6 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	 * in favour of RH2 implementations, etc.
 	 */
 	switch (rh->ip6r_type) {
-#ifndef BURN_BRIDGES
-	case IPV6_RTHDR_TYPE_0:
-		/*
-		 * According to RFC 5095, 3.  Deprecation of RH0,
-		 * we must handle RH0 like the default (unknown
-		 * routing header type) case.
-		 */
-		/* FALLTHROUGH */
-#endif
 	default:
 		/* Unknown routing header type. */
 		if (rh->ip6r_segleft == 0) {
