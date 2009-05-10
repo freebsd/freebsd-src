@@ -661,7 +661,19 @@ struct l_times_argv {
 	l_clock_t	tms_cstime;
 };
 
-#define CONVTCK(r)	(r.tv_sec * stclohz + r.tv_usec / (1000000 / stclohz))
+
+/*
+ * Glibc versions prior to 2.2.1 always use hard-coded CLK_TCK value.
+ * Since 2.2.1 Glibc uses value exported from kernel via AT_CLKTCK
+ * auxiliary vector entry.
+ */
+#define	CLK_TCK		100
+
+#define	CONVOTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
+#define	CONVNTCK(r)	(r.tv_sec * stclohz + r.tv_usec / (1000000 / stclohz))
+
+#define	CONVTCK(r)	(linux_kernver(td) >= LINUX_KERNVER_2004000 ?		\
+			    CONVNTCK(r) : CONVOTCK(r))
 
 int
 linux_times(struct thread *td, struct linux_times_args *args)
