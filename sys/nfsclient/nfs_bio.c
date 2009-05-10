@@ -138,10 +138,8 @@ nfs_getpages(struct vop_getpages_args *ap)
 		vm_page_t m = pages[ap->a_reqpage];
 
 		VM_OBJECT_LOCK(object);
-		vm_page_lock_queues();
 		if (m->valid != 0) {
-			/* handled by vm_fault now	  */
-			/* vm_page_zero_invalid(m, TRUE); */
+			vm_page_lock_queues();
 			for (i = 0; i < npages; ++i) {
 				if (i != ap->a_reqpage)
 					vm_page_free(pages[i]);
@@ -150,7 +148,6 @@ nfs_getpages(struct vop_getpages_args *ap)
 			VM_OBJECT_UNLOCK(object);
 			return(0);
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 	}
 
@@ -219,8 +216,6 @@ nfs_getpages(struct vop_getpages_args *ap)
 			 */
 			m->valid = 0;
 			vm_page_set_validclean(m, 0, size - toff);
-			/* handled by vm_fault now	  */
-			/* vm_page_zero_invalid(m, TRUE); */
 		} else {
 			/*
 			 * Read operation was short.  If no error occured
