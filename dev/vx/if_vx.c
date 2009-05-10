@@ -825,8 +825,11 @@ vx_get(struct vx_softc *sc, u_int totlen)
 		/* Convert one of our saved mbuf's. */
 		sc->vx_next_mb = (sc->vx_next_mb + 1) % MAX_MBS;
 		m->m_data = m->m_pktdat;
-		m->m_flags = M_PKTHDR;
-		bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
+		m->m_flags |= M_PKTHDR;
+		if (m_pkthdr_init(m, M_NOWAIT)) {
+			m_free(m);
+			return NULL;
+		}
 	}
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = totlen;

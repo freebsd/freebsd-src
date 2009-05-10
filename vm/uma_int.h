@@ -214,7 +214,6 @@ struct uma_keg {
 
 	struct vm_object	*uk_obj;	/* Zone specific object */
 	vm_offset_t	uk_kva;		/* Base kva for zones with objs */
-	uma_zone_t	uk_slabzone;	/* Slab zone backing us, if OFFPAGE */
 
 	u_int16_t	uk_pgoff;	/* Offset to uma_slab struct */
 	u_int16_t	uk_ppera;	/* pages per allocation from backend */
@@ -223,10 +222,8 @@ struct uma_keg {
 };
 typedef struct uma_keg	* uma_keg_t;
 
-/* Page management structure */
-
-/* Sorry for the union, but space efficiency is important */
-struct uma_slab_head {
+/* The slab/page management structure. */
+struct uma_slab {
 	uma_keg_t	us_keg;			/* Keg we live in */
 	union {
 		LIST_ENTRY(uma_slab)	_us_link;	/* slabs in zone */
@@ -237,51 +234,23 @@ struct uma_slab_head {
 	u_int8_t	us_flags;		/* Page flags see uma.h */
 	u_int8_t	us_freecount;	/* How many are free? */
 	u_int8_t	us_firstfree;	/* First free item index */
-};
-
-/* The standard slab structure */
-struct uma_slab {
-	struct uma_slab_head	us_head;	/* slab header data */
 	struct {
 		u_int8_t	us_item;
-	} us_freelist[1];			/* actual number bigger */
+	} us_freelist[0];			/* actual number bigger */
 };
 
-/*
- * The slab structure for UMA_ZONE_REFCNT zones for whose items we
- * maintain reference counters in the slab for.
- */
-struct uma_slab_refcnt {
-	struct uma_slab_head	us_head;	/* slab header data */
-	struct {
-		u_int8_t	us_item;
-		u_int32_t	us_refcnt;
-	} us_freelist[1];			/* actual number bigger */
-};
+#define	us_link	us_type._us_link
+#define	us_size	us_type._us_size
 
-#define	us_keg		us_head.us_keg
-#define	us_link		us_head.us_type._us_link
-#define	us_size		us_head.us_type._us_size
-#define	us_hlink	us_head.us_hlink
-#define	us_data		us_head.us_data
-#define	us_flags	us_head.us_flags
-#define	us_freecount	us_head.us_freecount
-#define	us_firstfree	us_head.us_firstfree
 
 typedef struct uma_slab * uma_slab_t;
-typedef struct uma_slab_refcnt * uma_slabrefcnt_t;
 typedef uma_slab_t (*uma_slaballoc)(uma_zone_t, uma_keg_t, int);
-
 
 /*
  * These give us the size of one free item reference within our corresponding
- * uma_slab structures, so that our calculations during zone setup are correct
- * regardless of what the compiler decides to do with padding the structure
- * arrays within uma_slab.
+ * uma_slab structures.
  */
-#define	UMA_FRITM_SZ	(sizeof(struct uma_slab) - sizeof(struct uma_slab_head))
-#define	UMA_FRITMREF_SZ	(sizeof(struct uma_slab_refcnt) -	\
-    sizeof(struct uma_slab_head))
+#define	UMA_FRITM_SZ	1
 
 struct uma_klink {
 	LIST_ENTRY(uma_klink)	kl_link;

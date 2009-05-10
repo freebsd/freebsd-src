@@ -515,7 +515,7 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 	struct refill_fl_cb_arg cb_arg;
 	caddr_t cl;
 	int err, count = 0;
-	int header_size = sizeof(struct m_hdr) + sizeof(struct pkthdr) + sizeof(struct m_ext_) + sizeof(uint32_t);
+	int header_size = sizeof(struct mbuf) + sizeof(uint32_t);
 	
 	cb_arg.error = 0;
 	while (n--) {
@@ -2360,7 +2360,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->rspq.size = p->rspq_size;
 
 
-	header_size = sizeof(struct m_hdr) + sizeof(struct pkthdr) + sizeof(struct m_ext_) + sizeof(uint32_t);
+	header_size = sizeof(struct mbuf) + sizeof(uint32_t);
 	q->txq[TXQ_ETH].stop_thres = nports *
 	    flits_to_desc(sgl_len(TX_MAX_SEGS + 1) + 3);
 
@@ -2535,8 +2535,7 @@ init_cluster_mbuf(caddr_t cl, int flags, int type, uma_zone_t zone)
 	struct mbuf *m;
 	int header_size;
 	
-	header_size = sizeof(struct m_hdr) + sizeof(struct pkthdr) +
-	    sizeof(struct m_ext_) + sizeof(uint32_t);
+	header_size = sizeof(struct mbuf) + sizeof(uint32_t);
 	
 	bzero(cl, header_size);
 	m = (struct mbuf *)cl;

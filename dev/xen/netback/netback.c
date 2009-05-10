@@ -873,8 +873,7 @@ netif_rx(netif_t *netif)
 		pkts_dequeued++;
 
 		/* Check if we need to copy the data */
-		if (((m->m_flags & (M_RDONLY|M_EXT)) != M_EXT) ||
-			(*m->m_ext.ref_cnt > 1) || m->m_next != NULL) {
+		if (M_WRITABLE(m) == 0 || m->m_next != NULL) {
 			struct mbuf *n;
 				
 			DDPRINTF("copying mbuf (fl=%x ext=%x rc=%d n=%x)\n",

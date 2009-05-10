@@ -150,14 +150,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 * M_WRITABLE(). For now, we only evaluate once at the beginning and
 	 * live with this.
 	 */
-	/*
-	 * XXX: This is dumb. If we're just a regular mbuf with no M_EXT,
-	 *      then we're not "writable," according to this code.
-	 */
-	writable = 0;
-	if ((n->m_flags & M_EXT) == 0 ||
-	    (n->m_ext.ext_type == EXT_CLUSTER && M_WRITABLE(n)))
-		writable = 1;
+	writable = M_WRITABLE(n);
 
 	/*
 	 * the target data is on <n, off>.

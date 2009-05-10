@@ -330,7 +330,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			mob_h.proto = htons(mob_h.proto);
 			mob_h.hcrc = gre_in_cksum((u_int16_t *)&mob_h, msiz);
 
-			if ((m->m_data - msiz) < m->m_pktdat) {
+			if (M_LEADINGSPACE(m) < msiz) {
 				/* need new mbuf */
 				MGETHDR(m0, M_DONTWAIT, MT_DATA);
 				if (m0 == NULL) {

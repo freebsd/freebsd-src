@@ -171,12 +171,10 @@ void	sbunlock(struct sockbuf *sb);
 	(sb)->sb_cc += (m)->m_len; \
 	if ((m)->m_type != MT_DATA && (m)->m_type != MT_OOBDATA) \
 		(sb)->sb_ctl += (m)->m_len; \
-	(sb)->sb_mbcnt += MSIZE; \
 	(sb)->sb_mcnt += 1; \
-	if ((m)->m_flags & M_EXT) { \
-		(sb)->sb_mbcnt += (m)->m_ext.ext_size; \
+	if ((m)->m_flags & M_EXT) \
 		(sb)->sb_ccnt += 1; \
-	} \
+	(sb)->sb_mbcnt += m->m_size + sizeof(struct mbuf); \
 }
 
 /* adjust counters in sb reflecting freeing of m */
@@ -184,12 +182,10 @@ void	sbunlock(struct sockbuf *sb);
 	(sb)->sb_cc -= (m)->m_len; \
 	if ((m)->m_type != MT_DATA && (m)->m_type != MT_OOBDATA) \
 		(sb)->sb_ctl -= (m)->m_len; \
-	(sb)->sb_mbcnt -= MSIZE; \
 	(sb)->sb_mcnt -= 1; \
-	if ((m)->m_flags & M_EXT) { \
-		(sb)->sb_mbcnt -= (m)->m_ext.ext_size; \
+	if ((m)->m_flags & M_EXT) \
 		(sb)->sb_ccnt -= 1; \
-	} \
+	(sb)->sb_mbcnt -= m->m_size + sizeof(struct mbuf); \
 	if ((sb)->sb_sndptr == (m)) { \
 		(sb)->sb_sndptr = NULL; \
 		(sb)->sb_sndptroff = 0; \
