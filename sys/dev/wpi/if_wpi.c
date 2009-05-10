@@ -1786,10 +1786,13 @@ wpi_intr(void *arg)
 	if (r & (WPI_SW_ERROR | WPI_HW_ERROR)) {
 		struct ifnet *ifp = sc->sc_ifp;
 		struct ieee80211com *ic = ifp->if_l2com;
+		struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 		device_printf(sc->sc_dev, "fatal firmware error\n");
 		DPRINTFN(6,("(%s)\n", (r & WPI_SW_ERROR) ? "(Software Error)" :
 				"(Hardware Error)"));
+		if (vap != NULL)
+			ieee80211_cancel_scan(vap);
 		ieee80211_runtask(ic, &sc->sc_restarttask);
 		sc->flags &= ~WPI_FLAG_BUSY;
 		WPI_UNLOCK(sc);
