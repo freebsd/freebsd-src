@@ -45,6 +45,7 @@ int	linux_set_oss_version(struct thread *td, int oss_version);
 
 int	linux_kernver(struct thread *td);
 
+#define	LINUX_KERNVER_2004000		2004000
 #define	LINUX_KERNVER_2006000		2006000
 
 #define	linux_use26(t)		(linux_kernver(t) >= LINUX_KERNVER_2006000)
