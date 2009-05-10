@@ -1384,8 +1384,11 @@ ipw_fatal_error_intr(struct ipw_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	device_printf(sc->sc_dev, "firmware error\n");
+	if (vap != NULL)
+		ieee80211_cancel_scan(vap);
 	ieee80211_runtask(ic, &sc->sc_init_task);
 }
 
