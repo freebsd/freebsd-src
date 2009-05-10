@@ -1,3 +1,0 @@
-0i
-hello world
-.

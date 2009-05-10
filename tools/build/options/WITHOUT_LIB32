@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-On amd64, set to not build 32-bit library set and a
-.Nm ld-elf32.so.1
-runtime linker.

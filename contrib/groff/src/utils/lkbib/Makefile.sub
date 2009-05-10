@@ -1,6 +1,0 @@
-PROG=lkbib$(EXEEXT)
-MAN1=lkbib.n
-XLIBS=$(LIBBIB) $(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=lkbib.$(OBJEXT)
-CCSRCS=$(srcdir)/lkbib.cpp

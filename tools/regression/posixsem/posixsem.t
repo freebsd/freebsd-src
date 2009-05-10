@@ -1,5 +1,0 @@
-#!/bin/sh
-#
-# $FreeBSD$
-
-./posixsem

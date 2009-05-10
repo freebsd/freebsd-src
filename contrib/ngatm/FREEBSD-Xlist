@@ -1,6 +1,6 @@
 #$FreeBSD$
-*/VERSION
 */README
+*/VERSION
 */Makefile.in
 */Makefile.pre
 */Makefile.post
@@ -8,6 +8,8 @@
 */config
 */configure
 */configure.ac
-*/netnatm
-*/snmp_atm/atm_sys.c
+*/libngatm
+*/man
+*/snmp_atm
 */snmp_ilmid
+*/sscop

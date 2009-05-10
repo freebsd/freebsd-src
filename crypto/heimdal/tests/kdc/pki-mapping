@@ -1,3 +1,0 @@
-# $Id: pki-mapping 19661 2007-01-04 01:58:01Z lha $
-foo@TEST.H5L.SE:CN=pkinit,C=SE
-foo@TEST.H5L.SE:CN=bar,DC=test,DC=h5l,DC=se

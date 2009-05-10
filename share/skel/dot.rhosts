@@ -1,9 +1,0 @@
-# $FreeBSD$
-#
-# .rhosts - trusted remote host name and user data base
-#
-# see hosts.equiv(5), rsh(1), rlogin(1), rcp(1)
-#
-# This file should NOT be group or other readable.
-# OtherMachine
-# OtherMachine myFriend

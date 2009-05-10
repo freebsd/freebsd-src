@@ -1,9 +1,0 @@
-# sfdtopfa.pe
-#
-# This script generates a PFA file from the master SFD using pfaedit.
-#
-# The argument is the name of the SFD without extension;
-# the PFA file is created in the current directory.
-
-Open($1:r + ".sfd");
-Generate(($1:t):r + ".pfa");
