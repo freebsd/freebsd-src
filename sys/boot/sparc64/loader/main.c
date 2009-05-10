@@ -434,9 +434,10 @@ dtlb_va_to_pa_sun4u(vm_offset_t va)
 			continue;
 		reg = dtlb_get_data_sun4u(i);
 		wrpr(pstate, pstate, 0);
+		reg >>= TD_PA_SHIFT;
 		if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-			return ((reg & TD_PA_CH_MASK) >> TD_PA_SHIFT);
-		return ((reg & TD_PA_SF_MASK) >> TD_PA_SHIFT);
+			return (reg & TD_PA_CH_MASK);
+		return (reg & TD_PA_SF_MASK);
 	}
 	wrpr(pstate, pstate, 0);
 	return (-1);
@@ -456,9 +457,10 @@ itlb_va_to_pa_sun4u(vm_offset_t va)
 			continue;
 		reg = itlb_get_data_sun4u(i);
 		wrpr(pstate, pstate, 0);
+		reg >>= TD_PA_SHIFT;
 		if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-			return ((reg & TD_PA_CH_MASK) >> TD_PA_SHIFT);
-		return ((reg & TD_PA_SF_MASK) >> TD_PA_SHIFT);
+			return (reg & TD_PA_CH_MASK);
+		return (reg & TD_PA_SF_MASK);
 	}
 	wrpr(pstate, pstate, 0);
 	return (-1);
@@ -846,7 +848,7 @@ pmap_print_tte_sun4u(tte_t tag, tte_t tte)
 {
 
 	printf("%s %s ",
-	    page_sizes[(tte & TD_SIZE_MASK) >> TD_SIZE_SHIFT],
+	    page_sizes[(tte >> TD_SIZE_SHIFT) & TD_SIZE_MASK],
 	    tag & TD_G ? "G" : " ");
 	printf(tte & TD_W ? "W " : "  ");
 	printf(tte & TD_P ? "\e[33mP\e[0m " : "  ");
