@@ -474,7 +474,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 
 	vid_init_struct(adp, CREATOR_DRIVER_NAME, -1, unit);
 
- 	if (OF_getprop(sc->sc_node, "height", &sc->sc_height,
+	if (OF_getprop(sc->sc_node, "height", &sc->sc_height,
 	    sizeof(sc->sc_height)) == -1)
 		return (ENXIO);
 	if (OF_getprop(sc->sc_node, "width", &sc->sc_width,
@@ -503,7 +503,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 		FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_DID);
 		if (((FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE) &
 		    FFB_DAC_CFG_DID_PNUM) >> 12) != 0x236e) {
-		    	sc->sc_flags |= CREATOR_PAC1;
+			sc->sc_flags |= CREATOR_PAC1;
 			FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_UCTRL);
 			if (((FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE) &
 			    FFB_DAC_UCTRL_MANREV) >> 8) <= 2)
@@ -517,7 +517,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 	/*
 	 * Setting V_ADP_MODECHANGE serves as hack so creator_set_mode()
 	 * (which will invalidate our caches and restore our settings) is
-	 * called when the X server shuts down. Otherwise screen corruption
+	 * called when the X server shuts down.  Otherwise screen corruption
 	 * happens most of the time.
 	 */
 	adp->va_flags |= V_ADP_COLOR | V_ADP_MODECHANGE | V_ADP_BORDER |
@@ -916,8 +916,8 @@ creator_bus_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	if ((sc = (struct creator_softc *)vid_get_adapter(vid_find_adapter(
 	    CREATOR_DRIVER_NAME, 0))) != NULL && sc->sc_node == node) {
-	    	device_printf(dev, "console\n");
-	    	device_set_softc(dev, sc);
+		device_printf(dev, "console\n");
+		device_set_softc(dev, sc);
 	} else {
 		sc = device_get_softc(dev);
 		sc->sc_node = node;
@@ -930,9 +930,9 @@ creator_bus_attach(device_t dev)
 	 * and FFB_FBC register banks in creator_configure() or not so
 	 * the resources are marked as taken in the respective RMAN.
 	 * The supported cards use either 15 (Creator, Elite3D?) or 24
-	 * (Creator3D?) register banks. We make sure that we can also
+	 * (Creator3D?) register banks.  We make sure that we can also
 	 * allocate the resources for at least the FFB_DAC and FFB_FBC
-	 * banks here. We try but don't actually care whether we can
+	 * banks here.  We try but don't actually care whether we can
 	 * allocate more than these two resources and just limit the
 	 * range accessible via creator_fb_mmap() accordingly.
 	 */
@@ -965,7 +965,7 @@ creator_bus_attach(device_t dev)
 	    rman_get_start(sc->sc_reg[i]) > rman_get_start(sc->sc_reg[i - 1]);
 	    i++)
 		;
-    	adp->va_mem_size = rman_get_end(sc->sc_reg[i - 1]) -
+	adp->va_mem_size = rman_get_end(sc->sc_reg[i - 1]) -
 	    adp->va_mem_base + 1;
 
 	if (!(sc->sc_flags & CREATOR_CONSOLE)) {
@@ -977,9 +977,9 @@ creator_bus_attach(device_t dev)
 		/*
 		 * During device configuration we don't necessarily probe
 		 * the adapter which is the console first so we can't use
-		 * the device unit number for the video adapter unit. The
+		 * the device unit number for the video adapter unit.  The
 		 * worst case would be that we use the video adapter unit
-		 * 0 twice. As it doesn't really matter which unit number
+		 * 0 twice.  As it doesn't really matter which unit number
 		 * the corresponding video adapter has just use the next
 		 * unused one.
 		 */
@@ -990,7 +990,7 @@ creator_bus_attach(device_t dev)
 			sc->sc_flags |= CREATOR_AFB;
 		if ((error = sw->init(i, adp, 0)) != 0) {
 			device_printf(dev, "cannot initialize adapter\n");
-		    	goto fail;
+			goto fail;
 		}
 	}
 
@@ -1019,7 +1019,7 @@ creator_bus_attach(device_t dev)
 	for (i = 0; i < FFB_NREG && sc->sc_reg[i] != NULL; i++)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->sc_reg[i]), sc->sc_reg[i]);
- 	return (error);
+	return (error);
 }
 
 /*
@@ -1064,7 +1064,7 @@ creator_fb_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
 	for (i = 0; i < CREATOR_FB_MAP_SIZE; i++) {
 		if (offset >= creator_fb_map[i].virt &&
 		    offset < creator_fb_map[i].virt + creator_fb_map[i].size) {
-		    	offset += creator_fb_map[i].phys -
+			offset += creator_fb_map[i].phys -
 			    creator_fb_map[i].virt;
 			if (offset >= sc->sc_va.va_mem_size)
 				return (EINVAL);
