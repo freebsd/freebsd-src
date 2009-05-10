@@ -20,9 +20,9 @@
 
 ident		KB920X
 
-options		KERNPHYSADDR=0xc0000000	
-options		KERNVIRTADDR=0xc0000000	
-options		PHYSADDR=0xc0000000
+options 	KERNPHYSADDR=0xc0000000	
+options 	KERNVIRTADDR=0xc0000000	
+options 	PHYSADDR=0xc0000000
 include		"../at91/std.kb920x"
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		#Default places to look for devices.
@@ -30,8 +30,8 @@ makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=arm9
-options		DDB
-options		KDB
+options 	DDB
+options 	KDB
 
 
 options 	SCHED_4BSD		#4BSD scheduler
@@ -42,8 +42,8 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	MD_ROOT			#MD is a potential root device
-options		MD_ROOT_SIZE=4096
-options		ROOTDEVNAME=\"ufs:md0\"
+options 	MD_ROOT_SIZE=4096
+options 	ROOTDEVNAME=\"ufs:md0\"
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSSERVER		#Network Filesystem Server
 options 	NFSLOCKD		#Network Lock Manager
@@ -79,8 +79,8 @@ device		uart
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
 
-device md
-options		SKYEYE_WORKAROUNDS
+device		md
+options 	SKYEYE_WORKAROUNDS
 # Floppy drives
 
 

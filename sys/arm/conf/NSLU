@@ -104,7 +104,7 @@ device		pty
 device		loop
 
 device		md
-device          random          # Entropy device
+device		random		# Entropy device
 
 #options 	ARM_USE_SMALL_ALLOC
 
