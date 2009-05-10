@@ -1834,6 +1834,8 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 		}
 		break;
 	case IEEE80211_S_INIT:
+		/* cancel any scan in progress */
+		ieee80211_cancel_scan(vap);
 		if (ostate == IEEE80211_S_INIT ) {
 			/* XXX don't believe this */
 			/* INIT -> INIT. nothing to do */
