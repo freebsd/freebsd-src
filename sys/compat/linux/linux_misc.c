@@ -92,6 +92,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
 
+int stclohz;				/* Statistics clock frequency */
+
 #define BSD_TO_LINUX_SIGNAL(sig)	\
 	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
 
@@ -659,7 +661,7 @@ struct l_times_argv {
 	l_clock_t	tms_cstime;
 };
 
-#define CONVTCK(r)	(r.tv_sec * hz + r.tv_usec / (1000000 / hz))
+#define CONVTCK(r)	(r.tv_sec * stclohz + r.tv_usec / (1000000 / stclohz))
 
 int
 linux_times(struct thread *td, struct linux_times_args *args)
