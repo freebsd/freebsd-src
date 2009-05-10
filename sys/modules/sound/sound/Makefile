@@ -18,7 +18,7 @@ SRCS+=	midi.c mpu401.c sequencer.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "powerpc"
 # Create an empty opt_isa.h in order to keep kmod.mk from linking in an
 # existing one from KERNBUILDDIR which possibly has DEV_ISA defined so
 # sound.ko is always built without isadma support.
