@@ -261,7 +261,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
 	AUXARGS_ENTRY_32(pos, LINUX_AT_HWCAP, cpu_feature);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_CLKTCK, hz);
+	AUXARGS_ENTRY_32(pos, LINUX_AT_CLKTCK, stclohz);
 	AUXARGS_ENTRY_32(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY_32(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY_32(pos, AT_PHNUM, args->phnum);
@@ -1125,6 +1125,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			linux_szplatform = roundup(strlen(linux_platform) + 1,
 			    sizeof(char *));
 			linux_osd_jail_register();
+			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else
