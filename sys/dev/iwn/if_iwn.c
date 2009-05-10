@@ -1789,11 +1789,14 @@ iwn_error_intr(struct iwn_softc *sc, uint32_t r1, uint32_t r2)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	IWN_LOCK_ASSERT(sc);
 
 	device_printf(sc->sc_dev, "error, INTR=%b STATUS=0x%x\n",
 	    r1, IWN_INTR_BITS, r2);
+	if (vap != NULL)
+		ieee80211_cancel_scan(vap);
 	ieee80211_runtask(ic, &sc->sc_reinit_task);
 }
 
