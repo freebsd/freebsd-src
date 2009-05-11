@@ -300,7 +300,7 @@ bwi_mac_init(struct bwi_mac *mac)
 	if (error)
 		return error;
 
-	/* XXX work around for hardware bugs? */
+	/* do timeout fixup */
 	if (sc->sc_bus_regwin.rw_rev <= 5 &&
 	    sc->sc_bus_regwin.rw_type != BWI_REGWIN_T_BUSPCIE) {
 		CSR_SETBITS_4(sc, BWI_CONF_LO,
@@ -364,7 +364,7 @@ bwi_mac_init(struct bwi_mac *mac)
 	 */
 	bwi_mac_opmode_init(mac);
 
-	/* XXX what's these */
+	/* set up Beacon interval */
 	if (mac->mac_rev < 3) {
 		CSR_WRITE_2(sc, 0x60e, 0);
 		CSR_WRITE_2(sc, 0x610, 0x8000);
@@ -389,7 +389,7 @@ bwi_mac_init(struct bwi_mac *mac)
 		CSR_WRITE_4(sc, BWI_TXRX_INTR_MASK(i), intrs);
 	}
 
-	/* XXX what's this */
+	/* allow the MAC to control the PHY clock (dynamic on/off) */
 	CSR_SETBITS_4(sc, BWI_STATE_LO, 0x100000);
 
 	/* Setup MAC power up delay */
@@ -441,7 +441,7 @@ bwi_mac_init(struct bwi_mac *mac)
 		}
 	}
 
-	/* XXX what's these */
+	/* update PRETBTT */
 	CSR_WRITE_2(sc, 0x612, 0x50);	/* Force Pre-TBTT to 80? */
 	MOBJ_WRITE_2(mac, BWI_COMM_MOBJ, 0x416, 0x50);
 	MOBJ_WRITE_2(mac, BWI_COMM_MOBJ, 0x414, 0x1f4);
