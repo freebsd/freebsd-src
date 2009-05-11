@@ -457,6 +457,9 @@ lookup(struct nameidata *ndp)
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
 	int lkflags_save;
+#ifdef AUDIT
+	struct thread *td = curthread;
+#endif
 	
 	/*
 	 * Setup: break out flag bits into variables.
