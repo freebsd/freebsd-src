@@ -94,7 +94,8 @@ xencons_handle_input(void *unused)
 
 	cons = intf->in_cons;
 	prod = intf->in_prod;
-
+	CN_UNLOCK(cn_mtx);
+	
 	/* XXX needs locking */
 	while (cons != prod) {
 		xencons_rx(intf->in + MASK_XENCONS_IDX(cons, intf->in), 1);
@@ -104,6 +105,7 @@ xencons_handle_input(void *unused)
 	mb();
 	intf->in_cons = cons;
 
+	CN_LOCK(cn_mtx);
 	notify_remote_via_evtchn(xen_start_info->console_evtchn);
 
 	xencons_tx();
