@@ -2404,7 +2404,7 @@ vflush( struct mount *mp, int rootrefs, int flags, struct thread *td)
 		 * Get the filesystem root vnode. We can vput() it
 		 * immediately, since with rootrefs > 0, it won't go away.
 		 */
-		if ((error = VFS_ROOT(mp, LK_EXCLUSIVE, &rootvp, td)) != 0) {
+		if ((error = VFS_ROOT(mp, LK_EXCLUSIVE, &rootvp)) != 0) {
 			CTR2(KTR_VFS, "%s: vfs_root lookup failed with %d",
 			    __func__, error);
 			return (error);
@@ -3448,7 +3448,7 @@ sync_fsync(struct vop_fsync_args *ap)
 	mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
 	vfs_msync(mp, MNT_NOWAIT);
-	error = VFS_SYNC(mp, MNT_LAZY, ap->a_td);
+	error = VFS_SYNC(mp, MNT_LAZY);
 	MNT_ILOCK(mp);
 	mp->mnt_noasync--;
 	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)

@@ -1107,7 +1107,6 @@ int
 vfs_write_suspend(mp)
 	struct mount *mp;
 {
-	struct thread *td = curthread;
 	int error;
 
 	MNT_ILOCK(mp);
@@ -1124,7 +1123,7 @@ vfs_write_suspend(mp)
 		    MNT_MTX(mp), (PUSER - 1)|PDROP, "suspwt", 0);
 	else
 		MNT_IUNLOCK(mp);
-	if ((error = VFS_SYNC(mp, MNT_SUSPEND, td)) != 0)
+	if ((error = VFS_SYNC(mp, MNT_SUSPEND)) != 0)
 		vfs_write_resume(mp);
 	return (error);
 }
