@@ -143,7 +143,7 @@ int	ufs_extattr_start(struct mount *mp, struct thread *td);
 int	ufs_extattr_autostart(struct mount *mp, struct thread *td);
 int	ufs_extattr_stop(struct mount *mp, struct thread *td);
 int	ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename,
-	    int attrnamespace, const char *attrname, struct thread *td);
+	    int attrnamespace, const char *attrname);
 int	ufs_getextattr(struct vop_getextattr_args *ap);
 int	ufs_deleteextattr(struct vop_deleteextattr_args *ap);
 int	ufs_setextattr(struct vop_setextattr_args *ap);

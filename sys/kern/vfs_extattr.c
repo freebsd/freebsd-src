@@ -133,7 +133,7 @@ extattrctl(td, uap)
 	}
 
 	error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp, uap->attrnamespace,
-	    uap->attrname != NULL ? attrname : NULL, td);
+	    uap->attrname != NULL ? attrname : NULL);
 
 	vn_finished_write(mp_writable);
 out:

@@ -185,9 +185,10 @@ nfs4_uninit(struct vfsconf *vfsp)
  * nfs statfs call
  */
 static int
-nfs4_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+nfs4_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct vnode *vp;
+	struct thread *td;
 	struct nfs_statfs *sfp;
 	caddr_t bpos, dpos;
 	struct nfsmount *nmp = VFSTONFS(mp);
@@ -198,6 +199,7 @@ nfs4_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	struct nfs4_oparg_getattr ga;
 	struct nfsv4_fattr *fap = &ga.fa;
 
+	td = curthread;
 #ifndef nolint
 	sfp = NULL;
 #endif
@@ -393,7 +395,7 @@ nfs4_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
  */
 /* ARGSUSED */
 static int
-nfs4_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+nfs4_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct nfs_args args;
 	int error;
@@ -407,7 +409,7 @@ nfs4_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
 }
 
 static int
-nfs4_mount(struct mount *mp, struct thread *td)
+nfs4_mount(struct mount *mp)
 {
 	int error;
 	struct nfs_args args;
@@ -451,7 +453,7 @@ nfs4_mount(struct mount *mp, struct thread *td)
 	error = getsockaddr(&nam, (caddr_t)args.addr, args.addrlen);
 	if (error)
 		return (error);
-	error = mountnfs(&args, mp, nam, hst, &vp, td->td_ucred);
+	error = mountnfs(&args, mp, nam, hst, &vp, curthread->td_ucred);
 	return (error);
 }
 
@@ -669,7 +671,7 @@ bad:
  * unmount system call
  */
 static int
-nfs4_unmount(struct mount *mp, int mntflags, struct thread *td)
+nfs4_unmount(struct mount *mp, int mntflags)
 {
 	struct nfsmount *nmp;
 	int error, flags = 0;
@@ -679,7 +681,7 @@ nfs4_unmount(struct mount *mp, int mntflags, struct thread *td)
 	nmp = VFSTONFS(mp);
 	/*
 	 * Goes something like this..
-	 * - Call vflush(, td) to clear out vnodes for this filesystem
+	 * - Call vflush to clear out vnodes for this filesystem
 	 * - Close the socket
 	 * - Free up the data structures
 	 */
@@ -691,7 +693,7 @@ nfs4_unmount(struct mount *mp, int mntflags, struct thread *td)
 		nfs4dev_purge();
 	}
 
-	error = vflush(mp, 0, flags, td);
+	error = vflush(mp, 0, flags, curthread);
 	if (error)
 		return (error);
 
@@ -713,7 +715,7 @@ nfs4_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return root of a filesystem
  */
 static int
-nfs4_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+nfs4_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct vnode *vp;
 	struct nfsmount *nmp;
@@ -738,10 +740,13 @@ nfs4_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
  * Flush out the buffer cache
  */
 static int
-nfs4_sync(struct mount *mp, int waitfor, struct thread *td)
+nfs4_sync(struct mount *mp, int waitfor)
 {
 	struct vnode *vp, *mvp;
+	struct thread *td;
 	int error, allerror = 0;
+
+	td = curthread;
 
 	/*
 	 * Force stale buffer cache information to be flushed.

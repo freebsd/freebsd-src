@@ -160,14 +160,14 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	 */
 	cr = td->td_ucred;
 	td->td_ucred = kcred;
-	error = VFS_MOUNT(mp, td);
+	error = VFS_MOUNT(mp);
 	td->td_ucred = cr;
 
 	if (!error) {
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);
 		mp->mnt_opt = mp->mnt_optnew;
-		(void)VFS_STATFS(mp, &mp->mnt_stat, td);
+		(void)VFS_STATFS(mp, &mp->mnt_stat);
 	}
 	/*
 	 * Prevent external consumers of mount options from reading
@@ -192,7 +192,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
 		vfs_event_signal(NULL, VQ_MOUNT, 0);
-		if (VFS_ROOT(mp, LK_EXCLUSIVE, &mvp, td))
+		if (VFS_ROOT(mp, LK_EXCLUSIVE, &mvp))
 			panic("mount: lost mount");
 		mountcheckdirs(vp, mvp);
 		vput(mvp);

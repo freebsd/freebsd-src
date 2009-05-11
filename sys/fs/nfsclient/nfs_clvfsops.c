@@ -244,15 +244,18 @@ nfs_convert_diskless(void)
  * nfs statfs call
  */
 static int
-nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+nfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct vnode *vp;
+	struct thread *td;
 	struct nfsmount *nmp = VFSTONFS(mp);
 	struct nfsvattr nfsva;
 	struct nfsfsinfo fs;
 	struct nfsstatfs sb;
 	int error = 0, attrflag, gotfsinfo = 0, ret;
 	struct nfsnode *np;
+
+	td = curthread;
 
 	error = vfs_busy(mp, MBF_NOWAIT);
 	if (error)
@@ -659,7 +662,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
  */
 /* ARGSUSED */
 static int
-nfs_mount(struct mount *mp, struct thread *td)
+nfs_mount(struct mount *mp)
 {
 	struct nfs_args args = {
 	    .version = NFS_ARGSVERSION,
@@ -689,6 +692,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 	int error;
 	struct sockaddr *nam;
 	struct vnode *vp;
+	struct thread *td;
 	char hst[MNAMELEN];
 	size_t len;
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
@@ -698,6 +702,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 		goto out;
 	}
 
+	td = curthread;
 	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_UPDATE)) == MNT_ROOTFS) {
 		error = ncl_mountroot(mp, td);
 		goto out;
@@ -835,7 +840,7 @@ out:
  */
 /* ARGSUSED */
 static int
-nfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+nfs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	int error;
 	struct nfs_args args;
@@ -1069,10 +1074,13 @@ bad:
  * unmount system call
  */
 static int
-nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+nfs_unmount(struct mount *mp, int mntflags)
 {
+	struct thread *td;
 	struct nfsmount *nmp;
 	int error, flags = 0, trycnt = 0;
+
+	td = curthread;
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
@@ -1120,7 +1128,7 @@ out:
  * Return root of a filesystem
  */
 static int
-nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+nfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct vnode *vp;
 	struct nfsmount *nmp;
@@ -1153,10 +1161,13 @@ nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
  */
 /* ARGSUSED */
 static int
-nfs_sync(struct mount *mp, int waitfor, struct thread *td)
+nfs_sync(struct mount *mp, int waitfor)
 {
 	struct vnode *vp, *mvp;
+	struct thread *td;
 	int error, allerror = 0;
+
+	td = curthread;
 
 	/*
 	 * Force stale buffer cache information to be flushed.

@@ -146,7 +146,7 @@ sync(td, uap)
 			mp->mnt_kern_flag &= ~MNTK_ASYNC;
 			MNT_IUNLOCK(mp);
 			vfs_msync(mp, MNT_NOWAIT);
-			VFS_SYNC(mp, MNT_NOWAIT, td);
+			VFS_SYNC(mp, MNT_NOWAIT);
 			MNT_ILOCK(mp);
 			mp->mnt_noasync--;
 			if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
@@ -215,7 +215,7 @@ quotactl(td, uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
+	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg);
 	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
@@ -326,7 +326,7 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp, td);
+	error = VFS_STATFS(mp, sp);
 	if (error)
 		goto out;
 	if (priv_check(td, PRIV_VFS_GENERATION)) {
@@ -415,7 +415,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp, td);
+	error = VFS_STATFS(mp, sp);
 	if (error)
 		goto out;
 	if (priv_check(td, PRIV_VFS_GENERATION)) {
@@ -522,7 +522,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			 */
 			if (((flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
 			    (flags & MNT_WAIT)) &&
-			    (error = VFS_STATFS(mp, sp, td))) {
+			    (error = VFS_STATFS(mp, sp))) {
 				VFS_UNLOCK_GIANT(vfslocked);
 				mtx_lock(&mountlist_mtx);
 				nmp = TAILQ_NEXT(mp, mnt_list);
@@ -766,7 +766,7 @@ fchdir(td, uap)
 		if (vfs_busy(mp, 0))
 			continue;
 		tvfslocked = VFS_LOCK_GIANT(mp);
-		error = VFS_ROOT(mp, LK_SHARED, &tdp, td);
+		error = VFS_ROOT(mp, LK_SHARED, &tdp);
 		vfs_unbusy(mp);
 		if (error) {
 			VFS_UNLOCK_GIANT(tvfslocked);
@@ -4638,7 +4638,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp, td);
+	error = VFS_STATFS(mp, sp);
 	if (error == 0)
 		*buf = *sp;
 out:

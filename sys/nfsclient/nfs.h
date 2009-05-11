@@ -307,7 +307,7 @@ enum nfs_rto_timer_t {
 
 vfs_init_t nfs_init;
 vfs_uninit_t nfs_uninit;
-int	nfs_mountroot(struct mount *mp, struct thread *td);
+int	nfs_mountroot(struct mount *mp);
 
 #ifdef NFS_LEGACYRPC
 #ifndef NFS4_USE_RPCCLNT
