@@ -73,8 +73,7 @@ static int
 hpfs_cmount ( 
 	struct mntarg *ma,
 	void *data,
-	int flags,
-	struct thread *td )
+	int flags)
 {
 	struct hpfs_args args;
 	int error;
@@ -103,16 +102,16 @@ static const char *hpfs_opts[] = {
 };
 
 static int
-hpfs_mount ( 
-	struct mount *mp,
-	struct thread *td )
+hpfs_mount (struct mount *mp)
 {
 	int		err = 0, error;
 	struct vnode	*devvp;
+	struct thread *td;
 	struct nameidata ndp;
 	struct export_args export;
 	char *from;
 
+	td = curthread;
 	dprintf(("hpfs_omount():\n"));
 	/*
 	 ***
@@ -299,7 +298,7 @@ hpfs_mountfs(devvp, mp, td)
 		goto failed;
 	}
 
-	error = hpfs_root(mp, LK_EXCLUSIVE, &vp, td);
+	error = hpfs_root(mp, LK_EXCLUSIVE, &vp);
 	if (error) {
 		hpfs_cpdeinit(hpmp);
 		hpfs_bmdeinit(hpmp);
@@ -331,8 +330,7 @@ failed:
 static int
 hpfs_unmount( 
 	struct mount *mp,
-	int mntflags,
-	struct thread *td)
+	int mntflags)
 {
 	int error, flags;
 	register struct hpfsmount *hpmp = VFSTOHPFS(mp);
@@ -345,7 +343,7 @@ hpfs_unmount(
 
 	dprintf(("hpfs_unmount: vflushing...\n"));
 	
-	error = vflush(mp, 0, flags, td);
+	error = vflush(mp, 0, flags, curthread);
 	if (error) {
 		printf("hpfs_unmount: vflush failed: %d\n",error);
 		return (error);
@@ -375,8 +373,7 @@ static int
 hpfs_root(
 	struct mount *mp,
 	int flags,
-	struct vnode **vpp,
-	struct thread *td )
+	struct vnode **vpp)
 {
 	int error = 0;
 	struct hpfsmount *hpmp = VFSTOHPFS(mp);
@@ -394,8 +391,7 @@ hpfs_root(
 static int
 hpfs_statfs(
 	struct mount *mp,
-	struct statfs *sbp,
-	struct thread *td)
+	struct statfs *sbp)
 {
 	struct hpfsmount *hpmp = VFSTOHPFS(mp);
 

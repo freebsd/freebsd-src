@@ -586,7 +586,7 @@ acctwatch(void)
 	 * Stopping here is better than continuing, maybe it will be VBAD
 	 * next time around.
 	 */
-	if (VFS_STATFS(acct_vp->v_mount, &sb, curthread) < 0) {
+	if (VFS_STATFS(acct_vp->v_mount, &sb) < 0) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		return;
 	}

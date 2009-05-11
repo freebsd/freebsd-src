@@ -1907,7 +1907,7 @@ nfsrvd_statfs(struct nfsrv_descript *nd, __unused int isdgram,
 		return (0);
 	}
 	sf = &sfs;
-	nd->nd_repstat = nfsvno_statfs(vp, sf, nd->nd_cred, p);
+	nd->nd_repstat = nfsvno_statfs(vp, sf);
 	getret = nfsvno_getattr(vp, &at, nd->nd_cred, p);
 	vput(vp);
 	if (nd->nd_flag & ND_NFSV3)
@@ -3285,7 +3285,7 @@ nfsrvd_verify(struct nfsrv_descript *nd, int isdgram,
 
 	nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p);
 	if (!nd->nd_repstat)
-		nd->nd_repstat = nfsvno_statfs(vp, &sf, nd->nd_cred, p);
+		nd->nd_repstat = nfsvno_statfs(vp, &sf);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getfh(vp, &fh, p);
 	if (!nd->nd_repstat) {

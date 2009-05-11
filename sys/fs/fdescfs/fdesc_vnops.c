@@ -145,20 +145,21 @@ fdesc_remove_entry(struct fdescnode *fd)
 }
 
 int
-fdesc_allocvp(ftype, fd_fd, ix, mp, vpp, td)
+fdesc_allocvp(ftype, fd_fd, ix, mp, vpp)
 	fdntype ftype;
 	unsigned fd_fd;
 	int ix;
 	struct mount *mp;
 	struct vnode **vpp;
-	struct thread *td;
 {
 	struct fdescmount *fmp;
 	struct fdhashhead *fc;
 	struct fdescnode *fd, *fd2;
 	struct vnode *vp, *vp2;
+	struct thread *td;
 	int error = 0;
 
+	td = curthread;
 	fc = FD_NHASH(ix);
 loop:
 	mtx_lock(&fdesc_hashmtx);
@@ -328,7 +329,7 @@ fdesc_lookup(ap)
 		vhold(dvp);
 		VOP_UNLOCK(dvp, 0);
 		error = fdesc_allocvp(Fdesc, fd, FD_DESC + fd, dvp->v_mount,
-		    &fvp, td);
+		    &fvp);
 		fdrop(fp, td);
 		/*
 		 * The root vnode must be locked last to prevent deadlock condition.
