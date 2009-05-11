@@ -89,7 +89,7 @@ xencons_handle_input(void *unused)
 	struct xencons_interface *intf;
 	XENCONS_RING_IDX cons, prod;
 
-	mtx_lock(&cn_mtx);
+	CN_LOCK(cn_mtx);
 	intf = xencons_interface();
 
 	cons = intf->in_cons;
@@ -107,7 +107,7 @@ xencons_handle_input(void *unused)
 	notify_remote_via_evtchn(xen_start_info->console_evtchn);
 
 	xencons_tx();
-	mtx_unlock(&cn_mtx);
+	CN_UNLOCK(cn_mtx);
 }
 
 void 
