@@ -2866,7 +2866,7 @@ static int
 nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 {
 	struct file *fp;
-	struct nfsd_args nfsdarg;
+	struct nfsd_addsock_args nfsdarg;
 	int error;
 
 	if (uap->flag & NFSSVC_NFSDADDSOCK) {

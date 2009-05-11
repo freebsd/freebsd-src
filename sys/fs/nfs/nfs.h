@@ -157,7 +157,7 @@
  * Structures for the nfssvc(2) syscall. Not that anyone but nfsd, mount_nfs
  * and nfsloaduser should ever try and use it.
  */
-struct nfsd_args {
+struct nfsd_addsock_args {
 	int	sock;		/* Socket to serve */
 	caddr_t	name;		/* Client addr for connection based sockets */
 	int	namelen;	/* Length of name */
