@@ -924,7 +924,7 @@ linux_recv(struct thread *td, struct linux_recv_args *args)
 	bsd_args.s = args->s;
 	bsd_args.buf = (caddr_t)PTRIN(args->msg);
 	bsd_args.len = args->len;
-	bsd_args.flags = args->flags;
+	bsd_args.flags = linux_to_bsd_msg_flags(args->flags);
 	bsd_args.from = NULL;
 	bsd_args.fromlenaddr = 0;
 	return (recvfrom(td, &bsd_args));
