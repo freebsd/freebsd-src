@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 int
 tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
     uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *parent,
-    char *target, dev_t rdev, struct thread *p, struct tmpfs_node **node)
+    char *target, dev_t rdev, struct tmpfs_node **node)
 {
 	struct tmpfs_node *nnode;
 
@@ -303,7 +303,7 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de,
  */
 int
 tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
-    struct vnode **vpp, struct thread *td)
+    struct vnode **vpp)
 {
 	int error = 0;
 	struct vnode *vp;
@@ -314,7 +314,7 @@ loop:
 		VI_LOCK(vp);
 		TMPFS_NODE_UNLOCK(node);
 		vholdl(vp);
-		(void) vget(vp, lkflag | LK_INTERLOCK | LK_RETRY, td);
+		(void) vget(vp, lkflag | LK_INTERLOCK | LK_RETRY, curthread);
 		vdrop(vp);
 
 		/*
@@ -482,8 +482,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 
 	/* Allocate a node that represents the new file. */
 	error = tmpfs_alloc_node(tmp, vap->va_type, cnp->cn_cred->cr_uid,
-	    dnode->tn_gid, vap->va_mode, parent, target, vap->va_rdev,
-	    cnp->cn_thread, &node);
+	    dnode->tn_gid, vap->va_mode, parent, target, vap->va_rdev, &node);
 	if (error != 0)
 		goto out;
 
@@ -496,8 +495,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	}
 
 	/* Allocate a vnode for the new file. */
-	error = tmpfs_alloc_vp(dvp->v_mount, node, LK_EXCLUSIVE, vpp,
-	    cnp->cn_thread);
+	error = tmpfs_alloc_vp(dvp->v_mount, node, LK_EXCLUSIVE, vpp);
 	if (error != 0) {
 		tmpfs_free_dirent(tmp, de, TRUE);
 		tmpfs_free_node(tmp, node);

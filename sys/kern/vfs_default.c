@@ -795,47 +795,45 @@ out:
  * used to fill the vfs function table to get reasonable default return values.
  */
 int
-vfs_stdroot (mp, flags, vpp, td)
+vfs_stdroot (mp, flags, vpp)
 	struct mount *mp;
 	int flags;
 	struct vnode **vpp;
-	struct thread *td;
 {
 
 	return (EOPNOTSUPP);
 }
 
 int
-vfs_stdstatfs (mp, sbp, td)
+vfs_stdstatfs (mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
 
 	return (EOPNOTSUPP);
 }
 
 int
-vfs_stdquotactl (mp, cmds, uid, arg, td)
+vfs_stdquotactl (mp, cmds, uid, arg)
 	struct mount *mp;
 	int cmds;
 	uid_t uid;
 	void *arg;
-	struct thread *td;
 {
 
 	return (EOPNOTSUPP);
 }
 
 int
-vfs_stdsync(mp, waitfor, td)
+vfs_stdsync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
-	struct thread *td;
 {
 	struct vnode *vp, *mvp;
+	struct thread *td;
 	int error, lockreq, allerror = 0;
 
+	td = curthread;
 	lockreq = LK_EXCLUSIVE | LK_INTERLOCK;
 	if (waitfor != MNT_WAIT)
 		lockreq |= LK_NOWAIT;
@@ -872,10 +870,9 @@ loop:
 }
 
 int
-vfs_stdnosync (mp, waitfor, td)
+vfs_stdnosync (mp, waitfor)
 	struct mount *mp;
 	int waitfor;
-	struct thread *td;
 {
 
 	return (0);
@@ -919,13 +916,12 @@ vfs_stduninit (vfsp)
 }
 
 int
-vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, td)
+vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname)
 	struct mount *mp;
 	int cmd;
 	struct vnode *filename_vp;
 	int attrnamespace;
 	const char *attrname;
-	struct thread *td;
 {
 
 	if (filename_vp != NULL)

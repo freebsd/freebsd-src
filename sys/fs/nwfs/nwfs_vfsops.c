@@ -129,8 +129,7 @@ nwfs_initnls(struct nwmount *nmp) {
 	return 0;
 }
 
-static int nwfs_cmount(struct mntarg *ma, void *data, int flags,
-		      struct thread *td)
+static int nwfs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct nwfs_args args; 	  /* will hold data from mount request */
 	int error;
@@ -155,7 +154,7 @@ static int nwfs_cmount(struct mntarg *ma, void *data, int flags,
  * mp - path - addr in user space of mount point (ie /usr or whatever)
  * data - addr in user space of mount params 
  */
-static int nwfs_mount(struct mount *mp, struct thread *td)
+static int nwfs_mount(struct mount *mp)
 {
 	struct nwfs_args args; 	  /* will hold data from mount request */
 	int error;
@@ -163,8 +162,10 @@ static int nwfs_mount(struct mount *mp, struct thread *td)
 	struct ncp_conn *conn = NULL;
 	struct ncp_handle *handle = NULL;
 	struct vnode *vp;
+	struct thread *td;
 	char *pc,*pe;
 
+	td = curthread;
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
 	if (mp->mnt_flag & MNT_UPDATE) {
@@ -224,7 +225,7 @@ static int nwfs_mount(struct mount *mp, struct thread *td)
 	/* protect against invalid mount points */
 	nmp->m.mount_point[sizeof(nmp->m.mount_point)-1] = '\0';
 	vfs_getnewfsid(mp);
-	error = nwfs_root(mp, LK_EXCLUSIVE, &vp, td);
+	error = nwfs_root(mp, LK_EXCLUSIVE, &vp);
 	if (error)
 		goto bad;
 	/*
@@ -243,13 +244,15 @@ bad:
 
 /* Unmount the filesystem described by mp. */
 static int
-nwfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+nwfs_unmount(struct mount *mp, int mntflags)
 {
+	struct thread *td;
 	struct nwmount *nmp = VFSTONWFS(mp);
 	struct ncp_conn *conn;
 	int error, flags;
 
 	NCPVODEBUG("nwfs_unmount: flags=%04x\n",mntflags);
+	td = curthread;
 	flags = 0;
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
@@ -275,15 +278,19 @@ nwfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 
 /*  Return locked vnode to root of a filesystem */
 static int
-nwfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td) {
+nwfs_root(struct mount *mp, int flags, struct vnode **vpp) {
 	struct vnode *vp;
 	struct nwmount *nmp;
 	struct nwnode *np;
 	struct ncp_conn *conn;
 	struct nw_entry_info fattr;
-	struct ucred *cred =  td->td_ucred;
+	struct thread *td;
+	struct ucred *cred;
 	int error, nsf, opt;
 	u_char vol;
+
+	td = curthread;
+	cred = td->td_ucred;
 
 	nmp = VFSTONWFS(mp);
 	conn = NWFSTOCONN(nmp);
@@ -371,12 +378,11 @@ nwfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td) {
  */
 /* ARGSUSED */
 static int
-nwfs_quotactl(mp, cmd, uid, arg, td)
+nwfs_quotactl(mp, cmd, uid, arg)
 	struct mount *mp;
 	int cmd;
 	uid_t uid;
 	void *arg;
-	struct thread *td;
 {
 	NCPVODEBUG("return EOPNOTSUPP\n");
 	return (EOPNOTSUPP);
@@ -406,12 +412,12 @@ nwfs_uninit(struct vfsconf *vfsp)
  * nwfs_statfs call
  */
 int
-nwfs_statfs(mp, sbp, td)
+nwfs_statfs(mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
 	struct nwmount *nmp = VFSTONWFS(mp);
+	struct thread *td = curthread;
 	int error = 0, secsize;
 	struct nwnode *np = nmp->n_root;
 	struct ncp_volume_info vi;

@@ -1257,13 +1257,10 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
  * Statfs vnode op.
  */
 int
-nfsvno_statfs(struct vnode *vp, struct statfs *sf, struct ucred *cred,
-    struct thread *p)
+nfsvno_statfs(struct vnode *vp, struct statfs *sf)
 {
-	int error;
 
-	error = VFS_STATFS(vp->v_mount, sf, p);
-	return (error);
+	return (VFS_STATFS(vp->v_mount, sf));
 }
 
 /*

@@ -558,7 +558,7 @@ int nfsvno_rename(struct nameidata *, struct nameidata *, u_int32_t,
 int nfsvno_link(struct nameidata *, vnode_t, struct ucred *,
     NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_fsync(vnode_t, u_int64_t, int, struct ucred *, NFSPROC_T *);
-int nfsvno_statfs(vnode_t, struct statfs *, struct ucred *, NFSPROC_T *);
+int nfsvno_statfs(vnode_t, struct statfs *);
 void nfsvno_getfs(struct nfsfsinfo *, int);
 void nfsvno_open(struct nfsrv_descript *, struct nameidata *, nfsquad_t,
     nfsv4stateid_t *, struct nfsstate *, int *, struct nfsvattr *, u_char *,
