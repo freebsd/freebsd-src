@@ -96,7 +96,7 @@ typedef struct {
 typedef struct {
 	l_time_t	tv_sec;
 	l_suseconds_t	tv_usec;
-} __packed l_timeval;
+} l_timeval;
 
 #define	l_fd_set	fd_set
 
