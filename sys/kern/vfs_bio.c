@@ -3519,7 +3519,8 @@ retry:
 			goto retry;
 	}
 	bogus = 0;
-	vm_page_lock_queues();
+	if (clear_modify)
+		vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 
@@ -3542,17 +3543,18 @@ retry:
 		 * It may not work properly with small-block devices.
 		 * We need to find a better way.
 		 */
-		pmap_remove_all(m);
-		if (clear_modify)
+		if (clear_modify) {
+			pmap_remove_write(m);
 			vfs_page_set_valid(bp, foff, m);
-		else if (m->valid == VM_PAGE_BITS_ALL &&
+		} else if (m->valid == VM_PAGE_BITS_ALL &&
 		    (bp->b_flags & B_CACHE) == 0) {
 			bp->b_pages[i] = bogus_page;
 			bogus++;
 		}
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 	}
-	vm_page_unlock_queues();
+	if (clear_modify)
+		vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(obj);
 	if (bogus)
 		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
