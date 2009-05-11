@@ -2422,6 +2422,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 	int error;
 	int numsecflavor, *secflavors;
 
+	*credp = NULL;
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
 	if (nam && !error) {
 		error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
