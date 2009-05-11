@@ -1278,6 +1278,8 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		caddr_t val;
 		int valsize;
 	} */ bsd_args;
+	l_timeval linux_tv;
+	struct timeval tv;
 	int error, name;
 
 	bsd_args.s = args->s;
@@ -1285,6 +1287,23 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	switch (bsd_args.level) {
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
+		switch (name) {
+		case SO_RCVTIMEO:
+			/* FALLTHROUGH */
+		case SO_SNDTIMEO:
+			error = copyin(PTRIN(args->optval), &linux_tv,
+			    sizeof(linux_tv));
+			if (error)
+				return (error);
+			tv.tv_sec = linux_tv.tv_sec;
+			tv.tv_usec = linux_tv.tv_usec;
+			return (kern_setsockopt(td, args->s, bsd_args.level,
+			    name, &tv, UIO_SYSSPACE, sizeof(tv)));
+			/* NOTREACHED */
+			break;
+		default:
+			break;
+		}
 		break;
 	case IPPROTO_IP:
 		name = linux_to_bsd_ip_sockopt(args->optname);
@@ -1333,6 +1352,9 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		caddr_t val;
 		int *avalsize;
 	} */ bsd_args;
+	l_timeval linux_tv;
+	struct timeval tv;
+	socklen_t tv_len;
 	int error, name;
 
 	bsd_args.s = args->s;
@@ -1340,6 +1362,24 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	switch (bsd_args.level) {
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
+		switch (name) {
+		case SO_RCVTIMEO:
+			/* FALLTHROUGH */
+		case SO_SNDTIMEO:
+			tv_len = sizeof(tv);
+			error = kern_getsockopt(td, args->s, bsd_args.level,
+			    name, &tv, UIO_SYSSPACE, &tv_len);
+			if (error)
+				return (error);
+			linux_tv.tv_sec = tv.tv_sec;
+			linux_tv.tv_usec = tv.tv_usec;
+			return (copyout(&linux_tv, PTRIN(args->optval),
+			    sizeof(linux_tv)));
+			/* NOTREACHED */
+			break;
+		default:
+			break;
+		}
 		break;
 	case IPPROTO_IP:
 		name = linux_to_bsd_ip_sockopt(args->optname);
