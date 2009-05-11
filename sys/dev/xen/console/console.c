@@ -287,8 +287,10 @@ xencons_rx(char *buf, unsigned len)
 		ttydisc_rint_done(tp);
 		tty_unlock(tp);
 	} else {
+		CN_LOCK(cn_mtx);
 		for (i = 0; i < len; i++)
 			rbuf[RBUF_MASK(rp++)] = buf[i];
+		CN_UNLOCK(cn_mtx);
 	}
 }
 
