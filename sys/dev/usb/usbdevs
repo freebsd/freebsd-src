@@ -1023,6 +1023,7 @@ product CHPRODUCTS FIGHTERSTICK 0x00f3	Fighterstick
 product CHPRODUCTS FLIGHTYOKE	0x00ff	Flight Sim Yoke
 
 /* Cisco-Linksys products */
+product CISCOLINKSYS WUSB54AG	0x000c	WUSB54AG Wireless Adapter
 product CISCOLINKSYS WUSB54G	0x000d	WUSB54G Wireless Adapter
 product CISCOLINKSYS WUSB54GP	0x0011	WUSB54GP Wireless Adapter
 product CISCOLINKSYS USB200MV2	0x0018	USB200M v2
@@ -2516,6 +2517,7 @@ product ZCOM XG703A		0x0008	PrismGT USB 2.0 WLAN
 product ZCOM ZD1211		0x0011	ZD1211
 product ZCOM AR5523		0x0012	AR5523
 product ZCOM AR5523_NF		0x0013	AR5523 driver (no firmware)
+product ZCOM XM142		0x0015	XM-142
 product ZCOM ZD1211B		0x001a	ZD1211B
 
 /* Zinwell products */
