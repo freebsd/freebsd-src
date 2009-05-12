@@ -23,14 +23,10 @@
  * SUCH DAMAGE.
  */
 
-/* TODO: (in no order)
+/* TODO
  *
- * 8) Need to sync busdma goo in atestop
- * 9) atestop should maybe free the mbufs?
- *
- * 1) detach
- * 2) Free dma setup
- * 3) Turn on the clock in pmc?  Turn off?
+ * 1) Turn on the clock in pmc?  Turn off?
+ * 2) GPIO initializtion in board setup code.
  */
 
 #include <sys/cdefs.h>
@@ -152,7 +148,7 @@ static void ate_intr(void *);
 
 /* helper routines */
 static int ate_activate(device_t dev);
-static void ate_deactivate(device_t dev);
+static void ate_deactivate(struct ate_softc *sc);
 static int ate_ifmedia_upd(struct ifnet *ifp);
 static void ate_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 static int ate_get_mac(struct ate_softc *sc, u_char *eaddr);
@@ -179,11 +175,33 @@ ate_attach(device_t dev)
 	struct ifnet *ifp = NULL;
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
-	int err;
 	u_char eaddr[ETHER_ADDR_LEN];
 	uint32_t rnd;
+	int rid, err;
 
 	sc->dev = dev;
+	ATE_LOCK_INIT(sc);
+	
+	/*
+	 * Allocate resources.
+	 */
+	rid = 0;
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->mem_res == NULL) {
+		device_printf(dev, "could not allocate memory resources.\n");
+		err = ENOMEM;
+		goto out;
+	}
+	rid = 0;
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
+	if (sc->irq_res == NULL) {
+		device_printf(dev, "could not allocate interrupt resources.\n");
+		err = ENOMEM;
+		goto out;
+	}
+
 	err = ate_activate(dev);
 	if (err)
 		goto out;
@@ -197,8 +215,9 @@ ate_attach(device_t dev)
 	    CTLFLAG_RD, &sc->use_rmii, 0, "rmii in use");
 
 	/* calling atestop before ifp is set is OK */
+	ATE_LOCK(sc);
 	atestop(sc);
-	ATE_LOCK_INIT(sc);
+	ATE_UNLOCK(sc);
 	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
 
 	if ((err = ate_get_mac(sc, eaddr)) != 0) {
@@ -252,26 +271,65 @@ ate_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/*
-	 * Activate the interrupt
+	 * Activate the interrupt.
 	 */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, ate_intr, sc, &sc->intrhand);
 	if (err) {
+		device_printf(dev, "could not establish interrupt handler.\n");
 		ether_ifdetach(ifp);
-		ATE_LOCK_DESTROY(sc);
+		goto out;
 	}
-out:;
+
+out:
 	if (err)
-		ate_deactivate(dev);
-	if (err && ifp)
-		if_free(ifp);
+		ate_detach(dev);
 	return (err);
 }
 
 static int
 ate_detach(device_t dev)
 {
-	return EBUSY;	/* XXX TODO(1) */
+	struct ate_softc *sc;
+	struct ifnet *ifp;
+
+	sc = device_get_softc(dev);
+	KASSERT(sc != NULL, ("[ate: %d]: sc is NULL", __LINE__));
+	ifp = sc->ifp;
+	if (device_is_attached(dev)) {
+		ATE_LOCK(sc);
+			sc->flags |= ATE_FLAG_DETACHING;
+			atestop(sc);
+		ATE_UNLOCK(sc);
+		callout_drain(&sc->tick_ch);
+		ether_ifdetach(ifp);
+	}
+	if (sc->miibus != NULL) {
+		device_delete_child(dev, sc->miibus);
+		sc->miibus = NULL;
+	}
+	bus_generic_detach(sc->dev);
+	ate_deactivate(sc);
+	if (sc->intrhand != NULL) {
+		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
+		sc->intrhand = NULL;
+	}
+	if (ifp != NULL) {
+		if_free(ifp);
+		sc->ifp = NULL;
+	}
+	if (sc->mem_res != NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT,
+		    rman_get_rid(sc->mem_res), sc->mem_res);
+		sc->mem_res = NULL;
+	}
+	if (sc->irq_res != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    rman_get_rid(sc->irq_res), sc->irq_res);
+		sc->irq_res = NULL;
+	}
+	ATE_LOCK_DESTROY(sc);
+	return (0);
 }
 
 static void
@@ -367,20 +425,9 @@ static int
 ate_activate(device_t dev)
 {
 	struct ate_softc *sc;
-	int rid, err, i;
+	int err, i;
 
 	sc = device_get_softc(dev);
-	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
-	if (sc->mem_res == NULL)
-		goto errout;
-	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
-	if (sc->irq_res == NULL)
-		goto errout;
-
 	/*
 	 * Allocate DMA tags and maps
 	 */
@@ -423,7 +470,6 @@ ate_activate(device_t dev)
 	    sc->rx_descs, ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t),
 	    ate_getaddr, sc, 0) != 0)
 		goto errout;
-	/* XXX TODO(5) Put this in ateinit_locked? */
 	for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
 		sc->rx_buf_ptr = i;
 		if (bus_dmamem_alloc(sc->rxtag, (void **)&sc->rx_buf[i],
@@ -439,65 +485,69 @@ ate_activate(device_t dev)
 	/* Write the descriptor queue address. */
 	WR4(sc, ETH_RBQP, sc->rx_desc_phys);
 	return (0);
+
 errout:
-	ate_deactivate(dev);
 	return (ENOMEM);
 }
 
 static void
-ate_deactivate(device_t dev)
+ate_deactivate(struct ate_softc *sc)
 {
-	struct ate_softc *sc;
+	int i;
 
-	sc = device_get_softc(dev);
-	/* XXX TODO(2) teardown busdma junk, below from fxp -- customize */
-#if 0
-	if (sc->fxp_mtag) {
-		for (i = 0; i < FXP_NRFABUFS; i++) {
-			rxp = &sc->fxp_desc.rx_list[i];
-			if (rxp->rx_mbuf != NULL) {
-				bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
-				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
-				m_freem(rxp->rx_mbuf);
-			}
-			bus_dmamap_destroy(sc->fxp_mtag, rxp->rx_map);
-		}
-		bus_dmamap_destroy(sc->fxp_mtag, sc->spare_map);
-		for (i = 0; i < FXP_NTXCB; i++) {
-			txp = &sc->fxp_desc.tx_list[i];
-			if (txp->tx_mbuf != NULL) {
-				bus_dmamap_sync(sc->fxp_mtag, txp->tx_map,
+	KASSERT(sc != NULL, ("[ate, %d]: sc is NULL!", __LINE__));
+	if (sc->mtag != NULL) {
+		for (i = 0; i < ATE_MAX_TX_BUFFERS; i++) {
+			if (sc->sent_mbuf[i] != NULL) {
+				bus_dmamap_sync(sc->mtag, sc->tx_map[i],
 				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->fxp_mtag, txp->tx_map);
-				m_freem(txp->tx_mbuf);
+				bus_dmamap_unload(sc->mtag, sc->tx_map[i]);
+				m_freem(sc->sent_mbuf[i]);
 			}
-			bus_dmamap_destroy(sc->fxp_mtag, txp->tx_map);
+			bus_dmamap_destroy(sc->mtag, sc->tx_map[i]);
+			sc->sent_mbuf[i] = NULL;
+			sc->tx_map[i] = NULL;
 		}
-		bus_dma_tag_destroy(sc->fxp_mtag);
+		bus_dma_tag_destroy(sc->mtag);
 	}
-	if (sc->fxp_stag)
-		bus_dma_tag_destroy(sc->fxp_stag);
-	if (sc->cbl_tag)
-		bus_dma_tag_destroy(sc->cbl_tag);
-	if (sc->mcs_tag)
-		bus_dma_tag_destroy(sc->mcs_tag);
-#endif
-	if (sc->intrhand)
-		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
-	sc->intrhand = 0;
-	bus_generic_detach(sc->dev);
-	if (sc->miibus)
-		device_delete_child(sc->dev, sc->miibus);
-	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_IOPORT,
-		    rman_get_rid(sc->mem_res), sc->mem_res);
-	sc->mem_res = 0;
-	if (sc->irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ,
-		    rman_get_rid(sc->irq_res), sc->irq_res);
-	sc->irq_res = 0;
-	return;
+	if (sc->rx_desc_tag != NULL) {
+		if (sc->rx_descs != NULL) {
+			if (sc->rx_desc_phys != 0) {
+				bus_dmamap_sync(sc->rx_desc_tag,
+				    sc->rx_desc_map, BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(sc->rx_desc_tag,
+				    sc->rx_desc_map);
+				sc->rx_desc_phys = 0;
+			}
+		}
+	}
+	if (sc->rxtag != NULL) {
+		for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
+			if (sc->rx_buf[i] != NULL) {
+				if (sc->rx_descs[i].addr != 0) {
+					bus_dmamap_sync(sc->rxtag,
+					    sc->rx_map[i],
+					    BUS_DMASYNC_POSTREAD);
+					bus_dmamap_unload(sc->rxtag,
+					    sc->rx_map[i]);
+					sc->rx_descs[i].addr = 0;
+				}
+				bus_dmamem_free(sc->rxtag, sc->rx_buf[i],
+				    sc->rx_map[i]);
+				sc->rx_buf[i] = NULL;
+				sc->rx_map[i] = NULL;
+			}
+		}
+		bus_dma_tag_destroy(sc->rxtag);
+	}
+	if (sc->rx_desc_tag != NULL) {
+		if (sc->rx_descs != NULL)
+			bus_dmamem_free(sc->rx_desc_tag, sc->rx_descs,
+			    sc->rx_desc_map);
+		bus_dma_tag_destroy(sc->rx_desc_tag);
+		sc->rx_descs = NULL;
+		sc->rx_desc_tag = NULL;
+	}
 }
 
 /*
@@ -718,6 +768,7 @@ ate_intr(void *xsc)
 		if (sc->sent_mbuf[0]) {
 			bus_dmamap_sync(sc->mtag, sc->tx_map[0],
 			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->mtag, sc->tx_map[0]);
 			m_freem(sc->sent_mbuf[0]);
 			ifp->if_opackets++;
 			sc->sent_mbuf[0] = NULL;
@@ -726,6 +777,7 @@ ate_intr(void *xsc)
 			if (RD4(sc, ETH_TSR) & ETH_TSR_IDLE) {
 				bus_dmamap_sync(sc->mtag, sc->tx_map[1],
 				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(sc->mtag, sc->tx_map[1]);
 				m_freem(sc->sent_mbuf[1]);
 				ifp->if_opackets++;
 				sc->txcur = 0;
@@ -911,8 +963,11 @@ atestart(struct ifnet *ifp)
 static void
 atestop(struct ate_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	struct ifnet *ifp;
+	int i;
 
+	ATE_ASSERT_LOCKED(sc);
+	ifp = sc->ifp;
 	if (ifp) {
 		ifp->if_timer = 0;
 		ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -948,11 +1003,17 @@ atestop(struct ate_softc *sc)
 	WR4(sc, ETH_RSR, 0xffffffff);
 
 	/*
-	 * XXX TODO(8)
-	 * need to worry about the busdma resources?  Yes, I think we need
-	 * to sync and unload them.  We may also need to release the mbufs
-	 * that are assocaited with RX and TX operations.
+	 * Release TX resources.
 	 */
+	for (i = 0; i < ATE_MAX_TX_BUFFERS; i++) {
+		if (sc->sent_mbuf[i] != NULL) {
+			bus_dmamap_sync(sc->mtag, sc->tx_map[i],
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->mtag, sc->tx_map[i]);
+			m_freem(sc->sent_mbuf[i]);
+			sc->sent_mbuf[i] = NULL;
+		}
+	}
 
 	/*
 	 * XXX we should power down the EMAC if it isn't in use, after
