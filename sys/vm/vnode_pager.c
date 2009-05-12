@@ -762,7 +762,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		return VM_PAGER_OK;
 	} else if (reqblock == -1) {
 		pmap_zero_page(m[reqpage]);
-		vm_page_undirty(m[reqpage]);
+		KASSERT(m[reqpage]->dirty == 0,
+		    ("vnode_pager_generic_getpages: page %p is dirty", m));
 		m[reqpage]->valid = VM_PAGE_BITS_ALL;
 		vm_page_lock_queues();
 		for (i = 0; i < count; i++)
