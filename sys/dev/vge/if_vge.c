@@ -651,10 +651,8 @@ vge_probe(dev)
 	device_t		dev;
 {
 	struct vge_type		*t;
-	struct vge_softc	*sc;
 
 	t = vge_devs;
-	sc = device_get_softc(dev);
 
 	while (t->vge_name != NULL) {
 		if ((pci_get_vendor(dev) == t->vge_vid) &&
