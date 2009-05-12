@@ -309,7 +309,7 @@ i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
   }
 
   print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp,
-                    errorp ? i : retval);
+                    errorp ? i : retval, fsc.sc);
   clear_fsc();
 
   return (retval);

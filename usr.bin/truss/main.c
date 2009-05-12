@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include "truss.h"
 #include "extern.h"
+#include "syscall.h"
 
 #define MAXARGS 6
 
@@ -65,8 +66,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	    "usage: truss [-faedDS] [-o file] [-s strsize] -p pid",
-	    "       truss [-faedDS] [-o file] [-s strsize] command [args]");
+	    "usage: truss [-cfaedDS] [-o file] [-s strsize] -p pid",
+	    "       truss [-cfaedDS] [-o file] [-s strsize] command [args]");
 	exit(1);
 }
 
@@ -188,7 +189,7 @@ main(int ac, char **av)
 	trussinfo->pr_why = S_NONE;
 	trussinfo->curthread = NULL;
 	SLIST_INIT(&trussinfo->threadlist);
-	while ((c = getopt(ac, av, "p:o:faedDs:S")) != -1) {
+	while ((c = getopt(ac, av, "p:o:facedDs:S")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */
 			trussinfo->pid = atoi(optarg);
@@ -203,6 +204,9 @@ main(int ac, char **av)
 			break;
 		case 'a': /* Print execve() argument strings. */
 			trussinfo->flags |= EXECVEARGS;
+			break;
+		case 'c': /* Count number of system calls and time. */
+			trussinfo->flags |= COUNTONLY;
 			break;
 		case 'e': /* Print execve() environment strings. */
 			trussinfo->flags |= EXECVEENVS;
@@ -337,6 +341,8 @@ START_TRACE:
 			free(signame);
 			break;
 		case S_EXIT:
+			if (trussinfo->flags & COUNTONLY)
+				break;
 			if (trussinfo->flags & FOLLOWFORKS)
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
@@ -360,12 +366,16 @@ START_TRACE:
 			break;
 		}
 	} while (trussinfo->pr_why != S_EXIT);
-	fflush(trussinfo->outfile);
 
 	if (trussinfo->flags & FOLLOWFORKS)
 		do {
 			childpid = wait(&status);
 		} while (childpid != -1);
+
+ 	if (trussinfo->flags & COUNTONLY)
+ 		print_summary(trussinfo);
+
+	fflush(trussinfo->outfile);
 
 	return (0);
 }
