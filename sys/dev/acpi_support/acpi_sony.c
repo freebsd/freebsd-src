@@ -102,10 +102,7 @@ static char    *sny_id[] = {"SNY5001", NULL};
 static int
 acpi_sony_probe(device_t dev)
 {
-	struct acpi_sony_softc *sc;
-	int		ret = ENXIO;
-
-	sc = device_get_softc(dev);
+	int ret = ENXIO;
 
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, sny_id)) {
 		device_set_desc(dev, "Sony notebook controller");
