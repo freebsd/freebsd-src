@@ -953,6 +953,7 @@ sg_scsiio_status(struct ccb_scsiio *csio, u_short *hoststat, u_short *drvstat)
 	case CAM_SCSI_STATUS_ERROR:
 		*hoststat = DID_ERROR;
 		*drvstat = 0;
+		break;
 	case CAM_SCSI_BUS_RESET:
 		*hoststat = DID_RESET;
 		*drvstat = 0;
@@ -964,6 +965,7 @@ sg_scsiio_status(struct ccb_scsiio *csio, u_short *hoststat, u_short *drvstat)
 	case CAM_SCSI_BUSY:
 		*hoststat = DID_BUS_BUSY;
 		*drvstat = 0;
+		break;
 	default:
 		*hoststat = DID_ERROR;
 		*drvstat = DRIVER_ERROR;
