@@ -2866,14 +2866,15 @@ static int
 nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 {
 	struct file *fp;
-	struct nfsd_addsock_args nfsdarg;
+	struct nfsd_addsock_args sockarg;
+	struct nfsd_nfsd_args nfsdarg;
 	int error;
 
 	if (uap->flag & NFSSVC_NFSDADDSOCK) {
-		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
+		error = copyin(uap->argp, (caddr_t)&sockarg, sizeof (sockarg));
 		if (error)
 			return (error);
-		if ((error = fget(td, nfsdarg.sock, &fp)) != 0) {
+		if ((error = fget(td, sockarg.sock, &fp)) != 0) {
 			return (error);
 		}
 		if (fp->f_type != DTYPE_SOCKET) {
@@ -2883,7 +2884,13 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		error = nfsrvd_addsock(fp);
 		fdrop(fp, td);
 	} else if (uap->flag & NFSSVC_NFSDNFSD) {
-		error = nfsrvd_nfsd(td, NULL);
+		if (uap->argp == NULL) 
+			return (EINVAL);
+		error = copyin(uap->argp, (caddr_t)&nfsdarg,
+		    sizeof (nfsdarg));
+		if (error)
+			return (error);
+		error = nfsrvd_nfsd(td, &nfsdarg);
 	} else {
 		error = nfssvc_srvcall(td, uap, td->td_ucred);
 	}

@@ -350,20 +350,16 @@ int
 nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 {
 #ifdef KGSSAPI
-	char principal[128];
+	char principal[MAXHOSTNAMELEN + 5];
 	int error;
 	bool_t ret2, ret3, ret4;
 #endif
 
 #ifdef KGSSAPI
-	if (args != NULL) {
-		error = copyinstr(args->principal, principal,
-		    sizeof(principal), NULL);
-		if (error)
-			return (error);
-	} else {
-		snprintf(principal, sizeof(principal), "nfs@%s", hostname);
-	}
+	error = copyinstr(args->principal, principal, sizeof (principal),
+	    NULL);
+	if (error)
+		return (error);
 #endif
 
 	/*
@@ -380,40 +376,36 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		NFSD_UNLOCK();
 
 #ifdef KGSSAPI
-		ret2 = rpc_gss_set_svc_name(principal, "kerberosv5",
-		    GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
-		ret3 = rpc_gss_set_svc_name(principal, "kerberosv5",
-		    GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
-		ret4 = rpc_gss_set_svc_name(principal, "kerberosv5",
-		    GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
+		/* An empty string implies AUTH_SYS only. */
+		if (principal[0] != '\0') {
+			ret2 = rpc_gss_set_svc_name(principal, "kerberosv5",
+			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
+			ret3 = rpc_gss_set_svc_name(principal, "kerberosv5",
+			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
+			ret4 = rpc_gss_set_svc_name(principal, "kerberosv5",
+			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
 
-		/*
-		 * If the principal name was specified, these should have
-		 * succeeded.
-		 */
-		if (args != NULL && principal[0] != '\0' &&
-		    (!ret2 || !ret3 || !ret4)) {
-			NFSD_LOCK();
-			newnfs_numnfsd--;
-			NFSD_UNLOCK();
-			return (EAUTH);
+			if (!ret2 || !ret3 || !ret4) {
+				NFSD_LOCK();
+				newnfs_numnfsd--;
+				nfsrvd_init(1);
+				NFSD_UNLOCK();
+				return (EAUTH);
+			}
 		}
 #endif
 
-		if (args != NULL) {
-			nfsrvd_pool->sp_minthreads = args->minthreads;
-			nfsrvd_pool->sp_maxthreads = args->maxthreads;
-		} else {
-			nfsrvd_pool->sp_minthreads = 4;
-			nfsrvd_pool->sp_maxthreads = 4;
-		}
+		nfsrvd_pool->sp_minthreads = args->minthreads;
+		nfsrvd_pool->sp_maxthreads = args->maxthreads;
 			
 		svc_run(nfsrvd_pool);
 
 #ifdef KGSSAPI
-		rpc_gss_clear_svc_name(NFS_PROG, NFS_VER2);
-		rpc_gss_clear_svc_name(NFS_PROG, NFS_VER3);
-		rpc_gss_clear_svc_name(NFS_PROG, NFS_VER4);
+		if (principal[0] != '\0') {
+			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER2);
+			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER3);
+			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER4);
+		}
 #endif
 
 		NFSD_LOCK();
