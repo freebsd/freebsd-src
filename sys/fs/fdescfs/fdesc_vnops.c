@@ -265,7 +265,7 @@ fdesc_lookup(ap)
 	struct thread *td = cnp->cn_thread;
 	struct file *fp;
 	int nlen = cnp->cn_namelen;
-	u_int fd;
+	u_int fd, fd1;
 	int error;
 	struct vnode *fvp;
 
@@ -297,7 +297,12 @@ fdesc_lookup(ap)
 			error = ENOENT;
 			goto bad;
 		}
-		fd = 10 * fd + *pname++ - '0';
+		fd1 = 10 * fd + *pname++ - '0';
+		if (fd1 < fd) {
+			error = ENOENT;
+			goto bad;
+		}
+		fd = fd1;
 	}
 
 	if ((error = fget(td, fd, &fp)) != 0)
