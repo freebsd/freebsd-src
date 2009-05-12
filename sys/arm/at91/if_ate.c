@@ -734,7 +734,8 @@ ate_intr(void *xsc)
 			bp = sc->rx_buf[i];
 			rx_stat = sc->rx_descs[i].status;
 			if ((rx_stat & ETH_LEN_MASK) == 0) {
-				printf("ignoring bogus 0 len packet\n");
+				if (bootverbose)
+					device_printf(sc->dev, "ignoring bogus zero-length packet\n");
 				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 				    BUS_DMASYNC_PREWRITE);
 				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
@@ -808,6 +809,8 @@ ate_intr(void *xsc)
 	}
 	if (status & ETH_ISR_RBNA) {
 		/* Workaround Errata #11 */
+		if (bootverbose)
+			device_printf(sc->dev, "RBNA workaround\n");
 		reg = RD4(sc, ETH_CTL);
 		WR4(sc, ETH_CTL, reg & ~ETH_CTL_RE);
 		BARRIER(sc, ETH_CTL, 4, BUS_SPACE_BARRIER_WRITE);
