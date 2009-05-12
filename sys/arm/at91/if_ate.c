@@ -118,6 +118,13 @@ WR4(struct ate_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
+static inline void
+BARRIER(struct ate_softc *sc, bus_size_t off, bus_size_t len, int flags)
+{
+
+	bus_barrier(sc->mem_res, off, len, flags);
+}
+
 #define ATE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	ATE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define ATE_LOCK_INIT(_sc) \
@@ -586,18 +593,19 @@ ate_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 static void
 ate_stat_update(struct ate_softc *sc, int active)
 {
+	uint32_t reg;
+
 	/*
 	 * The speed and full/half-duplex state needs to be reflected
 	 * in the ETH_CFG register.
 	 */
-	if (IFM_SUBTYPE(active) == IFM_10_T)
-		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_SPD);
-	else
-		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_SPD);
+	reg = RD4(sc, ETH_CFG);
+	reg &= ~(ETH_CFG_SPD | ETH_CFG_FD);
+	if (IFM_SUBTYPE(active) != IFM_10_T)
+		reg |= ETH_CFG_SPD;
 	if (active & IFM_FDX)
-		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_FD);
-	else
-		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_FD);
+		reg |= ETH_CFG_FD;
+	WR4(sc, ETH_CFG, reg);
 }
 
 static void
@@ -709,11 +717,10 @@ ate_intr(void *xsc)
 {
 	struct ate_softc *sc = xsc;
 	struct ifnet *ifp = sc->ifp;
-	int status;
-	int i;
-	void *bp;
 	struct mbuf *mb;
-	uint32_t rx_stat;
+	void *bp;
+	uint32_t status, reg, rx_stat;
+	int i;
 
 	status = RD4(sc, ETH_ISR);
 	if (status == 0)
@@ -800,10 +807,11 @@ ate_intr(void *xsc)
 		ATE_UNLOCK(sc);
 	}
 	if (status & ETH_ISR_RBNA) {
-		printf("RBNA workaround\n");
 		/* Workaround Errata #11 */
-		WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) &~ ETH_CTL_RE);
-		WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) | ETH_CTL_RE);
+		reg = RD4(sc, ETH_CTL);
+		WR4(sc, ETH_CTL, reg & ~ETH_CTL_RE);
+		BARRIER(sc, ETH_CTL, 4, BUS_SPACE_BARRIER_WRITE);
+		WR4(sc, ETH_CTL, reg | ETH_CTL_RE);
 	}
 }
 
@@ -816,6 +824,7 @@ ateinit_locked(void *xsc)
 	struct ate_softc *sc = xsc;
 	struct ifnet *ifp = sc->ifp;
  	struct mii_data *mii;
+	uint32_t reg;
 
 	ATE_ASSERT_LOCKED(sc);
 
@@ -834,10 +843,12 @@ ateinit_locked(void *xsc)
 	 * to this chip.  Select the right one based on a compile-time
 	 * option.
 	 */
+	reg = RD4(sc, ETH_CFG);
 	if (sc->use_rmii)
-		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_RMII);
+		reg |= ETH_CFG_RMII;
 	else
-		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_RMII);
+		reg &= ~ETH_CFG_RMII;
+	WR4(sc, ETH_CFG, reg);
 
 	ate_rxfilter(sc);
 
@@ -926,6 +937,7 @@ atestart_locked(struct ifnet *ifp)
 		 * tell the hardware to xmit the packet.
 		 */
 		WR4(sc, ETH_TAR, segs[0].ds_addr);
+		BARRIER(sc, ETH_TAR, 8, BUS_SPACE_BARRIER_WRITE);
 		WR4(sc, ETH_TCR, segs[0].ds_len);
 	
 		/*
