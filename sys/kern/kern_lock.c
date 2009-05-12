@@ -1067,6 +1067,7 @@ db_show_lockmgr(struct lock_object *lock)
 	switch (lk->lk_lock & LK_ALL_WAITERS) {
 	case LK_SHARED_WAITERS:
 		db_printf("shared\n");
+		break;
 	case LK_EXCLUSIVE_WAITERS:
 		db_printf("exclusive\n");
 		break;
