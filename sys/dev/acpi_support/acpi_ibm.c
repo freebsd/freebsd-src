@@ -332,7 +332,6 @@ static int
 acpi_ibm_attach(device_t dev)
 {
 	struct acpi_ibm_softc	*sc;
-	struct acpi_softc	*acpi_sc;
 	devclass_t		ec_devclass;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
@@ -340,8 +339,6 @@ acpi_ibm_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->handle = acpi_get_handle(dev);
-
-	acpi_sc = acpi_device_get_parent_softc(dev);
 
 	/* Look for the first embedded controller */
         if (!(ec_devclass = devclass_find ("acpi_ec"))) {
