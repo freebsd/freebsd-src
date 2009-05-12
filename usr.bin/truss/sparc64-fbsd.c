@@ -336,7 +336,8 @@ sparc64_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused) {
    * but that complicates things considerably.
    */
 
-  print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp, retval);
+  print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp,
+		    retval, fsc.sc);
   clear_fsc();
 
   return (retval);
