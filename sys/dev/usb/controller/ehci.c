@@ -2028,6 +2028,8 @@ ehci_isoc_fs_done(ehci_softc_t *sc, struct usb2_xfer *xfer)
 
 		len = EHCI_SITD_GET_LEN(status);
 
+		DPRINTFN(2, "status=0x%08x, rem=%u\n", status, len);
+
 		if (*plen >= len) {
 			len = *plen - len;
 		} else {
@@ -2080,6 +2082,8 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb2_xfer *xfer)
 		status = hc32toh(sc, td->itd_status[td_no]);
 
 		len = EHCI_ITD_GET_LEN(status);
+
+		DPRINTFN(2, "status=0x%08x, len=%u\n", status, len);
 
 		if (*plen >= len) {
 			/*
