@@ -664,6 +664,8 @@ bwi_phy_init_11b_rev6(struct bwi_mac *mac)
 	for (ofs = 0xa8; ofs < 0xc8; ++ofs) {
 		PHY_WRITE(mac, ofs, (val & 0x3f3f));
 		val += 0x202;
+
+		/* XXX: delay 10 us to avoid PCI parity errors with BCM4318 */
 		DELAY(10);
 	}
 
