@@ -1203,7 +1203,7 @@ usb2_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 			(f->methods->f_start_read) (f);
 
-			if (fflags & IO_NDELAY) {
+			if (ioflag & IO_NDELAY) {
 				if (tr_data) {
 					/* return length before error */
 					break;
@@ -1326,7 +1326,7 @@ usb2_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 		if (m == NULL) {
 
-			if (fflags & IO_NDELAY) {
+			if (ioflag & IO_NDELAY) {
 				if (tr_data) {
 					/* return length before error */
 					break;
