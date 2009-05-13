@@ -309,6 +309,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->kind = hid_collection;
 				c->collection = dval;
 				c->collevel++;
+				c->usage = s->usage_last;
 				*h = *c;
 				return (1);
 			case 11:	/* Feature */
@@ -407,6 +408,9 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 			case 0:
 				if (bSize != 4)
 					dval = (dval & mask) | c->_usage_page;
+
+				/* set last usage, in case of a collection */
+				s->usage_last = dval;
 
 				if (s->nusage < MAXUSAGE) {
 					s->usages_min[s->nusage] = dval;
@@ -630,9 +634,11 @@ hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
 	if (hd == NULL)
 		return (0);
 
-	err = hid_get_item(hd, &hi) &&
-	    hi.kind == hid_collection &&
-	    hi.usage == usage;
+	while ((err = hid_get_item(hd, &hi))) {
+		 if (hi.kind == hid_collection &&
+		     hi.usage == usage)
+			break;
+	}
 	hid_end_parse(hd);
 	return (err);
 }
