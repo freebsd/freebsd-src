@@ -3556,7 +3556,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					dstmpte->wire_count++;
 				else if ((dstmpte = pmap_allocpte(dst_pmap,
 				    addr, M_NOWAIT)) == NULL)
-					break;
+					goto out;
 				dst_pte = (pt_entry_t *)
 				    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpte));
 				dst_pte = &dst_pte[pmap_pte_index(addr)];
@@ -3579,6 +3579,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					 	    addr);
 				    	    	pmap_free_zero_pages(free);
 					}
+					goto out;
 				}
 				if (dstmpte->wire_count >= srcmpte->wire_count)
 					break;
@@ -3587,6 +3588,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			src_pte++;
 		}
 	}
+out:
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
