@@ -256,7 +256,6 @@ ate_attach(device_t dev)
 		eaddr[4] = (rnd >> 8) & 0xff;
 		eaddr[5] = rnd & 0xff;
 	}
-	ate_set_mac(sc, eaddr);
 
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
 	if (mii_phy_probe(dev, &sc->miibus, ate_ifmedia_upd, ate_ifmedia_sts)) {
@@ -841,6 +840,7 @@ ateinit_locked(void *xsc)
 	struct ate_softc *sc = xsc;
 	struct ifnet *ifp = sc->ifp;
  	struct mii_data *mii;
+	uint8_t eaddr[ETHER_ADDR_LEN];
 	uint32_t reg;
 
 	ATE_ASSERT_LOCKED(sc);
@@ -870,17 +870,16 @@ ateinit_locked(void *xsc)
 	ate_rxfilter(sc);
 
 	/*
+	 * Set the chip MAC address.
+	 */
+	bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
+	ate_set_mac(sc, eaddr);
+
+	/*
 	 * Turn on MACs and interrupt processing.
 	 */
 	WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) | ETH_CTL_TE | ETH_CTL_RE);
 	WR4(sc, ETH_IER, ETH_ISR_RCOM | ETH_ISR_TCOM | ETH_ISR_RBNA);
-
-	/*
-	 * Boot loader fills in MAC address.  If that's not the case, then
-	 * we should set SA1L and SA1H here to the appropriate value.  Note:
-	 * the byte order is big endian, not little endian, so we have some
-	 * swapping to do.  Again, if we need it (which I don't think we do).
-	 */
 
 	/* Enable big packets. */
 	WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_BIG);
