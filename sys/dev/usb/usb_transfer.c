@@ -1439,7 +1439,11 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	/* Check if the device is still alive */
 	if (info->udev->state < USB_STATE_POWERED) {
 		USB_BUS_LOCK(bus);
-		usb2_transfer_done(xfer, USB_ERR_NOT_CONFIGURED);
+		/*
+		 * Must return cancelled error code else
+		 * device drivers can hang.
+		 */
+		usb2_transfer_done(xfer, USB_ERR_CANCELLED);
 		USB_BUS_UNLOCK(bus);
 		return;
 	}
