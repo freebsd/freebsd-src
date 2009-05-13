@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/cpufunc.h>
+#include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
@@ -666,6 +667,8 @@ init_secondary(void)
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
+
+	mca_init();
 
 	mtx_lock_spin(&ap_boot_mtx);
 
