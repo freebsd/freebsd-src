@@ -233,9 +233,9 @@
  * The following macro will tell if an USB transfer is currently
  * receiving or transferring data.
  */
-#define	USB_GET_DATA_ISREAD(xfer) (((xfer)->flags_int.usb2_mode == \
-	USB_MODE_DEVICE) ? ((xfer->endpoint & UE_DIR_IN) ? 0 : 1) : \
-	((xfer->endpoint & UE_DIR_IN) ? 1 : 0))
+#define	USB_GET_DATA_ISREAD(xfer) ((xfer)->flags_int.usb2_mode == \
+	USB_MODE_DEVICE ? (((xfer)->endpoint & UE_DIR_IN) ? 0 : 1) : \
+	(((xfer)->endpoint & UE_DIR_IN) ? 1 : 0))
 
 /*
  * The following macros are used used to convert milliseconds into
