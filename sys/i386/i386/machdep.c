@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/intr_machdep.h>
+#include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pc/bios.h>
@@ -320,6 +321,7 @@ cpu_startup(dummy)
 #ifndef XEN
 	cpu_setregs();
 #endif
+	mca_init();
 }
 
 /*
