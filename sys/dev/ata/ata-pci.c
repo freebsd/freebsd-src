@@ -76,12 +76,6 @@ ata_pci_probe(device_t dev)
     if (pci_get_class(dev) != PCIC_STORAGE)
 	return ENXIO;
 
-    /* if this is an AHCI chipset grab it */
-    if (pci_get_subclass(dev) == PCIS_STORAGE_SATA) {
-	if (!ata_ahci_ident(dev))
-	    return ATA_PROBE_OK;
-    }
-
     /* run through the vendor specific drivers */
     switch (pci_get_vendor(dev)) {
     case ATA_ACARD_ID: 
@@ -176,6 +170,12 @@ ata_pci_probe(device_t dev)
 	    return ATA_PROBE_OK;
 	}
 	break;
+    }
+
+    /* if this is an AHCI chipset grab it */
+    if (pci_get_subclass(dev) == PCIS_STORAGE_SATA) {
+	if (!ata_ahci_ident(dev))
+	    return ATA_PROBE_OK;
     }
 
     /* unknown chipset, try generic DMA if it seems possible */
