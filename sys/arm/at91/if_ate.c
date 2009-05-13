@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-#define ATE_MAX_TX_BUFFERS 2		/* We have ping-pong tx buffers */
-#define ATE_MAX_RX_BUFFERS 64
+#define	ATE_MAX_TX_BUFFERS	2	/* We have ping-pong tx buffers */
+#define	ATE_MAX_RX_BUFFERS	64
 
 /*
  * Driver-specific flags.
@@ -80,41 +80,43 @@ __FBSDID("$FreeBSD$");
 
 struct ate_softc
 {
-	struct ifnet *ifp;		/* ifnet pointer */
-	struct mtx sc_mtx;		/* basically a perimeter lock */
-	device_t dev;			/* Myself */
-	device_t miibus;		/* My child miibus */
-	void *intrhand;			/* Interrupt handle */
-	struct resource *irq_res;	/* IRQ resource */
+	struct ifnet	*ifp;		/* ifnet pointer */
+	struct mtx	sc_mtx;		/* Basically a perimeter lock */
+	device_t	dev;		/* Myself */
+	device_t	miibus;		/* My child miibus */
+	struct resource	*irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
-	struct callout tick_ch;		/* Tick callout */
-	bus_dma_tag_t mtag;		/* bus dma tag for mbufs */
-	bus_dmamap_t tx_map[ATE_MAX_TX_BUFFERS];
-	struct mbuf *sent_mbuf[ATE_MAX_TX_BUFFERS]; /* Sent mbufs */
-	bus_dma_tag_t rxtag;
-	bus_dmamap_t rx_map[ATE_MAX_RX_BUFFERS];
-	void *rx_buf[ATE_MAX_RX_BUFFERS]; /* RX buffer space */
-	int rx_buf_ptr;
-	bus_dma_tag_t rx_desc_tag;
-	bus_dmamap_t rx_desc_map;
-	int txcur;			/* current tx map pointer */
-	bus_addr_t rx_desc_phys;
-	eth_rx_desc_t *rx_descs;
-	int use_rmii;
-	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
-	int	flags;
-	int	if_flags;
+	struct callout	tick_ch;	/* Tick callout */
+	struct ifmib_iso_8802_3 mibdata; /* Stuff for network mgmt */
+	struct mbuf	*sent_mbuf[ATE_MAX_TX_BUFFERS]; /* Sent mbufs */
+	bus_dma_tag_t	mtag;		/* bus dma tag for mbufs */
+	bus_dma_tag_t	rxtag;
+	bus_dma_tag_t	rx_desc_tag;
+	bus_dmamap_t	rx_desc_map;
+	bus_dmamap_t	rx_map[ATE_MAX_RX_BUFFERS];
+	bus_dmamap_t	tx_map[ATE_MAX_TX_BUFFERS];
+	bus_addr_t	rx_desc_phys;
+	eth_rx_desc_t	*rx_descs;
+	void		*rx_buf[ATE_MAX_RX_BUFFERS]; /* RX buffer space */
+	void		*intrhand;	/* Interrupt handle */
+	int		flags;
+	int		if_flags;
+	int		rx_buf_ptr;
+	int		txcur;		/* Current TX map pointer */
+	int		use_rmii;
 };
 
 static inline uint32_t
 RD4(struct ate_softc *sc, bus_size_t off)
 {
-	return bus_read_4(sc->mem_res, off);
+
+	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
 WR4(struct ate_softc *sc, bus_size_t off, uint32_t val)
 {
+
 	bus_write_4(sc->mem_res, off, val);
 }
 
@@ -125,41 +127,45 @@ BARRIER(struct ate_softc *sc, bus_size_t off, bus_size_t len, int flags)
 	bus_barrier(sc->mem_res, off, len, flags);
 }
 
-#define ATE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	ATE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	ATE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define ATE_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
+#define	ATE_LOCK_INIT(_sc)					\
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev),	\
 	    MTX_NETWORK_LOCK, MTX_DEF)
-#define ATE_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define ATE_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define ATE_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define	ATE_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define	ATE_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define	ATE_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 static devclass_t ate_devclass;
 
-/* ifnet entry points */
+/*
+ * ifnet entry points.
+ */
+static void	ateinit_locked(void *);
+static void	atestart_locked(struct ifnet *);
 
-static void ateinit_locked(void *);
-static void atestart_locked(struct ifnet *);
+static void	ateinit(void *);
+static void	atestart(struct ifnet *);
+static void	atestop(struct ate_softc *);
+static int	ateioctl(struct ifnet * ifp, u_long, caddr_t);
 
-static void ateinit(void *);
-static void atestart(struct ifnet *);
-static void atestop(struct ate_softc *);
-static int ateioctl(struct ifnet * ifp, u_long, caddr_t);
+/*
+ * Bus entry points.
+ */
+static int	ate_probe(device_t dev);
+static int	ate_attach(device_t dev);
+static int	ate_detach(device_t dev);
+static void	ate_intr(void *);
 
-/* bus entry points */
-
-static int ate_probe(device_t dev);
-static int ate_attach(device_t dev);
-static int ate_detach(device_t dev);
-static void ate_intr(void *);
-
-/* helper routines */
-static int ate_activate(device_t dev);
-static void ate_deactivate(struct ate_softc *sc);
-static int ate_ifmedia_upd(struct ifnet *ifp);
-static void ate_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
-static int ate_get_mac(struct ate_softc *sc, u_char *eaddr);
-static void ate_set_mac(struct ate_softc *sc, u_char *eaddr);
+/*
+ * Helper routines.
+ */
+static int	ate_activate(device_t dev);
+static void	ate_deactivate(struct ate_softc *sc);
+static int	ate_ifmedia_upd(struct ifnet *ifp);
+static void	ate_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
+static int	ate_get_mac(struct ate_softc *sc, u_char *eaddr);
+static void	ate_set_mac(struct ate_softc *sc, u_char *eaddr);
 static void	ate_rxfilter(struct ate_softc *sc);
 
 /*
@@ -171,6 +177,7 @@ static void	ate_rxfilter(struct ate_softc *sc);
 static int
 ate_probe(device_t dev)
 {
+
 	device_set_desc(dev, "EMAC");
 	return (0);
 }
@@ -178,7 +185,7 @@ ate_probe(device_t dev)
 static int
 ate_attach(device_t dev)
 {
-	struct ate_softc *sc = device_get_softc(dev);
+	struct ate_softc *sc;
 	struct ifnet *ifp = NULL;
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
@@ -186,6 +193,7 @@ ate_attach(device_t dev)
 	uint32_t rnd;
 	int rid, err;
 
+	sc = device_get_softc(dev);
 	sc->dev = dev;
 	ATE_LOCK_INIT(sc);
 	
@@ -221,7 +229,7 @@ ate_attach(device_t dev)
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "rmii",
 	    CTLFLAG_RD, &sc->use_rmii, 0, "rmii in use");
 
-	/* calling atestop before ifp is set is OK */
+	/* Calling atestop before ifp is set is OK. */
 	ATE_LOCK(sc);
 	atestop(sc);
 	ATE_UNLOCK(sc);
@@ -261,7 +269,7 @@ ate_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_MTU; /* the hw bits already set */
+	ifp->if_capenable |= IFCAP_VLAN_MTU;	/* The hw bits already set. */
 	ifp->if_start = atestart;
 	ifp->if_ioctl = ateioctl;
 	ifp->if_init = ateinit;
@@ -435,8 +443,9 @@ ate_activate(device_t dev)
 	int err, i;
 
 	sc = device_get_softc(dev);
+
 	/*
-	 * Allocate DMA tags and maps
+	 * Allocate DMA tags and maps.
 	 */
 	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
@@ -448,11 +457,7 @@ ate_activate(device_t dev)
 		if (err != 0)
 			goto errout;
 	}
-	 /*
-	  * Allocate our Rx buffers.  This chip has a rx structure that's filled
-	  * in
-	  */
-	
+
 	/*
 	 * Allocate DMA tags and maps for RX.
 	 */
@@ -462,7 +467,9 @@ ate_activate(device_t dev)
 	if (err != 0)
 		goto errout;
 
-	/* Dma TAG and MAP for the rx descriptors. */
+	/*
+	 * DMA tag and map for the RX descriptors.
+	 */
 	err = bus_dma_tag_create(bus_get_dma_tag(dev), sizeof(eth_rx_desc_t),
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t), 1,
@@ -477,6 +484,11 @@ ate_activate(device_t dev)
 	    sc->rx_descs, ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t),
 	    ate_getaddr, sc, 0) != 0)
 		goto errout;
+
+	/*
+	 * Allocate our RX buffers.  This chip has a RX structure that's filled
+	 * in.
+	 */
 	for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
 		sc->rx_buf_ptr = i;
 		if (bus_dmamem_alloc(sc->rxtag, (void **)&sc->rx_buf[i],
@@ -487,7 +499,7 @@ ate_activate(device_t dev)
 			goto errout;
 	}
 	sc->rx_buf_ptr = 0;
-	/* Flush the memory for the EMAC rx descriptor */
+	/* Flush the memory for the EMAC rx descriptor. */
 	bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map, BUS_DMASYNC_PREWRITE);
 	/* Write the descriptor queue address. */
 	WR4(sc, ETH_RBQP, sc->rx_desc_phys);
@@ -662,8 +674,9 @@ ate_tick(void *xsc)
 	sc->mibdata.dot3StatsCarrierSenseErrors += RD4(sc, ETH_CSE);
 	sc->mibdata.dot3StatsFrameTooLongs += RD4(sc, ETH_ELR);
 	sc->mibdata.dot3StatsInternalMacReceiveErrors += RD4(sc, ETH_DRFC);
+
 	/*
-	 * not sure where to lump these, so count them against the errors
+	 * Not sure where to lump these, so count them against the errors
 	 * for the interface.
 	 */
 	sc->ifp->if_oerrors += RD4(sc, ETH_TUE);
@@ -679,6 +692,7 @@ ate_tick(void *xsc)
 static void
 ate_set_mac(struct ate_softc *sc, u_char *eaddr)
 {
+
 	WR4(sc, ETH_SA1L, (eaddr[3] << 24) | (eaddr[2] << 16) |
 	    (eaddr[1] << 8) | eaddr[0]);
 	WR4(sc, ETH_SA1H, (eaddr[5] << 8) | (eaddr[4]));
@@ -819,7 +833,7 @@ ate_intr(void *xsc)
 }
 
 /*
- * Reset and initialize the chip
+ * Reset and initialize the chip.
  */
 static void
 ateinit_locked(void *xsc)
@@ -868,12 +882,12 @@ ateinit_locked(void *xsc)
 	 * swapping to do.  Again, if we need it (which I don't think we do).
 	 */
 
-	/* enable big packets */
+	/* Enable big packets. */
 	WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_BIG);
 
 	/*
 	 * Set 'running' flag, and clear output active flag
-	 * and attempt to start the output
+	 * and attempt to start the output.
 	 */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -887,7 +901,7 @@ ateinit_locked(void *xsc)
 }
 
 /*
- * dequeu packets and transmit
+ * Dequeue packets and transmit.
  */
 static void
 atestart_locked(struct ifnet *ifp)
@@ -903,7 +917,7 @@ atestart_locked(struct ifnet *ifp)
 
 	while (sc->txcur < ATE_MAX_TX_BUFFERS) {
 		/*
-		 * check to see if there's room to put another packet into the
+		 * Check to see if there's room to put another packet into the
 		 * xmit queue.  The EMAC chip has a ping-pong buffer for xmit
 		 * packets.  We use OACTIVE to indicate "we can stuff more into
 		 * our buffers (clear) or not (set)."
@@ -937,7 +951,7 @@ atestart_locked(struct ifnet *ifp)
 		    BUS_DMASYNC_PREWRITE);
 
 		/*
-		 * tell the hardware to xmit the packet.
+		 * Tell the hardware to xmit the packet.
 		 */
 		WR4(sc, ETH_TAR, segs[0].ds_addr);
 		BARRIER(sc, ETH_TAR, 8, BUS_SPACE_BARRIER_WRITE);
@@ -957,6 +971,7 @@ static void
 ateinit(void *xsc)
 {
 	struct ate_softc *sc = xsc;
+
 	ATE_LOCK(sc);
 	ateinit_locked(sc);
 	ATE_UNLOCK(sc);
@@ -966,13 +981,14 @@ static void
 atestart(struct ifnet *ifp)
 {
 	struct ate_softc *sc = ifp->if_softc;
+
 	ATE_LOCK(sc);
 	atestart_locked(ifp);
 	ATE_UNLOCK(sc);
 }
 
 /*
- * Turn off interrupts, and stop the nic.  Can be called with sc->ifp NULL
+ * Turn off interrupts, and stop the NIC.  Can be called with sc->ifp NULL,
  * so be careful.
  */
 static void
