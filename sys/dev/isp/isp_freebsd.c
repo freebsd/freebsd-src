@@ -2075,7 +2075,8 @@ isp_watchdog_work(ispsoftc_t *isp, XS_T *xs)
 			isp_done(xs);
 		} else {
 			XS_CMD_C_WDOG(xs);
-			xs->ccb_h.timeout_ch = timeout(isp_watchdog, xs, hz);
+			callout_reset(&PISP_PCMD((union ccb *)xs)->wdog, hz,
+			    isp_watchdog, xs);
 			XS_CMD_S_GRACE(xs);
 			isp->isp_sendmarker |= 1 << XS_CHANNEL(xs);
 		}
@@ -3091,7 +3092,7 @@ isp_done(struct ccb_scsiio *sccb)
 
 	XS_CMD_S_DONE(sccb);
 	if (XS_CMD_WDOG_P(sccb) == 0) {
-		untimeout(isp_watchdog, sccb, sccb->ccb_h.timeout_ch);
+		callout_stop(&PISP_PCMD(sccb)->wdog);
 		if (XS_CMD_GRACE_P(sccb)) {
 			isp_prt(isp, ISP_LOGDEBUG2,
 			    "finished command on borrowed time");
