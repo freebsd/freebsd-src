@@ -83,7 +83,6 @@ typedef void netisr_t (struct mbuf *);
   
 void	netisr_dispatch(int, struct mbuf *);
 int	netisr_queue(int, struct mbuf *);
-#define	NETISR_FORCEQUEUE	0x0002		/* Force queued dispatch. */
 void	netisr_register(int, netisr_t *, struct ifqueue *, int);
 void	netisr_unregister(int);
 
