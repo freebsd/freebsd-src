@@ -77,11 +77,12 @@ static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
  * API rather than using the dynamic API.  Use of the dynamic API is
  * strongly encouraged for most code.
  *
- * This lock is also used to serialize userland sysctl requests.  Some
- * sysctls wire user memory, and serializing the requests limits the
- * amount of wired user memory in use.
+ * The sysctlmemlock is used to limit the amount of user memory wired for
+ * sysctl requests.  This is implemented by serializing any userland
+ * sysctl requests larger than a single page via an exclusive lock.
  */
 static struct sx sysctllock;
+static struct sx sysctlmemlock;
 
 #define	SYSCTL_SLOCK()		sx_slock(&sysctllock)
 #define	SYSCTL_SUNLOCK()	sx_sunlock(&sysctllock)
@@ -543,6 +544,7 @@ sysctl_register_all(void *arg)
 {
 	struct sysctl_oid **oidp;
 
+	sx_init(&sysctlmemlock, "sysctl mem");
 	SYSCTL_INIT();
 	SYSCTL_XLOCK();
 	SET_FOREACH(oidp, sysctl_set)
@@ -1565,7 +1567,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
     size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval,
     int flags)
 {
-	int error = 0;
+	int error = 0, memlocked;
 	struct sysctl_req req;
 
 	bzero(&req, sizeof req);
@@ -1605,14 +1607,20 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	if (KTRPOINT(curthread, KTR_SYSCTL))
 		ktrsysctl(name, namelen);
 #endif
-	
-	SYSCTL_XLOCK();
+
+	if (req.oldlen > PAGE_SIZE) {
+		memlocked = 1;
+		sx_xlock(&sysctlmemlock);
+	} else
+		memlocked = 0;
 	CURVNET_SET(TD_TO_VNET(curthread));
 
 	for (;;) {
 		req.oldidx = 0;
 		req.newidx = 0;
+		SYSCTL_SLOCK();
 		error = sysctl_root(0, name, namelen, &req);
+		SYSCTL_SUNLOCK();
 		if (error != EAGAIN)
 			break;
 		uio_yield();
@@ -1622,7 +1630,8 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	if (req.lock == REQ_WIRED && req.validlen > 0)
 		vsunlock(req.oldptr, req.validlen);
-	SYSCTL_XUNLOCK();
+	if (memlocked)
+		sx_xunlock(&sysctlmemlock);
 
 	if (error && error != ENOMEM)
 		return (error);
