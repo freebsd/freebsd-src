@@ -122,23 +122,16 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp)
 	int error;
 
 	fp = NULL;
-	if (fdp == NULL)
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL) {
 		error = EBADF;
-	else {
-		FILEDESC_SLOCK(fdp);
-		fp = fget_locked(fdp, fd);
-		if (fp == NULL)
-			error = EBADF;
-		else if (fp->f_type != DTYPE_SOCKET) {
-			fp = NULL;
-			error = ENOTSOCK;
-		} else {
-			fhold(fp);
-			if (fflagp != NULL)
-				*fflagp = fp->f_flag;
-			error = 0;
-		}
-		FILEDESC_SUNLOCK(fdp);
+	} else if (fp->f_type != DTYPE_SOCKET) {
+		fdrop(fp, curthread);
+		fp = NULL;
+		error = ENOTSOCK;
+	} else {
+		if (fflagp != NULL)
+			*fflagp = fp->f_flag;
+		error = 0;
 	}
 	*fpp = fp;
 	return (error);
