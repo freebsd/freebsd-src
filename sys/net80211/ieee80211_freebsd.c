@@ -175,27 +175,27 @@ ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS)
 
 #ifdef IEEE80211_AMPDU_AGE
 extern int ieee80211_ampdu_age;
-SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"AMPDU max reorder age (ms)");
 #endif
 extern int ieee80211_addba_timeout;
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_timeout, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"ADDBA request timeout (ms)");
 extern int ieee80211_addba_backoff;
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"ADDBA request backoff (ms)");
 extern int ieee80211_addba_maxtries;
-SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
 #ifdef IEEE80211_SUPPORT_SUPERG
 extern int ieee80211_ffppsmin;
-SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
 extern int ieee80211_ffagemax;
-SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"max hold time for fast-frame staging (ms)");
 #endif /* IEEE80211_SUPPORT_SUPERG */
