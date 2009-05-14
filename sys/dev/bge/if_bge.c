@@ -3193,6 +3193,9 @@ bge_rxeof(struct bge_softc *sc)
 		BGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		BGE_LOCK(sc);
+
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+			return;
 	}
 
 	if (stdcnt > 0)
@@ -3301,6 +3304,10 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	sc->rxcycles = count;
 	bge_rxeof(sc);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		BGE_UNLOCK(sc);
+		return;
+	}
 	bge_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
@@ -3370,7 +3377,9 @@ bge_intr(void *xsc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check RX return ring producer/consumer. */
 		bge_rxeof(sc);
+	}
 
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc);
 	}
