@@ -2819,7 +2819,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	 * KSEG1 maps only first 512M of phys address space. For 
 	 * pa > 0x20000000 we should make proper mapping * using pmap_kenter.
 	 */
-	if (pa + size < MIPS_KSEG0_LARGEST_PHYS)
+	if ((pa + size - 1) < MIPS_KSEG0_LARGEST_PHYS)
 		return (void *)MIPS_PHYS_TO_KSEG1(pa);
 	else {
 		offset = pa & PAGE_MASK;
