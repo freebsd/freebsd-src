@@ -260,7 +260,7 @@ getent(char **cap, u_int *len, char **db_array, int fd, const char *name,
 					errno = ENOMEM;
 					return (-2);
 				}
-				*len = strlen(record);
+				*len = strlen(cbuf);
 				*cap = cbuf;
 				return (retval);
 			} else {
