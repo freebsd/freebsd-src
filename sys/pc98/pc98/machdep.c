@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/intr_machdep.h>
+#include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb.h>
@@ -256,6 +257,8 @@ cpu_startup(dummy)
 	vm_pager_bufferinit();
 
 	cpu_setregs();
+
+	mca_init();
 }
 
 /*
