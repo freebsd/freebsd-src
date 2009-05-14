@@ -66,6 +66,7 @@ struct ata_pci_controller {
     void                (*function)(void *);
     void                *argument;
     } interrupt[8];     /* XXX SOS max ch# for now */
+    void                *chipset_data;
 };
 
 /* defines for known chipset PCI id's */
