@@ -1439,12 +1439,6 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 	return ni;
 }
 
-#define	IS_CTL(wh) \
-	((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL)
-#define	IS_PSPOLL(wh) \
-	((wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) == IEEE80211_FC0_SUBTYPE_PS_POLL)
-#define	IS_BAR(wh) \
-	((wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) == IEEE80211_FC0_SUBTYPE_BAR)
 #define	IS_PROBEREQ(wh) \
 	((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK|IEEE80211_FC0_SUBTYPE_MASK)) \
 	    == (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ))
@@ -1456,9 +1450,6 @@ static __inline struct ieee80211_node *
 _find_rxnode(struct ieee80211_node_table *nt,
     const struct ieee80211_frame_min *wh)
 {
-	/* XXX 4-address frames? */
-	if (IS_CTL(wh) && !IS_PSPOLL(wh) && !IS_BAR(wh) /*&& !IS_RTS(ah)*/)
-		return ieee80211_find_node_locked(nt, wh->i_addr1);
 	if (IS_BCAST_PROBEREQ(wh))
 		return NULL;		/* spam bcast probe req to all vap's */
 	return ieee80211_find_node_locked(nt, wh->i_addr2);
@@ -1547,9 +1538,6 @@ ieee80211_find_rxnode_withkey(struct ieee80211com *ic,
 }
 #undef IS_BCAST_PROBEREQ
 #undef IS_PROBEREQ
-#undef IS_BAR
-#undef IS_PSPOLL
-#undef IS_CTL
 
 /*
  * Return a reference to the appropriate node for sending
