@@ -71,7 +71,7 @@ mtmsr(register_t value)
 static __inline register_t
 mfmsr(void)
 {
-	register_t	value;
+	register_t value;
 
 	__asm __volatile ("mfmsr %0" : "=r"(value));
 
@@ -88,7 +88,7 @@ mtsrin(vm_offset_t va, register_t value)
 static __inline register_t
 mfsrin(vm_offset_t va)
 {
-	register_t	value;
+	register_t value;
 
 	__asm __volatile ("mfsrin %0,%1" : "=r"(value) : "r"(va));
 
@@ -105,7 +105,7 @@ mtdec(register_t value)
 static __inline register_t
 mfdec(void)
 {
-	register_t	value;
+	register_t value;
 
 	__asm __volatile ("mfdec %0" : "=r"(value));
 
@@ -170,7 +170,7 @@ powerpc_sync(void)
 static __inline register_t
 intr_disable(void)
 {
-	register_t	msr;
+	register_t msr;
 
 	msr = mfmsr();
 	mtmsr(msr & ~PSL_EE);
@@ -187,11 +187,11 @@ intr_restore(register_t msr)
 static __inline struct pcpu *
 powerpc_get_pcpup(void)
 {
-	struct pcpu	*ret;
+	struct pcpu *ret;
 
 	__asm __volatile("mfsprg %0, 0" : "=r"(ret));
 
-	return(ret);
+	return (ret);
 }
 
 #endif /* _KERNEL */
