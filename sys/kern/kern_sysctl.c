@@ -1221,9 +1221,9 @@ sysctl_old_kernel(struct sysctl_req *req, const void *p, size_t l)
 		if (i > 0)
 			bcopy(p, (char *)req->oldptr + req->oldidx, i);
 	}
-	req->oldidx += l;
 	if (req->oldptr && i != l)
 		return (ENOMEM);
+	req->oldidx += l;
 	return (0);
 }
 
@@ -1320,9 +1320,10 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 	size_t i, len, origidx;
 
 	origidx = req->oldidx;
-	req->oldidx += l;
-	if (req->oldptr == NULL)
+	if (req->oldptr == NULL) {
+		req->oldidx += l;
 		return (0);
+	}
 	/*
 	 * If we have not wired the user supplied buffer and we are currently
 	 * holding locks, drop a witness warning, as it's possible that
@@ -1344,6 +1345,7 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 		return (error);
 	if (i < l)
 		return (ENOMEM);
+	req->oldidx += l;
 	return (0);
 }
 
