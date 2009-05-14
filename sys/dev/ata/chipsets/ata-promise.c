@@ -283,7 +283,7 @@ ata_promise_chipinit(device_t dev)
 	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;
-	    device_set_ivars(dev, hpkt);
+	    ctlr->chipset_data = hpkt;
 	    ctlr->ch_attach = ata_promise_mio_ch_attach;
 	    ctlr->ch_detach = ata_promise_mio_ch_detach;
 	    ctlr->reset = ata_promise_mio_reset;
@@ -730,7 +730,7 @@ ata_promise_mio_reset(device_t dev)
     case PR_SX4X:
 
 	/* softreset channel ATA module */
-	hpktp = device_get_ivars(ctlr->dev);
+	hpktp = ctlr->chipset_data;
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7), ch->unit + 1);
 	ata_udelay(1000);
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7),
@@ -1208,7 +1208,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 static void
 ata_promise_queue_hpkt(struct ata_pci_controller *ctlr, u_int32_t hpkt)
 {
-    struct ata_promise_sx4 *hpktp = device_get_ivars(ctlr->dev);
+    struct ata_promise_sx4 *hpktp = ctlr->chipset_data;
 
     mtx_lock(&hpktp->mtx);
     if (hpktp->busy) {
@@ -1227,7 +1227,7 @@ ata_promise_queue_hpkt(struct ata_pci_controller *ctlr, u_int32_t hpkt)
 static void
 ata_promise_next_hpkt(struct ata_pci_controller *ctlr)
 {
-    struct ata_promise_sx4 *hpktp = device_get_ivars(ctlr->dev);
+    struct ata_promise_sx4 *hpktp = ctlr->chipset_data;
     struct host_packet *hp;
 
     mtx_lock(&hpktp->mtx);
