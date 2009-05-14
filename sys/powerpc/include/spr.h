@@ -129,8 +129,6 @@
 #define	SPR_SPRG7		0x117	/* 4.. SPR General 7 */
 #define	SPR_ASR			0x118	/* ... Address Space Register (PPC64) */
 #define	SPR_EAR			0x11a	/* .68 External Access Register */
-#define	SPR_TBL			0x11c	/* 468 Time Base Lower */
-#define	SPR_TBU			0x11d	/* 468 Time Base Upper */
 #define	SPR_PVR			0x11f	/* 468 Processor Version Register */
 #define	  MPC601		  0x0001
 #define	  MPC603		  0x0003
