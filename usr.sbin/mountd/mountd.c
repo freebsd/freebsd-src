@@ -2473,7 +2473,7 @@ parsecred(namelist, cr)
 	char *names;
 	struct passwd *pw;
 	struct group *gr;
-	gid_t groups[NGROUPS + 1];
+	gid_t groups[NGRPS + 1];
 	int ngroups;
 
 	cr->cr_version = XUCRED_VERSION;
@@ -2501,7 +2501,7 @@ parsecred(namelist, cr)
 			return;
 		}
 		cr->cr_uid = pw->pw_uid;
-		ngroups = NGROUPS + 1;
+		ngroups = NGRPS + 1;
 		if (getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups))
 			syslog(LOG_ERR, "too many groups");
 		/*
@@ -2526,7 +2526,7 @@ parsecred(namelist, cr)
 		return;
 	}
 	cr->cr_ngroups = 0;
-	while (names != NULL && *names != '\0' && cr->cr_ngroups < NGROUPS) {
+	while (names != NULL && *names != '\0' && cr->cr_ngroups < NGRPS) {
 		name = strsep(&names, ":");
 		if (isdigit(*name) || *name == '-') {
 			cr->cr_groups[cr->cr_ngroups++] = atoi(name);
@@ -2538,7 +2538,7 @@ parsecred(namelist, cr)
 			cr->cr_groups[cr->cr_ngroups++] = gr->gr_gid;
 		}
 	}
-	if (names != NULL && *names != '\0' && cr->cr_ngroups == NGROUPS)
+	if (names != NULL && *names != '\0' && cr->cr_ngroups == NGRPS)
 		syslog(LOG_ERR, "too many groups");
 }
 
