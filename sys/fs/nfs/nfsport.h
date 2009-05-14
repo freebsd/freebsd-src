@@ -645,11 +645,6 @@ struct nfsex_args {
 };
 
 /*
- * Define these here, so they don't have to be in mount.h, for now.
- */
-#define	MNT_EXGSSKRB5	MNT_EXKERB
-
-/*
  * These export flags should be defined, but there are no bits left.
  * Maybe a separate mnt_exflag field could be added or the mnt_flag
  * field increased to 64 bits?
