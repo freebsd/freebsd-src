@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/bus.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
 #include <machine/platform.h>
+#include <machine/md_var.h>
 #include <machine/smp.h>
 
 #include "pic_if.h"
@@ -47,30 +49,35 @@ __FBSDID("$FreeBSD$");
 extern struct pcpu __pcpu[MAXCPU];
 
 volatile static int ap_awake;
-volatile static u_int ap_state;
+volatile static u_int ap_letgo;
 volatile static uint32_t ap_decr;
-volatile static uint32_t ap_tbl;
+volatile static u_quad_t ap_timebase;
+static u_int ipi_msg_cnt[32];
 
 void
 machdep_ap_bootstrap(void)
 {
 
-	pcpup->pc_awake = 1;
+	PCPU_SET(pir, mfspr(SPR_PIR));
+	PCPU_SET(awake, 1);
+	__asm __volatile("msync; isync");
 
-	while (ap_state == 0)
+	while (ap_letgo == 0)
 		;
 
-	mtspr(SPR_TBL, 0);
-	mtspr(SPR_TBU, 0);
-	mtspr(SPR_TBL, ap_tbl);
+	/* Initialize DEC and TB, sync with the BSP values */
+	decr_ap_init();
+	mttb(ap_timebase);
 	__asm __volatile("mtdec %0" :: "r"(ap_decr));
 
-	ap_awake++;
+	atomic_add_int(&ap_awake, 1);
+	CTR1(KTR_SMP, "SMP: AP CPU%d launched", PCPU_GET(cpuid));
 
-	/* Initialize curthread. */
+	/* Initialize curthread */
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 	PCPU_SET(curpcb, curthread->td_pcb);
 
+	/* Let the DEC and external interrupts go */
 	mtmsr(mfmsr() | PSL_EE);
 	sched_throw(NULL);
 }
@@ -149,8 +156,7 @@ cpu_mp_start(void)
 		pc->pc_cpumask = 1 << pc->pc_cpuid;
 		pc->pc_hwref = cpu.cr_hwref;
 		all_cpus |= pc->pc_cpumask;
-
- next:
+next:
 		error = platform_smp_next_cpu(&cpu);
 	}
 }
@@ -176,7 +182,7 @@ static void
 cpu_mp_unleash(void *dummy)
 {
 	struct pcpu *pc;
-	int cpus;
+	int cpus, timeout;
 
 	if (mp_ncpus <= 1)
 		return;
@@ -187,35 +193,47 @@ cpu_mp_unleash(void *dummy)
 		cpus++;
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (!pc->pc_bsp) {
-			printf("Waking up CPU %d (dev=%x)\n", pc->pc_cpuid,
-			    pc->pc_hwref);
+			if (bootverbose)
+				printf("Waking up CPU %d (dev=%x)\n",
+				    pc->pc_cpuid, pc->pc_hwref);
+
 			platform_smp_start_cpu(pc);
+			
+			timeout = 2000;	/* wait 2sec for the AP */
+			while (!pc->pc_awake && --timeout > 0)
+				DELAY(1000);
+
 		} else {
-			__asm __volatile("mfspr %0,1023" : "=r"(pc->pc_pir));
+			PCPU_SET(pir, mfspr(SPR_PIR));
 			pc->pc_awake = 1;
 		}
-		if (pc->pc_awake)
+		if (pc->pc_awake) {
+			if (bootverbose)
+				printf("Adding CPU %d, pir=%x, awake=%x\n",
+				    pc->pc_cpuid, pc->pc_pir, pc->pc_awake);
 			smp_cpus++;
+		} else
+			stopped_cpus |= (1 << pc->pc_cpuid);
 	}
 
 	ap_awake = 1;
 
-	__asm __volatile("mftb %0" : "=r"(ap_tbl));
-	ap_tbl += 10;
+	/* Provide our current DEC and TB values for APs */
 	__asm __volatile("mfdec %0" : "=r"(ap_decr));
-	ap_state++;
-	powerpc_sync();
+	ap_timebase = mftb() + 10;
+	__asm __volatile("msync; isync");
+	
+	/* Let APs continue */
+	atomic_store_rel_int(&ap_letgo, 1);
 
-	mtspr(SPR_TBL, 0);
-	mtspr(SPR_TBU, 0);
-	mtspr(SPR_TBL, ap_tbl);
+	mttb(ap_timebase);
 
 	while (ap_awake < smp_cpus)
 		;
 
 	if (smp_cpus != cpus || cpus != mp_ncpus) {
 		printf("SMP: %d CPUs found; %d CPUs usable; %d CPUs woken\n",
-			mp_ncpus, cpus, smp_cpus);
+		    mp_ncpus, cpus, smp_cpus);
 	}
 
 	smp_active = 1;
@@ -223,8 +241,6 @@ cpu_mp_unleash(void *dummy)
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
-
-static u_int ipi_msg_cnt[32];
 
 int
 powerpc_ipi_handler(void *arg)
