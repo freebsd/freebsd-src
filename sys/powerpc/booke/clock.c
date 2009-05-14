@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 
 #include <machine/clock.h>
+#include <machine/platform.h>
 #include <machine/psl.h>
 #include <machine/spr.h>
 #include <machine/cpu.h>
@@ -123,28 +124,21 @@ void
 cpu_initclocks(void)
 {
 
-	return;
-}
-
-void
-decr_config (unsigned long freq)
-{
-	ticks_per_sec = freq;
-	decr_timecounter.tc_frequency = freq;
+	decr_tc_init();
 }
 
 void
 decr_init (void)
 {
+	struct cpuref cpu;
 	unsigned int msr;
 
-	/*
-	 * Should check for correct CPU here?		XXX
-	 */
+	if (platform_smp_get_bsp(&cpu) != 0)
+		platform_smp_first_cpu(&cpu);
+	ticks_per_sec = platform_timebase_freq(&cpu);
+
 	msr = mfmsr();
 	mtmsr(msr & ~(PSL_EE));
-
-	tc_init(&decr_timecounter);
 
 	ns_per_tick = 1000000000 / ticks_per_sec;
 	ticks_per_intr = ticks_per_sec / hz;
@@ -172,6 +166,15 @@ mftb (void)
 	    : "=r"(tb), "=r"(scratch));
 	return tb;
 }
+
+void
+decr_tc_init(void)
+{
+
+	decr_timecounter.tc_frequency = ticks_per_sec;
+	tc_init(&decr_timecounter);
+}
+
 
 static unsigned
 decr_get_timecount(struct timecounter *tc)
