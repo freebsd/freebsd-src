@@ -324,4 +324,17 @@
 #define			DMA_INTR_TX_UNDERRUN		(1 << 1)
 #define			DMA_INTR_TX_PKT_SENT		(1 << 0)
 
+#define	AR71XX_SPI_BASE	0x1f000000
+#define		AR71XX_SPI_FS		0x00
+#define		AR71XX_SPI_CTRL		0x04
+#define			SPI_CTRL_REMAP_DISABLE		(1 << 6)
+#define			SPI_CTRL_CLOCK_DIVIDER_MASK	((1 << 6) - 1)
+#define		AR71XX_SPI_IO_CTRL	0x08
+#define			SPI_IO_CTRL_CS2			(1 << 18)
+#define			SPI_IO_CTRL_CS1			(1 << 17)
+#define			SPI_IO_CTRL_CS0			(1 << 16)
+#define			SPI_IO_CTRL_CLK			(1 << 8)
+#define			SPI_IO_CTRL_DO			1
+#define		AR71XX_SPI_RDS		0x0C
+
 #endif /* _AR71XX_REG_H_ */
