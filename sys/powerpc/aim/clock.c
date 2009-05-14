@@ -148,22 +148,19 @@ decr_init(void)
 	mtmsr(msr);
 }
 
+#ifdef SMP
+void
+decr_ap_init(void)
+{
+
+}
+#endif
+
 void
 decr_tc_init(void)
 {
 	decr_timecounter.tc_frequency = ticks_per_sec;
 	tc_init(&decr_timecounter);
-}
-
-static __inline u_quad_t
-mftb(void)
-{
-	u_long		scratch;
-	u_quad_t	tb;
-
-	__asm ("1: mftbu %0; mftb %0+1; mftbu %1; cmpw 0,%0,%1; bne 1b"
-	      : "=r"(tb), "=r"(scratch));
-	return tb;
 }
 
 static unsigned

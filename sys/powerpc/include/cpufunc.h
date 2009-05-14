@@ -115,11 +115,35 @@ mfdec(void)
 static __inline register_t
 mfpvr(void)
 {
-	register_t	value;
+	register_t value;
 
 	__asm __volatile ("mfpvr %0" : "=r"(value));
 
 	return (value);
+}
+
+static __inline u_quad_t
+mftb(void)
+{
+	u_quad_t tb;
+	uint32_t *tbup = (uint32_t *)&tb;
+	uint32_t *tblp = tbup + 1;
+
+	do {
+		*tbup = mfspr(TBR_TBU);
+		*tblp = mfspr(TBR_TBL);
+	} while (*tbup != mfspr(TBR_TBU));
+
+	return (tb);
+}
+
+static __inline void
+mttb(u_quad_t time)
+{
+
+	mtspr(TBR_TBWL, 0);
+	mtspr(TBR_TBWU, (uint32_t)(time >> 32));
+	mtspr(TBR_TBWL, (uint32_t)(time & 0xffffffff));
 }
 
 static __inline void
