@@ -166,8 +166,6 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type,
 		    rid, start, end, count, flags));
 
-	printf("not pass through\n");
-
 	/*
 	 * If this is an allocation of the "default" range for a given RID,
 	 * and we know what the resources for this device are (ie. they aren't
