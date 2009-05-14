@@ -117,7 +117,7 @@ int
 main(int argc, char *argv[])
 {
 	int ngroups; 
-	gid_t mygid, gidset[NGROUPS];
+	gid_t mygid, *gidset;
 	int i, ch, gflag = 0, uflag = 0, errflag = 0;
 
 	while ((ch = getopt(argc, argv, "f:ghlrquv")) != -1) {
@@ -159,13 +159,17 @@ main(int argc, char *argv[])
 			errflag += showuid(getuid());
 		if (gflag) {
 			mygid = getgid();
-			ngroups = getgroups(NGROUPS, gidset);
+			ngroups = sysconf(_SC_NGROUPS_MAX);
+			if ((gidset = malloc(sizeof(gid_t) * ngroups)) == NULL)
+				err(1, "malloc");
+			ngroups = getgroups(ngroups, gidset);
 			if (ngroups < 0)
 				err(1, "getgroups");
 			errflag += showgid(mygid);
 			for (i = 0; i < ngroups; i++)
 				if (gidset[i] != mygid)
 					errflag += showgid(gidset[i]);
+			free(gidset);
 		}
 		return(errflag);
 	}

@@ -85,7 +85,7 @@ STAILQ_HEAD(addr6head, addr6entry) addr6 = STAILQ_HEAD_INITIALIZER(addr6);
 	lcap = login_getpwclass(pwd);					\
 	if (lcap == NULL)						\
 		err(1, "getpwclass: %s", username);			\
-	ngroups = NGROUPS;						\
+	ngroups = ngroups_max;						\
 	if (getgrouplist(username, pwd->pw_gid, groups, &ngroups) != 0)	\
 		err(1, "getgrouplist: %s", username);			\
 } while (0)
@@ -96,8 +96,8 @@ main(int argc, char **argv)
 	login_cap_t *lcap = NULL;
 	struct jail j;
 	struct passwd *pwd = NULL;
-	gid_t groups[NGROUPS];
-	int ch, error, i, ngroups, securelevel;
+	gid_t *groups = NULL;
+	int ch, error, i, ngroups, ngroups_max, securelevel;
 	int hflag, iflag, Jflag, lflag, uflag, Uflag;
 	char path[PATH_MAX], *jailname, *ep, *username, *JidFile, *ip;
 	static char *cleanenv;
@@ -110,6 +110,10 @@ main(int argc, char **argv)
 	securelevel = -1;
 	jailname = username = JidFile = cleanenv = NULL;
 	fp = NULL;
+
+	ngroups_max = sysconf(_SC_NGROUPS_MAX);	
+	if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
+		err(1, "malloc");
 
 	while ((ch = getopt(argc, argv, "hiln:s:u:U:J:")) != -1) {
 		switch (ch) {

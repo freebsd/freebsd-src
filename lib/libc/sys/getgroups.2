@@ -59,7 +59,7 @@ system call
 returns the actual number of groups returned in
 .Fa gidset .
 No more than
-.Dv NGROUPS_MAX
+.Fn sysconf _SC_NGROUPS_MAX
 will ever
 be returned.
 If
@@ -91,7 +91,8 @@ an invalid address.
 .El
 .Sh SEE ALSO
 .Xr setgroups 2 ,
-.Xr initgroups 3
+.Xr initgroups 3 ,
+.Xr sysconf 3
 .Sh HISTORY
 The
 .Fn getgroups

@@ -35,10 +35,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include "namespace.h"
 #include <err.h>
 #include "un-namespace.h"
+#include <errno.h>
 #include <unistd.h>
 
 int
@@ -46,14 +48,20 @@ initgroups(uname, agroup)
 	const char *uname;
 	gid_t agroup;
 {
-	int ngroups;
+	int ngroups, ret;
+	gid_t *groups;
+
 	/*
-	 * Provide space for one group more than NGROUPS to allow
+	 * Provide space for one group more than possible to allow
 	 * setgroups to fail and set errno.
 	 */
-	gid_t groups[NGROUPS + 1];
+	ngroups = sysconf(_SC_NGROUPS_MAX) + 1;
+	groups = malloc(sizeof(gid_t)*ngroups);
+	if (groups == NULL)
+		return (ENOSPC);
 
-	ngroups = NGROUPS + 1;
 	getgrouplist(uname, agroup, groups, &ngroups);
-	return (setgroups(ngroups, groups));
+	ret = setgroups(ngroups, groups);
+	free(groups);
+	return(ret);
 }

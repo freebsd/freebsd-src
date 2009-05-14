@@ -146,9 +146,9 @@ restoregrps(void)
 static void
 addgroup(const char *grpname)
 {
-	gid_t grps[NGROUPS_MAX];
+	gid_t *grps;
 	long lgid;
-	int dbmember, i, ngrps;
+	int dbmember, i, ngrps, ngrps_max;
 	gid_t egid;
 	struct group *grp;
 	char *ep, *pass;
@@ -185,7 +185,10 @@ addgroup(const char *grpname)
 		}
 	}
 
-	if ((ngrps = getgroups(NGROUPS_MAX, (gid_t *)grps)) < 0) {
+	ngrps_max = sysconf(_SC_NGROUPS_MAX);
+	if ((grps = malloc(sizeof(gid_t) * ngrps_max)) == NULL)
+		err(1, "malloc");
+	if ((ngrps = getgroups(ngrps_max, (gid_t *)grps)) < 0) {
 		warn("getgroups");
 		return;
 	}
@@ -217,7 +220,7 @@ addgroup(const char *grpname)
 
 	/* Add old effective gid to supp. list if it does not exist. */
 	if (egid != grp->gr_gid && !inarray(egid, grps, ngrps)) {
-		if (ngrps == NGROUPS_MAX)
+		if (ngrps == ngrps_max)
 			warnx("too many groups");
 		else {
 			grps[ngrps++] = egid;
@@ -231,6 +234,7 @@ addgroup(const char *grpname)
 		}
 	}
 
+	free(grps);
 }
 
 static int
