@@ -124,7 +124,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/spr.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

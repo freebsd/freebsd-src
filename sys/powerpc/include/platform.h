@@ -32,8 +32,11 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_POWERPC_H_
-#define	_MACHINE_POWERPC_H_
+#ifndef	_MACHINE_PLATFORM_H_
+#define	_MACHINE_PLATFORM_H_
+  
+#include <machine/smp.h>
+#include <machine/pcpu.h>
 
 struct mem_region {
 	vm_offset_t	mr_start;
@@ -42,18 +45,14 @@ struct mem_region {
 
 void	mem_regions(struct mem_region **, int *, struct mem_region **, int *);
 
-/*
- * These two functions get used solely in boot() in machdep.c.
- *
- * Not sure whether boot itself should be implementation dependent instead.	XXX
- */
-void	OF_halt(void);
-void	OF_reboot(void);
-
-int	dk_match(char *name);
-
-void	ofrootfound(void);
-
-extern	int booted_partition;
-
-#endif	/* _MACHINE_POWERPC_H_ */
+u_long	platform_timebase_freq(struct cpuref *);
+  
+int	platform_smp_first_cpu(struct cpuref *);
+int	platform_smp_next_cpu(struct cpuref *);
+int	platform_smp_get_bsp(struct cpuref *);
+int	platform_smp_start_cpu(struct pcpu *);
+  
+const char *installed_platform(void);
+void platform_probe_and_attach(void);
+  
+#endif	/* _MACHINE_PLATFORM_H_ */

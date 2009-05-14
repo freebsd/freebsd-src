@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 
 #include <machine/tlb.h>
 #include <machine/spr.h>
@@ -122,8 +122,11 @@ vm_size_t kernsize;
 static vm_offset_t data_start;
 static vm_size_t data_end;
 
-struct mem_region availmem_regions[MEM_REGIONS];
-int availmem_regions_sz;
+/* Phys/avail memory regions. */
+static struct mem_region *availmem_regions;
+static int availmem_regions_sz;
+static struct mem_region *physmem_regions;
+static int physmem_regions_sz;
 
 /* Reserved KVA space and mutex for mmu_booke_zero_page. */
 static vm_offset_t zero_page_va;
@@ -1013,6 +1016,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * align all regions.  Non-page aligned memory isn't very interesting
 	 * to us.  Also, sort the entries for ascending addresses.
 	 */
+
+	/* Retrieve phys/avail mem regions */
+	mem_regions(&physmem_regions, &physmem_regions_sz,
+	    &availmem_regions, &availmem_regions_sz);
 	sz = 0;
 	cnt = availmem_regions_sz;
 	debugf("processing avail regions:\n");
