@@ -126,10 +126,9 @@ GB2312_GBK=	zh_CN
 ISO8859-1_ISO8859-1= ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} \
 		${NL_LINKS} ${NO_LINKS} en_US:af_ZA
 ISO8859-1_ISO8859-15= ca_ES da_DK de_AT de_DE en_GB en_US es_ES eu_ES \
-		fi_FI fr_FR is_IS it_IT la_LN nl_NL nn_NO no_NO pt_PT \
+		fi_FI fr_FR is_IS it_IT la_LN nb_NO nl_NL nn_NO no_NO pt_PT \
 		sv_SE \
-		${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} ${NL_LINKS} \
-		${NO_LINKS}
+		${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} ${NL_LINKS}
 ISO8859-1_US-ASCII= ${GB_LINKS} en_GB en_US la_LN
 ISO8859-1_ISO8859-2= la_LN
 ISO8859-1_ISO8859-4= la_LN
