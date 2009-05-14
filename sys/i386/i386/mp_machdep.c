@@ -155,9 +155,9 @@ vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
 
 #ifdef STOP_NMI
-volatile cpumask_t ipi_nmi_pending;
+static volatile cpumask_t ipi_nmi_pending;
 
-static void	ipi_nmi_selected(u_int32_t cpus);
+static void	ipi_nmi_selected(cpumask_t cpus);
 #endif 
 
 #ifdef COUNT_IPIS
@@ -1146,7 +1146,7 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 }
 
 static void
-smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
+smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 {
 	int ncpu, othercpus;
 
@@ -1231,7 +1231,7 @@ smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 }
 
 void
-smp_masked_invltlb(u_int mask)
+smp_masked_invltlb(cpumask_t mask)
 {
 
 	if (smp_started) {
@@ -1243,7 +1243,7 @@ smp_masked_invltlb(u_int mask)
 }
 
 void
-smp_masked_invlpg(u_int mask, vm_offset_t addr)
+smp_masked_invlpg(cpumask_t mask, vm_offset_t addr)
 {
 
 	if (smp_started) {
@@ -1255,7 +1255,7 @@ smp_masked_invlpg(u_int mask, vm_offset_t addr)
 }
 
 void
-smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
+smp_masked_invlpg_range(cpumask_t mask, vm_offset_t addr1, vm_offset_t addr2)
 {
 
 	if (smp_started) {
@@ -1303,7 +1303,7 @@ ipi_bitmap_handler(struct trapframe frame)
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(u_int32_t cpus, u_int ipi)
+ipi_selected(cpumask_t cpus, u_int ipi)
 {
 	int cpu;
 	u_int bitmap = 0;
@@ -1367,7 +1367,7 @@ ipi_all_but_self(u_int ipi)
 #define	BEFORE_SPIN	1000000
 
 void
-ipi_nmi_selected(u_int32_t cpus)
+ipi_nmi_selected(cpumask_t cpus)
 {
 	int cpu;
 	register_t icrlo;
@@ -1456,7 +1456,7 @@ SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
 static int
 sysctl_hlt_cpus(SYSCTL_HANDLER_ARGS)
 {
-	u_int mask;
+	cpumask_t mask;
 	int error;
 
 	mask = hlt_cpus_mask;
