@@ -4235,22 +4235,13 @@ getvnode(fdp, fd, fpp)
 	int error;
 	struct file *fp;
 
+	error = 0;
 	fp = NULL;
-	if (fdp == NULL)
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
 		error = EBADF;
-	else {
-		FILEDESC_SLOCK(fdp);
-		if ((u_int)fd >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[fd]) == NULL)
-			error = EBADF;
-		else if (fp->f_vnode == NULL) {
-			fp = NULL;
-			error = EINVAL;
-		} else {
-			fhold(fp);
-			error = 0;
-		}
-		FILEDESC_SUNLOCK(fdp);
+	else if (fp->f_vnode == NULL) {
+		error = EINVAL;
+		fdrop(fp, curthread);
 	}
 	*fpp = fp;
 	return (error);
