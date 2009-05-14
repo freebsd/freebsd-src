@@ -89,7 +89,6 @@
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/powerpc.h>
 
 #include <dev/ofw/openfirm.h>
 

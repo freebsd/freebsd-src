@@ -127,11 +127,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
-#include <machine/pmap.h>
 #include <machine/sigframe.h>
 #include <machine/metadata.h>
 #include <machine/bootinfo.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 
 #include <sys/linker.h>
 #include <sys/reboot.h>
@@ -156,9 +155,6 @@ extern unsigned char __bss_start[];
 extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
-
-extern struct mem_region availmem_regions[];
-extern int availmem_regions_sz;
 
 extern void dcache_enable(void);
 extern void dcache_inval(void);
@@ -339,9 +335,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	struct pcpu *pc;
 	void *kmdp;
 	vm_offset_t end;
-	struct bi_mem_region *mr;
 	uint32_t csr;
-	int i;
 
 	kmdp = NULL;
 
@@ -381,30 +375,8 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		while(1);
 	}
 
-	/* Initialize memory regions table */
-	mr = bootinfo_mr();
-	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++) {
-		if (i == MEM_REGIONS)
-			break;
-		if (mr->mem_base < 1048576) {
-			availmem_regions[i].mr_start = 1048576;
-			availmem_regions[i].mr_size = mr->mem_size -
-			    (1048576 - mr->mem_base);
-		} else {
-			availmem_regions[i].mr_start = mr->mem_base;
-			availmem_regions[i].mr_size = mr->mem_size;
-		}
-	}
-	availmem_regions_sz = i;
-
 	/* Initialize TLB1 handling */
 	tlb1_init(bootinfo->bi_bar_base);
-
-	/*
-	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
-	 * HID0[SEL_TBCLK] = 0
-	 */
-	decr_config(bootinfo->bi_bus_clk / 8);
 
 	/* Init params/tunables that can be overridden by the loader. */
 	init_param1();
@@ -449,6 +421,9 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
+
+	/* Initialise platform module */
+	platform_probe_and_attach();
 
 	/* Initialise virtual memory. */
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);

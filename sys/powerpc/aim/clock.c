@@ -125,44 +125,27 @@ decr_intr(struct trapframe *frame)
 void
 decr_init(void)
 {
-	int qhandle, phandle;
-	char name[32];
-	unsigned int msr;
-
-	phandle = 0;
+	struct cpuref cpu;
+	register_t msr;
 
 	/*
-	 * Get this info during autoconf?				XXX
+	 * Check the BSP's timebase frequency. Sometimes we can't find the BSP, so fall
+	 * back to the first CPU in this case.
 	 */
-	for (qhandle = OF_peer(0); qhandle; qhandle = phandle) {
-		if (OF_getprop(qhandle, "device_type", name, sizeof name) >= 0
-		    && !strcmp(name, "cpu")
-		    && OF_getprop(qhandle, "timebase-frequency",
-				  &ticks_per_sec, sizeof ticks_per_sec) >= 0) {
-			/*
-			 * Should check for correct CPU here?		XXX
-			 */
-			msr = mfmsr();
-			mtmsr(msr & ~PSL_EE);
 
-			ns_per_tick = 1000000000 / ticks_per_sec;
-			ticks_per_intr = ticks_per_sec / hz;
-			mtdec(ticks_per_intr);
+	if (platform_smp_get_bsp(&cpu) != 0)
+		platform_smp_first_cpu(&cpu);
 
-			mtmsr(msr);
+	ticks_per_sec = platform_timebase_freq(&cpu);
 
-			break;
-		}
-		if ((phandle = OF_child(qhandle)))
-			continue;
-		while (qhandle) {
-			if ((phandle = OF_peer(qhandle)))
-				break;
-			qhandle = OF_parent(qhandle);
-		}
-	}
-	if (!phandle)
-		panic("no cpu node");
+	msr = mfmsr();
+	mtmsr(msr & ~PSL_EE);
+
+	ns_per_tick = 1000000000 / ticks_per_sec;
+	ticks_per_intr = ticks_per_sec / hz;
+	mtdec(ticks_per_intr);
+
+	mtmsr(msr);
 }
 
 void
