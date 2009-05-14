@@ -580,7 +580,6 @@ struct nfsrv_descript {
 	u_int64_t		nd_compref;	/* Compound RPC ref# */
 	time_t			nd_tcpconntime;	/* Time TCP connection est. */
 	nfsquad_t		nd_clientid;	/* Implied clientid */
-	int			nd_credflavor;	/* credential flavor */
 	int			nd_gssnamelen;	/* principal name length */
 	char			*nd_gssname;	/* principal name */
 };
@@ -608,8 +607,11 @@ struct nfsrv_descript {
 #define	ND_V4WCCATTR		0x00010000
 #define	ND_NFSCB		0x00020000
 #define	ND_AUTHNONE		0x00040000
-#define	ND_EXGSSONLY		0x00080000
-#define	ND_INCRSEQID		0x00100000
+#define	ND_EXAUTHSYS		0x00080000
+#define	ND_EXGSS		0x00100000
+#define	ND_EXGSSINTEGRITY	0x00200000
+#define	ND_EXGSSPRIVACY		0x00400000
+#define	ND_INCRSEQID		0x00800000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.
@@ -629,11 +631,6 @@ struct nfsv4_opflag {
 #define	NFSRVSEQID_FIRST	0x01
 #define	NFSRVSEQID_LAST		0x02
 #define	NFSRVSEQID_OPEN		0x04
-
-/*
- * MNT_EXGSSONLY is the Or of all the EXGSS bits.
- */
-#define	MNT_EXGSSONLY		MNT_EXGSSKRB5
 
 /*
  * assign a doubly linked list to a new head

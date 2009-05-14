@@ -97,7 +97,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 {
 	struct nfsrv_descript nd;
 	struct nfsrvcache *rp = NULL;
-	int cacherep;
+	int cacherep, credflavor;
 
 	memset(&nd, 0, sizeof(nd));
 	if (rqst->rq_vers == NFS_VER2) {
@@ -186,12 +186,27 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	}
 
 	if (nd.nd_procnum != NFSPROC_NULL) {
-		if (!svc_getcred(rqst, &nd.nd_cred, &nd.nd_credflavor)) {
+		if (!svc_getcred(rqst, &nd.nd_cred, &credflavor)) {
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
 			return;
 		}
+
+		/* Set the flag based on credflavor */
+		if (credflavor == RPCSEC_GSS_KRB5) {
+			nd.nd_flag |= ND_GSS;
+		} else if (credflavor == RPCSEC_GSS_KRB5I) {
+			nd.nd_flag |= (ND_GSS | ND_GSSINTEGRITY);
+		} else if (credflavor == RPCSEC_GSS_KRB5P) {
+			nd.nd_flag |= (ND_GSS | ND_GSSPRIVACY);
+		} else if (credflavor != AUTH_SYS) {
+			svcerr_weakauth(rqst);
+			svc_freereq(rqst);
+			m_freem(nd.nd_mrep);
+			return;
+		}
+
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
