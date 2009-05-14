@@ -1720,10 +1720,13 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	/* Validate the file descriptor. */
 	if ((fdp = p->p_fd) == NULL)
 		return (EBADF);
-	FILEDESC_SLOCK(fdp);
-	if ((fp = fget_locked(fdp, fd)) == NULL || fp->f_ops == &badfileops) {
-		FILEDESC_SUNLOCK(fdp);
+
+	fp = fget_unlocked(fdp, fd);
+	if (fp == NULL)
 		return (EBADF);
+	if (fp->f_ops == &badfileops) {
+		error = EBADF;
+		goto done1;
 	}
 	
 	/* Make sure the vnode is bound to a character device. */
@@ -1763,7 +1766,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 
 done3:	tty_unlock(tp);
 done2:	dev_relthread(dev);
-done1:	FILEDESC_SUNLOCK(fdp);
+done1:	fdrop(fp, curthread);
 	return (error);
 }
 
