@@ -906,6 +906,9 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	if ((error = in_addprefix(ia, flags)) != 0)
 		return (error);
 
+	if (ia->ia_addr.sin_addr.s_addr == INADDR_ANY)
+		return (0);
+
 	/*
 	 * add a loopback route to self
 	 */
@@ -1014,7 +1017,8 @@ in_scrubprefix(struct in_ifaddr *target)
 	if ((target->ia_flags & IFA_ROUTE) == 0)
 		return (0);
 
-	if (!(target->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+	if ((target->ia_addr.sin_addr.s_addr != INADDR_ANY) &&
+	    !(target->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
 		bzero(&null_sdl, sizeof(null_sdl));
 		null_sdl.sdl_len = sizeof(null_sdl);
 		null_sdl.sdl_family = AF_LINK;
