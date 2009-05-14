@@ -410,7 +410,6 @@ bt_devinquiry(char const *devname, time_t length, int num_rsp,
 	ng_hci_inquiry_response		*ir;
 	struct bt_devinquiry		*i;
 	int				s, n;
-	time_t				to;
 
 	if (ii == NULL) {
 		errno = EINVAL;
@@ -452,16 +451,20 @@ bt_devinquiry(char const *devname, time_t length, int num_rsp,
 	cp->lap[1] = 0x8b;
 	cp->lap[2] = 0x9e;
 
-	/* Calculate inquire length in 1.28 second units */
-	to = (time_t) ((double) length / 1.28);
-	if (to <= 0)
-		cp->inquiry_length = 4;		/* 5.12 seconds */
-	else if (to > 254)
-		cp->inquiry_length = 255;	/* 326.40 seconds */
-	else
-		cp->inquiry_length = to + 1;
+	/*
+	 * Calculate inquire length in 1.28 second units
+	 * v2.x specification says that 1.28 -> 61.44 seconds
+	 * range is acceptable
+	 */
 
-	to = (time_t)((double) cp->inquiry_length * 1.28) + 1;
+	if (length <= 0)
+		length = 5;
+	else if (length == 1)
+		length = 2;
+	else if (length > 62)
+		length = 62;
+
+	cp->inquiry_length = (uint8_t)((length * 100) / 128);
 
 	if (num_rsp <= 0 || num_rsp > 255)
 		num_rsp = 8;
@@ -484,7 +487,7 @@ bt_devinquiry(char const *devname, time_t length, int num_rsp,
 
 wait_for_more:
 
-	n = bt_devrecv(s, buf, sizeof(buf), to);
+	n = bt_devrecv(s, buf, sizeof(buf), length);
 	if (n < 0) {
 		free(i);
 		bt_devclose(s);
