@@ -1535,7 +1535,6 @@ legacy/dev/usb/ums.c		optional oums
 legacy/dev/usb/uplcom.c		optional ouplcom
 legacy/dev/usb/urio.c		optional ourio
 legacy/dev/usb/usb.c		optional ousb
-legacy/dev/usb/usb_ethersubr.c	optional ousb
 legacy/dev/usb/usb_if.m		optional ousb
 legacy/dev/usb/usb_mem.c	optional ousb
 legacy/dev/usb/usb_quirks.c	optional ousb
