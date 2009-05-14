@@ -38,6 +38,7 @@
 
 load_rc_config 'XXX'
 /etc/rc.d/devd start
+/etc/rc.d/hostid start
 /etc/rc.d/hostname start
 /etc/rc.d/ipmon start
 /etc/rc.d/ipfilter start
