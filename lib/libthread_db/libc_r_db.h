@@ -1,15 +1,18 @@
 /*
- * Copyright (c) 2005 David Xu
+ * Copyright (c) 2008 Sandvine Incorporated
  * All rights reserved.
+ *
+ * This software was developed by Attilio Rao for the SVOS project under
+ * contract to Sandvine Incorporated.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 2. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -26,40 +29,13 @@
  * $FreeBSD$
  */
 
-#include "thr_private.h"
+#ifndef _LIBC_R_DB_H_
+#define	_LIBC_R_DB_H_
 
-void
-_thread_bp_create(void)
-{
-}
+#include <sys/procfs.h>
+#include <machine/setjmp.h>
 
-void
-_thread_bp_death(void)
-{
-}
+void	 libc_r_md_getgregs(jmp_buf jb, prgregset_t r);
+void	 libc_r_md_getfpregs(jmp_buf jb, prfpregset_t *r);
 
-void
-_thr_report_creation(struct pthread *curthread, struct pthread *newthread)
-{
-	curthread->event_buf.event = TD_CREATE;
-	curthread->event_buf.th_p = (uintptr_t)newthread;
-	curthread->event_buf.data = 0;
-	THR_UMTX_LOCK(curthread, &_thr_event_lock);
-	_thread_last_event = curthread;
-	_thread_bp_create();
-	_thread_last_event = NULL;
-	THR_UMTX_UNLOCK(curthread, &_thr_event_lock);
-}
-
-void
-_thr_report_death(struct pthread *curthread)
-{
-	curthread->event_buf.event = TD_DEATH;
-	curthread->event_buf.th_p = (uintptr_t)curthread;
-	curthread->event_buf.data = 0;
-	THR_UMTX_LOCK(curthread, &_thr_event_lock);
-	_thread_last_event = curthread;
-	_thread_bp_death();
-	_thread_last_event = NULL;
-	THR_UMTX_UNLOCK(curthread, &_thr_event_lock);
-}
+#endif /* _LIBC_R_DB_H_ */

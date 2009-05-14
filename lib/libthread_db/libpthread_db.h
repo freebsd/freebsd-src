@@ -34,13 +34,14 @@
 
 #include "thread_db_int.h"
 
-struct pt_map {
-	enum {
-		PT_NONE,
-		PT_USER,
-		PT_LWP
-	} type;
+enum pt_type {
+	PT_NONE,
+	PT_USER,
+	PT_LWP
+};
 
+struct pt_map {
+	enum pt_type	type;
 	union {
 		lwpid_t		lwp;
 		psaddr_t	thr;
