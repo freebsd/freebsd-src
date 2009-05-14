@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
+#include <machine/platform.h>
 #include <machine/smp.h>
 
 #include "pic_if.h"
@@ -88,10 +89,10 @@ cpu_mp_setmaxid(void)
 	int error;
 
 	mp_ncpus = 0;
-	error = powerpc_smp_first_cpu(&cpuref);
+	error = platform_smp_first_cpu(&cpuref);
 	while (!error) {
 		mp_ncpus++;
-		error = powerpc_smp_next_cpu(&cpuref);
+		error = platform_smp_next_cpu(&cpuref);
 	}
 	/* Sanity. */
 	if (mp_ncpus == 0)
@@ -121,11 +122,11 @@ cpu_mp_start(void)
 	struct pcpu *pc;
 	int error;
 
-	error = powerpc_smp_get_bsp(&bsp);
+	error = platform_smp_get_bsp(&bsp);
 	KASSERT(error == 0, ("Don't know BSP"));
 	KASSERT(bsp.cr_cpuid == 0, ("%s: cpuid != 0", __func__));
 
-	error = powerpc_smp_first_cpu(&cpu);
+	error = platform_smp_first_cpu(&cpu);
 	while (!error) {
 		if (cpu.cr_cpuid >= MAXCPU) {
 			printf("SMP: cpu%d: skipped -- ID out of range\n",
@@ -150,7 +151,7 @@ cpu_mp_start(void)
 		all_cpus |= pc->pc_cpumask;
 
  next:
-		error = powerpc_smp_next_cpu(&cpu);
+		error = platform_smp_next_cpu(&cpu);
 	}
 }
 
@@ -188,7 +189,7 @@ cpu_mp_unleash(void *dummy)
 		if (!pc->pc_bsp) {
 			printf("Waking up CPU %d (dev=%x)\n", pc->pc_cpuid,
 			    pc->pc_hwref);
-			powerpc_smp_start_cpu(pc);
+			platform_smp_start_cpu(pc);
 		} else {
 			__asm __volatile("mfspr %0,1023" : "=r"(pc->pc_pir));
 			pc->pc_awake = 1;

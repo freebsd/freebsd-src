@@ -114,7 +114,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/mmuvar.h>
 #include <machine/pcb.h>
-#include <machine/powerpc.h>
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/spr.h>
@@ -472,14 +471,22 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 */
 	mtmsr(msr);
 	isync();
+	
+	/*
+	 * Choose a platform module so we can get the physical memory map.
+	 */
+	
+	platform_probe_and_attach();
 
 	/*
-	 * Initialise virtual memory.
+	 * Initialise virtual memory. Use BUS_PROBE_GENERIC priority
+	 * in case the platform module had a better idea of what we
+	 * should do.
 	 */
 	if (ppc64)
-		pmap_mmu_install(MMU_TYPE_G5, 0);
+		pmap_mmu_install(MMU_TYPE_G5, BUS_PROBE_GENERIC);
 	else
-		pmap_mmu_install(MMU_TYPE_OEA, 0);
+		pmap_mmu_install(MMU_TYPE_OEA, BUS_PROBE_GENERIC);
 
 	pmap_bootstrap(startkernel, endkernel);
 	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);

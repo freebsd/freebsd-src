@@ -81,6 +81,7 @@ powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
 powerpc/aim/ofw_machdep.c	optional	aim
 powerpc/aim/ofwmagic.S		optional	aim
+powerpc/aim/platform_chrp.c	optional	aim
 powerpc/aim/swtch.S		optional	aim
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
@@ -90,6 +91,7 @@ powerpc/booke/copyinout.c	optional	e500
 powerpc/booke/interrupt.c	optional	e500
 powerpc/booke/locore.S		optional	e500 no-obj
 powerpc/booke/machdep.c		optional	e500
+powerpc/booke/platform_bare.c	optional	mpc85xx
 powerpc/booke/pmap.c		optional	e500
 powerpc/booke/swtch.S		optional	e500
 powerpc/booke/trap.c		optional	e500
@@ -155,6 +157,8 @@ powerpc/powerpc/mp_machdep.c	optional	smp
 powerpc/powerpc/openpic.c	standard
 powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap_dispatch.c	standard
+powerpc/powerpc/platform.c	standard
+powerpc/powerpc/platform_if.m	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
 powerpc/powerpc/setjmp.S	standard
 powerpc/powerpc/sigcode.S	standard
