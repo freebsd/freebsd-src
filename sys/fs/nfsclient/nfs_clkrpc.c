@@ -66,7 +66,7 @@ static void
 nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 {
 	struct nfsrv_descript nd;
-	int cacherep;
+	int cacherep, credflavor;
 
 	memset(&nd, 0, sizeof(nd));
 	if (rqst->rq_proc != NFSPROC_NULL &&
@@ -94,12 +94,14 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 	nd.nd_cred = NULL;
 
 	if (nd.nd_procnum != NFSPROC_NULL) {
-		if (!svc_getcred(rqst, &nd.nd_cred, &nd.nd_credflavor)) {
+		if (!svc_getcred(rqst, &nd.nd_cred, &credflavor)) {
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
 			return;
 		}
+
+		/* For now, I don't care what credential flavor was used. */
 #ifdef notyet
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
