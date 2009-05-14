@@ -2352,14 +2352,16 @@ nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
 	 * Check/setup credentials.
 	 */
 	if (nd->nd_flag & ND_GSS)
-		exp->nes_exflag &= ~(MNT_EXGSSONLY | MNT_EXPORTANON);
+		exp->nes_exflag &= ~MNT_EXPORTANON;
 
 	/*
-	 * For AUTH_SYS, check to see if it is allowed.
+	 * Check to see if the operation is allowed for this security flavor.
 	 * RFC2623 suggests that the NFSv3 Fsinfo RPC be allowed to
 	 * AUTH_NONE or AUTH_SYS for file systems requiring RPCSEC_GSS.
+	 * Also, allow Secinfo, so that it can acquire the correct flavor(s).
 	 */
-	if (NFSVNO_EXGSSONLY(exp) &&
+	if (nfsvno_testexp(nd, exp) &&
+	    nd->nd_procnum != NFSV4OP_SECINFO &&
 	    nd->nd_procnum != NFSPROC_FSINFO) {
 		if (nd->nd_flag & ND_NFSV4)
 			error = NFSERR_WRONGSEC;
@@ -2400,14 +2402,20 @@ int
 nfsvno_checkexp(struct mount *mp, struct sockaddr *nam, struct nfsexstuff *exp,
     struct ucred **credp)
 {
-	int error;
-	int numsecflavor, *secflavors;
+	int i, error, *secflavors;
 
 	error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
-	    &numsecflavor, &secflavors);
-	if (error && nfs_rootfhset) {
-		exp->nes_exflag = 0;
-		error = 0;
+	    &exp->nes_numsecflavor, &secflavors);
+	if (error) {
+		if (nfs_rootfhset) {
+			exp->nes_exflag = 0;
+			exp->nes_numsecflavor = 0;
+			error = 0;
+		}
+	} else {
+		/* Copy the security flavors. */
+		for (i = 0; i < exp->nes_numsecflavor; i++)
+			exp->nes_secflavors[i] = secflavors[i];
 	}
 	return (error);
 }
@@ -2419,21 +2427,26 @@ int
 nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
     struct vnode **vpp, struct nfsexstuff *exp, struct ucred **credp)
 {
-	int error;
-	int numsecflavor, *secflavors;
+	int i, error, *secflavors;
 
 	*credp = NULL;
+	exp->nes_numsecflavor = 0;
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
 	if (nam && !error) {
 		error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
-		    &numsecflavor, &secflavors);
+		    &exp->nes_numsecflavor, &secflavors);
 		if (error) {
 			if (nfs_rootfhset) {
 				exp->nes_exflag = 0;
+				exp->nes_numsecflavor = 0;
 				error = 0;
 			} else {
 				vput(*vpp);
 			}
+		} else {
+			/* Copy the security flavors. */
+			for (i = 0; i < exp->nes_numsecflavor; i++)
+				exp->nes_secflavors[i] = secflavors[i];
 		}
 	}
 	return (error);
@@ -2539,18 +2552,19 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp,
 	 */
 #ifdef NFS_REQRSVPORT
 	if (!nd->nd_repstat) {
-	  struct sockaddr_in *saddr;
-	  struct sockaddr_in6 *saddr6;
-	  saddr = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in *);
-	  saddr6 = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in6 *);
-	  if (!(nd->nd_flag & ND_NFSV4) &&
-	      ((saddr->sin_family == AF_INET &&
-	        ntohs(saddr->sin_port) >= IPPORT_RESERVED) ||
-	       (saddr6->sin6_family == AF_INET6 &&
-	        ntohs(saddr6->sin6_port) >= IPPORT_RESERVED))) {
-		vput(*vpp);
-		nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
-	  }
+		struct sockaddr_in *saddr;
+		struct sockaddr_in6 *saddr6;
+
+		saddr = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in *);
+		saddr6 = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in6 *);
+		if (!(nd->nd_flag & ND_NFSV4) &&
+		    ((saddr->sin_family == AF_INET &&
+		      ntohs(saddr->sin_port) >= IPPORT_RESERVED) ||
+		     (saddr6->sin6_family == AF_INET6 &&
+		      ntohs(saddr6->sin6_port) >= IPPORT_RESERVED))) {
+			vput(*vpp);
+			nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
+		}
 	}
 #endif	/* NFS_REQRSVPORT */
 
@@ -2598,7 +2612,7 @@ fp_getfvp(struct thread *p, int fd, struct file **fpp, struct vnode **vpp)
 }
 
 /*
- * Called from newnfssvc() to update the exports list. Just call
+ * Called from nfssvc() to update the exports list. Just call
  * vfs_export(). This has to be done, since the v4 root fake fs isn't
  * in the mount list.
  */
@@ -2610,11 +2624,6 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 	struct nameidata nd;
 	fhandle_t fh;
 
-	/*
-	 * Until newmountd is using the secflavor fields, just make
-	 * sure it's 0.
-	 */
-	nfsexargp->export.ex_numsecflavors = 0;
 	error = vfs_export(&nfsv4root_mnt, &nfsexargp->export);
 	if ((nfsexargp->export.ex_flags & MNT_DELEXPORT)) {
 		nfs_rootfhset = 0;
@@ -2843,16 +2852,24 @@ int
 nfsvno_v4rootexport(struct nfsrv_descript *nd)
 {
 	struct ucred *credanon;
-	int exflags, error;
+	int exflags, error, numsecflavor, *secflavors, i;
 
 	error = vfs_stdcheckexp(&nfsv4root_mnt, nd->nd_nam, &exflags,
-	    &credanon, NULL, NULL);
+	    &credanon, &numsecflavor, &secflavors);
 	if (error)
 		return (NFSERR_PROGUNAVAIL);
-	if ((exflags & MNT_EXGSSONLY))
-		nd->nd_flag |= ND_EXGSSONLY;
 	if (credanon != NULL)
 		crfree(credanon);
+	for (i = 0; i < numsecflavor; i++) {
+		if (secflavors[i] == AUTH_SYS)
+			nd->nd_flag |= ND_EXAUTHSYS;
+		else if (secflavors[i] == RPCSEC_GSS_KRB5)
+			nd->nd_flag |= ND_EXGSS;
+		else if (secflavors[i] == RPCSEC_GSS_KRB5I)
+			nd->nd_flag |= ND_EXGSSINTEGRITY;
+		else if (secflavors[i] == RPCSEC_GSS_KRB5P)
+			nd->nd_flag |= ND_EXGSSPRIVACY;
+	}
 	return (0);
 }
 
@@ -2983,6 +3000,45 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		}
 	}
 	return (error);
+}
+
+/*
+ * Check exports.
+ * Returns 0 if ok, 1 otherwise.
+ */
+int
+nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
+{
+	int i;
+
+	/*
+	 * This seems odd, but allow the case where the security flavor
+	 * list is empty. This happens when NFSv4 is traversing non-exported
+	 * file systems. Exported file systems should always have a non-empty
+	 * security flavor list.
+	 */
+	if (exp->nes_numsecflavor == 0)
+		return (0);
+
+	for (i = 0; i < exp->nes_numsecflavor; i++) {
+		/*
+		 * The tests for privacy and integrity must be first,
+		 * since ND_GSS is set for everything but AUTH_SYS.
+		 */
+		if (exp->nes_secflavors[i] == RPCSEC_GSS_KRB5P &&
+		    (nd->nd_flag & ND_GSSPRIVACY))
+			return (0);
+		if (exp->nes_secflavors[i] == RPCSEC_GSS_KRB5I &&
+		    (nd->nd_flag & ND_GSSINTEGRITY))
+			return (0);
+		if (exp->nes_secflavors[i] == RPCSEC_GSS_KRB5 &&
+		    (nd->nd_flag & ND_GSS))
+			return (0);
+		if (exp->nes_secflavors[i] == AUTH_SYS &&
+		    (nd->nd_flag & ND_GSS) == 0)
+			return (0);
+	}
+	return (1);
 }
 
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);

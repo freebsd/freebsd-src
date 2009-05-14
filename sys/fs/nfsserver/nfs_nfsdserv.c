@@ -3090,7 +3090,6 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	retnes.nes_vfslocked = exp->nes_vfslocked;
 	vput(vp);
 	savflag = nd->nd_flag;
-	nd->nd_flag |= ND_GSS;	/* so nfsd_fhtovp() won't reply Wrongsec */
 	if (!nd->nd_repstat) {
 		nfsd_fhtovp(nd, &fh, &vp, &retnes, &mp, 0, p);
 		if (vp)
@@ -3106,20 +3105,39 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	 */
 	len = 0;
 	NFSM_BUILD(sizp, u_int32_t *, NFSX_UNSIGNED);
-	if (!NFSVNO_EXGSSONLY(&retnes)) {
-		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-		*tl = txdr_unsigned(RPCAUTH_UNIX);
-		len++;
-	}
-	for (i = RPCAUTHGSS_SVCNONE; i <= RPCAUTHGSS_SVCPRIVACY; i++) {
-		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-		*tl++ = txdr_unsigned(RPCAUTH_GSS);
-		(void) nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
-		    nfsgss_mechlist[KERBV_MECH].len);
-		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		*tl++ = txdr_unsigned(GSS_KERBV_QOP);
-		*tl = txdr_unsigned(i);
-		len++;
+	for (i = 0; i < retnes.nes_numsecflavor; i++) {
+		if (retnes.nes_secflavors[i] == AUTH_SYS) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(RPCAUTH_UNIX);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(RPCAUTH_GSS);
+			(void) nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCNONE);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5I) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(RPCAUTH_GSS);
+			(void) nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCINTEGRITY);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5P) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(RPCAUTH_GSS);
+			(void) nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCPRIVACY);
+			len++;
+		}
 	}
 	*sizp = txdr_unsigned(len);
 	return (0);
@@ -3141,7 +3159,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid, confirm;
 
 	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    (nd->nd_flag & (ND_GSS | ND_EXGSSONLY)) == ND_EXGSSONLY) {
+	    nfsd_checkrootexp(nd)) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}
@@ -3250,7 +3268,7 @@ nfsrvd_setclientidcfrm(struct nfsrv_descript *nd,
 	nfsquad_t clientid, confirm;
 
 	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    (nd->nd_flag & (ND_GSS | ND_EXGSSONLY)) == ND_EXGSSONLY) {
+	    nfsd_checkrootexp(nd)) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}

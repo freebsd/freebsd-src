@@ -306,6 +306,7 @@ int nfsrv_putreferralattr(struct nfsrv_descript *, nfsattrbit_t *,
 int nfsrv_parsename(struct nfsrv_descript *, char *, u_long *,
     NFSPATHLEN_T *);
 void nfsd_init(void);
+int nfsd_checkrootexp(struct nfsrv_descript *);
 
 /* nfs_clvfsops.c */
 
@@ -575,6 +576,7 @@ int nfsvno_advlock(vnode_t, int, u_int64_t, u_int64_t, NFSPROC_T *);
 void nfsvno_unlockvfs(mount_t);
 int nfsvno_lockvfs(mount_t);
 int nfsrv_v4rootexport(void *, struct ucred *, NFSPROC_T *);
+int nfsvno_testexp(struct nfsrv_descript *, struct nfsexstuff *);
 
 /* nfs_commonkrpc.c */
 int newnfs_nmcancelreqs(struct nfsmount *);
