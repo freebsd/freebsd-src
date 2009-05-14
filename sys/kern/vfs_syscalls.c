@@ -2360,6 +2360,9 @@ kern_readlink(struct thread *td, char *path, enum uio_seg pathseg, char *buf,
 	struct nameidata nd;
 	int vfslocked;
 
+	if (count > INT_MAX)
+		return (EINVAL);
+
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
