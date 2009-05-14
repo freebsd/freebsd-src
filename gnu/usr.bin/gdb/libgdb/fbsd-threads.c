@@ -710,7 +710,7 @@ check_event (ptid_t ptid)
           error ("Cannot get thread event message: %s",
 		 thread_db_err_str (err));
         }
-      err = td_thr_get_info_p (msg.th_p, &ti);
+      err = td_thr_get_info_p ((void*)(uintptr_t)msg.th_p, &ti);
       if (err != TD_OK)
         error ("Cannot get thread info: %s", thread_db_err_str (err));
       ptid = BUILD_THREAD (ti.ti_tid, GET_PID (ptid));
@@ -720,7 +720,7 @@ check_event (ptid_t ptid)
           /* We may already know about this thread, for instance when the
              user has issued the `info threads' command before the SIGTRAP
              for hitting the thread creation breakpoint was reported.  */
-          attach_thread (ptid, msg.th_p, &ti, 1);
+          attach_thread (ptid, (void *)(uintptr_t)msg.th_p, &ti, 1);
           break;
        case TD_DEATH:
          if (!in_thread_list (ptid))
@@ -1178,13 +1178,14 @@ fbsd_thread_pid_to_str (ptid_t ptid)
 
       if (ti.ti_lid != 0)
         {
-          snprintf (buf, sizeof (buf), "Thread %p (LWP %d)",
-                    th.th_thread, ti.ti_lid);
+          snprintf (buf, sizeof (buf), "Thread %llx (LWP %d)",
+                    (unsigned long long)th.th_thread, ti.ti_lid);
         }
       else
         {
-          snprintf (buf, sizeof (buf), "Thread %p (%s)",
-                    th.th_thread, thread_db_state_str (ti.ti_state));
+          snprintf (buf, sizeof (buf), "Thread %llx (%s)",
+                    (unsigned long long)th.th_thread,
+                    thread_db_state_str (ti.ti_state));
         }
 
       return buf;

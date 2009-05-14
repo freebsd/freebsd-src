@@ -27,15 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/procfs.h>
-#include <machine/setjmp.h>
+#include "libc_r_db.h"
 
 void
-libc_r_md_getgregs(jmp_buf jb, prgregset_t *r)
+libc_r_md_getgregs(jmp_buf jb __unused, prgregset_t r __unused)
 {
 }
 
 void
-libc_r_md_getfpregs(jmp_buf jb, prfpregset_t *r)
+libc_r_md_getfpregs(jmp_buf jb __unused, prfpregset_t *r __unused)
 {
 }

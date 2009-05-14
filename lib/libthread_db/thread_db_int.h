@@ -74,8 +74,8 @@ struct ta_ops {
 	    const prfpregset_t *);
 	td_err_e (*to_thr_setgregs)(const td_thrhandle_t *, const prgregset_t);
 	td_err_e (*to_thr_validate)(const td_thrhandle_t *);
-	td_err_e (*to_thr_tls_get_addr)(const td_thrhandle_t *,
-                   void *, size_t, void **);
+	td_err_e (*to_thr_tls_get_addr)(const td_thrhandle_t *, psaddr_t,
+	    size_t, psaddr_t *);
 
 	/* FreeBSD specific extensions. */
 	td_err_e (*to_thr_sstep)(const td_thrhandle_t *, int);
@@ -92,5 +92,15 @@ struct ta_ops {
 #define TDBG(...)
 #define TDBG_FUNC()
 #endif
+
+struct td_thragent;
+
+int thr_pread_int(const struct td_thragent *, psaddr_t, uint32_t *);
+int thr_pread_long(const struct td_thragent *, psaddr_t, uint64_t *);
+int thr_pread_ptr(const struct td_thragent *, psaddr_t, psaddr_t *);
+
+int thr_pwrite_int(const struct td_thragent *, psaddr_t, uint32_t);
+int thr_pwrite_long(const struct td_thragent *, psaddr_t, uint64_t);
+int thr_pwrite_ptr(const struct td_thragent *, psaddr_t, psaddr_t);
 
 #endif /* _THREAD_DB_INT_H_ */
