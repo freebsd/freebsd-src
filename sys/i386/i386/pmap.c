@@ -1624,7 +1624,7 @@ retry:
  * Deal with a SMP shootdown of other users of the pmap that we are
  * trying to dispose of.  This can be a bit hairy.
  */
-static u_int *lazymask;
+static cpumask_t *lazymask;
 static u_int lazyptd;
 static volatile u_int lazywait;
 
@@ -1633,7 +1633,7 @@ void pmap_lazyfix_action(void);
 void
 pmap_lazyfix_action(void)
 {
-	u_int mymask = PCPU_GET(cpumask);
+	cpumask_t mymask = PCPU_GET(cpumask);
 
 #ifdef COUNT_IPIS
 	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
@@ -1645,7 +1645,7 @@ pmap_lazyfix_action(void)
 }
 
 static void
-pmap_lazyfix_self(u_int mymask)
+pmap_lazyfix_self(cpumask_t mymask)
 {
 
 	if (rcr3() == lazyptd)
@@ -1657,8 +1657,7 @@ pmap_lazyfix_self(u_int mymask)
 static void
 pmap_lazyfix(pmap_t pmap)
 {
-	u_int mymask;
-	u_int mask;
+	cpumask_t mymask, mask;
 	u_int spins;
 
 	while ((mask = pmap->pm_active) != 0) {
