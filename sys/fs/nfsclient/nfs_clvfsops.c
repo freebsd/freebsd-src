@@ -135,14 +135,15 @@ struct nfsv3_diskless newnfsv3_diskless = { { { 0 } } };
 int newnfs_diskless_valid = 0;
 
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
-	&newnfs_diskless_valid, 0, "");
+    &newnfs_diskless_valid, 0,
+    "Has the diskless struct been filled correctly");
 
 SYSCTL_STRING(_vfs_newnfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
-	newnfsv3_diskless.root_hostnam, 0, "");
+    newnfsv3_diskless.root_hostnam, 0, "Path to nfs root");
 
 SYSCTL_OPAQUE(_vfs_newnfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
-	&newnfsv3_diskless.root_saddr, sizeof newnfsv3_diskless.root_saddr,
-	"%Ssockaddr_in", "");
+    &newnfsv3_diskless.root_saddr, sizeof newnfsv3_diskless.root_saddr,
+    "%Ssockaddr_in", "Diskless root nfs address");
 
 
 void		newnfsargs_ntoh(struct nfs_args *);
@@ -220,23 +221,27 @@ nfs_convert_diskless(void)
 {
 
 	bcopy(&newnfs_diskless.myif, &newnfsv3_diskless.myif,
-		sizeof(struct ifaliasreq));
+	    sizeof (struct ifaliasreq));
 	bcopy(&newnfs_diskless.mygateway, &newnfsv3_diskless.mygateway,
-		sizeof(struct sockaddr_in));
-	nfs_convert_oargs(&newnfsv3_diskless.root_args,&newnfs_diskless.root_args);
+	    sizeof (struct sockaddr_in));
+	nfs_convert_oargs(&newnfsv3_diskless.root_args,
+	    &newnfs_diskless.root_args);
 	if (newnfsv3_diskless.root_args.flags & NFSMNT_NFSV3) {
 		newnfsv3_diskless.root_fhsize = NFSX_MYFH;
-		bcopy(newnfs_diskless.root_fh, newnfsv3_diskless.root_fh, NFSX_MYFH);
+		bcopy(newnfs_diskless.root_fh, newnfsv3_diskless.root_fh,
+		    NFSX_MYFH);
 	} else {
 		newnfsv3_diskless.root_fhsize = NFSX_V2FH;
-		bcopy(newnfs_diskless.root_fh, newnfsv3_diskless.root_fh, NFSX_V2FH);
+		bcopy(newnfs_diskless.root_fh, newnfsv3_diskless.root_fh,
+		    NFSX_V2FH);
 	}
 	bcopy(&newnfs_diskless.root_saddr,&newnfsv3_diskless.root_saddr,
-		sizeof(struct sockaddr_in));
-	bcopy(newnfs_diskless.root_hostnam, newnfsv3_diskless.root_hostnam, MNAMELEN);
+	    sizeof(struct sockaddr_in));
+	bcopy(newnfs_diskless.root_hostnam, newnfsv3_diskless.root_hostnam,
+	    MNAMELEN);
 	newnfsv3_diskless.root_time = newnfs_diskless.root_time;
 	bcopy(newnfs_diskless.my_hostnam, newnfsv3_diskless.my_hostnam,
-		MAXHOSTNAMELEN);
+	    MAXHOSTNAMELEN);
 	newnfs_diskless_valid = 3;
 }
 
@@ -355,12 +360,14 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
  *
  * It is assumed to be safe to read, modify, and write the nfsv3_diskless
  * structure, as well as other global NFS client variables here, as
- * ncl_mountroot() will be called once in the boot before any other NFS
+ * nfs_mountroot() will be called once in the boot before any other NFS
  * client activity occurs.
  */
 int
-ncl_mountroot(struct mount *mp, struct thread *td)
+ncl_mountroot(struct mount *mp)
 {
+	struct thread *td = curthread;
+	INIT_VPROCG(TD_TO_VPROCG(td));
 	struct nfsv3_diskless *nd = &newnfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
@@ -371,12 +378,10 @@ ncl_mountroot(struct mount *mp, struct thread *td)
 	char *cp;
 
 #if defined(BOOTP_NFSROOT) && defined(BOOTP)
-	bootpc_init();		/* use bootp to get newnfs_diskless filled in */
+	bootpc_init();		/* use bootp to get nfs_diskless filled in */
 #elif defined(NFS_ROOT)
 	nfs_setup_diskless();
 #endif
-
-	nfscl_init();
 
 	if (newnfs_diskless_valid == 0)
 		return (-1);
@@ -395,7 +400,7 @@ ncl_mountroot(struct mount *mp, struct thread *td)
 	error = socreate(nd->myif.ifra_addr.sa_family, &so, nd->root_args.sotype, 0,
 	    td->td_ucred, td);
 	if (error)
-		panic("ncl_mountroot: socreate(%04x): %d",
+		panic("nfs_mountroot: socreate(%04x): %d",
 			nd->myif.ifra_addr.sa_family, error);
 
 #if 0 /* XXX Bad idea */
@@ -416,14 +421,14 @@ ncl_mountroot(struct mount *mp, struct thread *td)
 #endif
 	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, td);
 	if (error)
-		panic("ncl_mountroot: SIOCAIFADDR: %d", error);
+		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
 	if ((cp = getenv("boot.netif.mtu")) != NULL) {
 		ir.ifr_mtu = strtol(cp, NULL, 10);
 		bcopy(nd->myif.ifra_name, ir.ifr_name, IFNAMSIZ);
 		freeenv(cp);
 		error = ifioctl(so, SIOCSIFMTU, (caddr_t)&ir, td);
 		if (error)
-			printf("ncl_mountroot: SIOCSIFMTU: %d", error);
+			printf("nfs_mountroot: SIOCSIFMTU: %d", error);
 	}
 	soclose(so);
 
@@ -441,12 +446,13 @@ ncl_mountroot(struct mount *mp, struct thread *td)
 		sin = mask;
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
+                /* XXX MRT use table 0 for this sort of thing */
 		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
 		    RTF_UP | RTF_GATEWAY, NULL);
 		if (error)
-			panic("ncl_mountroot: RTM_ADD: %d", error);
+			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
 
 	/*
@@ -459,6 +465,7 @@ ncl_mountroot(struct mount *mp, struct thread *td)
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff, nd->root_hostnam);
 	printf("NFS ROOT: %s\n", buf);
+	nd->root_args.hostname = buf;
 	if ((error = nfs_mountdiskless(buf,
 	    &nd->root_saddr, &nd->root_args, td, &vp, mp)) != 0) {
 		return (error);
@@ -469,11 +476,13 @@ ncl_mountroot(struct mount *mp, struct thread *td)
 	 * set hostname here and then let the "/etc/rc.xxx" files
 	 * mount the right /var based upon its preset value.
 	 */
-	bcopy(nd->my_hostnam, hostname, MAXHOSTNAMELEN);
-	hostname[MAXHOSTNAMELEN - 1] = '\0';
+	mtx_lock(&hostname_mtx);
+	bcopy(nd->my_hostnam, V_hostname, MAXHOSTNAMELEN);
+	V_hostname[MAXHOSTNAMELEN - 1] = '\0';
 	for (i = 0; i < MAXHOSTNAMELEN; i++)
-		if (hostname[i] == '\0')
+		if (V_hostname[i] == '\0')
 			break;
+	mtx_unlock(&hostname_mtx);
 	inittodr(ntohl(nd->root_time));
 	return (0);
 }
@@ -492,7 +501,7 @@ nfs_mountdiskless(char *path,
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, NULL, NULL, NULL, vpp,
 	    td->td_ucred, td)) != 0) {
-		printf("ncl_mountroot: mount %s on /: %d\n", path, error);
+		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
 	return (0);
@@ -704,7 +713,7 @@ nfs_mount(struct mount *mp)
 
 	td = curthread;
 	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_UPDATE)) == MNT_ROOTFS) {
-		error = ncl_mountroot(mp, td);
+		error = ncl_mountroot(mp);
 		goto out;
 	}
 
