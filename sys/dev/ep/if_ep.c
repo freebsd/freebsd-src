@@ -915,6 +915,7 @@ ep_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		} else {
 			ifmr->ifm_active = IFM_ETHER | IFM_NONE;
 		}
+		break;
 	default:
 		ifmr->ifm_active = sc->ifmedia.ifm_media;
 		break;
