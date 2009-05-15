@@ -97,8 +97,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	vm_offset_t kernend;
-	uint64_t platform_counter_freq;
-	uint32_t reg;
+	uint64_t platform_counter_freq, freq;
+	uint32_t reg, div, pll_config;
 
 	/* clear the BSS and SBSS segments */
 	kernend = round_page((vm_offset_t)&end);
@@ -118,11 +118,16 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * should be called first.
 	 */
 	init_param1();
-	/* TODO: Get CPU freq from RedBoot. Is it possible? */
-	platform_counter_freq = 680000000UL;
+	pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
+	div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
+	freq = div * AR71XX_BASE_FREQ;
+	div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK) 
+	    + 1;
+	platform_counter_freq = freq / div;
 	mips_timer_init_params(platform_counter_freq, 0);
 	cninit();
 
+	printf("platform frequency: %lld\n", platform_counter_freq);
 	printf("arguments: \n");
 	printf("  a0 = %08x\n", a0);
 	printf("  a1 = %08x\n", a1);
