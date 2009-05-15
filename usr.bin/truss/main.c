@@ -179,11 +179,10 @@ main(int ac, char **av)
 	initial_open = 1;
 
 	/* Initialize the trussinfo struct */
-	trussinfo = (struct trussinfo *)malloc(sizeof(struct trussinfo));
+	trussinfo = (struct trussinfo *)calloc(1, sizeof(struct trussinfo));
 	if (trussinfo == NULL)
-		errx(1, "malloc() failed");
-	bzero(trussinfo, sizeof(struct trussinfo));
-	
+		errx(1, "calloc() failed");
+
 	trussinfo->outfile = stderr;
 	trussinfo->strsize = 32;
 	trussinfo->pr_why = S_NONE;
