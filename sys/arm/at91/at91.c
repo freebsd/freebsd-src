@@ -409,7 +409,7 @@ struct cpu_devs at91rm9200_devs[] =
 		AT91RM92_IRQ_SSC2
 	},
 	{
-		"at91_spi", 0,
+		"spi", 0,
 		AT91RM92_BASE + AT91RM92_SPI_BASE, AT91RM92_SPI_SIZE,
 		AT91RM92_IRQ_SPI
 	},
