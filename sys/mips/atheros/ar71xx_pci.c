@@ -52,7 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 
-#include "mips/atheros/ar71xxreg.h"
+#include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_pci_bus_space.h>
 
 #undef AR71XX_PCI_DEBUG
 #ifdef AR71XX_PCI_DEBUG
@@ -354,7 +355,7 @@ ar71xx_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 
 	struct ar71xx_pci_softc *sc = device_get_softc(bus);	
-	struct resource *rv = NULL;
+	struct resource *rv;
 	struct rman *rm;
 
 	switch (type) {
@@ -382,8 +383,31 @@ ar71xx_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	} 
 
+
 	return (rv);
 }
+
+
+static int
+ar71xx_pci_activate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	int res = (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
+	    child, type, rid, r));
+
+	if (!res) {
+		switch(type) {
+		case SYS_RES_MEMORY:
+		case SYS_RES_IOPORT:
+			rman_set_bustag(r, ar71xx_bus_space_pcimem);
+			break;
+		}
+	}
+
+	return (res);
+}
+
+
 
 static int
 ar71xx_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
@@ -495,7 +519,7 @@ static device_method_t ar71xx_pci_methods[] = {
 	DEVMETHOD(bus_write_ivar,	ar71xx_pci_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	ar71xx_pci_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_activate_resource, ar71xx_pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	ar71xx_pci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ar71xx_pci_teardown_intr),
