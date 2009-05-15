@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <netinet/tcp.h>
@@ -142,7 +143,7 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	}
 
 	xprt = mem_alloc(sizeof(SVCXPRT));
-	mtx_init(&xprt->xp_lock, "xprt->xp_lock", NULL, MTX_DEF);
+	sx_init(&xprt->xp_lock, "xprt->xp_lock");
 	xprt->xp_pool = pool;
 	xprt->xp_socket = so;
 	xprt->xp_p1 = NULL;
@@ -219,7 +220,7 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	cd->strm_stat = XPRT_IDLE;
 
 	xprt = mem_alloc(sizeof(SVCXPRT));
-	mtx_init(&xprt->xp_lock, "xprt->xp_lock", NULL, MTX_DEF);
+	sx_init(&xprt->xp_lock, "xprt->xp_lock");
 	xprt->xp_pool = pool;
 	xprt->xp_socket = so;
 	xprt->xp_p1 = cd;
@@ -255,9 +256,9 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	 * Throw the transport into the active list in case it already
 	 * has some data buffered.
 	 */
-	mtx_lock(&xprt->xp_lock);
+	sx_xlock(&xprt->xp_lock);
 	xprt_active(xprt);
-	mtx_unlock(&xprt->xp_lock);
+	sx_xunlock(&xprt->xp_lock);
 
 	return (xprt);
 cleanup_svc_vc_create:
@@ -347,22 +348,27 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 	 * connection from the socket and turn it into a new
 	 * transport. If the accept fails, we have drained all pending
 	 * connections so we call xprt_inactive().
-	 *
-	 * The lock protects us in the case where a new connection arrives
-	 * on the socket after our call to accept fails with
-	 * EWOULDBLOCK - the call to xprt_active() in the upcall will
-	 * happen only after our call to xprt_inactive() which ensures
-	 * that we will remain active. It might be possible to use
-	 * SOCKBUF_LOCK for this - its not clear to me what locks are
-	 * held during the upcall.
 	 */
-	mtx_lock(&xprt->xp_lock);
+	sx_xlock(&xprt->xp_lock);
 
 	error = svc_vc_accept(xprt->xp_socket, &so);
 
 	if (error == EWOULDBLOCK) {
-		xprt_inactive(xprt);
-		mtx_unlock(&xprt->xp_lock);
+		/*
+		 * We must re-test for new connections after taking
+		 * the lock to protect us in the case where a new
+		 * connection arrives after our call to accept fails
+		 * with EWOULDBLOCK. The pool lock protects us from
+		 * racing the upcall after our TAILQ_EMPTY() call
+		 * returns false.
+		 */
+		ACCEPT_LOCK();
+		mtx_lock(&xprt->xp_pool->sp_lock);
+		if (TAILQ_EMPTY(&xprt->xp_socket->so_comp))
+			xprt_inactive_locked(xprt);
+		mtx_unlock(&xprt->xp_pool->sp_lock);
+		ACCEPT_UNLOCK();
+		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
 
@@ -373,11 +379,11 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 		xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 		xprt_inactive(xprt);
-		mtx_unlock(&xprt->xp_lock);
+		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
 
-	mtx_unlock(&xprt->xp_lock);
+	sx_xunlock(&xprt->xp_lock);
 
 	sa = 0;
 	error = soaccept(so, &sa);
@@ -422,7 +428,7 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 
 	xprt_unregister(xprt);
 
-	mtx_destroy(&xprt->xp_lock);
+	sx_destroy(&xprt->xp_lock);
 	if (xprt->xp_socket)
 		(void)soclose(xprt->xp_socket);
 
@@ -483,20 +489,28 @@ svc_vc_stat(SVCXPRT *xprt)
 
 	/*
 	 * Return XPRT_MOREREQS if we have buffered data and we are
-	 * mid-record or if we have enough data for a record marker.
+	 * mid-record or if we have enough data for a record
+	 * marker. Since this is only a hint, we read mpending and
+	 * resid outside the lock. We do need to take the lock if we
+	 * have to traverse the mbuf chain.
 	 */
 	if (cd->mpending) {
 		if (cd->resid)
 			return (XPRT_MOREREQS);
 		n = 0;
+		sx_xlock(&xprt->xp_lock);
 		m = cd->mpending;
 		while (m && n < sizeof(uint32_t)) {
 			n += m->m_len;
 			m = m->m_next;
 		}
+		sx_xunlock(&xprt->xp_lock);
 		if (n >= sizeof(uint32_t))
 			return (XPRT_MOREREQS);
 	}
+
+	if (soreadable(xprt->xp_socket))
+		return (XPRT_MOREREQS);
 
 	return (XPRT_IDLE);
 }
@@ -508,6 +522,12 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 	struct uio uio;
 	struct mbuf *m;
 	int error, rcvflag;
+
+	/*
+	 * Serialise access to the socket and our own record parsing
+	 * state.
+	 */
+	sx_xlock(&xprt->xp_lock);
 
 	for (;;) {
 		/*
@@ -584,6 +604,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 				 */
 				xdrmbuf_create(&xprt->xp_xdrreq, cd->mreq, XDR_DECODE);
 				cd->mreq = NULL;
+				sx_xunlock(&xprt->xp_lock);
 				if (! xdr_callmsg(&xprt->xp_xdrreq, msg)) {
 					XDR_DESTROY(&xprt->xp_xdrreq);
 					return (FALSE);
@@ -602,17 +623,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 		 * the result in cd->mpending. If the read fails,
 		 * we have drained both cd->mpending and the socket so
 		 * we can call xprt_inactive().
-		 *
-		 * The lock protects us in the case where a new packet arrives
-		 * on the socket after our call to soreceive fails with
-		 * EWOULDBLOCK - the call to xprt_active() in the upcall will
-		 * happen only after our call to xprt_inactive() which ensures
-		 * that we will remain active. It might be possible to use
-		 * SOCKBUF_LOCK for this - its not clear to me what locks are
-		 * held during the upcall.
 		 */
-		mtx_lock(&xprt->xp_lock);
-
 		uio.uio_resid = 1000000000;
 		uio.uio_td = curthread;
 		m = NULL;
@@ -621,8 +632,20 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 		    &rcvflag);
 
 		if (error == EWOULDBLOCK) {
-			xprt_inactive(xprt);
-			mtx_unlock(&xprt->xp_lock);
+			/*
+			 * We must re-test for readability after
+			 * taking the lock to protect us in the case
+			 * where a new packet arrives on the socket
+			 * after our call to soreceive fails with
+			 * EWOULDBLOCK. The pool lock protects us from
+			 * racing the upcall after our soreadable()
+			 * call returns false.
+			 */
+			mtx_lock(&xprt->xp_pool->sp_lock);
+			if (!soreadable(xprt->xp_socket))
+				xprt_inactive_locked(xprt);
+			mtx_unlock(&xprt->xp_pool->sp_lock);
+			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
 		}
 
@@ -634,7 +657,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 			SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 			xprt_inactive(xprt);
 			cd->strm_stat = XPRT_DIED;
-			mtx_unlock(&xprt->xp_lock);
+			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
 		}
 
@@ -642,8 +665,9 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 			/*
 			 * EOF - the other end has closed the socket.
 			 */
+			xprt_inactive(xprt);
 			cd->strm_stat = XPRT_DIED;
-			mtx_unlock(&xprt->xp_lock);
+			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
 		}
 
@@ -651,8 +675,6 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 			m_last(cd->mpending)->m_next = m;
 		else
 			cd->mpending = m;
-
-		mtx_unlock(&xprt->xp_lock);
 	}
 }
 
@@ -739,9 +761,7 @@ svc_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	SVCXPRT *xprt = (SVCXPRT *) arg;
 
-	mtx_lock(&xprt->xp_lock);
 	xprt_active(xprt);
-	mtx_unlock(&xprt->xp_lock);
 }
 
 #if 0

@@ -47,6 +47,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_sx.h>
 #endif
 
 /*
@@ -128,7 +129,7 @@ struct __rpc_svcpool;
  */
 typedef struct __rpc_svcxprt {
 #ifdef _KERNEL
-	struct mtx	xp_lock;
+	struct sx	xp_lock;
 	struct __rpc_svcpool *xp_pool;  /* owning pool (see below) */
 	TAILQ_ENTRY(__rpc_svcxprt) xp_link;
 	TAILQ_ENTRY(__rpc_svcxprt) xp_alink;
@@ -332,6 +333,7 @@ __END_DECLS
 __BEGIN_DECLS
 extern void	xprt_active(SVCXPRT *);
 extern void	xprt_inactive(SVCXPRT *);
+extern void	xprt_inactive_locked(SVCXPRT *);
 __END_DECLS
 
 #endif

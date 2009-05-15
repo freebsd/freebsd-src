@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
@@ -118,7 +119,7 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 
 	xprt = mem_alloc(sizeof (SVCXPRT));
 	memset(xprt, 0, sizeof (SVCXPRT));
-	mtx_init(&xprt->xp_lock, "xprt->xp_lock", NULL, MTX_DEF);
+	sx_init(&xprt->xp_lock, "xprt->xp_lock");
 	xprt->xp_pool = pool;
 	xprt->xp_socket = so;
 	xprt->xp_p1 = NULL;
@@ -161,6 +162,9 @@ static enum xprt_stat
 svc_dg_stat(SVCXPRT *xprt)
 {
 
+	if (soreadable(xprt->xp_socket))
+		return (XPRT_MOREREQS);
+
 	return (XPRT_IDLE);
 }
 
@@ -173,22 +177,17 @@ svc_dg_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 	int error, rcvflag;
 
 	/*
+	 * Serialise access to the socket.
+	 */
+	sx_xlock(&xprt->xp_lock);
+
+	/*
 	 * The socket upcall calls xprt_active() which will eventually
 	 * cause the server to call us here. We attempt to read a
 	 * packet from the socket and process it. If the read fails,
 	 * we have drained all pending requests so we call
 	 * xprt_inactive().
-	 *
-	 * The lock protects us in the case where a new packet arrives
-	 * on the socket after our call to soreceive fails with
-	 * EWOULDBLOCK - the call to xprt_active() in the upcall will
-	 * happen only after our call to xprt_inactive() which ensures
-	 * that we will remain active. It might be possible to use
-	 * SOCKBUF_LOCK for this - its not clear to me what locks are
-	 * held during the upcall.
 	 */
-	mtx_lock(&xprt->xp_lock);
-
 	uio.uio_resid = 1000000000;
 	uio.uio_td = curthread;
 	mreq = NULL;
@@ -196,8 +195,19 @@ svc_dg_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 	error = soreceive(xprt->xp_socket, &raddr, &uio, &mreq, NULL, &rcvflag);
 
 	if (error == EWOULDBLOCK) {
-		xprt_inactive(xprt);
-		mtx_unlock(&xprt->xp_lock);
+		/*
+		 * We must re-test for readability after taking the
+		 * lock to protect us in the case where a new packet
+		 * arrives on the socket after our call to soreceive
+		 * fails with EWOULDBLOCK. The pool lock protects us
+		 * from racing the upcall after our soreadable() call
+		 * returns false.
+		 */
+		mtx_lock(&xprt->xp_pool->sp_lock);
+		if (!soreadable(xprt->xp_socket))
+			xprt_inactive_locked(xprt);
+		mtx_unlock(&xprt->xp_pool->sp_lock);
+		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
 
@@ -208,11 +218,11 @@ svc_dg_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 		xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 		xprt_inactive(xprt);
-		mtx_unlock(&xprt->xp_lock);
+		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
 
-	mtx_unlock(&xprt->xp_lock);
+	sx_xunlock(&xprt->xp_lock);
 
 	KASSERT(raddr->sa_len < xprt->xp_rtaddr.maxlen,
 	    ("Unexpected remote address length"));
@@ -301,7 +311,7 @@ svc_dg_destroy(SVCXPRT *xprt)
 
 	xprt_unregister(xprt);
 
-	mtx_destroy(&xprt->xp_lock);
+	sx_destroy(&xprt->xp_lock);
 	if (xprt->xp_socket)
 		(void)soclose(xprt->xp_socket);
 
@@ -328,7 +338,5 @@ svc_dg_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	SVCXPRT *xprt = (SVCXPRT *) arg;
 
-	mtx_lock(&xprt->xp_lock);
 	xprt_active(xprt);
-	mtx_unlock(&xprt->xp_lock);
 }
