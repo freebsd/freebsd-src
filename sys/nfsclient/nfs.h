@@ -63,7 +63,7 @@
 #define	NFS_MAXATTRTIMO 60
 #endif
 #ifndef NFS_MINDIRATTRTIMO
-#define	NFS_MINDIRATTRTIMO 30		/* VDIR attrib cache timeout in sec */
+#define	NFS_MINDIRATTRTIMO 3		/* VDIR attrib cache timeout in sec */
 #endif
 #ifndef NFS_MAXDIRATTRTIMO
 #define	NFS_MAXDIRATTRTIMO 60
