@@ -56,7 +56,7 @@
 /*
  * See sys_pipe.c for info on what these limits mean. 
  */
-extern int	maxpipekva;
+extern long	maxpipekva;
 
 /*
  * Pipe buffer information.

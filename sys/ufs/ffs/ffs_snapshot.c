@@ -2272,7 +2272,7 @@ ffs_copyonwrite(devvp, bp)
 			VI_UNLOCK(devvp);
 			if (saved_runningbufspace != 0) {
 				bp->b_runningbufspace = saved_runningbufspace;
-				atomic_add_int(&runningbufspace,
+				atomic_add_long(&runningbufspace,
 					       bp->b_runningbufspace);
 			}
 			return (0);		/* Snapshot gone */
@@ -2397,7 +2397,7 @@ ffs_copyonwrite(devvp, bp)
 	 */
 	if (saved_runningbufspace != 0) {
 		bp->b_runningbufspace = saved_runningbufspace;
-		atomic_add_int(&runningbufspace, bp->b_runningbufspace);
+		atomic_add_long(&runningbufspace, bp->b_runningbufspace);
 	}
 	return (error);
 }
