@@ -194,8 +194,7 @@ amd64_fbsd32_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     fsc.nargs = nargs;
   }
 
-  fsc.s_args = malloc((1+fsc.nargs) * sizeof(char*));
-  memset(fsc.s_args, 0, fsc.nargs * sizeof(char*));
+  fsc.s_args = calloc(1, (1+fsc.nargs) * sizeof(char*));
   fsc.sc = sc;
 
   /*
