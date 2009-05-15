@@ -939,17 +939,18 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			    mt));
 		} else {
 			/*
-			 * Read did not fill up entire page.  Since this
-			 * is getpages, the page may be mapped, so we have
-			 * to zero the invalid portions of the page even
-			 * though we aren't setting them valid.
+			 * Read did not fill up entire page.
 			 *
 			 * Currently we do not set the entire page valid,
 			 * we just try to clear the piece that we couldn't
 			 * read.
 			 */
-			vm_page_set_validclean(mt, 0,
+			vm_page_set_valid(mt, 0,
 			    object->un_pager.vnp.vnp_size - tfoff);
+			KASSERT((mt->dirty & vm_page_bits(0,
+			    object->un_pager.vnp.vnp_size - tfoff)) == 0,
+			    ("vnode_pager_generic_getpages: page %p is dirty",
+			    mt));
 		}
 		
 		if (i != reqpage) {
