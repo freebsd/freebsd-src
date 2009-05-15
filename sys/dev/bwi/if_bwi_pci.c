@@ -245,9 +245,7 @@ static driver_t bwi_driver = {
 	sizeof (struct bwi_pci_softc)
 };
 static	devclass_t bwi_devclass;
-DRIVER_MODULE(if_bwi, pci, bwi_driver, bwi_devclass, 0, 0);
-DRIVER_MODULE(bwi, cardbus, bwi_driver, bwi_devclass, 0, 0);
-MODULE_VERSION(if_bwi, 1);
-MODULE_DEPEND(if_bwi, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(if_bwi, firmware, 1, 1, 1);	/* firmware support */
-MODULE_DEPEND(if_bwi, wlan_amrr, 1, 1, 1);
+DRIVER_MODULE(bwi, pci, bwi_driver, bwi_devclass, 0, 0);
+MODULE_DEPEND(bwi, wlan, 1, 1, 1);		/* 802.11 media layer */
+MODULE_DEPEND(bwi, firmware, 1, 1, 1);		/* firmware support */
+MODULE_DEPEND(bwi, wlan_amrr, 1, 1, 1);
