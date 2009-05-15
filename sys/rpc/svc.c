@@ -178,18 +178,23 @@ xprt_active(SVCXPRT *xprt)
 }
 
 void
-xprt_inactive(SVCXPRT *xprt)
+xprt_inactive_locked(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
-
-	mtx_lock(&pool->sp_lock);
 
 	if (xprt->xp_active) {
 		TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
 		xprt->xp_active = FALSE;
 	}
-	wakeup(&pool->sp_active);
+}
 
+void
+xprt_inactive(SVCXPRT *xprt)
+{
+	SVCPOOL *pool = xprt->xp_pool;
+
+	mtx_lock(&pool->sp_lock);
+	xprt_inactive_locked(xprt);
 	mtx_unlock(&pool->sp_lock);
 }
 
