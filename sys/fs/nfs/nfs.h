@@ -325,61 +325,6 @@ struct nfsreferral {
 #define	NFSID_DELGROUPNAME	0x0100
 
 /*
- * Stats structure
- */
-struct nfsstats {
-	int	attrcache_hits;
-	int	attrcache_misses;
-	int	lookupcache_hits;
-	int	lookupcache_misses;
-	int	direofcache_hits;
-	int	direofcache_misses;
-	int	accesscache_hits;
-	int	accesscache_misses;
-	int	biocache_reads;
-	int	read_bios;
-	int	read_physios;
-	int	biocache_writes;
-	int	write_bios;
-	int	write_physios;
-	int	biocache_readlinks;
-	int	readlink_bios;
-	int	biocache_readdirs;
-	int	readdir_bios;
-	int	rpccnt[NFS_NPROCS];
-	int	rpcretries;
-	int	srvrpccnt[NFSV4OP_NOPS + NFSV4OP_FAKENOPS];
-	int	srvrpc_errs;
-	int	srv_errs;
-	int	rpcrequests;
-	int	rpctimeouts;
-	int	rpcunexpected;
-	int	rpcinvalid;
-	int	srvcache_inproghits;
-	int	srvcache_idemdonehits;
-	int	srvcache_nonidemdonehits;
-	int	srvcache_misses;
-	int	srvcache_tcppeak;
-	int	srvcache_size;
-	int	srvclients;
-	int	srvopenowners;
-	int	srvopens;
-	int	srvlockowners;
-	int	srvlocks;
-	int	srvdelegates;
-	int	cbrpccnt[NFSV4OP_CBNOPS];
-	int	clopenowners;
-	int	clopens;
-	int	cllockowners;
-	int	cllocks;
-	int	cldelegates;
-	int	cllocalopenowners;
-	int	cllocalopens;
-	int	cllocallockowners;
-	int	cllocallocks;
-};
-
-/*
  * fs.nfs sysctl(3) identifiers
  */
 #define	NFS_NFSSTATS	1		/* struct: struct nfsstats */

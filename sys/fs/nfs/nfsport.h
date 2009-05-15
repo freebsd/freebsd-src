@@ -186,6 +186,182 @@
  */
 #define	NFSMUTEX_T		struct mtx
 
+#endif	/* _KERNEL */
+
+/*
+ * NFSv4 Operation numbers.
+ */
+#define	NFSV4OP_ACCESS		3
+#define	NFSV4OP_CLOSE		4
+#define	NFSV4OP_COMMIT		5
+#define	NFSV4OP_CREATE		6
+#define	NFSV4OP_DELEGPURGE	7
+#define	NFSV4OP_DELEGRETURN	8
+#define	NFSV4OP_GETATTR		9
+#define	NFSV4OP_GETFH		10
+#define	NFSV4OP_LINK		11
+#define	NFSV4OP_LOCK		12
+#define	NFSV4OP_LOCKT		13
+#define	NFSV4OP_LOCKU		14
+#define	NFSV4OP_LOOKUP		15
+#define	NFSV4OP_LOOKUPP		16
+#define	NFSV4OP_NVERIFY		17
+#define	NFSV4OP_OPEN		18
+#define	NFSV4OP_OPENATTR	19
+#define	NFSV4OP_OPENCONFIRM	20
+#define	NFSV4OP_OPENDOWNGRADE	21
+#define	NFSV4OP_PUTFH		22
+#define	NFSV4OP_PUTPUBFH	23
+#define	NFSV4OP_PUTROOTFH	24
+#define	NFSV4OP_READ		25
+#define	NFSV4OP_READDIR		26
+#define	NFSV4OP_READLINK	27
+#define	NFSV4OP_REMOVE		28
+#define	NFSV4OP_RENAME		29
+#define	NFSV4OP_RENEW		30
+#define	NFSV4OP_RESTOREFH	31
+#define	NFSV4OP_SAVEFH		32
+#define	NFSV4OP_SECINFO		33
+#define	NFSV4OP_SETATTR		34
+#define	NFSV4OP_SETCLIENTID	35
+#define	NFSV4OP_SETCLIENTIDCFRM	36
+#define	NFSV4OP_VERIFY		37
+#define	NFSV4OP_WRITE		38
+#define	NFSV4OP_RELEASELCKOWN	39
+
+/*
+ * Must be one greater than the last Operation#.
+ */
+#define	NFSV4OP_NOPS		40
+
+/*
+ * Fake NFSV4OP_xxx used for nfsstat. Start at NFSV4OP_NOPS.
+ */
+#define	NFSV4OP_SYMLINK		(NFSV4OP_NOPS)
+#define	NFSV4OP_MKDIR		(NFSV4OP_NOPS + 1)
+#define	NFSV4OP_RMDIR		(NFSV4OP_NOPS + 2)
+#define	NFSV4OP_READDIRPLUS	(NFSV4OP_NOPS + 3)
+#define	NFSV4OP_MKNOD		(NFSV4OP_NOPS + 4)
+#define	NFSV4OP_FSSTAT		(NFSV4OP_NOPS + 5)
+#define	NFSV4OP_FSINFO		(NFSV4OP_NOPS + 6)
+#define	NFSV4OP_PATHCONF	(NFSV4OP_NOPS + 7)
+#define	NFSV4OP_V3CREATE	(NFSV4OP_NOPS + 8)
+
+/*
+ * This is the count of the fake operations listed above.
+ */
+#define	NFSV4OP_FAKENOPS	9
+
+/*
+ * and the Callback OPs
+ */
+#define	NFSV4OP_CBGETATTR	3
+#define	NFSV4OP_CBRECALL	4
+
+/*
+ * Must be one greater than the last Callback Operation#.
+ */
+#define	NFSV4OP_CBNOPS		5
+
+/*
+ * The lower numbers -> 21 are used by NFSv2 and v3. These define higher
+ * numbers used by NFSv4.
+ * NFS_V3NPROCS is one greater than the last V3 op and NFS_NPROCS is
+ * one greater than the last number.
+ */
+#define	NFS_V3NPROCS		22
+
+#define	NFSPROC_LOOKUPP		22
+#define	NFSPROC_SETCLIENTID	23
+#define	NFSPROC_SETCLIENTIDCFRM	24
+#define	NFSPROC_LOCK		25
+#define	NFSPROC_LOCKU		26
+#define	NFSPROC_OPEN		27
+#define	NFSPROC_CLOSE		28
+#define	NFSPROC_OPENCONFIRM	29
+#define	NFSPROC_LOCKT		30
+#define	NFSPROC_OPENDOWNGRADE	31
+#define	NFSPROC_RENEW		32
+#define	NFSPROC_PUTROOTFH	33
+#define	NFSPROC_RELEASELCKOWN	34
+#define	NFSPROC_DELEGRETURN	35
+#define	NFSPROC_RETDELEGREMOVE	36
+#define	NFSPROC_RETDELEGRENAME1	37
+#define	NFSPROC_RETDELEGRENAME2	38
+#define	NFSPROC_GETACL		39
+#define	NFSPROC_SETACL		40
+
+/*
+ * Must be defined as one higher than the last Proc# above.
+ */
+#define	NFSV4_NPROCS		41
+
+/*
+ * Stats structure
+ */
+struct ext_nfsstats {
+	int	attrcache_hits;
+	int	attrcache_misses;
+	int	lookupcache_hits;
+	int	lookupcache_misses;
+	int	direofcache_hits;
+	int	direofcache_misses;
+	int	accesscache_hits;
+	int	accesscache_misses;
+	int	biocache_reads;
+	int	read_bios;
+	int	read_physios;
+	int	biocache_writes;
+	int	write_bios;
+	int	write_physios;
+	int	biocache_readlinks;
+	int	readlink_bios;
+	int	biocache_readdirs;
+	int	readdir_bios;
+	int	rpccnt[NFSV4_NPROCS];
+	int	rpcretries;
+	int	srvrpccnt[NFSV4OP_NOPS + NFSV4OP_FAKENOPS];
+	int	srvrpc_errs;
+	int	srv_errs;
+	int	rpcrequests;
+	int	rpctimeouts;
+	int	rpcunexpected;
+	int	rpcinvalid;
+	int	srvcache_inproghits;
+	int	srvcache_idemdonehits;
+	int	srvcache_nonidemdonehits;
+	int	srvcache_misses;
+	int	srvcache_tcppeak;
+	int	srvcache_size;
+	int	srvclients;
+	int	srvopenowners;
+	int	srvopens;
+	int	srvlockowners;
+	int	srvlocks;
+	int	srvdelegates;
+	int	cbrpccnt[NFSV4OP_CBNOPS];
+	int	clopenowners;
+	int	clopens;
+	int	cllockowners;
+	int	cllocks;
+	int	cldelegates;
+	int	cllocalopenowners;
+	int	cllocalopens;
+	int	cllocallockowners;
+	int	cllocallocks;
+};
+
+#ifdef _KERNEL
+/*
+ * Define the ext_nfsstats as nfsstats for the kernel code.
+ */
+#define nfsstats	ext_nfsstats
+
+/*
+ * Define NFS_NPROCS as NFSV4_NPROCS for the experimental kernel code.
+ */
+#define	NFS_NPROCS		NFSV4_NPROCS
+
 #include <fs/nfs/nfskpiport.h>
 #include <fs/nfs/nfsdport.h>
 #include <fs/nfs/rpcv2.h>
