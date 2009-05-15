@@ -942,8 +942,10 @@ devfs_open(struct vop_open_args *ap)
 
 	fpop = td->td_fpop;
 	td->td_fpop = fp;
-	if (fp != NULL)
+	if (fp != NULL) {
 		fp->f_data = dev;
+		fp->f_vnode = vp;
+	}
 	if (dsw->d_fdopen != NULL)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
 	else
