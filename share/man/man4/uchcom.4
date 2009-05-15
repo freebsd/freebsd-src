@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2008
+.Dd May 15, 2009
 .Dt UCHCOM 4
 .Os
 .Sh NAME
@@ -50,13 +50,13 @@ kernel configuration file:
 .Cd "device uchcom"
 .Cd "device ucom"
 .Ed
-.\".Pp
-.\"Alternatively, to load the driver as a
-.\"module at boot time, place the following line in
-.\".Xr loader.conf 5 :
-.\".Bd -literal -offset indent
-.\"uchcom_load="YES"
-.\".Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uchcom_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
