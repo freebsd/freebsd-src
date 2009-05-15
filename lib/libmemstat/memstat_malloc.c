@@ -296,6 +296,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 	int hint_dontsearch, j, mp_maxcpus, ret;
 	char name[MEMTYPE_MAXNAME];
 	struct malloc_type_stats mts[MEMSTAT_MAXCPU], *mtsp;
+	struct malloc_type_internal *mtip;
 	struct malloc_type type, *typep;
 	kvm_t *kvm;
 
@@ -349,13 +350,11 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		}
 
 		/*
-		 * Take advantage of explicit knowledge that
-		 * malloc_type_internal is simply an array of statistics
-		 * structures of number MAXCPU.  Since our compile-time
-		 * value for MAXCPU may differ from the kernel's, we
-		 * populate our own array.
+		 * Since our compile-time value for MAXCPU may differ from the
+		 * kernel's, we populate our own array.
 		 */
-		ret = kread(kvm, type.ks_handle, mts, mp_maxcpus *
+		mtip = type.ks_handle;
+		ret = kread(kvm, mtip->mti_stats, mts, mp_maxcpus *
 		    sizeof(struct malloc_type_stats), 0);
 		if (ret != 0) {
 			_memstat_mtl_empty(list);
