@@ -155,7 +155,7 @@
  * 0xffff804020101000 - 0xfffffeffffffffff   unused
  * 0xffffff0000000000 - 0xffffff7fffffffff   512GB direct map mappings
  * 0xffffff8000000000 - 0xfffffffe3fffffff   unused (505GB)
- * 0xfffffffe40000000 - 0xffffffffffffffff   7GB kernel map
+ * 0xfffffffe40000000 - 0xffffffffffffffff   512GB kernel map
  *
  * Within the kernel map:
  *
@@ -163,7 +163,7 @@
  */
 
 #define	VM_MAX_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-1, NPDEPG-1, NPTEPG-1)
-#define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-7, 0, 0)
+#define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-512, 0, 0)
 
 #define	DMAP_MIN_ADDRESS	KVADDR(DMPML4I, 0, 0, 0)
 #define	DMAP_MAX_ADDRESS	KVADDR(DMPML4I+1, 0, 0, 0)
