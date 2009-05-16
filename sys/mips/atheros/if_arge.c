@@ -153,6 +153,13 @@ DRIVER_MODULE(arge, nexus, arge_driver, arge_devclass, 0, 0);
 DRIVER_MODULE(miibus, arge, miibus_driver, miibus_devclass, 0, 0);
 
 /*
+ * RedBoot passes MAC address to entry point as environment 
+ * variable. platfrom_start parses it and stores in this variable
+ */
+extern uint32_t ar711_base_mac[ETHER_ADDR_LEN];
+
+
+/*
  * Flushes all 
  */
 static void
@@ -183,7 +190,8 @@ arge_attach(device_t dev)
 	struct ifnet		*ifp;
 	struct arge_softc	*sc;
 	int			error = 0, rid, phynum;
-	uint32_t		reg;
+	uint32_t		reg, rnd;
+	int			is_base_mac_empty, i;
 
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
@@ -269,12 +277,29 @@ arge_attach(device_t dev)
 
 	ifp->if_capenable = ifp->if_capabilities;
 
-	eaddr[0] = 0x00;
-	eaddr[1] = 0x15;
-	eaddr[2] = 0x6d;
-	eaddr[3] = 0xc1;
-	eaddr[4] = 0x28;
-	eaddr[5] = 0x2e;
+	is_base_mac_empty = 1;
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		eaddr[i] = ar711_base_mac[i] & 0xff;
+		if (eaddr[i] != 0)
+			is_base_mac_empty = 0;
+	}
+
+	if (is_base_mac_empty) {
+		/*
+		 * No MAC address configured. Generate the random one.
+		 */
+                if  (bootverbose)
+			device_printf(dev, 
+			    "Generating random ethernet address.\n");
+
+		rnd = arc4random();
+		eaddr[0] = 'b';
+		eaddr[1] = 's';
+		eaddr[2] = 'd';
+		eaddr[3] = (rnd >> 24) & 0xff;
+		eaddr[4] = (rnd >> 16) & 0xff;
+		eaddr[5] = (rnd >> 8) & 0xff;
+	}
 
 	if (arge_dma_alloc(sc) != 0) {
 		error = ENXIO;
