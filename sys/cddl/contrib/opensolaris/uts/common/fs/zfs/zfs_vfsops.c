@@ -967,8 +967,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 
 	if (fflag & MS_FORCE) {
 		/* TODO: Force unmount is not well implemented yet, so deny it. */
-		ZFS_LOG(0, "Force unmount is not supported, removing FORCE flag.");
-		fflag &= ~MS_FORCE;
+		ZFS_LOG(0, "Force unmount is experimental - report any problems.");
 	}
 
 	ret = secpolicy_fs_unmount(cr, vfsp);
@@ -1070,8 +1069,9 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	if (zfsvfs->z_issnap) {
 		vnode_t *svp = vfsp->mnt_vnodecovered;
 
-		ASSERT(svp->v_count == 2);
-		VN_RELE(svp);
+		ASSERT(svp->v_count == 2 || svp->v_count == 1);
+		if (svp->v_count == 2)
+			VN_RELE(svp);
 	}
 	zfs_freevfs(vfsp);
 
