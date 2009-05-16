@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
+#include <net/ethernet.h>
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/hwfunc.h>
@@ -56,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 extern int *edata;
 extern int *end;
+uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 
 void
 platform_halt(void)
@@ -99,13 +102,43 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq, freq;
 	uint32_t reg, div, pll_config;
+	int argc, i, count = 0;
+	char **argv, **envp;
 
 	/* clear the BSS and SBSS segments */
 	kernend = round_page((vm_offset_t)&end);
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
 
-	/* TODO: Get available memory from RedBoot. Is it possible? */
-	realmem = btoc(64*1024*1024);
+	argc = a0;
+	argv = (char**)a1;
+	envp = (char**)a2;
+	/* 
+	 * Protect ourselves from garbage in registers 
+	 */
+	if (MIPS_IS_VALID_PTR(envp)) {
+		for (i = 0; envp[i]; i += 2)
+		{
+			if (strcmp(envp[i], "memsize") == 0)
+				realmem = btoc(strtoul(envp[i+1], NULL, 16));
+			else if (strcmp(envp[i], "ethaddr") == 0) {
+				count = sscanf(envp[i+1], "%x.%x.%x.%x.%x.%x", 
+				    &ar711_base_mac[0], &ar711_base_mac[1],
+				    &ar711_base_mac[2], &ar711_base_mac[3],
+				    &ar711_base_mac[4], &ar711_base_mac[5]);
+				if (count < 6)
+					memset(ar711_base_mac, 0,
+					    sizeof(ar711_base_mac));
+			}
+		}
+	}
+
+	/*
+	 * Just wild guess. RedBoot let us down and didn't reported 
+	 * memory size
+	 */
+	if (realmem == 0)
+		realmem = btoc(32*1024*1024);
+
 	/* phys_avail regions are in bytes */
 	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
 	phys_avail[1] = ctob(realmem);
@@ -133,6 +166,23 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	printf("  a1 = %08x\n", a1);
 	printf("  a2 = %08x\n", a2);
 	printf("  a3 = %08x\n", a3);
+
+	printf("Cmd line:");
+	if (MIPS_IS_VALID_PTR(argv)) {
+		for (i = 0; i < argc; i++)
+			printf(" %s", argv[i]);
+	}
+	else
+		printf ("argv is invalid");
+	printf("\n");
+
+	printf("Environment:\n");
+	if (MIPS_IS_VALID_PTR(envp)) {
+		for (i = 0; envp[i]; i+=2)
+			printf("  %s = %s\n", envp[i], envp[i+1]);
+	}
+	else 
+		printf ("envp is invalid\n");
 
 	init_param2(physmem);
 	mips_cpu_init();
