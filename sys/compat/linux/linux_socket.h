@@ -90,6 +90,16 @@
 #define	LINUX_AF_APPLETALK	5
 #define	LINUX_AF_INET6		10
 
+/* Supported socket types */
+
+#define	LINUX_SOCK_STREAM	1
+#define	LINUX_SOCK_DGRAM	2
+#define	LINUX_SOCK_RAW		3
+#define	LINUX_SOCK_RDM		4
+#define	LINUX_SOCK_SEQPACKET	5
+
+#define	LINUX_SOCK_MAX		LINUX_SOCK_SEQPACKET
+
 struct l_ucred {
 	uint32_t	pid;
 	uint32_t	uid;

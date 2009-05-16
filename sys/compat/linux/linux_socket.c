@@ -597,6 +597,8 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 
 	bsd_args.protocol = args->protocol;
 	bsd_args.type = args->type;
+	if (bsd_args.type < 0 || bsd_args.type > LINUX_SOCK_MAX)
+		return (EINVAL);
 	bsd_args.domain = linux_to_bsd_domain(args->domain);
 	if (bsd_args.domain == -1)
 		return (EAFNOSUPPORT);
