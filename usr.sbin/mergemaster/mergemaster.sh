@@ -115,8 +115,10 @@ diff_loop () {
   while [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" -o \
     "${HANDLE_COMPFILE}" = "NOT V" ]; do
     if [ -f "${DESTDIR}${COMPFILE#.}" -a -f "${COMPFILE}" ]; then
-      if [ -n "${AUTO_UPGRADE}" ]; then
-        if echo "${CHANGED}" | grep -qsv ${DESTDIR}${COMPFILE#.}; then
+      if [ -n "${AUTO_UPGRADE}" -a -n "${CHANGED}" ]; then
+        case "${CHANGED}" in
+        *:${DESTDIR}${COMPFILE#.}:*) ;;		# File has been modified
+        *)
           echo ''
           echo "  *** ${COMPFILE} has not been user modified."
           echo ''
@@ -128,10 +130,11 @@ diff_loop () {
             AUTO_UPGRADED_FILES="${AUTO_UPGRADED_FILES}      ${DESTDIR}${COMPFILE#.}
 "
           else
-          echo "   *** Problem upgrading ${COMPFILE}, it will remain to merge by hand"
+            echo "   *** Problem upgrading ${COMPFILE}, it will remain to merge by hand"
           fi
           return
-        fi
+          ;;
+        esac
       fi
       if [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" ]; then
 	echo ''
@@ -348,7 +351,7 @@ fi
 case "${AUTO_UPGRADE}" in
 '') ;;	# If the option is not set no need to run the test or warn the user
 *)
-  if [ ! -f "${DESTDIR}${MTREEFILE}" ]; then
+  if [ ! -s "${DESTDIR}${MTREEFILE}" ]; then
     echo ''
     echo "*** Unable to find mtree database. Skipping auto-upgrade."
     echo ''
@@ -459,14 +462,15 @@ MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.
 #
-CHANGED=
-if [ -n "${AUTO_UPGRADE}" -a -f "${DESTDIR}${MTREEFILE}" ]; then
+if [ -n "${AUTO_UPGRADE}" -a -s "${DESTDIR}${MTREEFILE}" ]; then
+	CHANGED=:
 	for file in `mtree -eqL -f ${DESTDIR}${MTREEFILE} -p ${DESTDIR}/ \
 		2>/dev/null | awk '($2 == "changed") {print $1}'`; do
 		if [ -f "${DESTDIR}/$file" ]; then
-			CHANGED="${CHANGED} ${DESTDIR}/$file"
+			CHANGED="${CHANGED}${DESTDIR}/${file}:"
 		fi
 	done
+	[ "$CHANGED" = ':' ] && unset CHANGED
 fi
 
 # Check the width of the user's terminal
@@ -1055,7 +1059,7 @@ done # This is for the for way up there at the beginning of the comparison
 echo ''
 echo "*** Comparison complete"
 
-if [ -f "${MTREENEW}" ]; then
+if [ -s "${MTREENEW}" ]; then
   echo "*** Saving mtree database for future upgrades"
   test -e "${DESTDIR}${MTREEFILE}" && unlink ${DESTDIR}${MTREEFILE}
   mv ${MTREENEW} ${DESTDIR}${MTREEFILE}
