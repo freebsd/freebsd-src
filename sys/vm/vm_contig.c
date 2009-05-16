@@ -87,6 +87,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
 
+/*
+ * Only available as a band-aid to ZFS
+ */
+int vm_contig_launder(int queue);
+
 static int
 vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 {
@@ -146,7 +151,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 	return (0);
 }
 
-static int
+int
 vm_contig_launder(int queue)
 {
 	vm_page_t m, next;
