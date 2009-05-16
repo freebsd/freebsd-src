@@ -3560,6 +3560,14 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 		panic("docallb");
 	}
 	clp->lc_cbref++;
+
+	/*
+	 * Fill the callback program# and version into the request
+	 * structure for newnfs_connect() to use.
+	 */
+	clp->lc_req.nr_prog = clp->lc_program;
+	clp->lc_req.nr_vers = NFSV4_CBVERS;
+
 	/*
 	 * First, fill in some of the fields of nd and cr.
 	 */

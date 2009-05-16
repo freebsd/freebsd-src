@@ -456,7 +456,9 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	if (nrp->nr_client == NULL)
 		newnfs_connect(nmp, nrp, cred, td, 0);
 
-	if (usegssname)
+	if (nd->nd_procnum == NFSPROC_NULL)
+		auth = authnone_create();
+	else if (usegssname)
 		auth = nfs_getauth(nrp, secflavour, nmp->nm_krbname,
 		    srv_principal, NULL, cred);
 	else
@@ -475,7 +477,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 
 	procnum = nd->nd_procnum;
 	if ((nd->nd_flag & ND_NFSV4) &&
-	    nd->nd_procnum != NFSV4PROC_CBNULL &&
+	    nd->nd_procnum != NFSPROC_NULL &&
 	    nd->nd_procnum != NFSV4PROC_CBCOMPOUND)
 		procnum = NFSV4PROC_COMPOUND;
 
@@ -672,14 +674,13 @@ tryagain:
 			    rep != NULL && (rep->r_flags & R_DONTRECOVER))
 				nd->nd_repstat = NFSERR_STALEDONTRECOVER;
 		}
-
-		m_freem(nd->nd_mreq);
-		AUTH_DESTROY(auth);
-		if (rep != NULL)
-			FREE((caddr_t)rep, M_NFSDREQ);
-		return (0);
 	}
-	error = EPROTONOSUPPORT;
+
+	m_freem(nd->nd_mreq);
+	AUTH_DESTROY(auth);
+	if (rep != NULL)
+		FREE((caddr_t)rep, M_NFSDREQ);
+	return (0);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
 	mbuf_freem(nd->nd_mreq);
