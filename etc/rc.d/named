@@ -79,7 +79,7 @@ chroot_autoupdate()
 		fi
 	fi
 
-	# Copy and/or update key files to the chroot /etc 
+	# Copy and/or update key files to the chroot /etc
 	#
 	for file in localtime protocols services; do
 		if [ -r /etc/$file ]; then
