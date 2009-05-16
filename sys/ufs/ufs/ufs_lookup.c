@@ -77,6 +77,9 @@ SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 /* true if old FS format...*/
 #define OFSFMT(vp)	((vp)->v_mount->mnt_maxsymlinklen <= 0)
 
+static int ufs_lookup_(struct vnode *, struct vnode **, struct componentname *,
+    ino_t *);
+
 /*
  * Convert a component of a pathname into a pointer to a locked inode.
  * This is a very central and rather complicated routine.
@@ -130,7 +133,14 @@ ufs_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	struct vnode *vdp;		/* vnode for directory being searched */
+
+	return (ufs_lookup_(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
+}
+
+static int
+ufs_lookup_(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
+    ino_t *dd_ino)
+{
 	struct inode *dp;		/* inode for directory being searched */
 	struct buf *bp;			/* a buffer of directory entries */
 	struct direct *ep;		/* the current directory entry */
@@ -150,24 +160,16 @@ ufs_lookup(ap)
 	doff_t enduseful;		/* pointer past last used dir slot */
 	u_long bmask;			/* block offset mask */
 	int namlen, error;
-	struct vnode **vpp = ap->a_vpp;
-	struct componentname *cnp = ap->a_cnp;
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	struct thread *td = cnp->cn_thread;
-	ino_t ino;
+	ino_t ino, ino1;
 	int ltype;
 
-	bp = NULL;
-	slotoffset = -1;
-/*
- *  XXX there was a soft-update diff about this I couldn't merge.
- * I think this was the equiv.
- */
-	*vpp = NULL;
+	if (vpp != NULL)
+		*vpp = NULL;
 
-	vdp = ap->a_dvp;
 	dp = VTOI(vdp);
 
 	/*
@@ -177,6 +179,12 @@ ufs_lookup(ap)
 	 * that are never used.
 	 */
 	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
+
+	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+
+restart:
+	bp = NULL;
+	slotoffset = -1;
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
@@ -195,7 +203,6 @@ ufs_lookup(ap)
 		slotstatus = NONE;
 		slotneeded = DIRECTSIZ(cnp->cn_namelen);
 	}
-	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
 
 #ifdef UFS_DIRHASH
 	/*
@@ -364,7 +371,7 @@ foundentry:
 					slotoffset = i_offset;
 					slotsize = ep->d_reclen;
 					enduseful = dp->i_size;
-					ap->a_cnp->cn_flags |= ISWHITEOUT;
+					cnp->cn_flags |= ISWHITEOUT;
 					numdirpasses--;
 					goto notfound;
 				}
@@ -398,8 +405,8 @@ notfound:
 	 */
 	if ((nameiop == CREATE || nameiop == RENAME ||
 	     (nameiop == DELETE &&
-	      (ap->a_cnp->cn_flags & DOWHITEOUT) &&
-	      (ap->a_cnp->cn_flags & ISWHITEOUT))) &&
+	      (cnp->cn_flags & DOWHITEOUT) &&
+	      (cnp->cn_flags & ISWHITEOUT))) &&
 	    (flags & ISLASTCN) && dp->i_effnlink != 0) {
 		/*
 		 * Access for write is interpreted as allowing
@@ -454,7 +461,7 @@ notfound:
 	 * Insert name into cache (as non-existent) if appropriate.
 	 */
 	if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
-		cache_enter(vdp, *vpp, cnp);
+		cache_enter(vdp, NULL, cnp);
 	return (ENOENT);
 
 found:
@@ -479,6 +486,11 @@ found:
 	 */
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
 		dp->i_diroff = i_offset &~ (DIRBLKSIZ - 1);
+
+	if (dd_ino != NULL) {
+		*dd_ino = ino;
+		return (0);
+	}
 
 	/*
 	 * If deleting, and at end of pathname, return
@@ -581,6 +593,22 @@ found:
 		error = vn_vget_ino(pdp, ino, cnp->cn_lkflags, &tdp);
 		if (error)
 			return (error);
+
+		/*
+		 * Recheck that ".." entry in the vdp directory points
+		 * to the inode we looked up before vdp lock was
+		 * dropped.
+		 */
+		error = ufs_lookup_(pdp, NULL, cnp, &ino1);
+		if (error) {
+			vput(tdp);
+			return (error);
+		}
+		if (ino1 != ino) {
+			vput(tdp);
+			goto restart;
+		}
+
 		*vpp = tdp;
 	} else if (dp->i_number == ino) {
 		VREF(vdp);	/* we want ourself, ie "." */
