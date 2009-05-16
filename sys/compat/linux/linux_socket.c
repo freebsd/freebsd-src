@@ -602,10 +602,12 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 		return (EAFNOSUPPORT);
 
 	retval_socket = socket(td, &bsd_args);
+	if (retval_socket)
+		return (retval_socket);
+
 	if (bsd_args.type == SOCK_RAW
 	    && (bsd_args.protocol == IPPROTO_RAW || bsd_args.protocol == 0)
-	    && bsd_args.domain == AF_INET
-	    && retval_socket >= 0) {
+	    && bsd_args.domain == PF_INET) {
 		/* It's a raw IP socket: set the IP_HDRINCL option. */
 		int hdrincl;
 
@@ -620,7 +622,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	 * default and some apps depend on this. So, set V6ONLY to 0
 	 * for Linux apps if the sysctl value is set to 1.
 	 */
-	if (bsd_args.domain == PF_INET6 && retval_socket >= 0
+	if (bsd_args.domain == PF_INET6
 #ifndef KLD_MODULE
 	    /*
 	     * XXX: Avoid undefined symbol error with an IPv4 only
