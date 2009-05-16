@@ -100,6 +100,13 @@
 
 #define	LINUX_SOCK_MAX		LINUX_SOCK_SEQPACKET
 
+#define	LINUX_SOCK_TYPE_MASK	0xf
+
+/* Flags for socket, socketpair, accept4 */
+
+#define	LINUX_SOCK_CLOEXEC	LINUX_O_CLOEXEC
+#define	LINUX_SOCK_NONBLOCK	LINUX_O_NONBLOCK
+
 struct l_ucred {
 	uint32_t	pid;
 	uint32_t	uid;
