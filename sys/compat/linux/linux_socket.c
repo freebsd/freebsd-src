@@ -1354,7 +1354,9 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	} */ bsd_args;
 	l_timeval linux_tv;
 	struct timeval tv;
-	socklen_t tv_len;
+	socklen_t tv_len, xulen;
+	struct xucred xu;
+	struct l_ucred lxu;
 	int error, name;
 
 	bsd_args.s = args->s;
@@ -1375,6 +1377,23 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			linux_tv.tv_usec = tv.tv_usec;
 			return (copyout(&linux_tv, PTRIN(args->optval),
 			    sizeof(linux_tv)));
+			/* NOTREACHED */
+			break;
+		case LOCAL_PEERCRED:
+			if (args->optlen != sizeof(lxu))
+				return (EINVAL);
+			xulen = sizeof(xu);
+			error = kern_getsockopt(td, args->s, bsd_args.level,
+			    name, &xu, UIO_SYSSPACE, &xulen);
+			if (error)
+				return (error);
+			/*
+			 * XXX Use 0 for pid as the FreeBSD does not cache peer pid.
+			 */
+			lxu.pid = 0;
+			lxu.uid = xu.cr_uid;
+			lxu.gid = xu.cr_gid;
+			return (copyout(&lxu, PTRIN(args->optval), sizeof(lxu)));
 			/* NOTREACHED */
 			break;
 		default:
