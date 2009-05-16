@@ -571,6 +571,7 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_O_DIRECTORY	00200000	/* Must be a directory */
 #define	LINUX_O_NOFOLLOW	00400000	/* Do not follow links */
 #define	LINUX_O_NOATIME		01000000
+#define	LINUX_O_CLOEXEC		02000000
 
 #define	LINUX_F_DUPFD		0
 #define	LINUX_F_GETFD		1
