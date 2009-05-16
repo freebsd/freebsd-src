@@ -3432,7 +3432,7 @@ arc_init(void)
 	/* Start out with 1/8 of all memory */
 #if defined(_KERNEL) && (__amd64__)
 	arc_c = physmem*PAGE_SIZE / 8;
-	if (physmem*PAGE_SIZE > kmem_size())
+	if (physmem*PAGE_SIZE > kmem_size() && (physmem > (1UL<<31)))
 		arc_large_memory_enabled = 1;
 #else
 	arc_c = kmem_size() / 8;
