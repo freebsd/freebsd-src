@@ -115,6 +115,7 @@ mipsNN_cache_init(struct mips_cpuinfo * cpuinfo)
 	pdcache_way_mask = cpuinfo->l1.dc_nways - 1;
 #define CACHE_DEBUG
 #ifdef CACHE_DEBUG
+	printf("Cache info:\n");
 	if (cpuinfo->icache_virtual)
 		printf("  icache is virtual\n");
 	printf("  picache_stride    = %d\n", picache_stride);
