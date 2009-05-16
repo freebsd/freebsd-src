@@ -154,7 +154,6 @@
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
  * 0xffff804020101000 - 0xfffffeffffffffff   unused
  * 0xffffff0000000000 - 0xffffff7fffffffff   512GB direct map mappings
- * 0xffffff8000000000 - 0xfffffffe3fffffff   unused (505GB)
  * 0xfffffffe40000000 - 0xffffffffffffffff   512GB kernel map
  *
  * Within the kernel map:
