@@ -461,7 +461,7 @@ MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
 #
 CHANGED=
 if [ -n "${AUTO_UPGRADE}" -a -f "${DESTDIR}${MTREEFILE}" ]; then
-	for file in `mtree -eq -f ${DESTDIR}${MTREEFILE} -p ${DESTDIR}/ \
+	for file in `mtree -eqL -f ${DESTDIR}${MTREEFILE} -p ${DESTDIR}/ \
 		2>/dev/null | awk '($2 == "changed") {print $1}'`; do
 		if [ -f "${DESTDIR}/$file" ]; then
 			CHANGED="${CHANGED} ${DESTDIR}/$file"
