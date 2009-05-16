@@ -72,6 +72,15 @@
 #define	MIPS_KSEG0_TO_PHYS(x)		((unsigned)(x) & MIPS_PHYS_MASK)
 #define	MIPS_KSEG1_TO_PHYS(x)		((unsigned)(x) & MIPS_PHYS_MASK)
 
+#define	MIPS_IS_KSEG0_ADDR(x)					\
+	(((vm_offset_t)(x) >= MIPS_KSEG0_START) &&		\
+	    ((vm_offset_t)(x) <= MIPS_KSEG0_END))
+#define	MIPS_IS_KSEG1_ADDR(x)					\
+	(((vm_offset_t)(x) >= MIPS_KSEG1_START) &&		\
+	    ((vm_offset_t)(x) <= MIPS_KSEG1_END))
+#define	MIPS_IS_VALID_PTR(x)		(MIPS_IS_KSEG0_ADDR(x) || \
+						MIPS_IS_KSEG1_ADDR(x))
+
 /*
  *  Status register.
  */
