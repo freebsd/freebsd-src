@@ -58,7 +58,7 @@ int	 ufs_bmap(struct vop_bmap_args *);
 int	 ufs_bmaparray(struct vnode *, ufs2_daddr_t, ufs2_daddr_t *,
 	    struct buf *, int *, int *);
 int	 ufs_fhtovp(struct mount *, struct ufid *, struct vnode **);
-int	 ufs_checkpath(struct inode *, struct inode *, struct ucred *);
+int	 ufs_checkpath(ino_t, struct inode *, struct ucred *);
 void	 ufs_dirbad(struct inode *, doff_t, char *);
 int	 ufs_dirbadentry(struct vnode *, struct direct *, int);
 int	 ufs_dirempty(struct inode *, ino_t, struct ucred *);
