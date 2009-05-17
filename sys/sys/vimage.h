@@ -160,7 +160,6 @@ void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 	sizeof(vnet_ ## mod ## _0._ ## name) }
 #endif
 #define	VNET_SYMMAP_END		{ NULL, 0 }
-#endif /* !VIMAGE_GLOBALS */
 
 struct vimage {
 	LIST_ENTRY(vimage)	 vi_le;		/* all vimage list */
@@ -191,7 +190,6 @@ struct vprocg {
 	char			 _domainname[MAXHOSTNAMELEN];
 };
 
-#ifndef VIMAGE_GLOBALS
 #ifdef VIMAGE
 LIST_HEAD(vimage_list_head, vimage);
 extern struct vimage_list_head vimage_head;
