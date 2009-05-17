@@ -138,6 +138,7 @@ static int	 addelem_pid(struct listinfo *, const char *);
 static int	 addelem_tty(struct listinfo *, const char *);
 static int	 addelem_uid(struct listinfo *, const char *);
 static void	 add_list(struct listinfo *, const char *);
+static void	 descendant_sort(KINFO *, int);
 static void	 dynsizevars(KINFO *);
 static void	*expand_list(struct listinfo *);
 static const char *
@@ -163,7 +164,7 @@ static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
 			"%cpu,%mem,command";
 static char Zfmt[] = "label";
 
-#define	PS_ARGS	"AaCce" OPT_LAZY_f "G:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
+#define	PS_ARGS	"AaCcde" OPT_LAZY_f "G:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
 
 int
 main(int argc, char *argv[])
@@ -177,7 +178,7 @@ main(int argc, char *argv[])
 	const char *nlistf, *memf;
 	char *cols;
 	int all, ch, elem, flag, _fmt, i, lineno;
-	int nentries, nkept, nselectors;
+	int descendancy, nentries, nkept, nselectors;
 	int prtheader, wflag, what, xkeep, xkeep_implied;
 	char errbuf[_POSIX2_LINE_MAX];
 
@@ -201,7 +202,7 @@ main(int argc, char *argv[])
 	if (argc > 1)
 		argv[1] = kludge_oldps_options(PS_ARGS, argv[1], argv[2]);
 
-	all = _fmt = nselectors = optfatal = 0;
+	all = descendancy = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
 	xkeep = -1;			/* Neither -x nor -X. */
 	init_list(&gidlist, addelem_gid, sizeof(gid_t), "group");
@@ -232,6 +233,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			cflag = 1;
+			break;
+		case 'd':
+			descendancy = 1;
 			break;
 		case 'e':			/* XXX set ufmt */
 			needenv = 1;
@@ -575,6 +579,8 @@ main(int argc, char *argv[])
 		keepit:
 			next_KINFO = &kinfo[nkept];
 			next_KINFO->ki_p = kp;
+			next_KINFO->ki_d.level = 0;
+			next_KINFO->ki_d.prefix = NULL;
 			next_KINFO->ki_pcpu = getpcpu(next_KINFO);
 			if (sortby == SORTMEM)
 				next_KINFO->ki_memsize = kp->ki_tsize +
@@ -599,6 +605,13 @@ main(int argc, char *argv[])
 	 * sort proc list
 	 */
 	qsort(kinfo, nkept, sizeof(KINFO), pscomp);
+
+	/*
+	 * We want things in descendant order
+	 */
+	if (descendancy)
+		descendant_sort(kinfo, nkept);
+
 	/*
 	 * For each process, call each variable output function.
 	 */
@@ -622,6 +635,9 @@ main(int argc, char *argv[])
 	free_list(&sesslist);
 	free_list(&ttylist);
 	free_list(&uidlist);
+	for (i = 0; i < nkept; i++)
+		free(kinfo[i].ki_d.prefix);
+	free(kinfo);
 
 	exit(eval);
 }
@@ -888,6 +904,116 @@ add_list(struct listinfo *inf, const char *argp)
 				inf->addelem(inf, argp);
 		}
 	}
+}
+
+static void
+descendant_sort(KINFO *ki, int items)
+{
+	int dst, lvl, maxlvl, n, ndst, nsrc, siblings, src;
+	unsigned char *path;
+	KINFO kn;
+
+	/*
+	 * First, sort the entries by descendancy, tracking the descendancy
+	 * depth in the ki_d.level field.
+	 */
+	src = 0;
+	maxlvl = 0;
+	while (src < items) {
+		if (ki[src].ki_d.level) {
+			src++;
+			continue;
+		}
+		for (nsrc = 1; src + nsrc < items; nsrc++)
+			if (!ki[src + nsrc].ki_d.level)
+				break;
+
+		for (dst = 0; dst < items; dst++) {
+			if (ki[dst].ki_p->ki_pid == ki[src].ki_p->ki_pid)
+				continue;
+			if (ki[dst].ki_p->ki_pid == ki[src].ki_p->ki_ppid)
+				break;
+		}
+
+		if (dst == items) {
+			src += nsrc;
+			continue;
+		}
+
+		for (ndst = 1; dst + ndst < items; ndst++)
+			if (ki[dst + ndst].ki_d.level <= ki[dst].ki_d.level)
+				break;
+
+		for (n = src; n < src + nsrc; n++) {
+			ki[n].ki_d.level += ki[dst].ki_d.level + 1;
+			if (maxlvl < ki[n].ki_d.level)
+				maxlvl = ki[n].ki_d.level;
+		}
+
+		while (nsrc) {
+			if (src < dst) {
+				kn = ki[src];
+				memmove(ki + src, ki + src + 1,
+				    (dst - src + ndst - 1) * sizeof *ki);
+				ki[dst + ndst - 1] = kn;
+				nsrc--;
+				dst--;
+				ndst++;
+			} else if (src != dst + ndst) {
+				kn = ki[src];
+				memmove(ki + dst + ndst + 1, ki + dst + ndst,
+				    (src - dst - ndst) * sizeof *ki);
+				ki[dst + ndst] = kn;
+				ndst++;
+				nsrc--;
+				src++;
+			} else {
+				ndst += nsrc;
+				src += nsrc;
+				nsrc = 0;
+			}
+		}
+	}
+
+	/*
+	 * Now populate ki_d.prefix (instead of ki_d.level) with the command
+	 * prefix used to show descendancies.
+	 */
+	path = malloc((maxlvl + 7) / 8);
+	memset(path, '\0', (maxlvl + 7) / 8);
+	for (src = 0; src < items; src++) {
+		if ((lvl = ki[src].ki_d.level) == 0) {
+			ki[src].ki_d.prefix = NULL;
+			continue;
+		}
+		if ((ki[src].ki_d.prefix = malloc(lvl * 2 + 1)) == NULL)
+			errx(1, "malloc failed");
+		for (n = 0; n < lvl - 2; n++) {
+			ki[src].ki_d.prefix[n * 2] =
+			    path[n / 8] & 1 << (n % 8) ? '|' : ' ';
+			ki[src].ki_d.prefix[n * 2 + 1] = ' ';
+				
+		}
+		if (n == lvl - 2) {
+			/* Have I any more siblings? */
+			for (siblings = 0, dst = src + 1; dst < items; dst++) {
+				if (ki[dst].ki_d.level > lvl)
+					continue;
+				if (ki[dst].ki_d.level == lvl)
+					siblings = 1;
+				break;
+			}
+			if (siblings)
+				path[n / 8] |= 1 << (n % 8);
+			else
+				path[n / 8] &= ~(1 << (n % 8));
+			ki[src].ki_d.prefix[n * 2] = siblings ? '|' : '`';
+			ki[src].ki_d.prefix[n * 2 + 1] = '-';
+			n++;
+		}
+		strcpy(ki[src].ki_d.prefix + n * 2, "- ");
+	}
+	free(path);
 }
 
 static void *
