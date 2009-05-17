@@ -133,7 +133,7 @@ main(int argc, char **argv)
 {
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q, *pidfile;
 	const char *execf, *coref;
-	int debug_opt;
+	int ancestors, debug_opt;
 	int i, ch, bestidx, rv, criteria, pidfromfile, pidfilelock;
 	size_t jsz;
 	int (*action)(const struct kinfo_proc *);
@@ -142,6 +142,7 @@ main(int argc, char **argv)
 	struct timeval best_tval;
 	regex_t reg;
 	regmatch_t regmatch;
+	pid_t pid;
 
 	setlocale(LC_ALL, "");
 
@@ -174,13 +175,14 @@ main(int argc, char **argv)
 		}
 	}
 
+	ancestors = 0;
 	criteria = 0;
 	debug_opt = 0;
 	pidfile = NULL;
 	pidfilelock = 0;
 	execf = coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:d:fg:ij:lnos:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ad:fg:ij:lnos:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -219,6 +221,9 @@ main(int argc, char **argv)
 		case 'U':
 			makelist(&ruidlist, LT_USER, optarg);
 			criteria = 1;
+			break;
+		case 'a':
+			ancestors++;
 			break;
 		case 'd':
 			if (!pgrep)
@@ -466,6 +471,27 @@ main(int argc, char **argv)
 
 		if (argc == 0)
 			selected[i] = 1;
+	}
+
+	if (!ancestors) {
+		pid = mypid;
+		while (pid) {
+			for (i = 0, kp = plist; i < nproc; i++, kp++) {
+				if (PSKIP(kp))
+					continue;
+				if (kp->ki_pid == pid) {
+					selected[i] = 0;
+					pid = kp->ki_ppid;
+					break;
+				}
+			}
+			if (i == nproc) {
+				if (pid == mypid)
+					pid = getppid();
+				else
+					break;	/* Maybe we're in a jail ? */
+			}
+		}
 	}
 
 	if (newest || oldest) {
