@@ -786,7 +786,8 @@ rescan0:
 		 */
 		if (object->ref_count == 0) {
 			vm_page_flag_clear(m, PG_REFERENCED);
-			pmap_clear_reference(m);
+			KASSERT(!pmap_page_is_mapped(m),
+			    ("vm_pageout_scan: page %p is mapped", m));
 
 		/*
 		 * Otherwise, if the page has been referenced while in the 
