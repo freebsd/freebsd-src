@@ -1492,9 +1492,9 @@ uath_set_chan(struct uath_softc *sc, struct ieee80211_channel *c)
 	if (IEEE80211_IS_CHAN_5GHZ(c))
 		reset.flags |= htobe32(UATH_CHAN_5GHZ);
 	/* NB: 11g =>'s 11b so don't specify both OFDM and CCK */
-	if (IEEE80211_IS_CHAN_G(c))
+	if (IEEE80211_IS_CHAN_OFDM(c))
 		reset.flags |= htobe32(UATH_CHAN_OFDM);
-	else if (IEEE80211_IS_CHAN_B(c))
+	else if (IEEE80211_IS_CHAN_CCK(c))
 		reset.flags |= htobe32(UATH_CHAN_CCK);
 	/* turbo can be used in either 2GHz or 5GHz */
 	if (c->ic_flags & IEEE80211_CHAN_TURBO)
