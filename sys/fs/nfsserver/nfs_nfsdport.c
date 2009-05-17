@@ -2749,14 +2749,13 @@ nfsvno_getvp(fhandle_t *fhp)
 	return (vp);
 }
 
-static int id_for_advlock;
 /*
  * Check to see it a byte range lock held by a process running
  * locally on the server conflicts with the new lock.
  */
 int
 nfsvno_localconflict(struct vnode *vp, int ftype, u_int64_t first,
-    u_int64_t end, struct nfslockconflict *cfp, struct thread *p)
+    u_int64_t end, struct nfslockconflict *cfp, struct thread *td)
 {
 	int error;
 	struct flock fl;
@@ -2771,11 +2770,20 @@ nfsvno_localconflict(struct vnode *vp, int ftype, u_int64_t first,
 	else
 		fl.l_len = (off_t)(end - first);
 	/*
-	 * FreeBSD8 doesn't like 0, so I'll use the address of id_for_advlock.
+	 * For FreeBSD8, the l_pid and l_sysid must be set to the same
+	 * values for all calls, so that all locks will be held by the
+	 * nfsd server. (The nfsd server handles conflicts between the
+	 * various clients.)
+	 * Since an NFSv4 lockowner is a ClientID plus an array of up to 1024
+	 * bytes, so it can't be put in l_sysid.
 	 */
-	NFSVOPUNLOCK(vp, 0, p);
-	error = VOP_ADVLOCK(vp, &id_for_advlock, F_GETLK, &fl, F_POSIX);
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	fl.l_pid = (pid_t)0;
+	fl.l_sysid = 0;
+
+	NFSVOPUNLOCK(vp, 0, td);
+	error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_GETLK, &fl,
+	    (F_POSIX | F_REMOTE));
+	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (error)
 		return (error);
 	if (fl.l_type == F_UNLCK)
@@ -2804,7 +2812,7 @@ nfsvno_localconflict(struct vnode *vp, int ftype, u_int64_t first,
  */
 int
 nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
-    u_int64_t end, struct thread *p)
+    u_int64_t end, struct thread *td)
 {
 	int error;
 	struct flock fl;
@@ -2822,11 +2830,20 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 		fl.l_len = (off_t)tlen;
 	}
 	/*
-	 * FreeBSD8 doesn't like 0, so I'll use the address of id_for_advlock.
+	 * For FreeBSD8, the l_pid and l_sysid must be set to the same
+	 * values for all calls, so that all locks will be held by the
+	 * nfsd server. (The nfsd server handles conflicts between the
+	 * various clients.)
+	 * Since an NFSv4 lockowner is a ClientID plus an array of up to 1024
+	 * bytes, so it can't be put in l_sysid.
 	 */
-	NFSVOPUNLOCK(vp, 0, p);
-	error = VOP_ADVLOCK(vp, &id_for_advlock, F_SETLK, &fl, F_POSIX);
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	fl.l_pid = (pid_t)0;
+	fl.l_sysid = 0;
+
+	NFSVOPUNLOCK(vp, 0, td);
+	error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_SETLK, &fl,
+	    (F_POSIX | F_REMOTE));
+	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return (error);
 }
 
