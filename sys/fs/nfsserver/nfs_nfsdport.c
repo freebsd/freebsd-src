@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 #include <sys/sysctl.h>
 
-extern int nfsrv_dolocallocks;
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern int nfsv4root_set;
 extern int nfsrv_useacl;
@@ -58,17 +57,26 @@ struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
 
-static int nfssvc_srvcall(struct thread *, struct nfssvc_args *, struct ucred *);
+static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
+    struct ucred *);
 
 static int enable_crossmntpt = 1;
 static int nfs_commit_blks;
 static int nfs_commit_miss;
 extern int nfsrv_issuedelegs;
+extern int nfsrv_dolocallocks;
+
 SYSCTL_DECL(_vfs_newnfs);
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, mirrormnt, CTLFLAG_RW, &enable_crossmntpt, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, issue_delegations, CTLFLAG_RW, &nfsrv_issuedelegs, 0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, mirrormnt, CTLFLAG_RW, &enable_crossmntpt,
+    0, "Enable nfsd to cross mount points");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks,
+    0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss,
+    0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, issue_delegations, CTLFLAG_RW,
+    &nfsrv_issuedelegs, 0, "Enable nfsd to issue delegations");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, enable_locallocks, CTLFLAG_RW,
+    &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
 
 #define	NUM_HEURISTIC		1017
 #define	NHUSE_INIT		64
