@@ -454,6 +454,7 @@ static void
 tbr_timeout(arg)
 	void *arg;
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	int active, s;
 
