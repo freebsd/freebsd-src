@@ -3706,24 +3706,25 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 /*
  *	vfs_bio_clrbuf:
  *
- *	clear a buffer.  This routine essentially fakes an I/O, so we need
- *	to clear BIO_ERROR and B_INVAL.
+ *	If the specified buffer is a non-VMIO buffer, clear the entire
+ *	buffer.  If the specified buffer is a VMIO buffer, clear and
+ *	validate only the previously invalid portions of the buffer.
+ *	This routine essentially fakes an I/O, so we need to clear
+ *	BIO_ERROR and B_INVAL.
  *
  *	Note that while we only theoretically need to clear through b_bcount,
  *	we go ahead and clear through b_bufsize.
  */
-
 void
 vfs_bio_clrbuf(struct buf *bp) 
 {
-	int i, j, mask = 0;
+	int i, j, mask;
 	caddr_t sa, ea;
 
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) != B_VMIO) {
 		clrbuf(bp);
 		return;
 	}
-
 	bp->b_flags &= ~B_INVAL;
 	bp->b_ioflags &= ~BIO_ERROR;
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
@@ -3735,8 +3736,7 @@ vfs_bio_clrbuf(struct buf *bp)
 		VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, MA_OWNED);
 		if ((bp->b_pages[0]->valid & mask) == mask)
 			goto unlock;
-		if (((bp->b_pages[0]->flags & PG_ZERO) == 0) &&
-		    ((bp->b_pages[0]->valid & mask) == 0)) {
+		if ((bp->b_pages[0]->valid & mask) == 0) {
 			bzero(bp->b_data, bp->b_bufsize);
 			bp->b_pages[0]->valid |= mask;
 			goto unlock;
@@ -3755,13 +3755,11 @@ vfs_bio_clrbuf(struct buf *bp)
 		VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
 		if ((bp->b_pages[i]->valid & mask) == mask)
 			continue;
-		if ((bp->b_pages[i]->valid & mask) == 0) {
-			if ((bp->b_pages[i]->flags & PG_ZERO) == 0)
-				bzero(sa, ea - sa);
-		} else {
+		if ((bp->b_pages[i]->valid & mask) == 0)
+			bzero(sa, ea - sa);
+		else {
 			for (; sa < ea; sa += DEV_BSIZE, j++) {
-				if (((bp->b_pages[i]->flags & PG_ZERO) == 0) &&
-				    (bp->b_pages[i]->valid & (1 << j)) == 0)
+				if ((bp->b_pages[i]->valid & (1 << j)) == 0)
 					bzero(sa, DEV_BSIZE);
 			}
 		}
