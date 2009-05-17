@@ -4253,8 +4253,8 @@ zfs_freebsd_rename(ap)
 	vnode_t *tvp = ap->a_tvp;
 	int error;
 
-	ASSERT(ap->a_fcnp->cn_flags & SAVENAME);
-	ASSERT(ap->a_tcnp->cn_flags & SAVENAME);
+	ASSERT(ap->a_fcnp->cn_flags & (SAVENAME|SAVESTART));
+	ASSERT(ap->a_tcnp->cn_flags & (SAVENAME|SAVESTART));
 
 	error = zfs_rename(fdvp, ap->a_fcnp->cn_nameptr, tdvp,
 	    ap->a_tcnp->cn_nameptr, ap->a_fcnp->cn_cred, NULL, 0);
