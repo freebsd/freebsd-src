@@ -230,7 +230,8 @@ tty_info(struct tty *tp)
 
 	/* Print load average. */
 	load = (averunnable.ldavg[0] * 100 + FSCALE / 2) >> FSHIFT;
-	ttyprintf(tp, "load: %d.%02d ", load / 100, load % 100);
+	ttyprintf(tp, "%sload: %d.%02d ", tp->t_column == 0 ? "" : "\n",
+	    load / 100, load % 100);
 
 	if (tp->t_session == NULL) {
 		ttyprintf(tp, "not a controlling terminal\n");
