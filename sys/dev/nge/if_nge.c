@@ -459,7 +459,7 @@ nge_mii_readreg(struct nge_softc *sc, struct nge_mii_frame *frame)
 	 * need to clock through 16 cycles to keep the PHY(s) in sync.
 	 */
 	if (ack) {
-		for(i = 0; i < 16; i++) {
+		for (i = 0; i < 16; i++) {
 			SIO_CLR(NGE_MEAR_MII_CLK);
 			DELAY(1);
 			SIO_SET(NGE_MEAR_MII_CLK);
@@ -488,8 +488,8 @@ fail:
 	DELAY(1);
 
 	if (ack)
-		return(1);
-	return(0);
+		return (1);
+	return (0);
 }
 
 /*
@@ -532,7 +532,7 @@ nge_mii_writereg(struct nge_softc *sc, struct nge_mii_frame *frame)
 	 */
 	SIO_CLR(NGE_MEAR_MII_DIR);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -549,7 +549,7 @@ nge_miibus_readreg(device_t dev, int phy, int reg)
 	frame.mii_regaddr = reg;
 	nge_mii_readreg(sc, &frame);
 
-	return(frame.mii_data);
+	return (frame.mii_data);
 }
 
 static int
@@ -567,7 +567,7 @@ nge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	frame.mii_data = data;
 	nge_mii_writereg(sc, &frame);
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -721,16 +721,16 @@ nge_probe(device_t dev)
 
 	t = nge_devs;
 
-	while(t->nge_name != NULL) {
+	while (t->nge_name != NULL) {
 		if ((pci_get_vendor(dev) == t->nge_vid) &&
 		    (pci_get_device(dev) == t->nge_did)) {
 			device_set_desc(dev, t->nge_name);
-			return(BUS_PROBE_DEFAULT);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 /*
@@ -886,7 +886,7 @@ fail:
 	if (sc->nge_res)
 		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
 	NGE_LOCK_DESTROY(sc);
-	return(error);
+	return (error);
 }
 
 static int
@@ -922,7 +922,7 @@ nge_detach(device_t dev)
 
 	NGE_LOCK_DESTROY(sc);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -957,7 +957,7 @@ nge_list_tx_init(struct nge_softc *sc)
 
 	cd->nge_tx_prod = cd->nge_tx_cons = cd->nge_tx_cnt = 0;
 
-	return(0);
+	return (0);
 }
 
 
@@ -978,7 +978,7 @@ nge_list_rx_init(struct nge_softc *sc)
 
 	for (i = 0; i < NGE_RX_LIST_CNT; i++) {
 		if (nge_newbuf(sc, &ld->nge_rx_list[i], NULL) == ENOBUFS)
-			return(ENOBUFS);
+			return (ENOBUFS);
 		if (i == (NGE_RX_LIST_CNT - 1)) {
 			ld->nge_rx_list[i].nge_nextdesc =
 			    &ld->nge_rx_list[0];
@@ -995,7 +995,7 @@ nge_list_rx_init(struct nge_softc *sc)
 	cd->nge_rx_prod = 0;
 	sc->nge_head = sc->nge_tail = NULL;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1021,7 +1021,7 @@ nge_newbuf(struct nge_softc *sc, struct nge_desc *c, struct mbuf *m)
 	c->nge_ctl = m->m_len;
 	c->nge_extsts = 0;
 
-	return(0);
+	return (0);
 }
 
 #ifdef NGE_FIXUP_RX
@@ -1060,7 +1060,7 @@ nge_rxeof(struct nge_softc *sc)
 	ifp = sc->nge_ifp;
 	i = sc->nge_cdata.nge_rx_prod;
 
-	while(NGE_OWNDESC(&sc->nge_ldata->nge_rx_list[i])) {
+	while (NGE_OWNDESC(&sc->nge_ldata->nge_rx_list[i])) {
 		u_int32_t		extsts;
 
 #ifdef DEVICE_POLLING
@@ -1364,7 +1364,7 @@ nge_intr(void *arg)
 	CSR_WRITE_4(sc, NGE_IER, 0);
 
 	/* Data LED on for TBI mode */
-	if(sc->nge_tbi)
+	if (sc->nge_tbi)
 		 CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
 			     | NGE_GPIO_GP3_OUT);
 
@@ -1419,7 +1419,7 @@ nge_intr(void *arg)
 
 	/* Data LED off for TBI mode */
 
-	if(sc->nge_tbi)
+	if (sc->nge_tbi)
 		CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
 			    & ~NGE_GPIO_GP3_OUT);
 
@@ -1449,7 +1449,7 @@ nge_encap(struct nge_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 		if (m->m_len != 0) {
 			if ((NGE_TX_LIST_CNT -
 			    (sc->nge_cdata.nge_tx_cnt + cnt)) < 2)
-				return(ENOBUFS);
+				return (ENOBUFS);
 			f = &sc->nge_ldata->nge_tx_list[frag];
 			f->nge_ctl = NGE_CMDSTS_MORE | m->m_len;
 			f->nge_ptr = vtophys(mtod(m, vm_offset_t));
@@ -1462,7 +1462,7 @@ nge_encap(struct nge_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	}
 
 	if (m != NULL)
-		return(ENOBUFS);
+		return (ENOBUFS);
 
 	sc->nge_ldata->nge_tx_list[*txidx].nge_extsts = 0;
 	if (m_head->m_pkthdr.csum_flags) {
@@ -1488,7 +1488,7 @@ nge_encap(struct nge_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	sc->nge_cdata.nge_tx_cnt += cnt;
 	*txidx = frag;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1526,7 +1526,7 @@ nge_start_locked(struct ifnet *ifp)
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
-	while(sc->nge_ldata->nge_tx_list[idx].nge_mbuf == NULL) {
+	while (sc->nge_ldata->nge_tx_list[idx].nge_mbuf == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -1877,7 +1877,7 @@ nge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data		*mii;
 	int			error = 0;
 
-	switch(command) {
+	switch (command) {
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > NGE_JUMBO_MTU)
 			error = EINVAL;
@@ -1952,7 +1952,7 @@ nge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		    !(ifp->if_capenable & IFCAP_POLLING)) {
 			error = ether_poll_register(nge_poll, ifp);
 			if (error)
-				return(error);
+				return (error);
 			NGE_LOCK(sc);
 			/* Disable interrupts */
 			CSR_WRITE_4(sc, NGE_IER, 0);
@@ -1978,7 +1978,7 @@ nge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	}
 
-	return(error);
+	return (error);
 }
 
 static void
