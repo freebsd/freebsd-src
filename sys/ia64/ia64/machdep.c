@@ -311,6 +311,21 @@ cpu_boot(int howto)
 	efi_reset_system();
 }
 
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+	vm_offset_t lim, va;
+
+	va = (uintptr_t)ptr & ~31;
+	lim = (uintptr_t)ptr + len;
+	while (va < lim) {
+		ia64_fc(va);
+		va += 32;
+	}
+
+	ia64_srlz_d();
+}
+
 /* Get current clock frequency for the given cpu id. */
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)

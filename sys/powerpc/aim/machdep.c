@@ -864,6 +864,16 @@ cpu_boot(int howto)
 {
 }
 
+/*
+ * Flush the D-cache for non-DMA I/O so that the I-cache can
+ * be made coherent later.
+ */
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+	/* TBD */
+}
+
 void
 cpu_initclocks(void)
 {
