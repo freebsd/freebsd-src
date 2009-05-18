@@ -17,6 +17,15 @@
 >4	belong		>30		compiled Java class data,
 >>6	beshort		x	        version %d.
 >>4	beshort		x       	\b%d
+# Which is which?
+#>>4	belong		0x032d		(Java 1.0)
+#>>4	belong		0x032d		(Java 1.1)
+>>4	belong		0x002e		(Java 1.2)
+>>4	belong		0x002f		(Java 1.3)
+>>4	belong		0x0030		(Java 1.4)
+>>4	belong		0x0031		(Java 1.5)
+>>4	belong		0x0032		(Java 1.6)
+
 
 0	belong		0xcafebabe
 >4	belong		1		Mach-O fat file with 1 architecture

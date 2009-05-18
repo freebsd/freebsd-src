@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.118 2009/02/03 20:27:51 christos Exp $
+ * @(#)$File: file.h,v 1.119 2009/02/04 18:24:32 christos Exp $
  */
 
 #ifndef __file_h__
@@ -387,7 +387,13 @@ protected size_t file_mbswidth(const char *);
 protected const char *file_getbuffer(struct magic_set *);
 protected ssize_t sread(int, void *, size_t, int);
 protected int file_check_mem(struct magic_set *, unsigned int);
-protected int file_looks_utf8(const unsigned char *, size_t, unichar *, size_t *);
+protected int file_looks_utf8(const unsigned char *, size_t, unichar *,
+    size_t *);
+#ifdef __EMX__
+protected int file_os2_apptype(struct magic_set *, const char *, const void *,
+    size_t);
+#endif /* __EMX__ */
+
 
 #ifndef COMPILE_ONLY
 extern const char *file_names[];
