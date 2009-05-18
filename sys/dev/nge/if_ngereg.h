@@ -481,15 +481,15 @@ struct nge_desc_64 {
 #define nge_txstat		nge_cmdsts
 #define nge_ctl			nge_cmdsts
 	volatile uint32_t	nge_extsts;
-        /* Driver software section */
-        union {
-                struct mbuf             *nge_mbuf;
-                uint64_t                nge_dummy;
-        } nge_mb_u;
-        union {
-                struct nge_desc_32      *nge_nextdesc;
-                uint64_t                nge_dummy;
-        } nge_nd_u;
+	/* Driver software section */
+	union {
+		struct mbuf		*nge_mbuf;
+		uint64_t		nge_dummy;
+	} nge_mb_u;
+	union {
+		struct nge_desc_32	*nge_nextdesc;
+		uint64_t		nge_dummy;
+	} nge_nd_u;
 };
 
 struct nge_desc_32 {
@@ -501,15 +501,15 @@ struct nge_desc_32 {
 #define nge_txstat		nge_cmdsts
 #define nge_ctl			nge_cmdsts
 	volatile uint32_t	nge_extsts;
-        /* Driver software section */
-        union {
-                struct mbuf             *nge_mbuf;
-                uint64_t                nge_dummy;
-        } nge_mb_u;
-        union {
-                struct nge_desc_32      *nge_nextdesc;
-                uint64_t                nge_dummy;
-        } nge_nd_u;
+	/* Driver software section */
+	union {
+		struct mbuf		*nge_mbuf;
+		uint64_t		nge_dummy;
+	} nge_mb_u;
+	union {
+		struct nge_desc_32	*nge_nextdesc;
+		uint64_t		nge_dummy;
+	} nge_nd_u;
 };
 
 #define nge_mbuf        nge_mb_u.nge_mbuf
