@@ -80,16 +80,18 @@ static const struct bwi_dev {
 	uint16_t	did;
 	const char	*desc;
 } bwi_devices[] = {
-	{ PCI_VENDOR_BROADCOM, 0x4301,"Broadcom BCM4301 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4307,"Broadcom BCM4307 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4311,"Broadcom BCM4311 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4312,"Broadcom BCM4312 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4320,"Broadcom BCM4306v1 802.11 Wireless Lan"},
-	{ PCI_VENDOR_BROADCOM, 0x4321,"Broadcom BCM4306v2 802.11 Wireless Lan"},
-	{ PCI_VENDOR_BROADCOM, 0x4325,"Broadcom BCM4306v3 802.11 Wireless Lan"},
-	{ PCI_VENDOR_BROADCOM, 0x4324,"Broadcom BCM4309 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4318,"Broadcom BCM4318 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4319,"Broadcom BCM4319 802.11 Wireless Lan" }
+	{ PCI_VENDOR_BROADCOM, 0x4301,"Broadcom BCM4301 802.11b Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4307,"Broadcom BCM4307 802.11b Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4311,"Broadcom BCM4311 802.11b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4312,"Broadcom BCM4312 802.11a/b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4313,"Broadcom BCM4312 802.11a Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4320,"Broadcom BCM4306 802.11b/g Wireless Lan"},
+	{ PCI_VENDOR_BROADCOM, 0x4321,"Broadcom BCM4306 802.11a Wireless Lan"},
+	{ PCI_VENDOR_BROADCOM, 0x4325,"Broadcom BCM4306 802.11b/g Wireless Lan"},
+	{ PCI_VENDOR_BROADCOM, 0x4324,"Broadcom BCM4309 802.11a/b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4318,"Broadcom BCM4318 802.11b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4319,"Broadcom BCM4318 802.11a/b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x431a,"Broadcom BCM4318 802.11a Wireless Lan" }
 };
 
 static int
