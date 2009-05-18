@@ -122,7 +122,7 @@ struct fpswa_iface *fpswa_iface;
 u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
 
-static int ia64_inval_icache_needed;
+static int ia64_sync_icache_needed;
 
 char machine[] = MACHINE;
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -216,7 +216,7 @@ identifycpu(void)
 		}
 		break;
 	case 0x20:
-		ia64_inval_icache_needed = 1;
+		ia64_sync_icache_needed = 1;
 
 		family_name = "Itanium 2";
 		switch (model) {
@@ -1537,11 +1537,11 @@ ia64_highfp_save(struct thread *td)
 }
 
 void
-ia64_invalidate_icache(vm_offset_t va, vm_offset_t sz)
+ia64_sync_icache(vm_offset_t va, vm_offset_t sz)
 {
 	vm_offset_t lim;
 
-	if (!ia64_inval_icache_needed)
+	if (!ia64_sync_icache_needed)
 		return;
 
 	lim = va + sz;
