@@ -33,3 +33,11 @@ hint.arge.0.irq=2
 # hint.arge.1.maddr=0x1A000000
 # hint.arge.1.msize=0x1000
 # hint.arge.1.irq=3
+
+# SPI flash
+hint.spi.0.at="nexus0"
+hint.spi.0.maddr=0x1f000000
+hint.spi.0.msize=0x10
+
+hint.mx25l.0.at="spibus0"
+hint.mx25l.0.cs=0
