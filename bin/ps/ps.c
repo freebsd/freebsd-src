@@ -764,7 +764,7 @@ addelem_tty(struct listinfo *inf, const char *elem)
 		strlcat(pathbuf2, elem, sizeof(pathbuf2));
 		if (stat(pathbuf2, &sb) == 0 && S_ISCHR(sb.st_mode)) {
 			/* No need to repeat stat() && S_ISCHR() checks */
-			ttypath = NULL;	
+			ttypath = NULL;
 			break;
 		}
 		/* Check to see if /dev/pts/${elem} exists */
@@ -772,7 +772,7 @@ addelem_tty(struct listinfo *inf, const char *elem)
 		strlcat(pathbuf3, elem, sizeof(pathbuf3));
 		if (stat(pathbuf3, &sb) == 0 && S_ISCHR(sb.st_mode)) {
 			/* No need to repeat stat() && S_ISCHR() checks */
-			ttypath = NULL;	
+			ttypath = NULL;
 			break;
 		}
 		break;
@@ -992,7 +992,6 @@ descendant_sort(KINFO *ki, int items)
 			ki[src].ki_d.prefix[n * 2] =
 			    path[n / 8] & 1 << (n % 8) ? '|' : ' ';
 			ki[src].ki_d.prefix[n * 2 + 1] = ' ';
-				
 		}
 		if (n == lvl - 2) {
 			/* Have I any more siblings? */
