@@ -182,7 +182,7 @@ SYSCTL_V_PROC(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, enable,
     ipfw_chg_hook, "I", "Enable ipfw");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, autoinc_step,
     CTLFLAG_RW, autoinc_step, 0, "Rule number auto-increment step");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, one_pass,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_RW | CTLFLAG_SECURE3, fw_one_pass, 0,
     "Only do a single pass through ipfw when using dummynet(4)");
 SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, verbose,
