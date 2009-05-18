@@ -8,22 +8,22 @@
 #0	string	;;			
 # windows INF files often begin with semicolon and use CRLF as line end
 # lisp files are mainly created on unix system with LF as line end
-#>2	search/2048	!\r		Lisp/Scheme program text
-#>2	search/2048	\r		Windows INF file
+#>2	search/4096	!\r		Lisp/Scheme program text
+#>2	search/4096	\r		Windows INF file
 
-0	search/256	(if\ 			Lisp/Scheme program text
+0	search/4096	(if\ 			Lisp/Scheme program text
 !:mime	text/x-lisp
-0	search/256	(setq\ 			Lisp/Scheme program text
+0	search/4096	(setq\ 			Lisp/Scheme program text
 !:mime	text/x-lisp
-0	search/256	(defvar\ 		Lisp/Scheme program text
+0	search/4096	(defvar\ 		Lisp/Scheme program text
 !:mime	text/x-lisp
-0	search/256	(defparam\ 		Lisp/Scheme program text
+0	search/4096	(defparam\ 		Lisp/Scheme program text
 !:mime	text/x-lisp
-0	search/256	(defun\  		Lisp/Scheme program text
+0	search/4096	(defun\  		Lisp/Scheme program text
 !:mime	text/x-lisp
-0	search/256	(autoload\ 		Lisp/Scheme program text
+0	search/4096	(autoload\ 		Lisp/Scheme program text
 !:mime	text/x-lisp
-0	search/256	(custom-set-variables\ 	Lisp/Scheme program text
+0	search/4096	(custom-set-variables\ 	Lisp/Scheme program text
 !:mime	text/x-lisp
 
 # Emacs 18 - this is always correct, but not very magical.

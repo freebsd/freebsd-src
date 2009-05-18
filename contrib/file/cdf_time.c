@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: cdf_time.c,v 1.5 2009/02/03 20:27:51 christos Exp $")
+FILE_RCSID("@(#)$File: cdf_time.c,v 1.6 2009/03/10 11:44:29 christos Exp $")
 #endif
 
 #include <time.h>
@@ -102,6 +102,7 @@ cdf_timestamp_to_timespec(struct timespec *ts, cdf_timestamp_t t)
 #ifdef HAVE_STRUCT_TM_TM_ZONE
 	static char UTC[] = "UTC";
 #endif
+	int rdays;
 
 	/* Unit is 100's of nanoseconds */
 	ts->tv_nsec = (t % CDF_TIME_PREC) * 100;
@@ -119,7 +120,7 @@ cdf_timestamp_to_timespec(struct timespec *ts, cdf_timestamp_t t)
 	// XXX: Approx
 	tm.tm_year = CDF_BASE_YEAR + (t / 365);
 
-	int rdays = cdf_getdays(tm.tm_year);
+	rdays = cdf_getdays(tm.tm_year);
 	t -= rdays;
 	tm.tm_mday = cdf_getday(tm.tm_year, t);
 	tm.tm_mon = cdf_getmonth(tm.tm_year, t);

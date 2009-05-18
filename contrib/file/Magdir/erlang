@@ -12,7 +12,7 @@
 >8	string	BEAM		Erlang BEAM file
 
 # 4.2 version may have a copyright notice!
-4	string	Tue Jan 22 14:32:44 MET 1991	Erlang JAM file - version 4.2
-79	string	Tue Jan 22 14:32:44 MET 1991	Erlang JAM file - version 4.2
+4	string	Tue\ Jan\ 22\ 14:32:44\ MET\ 1991	Erlang JAM file - version 4.2
+79	string	Tue\ Jan\ 22\ 14:32:44\ MET\ 1991	Erlang JAM file - version 4.2
 
-4	string	1.0 Fri Feb 3 09:55:56 MET 1995	Erlang JAM file - version 4.3
+4	string	1.0\ Fri\ Feb\ 3\ 09:55:56\ MET\ 1995	Erlang JAM file - version 4.3
