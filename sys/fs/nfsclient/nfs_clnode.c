@@ -190,6 +190,13 @@ ncl_inactive(struct vop_inactive_args *ap)
 	np = VTONFS(ap->a_vp);
 	if (prtactive && vrefcnt(ap->a_vp) != 0)
 		vprint("ncl_inactive: pushing active", ap->a_vp);
+
+	/*
+	 * Since mmap()'d files to I/O after VOP_CLOSE(), the NFSv4 Close
+	 * operations are delayed until now.
+	 */
+	(void) nfsrpc_close(ap->a_vp, 1, td);
+
 	if (ap->a_vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
 		np->n_sillyrename = NULL;
