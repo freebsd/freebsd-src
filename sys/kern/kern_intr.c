@@ -968,6 +968,18 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 #endif
 
 /*
+ * Allow interrupt event binding for software interrupt handlers -- a no-op,
+ * since interrupts are generated in software rather than being directed by
+ * a PIC.
+ */
+static int
+swi_assign_cpu(void *arg, u_char cpu)
+{
+
+	return (0);
+}
+
+/*
  * Add a software interrupt handler to a specified event.  If a given event
  * is not specified, then a new event is created.
  */
@@ -988,7 +1000,7 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 			return (EINVAL);
 	} else {
 		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
-		    NULL, NULL, NULL, NULL, "swi%d:", pri);
+		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
 		if (error)
 			return (error);
 		if (eventp != NULL)
