@@ -55,9 +55,14 @@ struct mca_internal {
 
 static MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
-static struct sysctl_oid *mca_sysctl_tree;
-
 static int mca_count;		/* Number of records stored. */
+
+SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL, "Machine Check Architecture");
+
+static int mca_enabled = 0;
+TUNABLE_INT("hw.mca.enabled", &mca_enabled);
+SYSCTL_INT(_hw_mca, OID_AUTO, enabled, CTLFLAG_RDTUN, &mca_enabled, 0,
+    "Administrative toggle for machine check support");
 
 static STAILQ_HEAD(, mca_internal) mca_records;
 static struct callout mca_timer;
@@ -346,7 +351,7 @@ mca_scan(int mcip)
 
 	/* When handling a MCE#, treat the OVER flag as non-restartable. */
 	if (mcip)
-		ucmask = MC_STATUS_OVER;
+		ucmask |= MC_STATUS_OVER;
 	mcg_cap = rdmsr(MSR_MCG_CAP);
 	for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
 		rec = mca_record_entry(i);
@@ -426,7 +431,7 @@ static void
 mca_startup(void *dummy)
 {
 
-	if (!(cpu_feature & CPUID_MCA))
+	if (!mca_enabled || !(cpu_feature & CPUID_MCA))
 		return;
 
 	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan,
@@ -442,17 +447,15 @@ mca_setup(void)
 	STAILQ_INIT(&mca_records);
 	TASK_INIT(&mca_task, 0x8000, mca_scan_cpus, NULL);
 	callout_init(&mca_timer, CALLOUT_MPSAFE);
-	mca_sysctl_tree = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_hw),
-	    OID_AUTO, "mca", CTLFLAG_RW, NULL, "MCA container");
-	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(mca_sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "count", CTLFLAG_RD, &mca_count, 0, "Record count");
-	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(mca_sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "interval", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &mca_ticks,
 	    0, sysctl_mca_ticks, "I",
 	    "Periodic interval in seconds to scan for machine checks");
-	SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(mca_sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "records", CTLFLAG_RD, sysctl_mca_records, "Machine check records");
-	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(mca_sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "force_scan", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
 	    sysctl_mca_scan, "I", "Force an immediate scan for machine checks");
 }
@@ -465,7 +468,7 @@ mca_init(void)
 	int i;
 
 	/* MCE is required. */
-	if (!(cpu_feature & CPUID_MCE))
+	if (!mca_enabled || !(cpu_feature & CPUID_MCE))
 		return;
 
 	if (cpu_feature & CPUID_MCA) {
