@@ -472,43 +472,43 @@
  */
 struct nge_desc_64 {
 	/* Hardware descriptor section */
-	volatile u_int32_t	nge_next_lo;
-	volatile u_int32_t	nge_next_hi;
-	volatile u_int32_t	nge_ptr_lo;
-	volatile u_int32_t	nge_ptr_hi;
-	volatile u_int32_t	nge_cmdsts;
+	volatile uint32_t	nge_next_lo;
+	volatile uint32_t	nge_next_hi;
+	volatile uint32_t	nge_ptr_lo;
+	volatile uint32_t	nge_ptr_hi;
+	volatile uint32_t	nge_cmdsts;
 #define nge_rxstat		nge_cmdsts
 #define nge_txstat		nge_cmdsts
 #define nge_ctl			nge_cmdsts
-	volatile u_int32_t	nge_extsts;
+	volatile uint32_t	nge_extsts;
         /* Driver software section */
         union {
                 struct mbuf             *nge_mbuf;
-                u_int64_t               nge_dummy;
+                uint64_t                nge_dummy;
         } nge_mb_u;
         union {
                 struct nge_desc_32      *nge_nextdesc;
-                u_int64_t               nge_dummy;
+                uint64_t                nge_dummy;
         } nge_nd_u;
 };
 
 struct nge_desc_32 {
 	/* Hardware descriptor section */
-	volatile u_int32_t	nge_next;
-	volatile u_int32_t	nge_ptr;
-	volatile u_int32_t	nge_cmdsts;
+	volatile uint32_t	nge_next;
+	volatile uint32_t	nge_ptr;
+	volatile uint32_t	nge_cmdsts;
 #define nge_rxstat		nge_cmdsts
 #define nge_txstat		nge_cmdsts
 #define nge_ctl			nge_cmdsts
-	volatile u_int32_t	nge_extsts;
+	volatile uint32_t	nge_extsts;
         /* Driver software section */
         union {
                 struct mbuf             *nge_mbuf;
-                u_int64_t               nge_dummy;
+                uint64_t                nge_dummy;
         } nge_mb_u;
         union {
                 struct nge_desc_32      *nge_nextdesc;
-                u_int64_t               nge_dummy;
+                uint64_t                nge_dummy;
         } nge_nd_u;
 };
 
@@ -611,18 +611,18 @@ struct nge_list_data {
 #define NGE_DEVICEID		0x0022
 
 struct nge_type {
-	u_int16_t		nge_vid;
-	u_int16_t		nge_did;
+	uint16_t		nge_vid;
+	uint16_t		nge_did;
 	char			*nge_name;
 };
 
 struct nge_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
+	uint8_t			mii_stdelim;
+	uint8_t			mii_opcode;
+	uint8_t			mii_phyaddr;
+	uint8_t			mii_regaddr;
+	uint8_t			mii_turnaround;
+	uint16_t		mii_data;
 };
 
 /*
@@ -657,16 +657,16 @@ struct nge_softc {
 	void			*nge_intrhand;
 	device_t		nge_miibus;
 	int			nge_if_flags;
-	u_int8_t		nge_type;
-	u_int8_t		nge_link;
-	u_int8_t		nge_width;
+	uint8_t			nge_type;
+	uint8_t			nge_link;
+	uint8_t			nge_width;
 #define NGE_WIDTH_32BITS	0
 #define NGE_WIDTH_64BITS	1
 	struct nge_list_data	*nge_ldata;
 	struct nge_ring_data	nge_cdata;
 	struct callout		nge_stat_ch;
 	struct mtx		nge_mtx;
-	u_int8_t		nge_tbi;
+	uint8_t			nge_tbi;
 	struct ifmedia		nge_ifmedia;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
