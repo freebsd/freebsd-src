@@ -181,19 +181,19 @@ struct {
  */
 static uma_zone_t mt_zone;
 
-u_int vm_kmem_size;
-SYSCTL_UINT(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
+u_long vm_kmem_size;
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
     "Size of kernel memory");
 
-u_int vm_kmem_size_min;
-SYSCTL_UINT(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RD, &vm_kmem_size_min, 0,
+static u_long vm_kmem_size_min;
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RD, &vm_kmem_size_min, 0,
     "Minimum size of kernel memory");
 
-u_int vm_kmem_size_max;
-SYSCTL_UINT(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RD, &vm_kmem_size_max, 0,
+static u_long vm_kmem_size_max;
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RD, &vm_kmem_size_max, 0,
     "Maximum size of kernel memory");
 
-u_int vm_kmem_size_scale;
+static u_int vm_kmem_size_scale;
 SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RD, &vm_kmem_size_scale, 0,
     "Scale factor for kernel memory size");
 
@@ -589,7 +589,7 @@ kmeminit(void *dummy)
 #if defined(VM_KMEM_SIZE_MIN)
 	vm_kmem_size_min = VM_KMEM_SIZE_MIN;
 #endif
-	TUNABLE_INT_FETCH("vm.kmem_size_min", &vm_kmem_size_min);
+	TUNABLE_ULONG_FETCH("vm.kmem_size_min", &vm_kmem_size_min);
 	if (vm_kmem_size_min > 0 && vm_kmem_size < vm_kmem_size_min) {
 		vm_kmem_size = vm_kmem_size_min;
 	}
@@ -597,16 +597,16 @@ kmeminit(void *dummy)
 #if defined(VM_KMEM_SIZE_MAX)
 	vm_kmem_size_max = VM_KMEM_SIZE_MAX;
 #endif
-	TUNABLE_INT_FETCH("vm.kmem_size_max", &vm_kmem_size_max);
+	TUNABLE_ULONG_FETCH("vm.kmem_size_max", &vm_kmem_size_max);
 	if (vm_kmem_size_max > 0 && vm_kmem_size >= vm_kmem_size_max)
 		vm_kmem_size = vm_kmem_size_max;
 
 	/* Allow final override from the kernel environment */
 #ifndef BURN_BRIDGES
-	if (TUNABLE_INT_FETCH("kern.vm.kmem.size", &vm_kmem_size) != 0)
+	if (TUNABLE_ULONG_FETCH("kern.vm.kmem.size", &vm_kmem_size) != 0)
 		printf("kern.vm.kmem.size is now called vm.kmem_size!\n");
 #endif
-	TUNABLE_INT_FETCH("vm.kmem_size", &vm_kmem_size);
+	TUNABLE_ULONG_FETCH("vm.kmem_size", &vm_kmem_size);
 
 	/*
 	 * Limit kmem virtual size to twice the physical memory.
