@@ -77,12 +77,6 @@ static struct sx intr_table_lock;
 static struct mtx intrcnt_lock;
 static STAILQ_HEAD(, pic) pics;
 
-#ifdef INTR_FILTER
-static void intr_eoi_src(void *arg);
-static void intr_disab_eoi_src(void *arg);
-static void intr_event_stray(void *cookie);
-#endif
-
 #ifdef SMP
 static int assign_cpu;
 
@@ -90,6 +84,10 @@ static void	intr_assign_next_cpu(struct intsrc *isrc);
 #endif
 
 static int	intr_assign_cpu(void *arg, u_char cpu);
+static void	intr_disable_src(void *arg);
+#ifdef INTR_FILTER
+static void	intr_event_stray(void *cookie);
+#endif
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(struct pic *pic);
 static void	intrcnt_setname(const char *name, int index);
@@ -144,16 +142,10 @@ intr_register_source(struct intsrc *isrc)
 	vector = isrc->is_pic->pic_vector(isrc);
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
-#ifdef INTR_FILTER
 	error = intr_event_create(&isrc->is_event, isrc, 0,
-	    (mask_fn)isrc->is_pic->pic_enable_source,
-	    intr_eoi_src, intr_disab_eoi_src, intr_assign_cpu, "irq%d:",
+	    intr_disable_src, (mask_fn)isrc->is_pic->pic_enable_source,
+	    (mask_fn)isrc->is_pic->pic_eoi_source, intr_assign_cpu, "irq%d:",
 	    vector);
-#else
-	error = intr_event_create(&isrc->is_event, isrc, 0,
-	    (mask_fn)isrc->is_pic->pic_enable_source, intr_assign_cpu, "irq%d:",
-	    vector);
-#endif
 	if (error)
 		return (error);
 	sx_xlock(&intr_table_lock);
@@ -237,6 +229,15 @@ intr_config_intr(int vector, enum intr_trigger trig, enum intr_polarity pol)
 	return (isrc->is_pic->pic_config_intr(isrc, trig, pol));
 }
 
+static void
+intr_disable_src(void *arg)
+{
+	struct intsrc *isrc;
+
+	isrc = arg;
+	isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
+}
+
 #ifdef INTR_FILTER
 void
 intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
@@ -288,24 +289,6 @@ intr_event_stray(void *cookie)
 		log(LOG_CRIT,
 		    "too many stray irq %d's: not logging anymore\n",
 		    isrc->is_pic->pic_vector(isrc));
-}
-
-static void
-intr_eoi_src(void *arg)
-{
-	struct intsrc *isrc;
-
-	isrc = arg;
-	isrc->is_pic->pic_eoi_source(isrc);
-}
-
-static void
-intr_disab_eoi_src(void *arg)
-{
-	struct intsrc *isrc;
-
-	isrc = arg;
-	isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 }
 #else
 void
