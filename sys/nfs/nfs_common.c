@@ -127,9 +127,10 @@ nfsm_mbuftouio(struct mbuf **mrep, struct uio *uiop, int siz, caddr_t *dpos)
 				(mbufcp, uiocp, xfer);
 			else
 #endif
-			if (uiop->uio_segflg == UIO_SYSSPACE)
+			if (uiop->uio_segflg == UIO_SYSSPACE) {
 				bcopy(mbufcp, uiocp, xfer);
-			else
+				cpu_flush_dcache(uiocp, xfer);
+			} else
 				copyout(mbufcp, uiocp, xfer);
 			left -= xfer;
 			len -= xfer;
