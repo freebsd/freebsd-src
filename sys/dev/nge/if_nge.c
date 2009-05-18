@@ -257,7 +257,7 @@ nge_delay(struct nge_softc *sc)
 static void
 nge_eeprom_idle(struct nge_softc *sc)
 {
-	register int		i;
+	int			i;
 
 	SIO_SET(NGE_MEAR_EE_CSEL);
 	nge_delay(sc);
@@ -286,7 +286,7 @@ nge_eeprom_idle(struct nge_softc *sc)
 static void
 nge_eeprom_putbyte(struct nge_softc *sc, int addr)
 {
-	register int		d, i;
+	int			d, i;
 
 	d = addr | NGE_EECMD_READ;
 
@@ -315,7 +315,7 @@ nge_eeprom_putbyte(struct nge_softc *sc, int addr)
 static void
 nge_eeprom_getword(struct nge_softc *sc, int addr, u_int16_t *dest)
 {
-	register int		i;
+	int			i;
 	u_int16_t		word = 0;
 
 	/* Force EEPROM to idle state. */
@@ -381,7 +381,7 @@ nge_read_eeprom(struct nge_softc *sc, caddr_t dest, int off, int cnt, int swap)
 static void
 nge_mii_sync(struct nge_softc *sc)
 {
-	register int		i;
+	int			i;
 
 	SIO_SET(NGE_MEAR_MII_DIR|NGE_MEAR_MII_DATA);
 
@@ -702,7 +702,7 @@ nge_setmulti(struct nge_softc *sc)
 static void
 nge_reset(struct nge_softc *sc)
 {
-	register int		i;
+	int			i;
 
 	NGE_SETBIT(sc, NGE_CSR, NGE_CSR_RESET);
 
@@ -2043,7 +2043,7 @@ nge_watchdog(struct ifnet *ifp)
 static void
 nge_stop(struct nge_softc *sc)
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
 
