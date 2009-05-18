@@ -394,11 +394,11 @@ nge_mii_send(struct nge_softc *sc, uint32_t bits, int cnt)
 	SIO_CLR(NGE_MEAR_MII_CLK);
 
 	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-                if (bits & i) {
+		if (bits & i) {
 			SIO_SET(NGE_MEAR_MII_DATA);
-                } else {
+		} else {
 			SIO_CLR(NGE_MEAR_MII_DATA);
-                }
+		}
 		DELAY(1);
 		SIO_CLR(NGE_MEAR_MII_CLK);
 		DELAY(1);
@@ -1028,8 +1028,8 @@ nge_newbuf(struct nge_softc *sc, struct nge_desc *c, struct mbuf *m)
 static __inline void
 nge_fixup_rx(struct mbuf *m)
 {
-        int i;
-        uint16_t *src, *dst;
+	int i;
+	uint16_t *src, *dst;
 
 	src = mtod(m, uint16_t *);
 	dst = src - 1;
@@ -1050,8 +1050,8 @@ nge_fixup_rx(struct mbuf *m)
 static void
 nge_rxeof(struct nge_softc *sc)
 {
-        struct mbuf *m;
-        struct ifnet *ifp;
+	struct mbuf *m;
+	struct ifnet *ifp;
 	struct nge_desc *cur_rx;
 	int i, total_len = 0;
 	uint32_t rxstat;
