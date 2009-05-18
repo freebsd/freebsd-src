@@ -375,7 +375,7 @@ bwi_phy_init_11g(struct bwi_mac *mac)
 			RF_WRITE(mac, 0x52,
 				 (tpctl->tp_ctrl1 << 4) | tpctl->tp_ctrl2);
 		} else {
-			RF_FILT_SETBITS(mac, 0x52, 0xfff0, tpctl->tp_ctrl1);
+			RF_FILT_SETBITS(mac, 0x52, 0xfff0, tpctl->tp_ctrl2);
 		}
 
 		if (phy->phy_rev >= 6) {
