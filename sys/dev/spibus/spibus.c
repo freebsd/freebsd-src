@@ -194,5 +194,5 @@ static driver_t spibus_driver = {
 
 devclass_t	spibus_devclass;
 
-DRIVER_MODULE(spibus, at91_spi, spibus_driver, spibus_devclass, 0, 0);
+DRIVER_MODULE(spibus, spi, spibus_driver, spibus_devclass, 0, 0);
 MODULE_VERSION(spibus, 1);
