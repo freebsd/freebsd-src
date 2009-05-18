@@ -433,7 +433,7 @@ nge_mii_readreg(struct nge_softc *sc, struct nge_mii_frame *frame)
 	frame->mii_opcode = NGE_MII_READOP;
 	frame->mii_turnaround = 0;
 	frame->mii_data = 0;
-	
+
 	CSR_WRITE_4(sc, NGE_MEAR, 0);
 
 	/*
@@ -518,7 +518,7 @@ nge_mii_writereg(struct nge_softc *sc, struct nge_mii_frame *frame)
 	frame->mii_stdelim = NGE_MII_STARTDELIM;
 	frame->mii_opcode = NGE_MII_WRITEOP;
 	frame->mii_turnaround = NGE_MII_TURNAROUND;
-	
+
 	/*
  	 * Turn on data output.
 	 */
@@ -585,7 +585,7 @@ nge_miibus_writereg(device_t dev, int phy, int reg, int data)
 static void
 nge_miibus_statchg(device_t dev)
 {
-	int			status;	
+	int			status;
 	struct nge_softc	*sc;
 	struct mii_data		*mii;
 
@@ -604,7 +604,7 @@ nge_miibus_statchg(device_t dev)
 				NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
 			}
 
-		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK) 
+		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK)
 			!= IFM_FDX) {
 			NGE_CLRBIT(sc, NGE_TX_CFG,
 			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
@@ -846,10 +846,10 @@ nge_attach(device_t dev)
 		if (CSR_READ_4(sc, NGE_CFG) & NGE_CFG_TBI_EN) {
 			sc->nge_tbi = 1;
 			device_printf(dev, "Using TBI\n");
-			
+
 			sc->nge_miibus = dev;
 
-			ifmedia_init(&sc->nge_ifmedia, 0, nge_ifmedia_upd, 
+			ifmedia_init(&sc->nge_ifmedia, 0, nge_ifmedia_upd,
 				nge_ifmedia_sts);
 #define	ADD(m, c)	ifmedia_add(&sc->nge_ifmedia, (m), (c), NULL)
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, 0), 0);
@@ -858,16 +858,16 @@ nge_attach(device_t dev)
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, 0), 0);
 #undef ADD
 			device_printf(dev, " 1000baseSX, 1000baseSX-FDX, auto\n");
-			
-			ifmedia_set(&sc->nge_ifmedia, 
+
+			ifmedia_set(&sc->nge_ifmedia,
 				IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, 0));
-	    
+
 			CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
-				| NGE_GPIO_GP4_OUT 
-				| NGE_GPIO_GP1_OUTENB | NGE_GPIO_GP2_OUTENB 
+				| NGE_GPIO_GP4_OUT
+				| NGE_GPIO_GP1_OUTENB | NGE_GPIO_GP2_OUTENB
 				| NGE_GPIO_GP3_OUTENB
 				| NGE_GPIO_GP3_IN | NGE_GPIO_GP4_IN);
-	    
+
 		} else {
 			device_printf(dev, "MII without any PHY!\n");
 			error = ENXIO;
@@ -1044,20 +1044,20 @@ nge_newbuf(struct nge_softc *sc, struct nge_desc *c, struct mbuf *m)
 #ifdef NGE_FIXUP_RX
 static __inline void
 nge_fixup_rx(struct mbuf *m)
-{  
+{
         int			i;
         uint16_t		*src, *dst;
-   
+
 	src = mtod(m, uint16_t *);
 	dst = src - 1;
-   
+
 	for (i = 0; i < (m->m_len / sizeof(uint16_t) + 1); i++)
 		*dst++ = *src++;
-   
+
 	m->m_data -= ETHER_ALIGN;
-   
+
 	return;
-}  
+}
 #endif
 
 /*
@@ -1277,10 +1277,10 @@ nge_tick(void *xsc)
 
 	if (sc->nge_tbi) {
 		if (!sc->nge_link) {
-			if (CSR_READ_4(sc, NGE_TBI_BMSR) 
+			if (CSR_READ_4(sc, NGE_TBI_BMSR)
 			    & NGE_TBIBMSR_ANEG_DONE) {
 				if (bootverbose)
-					device_printf(sc->nge_dev, 
+					device_printf(sc->nge_dev,
 					    "gigabit link up\n");
 				nge_miibus_statchg(sc->nge_miibus);
 				sc->nge_link++;
@@ -1296,9 +1296,9 @@ nge_tick(void *xsc)
 			if (mii->mii_media_status & IFM_ACTIVE &&
 			    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 				sc->nge_link++;
-				if (IFM_SUBTYPE(mii->mii_media_active) 
+				if (IFM_SUBTYPE(mii->mii_media_active)
 				    == IFM_1000_T && bootverbose)
-					device_printf(sc->nge_dev, 
+					device_printf(sc->nge_dev,
 					    "gigabit link up\n");
 				if (ifp->if_snd.ifq_head != NULL)
 					nge_start_locked(ifp);
@@ -1422,7 +1422,7 @@ nge_intr(void *arg)
 		}
 
 #if 0
-		/* 
+		/*
 		 * XXX: nge_tick() is not ready to be called this way
 		 * it screws up the aneg timeout because mii_tick() is
 		 * only to be called once per second.
@@ -1711,7 +1711,7 @@ nge_init_locked(struct nge_softc *sc)
 
 	/* Set full/half duplex mode. */
 	if (sc->nge_tbi) {
-		if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK) 
+		if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK)
 		    == IFM_FDX) {
 			NGE_SETBIT(sc, NGE_TX_CFG,
 			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
@@ -1804,16 +1804,16 @@ nge_ifmedia_upd_locked(struct ifnet *ifp)
 	NGE_LOCK_ASSERT(sc);
 
 	if (sc->nge_tbi) {
-		if (IFM_SUBTYPE(sc->nge_ifmedia.ifm_cur->ifm_media) 
+		if (IFM_SUBTYPE(sc->nge_ifmedia.ifm_cur->ifm_media)
 		     == IFM_AUTO) {
-			CSR_WRITE_4(sc, NGE_TBI_ANAR, 
+			CSR_WRITE_4(sc, NGE_TBI_ANAR,
 				CSR_READ_4(sc, NGE_TBI_ANAR)
 					| NGE_TBIANAR_HDX | NGE_TBIANAR_FDX
 					| NGE_TBIANAR_PS1 | NGE_TBIANAR_PS2);
 			CSR_WRITE_4(sc, NGE_TBI_BMCR, NGE_TBIBMCR_ENABLE_ANEG
 				| NGE_TBIBMCR_RESTART_ANEG);
 			CSR_WRITE_4(sc, NGE_TBI_BMCR, NGE_TBIBMCR_ENABLE_ANEG);
-		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media 
+		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media
 			    & IFM_GMASK) == IFM_FDX) {
 			NGE_SETBIT(sc, NGE_TX_CFG,
 			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
@@ -1829,7 +1829,7 @@ nge_ifmedia_upd_locked(struct ifnet *ifp)
 			CSR_WRITE_4(sc, NGE_TBI_ANAR, 0);
 			CSR_WRITE_4(sc, NGE_TBI_BMCR, 0);
 		}
-			
+
 		CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
 			    & ~NGE_GPIO_GP3_OUT);
 	} else {
@@ -1863,7 +1863,7 @@ nge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 		if (CSR_READ_4(sc, NGE_TBI_BMSR) & NGE_TBIBMSR_ANEG_DONE) {
 			ifmr->ifm_status |= IFM_ACTIVE;
-		} 
+		}
 		if (CSR_READ_4(sc, NGE_TBI_BMCR) & NGE_TBIBMCR_LOOPBACK)
 			ifmr->ifm_active |= IFM_LOOP;
 		if (!CSR_READ_4(sc, NGE_TBI_BMSR) & NGE_TBIBMSR_ANEG_DONE) {
@@ -1871,7 +1871,7 @@ nge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 			ifmr->ifm_status = 0;
 			NGE_UNLOCK(sc);
 			return;
-		} 
+		}
 		ifmr->ifm_active |= IFM_1000_SX;
 		if (IFM_SUBTYPE(sc->nge_ifmedia.ifm_cur->ifm_media)
 		    == IFM_AUTO) {
@@ -1883,12 +1883,12 @@ nge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 				  & NGE_TBIANAR_HDX) {
 				ifmr->ifm_active |= IFM_HDX;
 			}
-		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK) 
+		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK)
 			== IFM_FDX)
 			ifmr->ifm_active |= IFM_FDX;
 		else
 			ifmr->ifm_active |= IFM_HDX;
- 
+
 	} else {
 		mii = device_get_softc(sc->nge_miibus);
 		mii_pollstat(mii);
@@ -1969,11 +1969,11 @@ nge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		if (sc->nge_tbi) {
-			error = ifmedia_ioctl(ifp, ifr, &sc->nge_ifmedia, 
+			error = ifmedia_ioctl(ifp, ifr, &sc->nge_ifmedia,
 					      command);
 		} else {
 			mii = device_get_softc(sc->nge_miibus);
-			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, 
+			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media,
 					      command);
 		}
 		break;
@@ -1990,7 +1990,7 @@ nge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable |= IFCAP_POLLING;
 			NGE_UNLOCK(sc);
 			return (error);
-			
+
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
 		    ifp->if_capenable & IFCAP_POLLING) {

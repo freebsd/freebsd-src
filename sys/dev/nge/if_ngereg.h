@@ -422,7 +422,7 @@
 /* TBI BMCR */
 #define NGE_TBIBMCR_RESTART_ANEG	0x00000200
 #define NGE_TBIBMCR_ENABLE_ANEG		0x00001000
-#define NGE_TBIBMCR_LOOPBACK		0x00004000 
+#define NGE_TBIBMCR_LOOPBACK		0x00004000
 
 /* TBI BMSR */
 #define NGE_TBIBMSR_ANEG_DONE	0x00000004
@@ -467,7 +467,7 @@
  * After this, we include some additional structure members for
  * use by the driver. Note that for this structure will be a different
  * size on the alpha, but that's okay as long as it's a multiple of 4
- * bytes in size. 
+ * bytes in size.
  *
  */
 struct nge_desc_64 {
