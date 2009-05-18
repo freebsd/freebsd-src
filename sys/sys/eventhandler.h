@@ -182,6 +182,11 @@ typedef void (*vlan_unconfig_fn)(void *, struct ifnet *, uint16_t);
 EVENTHANDLER_DECLARE(vlan_config, vlan_config_fn);
 EVENTHANDLER_DECLARE(vlan_unconfig, vlan_unconfig_fn);
 
+/* BPF attach/detach events */
+struct ifnet;
+typedef void (*bpf_track_fn)(void *, struct ifnet *, int /* 1 =>'s attach */);
+EVENTHANDLER_DECLARE(bpf_track, bpf_track_fn);
+
 /*
  * Process events
  * process_fork and exit handlers are called without Giant.
