@@ -151,7 +151,7 @@ static int nge_attach(device_t);
 static int nge_detach(device_t);
 
 static int nge_newbuf(struct nge_softc *, struct nge_desc *, struct mbuf *);
-static int nge_encap(struct nge_softc *, struct mbuf *, u_int32_t *);
+static int nge_encap(struct nge_softc *, struct mbuf *, uint32_t *);
 #ifdef NGE_FIXUP_RX
 static __inline void nge_fixup_rx (struct mbuf *);
 #endif
@@ -174,11 +174,11 @@ static void nge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void nge_delay(struct nge_softc *);
 static void nge_eeprom_idle(struct nge_softc *);
 static void nge_eeprom_putbyte(struct nge_softc *, int);
-static void nge_eeprom_getword(struct nge_softc *, int, u_int16_t *);
+static void nge_eeprom_getword(struct nge_softc *, int, uint16_t *);
 static void nge_read_eeprom(struct nge_softc *, caddr_t, int, int, int);
 
 static void nge_mii_sync(struct nge_softc *);
-static void nge_mii_send(struct nge_softc *, u_int32_t, int);
+static void nge_mii_send(struct nge_softc *, uint32_t, int);
 static int nge_mii_readreg(struct nge_softc *, struct nge_mii_frame *);
 static int nge_mii_writereg(struct nge_softc *, struct nge_mii_frame *);
 
@@ -307,10 +307,10 @@ nge_eeprom_putbyte(struct nge_softc *sc, int addr)
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
 static void
-nge_eeprom_getword(struct nge_softc *sc, int addr, u_int16_t *dest)
+nge_eeprom_getword(struct nge_softc *sc, int addr, uint16_t *dest)
 {
 	int			i;
-	u_int16_t		word = 0;
+	uint16_t		word = 0;
 
 	/* Force EEPROM to idle state. */
 	nge_eeprom_idle(sc);
@@ -353,11 +353,11 @@ static void
 nge_read_eeprom(struct nge_softc *sc, caddr_t dest, int off, int cnt, int swap)
 {
 	int			i;
-	u_int16_t		word = 0, *ptr;
+	uint16_t		word = 0, *ptr;
 
 	for (i = 0; i < cnt; i++) {
 		nge_eeprom_getword(sc, off + i, &word);
-		ptr = (u_int16_t *)(dest + (i * 2));
+		ptr = (uint16_t *)(dest + (i * 2));
 		if (swap)
 			*ptr = ntohs(word);
 		else
@@ -387,7 +387,7 @@ nge_mii_sync(struct nge_softc *sc)
  * Clock a series of bits through the MII.
  */
 static void
-nge_mii_send(struct nge_softc *sc, u_int32_t bits, int cnt)
+nge_mii_send(struct nge_softc *sc, uint32_t bits, int cnt)
 {
 	int			i;
 
@@ -630,7 +630,7 @@ nge_setmulti(struct nge_softc *sc)
 {
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
-	u_int32_t		h = 0, i, filtsave;
+	uint32_t		h = 0, i, filtsave;
 	int			bit, index;
 
 	NGE_LOCK_ASSERT(sc);
@@ -1014,7 +1014,7 @@ nge_newbuf(struct nge_softc *sc, struct nge_desc *c, struct mbuf *m)
 
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
 
-	m_adj(m, sizeof(u_int64_t));
+	m_adj(m, sizeof(uint64_t));
 
 	c->nge_mbuf = m;
 	c->nge_ptr = vtophys(mtod(m, caddr_t));
@@ -1054,14 +1054,14 @@ nge_rxeof(struct nge_softc *sc)
         struct ifnet		*ifp;
 	struct nge_desc		*cur_rx;
 	int			i, total_len = 0;
-	u_int32_t		rxstat;
+	uint32_t		rxstat;
 
 	NGE_LOCK_ASSERT(sc);
 	ifp = sc->nge_ifp;
 	i = sc->nge_cdata.nge_rx_prod;
 
 	while (NGE_OWNDESC(&sc->nge_ldata->nge_rx_list[i])) {
-		u_int32_t		extsts;
+		uint32_t		extsts;
 
 #ifdef DEVICE_POLLING
 		if (ifp->if_capenable & IFCAP_POLLING) {
@@ -1193,7 +1193,7 @@ nge_txeof(struct nge_softc *sc)
 {
 	struct nge_desc		*cur_tx;
 	struct ifnet		*ifp;
-	u_int32_t		idx;
+	uint32_t		idx;
 
 	NGE_LOCK_ASSERT(sc);
 	ifp = sc->nge_ifp;
@@ -1315,7 +1315,7 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		nge_start_locked(ifp);
 
 	if (sc->rxcycles > 0 || cmd == POLL_AND_CHECK_STATUS) {
-		u_int32_t	status;
+		uint32_t	status;
 
 		/* Reading the ISR register clears all interrupts. */
 		status = CSR_READ_4(sc, NGE_ISR);
@@ -1340,7 +1340,7 @@ nge_intr(void *arg)
 {
 	struct nge_softc	*sc;
 	struct ifnet		*ifp;
-	u_int32_t		status;
+	uint32_t		status;
 
 	sc = arg;
 	ifp = sc->nge_ifp;
@@ -1431,7 +1431,7 @@ nge_intr(void *arg)
  * pointers to the fragment pointers.
  */
 static int
-nge_encap(struct nge_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
+nge_encap(struct nge_softc *sc, struct mbuf *m_head, uint32_t *txidx)
 {
 	struct nge_desc		*f = NULL;
 	struct mbuf		*m;
@@ -1514,7 +1514,7 @@ nge_start_locked(struct ifnet *ifp)
 {
 	struct nge_softc	*sc;
 	struct mbuf		*m_head = NULL;
-	u_int32_t		idx;
+	uint32_t		idx;
 
 	sc = ifp->if_softc;
 
@@ -1590,13 +1590,13 @@ nge_init_locked(struct nge_softc *sc)
 	/* Set MAC address */
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR0);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)IF_LLADDR(sc->nge_ifp))[0]);
+	    ((uint16_t *)IF_LLADDR(sc->nge_ifp))[0]);
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR1);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)IF_LLADDR(sc->nge_ifp))[1]);
+	    ((uint16_t *)IF_LLADDR(sc->nge_ifp))[1]);
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR2);
 	CSR_WRITE_4(sc, NGE_RXFILT_DATA,
-	    ((u_int16_t *)IF_LLADDR(sc->nge_ifp))[2]);
+	    ((uint16_t *)IF_LLADDR(sc->nge_ifp))[2]);
 
 	/* Init circular RX list. */
 	if (nge_list_rx_init(sc) == ENOBUFS) {
