@@ -250,8 +250,6 @@ nge_delay(struct nge_softc *sc)
 
 	for (idx = (300 / 33) + 1; idx > 0; idx--)
 		CSR_READ_4(sc, NGE_CSR);
-
-	return;
 }
 
 static void
@@ -276,8 +274,6 @@ nge_eeprom_idle(struct nge_softc *sc)
 	SIO_CLR(NGE_MEAR_EE_CSEL);
 	nge_delay(sc);
 	CSR_WRITE_4(sc, NGE_MEAR, 0x00000000);
-
-	return;
 }
 
 /*
@@ -305,8 +301,6 @@ nge_eeprom_putbyte(struct nge_softc *sc, int addr)
 		SIO_CLR(NGE_MEAR_EE_CLK);
 		nge_delay(sc);
 	}
-
-	return;
 }
 
 /*
@@ -350,8 +344,6 @@ nge_eeprom_getword(struct nge_softc *sc, int addr, u_int16_t *dest)
 	nge_eeprom_idle(sc);
 
 	*dest = word;
-
-	return;
 }
 
 /*
@@ -371,8 +363,6 @@ nge_read_eeprom(struct nge_softc *sc, caddr_t dest, int off, int cnt, int swap)
 		else
 			*ptr = word;
 	}
-
-	return;
 }
 
 /*
@@ -391,8 +381,6 @@ nge_mii_sync(struct nge_softc *sc)
 		SIO_CLR(NGE_MEAR_MII_CLK);
 		DELAY(1);
 	}
-
-	return;
 }
 
 /*
@@ -635,7 +623,6 @@ nge_miibus_statchg(device_t dev)
 			NGE_CLRBIT(sc, NGE_CFG, NGE_CFG_MODE_1000);
 		}
 	}
-	return;
 }
 
 static void
@@ -695,8 +682,6 @@ nge_setmulti(struct nge_softc *sc)
 	IF_ADDR_UNLOCK(ifp);
 
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, filtsave);
-
-	return;
 }
 
 static void
@@ -723,8 +708,6 @@ nge_reset(struct nge_softc *sc)
 	 */
 	CSR_WRITE_4(sc, NGE_CLKRUN, NGE_CLKRUN_PMESTS);
 	CSR_WRITE_4(sc, NGE_CLKRUN, 0);
-
-        return;
 }
 
 /*
@@ -1198,8 +1181,6 @@ nge_rxeof(struct nge_softc *sc)
 	}
 
 	sc->nge_cdata.nge_rx_prod = i;
-
-	return;
 }
 
 /*
@@ -1260,8 +1241,6 @@ nge_txeof(struct nge_softc *sc)
 
 	if (idx == sc->nge_cdata.nge_tx_prod)
 		ifp->if_timer = 0;
-
-	return;
 }
 
 static void
@@ -1306,8 +1285,6 @@ nge_tick(void *xsc)
 		}
 	}
 	callout_reset(&sc->nge_stat_ch, hz, nge_tick, sc);
-
-	return;
 }
 
 #ifdef DEVICE_POLLING
@@ -1447,8 +1424,6 @@ nge_intr(void *arg)
 			    & ~NGE_GPIO_GP3_OUT);
 
 	NGE_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -1578,8 +1553,6 @@ nge_start_locked(struct ifnet *ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
-
-	return;
 }
 
 static void
@@ -1775,8 +1748,6 @@ nge_init_locked(struct nge_softc *sc)
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	return;
 }
 
 /*
@@ -1896,8 +1867,6 @@ nge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		ifmr->ifm_status = mii->mii_media_status;
 	}
 	NGE_UNLOCK(sc);
-
-	return;
 }
 
 static int
@@ -2032,8 +2001,6 @@ nge_watchdog(struct ifnet *ifp)
 		nge_start_locked(ifp);
 
 	NGE_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -2095,8 +2062,6 @@ nge_stop(struct nge_softc *sc)
 		sizeof(sc->nge_ldata->nge_tx_list));
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
-	return;
 }
 
 /*
