@@ -147,6 +147,7 @@ void	panic(const char *, ...) __dead2 __printflike(1, 2);
 #endif
 
 void	cpu_boot(int);
+void	cpu_flush_dcache(void *, size_t);
 void	cpu_rootconf(void);
 void	critical_enter(void);
 void	critical_exit(void);
