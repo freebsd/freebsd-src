@@ -135,7 +135,6 @@ bwi_phy_write(struct bwi_mac *mac, uint16_t ctrl, uint16_t data)
 {
 	struct bwi_softc *sc = mac->mac_sc;
 
-	/* TODO: 11A */
 	CSR_WRITE_2(sc, BWI_PHY_CTRL, ctrl);
 	CSR_WRITE_2(sc, BWI_PHY_DATA, data);
 }
@@ -145,7 +144,6 @@ bwi_phy_read(struct bwi_mac *mac, uint16_t ctrl)
 {
 	struct bwi_softc *sc = mac->mac_sc;
 
-	/* TODO: 11A */
 	CSR_WRITE_2(sc, BWI_PHY_CTRL, ctrl);
 	return CSR_READ_2(sc, BWI_PHY_DATA);
 }
