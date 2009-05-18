@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.130 2009/02/03 20:27:51 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.131 2009/02/13 18:48:05 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -61,7 +61,7 @@ FILE_RCSID("@(#)$File: file.c,v 1.130 2009/02/03 20:27:51 christos Exp $")
 #include <wchar.h>
 #endif
 
-#ifdef HAVE_GETOPT_H
+#if defined(HAVE_GETOPT_H) && defined(HAVE_STRUCT_OPTION)
 #include <getopt.h>
 #else
 #include "mygetopt.h"
