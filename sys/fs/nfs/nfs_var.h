@@ -351,7 +351,7 @@ int nfsrpc_openrpc(struct nfsmount *, vnode_t, u_int8_t *, int, u_int8_t *, int,
     u_int32_t, struct ucred *, NFSPROC_T *, int, int);
 int nfsrpc_opendowngrade(vnode_t, u_int32_t, struct nfsclopen *,
     struct ucred *, NFSPROC_T *);
-int nfsrpc_close(vnode_t, struct ucred *, NFSPROC_T *);
+int nfsrpc_close(vnode_t, int, NFSPROC_T *);
 int nfsrpc_closerpc(struct nfsrv_descript *, struct nfsmount *,
     struct nfsclopen *, struct ucred *, NFSPROC_T *, int);
 int nfsrpc_openconfirm(vnode_t, u_int8_t *, int, struct nfsclopen *,
@@ -457,8 +457,7 @@ void nfscl_initiate_recovery(struct nfsclclient *);
 int nfscl_hasexpired(struct nfsclclient *, u_int32_t, NFSPROC_T *);
 void nfscl_dumpstate(struct nfsmount *, int, int, int, int);
 void nfscl_dupopen(vnode_t, int);
-int nfscl_getclose(vnode_t, struct ucred *, NFSPROC_T *,
-    struct nfsclclient **, struct nfsclopenhead *);
+int nfscl_getclose(vnode_t, struct nfsclclient **, struct nfsclopenhead *);
 int nfscl_deleg(mount_t, struct nfsclclient *, u_int8_t *, int,
     struct ucred *, NFSPROC_T *, struct nfscldeleg **);
 void nfscl_lockinit(struct nfsv4lock *);
