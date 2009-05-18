@@ -1148,7 +1148,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	struct mbuf **controlp;
 	caddr_t outbuf;
 	void *data;
-	int error;
+	int error, i, fd, fds, *fdp;
 
 	error = copyin(PTRIN(args->msg), &linux_msg, sizeof(linux_msg));
 	if (error)
@@ -1217,15 +1217,30 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 			data = CMSG_DATA(cm);
 			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
 
-			if (outlen + LINUX_CMSG_LEN(datalen) >
-			    linux_msg.msg_controllen) {
-				if (outlen == 0) {
-					error = EMSGSIZE;
-					goto bad;
-				} else {
-					linux_msg.msg_flags |= LINUX_MSG_CTRUNC;
-					goto out;
+			switch (linux_cmsg->cmsg_type)
+			{
+			case LINUX_SCM_RIGHTS:
+				if (outlen + LINUX_CMSG_LEN(datalen) >
+				    linux_msg.msg_controllen) {
+					if (outlen == 0) {
+						error = EMSGSIZE;
+						goto bad;
+					} else {
+						linux_msg.msg_flags |=
+						    LINUX_MSG_CTRUNC;
+						goto out;
+					}
 				}
+				if (args->flags & LINUX_MSG_CMSG_CLOEXEC) {
+					fds = datalen / sizeof(int);
+					fdp = data;
+					for (i = 0; i < fds; i++) {
+						fd = *fdp++;
+						(void)kern_fcntl(td, fd,
+						    F_SETFD, FD_CLOEXEC);
+					}
+				}
+				break;
 			}
 
 			linux_cmsg->cmsg_len = LINUX_CMSG_LEN(datalen);
