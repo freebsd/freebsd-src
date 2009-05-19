@@ -109,6 +109,7 @@ typedef enum {
 	HAL_CAP_RXTSTAMP_PREC	= 34,	/* rx desc tstamp precision (bits) */
 	HAL_CAP_BB_HANG		= 35,	/* can baseband hang */
 	HAL_CAP_MAC_HANG	= 36,	/* can MAC hang */
+	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -348,8 +349,8 @@ typedef enum {
 			| HAL_INT_RXDESC
 			| HAL_INT_RXEOL
 			| HAL_INT_RXORN
-			| HAL_INT_TXURN
 			| HAL_INT_TXDESC
+			| HAL_INT_TXURN
 			| HAL_INT_MIB
 			| HAL_INT_RXPHY
 			| HAL_INT_RXKCM
