@@ -50,6 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
+struct ata_serialize {
+    struct mtx  locked_mtx;
+    int         locked_ch;
+    int         restart_ch;
+};
+
 /* local prototypes */
 /* ata-chipset.c */
 static int ata_generic_chipinit(device_t dev);
@@ -186,6 +192,7 @@ static struct ata_chip_id *ata_match_chip(device_t dev, struct ata_chip_id *inde
 static struct ata_chip_id *ata_find_chip(device_t dev, struct ata_chip_id *index, int slot);
 static int ata_setup_interrupt(device_t dev);
 static int ata_serialize(device_t dev, int flags);
+static void ata_serialize_init(struct ata_serialize *serial);
 static void ata_print_cable(device_t dev, u_int8_t *who);
 static int ata_atapi(device_t dev);
 static int ata_check_80pin(device_t dev, int mode);
@@ -919,6 +926,7 @@ static int
 ata_acard_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ata_serialize *serial;
 
     if (ata_setup_interrupt(dev))
 	return ENXIO;
@@ -927,6 +935,10 @@ ata_acard_chipinit(device_t dev)
     if (ctlr->chip->cfg1 == ATPOLD) {
 	ctlr->setmode = ata_acard_850_setmode;
 	ctlr->locking = ata_serialize;
+	serial = malloc(sizeof(struct ata_serialize),
+			      M_TEMP, M_WAITOK | M_ZERO);
+	ata_serialize_init(serial);
+	ctlr->chipset_data = serial;
     }
     else
 	ctlr->setmode = ata_acard_86X_setmode;
@@ -3461,7 +3473,7 @@ ata_promise_chipinit(device_t dev)
 	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;
-	    device_set_ivars(dev, hpkt);
+	    ctlr->chipset_data = hpkt;
 	    ctlr->allocate = ata_promise_mio_allocate;
 	    ctlr->reset = ata_promise_mio_reset;
 	    ctlr->dmainit = ata_promise_mio_dmainit;
@@ -3908,7 +3920,7 @@ ata_promise_mio_reset(device_t dev)
     case PRSX4X:
 
 	/* softreset channel ATA module */
-	hpktp = device_get_ivars(ctlr->dev);
+	hpktp = ctlr->chipset_data;
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7), ch->unit + 1);
 	ata_udelay(1000);
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7),
@@ -4247,7 +4259,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 static void
 ata_promise_queue_hpkt(struct ata_pci_controller *ctlr, u_int32_t hpkt)
 {
-    struct ata_promise_sx4 *hpktp = device_get_ivars(ctlr->dev);
+    struct ata_promise_sx4 *hpktp = ctlr->chipset_data;
 
     mtx_lock(&hpktp->mtx);
     if (hpktp->busy) {
@@ -4266,7 +4278,7 @@ ata_promise_queue_hpkt(struct ata_pci_controller *ctlr, u_int32_t hpkt)
 static void
 ata_promise_next_hpkt(struct ata_pci_controller *ctlr)
 {
-    struct ata_promise_sx4 *hpktp = device_get_ivars(ctlr->dev);
+    struct ata_promise_sx4 *hpktp = ctlr->chipset_data;
     struct host_packet *hp;
 
     mtx_lock(&hpktp->mtx);
@@ -5841,11 +5853,14 @@ ata_setup_interrupt(device_t dev)
     return 0;
 }
 
-struct ata_serialize {
-    struct mtx  locked_mtx;
-    int         locked_ch;
-    int         restart_ch;
-};
+static void
+ata_serialize_init(struct ata_serialize *serial)
+{
+
+    mtx_init(&serial->locked_mtx, "ATA serialize lock", NULL, MTX_DEF); 
+    serial->locked_ch = -1;
+    serial->restart_ch = -1;
+}
 
 static int
 ata_serialize(device_t dev, int flags)
@@ -5853,20 +5868,9 @@ ata_serialize(device_t dev, int flags)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_serialize *serial;
-    static int inited = 0;
     int res;
 
-    if (!inited) {
-	serial = malloc(sizeof(struct ata_serialize),
-			      M_TEMP, M_NOWAIT | M_ZERO);
-	mtx_init(&serial->locked_mtx, "ATA serialize lock", NULL, MTX_DEF); 
-	serial->locked_ch = -1;
-	serial->restart_ch = -1;
-	device_set_ivars(ctlr->dev, serial);
-	inited = 1;
-    }
-    else
-	serial = device_get_ivars(ctlr->dev);
+    serial = ctlr->chipset_data;
 
     mtx_lock(&serial->locked_mtx);
     switch (flags) {
