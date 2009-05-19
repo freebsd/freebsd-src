@@ -297,7 +297,7 @@ intr_controller_register(int vec, const struct intr_controller *ic,
 	sx_xunlock(&intr_table_lock);
 	if (ie != NULL)
 		return (EEXIST);
-	error = intr_event_create(&ie, iv, 0, NULL, ic->ic_clear,
+	error = intr_event_create(&ie, iv, 0, vec, NULL, ic->ic_clear,
 	    ic->ic_clear, intr_assign_cpu, "vec%d:", vec);
 	if (error != 0)
 		return (error);
