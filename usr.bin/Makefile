@@ -149,6 +149,7 @@ SUBDIR=	alias \
 	passwd \
 	paste \
 	pathchk \
+	perror \
 	pr \
 	printenv \
 	printf \
