@@ -119,8 +119,6 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXERR);
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXEOL);
 		}
-		if (isr & AR_ISR_BNR)
-			*masked |= HAL_INT_BNR;
 
 		/* Interrupt Mitigation on AR5416 */
 #ifdef AR5416_INT_MITIGATION
@@ -229,8 +227,6 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		if (ints & HAL_INT_TSFOOR)
 			mask2 |= AR_IMR_S2_TSFOOR;
 	}
-	if (ints & HAL_INT_BNR)
-		mask |= AR_IMR_BNR;
 
 	/* Write the new IMR and store off our SW copy. */
 	HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: new IMR 0x%x\n", __func__, mask);

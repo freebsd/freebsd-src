@@ -356,6 +356,7 @@ typedef enum {
 			| HAL_INT_RXKCM
 			| HAL_INT_SWBA
 			| HAL_INT_BMISS
+			| HAL_INT_BNR
 			| HAL_INT_GPIO,
 } HAL_INT;
 
