@@ -70,6 +70,8 @@ ar5212GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			mask2 |= HAL_INT_DTIMSYNC;
 		if (isr2 & AR_ISR_S2_CABEND)
 			mask2 |= HAL_INT_CABEND;
+		if (isr2 & AR_ISR_S2_TBTT)
+			mask2 |= HAL_INT_TBTT;
 	}
 	isr = OS_REG_READ(ah, AR_ISR_RAC);
 	if (isr == 0xffffffff) {
@@ -172,6 +174,8 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 			mask2 |= AR_IMR_S2_DTIMSYNC;
 		if (ints & HAL_INT_CABEND)
 			mask2 |= AR_IMR_S2_CABEND;
+		if (ints & HAL_INT_TBTT)
+			mask2 |= AR_IMR_S2_TBTT;
 	}
 	if (ints & HAL_INT_FATAL) {
 		/*
