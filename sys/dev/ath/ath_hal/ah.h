@@ -328,7 +328,7 @@ typedef enum {
 	HAL_INT_RXKCM	= 0x00008000,
 	HAL_INT_SWBA	= 0x00010000,
 	HAL_INT_BMISS	= 0x00040000,
-	HAL_INT_BNR	= 0x00100000,	/* Non-common mapping */
+	HAL_INT_BNR	= 0x00100000,
 	HAL_INT_TIM	= 0x00200000,	/* Non-common mapping */
 	HAL_INT_DTIM	= 0x00400000,	/* Non-common mapping */
 	HAL_INT_DTIMSYNC= 0x00800000,	/* Non-common mapping */
