@@ -63,6 +63,33 @@ struct intr_handler {
 
 /*
  * Describe an interrupt event.  An event holds a list of handlers.
+ * The 'pre_ithread', 'post_ithread', 'post_filter', and 'assign_cpu'
+ * hooks are used to invoke MD code for certain operations.
+ *
+ * The 'pre_ithread' hook is called when an interrupt thread for
+ * handlers without filters is scheduled.  It is responsible for
+ * ensuring that 1) the system won't be swamped with an interrupt
+ * storm from the associated source while the ithread runs and 2) the
+ * current CPU is able to receive interrupts from other interrupt
+ * sources.  The first is usually accomplished by disabling
+ * level-triggered interrupts until the ithread completes.  The second
+ * is accomplished on some platforms by acknowledging the interrupt
+ * via an EOI.
+ *
+ * The 'post_ithread' hook is invoked when an ithread finishes.  It is
+ * responsible for ensuring that the associated interrupt source will
+ * trigger an interrupt when it is asserted in the future.  Usually
+ * this is implemented by enabling a level-triggered interrupt that
+ * was previously disabled via the 'pre_ithread' hook.
+ *
+ * The 'post_filter' hook is invoked when a filter handles an
+ * interrupt.  It is responsible for ensuring that the current CPU is
+ * able to receive interrupts again.  On some platforms this is done
+ * by acknowledging the interrupts via an EOI.
+ *
+ * The 'assign_cpu' hook is used to bind an interrupt source to a
+ * specific CPU.  If the interrupt cannot be bound, this function may
+ * return an error.
  */
 struct intr_event {
 	TAILQ_ENTRY(intr_event) ie_list;
@@ -72,9 +99,9 @@ struct intr_event {
 	struct mtx	ie_lock;
 	void		*ie_source;	/* Cookie used by MD code. */
 	struct intr_thread *ie_thread;	/* Thread we are connected to. */
-	void		(*ie_disable)(void *);
-	void		(*ie_enable)(void *);
-	void		(*ie_eoi)(void *);
+	void		(*ie_pre_ithread)(void *);
+	void		(*ie_post_ithread)(void *);
+	void		(*ie_post_filter)(void *);
 	int		(*ie_assign_cpu)(void *, u_char);
 	int		ie_flags;
 	int		ie_count;	/* Loop counter. */
@@ -118,29 +145,19 @@ extern char 	intrnames[];	/* string table containing device names */
 #ifdef DDB
 void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
-#ifdef INTR_FILTER
-int     intr_filter_loop(struct intr_event *ie, struct trapframe *frame, 
-			 struct intr_thread **ithd);
-int     intr_event_handle(struct intr_event *ie, struct trapframe *frame);
-#endif
 u_char	intr_priority(enum intr_type flags);
 int	intr_event_add_handler(struct intr_event *ie, const char *name,
 	    driver_filter_t filter, driver_intr_t handler, void *arg, 
 	    u_char pri, enum intr_type flags, void **cookiep);	    
 int	intr_event_bind(struct intr_event *ie, u_char cpu);
 int	intr_event_create(struct intr_event **event, void *source,
-	    int flags, void (*disable)(void *), void (*enable)(void *),
-	    void (*eoi)(void *), int (*assign_cpu)(void *, u_char),
-	    const char *fmt, ...)
+	    int flags, void (*pre_ithread)(void *),
+	    void (*post_ithread)(void *), void (*post_filter)(void *),
+	    int (*assign_cpu)(void *, u_char), const char *fmt, ...)
 	    __printflike(8, 9);
 int	intr_event_destroy(struct intr_event *ie);
+int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
-#ifndef INTR_FILTER
-int	intr_event_schedule_thread(struct intr_event *ie);
-#else
-int	intr_event_schedule_thread(struct intr_event *ie,
-	    struct intr_thread *ithd);
-#endif
 void	*intr_handler_source(void *cookie);
 int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,

@@ -275,57 +275,9 @@ static void
 intr_execute_handlers(void *cookie)
 {
 	struct intr_vector *iv;
-#ifndef INTR_FILTER
-	struct intr_event *ie;
-	struct intr_handler *ih;
-	int error, thread, ret;
-#endif
 
 	iv = cookie;
-#ifndef INTR_FILTER
-	ie = iv->iv_event;
-	if (iv->iv_ic == NULL || ie == NULL) {
-		intr_stray_vector(iv);
-		return;
-	}
-
-	/* Execute fast interrupt handlers directly. */
-	ret = 0;
-	thread = 0;
-	critical_enter();
-	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (ih->ih_filter == NULL) {
-			thread = 1;
-			continue;
-		}
-		MPASS(ih->ih_filter != NULL && ih->ih_argument != NULL);
-		CTR3(KTR_INTR, "%s: executing handler %p(%p)", __func__,
-		    ih->ih_filter, ih->ih_argument);
-		ret = ih->ih_filter(ih->ih_argument);
-		/*
-		 * Wrapper handler special case: see
-		 * i386/intr_machdep.c::intr_execute_handlers()
-		 */
-		if (!thread) {
-			if (ret == FILTER_SCHEDULE_THREAD)
-				thread = 1;
-		}
-	}
-	if (!thread)
-		iv->iv_ic->ic_clear(iv);
-
-	/* Schedule a heavyweight interrupt process. */
-	if (thread)
-		error = intr_event_schedule_thread(ie);
-	else if (TAILQ_EMPTY(&ie->ie_handlers))
-		error = EINVAL;
-	else
-		error = 0;
-	critical_exit();
-	if (error == EINVAL)
-#else
 	if (iv->iv_ic == NULL || intr_event_handle(iv->iv_event, NULL) != 0)
-#endif
 		intr_stray_vector(iv);
 }
 
