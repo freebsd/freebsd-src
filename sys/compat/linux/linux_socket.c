@@ -1467,11 +1467,38 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	return (error);
 }
 
+/* Argument list sizes for linux_socketcall */
+
+#define LINUX_AL(x) ((x) * sizeof(l_ulong))
+
+static const unsigned char lxs_args[] = {
+	LINUX_AL(0) /* unused*/,	LINUX_AL(3) /* socket */,
+	LINUX_AL(3) /* bind */,		LINUX_AL(3) /* connect */,
+	LINUX_AL(2) /* listen */,	LINUX_AL(3) /* accept */,
+	LINUX_AL(3) /* getsockname */,	LINUX_AL(3) /* getpeername */,
+	LINUX_AL(4) /* socketpair */,	LINUX_AL(4) /* send */,
+	LINUX_AL(4) /* recv */,		LINUX_AL(6) /* sendto */,
+	LINUX_AL(6) /* recvfrom */,	LINUX_AL(2) /* shutdown */,
+	LINUX_AL(5) /* setsockopt */,	LINUX_AL(5) /* getsockopt */,
+	LINUX_AL(3) /* sendmsg */,	LINUX_AL(3) /* recvmsg */
+};
+
+#define	LINUX_AL_SIZE	sizeof(lxs_args) / sizeof(lxs_args[0]) - 1
+
 int
 linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
 {
-	void *arg = (void *)(intptr_t)args->args;
+	l_ulong a[6];
+	void *arg;
+	int error;
 
+	if (args->what < LINUX_SOCKET || args->what > LINUX_AL_SIZE)
+		return (EINVAL);
+	error = copyin(PTRIN(args->args), a, lxs_args[args->what]);
+	if (error)
+		return (error);
+
+	arg = a;
 	switch (args->what) {
 	case LINUX_SOCKET:
 		return (linux_socket(td, arg));
