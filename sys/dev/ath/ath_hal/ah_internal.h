@@ -206,6 +206,7 @@ typedef struct {
 	uint8_t		halNumGpioPins;
 	uint8_t		halNumAntCfg2GHz;
 	uint8_t		halNumAntCfg5GHz;
+	uint32_t	halIntrMask;
 } HAL_CAPABILITIES;
 
 struct regDomain;
