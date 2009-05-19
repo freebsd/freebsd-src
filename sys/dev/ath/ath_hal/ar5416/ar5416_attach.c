@@ -781,6 +781,17 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 
 	pCap->halTstampPrecision = 32;
 	pCap->halHwPhyCounterSupport = AH_TRUE;
+	pCap->halIntrMask = HAL_INT_COMMON
+			| HAL_INT_RX
+			| HAL_INT_TX
+			| HAL_INT_FATAL
+			| HAL_INT_BNR
+			| HAL_INT_BMISC
+			| HAL_INT_DTIMSYNC
+			| HAL_INT_TSFOOR
+			| HAL_INT_CST
+			| HAL_INT_GTT
+			;
 
 	pCap->halFastCCSupport = AH_TRUE;
 	pCap->halNumGpioPins = 6;
