@@ -92,8 +92,6 @@ ar5212GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXERR);
 		ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXEOL);
 	}
-	if (isr & AR_ISR_BNR)
-		*masked |= HAL_INT_BNR;
 
 	/*
 	 * Receive overrun is usually non-fatal on Oahu/Spirit.
@@ -175,8 +173,6 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		if (ints & HAL_INT_CABEND)
 			mask2 |= (AR_IMR_S2_CABEND );
 	}
-	if (ints & HAL_INT_BNR)
-		mask |= AR_IMR_BNR;
 	if (ints & HAL_INT_FATAL) {
 		/*
 		 * NB: ar5212Reset sets MCABT+SSERR+DPERR in AR_IMR_S2

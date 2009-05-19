@@ -64,8 +64,6 @@ ar5211GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		*masked |= HAL_INT_RX;
 	if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR | AR_ISR_TXEOL))
 		*masked |= HAL_INT_TX;
-	if (isr & AR_ISR_BNR)
-		*masked |= HAL_INT_BNR;
 	/*
 	 * Receive overrun is usually non-fatal on Oahu/Spirit.
 	 * BUT on some parts rx could fail and the chip must be reset.
@@ -139,8 +137,6 @@ ar5211SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	}
 	if (ints & HAL_INT_RX)
 		mask |= AR_IMR_RXOK | AR_IMR_RXERR | AR_IMR_RXDESC;
-	if (ints & AR_ISR_BNR)
-		mask |= HAL_INT_BNR;
 	if (ints & HAL_INT_FATAL) {
 		/*
 		 * NB: ar5212Reset sets MCABT+SSERR+DPERR in AR_IMR_S2
