@@ -35,15 +35,17 @@ __FBSDID("$FreeBSD$");
 
 #define MAX_ERR 256
 
-void usage()
+static void 
+usage()
 {
 
-	printf("usage: perror number\n");
-	printf("number must be between 1 and %d\n", ELAST);
+	fprintf(stderr, "usage: perror number\n");
+	fprintf(stderr, "number must be between 1 and %d\n", ELAST);
 	exit(1);
 }
 
-int main(int argc, char **argv)
+int 
+main(int argc, char **argv)
 {
 
 	char errstr[MAX_ERR];
@@ -56,17 +58,17 @@ int main(int argc, char **argv)
 	errnum = strtol(argv[1], &cp, 0);
 
 	if (((errnum == 0) && (errno == EINVAL)) || (*cp != '\0')) {
-		printf("Argument %s not a number.\n", argv[1]);
+		fprintf(stderr, "Argument %s not a number.\n", argv[1]);
 		usage();
 	}
 
 	if ((errnum <=0) || (errnum > ELAST)) {
-		printf("Number %d out of range.\n", errnum);
+		fprintf(stderr, "Number %d out of range.\n", errnum);
 		usage();
 	}
 		
 	if (strerror_r(errnum, errstr, sizeof(errstr)) < 0) {
-		printf("Could not find error number %d.\n", errnum);
+		fprintf(stderr, "Could not find error number %d.\n", errnum);
 		usage();
 	}
 
