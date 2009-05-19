@@ -138,25 +138,19 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 	 * function should  be called before cninit.
 	 */
 	counter_freq = platform_counter_freq;
+	/*
+	 * XXX: Some MIPS32 cores update the Count register only every two
+	 * pipeline cycles.
+	 */
+	if (double_count != 0)
+		counter_freq /= 2;
+
 	cycles_per_tick = counter_freq / 1000;
-	if (double_count)
-		cycles_per_tick *= 2;
 	cycles_per_hz = counter_freq / hz;
 	cycles_per_usec = counter_freq / (1 * 1000 * 1000);
 	cycles_per_sec =  counter_freq ;
 	
 	counter_timecounter.tc_frequency = counter_freq;
-	/*
-	 * XXX: Some MIPS32 cores update the Count register only every two
-	 * pipeline cycles.
-	 * XXX2: We can read this from the hardware register on some
-	 * systems.  Need to investigate.
-	 */
-	if (double_count != 0) {
-		cycles_per_hz /= 2;
-		cycles_per_usec /= 2;
-		cycles_per_sec /= 2;
-	}
 	printf("hz=%d cyl_per_hz:%jd cyl_per_usec:%jd freq:%jd cyl_per_hz:%jd cyl_per_sec:%jd\n",
 	       hz,
 	       cycles_per_tick,
@@ -346,6 +340,7 @@ clock_attach(device_t dev)
 		device_printf(dev, "bus_setup_intr returned %d\n", error);
 		return (error);
 	}
+
 	mips_wr_compare(mips_rd_count() + counter_freq / hz);
 	return (0);
 }
