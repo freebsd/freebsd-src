@@ -335,6 +335,7 @@ typedef enum {
 	HAL_INT_GPIO	= 0x01000000,
 	HAL_INT_CABEND	= 0x02000000,	/* Non-common mapping */
 	HAL_INT_TSFOOR	= 0x04000000,	/* Non-common mapping */
+	HAL_INT_TBTT	= 0x08000000,	/* Non-common mapping */
 	HAL_INT_CST	= 0x10000000,	/* Non-common mapping */
 	HAL_INT_GTT	= 0x20000000,	/* Non-common mapping */
 	HAL_INT_FATAL	= 0x40000000,	/* Non-common mapping */
@@ -342,7 +343,8 @@ typedef enum {
 	HAL_INT_BMISC	= HAL_INT_TIM
 			| HAL_INT_DTIM
 			| HAL_INT_DTIMSYNC
-			| HAL_INT_CABEND,
+			| HAL_INT_CABEND
+			| HAL_INT_TBTT,
 
 	/* Interrupt bits that map directly to ISR/IMR bits */
 	HAL_INT_COMMON  = HAL_INT_RXNOFRM
