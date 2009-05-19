@@ -126,10 +126,8 @@ interfaces to construct a wireless repeater device.
 The driver also support
 .Cm tdma
 operation when compiled with
-.Cd "options AH_SUPPORT_TDMA"
-(and the wlan module is built with
 .Cd "options IEEE80211_SUPPORT_TDMA"
-to enable the associated 802.11 support).
+(which also enables the required 802.11 support).
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
