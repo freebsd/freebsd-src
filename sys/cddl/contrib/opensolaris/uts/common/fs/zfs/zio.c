@@ -33,9 +33,6 @@
 #include <sys/zio_compress.h>
 #include <sys/zio_checksum.h>
 
-#if defined(_KERNEL) && defined(__amd64__)
-#include <vm/vm_phys.h>
-#endif
 /*
  * ==========================================================================
  * I/O priority table
@@ -87,8 +84,6 @@ extern vmem_t *zio_alloc_arena;
  */
 #define	IO_IS_ALLOCATING(zio) \
 	((zio)->io_orig_pipeline & (1U << ZIO_STAGE_DVA_ALLOCATE))
-
-extern int arc_large_memory_enabled;
 
 void
 zio_init(void)
@@ -210,80 +205,6 @@ zio_buf_alloc(size_t size)
 #endif
 }
 
-#if defined(_KERNEL) && defined(__amd64__)
-extern int vm_contig_launder(int queue);
-
-static void *
-zio_large_malloc(size_t size)
-{
-	void *ret;
-	vm_page_t pages;
-	unsigned long npgs;
-	int actl, actmax, inactl, inactmax, tries;
-	int flags = M_WAITOK;
-	vm_paddr_t low = (1UL<<29); /* leave lower 512MB untouched */
-	vm_paddr_t high = ~(vm_paddr_t)0;
-	unsigned long alignment = 1;
-	unsigned long boundary = 0;
-
-	npgs = round_page(size) >> PAGE_SHIFT;
-	tries = 0;
-retry:
-	pages = vm_phys_alloc_contig(npgs, low, high, alignment, boundary);
-	if (pages == NULL) {
-		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			vm_page_lock_queues();
-			inactl = 0;
-			inactmax = tries < 1 ? 0 : cnt.v_inactive_count;
-			actl = 0;
-			actmax = tries < 2 ? 0 : cnt.v_active_count;
-again:
-			if (inactl < inactmax &&
-			    vm_contig_launder(PQ_INACTIVE)) {
-				inactl++;
-				goto again;
-			}
-			if (actl < actmax &&
-			    vm_contig_launder(PQ_ACTIVE)) {
-				actl++;
-				goto again;
-			}
-			vm_page_unlock_queues();
-			tries++;
-			goto retry;
-		}
-
-		ret = NULL;
-	} else {
-		int i;
-		
-		vm_page_lock_queues();
-		for (i = 0; i < npgs; i++)
-			vm_page_wire(&pages[i]);
-		vm_page_unlock_queues();
-
-		return (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pages));
-	}
-	return (ret);
-}
-
-static void
-zio_large_free(void *buf, size_t size)
-{
-	int npgs = round_page(size) >> PAGE_SHIFT;
-	int i;
-	vm_page_t m;
-
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)buf));
-	vm_page_lock_queues();
-	for (i = 0; i < npgs; i++, m++) {
-		vm_page_unwire(m, 0);
-		vm_page_free(m);
-	}
-	vm_page_unlock_queues();
-}
-#endif
-
 /*
  * Use zio_data_buf_alloc to allocate data.  The data will not appear in a
  * crashdump if the kernel panics.  This exists so that we will limit the amount
@@ -300,12 +221,7 @@ zio_data_buf_alloc(size_t size)
 
 	return (kmem_cache_alloc(zio_data_buf_cache[c], KM_PUSHPAGE));
 #else
-#if defined(_KERNEL) && defined(__amd64__)
-	if (arc_large_memory_enabled && (size > PAGE_SIZE))
-		return (zio_large_malloc(size));
-	else
-#endif
-		return (kmem_alloc(size, KM_SLEEP));
+	return (kmem_alloc(size, KM_SLEEP));
 #endif
 }
 
@@ -333,12 +249,7 @@ zio_data_buf_free(void *buf, size_t size)
 
 	kmem_cache_free(zio_data_buf_cache[c], buf);
 #else
-#if defined (_KERNEL) && defined(__amd64__)
-	if (arc_large_memory_enabled && (size > PAGE_SIZE))
-		zio_large_free(buf, size);
-	else
-#endif
-		kmem_free(buf, size);
+	kmem_free(buf, size);
 #endif
 }
 
