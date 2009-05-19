@@ -307,8 +307,8 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 	ie = iv->iv_event;
 	mtx_unlock_spin(&intr_table_lock);
 	if (ie == NULL) {
-		errcode = intr_event_create(&ie, (void *)(intptr_t)vec, 0, NULL,
-		    intr_enable, intr_enable, NULL, "vec%d:", vec);
+		errcode = intr_event_create(&ie, (void *)(intptr_t)vec, 0, vec,
+		    NULL, intr_enable, intr_enable, NULL, "vec%d:", vec);
 		if (errcode)
 			return (errcode);
 		mtx_lock_spin(&intr_table_lock);

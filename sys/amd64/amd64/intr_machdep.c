@@ -139,7 +139,7 @@ intr_register_source(struct intsrc *isrc)
 	vector = isrc->is_pic->pic_vector(isrc);
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
-	error = intr_event_create(&isrc->is_event, isrc, 0,
+	error = intr_event_create(&isrc->is_event, isrc, 0, vector,
 	    intr_disable_src, (mask_fn)isrc->is_pic->pic_enable_source,
 	    (mask_fn)isrc->is_pic->pic_eoi_source, intr_assign_cpu, "irq%d:",
 	    vector);

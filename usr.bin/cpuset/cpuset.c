@@ -2,6 +2,9 @@
  * Copyright (c) 2007, 2008 	Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
+ * Copyright (c) 2008 Nokia Corporation
+ * All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -52,6 +55,7 @@ int pflag;
 int rflag;
 int sflag;
 int tflag;
+int xflag;
 id_t id;
 cpulevel_t level;
 cpuwhich_t which;
@@ -150,7 +154,7 @@ printset(cpuset_t *mask)
 	printf("\n");
 }
 
-const char *whichnames[] = { NULL, "tid", "pid", "cpuset", "N/A", "jail" };
+const char *whichnames[] = { NULL, "tid", "pid", "cpuset", "irq", "jail" };
 const char *levelnames[] = { NULL, " root", " cpuset", "" };
 
 static void
@@ -195,7 +199,7 @@ main(int argc, char *argv[])
 	level = CPU_LEVEL_WHICH;
 	which = CPU_WHICH_PID;
 	id = pid = tid = setid = -1;
-	while ((ch = getopt(argc, argv, "cgij:l:p:rs:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "cgij:l:p:rs:t:x:")) != -1) {
 		switch (ch) {
 		case 'c':
 			if (rflag)
@@ -239,6 +243,11 @@ main(int argc, char *argv[])
 			which = CPU_WHICH_TID;
 			id = tid = atoi(optarg);
 			break;
+		case 'x':
+			xflag = 1;
+			which = CPU_WHICH_IRQ;
+			id = atoi(optarg);
+			break;
 		default:
 			usage();
 		}
@@ -249,7 +258,7 @@ main(int argc, char *argv[])
 		if (argc || lflag)
 			usage();
 		/* Only one identity specifier. */
-		if (jflag + sflag + pflag + tflag > 1)
+		if (jflag + xflag + sflag + pflag + tflag > 1)
 			usage();
 		if (iflag)
 			printsetid();
@@ -263,7 +272,7 @@ main(int argc, char *argv[])
 	 * The user wants to run a command with a set and possibly cpumask.
 	 */
 	if (argc) {
-		if (pflag | rflag | tflag | jflag)
+		if (pflag | rflag | tflag | xflag | jflag)
 			usage();
 		if (sflag) {
 			if (cpuset_setid(CPU_WHICH_PID, -1, setid))
@@ -289,7 +298,10 @@ main(int argc, char *argv[])
 	if (!lflag && !sflag)
 		usage();
 	/* You can only set a mask on a thread. */
-	if (tflag && (sflag | pflag | jflag))
+	if (tflag && (sflag | pflag | xflag | jflag))
+		usage();
+	/* You can only set a mask on an irq. */
+	if (xflag && (jflag | pflag | sflag | tflag))
 		usage();
 	if (pflag && sflag) {
 		if (cpuset_setid(CPU_WHICH_PID, pid, setid))
@@ -319,8 +331,8 @@ usage(void)
 	fprintf(stderr,
 	    "       cpuset [-l cpu-list] [-s setid] -p pid\n");
 	fprintf(stderr,
-	    "       cpuset [-cr] [-l cpu-list] [-j jailid | -p pid | -t tid | -s setid]\n");
+	    "       cpuset [-cr] [-l cpu-list] [-j jailid | -p pid | -t tid | -s setid | -x irq]\n");
 	fprintf(stderr,
-	    "       cpuset [-cgir] [-j jailid | -p pid | -t tid | -s setid]\n");
+	    "       cpuset [-cgir] [-j jailid | -p pid | -t tid | -s setid | -x irq]\n");
 	exit(1);
 }
