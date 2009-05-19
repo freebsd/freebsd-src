@@ -157,7 +157,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK) 
 	    + 1;
 	platform_counter_freq = freq / div;
-	mips_timer_init_params(platform_counter_freq, 0);
+	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
 
 	printf("platform frequency: %lld\n", platform_counter_freq);
