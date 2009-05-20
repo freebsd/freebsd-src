@@ -121,9 +121,10 @@ static int  wi_start_tx(struct ifnet *ifp, struct wi_frame *frmhdr,
 static int  wi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 static int  wi_newstate_sta(struct ieee80211vap *, enum ieee80211_state, int);
-static int  wi_newstate_hostap(struct ieee80211vap *, enum ieee80211_state, int);
+static int  wi_newstate_hostap(struct ieee80211vap *, enum ieee80211_state,
+		int);
 static void wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-		int subtype, int rssi, int noise, u_int32_t rstamp);
+		int subtype, int rssi, int nf);
 static int  wi_reset(struct wi_softc *);
 static void wi_watchdog(void *);
 static int  wi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -139,6 +140,7 @@ static int  wi_write_txrate(struct wi_softc *, struct ieee80211vap *);
 static int  wi_write_wep(struct wi_softc *, struct ieee80211vap *);
 static int  wi_write_multi(struct wi_softc *);
 static void wi_update_mcast(struct ifnet *);
+static void wi_update_promisc(struct ifnet *);
 static int  wi_alloc_fid(struct wi_softc *, int, int *);
 static void wi_read_nicid(struct wi_softc *);
 static int  wi_write_ssid(struct wi_softc *, int, u_int8_t *, int);
@@ -455,25 +457,13 @@ wi_attach(device_t dev)
 	ic->ic_vap_create = wi_vap_create;
 	ic->ic_vap_delete = wi_vap_delete;
 	ic->ic_update_mcast = wi_update_mcast;
+	ic->ic_update_promisc = wi_update_promisc;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-		sizeof(struct ieee80211_frame) + sizeof(sc->sc_tx_th));
-	/*
-	 * Initialize constant fields.
-	 * XXX make header lengths a multiple of 32-bits so subsequent
-	 *     headers are properly aligned; this is a kludge to keep
-	 *     certain applications happy.
-	 *
-	 * NB: the channel is setup each time we transition to the
-	 *     RUN state to avoid filling it in for each frame.
-	 */
-	sc->sc_tx_th_len = roundup(sizeof(sc->sc_tx_th), sizeof(u_int32_t));
-	sc->sc_tx_th.wt_ihdr.it_len = htole16(sc->sc_tx_th_len);
-	sc->sc_tx_th.wt_ihdr.it_present = htole32(WI_TX_RADIOTAP_PRESENT);
-
-	sc->sc_rx_th_len = roundup(sizeof(sc->sc_rx_th), sizeof(u_int32_t));
-	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_th_len);
-	sc->sc_rx_th.wr_ihdr.it_present = htole32(WI_RX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),
+		WI_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th),
+		WI_RX_RADIOTAP_PRESENT);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -482,7 +472,6 @@ wi_attach(device_t dev)
 	    NULL, wi_intr, sc, &sc->wi_intrhand);
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
-		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 		if_free(sc->sc_ifp);
 		wi_free(dev);
@@ -506,7 +495,6 @@ wi_detach(device_t dev)
 
 	wi_stop_locked(sc, 0);
 	WI_UNLOCK(sc);
-	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
 
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
@@ -761,11 +749,6 @@ wi_set_channel(struct ieee80211com *ic)
 	WI_LOCK(sc);
 	wi_write_val(sc, WI_RID_OWN_CHNL,
 	    ieee80211_chan2ieee(ic, ic->ic_curchan));
-
-	sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
-		htole16(ic->ic_curchan->ic_freq);
-	sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
-		htole16(ic->ic_curchan->ic_flags);
 	WI_UNLOCK(sc);
 }
 
@@ -812,7 +795,7 @@ wi_scan_end(struct ieee80211com *ic)
 
 static void
 wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-	int subtype, int rssi, int noise, u_int32_t rstamp)
+	int subtype, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 
@@ -823,7 +806,7 @@ wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		/* NB: filter frames that trigger state changes */
 		return;
 	}
-	WI_VAP(vap)->wv_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
+	WI_VAP(vap)->wv_recv_mgmt(ni, m, subtype, rssi, nf);
 }
 
 static int
@@ -1025,10 +1008,9 @@ wi_start_locked(struct ifnet *ifp)
 			frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
 		}
 
-		if (bpf_peers_present(ifp->if_bpf)) {
+		if (ieee80211_radiotap_active_vap(ni->ni_vap)) {
 			sc->sc_tx_th.wt_rate = ni->ni_txrate;
-			bpf_mtap2(ifp->if_bpf,
-			    &sc->sc_tx_th, sc->sc_tx_th_len, m0);
+			ieee80211_radiotap_tx(ni->ni_vap, m0);
 		}
 
 		m_copydata(m0, 0, sizeof(struct ieee80211_frame),
@@ -1088,6 +1070,7 @@ wi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m0,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct wi_softc	*sc = ifp->if_softc;
 	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
@@ -1127,9 +1110,9 @@ wi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m0,
 		}
 		frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
 	}
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_rate = ni->ni_txrate;
-		bpf_mtap2(ifp->if_bpf, &sc->sc_tx_th, sc->sc_tx_th_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 	m_copydata(m0, 0, sizeof(struct ieee80211_frame),
 	    (caddr_t)&frmhdr.wi_whdr);
@@ -1328,10 +1311,10 @@ wi_rx_intr(struct wi_softc *sc)
 	struct mbuf *m;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
-	int fid, len, off, rssi;
+	int fid, len, off;
 	u_int8_t dir;
 	u_int16_t status;
-	u_int32_t rstamp;
+	int8_t rssi, nf;
 
 	fid = CSR_READ_2(sc, WI_RX_FID);
 
@@ -1353,9 +1336,6 @@ wi_rx_intr(struct wi_softc *sc)
 		DPRINTF(("wi_rx_intr: fid %x error status %x\n", fid, status));
 		return;
 	}
-	rssi = frmhdr.wi_rx_signal;
-	rstamp = (le16toh(frmhdr.wi_rx_tstamp0) << 16) |
-	    le16toh(frmhdr.wi_rx_tstamp1);
 
 	len = le16toh(frmhdr.wi_dat_len);
 	off = ALIGN(sizeof(struct ieee80211_frame));
@@ -1393,17 +1373,24 @@ wi_rx_intr(struct wi_softc *sc)
 
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	rssi = frmhdr.wi_rx_signal;
+	nf = frmhdr.wi_rx_silence;
+	if (ieee80211_radiotap_active(ic)) {
+		struct wi_rx_radiotap_header *tap = &sc->sc_rx_th;
+		uint32_t rstamp;
+
+		rstamp = (le16toh(frmhdr.wi_rx_tstamp0) << 16) |
+		    le16toh(frmhdr.wi_rx_tstamp1);
+		tap->wr_tsf = htole64(rstamp);
 		/* XXX replace divide by table */
-		sc->sc_rx_th.wr_rate = frmhdr.wi_rx_rate / 5;
-		sc->sc_rx_th.wr_antsignal = frmhdr.wi_rx_signal;
-		sc->sc_rx_th.wr_antnoise = frmhdr.wi_rx_silence;
-		sc->sc_rx_th.wr_flags = 0;
+		tap->wr_rate = frmhdr.wi_rx_rate / 5;
+		tap->wr_flags = 0;
 		if (frmhdr.wi_status & WI_STAT_PCF)
-			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_CFP;
+			tap->wr_flags |= IEEE80211_RADIOTAP_F_CFP;
 		if (m->m_flags & M_WEP)
-			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_WEP;
-		bpf_mtap2(ifp->if_bpf, &sc->sc_rx_th, sc->sc_rx_th_len, m);
+			tap->wr_flags |= IEEE80211_RADIOTAP_F_WEP;
+		tap->wr_antsignal = rssi;
+		tap->wr_antnoise = nf;
 	}
 
 	/* synchronize driver's BSSID with firmware's BSSID */
@@ -1416,10 +1403,10 @@ wi_rx_intr(struct wi_softc *sc)
 
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 	if (ni != NULL) {
-		(void) ieee80211_input(ni, m, rssi, -95/*XXX*/, rstamp);
+		(void) ieee80211_input(ni, m, rssi, nf);
 		ieee80211_free_node(ni);
 	} else
-		(void) ieee80211_input_all(ic, m, rssi, -95/*XXX*/, rstamp);
+		(void) ieee80211_input_all(ic, m, rssi, nf);
 
 	WI_LOCK(sc);
 }
@@ -1612,6 +1599,20 @@ static void
 wi_update_mcast(struct ifnet *ifp)
 {
 	wi_write_multi(ifp->if_softc);
+}
+
+static void
+wi_update_promisc(struct ifnet *ifp)
+{
+	struct wi_softc *sc = ifp->if_softc;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	WI_LOCK(sc);
+	/* XXX handle WEP special case handling? */
+	wi_write_val(sc, WI_RID_PROMISC, 
+	    (ic->ic_opmode == IEEE80211_M_MONITOR ||
+	     (ifp->if_flags & IFF_PROMISC)));
+	WI_UNLOCK(sc);
 }
 
 static void

@@ -33,7 +33,8 @@ struct iwi_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
-	uint8_t		wr_antsignal;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 	uint8_t		wr_antenna;
 };
 
@@ -42,6 +43,7 @@ struct iwi_rx_radiotap_header {
 	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
 	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DB_ANTNOISE) |			\
 	 (1 << IEEE80211_RADIOTAP_ANTENNA))
 
 struct iwi_tx_radiotap_header {
@@ -213,10 +215,7 @@ struct iwi_softc {
 	int			sc_busy_timer;	/* firmware cmd timer */
 
 	struct iwi_rx_radiotap_header sc_rxtap;
-	int			sc_rxtap_len;
-
 	struct iwi_tx_radiotap_header sc_txtap;
-	int			sc_txtap_len;
 };
 
 #define	IWI_STATE_BEGIN(_sc, _state)	do {			\

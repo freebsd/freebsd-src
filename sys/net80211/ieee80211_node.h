@@ -145,7 +145,6 @@ struct ieee80211_node {
 	struct ieee80211_key	ni_ucastkey;	/* unicast key */
 
 	/* hardware */
-	uint32_t		ni_rstamp;	/* recv timestamp */
 	uint32_t		ni_avgrssi;	/* recv ssi state */
 	int8_t			ni_noise;	/* noise floor */
 

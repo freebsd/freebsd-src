@@ -26,16 +26,19 @@ struct rum_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 	uint8_t		wr_antenna;
-	uint8_t		wr_antsignal;
 };
 
 #define RT2573_RX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |			\
 	 (1 << IEEE80211_RADIOTAP_ANTENNA) |				\
-	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL))
+	 0)
 
 struct rum_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;

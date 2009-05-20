@@ -144,6 +144,7 @@ static void		rt2560_set_chan(struct rt2560_softc *,
 static void		rt2560_disable_rf_tune(struct rt2560_softc *);
 #endif
 static void		rt2560_enable_tsf_sync(struct rt2560_softc *);
+static void		rt2560_enable_tsf(struct rt2560_softc *);
 static void		rt2560_update_plcp(struct rt2560_softc *);
 static void		rt2560_update_slot(struct ifnet *);
 static void		rt2560_set_basicrates(struct rt2560_softc *);
@@ -313,16 +314,11 @@ rt2560_attach(device_t dev, int id)
 	ic->ic_vap_create = rt2560_vap_create;
 	ic->ic_vap_delete = rt2560_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(RT2560_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(RT2560_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		RT2560_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		RT2560_RX_RADIOTAP_PRESENT);
 
 	/*
 	 * Add a few sysctl knobs.
@@ -364,7 +360,6 @@ rt2560_detach(void *xsc)
 	
 	rt2560_stop(sc);
 
-	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
 
 	rt2560_free_tx_ring(sc, &sc->txq);
@@ -833,6 +828,8 @@ rt2560_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR)
 			rt2560_enable_tsf_sync(sc);
+		else
+			rt2560_enable_tsf(sc);
 	}
 	return error;
 }
@@ -1146,6 +1143,7 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 	struct ieee80211_node *ni;
 	struct mbuf *mnew, *m;
 	int hw, error;
+	int8_t rssi, nf;
 
 	/* retrieve last decriptor index processed by cipher engine */
 	hw = RAL_READ(sc, RT2560_SECCSR0) - sc->rxq.physaddr;
@@ -1222,7 +1220,9 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 		m->m_pkthdr.len = m->m_len =
 		    (le32toh(desc->flags) >> 16) & 0xfff;
 
-		if (bpf_peers_present(ifp->if_bpf)) {
+		rssi = RT2560_RSSI(sc, desc->rssi);
+		nf = RT2560_NOISE_FLOOR;
+		if (ieee80211_radiotap_active(ic)) {
 			struct rt2560_rx_radiotap_header *tap = &sc->sc_rxtap;
 			uint32_t tsf_lo, tsf_hi;
 
@@ -1237,9 +1237,8 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 			    (desc->flags & htole32(RT2560_RX_OFDM)) ?
 				IEEE80211_T_OFDM : IEEE80211_T_CCK);
 			tap->wr_antenna = sc->rx_ant;
-			tap->wr_antsignal = RT2560_RSSI(sc, desc->rssi);
-
-			bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
+			tap->wr_antsignal = nf + rssi;
+			tap->wr_antnoise = nf;
 		}
 
 		sc->sc_flags |= RT2560_F_INPUT_RUNNING;
@@ -1248,12 +1247,10 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 		ni = ieee80211_find_rxnode(ic,
 		    (struct ieee80211_frame_min *)wh);
 		if (ni != NULL) {
-			(void) ieee80211_input(ni, m,
-			    RT2560_RSSI(sc, desc->rssi), RT2560_NOISE_FLOOR, 0);
+			(void) ieee80211_input(ni, m, rssi, nf);
 			ieee80211_free_node(ni);
 		} else
-			(void) ieee80211_input_all(ic, m,
-			    RT2560_RSSI(sc, desc->rssi), RT2560_NOISE_FLOOR, 0);
+			(void) ieee80211_input_all(ic, m, rssi, nf);
 
 		RAL_LOCK(sc);
 		sc->sc_flags &= ~RT2560_F_INPUT_RUNNING;
@@ -1507,8 +1504,6 @@ rt2560_tx_bcn(struct rt2560_softc *sc, struct mbuf *m0,
     struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	bus_dma_segment_t segs[RT2560_MAX_SCATTER];
@@ -1529,16 +1524,14 @@ rt2560_tx_bcn(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data->m = m0;
@@ -1565,7 +1558,6 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	struct ieee80211_frame *wh;
@@ -1599,16 +1591,14 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data->m = m0;
@@ -1724,8 +1714,7 @@ static int
 rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
     struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	bus_dma_segment_t segs[RT2560_MAX_SCATTER];
@@ -1767,16 +1756,14 @@ rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(ni->ni_vap, m0);
 	}
 
 	data->m = m0;
@@ -1808,7 +1795,6 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	struct ieee80211_frame *wh;
@@ -1897,14 +1883,14 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
 		tap->wt_antenna = sc->tx_ant;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data->m = m0;
@@ -2234,11 +2220,6 @@ rt2560_set_channel(struct ieee80211com *ic)
 
 	RAL_LOCK(sc);
 	rt2560_set_chan(sc, ic->ic_curchan);
-
-	sc->sc_txtap.wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-	sc->sc_txtap.wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
-	sc->sc_rxtap.wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-	sc->sc_rxtap.wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	RAL_UNLOCK(sc);
 
 }
@@ -2300,6 +2281,14 @@ rt2560_enable_tsf_sync(struct rt2560_softc *sc)
 	RAL_WRITE(sc, RT2560_CSR14, tmp);
 
 	DPRINTF(sc, "%s", "enabling TSF synchronization\n");
+}
+
+static void
+rt2560_enable_tsf(struct rt2560_softc *sc)
+{
+	RAL_WRITE(sc, RT2560_CSR14, 0);
+	RAL_WRITE(sc, RT2560_CSR14,
+	    RT2560_ENABLE_TSF_SYNC(2) | RT2560_ENABLE_TSF);
 }
 
 static void
