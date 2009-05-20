@@ -79,7 +79,7 @@ static struct cdevsw twe_cdevsw = {
  * Accept an open operation on the control device.
  */
 static int
-twe_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+twe_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     struct twe_softc		*sc = (struct twe_softc *)dev->si_drv1;
 
@@ -91,7 +91,7 @@ twe_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
  * Accept the last close on the control device.
  */
 static int
-twe_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+twe_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     struct twe_softc		*sc = (struct twe_softc *)dev->si_drv1;
 
@@ -103,7 +103,7 @@ twe_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
  * Handle controller-specific control operations.
  */
 static int
-twe_ioctl_wrapper(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
+twe_ioctl_wrapper(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     struct twe_softc		*sc = (struct twe_softc *)dev->si_drv1;
     

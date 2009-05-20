@@ -2528,13 +2528,13 @@ in_range(int val, int lo, int hi)
 }
 
 static int
-cxgb_extension_open(struct cdev *dev, int flags, int fmp, d_thread_t *td)
+cxgb_extension_open(struct cdev *dev, int flags, int fmp, struct thread *td)
 {
        return (0);
 }
 
 static int
-cxgb_extension_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+cxgb_extension_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
        return (0);
 }
