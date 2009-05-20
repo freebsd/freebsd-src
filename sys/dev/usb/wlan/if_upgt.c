@@ -2002,12 +2002,12 @@ upgt_detach(device_t dev)
 		return 0;
 
 	upgt_stop(sc);
-	ieee80211_ifdetach(ic);
 
 	callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
 	usb2_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+	ieee80211_ifdetach(ic);
 	upgt_free_rx(sc);
 	upgt_free_tx(sc);
 
