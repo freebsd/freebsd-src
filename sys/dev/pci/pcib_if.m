@@ -144,17 +144,3 @@ METHOD int map_msi {
 	uint64_t	*addr;
 	uint32_t	*data;
 };
-
-#
-# Return the range of busses passed through this bridge.  For normal
-# pci-pci bridges (and compatible things like pci-x and pcie), this will
-# just be the secbus and subbus configuration registers.   For non-standard
-# bridges, or for host bridges which have no standard, this will be the
-# same data read from either device specific registers of from "perfect
-# knowledge" of what they must be.
-#
-METHOD int bus_range {
-	device_t	pcib;
-	u_int		*secbus;
-	u_int		*subbus;
-};
