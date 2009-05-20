@@ -717,6 +717,7 @@ void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
 int	vrefcnt(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
+void	vdestroy(struct vnode *vp);
 
 int vnode_create_vobject(struct vnode *vp, off_t size, struct thread *td);
 void vnode_destroy_vobject(struct vnode *vp);
