@@ -196,6 +196,7 @@ static void		rum_select_band(struct rum_softc *,
 static void		rum_set_chan(struct rum_softc *,
 			    struct ieee80211_channel *);
 static void		rum_enable_tsf_sync(struct rum_softc *);
+static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_update_slot(struct ifnet *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
@@ -522,16 +523,11 @@ rum_attach(device_t self)
 	ic->ic_vap_create = rum_vap_create;
 	ic->ic_vap_delete = rum_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof(sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(RT2573_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(RT2573_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		RT2573_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		RT2573_RX_RADIOTAP_PRESENT);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -560,7 +556,6 @@ rum_detach(device_t self)
 
 	if (ifp) {
 		ic = ifp->if_l2com;
-		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 		if_free(ifp);
 	}
@@ -752,9 +747,11 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR)
 			rum_enable_tsf_sync(sc);
+		else
+			rum_enable_tsf(sc);
 
 		/* enable automatic rate adaptation */
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
+		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
 			rum_amrr_start(sc, ni);
 		break;
@@ -771,8 +768,7 @@ rum_bulk_write_callback(struct usb2_xfer *xfer)
 {
 	struct rum_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211_channel *c = ic->ic_curchan;
+	struct ieee80211vap *vap;
 	struct rum_tx_data *data;
 	struct mbuf *m;
 	unsigned int len;
@@ -807,16 +803,15 @@ tr_setup:
 			usb2_m_copy_in(xfer->frbuffers, RT2573_TX_DESC_SIZE, m,
 			    0, m->m_pkthdr.len);
 
-			if (bpf_peers_present(ifp->if_bpf)) {
+			vap = data->ni->ni_vap;
+			if (ieee80211_radiotap_active_vap(vap)) {
 				struct rum_tx_radiotap_header *tap = &sc->sc_txtap;
 
 				tap->wt_flags = 0;
 				tap->wt_rate = data->rate;
-				tap->wt_chan_freq = htole16(c->ic_freq);
-				tap->wt_chan_flags = htole16(c->ic_flags);
 				tap->wt_antenna = sc->tx_ant;
 
-				bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m);
+				ieee80211_radiotap_tx(vap, m);
 			}
 
 			/* align end on a 4-bytes boundary */
@@ -911,19 +906,17 @@ rum_bulk_read_callback(struct usb2_xfer *xfer)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = (flags >> 16) & 0xfff;
 
-		if (bpf_peers_present(ifp->if_bpf)) {
+		if (ieee80211_radiotap_active(ic)) {
 			struct rum_rx_radiotap_header *tap = &sc->sc_rxtap;
 
-			tap->wr_flags = IEEE80211_RADIOTAP_F_FCS;
+			/* XXX read tsf */
+			tap->wr_flags = 0;
 			tap->wr_rate = ieee80211_plcp2rate(sc->sc_rx_desc.rate,
 			    (flags & RT2573_RX_OFDM) ?
 			    IEEE80211_T_OFDM : IEEE80211_T_CCK);
-			tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-			tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
+			tap->wr_antsignal = RT2573_NOISE_FLOOR + rssi;
+			tap->wr_antnoise = RT2573_NOISE_FLOOR;
 			tap->wr_antenna = sc->rx_ant;
-			tap->wr_antsignal = rssi;
-
-			bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
 		}
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -942,11 +935,11 @@ tr_setup:
 			    mtod(m, struct ieee80211_frame_min *));
 			if (ni != NULL) {
 				(void) ieee80211_input(ni, m, rssi,
-				    RT2573_NOISE_FLOOR, 0);
+				    RT2573_NOISE_FLOOR);
 				ieee80211_free_node(ni);
 			} else
 				(void) ieee80211_input_all(ic, m, rssi,
-				    RT2573_NOISE_FLOOR, 0);
+				    RT2573_NOISE_FLOOR);
 			RUM_LOCK(sc);
 		}
 		return;
@@ -1734,6 +1727,14 @@ rum_enable_tsf_sync(struct rum_softc *sc)
 		tmp |= RT2573_TSF_MODE(2) | RT2573_GENERATE_BEACON;
 
 	rum_write(sc, RT2573_TXRX_CSR9, tmp);
+}
+
+static void
+rum_enable_tsf(struct rum_softc *sc)
+{
+	rum_write(sc, RT2573_TXRX_CSR9, 
+	    (rum_read(sc, RT2573_TXRX_CSR9) & 0xff000000) |
+	    RT2573_TSF_TICKING | RT2573_TSF_MODE(2));
 }
 
 static void

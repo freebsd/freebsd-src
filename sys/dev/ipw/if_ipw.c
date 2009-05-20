@@ -346,16 +346,11 @@ ipw_attach(device_t dev)
 	ic->ic_vap_create = ipw_vap_create;
 	ic->ic_vap_delete = ipw_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(IPW_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(IPW_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		IPW_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		IPW_RX_RADIOTAP_PRESENT);
 
 	/*
 	 * Add a few sysctl knobs.
@@ -407,7 +402,6 @@ ipw_detach(device_t dev)
 	ieee80211_draintask(ic, &sc->sc_init_task);
 	ipw_stop(sc);
 
-	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
 
 	callout_drain(&sc->sc_wdtimer);
@@ -1107,10 +1101,7 @@ ipw_setcurchan(struct ipw_softc *sc, struct ieee80211_channel *chan)
 	struct ieee80211com *ic = ifp->if_l2com;
 
 	ic->ic_curchan = chan;
-	sc->sc_rxtap.wr_chan_freq = sc->sc_txtap.wt_chan_freq =
-		htole16(ic->ic_curchan->ic_freq);
-	sc->sc_rxtap.wr_chan_flags = sc->sc_txtap.wt_chan_flags =
-		htole16(ic->ic_curchan->ic_flags);
+	ieee80211_radiotap_chan_change(ic);
 }
 
 /*
@@ -1172,6 +1163,7 @@ ipw_rx_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	struct ieee80211_node *ni;
 	bus_addr_t physaddr;
 	int error;
+	int8_t rssi, nf;
 	IPW_LOCK_DECL;
 
 	DPRINTFN(5, ("received frame len=%u, rssi=%u\n", le32toh(status->len),
@@ -1226,15 +1218,14 @@ ipw_rx_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = le32toh(status->len);
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	rssi = status->rssi + IPW_RSSI_TO_DBM;
+	nf = -95;
+	if (ieee80211_radiotap_active(ic)) {
 		struct ipw_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
-		tap->wr_antsignal = status->rssi + IPW_RSSI_TO_DBM;
-		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
+		tap->wr_antsignal = rssi;
+		tap->wr_antnoise = nf;
 	}
 
 	if (sc->flags & IPW_FLAG_SCANNING)
@@ -1243,10 +1234,10 @@ ipw_rx_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	IPW_UNLOCK(sc);
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 	if (ni != NULL) {
-		(void) ieee80211_input(ni, m, status->rssi, -95, 0);
+		(void) ieee80211_input(ni, m, rssi, nf);
 		ieee80211_free_node(ni);
 	} else
-		(void) ieee80211_input_all(ic, m, status->rssi, -95, 0);
+		(void) ieee80211_input_all(ic, m, rssi, nf);
 	IPW_LOCK(sc);
 
 	bus_dmamap_sync(sc->rbd_dmat, sc->rbd_map, BUS_DMASYNC_PREWRITE);
@@ -1570,6 +1561,7 @@ ipw_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 {
 	struct ipw_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
 	struct ipw_soft_bd *sbd;
 	struct ipw_soft_hdr *shdr;
@@ -1592,14 +1584,12 @@ ipw_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct ipw_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	shdr = SLIST_FIRST(&sc->free_shdr);

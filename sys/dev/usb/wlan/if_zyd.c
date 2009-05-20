@@ -421,14 +421,11 @@ zyd_attach(device_t dev)
 	ic->ic_update_mcast = zyd_update_mcast;
 	ic->ic_update_promisc = zyd_update_mcast;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof(struct ieee80211_frame) + sizeof(sc->sc_txtap));
-	sc->sc_rxtap_len = sizeof(sc->sc_rxtap);
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(ZYD_RX_RADIOTAP_PRESENT);
-	sc->sc_txtap_len = sizeof(sc->sc_txtap);
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(ZYD_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		ZYD_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		ZYD_RX_RADIOTAP_PRESENT);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -455,7 +452,6 @@ zyd_detach(device_t dev)
 
 	if (ifp) {
 		ic = ifp->if_l2com;
-		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 		if_free(ifp);
 	}
@@ -2132,6 +2128,7 @@ zyd_rx_data(struct usb2_xfer *xfer, int offset, uint16_t len)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct zyd_plcphdr plcp;
 	struct zyd_rx_stat stat;
 	struct mbuf *m;
@@ -2180,7 +2177,7 @@ zyd_rx_data(struct usb2_xfer *xfer, int offset, uint16_t len)
 	usb2_copy_out(xfer->frbuffers, offset + sizeof(plcp),
 	    mtod(m, uint8_t *), rlen);
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active(ic)) {
 		struct zyd_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
@@ -2194,8 +2191,6 @@ zyd_rx_data(struct usb2_xfer *xfer, int offset, uint16_t len)
 			IEEE80211_T_OFDM : IEEE80211_T_CCK);
 		tap->wr_antsignal = stat.rssi + -95;
 		tap->wr_antnoise = -95;	/* XXX */
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
 	}
 	rssi = (stat.rssi > 63) ? 127 : 2 * stat.rssi;
 
@@ -2272,10 +2267,10 @@ tr_setup:
 			ni = ieee80211_find_rxnode(ic,
 			    mtod(m, struct ieee80211_frame_min *));
 			if (ni != NULL) {
-				(void)ieee80211_input(ni, m, rssi, nf, 0);
+				(void)ieee80211_input(ni, m, rssi, nf);
 				ieee80211_free_node(ni);
 			} else
-				(void)ieee80211_input_all(ic, m, rssi, nf, 0);
+				(void)ieee80211_input_all(ic, m, rssi, nf);
 		}
 		ZYD_LOCK(sc);
 		break;
@@ -2331,7 +2326,6 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct zyd_tx_desc *desc;
 	struct zyd_tx_data *data;
 	struct ieee80211_frame *wh;
@@ -2409,13 +2403,13 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			desc->plcp_service |= ZYD_PLCP_LENGEXT;
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct zyd_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	DPRINTF(sc, ZYD_DEBUG_XMIT,
@@ -2434,8 +2428,7 @@ zyd_bulk_write_callback(struct usb2_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211_channel *c = ic->ic_curchan;
+	struct ieee80211vap *vap;
 	struct zyd_tx_data *data;
 	struct mbuf *m;
 
@@ -2470,15 +2463,14 @@ tr_setup:
 			usb2_m_copy_in(xfer->frbuffers, ZYD_TX_DESC_SIZE, m, 0,
 			    m->m_pkthdr.len);
 
-			if (bpf_peers_present(ifp->if_bpf)) {
+			vap = data->ni->ni_vap;
+			if (ieee80211_radiotap_active_vap(vap)) {
 				struct zyd_tx_radiotap_header *tap = &sc->sc_txtap;
 
 				tap->wt_flags = 0;
 				tap->wt_rate = data->rate;
-				tap->wt_chan_freq = htole16(c->ic_freq);
-				tap->wt_chan_flags = htole16(c->ic_flags);
 
-				bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m);
+				ieee80211_radiotap_tx(vap, m);
 			}
 
 			xfer->frlengths[0] = ZYD_TX_DESC_SIZE + m->m_pkthdr.len;

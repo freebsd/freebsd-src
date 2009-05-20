@@ -481,16 +481,11 @@ uath_attach(device_t dev)
 	ic->ic_update_mcast = uath_update_mcast;
 	ic->ic_update_promisc = uath_update_promisc;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof(sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(UATH_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(UATH_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		UATH_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		UATH_RX_RADIOTAP_PRESENT);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -531,7 +526,6 @@ uath_detach(device_t dev)
 	uath_free_cmd_list(sc, sc->sc_cmd, UATH_CMD_LIST_COUNT);
 	UATH_UNLOCK(sc);
 
-	bpfdetach(ifp);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
 	return (0);
@@ -1601,8 +1595,6 @@ static int
 uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     struct uath_data *data)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct uath_chunk *chunk;
 	struct uath_tx_desc *desc;
@@ -1617,16 +1609,14 @@ uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	chunk = (struct uath_chunk *)data->buf;
 	desc = (struct uath_tx_desc *)(chunk + 1);
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct uath_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		if (m0->m_flags & M_FRAG)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	wh = mtod(m0, struct ieee80211_frame *);
@@ -1921,7 +1911,7 @@ uath_set_channel(struct ieee80211com *ic)
 static int
 uath_set_rxmulti_filter(struct uath_softc *sc)
 {
-
+	/* XXX broken */
 	return (0);
 }
 static void
@@ -1929,13 +1919,14 @@ uath_update_mcast(struct ifnet *ifp)
 {
 	struct uath_softc *sc = ifp->if_softc;
 
+	UATH_LOCK(sc);
 	/*
 	 * this is for avoiding the race condition when we're try to
 	 * connect to the AP with WPA.
 	 */
-	if (!(sc->sc_flags & UATH_FLAG_INITDONE))
-		return;
-	(void)uath_set_rxmulti_filter(sc);
+	if (sc->sc_flags & UATH_FLAG_INITDONE)
+		(void)uath_set_rxmulti_filter(sc);
+	UATH_UNLOCK(sc);
 }
 
 static void
@@ -1943,12 +1934,14 @@ uath_update_promisc(struct ifnet *ifp)
 {
 	struct uath_softc *sc = ifp->if_softc;
 
-	if (!(sc->sc_flags & UATH_FLAG_INITDONE))
-		return;
-	uath_set_rxfilter(sc,
-	    UATH_FILTER_RX_UCAST | UATH_FILTER_RX_MCAST |
-	    UATH_FILTER_RX_BCAST | UATH_FILTER_RX_BEACON |
-	    UATH_FILTER_RX_PROM, UATH_FILTER_OP_SET);
+	UATH_LOCK(sc);
+	if (sc->sc_flags & UATH_FLAG_INITDONE) {
+		uath_set_rxfilter(sc,
+		    UATH_FILTER_RX_UCAST | UATH_FILTER_RX_MCAST |
+		    UATH_FILTER_RX_BCAST | UATH_FILTER_RX_BEACON |
+		    UATH_FILTER_RX_PROM, UATH_FILTER_OP_SET);
+	}
+	UATH_UNLOCK(sc);
 }
 
 static int
@@ -2653,14 +2646,22 @@ uath_data_rxeof(struct usb2_xfer *xfer, struct uath_data *data,
 	}
 
 	/* there are a lot more fields in the RX descriptor */
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active(ic)) {
 		struct uath_rx_radiotap_header *tap = &sc->sc_rxtap;
+		uint32_t tsf_hi = be32toh(desc->tstamp_high);
+		uint32_t tsf_lo = be32toh(desc->tstamp_low);
 
-		tap->wr_chan_freq = htole16(be32toh(desc->channel));
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
-		tap->wr_dbm_antsignal = (int8_t)be32toh(desc->rssi);
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
+		/* XXX only get low order 24bits of tsf from h/w */
+		tap->wr_tsf = htole64(((uint64_t)tsf_hi << 32) | tsf_lo);
+		tap->wr_flags = 0;
+		if (be32toh(desc->status) == UATH_STATUS_CRC_ERR)
+			tap->wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
+		/* XXX map other status to BADFCS? */
+		/* XXX ath h/w rate code, need to map */
+		tap->wr_rate = be32toh(desc->rate);
+		tap->wr_antenna = be32toh(desc->antenna);
+		tap->wr_antsignal = -95 + be32toh(desc->rssi);
+		tap->wr_antnoise = -95;
 	}
 
 	ifp->if_ipackets++;
@@ -2721,12 +2722,12 @@ setup:
 			nf = -95;	/* XXX */
 			if (ni != NULL) {
 				(void) ieee80211_input(ni, m,
-				    (int)be32toh(desc->rssi), nf, 0);
+				    (int)be32toh(desc->rssi), nf);
 				/* node is no longer needed */
 				ieee80211_free_node(ni);
 			} else
 				(void) ieee80211_input_all(ic, m,
-				    (int)be32toh(desc->rssi), nf, 0);
+				    (int)be32toh(desc->rssi), nf);
 			m = NULL;
 			desc = NULL;
 		}

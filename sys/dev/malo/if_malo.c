@@ -144,7 +144,6 @@ static	void	malo_scan_end(struct ieee80211com *);
 static	void	malo_set_channel(struct ieee80211com *);
 static	int	malo_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
-static	void	malo_bpfattach(struct malo_softc *);
 static	void	malo_sysctlattach(struct malo_softc *);
 static	void	malo_announce(struct malo_softc *);
 static	void	malo_dma_cleanup(struct malo_softc *);
@@ -317,7 +316,11 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 
 	sc->malo_invalid = 0;		/* ready to go, enable int handling */
 
-	malo_bpfattach(sc);
+	ieee80211_radiotap_attach(ic,
+	    &sc->malo_tx_th.wt_ihdr, sizeof(sc->malo_tx_th),
+		MALO_TX_RADIOTAP_PRESENT,
+	    &sc->malo_rx_th.wr_ihdr, sizeof(sc->malo_rx_th),
+		MALO_RX_RADIOTAP_PRESENT);
 
 	/*
 	 * Setup dynamic sysctl's.
@@ -1091,6 +1094,7 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211_frame *wh;
 	struct ifnet *ifp = sc->malo_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct malo_txdesc *ds;
 	struct malo_txrec *tr;
 	struct malo_txq *txq;
@@ -1148,14 +1152,14 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->malo_tx_th.wt_flags = 0;	/* XXX */
 		if (iswep)
 			sc->malo_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		sc->malo_tx_th.wt_txpower = ni->ni_txpower;
 		sc->malo_tx_th.wt_antenna = sc->malo_txantenna;
 
-		bpf_mtap2(ifp->if_bpf, &sc->malo_tx_th, sc->malo_tx_th_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	/*
@@ -1900,32 +1904,6 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 static void
-malo_bpfattach(struct malo_softc *sc)
-{
-	struct ifnet *ifp = sc->malo_ifp;
-
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof(struct ieee80211_frame) + sizeof(sc->malo_tx_th));
-
-	/*
-	 * Initialize constant fields.
-	 * XXX make header lengths a multiple of 32-bits so subsequent
-	 *     headers are properly aligned; this is a kludge to keep
-	 *     certain applications happy.
-	 *
-	 * NB: the channel is setup each time we transition to the
-	 *     RUN state to avoid filling it in for each frame.
-	 */
-	sc->malo_tx_th_len = roundup(sizeof(sc->malo_tx_th), sizeof(uint32_t));
-	sc->malo_tx_th.wt_ihdr.it_len = htole16(sc->malo_tx_th_len);
-	sc->malo_tx_th.wt_ihdr.it_present = htole32(MALO_TX_RADIOTAP_PRESENT);
-
-	sc->malo_rx_th_len = roundup(sizeof(sc->malo_rx_th), sizeof(uint32_t));
-	sc->malo_rx_th.wr_ihdr.it_len = htole16(sc->malo_rx_th_len);
-	sc->malo_rx_th.wr_ihdr.it_present = htole32(MALO_RX_RADIOTAP_PRESENT);
-}
-
-static void
 malo_sysctlattach(struct malo_softc *sc)
 {
 #ifdef	MALO_DEBUG
@@ -2173,14 +2151,11 @@ malo_rx_proc(void *arg, int npending)
 				*(uint16_t *)wh->i_qos = ds->qosctrl;
 			}
 		}
-		if (sc->malo_drvbpf != NULL) {
+		if (ieee80211_radiotap_active(ic)) {
 			sc->malo_rx_th.wr_flags = 0;
 			sc->malo_rx_th.wr_rate = ds->rate;
 			sc->malo_rx_th.wr_antsignal = rssi;
 			sc->malo_rx_th.wr_antnoise = ds->nf;
-
-			bpf_mtap2(ifp->if_bpf, &sc->malo_rx_th,
-			    sc->malo_rx_th_len, m);
 		}
 #ifdef MALO_DEBUG
 		if (IFF_DUMPPKTS_RECV(sc, wh)) {
@@ -2194,10 +2169,10 @@ malo_rx_proc(void *arg, int npending)
 		ni = ieee80211_find_rxnode(ic,
 		    (struct ieee80211_frame_min *)wh);
 		if (ni != NULL) {
-			(void) ieee80211_input(ni, m, rssi, ds->nf, 0);
+			(void) ieee80211_input(ni, m, rssi, ds->nf);
 			ieee80211_free_node(ni);
 		} else
-			(void) ieee80211_input_all(ic, m, rssi, ds->nf, 0);
+			(void) ieee80211_input_all(ic, m, rssi, ds->nf);
 rx_next:
 		/* NB: ignore ENOMEM so we process more descriptors */
 		(void) malo_rxbuf_init(sc, bf);
@@ -2252,8 +2227,6 @@ malo_detach(struct malo_softc *sc)
 		taskqueue_free(sc->malo_tq);
 		sc->malo_tq = NULL;
 	}
-
-	bpfdetach(ifp);
 
 	/*
 	 * NB: the order of these is important:

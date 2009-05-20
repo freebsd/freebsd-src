@@ -182,9 +182,7 @@ struct wpi_softc {
 	struct bpf_if		*sc_drvbpf;
 
 	struct wpi_rx_radiotap_header sc_rxtap;
-	int			sc_rxtap_len;
 	struct wpi_tx_radiotap_header sc_txtap;
-	int			sc_txtap_len;
 
 	/* firmware image */
 	const struct firmware	*fw_fp;
