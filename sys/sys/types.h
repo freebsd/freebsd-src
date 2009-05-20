@@ -210,6 +210,11 @@ typedef	__nlink_t	nlink_t;	/* link count */
 #define	_NLINK_T_DECLARED
 #endif
 
+#ifndef _ACCMODE_T_DECLARED
+typedef	__accmode_t	accmode_t;	/* access permissions */
+#define	_ACCMODE_T_DECLARED
+#endif
+
 #ifndef _OFF_T_DECLARED
 typedef	__off_t		off_t;		/* file offset */
 #define	_OFF_T_DECLARED
