@@ -230,11 +230,11 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 
 	/* select the correct endpoint */
 	bus_space_write_1(td->io_tag, td->io_hdl,
-	    td->ep_reg, td->ep_index);
+	    USS820_EPINDEX, td->ep_index);
 
 	/* read out FIFO status */
 	rx_stat = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_stat_reg);
+	    USS820_RXSTAT);
 
 	/* get pointer to softc */
 	sc = USS820_DCI_PC2SC(td->pc);
@@ -260,9 +260,9 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 
 	/* get the packet byte count */
 	count = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_count_low_reg);
+	    USS820_RXCNTL);
 	count |= (bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_count_high_reg) << 8);
+	    USS820_RXCNTH) << 8);
 	count &= 0x3FF;
 
 	/* verify data length */
@@ -278,11 +278,11 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 	}
 	/* receive data */
 	bus_space_read_multi_1(td->io_tag, td->io_hdl,
-	    td->rx_fifo_reg, (void *)&req, sizeof(req));
+	    USS820_RXDAT, (void *)&req, sizeof(req));
 
 	/* read out FIFO status */
 	rx_stat = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_stat_reg);
+	    USS820_RXSTAT);
 
 	if (rx_stat & (USS820_RXSTAT_EDOVW |
 	    USS820_RXSTAT_STOVW)) {
@@ -297,10 +297,10 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 
 	/* set RXFFRC bit */
 	temp = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_cntl_reg);
+	    USS820_RXCON);
 	temp |= USS820_RXCON_RXFFRC;
 	bus_space_write_1(td->io_tag, td->io_hdl,
-	    td->rx_cntl_reg, temp);
+	    USS820_RXCON, temp);
 
 	/* copy data into real buffer */
 	usb2_copy_in(td->pc, 0, &req, sizeof(req));
@@ -321,10 +321,10 @@ setup_not_complete:
 
 	/* set RXFFRC bit */
 	temp = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_cntl_reg);
+	    USS820_RXCON);
 	temp |= USS820_RXCON_RXFFRC;
 	bus_space_write_1(td->io_tag, td->io_hdl,
-	    td->rx_cntl_reg, temp);
+	    USS820_RXCON, temp);
 
 	/* FALLTHROUGH */
 
@@ -365,16 +365,16 @@ uss820dci_data_rx(struct uss820dci_td *td)
 	got_short = 0;
 
 	/* select the correct endpoint */
-	bus_space_write_1(td->io_tag, td->io_hdl, td->ep_reg, td->ep_index);
+	bus_space_write_1(td->io_tag, td->io_hdl, USS820_EPINDEX, td->ep_index);
 
 	/* check if any of the FIFO banks have data */
 repeat:
 	/* read out FIFO flag */
 	rx_flag = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_flag_reg);
+	    USS820_RXFLG);
 	/* read out FIFO status */
 	rx_stat = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_stat_reg);
+	    USS820_RXSTAT);
 
 	DPRINTFN(5, "rx_stat=0x%02x rx_flag=0x%02x rem=%u\n",
 	    rx_stat, rx_flag, td->remainder);
@@ -419,10 +419,10 @@ repeat:
 	}
 	/* get the packet byte count */
 	count = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_count_low_reg);
+	    USS820_RXCNTL);
 
 	count |= (bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_count_high_reg) << 8);
+	    USS820_RXCNTH) << 8);
 	count &= 0x3FF;
 
 	DPRINTFN(5, "count=0x%04x\n", count);
@@ -454,7 +454,7 @@ repeat:
 		}
 		/* receive data */
 		bus_space_read_multi_1(td->io_tag, td->io_hdl,
-		    td->rx_fifo_reg, buf_res.buffer, buf_res.length);
+		    USS820_RXDAT, buf_res.buffer, buf_res.length);
 
 		/* update counters */
 		count -= buf_res.length;
@@ -464,10 +464,10 @@ repeat:
 
 	/* set RXFFRC bit */
 	rx_cntl = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_cntl_reg);
+	    USS820_RXCON);
 	rx_cntl |= USS820_RXCON_RXFFRC;
 	bus_space_write_1(td->io_tag, td->io_hdl,
-	    td->rx_cntl_reg, rx_cntl);
+	    USS820_RXCON, rx_cntl);
 
 	/* check if we are complete */
 	if ((td->remainder == 0) || got_short) {
@@ -495,18 +495,18 @@ uss820dci_data_tx(struct uss820dci_td *td)
 
 	/* select the correct endpoint */
 	bus_space_write_1(td->io_tag, td->io_hdl,
-	    td->ep_reg, td->ep_index);
+	    USS820_EPINDEX, td->ep_index);
 
 	to = 2;				/* don't loop forever! */
 
 repeat:
 	/* read out TX FIFO flags */
 	tx_flag = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->tx_flag_reg);
+	    USS820_TXFLG);
 
 	/* read out RX FIFO status last */
 	rx_stat = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_stat_reg);
+	    USS820_RXSTAT);
 
 	DPRINTFN(5, "rx_stat=0x%02x tx_flag=0x%02x rem=%u\n",
 	    rx_stat, tx_flag, td->remainder);
@@ -553,7 +553,7 @@ repeat:
 		}
 		/* transmit data */
 		bus_space_write_multi_1(td->io_tag, td->io_hdl,
-		    td->tx_fifo_reg, buf_res.buffer, buf_res.length);
+		    USS820_TXDAT, buf_res.buffer, buf_res.length);
 
 		/* update counters */
 		count -= buf_res.length;
@@ -563,11 +563,11 @@ repeat:
 
 	/* post-write high packet byte count first */
 	bus_space_write_1(td->io_tag, td->io_hdl,
-	    td->tx_count_high_reg, count_copy >> 8);
+	    USS820_TXCNTH, count_copy >> 8);
 
 	/* post-write low packet byte count last */
 	bus_space_write_1(td->io_tag, td->io_hdl,
-	    td->tx_count_low_reg, count_copy);
+	    USS820_TXCNTL, count_copy);
 
 	/*
 	 * Enable TX output, which must happen after that we have written
@@ -600,15 +600,15 @@ uss820dci_data_tx_sync(struct uss820dci_td *td)
 
 	/* select the correct endpoint */
 	bus_space_write_1(td->io_tag, td->io_hdl,
-	    td->ep_reg, td->ep_index);
+	    USS820_EPINDEX, td->ep_index);
 
 	/* read out TX FIFO flag */
 	tx_flag = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->tx_flag_reg);
+	    USS820_TXFLG);
 
 	/* read out RX FIFO status last */
 	rx_stat = bus_space_read_1(td->io_tag, td->io_hdl,
-	    td->rx_stat_reg);
+	    USS820_RXSTAT);
 
 	DPRINTFN(5, "rx_stat=0x%02x rem=%u\n", rx_stat, td->remainder);
 
@@ -2269,20 +2269,6 @@ uss820dci_xfer_setup(struct usb2_setup_params *parm)
 			td->io_tag = sc->sc_io_tag;
 			td->io_hdl = sc->sc_io_hdl;
 			td->max_packet_size = xfer->max_packet_size;
-			td->rx_stat_reg = USS820_GET_REG(sc, USS820_RXSTAT);
-			td->tx_stat_reg = USS820_GET_REG(sc, USS820_TXSTAT);
-			td->rx_flag_reg = USS820_GET_REG(sc, USS820_RXFLG);
-			td->tx_flag_reg = USS820_GET_REG(sc, USS820_TXFLG);
-			td->rx_fifo_reg = USS820_GET_REG(sc, USS820_RXDAT);
-			td->tx_fifo_reg = USS820_GET_REG(sc, USS820_TXDAT);
-			td->rx_count_low_reg = USS820_GET_REG(sc, USS820_RXCNTL);
-			td->rx_count_high_reg = USS820_GET_REG(sc, USS820_RXCNTH);
-			td->tx_count_low_reg = USS820_GET_REG(sc, USS820_TXCNTL);
-			td->tx_count_high_reg = USS820_GET_REG(sc, USS820_TXCNTH);
-			td->rx_cntl_reg = USS820_GET_REG(sc, USS820_RXCON);
-			td->tx_cntl_reg = USS820_GET_REG(sc, USS820_TXCON);
-			td->pend_reg = USS820_GET_REG(sc, USS820_PEND);
-			td->ep_reg = USS820_GET_REG(sc, USS820_EPINDEX);
 			td->ep_index = ep_no;
 			if (pf->support_multi_buffer &&
 			    (parm->methods != &uss820dci_device_ctrl_methods)) {
