@@ -143,7 +143,6 @@ static int  wi_alloc_fid(struct wi_softc *, int, int *);
 static void wi_read_nicid(struct wi_softc *);
 static int  wi_write_ssid(struct wi_softc *, int, u_int8_t *, int);
 
-static int  wi_cmd(struct wi_softc *, int, int, int, int);
 static int  wi_seek_bap(struct wi_softc *, int, int);
 static int  wi_read_bap(struct wi_softc *, int, int, void *, int);
 static int  wi_write_bap(struct wi_softc *, int, int, void *, int);
@@ -1801,7 +1800,7 @@ wi_write_wep(struct wi_softc *sc, struct ieee80211vap *vap)
 	return error;
 }
 
-static int
+int
 wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 {
 	int i, s = 0;
@@ -2120,3 +2119,5 @@ wi_free(device_t dev)
 		sc->mem = NULL;
 	}
 }
+
+MODULE_VERSION(wi, 1);

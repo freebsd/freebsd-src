@@ -663,7 +663,7 @@ ata_getparam(struct ata_device *atadev, int init)
 	btrim(atacap->serial, sizeof(atacap->serial));
 	bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
 
-	if (bootverbose)
+	if (bootverbose || 1)
 	    printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
 		   device_get_unit(ch->dev),
 		   ata_unit2str(atadev),
