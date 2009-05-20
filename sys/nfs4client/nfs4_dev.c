@@ -255,7 +255,7 @@ nfs4dev_uninit(void)
 
 /* device interface functions */
 static int
-nfs4dev_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+nfs4dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	if (dev != nfs4device) 
 		return ENODEV;
@@ -274,7 +274,7 @@ nfs4dev_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
-nfs4dev_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+nfs4dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct nfs4dev_upcall * u;
 
