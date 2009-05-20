@@ -184,6 +184,3 @@ void	wi_init(void *);
 void	wi_intr(void *);
 int	wi_mgmt_xmit(struct wi_softc *, caddr_t, int);
 void	wi_stop(struct wi_softc *, int);
-
-/* KLUDGE */
-int	wi_cmd(struct wi_softc *, int, int, int, int);
