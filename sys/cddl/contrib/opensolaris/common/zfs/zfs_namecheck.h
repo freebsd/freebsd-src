@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -42,12 +42,17 @@ typedef enum {
 	NAME_ERR_RESERVED,		/* entire name is reserved */
 	NAME_ERR_DISKLIKE,		/* reserved disk name (c[0-9].*) */
 	NAME_ERR_TOOLONG,		/* name is too long */
+	NAME_ERR_NO_AT,			/* permission set is missing '@' */
 } namecheck_err_t;
+
+#define	ZFS_PERMSET_MAXLEN	64
 
 int pool_namecheck(const char *, namecheck_err_t *, char *);
 int dataset_namecheck(const char *, namecheck_err_t *, char *);
+int mountpoint_namecheck(const char *, namecheck_err_t *);
 int dataset_name_hidden(const char *);
 int snapshot_namecheck(const char *, namecheck_err_t *, char *);
+int permset_namecheck(const char *, namecheck_err_t *, char *);
 
 #ifdef	__cplusplus
 }

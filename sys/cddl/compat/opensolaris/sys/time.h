@@ -30,7 +30,6 @@
 #define	_OPENSOLARIS_SYS_TIME_H_
 
 #include_next <sys/time.h>
-
 #define SEC		1
 #define MILLISEC	1000
 #define MICROSEC	1000000
@@ -39,6 +38,9 @@
 typedef longlong_t	hrtime_t;
 
 #define	LBOLT	((gethrtime() * hz) / NANOSEC)
+
+#define	TIMESPEC_OVERFLOW(ts)						\
+	((ts)->tv_sec < INT32_MIN || (ts)->tv_sec > INT32_MAX)
 
 #ifdef _KERNEL
 #define	lbolt64	(int64_t)(LBOLT)

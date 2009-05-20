@@ -61,6 +61,15 @@ atomic_add_64(volatile uint64_t *target, int64_t delta)
 	*target += delta;
 	mtx_unlock(&atomic_mtx);
 }
+
+void
+atomic_dec_64(volatile uint64_t *target)
+{
+
+	mtx_lock(&atomic_mtx);
+	*target -= 1;
+	mtx_unlock(&atomic_mtx);
+}
 #endif
 
 uint64_t
@@ -74,7 +83,8 @@ atomic_add_64_nv(volatile uint64_t *target, int64_t delta)
 	return (newval);
 }
 
-#if defined(__sparc64__) || defined(__powerpc__) || defined(__arm__)
+#if defined(__sparc64__) || defined(__powerpc__) || defined(__arm__) || \
+    defined(__mips__)
 void
 atomic_or_8(volatile uint8_t *target, uint8_t value)
 {

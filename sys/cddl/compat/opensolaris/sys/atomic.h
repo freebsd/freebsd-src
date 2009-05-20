@@ -38,6 +38,7 @@
 
 #ifndef __LP64__
 extern void atomic_add_64(volatile uint64_t *target, int64_t delta);
+extern void atomic_dec_64(volatile uint64_t *target);
 extern void *atomic_cas_ptr(volatile void *target, void *cmp,  void *newval);
 #endif
 #ifndef __sparc64__
@@ -48,7 +49,8 @@ extern uint64_t atomic_add_64_nv(volatile uint64_t *target, int64_t delta);
 extern uint8_t atomic_or_8_nv(volatile uint8_t *target, uint8_t value);
 extern void membar_producer(void);
 
-#if defined(__sparc64__) || defined(__powerpc__) || defined(__arm__)
+#if defined(__sparc64__) || defined(__powerpc__) || defined(__arm__) || \
+    defined(__mips__)
 extern void atomic_or_8(volatile uint8_t *target, uint8_t value);
 #else
 static __inline void
@@ -81,6 +83,14 @@ atomic_dec_32_nv(volatile uint32_t *target)
 {
 	return (atomic_fetchadd_32(target, -1) - 1);
 }
+
+#ifdef __LP64__
+static __inline void
+atomic_dec_64(volatile uint64_t *target)
+{
+	atomic_subtract_64(target, 1);
+}
+#endif
 
 static __inline void
 atomic_inc_32(volatile uint32_t *target)

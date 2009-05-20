@@ -53,6 +53,7 @@ struct zpool_list {
 	boolean_t	zl_findall;
 	uu_avl_t	*zl_avl;
 	uu_avl_pool_t	*zl_pool;
+	zprop_list_t	**zl_proplist;
 };
 
 /* ARGSUSED */
@@ -81,6 +82,12 @@ add_pool(zpool_handle_t *zhp, void *data)
 	node->zn_handle = zhp;
 	uu_avl_node_init(node, &node->zn_avlnode, zlp->zl_pool);
 	if (uu_avl_find(zlp->zl_avl, node, NULL, &idx) == NULL) {
+		if (zlp->zl_proplist &&
+		    zpool_expand_proplist(zhp, zlp->zl_proplist) != 0) {
+			zpool_close(zhp);
+			free(node);
+			return (-1);
+		}
 		uu_avl_insert(zlp->zl_avl, node, idx);
 	} else {
 		zpool_close(zhp);
@@ -98,7 +105,7 @@ add_pool(zpool_handle_t *zhp, void *data)
  * line.
  */
 zpool_list_t *
-pool_list_get(int argc, char **argv, zpool_proplist_t **proplist, int *err)
+pool_list_get(int argc, char **argv, zprop_list_t **proplist, int *err)
 {
 	zpool_list_t *zlp;
 
@@ -114,6 +121,8 @@ pool_list_get(int argc, char **argv, zpool_proplist_t **proplist, int *err)
 	    UU_DEFAULT)) == NULL)
 		zpool_no_memory();
 
+	zlp->zl_proplist = proplist;
+
 	if (argc == 0) {
 		(void) zpool_iter(g_zfs, add_pool, zlp);
 		zlp->zl_findall = B_TRUE;
@@ -123,13 +132,12 @@ pool_list_get(int argc, char **argv, zpool_proplist_t **proplist, int *err)
 		for (i = 0; i < argc; i++) {
 			zpool_handle_t *zhp;
 
-			if ((zhp = zpool_open_canfail(g_zfs,
-			    argv[i])) != NULL && add_pool(zhp, zlp) == 0) {
-				if (proplist &&
-				    zpool_expand_proplist(zhp, proplist) != 0)
+			if (zhp = zpool_open_canfail(g_zfs, argv[i])) {
+				if (add_pool(zhp, zlp) != 0)
 					*err = B_TRUE;
-			} else
+			} else {
 				*err = B_TRUE;
+			}
 		}
 	}
 
@@ -228,7 +236,7 @@ pool_list_count(zpool_list_t *zlp)
  */
 int
 for_each_pool(int argc, char **argv, boolean_t unavail,
-    zpool_proplist_t **proplist, zpool_iter_f func, void *data)
+    zprop_list_t **proplist, zpool_iter_f func, void *data)
 {
 	zpool_list_t *list;
 	int ret = 0;

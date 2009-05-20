@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -19,8 +18,9 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2003 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -81,12 +81,12 @@ typedef lwp_cond_t cond_t;
  * Because we have to deal with C++, we cannot redefine this one as that one.
  */
 typedef struct _rwlock {
-	int32_t		readers;	/* -1 == writer else # of readers */
+	int32_t		readers;	/* rwstate word */
 	uint16_t	type;
 	uint16_t	magic;
-	mutex_t		mutex;		/* used to indicate ownership */
-	cond_t		readercv;	/* unused */
-	cond_t		writercv;	/* unused */
+	mutex_t		mutex;		/* used with process-shared rwlocks */
+	cond_t		readercv;	/* used only to indicate ownership */
+	cond_t		writercv;	/* used only to indicate ownership */
 } rwlock_t;
 
 #ifdef	__STDC__
@@ -111,6 +111,7 @@ int	cond_signal(cond_t *);
 int	cond_broadcast(cond_t *);
 int	mutex_init(mutex_t *, int, void *);
 int	mutex_destroy(mutex_t *);
+int	mutex_consistent(mutex_t *);
 int	mutex_lock(mutex_t *);
 int	mutex_trylock(mutex_t *);
 int	mutex_unlock(mutex_t *);
@@ -152,6 +153,7 @@ int	cond_signal();
 int	cond_broadcast();
 int	mutex_init();
 int	mutex_destroy();
+int	mutex_consistent();
 int	mutex_lock();
 int	mutex_trylock();
 int	mutex_unlock();

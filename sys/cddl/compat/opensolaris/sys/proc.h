@@ -71,7 +71,6 @@ thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 	 * Be sure there are no surprises.
 	 */
 	ASSERT(stk == NULL);
-	ASSERT(stksize == 0);
 	ASSERT(len == 0);
 	ASSERT(state == TS_RUN);
 

@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
@@ -54,6 +52,25 @@ int zfs_vdev_ramp_rate = 2;
  * zfs_vdev_aggregation_limit bytes long.
  */
 int zfs_vdev_aggregation_limit = SPA_MAXBLOCKSIZE;
+
+SYSCTL_DECL(_vfs_zfs_vdev);
+TUNABLE_INT("vfs.zfs.vdev.max_pending", &zfs_vdev_max_pending);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, max_pending, CTLFLAG_RDTUN,
+    &zfs_vdev_max_pending, 0, "Maximum I/O requests pending on each device");
+TUNABLE_INT("vfs.zfs.vdev.min_pending", &zfs_vdev_min_pending);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, min_pending, CTLFLAG_RDTUN,
+    &zfs_vdev_min_pending, 0,
+    "Initial number of I/O requests pending to each device");
+TUNABLE_INT("vfs.zfs.vdev.time_shift", &zfs_vdev_time_shift);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, time_shift, CTLFLAG_RDTUN,
+    &zfs_vdev_time_shift, 0, "Used for calculating I/O request deadline");
+TUNABLE_INT("vfs.zfs.vdev.ramp_rate", &zfs_vdev_ramp_rate);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, ramp_rate, CTLFLAG_RDTUN,
+    &zfs_vdev_ramp_rate, 0, "Exponential I/O issue ramp-up rate");
+TUNABLE_INT("vfs.zfs.vdev.aggregation_limit", &zfs_vdev_aggregation_limit);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RDTUN,
+    &zfs_vdev_aggregation_limit, 0,
+    "I/O requests are aggregated up to this size");
 
 /*
  * Virtual device vector for disk I/O scheduling.
@@ -162,7 +179,7 @@ vdev_queue_agg_io_done(zio_t *aio)
 		aio->io_delegate_list = dio->io_delegate_next;
 		dio->io_delegate_next = NULL;
 		dio->io_error = aio->io_error;
-		zio_next_stage(dio);
+		zio_execute(dio);
 	}
 	ASSERT3U(offset, ==, aio->io_size);
 
@@ -172,19 +189,14 @@ vdev_queue_agg_io_done(zio_t *aio)
 #define	IS_ADJACENT(io, nio) \
 	((io)->io_offset + (io)->io_size == (nio)->io_offset)
 
-typedef void zio_issue_func_t(zio_t *);
-
 static zio_t *
-vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit,
-	zio_issue_func_t **funcp)
+vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit)
 {
 	zio_t *fio, *lio, *aio, *dio;
 	avl_tree_t *tree;
 	uint64_t size;
 
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
-
-	*funcp = NULL;
 
 	if (avl_numnodes(&vq->vq_pending_tree) >= pending_limit ||
 	    avl_numnodes(&vq->vq_deadline_tree) == 0)
@@ -196,6 +208,7 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit,
 	size = fio->io_size;
 
 	while ((dio = AVL_PREV(tree, fio)) != NULL && IS_ADJACENT(dio, fio) &&
+	    !((dio->io_flags | fio->io_flags) & ZIO_FLAG_DONT_AGGREGATE) &&
 	    size + dio->io_size <= zfs_vdev_aggregation_limit) {
 		dio->io_delegate_next = fio;
 		fio = dio;
@@ -203,6 +216,7 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit,
 	}
 
 	while ((dio = AVL_NEXT(tree, lio)) != NULL && IS_ADJACENT(lio, dio) &&
+	    !((lio->io_flags | dio->io_flags) & ZIO_FLAG_DONT_AGGREGATE) &&
 	    size + dio->io_size <= zfs_vdev_aggregation_limit) {
 		lio->io_delegate_next = dio;
 		lio = dio;
@@ -212,15 +226,12 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit,
 	if (fio != lio) {
 		char *buf = zio_buf_alloc(size);
 		uint64_t offset = 0;
-		int nagg = 0;
 
 		ASSERT(size <= zfs_vdev_aggregation_limit);
 
-		aio = zio_vdev_child_io(fio, NULL, fio->io_vd,
-		    fio->io_offset, buf, size, fio->io_type,
-		    ZIO_PRIORITY_NOW, ZIO_FLAG_DONT_QUEUE |
-		    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_PROPAGATE |
-		    ZIO_FLAG_NOBOOKMARK,
+		aio = zio_vdev_delegated_io(fio->io_vd, fio->io_offset,
+		    buf, size, fio->io_type, ZIO_PRIORITY_NOW,
+		    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_QUEUE,
 		    vdev_queue_agg_io_done, NULL);
 
 		aio->io_delegate_list = fio;
@@ -233,19 +244,12 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit,
 			offset += dio->io_size;
 			vdev_queue_io_remove(vq, dio);
 			zio_vdev_io_bypass(dio);
-			nagg++;
 		}
 
 		ASSERT(offset == size);
 
-		dprintf("%5s  T=%llu  off=%8llx  agg=%3d  "
-		    "old=%5llx  new=%5llx\n",
-		    zio_type_name[fio->io_type],
-		    fio->io_deadline, fio->io_offset, nagg, fio->io_size, size);
-
 		avl_add(&vq->vq_pending_tree, aio);
 
-		*funcp = zio_nowait;
 		return (aio);
 	}
 
@@ -253,8 +257,6 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit,
 	vdev_queue_io_remove(vq, fio);
 
 	avl_add(&vq->vq_pending_tree, fio);
-
-	*funcp = zio_next_stage;
 
 	return (fio);
 }
@@ -264,7 +266,6 @@ vdev_queue_io(zio_t *zio)
 {
 	vdev_queue_t *vq = &zio->io_vd->vdev_queue;
 	zio_t *nio;
-	zio_issue_func_t *func;
 
 	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
 
@@ -280,42 +281,45 @@ vdev_queue_io(zio_t *zio)
 
 	mutex_enter(&vq->vq_lock);
 
-	zio->io_deadline = (zio->io_timestamp >> zfs_vdev_time_shift) +
-	    zio->io_priority;
+	zio->io_deadline = (lbolt64 >> zfs_vdev_time_shift) + zio->io_priority;
 
 	vdev_queue_io_add(vq, zio);
 
-	nio = vdev_queue_io_to_issue(vq, zfs_vdev_min_pending, &func);
+	nio = vdev_queue_io_to_issue(vq, zfs_vdev_min_pending);
 
 	mutex_exit(&vq->vq_lock);
 
-	if (nio == NULL || func != zio_nowait)
-		return (nio);
+	if (nio == NULL)
+		return (NULL);
 
-	func(nio);
-	return (NULL);
+	if (nio->io_done == vdev_queue_agg_io_done) {
+		zio_nowait(nio);
+		return (NULL);
+	}
+
+	return (nio);
 }
 
 void
 vdev_queue_io_done(zio_t *zio)
 {
 	vdev_queue_t *vq = &zio->io_vd->vdev_queue;
-	zio_t *nio;
-	zio_issue_func_t *func;
-	int i;
 
 	mutex_enter(&vq->vq_lock);
 
 	avl_remove(&vq->vq_pending_tree, zio);
 
-	for (i = 0; i < zfs_vdev_ramp_rate; i++) {
-		nio = vdev_queue_io_to_issue(vq, zfs_vdev_max_pending, &func);
+	for (int i = 0; i < zfs_vdev_ramp_rate; i++) {
+		zio_t *nio = vdev_queue_io_to_issue(vq, zfs_vdev_max_pending);
 		if (nio == NULL)
 			break;
 		mutex_exit(&vq->vq_lock);
-		if (func == zio_next_stage)
+		if (nio->io_done == vdev_queue_agg_io_done) {
+			zio_nowait(nio);
+		} else {
 			zio_vdev_io_reissue(nio);
-		func(nio);
+			zio_execute(nio);
+		}
 		mutex_enter(&vq->vq_lock);
 	}
 

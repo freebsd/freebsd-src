@@ -6,7 +6,7 @@ SUBDIR=	dtrace \
 	${_zdb}
 
 .if ${MK_ZFS} != "no"
-.if ${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no"
+.if ${MK_LIBTHR} != "no"
 _zdb=	zdb
 .endif
 .endif

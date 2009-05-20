@@ -10,14 +10,17 @@ DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
 SRCS=	deviceid.c \
-	mnttab.c \
-	mkdirp.c \
-	zmount.c \
 	fsshare.c \
+	mkdirp.c \
+	mnttab.c \
+	zmount.c \
 	zone.c
 
-SRCS+=	zfs_namecheck.c \
+SRCS+=	zfs_deleg.c \
+	zfs_namecheck.c \
 	zfs_prop.c \
+	zpool_prop.c \
+	zprop_common.c \
 	libzfs_dataset.c \
 	libzfs_util.c \
 	libzfs_graph.c \
@@ -26,6 +29,7 @@ SRCS+=	zfs_namecheck.c \
 	libzfs_changelist.c \
 	libzfs_config.c \
 	libzfs_import.c \
+	libzfs_sendrecv.c \
 	libzfs_status.c
 
 CFLAGS+= -DZFS_NO_ACL

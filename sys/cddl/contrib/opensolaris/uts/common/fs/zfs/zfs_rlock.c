@@ -472,10 +472,14 @@ zfs_range_unlock_reader(znode_t *zp, rl_t *remove)
 	 */
 	if (remove->r_cnt == 1) {
 		avl_remove(tree, remove);
-		if (remove->r_write_wanted)
+		if (remove->r_write_wanted) {
 			cv_broadcast(&remove->r_wr_cv);
-		if (remove->r_read_wanted)
+			cv_destroy(&remove->r_wr_cv);
+		}
+		if (remove->r_read_wanted) {
 			cv_broadcast(&remove->r_rd_cv);
+			cv_destroy(&remove->r_rd_cv);
+		}
 	} else {
 		ASSERT3U(remove->r_cnt, ==, 0);
 		ASSERT3U(remove->r_write_wanted, ==, 0);
@@ -501,10 +505,14 @@ zfs_range_unlock_reader(znode_t *zp, rl_t *remove)
 			rl->r_cnt--;
 			if (rl->r_cnt == 0) {
 				avl_remove(tree, rl);
-				if (rl->r_write_wanted)
+				if (rl->r_write_wanted) {
 					cv_broadcast(&rl->r_wr_cv);
-				if (rl->r_read_wanted)
+					cv_destroy(&rl->r_wr_cv);
+				}
+				if (rl->r_read_wanted) {
 					cv_broadcast(&rl->r_rd_cv);
+					cv_destroy(&rl->r_rd_cv);
+				}
 				kmem_free(rl, sizeof (rl_t));
 			}
 		}

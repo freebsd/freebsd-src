@@ -14,7 +14,7 @@ SUBDIR=	drti \
 
 .if ${MK_ZFS} != "no"
 _libzfs=	libzfs
-.if ${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no"
+.if ${MK_LIBTHR} != "no"
 _libzpool=	libzpool
 .endif
 .endif

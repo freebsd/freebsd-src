@@ -20,15 +20,24 @@
  */
 
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
+#include <sys/spa.h>
 #include <sys/spa_impl.h>
 #include <sys/zap.h>
 #include <sys/dsl_synctask.h>
+#include <sys/dmu_tx.h>
+#include <sys/dmu_objset.h>
+#include <sys/utsname.h>
+#include <sys/sunddi.h>
+#ifdef _KERNEL
+#include <sys/cmn_err.h>
+#include <sys/zone.h>
+#endif
 
 /*
  * Routines to manage the on-disk history log.
@@ -58,16 +67,6 @@
  * 'sh_records_lost' keeps track of how many records have been overwritten
  * and permanently lost.
  */
-
-typedef enum history_log_type {
-	LOG_CMD_CREATE,
-	LOG_CMD_NO_CREATE
-} history_log_type_t;
-
-typedef struct history_arg {
-	const char *ha_history_str;
-	history_log_type_t ha_log_type;
-} history_arg_t;
 
 /* convert a logical offset to physical */
 static uint64_t
@@ -156,8 +155,9 @@ spa_history_write(spa_t *spa, void *buf, uint64_t len, spa_history_phys_t *shpp,
 	/* see if we need to reset logical BOF */
 	while (shpp->sh_phys_max_off - shpp->sh_pool_create_len -
 	    (shpp->sh_eof - shpp->sh_bof) <= len) {
-		if ((err = spa_history_advance_bof(spa, shpp)) != 0)
+		if ((err = spa_history_advance_bof(spa, shpp)) != 0) {
 			return (err);
+		}
 	}
 
 	phys_eof = spa_history_log_to_phys(shpp->sh_eof, shpp);
@@ -175,11 +175,22 @@ spa_history_write(spa_t *spa, void *buf, uint64_t len, spa_history_phys_t *shpp,
 	return (0);
 }
 
+static char *
+spa_history_zone()
+{
+#ifdef _KERNEL
+	/* XXX: pr_host can be changed by default from within a jail! */
+	if (jailed(curthread->td_ucred))
+		return (curthread->td_ucred->cr_prison->pr_host);
+#endif
+	return ("global");
+}
+
 /*
  * Write out a history event.
  */
-void
-spa_history_log_sync(void *arg1, void *arg2, dmu_tx_t *tx)
+static void
+spa_history_log_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 {
 	spa_t		*spa = arg1;
 	history_arg_t	*hap = arg2;
@@ -192,9 +203,6 @@ spa_history_log_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	nvlist_t	*nvrecord;
 	char		*record_packed = NULL;
 	int		ret;
-
-	if (history_str == NULL)
-		return;
 
 	/*
 	 * If we have an older pool that doesn't have a command
@@ -222,16 +230,39 @@ spa_history_log_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	}
 #endif
 
-	/* construct a nvlist of the current time and cmd string */
 	VERIFY(nvlist_alloc(&nvrecord, NV_UNIQUE_NAME, KM_SLEEP) == 0);
 	VERIFY(nvlist_add_uint64(nvrecord, ZPOOL_HIST_TIME,
 	    gethrestime_sec()) == 0);
-	VERIFY(nvlist_add_string(nvrecord, ZPOOL_HIST_CMD, history_str) == 0);
+	VERIFY(nvlist_add_uint64(nvrecord, ZPOOL_HIST_WHO,
+	    (uint64_t)crgetuid(cr)) == 0);
+	if (hap->ha_zone[0] != '\0')
+		VERIFY(nvlist_add_string(nvrecord, ZPOOL_HIST_ZONE,
+		    hap->ha_zone) == 0);
+#ifdef _KERNEL
+	VERIFY(nvlist_add_string(nvrecord, ZPOOL_HIST_HOST,
+	    utsname.nodename) == 0);
+#endif
+	if (hap->ha_log_type == LOG_CMD_POOL_CREATE ||
+	    hap->ha_log_type == LOG_CMD_NORMAL) {
+		VERIFY(nvlist_add_string(nvrecord, ZPOOL_HIST_CMD,
+		    history_str) == 0);
+	} else {
+		VERIFY(nvlist_add_uint64(nvrecord, ZPOOL_HIST_INT_EVENT,
+		    hap->ha_event) == 0);
+		VERIFY(nvlist_add_uint64(nvrecord, ZPOOL_HIST_TXG,
+		    tx->tx_txg) == 0);
+		VERIFY(nvlist_add_string(nvrecord, ZPOOL_HIST_INT_STR,
+		    history_str) == 0);
+	}
+
+	VERIFY(nvlist_size(nvrecord, &reclen, NV_ENCODE_XDR) == 0);
+	record_packed = kmem_alloc(reclen, KM_SLEEP);
+
 	VERIFY(nvlist_pack(nvrecord, &record_packed, &reclen,
 	    NV_ENCODE_XDR, KM_SLEEP) == 0);
 
 	mutex_enter(&spa->spa_history_lock);
-	if (hap->ha_log_type == LOG_CMD_CREATE)
+	if (hap->ha_log_type == LOG_CMD_POOL_CREATE)
 		VERIFY(shpp->sh_eof == shpp->sh_pool_create_len);
 
 	/* write out the packed length as little endian */
@@ -240,7 +271,7 @@ spa_history_log_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	if (!ret)
 		ret = spa_history_write(spa, record_packed, reclen, shpp, tx);
 
-	if (!ret && hap->ha_log_type == LOG_CMD_CREATE) {
+	if (!ret && hap->ha_log_type == LOG_CMD_POOL_CREATE) {
 		shpp->sh_pool_create_len += sizeof (le_len) + reclen;
 		shpp->sh_bof = shpp->sh_pool_create_len;
 	}
@@ -249,18 +280,26 @@ spa_history_log_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	nvlist_free(nvrecord);
 	kmem_free(record_packed, reclen);
 	dmu_buf_rele(dbp, FTAG);
+
+	if (hap->ha_log_type == LOG_INTERNAL) {
+		kmem_free((void*)hap->ha_history_str, HIS_MAX_RECORD_LEN);
+		kmem_free(hap, sizeof (history_arg_t));
+	}
 }
 
 /*
  * Write out a history event.
  */
 int
-spa_history_log(spa_t *spa, const char *history_str, uint64_t pool_create)
+spa_history_log(spa_t *spa, const char *history_str, history_log_type_t what)
 {
 	history_arg_t ha;
 
+	ASSERT(what != LOG_INTERNAL);
+
 	ha.ha_history_str = history_str;
-	ha.ha_log_type = pool_create ? LOG_CMD_CREATE : LOG_CMD_NO_CREATE;
+	ha.ha_log_type = what;
+	(void) strlcpy(ha.ha_zone, spa_history_zone(), sizeof (ha.ha_zone));
 	return (dsl_sync_task_do(spa_get_dsl(spa), NULL, spa_history_log_sync,
 	    spa, &ha, 0));
 }
@@ -351,4 +390,40 @@ spa_history_get(spa_t *spa, uint64_t *offp, uint64_t *len, char *buf)
 
 	dmu_buf_rele(dbp, FTAG);
 	return (err);
+}
+
+void
+spa_history_internal_log(history_internal_events_t event, spa_t *spa,
+    dmu_tx_t *tx, cred_t *cr, const char *fmt, ...)
+{
+	history_arg_t *hap;
+	char *str;
+	va_list adx;
+
+	/*
+	 * If this is part of creating a pool, not everything is
+	 * initialized yet, so don't bother logging the internal events.
+	 */
+	if (tx->tx_txg == TXG_INITIAL)
+		return;
+
+	hap = kmem_alloc(sizeof (history_arg_t), KM_SLEEP);
+	str = kmem_alloc(HIS_MAX_RECORD_LEN, KM_SLEEP);
+
+	va_start(adx, fmt);
+	(void) vsnprintf(str, HIS_MAX_RECORD_LEN, fmt, adx);
+	va_end(adx);
+
+	hap->ha_log_type = LOG_INTERNAL;
+	hap->ha_history_str = str;
+	hap->ha_event = event;
+	hap->ha_zone[0] = '\0';
+
+	if (dmu_tx_is_syncing(tx)) {
+		spa_history_log_sync(spa, hap, cr, tx);
+	} else {
+		dsl_sync_task_do_nowait(spa_get_dsl(spa), NULL,
+		    spa_history_log_sync, spa, hap, 0, tx);
+	}
+	/* spa_history_log_sync() will free hap and str */
 }

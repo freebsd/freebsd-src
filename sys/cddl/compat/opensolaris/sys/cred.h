@@ -30,12 +30,14 @@
 #define	_OPENSOLARIS_SYS_CRED_H_
 
 #include <sys/param.h>
-#include_next <sys/ucred.h>
-
-#ifdef _KERNEL
+#define	_WANT_UCRED
+#include <sys/ucred.h>
+#undef _WANT_UCRED
 
 typedef struct ucred cred_t;
+typedef struct ucred ucred_t;
 
+#ifdef _KERNEL
 #define	CRED()		(curthread->td_ucred)
 
 /*
@@ -43,9 +45,14 @@ typedef struct ucred cred_t;
  */
 #define	kcred	(thread0.td_ucred)
 
-#define	crgetuid(cred)	((cred)->cr_uid)
-#define	crgetgid(cred)	((cred)->cr_gid)
-
-#endif	/* _KERNEL */
+#define	crgetuid(cred)		((cred)->cr_uid)
+#define	crgetgid(cred)		((cred)->cr_gid)
+#define	crgetgroups(cred)	((cred)->cr_groups)
+#define	crgetngroups(cred)	((cred)->cr_ngroups)
+#define	crgetsid(cred, i)	(NULL)
+#else	/* !_KERNEL */
+#define	kcred		NULL
+#define	CRED()		NULL
+#endif	/* !_KERNEL */
 
 #endif	/* _OPENSOLARIS_SYS_CRED_H_ */

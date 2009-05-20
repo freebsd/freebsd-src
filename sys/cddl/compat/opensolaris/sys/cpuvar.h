@@ -68,7 +68,6 @@ extern solaris_cpu_t    solaris_cpu[];
 #define	CPUC_SIZE1		roundup(CPUC_SIZE, CPU_CACHE_COHERENCE_SIZE)
 #define	CPUC_PADSIZE		CPUC_SIZE1 - CPUC_SIZE
 
-
 typedef struct cpu_core {
 	uint16_t	cpuc_dtrace_flags;	/* DTrace flags */
 	uint8_t		cpuc_pad[CPUC_PADSIZE];	/* padding */

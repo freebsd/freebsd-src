@@ -52,6 +52,7 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/iconv.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>

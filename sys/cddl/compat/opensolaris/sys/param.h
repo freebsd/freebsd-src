@@ -34,4 +34,8 @@
 
 #define	PAGESIZE	PAGE_SIZE
 
+#ifdef _KERNEL
+#define	ptob(x)		((uint64_t)(x) << PAGE_SHIFT)
+#endif
+
 #endif
