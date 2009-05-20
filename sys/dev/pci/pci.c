@@ -418,38 +418,6 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 #undef REG
 }
 
-/*
- * This is a lame example: we should have some way of managing this table
- * from userland.  The user should be able to tell us from the boot loader
- * or at runtime what mapping to do.
- */
-static struct pci_remap_entry
-{
-	uint16_t vendor;
-	uint16_t device;
-	uint16_t mapped_vendor;
-	uint16_t mapped_device;
-} pci_remap[] =
-{
-	{ 0x1039, 0x0901, 0x1039, 0x0900 }	/* Map sis 901 to sis 900 */
-};
-static int pci_remap_entries = 1;
-
-static void
-pci_apply_remap_table(pcicfgregs *cfg)
-{
-	int i;
-
-	for (i = 0; i < pci_remap_entries; i++) {
-		if (cfg->vendor == pci_remap[i].vendor &&
-		    cfg->device == pci_remap[i].device) {
-			cfg->vendor = pci_remap[i].mapped_vendor;
-			cfg->device = pci_remap[i].mapped_device;
-			return;
-		}
-	}
-}
-
 /* read configuration header into pcicfgregs structure */
 struct pci_devinfo *
 pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
@@ -496,7 +464,6 @@ pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
 
 		pci_fixancient(cfg);
 		pci_hdrtypedata(pcib, b, s, f, cfg);
-		pci_apply_remap_table(cfg);
 
 		if (REG(PCIR_STATUS, 2) & PCIM_STATUS_CAPPRESENT)
 			pci_read_extcap(pcib, cfg);
@@ -2652,59 +2619,6 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 	}
 }
 
-/*
- * After we've added the children to the pci bus device, we need to fixup
- * the children in various ways.  This function fixes things that require
- * multiple passes to get right, such as bus number and some resource
- * things (although the latter hasn't been implemented yet).  This must be
- * done before the children are probe/attached, sicne by that point these
- * things must be fixed.
- */
-static void
-pci_fix_bridges(device_t dev)
-{
-	int i, numdevs, error, secbus, subbus;
-	device_t child, *devlist;
-
-	if ((error = device_get_children(dev, &devlist, &numdevs)))
-		return;
-	/*
-	 * First pass, get the bus numbers that are in use
-	 */
-	for (i = 0; i < numdevs; i++) {
-		child = devlist[i];
-		switch (pci_read_config(child, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) {
-		default:
-			continue;
-		case 1:	/* PCI-PCI bridge */
-		case 2: /* CardBus bridge -- offsets are the same */
-			secbus = pci_read_config(child, PCIR_SECBUS_1, 1);
-			subbus = pci_read_config(child, PCIR_SUBBUS_1, 1);
-			break;
-		}
-		printf("%d:%d:%d:%d sec %d sub %d\n", pcib_get_domain(dev),
-		    pci_get_bus(child), pci_get_slot(child),
-		    pci_get_function(child), secbus, subbus);
-	}
-#if 0
-	/*
-	 * Second pass, Fix the bus numbers, as needed
-	 */
-	for (i = 0; i < numdevs; i++) {
-		child = devlist[i];
-		switch (pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) {
-		case 1:	/* PCI-PCI bridge */
-			break;
-		case 2: /* CardBus bridge */
-			break;
-		default:
-			continue;
-		}
-	}
-#endif
-	free(devlist, M_TEMP);
-}
-
 void
 pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 {
@@ -2736,7 +2650,6 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 		}
 	}
 #undef REG
-	pci_fix_bridges(dev);
 }
 
 void
