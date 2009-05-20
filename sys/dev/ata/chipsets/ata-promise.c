@@ -1054,7 +1054,7 @@ ata_promise_sx4_command(struct ata_request *request)
     device_t gparent = GRANDPARENT(request->dev);
     struct ata_pci_controller *ctlr = device_get_softc(gparent);
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_dma_prdentry *prd = request->dma->sg;
+    struct ata_dma_prdentry *prd;
     caddr_t window = rman_get_virtual(ctlr->r_res1);
     u_int32_t *wordp;
     int i, idx, length = 0;
@@ -1098,6 +1098,7 @@ ata_promise_sx4_command(struct ata_request *request)
     case ATA_READ_DMA48:
     case ATA_WRITE_DMA:
     case ATA_WRITE_DMA48:
+	prd = request->dma->sg;
 	wordp = (u_int32_t *)
 	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HSG_OFFSET);
 	i = idx = 0;
