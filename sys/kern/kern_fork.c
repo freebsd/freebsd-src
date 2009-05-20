@@ -507,6 +507,7 @@ again:
 
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
+	bzero(&td2->td_osd, sizeof(struct osd));
 
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;

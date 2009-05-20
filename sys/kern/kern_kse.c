@@ -1014,6 +1014,7 @@ thread_alloc_spare(struct thread *td)
 	td->td_standin = spare;
 	bzero(&spare->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
+	bzero(&spare->td_osd, sizeof(struct osd));
 	spare->td_proc = td->td_proc;
 	spare->td_ucred = crhold(td->td_ucred);
 	spare->td_flags = TDF_INMEM;
