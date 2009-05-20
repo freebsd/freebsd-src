@@ -199,6 +199,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
+	bzero(&newtd->td_osd, sizeof(struct osd));
 	newtd->td_proc = td->td_proc;
 	newtd->td_ucred = crhold(td->td_ucred);
 
