@@ -172,7 +172,7 @@ static void	ath_node_getsignal(const struct ieee80211_node *,
 			int8_t *, int8_t *);
 static int	ath_rxbuf_init(struct ath_softc *, struct ath_buf *);
 static void	ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-			int subtype, int rssi, int noise, u_int32_t rstamp);
+			int subtype, int rssi, int nf);
 static void	ath_setdefantenna(struct ath_softc *, u_int);
 static void	ath_rx_proc(void *, int);
 static void	ath_txq_init(struct ath_softc *sc, struct ath_txq *, int);
@@ -214,7 +214,6 @@ static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
 static void	ath_sysctlattach(struct ath_softc *);
 static int	ath_raw_xmit(struct ieee80211_node *,
 			struct mbuf *, const struct ieee80211_bpf_params *);
-static void	ath_bpfattach(struct ath_softc *);
 static void	ath_announce(struct ath_softc *);
 
 #ifdef IEEE80211_SUPPORT_TDMA
@@ -715,7 +714,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_scan_end = ath_scan_end;
 	ic->ic_set_channel = ath_set_channel;
 
-	ath_bpfattach(sc);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),
+		ATH_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th),
+		ATH_RX_RADIOTAP_PRESENT);
+
 	/*
 	 * Setup dynamic sysctl's now that country code and
 	 * regdomain are available from the hal.
@@ -753,8 +757,6 @@ ath_detach(struct ath_softc *sc)
 	 *   insure callbacks into the driver to delete global
 	 *   key cache entries can be handled
 	 * o free the taskqueue which drains any pending tasks
-	 * o reclaim the bpf tap now that we know nothing will use
-	 *   it (e.g. rx processing from the task q thread)
 	 * o reclaim the tx queue data structures after calling
 	 *   the 802.11 layer as we'll get called back to reclaim
 	 *   node state and potentially want to use them
@@ -765,7 +767,6 @@ ath_detach(struct ath_softc *sc)
 	ath_stop(ifp);
 	ieee80211_ifdetach(ifp->if_l2com);
 	taskqueue_free(sc->sc_tq);
-	bpfdetach(ifp);
 #ifdef ATH_TX99_DIAG
 	if (sc->sc_tx99 != NULL)
 		sc->sc_tx99->detach(sc->sc_tx99);
@@ -2353,6 +2354,7 @@ ath_calcrxfilter(struct ath_softc *sc)
 		rfilt |= HAL_RX_FILTER_PHYERR;
 	if (ic->ic_opmode != IEEE80211_M_STA)
 		rfilt |= HAL_RX_FILTER_PROBEREQ;
+	/* XXX ic->ic_monvaps != 0? */
 	if (ic->ic_opmode == IEEE80211_M_MONITOR || (ifp->if_flags & IFF_PROMISC))
 		rfilt |= HAL_RX_FILTER_PROM;
 	if (ic->ic_opmode == IEEE80211_M_STA ||
@@ -3573,7 +3575,7 @@ ath_extend_tsf(u_int32_t rstamp, u_int64_t tsf)
  */
 static void
 ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-	int subtype, int rssi, int noise, u_int32_t rstamp)
+	int subtype, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
@@ -3582,7 +3584,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	 * Call up first so subsequent work can use information
 	 * potentially stored in the node (e.g. for ibss merge).
 	 */
-	ATH_VAP(vap)->av_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
+	ATH_VAP(vap)->av_recv_mgmt(ni, m, subtype, rssi, nf);
 	switch (subtype) {
 	case IEEE80211_FC0_SUBTYPE_BEACON:
 		/* update rssi statistics for use by the hal */
@@ -3599,6 +3601,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		if (vap->iv_opmode == IEEE80211_M_IBSS &&
 		    vap->iv_state == IEEE80211_S_RUN) {
+			uint32_t rstamp = sc->sc_lastrs->rs_tstamp;
 			u_int64_t tsf = ath_extend_tsf(rstamp,
 				ath_hal_gettsf64(sc->sc_ah));
 			/*
@@ -3639,7 +3642,7 @@ ath_setdefantenna(struct ath_softc *sc, u_int antenna)
 	sc->sc_rxotherant = 0;
 }
 
-static int
+static void
 ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
 {
@@ -3651,15 +3654,6 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	const HAL_RATE_TABLE *rt;
 	uint8_t rix;
 
-	/*
-	 * Discard anything shorter than an ack or cts.
-	 */
-	if (m->m_pkthdr.len < IEEE80211_ACK_LEN) {
-		DPRINTF(sc, ATH_DEBUG_RECV, "%s: runt packet %d\n",
-			__func__, m->m_pkthdr.len);
-		sc->sc_stats.ast_rx_tooshort++;
-		return 0;
-	}
 	rt = sc->sc_currates;
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 	rix = rt->rateCodeToIndex[rs->rs_rate];
@@ -3684,13 +3678,9 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	if (rs->rs_status & HAL_RXERR_CRC)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
 	/* XXX propagate other error flags from descriptor */
-	sc->sc_rx_th.wr_antsignal = rs->rs_rssi + nf;
 	sc->sc_rx_th.wr_antnoise = nf;
+	sc->sc_rx_th.wr_antsignal = nf + rs->rs_rssi;
 	sc->sc_rx_th.wr_antenna = rs->rs_antenna;
-
-	bpf_mtap2(ifp->if_bpf, &sc->sc_rx_th, sc->sc_rx_th_len, m);
-
-	return 1;
 #undef CHAN_HT
 #undef CHAN_HT20
 #undef CHAN_HT40U
@@ -3812,7 +3802,7 @@ ath_rx_proc(void *arg, int npending)
 				sc->sc_stats.ast_rx_badmic++;
 				/*
 				 * Do minimal work required to hand off
-				 * the 802.11 header for notifcation.
+				 * the 802.11 header for notification.
 				 */
 				/* XXX frag's and qos frames */
 				len = rs->rs_datalen;
@@ -3841,14 +3831,15 @@ rx_error:
 			 * pass decrypt+mic errors but others may be
 			 * interesting (e.g. crc).
 			 */
-			if (bpf_peers_present(ifp->if_bpf) &&
+			if (ieee80211_radiotap_active(ic) &&
 			    (rs->rs_status & sc->sc_monpass)) {
 				bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
 				    BUS_DMASYNC_POSTREAD);
 				/* NB: bpf needs the mbuf length setup */
 				len = rs->rs_datalen;
 				m->m_pkthdr.len = m->m_len = len;
-				(void) ath_rx_tap(ifp, m, rs, tsf, nf);
+				ath_rx_tap(ifp, m, rs, tsf, nf);
+				ieee80211_radiotap_rx_all(ic, m);
 			}
 			/* XXX pass MIC errors up for s/w reclaculation */
 			goto rx_next;
@@ -3906,20 +3897,29 @@ rx_accept:
 		ifp->if_ipackets++;
 		sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
-		if (bpf_peers_present(ifp->if_bpf) &&
-		    !ath_rx_tap(ifp, m, rs, tsf, nf)) {
-			m_freem(m);		/* XXX reclaim */
-			goto rx_next;
-		}
+		/*
+		 * Populate the rx status block.  When there are bpf
+		 * listeners we do the additional work to provide
+		 * complete status.  Otherwise we fill in only the
+		 * material required by ieee80211_input.  Note that
+		 * noise setting is filled in above.
+		 */
+		if (ieee80211_radiotap_active(ic))
+			ath_rx_tap(ifp, m, rs, tsf, nf);
 
 		/*
 		 * From this point on we assume the frame is at least
 		 * as large as ieee80211_frame_min; verify that.
 		 */
 		if (len < IEEE80211_MIN_LEN) {
-			DPRINTF(sc, ATH_DEBUG_RECV, "%s: short packet %d\n",
-				__func__, len);
-			sc->sc_stats.ast_rx_tooshort++;
+			if (!ieee80211_radiotap_active(ic)) {
+				DPRINTF(sc, ATH_DEBUG_RECV,
+				    "%s: short packet %d\n", __func__, len);
+				sc->sc_stats.ast_rx_tooshort++;
+			} else {
+				/* NB: in particular this captures ack's */
+				ieee80211_radiotap_rx_all(ic, m);
+			}
 			m_freem(m);
 			goto rx_next;
 		}
@@ -3947,11 +3947,8 @@ rx_accept:
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
-#ifdef IEEE80211_SUPPORT_TDMA
-			sc->sc_tdmars = rs;
-#endif
-			type = ieee80211_input(ni, m,
-			    rs->rs_rssi, nf, rs->rs_tstamp);
+			sc->sc_lastrs = rs;
+			type = ieee80211_input(ni, m, rs->rs_rssi, nf);
 			ieee80211_free_node(ni);
 			/*
 			 * Arrange to update the last rx timestamp only for
@@ -3963,8 +3960,7 @@ rx_accept:
 			    rs->rs_keyix != HAL_RXKEYIX_INVALID)
 				ngood++;
 		} else {
-			type = ieee80211_input_all(ic, m,
-			    rs->rs_rssi, nf, rs->rs_tstamp);
+			type = ieee80211_input_all(ic, m, rs->rs_rssi, nf);
 		}
 		/*
 		 * Track rx rssi and do any rx antenna management.
@@ -4781,7 +4777,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		ieee80211_dump_pkt(ic, mtod(m0, const uint8_t *), m0->m_len,
 		    sc->sc_hwmap[rix].ieeerate, -1);
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
 
 		sc->sc_tx_th.wt_tsf = htole64(tsf);
@@ -4794,7 +4790,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
-		bpf_mtap2(ifp->if_bpf, &sc->sc_tx_th, sc->sc_tx_th_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	/*
@@ -5289,15 +5285,6 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
 	sc->sc_curchan = chan;
-
-	sc->sc_rx_th.wr_chan_flags = htole32(chan->ic_flags);
-	sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags;
-	sc->sc_rx_th.wr_chan_freq = htole16(chan->ic_freq);
-	sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq;
-	sc->sc_rx_th.wr_chan_ieee = chan->ic_ieee;
-	sc->sc_tx_th.wt_chan_ieee = sc->sc_rx_th.wr_chan_ieee;
-	sc->sc_rx_th.wr_chan_maxpow = chan->ic_maxregpower;
-	sc->sc_tx_th.wt_chan_maxpow = sc->sc_rx_th.wr_chan_maxpow;
 }
 
 /*
@@ -5988,10 +5975,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 		if (rt->info[i].shortPreamble ||
 		    rt->info[i].phy == IEEE80211_T_OFDM)
 			sc->sc_hwmap[i].txflags |= IEEE80211_RADIOTAP_F_SHORTPRE;
-		/* NB: receive frames include FCS */
-		sc->sc_hwmap[i].rxflags = sc->sc_hwmap[i].txflags |
-			IEEE80211_RADIOTAP_F_FCS;
-		/* setup blink rate table to avoid per-packet lookup */
+		sc->sc_hwmap[i].rxflags = sc->sc_hwmap[i].txflags;
 		for (j = 0; j < N(blinkrates)-1; j++)
 			if (blinkrates[j].rate == sc->sc_hwmap[i].ieeerate)
 				break;
@@ -6627,31 +6611,6 @@ ath_sysctlattach(struct ath_softc *sc)
 #endif
 }
 
-static void
-ath_bpfattach(struct ath_softc *sc)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-		sizeof(struct ieee80211_frame) + sizeof(sc->sc_tx_th));
-	/*
-	 * Initialize constant fields.
-	 * XXX make header lengths a multiple of 32-bits so subsequent
-	 *     headers are properly aligned; this is a kludge to keep
-	 *     certain applications happy.
-	 *
-	 * NB: the channel is setup each time we transition to the
-	 *     RUN state to avoid filling it in for each frame.
-	 */
-	sc->sc_tx_th_len = roundup(sizeof(sc->sc_tx_th), sizeof(u_int32_t));
-	sc->sc_tx_th.wt_ihdr.it_len = htole16(sc->sc_tx_th_len);
-	sc->sc_tx_th.wt_ihdr.it_present = htole32(ATH_TX_RADIOTAP_PRESENT);
-
-	sc->sc_rx_th_len = roundup(sizeof(sc->sc_rx_th), sizeof(u_int32_t));
-	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_th_len);
-	sc->sc_rx_th.wr_ihdr.it_present = htole32(ATH_RX_RADIOTAP_PRESENT);
-}
-
 static int
 ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_buf *bf, struct mbuf *m0,
@@ -6660,6 +6619,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
+	struct ieee80211vap *vap = ni->ni_vap;
 	int error, ismcast, ismrr;
 	int keyix, hdrlen, pktlen, try0, txantenna;
 	u_int8_t rix, cix, txrate, ctsrate, rate1, rate2, rate3;
@@ -6791,18 +6751,20 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		ieee80211_dump_pkt(ic, mtod(m0, caddr_t), m0->m_len,
 		    sc->sc_hwmap[rix].ieeerate, -1);
 	
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
 
 		sc->sc_tx_th.wt_tsf = htole64(tsf);
 		sc->sc_tx_th.wt_flags = sc->sc_hwmap[rix].txflags;
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
+		if (m0->m_flags & M_FRAG)
+			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
 		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
 		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
-		bpf_mtap2(ifp->if_bpf, &sc->sc_tx_th, sc->sc_tx_th_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	/*
@@ -7141,8 +7103,9 @@ ath_tdma_update(struct ieee80211_node *ni,
 	}
 
 	/* extend rx timestamp to 64 bits */
+	rs = sc->sc_lastrs;
 	tsf = ath_hal_gettsf64(ah);
-	rstamp = ath_extend_tsf(ni->ni_rstamp, tsf);
+	rstamp = ath_extend_tsf(rs->rs_tstamp, tsf);
 	/*
 	 * The rx timestamp is set by the hardware on completing
 	 * reception (at the point where the rx descriptor is DMA'd
@@ -7150,7 +7113,6 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 * must adjust this time by the time required to send
 	 * the packet just received.
 	 */
-	rs = sc->sc_tdmars;
 	rix = rt->rateCodeToIndex[rs->rs_rate];
 	txtime = ath_hal_computetxtime(ah, rt, rs->rs_datalen, rix,
 	    rt->info[rix].shortPreamble);

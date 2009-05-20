@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/vimage.h>
 
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_clone.h>
@@ -726,6 +727,29 @@ ieee80211_load_module(const char *modname)
 #endif
 }
 
+static eventhandler_tag wlan_bpfevent;
+
+static void
+bpf_track(void *arg, struct ifnet *ifp, int attach)
+{
+	/* NB: identify vap's by if_start */
+	if (ifp->if_start == ieee80211_start) {
+		struct ieee80211vap *vap = ifp->if_softc;
+		/*
+		 * Track bpf radiotap listener state.  We mark the vap
+		 * to indicate if any listener is present and the com
+		 * to indicate if any listener exists on any associated
+		 * vap.  This flag is used by drivers to prepare radiotap
+		 * state only when needed.
+		 */
+		if (attach)
+			ieee80211_syncflag_ext(vap, IEEE80211_FEXT_BPF);
+		/* NB: if_softc is NULL on vap detach */
+		else if (vap != NULL && !bpf_peers_present(vap->iv_rawbpf))
+			ieee80211_syncflag_ext(vap, -IEEE80211_FEXT_BPF);
+	}
+}
+
 /*
  * Module glue.
  *
@@ -738,12 +762,17 @@ wlan_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("wlan: <802.11 Link Layer>\n");
+		wlan_bpfevent = EVENTHANDLER_REGISTER(bpf_track,
+		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
+		if (wlan_bpfevent == NULL)
+			return ENOMEM;
 		if_clone_attach(&wlan_cloner);
 		if_register_com_alloc(IFT_IEEE80211, wlan_alloc, wlan_free);
 		return 0;
 	case MOD_UNLOAD:
 		if_deregister_com_alloc(IFT_IEEE80211);
 		if_clone_detach(&wlan_cloner);
+		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
 		return 0;
 	}
 	return EINVAL;

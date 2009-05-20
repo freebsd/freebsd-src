@@ -465,6 +465,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_ht_vattach(vap);
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
+	ieee80211_radiotap_vattach(vap);
 
 	return 0;
 }
@@ -509,10 +510,11 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 	vap->iv_output = ifp->if_output;
 	ifp->if_output = ieee80211_output;
 	/* NB: if_mtu set by ether_ifattach to ETHERMTU */
-	bpfattach2(ifp, DLT_IEEE802_11, ifp->if_hdrlen, &vap->iv_rawbpf);
 
 	IEEE80211_LOCK(ic);
 	TAILQ_INSERT_TAIL(&ic->ic_vaps, vap, iv_next);
+	if (vap->iv_opmode == IEEE80211_M_MONITOR)
+		ic->ic_monvaps++;
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
@@ -573,6 +575,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	IEEE80211_LOCK(ic);
 	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
 	TAILQ_REMOVE(&ic->ic_vaps, vap, iv_next);
+	if (vap->iv_opmode == IEEE80211_M_MONITOR)
+		ic->ic_monvaps--;
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
@@ -581,16 +585,19 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_USEHT40);
+	/* NB: this handles the bpfdetach done below */
+	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_BPF);
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 	ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 	IEEE80211_UNLOCK(ic);
 
 	/* XXX can't hold com lock */
-	/* NB: bpfattach is called by ether_ifdetach and claims all taps */
+	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
 	ether_ifdetach(ifp);
 
 	ifmedia_removeall(&vap->iv_media);
 
+	ieee80211_radiotap_vdetach(vap);
 	ieee80211_regdomain_vdetach(vap);
 	ieee80211_scan_vdetach(vap);
 #ifdef IEEE80211_SUPPORT_SUPERG

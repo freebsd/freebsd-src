@@ -367,14 +367,11 @@ upgt_attach(device_t dev)
 	ic->ic_vap_delete = upgt_vap_delete;
 	ic->ic_update_mcast = upgt_update_mcast;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof(struct ieee80211_frame) + sizeof(sc->sc_txtap));
-	sc->sc_rxtap_len = sizeof(sc->sc_rxtap);
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(UPGT_RX_RADIOTAP_PRESENT);
-	sc->sc_txtap_len = sizeof(sc->sc_txtap);
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(UPGT_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		UPGT_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		UPGT_RX_RADIOTAP_PRESENT);
 
 	upgt_sysctl_node(sc);
 
@@ -1507,16 +1504,12 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 	m->m_len = m->m_pkthdr.len = pkglen - IEEE80211_CRC_LEN;
 	m->m_pkthdr.rcvif = ifp;
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active(ic)) {
 		struct upgt_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
 		tap->wr_rate = upgt_rx_rate(sc, rxdesc->rate);
-		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wr_antsignal = rxdesc->rssi;
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
 	}
 	ifp->if_ipackets++;
 
@@ -2011,7 +2004,6 @@ upgt_detach(device_t dev)
 	upgt_free_rx(sc);
 	upgt_free_tx(sc);
 
-	bpfdetach(ifp);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
 
@@ -2157,11 +2149,11 @@ static int
 upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
     struct upgt_data *data)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
 	int error = 0, len;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct upgt_lmac_mem *mem;
 	struct upgt_lmac_tx_desc *txdesc;
 
@@ -2211,15 +2203,13 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	txdesc->type = htole32(UPGT_TX_DESC_TYPE_DATA);
 	txdesc->pad3[0] = UPGT_TX_DESC_PAD3_SIZE;
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct upgt_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = 0;	/* XXX where to get from? */
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m);
+		ieee80211_radiotap_tx(vap, m);
 	}
 
 	/* copy frame below our TX descriptor header */
@@ -2299,11 +2289,11 @@ setup:
 			    (struct ieee80211_frame_min *)wh);
 			nf = -95;	/* XXX */
 			if (ni != NULL) {
-				(void) ieee80211_input(ni, m, rssi, nf, 0);
+				(void) ieee80211_input(ni, m, rssi, nf);
 				/* node is no longer needed */
 				ieee80211_free_node(ni);
 			} else
-				(void) ieee80211_input_all(ic, m, rssi, nf, 0);
+				(void) ieee80211_input_all(ic, m, rssi, nf);
 			m = NULL;
 		}
 		UPGT_LOCK(sc);

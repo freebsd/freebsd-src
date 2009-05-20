@@ -503,9 +503,6 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 		struct ifnet *ifp = vap->iv_ifp;
 		struct ifnet *parent = ni->ni_ic->ic_ifp;
 
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
-
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
@@ -835,6 +832,7 @@ ieee80211_dturbo_switch(struct ieee80211vap *vap, int newflags)
 	ic->ic_curchan = chan;
 	ic->ic_rt = ieee80211_get_ratetable(chan);
 	ic->ic_set_channel(ic);
+	ieee80211_radiotap_chan_change(ic);
 	/* NB: do not need to reset ERP state 'cuz we're in sta mode */
 }
 

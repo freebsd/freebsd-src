@@ -51,6 +51,7 @@
 #include <net80211/ieee80211_power.h>
 #include <net80211/ieee80211_node.h>
 #include <net80211/ieee80211_proto.h>
+#include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_scan.h>
 
 #define	IEEE80211_TXPOWER_MAX	100	/* .5 dbM (XXX units?) */
@@ -208,6 +209,13 @@ struct ieee80211com {
 
 	/* optional state for Atheros SuperG protocol extensions */
 	struct ieee80211_superg	*ic_superg;
+
+	/* radiotap handling */
+	struct ieee80211_radiotap_header *ic_th;/* tx radiotap headers */
+	void			*ic_txchan;	/* channel state in ic_th */
+	struct ieee80211_radiotap_header *ic_rh;/* rx radiotap headers */
+	void			*ic_rxchan;	/* channel state in ic_rh */
+	int			ic_monvaps;	/* # monitor mode vaps */
 
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,
@@ -421,10 +429,9 @@ struct ieee80211vap {
 	void			(*iv_opdetach)(struct ieee80211vap *);
 	/* receive processing */
 	int			(*iv_input)(struct ieee80211_node *,
-				    struct mbuf *, int rssi, int noise,
-				    uint32_t rstamp);
+				    struct mbuf *, int, int);
 	void			(*iv_recv_mgmt)(struct ieee80211_node *,
-				    struct mbuf *, int, int, int, uint32_t);
+				    struct mbuf *, int, int, int);
 	void			(*iv_recv_ctl)(struct ieee80211_node *,
 				    struct mbuf *, int);
 	void			(*iv_deliver_data)(struct ieee80211vap *,
@@ -522,6 +529,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_DOTD	 0x00001000	/* CONF: 11d enabled */
 #define	IEEE80211_FEXT_STATEWAIT 0x00002000	/* STATUS: awaiting state chg */
 #define	IEEE80211_FEXT_REINIT	 0x00004000	/* STATUS: INIT state first */
+#define	IEEE80211_FEXT_BPF	 0x00008000	/* STATUS: BPF tap present */
 /* NB: immutable: should be set only when creating a vap */
 #define	IEEE80211_FEXT_WDSLEGACY 0x00010000	/* CONF: legacy WDS operation */
 #define	IEEE80211_FEXT_PROBECHAN 0x00020000	/* CONF: probe passive channel*/
@@ -540,7 +548,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_BITS \
 	"\20\1NONHT_PR\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
 	"\0114ADDR\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\16STATEWAIT\17REINIT" \
-	"\22WDSLEGACY\23PROBECHAN\24HT\25AMDPU_TX\26AMPDU_TX\27AMSDU_TX" \
+	"\20BPF\21WDSLEGACY\22PROBECHAN\24HT\25AMDPU_TX\26AMPDU_TX\27AMSDU_TX" \
 	"\30AMSDU_RX\31USEHT40\32PUREN\33SHORTGI20\34SHORTGI40\35HTCOMPAT" \
 	"\36RIFS"
 
@@ -636,6 +644,31 @@ struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,
 		int ieee, int flags);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
+
+void	ieee80211_radiotap_attach(struct ieee80211com *,
+	    struct ieee80211_radiotap_header *th, int tlen,
+		uint32_t tx_radiotap,
+	    struct ieee80211_radiotap_header *rh, int rlen,
+		uint32_t rx_radiotap);
+void	ieee80211_radiotap_detach(struct ieee80211com *);
+void	ieee80211_radiotap_vattach(struct ieee80211vap *);
+void	ieee80211_radiotap_vdetach(struct ieee80211vap *);
+void	ieee80211_radiotap_chan_change(struct ieee80211com *);
+void	ieee80211_radiotap_tx(struct ieee80211vap *, struct mbuf *);
+void	ieee80211_radiotap_rx(struct ieee80211vap *, struct mbuf *);
+void	ieee80211_radiotap_rx_all(struct ieee80211com *, struct mbuf *);
+
+static __inline int
+ieee80211_radiotap_active(const struct ieee80211com *ic)
+{
+	return (ic->ic_flags_ext & IEEE80211_FEXT_BPF) != 0;
+}
+
+static __inline int
+ieee80211_radiotap_active_vap(const struct ieee80211vap *vap)
+{
+	return (vap->iv_flags_ext & IEEE80211_FEXT_BPF) != 0;
+}
 
 /*
  * Enqueue a task on the state thread.

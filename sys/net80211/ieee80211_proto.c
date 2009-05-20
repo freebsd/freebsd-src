@@ -1107,6 +1107,7 @@ update_channel(void *arg, int npending)
 	struct ieee80211com *ic = arg;
 
 	ic->ic_set_channel(ic);
+	ieee80211_radiotap_chan_change(ic);
 }
 
 /*

@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int
-ieee80211_input_all(struct ieee80211com *ic,
-	struct mbuf *m, int rssi, int noise, u_int32_t rstamp)
+ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 {
 	struct ieee80211vap *vap;
 	int type = -1;
@@ -89,7 +88,7 @@ ieee80211_input_all(struct ieee80211com *ic,
 			m = NULL;
 		}
 		ni = ieee80211_ref_node(vap->iv_bss);
-		type = ieee80211_input(ni, mcopy, rssi, noise, rstamp);
+		type = ieee80211_input(ni, mcopy, rssi, nf);
 		ieee80211_free_node(ni);
 	}
 	if (m != NULL)			/* no vaps, reclaim mbuf */
