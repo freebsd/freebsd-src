@@ -1,83 +1,65 @@
 /*
 ** This file is in the public domain, so clarified as of
-** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+** 1996-06-05 by Arthur David Olson.
 */
 
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)difftime.c	7.9";
+static char	elsieid[] = "@(#)difftime.c	8.1";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
 /*LINTLIBRARY*/
 
-#include "private.h"
-
-/*
-** Algorithm courtesy Paul Eggert (eggert@twinsun.com).
-*/
-
-#ifdef HAVE_LONG_DOUBLE
-#define long_double	long double
-#endif /* defined HAVE_LONG_DOUBLE */
-#ifndef HAVE_LONG_DOUBLE
-#define long_double	double
-#endif /* !defined HAVE_LONG_DOUBLE */
+#include "private.h"	/* for time_t, TYPE_INTEGRAL, and TYPE_SIGNED */
 
 double
 difftime(time1, time0)
 const time_t	time1;
 const time_t	time0;
 {
-	time_t	delta;
-	time_t	hibit;
-
-	{
-		time_t		tt;
-		double		d;
-		long_double	ld;
-
-		if (sizeof tt < sizeof d)
-			return (double) time1 - (double) time0;
-		if (sizeof tt < sizeof ld)
-			return (long_double) time1 - (long_double) time0;
+	/*
+	** If (sizeof (double) > sizeof (time_t)) simply convert and subtract
+	** (assuming that the larger type has more precision).
+	** This is the common real-world case circa 2004.
+	*/
+	if (sizeof (double) > sizeof (time_t))
+		return (double) time1 - (double) time0;
+	if (!TYPE_INTEGRAL(time_t)) {
+		/*
+		** time_t is floating.
+		*/
+		return time1 - time0;
 	}
-	if (time1 < time0)
-		return -difftime(time0, time1);
+	if (!TYPE_SIGNED(time_t)) {
+		/*
+		** time_t is integral and unsigned.
+		** The difference of two unsigned values can't overflow
+		** if the minuend is greater than or equal to the subtrahend.
+		*/
+		if (time1 >= time0)
+			return time1 - time0;
+		else	return -((double) (time0 - time1));
+	}
 	/*
-	** As much as possible, avoid loss of precision
-	** by computing the difference before converting to double.
+	** time_t is integral and signed.
+	** Handle cases where both time1 and time0 have the same sign
+	** (meaning that their difference cannot overflow).
 	*/
-	delta = time1 - time0;
-	if (delta >= 0)
-		return delta;
+	if ((time1 < 0) == (time0 < 0))
+		return time1 - time0;
 	/*
-	** Repair delta overflow.
+	** time1 and time0 have opposite signs.
+	** Punt if unsigned long is too narrow.
 	*/
-	hibit = (~ (time_t) 0) << (TYPE_BIT(time_t) - 1);
+	if (sizeof (unsigned long) < sizeof (time_t))
+		return (double) time1 - (double) time0;
 	/*
-	** The following expression rounds twice, which means
-	** the result may not be the closest to the true answer.
-	** For example, suppose time_t is 64-bit signed int,
-	** long_double is IEEE 754 double with default rounding,
-	** time1 = 9223372036854775807 and time0 = -1536.
-	** Then the true difference is 9223372036854777343,
-	** which rounds to 9223372036854777856
-	** with a total error of 513.
-	** But delta overflows to -9223372036854774273,
-	** which rounds to -9223372036854774784, and correcting
-	** this by subtracting 2 * (long_double) hibit
-	** (i.e. by adding 2**64 = 18446744073709551616)
-	** yields 9223372036854776832, which
-	** rounds to 9223372036854775808
-	** with a total error of 1535 instead.
-	** This problem occurs only with very large differences.
-	** It's too painful to fix this portably.
-	** We are not alone in this problem;
-	** some C compilers round twice when converting
-	** large unsigned types to small floating types,
-	** so if time_t is unsigned the "return delta" above
-	** has the same double-rounding problem with those compilers.
+	** Stay calm...decent optimizers will eliminate the complexity below.
 	*/
-	return delta - 2 * (long_double) hibit;
+	if (time1 >= 0 /* && time0 < 0 */)
+		return (unsigned long) time1 +
+			(unsigned long) (-(time0 + 1)) + 1;
+	return -(double) ((unsigned long) time0 +
+		(unsigned long) (-(time1 + 1)) + 1);
 }

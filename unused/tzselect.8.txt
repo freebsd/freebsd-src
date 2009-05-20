@@ -1,0 +1,41 @@
+NAME
+
+     tzselect - select a time zone
+
+SYNOPSIS
+     tzselect
+
+DESCRIPTION
+     The tzselect program asks the user for information about the
+     current location, and outputs the resulting time zone
+     description to standard output.  The output is suitable as a
+     value for the TZ environment variable.
+
+     All interaction with the user is done via standard input and
+     standard error.
+
+ENVIRONMENT VARIABLES
+     AWK  Name of a Posix-compliant awk program (default: awk).
+
+     TZDIR
+          Name of the directory containing time zone data files
+          (default: /usr/local/etc/zoneinfo).
+
+FILES
+     TZDIR/iso3166.tab
+          Table of ISO 3166 2-letter country codes and country
+          names.
+
+     TZDIR/zone.tab
+          Table of country codes, latitude and longitude, TZ
+          values, and descriptive comments.
+
+     TZDIR/TZ
+          Time zone data file for time zone TZ.
+
+EXIT STATUS
+     The exit status is zero if a time zone was successfully
+     obtained from the user, nonzero otherwise.
+
+SEE ALSO
+     newctime(3), tzfile(5), zdump(8), zic(8)

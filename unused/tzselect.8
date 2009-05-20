@@ -1,0 +1,41 @@
+.TH TZSELECT 8
+.SH NAME
+tzselect \- select a time zone
+.SH SYNOPSIS
+.B tzselect
+.SH DESCRIPTION
+The
+.B tzselect
+program asks the user for information about the current location,
+and outputs the resulting time zone description to standard output.
+The output is suitable as a value for the TZ environment variable.
+.PP
+All interaction with the user is done via standard input and standard error.
+.SH "ENVIRONMENT VARIABLES"
+.TP
+\f3AWK\fP
+Name of a Posix-compliant
+.I awk
+program (default:
+.BR awk ).
+.TP
+\f3TZDIR\fP
+Name of the directory containing time zone data files (default:
+.BR /usr/local/etc/zoneinfo ).
+.SH FILES
+.TP
+\f2TZDIR\fP\f3/iso3166.tab\fP
+Table of ISO 3166 2-letter country codes and country names.
+.TP
+\f2TZDIR\fP\f3/zone.tab\fP
+Table of country codes, latitude and longitude, TZ values, and
+descriptive comments.
+.TP
+\f2TZDIR\fP\f3/\fP\f2TZ\fP
+Time zone data file for time zone \f2TZ\fP.
+.SH "EXIT STATUS"
+The exit status is zero if a time zone was successfully obtained from the user,
+nonzero otherwise.
+.SH "SEE ALSO"
+newctime(3), tzfile(5), zdump(8), zic(8)
+.\" @(#)tzselect.8	8.1

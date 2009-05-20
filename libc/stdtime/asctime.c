@@ -1,11 +1,17 @@
 /*
 ** This file is in the public domain, so clarified as of
-** 1996-06-05 by Arthur David Olson (arthur_david_olson@nih.gov).
+** 1996-06-05 by Arthur David Olson.
+*/
+
+/*
+** Avoid the temptation to punt entirely to strftime;
+** the output of strftime is supposed to be locale specific
+** whereas the output of asctime is supposed to be constant.
 */
 
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)asctime.c	7.9";
+static char	elsieid[] = "@(#)asctime.c	8.2";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -15,7 +21,57 @@ static char	elsieid[] = "@(#)asctime.c	7.9";
 #include "tzfile.h"
 
 /*
-** A la ISO/IEC 9945-1, ANSI/IEEE Std 1003.1, Second Edition, 1996-07-12.
+** Some systems only handle "%.2d"; others only handle "%02d";
+** "%02.2d" makes (most) everybody happy.
+** At least some versions of gcc warn about the %02.2d;
+** we conditionalize below to avoid the warning.
+*/
+/*
+** All years associated with 32-bit time_t values are exactly four digits long;
+** some years associated with 64-bit time_t values are not.
+** Vintage programs are coded for years that are always four digits long
+** and may assume that the newline always lands in the same place.
+** For years that are less than four digits, we pad the output with
+** leading zeroes to get the newline in the traditional place.
+** The -4 ensures that we get four characters of output even if
+** we call a strftime variant that produces fewer characters for some years.
+** The ISO C 1999 and POSIX 1003.1-2004 standards prohibit padding the year,
+** but many implementations pad anyway; most likely the standards are buggy.
+*/
+#ifdef __GNUC__
+#define ASCTIME_FMT	"%.3s %.3s%3d %2.2d:%2.2d:%2.2d %-4s\n"
+#else /* !defined __GNUC__ */
+#define ASCTIME_FMT	"%.3s %.3s%3d %02.2d:%02.2d:%02.2d %-4s\n"
+#endif /* !defined __GNUC__ */
+/*
+** For years that are more than four digits we put extra spaces before the year
+** so that code trying to overwrite the newline won't end up overwriting
+** a digit within a year and truncating the year (operating on the assumption
+** that no output is better than wrong output).
+*/
+#ifdef __GNUC__
+#define ASCTIME_FMT_B	"%.3s %.3s%3d %2.2d:%2.2d:%2.2d     %s\n"
+#else /* !defined __GNUC__ */
+#define ASCTIME_FMT_B	"%.3s %.3s%3d %02.2d:%02.2d:%02.2d     %s\n"
+#endif /* !defined __GNUC__ */
+
+#define STD_ASCTIME_BUF_SIZE	26
+/*
+** Big enough for something such as
+** ??? ???-2147483648 -2147483648:-2147483648:-2147483648     -2147483648\n
+** (two three-character abbreviations, five strings denoting integers,
+** seven explicit spaces, two explicit colons, a newline,
+** and a trailing ASCII nul).
+** The values above are for systems where an int is 32 bits and are provided
+** as an example; the define below calculates the maximum for the system at
+** hand.
+*/
+#define MAX_ASCTIME_BUF_SIZE	(2*3+5*INT_STRLEN_MAXIMUM(int)+7+2+1+1)
+
+static char	buf_asctime[MAX_ASCTIME_BUF_SIZE];
+
+/*
+** A la ISO/IEC 9945-1, ANSI/IEEE Std 1003.1, 2004 Edition.
 */
 
 char *
@@ -32,6 +88,8 @@ char *				buf;
 	};
 	register const char *	wn;
 	register const char *	mn;
+	char			year[INT_STRLEN_MAXIMUM(int) + 2];
+	char			result[MAX_ASCTIME_BUF_SIZE];
 
 	if (timeptr->tm_wday < 0 || timeptr->tm_wday >= DAYSPERWEEK)
 		wn = "???";
@@ -40,35 +98,41 @@ char *				buf;
 		mn = "???";
 	else	mn = mon_name[timeptr->tm_mon];
 	/*
-	** The X3J11-suggested format is
-	**	"%.3s %.3s%3d %02.2d:%02.2d:%02.2d %d\n"
-	** Since the .2 in 02.2d is ignored, we drop it.
+	** Use strftime's %Y to generate the year, to avoid overflow problems
+	** when computing timeptr->tm_year + TM_YEAR_BASE.
+	** Assume that strftime is unaffected by other out-of-range members
+	** (e.g., timeptr->tm_mday) when processing "%Y".
 	*/
-	(void) sprintf(buf, "%.3s %.3s%3d %02d:%02d:%02d %d\n",
+	(void) strftime(year, sizeof year, "%Y", timeptr);
+	/*
+	** We avoid using snprintf since it's not available on all systems.
+	*/
+	(void) sprintf(result,
+		((strlen(year) <= 4) ? ASCTIME_FMT : ASCTIME_FMT_B),
 		wn, mn,
 		timeptr->tm_mday, timeptr->tm_hour,
 		timeptr->tm_min, timeptr->tm_sec,
-		TM_YEAR_BASE + timeptr->tm_year);
-	return buf;
+		year);
+	if (strlen(result) < STD_ASCTIME_BUF_SIZE || buf == buf_asctime) {
+		(void) strcpy(buf, result);
+		return buf;
+	} else {
+#ifdef EOVERFLOW
+		errno = EOVERFLOW;
+#else /* !defined EOVERFLOW */
+		errno = EINVAL;
+#endif /* !defined EOVERFLOW */
+		return NULL;
+	}
 }
 
 /*
-** A la X3J11, with core dump avoidance.
+** A la ISO/IEC 9945-1, ANSI/IEEE Std 1003.1, 2004 Edition.
 */
 
 char *
 asctime(timeptr)
 register const struct tm *	timeptr;
 {
-	/*
-	** Big enough for something such as
-	** ??? ???-2147483648 -2147483648:-2147483648:-2147483648 -2147483648\n
-	** (two three-character abbreviations, five strings denoting integers,
-	** three explicit spaces, two explicit colons, a newline,
-	** and a trailing ASCII nul).
-	*/
-	static char		result[3 * 2 + 5 * INT_STRLEN_MAXIMUM(int) +
-					3 + 2 + 1 + 1];
-
-	return asctime_r(timeptr, result);
+	return asctime_r(timeptr, buf_asctime);
 }

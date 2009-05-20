@@ -1,0 +1,152 @@
+.TH TZFILE 5
+.SH NAME
+tzfile \- time zone information
+.SH SYNOPSIS
+.B
+#include <tzfile.h>
+.SH DESCRIPTION
+The time zone information files used by
+.IR tzset (3)
+begin with the magic characters "TZif" to identify then as
+time zone information files,
+followed by a character identifying the version of the file's format
+(as of 2005, either an ASCII NUL or a '2')
+followed by fifteen bytes containing zeroes reserved for future use,
+followed by six four-byte values of type
+.BR long ,
+written in a ``standard'' byte order
+(the high-order byte of the value is written first).
+These values are,
+in order:
+.TP
+.I tzh_ttisgmtcnt
+The number of UTC/local indicators stored in the file.
+.TP
+.I tzh_ttisstdcnt
+The number of standard/wall indicators stored in the file.
+.TP
+.I tzh_leapcnt
+The number of leap seconds for which data is stored in the file.
+.TP
+.I tzh_timecnt
+The number of "transition times" for which data is stored
+in the file.
+.TP
+.I tzh_typecnt
+The number of "local time types" for which data is stored
+in the file (must not be zero).
+.TP
+.I tzh_charcnt
+The number of characters of "time zone abbreviation strings"
+stored in the file.
+.PP
+The above header is followed by
+.I tzh_timecnt
+four-byte values of type
+.BR long ,
+sorted in ascending order.
+These values are written in ``standard'' byte order.
+Each is used as a transition time (as returned by
+.IR time (2))
+at which the rules for computing local time change.
+Next come
+.I tzh_timecnt
+one-byte values of type
+.BR "unsigned char" ;
+each one tells which of the different types of ``local time'' types
+described in the file is associated with the same-indexed transition time.
+These values serve as indices into an array of
+.I ttinfo
+structures (with
+.I tzh_typecnt
+entries) that appears next in the file;
+these structures are defined as follows:
+.in +.5i
+.sp
+.nf
+.ta .5i +\w'unsigned int\0\0'u
+struct ttinfo {
+	long	tt_gmtoff;
+	int	tt_isdst;
+	unsigned int	tt_abbrind;
+};
+.in -.5i
+.fi
+.sp
+Each structure is written as a four-byte value for
+.I tt_gmtoff
+of type
+.BR long ,
+in a standard byte order, followed by a one-byte value for
+.I tt_isdst
+and a one-byte value for
+.IR tt_abbrind .
+In each structure,
+.I tt_gmtoff
+gives the number of seconds to be added to UTC,
+.I tt_isdst
+tells whether
+.I tm_isdst
+should be set by
+.I localtime (3)
+and
+.I tt_abbrind
+serves as an index into the array of time zone abbreviation characters
+that follow the
+.I ttinfo
+structure(s) in the file.
+.PP
+Then there are
+.I tzh_leapcnt
+pairs of four-byte values, written in standard byte order;
+the first value of each pair gives the time
+(as returned by
+.IR time(2))
+at which a leap second occurs;
+the second gives the
+.I total
+number of leap seconds to be applied after the given time.
+The pairs of values are sorted in ascending order by time.
+.PP
+Then there are
+.I tzh_ttisstdcnt
+standard/wall indicators, each stored as a one-byte value;
+they tell whether the transition times associated with local time types
+were specified as standard time or wall clock time,
+and are used when a time zone file is used in handling POSIX-style
+time zone environment variables.
+.PP
+Finally there are
+.I tzh_ttisgmtcnt
+UTC/local indicators, each stored as a one-byte value;
+they tell whether the transition times associated with local time types
+were specified as UTC or local time,
+and are used when a time zone file is used in handling POSIX-style
+time zone environment variables.
+.PP
+.I Localtime
+uses the first standard-time
+.I ttinfo
+structure in the file
+(or simply the first
+.I ttinfo
+structure in the absence of a standard-time structure)
+if either
+.I tzh_timecnt
+is zero or the time argument is less than the first transition time recorded
+in the file.
+.PP
+For version-2-format time zone files,
+the above header and data is followed by a second header and data,
+identical in format except that
+eight bytes are used for each transition time or leap second time.
+After the second header and data comes a newline-enclosed,
+POSIX-TZ-environment-variable-style string for use in handling instants
+after the last transition time stored in the file
+(with nothing between the newlines if there is no POSIX representation for
+such instants).
+.SH SEE ALSO
+newctime(3)
+.\" @(#)tzfile.5	8.2
+.\" This file is in the public domain, so clarified as of
+.\" 1996-06-05 by Arthur David Olson.

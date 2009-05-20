@@ -1,0 +1,239 @@
+.TH NEWCTIME 3
+.SH NAME
+asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time to ASCII
+.SH SYNOPSIS
+.nf
+.B extern char *tzname[2];
+.PP
+.B void tzset()
+.PP
+.B #include <sys/types.h>
+.PP
+.B char *ctime(clock)
+.B const time_t *clock;
+.PP
+.B double difftime(time1, time0)
+.B time_t time1;
+.B time_t time0;
+.PP
+.B #include <time.h>
+.PP
+.B char *asctime(tm)
+.B const struct tm *tm;
+.PP
+.B struct tm *localtime(clock)
+.B const time_t *clock;
+.PP
+.B struct tm *gmtime(clock)
+.B const time_t *clock;
+.PP
+.B time_t mktime(tm)
+.B struct tm *tm;
+.PP
+.B cc ... -ltz
+.fi
+.SH DESCRIPTION
+.I Ctime\^
+converts a long integer, pointed to by
+.IR clock ,
+representing the time in seconds since
+00:00:00 UTC, 1970-01-01,
+and returns a pointer to a
+string of the form
+.br
+.ce
+.eo
+Thu Nov 24 18:22:48 1986\n\0
+.br
+.ec
+Years requiring fewer than four characters are padded with leading zeroes.
+For years longer than four characters, the string is of the form
+.br
+.ce
+.eo
+Thu Nov 24 18:22:48     81986\n\0
+.ec
+.br
+with five spaces before the year.
+These unusual formats are designed to make it less likely that older
+software that expects exactly 26 bytes of output will mistakenly output
+misleading values for out-of-range years.
+.PP
+.I Localtime\^
+and
+.I gmtime\^
+return pointers to ``tm'' structures, described below.
+.I Localtime\^
+corrects for the time zone and any time zone adjustments
+(such as Daylight Saving Time in the United States).
+After filling in the ``tm'' structure,
+.I localtime
+sets the
+.BR tm_isdst 'th
+element of
+.B tzname
+to a pointer to an
+ASCII string that's the time zone abbreviation to be used with
+.IR localtime 's
+return value.
+.PP
+.I Gmtime\^
+converts to Coordinated Universal Time.
+.PP
+.I Asctime\^
+converts a time value contained in a
+``tm'' structure to a string,
+as shown in the above example,
+and returns a pointer to the string.
+.PP
+.I Mktime\^
+converts the broken-down time,
+expressed as local time,
+in the structure pointed to by
+.I tm
+into a calendar time value with the same encoding as that of the values
+returned by the
+.I time
+function.
+The original values of the
+.B tm_wday
+and
+.B tm_yday
+components of the structure are ignored,
+and the original values of the other components are not restricted
+to their normal ranges.
+(A positive or zero value for
+.B tm_isdst
+causes
+.I mktime
+to presume initially that summer time (for example, Daylight Saving Time
+in the U.S.A.)
+respectively,
+is or is not in effect for the specified time.
+A negative value for
+.B tm_isdst
+causes the
+.I mktime
+function to attempt to divine whether summer time is in effect
+for the specified time; in this case it does not use a consistent
+rule and may give a different answer when later
+presented with the same argument.)
+On successful completion, the values of the
+.B tm_wday
+and
+.B tm_yday
+components of the structure are set appropriately,
+and the other components are set to represent the specified calendar time,
+but with their values forced to their normal ranges; the final value of
+.B tm_mday
+is not set until
+.B tm_mon
+and
+.B tm_year
+are determined.
+.I Mktime\^
+returns the specified calendar time;
+If the calendar time cannot be represented,
+it returns
+.BR -1 .
+.PP
+.I Difftime\^
+returns the difference between two calendar times,
+.RI ( time1
+-
+.IR time0 ),
+expressed in seconds.
+.PP
+Declarations of all the functions and externals, and the ``tm'' structure,
+are in the
+.B <time.h>\^
+header file.
+The structure (of type)
+.B struct tm
+includes the following fields:
+.RS
+.PP
+.nf
+.ta .5i +\w'long tm_gmtoff;\0\0'u
+	int tm_sec;	/\(** seconds (0 - 60) \(**/
+	int tm_min;	/\(** minutes (0 - 59) \(**/
+	int tm_hour;	/\(** hours (0 - 23) \(**/
+	int tm_mday;	/\(** day of month (1 - 31) \(**/
+	int tm_mon;	/\(** month of year (0 - 11) \(**/
+	int tm_year;	/\(** year \- 1900 \(**/
+	int tm_wday;	/\(** day of week (Sunday = 0) \(**/
+	int tm_yday;	/\(** day of year (0 - 365) \(**/
+	int tm_isdst;	/\(** is summer time in effect? \(**/
+	char \(**tm_zone;	/\(** abbreviation of timezone name \(**/
+	long tm_gmtoff;	/\(** offset from UTC in seconds \(**/
+.fi
+.RE
+.PP
+The
+.I tm_zone
+and
+.I tm_gmtoff
+fields exist, and are filled in, only if arrangements to do
+so were made when the library containing these functions was
+created.
+There is no guarantee that these fields will continue to exist
+in this form in future releases of this code.
+.PP
+.I Tm_isdst\^
+is non-zero if summer time is in effect.
+.PP
+.I Tm_gmtoff
+is the offset (in seconds) of the time represented
+from UTC, with positive values indicating east
+of the Prime Meridian.
+.SH FILES
+.ta \w'/usr/local/etc/zoneinfo/posixrules\0\0'u
+/usr/local/etc/zoneinfo	time zone information directory
+.br
+/usr/local/etc/zoneinfo/localtime	local time zone file
+.br
+/usr/local/etc/zoneinfo/posixrules	used with POSIX-style TZ's
+.br
+/usr/local/etc/zoneinfo/GMT	for UTC leap seconds
+.sp
+If
+.B /usr/local/etc/zoneinfo/GMT
+is absent,
+UTC leap seconds are loaded from
+.BR /usr/local/etc/zoneinfo/posixrules .
+.SH SEE ALSO
+getenv(3),
+newstrftime(3),
+newtzset(3),
+time(2),
+tzfile(5)
+.SH NOTES
+The return values point to static data;
+the data is overwritten by each call.
+The
+.B tm_zone
+field of a returned
+.B "struct tm"
+points to a static array of characters, which
+will also be overwritten at the next call
+(and by calls to
+.IR tzset ).
+.PP
+.I Asctime\^
+and
+.I ctime\^
+behave strangely for years before 1000 or after 9999.
+The 1989 and 1999 editions of the C Standard say
+that years from \-99 through 999 are converted without
+extra spaces, but this conflicts with longstanding
+tradition and with this implementation.
+Traditional implementations of these two functions are
+restricted to years in the range 1900 through 2099.
+To avoid this portability mess, new programs should use
+.I strftime\^
+instead.
+.PP
+Avoid using out-of-range values with
+.I mktime
+when setting up lunch with promptness sticklers in Riyadh.
+.\" @(#)newctime.3	8.2

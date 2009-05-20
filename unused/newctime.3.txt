@@ -1,0 +1,149 @@
+NAME
+
+     asctime, ctime, difftime, gmtime, localtime, mktime -
+     convert date and time to ASCII
+
+SYNOPSIS
+     extern char *tzname[2];
+
+     void tzset()
+
+     #include <sys/types.h>
+
+     char *ctime(clock)
+     const time_t *clock;
+
+     double difftime(time1, time0)
+     time_t time1;
+     time_t time0;
+
+     #include <time.h>
+
+     char *asctime(tm)
+     const struct tm *tm;
+
+     struct tm *localtime(clock)
+     const time_t *clock;
+
+     struct tm *gmtime(clock)
+     const time_t *clock;
+
+     time_t mktime(tm)
+     struct tm *tm;
+
+     cc ... -ltz
+
+DESCRIPTION
+     Ctime converts a long integer, pointed to by clock,
+     representing the time in seconds since 00:00:00 UTC,
+     1970-01-01, and returns a pointer to a string of the form
+                     Thu Nov 24 18:22:48 1986\n\0
+     Years requiring fewer than four characters are padded with
+     leading zeroes.  For years longer than four characters, the
+     string is of the form
+                  Thu Nov 24 18:22:48     81986\n\0
+     with five spaces before the year.  These unusual formats are
+     designed to make it less likely that older software that
+     expects exactly 26 bytes of output will mistakenly output
+     misleading values for out-of-range years.
+
+     Localtime and gmtime return pointers to ``tm'' structures,
+     described below.  Localtime corrects for the time zone and
+     any time zone adjustments (such as Daylight Saving Time in
+     the United States).  After filling in the ``tm'' structure,
+     localtime sets the tm_isdst'th element of tzname to a
+     pointer to an ASCII string that's the time zone abbreviation
+     to be used with localtime's return value.
+
+     Gmtime converts to Coordinated Universal Time.
+
+     Asctime converts a time value contained in a ``tm''
+     structure to a string, as shown in the above example, and
+     returns a pointer to the string.
+
+     Mktime converts the broken-down time, expressed as local
+     time, in the structure pointed to by tm into a calendar time
+     value with the same encoding as that of the values returned
+     by the time function.  The original values of the tm_wday
+     and tm_yday components of the structure are ignored, and the
+     original values of the other components are not restricted
+     to their normal ranges.  (A positive or zero value for
+     tm_isdst causes mktime to presume initially that summer time
+     (for example, Daylight Saving Time in the U.S.A.)
+     respectively, is or is not in effect for the specified time.
+     A negative value for tm_isdst causes the mktime function to
+     attempt to divine whether summer time is in effect for the
+     specified time; in this case it does not use a consistent
+     rule and may give a different answer when later presented
+     with the same argument.)  On successful completion, the
+     values of the tm_wday and tm_yday components of the
+     structure are set appropriately, and the other components
+     are set to represent the specified calendar time, but with
+     their values forced to their normal ranges; the final value
+     of tm_mday is not set until tm_mon and tm_year are
+     determined.  Mktime returns the specified calendar time; If
+     the calendar time cannot be represented, it returns -1.
+
+     Difftime returns the difference between two calendar times,
+     (time1 - time0), expressed in seconds.
+
+     Declarations of all the functions and externals, and the
+     ``tm'' structure, are in the <time.h> header file.  The
+     structure (of type) struct tm includes the following fields:
+
+               int tm_sec;      /* seconds (0 - 60) */
+               int tm_min;      /* minutes (0 - 59) */
+               int tm_hour;     /* hours (0 - 23) */
+               int tm_mday;     /* day of month (1 - 31) */
+               int tm_mon;      /* month of year (0 - 11) */
+               int tm_year;     /* year - 1900 */
+               int tm_wday;     /* day of week (Sunday = 0) */
+               int tm_yday;     /* day of year (0 - 365) */
+               int tm_isdst;    /* is summer time in effect? */
+               char *tm_zone;   /* abbreviation of timezone name */
+               long tm_gmtoff;  /* offset from UTC in seconds */
+
+     The tm_zone and tm_gmtoff fields exist, and are filled in,
+     only if arrangements to do so were made when the library
+     containing these functions was created.  There is no
+     guarantee that these fields will continue to exist in this
+     form in future releases of this code.
+
+     Tm_isdst is non-zero if summer time is in effect.
+
+     Tm_gmtoff is the offset (in seconds) of the time represented
+     from UTC, with positive values indicating east of the Prime
+     Meridian.
+
+FILES
+     /usr/local/etc/zoneinfo             time zone information
+     directory
+     /usr/local/etc/zoneinfo/localtime   local time zone file
+     /usr/local/etc/zoneinfo/posixrules  used with POSIX-style
+     TZ's
+     /usr/local/etc/zoneinfo/GMT         for UTC leap seconds
+
+     If /usr/local/etc/zoneinfo/GMT is absent, UTC leap seconds
+     are loaded from /usr/local/etc/zoneinfo/posixrules.
+
+SEE ALSO
+     getenv(3), newstrftime(3), newtzset(3), time(2), tzfile(5)
+
+NOTES
+     The return values point to static data; the data is
+     overwritten by each call.  The tm_zone field of a returned
+     struct tm points to a static array of characters, which will
+     also be overwritten at the next call (and by calls to
+     tzset).
+
+     Asctime and ctime behave strangely for years before 1000 or
+     after 9999.  The 1989 and 1999 editions of the C Standard
+     say that years from -99 through 999 are converted without
+     extra spaces, but this conflicts with longstanding tradition
+     and with this implementation.  Traditional implementations
+     of these two functions are restricted to years in the range
+     1900 through 2099.  To avoid this portability mess, new
+     programs should use strftime instead.
+
+     Avoid using out-of-range values with mktime when setting up
+     lunch with promptness sticklers in Riyadh.
