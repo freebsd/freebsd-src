@@ -422,7 +422,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 		{
 			struct ng_netflow_setconfig *set;
 
-			if (msg->header.arglen != sizeof(struct ng_netflow_settimeouts))
+			if (msg->header.arglen != sizeof(struct ng_netflow_setconfig))
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setconfig *)msg->data;
