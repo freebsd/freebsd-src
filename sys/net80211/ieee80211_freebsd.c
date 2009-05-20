@@ -160,7 +160,7 @@ ieee80211_vap_destroy(struct ieee80211vap *vap)
 	if_clone_destroyif(&wlan_cloner, vap->iv_ifp);
 }
 
-static int
+int
 ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS)
 {
 	int msecs = ticks_to_msecs(*(int *)arg1);
