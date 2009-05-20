@@ -1369,7 +1369,7 @@ age_setwol(struct age_softc *sc)
 
 	AGE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->age_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_extcap(sc->age_dev, PCIY_PMG, &pmc) != 0) {
 		CSR_WRITE_4(sc, AGE_WOL_CFG, 0);
 		/*
 		 * No PME capability, PHY power down.
