@@ -183,12 +183,26 @@
       Errata Notice to fix this problem is planned after the
       release.</para>
 
+    <para>[20090507] A bug was found in the &man.fxp.4; driver.  This
+      would cause poor TCP performance when TSO is enabled, and the
+      receiver has a smaller MSS than the interface MTU setting.  To
+      workaround this issue, one can disable TSO by using
+      &man.ifconfig.8; <option>-tso</option> parameter (per interface
+      basis) or setting <varname>net.inet.tcp.tso</varname> to
+      <literal>0</literal> (globally on the system).  An Errata Notice
+      to fix this problem is planned after the release.</para>
+
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
     <para>[20090504] A patch to solve the locking issue in the
       &man.malloc.3; implementation and threading library has been
       committed to the <literal>RELENG_7</literal> branch for public
+      testing.</para>
+
+    <para>[20090507] A patch to solve the bug in the &man.fxp.4;
+      driver that caused poor TCP performance has been committed to
+      the <literal>RELENG_7</literal> branch for public
       testing.</para>
   </sect1>
 </article>
