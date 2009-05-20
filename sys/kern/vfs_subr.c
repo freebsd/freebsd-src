@@ -104,7 +104,6 @@ static void	v_decr_useonly(struct vnode *);
 static void	v_upgrade_usecount(struct vnode *);
 static void	vfree(struct vnode *);
 static void	vnlru_free(int);
-static void	vdestroy(struct vnode *);
 static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
@@ -777,7 +776,7 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start,
  * Routines having to do with the management of the vnode table.
  */
 
-static void
+void
 vdestroy(struct vnode *vp)
 {
 	struct bufobj *bo;
