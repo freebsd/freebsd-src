@@ -4442,7 +4442,7 @@ ciss_name_command_status(int status)
  * Handle an open on the control device.
  */
 static int
-ciss_open(struct cdev *dev, int flags, int fmt, d_thread_t *p)
+ciss_open(struct cdev *dev, int flags, int fmt, struct thread *p)
 {
     struct ciss_softc	*sc;
 
@@ -4462,7 +4462,7 @@ ciss_open(struct cdev *dev, int flags, int fmt, d_thread_t *p)
  * Handle the last close on the control device.
  */
 static int
-ciss_close(struct cdev *dev, int flags, int fmt, d_thread_t *p)
+ciss_close(struct cdev *dev, int flags, int fmt, struct thread *p)
 {
     struct ciss_softc	*sc;
 
@@ -4483,7 +4483,7 @@ ciss_close(struct cdev *dev, int flags, int fmt, d_thread_t *p)
  * simplify the porting of Compaq's userland tools.
  */
 static int
-ciss_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *p)
+ciss_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *p)
 {
     struct ciss_softc		*sc;
     IOCTL_Command_struct	*ioc	= (IOCTL_Command_struct *)addr;
