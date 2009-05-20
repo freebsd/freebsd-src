@@ -31,48 +31,40 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 #include <sys/errno.h>
 
-#define MAX_ERR 256
-
-static void 
-usage()
-{
-
-	fprintf(stderr, "usage: perror number\n");
-	fprintf(stderr, "number must be between 1 and %d\n", ELAST);
-	exit(1);
-}
+static void usage();
 
 int 
 main(int argc, char **argv)
 {
-
-	char errstr[MAX_ERR];
 	char *cp;
-	int errnum;
+	char *errstr;
+	long errnum;
 
 	if (argc != 2)
 		usage();
 
+	errno = 0;
+
 	errnum = strtol(argv[1], &cp, 0);
 
-	if (((errnum == 0) && (errno == EINVAL)) || (*cp != '\0')) {
-		fprintf(stderr, "Argument %s not a number.\n", argv[1]);
-		usage();
-	}
+	if (errno != 0)
+		err(1, NULL);
 
-	if ((errnum <=0) || (errnum > ELAST)) {
-		fprintf(stderr, "Number %d out of range.\n", errnum);
-		usage();
-	}
-		
-	if (strerror_r(errnum, errstr, sizeof(errstr)) < 0) {
-		fprintf(stderr, "Could not find error number %d.\n", errnum);
-		usage();
-	}
+	if ((errstr = strerror(errnum)) == NULL) 
+		err(1, NULL);
 
-	printf("Error %d is \"%s\"\n", errnum, errstr);
+	printf("%s\n", errstr);
 
 	exit(0);
 }
+
+static void 
+usage()
+{
+	fprintf(stderr, "usage: perror number\n");
+	exit(1);
+}
+
