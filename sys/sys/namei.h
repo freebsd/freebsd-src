@@ -92,6 +92,8 @@ struct nameidata {
 };
 
 #ifdef _KERNEL
+#include <sys/fcntl.h>
+
 /*
  * namei operations
  */
