@@ -1626,17 +1626,15 @@ fdcopy(struct filedesc *fdp)
 				newfdp->fd_freefile = i;
 		}
 	}
+	newfdp->fd_cmask = fdp->fd_cmask;
 	FILEDESC_SUNLOCK(fdp);
 	FILEDESC_XLOCK(newfdp);
 	for (i = 0; i <= newfdp->fd_lastfile; ++i)
 		if (newfdp->fd_ofiles[i] != NULL)
 			fdused(newfdp, i);
-	FILEDESC_XUNLOCK(newfdp);
-	FILEDESC_SLOCK(fdp);
 	if (newfdp->fd_freefile == -1)
 		newfdp->fd_freefile = i;
-	newfdp->fd_cmask = fdp->fd_cmask;
-	FILEDESC_SUNLOCK(fdp);
+	FILEDESC_XUNLOCK(newfdp);
 	return (newfdp);
 }
 
