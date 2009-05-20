@@ -52,13 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
-// #define KLUDGE_O_MATIC
-#ifdef KLUDGE_O_MATIC
-int	hack_unit = 1;
-u_long	mem_base  = 0xc0400000ul;
-u_long	mem_limit = 0x00100000ul;
-#endif
-
 static int		pcib_probe(device_t dev);
 
 static device_method_t pcib_methods[] = {
@@ -331,14 +324,6 @@ pcib_attach(device_t dev)
     struct pcib_softc	*sc;
     device_t		child;
 
-#ifdef KLUDGE_O_MATIC
-    if (device_get_unit(dev) == hack_unit) {
-	    pci_write_config(dev, PCIR_COMMAND,
-		PCIM_CMD_MEMEN | pci_read_config(dev, PCIR_COMMAND, 1), 1);
-	    pci_write_config(dev, PCIR_MEMBASE_1, mem_base >> 16, 2);
-	    pci_write_config(dev, PCIR_MEMLIMIT_1, mem_limit >> 16, 2);
-    }
-#endif
     pcib_attach_common(dev);
     sc = device_get_softc(dev);
     if (sc->secbus != 0) {
