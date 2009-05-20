@@ -277,7 +277,7 @@ apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
 }
 
 static int
-apmopen(struct cdev *dev, int flag, int fmt, d_thread_t *td)
+apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	acpi_softc *acpi_sc;
 	struct 	apm_clone_data *clone;
@@ -294,7 +294,7 @@ apmopen(struct cdev *dev, int flag, int fmt, d_thread_t *td)
 }
 
 static int
-apmclose(struct cdev *dev, int flag, int fmt, d_thread_t *td)
+apmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	apm_clone_data *clone;
 	struct	acpi_softc *acpi_sc;
@@ -318,7 +318,7 @@ apmclose(struct cdev *dev, int flag, int fmt, d_thread_t *td)
 }
 
 static int
-apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
+apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	int	error;
 	struct	apm_clone_data *clone;
@@ -436,7 +436,7 @@ apmwrite(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static int
-apmpoll(struct cdev *dev, int events, d_thread_t *td)
+apmpoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct	apm_clone_data *clone;
 	int revents;
