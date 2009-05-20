@@ -2284,6 +2284,30 @@ in6_lltable_free(struct lltable *llt, struct llentry *lle)
 	free(lle, M_LLTABLE);
 }
 
+static void
+in6_lltable_prefix_free(struct lltable *llt, 
+			const struct sockaddr *prefix,
+			const struct sockaddr *mask)
+{
+	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
+	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
+	struct llentry *lle, *next;
+	register int i;
+
+	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
+			if (IN6_ARE_MASKED_ADDR_EQUAL(
+				    &((struct sockaddr_in6 *)L3_ADDR(lle))->sin6_addr, 
+				    &pfx->sin6_addr, 
+				    &msk->sin6_addr)) {
+				callout_drain(&lle->la_timer);
+				LLE_WLOCK(lle);
+				llentry_free(lle);
+			}
+		}
+	}
+}
+
 static int
 in6_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 {
@@ -2490,6 +2514,7 @@ in6_domifattach(struct ifnet *ifp)
 	if (ext->lltable != NULL) {
 		ext->lltable->llt_new = in6_lltable_new;
 		ext->lltable->llt_free = in6_lltable_free;
+		ext->lltable->llt_prefix_free = in6_lltable_prefix_free;
 		ext->lltable->llt_rtcheck = in6_lltable_rtcheck;
 		ext->lltable->llt_lookup = in6_lltable_lookup;
 		ext->lltable->llt_dump = in6_lltable_dump;

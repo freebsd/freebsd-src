@@ -1013,6 +1013,7 @@ in_scrubprefix(struct in_ifaddr *target)
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p;
 	int error;
+	struct sockaddr_in prefix0, mask0;
 	struct rt_addrinfo info;
 	struct sockaddr_dl null_sdl;
 
@@ -1080,6 +1081,20 @@ in_scrubprefix(struct in_ifaddr *target)
 			return (error);
 		}
 	}
+
+	/*
+	 * remove all L2 entries on the given prefix
+	 */
+	bzero(&prefix0, sizeof(prefix0));
+	prefix0.sin_len = sizeof(prefix0);
+	prefix0.sin_family = AF_INET;
+	prefix0.sin_addr.s_addr = target->ia_subnet;
+	bzero(&mask0, sizeof(mask0));
+	mask0.sin_len = sizeof(mask0);
+	mask0.sin_family = AF_INET;
+	mask0.sin_addr.s_addr = target->ia_subnetmask;
+	lltable_prefix_free(AF_INET, (struct sockaddr *)&prefix0, 
+			    (struct sockaddr *)&mask0);
 
 	/*
 	 * As no-one seem to have this prefix, we can remove the route.
@@ -1231,6 +1246,34 @@ in_lltable_free(struct lltable *llt, struct llentry *lle)
 	LLE_LOCK_DESTROY(lle);
 	free(lle, M_LLTABLE);
 }
+
+
+#define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
+	    (((ntohl((d)->sin_addr.s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
+
+static void
+in_lltable_prefix_free(struct lltable *llt, 
+		       const struct sockaddr *prefix,
+		       const struct sockaddr *mask)
+{
+	const struct sockaddr_in *pfx = (const struct sockaddr_in *)prefix;
+	const struct sockaddr_in *msk = (const struct sockaddr_in *)mask;
+	struct llentry *lle, *next;
+	register int i;
+
+	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
+
+			if (IN_ARE_MASKED_ADDR_EQUAL((struct sockaddr_in *)L3_ADDR(lle), 
+						     pfx, msk)) {
+				callout_drain(&lle->la_timer);
+				LLE_WLOCK(lle);
+				llentry_free(lle);
+			}
+		}
+	}
+}
+
 
 static int
 in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
@@ -1422,6 +1465,7 @@ in_domifattach(struct ifnet *ifp)
 	if (llt != NULL) {
 		llt->llt_new = in_lltable_new;
 		llt->llt_free = in_lltable_free;
+		llt->llt_prefix_free = in_lltable_prefix_free;
 		llt->llt_rtcheck = in_lltable_rtcheck;
 		llt->llt_lookup = in_lltable_lookup;
 		llt->llt_dump = in_lltable_dump;
