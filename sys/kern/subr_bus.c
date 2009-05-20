@@ -712,7 +712,7 @@ fail:
 
 /*
  * Called when there's no match for this device.  This is only called
- * the first time that no match happens, so we don't keep getitng this
+ * the first time that no match happens, so we don't keep getting this
  * message.  Should that prove to be undesirable, we can change it.
  * This is called when all drivers that can attach to a given bus
  * decline to accept this device.  Other errrors may not be detected.
