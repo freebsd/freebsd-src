@@ -195,6 +195,23 @@ lltable_drain(int af)
 	IFNET_RUNLOCK();
 }
 
+void
+lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask)
+{
+	struct lltable *llt;
+
+	IFNET_RLOCK();
+	SLIST_FOREACH(llt, &lltables, llt_link) {
+		if (llt->llt_af != af)
+			continue;
+
+		llt->llt_prefix_free(llt, prefix, mask);
+	}
+	IFNET_RUNLOCK();
+}
+
+
+
 /*
  * Create a new lltable.
  */
