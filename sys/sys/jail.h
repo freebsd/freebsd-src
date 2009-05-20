@@ -14,6 +14,8 @@
 #define _SYS_JAIL_H_
 
 #ifdef _KERNEL
+#include <sys/osd.h>
+
 struct jail_v0 {
 	u_int32_t	version;
 	char		*path;
@@ -136,10 +138,27 @@ struct prison {
 	struct in_addr	*pr_ip4;			/* (c) v4 IPs of jail */
 	int		 pr_ip6s;			/* (c) number of v6 IPs */
 	struct in6_addr	*pr_ip6;			/* (c) v6 IPs of jail */
+	struct osd	pr_osd;
 };
 #endif /* _KERNEL || _WANT_PRISON */
 
 #ifdef _KERNEL
+/*
+ * Flag bits set via options or internally
+ */
+#define PR_PERSIST      0x00000001      /* Can exist without processes */
+#define PR_REMOVE       0x01000000      /* In process of being removed */
+
+/*
+ * OSD methods
+ */
+#define PR_METHOD_CREATE        0
+#define PR_METHOD_GET           1
+#define PR_METHOD_SET           2
+#define PR_METHOD_CHECK         3
+#define PR_METHOD_ATTACH        4
+#define PR_MAXMETHOD            5
+
 /*
  * Sysctl-set variables that determine global jail policy
  *

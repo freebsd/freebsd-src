@@ -46,6 +46,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/osd.h>
 #include <sys/priority.h>
 #include <sys/rtprio.h>			/* XXX. */
 #include <sys/runq.h>
@@ -305,6 +306,7 @@ struct thread {
 	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
 	int		td_errno;	/* Error returned by last syscall. */
+	struct osd	td_osd;		/* (k) Object specific data. */
 };
 
 struct mtx *thread_lock_block(struct thread *);

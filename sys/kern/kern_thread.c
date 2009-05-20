@@ -133,6 +133,9 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 #ifdef AUDIT
 	audit_thread_alloc(td);
 #endif
+	/* Free all OSD associated to this thread. */
+	osd_thread_exit(td);
+
 	umtx_thread_alloc(td);
 	return (0);
 }
