@@ -131,8 +131,16 @@ struct ostatfs {
 
 TAILQ_HEAD(vnodelst, vnode);
 
-struct vfsoptlist;
-struct vfsopt;
+/* Mount options list */
+TAILQ_HEAD(vfsoptlist, vfsopt);
+struct vfsopt {
+	TAILQ_ENTRY(vfsopt) link;
+	char	*name;
+	void	*value;
+	int	len;
+	int	pos;
+	int	seen;
+};
 
 /*
  * Structure per mounted filesystem.  Each mounted filesystem has an
