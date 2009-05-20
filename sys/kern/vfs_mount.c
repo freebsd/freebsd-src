@@ -100,14 +100,6 @@ struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 struct mtx mountlist_mtx;
 MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
 
-TAILQ_HEAD(vfsoptlist, vfsopt);
-struct vfsopt {
-	TAILQ_ENTRY(vfsopt) link;
-	char	*name;
-	void	*value;
-	int	len;
-};
-
 /*
  * The vnode of the system's root (/ in the filesystem, without chroot
  * active.)
