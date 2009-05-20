@@ -147,6 +147,9 @@ struct lltable {
 
 	struct llentry *	(*llt_new)(const struct sockaddr *, u_int);
 	void			(*llt_free)(struct lltable *, struct llentry *);
+	void			(*llt_prefix_free)(struct lltable *,
+				    const struct sockaddr *prefix,
+				    const struct sockaddr *mask);
 	struct llentry *	(*llt_lookup)(struct lltable *, u_int flags,
 				    const struct sockaddr *l3addr);
 	int			(*llt_rtcheck)(struct ifnet *,
@@ -174,6 +177,8 @@ MALLOC_DECLARE(M_LLTABLE);
 
 struct lltable *lltable_init(struct ifnet *, int);
 void		lltable_free(struct lltable *);
+void		lltable_prefix_free(int, struct sockaddr *, 
+                       struct sockaddr *);
 void		lltable_drain(int);
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
