@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090520:
+	802.11 monitor mode support was revised and driver api's
+	were changed.  Drivers dependent on net80211 now support
+	DLT_IEEE802_11_RADIO instead of DLT_IEEE802_11.  No
+	user-visible data structures were changed but applications
+	that use DLT_IEEE802_11 may require changes.
+	Bump __FreeBSD_version to 800088.
+
 20090430:
 	The layout of the following structs has changed: sysctl_oid,
 	socket, ifnet, inpcbinfo, tcpcb, syncache_head, vnet_inet,
