@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999 Seigo Tanimura
- * (c) 2003 Mathew Kanner
+ * Copyright (c) 2003 Mathew Kanner
  * Copyright (c) 2003-2006 Yuriy Tsibizov <yuriy.tsibizov@gfk.ru>
  * All rights reserved
  *
