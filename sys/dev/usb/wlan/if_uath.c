@@ -517,12 +517,12 @@ uath_detach(device_t dev)
 
 	sc->sc_flags |= UATH_FLAG_INVALID;
 	uath_stop(ifp);
-	ieee80211_ifdetach(ic);
 
 	callout_drain(&sc->stat_ch);
 	callout_drain(&sc->watchdog_ch);
 
 	usb2_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
+	ieee80211_ifdetach(ic);
 
 	/* free buffers */
 	UATH_LOCK(sc);
