@@ -1199,12 +1199,12 @@ svr4_sys_waitsys(td, uap)
 
 	/*
 	 * Ok, handle the weird cases.  Either WNOWAIT is set (meaning we
-	 * just want to see if there is a process to harvest, we dont'
+	 * just want to see if there is a process to harvest, we don't
 	 * want to actually harvest it), or WEXIT and WTRAPPED are clear
 	 * meaning we want to ignore zombies.  Either way, we don't have
 	 * to handle harvesting zombies here.  We do have to duplicate the
-	 * other portions of kern_wait() though, especially for the
-	 * WCONTINUED and WSTOPPED.
+	 * other portions of kern_wait() though, especially for WCONTINUED
+	 * and WSTOPPED.
 	 */
 loop:
 	nfound = 0;
