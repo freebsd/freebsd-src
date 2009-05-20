@@ -2411,6 +2411,8 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			 * to make sure that data in SDRAM is up to date
 			 */
 			pmap_flush_pvcache(src);
+			mips_dcache_wbinv_range_index(
+			    MIPS_PHYS_TO_CACHED(phy_dst), NBPG);
 			va_src = MIPS_PHYS_TO_UNCACHED(phy_src);
 			va_dst = MIPS_PHYS_TO_UNCACHED(phy_dst);
 			bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
@@ -2916,6 +2918,7 @@ pmap_activate(struct thread *td)
 		PCPU_SET(segbase, pmap->pm_segtab);
 		MachSetPID(pmap->pm_asid[PCPU_GET(cpuid)].asid);
 	}
+
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }
