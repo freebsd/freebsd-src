@@ -39,11 +39,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_quota.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/sched.h>

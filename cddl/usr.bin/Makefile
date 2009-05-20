@@ -7,10 +7,12 @@ SUBDIR= \
 	ctfdump \
 	ctfmerge \
 	sgsmsg \
+	${_zinject} \
 	${_ztest}
 
 .if ${MK_ZFS} != "no"
-.if ${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no"
+_zinject= zinject
+.if ${MK_LIBTHR} != "no"
 _ztest=	ztest
 .endif
 .endif

@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -19,8 +18,9 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2003 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -116,12 +116,12 @@ typedef struct _lwp_sema {
  * for rwlock_t in head/sync.h that we cannot change.
  */
 typedef struct _lwp_rwlock {
-	int32_t		readers;	/* -1 == writer else # of readers */
+	int32_t		readers;	/* rwstate word */
 	uint16_t	type;
 	uint16_t	magic;
-	lwp_mutex_t	mutex;		/* used to indicate ownership */
-	lwp_cond_t	readercv;	/* unused */
-	lwp_cond_t	writercv;	/* unused */
+	lwp_mutex_t	mutex;		/* used with process-shared rwlocks */
+	lwp_cond_t	readercv;	/* used only to indicate ownership */
+	lwp_cond_t	writercv;	/* used only to indicate ownership */
 } lwp_rwlock_t;
 
 #endif /* _ASM */
@@ -131,20 +131,21 @@ typedef struct _lwp_rwlock {
 #define	USYNC_THREAD	0x00		/* private to a process */
 #define	USYNC_PROCESS	0x01		/* shared by processes */
 
-/* Keep the following 3 fields in sync with pthread.h */
-#define	LOCK_NORMAL	0x00		/* same as USYNC_THREAD */
-#define	LOCK_ERRORCHECK	0x02		/* error check lock */
-#define	LOCK_RECURSIVE	0x04		/* recursive lock */
+/* Keep the following values in sync with pthread.h */
+#define	LOCK_NORMAL		0x00		/* same as USYNC_THREAD */
+#define	LOCK_SHARED		0x01		/* same as USYNC_PROCESS */
+#define	LOCK_ERRORCHECK		0x02		/* error check lock */
+#define	LOCK_RECURSIVE		0x04		/* recursive lock */
+#define	LOCK_PRIO_INHERIT	0x10		/* priority inheritance lock */
+#define	LOCK_PRIO_PROTECT	0x20		/* priority ceiling lock */
+#define	LOCK_ROBUST		0x40		/* robust lock */
 
-#define	USYNC_PROCESS_ROBUST	0x08	/* shared by processes robustly */
-
-/* Keep the following 5 fields in sync with pthread.h */
-
-#define	LOCK_PRIO_NONE		0x00
-#define	LOCK_PRIO_INHERIT	0x10
-#define	LOCK_PRIO_PROTECT	0x20
-#define	LOCK_STALL_NP		0x00
-#define	LOCK_ROBUST_NP		0x40
+/*
+ * USYNC_PROCESS_ROBUST is a deprecated historical type.  It is mapped
+ * into (USYNC_PROCESS | LOCK_ROBUST) by mutex_init().  Application code
+ * should be revised to use (USYNC_PROCESS | LOCK_ROBUST) rather than this.
+ */
+#define	USYNC_PROCESS_ROBUST	0x08
 
 /*
  * lwp_mutex_t flags

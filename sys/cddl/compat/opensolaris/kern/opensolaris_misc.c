@@ -30,27 +30,41 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
+#include <sys/limits.h>
 #include <sys/misc.h>
 #include <sys/sunddi.h>
 
 char hw_serial[11] = "0";
 
 struct opensolaris_utsname utsname = {
-	.nodename = hostname
+	.nodename = "unset"
 };
+
+int
+ddi_strtol(const char *str, char **nptr, int base, long *result)
+{
+
+	*result = strtol(str, nptr, base);
+	if (*result == 0)
+		return (EINVAL);
+	else if (*result == LONG_MIN || *result == LONG_MAX)
+		return (ERANGE);
+	return (0);
+}
 
 int
 ddi_strtoul(const char *str, char **nptr, int base, unsigned long *result)
 {
-	char *end;
 
 	if (str == hw_serial) {
 		*result = hostid;
 		return (0);
 	}
 
-	*result = strtoul(str, &end, base);
+	*result = strtoul(str, nptr, base);
 	if (*result == 0)
 		return (EINVAL);
+	else if (*result == ULONG_MAX)
+		return (ERANGE);
 	return (0);
 }

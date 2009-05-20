@@ -10,8 +10,8 @@ SRCS=	libnvpair.c \
 	nvpair_alloc_fixed.c \
 	nvpair.c
 
+CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
-CFLAGS+= -I${.CURDIR}/../../../include		# XXX
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
 
 .include <bsd.lib.mk>

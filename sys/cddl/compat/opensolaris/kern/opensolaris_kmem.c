@@ -94,7 +94,7 @@ zfs_kmem_free(void *buf, size_t size __unused)
 {
 #ifdef KMEM_DEBUG
 	if (buf == NULL) {
-		printf("%s: attempt to free NULL\n",__func__);
+		printf("%s: attempt to free NULL\n", __func__);
 		return;
 	}
 	struct kmem_item *i;
@@ -156,7 +156,7 @@ kmem_cache_create(char *name, size_t bufsize, size_t align,
 	cache->kc_constructor = constructor;
 	cache->kc_destructor = destructor;
 	cache->kc_private = private;
-#ifdef _KERNEL
+#if defined(_KERNEL) && !defined(KMEM_DEBUG)
 	cache->kc_zone = uma_zcreate(cache->kc_name, bufsize,
 	    constructor != NULL ? kmem_std_constructor : NULL,
 	    destructor != NULL ? kmem_std_destructor : NULL,
@@ -171,23 +171,23 @@ kmem_cache_create(char *name, size_t bufsize, size_t align,
 void
 kmem_cache_destroy(kmem_cache_t *cache)
 {
+#if defined(_KERNEL) && !defined(KMEM_DEBUG)
 	uma_zdestroy(cache->kc_zone);
+#endif
 	kmem_free(cache, sizeof(*cache));
 }
 
 void *
 kmem_cache_alloc(kmem_cache_t *cache, int flags)
 {
-#ifdef _KERNEL
+#if defined(_KERNEL) && !defined(KMEM_DEBUG)
 	return (uma_zalloc_arg(cache->kc_zone, cache, flags));
 #else
 	void *p;
 
 	p = kmem_alloc(cache->kc_size, flags);
-	if (p != NULL) {
-		kmem_std_constructor(p, cache->kc_size, cache->kc_private,
-		    flags);
-	}
+	if (p != NULL && cache->kc_constructor != NULL)
+		kmem_std_constructor(p, cache->kc_size, cache, flags);
 	return (p);
 #endif
 }
@@ -195,10 +195,11 @@ kmem_cache_alloc(kmem_cache_t *cache, int flags)
 void
 kmem_cache_free(kmem_cache_t *cache, void *buf)
 {
-#ifdef _KERNEL
+#if defined(_KERNEL) && !defined(KMEM_DEBUG)
 	uma_zfree_arg(cache->kc_zone, buf, cache);
 #else
-	kmem_std_destructor(buf, cache->kc_size, cache->kc_private);
+	if (cache->kc_destructor != NULL)
+		kmem_std_destructor(buf, cache->kc_size, cache);
 	kmem_free(buf, cache->kc_size);
 #endif
 }
@@ -207,7 +208,9 @@ kmem_cache_free(kmem_cache_t *cache, void *buf)
 void
 kmem_cache_reap_now(kmem_cache_t *cache)
 {
+#ifndef KMEM_DEBUG
 	zone_drain(cache->kc_zone);
+#endif
 }
 
 void
@@ -253,6 +256,8 @@ kmem_show(void *dummy __unused)
 		printf("KMEM_DEBUG: Leaked elements:\n\n");
 		LIST_FOREACH(i, &kmem_items, next) {
 			printf("address=%p\n", i);
+			stack_print_ddb(&i->stack);
+			printf("\n");
 		}
 	}
 	mtx_unlock(&kmem_items_mtx);

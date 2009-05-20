@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -239,7 +239,7 @@ typedef struct dbuf_hash_table {
 uint64_t dbuf_whichblock(struct dnode *di, uint64_t offset);
 
 dmu_buf_impl_t *dbuf_create_tlib(struct dnode *dn, char *data);
-dmu_buf_impl_t *dbuf_create_bonus(struct dnode *dn);
+void dbuf_create_bonus(struct dnode *dn);
 
 dmu_buf_impl_t *dbuf_hold(struct dnode *dn, uint64_t blkid, void *tag);
 dmu_buf_impl_t *dbuf_hold_level(struct dnode *dn, int level, uint64_t blkid,
@@ -271,7 +271,7 @@ void dbuf_setdirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
 void dbuf_unoverride(dbuf_dirty_record_t *dr);
 void dbuf_sync_list(list_t *list, dmu_tx_t *tx);
 
-void dbuf_free_range(struct dnode *dn, uint64_t blkid, uint64_t nblks,
+void dbuf_free_range(struct dnode *dn, uint64_t start, uint64_t end,
     struct dmu_tx *);
 
 void dbuf_new_size(dmu_buf_impl_t *db, int size, dmu_tx_t *tx);
@@ -279,10 +279,21 @@ void dbuf_new_size(dmu_buf_impl_t *db, int size, dmu_tx_t *tx);
 void dbuf_init(void);
 void dbuf_fini(void);
 
-#define	DBUF_GET_BUFC_TYPE(db)					\
-	((((db)->db_level > 0) ||				\
-	    (dmu_ot[(db)->db_dnode->dn_type].ot_metadata)) ?	\
-	    ARC_BUFC_METADATA : ARC_BUFC_DATA);
+#define	DBUF_IS_METADATA(db)	\
+	((db)->db_level > 0 || dmu_ot[(db)->db_dnode->dn_type].ot_metadata)
+
+#define	DBUF_GET_BUFC_TYPE(db)	\
+	(DBUF_IS_METADATA(db) ? ARC_BUFC_METADATA : ARC_BUFC_DATA)
+
+#define	DBUF_IS_CACHEABLE(db)						\
+	((db)->db_objset->os_primary_cache == ZFS_CACHE_ALL ||		\
+	(DBUF_IS_METADATA(db) &&					\
+	((db)->db_objset->os_primary_cache == ZFS_CACHE_METADATA)))
+
+#define	DBUF_IS_L2CACHEABLE(db)						\
+	((db)->db_objset->os_secondary_cache == ZFS_CACHE_ALL ||	\
+	(DBUF_IS_METADATA(db) &&					\
+	((db)->db_objset->os_secondary_cache == ZFS_CACHE_METADATA)))
 
 #ifdef ZFS_DEBUG
 

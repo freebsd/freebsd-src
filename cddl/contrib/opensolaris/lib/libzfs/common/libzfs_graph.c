@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -126,6 +126,8 @@ typedef struct zfs_graph {
 	zfs_vertex_t		**zg_hash;
 	size_t			zg_size;
 	size_t			zg_nvertex;
+	const char		*zg_root;
+	int			zg_clone_count;
 } zfs_graph_t;
 
 /*
@@ -255,7 +257,7 @@ zfs_vertex_sort_edges(zfs_vertex_t *zvp)
  * datasets in the pool.
  */
 static zfs_graph_t *
-zfs_graph_create(libzfs_handle_t *hdl, size_t size)
+zfs_graph_create(libzfs_handle_t *hdl, const char *dataset, size_t size)
 {
 	zfs_graph_t *zgp = zfs_alloc(hdl, sizeof (zfs_graph_t));
 
@@ -268,6 +270,9 @@ zfs_graph_create(libzfs_handle_t *hdl, size_t size)
 		free(zgp);
 		return (NULL);
 	}
+
+	zgp->zg_root = dataset;
+	zgp->zg_clone_count = 0;
 
 	return (zgp);
 }
@@ -367,17 +372,16 @@ zfs_graph_add(libzfs_handle_t *hdl, zfs_graph_t *zgp, const char *source,
 }
 
 /*
- * Iterate over all children of the given dataset, adding any vertices as
- * necessary.  Returns 0 if no cloned snapshots were seen, -1 if there was an
- * error, or 1 otherwise.  This is a simple recursive algorithm - the ZFS
- * namespace typically is very flat.  We manually invoke the necessary ioctl()
- * calls to avoid the overhead and additional semantics of zfs_open().
+ * Iterate over all children of the given dataset, adding any vertices
+ * as necessary.  Returns -1 if there was an error, or 0 otherwise.
+ * This is a simple recursive algorithm - the ZFS namespace typically
+ * is very flat.  We manually invoke the necessary ioctl() calls to
+ * avoid the overhead and additional semantics of zfs_open().
  */
 static int
 iterate_children(libzfs_handle_t *hdl, zfs_graph_t *zgp, const char *dataset)
 {
 	zfs_cmd_t zc = { 0 };
-	int ret = 0, err;
 	zfs_vertex_t *zvp;
 
 	/*
@@ -390,18 +394,8 @@ iterate_children(libzfs_handle_t *hdl, zfs_graph_t *zgp, const char *dataset)
 		return (0);
 
 	/*
-	 * We check the clone parent here instead of within the loop, so that if
-	 * the root dataset has been promoted from a clone, we find its parent
-	 * appropriately.
+	 * Iterate over all children
 	 */
-	(void) strlcpy(zc.zc_name, dataset, sizeof (zc.zc_name));
-	if (ioctl(hdl->libzfs_fd, ZFS_IOC_OBJSET_STATS, &zc) == 0 &&
-	    zc.zc_objset_stats.dds_clone_of[0] != '\0') {
-		if (zfs_graph_add(hdl, zgp, zc.zc_objset_stats.dds_clone_of,
-		    zc.zc_name, zc.zc_objset_stats.dds_creation_txg) != 0)
-			return (-1);
-	}
-
 	for ((void) strlcpy(zc.zc_name, dataset, sizeof (zc.zc_name));
 	    ioctl(hdl->libzfs_fd, ZFS_IOC_DATASET_LIST_NEXT, &zc) == 0;
 	    (void) strlcpy(zc.zc_name, dataset, sizeof (zc.zc_name))) {
@@ -417,8 +411,22 @@ iterate_children(libzfs_handle_t *hdl, zfs_graph_t *zgp, const char *dataset)
 		 * dataset and clone statistics.  If this fails, the dataset has
 		 * since been removed, and we're pretty much screwed anyway.
 		 */
+		zc.zc_objset_stats.dds_origin[0] = '\0';
 		if (ioctl(hdl->libzfs_fd, ZFS_IOC_OBJSET_STATS, &zc) != 0)
 			continue;
+
+		if (zc.zc_objset_stats.dds_origin[0] != '\0') {
+			if (zfs_graph_add(hdl, zgp,
+			    zc.zc_objset_stats.dds_origin, zc.zc_name,
+			    zc.zc_objset_stats.dds_creation_txg) != 0)
+				return (-1);
+			/*
+			 * Count origins only if they are contained in the graph
+			 */
+			if (isa_child_of(zc.zc_objset_stats.dds_origin,
+			    zgp->zg_root))
+				zgp->zg_clone_count--;
+		}
 
 		/*
 		 * Add an edge between the parent and the child.
@@ -428,19 +436,10 @@ iterate_children(libzfs_handle_t *hdl, zfs_graph_t *zgp, const char *dataset)
 			return (-1);
 
 		/*
-		 * Iterate over all children
+		 * Recursively visit child
 		 */
-		err = iterate_children(hdl, zgp, zc.zc_name);
-		if (err == -1)
+		if (iterate_children(hdl, zgp, zc.zc_name))
 			return (-1);
-		else if (err == 1)
-			ret = 1;
-
-		/*
-		 * Indicate if we found a dataset with a non-zero clone count.
-		 */
-		if (zc.zc_objset_stats.dds_num_clones != 0)
-			ret = 1;
 	}
 
 	/*
@@ -467,67 +466,84 @@ iterate_children(libzfs_handle_t *hdl, zfs_graph_t *zgp, const char *dataset)
 		    zc.zc_objset_stats.dds_creation_txg) != 0)
 			return (-1);
 
-		/*
-		 * Indicate if we found a dataset with a non-zero clone count.
-		 */
-		if (zc.zc_objset_stats.dds_num_clones != 0)
-			ret = 1;
+		zgp->zg_clone_count += zc.zc_objset_stats.dds_num_clones;
 	}
 
 	zvp->zv_visited = VISIT_SEEN;
 
-	return (ret);
+	return (0);
 }
 
 /*
- * Construct a complete graph of all necessary vertices.  First, we iterate over
- * only our object's children.  If we don't find any cloned snapshots, then we
- * simple return that.  Otherwise, we have to start at the pool root and iterate
- * over all datasets.
+ * Returns false if there are no snapshots with dependent clones in this
+ * subtree or if all of those clones are also in this subtree.  Returns
+ * true if there is an error or there are external dependents.
+ */
+static boolean_t
+external_dependents(libzfs_handle_t *hdl, zfs_graph_t *zgp, const char *dataset)
+{
+	zfs_cmd_t zc = { 0 };
+
+	/*
+	 * Check whether this dataset is a clone or has clones since
+	 * iterate_children() only checks the children.
+	 */
+	(void) strlcpy(zc.zc_name, dataset, sizeof (zc.zc_name));
+	if (ioctl(hdl->libzfs_fd, ZFS_IOC_OBJSET_STATS, &zc) != 0)
+		return (B_TRUE);
+
+	if (zc.zc_objset_stats.dds_origin[0] != '\0') {
+		if (zfs_graph_add(hdl, zgp,
+		    zc.zc_objset_stats.dds_origin, zc.zc_name,
+		    zc.zc_objset_stats.dds_creation_txg) != 0)
+			return (B_TRUE);
+		if (isa_child_of(zc.zc_objset_stats.dds_origin, dataset))
+			zgp->zg_clone_count--;
+	}
+
+	if ((zc.zc_objset_stats.dds_num_clones) ||
+	    iterate_children(hdl, zgp, dataset))
+		return (B_TRUE);
+
+	return (zgp->zg_clone_count != 0);
+}
+
+/*
+ * Construct a complete graph of all necessary vertices.  First, iterate over
+ * only our object's children.  If no cloned snapshots are found, or all of
+ * the cloned snapshots are in this subtree then return a graph of the subtree.
+ * Otherwise, start at the root of the pool and iterate over all datasets.
  */
 static zfs_graph_t *
 construct_graph(libzfs_handle_t *hdl, const char *dataset)
 {
-	zfs_graph_t *zgp = zfs_graph_create(hdl, ZFS_GRAPH_SIZE);
-	zfs_cmd_t zc = { 0 };
+	zfs_graph_t *zgp = zfs_graph_create(hdl, dataset, ZFS_GRAPH_SIZE);
 	int ret = 0;
 
 	if (zgp == NULL)
 		return (zgp);
 
-	/*
-	 * We need to explicitly check whether this dataset has clones or not,
-	 * since iterate_children() only checks the children.
-	 */
-	(void) strlcpy(zc.zc_name, dataset, sizeof (zc.zc_name));
-	(void) ioctl(hdl->libzfs_fd, ZFS_IOC_OBJSET_STATS, &zc);
-
-	if (zc.zc_objset_stats.dds_num_clones != 0 ||
-	    (ret = iterate_children(hdl, zgp, dataset)) != 0) {
+	if ((strchr(dataset, '/') == NULL) ||
+	    (external_dependents(hdl, zgp, dataset))) {
 		/*
 		 * Determine pool name and try again.
 		 */
-		char *pool, *slash;
+		int len = strcspn(dataset, "/@") + 1;
+		char *pool = zfs_alloc(hdl, len);
 
-		if ((slash = strchr(dataset, '/')) != NULL ||
-		    (slash = strchr(dataset, '@')) != NULL) {
-			pool = zfs_alloc(hdl, slash - dataset + 1);
-			if (pool == NULL) {
-				zfs_graph_destroy(zgp);
-				return (NULL);
-			}
-			(void) strncpy(pool, dataset, slash - dataset);
-			pool[slash - dataset] = '\0';
-
-			if (iterate_children(hdl, zgp, pool) == -1 ||
-			    zfs_graph_add(hdl, zgp, pool, NULL, 0) != 0) {
-				free(pool);
-				zfs_graph_destroy(zgp);
-				return (NULL);
-			}
-
-			free(pool);
+		if (pool == NULL) {
+			zfs_graph_destroy(zgp);
+			return (NULL);
 		}
+		(void) strlcpy(pool, dataset, len);
+
+		if (iterate_children(hdl, zgp, pool) == -1 ||
+		    zfs_graph_add(hdl, zgp, pool, NULL, 0) != 0) {
+			free(pool);
+			zfs_graph_destroy(zgp);
+			return (NULL);
+		}
+		free(pool);
 	}
 
 	if (ret == -1 || zfs_graph_add(hdl, zgp, dataset, NULL, 0) != 0) {

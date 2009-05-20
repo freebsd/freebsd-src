@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -298,10 +298,7 @@ void
 spa_errlog_rotate(spa_t *spa)
 {
 	mutex_enter(&spa->spa_errlist_lock);
-
-	ASSERT(!spa->spa_scrub_finished);
 	spa->spa_scrub_finished = B_TRUE;
-
 	mutex_exit(&spa->spa_errlist_lock);
 }
 

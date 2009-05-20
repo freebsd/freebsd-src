@@ -32,6 +32,7 @@
 #include <sys/cpuvar.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/misc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 

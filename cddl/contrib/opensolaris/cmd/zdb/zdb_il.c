@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -233,19 +233,26 @@ typedef struct zil_rec_info {
 } zil_rec_info_t;
 
 static zil_rec_info_t zil_rec_info[TX_MAX_TYPE] = {
-	{	NULL,			"Total      "	},
-	{	zil_prt_rec_create,	"TX_CREATE  "	},
-	{	zil_prt_rec_create,	"TX_MKDIR   "	},
-	{	zil_prt_rec_create,	"TX_MKXATTR "	},
-	{	zil_prt_rec_create,	"TX_SYMLINK "	},
-	{	zil_prt_rec_remove,	"TX_REMOVE  "	},
-	{	zil_prt_rec_remove,	"TX_RMDIR   "	},
-	{	zil_prt_rec_link,	"TX_LINK    "	},
-	{	zil_prt_rec_rename,	"TX_RENAME  "	},
-	{	zil_prt_rec_write,	"TX_WRITE   "	},
-	{	zil_prt_rec_truncate,	"TX_TRUNCATE"	},
-	{	zil_prt_rec_setattr,	"TX_SETATTR "	},
-	{	zil_prt_rec_acl,	"TX_ACL     "	},
+	{	NULL,			"Total              " },
+	{	zil_prt_rec_create,	"TX_CREATE          " },
+	{	zil_prt_rec_create,	"TX_MKDIR           " },
+	{	zil_prt_rec_create,	"TX_MKXATTR         " },
+	{	zil_prt_rec_create,	"TX_SYMLINK         " },
+	{	zil_prt_rec_remove,	"TX_REMOVE          " },
+	{	zil_prt_rec_remove,	"TX_RMDIR           " },
+	{	zil_prt_rec_link,	"TX_LINK            " },
+	{	zil_prt_rec_rename,	"TX_RENAME          " },
+	{	zil_prt_rec_write,	"TX_WRITE           " },
+	{	zil_prt_rec_truncate,	"TX_TRUNCATE        " },
+	{	zil_prt_rec_setattr,	"TX_SETATTR         " },
+	{	zil_prt_rec_acl,	"TX_ACL_V0          " },
+	{	zil_prt_rec_acl,	"TX_ACL_ACL         " },
+	{	zil_prt_rec_create,	"TX_CREATE_ACL      " },
+	{	zil_prt_rec_create,	"TX_CREATE_ATTR     " },
+	{	zil_prt_rec_create,	"TX_CREATE_ACL_ATTR " },
+	{	zil_prt_rec_create,	"TX_MKDIR_ACL       " },
+	{	zil_prt_rec_create,	"TX_MKDIR_ATTR      " },
+	{	zil_prt_rec_create,	"TX_MKDIR_ACL_ATTR  " },
 };
 
 /* ARGSUSED */
@@ -255,12 +262,14 @@ print_log_record(zilog_t *zilog, lr_t *lr, void *arg, uint64_t claim_txg)
 	int txtype;
 	int verbose = MAX(dump_opt['d'], dump_opt['i']);
 
+	/* reduce size of txtype to strip off TX_CI bit */
 	txtype = lr->lrc_txtype;
 
 	ASSERT(txtype != 0 && (uint_t)txtype < TX_MAX_TYPE);
 	ASSERT(lr->lrc_txg);
 
-	(void) printf("\t\t%s len %6llu, txg %llu, seq %llu\n",
+	(void) printf("\t\t%s%s len %6llu, txg %llu, seq %llu\n",
+	    (lr->lrc_txtype & TX_CI) ? "CI-" : "",
 	    zil_rec_info[txtype].zri_name,
 	    (u_longlong_t)lr->lrc_reclen,
 	    (u_longlong_t)lr->lrc_txg,

@@ -54,5 +54,7 @@
 #define	MNTOPT_EXEC	"exec"		/* enable executables */
 #define	MNTOPT_NOEXEC	"noexec"	/* disable executables */
 #define	MNTOPT_RESTRICT	"restrict"	/* restricted autofs mount */
+#define	MNTOPT_NBMAND	"nbmand"	/* allow non-blocking mandatory locks */
+#define	MNTOPT_NONBMAND	"nonbmand"	/* deny non-blocking mandatory locks */
 
 #endif	/* !_OPENSOLARIS_MNTENT_H_ */

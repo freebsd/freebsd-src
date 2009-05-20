@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -41,10 +41,13 @@
 #include <sys/zap.h>
 #include <sys/zio_checksum.h>
 
+static char *dmu_recv_tag = "dmu_recv_tag";
+
 struct backuparg {
 	dmu_replay_record_t *drr;
 	kthread_t *td;
 	struct file *fp;
+	offset_t *off;
 	objset_t *os;
 	zio_cksum_t zc;
 	int err;
@@ -77,6 +80,7 @@ dump_bytes(struct backuparg *ba, void *buf, int len)
 	fprintf(stderr, "%s: returning EOPNOTSUPP\n", __func__);
 	ba->err = EOPNOTSUPP;
 #endif
+	*ba->off += len;
 
 	return (ba->err);
 }
@@ -179,7 +183,7 @@ backup_cb(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
 	void *data = bc->bc_data;
 	int err = 0;
 
-	if (SIGPENDING(curthread))
+	if (issig(JUSTLOOKING) && issig(FORREAL))
 		return (EINTR);
 
 	ASSERT(data || bp == NULL);
@@ -215,10 +219,9 @@ backup_cb(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
 			zb.zb_object = object;
 			zb.zb_level = level;
 			zb.zb_blkid = blkid;
-			(void) arc_read(NULL, spa, bp,
-			    dmu_ot[type].ot_byteswap, arc_getbuf_func, &abuf,
-			    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_MUSTSUCCEED,
-			    &aflags, &zb);
+			(void) arc_read_nolock(NULL, spa, bp,
+			    arc_getbuf_func, &abuf, ZIO_PRIORITY_ASYNC_READ,
+			    ZIO_FLAG_MUSTSUCCEED, &aflags, &zb);
 
 			if (abuf) {
 				err = dump_data(ba, type, object, blkid * blksz,
@@ -236,13 +239,15 @@ backup_cb(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
 }
 
 int
-dmu_sendbackup(objset_t *tosnap, objset_t *fromsnap, struct file *fp)
+dmu_sendbackup(objset_t *tosnap, objset_t *fromsnap, boolean_t fromorigin,
+    struct file *fp, offset_t *off)
 {
 	dsl_dataset_t *ds = tosnap->os->os_dsl_dataset;
 	dsl_dataset_t *fromds = fromsnap ? fromsnap->os->os_dsl_dataset : NULL;
 	dmu_replay_record_t *drr;
 	struct backuparg ba;
 	int err;
+	uint64_t fromtxg = 0;
 
 	/* tosnap must be a snapshot */
 	if (ds->ds_phys->ds_next_snap_obj == 0)
@@ -250,26 +255,55 @@ dmu_sendbackup(objset_t *tosnap, objset_t *fromsnap, struct file *fp)
 
 	/* fromsnap must be an earlier snapshot from the same fs as tosnap */
 	if (fromds && (ds->ds_dir != fromds->ds_dir ||
-	    fromds->ds_phys->ds_creation_txg >=
-	    ds->ds_phys->ds_creation_txg))
+	    fromds->ds_phys->ds_creation_txg >= ds->ds_phys->ds_creation_txg))
 		return (EXDEV);
+
+	if (fromorigin) {
+		dsl_pool_t *dp = ds->ds_dir->dd_pool;
+
+		if (fromsnap)
+			return (EINVAL);
+
+		if (dsl_dir_is_clone(ds->ds_dir)) {
+			rw_enter(&dp->dp_config_rwlock, RW_READER);
+			err = dsl_dataset_hold_obj(dp,
+			    ds->ds_dir->dd_phys->dd_origin_obj, FTAG, &fromds);
+			rw_exit(&dp->dp_config_rwlock);
+			if (err)
+				return (err);
+		} else {
+			fromorigin = B_FALSE;
+		}
+	}
+
 
 	drr = kmem_zalloc(sizeof (dmu_replay_record_t), KM_SLEEP);
 	drr->drr_type = DRR_BEGIN;
 	drr->drr_u.drr_begin.drr_magic = DMU_BACKUP_MAGIC;
-	drr->drr_u.drr_begin.drr_version = DMU_BACKUP_VERSION;
+	drr->drr_u.drr_begin.drr_version = DMU_BACKUP_STREAM_VERSION;
 	drr->drr_u.drr_begin.drr_creation_time =
 	    ds->ds_phys->ds_creation_time;
 	drr->drr_u.drr_begin.drr_type = tosnap->os->os_phys->os_type;
+	if (fromorigin)
+		drr->drr_u.drr_begin.drr_flags |= DRR_FLAG_CLONE;
 	drr->drr_u.drr_begin.drr_toguid = ds->ds_phys->ds_guid;
+	if (ds->ds_phys->ds_flags & DS_FLAG_CI_DATASET)
+		drr->drr_u.drr_begin.drr_flags |= DRR_FLAG_CI_DATA;
+
 	if (fromds)
 		drr->drr_u.drr_begin.drr_fromguid = fromds->ds_phys->ds_guid;
 	dsl_dataset_name(ds, drr->drr_u.drr_begin.drr_toname);
+
+	if (fromds)
+		fromtxg = fromds->ds_phys->ds_creation_txg;
+	if (fromorigin)
+		dsl_dataset_rele(fromds, FTAG);
 
 	ba.drr = drr;
 	ba.td = curthread;
 	ba.fp = fp;
 	ba.os = tosnap;
+	ba.off = off;
 	ZIO_SET_CHECKSUM(&ba.zc, 0, 0, 0, 0);
 
 	if (dump_bytes(&ba, drr, sizeof (dmu_replay_record_t))) {
@@ -277,8 +311,7 @@ dmu_sendbackup(objset_t *tosnap, objset_t *fromsnap, struct file *fp)
 		return (ba.err);
 	}
 
-	err = traverse_dsl_dataset(ds,
-	    fromds ? fromds->ds_phys->ds_creation_txg : 0,
+	err = traverse_dsl_dataset(ds, fromtxg,
 	    ADVANCE_PRE | ADVANCE_HOLES | ADVANCE_DATA | ADVANCE_NOLOCK,
 	    backup_cb, &ba);
 
@@ -303,6 +336,373 @@ dmu_sendbackup(objset_t *tosnap, objset_t *fromsnap, struct file *fp)
 	return (0);
 }
 
+struct recvbeginsyncarg {
+	const char *tofs;
+	const char *tosnap;
+	dsl_dataset_t *origin;
+	uint64_t fromguid;
+	dmu_objset_type_t type;
+	void *tag;
+	boolean_t force;
+	uint64_t dsflags;
+	char clonelastname[MAXNAMELEN];
+	dsl_dataset_t *ds; /* the ds to recv into; returned from the syncfunc */
+};
+
+static dsl_dataset_t *
+recv_full_sync_impl(dsl_pool_t *dp, uint64_t dsobj, dmu_objset_type_t type,
+    cred_t *cr, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds;
+
+	/* This should always work, since we just created it */
+	/* XXX - create should return an owned ds */
+	VERIFY(0 == dsl_dataset_own_obj(dp, dsobj,
+	    DS_MODE_INCONSISTENT, dmu_recv_tag, &ds));
+
+	if (type != DMU_OST_NONE) {
+		(void) dmu_objset_create_impl(dp->dp_spa,
+		    ds, &ds->ds_phys->ds_bp, type, tx);
+	}
+
+	spa_history_internal_log(LOG_DS_REPLAY_FULL_SYNC,
+	    dp->dp_spa, tx, cr, "dataset = %lld", dsobj);
+
+	return (ds);
+}
+
+/* ARGSUSED */
+static int
+recv_full_check(void *arg1, void *arg2, dmu_tx_t *tx)
+{
+	dsl_dir_t *dd = arg1;
+	struct recvbeginsyncarg *rbsa = arg2;
+	objset_t *mos = dd->dd_pool->dp_meta_objset;
+	uint64_t val;
+	int err;
+
+	err = zap_lookup(mos, dd->dd_phys->dd_child_dir_zapobj,
+	    strrchr(rbsa->tofs, '/') + 1, sizeof (uint64_t), 1, &val);
+
+	if (err != ENOENT)
+		return (err ? err : EEXIST);
+
+	if (rbsa->origin) {
+		/* make sure it's a snap in the same pool */
+		if (rbsa->origin->ds_dir->dd_pool != dd->dd_pool)
+			return (EXDEV);
+		if (rbsa->origin->ds_phys->ds_num_children == 0)
+			return (EINVAL);
+		if (rbsa->origin->ds_phys->ds_guid != rbsa->fromguid)
+			return (ENODEV);
+	}
+
+	return (0);
+}
+
+static void
+recv_full_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
+{
+	dsl_dir_t *dd = arg1;
+	struct recvbeginsyncarg *rbsa = arg2;
+	uint64_t flags = DS_FLAG_INCONSISTENT | rbsa->dsflags;
+	uint64_t dsobj;
+
+	dsobj = dsl_dataset_create_sync(dd, strrchr(rbsa->tofs, '/') + 1,
+	    rbsa->origin, flags, cr, tx);
+
+	rbsa->ds = recv_full_sync_impl(dd->dd_pool, dsobj,
+	    rbsa->origin ? DMU_OST_NONE : rbsa->type, cr, tx);
+}
+
+static int
+recv_full_existing_check(void *arg1, void *arg2, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds = arg1;
+	struct recvbeginsyncarg *rbsa = arg2;
+	int err;
+
+	/* must be a head ds */
+	if (ds->ds_phys->ds_next_snap_obj != 0)
+		return (EINVAL);
+
+	/* must not be a clone ds */
+	if (dsl_dir_is_clone(ds->ds_dir))
+		return (EINVAL);
+
+	err = dsl_dataset_destroy_check(ds, rbsa->tag, tx);
+	if (err)
+		return (err);
+
+	if (rbsa->origin) {
+		/* make sure it's a snap in the same pool */
+		if (rbsa->origin->ds_dir->dd_pool != ds->ds_dir->dd_pool)
+			return (EXDEV);
+		if (rbsa->origin->ds_phys->ds_num_children == 0)
+			return (EINVAL);
+		if (rbsa->origin->ds_phys->ds_guid != rbsa->fromguid)
+			return (ENODEV);
+	}
+
+	return (0);
+}
+
+static void
+recv_full_existing_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds = arg1;
+	struct recvbeginsyncarg *rbsa = arg2;
+	dsl_dir_t *dd = ds->ds_dir;
+	uint64_t flags = DS_FLAG_INCONSISTENT | rbsa->dsflags;
+	uint64_t dsobj;
+
+	/*
+	 * NB: caller must provide an extra hold on the dsl_dir_t, so it
+	 * won't go away when dsl_dataset_destroy_sync() closes the
+	 * dataset.
+	 */
+	dsl_dataset_destroy_sync(ds, rbsa->tag, cr, tx);
+
+	dsobj = dsl_dataset_create_sync_dd(dd, rbsa->origin, flags, tx);
+
+	rbsa->ds = recv_full_sync_impl(dd->dd_pool, dsobj,
+	    rbsa->origin ? DMU_OST_NONE : rbsa->type, cr, tx);
+}
+
+/* ARGSUSED */
+static int
+recv_incremental_check(void *arg1, void *arg2, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds = arg1;
+	struct recvbeginsyncarg *rbsa = arg2;
+	int err;
+	uint64_t val;
+
+	/* must not have any changes since most recent snapshot */
+	if (!rbsa->force && dsl_dataset_modified_since_lastsnap(ds))
+		return (ETXTBSY);
+
+	/* must already be a snapshot of this fs */
+	if (ds->ds_phys->ds_prev_snap_obj == 0)
+		return (ENODEV);
+
+	/* most recent snapshot must match fromguid */
+	if (ds->ds_prev->ds_phys->ds_guid != rbsa->fromguid)
+		return (ENODEV);
+
+	/* temporary clone name must not exist */
+	err = zap_lookup(ds->ds_dir->dd_pool->dp_meta_objset,
+	    ds->ds_dir->dd_phys->dd_child_dir_zapobj,
+	    rbsa->clonelastname, 8, 1, &val);
+	if (err == 0)
+		return (EEXIST);
+	if (err != ENOENT)
+		return (err);
+
+	/* new snapshot name must not exist */
+	err = zap_lookup(ds->ds_dir->dd_pool->dp_meta_objset,
+	    ds->ds_phys->ds_snapnames_zapobj, rbsa->tosnap, 8, 1, &val);
+	if (err == 0)
+		return (EEXIST);
+	if (err != ENOENT)
+		return (err);
+	return (0);
+}
+
+/* ARGSUSED */
+static void
+recv_online_incremental_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ohds = arg1;
+	struct recvbeginsyncarg *rbsa = arg2;
+	dsl_pool_t *dp = ohds->ds_dir->dd_pool;
+	dsl_dataset_t *ods, *cds;
+	uint64_t flags = DS_FLAG_INCONSISTENT | rbsa->dsflags;
+	uint64_t dsobj;
+
+	/* create the temporary clone */
+	VERIFY(0 == dsl_dataset_hold_obj(dp, ohds->ds_phys->ds_prev_snap_obj,
+	    FTAG, &ods));
+	dsobj = dsl_dataset_create_sync(ohds->ds_dir,
+	    rbsa->clonelastname, ods, flags, cr, tx);
+	dsl_dataset_rele(ods, FTAG);
+
+	/* open the temporary clone */
+	VERIFY(0 == dsl_dataset_own_obj(dp, dsobj,
+	    DS_MODE_INCONSISTENT, dmu_recv_tag, &cds));
+
+	/* copy the refquota from the target fs to the clone */
+	if (ohds->ds_quota > 0)
+		dsl_dataset_set_quota_sync(cds, &ohds->ds_quota, cr, tx);
+
+	rbsa->ds = cds;
+
+	spa_history_internal_log(LOG_DS_REPLAY_INC_SYNC,
+	    dp->dp_spa, tx, cr, "dataset = %lld", dsobj);
+}
+
+/* ARGSUSED */
+static void
+recv_offline_incremental_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds = arg1;
+
+	dmu_buf_will_dirty(ds->ds_dbuf, tx);
+	ds->ds_phys->ds_flags |= DS_FLAG_INCONSISTENT;
+
+	spa_history_internal_log(LOG_DS_REPLAY_INC_SYNC,
+	    ds->ds_dir->dd_pool->dp_spa, tx, cr, "dataset = %lld",
+	    ds->ds_object);
+}
+
+/*
+ * NB: callers *MUST* call dmu_recv_stream() if dmu_recv_begin()
+ * succeeds; otherwise we will leak the holds on the datasets.
+ */
+int
+dmu_recv_begin(char *tofs, char *tosnap, struct drr_begin *drrb,
+    boolean_t force, objset_t *origin, boolean_t online, dmu_recv_cookie_t *drc)
+{
+	int err = 0;
+	boolean_t byteswap;
+	struct recvbeginsyncarg rbsa;
+	uint64_t version;
+	int flags;
+	dsl_dataset_t *ds;
+
+	if (drrb->drr_magic == DMU_BACKUP_MAGIC)
+		byteswap = FALSE;
+	else if (drrb->drr_magic == BSWAP_64(DMU_BACKUP_MAGIC))
+		byteswap = TRUE;
+	else
+		return (EINVAL);
+
+	rbsa.tofs = tofs;
+	rbsa.tosnap = tosnap;
+	rbsa.origin = origin ? origin->os->os_dsl_dataset : NULL;
+	rbsa.fromguid = drrb->drr_fromguid;
+	rbsa.type = drrb->drr_type;
+	rbsa.tag = FTAG;
+	rbsa.dsflags = 0;
+	version = drrb->drr_version;
+	flags = drrb->drr_flags;
+
+	if (byteswap) {
+		rbsa.type = BSWAP_32(rbsa.type);
+		rbsa.fromguid = BSWAP_64(rbsa.fromguid);
+		version = BSWAP_64(version);
+		flags = BSWAP_32(flags);
+	}
+
+	if (version != DMU_BACKUP_STREAM_VERSION ||
+	    rbsa.type >= DMU_OST_NUMTYPES ||
+	    ((flags & DRR_FLAG_CLONE) && origin == NULL))
+		return (EINVAL);
+
+	if (flags & DRR_FLAG_CI_DATA)
+		rbsa.dsflags = DS_FLAG_CI_DATASET;
+
+	bzero(drc, sizeof (dmu_recv_cookie_t));
+	drc->drc_drrb = drrb;
+	drc->drc_tosnap = tosnap;
+	drc->drc_force = force;
+
+	/*
+	 * Process the begin in syncing context.
+	 */
+	if (rbsa.fromguid && !(flags & DRR_FLAG_CLONE) && !online) {
+		/* offline incremental receive */
+		err = dsl_dataset_own(tofs, 0, dmu_recv_tag, &ds);
+		if (err)
+			return (err);
+
+		/*
+		 * Only do the rollback if the most recent snapshot
+		 * matches the incremental source
+		 */
+		if (force) {
+			if (ds->ds_prev == NULL ||
+			    ds->ds_prev->ds_phys->ds_guid !=
+			    rbsa.fromguid) {
+				dsl_dataset_disown(ds, dmu_recv_tag);
+				return (ENODEV);
+			}
+			(void) dsl_dataset_rollback(ds, DMU_OST_NONE);
+		}
+		rbsa.force = B_FALSE;
+		err = dsl_sync_task_do(ds->ds_dir->dd_pool,
+		    recv_incremental_check,
+		    recv_offline_incremental_sync, ds, &rbsa, 1);
+		if (err) {
+			dsl_dataset_disown(ds, dmu_recv_tag);
+			return (err);
+		}
+		drc->drc_logical_ds = drc->drc_real_ds = ds;
+	} else if (rbsa.fromguid && !(flags & DRR_FLAG_CLONE)) {
+		/* online incremental receive */
+
+		/* tmp clone name is: tofs/%tosnap" */
+		(void) snprintf(rbsa.clonelastname, sizeof (rbsa.clonelastname),
+		    "%%%s", tosnap);
+
+		/* open the dataset we are logically receiving into */
+		err = dsl_dataset_hold(tofs, dmu_recv_tag, &ds);
+		if (err)
+			return (err);
+
+		rbsa.force = force;
+		err = dsl_sync_task_do(ds->ds_dir->dd_pool,
+		    recv_incremental_check,
+		    recv_online_incremental_sync, ds, &rbsa, 5);
+		if (err) {
+			dsl_dataset_rele(ds, dmu_recv_tag);
+			return (err);
+		}
+		drc->drc_logical_ds = ds;
+		drc->drc_real_ds = rbsa.ds;
+	} else {
+		/* create new fs -- full backup or clone */
+		dsl_dir_t *dd = NULL;
+		const char *tail;
+
+		err = dsl_dir_open(tofs, FTAG, &dd, &tail);
+		if (err)
+			return (err);
+		if (tail == NULL) {
+			if (!force) {
+				dsl_dir_close(dd, FTAG);
+				return (EEXIST);
+			}
+
+			rw_enter(&dd->dd_pool->dp_config_rwlock, RW_READER);
+			err = dsl_dataset_own_obj(dd->dd_pool,
+			    dd->dd_phys->dd_head_dataset_obj,
+			    DS_MODE_INCONSISTENT, FTAG, &ds);
+			rw_exit(&dd->dd_pool->dp_config_rwlock);
+			if (err) {
+				dsl_dir_close(dd, FTAG);
+				return (err);
+			}
+
+			dsl_dataset_make_exclusive(ds, FTAG);
+			err = dsl_sync_task_do(dd->dd_pool,
+			    recv_full_existing_check,
+			    recv_full_existing_sync, ds, &rbsa, 5);
+			dsl_dataset_disown(ds, FTAG);
+		} else {
+			err = dsl_sync_task_do(dd->dd_pool, recv_full_check,
+			    recv_full_sync, dd, &rbsa, 5);
+		}
+		dsl_dir_close(dd, FTAG);
+		if (err)
+			return (err);
+		drc->drc_logical_ds = drc->drc_real_ds = rbsa.ds;
+		drc->drc_newfs = B_TRUE;
+	}
+
+	return (0);
+}
+
 struct restorearg {
 	int err;
 	int byteswap;
@@ -310,156 +710,9 @@ struct restorearg {
 	struct file *fp;
 	char *buf;
 	uint64_t voff;
-	int buflen; /* number of valid bytes in buf */
-	int bufoff; /* next offset to read */
 	int bufsize; /* amount of memory allocated for buf */
-	zio_cksum_t zc;
+	zio_cksum_t cksum;
 };
-
-/* ARGSUSED */
-static int
-replay_incremental_check(void *arg1, void *arg2, dmu_tx_t *tx)
-{
-	dsl_dataset_t *ds = arg1;
-	struct drr_begin *drrb = arg2;
-	const char *snapname;
-	int err;
-	uint64_t val;
-
-	/* must already be a snapshot of this fs */
-	if (ds->ds_phys->ds_prev_snap_obj == 0)
-		return (ENODEV);
-
-	/* most recent snapshot must match fromguid */
-	if (ds->ds_prev->ds_phys->ds_guid != drrb->drr_fromguid)
-		return (ENODEV);
-	/* must not have any changes since most recent snapshot */
-	if (ds->ds_phys->ds_bp.blk_birth >
-	    ds->ds_prev->ds_phys->ds_creation_txg)
-		return (ETXTBSY);
-
-	/* new snapshot name must not exist */
-	snapname = strrchr(drrb->drr_toname, '@');
-	if (snapname == NULL)
-		return (EEXIST);
-
-	snapname++;
-	err = zap_lookup(ds->ds_dir->dd_pool->dp_meta_objset,
-	    ds->ds_phys->ds_snapnames_zapobj, snapname, 8, 1, &val);
-	if (err == 0)
-		return (EEXIST);
-	if (err != ENOENT)
-		return (err);
-
-	return (0);
-}
-
-/* ARGSUSED */
-static void
-replay_incremental_sync(void *arg1, void *arg2, dmu_tx_t *tx)
-{
-	dsl_dataset_t *ds = arg1;
-	dmu_buf_will_dirty(ds->ds_dbuf, tx);
-	ds->ds_phys->ds_flags |= DS_FLAG_INCONSISTENT;
-}
-
-/* ARGSUSED */
-static int
-replay_full_check(void *arg1, void *arg2, dmu_tx_t *tx)
-{
-	dsl_dir_t *dd = arg1;
-	struct drr_begin *drrb = arg2;
-	objset_t *mos = dd->dd_pool->dp_meta_objset;
-	char *cp;
-	uint64_t val;
-	int err;
-
-	cp = strchr(drrb->drr_toname, '@');
-	*cp = '\0';
-	err = zap_lookup(mos, dd->dd_phys->dd_child_dir_zapobj,
-	    strrchr(drrb->drr_toname, '/') + 1,
-	    sizeof (uint64_t), 1, &val);
-	*cp = '@';
-
-	if (err != ENOENT)
-		return (err ? err : EEXIST);
-
-	return (0);
-}
-
-static void
-replay_full_sync(void *arg1, void *arg2, dmu_tx_t *tx)
-{
-	dsl_dir_t *dd = arg1;
-	struct drr_begin *drrb = arg2;
-	char *cp;
-	dsl_dataset_t *ds;
-	uint64_t dsobj;
-
-	cp = strchr(drrb->drr_toname, '@');
-	*cp = '\0';
-	dsobj = dsl_dataset_create_sync(dd, strrchr(drrb->drr_toname, '/') + 1,
-	    NULL, tx);
-	*cp = '@';
-
-	VERIFY(0 == dsl_dataset_open_obj(dd->dd_pool, dsobj, NULL,
-	    DS_MODE_EXCLUSIVE, FTAG, &ds));
-
-	(void) dmu_objset_create_impl(dsl_dataset_get_spa(ds),
-	    ds, &ds->ds_phys->ds_bp, drrb->drr_type, tx);
-
-	dmu_buf_will_dirty(ds->ds_dbuf, tx);
-	ds->ds_phys->ds_flags |= DS_FLAG_INCONSISTENT;
-
-	dsl_dataset_close(ds, DS_MODE_EXCLUSIVE, FTAG);
-}
-
-static int
-replay_end_check(void *arg1, void *arg2, dmu_tx_t *tx)
-{
-	objset_t *os = arg1;
-	struct drr_begin *drrb = arg2;
-	char *snapname;
-
-	/* XXX verify that drr_toname is in dd */
-
-	snapname = strchr(drrb->drr_toname, '@');
-	if (snapname == NULL)
-		return (EINVAL);
-	snapname++;
-
-	return (dsl_dataset_snapshot_check(os, snapname, tx));
-}
-
-static void
-replay_end_sync(void *arg1, void *arg2, dmu_tx_t *tx)
-{
-	objset_t *os = arg1;
-	struct drr_begin *drrb = arg2;
-	char *snapname;
-	dsl_dataset_t *ds, *hds;
-
-	snapname = strchr(drrb->drr_toname, '@') + 1;
-
-	dsl_dataset_snapshot_sync(os, snapname, tx);
-
-	/* set snapshot's creation time and guid */
-	hds = os->os->os_dsl_dataset;
-	VERIFY(0 == dsl_dataset_open_obj(hds->ds_dir->dd_pool,
-	    hds->ds_phys->ds_prev_snap_obj, NULL,
-	    DS_MODE_PRIMARY | DS_MODE_READONLY | DS_MODE_INCONSISTENT,
-	    FTAG, &ds));
-
-	dmu_buf_will_dirty(ds->ds_dbuf, tx);
-	ds->ds_phys->ds_creation_time = drrb->drr_creation_time;
-	ds->ds_phys->ds_guid = drrb->drr_toguid;
-	ds->ds_phys->ds_flags &= ~DS_FLAG_INCONSISTENT;
-
-	dsl_dataset_close(ds, DS_MODE_PRIMARY, FTAG);
-
-	dmu_buf_will_dirty(hds->ds_dbuf, tx);
-	hds->ds_phys->ds_flags &= ~DS_FLAG_INCONSISTENT;
-}
 
 static int
 restore_bytes(struct restorearg *ra, void *buf, int len, off_t off, int *resid)
@@ -491,37 +744,31 @@ static void *
 restore_read(struct restorearg *ra, int len)
 {
 	void *rv;
+	int done = 0;
 
 	/* some things will require 8-byte alignment, so everything must */
 	ASSERT3U(len % 8, ==, 0);
 
-	while (ra->buflen - ra->bufoff < len) {
+	while (done < len) {
 		int resid;
-		int leftover = ra->buflen - ra->bufoff;
 
-		(void) memmove(ra->buf, ra->buf + ra->bufoff, leftover);
+		ra->err = restore_bytes(ra, (caddr_t)ra->buf + done,
+		    len - done, ra->voff, &resid);
 
-		ra->err = restore_bytes(ra, (caddr_t)ra->buf + leftover,
-		    ra->bufsize - leftover, ra->voff, &resid);
-
-		ra->voff += ra->bufsize - leftover - resid;
-		ra->buflen = ra->bufsize - resid;
-		ra->bufoff = 0;
-		if (resid == ra->bufsize - leftover)
+		if (resid == len - done)
 			ra->err = EINVAL;
+		ra->voff += len - done - resid;
+		done = len - resid;
 		if (ra->err)
 			return (NULL);
-		/* Could compute checksum here? */
 	}
 
-	ASSERT3U(ra->bufoff % 8, ==, 0);
-	ASSERT3U(ra->buflen - ra->bufoff, >=, len);
-	rv = ra->buf + ra->bufoff;
-	ra->bufoff += len;
+	ASSERT3U(done, ==, len);
+	rv = ra->buf;
 	if (ra->byteswap)
-		fletcher_4_incremental_byteswap(rv, len, &ra->zc);
+		fletcher_4_incremental_byteswap(rv, len, &ra->cksum);
 	else
-		fletcher_4_incremental_native(rv, len, &ra->zc);
+		fletcher_4_incremental_native(rv, len, &ra->cksum);
 	return (rv);
 }
 
@@ -531,12 +778,14 @@ backup_byteswap(dmu_replay_record_t *drr)
 #define	DO64(X) (drr->drr_u.X = BSWAP_64(drr->drr_u.X))
 #define	DO32(X) (drr->drr_u.X = BSWAP_32(drr->drr_u.X))
 	drr->drr_type = BSWAP_32(drr->drr_type);
+	drr->drr_payloadlen = BSWAP_32(drr->drr_payloadlen);
 	switch (drr->drr_type) {
 	case DRR_BEGIN:
 		DO64(drr_begin.drr_magic);
 		DO64(drr_begin.drr_version);
 		DO64(drr_begin.drr_creation_time);
 		DO32(drr_begin.drr_type);
+		DO32(drr_begin.drr_flags);
 		DO64(drr_begin.drr_toguid);
 		DO64(drr_begin.drr_fromguid);
 		break;
@@ -643,13 +892,13 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 		VERIFY(0 == dmu_bonus_hold(os, drro->drr_object, FTAG, &db));
 		dmu_buf_will_dirty(db, tx);
 
-		ASSERT3U(db->db_size, ==, drro->drr_bonuslen);
-		data = restore_read(ra, P2ROUNDUP(db->db_size, 8));
+		ASSERT3U(db->db_size, >=, drro->drr_bonuslen);
+		data = restore_read(ra, P2ROUNDUP(drro->drr_bonuslen, 8));
 		if (data == NULL) {
 			dmu_tx_commit(tx);
 			return (ra->err);
 		}
-		bcopy(data, db->db_data, db->db_size);
+		bcopy(data, db->db_data, drro->drr_bonuslen);
 		if (ra->byteswap) {
 			dmu_ot[drro->drr_bonustype].ot_byteswap(db->db_data,
 			    drro->drr_bonuslen);
@@ -673,23 +922,14 @@ restore_freeobjects(struct restorearg *ra, objset_t *os,
 	for (obj = drrfo->drr_firstobj;
 	    obj < drrfo->drr_firstobj + drrfo->drr_numobjs;
 	    (void) dmu_object_next(os, &obj, FALSE, 0)) {
-		dmu_tx_t *tx;
 		int err;
 
 		if (dmu_object_info(os, obj, NULL) != 0)
 			continue;
 
-		tx = dmu_tx_create(os);
-		dmu_tx_hold_bonus(tx, obj);
-		err = dmu_tx_assign(tx, TXG_WAIT);
-		if (err) {
-			dmu_tx_abort(tx);
+		err = dmu_free_object(os, obj);
+		if (err)
 			return (err);
-		}
-		err = dmu_object_free(os, obj, tx);
-		dmu_tx_commit(tx);
-		if (err && err != ENOENT)
-			return (EINVAL);
 	}
 	return (0);
 }
@@ -735,7 +975,6 @@ static int
 restore_free(struct restorearg *ra, objset_t *os,
     struct drr_free *drrf)
 {
-	dmu_tx_t *tx;
 	int err;
 
 	if (drrf->drr_length != -1ULL &&
@@ -745,66 +984,65 @@ restore_free(struct restorearg *ra, objset_t *os,
 	if (dmu_object_info(os, drrf->drr_object, NULL) != 0)
 		return (EINVAL);
 
-	tx = dmu_tx_create(os);
-
-	dmu_tx_hold_free(tx, drrf->drr_object,
+	err = dmu_free_long_range(os, drrf->drr_object,
 	    drrf->drr_offset, drrf->drr_length);
-	err = dmu_tx_assign(tx, TXG_WAIT);
-	if (err) {
-		dmu_tx_abort(tx);
-		return (err);
-	}
-	err = dmu_free_range(os, drrf->drr_object,
-	    drrf->drr_offset, drrf->drr_length, tx);
-	dmu_tx_commit(tx);
 	return (err);
 }
 
+void
+dmu_recv_abort_cleanup(dmu_recv_cookie_t *drc)
+{
+	if (drc->drc_newfs || drc->drc_real_ds != drc->drc_logical_ds) {
+		/*
+		 * online incremental or new fs: destroy the fs (which
+		 * may be a clone) that we created
+		 */
+		(void) dsl_dataset_destroy(drc->drc_real_ds, dmu_recv_tag);
+		if (drc->drc_real_ds != drc->drc_logical_ds)
+			dsl_dataset_rele(drc->drc_logical_ds, dmu_recv_tag);
+	} else {
+		/*
+		 * offline incremental: rollback to most recent snapshot.
+		 */
+		(void) dsl_dataset_rollback(drc->drc_real_ds, DMU_OST_NONE);
+		dsl_dataset_disown(drc->drc_real_ds, dmu_recv_tag);
+	}
+}
+
+/*
+ * NB: callers *must* call dmu_recv_end() if this succeeds.
+ */
 int
-dmu_recvbackup(char *tosnap, struct drr_begin *drrb, uint64_t *sizep,
-    boolean_t force, struct file *fp, uint64_t voffset)
+dmu_recv_stream(dmu_recv_cookie_t *drc, struct file *fp, offset_t *voffp)
 {
 	kthread_t *td = curthread;
-	struct restorearg ra;
+	struct restorearg ra = { 0 };
 	dmu_replay_record_t *drr;
-	char *cp;
-	objset_t *os = NULL;
-	zio_cksum_t pzc;
+	objset_t *os;
+	zio_cksum_t pcksum;
 
-	bzero(&ra, sizeof (ra));
-	ra.td = td;
-	ra.fp = fp;
-	ra.voff = voffset;
-	ra.bufsize = 1<<20;
-	ra.buf = kmem_alloc(ra.bufsize, KM_SLEEP);
-
-	if (drrb->drr_magic == DMU_BACKUP_MAGIC) {
-		ra.byteswap = FALSE;
-	} else if (drrb->drr_magic == BSWAP_64(DMU_BACKUP_MAGIC)) {
+	if (drc->drc_drrb->drr_magic == BSWAP_64(DMU_BACKUP_MAGIC))
 		ra.byteswap = TRUE;
-	} else {
-		ra.err = EINVAL;
-		goto out;
+
+	{
+		/* compute checksum of drr_begin record */
+		dmu_replay_record_t *drr;
+		drr = kmem_zalloc(sizeof (dmu_replay_record_t), KM_SLEEP);
+
+		drr->drr_type = DRR_BEGIN;
+		drr->drr_u.drr_begin = *drc->drc_drrb;
+		if (ra.byteswap) {
+			fletcher_4_incremental_byteswap(drr,
+			    sizeof (dmu_replay_record_t), &ra.cksum);
+		} else {
+			fletcher_4_incremental_native(drr,
+			    sizeof (dmu_replay_record_t), &ra.cksum);
+		}
+		kmem_free(drr, sizeof (dmu_replay_record_t));
 	}
 
-	/*
-	 * NB: this assumes that struct drr_begin will be the largest in
-	 * dmu_replay_record_t's drr_u, and thus we don't need to pad it
-	 * with zeros to make it the same length as we wrote out.
-	 */
-	((dmu_replay_record_t *)ra.buf)->drr_type = DRR_BEGIN;
-	((dmu_replay_record_t *)ra.buf)->drr_pad = 0;
-	((dmu_replay_record_t *)ra.buf)->drr_u.drr_begin = *drrb;
 	if (ra.byteswap) {
-		fletcher_4_incremental_byteswap(ra.buf,
-		    sizeof (dmu_replay_record_t), &ra.zc);
-	} else {
-		fletcher_4_incremental_native(ra.buf,
-		    sizeof (dmu_replay_record_t), &ra.zc);
-	}
-	(void) strcpy(drrb->drr_toname, tosnap); /* for the sync funcs */
-
-	if (ra.byteswap) {
+		struct drr_begin *drrb = drc->drc_drrb;
 		drrb->drr_magic = BSWAP_64(drrb->drr_magic);
 		drrb->drr_version = BSWAP_64(drrb->drr_version);
 		drrb->drr_creation_time = BSWAP_64(drrb->drr_creation_time);
@@ -813,94 +1051,30 @@ dmu_recvbackup(char *tosnap, struct drr_begin *drrb, uint64_t *sizep,
 		drrb->drr_fromguid = BSWAP_64(drrb->drr_fromguid);
 	}
 
-	ASSERT3U(drrb->drr_magic, ==, DMU_BACKUP_MAGIC);
+	ra.td = td;
+	ra.fp = fp;
+	ra.voff = *voffp;
+	ra.bufsize = 1<<20;
+	ra.buf = kmem_alloc(ra.bufsize, KM_SLEEP);
 
-	if (drrb->drr_version != DMU_BACKUP_VERSION ||
-	    drrb->drr_type >= DMU_OST_NUMTYPES ||
-	    strchr(drrb->drr_toname, '@') == NULL) {
-		ra.err = EINVAL;
-		goto out;
-	}
-
-	/*
-	 * Process the begin in syncing context.
-	 */
-	if (drrb->drr_fromguid) {
-		/* incremental backup */
-		dsl_dataset_t *ds = NULL;
-
-		cp = strchr(tosnap, '@');
-		*cp = '\0';
-		ra.err = dsl_dataset_open(tosnap, DS_MODE_EXCLUSIVE, FTAG, &ds);
-		*cp = '@';
-		if (ra.err)
-			goto out;
-
-		/*
-		 * Only do the rollback if the most recent snapshot
-		 * matches the incremental source
-		 */
-		if (force) {
-			if (ds->ds_prev == NULL ||
-			    ds->ds_prev->ds_phys->ds_guid !=
-			    drrb->drr_fromguid) {
-				dsl_dataset_close(ds, DS_MODE_EXCLUSIVE, FTAG);
-				kmem_free(ra.buf, ra.bufsize);
-				return (ENODEV);
-			}
-			(void) dsl_dataset_rollback(ds);
-		}
-		ra.err = dsl_sync_task_do(ds->ds_dir->dd_pool,
-		    replay_incremental_check, replay_incremental_sync,
-		    ds, drrb, 1);
-		dsl_dataset_close(ds, DS_MODE_EXCLUSIVE, FTAG);
-	} else {
-		/* full backup */
-		dsl_dir_t *dd = NULL;
-		const char *tail;
-
-		/* can't restore full backup into topmost fs, for now */
-		if (strrchr(drrb->drr_toname, '/') == NULL) {
-			ra.err = EINVAL;
-			goto out;
-		}
-
-		cp = strchr(tosnap, '@');
-		*cp = '\0';
-		ra.err = dsl_dir_open(tosnap, FTAG, &dd, &tail);
-		*cp = '@';
-		if (ra.err)
-			goto out;
-		if (tail == NULL) {
-			ra.err = EEXIST;
-			goto out;
-		}
-
-		ra.err = dsl_sync_task_do(dd->dd_pool, replay_full_check,
-		    replay_full_sync, dd, drrb, 5);
-		dsl_dir_close(dd, FTAG);
-	}
-	if (ra.err)
-		goto out;
+	/* these were verified in dmu_recv_begin */
+	ASSERT(drc->drc_drrb->drr_version == DMU_BACKUP_STREAM_VERSION);
+	ASSERT(drc->drc_drrb->drr_type < DMU_OST_NUMTYPES);
 
 	/*
 	 * Open the objset we are modifying.
 	 */
+	VERIFY(dmu_objset_open_ds(drc->drc_real_ds, DMU_OST_ANY, &os) == 0);
 
-	cp = strchr(tosnap, '@');
-	*cp = '\0';
-	ra.err = dmu_objset_open(tosnap, DMU_OST_ANY,
-	    DS_MODE_PRIMARY | DS_MODE_INCONSISTENT, &os);
-	*cp = '@';
-	ASSERT3U(ra.err, ==, 0);
+	ASSERT(drc->drc_real_ds->ds_phys->ds_flags & DS_FLAG_INCONSISTENT);
 
 	/*
 	 * Read records and process them.
 	 */
-	pzc = ra.zc;
+	pcksum = ra.cksum;
 	while (ra.err == 0 &&
 	    NULL != (drr = restore_read(&ra, sizeof (*drr)))) {
-		if (SIGPENDING(td)) {
+		if (issig(JUSTLOOKING) && issig(FORREAL)) {
 			ra.err = EINTR;
 			goto out;
 		}
@@ -947,63 +1121,116 @@ dmu_recvbackup(char *tosnap, struct drr_begin *drrb, uint64_t *sizep,
 			 * value, because the stored checksum is of
 			 * everything before the DRR_END record.
 			 */
-			if (drre.drr_checksum.zc_word[0] != 0 &&
-			    !ZIO_CHECKSUM_EQUAL(drre.drr_checksum, pzc)) {
+			if (!ZIO_CHECKSUM_EQUAL(drre.drr_checksum, pcksum))
 				ra.err = ECKSUM;
-				goto out;
-			}
-
-			ra.err = dsl_sync_task_do(dmu_objset_ds(os)->
-			    ds_dir->dd_pool, replay_end_check, replay_end_sync,
-			    os, drrb, 3);
 			goto out;
 		}
 		default:
 			ra.err = EINVAL;
 			goto out;
 		}
-		pzc = ra.zc;
+		pcksum = ra.cksum;
 	}
+	ASSERT(ra.err != 0);
 
 out:
-	if (os)
-		dmu_objset_close(os);
+	dmu_objset_close(os);
 
-	/*
-	 * Make sure we don't rollback/destroy unless we actually
-	 * processed the begin properly.  'os' will only be set if this
-	 * is the case.
-	 */
-	if (ra.err && os && tosnap && strchr(tosnap, '@')) {
+	if (ra.err != 0) {
 		/*
 		 * rollback or destroy what we created, so we don't
 		 * leave it in the restoring state.
 		 */
-		dsl_dataset_t *ds;
-		int err;
-
-		cp = strchr(tosnap, '@');
-		*cp = '\0';
-		err = dsl_dataset_open(tosnap,
-		    DS_MODE_EXCLUSIVE | DS_MODE_INCONSISTENT,
-		    FTAG, &ds);
-		if (err == 0) {
-			txg_wait_synced(ds->ds_dir->dd_pool, 0);
-			if (drrb->drr_fromguid) {
-				/* incremental: rollback to most recent snap */
-				(void) dsl_dataset_rollback(ds);
-				dsl_dataset_close(ds, DS_MODE_EXCLUSIVE, FTAG);
-			} else {
-				/* full: destroy whole fs */
-				dsl_dataset_close(ds, DS_MODE_EXCLUSIVE, FTAG);
-				(void) dsl_dataset_destroy(tosnap);
-			}
-		}
-		*cp = '@';
+		txg_wait_synced(drc->drc_real_ds->ds_dir->dd_pool, 0);
+		dmu_recv_abort_cleanup(drc);
 	}
 
 	kmem_free(ra.buf, ra.bufsize);
-	if (sizep)
-		*sizep = ra.voff;
+	*voffp = ra.voff;
 	return (ra.err);
+}
+
+struct recvendsyncarg {
+	char *tosnap;
+	uint64_t creation_time;
+	uint64_t toguid;
+};
+
+static int
+recv_end_check(void *arg1, void *arg2, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds = arg1;
+	struct recvendsyncarg *resa = arg2;
+
+	return (dsl_dataset_snapshot_check(ds, resa->tosnap, tx));
+}
+
+static void
+recv_end_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds = arg1;
+	struct recvendsyncarg *resa = arg2;
+
+	dsl_dataset_snapshot_sync(ds, resa->tosnap, cr, tx);
+
+	/* set snapshot's creation time and guid */
+	dmu_buf_will_dirty(ds->ds_prev->ds_dbuf, tx);
+	ds->ds_prev->ds_phys->ds_creation_time = resa->creation_time;
+	ds->ds_prev->ds_phys->ds_guid = resa->toguid;
+	ds->ds_prev->ds_phys->ds_flags &= ~DS_FLAG_INCONSISTENT;
+
+	dmu_buf_will_dirty(ds->ds_dbuf, tx);
+	ds->ds_phys->ds_flags &= ~DS_FLAG_INCONSISTENT;
+}
+
+int
+dmu_recv_end(dmu_recv_cookie_t *drc)
+{
+	struct recvendsyncarg resa;
+	dsl_dataset_t *ds = drc->drc_logical_ds;
+	int err;
+
+	/*
+	 * XXX hack; seems the ds is still dirty and
+	 * dsl_pool_zil_clean() expects it to have a ds_user_ptr
+	 * (and zil), but clone_swap() can close it.
+	 */
+	txg_wait_synced(ds->ds_dir->dd_pool, 0);
+
+	if (ds != drc->drc_real_ds) {
+		/* we are doing an online recv */
+		if (dsl_dataset_tryown(ds, FALSE, dmu_recv_tag)) {
+			err = dsl_dataset_clone_swap(drc->drc_real_ds, ds,
+			    drc->drc_force);
+			if (err)
+				dsl_dataset_disown(ds, dmu_recv_tag);
+		} else {
+			err = EBUSY;
+			dsl_dataset_rele(ds, dmu_recv_tag);
+		}
+		/* dsl_dataset_destroy() will disown the ds */
+		(void) dsl_dataset_destroy(drc->drc_real_ds, dmu_recv_tag);
+		if (err)
+			return (err);
+	}
+
+	resa.creation_time = drc->drc_drrb->drr_creation_time;
+	resa.toguid = drc->drc_drrb->drr_toguid;
+	resa.tosnap = drc->drc_tosnap;
+
+	err = dsl_sync_task_do(ds->ds_dir->dd_pool,
+	    recv_end_check, recv_end_sync, ds, &resa, 3);
+	if (err) {
+		if (drc->drc_newfs) {
+			ASSERT(ds == drc->drc_real_ds);
+			(void) dsl_dataset_destroy(ds, dmu_recv_tag);
+			return (err);
+		} else {
+			(void) dsl_dataset_rollback(ds, DMU_OST_NONE);
+		}
+	}
+
+	/* release the hold from dmu_recv_begin */
+	dsl_dataset_disown(ds, dmu_recv_tag);
+	return (err);
 }

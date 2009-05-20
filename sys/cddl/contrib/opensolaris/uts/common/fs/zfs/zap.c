@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -44,6 +44,7 @@
 #include <sys/spa.h>
 #include <sys/dmu.h>
 #include <sys/zfs_context.h>
+#include <sys/zfs_znode.h>
 #include <sys/zap.h>
 #include <sys/refcount.h>
 #include <sys/zap_impl.h>
@@ -103,6 +104,7 @@ fzap_upgrade(zap_t *zap, dmu_tx_t *tx)
 	zp->zap_num_leafs = 1;
 	zp->zap_num_entries = 0;
 	zp->zap_salt = zap->zap_salt;
+	zp->zap_normflags = zap->zap_normflags;
 
 	/* block 1 will be the first leaf */
 	for (i = 0; i < (1<<zp->zap_ptrtbl.zt_shift); i++)
@@ -119,7 +121,7 @@ fzap_upgrade(zap_t *zap, dmu_tx_t *tx)
 	l->l_dbuf = db;
 	l->l_phys = db->db_data;
 
-	zap_leaf_init(l);
+	zap_leaf_init(l, zp->zap_normflags != 0);
 
 	kmem_free(l, sizeof (zap_leaf_t));
 	dmu_buf_rele(db, FTAG);
@@ -399,7 +401,7 @@ zap_create_leaf(zap_t *zap, dmu_tx_t *tx)
 	ASSERT(winner == NULL);
 	dmu_buf_will_dirty(l->l_dbuf, tx);
 
-	zap_leaf_init(l);
+	zap_leaf_init(l, zap->zap_normflags != 0);
 
 	zap->zap_f.zap_phys->zap_num_leafs++;
 
@@ -580,9 +582,10 @@ zap_deref_leaf(zap_t *zap, uint64_t h, dmu_tx_t *tx, krw_t lt, zap_leaf_t **lp)
 }
 
 static int
-zap_expand_leaf(zap_t *zap, zap_leaf_t *l, uint64_t hash, dmu_tx_t *tx,
-    zap_leaf_t **lp)
+zap_expand_leaf(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx, zap_leaf_t **lp)
 {
+	zap_t *zap = zn->zn_zap;
+	uint64_t hash = zn->zn_hash;
 	zap_leaf_t *nl;
 	int prefix_diff, i, err;
 	uint64_t sibling;
@@ -602,7 +605,9 @@ zap_expand_leaf(zap_t *zap, zap_leaf_t *l, uint64_t hash, dmu_tx_t *tx,
 
 		zap_put_leaf(l);
 		zap_unlockdir(zap);
-		err = zap_lockdir(os, object, tx, RW_WRITER, FALSE, &zap);
+		err = zap_lockdir(os, object, tx, RW_WRITER,
+		    FALSE, FALSE, &zn->zn_zap);
+		zap = zn->zn_zap;
 		if (err)
 			return (err);
 		ASSERT(!zap->zap_ismicro);
@@ -643,7 +648,7 @@ zap_expand_leaf(zap_t *zap, zap_leaf_t *l, uint64_t hash, dmu_tx_t *tx,
 	}
 
 	nl = zap_create_leaf(zap, tx);
-	zap_leaf_split(l, nl);
+	zap_leaf_split(l, nl, zap->zap_normflags != 0);
 
 	/* set sibling pointers */
 	for (i = 0; i < (1ULL<<prefix_diff); i++) {
@@ -664,8 +669,9 @@ zap_expand_leaf(zap_t *zap, zap_leaf_t *l, uint64_t hash, dmu_tx_t *tx,
 }
 
 static void
-zap_put_leaf_maybe_grow_ptrtbl(zap_t *zap, zap_leaf_t *l, dmu_tx_t *tx)
+zap_put_leaf_maybe_grow_ptrtbl(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx)
 {
+	zap_t *zap = zn->zn_zap;
 	int shift = zap->zap_f.zap_phys->zap_ptrtbl.zt_shift;
 	int leaffull = (l->l_phys->l_hdr.lh_prefix_len == shift &&
 	    l->l_phys->l_hdr.lh_nfree < ZAP_LEAF_LOW_WATER);
@@ -685,7 +691,8 @@ zap_put_leaf_maybe_grow_ptrtbl(zap_t *zap, zap_leaf_t *l, dmu_tx_t *tx)
 
 			zap_unlockdir(zap);
 			err = zap_lockdir(os, zapobj, tx,
-			    RW_WRITER, FALSE, &zap);
+			    RW_WRITER, FALSE, FALSE, &zn->zn_zap);
+			zap = zn->zn_zap;
 			if (err)
 				return;
 		}
@@ -721,53 +728,58 @@ fzap_checksize(const char *name, uint64_t integer_size, uint64_t num_integers)
 }
 
 /*
- * Routines for maniplulating attributes.
+ * Routines for manipulating attributes.
  */
 int
-fzap_lookup(zap_t *zap, const char *name,
-    uint64_t integer_size, uint64_t num_integers, void *buf)
+fzap_lookup(zap_name_t *zn,
+    uint64_t integer_size, uint64_t num_integers, void *buf,
+    char *realname, int rn_len, boolean_t *ncp)
 {
 	zap_leaf_t *l;
 	int err;
-	uint64_t hash;
 	zap_entry_handle_t zeh;
 
-	err = fzap_checksize(name, integer_size, num_integers);
+	err = fzap_checksize(zn->zn_name_orij, integer_size, num_integers);
 	if (err != 0)
 		return (err);
 
-	hash = zap_hash(zap, name);
-	err = zap_deref_leaf(zap, hash, NULL, RW_READER, &l);
+	err = zap_deref_leaf(zn->zn_zap, zn->zn_hash, NULL, RW_READER, &l);
 	if (err != 0)
 		return (err);
-	err = zap_leaf_lookup(l, name, hash, &zeh);
-	if (err == 0)
+	err = zap_leaf_lookup(l, zn, &zeh);
+	if (err == 0) {
 		err = zap_entry_read(&zeh, integer_size, num_integers, buf);
+		(void) zap_entry_read_name(&zeh, rn_len, realname);
+		if (ncp) {
+			*ncp = zap_entry_normalization_conflict(&zeh,
+			    zn, NULL, zn->zn_zap);
+		}
+	}
 
 	zap_put_leaf(l);
 	return (err);
 }
 
 int
-fzap_add_cd(zap_t *zap, const char *name,
+fzap_add_cd(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers,
     const void *val, uint32_t cd, dmu_tx_t *tx)
 {
 	zap_leaf_t *l;
-	uint64_t hash;
 	int err;
 	zap_entry_handle_t zeh;
+	zap_t *zap = zn->zn_zap;
 
 	ASSERT(RW_LOCK_HELD(&zap->zap_rwlock));
 	ASSERT(!zap->zap_ismicro);
-	ASSERT(fzap_checksize(name, integer_size, num_integers) == 0);
+	ASSERT(fzap_checksize(zn->zn_name_orij,
+	    integer_size, num_integers) == 0);
 
-	hash = zap_hash(zap, name);
-	err = zap_deref_leaf(zap, hash, tx, RW_WRITER, &l);
+	err = zap_deref_leaf(zap, zn->zn_hash, tx, RW_WRITER, &l);
 	if (err != 0)
 		return (err);
 retry:
-	err = zap_leaf_lookup(l, name, hash, &zeh);
+	err = zap_leaf_lookup(l, zn, &zeh);
 	if (err == 0) {
 		err = EEXIST;
 		goto out;
@@ -775,63 +787,62 @@ retry:
 	if (err != ENOENT)
 		goto out;
 
-	err = zap_entry_create(l, name, hash, cd,
+	err = zap_entry_create(l, zn->zn_name_orij, zn->zn_hash, cd,
 	    integer_size, num_integers, val, &zeh);
 
 	if (err == 0) {
 		zap_increment_num_entries(zap, 1, tx);
 	} else if (err == EAGAIN) {
-		err = zap_expand_leaf(zap, l, hash, tx, &l);
+		err = zap_expand_leaf(zn, l, tx, &l);
+		zap = zn->zn_zap;	/* zap_expand_leaf() may change zap */
 		if (err == 0)
 			goto retry;
 	}
 
 out:
-	zap_put_leaf_maybe_grow_ptrtbl(zap, l, tx);
+	if (zap != NULL)
+		zap_put_leaf_maybe_grow_ptrtbl(zn, l, tx);
 	return (err);
 }
 
 int
-fzap_add(zap_t *zap, const char *name,
+fzap_add(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers,
     const void *val, dmu_tx_t *tx)
 {
-	int err = fzap_checksize(name, integer_size, num_integers);
+	int err = fzap_checksize(zn->zn_name_orij, integer_size, num_integers);
 	if (err != 0)
 		return (err);
 
-	return (fzap_add_cd(zap, name, integer_size, num_integers,
+	return (fzap_add_cd(zn, integer_size, num_integers,
 	    val, ZAP_MAXCD, tx));
 }
 
 int
-fzap_update(zap_t *zap, const char *name,
+fzap_update(zap_name_t *zn,
     int integer_size, uint64_t num_integers, const void *val, dmu_tx_t *tx)
 {
 	zap_leaf_t *l;
-	uint64_t hash;
 	int err, create;
 	zap_entry_handle_t zeh;
+	zap_t *zap = zn->zn_zap;
 
 	ASSERT(RW_LOCK_HELD(&zap->zap_rwlock));
-	err = fzap_checksize(name, integer_size, num_integers);
+	err = fzap_checksize(zn->zn_name_orij, integer_size, num_integers);
 	if (err != 0)
 		return (err);
 
-	hash = zap_hash(zap, name);
-	err = zap_deref_leaf(zap, hash, tx, RW_WRITER, &l);
+	err = zap_deref_leaf(zap, zn->zn_hash, tx, RW_WRITER, &l);
 	if (err != 0)
 		return (err);
 retry:
-	err = zap_leaf_lookup(l, name, hash, &zeh);
+	err = zap_leaf_lookup(l, zn, &zeh);
 	create = (err == ENOENT);
 	ASSERT(err == 0 || err == ENOENT);
 
-	/* XXX If this leaf is chained, split it if we can. */
-
 	if (create) {
-		err = zap_entry_create(l, name, hash, ZAP_MAXCD,
-		    integer_size, num_integers, val, &zeh);
+		err = zap_entry_create(l, zn->zn_name_orij, zn->zn_hash,
+		    ZAP_MAXCD, integer_size, num_integers, val, &zeh);
 		if (err == 0)
 			zap_increment_num_entries(zap, 1, tx);
 	} else {
@@ -839,29 +850,29 @@ retry:
 	}
 
 	if (err == EAGAIN) {
-		err = zap_expand_leaf(zap, l, hash, tx, &l);
+		err = zap_expand_leaf(zn, l, tx, &l);
+		zap = zn->zn_zap;	/* zap_expand_leaf() may change zap */
 		if (err == 0)
 			goto retry;
 	}
 
-	zap_put_leaf_maybe_grow_ptrtbl(zap, l, tx);
+	if (zap != NULL)
+		zap_put_leaf_maybe_grow_ptrtbl(zn, l, tx);
 	return (err);
 }
 
 int
-fzap_length(zap_t *zap, const char *name,
+fzap_length(zap_name_t *zn,
     uint64_t *integer_size, uint64_t *num_integers)
 {
 	zap_leaf_t *l;
 	int err;
-	uint64_t hash;
 	zap_entry_handle_t zeh;
 
-	hash = zap_hash(zap, name);
-	err = zap_deref_leaf(zap, hash, NULL, RW_READER, &l);
+	err = zap_deref_leaf(zn->zn_zap, zn->zn_hash, NULL, RW_READER, &l);
 	if (err != 0)
 		return (err);
-	err = zap_leaf_lookup(l, name, hash, &zeh);
+	err = zap_leaf_lookup(l, zn, &zeh);
 	if (err != 0)
 		goto out;
 
@@ -875,40 +886,44 @@ out:
 }
 
 int
-fzap_remove(zap_t *zap, const char *name, dmu_tx_t *tx)
+fzap_remove(zap_name_t *zn, dmu_tx_t *tx)
 {
 	zap_leaf_t *l;
-	uint64_t hash;
 	int err;
 	zap_entry_handle_t zeh;
 
-	hash = zap_hash(zap, name);
-	err = zap_deref_leaf(zap, hash, tx, RW_WRITER, &l);
+	err = zap_deref_leaf(zn->zn_zap, zn->zn_hash, tx, RW_WRITER, &l);
 	if (err != 0)
 		return (err);
-	err = zap_leaf_lookup(l, name, hash, &zeh);
+	err = zap_leaf_lookup(l, zn, &zeh);
 	if (err == 0) {
 		zap_entry_remove(&zeh);
-		zap_increment_num_entries(zap, -1, tx);
+		zap_increment_num_entries(zn->zn_zap, -1, tx);
 	}
 	zap_put_leaf(l);
-	dprintf("fzap_remove: ds=%p obj=%llu name=%s err=%d\n",
-	    zap->zap_objset, zap->zap_object, name, err);
 	return (err);
 }
 
+/*
+ * Helper functions for consumers.
+ */
+
 int
-zap_value_search(objset_t *os, uint64_t zapobj, uint64_t value, char *name)
+zap_value_search(objset_t *os, uint64_t zapobj, uint64_t value, uint64_t mask,
+    char *name)
 {
 	zap_cursor_t zc;
 	zap_attribute_t *za;
 	int err;
 
+	if (mask == 0)
+		mask = -1ULL;
+
 	za = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
 	for (zap_cursor_init(&zc, os, zapobj);
 	    (err = zap_cursor_retrieve(&zc, za)) == 0;
 	    zap_cursor_advance(&zc)) {
-		if (ZFS_DIRENT_OBJ(za->za_first_integer) == value) {
+		if ((za->za_first_integer & mask) == (value & mask)) {
 			(void) strcpy(name, za->za_name);
 			break;
 		}
@@ -918,6 +933,53 @@ zap_value_search(objset_t *os, uint64_t zapobj, uint64_t value, char *name)
 	return (err);
 }
 
+int
+zap_join(objset_t *os, uint64_t fromobj, uint64_t intoobj, dmu_tx_t *tx)
+{
+	zap_cursor_t zc;
+	zap_attribute_t za;
+	int err;
+
+	for (zap_cursor_init(&zc, os, fromobj);
+	    zap_cursor_retrieve(&zc, &za) == 0;
+	    (void) zap_cursor_advance(&zc)) {
+		if (za.za_integer_length != 8 || za.za_num_integers != 1)
+			return (EINVAL);
+		err = zap_add(os, intoobj, za.za_name,
+		    8, 1, &za.za_first_integer, tx);
+		if (err)
+			return (err);
+	}
+	zap_cursor_fini(&zc);
+	return (0);
+}
+
+int
+zap_add_int(objset_t *os, uint64_t obj, uint64_t value, dmu_tx_t *tx)
+{
+	char name[20];
+
+	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
+	return (zap_add(os, obj, name, 8, 1, &value, tx));
+}
+
+int
+zap_remove_int(objset_t *os, uint64_t obj, uint64_t value, dmu_tx_t *tx)
+{
+	char name[20];
+
+	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
+	return (zap_remove(os, obj, name, tx));
+}
+
+int
+zap_lookup_int(objset_t *os, uint64_t obj, uint64_t value)
+{
+	char name[20];
+
+	(void) snprintf(name, sizeof (name), "%llx", (longlong_t)value);
+	return (zap_lookup(os, obj, name, 8, 1, &value));
+}
 
 /*
  * Routines for iterating over the attributes.
@@ -983,6 +1045,10 @@ again:
 		err = zap_entry_read_name(&zeh,
 		    sizeof (za->za_name), za->za_name);
 		ASSERT(err == 0);
+
+		za->za_normalization_conflict =
+		    zap_entry_normalization_conflict(&zeh,
+		    NULL, za->za_name, zap);
 	}
 	rw_exit(&zc->zc_leaf->l_rwlock);
 	return (err);
