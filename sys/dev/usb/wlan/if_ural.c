@@ -176,6 +176,7 @@ static void		ural_set_chan(struct ural_softc *,
 			    struct ieee80211_channel *);
 static void		ural_disable_rf_tune(struct ural_softc *);
 static void		ural_enable_tsf_sync(struct ural_softc *);
+static void 		ural_enable_tsf(struct ural_softc *);
 static void		ural_update_slot(struct ifnet *);
 static void		ural_set_txpreamble(struct ural_softc *);
 static void		ural_set_basicrates(struct ural_softc *,
@@ -513,16 +514,11 @@ ural_attach(device_t self)
 	ic->ic_vap_create = ural_vap_create;
 	ic->ic_vap_delete = ural_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof(sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(RAL_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(RAL_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		RAL_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		RAL_RX_RADIOTAP_PRESENT);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -551,7 +547,6 @@ ural_detach(device_t self)
 
 	if (ifp) {
 		ic = ifp->if_l2com;
-		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 		if_free(ifp);
 	}
@@ -761,9 +756,12 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR)
 			ural_enable_tsf_sync(sc);
+		else
+			ural_enable_tsf(sc);
 
 		/* enable automatic rate adaptation */
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
+		/* XXX should use ic_bsschan but not valid until after newstate call below */
+		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
 			ural_amrr_start(sc, ni);
 
@@ -783,8 +781,7 @@ ural_bulk_write_callback(struct usb2_xfer *xfer)
 {
 	struct ural_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211_channel *c = ic->ic_curchan;
+	struct ieee80211vap *vap;
 	struct ural_tx_data *data;
 	struct mbuf *m;
 	unsigned int len;
@@ -819,16 +816,15 @@ tr_setup:
 			usb2_m_copy_in(xfer->frbuffers, RAL_TX_DESC_SIZE, m, 0,
 			    m->m_pkthdr.len);
 
-			if (bpf_peers_present(ifp->if_bpf)) {
+			vap = data->ni->ni_vap;
+			if (ieee80211_radiotap_active_vap(vap)) {
 				struct ural_tx_radiotap_header *tap = &sc->sc_txtap;
 
 				tap->wt_flags = 0;
 				tap->wt_rate = data->rate;
-				tap->wt_chan_freq = htole16(c->ic_freq);
-				tap->wt_chan_flags = htole16(c->ic_flags);
 				tap->wt_antenna = sc->tx_ant;
 
-				bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m);
+				ieee80211_radiotap_tx(vap, m);
 			}
 
 			/* xfer length needs to be a multiple of two! */
@@ -877,7 +873,7 @@ ural_bulk_read_callback(struct usb2_xfer *xfer)
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL;
 	uint32_t flags;
-	uint8_t rssi = 0;
+	int8_t rssi = 0, nf = 0;
 	unsigned int len;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -899,6 +895,7 @@ ural_bulk_read_callback(struct usb2_xfer *xfer)
 		    RAL_RX_DESC_SIZE);
 
 		rssi = URAL_RSSI(sc->sc_rx_desc.rssi);
+		nf = RAL_NOISE_FLOOR;
 		flags = le32toh(sc->sc_rx_desc.flags);
 		if (flags & (RAL_RX_PHY_ERROR | RAL_RX_CRC_ERROR)) {
 			/*
@@ -923,19 +920,17 @@ ural_bulk_read_callback(struct usb2_xfer *xfer)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = (flags >> 16) & 0xfff;
 
-		if (bpf_peers_present(ifp->if_bpf)) {
+		if (ieee80211_radiotap_active(ic)) {
 			struct ural_rx_radiotap_header *tap = &sc->sc_rxtap;
 
-			tap->wr_flags = IEEE80211_RADIOTAP_F_FCS;
+			/* XXX set once */
+			tap->wr_flags = 0;
 			tap->wr_rate = ieee80211_plcp2rate(sc->sc_rx_desc.rate,
 			    (flags & RAL_RX_OFDM) ?
 			    IEEE80211_T_OFDM : IEEE80211_T_CCK);
-			tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-			tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 			tap->wr_antenna = sc->rx_ant;
-			tap->wr_antsignal = rssi;
-
-			bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
+			tap->wr_antsignal = nf + rssi;
+			tap->wr_antnoise = nf;
 		}
 		/* Strip trailing 802.11 MAC FCS. */
 		m_adj(m, -IEEE80211_CRC_LEN);
@@ -956,12 +951,10 @@ tr_setup:
 			ni = ieee80211_find_rxnode(ic,
 			    mtod(m, struct ieee80211_frame_min *));
 			if (ni != NULL) {
-				(void) ieee80211_input(ni, m, rssi,
-				    RAL_NOISE_FLOOR, 0);
+				(void) ieee80211_input(ni, m, rssi, nf);
 				ieee80211_free_node(ni);
 			} else
-				(void) ieee80211_input_all(ic, m, rssi,
-				    RAL_NOISE_FLOOR, 0);
+				(void) ieee80211_input_all(ic, m, rssi, nf);
 			RAL_LOCK(sc);
 		}
 		return;
@@ -1797,6 +1790,14 @@ ural_enable_tsf_sync(struct ural_softc *sc)
 	ural_write(sc, RAL_TXRX_CSR19, tmp);
 
 	DPRINTF("enabling TSF synchronization\n");
+}
+
+static void
+ural_enable_tsf(struct ural_softc *sc)
+{
+	/* first, disable TSF synchronization */
+	ural_write(sc, RAL_TXRX_CSR19, 0);
+	ural_write(sc, RAL_TXRX_CSR19, RAL_ENABLE_TSF | RAL_ENABLE_TSF_SYNC(2));
 }
 
 #define RAL_RXTX_TURNAROUND	5	/* us */

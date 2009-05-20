@@ -185,7 +185,6 @@ static void 	iwn_scan_mindwell(struct ieee80211_scan_state *);
 static void	iwn_hwreset(void *, int);
 static void	iwn_radioon(void *, int);
 static void	iwn_radiooff(void *, int);
-static void	iwn_bpfattach(struct iwn_softc *);
 static void	iwn_sysctlattach(struct iwn_softc *);
 
 #define IWN_DEBUG
@@ -426,7 +425,12 @@ iwn_attach(device_t dev)
         ic->ic_scan_curchan = iwn_scan_curchan;
         ic->ic_scan_mindwell = iwn_scan_mindwell;
 
-	iwn_bpfattach(sc);
+	ieee80211_radiotap_attach(ic,
+            &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		IWN_TX_RADIOTAP_PRESENT,
+            &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		IWN_RX_RADIOTAP_PRESENT);
+
 	iwn_sysctlattach(sc);
 
         /*
@@ -471,7 +475,6 @@ iwn_cleanup(device_t dev)
 	if (ifp != NULL) {
 		iwn_stop(sc);
 		callout_drain(&sc->sc_timer_to);
-		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 	}
 
@@ -1472,29 +1475,26 @@ iwn_rx_intr(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	nf = (ni != NULL && ni->ni_vap->iv_state == IEEE80211_S_RUN &&
 	    (ic->ic_flags & IEEE80211_F_SCAN) == 0) ? sc->noise : -95;
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active(ic)) {
 		struct iwn_rx_radiotap_header *tap = &sc->sc_rxtap;
 
-		tap->wr_flags = 0;
-		tap->wr_dbm_antsignal = rssi;
-		tap->wr_dbm_antnoise = nf;
-		tap->wr_rate = maprate(stat->rate);
 		tap->wr_tsft = htole64(stat->tstamp);
-
+		tap->wr_flags = 0;
 		if (stat->flags & htole16(IWN_CONFIG_SHPREAMBLE))
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
+		tap->wr_rate = maprate(stat->rate);
+		tap->wr_dbm_antsignal = rssi;
+		tap->wr_dbm_antnoise = nf;
 	}
 
 	IWN_UNLOCK(sc);
 
 	/* send the frame to the 802.11 layer */
 	if (ni != NULL) {
-		(void) ieee80211_input(ni, m, rssi - nf, nf, 0);
+		(void) ieee80211_input(ni, m, rssi - nf, nf);
 		ieee80211_free_node(ni);
 	} else
-		(void) ieee80211_input_all(ic, m, rssi - nf, nf, 0);
+		(void) ieee80211_input_all(ic, m, rssi - nf, nf);
 
 	IWN_LOCK(sc);
 }
@@ -1931,7 +1931,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	} else
 		k = NULL;
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwn_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1939,7 +1939,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 		if (k != NULL)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	flags = IWN_TX_AUTO_SEQ;
@@ -2226,7 +2226,7 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m0,
     struct ieee80211_node *ni, struct iwn_tx_ring *ring,
     const struct ieee80211_bpf_params *params)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct iwn_tx_cmd *cmd;
 	struct iwn_cmd_data *tx;
 	struct ieee80211_frame *wh;
@@ -2264,13 +2264,13 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m0,
 	/* pick a tx rate */
 	rate = params->ibp_rate0;
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwn_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	cmd = &ring->cmd[ring->cur];
@@ -4409,23 +4409,6 @@ iwn_radiooff(void *arg0, int pending)
 	ieee80211_notify_radio(ic, 0);
 	iwn_stop_locked(sc);
 	IWN_UNLOCK(sc);
-}
-
-static void
-iwn_bpfattach(struct iwn_softc *sc)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-
-        bpfattach(ifp, DLT_IEEE802_11_RADIO,
-            sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap));
-
-        sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-        sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-        sc->sc_rxtap.wr_ihdr.it_present = htole32(IWN_RX_RADIOTAP_PRESENT);
-
-        sc->sc_txtap_len = sizeof sc->sc_txtap;
-        sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-        sc->sc_txtap.wt_ihdr.it_present = htole32(IWN_TX_RADIOTAP_PRESENT);
 }
 
 static void
