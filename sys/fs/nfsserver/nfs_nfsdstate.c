@@ -3709,7 +3709,7 @@ nfsrv_nextclientindex(void)
 	 * In practice, we'll never get here, but the reboot is here,
 	 * just for fun. (client_index will not wrap around on any real server)
 	 */
-	printf("you must reboot now\n");
+	panic("nfsv4 server out of clientids");
 	return (0);	/* Just to shut the compiler up */
 }
 
