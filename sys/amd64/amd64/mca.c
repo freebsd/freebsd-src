@@ -491,10 +491,6 @@ mca_init(void)
 			if (!(i == 0 && (cpu_id & 0xf00) == 0x600))
 				wrmsr(MSR_MC_CTL(i), 0xffffffffffffffffUL);
 
-			/* XXX: Better CPU test needed here. */
-			if ((cpu_id & 0xf00) == 0xf00)
-				mca_record_entry(i);
-
 			/* Clear all errors. */
 			wrmsr(MSR_MC_STATUS(i), 0);
 		}
