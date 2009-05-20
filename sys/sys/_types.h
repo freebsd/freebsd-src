@@ -47,6 +47,7 @@ typedef	__uint32_t	__ino_t;	/* inode number */
 typedef	long		__key_t;	/* IPC key (for Sys V IPC) */
 typedef	__int32_t	__lwpid_t;	/* Thread ID (a.k.a. LWP) */
 typedef	__uint16_t	__mode_t;	/* permissions */
+typedef	int		__accmode_t;	/* access permissions */
 typedef	int		__nl_item;
 typedef	__uint16_t	__nlink_t;	/* link count */
 typedef	__int64_t	__off_t;	/* file offset */
