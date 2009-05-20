@@ -672,7 +672,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	 * that like RESUME. Resume is set when there is at least 3
 	 * milliseconds of inactivity on the USB BUS.
 	 */
-	if (status & ATMEGA_UDINT_EORSMI) {
+	if (status & ATMEGA_UDINT_WAKEUPI) {
 
 		DPRINTFN(5, "resume interrupt\n");
 
@@ -700,7 +700,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 
 			/* disable suspend interrupt */
 			ATMEGA_WRITE_1(sc, ATMEGA_UDIEN,
-			    ATMEGA_UDINT_EORSMI |
+			    ATMEGA_UDINT_WAKEUPE |
 			    ATMEGA_UDINT_EORSTE);
 
 			/* complete root HUB interrupt endpoint */
@@ -1152,13 +1152,12 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 	    ATMEGA_UECONX_STALLRQC);
 
 	do {
-		temp = 0;
 		if (ep_type == UE_BULK) {
-			temp |= ATMEGA_UECFG0X_EPTYPE2;
+			temp = ATMEGA_UECFG0X_EPTYPE2;
 		} else if (ep_type == UE_INTERRUPT) {
-			temp |= ATMEGA_UECFG0X_EPTYPE3;
+			temp = ATMEGA_UECFG0X_EPTYPE3;
 		} else {
-			temp |= ATMEGA_UECFG0X_EPTYPE1;
+			temp = ATMEGA_UECFG0X_EPTYPE1;
 		}
 		if (ep_dir & UE_DIR_IN) {
 			temp |= ATMEGA_UECFG0X_EPDIR;
@@ -1217,13 +1216,28 @@ atmegadci_init(struct atmegadci_softc *sc)
 	sc->sc_bus.methods = &atmegadci_bus_methods;
 
 	USB_BUS_LOCK(&sc->sc_bus);
-#if 0
-	/* XXX TODO - currently done by boot strap */
+
+	/* make sure USB is enabled */
+	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
+	    ATMEGA_USBCON_USBE |
+	    ATMEGA_USBCON_FRZCLK);
 
 	/* enable USB PAD regulator */
 	ATMEGA_WRITE_1(sc, ATMEGA_UHWCON,
-	    ATMEGA_UHWCON_UVREGE | ATMEGA_UHWCON_UIMOD);
-#endif
+	    ATMEGA_UHWCON_UVREGE |
+	    ATMEGA_UHWCON_UIMOD);
+
+	/* the following register sets up the USB PLL, assuming 16MHz X-tal */
+	ATMEGA_WRITE_1(sc, 0x49 /* PLLCSR */, 0x14 | 0x02);
+
+	/* wait for PLL to lock */
+	for (n = 0; n != 20; n++) {
+		if (ATMEGA_READ_1(sc, 0x49) & 0x01)
+			break;
+		/* wait a little bit for PLL to start */
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+	}
+
 	/* make sure USB is enabled */
 	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
 	    ATMEGA_USBCON_USBE |
@@ -1846,6 +1860,11 @@ tr_handle_clear_port_feature:
 	case UHF_C_PORT_CONNECTION:
 		/* clear connect change flag */
 		sc->sc_flags.change_connect = 0;
+
+		if (!sc->sc_flags.status_bus_reset) {
+			/* we are not connected */
+			break;
+		}
 
 		/* configure the control endpoint */
 
