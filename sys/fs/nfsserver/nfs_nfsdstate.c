@@ -3706,7 +3706,7 @@ nfsrv_nextclientindex(void)
 		return (client_index);
 
 	/*
-	 * In practice, we'll never get here, but the reboot is here,
+	 * In practice we'll never get here, but the panic is here
 	 * just for fun. (client_index will not wrap around on any real server)
 	 */
 	panic("nfsv4 server out of clientids");
