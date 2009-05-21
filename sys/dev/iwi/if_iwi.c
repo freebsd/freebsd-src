@@ -1274,7 +1274,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 
 	m_adj(m, sizeof (struct iwi_hdr) + sizeof (struct iwi_frame));
 
-	rssi = frame->signal;
+	rssi = frame->rssi_dbm;
 	nf = -95;
 	if (ieee80211_radiotap_active(ic)) {
 		struct iwi_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -1959,8 +1959,6 @@ iwi_start_locked(struct ifnet *ifp)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-
-		BPF_MTAP(ifp, m);
 
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (iwi_tx_start(ifp, m, ni, ac) != 0) {
