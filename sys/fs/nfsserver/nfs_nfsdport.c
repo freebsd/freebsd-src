@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/nfs/nfsport.h>
 #include <sys/sysctl.h>
+#include <nlm/nlm_prot.h>
+#include <nlm/nlm.h>
 
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern int nfsv4root_set;
@@ -56,6 +58,7 @@ struct mtx nfs_cache_mutex;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
+static uint32_t nfsv4_sysid = 0;
 
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
     struct ucred *);
@@ -2777,8 +2780,10 @@ nfsvno_localconflict(struct vnode *vp, int ftype, u_int64_t first,
 	 * Since an NFSv4 lockowner is a ClientID plus an array of up to 1024
 	 * bytes, so it can't be put in l_sysid.
 	 */
+	if (nfsv4_sysid == 0)
+		nfsv4_sysid = nlm_acquire_next_sysid();
 	fl.l_pid = (pid_t)0;
-	fl.l_sysid = 0;
+	fl.l_sysid = (int)nfsv4_sysid;
 
 	NFSVOPUNLOCK(vp, 0, td);
 	error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_GETLK, &fl,
@@ -2837,8 +2842,10 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 	 * Since an NFSv4 lockowner is a ClientID plus an array of up to 1024
 	 * bytes, so it can't be put in l_sysid.
 	 */
+	if (nfsv4_sysid == 0)
+		nfsv4_sysid = nlm_acquire_next_sysid();
 	fl.l_pid = (pid_t)0;
-	fl.l_sysid = 0;
+	fl.l_sysid = (int)nfsv4_sysid;
 
 	NFSVOPUNLOCK(vp, 0, td);
 	error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_SETLK, &fl,
