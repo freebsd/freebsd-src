@@ -667,6 +667,9 @@
 #define	  L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
 #define	  L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
 
+#define	SPR_BUCSR		0x3F5	/* ..8 Branch Unit Control and Status Register */
+#define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
+
 #endif /* #elif defined(E500) */
 
 #endif /* !_POWERPC_SPR_H_ */

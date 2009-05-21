@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
+ * Copyright (C) 2007-2009 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
  * All rights reserved.
  *
@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -266,6 +267,8 @@ static vm_offset_t ptbl_buf_pool_vabase;
 /* Pointer to ptbl_buf structures. */
 static struct ptbl_buf *ptbl_bufs;
 
+void pmap_bootstrap_ap(volatile uint32_t *);
+
 /*
  * Kernel MMU interface
  */
@@ -386,6 +389,54 @@ static mmu_def_t booke_mmu = {
 	0
 };
 MMU_DEF(booke_mmu);
+
+static inline void
+tlb_miss_lock(void)
+{
+#ifdef SMP
+	struct pcpu *pc;
+
+	if (!smp_started)
+		return;
+
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (pc != pcpup) {
+
+			CTR3(KTR_PMAP, "%s: tlb miss LOCK of CPU=%d, "
+			    "tlb_lock=%p", __func__, pc->pc_cpuid, pc->pc_booke_tlb_lock);
+
+			KASSERT((pc->pc_cpuid != PCPU_GET(cpuid)),
+			    ("tlb_miss_lock: tried to lock self"));
+
+			tlb_lock(pc->pc_booke_tlb_lock);
+
+			CTR1(KTR_PMAP, "%s: locked", __func__);
+		}
+	}
+#endif
+}
+
+static inline void
+tlb_miss_unlock(void)
+{
+#ifdef SMP
+	struct pcpu *pc;
+
+	if (!smp_started)
+		return;
+
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (pc != pcpup) {
+			CTR2(KTR_PMAP, "%s: tlb miss UNLOCK of CPU=%d",
+			    __func__, pc->pc_cpuid);
+
+			tlb_unlock(pc->pc_booke_tlb_lock);
+
+			CTR1(KTR_PMAP, "%s: unlocked", __func__);
+		}
+	}
+#endif
+}
 
 /* Return number of entries in TLB0. */
 static __inline void
@@ -552,9 +603,11 @@ ptbl_free(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx)
 	 * don't attempt to look up the page tables we are releasing.
 	 */
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 	
 	pmap->pm_pdir[pdir_idx] = NULL;
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 
 	for (i = 0; i < PTBL_PAGES; i++) {
@@ -778,11 +831,13 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, uint8_t flags)
 	}
 
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
 	pte->flags = 0;
 	pte->rpn = 0;
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 
 	pmap->pm_stats.resident_count--;
@@ -849,6 +904,7 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
 	pmap->pm_stats.resident_count++;
 	
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
 	if (pmap->pm_pdir[pdir_idx] == NULL) {
@@ -862,6 +918,7 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
 	pte->rpn = VM_PAGE_TO_PHYS(m) & ~PTE_PA_MASK;
 	pte->flags |= (PTE_VALID | flags);
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 }
 
@@ -1189,6 +1246,27 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("mmu_booke_bootstrap: exit\n");
 }
 
+void
+pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
+{
+	int i;
+
+	/*
+	 * Finish TLB1 configuration: the BSP already set up its TLB1 and we
+	 * have the snapshot of its contents in the s/w tlb1[] table, so use
+	 * these values directly to (re)program AP's TLB1 hardware.
+	 */
+	for (i = 0; i < tlb1_idx; i ++) {
+		/* Skip invalid entries */
+		if (!(tlb1[i].mas1 & MAS1_VALID))
+			continue;
+
+		tlb1_write_entry(i);
+	}
+
+	set_mas4_defaults();
+}
+
 /*
  * Get the physical page address for the given pmap/virtual address.
  */
@@ -1303,6 +1381,7 @@ mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	pte = &(kernel_pmap->pm_pdir[pdir_idx][ptbl_idx]);
 
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 	
 	if (PTE_ISVALID(pte)) {
 	
@@ -1324,6 +1403,7 @@ mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 		__syncicache((void *)va, PAGE_SIZE);
 	}
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 }
 
@@ -1353,12 +1433,14 @@ mmu_booke_kremove(mmu_t mmu, vm_offset_t va)
 	}
 
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 
 	/* Invalidate entry in TLB0, update PTE. */
 	tlb0_flush_entry(va);
 	pte->flags = 0;
 	pte->rpn = 0;
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 }
 
@@ -1527,10 +1609,12 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 * update the PTE.
 		 */
 		mtx_lock_spin(&tlbivax_mutex);
+		tlb_miss_lock();
 
 		tlb0_flush_entry(va);
 		pte->flags = flags;
 
+		tlb_miss_unlock();
 		mtx_unlock_spin(&tlbivax_mutex);
 
 	} else {
@@ -1821,6 +1905,7 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 				m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
 				mtx_lock_spin(&tlbivax_mutex);
+				tlb_miss_lock();
 
 				/* Handle modified pages. */
 				if (PTE_ISMODIFIED(pte))
@@ -1834,6 +1919,7 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED |
 				    PTE_REFERENCED);
 
+				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 			}
 		}
@@ -1863,6 +1949,7 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 				m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
 				mtx_lock_spin(&tlbivax_mutex);
+				tlb_miss_lock();
 
 				/* Handle modified pages. */
 				if (PTE_ISMODIFIED(pte))
@@ -1876,6 +1963,7 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED |
 				    PTE_REFERENCED);
 
+				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 			}
 		}
@@ -2085,6 +2173,7 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 				goto make_sure_to_unlock;
 
 			mtx_lock_spin(&tlbivax_mutex);
+			tlb_miss_lock();
 			
 			if (pte->flags & (PTE_SW | PTE_UW | PTE_MODIFIED)) {
 				tlb0_flush_entry(pv->pv_va);
@@ -2092,6 +2181,7 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 				    PTE_REFERENCED);
 			}
 
+			tlb_miss_unlock();
 			mtx_unlock_spin(&tlbivax_mutex);
 		}
 make_sure_to_unlock:
@@ -2129,10 +2219,12 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 
 			if (PTE_ISREFERENCED(pte)) {
 				mtx_lock_spin(&tlbivax_mutex);
+				tlb_miss_lock();
 
 				tlb0_flush_entry(pv->pv_va);
 				pte->flags &= ~PTE_REFERENCED;
 
+				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 
 				if (++count > 4) {
@@ -2168,10 +2260,12 @@ mmu_booke_clear_reference(mmu_t mmu, vm_page_t m)
 
 			if (PTE_ISREFERENCED(pte)) {
 				mtx_lock_spin(&tlbivax_mutex);
+				tlb_miss_lock();
 				
 				tlb0_flush_entry(pv->pv_va);
 				pte->flags &= ~PTE_REFERENCED;
 
+				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 			}
 		}
@@ -2884,7 +2978,9 @@ set_mas4_defaults(void)
 	/* Defaults: TLB0, PID0, TSIZED=4K */
 	mas4 = MAS4_TLBSELD0;
 	mas4 |= (TLB_SIZE_4K << MAS4_TSIZED_SHIFT) & MAS4_TSIZED_MASK;
-
+#ifdef SMP
+	mas4 |= MAS4_MD;
+#endif
 	mtspr(SPR_MAS4, mas4);
 	__asm __volatile("isync");
 }

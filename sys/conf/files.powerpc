@@ -91,6 +91,7 @@ powerpc/booke/copyinout.c	optional	e500
 powerpc/booke/interrupt.c	optional	e500
 powerpc/booke/locore.S		optional	e500 no-obj
 powerpc/booke/machdep.c		optional	e500
+powerpc/booke/mp_cpudep.c	optional	e500 smp
 powerpc/booke/platform_bare.c	optional	mpc85xx
 powerpc/booke/pmap.c		optional	e500
 powerpc/booke/swtch.S		optional	e500
