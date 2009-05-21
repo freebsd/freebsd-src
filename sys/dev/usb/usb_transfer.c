@@ -1225,9 +1225,13 @@ usb2_start_hardware_sub(struct usb2_xfer *xfer)
 	usb2_frlength_t len;
 
 	/* Check for control endpoint stall */
-	if (xfer->flags.stall_pipe) {
-		/* no longer active */
+	if (xfer->flags.stall_pipe && xfer->flags_int.control_act) {
+		/* the control transfer is no longer active */
+		xfer->flags_int.control_stall = 1;
 		xfer->flags_int.control_act = 0;
+	} else {
+		/* don't stall control transfer by default */
+		xfer->flags_int.control_stall = 0;
 	}
 
 	/* Check for invalid number of frames */

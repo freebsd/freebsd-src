@@ -410,10 +410,10 @@ repeat:
 
 		/* read out EPCON register */
 		/* enable RX input */
-		if (!td->did_stall) {
+		if (!td->did_enable) {
 			uss820dci_update_shared_1(USS820_DCI_PC2SC(td->pc),
 			    USS820_EPCON, 0xFF, USS820_EPCON_RXIE);
-			td->did_stall = 1;
+			td->did_enable = 1;
 		}
 		return (1);		/* not complete */
 	}
@@ -573,10 +573,10 @@ repeat:
 	 * Enable TX output, which must happen after that we have written
 	 * data into the FIFO. This is undocumented.
 	 */
-	if (!td->did_stall) {
+	if (!td->did_enable) {
 		uss820dci_update_shared_1(USS820_DCI_PC2SC(td->pc),
 		    USS820_EPCON, 0xFF, USS820_EPCON_TXOE);
-		td->did_stall = 1;
+		td->did_enable = 1;
 	}
 	/* check remainder */
 	if (td->remainder == 0) {
@@ -813,7 +813,8 @@ uss820dci_setup_standard_chain_sub(struct uss820_std_temp *temp)
 	td->offset = temp->offset;
 	td->remainder = temp->len;
 	td->error = 0;
-	td->did_stall = 0;
+	td->did_enable = 0;
+	td->did_stall = temp->did_stall;
 	td->short_pkt = temp->short_pkt;
 	td->alt_next = temp->setup_alt_next;
 }
@@ -843,6 +844,7 @@ uss820dci_setup_standard_chain(struct usb2_xfer *xfer)
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
