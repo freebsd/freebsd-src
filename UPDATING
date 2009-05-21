@@ -8,7 +8,7 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
-20090520
+20090520:
 	Update ZFS to version 13. ZFS users will need to re-build
 	kernel and world. Existing pools will continue to work
 	without upgrade. If a pool is upgraded it will no longer be
