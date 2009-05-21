@@ -1156,13 +1156,6 @@ ehci_non_isoc_done_sub(struct usb2_xfer *xfer)
 		}
 		/* Check for last transfer */
 		if (((void *)td) == xfer->td_transfer_last) {
-			if (len == 0) {
-				/*
-			         * Halt is ok if descriptor is last,
-			         * and complete:
-			         */
-				status &= ~EHCI_QTD_HALTED;
-			}
 			td = NULL;
 			break;
 		}
