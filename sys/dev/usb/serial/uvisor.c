@@ -76,8 +76,8 @@
 #if USB_DEBUG
 static int uvisor_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
-SYSCTL_INT(_hw_usb2_uvisor, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
+SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
     &uvisor_debug, 0, "Debug level");
 #endif
 

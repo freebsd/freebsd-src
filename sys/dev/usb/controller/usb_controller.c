@@ -55,8 +55,8 @@ static void	usb2_post_init(void *);
 #if USB_DEBUG
 static int usb2_ctrl_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
-SYSCTL_INT(_hw_usb2_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb2_ctrl_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
+SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb2_ctrl_debug, 0,
     "Debug level");
 #endif
 
