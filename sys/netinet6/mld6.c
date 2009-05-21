@@ -629,8 +629,8 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 #endif
 
 	IN6_MULTI_LOCK();
-	IF_ADDR_LOCK(ifp);
 	MLD_LOCK();
+	IF_ADDR_LOCK(ifp);
 
 	mli = MLD_IFINFO(ifp);
 	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
@@ -661,12 +661,12 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		/*
 		 * MLDv1 General Query.
 		 * If this was not sent to the all-nodes group, ignore it.
-		 *
-		 * XXX Do we need to check for a scope ID in the destination
-		 * address on input and strip it?
 		 */
-		if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
-		    &in6addr_linklocal_allnodes)) {
+		struct in6_addr dst;
+
+		dst = ip6->ip6_dst;
+		in6_clearscope(&dst);
+		if (IN6_ARE_ADDR_EQUAL(&dst, &in6addr_linklocal_allnodes)) {
 			/*
 			 * For each reporting group joined on this
 			 * interface, kick the report timer.
@@ -685,8 +685,8 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		}
 	}
 
-	MLD_UNLOCK();
 	IF_ADDR_UNLOCK(ifp);
+	MLD_UNLOCK();
 	IN6_MULTI_UNLOCK();
 
 	return (0);
@@ -807,8 +807,8 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		return (EMSGSIZE);
 
 	IN6_MULTI_LOCK();
-	IF_ADDR_LOCK(ifp);
 	MLD_LOCK();
+	IF_ADDR_LOCK(ifp);
 
 	mli = MLD_IFINFO(ifp);
 	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
@@ -819,17 +819,25 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	mli->mli_qi = qqi;
 	mli->mli_qri = maxdelay;
 
-	CTR4(KTR_MLD, "%s: qrv %d qi %d qri %d", __func__, qrv, qqi,
+	CTR4(KTR_MLD, "%s: qrv %d qi %d maxdelay %d", __func__, qrv, qqi,
 	    maxdelay);
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&mld->mld_addr)) {
 		/*
 		 * MLDv2 General Query.
+		 *
 		 * Schedule a current-state report on this ifp for
 		 * all groups, possibly containing source lists.
+		 *
+		 * Strip scope ID embedded by ip6_input(). We do not need
+		 * to do this for the MLD payload.
 		 */
-		if (!IN6_ARE_ADDR_EQUAL(&in6addr_linklocal_allnodes,
-		    &ip6->ip6_dst) || nsrc > 0) {
+		struct in6_addr dst;
+
+		dst = ip6->ip6_dst;
+		in6_clearscope(&dst);
+		if (!IN6_ARE_ADDR_EQUAL(&dst, &in6addr_linklocal_allnodes) ||
+		    nsrc > 0) {
 			/*
 			 * General Queries SHOULD be directed to ff02::1.
 			 * A general query with a source list has undefined
@@ -885,8 +893,8 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	}
 
 out_locked:
-	MLD_UNLOCK();
 	IF_ADDR_UNLOCK(ifp);
+	MLD_UNLOCK();
 	IN6_MULTI_UNLOCK();
 
 	return (0);
@@ -1016,15 +1024,19 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 {
 	struct in6_ifaddr	*ia;
 	struct in6_multi	*inm;
+	struct in6_addr		 src, dst;
 #ifdef KTR
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
 
 	if (ifp->if_flags & IFF_LOOPBACK)
 		return (0);
+	if (!IN6_IS_ADDR_MULTICAST(&mld->mld_addr))
+		return (EINVAL);
 
-	if (!IN6_IS_ADDR_MULTICAST(&mld->mld_addr) ||
-	    !IN6_ARE_ADDR_EQUAL(&mld->mld_addr, &ip6->ip6_dst))
+	dst = ip6->ip6_dst;
+	in6_clearscope(&dst);
+	if (!IN6_ARE_ADDR_EQUAL(&mld->mld_addr, &dst))
 		return (EINVAL);
 
 	/*
@@ -1032,16 +1044,23 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	 * leave requires knowing that we are the only member of a
 	 * group. Assume we used the link-local address if available,
 	 * otherwise look for ::.
+	 *
+	 * XXX Note that scope ID comparison is needed for the address
+	 * returned by in6ifa_ifpforlinklocal(), but SHOULD NOT be
+	 * performed for the on-wire address.
 	 */
 	ia = in6ifa_ifpforlinklocal(ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
+	src = ip6->ip6_src;
+	in6_clearscope(&src);
 	if ((ia && IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, IA6_IN6(ia))) ||
-	    (ia == NULL && IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)))
+	    (ia == NULL && IN6_IS_ADDR_UNSPECIFIED(&src)))
 		return (0);
 
 	CTR3(KTR_MLD, "process v1 report %s on ifp %p(%s)",
 	    ip6_sprintf(ip6tbuf, &mld->mld_addr), ifp, ifp->if_xname);
 
 	IN6_MULTI_LOCK();
+	MLD_LOCK();
 	IF_ADDR_LOCK(ifp);
 
 	/*
@@ -1090,6 +1109,7 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	}
 
 out_locked:
+	MLD_UNLOCK();
 	IF_ADDR_UNLOCK(ifp);
 	IN6_MULTI_UNLOCK();
 
