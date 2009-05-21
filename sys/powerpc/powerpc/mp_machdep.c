@@ -249,6 +249,8 @@ powerpc_ipi_handler(void *arg)
 	uint32_t ipimask;
 	int msg;
 
+	CTR2(KTR_SMP, "%s: MSR 0x%08x", __func__, mfmsr());
+
 	ipimask = atomic_readandclear_32(&(pcpup->pc_ipimask));
 	if (ipimask == 0)
 		return (FILTER_STRAY);
@@ -257,14 +259,18 @@ powerpc_ipi_handler(void *arg)
 		ipi_msg_cnt[msg]++;
 		switch (msg) {
 		case IPI_AST:
+			CTR1(KTR_SMP, "%s: IPI_AST", __func__);
 			break;
 		case IPI_PREEMPT:
+			CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
 			sched_preempt(curthread);
 			break;
 		case IPI_RENDEZVOUS:
+			CTR1(KTR_SMP, "%s: IPI_RENDEZVOUS", __func__);
 			smp_rendezvous_action();
 			break;
 		case IPI_STOP:
+			CTR1(KTR_SMP, "%s: IPI_STOP (stop)", __func__);
 			self = PCPU_GET(cpumask);
 			savectx(PCPU_GET(curpcb));
 			atomic_set_int(&stopped_cpus, self);
@@ -272,6 +278,7 @@ powerpc_ipi_handler(void *arg)
 				cpu_spinwait();
 			atomic_clear_int(&started_cpus, self);
 			atomic_clear_int(&stopped_cpus, self);
+			CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
 			break;
 		}
 	}
@@ -283,8 +290,13 @@ static void
 ipi_send(struct pcpu *pc, int ipi)
 {
 
+	CTR4(KTR_SMP, "%s: pc=%p, targetcpu=%d, IPI=%d", __func__,
+	    pc, pc->pc_cpuid, ipi);
+
 	atomic_set_32(&pc->pc_ipimask, (1 << ipi));
 	PIC_IPI(pic, pc->pc_cpuid);
+
+	CTR1(KTR_SMP, "%s: sent", __func__);
 }
 
 /* Send an IPI to a set of cpus. */

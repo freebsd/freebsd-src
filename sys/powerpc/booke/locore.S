@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
+ * Copyright (C) 2007-2009 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
  * All rights reserved.
  *
@@ -27,6 +27,8 @@
  */
 
 #include "assym.s"
+
+#include <sys/mutex.h>
 
 #include <machine/asm.h>
 #include <machine/hid.h>
@@ -162,6 +164,9 @@ __start:
 
 	lis	%r3, KERNBASE@h
 	ori	%r3, %r3, KERNBASE@l	/* EPN = KERNBASE */
+#ifdef SMP
+	ori	%r3, %r3, MAS2_M@l	/* WIMGE = 0b00100 */
+#endif
 	mtspr	SPR_MAS2, %r3
 	isync
 
@@ -201,6 +206,17 @@ __start:
 	lis	%r3, kernload@ha
 	addi	%r3, %r3, kernload@l
 	stw	%r28, 0(%r3)
+#ifdef SMP
+	/*
+	 * APs need a separate copy of kernload info within the __boot_page
+	 * area so they can access this value very early, before their TLBs
+	 * are fully set up and the kernload global location is available.
+	 */
+	lis	%r3, kernload_ap@ha
+	addi	%r3, %r3, kernload_ap@l
+	stw	%r28, 0(%r3)
+	msync
+#endif
 
 /*
  * Setup a temporary stack
@@ -235,6 +251,168 @@ __start:
 	bl	mi_startup
 	/* NOT REACHED */
 5:	b	5b
+
+
+#ifdef SMP
+/************************************************************************/
+/* AP Boot page */
+/************************************************************************/
+	.text
+	.globl	__boot_page
+	.align	12
+__boot_page:
+	bl	1f
+
+kernload_ap:
+	.long	0
+
+/*
+ * Initial configuration
+ */
+1:
+	/* Set HIDs */
+	lis	%r3, HID0_E500_DEFAULT_SET@h
+	ori	%r3, %r3, HID0_E500_DEFAULT_SET@l
+	mtspr	SPR_HID0, %r3
+	isync
+	lis	%r3, HID1_E500_DEFAULT_SET@h
+	ori	%r3, %r3, HID1_E500_DEFAULT_SET@l
+	mtspr	SPR_HID1, %r3
+	isync
+
+	/* Enable branch prediction */
+	li	%r3, BUCSR_BPEN
+	mtspr	SPR_BUCSR, %r3
+	isync
+
+	/* Invalidate all entries in TLB0 */
+	li	%r3, 0
+	bl	tlb_inval_all
+
+/*
+ * Find TLB1 entry which is translating us now
+ */
+	bl	2f
+2:	mflr	%r3
+	bl	tlb1_find_current	/* the entry number found is in r30 */
+
+	bl	tlb1_inval_all_but_current
+/*
+ * Create temporary translation in AS=1 and switch to it
+ */
+	bl	tlb1_temp_mapping_as1
+
+	mfmsr	%r3
+	ori	%r3, %r3, (PSL_IS | PSL_DS)
+	bl	3f
+3:	mflr	%r4
+	addi	%r4, %r4, 20
+	mtspr	SPR_SRR0, %r4
+	mtspr	SPR_SRR1, %r3
+	rfi				/* Switch context */
+
+/*
+ * Invalidate initial entry
+ */
+	mr	%r3, %r30
+	bl	tlb1_inval_entry
+
+/*
+ * Setup final mapping in TLB1[1] and switch to it
+ */
+	/* Final kernel mapping, map in 16 MB of RAM */
+	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
+	li	%r4, 1			/* Entry 1 */
+	rlwimi	%r3, %r4, 16, 4, 15
+	mtspr	SPR_MAS0, %r3
+	isync
+
+	li	%r3, (TLB_SIZE_16M << MAS1_TSIZE_SHIFT)@l
+	oris	%r3, %r3, (MAS1_VALID | MAS1_IPROT)@h
+	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
+	isync
+
+	lis	%r3, KERNBASE@h
+	ori	%r3, %r3, KERNBASE@l	/* EPN = KERNBASE */
+#if SMP
+	ori	%r3, %r3, MAS2_M@l	/* WIMGE = 0b00100 */
+#endif
+	mtspr	SPR_MAS2, %r3
+	isync
+
+	/* Retrieve kernel load [physical] address from kernload_ap */
+	bl	4f
+4:	mflr	%r3
+	rlwinm	%r3, %r3, 0, 0, 19
+	lis	%r4, kernload_ap@h
+	ori	%r4, %r4, kernload_ap@l
+	lis	%r5, __boot_page@h
+	ori	%r5, %r5, __boot_page@l
+	sub	%r4, %r4, %r5	/* offset of kernload_ap within __boot_page */
+	lwzx	%r3, %r4, %r3
+
+	/* Set RPN and protection */
+	ori	%r3, %r3, (MAS3_SX | MAS3_SW | MAS3_SR)@l
+	mtspr	SPR_MAS3, %r3
+	isync
+	tlbwe
+	isync
+	msync
+
+	/* Switch to the final mapping */
+	bl	5f
+5:	mflr	%r3
+	rlwinm	%r3, %r3, 0, 0xfff	/* Offset from boot page start */
+	add	%r3, %r3, %r5		/* Make this virtual address */
+	addi	%r3, %r3, 32
+	li	%r4, 0			/* Note AS=0 */
+	mtspr	SPR_SRR0, %r3
+	mtspr	SPR_SRR1, %r4
+	rfi
+
+/*
+ * At this point we're running at virtual addresses KERNBASE and beyond so
+ * it's allowed to directly access all locations the kernel was linked
+ * against.
+ */
+
+/*
+ * Invalidate temp mapping
+ */
+	mr	%r3, %r29
+	bl	tlb1_inval_entry
+
+/*
+ * Setup a temporary stack
+ */
+	lis	%r1, tmpstack@ha
+	addi	%r1, %r1, tmpstack@l
+	addi	%r1, %r1, (TMPSTACKSZ - 8)
+
+/*
+ * Initialise exception vector offsets
+ */
+	bl	ivor_setup
+
+	/*
+	 * Assign our pcpu instance
+	 */
+	lis	%r3, ap_pcpu@h
+	ori	%r3, %r3, ap_pcpu@l
+	lwz	%r3, 0(%r3)
+	mtsprg0	%r3
+
+	bl	pmap_bootstrap_ap
+
+	bl	cpudep_ap_bootstrap
+	/* Switch to the idle thread's kstack */
+	mr	%r1, %r3
+	
+	bl	machdep_ap_bootstrap
+
+	/* NOT REACHED */
+6:	b	6b
+#endif /* SMP */
 
 /*
  * Invalidate all entries in the given TLB.
@@ -368,6 +546,18 @@ tlb1_inval_all_but_current:
 	cmpw	%r4, %r3		/* Check if this is the last entry */
 	bne	1b
 	blr
+
+#ifdef SMP
+__boot_page_padding:
+	/*
+	 * Boot page needs to be exactly 4K, with the last word of this page
+	 * acting as the reset vector, so we need to stuff the remainder.
+	 * Upon release from holdoff CPU fetches the last word of the boot
+	 * page.
+	 */
+	.space	4092 - (__boot_page_padding - __boot_page)
+	b	__boot_page
+#endif /* SMP */
 
 /************************************************************************/
 /* locore subroutines */
