@@ -68,6 +68,9 @@ SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nfast, CTLFLAG_RD,
 static unsigned long ttyinq_nslow = 0;
 SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nslow, CTLFLAG_RD,
 	&ttyinq_nslow, 0, "Buffered reads to userspace on input");
+static int ttyinq_flush_secure = 0;
+SYSCTL_INT(_kern, OID_AUTO, tty_inq_flush_secure, CTLFLAG_RW,
+	&ttyinq_flush_secure, 0, "Zero buffers while flushing");
 
 #define TTYINQ_QUOTESIZE	(TTYINQ_DATASIZE / BMSIZE)
 #define BMSIZE			32
@@ -376,28 +379,19 @@ ttyinq_findchar(struct ttyinq *ti, const char *breakc, size_t maxlen,
 void
 ttyinq_flush(struct ttyinq *ti)
 {
+	struct ttyinq_block *tib = ti->ti_lastblock;
 
 	ti->ti_begin = 0;
 	ti->ti_linestart = 0;
 	ti->ti_reprint = 0;
 	ti->ti_end = 0;
-}
 
-#if 0
-void
-ttyinq_flush_safe(struct ttyinq *ti)
-{
-	struct ttyinq_block *tib;
-
-	ttyinq_flush(ti);
-
-	/* Zero all data in the input queue to make it more safe */
-	TAILQ_FOREACH(tib, &ti->ti_list, tib_list) {
-		bzero(&tib->tib_quotes, sizeof tib->tib_quotes);
-		bzero(&tib->tib_data, sizeof tib->tib_data);
+	/* Zero all data in the input queue to get rid of passwords. */
+	if (ttyinq_flush_secure) {
+		for (tib = ti->ti_firstblock; tib != NULL; tib = tib->tib_next)
+			bzero(&tib->tib_data, sizeof tib->tib_data);
 	}
 }
-#endif
 
 int
 ttyinq_peekchar(struct ttyinq *ti, char *c, int *quote)
