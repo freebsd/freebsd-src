@@ -1382,7 +1382,7 @@ wi_rx_intr(struct wi_softc *sc)
 
 		rstamp = (le16toh(frmhdr.wi_rx_tstamp0) << 16) |
 		    le16toh(frmhdr.wi_rx_tstamp1);
-		tap->wr_tsf = htole64(rstamp);
+		tap->wr_tsf = htole64((uint64_t)rstamp);
 		/* XXX replace divide by table */
 		tap->wr_rate = frmhdr.wi_rx_rate / 5;
 		tap->wr_flags = 0;
