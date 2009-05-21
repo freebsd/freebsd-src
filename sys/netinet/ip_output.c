@@ -150,20 +150,25 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 #endif
 	M_ASSERTPKTHDR(m);
 
-	if (ro == NULL) {
-		ro = &iproute;
-		bzero(ro, sizeof (*ro));
-	}
-
 	if (inp != NULL) {
-		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		INP_LOCK_ASSERT(inp);
+		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		if (inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			m->m_flags |= M_FLOWID;
 		}
 	}
-	if ((ro == &iproute) && (ro->ro_rt == NULL) && (ro->ro_lle == NULL)) {
+
+	if (ro == NULL) {
+		ro = &iproute;
+		bzero(ro, sizeof (*ro));
+
+		/*
+		 * The flow table returns route entries valid for up to 30
+		 * seconds; we rely on the remainder of ip_output() taking no
+		 * longer than that long for the stability of ro_rt.  The
+		 * flow ID assignment must have happened before this point.
+		 */
 		if (flowtable_lookup(ip_ft, m, ro) == 0)
 			nortfree = 1;
 	}
