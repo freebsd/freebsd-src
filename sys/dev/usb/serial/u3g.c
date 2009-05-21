@@ -163,6 +163,7 @@ static const struct usb2_device_id u3g_devs[] = {
 	U3G_DEV(OPTION, GT3GQUAD, 0),
 	U3G_DEV(OPTION, GT3GPLUS, 0),
 	U3G_DEV(OPTION, GTMAX36, 0),
+	U3G_DEV(OPTION, GTHSDPA, 0),
 	U3G_DEV(OPTION, GTMAXHSUPA, 0),
 	U3G_DEV(OPTION, VODAFONEMC3G, 0),
 	/* OEM: Qualcomm, Inc. */
