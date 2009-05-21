@@ -1914,6 +1914,7 @@ product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
+product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 
 /* OQO */
@@ -2134,6 +2135,7 @@ product SHARP SL5600		0x8006	Zaurus SL-5600 PDA
 product SHARP SLC700		0x8007	Zaurus SL-C700 PDA
 product SHARP SLC750		0x9031	Zaurus SL-C750 PDA
 product SHARP WZERO3ES		0x9123	W-ZERO3 ES Smartphone
+product SHARP WILLCOM03		0x9242	WILLCOM03
 
 /* Shuttle Technology products */
 product SHUTTLE EUSB		0x0001	E-USB Bridge
