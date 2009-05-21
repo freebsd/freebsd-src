@@ -296,9 +296,6 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				} else {
 					s->ncount = 1;
 				}
-				/* set default usage */
-				/* use the undefined HID PAGE */
-				s->usage_last = 0;
 				goto top;
 
 			case 9:	/* Output */
