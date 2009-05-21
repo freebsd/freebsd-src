@@ -145,7 +145,8 @@ struct usb2_device {
 #endif
 	usb2_ticks_t plugtime;		/* copy of "ticks" */
 
-	enum usb2_dev_state state;
+	enum usb_dev_state state;
+	enum usb_dev_speed speed;
 	uint16_t refcount;
 #define	USB_DEV_REF_MAX 0xffff
 
@@ -157,7 +158,6 @@ struct usb2_device {
 	uint8_t	curr_config_index;	/* current configuration index */
 	uint8_t	curr_config_no;		/* current configuration number */
 	uint8_t	depth;			/* distance from root HUB */
-	uint8_t	speed;			/* low/full/high speed */
 	uint8_t	port_index;		/* parent HUB port index */
 	uint8_t	port_no;		/* parent HUB port number */
 	uint8_t	hs_hub_addr;		/* high-speed HUB address */
@@ -189,8 +189,8 @@ extern int usb2_template;
 
 struct usb2_device *usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 		    struct usb2_device *parent_hub, uint8_t depth,
-		    uint8_t port_index, uint8_t port_no, uint8_t speed,
-		    enum usb_hc_mode mode);
+		    uint8_t port_index, uint8_t port_no,
+		    enum usb_dev_speed speed, enum usb_hc_mode mode);
 struct usb2_pipe *usb2_get_pipe(struct usb2_device *udev, uint8_t iface_index,
 		    const struct usb2_config *setup);
 struct usb2_pipe *usb2_get_pipe_by_addr(struct usb2_device *udev, uint8_t ea_val);
@@ -213,6 +213,6 @@ void	usb_linux_free_device(struct usb_device *dev);
 uint8_t	usb2_peer_can_wakeup(struct usb2_device *udev);
 struct usb2_pipe *usb2_pipe_foreach(struct usb2_device *udev, struct usb2_pipe *pipe);
 void	usb2_set_device_state(struct usb2_device *udev,
-	    enum usb2_dev_state state);
+	    enum usb_dev_state state);
 
 #endif					/* _USB2_DEVICE_H_ */
