@@ -222,6 +222,7 @@ struct atmegadci_std_temp {
          * short_pkt = 1: transfer should not be short terminated
          */
 	uint8_t	setup_alt_next;
+	uint8_t did_stall;
 };
 
 struct atmegadci_config_desc {
