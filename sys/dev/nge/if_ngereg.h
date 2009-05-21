@@ -302,9 +302,23 @@
 #define NGE_RXDMA_256BYTES	0x00600000
 #define NGE_RXDMA_512BYTES	0x00700000
 
+/*
+ * DP83820/DP83821 with H/W VLAN stripping does not accept short VLAN
+ * tagged packets such as ARP, short icmp echo request, etc. It seems
+ * that MAC checks frame length for VLAN tagged packets after stripping
+ * the VLAN tag. For short VLAN tagged packets it would would be 56
+ * (64 - CRC - VLAN info) bytes in length after stripping VLAN tag.
+ * If the VLAN tag stripped frames are less than 60 bytes in length
+ * the hardware think it received runt packets!
+ * Therefore we should accept runt frames to get VLAN tagged ARP
+ * packets. In addition, it is known that some revisions of
+ * DP83820/DP83821 have another bug that prevent fragmented IP packets
+ * from accepting. So we also should accept errored frames.
+ */
 #define NGE_RXCFG \
-	(NGE_RXCFG_DRAIN(64)|NGE_RXDMA_256BYTES|\
-	 NGE_RXCFG_RX_GIANTS|NGE_RXCFG_RX_NOCRC)
+	(NGE_RXCFG_DRAIN(64) | NGE_RXDMA_256BYTES| \
+	 NGE_RXCFG_RX_RANGEERR | NGE_RXCFG_RX_BADPKTS | NGE_RXCFG_RX_RUNT | \
+	 NGE_RXCFG_RX_GIANTS | NGE_RXCFG_RX_NOCRC)
 
 /* Priority queue control */
 #define NGE_PRIOQCTL_TXPRIO_ENB	0x00000001
@@ -320,13 +334,14 @@
 #define NGE_WOLCSR_WAKE_ON_PHYINTR	0x00000001
 #define NGE_WOLCSR_WAKE_ON_UNICAST	0x00000002
 #define NGE_WOLCSR_WAKE_ON_MULTICAST	0x00000004
-#define NGR_WOLCSR_WAKE_ON_BROADCAST	0x00000008
+#define NGE_WOLCSR_WAKE_ON_BROADCAST	0x00000008
 #define NGE_WOLCSR_WAKE_ON_ARP		0x00000010
 #define NGE_WOLCSR_WAKE_ON_PAT0_MATCH	0x00000020
 #define NGE_WOLCSR_WAKE_ON_PAT1_MATCH	0x00000040
 #define NGE_WOLCSR_WAKE_ON_PAT2_MATCH	0x00000080
 #define NGE_WOLCSR_WAKE_ON_PAT3_MATCH	0x00000100
-#define NGE_WOLCSR_SECUREON_ENB		0x00000200
+#define NGE_WOLCSR_WAKE_ON_MAGICPKT	0x00000200
+#define NGE_WOLCSR_SECUREON_ENB		0x00000400
 #define NGE_WOLCSR_SECUREON_HACK	0x00200000
 #define NGE_WOLCSR_PHYINTR		0x00400000
 #define NGE_WOLCSR_UNICAST		0x00800000
@@ -464,57 +479,24 @@
  * also an optional extended status field for VLAN and TCP/IP checksum
  * functions. We use the checksum feature so we enable the use of this
  * field. Descriptors must be 64-bit aligned.
- * After this, we include some additional structure members for
- * use by the driver. Note that for this structure will be a different
- * size on the alpha, but that's okay as long as it's a multiple of 4
- * bytes in size.
- *
  */
 struct nge_desc_64 {
 	/* Hardware descriptor section */
-	volatile uint32_t	nge_next_lo;
-	volatile uint32_t	nge_next_hi;
-	volatile uint32_t	nge_ptr_lo;
-	volatile uint32_t	nge_ptr_hi;
-	volatile uint32_t	nge_cmdsts;
-#define nge_rxstat		nge_cmdsts
-#define nge_txstat		nge_cmdsts
-#define nge_ctl			nge_cmdsts
-	volatile uint32_t	nge_extsts;
-	/* Driver software section */
-	union {
-		struct mbuf		*nge_mbuf;
-		uint64_t		nge_dummy;
-	} nge_mb_u;
-	union {
-		struct nge_desc_32	*nge_nextdesc;
-		uint64_t		nge_dummy;
-	} nge_nd_u;
+	uint32_t	nge_next_lo;
+	uint32_t	nge_next_hi;
+	uint32_t	nge_ptr_lo;
+	uint32_t	nge_ptr_hi;
+	uint32_t	nge_cmdsts;
+	uint32_t	nge_extsts;
 };
 
 struct nge_desc_32 {
 	/* Hardware descriptor section */
-	volatile uint32_t	nge_next;
-	volatile uint32_t	nge_ptr;
-	volatile uint32_t	nge_cmdsts;
-#define nge_rxstat		nge_cmdsts
-#define nge_txstat		nge_cmdsts
-#define nge_ctl			nge_cmdsts
-	volatile uint32_t	nge_extsts;
-	/* Driver software section */
-	union {
-		struct mbuf		*nge_mbuf;
-		uint64_t		nge_dummy;
-	} nge_mb_u;
-	union {
-		struct nge_desc_32	*nge_nextdesc;
-		uint64_t		nge_dummy;
-	} nge_nd_u;
+	uint32_t	nge_next;
+	uint32_t	nge_ptr;
+	uint32_t	nge_cmdsts;
+	uint32_t	nge_extsts;
 };
-
-#define nge_mbuf        nge_mb_u.nge_mbuf
-#define nge_nextdesc    nge_nd_u.nge_nextdesc
-
 
 #define nge_desc	nge_desc_32
 
@@ -525,11 +507,7 @@ struct nge_desc_32 {
 #define NGE_CMDSTS_MORE		0x40000000
 #define NGE_CMDSTS_OWN		0x80000000
 
-#define NGE_LASTDESC(x)		(!((x)->nge_ctl & NGE_CMDSTS_MORE))
-#define NGE_MORE(x)		((x)->nge_ctl & NGE_CMDSTS_MORE)
-#define NGE_OWNDESC(x)		((x)->nge_ctl & NGE_CMDSTS_OWN)
-#define NGE_INC(x, y)		(x) = (x + 1) % y
-#define NGE_RXBYTES(x)		((x)->nge_ctl & NGE_CMDSTS_BUFLEN)
+#define NGE_INC(x, y)		(x) = ((x) + 1) % y
 
 #define NGE_RXSTAT_RANGELENERR	0x00010000
 #define NGE_RXSTAT_LOOPBK	0x00020000
@@ -571,34 +549,54 @@ struct nge_desc_32 {
 #define NGE_RXEXTSTS_UDPPKT	0x00200000
 #define NGE_RXEXTSTS_UDPCSUMERR	0x00400000
 
-#define NGE_RX_LIST_CNT		128
-#define NGE_TX_LIST_CNT		128
+#define NGE_TX_RING_CNT		256
+#define NGE_RX_RING_CNT		256
+#define	NGE_TX_RING_SIZE	sizeof(struct nge_desc) * NGE_TX_RING_CNT
+#define	NGE_RX_RING_SIZE	sizeof(struct nge_desc) * NGE_RX_RING_CNT
+#define	NGE_RING_ALIGN		sizeof(uint64_t)
+#define	NGE_RX_ALIGN		sizeof(uint64_t)
+#define	NGE_MAXTXSEGS		16
 
-struct nge_list_data {
-	struct nge_desc		nge_rx_list[NGE_RX_LIST_CNT];
-	struct nge_desc		nge_tx_list[NGE_TX_LIST_CNT];
-#ifdef notyet
-	int			vge_tx_prodidx;
-	int			vge_rx_prodidx;
-	int			vge_tx_considx;
-	int			vge_tx_free;
+#define	NGE_ADDR_LO(x)		((uint64_t)(x) & 0xffffffff)
+#define	NGE_ADDR_HI(x)		((uint64_t)(x) >> 32)
+#define	NGE_TX_RING_ADDR(sc, i)	\
+    ((sc)->nge_rdata.nge_tx_ring_paddr + sizeof(struct nge_desc) * (i))
+#define	NGE_RX_RING_ADDR(sc, i)	\
+    ((sc)->nge_rdata.nge_rx_ring_paddr + sizeof(struct nge_desc) * (i))
 
-	struct nge_desc		*nge_tx_list;
-	struct mbuf		*nge_tx_mbuf[NGE_TX_DESC_CNT]
-	bus_dmamap_t		nge_tx_dmamap[NGE_TX_DESC_CNT];
-	bus_dma_tag_t		nge_tx_list_tag;
-	bus_dmamap_t		nge_tx_list_map[NGE_TX_DESC_CNT];
-	bus_addr_t		nge_tx_list_add[NGE_TX_DESC_CNT];
-
-	struct nge_desc		*nge_rx_list;
-	struct mbuf		*nge_rx_mbuf[NGE_RX_DESC_CNT]
-	bus_dmamap_t		nge_rx_dmamap[NGE_RX_DESC_CNT];
-	bus_dma_tag_t		nge_rx_list_tag;
-	bus_dmamap_t		nge_rx_list_map[NGE_RX_DESC_CNT];
-	bus_addr_t		nge_rx_list_addr[NGE_RX_DESC_CNT];
-#endif
+struct nge_txdesc {
+	struct mbuf		*tx_m;
+	bus_dmamap_t		tx_dmamap;
 };
 
+struct nge_rxdesc {
+	struct mbuf		*rx_m;
+	bus_dmamap_t		rx_dmamap;
+};
+
+struct nge_chain_data {
+	bus_dma_tag_t		nge_parent_tag;
+	bus_dma_tag_t		nge_tx_tag;
+	struct nge_txdesc	nge_txdesc[NGE_TX_RING_CNT];
+	bus_dma_tag_t		nge_rx_tag;
+	struct nge_rxdesc	nge_rxdesc[NGE_RX_RING_CNT];
+	bus_dma_tag_t		nge_tx_ring_tag;
+	bus_dma_tag_t		nge_rx_ring_tag;
+	bus_dmamap_t		nge_tx_ring_map;
+	bus_dmamap_t		nge_rx_ring_map;
+	bus_dmamap_t		nge_rx_sparemap;
+	int			nge_tx_prod;
+	int			nge_tx_cons;
+	int			nge_tx_cnt;
+	int			nge_rx_cons;
+};
+
+struct nge_ring_data {
+	struct nge_desc		*nge_tx_ring;
+	bus_addr_t		nge_tx_ring_paddr;
+	struct nge_desc		*nge_rx_ring;
+	bus_addr_t		nge_rx_ring_paddr;
+};
 
 /*
  * NatSemi PCI vendor ID.
@@ -633,44 +631,50 @@ struct nge_mii_frame {
 #define NGE_MII_WRITEOP		0x01
 #define NGE_MII_TURNAROUND	0x02
 
-#define NGE_JUMBO_FRAMELEN	9018
-#define NGE_JUMBO_MTU		(NGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
+#define NGE_JUMBO_FRAMELEN	9022
+#define NGE_JUMBO_MTU		\
+	(NGE_JUMBO_FRAMELEN - sizeof(struct ether_vlan_header) - ETHER_CRC_LEN)
 
-#if !defined(__i386__)
-#define NGE_FIXUP_RX
-#endif
-
-struct nge_ring_data {
-	int			nge_rx_prod;
-	int			nge_tx_prod;
-	int			nge_tx_cons;
-	int			nge_tx_cnt;
+/* Statistics counters. */
+struct nge_stats {
+	uint32_t		rx_pkts_errs;
+	uint32_t		rx_crc_errs;
+	uint32_t		rx_fifo_oflows;
+	uint32_t		rx_align_errs;
+	uint32_t		rx_sym_errs;
+	uint32_t		rx_pkts_jumbos;
+	uint32_t		rx_len_errs;
+	uint32_t		rx_unctl_frames;
+	uint32_t		rx_pause;
+	uint32_t		tx_pause;
+	uint32_t		tx_seq_errs;
 };
 
 struct nge_softc {
 	struct ifnet		*nge_ifp;
 	device_t		nge_dev;
-	bus_space_handle_t	nge_bhandle;
-	bus_space_tag_t		nge_btag;
 	struct resource		*nge_res;
+	int			nge_res_type;
+	int			nge_res_id;
 	struct resource		*nge_irq;
 	void			*nge_intrhand;
 	device_t		nge_miibus;
 	int			nge_if_flags;
-	uint8_t			nge_type;
-	uint8_t			nge_link;
-	uint8_t			nge_width;
-#define NGE_WIDTH_32BITS	0
-#define NGE_WIDTH_64BITS	1
-	struct nge_list_data	*nge_ldata;
-	struct nge_ring_data	nge_cdata;
+	uint32_t		nge_flags;
+#define	NGE_FLAG_TBI		0x0002
+#define	NGE_FLAG_SUSPENDED	0x2000
+#define	NGE_FLAG_DETACH		0x4000
+#define	NGE_FLAG_LINK		0x8000
+	struct nge_chain_data	nge_cdata;
+	struct nge_ring_data	nge_rdata;
 	struct callout		nge_stat_ch;
+	struct nge_stats	nge_stats;
 	struct mtx		nge_mtx;
-	uint8_t			nge_tbi;
-	struct ifmedia		nge_ifmedia;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
+	int			nge_watchdog_timer;
+	int			nge_int_holdoff;
 	struct mbuf		*nge_head;
 	struct mbuf		*nge_tail;
 };
@@ -686,14 +690,18 @@ struct nge_softc {
  * register space access macros
  */
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->nge_btag, sc->nge_bhandle, reg, val)
+	bus_write_4((sc)->nge_res, reg, val)
+#define CSR_BARRIER_WRITE_4(sc, reg)	\
+	bus_barrier((sc)->nge_res, reg, 4, BUS_SPACE_BARRIER_WRITE)
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->nge_btag, sc->nge_bhandle, reg)
+	bus_read_4((sc)->nge_res, reg)
 
 #define NGE_TIMEOUT		1000
-#define NGE_RXLEN		1536
-#define NGE_MIN_FRAMELEN	60
+
+#define	NGE_INT_HOLDOFF_DEFAULT	1
+#define	NGE_INT_HOLDOFF_MIN	0
+#define	NGE_INT_HOLDOFF_MAX	255
 
 /*
  * PCI low memory base and low I/O base register, and
