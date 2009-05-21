@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #define	UMCT_INTR_INTERVAL	100
 #define	UMCT_IFACE_INDEX	0
-#define	UMCT_CONFIG_INDEX	1
+#define	UMCT_CONFIG_INDEX	0
 
 enum {
 	UMCT_BULK_DT_WR,
