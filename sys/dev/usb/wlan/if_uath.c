@@ -355,6 +355,7 @@ uath_attach(device_t dev)
 #ifdef UATH_DEBUG
 	sc->sc_debug = uath_debug;
 #endif
+	device_set_usb2_desc(dev);
 
 	/*
 	 * Only post-firmware devices here.
