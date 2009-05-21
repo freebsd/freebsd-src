@@ -80,14 +80,14 @@ static int uaudio_default_channels = 2;
 #if USB_DEBUG
 static int uaudio_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
-SYSCTL_INT(_hw_usb2_uaudio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RW,
     &uaudio_debug, 0, "uaudio debug level");
-SYSCTL_INT(_hw_usb2_uaudio, OID_AUTO, default_rate, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_rate, CTLFLAG_RW,
     &uaudio_default_rate, 0, "uaudio default sample rate");
-SYSCTL_INT(_hw_usb2_uaudio, OID_AUTO, default_bits, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_bits, CTLFLAG_RW,
     &uaudio_default_bits, 0, "uaudio default sample bits");
-SYSCTL_INT(_hw_usb2_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
     &uaudio_default_channels, 0, "uaudio default sample channels");
 #endif
 
@@ -532,7 +532,7 @@ uaudio_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
 	if (uaa->use_generic == 0)
