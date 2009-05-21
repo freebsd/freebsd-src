@@ -3349,6 +3349,10 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    "hw_revision",
 	    CTLFLAG_RD, &sc->params.rev,
 	    0, "chip model");
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
+	    "port_types",
+	    CTLFLAG_RD, &sc->port_types,
+	    0, "type of ports");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "enable_debug",
 	    CTLFLAG_RW, &cxgb_debug,
@@ -3680,6 +3684,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 		CXGB_SYSCTL_ADD_ULONG(xaui_pcs_align_change);
 		CXGB_SYSCTL_ADD_ULONG(num_toggled);
 		CXGB_SYSCTL_ADD_ULONG(num_resets);
+		CXGB_SYSCTL_ADD_ULONG(link_faults);
 #undef CXGB_SYSCTL_ADD_ULONG
 	}
 }

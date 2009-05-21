@@ -1156,6 +1156,7 @@ static int get_module_type(struct cphy *phy)
 		v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 131);
 		if (v < 0)
 			return v;
+		v &= 0xf0;
 		if (v == 0x10)
 			return phy_modtype_lrm;
 		if (v == 0x40)
@@ -1245,7 +1246,9 @@ static int ael2005_reset(struct cphy *phy, int wait)
 		return err;
 	phy->modtype = (u8)err;
 
-	if (err == phy_modtype_twinax || err == phy_modtype_twinax_long)
+	if (err == phy_modtype_none || err == phy_modtype_unknown)
+		err = 0;
+	else if (err == phy_modtype_twinax || err == phy_modtype_twinax_long)
 		err = ael2005_setup_twinax_edc(phy, err);
 	else
 		err = ael2005_setup_sr_edc(phy);
