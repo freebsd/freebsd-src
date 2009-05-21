@@ -87,8 +87,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int usb2_com_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
-SYSCTL_INT(_hw_usb2_ucom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
     &usb2_com_debug, 0, "ucom debug level");
 #endif
 

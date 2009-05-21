@@ -82,8 +82,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int zyd_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
-SYSCTL_INT(_hw_usb2_zyd, OID_AUTO, debug, CTLFLAG_RW, &zyd_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
+SYSCTL_INT(_hw_usb_zyd, OID_AUTO, debug, CTLFLAG_RW, &zyd_debug, 0,
     "zyd debug level");
 
 enum {

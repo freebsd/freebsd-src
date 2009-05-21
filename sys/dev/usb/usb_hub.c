@@ -57,15 +57,15 @@
 #if USB_DEBUG
 static int uhub_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
-SYSCTL_INT(_hw_usb2_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
+SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
     "Debug level");
 #endif
 
 #if USB_HAVE_POWERD
 static int usb2_power_timeout = 30;	/* seconds */
 
-SYSCTL_INT(_hw_usb2, OID_AUTO, power_timeout, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RW,
     &usb2_power_timeout, 0, "USB power timeout");
 #endif
 
