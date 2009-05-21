@@ -1285,6 +1285,49 @@ static void t3_open_rx_traffic(struct cmac *mac, u32 rx_cfg,
 	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW, rx_hash_low);
 }
 
+static int t3_detect_link_fault(adapter_t *adapter, int port_id)
+{
+	struct port_info *pi = adap2pinfo(adapter, port_id);
+	struct cmac *mac = &pi->mac;
+	uint32_t rx_cfg, rx_hash_high, rx_hash_low;
+	int link_fault;
+
+	/* stop rx */
+	t3_gate_rx_traffic(mac, &rx_cfg, &rx_hash_high, &rx_hash_low);
+	t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, 0);
+
+	/* clear status and make sure intr is enabled */
+	(void) t3_read_reg(adapter, A_XGM_INT_STATUS + mac->offset);
+	t3_xgm_intr_enable(adapter, port_id);
+
+	/* restart rx */
+	t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, F_RXEN);
+	t3_open_rx_traffic(mac, rx_cfg, rx_hash_high, rx_hash_low);
+
+	link_fault = t3_read_reg(adapter, A_XGM_INT_STATUS + mac->offset);
+	return (link_fault & F_LINKFAULTCHANGE ? 1 : 0);
+}
+
+static void t3_clear_faults(adapter_t *adapter, int port_id)
+{
+	struct port_info *pi = adap2pinfo(adapter, port_id);
+	struct cmac *mac = &pi->mac;
+
+	t3_set_reg_field(adapter, A_XGM_TXFIFO_CFG + mac->offset,
+			 F_ENDROPPKT, 0);
+	t3_mac_enable(mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
+	t3_set_reg_field(adapter, A_XGM_STAT_CTRL + mac->offset, F_CLRSTATS, 1);
+
+	if (adapter->params.nports <= 2) {
+		t3_xgm_intr_disable(adapter, pi->port_id);
+		t3_read_reg(adapter, A_XGM_INT_STATUS + mac->offset);
+		t3_write_reg(adapter, A_XGM_INT_CAUSE + mac->offset, F_XGM_INT);
+		t3_set_reg_field(adapter, A_XGM_INT_ENABLE + mac->offset,
+				 F_XGM_INT, F_XGM_INT);
+		t3_xgm_intr_enable(adapter, pi->port_id);
+	}
+}
+
 /**
  *	t3_link_changed - handle interface link changes
  *	@adapter: the adapter
@@ -1296,34 +1339,47 @@ static void t3_open_rx_traffic(struct cmac *mac, u32 rx_cfg,
  */
 void t3_link_changed(adapter_t *adapter, int port_id)
 {
-	int link_ok, speed, duplex, fc;
+	int link_ok, speed, duplex, fc, link_fault, link_change;
 	struct port_info *pi = adap2pinfo(adapter, port_id);
 	struct cphy *phy = &pi->phy;
 	struct cmac *mac = &pi->mac;
 	struct link_config *lc = &pi->link_config;
-	int force_link_down = 0;
+
+	link_ok = lc->link_ok;
+	speed = lc->speed;
+	duplex = lc->duplex;
+	fc = lc->fc;
+	link_fault = 0;
 
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
 
-	if (!lc->link_ok && link_ok && adapter->params.nports <= 2) {
-		u32 rx_cfg, rx_hash_high, rx_hash_low;
-		u32 status;
+	/*
+	 * Check for link faults if any of these is true:
+	 * a) A link fault is suspected, and PHY says link ok
+	 * b) PHY link transitioned from down -> up
+	 */
+	if (adapter->params.nports <= 2 &&
+	    ((pi->link_fault && link_ok) || (!lc->link_ok && link_ok))) {
 
-		t3_xgm_intr_enable(adapter, port_id);
-		t3_gate_rx_traffic(mac, &rx_cfg, &rx_hash_high, &rx_hash_low);
-		t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, 0);
-		t3_mac_enable(mac, MAC_DIRECTION_RX);
+		link_fault = t3_detect_link_fault(adapter, port_id);
+		if (link_fault) {
+			if (pi->link_fault != LF_YES) {
+				mac->stats.link_faults++;
+				pi->link_fault = LF_YES;
+			}
 
-		status = t3_read_reg(adapter, A_XGM_INT_STATUS + mac->offset);
-		if (status & F_LINKFAULTCHANGE) {
-			mac->stats.link_faults++;
-			force_link_down = 1;
-		}
-		t3_open_rx_traffic(mac, rx_cfg, rx_hash_high, rx_hash_low);
+			/* Don't report link up or any other change */
+			link_ok = 0;
+			speed = lc->speed;
+			duplex = lc->duplex;
+			fc = lc->fc;
+		} else {
+			/* clear faults here if this was a false alarm. */
+			if (pi->link_fault == LF_MAYBE &&
+			    link_ok && lc->link_ok)
+				t3_clear_faults(adapter, port_id);
 
-		if (force_link_down) {
-			t3_os_link_fault_handler(adapter, port_id);
-			return;
+			pi->link_fault = LF_NO;
 		}
 	}
 
@@ -1336,75 +1392,65 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 	    duplex == lc->duplex && fc == lc->fc)
 		return;                            /* nothing changed */
 
-	if (link_ok != lc->link_ok && adapter->params.rev > 0 &&
-	    uses_xaui(adapter)) {
-		if (link_ok)
-			t3b_pcs_reset(mac);
-		t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset,
-			     link_ok ? F_TXACTENABLE | F_RXEN : 0);
-	}
+	link_change = link_ok != lc->link_ok;
 	lc->link_ok = (unsigned char)link_ok;
 	lc->speed = speed < 0 ? SPEED_INVALID : speed;
 	lc->duplex = duplex < 0 ? DUPLEX_INVALID : duplex;
 
-	if (link_ok && speed >= 0 && lc->autoneg == AUTONEG_ENABLE) {
-		/* Set MAC speed, duplex, and flow control to match PHY. */
-		t3_mac_set_speed_duplex_fc(mac, speed, duplex, fc);
-		lc->fc = (unsigned char)fc;
+	if (link_ok) {
+
+		/* down -> up, or up -> up with changed settings */
+
+		if (link_change && adapter->params.rev > 0 &&
+		    uses_xaui(adapter)) {
+			t3b_pcs_reset(mac);
+			t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset,
+				     F_TXACTENABLE | F_RXEN);
+		}
+
+		if (speed >= 0 && lc->autoneg == AUTONEG_ENABLE) {
+			/* Set MAC settings to match PHY. */
+			t3_mac_set_speed_duplex_fc(mac, speed, duplex, fc);
+			lc->fc = (unsigned char)fc;
+		}
+
+		t3_clear_faults(adapter, port_id);
+
+	} else {
+
+		/* up -> down */
+
+		if (adapter->params.rev > 0 && uses_xaui(adapter)) {
+			t3_write_reg(adapter,
+				     A_XGM_XAUI_ACT_CTRL + mac->offset, 0);
+		}
+
+		t3_xgm_intr_disable(adapter, pi->port_id);
+		if (adapter->params.nports <= 2) {
+			t3_set_reg_field(adapter,
+					 A_XGM_INT_ENABLE + mac->offset,
+					 F_XGM_INT, 0);
+		}
+
+		if (!link_fault) {
+			if (is_10G(adapter))
+				pi->phy.ops->power_down(&pi->phy, 1);
+			t3_mac_disable(mac, MAC_DIRECTION_RX);
+			t3_link_start(phy, mac, lc);
+		}
+
+		/*
+		 * Make sure Tx FIFO continues to drain, even as rxen is left
+		 * high to help detect and indicate remote faults.
+		 */
+		t3_set_reg_field(adapter, A_XGM_TXFIFO_CFG + mac->offset, 0,
+				 F_ENDROPPKT);
+		t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, 0);
+		t3_write_reg(adapter, A_XGM_TX_CTRL + mac->offset, F_TXEN);
+		t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, F_RXEN);
 	}
 
 	t3_os_link_changed(adapter, port_id, link_ok, speed, duplex, fc);
-}
-
-void t3_link_fault(adapter_t *adapter, int port_id)
-{
-	struct port_info *pi = adap2pinfo(adapter, port_id);
-	struct cmac *mac = &pi->mac;
-	struct cphy *phy = &pi->phy;
-	struct link_config *lc = &pi->link_config;
-	int link_ok, speed, duplex, fc, link_fault;
-	u32 rx_cfg, rx_hash_high, rx_hash_low;
-
-	if (!pi->link_fault)
-		return; /* nothing to do */
-
-	t3_gate_rx_traffic(mac, &rx_cfg, &rx_hash_high, &rx_hash_low);
-
-	if (adapter->params.rev > 0 && uses_xaui(adapter))
-		t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset, 0);
-
-	t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, 0);
-	t3_mac_enable(mac, MAC_DIRECTION_RX);
-
-	t3_open_rx_traffic(mac, rx_cfg, rx_hash_high, rx_hash_low);
-
-	link_fault = t3_read_reg(adapter,
-				 A_XGM_INT_STATUS + mac->offset);
-	link_fault &= F_LINKFAULTCHANGE;
-
-	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
-
-	if (link_fault) {
-		lc->link_ok = 0;
-		lc->speed = SPEED_INVALID;
-		lc->duplex = DUPLEX_INVALID;
-
-		t3_os_link_fault(adapter, port_id, 0);
-
-		/* Account link faults only when the phy reports a link up */
-		if (link_ok)
-			mac->stats.link_faults++;
-	} else {
-		if (link_ok)
-			t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset,
-			     	     F_TXACTENABLE | F_RXEN);
-
-		pi->link_fault = 0;
-		lc->link_ok = (unsigned char)link_ok;
-		lc->speed = speed < 0 ? SPEED_INVALID : speed;
-		lc->duplex = duplex < 0 ? DUPLEX_INVALID : duplex;
-		t3_os_link_fault(adapter, port_id, link_ok);
-	}
 }
 
 /**
@@ -1901,10 +1947,12 @@ static void mc7_intr_handler(struct mc7 *mc7)
 static int mac_intr_handler(adapter_t *adap, unsigned int idx)
 {
 	u32 cause;
+	struct port_info *pi;
 	struct cmac *mac;
 
 	idx = idx == 0 ? 0 : adapter_info(adap)->nports0; /* MAC idx -> port */
-	mac = &adap2pinfo(adap, idx)->mac;
+	pi = adap2pinfo(adap, idx);
+	mac = &pi->mac;
 
 	/*
 	 * We mask out interrupt causes for which we're not taking interrupts.
@@ -1937,9 +1985,9 @@ static int mac_intr_handler(adapter_t *adap, unsigned int idx)
 		t3_set_reg_field(adap,
 				 A_XGM_INT_ENABLE + mac->offset,
 				 F_XGM_INT, 0);
-		mac->stats.link_faults++;
 
-		t3_os_link_fault_handler(adap, idx);
+		/* link fault suspected */
+		pi->link_fault = LF_MAYBE;
 	}
 
 	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
