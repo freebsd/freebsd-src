@@ -32,6 +32,8 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 /*
  * Common state locking definitions.
@@ -211,7 +213,6 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 
 /* tx path usage */
 #define	M_ENCAP		M_PROTO1		/* 802.11 encap done */
-#define	M_WDS		M_PROTO2		/* WDS frame */
 #define	M_EAPOL		M_PROTO3		/* PAE/EAPOL frame */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
@@ -219,7 +220,7 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
 #define	M_80211_TX \
-	(M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_ENCAP|M_WDS|M_EAPOL|M_PWR_SAV|\
+	(M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_ENCAP|M_EAPOL|M_PWR_SAV|\
 	 M_MORE_DATA|M_FF|M_TXCB|M_AMPDU_MPDU)
 
 /* rx path usage */
@@ -249,6 +250,13 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_AGE_GET(m)		(m->m_pkthdr.csum_data)
 #define	M_AGE_SUB(m,adj)	(m->m_pkthdr.csum_data -= adj)
 
+/*
+ * Store the sequence number.
+ */
+#define	M_SEQNO_SET(m, seqno) \
+	((m)->m_pkthdr.tso_segsz = (seqno))
+#define	M_SEQNO_GET(m)	((m)->m_pkthdr.tso_segsz)
+
 #define	MTAG_ABI_NET80211	1132948340	/* net80211 ABI */
 
 struct ieee80211_cb {
@@ -268,6 +276,9 @@ void	ieee80211_sysctl_attach(struct ieee80211com *);
 void	ieee80211_sysctl_detach(struct ieee80211com *);
 void	ieee80211_sysctl_vattach(struct ieee80211vap *);
 void	ieee80211_sysctl_vdetach(struct ieee80211vap *);
+
+SYSCTL_DECL(_net_wlan);
+int	ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS);
 
 void	ieee80211_load_module(const char *);
 
@@ -391,6 +402,17 @@ alg##_modevent(int type)						\
 	/* XXX nothing to do until the rate control framework arrives */\
 }									\
 TEXT_SET(rate##_set, alg##_modevent)
+
+struct ieee80211req;
+typedef int ieee80211_ioctl_getfunc(struct ieee80211vap *,
+    struct ieee80211req *);
+SET_DECLARE(ieee80211_ioctl_getset, ieee80211_ioctl_getfunc);
+#define	IEEE80211_IOCTL_GET(_name, _get) TEXT_SET(ieee80211_ioctl_getset, _get)
+
+typedef int ieee80211_ioctl_setfunc(struct ieee80211vap *,
+    struct ieee80211req *);
+SET_DECLARE(ieee80211_ioctl_setset, ieee80211_ioctl_setfunc);
+#define	IEEE80211_IOCTL_SET(_name, _set) TEXT_SET(ieee80211_ioctl_setset, _set)
 #endif /* _KERNEL */
 
 /* XXX this stuff belongs elsewhere */

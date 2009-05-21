@@ -431,9 +431,12 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 #ifdef ADAPTIVE_SX
 	volatile struct thread *owner;
 #endif
-	uint64_t waittime = 0;
 	uintptr_t x;
-	int contested = 0, error = 0;
+#ifdef LOCK_PROFILING
+	uint64_t waittime = 0;
+	int contested = 0;
+#endif
+	int error = 0;
 
 	/* If we already hold an exclusive lock, then recurse. */
 	if (sx_xlocked(sx)) {
@@ -652,8 +655,10 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 #ifdef ADAPTIVE_SX
 	volatile struct thread *owner;
 #endif
+#ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
 	int contested = 0;
+#endif
 	uintptr_t x;
 	int error = 0;
 

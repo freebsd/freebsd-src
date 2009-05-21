@@ -120,13 +120,17 @@ int	ipport_tcplastcount;
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
 
+static void	in_pcbremlists(struct inpcb *inp);
+
 static int
 sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
 	INIT_VNET_INET(curvnet);
 	int error;
 
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	SYSCTL_RESOLVE_V_ARG1();
+
+	error = sysctl_handle_int(oidp, arg1, arg2, req);
 	if (error == 0) {
 		RANGECHK(V_ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
 		RANGECHK(V_ipport_lowlastauto, 1, IPPORT_RESERVED - 1);
@@ -384,7 +388,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	 * This entire block sorely needs a rewrite.
 	 */
 				if (t &&
-				    ((t->inp_vflag & INP_TIMEWAIT) == 0) &&
+				    ((t->inp_flags & INP_TIMEWAIT) == 0) &&
 				    (so->so_type != SOCK_STREAM ||
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
@@ -397,7 +401,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, wild, cred);
-			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
+			if (t && (t->inp_flags & INP_TIMEWAIT)) {
 				/*
 				 * XXXRW: If an incpb has had its timewait
 				 * state recycled, we treat the address as
@@ -605,6 +609,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 		ifp = ia->ia_ifp;
 		ia = NULL;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
@@ -618,8 +623,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			IF_ADDR_UNLOCK(ifp);
 			goto done;
 		}
+		IF_ADDR_UNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -636,6 +643,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * 3. as a last resort return the 'default' jail address.
 	 */
 	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) {
+		struct ifnet *ifp;
 
 		/* If not jailed, use the default returned. */
 		if (cred == NULL || !jailed(cred)) {
@@ -657,7 +665,9 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		 * 2. Check if we have any address on the outgoing interface
 		 *    belonging to this jail.
 		 */
-		TAILQ_FOREACH(ifa, &sro.ro_rt->rt_ifp->if_addrhead, ifa_link) {
+		ifp = sro.ro_rt->rt_ifp;
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
@@ -670,8 +680,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			IF_ADDR_UNLOCK(ifp);
 			goto done;
 		}
+		IF_ADDR_UNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -718,6 +730,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 			ifp = ia->ia_ifp;
 			ia = NULL;
+			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 				sa = ifa->ifa_addr;
@@ -732,8 +745,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			}
 			if (ia != NULL) {
 				laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
+			IF_ADDR_UNLOCK(ifp);
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
@@ -916,7 +931,8 @@ in_pcbfree_internal(struct inpcb *inp)
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		ip6_freepcbopts(inp->in6p_outputopts);
-		ip6_freemoptions(inp->in6p_moptions);
+		if (inp->in6p_moptions != NULL)
+			ip6_freemoptions(inp->in6p_moptions);
 	}
 #endif
 	if (inp->inp_options)
@@ -1031,7 +1047,7 @@ in_pcbdrop(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	inp->inp_vflag |= INP_DROPPED;
+	inp->inp_flags |= INP_DROPPED;
 	if (inp->inp_flags & INP_INHASHLIST) {
 		struct inpcbport *phd = inp->inp_phd;
 
@@ -1498,7 +1514,7 @@ in_pcbrehash(struct inpcb *inp)
 /*
  * Remove PCB from various lists.
  */
-void
+static void
 in_pcbremlists(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
@@ -1818,6 +1834,22 @@ db_print_inpflags(int inp_flags)
 		db_printf("%sIN6P_AUTOFLOWLABEL", comma ? ", " : "");
 		comma = 1;
 	}
+	if (inp_flags & INP_TIMEWAIT) {
+		db_printf("%sINP_TIMEWAIT", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_ONESBCAST) {
+		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_DROPPED) {
+		db_printf("%sINP_DROPPED", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_flags & INP_SOCKREF) {
+		db_printf("%sINP_SOCKREF", comma ? ", " : "");
+		comma  = 1;
+	}
 	if (inp_flags & IN6P_RFC2292) {
 		db_printf("%sIN6P_RFC2292", comma ? ", " : "");
 		comma = 1;
@@ -1846,25 +1878,9 @@ db_print_inpvflag(u_char inp_vflag)
 		db_printf("%sINP_IPV6PROTO", comma ? ", " : "");
 		comma  = 1;
 	}
-	if (inp_vflag & INP_TIMEWAIT) {
-		db_printf("%sINP_TIMEWAIT", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_ONESBCAST) {
-		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_DROPPED) {
-		db_printf("%sINP_DROPPED", comma ? ", " : "");
-		comma  = 1;
-	}
-	if (inp_vflag & INP_SOCKREF) {
-		db_printf("%sINP_SOCKREF", comma ? ", " : "");
-		comma  = 1;
-	}
 }
 
-void
+static void
 db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 {
 

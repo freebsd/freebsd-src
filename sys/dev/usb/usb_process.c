@@ -55,8 +55,8 @@
 #if USB_DEBUG
 static int usb2_proc_debug;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, proc, CTLFLAG_RW, 0, "USB process");
-SYSCTL_INT(_hw_usb2_proc, OID_AUTO, debug, CTLFLAG_RW, &usb2_proc_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, proc, CTLFLAG_RW, 0, "USB process");
+SYSCTL_INT(_hw_usb_proc, OID_AUTO, debug, CTLFLAG_RW, &usb2_proc_debug, 0,
     "Debug level");
 #endif
 
@@ -243,7 +243,7 @@ usb2_proc_msignal(struct usb2_process *up, void *_pm0, void *_pm1)
 	struct usb2_proc_msg *pm0 = _pm0;
 	struct usb2_proc_msg *pm1 = _pm1;
 	struct usb2_proc_msg *pm2;
-	uint32_t d;
+	usb2_size_t d;
 	uint8_t t;
 
 	/* check if gone, return dummy value */

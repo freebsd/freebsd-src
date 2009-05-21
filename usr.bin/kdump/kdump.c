@@ -67,7 +67,9 @@ extern int errno;
 #ifdef NETATALK
 #include <netatalk/at.h>
 #endif
+#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <ctype.h>
 #include <dlfcn.h>
 #include <err.h>
 #include <grp.h>
@@ -98,6 +100,7 @@ void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
 void usage(void);
+void sockfamilyname(int);
 const char *ioctlname(u_long);
 
 int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,

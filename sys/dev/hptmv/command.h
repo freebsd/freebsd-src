@@ -42,9 +42,9 @@ typedef struct _AtaCommand
 typedef struct _PassthroughCmd {
 	BYTE     bFeaturesReg;     /* feature register */
 	BYTE     bSectorCountReg;  /* IDE sector count register. */
-	BYTE     bSectorNumberReg; /* IDE sector number register. */
-	BYTE     bCylLowReg;       /* IDE low order cylinder value. */
-	BYTE     bCylHighReg;      /* IDE high order cylinder value. */
+	BYTE     bLbaLowReg; /* IDE sector number register. */
+	BYTE     bLbaMidReg;       /* IDE low order cylinder value. */
+	BYTE     bLbaHighReg;      /* IDE high order cylinder value. */
 	BYTE     bDriveHeadReg;    /* IDE drive/head register. */
 	BYTE     bCommandReg;      /* Actual IDE command. Checked for validity by driver. */
 	BYTE     nSectors;         /* data transfer */
@@ -247,7 +247,7 @@ DPC_ROUTINE;
  * IdleRoutines[] size:
  *   Each command may invoke CallWhenIdle once.
  */
-#define MAX_COMMAND_BLOCKS_FOR_EACH_VBUS (MAX_QUEUE_COMM * (1+MAX_MEMBERS*2))
+#define MAX_COMMAND_BLOCKS_FOR_EACH_VBUS (MAX_QUEUE_COMM * (1+MAX_MEMBERS*2) + 1)
 #define MAX_PENDING_ROUTINES  (MAX_COMMAND_BLOCKS_FOR_EACH_VBUS+1)
 #define MAX_IDLE_ROUTINES     (MAX_COMMAND_BLOCKS_FOR_EACH_VBUS+1)
 

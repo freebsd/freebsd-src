@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_page.h>
 
 #include <machine/memdev.h>
 
@@ -77,6 +78,8 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	int error = 0;
 	vm_offset_t va, eva, off, v;
 	vm_prot_t prot;
+	struct vm_page m;
+	vm_page_t marr;
 	vm_size_t cnt;
 
 	cnt = 0;
@@ -102,14 +105,18 @@ kmem_direct_mapped:	v = uio->uio_offset;
 			cnt = min(cnt, PAGE_SIZE - off);
 			cnt = min(cnt, iov->iov_len);
 
-			if (mem_valid(v, cnt)
-			    && pmap_dev_direct_mapped(v, cnt)) {
+			if (mem_valid(v, cnt)) {
 				error = EFAULT;
 				break;
 			}
-
-			uiomove((void *)v, cnt, uio);
-			break;
+	
+			if (!pmap_dev_direct_mapped(v, cnt)) {
+				error = uiomove((void *)v, cnt, uio);
+			} else {
+				m.phys_addr = trunc_page(v);
+				marr = &m;
+				error = uiomove_fromphys(&marr, off, cnt, uio);
+			}
 		}
 		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = uio->uio_offset;

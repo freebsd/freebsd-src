@@ -52,8 +52,6 @@ int	svr4_stream_ioctl(struct file *, struct thread *, register_t *,
 				  int, u_long, caddr_t);
 int	svr4_term_ioctl(struct file *, struct thread *, register_t *,
 				  int, u_long, caddr_t);
-int	svr4_ttold_ioctl(struct file *, struct thread *, register_t *,
-				  int, u_long, caddr_t);
 int	svr4_fil_ioctl	(struct file *, struct thread *, register_t *,
 				  int, u_long, caddr_t);
 int	svr4_sock_ioctl	(struct file *, struct thread *, register_t *,

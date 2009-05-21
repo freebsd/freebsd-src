@@ -139,6 +139,9 @@ int mga_driver_fence_wait(struct drm_device * dev, unsigned int *sequence)
 		    (((cur_fence = atomic_read(&dev_priv->last_fence_retired))
 		      - *sequence) <= (1 << 23)));
 
+	if (ret == -ERESTART)
+		DRM_DEBUG("restarting syscall\n");
+
 	*sequence = cur_fence;
 
 	return ret;

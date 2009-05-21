@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
@@ -126,9 +127,6 @@ static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
-
-extern LIST_HEAD(futex_list, futex) futex_list;
-extern struct sx futex_sx;
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_schedtail_tag;
@@ -263,7 +261,17 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
 	AUXARGS_ENTRY_32(pos, LINUX_AT_HWCAP, cpu_feature);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_CLKTCK, hz);
+
+	/*
+	 * Do not export AT_CLKTCK when emulating Linux kernel prior to 2.4.0,
+	 * as it has appeared in the 2.4.0-rc7 first time.
+	 * Being exported, AT_CLKTCK is returned by sysconf(_SC_CLK_TCK),
+	 * glibc falls back to the hard-coded CLK_TCK value when aux entry
+	 * is not present.
+	 * Also see linux_times() implementation.
+	 */
+	if (linux_kernver(curthread) >= LINUX_KERNVER_2004000)
+		AUXARGS_ENTRY_32(pos, LINUX_AT_CLKTCK, stclohz);
 	AUXARGS_ENTRY_32(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY_32(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY_32(pos, AT_PHNUM, args->phnum);
@@ -290,7 +298,6 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	return 0;
 }
 
-extern int _ucodesel, _ucode32sel, _udatasel;
 extern unsigned long linux_sznonrtsigcode;
 
 static void
@@ -360,13 +367,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
-	frame.sf_sc.uc_mcontext.sc_mask	= frame.sf_sc.uc_sigmask.__bits[0];
-	frame.sf_sc.uc_mcontext.sc_gs     = rgs();
-	frame.sf_sc.uc_mcontext.sc_fs     = rfs();
-	__asm __volatile("mov %%es,%0" :
-	    "=rm" (frame.sf_sc.uc_mcontext.sc_es));
-	__asm __volatile("mov %%ds,%0" :
-	    "=rm" (frame.sf_sc.uc_mcontext.sc_ds));
+	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__bits[0];
 	frame.sf_sc.uc_mcontext.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.uc_mcontext.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.uc_mcontext.sc_ebp    = regs->tf_rbp;
@@ -376,6 +377,10 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.uc_mcontext.sc_eax    = regs->tf_rax;
 	frame.sf_sc.uc_mcontext.sc_eip    = regs->tf_rip;
 	frame.sf_sc.uc_mcontext.sc_cs     = regs->tf_cs;
+	frame.sf_sc.uc_mcontext.sc_gs     = regs->tf_gs;
+	frame.sf_sc.uc_mcontext.sc_fs     = regs->tf_fs;
+	frame.sf_sc.uc_mcontext.sc_es     = regs->tf_es;
+	frame.sf_sc.uc_mcontext.sc_ds     = regs->tf_ds;
 	frame.sf_sc.uc_mcontext.sc_eflags = regs->tf_rflags;
 	frame.sf_sc.uc_mcontext.sc_esp_at_signal = regs->tf_rsp;
 	frame.sf_sc.uc_mcontext.sc_ss     = regs->tf_ss;
@@ -413,11 +418,11 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
-	load_ds(_udatasel);
-	td->td_pcb->pcb_ds = _udatasel;
-	load_es(_udatasel);
-	td->td_pcb->pcb_es = _udatasel;
-	/* leave user %fs and %gs untouched */
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _ufssel;
+	regs->tf_gs = _ugssel;
+	regs->tf_flags = TF_HASSEGS;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -495,10 +500,10 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build the signal context to be used by sigreturn.
 	 */
 	frame.sf_sc.sc_mask   = lmask.__bits[0];
-	frame.sf_sc.sc_gs     = rgs();
-	frame.sf_sc.sc_fs     = rfs();
-	__asm __volatile("mov %%es,%0" : "=rm" (frame.sf_sc.sc_es));
-	__asm __volatile("mov %%ds,%0" : "=rm" (frame.sf_sc.sc_ds));
+	frame.sf_sc.sc_gs     = regs->tf_gs;
+	frame.sf_sc.sc_fs     = regs->tf_fs;
+	frame.sf_sc.sc_es     = regs->tf_es;
+	frame.sf_sc.sc_ds     = regs->tf_ds;
 	frame.sf_sc.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.sc_ebp    = regs->tf_rbp;
@@ -535,11 +540,11 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
-	load_ds(_udatasel);
-	td->td_pcb->pcb_ds = _udatasel;
-	load_es(_udatasel);
-	td->td_pcb->pcb_es = _udatasel;
-	/* leave user %fs and %gs untouched */
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _ufssel;
+	regs->tf_gs = _ugssel;
+	regs->tf_flags = TF_HASSEGS;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -624,7 +629,6 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	/*
 	 * Restore signal context.
 	 */
-	/* Selectors were restored by the trampoline. */
 	regs->tf_rdi    = frame.sf_sc.sc_edi;
 	regs->tf_rsi    = frame.sf_sc.sc_esi;
 	regs->tf_rbp    = frame.sf_sc.sc_ebp;
@@ -634,6 +638,10 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	regs->tf_rax    = frame.sf_sc.sc_eax;
 	regs->tf_rip    = frame.sf_sc.sc_eip;
 	regs->tf_cs     = frame.sf_sc.sc_cs;
+	regs->tf_ds     = frame.sf_sc.sc_ds;
+	regs->tf_es     = frame.sf_sc.sc_es;
+	regs->tf_fs     = frame.sf_sc.sc_fs;
+	regs->tf_gs     = frame.sf_sc.sc_gs;
 	regs->tf_rflags = eflags;
 	regs->tf_rsp    = frame.sf_sc.sc_esp_at_signal;
 	regs->tf_ss     = frame.sf_sc.sc_ss;
@@ -722,7 +730,10 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	/*
 	 * Restore signal context
 	 */
-	/* Selectors were restored by the trampoline. */
+	regs->tf_gs	= context->sc_gs;
+	regs->tf_fs	= context->sc_fs;
+	regs->tf_es	= context->sc_es;
+	regs->tf_ds	= context->sc_ds;
 	regs->tf_rdi    = context->sc_edi;
 	regs->tf_rsi    = context->sc_esi;
 	regs->tf_rbp    = context->sc_ebp;
@@ -827,27 +838,30 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
+	mtx_lock(&dt_lock);
+	if (td->td_proc->p_md.md_ldt != NULL)
+		user_ldt_free(td);
+	else
+		mtx_unlock(&dt_lock);
+
 	critical_enter();
 	wrmsr(MSR_FSBASE, 0);
 	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
 	critical_exit();
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_udatasel);
-	load_gs(_udatasel);
-	pcb->pcb_ds = _udatasel;
-	pcb->pcb_es = _udatasel;
-	pcb->pcb_fs = _udatasel;
-	pcb->pcb_gs = _udatasel;
 	pcb->pcb_initial_fpucw = __LINUX_NPXCW__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
 	regs->tf_rsp = stack;
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_gs = _ugssel;
+	regs->tf_fs = _ufssel;
+	regs->tf_es = _udatasel;
+	regs->tf_ds = _udatasel;
 	regs->tf_ss = _udatasel;
+	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = ps_strings;
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
@@ -1066,7 +1080,7 @@ static Elf32_Brandinfo linux_brand = {
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &linux32_brandnote,
-	.flags		= BI_CAN_EXEC_DYN
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 static Elf32_Brandinfo linux_glibc2brand = {
@@ -1078,7 +1092,7 @@ static Elf32_Brandinfo linux_glibc2brand = {
 	.sysvec		= &elf_linux_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &linux32_brandnote,
-	.flags		= BI_CAN_EXEC_DYN
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 Elf32_Brandinfo *linux_brandlist[] = {
@@ -1111,7 +1125,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			mtx_init(&emul_lock, "emuldata lock", NULL, MTX_DEF);
 			sx_init(&emul_shared_lock, "emuldata->shared lock");
 			LIST_INIT(&futex_list);
-			sx_init(&futex_sx, "futex protection lock");
+			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
 			    linux_proc_exit, NULL, 1000);
 			linux_schedtail_tag = EVENTHANDLER_REGISTER(schedtail,
@@ -1120,6 +1134,8 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			    linux_proc_exec, NULL, 1000);
 			linux_szplatform = roundup(strlen(linux_platform) + 1,
 			    sizeof(char *));
+			linux_osd_jail_register();
+			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else
@@ -1143,10 +1159,11 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_device_unregister_handler(*ldhp);
 			mtx_destroy(&emul_lock);
 			sx_destroy(&emul_shared_lock);
-			sx_destroy(&futex_sx);
+			mtx_destroy(&futex_mtx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
 			EVENTHANDLER_DEREGISTER(schedtail, linux_schedtail_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
+			linux_osd_jail_deregister();
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else

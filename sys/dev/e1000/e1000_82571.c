@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -46,6 +46,7 @@
  * 82573E Gigabit Ethernet Controller (Copper)
  * 82573L Gigabit Ethernet Controller
  * 82574L Gigabit Network Connection
+ * 82574L Gigabit Network Connection
  */
 
 #include "e1000_api.h"
@@ -67,11 +68,9 @@ static s32  e1000_init_hw_82571(struct e1000_hw *hw);
 static void e1000_clear_vfta_82571(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_82574(struct e1000_hw *hw);
 static s32 e1000_led_on_82574(struct e1000_hw *hw);
-static void e1000_update_mc_addr_list_82571(struct e1000_hw *hw,
-                                           u8 *mc_addr_list, u32 mc_addr_count,
-                                           u32 rar_used_count, u32 rar_count);
 static s32  e1000_setup_link_82571(struct e1000_hw *hw);
 static s32  e1000_setup_copper_link_82571(struct e1000_hw *hw);
+static s32  e1000_check_for_serdes_link_82571(struct e1000_hw *hw);
 static s32  e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw);
 static s32  e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data);
 static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw);
@@ -330,7 +329,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 		mac->ops.check_for_link = e1000_check_for_fiber_link_generic;
 		break;
 	case e1000_media_type_internal_serdes:
-		mac->ops.check_for_link = e1000_check_for_serdes_link_generic;
+		mac->ops.check_for_link = e1000_check_for_serdes_link_82571;
 		break;
 	default:
 		ret_val = -E1000_ERR_CONFIG;
@@ -347,7 +346,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 		break;
 	}
 	/* multicast address update */
-	mac->ops.update_mc_addr_list = e1000_update_mc_addr_list_82571;
+	mac->ops.update_mc_addr_list = e1000_update_mc_addr_list_generic;
 	/* writing VFTA */
 	mac->ops.write_vfta = e1000_write_vfta_generic;
 	/* clearing VFTA */
@@ -356,6 +355,8 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 	mac->ops.mta_set = e1000_mta_set_generic;
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_82571;
+	/* ID LED init */
+	mac->ops.id_led_init = e1000_id_led_init_generic;
 	/* blink LED */
 	mac->ops.blink_led = e1000_blink_led_generic;
 	/* setup LED */
@@ -528,8 +529,14 @@ static s32 e1000_acquire_nvm_82571(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	if (hw->mac.type != e1000_82573 && hw->mac.type != e1000_82574)
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82573:
+		break;
+	default:
 		ret_val = e1000_acquire_nvm_generic(hw);
+		break;
+	}
 
 	if (ret_val)
 		e1000_put_hw_semaphore_82571(hw);
@@ -876,7 +883,9 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 * Must acquire the MDIO ownership before MAC reset.
 	 * Ownership defaults to firmware after a reset.
 	 */
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82573:
 		extcnf_ctrl = E1000_READ_REG(hw, E1000_EXTCNF_CTRL);
 		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
@@ -892,6 +901,9 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 			msec_delay(2);
 			i++;
 		} while (i < MDIO_OWNERSHIP_TIMEOUT);
+		break;
+	default:
+		break;
 	}
 
 	ctrl = E1000_READ_REG(hw, E1000_CTRL);
@@ -917,15 +929,30 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 * Need to wait for Phy configuration completion before accessing
 	 * NVM and Phy.
 	 */
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574)
+
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82573:
 		msec_delay(25);
+		break;
+	default:
+		break;
+	}
 
 	/* Clear any pending interrupt events. */
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
 	icr = E1000_READ_REG(hw, E1000_ICR);
 
-	if (!(e1000_check_alt_mac_addr_generic(hw)))
-		e1000_set_laa_state_82571(hw, TRUE);
+	/* Install any alternate MAC address into RAR0 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		goto out;
+
+	e1000_set_laa_state_82571(hw, TRUE);
+
+	/* Reinitialize the 82571 serdes link state machine */
+	if (hw->phy.media_type == e1000_media_type_internal_serdes)
+		hw->mac.serdes_link_state = e1000_serdes_link_down;
 
 out:
 	return ret_val;
@@ -949,7 +976,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	e1000_initialize_hw_bits_82571(hw);
 
 	/* Initialize identification LED */
-	ret_val = e1000_id_led_init_generic(hw);
+	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val) {
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
@@ -985,17 +1012,21 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
-	if (mac->type != e1000_82573 && mac->type != e1000_82574) {
-		reg_data = E1000_READ_REG(hw, E1000_TXDCTL(1));
-		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
-		           E1000_TXDCTL_FULL_TX_DESC_WB |
-		           E1000_TXDCTL_COUNT_DESC;
-		E1000_WRITE_REG(hw, E1000_TXDCTL(1), reg_data);
-	} else {
+	switch (mac->type) {
+	case e1000_82574:
+	case e1000_82573:
 		e1000_enable_tx_pkt_filtering_generic(hw);
 		reg_data = E1000_READ_REG(hw, E1000_GCR);
 		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
 		E1000_WRITE_REG(hw, E1000_GCR, reg_data);
+		break;
+	default:
+		reg_data = E1000_READ_REG(hw, E1000_TXDCTL(1));
+		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
+					E1000_TXDCTL_FULL_TX_DESC_WB |
+					E1000_TXDCTL_COUNT_DESC;
+		E1000_WRITE_REG(hw, E1000_TXDCTL(1), reg_data);
+		break;
 	}
 
 	/*
@@ -1062,25 +1093,70 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	}
 
 	/* Device Control */
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
+
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82573:
 		reg = E1000_READ_REG(hw, E1000_CTRL);
 		reg &= ~(1 << 29);
 		E1000_WRITE_REG(hw, E1000_CTRL, reg);
+		break;
+	default:
+		break;
 	}
 
 	/* Extended Device Control */
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82573:
 		reg = E1000_READ_REG(hw, E1000_CTRL_EXT);
 		reg &= ~(1 << 23);
 		reg |= (1 << 22);
 		E1000_WRITE_REG(hw, E1000_CTRL_EXT, reg);
+		break;
+	default:
+		break;
 	}
 
-	/* PCI-Ex Control Register */
-	if (hw->mac.type == e1000_82574) {
+
+	if (hw->mac.type == e1000_82571) {
+		reg = E1000_READ_REG(hw, E1000_PBA_ECC);
+		reg |= E1000_PBA_ECC_CORR_EN;
+		E1000_WRITE_REG(hw, E1000_PBA_ECC, reg);
+	}
+
+	/*
+	 * Workaround for hardware errata.
+	 * Ensure that DMA Dynamic Clock gating is disabled on 82571 and 82572
+	 */
+
+	if ((hw->mac.type == e1000_82571) ||
+	   (hw->mac.type == e1000_82572)) {
+		reg = E1000_READ_REG(hw, E1000_CTRL_EXT);
+		reg &= ~E1000_CTRL_EXT_DMA_DYN_CLK_EN;
+		E1000_WRITE_REG(hw, E1000_CTRL_EXT, reg);
+	}
+
+	/* PCI-Ex Control Registers */
+
+	switch (hw->mac.type) {
+	case e1000_82574:
 		reg = E1000_READ_REG(hw, E1000_GCR);
 		reg |= (1 << 22);
 		E1000_WRITE_REG(hw, E1000_GCR, reg);
+		/*
+		 * Workaround for hardware errata.
+		 * apply workaround for hardware errata documented in errata
+		 * docs Fixes issue where some error prone or unreliable PCIe
+		 * completions are occurring, particularly with ASPM enabled.
+		 * Without fix, issue can cause tx timeouts.
+		 */
+		reg = E1000_READ_REG(hw, E1000_GCR2);
+		reg |= 1;
+		E1000_WRITE_REG(hw, E1000_GCR2, reg);
+		break;
+	default:
+		break;
 	}
 
 	return;
@@ -1102,31 +1178,38 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_clear_vfta_82571");
 
-	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82573:
 		if (hw->mng_cookie.vlan_id != 0) {
 			/*
-			 * The VFTA is a 4096b bit-field, each identifying
-			 * a single VLAN ID.  The following operations
-			 * determine which 32b entry (i.e. offset) into the
-			 * array we want to set the VLAN ID (i.e. bit) of
-			 * the manageability unit.
-			 */
+			*The VFTA is a 4096b bit-field, each identifying
+			*a single VLAN ID.  The following operations
+			*determine which 32b entry (i.e. offset) into the
+			*array we want to set the VLAN ID (i.e. bit) of
+			*the manageability unit.
+			*/
 			vfta_offset = (hw->mng_cookie.vlan_id >>
-			               E1000_VFTA_ENTRY_SHIFT) &
-			              E1000_VFTA_ENTRY_MASK;
+				E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK;
 			vfta_bit_in_reg = 1 << (hw->mng_cookie.vlan_id &
-			                       E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
+				E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
 		}
-	}
-	for (offset = 0; offset < E1000_VLAN_FILTER_TBL_SIZE; offset++) {
-		/*
-		 * If the offset we want to clear is the same offset of the
-		 * manageability VLAN ID, then clear all bits except that of
-		 * the manageability unit.
-		 */
-		vfta_value = (offset == vfta_offset) ? vfta_bit_in_reg : 0;
-		E1000_WRITE_REG_ARRAY(hw, E1000_VFTA, offset, vfta_value);
-		E1000_WRITE_FLUSH(hw);
+
+		for (offset = 0; offset < E1000_VLAN_FILTER_TBL_SIZE; offset++) {
+			/*
+			*If the offset we want to clear is the same offset of
+			*the manageability VLAN ID, then clear all bits except
+			*that of the manageability unit
+			*/
+			vfta_value = (offset == vfta_offset) ?
+							vfta_bit_in_reg : 0;
+			E1000_WRITE_REG_ARRAY(hw, E1000_VFTA, offset,
+				vfta_value);
+			E1000_WRITE_FLUSH(hw);
+		}
+		break;
+	default:
+		break;
 	}
 }
 
@@ -1176,31 +1259,6 @@ static s32 e1000_led_on_82574(struct e1000_hw *hw)
 	return E1000_SUCCESS;
 }
 
-/**
- *  e1000_update_mc_addr_list_82571 - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
- *
- *  Updates the Receive Address Registers and Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
- **/
-static void e1000_update_mc_addr_list_82571(struct e1000_hw *hw,
-                                           u8 *mc_addr_list, u32 mc_addr_count,
-                                           u32 rar_used_count, u32 rar_count)
-{
-	DEBUGFUNC("e1000_update_mc_addr_list_82571");
-
-	if (e1000_get_laa_state_82571(hw))
-		rar_count--;
-
-	e1000_update_mc_addr_list_generic(hw, mc_addr_list, mc_addr_count,
-	                                  rar_used_count, rar_count);
-}
 
 /**
  *  e1000_setup_link_82571 - Setup flow control and link settings
@@ -1221,10 +1279,15 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
-	if ((hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) &&
-	    hw->fc.requested_mode == e1000_fc_default)
-		hw->fc.requested_mode = e1000_fc_full;
-
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82573:
+		if (hw->fc.requested_mode == e1000_fc_default)
+			hw->fc.requested_mode = e1000_fc_full;
+		break;
+	default:
+		break;
+	}
 	return e1000_setup_link_generic(hw);
 }
 
@@ -1306,6 +1369,133 @@ static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_check_for_serdes_link_82571 - Check for link (Serdes)
+ *  @hw: pointer to the HW structure
+ *
+ *  Checks for link up on the hardware.  If link is not up and we have
+ *  a signal, then we need to force link up.
+ **/
+s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
+{
+	struct e1000_mac_info *mac = &hw->mac;
+	u32 rxcw;
+	u32 ctrl;
+	u32 status;
+	s32 ret_val = E1000_SUCCESS;
+
+	DEBUGFUNC("e1000_check_for_serdes_link_82571");
+
+	ctrl = E1000_READ_REG(hw, E1000_CTRL);
+	status = E1000_READ_REG(hw, E1000_STATUS);
+	rxcw = E1000_READ_REG(hw, E1000_RXCW);
+
+	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
+
+		/* Receiver is synchronized with no invalid bits.  */
+		switch (mac->serdes_link_state) {
+		case e1000_serdes_link_autoneg_complete:
+			if (!(status & E1000_STATUS_LU)) {
+				/*
+				 * We have lost link, retry autoneg before
+				 * reporting link failure
+				 */
+				mac->serdes_link_state =
+				    e1000_serdes_link_autoneg_progress;
+				DEBUGOUT("AN_UP     -> AN_PROG\n");
+			}
+		break;
+
+		case e1000_serdes_link_forced_up:
+			/*
+			 * If we are receiving /C/ ordered sets, re-enable
+			 * auto-negotiation in the TXCW register and disable
+			 * forced link in the Device Control register in an
+			 * attempt to auto-negotiate with our link partner.
+			 */
+			if (rxcw & E1000_RXCW_C) {
+				/* Enable autoneg, and unforce link up */
+				E1000_WRITE_REG(hw, E1000_TXCW, mac->txcw);
+				E1000_WRITE_REG(hw, E1000_CTRL,
+				    (ctrl & ~E1000_CTRL_SLU));
+				mac->serdes_link_state =
+				    e1000_serdes_link_autoneg_progress;
+				DEBUGOUT("FORCED_UP -> AN_PROG\n");
+			}
+			break;
+
+		case e1000_serdes_link_autoneg_progress:
+			/*
+			 * If the LU bit is set in the STATUS register,
+			 * autoneg has completed sucessfully. If not,
+			 * try foring the link because the far end may be
+			 * available but not capable of autonegotiation.
+			 */
+			if (status & E1000_STATUS_LU)  {
+				mac->serdes_link_state =
+				    e1000_serdes_link_autoneg_complete;
+				DEBUGOUT("AN_PROG   -> AN_UP\n");
+			} else {
+				/*
+				 * Disable autoneg, force link up and
+				 * full duplex, and change state to forced
+				 */
+				E1000_WRITE_REG(hw, E1000_TXCW,
+				    (mac->txcw & ~E1000_TXCW_ANE));
+				ctrl |= (E1000_CTRL_SLU | E1000_CTRL_FD);
+				E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
+
+				/* Configure Flow Control after link up. */
+				ret_val =
+				    e1000_config_fc_after_link_up_generic(hw);
+				if (ret_val) {
+					DEBUGOUT("Error config flow control\n");
+					break;
+				}
+				mac->serdes_link_state =
+				    e1000_serdes_link_forced_up;
+				DEBUGOUT("AN_PROG   -> FORCED_UP\n");
+			}
+			mac->serdes_has_link = TRUE;
+			break;
+
+		case e1000_serdes_link_down:
+		default:
+			/* The link was down but the receiver has now gained
+			 * valid sync, so lets see if we can bring the link
+			 * up. */
+			E1000_WRITE_REG(hw, E1000_TXCW, mac->txcw);
+			E1000_WRITE_REG(hw, E1000_CTRL,
+			    (ctrl & ~E1000_CTRL_SLU));
+			mac->serdes_link_state =
+			    e1000_serdes_link_autoneg_progress;
+			DEBUGOUT("DOWN      -> AN_PROG\n");
+			break;
+		}
+	} else {
+		if (!(rxcw & E1000_RXCW_SYNCH)) {
+			mac->serdes_has_link = FALSE;
+			mac->serdes_link_state = e1000_serdes_link_down;
+			DEBUGOUT("ANYSTATE  -> DOWN\n");
+		} else {
+			/*
+			 * We have sync, and can tolerate one
+			 * invalid (IV) codeword before declaring
+			 * link down, so reread to look again
+			 */
+			usec_delay(10);
+			rxcw = E1000_READ_REG(hw, E1000_RXCW);
+			if (rxcw & E1000_RXCW_IV) {
+				mac->serdes_link_state = e1000_serdes_link_down;
+				mac->serdes_has_link = FALSE;
+				DEBUGOUT("ANYSTATE  -> DOWN\n");
+			}
+		}
+	}
+
+	return ret_val;
+}
+
+/**
  *  e1000_valid_led_default_82571 - Verify a valid default LED config
  *  @hw: pointer to the HW structure
  *  @data: pointer to the NVM (EEPROM)
@@ -1325,11 +1515,19 @@ static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 		goto out;
 	}
 
-	if ((hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) &&
-	    *data == ID_LED_RESERVED_F746)
-		*data = ID_LED_DEFAULT_82573;
-	else if (*data == ID_LED_RESERVED_0000 || *data == ID_LED_RESERVED_FFFF)
-		*data = ID_LED_DEFAULT;
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82573:
+		if(*data == ID_LED_RESERVED_F746)
+			*data = ID_LED_DEFAULT_82573;
+		break;
+	default:
+		if (*data == ID_LED_RESERVED_0000 ||
+			*data == ID_LED_RESERVED_FFFF)
+			*data = ID_LED_DEFAULT;
+		break;
+	}
+
 out:
 	return ret_val;
 }
@@ -1435,6 +1633,7 @@ out:
 	return ret_val;
 }
 
+
 /**
  *  e1000_read_mac_addr_82571 - Read device MAC address
  *  @hw: pointer to the HW structure
@@ -1444,9 +1643,19 @@ static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_read_mac_addr_82571");
-	if (e1000_check_alt_mac_addr_generic(hw))
-		ret_val = e1000_read_mac_addr_generic(hw);
 
+	/*
+	 * If there's an alternate MAC address place it in RAR0
+	 * so that it will override the Si installed default perm
+	 * address.
+	 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = e1000_read_mac_addr_generic(hw);
+
+out:
 	return ret_val;
 }
 

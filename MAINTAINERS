@@ -76,7 +76,7 @@ groff		ru	Recommends pre-commit review.
 share/mk	ru	This is a vital component of the build system, so I
 			offer a pre-commit review for anything non-trivial.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
-drm		anholt	Just keep me informed of changes, try not to break it.
+drm		rnoland	Just keep me informed of changes, try not to break it.
 libufs		jmallett	Willing to handle problems, help with work.
 fdc(4)		joerg	Just keep me informed of changes, try not to break it.
 sppp(4)		joerg	Just keep me informed of changes, try not to break it.

@@ -76,17 +76,17 @@ static unsigned int wc, wp; /* write_cons, write_prod */
 #define	XCUNIT(x)	(dev2unit(x))
 #define ISTTYOPEN(tp)	((tp) && ((tp)->t_state & TS_ISOPEN))
 #define CN_LOCK_INIT(x, _name) \
-        mtx_init(&x, _name, NULL, MTX_DEF|MTX_RECURSE)
+        mtx_init(&x, _name, NULL, MTX_SPIN|MTX_RECURSE)
 
 #define CN_LOCK(l)        								\
 		do {											\
 				if (panicstr == NULL)					\
-                        mtx_lock(&(l));			\
+                        mtx_lock_spin(&(l));			\
 		} while (0)
 #define CN_UNLOCK(l)        							\
 		do {											\
 				if (panicstr == NULL)					\
-                        mtx_unlock(&(l));			\
+                        mtx_unlock_spin(&(l));			\
 		} while (0)
 #define CN_LOCK_ASSERT(x)    mtx_assert(&x, MA_OWNED)
 #define CN_LOCK_DESTROY(x)   mtx_destroy(&x)
@@ -152,7 +152,7 @@ xccncheckc(struct consdev *dev)
 	
 	CN_LOCK(cn_mtx);
 	if ((rp - rc)) {
-		if (kdb_active) printf("%s:%d\n", __func__, __LINE__);
+		/* if (kdb_active) printf("%s:%d\n", __func__, __LINE__); */
 		/* we need to return only one char */
 		ret = (int)rbuf[RBUF_MASK(rc)];
 		rc++;
@@ -225,7 +225,6 @@ static int
 xc_attach(device_t dev) 
 {
 	int error;
-	struct xc_softc *sc = (struct xc_softc *)device_get_softc(dev);
 
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
 		xc_consdev.cn_putc = xccnputc_dom0;
@@ -247,7 +246,7 @@ xc_attach(device_t dev)
 				 0,
 				 "console",
 				 NULL,
-				 xencons_priv_interrupt,
+				 xencons_priv_interrupt, NULL,
 				 INTR_TYPE_TTY, NULL);
 		
 				KASSERT(error >= 0, ("can't register console interrupt"));
@@ -288,8 +287,10 @@ xencons_rx(char *buf, unsigned len)
 		ttydisc_rint_done(tp);
 		tty_unlock(tp);
 	} else {
+		CN_LOCK(cn_mtx);
 		for (i = 0; i < len; i++)
 			rbuf[RBUF_MASK(rp++)] = buf[i];
+		CN_UNLOCK(cn_mtx);
 	}
 }
 

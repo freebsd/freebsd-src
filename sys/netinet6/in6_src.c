@@ -920,8 +920,6 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 void
 addrsel_policy_init(void)
 {
-	ADDRSEL_LOCK_INIT();
-	ADDRSEL_SXLOCK_INIT();
 	INIT_VNET_INET6(curvnet);
 
 	V_ip6_prefer_tempaddr = 0;
@@ -931,6 +929,12 @@ addrsel_policy_init(void)
 	/* initialize the "last resort" policy */
 	bzero(&V_defaultaddrpolicy, sizeof(V_defaultaddrpolicy));
 	V_defaultaddrpolicy.label = ADDR_LABEL_NOTAPP;
+
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
+	ADDRSEL_LOCK_INIT();
+	ADDRSEL_SXLOCK_INIT();
 }
 
 static struct in6_addrpolicy *

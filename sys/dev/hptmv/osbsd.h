@@ -42,7 +42,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#if (__FreeBSD_version < 600030)
+#if (__FreeBSD_version < 600000)
 #include <machine/bus_memio.h>
 #endif
 #include <machine/bus.h>
@@ -102,11 +102,6 @@ typedef struct _INQUIRYDATA {
 	UCHAR Reserved3[40];
 } INQUIRYDATA, *PINQUIRYDATA;
 
-typedef struct _READ_CAPACITY_DATA {
-	ULONG LogicalBlockAddress;
-	ULONG BytesPerBlock;
-} READ_CAPACITY_DATA, *PREAD_CAPACITY_DATA;
-
 #define MV_IAL_HT_SACOALT_DEFAULT	1
 #define MV_IAL_HT_SAITMTH_DEFAULT	1
 
@@ -145,7 +140,13 @@ typedef struct _MV_CHANNEL
 	unsigned int		maxUltraDmaModeSupported;
 	unsigned int		maxDmaModeSupported;
 	unsigned int		maxPioModeSupported;
-	MV_BOOLEAN			online;
+	MV_BOOLEAN		online;
+	MV_BOOLEAN		writeCacheSupported;
+	MV_BOOLEAN		writeCacheEnabled;
+	MV_BOOLEAN		readAheadSupported;
+	MV_BOOLEAN		readAheadEnabled;
+	MV_U8			queueDepth;
+	
 } MV_CHANNEL;
 
 typedef struct _BUS_DMAMAP
@@ -302,11 +303,26 @@ typedef struct _HPT_SET_DEVICE_INFO
 	ALTERABLE_DEVICE_INFO Info;
 } HPT_SET_DEVICE_INFO, *PHPT_SET_DEVICE_INFO;
 
+typedef struct _HPT_SET_DEVICE_INFO_V2
+{
+	DEVICEID idDisk;
+	ALTERABLE_DEVICE_INFO_V2 Info;
+} HPT_SET_DEVICE_INFO_V2, *PHPT_SET_DEVICE_INFO_V2;
+
 typedef struct _HPT_ADD_DISK_TO_ARRAY
 {
 	DEVICEID idArray;
 	DEVICEID idDisk;
 } HPT_ADD_DISK_TO_ARRAY, *PHPT_ADD_DISK_TO_ARRAY;
+
+typedef struct _HPT_DEVICE_IO
+{
+	DEVICEID	id;
+	int			cmd;
+	ULONG		lba;
+	DWORD		nSector;
+	UCHAR		buffer[0];
+} HPT_DEVICE_IO, *PHPT_DEVICE_IO;
 
 int check_VDevice_valid(PVDevice);
 int hpt_default_ioctl(_VBUS_ARG DWORD, PVOID, DWORD, PVOID, DWORD, PDWORD);

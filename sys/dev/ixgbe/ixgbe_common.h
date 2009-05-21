@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -36,6 +36,11 @@
 #define _IXGBE_COMMON_H_
 
 #include "ixgbe_type.h"
+#define IXGBE_WRITE_REG64(hw, reg, value) \
+	do { \
+		IXGBE_WRITE_REG(hw, reg, (u32) value); \
+		IXGBE_WRITE_REG(hw, reg + 4, (u32) (value >> 32)); \
+	} while (0)
 
 s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw);
@@ -68,11 +73,13 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
                                       ixgbe_mc_addr_itr func);
 s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
                                       u32 addr_count, ixgbe_mc_addr_itr func);
+void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq);
 s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
+s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);
 
-s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num);
-s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packtetbuf_num);
+s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num);
+s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packtetbuf_num);
 s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
 s32 ixgbe_validate_mac_addr(u8 *mac_addr);
@@ -82,4 +89,7 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
 
 s32 ixgbe_read_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 *val);
 s32 ixgbe_write_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 val);
+s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index);
+s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
+
 #endif /* IXGBE_COMMON */

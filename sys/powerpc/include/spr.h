@@ -43,6 +43,44 @@
 	( { register_t val;						\
 	  __asm __volatile("mfspr %0,%1" : "=r"(val) : "K"(reg));	\
 	  val; } )
+
+/* The following routines allow manipulation of the full 64-bit width 
+ * of SPRs on 64 bit CPUs in bridge mode */
+
+#define mtspr64(reg,valhi,vallo,scratch)				\
+	__asm __volatile("						\
+		mfmsr %0; 						\
+		insrdi %0,1,1,0; 					\
+		mtmsrd %0; 						\
+		isync; 							\
+									\
+		sld %1,%1,%4;						\
+		or %1,%1,%2;						\
+		mtspr %3,%1;						\
+		srd %1,%1,%4;						\
+									\
+		clrldi %0,%0,1; 					\
+		mtmsrd %0; 						\
+		isync;"							\
+	: "=r"(scratch), "=r"(valhi) : "r"(vallo), "K"(reg), "r"(32))
+
+#define mfspr64upper(reg,scratch)					\
+	( { register_t val;						\
+	    __asm __volatile("						\
+		mfmsr %0; 						\
+		insrdi %0,1,1,0; 					\
+		mtmsrd %0; 						\
+		isync; 							\
+									\
+		mfspr %1,%2;						\
+		srd %1,%1,%3;						\
+									\
+		clrldi %0,%0,1; 					\
+		mtmsrd %0; 						\
+		isync;" 						\
+	    : "=r"(scratch), "=r"(val) : "K"(reg), "r"(32)); 			\
+	    val; } )
+
 #endif /* _LOCORE */
 
 /*
@@ -91,8 +129,6 @@
 #define	SPR_SPRG7		0x117	/* 4.. SPR General 7 */
 #define	SPR_ASR			0x118	/* ... Address Space Register (PPC64) */
 #define	SPR_EAR			0x11a	/* .68 External Access Register */
-#define	SPR_TBL			0x11c	/* 468 Time Base Lower */
-#define	SPR_TBU			0x11d	/* 468 Time Base Upper */
 #define	SPR_PVR			0x11f	/* 468 Processor Version Register */
 #define	  MPC601		  0x0001
 #define	  MPC603		  0x0003
@@ -112,7 +148,11 @@
 #define	  IBM401E2		  0x0025
 #define	  IBM401F2		  0x0026
 #define	  IBM401G2		  0x0027
+#define	  IBM970		  0x0039
+#define	  IBM970FX		  0x003c
 #define	  IBMPOWER3		  0x0041
+#define	  IBM970MP		  0x0044
+#define	  IBM970GX		  0x0045
 #define	  MPC860		  0x0050
 #define	  MPC8240		  0x0081
 #define	  IBM405GP		  0x4011
@@ -349,6 +389,8 @@
 #define	SPR_SRR3		0x3df	/* 4.. Save/Restore Register 3 */
 #define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
+#define	SPR_HID4		0x3f4	/* ..8 Hardware Implementation Register 4 */
+#define	SPR_HID5		0x3f6	/* ..8 Hardware Implementation Register 5 */
 
 #if defined(AIM)
 #define	SPR_DBSR		0x3f0	/* 4.. Debug Status Register */
@@ -375,6 +417,7 @@
 #define	SPR_DAC2		0x3f7	/* 4.. Data Address Compare 2 */
 #define	SPR_PIR			0x3ff	/* .6. Processor Identification Register */
 #elif defined(E500)
+#define	SPR_PIR			0x11e	/* ..8 Processor Identification Register */
 #define	SPR_DBSR		0x130	/* ..8 Debug Status Register */
 #define	  DBSR_IDE		  0x80000000 /* Imprecise debug event. */
 #define	  DBSR_UDE		  0x40000000 /* Unconditional debug event. */
@@ -623,6 +666,9 @@
 #define	  L1CSR1_ICLFR		0x00000100	/* Instruction Cache Lock Bits Flash Reset */
 #define	  L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
 #define	  L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
+
+#define	SPR_BUCSR		0x3F5	/* ..8 Branch Unit Control and Status Register */
+#define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
 
 #endif /* #elif defined(E500) */
 

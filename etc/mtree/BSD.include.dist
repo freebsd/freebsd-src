@@ -136,6 +136,8 @@
         ..
         msdosfs
         ..
+        nfs
+        ..
         ntfs
         ..
         nullfs
@@ -256,6 +258,8 @@
     objc
     ..
     openssl
+    ..
+    pcap
     ..
     protocols
     ..

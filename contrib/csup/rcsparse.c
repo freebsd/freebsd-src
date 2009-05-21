@@ -309,7 +309,7 @@ parse_deltatexts(struct rcsfile *rf, yyscan_t *sp, int token)
 	error = 0;
 	/* In case we don't have deltatexts. */
 	if (token != NUM)
-		return (token);
+		return (-1);
 	do {
 		/* num */
 		assert(token == NUM);

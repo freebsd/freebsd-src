@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 /* This capability is only available on POSIX systems. */
 #if (!defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
-    !(defined(HAVE_FORK) || defined(HAVE_VFORK))) && !defined(_WIN32)
+    !(defined(HAVE_FORK) || defined(HAVE_VFORK))) && (!defined(_WIN32) || defined(__CYGWIN__))
 #include "archive.h"
 
 /*

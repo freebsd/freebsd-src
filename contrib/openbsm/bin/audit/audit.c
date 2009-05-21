@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#14 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#15 $
  */
 /*
  * Program to trigger the audit daemon with a message that is either:
@@ -54,7 +54,7 @@
 #include <unistd.h>
 
 
-static int send_trigger(unsigned int);
+static int send_trigger(int);
 
 #ifdef USE_MACH_IPC
 #include <mach/mach.h>
@@ -79,7 +79,7 @@ static int send_trigger(unsigned int);
 #endif
 
 static int
-send_trigger(unsigned int trigger)
+send_trigger(int trigger)
 {
 	mach_port_t     serverPort;
 	kern_return_t	error;
@@ -107,11 +107,11 @@ send_trigger(unsigned int trigger)
 #else /* ! USE_MACH_IPC */
 
 static int
-send_trigger(unsigned int trigger)
+send_trigger(int trigger)
 {
 	int error;
 
-	error = auditon(A_SENDTRIGGER, &trigger, sizeof(trigger));
+	error = audit_send_trigger(&trigger);
 	if (error != 0) {
 		if (error == EPERM)
 			perror("audit requires root privileges");

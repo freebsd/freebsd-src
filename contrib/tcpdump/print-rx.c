@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rx.c,v 1.37.2.2 2007/06/15 19:43:15 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rx.c,v 1.39.2.3 2008-07-01 07:45:09 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -118,6 +118,12 @@ static struct tok fs_req[] = {
 	{ 162,		"dfs-flushcps" },
 	{ 163,		"dfs-symlink" },
 	{ 220,		"residency" },
+	{ 65536,        "inline-bulk-status" },
+	{ 65537,        "fetch-data-64" },
+	{ 65538,        "store-data-64" },
+	{ 65539,        "give-up-all-cbs" },
+	{ 65540,        "get-caps" },
+	{ 65541,        "cb-rx-conn-addr" },
 	{ 0,		NULL },
 };
 
@@ -137,6 +143,9 @@ static struct tok cb_req[] = {
 	{ 216,		"getcellservdb" },
 	{ 217,		"getlocalcell" },
 	{ 218,		"getcacheconf" },
+	{ 65536,        "getce64" },
+	{ 65537,        "getcellbynum" },
+	{ 65538,        "tellmeaboutyourself" },
 	{ 0,		NULL },
 };
 
@@ -163,6 +172,7 @@ static struct tok pt_req[] = {
 	{ 519,		"get-host-cps" },
 	{ 520,		"update-entry" },
 	{ 521,		"list-entries" },
+	{ 530,		"list-super-groups" },
 	{ 0,		NULL },
 };
 
@@ -256,6 +266,9 @@ static struct tok vol_req[] = {
 	{ 126,		"set-info" },
 	{ 127,		"x-list-partitions" },
 	{ 128,		"forward-multiple" },
+	{ 65536,	"convert-ro" },
+	{ 65537,	"get-size" },
+	{ 65538,	"dump-v2" },
 	{ 0,		NULL },
 };
 
@@ -307,6 +320,8 @@ static struct tok ubik_req[] = {
 	{ 10003,	"vote-getsyncsite" },
 	{ 10004,	"vote-debug" },
 	{ 10005,	"vote-sdebug" },
+	{ 10006,	"vote-xdebug" },
+	{ 10007,	"vote-xsdebug" },
 	{ 20000,	"disk-begin" },
 	{ 20001,	"disk-commit" },
 	{ 20002,	"disk-lock" },
@@ -325,7 +340,7 @@ static struct tok ubik_req[] = {
 };
 
 #define VOTE_LOW	10000
-#define VOTE_HIGH	10005
+#define VOTE_HIGH	10007
 #define DISK_LOW	20000
 #define DISK_HIGH	20013
 
@@ -688,6 +703,13 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			printf(" %lu", i); \
 		}
 
+#define UINT64OUT() { u_int64_t i; \
+			TCHECK2(bp[0], sizeof(u_int64_t)); \
+			i = EXTRACT_64BITS(bp); \
+			bp += sizeof(u_int64_t); \
+			printf(" %" PRIu64, i); \
+		}
+
 #define DATEOUT() { time_t t; struct tm *tm; char str[256]; \
 			TCHECK2(bp[0], sizeof(int32_t)); \
 			t = (time_t) EXTRACT_32BITS(bp); \
@@ -761,6 +783,17 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			printf(" \""); \
 			fn_print(s, NULL); \
 			printf("\""); \
+		}
+
+#define DESTSERVEROUT() { unsigned long n1, n2, n3; \
+			TCHECK2(bp[0], sizeof(int32_t) * 3); \
+			n1 = EXTRACT_32BITS(bp); \
+			bp += sizeof(int32_t); \
+			n2 = EXTRACT_32BITS(bp); \
+			bp += sizeof(int32_t); \
+			n3 = EXTRACT_32BITS(bp); \
+			bp += sizeof(int32_t); \
+			printf(" server %d:%d:%d", (int) n1, (int) n2, (int) n3); \
 		}
 
 /*
@@ -890,6 +923,7 @@ fs_print(register const u_char *bp, int length)
 			STROUT(AFSNAMEMAX);
 			break;
 		case 155:	/* Bulk stat */
+		case 65536:     /* Inline bulk stat */
 		{
 			unsigned long j;
 			TCHECK2(bp[0], 4);
@@ -904,6 +938,26 @@ fs_print(register const u_char *bp, int length)
 			if (j == 0)
 				printf(" <none!>");
 		}
+		case 65537:	/* Fetch data 64 */
+			FIDOUT();
+			printf(" offset");
+			UINT64OUT();
+			printf(" length");
+			UINT64OUT();
+			break;
+		case 65538:	/* Store data 64 */
+			FIDOUT();
+			STOREATTROUT();
+			printf(" offset");
+			UINT64OUT();
+			printf(" length");
+			UINT64OUT();
+			printf(" flen");
+			UINT64OUT();
+			break;
+		case 65541:    /* CallBack rx conn address */
+			printf(" addr");
+			UINTOUT();
 		default:
 			;
 	}
@@ -1267,6 +1321,7 @@ prot_print(register const u_char *bp, int length)
 		case 517:	/* List owned */
 		case 518:	/* Get CPS2 */
 		case 519:	/* Get host CPS */
+		case 530:	/* List super groups */
 			printf(" id");
 			INTOUT();
 			break;
@@ -1915,13 +1970,176 @@ vol_print(register const u_char *bp, int length)
 
 	printf(" vol call %s", tok2str(vol_req, "op#%d", vol_op));
 
-	/*
-	 * Normally there would be a switch statement here to decode the
-	 * arguments to the AFS call, but since I don't have access to
-	 * an AFS server (yet) and I'm not an AFS admin, I can't
-	 * test any of these calls.  Leave this blank for now.
-	 */
+	bp += sizeof(struct rx_header) + 4;
 
+	switch (vol_op) {
+		case 100:	/* Create volume */
+			printf(" partition");
+			UINTOUT();
+			printf(" name");
+			STROUT(AFSNAMEMAX);
+			printf(" type");
+			UINTOUT();
+			printf(" parent");
+			UINTOUT();
+			break;
+		case 101:	/* Delete volume */
+		case 107:	/* Get flags */
+			printf(" trans");
+			UINTOUT();
+			break;
+		case 102:	/* Restore */
+			printf(" totrans");
+			UINTOUT();
+			printf(" flags");
+			UINTOUT();
+			break;
+		case 103:	/* Forward */
+			printf(" fromtrans");
+			UINTOUT();
+			printf(" fromdate");
+			DATEOUT();
+			DESTSERVEROUT();
+			printf(" desttrans");
+			INTOUT();
+			break;
+		case 104:	/* End trans */
+			printf(" trans");
+			UINTOUT();
+			break;
+		case 105:	/* Clone */
+			printf(" trans");
+			UINTOUT();
+			printf(" purgevol");
+			UINTOUT();
+			printf(" newtype");
+			UINTOUT();
+			printf(" newname");
+			STROUT(AFSNAMEMAX);
+			break;
+		case 106:	/* Set flags */
+			printf(" trans");
+			UINTOUT();
+			printf(" flags");
+			UINTOUT();
+			break;
+		case 108:	/* Trans create */
+			printf(" vol");
+			UINTOUT();
+			printf(" partition");
+			UINTOUT();
+			printf(" flags");
+			UINTOUT();
+			break;
+		case 109:	/* Dump */
+		case 655537:	/* Get size */
+			printf(" fromtrans");
+			UINTOUT();
+			printf(" fromdate");
+			DATEOUT();
+			break;
+		case 110:	/* Get n-th volume */
+			printf(" index");
+			UINTOUT();
+			break;
+		case 111:	/* Set forwarding */
+			printf(" tid");
+			UINTOUT();
+			printf(" newsite");
+			UINTOUT();
+			break;
+		case 112:	/* Get name */
+		case 113:	/* Get status */
+			printf(" tid");
+			break;
+		case 114:	/* Signal restore */
+			printf(" name");
+			STROUT(AFSNAMEMAX);
+			printf(" type");
+			UINTOUT();
+			printf(" pid");
+			UINTOUT();
+			printf(" cloneid");
+			UINTOUT();
+			break;
+		case 116:	/* List volumes */
+			printf(" partition");
+			UINTOUT();
+			printf(" flags");
+			UINTOUT();
+			break;
+		case 117:	/* Set id types */
+			printf(" tid");
+			UINTOUT();
+			printf(" name");
+			STROUT(AFSNAMEMAX);
+			printf(" type");
+			UINTOUT();
+			printf(" pid");
+			UINTOUT();
+			printf(" clone");
+			UINTOUT();
+			printf(" backup");
+			UINTOUT();
+			break;
+		case 119:	/* Partition info */
+			printf(" name");
+			STROUT(AFSNAMEMAX);
+			break;
+		case 120:	/* Reclone */
+			printf(" tid");
+			UINTOUT();
+			break;
+		case 121:	/* List one volume */
+		case 122:	/* Nuke volume */
+		case 124:	/* Extended List volumes */
+		case 125:	/* Extended List one volume */
+		case 65536:	/* Convert RO to RW volume */
+			printf(" partid");
+			UINTOUT();
+			printf(" volid");
+			UINTOUT();
+			break;
+		case 123:	/* Set date */
+			printf(" tid");
+			UINTOUT();
+			printf(" date");
+			DATEOUT();
+			break;
+		case 126:	/* Set info */
+			printf(" tid");
+			UINTOUT();
+			break;
+		case 128:	/* Forward multiple */
+			printf(" fromtrans");
+			UINTOUT();
+			printf(" fromdate");
+			DATEOUT();
+			{
+				unsigned long i, j;
+				TCHECK2(bp[0], 4);
+				j = EXTRACT_32BITS(bp);
+				bp += sizeof(int32_t);
+				for (i = 0; i < j; i++) {
+					DESTSERVEROUT();
+					if (i != j - 1)
+						printf(",");
+				}
+				if (j == 0)
+					printf(" <none!>");
+			}
+			break;
+		case 65538:	/* Dump version 2 */
+			printf(" fromtrans");
+			UINTOUT();
+			printf(" fromdate");
+			DATEOUT();
+			printf(" flags");
+			UINTOUT();
+			break;
+		default:
+			;
+	}
 	return;
 
 trunc:
@@ -1955,10 +2173,100 @@ vol_reply_print(register const u_char *bp, int length, int32_t opcode)
 	 * If it was a data packet, interpret the response.
 	 */
 
-	if (rxh->type == RX_PACKET_TYPE_DATA)
-		/* Well, no, not really.  Leave this for later */
-		;
-	else {
+	if (rxh->type == RX_PACKET_TYPE_DATA) {
+		switch (opcode) {
+			case 100:	/* Create volume */
+				printf(" volid");
+				UINTOUT();
+				printf(" trans");
+				UINTOUT();
+				break;
+			case 104:	/* End transaction */
+				UINTOUT();
+				break;
+			case 105:	/* Clone */
+				printf(" newvol");
+				UINTOUT();
+				break;
+			case 107:	/* Get flags */
+				UINTOUT();
+				break;
+			case 108:	/* Transaction create */
+				printf(" trans");
+				UINTOUT();
+				break;
+			case 110:	/* Get n-th volume */
+				printf(" volume");
+				UINTOUT();
+				printf(" partition");
+				UINTOUT();
+				break;
+			case 112:	/* Get name */
+				STROUT(AFSNAMEMAX);
+				break;
+			case 113:	/* Get status */
+				printf(" volid");
+				UINTOUT();
+				printf(" nextuniq");
+				UINTOUT();
+				printf(" type");
+				UINTOUT();
+				printf(" parentid");
+				UINTOUT();
+				printf(" clone");
+				UINTOUT();
+				printf(" backup");
+				UINTOUT();
+				printf(" restore");
+				UINTOUT();
+				printf(" maxquota");
+				UINTOUT();
+				printf(" minquota");
+				UINTOUT();
+				printf(" owner");
+				UINTOUT();
+				printf(" create");
+				DATEOUT();
+				printf(" access");
+				DATEOUT();
+				printf(" update");
+				DATEOUT();
+				printf(" expire");
+				DATEOUT();
+				printf(" backup");
+				DATEOUT();
+				printf(" copy");
+				DATEOUT();
+				break;
+			case 115:	/* Old list partitions */
+				break;
+			case 116:	/* List volumes */
+			case 121:	/* List one volume */
+				{
+					unsigned long i, j;
+					TCHECK2(bp[0], 4);
+					j = EXTRACT_32BITS(bp);
+					bp += sizeof(int32_t);
+					for (i = 0; i < j; i++) {
+						printf(" name");
+						VECOUT(32);
+						printf(" volid");
+						UINTOUT();
+						printf(" type");
+						bp += sizeof(int32_t) * 21;
+						if (i != j - 1)
+							printf(",");
+					}
+					if (j == 0)
+						printf(" <none!>");
+				}
+				break;
+				
+
+			default:
+				;
+		}
+	} else {
 		/*
 		 * Otherwise, just print out the return code
 		 */

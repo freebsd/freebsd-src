@@ -106,6 +106,13 @@
  */
 #define UMA_MD_SMALL_ALLOC
 
+/*
+ * On 64-bit systems in bridge mode, we have no direct map, so we fake
+ * the small_alloc() calls. But we need the VM to be in a reasonable
+ * state first.
+ */
+#define UMA_MD_SMALL_ALLOC_NEEDS_VM
+
 #else
 
 /*
@@ -117,7 +124,7 @@
 #define	KERNBASE		0xc0000000	/* start of kernel virtual */
 
 #define	VM_MIN_KERNEL_ADDRESS	KERNBASE
-#define	VM_MAX_KERNEL_ADDRESS	CCSRBAR_VA
+#define	VM_MAX_KERNEL_ADDRESS	0xf8000000
 
 #endif /* AIM/E500 */
 

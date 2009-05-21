@@ -42,7 +42,7 @@
  * a callback when scanning on a ``passive channel'' when the
  * IEEE80211_FEXT_PROBECHAN flag is set.
  *
- * A scan operation involves constructing a set of channels to inspec
+ * A scan operation involves constructing a set of channels to inspect
  * (the scan set), visiting each channel and collecting information
  * (e.g. what bss are present), and then analyzing the results to make
  * decisions like which bss to join.  This process needs to be as fast
@@ -90,6 +90,7 @@ struct ieee80211_scan_ssid {
  */
 struct ieee80211_scan_state {
 	struct ieee80211vap *ss_vap;
+	struct ieee80211com *ss_ic;
 	const struct ieee80211_scanner *ss_ops;	/* policy hookup, see below */
 	void		*ss_priv;		/* scanner private state */
 	uint16_t	ss_flags;
@@ -149,7 +150,7 @@ struct ieee80211_scanparams;
 void	ieee80211_add_scan(struct ieee80211vap *,
 		const struct ieee80211_scanparams *,
 		const struct ieee80211_frame *,
-		int subtype, int rssi, int noise, int rstamp);
+		int subtype, int rssi, int noise);
 void	ieee80211_scan_timeout(struct ieee80211com *);
 
 void	ieee80211_scan_assoc_success(struct ieee80211vap *,
@@ -223,7 +224,6 @@ struct ieee80211_scan_entry {
 	uint8_t		se_ssid[2+IEEE80211_NWID_LEN];
 	uint8_t		se_rates[2+IEEE80211_RATE_MAXSIZE];
 	uint8_t		se_xrates[2+IEEE80211_RATE_MAXSIZE];
-	uint32_t	se_rstamp;	/* recv timestamp */
 	union {
 		uint8_t		data[8];
 		u_int64_t	tsf;
@@ -268,7 +268,7 @@ struct ieee80211_scanner {
 	int	(*scan_add)(struct ieee80211_scan_state *,
 			const struct ieee80211_scanparams *,
 			const struct ieee80211_frame *,
-			int subtype, int rssi, int noise, int rstamp);
+			int subtype, int rssi, int noise);
 	/* age and/or purge entries in the cache */
 	void	(*scan_age)(struct ieee80211_scan_state *);
 	/* note that association failed for an entry */

@@ -226,7 +226,7 @@ ata_sis_ch_attach(device_t dev)
 static void
 ata_sis_reset(device_t dev)
 {
-    if (ata_sata_phy_reset(dev))
+    if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
 }
 

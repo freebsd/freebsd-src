@@ -38,8 +38,8 @@
 #if USB_DEBUG
 static int umoscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
-SYSCTL_INT(_hw_usb2_umoscom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
+SYSCTL_INT(_hw_usb_umoscom, OID_AUTO, debug, CTLFLAG_RW,
     &umoscom_debug, 0, "Debug level");
 #endif
 
@@ -204,27 +204,27 @@ static const struct usb2_config umoscom_config_data[UMOSCOM_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UMOSCOM_BUFSIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &umoscom_write_callback,
+		.bufsize = UMOSCOM_BUFSIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &umoscom_write_callback,
 	},
 
 	[UMOSCOM_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UMOSCOM_BUFSIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &umoscom_read_callback,
+		.bufsize = UMOSCOM_BUFSIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &umoscom_read_callback,
 	},
 
 	[UMOSCOM_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &umoscom_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umoscom_intr_callback,
 	},
 };
 
@@ -274,7 +274,7 @@ umoscom_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UMOSCOM_CONFIG_INDEX) {

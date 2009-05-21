@@ -829,9 +829,7 @@ bridge_set_ifcap(struct bridge_softc *sc, struct bridge_iflist *bif, int set)
 	ifr.ifr_reqcap = set;
 
 	if (ifp->if_capenable != set) {
-		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
-		IFF_UNLOCKGIANT(ifp);
 		if (error)
 			if_printf(sc->sc_ifp,
 			    "error setting interface capabilities on %s\n",
@@ -895,29 +893,6 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	if (!gone) {
-		switch (ifs->if_type) {
-		case IFT_ETHER:
-		case IFT_L2VLAN:
-			/*
-			 * Take the interface out of promiscuous mode.
-			 */
-			(void) ifpromisc(ifs, 0);
-			break;
-
-		case IFT_GIF:
-			break;
-
-		default:
-#ifdef DIAGNOSTIC
-			panic("bridge_delete_member: impossible");
-#endif
-			break;
-		}
-		/* reneable any interface capabilities */
-		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
-	}
-
 	if (bif->bif_flags & IFBIF_STP)
 		bstp_disable(&bif->bif_stp);
 
@@ -950,6 +925,28 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	    ("%s: %d bridge routes referenced", __func__, bif->bif_addrcnt));
 
 	BRIDGE_UNLOCK(sc);
+	if (!gone) {
+		switch (ifs->if_type) {
+		case IFT_ETHER:
+		case IFT_L2VLAN:
+			/*
+			 * Take the interface out of promiscuous mode.
+			 */
+			(void) ifpromisc(ifs, 0);
+			break;
+
+		case IFT_GIF:
+			break;
+
+		default:
+#ifdef DIAGNOSTIC
+			panic("bridge_delete_member: impossible");
+#endif
+			break;
+		}
+		/* reneable any interface capabilities */
+		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
+	}
 	bstp_destroy(&bif->bif_stp);	/* prepare to free */
 	BRIDGE_LOCK(sc);
 	free(bif, M_DEVBUF);
@@ -1019,17 +1016,9 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	switch (ifs->if_type) {
 	case IFT_ETHER:
 	case IFT_L2VLAN:
-		/*
-		 * Place the interface into promiscuous mode.
-		 */
-		error = ifpromisc(ifs, 1);
-		if (error)
-			goto out;
-		break;
-
 	case IFT_GIF:
+		/* permitted interface types */
 		break;
-
 	default:
 		error = EINVAL;
 		goto out;
@@ -1057,6 +1046,20 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 
 	/* Set interface capabilities to the intersection set of all members */
 	bridge_mutecaps(sc);
+
+	switch (ifs->if_type) {
+	case IFT_ETHER:
+	case IFT_L2VLAN:
+		/*
+		 * Place the interface into promiscuous mode.
+		 */
+		BRIDGE_UNLOCK(sc);
+		error = ifpromisc(ifs, 1);
+		BRIDGE_LOCK(sc);
+		break;
+	}
+	if (error)
+		bridge_delete_member(sc, bif, 0);
 out:
 	if (error) {
 		if (bif != NULL)
@@ -1763,24 +1766,15 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 		}
 
 		if (err == 0)
-			IFQ_ENQUEUE(&dst_ifp->if_snd, m, err);
+			dst_ifp->if_transmit(dst_ifp, m);
 	}
 
 	if (err == 0) {
-
 		sc->sc_ifp->if_opackets++;
 		sc->sc_ifp->if_obytes += len;
-
-		dst_ifp->if_obytes += len;
-
-		if (mflags & M_MCAST) {
+		if (mflags & M_MCAST)
 			sc->sc_ifp->if_omcasts++;
-			dst_ifp->if_omcasts++;
-		}
 	}
-
-	if ((dst_ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-		(*dst_ifp->if_start)(dst_ifp);
 }
 
 /*
@@ -3245,12 +3239,12 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		if ((m = m_copyup(m, sizeof(struct ip),
 			(max_linkhdr + 3) & ~3)) == NULL) {
 			/* XXXJRT new stat, please */
-			V_ipstat.ips_toosmall++;
+			IPSTAT_INC(ips_toosmall);
 			goto bad;
 		}
 	} else if (__predict_false(m->m_len < sizeof (struct ip))) {
 		if ((m = m_pullup(m, sizeof (struct ip))) == NULL) {
-			V_ipstat.ips_toosmall++;
+			IPSTAT_INC(ips_toosmall);
 			goto bad;
 		}
 	}
@@ -3258,17 +3252,17 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	if (ip == NULL) goto bad;
 
 	if (ip->ip_v != IPVERSION) {
-		V_ipstat.ips_badvers++;
+		IPSTAT_INC(ips_badvers);
 		goto bad;
 	}
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) { /* minimum header length */
-		V_ipstat.ips_badhlen++;
+		IPSTAT_INC(ips_badhlen);
 		goto bad;
 	}
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == 0) {
-			V_ipstat.ips_badhlen++;
+			IPSTAT_INC(ips_badhlen);
 			goto bad;
 		}
 		ip = mtod(m, struct ip *);
@@ -3285,7 +3279,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		}
 	}
 	if (sum) {
-		V_ipstat.ips_badsum++;
+		IPSTAT_INC(ips_badsum);
 		goto bad;
 	}
 
@@ -3296,7 +3290,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Check for additional length bogosity
 	 */
 	if (len < hlen) {
-		V_ipstat.ips_badlen++;
+		IPSTAT_INC(ips_badlen);
 		goto bad;
 	}
 
@@ -3306,7 +3300,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Drop packet if shorter than we expect.
 	 */
 	if (m->m_pkthdr.len < len) {
-		V_ipstat.ips_tooshort++;
+		IPSTAT_INC(ips_tooshort);
 		goto bad;
 	}
 
@@ -3421,7 +3415,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 	}
 
 	if (error == 0)
-		V_ipstat.ips_fragmented++;
+		IPSTAT_INC(ips_fragmented);
 
 	return (error);
 

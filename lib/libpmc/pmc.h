@@ -29,6 +29,7 @@
 #ifndef _PMC_H_
 #define _PMC_H_
 
+#include <sys/cdefs.h>
 #include <sys/pmc.h>
 
 /*
@@ -68,6 +69,7 @@ struct pmc_pmcinfo {
  * Prototypes
  */
 
+__BEGIN_DECLS
 int	pmc_allocate(const char *_ctrspec, enum pmc_mode _mode, uint32_t _flags,
     int _cpu, pmc_id_t *_pmcid);
 int	pmc_attach(pmc_id_t _pmcid, pid_t _pid);
@@ -105,5 +107,6 @@ const char	*pmc_name_of_state(enum pmc_state _ps);
 
 int	pmc_event_names_of_class(enum pmc_class _cl, const char ***_eventnames,
     int *_nevents);
+__END_DECLS
 
 #endif

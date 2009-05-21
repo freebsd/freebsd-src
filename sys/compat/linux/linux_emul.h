@@ -31,8 +31,6 @@
 #ifndef _LINUX_EMUL_H_
 #define	_LINUX_EMUL_H_
 
-#include <compat/linux/linux_futex.h>
-
 struct linux_emuldata_shared {
 	int	refs;
 	pid_t	group_pid;
@@ -53,6 +51,7 @@ struct linux_emuldata {
 	struct linux_emuldata_shared *shared;
 
 	int	pdeath_signal;		/* parent death signal */
+	int	used_requeue;		/* uses deprecated futex op */
 
 	struct	linux_robust_list_head	*robust_futexes;
 

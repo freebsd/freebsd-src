@@ -274,6 +274,8 @@ int	libusb20_be_get_dev_quirk(struct libusb20_backend *pbe, uint16_t index, stru
 int	libusb20_be_get_quirk_name(struct libusb20_backend *pbe, uint16_t index, struct libusb20_quirk *pq);
 int	libusb20_be_add_dev_quirk(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
 int	libusb20_be_remove_dev_quirk(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
+int	libusb20_be_get_template(struct libusb20_backend *pbe, int *ptemp);
+int	libusb20_be_set_template(struct libusb20_backend *pbe, int temp);
 
 /* USB backend operations */
 

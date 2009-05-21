@@ -86,8 +86,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int rue_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
-SYSCTL_INT(_hw_usb2_rue, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
+SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
     &rue_debug, 0, "Debug level");
 #endif
 
@@ -105,7 +105,6 @@ static const struct usb2_device_id rue_devs[] = {
 static device_probe_t rue_probe;
 static device_attach_t rue_attach;
 static device_detach_t rue_detach;
-static device_shutdown_t rue_shutdown;
 
 static miibus_readreg_t rue_miibus_readreg;
 static miibus_writereg_t rue_miibus_writereg;
@@ -141,29 +140,29 @@ static const struct usb2_config rue_config[RUE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = MCLBYTES,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = rue_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = MCLBYTES,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = rue_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[RUE_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (MCLBYTES + 4),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = rue_bulk_read_callback,
-		.mh.timeout = 0,	/* no timeout */
+		.bufsize = (MCLBYTES + 4),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = rue_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
 	},
 
 	[RUE_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = rue_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = rue_intr_callback,
 	},
 };
 
@@ -172,7 +171,6 @@ static device_method_t rue_methods[] = {
 	DEVMETHOD(device_probe, rue_probe),
 	DEVMETHOD(device_attach, rue_attach),
 	DEVMETHOD(device_detach, rue_detach),
-	DEVMETHOD(device_shutdown, rue_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -548,7 +546,7 @@ rue_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != RUE_CONFIG_IDX)
 		return (ENXIO);
@@ -896,18 +894,4 @@ rue_stop(struct usb2_ether *ue)
 	rue_csr_write_1(sc, RUE_CR, 0x00);
 
 	rue_reset(sc);
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-rue_shutdown(device_t dev)
-{
-	struct rue_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

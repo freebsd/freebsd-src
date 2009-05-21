@@ -1456,7 +1456,7 @@ vop_deleteextattr {
 
 		/*
 		 * ffs_lock_ea is not needed there, because the vnode
-		 * must be exlusively locked.
+		 * must be exclusively locked.
 		 */
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
@@ -1666,7 +1666,7 @@ vop_setextattr {
 
 		/*
 		 * ffs_lock_ea is not needed there, because the vnode
-		 * must be exlusively locked.
+		 * must be exclusively locked.
 		 */
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;

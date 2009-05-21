@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <sys/vimage.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
@@ -121,23 +122,16 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp)
 	int error;
 
 	fp = NULL;
-	if (fdp == NULL)
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL) {
 		error = EBADF;
-	else {
-		FILEDESC_SLOCK(fdp);
-		fp = fget_locked(fdp, fd);
-		if (fp == NULL)
-			error = EBADF;
-		else if (fp->f_type != DTYPE_SOCKET) {
-			fp = NULL;
-			error = ENOTSOCK;
-		} else {
-			fhold(fp);
-			if (fflagp != NULL)
-				*fflagp = fp->f_flag;
-			error = 0;
-		}
-		FILEDESC_SUNLOCK(fdp);
+	} else if (fp->f_type != DTYPE_SOCKET) {
+		fdrop(fp, curthread);
+		fp = NULL;
+		error = ENOTSOCK;
+	} else {
+		if (fflagp != NULL)
+			*fflagp = fp->f_flag;
+		error = 0;
 	}
 	*fpp = fp;
 	return (error);
@@ -264,7 +258,9 @@ listen(td, uap)
 		if (error)
 			goto done;
 #endif
+		CURVNET_SET(so->so_vnet);
 		error = solisten(so, uap->backlog, td);
+		CURVNET_RESTORE();
 #ifdef MAC
 done:
 #endif
@@ -429,7 +425,9 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	tmp = fflag & FASYNC;
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
 	sa = 0;
+	CURVNET_SET(so->so_vnet);
 	error = soaccept(so, &sa);
+	CURVNET_RESTORE();
 	if (error) {
 		/*
 		 * return a namelen of zero for older code which might
@@ -976,9 +974,11 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
+	CURVNET_SET(so->so_vnet);
 	error = soreceive(so, &fromsa, &auio, (struct mbuf **)0,
 	    (mp->msg_control || controlp) ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
+	CURVNET_RESTORE();
 	if (error) {
 		if (auio.uio_resid != (int)len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -1322,7 +1322,9 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
+		CURVNET_SET(so->so_vnet);
 		error = sosetopt(so, &sopt);
+		CURVNET_RESTORE();
 		fdrop(fp, td);
 	}
 	return(error);
@@ -1400,7 +1402,9 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
+		CURVNET_SET(so->so_vnet);
 		error = sogetopt(so, &sopt);
+		CURVNET_RESTORE();
 		*valsize = sopt.sopt_valsize;
 		fdrop(fp, td);
 	}
@@ -1463,7 +1467,9 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 		return (error);
 	so = fp->f_data;
 	*sa = NULL;
+	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, sa);
+	CURVNET_RESTORE();
 	if (error)
 		goto bad;
 	if (*sa == NULL)
@@ -1564,7 +1570,9 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 		goto done;
 	}
 	*sa = NULL;
+	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, sa);
+	CURVNET_RESTORE();
 	if (error)
 		goto bad;
 	if (*sa == NULL)
@@ -1811,7 +1819,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto out;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (vp->v_type == VREG) {
 		obj = vp->v_object;
 		if (obj != NULL) {
@@ -2176,9 +2184,11 @@ retry_space:
 				goto done;
 			}
 			SOCKBUF_UNLOCK(&so->so_snd);
+			CURVNET_SET(so->so_vnet);
 			/* Avoid error aliasing. */
 			err = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, NULL, NULL, td);
+			CURVNET_RESTORE();
 			if (err == 0) {
 				/*
 				 * We need two counters to get the

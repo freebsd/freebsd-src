@@ -60,21 +60,23 @@ void	ieee80211_syncifflag_locked(struct ieee80211com *, int flag);
 void	ieee80211_syncflag(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 
-#define	ieee80211_input(ni, m, rssi, noise, rstamp) \
-	((ni)->ni_vap->iv_input(ni, m, rssi, noise, rstamp))
-int	ieee80211_input_all(struct ieee80211com *, struct mbuf *,
-		int, int, uint32_t);
+#define	ieee80211_input(ni, m, rssi, nf) \
+	((ni)->ni_vap->iv_input(ni, m, rssi, nf))
+int	ieee80211_input_all(struct ieee80211com *, struct mbuf *, int, int);
 struct ieee80211_bpf_params;
 int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
 		struct ieee80211_bpf_params *);
 int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 int	ieee80211_output(struct ifnet *, struct mbuf *,
-		struct sockaddr *, struct rtentry *);
+               struct sockaddr *, struct route *ro);
 void	ieee80211_start(struct ifnet *);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_classify(struct ieee80211_node *, struct mbuf *m);
-struct mbuf *ieee80211_encap(struct ieee80211_node *, struct mbuf *);
+struct mbuf *ieee80211_mbuf_adjust(struct ieee80211vap *, int,
+		struct ieee80211_key *, struct mbuf *);
+struct mbuf *ieee80211_encap(struct ieee80211vap *, struct ieee80211_node *,
+		struct mbuf *);
 int	ieee80211_send_mgmt(struct ieee80211_node *, int, int);
 struct ieee80211_appie;
 int	ieee80211_send_probereq(struct ieee80211_node *ni,
@@ -298,6 +300,7 @@ struct ieee80211_beacon_offsets {
 	uint16_t	bo_tim_trailer_len;/* tim trailer length in bytes */
 	uint8_t		*bo_erp;	/* start of ERP element */
 	uint8_t		*bo_htinfo;	/* start of HT info element */
+	uint8_t		*bo_ath;	/* start of ATH parameters */
 	uint8_t		*bo_appie;	/* start of AppIE element */
 	uint16_t	bo_appie_len;	/* AppIE length in bytes */
 	uint16_t	bo_csa_trailer_len;;
@@ -328,6 +331,7 @@ enum {
 	IEEE80211_BEACON_CFP	= 6,	/* CFParms */
 	IEEE80211_BEACON_CSA	= 7,	/* Channel Switch Announcement */
 	IEEE80211_BEACON_TDMA	= 9,	/* TDMA Info */
+	IEEE80211_BEACON_ATH	= 10,	/* ATH parameters */
 };
 int	ieee80211_beacon_update(struct ieee80211_node *,
 		struct ieee80211_beacon_offsets *, struct mbuf *, int mcast);

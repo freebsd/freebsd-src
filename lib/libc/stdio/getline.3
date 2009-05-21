@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2009
+.Dd March 29, 2009
 .Dt GETLINE 3
 .Os
 .Sh NAME
@@ -79,7 +79,7 @@ and
 functions return the number of characters written, excluding the
 terminating
 .Dv NUL .
-The value \-1 is returned if an error occurs.
+The value \-1 is returned if an error occurs, or if end-of-file is reached.
 .Sh EXAMPLES
 The following code fragment reads lines from a file and
 writes them to standard output.

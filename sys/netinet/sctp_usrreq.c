@@ -126,6 +126,10 @@ sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
 			 * since we sent to big of chunk
 			 */
 			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
+			if (chk->sent < SCTP_DATAGRAM_RESEND) {
+				sctp_flight_size_decrease(chk);
+				sctp_total_flight_decrease(stcb, chk);
+			}
 			if (chk->sent != SCTP_DATAGRAM_RESEND) {
 				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
 			}
@@ -140,8 +144,6 @@ sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
 			}
 			/* Clear any time so NO RTT is being done */
 			chk->do_rtt = 0;
-			sctp_flight_size_decrease(chk);
-			sctp_total_flight_decrease(stcb, chk);
 		}
 	}
 }

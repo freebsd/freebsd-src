@@ -129,7 +129,7 @@ ip_ipsec_fwd(struct mbuf *m)
 	KEY_FREESP(&sp);
 	splx(s);
 	if (error) {
-		V_ipstat.ips_cantforward++;
+		IPSTAT_INC(ips_cantforward);
 		return 1;
 	}
 #endif /* IPSEC */
@@ -385,7 +385,8 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		 * the interface supports it.
 		 */ 
 		mtag = m_tag_find(*m, PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED, NULL);
-		if (mtag != NULL && ((*ifp)->if_capenable & IFCAP_IPSEC) == 0) {
+		if (mtag != NULL && ifp != NULL &&
+		    ((*ifp)->if_capenable & IFCAP_IPSEC) == 0) {
 			/* notify IPsec to do its own crypto */
 			ipsp_skipcrypto_unmark((struct tdb_ident *)(mtag + 1));
 			*error = EHOSTUNREACH;

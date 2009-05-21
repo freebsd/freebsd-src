@@ -41,7 +41,8 @@ __RCSID("$Revision: 2.27 $");
 #ident "$Revision: 2.27 $"
 #endif
 
-struct interface *ifnet;		/* all interfaces */
+struct ifhead ifnet = LIST_HEAD_INITIALIZER(ifnet);	/* all interfaces */
+struct ifhead remote_if = LIST_HEAD_INITIALIZER(ifnet);	/* remote interfaces */
 
 /* hash table for all interfaces, big enough to tolerate ridiculous
  * numbers of IP aliases.  Crazy numbers of aliases such as 7000
@@ -50,26 +51,25 @@ struct interface *ifnet;		/* all interfaces */
  */
 #define AHASH_LEN 211			/* must be prime */
 #define AHASH(a) &ahash_tbl[(a)%AHASH_LEN]
-struct interface *ahash_tbl[AHASH_LEN];
+static struct interface *ahash_tbl[AHASH_LEN];
 
 #define BHASH_LEN 211			/* must be prime */
 #define BHASH(a) &bhash_tbl[(a)%BHASH_LEN]
-struct interface *bhash_tbl[BHASH_LEN];
+static struct interface *bhash_tbl[BHASH_LEN];
 
-struct interface *remote_if;		/* remote interfaces */
 
 /* hash for physical interface names.
  * Assume there are never more 100 or 200 real interfaces, and that
  * aliases are put on the end of the hash chains.
  */
 #define NHASH_LEN 97
-struct interface *nhash_tbl[NHASH_LEN];
+static struct interface *nhash_tbl[NHASH_LEN];
 
 int	tot_interfaces;			/* # of remote and local interfaces */
 int	rip_interfaces;			/* # of interfaces doing RIP */
-int	foundloopback;			/* valid flag for loopaddr */
+static int foundloopback;			/* valid flag for loopaddr */
 naddr	loopaddr;			/* our address on loopback */
-struct	rt_spare loop_rts;
+static struct rt_spare loop_rts;
 
 struct timeval ifinit_timer;
 static struct timeval last_ifinit;
@@ -78,8 +78,11 @@ static struct timeval last_ifinit;
 			   && timercmp(&ifinit_timer, &now, >))
 
 int	have_ripv1_out;			/* have a RIPv1 interface */
-int	have_ripv1_in;
+static int have_ripv1_in;
 
+
+static void if_bad(struct interface *);
+static int addrouteforif(struct interface *);
 
 static struct interface**
 nhash(char *p)
@@ -101,11 +104,7 @@ if_link(struct interface *ifp)
 {
 	struct interface **hifp;
 
-	ifp->int_prev = &ifnet;
-	ifp->int_next = ifnet;
-	if (ifnet != 0)
-		ifnet->int_prev = &ifp->int_next;
-	ifnet = ifp;
+	LIST_INSERT_HEAD(&ifnet, ifp, int_list);
 
 	hifp = AHASH(ifp->int_addr);
 	ifp->int_ahash_prev = hifp;
@@ -121,13 +120,8 @@ if_link(struct interface *ifp)
 		*hifp = ifp;
 	}
 
-	if (ifp->int_state & IS_REMOTE) {
-		ifp->int_rlink_prev = &remote_if;
-		ifp->int_rlink = remote_if;
-		if (remote_if != 0)
-			remote_if->int_rlink_prev = &ifp->int_rlink;
-		remote_if = ifp;
-	}
+	if (ifp->int_state & IS_REMOTE)
+		LIST_INSERT_HEAD(&remote_if, ifp, remote_list);
 
 	hifp = nhash(ifp->int_name);
 	if (ifp->int_state & IS_ALIAS) {
@@ -182,7 +176,7 @@ ifwithaddr(naddr addr,
 
 /* find the interface with a name
  */
-struct interface *
+static struct interface *
 ifwithname(char *name,			/* "ec0" or whatever */
 	   naddr addr)			/* 0 or network address */
 {
@@ -217,7 +211,7 @@ ifwithindex(u_short ifindex,
 	struct interface *ifp;
 
 	for (;;) {
-		for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			if (ifp->int_index == ifindex)
 				return ifp;
 		}
@@ -245,7 +239,7 @@ iflookup(naddr addr)
 
 	maybe = 0;
 	for (;;) {
-		for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			if (ifp->int_if_flags & IFF_POINTOPOINT) {
 				/* finished with a match */
 				if (ifp->int_dstaddr == addr)
@@ -322,7 +316,7 @@ ripv1_mask_net(naddr addr,		/* in network byte order */
 		 * such interface, prefer the interface with the longest
 		 * match.
 		 */
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			if (on_net(addr, ifp->int_std_net, ifp->int_std_mask)
 			    && ifp->int_ripv1_mask > mask
 			    && ifp->int_ripv1_mask != HOST_MASK)
@@ -394,7 +388,7 @@ check_dup(naddr addr,			/* IP address, so network byte order */
 {
 	struct interface *ifp;
 
-	for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (ifp->int_mask != mask)
 			continue;
 
@@ -459,11 +453,7 @@ ifdel(struct interface *ifp)
 
 	ifp->int_state |= IS_BROKE;
 
-	/* unlink the interface
-	 */
-	*ifp->int_prev = ifp->int_next;
-	if (ifp->int_next != 0)
-		ifp->int_next->int_prev = ifp->int_prev;
+	LIST_REMOVE(ifp, int_list);
 	*ifp->int_ahash_prev = ifp->int_ahash;
 	if (ifp->int_ahash != 0)
 		ifp->int_ahash->int_ahash_prev = ifp->int_ahash_prev;
@@ -475,16 +465,13 @@ ifdel(struct interface *ifp)
 		if (ifp->int_bhash != 0)
 			ifp->int_bhash->int_bhash_prev = ifp->int_bhash_prev;
 	}
-	if (ifp->int_state & IS_REMOTE) {
-		*ifp->int_rlink_prev = ifp->int_rlink;
-		if (ifp->int_rlink != 0)
-			ifp->int_rlink->int_rlink_prev = ifp->int_rlink_prev;
-	}
+	if (ifp->int_state & IS_REMOTE)
+		LIST_REMOVE(ifp, remote_list);
 
 	if (!(ifp->int_state & IS_ALIAS)) {
 		/* delete aliases when the main interface dies
 		 */
-		for (ifp1 = ifnet; 0 != ifp1; ifp1 = ifp1->int_next) {
+		LIST_FOREACH(ifp1, &ifnet, int_list) {
 			if (ifp1 != ifp
 			    && !strcmp(ifp->int_name, ifp1->int_name))
 				ifdel(ifp1);
@@ -551,7 +538,7 @@ if_sick(struct interface *ifp)
 
 /* Mark an interface dead.
  */
-void
+static void
 if_bad(struct interface *ifp)
 {
 	struct interface *ifp1;
@@ -570,7 +557,7 @@ if_bad(struct interface *ifp)
 	trace_if("Chg", ifp);
 
 	if (!(ifp->int_state & IS_ALIAS)) {
-		for (ifp1 = ifnet; 0 != ifp1; ifp1 = ifp1->int_next) {
+		LIST_FOREACH(ifp1, &ifnet, int_list) {
 			if (ifp1 != ifp
 			    && !strcmp(ifp->int_name, ifp1->int_name))
 				if_bad(ifp1);
@@ -606,7 +593,7 @@ if_ok(struct interface *ifp,
 	ifp->int_data.ts = 0;
 
 	if (!(ifp->int_state & IS_ALIAS)) {
-		for (ifp1 = ifnet; 0 != ifp1; ifp1 = ifp1->int_next) {
+		LIST_FOREACH(ifp1, &ifnet, int_list) {
 			if (ifp1 != ifp
 			    && !strcmp(ifp->int_name, ifp1->int_name))
 				if_ok(ifp1, type);
@@ -653,7 +640,7 @@ rt_xaddrs(struct rt_addrinfo *info,
 void
 ifinit(void)
 {
-	static char *sysctl_buf;
+	static struct ifa_msghdr *sysctl_buf;
 	static size_t sysctl_buf_size = 0;
 	uint complaints = 0;
 	static u_int prev_complaints = 0;
@@ -672,7 +659,8 @@ ifinit(void)
 	size_t needed;
 	int mib[6];
 	struct if_msghdr *ifm;
-	struct ifa_msghdr *ifam, *ifam_lim, *ifam2;
+	void *ifam_lim;
+	struct ifa_msghdr *ifam, *ifam2;
 	int in, ierr, out, oerr;
 	struct intnet *intnetp;
 	struct rt_addrinfo info;
@@ -687,7 +675,7 @@ ifinit(void)
 					    : CHECK_QUIET_INTERVAL);
 
 	/* mark all interfaces so we can get rid of those that disappear */
-	for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next)
+	LIST_FOREACH(ifp, &ifnet, int_list)
 		ifp->int_state &= ~(IS_CHECKED | IS_DUP);
 
 	/* Fetch the interface list, without too many system calls
@@ -715,10 +703,9 @@ ifinit(void)
 				      "ifinit sysctl");
 	}
 
-	ifam_lim = (struct ifa_msghdr *)(sysctl_buf + needed);
-	for (ifam = (struct ifa_msghdr *)sysctl_buf;
-	     ifam < ifam_lim;
-	     ifam = ifam2) {
+	/* XXX: thanks to malloc(3), alignment can be presumed OK */
+	ifam_lim = (char *)sysctl_buf + needed;
+	for (ifam = sysctl_buf; (void *)ifam < ifam_lim; ifam = ifam2) {
 
 		ifam2 = (struct ifa_msghdr*)((char*)ifam + ifam->ifam_msglen);
 
@@ -963,7 +950,8 @@ ifinit(void)
 					trace_act("interface %s has been off"
 						  " %ld seconds; forget it",
 						  ifp->int_name,
-						  now.tv_sec-ifp->int_data.ts);
+						  (long)now.tv_sec-
+						      ifp->int_data.ts);
 					ifdel(ifp);
 				}
 				continue;
@@ -1111,7 +1099,7 @@ ifinit(void)
 		if (!(prev_complaints & COMP_NETMASK)
 		    && !(ifp->int_if_flags & IFF_POINTOPOINT)
 		    && ifp->int_addr != RIP_DEFAULT) {
-			for (ifp1 = ifnet; 0 != ifp1; ifp1 = ifp1->int_next) {
+			LIST_FOREACH(ifp1, &ifnet, int_list) {
 				if (ifp1->int_mask == ifp->int_mask)
 					continue;
 				if (ifp1->int_if_flags & IFF_POINTOPOINT)
@@ -1188,9 +1176,7 @@ ifinit(void)
 		}
 	}
 
-	for (ifp = ifnet; ifp != 0; ifp = ifp1) {
-		ifp1 = ifp->int_next;	/* because we may delete it */
-
+	LIST_FOREACH_SAFE(ifp, &ifnet, int_list, ifp1) {
 		/* Forget any interfaces that have disappeared.
 		 */
 		if (!(ifp->int_state & (IS_CHECKED | IS_REMOTE))) {
@@ -1213,7 +1199,7 @@ ifinit(void)
 			have_ripv1_in = 1;
 	}
 
-	for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		/* Ensure there is always a network route for interfaces,
 		 * after any dead interfaces have been deleted, which
 		 * might affect routes for point-to-point links.
@@ -1326,7 +1312,7 @@ check_net_syn(struct interface *ifp)
  * Create route to other end if a point-to-point link,
  * otherwise a route to this (sub)network.
  */
-int					/* 0=bad interface */
+static int					/* 0=bad interface */
 addrouteforif(struct interface *ifp)
 {
 	struct rt_entry *rt;

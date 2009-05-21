@@ -127,17 +127,13 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	else
 		archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
+	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
+		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
 	if (archive_read_open_file(a, bsdtar->filename,
 	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
 	    DEFAULT_BYTES_PER_BLOCK))
 		bsdtar_errc(bsdtar, 1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
-	if (bsdtar->option_format_options != NULL) {
-		r = archive_read_set_options(a, bsdtar->option_format_options);
-		if (r != ARCHIVE_OK)
-			bsdtar_errc(bsdtar, 1, 0, "Error archive options: %s",
-			    archive_error_string(a));
-	}
 
 	do_chdir(bsdtar);
 
@@ -298,6 +294,13 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		}
 	}
 
+
+	r = archive_read_close(a);
+	if (r != ARCHIVE_OK)
+		bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+	if (r <= ARCHIVE_WARN)
+		bsdtar->return_value = 1;
+
 	if (bsdtar->verbose > 2)
 		fprintf(stdout, "Archive Format: %s,  Compression: %s\n",
 		    archive_format_name(a), archive_compression_name(a));
@@ -390,7 +393,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = (time_t)st->st_mtime;
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Windows' strftime function does not support %e format. */
 	if (abs(tim - now) > (365/2)*86400)
 		fmt = bsdtar->day_first ? "%d %b  %Y" : "%b %d  %Y";

@@ -49,8 +49,8 @@ struct psycho_softc {
 
 	phandle_t			sc_node;	/* Firmware node */
 	u_int				sc_mode;
-#define	PSYCHO_MODE_SABRE	1
-#define	PSYCHO_MODE_PSYCHO	2
+#define	PSYCHO_MODE_SABRE		0
+#define	PSYCHO_MODE_PSYCHO		1
 
 	/* Bus A or B of a psycho pair? */
 	u_int				sc_half;

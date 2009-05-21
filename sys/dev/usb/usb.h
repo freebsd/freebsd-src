@@ -461,8 +461,10 @@ struct usb2_endpoint_descriptor {
 	uByte	bEndpointAddress;
 #define	UE_GET_DIR(a)	((a) & 0x80)
 #define	UE_SET_DIR(a,d)	((a) | (((d)&1) << 7))
-#define	UE_DIR_IN	0x80
-#define	UE_DIR_OUT	0x00
+#define	UE_DIR_IN	0x80		/* IN-token endpoint, fixed */
+#define	UE_DIR_OUT	0x00		/* OUT-token endpoint, fixed */
+#define	UE_DIR_RX	0xfd		/* for internal use only! */
+#define	UE_DIR_TX	0xfe		/* for internal use only! */
 #define	UE_DIR_ANY	0xff		/* for internal use only! */
 #define	UE_ADDR		0x0f
 #define	UE_ADDR_ANY	0xff		/* for internal use only! */

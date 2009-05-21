@@ -136,7 +136,7 @@ struct dataset {
 	double	*points;
 	unsigned lpoints;
 	double sy, syy;
-	int n;
+	unsigned n;
 };
 
 static struct dataset *
@@ -191,8 +191,6 @@ Avg(struct dataset *ds)
 static double
 Median(struct dataset *ds)
 {
-	int even, i;
-	struct point *p1, *p2;
 
 	return (ds->points[ds->n / 2]);
 }
@@ -317,8 +315,8 @@ static void
 PlotSet(struct dataset *ds, int val)
 {
 	struct plot *pl;
-	struct point *pp;
-	int i, j, m, x, n;
+	int i, j, m, x;
+	unsigned n;
 	int bar;
 
 	pl = &plot;

@@ -18,6 +18,7 @@ SRCS=	bsm_audit.c							\
 	bsm_domain.c							\
 	bsm_errno.c							\
 	bsm_event.c							\
+	bsm_fcntl.c							\
 	bsm_flags.c							\
 	bsm_io.c							\
 	bsm_mask.c							\
@@ -41,6 +42,7 @@ MAN=	libbsm.3							\
 	au_domain.3							\
 	au_errno.3							\
 	au_event.3							\
+	au_fcntl_cmd.3							\
 	au_free_token.3							\
 	au_io.3								\
 	au_mask.3							\
@@ -100,6 +102,8 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_event.3 getauevnum_r.3					\
 	au_event.3 getauevnonam.3					\
 	au_event.3 getauevnonam_r.3					\
+	au_fcntl_cmd.3 au_bsm_to_fcntl_cmd.3				\
+	au_fcntl_cmd.3 au_fcntl_cmd_t_bsm.3				\
 	au_io.3	au_fetch_tok.3						\
 	au_io.3	au_print_tok.3						\
 	au_io.3	au_read_rec.3						\

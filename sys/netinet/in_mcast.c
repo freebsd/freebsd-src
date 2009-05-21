@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/vinet.h>
 
 #ifndef KTR_IGMPV3
-#define KTR_IGMPV3 KTR_SUBSYS
+#define KTR_IGMPV3 KTR_INET
 #endif
 
 #ifndef __SOCKUNION_DECLARED
@@ -392,16 +392,12 @@ static int
 in_getmulti(struct ifnet *ifp, const struct in_addr *group,
     struct in_multi **pinm)
 {
-	INIT_VNET_INET(ifp->if_vnet);
 	struct sockaddr_in	 gsin;
 	struct ifmultiaddr	*ifma;
 	struct in_ifinfo	*ii;
 	struct in_multi		*inm;
 	int error;
 
-#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
-	IFF_ASSERTGIANT(ifp);
-#endif
 	IN_MULTI_LOCK_ASSERT();
 
 	ii = (struct in_ifinfo *)ifp->if_afdata[AF_INET];
@@ -432,6 +428,9 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	if (error != 0)
 		return (error);
 
+	/* XXX ifma_protospec must be covered by IF_ADDR_LOCK */
+	IF_ADDR_LOCK(ifp);
+
 	/*
 	 * If something other than netinet is occupying the link-layer
 	 * group, print a meaningful error message and back out of
@@ -454,8 +453,11 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 #endif
 		++inm->inm_refcount;
 		*pinm = inm;
+		IF_ADDR_UNLOCK(ifp);
 		return (0);
 	}
+
+	IF_ADDR_LOCK_ASSERT(ifp);
 
 	/*
 	 * A new in_multi record is needed; allocate and initialize it.
@@ -467,6 +469,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm = malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
 		if_delmulti_ifma(ifma);
+		IF_ADDR_UNLOCK(ifp);
 		return (ENOMEM);
 	}
 	inm->inm_addr = *group;
@@ -489,6 +492,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 
 	*pinm = inm;
 
+	IF_ADDR_UNLOCK(ifp);
 	return (0);
 }
 
@@ -502,11 +506,6 @@ void
 inm_release_locked(struct in_multi *inm)
 {
 	struct ifmultiaddr *ifma;
-
-#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
-	if (!inm_is_ifp_detached(inm))
-		IFF_ASSERTGIANT(ifp);
-#endif
 
 	IN_MULTI_LOCK_ASSERT();
 
@@ -522,6 +521,7 @@ inm_release_locked(struct in_multi *inm)
 
 	ifma = inm->inm_ifma;
 
+	/* XXX this access is not covered by IF_ADDR_LOCK */
 	CTR2(KTR_IGMPV3, "%s: purging ifma %p", __func__, ifma);
 	KASSERT(ifma->ifma_protospec == inm,
 	    ("%s: ifma_protospec != inm", __func__));
@@ -1100,11 +1100,9 @@ in_joingroup(struct ifnet *ifp, const struct in_addr *gina,
 {
 	int error;
 
-	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
 	error = in_joingroup_locked(ifp, gina, imf, pinm);
 	IN_MULTI_UNLOCK();
-	IFF_UNLOCKGIANT(ifp);
 
 	return (error);
 }
@@ -1181,19 +1179,13 @@ int
 in_leavegroup(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 {
 	struct ifnet *ifp;
-	int detached, error;
+	int error;
 
-	detached = inm_is_ifp_detached(inm);
 	ifp = inm->inm_ifp;
-	if (!detached)
-		IFF_LOCKGIANT(ifp);
 
 	IN_MULTI_LOCK();
 	error = in_leavegroup_locked(inm, imf);
 	IN_MULTI_UNLOCK();
-
-	if (!detached)
-		IFF_UNLOCKGIANT(ifp);
 
 	return (error);
 }
@@ -1218,11 +1210,6 @@ in_leavegroup_locked(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 	int			 error;
 
 	error = 0;
-
-#if defined(INVARIANTS) && defined(IFF_ASSERTGIANT)
-	if (!inm_is_ifp_detached(inm))
-		IFF_ASSERTGIANT(inm->inm_ifp);
-#endif
 
 	IN_MULTI_LOCK_ASSERT();
 
@@ -1396,8 +1383,6 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
-	IFF_LOCKGIANT(ifp);
-
 	/*
 	 * Check if we are actually a member of this group.
 	 */
@@ -1486,7 +1471,6 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
-	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -1663,11 +1647,14 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		    lims->imsl_st[0] != imf->imf_st[0])
 			continue;
 		++ncsrcs;
-		if (tss != NULL && nsrcs-- > 0) {
-			psin = (struct sockaddr_in *)ptss++;
+		if (tss != NULL && nsrcs > 0) {
+			psin = (struct sockaddr_in *)ptss;
 			psin->sin_family = AF_INET;
 			psin->sin_len = sizeof(struct sockaddr_in);
 			psin->sin_addr.s_addr = htonl(lims->ims_haddr);
+			psin->sin_port = 0;
+			++ptss;
+			--nsrcs;
 		}
 	}
 
@@ -1823,6 +1810,7 @@ static struct ifnet *
 inp_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in *gsin, const struct in_addr ina)
 {
+	INIT_VNET_INET(curvnet);
 	struct ifnet *ifp;
 
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
@@ -1868,7 +1856,6 @@ static int
 inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -1977,8 +1964,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
-
-	IFF_LOCKGIANT(ifp);
 
 	/*
 	 * MCAST_JOIN_SOURCE on an exclusive membership is an error.
@@ -2102,7 +2087,6 @@ out_imo_free:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
-	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -2215,9 +2199,6 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
-	if (ifp)
-		IFF_LOCKGIANT(ifp);
-
 	/*
 	 * Find the membership in the membership array.
 	 */
@@ -2312,8 +2293,6 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
-	if (ifp)
-		IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -2329,6 +2308,7 @@ static int
 inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	struct in_addr		 addr;
 	struct ip_mreqn		 mreqn;
 	struct ifnet		*ifp;
@@ -2431,8 +2411,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	ifp = ifnet_byindex(msfr.msfr_ifindex);
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
-
-	IFF_LOCKGIANT(ifp);
 
 	/*
 	 * Take the INP write lock.
@@ -2551,7 +2529,6 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
-	IFF_UNLOCKGIANT(ifp);
 	return (error);
 }
 
@@ -2851,7 +2828,7 @@ inm_print(const struct in_multi *inm)
 {
 	int t;
 
-	if ((KTR_COMPILE & KTR_IGMPV3) == 0)
+	if ((ktr_mask & KTR_IGMPV3) == 0)
 		return;
 
 	printf("%s: --- begin inm %p ---\n", __func__, inm);

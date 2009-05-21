@@ -63,10 +63,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/ktr.h>
+#include <sys/pcpu.h>
 #include <sys/timetc.h>
 #include <sys/interrupt.h>
 
 #include <machine/clock.h>
+#include <machine/platform.h>
 #include <machine/psl.h>
 #include <machine/spr.h>
 #include <machine/cpu.h>
@@ -76,14 +79,14 @@ __FBSDID("$FreeBSD$");
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
-u_int			tickspending;
-u_long			ns_per_tick = 80;
-static u_long		ticks_per_sec = 12500000;
-static long		ticks_per_intr;
+u_int tickspending;
+u_long ns_per_tick = 80;
+static u_long ticks_per_sec = 12500000;
+static long ticks_per_intr;
 
 #define	DIFF19041970	2082844800
 
-static timecounter_get_t	decr_get_timecount;
+static timecounter_get_t decr_get_timecount;
 
 static struct timecounter	decr_timecounter = {
 	decr_get_timecount,	/* get_timecount */
@@ -96,7 +99,6 @@ static struct timecounter	decr_timecounter = {
 void
 decr_intr(struct trapframe *frame)
 {
-	u_long		msr;
 
 	/*
 	 * Check whether we are initialized.
@@ -110,41 +112,39 @@ decr_intr(struct trapframe *frame)
 	 */
 	mtspr(SPR_TSR, TSR_DIS);
 
-	/*
-	 * Reenable interrupts
-	 */
-	msr = mfmsr();
-	mtmsr(msr | PSL_EE);
+	CTR1(KTR_INTR, "%s: DEC interrupt", __func__);
 
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	if (PCPU_GET(cpuid) == 0)
+		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	else
+		hardclock_cpu(TRAPF_USERMODE(frame));
+
+	statclock(TRAPF_USERMODE(frame));
+	if (profprocs != 0)
+		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 }
 
 void
 cpu_initclocks(void)
 {
 
-	return;
+	decr_tc_init();
+	stathz = hz;
+	profhz = hz;
 }
 
 void
-decr_config (unsigned long freq)
+decr_init(void)
 {
-	ticks_per_sec = freq;
-	decr_timecounter.tc_frequency = freq;
-}
-
-void
-decr_init (void)
-{
+	struct cpuref cpu;
 	unsigned int msr;
 
-	/*
-	 * Should check for correct CPU here?		XXX
-	 */
+	if (platform_smp_get_bsp(&cpu) != 0)
+		platform_smp_first_cpu(&cpu);
+	ticks_per_sec = platform_timebase_freq(&cpu);
+
 	msr = mfmsr();
 	mtmsr(msr & ~(PSL_EE));
-
-	tc_init(&decr_timecounter);
 
 	ns_per_tick = 1000000000 / ticks_per_sec;
 	ticks_per_intr = ticks_per_sec / hz;
@@ -154,23 +154,30 @@ decr_init (void)
 	mtspr(SPR_DECAR, ticks_per_intr);
 	mtspr(SPR_TCR, mfspr(SPR_TCR) | TCR_DIE | TCR_ARE);
 
+	set_cputicker(mftb, ticks_per_sec, 0);
+
 	mtmsr(msr);
 }
 
-static __inline u_quad_t
-mftb (void)
+#ifdef SMP
+void
+decr_ap_init(void)
 {
-	u_long		scratch;
-	u_quad_t	tb;
 
-	__asm__ __volatile__(
-	    "1:	mftbu %0;"
-	    "	mftb %0+1;"
-	    "	mftbu %1;"
-	    "	cmpw 0,%0,%1;"
-	    "	bne 1b"
-	    : "=r"(tb), "=r"(scratch));
-	return tb;
+	/* Set auto-reload value and enable DEC interrupts in TCR */
+	mtspr(SPR_DECAR, ticks_per_intr);
+	mtspr(SPR_TCR, mfspr(SPR_TCR) | TCR_DIE | TCR_ARE);
+
+	CTR2(KTR_INTR, "%s: set TCR=%p", __func__, mfspr(SPR_TCR));
+}
+#endif
+
+void
+decr_tc_init(void)
+{
+
+	decr_timecounter.tc_frequency = ticks_per_sec;
+	tc_init(&decr_timecounter);
 }
 
 static unsigned
@@ -179,7 +186,7 @@ decr_get_timecount(struct timecounter *tc)
 	quad_t tb;
 
 	tb = mftb();
-	return tb;
+	return (tb);
 }
 
 /*
@@ -198,7 +205,7 @@ DELAY(int n)
 	}
 
 	start = mftb();
-	end = start + (u_quad_t)ticks_per_sec / ( USECS_IN_SEC / n);
+	end = start + (u_quad_t)ticks_per_sec / (USECS_IN_SEC / n);
 	do {
 		now = mftb();
 	} while (now < end || (now > start && end < start));

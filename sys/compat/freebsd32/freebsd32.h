@@ -191,4 +191,10 @@ struct thr_param32 {
 	uint32_t spare[3];
 };
 
+struct i386_ldt_args32 {
+	uint32_t start;
+	uint32_t descs;
+	uint32_t num;
+};
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

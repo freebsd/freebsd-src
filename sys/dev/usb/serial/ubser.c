@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb_cdc.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR ubser_debug
 
@@ -105,8 +104,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int ubser_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ubser, CTLFLAG_RW, 0, "USB ubser");
-SYSCTL_INT(_hw_usb2_ubser, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ubser, CTLFLAG_RW, 0, "USB ubser");
+SYSCTL_INT(_hw_usb_ubser, OID_AUTO, debug, CTLFLAG_RW,
     &ubser_debug, 0, "ubser debug level");
 #endif
 
@@ -157,18 +156,18 @@ static const struct usb2_config ubser_config[UBSER_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &ubser_write_callback,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &ubser_write_callback,
 	},
 
 	[UBSER_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &ubser_read_callback,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &ubser_read_callback,
 	},
 };
 
@@ -206,7 +205,7 @@ ubser_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	/* check if this is a BWCT vendor specific ubser interface */
@@ -244,8 +243,8 @@ ubser_attach(device_t dev)
 	req.wIndex[0] = sc->sc_iface_no;
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 1);
-	error = usb2_do_request_flags
-	    (uaa->device, &Giant, &req, &sc->sc_numser,
+	error = usb2_do_request_flags(uaa->device, NULL,
+	    &req, &sc->sc_numser,
 	    0, NULL, USB_DEFAULT_TIMEOUT);
 
 	if (error || (sc->sc_numser == 0)) {

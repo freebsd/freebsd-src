@@ -148,7 +148,7 @@ static device_method_t schizo_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	schizo_get_node),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static devclass_t schizo_devclass;
@@ -449,14 +449,17 @@ schizo_attach(device_t dev)
 		tc_init(tc);
 	}
 
-	/* Set up the IOMMU.  Both Schizo and Tomatillo have one per PBM. */
+	/*
+	 * Set up the IOMMU.  Schizo, Tomatillo and XMITS all have
+	 * one per PBM.  Schizo and XMITS additionally have a streaming
+	 * buffer, in Schizo version < 5 (i.e. revision < 2.3) it's
+	 * affected by several errata and basically unusable though.
+	 */
 	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(STX_IOMMU_BITS);
-	sc->sc_is.is_sb[0] = 0;
-	sc->sc_is.is_sb[1] = 0;
-#ifdef notyet
-	if (OF_getproplen(node, "no-streaming-cache") < 0)
+	sc->sc_is.is_sb[0] = sc->sc_is.is_sb[1] = 0;
+	if (OF_getproplen(node, "no-streaming-cache") < 0 &&
+	    !(sc->sc_mode == SCHIZO_MODE_SCZ && sc->sc_ver < 5))
 		sc->sc_is.is_sb[0] = STX_PCI_STRBUF;
-#endif
 
 #define	TSBCASE(x)							\
 	case (IOTSB_BASESZ << (x)) << (IO_PAGE_SHIFT - IOTTE_SHIFT):	\
@@ -1154,8 +1157,9 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 			    "controller for vector 0x%lx (%d)\n", vec, error);
 			return (error);
 		}
-		device_printf(dev, "belatedly registered as interrupt "
-		    "controller for vector 0x%lx\n", vec);
+		if (bootverbose)
+			device_printf(dev, "belatedly registered as "
+			    "interrupt controller for vector 0x%lx\n", vec);
 	} else {
 		device_printf(dev,
 		    "invalid interrupt controller for vector 0x%lx\n", vec);

@@ -88,6 +88,7 @@ eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2004/05/20"]
 emaste [label="Ed Maste\nemaste@FreeBSD.org\n2005/10/04"]
 emax [label="Maksim Yevmenkin\nemax@FreeBSD.org\n2003/10/12"]
 eri [label="Ermal Luci\neri@FreeBSD.org\n2008/06/11"]
+fabient [label="Fabien Thomas\nfabient@FreeBSD.org\n2009/03/16"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
@@ -167,6 +168,7 @@ sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 shiba [label="Takeshi Shibagaki\nshiba@FreeBSD.org\n2000/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
+snb [label="Nick Barkas\nsnb@FreeBSD.org\n2009/05/05"]
 sson [label="Stacey Son\nsson@FreeBSD.org\n2008/07/08"]
 suz [label="SUZUKI Shinsuke\nsuz@FreeBSD.org\n2002/03/26"]
 syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
@@ -243,6 +245,7 @@ dds -> versus
 
 dwmalone -> fanf
 dwmalone -> peadar
+dwmalone -> snb
 
 eivind -> des
 eivind -> rwatson
@@ -314,6 +317,7 @@ jkh -> wes
 jkh -> yar
 
 jkoshy -> kaiw
+jkoshy -> fabient
 
 jlemon -> bmilekic
 jlemon -> brooks

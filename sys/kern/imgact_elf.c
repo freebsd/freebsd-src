@@ -189,7 +189,7 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
 		if (bi != NULL && hdr->e_machine == bi->machine &&
-		    bi->brand_note != NULL) {
+		    (bi->flags & BI_BRAND_NOTE) != 0) {
 			ret = __elfN(check_note)(imgp, bi->brand_note, osrel);
 			if (ret)
 				return (bi);
@@ -885,6 +885,8 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+	if (imgp->execpathp != 0)
+		AUXARGS_ENTRY(pos, AT_EXECPATH, imgp->execpathp);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);
@@ -1329,15 +1331,15 @@ static boolean_t
 __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
     int32_t *osrel)
 {
-	const Elf_Note *note, *note_end;
-	const Elf32_Phdr *phdr, *pnote;
-	const Elf32_Ehdr *hdr;
+	const Elf_Note *note, *note0, *note_end;
+	const Elf_Phdr *phdr, *pnote;
+	const Elf_Ehdr *hdr;
 	const char *note_name;
 	int i;
 
 	pnote = NULL;
-	hdr = (const Elf32_Ehdr *)imgp->image_header;
-	phdr = (const Elf32_Phdr *)(imgp->image_header + hdr->e_phoff);
+	hdr = (const Elf_Ehdr *)imgp->image_header;
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type == PT_NOTE) {
@@ -1350,12 +1352,12 @@ __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
 	    pnote->p_offset + pnote->p_filesz >= PAGE_SIZE)
 		return (FALSE);
 
-	note = (const Elf_Note *)(imgp->image_header + pnote->p_offset);
-	if (!aligned(note, Elf32_Addr))
-		return (FALSE);
+	note = note0 = (const Elf_Note *)(imgp->image_header + pnote->p_offset);
 	note_end = (const Elf_Note *)(imgp->image_header +
 	    pnote->p_offset + pnote->p_filesz);
-	while (note < note_end) {
+	for (i = 0; i < 100 && note >= note0 && note < note_end; i++) {
+		if (!aligned(note, Elf32_Addr))
+			return (FALSE);
 		if (note->n_namesz != checknote->hdr.n_namesz ||
 		    note->n_descsz != checknote->hdr.n_descsz ||
 		    note->n_type != checknote->hdr.n_type)

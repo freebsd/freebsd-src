@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
@@ -234,16 +237,17 @@ node_setuptxparms(struct ieee80211_node *ni)
 		else
 			mode = IEEE80211_MODE_11NG;
 	} else {				/* legacy rate handling */
-		/* NB: 108A/108G should be handled as 11a/11g respectively */
 		if (IEEE80211_IS_CHAN_ST(ni->ni_chan))
 			mode = IEEE80211_MODE_STURBO_A;
 		else if (IEEE80211_IS_CHAN_HALF(ni->ni_chan))
 			mode = IEEE80211_MODE_HALF;
 		else if (IEEE80211_IS_CHAN_QUARTER(ni->ni_chan))
 			mode = IEEE80211_MODE_QUARTER;
+		/* NB: 108A should be handled as 11a */
 		else if (IEEE80211_IS_CHAN_A(ni->ni_chan))
 			mode = IEEE80211_MODE_11A;
-		else if (ni->ni_flags & IEEE80211_NODE_ERP)
+		else if (IEEE80211_IS_CHAN_108G(ni->ni_chan) ||
+		    (ni->ni_flags & IEEE80211_NODE_ERP))
 			mode = IEEE80211_MODE_11G;
 		else
 			mode = IEEE80211_MODE_11B;
@@ -624,16 +628,20 @@ ieee80211_sync_curchan(struct ieee80211com *ic)
 	if (c != ic->ic_curchan) {
 		ic->ic_curchan = c;
 		ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
+		ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
+		IEEE80211_UNLOCK(ic);
 		ic->ic_set_channel(ic);
+		ieee80211_radiotap_chan_change(ic);
+		IEEE80211_LOCK(ic);
 	}
 }
 
 /*
- * Change the current channel.  The request channel may be
+ * Setup the current channel.  The request channel may be
  * promoted if other vap's are operating with HT20/HT40.
  */
 void
-ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
+ieee80211_setupcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 {
 	if (ic->ic_htcaps & IEEE80211_HTC_HT) {
 		int flags = gethtadjustflags(ic);
@@ -648,7 +656,18 @@ ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 	}
 	ic->ic_bsschan = ic->ic_curchan = c;
 	ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
-	ic->ic_set_channel(ic);
+	ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
+}
+
+/*
+ * Change the current channel.  The channel change is guaranteed to have
+ * happened before the next state change.
+ */
+void
+ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
+{
+	ieee80211_setupcurchan(ic, c);
+	ieee80211_runtask(ic, &ic->ic_chan_task);
 }
 
 /*
@@ -736,7 +755,6 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	IEEE80211_ADDR_COPY(ni->ni_bssid, se->se_bssid);
 	ni->ni_esslen = se->se_ssid[1];
 	memcpy(ni->ni_essid, se->se_ssid+2, ni->ni_esslen);
-	ni->ni_rstamp = se->se_rstamp;
 	ni->ni_tstamp.tsf = se->se_tstamp.tsf;
 	ni->ni_intval = se->se_intval;
 	ni->ni_capinfo = se->se_capinfo;
@@ -754,8 +772,10 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 
 	if (ieee80211_ies_init(&ni->ni_ies, se->se_ies.data, se->se_ies.len)) {
 		ieee80211_ies_expand(&ni->ni_ies);
+#ifdef IEEE80211_SUPPORT_SUPERG
 		if (ni->ni_ies.ath_ie != NULL)
 			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
+#endif
 		if (ni->ni_ies.htcap_ie != NULL)
 			ieee80211_parse_htcap(ni, ni->ni_ies.htcap_ie);
 		if (ni->ni_ies.htinfo_ie != NULL)
@@ -875,8 +895,10 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 				ies->wpa_ie = ie;
 			else if (iswmeoui(ie))
 				ies->wme_ie = ie;
+#ifdef IEEE80211_SUPPORT_SUPERG
 			else if (isatherosoui(ie))
 				ies->ath_ie = ie;
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 			else if (istdmaoui(ie))
 				ies->tdma_ie = ie;
@@ -920,6 +942,10 @@ node_cleanup(struct ieee80211_node *ni)
 	 */
 	if (ni->ni_flags & IEEE80211_NODE_HT)
 		ieee80211_ht_node_cleanup(ni);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	else if (ni->ni_ath_flags & IEEE80211_NODE_ATH)
+		ieee80211_ff_node_cleanup(ni);
+#endif
 	/*
 	 * Clear AREF flag that marks the authorization refcnt bump
 	 * has happened.  This is probably not needed as the node
@@ -1173,8 +1199,10 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 		 */
 		if (vap->iv_flags & IEEE80211_F_WME)
 			ni->ni_flags |= IEEE80211_NODE_QOS;
+#ifdef IEEE80211_SUPPORT_SUPERG
 		if (vap->iv_flags & IEEE80211_F_FF)
 			ni->ni_flags |= IEEE80211_NODE_FF;
+#endif
 		if ((ic->ic_htcaps & IEEE80211_HTC_HT) &&
 		    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
 			/*
@@ -1331,8 +1359,10 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 			 */
 			if (vap->iv_flags & IEEE80211_F_WME)
 				ni->ni_flags |= IEEE80211_NODE_QOS;
+#ifdef IEEE80211_SUPPORT_SUPERG
 			if (vap->iv_flags & IEEE80211_F_FF)
 				ni->ni_flags |= IEEE80211_NODE_FF;
+#endif
 		}
 		node_setuptxparms(ni);
 		if (ic->ic_newassoc != NULL)
@@ -1366,8 +1396,10 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 			ni->ni_flags |= IEEE80211_NODE_QOS;
 		else
 			ni->ni_flags &= ~IEEE80211_NODE_QOS;
+#ifdef IEEE80211_SUPPORT_SUPERG
 		if (ni->ni_ies.ath_ie != NULL)
 			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
+#endif
 	}
 
 	/* NB: must be after ni_chan is setup */
@@ -1407,12 +1439,6 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 	return ni;
 }
 
-#define	IS_CTL(wh) \
-	((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL)
-#define	IS_PSPOLL(wh) \
-	((wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) == IEEE80211_FC0_SUBTYPE_PS_POLL)
-#define	IS_BAR(wh) \
-	((wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) == IEEE80211_FC0_SUBTYPE_BAR)
 #define	IS_PROBEREQ(wh) \
 	((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK|IEEE80211_FC0_SUBTYPE_MASK)) \
 	    == (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ))
@@ -1424,9 +1450,6 @@ static __inline struct ieee80211_node *
 _find_rxnode(struct ieee80211_node_table *nt,
     const struct ieee80211_frame_min *wh)
 {
-	/* XXX 4-address frames? */
-	if (IS_CTL(wh) && !IS_PSPOLL(wh) && !IS_BAR(wh) /*&& !IS_RTS(ah)*/)
-		return ieee80211_find_node_locked(nt, wh->i_addr1);
 	if (IS_BCAST_PROBEREQ(wh))
 		return NULL;		/* spam bcast probe req to all vap's */
 	return ieee80211_find_node_locked(nt, wh->i_addr2);
@@ -1515,9 +1538,6 @@ ieee80211_find_rxnode_withkey(struct ieee80211com *ic,
 }
 #undef IS_BCAST_PROBEREQ
 #undef IS_PROBEREQ
-#undef IS_BAR
-#undef IS_PSPOLL
-#undef IS_CTL
 
 /*
  * Return a reference to the appropriate node for sending
@@ -2105,8 +2125,8 @@ ieee80211_dump_node(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 		ni->ni_rxseqs[IEEE80211_NONQOS_TID] >> IEEE80211_SEQ_SEQ_SHIFT,
 		ni->ni_rxseqs[IEEE80211_NONQOS_TID] & IEEE80211_SEQ_FRAG_MASK,
 		ni->ni_rxfragstamp);
-	printf("\trstamp %u rssi %d noise %d intval %u capinfo 0x%x\n",
-		ni->ni_rstamp, node_getrssi(ni), ni->ni_noise,
+	printf("\trssi %d noise %d intval %u capinfo 0x%x\n",
+		node_getrssi(ni), ni->ni_noise,
 		ni->ni_intval, ni->ni_capinfo);
 	printf("\tbssid %s essid \"%.*s\" channel %u:0x%x\n",
 		ether_sprintf(ni->ni_bssid),

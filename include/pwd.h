@@ -152,10 +152,13 @@ __BEGIN_DECLS
 struct passwd	*getpwnam(const char *);
 struct passwd	*getpwuid(uid_t);
 
-#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 500
+#if __XSI_VISIBLE >= 500
 void		 endpwent(void);
 struct passwd	*getpwent(void);
 void		 setpwent(void);
+#endif
+
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 500
 int		 getpwnam_r(const char *, struct passwd *, char *, size_t,
 		    struct passwd **);
 int		 getpwuid_r(uid_t, struct passwd *, char *, size_t,

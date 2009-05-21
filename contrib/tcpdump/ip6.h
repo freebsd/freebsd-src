@@ -1,5 +1,5 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ip6.h,v 1.6.4.1 2005/04/20 10:04:37 guy Exp $ (LBL) */
-/*	$NetBSD: ip6.h,v 1.9 2000/07/13 05:34:21 itojun Exp $	*/
+/* @(#) $Header: /tcpdump/master/tcpdump/ip6.h,v 1.8 2007-08-29 02:31:44 mcr Exp $ (LBL) */
+/*	NetBSD: ip6.h,v 1.9 2000/07/13 05:34:21 itojun Exp 	*/
 /*	$KAME: ip6.h,v 1.9 2000/07/02 21:01:32 itojun Exp $	*/
 
 /*

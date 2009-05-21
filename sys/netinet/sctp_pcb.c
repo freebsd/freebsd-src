@@ -3157,8 +3157,9 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				SCTP_TCB_UNLOCK(asoc);
 				continue;
 			}
-			if ((SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_WAIT) ||
-			    (SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_ECHOED)) {
+			if (((SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_WAIT) ||
+			    (SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_ECHOED)) &&
+			    (asoc->asoc.total_output_queue_size == 0)) {
 				/*
 				 * If we have data in queue, we don't want
 				 * to just free since the app may have done,
@@ -6029,6 +6030,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			stcb->asoc.peer_supports_prsctp = 0;
 			stcb->asoc.peer_supports_pktdrop = 0;
 			stcb->asoc.peer_supports_strreset = 0;
+			stcb->asoc.peer_supports_nr_sack = 0;
 			stcb->asoc.peer_supports_auth = 0;
 			pr_supported = (struct sctp_supported_chunk_types_param *)phdr;
 			num_ent = plen - sizeof(struct sctp_paramhdr);
@@ -6043,6 +6045,12 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					break;
 				case SCTP_PACKET_DROPPED:
 					stcb->asoc.peer_supports_pktdrop = 1;
+					break;
+				case SCTP_NR_SELECTIVE_ACK:
+					if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off))
+						stcb->asoc.peer_supports_nr_sack = 1;
+					else
+						stcb->asoc.peer_supports_nr_sack = 0;
 					break;
 				case SCTP_STREAM_RESET:
 					stcb->asoc.peer_supports_strreset = 1;

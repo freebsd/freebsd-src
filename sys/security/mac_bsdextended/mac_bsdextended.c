@@ -478,9 +478,9 @@ ugidfw_accmode2mbi(accmode_t accmode)
 		mbi |= MBI_WRITE;
 	if (accmode & VREAD)
 		mbi |= MBI_READ;
-	if (accmode & VADMIN)
+	if (accmode & VADMIN_PERMS)
 		mbi |= MBI_ADMIN;
-	if (accmode & VSTAT)
+	if (accmode & VSTAT_PERMS)
 		mbi |= MBI_STAT;
 	if (accmode & VAPPEND)
 		mbi |= MBI_APPEND;

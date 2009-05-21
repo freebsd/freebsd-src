@@ -122,12 +122,12 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
-#ifdef SMP
-	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
-#endif
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_get_resource_list, nexus_get_resource_list),
+#ifdef SMP
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
+#endif
 	DEVMETHOD(bus_get_dma_tag,	nexus_get_dma_tag),
 
 	/* ofw_bus interface */
@@ -138,7 +138,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static devclass_t nexus_devclass;

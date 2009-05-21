@@ -281,6 +281,10 @@ struct PIR_table
 #define	SMAP_TYPE_ACPI_NVS	4
 #define	SMAP_TYPE_ACPI_ERROR	5
 
+#define	SMAP_XATTR_ENABLED	0x00000001
+#define	SMAP_XATTR_NON_VOLATILE	0x00000002
+#define	SMAP_XATTR_MASK		(SMAP_XATTR_ENABLED | SMAP_XATTR_NON_VOLATILE)
+
 struct bios_smap {
     u_int64_t	base;
     u_int64_t	length;

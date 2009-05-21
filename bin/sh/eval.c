@@ -166,7 +166,8 @@ evalstring(char *s)
 	setstackmark(&smark);
 	setinputstring(s, 1);
 	while ((n = parsecmd(0)) != NEOF) {
-		evaltree(n, 0);
+		if (n != NULL)
+			evaltree(n, 0);
 		popstackmark(&smark);
 	}
 	popfile();

@@ -54,9 +54,9 @@ list_cloners(void)
 	int idx;
 	int s;
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
+	s = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	if (s == -1)
-		err(1, "socket(AF_INET,SOCK_DGRAM)");
+		err(1, "socket(AF_LOCAL,SOCK_DGRAM)");
 
 	memset(&ifcr, 0, sizeof(ifcr));
 

@@ -69,6 +69,19 @@ hptrr_lib.o			optional	hptrr			\
 #
 amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
+amd64/acpica/acpi_switch.S	optional	acpi
+acpi_wakecode.h			optional acpi		\
+	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
+	no-obj no-implicit-rule before-depend				\
+	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
+#
+acpi_wakedata.h			optional acpi		\
+	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
+	no-obj no-implicit-rule before-depend				\
+	clean		"acpi_wakedata.h acpi_wakecode.o acpi_wakecode.bin"
+#
 amd64/acpica/acpi_wakeup.c	optional	acpi
 amd64/acpica/madt.c		optional	acpi
 amd64/amd64/amd64_mem.c		optional	mem
@@ -97,6 +110,7 @@ amd64/amd64/legacy.c		standard
 amd64/amd64/local_apic.c	standard
 amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/machdep.c		standard
+amd64/amd64/mca.c		standard
 amd64/amd64/mem.c		optional	mem
 amd64/amd64/minidump_machdep.c	standard
 amd64/amd64/mp_machdep.c	optional	smp
@@ -170,6 +184,7 @@ dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
 dev/ipmi/ipmi_smbios.c		optional	ipmi
 dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/ipmi/ipmi_pci.c		optional	ipmi pci
+dev/ipmi/ipmi_linux.c		optional	ipmi compat_linux32
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
@@ -218,6 +233,7 @@ amd64/ia32/ia32_reg.c		optional	compat_ia32
 amd64/ia32/ia32_signal.c	optional	compat_ia32
 amd64/ia32/ia32_sigtramp.S	optional	compat_ia32
 amd64/ia32/ia32_syscall.c	optional	compat_ia32
+amd64/ia32/ia32_misc.c		optional	compat_ia32
 compat/freebsd32/freebsd32_ioctl.c	optional	compat_ia32
 compat/freebsd32/freebsd32_misc.c	optional	compat_ia32
 compat/freebsd32/freebsd32_syscalls.c	optional	compat_ia32
@@ -269,6 +285,7 @@ i386/bios/smbios.c		optional	smbios
 i386/bios/vpd.c			optional	vpd
 i386/cpufreq/powernow.c		optional	cpufreq
 i386/cpufreq/est.c		optional	cpufreq
+i386/cpufreq/hwpstate.c		optional	cpufreq
 i386/cpufreq/p4tcc.c		optional	cpufreq
 #
 libkern/memmove.c		standard

@@ -72,12 +72,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
 #include <machine/proc.h>
-#include <machine/specialreg.h>
 #include <machine/segments.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
+
+ASSYM(P_MD, offsetof(struct proc, p_md));
+ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
+ASSYM(MD_LDT_SD, offsetof(struct mdproc, md_ldt_sd));
 
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
@@ -132,16 +135,13 @@ ASSYM(PCB_RBX, offsetof(struct pcb, pcb_rbx));
 ASSYM(PCB_RIP, offsetof(struct pcb, pcb_rip));
 ASSYM(PCB_FSBASE, offsetof(struct pcb, pcb_fsbase));
 ASSYM(PCB_GSBASE, offsetof(struct pcb, pcb_gsbase));
-ASSYM(PCB_DS, offsetof(struct pcb, pcb_ds));
-ASSYM(PCB_ES, offsetof(struct pcb, pcb_es));
-ASSYM(PCB_FS, offsetof(struct pcb, pcb_fs));
-ASSYM(PCB_GS, offsetof(struct pcb, pcb_gs));
 ASSYM(PCB_DR0, offsetof(struct pcb, pcb_dr0));
 ASSYM(PCB_DR1, offsetof(struct pcb, pcb_dr1));
 ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
 ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
 ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
+ASSYM(PCB_TSSP, offsetof(struct pcb, pcb_tssp));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_32BIT, PCB_32BIT);
 ASSYM(PCB_GS32BIT, PCB_GS32BIT);
@@ -154,6 +154,18 @@ ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_GS32SD, offsetof(struct pcb, pcb_gs32sd));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
+
+ASSYM(XPCB_PCB, offsetof(struct xpcb, xpcb_pcb));
+ASSYM(XPCB_CR0, offsetof(struct xpcb, xpcb_cr0));
+ASSYM(XPCB_CR2, offsetof(struct xpcb, xpcb_cr2));
+ASSYM(XPCB_CR4, offsetof(struct xpcb, xpcb_cr4));
+ASSYM(XPCB_KGSBASE, offsetof(struct xpcb, xpcb_kgsbase));
+ASSYM(XPCB_GDT, offsetof(struct xpcb, xpcb_gdt));
+ASSYM(XPCB_IDT, offsetof(struct xpcb, xpcb_idt));
+ASSYM(XPCB_LDT, offsetof(struct xpcb, xpcb_ldt));
+ASSYM(XPCB_TR, offsetof(struct xpcb, xpcb_tr));
+
+ASSYM(XPCB_SIZE, sizeof(struct xpcb));
 
 ASSYM(COMMON_TSS_RSP0, offsetof(struct amd64tss, tss_rsp0));
 
@@ -180,7 +192,13 @@ ASSYM(TF_CS, offsetof(struct trapframe, tf_cs));
 ASSYM(TF_RFLAGS, offsetof(struct trapframe, tf_rflags));
 ASSYM(TF_RSP, offsetof(struct trapframe, tf_rsp));
 ASSYM(TF_SS, offsetof(struct trapframe, tf_ss));
+ASSYM(TF_DS, offsetof(struct trapframe, tf_ds));
+ASSYM(TF_ES, offsetof(struct trapframe, tf_es));
+ASSYM(TF_FS, offsetof(struct trapframe, tf_fs));
+ASSYM(TF_GS, offsetof(struct trapframe, tf_gs));
+ASSYM(TF_FLAGS, offsetof(struct trapframe, tf_flags));
 ASSYM(TF_SIZE, sizeof(struct trapframe));
+ASSYM(TF_HASSEGS, TF_HASSEGS);
 
 ASSYM(SIGF_HANDLER, offsetof(struct sigframe, sf_ahu.sf_handler));
 ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
@@ -202,7 +220,11 @@ ASSYM(PC_SCRATCH_RSP, offsetof(struct pcpu, pc_scratch_rsp));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_TSSP, offsetof(struct pcpu, pc_tssp));
 ASSYM(PC_RSP0, offsetof(struct pcpu, pc_rsp0));
+ASSYM(PC_FS32P, offsetof(struct pcpu, pc_fs32p));
 ASSYM(PC_GS32P, offsetof(struct pcpu, pc_gs32p));
+ASSYM(PC_LDT, offsetof(struct pcpu, pc_ldt));
+ASSYM(PC_COMMONTSSP, offsetof(struct pcpu, pc_commontssp));
+ASSYM(PC_TSS, offsetof(struct pcpu, pc_tss));
  
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
 ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
@@ -217,9 +239,11 @@ ASSYM(KDSEL, GSEL(GDATA_SEL, SEL_KPL));
 ASSYM(KUCSEL, GSEL(GUCODE_SEL, SEL_UPL));
 ASSYM(KUDSEL, GSEL(GUDATA_SEL, SEL_UPL));
 ASSYM(KUC32SEL, GSEL(GUCODE32_SEL, SEL_UPL));
+ASSYM(KUF32SEL, GSEL(GUFS32_SEL, SEL_UPL));
+ASSYM(KUG32SEL, GSEL(GUGS32_SEL, SEL_UPL));
+ASSYM(TSSSEL, GSEL(GPROC0_SEL, SEL_KPL));
+ASSYM(LDTSEL, GSEL(GUSERLDT_SEL, SEL_KPL));
 ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
-
-ASSYM(MSR_GSBASE, MSR_GSBASE);
 
 #ifdef	HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);

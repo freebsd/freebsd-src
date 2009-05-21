@@ -48,7 +48,7 @@ mkfile(const char *name, int mode, const char *contents, ssize_t size)
 DEFINE_TEST(test_symlink_dir)
 {
 	struct stat st;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	struct stat st2;
 #endif
 	int oldumask;
@@ -78,7 +78,7 @@ DEFINE_TEST(test_symlink_dir)
 	assertEqualInt(0, mkdir("dest1", 0755));
 	/* "dir" is a symlink to an existing "real_dir" */
 	assertEqualInt(0, mkdir("dest1/real_dir", 0755));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(0, symlink("real_dir", "dest1/dir"));
 	/* "dir2" is a symlink to a non-existing "real_dir2" */
 	assertEqualInt(0, symlink("real_dir2", "dest1/dir2"));
@@ -91,7 +91,7 @@ DEFINE_TEST(test_symlink_dir)
 	/* "file" is a symlink to existing "real_file" */
 	assertEqualInt(0, mkfile("dest1/real_file", 0755, "abcdefg", 7));
 	assertEqualInt(0, symlink("real_file", "dest1/file"));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* "file2" is a symlink to non-existing "real_file2" */
 	assertEqualInt(0, symlink("real_file2", "dest1/file2"));
 #else
@@ -126,7 +126,7 @@ DEFINE_TEST(test_symlink_dir)
 	assertEqualInt(0, mkdir("dest2", 0755));
 	/* "dir" is a symlink to existing "real_dir" */
 	assertEqualInt(0, mkdir("dest2/real_dir", 0755));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(0, symlink("real_dir", "dest2/dir"));
 	/* "dir2" is a symlink to a non-existing "real_dir2" */
 	assertEqualInt(0, symlink("real_dir2", "dest2/dir2"));
@@ -139,7 +139,7 @@ DEFINE_TEST(test_symlink_dir)
 	/* "file" is a symlink to existing "real_file" */
 	assertEqualInt(0, mkfile("dest2/real_file", 0755, "abcdefghi", 9));
 	assertEqualInt(0, symlink("real_file", "dest2/file"));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* "file2" is a symlink to non-existing "real_file2" */
 	assertEqualInt(0, symlink("real_file2", "dest2/file2"));
 #else
@@ -150,7 +150,7 @@ DEFINE_TEST(test_symlink_dir)
 	/* dest2/dir symlink should be followed */
 	assertEqualInt(0, lstat("dest2/dir", &st));
 	failure("tar -xP removed symlink instead of following it");
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (assert(S_ISLNK(st.st_mode))) {
 		/* Only verify what the symlink points to if it
 		 * really is a symlink. */

@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
@@ -61,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
+#include <nfsclient/nfs_kdtrace.h>
 
 #include <nfs4client/nfs4.h>
 
@@ -135,10 +138,8 @@ nfs_getpages(struct vop_getpages_args *ap)
 		vm_page_t m = pages[ap->a_reqpage];
 
 		VM_OBJECT_LOCK(object);
-		vm_page_lock_queues();
 		if (m->valid != 0) {
-			/* handled by vm_fault now	  */
-			/* vm_page_zero_invalid(m, TRUE); */
+			vm_page_lock_queues();
 			for (i = 0; i < npages; ++i) {
 				if (i != ap->a_reqpage)
 					vm_page_free(pages[i]);
@@ -147,7 +148,6 @@ nfs_getpages(struct vop_getpages_args *ap)
 			VM_OBJECT_UNLOCK(object);
 			return(0);
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 	}
 
@@ -209,15 +209,16 @@ nfs_getpages(struct vop_getpages_args *ap)
 			 * Read operation filled an entire page
 			 */
 			m->valid = VM_PAGE_BITS_ALL;
-			vm_page_undirty(m);
+			KASSERT(m->dirty == 0,
+			    ("nfs_getpages: page %p is dirty", m));
 		} else if (size > toff) {
 			/*
 			 * Read operation filled a partial page.
 			 */
 			m->valid = 0;
-			vm_page_set_validclean(m, 0, size - toff);
-			/* handled by vm_fault now	  */
-			/* vm_page_zero_invalid(m, TRUE); */
+			vm_page_set_valid(m, 0, size - toff);
+			KASSERT((m->dirty & vm_page_bits(0, size - toff)) == 0,
+			    ("nfs_getpages: page %p is dirty", m));
 		} else {
 			/*
 			 * Read operation was short.  If no error occured
@@ -403,6 +404,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 				goto out;
 		}
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			goto out;
@@ -915,6 +917,7 @@ nfs_write(struct vop_write_args *ap)
 #endif
 flush_and_restart:
 			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
 			if (error)
 				return (error);
@@ -928,6 +931,7 @@ flush_and_restart:
 	 */
 	if (ioflag & IO_APPEND) {
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			return (error);
@@ -1756,6 +1760,7 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 			mtx_lock(&np->n_mtx);
 			np->n_flag |= NWRITEERR;
 			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			mtx_unlock(&np->n_mtx);
 		    }
 		    bp->b_dirtyoff = bp->b_dirtyend = 0;

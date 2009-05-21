@@ -152,6 +152,8 @@ struct usb2_com_softc {
 	struct usb2_com_cfg_task	sc_status_task[2];
 	struct usb2_com_param_task	sc_param_task[2];
 	struct cv sc_cv;
+	/* Used to set "UCOM_FLAG_GP_DATA" flag: */
+	struct usb2_proc_msg	*sc_last_start_xfer;
 	const struct usb2_com_callback *sc_callback;
 	struct usb2_com_super_softc *sc_super;
 	struct tty *sc_tty;

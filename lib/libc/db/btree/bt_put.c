@@ -197,7 +197,7 @@ delete:		if (__bt_dleaf(t, key, h, idx) == RET_ERROR) {
 	 * into the offset array, shift the pointers up.
 	 */
 	nbytes = NBLEAFDBT(key->size, data->size);
-	if (h->upper - h->lower < nbytes + sizeof(indx_t)) {
+	if ((u_int32_t)(h->upper - h->lower) < nbytes + sizeof(indx_t)) {
 		if ((status = __bt_split(t, h, key,
 		    data, dflags, nbytes, idx)) != RET_SUCCESS)
 			return (status);
@@ -278,7 +278,7 @@ bt_fast(BTREE *t, const DBT *key, const DBT *data, int *exactp)
 	 * have to search to get split stack.
 	 */
 	nbytes = NBLEAFDBT(key->size, data->size);
-	if (h->upper - h->lower < nbytes + sizeof(indx_t))
+	if ((u_int32_t)(h->upper - h->lower) < nbytes + sizeof(indx_t))
 		goto miss;
 
 	if (t->bt_order == FORWARD) {

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -35,6 +35,7 @@
 /*
  * 82575EB Gigabit Network Connection
  * 82575EB Gigabit Backplane Connection
+ * 82575GB Gigabit Network Connection
  * 82575GB Gigabit Network Connection
  * 82576 Gigabit Network Connection
  */
@@ -75,11 +76,6 @@ static bool e1000_sgmii_active_82575(struct e1000_hw *hw);
 static s32  e1000_reset_init_script_82575(struct e1000_hw *hw);
 static s32  e1000_read_mac_addr_82575(struct e1000_hw *hw);
 static void e1000_power_down_phy_copper_82575(struct e1000_hw *hw);
-
-static void e1000_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count);
-static void e1000_update_mc_addr_list_82575(struct e1000_hw *hw,
-                                           u8 *mc_addr_list, u32 mc_addr_count,
-                                           u32 rar_used_count, u32 rar_count);
 void e1000_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw);
 
 /**
@@ -281,13 +277,15 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_82575;
 	/* multicast address update */
-	mac->ops.update_mc_addr_list = e1000_update_mc_addr_list_82575;
+	mac->ops.update_mc_addr_list = e1000_update_mc_addr_list_generic;
 	/* writing VFTA */
 	mac->ops.write_vfta = e1000_write_vfta_generic;
 	/* clearing VFTA */
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
 	/* setting MTA */
 	mac->ops.mta_set = e1000_mta_set_generic;
+	/* ID LED init */
+	mac->ops.id_led_init = e1000_id_led_init_generic;
 	/* blink LED */
 	mac->ops.blink_led = e1000_blink_led_generic;
 	/* setup LED */
@@ -854,11 +852,18 @@ static s32 e1000_check_for_link_82575(struct e1000_hw *hw)
 
 	/* SGMII link check is done through the PCS register. */
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (e1000_sgmii_active_82575(hw)))
+	    (e1000_sgmii_active_82575(hw))) {
 		ret_val = e1000_get_pcs_speed_and_duplex_82575(hw, &speed,
 		                                               &duplex);
-	else
+		/*
+		 * Use this flag to determine if link needs to be checked or
+		 * not.  If we have link clear the flag so that we do not
+		 * continue to check for link.
+		 */
+		hw->mac.get_link_status = !hw->mac.serdes_has_link;
+	} else {
 		ret_val = e1000_check_for_copper_link_generic(hw);
+	}
 
 	return ret_val;
 }
@@ -921,101 +926,6 @@ static s32 e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
 }
 
 /**
- *  e1000_init_rx_addrs_82575 - Initialize receive address's
- *  @hw: pointer to the HW structure
- *  @rar_count: receive address registers
- *
- *  Setups the receive address registers by setting the base receive address
- *  register to the devices MAC address and clearing all the other receive
- *  address registers to 0.
- **/
-static void e1000_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count)
-{
-	u32 i;
-	u8 addr[6] = {0,0,0,0,0,0};
-	/*
-	 * This function is essentially the same as that of
-	 * e1000_init_rx_addrs_generic. However it also takes care
-	 * of the special case where the register offset of the
-	 * second set of RARs begins elsewhere. This is implicitly taken care by
-	 * function e1000_rar_set_generic.
-	 */
-
-	DEBUGFUNC("e1000_init_rx_addrs_82575");
-
-	/* Setup the receive address */
-	DEBUGOUT("Programming MAC Address into RAR[0]\n");
-	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
-
-	/* Zero out the other (rar_entry_count - 1) receive addresses */
-	DEBUGOUT1("Clearing RAR[1-%u]\n", rar_count-1);
-	for (i = 1; i < rar_count; i++) {
-	    hw->mac.ops.rar_set(hw, addr, i);
-	}
-}
-
-/**
- *  e1000_update_mc_addr_list_82575 - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
- *
- *  Updates the Receive Address Registers and Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
- **/
-static void e1000_update_mc_addr_list_82575(struct e1000_hw *hw,
-                                     u8 *mc_addr_list, u32 mc_addr_count,
-                                     u32 rar_used_count, u32 rar_count)
-{
-	u32 hash_value;
-	u32 i;
-	u8 addr[6] = {0,0,0,0,0,0};
-	/*
-	 * This function is essentially the same as that of 
-	 * e1000_update_mc_addr_list_generic. However it also takes care 
-	 * of the special case where the register offset of the 
-	 * second set of RARs begins elsewhere. This is implicitly taken care by 
-	 * function e1000_rar_set_generic.
-	 */
-
-	DEBUGFUNC("e1000_update_mc_addr_list_82575");
-
-	/*
-	 * Load the first set of multicast addresses into the exact
-	 * filters (RAR).  If there are not enough to fill the RAR
-	 * array, clear the filters.
-	 */
-	for (i = rar_used_count; i < rar_count; i++) {
-		if (mc_addr_count) {
-			e1000_rar_set_generic(hw, mc_addr_list, i);
-			mc_addr_count--;
-			mc_addr_list += ETH_ADDR_LEN;
-		} else {
-			e1000_rar_set_generic(hw, addr, i);
-		}
-	}
-
-	/* Clear the old settings from the MTA */
-	DEBUGOUT("Clearing MTA\n");
-	for (i = 0; i < hw->mac.mta_reg_count; i++) {
-		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
-		E1000_WRITE_FLUSH(hw);
-	}
-
-	/* Load any remaining multicast addresses into the hash table. */
-	for (; mc_addr_count > 0; mc_addr_count--) {
-		hash_value = e1000_hash_mc_addr(hw, mc_addr_list);
-		DEBUGOUT1("Hash value = 0x%03X\n", hash_value);
-		hw->mac.ops.mta_set(hw, hash_value);
-		mc_addr_list += ETH_ADDR_LEN;
-	}
-}
-
-/**
  *  e1000_shutdown_fiber_serdes_link_82575 - Remove link during power down
  *  @hw: pointer to the HW structure
  *
@@ -1057,6 +967,253 @@ void e1000_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
 	}
 
 	return;
+}
+
+/**
+ *  e1000_vmdq_loopback_enable_pf- Enables VM to VM queue loopback replication
+ *  @hw: pointer to the HW structure
+ **/
+void e1000_vmdq_loopback_enable_pf(struct e1000_hw *hw)
+{
+	u32 reg;
+
+	reg = E1000_READ_REG(hw, E1000_DTXSWC);
+	reg |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+	E1000_WRITE_REG(hw, E1000_DTXSWC, reg);
+}
+
+/**
+ *  e1000_vmdq_loopback_disable_pf - Disable VM to VM queue loopbk replication
+ *  @hw: pointer to the HW structure
+ **/
+void e1000_vmdq_loopback_disable_pf(struct e1000_hw *hw)
+{
+	u32 reg;
+
+	reg = E1000_READ_REG(hw, E1000_DTXSWC);
+	reg &= ~(E1000_DTXSWC_VMDQ_LOOPBACK_EN);
+	E1000_WRITE_REG(hw, E1000_DTXSWC, reg);
+}
+
+/**
+ *  e1000_vmdq_replication_enable_pf - Enable replication of brdcst & multicst
+ *  @hw: pointer to the HW structure
+ *
+ *  Enables replication of broadcast and multicast packets from the network
+ *  to VM's which have their respective broadcast and multicast accept
+ *  bits set in the VM Offload Register.  This gives the PF driver per
+ *  VM granularity control over which VM's get replicated broadcast traffic.
+ **/
+void e1000_vmdq_replication_enable_pf(struct e1000_hw *hw, u32 enables)
+{
+	u32 reg;
+	u32 i;
+
+	for (i = 0; i < MAX_NUM_VFS; i++) {
+		if (enables & (1 << i)) {
+			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
+			reg |= (E1000_VMOLR_AUPE |
+				E1000_VMOLR_BAM |
+				E1000_VMOLR_MPME);
+			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
+		}
+	}
+
+	reg = E1000_READ_REG(hw, E1000_VT_CTL);
+	reg |= E1000_VT_CTL_VM_REPL_EN;
+	E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
+}
+
+/**
+ *  e1000_vmdq_replication_disable_pf - Disable replication of brdcst & multicst
+ *  @hw: pointer to the HW structure
+ *
+ *  Disables replication of broadcast and multicast packets to the VM's.
+ **/
+void e1000_vmdq_replication_disable_pf(struct e1000_hw *hw)
+{
+	u32 reg;
+
+	reg = E1000_READ_REG(hw, E1000_VT_CTL);
+	reg &= ~(E1000_VT_CTL_VM_REPL_EN);
+	E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
+}
+
+/**
+ *  e1000_vmdq_enable_replication_mode_pf - Enables replication mode in the device
+ *  @hw: pointer to the HW structure
+ **/
+void e1000_vmdq_enable_replication_mode_pf(struct e1000_hw *hw)
+{
+	u32 reg;
+
+	reg = E1000_READ_REG(hw, E1000_VT_CTL);
+	reg |= E1000_VT_CTL_VM_REPL_EN;
+	E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
+}
+
+/**
+ *  e1000_vmdq_broadcast_replication_enable_pf - Enable replication of brdcst
+ *  @hw: pointer to the HW structure
+ *  @enables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
+ *
+ *  Enables replication of broadcast packets from the network
+ *  to VM's which have their respective broadcast accept
+ *  bits set in the VM Offload Register.  This gives the PF driver per
+ *  VM granularity control over which VM's get replicated broadcast traffic.
+ **/
+void e1000_vmdq_broadcast_replication_enable_pf(struct e1000_hw *hw,
+						u32 enables)
+{
+	u32 reg;
+	u32 i;
+
+	for (i = 0; i < MAX_NUM_VFS; i++) {
+		if ((enables == ALL_QUEUES) || (enables & (1 << i))) {
+			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
+			reg |= E1000_VMOLR_BAM;
+			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
+		}
+	}
+}
+
+/**
+ *  e1000_vmdq_broadcast_replication_disable_pf - Disable replication
+ *  of broadcast packets
+ *  @hw: pointer to the HW structure
+ *  @disables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
+ *
+ *  Disables replication of broadcast packets for specific pools.
+ *  If bam/mpe is disabled on all pools then replication mode is
+ *  turned off.
+ **/
+void e1000_vmdq_broadcast_replication_disable_pf(struct e1000_hw *hw,
+						 u32 disables)
+{
+	u32 reg;
+	u32 i;
+	u32 oneenabled = 0;
+
+	for (i = 0; i < MAX_NUM_VFS; i++) {
+		reg = E1000_READ_REG(hw, E1000_VMOLR(i));
+		if ((disables == ALL_QUEUES) || (disables & (1 << i))) {
+			reg &= ~(E1000_VMOLR_BAM);
+			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
+		}
+		if (!oneenabled && (reg & (E1000_VMOLR_AUPE |
+				E1000_VMOLR_BAM |
+				E1000_VMOLR_MPME)))
+				oneenabled = 1;
+	}
+	if (!oneenabled) {
+		reg = E1000_READ_REG(hw, E1000_VT_CTL);
+		reg &= ~(E1000_VT_CTL_VM_REPL_EN);
+		E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
+	}
+}
+
+/**
+ *  e1000_vmdq_multicast_promiscuous_enable_pf - Enable promiscuous reception
+ *  @hw: pointer to the HW structure
+ *  @enables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
+ *
+ *  Enables promiscuous reception of multicast packets from the network
+ *  to VM's which have their respective multicast promiscuous mode enable
+ *  bits set in the VM Offload Register.  This gives the PF driver per
+ *  VM granularity control over which VM's get all multicast traffic.
+ **/
+void e1000_vmdq_multicast_promiscuous_enable_pf(struct e1000_hw *hw,
+						u32 enables)
+{
+	u32 reg;
+	u32 i;
+
+	for (i = 0; i < MAX_NUM_VFS; i++) {
+		if ((enables == ALL_QUEUES) || (enables & (1 << i))) {
+			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
+			reg |= E1000_VMOLR_MPME;
+			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
+		}
+	}
+}
+
+/**
+ *  e1000_vmdq_multicast_promiscuous_disable_pf - Disable promiscuous
+ *  reception of multicast packets
+ *  @hw: pointer to the HW structure
+ *  @disables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
+ *
+ *  Disables promiscuous reception of multicast packets for specific pools.
+ *  If bam/mpe is disabled on all pools then replication mode is
+ *  turned off.
+ **/
+void e1000_vmdq_multicast_promiscuous_disable_pf(struct e1000_hw *hw,
+						 u32 disables)
+{
+	u32 reg;
+	u32 i;
+	u32 oneenabled = 0;
+
+	for (i = 0; i < MAX_NUM_VFS; i++) {
+		reg = E1000_READ_REG(hw, E1000_VMOLR(i));
+		if ((disables == ALL_QUEUES) || (disables & (1 << i))) {
+			reg &= ~(E1000_VMOLR_MPME);
+			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
+		}
+		if (!oneenabled && (reg & (E1000_VMOLR_AUPE |
+				E1000_VMOLR_BAM |
+				E1000_VMOLR_MPME)))
+				oneenabled = 1;
+	}
+	if (!oneenabled) {
+		reg = E1000_READ_REG(hw, E1000_VT_CTL);
+		reg &= ~(E1000_VT_CTL_VM_REPL_EN);
+		E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
+	}
+}
+
+/**
+ *  e1000_vmdq_aupe_enable_pf - Enable acceptance of untagged packets
+ *  @hw: pointer to the HW structure
+ *  @enables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
+ *
+ *  Enables acceptance of packets from the network which do not have
+ *  a VLAN tag but match the exact MAC filter of a given VM.
+ **/
+void e1000_vmdq_aupe_enable_pf(struct e1000_hw *hw, u32 enables)
+{
+	u32 reg;
+	u32 i;
+
+	for (i = 0; i < MAX_NUM_VFS; i++) {
+	if ((enables == ALL_QUEUES) || (enables & (1 << i))) {
+			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
+			reg |= E1000_VMOLR_AUPE;
+			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
+		}
+	}
+}
+
+/**
+ *  e1000_vmdq_aupe_disable_pf - Disable acceptance of untagged packets
+ *  @hw: pointer to the HW structure
+ *  @disables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
+ *
+ *  Disables acceptance of packets from the network which do not have
+ *  a VLAN tag but match the exact MAC filter of a given VM.
+ **/
+void e1000_vmdq_aupe_disable_pf(struct e1000_hw *hw, u32 disables)
+{
+	u32 reg;
+	u32 i;
+
+	for (i = 0; i < MAX_NUM_VFS; i++) {
+		if ((disables == ALL_QUEUES) || (disables & (1 << i))) {
+			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
+			reg &= ~E1000_VMOLR_AUPE;
+			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
+		}
+	}
 }
 
 /**
@@ -1113,7 +1270,8 @@ static s32 e1000_reset_hw_82575(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
 	icr = E1000_READ_REG(hw, E1000_ICR);
 
-	e1000_check_alt_mac_addr_generic(hw);
+	/* Install any alternate MAC address into RAR0 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
 
 	return ret_val;
 }
@@ -1133,7 +1291,7 @@ static s32 e1000_init_hw_82575(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_init_hw_82575");
 
 	/* Initialize identification LED */
-	ret_val = e1000_id_led_init_generic(hw);
+	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val) {
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
@@ -1144,7 +1302,8 @@ static s32 e1000_init_hw_82575(struct e1000_hw *hw)
 	mac->ops.clear_vfta(hw);
 
 	/* Setup the receive address */
-	e1000_init_rx_addrs_82575(hw, rar_count);
+	e1000_init_rx_addrs_generic(hw, rar_count);
+
 	/* Zero out the Multicast HASH table */
 	DEBUGOUT("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
@@ -1502,9 +1661,19 @@ static s32 e1000_read_mac_addr_82575(struct e1000_hw *hw)
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_read_mac_addr_82575");
-	if (e1000_check_alt_mac_addr_generic(hw))
-		ret_val = e1000_read_mac_addr_generic(hw);
 
+	/*
+	 * If there's an alternate MAC address place it in RAR0
+	 * so that it will override the Si installed default perm
+	 * address.
+	 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = e1000_read_mac_addr_generic(hw);
+
+out:
 	return ret_val;
 }
 

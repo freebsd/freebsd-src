@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_error.h>
@@ -60,7 +59,6 @@ static device_attach_t usb_linux_attach;
 static device_detach_t usb_linux_detach;
 static device_suspend_t usb_linux_suspend;
 static device_resume_t usb_linux_resume;
-static device_shutdown_t usb_linux_shutdown;
 
 static usb2_callback_t usb_linux_isoc_callback;
 static usb2_callback_t usb_linux_non_isoc_callback;
@@ -68,7 +66,7 @@ static usb2_callback_t usb_linux_non_isoc_callback;
 static usb_complete_t usb_linux_wait_complete;
 
 static uint16_t	usb_max_isoc_frames(struct usb_device *);
-static int	usb_start_wait_urb(struct urb *, uint32_t, uint16_t *);
+static int	usb_start_wait_urb(struct urb *, usb2_timeout_t, uint16_t *);
 static const struct usb_device_id *usb_linux_lookup_id(
 		    const struct usb_device_id *, struct usb2_attach_arg *);
 static struct	usb_driver *usb_linux_get_usb_driver(struct usb_linux_softc *);
@@ -93,7 +91,6 @@ static device_method_t usb_linux_methods[] = {
 	DEVMETHOD(device_detach, usb_linux_detach),
 	DEVMETHOD(device_suspend, usb_linux_suspend),
 	DEVMETHOD(device_resume, usb_linux_resume),
-	DEVMETHOD(device_shutdown, usb_linux_shutdown),
 
 	{0, 0}
 };
@@ -197,7 +194,7 @@ usb_linux_probe(device_t dev)
 	struct usb_driver *udrv;
 	int err = ENXIO;
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	mtx_lock(&Giant);
@@ -356,23 +353,6 @@ usb_linux_resume(device_t dev)
 
 	if (udrv && udrv->resume) {
 		err = (udrv->resume) (sc->sc_ui);
-	}
-	return (0);
-}
-
-/*------------------------------------------------------------------------*
- *	usb_linux_shutdown
- *
- * This function is the FreeBSD shutdown callback. Usually it does nothing.
- *------------------------------------------------------------------------*/
-static int
-usb_linux_shutdown(device_t dev)
-{
-	struct usb_linux_softc *sc = device_get_softc(dev);
-	struct usb_driver *udrv = usb_linux_get_usb_driver(sc);
-
-	if (udrv && udrv->shutdown) {
-		(udrv->shutdown) (sc->sc_ui);
 	}
 	return (0);
 }
@@ -565,7 +545,7 @@ usb_clear_halt(struct usb_device *dev, struct usb_host_endpoint *uhe)
  * Linux USB transfers.
  *------------------------------------------------------------------------*/
 static int
-usb_start_wait_urb(struct urb *urb, uint32_t timeout, uint16_t *p_actlen)
+usb_start_wait_urb(struct urb *urb, usb2_timeout_t timeout, uint16_t *p_actlen)
 {
 	int err;
 
@@ -621,7 +601,7 @@ int
 usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *uhe,
     uint8_t request, uint8_t requesttype,
     uint16_t value, uint16_t index, void *data,
-    uint16_t size, uint32_t timeout)
+    uint16_t size, usb2_timeout_t timeout)
 {
 	struct usb2_device_request req;
 	struct urb *urb;
@@ -660,7 +640,7 @@ usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *uhe,
 		}
 		return (err);
 	}
-	if (dev->bsd_udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (dev->bsd_udev->flags.usb_mode != USB_MODE_HOST) {
 		/* not supported */
 		return (-EINVAL);
 	}
@@ -742,7 +722,7 @@ usb_set_interface(struct usb_device *dev, uint8_t iface_no, uint8_t alt_index)
  *------------------------------------------------------------------------*/
 int
 usb_setup_endpoint(struct usb_device *dev,
-    struct usb_host_endpoint *uhe, uint32_t bufsize)
+    struct usb_host_endpoint *uhe, usb2_size_t bufsize)
 {
 	struct usb2_config cfg[2];
 	uint8_t type = uhe->desc.bmAttributes & UE_XFERTYPE;
@@ -771,10 +751,10 @@ usb_setup_endpoint(struct usb_device *dev,
 		cfg[0].type = type;
 		cfg[0].endpoint = addr & UE_ADDR;
 		cfg[0].direction = addr & (UE_DIR_OUT | UE_DIR_IN);
-		cfg[0].mh.callback = &usb_linux_isoc_callback;
-		cfg[0].mh.bufsize = 0;	/* use wMaxPacketSize */
-		cfg[0].mh.frames = usb_max_isoc_frames(dev);
-		cfg[0].mh.flags.proxy_buffer = 1;
+		cfg[0].callback = &usb_linux_isoc_callback;
+		cfg[0].bufsize = 0;	/* use wMaxPacketSize */
+		cfg[0].frames = usb_max_isoc_frames(dev);
+		cfg[0].flags.proxy_buffer = 1;
 #if 0
 		/*
 		 * The Linux USB API allows non back-to-back
@@ -783,9 +763,9 @@ usb_setup_endpoint(struct usb_device *dev,
 		 * do a copy, and then we need a buffer for
 		 * that. Enable this at your own risk.
 		 */
-		cfg[0].mh.flags.ext_buffer = 1;
+		cfg[0].flags.ext_buffer = 1;
 #endif
-		cfg[0].mh.flags.short_xfer_ok = 1;
+		cfg[0].flags.short_xfer_ok = 1;
 
 		bcopy(cfg, cfg + 1, sizeof(*cfg));
 
@@ -805,11 +785,11 @@ usb_setup_endpoint(struct usb_device *dev,
 		cfg[0].type = type;
 		cfg[0].endpoint = addr & UE_ADDR;
 		cfg[0].direction = addr & (UE_DIR_OUT | UE_DIR_IN);
-		cfg[0].mh.callback = &usb_linux_non_isoc_callback;
-		cfg[0].mh.bufsize = bufsize;
-		cfg[0].mh.flags.ext_buffer = 1;	/* enable zero-copy */
-		cfg[0].mh.flags.proxy_buffer = 1;
-		cfg[0].mh.flags.short_xfer_ok = 1;
+		cfg[0].callback = &usb_linux_non_isoc_callback;
+		cfg[0].bufsize = bufsize;
+		cfg[0].flags.ext_buffer = 1;	/* enable zero-copy */
+		cfg[0].flags.proxy_buffer = 1;
+		cfg[0].flags.short_xfer_ok = 1;
 
 		if (usb2_transfer_setup(dev->bsd_udev, &uhe->bsd_iface_index,
 		    uhe->bsd_xfer, cfg, 1, uhe, &Giant)) {
@@ -837,7 +817,7 @@ usb_linux_create_usb_device(struct usb2_device *udev, device_t dev)
 	struct usb_interface *p_ui = NULL;
 	struct usb_host_interface *p_uhi = NULL;
 	struct usb_host_endpoint *p_uhe = NULL;
-	uint32_t size;
+	usb2_size_t size;
 	uint16_t niface_total;
 	uint16_t nedesc;
 	uint16_t iface_no_curr;
@@ -972,7 +952,7 @@ struct urb *
 usb_alloc_urb(uint16_t iso_packets, uint16_t mem_flags)
 {
 	struct urb *urb;
-	uint32_t size;
+	usb2_size_t size;
 
 	if (iso_packets == 0xFFFF) {
 		/*
@@ -1103,7 +1083,7 @@ usb_ifnum_to_if(struct usb_device *dev, uint8_t iface_no)
  *	usb_buffer_alloc
  *------------------------------------------------------------------------*/
 void   *
-usb_buffer_alloc(struct usb_device *dev, uint32_t size, uint16_t mem_flags, uint8_t *dma_addr)
+usb_buffer_alloc(struct usb_device *dev, usb2_size_t size, uint16_t mem_flags, uint8_t *dma_addr)
 {
 	return (malloc(size, M_USBDEV, M_WAITOK | M_ZERO));
 }
@@ -1194,7 +1174,7 @@ usb_linux_free_device(struct usb_device *dev)
  *	usb_buffer_free
  *------------------------------------------------------------------------*/
 void
-usb_buffer_free(struct usb_device *dev, uint32_t size,
+usb_buffer_free(struct usb_device *dev, usb2_size_t size,
     void *addr, uint8_t dma_addr)
 {
 	free(addr, M_USBDEV);
@@ -1327,9 +1307,9 @@ usb_linux_complete(struct usb2_xfer *xfer)
 static void
 usb_linux_isoc_callback(struct usb2_xfer *xfer)
 {
-	uint32_t max_frame = xfer->max_frame_size;
-	uint32_t offset;
-	uint16_t x;
+	usb2_frlength_t max_frame = xfer->max_frame_size;
+	usb2_frlength_t offset;
+	usb2_frcount_t x;
 	struct urb *urb = xfer->priv_fifo;
 	struct usb_host_endpoint *uhe = xfer->priv_sc;
 	struct usb_iso_packet_descriptor *uipd;
@@ -1501,7 +1481,7 @@ usb_linux_non_isoc_callback(struct usb2_xfer *xfer)
 	struct urb *urb = xfer->priv_fifo;
 	struct usb_host_endpoint *uhe = xfer->priv_sc;
 	uint8_t *ptr;
-	uint32_t max_bulk = xfer->max_data_length;
+	usb2_frlength_t max_bulk = xfer->max_data_length;
 	uint8_t data_frame = xfer->flags_int.control_xfr ? 1 : 0;
 
 	DPRINTF("\n");

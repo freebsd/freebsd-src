@@ -90,7 +90,7 @@ DEFINE_TEST(test_option_c)
 	close(filelist);
 	r = systemf("%s -oc <filelist >basic.out 2>basic.err", testprog);
 	/* Verify that nothing went to stderr. */
-	assertFileContents("1 block\n", 8, "basic.err");
+	assertTextFileContents("1 block\n", "basic.err");
 
 	/* Assert that the program finished. */
 	failure("%s -oc crashed", testprog);
@@ -114,7 +114,12 @@ DEFINE_TEST(test_option_c)
 	dev = from_octal(e + 6, 6);
 	assert(is_octal(e + 12, 6)); /* ino */
 	ino = from_octal(e + 12, 6);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Group members bits and others bits do not work. */ 
+	assertEqualMem(e + 18, "100666", 6); /* Mode */
+#else
 	assertEqualMem(e + 18, "100644", 6); /* Mode */
+#endif
 	assertEqualInt(from_octal(e + 24, 6), getuid()); /* uid */
 	assert(is_octal(e + 30, 6)); /* gid */
 	gid = from_octal(e + 30, 6);
@@ -136,7 +141,11 @@ DEFINE_TEST(test_option_c)
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	assertEqualInt(dev, from_octal(e + 6, 6)); /* dev */
 	assert(dev != from_octal(e + 12, 6)); /* ino */
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	/* On Windows, symbolic link and group members bits and 
+	 * others bits do not work. */ 
 	assertEqualMem(e + 18, "120777", 6); /* Mode */
+#endif
 	assertEqualInt(from_octal(e + 24, 6), getuid()); /* uid */
 	assertEqualInt(gid, from_octal(e + 30, 6)); /* gid */
 	assertEqualMem(e + 36, "000001", 6); /* nlink */
@@ -147,10 +156,21 @@ DEFINE_TEST(test_option_c)
 	assert(t <= now); /* File wasn't created in future. */
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */
 	assertEqualMem(e + 59, "000010", 6); /* Name size */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* On Windows, symbolic link does not work. */
+	assertEqualMem(e + 65, "00000000012", 11); /* File size */
+#else
 	assertEqualMem(e + 65, "00000000004", 11); /* File size */
+#endif
 	assertEqualMem(e + 76, "symlink\0", 8); /* Name contents */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* On Windows, symbolic link does not work. */
+	assertEqualMem(e + 84, "123456789\0", 10); /* File contents. */
+	e += 94;
+#else
 	assertEqualMem(e + 84, "file", 4); /* Symlink target. */
 	e += 88;
+#endif
 
 	/* Second entry is "dir" */
 	assert(is_octal(e, 76));
@@ -161,12 +181,19 @@ DEFINE_TEST(test_option_c)
 	/* Ino must be different from first entry. */
 	assert(is_octal(e + 12, 6)); /* ino */
 	assert(dev != from_octal(e + 12, 6));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Group members bits and others bits do not work. */ 
+	assertEqualMem(e + 18, "040777", 6); /* Mode */
+#else
 	assertEqualMem(e + 18, "040775", 6); /* Mode */
+#endif
 	assertEqualInt(from_octal(e + 24, 6), getuid()); /* uid */
 	/* Gid should be same as first entry. */
 	assert(is_octal(e + 30, 6)); /* gid */
 	assertEqualInt(gid, from_octal(e + 30, 6));
+#ifndef NLINKS_INACCURATE_FOR_DIRS
 	assertEqualMem(e + 36, "000002", 6); /* Nlink */
+#endif
 	t = from_octal(e + 48, 11); /* mtime */
 	assert(t <= now); /* File wasn't created in future. */
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */

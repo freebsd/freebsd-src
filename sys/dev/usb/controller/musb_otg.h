@@ -25,8 +25,8 @@
  */
 
 /*
- * This header file defines the registers of the Mentor Graphics
- * USB OnTheGo Inventra chip.
+ * This header file defines the registers of the Mentor Graphics USB OnTheGo
+ * Inventra chip.
  */
 
 #ifndef _MUSB2_OTG_H_
@@ -332,6 +332,7 @@ struct musbotg_std_temp {
          * short_pkt = 1: transfer should not be short terminated
          */
 	uint8_t	setup_alt_next;
+	uint8_t did_stall;
 };
 
 struct musbotg_config_desc {
@@ -363,8 +364,6 @@ struct musbotg_flags {
 struct musbotg_softc {
 	struct usb2_bus sc_bus;
 	union musbotg_hub_temp sc_hub_temp;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 	struct usb2_hw_ep_profile sc_hw_ep_profile[16];
 
 	struct usb2_device *sc_devices[MUSB2_MAX_DEVICES];

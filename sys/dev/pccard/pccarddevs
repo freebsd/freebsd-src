@@ -146,8 +146,8 @@ vendor ARTEM			0x0268	ARtem
 vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor BROMAX			0x0274	Bromax communications, Inc
-vendor IODATA2			0x028a	I-O DATA
 vendor NECINFORTIA		0x0288	NEC Inforntia
+vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
 vendor UNGERMANN		0x02c0	Ungermann Bass
@@ -181,6 +181,7 @@ vendor RALINK			0x1814	Ralink Technology
  * with '0xc' look coherent enough that maybe somebody other than PCMCIA is
  * assigning numbers in that range.  Maybe JEITA?
  */
+vendor RIOS			0x492f	RIOS Systems Co
 vendor AIRVAST			0x50c2	AirVast Technology
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
@@ -265,6 +266,7 @@ product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
 
 /* Bromax Communications, Inc (Linksys OEM) */
 product BROMAX IPORT		0x1103 iPort 10/100 Ethernet
+product BROMAX AXNET		0x1106 AXNET based 10/100 Ethernet
 product BROMAX IPORT2		0x1121 iPort 10Mbps Ethernet
 product BROMAX IWN		0x1612 Instant Wireless Network PC Card
 product BROMAX IWN3		0x1613 Instant Wireless Network PC Card, V3
@@ -342,6 +344,7 @@ product FUJITSU WL110		0x2003 PEGA-WL110 Wireless LAN
 product GEMPLUS GPR400		0x3004 GPR400 Smartcard Reader
 
 /* GlobalVillage */
+product GLOBALVILLAGE POWERPORT	0x0103 GlobalVillage PowerPort PlatinumPro
 product GLOBALVILLAGE LANMODEM	0x0105 GlobalVillage Ethernet + Modem
 
 /* Grey Cell Systems, Ltd */
@@ -545,6 +548,9 @@ product RAYTHEON WLAN		0x0000 WLAN Adapter
 /* RELIA Technologies Corporation */
 product RELIA COMBO		0x2452 Reliable Combo-L/M-56K
 
+/* RIOS Systems Co */
+product RIOS PCCARD3		0x0000 PC Card Ethernet
+
 /* Roland */
 product ROLAND SCP55		0x0001 Roland SCP-55
 
@@ -665,12 +671,14 @@ vendor FUJITSU2			-1	Fujitsu
 vendor FUTUREDOMAIN		-1	FutureDomain
 vendor FREECOM			-1	Freecom
 vendor GEMTEK			-1	Gem Tek
+vendor GVC			-1	GVC
 vendor ICOM			-1	ICOM Inc
 vendor INTERSIL2		-1	Intersil
 vendor IODATA3			-1	I-O DATA
 vendor LANTECH			-1	Lantech Computer Company
 vendor MELCO2			-1	Melco Corporation
 vendor MICRORESEARCH		-1	Micro Research
+vendor MITSUBISHI		-1	Mitsubishi Electronics Corp
 vendor NDC			-1	NDC
 vendor NEC			-1	NEC
 vendor OEM2			-1	Generic OEM
@@ -691,11 +699,16 @@ product ACCTON EN2212		{ "ACCTON", "EN2212", NULL, NULL } Accton EN2212
 product ACCTON EN2216		{ "ACCTON", "EN2216-PCMCIA-ETHERNET", "EN2216R01", NULL } Accton EN2216
 product ADDTRON AWP100		{ "Addtron", "AWP-100&spWireless&spPCMCIA", "Version&sp01.02", NULL }
 product ALLIEDTELESIS WR211PCM	{ "Allied&spTelesis&spK.K.", "WR211PCM", NULL, NULL } Allied Telesis WR211PCM
+product AMBICOM AMB8002		{ "AmbiCom&spInc", "AMB8002", NULL, NULL } AmbiCom AMB8002
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
+product AMBICOM AMB8010		{ "AmbiCom&spInc", "AMB8010", NULL, NULL } AmbiCom AMB8010
+product AMBICOM AMB8010_ALT	{ "AmbiCom", "AMB8010", NULL, NULL } AmbiCom AMB8010
+product AMBICOM AMB8610		{ "AmbiCom", "AMB8610", NULL, NULL } AmbiCom AMB8010
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product ARGOSY SP320		{ "PCMCIA", "RS-COM 2P", NULL, NULL } ARGOSY SP320 Dual port serial PCMCIA
 product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionton CFLT10N
 product BILLIONTON LNA100B	{ "Billionton", "LNA-100B", NULL, NULL } Billionton LNA-100B
+product BILLIONTON LNT10TB	{ "PCMCIA", "LNT-10TB", NULL, NULL } Billionton LNT-10TB
 product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton LNT-10TN
 product CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
 product COREGA ETHER_PCC_T	{ "corega&spK.K.", "corega&spEther&spPCC-T", NULL, NULL } Corega Ether PCC-T
@@ -733,6 +746,7 @@ product FUJITSU2 FMV_J182A	{ "FUJITSU", "LAN&spCard(FMV-J182)", "Ver.02", NULL }
 product FUJITSU2 ITCFJ182A	{ "FUJITSU", "LAN&spCard(ITCFJ182)", "Ver.01", NULL } FUJITSU ITCFJ182A CompactCard
 product FUTUREDOMAIN SCSI2GO	{ "Future&spDomain&spCorporation", "SCSI&spPCMCIA&spCredit&spCard&spController", NULL, NULL } Future Domain SCSI2GO
 product GEMTEK WLAN		{ "Intersil", "PRISM&sp2_5&spPCMCIA&spADAPTER", "ISL37300P", "Eval-RevA" } GEMTEK Prism2_5 WaveLAN Card
+product GVC NIC_2000P		{ "GVC", "NIC-2000p", "ETHERNET", NULL } GVC PCMCIA Ethernet Adapeter
 product IBM SCSICARD		{ "IBM&spCorp.", "SCSI&spPCMCIA&spCard", NULL, NULL } IBM SCSI PCMCIA Card
 product ICOM SL200		{ "Icom", "SL-200", NULL, NULL } Icom SL-200
 product INTERSIL2 PRISM2	{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL } Intersil Prism II
@@ -743,8 +757,10 @@ product LANTECH FASTNETTX	{ "ASIX", "AX88190", NULL, NULL } Lantech Fastnet/TX
 product LINKSYS ECARD_2		{ "LINKSYS", "E-CARD", NULL, NULL } Linksys E-Card
 product MACNICA MPS100		{ "MACNICA", "MIRACLE&spSCSI", "mPS100", "D.0" } Macnica Miracle SCSI mPS100
 product MEGAHERTZ XJ2288 	{ "MEGAHERTZ", "MODEM&spXJ2288", NULL, NULL } Megahertz XJ2288 Modem
+product MELCO2 LPC2_T		{ "MELCO", "LPC2-T", NULL, NULL } Melco LPC2-T
 product MELCO2 LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
 product MICRORESEARCH MR10TPC	{ "MICRO-RESEARCH-MR10TPC", "Ethernet", NULL, NULL } Micro Research MR10TPC
+product MITSUBISHI B8895	{ "MITSUBISHI&spELECTRIC&spCORPORATION", "B8895", NULL, NULL } Mitsubishi Electronics Corporation B8895
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
 product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 Compatible Card
 product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01", NULL } NEC Wireless Card CMZ-RT-WP
@@ -756,6 +772,7 @@ product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NU
 product OEM2 CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL } Generic PCMCIA CD-ROM
 product OEM2 IDE	{ "PCMCIA", "IDE&spCARD", NULL, NULL } Generic PCMCIA IDE CARD
 product OEM2 ETHERNET		{ "PCMCIA", "Ethernet", NULL, NULL } NE2000 PC Card
+product OEM2 100BASE		{ "PCMCIA", "100BASE", NULL, NULL } NE2000 PC Card
 product OEM2 FAST_ETHERNET	{ "PCMCIA", "FAST&spETHERNET&spCARD", NULL, NULL } NE2000 PC Card
 product OEM2 NE2000		{ "NE2000&spCompatible&spPC&spCard", "PCMCIA", NULL, NULL } Generic NE2000 PC Card
 product PHISON CF_CARD		{ "PHISON", "CF&spCard", NULL, NULL } Generic CF or SD/MMC/SmartMedia Reader

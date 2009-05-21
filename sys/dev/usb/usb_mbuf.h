@@ -37,8 +37,8 @@ struct usb2_mbuf {
 	struct usb2_mbuf *usb2_nextpkt;
 	struct usb2_mbuf *usb2_next;
 
-	uint32_t cur_data_len;
-	uint32_t max_data_len;
+	usb2_size_t cur_data_len;
+	usb2_size_t max_data_len;
 	uint8_t last_packet:1;
 	uint8_t unused:7;
 };
@@ -51,8 +51,8 @@ struct usb2_ifqueue {
 	struct usb2_mbuf *ifq_head;
 	struct usb2_mbuf *ifq_tail;
 
-	uint32_t ifq_len;
-	uint32_t ifq_maxlen;
+	usb2_size_t ifq_len;
+	usb2_size_t ifq_maxlen;
 };
 
 #define	USB_IF_ENQUEUE(ifq, m) do {		\
@@ -97,6 +97,6 @@ struct usb2_ifqueue {
 
 /* prototypes */
 void   *usb2_alloc_mbufs(struct malloc_type *type, struct usb2_ifqueue *ifq,
-	    uint32_t block_size, uint16_t nblocks);
+	    usb2_size_t block_size, uint16_t nblocks);
 
 #endif					/* _USB2_MBUF_H_ */

@@ -148,6 +148,7 @@ options 	GEOM_NOP		# Test class.
 options 	GEOM_PART_APM		# Apple partitioning
 options 	GEOM_PART_BSD		# BSD disklabel
 options 	GEOM_PART_EBR		# Extended Boot Records
+options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
 options 	GEOM_PART_MBR		# MBR partitioning
 options 	GEOM_PART_PC98		# PC-9800 disk partitioning
@@ -191,7 +192,7 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # tree at 'kern.sched.stats' and is useful for debugging scheduling decisions.
 #
 options 	SCHED_4BSD
-options		SCHED_STATS
+options 	SCHED_STATS
 #options 	SCHED_ULE
 
 #####################################################################
@@ -503,7 +504,7 @@ options 	STACK
 # Additional configuration options may be required on specific architectures,
 # please see hwpmc(4).
 
-device  	hwpmc			# Driver (also a loadable module)
+device		hwpmc			# Driver (also a loadable module)
 options 	HWPMC_HOOKS		# Other necessary kernel hooks
 
 
@@ -516,7 +517,7 @@ options 	HWPMC_HOOKS		# Other necessary kernel hooks
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
 
-options		ROUTETABLES=2		# max 16. 1 is back compatible.
+options 	ROUTETABLES=2		# max 16. 1 is back compatible.
 
 # In order to enable IPSEC you MUST also add device crypto to 
 # your kernel configuration
@@ -550,7 +551,10 @@ options 	NETSMB			#SMB/CIFS requester
 options 	LIBMCHAIN
 
 # libalias library, performing NAT
-options		LIBALIAS
+options 	LIBALIAS
+
+# flowtable cache
+options 	FLOWTABLE
 
 #
 # SCTP is a NEW transport protocol defined by
@@ -567,7 +571,7 @@ options		LIBALIAS
 # the V6 and V4.. since an association can span
 # both a V6 and V4 address at the SAME time :-)
 #
-options         SCTP
+options 	SCTP
 # There are bunches of options:
 # this one turns on all sorts of
 # nastly printing that you can
@@ -579,7 +583,7 @@ options         SCTP
 # option we don't do any of the tests for
 # bits and prints.. which makes the code run
 # faster.. if you are not debugging don't use.
-options SCTP_DEBUG
+options 	SCTP_DEBUG
 #
 # This option turns off the CRC32c checksum. Basically
 # You will not be able to talk to anyone else that
@@ -592,7 +596,7 @@ options SCTP_DEBUG
 # splitting 8's algorithm its not as bad as it used
 # to be.. but it does speed things up try only
 # for in a captured lab environment :-)
-options SCTP_WITH_NO_CSUM
+options 	SCTP_WITH_NO_CSUM
 #
 
 #
@@ -615,7 +619,7 @@ options 	SCTP_LOCK_LOGGING
 options 	SCTP_MBUF_LOGGING
 options 	SCTP_MBCNT_LOGGING
 options 	SCTP_PACKET_LOGGING
-options		SCTP_LTRACE_CHUNKS
+options 	SCTP_LTRACE_CHUNKS
 options 	SCTP_LTRACE_ERRORS
 
 
@@ -640,7 +644,7 @@ options 	ALTQ_DEBUG
 # It allows transparent proxies to pretend to be other machines.
 # How the packet GET to that machine is a problem solved elsewhere,
 # smart routers, ipfw fwd, etc.
-options        IP_NONLOCALBIND		# Allow impersonation for proxies.
+options 	IP_NONLOCALBIND		# Allow impersonation for proxies.
 
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
 # Individual node types can be enabled with the corresponding option
@@ -723,15 +727,15 @@ device		loop
 device		ether
 
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
-#  according to IEEE 802.1Q.  It requires `device miibus'.
+#  according to IEEE 802.1Q.
 device		vlan
 
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.
 device		wlan
-options		IEEE80211_DEBUG		#enable debugging msgs
-options		IEEE80211_AMPDU_AGE	#age frames in AMPDU reorder q's
+options 	IEEE80211_DEBUG		#enable debugging msgs
+options 	IEEE80211_AMPDU_AGE	#age frames in AMPDU reorder q's
 
 #  The `wlan_wep', `wlan_tkip', and `wlan_ccmp' devices provide
 #  support for WEP, TKIP, and AES-CCMP crypto protocols optionally
@@ -764,10 +768,6 @@ device		arcnet
 #  The `sppp' device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
 device		sppp
-
-#  The `sl' device implements the Serial Line IP (SLIP) service.
-#  The `ppp' device implements the Point-to-Point Protocol.
-
 
 #  The `bpf' device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
@@ -835,15 +835,6 @@ device		enc
 
 # Link aggregation interface.
 device		lagg
-
-#
-# The PPP_BSDCOMP option enables support for compress(1) style entire
-# packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
-# PPP_FILTER enables code for filtering the ppp data stream and selecting
-# events for resetting the demand dial activity timer - requires bpf.
-# See pppd(8) for more details.
-#
-
 
 #
 # Internet family options:
@@ -914,7 +905,7 @@ options 	TCPDEBUG
 # return a logarithmic histogram of monitored parameters
 # (e.g. packet size, wasted space, number of mbufs in chain).
 options 	MBUF_STRESS_TEST
-options		MBUF_PROFILING
+options 	MBUF_PROFILING
 
 # Statically Link in accept filters
 options 	ACCEPT_FILTER_DATA
@@ -971,7 +962,7 @@ options 	FDESCFS			#File descriptor filesystem
 options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
-options		NFSLOCKD		#Network Lock Manager
+options 	NFSLOCKD		#Network Lock Manager
 
 # NT File System. Read-mostly, see mount_ntfs(8) for details.
 # For a full read-write NTFS support consider sysutils/fusefs-ntfs
@@ -1406,8 +1397,8 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 #	0x100	Probe for a keyboard device periodically if one is not present
 
 # Enable experimental features of the syscons terminal emulator (teken).
-options		TEKEN_UTF8		# UTF-8 output handling
-options		TEKEN_XTERM		# xterm-style terminal emulation
+options 	TEKEN_UTF8		# UTF-8 output handling
+options 	TEKEN_XTERM		# xterm-style terminal emulation
 
 #
 # Optional devices:
@@ -1533,7 +1524,7 @@ options 	ADW_ALLOW_MEMIO
 
 # Options used in dev/iscsi (Software iSCSI stack)
 #
-options		ISCSI_INITIATOR_DEBUG=9
+options 	ISCSI_INITIATOR_DEBUG=9
 
 # Options used in dev/isp/ (Qlogic SCSI/FC driver).
 #
@@ -1627,7 +1618,7 @@ device		mly
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960
 device		amr		# AMI MegaRAID
-device 		amrp		# SCSI Passthrough interface (optional, CAM req.)
+device		amrp		# SCSI Passthrough interface (optional, CAM req.)
 device		mfi		# LSI MegaRAID SAS
 device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG
@@ -1942,7 +1933,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
-#device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
+device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
@@ -2357,7 +2348,7 @@ options 	BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
 options 	BOOTP_NFSV3	# Use NFS v3 to NFS mount root
 options 	BOOTP_COMPAT	# Workaround for broken bootp daemons.
 options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
-options		BOOTP_BLOCKSIZE=8192 # Override NFS block size
+options 	BOOTP_BLOCKSIZE=8192 # Override NFS block size
 
 #
 # Add software watchdog routines.
@@ -2402,7 +2393,7 @@ device		ohci
 # EHCI controller
 device		ehci
 # SL811 Controller
-#device 		slhci
+#device		slhci
 # General USB code (mandatory for USB)
 device		usb
 #
@@ -2426,8 +2417,6 @@ device		umodem
 device		ums
 # Diamond Rio 500 MP3 player
 device		urio
-# USB scanners
-device		uscanner
 #
 # USB serial support
 device		ucom
@@ -2485,20 +2474,23 @@ device		rue
 device		udav
 
 #
-# ZyDas ZD1211/ZD1211B wireless ethernet driver
-device		zyd
+# Ralink Technology RT2501USB/RT2601USB wireless driver
+device		rum
 #
-# Ralink Technology RT2500USB chispet driver
+# Atheros AR5523 wireless driver
+device		uath
+#
+# Ralink Technology RT2500USB wireless driver
 device		ural
 #
-# Ralink Technology RT2501USB/RT2601USB chispet driver
-device		rum
+# ZyDas ZD1211/ZD1211B wireless driver
+device		zyd
 
 # 
 # debugging options for the USB subsystem
 #
 options 	USB_DEBUG
-options		U3G_DEBUG
+options 	U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
@@ -2678,7 +2670,6 @@ options 	SC_DEBUG_LEVEL=5	# Syscons debug level
 options 	SC_RENDER_DEBUG	# syscons rendering debugging
 
 options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
-options 	SLIP_IFF_OPTS
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack

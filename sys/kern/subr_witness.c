@@ -512,11 +512,21 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ifaddr", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
-	 * Multicast - protocol locks before interface locks, after UDP locks.
+	 * IPv4 multicast:
+	 * protocol locks before interface locks, after UDP locks.
 	 */
 	{ "udpinp", &lock_class_rw },
 	{ "in_multi_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
+	{ "if_addr_mtx", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * IPv6 multicast:
+	 * protocol locks before interface locks, after UDP locks.
+	 */
+	{ "udpinp", &lock_class_rw },
+	{ "in6_multi_mtx", &lock_class_mtx_sleep },
+	{ "mld_mtx", &lock_class_mtx_sleep },
 	{ "if_addr_mtx", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
@@ -598,6 +608,13 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "kqueue", &lock_class_mtx_sleep },
 	{ "struct mount mtx", &lock_class_mtx_sleep },
 	{ "vnode interlock", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * ZFS locking
+	 */
+	{ "dn->dn_mtx", &lock_class_sx },
+	{ "dr->dt.di.dr_mtx", &lock_class_sx },
+	{ "db->db_mtx", &lock_class_sx },
 	{ NULL, NULL },
 	/*
 	 * spin locks

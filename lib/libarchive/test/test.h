@@ -37,7 +37,7 @@
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
 #include "config_freebsd.h"
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 /* Win32 can't run the 'configure' script. */
 #include "config_windows.h"
 #else
@@ -45,7 +45,7 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <dirent.h>
 #else
 #include <direct.h>
@@ -56,7 +56,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
 #endif
 #include <wchar.h>
@@ -69,10 +69,15 @@
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
+/* Some non-FreeBSD platforms such as newlib-derived ones like 
+ * cygwin, have __FBSDID, so this definition must be guarded.
+ */
+#ifndef __FBSDID
 #define	__FBSDID(a)     /* null */
 #endif
+#endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define snprintf	sprintf_s
 #define LOCALE_DE	"deu"
 #else
@@ -142,7 +147,7 @@ int test_assert_equal_file(const char *, const char *, ...);
 int test_assert_equal_int(const char *, int, int, const char *, int, const char *, void *);
 int test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
 int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
-int test_assert_equal_mem(const char *, int, const char *, const char *, const char *, const char *, size_t, const char *, void *);
+int test_assert_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int test_assert_file_contents(const void *, int, const char *, ...);
 int test_assert_file_exists(const char *, ...);
 int test_assert_file_not_exists(const char *, ...);
@@ -189,14 +194,3 @@ int read_open_memory2(struct archive *, void *, size_t, size_t);
   test_assert_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
 #define assertEqualStringA(a,v1,v2)   \
   test_assert_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
-
-/*
- * A compression is not supported
- * Use this define after archive_read_next_header() is called
- */
-#define UnsupportedCompress(r, a) \
-	(r != ARCHIVE_OK && \
-	 (strcmp(archive_error_string(a), \
-	    "Unrecognized archive format") == 0 && \
-	  archive_compression(a) == ARCHIVE_COMPRESSION_NONE))
-

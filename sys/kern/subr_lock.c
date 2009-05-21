@@ -46,9 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
@@ -186,7 +188,8 @@ struct lock_prof_cpu {
 
 struct lock_prof_cpu *lp_cpu[MAXCPU];
 
-int lock_prof_enable = 0;
+volatile int lock_prof_enable = 0;
+static volatile int lock_prof_resetting;
 
 /* SWAG: sbuf size = avg stat. line size * number of locks */
 #define LPROF_SBUF_SIZE		256 * 400
@@ -239,25 +242,77 @@ lock_prof_init(void *arg)
 }
 SYSINIT(lockprof, SI_SUB_SMP, SI_ORDER_ANY, lock_prof_init, NULL);
 
+/*
+ * To be certain that lock profiling has idled on all cpus before we
+ * reset, we schedule the resetting thread on all active cpus.  Since
+ * all operations happen within critical sections we can be sure that
+ * it is safe to zero the profiling structures.
+ */
+static void
+lock_prof_idle(void)
+{
+	struct thread *td;
+	int cpu;
+
+	td = curthread;
+	thread_lock(td);
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (CPU_ABSENT(cpu))
+			continue;
+		sched_bind(td, cpu);
+	}
+	sched_unbind(td);
+	thread_unlock(td);
+}
+
+static void
+lock_prof_reset_wait(void)
+{
+
+	/*
+	 * Spin relinquishing our cpu so that lock_prof_idle may
+	 * run on it.
+	 */
+	while (lock_prof_resetting)
+		sched_relinquish(curthread);
+}
+
 static void
 lock_prof_reset(void)
 {
 	struct lock_prof_cpu *lpc;
 	int enabled, i, cpu;
 
+	/*
+	 * We not only race with acquiring and releasing locks but also
+	 * thread exit.  To be certain that threads exit without valid head
+	 * pointers they must see resetting set before enabled is cleared.
+	 * Otherwise a lock may not be removed from a per-thread list due
+	 * to disabled being set but not wait for reset() to remove it below.
+	 */
+	atomic_store_rel_int(&lock_prof_resetting, 1);
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
-	pause("lpreset", hz / 10);
+	lock_prof_idle();
+	/*
+	 * Some objects may have migrated between CPUs.  Clear all links
+	 * before we zero the structures.  Some items may still be linked
+	 * into per-thread lists as well.
+	 */
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		lpc = lp_cpu[cpu];
 		for (i = 0; i < LPROF_CACHE_SIZE; i++) {
 			LIST_REMOVE(&lpc->lpc_types[0].lpt_objs[i], lpo_link);
 			LIST_REMOVE(&lpc->lpc_types[1].lpt_objs[i], lpo_link);
 		}
+	}
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		lpc = lp_cpu[cpu];
 		bzero(lpc, sizeof(*lpc));
 		lock_prof_init_type(&lpc->lpc_types[0]);
 		lock_prof_init_type(&lpc->lpc_types[1]);
 	}
+	atomic_store_rel_int(&lock_prof_resetting, 0);
 	lock_prof_enable = enabled;
 }
 
@@ -351,7 +406,7 @@ retry_sbufops:
 	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
-	pause("lpreset", hz / 10);
+	lock_prof_idle();
 	t = ticks;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (lp_cpu[cpu] == NULL)
@@ -461,16 +516,13 @@ lock_profile_object_lookup(struct lock_object *lo, int spin, const char *file,
 		if (l->lpo_obj == lo && l->lpo_file == file &&
 		    l->lpo_line == line)
 			return (l);
-	critical_enter();
 	type = &lp_cpu[PCPU_GET(cpuid)]->lpc_types[spin];
 	l = LIST_FIRST(&type->lpt_lpoalloc);
 	if (l == NULL) {
 		lock_prof_rejected++;
-		critical_exit();
 		return (NULL);
 	}
 	LIST_REMOVE(l, lpo_link);
-	critical_exit();
 	l->lpo_obj = lo;
 	l->lpo_file = file;
 	l->lpo_line = line;
@@ -497,18 +549,49 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
 	if (spin && lock_prof_skipspin == 1)
 		return;
+	critical_enter();
+	/* Recheck enabled now that we're in a critical section. */
+	if (lock_prof_enable == 0)
+		goto out;
 	l = lock_profile_object_lookup(lo, spin, file, line);
 	if (l == NULL)
-		return;
+		goto out;
 	l->lpo_cnt++;
 	if (++l->lpo_ref > 1)
-		return;
+		goto out;
 	l->lpo_contest_locking = contested;
 	l->lpo_acqtime = nanoseconds(); 
 	if (waittime && (l->lpo_acqtime > waittime))
 		l->lpo_waittime = l->lpo_acqtime - waittime;
 	else
 		l->lpo_waittime = 0;
+out:
+	critical_exit();
+}
+
+void
+lock_profile_thread_exit(struct thread *td)
+{
+#ifdef INVARIANTS
+	struct lock_profile_object *l;
+
+	MPASS(curthread->td_critnest == 0);
+#endif
+	/*
+	 * If lock profiling was disabled we have to wait for reset to
+	 * clear our pointers before we can exit safely.
+	 */
+	lock_prof_reset_wait();
+#ifdef INVARIANTS
+	LIST_FOREACH(l, &td->td_lprof[0], lpo_link)
+		printf("thread still holds lock acquired at %s:%d\n",
+		    l->lpo_file, l->lpo_line);
+	LIST_FOREACH(l, &td->td_lprof[1], lpo_link)
+		printf("thread still holds lock acquired at %s:%d\n",
+		    l->lpo_file, l->lpo_line);
+#endif
+	MPASS(LIST_FIRST(&td->td_lprof[0]) == NULL);
+	MPASS(LIST_FIRST(&td->td_lprof[1]) == NULL);
 }
 
 void
@@ -521,11 +604,20 @@ lock_profile_release_lock(struct lock_object *lo)
 	struct lpohead *head;
 	int spin;
 
-	if (!lock_prof_enable || (lo->lo_flags & LO_NOPROFILE))
+	if (lo->lo_flags & LO_NOPROFILE)
 		return;
 	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
 	head = &curthread->td_lprof[spin];
+	if (LIST_FIRST(head) == NULL)
+		return;
 	critical_enter();
+	/* Recheck enabled now that we're in a critical section. */
+	if (lock_prof_enable == 0 && lock_prof_resetting == 1)
+		goto out;
+	/*
+	 * If lock profiling is not enabled we still want to remove the
+	 * lpo from our queue.
+	 */
 	LIST_FOREACH(l, head, lpo_link)
 		if (l->lpo_obj == lo)
 			break;

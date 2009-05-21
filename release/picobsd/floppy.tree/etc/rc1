@@ -45,7 +45,6 @@ mount -a -t nfs
 [ -n "$network_pass2_done" ] && network_pass3
 
 pwd_mkdb -p ./master.passwd
-dev_mkdb
 
 [ -f /etc/syslog.conf -a -f /stand/syslogd ] && \
 	{ echo "Starting syslogd."; syslogd ${syslogd_flags} ; }

@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE. 
  *
- * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_domain.h#1
+ * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_domain.h#2
  * $FreeBSD$
  */
 
@@ -88,7 +88,7 @@
 #define	BSM_PF_SCLUSTER		514	/* FreeBSD-specific. */
 #define	BSM_PF_ARP		515	/* FreeBSD-specific. */
 #define	BSM_PF_BLUETOOTH	516	/* FreeBSD-specific. */
-#define	BSM_PF_IEEE80211	517	/* FreeBSD-specific. */
+					/* 517: unallocated. */
 #define	BSM_PF_AX25		518	/* Linux-specific. */
 #define	BSM_PF_ROSE		519	/* Linux-specific. */
 #define	BSM_PF_NETBEUI		520	/* Linux-specific. */

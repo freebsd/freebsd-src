@@ -52,12 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_util.h>
 
 #include <dev/usb/usb_controller.h>
@@ -290,10 +288,10 @@ ohci_pci_attach(device_t self)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)(void *)ohci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)ohci_interrupt, sc, &sc->sc_intr_hdl);
 #else
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)(void *)ohci_interrupt, sc, &sc->sc_intr_hdl);
+	    (driver_intr_t *)ohci_interrupt, sc, &sc->sc_intr_hdl);
 #endif
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);

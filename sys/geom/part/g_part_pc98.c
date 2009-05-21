@@ -218,8 +218,7 @@ g_part_pc98_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_pc98_table *table;
-	uint64_t msize;
-	uint32_t cyl;
+	uint32_t cyl, msize;
 
 	pp = gpp->gpp_provider;
 	cp = LIST_FIRST(&pp->consumers);
@@ -231,7 +230,7 @@ g_part_pc98_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	cyl = basetable->gpt_heads * basetable->gpt_sectors;
 
-	msize = pp->mediasize / SECSIZE;
+	msize = MIN(pp->mediasize / SECSIZE, 0xffffffff);
 	basetable->gpt_first = cyl;
 	basetable->gpt_last = msize - (msize % cyl) - 1;
 

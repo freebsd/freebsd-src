@@ -70,30 +70,6 @@ parent directory vnode will be unlocked on a successful exit.  However, it
 will have its hold count incremented.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error code is returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_vptocnp(struct vnode *vp, struct vnode **dvp, char *buf, int *buflen)
-{
-    int error = 0;
-
-    /*
-     * Translate the vnode to its component name.
-     *
-     * Decrement the component name's length from buflen.
-     *
-     * Obtain the vnode's parent directory vnode.
-     */
-    ...;
-
-    /*
-     * Increment the parent directory's hold count.
-     */
-    vhold(*dvp);
-
-    return error;
-}
-.Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOMEM

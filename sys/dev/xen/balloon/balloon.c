@@ -167,6 +167,8 @@ minimum_target(void)
 {
 #ifdef XENHVM
 #define max_pfn physmem
+#else
+#define max_pfn HYPERVISOR_shared_info->arch.max_pfn
 #endif
 	unsigned long min_pages, curr_pages = current_target();
 
@@ -256,6 +258,7 @@ increase_reservation(unsigned long nr_pages)
 
 		set_phys_to_machine(pfn, frame_list[i]);
 
+#if 0
 #ifndef XENHVM
 		/* Link back into the page tables if not highmem. */
 		if (pfn < max_low_pfn) {
@@ -267,6 +270,7 @@ increase_reservation(unsigned long nr_pages)
 			PASSING(ret == 0,
 			    ("HYPERVISOR_update_va_mapping failed"));
 		}
+#endif
 #endif
 
 		/* Relinquish the page back to the allocator. */
@@ -447,6 +451,9 @@ balloon_init(void *arg)
 {
 #ifndef XENHVM
 	vm_page_t page;
+	unsigned long pfn;
+
+#define max_pfn HYPERVISOR_shared_info->arch.max_pfn
 #endif
 
 	if (!is_running_on_xen())
@@ -477,6 +484,7 @@ balloon_init(void *arg)
 		page = PHYS_TO_VM_PAGE(pfn << PAGE_SHIFT);
 		balloon_append(page);
 	}
+#undef max_pfn
 #endif
 
 	target_watch.callback = watch_target;

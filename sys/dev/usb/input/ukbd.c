@@ -86,8 +86,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int ukbd_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
-SYSCTL_INT(_hw_usb2_ukbd, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW,
     &ukbd_debug, 0, "Debug level");
 #endif
 
@@ -562,28 +562,28 @@ static const struct usb2_config ukbd_config[UKBD_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &ukbd_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &ukbd_intr_callback,
 	},
 
 	[UKBD_INTR_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &ukbd_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
+		.bufsize = sizeof(struct usb2_device_request),
+		.callback = &ukbd_clear_stall_callback,
+		.timeout = 1000,	/* 1 second */
+		.interval = 50,	/* 50ms */
 	},
 
 	[UKBD_CTRL_LED] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request) + 1,
-		.mh.callback = &ukbd_set_leds_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = sizeof(struct usb2_device_request) + 1,
+		.callback = &ukbd_set_leds_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 };
 
@@ -598,7 +598,7 @@ ukbd_probe(device_t dev)
 	if (sw == NULL) {
 		return (ENXIO);
 	}
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	/* check that the keyboard speaks the boot protocol: */

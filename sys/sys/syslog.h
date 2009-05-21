@@ -193,7 +193,9 @@ void	closelog(void);
 void	openlog(const char *, int, int);
 int	setlogmask(int);
 void	syslog(int, const char *, ...) __printflike(2, 3);
+#if __BSD_VISIBLE
 void	vsyslog(int, const char *, __va_list) __printflike(2, 0);
+#endif
 __END_DECLS
 
 #endif /* !_KERNEL */

@@ -43,11 +43,13 @@ LIST_HEAD(lpohead, lock_profile_object);
 u_int64_t nanoseconds(void);
 #endif
 
-extern int lock_prof_enable;
+extern volatile int lock_prof_enable;
 
 void lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
     uint64_t waittime, const char *file, int line);
 void lock_profile_release_lock(struct lock_object *lo);
+void lock_profile_thread_exit(struct thread *td);
+
 
 static inline void
 lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested,
@@ -61,21 +63,10 @@ lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested,
 
 #else /* !LOCK_PROFILING */
 
-static inline void
-lock_profile_release_lock(struct lock_object *lo)
-{
-}
-
-static inline void
-lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested, uint64_t *waittime)
-{
-}
-
-static inline void
-lock_profile_obtain_lock_success(struct lock_object *lo, int contested, uint64_t waittime,  
-    const char *file, int line)
-{
-}
+#define	lock_profile_release_lock(lo)
+#define lock_profile_obtain_lock_failed(lo, contested, waittime)
+#define lock_profile_obtain_lock_success(lo, contested, waittime, file, line)
+#define	lock_profile_thread_exit(td)
 
 #endif  /* !LOCK_PROFILING */
 

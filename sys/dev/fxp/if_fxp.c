@@ -1485,7 +1485,8 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		 * checksum in the first frame driver should compute it.
 		 */
 		ip->ip_sum = 0;
-		ip->ip_len = htons(ifp->if_mtu);
+		ip->ip_len = htons(m->m_pkthdr.tso_segsz + (ip->ip_hl << 2) +
+		    (tcp->th_off << 2));
 		tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(IPPROTO_TCP + (tcp->th_off << 2) +
 		    m->m_pkthdr.tso_segsz));

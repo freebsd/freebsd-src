@@ -32,7 +32,6 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_cdc.h>
 #include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_error.h>
 
 #define	USB_DEBUG_VAR usb2_debug
@@ -82,7 +81,7 @@ static const void *usb2_temp_get_string_desc(struct usb2_device *, uint16_t,
 static const void *usb2_temp_get_vendor_desc(struct usb2_device *,
 		    const struct usb2_device_request *);
 static const void *usb2_temp_get_hub_desc(struct usb2_device *);
-static void	usb2_temp_get_desc(struct usb2_device *,
+static usb2_error_t usb2_temp_get_desc(struct usb2_device *,
 		    struct usb2_device_request *, const void **, uint16_t *);
 static usb2_error_t usb2_temp_setup(struct usb2_device *,
 		    const struct usb2_temp_device_desc *);
@@ -168,7 +167,7 @@ usb2_make_endpoint_desc(struct usb2_temp_setup *temp,
 		temp->err = USB_ERR_INVAL;
 		return;
 	}
-	mps = ted->pPacketSize->mps[temp->usb2_speed];
+	mps = ted->pPacketSize->mps[temp->usb_speed];
 	if (mps == 0) {
 		/* not initialized */
 		temp->err = USB_ERR_INVAL;
@@ -195,9 +194,9 @@ usb2_make_endpoint_desc(struct usb2_temp_setup *temp,
 		/* setup bInterval parameter */
 
 		if (ted->pIntervals &&
-		    ted->pIntervals->bInterval[temp->usb2_speed]) {
+		    ted->pIntervals->bInterval[temp->usb_speed]) {
 			ed->bInterval =
-			    ted->pIntervals->bInterval[temp->usb2_speed];
+			    ted->pIntervals->bInterval[temp->usb_speed];
 		} else {
 			switch (et) {
 			case UE_BULK:
@@ -205,7 +204,7 @@ usb2_make_endpoint_desc(struct usb2_temp_setup *temp,
 				ed->bInterval = 0;	/* not used */
 				break;
 			case UE_INTERRUPT:
-				switch (temp->usb2_speed) {
+				switch (temp->usb_speed) {
 				case USB_SPEED_LOW:
 				case USB_SPEED_FULL:
 					ed->bInterval = 1;	/* 1 ms */
@@ -216,7 +215,7 @@ usb2_make_endpoint_desc(struct usb2_temp_setup *temp,
 				}
 				break;
 			default:	/* UE_ISOCHRONOUS */
-				switch (temp->usb2_speed) {
+				switch (temp->usb_speed) {
 				case USB_SPEED_LOW:
 				case USB_SPEED_FULL:
 					ed->bInterval = 1;	/* 1 ms */
@@ -436,7 +435,7 @@ usb2_make_device_desc(struct usb2_temp_setup *temp,
 		USETW(utd->udq.bcdUSB, 0x0200);
 		utd->udq.bMaxPacketSize0 = 0;
 
-		switch (temp->usb2_speed) {
+		switch (temp->usb_speed) {
 		case USB_SPEED_LOW:
 			USETW(utd->udd.bcdUSB, 0x0110);
 			utd->udd.bMaxPacketSize = 8;
@@ -623,9 +622,9 @@ usb2_hw_ep_get_needs(struct usb2_hw_ep_scratch *ues,
 	struct usb2_descriptor *desc;
 	struct usb2_interface_descriptor *id;
 	struct usb2_endpoint_descriptor *ed;
+	enum usb_dev_speed speed;
 	uint16_t wMaxPacketSize;
 	uint16_t temp;
-	uint8_t speed;
 	uint8_t ep_no;
 
 	ep_iface = ues->ep_max;
@@ -1073,7 +1072,7 @@ usb2_temp_get_hub_desc(struct usb2_device *udev)
  * This function is a demultiplexer for local USB device side control
  * endpoint requests.
  *------------------------------------------------------------------------*/
-static void
+static usb2_error_t
 usb2_temp_get_desc(struct usb2_device *udev, struct usb2_device_request *req,
     const void **pPtr, uint16_t *pLength)
 {
@@ -1158,11 +1157,12 @@ tr_valid:
 	}
 	*pPtr = buf;
 	*pLength = len;
-	return;
+	return (0);	/* success */
 
 tr_stalled:
 	*pPtr = NULL;
 	*pLength = 0;
+	return (0);	/* we ignore failures */
 }
 
 /*------------------------------------------------------------------------*
@@ -1192,7 +1192,7 @@ usb2_temp_setup(struct usb2_device *udev,
 
 	bzero(uts, sizeof(*uts));
 
-	uts->usb2_speed = udev->speed;
+	uts->usb_speed = udev->speed;
 	uts->self_powered = udev->flags.self_powered;
 
 	/* first pass */

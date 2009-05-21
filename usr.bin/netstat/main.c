@@ -82,8 +82,8 @@ static struct nlist nl[] = {
 	{ .n_name = "_rt_tables"},
 #define	N_MRTSTAT	3
 	{ .n_name = "_mrtstat" },
-#define	N_MFCTABLE	4
-	{ .n_name = "_mfctable" },
+#define	N_MFCHASHTBL	4
+	{ .n_name = "_mfchashtbl" },
 #define	N_VIFTABLE	5
 	{ .n_name = "_viftable" },
 #define	N_IPX		6
@@ -182,6 +182,8 @@ static struct nlist nl[] = {
 	{ .n_name = "_rip6stat" },
 #define	N_SCTPSTAT	53
 	{ .n_name = "_sctpstat" },
+#define	N_MFCTABLESIZE	54
+	{ .n_name = "_mfctablesize" },
 	{ .n_name = NULL },
 };
 
@@ -550,7 +552,8 @@ main(int argc, char *argv[])
 #endif
 		} else {
 			if (af == AF_INET || af == AF_UNSPEC)
-				mroutepr(nl[N_MFCTABLE].n_value,
+				mroutepr(nl[N_MFCHASHTBL].n_value,
+					 nl[N_MFCTABLESIZE].n_value,
 					 nl[N_VIFTABLE].n_value);
 #ifdef INET6
 			if (af == AF_INET6 || af == AF_UNSPEC)

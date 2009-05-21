@@ -62,7 +62,7 @@ typedef struct _RaidArray
     UCHAR   reserve1;
 
     ULONG   dArStamp;          /* array ID. all disks in a array has same ID */
-	ULONG   failedStamp;       /* stamp for failed member */
+	ULONG   failedStamps[4];   /* stamp for failed members */
     USHORT  bStripeWitch;      /* = (1 << BlockSizeShift) */
 
 	USHORT	rf_broken: 1;
@@ -84,7 +84,7 @@ typedef struct _RaidArray
 
 	USHORT  CriticalMembers;   /* tell which member is critial */
 	UCHAR   last_read;       /* for RAID 1 load banlancing */
-	UCHAR   PrivateFlag1;
+	UCHAR   alreadyBroken;
 
 	LBA_T   RebuildSectors;  /* how many sectors is OK (LBA on member disk) */
 
@@ -152,8 +152,8 @@ typedef struct _ArrayDescript
 #define ArrayDescript_3_1_size 512
 
 	UCHAR   bCheckSum31;        /* new check sum */
-	UCHAR   PrivateFlag1;       /* private */
-	UCHAR   reserve1;
+	UCHAR   PrivateFlag1;       /* private */ 
+	UCHAR   alreadyBroken;      /* last stamp has been saved to failedStamps */
 	
 #ifdef __BIG_ENDIAN_BITFIELD
     UCHAR   df_read_ahead: 1;   /* enable read ahead */
@@ -181,7 +181,7 @@ typedef struct _ArrayDescript
     }
     levelex[2];
 
-	ULONG failedStamp; /* array stamp for failed memebr */
+	ULONG failedStamps[4]; /* failed memebrs's stamps */
 
 } ArrayDescript;
 

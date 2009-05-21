@@ -109,14 +109,14 @@ static device_method_t ebus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	ebus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	ebus_probe_nomatch),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	ebus_alloc_resource),
-	DEVMETHOD(bus_get_resource_list, ebus_get_resource_list),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	ebus_release_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_get_resource_list, ebus_get_resource_list),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 
 	/* ofw_bus interface */
@@ -127,7 +127,7 @@ static device_method_t ebus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static driver_t ebus_driver = {

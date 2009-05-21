@@ -132,6 +132,11 @@ struct	ipstat {
 
 #ifdef _KERNEL
 
+#define	IPSTAT_ADD(name, val)	V_ipstat.name += (val)
+#define	IPSTAT_SUB(name, val)	V_ipstat.name -= (val)
+#define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
+#define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
+
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
 #define	IP_RAWOUTPUT		0x2		/* raw ip header exists */

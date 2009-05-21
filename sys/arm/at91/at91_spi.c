@@ -297,7 +297,7 @@ static device_method_t at91_spi_methods[] = {
 };
 
 static driver_t at91_spi_driver = {
-	"at91_spi",
+	"spi",
 	at91_spi_methods,
 	sizeof(struct at91_spi_softc),
 };

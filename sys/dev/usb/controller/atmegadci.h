@@ -25,8 +25,8 @@
  */
 
 /*
- * USB Device Port register definitions, copied from ATMEGA
- * documentation provided by ATMEL.
+ * USB Device Port register definitions, copied from ATMEGA documentation
+ * provided by ATMEL.
  */
 
 #ifndef _ATMEGADCI_H_
@@ -34,9 +34,9 @@
 
 #define	ATMEGA_MAX_DEVICES (USB_MIN_DEVICES + 1)
 
-#ifndef ATMEGA_HAVE_BUS_SPACE
-#define	ATMEGA_HAVE_BUS_SPACE 1
-#endif
+#define	ATMEGA_OTGTCON 0xF9
+#define	ATMEGA_OTGTCON_VALUE(x) ((x) << 0)
+#define	ATMEGA_OTGTCON_PAGE(x) ((x) << 5)
 
 #define	ATMEGA_UEINT 0xF4
 #define	ATMEGA_UEINT_MASK(n) (1 << (n))	/* endpoint interrupt mask */
@@ -140,8 +140,19 @@
 #define	ATMEGA_UDCON_LSM (1 << 2)
 #define	ATMEGA_UDCON_RSTCPU (1 << 3)
 
+#define	ATMEGA_OTGINT 0xDF
+
+#define	ATMEGA_OTGCON 0xDD
+#define	ATMEGA_OTGCON_VBUSRQC (1 << 0)
+#define	ATMEGA_OTGCON_VBUSREQ (1 << 1)
+#define	ATMEGA_OTGCON_VBUSHWC (1 << 2)
+#define	ATMEGA_OTGCON_SRPSEL (1 << 3)
+#define	ATMEGA_OTGCON_SRPREQ (1 << 4)
+#define	ATMEGA_OTGCON_HNPREQ (1 << 5)
+
 #define	ATMEGA_USBINT 0xDA
 #define	ATMEGA_USBINT_VBUSTI (1 << 0)	/* USB VBUS interrupt */
+#define	ATMEGA_USBINT_IDI (1 << 1)	/* USB ID interrupt */
 
 #define	ATMEGA_USBSTA 0xD9
 #define	ATMEGA_USBSTA_VBUS (1 << 0)
@@ -149,6 +160,7 @@
 
 #define	ATMEGA_USBCON 0xD8
 #define	ATMEGA_USBCON_VBUSTE (1 << 0)
+#define	ATMEGA_USBCON_IDE (1 << 1)
 #define	ATMEGA_USBCON_OTGPADE (1 << 4)
 #define	ATMEGA_USBCON_FRZCLK (1 << 5)
 #define	ATMEGA_USBCON_USBE (1 << 7)
@@ -210,6 +222,7 @@ struct atmegadci_std_temp {
          * short_pkt = 1: transfer should not be short terminated
          */
 	uint8_t	setup_alt_next;
+	uint8_t did_stall;
 };
 
 struct atmegadci_config_desc {
@@ -240,9 +253,6 @@ struct atmegadci_flags {
 struct atmegadci_softc {
 	struct usb2_bus sc_bus;
 	union atmegadci_hub_temp sc_hub_temp;
-	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 
 	/* must be set by by the bus interface layer */
 	atmegadci_clocks_t *sc_clocks_on;
@@ -251,11 +261,10 @@ struct atmegadci_softc {
 	struct usb2_device *sc_devices[ATMEGA_MAX_DEVICES];
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
-#if (ATMEGA_HAVE_BUS_SPACE != 0)
 	struct resource *sc_io_res;
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
-#endif
+
 	uint8_t	sc_rt_addr;		/* root hub address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root hub config */

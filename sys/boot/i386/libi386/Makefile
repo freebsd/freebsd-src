@@ -31,6 +31,10 @@ CFLAGS+= -DDISK_DEBUG
 .if !defined(BOOT_HIDE_SERIAL_NUMBERS)
 # Export serial numbers, UUID, and asset tag from loader.
 CFLAGS+= -DSMBIOS_SERIAL_NUMBERS
+.if defined(BOOT_LITTLE_ENDIAN_UUID)
+# Use little-endian UUID format as defined in SMBIOS 2.6.
+CFLAGS+= -DSMBIOS_LITTLE_ENDIAN_UUID
+.endif
 .endif
 
 .if !defined(LOADER_NO_GPT_SUPPORT)

@@ -79,7 +79,7 @@ static int
 AliasHandlePptpGreIn(struct libalias *, struct ip *);
 
 static int 
-fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL)
@@ -91,7 +91,7 @@ fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
 }
 
 static int 
-fingerprintgre(struct libalias *la, struct ip *pip, struct alias_data *ah)
+fingerprintgre(struct libalias *la, struct alias_data *ah)
 {
 
 	return (0);

@@ -25,21 +25,114 @@
  */
 
 /*
- * Including this file is mandatory for all USB related c-files in the
- * kernel.
+ * Including this file is mandatory for all USB related c-files in the kernel.
  */
 
 #ifndef _USB2_CORE_H_
 #define	_USB2_CORE_H_
 
+#define	USB_STACK_VERSION 2000		/* 2.0 */
+
+/* Allow defines in "opt_usb.h" to override configuration */
+
+#include "opt_usb.h"
+#include "opt_bus.h"
+
 /* Default USB configuration */
 
-#ifndef USB_USE_CONDVAR
-#define	USB_USE_CONDVAR 0
+/*
+ * The following macro defines if the code shall use cv_xxx() instead
+ * of msleep() and wakeup().
+ */
+#ifndef USB_HAVE_CONDVAR
+#define	USB_HAVE_CONDVAR 0
 #endif
 
+/*
+ * The following macro defines if the code shall support
+ * /dev/usb/x.y.z.
+ */
 #ifndef USB_HAVE_UGEN
 #define	USB_HAVE_UGEN 1
+#endif
+
+/*
+ * The following macro defines if the code shall support any forms of
+ * ASCII strings.
+ */
+#ifndef USB_HAVE_STRINGS
+#define	USB_HAVE_STRINGS 1
+#endif
+
+/*
+ * The following macro defines if the code shall support BUS-DMA.
+ */
+#ifndef USB_HAVE_BUSDMA
+#define	USB_HAVE_BUSDMA 1
+#endif
+
+/*
+ * The following macro defines if the code shall support the Linux
+ * compatibility layer.
+ */
+#ifndef USB_HAVE_COMPAT_LINUX
+#define	USB_HAVE_COMPAT_LINUX 1
+#endif
+
+/*
+ * The following macro defines if the code shall support
+ * userland data transfer via copyin() and copyout()
+ */
+#ifndef USB_HAVE_USER_IO
+#define	USB_HAVE_USER_IO 1
+#endif
+
+/*
+ * The following macro defines if the code shall support copy in via
+ * bsd-mbufs to USB.
+ */
+#ifndef USB_HAVE_MBUF
+#define	USB_HAVE_MBUF 1
+#endif
+
+/*
+ * The following macro defines if the code shall compile a table
+ * describing USB vendor and product IDs.
+ */
+#ifndef USB_VERBOSE
+#define	USB_VERBOSE 1
+#endif
+
+/*
+ * The following macro defines if USB debugging support shall be
+ * compiled for the USB core and all drivers.
+ */
+#ifndef USB_DEBUG
+#define	USB_DEBUG 1
+#endif
+
+/*
+ * The following macro defines if USB transaction translator support
+ * shall be supported for the USB HUB and USB controller drivers.
+ */
+#ifndef	USB_HAVE_TT_SUPPORT
+#define	USB_HAVE_TT_SUPPORT 1
+#endif
+
+/*
+ * The following macro defines if the USB power daemon shall
+ * be supported in the USB core.
+ */
+#ifndef	USB_HAVE_POWERD
+#define	USB_HAVE_POWERD 1
+#endif
+
+/*
+ * The following macro defines if the USB autoinstall detection shall
+ * be supported in the USB core.
+ */
+#ifndef USB_HAVE_MSCTEST
+#define	USB_HAVE_MSCTEST 1
 #endif
 
 #ifndef USB_TD_GET_PROC
@@ -72,34 +165,57 @@
 #include <sys/malloc.h>
 #include <sys/priv.h>
 
-#include <dev/usb/usb_mfunc.h>
+#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_revision.h>
 
 #include "usb_if.h"
-#include "opt_usb.h"
-#include "opt_bus.h"
 
-#define	USB_STACK_VERSION 2000		/* 2.0 */
-
+#ifndef USB_HOST_ALIGN
 #define	USB_HOST_ALIGN    8		/* bytes, must be power of two */
+#endif
 
-#define	USB_ISOC_TIME_MAX 128		/* ms */
+#ifndef USB_FS_ISOC_UFRAME_MAX
 #define	USB_FS_ISOC_UFRAME_MAX 4	/* exclusive unit */
+#endif
 
 #if (USB_FS_ISOC_UFRAME_MAX > 6)
 #error "USB_FS_ISOC_UFRAME_MAX cannot be set higher than 6"
 #endif
 
+#ifndef USB_BUS_MAX
+#define	USB_BUS_MAX 256			/* units */
+#endif
+
+#ifndef USB_MAX_DEVICES
+#define	USB_MAX_DEVICES 128		/* units */
+#endif
+
+#if (USB_MAX_DEVICES < USB_MIN_DEVICES)
+#error "Minimum number of devices is greater than maximum number of devices."
+#endif
+
+#ifndef USB_IFACE_MAX
+#define	USB_IFACE_MAX 32		/* units */
+#endif
+
+#ifndef USB_FIFO_MAX
+#define	USB_FIFO_MAX 128		/* units */
+#endif
+
+#if (USB_FIFO_MAX & 1)
+#error "Number of FIFOs must be odd."
+#endif
+
 #define	USB_MAX_FS_ISOC_FRAMES_PER_XFER (120)	/* units */
 #define	USB_MAX_HS_ISOC_FRAMES_PER_XFER (8*120)	/* units */
 
-#define	USB_MAX_IPACKET		8	/* maximum size of the initial USB
-					 * data packet */
-#ifndef USB_VERBOSE
-#define	USB_VERBOSE 1
+#ifndef USB_HUB_MAX_DEPTH
+#define	USB_HUB_MAX_DEPTH	5
 #endif
 
-#define	USB_HUB_MAX_DEPTH 5
+#ifndef USB_EP0_BUFSIZE
+#define	USB_EP0_BUFSIZE		1024	/* bytes */
+#endif
 
 /* USB transfer states */
 
@@ -117,9 +233,9 @@
  * The following macro will tell if an USB transfer is currently
  * receiving or transferring data.
  */
-#define	USB_GET_DATA_ISREAD(xfer) (((xfer)->flags_int.usb2_mode == \
-	USB_MODE_DEVICE) ? ((xfer->endpoint & UE_DIR_IN) ? 0 : 1) : \
-	((xfer->endpoint & UE_DIR_IN) ? 1 : 0))
+#define	USB_GET_DATA_ISREAD(xfer) ((xfer)->flags_int.usb_mode == \
+	USB_MODE_DEVICE ? (((xfer)->endpoint & UE_DIR_IN) ? 0 : 1) : \
+	(((xfer)->endpoint & UE_DIR_IN) ? 1 : 0))
 
 /*
  * The following macros are used used to convert milliseconds into
@@ -150,6 +266,7 @@
 struct file;
 struct usb2_bus;
 struct usb2_device;
+struct usb2_device_request;
 struct usb2_page;
 struct usb2_page_cache;
 struct usb2_xfer;
@@ -157,9 +274,38 @@ struct usb2_xfer_root;
 
 /* typedefs */
 
-typedef uint8_t usb2_error_t;
-
 typedef void (usb2_callback_t)(struct usb2_xfer *);
+
+#ifndef USB_HAVE_USB_ERROR_T
+typedef uint8_t usb2_error_t;		/* see "USB_ERR_XXX" */
+#endif
+
+#ifndef USB_HAVE_TIMEOUT_T
+typedef uint32_t usb2_timeout_t;	/* milliseconds */
+#endif
+
+#ifndef USB_HAVE_FRLENGTH_T
+typedef uint32_t usb2_frlength_t;	/* bytes */
+#endif
+
+#ifndef USB_HAVE_FRCOUNT_T
+typedef uint32_t usb2_frcount_t;	/* units */
+#endif
+
+#ifndef USB_HAVE_SIZE_T
+typedef uint32_t usb2_size_t;		/* bytes */
+#endif
+
+#ifndef USB_HAVE_TICKS_T
+typedef uint32_t usb2_ticks_t;		/* system defined */
+#endif
+
+#ifndef USB_HAVE_POWER_MASK_T
+typedef uint16_t usb2_power_mask_t;	/* see "USB_HW_POWER_XXX" */
+#endif
+
+typedef usb2_error_t (usb2_handle_request_t)(struct usb2_device *, 
+    struct usb2_device_request *, const void **, uint16_t *);
 
 /* structures */
 
@@ -208,6 +354,8 @@ struct usb2_xfer_flags {
  * flags.
  */
 struct usb2_xfer_flags_int {
+
+	enum usb_hc_mode usb_mode;	/* shadow copy of "udev->usb_mode" */
 	uint16_t control_rem;		/* remainder in bytes */
 
 	uint8_t	open:1;			/* set if USB pipe has been opened */
@@ -223,34 +371,22 @@ struct usb2_xfer_flags_int {
 	uint8_t	control_hdr:1;		/* set if control header should be
 					 * sent */
 	uint8_t	control_act:1;		/* set if control transfer is active */
+	uint8_t	control_stall:1;	/* set if control transfer should be stalled */
 
 	uint8_t	short_frames_ok:1;	/* filtered version */
 	uint8_t	short_xfer_ok:1;	/* filtered version */
+#if USB_HAVE_BUSDMA
 	uint8_t	bdma_enable:1;		/* filtered version (only set if
 					 * hardware supports DMA) */
 	uint8_t	bdma_no_post_sync:1;	/* set if the USB callback wrapper
 					 * should not do the BUS-DMA post sync
 					 * operation */
 	uint8_t	bdma_setup:1;		/* set if BUS-DMA has been setup */
+#endif
 	uint8_t	isochronous_xfr:1;	/* set if isochronous transfer */
-	uint8_t	usb2_mode:1;		/* shadow copy of "udev->usb2_mode" */
 	uint8_t	curr_dma_set:1;		/* used by USB HC/DC driver */
 	uint8_t	can_cancel_immed:1;	/* set if USB transfer can be
 					 * cancelled immediately */
-};
-
-/*
- * The following structure defines the symmetric part of an USB config
- * structure.
- */
-struct usb2_config_sub {
-	usb2_callback_t *callback;	/* USB transfer callback */
-	uint32_t bufsize;		/* total pipe buffer size in bytes */
-	uint32_t frames;		/* maximum number of USB frames */
-	uint16_t interval;		/* interval in milliseconds */
-#define	USB_DEFAULT_INTERVAL	0
-	uint16_t timeout;		/* transfer timeout in milliseconds */
-	struct usb2_xfer_flags flags;	/* transfer flags */
 };
 
 /*
@@ -258,8 +394,14 @@ struct usb2_config_sub {
  * is used when setting up an USB transfer.
  */
 struct usb2_config {
-	struct usb2_config_sub mh;	/* parameters for USB_MODE_HOST */
-	struct usb2_config_sub md;	/* parameters for USB_MODE_DEVICE */
+	usb2_callback_t *callback;	/* USB transfer callback */
+	usb2_frlength_t bufsize;	/* total pipe buffer size in bytes */
+	usb2_frcount_t frames;		/* maximum number of USB frames */
+	usb2_timeout_t interval;	/* interval in milliseconds */
+#define	USB_DEFAULT_INTERVAL	0
+	usb2_timeout_t timeout;		/* transfer timeout in milliseconds */
+	struct usb2_xfer_flags flags;	/* transfer flags */
+	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	type;			/* pipe type */
 	uint8_t	endpoint;		/* pipe number */
 	uint8_t	direction;		/* pipe direction */
@@ -288,29 +430,29 @@ struct usb2_xfer {
 	void   *priv_sc;		/* device driver data pointer 1 */
 	void   *priv_fifo;		/* device driver data pointer 2 */
 	void   *local_buffer;
-	uint32_t *frlengths;
+	usb2_frlength_t *frlengths;
 	struct usb2_page_cache *frbuffers;
 	usb2_callback_t *callback;
 
-	uint32_t max_usb2_frame_size;
-	uint32_t max_data_length;
-	uint32_t sumlen;		/* sum of all lengths in bytes */
-	uint32_t actlen;		/* actual length in bytes */
-	uint32_t timeout;		/* milliseconds */
+	usb2_frlength_t max_hc_frame_size;
+	usb2_frlength_t max_data_length;
+	usb2_frlength_t sumlen;		/* sum of all lengths in bytes */
+	usb2_frlength_t actlen;		/* actual length in bytes */
+	usb2_timeout_t timeout;		/* milliseconds */
 #define	USB_NO_TIMEOUT 0
 #define	USB_DEFAULT_TIMEOUT 5000	/* 5000 ms = 5 seconds */
 
-	uint32_t max_frame_count;	/* initial value of "nframes" after
+	usb2_frcount_t max_frame_count;	/* initial value of "nframes" after
 					 * setup */
-	uint32_t nframes;		/* number of USB frames to transfer */
-	uint32_t aframes;		/* actual number of USB frames
+	usb2_frcount_t nframes;		/* number of USB frames to transfer */
+	usb2_frcount_t aframes;		/* actual number of USB frames
 					 * transferred */
 
 	uint16_t max_packet_size;
 	uint16_t max_frame_size;
 	uint16_t qh_pos;
 	uint16_t isoc_time_complete;	/* in ms */
-	uint16_t interval;		/* milliseconds */
+	usb2_timeout_t interval;	/* milliseconds */
 
 	uint8_t	address;		/* physical USB address */
 	uint8_t	endpoint;		/* physical USB endpoint */
@@ -354,7 +496,7 @@ struct usb2_attach_arg {
 	const void *driver_info;	/* for internal use */
 	struct usb2_device *device;	/* current device */
 	struct usb2_interface *iface;	/* current interface */
-	uint8_t	usb2_mode;		/* see USB_MODE_XXX */
+	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	port;
 	uint8_t	use_generic;		/* hint for generic drivers */
 };
@@ -374,6 +516,7 @@ typedef struct malloc_type *usb2_malloc_type;
 /* prototypes */
 
 const char *usb2_errstr(usb2_error_t error);
+const char *usb2_statestr(enum usb_dev_state state);
 struct usb2_config_descriptor *usb2_get_config_descriptor(
 	    struct usb2_device *udev);
 struct usb2_device_descriptor *usb2_get_device_descriptor(
@@ -387,17 +530,17 @@ uint8_t	usb2_clear_stall_callback(struct usb2_xfer *xfer1,
 uint8_t	usb2_get_interface_altindex(struct usb2_interface *iface);
 usb2_error_t usb2_set_alt_interface_index(struct usb2_device *udev,
 	    uint8_t iface_index, uint8_t alt_index);
-uint8_t	usb2_get_mode(struct usb2_device *udev);
-uint8_t	usb2_get_speed(struct usb2_device *udev);
+enum usb_hc_mode	usb2_get_mode(struct usb2_device *udev);
+enum usb_dev_speed	usb2_get_speed(struct usb2_device *udev);
 uint32_t usb2_get_isoc_fps(struct usb2_device *udev);
 usb2_error_t usb2_transfer_setup(struct usb2_device *udev,
 	    const uint8_t *ifaces, struct usb2_xfer **pxfer,
 	    const struct usb2_config *setup_start, uint16_t n_setup,
 	    void *priv_sc, struct mtx *priv_mtx);
 void	usb2_set_frame_data(struct usb2_xfer *xfer, void *ptr,
-	    uint32_t frindex);
-void	usb2_set_frame_offset(struct usb2_xfer *xfer, uint32_t offset,
-	    uint32_t frindex);
+	    usb2_frcount_t frindex);
+void	usb2_set_frame_offset(struct usb2_xfer *xfer, usb2_frlength_t offset,
+	    usb2_frcount_t frindex);
 void	usb2_start_hardware(struct usb2_xfer *xfer);
 void	usb2_transfer_clear_stall(struct usb2_xfer *xfer);
 void	usb2_transfer_drain(struct usb2_xfer *xfer);
@@ -411,5 +554,6 @@ void	usb2_set_parent_iface(struct usb2_device *udev, uint8_t iface_index,
 uint8_t	usb2_get_bus_index(struct usb2_device *udev);
 uint8_t	usb2_get_device_index(struct usb2_device *udev);
 void	usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode);
+uint8_t	usb2_device_attached(struct usb2_device *udev);
 
 #endif					/* _USB2_CORE_H_ */

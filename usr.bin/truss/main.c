@@ -1,4 +1,4 @@
-/*
+/*-
  * Copryight 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include "truss.h"
 #include "extern.h"
+#include "syscall.h"
 
 #define MAXARGS 6
 
@@ -64,8 +66,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	    "usage: truss [-faedDS] [-o file] [-s strsize] -p pid",
-	    "       truss [-faedDS] [-o file] [-s strsize] command [args]");
+	    "usage: truss [-cfaedDS] [-o file] [-s strsize] -p pid",
+	    "       truss [-cfaedDS] [-o file] [-s strsize] command [args]");
 	exit(1);
 }
 
@@ -164,6 +166,8 @@ main(int ac, char **av)
 {
 	int c;
 	int i;
+	pid_t childpid;
+	int status;
 	char **command;
 	struct ex_types *funcs;
 	int initial_open;
@@ -175,17 +179,16 @@ main(int ac, char **av)
 	initial_open = 1;
 
 	/* Initialize the trussinfo struct */
-	trussinfo = (struct trussinfo *)malloc(sizeof(struct trussinfo));
+	trussinfo = (struct trussinfo *)calloc(1, sizeof(struct trussinfo));
 	if (trussinfo == NULL)
-		errx(1, "malloc() failed");
-	bzero(trussinfo, sizeof(struct trussinfo));
-	
+		errx(1, "calloc() failed");
+
 	trussinfo->outfile = stderr;
 	trussinfo->strsize = 32;
 	trussinfo->pr_why = S_NONE;
 	trussinfo->curthread = NULL;
 	SLIST_INIT(&trussinfo->threadlist);
-	while ((c = getopt(ac, av, "p:o:faedDs:S")) != -1) {
+	while ((c = getopt(ac, av, "p:o:facedDs:S")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */
 			trussinfo->pid = atoi(optarg);
@@ -200,6 +203,9 @@ main(int ac, char **av)
 			break;
 		case 'a': /* Print execve() argument strings. */
 			trussinfo->flags |= EXECVEARGS;
+			break;
+		case 'c': /* Count number of system calls and time. */
+			trussinfo->flags |= COUNTONLY;
 			break;
 		case 'e': /* Print execve() environment strings. */
 			trussinfo->flags |= EXECVEENVS;
@@ -288,8 +294,6 @@ START_TRACE:
 
 			if (trussinfo->curthread->in_fork &&
 			    (trussinfo->flags & FOLLOWFORKS)) {
-				int childpid;
-
 				trussinfo->curthread->in_fork = 0;
 				childpid =
 				    funcs->exit_syscall(trussinfo,
@@ -336,6 +340,8 @@ START_TRACE:
 			free(signame);
 			break;
 		case S_EXIT:
+			if (trussinfo->flags & COUNTONLY)
+				break;
 			if (trussinfo->flags & FOLLOWFORKS)
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
@@ -359,7 +365,16 @@ START_TRACE:
 			break;
 		}
 	} while (trussinfo->pr_why != S_EXIT);
+
+	if (trussinfo->flags & FOLLOWFORKS)
+		do {
+			childpid = wait(&status);
+		} while (childpid != -1);
+
+ 	if (trussinfo->flags & COUNTONLY)
+ 		print_summary(trussinfo);
+
 	fflush(trussinfo->outfile);
-	
+
 	return (0);
 }

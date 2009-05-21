@@ -31,7 +31,7 @@
 
 #define	USB_BUS_DMA_TAG_MAX 8
 
-/* structure prototypes */
+/* structure prototypes  */
 
 struct usb2_bus;
 struct usb2_page;
@@ -45,7 +45,7 @@ struct usb2_endpoint_descriptor;
 
 /* typedefs */
 
-typedef void (usb2_bus_mem_sub_cb_t)(struct usb2_bus *bus, struct usb2_page_cache *pc, struct usb2_page *pg, uint32_t size, uint32_t align);
+typedef void (usb2_bus_mem_sub_cb_t)(struct usb2_bus *bus, struct usb2_page_cache *pc, struct usb2_page *pg, usb2_size_t size, usb2_size_t align);
 typedef void (usb2_bus_mem_cb_t)(struct usb2_bus *bus, usb2_bus_mem_sub_cb_t *scb);
 
 /*
@@ -56,13 +56,16 @@ struct usb2_bus_methods {
 
 	/* USB Device and Host mode - Mandatory */
 
-	void    (*pipe_init) (struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc, struct usb2_pipe *pipe);
-	void    (*xfer_setup) (struct usb2_setup_params *parm);
-	void    (*xfer_unsetup) (struct usb2_xfer *xfer);
-	void    (*get_dma_delay) (struct usb2_bus *, uint32_t *pdelay);
-	void    (*device_suspend) (struct usb2_device *udev);
-	void    (*device_resume) (struct usb2_device *udev);
-	void    (*set_hw_power) (struct usb2_bus *bus);
+	usb2_handle_request_t *roothub_exec;
+
+	void    (*pipe_init) (struct usb2_device *, struct usb2_endpoint_descriptor *, struct usb2_pipe *);
+	void    (*xfer_setup) (struct usb2_setup_params *);
+	void    (*xfer_unsetup) (struct usb2_xfer *);
+	void    (*get_dma_delay) (struct usb2_bus *, uint32_t *);
+	void    (*device_suspend) (struct usb2_device *);
+	void    (*device_resume) (struct usb2_device *);
+	void    (*set_hw_power) (struct usb2_bus *);
+
 	/*
 	 * The following flag is set if one or more control transfers are
 	 * active:
@@ -95,9 +98,6 @@ struct usb2_bus_methods {
 	void    (*set_stall) (struct usb2_device *udev, struct usb2_xfer *xfer, struct usb2_pipe *pipe);
 	void    (*clear_stall) (struct usb2_device *udev, struct usb2_pipe *pipe);
 
-	/* USB Device and Host mode - Optional */
-
-	void	(*roothub_exec) (struct usb2_bus *);
 };
 
 /*
@@ -108,20 +108,15 @@ struct usb2_pipe_methods {
 
 	/* Mandatory USB Device and Host mode callbacks: */
 
-	void    (*open) (struct usb2_xfer *xfer);
-	void    (*close) (struct usb2_xfer *xfer);
+	usb2_callback_t *open;
+	usb2_callback_t *close;
 
-	void    (*enter) (struct usb2_xfer *xfer);
-	void    (*start) (struct usb2_xfer *xfer);
+	usb2_callback_t *enter;
+	usb2_callback_t *start;
 
 	/* Optional */
 
 	void   *info;
-
-	/* Flags */
-
-	uint8_t	enter_is_cancelable:1;
-	uint8_t	start_is_cancelable:1;
 };
 
 /*
@@ -175,8 +170,8 @@ struct usb2_hw_ep_scratch {
  */
 struct usb2_temp_setup {
 	void   *buf;
-	uint32_t size;
-	uint8_t	usb2_speed;
+	usb2_size_t size;
+	enum usb_dev_speed	usb_speed;
 	uint8_t	self_powered;
 	uint8_t	bNumEndpoints;
 	uint8_t	bInterfaceNumber;
@@ -190,7 +185,6 @@ struct usb2_temp_setup {
 void	usb2_bus_mem_flush_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb);
 uint8_t	usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat, usb2_bus_mem_cb_t *cb);
 void	usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb);
-void	usb2_bus_roothub_exec(struct usb2_bus *bus);
 uint16_t usb2_isoc_time_expand(struct usb2_bus *bus, uint16_t isoc_time_curr);
 uint16_t usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev, struct usb2_fs_isoc_schedule **pp_start, struct usb2_fs_isoc_schedule **pp_end, uint16_t isoc_time);
 uint8_t	usb2_fs_isoc_schedule_alloc(struct usb2_fs_isoc_schedule *fss, uint8_t *pstart, uint16_t len);

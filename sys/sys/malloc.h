@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1987, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005, 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,35 +94,15 @@ struct malloc_type_internal {
 };
 
 /*
- * ABI-compatible version of the old 'struct malloc_type', only all stats are
- * now malloc-managed in malloc-owned memory rather than in caller memory, so
- * as to avoid ABI issues.  The ks_next pointer is reused as a pointer to the
- * internal data handle.
+ * Public data structure describing a malloc type.  Private data is hung off
+ * of ks_handle to avoid encoding internal malloc(9) data structures in
+ * modules, which will statically allocate struct malloc_type.
  */
 struct malloc_type {
 	struct malloc_type *ks_next;	/* Next in global chain. */
-	u_long		 _ks_memuse;	/* No longer used. */
-	u_long		 _ks_size;	/* No longer used. */
-	u_long		 _ks_inuse;	/* No longer used. */
-	uint64_t	 _ks_calls;	/* No longer used. */
-	u_long		 _ks_maxused;	/* No longer used. */
 	u_long		 ks_magic;	/* Detect programmer error. */
 	const char	*ks_shortdesc;	/* Printable type name. */
-
-	/*
-	 * struct malloc_type was terminated with a struct mtx, which is no
-	 * longer required.  For ABI reasons, continue to flesh out the full
-	 * size of the old structure, but reuse the _lo_class field for our
-	 * internal data handle.
-	 */
 	void		*ks_handle;	/* Priv. data, was lo_class. */
-	const char	*_lo_name;
-	const char	*_lo_type;
-	u_int		 _lo_flags;
-	void		*_lo_list_next;
-	struct witness	*_lo_witness;
-	uintptr_t	 _mtx_lock;
-	u_int		 _mtx_recurse;
 };
 
 /*
@@ -148,8 +128,7 @@ struct malloc_type_header {
 #ifdef _KERNEL
 #define	MALLOC_DEFINE(type, shortdesc, longdesc)			\
 	struct malloc_type type[1] = {					\
-		{ NULL, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, NULL, NULL,	\
-		    NULL, 0, NULL, NULL, 0, 0 }				\
+		{ NULL, M_MAGIC, shortdesc, NULL }			\
 	};								\
 	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_SECOND, malloc_init,	\
 	    type);							\

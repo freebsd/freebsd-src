@@ -164,8 +164,7 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     fsc.nargs = nargs;
   }
 
-  fsc.s_args = malloc((1+fsc.nargs) * sizeof(char*));
-  memset(fsc.s_args, 0, fsc.nargs * sizeof(char*));
+  fsc.s_args = calloc(1, (1+fsc.nargs) * sizeof(char*));
   fsc.sc = sc;
 
   /*
@@ -309,7 +308,7 @@ i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
   }
 
   print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp,
-                    errorp ? i : retval);
+                    errorp ? i : retval, fsc.sc);
   clear_fsc();
 
   return (retval);

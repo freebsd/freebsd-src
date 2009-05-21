@@ -69,6 +69,7 @@ static struct _s_x dummynet_params[] = {
 	{ "dst-ip6",		TOK_DSTIP6},
 	{ "src-ipv6",		TOK_SRCIP6},
 	{ "src-ip6",		TOK_SRCIP6},
+	{ "profile",		TOK_PIPE_PROFILE},
 	{ "dummynet-params",	TOK_NULL },
 	{ NULL, 0 }	/* terminator */
 };
@@ -248,6 +249,19 @@ print_flowset_parms(struct dn_flow_set *fs, char *prefix)
 	    prefix, qs, plr, fs->rq_elements, fs->rq_size, red);
 }
 
+static void
+print_extra_delay_parms(struct dn_pipe *p, char *prefix)
+{
+	double loss;
+	if (p->samples_no <= 0)
+		return;
+
+	loss = p->loss_level;
+	loss /= p->samples_no;
+	printf("%s profile: name \"%s\" loss %f samples %d\n",
+		prefix, p->name, loss, p->samples_no);
+}
+
 void
 ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[])
 {
@@ -296,6 +310,9 @@ ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[])
 
 		sprintf(prefix, "%05d: %s %4d ms ",
 		    p->pipe_nr, buf, p->delay);
+
+		print_extra_delay_parms(p, prefix);
+
 		print_flowset_parms(&(p->fs), prefix);
 		if (co.verbose)
 			printf("   V %20llu\n", align_uint64(&p->V) >> MY_M);
@@ -346,9 +363,284 @@ ipfw_delete_pipe(int pipe_or_queue, int i)
 	return i;
 }
 
+/*
+ * Code to parse delay profiles.
+ *
+ * Some link types introduce extra delays in the transmission
+ * of a packet, e.g. because of MAC level framing, contention on
+ * the use of the channel, MAC level retransmissions and so on.
+ * From our point of view, the channel is effectively unavailable
+ * for this extra time, which is constant or variable depending
+ * on the link type. Additionally, packets may be dropped after this
+ * time (e.g. on a wireless link after too many retransmissions).
+ * We can model the additional delay with an empirical curve
+ * that represents its distribution.
+ *
+ *	cumulative probability
+ *	1.0 ^
+ *	    |
+ *	L   +-- loss-level          x
+ *	    |                 ******
+ *	    |                *
+ *	    |           *****
+ *	    |          *
+ *	    |        **
+ *	    |       *                         
+ *	    +-------*------------------->
+ *			delay
+ *
+ * The empirical curve may have both vertical and horizontal lines.
+ * Vertical lines represent constant delay for a range of
+ * probabilities; horizontal lines correspond to a discontinuty
+ * in the delay distribution: the pipe will use the largest delay
+ * for a given probability.
+ * 
+ * To pass the curve to dummynet, we must store the parameters
+ * in a file as described below, and issue the command
+ *
+ *      ipfw pipe <n> config ... bw XXX profile <filename> ...
+ *
+ * The file format is the following, with whitespace acting as
+ * a separator and '#' indicating the beginning a comment:
+ *
+ *	samples N
+ *		the number of samples used in the internal
+ *		representation (2..1024; default 100);
+ *
+ *	loss-level L 
+ *		The probability above which packets are lost.
+ *               (0.0 <= L <= 1.0, default 1.0 i.e. no loss);
+ *
+ *	name identifier
+ *		Optional a name (listed by "ipfw pipe show")
+ *		to identify the distribution;
+ *
+ *	"delay prob" | "prob delay"
+ *		One of these two lines is mandatory and defines
+ *		the format of the following lines with data points.
+ *
+ *	XXX YYY
+ *		2 or more lines representing points in the curve,
+ *		with either delay or probability first, according
+ *		to the chosen format.
+ *		The unit for delay is milliseconds.
+ *
+ * Data points does not need to be ordered or equal to the number
+ * specified in the "samples" line. ipfw will sort and interpolate
+ * the curve as needed.
+ *
+ * Example of a profile file:
+ 
+        name    bla_bla_bla
+        samples 100
+        loss-level    0.86
+        prob    delay
+        0       200	# minimum overhead is 200ms
+        0.5     200
+        0.5     300
+        0.8     1000
+        0.9     1300
+        1       1300
+ 
+ * Internally, we will convert the curve to a fixed number of
+ * samples, and when it is time to transmit a packet we will
+ * model the extra delay as extra bits in the packet.
+ *
+ */
+
+#define ED_MAX_LINE_LEN	256+ED_MAX_NAME_LEN
+#define ED_TOK_SAMPLES	"samples"
+#define ED_TOK_LOSS	"loss-level"
+#define ED_TOK_NAME	"name"
+#define ED_TOK_DELAY	"delay"
+#define ED_TOK_PROB	"prob"
+#define ED_SEPARATORS	" \t\n"
+#define ED_MIN_SAMPLES_NO	2
+
+/*
+ * returns 1 if s is a non-negative number, with at least one '.'
+ */
+static int
+is_valid_number(const char *s)
+{
+	int i, dots_found = 0;
+	int len = strlen(s);
+
+	for (i = 0; i<len; ++i)
+		if (!isdigit(s[i]) && (s[i] !='.' || ++dots_found > 1))
+			return 0;
+	return 1;
+}
+
+struct point {
+	double prob;
+	double delay;
+};
+
+int
+compare_points(const void *vp1, const void *vp2)
+{
+	const struct point *p1 = vp1;
+	const struct point *p2 = vp2;
+	double res = 0;
+
+	res = p1->prob - p2->prob;
+	if (res == 0)
+		res = p1->delay - p2->delay;
+	if (res < 0)
+		return -1;
+	else if (res > 0)
+		return 1;
+	else
+		return 0;
+}
+
+#define ED_EFMT(s) EX_DATAERR,"error in %s at line %d: "#s,filename,lineno
+
+static void
+load_extra_delays(const char *filename, struct dn_pipe *p)
+{
+	char    line[ED_MAX_LINE_LEN];
+	FILE    *f;
+	int     lineno = 0;
+	int     i;
+
+	int     samples = -1;
+	double  loss = -1.0;
+	char    profile_name[ED_MAX_NAME_LEN];
+	int     delay_first = -1;
+	int     do_points = 0;
+	struct point    points[ED_MAX_SAMPLES_NO];
+	int     points_no = 0;
+
+	profile_name[0] = '\0';
+	f = fopen(filename, "r");
+	if (f == NULL)
+		err(EX_UNAVAILABLE, "fopen: %s", filename);
+
+	while (fgets(line, ED_MAX_LINE_LEN, f)) {         /* read commands */
+		char *s, *cur = line, *name = NULL, *arg = NULL;
+
+		++lineno;
+
+		/* parse the line */
+		while (cur) {
+			s = strsep(&cur, ED_SEPARATORS);
+			if (s == NULL || *s == '#')
+				break;
+			if (*s == '\0')
+				continue;
+			if (arg)
+				errx(ED_EFMT("too many arguments"));
+			if (name == NULL)
+				name = s;
+			else
+				arg = s;
+		}
+		if (name == NULL)	/* empty line */
+			continue;
+		if (arg == NULL)
+			errx(ED_EFMT("missing arg for %s"), name);
+
+		if (!strcasecmp(name, ED_TOK_SAMPLES)) {
+		    if (samples > 0)
+			errx(ED_EFMT("duplicate ``samples'' line"));
+		    if (atoi(arg) <=0)
+			errx(ED_EFMT("invalid number of samples"));
+		    samples = atoi(arg);
+		    if (samples>ED_MAX_SAMPLES_NO)
+			    errx(ED_EFMT("too many samples, maximum is %d"),
+				ED_MAX_SAMPLES_NO);
+		    do_points = 0;
+		} else if (!strcasecmp(name, ED_TOK_LOSS)) {
+		    if (loss != -1.0)
+			errx(ED_EFMT("duplicated token: %s"), name);
+		    if (!is_valid_number(arg))
+			errx(ED_EFMT("invalid %s"), arg);
+		    loss = atof(arg);
+		    if (loss > 1)
+			errx(ED_EFMT("%s greater than 1.0"), name);
+		    do_points = 0;
+		} else if (!strcasecmp(name, ED_TOK_NAME)) {
+		    if (profile_name[0] != '\0')
+			errx(ED_EFMT("duplicated token: %s"), name);
+		    strncpy(profile_name, arg, sizeof(profile_name) - 1);
+		    profile_name[sizeof(profile_name)-1] = '\0';
+		    do_points = 0;
+		} else if (!strcasecmp(name, ED_TOK_DELAY)) {
+		    if (do_points)
+			errx(ED_EFMT("duplicated token: %s"), name);
+		    delay_first = 1;
+		    do_points = 1;
+		} else if (!strcasecmp(name, ED_TOK_PROB)) {
+		    if (do_points)
+			errx(ED_EFMT("duplicated token: %s"), name);
+		    delay_first = 0;
+		    do_points = 1;
+		} else if (do_points) {
+		    if (!is_valid_number(name) || !is_valid_number(arg))
+			errx(ED_EFMT("invalid point found"));
+		    if (delay_first) {
+			points[points_no].delay = atof(name);
+			points[points_no].prob = atof(arg);
+		    } else {
+			points[points_no].delay = atof(arg);
+			points[points_no].prob = atof(name);
+		    }
+		    if (points[points_no].prob > 1.0)
+			errx(ED_EFMT("probability greater than 1.0"));
+		    ++points_no;
+		} else {
+		    errx(ED_EFMT("unrecognised command '%s'"), name);
+		}
+	}
+
+	if (samples == -1) {
+	    warnx("'%s' not found, assuming 100", ED_TOK_SAMPLES);
+	    samples = 100;
+	}
+
+	if (loss == -1.0) {
+	    warnx("'%s' not found, assuming no loss", ED_TOK_LOSS);
+	    loss = 1;
+	}
+
+	/* make sure that there are enough points. */
+	if (points_no < ED_MIN_SAMPLES_NO)
+	    errx(ED_EFMT("too few samples, need at least %d"),
+		ED_MIN_SAMPLES_NO);
+
+	qsort(points, points_no, sizeof(struct point), compare_points);
+
+	/* interpolation */
+	for (i = 0; i<points_no-1; ++i) {
+	    double y1 = points[i].prob * samples;
+	    double x1 = points[i].delay;
+	    double y2 = points[i+1].prob * samples;
+	    double x2 = points[i+1].delay;
+
+	    int index = y1;
+	    int stop = y2;
+
+	    if (x1 == x2) {
+		for (; index<stop; ++index)
+		    p->samples[index] = x1;
+	    } else {
+		double m = (y2-y1)/(x2-x1);
+		double c = y1 - m*x1;
+		for (; index<stop ; ++index)
+		    p->samples[index] = (index - c)/m;
+	    }
+	}
+	p->samples_no = samples;
+	p->loss_level = loss * samples;
+	strncpy(p->name, profile_name, sizeof(p->name));
+}
+
 void
 ipfw_config_pipe(int ac, char **av)
 {
+	int samples[ED_MAX_SAMPLES_NO];
 	struct dn_pipe p;
 	int i;
 	char *end;
@@ -611,6 +903,15 @@ end_mask:
 			ac--; av++;
 			break;
 
+		case TOK_PIPE_PROFILE:
+			if (co.do_pipe != 1)
+			    errx(EX_DATAERR, "extra delay only valid for pipes");
+			NEED1("extra delay needs the file name\n");
+			p.samples = &samples[0];
+			load_extra_delays(av[0], &p);
+			--ac; ++av;
+			break;
+
 		default:
 			errx(EX_DATAERR, "unrecognised option ``%s''", av[-1]);
 		}
@@ -620,6 +921,9 @@ end_mask:
 			errx(EX_DATAERR, "pipe_nr must be > 0");
 		if (p.delay > 10000)
 			errx(EX_DATAERR, "delay must be < 10000");
+		if (p.samples_no > 0 && p.bandwidth == 0)
+			errx(EX_DATAERR,
+				"profile requires a bandwidth limit");
 	} else { /* co.do_pipe == 2, queue */
 		if (p.fs.parent_nr == 0)
 			errx(EX_DATAERR, "pipe must be > 0");
@@ -713,7 +1017,18 @@ end_mask:
 			weight *= 1 - w_q;
 		p.fs.lookup_weight = (int)(weight * (1 << SCALE_RED));
 	}
-	i = do_cmd(IP_DUMMYNET_CONFIGURE, &p, sizeof p);
+	if (p.samples_no <= 0) {
+		i = do_cmd(IP_DUMMYNET_CONFIGURE, &p, sizeof p);
+	} else {
+		struct dn_pipe_max pm;
+		int len = sizeof(pm);
+
+		memcpy(&pm.pipe, &p, sizeof(pm.pipe));
+		memcpy(&pm.samples, samples, sizeof(pm.samples));
+
+		i = do_cmd(IP_DUMMYNET_CONFIGURE, &pm, len);
+	}
+
 	if (i)
 		err(1, "setsockopt(%s)", "IP_DUMMYNET_CONFIGURE");
 }

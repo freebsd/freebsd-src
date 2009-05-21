@@ -593,6 +593,7 @@ vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
 vendor IMAGINATION	0x149a	Imagination Technologies
 vendor CONCEPTRONIC2	0x14b2	Conceptronic
+vendor SUPERTOP		0x14cd	Super Top
 vendor PLANEX3		0x14ea	Planex Communications
 vendor SILICONPORTALS	0x1527	Silicon Portals
 vendor UBIQUAM		0x1529	UBIQUAM Co., Ltd.
@@ -623,6 +624,7 @@ vendor QCOM		0x18e8	Qcom
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
@@ -816,6 +818,7 @@ product ALCOR AU9814		0x9215	AU9814 Hub
 product ALCOR UMCR_9361		0x9361	USB Multimedia Card Reader
 product ALCOR SM_KBD		0x9410	MicroConnectors/StrongMan Keyboard
 product ALCOR NEC_KBD_HUB	0x9472	NEC Kbd Hub
+product ALCOR AU6390	0x6390	AU6390 USB-IDE converter
 
 /* Altec Lansing products */
 product ALTEC ADA70		0x0070	ADA70 Speakers
@@ -1022,6 +1025,7 @@ product CHPRODUCTS FIGHTERSTICK 0x00f3	Fighterstick
 product CHPRODUCTS FLIGHTYOKE	0x00ff	Flight Sim Yoke
 
 /* Cisco-Linksys products */
+product CISCOLINKSYS WUSB54AG	0x000c	WUSB54AG Wireless Adapter
 product CISCOLINKSYS WUSB54G	0x000d	WUSB54G Wireless Adapter
 product CISCOLINKSYS WUSB54GP	0x0011	WUSB54GP Wireless Adapter
 product CISCOLINKSYS USB200MV2	0x0018	USB200M v2
@@ -1105,6 +1109,7 @@ product CYPRESS KBDHUB		0x0101	Keyboard/Hub
 product CYPRESS FMRADIO		0x1002	FM Radio
 product CYPRESS USBRS232	0x5500	USB-RS232 Interface
 product CYPRESS SLIM_HUB	0x6560	Slim Hub
+product CYPRESS XX6830XX	0x6830	PATA Storage Device
 
 /* Daisy Technology products */
 product DAISY DMC		0x6901	USB MultiMedia Reader
@@ -1286,6 +1291,7 @@ product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
 /* Future Technology Devices products */
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
+product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
@@ -1632,6 +1638,7 @@ product LOGITECH QUICKCAMWEB	0x0801	QuickCam Web
 product LOGITECH QUICKCAMPRO	0x0810	QuickCam Pro
 product LOGITECH QUICKCAMEXP	0x0840	QuickCam Express
 product LOGITECH QUICKCAM	0x0850	QuickCam
+product LOGITECH QUICKCAMPRO3	0x0990	QuickCam Pro 9000
 product LOGITECH N43		0xc000	N43
 product LOGITECH N48		0xc001	N48 mouse
 product LOGITECH MBA47		0xc002	M-BA47 mouse
@@ -1907,6 +1914,7 @@ product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
+product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 
 /* OQO */
@@ -2025,6 +2033,7 @@ product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
 /* Qcom products */
 product QCOM RT2573		0x6196	RT2573
 product QCOM RT2573_2		0x6229	RT2573
+product QCOM RT2573_3		0x6238	RT2573
 
 /* Qualcomm products */
 product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
@@ -2126,6 +2135,7 @@ product SHARP SL5600		0x8006	Zaurus SL-5600 PDA
 product SHARP SLC700		0x8007	Zaurus SL-C700 PDA
 product SHARP SLC750		0x9031	Zaurus SL-C750 PDA
 product SHARP WZERO3ES		0x9123	W-ZERO3 ES Smartphone
+product SHARP WILLCOM03		0x9242	WILLCOM03
 
 /* Shuttle Technology products */
 product SHUTTLE EUSB		0x0001	E-USB Bridge
@@ -2292,6 +2302,10 @@ product SPHAIRON UB801R		0x0110	UB801R
 product STELERA ZEROCD		0x1000	Zerocd Installer
 product STELERA C105		0x1002	Stelera/Bandrish C105 USB
 
+/* MpMan products */
+product MPMAN MPF400_1		0x36d0	MPF400 Music Player 1Go
+product MPMAN MPF400_2		0x25a8	MPF400 Music Player 2Go
+
 /* STMicroelectronics products */
 product STMICRO BIOCPU		0x2016	Biometric Coprocessor
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
@@ -2308,9 +2322,14 @@ product SUNTAC AS64LX		0x000b	SUNTAC U-Cable type A3
 product SUNTAC AS144L4		0x0011	SUNTAC U-Cable type A4
 
 /* Sun Microsystems products */
-product SUN KEYBOARD		0x0005	Type 6 USB keyboard
+product SUN KEYBOARD_TYPE_6	0x0005	Type 6 USB keyboard
+product SUN KEYBOARD_TYPE_7	0x00a2	Type 7 USB keyboard
 /* XXX The above is a North American PC style keyboard possibly */
 product SUN MOUSE		0x0100	Type 6 USB mouse
+product SUN KBD_HUB		0x100e	Kbd Hub
+
+/* Super Top products */
+product	SUPERTOP IDE		0x6600	USB-IDE
 
 /* Supra products */
 product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
@@ -2408,6 +2427,7 @@ product UMEDIA TEW429UBC1	0x300d	TEW-429UB C1
 product UMEDIA ALL0298V2	0x3204	ALL0298 v2
 product UMEDIA AR5523_2		0x3205	AR5523
 product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
+product UMEDIA AR5523_3		0x3207	AR5523
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
@@ -2507,6 +2527,7 @@ product ZCOM XG703A		0x0008	PrismGT USB 2.0 WLAN
 product ZCOM ZD1211		0x0011	ZD1211
 product ZCOM AR5523		0x0012	AR5523
 product ZCOM AR5523_NF		0x0013	AR5523 driver (no firmware)
+product ZCOM XM142		0x0015	XM-142
 product ZCOM ZD1211B		0x001a	ZD1211B
 
 /* Zinwell products */

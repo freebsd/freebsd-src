@@ -1,6 +1,6 @@
-/*****************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -99,13 +99,28 @@ s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
 #define IGP_PAGE_SHIFT                    5
 #define PHY_REG_MASK                      0x1F
 
+/* BM/HV Specific Registers */
+#define BM_PORT_CTRL_PAGE                 769
+#define BM_PCIE_PAGE                      770
 #define BM_WUC_PAGE                       800
 #define BM_WUC_ADDRESS_OPCODE             0x11
 #define BM_WUC_DATA_OPCODE                0x12
-#define BM_WUC_ENABLE_PAGE                769
+#define BM_WUC_ENABLE_PAGE                BM_PORT_CTRL_PAGE
 #define BM_WUC_ENABLE_REG                 17
 #define BM_WUC_ENABLE_BIT                 (1 << 2)
 #define BM_WUC_HOST_WU_BIT                (1 << 4)
+
+#define PHY_UPPER_SHIFT                   21
+#define BM_PHY_REG(page, reg) \
+	(((reg) & MAX_PHY_REG_ADDRESS) |\
+	 (((page) & 0xFFFF) << PHY_PAGE_SHIFT) |\
+	 (((reg) & ~MAX_PHY_REG_ADDRESS) << (PHY_UPPER_SHIFT - PHY_PAGE_SHIFT)))
+#define BM_PHY_REG_PAGE(offset) \
+	((u16)(((offset) >> PHY_PAGE_SHIFT) & 0xFFFF))
+#define BM_PHY_REG_NUM(offset) \
+	((u16)(((offset) & MAX_PHY_REG_ADDRESS) |\
+	 (((offset) >> (PHY_UPPER_SHIFT - PHY_PAGE_SHIFT)) &\
+		~MAX_PHY_REG_ADDRESS)))
 
 /* BM PHY Copper Specific Control 1 */
 #define BM_CS_CTRL1                       16

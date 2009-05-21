@@ -360,7 +360,7 @@ int	 vdprintf(int, const char * __restrict, __va_list);
 #if defined(_BSD_SOURCE) || defined(_GNU_SOURCE)
 #define	_WITH_GETLINE
 #elif defined(_POSIX_C_SOURCE)
-#if _POSIX_C_SOURCE > 200809
+#if _POSIX_C_SOURCE >= 200809
 #define	_WITH_GETLINE
 #endif
 #endif
@@ -374,14 +374,14 @@ ssize_t	 getline(char ** __restrict, size_t * __restrict, FILE * __restrict);
 #if defined(_BSD_SOURCE) || defined(_GNU_SOURCE)
 #define	_WITH_DPRINTF
 #elif defined(_POSIX_C_SOURCE)
-#if _POSIX_C_SOURCE > 200809
+#if _POSIX_C_SOURCE >= 200809
 #define	_WITH_DPRINTF
 #endif
 #endif
 #endif
 
 #ifdef _WITH_DPRINTF
-int	 dprintf(int, const char * __restrict, ...);
+int	 (dprintf)(int, const char * __restrict, ...);
 #endif
 
 #endif /* __BSD_VISIBLE || __POSIX_VISIBLE >= 200809 */

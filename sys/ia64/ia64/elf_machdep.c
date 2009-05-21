@@ -93,7 +93,7 @@ static Elf64_Brandinfo freebsd_brand_info = {
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info);
@@ -107,7 +107,7 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_oinfo);
@@ -300,9 +300,12 @@ elf_cpu_load_file(linker_file_t lf)
 		++ph;
 	}
 
-	/* Invalidate the I-cache, but not for the kernel itself. */
+	/*
+	 * Make the I-cache coherent, but don't worry obout the kernel
+	 * itself because the loader needs to do that.
+	 */
 	if (lf->id != 1)
-		ia64_invalidate_icache((uintptr_t)lf->address, lf->size);
+		ia64_sync_icache((uintptr_t)lf->address, lf->size);
 
 	return (0);
 }

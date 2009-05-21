@@ -216,7 +216,7 @@ int drm_addmap(struct drm_device * dev, unsigned long offset,
 			DRM_LOCK();
 			return EINVAL;
 		}
-		map->offset = map->offset + dev->sg->handle;
+		map->offset += dev->sg->handle;
 		break;
 	case _DRM_CONSISTENT:
 		/* Unfortunately, we don't get any alignment specification from
@@ -1106,7 +1106,7 @@ int drm_order(unsigned long size)
 	if (size == 0)
 		return 0;
 
-	order = ffsl(size) - 1;
+	order = flsl(size) - 1;
 	if (size & ~(1ul << order))
 		++order;
 

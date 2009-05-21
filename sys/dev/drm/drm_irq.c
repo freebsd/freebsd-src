@@ -80,13 +80,14 @@ static void vblank_disable_fn(void *arg)
 	}
 	callout_deactivate(&dev->vblank_disable_timer);
 
-	DRM_DEBUG("vblank_disable_allowed=%d\n", dev->vblank_disable_allowed);
+	DRM_DEBUG("vblank_disable: %s\n", dev->vblank_disable_allowed ?
+		"allowed" : "denied");
 	if (!dev->vblank_disable_allowed)
 		return;
 
 	for (i = 0; i < dev->num_crtcs; i++) {
 		if (atomic_read(&dev->vblank[i].refcount) == 0 &&
-		    dev->vblank[i].enabled) {
+		    dev->vblank[i].enabled && !dev->vblank[i].inmodeset) {
 			DRM_DEBUG("disabling vblank on crtc %d\n", i);
 			dev->vblank[i].last =
 			    dev->driver->get_vblank_counter(dev, i);
@@ -98,15 +99,13 @@ static void vblank_disable_fn(void *arg)
 
 void drm_vblank_cleanup(struct drm_device *dev)
 {
-	unsigned long irqflags;
-
 	/* Bail if the driver didn't call drm_vblank_init() */
 	if (dev->num_crtcs == 0)
 		return;
 
-	DRM_SPINLOCK_IRQSAVE(&dev->vbl_lock, irqflags);
+	DRM_SPINLOCK(&dev->vbl_lock);
 	callout_stop(&dev->vblank_disable_timer);
-	DRM_SPINUNLOCK_IRQRESTORE(&dev->vbl_lock, irqflags);
+	DRM_SPINUNLOCK(&dev->vbl_lock);
 
 	callout_drain(&dev->vblank_disable_timer);
 
@@ -151,7 +150,7 @@ err:
 
 int drm_irq_install(struct drm_device *dev)
 {
-	int retcode;
+	int crtc, retcode;
 
 	if (dev->irq == 0 || dev->dev_private == NULL)
 		return EINVAL;
@@ -188,6 +187,17 @@ int drm_irq_install(struct drm_device *dev)
 	DRM_LOCK();
 	dev->driver->irq_postinstall(dev);
 	DRM_UNLOCK();
+	if (dev->driver->enable_vblank) {
+		DRM_SPINLOCK(&dev->vbl_lock);
+		for( crtc = 0 ; crtc < dev->num_crtcs ; crtc++) {
+			if (dev->driver->enable_vblank(dev, crtc) == 0) {
+				dev->vblank[crtc].enabled = 1;
+			}
+		}
+		callout_reset(&dev->vblank_disable_timer, 5 * DRM_HZ,
+		    (timeout_t *)vblank_disable_fn, (void *)dev);
+		DRM_SPINUNLOCK(&dev->vbl_lock);
+	}
 
 	return 0;
 err:
@@ -200,10 +210,26 @@ err:
 
 int drm_irq_uninstall(struct drm_device *dev)
 {
+	int crtc;
+
 	if (!dev->irq_enabled)
 		return EINVAL;
 
 	dev->irq_enabled = 0;
+
+	/*
+	* Wake up any waiters so they don't hang.
+	*/
+	DRM_SPINLOCK(&dev->vbl_lock);
+	for (crtc = 0; crtc < dev->num_crtcs; crtc++) {
+		if (dev->vblank[crtc].enabled) {
+			DRM_WAKEUP(&dev->vblank[crtc].queue);
+			dev->vblank[crtc].last =
+			    dev->driver->get_vblank_counter(dev, crtc);
+			dev->vblank[crtc].enabled = 0;
+		}
+	}
+	DRM_SPINUNLOCK(&dev->vbl_lock);
 
 	DRM_DEBUG("irq=%d\n", dev->irq);
 
@@ -277,16 +303,15 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 
 int drm_vblank_get(struct drm_device *dev, int crtc)
 {
-	unsigned long irqflags;
 	int ret = 0;
 
-	DRM_SPINLOCK_IRQSAVE(&dev->vbl_lock, irqflags);
+	DRM_SPINLOCK(&dev->vbl_lock);
 	/* Going from 0->1 means we have to enable interrupts again */
 	atomic_add_acq_int(&dev->vblank[crtc].refcount, 1);
-	DRM_DEBUG("vblank refcount = %d\n", dev->vblank[crtc].refcount);
 	if (dev->vblank[crtc].refcount == 1 &&
 	    !dev->vblank[crtc].enabled) {
 		ret = dev->driver->enable_vblank(dev, crtc);
+		DRM_DEBUG("enabling vblank on crtc %d, ret: %d\n", crtc, ret);
 		if (ret)
 			atomic_dec(&dev->vblank[crtc].refcount);
 		else {
@@ -294,30 +319,30 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 			drm_update_vblank_count(dev, crtc);
 		}
 	}
-	DRM_SPINUNLOCK_IRQRESTORE(&dev->vbl_lock, irqflags);
+	DRM_SPINUNLOCK(&dev->vbl_lock);
 
 	return ret;
 }
 
 void drm_vblank_put(struct drm_device *dev, int crtc)
 {
-	unsigned long irqflags;
+	KASSERT(atomic_read(&dev->vblank[crtc].refcount) > 0,
+	    ("invalid refcount"));
 
-	DRM_SPINLOCK_IRQSAVE(&dev->vbl_lock, irqflags);
 	/* Last user schedules interrupt disable */
 	atomic_subtract_acq_int(&dev->vblank[crtc].refcount, 1);
-	DRM_DEBUG("vblank refcount = %d\n", dev->vblank[crtc].refcount);
+
+	DRM_SPINLOCK(&dev->vbl_lock);
 	if (dev->vblank[crtc].refcount == 0)
 	    callout_reset(&dev->vblank_disable_timer, 5 * DRM_HZ,
 		(timeout_t *)vblank_disable_fn, (void *)dev);
-	DRM_SPINUNLOCK_IRQRESTORE(&dev->vbl_lock, irqflags);
+	DRM_SPINUNLOCK(&dev->vbl_lock);
 }
 
 int drm_modeset_ctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
 	struct drm_modeset_ctl *modeset = data;
-	unsigned long irqflags;
 	int crtc, ret = 0;
 
 	DRM_DEBUG("num_crtcs=%d\n", dev->num_crtcs);
@@ -343,18 +368,22 @@ int drm_modeset_ctl(struct drm_device *dev, void *data,
 	case _DRM_PRE_MODESET:
 		DRM_DEBUG("pre-modeset\n");
 		if (!dev->vblank[crtc].inmodeset) {
-			dev->vblank[crtc].inmodeset = 1;
-			drm_vblank_get(dev, crtc);
+			dev->vblank[crtc].inmodeset = 0x1;
+			if (drm_vblank_get(dev, crtc) == 0)
+				dev->vblank[crtc].inmodeset |= 0x2;
 		}
 		break;
 	case _DRM_POST_MODESET:
 		DRM_DEBUG("post-modeset\n");
 		if (dev->vblank[crtc].inmodeset) {
-			DRM_SPINLOCK_IRQSAVE(&dev->vbl_lock, irqflags);
+			DRM_SPINLOCK(&dev->vbl_lock);
 			dev->vblank_disable_allowed = 1;
+			DRM_SPINUNLOCK(&dev->vbl_lock);
+
+			if (dev->vblank[crtc].inmodeset & 0x2)
+				drm_vblank_put(dev, crtc);
+
 			dev->vblank[crtc].inmodeset = 0;
-			DRM_SPINUNLOCK_IRQRESTORE(&dev->vbl_lock, irqflags);
-			drm_vblank_put(dev, crtc);
 		}
 		break;
 	default:
@@ -434,27 +463,29 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 	} else {
 		DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
 		    vblwait->request.sequence, crtc);
-		for ( ret = 0 ; !ret && !((drm_vblank_count(dev, crtc) -
-		    vblwait->request.sequence) <= (1 << 23)) ; ) {
+		dev->vblank[crtc].last = vblwait->request.sequence;
+		for ( ret = 0 ; !ret && !(((drm_vblank_count(dev, crtc) -
+		    vblwait->request.sequence) <= (1 << 23)) ||
+		    !dev->irq_enabled) ; ) {
 			mtx_lock(&dev->irq_lock);
-			if (!((drm_vblank_count(dev, crtc) -
-			    vblwait->request.sequence) <= (1 << 23)))
+			if (!(((drm_vblank_count(dev, crtc) -
+			    vblwait->request.sequence) <= (1 << 23)) ||
+			    !dev->irq_enabled))
 				ret = mtx_sleep(&dev->vblank[crtc].queue,
 				    &dev->irq_lock, PCATCH, "vblwtq",
 				    3 * DRM_HZ);
 			mtx_unlock(&dev->irq_lock);
 		}
 
-		DRM_DEBUG("return = %d\n", ret);
-		if (ret != EINTR) {
+		if (ret != EINTR && ret != ERESTART) {
 			struct timeval now;
 
 			microtime(&now);
 			vblwait->reply.tval_sec = now.tv_sec;
 			vblwait->reply.tval_usec = now.tv_usec;
 			vblwait->reply.sequence = drm_vblank_count(dev, crtc);
-			DRM_DEBUG("returning %d to client\n",
-			    vblwait->reply.sequence);
+			DRM_DEBUG("returning %d to client, irq_enabled %d\n",
+			    vblwait->reply.sequence, dev->irq_enabled);
 		} else {
 			DRM_DEBUG("vblank wait interrupted by signal\n");
 		}

@@ -534,6 +534,8 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 
 	bpf_bpfd_cnt++;
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, 1);
 }
 
 /*
@@ -560,6 +562,8 @@ bpf_detachd(struct bpf_d *d)
 	d->bd_bif = NULL;
 	BPFD_UNLOCK(d);
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, ifp, 0);
 
 	/*
 	 * Check if this descriptor had requested promiscuous mode.
@@ -873,11 +877,10 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	m->m_len -= hlen;
 	m->m_data += hlen;	/* XXX */
 
+	CURVNET_SET(ifp->if_vnet);
 #ifdef MAC
 	BPFD_LOCK(d);
-	CURVNET_SET(ifp->if_vnet);
 	mac_bpfdesc_create_mbuf(d, m);
-	CURVNET_RESTORE();
 	if (mc != NULL)
 		mac_bpfdesc_create_mbuf(d, mc);
 	BPFD_UNLOCK(d);
@@ -893,6 +896,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		else
 			m_freem(mc);
 	}
+	CURVNET_RESTORE();
 
 	return (error);
 }

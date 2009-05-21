@@ -28,13 +28,11 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_util.h>
 
 #include <dev/usb/usb_controller.h>
@@ -154,9 +152,6 @@ uss820_atmelarm_attach(device_t dev)
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
-	/* multiply all addresses by 4 */
-	sc->sc_reg_shift = 2;
-
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
@@ -171,10 +166,10 @@ uss820_atmelarm_attach(device_t dev)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
+	    (driver_intr_t *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_intr_hdl = NULL;

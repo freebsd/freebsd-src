@@ -75,14 +75,14 @@ drm_ati_alloc_pcigart_table(struct drm_device *dev,
 	    NULL, NULL, /* filtfunc, filtfuncargs */
 	    gart_info->table_size, 1, /* maxsize, nsegs */
 	    gart_info->table_size, /* maxsegsize */
-	    BUS_DMA_ALLOCNOW, NULL, NULL, /* flags, lockfunc, lockfuncargs */
+	    0, NULL, NULL, /* flags, lockfunc, lockfuncargs */
 	    &dmah->tag);
 	if (ret != 0) {
 		free(dmah, DRM_MEM_DMA);
 		return ENOMEM;
 	}
 
-	flags = BUS_DMA_NOWAIT | BUS_DMA_ZERO;
+	flags = BUS_DMA_WAITOK | BUS_DMA_ZERO;
 	if (gart_info->gart_reg_if == DRM_ATI_GART_IGP)
 	    flags |= BUS_DMA_NOCACHE;
 	
@@ -95,7 +95,8 @@ drm_ati_alloc_pcigart_table(struct drm_device *dev,
 	DRM_LOCK();
 
 	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr,
-	    gart_info->table_size, drm_ati_alloc_pcigart_table_cb, dmah, 0);
+	    gart_info->table_size, drm_ati_alloc_pcigart_table_cb, dmah,
+	    BUS_DMA_NOWAIT);
 	if (ret != 0) {
 		bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 		bus_dma_tag_destroy(dmah->tag);
@@ -103,7 +104,7 @@ drm_ati_alloc_pcigart_table(struct drm_device *dev,
 		return ENOMEM;
 	}
 
-	dev->sg->dmah = dmah;
+	gart_info->dmah = dmah;
 
 	return 0;
 }
@@ -112,12 +113,12 @@ static void
 drm_ati_free_pcigart_table(struct drm_device *dev,
 			   struct drm_ati_pcigart_info *gart_info)
 {
-	struct drm_dma_handle *dmah = dev->sg->dmah;
+	struct drm_dma_handle *dmah = gart_info->dmah;
 
 	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 	bus_dma_tag_destroy(dmah->tag);
 	free(dmah, DRM_MEM_DMA);
-	dev->sg->dmah = NULL;
+	gart_info->dmah = NULL;
 }
 
 int
@@ -133,7 +134,7 @@ drm_ati_pcigart_cleanup(struct drm_device *dev,
 	if (gart_info->bus_addr) {
 		if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
 			gart_info->bus_addr = 0;
-			if (dev->sg->dmah)
+			if (gart_info->dmah)
 				drm_ati_free_pcigart_table(dev, gart_info);
 		}
 	}
@@ -168,8 +169,8 @@ drm_ati_pcigart_init(struct drm_device *dev,
 			goto done;
 		}
 
-		address = (void *)dev->sg->dmah->vaddr;
-		bus_address = dev->sg->dmah->busaddr;
+		address = (void *)gart_info->dmah->vaddr;
+		bus_address = gart_info->dmah->busaddr;
 	} else {
 		address = gart_info->addr;
 		bus_address = gart_info->bus_addr;

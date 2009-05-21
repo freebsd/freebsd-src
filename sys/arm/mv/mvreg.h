@@ -471,11 +471,12 @@
 /*
  * Chip ID
  */
-#define MV_DEV_88F5181	0x5181
-#define MV_DEV_88F5182	0x5182
-#define MV_DEV_88F5281	0x5281
-#define MV_DEV_88F6281	0x6281
-#define MV_DEV_MV78100	0x6381
+#define MV_DEV_88F5181		0x5181
+#define MV_DEV_88F5182		0x5182
+#define MV_DEV_88F5281		0x5281
+#define MV_DEV_88F6281		0x6281
+#define MV_DEV_MV78100_Z0	0x6381
+#define MV_DEV_MV78100		0x7810
 
 /*
  * Decode windows definitions and macros

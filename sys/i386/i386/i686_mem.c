@@ -73,11 +73,13 @@ static void	i686_mrinit(struct mem_range_softc *sc);
 static int	i686_mrset(struct mem_range_softc *sc,
 		    struct mem_range_desc *mrd, int *arg);
 static void	i686_mrAPinit(struct mem_range_softc *sc);
+static void	i686_mrreinit(struct mem_range_softc *sc);
 
 static struct mem_range_ops i686_mrops = {
 	i686_mrinit,
 	i686_mrset,
-	i686_mrAPinit
+	i686_mrAPinit,
+	i686_mrreinit
 };
 
 /* XXX for AP startup hook */
@@ -666,6 +668,30 @@ i686_mrAPinit(struct mem_range_softc *sc)
 
 	i686_mrstoreone(sc);
 	wrmsr(MSR_MTRRdefType, mtrrdef);
+}
+
+/*
+ * Re-initialise running CPU(s) MTRRs to match the ranges in the descriptor
+ * list.
+ *
+ * XXX Must be called with interrupts enabled.
+ */
+static void
+i686_mrreinit(struct mem_range_softc *sc)
+{
+#ifdef SMP
+	/*
+	 * We should use ipi_all_but_self() to call other CPUs into a
+	 * locking gate, then call a target function to do this work.
+	 * The "proper" solution involves a generalised locking gate
+	 * implementation, not ready yet.
+	 */
+	smp_rendezvous(NULL, (void *)i686_mrAPinit, NULL, sc);
+#else
+	disable_intr();				/* disable interrupts */
+	i686_mrAPinit(sc);
+	enable_intr();
+#endif
 }
 
 static void

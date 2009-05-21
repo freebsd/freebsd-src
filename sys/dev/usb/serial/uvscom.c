@@ -58,8 +58,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int uvscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uvscom, CTLFLAG_RW, 0, "USB uvscom");
-SYSCTL_INT(_hw_usb2_uvscom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uvscom, CTLFLAG_RW, 0, "USB uvscom");
+SYSCTL_INT(_hw_usb_uvscom, OID_AUTO, debug, CTLFLAG_RW,
     &uvscom_debug, 0, "Debug level");
 #endif
 
@@ -179,27 +179,27 @@ static const struct usb2_config uvscom_config[UVSCOM_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UVSCOM_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &uvscom_write_callback,
+		.bufsize = UVSCOM_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &uvscom_write_callback,
 	},
 
 	[UVSCOM_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UVSCOM_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &uvscom_read_callback,
+		.bufsize = UVSCOM_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &uvscom_read_callback,
 	},
 
 	[UVSCOM_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &uvscom_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &uvscom_intr_callback,
 	},
 };
 
@@ -257,7 +257,7 @@ uvscom_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UVSCOM_CONFIG_INDEX) {

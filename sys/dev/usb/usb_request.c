@@ -24,9 +24,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
+ */ 
 
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
@@ -54,11 +53,11 @@ static int usb2_pr_poll_delay = USB_PORT_RESET_DELAY;
 static int usb2_pr_recovery_delay = USB_PORT_RESET_RECOVERY;
 static int usb2_ss_delay = 0;
 
-SYSCTL_INT(_hw_usb2, OID_AUTO, pr_poll_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, pr_poll_delay, CTLFLAG_RW,
     &usb2_pr_poll_delay, 0, "USB port reset poll delay in ms");
-SYSCTL_INT(_hw_usb2, OID_AUTO, pr_recovery_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, pr_recovery_delay, CTLFLAG_RW,
     &usb2_pr_recovery_delay, 0, "USB port reset recovery delay in ms");
-SYSCTL_INT(_hw_usb2, OID_AUTO, ss_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, ss_delay, CTLFLAG_RW,
     &usb2_ss_delay, 0, "USB status stage delay in ms");
 #endif
 
@@ -98,7 +97,7 @@ usb2_do_clear_stall_callback(struct usb2_xfer *xfer)
 	struct usb2_pipe *pipe;
 	struct usb2_pipe *pipe_end;
 	struct usb2_pipe *pipe_first;
-	uint8_t to = USB_EP_MAX;
+	uint8_t to;
 
 	udev = xfer->xroot->udev;
 
@@ -107,8 +106,9 @@ usb2_do_clear_stall_callback(struct usb2_xfer *xfer)
 	/* round robin pipe clear stall */
 
 	pipe = udev->pipe_curr;
-	pipe_end = udev->pipes + USB_EP_MAX;
+	pipe_end = udev->pipes + udev->pipes_max;
 	pipe_first = udev->pipes;
+	to = udev->pipes_max;
 	if (pipe == NULL) {
 		pipe = pipe_first;
 	}
@@ -172,6 +172,18 @@ tr_setup:
 	USB_BUS_UNLOCK(udev->bus);
 }
 
+static usb2_handle_request_t *
+usb2_get_hr_func(struct usb2_device *udev)
+{
+	/* figure out if there is a Handle Request function */
+	if (udev->flags.usb_mode == USB_MODE_DEVICE)
+		return (usb2_temp_get_desc_p);
+	else if (udev->parent_hub == NULL)
+		return (udev->bus->methods->roothub_exec);
+	else
+		return (NULL);
+}
+
 /*------------------------------------------------------------------------*
  *	usb2_do_request_flags and usb2_do_request
  *
@@ -229,15 +241,16 @@ tr_setup:
  *------------------------------------------------------------------------*/
 usb2_error_t
 usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
-    struct usb2_device_request *req, void *data, uint32_t flags,
-    uint16_t *actlen, uint32_t timeout)
+    struct usb2_device_request *req, void *data, uint16_t flags,
+    uint16_t *actlen, usb2_timeout_t timeout)
 {
+	usb2_handle_request_t *hr_func;
 	struct usb2_xfer *xfer;
 	const void *desc;
 	int err = 0;
-	uint32_t start_ticks;
-	uint32_t delta_ticks;
-	uint32_t max_ticks;
+	usb2_ticks_t start_ticks;
+	usb2_ticks_t delta_ticks;
+	usb2_ticks_t max_ticks;
 	uint16_t length;
 	uint16_t temp;
 
@@ -258,36 +271,23 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	    req->wIndex[1], req->wIndex[0],
 	    req->wLength[1], req->wLength[0]);
 
+	/* Check if the device is still alive */
+	if (udev->state < USB_STATE_POWERED) {
+		DPRINTF("usb device has gone\n");
+		return (USB_ERR_NOT_CONFIGURED);
+	}
+
 	/*
 	 * Set "actlen" to a known value in case the caller does not
 	 * check the return value:
 	 */
-	if (actlen) {
+	if (actlen)
 		*actlen = 0;
-	}
-	if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
-		DPRINTF("USB device mode\n");
-		(usb2_temp_get_desc_p) (udev, req, &desc, &temp);
-		if (length > temp) {
-			if (!(flags & USB_SHORT_XFER_OK)) {
-				return (USB_ERR_SHORT_XFER);
-			}
-			length = temp;
-		}
-		if (actlen) {
-			*actlen = length;
-		}
-		if (length > 0) {
-			if (flags & USB_USER_DATA_PTR) {
-				if (copyout(desc, data, length)) {
-					return (USB_ERR_INVAL);
-				}
-			} else {
-				bcopy(desc, data, length);
-			}
-		}
-		return (0);		/* success */
-	}
+
+#if (USB_HAVE_USER_IO == 0)
+	if (flags & USB_USER_DATA_PTR)
+		return (USB_ERR_INVAL);
+#endif
 	if (mtx) {
 		mtx_unlock(mtx);
 		if (mtx != &Giant) {
@@ -300,6 +300,56 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	 */
 
 	sx_xlock(udev->default_sx);
+
+	hr_func = usb2_get_hr_func(udev);
+
+	if (hr_func != NULL) {
+		DPRINTF("Handle Request function is set\n");
+
+		desc = NULL;
+		temp = 0;
+
+		if (!(req->bmRequestType & UT_READ)) {
+			if (length != 0) {
+				DPRINTFN(1, "The handle request function "
+				    "does not support writing data!\n");
+				err = USB_ERR_INVAL;
+				goto done;
+			}
+		}
+
+		/* The root HUB code needs the BUS lock locked */
+
+		USB_BUS_LOCK(udev->bus);
+		err = (hr_func) (udev, req, &desc, &temp);
+		USB_BUS_UNLOCK(udev->bus);
+
+		if (err)
+			goto done;
+
+		if (length > temp) {
+			if (!(flags & USB_SHORT_XFER_OK)) {
+				err = USB_ERR_SHORT_XFER;
+				goto done;
+			}
+			length = temp;
+		}
+		if (actlen)
+			*actlen = length;
+
+		if (length > 0) {
+#if USB_HAVE_USER_IO
+			if (flags & USB_USER_DATA_PTR) {
+				if (copyout(desc, data, length)) {
+					err = USB_ERR_INVAL;
+					goto done;
+				}
+			} else
+#endif
+				bcopy(desc, data, length);
+		}
+		goto done;		/* success */
+	}
 
 	/*
 	 * Setup a new USB transfer or use the existing one, if any:
@@ -314,11 +364,15 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 	}
 	USB_XFER_LOCK(xfer);
 
-	if (flags & USB_DELAY_STATUS_STAGE) {
+	if (flags & USB_DELAY_STATUS_STAGE)
 		xfer->flags.manual_status = 1;
-	} else {
+	else
 		xfer->flags.manual_status = 0;
-	}
+
+	if (flags & USB_SHORT_XFER_OK)
+		xfer->flags.short_xfer_ok = 1;
+	else
+		xfer->flags.short_xfer_ok = 0;
 
 	xfer->timeout = timeout;
 
@@ -340,6 +394,7 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 
 		if (temp > 0) {
 			if (!(req->bmRequestType & UT_READ)) {
+#if USB_HAVE_USER_IO
 				if (flags & USB_USER_DATA_PTR) {
 					USB_XFER_UNLOCK(xfer);
 					err = usb2_copy_in_user(xfer->frbuffers + 1,
@@ -349,9 +404,10 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 						err = USB_ERR_INVAL;
 						break;
 					}
-				} else {
-					usb2_copy_in(xfer->frbuffers + 1, 0, data, temp);
-				}
+				} else
+#endif
+					usb2_copy_in(xfer->frbuffers + 1,
+					    0, data, temp);
 			}
 			xfer->nframes = 2;
 		} else {
@@ -402,13 +458,11 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 
 		if (temp > xfer->actlen) {
 			temp = xfer->actlen;
-			if (!(flags & USB_SHORT_XFER_OK)) {
-				err = USB_ERR_SHORT_XFER;
-			}
 			length = temp;
 		}
 		if (temp > 0) {
 			if (req->bmRequestType & UT_READ) {
+#if USB_HAVE_USER_IO
 				if (flags & USB_USER_DATA_PTR) {
 					USB_XFER_UNLOCK(xfer);
 					err = usb2_copy_out_user(xfer->frbuffers + 1,
@@ -418,10 +472,10 @@ usb2_do_request_flags(struct usb2_device *udev, struct mtx *mtx,
 						err = USB_ERR_INVAL;
 						break;
 					}
-				} else {
+				} else
+#endif
 					usb2_copy_out(xfer->frbuffers + 1,
 					    0, data, temp);
-				}
 			}
 		}
 		/*
@@ -480,8 +534,8 @@ done:
  *------------------------------------------------------------------------*/
 usb2_error_t
 usb2_do_request_proc(struct usb2_device *udev, struct usb2_process *pproc,
-    struct usb2_device_request *req, void *data, uint32_t flags,
-    uint16_t *actlen, uint32_t timeout)
+    struct usb2_device_request *req, void *data, uint16_t flags,
+    uint16_t *actlen, usb2_timeout_t timeout)
 {
 	usb2_error_t err;
 	uint16_t len;
@@ -823,6 +877,56 @@ usb2_req_get_string_desc(struct usb2_device *udev, struct mtx *mtx, void *sdesc,
 {
 	return (usb2_req_get_desc(udev, mtx, NULL, sdesc, 2, max_len, lang_id,
 	    UDESC_STRING, string_index, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *	usb2_req_get_config_desc_ptr
+ *
+ * This function is used in device side mode to retrieve the pointer
+ * to the generated config descriptor. This saves allocating space for
+ * an additional config descriptor when setting the configuration.
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb2_error_t
+usb2_req_get_descriptor_ptr(struct usb2_device *udev,
+    struct usb2_config_descriptor **ppcd, uint16_t wValue)
+{
+	struct usb2_device_request req;
+	usb2_handle_request_t *hr_func;
+	const void *ptr;
+	uint16_t len;
+	usb2_error_t err;
+
+	req.bmRequestType = UT_READ_DEVICE;
+	req.bRequest = UR_GET_DESCRIPTOR;
+	USETW(req.wValue, wValue);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+
+	ptr = NULL;
+	len = 0;
+
+	hr_func = usb2_get_hr_func(udev);
+
+	if (hr_func == NULL)
+		err = USB_ERR_INVAL;
+	else {
+		USB_BUS_LOCK(udev->bus);
+		err = (hr_func) (udev, &req, &ptr, &len);
+		USB_BUS_UNLOCK(udev->bus);
+	}
+
+	if (err)
+		ptr = NULL;
+	else if (ptr == NULL)
+		err = USB_ERR_INVAL;
+
+	*ppcd = __DECONST(struct usb2_config_descriptor *, ptr);
+
+	return (err);
 }
 
 /*------------------------------------------------------------------------*
@@ -1381,7 +1485,7 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 	uint8_t old_addr;
 	uint8_t do_retry = 1;
 
-	if (udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (udev->flags.usb_mode != USB_MODE_HOST) {
 		return (USB_ERR_INVAL);
 	}
 	old_addr = udev->address;
@@ -1392,7 +1496,8 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 retry:
 	err = usb2_req_reset_port(parent_hub, mtx, udev->port_no);
 	if (err) {
-		DPRINTFN(0, "addr=%d, port reset failed\n", old_addr);
+		DPRINTFN(0, "addr=%d, port reset failed, %s\n", 
+		    old_addr, usb2_errstr(err));
 		goto done;
 	}
 	/*
@@ -1410,8 +1515,8 @@ retry:
 	err = usb2_req_set_address(udev, mtx, old_addr);
 	if (err) {
 		/* XXX ignore any errors! */
-		DPRINTFN(0, "addr=%d, set address failed! (ignored)\n",
-		    old_addr);
+		DPRINTFN(0, "addr=%d, set address failed! (%s, ignored)\n",
+		    old_addr, usb2_errstr(err));
 	}
 	/* restore device address */
 	udev->address = old_addr;
@@ -1424,14 +1529,16 @@ retry:
 	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
-		    "at addr %d failed!\n", udev->address);
+		    "at addr %d failed, %s!\n", udev->address,
+		    usb2_errstr(err));
 		goto done;
 	}
 	/* get the full device descriptor */
 	err = usb2_req_get_device_desc(udev, mtx, &udev->ddesc);
 	if (err) {
 		DPRINTFN(0, "addr=%d, getting device "
-		    "descriptor failed!\n", old_addr);
+		    "descriptor failed, %s!\n", old_addr, 
+		    usb2_errstr(err));
 		goto done;
 	}
 done:

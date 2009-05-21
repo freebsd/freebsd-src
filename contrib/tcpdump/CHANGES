@@ -1,20 +1,36 @@
-$Header: /tcpdump/master/tcpdump/CHANGES,v 1.87.2.17 2007/09/13 13:39:44 ken Exp $
+$Header: /tcpdump/master/tcpdump/CHANGES,v 1.98.2.2 2008-10-15 23:26:30 ken Exp $
 
-Mon.	September 10, 2007.  ken@xelerance.com.  Summary for 0.9.8 tcpdump release
-	Rework ARP printer
-	Rework OSPFv3 printer
-	Add support for Frame-Relay ARP
-	Decode DHCP Option 121 (RFC 3442 Classless Static Route)
-	Decode DHCP Option 249 (MS Classless Static Route) the same as Option 121
-	TLV: Add support for Juniper .pcap extensions
-	Print EGP header in new-world-order style
-	Converted print-isakmp.c to NETDISSECT
-	Moved AF specific stuff into af.h
-	Test subsystem now table driven, and saves outputs and diffs to one place
+Mon.    October 27, 2008.  ken@netfunctional.ca.  Summary for 4.0.0 tcpdump release
+        Add support for Bluetooth Sniffing
+        Add support for Realtek Remote Control Protocol (openrrcp.org.ru)
+        Add support for 802.11 AVS
+        Add support for SMB over TCP
+        Add support for 4 byte BGP AS printing
+        Add support for compiling on case-insensitive file systems
+        Add support for ikev2 printing
+        Update support for decoding AFS
+        Update DHCPv6 printer
+        Use newer libpcap API's (allows -B option on all platforms)
+        Add -I to turn on monitor mode
+        Bugfixes in lldp, lspping, dccp, ESP, NFS printers
+        Cleanup unused files and various cruft
+
+Mon.    September 10, 2007.  ken@xelerance.com.  Summary for 3.9.8 tcpdump release
+        Rework ARP printer
+        Rework OSPFv3 printer
+        Add support for Frame-Relay ARP
+        Decode DHCP Option 121 (RFC 3442 Classless Static Route)
+        Decode DHCP Option 249 (MS Classless Static Route) the same as Option 121
+        TLV: Add support for Juniper .pcap extensions
+        Print EGP header in new-world-order style
+        Converted print-isakmp.c to NETDISSECT
+        Moved AF specific stuff into af.h
+        Test subsystem now table driven, and saves outputs and diffs to one place
         Require <net/pfvar.h> for pf definitions - allows reading of pflog formatted 
          libpcap files on an OS other than where the file was generated
 
-Wed.	July 23, 2007.  mcr@xelerance.com.  Summary for 0.9.7 tcpdump release
+
+Wed.	July 23, 2007.  mcr@xelerance.com.  Summary for 3.9.7 libpcap release
 
     	NFS: Print unsigned values as such. 
 	RX: parse safely.

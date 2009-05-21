@@ -67,7 +67,8 @@
 /* Try to get standard C99-style integer type definitions. */
 #if HAVE_INTTYPES_H
 #include <inttypes.h>
-#elif HAVE_STDINT_H
+#endif
+#if HAVE_STDINT_H
 #include <stdint.h>
 #endif
 

@@ -109,44 +109,36 @@ clock_register(device_t dev, long res)	/* res has units of microseconds */
 void
 inittodr(time_t base)
 {
-	struct timespec diff, ref, ts;
+	struct timespec ref, ts;
 	int error;
-
-	if (base) {
-		ref.tv_sec = base;
-		ref.tv_nsec = 0;
-		tc_setclock(&ref);
-	}
 
 	if (clock_dev == NULL) {
 		printf("warning: no time-of-day clock registered, system time "
 		    "will not be set accurately\n");
-		return;
+		goto wrong_time;
 	}
 	/* XXX: We should poll all registered RTCs in case of failure */
 	error = CLOCK_GETTIME(clock_dev, &ts);
 	if (error != 0 && error != EINVAL) {
 		printf("warning: clock_gettime failed (%d), the system time "
 		    "will not be set accurately\n", error);
-		return;
+		goto wrong_time;
 	}
 	if (error == EINVAL || ts.tv_sec < 0) {
-		printf("Invalid time in real time clock.\n");
-		printf("Check and reset the date immediately!\n");
+		printf("Invalid time in real time clock.\n"
+		    "Check and reset the date immediately!\n");
+		goto wrong_time;
 	}
 
 	ts.tv_sec += utc_offset();
+	tc_setclock(&ts);
+	return;
 
-	if (timespeccmp(&ref, &ts, >)) {
-		diff = ref;
-		timespecsub(&ref, &ts);
-	} else {
-		diff = ts;
-		timespecsub(&diff, &ref);
-	}
-	if (ts.tv_sec >= 2) {
-		/* badly off, adjust it */
-		tc_setclock(&ts);
+wrong_time:
+	if (base > 0) {
+		ref.tv_sec = base;
+		ref.tv_nsec = 0;
+		tc_setclock(&ref);
 	}
 }
 

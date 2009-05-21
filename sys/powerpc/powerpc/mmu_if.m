@@ -105,6 +105,11 @@ CODE {
 	{
 		return;
 	}
+
+	static struct pmap_md *mmu_null_scan_md(mmu_t mmu, struct pmap_md *p)
+	{
+		return (NULL);
+	}
 };
 
 
@@ -697,6 +702,18 @@ METHOD void bootstrap {
 	vm_offset_t	_end;
 };
 
+/**
+ * @brief Set up the MMU on the current CPU. Only called by the PMAP layer
+ * for alternate CPUs on SMP systems.
+ *
+ * @param _ap		Set to 1 if the CPU being set up is an AP
+ *
+ */
+METHOD void cpu_bootstrap {
+	mmu_t		_mmu;
+	int		_ap;
+};
+
 
 /**
  * @brief Create a kernel mapping for a given physical address range.
@@ -783,3 +800,50 @@ METHOD boolean_t page_executable {
 	vm_page_t	_pg;
 };
 
+
+/**
+ * @brief Create temporary memory mapping for use by dumpsys().
+ *
+ * @param _md		The memory chunk in which the mapping lies.
+ * @param _ofs		The offset within the chunk of the mapping.
+ * @param _sz		The requested size of the mapping.
+ *
+ * @retval vm_offset_t	The virtual address of the mapping.
+ *			
+ * The sz argument is modified to reflect the actual size of the
+ * mapping.
+ */
+METHOD vm_offset_t dumpsys_map {
+	mmu_t		_mmu;
+	struct pmap_md	*_md;
+	vm_size_t	_ofs;
+	vm_size_t	*_sz;
+};
+
+
+/**
+ * @brief Remove temporary dumpsys() mapping.
+ *
+ * @param _md		The memory chunk in which the mapping lies.
+ * @param _ofs		The offset within the chunk of the mapping.
+ * @param _va		The virtual address of the mapping.
+ */
+METHOD void dumpsys_unmap {
+	mmu_t		_mmu;
+	struct pmap_md	*_md;
+	vm_size_t	_ofs;
+	vm_offset_t	_va;
+};
+
+
+/**
+ * @brief Scan/iterate memory chunks.
+ *
+ * @param _prev		The previously returned chunk or NULL.
+ *
+ * @retval		The next (or first when _prev is NULL) chunk.
+ */
+METHOD struct pmap_md * scan_md {
+	mmu_t		_mmu;
+	struct pmap_md	*_prev;
+} DEFAULT mmu_null_scan_md;

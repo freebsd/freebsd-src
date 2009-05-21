@@ -27,9 +27,8 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * This file contains the driver for the ATMEGA series USB OTG
- * Controller. This driver currently only supports the DCI mode of the
- * USB hardware.
+ * This file contains the driver for the ATMEGA series USB OTG Controller. This
+ * driver currently only supports the DCI mode of the USB hardware.
  */
 
 /*
@@ -40,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR atmegadci_debug
 
@@ -48,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_transfer.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_hub.h>
@@ -60,16 +57,16 @@ __FBSDID("$FreeBSD$");
 
 #define	ATMEGA_BUS2SC(bus) \
    ((struct atmegadci_softc *)(((uint8_t *)(bus)) - \
-   USB_P2U(&(((struct atmegadci_softc *)0)->sc_bus))))
+    ((uint8_t *)&(((struct atmegadci_softc *)0)->sc_bus))))
 
 #define	ATMEGA_PC2SC(pc) \
-   ATMEGA_BUS2SC((pc)->tag_parent->info->bus)
+   ATMEGA_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
 #if USB_DEBUG
 static int atmegadci_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
-SYSCTL_INT(_hw_usb2_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
+SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif
 
@@ -78,12 +75,8 @@ SYSCTL_INT(_hw_usb2_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
 /* prototypes */
 
 struct usb2_bus_methods atmegadci_bus_methods;
-struct usb2_pipe_methods atmegadci_device_bulk_methods;
-struct usb2_pipe_methods atmegadci_device_ctrl_methods;
-struct usb2_pipe_methods atmegadci_device_intr_methods;
+struct usb2_pipe_methods atmegadci_device_non_isoc_methods;
 struct usb2_pipe_methods atmegadci_device_isoc_fs_methods;
-struct usb2_pipe_methods atmegadci_root_ctrl_methods;
-struct usb2_pipe_methods atmegadci_root_intr_methods;
 
 static atmegadci_cmd_t atmegadci_setup_rx;
 static atmegadci_cmd_t atmegadci_data_rx;
@@ -91,11 +84,8 @@ static atmegadci_cmd_t atmegadci_data_tx;
 static atmegadci_cmd_t atmegadci_data_tx_sync;
 static void atmegadci_device_done(struct usb2_xfer *, usb2_error_t);
 static void atmegadci_do_poll(struct usb2_bus *);
-static void atmegadci_root_ctrl_poll(struct atmegadci_softc *);
 static void atmegadci_standard_done(struct usb2_xfer *);
-
-static usb2_sw_transfer_func_t atmegadci_root_intr_done;
-static usb2_sw_transfer_func_t atmegadci_root_ctrl_done;
+static void atmegadci_root_intr(struct atmegadci_softc *sc);
 
 /*
  * Here is a list of what the chip supports:
@@ -113,7 +103,6 @@ static const struct usb2_hw_ep_profile
 		.max_in_frame_size = 64,
 		.max_out_frame_size = 64,
 		.is_simplex = 1,
-		.support_multi_buffer = 1,
 		.support_bulk = 1,
 		.support_interrupt = 1,
 		.support_isochronous = 1,
@@ -202,9 +191,8 @@ atmegadci_pull_down(struct atmegadci_softc *sc)
 }
 
 static void
-atmegadci_wakeup_peer(struct usb2_xfer *xfer)
+atmegadci_wakeup_peer(struct atmegadci_softc *sc)
 {
-	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
 	uint8_t temp;
 
 	if (!sc->sc_flags.status_suspend) {
@@ -251,16 +239,10 @@ atmegadci_setup_rx(struct atmegadci_td *td)
 	DPRINTFN(5, "UEINTX=0x%02x\n", temp);
 
 	if (!(temp & ATMEGA_UEINTX_RXSTPI)) {
-		/* abort any ongoing transfer */
-		if (!td->did_stall) {
-			DPRINTFN(5, "stalling\n");
-			ATMEGA_WRITE_1(sc, ATMEGA_UECONX,
-			    ATMEGA_UECONX_EPEN |
-			    ATMEGA_UECONX_STALLRQ);
-			td->did_stall = 1;
-		}
 		goto not_complete;
 	}
+	/* clear did stall */
+	td->did_stall = 0;
 	/* get the packet byte count */
 	count =
 	    (ATMEGA_READ_1(sc, ATMEGA_UEBCHX) << 8) |
@@ -305,6 +287,18 @@ atmegadci_setup_rx(struct atmegadci_td *td)
 	return (0);			/* complete */
 
 not_complete:
+	/* abort any ongoing transfer */
+	if (!td->did_stall) {
+		DPRINTFN(5, "stalling\n");
+		ATMEGA_WRITE_1(sc, ATMEGA_UECONX,
+		    ATMEGA_UECONX_EPEN |
+		    ATMEGA_UECONX_STALLRQ);
+		td->did_stall = 1;
+	}
+	if (temp & ATMEGA_UEINTX_RXSTPI) {
+		/* clear SETUP packet interrupt */
+		ATMEGA_WRITE_1(sc, ATMEGA_UEINTX, ~ATMEGA_UEINTX_RXSTPI);
+	}
 	/* we only want to know if there is a SETUP packet */
 	ATMEGA_WRITE_1(sc, ATMEGA_UEIENX, ATMEGA_UEIENX_RXSTPE);
 	return (1);			/* not complete */
@@ -456,11 +450,13 @@ repeat:
 		td->error = 1;
 		return (0);		/* complete */
 	}
-	if (!(temp & (ATMEGA_UEINTX_FIFOCON |
-	    ATMEGA_UEINTX_TXINI))) {
-		/* cannot write any data */
+
+	temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
+	if (temp & 3) {
+		/* cannot write any data - a bank is busy */
 		goto not_complete;
 	}
+
 	count = td->max_packet_size;
 	if (td->remainder < count) {
 		/* we have a short packet */
@@ -534,9 +530,9 @@ atmegadci_data_tx_sync(struct atmegadci_td *td)
 	 * The control endpoint has only got one bank, so if that bank
 	 * is free the packet has been transferred!
 	 */
-	if (!(temp & (ATMEGA_UEINTX_FIFOCON |
-	    ATMEGA_UEINTX_TXINI))) {
-		/* cannot write any data */
+	temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
+	if (temp & 3) {
+		/* cannot write any data - a bank is busy */
 		goto not_complete;
 	}
 	if (sc->sc_dv_addr != 0xFF) {
@@ -620,8 +616,7 @@ atmegadci_vbus_interrupt(struct atmegadci_softc *sc, uint8_t is_on)
 
 			/* complete root HUB interrupt endpoint */
 
-			usb2_sw_transfer(&sc->sc_root_intr,
-			    &atmegadci_root_intr_done);
+			atmegadci_root_intr(sc);
 		}
 	} else {
 		if (sc->sc_flags.status_vbus) {
@@ -633,8 +628,7 @@ atmegadci_vbus_interrupt(struct atmegadci_softc *sc, uint8_t is_on)
 
 			/* complete root HUB interrupt endpoint */
 
-			usb2_sw_transfer(&sc->sc_root_intr,
-			    &atmegadci_root_intr_done);
+			atmegadci_root_intr(sc);
 		}
 	}
 }
@@ -650,7 +644,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	status = ATMEGA_READ_1(sc, ATMEGA_UDINT);
 
 	/* clear all set interrupts */
-	ATMEGA_WRITE_1(sc, ATMEGA_UDINT, ~status);
+	ATMEGA_WRITE_1(sc, ATMEGA_UDINT, (~status) & 0x7D);
 
 	DPRINTFN(14, "UDINT=0x%02x\n", status);
 
@@ -671,15 +665,14 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 		    ATMEGA_UDINT_EORSTE);
 
 		/* complete root HUB interrupt endpoint */
-		usb2_sw_transfer(&sc->sc_root_intr,
-		    &atmegadci_root_intr_done);
+		atmegadci_root_intr(sc);
 	}
 	/*
 	 * If resume and suspend is set at the same time we interpret
 	 * that like RESUME. Resume is set when there is at least 3
 	 * milliseconds of inactivity on the USB BUS.
 	 */
-	if (status & ATMEGA_UDINT_EORSMI) {
+	if (status & ATMEGA_UDINT_WAKEUPI) {
 
 		DPRINTFN(5, "resume interrupt\n");
 
@@ -694,8 +687,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 			    ATMEGA_UDINT_EORSTE);
 
 			/* complete root HUB interrupt endpoint */
-			usb2_sw_transfer(&sc->sc_root_intr,
-			    &atmegadci_root_intr_done);
+			atmegadci_root_intr(sc);
 		}
 	} else if (status & ATMEGA_UDINT_SUSPI) {
 
@@ -708,19 +700,18 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 
 			/* disable suspend interrupt */
 			ATMEGA_WRITE_1(sc, ATMEGA_UDIEN,
-			    ATMEGA_UDINT_EORSMI |
+			    ATMEGA_UDINT_WAKEUPE |
 			    ATMEGA_UDINT_EORSTE);
 
 			/* complete root HUB interrupt endpoint */
-			usb2_sw_transfer(&sc->sc_root_intr,
-			    &atmegadci_root_intr_done);
+			atmegadci_root_intr(sc);
 		}
 	}
 	/* check VBUS */
 	status = ATMEGA_READ_1(sc, ATMEGA_USBINT);
 
 	/* clear all set interrupts */
-	ATMEGA_WRITE_1(sc, ATMEGA_USBINT, ~status);
+	ATMEGA_WRITE_1(sc, ATMEGA_USBINT, (~status) & 0x03);
 
 	if (status & ATMEGA_USBINT_VBUSTI) {
 		uint8_t temp;
@@ -732,10 +723,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	}
 	/* check for any endpoint interrupts */
 	status = ATMEGA_READ_1(sc, ATMEGA_UEINT);
-
-	/* clear all set interrupts */
-	ATMEGA_WRITE_1(sc, ATMEGA_UEINT, ~status);
-
+	/* the hardware will clear the UEINT bits automatically */
 	if (status) {
 
 		DPRINTFN(5, "real endpoint interrupt UEINT=0x%02x\n", status);
@@ -763,7 +751,7 @@ atmegadci_setup_standard_chain_sub(struct atmegadci_std_temp *temp)
 	td->offset = temp->offset;
 	td->remainder = temp->len;
 	td->error = 0;
-	td->did_stall = 0;
+	td->did_stall = temp->did_stall;
 	td->short_pkt = temp->short_pkt;
 	td->alt_next = temp->setup_alt_next;
 }
@@ -792,8 +780,9 @@ atmegadci_setup_standard_chain(struct usb2_xfer *xfer)
 
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
 	temp.offset = 0;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = ATMEGA_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
@@ -807,6 +796,12 @@ atmegadci_setup_standard_chain(struct usb2_xfer *xfer)
 			temp.len = xfer->frlengths[0];
 			temp.pc = xfer->frbuffers + 0;
 			temp.short_pkt = temp.len ? 1 : 0;
+			/* check for last frame */
+			if (xfer->nframes == 1) {
+				/* no STATUS stage yet, SETUP is last */
+				if (xfer->flags_int.control_act)
+					temp.setup_alt_next = 0;
+			}
 
 			atmegadci_setup_standard_chain_sub(&temp);
 		}
@@ -838,7 +833,13 @@ atmegadci_setup_standard_chain(struct usb2_xfer *xfer)
 		x++;
 
 		if (x == xfer->nframes) {
-			temp.setup_alt_next = 0;
+			if (xfer->flags_int.control_xfr) {
+				if (xfer->flags_int.control_act) {
+					temp.setup_alt_next = 0;
+				}
+			} else {
+				temp.setup_alt_next = 0;
+			}
 		}
 		if (temp.len == 0) {
 
@@ -863,45 +864,42 @@ atmegadci_setup_standard_chain(struct usb2_xfer *xfer)
 		}
 	}
 
-	/* always setup a valid "pc" pointer for status and sync */
-	temp.pc = xfer->frbuffers + 0;
+	if (xfer->flags_int.control_xfr) {
 
-	/* check if we need to sync */
-	if (need_sync && xfer->flags_int.control_xfr) {
-
-		/* we need a SYNC point after TX */
-		temp.func = &atmegadci_data_tx_sync;
+		/* always setup a valid "pc" pointer for status and sync */
+		temp.pc = xfer->frbuffers + 0;
 		temp.len = 0;
 		temp.short_pkt = 0;
+		temp.setup_alt_next = 0;
 
-		atmegadci_setup_standard_chain_sub(&temp);
-	}
-	/* check if we should append a status stage */
-	if (xfer->flags_int.control_xfr &&
-	    !xfer->flags_int.control_act) {
-
-		/*
-		 * Send a DATA1 message and invert the current
-		 * endpoint direction.
-		 */
-		if (xfer->endpoint & UE_DIR_IN) {
-			temp.func = &atmegadci_data_rx;
-			need_sync = 0;
-		} else {
-			temp.func = &atmegadci_data_tx;
-			need_sync = 1;
-		}
-		temp.len = 0;
-		temp.short_pkt = 0;
-
-		atmegadci_setup_standard_chain_sub(&temp);
+		/* check if we need to sync */
 		if (need_sync) {
 			/* we need a SYNC point after TX */
 			temp.func = &atmegadci_data_tx_sync;
-			temp.len = 0;
-			temp.short_pkt = 0;
+			atmegadci_setup_standard_chain_sub(&temp);
+		}
+
+		/* check if we should append a status stage */
+		if (!xfer->flags_int.control_act) {
+
+			/*
+			 * Send a DATA1 message and invert the current
+			 * endpoint direction.
+			 */
+			if (xfer->endpoint & UE_DIR_IN) {
+				temp.func = &atmegadci_data_rx;
+				need_sync = 0;
+			} else {
+				temp.func = &atmegadci_data_tx;
+				need_sync = 1;
+			}
 
 			atmegadci_setup_standard_chain_sub(&temp);
+			if (need_sync) {
+				/* we need a SYNC point after TX */
+				temp.func = &atmegadci_data_tx_sync;
+				atmegadci_setup_standard_chain_sub(&temp);
+			}
 		}
 	}
 	/* must have at least one frame! */
@@ -942,32 +940,18 @@ atmegadci_start_standard_chain(struct usb2_xfer *xfer)
 }
 
 static void
-atmegadci_root_intr_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
+atmegadci_root_intr(struct atmegadci_softc *sc)
 {
-	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
-
 	DPRINTFN(9, "\n");
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_PRE_DATA) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			atmegadci_device_done(xfer, std->err);
-		}
-		goto done;
-	}
-	/* setup buffer */
-	std->ptr = sc->sc_hub_idata;
-	std->len = sizeof(sc->sc_hub_idata);
-
 	/* set port bit */
 	sc->sc_hub_idata[0] = 0x02;	/* we only have one port */
 
-done:
-	return;
-}
+	uhub_root_intr(&sc->sc_bus, sc->sc_hub_idata,
+	    sizeof(sc->sc_hub_idata));
+ }
 
 static usb2_error_t
 atmegadci_standard_done_sub(struct usb2_xfer *xfer)
@@ -1093,7 +1077,7 @@ atmegadci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	DPRINTFN(9, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
 
-	if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		ep_no = (xfer->endpoint & UE_ADDR);
 
 		/* select endpoint number */
@@ -1169,13 +1153,12 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 	    ATMEGA_UECONX_STALLRQC);
 
 	do {
-		temp = 0;
 		if (ep_type == UE_BULK) {
-			temp |= ATMEGA_UECFG0X_EPTYPE2;
+			temp = ATMEGA_UECFG0X_EPTYPE2;
 		} else if (ep_type == UE_INTERRUPT) {
-			temp |= ATMEGA_UECFG0X_EPTYPE3;
+			temp = ATMEGA_UECFG0X_EPTYPE3;
 		} else {
-			temp |= ATMEGA_UECFG0X_EPTYPE1;
+			temp = ATMEGA_UECFG0X_EPTYPE1;
 		}
 		if (ep_dir & UE_DIR_IN) {
 			temp |= ATMEGA_UECFG0X_EPDIR;
@@ -1184,7 +1167,7 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 		ATMEGA_WRITE_1(sc, ATMEGA_UECFG0X, temp);
 		ATMEGA_WRITE_1(sc, ATMEGA_UECFG1X,
 		    ATMEGA_UECFG1X_ALLOC |
-		    ATMEGA_UECFG1X_EPBK1 |
+		    ATMEGA_UECFG1X_EPBK0 |	/* one bank */
 		    ATMEGA_UECFG1X_EPSIZE(3));
 
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
@@ -1205,7 +1188,7 @@ atmegadci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	/* check mode */
-	if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+	if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 		/* not supported */
 		return;
 	}
@@ -1234,13 +1217,34 @@ atmegadci_init(struct atmegadci_softc *sc)
 	sc->sc_bus.methods = &atmegadci_bus_methods;
 
 	USB_BUS_LOCK(&sc->sc_bus);
-#if 0
-	/* XXX TODO - currently done by boot strap */
+
+	/* make sure USB is enabled */
+	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
+	    ATMEGA_USBCON_USBE |
+	    ATMEGA_USBCON_FRZCLK);
 
 	/* enable USB PAD regulator */
 	ATMEGA_WRITE_1(sc, ATMEGA_UHWCON,
-	    ATMEGA_UHWCON_UVREGE | ATMEGA_UHWCON_UIMOD);
-#endif
+	    ATMEGA_UHWCON_UVREGE |
+	    ATMEGA_UHWCON_UIMOD);
+
+	/* the following register sets up the USB PLL, assuming 16MHz X-tal */
+	ATMEGA_WRITE_1(sc, 0x49 /* PLLCSR */, 0x14 | 0x02);
+
+	/* wait for PLL to lock */
+	for (n = 0; n != 20; n++) {
+		if (ATMEGA_READ_1(sc, 0x49) & 0x01)
+			break;
+		/* wait a little bit for PLL to start */
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+	}
+
+	/* make sure USB is enabled */
+	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
+	    ATMEGA_USBCON_USBE |
+	    ATMEGA_USBCON_OTGPADE |
+	    ATMEGA_USBCON_VBUSTE);
+
 	/* turn on clocks */
 	(sc->sc_clocks_on) (&sc->sc_bus);
 
@@ -1346,125 +1350,46 @@ atmegadci_do_poll(struct usb2_bus *bus)
 
 	USB_BUS_LOCK(&sc->sc_bus);
 	atmegadci_interrupt_poll(sc);
-	atmegadci_root_ctrl_poll(sc);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 /*------------------------------------------------------------------------*
  * at91dci bulk support
- *------------------------------------------------------------------------*/
-static void
-atmegadci_device_bulk_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_device_bulk_close(struct usb2_xfer *xfer)
-{
-	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-atmegadci_device_bulk_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_device_bulk_start(struct usb2_xfer *xfer)
-{
-	/* setup TDs */
-	atmegadci_setup_standard_chain(xfer);
-	atmegadci_start_standard_chain(xfer);
-}
-
-struct usb2_pipe_methods atmegadci_device_bulk_methods =
-{
-	.open = atmegadci_device_bulk_open,
-	.close = atmegadci_device_bulk_close,
-	.enter = atmegadci_device_bulk_enter,
-	.start = atmegadci_device_bulk_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
-
-/*------------------------------------------------------------------------*
  * at91dci control support
- *------------------------------------------------------------------------*/
-static void
-atmegadci_device_ctrl_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_device_ctrl_close(struct usb2_xfer *xfer)
-{
-	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-atmegadci_device_ctrl_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_device_ctrl_start(struct usb2_xfer *xfer)
-{
-	/* setup TDs */
-	atmegadci_setup_standard_chain(xfer);
-	atmegadci_start_standard_chain(xfer);
-}
-
-struct usb2_pipe_methods atmegadci_device_ctrl_methods =
-{
-	.open = atmegadci_device_ctrl_open,
-	.close = atmegadci_device_ctrl_close,
-	.enter = atmegadci_device_ctrl_enter,
-	.start = atmegadci_device_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
-
-/*------------------------------------------------------------------------*
  * at91dci interrupt support
  *------------------------------------------------------------------------*/
 static void
-atmegadci_device_intr_open(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_open(struct usb2_xfer *xfer)
 {
 	return;
 }
 
 static void
-atmegadci_device_intr_close(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_close(struct usb2_xfer *xfer)
 {
 	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-atmegadci_device_intr_enter(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_enter(struct usb2_xfer *xfer)
 {
 	return;
 }
 
 static void
-atmegadci_device_intr_start(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_start(struct usb2_xfer *xfer)
 {
 	/* setup TDs */
 	atmegadci_setup_standard_chain(xfer);
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods atmegadci_device_intr_methods =
+struct usb2_pipe_methods atmegadci_device_non_isoc_methods =
 {
-	.open = atmegadci_device_intr_open,
-	.close = atmegadci_device_intr_close,
-	.enter = atmegadci_device_intr_enter,
-	.start = atmegadci_device_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
+	.open = atmegadci_device_non_isoc_open,
+	.close = atmegadci_device_non_isoc_close,
+	.enter = atmegadci_device_non_isoc_enter,
+	.start = atmegadci_device_non_isoc_start,
 };
 
 /*------------------------------------------------------------------------*
@@ -1551,37 +1476,13 @@ struct usb2_pipe_methods atmegadci_device_isoc_fs_methods =
 	.close = atmegadci_device_isoc_fs_close,
 	.enter = atmegadci_device_isoc_fs_enter,
 	.start = atmegadci_device_isoc_fs_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
 };
 
 /*------------------------------------------------------------------------*
  * at91dci root control support
  *------------------------------------------------------------------------*
- * simulate a hardware HUB by handling
- * all the necessary requests
+ * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-
-static void
-atmegadci_root_ctrl_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_root_ctrl_close(struct usb2_xfer *xfer)
-{
-	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_ctrl.xfer == xfer) {
-		sc->sc_root_ctrl.xfer = NULL;
-	}
-	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-/*
- * USB descriptors for the virtual Root HUB:
- */
 
 static const struct usb2_device_descriptor atmegadci_devd = {
 	.bLength = sizeof(struct usb2_device_descriptor),
@@ -1627,7 +1528,6 @@ static const struct atmegadci_config_desc atmegadci_confd = {
 		.bInterfaceSubClass = UISUBCLASS_HUB,
 		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
 	},
-
 	.endpd = {
 		.bLength = sizeof(struct usb2_endpoint_descriptor),
 		.bDescriptorType = UDESC_ENDPOINT,
@@ -1666,58 +1566,33 @@ USB_MAKE_STRING_DESC(STRING_LANG, atmegadci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, atmegadci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, atmegadci_product);
 
-static void
-atmegadci_root_ctrl_enter(struct usb2_xfer *xfer)
+static usb2_error_t
+atmegadci_roothub_exec(struct usb2_device *udev,
+    struct usb2_device_request *req, const void **pptr, uint16_t *plength)
 {
-	return;
-}
-
-static void
-atmegadci_root_ctrl_start(struct usb2_xfer *xfer)
-{
-	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
-
-	sc->sc_root_ctrl.xfer = xfer;
-
-	usb2_bus_roothub_exec(xfer->xroot->bus);
-}
-
-static void
-atmegadci_root_ctrl_task(struct usb2_bus *bus)
-{
-	atmegadci_root_ctrl_poll(ATMEGA_BUS2SC(bus));
-}
-
-static void
-atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
-    struct usb2_sw_transfer *std)
-{
-	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
+	struct atmegadci_softc *sc = ATMEGA_BUS2SC(udev->bus);
+	const void *ptr;
+	uint16_t len;
 	uint16_t value;
 	uint16_t index;
 	uint8_t temp;
+	usb2_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	if (std->state != USB_SW_TR_SETUP) {
-		if (std->state == USB_SW_TR_PRE_CALLBACK) {
-			/* transfer transferred */
-			atmegadci_device_done(xfer, std->err);
-		}
-		goto done;
-	}
 	/* buffer reset */
-	std->ptr = USB_ADD_BYTES(&sc->sc_hub_temp, 0);
-	std->len = 0;
+	ptr = (const void *)&sc->sc_hub_temp;
+	len = 0;
+	err = 0;
 
-	value = UGETW(std->req.wValue);
-	index = UGETW(std->req.wIndex);
+	value = UGETW(req->wValue);
+	index = UGETW(req->wIndex);
 
 	/* demultiplex the control request */
 
-	switch (std->req.bmRequestType) {
+	switch (req->bmRequestType) {
 	case UT_READ_DEVICE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_DESCRIPTOR:
 			goto tr_handle_get_descriptor;
 		case UR_GET_CONFIG:
@@ -1730,7 +1605,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_WRITE_DEVICE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_SET_ADDRESS:
 			goto tr_handle_set_address;
 		case UR_SET_CONFIG:
@@ -1746,9 +1621,9 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_WRITE_ENDPOINT:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_CLEAR_FEATURE:
-			switch (UGETW(std->req.wValue)) {
+			switch (UGETW(req->wValue)) {
 			case UF_ENDPOINT_HALT:
 				goto tr_handle_clear_halt;
 			case UF_DEVICE_REMOTE_WAKEUP:
@@ -1758,7 +1633,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 			}
 			break;
 		case UR_SET_FEATURE:
-			switch (UGETW(std->req.wValue)) {
+			switch (UGETW(req->wValue)) {
 			case UF_ENDPOINT_HALT:
 				goto tr_handle_set_halt;
 			case UF_DEVICE_REMOTE_WAKEUP:
@@ -1775,7 +1650,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_READ_ENDPOINT:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_STATUS:
 			goto tr_handle_get_ep_status;
 		default:
@@ -1784,7 +1659,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_WRITE_INTERFACE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_SET_INTERFACE:
 			goto tr_handle_set_interface;
 		case UR_CLEAR_FEATURE:
@@ -1796,7 +1671,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_READ_INTERFACE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_INTERFACE:
 			goto tr_handle_get_interface;
 		case UR_GET_STATUS:
@@ -1817,7 +1692,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_WRITE_CLASS_DEVICE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_CLEAR_FEATURE:
 			goto tr_valid;
 		case UR_SET_DESCRIPTOR:
@@ -1829,7 +1704,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_WRITE_CLASS_OTHER:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_CLEAR_FEATURE:
 			goto tr_handle_clear_port_feature;
 		case UR_SET_FEATURE:
@@ -1845,7 +1720,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_READ_CLASS_OTHER:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_TT_STATE:
 			goto tr_handle_get_tt_state;
 		case UR_GET_STATUS:
@@ -1856,7 +1731,7 @@ atmegadci_root_ctrl_done(struct usb2_xfer *xfer,
 		break;
 
 	case UT_READ_CLASS_DEVICE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_DESCRIPTOR:
 			goto tr_handle_get_class_descriptor;
 		case UR_GET_STATUS:
@@ -1877,31 +1752,31 @@ tr_handle_get_descriptor:
 		if (value & 0xff) {
 			goto tr_stalled;
 		}
-		std->len = sizeof(atmegadci_devd);
-		std->ptr = USB_ADD_BYTES(&atmegadci_devd, 0);
+		len = sizeof(atmegadci_devd);
+		ptr = (const void *)&atmegadci_devd;
 		goto tr_valid;
 	case UDESC_CONFIG:
 		if (value & 0xff) {
 			goto tr_stalled;
 		}
-		std->len = sizeof(atmegadci_confd);
-		std->ptr = USB_ADD_BYTES(&atmegadci_confd, 0);
+		len = sizeof(atmegadci_confd);
+		ptr = (const void *)&atmegadci_confd;
 		goto tr_valid;
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			std->len = sizeof(atmegadci_langtab);
-			std->ptr = USB_ADD_BYTES(&atmegadci_langtab, 0);
+			len = sizeof(atmegadci_langtab);
+			ptr = (const void *)&atmegadci_langtab;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
-			std->len = sizeof(atmegadci_vendor);
-			std->ptr = USB_ADD_BYTES(&atmegadci_vendor, 0);
+			len = sizeof(atmegadci_vendor);
+			ptr = (const void *)&atmegadci_vendor;
 			goto tr_valid;
 
 		case 2:		/* Product */
-			std->len = sizeof(atmegadci_product);
-			std->ptr = USB_ADD_BYTES(&atmegadci_product, 0);
+			len = sizeof(atmegadci_product);
+			ptr = (const void *)&atmegadci_product;
 			goto tr_valid;
 		default:
 			break;
@@ -1913,12 +1788,12 @@ tr_handle_get_descriptor:
 	goto tr_stalled;
 
 tr_handle_get_config:
-	std->len = 1;
+	len = 1;
 	sc->sc_hub_temp.wValue[0] = sc->sc_conf;
 	goto tr_valid;
 
 tr_handle_get_status:
-	std->len = 2;
+	len = 2;
 	USETW(sc->sc_hub_temp.wValue, UDS_SELF_POWERED);
 	goto tr_valid;
 
@@ -1937,7 +1812,7 @@ tr_handle_set_config:
 	goto tr_valid;
 
 tr_handle_get_interface:
-	std->len = 1;
+	len = 1;
 	sc->sc_hub_temp.wValue[0] = 0;
 	goto tr_valid;
 
@@ -1945,7 +1820,7 @@ tr_handle_get_tt_state:
 tr_handle_get_class_status:
 tr_handle_get_iface_status:
 tr_handle_get_ep_status:
-	std->len = 2;
+	len = 2;
 	USETW(sc->sc_hub_temp.wValue, 0);
 	goto tr_valid;
 
@@ -1964,7 +1839,7 @@ tr_handle_clear_port_feature:
 
 	switch (value) {
 	case UHF_PORT_SUSPEND:
-		atmegadci_wakeup_peer(xfer);
+		atmegadci_wakeup_peer(sc);
 		break;
 
 	case UHF_PORT_ENABLE:
@@ -1986,6 +1861,11 @@ tr_handle_clear_port_feature:
 	case UHF_C_PORT_CONNECTION:
 		/* clear connect change flag */
 		sc->sc_flags.change_connect = 0;
+
+		if (!sc->sc_flags.status_bus_reset) {
+			/* we are not connected */
+			break;
+		}
 
 		/* configure the control endpoint */
 
@@ -2021,7 +1901,7 @@ tr_handle_clear_port_feature:
 		sc->sc_flags.change_suspend = 0;
 		break;
 	default:
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	}
 	goto tr_valid;
@@ -2046,7 +1926,7 @@ tr_handle_set_port_feature:
 		sc->sc_flags.port_powered = 1;
 		break;
 	default:
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	}
 	goto tr_valid;
@@ -2094,84 +1974,25 @@ tr_handle_get_port_status:
 		value |= UPS_C_SUSPEND;
 	}
 	USETW(sc->sc_hub_temp.ps.wPortChange, value);
-	std->len = sizeof(sc->sc_hub_temp.ps);
+	len = sizeof(sc->sc_hub_temp.ps);
 	goto tr_valid;
 
 tr_handle_get_class_descriptor:
 	if (value & 0xFF) {
 		goto tr_stalled;
 	}
-	std->ptr = USB_ADD_BYTES(&atmegadci_hubd, 0);
-	std->len = sizeof(atmegadci_hubd);
+	ptr = (const void *)&atmegadci_hubd;
+	len = sizeof(atmegadci_hubd);
 	goto tr_valid;
 
 tr_stalled:
-	std->err = USB_ERR_STALLED;
+	err = USB_ERR_STALLED;
 tr_valid:
 done:
-	return;
+	*plength = len;
+	*pptr = ptr;
+	return (err);
 }
-
-static void
-atmegadci_root_ctrl_poll(struct atmegadci_softc *sc)
-{
-	usb2_sw_transfer(&sc->sc_root_ctrl,
-	    &atmegadci_root_ctrl_done);
-}
-
-struct usb2_pipe_methods atmegadci_root_ctrl_methods =
-{
-	.open = atmegadci_root_ctrl_open,
-	.close = atmegadci_root_ctrl_close,
-	.enter = atmegadci_root_ctrl_enter,
-	.start = atmegadci_root_ctrl_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 0,
-};
-
-/*------------------------------------------------------------------------*
- * at91dci root interrupt support
- *------------------------------------------------------------------------*/
-static void
-atmegadci_root_intr_open(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_root_intr_close(struct usb2_xfer *xfer)
-{
-	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
-
-	if (sc->sc_root_intr.xfer == xfer) {
-		sc->sc_root_intr.xfer = NULL;
-	}
-	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
-}
-
-static void
-atmegadci_root_intr_enter(struct usb2_xfer *xfer)
-{
-	return;
-}
-
-static void
-atmegadci_root_intr_start(struct usb2_xfer *xfer)
-{
-	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
-
-	sc->sc_root_intr.xfer = xfer;
-}
-
-struct usb2_pipe_methods atmegadci_root_intr_methods =
-{
-	.open = atmegadci_root_intr_open,
-	.close = atmegadci_root_intr_close,
-	.enter = atmegadci_root_intr_enter,
-	.start = atmegadci_root_intr_start,
-	.enter_is_cancelable = 1,
-	.start_is_cancelable = 1,
-};
 
 static void
 atmegadci_xfer_setup(struct usb2_setup_params *parm)
@@ -2201,34 +2022,21 @@ atmegadci_xfer_setup(struct usb2_setup_params *parm)
 	/*
 	 * compute maximum number of TDs
 	 */
-	if (parm->methods == &atmegadci_device_ctrl_methods) {
+	if ((xfer->pipe->edesc->bmAttributes & UE_XFERTYPE) == UE_CONTROL) {
 
-		ntd = xfer->nframes + 1 /* STATUS */ + 1	/* SYNC 1 */
+		ntd = xfer->nframes + 1 /* STATUS */ + 1 /* SYNC 1 */
 		    + 1 /* SYNC 2 */ ;
-
-	} else if (parm->methods == &atmegadci_device_bulk_methods) {
-
-		ntd = xfer->nframes + 1 /* SYNC */ ;
-
-	} else if (parm->methods == &atmegadci_device_intr_methods) {
-
-		ntd = xfer->nframes + 1 /* SYNC */ ;
-
-	} else if (parm->methods == &atmegadci_device_isoc_fs_methods) {
-
-		ntd = xfer->nframes + 1 /* SYNC */ ;
-
 	} else {
 
-		ntd = 0;
+		ntd = xfer->nframes + 1 /* SYNC */ ;
 	}
 
 	/*
 	 * check if "usb2_transfer_setup_sub" set an error
 	 */
-	if (parm->err) {
+	if (parm->err)
 		return;
-	}
+
 	/*
 	 * allocate transfer descriptors
 	 */
@@ -2237,19 +2045,13 @@ atmegadci_xfer_setup(struct usb2_setup_params *parm)
 	/*
 	 * get profile stuff
 	 */
-	if (ntd) {
+	ep_no = xfer->endpoint & UE_ADDR;
+	atmegadci_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
-		ep_no = xfer->endpoint & UE_ADDR;
-		atmegadci_get_hw_ep_profile(parm->udev, &pf, ep_no);
-
-		if (pf == NULL) {
-			/* should not happen */
-			parm->err = USB_ERR_INVAL;
-			return;
-		}
-	} else {
-		ep_no = 0;
-		pf = NULL;
+	if (pf == NULL) {
+		/* should not happen */
+		parm->err = USB_ERR_INVAL;
+		return;
 	}
 
 	/* align data */
@@ -2293,29 +2095,12 @@ atmegadci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *e
 
 	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d,%d)\n",
 	    pipe, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb2_mode,
+	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr, udev->device_index);
 
-	if (udev->device_index == sc->sc_rt_addr) {
+	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb2_mode != USB_MODE_HOST) {
-			/* not supported */
-			return;
-		}
-		switch (edesc->bEndpointAddress) {
-		case USB_CONTROL_ENDPOINT:
-			pipe->methods = &atmegadci_root_ctrl_methods;
-			break;
-		case UE_DIR_IN | ATMEGA_INTR_ENDPT:
-			pipe->methods = &atmegadci_root_intr_methods;
-			break;
-		default:
-			/* do nothing */
-			break;
-		}
-	} else {
-
-		if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 			/* not supported */
 			return;
 		}
@@ -2323,23 +2108,10 @@ atmegadci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *e
 			/* not supported */
 			return;
 		}
-		switch (edesc->bmAttributes & UE_XFERTYPE) {
-		case UE_CONTROL:
-			pipe->methods = &atmegadci_device_ctrl_methods;
-			break;
-		case UE_INTERRUPT:
-			pipe->methods = &atmegadci_device_intr_methods;
-			break;
-		case UE_ISOCHRONOUS:
+		if ((edesc->bmAttributes & UE_XFERTYPE) == UE_ISOCHRONOUS)
 			pipe->methods = &atmegadci_device_isoc_fs_methods;
-			break;
-		case UE_BULK:
-			pipe->methods = &atmegadci_device_bulk_methods;
-			break;
-		default:
-			/* do nothing */
-			break;
-		}
+		else
+			pipe->methods = &atmegadci_device_non_isoc_methods;
 	}
 }
 
@@ -2351,5 +2123,5 @@ struct usb2_bus_methods atmegadci_bus_methods =
 	.get_hw_ep_profile = &atmegadci_get_hw_ep_profile,
 	.set_stall = &atmegadci_set_stall,
 	.clear_stall = &atmegadci_clear_stall,
-	.roothub_exec = &atmegadci_root_ctrl_task,
+	.roothub_exec = &atmegadci_roothub_exec,
 };

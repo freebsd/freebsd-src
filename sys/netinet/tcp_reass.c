@@ -108,10 +108,12 @@ tcp_reass_zone_change(void *tag)
 	INIT_VNET_INET(curvnet);
 
 	V_tcp_reass_maxseg = nmbclusters / 16;
-	uma_zone_set_max(tcp_reass_zone, V_tcp_reass_maxseg);
+	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
 }
 
+#ifdef VIMAGE_GLOBALS
 uma_zone_t	tcp_reass_zone;
+#endif
 
 void
 tcp_reass_init(void)
@@ -126,9 +128,9 @@ tcp_reass_init(void)
 	V_tcp_reass_maxseg = nmbclusters / 16;
 	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
 	    &V_tcp_reass_maxseg);
-	tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
+	V_tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(tcp_reass_zone, V_tcp_reass_maxseg);
+	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 }
@@ -170,7 +172,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	    (V_tcp_reass_qsize + 1 >= V_tcp_reass_maxseg ||
 	     tp->t_segqlen >= V_tcp_reass_maxqlen)) {
 		V_tcp_reass_overflows++;
-		V_tcpstat.tcps_rcvmemdrop++;
+		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
 		*tlenp = 0;
 		return (0);
@@ -180,9 +182,9 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * Allocate a new queue entry. If we can't, or hit the zone limit
 	 * just drop the pkt.
 	 */
-	te = uma_zalloc(tcp_reass_zone, M_NOWAIT);
+	te = uma_zalloc(V_tcp_reass_zone, M_NOWAIT);
 	if (te == NULL) {
-		V_tcpstat.tcps_rcvmemdrop++;
+		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
 		*tlenp = 0;
 		return (0);
@@ -210,10 +212,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		i = p->tqe_th->th_seq + p->tqe_len - th->th_seq;
 		if (i > 0) {
 			if (i >= *tlenp) {
-				V_tcpstat.tcps_rcvduppack++;
-				V_tcpstat.tcps_rcvdupbyte += *tlenp;
+				TCPSTAT_INC(tcps_rcvduppack);
+				TCPSTAT_ADD(tcps_rcvdupbyte, *tlenp);
 				m_freem(m);
-				uma_zfree(tcp_reass_zone, te);
+				uma_zfree(V_tcp_reass_zone, te);
 				tp->t_segqlen--;
 				V_tcp_reass_qsize--;
 				/*
@@ -229,8 +231,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 			th->th_seq += i;
 		}
 	}
-	V_tcpstat.tcps_rcvoopack++;
-	V_tcpstat.tcps_rcvoobyte += *tlenp;
+	TCPSTAT_INC(tcps_rcvoopack);
+	TCPSTAT_ADD(tcps_rcvoobyte, *tlenp);
 
 	/*
 	 * While we overlap succeeding segments trim them or,
@@ -250,7 +252,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		nq = LIST_NEXT(q, tqe_q);
 		LIST_REMOVE(q, tqe_q);
 		m_freem(q->tqe_m);
-		uma_zfree(tcp_reass_zone, q);
+		uma_zfree(V_tcp_reass_zone, q);
 		tp->t_segqlen--;
 		V_tcp_reass_qsize--;
 		q = nq;
@@ -287,7 +289,7 @@ present:
 			m_freem(q->tqe_m);
 		else
 			sbappendstream_locked(&so->so_rcv, q->tqe_m);
-		uma_zfree(tcp_reass_zone, q);
+		uma_zfree(V_tcp_reass_zone, q);
 		tp->t_segqlen--;
 		V_tcp_reass_qsize--;
 		q = nq;

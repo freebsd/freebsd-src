@@ -22,12 +22,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
+ */ 
 
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR usb2_debug
 
@@ -51,45 +50,7 @@ struct usb2_std_packet_size {
 	uint16_t fixed[4];
 };
 
-/*
- * This table stores the all the allowed packet sizes based on
- * endpoint type and USB speed:
- */
-static const struct usb2_std_packet_size
-	usb2_std_packet_size[4][USB_SPEED_MAX] = {
-
-	[UE_INTERRUPT] = {
-		[USB_SPEED_LOW] = {.range = {0, 8}},
-		[USB_SPEED_FULL] = {.range = {0, 64}},
-		[USB_SPEED_HIGH] = {.range = {0, 1024}},
-		[USB_SPEED_VARIABLE] = {.range = {0, 1024}},
-		[USB_SPEED_SUPER] = {.range = {0, 1024}},
-	},
-
-	[UE_CONTROL] = {
-		[USB_SPEED_LOW] = {.fixed = {8, 8, 8, 8}},
-		[USB_SPEED_FULL] = {.fixed = {8, 16, 32, 64}},
-		[USB_SPEED_HIGH] = {.fixed = {64, 64, 64, 64}},
-		[USB_SPEED_VARIABLE] = {.fixed = {512, 512, 512, 512}},
-		[USB_SPEED_SUPER] = {.fixed = {512, 512, 512, 512}},
-	},
-
-	[UE_BULK] = {
-		[USB_SPEED_LOW] = {.fixed = {0, 0, 0, 0}},	/* invalid */
-		[USB_SPEED_FULL] = {.fixed = {8, 16, 32, 64}},
-		[USB_SPEED_HIGH] = {.fixed = {512, 512, 512, 512}},
-		[USB_SPEED_VARIABLE] = {.fixed = {512, 512, 1024, 1536}},
-		[USB_SPEED_SUPER] = {.fixed = {1024, 1024, 1024, 1024}},
-	},
-
-	[UE_ISOCHRONOUS] = {
-		[USB_SPEED_LOW] = {.fixed = {0, 0, 0, 0}},	/* invalid */
-		[USB_SPEED_FULL] = {.range = {0, 1023}},
-		[USB_SPEED_HIGH] = {.range = {0, 1024}},
-		[USB_SPEED_VARIABLE] = {.range = {0, 3584}},
-		[USB_SPEED_SUPER] = {.range = {0, 1024}},
-	},
-};
+static usb2_callback_t usb2_request_callback;
 
 static const struct usb2_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 
@@ -99,12 +60,10 @@ static const struct usb2_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control endpoint */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = 1024,	/* bytes */
-		.mh.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
-		.mh.callback = &usb2_do_request_callback,
-		.md.bufsize = 1024,	/* bytes */
-		.md.flags = {.proxy_buffer = 1,.short_xfer_ok = 0,},
-		.md.callback = &usb2_handle_request_callback,
+		.bufsize = USB_EP0_BUFSIZE,	/* bytes */
+		.flags = {.proxy_buffer = 1,},
+		.callback = &usb2_request_callback,
+		.usb_mode = USB_MODE_DUAL,	/* both modes */
 	},
 
 	/* This transfer is used for generic clear stall only */
@@ -113,11 +72,11 @@ static const struct usb2_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &usb2_do_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
+		.bufsize = sizeof(struct usb2_device_request),
+		.callback = &usb2_do_clear_stall_callback,
+		.timeout = 1000,	/* 1 second */
+		.interval = 50,	/* 50ms */
+		.usb_mode = USB_MODE_HOST,
 	},
 };
 
@@ -133,6 +92,20 @@ static void	usb2_callback_wrapper(struct usb2_xfer_queue *);
 static void	usb2_dma_delay_done_cb(void *);
 static void	usb2_transfer_start_cb(void *);
 static uint8_t	usb2_callback_wrapper_sub(struct usb2_xfer *);
+static void	usb2_get_std_packet_size(struct usb2_std_packet_size *ptr, 
+		    uint8_t type, enum usb_dev_speed speed);
+
+/*------------------------------------------------------------------------*
+ *	usb2_request_callback
+ *------------------------------------------------------------------------*/
+static void
+usb2_request_callback(struct usb2_xfer *xfer)
+{
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE)
+		usb2_handle_request_callback(xfer);
+	else
+		usb2_do_request_callback(xfer);
+}
 
 /*------------------------------------------------------------------------*
  *	usb2_update_max_frame_size
@@ -164,7 +137,7 @@ usb2_update_max_frame_size(struct usb2_xfer *xfer)
  *    0: no DMA delay required
  * Else: milliseconds of DMA delay
  *------------------------------------------------------------------------*/
-uint32_t
+usb2_timeout_t
 usb2_get_dma_delay(struct usb2_bus *bus)
 {
 	uint32_t temp = 0;
@@ -192,20 +165,21 @@ usb2_get_dma_delay(struct usb2_bus *bus)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
+#if USB_HAVE_BUSDMA
 uint8_t
 usb2_transfer_setup_sub_malloc(struct usb2_setup_params *parm,
-    struct usb2_page_cache **ppc, uint32_t size, uint32_t align,
-    uint32_t count)
+    struct usb2_page_cache **ppc, usb2_size_t size, usb2_size_t align,
+    usb2_size_t count)
 {
 	struct usb2_page_cache *pc;
 	struct usb2_page *pg;
 	void *buf;
-	uint32_t n_dma_pc;
-	uint32_t n_obj;
-	uint32_t x;
-	uint32_t y;
-	uint32_t r;
-	uint32_t z;
+	usb2_size_t n_dma_pc;
+	usb2_size_t n_obj;
+	usb2_size_t x;
+	usb2_size_t y;
+	usb2_size_t r;
+	usb2_size_t z;
 
 	USB_ASSERT(align > 1, ("Invalid alignment, 0x%08x!\n",
 	    align));
@@ -302,6 +276,7 @@ usb2_transfer_setup_sub_malloc(struct usb2_setup_params *parm,
 	parm->dma_page_ptr = pg;
 	return (0);
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_transfer_setup_sub - transfer setup subroutine
@@ -320,12 +295,12 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 		MIN_PKT = 8,
 	};
 	struct usb2_xfer *xfer = parm->curr_xfer;
-	const struct usb2_config_sub *setup_sub = parm->curr_setup_sub;
+	const struct usb2_config *setup = parm->curr_setup;
 	struct usb2_endpoint_descriptor *edesc;
 	struct usb2_std_packet_size std_size;
-	uint32_t n_frlengths;
-	uint32_t n_frbuffers;
-	uint32_t x;
+	usb2_frcount_t n_frlengths;
+	usb2_frcount_t n_frbuffers;
+	usb2_frcount_t x;
 	uint8_t type;
 	uint8_t zmps;
 
@@ -343,18 +318,18 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 
 	type = (edesc->bmAttributes & UE_XFERTYPE);
 
-	xfer->flags = setup_sub->flags;
-	xfer->nframes = setup_sub->frames;
-	xfer->timeout = setup_sub->timeout;
-	xfer->callback = setup_sub->callback;
-	xfer->interval = setup_sub->interval;
+	xfer->flags = setup->flags;
+	xfer->nframes = setup->frames;
+	xfer->timeout = setup->timeout;
+	xfer->callback = setup->callback;
+	xfer->interval = setup->interval;
 	xfer->endpoint = edesc->bEndpointAddress;
 	xfer->max_packet_size = UGETW(edesc->wMaxPacketSize);
 	xfer->max_packet_count = 1;
 	/* make a shadow copy: */
-	xfer->flags_int.usb2_mode = parm->udev->flags.usb2_mode;
+	xfer->flags_int.usb_mode = parm->udev->flags.usb_mode;
 
-	parm->bufsize = setup_sub->bufsize;
+	parm->bufsize = setup->bufsize;
 
 	if (parm->speed == USB_SPEED_HIGH) {
 		xfer->max_packet_count += (xfer->max_packet_size >> 11) & 3;
@@ -373,7 +348,7 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 	}
 	/* filter "wMaxPacketSize" according to standard sizes */
 
-	std_size = usb2_std_packet_size[type][parm->speed];
+	usb2_get_std_packet_size(&std_size, type, parm->speed);
 
 	if (std_size.range.min || std_size.range.max) {
 
@@ -405,7 +380,7 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 
 	if (type == UE_ISOCHRONOUS) {
 
-		uint32_t frame_limit;
+		uint16_t frame_limit;
 
 		xfer->interval = 0;	/* not used, must be zero */
 		xfer->flags_int.isochronous_xfr = 1;	/* set flag */
@@ -644,6 +619,7 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 	if (parm->bufsize_max < parm->bufsize) {
 		parm->bufsize_max = parm->bufsize;
 	}
+#if USB_HAVE_BUSDMA
 	if (xfer->flags_int.bdma_enable) {
 		/*
 		 * Setup "dma_page_ptr".
@@ -671,17 +647,18 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 		parm->dma_page_ptr += (2 * n_frbuffers);
 		parm->dma_page_ptr += (parm->bufsize / USB_PAGE_SIZE);
 	}
+#endif
 	if (zmps) {
 		/* correct maximum data length */
 		xfer->max_data_length = 0;
 	}
 	/* subtract USB frame remainder from "hc_max_frame_size" */
 
-	xfer->max_usb2_frame_size =
+	xfer->max_hc_frame_size =
 	    (parm->hc_max_frame_size -
 	    (parm->hc_max_frame_size % xfer->max_frame_size));
 
-	if (xfer->max_usb2_frame_size == 0) {
+	if (xfer->max_hc_frame_size == 0) {
 		parm->err = USB_ERR_INVAL;
 		goto done;
 	}
@@ -695,7 +672,7 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 		for (x = 0; x != n_frbuffers; x++) {
 			xfer->frbuffers[x].tag_parent =
 			    &xfer->xroot->dma_parent_tag;
-
+#if USB_HAVE_BUSDMA
 			if (xfer->flags_int.bdma_enable &&
 			    (parm->bufsize_max > 0)) {
 
@@ -706,6 +683,7 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 					goto done;
 				}
 			}
+#endif
 		}
 	}
 done:
@@ -713,7 +691,7 @@ done:
 		/*
 		 * Set some dummy values so that we avoid division by zero:
 		 */
-		xfer->max_usb2_frame_size = 1;
+		xfer->max_hc_frame_size = 1;
 		xfer->max_frame_size = 1;
 		xfer->max_packet_size = 1;
 		xfer->max_data_length = 0;
@@ -776,13 +754,11 @@ usb2_transfer_setup(struct usb2_device *udev,
 	/* sanity checks */
 	for (setup = setup_start, n = 0;
 	    setup != setup_end; setup++, n++) {
-		if ((setup->mh.bufsize == 0xffffffff) ||
-		    (setup->md.bufsize == 0xffffffff)) {
+		if (setup->bufsize == (usb2_frlength_t)-1) {
 			parm.err = USB_ERR_BAD_BUFSIZE;
 			DPRINTF("invalid bufsize\n");
 		}
-		if ((setup->mh.callback == NULL) &&
-		    (setup->md.callback == NULL)) {
+		if (setup->callback == NULL) {
 			parm.err = USB_ERR_NO_CALLBACK;
 			DPRINTF("no callback\n");
 		}
@@ -816,34 +792,46 @@ usb2_transfer_setup(struct usb2_device *udev,
 			info->memory_base = buf;
 			info->memory_size = parm.size[0];
 
+#if USB_HAVE_BUSDMA
 			info->dma_page_cache_start = USB_ADD_BYTES(buf, parm.size[4]);
 			info->dma_page_cache_end = USB_ADD_BYTES(buf, parm.size[5]);
+#endif
 			info->xfer_page_cache_start = USB_ADD_BYTES(buf, parm.size[5]);
 			info->xfer_page_cache_end = USB_ADD_BYTES(buf, parm.size[2]);
 
 			usb2_cv_init(&info->cv_drain, "WDRAIN");
 
 			info->xfer_mtx = xfer_mtx;
-
+#if USB_HAVE_BUSDMA
 			usb2_dma_tag_setup(&info->dma_parent_tag,
 			    parm.dma_tag_p, udev->bus->dma_parent_tag[0].tag,
-			    xfer_mtx, &usb2_bdma_done_event, info, 32, parm.dma_tag_max);
+			    xfer_mtx, &usb2_bdma_done_event, 32, parm.dma_tag_max);
+#endif
 
 			info->bus = udev->bus;
 			info->udev = udev;
 
 			TAILQ_INIT(&info->done_q.head);
 			info->done_q.command = &usb2_callback_wrapper;
-
+#if USB_HAVE_BUSDMA
 			TAILQ_INIT(&info->dma_q.head);
 			info->dma_q.command = &usb2_bdma_work_loop;
-
+#endif
 			info->done_m[0].hdr.pm_callback = &usb2_callback_proc;
 			info->done_m[0].xroot = info;
 			info->done_m[1].hdr.pm_callback = &usb2_callback_proc;
 			info->done_m[1].xroot = info;
 
-			if (xfer_mtx == &Giant)
+			/* 
+			 * In device side mode control endpoint
+			 * requests need to run from a separate
+			 * context, else there is a chance of
+			 * deadlock!
+			 */
+			if (setup_start == usb2_control_ep_cfg)
+				info->done_p = 
+				    &udev->bus->control_xfer_proc;
+			else if (xfer_mtx == &Giant)
 				info->done_p = 
 				    &udev->bus->giant_callback_proc;
 			else
@@ -859,32 +847,29 @@ usb2_transfer_setup(struct usb2_device *udev,
 		for (setup = setup_start, n = 0;
 		    setup != setup_end; setup++, n++) {
 
-			/* select mode specific structure */
-			if (udev->flags.usb2_mode == USB_MODE_HOST) {
-				parm.curr_setup_sub = &setup->mh;
-			} else {
-				parm.curr_setup_sub = &setup->md;
-			}
 			/* skip USB transfers without callbacks: */
-			if (parm.curr_setup_sub->callback == NULL) {
+			if (setup->callback == NULL) {
 				continue;
 			}
 			/* see if there is a matching endpoint */
 			pipe = usb2_get_pipe(udev,
 			    ifaces[setup->if_index], setup);
 
-			if (!pipe) {
-				if (parm.curr_setup_sub->flags.no_pipe_ok) {
+			if ((pipe == NULL) || (pipe->methods == NULL)) {
+				if (setup->flags.no_pipe_ok)
 					continue;
-				}
+				if ((setup->usb_mode != USB_MODE_DUAL) &&
+				    (setup->usb_mode != udev->flags.usb_mode))
+					continue;
 				parm.err = USB_ERR_NO_PIPE;
 				goto done;
 			}
-			/* store current setup pointer */
-			parm.curr_setup = setup;
 
 			/* align data properly */
 			parm.size[0] += ((-parm.size[0]) & (USB_HOST_ALIGN - 1));
+
+			/* store current setup pointer */
+			parm.curr_setup = setup;
 
 			if (buf) {
 				/*
@@ -1068,13 +1053,13 @@ static void
 usb2_transfer_unsetup_sub(struct usb2_xfer_root *info, uint8_t needs_delay)
 {
 	struct usb2_page_cache *pc;
-	uint32_t temp;
 
 	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
 
 	/* wait for any outstanding DMA operations */
 
 	if (needs_delay) {
+		usb2_timeout_t temp;
 		temp = usb2_get_dma_delay(info->bus);
 		usb2_pause_mtx(&info->bus->bus_mtx,
 		    USB_MS_TO_TICKS(temp));
@@ -1085,6 +1070,7 @@ usb2_transfer_unsetup_sub(struct usb2_xfer_root *info, uint8_t needs_delay)
 
 	USB_BUS_UNLOCK(info->bus);
 
+#if USB_HAVE_BUSDMA
 	/* free DMA'able memory, if any */
 	pc = info->dma_page_cache_start;
 	while (pc != info->dma_page_cache_end) {
@@ -1101,6 +1087,7 @@ usb2_transfer_unsetup_sub(struct usb2_xfer_root *info, uint8_t needs_delay)
 
 	/* free all DMA tags */
 	usb2_dma_tag_unsetup(&info->dma_parent_tag);
+#endif
 
 	usb2_cv_destroy(&info->cv_drain);
 
@@ -1162,9 +1149,10 @@ usb2_transfer_unsetup(struct usb2_xfer **pxfer, uint16_t n_setup)
 
 		usb2_transfer_drain(xfer);
 
+#if USB_HAVE_BUSDMA
 		if (xfer->flags_int.bdma_enable)
 			needs_delay = 1;
-
+#endif
 		/*
 		 * NOTE: default pipe does not have an
 		 * interface, even if pipe->iface_index == 0
@@ -1234,13 +1222,31 @@ usb2_control_transfer_init(struct usb2_xfer *xfer)
 static uint8_t
 usb2_start_hardware_sub(struct usb2_xfer *xfer)
 {
-	uint32_t len;
+	usb2_frlength_t len;
 
 	/* Check for control endpoint stall */
-	if (xfer->flags.stall_pipe) {
-		/* no longer active */
+	if (xfer->flags.stall_pipe && xfer->flags_int.control_act) {
+		/* the control transfer is no longer active */
+		xfer->flags_int.control_stall = 1;
 		xfer->flags_int.control_act = 0;
+	} else {
+		/* don't stall control transfer by default */
+		xfer->flags_int.control_stall = 0;
 	}
+
+	/* Check for invalid number of frames */
+	if (xfer->nframes > 2) {
+		/*
+		 * If you need to split a control transfer, you
+		 * have to do one part at a time. Only with
+		 * non-control transfers you can do multiple
+		 * parts a time.
+		 */
+		DPRINTFN(0, "Too many frames: %u\n",
+		    (unsigned int)xfer->nframes);
+		goto error;
+	}
+
 	/*
          * Check if there is a control
          * transfer in progress:
@@ -1254,7 +1260,7 @@ usb2_start_hardware_sub(struct usb2_xfer *xfer)
 			xfer->flags_int.control_hdr = 0;
 
 			/* setup control transfer */
-			if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+			if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 				usb2_control_transfer_init(xfer);
 			}
 		}
@@ -1273,7 +1279,7 @@ usb2_start_hardware_sub(struct usb2_xfer *xfer)
 			goto error;
 		}
 		/* check USB mode */
-		if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+		if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 
 			/* check number of frames */
 			if (xfer->nframes != 1) {
@@ -1363,7 +1369,12 @@ error:
 void
 usb2_start_hardware(struct usb2_xfer *xfer)
 {
-	uint32_t x;
+	struct usb2_xfer_root *info;
+	struct usb2_bus *bus;
+	usb2_frcount_t x;
+
+	info = xfer->xroot;
+	bus = info->bus;
 
 	DPRINTF("xfer=%p, pipe=%p, nframes=%d, dir=%s\n",
 	    xfer, xfer->pipe, xfer->nframes, USB_GET_DATA_ISREAD(xfer) ?
@@ -1371,16 +1382,16 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 
 #if USB_DEBUG
 	if (USB_DEBUG_VAR > 0) {
-		USB_BUS_LOCK(xfer->xroot->bus);
+		USB_BUS_LOCK(bus);
 
 		usb2_dump_pipe(xfer->pipe);
 
-		USB_BUS_UNLOCK(xfer->xroot->bus);
+		USB_BUS_UNLOCK(bus);
 	}
 #endif
 
 	USB_XFER_LOCK_ASSERT(xfer, MA_OWNED);
-	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_NOTOWNED);
+	USB_BUS_LOCK_ASSERT(bus, MA_NOTOWNED);
 
 	/* Only open the USB transfer once! */
 	if (!xfer->flags_int.open) {
@@ -1388,24 +1399,25 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 
 		DPRINTF("open\n");
 
-		USB_BUS_LOCK(xfer->xroot->bus);
+		USB_BUS_LOCK(bus);
 		(xfer->pipe->methods->open) (xfer);
-		USB_BUS_UNLOCK(xfer->xroot->bus);
+		USB_BUS_UNLOCK(bus);
 	}
 	/* set "transferring" flag */
 	xfer->flags_int.transferring = 1;
 
+#if USB_HAVE_POWERD
 	/* increment power reference */
 	usb2_transfer_power_ref(xfer, 1);
-
+#endif
 	/*
 	 * Check if the transfer is waiting on a queue, most
 	 * frequently the "done_q":
 	 */
 	if (xfer->wait_queue) {
-		USB_BUS_LOCK(xfer->xroot->bus);
+		USB_BUS_LOCK(bus);
 		usb2_transfer_dequeue(xfer);
-		USB_BUS_UNLOCK(xfer->xroot->bus);
+		USB_BUS_UNLOCK(bus);
 	}
 	/* clear "did_dma_delay" flag */
 	xfer->flags_int.did_dma_delay = 0;
@@ -1413,9 +1425,10 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	/* clear "did_close" flag */
 	xfer->flags_int.did_close = 0;
 
+#if USB_HAVE_BUSDMA
 	/* clear "bdma_setup" flag */
 	xfer->flags_int.bdma_setup = 0;
-
+#endif
 	/* by default we cannot cancel any USB transfer immediately */
 	xfer->flags_int.can_cancel_immed = 0;
 
@@ -1427,8 +1440,19 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	/* clear any previous errors */
 	xfer->error = 0;
 
-	/* sanity check */
+	/* Check if the device is still alive */
+	if (info->udev->state < USB_STATE_POWERED) {
+		USB_BUS_LOCK(bus);
+		/*
+		 * Must return cancelled error code else
+		 * device drivers can hang.
+		 */
+		usb2_transfer_done(xfer, USB_ERR_CANCELLED);
+		USB_BUS_UNLOCK(bus);
+		return;
+	}
 
+	/* sanity check */
 	if (xfer->nframes == 0) {
 		if (xfer->flags.stall_pipe) {
 			/*
@@ -1437,16 +1461,16 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 			 */
 			DPRINTF("xfer=%p nframes=0: stall "
 			    "or clear stall!\n", xfer);
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(bus);
 			xfer->flags_int.can_cancel_immed = 1;
 			/* start the transfer */
 			usb2_command_wrapper(&xfer->pipe->pipe_q, xfer);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
+			USB_BUS_UNLOCK(bus);
 			return;
 		}
-		USB_BUS_LOCK(xfer->xroot->bus);
+		USB_BUS_LOCK(bus);
 		usb2_transfer_done(xfer, USB_ERR_INVAL);
-		USB_BUS_UNLOCK(xfer->xroot->bus);
+		USB_BUS_UNLOCK(bus);
 		return;
 	}
 	/* compute total transfer length */
@@ -1455,9 +1479,9 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 		xfer->sumlen += xfer->frlengths[x];
 		if (xfer->sumlen < xfer->frlengths[x]) {
 			/* length wrapped around */
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(bus);
 			usb2_transfer_done(xfer, USB_ERR_INVAL);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
+			USB_BUS_UNLOCK(bus);
 			return;
 		}
 	}
@@ -1472,9 +1496,9 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	if (xfer->flags_int.control_xfr) {
 
 		if (usb2_start_hardware_sub(xfer)) {
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(bus);
 			usb2_transfer_done(xfer, USB_ERR_STALLED);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
+			USB_BUS_UNLOCK(bus);
 			return;
 		}
 	}
@@ -1484,23 +1508,28 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	 */
 	if (USB_GET_DATA_ISREAD(xfer)) {
 
-		if (xfer->flags_int.control_xfr) {
+		if (xfer->flags.short_frames_ok) {
+			xfer->flags_int.short_xfer_ok = 1;
+			xfer->flags_int.short_frames_ok = 1;
+		} else if (xfer->flags.short_xfer_ok) {
+			xfer->flags_int.short_xfer_ok = 1;
 
-			/*
-			 * Control transfers do not support reception
-			 * of multiple short USB frames !
-			 */
-
-			if (xfer->flags.short_xfer_ok) {
-				xfer->flags_int.short_xfer_ok = 1;
-			}
-		} else {
-
-			if (xfer->flags.short_frames_ok) {
-				xfer->flags_int.short_xfer_ok = 1;
+			/* check for control transfer */
+			if (xfer->flags_int.control_xfr) {
+				/*
+				 * 1) Control transfers do not support
+				 * reception of multiple short USB
+				 * frames in host mode and device side
+				 * mode, with exception of:
+				 *
+				 * 2) Due to sometimes buggy device
+				 * side firmware we need to do a
+				 * STATUS stage in case of short
+				 * control transfers in USB host mode.
+				 * The STATUS stage then becomes the
+				 * "alt_next" to the DATA stage.
+				 */
 				xfer->flags_int.short_frames_ok = 1;
-			} else if (xfer->flags.short_xfer_ok) {
-				xfer->flags_int.short_xfer_ok = 1;
 			}
 		}
 	}
@@ -1508,11 +1537,13 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	 * Check if BUS-DMA support is enabled and try to load virtual
 	 * buffers into DMA, if any:
 	 */
+#if USB_HAVE_BUSDMA
 	if (xfer->flags_int.bdma_enable) {
 		/* insert the USB transfer last in the BUS-DMA queue */
 		usb2_command_wrapper(&xfer->xroot->dma_q, xfer);
 		return;
 	}
+#endif
 	/*
 	 * Enter the USB transfer into the Host Controller or
 	 * Device Controller schedule:
@@ -1539,18 +1570,14 @@ usb2_pipe_enter(struct usb2_xfer *xfer)
 	/* enter the transfer */
 	(pipe->methods->enter) (xfer);
 
-	/* check cancelability */
-	if (pipe->methods->enter_is_cancelable) {
-		xfer->flags_int.can_cancel_immed = 1;
-		/* check for transfer error */
-		if (xfer->error) {
-			/* some error has happened */
-			usb2_transfer_done(xfer, 0);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
-			return;
-		}
-	} else {
-		xfer->flags_int.can_cancel_immed = 0;
+	xfer->flags_int.can_cancel_immed = 1;
+
+	/* check for transfer error */
+	if (xfer->error) {
+		/* some error has happened */
+		usb2_transfer_done(xfer, 0);
+		USB_BUS_UNLOCK(xfer->xroot->bus);
+		return;
 	}
 
 	/* start the transfer */
@@ -1762,7 +1789,7 @@ usb2_transfer_drain(struct usb2_xfer *xfer)
  * than zero gives undefined results!
  *------------------------------------------------------------------------*/
 void
-usb2_set_frame_data(struct usb2_xfer *xfer, void *ptr, uint32_t frindex)
+usb2_set_frame_data(struct usb2_xfer *xfer, void *ptr, usb2_frcount_t frindex)
 {
 	/* set virtual address to load and length */
 	xfer->frbuffers[frindex].buffer = ptr;
@@ -1775,8 +1802,8 @@ usb2_set_frame_data(struct usb2_xfer *xfer, void *ptr, uint32_t frindex)
  * of the USB DMA buffer allocated for this USB transfer.
  *------------------------------------------------------------------------*/
 void
-usb2_set_frame_offset(struct usb2_xfer *xfer, uint32_t offset,
-    uint32_t frindex)
+usb2_set_frame_offset(struct usb2_xfer *xfer, usb2_frlength_t offset,
+    usb2_frcount_t frindex)
 {
 	USB_ASSERT(!xfer->flags.ext_buffer, ("Cannot offset data frame "
 	    "when the USB buffer is external!\n"));
@@ -1864,8 +1891,8 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 	struct usb2_xfer *xfer = pq->curr;
 	struct usb2_xfer_root *info = xfer->xroot;
 
-	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
-	if (!mtx_owned(xfer->xroot->xfer_mtx)) {
+	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
+	if (!mtx_owned(info->xfer_mtx)) {
 		/*
 	       	 * Cases that end up here:
 		 *
@@ -1896,27 +1923,28 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 	/* get next USB transfer in the queue */
 	info->done_q.curr = NULL;
 
-	USB_BUS_UNLOCK(xfer->xroot->bus);
-	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_NOTOWNED);
+	USB_BUS_UNLOCK(info->bus);
+	USB_BUS_LOCK_ASSERT(info->bus, MA_NOTOWNED);
 
 	/* set correct USB state for callback */
 	if (!xfer->flags_int.transferring) {
 		xfer->usb2_state = USB_ST_SETUP;
 		if (!xfer->flags_int.started) {
 			/* we got stopped before we even got started */
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(info->bus);
 			goto done;
 		}
 	} else {
 
 		if (usb2_callback_wrapper_sub(xfer)) {
 			/* the callback has been deferred */
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(info->bus);
 			goto done;
 		}
+#if USB_HAVE_POWERD
 		/* decrement power reference */
 		usb2_transfer_power_ref(xfer, -1);
-
+#endif
 		xfer->flags_int.transferring = 0;
 
 		if (xfer->error) {
@@ -1924,12 +1952,13 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 		} else {
 			/* set transferred state */
 			xfer->usb2_state = USB_ST_TRANSFERRED;
-
+#if USB_HAVE_BUSDMA
 			/* sync DMA memory, if any */
 			if (xfer->flags_int.bdma_enable &&
 			    (!xfer->flags_int.bdma_no_post_sync)) {
 				usb2_bdma_post_sync(xfer);
 			}
+#endif
 		}
 	}
 
@@ -1937,7 +1966,7 @@ usb2_callback_wrapper(struct usb2_xfer_queue *pq)
 	(xfer->callback) (xfer);
 
 	/* pickup the USB mutex again */
-	USB_BUS_LOCK(xfer->xroot->bus);
+	USB_BUS_LOCK(info->bus);
 
 	/*
 	 * Check if we got started after that we got cancelled, but
@@ -1959,7 +1988,7 @@ done:
 	    (!xfer->flags_int.transferring)) {
 		/* "usb2_transfer_drain()" is waiting for end of transfer */
 		xfer->flags_int.draining = 0;
-		usb2_cv_broadcast(&xfer->xroot->cv_drain);
+		usb2_cv_broadcast(&info->cv_drain);
 	}
 
 	/* do the next callback, if any */
@@ -2043,8 +2072,6 @@ usb2_transfer_enqueue(struct usb2_xfer_queue *pq, struct usb2_xfer *xfer)
 void
 usb2_transfer_done(struct usb2_xfer *xfer, usb2_error_t error)
 {
-	struct usb2_xfer_queue *pq;
-
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	DPRINTF("err=%s\n", usb2_errstr(error));
@@ -2071,7 +2098,10 @@ usb2_transfer_done(struct usb2_xfer *xfer, usb2_error_t error)
 	 */
 	usb2_transfer_dequeue(xfer);
 
+#if USB_HAVE_BUSDMA
 	if (mtx_owned(xfer->xroot->xfer_mtx)) {
+		struct usb2_xfer_queue *pq;
+
 		/*
 		 * If the private USB lock is not locked, then we assume
 		 * that the BUS-DMA load stage has been passed:
@@ -2083,6 +2113,7 @@ usb2_transfer_done(struct usb2_xfer *xfer, usb2_error_t error)
 			usb2_command_wrapper(pq, NULL);
 		}
 	}
+#endif
 	/* keep some statistics */
 	if (xfer->error) {
 		xfer->xroot->bus->stats_err.uds_requests
@@ -2116,15 +2147,12 @@ usb2_transfer_start_cb(void *arg)
 	/* start the transfer */
 	(pipe->methods->start) (xfer);
 
-	/* check cancelability */
-	if (pipe->methods->start_is_cancelable) {
-		xfer->flags_int.can_cancel_immed = 1;
-		if (xfer->error) {
-			/* some error has happened */
-			usb2_transfer_done(xfer, 0);
-		}
-	} else {
-		xfer->flags_int.can_cancel_immed = 0;
+	xfer->flags_int.can_cancel_immed = 1;
+
+	/* check for error */
+	if (xfer->error) {
+		/* some error has happened */
+		usb2_transfer_done(xfer, 0);
 	}
 }
 
@@ -2217,7 +2245,7 @@ usb2_pipe_start(struct usb2_xfer_queue *pq)
 			udev = info->udev;
 			pipe->is_stalled = 1;
 
-			if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
+			if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 				(udev->bus->methods->set_stall) (
 				    udev, NULL, pipe);
 			} else if (udev->default_xfer[1]) {
@@ -2270,15 +2298,12 @@ usb2_pipe_start(struct usb2_xfer_queue *pq)
 	/* start USB transfer */
 	(pipe->methods->start) (xfer);
 
-	/* check cancelability */
-	if (pipe->methods->start_is_cancelable) {
-		xfer->flags_int.can_cancel_immed = 1;
-		if (xfer->error) {
-			/* some error has happened */
-			usb2_transfer_done(xfer, 0);
-		}
-	} else {
-		xfer->flags_int.can_cancel_immed = 0;
+	xfer->flags_int.can_cancel_immed = 1;
+
+	/* check for error */
+	if (xfer->error) {
+		/* some error has happened */
+		usb2_transfer_done(xfer, 0);
 	}
 }
 
@@ -2291,7 +2316,7 @@ usb2_pipe_start(struct usb2_xfer_queue *pq)
  *------------------------------------------------------------------------*/
 void
 usb2_transfer_timeout_ms(struct usb2_xfer *xfer,
-    void (*cb) (void *arg), uint32_t ms)
+    void (*cb) (void *arg), usb2_timeout_t ms)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
@@ -2321,7 +2346,7 @@ static uint8_t
 usb2_callback_wrapper_sub(struct usb2_xfer *xfer)
 {
 	struct usb2_pipe *pipe;
-	uint32_t x;
+	usb2_frcount_t x;
 
 	if ((!xfer->flags_int.open) &&
 	    (!xfer->flags_int.did_close)) {
@@ -2341,7 +2366,7 @@ usb2_callback_wrapper_sub(struct usb2_xfer *xfer)
 	    (xfer->error == USB_ERR_TIMEOUT)) &&
 	    (!xfer->flags_int.did_dma_delay)) {
 
-		uint32_t temp;
+		usb2_timeout_t temp;
 
 		/* only delay once */
 		xfer->flags_int.did_dma_delay = 1;
@@ -2541,6 +2566,9 @@ usb2_default_transfer_setup(struct usb2_device *udev)
 	uint8_t no_resetup;
 	uint8_t iface_index;
 
+	/* check for root HUB */
+	if (udev->parent_hub == NULL)
+		return;
 repeat:
 
 	xfer = udev->default_xfer[0];
@@ -2550,7 +2578,7 @@ repeat:
 		    ((xfer->address == udev->address) &&
 		    (udev->default_ep_desc.wMaxPacketSize[0] ==
 		    udev->ddesc.bMaxPacketSize));
-		if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
+		if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 			if (no_resetup) {
 				/*
 				 * NOTE: checking "xfer->address" and
@@ -2635,9 +2663,9 @@ usb2_clear_data_toggle(struct usb2_device *udev, struct usb2_pipe *pipe)
  *	.direction = UE_DIR_ANY,
  *	.interval = 50, //50 milliseconds
  *	.bufsize = sizeof(struct usb2_device_request),
- *	.mh.timeout = 1000, //1.000 seconds
- *	.mh.flags = { },
- *	.mh.callback = &my_clear_stall_callback, // **
+ *	.timeout = 1000, //1.000 seconds
+ *	.callback = &my_clear_stall_callback, // **
+ *	.usb_mode = USB_MODE_HOST,
  * };
  *
  * ** "my_clear_stall_callback" calls "usb2_clear_stall_callback"
@@ -2714,5 +2742,80 @@ usb2_do_poll(struct usb2_xfer **ppxfer, uint16_t max)
 		once = 1;
 		printf("usb2_do_poll: USB polling is "
 		    "not supported!\n");
+	}
+}
+
+static void
+usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
+    uint8_t type, enum usb_dev_speed speed)
+{
+	static const uint16_t intr_range_max[USB_SPEED_MAX] = {
+		[USB_SPEED_LOW] = 8,
+		[USB_SPEED_FULL] = 64,
+		[USB_SPEED_HIGH] = 1024,
+		[USB_SPEED_VARIABLE] = 1024,
+		[USB_SPEED_SUPER] = 1024,
+	};
+
+	static const uint16_t isoc_range_max[USB_SPEED_MAX] = {
+		[USB_SPEED_LOW] = 0,	/* invalid */
+		[USB_SPEED_FULL] = 1023,
+		[USB_SPEED_HIGH] = 1024,
+		[USB_SPEED_VARIABLE] = 3584,
+		[USB_SPEED_SUPER] = 1024,
+	};
+
+	static const uint16_t control_min[USB_SPEED_MAX] = {
+		[USB_SPEED_LOW] = 8,
+		[USB_SPEED_FULL] = 8,
+		[USB_SPEED_HIGH] = 64,
+		[USB_SPEED_VARIABLE] = 512,
+		[USB_SPEED_SUPER] = 512,
+	};
+
+	static const uint16_t bulk_min[USB_SPEED_MAX] = {
+		[USB_SPEED_LOW] = 0,	/* not supported */
+		[USB_SPEED_FULL] = 8,
+		[USB_SPEED_HIGH] = 512,
+		[USB_SPEED_VARIABLE] = 512,
+		[USB_SPEED_SUPER] = 1024,
+	};
+
+	uint16_t temp;
+
+	memset(ptr, 0, sizeof(*ptr));
+
+	switch (type) {
+	case UE_INTERRUPT:
+		ptr->range.max = intr_range_max[speed];
+		break;
+	case UE_ISOCHRONOUS:
+		ptr->range.max = isoc_range_max[speed];
+		break;
+	default:
+		if (type == UE_BULK)
+			temp = bulk_min[speed];
+		else /* UE_CONTROL */
+			temp = control_min[speed];
+
+		/* default is fixed */
+		ptr->fixed[0] = temp;
+		ptr->fixed[1] = temp;
+		ptr->fixed[2] = temp;
+		ptr->fixed[3] = temp;
+
+		if (speed == USB_SPEED_FULL) {
+			/* multiple sizes */
+			ptr->fixed[1] = 16;
+			ptr->fixed[2] = 32;
+			ptr->fixed[3] = 64;
+		}
+		if ((speed == USB_SPEED_VARIABLE) &&
+		    (type == UE_BULK)) {
+			/* multiple sizes */
+			ptr->fixed[2] = 1024;
+			ptr->fixed[3] = 1536;
+		}
+		break;
 	}
 }

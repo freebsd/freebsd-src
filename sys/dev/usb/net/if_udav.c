@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 static device_probe_t udav_probe;
 static device_attach_t udav_attach;
 static device_detach_t udav_detach;
-static device_shutdown_t udav_shutdown;
 
 static usb2_callback_t udav_bulk_write_callback;
 static usb2_callback_t udav_bulk_read_callback;
@@ -101,29 +100,29 @@ static const struct usb2_config udav_config[UDAV_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = (MCLBYTES + 2),
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = udav_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = (MCLBYTES + 2),
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = udav_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[UDAV_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (MCLBYTES + 3),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = udav_bulk_read_callback,
-		.mh.timeout = 0,	/* no timeout */
+		.bufsize = (MCLBYTES + 3),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = udav_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
 	},
 
 	[UDAV_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = udav_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = udav_intr_callback,
 	},
 };
 
@@ -132,7 +131,6 @@ static device_method_t udav_methods[] = {
 	DEVMETHOD(device_probe, udav_probe),
 	DEVMETHOD(device_attach, udav_attach),
 	DEVMETHOD(device_detach, udav_detach),
-	DEVMETHOD(device_shutdown, udav_shutdown),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -176,8 +174,8 @@ static const struct usb2_ether_methods udav_ue_methods = {
 #if USB_DEBUG
 static int udav_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
-SYSCTL_INT(_hw_usb2_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
+SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
     "Debug level");
 #endif
 
@@ -213,7 +211,7 @@ udav_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != UDAV_CONFIG_INDEX)
 		return (ENXIO);
@@ -839,18 +837,4 @@ static void
 udav_miibus_statchg(device_t dev)
 {
 	/* nothing to do */
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-udav_shutdown(device_t dev)
-{
-	struct udav_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

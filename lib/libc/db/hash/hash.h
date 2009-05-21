@@ -71,11 +71,11 @@ typedef struct hashhdr {		/* Disk resident portion */
 	int32_t		ovfl_point;	/* Where overflow pages are being 
 					 * allocated */
 	int32_t		last_freed;	/* Last overflow page freed */
-	int32_t		max_bucket;	/* ID of Maximum bucket in use */
-	int32_t		high_mask;	/* Mask to modulo into entire table */
-	int32_t		low_mask;	/* Mask to modulo into lower half of 
+	u_int32_t	max_bucket;	/* ID of Maximum bucket in use */
+	u_int32_t	high_mask;	/* Mask to modulo into entire table */
+	u_int32_t	low_mask;	/* Mask to modulo into lower half of 
 					 * table */
-	int32_t		ffactor;	/* Fill factor */
+	u_int32_t	ffactor;	/* Fill factor */
 	int32_t		nkeys;		/* Number of keys in hash table */
 	int32_t		hdrpages;	/* Size of table header */
 	int32_t		h_charkey;	/* value of hash(CHARKEY) */

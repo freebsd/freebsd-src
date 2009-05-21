@@ -257,7 +257,7 @@ pcblist_kvm(u_long off, char **bufp, int istcp)
 		if (istcp) {
 			if (inp->inp_ppcb == NULL)
 				bzero(&xt.xt_tp, sizeof xt.xt_tp);
-			else if (inp->inp_vflag & INP_TIMEWAIT) {
+			else if (inp->inp_flags & INP_TIMEWAIT) {
 				bzero(&xt.xt_tp, sizeof xt.xt_tp);
 				xt.xt_tp.t_state = TCPS_TIME_WAIT;
 			} else

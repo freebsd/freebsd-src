@@ -249,13 +249,16 @@ double	rint(double);
 double	j0(double);
 double	j1(double);
 double	jn(int, double);
-double	scalb(double, double);
 double	y0(double);
 double	y1(double);
 double	yn(int, double);
 
 #if __XSI_VISIBLE <= 500 || __BSD_VISIBLE
 double	gamma(double);
+#endif
+
+#if __XSI_VISIBLE <= 600 || __BSD_VISIBLE
+double	scalb(double, double);
 #endif
 #endif /* __BSD_VISIBLE || __XSI_VISIBLE */
 

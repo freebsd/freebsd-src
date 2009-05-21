@@ -361,8 +361,6 @@ void
 teken_set_winsize(teken_t *t, const teken_pos_t *p)
 {
 
-	teken_assert(p->tp_col <= T_NUMCOL);
-
 	t->t_winsize = *p;
 	/* XXX: bounds checking with cursor/etc! */
 	t->t_scrollreg.ts_begin = 0;

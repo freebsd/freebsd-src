@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
+#include <sys/vimage.h>
 
 #include <machine/cpu.h>
 
@@ -452,6 +453,12 @@ proc0_init(void *dummy __unused)
 	p->p_ucred->cr_uidinfo = uifind(0);
 	p->p_ucred->cr_ruidinfo = uifind(0);
 	p->p_ucred->cr_prison = NULL;	/* Don't jail it. */
+#ifdef VIMAGE
+	KASSERT(LIST_FIRST(&vimage_head) != NULL, ("vimage_head empty"));
+	P_TO_VIMAGE(p) =  LIST_FIRST(&vimage_head); /* set ucred->cr_vimage */
+	refcount_acquire(&P_TO_VIMAGE(p)->vi_ucredrefc);
+	LIST_FIRST(&vprocg_head)->nprocs++;
+#endif
 #ifdef AUDIT
 	audit_cred_kproc0(p->p_ucred);
 #endif

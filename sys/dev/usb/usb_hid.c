@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usbhid.h>
 
 #define	USB_DEBUG_VAR usb2_debug
@@ -106,7 +105,7 @@ hid_clear_local(struct hid_item *c)
  *	hid_start_parse
  *------------------------------------------------------------------------*/
 struct hid_data *
-hid_start_parse(const void *d, int len, int kindset)
+hid_start_parse(const void *d, usb2_size_t len, int kindset)
 {
 	struct hid_data *s;
 
@@ -297,9 +296,6 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				} else {
 					s->ncount = 1;
 				}
-				/* set default usage */
-				/* use the undefined HID PAGE */
-				s->usage_last = 0;
 				goto top;
 
 			case 9:	/* Output */
@@ -310,6 +306,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->kind = hid_collection;
 				c->collection = dval;
 				c->collevel++;
+				c->usage = s->usage_last;
 				*h = *c;
 				return (1);
 			case 11:	/* Feature */
@@ -409,6 +406,9 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				if (bSize != 4)
 					dval = (dval & mask) | c->_usage_page;
 
+				/* set last usage, in case of a collection */
+				s->usage_last = dval;
+
 				if (s->nusage < MAXUSAGE) {
 					s->usages_min[s->nusage] = dval;
 					s->usages_max[s->nusage] = dval;
@@ -491,7 +491,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
  *	hid_report_size
  *------------------------------------------------------------------------*/
 int
-hid_report_size(const void *buf, int len, enum hid_kind k, uint8_t *id)
+hid_report_size(const void *buf, usb2_size_t len, enum hid_kind k, uint8_t *id)
 {
 	struct hid_data *d;
 	struct hid_item h;
@@ -544,14 +544,16 @@ hid_report_size(const void *buf, int len, enum hid_kind k, uint8_t *id)
  *	hid_locate
  *------------------------------------------------------------------------*/
 int
-hid_locate(const void *desc, int size, uint32_t u, enum hid_kind k,
-    struct hid_location *loc, uint32_t *flags, uint8_t *id)
+hid_locate(const void *desc, usb2_size_t size, uint32_t u, enum hid_kind k,
+    uint8_t index, struct hid_location *loc, uint32_t *flags, uint8_t *id)
 {
 	struct hid_data *d;
 	struct hid_item h;
 
 	for (d = hid_start_parse(desc, size, 1 << k); hid_get_item(d, &h);) {
 		if (h.kind == k && !(h.flags & HIO_CONST) && h.usage == u) {
+			if (index--)
+				continue;
 			if (loc != NULL)
 				*loc = h.loc;
 			if (flags != NULL)
@@ -576,7 +578,7 @@ hid_locate(const void *desc, int size, uint32_t u, enum hid_kind k,
  *	hid_get_data
  *------------------------------------------------------------------------*/
 uint32_t
-hid_get_data(const uint8_t *buf, uint32_t len, struct hid_location *loc)
+hid_get_data(const uint8_t *buf, usb2_size_t len, struct hid_location *loc)
 {
 	uint32_t hpos = loc->pos;
 	uint32_t hsize = loc->size;
@@ -619,7 +621,7 @@ hid_get_data(const uint8_t *buf, uint32_t len, struct hid_location *loc)
  *	hid_is_collection
  *------------------------------------------------------------------------*/
 int
-hid_is_collection(const void *desc, int size, uint32_t usage)
+hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
 {
 	struct hid_data *hd;
 	struct hid_item hi;
@@ -629,9 +631,11 @@ hid_is_collection(const void *desc, int size, uint32_t usage)
 	if (hd == NULL)
 		return (0);
 
-	err = hid_get_item(hd, &hi) &&
-	    hi.kind == hid_collection &&
-	    hi.usage == usage;
+	while ((err = hid_get_item(hd, &hi))) {
+		 if (hi.kind == hid_collection &&
+		     hi.usage == usage)
+			break;
+	}
 	hid_end_parse(hd);
 	return (err);
 }

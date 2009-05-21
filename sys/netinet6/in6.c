@@ -106,8 +106,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/vinet6.h>
 
-MALLOC_DEFINE(M_IP6MADDR, "in6_multi", "internet multicast address");
-
 /*
  * Definitions of some costant IP6 addresses.
  */
@@ -119,6 +117,8 @@ const struct in6_addr in6addr_linklocal_allnodes =
 	IN6ADDR_LINKLOCAL_ALLNODES_INIT;
 const struct in6_addr in6addr_linklocal_allrouters =
 	IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
+const struct in6_addr in6addr_linklocal_allv2routers =
+	IN6ADDR_LINKLOCAL_ALLV2ROUTERS_INIT;
 
 const struct in6_addr in6mask0 = IN6MASK0;
 const struct in6_addr in6mask32 = IN6MASK32;
@@ -135,7 +135,6 @@ static int in6_ifinit __P((struct ifnet *, struct in6_ifaddr *,
 	struct sockaddr_in6 *, int));
 static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
-struct in6_multihead in6_multihead;	/* XXX BSS initialization */
 int	(*faithprefix_p)(struct in6_addr *);
 
 
@@ -815,7 +814,9 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			V_in6_ifaddr = ia;
 
 		ia->ia_ifa.ifa_refcnt = 1;
-		TAILQ_INSERT_TAIL(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
+		IF_ADDR_LOCK(ifp);
+		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+		IF_ADDR_UNLOCK(ifp);
 	}
 
 	/* update timestamp */
@@ -1108,10 +1109,12 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			 * should be larger than the MLD delay (this could be
 			 * relaxed a bit, but this simple logic is at least
 			 * safe).
+			 * XXX: Break data hiding guidelines and look at
+			 * state for the solicited multicast group.
 			 */
 			mindelay = 0;
 			if (in6m_sol != NULL &&
-			    in6m_sol->in6m_state == MLD_REPORTPENDING) {
+			    in6m_sol->in6m_state == MLD_REPORTING_MEMBER) {
 				mindelay = in6m_sol->in6m_timer;
 			}
 			maxdelay = MAX_RTR_SOLICITATION_DELAY * hz;
@@ -1148,6 +1151,28 @@ in6_purgeaddr(struct ifaddr *ifa)
 	struct ifnet *ifp = ifa->ifa_ifp;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *) ifa;
 	struct in6_multi_mship *imm;
+	struct sockaddr_in6 mltaddr, mltmask;
+	struct rtentry rt0;
+	struct sockaddr_dl gateway;
+	struct sockaddr_in6 mask, addr;
+	int plen, error;
+	struct rtentry *rt;
+	struct ifaddr *ifa0, *nifa;
+
+	/*
+	 * find another IPv6 address as the gateway for the
+	 * link-local and node-local all-nodes multicast
+	 * address routes
+	 */
+	TAILQ_FOREACH_SAFE(ifa0, &ifp->if_addrhead, ifa_link, nifa) {
+		if ((ifa0->ifa_addr->sa_family != AF_INET6) ||
+		    memcmp(&satosin6(ifa0->ifa_addr)->sin6_addr,
+			   &ia->ia_addr.sin6_addr, 
+			   sizeof(struct in6_addr)) == 0)
+			continue;
+		else
+			break;
+	}
 
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
@@ -1156,13 +1181,164 @@ in6_purgeaddr(struct ifaddr *ifa)
 	lla_lookup(LLTABLE6(ifp), (LLE_DELETE | LLE_IFADDR),
 	    (struct sockaddr *)&ia->ia_addr);
 	IF_AFDATA_UNLOCK(ifp);
-	
+
+	/*
+	 * initialize for rtmsg generation
+	 */
+	bzero(&gateway, sizeof(gateway));
+	gateway.sdl_len = sizeof(gateway);
+	gateway.sdl_family = AF_LINK;
+	gateway.sdl_nlen = 0;
+	gateway.sdl_alen = ifp->if_addrlen;
+	/* */
+	bzero(&rt0, sizeof(rt0));
+	rt0.rt_gateway = (struct sockaddr *)&gateway;
+	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+	rt_mask(&rt0) = (struct sockaddr *)&mask;
+	rt_key(&rt0) = (struct sockaddr *)&addr;
+	rt0.rt_flags = RTF_HOST | RTF_STATIC;
+	rt_newaddrmsg(RTM_DELETE, ifa, 0, &rt0);
+
 	/*
 	 * leave from multicast groups we have joined for the interface
 	 */
 	while ((imm = ia->ia6_memberships.lh_first) != NULL) {
 		LIST_REMOVE(imm, i6mm_chain);
 		in6_leavegroup(imm);
+	}
+
+	/*
+	 * remove the link-local all-nodes address
+	 */
+	bzero(&mltmask, sizeof(mltmask));
+	mltmask.sin6_len = sizeof(struct sockaddr_in6);
+	mltmask.sin6_family = AF_INET6;
+	mltmask.sin6_addr = in6mask32;
+
+	bzero(&mltaddr, sizeof(mltaddr));
+	mltaddr.sin6_len = sizeof(struct sockaddr_in6);
+	mltaddr.sin6_family = AF_INET6;
+	mltaddr.sin6_addr = in6addr_linklocal_allnodes;
+
+	if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) !=
+	    0)
+		goto cleanup; 
+
+	rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
+	if (rt != NULL && rt->rt_gateway != NULL &&
+	    (memcmp(&satosin6(rt->rt_gateway)->sin6_addr, 
+		    &ia->ia_addr.sin6_addr,
+		    sizeof(ia->ia_addr.sin6_addr)) == 0)) {
+		/* 
+		 * if no more IPv6 address exists on this interface
+		 * then remove the multicast address route
+		 */
+		if (ifa0 == NULL) {
+			memcpy(&mltaddr.sin6_addr, &satosin6(rt_key(rt))->sin6_addr, 
+			       sizeof(mltaddr.sin6_addr));
+			RTFREE_LOCKED(rt);
+			error = rtrequest(RTM_DELETE, (struct sockaddr *)&mltaddr,
+					  (struct sockaddr *)&ia->ia_addr,
+					  (struct sockaddr *)&mltmask, RTF_UP,
+					  (struct rtentry **)0);
+			if (error)
+				log(LOG_INFO, "in6_purgeaddr: link-local all-nodes"
+				    "multicast address deletion error\n");
+		} else {
+			/*
+			 * replace the gateway of the route
+			 */
+			struct sockaddr_in6 sa;
+
+			bzero(&sa, sizeof(sa));
+			sa.sin6_len = sizeof(struct sockaddr_in6);
+			sa.sin6_family = AF_INET6;
+			memcpy(&sa.sin6_addr, &satosin6(ifa0->ifa_addr)->sin6_addr, 
+			       sizeof(sa.sin6_addr));
+			in6_setscope(&sa.sin6_addr, ifa0->ifa_ifp, NULL);
+			memcpy(rt->rt_gateway, &sa, sizeof(sa));
+			RTFREE_LOCKED(rt);
+		}
+	} else {
+		if (rt != NULL)
+			RTFREE_LOCKED(rt);
+	}
+
+	/*
+	 * remove the node-local all-nodes address
+	 */
+	mltaddr.sin6_addr = in6addr_nodelocal_allnodes;
+	if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) !=
+	    0)
+		goto cleanup;
+
+	rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
+	if (rt != NULL && rt->rt_gateway != NULL &&
+	    (memcmp(&satosin6(rt->rt_gateway)->sin6_addr, 
+		    &ia->ia_addr.sin6_addr,
+		    sizeof(ia->ia_addr.sin6_addr)) == 0)) {
+		/* 
+		 * if no more IPv6 address exists on this interface
+		 * then remove the multicast address route
+		 */
+		if (ifa0 == NULL) {
+			memcpy(&mltaddr.sin6_addr, &satosin6(rt_key(rt))->sin6_addr, 
+			       sizeof(mltaddr.sin6_addr));
+
+			RTFREE_LOCKED(rt);
+			error = rtrequest(RTM_DELETE, (struct sockaddr *)&mltaddr,
+					  (struct sockaddr *)&ia->ia_addr,
+					  (struct sockaddr *)&mltmask, RTF_UP,
+					  (struct rtentry **)0);
+
+			if (error)
+				log(LOG_INFO, "in6_purgeaddr: node-local all-nodes"
+				    "multicast address deletion error\n");
+		} else {
+			/*
+			 * replace the gateway of the route
+			 */
+			struct sockaddr_in6 sa;
+
+			bzero(&sa, sizeof(sa));
+			sa.sin6_len = sizeof(struct sockaddr_in6);
+			sa.sin6_family = AF_INET6;
+			memcpy(&sa.sin6_addr, &satosin6(ifa0->ifa_addr)->sin6_addr, 
+			       sizeof(sa.sin6_addr));
+			in6_setscope(&sa.sin6_addr, ifa0->ifa_ifp, NULL);
+			memcpy(rt->rt_gateway, &sa, sizeof(sa));
+			RTFREE_LOCKED(rt);
+		}
+	} else {
+		if (rt != NULL)
+			RTFREE_LOCKED(rt);
+	}
+
+cleanup:
+
+	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
+	if ((ia->ia_flags & IFA_ROUTE) && plen == 128) {
+		int error;
+		struct sockaddr *dstaddr;
+
+		/* 
+		 * use the interface address if configuring an
+		 * interface address with a /128 prefix len
+		 */
+		if (ia->ia_dstaddr.sin6_family == AF_INET6)
+			dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
+		else
+			dstaddr = (struct sockaddr *)&ia->ia_addr;
+
+		error = rtrequest(RTM_DELETE,
+		    (struct sockaddr *)dstaddr,
+		    (struct sockaddr *)&ia->ia_addr,
+		    (struct sockaddr *)&ia->ia_prefixmask,
+		    ia->ia_flags | RTF_HOST, NULL);
+		if (error != 0)
+			return;
+		ia->ia_flags &= ~IFA_ROUTE;
 	}
 
 	in6_unlink_ifa(ia, ifp);
@@ -1175,7 +1351,9 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	struct in6_ifaddr *oia;
 	int	s = splnet();
 
-	TAILQ_REMOVE(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
+	IF_ADDR_LOCK(ifp);
+	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+	IF_ADDR_UNLOCK(ifp);
 
 	oia = ia;
 	if (oia == (ia = V_in6_ifaddr))
@@ -1227,8 +1405,7 @@ in6_purgeif(struct ifnet *ifp)
 {
 	struct ifaddr *ifa, *nifa;
 
-	for (ifa = TAILQ_FIRST(&ifp->if_addrlist); ifa != NULL; ifa = nifa) {
-		nifa = TAILQ_NEXT(ifa, ifa_list);
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		in6_purgeaddr(ifa);
@@ -1410,7 +1587,8 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 		}
 
-		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
 			if (!cmp)
@@ -1430,6 +1608,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (IN6_ARE_ADDR_EQUAL(&candidate, &match))
 				break;
 		}
+		IF_ADDR_UNLOCK(ifp);
 		if (!ifa)
 			return EADDRNOTAVAIL;
 		ia = ifa2ia6(ifa);
@@ -1507,18 +1686,18 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ifacount++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	ia->ia_addr = *sin6;
 
 	if (ifacount <= 1 && ifp->if_ioctl) {
-		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-		IFF_UNLOCKGIANT(ifp);
 		if (error) {
 			splx(s);
 			return (error);
@@ -1565,6 +1744,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
 	if (newhost) {
 		struct llentry *ln;
+		struct rtentry rt;
+		struct sockaddr_dl gateway;
+		struct sockaddr_in6 mask, addr;
 
 		IF_AFDATA_LOCK(ifp);
 		ia->ia_ifa.ifa_rtrequest = NULL;
@@ -1578,41 +1760,30 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		if (ln != NULL) {
 			ln->la_expire = 0;  /* for IPv6 this means permanent */
 			ln->ln_state = ND6_LLINFO_REACHABLE;
+			/*
+			 * initialize for rtmsg generation
+			 */
+			bzero(&gateway, sizeof(gateway));
+			gateway.sdl_len = sizeof(gateway);
+			gateway.sdl_family = AF_LINK;
+			gateway.sdl_nlen = 0;
+			gateway.sdl_alen = 6;
+			memcpy(gateway.sdl_data, &ln->ll_addr.mac_aligned, sizeof(ln->ll_addr));
+			/* */
 			LLE_WUNLOCK(ln);
 		}
+
+		bzero(&rt, sizeof(rt));
+		rt.rt_gateway = (struct sockaddr *)&gateway;
+		memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+		memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+		rt_mask(&rt) = (struct sockaddr *)&mask;
+		rt_key(&rt) = (struct sockaddr *)&addr;
+		rt.rt_flags = RTF_UP | RTF_HOST | RTF_STATIC;
+		rt_newaddrmsg(RTM_ADD, &ia->ia_ifa, 0, &rt);
 	}
 
 	return (error);
-}
-
-struct in6_multi_mship *
-in6_joingroup(struct ifnet *ifp, struct in6_addr *addr,
-    int *errorp, int delay)
-{
-	struct in6_multi_mship *imm;
-
-	imm = malloc(sizeof(*imm), M_IP6MADDR, M_NOWAIT);
-	if (!imm) {
-		*errorp = ENOBUFS;
-		return NULL;
-	}
-	imm->i6mm_maddr = in6_addmulti(addr, ifp, errorp, delay);
-	if (!imm->i6mm_maddr) {
-		/* *errorp is alrady set */
-		free(imm, M_IP6MADDR);
-		return NULL;
-	}
-	return imm;
-}
-
-int
-in6_leavegroup(struct in6_multi_mship *imm)
-{
-
-	if (imm->i6mm_maddr)
-		in6_delmulti(imm->i6mm_maddr);
-	free(imm,  M_IP6MADDR);
-	return 0;
 }
 
 /*
@@ -1623,7 +1794,8 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 {
 	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_IS_ADDR_LINKLOCAL(IFA_IN6(ifa))) {
@@ -1633,6 +1805,7 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 			break;
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	return ((struct in6_ifaddr *)ifa);
 }
@@ -1646,12 +1819,14 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(addr, IFA_IN6(ifa)))
 			break;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	return ((struct in6_ifaddr *)ifa);
 }
@@ -1850,7 +2025,8 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 	 * If two or more, return one which matches the dst longest.
 	 * If none, return one of global addresses assigned other ifs.
 	 */
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST)
@@ -1881,10 +2057,12 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 				besta = (struct in6_ifaddr *)ifa;
 		}
 	}
-	if (besta)
+	if (besta) {
+		IF_ADDR_UNLOCK(ifp);
 		return (besta);
+	}
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST)
@@ -1899,8 +2077,10 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 			continue;
 		}
 
+		IF_ADDR_UNLOCK(ifp);
 		return (struct in6_ifaddr *)ifa;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	/* use the last-resort values, that are, deprecated addresses */
 	if (dep[0])
@@ -1920,7 +2100,8 @@ in6_if_up(struct ifnet *ifp)
 	struct ifaddr *ifa;
 	struct in6_ifaddr *ia;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ia = (struct in6_ifaddr *)ifa;
@@ -1935,6 +2116,7 @@ in6_if_up(struct ifnet *ifp)
 			    arc4random() % (MAX_RTR_SOLICITATION_DELAY * hz));
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	/*
 	 * special cases, like 6to4, are handled in in6_ifattach
@@ -2100,6 +2282,30 @@ in6_lltable_free(struct lltable *llt, struct llentry *lle)
 	LLE_WUNLOCK(lle);
 	LLE_LOCK_DESTROY(lle);
 	free(lle, M_LLTABLE);
+}
+
+static void
+in6_lltable_prefix_free(struct lltable *llt, 
+			const struct sockaddr *prefix,
+			const struct sockaddr *mask)
+{
+	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
+	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
+	struct llentry *lle, *next;
+	register int i;
+
+	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
+			if (IN6_ARE_MASKED_ADDR_EQUAL(
+				    &((struct sockaddr_in6 *)L3_ADDR(lle))->sin6_addr, 
+				    &pfx->sin6_addr, 
+				    &msk->sin6_addr)) {
+				callout_drain(&lle->la_timer);
+				LLE_WLOCK(lle);
+				llentry_free(lle);
+			}
+		}
+	}
 }
 
 static int
@@ -2308,10 +2514,14 @@ in6_domifattach(struct ifnet *ifp)
 	if (ext->lltable != NULL) {
 		ext->lltable->llt_new = in6_lltable_new;
 		ext->lltable->llt_free = in6_lltable_free;
+		ext->lltable->llt_prefix_free = in6_lltable_prefix_free;
 		ext->lltable->llt_rtcheck = in6_lltable_rtcheck;
 		ext->lltable->llt_lookup = in6_lltable_lookup;
 		ext->lltable->llt_dump = in6_lltable_dump;
 	}
+
+	ext->mld_ifinfo = mld_domifattach(ifp);
+
 	return ext;
 }
 
@@ -2320,6 +2530,7 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
 {
 	struct in6_ifextra *ext = (struct in6_ifextra *)aux;
 
+	mld_domifdetach(ifp);
 	scope6_ifdetach(ext->scope6_id);
 	nd6_ifdetach(ext->nd_ifinfo);
 	lltable_free(ext->lltable);

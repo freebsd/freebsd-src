@@ -176,9 +176,9 @@ xen_suspend()
 	/*
 	 * Bind us to CPU 0 and stop any other VCPUs.
 	 */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(curthread);
 	sched_bind(curthread, 0);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(curthread);
 	KASSERT(PCPU_GET(cpuid) == 0, ("xen_suspend: not running on cpu 0"));
 
 	map = PCPU_GET(other_cpus) & ~stopped_cpus;
@@ -188,8 +188,10 @@ xen_suspend()
 
 	if (DEVICE_SUSPEND(root_bus) != 0) {
 		printf("xen_suspend: device_suspend failed\n");
+#ifdef SMP
 		if (map)
 			restart_cpus(map);
+#endif
 		return;
 	}
 
@@ -253,7 +255,9 @@ xen_suspend()
 	DEVICE_RESUME(root_bus);
 
 #ifdef SMP
+	thread_lock(curthread);
 	sched_unbind(curthread);
+	thread_unlock(curthread);
 	if (map)
 		restart_cpus(map);
 #endif

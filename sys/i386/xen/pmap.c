@@ -4100,6 +4100,72 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
 
+#ifdef XEN
+
+void
+pmap_suspend()
+{
+	pmap_t pmap;
+	int i, pdir, offset;
+	vm_paddr_t pdirma;
+	mmu_update_t mu[4];
+
+	/*
+	 * We need to remove the recursive mapping structure from all
+	 * our pmaps so that Xen doesn't get confused when it restores
+	 * the page tables. The recursive map lives at page directory
+	 * index PTDPTDI. We assume that the suspend code has stopped
+	 * the other vcpus (if any).
+	 */
+	LIST_FOREACH(pmap, &allpmaps, pm_list) {
+		for (i = 0; i < 4; i++) {
+			/*
+			 * Figure out which page directory (L2) page
+			 * contains this bit of the recursive map and
+			 * the offset within that page of the map
+			 * entry
+			 */
+			pdir = (PTDPTDI + i) / NPDEPG;
+			offset = (PTDPTDI + i) % NPDEPG;
+			pdirma = pmap->pm_pdpt[pdir] & PG_FRAME;
+			mu[i].ptr = pdirma + offset * sizeof(pd_entry_t);
+			mu[i].val = 0;
+		}
+		HYPERVISOR_mmu_update(mu, 4, NULL, DOMID_SELF);
+	}
+}
+
+void
+pmap_resume()
+{
+	pmap_t pmap;
+	int i, pdir, offset;
+	vm_paddr_t pdirma;
+	mmu_update_t mu[4];
+
+	/*
+	 * Restore the recursive map that we removed on suspend.
+	 */
+	LIST_FOREACH(pmap, &allpmaps, pm_list) {
+		for (i = 0; i < 4; i++) {
+			/*
+			 * Figure out which page directory (L2) page
+			 * contains this bit of the recursive map and
+			 * the offset within that page of the map
+			 * entry
+			 */
+			pdir = (PTDPTDI + i) / NPDEPG;
+			offset = (PTDPTDI + i) % NPDEPG;
+			pdirma = pmap->pm_pdpt[pdir] & PG_FRAME;
+			mu[i].ptr = pdirma + offset * sizeof(pd_entry_t);
+			mu[i].val = (pmap->pm_pdpt[i] & PG_FRAME) | PG_V;
+		}
+		HYPERVISOR_mmu_update(mu, 4, NULL, DOMID_SELF);
+	}
+}
+
+#endif
+
 #if defined(PMAP_DEBUG)
 pmap_pid_dump(int pid)
 {

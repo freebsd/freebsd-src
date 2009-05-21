@@ -47,6 +47,7 @@
 #define	RTLD_GLOBAL	0x100	/* Make symbols globally available. */
 #define	RTLD_LOCAL	0	/* Opposite of RTLD_GLOBAL, and the default. */
 #define	RTLD_TRACE	0x200	/* Trace loaded objects and exit. */
+#define	RTLD_NODELETE	0x01000	/* Do not remove members. */
 
 /*
  * Request arguments for dlinfo().

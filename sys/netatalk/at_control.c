@@ -191,7 +191,6 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			ifa = (struct ifaddr *)aa;
 			IFA_LOCK_INIT(ifa);
 			ifa->ifa_refcnt = 1;
-			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 
 			/*
 			 * As the at_ifaddr contains the actual sockaddrs,
@@ -214,6 +213,9 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * and link it all together
 			 */
 			aa->aa_ifp = ifp;
+			IF_ADDR_LOCK(ifp);
+			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
+			IF_ADDR_UNLOCK(ifp);
 		} else {
 			/*
 			 * If we DID find one then we clobber any routes
@@ -296,7 +298,9 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 * remove the ifaddr from the interface
 		 */
 		ifa0 = (struct ifaddr *)aa;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa0, ifa_link);
+		IF_ADDR_UNLOCK(ifp);
 
 		/*
 		 * Now remove the at_ifaddr from the parallel structure

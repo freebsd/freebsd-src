@@ -48,6 +48,7 @@ static void masktrim(struct sockaddr_in *ap);
 #else
 static void masktrim(struct sockaddr_in_new *ap);
 #endif
+static void rtbad(struct rt_entry *);
 
 
 struct radix_node_head *rhead;		/* root of the radix tree */
@@ -66,7 +67,7 @@ int	stopint;
 int	total_routes;
 
 /* zap any old routes through this gateway */
-naddr	age_bad_gate;
+static naddr age_bad_gate;
 
 
 /* It is desirable to "aggregate" routes, to combine differing routes of
@@ -93,7 +94,7 @@ naddr	age_bad_gate;
  * sorted first by address, with the smallest address first.
  */
 
-struct ag_info ag_slots[NUM_AG_SLOTS], *ag_avail, *ag_corsest, *ag_finest;
+static struct ag_info ag_slots[NUM_AG_SLOTS], *ag_avail, *ag_corsest, *ag_finest;
 
 /* #define DEBUG_AG */
 #ifdef DEBUG_AG
@@ -606,12 +607,10 @@ ag_check(naddr	dst,
 	CHECK_AG();
 }
 
-
-#define	NAME0_LEN 14
 static const char *
 rtm_type_name(u_char type)
 {
-	static const char *rtm_types[] = {
+	static const char * const rtm_types[] = {
 		"RTM_ADD",
 		"RTM_DELETE",
 		"RTM_CHANGE",
@@ -1631,7 +1630,7 @@ rtinit(void)
 	/* Initialize the radix trees */
 	max_keylen = sizeof(struct sockaddr_in);
 	rn_init();
-	rn_inithead((void**)&rhead, 32);
+	rn_inithead(&rhead, 32);
 
 	/* mark all of the slots in the table free */
 	ag_avail = ag_slots;
@@ -1886,7 +1885,7 @@ rts_delete(struct rt_entry *rt,
 
 /* Get rid of a bad route, and try to switch to a replacement.
  */
-void
+static void
 rtbad(struct rt_entry *rt)
 {
 	struct rt_spare new;
@@ -1918,7 +1917,7 @@ rtbad_sub(struct rt_entry *rt)
 		 * If so, see if it is used by any other interfaces, such
 		 * as a point-to-point interface with the same local address.
 		 */
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			/* Retain it if another interface needs it.
 			 */
 			if (ifp->int_addr == rt->rt_ifp->int_addr) {
@@ -1935,7 +1934,7 @@ rtbad_sub(struct rt_entry *rt)
 		 * interface that justifies it.
 		 */
 		if (rt->rt_state & RS_NET_SYN) {
-			for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+			LIST_FOREACH(ifp, &ifnet, int_list) {
 				if ((ifp->int_state & IS_NEED_NET_SYN)
 				    && rt->rt_mask == ifp->int_std_mask
 				    && rt->rt_dst == ifp->int_std_addr) {
@@ -2105,7 +2104,7 @@ age(naddr bad_gate)
 	/* Check for dead IS_REMOTE interfaces by timing their
 	 * transmissions.
 	 */
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (!(ifp->int_state & IS_REMOTE))
 			continue;
 
@@ -2124,8 +2123,8 @@ age(naddr bad_gate)
 			       " %ld:%ld",
 			       ifp->int_name,
 			       naddr_ntoa(ifp->int_dstaddr),
-			       (now.tv_sec - ifp->int_act_time)/60,
-			       (now.tv_sec - ifp->int_act_time)%60);
+			       (long)(now.tv_sec - ifp->int_act_time)/60,
+			       (long)(now.tv_sec - ifp->int_act_time)%60);
 			if_sick(ifp);
 		}
 

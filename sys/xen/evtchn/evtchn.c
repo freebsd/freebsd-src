@@ -512,7 +512,7 @@ bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
 int 
 bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
     const char *devname, driver_filter_t filter, driver_intr_t handler,
-    unsigned long irqflags, unsigned int *irqp)
+    void *arg, unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
 	int error;

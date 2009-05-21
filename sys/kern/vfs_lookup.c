@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
 
@@ -51,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #ifdef KTRACE
@@ -64,6 +66,11 @@ __FBSDID("$FreeBSD$");
 
 #define	NAMEI_DIAGNOSTIC 1
 #undef NAMEI_DIAGNOSTIC
+
+SDT_PROVIDER_DECLARE(vfs);
+SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, "struct vnode *", "char *",
+    "unsigned long");
+SDT_PROBE_DEFINE2(vfs, namei, lookup, return, "int", "struct vnode *");
 
 /*
  * Allocation zone for namei
@@ -181,7 +188,6 @@ namei(struct nameidata *ndp)
 		ktrnamei(cnp->cn_pnbuf);
 	}
 #endif
-
 	/*
 	 * Get starting point for the translation.
 	 */
@@ -224,6 +230,8 @@ namei(struct nameidata *ndp)
 			VFS_UNLOCK_GIANT(vfslocked);
 		}
 	}
+	SDT_PROBE(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
+	    cnp->cn_flags, 0, 0);
 	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	for (;;) {
 		/*
@@ -252,6 +260,8 @@ namei(struct nameidata *ndp)
 			cnp->cn_pnbuf = NULL;
 			cnp->cn_nameptr = NULL;
 #endif
+			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
+			    0, 0);
 			return (error);
 		}
 		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
@@ -273,6 +283,8 @@ namei(struct nameidata *ndp)
 				VFS_UNLOCK_GIANT(vfslocked);
 			} else if (vfslocked)
 				ndp->ni_cnd.cn_flags |= GIANTHELD;
+			SDT_PROBE(vfs, namei, lookup, return, 0, ndp->ni_vp,
+			    0, 0, 0);
 			return (0);
 		}
 		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
@@ -338,6 +350,7 @@ namei(struct nameidata *ndp)
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
 	VFS_UNLOCK_GIANT(vfslocked);
+	SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0, 0, 0);
 	return (error);
 }
 
@@ -440,11 +453,13 @@ lookup(struct nameidata *ndp)
 	int error = 0;
 	int dpunlocked = 0;		/* dp has already been unlocked */
 	struct componentname *cnp = &ndp->ni_cnd;
-	struct thread *td = cnp->cn_thread;
 	int vfslocked;			/* VFS Giant state for child */
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
 	int lkflags_save;
+#ifdef AUDIT
+	struct thread *td = curthread;
+#endif
 	
 	/*
 	 * Setup: break out flag bits into variables.
@@ -602,7 +617,7 @@ dirloop:
 			if ((dp->v_vflag & VV_ROOT) == 0)
 				break;
 			if (dp->v_iflag & VI_DOOMED) {	/* forced unmount */
-				error = EBADF;
+				error = ENOENT;
 				goto bad;
 			}
 			tdp = dp;
@@ -624,7 +639,8 @@ dirloop:
 unionlookup:
 #ifdef MAC
 	if ((cnp->cn_flags & NOMACCHECK) == 0) {
-		error = mac_vnode_check_lookup(td->td_ucred, dp, cnp);
+		error = mac_vnode_check_lookup(cnp->cn_thread->td_ucred, dp,
+		    cnp);
 		if (error)
 			goto bad;
 	}
@@ -745,7 +761,8 @@ unionlookup:
 		dvfslocked = 0;
 		vref(vp_crossmp);
 		ndp->ni_dvp = vp_crossmp;
-		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags), &tdp, td);
+		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags),
+		    &tdp);
 		vfs_unbusy(mp);
 		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
 			panic("vp_crossmp exclusively locked or reclaimed");
@@ -764,9 +781,11 @@ unionlookup:
 	     *ndp->ni_next == '/')) {
 		cnp->cn_flags |= ISSYMLINK;
 		if (dp->v_iflag & VI_DOOMED) {
-			/* We can't know whether the directory was mounted with
-			 * NOSYMFOLLOW, so we can't follow safely. */
-			error = EBADF;
+			/*
+			 * We can't know whether the directory was mounted with
+			 * NOSYMFOLLOW, so we can't follow safely.
+			 */
+			error = ENOENT;
 			goto bad2;
 		}
 		if (dp->v_mount->mnt_flag & MNT_NOSYMFOLLOW) {

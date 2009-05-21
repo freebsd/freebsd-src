@@ -117,8 +117,7 @@ static int
 ntfs_cmount ( 
 	struct mntarg *ma,
 	void *data,
-	int flags,
-	struct thread *td )
+	int flags)
 {
 	int error;
 	struct ntfs_args args;
@@ -149,9 +148,7 @@ static const char *ntfs_opts[] = {
 };
 
 static int
-ntfs_mount ( 
-	struct mount *mp,
-	struct thread *td )
+ntfs_mount (struct mount *mp)
 {
 	int		err = 0, error;
 	struct vnode	*devvp;
@@ -184,7 +181,7 @@ ntfs_mount (
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, curthread);
 	err = namei(&ndp);
 	if (err) {
 		/* can't get devvp!*/
@@ -231,7 +228,7 @@ ntfs_mount (
 		/* Save "mounted from" info for mount point (NULL pad)*/
 		vfs_mountedfrom(mp, from);
 
-		err = ntfs_mountfs(devvp, mp, td);
+		err = ntfs_mountfs(devvp, mp, curthread);
 	}
 	if (err) {
 		vrele(devvp);
@@ -471,13 +468,14 @@ out:
 static int
 ntfs_unmount( 
 	struct mount *mp,
-	int mntflags,
-	struct thread *td)
+	int mntflags)
 {
+	struct thread *td;
 	struct ntfsmount *ntmp;
 	int error, flags, i;
 
 	dprintf(("ntfs_unmount: unmounting...\n"));
+	td = curthread;
 	ntmp = VFSTONTFS(mp);
 
 	flags = 0;
@@ -534,8 +532,7 @@ static int
 ntfs_root(
 	struct mount *mp,
 	int flags,
-	struct vnode **vpp,
-	struct thread *td )
+	struct vnode **vpp)
 {
 	struct vnode *nvp;
 	int error = 0;
@@ -587,8 +584,7 @@ ntfs_calccfree(
 static int
 ntfs_statfs(
 	struct mount *mp,
-	struct statfs *sbp,
-	struct thread *td)
+	struct statfs *sbp)
 {
 	struct ntfsmount *ntmp = VFSTONTFS(mp);
 	u_int64_t mftsize,mftallocated;

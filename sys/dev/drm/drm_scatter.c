@@ -92,7 +92,7 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	}
 
 	ret = bus_dmamem_alloc(dmah->tag, &dmah->vaddr,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO, &dmah->map);
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO | BUS_DMA_NOCACHE, &dmah->map);
 	if (ret != 0) {
 		bus_dma_tag_destroy(dmah->tag);
 		free(dmah, DRM_MEM_DMA);
@@ -102,8 +102,7 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	}
 
 	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr,
-	    request->size, drm_sg_alloc_cb, entry,
-	    BUS_DMA_NOWAIT | BUS_DMA_NOCACHE);
+	    request->size, drm_sg_alloc_cb, entry, BUS_DMA_NOWAIT);
 	if (ret != 0) {
 		bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 		bus_dma_tag_destroy(dmah->tag);
@@ -113,7 +112,7 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 		return ENOMEM;
 	}
 
-	entry->sg_dmah = dmah;
+	entry->dmah = dmah;
 	entry->handle = (unsigned long)dmah->vaddr;
 	
 	DRM_DEBUG("sg alloc handle  = %08lx\n", entry->handle);
@@ -161,7 +160,7 @@ drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
 void
 drm_sg_cleanup(struct drm_sg_mem *entry)
 {
-	struct drm_dma_handle *dmah = entry->sg_dmah;
+	struct drm_dma_handle *dmah = entry->dmah;
 
 	bus_dmamap_unload(dmah->tag, dmah->map);
 	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);

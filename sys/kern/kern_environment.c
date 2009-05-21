@@ -87,7 +87,7 @@ kenv(td, uap)
 	} */ *uap;
 {
 	char *name, *value, *buffer = NULL;
-	size_t len, done, needed;
+	size_t len, done, needed, buflen;
 	int error, i;
 
 	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = 0"));
@@ -100,13 +100,17 @@ kenv(td, uap)
 			return (error);
 #endif
 		done = needed = 0;
+		buflen = uap->len;
+		if (buflen > KENV_SIZE * (KENV_MNAMELEN + KENV_MVALLEN + 2))
+			buflen = KENV_SIZE * (KENV_MNAMELEN +
+			    KENV_MVALLEN + 2);
 		if (uap->len > 0 && uap->value != NULL)
-			buffer = malloc(uap->len, M_TEMP, M_WAITOK|M_ZERO);
+			buffer = malloc(buflen, M_TEMP, M_WAITOK|M_ZERO);
 		mtx_lock(&kenv_lock);
 		for (i = 0; kenvp[i] != NULL; i++) {
 			len = strlen(kenvp[i]) + 1;
 			needed += len;
-			len = min(len, uap->len - done);
+			len = min(len, buflen - done);
 			/*
 			 * If called with a NULL or insufficiently large
 			 * buffer, just keep computing the required size.

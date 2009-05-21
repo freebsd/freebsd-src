@@ -69,7 +69,7 @@ DEV_MODULE(amr_linux, amr_linux_modevent, NULL);
 MODULE_DEPEND(amr, linux, 1, 1, 1);
 
 static int
-amr_linux_ioctl(d_thread_t *p, struct linux_ioctl_args *args)
+amr_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	int error;

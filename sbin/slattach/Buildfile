@@ -1,9 +1,0 @@
-# $FreeBSD$
-
-PROG = slattach
-
-WARNS ?= 0
-
-LDADD += -lutil
-
-.include <bsd.prog.mk>

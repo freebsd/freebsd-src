@@ -42,7 +42,7 @@
  * Else: Pointer to matching entry.
  *------------------------------------------------------------------------*/
 const struct usb2_device_id *
-usb2_lookup_id_by_info(const struct usb2_device_id *id, uint32_t sizeof_id,
+usb2_lookup_id_by_info(const struct usb2_device_id *id, usb2_size_t sizeof_id,
     const struct usb2_lookup_info *info)
 {
 	const struct usb2_device_id *id_end;
@@ -121,7 +121,7 @@ done:
  * Else: Failure
  *------------------------------------------------------------------------*/
 int
-usb2_lookup_id_by_uaa(const struct usb2_device_id *id, uint32_t sizeof_id,
+usb2_lookup_id_by_uaa(const struct usb2_device_id *id, usb2_size_t sizeof_id,
     struct usb2_attach_arg *uaa)
 {
 	id = usb2_lookup_id_by_info(id, sizeof_id, &uaa->info);

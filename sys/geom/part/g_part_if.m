@@ -42,6 +42,16 @@ INTERFACE g_part;
 
 # Default implementations of methods.
 CODE {
+	static void
+	default_fullname(struct g_part_table *table,
+	    struct g_part_entry *entry, struct sbuf *sb, const char *pfx)
+	{
+		char buf[32];
+
+		sbuf_printf(sb, "%s%s", pfx,
+		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+	}
+
 	static int
 	default_precheck(struct g_part_table *t __unused,
 	    enum g_part_ctl r __unused, struct g_part_parms *p __unused)
@@ -97,6 +107,14 @@ METHOD int dumpto {
 	struct g_part_table *table;
 	struct g_part_entry *entry;
 };
+
+# fullname() - write the name of the given partition entry to the sbuf.
+METHOD void fullname {
+	struct g_part_table *table;
+	struct g_part_entry *entry;
+	struct sbuf *sb;
+	const char *pfx;
+} DEFAULT default_fullname;
 
 # modify() - scheme specific processing for the modify verb.
 METHOD int modify {

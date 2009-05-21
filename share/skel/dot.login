@@ -5,4 +5,4 @@
 # see also csh(1), environ(7).
 #
 
-[ -x /usr/games/fortune ] && /usr/games/fortune freebsd-tips
+if ( -x /usr/games/fortune ) /usr/games/fortune freebsd-tips

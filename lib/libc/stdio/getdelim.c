@@ -120,7 +120,6 @@ getdelim(char ** __restrict linep, size_t * __restrict linecapp, int delim,
 		goto error;
 	}
 
-	linelen = 0;
 	if (*linecapp == 0)
 		*linep = NULL;
 
@@ -128,9 +127,12 @@ getdelim(char ** __restrict linep, size_t * __restrict linecapp, int delim,
 		/* If fp is at EOF already, we just need space for the NUL. */
 		if (__sferror(fp) || expandtofit(linep, 1, linecapp))
 			goto error;
-		goto done;
+		FUNLOCKFILE(fp);
+		(*linep)[0] = '\0';
+		return (-1);
 	}
 
+	linelen = 0;
 	while ((endp = memchr(fp->_p, delim, fp->_r)) == NULL) {
 		if (sappend(linep, &linelen, linecapp, fp->_p, fp->_r))
 			goto error;

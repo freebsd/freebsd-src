@@ -306,6 +306,8 @@ thread_alloc(void)
 void
 thread_free(struct thread *td)
 {
+
+	lock_profile_thread_exit(td);
 	if (td->td_cpuset)
 		cpuset_rel(td->td_cpuset);
 	td->td_cpuset = NULL;
@@ -439,6 +441,7 @@ thread_wait(struct proc *p)
 	/* Wait for any remaining threads to exit cpu_throw(). */
 	while (p->p_exitthreads)
 		sched_relinquish(curthread);
+	lock_profile_thread_exit(td);
 	cpuset_rel(td->td_cpuset);
 	td->td_cpuset = NULL;
 	cpu_thread_clean(td);

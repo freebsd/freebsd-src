@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/vimage.h>
+#include <sys/bus.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -89,6 +90,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/swap_pager.h>
 
 #include <machine/clock.h>
+
+#include <geom/geom.h>
+#include <geom/geom_int.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/cputypes.h>
@@ -359,6 +363,9 @@ linprocfs_domtab(PFS_FILL_ARGS)
 			sbuf_printf(sb, "/sys %s sysfs %s", mntto,
 			    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
 		} else {
+			/* For Linux msdosfs is called vfat */
+			if (strcmp(fstype, "msdosfs") == 0)
+				fstype = "vfat";
 			sbuf_printf(sb, "%s %s %s %s", mntfrom, mntto, fstype,
 			    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
 		}
@@ -381,6 +388,69 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		free(flep, M_TEMP);
 	return (error);
 }
+
+/*
+ * Filler function for proc/partitions
+ *
+ */
+static int
+linprocfs_dopartitions(PFS_FILL_ARGS)
+{
+	struct g_class *cp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct nameidata nd;
+	const char *lep;
+	char  *dlep, *flep;
+	size_t lep_len;
+	int error;
+	int major, minor;
+
+	/* resolve symlinks etc. in the emulation tree prefix */
+	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, linux_emul_path, td);
+	flep = NULL;
+	error = namei(&nd);
+	lep = linux_emul_path;
+	if (error == 0) {
+		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) == 0)
+			lep = dlep;
+		vrele(nd.ni_vp);
+		VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
+	}
+	lep_len = strlen(lep);
+
+	g_topology_lock();
+	error = 0;
+	sbuf_printf(sb, "major minor  #blocks  name rio rmerge rsect "
+	    "ruse wio wmerge wsect wuse running use aveq\n");
+
+	LIST_FOREACH(cp, &g_classes, class) {
+		if (strcmp(cp->name, "DISK") == 0 ||
+		    strcmp(cp->name, "PART") == 0)
+			LIST_FOREACH(gp, &cp->geom, geom) {
+				LIST_FOREACH(pp, &gp->provider, provider) {
+					if (linux_driver_get_major_minor(
+					    pp->name, &major, &minor) != 0) {
+						major = 0;
+						minor = 0;
+					}
+					sbuf_printf(sb, "%d %d %lld %s "
+					    "%d %d %d %d %d "
+					     "%d %d %d %d %d %d\n",
+					     major, minor,
+					     (long long)pp->mediasize, pp->name,
+					     0, 0, 0, 0, 0,
+					     0, 0, 0, 0, 0, 0);
+				}
+			}
+	}
+	g_topology_unlock();
+
+	if (flep != NULL)
+		free(flep, M_TEMP);
+	return (error);
+}
+
 
 /*
  * Filler function for proc/stat
@@ -1205,6 +1275,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(root, "mounts", &linprocfs_domtab,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "mtab", &linprocfs_domtab,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(root, "partitions", &linprocfs_dopartitions,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(root, "self", &procfs_docurproc,
 	    NULL, NULL, NULL, 0);

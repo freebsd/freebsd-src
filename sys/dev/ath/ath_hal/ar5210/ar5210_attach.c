@@ -38,7 +38,6 @@ static void ar5210DisablePCIE(struct ath_hal *ah);
 
 static const struct ath_hal_private ar5210hal = {{
 	.ah_magic			= AR5210_MAGIC,
-	.ah_abi				= HAL_ABI_VERSION,
 
 	.ah_getRateTable		= ar5210GetRateTable,
 	.ah_detach			= ar5210Detach,
@@ -370,6 +369,11 @@ ar5210FillCapabilityInfo(struct ath_hal *ah)
 	}
 
 	pCap->halTstampPrecision = 15;		/* NB: s/w extended from 13 */
+	pCap->halIntrMask = (HAL_INT_COMMON - HAL_INT_BNR)
+			| HAL_INT_RX
+			| HAL_INT_TX
+			| HAL_INT_FATAL
+			;
 
 	ahpriv->ah_rxornIsFatal = AH_TRUE;
 	return AH_TRUE;

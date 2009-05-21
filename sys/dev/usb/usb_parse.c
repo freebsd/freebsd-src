@@ -84,113 +84,109 @@ usb2_desc_foreach(struct usb2_config_descriptor *cd,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_find_idesc
+ *	usb2_idesc_foreach
  *
- * This function will return the interface descriptor, if any, that
- * has index "iface_index" and alternate index "alt_index".
+ * This function will iterate the interface descriptors in the config
+ * descriptor. The parse state structure should be zeroed before
+ * calling this function the first time.
  *
  * Return values:
  *   NULL: End of descriptors
  *   Else: A valid interface descriptor
  *------------------------------------------------------------------------*/
 struct usb2_interface_descriptor *
-usb2_find_idesc(struct usb2_config_descriptor *cd,
-    uint8_t iface_index, uint8_t alt_index)
+usb2_idesc_foreach(struct usb2_config_descriptor *cd,
+    struct usb2_idesc_parse_state *ps)
 {
-	struct usb2_descriptor *desc = NULL;
 	struct usb2_interface_descriptor *id;
-	uint8_t curidx = 0;
-	uint8_t lastidx = 0;
-	uint8_t curaidx = 0;
-	uint8_t first = 1;
+	uint8_t new_iface;
 
-	while ((desc = usb2_desc_foreach(cd, desc))) {
-		if ((desc->bDescriptorType == UDESC_INTERFACE) &&
-		    (desc->bLength >= sizeof(*id))) {
-			id = (void *)desc;
+	/* retrieve current descriptor */
+	id = (struct usb2_interface_descriptor *)ps->desc;
+	/* default is to start a new interface */
+	new_iface = 1;
 
-			if (first) {
-				first = 0;
-				lastidx = id->bInterfaceNumber;
-
-			} else if (id->bInterfaceNumber != lastidx) {
-
-				lastidx = id->bInterfaceNumber;
-				curidx++;
-				curaidx = 0;
-
-			} else {
-				curaidx++;
-			}
-
-			if ((iface_index == curidx) && (alt_index == curaidx)) {
-				return (id);
-			}
+	while (1) {
+		id = (struct usb2_interface_descriptor *)
+		    usb2_desc_foreach(cd, (struct usb2_descriptor *)id);
+		if (id == NULL)
+			break;
+		if ((id->bDescriptorType == UDESC_INTERFACE) &&
+		    (id->bLength >= sizeof(*id))) {
+			if (ps->iface_no_last == id->bInterfaceNumber)
+				new_iface = 0;
+			ps->iface_no_last = id->bInterfaceNumber;
+			break;
 		}
 	}
-	return (NULL);
+
+	if (ps->desc == NULL) {
+		/* first time */
+	} else if (new_iface) {
+		/* new interface */
+		ps->iface_index ++;
+		ps->iface_index_alt = 0;
+	} else {
+		/* new alternate interface */
+		ps->iface_index_alt ++;
+	}
+
+	/* store and return current descriptor */
+	ps->desc = (struct usb2_descriptor *)id;
+	return (id);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_find_edesc
+ *	usb2_edesc_foreach
  *
- * This function will return the endpoint descriptor for the passed
- * interface index, alternate index and endpoint index.
+ * This function will iterate all the endpoint descriptors within an
+ * interface descriptor. Starting value for the "ped" argument should
+ * be a valid interface descriptor.
  *
  * Return values:
  *   NULL: End of descriptors
  *   Else: A valid endpoint descriptor
  *------------------------------------------------------------------------*/
 struct usb2_endpoint_descriptor *
-usb2_find_edesc(struct usb2_config_descriptor *cd,
-    uint8_t iface_index, uint8_t alt_index, uint8_t ep_index)
+usb2_edesc_foreach(struct usb2_config_descriptor *cd,
+    struct usb2_endpoint_descriptor *ped)
 {
-	struct usb2_descriptor *desc = NULL;
-	struct usb2_interface_descriptor *d;
-	uint8_t curidx = 0;
+	struct usb2_descriptor *desc;
 
-	d = usb2_find_idesc(cd, iface_index, alt_index);
-	if (d == NULL)
-		return (NULL);
-
-	if (ep_index >= d->bNumEndpoints)	/* quick exit */
-		return (NULL);
-
-	desc = ((void *)d);
+	desc = ((struct usb2_descriptor *)ped);
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
 		if (desc->bDescriptorType == UDESC_INTERFACE) {
 			break;
 		}
 		if (desc->bDescriptorType == UDESC_ENDPOINT) {
-			if (curidx == ep_index) {
-				if (desc->bLength <
-				    sizeof(struct usb2_endpoint_descriptor)) {
-					/* endpoint index is invalid */
-					break;
-				}
-				return ((void *)desc);
+			if (desc->bLength < sizeof(*ped)) {
+				/* endpoint index is invalid */
+				break;
 			}
-			curidx++;
+			return ((struct usb2_endpoint_descriptor *)desc);
 		}
 	}
 	return (NULL);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_get_no_endpoints
+ *	usb2_get_no_descriptors
  *
- * This function will count the total number of endpoints available.
+ * This function will count the total number of descriptors in the
+ * configuration descriptor of type "type".
  *------------------------------------------------------------------------*/
-uint16_t
-usb2_get_no_endpoints(struct usb2_config_descriptor *cd)
+uint8_t
+usb2_get_no_descriptors(struct usb2_config_descriptor *cd, uint8_t type)
 {
 	struct usb2_descriptor *desc = NULL;
-	uint16_t count = 0;
+	uint8_t count = 0;
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
-		if (desc->bDescriptorType == UDESC_ENDPOINT) {
+		if (desc->bDescriptorType == type) {
 			count++;
+			if (count == 0xFF)
+				break;			/* crazy */
 		}
 	}
 	return (count);
@@ -200,25 +196,30 @@ usb2_get_no_endpoints(struct usb2_config_descriptor *cd)
  *	usb2_get_no_alts
  *
  * Return value:
- *   Number of alternate settings for the given "ifaceno".
- *
- * NOTE: The returned can be larger than the actual number of
- * alternate settings.
+ *   Number of alternate settings for the given interface descriptor pointer.
  *------------------------------------------------------------------------*/
-uint16_t
-usb2_get_no_alts(struct usb2_config_descriptor *cd, uint8_t ifaceno)
+uint8_t
+usb2_get_no_alts(struct usb2_config_descriptor *cd,
+    struct usb2_interface_descriptor *id)
 {
-	struct usb2_descriptor *desc = NULL;
-	struct usb2_interface_descriptor *id;
-	uint16_t n = 0;
+	struct usb2_descriptor *desc;
+	uint8_t n = 0;
+	uint8_t ifaceno;
+
+	ifaceno = id->bInterfaceNumber;
+
+	desc = (struct usb2_descriptor *)id;
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
 		if ((desc->bDescriptorType == UDESC_INTERFACE) &&
 		    (desc->bLength >= sizeof(*id))) {
-			id = (void *)desc;
+			id = (struct usb2_interface_descriptor *)desc;
 			if (id->bInterfaceNumber == ifaceno) {
 				n++;
-			}
+				if (n == 0xFF)
+					break;		/* crazy */
+			} else
+				break;			/* end */
 		}
 	}
 	return (n);

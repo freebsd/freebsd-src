@@ -436,7 +436,7 @@ static void radeon_init_pipes(drm_radeon_private_t *dev_priv)
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV515) {
 		RADEON_WRITE_PLL(R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
-		RADEON_WRITE(R500_SU_REG_DEST, ((1 << dev_priv->num_gb_pipes) - 1));
+		RADEON_WRITE(R300_SU_REG_DEST, ((1 << dev_priv->num_gb_pipes) - 1));
 	}
 	RADEON_WRITE(R300_GB_TILE_CONFIG, gb_tile_config);
 	radeon_do_wait_for_idle(dev_priv);
@@ -455,88 +455,71 @@ static void radeon_init_pipes(drm_radeon_private_t *dev_priv)
 /* Load the microcode for the CP */
 static void radeon_cp_load_microcode(drm_radeon_private_t * dev_priv)
 {
+	const u32 (*cp)[2];
 	int i;
+
 	DRM_DEBUG("\n");
+
+	switch (dev_priv->flags & RADEON_FAMILY_MASK) {
+	case CHIP_R100:
+	case CHIP_RV100:
+	case CHIP_RV200:
+	case CHIP_RS100:
+	case CHIP_RS200:
+		DRM_INFO("Loading R100 Microcode\n");
+		cp = R100_cp_microcode;
+		break;
+	case CHIP_R200:
+	case CHIP_RV250:
+	case CHIP_RV280:
+	case CHIP_RS300:
+		DRM_INFO("Loading R200 Microcode\n");
+		cp = R200_cp_microcode;
+		break;
+	case CHIP_R300:
+	case CHIP_R350:
+	case CHIP_RV350:
+	case CHIP_RV380:
+	case CHIP_RS400:
+	case CHIP_RS480:
+		DRM_INFO("Loading R300 Microcode\n");
+		cp = R300_cp_microcode;
+		break;
+	case CHIP_R420:
+	case CHIP_R423:
+	case CHIP_RV410:
+		DRM_INFO("Loading R400 Microcode\n");
+		cp = R420_cp_microcode;
+		break;
+	case CHIP_RS690:
+	case CHIP_RS740:
+		DRM_INFO("Loading RS690/RS740 Microcode\n");
+		cp = RS690_cp_microcode;
+		break;
+	case CHIP_RS600:
+		DRM_INFO("Loading RS600 Microcode\n");
+		cp = RS600_cp_microcode;
+		break;
+	case CHIP_RV515:
+	case CHIP_R520:
+	case CHIP_RV530:
+	case CHIP_R580:
+	case CHIP_RV560:
+	case CHIP_RV570:
+		DRM_INFO("Loading R500 Microcode\n");
+		cp = R520_cp_microcode;
+		break;
+	default:
+		return;
+	}
 
 	radeon_do_wait_for_idle(dev_priv);
 
 	RADEON_WRITE(RADEON_CP_ME_RAM_ADDR, 0);
-	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R100) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV100) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV200) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS100) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS200)) {
-		DRM_INFO("Loading R100 Microcode\n");
-		for (i = 0; i < 256; i++) {
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
-				     R100_cp_microcode[i][1]);
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
-				     R100_cp_microcode[i][0]);
-		}
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R200) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV250) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV280) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS300)) {
-		DRM_INFO("Loading R200 Microcode\n");
-		for (i = 0; i < 256; i++) {
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
-				     R200_cp_microcode[i][1]);
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
-				     R200_cp_microcode[i][0]);
-		}
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R300) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R350) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV350) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV380) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS400) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480)) {
-		DRM_INFO("Loading R300 Microcode\n");
-		for (i = 0; i < 256; i++) {
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
-				     R300_cp_microcode[i][1]);
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
-				     R300_cp_microcode[i][0]);
-		}
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R420) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R423) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV410)) {
-		DRM_INFO("Loading R400 Microcode\n");
-		for (i = 0; i < 256; i++) {
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
-				     R420_cp_microcode[i][1]);
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
-				     R420_cp_microcode[i][0]);
-		}
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740)) {
-		DRM_INFO("Loading RS690/RS740 Microcode\n");
-		for (i = 0; i < 256; i++) {
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
-				     RS690_cp_microcode[i][1]);
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
-				     RS690_cp_microcode[i][0]);
-		}
-	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS600) {
-		DRM_INFO("Loading RS600 Microcode\n");
-		for (i = 0; i < 256; i++) {
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
-				     RS600_cp_microcode[i][1]);
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
-				     RS600_cp_microcode[i][0]);
-		}
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R520) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV530) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R580) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV560) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV570)) {
-		DRM_INFO("Loading R500 Microcode\n");
-		for (i = 0; i < 256; i++) {
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
-				     R520_cp_microcode[i][1]);
-			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
-				     R520_cp_microcode[i][0]);
-		}
+
+	for (i = 0; i != 256; i++) {
+		RADEON_WRITE(RADEON_CP_ME_RAM_DATAH, cp[i][1]);
+		RADEON_WRITE(RADEON_CP_ME_RAM_DATAL, cp[i][0]);
 	}
 }
 
@@ -1708,26 +1691,14 @@ void radeon_do_release(struct drm_device * dev)
 			if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) {
 				while ((ret = r600_do_cp_idle(dev_priv)) != 0) {
 					DRM_DEBUG("radeon_do_cp_idle %d\n", ret);
-#ifdef __linux__
-					schedule();
-#elsif defined(__FreeBSD__)
 					mtx_sleep(&ret, &dev->dev_lock, 0,
 					    "rdnrel", 1);
-#else
-					tsleep(&ret, PZERO, "rdnrel", 1);
-#endif
 				}
 			} else {
 				while ((ret = radeon_do_cp_idle(dev_priv)) != 0) {
 					DRM_DEBUG("radeon_do_cp_idle %d\n", ret);
-#ifdef __linux__
-					schedule();
-#elsif defined(__FreeBSD__)
 					mtx_sleep(&ret, &dev->dev_lock, 0,
 					    "rdnrel", 1);
-#else
-					tsleep(&ret, PZERO, "rdnrel", 1);
-#endif
 				}
 			}
 			if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) {

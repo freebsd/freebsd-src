@@ -48,111 +48,112 @@
 #include <netinet6/scope6_var.h>
 
 struct vnet_inet6 {
-	struct in6_ifaddr *		_in6_ifaddr;
+	struct in6_ifaddr *	_in6_ifaddr;
 
-	u_int				_frag6_nfragpackets;
-	u_int				_frag6_nfrags;
-	struct ip6q			_ip6q;
+	u_int			_frag6_nfragpackets;
+	u_int			_frag6_nfrags;
+	struct ip6q		_ip6q;
 
-	struct route_in6 		_ip6_forward_rt;	/* XXX remove */
-
-	struct in6_addrpolicy 		_defaultaddrpolicy;
+	struct in6_addrpolicy 	_defaultaddrpolicy;
 	TAILQ_HEAD(, addrsel_policyent) _addrsel_policytab;
-	u_int				_in6_maxmtu;
-	int				_ip6_auto_linklocal;
-	int				_rtq_minreallyold6;
-	int				_rtq_reallyold6;
-	int				_rtq_toomany6;
+	u_int			_in6_maxmtu;
+	int			_ip6_auto_linklocal;
+	int			_rtq_minreallyold6;
+	int			_rtq_reallyold6;
+	int			_rtq_toomany6;
 
-	struct ip6stat 			_ip6stat;
-	struct rip6stat 		_rip6stat;
-	struct icmp6stat 		_icmp6stat;
+	struct ip6stat 		_ip6stat;
+	struct rip6stat 	_rip6stat;
+	struct icmp6stat 	_icmp6stat;
 
-	int				_rtq_timeout6;  
-	struct callout 			_rtq_timer6;
-	struct callout 			_rtq_mtutimer;
-	struct callout 			_nd6_slowtimo_ch;
-	struct callout 			_nd6_timer_ch;
-	struct callout 			_in6_tmpaddrtimer_ch;
+	int			_rtq_timeout6;  
+	struct callout 		_rtq_timer6;
+	struct callout 		_rtq_mtutimer;
+	struct callout 		_nd6_slowtimo_ch;
+	struct callout 		_nd6_timer_ch;
+	struct callout 		_in6_tmpaddrtimer_ch;
 
-	int				_nd6_inuse;
-	int				_nd6_allocated;
-	int				_nd6_onlink_ns_rfc4861;
-	struct nd_drhead		_nd_defrouter;
-	struct nd_prhead 		_nd_prefix;
-	struct ifnet *			_nd6_defifp;
-	int				_nd6_defifindex;
+	int			_nd6_inuse;
+	int			_nd6_allocated;
+	int			_nd6_onlink_ns_rfc4861;
+	struct nd_drhead	_nd_defrouter;
+	struct nd_prhead 	_nd_prefix;
+	struct ifnet *		_nd6_defifp;
+	int			_nd6_defifindex;
 
-	struct scope6_id 		_sid_default;
+	struct scope6_id 	_sid_default;
 
-	TAILQ_HEAD(, dadq) 		_dadq;
-	int				_dad_init;
+	TAILQ_HEAD(, dadq) 	_dadq;
+	int			_dad_init;
 
-	int				_icmp6errpps_count;
-	struct timeval			_icmp6errppslim_last;
+	int			_icmp6errpps_count;
+	struct timeval		_icmp6errppslim_last;
 
-	int 				_ip6_forwarding;
-	int				_ip6_sendredirects;
-	int				_ip6_defhlim;
-	int				_ip6_defmcasthlim;
-	int				_ip6_accept_rtadv;
-	int				_ip6_maxfragpackets;
-	int				_ip6_maxfrags;
-	int				_ip6_log_interval;
-	int				_ip6_hdrnestlimit;
-	int				_ip6_dad_count;
-	int				_ip6_auto_flowlabel;
-	int				_ip6_use_deprecated;
-	int				_ip6_rr_prune;
-	int				_ip6_mcast_pmtu;
-	int				_ip6_v6only;
-	int				_ip6_keepfaith;
-	int				_ip6stealth;
-	time_t				_ip6_log_time;
+	int 			_ip6_forwarding;
+	int			_ip6_sendredirects;
+	int			_ip6_defhlim;
+	int			_ip6_defmcasthlim;
+	int			_ip6_accept_rtadv;
+	int			_ip6_maxfragpackets;
+	int			_ip6_maxfrags;
+	int			_ip6_log_interval;
+	int			_ip6_hdrnestlimit;
+	int			_ip6_dad_count;
+	int			_ip6_auto_flowlabel;
+	int			_ip6_use_deprecated;
+	int			_ip6_rr_prune;
+	int			_ip6_mcast_pmtu;
+	int			_ip6_v6only;
+	int			_ip6_keepfaith;
+	int			_ip6stealth;
+	time_t			_ip6_log_time;
 
-	int				_pmtu_expire;
-	int				_pmtu_probe;
-	u_long				_rip6_sendspace;
-	u_long				_rip6_recvspace;
-	int				_icmp6_rediraccept;
-	int				_icmp6_redirtimeout;
-	int				_icmp6errppslim;
-	int				_icmp6_nodeinfo;
-	int				_udp6_sendspace;
-	int				_udp6_recvspace;
-	int				_ip6qmaxlen;
-	int				_ip6_prefer_tempaddr;
-	int				_ip6_forward_srcrt;	/* XXX remove */
-	int				_ip6_sourcecheck;	/* XXX remove */
-	int				_ip6_sourcecheck_interval; /* XXX remove */
-	int				_ip6_ours_check_algorithm; /* XXX remove */
+	int			_pmtu_expire;
+	int			_pmtu_probe;
+	u_long			_rip6_sendspace;
+	u_long			_rip6_recvspace;
+	int			_icmp6_rediraccept;
+	int			_icmp6_redirtimeout;
+	int			_icmp6errppslim;
+	int			_icmp6_nodeinfo;
+	int			_udp6_sendspace;
+	int			_udp6_recvspace;
+	int			_ip6qmaxlen;
+	int			_ip6_prefer_tempaddr;
 
-	int				_nd6_prune;
-	int				_nd6_delay;
-	int				_nd6_umaxtries;
-	int				_nd6_mmaxtries;
-	int				_nd6_useloopback;
-	int				_nd6_gctimer;
-	int				_nd6_maxndopt;
-	int				_nd6_maxnudhint;
-	int				_nd6_maxqueuelen;
-	int				_nd6_debug;
-	int				_nd6_recalc_reachtm_interval;
-	int				_dad_ignore_ns;
-	int				_dad_maxtry;
-	int				_ip6_use_tempaddr;
-	int				_ip6_desync_factor;
-	u_int32_t			_ip6_temp_preferred_lifetime;
-	u_int32_t			_ip6_temp_valid_lifetime;
+	int			_nd6_prune;
+	int			_nd6_delay;
+	int			_nd6_umaxtries;
+	int			_nd6_mmaxtries;
+	int			_nd6_useloopback;
+	int			_nd6_gctimer;
+	int			_nd6_maxndopt;
+	int			_nd6_maxnudhint;
+	int			_nd6_maxqueuelen;
+	int			_nd6_debug;
+	int			_nd6_recalc_reachtm_interval;
+	int			_dad_ignore_ns;
+	int			_dad_maxtry;
+	int			_ip6_use_tempaddr;
+	int			_ip6_desync_factor;
+	u_int32_t		_ip6_temp_preferred_lifetime;
+	u_int32_t		_ip6_temp_valid_lifetime;
 
-	int				_ip6_mrouter_ver;
-	int				_pim6;
-	u_int				_mrt6debug;
+	struct socket *		_ip6_mrouter;
+	int			_ip6_mrouter_ver;
+	int			_pim6;
+	u_int			_mrt6debug;
 
-	int				_ip6_temp_regen_advance;
-	int				_ip6_use_defzone;
+	int			_ip6_temp_regen_advance;
+	int			_ip6_use_defzone;
 
-	struct ip6_pktopts		_ip6_opts;
+	struct ip6_pktopts	_ip6_opts;
+
+	struct timeval		_mld_gsrdelay;
+	LIST_HEAD(, mld_ifinfo)	_mli_head;
+	int			_interface_timers_running6;
+	int			_state_change_timers_running6;
+	int			_current_state_timers_running6;
 };
 
 /* Size guard. See sys/vimage.h. */
@@ -173,6 +174,8 @@ extern struct vnet_inet6 vnet_inet6_0;
  * Symbol translation macros
  */
 #define	V_addrsel_policytab		VNET_INET6(addrsel_policytab)
+#define	V_current_state_timers_running6	\
+	VNET_INET6(current_state_timers_running6)
 #define	V_dad_ignore_ns			VNET_INET6(dad_ignore_ns)
 #define	V_dad_init			VNET_INET6(dad_init)
 #define	V_dad_maxtry			VNET_INET6(dad_maxtry)
@@ -190,6 +193,8 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_in6_ifaddr			VNET_INET6(in6_ifaddr)
 #define	V_in6_maxmtu			VNET_INET6(in6_maxmtu)
 #define	V_in6_tmpaddrtimer_ch		VNET_INET6(in6_tmpaddrtimer_ch)
+#define	V_interface_timers_running6	\
+	VNET_INET6(interface_timers_running6)
 #define	V_ip6_accept_rtadv		VNET_INET6(ip6_accept_rtadv)
 #define	V_ip6_auto_flowlabel		VNET_INET6(ip6_auto_flowlabel)
 #define	V_ip6_auto_linklocal		VNET_INET6(ip6_auto_linklocal)
@@ -205,6 +210,7 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_ip6_maxfragpackets		VNET_INET6(ip6_maxfragpackets)
 #define	V_ip6_maxfrags			VNET_INET6(ip6_maxfrags)
 #define	V_ip6_mcast_pmtu		VNET_INET6(ip6_mcast_pmtu)
+#define	V_ip6_mrouter			VNET_INET6(ip6_mrouter)
 #define	V_ip6_mrouter_ver		VNET_INET6(ip6_mrouter_ver)
 #define	V_ip6_opts			VNET_INET6(ip6_opts)
 #define	V_ip6_prefer_tempaddr		VNET_INET6(ip6_prefer_tempaddr)
@@ -223,6 +229,8 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_ip6stealth			VNET_INET6(ip6stealth)
 #define	V_llinfo_nd6			VNET_INET6(llinfo_nd6)
 #define	V_mrt6debug			VNET_INET6(mrt6debug)
+#define	V_mld_gsrdelay			VNET_INET6(mld_gsrdelay)
+#define	V_mli_head			VNET_INET6(mli_head)
 #define	V_nd6_allocated			VNET_INET6(nd6_allocated)
 #define	V_nd6_debug			VNET_INET6(nd6_debug)
 #define	V_nd6_defifindex		VNET_INET6(nd6_defifindex)
@@ -256,6 +264,8 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_rtq_timer6			VNET_INET6(rtq_timer6)
 #define	V_rtq_toomany6			VNET_INET6(rtq_toomany6)
 #define	V_sid_default			VNET_INET6(sid_default)
+#define	V_state_change_timers_running6	\
+	VNET_INET6(state_change_timers_running6)
 #define	V_udp6_recvspace		VNET_INET6(udp6_recvspace)	
 #define	V_udp6_sendspace		VNET_INET6(udp6_sendspace)
 

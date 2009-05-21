@@ -64,7 +64,8 @@ struct g_label_desc {
 };
 
 /* Supported labels. */
-extern const struct g_label_desc g_label_ufs;
+extern const struct g_label_desc g_label_ufs_id;
+extern const struct g_label_desc g_label_ufs_volume;
 extern const struct g_label_desc g_label_iso9660;
 extern const struct g_label_desc g_label_msdosfs;
 extern const struct g_label_desc g_label_ext2fs;

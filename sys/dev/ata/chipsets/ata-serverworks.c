@@ -58,6 +58,9 @@ static int ata_serverworks_ch_detach(device_t dev);
 static void ata_serverworks_tf_read(struct ata_request *request);
 static void ata_serverworks_tf_write(struct ata_request *request);
 static void ata_serverworks_setmode(device_t dev, int mode);
+#ifdef __powerpc__
+static int ata_serverworks_status(device_t dev);
+#endif
 
 /* misc defines */
 #define SWKS_33		0
@@ -97,6 +100,23 @@ ata_serverworks_probe(device_t dev)
     ctlr->chipinit = ata_serverworks_chipinit;
     return 0;
 }
+
+#ifdef __powerpc__
+static int
+ata_serverworks_status(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    /*
+     * We need to do a 4-byte read on the status reg before the values
+     * will report correctly
+     */
+
+    ATA_IDX_INL(ch,ATA_STATUS);
+
+    return ata_pci_status(dev);
+}
+#endif
 
 static int
 ata_serverworks_chipinit(device_t dev)
@@ -186,6 +206,9 @@ ata_serverworks_ch_attach(device_t dev)
     ata_pci_hw(dev);
     ch->hw.tf_read = ata_serverworks_tf_read;
     ch->hw.tf_write = ata_serverworks_tf_write;
+#ifdef __powerpc__
+    ch->hw.status = ata_serverworks_status;
+#endif
 
     /* chip does not reliably do 64K DMA transfers */
     ch->dma.max_iosize = 64 * DEV_BSIZE;

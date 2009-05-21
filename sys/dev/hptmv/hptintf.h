@@ -162,7 +162,7 @@ typedef DWORD DEVICEID;
  * It would be better if ioctl code are the same on different platforms,
  * but we must not conflict with system defined ioctl code.
  ************************************************************************/
-#if defined(LINUX) || defined(__FreeBSD_version) || defined(_MACOSX_)
+#if defined(LINUX) || defined(__FreeBSD_version)
 #define HPT_CTL_CODE(x) (x+0xFF00)
 #elif defined(_MS_WIN32_) || defined(WIN32)
 
@@ -220,6 +220,11 @@ typedef DWORD DEVICEID;
 #define HPT_IOCTL_LOCK_DEVICE_V2            HPT_CTL_CODE(38)
 #define HPT_IOCTL_DEVICE_IO_V2              HPT_CTL_CODE(39)
 #define HPT_IOCTL_DEVICE_IO_EX_V2           HPT_CTL_CODE(40)
+
+#define HPT_IOCTL_I2C_TRANSACTION           HPT_CTL_CODE(48)
+#define HPT_IOCTL_GET_PARAMETER_LIST        HPT_CTL_CODE(49)
+#define HPT_IOCTL_GET_PARAMETER             HPT_CTL_CODE(50)
+#define HPT_IOCTL_SET_PARAMETER             HPT_CTL_CODE(51)
 
 /* Windows only */
 #define HPT_IOCTL_GET_CONTROLLER_IDS        HPT_CTL_CODE(100)
@@ -368,8 +373,13 @@ typedef struct _HPT_ARRAY_INFO {
 
 #if HPT_INTERFACE_VERSION>=0x01010000
 typedef struct _LBA64 {
+#ifdef __BIG_ENDIAN_BITFIELD
+	DWORD hi32;
+	DWORD lo32;
+#else 
 	DWORD lo32;
 	DWORD hi32;
+#endif
 }
 LBA64;
 typedef struct _HPT_ARRAY_INFO_V2 {
@@ -687,16 +697,15 @@ typedef struct _IDE_PASS_THROUGH_HEADER {
 	DEVICEID idDisk;           /* disk ID */
 	BYTE     bFeaturesReg;     /* feature register */
 	BYTE     bSectorCountReg;  /* IDE sector count register. */
-	BYTE     bSectorNumberReg; /* IDE sector number register. */
-	BYTE     bCylLowReg;       /* IDE low order cylinder value. */
-	BYTE     bCylHighReg;      /* IDE high order cylinder value. */
+	BYTE     bLbaLowReg; /* IDE sector number register. */
+	BYTE     bLbaMidReg;       /* IDE low order cylinder value. */
+	BYTE     bLbaHighReg;      /* IDE high order cylinder value. */
 	BYTE     bDriveHeadReg;    /* IDE drive/head register. */
 	BYTE     bCommandReg;      /* Actual IDE command. Checked for validity by driver. */
-	BYTE     reserve1;
-	DWORD    DataSize;         /* data size in bytes, if the command has data transfer */
-#ifdef _MSC_VER
-	BYTE     DataBuffer[0];    /* data buffer */
-#endif
+	BYTE     nSectors;		/* data sze in sectors, if the command has data transfer */
+	BYTE     protocol;            /* IO_COMMAND_(READ,WRITE) or zero for non-DATA */
+	BYTE     reserve[3];
+#define IDE_PASS_THROUGH_buffer(p) ((unsigned char *)(p) + sizeof(IDE_PASS_THROUGH_HEADER))	
 }
 IDE_PASS_THROUGH_HEADER, *PIDE_PASS_THROUGH_HEADER;
 
@@ -729,7 +738,8 @@ DEVICE_IO_EX_PARAMS, *PDEVICE_IO_EX_PARAMS;
 /*
  * ioctl structure
  */
-#define HPT_IOCTL_MAGIC 0x1A2B3C4D
+#define HPT_IOCTL_MAGIC32 0x1A2B3C4D
+#define HPT_IOCTL_MAGIC   0xA1B2C3D4
 
 typedef struct _HPT_IOCTL_PARAM {
 	DWORD   Magic;                 /* used to check if it's a valid ioctl packet */
@@ -742,7 +752,7 @@ typedef struct _HPT_IOCTL_PARAM {
 }
 HPT_IOCTL_PARAM, *PHPT_IOCTL_PARAM;
 
-/* for 64-bit system */
+/* for 32-bit app running on 64-bit system */
 typedef struct _HPT_IOCTL_PARAM32 {
 	DWORD   Magic;
 	DWORD   dwIoControlCode;
@@ -1204,6 +1214,18 @@ int hpt_query_remove(DWORD ndev, DEVICEID *pIds);
  *  n  - the n-th device that can't be removed
  */
 int hpt_remove_devices(DWORD ndev, DEVICEID *pIds);
+/*-------------------------------------------------------------------------- */
+
+/* hpt_ide_pass_through
+ *  directly access controller's command and control registers.
+ *  Can only call it on physical devices.
+ * Version compatibility: v1.0.0.3 or later
+ * Parameters:
+ *   p - IDE_PASS_THROUGH header pointer
+ * Returns:
+ *   0  Success
+ */
+int hpt_ide_pass_through(PIDE_PASS_THROUGH_HEADER p);
 /*-------------------------------------------------------------------------- */
 
 #endif

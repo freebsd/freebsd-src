@@ -155,6 +155,12 @@ cpu_switchin:
 	mtsr	USER_SR,%r5
 	isync
 	lwz	%r1,PCB_SP(%r3)		/* Load the stack pointer */
+	/*
+	 * Perform a dummy stwcx. to clear any reservations we may have
+	 * inherited from the previous thread. It doesn't matter if the
+	 * stwcx succeeds or not. pcb_context[0] can be clobbered.
+	 */
+	stwcx.	%r1, 0, %r3
 	blr
 
 /*

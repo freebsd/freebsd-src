@@ -229,6 +229,7 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 				RADEON_WRITE(RADEON_AIC_CNTL,
 				    tmp | RS400_MSI_REARM);
 				break;
+			case CHIP_RS600:
 			case CHIP_RS690:
 			case CHIP_RS740:
 				tmp = RADEON_READ(RADEON_BUS_CNTL) &
@@ -280,6 +281,9 @@ static int radeon_wait_irq(struct drm_device * dev, int swi_nr)
 
 	DRM_WAIT_ON(ret, dev_priv->swi_queue, 3 * DRM_HZ,
 		    RADEON_READ(RADEON_LAST_SWI_REG) >= swi_nr);
+
+	if (ret == -ERESTART)
+		DRM_DEBUG("restarting syscall");
 
 	return ret;
 }

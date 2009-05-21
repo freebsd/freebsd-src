@@ -76,8 +76,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int uhid_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
-SYSCTL_INT(_hw_usb2_uhid, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
+SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RW,
     &uhid_debug, 0, "Debug level");
 #endif
 
@@ -316,27 +316,27 @@ static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = UHID_BSIZE,
-		.mh.callback = &uhid_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = UHID_BSIZE,
+		.callback = &uhid_intr_callback,
 	},
 
 	[UHID_CTRL_DT_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
-		.mh.callback = &uhid_write_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
+		.callback = &uhid_write_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 
 	[UHID_CTRL_DT_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
-		.mh.callback = &uhid_read_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
+		.callback = &uhid_read_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 };
 
@@ -599,7 +599,7 @@ uhid_probe(device_t dev)
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->use_generic == 0) {
@@ -668,8 +668,8 @@ uhid_attach(device_t dev)
 			 * feature report ID 2 before it'll start
 			 * returning digitizer data.
 			 */
-			error = usb2_req_set_report
-			    (uaa->device, &Giant, reportbuf, sizeof(reportbuf),
+			error = usb2_req_set_report(uaa->device, NULL,
+			    reportbuf, sizeof(reportbuf),
 			    uaa->info.bIfaceIndex, UHID_FEATURE_REPORT, 2);
 
 			if (error) {
@@ -691,16 +691,16 @@ uhid_attach(device_t dev)
 	}
 	if (sc->sc_repdesc_ptr == NULL) {
 
-		error = usb2_req_get_hid_desc
-		    (uaa->device, &Giant, &sc->sc_repdesc_ptr,
-		    &sc->sc_repdesc_size, M_USBDEV, uaa->info.bIfaceIndex);
+		error = usb2_req_get_hid_desc(uaa->device, NULL,
+		    &sc->sc_repdesc_ptr, &sc->sc_repdesc_size,
+		    M_USBDEV, uaa->info.bIfaceIndex);
 
 		if (error) {
 			device_printf(dev, "no report descriptor\n");
 			goto detach;
 		}
 	}
-	error = usb2_req_set_idle(uaa->device, &Giant,
+	error = usb2_req_set_idle(uaa->device, NULL,
 	    uaa->info.bIfaceIndex, 0, 0);
 
 	if (error) {

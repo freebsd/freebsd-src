@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef DEBUG
 #include <assert.h>
@@ -163,24 +164,38 @@ newbuf(HTAB *hashp, u_int32_t addr, BUFHEAD *prev_bp)
 
 	oaddr = 0;
 	bp = LRU;
+
+        /* It is bad to overwrite the page under the cursor. */
+        if (bp == hashp->cpage) {
+                BUF_REMOVE(bp);
+                MRU_INSERT(bp);
+                bp = LRU;
+        }
+
+	/* If prev_bp is part of bp overflow, create a new buffer. */
+	if (hashp->nbufs == 0 && prev_bp && bp->ovfl) {
+		BUFHEAD *ovfl;
+
+		for (ovfl = bp->ovfl; ovfl ; ovfl = ovfl->ovfl) {
+			if (ovfl == prev_bp) {
+				hashp->nbufs++;
+				break;
+			}
+		}
+	}
+
 	/*
 	 * If LRU buffer is pinned, the buffer pool is too small. We need to
 	 * allocate more buffers.
 	 */
-	if (hashp->nbufs || (bp->flags & BUF_PIN)) {
+	if (hashp->nbufs || (bp->flags & BUF_PIN) || bp == hashp->cpage) {
 		/* Allocate a new one */
-		if ((bp = (BUFHEAD *)malloc(sizeof(BUFHEAD))) == NULL)
+		if ((bp = (BUFHEAD *)calloc(1, sizeof(BUFHEAD))) == NULL)
 			return (NULL);
-#ifdef PURIFY
-		memset(bp, 0xff, sizeof(BUFHEAD));
-#endif
-		if ((bp->page = (char *)malloc(hashp->BSIZE)) == NULL) {
+		if ((bp->page = (char *)calloc(1, hashp->BSIZE)) == NULL) {
 			free(bp);
 			return (NULL);
 		}
-#ifdef PURIFY
-		memset(bp->page, 0xff, hashp->BSIZE);
-#endif
 		if (hashp->nbufs)
 			hashp->nbufs--;
 	} else {
@@ -267,7 +282,7 @@ newbuf(HTAB *hashp, u_int32_t addr, BUFHEAD *prev_bp)
 		 */
 #ifdef DEBUG1
 		(void)fprintf(stderr, "NEWBUF2: %d->ovfl was %d is now %d\n",
-		    prev_bp->addr, (prev_bp->ovfl ? bp->ovfl->addr : 0),
+		    prev_bp->addr, (prev_bp->ovfl ? prev_bp->ovfl->addr : 0),
 		    (bp ? bp->addr : 0));
 #endif
 		prev_bp->ovfl = bp;
@@ -319,8 +334,10 @@ __buf_free(HTAB *hashp, int do_free, int to_disk)
 		}
 		/* Check if we are freeing stuff */
 		if (do_free) {
-			if (bp->page)
+			if (bp->page) {
+				(void)memset(bp->page, 0, hashp->BSIZE);
 				free(bp->page);
+			}
 			BUF_REMOVE(bp);
 			free(bp);
 			bp = LRU;

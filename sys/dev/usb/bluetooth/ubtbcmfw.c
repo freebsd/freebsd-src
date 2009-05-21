@@ -118,10 +118,10 @@ static const struct usb2_config	ubtbcmfw_config[UBTBCMFW_N_TRANSFER] =
 		.endpoint =	0x02,	/* fixed */
 		.direction =	UE_DIR_OUT,
 		.if_index =	UBTBCMFW_IFACE_IDX,
-		.mh.bufsize =	UBTBCMFW_BSIZE,
-		.mh.flags =	{ .pipe_bof = 1, .force_short_xfer = 1,
+		.bufsize =	UBTBCMFW_BSIZE,
+		.flags =	{ .pipe_bof = 1, .force_short_xfer = 1,
 				  .proxy_buffer = 1, },
-		.mh.callback =	&ubtbcmfw_write_callback,
+		.callback =	&ubtbcmfw_write_callback,
 	},
 
 	[UBTBCMFW_INTR_DT_RD] = {
@@ -129,10 +129,10 @@ static const struct usb2_config	ubtbcmfw_config[UBTBCMFW_N_TRANSFER] =
 		.endpoint =	0x01,	/* fixed */
 		.direction =	UE_DIR_IN,
 		.if_index =	UBTBCMFW_IFACE_IDX,
-		.mh.bufsize =	UBTBCMFW_BSIZE,
-		.mh.flags =	{ .pipe_bof = 1, .short_xfer_ok = 1,
+		.bufsize =	UBTBCMFW_BSIZE,
+		.flags =	{ .pipe_bof = 1, .short_xfer_ok = 1,
 				  .proxy_buffer = 1, },
-		.mh.callback =	&ubtbcmfw_read_callback,
+		.callback =	&ubtbcmfw_read_callback,
 	},
 };
 
@@ -174,7 +174,7 @@ ubtbcmfw_probe(device_t dev)
 
 	struct usb2_attach_arg	*uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
 	if (uaa->info.bIfaceIndex != 0)

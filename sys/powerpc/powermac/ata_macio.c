@@ -259,6 +259,10 @@ ata_macio_setmode(device_t parent, device_t dev)
 
 	mode = ata_limit_mode(dev, mode, sc->max_mode);
 
+	/* XXX Some controllers don't work correctly with ATAPI DMA */
+	if (atadev->param.config & ATA_PROTO_ATAPI)
+		mode = ata_limit_mode(dev, mode, ATA_PIO_MAX);
+
 	if (ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
 		return;
 

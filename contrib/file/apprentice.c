@@ -30,6 +30,11 @@
  */
 
 #include "file.h"
+
+#ifndef	lint
+FILE_RCSID("@(#)$File: apprentice.c,v 1.151 2009/03/18 15:19:23 christos Exp $")
+#endif	/* lint */
+
 #include "magic.h"
 #include "patchlevel.h"
 #include <stdlib.h>
@@ -40,17 +45,10 @@
 #include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/param.h>
 #ifdef QUICK
 #include <sys/mman.h>
 #endif
-#include <sys/types.h>
 #include <dirent.h>
-
-#ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.140 2008/07/20 04:02:15 christos Exp $")
-#endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
 		      isspace((unsigned char) *l))  ++l;}
@@ -91,8 +89,8 @@ const size_t file_nnames = FILE_NAMES_SIZE;
 
 private int getvalue(struct magic_set *ms, struct magic *, const char **, int);
 private int hextoint(int);
-private const char *getstr(struct magic_set *, const char *, char *, int,
-    int *, int);
+private const char *getstr(struct magic_set *, struct magic *, const char *,
+    int);
 private int parse(struct magic_set *, struct magic_entry **, uint32_t *,
     const char *, size_t, int);
 private void eatsize(const char **);
@@ -106,7 +104,7 @@ private void bs1(struct magic *);
 private uint16_t swap2(uint16_t);
 private uint32_t swap4(uint32_t);
 private uint64_t swap8(uint64_t);
-private void mkdbname(const char *, char **, int);
+private char *mkdbname(struct magic_set *, const char *, int);
 private int apprentice_map(struct magic_set *, struct magic **, uint32_t *,
     const char *);
 private int apprentice_compile(struct magic_set *, struct magic **, uint32_t *,
@@ -115,8 +113,8 @@ private int check_format_type(const char *, int);
 private int check_format(struct magic_set *, struct magic *);
 private int get_op(char);
 private int parse_mime(struct magic_set *, struct magic_entry *, const char *);
-private int parse_strength(struct magic_set *, struct magic_entry *,
-    const char *);
+private int parse_strength(struct magic_set *, struct magic_entry *, const char *);
+private int parse_apple(struct magic_set *, struct magic_entry *, const char *);
 
 
 private size_t maxmagic = 0;
@@ -131,6 +129,7 @@ private struct {
 } bang[] = {
 #define	DECLARE_FIELD(name) { # name, sizeof(# name) - 1, parse_ ## name }
 	DECLARE_FIELD(mime),
+	DECLARE_FIELD(apple),
 	DECLARE_FIELD(strength),
 #undef	DECLARE_FIELD
 	{ NULL, 0, NULL }
@@ -215,6 +214,9 @@ static const struct type_tbl_s {
 	{ XX("double"),		FILE_DOUBLE,		FILE_FMT_DOUBLE },
 	{ XX("bedouble"),	FILE_BEDOUBLE,		FILE_FMT_DOUBLE },
 	{ XX("ledouble"),	FILE_LEDOUBLE,		FILE_FMT_DOUBLE },
+	{ XX("leid3"),		FILE_LEID3,		FILE_FMT_NUM },
+	{ XX("beid3"),		FILE_BEID3,		FILE_FMT_NUM },
+	{ XX("indirect"),	FILE_INDIRECT,		FILE_FMT_NONE },
 	{ XX_NULL,		FILE_INVALID,		FILE_FMT_NONE },
 # undef XX
 # undef XX_NULL
@@ -322,11 +324,15 @@ file_delmagic(struct magic *p, int type, size_t entries)
 	if (p == NULL)
 		return;
 	switch (type) {
-#ifdef QUICK
 	case 2:
+#ifdef QUICK
 		p--;
 		(void)munmap((void *)p, sizeof(*p) * (entries + 1));
 		break;
+#else
+		(void)&entries;
+		abort();
+		/*NOTREACHED*/
 #endif
 	case 1:
 		p--;
@@ -590,7 +596,8 @@ set_test_type(struct magic *mstart, struct magic *m)
 	case FILE_SEARCH:
 #ifndef COMPILE_ONLY
 		/* binary test if pattern is not text */
-		if (file_looks_utf8(m->value.us, m->vallen, NULL, NULL) <= 0)
+		if (file_looks_utf8(m->value.us, (size_t)m->vallen, NULL,
+		    NULL) <= 0)
 			mstart->flag |= BINTEST;
 #endif
 		break;
@@ -706,6 +713,8 @@ apprentice_load(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 		(void)fprintf(stderr, "%s\n", usg_hdr);
 
 	/* load directory or file */
+        /* FIXME: Read file names and sort them to prevent
+           non-determinism. See Debian bug #488562. */
 	if (stat(fn, &st) == 0 && S_ISDIR(st.st_mode)) {
 		dir = opendir(fn);
 		if (dir) {
@@ -870,6 +879,7 @@ file_signextend(struct magic_set *ms, struct magic *m, uint64_t v)
 		case FILE_REGEX:
 		case FILE_SEARCH:
 		case FILE_DEFAULT:
+		case FILE_INDIRECT:
 			break;
 		default:
 			if (ms->flags & MAGIC_CHECK)
@@ -1186,6 +1196,12 @@ parse(struct magic_set *ms, struct magic_entry **mentryp, uint32_t *nmentryp,
 			case 'G':
 				m->in_type = FILE_BEDOUBLE;
 				break;
+			case 'i':
+				m->in_type = FILE_LEID3;
+				break;
+			case 'I':
+				m->in_type = FILE_BEID3;
+				break;
 			default:
 				if (ms->flags & MAGIC_CHECK)
 					file_magwarn(ms,
@@ -1475,6 +1491,38 @@ out:
 }
 
 /*
+ * Parse an Apple CREATOR/TYPE annotation from magic file and put it into magic[index - 1]
+ */
+private int
+parse_apple(struct magic_set *ms, struct magic_entry *me, const char *line)
+{
+	size_t i;
+	const char *l = line;
+	struct magic *m = &me->mp[me->cont_count == 0 ? 0 : me->cont_count - 1];
+
+	if (m->apple[0] != '\0') {
+		file_magwarn(ms, "Current entry already has a APPLE type `%.8s',"
+		    " new type `%s'", m->mimetype, l);
+		return -1;
+	}	
+
+	EATAB;
+	for (i = 0; *l && ((isascii((unsigned char)*l) && isalnum((unsigned char)*l))
+	     || strchr("-+/.", *l)) && i < sizeof(m->apple); m->apple[i++] = *l++)
+		continue;
+	if (i == sizeof(m->apple) && *l) {
+		if (ms->flags & MAGIC_CHECK)
+			file_magwarn(ms, "APPLE type `%s' truncated %zu",
+			    line, i);
+	}
+
+	if (i > 0)
+		return 0;
+	else
+		return -1;
+}
+
+/*
  * parse a MIME annotation line from magic file, put into magic[index - 1]
  * if valid
  */
@@ -1492,10 +1540,8 @@ parse_mime(struct magic_set *ms, struct magic_entry *me, const char *line)
 	}	
 
 	EATAB;
-	for (i = 0;
-	     *l && ((isascii((unsigned char)*l) && isalnum((unsigned char)*l))
-	     || strchr("-+/.", *l)) && i < sizeof(m->mimetype);
-	     m->mimetype[i++] = *l++)
+	for (i = 0; *l && ((isascii((unsigned char)*l) && isalnum((unsigned char)*l))
+	     || strchr("-+/.", *l)) && i < sizeof(m->mimetype); m->mimetype[i++] = *l++)
 		continue;
 	if (i == sizeof(m->mimetype)) {
 		m->desc[sizeof(m->mimetype) - 1] = '\0';
@@ -1672,8 +1718,7 @@ check_format(struct magic_set *ms, struct magic *m)
 		 * string is not one character long
 		 */
 		file_magwarn(ms, "Printf format `%c' is not valid for type "
-		    "`%s' in description `%s'",
-		    ptr && *ptr ? *ptr : '?',
+		    "`%s' in description `%s'", *ptr ? *ptr : '?',
 		    file_names[m->type], m->desc);
 		return -1;
 	}
@@ -1698,8 +1743,6 @@ check_format(struct magic_set *ms, struct magic *m)
 private int
 getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 {
-	int slen;
-
 	switch (m->type) {
 	case FILE_BESTRING16:
 	case FILE_LESTRING16:
@@ -1707,16 +1750,13 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 	case FILE_PSTRING:
 	case FILE_REGEX:
 	case FILE_SEARCH:
-		*p = getstr(ms, *p, m->value.s, sizeof(m->value.s), &slen, action);
+		*p = getstr(ms, m, *p, action == FILE_COMPILE);
 		if (*p == NULL) {
 			if (ms->flags & MAGIC_CHECK)
 				file_magwarn(ms, "cannot get string from `%s'",
 				    m->value.s);
 			return -1;
 		}
-		m->vallen = slen;
-		if (m->type == FILE_PSTRING)
-			m->vallen++;
 		return 0;
 	case FILE_FLOAT:
 	case FILE_BEFLOAT:
@@ -1755,13 +1795,15 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 /*
  * Convert a string containing C character escapes.  Stop at an unescaped
  * space or tab.
- * Copy the converted version to "p", returning its length in *slen.
- * Return updated scan pointer as function result.
+ * Copy the converted version to "m->value.s", and the length in m->vallen.
+ * Return updated scan pointer as function result. Warn if set.
  */
 private const char *
-getstr(struct magic_set *ms, const char *s, char *p, int plen, int *slen, int action)
+getstr(struct magic_set *ms, struct magic *m, const char *s, int warn)
 {
 	const char *origs = s;
+	char	*p = m->value.s;
+	size_t  plen = sizeof(m->value.s);
 	char 	*origp = p;
 	char	*pmax = p + plen - 1;
 	int	c;
@@ -1778,25 +1820,33 @@ getstr(struct magic_set *ms, const char *s, char *p, int plen, int *slen, int ac
 			switch(c = *s++) {
 
 			case '\0':
-				if (action == FILE_COMPILE)
+				if (warn)
 					file_magwarn(ms, "incomplete escape");
 				goto out;
 
 			case '\t':
-				if (action == FILE_COMPILE) {
+				if (warn) {
 					file_magwarn(ms,
 					    "escaped tab found, use \\t instead");
-					action++;
+					warn = 0;	/* already did */
 				}
 				/*FALLTHROUGH*/
 			default:
-				if (action == FILE_COMPILE) {
-					if (isprint((unsigned char)c))
-					    file_magwarn(ms,
-						"no need to escape `%c'", c);
-					else
-					    file_magwarn(ms,
-						"unknown escape sequence: \\%03o", c);
+				if (warn) {
+					if (isprint((unsigned char)c)) {
+						/* Allow escaping of 
+						 * ``relations'' */
+						if (strchr("<>&^=!", c)
+						    == NULL) {
+							file_magwarn(ms, "no "
+							    "need to escape "
+							    "`%c'", c);
+						}
+					} else {
+						file_magwarn(ms,
+						    "unknown escape sequence: "
+						    "\\%03o", c);
+					}
 				}
 				/*FALLTHROUGH*/
 			/* space, perhaps force people to use \040? */
@@ -1895,7 +1945,9 @@ getstr(struct magic_set *ms, const char *s, char *p, int plen, int *slen, int ac
 	}
 out:
 	*p = '\0';
-	*slen = p - origp;
+	m->vallen = p - origp;
+	if (m->type == FILE_PSTRING)
+		m->vallen++;
 	return s;
 }
 
@@ -2016,7 +2068,7 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 	char *dbname = NULL;
 	void *mm = NULL;
 
-	mkdbname(fn, &dbname, 0);
+	dbname = mkdbname(ms, fn, 0);
 	if (dbname == NULL)
 		goto error2;
 
@@ -2044,7 +2096,7 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 		file_oomem(ms, (size_t)st.st_size);
 		goto error1;
 	}
-	if (read(fd, mm, (size_t)st.st_size) != (size_t)st.st_size) {
+	if (read(fd, mm, (size_t)st.st_size) != (ssize_t)st.st_size) {
 		file_badread(ms);
 		goto error1;
 	}
@@ -2067,7 +2119,7 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 	else
 		version = ptr[1];
 	if (version != VERSIONNO) {
-		file_error(ms, 0, "File %d.%d supports only %d version magic "
+		file_error(ms, 0, "File %d.%d supports only version %d magic "
 		    "files. `%s' is version %d", FILE_VERSION_MAJOR, patchlevel,
 		    VERSIONNO, dbname, version);
 		goto error1;
@@ -2113,7 +2165,7 @@ apprentice_compile(struct magic_set *ms, struct magic **magicp,
 	char *dbname;
 	int rv = -1;
 
-	mkdbname(fn, &dbname, 1);
+	dbname = mkdbname(ms, fn, 1);
 
 	if (dbname == NULL) 
 		goto out;
@@ -2151,24 +2203,45 @@ private const char ext[] = ".mgc";
 /*
  * make a dbname
  */
-private void
-mkdbname(const char *fn, char **buf, int strip)
+private char *
+mkdbname(struct magic_set *ms, const char *fn, int strip)
 {
-	const char *p;
+	const char *p, *q;
+	char *buf;
+
 	if (strip) {
 		if ((p = strrchr(fn, '/')) != NULL)
 			fn = ++p;
 	}
 
-	if ((p = strstr(fn, ext)) != NULL && p[sizeof(ext) - 1] == '\0')
-		*buf = strdup(fn);
-	else
-		(void)asprintf(buf, "%s%s", fn, ext);
+	for (q = fn; *q; q++)
+		continue;
+	/* Look for .mgc */
+	for (p = ext + sizeof(ext) - 1; p >= ext && q >= fn; p--, q--)
+		if (*p != *q)
+			break;
 
-	if (buf && *buf && strlen(*buf) > MAXPATHLEN) {
-		free(*buf);
-		*buf = NULL;
+	/* Did not find .mgc, restore q */
+	if (p >= ext)
+		while (*q)
+			q++;
+
+	q++;
+	/* Compatibility with old code that looked in .mime */
+	if (ms->flags & MAGIC_MIME) {
+		asprintf(&buf, "%.*s.mime%s", (int)(q - fn), fn, ext);
+		if (access(buf, R_OK) != -1) {
+			ms->flags &= MAGIC_MIME_TYPE;
+			return buf;
+		}
+		free(buf);
 	}
+	asprintf(&buf, "%.*s%s", (int)(q - fn), fn, ext);
+
+	/* Compatibility with old code that looked in .mime */
+	if (strstr(p, ".mime") != NULL)
+		ms->flags &= MAGIC_MIME_TYPE;
+	return buf;
 }
 
 /*

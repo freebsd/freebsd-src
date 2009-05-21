@@ -75,8 +75,9 @@ __ElfType(Auxinfo);
 #define AT_EUID         12      /* Effective uid. */
 #define AT_GID          13      /* Real gid. */
 #define AT_EGID         14      /* Effective gid. */
+#define	AT_EXECPATH	15	/* Path to the executable. */
 
-#define AT_COUNT        15      /* Count of defined aux entry types. */
+#define AT_COUNT        16      /* Count of defined aux entry types. */
 
 #define	R_ARM_COUNT		33	/* Count of defined relocation types. */
 

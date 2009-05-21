@@ -27,10 +27,12 @@
  */
 
 #include <complex.h>
+#include "math_private.h"
 
 double
 cimag(double complex z)
 {
+	const double_complex z1 = { .f = z };
 
-	return (__imag__ z);
+	return (IMAGPART(z1));
 }

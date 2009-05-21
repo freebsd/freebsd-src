@@ -262,6 +262,54 @@ stop_cpus(cpumask_t map)
 	return 1;
 }
 
+#if defined(__amd64__)
+/*
+ * When called the executing CPU will send an IPI to all other CPUs
+ *  requesting that they halt execution.
+ *
+ * Usually (but not necessarily) called with 'other_cpus' as its arg.
+ *
+ *  - Signals all CPUs in map to suspend.
+ *  - Waits for each to suspend.
+ *
+ * Returns:
+ *  -1: error
+ *   0: NA
+ *   1: ok
+ *
+ * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
+ *            from executing at same time.
+ */
+int
+suspend_cpus(cpumask_t map)
+{
+	int i;
+
+	if (!smp_started)
+		return (0);
+
+	CTR1(KTR_SMP, "suspend_cpus(%x)", map);
+
+	/* send the suspend IPI to all CPUs in map */
+	ipi_selected(map, IPI_SUSPEND);
+
+	i = 0;
+	while ((stopped_cpus & map) != map) {
+		/* spin */
+		cpu_spinwait();
+		i++;
+#ifdef DIAGNOSTIC
+		if (i == 100000) {
+			printf("timeout suspending cpus\n");
+			break;
+		}
+#endif
+	}
+
+	return (1);
+}
+#endif
+
 /*
  * Called by a CPU to restart stopped CPUs. 
  *
@@ -443,7 +491,7 @@ smp_topo(void)
 	case 7:
 		/* quad core with a shared l3, 8 threads sharing L2.  */
 		top = smp_topo_2level(CG_SHARE_L3, 4, CG_SHARE_L2, 8,
-		    CG_FLAG_THREAD);
+		    CG_FLAG_SMT);
 		break;
 	default:
 		/* Default, ask the system what it wants. */

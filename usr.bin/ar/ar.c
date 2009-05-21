@@ -108,8 +108,11 @@ main(int argc, char **argv)
 	if ((bsdar->progname = getprogname()) == NULL)
 		bsdar->progname = "ar";
 
-	if (strcmp(bsdar->progname, "ranlib") == 0 ||
-	    strcmp(bsdar->progname, "bsdranlib") == 0) {
+	/* Act like ranlib if our name ends in "ranlib"; this
+	 * accomodates arm-freebsd7.1-ranlib, bsdranlib, etc. */
+	len = strlen(bsdar->progname);
+	if (len >= strlen("ranlib") &&
+	    strcmp(bsdar->progname + len - strlen("ranlib"), "ranlib") == 0) {
 		while ((opt = getopt_long(argc, argv, "tV", longopts,
 		    NULL)) != -1) {
 			switch(opt) {

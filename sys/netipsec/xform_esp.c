@@ -90,6 +90,16 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_esp, IPSECCTL_STATS,
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
+static int esp_iattach(const void *);
+
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_esp_modinfo = {
+	.vmi_id		= VNET_MOD_ESP,
+	.vmi_name	= "ipsec_esp",
+	.vmi_dependson	= VNET_MOD_IPSEC,
+	.vmi_iattach	= esp_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
 
 /*
  * NB: this is public for use by the PF_KEY support.
@@ -990,9 +1000,23 @@ static struct xformsw esp_xformsw = {
 static void
 esp_attach(void)
 {
+
+	xform_register(&esp_xformsw);
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_esp_modinfo);
+#else
+	esp_iattach(NULL);
+#endif
+}
+
+static int
+esp_iattach(const void *unused __unused)
+{
+	INIT_VNET_IPSEC(curvnet);
+
 #define	MAXIV(xform)					\
 	if (xform.blocksize > V_esp_max_ivlen)		\
-		V_esp_max_ivlen = xform.blocksize		\
+		V_esp_max_ivlen = xform.blocksize	\
 
 	V_esp_enable = 1;
 	V_esp_max_ivlen = 0;
@@ -1005,8 +1029,8 @@ esp_attach(void)
 	MAXIV(enc_xform_skipjack);	/* SADB_X_EALG_SKIPJACK */
 	MAXIV(enc_xform_null);		/* SADB_EALG_NULL */
 	MAXIV(enc_xform_camellia);	/* SADB_X_EALG_CAMELLIACBC */
-
-	xform_register(&esp_xformsw);
 #undef MAXIV
+
+	return (0);
 }
 SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, esp_attach, NULL);

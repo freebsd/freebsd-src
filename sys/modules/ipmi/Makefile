@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+SUBDIR+= ipmi_linux
+
 .PATH: ${.CURDIR}/../../dev/ipmi
 
 # XXX - ipmi_smbus and ipmi_ssif depend on smbus

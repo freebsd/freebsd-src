@@ -86,7 +86,6 @@ static const struct usb2_device_id cue_devs[] = {
 static device_probe_t cue_probe;
 static device_attach_t cue_attach;
 static device_detach_t cue_detach;
-static device_shutdown_t cue_shutdown;
 
 static usb2_callback_t cue_bulk_read_callback;
 static usb2_callback_t cue_bulk_write_callback;
@@ -110,8 +109,8 @@ static void	cue_reset(struct cue_softc *);
 #if USB_DEBUG
 static int cue_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
-SYSCTL_INT(_hw_usb2_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
+SYSCTL_INT(_hw_usb_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
     "Debug level");
 #endif
 
@@ -121,19 +120,19 @@ static const struct usb2_config cue_config[CUE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = (MCLBYTES + 2),
-		.mh.flags = {.pipe_bof = 1,},
-		.mh.callback = cue_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = (MCLBYTES + 2),
+		.flags = {.pipe_bof = 1,},
+		.callback = cue_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[CUE_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (MCLBYTES + 2),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = cue_bulk_read_callback,
+		.bufsize = (MCLBYTES + 2),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = cue_bulk_read_callback,
 	},
 };
 
@@ -142,7 +141,6 @@ static device_method_t cue_methods[] = {
 	DEVMETHOD(device_probe, cue_probe),
 	DEVMETHOD(device_attach, cue_attach),
 	DEVMETHOD(device_detach, cue_detach),
-	DEVMETHOD(device_shutdown, cue_shutdown),
 
 	{0, 0}
 };
@@ -362,7 +360,7 @@ cue_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != CUE_CONFIG_IDX)
 		return (ENXIO);
@@ -628,18 +626,4 @@ cue_stop(struct usb2_ether *ue)
 
 	cue_csr_write_1(sc, CUE_ETHCTL, 0);
 	cue_reset(sc);
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-cue_shutdown(device_t dev)
-{
-	struct cue_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

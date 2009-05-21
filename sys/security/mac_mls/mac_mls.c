@@ -2515,11 +2515,11 @@ mls_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (accmode & (VREAD | VEXEC | VSTAT)) {
+	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
 		if (!mls_dominate_effective(subj, obj))
 			return (EACCES);
 	}
-	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & VMODIFY_PERMS) {
 		if (!mls_dominate_effective(obj, subj))
 			return (EACCES);
 	}

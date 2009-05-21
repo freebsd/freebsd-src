@@ -68,40 +68,6 @@ The vnode will be locked on entry and should remain locked on return.
 .Sh RETURN VALUES
 If the file is accessible in the specified way, then zero is returned,
 otherwise an appropriate error code is returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_access(struct vnode *vp, accmode_t accmode, struct ucred *cred, struct thread *td)
-{
-    int error;
-
-    /*
-     * Disallow write attempts on read-only file systems;
-     * unless the file is a socket, fifo, or a block or
-     * character device resident on the filesystem.
-     */
-    if (accmode & VWRITE) {
-	switch (vp->v_type) {
-	case VDIR:
-	case VLNK:
-	case VREG:
-	    if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		return EROFS;
-
-	    break;
-	}
-    }
-
-    /* If immutable bit set, nobody gets to write it. */
-    if ((accmode & VWRITE) && vp has immutable bit set)
-	return (EPERM);
-
-    error = vaccess(vp->v_type, mode of vp, owner of vp,
-        group of vp, ap->a_accmode, ap->a_cred, NULL);
-
-    return (error);
-}
-.Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EPERM

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-tftp.c,v 1.37.2.1 2007/09/14 01:03:12 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-tftp.c,v 1.38.2.1 2008-04-11 16:44:17 gianluca Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -50,7 +50,7 @@ static struct tok op2str[] = {
 	{ WRQ,		"WRQ" },	/* write request */
 	{ DATA,		"DATA" },	/* data packet */
 	{ ACK,		"ACK" },	/* acknowledgement */
-	{ ERROR,	"ERROR" },	/* error code */
+	{ TFTP_ERROR,	"ERROR" },	/* error code */
 	{ OACK,		"OACK" },	/* option acknowledgement */
 	{ 0,		NULL }
 };
@@ -137,7 +137,7 @@ tftp_print(register const u_char *bp, u_int length)
 		printf(" block %d", EXTRACT_16BITS(&tp->th_block));
 		break;
 
-	case ERROR:
+	case TFTP_ERROR:
 		/* Print error code string */
 		TCHECK(tp->th_code);
 		printf(" %s \"", tok2str(err2str, "tftp-err-#%d \"",

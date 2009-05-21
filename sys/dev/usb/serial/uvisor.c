@@ -76,8 +76,8 @@
 #if USB_DEBUG
 static int uvisor_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
-SYSCTL_INT(_hw_usb2_uvisor, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
+SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
     &uvisor_debug, 0, "Debug level");
 #endif
 
@@ -196,18 +196,18 @@ static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UVISOR_BUFSIZE,	/* bytes */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &uvisor_write_callback,
+		.bufsize = UVISOR_BUFSIZE,	/* bytes */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &uvisor_write_callback,
 	},
 
 	[UVISOR_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UVISOR_BUFSIZE,	/* bytes */
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &uvisor_read_callback,
+		.bufsize = UVISOR_BUFSIZE,	/* bytes */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &uvisor_read_callback,
 	},
 };
 
@@ -273,7 +273,7 @@ uvisor_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UVISOR_CONFIG_INDEX) {
@@ -373,8 +373,8 @@ uvisor_init(struct uvisor_softc *sc, struct usb2_device *udev, struct usb2_confi
 		USETW(req.wValue, 0);
 		USETW(req.wIndex, 0);
 		USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
-		err = usb2_do_request_flags
-		    (udev, &Giant, &req, &coninfo, USB_SHORT_XFER_OK,
+		err = usb2_do_request_flags(udev, NULL,
+		    &req, &coninfo, USB_SHORT_XFER_OK,
 		    &actlen, USB_DEFAULT_TIMEOUT);
 
 		if (err) {
@@ -427,7 +427,7 @@ uvisor_init(struct uvisor_softc *sc, struct usb2_device *udev, struct usb2_confi
 		USETW(req.wLength, UVISOR_GET_PALM_INFORMATION_LEN);
 
 		err = usb2_do_request_flags
-		    (udev, &Giant, &req, &pconinfo, USB_SHORT_XFER_OK,
+		    (udev, NULL, &req, &pconinfo, USB_SHORT_XFER_OK,
 		    &actlen, USB_DEFAULT_TIMEOUT);
 
 		if (err) {
@@ -468,7 +468,7 @@ uvisor_init(struct uvisor_softc *sc, struct usb2_device *udev, struct usb2_confi
 		USETW(req.wIndex, 0);
 		USETW(req.wLength, 1);
 
-		err = usb2_do_request(udev, &Giant, &req, buffer);
+		err = usb2_do_request(udev, NULL, &req, buffer);
 		if (err) {
 			goto done;
 		}
@@ -479,7 +479,7 @@ uvisor_init(struct uvisor_softc *sc, struct usb2_device *udev, struct usb2_confi
 		USETW(req.wValue, 0);
 		USETW(req.wIndex, 0);
 		USETW(req.wLength, 1);
-		err = usb2_do_request(udev, &Giant, &req, buffer);
+		err = usb2_do_request(udev, NULL, &req, buffer);
 		if (err) {
 			goto done;
 		}
@@ -490,7 +490,7 @@ uvisor_init(struct uvisor_softc *sc, struct usb2_device *udev, struct usb2_confi
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, 5);
 	USETW(req.wLength, sizeof(wAvail));
-	err = usb2_do_request(udev, &Giant, &req, &wAvail);
+	err = usb2_do_request(udev, NULL, &req, &wAvail);
 	if (err) {
 		goto done;
 	}

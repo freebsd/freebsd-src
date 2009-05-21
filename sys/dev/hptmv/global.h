@@ -33,12 +33,12 @@
 #include <dev/hptmv/mvStorageDev.h>
 
 #define COMPANY      "HighPoint Technologies, Inc."
-#define COPYRIGHT    "(c) 2000-2004. HighPoint Technologies, Inc."
-#define DRIVER_NAME		"RocketRAID 182x SATA Controller driver"
-#define CONTROLLER_NAME	"RocketRAID 182x SATA Controller"
+#define COPYRIGHT    "(c) 2000-2007. HighPoint Technologies, Inc."
+#define DRIVER_NAME		"RocketRAID 18xx SATA Controller driver"
+#define CONTROLLER_NAME	"RocketRAID 18xx SATA Controller"
 #define PROC_DIR_NAME hptmv
 
-#define HPT_INTERFACE_VERSION 0x01000003
+#define HPT_INTERFACE_VERSION 0x01010000
 #define SUPPORT_48BIT_LBA
 #define SUPPORT_ARRAY
 #define SUPPORT_RAID5 1
@@ -193,6 +193,10 @@ extern void HPTLIBAPI ioctl_ReportEvent(UCHAR event, PVOID param);
 
 int HPTLIBAPI fDeReadWrite(PDevice pDev, ULONG Lba, UCHAR Cmd, void *tmpBuffer);
 void HPTLIBAPI fDeSelectMode(PDevice pDev, UCHAR NewMode);
+int HPTLIBAPI fDeSetTCQ(PDevice pDev, int enable, int depth);
+int HPTLIBAPI fDeSetNCQ(PDevice pDev, int enable, int depth);
+int HPTLIBAPI fDeSetWriteCache(PDevice pDev, int enable);
+int HPTLIBAPI fDeSetReadAhead(PDevice pDev, int enable);
 
 #include <dev/hptmv/atapi.h>
 #include <dev/hptmv/command.h>

@@ -40,6 +40,8 @@ extern int xendebug_flags;
 #include <machine/xen/features.h>
 
 extern	xen_pfn_t *xen_phys_machine;
+extern	xen_pfn_t *xen_pfn_to_mfn_frame_list[16];
+extern	xen_pfn_t *xen_pfn_to_mfn_frame_list_list;
 
 #if 0
 #define TRACE_ENTER XENPRINTF("(file=%s, line=%d) entered %s\n", __FILE__, __LINE__, __FUNCTION__)

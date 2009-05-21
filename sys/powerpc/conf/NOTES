@@ -19,7 +19,7 @@ options 	FPU_EMU
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 
-options		SC_OFWFB		# OFW frame buffer
+options 	SC_OFWFB		# OFW frame buffer
 
 # Standard busses
 device		pci

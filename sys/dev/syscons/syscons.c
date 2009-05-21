@@ -173,7 +173,6 @@ static void scshutdown(void *arg, int howto);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
-static int sccngetch(int flags);
 static void sccnupdate(scr_stat *scp);
 static scr_stat *alloc_scp(sc_softc_t *sc, int vty);
 static void init_scp(sc_softc_t *sc, int vty, scr_stat *scp);
@@ -208,7 +207,7 @@ static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
 static timeout_t blink_screen;
-static struct tty *sc_alloc_tty(int, const char *, ...) __printflike(2, 3);
+static struct tty *sc_alloc_tty(int, int);
 
 static cn_probe_t	sc_cnprobe;
 static cn_init_t	sc_cninit;
@@ -225,16 +224,20 @@ static	tsw_ioctl_t	sctty_ioctl;
 static	tsw_mmap_t	sctty_mmap;
 
 static struct ttydevsw sc_ttydevsw = {
-	/*
-	 * XXX: we should use the prefix, but this doesn't work for
-	 * consolectl.
-	 */
-	.tsw_flags	= TF_NOPREFIX,
 	.tsw_open	= sctty_open,
 	.tsw_close	= sctty_close,
 	.tsw_outwakeup	= sctty_outwakeup,
 	.tsw_ioctl	= sctty_ioctl,
 	.tsw_mmap	= sctty_mmap,
+};
+
+static d_ioctl_t	consolectl_ioctl;
+
+static struct cdevsw consolectl_devsw = {
+	.d_version	= D_VERSION,
+	.d_flags	= D_NEEDGIANT,
+	.d_ioctl	= consolectl_ioctl,
+	.d_name		= "consolectl",
 };
 
 int
@@ -322,14 +325,10 @@ sctty_outwakeup(struct tty *tp)
 }
 
 static struct tty *
-sc_alloc_tty(int index, const char *fmt, ...)
+sc_alloc_tty(int index, int devnum)
 {
-	va_list ap;
 	struct sc_ttysoftc *stc;
 	struct tty *tp;
-	char name[11]; /* "consolectl" */
-
-	va_start(ap, fmt);
 
 	/* Allocate TTY object and softc to store unit number. */
 	stc = malloc(sizeof(struct sc_ttysoftc), M_DEVBUF, M_WAITOK);
@@ -338,10 +337,7 @@ sc_alloc_tty(int index, const char *fmt, ...)
 	tp = tty_alloc(&sc_ttydevsw, stc, &Giant);
 
 	/* Create device node. */
-	va_start(ap, fmt);
-	vsnrprintf(name, sizeof name, 32, fmt, ap);
-	va_end(ap);
-	tty_makedev(tp, NULL, "%s", name);
+	tty_makedev(tp, NULL, "v%r", devnum);
 
 	return (tp);
 }
@@ -355,7 +351,7 @@ sc_attach_unit(int unit, int flags)
     video_info_t info;
 #endif
     int vc;
-    struct tty *tp;
+    struct cdev *dev;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -426,7 +422,7 @@ sc_attach_unit(int unit, int flags)
 
     for (vc = 0; vc < sc->vtys; vc++) {
 	if (sc->dev[vc] == NULL) {
-		sc->dev[vc] = sc_alloc_tty(vc, "ttyv%r", vc + unit * MAXCONS);
+		sc->dev[vc] = sc_alloc_tty(vc, vc + unit * MAXCONS);
 		if (vc == 0 && sc->dev == main_devs)
 			SC_STAT(sc->dev[0]) = &main_console;
 	}
@@ -437,8 +433,9 @@ sc_attach_unit(int unit, int flags)
 	 */
     }
 
-    tp = sc_alloc_tty(0, "consolectl");
-    SC_STAT(tp) = sc_console;
+    dev = make_dev(&consolectl_devsw, 0, UID_ROOT, GID_WHEEL, 0600,
+        "consolectl");
+    dev->si_drv1 = sc->dev[0];
 
     return 0;
 }
@@ -1429,6 +1426,14 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     return (ENOIOCTL);
 }
 
+static int
+consolectl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+
+	return sctty_ioctl(dev->si_drv1, cmd, data, td);
+}
+
 static void
 sc_cnprobe(struct consdev *cp)
 {
@@ -1533,12 +1538,6 @@ sc_cnputc(struct consdev *cd, int c)
 static int
 sc_cngetc(struct consdev *cd)
 {
-    return sccngetch(SCGETC_NONBLOCK);
-}
-
-static int
-sccngetch(int flags)
-{
     static struct fkeytab fkey;
     static int fkeycp;
     scr_stat *scp;
@@ -1579,7 +1578,7 @@ sccngetch(int flags)
     kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
 
     kbdd_poll(scp->sc->kbd, TRUE);
-    c = scgetc(scp->sc, SCGETC_CN | flags);
+    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
     kbdd_poll(scp->sc->kbd, FALSE);
 
     scp->kbd_mode = cur_mode;
@@ -2735,7 +2734,7 @@ scinit(int unit, int flags)
 	    /* assert(sc_malloc) */
 	    sc->dev = malloc(sizeof(struct tty *)*sc->vtys, M_DEVBUF,
 	        M_WAITOK|M_ZERO);
-	    sc->dev[0] = sc_alloc_tty(0, "ttyv%r", unit * MAXCONS);
+	    sc->dev[0] = sc_alloc_tty(0, unit * MAXCONS);
 	    scp = alloc_scp(sc, sc->first_vty);
 	    SC_STAT(sc->dev[0]) = scp;
 	}

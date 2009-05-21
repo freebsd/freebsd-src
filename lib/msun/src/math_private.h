@@ -190,6 +190,27 @@ do {								\
 void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
 
 #ifdef _COMPLEX_H
+
+/*
+ * C99 specifies that complex numbers have the same representation as
+ * an array of two elements, where the first element is the real part
+ * and the second element is the imaginary part.
+ */
+typedef union {
+	float complex f;
+	float a[2];
+} float_complex;
+typedef union {
+	double complex f;
+	double a[2];
+} double_complex;
+typedef union {
+	long double complex f;
+	long double a[2];
+} long_double_complex;
+#define	REALPART(z)	((z).a[0])
+#define	IMAGPART(z)	((z).a[1])
+
 /*
  * Inline functions that can be used to construct complex values.
  *
@@ -203,31 +224,31 @@ void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
 static __inline float complex
 cpackf(float x, float y)
 {
-	float complex z;
+	float_complex z;
 
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
+	REALPART(z) = x;
+	IMAGPART(z) = y;
+	return (z.f);
 }
 
 static __inline double complex
 cpack(double x, double y)
 {
-	double complex z;
+	double_complex z;
 
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
+	REALPART(z) = x;
+	IMAGPART(z) = y;
+	return (z.f);
 }
 
 static __inline long double complex
 cpackl(long double x, long double y)
 {
-	long double complex z;
+	long_double_complex z;
 
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
+	REALPART(z) = x;
+	IMAGPART(z) = y;
+	return (z.f);
 }
 #endif /* _COMPLEX_H */
  

@@ -36,12 +36,12 @@
  *------------------------------------------------------------------------*/
 void   *
 usb2_alloc_mbufs(struct malloc_type *type, struct usb2_ifqueue *ifq,
-    uint32_t block_size, uint16_t nblocks)
+    usb2_size_t block_size, uint16_t nblocks)
 {
 	struct usb2_mbuf *m_ptr;
 	uint8_t *data_ptr;
 	void *free_ptr = NULL;
-	uint32_t alloc_size;
+	usb2_size_t alloc_size;
 
 	/* align data */
 	block_size += ((-block_size) & (USB_HOST_ALIGN - 1));

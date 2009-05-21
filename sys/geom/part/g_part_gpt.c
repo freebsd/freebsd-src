@@ -393,6 +393,10 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	quad_t last;
 	size_t tblsz;
 
+	/* We don't nest, which means that our depth should be 0. */
+	if (basetable->gpt_depth != 0)
+		return (ENXIO);
+
 	table = (struct g_part_gpt_table *)basetable;
 	pp = gpp->gpp_provider;
 	tblsz = (basetable->gpt_entries * sizeof(struct gpt_ent) +

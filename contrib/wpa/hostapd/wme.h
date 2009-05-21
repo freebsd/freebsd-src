@@ -27,7 +27,7 @@
 	* defined(__DragonFly__) */
 
 
-extern inline u16 tsinfo(int tag1d, int contention_based, int direction)
+static inline u16 tsinfo(int tag1d, int contention_based, int direction)
 {
 	return (tag1d << 11) | (contention_based << 7) | (direction << 5) |
 	  (tag1d << 1);

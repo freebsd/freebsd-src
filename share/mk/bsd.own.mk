@@ -372,7 +372,6 @@ WITH_IDEA=
     SENDMAIL \
     SETUID_LOGIN \
     SHAREDOCS \
-    SLIP \
     SSP \
     SYSINSTALL \
     SYMVER \

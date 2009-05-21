@@ -81,7 +81,7 @@ xfs_buf_get_empty(size_t size,  xfs_buftarg_t *target)
 {
 	struct buf *bp;
 
-	bp = geteblk(0);
+	bp = geteblk(0, 0);
 	if (bp != NULL) {
 		bp->b_bufsize = size;
 		bp->b_bcount = size;
@@ -100,7 +100,7 @@ xfs_buf_get_noaddr(size_t len, xfs_buftarg_t *target)
 	if (len >= MAXPHYS)
 		return (NULL);
 
-	bp = geteblk(len);
+	bp = geteblk(len, 0);
 	if (bp != NULL) {
 		BUF_ASSERT_HELD(bp);
 

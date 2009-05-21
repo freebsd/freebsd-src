@@ -235,12 +235,10 @@ struct wpi_rx_head {
 
 struct wpi_rx_tail {
 	uint32_t	flags;
-#if 0
 #define WPI_RX_NO_CRC_ERR	(1 << 0)
 #define WPI_RX_NO_OVFL_ERR	(1 << 1)
 /* shortcut for the above */
 #define WPI_RX_NOERROR		(WPI_RX_NO_CRC_ERR | WPI_RX_NO_OVFL_ERR)
-#endif
 	uint64_t	tstamp;
 	uint32_t	tbeacon;
 } __packed;

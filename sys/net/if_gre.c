@@ -110,7 +110,7 @@ static int	gre_clone_create(struct if_clone *, int, caddr_t);
 static void	gre_clone_destroy(struct ifnet *);
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct rtentry *rt);
+		    struct route *ro);
 
 IFC_SIMPLE_DECLARE(gre, 0);
 
@@ -240,7 +240,7 @@ gre_clone_destroy(ifp)
  */
 static int
 gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-	   struct rtentry *rt)
+	   struct route *ro)
 {
 #ifdef INET6
 	INIT_VNET_INET(ifp->if_vnet);

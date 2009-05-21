@@ -67,8 +67,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int urio_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
-SYSCTL_INT(_hw_usb2_urio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
+SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
     &urio_debug, 0, "urio debug level");
 #endif
 
@@ -130,40 +130,38 @@ static const struct usb2_config urio_config[URIO_T_MAX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = URIO_BSIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,.proxy_buffer = 1,},
-		.mh.callback = &urio_write_callback,
+		.bufsize = URIO_BSIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,.proxy_buffer = 1,},
+		.callback = &urio_write_callback,
 	},
 
 	[URIO_T_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = URIO_BSIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.proxy_buffer = 1,},
-		.mh.callback = &urio_read_callback,
+		.bufsize = URIO_BSIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.proxy_buffer = 1,},
+		.callback = &urio_read_callback,
 	},
 
 	[URIO_T_WR_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &urio_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
+		.bufsize = sizeof(struct usb2_device_request),
+		.callback = &urio_write_clear_stall_callback,
+		.timeout = 1000,	/* 1 second */
+		.interval = 50,	/* 50ms */
 	},
 
 	[URIO_T_RD_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &urio_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
+		.bufsize = sizeof(struct usb2_device_request),
+		.callback = &urio_read_clear_stall_callback,
+		.timeout = 1000,	/* 1 second */
+		.interval = 50,	/* 50ms */
 	},
 };
 
@@ -191,7 +189,7 @@ urio_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if ((((uaa->info.idVendor == USB_VENDOR_DIAMOND) &&

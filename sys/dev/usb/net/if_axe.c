@@ -112,8 +112,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int axe_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
-SYSCTL_INT(_hw_usb2_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
+SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
     "Debug level");
 #endif
 
@@ -151,7 +151,6 @@ static const struct usb2_device_id axe_devs[] = {
 static device_probe_t axe_probe;
 static device_attach_t axe_attach;
 static device_detach_t axe_detach;
-static device_shutdown_t axe_shutdown;
 
 static usb2_callback_t axe_intr_callback;
 static usb2_callback_t axe_bulk_read_callback;
@@ -182,10 +181,10 @@ static const struct usb2_config axe_config[AXE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = AXE_BULK_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = axe_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = AXE_BULK_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = axe_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[AXE_BULK_DT_RD] = {
@@ -195,19 +194,19 @@ static const struct usb2_config axe_config[AXE_N_TRANSFER] = {
 #if (MCLBYTES < 2048)
 #error "(MCLBYTES < 2048)"
 #endif
-		.mh.bufsize = MCLBYTES,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = axe_bulk_read_callback,
-		.mh.timeout = 0,	/* no timeout */
+		.bufsize = MCLBYTES,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = axe_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
 	},
 
 	[AXE_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = axe_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = axe_intr_callback,
 	},
 };
 
@@ -216,7 +215,6 @@ static device_method_t axe_methods[] = {
 	DEVMETHOD(device_probe, axe_probe),
 	DEVMETHOD(device_attach, axe_attach),
 	DEVMETHOD(device_detach, axe_detach),
-	DEVMETHOD(device_shutdown, axe_shutdown),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -664,7 +662,7 @@ axe_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != AXE_CONFIG_IDX)
 		return (ENXIO);
@@ -1059,18 +1057,4 @@ axe_stop(struct usb2_ether *ue)
 	usb2_transfer_stop(sc->sc_xfer[AXE_INTR_DT_RD]);
 
 	axe_reset(sc);
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-axe_shutdown(device_t dev)
-{
-	struct axe_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

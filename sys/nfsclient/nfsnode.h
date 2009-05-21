@@ -84,6 +84,12 @@ struct nfs_attrcache_timestamp {
 	unsigned long	nfs_ac_ts_syscalls;	
 };
 
+struct nfs_accesscache {
+	u_int32_t		mode;		/* ACCESS mode cache */
+	uid_t			uid;		/* credentials having mode */
+	time_t			stamp;		/* mode cache timestamp */
+};
+	
 /*
  * The nfsnode is the nfs equivalent to ufs's inode. Any similarity
  * is purely coincidental.
@@ -104,9 +110,7 @@ struct nfsnode {
 	u_quad_t		n_lrev;		/* Modify rev for lease */
 	struct vattr		n_vattr;	/* Vnode attribute cache */
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
-	u_int32_t		n_mode;		/* ACCESS mode cache */
-	uid_t			n_modeuid;	/* credentials having mode */
-	time_t			n_modestamp;	/* mode cache timestamp */
+	struct nfs_accesscache	n_accesscache[NFS_ACCESSCACHESIZE];
 	struct timespec		n_mtime;	/* Prev modify time. */
 	time_t			n_ctime;	/* Prev create time. */
 	time_t			n_dmtime;	/* Prev dir modify time. */

@@ -236,6 +236,7 @@ struct ip6protosw inet6sw[] = {
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_init =		icmp6_init,
 	.pr_fasttimo =		icmp6_fasttimo,
+	.pr_slowtimo =		icmp6_slowtimo,
 	.pr_usrreqs =		&rip6_usrreqs
 },
 {
@@ -446,6 +447,8 @@ sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 	int error = 0;
 	int old;
 
+	SYSCTL_RESOLVE_V_ARG1();
+
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
 		return (error);
@@ -465,6 +468,8 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	int old;
+
+	SYSCTL_RESOLVE_V_ARG1();
 
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)

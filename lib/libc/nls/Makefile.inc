@@ -13,6 +13,7 @@ MAN+=	catclose.3 catgets.3 catopen.3
 #       for translators.
 
 NLSNAME=	libc
+NLS+=	be_BY.UTF-8
 NLS+=	ca_ES.ISO8859-1
 NLS+=	de_DE.ISO8859-1
 NLS+=	el_GR.ISO8859-7
@@ -27,12 +28,8 @@ NLS+=	mn_MN.UTF-8
 NLS+=	nl_NL.ISO8859-1
 NLS+=	no_NO.ISO8859-1
 NLS+=	pl_PL.ISO8859-2
+NLS+=	pt_BR.ISO8859-1
 NLS+=	ru_RU.KOI8-R
 NLS+=	sk_SK.ISO8859-2
 NLS+=	sv_SE.ISO8859-1
-
-.BEGIN:
-.for c in ${NLS}
-	mkdir -p ${CANONICALOBJDIR}/../../lib32/usr/share/nls/${c}
-	mkdir -p ${CANONICALOBJDIR}/../../tmp/usr/share/nls/${c}
-.endfor
+NLS+=	uk_UA.UTF-8

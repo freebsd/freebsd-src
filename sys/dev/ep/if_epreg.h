@@ -156,6 +156,7 @@
  * Window 2 registers. Station Address Setup/Read
  */
 /* Read/Write */
+#define EP_W2_PHY_MGMT		0x0c
 #define EP_W2_ALT_EEPROM	0x0a
 #define EP_W2_ADDR_5		0x05
 #define EP_W2_ADDR_4		0x04
@@ -406,6 +407,17 @@
 #define LINKBEAT_ENABLE		0x80
 #define	ENABLE_UTP		(JABBER_GUARD_ENABLE | LINKBEAT_ENABLE)
 #define DISABLE_UTP		0x0
+#define	MT_CSD			0x0004	/* CRC Strip disable */
+#define	MT_SQE			0x0008	/* SQE Enable */
+#define	MT_C0			0x0010	/* Collison */
+#define	MT_CS			0x0020	/* Carrier Sense */
+#define MT_J			0x0200	/* Jabber detected */
+#define MT_PL			0x0400	/* Plarity Inverted */
+#define MT_LB			0x0800	/* Link Beat detected */
+#define MT_SQ			0x1000	/* SQE Present */
+#define MT_IN			0x2000	/* Reserved */
+#define MT_CE			0x4000	/* Coax */
+#define MT_TPE			0x8000
 
 /*
  * Misc defines for various things.

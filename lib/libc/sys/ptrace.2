@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd April 9, 2007
+.Dd March 27, 2009
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -77,7 +77,8 @@ special case noted below, all
 .Fn ptrace
 calls are made by the tracing process, and the
 .Fa pid
-argument specifies the process ID of the traced process.
+argument specifies the process ID of the traced process
+or a corresponding thread ID.
 The
 .Fa request
 argument
@@ -311,6 +312,21 @@ with the array size specified by
 The return value from
 .Fn ptrace
 is the count of array entries filled in.
+.It PT_SETSTEP
+This request will turn on single stepping of the specified process.
+.It PT_CLEARSTEP
+This request will turn off single stepping of the specified process.
+.It PT_SUSPEND
+This request will suspend the specified thread.
+.It PT_RESUME
+This request will resume the specified thread.
+.It PT_TO_SCE
+This request will trace the specified process on each system call entry.
+.It PT_TO_SCX
+This request will trace the specified process on each system call exit.
+.It PT_SYSCALL
+This request will trace the specified process
+on each system call entry and exit.
 .El
 .Pp
 Additionally, machine-specific requests can exist.

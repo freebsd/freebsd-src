@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/kernel.h>
 
 #include <sys/socket.h>
@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 #include <net/bpf.h>
 
@@ -183,6 +186,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	ic->ic_csa_newchan = NULL;
 	/* arbitrarily pick the first channel */
 	ic->ic_curchan = &ic->ic_channels[0];
+	ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 
 	/* fillin well-known rate sets if driver has not specified */
 	DEFAULTRATES(IEEE80211_MODE_11B,	 ieee80211_rateset_11b);
@@ -217,7 +221,7 @@ null_update_promisc(struct ifnet *ifp)
 
 static int
 null_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct rtentry *rt0)
+	struct sockaddr *dst, struct route *ro)
 {
 	if_printf(ifp, "discard raw packet\n");
 	m_freem(m);
@@ -236,7 +240,8 @@ null_input(struct ifnet *ifp, struct mbuf *m)
  * the driver on attach to prior to creating any vap's.
  */
 void
-ieee80211_ifattach(struct ieee80211com *ic)
+ieee80211_ifattach(struct ieee80211com *ic,
+	const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct sockaddr_dl *sdl;
@@ -246,6 +251,12 @@ ieee80211_ifattach(struct ieee80211com *ic)
 
 	IEEE80211_LOCK_INIT(ic, ifp->if_xname);
 	TAILQ_INIT(&ic->ic_vaps);
+
+	/* Create a taskqueue for all state changes */
+	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
+	    taskqueue_thread_enqueue, &ic->ic_tq);
+	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s taskq",
+	    ifp->if_xname);
 	/*
 	 * Fill in 802.11 available channel set, mark all
 	 * available channels as active, and pick a default
@@ -264,6 +275,9 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	ieee80211_node_attach(ic);
 	ieee80211_power_attach(ic);
 	ieee80211_proto_attach(ic);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_attach(ic);
+#endif
 	ieee80211_ht_attach(ic);
 	ieee80211_scan_attach(ic);
 	ieee80211_regdomain_attach(ic);
@@ -284,7 +298,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;		/* XXX IFT_IEEE80211? */
 	sdl->sdl_alen = IEEE80211_ADDR_LEN;
-	IEEE80211_ADDR_COPY(LLADDR(sdl), ic->ic_myaddr);
+	IEEE80211_ADDR_COPY(LLADDR(sdl), macaddr);
 }
 
 /*
@@ -306,6 +320,9 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_sysctl_detach(ic);
 	ieee80211_regdomain_detach(ic);
 	ieee80211_scan_detach(ic);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_detach(ic);
+#endif
 	ieee80211_ht_detach(ic);
 	/* NB: must be called before ieee80211_node_detach */
 	ieee80211_proto_detach(ic);
@@ -314,6 +331,7 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_node_detach(ic);
 	ifmedia_removeall(&ic->ic_media);
 
+	taskqueue_free(ic->ic_tq);
 	IEEE80211_LOCK_DESTROY(ic);
 	if_detach(ifp);
 }
@@ -415,10 +433,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 		vap->iv_flags |= IEEE80211_F_WME;
 	if (vap->iv_caps & IEEE80211_C_BURST)
 		vap->iv_flags |= IEEE80211_F_BURST;
-	if (vap->iv_caps & IEEE80211_C_FF)
-		vap->iv_flags |= IEEE80211_F_FF;
-	if (vap->iv_caps & IEEE80211_C_TURBOP)
-		vap->iv_flags |= IEEE80211_F_TURBOP;
 	/* NB: bg scanning only makes sense for station mode right now */
 	if (vap->iv_opmode == IEEE80211_M_STA &&
 	    (vap->iv_caps & IEEE80211_C_BGSCAN))
@@ -445,9 +459,13 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_node_vattach(vap);
 	ieee80211_power_vattach(vap);
 	ieee80211_proto_vattach(vap);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_vattach(vap);
+#endif
 	ieee80211_ht_vattach(vap);
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
+	ieee80211_radiotap_vattach(vap);
 
 	return 0;
 }
@@ -492,12 +510,15 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 	vap->iv_output = ifp->if_output;
 	ifp->if_output = ieee80211_output;
 	/* NB: if_mtu set by ether_ifattach to ETHERMTU */
-	bpfattach2(ifp, DLT_IEEE802_11, ifp->if_hdrlen, &vap->iv_rawbpf);
 
 	IEEE80211_LOCK(ic);
 	TAILQ_INSERT_TAIL(&ic->ic_vaps, vap, iv_next);
+	if (vap->iv_opmode == IEEE80211_M_MONITOR)
+		ic->ic_monvaps++;
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
+#ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
+#endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
@@ -542,26 +563,46 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	 * while we cleanup internal state but that is hard.
 	 */
 	ieee80211_stop_locked(vap);
+	IEEE80211_UNLOCK(ic);
 
+	/*
+	 * Flush any deferred vap tasks.
+	 * NB: must be before ether_ifdetach() and removal from ic_vaps list
+	 */
+	ieee80211_draintask(ic, &vap->iv_nstate_task);
+	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
+
+	IEEE80211_LOCK(ic);
+	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
 	TAILQ_REMOVE(&ic->ic_vaps, vap, iv_next);
+	if (vap->iv_opmode == IEEE80211_M_MONITOR)
+		ic->ic_monvaps--;
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
+#ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
+#endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_USEHT40);
+	/* NB: this handles the bpfdetach done below */
+	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_BPF);
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 	ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 	IEEE80211_UNLOCK(ic);
 
 	/* XXX can't hold com lock */
-	/* NB: bpfattach is called by ether_ifdetach and claims all taps */
+	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
 	ether_ifdetach(ifp);
 
 	ifmedia_removeall(&vap->iv_media);
 
+	ieee80211_radiotap_vdetach(vap);
 	ieee80211_regdomain_vdetach(vap);
 	ieee80211_scan_vdetach(vap);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_vdetach(vap);
+#endif
 	ieee80211_ht_vdetach(vap);
 	/* NB: must be before ieee80211_node_vdetach */
 	ieee80211_proto_vdetach(vap);
@@ -610,9 +651,9 @@ ieee80211_syncifflag_locked(struct ieee80211com *ic, int flag)
 		/* XXX should we return 1/0 and let caller do this? */
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			if (flag == IFF_PROMISC)
-				ic->ic_update_promisc(ifp);
+				ieee80211_runtask(ic, &ic->ic_promisc_task);
 			else if (flag == IFF_ALLMULTI)
-				ic->ic_update_mcast(ifp);
+				ieee80211_runtask(ic, &ic->ic_mcast_task);
 		}
 	}
 }

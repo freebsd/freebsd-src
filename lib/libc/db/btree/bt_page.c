@@ -90,5 +90,5 @@ __bt_new(BTREE *t, pgno_t *npg)
 		F_SET(t, B_METADIRTY);
 		return (h);
 	}
-	return (mpool_new(t->bt_mp, npg));
+	return (mpool_new(t->bt_mp, npg, MPOOL_PAGE_NEXT));
 }

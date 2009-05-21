@@ -27,8 +27,8 @@
  */
 
 /*
- * USB Device Port (UDP) register definition, based on
- * "AT91RM9200.h" provided by ATMEL.
+ * USB Device Port (UDP) register definition, based on "AT91RM9200.h" provided
+ * by ATMEL.
  */
 
 #ifndef _AT9100_DCI_H_
@@ -169,6 +169,7 @@ struct at91dci_std_temp {
          * short_pkt = 1: transfer should not be short terminated
          */
 	uint8_t	setup_alt_next;
+	uint8_t did_stall;
 };
 
 struct at91dci_config_desc {
@@ -203,9 +204,6 @@ struct at91dci_flags {
 struct at91dci_softc {
 	struct usb2_bus sc_bus;
 	union at91dci_hub_temp sc_hub_temp;
-	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 
 	struct usb2_device *sc_devices[AT91_MAX_DEVICES];
 	struct resource *sc_io_res;

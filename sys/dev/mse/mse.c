@@ -111,8 +111,7 @@ static struct cdevsw mse_cdevsw = {
 static	void		mseintr(void *);
 static	timeout_t	msetimeout;
 
-#define	MSE_UNIT(dev)		(dev2unit(dev) >> 1)
-#define	MSE_NBLOCKIO(dev)	(dev2unit(dev) & 0x1)
+#define	MSE_NBLOCKIO(dev)	dev2unit(dev)
 
 #define	MSEPRI	(PZERO + 3)
 
@@ -143,10 +142,10 @@ mse_common_attach(device_t dev)
 	sc->mode.accelfactor = (flags & MSE_CONFIG_ACCEL) >> 4;
 	callout_handle_init(&sc->sc_callout);
 
-	sc->sc_dev = make_dev(&mse_cdevsw, unit << 1, 0, 0, 0600,
-	  "mse%d", unit);
-	sc->sc_ndev = make_dev(&mse_cdevsw, (unit<<1)+1, 0, 0, 0600,
-	  "nmse%d", unit);
+	sc->sc_dev = make_dev(&mse_cdevsw, 0, 0, 0, 0600, "mse%d", unit);
+	sc->sc_dev->si_drv1 = sc;
+	sc->sc_ndev = make_dev(&mse_cdevsw, 1, 0, 0, 0600, "nmse%d", unit);
+	sc->sc_ndev->si_drv1 = sc;
 	return 0;
 }
 
@@ -156,12 +155,9 @@ mse_common_attach(device_t dev)
 static	int
 mseopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	mse_softc_t *sc;
+	mse_softc_t *sc = dev->si_drv1;
 	int s;
 
-	sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
-	if (sc == NULL)
-		return (ENXIO);
 	if (sc->sc_mousetype == MSE_NONE)
 		return (ENXIO);
 	if (sc->sc_flags & MSESC_OPEN)
@@ -192,7 +188,7 @@ mseopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static	int
 mseclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
+	mse_softc_t *sc = dev->si_drv1;
 	int s;
 
 	untimeout(msetimeout, dev, sc->sc_callout);
@@ -212,7 +208,7 @@ mseclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 static	int
 mseread(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
+	mse_softc_t *sc = dev->si_drv1;
 	int xfer, s, error;
 
 	/*
@@ -276,7 +272,7 @@ mseread(struct cdev *dev, struct uio *uio, int ioflag)
 static int
 mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
-	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
+	mse_softc_t *sc = dev->si_drv1;
 	mousestatus_t status;
 	int err = 0;
 	int s;
@@ -388,7 +384,7 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 static	int
 msepoll(struct cdev *dev, int events, struct thread *td)
 {
-	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
+	mse_softc_t *sc = dev->si_drv1;
 	int s;
 	int revents = 0;
 
@@ -420,10 +416,10 @@ msetimeout(void *arg)
 	mse_softc_t *sc;
 
 	dev = (struct cdev *)arg;
-	sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
+	sc = dev->si_drv1;
 	if (sc->sc_watchdog) {
 		if (bootverbose)
-			printf("mse%d: lost interrupt?\n", MSE_UNIT(dev));
+			printf("%s: lost interrupt?\n", devtoname(dev));
 		mseintr(sc);
 	}
 	sc->sc_watchdog = TRUE;

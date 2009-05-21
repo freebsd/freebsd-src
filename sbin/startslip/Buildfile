@@ -1,9 +1,0 @@
-# $FreeBSD$
-
-PROG = startslip
-
-WARNS ?= 3
-
-LDADD += -lutil
-
-.include <bsd.prog.mk>

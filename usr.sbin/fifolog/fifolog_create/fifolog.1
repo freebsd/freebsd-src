@@ -28,7 +28,7 @@
 .Os
 .Dt FIFOLOG 1
 .Sh NAME
-.Nm fifolog_create , fifolog_write , fifolog_read
+.Nm fifolog_create , fifolog_writer , fifolog_reader
 .Nd "initialize, write, seek and extract data from a fifolog"
 .Sh SYNOPSIS
 .Nm fifolog_create
@@ -84,7 +84,7 @@ of hand-work all but the first record can be easily recovered.)
 If the
 .Ar file
 does not already exist,
-.Nm
+.Nm fifolog_create
 will attempt to create and
 .Xr ftruncate 2
 it to the specified size, defaulting to 86400 records of 512 bytes

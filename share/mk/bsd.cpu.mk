@@ -119,7 +119,7 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 MACHINE_CPU = booke
 _CPUCFLAGS = -Wa,-me500 -msoft-float
 .  else
-_CPUCFLAGS = -mcpu=${CPUTYPE}
+_CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
 .  endif
 . elif ${MACHINE_ARCH} == "mips"
 .  if ${CPUTYPE} == "mips32"

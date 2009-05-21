@@ -63,47 +63,10 @@
 
 #ifndef LOCORE
 
-#if 0
-/*
- * Interrupt handler chains.  intr_establish() inserts a handler into
- * the list.  The handler is called with its (single) argument.
- */
-struct intrhand {
-	int	(*ih_fun)(void *);
-	void	*ih_arg;
-	u_long	ih_count;
-	struct	intrhand *ih_next;
-	int	ih_level;
-	int	ih_irq;
-};
-#endif
-
-void	setsoftclock(void);
-void	clearsoftclock(void);
-void	setsoftnet(void);
-void	clearsoftnet(void);
-
 void	do_pending_int(void);
-
-static __inline void softintr(int);
 
 extern u_int cpl, ipending, tickspending;
 extern int imask[];
-
-/* Following code should be implemented with lwarx/stwcx to avoid
- * the disable/enable. i need to read the manual once more.... */
-static __inline void
-softintr(int ipl)
-{
-	unsigned int	msrsave;
-
-	msrsave = mfmsr();
-	mtmsr(msrsave & ~PSL_EE);
-
-	ipending |= 1 << ipl;
-
-	mtmsr(msrsave);
-}
 
 #define	ICU_LEN		64
 
@@ -112,46 +75,6 @@ softintr(int ipl)
 #define	SIR_NET		29
 #define	SIR_SERIAL	30
 #define	SPL_CLOCK	31
-
-#if 0
-
-/*
- * Hardware interrupt masks
- */
-
-#define	splbio()	splraise(imask[IPL_BIO])
-#define	splnet()	splraise(imask[IPL_NET])
-#define	spltty()	splraise(imask[IPL_TTY])
-#define	splaudio()	splraise(imask[IPL_AUDIO])
-#define	splclock()	splraise(imask[IPL_CLOCK])
-#define	splstatclock()	splclock()
-#define	splserial()	splraise(imask[IPL_SERIAL])
-
-#define	spllpt()	spltty()
-
-/*
- * Software interrupt masks
- *
- * NOTE: splsoftclock() is used by hardclock() to lower the priority from
- * clock to softclock before it calls softclock().
- */
-#define	spllowersoftclock() spllower(imask[IPL_SOFTCLOCK])
-#define	splsoftclock()	splraise(imask[IPL_SOFTCLOCK])
-#define	splsoftnet()	splraise(imask[IPL_SOFTNET])
-#define	splsoftserial()	splraise(imask[IPL_SOFTSERIAL])
-
-/*
- * Miscellaneous
- */
-#define	splimp()	splraise(imask[IPL_IMP])
-#define	splhigh()	splraise(imask[IPL_HIGH])
-#define	spl0()		spllower(0)
-
-#endif /* 0 */
-
-#define	setsoftclock()	softintr(SIR_CLOCK)
-#define	setsoftnet()	softintr(SIR_NET)
-#define	setsoftserial()	softintr(SIR_SERIAL)
 
 #define	CNT_IRQ0	0
 #define	CNT_CLOCK	64

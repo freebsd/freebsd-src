@@ -1500,7 +1500,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 
 		if (prot & VM_PROT_EXECUTE)
-			ia64_invalidate_icache(sva, PAGE_SIZE);
+			ia64_sync_icache(sva, PAGE_SIZE);
 
 		pmap_pte_prot(pmap, pte, prot);
 		pmap_invalidate_page(pmap, sva);
@@ -1635,7 +1635,7 @@ validate:
 
 	/* Invalidate the I-cache when needed. */
 	if (icache_inval)
-		ia64_invalidate_icache(va, PAGE_SIZE);
+		ia64_sync_icache(va, PAGE_SIZE);
 
 	if ((prot & VM_PROT_WRITE) != 0)
 		vm_page_flag_set(m, PG_WRITEABLE);

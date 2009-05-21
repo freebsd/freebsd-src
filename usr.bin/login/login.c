@@ -245,8 +245,8 @@ main(int argc, char *argv[])
 		(void)snprintf(tname, sizeof(tname), "%s??", _PATH_TTY);
 		ttyn = tname;
 	}
-	if ((tty = strrchr(ttyn, '/')) != NULL)
-		++tty;
+	if (strncmp(ttyn, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
+		tty = ttyn + sizeof _PATH_DEV - 1;
 	else
 		tty = ttyn;
 

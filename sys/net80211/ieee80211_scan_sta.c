@@ -32,10 +32,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
- 
+
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -126,6 +126,7 @@ static void sta_flush_table(struct sta_table *);
 #define	MATCH_TDMA_NOTMASTER	0x0800	/* not TDMA master */
 #define	MATCH_TDMA_NOSLOT	0x1000	/* all TDMA slots occupied */
 #define	MATCH_TDMA_LOCAL	0x2000	/* local address */
+#define	MATCH_TDMA_VERSION	0x4000	/* protocol version mismatch */
 static int match_bss(struct ieee80211vap *,
 	const struct ieee80211_scan_state *, struct sta_entry *, int);
 static void adhoc_age(struct ieee80211_scan_state *);
@@ -218,7 +219,7 @@ static int
 sta_add(struct ieee80211_scan_state *ss, 
 	const struct ieee80211_scanparams *sp,
 	const struct ieee80211_frame *wh,
-	int subtype, int rssi, int noise, int rstamp)
+	int subtype, int rssi, int noise)
 {
 #define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 #define	PICK1ST(_ss) \
@@ -277,7 +278,6 @@ found:
 		ise->se_rssi = IEEE80211_RSSI_GET(se->se_avgrssi);
 		ise->se_noise = noise;
 	}
-	ise->se_rstamp = rstamp;
 	memcpy(ise->se_tstamp.data, sp->tstamp, sizeof(ise->se_tstamp));
 	ise->se_intval = sp->bintval;
 	ise->se_capinfo = sp->capinfo;
@@ -970,9 +970,12 @@ match_bss(struct ieee80211vap *vap,
 		if (vap->iv_caps & IEEE80211_C_TDMA) {
 			const struct ieee80211_tdma_param *tdma =
 			    (const struct ieee80211_tdma_param *)se->se_ies.tdma_ie;
+			const struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 			if (tdma == NULL)
 				fail |= MATCH_TDMA_NOIE;
+			else if (tdma->tdma_version != ts->tdma_version)
+				fail |= MATCH_TDMA_VERSION;
 			else if (tdma->tdma_slot != 0)
 				fail |= MATCH_TDMA_NOTMASTER;
 			else if (tdma_isfull(tdma))
@@ -1062,9 +1065,10 @@ match_bss(struct ieee80211vap *vap,
 		    fail & MATCH_CC ? '$' :
 #ifdef IEEE80211_SUPPORT_TDMA
 		    fail & MATCH_TDMA_NOIE ? '&' :
-		    fail & MATCH_TDMA_NOTMASTER ? ':' :
-		    fail & MATCH_TDMA_NOSLOT ? '@' :
-		    fail & MATCH_TDMA_LOCAL ? '#' :
+		    fail & MATCH_TDMA_VERSION ? 'v' :
+		    fail & MATCH_TDMA_NOTMASTER ? 's' :
+		    fail & MATCH_TDMA_NOSLOT ? 'f' :
+		    fail & MATCH_TDMA_LOCAL ? 'l' :
 #endif
 		    fail ? '-' : '+', ether_sprintf(se->se_macaddr));
 		printf(" %s%c", ether_sprintf(se->se_bssid),
@@ -1076,8 +1080,7 @@ match_bss(struct ieee80211vap *vap,
 		    fail & MATCH_RATE ? '!' : ' ');
 		printf(" %4s%c",
 		    (se->se_capinfo & IEEE80211_CAPINFO_ESS) ? "ess" :
-		    (se->se_capinfo & IEEE80211_CAPINFO_IBSS) ? "ibss" :
-		    "????",
+		    (se->se_capinfo & IEEE80211_CAPINFO_IBSS) ? "ibss" : "",
 		    fail & MATCH_CAPINFO ? '!' : ' ');
 		printf(" %3s%c ",
 		    (se->se_capinfo & IEEE80211_CAPINFO_PRIVACY) ?
@@ -1636,7 +1639,7 @@ ap_force_promisc(struct ieee80211com *ic)
 	IEEE80211_LOCK(ic);
 	/* set interface into promiscuous mode */
 	ifp->if_flags |= IFF_PROMISC;
-	ic->ic_update_promisc(ifp);
+	ieee80211_runtask(ic, &ic->ic_promisc_task);
 	IEEE80211_UNLOCK(ic);
 }
 

@@ -167,10 +167,6 @@ intsmb_attach(device_t dev)
 		goto fail;
 	}
 
-	value = pci_read_config(dev, PCI_BASE_ADDR_PM, 4);
-	device_printf(dev, "PM %s %x\n", (value & 1) ? "I/O mapped" : "Memory",
-	    value & 0xfffe);
-
 	sc->isbusy = 0;
 	sc->smbus = device_add_child(dev, "smbus", -1);
 	if (sc->smbus == NULL) {
@@ -365,13 +361,13 @@ intsmb_start(struct intsmb_softc *sc, unsigned char cmd, int nointr)
 	tmp |= PIIX4_SMBHSTCNT_START;
 
 	/* While not in autoconfiguration enable interrupts. */
-	if (!cold || !nointr)
+	if (!cold && !nointr)
 		tmp |= PIIX4_SMBHSTCNT_INTREN;
 	bus_write_1(sc->io_res, PIIX4_SMBHSTCNT, tmp);
 }
 
 static int
-intsmb_error(int status)
+intsmb_error(device_t dev, int status)
 {
 	int error = 0;
 
@@ -381,6 +377,10 @@ intsmb_error(int status)
 		error |= SMB_ECOLLI;
 	if (status & PIIX4_SMBHSTSTAT_FAIL)
 		error |= SMB_ENOACK;
+
+	if (error != 0 && bootverbose)
+		device_printf(dev, "error = %d, status = %#x\n", error, status);
+
 	return (error);
 }
 
@@ -410,7 +410,7 @@ intsmb_stop_poll(struct intsmb_softc *sc)
 		status = bus_read_1(sc->io_res, PIIX4_SMBHSTSTS);
 		if (!(status & PIIX4_SMBHSTSTAT_BUSY)) {
 			sc->isbusy = 0;
-			error = intsmb_error(status);
+			error = intsmb_error(sc->dev, status);
 			if (error == 0 && !(status & PIIX4_SMBHSTSTAT_INTR))
 				device_printf(sc->dev, "unknown cause why?\n");
 			return (error);
@@ -442,7 +442,7 @@ intsmb_stop(struct intsmb_softc *sc)
 	if (error == 0) {
 		status = bus_read_1(sc->io_res, PIIX4_SMBHSTSTS);
 		if (!(status & PIIX4_SMBHSTSTAT_BUSY)) {
-			error = intsmb_error(status);
+			error = intsmb_error(sc->dev, status);
 			if (error == 0 && !(status & PIIX4_SMBHSTSTAT_INTR))
 				device_printf(sc->dev, "unknown cause why?\n");
 #ifdef ENABLE_ALART

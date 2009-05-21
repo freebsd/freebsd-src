@@ -129,7 +129,6 @@ static const struct usb2_device_id kue_devs[] = {
 static device_probe_t kue_probe;
 static device_attach_t kue_attach;
 static device_detach_t kue_detach;
-static device_shutdown_t kue_shutdown;
 
 static usb2_callback_t kue_bulk_read_callback;
 static usb2_callback_t kue_bulk_write_callback;
@@ -152,8 +151,8 @@ static void	kue_reset(struct kue_softc *);
 #if USB_DEBUG
 static int kue_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, kue, CTLFLAG_RW, 0, "USB kue");
-SYSCTL_INT(_hw_usb2_kue, OID_AUTO, debug, CTLFLAG_RW, &kue_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, kue, CTLFLAG_RW, 0, "USB kue");
+SYSCTL_INT(_hw_usb_kue, OID_AUTO, debug, CTLFLAG_RW, &kue_debug, 0,
     "Debug level");
 #endif
 
@@ -163,20 +162,20 @@ static const struct usb2_config kue_config[KUE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = (MCLBYTES + 2 + 64),
-		.mh.flags = {.pipe_bof = 1,},
-		.mh.callback = kue_bulk_write_callback,
-		.mh.timeout = 10000,	/* 10 seconds */
+		.bufsize = (MCLBYTES + 2 + 64),
+		.flags = {.pipe_bof = 1,},
+		.callback = kue_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
 	},
 
 	[KUE_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = (MCLBYTES + 2),
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = kue_bulk_read_callback,
-		.mh.timeout = 0,	/* no timeout */
+		.bufsize = (MCLBYTES + 2),
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = kue_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
 	},
 };
 
@@ -185,7 +184,6 @@ static device_method_t kue_methods[] = {
 	DEVMETHOD(device_probe, kue_probe),
 	DEVMETHOD(device_attach, kue_attach),
 	DEVMETHOD(device_detach, kue_detach),
-	DEVMETHOD(device_shutdown, kue_shutdown),
 
 	{0, 0}
 };
@@ -438,7 +436,7 @@ kue_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != KUE_CONFIG_IDX)
 		return (ENXIO);
@@ -687,18 +685,4 @@ kue_stop(struct usb2_ether *ue)
 	 */
 	usb2_transfer_stop(sc->sc_xfer[KUE_BULK_DT_WR]);
 	usb2_transfer_stop(sc->sc_xfer[KUE_BULK_DT_RD]);
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-kue_shutdown(device_t dev)
-{
-	struct kue_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

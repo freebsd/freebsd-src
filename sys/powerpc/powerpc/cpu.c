@@ -91,6 +91,10 @@ static const struct cputab models[] = {
         { "Motorola PowerPC 620",	MPC620,		REVFMT_HEX },
         { "Motorola PowerPC 750",	MPC750,		REVFMT_MAJMIN },
         { "IBM PowerPC 750FX",		IBM750FX,	REVFMT_MAJMIN },
+        { "IBM PowerPC 970",		IBM970,		REVFMT_MAJMIN },
+        { "IBM PowerPC 970FX",		IBM970FX,	REVFMT_MAJMIN },
+        { "IBM PowerPC 970GX",		IBM970GX,	REVFMT_MAJMIN },
+        { "IBM PowerPC 970MP",		IBM970MP,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7450",	MPC7450,	REVFMT_MAJMIN },
@@ -227,7 +231,6 @@ cpu_setup(u_int cpuid)
 
 		case FSL_E500v1:
 		case FSL_E500v2:
-			hid0 |= HID0_EMCP;
 			break;
 	}
 

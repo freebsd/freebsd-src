@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#43 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#46 $
  */
 
 #include <sys/types.h>
@@ -347,7 +347,7 @@ close_all(void)
 	int err_ret = 0;
 	char TS[TIMESTAMP_LEN];
 	int err;
-	long cond;
+	int cond;
 	time_t tt;
 
 	err = auditd_gen_record(AUE_audit_shutdown, NULL);
@@ -357,7 +357,7 @@ close_all(void)
 
 	/* Flush contents. */
 	cond = AUC_DISABLED;
-	err_ret = auditon(A_SETCOND, &cond, sizeof(cond));
+	err_ret = audit_set_cond(&cond);
 	if (err_ret != 0) {
 		auditd_log_err("Disabling audit failed! : %s", strerror(errno));
 		err_ret = 1;
@@ -537,9 +537,12 @@ auditd_handle_trigger(int trigger)
 
 	case AUDIT_TRIGGER_READ_FILE:
 		auditd_log_info("Got read file trigger");
-		if (au_state == AUD_STATE_ENABLED && 
-		    auditd_config_controls() == -1)
-			auditd_log_err("Error setting audit controls");
+		if (au_state == AUD_STATE_ENABLED) {
+			if (auditd_config_controls() == -1)
+				auditd_log_err("Error setting audit controls");
+			else if (do_trail_file() == -1)
+				auditd_log_err("Error swapping audit file");
+		}
 		break;
 
 	case AUDIT_TRIGGER_CLOSE_AND_DIE:

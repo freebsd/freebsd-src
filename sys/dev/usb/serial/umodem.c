@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb_cdc.h>
 #include <dev/usb/usb_ioctl.h>
-#include <dev/usb/usb_defs.h>
 
 #define	USB_DEBUG_VAR umodem_debug
 
@@ -104,8 +103,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int umodem_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
-SYSCTL_INT(_hw_usb2_umodem, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
+SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
     &umodem_debug, 0, "Debug level");
 #endif
 
@@ -190,9 +189,9 @@ static const struct usb2_config umodem_config[UMODEM_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.if_index = 0,
-		.mh.bufsize = UMODEM_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &umodem_write_callback,
+		.bufsize = UMODEM_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &umodem_write_callback,
 	},
 
 	[UMODEM_BULK_RD] = {
@@ -200,9 +199,9 @@ static const struct usb2_config umodem_config[UMODEM_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.if_index = 0,
-		.mh.bufsize = UMODEM_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &umodem_read_callback,
+		.bufsize = UMODEM_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &umodem_read_callback,
 	},
 
 	[UMODEM_INTR_RD] = {
@@ -210,9 +209,9 @@ static const struct usb2_config umodem_config[UMODEM_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.if_index = 1,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.no_pipe_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &umodem_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.no_pipe_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umodem_intr_callback,
 	},
 };
 
@@ -258,7 +257,7 @@ umodem_probe(device_t dev)
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	error = usb2_lookup_id_by_uaa(umodem_devs, sizeof(umodem_devs), uaa);
@@ -769,7 +768,7 @@ umodem_set_comm_feature(struct usb2_device *udev, uint8_t iface_no,
 	USETW(req.wLength, UCDC_ABSTRACT_STATE_LENGTH);
 	USETW(ast.wState, state);
 
-	return (usb2_do_request(udev, &Giant, &req, &ast));
+	return (usb2_do_request(udev, NULL, &req, &ast));
 }
 
 static int
