@@ -136,7 +136,7 @@ ndisusb_match(device_t self)
 	struct drvdb_ent *db;
 	struct usb2_attach_arg *uaa = device_get_ivars(self);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != NDISUSB_CONFIG_NO)
 		return (ENXIO);
