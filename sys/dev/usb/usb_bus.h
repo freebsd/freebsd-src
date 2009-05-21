@@ -93,7 +93,7 @@ struct usb2_bus {
 
 	uint8_t	alloc_failed;		/* Set if memory allocation failed. */
 	uint8_t	driver_added_refcount;	/* Current driver generation count */
-	uint8_t	usbrev;			/* USB revision. See "USB_REV_XXX". */
+	enum usb_revision usbrev;	/* USB revision. See "USB_REV_XXX". */
 
 	uint8_t	devices_max;		/* maximum number of USB devices */
 	uint8_t	do_probe;		/* set if USB BUS should be re-probed */

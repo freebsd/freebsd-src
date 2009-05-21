@@ -171,7 +171,7 @@ struct usb2_hw_ep_scratch {
 struct usb2_temp_setup {
 	void   *buf;
 	usb2_size_t size;
-	uint8_t	usb2_speed;
+	enum usb_dev_speed	usb_speed;
 	uint8_t	self_powered;
 	uint8_t	bNumEndpoints;
 	uint8_t	bInterfaceNumber;

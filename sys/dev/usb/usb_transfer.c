@@ -93,7 +93,7 @@ static void	usb2_dma_delay_done_cb(void *);
 static void	usb2_transfer_start_cb(void *);
 static uint8_t	usb2_callback_wrapper_sub(struct usb2_xfer *);
 static void	usb2_get_std_packet_size(struct usb2_std_packet_size *ptr, 
-		    uint8_t type, uint8_t usb_speed);
+		    uint8_t type, enum usb_dev_speed speed);
 
 /*------------------------------------------------------------------------*
  *	usb2_request_callback
@@ -2742,8 +2742,8 @@ usb2_do_poll(struct usb2_xfer **ppxfer, uint16_t max)
 }
 
 static void
-usb2_get_std_packet_size(struct usb2_std_packet_size *ptr, 
-    uint8_t type, uint8_t usb_speed)
+usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
+    uint8_t type, enum usb_dev_speed speed)
 {
 	static const uint16_t intr_range_max[USB_SPEED_MAX] = {
 		[USB_SPEED_LOW] = 8,
@@ -2783,16 +2783,16 @@ usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
 
 	switch (type) {
 	case UE_INTERRUPT:
-		ptr->range.max = intr_range_max[usb_speed];
+		ptr->range.max = intr_range_max[speed];
 		break;
 	case UE_ISOCHRONOUS:
-		ptr->range.max = isoc_range_max[usb_speed];
+		ptr->range.max = isoc_range_max[speed];
 		break;
 	default:
 		if (type == UE_BULK)
-			temp = bulk_min[usb_speed];
+			temp = bulk_min[speed];
 		else /* UE_CONTROL */
-			temp = control_min[usb_speed];
+			temp = control_min[speed];
 
 		/* default is fixed */
 		ptr->fixed[0] = temp;
@@ -2800,13 +2800,13 @@ usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
 		ptr->fixed[2] = temp;
 		ptr->fixed[3] = temp;
 
-		if (usb_speed == USB_SPEED_FULL) {
+		if (speed == USB_SPEED_FULL) {
 			/* multiple sizes */
 			ptr->fixed[1] = 16;
 			ptr->fixed[2] = 32;
 			ptr->fixed[3] = 64;
 		}
-		if ((usb_speed == USB_SPEED_VARIABLE) &&
+		if ((speed == USB_SPEED_VARIABLE) &&
 		    (type == UE_BULK)) {
 			/* multiple sizes */
 			ptr->fixed[2] = 1024;
