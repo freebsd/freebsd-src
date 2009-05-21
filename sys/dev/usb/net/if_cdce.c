@@ -105,7 +105,7 @@ static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
 		.flags = {.pipe_bof = 1,.short_frames_ok = 1,.short_xfer_ok = 1,.ext_buffer = 1,},
 		.callback = cdce_bulk_read_callback,
 		.timeout = 0,	/* no timeout */
-		.usb_mode = USB_MODE_MAX,	/* both modes */
+		.usb_mode = USB_MODE_DUAL,	/* both modes */
 	},
 
 	[CDCE_BULK_TX] = {
@@ -118,7 +118,7 @@ static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
 		.flags = {.pipe_bof = 1,.force_short_xfer = 1,.ext_buffer = 1,},
 		.callback = cdce_bulk_write_callback,
 		.timeout = 10000,	/* 10 seconds */
-		.usb_mode = USB_MODE_MAX,	/* both modes */
+		.usb_mode = USB_MODE_DUAL,	/* both modes */
 	},
 
 	[CDCE_INTR_RX] = {
@@ -361,7 +361,7 @@ alloc_transfers:
 			sc->sc_ue.ue_eaddr[i / 2] |= c;
 		}
 
-		if (uaa->usb2_mode == USB_MODE_DEVICE) {
+		if (uaa->usb_mode == USB_MODE_DEVICE) {
 			/*
 			 * Do not use the same MAC address like the peer !
 			 */

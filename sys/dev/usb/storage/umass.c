@@ -1428,7 +1428,7 @@ umass_probe(device_t dev)
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct umass_probe_proto temp;
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->use_generic == 0) {

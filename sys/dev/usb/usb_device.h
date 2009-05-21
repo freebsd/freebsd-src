@@ -83,7 +83,7 @@ struct usb2_interface {
  * The following structure defines the USB device flags.
  */
 struct usb2_device_flags {
-	uint8_t	usb2_mode:1;		/* USB mode (see USB_MODE_XXX) */
+	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	self_powered:1;		/* set if USB device is self powered */
 	uint8_t	no_strings:1;		/* set if USB device does not support
 					 * strings */
@@ -190,7 +190,7 @@ extern int usb2_template;
 struct usb2_device *usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 		    struct usb2_device *parent_hub, uint8_t depth,
 		    uint8_t port_index, uint8_t port_no, uint8_t speed,
-		    uint8_t usb2_mode);
+		    enum usb_hc_mode mode);
 struct usb2_pipe *usb2_get_pipe(struct usb2_device *udev, uint8_t iface_index,
 		    const struct usb2_config *setup);
 struct usb2_pipe *usb2_get_pipe_by_addr(struct usb2_device *udev, uint8_t ea_val);

@@ -597,13 +597,13 @@ usb2_dev_get_pipe(struct usb2_device *udev, uint8_t ep_index, uint8_t dir)
 		pipe = &udev->default_pipe;
 	} else {
 		if (dir == USB_FIFO_RX) {
-			if (udev->flags.usb2_mode == USB_MODE_HOST) {
+			if (udev->flags.usb_mode == USB_MODE_HOST) {
 				ep_dir = UE_DIR_IN;
 			} else {
 				ep_dir = UE_DIR_OUT;
 			}
 		} else {
-			if (udev->flags.usb2_mode == USB_MODE_HOST) {
+			if (udev->flags.usb_mode == USB_MODE_HOST) {
 				ep_dir = UE_DIR_OUT;
 			} else {
 				ep_dir = UE_DIR_IN;
