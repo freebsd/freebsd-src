@@ -225,7 +225,7 @@ return (*addr)
 .Pp
 The
 .Fn atomic_load
-functions always have acquire semantics.
+functions are only provided with acquire memory barriers.
 .Bl -hang
 .It Fn atomic_readandclear addr
 .Bd -literal -compact
@@ -263,7 +263,7 @@ not have any variants with memory barriers at this time.
 .Pp
 The
 .Fn atomic_store
-functions always have release semantics.
+functions are only provided with release memory barriers.
 .Pp
 The type
 .Dq Li 64
