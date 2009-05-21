@@ -223,7 +223,7 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb2_port *up)
 	}
 	/* start control transfer, if device mode */
 
-	if (child->flags.usb2_mode == USB_MODE_DEVICE) {
+	if (child->flags.usb_mode == USB_MODE_DEVICE) {
 		usb2_default_transfer_setup(child);
 	}
 	/* if a HUB becomes present, do a recursive HUB explore */
@@ -276,7 +276,7 @@ uhub_reattach_port(struct uhub_softc *sc, uint8_t portno)
 	usb2_error_t err;
 	uint8_t timeout;
 	uint8_t speed;
-	uint8_t usb2_mode;
+	enum usb_hc_mode mode;
 
 	DPRINTF("reattaching port %d\n", portno);
 
@@ -404,14 +404,14 @@ repeat:
 	 * NOTE: This part is currently FreeBSD specific.
 	 */
 	if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
-		usb2_mode = USB_MODE_DEVICE;
+		mode = USB_MODE_DEVICE;
 	else
-		usb2_mode = USB_MODE_HOST;
+		mode = USB_MODE_HOST;
 
 	/* need to create a new child */
 
 	child = usb2_alloc_device(sc->sc_dev, udev->bus, udev,
-	    udev->depth + 1, portno - 1, portno, speed, usb2_mode);
+	    udev->depth + 1, portno - 1, portno, speed, mode);
 	if (child == NULL) {
 		DPRINTFN(0, "could not allocate new device!\n");
 		goto error;
@@ -495,7 +495,7 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		 */
 		if (is_suspend == 0)
 			usb2_dev_resume_peer(child);
-		else if (child->flags.usb2_mode == USB_MODE_DEVICE)
+		else if (child->flags.usb_mode == USB_MODE_DEVICE)
 			usb2_dev_suspend_peer(child);
 	}
 done:
@@ -638,7 +638,7 @@ uhub_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	/*
@@ -1505,7 +1505,7 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 
 	if (xfer->flags_int.control_xfr) {
 		udev->pwr_save.read_refs += val;
-		if (xfer->flags_int.usb2_mode == USB_MODE_HOST) {
+		if (xfer->flags_int.usb_mode == USB_MODE_HOST) {
 			/*
 			 * it is not allowed to suspend during a control
 			 * transfer
@@ -1706,7 +1706,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 
 	DPRINTF("udev=%p\n", udev);
 
-	if ((udev->flags.usb2_mode == USB_MODE_DEVICE) &&
+	if ((udev->flags.usb_mode == USB_MODE_DEVICE) &&
 	    (udev->flags.remote_wakeup == 0)) {
 		/*
 		 * If the host did not set the remote wakeup feature, we can

@@ -233,7 +233,7 @@
  * The following macro will tell if an USB transfer is currently
  * receiving or transferring data.
  */
-#define	USB_GET_DATA_ISREAD(xfer) ((xfer)->flags_int.usb2_mode == \
+#define	USB_GET_DATA_ISREAD(xfer) ((xfer)->flags_int.usb_mode == \
 	USB_MODE_DEVICE ? (((xfer)->endpoint & UE_DIR_IN) ? 0 : 1) : \
 	(((xfer)->endpoint & UE_DIR_IN) ? 1 : 0))
 
@@ -354,6 +354,8 @@ struct usb2_xfer_flags {
  * flags.
  */
 struct usb2_xfer_flags_int {
+
+	enum usb_hc_mode usb_mode;	/* shadow copy of "udev->usb_mode" */
 	uint16_t control_rem;		/* remainder in bytes */
 
 	uint8_t	open:1;			/* set if USB pipe has been opened */
@@ -381,7 +383,6 @@ struct usb2_xfer_flags_int {
 	uint8_t	bdma_setup:1;		/* set if BUS-DMA has been setup */
 #endif
 	uint8_t	isochronous_xfr:1;	/* set if isochronous transfer */
-	uint8_t	usb2_mode:1;		/* shadow copy of "udev->usb2_mode" */
 	uint8_t	curr_dma_set:1;		/* used by USB HC/DC driver */
 	uint8_t	can_cancel_immed:1;	/* set if USB transfer can be
 					 * cancelled immediately */
@@ -399,13 +400,12 @@ struct usb2_config {
 #define	USB_DEFAULT_INTERVAL	0
 	usb2_timeout_t timeout;		/* transfer timeout in milliseconds */
 	struct usb2_xfer_flags flags;	/* transfer flags */
+	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	type;			/* pipe type */
 	uint8_t	endpoint;		/* pipe number */
 	uint8_t	direction;		/* pipe direction */
 	uint8_t	ep_index;		/* pipe index match to use */
 	uint8_t	if_index;		/* "ifaces" index to use */
-	uint8_t usb_mode;		/* see "USB_MODE_XXX", 
-					 * "USB_MODE_MAX" means any mode! */
 };
 
 /*
@@ -495,7 +495,7 @@ struct usb2_attach_arg {
 	const void *driver_info;	/* for internal use */
 	struct usb2_device *device;	/* current device */
 	struct usb2_interface *iface;	/* current interface */
-	uint8_t	usb2_mode;		/* see USB_MODE_XXX */
+	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	port;
 	uint8_t	use_generic;		/* hint for generic drivers */
 };
@@ -529,7 +529,7 @@ uint8_t	usb2_clear_stall_callback(struct usb2_xfer *xfer1,
 uint8_t	usb2_get_interface_altindex(struct usb2_interface *iface);
 usb2_error_t usb2_set_alt_interface_index(struct usb2_device *udev,
 	    uint8_t iface_index, uint8_t alt_index);
-uint8_t	usb2_get_mode(struct usb2_device *udev);
+enum usb_hc_mode	usb2_get_mode(struct usb2_device *udev);
 uint8_t	usb2_get_speed(struct usb2_device *udev);
 uint32_t usb2_get_isoc_fps(struct usb2_device *udev);
 usb2_error_t usb2_transfer_setup(struct usb2_device *udev,

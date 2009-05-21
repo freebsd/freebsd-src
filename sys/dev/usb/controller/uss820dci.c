@@ -1173,7 +1173,7 @@ uss820dci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
 
-	if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		uss820dci_intr_set(xfer, 0);
 	}
 	/* dequeue transfer and start next transfer */
@@ -1279,7 +1279,7 @@ uss820dci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
 	/* check mode */
-	if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+	if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 		/* not supported */
 		return;
 	}
@@ -2298,12 +2298,12 @@ uss820dci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *e
 
 	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
 	    pipe, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb2_mode,
+	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr);
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 			/* not supported */
 			return;
 		}

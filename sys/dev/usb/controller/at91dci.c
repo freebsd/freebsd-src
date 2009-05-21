@@ -1193,7 +1193,7 @@ at91dci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
 
-	if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		ep_no = (xfer->endpoint & UE_ADDR);
 
 		/* disable endpoint interrupt */
@@ -1337,7 +1337,7 @@ at91dci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	/* check mode */
-	if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+	if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 		/* not supported */
 		return;
 	}
@@ -2264,12 +2264,12 @@ at91dci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *ede
 
 	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
 	    pipe, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb2_mode,
+	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr);
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 			/* not supported */
 			return;
 		}
