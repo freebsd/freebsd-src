@@ -515,7 +515,7 @@ typedef struct malloc_type *usb2_malloc_type;
 /* prototypes */
 
 const char *usb2_errstr(usb2_error_t error);
-const char *usb2_statestr(enum usb2_dev_state state);
+const char *usb2_statestr(enum usb_dev_state state);
 struct usb2_config_descriptor *usb2_get_config_descriptor(
 	    struct usb2_device *udev);
 struct usb2_device_descriptor *usb2_get_device_descriptor(
@@ -530,7 +530,7 @@ uint8_t	usb2_get_interface_altindex(struct usb2_interface *iface);
 usb2_error_t usb2_set_alt_interface_index(struct usb2_device *udev,
 	    uint8_t iface_index, uint8_t alt_index);
 enum usb_hc_mode	usb2_get_mode(struct usb2_device *udev);
-uint8_t	usb2_get_speed(struct usb2_device *udev);
+enum usb_dev_speed	usb2_get_speed(struct usb2_device *udev);
 uint32_t usb2_get_isoc_fps(struct usb2_device *udev);
 usb2_error_t usb2_transfer_setup(struct usb2_device *udev,
 	    const uint8_t *ifaces, struct usb2_xfer **pxfer,

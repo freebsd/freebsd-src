@@ -273,10 +273,10 @@ uhub_reattach_port(struct uhub_softc *sc, uint8_t portno)
 {
 	struct usb2_device *child;
 	struct usb2_device *udev;
+	enum usb_dev_speed speed;
+	enum usb_hc_mode mode;
 	usb2_error_t err;
 	uint8_t timeout;
-	uint8_t speed;
-	enum usb_hc_mode mode;
 
 	DPRINTF("reattaching port %d\n", portno);
 
@@ -1098,7 +1098,7 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
 {
 	struct usb2_bus *bus = udev->bus;
 	struct usb2_hub *hub;
-	uint8_t speed;
+	enum usb_dev_speed speed;
 
 	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
 

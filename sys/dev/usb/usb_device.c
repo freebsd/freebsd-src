@@ -99,7 +99,7 @@ static const char* statestr[USB_STATE_MAX] = {
 };
 
 const char *
-usb2_statestr(enum usb2_dev_state state)
+usb2_statestr(enum usb_dev_state state)
 {
 	return ((state < USB_STATE_MAX) ? statestr[state] : "UNKNOWN");
 }
@@ -1417,7 +1417,7 @@ usb2_clear_stall_proc(struct usb2_proc_msg *_pm)
 struct usb2_device *
 usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
     struct usb2_device *parent_hub, uint8_t depth, uint8_t port_index,
-    uint8_t port_no, uint8_t speed, enum usb_hc_mode mode)
+    uint8_t port_no, enum usb_dev_speed speed, enum usb_hc_mode mode)
 {
 	struct usb2_attach_arg uaa;
 	struct usb2_device *udev;
@@ -2249,7 +2249,7 @@ usb2_get_mode(struct usb2_device *udev)
  * Returns:
  * See: USB_SPEED_XXX
  */
-uint8_t
+enum usb_dev_speed
 usb2_get_speed(struct usb2_device *udev)
 {
 	return (udev->speed);
@@ -2459,7 +2459,7 @@ usb2_peer_can_wakeup(struct usb2_device *udev)
 }
 
 void
-usb2_set_device_state(struct usb2_device *udev, enum usb2_dev_state state)
+usb2_set_device_state(struct usb2_device *udev, enum usb_dev_state state)
 {
 
 	KASSERT(state < USB_STATE_MAX, ("invalid udev state"));
