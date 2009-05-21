@@ -36,8 +36,8 @@ enum usb2_speed {
 	USB_SPEED_FULL,
 	USB_SPEED_HIGH,
 	USB_SPEED_SUPER,
-	USB_SPEED_MAX
 };
+#define	USB_SPEED_MAX	(USB_SPEED_SUPER+1)
 
 /*
  * The "USB_REV" macros defines all the supported USB revisions.
@@ -49,18 +49,19 @@ enum usb2_revision {
 	USB_REV_1_1,
 	USB_REV_2_0,
 	USB_REV_2_5,
-	USB_REV_3_0,
-	USB_REV_MAX
+	USB_REV_3_0
 };
+#define	USB_REV_MAX	(USB_REV_3_0+1)
 
 /*
- * The "USB_MODE" macros defines all the supported USB modes.
+ * Supported host contoller modes.
  */
-enum usb2_mode {
-	USB_MODE_HOST,
-	USB_MODE_DEVICE,
-	USB_MODE_MAX
+enum usb_hc_mode {
+	USB_MODE_HOST,		/* initiates transfers */
+	USB_MODE_DEVICE,	/* bus transfer target */
+	USB_MODE_DUAL		/* can be host or device */
 };
+#define	USB_MODE_MAX	(USB_MODE_DUAL+1)
 
 /*
  * The "USB_MODE" macros defines all the supported device states.
@@ -71,6 +72,6 @@ enum usb2_dev_state {
 	USB_STATE_POWERED,
 	USB_STATE_ADDRESSED,
 	USB_STATE_CONFIGURED,
-	USB_STATE_MAX,
 };
+#define	USB_STATE_MAX	(USB_STATE_CONFIGURED+1)
 #endif					/* _USB2_REVISION_H_ */

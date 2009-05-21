@@ -322,7 +322,7 @@ ufoma_probe(device_t dev)
 	struct usb2_config_descriptor *cd;
 	usb2_mcpc_acm_descriptor *mad;
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	id = usb2_get_interface_descriptor(uaa->iface);

@@ -598,7 +598,7 @@ ukbd_probe(device_t dev)
 	if (sw == NULL) {
 		return (ENXIO);
 	}
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	/* check that the keyboard speaks the boot protocol: */

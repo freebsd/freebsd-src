@@ -233,7 +233,7 @@ ugen_open_pipe_write(struct usb2_fifo *f)
 	usb2_config[0].direction = UE_DIR_TX;
 	usb2_config[0].interval = USB_DEFAULT_INTERVAL;
 	usb2_config[0].flags.proxy_buffer = 1;
-	usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
+	usb2_config[0].usb_mode = USB_MODE_DUAL;	/* both modes */
 
 	switch (ed->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
@@ -301,7 +301,7 @@ ugen_open_pipe_read(struct usb2_fifo *f)
 	usb2_config[0].direction = UE_DIR_RX;
 	usb2_config[0].interval = USB_DEFAULT_INTERVAL;
 	usb2_config[0].flags.proxy_buffer = 1;
-	usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
+	usb2_config[0].usb_mode = USB_MODE_DUAL;	/* both modes */
 
 	switch (ed->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
@@ -584,7 +584,7 @@ ugen_set_config(struct usb2_fifo *f, uint8_t index)
 {
 	DPRINTFN(2, "index %u\n", index);
 
-	if (f->udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (f->udev->flags.usb_mode != USB_MODE_HOST) {
 		/* not possible in device side mode */
 		return (ENOTTY);
 	}
@@ -615,7 +615,7 @@ ugen_set_interface(struct usb2_fifo *f,
 {
 	DPRINTFN(2, "%u, %u\n", iface_index, alt_index);
 
-	if (f->udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (f->udev->flags.usb_mode != USB_MODE_HOST) {
 		/* not possible in device side mode */
 		return (ENOTTY);
 	}
@@ -821,7 +821,7 @@ usb2_gen_fill_deviceinfo(struct usb2_fifo *f, struct usb2_device_info *di)
 	di->udi_config_index = udev->curr_config_index;
 	di->udi_power = udev->flags.self_powered ? 0 : udev->power;
 	di->udi_speed = udev->speed;
-	di->udi_mode = udev->flags.usb2_mode;
+	di->udi_mode = udev->flags.usb_mode;
 	di->udi_power_mode = udev->power_mode;
 	di->udi_suspended = udev->flags.peer_suspended;
 
@@ -1465,10 +1465,10 @@ ugen_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags)
 		usb2_config[0].timeout = 0;	/* no timeout */
 		usb2_config[0].frames = u.popen->max_frames;
 		usb2_config[0].bufsize = u.popen->max_bufsize;
-		usb2_config[0].usb_mode = USB_MODE_MAX;		/* both modes */
+		usb2_config[0].usb_mode = USB_MODE_DUAL;	/* both modes */
 
 		if (usb2_config[0].type == UE_CONTROL) {
-			if (f->udev->flags.usb2_mode != USB_MODE_HOST) {
+			if (f->udev->flags.usb_mode != USB_MODE_HOST) {
 				error = EINVAL;
 				break;
 			}
@@ -1477,7 +1477,7 @@ ugen_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags)
 			isread = ((usb2_config[0].endpoint &
 			    (UE_DIR_IN | UE_DIR_OUT)) == UE_DIR_IN);
 
-			if (f->udev->flags.usb2_mode != USB_MODE_HOST) {
+			if (f->udev->flags.usb_mode != USB_MODE_HOST) {
 				isread = !isread;
 			}
 			/* check permissions */
@@ -1530,7 +1530,7 @@ ugen_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags)
 			error = EINVAL;
 			break;
 		}
-		if (f->udev->flags.usb2_mode != USB_MODE_HOST) {
+		if (f->udev->flags.usb_mode != USB_MODE_HOST) {
 			error = EINVAL;
 			break;
 		}
