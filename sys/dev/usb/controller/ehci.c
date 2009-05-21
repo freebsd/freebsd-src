@@ -73,10 +73,10 @@ __FBSDID("$FreeBSD$");
 static int ehcidebug = 0;
 static int ehcinohighspeed = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
-SYSCTL_INT(_hw_usb2_ehci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
     &ehcidebug, 0, "Debug level");
-SYSCTL_INT(_hw_usb2_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
     &ehcinohighspeed, 0, "Disable High Speed USB");
 
 static void ehci_dump_regs(ehci_softc_t *sc);

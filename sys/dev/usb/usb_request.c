@@ -53,11 +53,11 @@ static int usb2_pr_poll_delay = USB_PORT_RESET_DELAY;
 static int usb2_pr_recovery_delay = USB_PORT_RESET_RECOVERY;
 static int usb2_ss_delay = 0;
 
-SYSCTL_INT(_hw_usb2, OID_AUTO, pr_poll_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, pr_poll_delay, CTLFLAG_RW,
     &usb2_pr_poll_delay, 0, "USB port reset poll delay in ms");
-SYSCTL_INT(_hw_usb2, OID_AUTO, pr_recovery_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, pr_recovery_delay, CTLFLAG_RW,
     &usb2_pr_recovery_delay, 0, "USB port reset recovery delay in ms");
-SYSCTL_INT(_hw_usb2, OID_AUTO, ss_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, ss_delay, CTLFLAG_RW,
     &usb2_ss_delay, 0, "USB status stage delay in ms");
 #endif
 

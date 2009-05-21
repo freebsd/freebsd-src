@@ -109,8 +109,8 @@ static void	cue_reset(struct cue_softc *);
 #if USB_DEBUG
 static int cue_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
-SYSCTL_INT(_hw_usb2_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
+SYSCTL_INT(_hw_usb_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
     "Debug level");
 #endif
 

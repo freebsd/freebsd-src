@@ -87,7 +87,7 @@ static void	usb2_cdev_cleanup(void *);
 
 int	usb2_template = 0;
 
-SYSCTL_INT(_hw_usb2, OID_AUTO, template, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW,
     &usb2_template, 0, "Selected USB device side template");
 
 static const char* statestr[USB_STATE_MAX] = {
