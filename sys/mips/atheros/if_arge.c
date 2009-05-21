@@ -306,6 +306,28 @@ arge_attach(device_t dev)
 		goto fail;
 	}
 
+	/* Initialize the MAC block */
+	
+	/* Step 1. Soft-reset MAC */
+	ARGE_SET_BITS(sc, AR71XX_MAC_CFG1, MAC_CFG1_SOFT_RESET);
+	DELAY(20);
+
+	/* Step 2. Punt the MAC core from the central reset register */
+	reg = ATH_READ_REG(AR71XX_RST_RESET);
+	if (sc->arge_mac_unit == 0) 
+		reg |= RST_RESET_GE0_MAC;
+	else if (sc->arge_mac_unit == 1) 
+		reg |= RST_RESET_GE1_MAC;
+	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	DELAY(100);
+	reg = ATH_READ_REG(AR71XX_RST_RESET);
+	if (sc->arge_mac_unit == 0) 
+		reg &= ~RST_RESET_GE0_MAC;
+	else if (sc->arge_mac_unit == 1) 
+		reg &= ~RST_RESET_GE1_MAC;
+	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+
+	/* Step 3. Reconfigure MAC block */
 	ARGE_WRITE(sc, AR71XX_MAC_CFG1, 
 		MAC_CFG1_SYNC_RX | MAC_CFG1_RX_ENABLE |
 		MAC_CFG1_SYNC_TX | MAC_CFG1_TX_ENABLE);
@@ -612,13 +634,13 @@ arge_reset_dma(struct arge_softc *sc)
 	ARGE_WRITE(sc, AR71XX_DMA_TX_DESC, 0);
 
 	/* Clear all possible RX interrupts */
-	for (i = 0; i < ARGE_RX_RING_COUNT; i++)
+	while(ARGE_READ(sc, AR71XX_DMA_RX_STATUS) & DMA_RX_STATUS_PKT_RECVD)
 		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_PKT_RECVD);
 
 	/* 
 	 * Clear all possible TX interrupts
 	 */
-	for (i = 0; i < ARGE_TX_RING_COUNT; i++)
+	while(ARGE_READ(sc, AR71XX_DMA_TX_STATUS) & DMA_TX_STATUS_PKT_SENT)
 		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_PKT_SENT);
 
 	/* 
@@ -694,7 +716,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	struct arge_txdesc	*txd;
 	struct arge_desc	*desc, *prev_desc;
 	bus_dma_segment_t	txsegs[ARGE_MAXFRAGS];
-	int			error, i, nsegs, prod, si, prev_prod;
+	int			error, i, nsegs, prod, prev_prod;
 
 	ARGE_LOCK_ASSERT(sc);
 
@@ -723,8 +745,6 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	txd->tx_m = *m_head;
 	bus_dmamap_sync(sc->arge_cdata.arge_tx_tag, txd->tx_dmamap,
 	    BUS_DMASYNC_PREWRITE);
-
-	si = prod;
 
 	/* 
 	 * Make a list of descriptors for this packet. DMA controller will
@@ -1361,8 +1381,6 @@ arge_tx_locked(struct arge_softc *sc)
 
 		txd = &sc->arge_cdata.arge_txdesc[cons];
 
-		cur_tx->packet_ctrl = ARGE_DESC_EMPTY;
-
 		ifp->if_opackets++;
 
 		bus_dmamap_sync(sc->arge_cdata.arge_tx_tag, txd->tx_dmamap,
@@ -1375,7 +1393,6 @@ arge_tx_locked(struct arge_softc *sc)
 		txd->tx_m = NULL;
 
 		/* reset descriptor */
-		cur_tx->packet_ctrl = ARGE_DESC_EMPTY;
 		cur_tx->packet_addr = 0;
 	}
 
@@ -1463,6 +1480,13 @@ arge_rx_intr(struct arge_softc *sc, uint32_t status)
 	/* interrupts are masked by filter */
 	arge_rx_locked(sc);
 
+	/* RX overrun disables the receiver. Clear indication and
+	   re-enable rx. */
+	if ( status | DMA_INTR_RX_OVERFLOW) {
+		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_OVERFLOW);
+		ARGE_WRITE(sc, AR71XX_DMA_RX_CONTROL, DMA_RX_CONTROL_EN);
+	}
+
 	/* unmask interrupts */
 	ARGE_SET_BITS(sc, 
 	    AR71XX_DMA_INTR, DMA_INTR_RX_OVERFLOW | DMA_INTR_RX_PKT_RCVD);
@@ -1511,6 +1535,7 @@ arge_intr(void *arg)
 	uint32_t		status;
 
 	status = sc->arge_intr_status;
+	sc->arge_intr_status = 0;
 
 #if 0
 	dprintf("int status(intr) = %b\n", status, 
@@ -1550,6 +1575,19 @@ arge_tx_intr(struct arge_softc *sc, uint32_t status)
 
 	/* Interrupts are masked by filter */
 	arge_tx_locked(sc);
+
+	/* Underrun turns off TX. Clear underrun indication.
+	   If there's anything left in the ring, reactivate the tx. */
+	if (status & DMA_INTR_TX_UNDERRUN) {
+		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_UNDERRUN);
+	    if (sc->arge_cdata.arge_tx_pkts > 0 ) {
+		ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, DMA_TX_CONTROL_EN);
+	    }
+	}
+
+        /* unmask interrupts */
+        ARGE_SET_BITS(sc,
+            AR71XX_DMA_INTR, DMA_INTR_TX_UNDERRUN | DMA_INTR_TX_PKT_SENT);
 
 	ARGE_UNLOCK(sc);
 }
