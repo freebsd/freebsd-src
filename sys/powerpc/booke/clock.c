@@ -79,14 +79,14 @@ __FBSDID("$FreeBSD$");
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
-u_int			tickspending;
-u_long			ns_per_tick = 80;
-static u_long		ticks_per_sec = 12500000;
-static long		ticks_per_intr;
+u_int tickspending;
+u_long ns_per_tick = 80;
+static u_long ticks_per_sec = 12500000;
+static long ticks_per_intr;
 
 #define	DIFF19041970	2082844800
 
-static timecounter_get_t	decr_get_timecount;
+static timecounter_get_t decr_get_timecount;
 
 static struct timecounter	decr_timecounter = {
 	decr_get_timecount,	/* get_timecount */
@@ -122,7 +122,6 @@ decr_intr(struct trapframe *frame)
 	statclock(TRAPF_USERMODE(frame));
 	if (profprocs != 0)
 		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-
 }
 
 void
@@ -181,14 +180,13 @@ decr_tc_init(void)
 	tc_init(&decr_timecounter);
 }
 
-
 static unsigned
 decr_get_timecount(struct timecounter *tc)
 {
 	quad_t tb;
 
 	tb = mftb();
-	return tb;
+	return (tb);
 }
 
 /*
@@ -207,7 +205,7 @@ DELAY(int n)
 	}
 
 	start = mftb();
-	end = start + (u_quad_t)ticks_per_sec / ( USECS_IN_SEC / n);
+	end = start + (u_quad_t)ticks_per_sec / (USECS_IN_SEC / n);
 	do {
 		now = mftb();
 	} while (now < end || (now > start && end < start));

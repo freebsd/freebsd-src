@@ -14,8 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -226,10 +224,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(td, func, arg)
-	struct thread *td;
-	void (*func)(void *);
-	void *arg;
+cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	struct callframe *cf;
 
@@ -331,7 +326,7 @@ done:
 }
 
 /*
- * Detatch mapped page and release resources back to the system.
+ * Detach mapped page and release resources back to the system.
  *
  * Remove a reference from the given sf_buf, adding it to the free
  * list when its reference count reaches zero. A freed sf_buf still,
@@ -341,6 +336,7 @@ done:
 void
 sf_buf_free(struct sf_buf *sf)
 {
+
 	mtx_lock(&sf_buf_lock);
 	sf->ref_count--;
 	if (sf->ref_count == 0) {

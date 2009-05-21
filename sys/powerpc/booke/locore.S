@@ -334,9 +334,7 @@ kernload_ap:
 
 	lis	%r3, KERNBASE@h
 	ori	%r3, %r3, KERNBASE@l	/* EPN = KERNBASE */
-#if SMP
 	ori	%r3, %r3, MAS2_M@l	/* WIMGE = 0b00100 */
-#endif
 	mtspr	SPR_MAS2, %r3
 	isync
 
