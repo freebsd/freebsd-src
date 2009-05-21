@@ -115,7 +115,7 @@ static int offload_open(struct port_info *pi);
 static void touch_bars(device_t dev);
 static int offload_close(struct t3cdev *tdev);
 static void cxgb_link_start(struct port_info *p);
-static void cxgb_link_fault(void *arg, int ncount);
+int t3_detect_link_fault(adapter_t *adapter, int port_id);
 
 static device_method_t cxgb_controller_methods[] = {
 	DEVMETHOD(device_probe,		cxgb_controller_probe),
@@ -650,6 +650,10 @@ cxgb_controller_attach(device_t dev)
 		 sc->params.vpd.ec, sc->params.vpd.sn);
 	device_set_desc_copy(dev, buf);
 
+	snprintf(&sc->port_types[0], sizeof(sc->port_types), "%x%x%x%x",
+		 sc->params.vpd.port_type[0], sc->params.vpd.port_type[1],
+		 sc->params.vpd.port_type[2], sc->params.vpd.port_type[3]);
+
 	device_printf(sc->dev, "Firmware Version %s\n", &sc->fw_version[0]);
 	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
 	t3_add_attach_sysctls(sc);
@@ -1069,8 +1073,6 @@ cxgb_port_attach(device_t dev)
 	bcopy(IF_LLADDR(p->ifp), p->hw_addr, ETHER_ADDR_LEN);
 	t3_sge_init_port(p);
 
-	TASK_INIT(&p->link_fault_task, 0, cxgb_link_fault, p);
-
 	/* If it's MSI or INTx, allocate a single interrupt for everything */
 	if ((sc->flags & USING_MSIX) == 0) {
 		if ((sc->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
@@ -1257,32 +1259,6 @@ t3_os_pci_restore_state(struct adapter *sc)
 	return (0);
 }
 
-void t3_os_link_fault(struct adapter *adap, int port_id, int state)
-{
-	struct port_info *pi = &adap->port[port_id];
-
-	if (!state) {
-		if_link_state_change(pi->ifp, LINK_STATE_DOWN);
-		return;
-	}
-
-	if (adap->params.nports <= 2) {
-		struct cmac *mac = &pi->mac;
-
-		/* Clear local faults */
-		t3_xgm_intr_disable(adap, port_id);
-		t3_read_reg(adap, A_XGM_INT_STATUS + pi->mac.offset);
-		t3_write_reg(adap, A_XGM_INT_CAUSE + pi->mac.offset, F_XGM_INT);
-				
-		t3_set_reg_field(adap, A_XGM_INT_ENABLE + pi->mac.offset,
-				 F_XGM_INT, F_XGM_INT);
-		t3_xgm_intr_enable(adap, pi->port_id);
-		t3_mac_enable(mac, MAC_DIRECTION_TX);
-	}
-
-	if_link_state_change(pi->ifp, LINK_STATE_UP);
-}
-
 /**
  *	t3_os_link_changed - handle link status changes
  *	@adapter: the adapter associated with the link change
@@ -1301,48 +1277,12 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
      int duplex, int fc)
 {
 	struct port_info *pi = &adapter->port[port_id];
-	struct cmac *mac = &adapter->port[port_id].mac;
 
 	if (link_status) {
-		DELAY(10);
-		t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
-		/* Clear errors created by MAC enable */
-		t3_set_reg_field(adapter, A_XGM_STAT_CTRL + pi->mac.offset,
-				 F_CLRSTATS, 1);
-
-		if (adapter->params.nports <= 2) {
-			/* Clear local faults */
-			t3_xgm_intr_disable(adapter, pi->port_id);
-			t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
-			t3_write_reg(adapter, A_XGM_INT_CAUSE + pi->mac.offset,
-				     F_XGM_INT); 
-
-			t3_set_reg_field(adapter,
-					 A_XGM_INT_ENABLE + pi->mac.offset,
-					 F_XGM_INT, F_XGM_INT);
-			t3_xgm_intr_enable(adapter, pi->port_id);
-		}
-
+		pi->ifp->if_baudrate = IF_Mbps(speed);
 		if_link_state_change(pi->ifp, LINK_STATE_UP);
-	} else {
-		t3_xgm_intr_disable(adapter, pi->port_id);
-		t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
-		if (adapter->params.nports <= 2) {
-			t3_set_reg_field(adapter,
-					 A_XGM_INT_ENABLE + pi->mac.offset,
-					 F_XGM_INT, 0);
-		}
-
-		/* PR 5666. We shouldn't power down 1G phys */
-		if (is_10G(adapter))
-			pi->phy.ops->power_down(&pi->phy, 1);
-
-		t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
-		t3_mac_disable(mac, MAC_DIRECTION_RX);
-		t3_link_start(&pi->phy, mac, &pi->link_config);
-
+	} else
 		if_link_state_change(pi->ifp, LINK_STATE_DOWN);
-	}
 }
 
 /**
@@ -1393,22 +1333,6 @@ t3_os_ext_intr_handler(adapter_t *sc)
 		taskqueue_enqueue(sc->tq, &sc->ext_intr_task);
 	}
 	ADAPTER_UNLOCK(sc);
-}
-
-static void
-cxgb_link_fault(void *arg, int ncount)
-{
-	struct port_info *pi = arg;
-
-	t3_link_fault(pi->adapter, pi->port_id);
-}
-
-void t3_os_link_fault_handler(struct adapter *sc, int port_id)
-{
-	struct port_info *pi = &sc->port[port_id];
-
-	pi->link_fault = 1;
-	taskqueue_enqueue(sc->tq, &pi->link_fault_task);
 }
 
 void
@@ -1966,14 +1890,15 @@ cxgb_init_locked(struct port_info *p)
 			log(LOG_WARNING,
 			    "Could not initialize offload capabilities\n");
 	}
+
+	device_printf(sc->dev, "enabling interrupts on port=%d\n", p->port_id);
+	t3_port_intr_enable(sc, p->port_id);
+
 #if !defined(LINK_ATTACH)
 	cxgb_link_start(p);
 	t3_link_changed(sc, p->port_id);
 #endif
 	ifp->if_baudrate = IF_Mbps(p->link_config.speed);
-
-	device_printf(sc->dev, "enabling interrupts on port=%d\n", p->port_id);
-	t3_port_intr_enable(sc, p->port_id);
 
  	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
 	t3_sge_reset_adapter(sc);
@@ -2338,12 +2263,23 @@ check_link_status(adapter_t *sc)
 {
 	int i;
 
+	/* For synchronized access to open_device_map */
+	ADAPTER_LOCK_ASSERT_OWNED(sc);
+
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		struct port_info *p = &sc->port[i];
+		struct link_config *lc = &p->link_config;
 
-		if (!(p->phy.caps & SUPPORTED_IRQ)) 
+		if (!isset(&sc->open_device_map, p->port_id)) {
+			/*
+			 * port is down, report link down too.  Note
+			 * that we do this for IRQ based PHYs too.
+			 */
+			lc->link_ok = 0;
+			t3_os_link_changed(sc, i, lc->link_ok, lc->speed,
+					   lc->duplex, lc->fc);
+		} else if (p->link_fault || !(p->phy.caps & SUPPORTED_IRQ))
 			t3_link_changed(sc, i);
-		p->ifp->if_baudrate = IF_Mbps(p->link_config.speed);
 	}
 }
 
@@ -2410,12 +2346,12 @@ cxgb_tick_handler(void *arg, int count)
 	int i;
 	uint32_t cause, reset;
 
-	if(sc->flags & CXGB_SHUTDOWN)
+	if(sc->flags & CXGB_SHUTDOWN || !(sc->flags & FULL_INIT_DONE))
 		return;
 
 	ADAPTER_LOCK(sc);
-	if (p->linkpoll_period)
-		check_link_status(sc);
+
+	check_link_status(sc);
 
 	sc->check_task_cnt++;
 
@@ -2456,9 +2392,6 @@ cxgb_tick_handler(void *arg, int count)
 		PORT_LOCK(pi);
 		t3_mac_update_stats(mac);
 		PORT_UNLOCK(pi);
-
-		if (pi->link_fault)
-			taskqueue_enqueue(sc->tq, &pi->link_fault_task);
 
 		ifp->if_opackets =
 		    mstats->tx_frames_64 +
