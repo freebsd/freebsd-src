@@ -104,8 +104,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int ubser_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ubser, CTLFLAG_RW, 0, "USB ubser");
-SYSCTL_INT(_hw_usb2_ubser, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ubser, CTLFLAG_RW, 0, "USB ubser");
+SYSCTL_INT(_hw_usb_ubser, OID_AUTO, debug, CTLFLAG_RW,
     &ubser_debug, 0, "ubser debug level");
 #endif
 

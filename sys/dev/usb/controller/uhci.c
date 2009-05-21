@@ -66,10 +66,10 @@ __FBSDID("$FreeBSD$");
 static int uhcidebug = 0;
 static int uhcinoloop = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uhci, CTLFLAG_RW, 0, "USB uhci");
-SYSCTL_INT(_hw_usb2_uhci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uhci, CTLFLAG_RW, 0, "USB uhci");
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW,
     &uhcidebug, 0, "uhci debug level");
-SYSCTL_INT(_hw_usb2_uhci, OID_AUTO, loop, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RW,
     &uhcinoloop, 0, "uhci noloop");
 static void uhci_dumpregs(uhci_softc_t *sc);
 static void uhci_dump_tds(uhci_td_t *td);

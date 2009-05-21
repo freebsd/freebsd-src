@@ -105,8 +105,8 @@ struct usb2_fifo_methods usb2_ugen_methods = {
 #if USB_DEBUG
 static int ugen_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
-SYSCTL_INT(_hw_usb2_ugen, OID_AUTO, debug, CTLFLAG_RW, &ugen_debug,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
+SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW, &ugen_debug,
     0, "Debug level");
 #endif
 

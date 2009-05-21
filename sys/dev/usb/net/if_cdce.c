@@ -88,8 +88,8 @@ static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
 #if USB_DEBUG
 static int cdce_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, cdce, CTLFLAG_RW, 0, "USB CDC-Ethernet");
-SYSCTL_INT(_hw_usb2_cdce, OID_AUTO, debug, CTLFLAG_RW, &cdce_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, cdce, CTLFLAG_RW, 0, "USB CDC-Ethernet");
+SYSCTL_INT(_hw_usb_cdce, OID_AUTO, debug, CTLFLAG_RW, &cdce_debug, 0,
     "Debug level");
 #endif
 

@@ -23,6 +23,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090520:
+	The sysctl tree for the usb stack has renamed from hw.usb2.* to
+	hw.usb.* and is now consistent again with previous releases.
+
+20090520:
 	802.11 monitor mode support was revised and driver api's
 	were changed.  Drivers dependent on net80211 now support
 	DLT_IEEE802_11_RADIO instead of DLT_IEEE802_11.  No
