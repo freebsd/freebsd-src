@@ -855,8 +855,8 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 * not schedule any other reports.
 		 * Otherwise, reset the interface timer.
 		 */
-		if (mli->mli_v1_timer == 0 || mli->mli_v2_timer >= timer) {
-			mli->mli_v1_timer = MLD_RANDOM_DELAY(timer);
+		if (mli->mli_v2_timer == 0 || mli->mli_v2_timer >= timer) {
+			mli->mli_v2_timer = MLD_RANDOM_DELAY(timer);
 			V_interface_timers_running6 = 1;
 		}
 	} else {
@@ -888,7 +888,7 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 * Otherwise, prepare to respond to the
 		 * group-specific or group-and-source query.
 		 */
-		if (mli->mli_v1_timer == 0 || mli->mli_v2_timer >= timer)
+		if (mli->mli_v2_timer == 0 || mli->mli_v2_timer >= timer)
 			mld_v2_process_group_query(inm, mli, timer, m, off);
 	}
 
@@ -1498,6 +1498,7 @@ mld_v2_process_group_timers(struct mld_ifinfo *mli,
 static void
 mld_set_version(struct mld_ifinfo *mli, const int version)
 {
+	int old_version_timer;
 
 	MLD_LOCK_ASSERT();
 
@@ -1505,24 +1506,18 @@ mld_set_version(struct mld_ifinfo *mli, const int version)
 	    version, mli->mli_ifp, mli->mli_ifp->if_xname);
 
 	if (version == MLD_VERSION_1) {
-		int old_version_timer;
 		/*
 		 * Compute the "Older Version Querier Present" timer as per
 		 * Section 9.12.
 		 */
 		old_version_timer = mli->mli_rv * mli->mli_qi + mli->mli_qri;
 		old_version_timer *= PR_SLOWHZ;
-
-		if (version == MLD_VERSION_1) {
-			mli->mli_v1_timer = old_version_timer;
-		}
+		mli->mli_v1_timer = old_version_timer;
 	}
 
-	if (mli->mli_v1_timer > 0) {
-		if (mli->mli_version != MLD_VERSION_1) {
-			mli->mli_version = MLD_VERSION_1;
-			mld_v2_cancel_link_timers(mli);
-		}
+	if (mli->mli_v1_timer > 0 && mli->mli_version != MLD_VERSION_1) {
+		mli->mli_version = MLD_VERSION_1;
+		mld_v2_cancel_link_timers(mli);
 	}
 }
 
@@ -1648,17 +1643,15 @@ mld_v1_process_querier_timers(struct mld_ifinfo *mli)
 
 	MLD_LOCK_ASSERT();
 
-	if (mli->mli_v1_timer == 0) {
+	if (mli->mli_v1_timer == 0 && mli->mli_version != MLD_VERSION_2) {
 		/*
-		 * MLDv1 Querier Present timers expired; revert to MLDv2.
+		 * MLDv1 Querier Present timer expired; revert to MLDv2.
 		 */
-		if (mli->mli_version != MLD_VERSION_2) {
-			CTR5(KTR_MLD,
-			    "%s: transition from v%d -> v%d on %p(%s)",
-			    __func__, mli->mli_version, MLD_VERSION_2,
-			    mli->mli_ifp, mli->mli_ifp->if_xname);
-			mli->mli_version = MLD_VERSION_2;
-		}
+		CTR5(KTR_MLD,
+		    "%s: transition from v%d -> v%d on %p(%s)",
+		    __func__, mli->mli_version, MLD_VERSION_2,
+		    mli->mli_ifp, mli->mli_ifp->if_xname);
+		mli->mli_version = MLD_VERSION_2;
 	}
 }
 
