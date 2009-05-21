@@ -17,6 +17,7 @@ SUBDIR=	${_3dfx} \
 	aic7xxx \
 	aio \
 	${_amd} \
+	${_amdtemp} \
 	ale \
 	amr \
 	${_an} \
@@ -143,7 +144,6 @@ SUBDIR=	${_3dfx} \
 	${_ixgb} \
 	jme \
 	joy \
-	${_k8temp} \
 	kbdmux \
 	krpc \
 	kue \
@@ -455,6 +455,7 @@ _zfs=		zfs
 _aac=		aac
 _acpi=		acpi
 _ahb=		ahb
+_amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _arl=		arl
 _asr=		asr
@@ -479,7 +480,7 @@ _ipw=		ipw
 _ipwfw=		ipwfw
 _iwi=		iwi
 _iwifw=		iwifw
-_ixgb=   	ixgb
+_ixgb=		ixgb
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
@@ -508,6 +509,7 @@ _aac=		aac
 _acpi=		acpi
 _agp=		agp
 _an=		an
+_amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _cardbus=	cardbus
 _cbb=		cbb
@@ -544,7 +546,6 @@ _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
 _ixgb=   	ixgb
-_k8temp=	k8temp
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
