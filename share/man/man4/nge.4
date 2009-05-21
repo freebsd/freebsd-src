@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2009
+.Dd May 21, 2009
 .Dt NGE 4
 .Os
 .Sh NAME
@@ -181,6 +181,21 @@ SMC EZ Card 1000 (SMC9462TX)
 Surecom Technology EP-320G-TX
 .It
 Trendware TEG-PCITX (32-bit PCI) and TEG-PCITX2 (64-bit PCI)
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.nge.%d.int_holdoff
+Maximum amount of time to delay interrupt processing in units of
+100us.
+The accepted range is 0 to 255, the default is 1(100us).
+Value 0 completely disables the interrupt moderation.
+The interface has to be brought down and up again before a change
+takes effect.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
