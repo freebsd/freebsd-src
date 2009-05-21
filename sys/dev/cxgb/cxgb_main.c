@@ -392,6 +392,31 @@ upgrade_fw(adapter_t *sc)
 	return (status);	
 }
 
+/*
+ * The cxgb_controller_attach function is responsible for the initial
+ * bringup of the device.  Its responsibilities include:
+ *
+ *  1. Determine if the device supports MSI or MSI-X.
+ *  2. Allocate bus resources so that we can access the Base Address Register
+ *  3. Create and initialize mutexes for the controller and its control
+ *     logic such as SGE and MDIO.
+ *  4. Call hardware specific setup routine for the adapter as a whole.
+ *  5. Allocate the BAR for doing MSI-X.
+ *  6. Setup the line interrupt iff MSI-X is not supported.
+ *  7. Create the driver's taskq.
+ *  8. Start the task queue threads.
+ *  9. Update the firmware if required.
+ * 10. Create a child device for each MAC (port)
+ * 11. Initialize T3 private state.
+ * 12. Trigger the LED
+ * 13. Setup offload iff supported.
+ * 14. Reset/restart the tick callout.
+ * 15. Attach sysctls
+ *
+ * NOTE: Any modification or deviation from this list MUST be reflected in
+ * the above comment.  Failure to do so will result in problems on various
+ * error conditions including link flapping.
+ */
 static int
 cxgb_controller_attach(device_t dev)
 {
@@ -635,6 +660,11 @@ out:
 	return (error);
 }
 
+/*
+ * The cxgb_controlller_detach routine is called with the device is
+ * unloaded from the system.
+ */
+
 static int
 cxgb_controller_detach(device_t dev)
 {
@@ -647,6 +677,24 @@ cxgb_controller_detach(device_t dev)
 	return (0);
 }
 
+/*
+ * The cxgb_free() is called by the cxgb_controller_detach() routine
+ * to tear down the structures that were built up in
+ * cxgb_controller_attach(), and should be the final piece of work
+ * done when fullly unloading the driver.
+ * 
+ *
+ *  1. Shutting down the threads started by the cxgb_controller_attach()
+ *     routine.
+ *  2. Stopping the lower level device and all callouts (cxgb_down_locked()).
+ *  3. Detaching all of the port devices created during the
+ *     cxgb_controller_attach() routine.
+ *  4. Removing the device children created via cxgb_controller_attach().
+ *  5. Releaseing PCI resources associated with the device.
+ *  6. Turning off the offload support, iff it was turned on.
+ *  7. Destroying the mutexes created in cxgb_controller_attach().
+ *
+ */
 static void
 cxgb_free(struct adapter *sc)
 {
@@ -655,14 +703,27 @@ cxgb_free(struct adapter *sc)
 	ADAPTER_LOCK(sc);
 	sc->flags |= CXGB_SHUTDOWN;
 	ADAPTER_UNLOCK(sc);
-	cxgb_pcpu_shutdown_threads(sc);
-	ADAPTER_LOCK(sc);
 
-/*
- * drops the lock
- */
+	cxgb_pcpu_shutdown_threads(sc);
+
+	ADAPTER_LOCK(sc);
 	cxgb_down_locked(sc);
+	ADAPTER_UNLOCK(sc);
 	
+	t3_sge_deinit_sw(sc);
+	/*
+	 * Wait for last callout
+	 */
+	
+	DELAY(hz*100);
+
+	bus_generic_detach(sc->dev);
+
+	for (i = 0; i < (sc)->params.nports; i++) {
+		if (device_delete_child(sc->dev, sc->portdev[i]) != 0)
+			device_printf(sc->dev, "failed to delete child port\n");
+	}
+
 #ifdef MSI_SUPPORTED
 	if (sc->flags & (USING_MSI | USING_MSIX)) {
 		device_printf(sc->dev, "releasing msi message(s)\n");
@@ -676,19 +737,6 @@ cxgb_free(struct adapter *sc)
 		    sc->msix_regs_res);
 	}
 
-	t3_sge_deinit_sw(sc);
-	/*
-	 * Wait for last callout
-	 */
-	
-	DELAY(hz*100);
-
-	for (i = 0; i < (sc)->params.nports; ++i) {
-		if (sc->portdev[i] != NULL)
-			device_delete_child(sc->dev, sc->portdev[i]);
-	}
-		
-	bus_generic_detach(sc->dev);
 	if (sc->tq != NULL) {
 		taskqueue_free(sc->tq);
 		sc->tq = NULL;
@@ -957,6 +1005,7 @@ cxgb_port_attach(device_t dev)
 	}
 
 	ether_ifattach(ifp, p->hw_addr);
+
 #ifdef IFNET_MULTIQUEUE
 	ifp->if_transmit = cxgb_pcpu_transmit;
 #endif
@@ -1022,37 +1071,103 @@ cxgb_port_attach(device_t dev)
 
 	TASK_INIT(&p->link_fault_task, 0, cxgb_link_fault, p);
 
+	/* If it's MSI or INTx, allocate a single interrupt for everything */
+	if ((sc->flags & USING_MSIX) == 0) {
+		if ((sc->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
+		   &sc->irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+			device_printf(sc->dev, "Cannot allocate interrupt rid=%d\n",
+			    sc->irq_rid);
+			err = EINVAL;
+			goto out;
+		}
+		device_printf(sc->dev, "allocated irq_res=%p\n", sc->irq_res);
+
+		if (bus_setup_intr(sc->dev, sc->irq_res, INTR_MPSAFE|INTR_TYPE_NET,
+#ifdef INTR_FILTERS
+			NULL,
+#endif			
+			sc->cxgb_intr, sc, &sc->intr_tag)) {
+			device_printf(sc->dev, "Cannot set up interrupt\n");
+			err = EINVAL;
+			goto irq_err;
+		}
+	} else {
+		cxgb_setup_msix(sc, sc->msi_count);
+	}
+
 #if defined(LINK_ATTACH)	
 	cxgb_link_start(p);
 	t3_link_changed(sc, p->port_id);
 #endif
-	return (0);
+out:
+	return (err);
+irq_err:
+	CH_ERR(sc, "request_irq failed, err %d\n", err);
+	goto out;
 }
 
+/*
+ * cxgb_port_detach() is called via the device_detach methods when
+ * cxgb_free() calls the bus_generic_detach.  It is responsible for 
+ * removing the device from the view of the kernel, i.e. from all 
+ * interfaces lists etc.  This routine is only called when the driver is 
+ * being unloaded, not when the link goes down.
+ * 
+ */
 static int
 cxgb_port_detach(device_t dev)
 {
 	struct port_info *p;
+	struct adapter *sc;
 
 	p = device_get_softc(dev);
+	sc = p->adapter;
+
+	if (p->port_cdev != NULL)
+		destroy_dev(p->port_cdev);
+	
+	ether_ifdetach(p->ifp);
+	printf("waiting for callout to stop ...");
+	printf("done\n");
 
 	PORT_LOCK(p);
 	if (p->ifp->if_drv_flags & IFF_DRV_RUNNING) 
 		cxgb_stop_locked(p);
 	PORT_UNLOCK(p);
 	
-	ether_ifdetach(p->ifp);
-	printf("waiting for callout to stop ...");
-	DELAY(1000000);
-	printf("done\n");
+	if (sc->intr_tag != NULL) {
+		bus_teardown_intr(sc->dev, sc->irq_res, sc->intr_tag);
+		sc->intr_tag = NULL;
+	}
+	if (sc->irq_res != NULL) {
+		device_printf(sc->dev, "de-allocating interrupt irq_rid=%d irq_res=%p\n",
+		    sc->irq_rid, sc->irq_res);
+		bus_release_resource(sc->dev, SYS_RES_IRQ, sc->irq_rid,
+		    sc->irq_res);
+		sc->irq_res = NULL;
+	}
+	
+	if (sc->flags & USING_MSIX) 
+		cxgb_teardown_msix(sc);
+	
+	callout_drain(&sc->cxgb_tick_ch);
+	callout_drain(&sc->sge_timer_ch);
+	
+	if (sc->tq != NULL) {
+		printf("draining slow intr\n");
+		
+		taskqueue_drain(sc->tq, &sc->slow_intr_task);
+			printf("draining ext intr\n");	
+		taskqueue_drain(sc->tq, &sc->ext_intr_task);
+		printf("draining tick task\n");
+		taskqueue_drain(sc->tq, &sc->tick_task);
+	}
+
 	/*
 	 * the lock may be acquired in ifdetach
 	 */
 	PORT_LOCK_DEINIT(p);
 	if_free(p->ifp);
-	
-	if (p->port_cdev != NULL)
-		destroy_dev(p->port_cdev);
 	
 	return (0);
 }
@@ -1705,30 +1820,6 @@ cxgb_up(struct adapter *sc)
 
 	t3_intr_clear(sc);
 
-	/* If it's MSI or INTx, allocate a single interrupt for everything */
-	if ((sc->flags & USING_MSIX) == 0) {
-		if ((sc->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
-		   &sc->irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
-			device_printf(sc->dev, "Cannot allocate interrupt rid=%d\n",
-			    sc->irq_rid);
-			err = EINVAL;
-			goto out;
-		}
-		device_printf(sc->dev, "allocated irq_res=%p\n", sc->irq_res);
-
-		if (bus_setup_intr(sc->dev, sc->irq_res, INTR_MPSAFE|INTR_TYPE_NET,
-#ifdef INTR_FILTERS
-			NULL,
-#endif			
-			sc->cxgb_intr, sc, &sc->intr_tag)) {
-			device_printf(sc->dev, "Cannot set up interrupt\n");
-			err = EINVAL;
-			goto irq_err;
-		}
-	} else {
-		cxgb_setup_msix(sc, sc->msi_count);
-	}
-
 	t3_sge_start(sc);
 	t3_intr_enable(sc);
 
@@ -1749,9 +1840,6 @@ cxgb_up(struct adapter *sc)
 	}
 out:
 	return (err);
-irq_err:
-	CH_ERR(sc, "request_irq failed, err %d\n", err);
-	goto out;
 }
 
 
@@ -1765,36 +1853,8 @@ cxgb_down_locked(struct adapter *sc)
 	t3_sge_stop(sc);
 	t3_intr_disable(sc);
 
-	if (sc->intr_tag != NULL) {
-		bus_teardown_intr(sc->dev, sc->irq_res, sc->intr_tag);
-		sc->intr_tag = NULL;
-	}
-	if (sc->irq_res != NULL) {
-		device_printf(sc->dev, "de-allocating interrupt irq_rid=%d irq_res=%p\n",
-		    sc->irq_rid, sc->irq_res);
-		bus_release_resource(sc->dev, SYS_RES_IRQ, sc->irq_rid,
-		    sc->irq_res);
-		sc->irq_res = NULL;
-	}
-	
-	if (sc->flags & USING_MSIX) 
-		cxgb_teardown_msix(sc);
-	
 	callout_stop(&sc->cxgb_tick_ch);
 	callout_stop(&sc->sge_timer_ch);
-	callout_drain(&sc->cxgb_tick_ch);
-	callout_drain(&sc->sge_timer_ch);
-	
-	if (sc->tq != NULL) {
-		printf("draining slow intr\n");
-		
-		taskqueue_drain(sc->tq, &sc->slow_intr_task);
-			printf("draining ext intr\n");	
-		taskqueue_drain(sc->tq, &sc->ext_intr_task);
-		printf("draining tick task\n");
-		taskqueue_drain(sc->tq, &sc->tick_task);
-	}
-	ADAPTER_UNLOCK(sc);
 }
 
 static int
@@ -1861,8 +1921,9 @@ offload_close(struct t3cdev *tdev)
 	ADAPTER_LOCK(adapter);
 	if (!adapter->open_device_map)
 		cxgb_down_locked(adapter);
-	else
-		ADAPTER_UNLOCK(adapter);
+
+	ADAPTER_UNLOCK(adapter);
+
 	return (0);
 }
 
@@ -1957,10 +2018,10 @@ cxgb_stop_locked(struct port_info *pi)
 	ADAPTER_LOCK(pi->adapter);
 	clrbit(&pi->adapter->open_device_map, pi->port_id);
 
-	if (pi->adapter->open_device_map == 0) {
+	if (pi->adapter->open_device_map == 0) 
 		cxgb_down_locked(pi->adapter);
-	} else 
-		ADAPTER_UNLOCK(pi->adapter);
+
+	ADAPTER_UNLOCK(pi->adapter);
 
 #if !defined(LINK_ATTACH)
 	DELAY(100);
