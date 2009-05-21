@@ -371,6 +371,7 @@ struct usb2_xfer_flags_int {
 	uint8_t	control_hdr:1;		/* set if control header should be
 					 * sent */
 	uint8_t	control_act:1;		/* set if control transfer is active */
+	uint8_t	control_stall:1;	/* set if control transfer should be stalled */
 
 	uint8_t	short_frames_ok:1;	/* filtered version */
 	uint8_t	short_xfer_ok:1;	/* filtered version */
