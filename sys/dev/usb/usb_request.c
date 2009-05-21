@@ -176,7 +176,7 @@ static usb2_handle_request_t *
 usb2_get_hr_func(struct usb2_device *udev)
 {
 	/* figure out if there is a Handle Request function */
-	if (udev->flags.usb2_mode == USB_MODE_DEVICE)
+	if (udev->flags.usb_mode == USB_MODE_DEVICE)
 		return (usb2_temp_get_desc_p);
 	else if (udev->parent_hub == NULL)
 		return (udev->bus->methods->roothub_exec);
@@ -1485,7 +1485,7 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 	uint8_t old_addr;
 	uint8_t do_retry = 1;
 
-	if (udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (udev->flags.usb_mode != USB_MODE_HOST) {
 		return (USB_ERR_INVAL);
 	}
 	old_addr = udev->address;

@@ -317,7 +317,7 @@ ustorage_fs_probe(device_t dev)
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct usb2_interface_descriptor *id;
 
-	if (uaa->usb2_mode != USB_MODE_DEVICE) {
+	if (uaa->usb_mode != USB_MODE_DEVICE) {
 		return (ENXIO);
 	}
 	if (uaa->use_generic == 0) {

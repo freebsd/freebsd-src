@@ -257,7 +257,7 @@ umodem_probe(device_t dev)
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	error = usb2_lookup_id_by_uaa(umodem_devs, sizeof(umodem_devs), uaa);

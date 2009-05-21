@@ -34,8 +34,7 @@ struct usb2_port {
 	uint8_t	restartcnt;
 #define	USB_RESTART_MAX 5
 	uint8_t	device_index;		/* zero means not valid */
-	uint8_t	usb2_mode:1;		/* current USB mode */
-	uint8_t	unused:7;
+	enum usb_hc_mode usb_mode;	/* host or device mode */
 };
 
 /*
