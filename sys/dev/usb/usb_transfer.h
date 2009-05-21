@@ -104,7 +104,7 @@ struct usb2_setup_params {
 	uint16_t hc_max_frame_size;
 	uint16_t hc_max_packet_size;
 	uint8_t	hc_max_packet_count;
-	uint8_t	speed;
+	enum usb_dev_speed speed;
 	uint8_t	dma_tag_max;
 	usb2_error_t err;
 };
