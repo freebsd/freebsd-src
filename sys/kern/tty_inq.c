@@ -68,7 +68,7 @@ SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nfast, CTLFLAG_RD,
 static unsigned long ttyinq_nslow = 0;
 SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nslow, CTLFLAG_RD,
 	&ttyinq_nslow, 0, "Buffered reads to userspace on input");
-static int ttyinq_flush_secure = 0;
+static int ttyinq_flush_secure = 1;
 SYSCTL_INT(_kern, OID_AUTO, tty_inq_flush_secure, CTLFLAG_RW,
 	&ttyinq_flush_secure, 0, "Zero buffers while flushing");
 
