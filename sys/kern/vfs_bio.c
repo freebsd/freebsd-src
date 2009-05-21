@@ -293,7 +293,7 @@ sysctl_bufspace(SYSCTL_HANDLER_ARGS)
 	long lvalue;
 	int ivalue;
 
-	if (sizeof(int) == sizeof(long) || req->oldlen == sizeof(long))
+	if (sizeof(int) == sizeof(long) || req->oldlen >= sizeof(long))
 		return (sysctl_handle_long(oidp, arg1, arg2, req));
 	lvalue = *(long *)arg1;
 	if (lvalue > INT_MAX)
