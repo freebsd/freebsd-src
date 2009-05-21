@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/ktr.h>
+#include <sys/pcpu.h>
 #include <sys/timetc.h>
 #include <sys/interrupt.h>
 
@@ -97,7 +99,6 @@ static struct timecounter	decr_timecounter = {
 void
 decr_intr(struct trapframe *frame)
 {
-	u_long		msr;
 
 	/*
 	 * Check whether we are initialized.
@@ -111,13 +112,17 @@ decr_intr(struct trapframe *frame)
 	 */
 	mtspr(SPR_TSR, TSR_DIS);
 
-	/*
-	 * Reenable interrupts
-	 */
-	msr = mfmsr();
-	mtmsr(msr | PSL_EE);
+	CTR1(KTR_INTR, "%s: DEC interrupt", __func__);
 
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	if (PCPU_GET(cpuid) == 0)
+		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	else
+		hardclock_cpu(TRAPF_USERMODE(frame));
+
+	statclock(TRAPF_USERMODE(frame));
+	if (profprocs != 0)
+		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+
 }
 
 void
@@ -125,10 +130,12 @@ cpu_initclocks(void)
 {
 
 	decr_tc_init();
+	stathz = hz;
+	profhz = hz;
 }
 
 void
-decr_init (void)
+decr_init(void)
 {
 	struct cpuref cpu;
 	unsigned int msr;
@@ -148,8 +155,23 @@ decr_init (void)
 	mtspr(SPR_DECAR, ticks_per_intr);
 	mtspr(SPR_TCR, mfspr(SPR_TCR) | TCR_DIE | TCR_ARE);
 
+	set_cputicker(mftb, ticks_per_sec, 0);
+
 	mtmsr(msr);
 }
+
+#ifdef SMP
+void
+decr_ap_init(void)
+{
+
+	/* Set auto-reload value and enable DEC interrupts in TCR */
+	mtspr(SPR_DECAR, ticks_per_intr);
+	mtspr(SPR_TCR, mfspr(SPR_TCR) | TCR_DIE | TCR_ARE);
+
+	CTR2(KTR_INTR, "%s: set TCR=%p", __func__, mfspr(SPR_TCR));
+}
+#endif
 
 void
 decr_tc_init(void)

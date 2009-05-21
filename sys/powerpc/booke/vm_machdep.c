@@ -180,7 +180,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	p1 = td1->td_proc;
 
 	pcb = (struct pcb *)((td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fU);
+	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x3fU);
 	td2->td_pcb = pcb;
 
 	/* Copy the pcb */
@@ -403,7 +403,7 @@ cpu_thread_alloc(struct thread *td)
 	struct pcb *pcb;
 
 	pcb = (struct pcb *)((td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
-	    sizeof(struct pcb)) & ~0x2fU);
+	    sizeof(struct pcb)) & ~0x3fU);
 	td->td_pcb = pcb;
 	td->td_frame = (struct trapframe *)pcb - 1;
 }
@@ -469,7 +469,8 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 
 	tf = td->td_frame;
 	/* align stack and alloc space for frame ptr and saved LR */
-	sp = ((uint32_t)stack->ss_sp + stack->ss_size - 2 * sizeof(u_int32_t)) & ~0x1f;
+	sp = ((uint32_t)stack->ss_sp + stack->ss_size -
+	    2 * sizeof(u_int32_t)) & ~0x3f;
 	bzero(tf, sizeof(struct trapframe));
 
 	tf->fixreg[1] = (register_t)sp;

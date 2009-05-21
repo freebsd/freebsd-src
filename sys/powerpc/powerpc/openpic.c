@@ -206,6 +206,8 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 	struct openpic_softc *sc;
 	u_int cpuid, vector;
 
+	CTR1(KTR_INTR, "%s: got interrupt", __func__);
+
 	cpuid = PCPU_GET(cpuid);
 	sc = device_get_softc(dev);
 

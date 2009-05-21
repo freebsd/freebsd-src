@@ -378,6 +378,9 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	/* Initialize TLB1 handling */
 	tlb1_init(bootinfo->bi_bar_base);
 
+	/* Reset Time Base */
+	mttb(0);
+
 	/* Init params/tunables that can be overridden by the loader. */
 	init_param1();
 
@@ -408,6 +411,11 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	debugf(" MSR = 0x%08x\n", mfmsr());
 	debugf(" HID0 = 0x%08x\n", mfspr(SPR_HID0));
 	debugf(" HID1 = 0x%08x\n", mfspr(SPR_HID1));
+	debugf(" BUCSR = 0x%08x\n", mfspr(SPR_BUCSR));
+
+	__asm __volatile("msync; isync");
+	csr = ccsr_read4(OCP85XX_L2CTL);
+	debugf(" L2CTL = 0x%08x\n", csr);
 
 	print_bootinfo();
 	print_kernel_section_addr();
@@ -479,12 +487,25 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	return (((uintptr_t)thread0.td_pcb - 16) & ~15);
 }
 
+#define RES_GRANULE 32
+extern uint32_t tlb0_miss_locks[];
+
 /* Initialise a struct pcpu. */
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 
 	pcpu->pc_tid_next = TID_MIN;
+
+#ifdef SMP
+	uint32_t *ptr;
+	int words_per_gran = RES_GRANULE / sizeof(uint32_t);
+
+	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
+	pcpu->pc_booke_tlb_lock = ptr;
+	*ptr = MTX_UNOWNED;
+	*(ptr + 1) = 0;		/* recurse counter */
+#endif
 }
 
 /* Set set up registers on exec. */
