@@ -257,6 +257,7 @@ upgt_attach(device_t dev)
 #ifdef UPGT_DEBUG
 	sc->sc_debug = upgt_debug;
 #endif
+	device_set_usb2_desc(dev);
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
