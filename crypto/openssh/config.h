@@ -292,7 +292,7 @@
 #define HAVE_DECL__GETSHORT 0
 
 /* Define if you have /dev/ptmx */
-/* #undef HAVE_DEV_PTMX */
+#define HAVE_DEV_PTMX 1
 
 /* Define if you have /dev/ptc */
 /* #undef HAVE_DEV_PTS_AND_PTC */
@@ -380,6 +380,9 @@
 
 /* Define to 1 if you have the `getgrset' function. */
 /* #undef HAVE_GETGRSET */
+
+/* Define to 1 if you have the `getlastlogxbyname' function. */
+/* #undef HAVE_GETLASTLOGXBYNAME */
 
 /* Define to 1 if you have the `getluid' function. */
 /* #undef HAVE_GETLUID */
@@ -898,6 +901,9 @@
 /* define if you have struct sockaddr_in6 data type */
 #define HAVE_STRUCT_SOCKADDR_IN6 1
 
+/* Define to 1 if `sin6_scope_id' is member of `struct sockaddr_in6'. */
+#define HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID 1
+
 /* define if you have struct sockaddr_storage data type */
 #define HAVE_STRUCT_SOCKADDR_STORAGE 1
 
@@ -1158,6 +1164,9 @@
 
 /* Define if you want Kerberos 5 support */
 /* #undef KRB5 */
+
+/* Define if pututxline updates lastlog too */
+/* #undef LASTLOG_WRITE_PUTUTXLINE */
 
 /* Define if you want TCP Wrappers support */
 #define LIBWRAP 1
