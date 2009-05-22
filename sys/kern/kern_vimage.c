@@ -391,7 +391,7 @@ DB_SHOW_COMMAND(vnets, db_show_vnets)
 #endif
 	VNET_FOREACH(vnet_iter) {
 		db_printf("%p %3d %5d",
-		    vnet_iter, vnet_iter->ifccnt, vnet_iter->sockcnt);
+		    vnet_iter, vnet_iter->ifcnt, vnet_iter->sockcnt);
 		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_NET]);
 		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_INET]);
 		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_INET6]);
