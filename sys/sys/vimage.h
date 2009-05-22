@@ -178,7 +178,7 @@ struct vnet {
 	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
 	u_int			 vnet_magic_n;
 	u_int			 vnet_id;	/* ID num */
-	u_int			 ifccnt;
+	u_int			 ifcnt;
 	u_int			 sockcnt;
 };
 
