@@ -93,6 +93,7 @@ static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
 SYSCTL_INT(_vfs_newnfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
 
+static void	nfs_sec_name(char *, int *);
 static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 		    struct nfs_args *argp, struct ucred *, struct thread *);
 static int	mountnfs(struct nfs_args *, struct mount *,
@@ -508,6 +509,17 @@ nfs_mountdiskless(char *path,
 }
 
 static void
+nfs_sec_name(char *sec, int *flagsp)
+{
+	if (!strcmp(sec, "krb5"))
+		*flagsp |= NFSMNT_KERB;
+	else if (!strcmp(sec, "krb5i"))
+		*flagsp |= (NFSMNT_KERB | NFSMNT_INTEGRITY);
+	else if (!strcmp(sec, "krb5p"))
+		*flagsp |= (NFSMNT_KERB | NFSMNT_PRIVACY);
+}
+
+static void
 nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
     struct ucred *cred, struct thread *td)
 {
@@ -652,12 +664,14 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	}
 }
 
-static const char *nfs_opts[] = { "from", "nfs_args",
+static const char *nfs_opts[] = { "from",
     "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
     "noclusterr", "noclusterw", "multilabel", "acls", "force", "update",
-    "async", "dumbtimer", "noconn", "nolockd", "intr", "rdirplus", "resvport",
-    "readdirsize", "soft", "hard", "mntudp", "tcp", "wsize", "rsize",
-    "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", 
+    "async", "noconn", "nolockd", "conn", "lockd", "intr", "rdirplus",
+    "readdirsize", "soft", "hard", "mntudp", "tcp", "udp", "wsize", "rsize",
+    "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
+    "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
+    "principal", "nfsv4", "gssname", "allgssname", "dirpath",
     NULL };
 
 /*
@@ -697,14 +711,15 @@ nfs_mount(struct mount *mp)
 	    .acdirmax = NFS_MAXDIRATTRTIMO,
 	    .dirlen = 0,
 	    .krbnamelen = 0,
+	    .srvkrbnamelen = 0,
 	};
-	int error;
-	struct sockaddr *nam;
+	int error = 0, ret, len;
+	struct sockaddr *nam = NULL;
 	struct vnode *vp;
 	struct thread *td;
 	char hst[MNAMELEN];
-	size_t len;
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
+	char *opt, *name, *secname;
 
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
@@ -717,16 +732,171 @@ nfs_mount(struct mount *mp)
 		goto out;
 	}
 
-	error = vfs_copyopt(mp->mnt_optnew, "nfs_args", &args, sizeof args);
-	if (error)
-		goto out;
-
-	if (args.version != NFS_ARGSVERSION) {
-		error = EPROGMISMATCH;
-		goto out;
-	}
-
 	nfscl_init();
+
+	/* Handle the new style options. */
+	if (vfs_getopt(mp->mnt_optnew, "noconn", NULL, NULL) == 0)
+		args.flags |= NFSMNT_NOCONN;
+	if (vfs_getopt(mp->mnt_optnew, "conn", NULL, NULL) == 0)
+		args.flags |= NFSMNT_NOCONN;
+	if (vfs_getopt(mp->mnt_optnew, "nolockd", NULL, NULL) == 0)
+		args.flags |= NFSMNT_NOLOCKD;
+	if (vfs_getopt(mp->mnt_optnew, "lockd", NULL, NULL) == 0)
+		args.flags &= ~NFSMNT_NOLOCKD;
+	if (vfs_getopt(mp->mnt_optnew, "intr", NULL, NULL) == 0)
+		args.flags |= NFSMNT_INT;
+	if (vfs_getopt(mp->mnt_optnew, "rdirplus", NULL, NULL) == 0)
+		args.flags |= NFSMNT_RDIRPLUS;
+	if (vfs_getopt(mp->mnt_optnew, "resvport", NULL, NULL) == 0)
+		args.flags |= NFSMNT_RESVPORT;
+	if (vfs_getopt(mp->mnt_optnew, "noresvport", NULL, NULL) == 0)
+		args.flags &= ~NFSMNT_RESVPORT;
+	if (vfs_getopt(mp->mnt_optnew, "soft", NULL, NULL) == 0)
+		args.flags |= NFSMNT_SOFT;
+	if (vfs_getopt(mp->mnt_optnew, "hard", NULL, NULL) == 0)
+		args.flags &= ~NFSMNT_SOFT;
+	if (vfs_getopt(mp->mnt_optnew, "mntudp", NULL, NULL) == 0)
+		args.sotype = SOCK_DGRAM;
+	if (vfs_getopt(mp->mnt_optnew, "udp", NULL, NULL) == 0)
+		args.sotype = SOCK_DGRAM;
+	if (vfs_getopt(mp->mnt_optnew, "tcp", NULL, NULL) == 0)
+		args.sotype = SOCK_STREAM;
+	if (vfs_getopt(mp->mnt_optnew, "nfsv3", NULL, NULL) == 0)
+		args.flags |= NFSMNT_NFSV3;
+	if (vfs_getopt(mp->mnt_optnew, "nfsv4", NULL, NULL) == 0) {
+		args.flags |= NFSMNT_NFSV4;
+		args.sotype = SOCK_STREAM;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "allgssname", NULL, NULL) == 0)
+		args.flags |= NFSMNT_ALLGSSNAME;
+	if (vfs_getopt(mp->mnt_optnew, "readdirsize", (void **)&opt, NULL) == 0) {
+		if (opt == NULL) { 
+			vfs_mount_error(mp, "illegal readdirsize");
+			error = EINVAL;
+			goto out;
+		}
+		ret = sscanf(opt, "%d", &args.readdirsize);
+		if (ret != 1 || args.readdirsize <= 0) {
+			vfs_mount_error(mp, "illegal readdirsize: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_READDIRSIZE;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "readahead", (void **)&opt, NULL) == 0) {
+		if (opt == NULL) { 
+			vfs_mount_error(mp, "illegal readahead");
+			error = EINVAL;
+			goto out;
+		}
+		ret = sscanf(opt, "%d", &args.readahead);
+		if (ret != 1 || args.readahead <= 0) {
+			vfs_mount_error(mp, "illegal readahead: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_READAHEAD;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "wsize", (void **)&opt, NULL) == 0) {
+		if (opt == NULL) { 
+			vfs_mount_error(mp, "illegal wsize");
+			error = EINVAL;
+			goto out;
+		}
+		ret = sscanf(opt, "%d", &args.wsize);
+		if (ret != 1 || args.wsize <= 0) {
+			vfs_mount_error(mp, "illegal wsize: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_WSIZE;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "rsize", (void **)&opt, NULL) == 0) {
+		if (opt == NULL) { 
+			vfs_mount_error(mp, "illegal rsize");
+			error = EINVAL;
+			goto out;
+		}
+		ret = sscanf(opt, "%d", &args.rsize);
+		if (ret != 1 || args.rsize <= 0) {
+			vfs_mount_error(mp, "illegal wsize: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_RSIZE;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "retrans", (void **)&opt, NULL) == 0) {
+		if (opt == NULL) { 
+			vfs_mount_error(mp, "illegal retrans");
+			error = EINVAL;
+			goto out;
+		}
+		ret = sscanf(opt, "%d", &args.retrans);
+		if (ret != 1 || args.retrans <= 0) {
+			vfs_mount_error(mp, "illegal retrans: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_RETRANS;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "acregmin", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.acregmin);
+		if (ret != 1 || args.acregmin < 0) {
+			vfs_mount_error(mp, "illegal acregmin: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_ACREGMIN;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "acregmax", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.acregmax);
+		if (ret != 1 || args.acregmax < 0) {
+			vfs_mount_error(mp, "illegal acregmax: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_ACREGMAX;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "acdirmin", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.acdirmin);
+		if (ret != 1 || args.acdirmin < 0) {
+			vfs_mount_error(mp, "illegal acdirmin: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_ACDIRMIN;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "acdirmax", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.acdirmax);
+		if (ret != 1 || args.acdirmax < 0) {
+			vfs_mount_error(mp, "illegal acdirmax: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_ACDIRMAX;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "timeout", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.timeo);
+		if (ret != 1 || args.timeo <= 0) {
+			vfs_mount_error(mp, "illegal timeout: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_TIMEO;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "sec",
+		(void **) &secname, NULL) == 0)
+		nfs_sec_name(secname, &args.flags);
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		struct nfsmount *nmp = VFSTONFS(mp);
@@ -769,62 +939,58 @@ nfs_mount(struct mount *mp)
 	 */
 	if (nfs_ip_paranoia == 0)
 		args.flags |= NFSMNT_NOCONN;
-	if (args.fhsize < 0 || args.fhsize > NFSX_FHMAX) {
+
+	if (vfs_getopt(mp->mnt_optnew, "fh", (void **)&args.fh,
+	    &args.fhsize) == 0) {
+		if (args.fhsize > NFSX_FHMAX) {
+			vfs_mount_error(mp, "Bad file handle");
+			error = EINVAL;
+			goto out;
+		}
+		bcopy(args.fh, nfh, args.fhsize);
+	} else {
+		args.fhsize = 0;
+	}
+
+	(void) vfs_getopt(mp->mnt_optnew, "hostname", (void **)&args.hostname,
+	    &len);
+	if (args.hostname == NULL) {
+		vfs_mount_error(mp, "Invalid hostname");
 		error = EINVAL;
 		goto out;
 	}
-	if (args.fhsize > 0) {
-		error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
-		if (error)
-			goto out;
-	}
-	error = copyinstr(args.hostname, hst, MNAMELEN-1, &len);
-	if (error)
-		goto out;
-	bzero(&hst[len], MNAMELEN - len);
-	if (args.krbnamelen > 0) {
-		if (args.krbnamelen >= 100) {
-			error = EINVAL;
-			goto out;
-		}
-		error = copyin(args.krbname, krbname, args.krbnamelen);
-		if (error)
-			goto out;
-		krbname[args.krbnamelen] = '\0';
-	} else {
+	bcopy(args.hostname, hst, MNAMELEN);
+	hst[MNAMELEN - 1] = '\0';
+
+	if (vfs_getopt(mp->mnt_optnew, "principal", (void **)&name, NULL) == 0)
+		strlcpy(srvkrbname, name, sizeof (srvkrbname));
+	else
+		snprintf(srvkrbname, sizeof (srvkrbname), "nfs@%s", hst);
+	args.srvkrbnamelen = strlen(srvkrbname);
+
+	if (vfs_getopt(mp->mnt_optnew, "gssname", (void **)&name, NULL) == 0)
+		strlcpy(krbname, name, sizeof (krbname));
+	else
 		krbname[0] = '\0';
-		args.krbnamelen = 0;
-	}
-	if (args.dirlen > 0) {
-		if (args.dirlen >= 100) {
-			error = EINVAL;
-			goto out;
-		}
-		error = copyin(args.dirpath, dirpath, args.dirlen);
-		if (error)
-			goto out;
-		dirpath[args.dirlen] = '\0';
-	} else {
+	args.krbnamelen = strlen(krbname);
+
+	if (vfs_getopt(mp->mnt_optnew, "dirpath", (void **)&name, NULL) == 0)
+		strlcpy(dirpath, name, sizeof (dirpath));
+	else
 		dirpath[0] = '\0';
-		args.dirlen = 0;
-	}
-	if (args.srvkrbnamelen > 0) {
-		if (args.srvkrbnamelen >= 100) {
-			error = EINVAL;
+	args.dirlen = strlen(dirpath);
+
+	if (vfs_getopt(mp->mnt_optnew, "addr", (void **)&args.addr,
+	    &args.addrlen) == 0) {
+		if (args.addrlen > SOCK_MAXADDRLEN) {
+			error = ENAMETOOLONG;
 			goto out;
 		}
-		error = copyin(args.srvkrbname, srvkrbname, args.srvkrbnamelen);
-		if (error)
-			goto out;
-		srvkrbname[args.srvkrbnamelen] = '\0';
-	} else {
-		srvkrbname[0] = '\0';
-		args.srvkrbnamelen = 0;
+		nam = malloc(args.addrlen, M_SONAME, M_WAITOK);
+		bcopy(args.addr, nam, args.addrlen);
+		nam->sa_len = args.addrlen;
 	}
-	/* sockargs() call must be after above copyin() calls */
-	error = getsockaddr(&nam, (caddr_t)args.addr, args.addrlen);
-	if (error)
-		goto out;
+
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, krbname, dirpath, srvkrbname,
 	    &vp, td->td_ucred, td);
@@ -939,6 +1105,8 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_mountp = mp;
 	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);			
 
+	nfs_decode_args(mp, nmp, argp, cred, td);
+
 	/*
 	 * V2 can only handle 32 bit filesizes.  A 4GB-1 limit may be too
 	 * high, depending on whether we end up with negative offsets in
@@ -986,7 +1154,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	else
 		nmp->nm_sockreq.nr_vers = NFS_VER2;
 
-	nfs_decode_args(mp, nmp, argp, cred, td);
 
 	/*
 	 * For Connection based sockets (TCP,...) do the connect here,
