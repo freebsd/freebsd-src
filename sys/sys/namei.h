@@ -154,11 +154,11 @@ struct nameidata {
  * Initialization of a nameidata structure.
  */
 #define	NDINIT(ndp, op, flags, segflg, namep, td)			\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD_notyet, NULL, td)
 #define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd, td)		\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, td)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD_notyet, vp, td)
 
 static __inline void
 NDINIT_ALL(struct nameidata *ndp,
