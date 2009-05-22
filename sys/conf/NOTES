@@ -710,7 +710,7 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  Ethernets; it is MANDATORY when an Ethernet device driver is
 #  configured or token-ring is enabled.
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
-#  according to IEEE 802.1Q.  It requires `device miibus'.
+#  according to IEEE 802.1Q.
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  ath, and awi drivers and will eventually be required by all 802.11 drivers.
