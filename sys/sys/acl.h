@@ -43,39 +43,104 @@
  * POSIX.1e ACL types and related constants.
  */
 
+typedef uint32_t	acl_tag_t;
+typedef uint32_t	acl_perm_t;
+typedef uint16_t	acl_entry_type_t;
+typedef uint16_t	acl_flag_t;
+typedef int		acl_type_t;
+typedef int		*acl_permset_t;
+typedef uint16_t	*acl_flagset_t;
+
+/*
+ * With 254 entries, "struct acl_t_struct" is exactly one 4kB page big.
+ * Note that with NFS4 ACLs, the maximum number of ACL entries one
+ * may set on file or directory is about half of ACL_MAX_ENTRIES.
+ *
+ * If you increase this, you might also need to increase
+ * _ACL_T_ALIGNMENT_BITS in lib/libc/posix1e/acl_support.h.
+ *
+ * The maximum number of POSIX.1e ACLs is controlled
+ * by OLDACL_MAX_ENTRIES.  Changing that one will break binary
+ * compatibility with pre-8.0 userland and change on-disk ACL layout.
+ */
+#define	ACL_MAX_ENTRIES				254
+
+#if defined(_KERNEL) || defined(_ACL_PRIVATE)
+
 #define	POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
 #define	POSIX1E_ACL_ACCESS_EXTATTR_NAME		"posix1e.acl_access"
 #define	POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
 #define	POSIX1E_ACL_DEFAULT_EXTATTR_NAME	"posix1e.acl_default"
-#define	ACL_MAX_ENTRIES		32 /* maximum entries in an ACL */
+#define	NFS4_ACL_EXTATTR_NAMESPACE		EXTATTR_NAMESPACE_SYSTEM
+#define	NFS4_ACL_EXTATTR_NAME			"nfs4.acl"
+#define	OLDACL_MAX_ENTRIES			32
 
-typedef int	acl_type_t;
-typedef int	acl_tag_t;
-typedef mode_t	acl_perm_t;
-typedef mode_t *acl_permset_t;
+/*
+ * "struct oldacl" is used in compatibility ACL syscalls and for on-disk
+ * storage of POSIX.1e ACLs.
+ */
+typedef int	oldacl_tag_t;
+typedef mode_t	oldacl_perm_t;
 
+struct oldacl_entry {
+	oldacl_tag_t	ae_tag;
+	uid_t		ae_id;
+	oldacl_perm_t	ae_perm;
+};
+typedef struct oldacl_entry	*oldacl_entry_t;
+
+struct oldacl {
+	int			acl_cnt;
+	struct oldacl_entry	acl_entry[OLDACL_MAX_ENTRIES];
+};
+
+/*
+ * Current "struct acl".
+ */
 struct acl_entry {
 	acl_tag_t	ae_tag;
 	uid_t		ae_id;
 	acl_perm_t	ae_perm;
+	/* "allow" or "deny".  Unused in POSIX ACLs. */
+	acl_entry_type_t	ae_entry_type;
+	/* Flags control inheritance.  Unused in POSIX ACLs. */
+	acl_flag_t	ae_flags;
 };
 typedef struct acl_entry	*acl_entry_t;
 
-/* internal ACL structure */
+/*
+ * Internal ACL structure, used in libc, kernel APIs and for on-disk
+ * storage of NFS4 ACLs.  POSIX.1e ACLs use "struct oldacl" for on-disk
+ * storage.
+ */
 struct acl {
-	int			acl_cnt;
+	unsigned int		acl_maxcnt;
+	unsigned int		acl_cnt;
+	/* Will be required e.g. to implement NFSv4.1 ACL inheritance. */
+	int			acl_spare[4];
 	struct acl_entry	acl_entry[ACL_MAX_ENTRIES];
 };
 
-/* external ACL structure */
+/*
+ * ACL structure internal to libc.
+ */
 struct acl_t_struct {
 	struct acl		ats_acl;
 	int			ats_cur_entry;
+	/* Will be used for ACL branding. */
+	int			ats_spare;
 };
 typedef struct acl_t_struct *acl_t;
 
+#else /* _KERNEL || _ACL_PRIVATE */
+
+typedef void *acl_entry_t;
+typedef void *acl_t;
+
+#endif /* !_KERNEL && !_ACL_PRIVATE */
+
 /*
- * Possible valid values for ae_tag field.
+ * Possible valid values for ae_tag field.  For explanation, see acl(9).
  */
 #define	ACL_UNDEFINED_TAG	0x00000000
 #define	ACL_USER_OBJ		0x00000001
@@ -87,13 +152,17 @@ typedef struct acl_t_struct *acl_t;
 #define	ACL_OTHER_OBJ		ACL_OTHER
 
 /*
- * Possible valid values for acl_type_t arguments.
+ * Possible valid values for acl_type_t arguments.  First two
+ * are provided only for backwards binary compatibility.
  */
-#define	ACL_TYPE_ACCESS		0x00000000
-#define	ACL_TYPE_DEFAULT	0x00000001
+#define	ACL_TYPE_ACCESS_OLD	0x00000000
+#define	ACL_TYPE_DEFAULT_OLD	0x00000001
+#define	ACL_TYPE_ACCESS		0x00000002
+#define	ACL_TYPE_DEFAULT	0x00000003
 
 /*
- * Possible flags in ae_perm field.
+ * Possible flags in ae_perm field for POSIX.1e ACLs.  Note
+ * that ACL_EXECUTE may be used in both NFSv4 and POSIX.1e ACLs.
  */
 #define	ACL_EXECUTE		0x0001
 #define	ACL_WRITE		0x0002
@@ -103,13 +172,14 @@ typedef struct acl_t_struct *acl_t;
 #define	ACL_POSIX1E_BITS	(ACL_EXECUTE | ACL_WRITE | ACL_READ)
 
 /*
- * Possible entry_id values for acl_get_entry()
+ * Possible entry_id values for acl_get_entry(3).
  */
 #define	ACL_FIRST_ENTRY		0
 #define	ACL_NEXT_ENTRY		1
 
 /*
- * Undefined value in ae_id field
+ * Undefined value in ae_id field.  ae_id should be set to this value
+ * iff ae_tag is ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER or ACL_EVERYONE.
  */
 #define	ACL_UNDEFINED_ID	((uid_t)-1)
 
@@ -126,7 +196,7 @@ typedef struct acl_t_struct *acl_t;
 #define	ACL_PRESERVE_MASK	(~ACL_OVERRIDE_MASK)
 
 /*
- * File system independent code to move back and forth between POSIX mode and
+ * Filesystem-independent code to move back and forth between POSIX mode and
  * POSIX.1e ACL representations.
  */
 acl_perm_t		acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode);
@@ -141,17 +211,28 @@ mode_t			acl_posix1e_newfilemode(mode_t cmode,
 			    struct acl *dacl);
 struct acl		*acl_alloc(int flags);
 void			acl_free(struct acl *aclp);
+int			acl_copy_oldacl_into_acl(const struct oldacl *source,
+			    struct acl *dest);
+int			acl_copy_acl_into_oldacl(const struct acl *source,
+			    struct oldacl *dest);
 
 /*
- * File system independent syntax check for a POSIX.1e ACL.
+ * To allocate 'struct acl', use acl_alloc()/acl_free() instead of this.
+ */
+MALLOC_DECLARE(M_ACL);
+
+/*
+ * Filesystem-independent syntax check for a POSIX.1e ACL.
  */
 int			acl_posix1e_check(struct acl *acl);
 
 #else /* !_KERNEL */
 
+#if defined(_ACL_PRIVATE)
+
 /*
  * Syscall interface -- use the library calls instead as the syscalls have
- * strict acl entry ordering requirements.
+ * strict ACL entry ordering requirements.
  */
 __BEGIN_DECLS
 int	__acl_aclcheck_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
@@ -169,6 +250,8 @@ int	__acl_set_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
 int	__acl_set_file(const char *_path, acl_type_t _type, struct acl *_aclp);
 int	__acl_set_link(const char *_path, acl_type_t _type, struct acl *_aclp);
 __END_DECLS
+
+#endif /* _ACL_PRIVATE */
 
 /*
  * Supported POSIX.1e ACL manipulation and assignment/retrieval API _np calls
