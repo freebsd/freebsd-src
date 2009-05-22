@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fnv_hash.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -48,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/uma.h>
-
-#include <rpc/rpcclnt.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -133,19 +132,13 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 	 */
 	np = uma_zalloc(nfsnode_zone, M_WAITOK | M_ZERO);
 
-	if (nmp->nm_flag & NFSMNT_NFSV4)
-		error = getnewvnode("nfs4", mntp, &nfs4_vnodeops, &nvp);
-	else
-		error = getnewvnode("nfs", mntp, &nfs_vnodeops, &nvp);
+	error = getnewvnode("nfs", mntp, &nfs_vnodeops, &nvp);
 	if (error) {
 		uma_zfree(nfsnode_zone, np);
 		return (error);
 	}
 	vp = nvp;
-	if (nmp->nm_flag & NFSMNT_NFSV4)
-		vp->v_bufobj.bo_ops = &buf_ops_nfs4;
-	else
-		vp->v_bufobj.bo_ops = &buf_ops_nfs;
+	vp->v_bufobj.bo_ops = &buf_ops_nfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
 	/* 
