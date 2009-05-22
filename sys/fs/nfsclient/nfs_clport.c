@@ -1267,5 +1267,5 @@ DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfscl, 1);
-MODULE_DEPEND(nfscl, newnfsd, 1, 1, 1);
+MODULE_DEPEND(nfscl, nfscommon, 1, 1, 1);
 
