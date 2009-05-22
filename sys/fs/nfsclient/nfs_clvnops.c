@@ -687,12 +687,8 @@ nfs_close(struct vop_close_args *ap)
 		    int cm = newnfs_commit_on_close ? 1 : 0;
 		    error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
-		} else if (NFS_ISV4(vp)) {
-			int cm;
-			if (newnfs_commit_on_close != 0)
-				cm = 1;
-			else
-				cm = nfscl_mustflush(vp);
+		} else if (NFS_ISV4(vp) && nfscl_mustflush(vp)) {
+			int cm = newnfs_commit_on_close ? 1 : 0;
 			error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm);
 			/* as above w.r.t. races when clearing NMODIFIED */
 			/* np->n_flag &= ~NMODIFIED; */
