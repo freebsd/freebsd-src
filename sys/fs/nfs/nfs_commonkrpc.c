@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <rpc/rpc.h>
-#include <rpc/rpcclnt.h>
 
 #include <kgssapi/krb5/kcrypto.h>
 

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
+#include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -56,16 +57,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
-#include <rpc/rpcclnt.h>
-
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
 #include <nfsclient/nfs_kdtrace.h>
-
-#include <nfs4client/nfs4.h>
 
 static struct buf *nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size,
 		    struct thread *td);
@@ -1612,17 +1609,13 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 	    case VDIR:
 		nfsstats.readdir_bios++;
 		uiop->uio_offset = ((u_quad_t)bp->b_lblkno) * NFS_DIRBLKSIZ;
-		if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-			error = nfs4_readdirrpc(vp, uiop, cr);
-		else {
-			if ((nmp->nm_flag & NFSMNT_RDIRPLUS) != 0) {
-				error = nfs_readdirplusrpc(vp, uiop, cr);
-				if (error == NFSERR_NOTSUPP)
-					nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
-			}
-			if ((nmp->nm_flag & NFSMNT_RDIRPLUS) == 0)
-				error = nfs_readdirrpc(vp, uiop, cr);
+		if ((nmp->nm_flag & NFSMNT_RDIRPLUS) != 0) {
+			error = nfs_readdirplusrpc(vp, uiop, cr);
+			if (error == NFSERR_NOTSUPP)
+				nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
 		}
+		if ((nmp->nm_flag & NFSMNT_RDIRPLUS) == 0)
+			error = nfs_readdirrpc(vp, uiop, cr);
 		/*
 		 * end-of-directory sets B_INVAL but does not generate an
 		 * error.
