@@ -1022,8 +1022,8 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
 	}
-	IF_AFDATA_UNLOCK(ifp);
 	ifp->if_afdata_initialized = 0;
+	IF_AFDATA_UNLOCK(ifp);
 
 	if (!vmove)
 		ifq_detach(&ifp->if_snd);
