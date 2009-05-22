@@ -142,6 +142,8 @@ static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
+static void	if_attach_internal(struct ifnet *, int);
+static void	if_detach_internal(struct ifnet *, int);
 
 #ifdef INET6
 /*
@@ -239,7 +241,7 @@ ifnet_byindex_ref(u_short idx)
 	return (ifp);
 }
 
-void
+static void
 ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 {
 	INIT_VNET_NET(curvnet);
@@ -520,8 +522,8 @@ if_alloc(u_char type)
 
 	IF_ADDR_LOCK_INIT(ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
-	IF_AFDATA_LOCK_INIT(ifp);
 	ifp->if_afdata_initialized = 0;
+	IF_AFDATA_LOCK_INIT(ifp);
 	TAILQ_INIT(&ifp->if_addrhead);
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
@@ -546,7 +548,7 @@ if_alloc(u_char type)
 static void
 if_free_internal(struct ifnet *ifp)
 {
-	INIT_VNET_NET(ifp->if_vnet);
+	INIT_VNET_NET(curvnet);		/* ifp->if_vnet is already NULL here */
 
 	KASSERT((ifp->if_flags & IFF_DYING),
 	    ("if_free_internal: interface not dying"));
@@ -653,7 +655,10 @@ ifq_detach(struct ifaltq *ifq)
 
 /*
  * Perform generic interface initalization tasks and attach the interface
- * to the list of "active" interfaces.
+ * to the list of "active" interfaces.  If vmove flag is set on entry
+ * to if_attach_internal(), perform only a limited subset of initialization
+ * tasks, given that we are moving from one vnet to another an ifnet which
+ * has already been fully initialized.
  *
  * XXX:
  *  - The decision to return void and thus require this function to
@@ -663,6 +668,13 @@ ifq_detach(struct ifaltq *ifq)
  */
 void
 if_attach(struct ifnet *ifp)
+{
+
+	if_attach_internal(ifp, 0);
+}
+
+static void
+if_attach_internal(struct ifnet *ifp, int vmove)
 {
 	INIT_VNET_NET(curvnet);
 	unsigned socksize, ifasize;
@@ -692,60 +704,63 @@ if_attach(struct ifnet *ifp)
 		ifp->if_qflush = if_qflush;
 	}
 	
+	if (!vmove) {
 #ifdef MAC
-	mac_ifnet_create(ifp);
+		mac_ifnet_create(ifp);
 #endif
 
-	if (IS_DEFAULT_VNET(curvnet)) {
-		ifdev_setbyindex(ifp->if_index, make_dev(&net_cdevsw,
-		    ifp->if_index, UID_ROOT, GID_WHEEL, 0600, "%s/%s",
-		    net_cdevsw.d_name, ifp->if_xname));
-		make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
-		    net_cdevsw.d_name, ifp->if_index);
+		if (IS_DEFAULT_VNET(curvnet)) {
+			ifdev_setbyindex(ifp->if_index, make_dev(&net_cdevsw,
+			    ifp->if_index, UID_ROOT, GID_WHEEL, 0600, "%s/%s",
+			    net_cdevsw.d_name, ifp->if_xname));
+			make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
+			    net_cdevsw.d_name, ifp->if_index);
+		}
+
+		ifq_attach(&ifp->if_snd, ifp);
+
+		/*
+		 * Create a Link Level name for this device.
+		 */
+		namelen = strlen(ifp->if_xname);
+		/*
+		 * Always save enough space for any possiable name so we
+		 * can do a rename in place later.
+		 */
+		masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + IFNAMSIZ;
+		socksize = masklen + ifp->if_addrlen;
+		if (socksize < sizeof(*sdl))
+			socksize = sizeof(*sdl);
+		socksize = roundup2(socksize, sizeof(long));
+		ifasize = sizeof(*ifa) + 2 * socksize;
+		ifa = malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
+		IFA_LOCK_INIT(ifa);
+		sdl = (struct sockaddr_dl *)(ifa + 1);
+		sdl->sdl_len = socksize;
+		sdl->sdl_family = AF_LINK;
+		bcopy(ifp->if_xname, sdl->sdl_data, namelen);
+		sdl->sdl_nlen = namelen;
+		sdl->sdl_index = ifp->if_index;
+		sdl->sdl_type = ifp->if_type;
+		ifp->if_addr = ifa;
+		ifa->ifa_ifp = ifp;
+		ifa->ifa_rtrequest = link_rtrequest;
+		ifa->ifa_addr = (struct sockaddr *)sdl;
+		sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
+		ifa->ifa_netmask = (struct sockaddr *)sdl;
+		sdl->sdl_len = masklen;
+		while (namelen != 0)
+			sdl->sdl_data[--namelen] = 0xff;
+		ifa->ifa_refcnt = 1;
+		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
+		/* Reliably crash if used uninitialized. */
+		ifp->if_broadcastaddr = NULL;
 	}
-
-	ifq_attach(&ifp->if_snd, ifp);
-
-	/*
-	 * create a Link Level name for this device
-	 */
-	namelen = strlen(ifp->if_xname);
-	/*
-	 * Always save enough space for any possiable name so we can do
-	 * a rename in place later.
-	 */
-	masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + IFNAMSIZ;
-	socksize = masklen + ifp->if_addrlen;
-	if (socksize < sizeof(*sdl))
-		socksize = sizeof(*sdl);
-	socksize = roundup2(socksize, sizeof(long));
-	ifasize = sizeof(*ifa) + 2 * socksize;
-	ifa = malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
-	IFA_LOCK_INIT(ifa);
-	sdl = (struct sockaddr_dl *)(ifa + 1);
-	sdl->sdl_len = socksize;
-	sdl->sdl_family = AF_LINK;
-	bcopy(ifp->if_xname, sdl->sdl_data, namelen);
-	sdl->sdl_nlen = namelen;
-	sdl->sdl_index = ifp->if_index;
-	sdl->sdl_type = ifp->if_type;
-	ifp->if_addr = ifa;
-	ifa->ifa_ifp = ifp;
-	ifa->ifa_rtrequest = link_rtrequest;
-	ifa->ifa_addr = (struct sockaddr *)sdl;
-	sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
-	ifa->ifa_netmask = (struct sockaddr *)sdl;
-	sdl->sdl_len = masklen;
-	while (namelen != 0)
-		sdl->sdl_data[--namelen] = 0xff;
-	ifa->ifa_refcnt = 1;
-	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
-	ifp->if_broadcastaddr = NULL; /* reliably crash if used uninitialized */
 
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
 #ifdef VIMAGE
-	curvnet->ifccnt++;
+	curvnet->ifcnt++;
 #endif
 	IFNET_WUNLOCK();
 
@@ -759,10 +774,10 @@ if_attach(struct ifnet *ifp)
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 
-	if (ifp->if_watchdog != NULL) {
+	if (!vmove && ifp->if_watchdog != NULL) {
 		if_printf(ifp,
 		    "WARNING: using obsoleted if_watchdog interface\n");
-	      
+
 		/*
 		 * Note that we need if_slowtimo().  If this happens after
 		 * boot, then call if_slowtimo() directly.
@@ -877,8 +892,10 @@ if_purgemaddrs(struct ifnet *ifp)
 }
 
 /*
- * Detach an interface, removing it from the
- * list of "active" interfaces.
+ * Detach an interface, removing it from the list of "active" interfaces.
+ * If vmove flag is set on entry to if_detach_internal(), perform only a
+ * limited subset of cleanup tasks, given that we are moving an ifnet from
+ * one vnet to another, where it must be fully operational.
  *
  * XXXRW: There are some significant questions about event ordering, and
  * how to prevent things from starting to use the interface during detach.
@@ -886,10 +903,17 @@ if_purgemaddrs(struct ifnet *ifp)
 void
 if_detach(struct ifnet *ifp)
 {
+
+	if_detach_internal(ifp, 0);
+}
+
+static void
+if_detach_internal(struct ifnet *ifp, int vmove)
+{
 	INIT_VNET_NET(ifp->if_vnet);
 	struct ifaddr *ifa;
 	struct radix_node_head	*rnh;
-	int s, i, j;
+	int i, j;
 	struct domain *dp;
  	struct ifnet *iter;
  	int found = 0;
@@ -903,11 +927,15 @@ if_detach(struct ifnet *ifp)
 		}
 #ifdef VIMAGE
 	if (found)
-		curvnet->ifccnt--;
+		curvnet->ifcnt--;
 #endif
 	IFNET_WUNLOCK();
-	if (!found)
-		return;
+	if (!found) {
+		if (vmove)
+			panic("interface not in it's own ifnet list");
+		else
+			return; /* XXX this should panic as well? */
+	}
 
 	/*
 	 * Remove/wait for pending events.
@@ -917,7 +945,6 @@ if_detach(struct ifnet *ifp)
 	/*
 	 * Remove routes and flush queues.
 	 */
-	s = splnet();
 	if_down(ifp);
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(&ifp->if_snd))
@@ -943,25 +970,27 @@ if_detach(struct ifnet *ifp)
 #endif
 	if_purgemaddrs(ifp);
 
-	/*
-	 * Prevent further calls into the device driver via ifnet.
-	 */
-	if_dead(ifp);
+	if (!vmove) {
+		/*
+		 * Prevent further calls into the device driver via ifnet.
+		 */
+		if_dead(ifp);
 
-	/*
-	 * Remove link ifaddr pointer and maybe decrement if_index.
-	 * Clean up all addresses.
-	 */
-	ifp->if_addr = NULL;
-	if (IS_DEFAULT_VNET(curvnet))
-		destroy_dev(ifdev_byindex(ifp->if_index));
-	ifdev_setbyindex(ifp->if_index, NULL);	
+		/*
+		 * Remove link ifaddr pointer and maybe decrement if_index.
+		 * Clean up all addresses.
+		 */
+		ifp->if_addr = NULL;
+		if (IS_DEFAULT_VNET(curvnet))
+			destroy_dev(ifdev_byindex(ifp->if_index));
+		ifdev_setbyindex(ifp->if_index, NULL);	
 
-	/* We can now free link ifaddr. */
-	if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
-		ifa = TAILQ_FIRST(&ifp->if_addrhead);
-		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		IFAFREE(ifa);
+		/* We can now free link ifaddr. */
+		if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
+			ifa = TAILQ_FIRST(&ifp->if_addrhead);
+			TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+			IFAFREE(ifa);
+		}
 	}
 
 	/*
@@ -994,12 +1023,78 @@ if_detach(struct ifnet *ifp)
 			    ifp->if_afdata[dp->dom_family]);
 	}
 	IF_AFDATA_UNLOCK(ifp);
-	ifq_detach(&ifp->if_snd);
-#ifdef VIMAGE
-	ifp->if_vnet = NULL;
-#endif
-	splx(s);
+	ifp->if_afdata_initialized = 0;
+
+	if (!vmove)
+		ifq_detach(&ifp->if_snd);
 }
+
+#ifdef VIMAGE
+/*
+ * if_vmove() performs a limited version of if_detach() in current
+ * vnet and if_attach()es the ifnet to the vnet specified as 2nd arg.
+ * An attempt is made to shrink if_index in current vnet, find an
+ * unused if_index in target vnet and calls if_grow() if necessary,
+ * and finally find an unused if_xname for the target vnet.
+ */
+void
+if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
+{
+
+	/*
+	 * Detach from current vnet, but preserve LLADDR info, do not
+	 * mark as dead etc. so that the ifnet can be reattached later.
+	 */
+	if_detach_internal(ifp, 1);
+
+	/*
+	 * Unlink the ifnet from ifindex_table[] in current vnet,
+	 * and shrink the if_index for that vnet if possible.
+	 * do / while construct below is needed to confine the scope
+	 * of INIT_VNET_NET().
+	 */
+	{
+		INIT_VNET_NET(curvnet);
+
+		IFNET_WLOCK();
+		ifnet_setbyindex(ifp->if_index, NULL);
+		while (V_if_index > 0 && \
+		    ifnet_byindex_locked(V_if_index) == NULL)
+			V_if_index--;
+		IFNET_WUNLOCK();
+	};
+
+	/*
+	 * Switch to the context of the target vnet.
+	 */
+	CURVNET_SET_QUIET(new_vnet);
+	INIT_VNET_NET(new_vnet);
+
+	/*
+	 * Try to find an empty slot below if_index.  If we fail, take 
+	 * the next slot.
+	 */
+	IFNET_WLOCK();
+	for (ifp->if_index = 1; ifp->if_index <= V_if_index; ifp->if_index++) {
+		if (ifnet_byindex_locked(ifp->if_index) == NULL)
+			break;
+	}
+	/* Catch if_index overflow. */
+	if (ifp->if_index < 1)
+		panic("if_index overflow");
+
+	if (ifp->if_index > V_if_index)
+		V_if_index = ifp->if_index;
+	if (V_if_index >= V_if_indexlim)
+		if_grow();
+	ifnet_setbyindex(ifp->if_index, ifp);
+	IFNET_WUNLOCK();
+
+	if_attach_internal(ifp, 1);
+
+	CURVNET_RESTORE();
+}
+#endif /* VIMAGE */
 
 /*
  * Add a group to an interface
