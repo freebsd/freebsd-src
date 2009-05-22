@@ -3705,7 +3705,7 @@ nfsrv_nextclientindex(void)
 	if (client_index != 0)
 		return (client_index);
 
-	printf("out of clientids\n");
+	printf("%s: out of clientids\n", __func__);
 	return (client_index);
 }
 
