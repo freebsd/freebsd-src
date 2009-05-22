@@ -625,8 +625,6 @@ arge_link_task(void *arg, int pending)
 static void
 arge_reset_dma(struct arge_softc *sc)
 {
-	unsigned int i;
-
 	ARGE_WRITE(sc, AR71XX_DMA_RX_CONTROL, 0);
 	ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, 0);
 
