@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <rpc/rpc.h>
-#include <rpc/rpcclnt.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -69,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
-
-#include <nfs4client/nfs4.h>
 
 #ifndef NFS_LEGACYRPC
 
@@ -445,8 +442,6 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 		return (ESTALE);
 	}
 	nmp = VFSTONFS(vp->v_mount);
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		return nfs4_request(vp, mreq, procnum, td, cred, mrp, mdp, dposp);
 	bzero(&nf, sizeof(struct nfs_feedback_arg));
 	nf.nf_mount = nmp;
 	nf.nf_td = td;
@@ -740,8 +735,6 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 	struct proc *p;
 	sigset_t tmpset;
 	
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		return nfs4_sigintr(nmp, rep, td);
 	/* Terminate all requests while attempting a forced unmount. */
 	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
 		return (EIO);

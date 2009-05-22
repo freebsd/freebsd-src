@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/in.h>
 
-#include <rpc/rpcclnt.h>
 #include <rpc/rpc.h>
 
 #include <nfs/rpcv2.h>

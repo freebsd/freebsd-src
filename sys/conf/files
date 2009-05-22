@@ -2450,14 +2450,6 @@ netsmb/smb_subr.c		optional netsmb
 netsmb/smb_trantcp.c		optional netsmb
 netsmb/smb_usr.c		optional netsmb
 nfs/nfs_common.c		optional nfsclient | nfsserver
-nfs4client/nfs4_dev.c		optional nfsclient
-nfs4client/nfs4_idmap.c		optional nfsclient
-nfs4client/nfs4_socket.c	optional nfsclient
-nfs4client/nfs4_subs.c		optional nfsclient
-nfs4client/nfs4_vfs_subs.c	optional nfsclient
-nfs4client/nfs4_vfsops.c	optional nfsclient
-nfs4client/nfs4_vn_subs.c	optional nfsclient
-nfs4client/nfs4_vnops.c		optional nfsclient
 nfsclient/bootp_subr.c		optional bootp nfsclient
 nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
@@ -2519,7 +2511,6 @@ rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver
 rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver
 rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver
 rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpcclnt.c			optional nfsclient
 rpc/svc.c			optional krpc | nfslockd | nfsserver
 rpc/svc_auth.c			optional krpc | nfslockd | nfsserver
 rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsserver
