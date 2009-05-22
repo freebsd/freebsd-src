@@ -3705,7 +3705,7 @@ nfsrv_nextclientindex(void)
 	if (client_index != 0)
 		return (client_index);
 
-	printf("out of clientids, possible DOS attack\n");
+	printf("out of clientids\n");
 	return (client_index);
 }
 
