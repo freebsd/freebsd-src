@@ -226,7 +226,6 @@ KGSSAPI_DEBUG	opt_kgssapi.h
 # filesystems will be enabled - but look below.
 NFSCLIENT	opt_nfs.h
 NFSSERVER	opt_nfs.h
-NFS4CLIENT	opt_nfs.h
 
 # Use this option to compile both NFS client and server using the
 # legacy RPC implementation instead of the newer KRPC system (which

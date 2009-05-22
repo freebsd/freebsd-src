@@ -98,7 +98,6 @@
 #include <crypto/des/des.h>
 #include <sys/md5.h>
 #include <rpc/rpc.h>
-#include <rpc/rpcclnt.h>
 #include <rpc/rpcsec_gss.h>
 
 /*
