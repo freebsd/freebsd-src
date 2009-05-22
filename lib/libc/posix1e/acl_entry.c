@@ -61,6 +61,8 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 	(**entry_p).ae_tag  = ACL_UNDEFINED_TAG;
 	(**entry_p).ae_id   = ACL_UNDEFINED_ID;
 	(**entry_p).ae_perm = ACL_PERM_NONE;
+	(**entry_p).ae_entry_type = 0;
+	(**entry_p).ae_flags = 0;
 
 	(*acl_p)->ats_cur_entry = 0;
 
