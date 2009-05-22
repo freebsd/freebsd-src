@@ -477,7 +477,7 @@ struct nfssockreq {
  */
 TAILQ_HEAD(nfsreqhead, nfsreq);
 
-/* First 8 R_xxx flags defined in rpc/rpcclnt.h, the rest are here */
+/* This is the only nfsreq R_xxx flag still used. */
 #define	R_DONTRECOVER	0x00000100	/* don't initiate recovery when this
 					   rpc gets a stale state reply */
 
