@@ -3705,12 +3705,8 @@ nfsrv_nextclientindex(void)
 	if (client_index != 0)
 		return (client_index);
 
-	/*
-	 * In practice we'll never get here, but the panic is here
-	 * just for fun. (client_index will not wrap around on any real server)
-	 */
-	panic("nfsv4 server out of clientids");
-	return (0);	/* Just to shut the compiler up */
+	printf("out of clientids, possible DOS attack\n");
+	return (client_index);
 }
 
 /*
