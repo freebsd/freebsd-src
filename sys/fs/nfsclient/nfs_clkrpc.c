@@ -289,7 +289,7 @@ nfsrvd_cbinit(int terminating)
 
 	NFSD_UNLOCK();
 
-	nfscbd_pool = svcpool_create("nfscbd", SYSCTL_STATIC_CHILDREN(_vfs_newnfs));
+	nfscbd_pool = svcpool_create("nfscbd", NULL);
 	nfscbd_pool->sp_rcache = NULL;
 	nfscbd_pool->sp_assign = NULL;
 	nfscbd_pool->sp_done = NULL;
