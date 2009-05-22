@@ -1,4 +1,4 @@
-/* $OpenBSD: ttymodes.c,v 1.28 2008/07/07 00:31:41 stevesk Exp $ */
+/* $OpenBSD: ttymodes.c,v 1.29 2008/11/02 00:16:16 stevesk Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -311,11 +311,9 @@ tty_make_modes(int fd, struct termios *tiop)
 
 	/* Store input and output baud rates. */
 	baud = speed_to_baud(cfgetospeed(&tio));
-	debug3("tty_make_modes: ospeed %d", baud);
 	buffer_put_char(&buf, tty_op_ospeed);
 	buffer_put_int(&buf, baud);
 	baud = speed_to_baud(cfgetispeed(&tio));
-	debug3("tty_make_modes: ispeed %d", baud);
 	buffer_put_char(&buf, tty_op_ispeed);
 	buffer_put_int(&buf, baud);
 
@@ -359,7 +357,6 @@ tty_parse_modes(int fd, int *n_bytes_ptr)
 
 	if (compat20) {
 		*n_bytes_ptr = packet_get_int();
-		debug3("tty_parse_modes: SSH2 n_bytes %d", *n_bytes_ptr);
 		if (*n_bytes_ptr == 0)
 			return;
 		get_arg = packet_get_int;
@@ -391,7 +388,6 @@ tty_parse_modes(int fd, int *n_bytes_ptr)
 		case TTY_OP_ISPEED_PROTO2:
 			n_bytes += 4;
 			baud = packet_get_int();
-			debug3("tty_parse_modes: ispeed %d", baud);
 			if (failure != -1 &&
 			    cfsetispeed(&tio, baud_to_speed(baud)) == -1)
 				error("cfsetispeed failed for %d", baud);
@@ -402,7 +398,6 @@ tty_parse_modes(int fd, int *n_bytes_ptr)
 		case TTY_OP_OSPEED_PROTO2:
 			n_bytes += 4;
 			baud = packet_get_int();
-			debug3("tty_parse_modes: ospeed %d", baud);
 			if (failure != -1 &&
 			    cfsetospeed(&tio, baud_to_speed(baud)) == -1)
 				error("cfsetospeed failed for %d", baud);
