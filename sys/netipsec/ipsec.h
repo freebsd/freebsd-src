@@ -348,6 +348,7 @@ extern int ip4_ah_cleartos;
 extern int ip4_ah_offsetmask;
 extern int ip4_ipsec_dfbit;
 extern int ip4_ipsec_ecn;
+extern int ip4_ipsec_filtertunnel;
 extern int ip4_esp_randpad;
 extern int crypto_support;
 
