@@ -279,7 +279,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	memory segment of size > 2 GB on the 64-bit architectures.
 	Due to a limitation of the existing ABI, the shm_segsz member
 	of the struct shmid_ds, returned by shmctl(IPC_STAT) call is
-	wrong for large segments. Note that limits must be explicitely
+	wrong for large segments. Note that limits must be explicitly
 	raised to allow such segments to be created.
 
 20090301:
