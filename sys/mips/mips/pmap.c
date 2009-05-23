@@ -1729,8 +1729,8 @@ retry:
  *	insert this page into the given map NOW.
  */
 void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t fault_type, vm_page_t m, vm_prot_t prot,
-    boolean_t wired)
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+    vm_prot_t prot, boolean_t wired)
 {
 	vm_offset_t pa, opa;
 	register pt_entry_t *pte;
