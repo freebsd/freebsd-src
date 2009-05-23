@@ -3116,7 +3116,8 @@ init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
 			 */
 			rw = PTE_RWPAGE;
 			vm_page_dirty(m);
-		} else if ((m->md.pv_flags & PV_TABLE_MOD) || m->dirty)
+		} else if ((m->md.pv_flags & PV_TABLE_MOD) ||
+		    m->dirty == VM_PAGE_BITS_ALL)
 			rw = PTE_RWPAGE;
 		else
 			rw = PTE_CWPAGE;
