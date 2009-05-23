@@ -1,6 +1,11 @@
+/*
+** This file is in the public domain, so clarified as of
+** 2006-07-17 by Arthur David Olson.
+*/
+
 #ifndef lint
 #ifndef NOID
-static const char	elsieid[] = "@(#)scheck.c	8.15";
+static const char	elsieid[] = "@(#)scheck.c	8.19";
 #endif /* !defined lint */
 #endif /* !defined NOID */
 
@@ -13,7 +18,7 @@ static const char rcsid[] =
 
 #include "private.h"
 
-char *
+const char *
 scheck(string, format)
 const char * const	string;
 const char * const	format;
@@ -22,11 +27,10 @@ const char * const	format;
 	register const char *	fp;
 	register char *		tp;
 	register int		c;
-	register char *		result;
+	register const char *	result;
 	char			dummy;
-	static char		nada;
 
-	result = &nada;
+	result = "";
 	if (string == NULL || format == NULL)
 		return result;
 	fbuf = imalloc((int) (2 * strlen(format) + 4));
