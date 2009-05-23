@@ -143,6 +143,7 @@ struct npe_softc {
 	struct npestats	*sc_stats;
 	bus_dmamap_t	sc_stats_map;
 	bus_addr_t	sc_stats_phys;	/* phys addr of sc_stats */
+	struct npestats	sc_totals;	/* accumulated sc_stats */
 };
 
 /*
@@ -374,6 +375,8 @@ npe_attach(device_t dev)
 	    CTLFLAG_RW, &sc->sc_debug, 0, "control debugging printfs");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tickinterval",
 	    CTLFLAG_RW, &sc->sc_tickinterval, 0, "periodic work frequency");
+	SYSCTL_ADD_STRUCT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "stats",
+	    CTLFLAG_RD, &sc->sc_totals, npestats, "onboard stats");
 
 	ether_ifattach(ifp, eaddr);
 	return 0;
@@ -867,12 +870,24 @@ npe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 static void
 npe_addstats(struct npe_softc *sc)
 {
-#define	MIBADD(x)	sc->mibdata.x += be32toh(ns->x)
+#define	NPEADD(x)	sc->sc_totals.x += be32toh(ns->x)
+#define	MIBADD(x) do { sc->mibdata.x += be32toh(ns->x); NPEADD(x); } while (0)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct npestats *ns = sc->sc_stats;
 
 	MIBADD(dot3StatsAlignmentErrors);
 	MIBADD(dot3StatsFCSErrors);
+	MIBADD(dot3StatsInternalMacReceiveErrors);
+	NPEADD(RxOverrunDiscards);
+	NPEADD(RxLearnedEntryDiscards);
+	NPEADD(RxLargeFramesDiscards);
+	NPEADD(RxSTPBlockedDiscards);
+	NPEADD(RxVLANTypeFilterDiscards);
+	NPEADD(RxVLANIdFilterDiscards);
+	NPEADD(RxInvalidSourceDiscards);
+	NPEADD(RxBlackListDiscards);
+	NPEADD(RxWhiteListDiscards);
+	NPEADD(RxUnderflowEntryDiscards);
 	MIBADD(dot3StatsSingleCollisionFrames);
 	MIBADD(dot3StatsMultipleCollisionFrames);
 	MIBADD(dot3StatsDeferredTransmissions);
@@ -880,10 +895,12 @@ npe_addstats(struct npe_softc *sc)
 	MIBADD(dot3StatsExcessiveCollisions);
 	MIBADD(dot3StatsInternalMacTransmitErrors);
 	MIBADD(dot3StatsCarrierSenseErrors);
+	NPEADD(TxLargeFrameDiscards);
+	NPEADD(TxVLANIdFilterDiscards);
+
 	sc->mibdata.dot3StatsFrameTooLongs +=
 	      be32toh(ns->RxLargeFramesDiscards)
 	    + be32toh(ns->TxLargeFrameDiscards);
-	MIBADD(dot3StatsInternalMacReceiveErrors);
 	sc->mibdata.dot3StatsMissedFrames +=
 	      be32toh(ns->RxOverrunDiscards)
 	    + be32toh(ns->RxUnderflowEntryDiscards);
@@ -902,6 +919,7 @@ npe_addstats(struct npe_softc *sc)
 		  be32toh(ns->dot3StatsSingleCollisionFrames)
 		+ be32toh(ns->dot3StatsMultipleCollisionFrames)
 		;
+#undef NPEADD
 #undef MIBADD
 }
 
