@@ -181,6 +181,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	struct ip6_hdr *ip6;
 	struct udphdr *uh;
 	struct inpcb *inp;
+	struct udpcb *up;
 	int off = *offp;
 	int plen, ulen;
 	struct sockaddr_in6 fromsa;
@@ -315,7 +316,10 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					INP_RLOCK(last);
-					if (last->inp_ppcb != NULL) {
+					up = intoudpcb(last);
+					if (up->u_tun_func == NULL) {
+						udp6_append(last, n, off, &fromsa);
+					} else {
 						/*
 						 * Engage the tunneling
 						 * protocol we will have to
@@ -324,15 +328,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 						 * through multiple UDP's.
 						 * 
 						 */
-						udp_tun_func_t tunnel_func;
-
-						tunnel_func = (udp_tun_func_t)last->inp_ppcb;
-						tunnel_func(n, off, last);
-						INP_RUNLOCK(last);
-					} else {
-						udp6_append(last, n, off, &fromsa);
-						INP_RUNLOCK(last);
+						(*up->u_tun_func)(n, off, last);
 					}
+					INP_RUNLOCK(last);
 				}
 			}
 			last = inp;
@@ -361,18 +359,15 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		INP_RLOCK(last);
 		INP_INFO_RUNLOCK(&V_udbinfo);
-		if (last->inp_ppcb != NULL) {
+		up = intoudpcb(last);
+		if (up->u_tun_func == NULL) {
+			udp6_append(last, m, off, &fromsa);
+		} else {
 			/*
 			 * Engage the tunneling protocol.
 			 */
-			udp_tun_func_t tunnel_func;
-
-			tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
-			tunnel_func(m, off, last);
-			INP_RUNLOCK(last);
-			return (IPPROTO_DONE);
+			(*up->u_tun_func)(m, off, last);
 		}
-		udp6_append(last, m, off, &fromsa);
 		INP_RUNLOCK(last);
 		return (IPPROTO_DONE);
 	}
@@ -409,18 +404,16 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	}
 	INP_RLOCK(inp);
 	INP_INFO_RUNLOCK(&V_udbinfo);
-	if (inp->inp_ppcb != NULL) {
+	up = intoudpcb(inp);
+	if (up->u_tun_func == NULL) {
+		udp6_append(inp, m, off, &fromsa);
+	} else {
 		/*
 		 * Engage the tunneling protocol.
 		 */
-		udp_tun_func_t tunnel_func;
 
-		tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
-		tunnel_func(m, off, inp);
-		INP_RUNLOCK(inp);
-		return (IPPROTO_DONE);
+		(*up->u_tun_func)(m, off, inp);
 	}
-	udp6_append(inp, m, off, &fromsa);
 	INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
@@ -820,7 +813,6 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 	}
 	inp = (struct inpcb *)so->so_pcb;
-	INP_INFO_WUNLOCK(&V_udbinfo);
 	inp->inp_vflag |= INP_IPV6;
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
 		inp->inp_vflag |= INP_IPV4;
@@ -833,7 +825,16 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
+
+	error = udp_newudpcb(inp);
+	if (error) {
+		in_pcbdetach(inp);
+		in_pcbfree(inp);
+		INP_INFO_WUNLOCK(&V_udbinfo);
+		return (error);
+	}
 	INP_WUNLOCK(inp);
+	INP_INFO_WUNLOCK(&V_udbinfo);
 	return (0);
 }
 
@@ -968,15 +969,19 @@ udp6_detach(struct socket *so)
 {
 	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
+	struct udpcb *up;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_detach: inp == NULL"));
 
 	INP_INFO_WLOCK(&V_udbinfo);
 	INP_WLOCK(inp);
+	up = intoudpcb(inp);
+	KASSERT(up != NULL, ("%s: up == NULL", __func__));
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&V_udbinfo);
+	udp_discardcb(up);
 }
 
 static int
