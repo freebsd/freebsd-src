@@ -359,6 +359,7 @@ bootpboot_p_tree(struct radix_node *rn)
 void
 bootpboot_p_rtlist(void)
 {
+	INIT_VNET_NET(curvnet);
 
 	printf("Routing table:\n");
 	RADIX_NODE_HEAD_RLOCK(V_rt_tables[0][AF_INET]);	/* could sleep XXX */
@@ -383,6 +384,7 @@ bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
 void
 bootpboot_p_iflist(void)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
@@ -1592,6 +1594,7 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 void
 bootpc_init(void)
 {
+	INIT_VNET_NET(curvnet);
 	struct bootpc_ifcontext *ifctx, *nctx;	/* Interface BOOTP contexts */
 	struct bootpc_globalcontext *gctx; 	/* Global BOOTP context */
 	struct ifnet *ifp;
