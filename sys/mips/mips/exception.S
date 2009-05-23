@@ -689,36 +689,27 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 /*
  * Call the interrupt handler.
  */
+	break
 	la	k0, _C_LABEL(cpu_intr)
 	jalr	k0
 	sw	a3, STAND_RA_OFFSET(sp)	# for debugging
+
 /*
- * Since interrupts are enabled at this point, we use a1 instead of
- * k0 or k1 to store the PCB pointer.  This is because k0 and k1
- * are not preserved across interrupts. ** RRS - And how did the
- * get enabled? cpu_intr clears the cause register but it does
- * not touch the sr as far as I can see thus intr are still
- * disabled.
+ * DO_AST enabled interrupts
  */
 	DO_AST
 	
 /*
- * Restore user registers and return. NOTE: interrupts are enabled.
+ * Restore user registers and return. 
  */
-
-/*
- * Since interrupts are enabled at this point, we use a1 instead of
- * k0 or k1 to store the PCB pointer.  This is because k0 and k1
- * are not preserved across interrupts.
- */
-	mtc0	zero, COP_0_STATUS_REG
+	mtc0	zero, COP_0_STATUS_REG	# re-disable interrupts
 	ITLBNOPFIX
 	li	v0, SR_EXL
 	mtc0	v0, COP_0_STATUS_REG	# set exeption level bit.
 	ITLBNOPFIX
 
 	GET_CPU_PCPU(k1)
-	lw	a1, PC_CURPCB(k1)
+	lw	k1, PC_CURPCB(k1)
 	RESTORE_U_PCB_REG(s0, S0, k1)
 	RESTORE_U_PCB_REG(s1, S1, k1)
 	RESTORE_U_PCB_REG(s2, S2, k1)
