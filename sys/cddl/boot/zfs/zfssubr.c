@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/cddl/boot/zfs/zfssubr.c 192599 2009-05-22 20:07:39Z des $");
+__FBSDID("$FreeBSD$");
 
 static uint64_t zfs_crc64_table[256];
 
