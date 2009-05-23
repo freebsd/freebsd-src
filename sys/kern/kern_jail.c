@@ -1196,20 +1196,18 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 
 	if (flags & ~JAIL_GET_MASK)
 		return (EINVAL);
-	if (jailed(td->td_ucred)) {
-		/*
-		 * Don't allow a jailed process to see any jails,
-		 * not even its own.
-		 */
-		vfs_opterror(opts, "jail not found");
-		return (ENOENT);
-	}
 
 	/* Get the parameter list. */
 	error = vfs_buildopts(optuio, &opts);
 	if (error)
 		return (error);
 	errmsg_pos = vfs_getopt_pos(opts, "errmsg");
+
+	/* Don't allow a jailed process to see any jails, not even its own. */
+	if (jailed(td->td_ucred)) {
+		vfs_opterror(opts, "jail not found");
+		return (ENOENT);
+	}
 
 	/*
 	 * Find the prison specified by one of: lastjid, jid, name.
