@@ -373,7 +373,7 @@ tcp_init(void)
 	    &V_tcbinfo.ipi_hashmask);
 	V_tcbinfo.ipi_porthashbase = hashinit(hashsize, M_PCB,
 	    &V_tcbinfo.ipi_porthashmask);
-	V_tcbinfo.ipi_zone = uma_zcreate("inpcb", sizeof(struct inpcb),
+	V_tcbinfo.ipi_zone = uma_zcreate("tcp_inpcb", sizeof(struct inpcb),
 	    NULL, NULL, tcp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
 	/*
