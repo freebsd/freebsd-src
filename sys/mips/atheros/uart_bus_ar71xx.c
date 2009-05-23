@@ -67,6 +67,20 @@ static int
 uart_ar71xx_probe(device_t dev)
 {
 	struct uart_softc *sc;
+	uint32_t pll_config, div;
+	uint64_t freq;
+
+	/* PLL freq */
+	pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
+	div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
+	freq = div * AR71XX_BASE_FREQ;
+	/* CPU freq */
+	div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK) 
+	    + 1;
+	freq = freq / div;
+	/* AHB freq */
+	div = (((pll_config >> PLL_AHB_DIV_SHIFT) & PLL_AHB_DIV_MASK) + 1) * 2;
+	freq = freq / div;
 
 	sc = device_get_softc(dev);
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
@@ -79,7 +93,7 @@ uart_ar71xx_probe(device_t dev)
 	sc->sc_bas.bst = mips_bus_space_generic;
 	sc->sc_bas.bsh = MIPS_PHYS_TO_KSEG1(AR71XX_UART_ADDR) + 3;
 
-	return (uart_bus_probe(dev, 2, 85000000, 0, 0));
+	return (uart_bus_probe(dev, 2, freq, 0, 0));
 }
 
 DRIVER_MODULE(uart, apb, uart_ar71xx_driver, uart_devclass, 0, 0);
