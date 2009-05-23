@@ -12,7 +12,7 @@
 .Nm
 .Op Fl -version
 .Op Fl v
-.Op Fl c Ar cutoffyear
+.Op Fl c Ar [loyear,]hiyear
 .Op Ar zonename ...
 .Sh DESCRIPTION
 The
@@ -40,9 +40,21 @@ Each line ends with
 if the given time is Daylight Saving Time or
 .Em isdst=0
 otherwise.
-.It Fl c Ar cutoffyear
-Cut off the verbose output near the start of the given year.
+.It Fl c Ar loyear,hiyear
+Cut off verbose output near the start of the given year(s).
+By default,
+the program cuts off verbose output near the starts of the years -500 and 2500.
 .El
+.Sh LIMITATIONS
+The
+.Fl v
+option may not be used on systems with floating-point time_t values
+that are neither float nor double.
+.Pp
+Time discontinuities are found by sampling the results returned by localtime
+at twelve-hour intervals.
+This works in all real-world cases;
+one can construct artificial time zones for which this fails.
 .Sh "SEE ALSO"
 .Xr ctime 3 ,
 .Xr tzfile 5 ,
