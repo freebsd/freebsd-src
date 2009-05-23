@@ -24,7 +24,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 
 20090523:
 	The newly imported zic(8) produces a new format in the
-	output. Please run tzsetup(8) to install a newly /etc/localtime.
+	output. Please run tzsetup(8) to install the newly created
+	data to /etc/localtime.
 
 20090520:
 	The sysctl tree for the usb stack has renamed from hw.usb2.* to
