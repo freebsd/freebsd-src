@@ -17,6 +17,10 @@ SUBDIR+=		efi
 SUBDIR+=		ofw
 .endif
 
+.if defined(LOADER_ZFS_SUPPORT)
+SUBDIR+=		zfs
+.endif
+
 # Pick the machine-dependent subdir based on the target architecture.
 SUBDIR+=		${MACHINE:S/amd64/i386/:S/sun4v/sparc64/}
 
