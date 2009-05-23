@@ -95,6 +95,7 @@ struct vnet_modlink {
 #define	VNET_MOD_MLD		13
 
 /* Stateless modules. */
+#define	VNET_MOD_IF_CLONE	19
 #define	VNET_MOD_NG_ETHER	20
 #define	VNET_MOD_NG_IFACE	21
 #define	VNET_MOD_NG_EIFACE	22
@@ -271,6 +272,7 @@ extern struct vprocg vprocg_0;
 #ifdef VIMAGE
 LIST_HEAD(vnet_list_head, vnet);
 extern struct vnet_list_head vnet_head;
+extern struct vnet *vnet0;
 #define	VNET_ITERATOR_DECL(arg) struct vnet *arg;
 #define	VNET_FOREACH(arg) LIST_FOREACH(arg, &vnet_head, vnet_le)
 #else

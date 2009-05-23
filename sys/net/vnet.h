@@ -31,7 +31,7 @@
  */
 
 #ifndef _NET_VNET_H_
-#define _NET_VNET_H_
+#define	_NET_VNET_H_
 
 #include <net/if_var.h>
 
@@ -50,9 +50,12 @@ struct vnet_net {
 	uma_zone_t		_rtzone;
 
 	struct ifnet *		_loif;
-	LIST_HEAD(, lo_softc)	_lo_list;
+	struct if_clone *	_lo_cloner;
 
 	LIST_HEAD(, rawcb)	_rawcb_list;
+
+	LIST_HEAD(, if_clone)	_if_cloners;
+	int			_if_cloners_count;
 
 	int			_ether_ipfw;
 };
@@ -74,19 +77,21 @@ extern struct vnet_net vnet_net_0;
 
 #define	VNET_NET(sym)	VSYM(vnet_net, sym)
 
-#define	V_ether_ipfw	VNET_NET(ether_ipfw)
-#define	V_if_index	VNET_NET(if_index)
-#define	V_if_indexlim	VNET_NET(if_indexlim)
-#define	V_ifg_head	VNET_NET(ifg_head)
-#define	V_ifindex_table	VNET_NET(ifindex_table)
-#define	V_ifklist	VNET_NET(ifklist)
-#define	V_ifnet		VNET_NET(ifnet)
-#define	V_lo_list	VNET_NET(lo_list)
-#define	V_loif		VNET_NET(loif)
-#define	V_rawcb_list	VNET_NET(rawcb_list)
-#define	V_rt_tables	VNET_NET(rt_tables)
-#define	V_rtstat	VNET_NET(rtstat)
-#define	V_rttrash	VNET_NET(rttrash)
-#define	V_rtzone	VNET_NET(rtzone)
+#define	V_ether_ipfw		VNET_NET(ether_ipfw)
+#define	V_if_index		VNET_NET(if_index)
+#define	V_if_indexlim		VNET_NET(if_indexlim)
+#define	V_if_cloners		VNET_NET(if_cloners)
+#define	V_if_cloners_count	VNET_NET(if_cloners_count)
+#define	V_ifg_head		VNET_NET(ifg_head)
+#define	V_ifindex_table		VNET_NET(ifindex_table)
+#define	V_ifklist		VNET_NET(ifklist)
+#define	V_ifnet			VNET_NET(ifnet)
+#define	V_lo_cloner		VNET_NET(lo_cloner)
+#define	V_loif			VNET_NET(loif)
+#define	V_rawcb_list		VNET_NET(rawcb_list)
+#define	V_rt_tables		VNET_NET(rt_tables)
+#define	V_rtstat		VNET_NET(rtstat)
+#define	V_rttrash		VNET_NET(rttrash)
+#define	V_rtzone		VNET_NET(rtzone)
 
 #endif /* !_NET_VNET_H_ */
