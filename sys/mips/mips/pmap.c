@@ -3121,6 +3121,7 @@ init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
 			rw = PTE_RWPAGE;
 		else
 			rw = PTE_CWPAGE;
+		vm_page_flag_set(m, PG_WRITEABLE);
 	}
 	return rw;
 }
