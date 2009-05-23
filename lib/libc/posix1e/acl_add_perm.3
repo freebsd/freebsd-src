@@ -49,6 +49,14 @@ to the permission set
 .Pp
 Note: it is not considered an error to attempt to add permissions
 that already exist in the permission set.
+.Pp
+For POSIX.1e ACLs, valid values are:
+.Pp
+.Bl -column -offset 3n "ACL_EXECUTE"
+.It ACL_EXECUTE	Execute permission
+.It ACL_WRITE	Write permission
+.It ACL_READ	Read permission
+.El
 .Sh RETURN VALUES
 .Rv -std acl_add_perm
 .Sh ERRORS
