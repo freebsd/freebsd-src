@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1999-2001 Robert N. M. Watson
+ * Copyright (c) 2008 Edward Tomasz Napierała <trasz@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -29,7 +30,7 @@
  */
 /* 
  * Developed by the TrustedBSD Project.
- * Support for POSIX.1e access control lists.
+ * Support for POSIX.1e and NFSv4 access control lists.
  */
 
 #ifndef _SYS_ACL_H_
@@ -40,7 +41,7 @@
 #include <vm/uma.h>
 
 /*
- * POSIX.1e ACL types and related constants.
+ * POSIX.1e and NFSv4 ACL types and related constants.
  */
 
 typedef uint32_t	acl_tag_t;
@@ -53,7 +54,7 @@ typedef uint16_t	*acl_flagset_t;
 
 /*
  * With 254 entries, "struct acl_t_struct" is exactly one 4kB page big.
- * Note that with NFS4 ACLs, the maximum number of ACL entries one
+ * Note that with NFSv4 ACLs, the maximum number of ACL entries one
  * may set on file or directory is about half of ACL_MAX_ENTRIES.
  *
  * If you increase this, you might also need to increase
@@ -110,7 +111,7 @@ typedef struct acl_entry	*acl_entry_t;
 
 /*
  * Internal ACL structure, used in libc, kernel APIs and for on-disk
- * storage of NFS4 ACLs.  POSIX.1e ACLs use "struct oldacl" for on-disk
+ * storage of NFSv4 ACLs.  POSIX.1e ACLs use "struct oldacl" for on-disk
  * storage.
  */
 struct acl {
@@ -150,6 +151,15 @@ typedef void *acl_t;
 #define	ACL_MASK		0x00000010
 #define	ACL_OTHER		0x00000020
 #define	ACL_OTHER_OBJ		ACL_OTHER
+#define	ACL_EVERYONE		0x00000040
+
+/*
+ * Possible valid values for ae_entry_type field, valid only for NFSv4 ACLs.
+ */
+#define	ACL_ENTRY_TYPE_ALLOW	0x0100
+#define	ACL_ENTRY_TYPE_DENY	0x0200
+#define	ACL_ENTRY_TYPE_AUDIT	0x0400
+#define	ACL_ENTRY_TYPE_ALARM	0x0800
 
 /*
  * Possible valid values for acl_type_t arguments.  First two
@@ -159,9 +169,10 @@ typedef void *acl_t;
 #define	ACL_TYPE_DEFAULT_OLD	0x00000001
 #define	ACL_TYPE_ACCESS		0x00000002
 #define	ACL_TYPE_DEFAULT	0x00000003
+#define	ACL_TYPE_NFS4		0x00000004
 
 /*
- * Possible flags in ae_perm field for POSIX.1e ACLs.  Note
+ * Possible bits in ae_perm field for POSIX.1e ACLs.  Note
  * that ACL_EXECUTE may be used in both NFSv4 and POSIX.1e ACLs.
  */
 #define	ACL_EXECUTE		0x0001
@@ -172,17 +183,58 @@ typedef void *acl_t;
 #define	ACL_POSIX1E_BITS	(ACL_EXECUTE | ACL_WRITE | ACL_READ)
 
 /*
+ * Possible bits in ae_perm field for NFSv4 ACLs.
+ */
+#define	ACL_READ_DATA		0x00000008
+#define	ACL_LIST_DIRECTORY	0x00000008
+#define	ACL_WRITE_DATA		0x00000010
+#define	ACL_ADD_FILE		0x00000010
+#define	ACL_APPEND_DATA		0x00000020
+#define	ACL_ADD_SUBDIRECTORY	0x00000020
+#define	ACL_READ_NAMED_ATTRS	0x00000040
+#define	ACL_WRITE_NAMED_ATTRS	0x00000080
+/* ACL_EXECUTE is defined above. */
+#define	ACL_DELETE_CHILD	0x00000100
+#define	ACL_READ_ATTRIBUTES	0x00000200
+#define	ACL_WRITE_ATTRIBUTES	0x00000400
+#define	ACL_DELETE		0x00000800
+#define	ACL_READ_ACL		0x00001000
+#define	ACL_WRITE_ACL		0x00002000
+#define	ACL_WRITE_OWNER		0x00004000
+#define	ACL_SYNCHRONIZE		0x00008000
+
+#define	ACL_NFS4_PERM_BITS	(ACL_READ_DATA | ACL_WRITE_DATA | \
+    ACL_APPEND_DATA | ACL_READ_NAMED_ATTRS | ACL_WRITE_NAMED_ATTRS | \
+    ACL_EXECUTE | ACL_DELETE_CHILD | ACL_READ_ATTRIBUTES | \
+    ACL_WRITE_ATTRIBUTES | ACL_DELETE | ACL_READ_ACL | ACL_WRITE_ACL | \
+    ACL_WRITE_OWNER | ACL_SYNCHRONIZE)
+
+/*
  * Possible entry_id values for acl_get_entry(3).
  */
 #define	ACL_FIRST_ENTRY		0
 #define	ACL_NEXT_ENTRY		1
 
 /*
+ * Possible values in ae_flags field; valid only for NFSv4 ACLs.
+ */
+#define	ACL_ENTRY_FILE_INHERIT		0x0001
+#define	ACL_ENTRY_DIRECTORY_INHERIT	0x0002
+#define	ACL_ENTRY_NO_PROPAGATE_INHERIT	0x0004
+#define	ACL_ENTRY_INHERIT_ONLY		0x0008
+#define	ACL_ENTRY_SUCCESSFUL_ACCESS	0x0010
+#define	ACL_ENTRY_FAILED_ACCESS		0x0020
+
+#define	ACL_FLAGS_BITS			(ACL_ENTRY_FILE_INHERIT | \
+    ACL_ENTRY_DIRECTORY_INHERIT | ACL_ENTRY_NO_PROPAGATE_INHERIT | \
+    ACL_ENTRY_INHERIT_ONLY | ACL_ENTRY_SUCCESSFUL_ACCESS | \
+    ACL_ENTRY_FAILED_ACCESS)
+
+/*
  * Undefined value in ae_id field.  ae_id should be set to this value
  * iff ae_tag is ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER or ACL_EVERYONE.
  */
 #define	ACL_UNDEFINED_ID	((uid_t)-1)
-
 
 #ifdef _KERNEL
 
