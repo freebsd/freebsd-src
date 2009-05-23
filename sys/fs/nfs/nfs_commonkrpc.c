@@ -299,7 +299,9 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 #ifdef KGSSAPI
 	rpc_gss_service_t svc;
 	AUTH *auth;
+#ifdef notyet
 	rpc_gss_options_req_t req_options;
+#endif
 #endif
 
 	switch (secflavour) {
@@ -317,6 +319,7 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 			svc = rpc_gss_svc_integrity;
 		else
 			svc = rpc_gss_svc_privacy;
+#ifdef notyet
 		req_options.req_flags = GSS_C_MUTUAL_FLAG;
 		req_options.time_req = 0;
 		req_options.my_cred = GSS_C_NO_CREDENTIAL;
@@ -326,8 +329,20 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		auth = rpc_gss_secfind(nrp->nr_client, cred,
 		    clnt_principal, srv_principal, mech_oid, svc,
 		    &req_options);
-		return (auth);
+#else
+		/*
+		 * Until changes to the rpcsec_gss code are committed,
+		 * there is no support for host based initiator
+		 * principals. As such, that case cannot yet be handled.
+		 */
+		if (clnt_principal == NULL)
+			auth = rpc_gss_secfind(nrp->nr_client, cred,
+			    srv_principal, mech_oid, svc);
+		else
+			auth = NULL;
 #endif
+		return (auth);
+#endif	/* KGSSAPI */
 	case AUTH_SYS:
 	default:
 		return (authunix_create(cred));
