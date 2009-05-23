@@ -1849,6 +1849,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t fault_type, vm_page_t m, vm_pr
 		pmap->pm_stats.wired_count++;
 
 validate:
+	if ((access & VM_PROT_WRITE) != 0)
+		m->md.pv_flags |= PV_TABLE_MOD | PV_TABLE_REF;
 	rw = init_pte_prot(va, m, prot);
 
 #ifdef PMAP_DEBUG
