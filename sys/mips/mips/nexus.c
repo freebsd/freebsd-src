@@ -169,14 +169,14 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 {
 	int irq;
 
-	register_t sr = intr_disable();
+	intrmask_t s = disableintr();
 	irq = rman_get_start(res);
 	if (irq >= NUM_MIPS_IRQS)
 		return (0);
 
 	cpu_establish_hardintr(device_get_nameunit(child), filt, intr, arg,
 	    irq, flags, cookiep);
-	intr_restore(sr);
+	restoreintr(s);
 	return (0);
 }
 
