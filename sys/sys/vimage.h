@@ -138,13 +138,13 @@ void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 
 #ifdef VIMAGE_GLOBALS
 #define	VSYM(base, sym) (sym)
-#else
+#else /* !VIMAGE_GLOBALS */
 #ifdef VIMAGE
 #define	VSYM(base, sym) ((base)->_ ## sym)
-#else
+#else /* !VIMAGE */
 #define	VSYM(base, sym) (base ## _0._ ## sym)
-#endif
-#endif
+#endif /* VIMAGE */
+#endif /* VIMAGE_GLOBALS */
 
 #ifndef VIMAGE_GLOBALS
 #ifdef VIMAGE
@@ -155,11 +155,11 @@ void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 #define	VNET_SYMMAP(mod, name)						\
 	{ #name, offsetof(struct vnet_ ## mod, _ ## name),		\
 	sizeof(((struct vnet_ ## mod *) NULL)->_ ## name) }
-#else
+#else /* !VIMAGE */
 #define	VNET_SYMMAP(mod, name)						\
 	{ #name, (size_t) &(vnet_ ## mod ## _0._ ## name),		\
 	sizeof(vnet_ ## mod ## _0._ ## name) }
-#endif
+#endif /* VIMAGE */
 #define	VNET_SYMMAP_END		{ NULL, 0 }
 
 struct vimage {
@@ -194,10 +194,10 @@ struct vprocg {
 #ifdef VIMAGE
 LIST_HEAD(vimage_list_head, vimage);
 extern struct vimage_list_head vimage_head;
-#else
+#else /* !VIMAGE */
 extern struct vprocg vprocg_0;
-#endif
-#endif
+#endif /* VIMAGE */
+#endif /* !VIMAGE_GLOBALS */
  
 #define	curvnet curthread->td_vnet
 
@@ -245,7 +245,7 @@ extern struct vprocg vprocg_0;
  
 #define	CURVNET_RESTORE()						\
 	curvnet = saved_vnet;
-#endif /* !VNET_DEBUG */
+#endif /* VNET_DEBUG */
 #else /* !VIMAGE */
 #define	VNET_ASSERT(condition)
 #define	CURVNET_SET(arg)
@@ -267,7 +267,7 @@ extern struct vprocg vprocg_0;
 #endif /* !VNET_DEBUG */
 #else /* !VIMAGE */
 #define	INIT_FROM_VNET(vnet, modindex, modtype, sym)
-#endif
+#endif /* VIMAGE */
 
 #ifdef VIMAGE
 LIST_HEAD(vnet_list_head, vnet);
@@ -303,7 +303,7 @@ extern struct vprocg_list_head vprocg_head;
 #define	P_TO_VIMAGE(p)		(p)->p_ucred->cr_vimage
 #define	P_TO_VNET(p)		(p)->p_ucred->cr_vimage->v_net
 #define	P_TO_VPROCG(p)		(p)->p_ucred->cr_vimage->v_procg
-#else
+#else /* !VIMAGE */
 #define	TD_TO_VIMAGE(td)	NULL
 #define	TD_TO_VNET(td)		NULL
 #define	P_TO_VIMAGE(p)		NULL
@@ -311,11 +311,11 @@ extern struct vprocg_list_head vprocg_head;
 #ifdef VIMAGE_GLOBALS
 #define	TD_TO_VPROCG(td)	NULL
 #define	P_TO_VPROCG(p)		NULL
-#else
+#else /* !VIMAGE_GLOBALS */
 #define	TD_TO_VPROCG(td)	&vprocg_0
 #define	P_TO_VPROCG(p)		&vprocg_0
-#endif
-#endif
+#endif /* VIMAGE_GLOBALS */
+#endif /* VIMAGE */
 
 /* Non-VIMAGE null-macros */
 #define	VNET_LIST_RLOCK()
