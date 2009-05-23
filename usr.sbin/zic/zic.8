@@ -120,9 +120,9 @@ Non-blank lines are expected to be of one of three types:
 rule lines, zone lines, and link lines.
 .Pp
 A rule line has the form:
-.Dl "Rule	NAME	FROM	TO	TYPE	IN	ON		AT	SAVE	LETTER/S"
+.Dl "Rule	NAME	FROM	TO	TYPE	IN	ON		AT	SAVE	LETTER/S
 For example:
-.Dl "Rule	US	1967	1973	\-	Apr	lastSun	2:00	1:00	D"
+.Dl "Rule	US	1967	1973	\-	Apr	lastSun	2:00	1:00	D
 .Pp
 The fields that make up a rule line are:
 .Bl -tag -width "LETTER/S" -offset indent
@@ -260,9 +260,9 @@ the variable part is null.
 .El
 .Pp
 A zone line has the form:
-.Dl "Zone	NAME	GMTOFF	RULES/SAVE	FORMAT	[UNTIL]"
+.Dl "Zone	NAME	GMTOFF	RULES/SAVE	FORMAT	[UNTILYEAR [MONTH [DAY [TIME]]]]
 For example:
-.Dl "Zone	Australia/Adelaide	9:30	Aus	CST	1971 Oct 31 2:00"
+.Dl "Zone	Australia/Adelaide	9:30	Aus	CST	1971 Oct 31 2:00
 The fields that make up a zone line are:
 .Bl -tag -width indent
 .It NAME
@@ -293,15 +293,15 @@ of the time zone abbreviation goes.
 Alternately,
 a slash (/)
 separates standard and daylight abbreviations.
-.It UNTIL
+.It UNTILYEAR [MONTH [DAY [TIME]]]
 The time at which the UTC offset or the rule(s) change for a location.
 It is specified as a year, a month, a day, and a time of day.
 If this is specified,
 the time zone information is generated from the given UTC offset
 and rule change until the time specified.
 The month, day, and time of day have the same format as the IN, ON, and AT
-columns of a rule; trailing columns can be omitted, and default to the
-earliest possible value for the missing columns.
+fields of a rule; trailing fields can be omitted, and default to the
+earliest possible value for the missing fields.
 .Pp
 The next line must be a
 .Dq continuation
@@ -310,18 +310,18 @@ string
 .Dq Zone
 and the name are omitted, as the continuation line will
 place information starting at the time specified as the
-.Em UNTIL
-field in the previous line in the file used by the previous line.
-Continuation lines may contain an
-.Em UNTIL
-field, just as zone lines do, indicating that the next line is a further
+.Em until
+information in the previous line in the file used by the previous line.
+Continuation lines may contain
+.Em until
+information, just as zone lines do, indicating that the next line is a further
 continuation.
 .El
 .Pp
 A link line has the form
-.Dl "Link	LINK-FROM	LINK-TO"
+.Dl "Link	LINK-FROM	LINK-TO
 For example:
-.Dl "Link	Europe/Istanbul	Asia/Istanbul"
+.Dl "Link	Europe/Istanbul	Asia/Istanbul
 The
 .Em LINK-FROM
 field should appear as the
@@ -335,9 +335,9 @@ Except for continuation lines,
 lines may appear in any order in the input.
 .Pp
 Lines in the file that describes leap seconds have the following form:
-.Dl "Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S"
+.Dl "Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
 For example:
-.Dl "Leap	1974	Dec	31	23:59:60	+	S"
+.Dl "Leap	1974	Dec	31	23:59:60	+	S
 The
 .Em YEAR ,
 .Em MONTH ,
@@ -376,12 +376,81 @@ or
 .Dq Rolling
 if the leap second time given by the other fields should be interpreted as
 local wall clock time.
-.Sh NOTE
+.Sh "EXTENDED EXAMPLE"
+Here is an extended example of
+.Nm
+input, intended to illustrate many of its features.
+.br
+.ne 22
+.nf
+.in +2m
+.ta \w'# Rule\0\0'u +\w'NAME\0\0'u +\w'FROM\0\0'u +\w'1973\0\0'u +\w'TYPE\0\0'u +\w'Apr\0\0'u +\w'lastSun\0\0'u +\w'2:00\0\0'u +\w'SAVE\0\0'u
+.sp
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Swiss	1940	only	-	Nov	2	0:00	1:00	S
+Rule	Swiss	1940	only	-	Dec	31	0:00	0	-
+Rule	Swiss	1941	1942	-	May	Sun>=1	2:00	1:00	S
+Rule	Swiss	1941	1942	-	Oct	Sun>=1	0:00	0
+.sp .5
+Rule	EU	1977	1980	-	Apr	Sun>=1	1:00u	1:00	S
+Rule	EU	1977	only	-	Sep	lastSun	1:00u	0	-
+Rule	EU	1978	only	-	Oct	 1	1:00u	0	-
+Rule	EU	1979	1995	-	Sep	lastSun	1:00u	0	-
+Rule	EU	1981	max	-	Mar	lastSun	1:00u	1:00	S
+Rule	EU	1996	max	-	Oct	lastSun	1:00u	0	-
+.sp
+.ta \w'# Zone\0\0'u +\w'Europe/Zurich\0\0'u +\w'0:34:08\0\0'u +\w'RULES/SAVE\0\0'u +\w'FORMAT\0\0'u
+# Zone	NAME	GMTOFF	RULES	FORMAT	UNTIL
+Zone	Europe/Zurich	0:34:08	-	LMT	1848 Sep 12
+		0:29:44	-	BMT	1894 Jun
+		1:00	Swiss	CE%sT	1981
+		1:00	EU	CE%sT
+.sp
+Link	Europe/Zurich	Switzerland
+.sp
+.in
+.fi
+In this example, the zone is named Europe/Zurich but it has an alias
+as Switzerland.
+Zurich was 34 minutes and 8 seconds west of GMT until 1848-09-12
+at 00:00, when the offset changed to 29 minutes and 44 seconds.
+After 1894-06-01 at 00:00 Swiss daylight saving rules (defined with
+lines beginning with "Rule Swiss") apply, and the GMT offset became
+one hour.
+From 1981 to the present, EU daylight saving rules have applied,
+and the UTC offset has remained at one hour.
+.Pp
+In 1940, daylight saving time applied from November 2 at 00:00 to
+December 31 at 00:00.
+In 1941 and 1942, daylight saving time applied from the first Sunday
+in May at 02:00 to the first Sunday in October at 00:00.
+The pre-1981 EU daylight-saving rules have no effect here, but are
+included for completeness.
+Since 1981, daylight saving has begun on the last Sunday in March
+at 01:00 UTC.
+Until 1995 it ended the last Sunday in September at 01:00 UTC, but
+this changed to the last Sunday in October starting in 1996.
+.Pp
+For purposes of display, "LMT" and "BMT" were initially used,
+respectively.
+Since Swiss rules and later EU rules were applied, the display name
+for the timezone has been CET for standard time and CEST for daylight
+saving time.
+.Sh NOTES
 For areas with more than two types of local time,
 you may need to use local standard time in the
 .Em AT
 field of the earliest transition time's rule to ensure that
 the earliest transition time recorded in the compiled file is correct.
+.Pp
+If, for a particular zone, a clock advance caused by the start of
+daylight saving coincides with and is equal to a clock retreat
+caused by a change in UTC offset,
+.Nm
+produces a single transition to daylight saving at the new UTC offset
+(without any change in wall clock time).
+To get separate transitions use multiple zone continuation lines
+specifying transition instants using universal time.
 .Sh FILES
 .Bl -tag -width /usr/share/zoneinfo -compact
 .It /usr/share/zoneinfo
@@ -391,4 +460,4 @@ standard directory used for created files
 .Xr ctime 3 ,
 .Xr tzfile 5 ,
 .Xr zdump 8
-.\" @(#)zic.8	7.18
+.\" @(#)zic.8	8.4
