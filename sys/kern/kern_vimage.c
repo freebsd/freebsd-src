@@ -66,6 +66,10 @@ struct vprocg vprocg_0;
 #endif
 #endif
 
+#ifdef VIMAGE
+struct vnet *vnet0;
+#endif
+
 void
 vnet_mod_register(const struct vnet_modinfo *vmi)
 {
@@ -331,6 +335,7 @@ vi_init(void *unused)
 	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
 	vip->v_net = vnet;
+	vnet0 = vnet;
 
 	/* We MUST clear curvnet in vi_init_done before going SMP. */
 	curvnet = LIST_FIRST(&vnet_head);
