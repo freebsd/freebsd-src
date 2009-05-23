@@ -1480,7 +1480,7 @@ arge_rx_intr(struct arge_softc *sc, uint32_t status)
 
 	/* RX overrun disables the receiver. Clear indication and
 	   re-enable rx. */
-	if ( status | DMA_INTR_RX_OVERFLOW) {
+	if ( status & DMA_INTR_RX_OVERFLOW) {
 		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_OVERFLOW);
 		ARGE_WRITE(sc, AR71XX_DMA_RX_CONTROL, DMA_RX_CONTROL_EN);
 	}
