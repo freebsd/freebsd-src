@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090523:
+	The newly imported zic(8) produces a new format in the
+	output. Please run tzsetup(8) to install a newly /etc/localtime.
+
 20090520:
 	The sysctl tree for the usb stack has renamed from hw.usb2.* to
 	hw.usb.* and is now consistent again with previous releases.
