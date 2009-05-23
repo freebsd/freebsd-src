@@ -23,6 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090523:
+	The layout of struct vnet_net has changed, therefore modules
+	need to be rebuilt.
+	Bump __FreeBSD_version to 800090.
+
+20090523:
 	The newly imported zic(8) produces a new format in the
 	output. Please run tzsetup(8) to install the newly created
 	data to /etc/localtime.
