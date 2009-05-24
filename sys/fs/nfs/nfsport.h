@@ -71,6 +71,8 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/acl.h>
+/* until the nfsv4 acl stuff is all committed, undef NFS4_ACL_EXTATTR_NAME */
+#undef NFS4_ACL_EXTATTR_NAME
 #include <sys/module.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
