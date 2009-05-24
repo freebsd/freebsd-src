@@ -206,6 +206,7 @@ ttydev_leave(struct tty *tp)
 		ttydevsw_close(tp);
 
 	tp->t_flags &= ~TF_OPENCLOSE;
+	cv_broadcast(&tp->t_dcdwait);
 	tty_rel_free(tp);
 }
 
@@ -231,13 +232,17 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		tty_unlock(tp);
 		return (ENXIO);
 	}
+
 	/*
-	 * Prevent the TTY from being opened when being torn down or
-	 * built up by unrelated processes.
+	 * Block when other processes are currently opening or closing
+	 * the TTY.
 	 */
-	if (tp->t_flags & TF_OPENCLOSE) {
-		tty_unlock(tp);
-		return (EBUSY);
+	while (tp->t_flags & TF_OPENCLOSE) {
+		error = tty_wait(tp, &tp->t_dcdwait);
+		if (error != 0) {
+			tty_unlock(tp);
+			return (error);
+		}
 	}
 	tp->t_flags |= TF_OPENCLOSE;
 
@@ -299,6 +304,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		tp->t_flags |= TF_OPENED_IN;
 
 done:	tp->t_flags &= ~TF_OPENCLOSE;
+	cv_broadcast(&tp->t_dcdwait);
 	ttydev_leave(tp);
 
 	return (error);
