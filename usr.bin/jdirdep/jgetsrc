@@ -1,0 +1,120 @@
+dirs=$*
+
+ROOTDIR=`pwd`
+DAILY=/c/jbirrell/daily/obj
+
+testdir=$ROOTDIR
+while [ $testdir != "/" ]; do
+	if [ -f $testdir/src/bld/sys.mk ]; then
+		ROOTDIR=$testdir
+		break
+	fi
+	testdir=`dirname $testdir`
+done
+
+SVNLOG=$ROOTDIR/svn.log
+MORELOG=$ROOTDIR/more.log
+
+cd $ROOTDIR
+
+if [ ! -d shared -a ! -h shared ]; then
+	ln -s $DAILY shared
+fi
+
+#JSVN=svn://localhost/EPBG/u/jbirrell/build
+JSVN=svn+ssh://localhost/c/cvs2svn/svn/repos/junos-2008/branches/jbuild
+
+rm -f $SVNLOG $MORELOG
+touch $SVNLOG $MORELOG
+
+svn co -q $JSVN/src --depth files
+cd src
+svn co -q $JSVN/src/bld --depth files
+svn co -q $JSVN/src/stage --depth files
+
+
+for d in $dirs
+do
+	dd=`echo $d | sed -e "s/\// /g"`
+	num=`echo $dd | wc -w`
+	svnd=$JSVN
+	report=.
+	cd $ROOTDIR
+	i=0
+	for x in $dd
+	do
+		if [ $i -eq 0 -a $x != "src" ]; then
+			echo "Ignoring directory path which doesn't start with 'src': $d"
+			break
+		fi
+		svnd=$svnd/$x
+		report=$report/$x
+		i=`expr $i + 1`
+		xx=`pwd`
+		echo "Z $xx" >> $SVNLOG
+		if [ $i -eq $num ]; then
+			echo "Checking out: $report"
+			svn co $svnd --depth infinity >> $SVNLOG
+		elif [ ! -d $x ]; then
+			echo "Checking out: $report"
+			svn co $svnd --depth files >> $SVNLOG
+		fi
+		cd $x
+	done
+done
+
+cd $ROOTDIR
+dname=$ROOTDIR
+buildfiledep=
+
+while read thing name
+do
+	if [ $thing = "A" ]
+	then
+		fname=`basename $name`
+		if [ $fname = "Buildfile.dep" ]
+		then
+			buildfiledep="$buildfiledep $dname/$name"
+		fi
+	elif [ $thing = "Z" ]
+	then
+		dname=$name
+	fi
+done < $SVNLOG
+
+for f in $buildfiledep
+do
+	while read line
+	do
+		srcdirdep=`echo "$line" | grep SRCDIRDEP`
+		for d in $srcdirdep
+		do
+			if [ $d = "SRCDIRDEP" ]
+			then
+			elif [ $d = "=" ]
+			then
+			elif [ ! -d $ROOTDIR/src/$d ]
+			then
+				echo "src/$d" >> $MORELOG
+			fi
+		done
+	done < $f
+done
+
+sort -u $MORELOG > tmp
+mv tmp $MORELOG
+moredirs=
+
+while read fname
+do
+	moredirs="$moredirs $fname"
+done < $MORELOG
+
+rm -f $SVNLOG
+rm -f $MORELOG
+
+if [ "x$moredirs" != x ]
+then
+	echo "Need to check out additional directories due to source dependencies..."
+	exec $0 $moredirs
+fi
