@@ -1361,7 +1361,7 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 	/*
 	 * Scan lock list for this file looking for locks that would block us.
 	 */
-	while (lf_getblock(state, lock)) {
+	if (lf_getblock(state, lock)) {
 		/*
 		 * Free the structure and return if nonblocking.
 		 */
