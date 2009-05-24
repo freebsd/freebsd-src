@@ -70,8 +70,8 @@ static int nfs_realign_test;
 static int nfs_realign_count;
 
 SYSCTL_NODE(_vfs, OID_AUTO, newnfs, CTLFLAG_RW, 0, "New NFS filesystem");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, newnfs_realign_test, CTLFLAG_RW, &nfs_realign_test, 0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, newnfs_realign_count, CTLFLAG_RW, &nfs_realign_count, 0, "");
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs4acl_enable, CTLFLAG_RW, &nfsrv_useacl, 0, "");
 SYSCTL_STRING(_vfs_newnfs, OID_AUTO, callback_addr, CTLFLAG_RW,
     nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr), "");
@@ -129,7 +129,7 @@ newnfs_realign(struct mbuf **pm)
 }
 #else
 /*
- *	nfs_realign:
+ *	newnfs_realign:
  *
  *	Check for badly aligned mbuf data and realign by copying the unaligned
  *	portion of the data into a new mbuf chain and freeing the portions
@@ -142,43 +142,50 @@ newnfs_realign(struct mbuf **pm)
  *	We would prefer to avoid this situation entirely.  The situation does
  *	not occur with NFS/UDP and is supposed to only occassionally occur
  *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
+ *
  */
 void
 newnfs_realign(struct mbuf **pm)
 {
-	struct mbuf *m;
-	struct mbuf *n = NULL;
-	int off = 0;
+	struct mbuf *m, *n;
+	int off, space;
 
 	++nfs_realign_test;
 	while ((m = *pm) != NULL) {
 		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			MGET(n, M_WAIT, MT_DATA);
-			if (m->m_len >= MINCLSIZE) {
-				MCLGET(n, M_WAIT);
-			}
+			/*
+			 * NB: we can't depend on m_pkthdr.len to help us
+			 * decide what to do here.  May not be worth doing
+			 * the m_length calculation as m_copyback will
+			 * expand the mbuf chain below as needed.
+			 */
+			space = m_length(m, NULL);
+			if (space >= MINCLSIZE) {
+				/* NB: m_copyback handles space > MCLBYTES */
+				n = m_getcl(M_WAITOK, MT_DATA, 0);
+			} else
+				n = m_get(M_WAITOK, MT_DATA);
+			if (n == NULL)
+				return;
+			/*
+			 * Align the remainder of the mbuf chain.
+			 */
 			n->m_len = 0;
+			off = 0;
+			while (m != NULL) {
+				m_copyback(n, off, m->m_len, mtod(m, caddr_t));
+				off += m->m_len;
+				m = m->m_next;
+			}
+			m_freem(*pm);
+			*pm = n;
+			++nfs_realign_count;
 			break;
 		}
 		pm = &m->m_next;
 	}
-
-	/*
-	 * If n is non-NULL, loop on m copying data, then replace the
-	 * portion of the chain that had to be realigned.
-	 */
-	if (n != NULL) {
-		++nfs_realign_count;
-		while (m) {
-			m_copyback(n, off, m->m_len, mtod(m, caddr_t));
-			off += m->m_len;
-			m = m->m_next;
-		}
-		m_freem(*pm);
-		*pm = n;
-	}
 }
-#endif	/* newnfs_realign */
+#endif	/* !__i386__ */
 
 #ifdef notdef
 static void

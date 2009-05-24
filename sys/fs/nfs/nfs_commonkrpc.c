@@ -603,6 +603,13 @@ tryagain:
 
 	KASSERT(nd->nd_mrep != NULL, ("mrep shouldn't be NULL if no error\n"));
 
+	/*
+	 * Search for any mbufs that are not a multiple of 4 bytes long
+	 * or with m_data not longword aligned.
+	 * These could cause pointer alignment problems, so copy them to
+	 * well aligned mbufs.
+	 */
+	newnfs_realign(&nd->nd_mrep);
 	nd->nd_md = nd->nd_mrep;
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
