@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#include "acl_support.h"
+
 acl_t
 acl_get_file(const char *path_p, acl_type_t type)
 {
@@ -60,6 +62,7 @@ acl_get_file(const char *path_p, acl_type_t type)
 	if (aclp == NULL)
 		return (NULL);
 
+	type = _acl_type_unold(type);
 	error = __acl_get_file(path_p, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
@@ -79,6 +82,7 @@ acl_get_link_np(const char *path_p, acl_type_t type)
 	if (aclp == NULL)
 		return (NULL);
 
+	type = _acl_type_unold(type);
 	error = __acl_get_link(path_p, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
@@ -117,6 +121,7 @@ acl_get_fd_np(int fd, acl_type_t type)
 	if (aclp == NULL)
 		return (NULL);
 
+	type = _acl_type_unold(type);
 	error = ___acl_get_fd(fd, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);

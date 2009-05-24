@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/lockf.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -44,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 #include <sys/vnode.h>
 
-#include <rpc/rpcclnt.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>

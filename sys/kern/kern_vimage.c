@@ -66,6 +66,10 @@ struct vprocg vprocg_0;
 #endif
 #endif
 
+#ifdef VIMAGE
+struct vnet *vnet0;
+#endif
+
 void
 vnet_mod_register(const struct vnet_modinfo *vmi)
 {
@@ -331,6 +335,7 @@ vi_init(void *unused)
 	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
 	vip->v_net = vnet;
+	vnet0 = vnet;
 
 	/* We MUST clear curvnet in vi_init_done before going SMP. */
 	curvnet = LIST_FIRST(&vnet_head);
@@ -391,7 +396,7 @@ DB_SHOW_COMMAND(vnets, db_show_vnets)
 #endif
 	VNET_FOREACH(vnet_iter) {
 		db_printf("%p %3d %5d",
-		    vnet_iter, vnet_iter->ifccnt, vnet_iter->sockcnt);
+		    vnet_iter, vnet_iter->ifcnt, vnet_iter->sockcnt);
 		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_NET]);
 		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_INET]);
 		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_INET6]);

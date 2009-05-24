@@ -137,6 +137,7 @@ SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
 #ifdef VIMAGE_GLOBALS
 struct inpcbhead	udb;		/* from udp_var.h */
 struct inpcbinfo	udbinfo;
+static uma_zone_t	udpcb_zone;
 struct udpstat		udpstat;	/* from udp_var.h */
 #endif
 
@@ -158,6 +159,7 @@ udp_zone_change(void *tag)
 	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_udbinfo.ipi_zone, maxsockets);
+	uma_zone_set_max(V_udpcb_zone, maxsockets);
 }
 
 static int
@@ -187,11 +189,37 @@ udp_init(void)
 	    &V_udbinfo.ipi_hashmask);
 	V_udbinfo.ipi_porthashbase = hashinit(UDBHASHSIZE, M_PCB,
 	    &V_udbinfo.ipi_porthashmask);
-	V_udbinfo.ipi_zone = uma_zcreate("udpcb", sizeof(struct inpcb), NULL,
-	    NULL, udp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	V_udbinfo.ipi_zone = uma_zcreate("udp_inpcb", sizeof(struct inpcb),
+	    NULL, NULL, udp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_udbinfo.ipi_zone, maxsockets);
+
+	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(V_udpcb_zone, maxsockets);
+
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
+}
+
+int
+udp_newudpcb(struct inpcb *inp)
+{
+	INIT_VNET_INET(curvnet);
+	struct udpcb *up;
+
+	up = uma_zalloc(V_udpcb_zone, M_NOWAIT | M_ZERO);
+	if (up == NULL)
+		return (ENOBUFS);
+	inp->inp_ppcb = up;
+	return (0);
+}
+
+void
+udp_discardcb(struct udpcb *up)
+{
+	INIT_VNET_INET(curvnet);
+
+	uma_zfree(V_udpcb_zone, up);
 }
 
 /*
@@ -272,6 +300,7 @@ udp_input(struct mbuf *m, int off)
 	struct udphdr *uh;
 	struct ifnet *ifp;
 	struct inpcb *inp;
+	struct udpcb *up;
 	int len;
 	struct ip save_ip;
 	struct sockaddr_in udp_in;
@@ -455,28 +484,25 @@ udp_input(struct mbuf *m, int off)
 				struct mbuf *n;
 
 				n = m_copy(m, 0, M_COPYALL);
-				if (last->inp_ppcb == NULL) {
+				up = intoudpcb(last);
+				if (up->u_tun_func == NULL) {
 					if (n != NULL)
 						udp_append(last, 
 						    ip, n, 
 						    iphlen +
 						    sizeof(struct udphdr),
 						    &udp_in);
-					INP_RUNLOCK(last);
 				} else {
 					/*
 					 * Engage the tunneling protocol we
 					 * will have to leave the info_lock
 					 * up, since we are hunting through
 					 * multiple UDP's.
-					 * 
 					 */
-					udp_tun_func_t tunnel_func;
 
-					tunnel_func = (udp_tun_func_t)last->inp_ppcb;
-					tunnel_func(n, iphlen, last);
-					INP_RUNLOCK(last);
+					(*up->u_tun_func)(n, iphlen, last);
 				}
+				INP_RUNLOCK(last);
 			}
 			last = inp;
 			/*
@@ -501,22 +527,18 @@ udp_input(struct mbuf *m, int off)
 			UDPSTAT_INC(udps_noportbcast);
 			goto badheadlocked;
 		}
-		if (last->inp_ppcb == NULL) {
+		up = intoudpcb(last);
+		if (up->u_tun_func == NULL) {
 			udp_append(last, ip, m, iphlen + sizeof(struct udphdr),
 			    &udp_in);
-			INP_RUNLOCK(last);
-			INP_INFO_RUNLOCK(&V_udbinfo);
 		} else {
 			/*
 			 * Engage the tunneling protocol.
 			 */
-			udp_tun_func_t tunnel_func;
-
-			tunnel_func = (udp_tun_func_t)last->inp_ppcb;
-			tunnel_func(m, iphlen, last);
-			INP_RUNLOCK(last);
-			INP_INFO_RUNLOCK(&V_udbinfo);
+			(*up->u_tun_func)(m, iphlen, last);
 		}
+		INP_RUNLOCK(last);
+		INP_INFO_RUNLOCK(&V_udbinfo);
 		return;
 	}
 
@@ -560,18 +582,16 @@ udp_input(struct mbuf *m, int off)
 		INP_RUNLOCK(inp);
 		goto badunlocked;
 	}
-	if (inp->inp_ppcb != NULL) {
+	up = intoudpcb(inp);
+	if (up->u_tun_func == NULL) {
+		udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
+	} else {
 		/*
 		 * Engage the tunneling protocol.
 		 */
-		udp_tun_func_t tunnel_func;
 
-		tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
-		tunnel_func(m, iphlen, inp);
-		INP_RUNLOCK(inp);
-		return;
+		(*up->u_tun_func)(m, iphlen, inp);
 	}
-	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
 	INP_RUNLOCK(inp);
 	return;
 
@@ -1142,18 +1162,19 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	}
 
 	inp = (struct inpcb *)so->so_pcb;
-	INP_INFO_WUNLOCK(&V_udbinfo);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = V_ip_defttl;
-	/*
-	 * UDP does not have a per-protocol pcb (inp->inp_ppcb). 
-	 * We use this pointer for kernel tunneling pointer.
-	 * If we ever need to have a protocol block we will 
-	 * need to move this function pointer there. Null
-	 * in this pointer means "do the normal thing".
-	 */
-	inp->inp_ppcb = NULL;
+
+	error = udp_newudpcb(inp);
+	if (error) {
+		in_pcbdetach(inp);
+		in_pcbfree(inp);
+		INP_INFO_WUNLOCK(&V_udbinfo);
+		return (error);
+	}
+
 	INP_WUNLOCK(inp);
+	INP_INFO_WUNLOCK(&V_udbinfo);
 	return (0);
 }
 
@@ -1161,24 +1182,26 @@ int
 udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
 {
 	struct inpcb *inp;
+	struct udpcb *up;
 
-	inp = (struct inpcb *)so->so_pcb;
 	KASSERT(so->so_type == SOCK_DGRAM, ("udp_set_kernel_tunneling: !dgram"));
 	KASSERT(so->so_pcb != NULL, ("udp_set_kernel_tunneling: NULL inp"));
 	if (so->so_type != SOCK_DGRAM) {
 		/* Not UDP socket... sorry! */
 		return (ENOTSUP);
 	}
+	inp = (struct inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		/* NULL INP? */
 		return (EINVAL);
 	}
 	INP_WLOCK(inp);
-	if (inp->inp_ppcb != NULL) {
+	up = intoudpcb(inp);
+	if (up->u_tun_func != NULL) {
 		INP_WUNLOCK(inp);
 		return (EBUSY);
 	}
-	inp->inp_ppcb = f;
+	up->u_tun_func = f;
 	INP_WUNLOCK(inp);
 	return (0);
 }
@@ -1256,6 +1279,7 @@ udp_detach(struct socket *so)
 {
 	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
+	struct udpcb *up;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_detach: inp == NULL"));
@@ -1263,9 +1287,13 @@ udp_detach(struct socket *so)
 	    ("udp_detach: not disconnected"));
 	INP_INFO_WLOCK(&V_udbinfo);
 	INP_WLOCK(inp);
+	up = intoudpcb(inp);
+	KASSERT(up != NULL, ("%s: up == NULL", __func__));
+	inp->inp_ppcb = NULL;
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&V_udbinfo);
+	udp_discardcb(up);
 }
 
 static int

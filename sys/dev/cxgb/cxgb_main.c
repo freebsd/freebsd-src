@@ -404,8 +404,9 @@ upgrade_fw(adapter_t *sc)
  *  5. Allocate the BAR for doing MSI-X.
  *  6. Setup the line interrupt iff MSI-X is not supported.
  *  7. Create the driver's taskq.
- *  8. Start the task queue threads.
- *  9. Update the firmware if required.
+ *  8. Start one task queue service thread.
+ *  9. Check if the firmware and SRAM are up-to-date.  They will be
+ *     auto-updated later (before FULL_INIT_DONE), if required.
  * 10. Create a child device for each MAC (port)
  * 11. Initialize T3 private state.
  * 12. Trigger the LED
@@ -665,7 +666,7 @@ out:
 }
 
 /*
- * The cxgb_controlller_detach routine is called with the device is
+ * The cxgb_controller_detach routine is called with the device is
  * unloaded from the system.
  */
 
@@ -685,7 +686,7 @@ cxgb_controller_detach(device_t dev)
  * The cxgb_free() is called by the cxgb_controller_detach() routine
  * to tear down the structures that were built up in
  * cxgb_controller_attach(), and should be the final piece of work
- * done when fullly unloading the driver.
+ * done when fully unloading the driver.
  * 
  *
  *  1. Shutting down the threads started by the cxgb_controller_attach()
@@ -724,7 +725,8 @@ cxgb_free(struct adapter *sc)
 	bus_generic_detach(sc->dev);
 
 	for (i = 0; i < (sc)->params.nports; i++) {
-		if (device_delete_child(sc->dev, sc->portdev[i]) != 0)
+		if (sc->portdev[i] &&
+		    device_delete_child(sc->dev, sc->portdev[i]) != 0)
 			device_printf(sc->dev, "failed to delete child port\n");
 	}
 
@@ -1768,7 +1770,7 @@ out:
 
 
 /*
- * Release resources when all the ports and offloading have been stopped.
+ * Bring down the interface but do not free any resources.
  */
 static void
 cxgb_down_locked(struct adapter *sc)

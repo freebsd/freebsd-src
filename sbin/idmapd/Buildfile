@@ -1,9 +1,0 @@
-# $FreeBSD$
-
-PROG = idmapd
-
-WARNS ?= 2
-
-CFLAGS += -DNFS
-
-.include <bsd.prog.mk>

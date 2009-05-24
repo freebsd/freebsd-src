@@ -62,8 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-#include <rpc/rpcclnt.h>
-
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
@@ -71,8 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
-
-#include <nfs4client/nfs4.h>
 
 #ifdef NFS_LEGACYRPC
 
@@ -1145,8 +1141,6 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 		return (ESTALE);
 	}
 	nmp = VFSTONFS(vp->v_mount);
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		return nfs4_request(vp, mrest, procnum, td, cred, mrp, mdp, dposp);
 	rep = malloc(sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
 	bzero(rep, sizeof(struct nfsreq));
 	rep->r_nmp = nmp;
@@ -1747,8 +1741,6 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 	struct proc *p;
 	sigset_t tmpset;
 	
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		return nfs4_sigintr(nmp, rep, td);
 	if (rep) {
 		mtx_lock(&rep->r_mtx);
 		if (rep->r_flags & R_SOFTTERM) {

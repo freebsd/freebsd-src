@@ -56,7 +56,9 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static MALLOC_DEFINE(M_ACL, "acl", "Access Control Lists");
+CTASSERT(ACL_MAX_ENTRIES >= OLDACL_MAX_ENTRIES);
+
+MALLOC_DEFINE(M_ACL, "acl", "Access Control Lists");
 
 static int	vacl_set_acl(struct thread *td, struct vnode *vp,
 		    acl_type_t type, struct acl *aclp);
@@ -64,6 +66,133 @@ static int	vacl_get_acl(struct thread *td, struct vnode *vp,
 		    acl_type_t type, struct acl *aclp);
 static int	vacl_aclcheck(struct thread *td, struct vnode *vp,
 		    acl_type_t type, struct acl *aclp);
+
+int
+acl_copy_oldacl_into_acl(const struct oldacl *source, struct acl *dest)
+{
+	int i;
+
+	if (source->acl_cnt < 0 || source->acl_cnt > OLDACL_MAX_ENTRIES)
+		return (EINVAL);
+	
+	bzero(dest, sizeof(*dest));
+
+	dest->acl_cnt = source->acl_cnt;
+	dest->acl_maxcnt = ACL_MAX_ENTRIES;
+
+	for (i = 0; i < dest->acl_cnt; i++) {
+		dest->acl_entry[i].ae_tag = source->acl_entry[i].ae_tag;
+		dest->acl_entry[i].ae_id = source->acl_entry[i].ae_id;
+		dest->acl_entry[i].ae_perm = source->acl_entry[i].ae_perm;
+	}
+
+	return (0);
+}
+
+int
+acl_copy_acl_into_oldacl(const struct acl *source, struct oldacl *dest)
+{
+	int i;
+
+	if (source->acl_cnt < 0 || source->acl_cnt > OLDACL_MAX_ENTRIES)
+		return (EINVAL);
+
+	bzero(dest, sizeof(*dest));
+
+	dest->acl_cnt = source->acl_cnt;
+
+	for (i = 0; i < dest->acl_cnt; i++) {
+		dest->acl_entry[i].ae_tag = source->acl_entry[i].ae_tag;
+		dest->acl_entry[i].ae_id = source->acl_entry[i].ae_id;
+		dest->acl_entry[i].ae_perm = source->acl_entry[i].ae_perm;
+	}
+
+	return (0);
+}
+
+/*
+ * At one time, "struct ACL" was extended in order to add support for NFSv4
+ * ACLs.  Instead of creating compatibility versions of all the ACL-related
+ * syscalls, they were left intact.  It's possible to find out what the code
+ * calling these syscalls (libc) expects basing on "type" argument - if it's
+ * either ACL_TYPE_ACCESS_OLD or ACL_TYPE_DEFAULT_OLD (which previously were
+ * known as ACL_TYPE_ACCESS and ACL_TYPE_DEFAULT), then it's the "struct
+ * oldacl".  If it's something else, then it's the new "struct acl".  In the
+ * latter case, the routines below just copyin/copyout the contents.  In the
+ * former case, they copyin the "struct oldacl" and convert it to the new
+ * format.
+ */
+static int
+acl_copyin(void *user_acl, struct acl *kernel_acl, acl_type_t type)
+{
+	int error;
+	struct oldacl old;
+
+	switch (type) {
+	case ACL_TYPE_ACCESS_OLD:
+	case ACL_TYPE_DEFAULT_OLD:
+		error = copyin(user_acl, &old, sizeof(old));
+		if (error != 0)
+			break;
+		acl_copy_oldacl_into_acl(&old, kernel_acl);
+		break;
+
+	default:
+		error = copyin(user_acl, kernel_acl, sizeof(*kernel_acl));
+		if (kernel_acl->acl_maxcnt != ACL_MAX_ENTRIES)
+			return (EINVAL);
+	}
+
+	return (error);
+}
+
+static int
+acl_copyout(struct acl *kernel_acl, void *user_acl, acl_type_t type)
+{
+	int error;
+	struct oldacl old;
+
+	switch (type) {
+	case ACL_TYPE_ACCESS_OLD:
+	case ACL_TYPE_DEFAULT_OLD:
+		error = acl_copy_acl_into_oldacl(kernel_acl, &old);
+		if (error != 0)
+			break;
+
+		error = copyout(&old, user_acl, sizeof(old));
+		break;
+
+	default:
+		if (fuword((char *)user_acl +
+		    offsetof(struct acl, acl_maxcnt)) != ACL_MAX_ENTRIES)
+			return (EINVAL);
+
+		error = copyout(kernel_acl, user_acl, sizeof(*kernel_acl));
+	}
+
+	return (error);
+}
+
+/*
+ * Convert "old" type - ACL_TYPE_{ACCESS,DEFAULT}_OLD - into its "new"
+ * counterpart.  It's required for old (pre-NFS4 ACLs) libc to work
+ * with new kernel.  Fixing 'type' for old binaries with new libc
+ * is being done in lib/libc/posix1e/acl_support.c:_acl_type_unold().
+ */
+static int
+acl_type_unold(int type)
+{
+	switch (type) {
+	case ACL_TYPE_ACCESS_OLD:
+		return (ACL_TYPE_ACCESS);
+
+	case ACL_TYPE_DEFAULT_OLD:
+		return (ACL_TYPE_DEFAULT);
+
+	default:
+		return (type);
+	}
+}
 
 /*
  * These calls wrap the real vnode operations, and are called by the syscall
@@ -85,7 +214,7 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	int error;
 
 	inkernelacl = acl_alloc(M_WAITOK);
-	error = copyin(aclp, inkernelacl, sizeof(struct acl));
+	error = acl_copyin(aclp, inkernelacl, type);
 	if (error)
 		goto out;
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
@@ -97,7 +226,8 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	if (error != 0)
 		goto out_unlock;
 #endif
-	error = VOP_SETACL(vp, type, inkernelacl, td->td_ucred, td);
+	error = VOP_SETACL(vp, acl_type_unold(type), inkernelacl,
+	    td->td_ucred, td);
 #ifdef MAC
 out_unlock:
 #endif
@@ -125,13 +255,15 @@ vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	if (error != 0)
 		goto out;
 #endif
-	error = VOP_GETACL(vp, type, inkernelacl, td->td_ucred, td);
+	error = VOP_GETACL(vp, acl_type_unold(type), inkernelacl,
+	    td->td_ucred, td);
+
 #ifdef MAC
 out:
 #endif
 	VOP_UNLOCK(vp, 0);
 	if (error == 0)
-		error = copyout(inkernelacl, aclp, sizeof(struct acl));
+		error = acl_copyout(inkernelacl, aclp, type);
 	acl_free(inkernelacl);
 	return (error);
 }
@@ -154,7 +286,7 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 	if (error)
 		goto out;
 #endif
-	error = VOP_SETACL(vp, type, 0, td->td_ucred, td);
+	error = VOP_SETACL(vp, acl_type_unold(type), 0, td->td_ucred, td);
 #ifdef MAC
 out:
 #endif
@@ -174,7 +306,7 @@ vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
 	int error;
 
 	inkernelacl = acl_alloc(M_WAITOK);
-	error = copyin(aclp, inkernelacl, sizeof(struct acl));
+	error = acl_copyin(aclp, inkernelacl, type);
 	if (error)
 		goto out;
 	error = VOP_ACLCHECK(vp, type, inkernelacl, td->td_ucred, td);
@@ -430,6 +562,7 @@ acl_alloc(int flags)
 	struct acl *aclp;
 
 	aclp = malloc(sizeof(*aclp), M_ACL, flags);
+	aclp->acl_maxcnt = ACL_MAX_ENTRIES;
 
 	return (aclp);
 }
