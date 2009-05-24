@@ -106,7 +106,7 @@ static int	 lf_owner_matches(struct lock_owner *, caddr_t, struct flock *,
     int);
 static struct lockf_entry *
 		 lf_alloc_lock(struct lock_owner *);
-static void	 lf_free_lock(struct lockf_entry *);
+static int	 lf_free_lock(struct lockf_entry *);
 static int	 lf_clearlock(struct lockf *, struct lockf_entry *);
 static int	 lf_overlaps(struct lockf_entry *, struct lockf_entry *);
 static int	 lf_blocks(struct lockf_entry *, struct lockf_entry *);
@@ -347,9 +347,13 @@ lf_alloc_lock(struct lock_owner *lo)
 	return (lf);
 }
 
-static void
+static int
 lf_free_lock(struct lockf_entry *lock)
 {
+
+	KASSERT(lock->lf_refs > 0, ("lockf_entry negative ref count %p", lock));
+	if (--lock->lf_refs > 0)
+		return (0);
 	/*
 	 * Adjust the lock_owner reference count and
 	 * reclaim the entry if this is the last lock
@@ -394,6 +398,7 @@ lf_free_lock(struct lockf_entry *lock)
 		printf("Freed lock %p\n", lock);
 #endif
 	free(lock, M_LOCKF);
+	return (1);
 }
 
 /*
@@ -540,6 +545,7 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	 * the lf_lock_owners_lock tax twice.
 	 */
 	lock = lf_alloc_lock(NULL);
+	lock->lf_refs = 1;
 	lock->lf_start = start;
 	lock->lf_end = end;
 	lock->lf_owner = lo;
@@ -1447,7 +1453,13 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 			goto out;
 		}
 
+		lock->lf_refs++;
 		error = sx_sleep(lock, &state->ls_lock, priority, lockstr, 0);
+		if (lf_free_lock(lock)) {
+			error = EINTR;
+			goto out;
+		}
+
 		/*
 		 * We may have been awakened by a signal and/or by a
 		 * debugger continuing us (in which cases we must
@@ -1809,6 +1821,7 @@ lf_split(struct lockf *state, struct lockf_entry *lock1,
 	 */
 	splitlock = lf_alloc_lock(lock1->lf_owner);
 	memcpy(splitlock, lock1, sizeof *splitlock);
+	splitlock->lf_refs = 1;
 	if (splitlock->lf_flags & F_REMOTE)
 		vref(splitlock->lf_vnode);
 
