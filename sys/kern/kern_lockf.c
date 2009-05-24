@@ -813,7 +813,9 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 		 * above). We don't need to bother locking since we
 		 * are the last thread using this state structure.
 		 */
-		LIST_FOREACH_SAFE(lock, &state->ls_pending, lf_link, nlock) {
+		KASSERT(LIST_EMPTY(&state->ls_pending),
+		    ("lock pending for %p", state));
+		LIST_FOREACH_SAFE(lock, &state->ls_active, lf_link, nlock) {
 			LIST_REMOVE(lock, lf_link);
 			lf_free_lock(lock);
 		}
