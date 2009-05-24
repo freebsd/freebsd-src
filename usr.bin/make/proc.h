@@ -46,6 +46,10 @@ typedef struct ProcStuff {
 	int	errCheck;
 
 	pid_t	child_pid;
+#ifdef MAKE_IS_BUILD
+	FILE	*mfp;		/* Meta data file pointer. */
+	int	pipe_fds[2];	/* Pipe for child -> parent comms. */
+#endif
 } ProcStuff;
 
 void Proc_Exec(const ProcStuff *) __dead2;

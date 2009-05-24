@@ -69,6 +69,9 @@ extern struct Path parseIncPath;
 /* The system include path. */
 extern struct Path sysIncPath;
 
+/* The build include path. */
+extern struct Path bldIncPath;
+
 extern int	jobLimit;	/* -j argument: maximum number of jobs */
 extern int	makeErrors;	/* Number of targets not remade due to errors */
 extern Boolean	jobsRunning;	/* True if jobs are running */
@@ -94,6 +97,9 @@ extern Boolean	touchFlag;
  * Otherwise it is routed to temporary files from which it is retrieved
  * when the shell exits */
 extern Boolean	usePipes;
+
+/* Gather meta data. */
+extern Boolean	use_meta;
 
 /* TRUE if we aren't supposed to really make anything, just see if the
  * targets are out-of-date */

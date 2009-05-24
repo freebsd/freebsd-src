@@ -27,12 +27,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <unistd.h>
+#include <err.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 
+#ifdef MAKE_IS_BUILD
+#ifdef BUILDMON
+#include "buildmon.h"
+#endif
+#endif
 #include "proc.h"
 #include "shell.h"
 #include "util.h"
@@ -43,6 +51,13 @@ __FBSDID("$FreeBSD$");
 void
 Proc_Exec(const ProcStuff *ps)
 {
+#ifdef MAKE_IS_BUILD
+#ifdef BUILDMON
+	char fname[MAXPATHLEN];
+	int sockfd;
+	ssize_t len;
+#endif
+#endif
 
 	if (ps->in != STDIN_FILENO) {
 		/*
@@ -111,6 +126,17 @@ Proc_Exec(const ProcStuff *ps)
 #endif
 #endif /* USE_PGRP */
 	}
+
+#ifdef MAKE_IS_BUILD
+#ifdef BUILDMON
+	if (ps->mfp != NULL) {
+		if (buildmonreq(NULL, 0, getpid(), fname, sizeof(fname), &sockfd) != 0)
+			errx(1, "Error in build monitor request.\n");
+
+		len = strlen(fname) + 1;
+	}
+#endif
+#endif
 
 	if (ps->searchpath) {
 		execvp(ps->argv[0], ps->argv);

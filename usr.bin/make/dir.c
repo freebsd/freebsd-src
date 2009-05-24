@@ -1152,3 +1152,15 @@ Path_Print(const struct Path *path)
 	TAILQ_FOREACH(p, path, link)
 		printf("%s ", p->dir->name);
 }
+
+#ifdef MAKE_IS_BUILD
+void
+Path_List(const struct Path *path, path_listcb_t *cbfunc, char *srctop,
+    size_t ssrctop)
+{
+	const struct PathElement *p;
+
+	TAILQ_FOREACH(p, path, link)
+		cbfunc(srctop, ssrctop, p->dir->name);
+}
+#endif

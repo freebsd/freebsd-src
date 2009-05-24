@@ -148,7 +148,7 @@ static CondProc	*condDefProc;	/* default function to apply */
 static char	*condExpr;	/* The expression to parse */
 static Token	condPushBack = None; /* Single push-back token in parsing */
 
-#define MAXIF	30	/* greatest depth of #if'ing */
+#define MAXIF	1024	/* greatest depth of #if'ing */
 
 static Boolean	condStack[MAXIF];	/* Stack of conditionals's values */
 static int	condLineno[MAXIF];	/* Line numbers of the opening .if */

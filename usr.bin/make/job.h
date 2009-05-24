@@ -77,4 +77,9 @@ int Compat_Make(struct GNode *gn, struct GNode *pgn);
 void Compat_InstallSignalHandlers(void);
 void Compat_Run(struct Lst *);
 
+#ifdef MAKE_IS_BUILD
+char *meta_name(struct GNode *, char *, size_t);
+void meta_exit(void);
+#endif
+
 #endif /* job_h_4678dfd1 */

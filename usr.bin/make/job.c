@@ -101,8 +101,10 @@ __FBSDID("$FreeBSD$");
  *			    thems as need creatin'
  */
 
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/ioccom.h>
 #include <sys/select.h>
 #include <sys/stat.h>
 #ifdef USE_KQUEUE
@@ -114,6 +116,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libgen.h>
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -136,8 +139,16 @@ __FBSDID("$FreeBSD$");
 #include "targ.h"
 #include "util.h"
 #include "var.h"
+#ifdef MAKE_IS_BUILD
+#include "jdirdep.h"
+#ifndef BUILDMON
+#include "filemon.h"
+#endif
+#endif
 
 #define	TMPPAT	"/tmp/makeXXXXXXXXXX"
+
+extern char **environ;
 
 #ifndef USE_KQUEUE
 /*
@@ -165,6 +176,16 @@ typedef struct Job {
 	pid_t		pid;	/* The child's process ID */
 
 	struct GNode	*node;	/* The target the child is making */
+	char		cwd[MAXPATHLEN];
+
+#ifdef MAKE_IS_BUILD
+	char		mon_fname[MAXPATHLEN];
+#ifndef BUILDMON
+	int		filemon_fd;
+	int		mon_fd;
+#endif
+	FILE		*mfp;
+#endif
 
 	/*
 	 * A LstNode for the first command to be saved after the job completes.
@@ -264,6 +285,13 @@ TAILQ_HEAD(JobList, Job);
  * error handling variables
  */
 static int	aborting = 0;	/* why is the make aborting? */
+#ifdef MAKE_IS_BUILD
+static char	mon_fname[MAXPATHLEN];
+#ifndef BUILDMON
+static int	filemon_fd = -1;
+static int	mon_fd = -1;
+#endif
+#endif
 #define	ABORT_ERROR	1	/* Because of an error */
 #define	ABORT_INTERRUPT	2	/* Because it was interrupted */
 #define	ABORT_WAIT	3	/* Waiting for jobs to finish */
@@ -379,10 +407,282 @@ static int JobStart(GNode *, int, Job *);
 static void JobDoOutput(Job *, Boolean);
 static void JobInterrupt(int, int);
 static void JobRestartJobs(void);
-static int Compat_RunCommand(char *, struct GNode *);
+static int Compat_RunCommand(char *, struct GNode *, FILE *);
 
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
+
+#ifdef MAKE_IS_BUILD
+static int n_meta_created = 0; /* Number of meta data files created. */
+
+void
+meta_exit(void)
+{
+	Boolean f = 0;
+	char *result;
+	char sharedobj[MAXPATHLEN];
+	const char *curdir;
+	const char *filedep_name;
+	const char *objdir;
+	const char *objroot;
+	const char *p_incmk;
+	const char *p_machine;
+	const char *p_machine_arch;
+	const char *srcrel;
+	const char *srctop;
+	size_t len = 0;
+
+	/*
+	 * If no meta data files were created, then there can be no change
+	 * to the dependencies.
+	 */
+	if (n_meta_created == 0)
+		return;
+
+	/*
+	 * If there is no include makefile list variable defined, then
+	 * we can't update dependencies.
+	 */
+	if ((p_incmk = Var_Value("INCMK", VAR_GLOBAL)) != NULL) {
+		/* Initialise the include makefile name list. */
+		jdirdep_incmk(Var_Value("INCMK", VAR_GLOBAL));
+
+		p_machine = Var_Value("MACHINE", VAR_GLOBAL);
+		p_machine_arch = Var_Value("MACHINE_ARCH", VAR_GLOBAL);
+
+		if ((result = Var_Parse(p_machine_arch, VAR_GLOBAL, TRUE, &len, &f)) != var_Error)
+			p_machine_arch = result;
+		else
+			p_machine_arch = NULL;
+
+		/*
+		 * Initialise the current machine and architecture.
+		 * Using this method, we only do one machine type at
+		 * a time.
+		 */
+		jdirdep_supmac_add(p_machine, p_machine_arch);
+
+		srctop = Var_Value(".SRCTOP", VAR_GLOBAL);
+		curdir = Var_Value(".CURDIR", VAR_GLOBAL);
+		srcrel = Var_Value(".SRCREL", VAR_GLOBAL);
+		objroot = Var_Value(".OBJROOT", VAR_GLOBAL);
+		objdir = Var_Value(".OBJDIR", VAR_GLOBAL);
+		filedep_name = Var_Value(".FILEDEP_NAME", VAR_GLOBAL);
+
+		snprintf(sharedobj, sizeof(sharedobj), "%s/../shared", objroot);
+
+		/* Add any new directory and/or source dependencies. */
+		jdirdep(srctop, curdir, srcrel, objroot, objdir, sharedobj, filedep_name,
+		    JDIRDEP_OPT_ADD | JDIRDEP_OPT_SOURCE | JDIRDEP_OPT_UPDATE);
+	}
+}
+
+/*
+ * Read the build monitor output file and write records to the target's
+ * metadata file.
+ */
+static void
+buildmon_read(FILE *mfp, const char *fname)
+{
+	FILE *fp;
+	char bufr[1024];
+	int done = 0;
+
+	/* Check if we're not writing to a meta data file.*/
+	if (mfp == NULL) {
+		/*
+		 * Delete the build monitor file since we have no need
+		 * for it.
+		 */
+		unlink(fname);
+		return;
+	}
+
+	if ((fp = fopen(fname, "r")) == NULL)
+		err(1, "Could not read build monitor file '%s'", fname);
+
+	fprintf(mfp, "-- buildmon acquired metadata --\n");
+
+	do {
+		if (fgets(bufr, sizeof(bufr), fp) != NULL) {
+			if (strncmp(bufr, "# Session completed", 19) == 0)
+				done = 1;
+
+			fprintf(mfp, "%s", bufr);
+		} else
+#ifdef BUILDMON
+			usleep(1000);
+#else
+			done = 1;
+#endif
+
+		clearerr(fp);
+	} while (!done);
+
+	fclose(fp);
+
+	/* Delete the build monitor file now we're done with it. */
+	unlink(fname);
+}
+
+#ifndef BUILDMON
+/*
+ * Open the filemon device.
+ */
+static void
+filemon_open(Job *job)
+{
+	int retry = 5;
+
+	strcpy(mon_fname, "filemon.XXXXXX");
+
+	while (retry > 0) {
+		if ((filemon_fd = open("/dev/filemon", O_RDWR)) >= 0)
+			break;
+
+		retry--;
+	}
+
+	if (filemon_fd < 0)
+			err(1, "Could not open filemon device!");
+	if ((mon_fd = mkstemp(mon_fname)) < 0)
+		err(1, "Could not create temporary file!");
+	else if (ioctl(filemon_fd, FILEMON_SET_FD, &mon_fd) < 0)
+		err(1, "Could not set filemon file descriptor!");
+
+	if (job != NULL) {
+		job->filemon_fd = filemon_fd;
+		job->mon_fd = mon_fd;
+		strlcpy(job->mon_fname, mon_fname, sizeof(job->mon_fname));
+	}
+}
+#endif
+
+char *
+meta_name(struct GNode *gn, char *mname, size_t mnamelen)
+{
+	char bufr[PATH_MAX];
+	char *p;
+	const char *dname = Var_Value(".OBJDIR", gn);
+	const char *tname = Var_Value(TARGET, gn);
+
+	/* Weed out relative paths from the target file name. */
+	tname = realpath(tname, bufr);
+
+	if (strcmp(dname, dirname(tname)) == 0)
+		snprintf(mname, mnamelen, "%s.meta", tname);
+	else {
+		snprintf(mname, mnamelen, "%s/%s.meta", dname, tname);
+
+		/*
+		 * Replace path separators in the file name after the
+		 * current object directory path.
+		 */
+		p = mname + strlen(dname) + 1;
+
+		while (*p != '\0') {
+			if (*p == '/')
+				*p = '_';
+			p++;
+		}
+	}
+
+	return (mname);
+}
+
+static FILE *
+meta_create(GNode *gn)
+{
+	FILE *fp;
+	LstNode	*ln;
+	char bufr[PATH_MAX];
+	char fname[MAXPATHLEN];
+	char **ptr;
+	const char *cname = Var_Value(".CURDIR", gn);
+	const char *dname = Var_Value(".OBJDIR", gn);
+	const char *p;
+	const char *tname = Var_Value(TARGET, gn);
+	int f_make = 0;
+	struct stat fs;
+
+	/* This may be a phony node which we don't want meta data for... */
+	if ((gn->type & OP_PHONY) != 0)
+		return (NULL);
+
+	/* The object directory may not exist. Check it.. */
+	if (stat(dname, &fs) != 0)
+		return (NULL);
+
+	/* Check if there are no commands to execute. */
+	if (gn->commands.firstPtr == NULL)
+		return (NULL);
+
+	/* If we aren't in the object directory, don't create a meta file. */
+	if (strcmp(cname, dname) == 0)
+		return (NULL);
+
+	LST_FOREACH(ln, &gn->commands) {
+		char *cp;
+		for (cp = Lst_Datum(ln); !f_make && *cp != '\0'; cp++) {
+			if (*cp == '$') {
+				Boolean f = 0;
+				size_t len = 0;
+				char *result;
+
+				if ((result = Var_Parse(cp, gn, TRUE,
+				    &len, &f)) != var_Error) {
+					if (len == 7 && strncmp(cp, "${MAKE}", 7) == 0)
+						f_make = 1;
+					if (f)
+						free(result);
+					cp += len - 1;
+				}
+			}
+		}
+	}
+
+	/* Check if a recusive 'make' reference was found. */
+	if (f_make)
+		/* Don't create meta data for recursive make commands. */
+		return (NULL);
+
+	/* Check if the target is in the current object directory. */
+	if ((p = strrchr(tname, '/')) == NULL) {
+		p = tname;
+		fprintf(stderr, "Building %s/%s\n", dname, p);
+	} else {
+		p++;
+		fprintf(stderr, "Building %s\n", realpath(tname, bufr));
+	}
+
+	fflush(stdout);
+
+	if (!use_meta)
+		/* Don't create meta data. */
+		return (NULL);
+
+	meta_name(gn, fname, sizeof(fname));
+
+	if ((fp = fopen(fname, "w")) == NULL)
+		err(1, "Could not open meta file '%s'", fname);
+
+	fprintf(fp, "# Meta data file %s\n", fname);
+
+	LST_FOREACH(ln, &gn->commands)
+		fprintf(fp, "CMD %s\n", Buf_Peel(Var_Subst(Lst_Datum(ln), gn, FALSE)));
+
+	fprintf(fp, "CWD %s\n", getcwd(bufr, sizeof(bufr)));
+
+	for (ptr = environ; *ptr != NULL; ptr++)
+		fprintf(fp, "ENV %s\n", *ptr);
+
+	fprintf(fp, "-- command output --\n");
+
+	n_meta_created++;
+
+	return (fp);
+}
+#endif
 
 /**
  * Create a fifo file with a uniq filename, and returns a file
@@ -713,7 +1013,7 @@ JobPrintCommand(char *cmd, Job *job)
 				 * but this one needs to be - use compat mode
 				 * just for it.
 				 */
-				Compat_RunCommand(cmd, job->node);
+				Compat_RunCommand(cmd, job->node, NULL);
 				return (0);
 			}
 			break;
@@ -959,6 +1259,15 @@ JobFinish(Job *job, int *status)
 					MESSAGE(out, job->node);
 					lastNode = job->node;
 				}
+#ifdef MAKE_IS_BUILD
+				if (job->mfp != NULL)
+					fprintf(job->mfp, "*** Error code %d%s\n",
+						WEXITSTATUS(*status),
+						(job->flags & JOB_IGNERR) ?
+						"(ignored)" : "");
+#endif
+				fprintf(out, "Error building '%s'\nin directory %s\n",
+				    job->node->path, job->cwd);
 				fprintf(out, "*** Error code %d%s\n",
 					WEXITSTATUS(*status),
 					(job->flags & JOB_IGNERR) ?
@@ -1118,6 +1427,23 @@ JobFinish(Job *job, int *status)
 			    Buf_Peel(
 				Var_Subst(Lst_Datum(ln), job->node, FALSE)));
 		}
+#ifdef MAKE_IS_BUILD
+		if (job->mfp != NULL) {
+#ifndef BUILDMON
+			close(job->filemon_fd);
+			close(job->mon_fd);
+#endif
+
+			/* Process the build monitor file. */
+			buildmon_read(job->mfp, job->mon_fname);
+
+			/*
+			 * Close the meta file now that the target has been
+			 * made.
+			 */
+			fclose(job->mfp);
+		}
+#endif
 
 		job->node->made = MADE;
 		Make_Update(job->node);
@@ -1299,6 +1625,11 @@ static void
 JobExec(Job *job, char **argv)
 {
 	ProcStuff	ps;
+#ifdef MAKE_IS_BUILD
+#ifdef BUILDMON
+	ssize_t num;
+#endif
+#endif
 
 	if (DEBUG(JOB)) {
 		int	  i;
@@ -1347,6 +1678,19 @@ JobExec(Job *job, char **argv)
 	ps.argv = argv;
 	ps.argv_free = 0;
 
+#ifdef MAKE_IS_BUILD
+	ps.mfp = job->mfp;
+
+#ifdef BUILDMON
+	if (job->mfp != NULL && pipe(ps.pipe_fds) < 0)
+		errx(1, "Could not create pipe for child/parent comms");
+#else
+	if (job->mfp != NULL)
+		/* Open the filemon device. */
+		filemon_open(job);
+#endif
+#endif
+
 	/*
 	 * Fork.  Warning since we are doing vfork() instead of fork(),
 	 * do not allocate memory in the child process!
@@ -1362,6 +1706,14 @@ JobExec(Job *job, char **argv)
 		if (fifoFd >= 0)
 			close(fifoFd);
 
+#ifdef MAKE_IS_BUILD
+#ifdef BUILDMON
+		if (job->mfp != NULL)
+			/* Close the read end of the pipe. */
+			close(ps.pipe_fds[0]);
+#endif
+#endif
+
 		Proc_Exec(&ps);
 		/* NOTREACHED */
 	}
@@ -1370,6 +1722,29 @@ JobExec(Job *job, char **argv)
 	 * Parent
 	 */
 	job->pid = ps.child_pid;
+
+#ifdef MAKE_IS_BUILD
+	if (job->mfp != NULL) {
+#ifdef BUILDMON
+		/* Close the write end of the pipe. */
+		close(ps.pipe_fds[1]);
+
+		if ((num = read(ps.pipe_fds[0], job->mon_fname,
+		    sizeof(job->mon_fname))) <= 0)
+			err(1, "Error reading buildmon file name from pipe");
+
+		/* Close the read end of the pipe. */
+		close(ps.pipe_fds[0]);
+#else
+		/*
+		 * Now that the child's pid is known update the filemon to
+		 * monitor just it.
+		 */
+		if (ioctl(job->filemon_fd, FILEMON_SET_PID, &ps.child_pid) < 0)
+			err(1, "Could not set filemon pid!");
+#endif
+	}
+#endif
 
 	if (usePipes && (job->flags & JOB_FIRST)) {
 		/*
@@ -1593,6 +1968,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 
 	job->node = gn;
 	job->tailCmds = NULL;
+	getcwd(job->cwd, sizeof(job->cwd));
 
 	/*
 	 * Set the initial value of the flags for this job based on the global
@@ -1693,6 +2069,9 @@ JobStart(GNode *gn, int flags, Job *previous)
 			 * We can do all the commands at once. hooray for sanity
 			 */
 			numCommands = 0;
+#ifdef MAKE_IS_BUILD
+			job->mfp = meta_create(gn);
+#endif
 			LST_FOREACH(ln, &gn->commands) {
 				if (JobPrintCommand(Lst_Datum(ln), job))
 					break;
@@ -2022,6 +2401,12 @@ JobDoOutput(Job *job, Boolean finish)
 						MESSAGE(stdout, job->node);
 						lastNode = job->node;
 					}
+#ifdef MAKE_IS_BUILD
+					if (job->mfp != NULL &&
+					    strncmp(cp, "Building", 8) != 0)
+						fprintf(job->mfp, "%s%s", cp,
+						    gotNL ? "\n" : "");
+#endif
 					fprintf(stdout, "%s%s", cp,
 					    gotNL ? "\n" : "");
 					fflush(stdout);
@@ -2706,6 +3091,10 @@ Cmd_Exec(const char *cmd, const char **error)
 	ps.argv[3] = NULL;
 	ps.argv_free = 1;
 
+#ifdef MAKE_IS_BUILD
+	ps.mfp = NULL;
+#endif
+
 	/*
 	 * Fork.  Warning since we are doing vfork() instead of fork(),
 	 * do not allocate memory in the child process!
@@ -2718,6 +3107,16 @@ Cmd_Exec(const char *cmd, const char **error)
   		/*
 		 * Child
   		 */
+#ifdef MAKE_IS_BUILD
+#ifdef BUILDMON
+		/* Close the read end of the pipe. */
+		close(ps.pipe_fds[0]);
+#else
+		/* Close the write end of the pipe. */
+		close(ps.pipe_fds[1]);
+#endif
+#endif
+
 		Proc_Exec(&ps);
 		/* NOTREACHED */
 	}
@@ -2813,7 +3212,7 @@ CompatInterrupt(int signo)
 		gn = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
 		if (gn != NULL) {
 			LST_FOREACH(ln, &gn->commands) {
-				if (Compat_RunCommand(Lst_Datum(ln), gn))
+				if (Compat_RunCommand(Lst_Datum(ln), gn, NULL))
 					break;
 			}
 		}
@@ -2888,7 +3287,7 @@ shellneed(ArgArray *aa, char *cmd)
  *	The node's 'made' field may be set to ERROR.
  */
 static int
-Compat_RunCommand(char *cmd, GNode *gn)
+Compat_RunCommand(char *cmd, GNode *gn, FILE *mfp)
 {
 	ArgArray	aa;
 	char		*cmdStart;	/* Start of expanded command */
@@ -2995,21 +3394,67 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	}
 	ps.errCheck = errCheck;
 
+#ifdef MAKE_IS_BUILD
+	ps.mfp = mfp;
+
+#ifdef BUILDMON
+	if (mfp != NULL && pipe(ps.pipe_fds) < 0)
+		errx(1, "Could not create pipe for child/parent comms");
+#else
+	if (mfp != NULL)
+		/* Open the filemon device. */
+		filemon_open(NULL);
+#endif
+#endif
+
 	/*
 	 * Warning since we are doing vfork() instead of fork(),
 	 * do not allocate memory in the child process!
 	 */
 	if ((ps.child_pid = vfork()) == -1) {
-		Fatal("Could not fork");
+		Fatal("Cannot fork");
 
 	} else if (ps.child_pid == 0) {
 		/*
 		 * Child
 		 */
-		Proc_Exec(&ps);
-  		/* NOTREACHED */
+#ifdef MAKE_IS_BUILD
+#ifdef BUILDMON
+		/* Close the read end of the pipe. */
+		close(ps.pipe_fds[0]);
+#endif
+#endif
 
+		Proc_Exec(&ps);
+
+		_exit(1);
 	} else {
+#ifdef MAKE_IS_BUILD
+#ifdef BUILDMON
+		char bufr[MAXPATHLEN];
+		if (mfp != NULL) {
+			ssize_t num;
+
+			/* Close the write end of the pipe. */
+			close(ps.pipe_fds[1]);
+
+			if ((num = read(ps.pipe_fds[0], bufr, sizeof(bufr))) <= 0)
+				err(1, "Error reading buildmon file name from pipe");
+
+			/* Close the read end of the pipe. */
+			close(ps.pipe_fds[0]);
+		}
+#else
+		if (mfp != NULL)
+			/*
+			 * Now that the child's pid is known update the
+			 * filemon to monitor just it.
+			 */
+			if (ioctl(filemon_fd, FILEMON_SET_PID, &ps.child_pid) < 0)
+				err(1, "Could not set filemon pid!");
+#endif
+#endif
+
 		if (ps.argv_free) {
 			free(ps.argv[2]);
 			free(ps.argv[1]);
@@ -3034,6 +3479,17 @@ Compat_RunCommand(char *cmd, GNode *gn)
 		 */
 		reason = ProcWait(&ps);
 
+#ifdef MAKE_IS_BUILD
+		if (mfp != NULL) {
+#ifndef BUILDMON
+			close(filemon_fd);
+			close(mon_fd);
+#endif
+			/* Process the build monitor file. */
+			buildmon_read(mfp, mon_fname);
+		}
+#endif
+
 		if (interrupted)
 			CompatInterrupt(interrupted);
   
@@ -3047,12 +3503,20 @@ Compat_RunCommand(char *cmd, GNode *gn)
 				return (0);
   			} else {
 				printf("*** Error code %d", status);
+#ifdef MAKE_IS_BUILD
+				if (mfp != NULL)
+					fprintf(mfp, "*** Error code %d", status);
+#endif
   			}
 		} else if (WIFSTOPPED(reason)) {
 			status = WSTOPSIG(reason);
 		} else {
 			status = WTERMSIG(reason);
 			printf("*** Signal %d", status);
+#ifdef MAKE_IS_BUILD
+			if (mfp != NULL)
+				fprintf(mfp, "*** Signal %d", status);
+#endif
   		}
   
 		if (ps.errCheck) {
@@ -3064,6 +3528,10 @@ Compat_RunCommand(char *cmd, GNode *gn)
 				 * others continue.
 				 */
 				printf(" (continuing)\n");
+#ifdef MAKE_IS_BUILD
+				if (mfp != NULL)
+					fprintf(mfp, " (continuing)\n");
+#endif
 			}
 			return (status);
 		} else {
@@ -3074,6 +3542,10 @@ Compat_RunCommand(char *cmd, GNode *gn)
 			 * happen...
 			 */
 			printf(" (ignored)\n");
+#ifdef MAKE_IS_BUILD
+			if (mfp != NULL)
+				fprintf(mfp, " (ignored)\n");
+#endif
 			return (0);
 		}
 	}
@@ -3117,9 +3589,26 @@ Compat_Make(GNode *gn, GNode *pgn)
 			return (0);
 		}
 
+#ifdef MAKE_IS_BUILD
+		if (strcmp(gn->name, ".depend") == 0) {
+			gn->made = UPTODATE;
+			return (0);
+		}
+#endif
+
 		if (Lst_Member(&gn->iParents, pgn) != NULL) {
 			Var_Set(IMPSRC, Var_Value(TARGET, gn), pgn);
 		}
+
+#ifdef MAKE_IS_BUILD
+		/*
+		 * We need to check if the target is out-of-date. This includes
+		 * checking if the expanded command has changed. This in turn
+		 * requires that all variables are set in the same way that they
+		 * would be if the target needs to be re-built.
+		 */
+		Make_DoAllVar(gn);
+#endif
 
 		/*
 		 * All the children were made ok. Now cmtime contains the
@@ -3144,12 +3633,14 @@ Compat_Make(GNode *gn, GNode *pgn)
 			exit(1);
 		}
 
+#ifndef MAKE_IS_BUILD
 		/*
 		 * We need to be re-made. We also have to make sure we've got
 		 * a $? variable. To be nice, we also define the $> variable
 		 * using Make_DoAllVar().
 		 */
 		Make_DoAllVar(gn);
+#endif
 
 		/*
 		 * Alter our type to tell if errors should be ignored or things
@@ -3171,7 +3662,7 @@ Compat_Make(GNode *gn, GNode *pgn)
 				curTarg = gn;
 				LST_FOREACH(ln, &gn->commands) {
 					if (Compat_RunCommand(Lst_Datum(ln),
-					    gn))
+					    gn, NULL))
 						break;
 				}
 				curTarg = NULL;
@@ -3348,8 +3839,13 @@ Compat_Run(Lst *targs)
 	if (!queryFlag) {
 		gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 		if (gn != NULL) {
+#ifdef MAKE_IS_BUILD
+			fprintf(stderr, "Building %s/%s\n", Var_Value(".OBJDIR", gn),
+			    Var_Value(TARGET, gn));
+			fflush(stdout);
+#endif
 			LST_FOREACH(ln, &gn->commands) {
-				if (Compat_RunCommand(Lst_Datum(ln), gn))
+				if (Compat_RunCommand(Lst_Datum(ln), gn, NULL))
 					break;
 			}
 			if (gn->made == ERROR) {
@@ -3387,9 +3883,14 @@ Compat_Run(Lst *targs)
 	 * If the user has defined a .END target, run its commands.
 	 */
 	if (makeErrors == 0) {
+#ifdef MAKE_IS_BUILD
+		fprintf(stderr, "Building %s/%s\n", Var_Value(".OBJDIR", gn),
+		    Var_Value(TARGET, gn));
+#endif
 		LST_FOREACH(ln, &ENDNode->commands) {
-			if (Compat_RunCommand(Lst_Datum(ln), ENDNode))
+			if (Compat_RunCommand(Lst_Datum(ln), ENDNode, NULL))
 				break;
 		}
 	}
 }
+

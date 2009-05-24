@@ -118,12 +118,18 @@ void
 Error(const char *fmt, ...)
 {
 	va_list ap;
+	static int errcnt;
 
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
 	fflush(stderr);
+	errcnt++;
+	if (errcnt > 15) {
+		fprintf(stderr, "Too many errors. Exiting...\n");
+		exit(2);		/* Not 1 so -q can distinguish error */
+	}
 }
 
 /*-

@@ -143,6 +143,9 @@ struct Path parseIncPath = TAILQ_HEAD_INITIALIZER(parseIncPath);
 /* list of directories for <...> includes */
 struct Path sysIncPath = TAILQ_HEAD_INITIALIZER(sysIncPath);
 
+/* list of directories for build configuration files. */
+struct Path bldIncPath = TAILQ_HEAD_INITIALIZER(bldIncPath);
+
 /*
  * specType contains the SPECial TYPE of the current target. It is
  * Not if the target is unspecial. If it *is* special, however, the children

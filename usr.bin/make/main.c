@@ -114,6 +114,13 @@ static char	*curdir;	/* startup directory */
 static char	*objdir;	/* where we chdir'ed to */
 static char	**save_argv;	/* saved argv */
 static char	*save_makeflags;/* saved MAKEFLAGS */
+#ifdef MAKE_IS_BUILD
+static char	*save_mklvl;	/* saved __MKLVL__ */
+static char	*save_path;	/* saved PATH */
+static char	*clean_environ[2];
+static char	*default_machine = NULL;
+#endif
+static struct utsname utsname;
 
 /* (-E) vars to override from env */
 Lst envFirstVars = Lst_Initializer(envFirstVars);
@@ -140,6 +147,9 @@ Boolean		printGraphOnly;	/* -p flag */
 Boolean		queryFlag;	/* -q flag */
 Boolean		touchFlag;	/* -t flag */
 Boolean		usePipes;	/* !-P flag */
+#ifdef MAKE_IS_BUILD
+Boolean		use_meta;	/* !-Q flag */
+#endif
 uint32_t	warn_cmd;	/* command line warning flags */
 uint32_t	warn_flags;	/* actual warning flags */
 uint32_t	warn_nocmd;	/* command line no-warning flags */
@@ -154,7 +164,8 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: make [-BPSXeiknpqrstv] [-C directory] [-D variable]\n"
+	    "usage: make [-BPQSXeiknpqrstv] [-C directory] [-D variable]\n"
+	    "\t[-b directory]\n"
 	    "\t[-d flags] [-E variable] [-f makefile] [-I directory]\n"
 	    "\t[-j max_jobs] [-m directory] [-V variable]\n"
 	    "\t[variable=value] [target ...]\n");
@@ -459,6 +470,10 @@ rearg:
 			Lst_AtEnd(&envFirstVars, estrdup(optarg));
 			MFLAGS_append("-E", optarg);
 			break;
+		case 'b':
+			Path_AddDir(&bldIncPath, optarg);
+			MFLAGS_append("-b", optarg);
+			break;
 		case 'e':
 			checkEnvFirst = TRUE;
 			MFLAGS_append("-e", NULL);
@@ -510,6 +525,9 @@ rearg:
 		case 'Q':
 			beQuiet = TRUE;
 			beVerbose = FALSE;
+#ifdef MAKE_IS_BUILD
+			use_meta = FALSE;
+#endif
 			MFLAGS_append("-Q", NULL);
 			break;
 		case 'q':
@@ -526,7 +544,11 @@ rearg:
 			MFLAGS_append("-S", NULL);
 			break;
 		case 's':
+#ifdef MAKE_IS_BUILD
+			beSilent = FALSE;
+#else
 			beSilent = TRUE;
+#endif
 			MFLAGS_append("-s", NULL);
 			break;
 		case 't':
@@ -571,6 +593,11 @@ rearg:
 		if (Parse_IsVar(*argv)) {
 			char *ptr = MAKEFLAGS_quote(*argv);
 			char *v = estrdup(*argv);
+
+#ifdef MAKE_IS_BUILD
+			if (strncmp(v, "MACHINE=", 8) == 0)
+				default_machine = utsname.machine;
+#endif
 
 			Var_Append(".MAKEFLAGS", ptr, VAR_GLOBAL);
 			Parse_DoVar(v, VAR_CMD);
@@ -671,7 +698,11 @@ static void
 check_make_level(void)
 {
 #ifdef WANT_ENV_MKLVL
+#ifdef MAKE_IS_BUILD
+	char	*value = save_mklvl;
+#else
 	char	*value = getenv(MKLVL_ENVVAR);
+#endif
 	int	level = (value == NULL) ? 0 : atoi(value);
 
 	if (level < 0) {
@@ -685,6 +716,15 @@ check_make_level(void)
 		sprintf(new_value, "%d", level + 1);
 		setenv(MKLVL_ENVVAR, new_value, 1);
 	}
+
+#ifdef MAKE_IS_BUILD
+	/*
+	 * Register a function to call on exit for child build processes so
+	 * that dependency hooks can be activated.
+	 */
+	if (level > 0)
+		atexit(meta_exit);
+#endif
 #endif /* WANT_ENV_MKLVL */
 }
 
@@ -833,6 +873,57 @@ Remake_Makefiles(void)
 	}
 }
 
+#ifdef MAKE_IS_BUILD
+static void
+make_objdir(char *path)
+{
+	struct stat fs;
+
+	while (stat(path, &fs) != 0) {
+		char bufr[MAXPATHLEN];
+		char *p;
+
+		strcpy(bufr, path);
+
+		if ((p = strrchr(bufr, '/')) == NULL)
+			err(1, "Missing '/' in directory path");
+		else {
+			*p = '\0';
+
+			make_objdir(bufr);
+		}
+
+		if (mkdir(path, 0775) != 0 && errno != EEXIST)
+			err(1, "Could not make directory '%s'", path);
+	}
+}
+
+static void
+mk_path_init(char *srctop, size_t ssrctop, const char *p)
+{
+	char path[MAXPATHLEN];
+	const char *mk_path_rel = "/bld";
+	size_t len;
+	size_t len1 = strlen(mk_path_rel);
+
+	if (*srctop != '\0' || ssrctop == 0)
+		return;
+
+	if (realpath(p, path) == NULL)
+		return;
+
+	if ((len = strlen(path)) < len1)
+		return;
+
+	if (strcmp(path + len - len1, mk_path_rel) != 0)
+		return;
+
+	path[len - len1] = '\0';
+
+	strlcpy(srctop, path, ssrctop);
+}
+#endif
+
 /**
  * main
  *	The main function, for obvious reasons. Initializes variables
@@ -864,11 +955,26 @@ main(int argc, char **argv)
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
 	char *cp = NULL, *start;
+#ifdef MAKE_IS_BUILD
+	char *cp1;
+	char srctop[MAXPATHLEN];
+	char objroot[MAXPATHLEN];
+	char objtop[MAXPATHLEN];
+
+	srctop[0] = '\0';
+#endif
 
 	save_argv = argv;
+
+	/* Save any environment variables we are prepared to inherit. */
 	save_makeflags = getenv("MAKEFLAGS");
 	if (save_makeflags != NULL)
 		save_makeflags = estrdup(save_makeflags);
+
+#ifdef MAKE_IS_BUILD
+	save_mklvl = getenv(MKLVL_ENVVAR);
+	save_path = getenv("PATH");
+#endif
 
 	/*
 	 * Initialize file global variables.
@@ -881,7 +987,12 @@ main(int argc, char **argv)
 	/*
 	 * Initialize program global variables.
 	 */
+#ifdef MAKE_IS_BUILD
+	beSilent = TRUE;		/* Don't print commands as executed. */
+	use_meta = TRUE;		/* Gather meta data. */
+#else
 	beSilent = FALSE;		/* Print commands as executed */
+#endif
 	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
 	noExecute = FALSE;		/* Execute all commands */
 	printGraphOnly = FALSE;		/* Don't stop after printing graph */
@@ -895,8 +1006,6 @@ main(int argc, char **argv)
 
 	jobLimit = DEFMAXJOBS;
 	compatMake = FALSE;		/* No compat mode */
-
-	check_make_level();
 
 #ifdef RLIMIT_NOFILE
 	/*
@@ -942,13 +1051,10 @@ main(int argc, char **argv)
 	 * Note that both MACHINE and MACHINE_ARCH are decided at
 	 * run-time.
 	 */
-	if (machine == NULL) {
-		static struct utsname utsname;
-
-		if (uname(&utsname) == -1)
-			err(2, "uname");
+	if (uname(&utsname) == -1)
+		err(2, "uname");
+	if (machine == NULL)
 		machine = utsname.machine;
-	}
 
 	if ((machine_arch = getenv("MACHINE_ARCH")) == NULL) {
 #ifdef MACHINE_ARCH
@@ -970,6 +1076,17 @@ main(int argc, char **argv)
 		else
 			machine_cpu = "unknown";
 	}
+
+#ifdef MAKE_IS_BUILD
+	/* Flush the environment. */
+	clean_environ[0] = NULL;
+	environ = clean_environ;
+
+	/* Put the user's PATH into the new environent. */
+	setenv("PATH", save_path, 1);
+#endif
+
+	check_make_level();
 
 	/*
 	 * Initialize the parsing, directory and variable modules to prepare
@@ -1014,6 +1131,9 @@ main(int argc, char **argv)
 		Var_SetGlobal(".MAKE.PPID", tmp);
 	}
 	Job_SetPrefix();
+#ifdef MAKE_IS_BUILD
+	Var_SetGlobal("MAKE_IS_BUILD", "1");
+#endif
 
 	/*
 	 * First snag things out of the MAKEFLAGS environment
@@ -1022,6 +1142,11 @@ main(int argc, char **argv)
 	Main_ParseArgLine(getenv("MAKEFLAGS"), 1);
 
 	MainParseArgs(argc, argv);
+
+#ifdef MAKE_IS_BUILD
+	if (default_machine != NULL)
+		Var_SetGlobal("DEFAULT_MACHINE", default_machine);
+#endif
 
 	/*
 	 * Find where we are...
@@ -1076,6 +1201,113 @@ main(int argc, char **argv)
 		if (!(objdir = chdir_verify_path(mdpath, obpath)))
 			objdir = curdir;
 	}
+
+#ifdef MAKE_IS_BUILD
+	/*
+	 * If no user-supplied system path was given, walk the directory
+	 * tree from the current directory looking for the path to
+	 * "bld/sys.mk" and if found, use that directory as the
+	 * default path to the system make files.
+	 */
+	if (TAILQ_EMPTY(&sysIncPath)) {
+		char tstdir[MAXPATHLEN];
+		char tstfn[MAXPATHLEN];
+		struct stat fs;
+
+		strlcpy(tstdir, curdir, sizeof(tstdir));
+
+		while (1) {
+			/*
+			 * The system mk file we most want is sys.mk, so use
+			 * it as a test of whether the directory is sultable
+			 * for the system path.
+			 */
+			snprintf(tstfn, sizeof(tstfn), "%s/bld/sys.mk", tstdir);
+			if (stat(tstfn, &fs) == 0) {
+				/* Found the system path, so use it. */
+				tstfn[strlen(tstfn) - 7] = '\0';
+				Path_AddDir(&sysIncPath, tstfn);
+				MFLAGS_append("-m", tstfn);
+				break;
+			}
+
+			/* Get the parent directory path. */
+			if ((cp = strrchr(tstdir, '/')) == NULL)
+				break;
+
+			/* Already up to the root? Use the default instead. */
+			if (cp == tstdir)
+				break;
+
+			/* Truncate the path at the parent directory name. */
+			*cp = '\0';
+		}
+	}
+
+	/*
+	 * At this point we might have been provided with a system path
+	 * if we're a child build, or we might have discovered the system
+	 * path on our own. Either way, we should have a path to a relative
+	 * directory "bld" from the top of our source tree, so we
+	 * can figure out a few special variables from that.
+	 */
+	if (!TAILQ_EMPTY(&sysIncPath)) {
+		/*
+		 * List the system paths until we find one which matches
+		 * the "bld" relative path we prefer.
+		 */
+		Path_List(&sysIncPath, mk_path_init, srctop, sizeof(srctop));
+
+		/* Check if we found the top of our source tree: */
+		if (srctop[0] != '\0') {
+			Var_SetGlobal(".SRCTOP", srctop);
+			Var_SetGlobal(".SRCREL", curdir + strlen(srctop) + 1);
+		}
+	}
+
+	/*
+	 * For 'build' we would rather force an object directory than build with
+	 * the current directory as the object directory.
+	 */
+	if (objdir == curdir) {
+		size_t lmc;
+
+#ifdef JBUILD
+		lmc = strlen(machine) + strlen(curdir + strlen(srctop)) + 1;
+
+		snprintf(mdpath, MAXPATHLEN, "%s/../obj/%s%s", srctop, machine, curdir + strlen(srctop));
+#else
+		lmc = strlen(machine) + strlen(curdir) + 1;
+
+		snprintf(mdpath, MAXPATHLEN, "%s/%s%s", PATH_OBJDIRPREFIX, machine, curdir);
+#endif
+
+		make_objdir(mdpath);
+
+		if (chdir(mdpath) == -1)
+			err(1, "Could not change to objdir '%s'", mdpath);
+
+		if (getcwd(obpath, MAXPATHLEN) == NULL)
+			err(1, "Could not get current working directory");
+
+		objdir = obpath;
+
+		strlcpy(objroot, obpath, sizeof(objroot));
+		objroot[strlen(objroot) - lmc] = '\0';
+		Var_SetGlobal(".OBJROOT", objroot);
+	}
+
+	if (srctop[0] != '\0') {
+		/* Now figure out the top of our object tree: */
+		strlcpy(objtop, objdir, sizeof(objtop));
+		for (cp = curdir + strlen(srctop); *cp != '\0'; cp++)
+			if (*cp == '/' &&
+			    (cp1 = strrchr(objtop, '/')) != NULL)
+				*cp1 = '\0';
+		Var_SetGlobal(".OBJTOP", objtop);
+	}
+#endif
+
 	Dir_InitDot();		/* Initialize the "." directory */
 	if (objdir != curdir)
 		Path_AddDir(&dirSearchPath, curdir);
@@ -1085,12 +1317,15 @@ main(int argc, char **argv)
 
 	if (getenv("MAKE_JOBS_FIFO") != NULL)
 		forceJobs = TRUE;
+
+#ifndef MAKE_IS_BUILD
 	/*
 	 * Be compatible if user did not specify -j and did not explicitly
 	 * turned compatibility on
 	 */
 	if (!compatMake && !forceJobs)
 		compatMake = TRUE;
+#endif
 
 	/*
 	 * Initialize target and suffix modules in preparation for
@@ -1141,15 +1376,46 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Read in the built-in rules first, followed by the specified
+	 * If no user-supplied build path was given (through the -b option)
+	 * add the directories from the DEFBLDPATH (more than one may be given
+	 * as dir1:...:dirn) to the build path.
+	 */
+	if (TAILQ_EMPTY(&bldIncPath)) {
+		char bldpath[] = PATH_DEFBLDPATH;
+
+		for (start = bldpath; *start != '\0'; start = cp) {
+			for (cp = start; *cp != '\0' && *cp != ':'; cp++)
+				continue;
+			if (*cp == '\0') {
+				Path_AddDir(&bldIncPath, start);
+			} else {
+				*cp++ = '\0';
+				Path_AddDir(&bldIncPath, start);
+			}
+		}
+	}
+
+	/*
+	 * Read the build configuration file (if it exists) first, then
+	 * read in the built-in rules, followed by the specified
 	 * makefile, if it was (makefile != (char *) NULL), or the default
 	 * Makefile and makefile, in that order, if it wasn't.
 	 */
 	if (!noBuiltins) {
+		/* Path of build.conf */
+		Lst bldConfPath = Lst_Initializer(bldConfPath);
 		/* Path of sys.mk */
 		Lst sysMkPath = Lst_Initializer(sysMkPath);
 		LstNode *ln;
+		char	defbuildconf[] = PATH_DEFBUILDCONF;
 		char	defsysmk[] = PATH_DEFSYSMK;
+
+		Path_Expand(defbuildconf, &bldIncPath, &bldConfPath);
+		LST_FOREACH(ln, &bldConfPath) {
+			if (!ReadMakefile(Lst_Datum(ln)))
+				break;
+		}
+		Lst_Destroy(&bldConfPath, free);
 
 		Path_Expand(defsysmk, &sysIncPath, &sysMkPath);
 		if (Lst_IsEmpty(&sysMkPath))
@@ -1172,11 +1438,22 @@ main(int argc, char **argv)
 		}
 		if (ln != NULL)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
+#ifdef JBUILD
+	} else
+		TryReadMakefile("Buildfile");
+#else
+#ifdef MAKE_IS_BUILD
+	} else if (!TryReadMakefile("Buildfile"))
+#else
 	} else if (!TryReadMakefile("BSDmakefile"))
+#endif
 	    if (!TryReadMakefile("makefile"))
 		TryReadMakefile("Makefile");
+#endif
 
+#ifndef MAKE_IS_BUILD
 	ReadMakefile(".depend");
+#endif
 
 	/* Install all the flags into the MAKEFLAGS envariable. */
 	if (((p = Var_Value(".MAKEFLAGS", VAR_GLOBAL)) != NULL) && *p)

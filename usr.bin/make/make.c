@@ -72,9 +72,15 @@ __FBSDID("$FreeBSD$");
  *			and perform the .USE actions if so.
  */
 
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <err.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "arch.h"
+#include "buf.h"
 #include "config.h"
 #include "dir.h"
 #include "globals.h"
@@ -142,8 +148,12 @@ Make_TimeStamp(GNode *pgn, GNode *cgn)
 Boolean
 Make_OODate(GNode *gn)
 {
-	Boolean	oodate;
+	char latestdir[MAXPATHLEN];
+	Boolean	oodate = FALSE;
 	LstNode	*ln;
+
+	if (getcwd(latestdir, sizeof(latestdir)) == NULL)
+		err(1, "Could not get current working directory");
 
 	/*
 	 * Certain types of targets needn't even be sought as their datedness
@@ -250,6 +260,145 @@ Make_OODate(GNode *gn)
 		}
 	} else
 		oodate = FALSE;
+
+#ifdef MAKE_IS_BUILD
+	/*
+	 * When running with 'build' functionality, a target can be out-of-date
+	 * if any of the references in it's meta data file is more recent.
+	 */
+	if (!oodate) {
+		FILE *fp;
+		char fname[MAXPATHLEN];
+		char fname1[MAXPATHLEN];
+		char *p;
+
+		meta_name(gn, fname, sizeof(fname));
+
+		if ((fp = fopen(fname, "r")) != NULL) {
+			LstNode *lnp = gn->commands.firstPtr;
+			char *bufr;
+			int f = 0;
+			size_t s_bufr = 128 * 1024;
+			struct stat fs;
+
+			if ((bufr = malloc(s_bufr)) == NULL)
+				err(1, "Cannot allocate memory for a read buffer");
+
+			while (!oodate && fgets(bufr, s_bufr, fp) != NULL) {
+				/* Whack the trailing newline. */
+				bufr[strlen(bufr) - 1] = '\0';
+
+				/* Find the start of the build monitor section. */
+				if (strncmp(bufr, "-- buildmon", 11) == 0) {
+					f = 1;
+					continue;
+				}
+
+				/* Check for the end of the build monitor section. */
+				if (strncmp(bufr, "# Session completed", 19) == 0) {
+					f = 0;
+					continue;
+				}
+
+				/* Delimit the record type. */
+				p = bufr;
+				strsep(&p, " ");
+
+				if (f) {
+					/* Process according to record type. */
+					switch (bufr[0]) {
+					case 'C':
+						/* Skip the pid. */
+						if (strsep(&p, " ") == NULL)
+							break;
+
+						/* Update the latest directory. */
+						strlcpy(latestdir, p, sizeof(latestdir));
+						break;
+
+					case 'R':
+					case 'E':
+					case 'S':
+						/* Skip the pid. */
+						if (strsep(&p, " ") == NULL)
+							break;
+
+						/*
+						 * Check for runtime files that can't
+						 * be part of the dependencies because
+						 * they are _expected_ to change.
+						 */
+						if (strncmp(p, "/var/run/", 9) == 0)
+							break;
+
+						/* Ignore device files. */
+						if (strncmp(p, "/dev/", 5) == 0)
+							break;
+
+						/*
+						 * The rest of the record is the
+						 * file name.
+						 * Check if it's not an absolute
+						 * path.
+						 */
+						if (*p != '/') {
+							/* Use the latest path seen. */
+							snprintf(fname1, sizeof(fname1), "%s/%s", latestdir, p);
+							p = fname1;
+						}
+
+						if (stat(p, &fs) == 0 &&
+						    !S_ISDIR(fs.st_mode) &&
+						    fs.st_mtime > gn->mtime) {
+							DEBUGF(MAKE, ("File '%s' is newer than the target...", p));
+							oodate = TRUE;
+						}
+						break;
+					default:
+						break;
+					}
+
+				/*
+				 * Compare the current command with the one in the
+				 * meta data file.
+				 */
+				} else if (strcmp(bufr, "CMD") == 0) {
+					if (lnp == NULL) {
+						DEBUGF(MAKE, ("There were more build commands in the meta data file than there are now..."));
+						oodate = TRUE;
+					} else {
+						char *cmd = Buf_Peel(Var_Subst(lnp->datum, gn, TRUE));
+
+						if (strcmp(p, cmd) != 0) {
+							DEBUGF(MAKE, ("A build command has changed\n%s\nvs\n%s\n... ", p, cmd));
+							oodate = TRUE;
+						}
+
+						lnp = lnp->nextPtr;
+					}
+				} else if (strcmp(bufr, "CWD") == 0) {
+					char curdir[MAXPATHLEN];
+					if (strcmp(p, getcwd(curdir, sizeof(curdir))) != 0) {
+						DEBUGF(MAKE, ("The current working directory has changed from '%s' to '%s'.. ", p, curdir));
+						oodate = TRUE;
+					}
+				}
+			}
+
+			/*
+			 * Check if there are extra commands now that weren't in the meta
+			 * data file.
+			 */
+			if (!oodate && lnp != NULL) {
+				DEBUGF(MAKE, ("There are extra build commands now that weren't in the meta data file"));
+				oodate = TRUE;
+			}
+
+			free(bufr);
+			fclose(fp);
+		}
+	}
+#endif
 
 	/*
 	 * If the target isn't out-of-date, the parents need to know its
@@ -628,12 +777,19 @@ MakeStartJobs(void)
 		}
 
 		numNodes--;
+
+#ifdef MAKE_IS_BUILD
+		Make_DoAllVar(gn);
+#endif
+
 		if (Make_OODate(gn)) {
 			DEBUGF(MAKE, ("out-of-date\n"));
 			if (queryFlag) {
 				return (TRUE);
 			}
+#ifndef MAKE_IS_BUILD
 			Make_DoAllVar(gn);
+#endif
 			Job_Make(gn);
 		} else {
 			DEBUGF(MAKE, ("up-to-date\n"));
@@ -646,7 +802,9 @@ MakeStartJobs(void)
 				 * .TARGET when building up the context
 				 * variables of its parent(s)...
 				 */
+#ifndef MAKE_IS_BUILD
 				Make_DoAllVar(gn);
+#endif
 			}
 
 			Make_Update(gn);

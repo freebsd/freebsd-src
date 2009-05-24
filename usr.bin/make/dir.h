@@ -68,4 +68,9 @@ char *Path_FindFile(char *, struct Path *);
 char *Path_MakeFlags(const char *, const struct Path *);
 void Path_Print(const struct Path *);
 
+#ifdef MAKE_IS_BUILD
+typedef void path_listcb_t(char *, size_t, const char *);
+void Path_List(const struct Path *, path_listcb_t *, char *, size_t);
+#endif
+
 #endif /* dir_h_6002e3b8 */

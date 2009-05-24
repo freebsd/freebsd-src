@@ -1395,14 +1395,74 @@ VarExpand(Var *v, VarParser *vp)
 static char *
 modifier_M(VarParser *vp, const char value[], char endc)
 {
-	char	*patt;
+#ifdef MAKE_IS_BUILD
+	Buffer	*buf;
+#else
 	char	*ptr;
+#endif
+	char	*patt;
 	char	*newValue;
 	char	modifier;
 
 	modifier = vp->ptr[0];
 	vp->ptr++;	/* consume 'M' or 'N' */
 
+#ifdef MAKE_IS_BUILD
+	buf = Buf_Init(0);
+
+	/*
+	 * Skim through until the matching delimiter is found; pick up
+	 * variable substitutions on the way. Also allow backslashes to quote
+	 * the delimiter, $, and \, but don't touch other backslashes.
+	 */
+	while (*vp->ptr != '\0') {
+		if (*vp->ptr == endc || *vp->ptr == ':') {
+			break;
+
+		} else if ((vp->ptr[0] == '\\') &&
+		    ((vp->ptr[1] == endc) ||
+		     (vp->ptr[1] == ':') ||
+		     (vp->ptr[1] == '\\') ||
+		     (vp->ptr[1] == '$'))) {
+			vp->ptr++;		/* consume backslash */
+			Buf_AddByte(buf, (Byte)vp->ptr[0]);
+			vp->ptr++;
+
+		} else if (vp->ptr[0] == '$') {
+			if (vp->ptr[1] == endc || vp->ptr[1] == ':') {
+				Buf_AddByte(buf, (Byte)vp->ptr[0]);
+				vp->ptr++;
+			} else {
+				VarParser	subvp = {
+					vp->ptr,
+					vp->ptr,
+					vp->ctxt,
+					vp->err,
+					vp->execute
+				};
+				char   *rval;
+				Boolean rfree;
+
+				/*
+				 * If unescaped dollar sign not
+				 * before the delimiter, assume it's
+				 * a variable substitution and
+				 * recurse.
+				 */
+				rval = VarParse(&subvp, &rfree);
+				Buf_Append(buf, rval);
+				if (rfree)
+					free(rval);
+				vp->ptr = subvp.ptr;
+			}
+		} else {
+			Buf_AddByte(buf, (Byte)vp->ptr[0]);
+			vp->ptr++;
+		}
+	}
+
+	patt = Buf_Peel(buf);
+#else
 	/*
 	 * Compress the \:'s out of the pattern, so allocate enough
 	 * room to hold the uncompressed pattern and compress the
@@ -1423,6 +1483,7 @@ modifier_M(VarParser *vp, const char value[], char endc)
 		vp->ptr++;
 	}
 	*ptr = '\0';
+#endif
 
 	if (modifier == 'M') {
 		newValue = VarModify(value, VarMatch, patt);
@@ -2063,6 +2124,7 @@ VarParseLong(VarParser *vp, Boolean *freeResult)
 	char		startc;
 	char		endc;
 	char		*value;
+	const char	*saved_vptr = vp->ptr;
 
 	buf = Buf_Init(MAKE_BSIZE);
 
@@ -2101,7 +2163,7 @@ VarParseLong(VarParser *vp, Boolean *freeResult)
 
 			rval = VarParse(&subvp, &rfree);
 			if (rval == var_Error) {
-				Fatal("Error expanding embedded variable.");
+				Fatal("Error expanding embedded variable '%s'.", saved_vptr);
 			}
 			Buf_Append(buf, rval);
 			if (rfree)

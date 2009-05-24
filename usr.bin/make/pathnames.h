@@ -53,4 +53,12 @@
 #define	PATH_DEFSYSPATH	"/usr/share/mk"
 #endif /* ! PATH_DEFSYSPATH */
 
+#ifndef PATH_DEFBLDPATH
+#define	PATH_DEFBLDPATH	"/etc"
+#endif /* ! PATH_DEFBLDPATH */
+
+#ifndef PATH_DEFBUILDCONF
+#define	PATH_DEFBUILDCONF	"build.conf"
+#endif /* ! PATH_DEFBUILDCONF */
+
 #endif /* pathnames_h_235b888a */
