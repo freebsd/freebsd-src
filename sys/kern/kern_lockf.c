@@ -633,7 +633,20 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	}
 
 	sx_xlock(&state->ls_lock);
-	switch(ap->a_op) {
+	/*
+	 * Recheck the doomed vnode after state->ls_lock is
+	 * locked. lf_purgelocks() requires that no new threads add
+	 * pending locks when vnode is marked by VI_DOOMED flag.
+	 */
+	VI_LOCK(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		VI_UNLOCK(vp);
+		lf_free_lock(lock);
+		return (ENOENT);
+	}
+	VI_UNLOCK(vp);
+
+	switch (ap->a_op) {
 	case F_SETLK:
 		error = lf_setlock(state, lock, vp, ap->a_cookiep);
 		break;
@@ -755,8 +768,11 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 	 * the remaining locks.
 	 */
 	VI_LOCK(vp);
+	KASSERT(vp->v_iflag & VI_DOOMED,
+	    ("lf_purgelocks: vp %p has not vgone yet", vp));
 	state = *statep;
 	if (state) {
+		*statep = NULL;
 		state->ls_threads++;
 		VI_UNLOCK(vp);
 
@@ -789,7 +805,6 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 		VI_LOCK(vp);
 		while (state->ls_threads > 1)
 			msleep(state, VI_MTX(vp), 0, "purgelocks", 0);
-		*statep = 0;
 		VI_UNLOCK(vp);
 
 		/*
