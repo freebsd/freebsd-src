@@ -115,7 +115,7 @@ main(int argc, char *argv[])
 			fts_options |= FTS_LOGICAL;
 		}
 	} else
-		fts_options = FTS_LOGICAL;
+		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
 
 	/* XXX: Why don't chflags and lchflags have compatible prototypes? */
 	if (hflag)
