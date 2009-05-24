@@ -596,6 +596,10 @@ elapsed(KINFO *k, VARENT *ve)
 	char obuff[128];
 
 	v = ve->var;
+	if (!k->ki_valid) {
+		(void)printf("%-*s", v->width, "-");
+		return;
+	}
 	val = now - k->ki_p->ki_start.tv_sec;
 	days = val / (24 * 60 * 60);
 	val %= 24 * 60 * 60;
