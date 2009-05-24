@@ -1062,20 +1062,20 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp->nm_krbnamelen = argp->krbnamelen;
 		nmp->nm_dirpathlen = argp->dirlen;
 		nmp->nm_srvkrbnamelen = argp->srvkrbnamelen;
-		if (nmp->nm_dirpathlen > 0) {
+		if (td->td_ucred->cr_uid != (uid_t)0) {
 			/*
-			 * Since we will be doing dirpath as root,
-			 * set nm_uid to the real uid doing the mount,
-			 * since that is normally the user with a valid TGT.
+			 * nm_uid is used to get KerberosV credentials for
+			 * the nfsv4 state handling operations if there is
+			 * no host based principal set. Use the uid of
+			 * this user if not root, since they are doing the
+			 * mount. I don't think setting this for root will
+			 * work, since root normally does not have user
+			 * credentials in a credentials cache.
 			 */
-			nmp->nm_uid = td->td_ucred->cr_ruid;
+			nmp->nm_uid = td->td_ucred->cr_uid;
 		} else {
 			/*
-			 * Just set to -1, so the first Op
-			 * will set it later, to the uid of
-			 * the process doing that (usually
-			 * from a first open in the mount
-			 * point).
+			 * Just set to -1, so it won't be used.
 			 */
 			nmp->nm_uid = (uid_t)-1;
 		}
