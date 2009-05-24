@@ -407,6 +407,65 @@ nfs_feedback(int type, int proc, void *arg)
 }
 
 /*
+ *	nfs_realign:
+ *
+ *	Check for badly aligned mbuf data and realign by copying the unaligned
+ *	portion of the data into a new mbuf chain and freeing the portions
+ *	of the old chain that were replaced.
+ *
+ *	We cannot simply realign the data within the existing mbuf chain
+ *	because the underlying buffers may contain other rpc commands and
+ *	we cannot afford to overwrite them.
+ *
+ *	We would prefer to avoid this situation entirely.  The situation does
+ *	not occur with NFS/UDP and is supposed to only occassionally occur
+ *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
+ *
+ */
+static int
+nfs_realign(struct mbuf **pm, int hsiz)
+{
+	struct mbuf *m, *n;
+	int off, space;
+
+	++nfs_realign_test;
+	while ((m = *pm) != NULL) {
+		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
+			/*
+			 * NB: we can't depend on m_pkthdr.len to help us
+			 * decide what to do here.  May not be worth doing
+			 * the m_length calculation as m_copyback will
+			 * expand the mbuf chain below as needed.
+			 */
+			space = m_length(m, NULL);
+			if (space >= MINCLSIZE) {
+				/* NB: m_copyback handles space > MCLBYTES */
+				n = m_getcl(M_DONTWAIT, MT_DATA, 0);
+			} else
+				n = m_get(M_DONTWAIT, MT_DATA);
+			if (n == NULL)
+				return (ENOMEM);
+			/*
+			 * Align the remainder of the mbuf chain.
+			 */
+			n->m_len = 0;
+			off = 0;
+			while (m != NULL) {
+				m_copyback(n, off, m->m_len, mtod(m, caddr_t));
+				off += m->m_len;
+				m = m->m_next;
+			}
+			m_freem(*pm);
+			*pm = n;
+			++nfs_realign_count;
+			break;
+		}
+		pm = &m->m_next;
+	}
+	return (0);
+}
+
+/*
  * nfs_request - goes something like this
  *	- fill in request struct
  *	- links it into list
@@ -525,12 +584,25 @@ tryagain:
 	} else {
 		error = EACCES;
 	}
-	md = mrep;
 	if (error)
 		goto nfsmout;
 
 	KASSERT(mrep != NULL, ("mrep shouldn't be NULL if no error\n"));
 
+	/*
+	 * Search for any mbufs that are not a multiple of 4 bytes long
+	 * or with m_data not longword aligned.
+	 * These could cause pointer alignment problems, so copy them to
+	 * well aligned mbufs.
+	 */
+	error = nfs_realign(&mrep, 2 * NFSX_UNSIGNED);
+	if (error == ENOMEM) {
+		m_freem(mrep);
+		AUTH_DESTROY(auth);
+		return (error);
+	}
+
+	md = mrep;
 	dpos = mtod(mrep, caddr_t);
 	tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 	if (*tl != 0) {
