@@ -286,6 +286,8 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 		cacherep = RC_DROPIT;
 	} else if (nd->nd_repstat) {
 		cacherep = RC_REPLY;
+		if ((nd->nd_flag & ND_NFSV4) == 0)
+			panic("nfs_repstat for nfsv2,3");
 	} else {
 		/*
 		 * For NFSv3, play it safe and assume that the client is
@@ -313,6 +315,9 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 		else
 			cacherep = RC_REPLY;
 		*rpp = nfsrvd_updatecache(nd, so);
+	} else if (cacherep == RC_REPLY) {
+		/* Generate the error reply message for NFSv4 */
+		nfsrvd_dorpc(nd, isdgram, td);
 	}
 	return (cacherep);
 }
