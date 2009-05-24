@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <sys/syslog.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
+#include <sys/fcntl.h>
 #include <sys/linker.h>
 #include <sys/module.h>
 
@@ -59,6 +60,7 @@ static const char rcsid[] =
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsserver/nfs.h>
+#include <nfs/nfssvc.h>
 
 #include <err.h>
 #include <errno.h>
@@ -77,11 +79,14 @@ int	debug = 1;
 int	debug = 0;
 #endif
 
+#define	NFSD_STABLERESTART	"/var/db/nfs-stablerestart"
 #define	MAXNFSDCNT	256
 #define	DEFNFSDCNT	 4
 pid_t	children[MAXNFSDCNT];	/* PIDs of children */
 int	nfsdcnt;		/* number of children */
 int	new_syscall;
+int	run_v4server = 0;	/* Force running of nfsv4 server */
+int	nfssvc_nfsd;		/* Set to correct NFSSVC_xxx flag */
 
 void	cleanup(int);
 void	child_cleanup(int);
@@ -112,6 +117,7 @@ void	usage(void);
  *	-d - unregister with rpcbind
  *	-t - support tcp nfs clients
  *	-u - support udp nfs clients
+ *	-4 - forces it to run a server that supports nfsv4
  * followed by "n" which is the number of nfsds' to fork off
  */
 int
@@ -131,20 +137,15 @@ main(int argc, char **argv)
 	int tcp6sock, ip6flag, tcpflag, tcpsock;
 	int udpflag, ecode, s, srvcnt;
 	int bindhostc, bindanyflag, rpcbreg, rpcbregcnt;
+	int stablefd, nfssvc_addsock;
 	char **bindhost = NULL;
 	pid_t pid;
-
-	if (modfind("nfsserver") < 0) {
-		/* Not present in kernel, try loading it */
-		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
-			errx(1, "NFS server is not available");
-	}
 
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-#define	GETOPT	"ah:n:rdtu"
-#define	USAGE	"[-ardtu] [-n num_servers] [-h bindip]"
+#define	GETOPT	"ah:n:rdtu4"
+#define	USAGE	"[-ardtu4] [-n num_servers] [-h bindip]"
 	while ((ch = getopt(argc, argv, GETOPT)) != -1)
 		switch (ch) {
 		case 'a':
@@ -179,6 +180,9 @@ main(int argc, char **argv)
 		case 'u':
 			udpflag = 1;
 			break;
+		case '4':
+			run_v4server = 1;
+			break;
 		default:
 		case '?':
 			usage();
@@ -201,6 +205,25 @@ main(int argc, char **argv)
 			    DEFNFSDCNT);
 			nfsdcnt = DEFNFSDCNT;
 		}
+	}
+
+	/*
+	 * If the "-4" option was specified OR only the nfsd module is
+	 * found in the server, run "nfsd".
+	 * Otherwise, try and run "nfsserver".
+	 */
+	if (run_v4server > 0) {
+		if (modfind("nfsd") < 0) {
+			/* Not present in kernel, try loading it */
+			if (kldload("nfsd") < 0 || modfind("nfsd") < 0)
+				errx(1, "NFS server is not available");
+		}
+	} else if (modfind("nfsserver") < 0 && modfind("nfsd") >= 0) {
+		run_v4server = 1;
+	} else if (modfind("nfsserver") < 0) {
+		/* Not present in kernel, try loading it */
+		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
+			errx(1, "NFS server is not available");
 	}
 
 	ip6flag = 1;
@@ -328,15 +351,47 @@ main(int argc, char **argv)
 	openlog("nfsd", LOG_PID, LOG_DAEMON);
 
 	/*
-	 * Figure out if the kernel supports the new-style
-	 * NFSSVC_NFSD. Old kernels will return ENXIO because they
-	 * don't recognise the flag value, new ones will return EINVAL
-	 * because argp is NULL.
+	 * For V4, we open the stablerestart file and call nfssvc()
+	 * to get it loaded. This is done before the daemons do the
+	 * regular nfssvc() call to service NFS requests.
+	 * (This way the file remains open until the last nfsd is killed
+	 *  off.)
+	 * Note that this file is not created by this daemon and can
+	 * only be relocated by recompiling the daemon, in order to
+	 * minimize accidentally starting up with the wrong file.
+	 * If should be created as an empty file Read and Write for
+	 * root before the first time you run NFS v4 and should never
+	 * be re-initialized if at all possible. It should live on a
+	 * local, non-volatile storage device that does not do hardware
+	 * level write-back caching. (See SCSI doc for more information
+	 * on how to prevent write-back caching on SCSI disks.)
 	 */
-	new_syscall = FALSE;
-	if (nfssvc(NFSSVC_NFSD, NULL) < 0 && errno == EINVAL)
+	if (run_v4server > 0) {
+		stablefd = open(NFSD_STABLERESTART, O_RDWR, 0);
+		if (stablefd < 0) {
+			syslog(LOG_ERR, "Can't open %s\n", NFSD_STABLERESTART);
+			exit(1);
+		}
+		if (nfssvc(NFSSVC_STABLERESTART, (caddr_t)&stablefd) < 0) {
+			syslog(LOG_ERR, "Can't read stable storage file\n");
+			exit(1);
+		}
+		nfssvc_addsock = NFSSVC_NFSDADDSOCK;
+		nfssvc_nfsd = NFSSVC_NFSDNFSD;
 		new_syscall = TRUE;
-	new_syscall = FALSE;
+	} else {
+		nfssvc_addsock = NFSSVC_ADDSOCK;
+		nfssvc_nfsd = NFSSVC_NFSD;
+		/*
+		 * Figure out if the kernel supports the new-style
+		 * NFSSVC_NFSD. Old kernels will return ENXIO because they
+		 * don't recognise the flag value, new ones will return EINVAL
+		 * because argp is NULL.
+		 */
+		new_syscall = FALSE;
+		if (nfssvc(NFSSVC_NFSD, NULL) < 0 && errno == EINVAL)
+			new_syscall = TRUE;
+	}
 
 	if (!new_syscall) {
 		/* If we use UDP only, we start the last server below. */
@@ -413,7 +468,7 @@ main(int argc, char **argv)
 				addsockargs.sock = sock;
 				addsockargs.name = NULL;
 				addsockargs.namelen = 0;
-				if (nfssvc(NFSSVC_ADDSOCK, &addsockargs) < 0) {
+				if (nfssvc(nfssvc_addsock, &addsockargs) < 0) {
 					syslog(LOG_ERR, "can't Add UDP socket");
 					nfsd_exit(1);
 				}
@@ -481,7 +536,7 @@ main(int argc, char **argv)
 				addsockargs.sock = sock;
 				addsockargs.name = NULL;
 				addsockargs.namelen = 0;
-				if (nfssvc(NFSSVC_ADDSOCK, &addsockargs) < 0) {
+				if (nfssvc(nfssvc_addsock, &addsockargs) < 0) {
 					syslog(LOG_ERR,
 					    "can't add UDP6 socket");
 					nfsd_exit(1);
@@ -711,7 +766,7 @@ main(int argc, char **argv)
 					addsockargs.sock = msgsock;
 					addsockargs.name = (caddr_t)&inetpeer;
 					addsockargs.namelen = len;
-					nfssvc(NFSSVC_ADDSOCK, &addsockargs);
+					nfssvc(nfssvc_addsock, &addsockargs);
 					(void)close(msgsock);
 				} else if (FD_ISSET(tcpsock, &v6bits)) {
 					len = sizeof(inet6peer);
@@ -733,7 +788,7 @@ main(int argc, char **argv)
 					addsockargs.sock = msgsock;
 					addsockargs.name = (caddr_t)&inet6peer;
 					addsockargs.namelen = len;
-					nfssvc(NFSSVC_ADDSOCK, &addsockargs);
+					nfssvc(nfssvc_addsock, &addsockargs);
 					(void)close(msgsock);
 				}
 			}
@@ -861,19 +916,47 @@ nfsd_exit(int status)
 void
 start_server(int master)
 {
-	char principal[128];
-	char hostname[128];
+	char principal[MAXHOSTNAMELEN + 5];
 	struct nfsd_nfsd_args nfsdargs;
-	int status;
+	int status, error;
+	char hostname[MAXHOSTNAMELEN + 1], *cp;
+	struct addrinfo *aip, hints;
 
 	status = 0;
 	if (new_syscall) {
-		gethostname(hostname, sizeof(hostname));
-		snprintf(principal, sizeof(principal), "nfs@%s", hostname);
+		gethostname(hostname, sizeof (hostname));
+		snprintf(principal, sizeof (principal), "nfs@%s", hostname);
+		if ((cp = strchr(hostname, '.')) == NULL ||
+		    *(cp + 1) == '\0') {
+			/* If not fully qualified, try getaddrinfo() */
+			memset((void *)&hints, 0, sizeof (hints));
+			hints.ai_flags = AI_CANONNAME;
+			error = getaddrinfo(hostname, NULL, &hints, &aip);
+			if (error == 0) {
+				if (aip->ai_canonname != NULL &&
+				    (cp = strchr(aip->ai_canonname, '.')) !=
+				    NULL && *(cp + 1) != '\0')
+					snprintf(principal, sizeof (principal),
+					    "nfs@%s", aip->ai_canonname);
+				freeaddrinfo(aip);
+			}
+		}
 		nfsdargs.principal = principal;
 		nfsdargs.minthreads = nfsdcnt;
 		nfsdargs.maxthreads = nfsdcnt;
-		if (nfssvc(NFSSVC_NFSD, &nfsdargs) < 0) {
+		error = nfssvc(nfssvc_nfsd, &nfsdargs);
+		if (error < 0 && errno == EAUTH) {
+			/*
+			 * This indicates that it could not register the
+			 * rpcsec_gss credentials, usually because the
+			 * gssd daemon isn't running.
+			 * (only the experimental server with nfsv4)
+			 */
+			syslog(LOG_ERR, "No gssd, using AUTH_SYS only");
+			principal[0] = '\0';
+			error = nfssvc(nfssvc_nfsd, &nfsdargs);
+		}
+		if (error < 0) {
 			syslog(LOG_ERR, "nfssvc: %m");
 			status = 1;
 		}
