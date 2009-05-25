@@ -107,6 +107,7 @@ static const struct mii_phydesc e1000phys[] = {
 	MII_PHY_DESC(MARVELL, E1116),
 	MII_PHY_DESC(MARVELL, E1116R),
 	MII_PHY_DESC(MARVELL, E1118),
+	MII_PHY_DESC(MARVELL, E3016),
 	MII_PHY_DESC(xxMARVELL, E1000),
 	MII_PHY_DESC(xxMARVELL, E1011),
 	MII_PHY_DESC(xxMARVELL, E1000_3),
@@ -212,18 +213,29 @@ e1000phy_reset(struct mii_softc *sc)
 			reg |= E1000_SCR_AUTO_X_MODE;
 			if (esc->mii_model == MII_MODEL_MARVELL_E1116)
 				reg &= ~E1000_SCR_POWER_DOWN;
+			reg |= E1000_SCR_ASSERT_CRS_ON_TX;
 			break;
 		case MII_MODEL_MARVELL_E3082:
 			reg |= (E1000_SCR_AUTO_X_MODE >> 1);
+			reg |= E1000_SCR_ASSERT_CRS_ON_TX;
+			break;
+		case MII_MODEL_MARVELL_E3016:
+			reg |= E1000_SCR_AUTO_MDIX;
+			reg &= ~(E1000_SCR_EN_DETECT |
+			    E1000_SCR_SCRAMBLER_DISABLE);
+			reg |= E1000_SCR_LPNP;
+			/* XXX Enable class A driver for Yukon FE+ A0. */
+			PHY_WRITE(sc, 0x1C, PHY_READ(sc, 0x1C) | 0x0001);
 			break;
 		default:
 			reg &= ~E1000_SCR_AUTO_X_MODE;
+			reg |= E1000_SCR_ASSERT_CRS_ON_TX;
 			break;
 		}
-		/* Enable CRS on TX. */
-		reg |= E1000_SCR_ASSERT_CRS_ON_TX;
-		/* Auto correction for reversed cable polarity. */
-		reg &= ~E1000_SCR_POLARITY_REVERSAL;
+		if (esc->mii_model != MII_MODEL_MARVELL_E3016) {
+			/* Auto correction for reversed cable polarity. */
+			reg &= ~E1000_SCR_POLARITY_REVERSAL;
+		}
 		PHY_WRITE(sc, E1000_SCR, reg);
 
 		if (esc->mii_model == MII_MODEL_MARVELL_E1116) {
@@ -241,6 +253,13 @@ e1000phy_reset(struct mii_softc *sc)
 	case MII_MODEL_MARVELL_E1116:
 	case MII_MODEL_MARVELL_E1118:
 	case MII_MODEL_MARVELL_E1149:
+		break;
+	case MII_MODEL_MARVELL_E3016:
+		/* LED2 -> ACT, LED1 -> LINK, LED0 -> SPEED. */
+		PHY_WRITE(sc, 0x16, 0x0B << 8 | 0x05 << 4 | 0x04);
+		/* Integrated register calibration workaround. */
+		PHY_WRITE(sc, 0x1D, 17);
+		PHY_WRITE(sc, 0x1E, 0x3F60);
 		break;
 	default:
 		/* Force TX_CLK to 25MHz clock. */
