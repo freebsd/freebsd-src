@@ -394,7 +394,7 @@ done:
 		if (sc->mii_ticks++ == 0)
 			break;
 		if (sc->mii_ticks <= sc->mii_anegticks)
-			return (0);
+			break;
 
 		sc->mii_ticks = 0;
 		e1000phy_reset(sc);
