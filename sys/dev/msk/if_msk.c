@@ -467,7 +467,7 @@ msk_miibus_statchg(device_t dev)
 	sc_if = device_get_softc(dev);
 	sc = sc_if->msk_softc;
 
-	MSK_IF_LOCK(sc_if);
+	MSK_IF_LOCK_ASSERT(sc_if);
 
 	mii = device_get_softc(sc_if->msk_miibus);
 	ifp = sc_if->msk_ifp;
