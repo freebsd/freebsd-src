@@ -2800,7 +2800,7 @@ mskc_resume(device_t dev)
 		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0))
 			msk_init_locked(sc->msk_if[i]);
 	}
-	sc->msk_pflags &= MSK_FLAG_SUSPEND;
+	sc->msk_pflags &= ~MSK_FLAG_SUSPEND;
 
 	MSK_UNLOCK(sc);
 
