@@ -220,7 +220,8 @@ static const char *model_name[] = {
         "Yukon EC Ultra",
         "Yukon Unknown",
         "Yukon EC",
-        "Yukon FE"
+        "Yukon FE",
+        "Yukon FE+"
 };
 
 static int mskc_probe(device_t);
@@ -1116,6 +1117,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			}
 			break;
 		case CHIP_ID_YUKON_EC_U:
+		case CHIP_ID_YUKON_FE_P:
 			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
@@ -1579,7 +1581,7 @@ mskc_attach(device_t dev)
 	sc->msk_hw_rev = (CSR_READ_1(sc, B2_MAC_CFG) >> 4) & 0x0f;
 	/* Bail out if chip is not recognized. */
 	if (sc->msk_hw_id < CHIP_ID_YUKON_XL ||
-	    sc->msk_hw_id > CHIP_ID_YUKON_FE) {
+	    sc->msk_hw_id > CHIP_ID_YUKON_FE_P) {
 		device_printf(dev, "unknown device: id=0x%02x, rev=0x%02x\n",
 		    sc->msk_hw_id, sc->msk_hw_rev);
 		mtx_destroy(&sc->msk_mtx);
@@ -1640,6 +1642,10 @@ mskc_attach(device_t dev)
 	case CHIP_ID_YUKON_FE:
 		sc->msk_clock = 100;	/* 100 Mhz */
 		sc->msk_pflags |= MSK_FLAG_FASTETHER;
+		break;
+	case CHIP_ID_YUKON_FE_P:
+		sc->msk_clock = 50;	/* 50 Mhz */
+		sc->msk_pflags |= MSK_FLAG_FASTETHER | MSK_FLAG_DESCV2;
 		break;
 	case CHIP_ID_YUKON_XL:
 		sc->msk_clock = 156;	/* 156 Mhz */
@@ -3512,6 +3518,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	struct mii_data	 *mii;
 	uint16_t eaddr[ETHER_ADDR_LEN / 2];
 	uint16_t gmac;
+	uint32_t reg;
 	int error, i;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
@@ -3590,8 +3597,10 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	/* Configure Rx MAC FIFO. */
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T), GMF_RST_SET);
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T), GMF_RST_CLR);
-	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T),
-	    GMF_OPER_ON | GMF_RX_F_FL_ON);
+	reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
+	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P)
+		reg |= GMF_RX_OVER_ON;
+	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T), reg);
 
 	/* Set receive filter. */
 	msk_rxfilter(sc_if);
