@@ -94,6 +94,7 @@ static struct option {
 	{ "keep-old-files",       0, 'k' },
 	{ "list",                 0, 't' },
 	{ "lzma",                 0, OPTION_LZMA },
+	{ "manifest",             1, OPTION_MANIFEST },
 	{ "modification-time",    0, 'm' },
 	{ "newer",		  1, OPTION_NEWER_CTIME },
 	{ "newer-ctime",	  1, OPTION_NEWER_CTIME },

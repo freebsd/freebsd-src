@@ -63,6 +63,7 @@ struct bsdtar {
 	const char	 *option_options; /* --options */
 	char		  option_honor_nodump; /* --nodump */
 	char		  option_interactive; /* -w */
+	const char	 *manifest; /* --manifest */
 	char		  option_no_owner; /* -o */
 	char		  option_no_subdirs; /* -n */
 	char		  option_null; /* --null */
@@ -116,6 +117,7 @@ enum {
 	OPTION_INCLUDE,
 	OPTION_KEEP_NEWER_FILES,
 	OPTION_LZMA,
+	OPTION_MANIFEST,
 	OPTION_NEWER_CTIME,
 	OPTION_NEWER_CTIME_THAN,
 	OPTION_NEWER_MTIME,

@@ -309,6 +309,13 @@ main(int argc, char **argv)
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
 			break;
+		case OPTION_MANIFEST:
+			/* The argument is the manifest file name. */
+			bsdtar->manifest = optarg;
+
+			/* Specifying a manifest implies creating an archive. */
+			set_mode(bsdtar, 'c');
+			break;
 		case 'n': /* GNU tar */
 			bsdtar->option_no_subdirs = 1;
 			break;

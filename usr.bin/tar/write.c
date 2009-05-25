@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #endif
 
+#include <ctype.h>
 #include "bsdtar.h"
 #include "tree.h"
 
@@ -126,6 +127,8 @@ static void		 archive_names_from_file(struct bsdtar *bsdtar,
 			     struct archive *a);
 static int		 archive_names_from_file_helper(struct bsdtar *bsdtar,
 			     const char *line);
+static void		 archive_names_from_manifest(struct bsdtar *bsdtar,
+			     struct archive *a);
 static int		 copy_file_data(struct bsdtar *bsdtar,
 			     struct archive *a, struct archive *ina);
 static int		 new_enough(struct bsdtar *, const char *path,
@@ -145,7 +148,8 @@ tar_mode_c(struct bsdtar *bsdtar)
 	struct archive *a;
 	int r;
 
-	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
+	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL &&
+	    bsdtar->manifest == NULL)
 		bsdtar_errc(bsdtar, 1, 0, "no files or directories specified");
 
 	a = archive_write_new();
@@ -431,6 +435,9 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	if (bsdtar->names_from_file != NULL)
 		archive_names_from_file(bsdtar, a);
 
+	if (bsdtar->manifest != NULL)
+		archive_names_from_manifest(bsdtar, a);
+
 	while (*bsdtar->argv) {
 		arg = *bsdtar->argv;
 		if (arg[0] == '-' && arg[1] == 'C') {
@@ -516,6 +523,214 @@ archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 		bsdtar_errc(bsdtar, 1, errno,
 		    "Unexpected end of filename list; "
 		    "directory expected after -C");
+}
+
+/*
+ * Expand a file name from a manifest file.
+ */
+static void
+manifest_expand_name(struct bsdtar *bsdtar, const char *src, char *dst,
+    size_t s_dst)
+{
+	char *pdst = dst;
+	char *p;
+	char env[64];
+	const char *psrc = src;
+	size_t len;
+
+	while (*psrc != '\0' && s_dst > 1) {
+		/* %% expands to % */
+		if (*psrc == '%' && *(psrc + 1) == '%') {
+			*pdst++ = *psrc++;
+			s_dst--;
+			psrc++;
+
+		/* %FOO% is an environment variable called FOO */
+		} else if (*psrc == '%') {
+			psrc++;
+
+			/* Expect a trailing % */
+			if ((p = strchr(psrc, '%')) == NULL)
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Unterminated environment variable "
+				    "name in '%s'", src);
+
+			/* Check for overlength environment variable names. */
+			if ((len = (size_t)(p - psrc)) > sizeof(env))
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Environment variable name is too"
+				    "long in '%s'", src);
+
+			/* Copy the environment variable name and zero terminate it. */
+			strncpy(env, psrc, len);
+			env[len] = '\0';
+			psrc = p + 1;
+
+			/* Get the environment variable string. */
+			if ((p = getenv(env)) == NULL)
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Environment variable '%s' is undefined",
+				    env);
+
+			/* Copy the environment variable string into the buffer. */
+			while (*p != '\0' && s_dst > 1) {
+				*pdst++ = *p++;
+				s_dst--;
+			}
+		} else {
+			/* Copy all other characters as-is. */
+			*pdst++ = *psrc++;
+			s_dst--;
+		}
+	}
+	*pdst = '\0';
+
+	/* Expect all the source characters to have been consumed. */
+	if (*psrc != '\0')
+		bsdtar_errc(bsdtar, 1, 0,
+		    "Destination string not large enough to expand '%s'", src);
+}
+
+/*
+ * Read and parse a manifest file.
+ */
+static void
+manifest_read(struct bsdtar *bsdtar, const char *manifest_name)
+{
+	FILE *f;
+	char *bp;
+	char *bufr;
+	char *p;
+	long offset;
+	size_t s_bufr = 1024;
+
+	if ((f = fopen(manifest_name, "r")) == NULL)
+		bsdtar_errc(bsdtar, 1, errno, "Couldn't open manifest %s", manifest_name);
+
+	if ((bufr = malloc(s_bufr)) == NULL)
+		bsdtar_errc(bsdtar, 1, errno, "Couldn't allocate memory for manifest buffer");
+
+	while (1) {
+		int f_eval = 0;
+		int f_include = 0;
+		char *p_arg = NULL;
+		char *p_gid = NULL;
+		char *p_mode = NULL;
+		char *p_store = NULL;
+		char *p_symlink = NULL;
+		char *p_uid = NULL;
+		struct stat fs;
+
+		/* Save the file offset in case we need to reallocate the buffer. */
+		if ((offset = ftell(f)) < 0)
+			bsdtar_errc(bsdtar, 1, errno, "Couldn't get manifest file offset");
+
+		if (fgets(bufr, s_bufr, f) == NULL)
+			break;
+
+		/* If there isn't a new line in the buffer, we need to reallocate it. */
+		if ((p = strchr(bufr, '\n')) == NULL) {
+			s_bufr *= 2;
+			if ((bufr = realloc(bufr, s_bufr)) == NULL)
+				bsdtar_errc(bsdtar, 1, errno,
+				    "Couldn't allocate memory for manifest buffer");
+
+			if (fseek(f, offset, SEEK_SET) == -1)
+				bsdtar_errc(bsdtar, 1, errno,
+				    "Couldn't seek to offset in manifest file");
+			continue;
+		}
+
+		/* Ignore comments. */
+		if (*bufr == '#')
+			continue;
+
+		/* Remove the trailing new line character. */
+		*p = '\0';
+		bp = bufr;
+
+		while (*bp != '\0' && isspace(*bp))
+			bp++;
+
+		/* Ignore empty lines. */
+		if (*bufr == '\0')
+			continue;
+
+		/* Parse the buffer into white-space separated fields. */
+		while ((p = strsep(&bp, " \t")) != NULL) {
+			if (strcmp(p, "%EVAL%") == 0) {
+				/* XXX */
+				f_eval = 1;
+				break;
+			} else if (strcmp(p, "%INCLUDE%") == 0)
+				f_include = 1;
+			else if (strncmp(p, "gid=", 4) == 0)
+				p_gid = p + 4;
+			else if (strncmp(p, "mode=", 5) == 0)
+				p_mode = p + 5;
+			else if (strncmp(p, "store=", 6) == 0)
+				p_store = p + 6;
+			else if (strncmp(p, "symlink=", 8) == 0)
+				p_symlink = p + 8;
+			else if (strncmp(p, "uid=", 4) == 0)
+				p_uid = p + 4;
+			else if (strncmp(p, "no_", 3) == 0)
+				printf("No code for: %s\n", p);
+			else
+				p_arg = p;
+		}
+
+		if (f_eval)
+			; /* XXX EVAL is not supported */
+		else if (f_include)
+			manifest_read(bsdtar, p_arg);
+		else if (p_store != NULL) {
+			char fname[MAXNAMLEN];
+
+			manifest_expand_name(bsdtar, p_arg, fname, sizeof(fname));
+
+			if (stat(fname, &fs) != 0)
+				bsdtar_errc(bsdtar, 1, errno,
+				    "Couldn't get file status of '%s'", fname);
+
+			/* Reset the user/group by default. */
+			fs.st_uid = 0;
+			fs.st_gid = 0;
+
+			if (p_gid != NULL)
+				fs.st_gid = atoi(p_gid);
+
+			if (p_uid != NULL)
+				fs.st_uid = atoi(p_uid);
+
+			if (p_mode != NULL) {
+				fs.st_mode &= ~0777;
+				fs.st_mode |= strtol(p_mode, NULL, 8);
+			}
+
+			/* write_entry_backend(bsdtar, bsdtar->archive, &fs, p_store, fname); */
+		} else if (p_symlink != NULL)
+			printf("Symlink: %s\n", p_symlink);
+		else {
+			printf("Dunno: %s\n", p_arg);
+		}
+	}
+
+	free(bufr);
+
+	fclose(f);
+}
+
+/*
+ * Archive names specified in a manifest file.
+ */
+static void
+archive_names_from_manifest(struct bsdtar *bsdtar, struct archive *a)
+{
+	bsdtar->archive = a;
+
+	/* Read and parse the top-level manifest file. */
+	manifest_read(bsdtar, bsdtar->manifest);
 }
 
 static int
