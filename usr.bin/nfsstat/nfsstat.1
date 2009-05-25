@@ -42,7 +42,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl cszW
+.Op Fl cszW4
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
@@ -82,6 +82,10 @@ activity for both the client and server at
 second intervals.
 .It Fl z
 Reset statistics after displaying them.
+(Not currently supported by the experimental nfs subsystem.)
+.It Fl 4
+Gather statistics from the experimental nfs subsystem that includes
+support for NFSv4 instead of the regular nfs subsystem.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /boot/kernel/kernel" -compact
@@ -97,6 +101,7 @@ default memory file
 .Xr systat 1 ,
 .Xr sysctl 3 ,
 .Xr iostat 8 ,
+.Xr nfsdumpstate 8 ,
 .Xr pstat 8 ,
 .Xr vmstat 8
 .Sh HISTORY
