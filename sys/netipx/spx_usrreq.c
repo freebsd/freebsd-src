@@ -1253,6 +1253,7 @@ spx_detach(struct socket *so)
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	spx_pcbdetach(ipxp);
+	ipx_pcbdetach(ipxp);
 	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
 }
