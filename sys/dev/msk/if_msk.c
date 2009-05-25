@@ -285,7 +285,6 @@ static int msk_phy_writereg(struct msk_if_softc *, int, int, int);
 static int msk_miibus_readreg(device_t, int, int);
 static int msk_miibus_writereg(device_t, int, int, int);
 static void msk_miibus_statchg(device_t);
-static void msk_link_task(void *, int);
 
 static void msk_rxfilter(struct msk_if_softc *);
 static void msk_setvlan(struct msk_if_softc *, struct ifnet *);
@@ -459,32 +458,22 @@ msk_phy_writereg(struct msk_if_softc *sc_if, int phy, int reg, int val)
 static void
 msk_miibus_statchg(device_t dev)
 {
-	struct msk_if_softc *sc_if;
-
-	sc_if = device_get_softc(dev);
-	taskqueue_enqueue(taskqueue_swi, &sc_if->msk_link_task);
-}
-
-static void
-msk_link_task(void *arg, int pending)
-{
 	struct msk_softc *sc;
 	struct msk_if_softc *sc_if;
 	struct mii_data *mii;
 	struct ifnet *ifp;
 	uint32_t gmac;
 
-	sc_if = (struct msk_if_softc *)arg;
+	sc_if = device_get_softc(dev);
 	sc = sc_if->msk_softc;
 
 	MSK_IF_LOCK(sc_if);
 
 	mii = device_get_softc(sc_if->msk_miibus);
 	ifp = sc_if->msk_ifp;
-	if (mii == NULL || ifp == NULL) {
-		MSK_IF_UNLOCK(sc_if);
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
-	}
 
 	if (mii->mii_media_status & IFM_ACTIVE) {
 		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
@@ -554,8 +543,6 @@ msk_link_task(void *arg, int pending)
 		/* Read again to ensure writing. */
 		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 	}
-
-	MSK_IF_UNLOCK(sc_if);
 }
 
 static void
@@ -1416,7 +1403,6 @@ msk_attach(device_t dev)
 	}
 
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
-	TASK_INIT(&sc_if->msk_link_task, 0, msk_link_task, sc_if);
 	msk_sysctl_node(sc_if);
 
 	/* Disable jumbo frame for Yukon FE. */
@@ -1791,7 +1777,6 @@ msk_detach(device_t dev)
 		MSK_IF_UNLOCK(sc_if);
 		callout_drain(&sc_if->msk_tick_ch);
 		taskqueue_drain(taskqueue_fast, &sc_if->msk_tx_task);
-		taskqueue_drain(taskqueue_swi, &sc_if->msk_link_task);
 		ether_ifdetach(ifp);
 		MSK_IF_LOCK(sc_if);
 	}
