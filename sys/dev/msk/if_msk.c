@@ -3535,18 +3535,16 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 	}
 
+ 	/* GMAC Control reset. */
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_SET);
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_CLR);
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_F_LOOPB_OFF);
+ 
 	/*
-	 * Initialize GMAC first.
-	 * Without this initialization, Rx MAC did not work as expected
-	 * and Rx MAC garbled status LEs and it resulted in out-of-order
-	 * or duplicated frame delivery which in turn showed very poor
-	 * Rx performance.(I had to write a packet analysis code that
-	 * could be embeded in driver to diagnose this issue.)
-	 * I've spent almost 2 months to fix this issue. If I have had
-	 * datasheet for Yukon II I wouldn't have encountered this. :-(
+	 * Initialize GMAC first such that speed/duplex/flow-control
+	 * parameters are renegotiated when interface is brought up.
 	 */
-	gmac = GM_GPCR_SPEED_100 | GM_GPCR_SPEED_1000 | GM_GPCR_DUP_FULL;
-	GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, 0);
 
 	/* Dummy read the Interrupt Source Register. */
 	CSR_READ_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_SRC));
