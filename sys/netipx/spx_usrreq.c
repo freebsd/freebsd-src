@@ -417,6 +417,13 @@ drop:
 	m_freem(m);
 }
 
+void
+spx_ctlinput(int cmd, struct sockaddr *arg_as_sa, void *dummy)
+{
+
+	/* Currently, nothing. */
+}
+
 int
 spx_output(struct spxpcb *cb, struct mbuf *m0)
 {
@@ -520,7 +527,7 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 		m->m_len = sizeof(struct spx);
 		m->m_next = m0;
 		si = mtod(m, struct spx *);
-		si->si_i = *cb->s_ipx;
+		si->si_i = cb->s_ipx;
 		si->si_s = cb->s_shdr;
 		if ((cb->s_flags & SF_PI) && (cb->s_flags & SF_HO)) {
 			struct spxhdr *sh;
@@ -729,7 +736,7 @@ send:
 		m->m_len = sizeof(*si);
 		m->m_pkthdr.len = sizeof(*si);
 		si = mtod(m, struct spx *);
-		si->si_i = *cb->s_ipx;
+		si->si_i = cb->s_ipx;
 		si->si_s = cb->s_shdr;
 		si->si_seq = cb->s_smax + 1;
 		si->si_len = htons(sizeof(*si));
@@ -1087,7 +1094,6 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	ipxp = sotoipxpcb(so);
 	ipxp->ipxp_flags |= IPXP_SPX;
 
-	cb->s_ipx = mtod(mm, struct ipx *);
 	cb->s_state = TCPS_LISTEN;
 	cb->s_smax = -1;
 	cb->s_swl1 = -1;
@@ -1124,7 +1130,6 @@ spx_pcbdetach(struct ipxpcb *ipxp)
 	KASSERT(cb != NULL, ("spx_pcbdetach: cb == NULL"));
 
 	spx_reass_flush(cb);
-	m_free(dtom(cb->s_ipx));
 	free(cb, M_PCB);
 	ipxp->ipxp_pcb = NULL;
 }
@@ -1490,14 +1495,13 @@ static void
 spx_template(struct spxpcb *cb)
 {
 	struct ipxpcb *ipxp = cb->s_ipxpcb;
-	struct ipx *ipx = cb->s_ipx;
 	struct sockbuf *sb = &(ipxp->ipxp_socket->so_snd);
 
 	IPX_LOCK_ASSERT(ipxp);
 
-	ipx->ipx_pt = IPXPROTO_SPX;
-	ipx->ipx_sna = ipxp->ipxp_laddr;
-	ipx->ipx_dna = ipxp->ipxp_faddr;
+	cb->s_ipx.ipx_pt = IPXPROTO_SPX;
+	cb->s_ipx.ipx_sna = ipxp->ipxp_laddr;
+	cb->s_ipx.ipx_dna = ipxp->ipxp_faddr;
 	SPX_LOCK();
 	cb->s_sid = htons(spx_iss);
 	spx_iss += SPX_ISSINCR/2;
@@ -1519,8 +1523,7 @@ spx_template(struct spxpcb *cb)
 
 /*
  * Close a SPIP control block.  Wake up any sleepers.  We used to free any
- * queued packets and cb->s_ipx here, but now we defer that until the pcb is
- * discarded.
+ * queued packets, but now we defer that until the pcb is discarded.
  */
 void
 spx_close(struct spxpcb *cb)
