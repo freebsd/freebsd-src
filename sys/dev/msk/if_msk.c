@@ -477,11 +477,11 @@ msk_miibus_statchg(device_t dev)
 
 	if (mii->mii_media_status & IFM_ACTIVE) {
 		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc_if->msk_link = 1;
+			sc_if->msk_flags |= MSK_FLAG_LINK;
 	} else
-		sc_if->msk_link = 0;
+		sc_if->msk_flags &= ~MSK_FLAG_LINK;
 
-	if (sc_if->msk_link != 0) {
+	if ((sc_if->msk_flags & MSK_FLAG_LINK) != 0) {
 		/* Enable Tx FIFO Underrun. */
 		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_MSK),
 		    GM_IS_TX_FF_UR | GM_IS_RX_FF_OR);
@@ -2626,7 +2626,7 @@ msk_start(struct ifnet *ifp)
 	MSK_IF_LOCK(sc_if);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc_if->msk_link == 0) {
+	    IFF_DRV_RUNNING || (sc_if->msk_flags & MSK_FLAG_LINK) == 0) {
 		MSK_IF_UNLOCK(sc_if);
 		return;
 	}
@@ -2683,7 +2683,7 @@ msk_watchdog(struct msk_if_softc *sc_if)
 	if (sc_if->msk_watchdog_timer == 0 || --sc_if->msk_watchdog_timer)
 		return;
 	ifp = sc_if->msk_ifp;
-	if (sc_if->msk_link == 0) {
+	if ((sc_if->msk_flags & MSK_FLAG_LINK) == 0) {
 		if (bootverbose)
 			if_printf(sc_if->msk_ifp, "watchdog timeout "
 			   "(missed link)\n");
@@ -2770,7 +2770,7 @@ mskc_suspend(device_t dev)
 
 	/* Put hardware reset. */
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-	sc->msk_suspended = 1;
+	sc->msk_pflags |= MSK_FLAG_SUSPEND;
 
 	MSK_UNLOCK(sc);
 
@@ -2793,7 +2793,7 @@ mskc_resume(device_t dev)
 		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0))
 			msk_init_locked(sc->msk_if[i]);
 	}
-	sc->msk_suspended = 0;
+	sc->msk_pflags &= MSK_FLAG_SUSPEND;
 
 	MSK_UNLOCK(sc);
 
@@ -3306,7 +3306,8 @@ msk_legacy_intr(void *xsc)
 
 	/* Reading B0_Y2_SP_ISRC2 masks further interrupts. */
 	status = CSR_READ_4(sc, B0_Y2_SP_ISRC2);
-	if (status == 0 || status == 0xffffffff || sc->msk_suspended != 0 ||
+	if (status == 0 || status == 0xffffffff ||
+	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0) {
 		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
 		return;
@@ -3393,7 +3394,8 @@ msk_int_task(void *arg, int pending)
 
 	/* Get interrupt source. */
 	status = CSR_READ_4(sc, B0_ISRC);
-	if (status == 0 || status == 0xffffffff || sc->msk_suspended != 0 ||
+	if (status == 0 || status == 0xffffffff ||
+	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0)
 		goto done;
 
@@ -3675,7 +3677,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	CSR_WRITE_4(sc, B0_IMSK, sc->msk_intrmask);
 	CSR_READ_4(sc, B0_IMSK);
 
-	sc_if->msk_link = 0;
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
 	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -3910,7 +3912,7 @@ msk_stop(struct msk_if_softc *sc_if)
 	 * Mark the interface down.
 	 */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	sc_if->msk_link = 0;
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
 }
 
 /*
