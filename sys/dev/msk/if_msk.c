@@ -987,23 +987,24 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 		MSK_IF_LOCK(sc_if);
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if ((mask & IFCAP_TXCSUM) != 0) {
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0 &&
-			    (IFCAP_TXCSUM & ifp->if_capabilities) != 0)
+			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= MSK_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~MSK_CSUM_FEATURES;
 		}
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0) {
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			msk_setvlan(sc_if, ifp);
 		}
 
-		if ((mask & IFCAP_TSO4) != 0) {
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (IFCAP_TSO4 & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & ifp->if_capenable) != 0 &&
-			    (IFCAP_TSO4 & ifp->if_capabilities) != 0)
+			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= CSUM_TSO;
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
