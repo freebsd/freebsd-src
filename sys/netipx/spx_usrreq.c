@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2004-2006 Robert N. M. Watson
+ * Copyright (c) 2004-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1091,7 +1091,7 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	cb->s_state = TCPS_LISTEN;
 	cb->s_smax = -1;
 	cb->s_swl1 = -1;
-	cb->s_q.si_next = cb->s_q.si_prev = &cb->s_q;
+	spx_reass_init(cb);
 	cb->s_ipxpcb = ipxp;
 	cb->s_mtu = 576 - sizeof(struct spx);
 	sb = &so->so_snd;
@@ -1117,21 +1117,13 @@ static void
 spx_pcbdetach(struct ipxpcb *ipxp)
 {
 	struct spxpcb *cb;
-	struct spx_q *s;
-	struct mbuf *m;
 
 	IPX_LOCK_ASSERT(ipxp);
 
 	cb = ipxtospxpcb(ipxp);
 	KASSERT(cb != NULL, ("spx_pcbdetach: cb == NULL"));
 
-	s = cb->s_q.si_next;
-	while (s != &(cb->s_q)) {
-		s = s->si_next;
-		spx_remque(s);
-		m = dtom(s);
-		m_freem(m);
-	}
+	spx_reass_flush(cb);
 	m_free(dtom(cb->s_ipx));
 	free(cb, M_PCB);
 	ipxp->ipxp_pcb = NULL;
