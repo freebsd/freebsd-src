@@ -129,7 +129,6 @@ e1000phy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	int fast_ether;
 
 	esc = device_get_softc(dev);
 	sc = &esc->mii_sc;
@@ -142,10 +141,8 @@ e1000phy_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = e1000phy_service;
 	sc->mii_pdata = mii;
-	sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 	mii->mii_instance++;
 
-	fast_ether = 0;
 	esc->mii_model = MII_MODEL(ma->mii_id2);
 	switch (esc->mii_model) {
 	case MII_MODEL_MARVELL_E1011:
@@ -167,54 +164,16 @@ e1000phy_attach(device_t dev)
 		 */
 		PHY_WRITE(sc, E1000_EADR, 0);
 		break;
-	case MII_MODEL_MARVELL_E3082:
-		/* 88E3082 10/100 Fast Ethernet PHY. */
-		sc->mii_anegticks = MII_ANEGTICKS;
-		fast_ether = 1;
-		break;
 	}
 
 	e1000phy_reset(sc);
 
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	if (sc->mii_capabilities & BMSR_EXTSTAT)
+		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	device_printf(dev, " ");
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    E1000_CR_ISOLATE);
-	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst),
-		    E1000_CR_SPEED_10);
-		printf("10baseT, ");
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst),
-		    E1000_CR_SPEED_10 | E1000_CR_FULL_DUPLEX);
-		printf("10baseT-FDX, ");
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst),
-		    E1000_CR_SPEED_100);
-		printf("100baseTX, ");
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
-		    E1000_CR_SPEED_100 | E1000_CR_FULL_DUPLEX);
-		printf("100baseTX-FDX, ");
-		if (fast_ether == 0) {
-			/*
-			 * 1000BT-simplex not supported; driver must ignore
-			 * this entry, but it must be present in order to
-			 * manually set full-duplex.
-			 */
-			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0,
-			    sc->mii_inst), E1000_CR_SPEED_1000);
-			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, IFM_FDX,
-			    sc->mii_inst),
-			    E1000_CR_SPEED_1000 | E1000_CR_FULL_DUPLEX);
-			printf("1000baseTX-FDX, ");
-		}
-	} else {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst),
-		    E1000_CR_SPEED_1000 | E1000_CR_FULL_DUPLEX);
-		printf("1000baseSX-FDX, ");
-	}
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
-	printf("auto\n");
-#undef ADD
+	mii_phy_add_media(sc);
+	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
@@ -339,12 +298,14 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		speed = 0;
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_1000_T:
-			if (esc->mii_model == MII_MODEL_MARVELL_E3082)
+			if ((sc->mii_extcapabilities &
+			    (EXTSR_1000TFDX | EXTSR_1000THDX)) == 0)
 				return (EINVAL);
 			speed = E1000_CR_SPEED_1000;
 			break;
 		case IFM_1000_SX:
-			if (esc->mii_model == MII_MODEL_MARVELL_E3082)
+			if ((sc->mii_extcapabilities &
+			    (EXTSR_1000XFDX | EXTSR_1000XHDX)) == 0)
 				return (EINVAL);
 			speed = E1000_CR_SPEED_1000;
 			break;
@@ -390,7 +351,8 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 				PHY_WRITE(sc, E1000_1GCR, gig |
 				    E1000_1GCR_MS_ENABLE);
 		} else {
-			if (esc->mii_model != MII_MODEL_MARVELL_E3082)
+			if ((sc->mii_extcapabilities &
+			    (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
 				PHY_WRITE(sc, E1000_1GCR, 0);
 		}
 		PHY_WRITE(sc, E1000_AR, E1000_AR_SELECTOR_FIELD);
@@ -533,7 +495,7 @@ e1000phy_mii_phy_auto(struct e1000phy_softc *esc)
 	else
 		PHY_WRITE(sc, E1000_AR, E1000_FA_1000X_FD | E1000_FA_1000X |
 		    E1000_FA_SYM_PAUSE | E1000_FA_ASYM_PAUSE);
-	if (esc->mii_model != MII_MODEL_MARVELL_E3082)
+	if ((sc->mii_extcapabilities & (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
 		PHY_WRITE(sc, E1000_1GCR,
 		    E1000_1GCR_1000T_FD | E1000_1GCR_1000T);
 	PHY_WRITE(sc, E1000_CR,
