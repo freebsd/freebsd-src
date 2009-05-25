@@ -2395,7 +2395,6 @@ struct msk_if_softc {
 	struct msk_ring_data	msk_rdata;
 	struct msk_softc	*msk_softc;	/* parent controller */
 	struct msk_hw_stats	msk_stats;
-	struct task		msk_link_task;
 	struct task		msk_tx_task;
 	int			msk_if_flags;
 	int			msk_detach;
