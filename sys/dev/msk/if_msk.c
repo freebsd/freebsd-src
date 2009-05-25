@@ -957,18 +957,14 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		MSK_IF_LOCK(sc_if);
 		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-				if (((ifp->if_flags ^ sc_if->msk_if_flags)
-				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
-					msk_rxfilter(sc_if);
-			} else {
-				if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
-					msk_init_locked(sc_if);
-			}
-		} else {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-				msk_stop(sc_if);
-		}
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc_if->msk_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+				msk_rxfilter(sc_if);
+			else if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
+				msk_init_locked(sc_if);
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			msk_stop(sc_if);
 		sc_if->msk_if_flags = ifp->if_flags;
 		MSK_IF_UNLOCK(sc_if);
 		break;
