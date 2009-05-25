@@ -1493,14 +1493,17 @@ msk_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 	MSK_IF_LOCK(sc_if);
 
-	/*
-	 * VLAN capability setup 
-	 * Due to Tx checksum offload hardware bugs, msk(4) manually
-	 * computes checksum for short frames. For VLAN tagged frames
-	 * this workaround does not work so disable checksum offload
-	 * for VLAN interface.
-	 */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
+	/* VLAN capability setup */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	if ((sc_if->msk_flags & MSK_FLAG_NOHWVLAN) == 0) {
+		/*
+		 * Due to Tx checksum offload hardware bugs, msk(4) manually
+		 * computes checksum for short frames. For VLAN tagged frames
+		 * this workaround does not work so disable checksum offload
+		 * for VLAN interface.
+		 */
+        	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -1646,6 +1649,19 @@ mskc_attach(device_t dev)
 	case CHIP_ID_YUKON_FE_P:
 		sc->msk_clock = 50;	/* 50 Mhz */
 		sc->msk_pflags |= MSK_FLAG_FASTETHER | MSK_FLAG_DESCV2;
+		if (sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
+			/*
+			 * XXX
+			 * FE+ A0 has status LE writeback bug so msk(4)
+			 * does not rely on status word of received frame
+			 * in msk_rxeof() which in turn disables all
+			 * hardware assistance bits reported by the status
+			 * word as well as validity of the recevied frame.
+			 * Just pass received frames to upper stack with
+			 * minimal test and let upper stack handle them.
+			 */
+			sc->msk_pflags |= MSK_FLAG_NOHWVLAN | MSK_FLAG_NORXCHK;
+		}
 		break;
 	case CHIP_ID_YUKON_XL:
 		sc->msk_clock = 156;	/* 156 Mhz */
@@ -2882,7 +2898,18 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 			rxlen -= ETHER_VLAN_ENCAP_LEN;
-		if (len > sc_if->msk_framesize ||
+		if ((sc_if->msk_flags & MSK_FLAG_NORXCHK) != 0) {
+			/*
+			 * For controllers that returns bogus status code
+			 * just do minimal check and let upper stack
+			 * handle this frame.
+			 */
+			if (len > MSK_MAX_FRAMELEN || len < ETHER_HDR_LEN) {
+				ifp->if_ierrors++;
+				msk_discard_rxbuf(sc_if, cons);
+				break;
+			}
+		} else if (len > sc_if->msk_framesize ||
 		    ((status & GMR_FS_ANY_ERR) != 0) ||
 		    ((status & GMR_FS_RX_OK) == 0) || (rxlen != len)) {
 			/* Don't count flow-control packet as errors. */
@@ -3613,8 +3640,12 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	 * Set Rx FIFO flush threshold to 64 bytes + 1 FIFO word
 	 * due to hardware hang on receipt of pause frames.
 	 */
-	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_THR),
-	    RX_GMF_FL_THR_DEF + 1);
+	reg = RX_GMF_FL_THR_DEF + 1;
+	/* Another magic for Yukon FE+ - From Linux. */
+	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P &&
+	    sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0)
+		reg = 0x178;
+	CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_THR), reg);
 
 	/* Configure Tx MAC FIFO. */
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T), GMF_RST_SET);
@@ -3645,6 +3676,14 @@ msk_init_locked(struct msk_if_softc *sc_if)
 			    TX_JUMBO_DIS | TX_STFW_ENA);
 		}
 	}
+
+ 	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P &&
+ 	    sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
+ 		/* Disable dynamic watermark - from Linux. */
+ 		reg = CSR_READ_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA));
+ 		reg &= ~0x03;
+ 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA), reg);
+ 	}
 
 	/*
 	 * Disable Force Sync bit and Alloc bit in Tx RAM interface
