@@ -181,7 +181,7 @@ semicolon:	EATSPACE();
 		if ((*link = cmd = malloc(sizeof(struct s_command))) == NULL)
 			err(1, "malloc");
 		link = &cmd->next;
-		cmd->nonsel = cmd->inrange = 0;
+		cmd->startline = cmd->nonsel = 0;
 		/* First parse the addresses */
 		naddr = 0;
 
@@ -775,6 +775,7 @@ compile_addr(char *p, struct s_addr *a)
 
 	icase = 0;
 
+	a->type = 0;
 	switch (*p) {
 	case '\\':				/* Context address */
 		++p;
@@ -798,10 +799,16 @@ compile_addr(char *p, struct s_addr *a)
 	case '$':				/* Last line */
 		a->type = AT_LAST;
 		return (p + 1);
+
+	case '+':				/* Relative line number */
+		a->type = AT_RELLINE;
+		p++;
+		/* FALLTHROUGH */
 						/* Line number */
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
-		a->type = AT_LINE;
+		if (a->type == 0)
+			a->type = AT_LINE;
 		a->u.l = strtol(p, &end, 10);
 		return (end);
 	default:
