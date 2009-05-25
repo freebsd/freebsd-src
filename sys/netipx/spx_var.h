@@ -155,7 +155,6 @@ int	spx_output(struct spxpcb *cb, struct mbuf *m0);
 int	spx_reass(struct spxpcb *cb, struct spx *si);
 void	spx_reass_flush(struct spxpcb *cb);
 void	spx_reass_init(struct spxpcb *cb);
-void	spx_remque(struct spx_q *element);
 #endif
 
 #endif /* !_NETIPX_SPX_VAR_H_ */

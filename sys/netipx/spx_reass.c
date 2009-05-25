@@ -102,7 +102,7 @@ spx_insque(struct spx_q *element, struct spx_q *head)
 	element->si_next->si_prev = element;
 }
  
-void
+static void
 spx_remque(struct spx_q *element)
 {
 
