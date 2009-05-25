@@ -673,7 +673,7 @@ send:
 	si = 0;
 	if (len > 0) {
 		cb->s_want = cb->s_snxt;
-		for (m = sb->sb_mb; m != NULL; m = m->m_act) {
+		for (m = sb->sb_mb; m != NULL; m = m->m_nextpkt) {
 			si = mtod(m, struct spx *);
 			if (SSEQ_LEQ(cb->s_snxt, si->si_seq))
 				break;
