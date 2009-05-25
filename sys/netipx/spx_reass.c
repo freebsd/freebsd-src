@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2004-2006 Robert N. M. Watson
+ * Copyright (c) 2004-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,6 +109,34 @@ spx_remque(struct spx_q *element)
 	element->si_next->si_prev = element->si_prev;
 	element->si_prev->si_next = element->si_next;
 	element->si_prev = NULL;
+}
+
+/*
+ * Flesh pending queued segments on SPX close.
+ */
+void
+spx_reass_flush(struct spxpcb *cb)
+{
+	struct spx_q *s;
+	struct mbuf *m;
+
+	s = cb->s_q.si_next;
+	while (s != &(cb->s_q)) {
+		s = s->si_next;
+		spx_remque(s);
+		m = dtom(s);
+		m_freem(m);
+	}
+}
+
+/*
+ * Initialize SPX segment reassembly queue on SPX socket open.
+ */
+void
+spx_reass_init(struct spxpcb *cb)
+{
+
+	cb->s_q.si_next = cb->s_q.si_prev = &cb->s_q;
 }
 
 /*
