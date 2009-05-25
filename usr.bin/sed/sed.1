@@ -211,6 +211,9 @@ that matches the second address.
 If the second address is a number
 less than or equal to the line number first selected, only that
 line is selected.
+The number in the second address may be prefixed with a
+.Pq Dq \&+
+to specify the number of lines to match after the first pattern.
 In the case when the second address is a context
 address,
 .Nm
@@ -594,7 +597,10 @@ The
 .Fl E , I , a
 and
 .Fl i
-options, as well as the
+options, the prefixing
+.Dq \&+
+in the second member of an address range,
+as well as the
 .Dq I
 flag to the address regular expression and substitution command are
 non-standard
