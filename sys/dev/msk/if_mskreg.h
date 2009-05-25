@@ -2382,8 +2382,10 @@ struct msk_if_softc {
 	int			msk_phyaddr;
 	uint32_t		msk_flags;
 #define	MSK_FLAG_MSI		0x0001
-#define	MSK_FLAG_RAMBUF		0x0010
-#define	MSK_FLAG_NOJUMBO	0x0020
+#define	MSK_FLAG_FASTETHER	0x0004
+#define	MSK_FLAG_JUMBO		0x0008
+#define	MSK_FLAG_JUMBO_NOCSUM	0x0010
+#define	MSK_FLAG_RAMBUF		0x0020
 #define	MSK_FLAG_SUSPEND	0x2000
 #define	MSK_FLAG_DETACH		0x4000
 #define	MSK_FLAG_LINK		0x8000
