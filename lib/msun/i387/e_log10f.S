@@ -13,3 +13,4 @@ ENTRY(log10f)
 	flds	4(%esp)
 	fyl2x
 	ret
+END(log10f)
