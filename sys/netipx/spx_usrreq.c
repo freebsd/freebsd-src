@@ -428,7 +428,7 @@ int
 spx_output(struct spxpcb *cb, struct mbuf *m0)
 {
 	struct socket *so = cb->s_ipxpcb->ipxp_socket;
-	struct mbuf *m;
+	struct mbuf *m = NULL;
 	struct spx *si = NULL;
 	struct sockbuf *sb = &so->so_snd;
 	int len = 0, win, rcv_win;
@@ -678,6 +678,7 @@ send:
 	 * Find requested packet.
 	 */
 	si = NULL;
+	m = NULL;
 	if (len > 0) {
 		cb->s_want = cb->s_snxt;
 		for (m = sb->sb_mb; m != NULL; m = m->m_nextpkt) {
@@ -687,10 +688,12 @@ send:
 		}
 	found:
 		if (si != NULL) {
-			if (si->si_seq == cb->s_snxt)
-					cb->s_snxt++;
-				else
-					spxstat.spxs_sndvoid++, si = NULL;
+			if (si->si_seq != cb->s_snxt) {
+				spxstat.spxs_sndvoid++;
+				si = NULL;
+				m = NULL;
+			} else
+				cb->s_snxt++;
 		}
 	}
 
@@ -703,12 +706,12 @@ send:
 	if (SSEQ_LT(alo, cb->s_alo))
 		alo = cb->s_alo;
 
-	if (si != NULL) {
+	if (m != NULL) {
 		/*
 		 * Must make a copy of this packet for ipx_output to monkey
 		 * with.
 		 */
-		m = m_copy(dtom(si), 0, (int)M_COPYALL);
+		m = m_copy(m, 0, M_COPYALL);
 		if (m == NULL)
 			return (ENOBUFS);
 		si = mtod(m, struct spx *);
