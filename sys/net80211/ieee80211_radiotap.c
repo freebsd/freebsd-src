@@ -102,12 +102,12 @@ ieee80211_radiotap_vattach(struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_radiotap_header *th = ic->ic_th;
 
-	KASSERT(th != NULL, ("no radiotap setup"));
-
-	/* radiotap DLT for raw 802.11 frames */
-	bpfattach2(vap->iv_ifp, DLT_IEEE802_11_RADIO,
-	    sizeof(struct ieee80211_frame) + le16toh(th->it_len),
-	    &vap->iv_rawbpf);
+	if (th != NULL && ic->ic_rh != NULL) {
+		/* radiotap DLT for raw 802.11 frames */
+		bpfattach2(vap->iv_ifp, DLT_IEEE802_11_RADIO,
+		    sizeof(struct ieee80211_frame) + le16toh(th->it_len),
+		    &vap->iv_rawbpf);
+	}
 }
 
 void
@@ -193,6 +193,7 @@ dispatch_radiotap(struct ieee80211vap *vap0, struct mbuf *m,
 void
 ieee80211_radiotap_tx(struct ieee80211vap *vap0, struct mbuf *m)
 {
+	KASSERT(vap0->iv_ic->ic_th != NULL, ("no tx radiotap header"));
 	dispatch_radiotap(vap0, m, vap0->iv_ic->ic_th);
 }
 
@@ -202,6 +203,7 @@ ieee80211_radiotap_tx(struct ieee80211vap *vap0, struct mbuf *m)
 void
 ieee80211_radiotap_rx(struct ieee80211vap *vap0, struct mbuf *m)
 {
+	KASSERT(vap0->iv_ic->ic_rh != NULL, ("no rx radiotap header"));
 	dispatch_radiotap(vap0, m, vap0->iv_ic->ic_rh);
 }
 

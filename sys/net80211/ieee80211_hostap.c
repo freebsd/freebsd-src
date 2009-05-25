@@ -850,7 +850,7 @@ err:
 	ifp->if_ierrors++;
 out:
 	if (m != NULL) {
-		if (need_tap)
+		if (need_tap && ieee80211_radiotap_active_vap(vap))
 			ieee80211_radiotap_rx(vap, m);
 		m_freem(m);
 	}

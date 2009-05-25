@@ -128,7 +128,8 @@ monitor_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 
-	ieee80211_radiotap_rx(vap, m);
+	if (ieee80211_radiotap_active_vap(vap))
+		ieee80211_radiotap_rx(vap, m);
 	m_freem(m);
 	return -1;
 }
