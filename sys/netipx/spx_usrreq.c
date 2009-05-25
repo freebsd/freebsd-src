@@ -677,7 +677,7 @@ send:
 	/*
 	 * Find requested packet.
 	 */
-	si = 0;
+	si = NULL;
 	if (len > 0) {
 		cb->s_want = cb->s_snxt;
 		for (m = sb->sb_mb; m != NULL; m = m->m_nextpkt) {
@@ -690,7 +690,7 @@ send:
 			if (si->si_seq == cb->s_snxt)
 					cb->s_snxt++;
 				else
-					spxstat.spxs_sndvoid++, si = 0;
+					spxstat.spxs_sndvoid++, si = NULL;
 		}
 	}
 
