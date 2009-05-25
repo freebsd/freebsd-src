@@ -127,6 +127,7 @@ linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 lulf [label="Ulf Lilleengen\nlulf@FreeBSD.org\n2007/10/24"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
+markm [label="Mark Murray\nmarkm@FreeBSD.org\n199?/??/??"]
 marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
@@ -344,6 +345,8 @@ marcel -> arun
 marcel -> marius
 marcel -> nwhitehorn
 
+markm -> sheldonh
+
 mdodd -> jake
 
 mlaier -> benjsc
@@ -377,6 +380,8 @@ philip -> jls
 philip -> matteo
 
 pjd -> lulf
+
+rgrimes -> markm
 
 rpaulo -> avg
 
