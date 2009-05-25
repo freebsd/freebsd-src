@@ -475,11 +475,25 @@ msk_miibus_statchg(device_t dev)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	if (mii->mii_media_status & IFM_ACTIVE) {
-		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_AVALID | IFM_ACTIVE)) ==
+	    (IFM_AVALID | IFM_ACTIVE)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
 			sc_if->msk_flags |= MSK_FLAG_LINK;
-	} else
-		sc_if->msk_flags &= ~MSK_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+		case IFM_1000_SX:
+		case IFM_1000_LX:
+		case IFM_1000_CX:
+			if ((sc_if->msk_flags & MSK_FLAG_FASTETHER) == 0)
+				sc_if->msk_flags |= MSK_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
 
 	if ((sc_if->msk_flags & MSK_FLAG_LINK) != 0) {
 		/* Enable Tx FIFO Underrun. */
@@ -538,10 +552,12 @@ msk_miibus_statchg(device_t dev)
 		msk_phy_writereg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_MASK, 0);
 		/* Disable Rx/Tx MAC. */
 		gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
-		gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
-		GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
-		/* Read again to ensure writing. */
-		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
+		if ((GM_GPCR_RX_ENA | GM_GPCR_TX_ENA) != 0) {
+			gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
+			GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
+			/* Read again to ensure writing. */
+			GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
+		}
 	}
 }
 
