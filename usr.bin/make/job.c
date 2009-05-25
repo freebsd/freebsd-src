@@ -3287,7 +3287,7 @@ shellneed(ArgArray *aa, char *cmd)
  *	The node's 'made' field may be set to ERROR.
  */
 static int
-Compat_RunCommand(char *cmd, GNode *gn, FILE *mfp)
+Compat_RunCommand(char *cmd, GNode *gn, FILE *mfp __unused)
 {
 	ArgArray	aa;
 	char		*cmdStart;	/* Start of expanded command */
