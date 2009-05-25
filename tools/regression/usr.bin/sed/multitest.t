@@ -180,6 +180,8 @@ hello' /dev/null
 	mark '2.18' ; $SED -n '/l2_3/,/l1_8/p' lines1 lines2
 	mark '2.19' ; $SED -n '12,3p' lines1 lines2
 	mark '2.20' ; $SED -n '/l1_7/,3p' lines1 lines2
+	mark '2.21' ; $SED -n '13,+4p' lines1 lines2
+	mark '2.22' ; $SED -n '/l1_6/,+2p' lines1 lines2
 }
 
 test_group()
