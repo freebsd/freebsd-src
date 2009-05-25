@@ -901,20 +901,29 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch(command) {
 	case SIOCSIFMTU:
+		MSK_IF_LOCK(sc_if);
 		if (ifr->ifr_mtu > MSK_JUMBO_MTU || ifr->ifr_mtu < ETHERMIN)
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
-			if ((sc_if->msk_flags & MSK_FLAG_NOJUMBO) != 0 &&
-			    ifr->ifr_mtu > ETHERMTU)
-				error = EINVAL;
-			else {
-				MSK_IF_LOCK(sc_if);
-				ifp->if_mtu = ifr->ifr_mtu;
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-					msk_init_locked(sc_if);
-				MSK_IF_UNLOCK(sc_if);
+ 			if (ifr->ifr_mtu > ETHERMTU) {
+				if ((sc_if->msk_flags & MSK_FLAG_JUMBO) == 0) {
+					error = EINVAL;
+					MSK_IF_UNLOCK(sc_if);
+					break;
+				}
+				if ((sc_if->msk_flags &
+				    MSK_FLAG_JUMBO_NOCSUM) != 0) {
+					ifp->if_hwassist &=
+					    ~(MSK_CSUM_FEATURES | CSUM_TSO);
+					ifp->if_capenable &=
+					    ~(IFCAP_TSO4 | IFCAP_TXCSUM);
+					VLAN_CAPABILITIES(ifp);
+				}
 			}
+			ifp->if_mtu = ifr->ifr_mtu;
+			msk_init_locked(sc_if);
 		}
+		MSK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCSIFFLAGS:
 		MSK_IF_LOCK(sc_if);
@@ -971,11 +980,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist &= ~CSUM_TSO;
 		}
 		if (ifp->if_mtu > ETHERMTU &&
-		    sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-			/*
-			 * In Yukon EC Ultra, TSO & checksum offload is not
-			 * supported for jumbo frame.
-			 */
+		    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
 			ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
 			ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 		}
@@ -1406,10 +1411,6 @@ msk_attach(device_t dev)
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
 	msk_sysctl_node(sc_if);
 
-	/* Disable jumbo frame for Yukon FE. */
-	if (sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_FE)
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
-
 	if ((error = msk_txrx_dma_alloc(sc_if) != 0))
 		goto fail;
 	msk_rx_dma_jalloc(sc_if);
@@ -1609,14 +1610,20 @@ mskc_attach(device_t dev)
 
 	switch (sc->msk_hw_id) {
 	case CHIP_ID_YUKON_EC:
+		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO;
+		break;
 	case CHIP_ID_YUKON_EC_U:
 		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_JUMBO_NOCSUM;
 		break;
 	case CHIP_ID_YUKON_FE:
 		sc->msk_clock = 100;	/* 100 Mhz */
+		sc->msk_pflags |= MSK_FLAG_FASTETHER;
 		break;
 	case CHIP_ID_YUKON_XL:
 		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	default:
 		sc->msk_clock = 156;	/* 156 Mhz */
@@ -2158,11 +2165,10 @@ msk_rx_dma_jalloc(struct msk_if_softc *sc_if)
 	bus_size_t rxalign;
 	int error, i;
 
-	if (jumbo_disable != 0 || (sc_if->msk_flags & MSK_FLAG_NOJUMBO) != 0) {
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
+	if (jumbo_disable != 0 || (sc_if->msk_flags & MSK_FLAG_JUMBO) == 0) {
+		sc_if->msk_flags &= ~MSK_FLAG_JUMBO;
 		device_printf(sc_if->msk_if_dev,
 		    "disabling jumbo frame support\n");
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
 		return (0);
 	}
 	/* Create tag for jumbo Rx ring. */
@@ -2257,7 +2263,7 @@ jumbo_fail:
 	msk_rx_dma_jfree(sc_if);
 	device_printf(sc_if->msk_if_dev, "disabling jumbo frame support "
 	    "due to resource shortage\n");
-	sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
+	sc_if->msk_flags &= ~MSK_FLAG_JUMBO;
 	return (error);
 }
 
@@ -3490,11 +3496,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		sc_if->msk_framesize = ifp->if_mtu;
 	sc_if->msk_framesize += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	if (ifp->if_mtu > ETHERMTU &&
-	    sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-		/*
-		 * In Yukon EC Ultra, TSO & checksum offload is not
-		 * supported for jumbo frame.
-		 */
+	    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
 		ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
 		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 	}
