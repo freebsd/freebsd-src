@@ -2399,7 +2399,8 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	tcp_offset = offset = 0;
 	m = *m_head;
-	if ((m->m_pkthdr.csum_flags & (MSK_CSUM_FEATURES | CSUM_TSO)) != 0) {
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    (m->m_pkthdr.csum_flags & (MSK_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * Since mbuf has no protocol specific structure information
 		 * in it we have to inspect protocol information here to
@@ -2526,11 +2527,18 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	/* Check TSO support. */
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		tso_mtu = offset + m->m_pkthdr.tso_segsz;
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+			tso_mtu = m->m_pkthdr.tso_segsz;
+		else
+			tso_mtu = offset + m->m_pkthdr.tso_segsz;
 		if (tso_mtu != sc_if->msk_cdata.msk_tso_mtu) {
 			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
 			tx_le->msk_addr = htole32(tso_mtu);
-			tx_le->msk_control = htole32(OP_LRGLEN | HW_OWNER);
+			if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+				tx_le->msk_control = htole32(OP_MSS | HW_OWNER);
+			else
+				tx_le->msk_control =
+				    htole32(OP_LRGLEN | HW_OWNER);
 			sc_if->msk_cdata.msk_tx_cnt++;
 			MSK_INC(prod, MSK_TX_RING_CNT);
 			sc_if->msk_cdata.msk_tso_mtu = tso_mtu;
@@ -2554,15 +2562,21 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	}
 	/* Check if we have to handle checksum offload. */
 	if (tso == 0 && (m->m_pkthdr.csum_flags & MSK_CSUM_FEATURES) != 0) {
-		tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
-		tx_le->msk_addr = htole32(((tcp_offset + m->m_pkthdr.csum_data)
-		    & 0xffff) | ((uint32_t)tcp_offset << 16));
-		tx_le->msk_control = htole32(1 << 16 | (OP_TCPLISW | HW_OWNER));
-		control = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
-		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
-			control |= UDPTCP;
-		sc_if->msk_cdata.msk_tx_cnt++;
-		MSK_INC(prod, MSK_TX_RING_CNT);
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+			control |= CALSUM;
+		else {
+			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+			tx_le->msk_addr = htole32(((tcp_offset +
+			    m->m_pkthdr.csum_data) & 0xffff) |
+			    ((uint32_t)tcp_offset << 16));
+			tx_le->msk_control = htole32(1 << 16 |
+			    (OP_TCPLISW | HW_OWNER));
+			control = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
+			if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+				control |= UDPTCP;
+			sc_if->msk_cdata.msk_tx_cnt++;
+			MSK_INC(prod, MSK_TX_RING_CNT);
+		}
 	}
 
 	si = prod;
