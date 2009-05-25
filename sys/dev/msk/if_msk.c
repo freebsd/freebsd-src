@@ -1080,7 +1080,7 @@ mskc_setup_rambuffer(struct msk_softc *sc)
 static void
 msk_phy_power(struct msk_softc *sc, int mode)
 {
-	uint32_t val;
+	uint32_t our, val;
 	int i;
 
 	switch (mode) {
@@ -1106,16 +1106,17 @@ msk_phy_power(struct msk_softc *sc, int mode)
 
 		val = pci_read_config(sc->msk_dev, PCI_OUR_REG_1, 4);
 		val &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
-		if (sc->msk_hw_id == CHIP_ID_YUKON_XL &&
-		    sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
-			/* Deassert Low Power for 1st PHY. */
-			val |= PCI_Y2_PHY1_COMA;
-			if (sc->msk_num_port > 1)
-				val |= PCI_Y2_PHY2_COMA;
-		} else if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-			uint32_t our;
-
-			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_ON);
+		switch (sc->msk_hw_id) {
+		case CHIP_ID_YUKON_XL:
+			if (sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
+				/* Deassert Low Power for 1st PHY. */
+				val |= PCI_Y2_PHY1_COMA;
+				if (sc->msk_num_port > 1)
+					val |= PCI_Y2_PHY2_COMA;
+			}
+			break;
+		case CHIP_ID_YUKON_EC_U:
+			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
 			pci_write_config(sc->msk_dev, PCI_OUR_REG_3, 0, 4);
@@ -1126,6 +1127,9 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			pci_write_config(sc->msk_dev, PCI_OUR_REG_4, our, 4);
 			/* Set to default value. */
 			pci_write_config(sc->msk_dev, PCI_OUR_REG_5, 0, 4);
+			break;
+		default:
+			break;
 		}
 		/* Release PHY from PowerDown/COMA mode. */
 		pci_write_config(sc->msk_dev, PCI_OUR_REG_1, val, 4);
