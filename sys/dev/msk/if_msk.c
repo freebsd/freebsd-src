@@ -923,7 +923,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 					msk_rxfilter(sc_if);
 			} else {
-				if (sc_if->msk_detach == 0)
+				if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
 					msk_init_locked(sc_if);
 			}
 		} else {
@@ -1645,7 +1645,7 @@ mskc_attach(device_t dev)
 			if (sc->msk_num_port == 1 &&
 			    pci_alloc_msi(dev, &msir) == 0) {
 				if (msic == msir) {
-					sc->msk_msi = 1;
+					sc->msk_pflags |= MSK_FLAG_MSI;
 					sc->msk_irq_spec = msic == 2 ?
 					    msk_irq_spec_msi2 :
 					    msk_irq_spec_msi;
@@ -1771,7 +1771,7 @@ msk_detach(device_t dev)
 	ifp = sc_if->msk_ifp;
 	if (device_is_attached(dev)) {
 		/* XXX */
-		sc_if->msk_detach = 1;
+		sc_if->msk_flags |= MSK_FLAG_DETACH;
 		msk_stop(sc_if);
 		/* Can't hold locks while calling detach. */
 		MSK_IF_UNLOCK(sc_if);
@@ -1855,7 +1855,7 @@ mskc_detach(device_t dev)
 		sc->msk_intrhand[1] = NULL;
 	}
 	bus_release_resources(dev, sc->msk_irq_spec, sc->msk_irq);
-	if (sc->msk_msi)
+	if ((sc->msk_pflags & MSK_FLAG_MSI) != 0)
 		pci_release_msi(dev);
 	bus_release_resources(dev, sc->msk_res_spec, sc->msk_res);
 	mtx_destroy(&sc->msk_mtx);
