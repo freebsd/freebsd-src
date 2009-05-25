@@ -24,3 +24,4 @@ ENTRY(truncf)
 
 	leave
 	ret
+END(truncf)

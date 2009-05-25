@@ -17,3 +17,4 @@ ENTRY(remainderf)
 	jp	1b
 	fstp	%st(1)
 	ret
+END(remainderf)

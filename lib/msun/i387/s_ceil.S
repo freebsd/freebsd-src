@@ -56,3 +56,4 @@ ENTRY(ceil)
 
 	leave
 	ret
+END(ceil)

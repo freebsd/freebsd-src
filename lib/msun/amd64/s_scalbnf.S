@@ -37,6 +37,7 @@ ENTRY(scalbnf)
 	fstps	-8(%rsp)
 	movss	-8(%rsp),%xmm0
 	ret
+END(scalbnf)
 
 .globl CNAME(ldexpf)
 .set	CNAME(ldexpf),CNAME(scalbnf)
