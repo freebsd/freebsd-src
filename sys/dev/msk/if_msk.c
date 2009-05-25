@@ -856,15 +856,16 @@ msk_mediachange(struct ifnet *ifp)
 {
 	struct msk_if_softc *sc_if;
 	struct mii_data	*mii;
+	int error;
 
 	sc_if = ifp->if_softc;
 
 	MSK_IF_LOCK(sc_if);
 	mii = device_get_softc(sc_if->msk_miibus);
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	MSK_IF_UNLOCK(sc_if);
 
-	return (0);
+	return (error);
 }
 
 /*
