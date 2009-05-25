@@ -60,3 +60,4 @@ ENTRY(remquo)
 	movl	20(%esp),%ecx
 	movl	%eax,(%ecx)
 	ret
+END(remquo)

@@ -34,3 +34,4 @@ ENTRY(llrint)
 	popl	%eax
 	popl	%edx
 	ret
+END(llrint)

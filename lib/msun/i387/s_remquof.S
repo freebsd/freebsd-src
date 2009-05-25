@@ -60,3 +60,4 @@ ENTRY(remquof)
 	movl	12(%esp),%ecx
 	movl	%eax,(%ecx)
 	ret
+END(remquof)
