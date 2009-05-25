@@ -828,6 +828,7 @@
 #define CHIP_ID_YUKON_EC_U	0xb4 /* Chip ID for YUKON-2 EC Ultra */
 #define CHIP_ID_YUKON_EC	0xb6 /* Chip ID for YUKON-2 EC */
 #define CHIP_ID_YUKON_FE	0xb7 /* Chip ID for YUKON-2 FE */
+#define CHIP_ID_YUKON_FE_P	0xb8 /* Chip ID for YUKON-2 FE+ */
 
 #define	CHIP_REV_YU_XL_A0	0 /* Chip Rev. for Yukon-2 A0 */
 #define	CHIP_REV_YU_XL_A1	1 /* Chip Rev. for Yukon-2 A1 */
@@ -840,6 +841,8 @@
 
 #define	CHIP_REV_YU_EC_U_A0	1
 #define	CHIP_REV_YU_EC_U_A1	2
+
+#define	CHIP_REV_YU_FE_P_A0	0 /* Chip Rev. for Yukon-2 FE+ A0 */
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 #define Y2_STATUS_LNK2_INAC	BIT_7	/* Status Link 2 inactiv (0 = activ) */
@@ -1855,6 +1858,10 @@
 #define RX_TRUNC_OFF		BIT_26	/* disable packet truncation */
 #define RX_VLAN_STRIP_ON	BIT_25	/* enable  VLAN stripping */
 #define RX_VLAN_STRIP_OFF	BIT_24	/* disable VLAN stripping */
+#define GMF_RX_OVER_ON		BIT_19	/* enable flushing on receive overrun */
+#define GMF_RX_OVER_OFF		BIT_18	/* disable flushing on receive overrun */
+#define GMF_ASF_RX_OVER_ON	BIT_17	/* enable flushing of ASF when overrun */
+#define GMF_ASF_RX_OVER_OFF	BIT_16	/* disable flushing of ASF when overrun */
 #define GMF_WP_TST_ON		BIT_14	/* Write Pointer Test On */
 #define GMF_WP_TST_OFF		BIT_13	/* Write Pointer Test Off */
 #define GMF_WP_STEP		BIT_12	/* Write Pointer Step/Increment */
