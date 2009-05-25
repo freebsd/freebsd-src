@@ -2763,6 +2763,7 @@ msk_watchdog(struct msk_if_softc *sc_if)
 			if_printf(sc_if->msk_ifp, "watchdog timeout "
 			   "(missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		msk_init_locked(sc_if);
 		return;
 	}
@@ -2787,6 +2788,7 @@ msk_watchdog(struct msk_if_softc *sc_if)
 
 	if_printf(ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	msk_init_locked(sc_if);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(taskqueue_fast, &sc_if->msk_tx_task);
@@ -2865,8 +2867,11 @@ mskc_resume(device_t dev)
 	mskc_reset(sc);
 	for (i = 0; i < sc->msk_num_port; i++) {
 		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
-		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0))
+		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0)) {
+			sc->msk_if[i]->msk_ifp->if_drv_flags &=
+			    ~IFF_DRV_RUNNING;
 			msk_init_locked(sc->msk_if[i]);
+		}
 	}
 	sc->msk_pflags &= ~MSK_FLAG_SUSPEND;
 
@@ -3565,6 +3570,9 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	ifp = sc_if->msk_ifp;
 	sc = sc_if->msk_softc;
 	mii = device_get_softc(sc_if->msk_miibus);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	error = 0;
 	/* Cancel pending I/O and free all Rx/Tx buffers. */
