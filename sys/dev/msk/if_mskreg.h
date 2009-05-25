@@ -2342,7 +2342,6 @@ struct msk_softc {
 	uint32_t		msk_intrmask;
 	uint32_t		msk_intrhwemask;
 	uint32_t		msk_pflags;
-	int			msk_suspended;
 	int			msk_clock;
 	int			msk_msi;
 	struct msk_if_softc	*msk_if[2];
@@ -2382,10 +2381,11 @@ struct msk_if_softc {
 	int			msk_framesize;
 	int			msk_phytype;
 	int			msk_phyaddr;
-	int			msk_link;
 	uint32_t		msk_flags;
 #define	MSK_FLAG_RAMBUF		0x0010
 #define	MSK_FLAG_NOJUMBO	0x0020
+#define	MSK_FLAG_SUSPEND	0x2000
+#define	MSK_FLAG_LINK		0x8000
 	struct callout		msk_tick_ch;
 	int			msk_watchdog_timer;
 	uint32_t		msk_txq;	/* Tx. Async Queue offset */
