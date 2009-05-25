@@ -184,7 +184,8 @@ EVENTHANDLER_DECLARE(vlan_unconfig, vlan_unconfig_fn);
 
 /* BPF attach/detach events */
 struct ifnet;
-typedef void (*bpf_track_fn)(void *, struct ifnet *, int /* 1 =>'s attach */);
+typedef void (*bpf_track_fn)(void *, struct ifnet *, int /* dlt */,
+    int /* 1 =>'s attach */);
 EVENTHANDLER_DECLARE(bpf_track, bpf_track_fn);
 
 /*
