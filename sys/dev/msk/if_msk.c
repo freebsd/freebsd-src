@@ -904,6 +904,10 @@ msk_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc_if = ifp->if_softc;
 	MSK_IF_LOCK(sc_if);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		MSK_IF_UNLOCK(sc_if);
+		return;
+	}
 	mii = device_get_softc(sc_if->msk_miibus);
 
 	mii_pollstat(mii);
