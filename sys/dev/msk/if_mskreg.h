@@ -2343,7 +2343,6 @@ struct msk_softc {
 	uint32_t		msk_intrhwemask;
 	uint32_t		msk_pflags;
 	int			msk_clock;
-	int			msk_msi;
 	struct msk_if_softc	*msk_if[2];
 	device_t		msk_devs[2];
 	int			msk_txqsize;
@@ -2382,9 +2381,11 @@ struct msk_if_softc {
 	int			msk_phytype;
 	int			msk_phyaddr;
 	uint32_t		msk_flags;
+#define	MSK_FLAG_MSI		0x0001
 #define	MSK_FLAG_RAMBUF		0x0010
 #define	MSK_FLAG_NOJUMBO	0x0020
 #define	MSK_FLAG_SUSPEND	0x2000
+#define	MSK_FLAG_DETACH		0x4000
 #define	MSK_FLAG_LINK		0x8000
 	struct callout		msk_tick_ch;
 	int			msk_watchdog_timer;
@@ -2397,7 +2398,6 @@ struct msk_if_softc {
 	struct msk_hw_stats	msk_stats;
 	struct task		msk_tx_task;
 	int			msk_if_flags;
-	int			msk_detach;
 	uint16_t		msk_vtag;	/* VLAN tag id. */
 };
 
