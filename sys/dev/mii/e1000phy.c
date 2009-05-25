@@ -414,18 +414,14 @@ static void
 e1000phy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	int bmsr, bmcr, esr, gsr, ssr, isr, ar, lpar;
+	int bmcr, bmsr, gsr, ssr, ar, lpar;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
 	bmsr = PHY_READ(sc, E1000_SR) | PHY_READ(sc, E1000_SR);
-	esr = PHY_READ(sc, E1000_ESR);
 	bmcr = PHY_READ(sc, E1000_CR);
 	ssr = PHY_READ(sc, E1000_SSR);
-	isr = PHY_READ(sc, E1000_ISR);
-	ar = PHY_READ(sc, E1000_AR);
-	lpar = PHY_READ(sc, E1000_LPAR);
 
 	if (bmsr & E1000_SR_LINK_STATUS)
 		mii->mii_media_status |= IFM_ACTIVE;
@@ -433,22 +429,28 @@ e1000phy_status(struct mii_softc *sc)
 	if (bmcr & E1000_CR_LOOPBACK)
 		mii->mii_media_active |= IFM_LOOP;
 
-	if ((((bmcr & E1000_CR_AUTO_NEG_ENABLE) != 0) &&
-	    ((bmsr & E1000_SR_AUTO_NEG_COMPLETE) == 0)) ||
-	    ((ssr & E1000_SSR_LINK) == 0) ||
-	    ((ssr & E1000_SSR_SPD_DPLX_RESOLVED) == 0)) {
+	if ((bmcr & E1000_CR_AUTO_NEG_ENABLE) != 0 &&
+	    (ssr & E1000_SSR_SPD_DPLX_RESOLVED) == 0) {
 		/* Erg, still trying, I guess... */
 		mii->mii_media_active |= IFM_NONE;
 		return;
 	}
 
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
-		if (ssr & E1000_SSR_1000MBS)
+		switch (ssr & E1000_SSR_SPEED) {
+		case E1000_SSR_1000MBS:
 			mii->mii_media_active |= IFM_1000_T;
-		else if (ssr & E1000_SSR_100MBS)
+			break;
+		case E1000_SSR_100MBS:
 			mii->mii_media_active |= IFM_100_TX;
-		else
+			break;
+		case E1000_SSR_10MBS:
 			mii->mii_media_active |= IFM_10_T;
+			break;
+		default:
+			mii->mii_media_active |= IFM_NONE;
+			return;
+		}
 	} else {
 		if (ssr & E1000_SSR_1000MBS)
 			mii->mii_media_active |= IFM_1000_SX;
@@ -460,6 +462,8 @@ e1000phy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_HDX;
 
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
+		ar = PHY_READ(sc, E1000_AR);
+		lpar = PHY_READ(sc, E1000_LPAR);
 		/* FLAG0==rx-flow-control FLAG1==tx-flow-control */
 		if ((ar & E1000_AR_PAUSE) && (lpar & E1000_LPAR_PAUSE)) {
 			mii->mii_media_active |= IFM_FLAG0 | IFM_FLAG1;
