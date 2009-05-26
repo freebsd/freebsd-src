@@ -80,18 +80,22 @@ static int ar71xx_pci_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
 static int ar71xx_pci_intr(void *);
 
-static void ar71xx_pci_mask_irq(unsigned int irq)
+static void 
+ar71xx_pci_mask_irq(void *source)
 {
 	uint32_t reg;
+	unsigned int irq = (unsigned int)source;
 
 	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
 	ATH_WRITE_REG(AR71XX_PCI_INTR_MASK, reg & ~(1 << irq));
 
 }
 
-static void ar71xx_pci_unmask_irq(unsigned int irq)
+static void 
+ar71xx_pci_unmask_irq(void *source)
 {
 	uint32_t reg;
+	unsigned int irq = (unsigned int)source;
 
 	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
 	ATH_WRITE_REG(AR71XX_PCI_INTR_MASK, reg | (1 << irq));
@@ -426,9 +430,7 @@ ar71xx_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)irq, 0, irq, 
-		    (mask_fn)ar71xx_pci_mask_irq, 
-		    (mask_fn)ar71xx_pci_unmask_irq,
-		    NULL, NULL,
+		    ar71xx_pci_mask_irq, ar71xx_pci_unmask_irq, NULL, NULL,
 		    "ar71xx_pci intr%d:", irq);
 
 		sc->sc_eventstab[irq] = event;
@@ -437,7 +439,7 @@ ar71xx_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
 	intr_event_add_handler(event, device_get_nameunit(child), filt,
 	    handler, arg, intr_priority(flags), flags, cookiep);
 
-	ar71xx_pci_unmask_irq(irq);
+	ar71xx_pci_unmask_irq((void*)irq);
 
 	return (0);
 }
@@ -456,7 +458,7 @@ ar71xx_pci_teardown_intr(device_t dev, device_t child, struct resource *ires,
 	if (sc->sc_eventstab[irq] == NULL)
 		panic("Trying to teardown unoccupied IRQ");
 
-	ar71xx_pci_mask_irq(irq);
+	ar71xx_pci_mask_irq((void*)irq);
 
 	result = intr_event_remove_handler(cookie);
 	if (!result)

@@ -70,8 +70,10 @@ static int	apb_setup_intr(device_t, device_t, struct resource *, int,
 static int	apb_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
 
-static void apb_mask_irq(unsigned int irq)
+static void 
+apb_mask_irq(void *source)
 {
+	unsigned int irq = (unsigned int)source;
 	uint32_t reg;
 
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_MASK);
@@ -79,9 +81,11 @@ static void apb_mask_irq(unsigned int irq)
 
 }
 
-static void apb_unmask_irq(unsigned int irq)
+static void 
+apb_unmask_irq(void *source)
 {
 	uint32_t reg;
+	unsigned int irq = (unsigned int)source;
 
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_MASK);
 	ATH_WRITE_REG(AR71XX_MISC_INTR_MASK, reg | (1 << irq));
@@ -277,7 +281,7 @@ apb_setup_intr(device_t bus, device_t child, struct resource *ires,
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)irq, 0, irq, 
-		    (mask_fn)apb_mask_irq, (mask_fn)apb_unmask_irq,
+		    apb_mask_irq, apb_unmask_irq,
 		    NULL, NULL,
 		    "apb intr%d:", irq);
 
@@ -287,7 +291,7 @@ apb_setup_intr(device_t bus, device_t child, struct resource *ires,
 	intr_event_add_handler(event, device_get_nameunit(child), filt,
 	    handler, arg, intr_priority(flags), flags, cookiep);
 
-	apb_unmask_irq(irq);
+	apb_unmask_irq((void*)irq);
 
 	return (0);
 }
@@ -306,7 +310,7 @@ apb_teardown_intr(device_t dev, device_t child, struct resource *ires,
 	if (sc->sc_eventstab[irq] == NULL)
 		panic("Trying to teardown unoccupied IRQ");
 
-	apb_mask_irq(irq);
+	apb_mask_irq((void*)irq);
 
 	result = intr_event_remove_handler(cookie);
 	if (!result)
