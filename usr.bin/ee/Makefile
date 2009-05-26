@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.PATH:	${.CURDIR}/../../contrib/ee
+
 CFLAGS+= -DCAP -DHAS_NCURSES -DHAS_UNISTD -DHAS_STDARG -DHAS_STDLIB \
 	 -DHAS_CTYPE -DHAS_SYS_IOCTL -DHAS_SYS_WAIT -DSLCT_HDR
 
@@ -21,7 +23,11 @@ NLSLINKS_de_DE.ISO8859-1= de_AT.ISO8859-1 de_AT.ISO8859-15 de_CH.ISO8859-1 \
 
 NLSSRCFILES=ee.msg
 .for lang in ${NLS}
+. if exists(${.CURDIR}/nls/${lang}/ee.msg)
 NLSSRCDIR_${lang}= ${.CURDIR}/nls/${lang}
+. else
+NLSSRCDIR_${lang}= ${.CURDIR}/../../contrib/ee
+. endif
 .endfor
 
 .include <bsd.prog.mk>
