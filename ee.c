@@ -49,7 +49,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.96 1998/07/14 05:02:30 hugh Exp $
+ |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.97 2001/08/17 23:14:05 hugh Exp $
  |
  */
 
@@ -62,7 +62,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.4.1  $Revision: 1.96 $";
+char *version = "@(#) ee, version 1.4.1  $Revision: 1.97 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -550,6 +550,7 @@ int argc;
 char *argv[];
 {
 	int counter;
+	pid_t parent_pid;
 
 	for (counter = 1; counter < 24; counter++)
 		signal(counter, SIG_IGN);
@@ -606,13 +607,30 @@ char *argv[];
 
 	clear_com_win = TRUE;
 
+	counter = 0;
+
 	while(edit) 
 	{
 		wrefresh(text_win);
 		in = wgetch(text_win);
 		if (in == -1)
 			exit(0);
-
+		/*
+		 |	The above check used to work to detect if the parent 
+		 |	process died, but now it seems we need a more 
+		 |	sophisticated check.
+		 */
+		if (counter > 50)
+		{
+			parent_pid = getppid();
+			if (parent_pid == 1)
+				edit_abort(1);
+			else
+				counter = 0;
+		}
+		else
+			counter++;
+		
 		resize_check();
 
 		if (clear_com_win)
