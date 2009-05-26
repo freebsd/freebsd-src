@@ -1,4 +1,4 @@
-/*	$OpenBSD: addrmatch.c,v 1.3 2008/06/10 23:06:19 djm Exp $ */
+/*	$OpenBSD: addrmatch.c,v 1.4 2008/12/10 03:55:20 stevesk Exp $ */
 
 /*
  * Copyright (c) 2004-2008 Damien Miller <djm@mindrot.org>
@@ -31,6 +31,7 @@
 
 #include "match.h"
 #include "log.h"
+#include "xmalloc.h"
 
 struct xaddr {
 	sa_family_t	af;
@@ -97,7 +98,9 @@ addr_sa_to_xaddr(struct sockaddr *sa, socklen_t slen, struct xaddr *xa)
 			return -1;
 		xa->af = AF_INET6;
 		memcpy(&xa->v6, &in6->sin6_addr, sizeof(xa->v6));
+#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
 		xa->scope_id = in6->sin6_scope_id;
+#endif
 		break;
 	default:
 		return -1;
@@ -415,7 +418,7 @@ addr_match_list(const char *addr, const char *_list)
 				goto foundit;
 		}
 	}
-	free(o);
+	xfree(o);
 
 	return ret;
 }

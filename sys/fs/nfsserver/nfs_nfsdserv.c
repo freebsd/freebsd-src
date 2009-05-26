@@ -1907,7 +1907,7 @@ nfsrvd_statfs(struct nfsrv_descript *nd, __unused int isdgram,
 		return (0);
 	}
 	sf = &sfs;
-	nd->nd_repstat = nfsvno_statfs(vp, sf, nd->nd_cred, p);
+	nd->nd_repstat = nfsvno_statfs(vp, sf);
 	getret = nfsvno_getattr(vp, &at, nd->nd_cred, p);
 	vput(vp);
 	if (nd->nd_flag & ND_NFSV3)
@@ -2830,6 +2830,11 @@ nfsrvd_delegpurge(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0;
 	nfsquad_t clientid;
 
+	if ((!nfs_rootfhset && !nfsv4root_set) ||
+	    nfsd_checkrootexp(nd)) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		return (0);
+	}
 	NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
@@ -3024,6 +3029,11 @@ nfsrvd_renew(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0;
 	nfsquad_t clientid;
 
+	if ((!nfs_rootfhset && !nfsv4root_set) ||
+	    nfsd_checkrootexp(nd)) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		return (0);
+	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
@@ -3090,7 +3100,6 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	retnes.nes_vfslocked = exp->nes_vfslocked;
 	vput(vp);
 	savflag = nd->nd_flag;
-	nd->nd_flag |= ND_GSS;	/* so nfsd_fhtovp() won't reply Wrongsec */
 	if (!nd->nd_repstat) {
 		nfsd_fhtovp(nd, &fh, &vp, &retnes, &mp, 0, p);
 		if (vp)
@@ -3106,20 +3115,39 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	 */
 	len = 0;
 	NFSM_BUILD(sizp, u_int32_t *, NFSX_UNSIGNED);
-	if (!NFSVNO_EXGSSONLY(&retnes)) {
-		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-		*tl = txdr_unsigned(RPCAUTH_UNIX);
-		len++;
-	}
-	for (i = RPCAUTHGSS_SVCNONE; i <= RPCAUTHGSS_SVCPRIVACY; i++) {
-		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-		*tl++ = txdr_unsigned(RPCAUTH_GSS);
-		(void) nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
-		    nfsgss_mechlist[KERBV_MECH].len);
-		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		*tl++ = txdr_unsigned(GSS_KERBV_QOP);
-		*tl = txdr_unsigned(i);
-		len++;
+	for (i = 0; i < retnes.nes_numsecflavor; i++) {
+		if (retnes.nes_secflavors[i] == AUTH_SYS) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(RPCAUTH_UNIX);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(RPCAUTH_GSS);
+			(void) nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCNONE);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5I) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(RPCAUTH_GSS);
+			(void) nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCINTEGRITY);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5P) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(RPCAUTH_GSS);
+			(void) nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCPRIVACY);
+			len++;
+		}
 	}
 	*sizp = txdr_unsigned(len);
 	return (0);
@@ -3141,7 +3169,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid, confirm;
 
 	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    (nd->nd_flag & (ND_GSS | ND_EXGSSONLY)) == ND_EXGSSONLY) {
+	    nfsd_checkrootexp(nd)) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}
@@ -3250,7 +3278,7 @@ nfsrvd_setclientidcfrm(struct nfsrv_descript *nd,
 	nfsquad_t clientid, confirm;
 
 	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    (nd->nd_flag & (ND_GSS | ND_EXGSSONLY)) == ND_EXGSSONLY) {
+	    nfsd_checkrootexp(nd)) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}
@@ -3285,7 +3313,7 @@ nfsrvd_verify(struct nfsrv_descript *nd, int isdgram,
 
 	nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p);
 	if (!nd->nd_repstat)
-		nd->nd_repstat = nfsvno_statfs(vp, &sf, nd->nd_cred, p);
+		nd->nd_repstat = nfsvno_statfs(vp, &sf);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getfh(vp, &fh, p);
 	if (!nd->nd_repstat) {
@@ -3337,6 +3365,11 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0, len;
 	nfsquad_t clientid;
 
+	if ((!nfs_rootfhset && !nfsv4root_set) ||
+	    nfsd_checkrootexp(nd)) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		return (0);
+	}
 	NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 	len = fxdr_unsigned(int, *(tl + 2));
 	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + len,

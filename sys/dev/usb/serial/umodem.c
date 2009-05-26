@@ -103,8 +103,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int umodem_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
-SYSCTL_INT(_hw_usb2_umodem, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
+SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
     &umodem_debug, 0, "Debug level");
 #endif
 
@@ -257,7 +257,7 @@ umodem_probe(device_t dev)
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	error = usb2_lookup_id_by_uaa(umodem_devs, sizeof(umodem_devs), uaa);

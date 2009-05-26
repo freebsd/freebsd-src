@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 #include <machine/ofw_machdep.h>
 
 #define	OFMEM_REGIONS	32
@@ -144,7 +144,7 @@ memr_merge(struct mem_region *from, struct mem_region *to)
  * to provide space for two additional entry beyond the terminating one.
  */
 void
-mem_regions(struct mem_region **memp, int *memsz,
+ofw_mem_regions(struct mem_region **memp, int *memsz,
 		struct mem_region **availp, int *availsz)
 {
 	phandle_t phandle;

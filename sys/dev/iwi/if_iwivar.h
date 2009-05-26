@@ -33,7 +33,8 @@ struct iwi_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
-	uint8_t		wr_antsignal;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 	uint8_t		wr_antenna;
 };
 
@@ -41,7 +42,8 @@ struct iwi_rx_radiotap_header {
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
-	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |			\
 	 (1 << IEEE80211_RADIOTAP_ANTENNA))
 
 struct iwi_tx_radiotap_header {
@@ -190,6 +192,7 @@ struct iwi_softc {
 	struct task		sc_radiofftask;	/* radio off processing */
 	struct task		sc_restarttask;	/* restart adapter processing */
 	struct task		sc_disassoctask;
+	struct task		sc_wmetask;	/* set wme parameters */
 
 	unsigned int		sc_softled : 1,	/* enable LED gpio status */
 				sc_ledstate: 1,	/* LED on/off state */
@@ -212,15 +215,12 @@ struct iwi_softc {
 	int			sc_busy_timer;	/* firmware cmd timer */
 
 	struct iwi_rx_radiotap_header sc_rxtap;
-	int			sc_rxtap_len;
-
 	struct iwi_tx_radiotap_header sc_txtap;
-	int			sc_txtap_len;
 };
 
 #define	IWI_STATE_BEGIN(_sc, _state)	do {			\
 	KASSERT(_sc->fw_state == IWI_FW_IDLE,			\
-	    ("iwi firmware not idle"));				\
+	    ("iwi firmware not idle, state %s", iwi_fw_states[_sc->fw_state]));\
 	_sc->fw_state = _state;					\
 	_sc->sc_state_timer = 5;				\
 	DPRINTF(("enter %s state\n", iwi_fw_states[_state]));	\

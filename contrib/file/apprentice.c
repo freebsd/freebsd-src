@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.147 2009/02/03 20:27:51 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.151 2009/03/18 15:19:23 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -89,8 +89,8 @@ const size_t file_nnames = FILE_NAMES_SIZE;
 
 private int getvalue(struct magic_set *ms, struct magic *, const char **, int);
 private int hextoint(int);
-private const char *getstr(struct magic_set *, const char *, char *, int,
-    int *, int);
+private const char *getstr(struct magic_set *, struct magic *, const char *,
+    int);
 private int parse(struct magic_set *, struct magic_entry **, uint32_t *,
     const char *, size_t, int);
 private void eatsize(const char **);
@@ -324,11 +324,15 @@ file_delmagic(struct magic *p, int type, size_t entries)
 	if (p == NULL)
 		return;
 	switch (type) {
-#ifdef QUICK
 	case 2:
+#ifdef QUICK
 		p--;
 		(void)munmap((void *)p, sizeof(*p) * (entries + 1));
 		break;
+#else
+		(void)&entries;
+		abort();
+		/*NOTREACHED*/
 #endif
 	case 1:
 		p--;
@@ -1714,8 +1718,7 @@ check_format(struct magic_set *ms, struct magic *m)
 		 * string is not one character long
 		 */
 		file_magwarn(ms, "Printf format `%c' is not valid for type "
-		    "`%s' in description `%s'",
-		    ptr && *ptr ? *ptr : '?',
+		    "`%s' in description `%s'", *ptr ? *ptr : '?',
 		    file_names[m->type], m->desc);
 		return -1;
 	}
@@ -1740,8 +1743,6 @@ check_format(struct magic_set *ms, struct magic *m)
 private int
 getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 {
-	int slen;
-
 	switch (m->type) {
 	case FILE_BESTRING16:
 	case FILE_LESTRING16:
@@ -1749,16 +1750,13 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 	case FILE_PSTRING:
 	case FILE_REGEX:
 	case FILE_SEARCH:
-		*p = getstr(ms, *p, m->value.s, sizeof(m->value.s), &slen, action);
+		*p = getstr(ms, m, *p, action == FILE_COMPILE);
 		if (*p == NULL) {
 			if (ms->flags & MAGIC_CHECK)
 				file_magwarn(ms, "cannot get string from `%s'",
 				    m->value.s);
 			return -1;
 		}
-		m->vallen = slen;
-		if (m->type == FILE_PSTRING)
-			m->vallen++;
 		return 0;
 	case FILE_FLOAT:
 	case FILE_BEFLOAT:
@@ -1797,13 +1795,15 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 /*
  * Convert a string containing C character escapes.  Stop at an unescaped
  * space or tab.
- * Copy the converted version to "p", returning its length in *slen.
- * Return updated scan pointer as function result.
+ * Copy the converted version to "m->value.s", and the length in m->vallen.
+ * Return updated scan pointer as function result. Warn if set.
  */
 private const char *
-getstr(struct magic_set *ms, const char *s, char *p, int plen, int *slen, int action)
+getstr(struct magic_set *ms, struct magic *m, const char *s, int warn)
 {
 	const char *origs = s;
+	char	*p = m->value.s;
+	size_t  plen = sizeof(m->value.s);
 	char 	*origp = p;
 	char	*pmax = p + plen - 1;
 	int	c;
@@ -1820,25 +1820,33 @@ getstr(struct magic_set *ms, const char *s, char *p, int plen, int *slen, int ac
 			switch(c = *s++) {
 
 			case '\0':
-				if (action == FILE_COMPILE)
+				if (warn)
 					file_magwarn(ms, "incomplete escape");
 				goto out;
 
 			case '\t':
-				if (action == FILE_COMPILE) {
+				if (warn) {
 					file_magwarn(ms,
 					    "escaped tab found, use \\t instead");
-					action++;
+					warn = 0;	/* already did */
 				}
 				/*FALLTHROUGH*/
 			default:
-				if (action == FILE_COMPILE) {
-					if (isprint((unsigned char)c))
-					    file_magwarn(ms,
-						"no need to escape `%c'", c);
-					else
-					    file_magwarn(ms,
-						"unknown escape sequence: \\%03o", c);
+				if (warn) {
+					if (isprint((unsigned char)c)) {
+						/* Allow escaping of 
+						 * ``relations'' */
+						if (strchr("<>&^=!", c)
+						    == NULL) {
+							file_magwarn(ms, "no "
+							    "need to escape "
+							    "`%c'", c);
+						}
+					} else {
+						file_magwarn(ms,
+						    "unknown escape sequence: "
+						    "\\%03o", c);
+					}
 				}
 				/*FALLTHROUGH*/
 			/* space, perhaps force people to use \040? */
@@ -1937,7 +1945,9 @@ getstr(struct magic_set *ms, const char *s, char *p, int plen, int *slen, int ac
 	}
 out:
 	*p = '\0';
-	*slen = p - origp;
+	m->vallen = p - origp;
+	if (m->type == FILE_PSTRING)
+		m->vallen++;
 	return s;
 }
 
@@ -2086,7 +2096,7 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 		file_oomem(ms, (size_t)st.st_size);
 		goto error1;
 	}
-	if (read(fd, mm, (size_t)st.st_size) != (size_t)st.st_size) {
+	if (read(fd, mm, (size_t)st.st_size) != (ssize_t)st.st_size) {
 		file_badread(ms);
 		goto error1;
 	}
@@ -2109,7 +2119,7 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 	else
 		version = ptr[1];
 	if (version != VERSIONNO) {
-		file_error(ms, 0, "File %d.%d supports only %d version magic "
+		file_error(ms, 0, "File %d.%d supports only version %d magic "
 		    "files. `%s' is version %d", FILE_VERSION_MAJOR, patchlevel,
 		    VERSIONNO, dbname, version);
 		goto error1;

@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.43 2008/06/10 23:06:19 djm Exp $ */
+/* $OpenBSD: auth-options.c,v 1.44 2009/01/22 10:09:16 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -255,7 +255,7 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 		cp = "permitopen=\"";
 		if (strncasecmp(opts, cp, strlen(cp)) == 0) {
 			char *host, *p;
-			u_short port;
+			int port;
 			char *patterns = xmalloc(strlen(opts) + 1);
 
 			opts += strlen(cp);
@@ -293,7 +293,7 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 				goto bad_option;
 			}
 			host = cleanhostname(host);
-			if (p == NULL || (port = a2port(p)) == 0) {
+			if (p == NULL || (port = a2port(p)) <= 0) {
 				debug("%.100s, line %lu: Bad permitopen port "
 				    "<%.100s>", file, linenum, p ? p : "");
 				auth_debug_add("%.100s, line %lu: "

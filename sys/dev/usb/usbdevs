@@ -624,6 +624,7 @@ vendor QCOM		0x18e8	Qcom
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
@@ -817,6 +818,7 @@ product ALCOR AU9814		0x9215	AU9814 Hub
 product ALCOR UMCR_9361		0x9361	USB Multimedia Card Reader
 product ALCOR SM_KBD		0x9410	MicroConnectors/StrongMan Keyboard
 product ALCOR NEC_KBD_HUB	0x9472	NEC Kbd Hub
+product ALCOR AU6390	0x6390	AU6390 USB-IDE converter
 
 /* Altec Lansing products */
 product ALTEC ADA70		0x0070	ADA70 Speakers
@@ -1023,6 +1025,7 @@ product CHPRODUCTS FIGHTERSTICK 0x00f3	Fighterstick
 product CHPRODUCTS FLIGHTYOKE	0x00ff	Flight Sim Yoke
 
 /* Cisco-Linksys products */
+product CISCOLINKSYS WUSB54AG	0x000c	WUSB54AG Wireless Adapter
 product CISCOLINKSYS WUSB54G	0x000d	WUSB54G Wireless Adapter
 product CISCOLINKSYS WUSB54GP	0x0011	WUSB54GP Wireless Adapter
 product CISCOLINKSYS USB200MV2	0x0018	USB200M v2
@@ -1106,6 +1109,7 @@ product CYPRESS KBDHUB		0x0101	Keyboard/Hub
 product CYPRESS FMRADIO		0x1002	FM Radio
 product CYPRESS USBRS232	0x5500	USB-RS232 Interface
 product CYPRESS SLIM_HUB	0x6560	Slim Hub
+product CYPRESS XX6830XX	0x6830	PATA Storage Device
 
 /* Daisy Technology products */
 product DAISY DMC		0x6901	USB MultiMedia Reader
@@ -1910,6 +1914,7 @@ product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
+product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 
 /* OQO */
@@ -2130,6 +2135,7 @@ product SHARP SL5600		0x8006	Zaurus SL-5600 PDA
 product SHARP SLC700		0x8007	Zaurus SL-C700 PDA
 product SHARP SLC750		0x9031	Zaurus SL-C750 PDA
 product SHARP WZERO3ES		0x9123	W-ZERO3 ES Smartphone
+product SHARP WILLCOM03		0x9242	WILLCOM03
 
 /* Shuttle Technology products */
 product SHUTTLE EUSB		0x0001	E-USB Bridge
@@ -2296,6 +2302,10 @@ product SPHAIRON UB801R		0x0110	UB801R
 product STELERA ZEROCD		0x1000	Zerocd Installer
 product STELERA C105		0x1002	Stelera/Bandrish C105 USB
 
+/* MpMan products */
+product MPMAN MPF400_1		0x36d0	MPF400 Music Player 1Go
+product MPMAN MPF400_2		0x25a8	MPF400 Music Player 2Go
+
 /* STMicroelectronics products */
 product STMICRO BIOCPU		0x2016	Biometric Coprocessor
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
@@ -2417,6 +2427,7 @@ product UMEDIA TEW429UBC1	0x300d	TEW-429UB C1
 product UMEDIA ALL0298V2	0x3204	ALL0298 v2
 product UMEDIA AR5523_2		0x3205	AR5523
 product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
+product UMEDIA AR5523_3		0x3207	AR5523
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
@@ -2516,6 +2527,7 @@ product ZCOM XG703A		0x0008	PrismGT USB 2.0 WLAN
 product ZCOM ZD1211		0x0011	ZD1211
 product ZCOM AR5523		0x0012	AR5523
 product ZCOM AR5523_NF		0x0013	AR5523 driver (no firmware)
+product ZCOM XM142		0x0015	XM-142
 product ZCOM ZD1211B		0x001a	ZD1211B
 
 /* Zinwell products */

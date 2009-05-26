@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/vnet.h>
 
-#include <rpc/rpcclnt.h>
-
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
@@ -244,7 +242,6 @@ static void bootpc_tag_helper(struct bootpc_tagcontext *tctx,
 
 #ifdef BOOTP_DEBUG
 void bootpboot_p_sa(struct sockaddr *sa, struct sockaddr *ma);
-void bootpboot_p_ma(struct sockaddr *ma);
 void bootpboot_p_rtentry(struct rtentry *rt);
 void bootpboot_p_tree(struct radix_node *rn);
 void bootpboot_p_rtlist(void);
@@ -328,23 +325,10 @@ bootpboot_p_sa(struct sockaddr *sa, struct sockaddr *ma)
 }
 
 void
-bootpboot_p_ma(struct sockaddr *ma)
-{
-
-	if (ma == NULL) {
-		printf("<null>");
-		return;
-	}
-	printf("%x", *(int *)ma);
-}
-
-void
 bootpboot_p_rtentry(struct rtentry *rt)
 {
 
 	bootpboot_p_sa(rt_key(rt), rt_mask(rt));
-	printf(" ");
-	bootpboot_p_ma(rt->rt_genmask);
 	printf(" ");
 	bootpboot_p_sa(rt->rt_gateway, NULL);
 	printf(" ");
@@ -375,11 +359,12 @@ bootpboot_p_tree(struct radix_node *rn)
 void
 bootpboot_p_rtlist(void)
 {
+	INIT_VNET_NET(curvnet);
 
 	printf("Routing table:\n");
-	RADIX_NODE_LOCK(V_rt_tables[AF_INET]);	/* could sleep XXX */
-	bootpboot_p_tree(V_rt_tables[AF_INET]->rnh_treetop);
-	RADIX_NODE_UNLOCK(V_rt_tables[AF_INET]);
+	RADIX_NODE_HEAD_RLOCK(V_rt_tables[0][AF_INET]);	/* could sleep XXX */
+	bootpboot_p_tree(V_rt_tables[0][AF_INET]->rnh_treetop);
+	RADIX_NODE_HEAD_RUNLOCK(V_rt_tables[0][AF_INET]);
 }
 
 void
@@ -399,6 +384,7 @@ bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
 void
 bootpboot_p_iflist(void)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
@@ -1608,6 +1594,7 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 void
 bootpc_init(void)
 {
+	INIT_VNET_NET(curvnet);
 	struct bootpc_ifcontext *ifctx, *nctx;	/* Interface BOOTP contexts */
 	struct bootpc_globalcontext *gctx; 	/* Global BOOTP context */
 	struct ifnet *ifp;

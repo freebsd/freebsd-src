@@ -98,7 +98,8 @@ static void vm_hold_free_pages(struct buf *bp, vm_offset_t from,
 		vm_offset_t to);
 static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
 		vm_offset_t to);
-static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off,
+static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m);
+static void vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off,
 		vm_page_t m);
 static void vfs_clean_pages(struct buf *bp);
 static void vfs_setdirty(struct buf *bp);
@@ -292,7 +293,7 @@ sysctl_bufspace(SYSCTL_HANDLER_ARGS)
 	long lvalue;
 	int ivalue;
 
-	if (sizeof(int) == sizeof(long) || req->oldlen == sizeof(long))
+	if (sizeof(int) == sizeof(long) || req->oldlen >= sizeof(long))
 		return (sysctl_handle_long(oidp, arg1, arg2, req));
 	lvalue = *(long *)arg1;
 	if (lvalue > INT_MAX)
@@ -3277,7 +3278,6 @@ bufdone_finish(struct buf *bp)
 		vm_object_t obj;
 		int iosize;
 		struct vnode *vp = bp->b_vp;
-		boolean_t are_queues_locked;
 
 		obj = bp->b_bufobj->bo_object;
 
@@ -3314,11 +3314,6 @@ bufdone_finish(struct buf *bp)
 		    !(bp->b_ioflags & BIO_ERROR)) {
 			bp->b_flags |= B_CACHE;
 		}
-		if (bp->b_iocmd == BIO_READ) {
-			vm_page_lock_queues();
-			are_queues_locked = TRUE;
-		} else
-			are_queues_locked = FALSE;
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
 			int resid;
@@ -3354,6 +3349,9 @@ bufdone_finish(struct buf *bp)
 			 * only need to do this here in the read case.
 			 */
 			if ((bp->b_iocmd == BIO_READ) && !bogusflag && resid > 0) {
+				KASSERT((m->dirty & vm_page_bits(foff &
+				    PAGE_MASK, resid)) == 0, ("bufdone_finish:"
+				    " page %p has unexpected dirty bits", m));
 				vfs_page_set_valid(bp, foff, m);
 			}
 
@@ -3387,8 +3385,6 @@ bufdone_finish(struct buf *bp)
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 			iosize -= resid;
 		}
-		if (are_queues_locked)
-			vm_page_unlock_queues();
 		vm_object_pip_wakeupn(obj, 0);
 		VM_OBJECT_UNLOCK(obj);
 	}
@@ -3453,6 +3449,35 @@ vfs_unbusy_pages(struct buf *bp)
  */
 static void
 vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m)
+{
+	vm_ooffset_t eoff;
+
+	/*
+	 * Compute the end offset, eoff, such that [off, eoff) does not span a
+	 * page boundary and eoff is not greater than the end of the buffer.
+	 * The end of the buffer, in this case, is our file EOF, not the
+	 * allocation size of the buffer.
+	 */
+	eoff = (off + PAGE_SIZE) & ~(vm_ooffset_t)PAGE_MASK;
+	if (eoff > bp->b_offset + bp->b_bcount)
+		eoff = bp->b_offset + bp->b_bcount;
+
+	/*
+	 * Set valid range.  This is typically the entire buffer and thus the
+	 * entire page.
+	 */
+	if (eoff > off)
+		vm_page_set_valid(m, off & PAGE_MASK, eoff - off);
+}
+
+/*
+ * vfs_page_set_validclean:
+ *
+ *	Set the valid bits and clear the dirty bits in a page based on the
+ *	supplied offset.   The range is restricted to the buffer's size.
+ */
+static void
+vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 {
 	vm_ooffset_t soff, eoff;
 
@@ -3519,7 +3544,8 @@ retry:
 			goto retry;
 	}
 	bogus = 0;
-	vm_page_lock_queues();
+	if (clear_modify)
+		vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 
@@ -3542,17 +3568,18 @@ retry:
 		 * It may not work properly with small-block devices.
 		 * We need to find a better way.
 		 */
-		pmap_remove_all(m);
-		if (clear_modify)
-			vfs_page_set_valid(bp, foff, m);
-		else if (m->valid == VM_PAGE_BITS_ALL &&
+		if (clear_modify) {
+			pmap_remove_write(m);
+			vfs_page_set_validclean(bp, foff, m);
+		} else if (m->valid == VM_PAGE_BITS_ALL &&
 		    (bp->b_flags & B_CACHE) == 0) {
 			bp->b_pages[i] = bogus_page;
 			bogus++;
 		}
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 	}
-	vm_page_unlock_queues();
+	if (clear_modify)
+		vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(obj);
 	if (bogus)
 		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
@@ -3589,11 +3616,49 @@ vfs_clean_pages(struct buf *bp)
 
 		if (eoff > bp->b_offset + bp->b_bufsize)
 			eoff = bp->b_offset + bp->b_bufsize;
-		vfs_page_set_valid(bp, foff, m);
+		vfs_page_set_validclean(bp, foff, m);
 		/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
 		foff = noff;
 	}
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+}
+
+/*
+ *	vfs_bio_set_valid:
+ *
+ *	Set the range within the buffer to valid.  The range is
+ *	relative to the beginning of the buffer, b_offset.  Note that
+ *	b_offset itself may be offset from the beginning of the first
+ *	page.
+ */
+void   
+vfs_bio_set_valid(struct buf *bp, int base, int size)
+{
+	int i, n;
+	vm_page_t m;
+
+	if (!(bp->b_flags & B_VMIO))
+		return;
+
+	/*
+	 * Fixup base to be relative to beginning of first page.
+	 * Set initial n to be the maximum number of bytes in the
+	 * first page that can be validated.
+	 */
+	base += (bp->b_offset & PAGE_MASK);
+	n = PAGE_SIZE - (base & PAGE_MASK);
+
+	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
+		m = bp->b_pages[i];
+		if (n > size)
+			n = size;
+		vm_page_set_valid(m, base & PAGE_MASK, n);
+		base += n;
+		size -= n;
+		n = PAGE_SIZE;
+	}
 	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 }
 
@@ -3641,24 +3706,25 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 /*
  *	vfs_bio_clrbuf:
  *
- *	clear a buffer.  This routine essentially fakes an I/O, so we need
- *	to clear BIO_ERROR and B_INVAL.
+ *	If the specified buffer is a non-VMIO buffer, clear the entire
+ *	buffer.  If the specified buffer is a VMIO buffer, clear and
+ *	validate only the previously invalid portions of the buffer.
+ *	This routine essentially fakes an I/O, so we need to clear
+ *	BIO_ERROR and B_INVAL.
  *
  *	Note that while we only theoretically need to clear through b_bcount,
  *	we go ahead and clear through b_bufsize.
  */
-
 void
 vfs_bio_clrbuf(struct buf *bp) 
 {
-	int i, j, mask = 0;
+	int i, j, mask;
 	caddr_t sa, ea;
 
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) != B_VMIO) {
 		clrbuf(bp);
 		return;
 	}
-
 	bp->b_flags &= ~B_INVAL;
 	bp->b_ioflags &= ~BIO_ERROR;
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
@@ -3670,8 +3736,7 @@ vfs_bio_clrbuf(struct buf *bp)
 		VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, MA_OWNED);
 		if ((bp->b_pages[0]->valid & mask) == mask)
 			goto unlock;
-		if (((bp->b_pages[0]->flags & PG_ZERO) == 0) &&
-		    ((bp->b_pages[0]->valid & mask) == 0)) {
+		if ((bp->b_pages[0]->valid & mask) == 0) {
 			bzero(bp->b_data, bp->b_bufsize);
 			bp->b_pages[0]->valid |= mask;
 			goto unlock;
@@ -3690,13 +3755,11 @@ vfs_bio_clrbuf(struct buf *bp)
 		VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
 		if ((bp->b_pages[i]->valid & mask) == mask)
 			continue;
-		if ((bp->b_pages[i]->valid & mask) == 0) {
-			if ((bp->b_pages[i]->flags & PG_ZERO) == 0)
-				bzero(sa, ea - sa);
-		} else {
+		if ((bp->b_pages[i]->valid & mask) == 0)
+			bzero(sa, ea - sa);
+		else {
 			for (; sa < ea; sa += DEV_BSIZE, j++) {
-				if (((bp->b_pages[i]->flags & PG_ZERO) == 0) &&
-				    (bp->b_pages[i]->valid & (1 << j)) == 0)
+				if ((bp->b_pages[i]->valid & (1 << j)) == 0)
 					bzero(sa, DEV_BSIZE);
 			}
 		}

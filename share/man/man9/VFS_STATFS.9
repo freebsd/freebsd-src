@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd May 23, 2009
 .Os
 .Dt VFS_STATFS 9
 .Sh NAME
@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_STATFS "struct mount *mp" "struct statfs *sbp" "struct thread *td"
+.Fn VFS_STATFS "struct mount *mp" "struct statfs *sbp"
 .Sh DESCRIPTION
 The
 .Fn VFS_STATFS
@@ -56,8 +56,6 @@ A
 structure, as defined by
 .In sys/mount.h ,
 into which information is placed about the file system.
-.It Fa td
-The thread which is querying the file system.
 .El
 .Pp
 The fields of

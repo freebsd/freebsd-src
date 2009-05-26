@@ -99,6 +99,7 @@ ENTRY(uts_to_thread)
 	pop	%ebx			/* %ebx off stack */
 	popf				/* flags off stack */
 5:	ret				/* %eip off stack */
+END(uts_to_thread)
 
 /*
  * int thread_to_uts(struct kse_thr_mailbox *tm, struct kse_mailbox *km);
@@ -154,4 +155,5 @@ ENTRY(thread_to_uts)
 	pushl	KM_FUNC_OFFSET(%edx)	/* .. the uts can return to itself */
 	pushl	KM_FUNC_OFFSET(%edx)	/* push the address of the uts func */
 2:	ret
+END(thread_to_uts)
 

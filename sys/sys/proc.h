@@ -148,6 +148,8 @@ struct pargs {
  *      r - p_peers lock
  *      t - thread lock
  *      x - created at fork, only changes during single threading in exec
+ *      y - created at first aio, doesn't change until exit or exec at which
+ *          point we are single-threaded and only curthread changes it
  *      z - zombie threads lock
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
@@ -275,8 +277,8 @@ struct thread {
 	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
 	int		td_errno;	/* Error returned by last syscall. */
-	struct vnet	*td_vnet;	/* (*) Effective vnet */
-	const char	*td_vnet_lpush;	/* (*) Debugging vnet push / pop */
+	struct vnet	*td_vnet;	/* (*) Effective vnet. */
+	const char	*td_vnet_lpush;	/* (*) Debugging vnet push / pop. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -503,7 +505,7 @@ struct proc {
 	char		p_step;		/* (c) Process is stopped. */
 	u_char		p_pfsflags;	/* (c) Procfs flags. */
 	struct nlminfo	*p_nlminfo;	/* (?) Only used by/for lockd. */
-	struct kaioinfo	*p_aioinfo;	/* (c) ASYNC I/O info. */
+	struct kaioinfo	*p_aioinfo;	/* (y) ASYNC I/O info. */
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
 	int		p_suspcount;	/* (j) Num threads in suspended mode. */
 	struct thread	*p_xthread;	/* (c) Trap thread */

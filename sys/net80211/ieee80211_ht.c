@@ -364,8 +364,8 @@ static __inline void
 ampdu_dispatch(struct ieee80211_node *ni, struct mbuf *m)
 {
 	m->m_flags |= M_AMPDU_MPDU;	/* bypass normal processing */
-	/* NB: rssi, noise, and rstamp are ignored w/ M_AMPDU_MPDU set */
-	(void) ieee80211_input(ni, m, 0, 0, 0);
+	/* NB: rssi and noise are ignored w/ M_AMPDU_MPDU set */
+	(void) ieee80211_input(ni, m, 0, 0);
 }
 
 /*

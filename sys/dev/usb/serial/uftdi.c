@@ -70,8 +70,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int uftdi_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
-SYSCTL_INT(_hw_usb2_uftdi, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
+SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
     &uftdi_debug, 0, "Debug level");
 #endif
 
@@ -240,7 +240,7 @@ uftdi_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UFTDI_CONFIG_INDEX) {

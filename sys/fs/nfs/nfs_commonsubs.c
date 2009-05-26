@@ -1446,7 +1446,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			    savuid = p->p_cred->p_ruid;
 			    p->p_cred->p_ruid = cred->cr_uid;
 			    if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,
-				USRQUOTA), cred->cr_uid, (caddr_t)&dqb, p))
+				USRQUOTA), cred->cr_uid, (caddr_t)&dqb))
 				freenum = min(dqb.dqb_bhardlimit, freenum);
 			    p->p_cred->p_ruid = savuid;
 #endif	/* QUOTA */
@@ -1475,7 +1475,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			    savuid = p->p_cred->p_ruid;
 			    p->p_cred->p_ruid = cred->cr_uid;
 			    if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,
-				USRQUOTA), cred->cr_uid, (caddr_t)&dqb, p))
+				USRQUOTA), cred->cr_uid, (caddr_t)&dqb))
 				freenum = min(dqb.dqb_bsoftlimit, freenum);
 			    p->p_cred->p_ruid = savuid;
 #endif	/* QUOTA */
@@ -1501,7 +1501,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			    savuid = p->p_cred->p_ruid;
 			    p->p_cred->p_ruid = cred->cr_uid;
 			    if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,
-				USRQUOTA), cred->cr_uid, (caddr_t)&dqb, p))
+				USRQUOTA), cred->cr_uid, (caddr_t)&dqb))
 				freenum = dqb.dqb_curblocks;
 			    p->p_cred->p_ruid = savuid;
 #endif	/* QUOTA */
@@ -1943,7 +1943,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 	 * Get the VFS_STATFS(), since some attributes need them.
 	 */
 	if (NFSISSETSTATFS_ATTRBIT(retbitp)) {
-		error = VFS_STATFS(vnode_mount(vp), &fs, p);
+		error = VFS_STATFS(vnode_mount(vp), &fs);
 		if (error != 0) {
 			if (reterr) {
 				nd->nd_repstat = NFSERR_ACCES;
@@ -2138,7 +2138,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			savuid = p->p_cred->p_ruid;
 			p->p_cred->p_ruid = cred->cr_uid;
 			if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,USRQUOTA),
-			    cred->cr_uid, (caddr_t)&dqb, p))
+			    cred->cr_uid, (caddr_t)&dqb))
 			    freenum = min(dqb.dqb_isoftlimit-dqb.dqb_curinodes,
 				freenum);
 			p->p_cred->p_ruid = savuid;
@@ -2245,7 +2245,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			savuid = p->p_cred->p_ruid;
 			p->p_cred->p_ruid = cred->cr_uid;
 			if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,USRQUOTA),
-			    cred->cr_uid, (caddr_t)&dqb, p))
+			    cred->cr_uid, (caddr_t)&dqb))
 			    freenum = min(dqb.dqb_bhardlimit, freenum);
 			p->p_cred->p_ruid = savuid;
 #endif	/* QUOTA */
@@ -2269,7 +2269,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			savuid = p->p_cred->p_ruid;
 			p->p_cred->p_ruid = cred->cr_uid;
 			if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,USRQUOTA),
-			    cred->cr_uid, (caddr_t)&dqb, p))
+			    cred->cr_uid, (caddr_t)&dqb))
 			    freenum = min(dqb.dqb_bsoftlimit, freenum);
 			p->p_cred->p_ruid = savuid;
 #endif	/* QUOTA */
@@ -2290,7 +2290,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			savuid = p->p_cred->p_ruid;
 			p->p_cred->p_ruid = cred->cr_uid;
 			if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,USRQUOTA),
-			    cred->cr_uid, (caddr_t)&dqb, p))
+			    cred->cr_uid, (caddr_t)&dqb))
 			    freenum = dqb.dqb_curblocks;
 			p->p_cred->p_ruid = savuid;
 #endif	/* QUOTA */

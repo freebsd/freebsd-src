@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <vm/vm.h>
@@ -56,6 +57,8 @@ static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 
+SYSCTL_DECL(_hw_pci);
+
 static int cfgmech;
 static vm_offset_t pcie_base;
 static int pcie_minbus, pcie_maxbus;
@@ -63,6 +66,8 @@ static uint32_t pcie_badslots;
 static struct mtx pcicfg_mtx;
 static int mcfg_enable = 1;
 TUNABLE_INT("hw.pci.mcfg", &mcfg_enable);
+SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
+    "Enable support for PCI-e memory mapped config access");
 
 /* 
  * Initialise access to PCI configuration space 

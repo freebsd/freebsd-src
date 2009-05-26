@@ -31,7 +31,7 @@ options 	MP_WATCHDOG
 
 # Debugging options.
 #
-options		STOP_NMI		# Stop CPUS using NMI instead of IPI
+options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
 
 
 
@@ -193,7 +193,7 @@ options 	DEVICE_POLLING
 
 # BPF_JITTER adds support for BPF just-in-time compiler.
 
-options		BPF_JITTER
+options 	BPF_JITTER
 
 
 #####################################################################
@@ -295,7 +295,7 @@ device		pci
 device		agp
 
 # AGP debugging.
-options		AGP_DEBUG
+options 	AGP_DEBUG
 
 
 #####################################################################
@@ -437,7 +437,7 @@ device		ath_hal		# pci/cardbus chip support
 #device		ath_rf5112
 #device		ath_rf5413
 #device		ath_ar5416	# AR5416 chips
-options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
 #

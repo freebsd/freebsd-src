@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/vimage.h>
 
 #include <kgssapi/gssapi.h>
 #include <kgssapi/gssapi_impl.h>
@@ -227,7 +228,7 @@ gsstest_1(void)
 
 	{
 		static char sbuf[512];
-		snprintf(sbuf, sizeof(sbuf), "nfs@%s", hostname);
+		snprintf(sbuf, sizeof(sbuf), "nfs@%s", V_hostname);
 		name_desc.value = sbuf;
 	}
 
@@ -430,7 +431,7 @@ gsstest_2(int step, const gss_buffer_t input_token,
 	case 1:
 		if (server_context == GSS_C_NO_CONTEXT) {
 			static char sbuf[512];
-			snprintf(sbuf, sizeof(sbuf), "nfs@%s", hostname);
+			snprintf(sbuf, sizeof(sbuf), "nfs@%s", V_hostname);
 			name_desc.value = sbuf;
 			name_desc.length = strlen((const char *)
 			    name_desc.value);
@@ -811,7 +812,7 @@ gsstest_3(void)
 		return(1);
 	}
 
-	snprintf(service, sizeof(service), "host@%s", hostname);
+	snprintf(service, sizeof(service), "host@%s", V_hostname);
 
 	auth = rpc_gss_seccreate(client, curthread->td_ucred,
 	    service, "kerberosv5", rpc_gss_svc_privacy,
@@ -881,7 +882,7 @@ gsstest_4(void)
 	const char **mechs;
 	static rpc_gss_callback_t cb;
 
-	snprintf(principal, sizeof(principal), "host@%s", hostname);
+	snprintf(principal, sizeof(principal), "host@%s", V_hostname);
 
 	mechs = rpc_gss_get_mechanisms();
 	while (*mechs) {

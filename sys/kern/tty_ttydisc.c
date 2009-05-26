@@ -560,12 +560,15 @@ ttydisc_optimize(struct tty *tp)
 {
 	tty_lock_assert(tp, MA_OWNED);
 
-	if ((!CMP_FLAG(i, ICRNL|IGNCR|IMAXBEL|INLCR|ISTRIP|IXON) &&
+	if (ttyhook_hashook(tp, rint_bypass)) {
+		tp->t_flags |= TF_BYPASS;
+	} else if (ttyhook_hashook(tp, rint)) {
+		tp->t_flags &= ~TF_BYPASS;
+	} else if (!CMP_FLAG(i, ICRNL|IGNCR|IMAXBEL|INLCR|ISTRIP|IXON) &&
 	    (!CMP_FLAG(i, BRKINT) || CMP_FLAG(i, IGNBRK)) &&
 	    (!CMP_FLAG(i, PARMRK) ||
 	        CMP_FLAG(i, IGNPAR|IGNBRK) == (IGNPAR|IGNBRK)) &&
-	    !CMP_FLAG(l, ECHO|ICANON|IEXTEN|ISIG|PENDIN)) ||
-	    ttyhook_hashook(tp, rint_bypass)) {
+	    !CMP_FLAG(l, ECHO|ICANON|IEXTEN|ISIG|PENDIN)) {
 		tp->t_flags |= TF_BYPASS;
 	} else {
 		tp->t_flags &= ~TF_BYPASS;

@@ -32,8 +32,10 @@
 #include <sys/cpuvar.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/misc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/vimage.h>
 
 cpu_core_t	cpu_core[MAXCPU];
 kmutex_t	cpu_lock;
@@ -81,6 +83,7 @@ opensolaris_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
+		utsname.nodename = G_hostname;
 		break;
 
 	case MOD_UNLOAD:

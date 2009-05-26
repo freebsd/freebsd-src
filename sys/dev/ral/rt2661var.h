@@ -24,7 +24,8 @@ struct rt2661_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
-	uint8_t		wr_antsignal;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 } __packed;
 
 #define RT2661_RX_RADIOTAP_PRESENT					\
@@ -32,7 +33,8 @@ struct rt2661_rx_radiotap_header {
 	 (1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
-	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL))
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE))
 
 struct rt2661_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;

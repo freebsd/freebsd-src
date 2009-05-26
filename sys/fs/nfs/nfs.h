@@ -157,7 +157,7 @@
  * Structures for the nfssvc(2) syscall. Not that anyone but nfsd, mount_nfs
  * and nfsloaduser should ever try and use it.
  */
-struct nfsd_args {
+struct nfsd_addsock_args {
 	int	sock;		/* Socket to serve */
 	caddr_t	name;		/* Client addr for connection based sockets */
 	int	namelen;	/* Length of name */
@@ -325,61 +325,6 @@ struct nfsreferral {
 #define	NFSID_DELGROUPNAME	0x0100
 
 /*
- * Stats structure
- */
-struct nfsstats {
-	int	attrcache_hits;
-	int	attrcache_misses;
-	int	lookupcache_hits;
-	int	lookupcache_misses;
-	int	direofcache_hits;
-	int	direofcache_misses;
-	int	accesscache_hits;
-	int	accesscache_misses;
-	int	biocache_reads;
-	int	read_bios;
-	int	read_physios;
-	int	biocache_writes;
-	int	write_bios;
-	int	write_physios;
-	int	biocache_readlinks;
-	int	readlink_bios;
-	int	biocache_readdirs;
-	int	readdir_bios;
-	int	rpccnt[NFS_NPROCS];
-	int	rpcretries;
-	int	srvrpccnt[NFSV4OP_NOPS + NFSV4OP_FAKENOPS];
-	int	srvrpc_errs;
-	int	srv_errs;
-	int	rpcrequests;
-	int	rpctimeouts;
-	int	rpcunexpected;
-	int	rpcinvalid;
-	int	srvcache_inproghits;
-	int	srvcache_idemdonehits;
-	int	srvcache_nonidemdonehits;
-	int	srvcache_misses;
-	int	srvcache_tcppeak;
-	int	srvcache_size;
-	int	srvclients;
-	int	srvopenowners;
-	int	srvopens;
-	int	srvlockowners;
-	int	srvlocks;
-	int	srvdelegates;
-	int	cbrpccnt[NFSV4OP_CBNOPS];
-	int	clopenowners;
-	int	clopens;
-	int	cllockowners;
-	int	cllocks;
-	int	cldelegates;
-	int	cllocalopenowners;
-	int	cllocalopens;
-	int	cllocallockowners;
-	int	cllocallocks;
-};
-
-/*
  * fs.nfs sysctl(3) identifiers
  */
 #define	NFS_NFSSTATS	1		/* struct: struct nfsstats */
@@ -532,7 +477,7 @@ struct nfssockreq {
  */
 TAILQ_HEAD(nfsreqhead, nfsreq);
 
-/* First 8 R_xxx flags defined in rpc/rpcclnt.h, the rest are here */
+/* This is the only nfsreq R_xxx flag still used. */
 #define	R_DONTRECOVER	0x00000100	/* don't initiate recovery when this
 					   rpc gets a stale state reply */
 
@@ -580,7 +525,6 @@ struct nfsrv_descript {
 	u_int64_t		nd_compref;	/* Compound RPC ref# */
 	time_t			nd_tcpconntime;	/* Time TCP connection est. */
 	nfsquad_t		nd_clientid;	/* Implied clientid */
-	int			nd_credflavor;	/* credential flavor */
 	int			nd_gssnamelen;	/* principal name length */
 	char			*nd_gssname;	/* principal name */
 };
@@ -608,8 +552,11 @@ struct nfsrv_descript {
 #define	ND_V4WCCATTR		0x00010000
 #define	ND_NFSCB		0x00020000
 #define	ND_AUTHNONE		0x00040000
-#define	ND_EXGSSONLY		0x00080000
-#define	ND_INCRSEQID		0x00100000
+#define	ND_EXAUTHSYS		0x00080000
+#define	ND_EXGSS		0x00100000
+#define	ND_EXGSSINTEGRITY	0x00200000
+#define	ND_EXGSSPRIVACY		0x00400000
+#define	ND_INCRSEQID		0x00800000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.
@@ -629,11 +576,6 @@ struct nfsv4_opflag {
 #define	NFSRVSEQID_FIRST	0x01
 #define	NFSRVSEQID_LAST		0x02
 #define	NFSRVSEQID_OPEN		0x04
-
-/*
- * MNT_EXGSSONLY is the Or of all the EXGSS bits.
- */
-#define	MNT_EXGSSONLY		MNT_EXGSSKRB5
 
 /*
  * assign a doubly linked list to a new head

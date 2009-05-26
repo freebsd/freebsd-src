@@ -5751,14 +5751,14 @@ static driver_t driver =
 
 static devclass_t devclass;
 
-DRIVER_MODULE(if_lmc, pci, driver, devclass, 0, 0);
-MODULE_VERSION(if_lmc, 2);
-MODULE_DEPEND(if_lmc, pci, 1, 1, 1);
+DRIVER_MODULE(lmc, pci, driver, devclass, 0, 0);
+MODULE_VERSION(lmc, 2);
+MODULE_DEPEND(lmc, pci, 1, 1, 1);
 # if NETGRAPH
-MODULE_DEPEND(if_lmc, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
+MODULE_DEPEND(lmc, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 # endif
 # if NSPPP
-MODULE_DEPEND(if_lmc, sppp, 1, 1, 1);
+MODULE_DEPEND(lmc, sppp, 1, 1, 1);
 # endif
 
 #endif  /* __FreeBSD__ */

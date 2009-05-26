@@ -14,6 +14,15 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090522: removal of University of Michigan NFSv4 client
+OLD_FILES+=etc/rc.d/idmapd
+OLD_FILES+=sbin/idmapd
+OLD_FILES+=sbin/mount_nfs4
+OLD_FILES+=usr/share/man/man8/idmapd.8.gz
+OLD_FILES+=usr/share/man/man8/mount_nfs4.8.gz
+# 20090513: removal of legacy versions of USB network interface drivers
+OLD_FILES+=usr/include/legacy/dev/usb/if_upgtvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_ethersubr.h
 # 20090417: removal of legacy versions of USB network interface drivers
 OLD_FILES+=usr/include/legacy/dev/usb/if_auereg.h
 OLD_FILES+=usr/include/legacy/dev/usb/if_axereg.h

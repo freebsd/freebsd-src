@@ -54,8 +54,10 @@ acl_init(int count)
 	}
 
 	acl = malloc(sizeof(struct acl_t_struct));
-	if (acl != NULL)
+	if (acl != NULL) {
 		bzero(acl, sizeof(struct acl_t_struct));
+		acl->ats_acl.acl_maxcnt = ACL_MAX_ENTRIES;
+	}
 
 	return (acl);
 }

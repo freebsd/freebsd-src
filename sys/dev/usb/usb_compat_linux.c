@@ -194,7 +194,7 @@ usb_linux_probe(device_t dev)
 	struct usb_driver *udrv;
 	int err = ENXIO;
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	mtx_lock(&Giant);
@@ -640,7 +640,7 @@ usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *uhe,
 		}
 		return (err);
 	}
-	if (dev->bsd_udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (dev->bsd_udev->flags.usb_mode != USB_MODE_HOST) {
 		/* not supported */
 		return (-EINVAL);
 	}

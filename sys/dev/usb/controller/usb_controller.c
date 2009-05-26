@@ -55,8 +55,8 @@ static void	usb2_post_init(void *);
 #if USB_DEBUG
 static int usb2_ctrl_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
-SYSCTL_INT(_hw_usb2_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb2_ctrl_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
+SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb2_ctrl_debug, 0,
     "Debug level");
 #endif
 
@@ -290,7 +290,7 @@ usb2_bus_attach(struct usb2_proc_msg *pm)
 	struct usb2_device *child;
 	device_t dev;
 	usb2_error_t err;
-	uint8_t speed;
+	enum usb_dev_speed speed;
 
 	bus = ((struct usb2_bus_msg *)pm)->bus;
 	dev = bus->bdev;

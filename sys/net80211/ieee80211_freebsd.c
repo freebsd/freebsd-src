@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/vimage.h>
 
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_clone.h>
@@ -159,7 +160,7 @@ ieee80211_vap_destroy(struct ieee80211vap *vap)
 	if_clone_destroyif(&wlan_cloner, vap->iv_ifp);
 }
 
-static int
+int
 ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS)
 {
 	int msecs = ticks_to_msecs(*(int *)arg1);
@@ -175,27 +176,27 @@ ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS)
 
 #ifdef IEEE80211_AMPDU_AGE
 extern int ieee80211_ampdu_age;
-SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"AMPDU max reorder age (ms)");
 #endif
 extern int ieee80211_addba_timeout;
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_timeout, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"ADDBA request timeout (ms)");
 extern int ieee80211_addba_backoff;
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"ADDBA request backoff (ms)");
 extern int ieee80211_addba_maxtries;
-SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
 #ifdef IEEE80211_SUPPORT_SUPERG
 extern int ieee80211_ffppsmin;
-SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
 extern int ieee80211_ffagemax;
-SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"max hold time for fast-frame staging (ms)");
 #endif /* IEEE80211_SUPPORT_SUPERG */
@@ -726,6 +727,29 @@ ieee80211_load_module(const char *modname)
 #endif
 }
 
+static eventhandler_tag wlan_bpfevent;
+
+static void
+bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
+{
+	/* NB: identify vap's by if_start */
+	if (dlt == DLT_IEEE802_11_RADIO && ifp->if_start == ieee80211_start) {
+		struct ieee80211vap *vap = ifp->if_softc;
+		/*
+		 * Track bpf radiotap listener state.  We mark the vap
+		 * to indicate if any listener is present and the com
+		 * to indicate if any listener exists on any associated
+		 * vap.  This flag is used by drivers to prepare radiotap
+		 * state only when needed.
+		 */
+		if (attach)
+			ieee80211_syncflag_ext(vap, IEEE80211_FEXT_BPF);
+		/* NB: if_softc is NULL on vap detach */
+		else if (vap != NULL && !bpf_peers_present(vap->iv_rawbpf))
+			ieee80211_syncflag_ext(vap, -IEEE80211_FEXT_BPF);
+	}
+}
+
 /*
  * Module glue.
  *
@@ -738,12 +762,17 @@ wlan_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("wlan: <802.11 Link Layer>\n");
+		wlan_bpfevent = EVENTHANDLER_REGISTER(bpf_track,
+		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
+		if (wlan_bpfevent == NULL)
+			return ENOMEM;
 		if_clone_attach(&wlan_cloner);
 		if_register_com_alloc(IFT_IEEE80211, wlan_alloc, wlan_free);
 		return 0;
 	case MOD_UNLOAD:
 		if_deregister_com_alloc(IFT_IEEE80211);
 		if_clone_detach(&wlan_cloner);
+		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
 		return 0;
 	}
 	return EINVAL;

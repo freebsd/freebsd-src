@@ -52,8 +52,10 @@
  * needs to be returned by nfsd_fhtovp().
  */
 struct nfsexstuff {
-	int	nes_vfslocked;	/* required for all ports */
-	int	nes_exflag;
+	int	nes_vfslocked;			/* required for all ports */
+	int	nes_exflag;			/* export flags */
+	int	nes_numsecflavor;		/* # of security flavors */
+	int	nes_secflavors[MAXSECFLAVORS];	/* and the flavors */
 };
 
 #define	NFSVNO_EXINIT(e)		((e)->nes_exflag = 0)
@@ -61,11 +63,9 @@ struct nfsexstuff {
 #define	NFSVNO_EXRDONLY(e)		((e)->nes_exflag & MNT_EXRDONLY)
 #define	NFSVNO_EXPORTANON(e)		((e)->nes_exflag & MNT_EXPORTANON)
 #define	NFSVNO_EXSTRICTACCESS(e)	((e)->nes_exflag & MNT_EXSTRICTACCESS)
-#define	NFSVNO_EXGSSONLY(e)		((e)->nes_exflag & MNT_EXGSSONLY)
 #define	NFSVNO_EXV4ONLY(e)		((e)->nes_exflag & MNT_EXV4ONLY)
 
 #define	NFSVNO_SETEXRDONLY(e)	((e)->nes_exflag = (MNT_EXPORTED|MNT_EXRDONLY))
-#define	NFSVNO_SETEXGSSONLY(e)		((e)->nes_exflag |= MNT_EXGSSONLY)
 
 #define	NFSVNO_CMPFH(f1, f2)						\
     ((f1)->fh_fsid.val[0] == (f2)->fh_fsid.val[0] &&			\

@@ -459,6 +459,10 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		    TD_TO_VNET(curthread)->mod_data[oidp->oid_v_mod];	\
 		arg1 = cp + (size_t) arg1;				\
 		break;							\
+	case V_PROCG:							\
+		cp = (char *) TD_TO_VPROCG(curthread);			\
+		arg1 = cp + (size_t) arg1;				\
+		break;							\
 	default:							\
 		panic("unsupported module id %d", oidp->oid_v_subs);	\
 	}								\

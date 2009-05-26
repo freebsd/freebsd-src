@@ -52,8 +52,8 @@
 #if USB_DEBUG
 static int ustorage_fs_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ustorage_fs, CTLFLAG_RW, 0, "USB ustorage_fs");
-SYSCTL_INT(_hw_usb2_ustorage_fs, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ustorage_fs, CTLFLAG_RW, 0, "USB ustorage_fs");
+SYSCTL_INT(_hw_usb_ustorage_fs, OID_AUTO, debug, CTLFLAG_RW,
     &ustorage_fs_debug, 0, "ustorage_fs debug level");
 #endif
 
@@ -317,7 +317,7 @@ ustorage_fs_probe(device_t dev)
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 	struct usb2_interface_descriptor *id;
 
-	if (uaa->usb2_mode != USB_MODE_DEVICE) {
+	if (uaa->usb_mode != USB_MODE_DEVICE) {
 		return (ENXIO);
 	}
 	if (uaa->use_generic == 0) {
@@ -466,7 +466,8 @@ ustorage_fs_handle_request(device_t dev,
 	const struct usb2_device_request *req = preq;
 
 	if (!is_complete) {
-		if (req->bRequest == UR_BBB_RESET) {
+		if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
+		    (req->bRequest == UR_BBB_RESET)) {
 			*plen = 0;
 			mtx_lock(&sc->sc_mtx);
 			ustorage_fs_transfer_stop(sc);
@@ -475,7 +476,8 @@ ustorage_fs_handle_request(device_t dev,
 			    USTORAGE_FS_T_BBB_COMMAND);
 			mtx_unlock(&sc->sc_mtx);
 			return (0);
-		} else if (req->bRequest == UR_BBB_GET_MAX_LUN) {
+		} else if ((req->bmRequestType == UT_READ_CLASS_INTERFACE) &&
+			   (req->bRequest == UR_BBB_GET_MAX_LUN)) {
 			if (offset == 0) {
 				*plen = 1;
 				*pptr = &sc->sc_last_lun;

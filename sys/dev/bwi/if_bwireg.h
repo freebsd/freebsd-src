@@ -275,7 +275,8 @@
 #define BWI_PHYINFO_TYPE_11A		0
 #define BWI_PHYINFO_TYPE_11B		1
 #define BWI_PHYINFO_TYPE_11G		2
-#define BWI_PHYINFO_TYPE_11N		5
+#define BWI_PHYINFO_TYPE_11N		4
+#define BWI_PHYINFO_TYPE_11LP		5
 #define BWI_PHYINFO_VER_MASK		__BITS(15, 12)
 
 #define BWI_RF_ANTDIV			0x3e2	/* Antenna Diversity?? */

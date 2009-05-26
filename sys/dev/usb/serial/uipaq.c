@@ -996,8 +996,10 @@ static const struct usb2_device_id uipaq_devs[] = {
 	{USB_VPI(USB_VENDOR_SHARP, 0x9121, 0)},
 	/* SHARP S01SH USB Modem */
 	{USB_VPI(USB_VENDOR_SHARP, 0x9151, 0)},
-/**/
+	/**/
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ES, 0)},
+	/**/
+	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WILLCOM03, 0)},
 	/* Symbol USB Sync */
 	{USB_VPI(USB_VENDOR_SYMBOL, 0x2000, 0)},
 	/* Symbol USB Sync 0x2001 */
@@ -1078,7 +1080,7 @@ uipaq_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UIPAQ_CONFIG_INDEX) {

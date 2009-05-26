@@ -129,7 +129,7 @@ random_nehemiah_init(void)
 {
 	acw.raw = 0ULL;
 	acw.field.round_count = 12;
-	
+
 	mtx_init(&random_nehemiah_mtx, "random nehemiah", NULL, MTX_DEF);
 }
 

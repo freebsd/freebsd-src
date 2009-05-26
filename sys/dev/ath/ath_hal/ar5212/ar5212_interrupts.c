@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_interrupts.c,v 1.6 2008/11/27 22:30:00 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -55,21 +55,23 @@ HAL_BOOL
 ar5212GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 {
 	uint32_t isr, isr0, isr1;
-	uint32_t mask2=0;
+	uint32_t mask2;
 	struct ath_hal_5212 *ahp = AH5212(ah);
 
 	isr = OS_REG_READ(ah, AR_ISR);
+	mask2 = 0;
 	if (isr & AR_ISR_BCNMISC) {
-		uint32_t isr2;
-		isr2 = OS_REG_READ(ah, AR_ISR_S2);
+		uint32_t isr2 = OS_REG_READ(ah, AR_ISR_S2);
 		if (isr2 & AR_ISR_S2_TIM)
 			mask2 |= HAL_INT_TIM;
 		if (isr2 & AR_ISR_S2_DTIM)
 			mask2 |= HAL_INT_DTIM;
 		if (isr2 & AR_ISR_S2_DTIMSYNC)
 			mask2 |= HAL_INT_DTIMSYNC;
-		if (isr2 & (AR_ISR_S2_CABEND ))
+		if (isr2 & AR_ISR_S2_CABEND)
 			mask2 |= HAL_INT_CABEND;
+		if (isr2 & AR_ISR_S2_TBTT)
+			mask2 |= HAL_INT_TBTT;
 	}
 	isr = OS_REG_READ(ah, AR_ISR_RAC);
 	if (isr == 0xffffffff) {
@@ -137,7 +139,7 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	uint32_t omask = ahp->ah_maskReg;
-	uint32_t mask,mask2;
+	uint32_t mask, mask2;
 
 	HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: 0x%x => 0x%x\n",
 	    __func__, omask, ints);
@@ -171,7 +173,9 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		if (ints & HAL_INT_DTIMSYNC)
 			mask2 |= AR_IMR_S2_DTIMSYNC;
 		if (ints & HAL_INT_CABEND)
-			mask2 |= (AR_IMR_S2_CABEND );
+			mask2 |= AR_IMR_S2_CABEND;
+		if (ints & HAL_INT_TBTT)
+			mask2 |= AR_IMR_S2_TBTT;
 	}
 	if (ints & HAL_INT_FATAL) {
 		/*
@@ -184,15 +188,8 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	/* Write the new IMR and store off our SW copy. */
 	HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: new IMR 0x%x\n", __func__, mask);
 	OS_REG_WRITE(ah, AR_IMR, mask);
-	OS_REG_WRITE(ah, AR_IMR_S2, 
-				 (OS_REG_READ(ah, AR_IMR_S2) & 
-				  ~(AR_IMR_S2_TIM |
-					AR_IMR_S2_DTIM |
-					AR_IMR_S2_DTIMSYNC |
-					AR_IMR_S2_CABEND |
-					AR_IMR_S2_CABTO  |
-					AR_IMR_S2_TSFOOR ) ) 
-				 | mask2);
+	OS_REG_WRITE(ah, AR_IMR_S2,
+	    (OS_REG_READ(ah, AR_IMR_S2) &~ AR_IMR_SR2_BCNMISC) | mask2);
 	ahp->ah_maskReg = ints;
 
 	/* Re-enable interrupts if they were enabled before. */
@@ -200,7 +197,5 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: enable IER\n", __func__);
 		OS_REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
 	}
-
-
 	return omask;
 }

@@ -78,8 +78,7 @@ netisr_register(int num, netisr_t *handler, struct ifqueue *inq, int flags)
 	
 	KASSERT(!(num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs))),
 	    ("bad isr %d", num));
-	KASSERT(flags == 0 || flags == NETISR_FORCEQUEUE,
-	    ("netisr_register: bad flags 0x%x\n", flags));
+	KASSERT(flags == 0, ("netisr_register: bad flags 0x%x\n", flags));
 	netisrs[num].ni_handler = handler;
 	netisrs[num].ni_queue = inq;
 	netisrs[num].ni_flags = flags;
@@ -169,15 +168,11 @@ netisr_dispatch(int num, struct mbuf *m)
 	}
 
 	/*
-	 * Unless NETISR_FORCEQUEUE is set on the netisr (generally
-	 * indicating that the handler still requires Giant, which cannot be
-	 * acquired in arbitrary order with respect to a caller), directly
-	 * dispatch handling of this packet.  Source ordering is maintained
-	 * by virtue of callers consistently calling one of queued or direct
-	 * dispatch, and the forcequeue flag being immutable after
-	 * registration.
+	 * Directly dispatch handling of this packet, if permitted by global
+	 * policy.  Source ordering is maintained by virtue of callers
+	 * consistently calling one of queued or direct dispatch.
 	 */
-	if (netisr_direct && !(ni->ni_flags & NETISR_FORCEQUEUE)) {
+	if (netisr_direct) {
 		isrstat.isrs_directed++;
 		ni->ni_handler(m);
 	} else {

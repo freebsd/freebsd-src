@@ -61,8 +61,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int ohcidebug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
-SYSCTL_INT(_hw_usb2_ohci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
+SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
     &ohcidebug, 0, "ohci debug level");
 static void ohci_dumpregs(ohci_softc_t *);
 static void ohci_dump_tds(ohci_td_t *);
@@ -2570,10 +2570,10 @@ ohci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
 
 	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
 	    pipe, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb2_mode,
+	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_addr);
 
-	if (udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (udev->flags.usb_mode != USB_MODE_HOST) {
 		/* not supported */
 		return;
 	}

@@ -91,8 +91,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int uchcom_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uchcom, CTLFLAG_RW, 0, "USB uchcom");
-SYSCTL_INT(_hw_usb2_uchcom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uchcom, CTLFLAG_RW, 0, "USB uchcom");
+SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RW,
     &uchcom_debug, 0, "uchcom debug level");
 #endif
 
@@ -281,7 +281,7 @@ uchcom_probe(device_t dev)
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UCHCOM_CONFIG_INDEX) {

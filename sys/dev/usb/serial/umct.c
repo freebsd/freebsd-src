@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #define	UMCT_INTR_INTERVAL	100
 #define	UMCT_IFACE_INDEX	0
-#define	UMCT_CONFIG_INDEX	1
+#define	UMCT_CONFIG_INDEX	0
 
 enum {
 	UMCT_BULK_DT_WR,
@@ -208,7 +208,7 @@ umct_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UMCT_CONFIG_INDEX) {
