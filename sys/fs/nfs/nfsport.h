@@ -235,6 +235,9 @@
  */
 #define	NFSV4OP_NOPS		40
 
+/* Quirky case if the illegal op code */
+#define	NFSV4OP_OPILLEGAL	10044
+
 /*
  * Fake NFSV4OP_xxx used for nfsstat. Start at NFSV4OP_NOPS.
  */
