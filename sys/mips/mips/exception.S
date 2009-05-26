@@ -593,6 +593,19 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	jalr	k0
 	sw	a3, STAND_RA_OFFSET + KERN_REG_SIZE(sp)
 	/* Why no AST processing here? */
+
+	/*
+	 * Update interrupt mask in saved status register
+	 * Some of interrupts could be disabled by
+	 * intr filters
+	 */
+	mfc0	a0, COP_0_STATUS_REG
+	and	a0, a0, SR_INT_MASK
+	RESTORE_REG(a1, SR, sp)
+	and	a1, a1, ~SR_INT_MASK
+	or	a1, a1, a0
+	SAVE_REG(a1, SR, sp)
+
 /*
  * Restore registers and return from the interrupt.
  */

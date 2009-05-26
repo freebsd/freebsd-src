@@ -482,7 +482,8 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 //	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB;
 //?	td->td_frame->sr |=  idle_mask & ALL_INT_MASK;
 #else
-	td->td_frame->sr = SR_KSU_USER | SR_EXL;// mips2 also did COP_0_BIT
+	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB |
+	    (mips_rd_status() & ALL_INT_MASK);
 #endif
 #ifdef TARGET_OCTEON
 	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX |
