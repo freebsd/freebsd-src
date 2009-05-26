@@ -53,17 +53,38 @@ static int intrcnt_index = 0;
 static int last_printed = 0;
 #endif
 
-void
-mips_mask_irq(void)
+static void
+mips_mask_hard_irq(void *source)
 {
+	int irq = (int)source;
 
+	mips_wr_status(mips_rd_status() & ~(((1 << irq) << 8) << 2));
 }
 
-void
-mips_unmask_irq(void)
+static void
+mips_unmask_hard_irq(void *source)
 {
+	int irq = (int)source;
 
+	mips_wr_status(mips_rd_status() | (((1 << irq) << 8) << 2));
 }
+
+static void
+mips_mask_soft_irq(void *source)
+{
+	int irq = (int)source;
+
+	mips_wr_status(mips_rd_status() & ~((1 << irq) << 8));
+}
+
+static void
+mips_unmask_soft_irq(void *source)
+{
+	int irq = (int)source;
+
+	mips_wr_status(mips_rd_status() | ((1 << irq) << 8));
+}
+
 
 void
 cpu_establish_hardintr(const char *name, driver_filter_t *filt,
@@ -72,8 +93,10 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 	struct intr_event *event;
 	int error;
 
+#if 0
 	printf("Establish HARD IRQ %d: filt %p handler %p arg %p\n",
 	    irq, filt, handler, arg);
+#endif
 	/*
 	 * We have 6 levels, but thats 0 - 5 (not including 6)
 	 */
@@ -83,7 +106,7 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 	event = hardintr_events[irq];
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)irq, 0, irq,
-		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
+		    mips_mask_hard_irq, mips_unmask_hard_irq,
 		    NULL, NULL, "hard intr%d:", irq);
 		if (error)
 			return;
@@ -101,7 +124,7 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 	intr_event_add_handler(event, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 
-	mips_wr_status(mips_rd_status() | (((1 << irq) << 8) << 2));
+	mips_unmask_hard_irq((void*)irq);
 }
 
 void
@@ -112,15 +135,17 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 	struct intr_event *event;
 	int error;
 
+#if 0
 	printf("Establish SOFT IRQ %d: filt %p handler %p arg %p\n",
 	    irq, filt, handler, arg);
+#endif
 	if (irq < 0 || irq > NSOFT_IRQS)
 		panic("%s called for unknown hard intr %d", __func__, irq);
 
 	event = softintr_events[irq];
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)irq, 0, irq,
-		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
+		    mips_mask_soft_irq, mips_unmask_soft_irq,
 		    NULL, NULL, "intr%d:", irq);
 		if (error)
 			return;
@@ -130,22 +155,27 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 	intr_event_add_handler(event, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 
-	mips_wr_status(mips_rd_status() | (((1<< irq) << 8)));
+	mips_unmask_soft_irq((void*)irq);
 }
 
 void
 cpu_intr(struct trapframe *tf)
 {
 	struct intr_event *event;
-	register_t cause;
+	register_t cause, status;
 	int hard, i, intr;
 
 	critical_enter();
 
 	cause = mips_rd_cause();
+	status = mips_rd_status();
 	intr = (cause & MIPS_INT_MASK) >> 8;
-	cause &= ~MIPS_INT_MASK;
-	mips_wr_cause(cause);
+	/*
+	 * Do not handle masked interrupts. They were masked by 
+	 * pre_ithread function (mips_mask_XXX_intr) and will be 
+	 * unmasked once ithread is through with handler
+	 */
+	intr &= (status & MIPS_INT_MASK) >> 8;
 	while ((i = fls(intr)) != 0) {
 		intr &= ~(1 << (i - 1));
 		switch (i) {
