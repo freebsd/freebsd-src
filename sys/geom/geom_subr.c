@@ -1258,6 +1258,76 @@ DB_SHOW_COMMAND(geom, db_show_geom)
 	}
 }
 
+static void
+db_print_bio_cmd(struct bio *bp)
+{
+	printf("  cmd: ");
+	switch (bp->bio_cmd) {
+	case BIO_READ: printf("BIO_READ"); break;
+	case BIO_WRITE: printf("BIO_WRITE"); break;
+	case BIO_DELETE: printf("BIO_DELETE"); break;
+	case BIO_GETATTR: printf("BIO_GETATTR"); break;
+	case BIO_FLUSH: printf("BIO_FLUSH"); break;
+	case BIO_CMD0: printf("BIO_CMD0"); break;
+	case BIO_CMD1: printf("BIO_CMD1"); break;
+	case BIO_CMD2: printf("BIO_CMD2"); break;
+	default: printf("UNKNOWN"); break;
+	}
+	printf("\n");
+}
+
+static void
+db_print_bio_flags(struct bio *bp)
+{
+	int comma;
+
+	comma = 0;
+	printf("  flags: ");
+	if (bp->bio_flags & BIO_ERROR) {
+		printf("BIO_ERROR");
+		comma = 1;
+	}
+	if (bp->bio_flags & BIO_DONE) {
+		printf("%sBIO_ERROR", (comma ? ", " : ""));
+		comma = 1;
+	}
+	if (bp->bio_flags & BIO_ONQUEUE)
+		printf("%sBIO_ONQUEUE", (comma ? ", " : ""));
+	printf("\n");
+}
+
+/*
+ * Print useful information in a BIO
+ */
+DB_SHOW_COMMAND(bio, db_show_bio)
+{
+	struct bio *bp;
+
+	if (have_addr) {
+		bp = (struct bio *)addr;
+		printf("BIO %p\n", bp);
+		db_print_bio_cmd(bp);
+		db_print_bio_flags(bp);
+		printf("  cflags: 0x%hhx\n", bp->bio_cflags);
+		printf("  pflags: 0x%hhx\n", bp->bio_pflags);
+		printf("  offset: %lld\n", bp->bio_offset);
+		printf("  length: %lld\n", bp->bio_length);
+		printf("  bcount: %ld\n", bp->bio_bcount);
+		printf("  resid: %ld\n", bp->bio_resid);
+		printf("  completed: %lld\n", bp->bio_completed);
+		printf("  children: %u\n", bp->bio_children);
+		printf("  inbed: %u\n", bp->bio_inbed);
+		printf("  error: %d\n", bp->bio_error);
+		printf("  parent: %p\n", bp->bio_parent);
+		printf("  driver1: %p\n", bp->bio_driver1);
+		printf("  driver2: %p\n", bp->bio_driver2);
+		printf("  caller1: %p\n", bp->bio_caller1);
+		printf("  caller2: %p\n", bp->bio_caller2);
+		printf("  bio_from: %p\n", bp->bio_from);
+		printf("  bio_to: %p\n", bp->bio_to);
+	}
+}
+
 #undef	gprintf
 #undef	gprintln
 #undef	ADDFLAG
