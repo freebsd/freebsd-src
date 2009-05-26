@@ -281,33 +281,92 @@
 #define		AR71XX_MAC_FIFO_CFG2		0x50
 #define		AR71XX_MAC_FIFO_TX_THRESHOLD	0x54
 #define		AR71XX_MAC_FIFO_RX_FILTMATCH	0x58
-#define			FIFO_RX_FILTMATCH_ALL		((1 << 18) - 1)
-#define		AR71XX_MAC_FIFO_RX_FILTMASK	0x5C
-#define			FIFO_RX_FILTMASK_BYTE_MODE	(1 << 19)
-#define			FIFO_RX_FILTMASK_NO_SHORT_FRAME	(1 << 18)
-#define			FIFO_RX_FILTMASK_ALL		((1 << 20) - 1)
 /* 
  * These flags applicable both to AR71XX_MAC_FIFO_RX_FILTMASK and
  * to AR71XX_MAC_FIFO_RX_FILTMATCH
  */
-#define			FIFO_RX_FILT_UNICAST		(1 << 17)
-#define			FIFO_RX_FILT_TRUNC_FRAME	(1 << 16)
-#define			FIFO_RX_FILT_VLAN_TAG		(1 << 15)
-#define			FIFO_RX_FILT_UNSUP_OPCODE	(1 << 14)
-#define			FIFO_RX_FILT_PAUSE_FRAME	(1 << 13)
-#define			FIFO_RX_FILT_CTRL_FRAME		(1 << 12)
-#define			FIFO_RX_FILT_LONG_EVENT		(1 << 11)
-#define			FIFO_RX_FILT_DRIBBLE_NIBBLE	(1 << 10)
-#define			FIFO_RX_FILT_BCAST		(1 <<  9)
-#define			FIFO_RX_FILT_MCAST		(1 <<  8)
-#define			FIFO_RX_FILT_OK			(1 <<  7)
-#define			FIFO_RX_FILT_OORANGE		(1 <<  6)
-#define			FIFO_RX_FILT_LEN_MSMTCH		(1 <<  5)
-#define			FIFO_RX_FILT_CRC_ERROR		(1 <<  4)
-#define			FIFO_RX_FILT_CODE_ERROR		(1 <<  3)
-#define			FIFO_RX_FILT_FALSE_CARRIER	(1 <<  2)
-#define			FIFO_RX_FILT_RX_DV_EVENT	(1 <<  1)
-#define			FIFO_RX_FILT_DROP_EVENT		(1 <<  0)
+#define			FIFO_RX_MATCH_UNICAST		(1 << 17)
+#define			FIFO_RX_MATCH_TRUNC_FRAME	(1 << 16)
+#define			FIFO_RX_MATCH_VLAN_TAG		(1 << 15)
+#define			FIFO_RX_MATCH_UNSUP_OPCODE	(1 << 14)
+#define			FIFO_RX_MATCH_PAUSE_FRAME	(1 << 13)
+#define			FIFO_RX_MATCH_CTRL_FRAME	(1 << 12)
+#define			FIFO_RX_MATCH_LONG_EVENT	(1 << 11)
+#define			FIFO_RX_MATCH_DRIBBLE_NIBBLE	(1 << 10)
+#define			FIFO_RX_MATCH_BCAST		(1 <<  9)
+#define			FIFO_RX_MATCH_MCAST		(1 <<  8)
+#define			FIFO_RX_MATCH_OK		(1 <<  7)
+#define			FIFO_RX_MATCH_OORANGE		(1 <<  6)
+#define			FIFO_RX_MATCH_LEN_MSMTCH	(1 <<  5)
+#define			FIFO_RX_MATCH_CRC_ERROR		(1 <<  4)
+#define			FIFO_RX_MATCH_CODE_ERROR	(1 <<  3)
+#define			FIFO_RX_MATCH_FALSE_CARRIER	(1 <<  2)
+#define			FIFO_RX_MATCH_RX_DV_EVENT	(1 <<  1)
+#define			FIFO_RX_MATCH_DROP_EVENT	(1 <<  0)
+/*
+ * Exclude unicast and truncated frames from matching
+ */
+#define			FIFO_RX_FILTMATCH_DEFAULT		\
+				(FIFO_RX_MATCH_VLAN_TAG		| \
+				FIFO_RX_MATCH_UNSUP_OPCODE	| \
+				FIFO_RX_MATCH_PAUSE_FRAME	| \
+				FIFO_RX_MATCH_CTRL_FRAME	| \
+				FIFO_RX_MATCH_LONG_EVENT	| \
+				FIFO_RX_MATCH_DRIBBLE_NIBBLE	| \
+				FIFO_RX_MATCH_BCAST		| \
+				FIFO_RX_MATCH_MCAST		| \
+				FIFO_RX_MATCH_OK		| \
+				FIFO_RX_MATCH_OORANGE		| \
+				FIFO_RX_MATCH_LEN_MSMTCH	| \
+				FIFO_RX_MATCH_CRC_ERROR		| \
+				FIFO_RX_MATCH_CODE_ERROR	| \
+				FIFO_RX_MATCH_FALSE_CARRIER	| \
+				FIFO_RX_MATCH_RX_DV_EVENT	| \
+				FIFO_RX_MATCH_DROP_EVENT)
+#define		AR71XX_MAC_FIFO_RX_FILTMASK	0x5C
+#define			FIFO_RX_MASK_BYTE_MODE		(1 << 19)
+#define			FIFO_RX_MASK_NO_SHORT_FRAME	(1 << 18)
+#define			FIFO_RX_MASK_BIT17		(1 << 17)
+#define			FIFO_RX_MASK_BIT16		(1 << 16)
+#define			FIFO_RX_MASK_TRUNC_FRAME	(1 << 15)
+#define			FIFO_RX_MASK_LONG_EVENT		(1 << 14)
+#define			FIFO_RX_MASK_VLAN_TAG		(1 << 13)
+#define			FIFO_RX_MASK_UNSUP_OPCODE	(1 << 12)
+#define			FIFO_RX_MASK_PAUSE_FRAME	(1 << 11)
+#define			FIFO_RX_MASK_CTRL_FRAME		(1 << 10)
+#define			FIFO_RX_MASK_DRIBBLE_NIBBLE	(1 <<  9)
+#define			FIFO_RX_MASK_BCAST		(1 <<  8)
+#define			FIFO_RX_MASK_MCAST		(1 <<  7)
+#define			FIFO_RX_MASK_OK			(1 <<  6)
+#define			FIFO_RX_MASK_OORANGE		(1 <<  5)
+#define			FIFO_RX_MASK_LEN_MSMTCH		(1 <<  4)
+#define			FIFO_RX_MASK_CODE_ERROR		(1 <<  3)
+#define			FIFO_RX_MASK_FALSE_CARRIER	(1 <<  2)
+#define			FIFO_RX_MASK_RX_DV_EVENT	(1 <<  1)
+#define			FIFO_RX_MASK_DROP_EVENT		(1 <<  0)
+
+/*
+ *  Len. mismatch, unsup. opcode and short frmae bits excluded
+ */
+#define			FIFO_RX_FILTMASK_DEFAULT \
+				(FIFO_RX_MASK_NO_SHORT_FRAME	| \
+				FIFO_RX_MASK_BIT17		| \
+				FIFO_RX_MASK_BIT16		| \
+				FIFO_RX_MASK_TRUNC_FRAME	| \
+				FIFO_RX_MASK_LONG_EVENT		| \
+				FIFO_RX_MASK_VLAN_TAG		| \
+				FIFO_RX_MASK_PAUSE_FRAME	| \
+				FIFO_RX_MASK_CTRL_FRAME		| \
+				FIFO_RX_MASK_DRIBBLE_NIBBLE	| \
+				FIFO_RX_MASK_BCAST		| \
+				FIFO_RX_MASK_MCAST		| \
+				FIFO_RX_MASK_OK			| \
+				FIFO_RX_MASK_OORANGE		| \
+				FIFO_RX_MASK_CODE_ERROR		| \
+				FIFO_RX_MASK_FALSE_CARRIER	| \
+				FIFO_RX_MASK_RX_DV_EVENT	| \
+				FIFO_RX_MASK_DROP_EVENT)
+
 #define		AR71XX_MAC_FIFO_RAM0		0x60
 #define		AR71XX_MAC_FIFO_RAM1		0x64
 #define		AR71XX_MAC_FIFO_RAM2		0x68
