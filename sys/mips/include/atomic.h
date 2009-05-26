@@ -435,7 +435,9 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 #define	atomic_subtract_acq_ptr	atomic_subtract_acq_32
 #define	atomic_subtract_rel_ptr	atomic_subtract_rel_32
 #define	atomic_cmpset_ptr	atomic_cmpset_32
-#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_32
+#define	atomic_cmpset_acq_ptr(dst, old, new)    \
+	atomic_cmpset_acq_32((volatile u_int *)(dst), \
+	    (u_int)(old), (u_int)(new))
 #define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_32
 #define	atomic_load_acq_ptr	atomic_load_acq_32
 #define	atomic_store_rel_ptr	atomic_store_rel_32
