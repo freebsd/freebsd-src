@@ -50,7 +50,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.99 2001/12/24 05:43:32 hugh Exp $
+ |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.102 2009/02/17 03:22:50 hugh Exp hugh $
  |
  */
 
@@ -59,12 +59,18 @@ char *ee_copyright_message =
 
 #include "ee_version.h"
 
-char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.99 $";
+char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.102 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
+#elif HAS_NCURSES
+#include <ncurses.h>
 #else
 #include <curses.h>
+#endif
+
+#ifdef HAS_CTYPE
+#include <ctype.h>
 #endif
 
 #include <signal.h>
@@ -89,10 +95,6 @@ char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.99 $";
 
 #ifdef HAS_UNISTD
 #include <unistd.h>
-#endif
-
-#ifdef HAS_CTYPE
-#include <ctype.h>
 #endif
 
 
@@ -147,6 +149,7 @@ int position;			/* offset in bytes from begin of line	*/
 int scr_pos;			/* horizontal position			*/
 int scr_vert;			/* vertical position on screen		*/
 int scr_horz;			/* horizontal position on screen	*/
+int absolute_lin;		/* number of lines from top		*/
 int tmp_vert, tmp_horz;
 int input_file;			/* indicate to read input file		*/
 int recv_file;			/* indicate reading a file		*/
@@ -199,7 +202,7 @@ unsigned char *d_char;		/* deleted character			*/
 unsigned char *d_word;		/* deleted word				*/
 unsigned char *d_line;		/* deleted line				*/
 char in_string[513];	/* buffer for reading a file		*/
-unsigned char *print_command = "lp";	/* string to use for the print command 	*/
+unsigned char *print_command = (unsigned char *)"lpr";	/* string to use for the print command 	*/
 unsigned char *start_at_line = NULL;	/* move to this line at start of session*/
 int in;				/* input character			*/
 
@@ -529,6 +532,7 @@ char *ree_no_file_msg;
 char *cancel_string;
 char *menu_too_lrg_msg;
 char *more_above_str, *more_below_str;
+char *separator = "===============================================================================";
 
 char *chinese_cmd, *nochinese_cmd;
 
@@ -547,7 +551,6 @@ int argc;
 char *argv[];
 {
 	int counter;
-	pid_t parent_pid;
 
 	for (counter = 1; counter < 24; counter++)
 		signal(counter, SIG_IGN);
@@ -575,6 +578,7 @@ char *argv[];
 	scr_pos =0;
 	scr_vert = 0;
 	scr_horz = 0;
+	absolute_lin = 1;
 	bit_bucket = fopen("/dev/null", "w");
 	edit = TRUE;
 	gold = case_sen = FALSE;
@@ -608,26 +612,29 @@ char *argv[];
 
 	while(edit) 
 	{
+		/*
+		 |  display line and column information
+		 */
+		if (info_window)
+		{
+			if (!nohighlight)
+				wstandout(info_win);
+			wmove(info_win, 5, 0);
+			wprintw(info_win, separator);
+			wmove(info_win, 5, 5);
+			wprintw(info_win, "line %d col %d lines from top %d ", 
+			          curr_line->line_number, scr_horz, absolute_lin);
+			wstandend(info_win);
+			wrefresh(info_win);
+		}
+
 		wrefresh(text_win);
 		in = wgetch(text_win);
 		if (in == -1)
-			exit(0);
-		/*
-		 |	The above check used to work to detect if the parent 
-		 |	process died, but now it seems we need a more 
-		 |	sophisticated check.
-		 */
-		if (counter > 50)
-		{
-			parent_pid = getppid();
-			if (parent_pid == 1)
-				edit_abort(1);
-			else
-				counter = 0;
-		}
-		else
-			counter++;
-		
+			exit(0);  /* without this exit ee will go into an 
+			             infinite loop if the network 
+			             session detaches */
+
 		resize_check();
 
 		if (clear_com_win)
@@ -818,6 +825,7 @@ int disp;
 	}
 	else if (curr_line->prev_line != NULL)
 	{
+		absolute_lin--;
 		text_changes = TRUE;
 		left(disp);			/* go to previous line	*/
 		temp_buff = curr_line->next_line;
@@ -930,7 +938,7 @@ char character;
 int column;
 {
 	int i1, i2;
-	unsigned char *string;
+	char *string;
 	char string2[8];
 
 	if (character == TAB)
@@ -1097,6 +1105,7 @@ int disp;
 		curr_line->line_length = 1 + temp - curr_line->line;
 	}
 	curr_line->line_length = position;
+	absolute_lin++;
 	curr_line = temp_nod;
 	*extra = '\0';
 	position = 1;
@@ -1325,7 +1334,10 @@ void
 bottom()			/* go to bottom of file			*/
 {
 	while (curr_line->next_line != NULL)
+	{
 		curr_line = curr_line->next_line;
+		absolute_lin++;
+	}
 	point = curr_line->line;
 	if (horiz_offset)
 		horiz_offset = 0;
@@ -1338,7 +1350,10 @@ void
 top()				/* go to top of file			*/
 {
 	while (curr_line->prev_line != NULL)
+	{
 		curr_line = curr_line->prev_line;
+		absolute_lin--;
+	}
 	point = curr_line->line;
 	if (horiz_offset)
 		horiz_offset = 0;
@@ -1351,6 +1366,7 @@ void
 nextline()			/* move pointers to start of next line	*/
 {
 	curr_line = curr_line->next_line;
+	absolute_lin++;
 	point = curr_line->line;
 	position = 1;
 	if (scr_vert == last_line)
@@ -1369,6 +1385,7 @@ void
 prevline()			/* move pointers to start of previous line*/
 {
 	curr_line = curr_line->prev_line;
+	absolute_lin--;
 	point = curr_line->line;
 	position = 1;
 	if (scr_vert == 0)
@@ -1406,6 +1423,7 @@ int disp;
 	{
 		if (!disp)
 		{
+			absolute_lin--;
 			curr_line = curr_line->prev_line;
 			point = curr_line->line + curr_line->line_length;
 			position = curr_line->line_length;
@@ -1441,6 +1459,7 @@ int disp;
 	{
 		if (!disp)
 		{
+			absolute_lin++;
 			curr_line = curr_line->next_line;
 			point = curr_line->line;
 			position = 1;
@@ -1522,9 +1541,11 @@ function_key()				/* process function key		*/
 		left(TRUE);
 	else if (in == KEY_RIGHT)
 		right(TRUE);
-	else if ( in == KEY_HOME)
-		top();
-	else if ( in == KEY_UP)
+	else if (in == KEY_HOME)
+		bol();
+	else if (in == KEY_END)
+		eol();
+	else if (in == KEY_UP)
 		up();
 	else if (in == KEY_DOWN)
 		down();
@@ -1969,7 +1990,7 @@ char *cmd_str;
 	int number;
 	int i;
 	char *ptr;
-	char *direction;
+	char *direction = NULL;
 	struct text *t_line;
 
 	ptr = cmd_str;
@@ -2000,6 +2021,14 @@ char *cmd_str;
 	}
 	else
 	{
+		if (!strcmp(direction, "d"))
+		{
+			absolute_lin += i;
+		}
+		else
+		{
+			absolute_lin -= i;
+		}
 		curr_line = t_line;
 		point = curr_line->line;
 		position = 1;
@@ -2040,7 +2069,7 @@ char *arguments[];
 {
 	char *buff;
 	int count;
-	struct files *temp_names;
+	struct files *temp_names = NULL;
 	char *name;
 	char *ptr;
 	int no_more_opts = FALSE;
@@ -2460,6 +2489,7 @@ delete_text()
 	{
 		free(curr_line->line);
 		curr_line = curr_line->prev_line;
+		absolute_lin--;
 		free(curr_line->next_line);
 	}
 	curr_line->next_line = NULL;
@@ -2637,6 +2667,7 @@ int display_message;
 			}
 			else 
 			{
+				absolute_lin += lines_moved;
 				curr_line = srch_line;
 				point = srch_1;
 				position = iter;
@@ -2935,6 +2966,7 @@ int lines;
 			}
 			scr_vert = scr_vert + i;
 			curr_line = tmp_line;
+			absolute_lin += i;
 			point = tmp;
 			scanline(point);
 		}
@@ -2965,6 +2997,7 @@ int lines;
 			{
 				down();
 			}
+			absolute_lin -= i;
 			scr_vert = scr_vert - i;
 			curr_line = tmp_line;
 			point = tmp;
@@ -3019,6 +3052,20 @@ adv_line()	/* advance to beginning of next line	*/
 		scr_pos = 0;
 		down();
 	}
+}
+
+void 
+from_top()
+{
+	struct text *tmpline = first_line;
+	int x = 1;
+
+	while ((tmpline != NULL) && (tmpline != curr_line))
+	{
+		x++;
+		tmpline = tmpline->next_line;
+	}
+	absolute_lin = x;
 }
 
 void 
@@ -3113,6 +3160,7 @@ char *string;		/* string containing user command		*/
 			scr_horz = scr_pos = 0;
 			position = 1;
 			curr_line = line_holder;
+			from_top();
 			point = curr_line->line;
 			out_pipe = FALSE;
 			signal(SIGCHLD, SIG_DFL);
@@ -3152,7 +3200,7 @@ char *string;		/* string containing user command		*/
 			for (value = 1; value < 24; value++)
 				signal(value, SIG_DFL);
 			execl(path, last_slash, "-c", string, NULL);
-			printf(exec_err_msg, path);
+			fprintf(stderr, exec_err_msg, path);
 			exit(-1);
 		}
 		else	/* if the parent	*/
@@ -3660,7 +3708,7 @@ paint_info_win()
 	wmove(info_win, 5, 0);
 	if (!nohighlight)
 		wstandout(info_win);
-	waddstr(info_win, "===============================================================================");
+	waddstr(info_win, separator);
 	wstandend(info_win);
 	wrefresh(info_win);
 }
@@ -4094,6 +4142,8 @@ ee_init()	/* check for init file and read it if it exists	*/
 	int temp_int;
 
 	string = getenv("HOME");
+	if (string == NULL)
+		string = "/tmp";
 	str1 = home = malloc(strlen(string)+10);
 	strcpy(home, string);
 	strcat(home, "/.init.ee");
@@ -5080,7 +5130,7 @@ strings_init()
 	help_text[6] = catgetlocal( 41, "^f undelete char        ^n next page            ^x search                  ");
 	help_text[7] = catgetlocal( 42, "^g begin of line        ^o end of line          ^y delete line             ");
 	help_text[8] = catgetlocal( 43, "^h backspace            ^p prev page            ^z undelete line           ");
-	help_text[9] = catgetlocal( 44, "^[ (escape) menu                                                           ");
+	help_text[9] = catgetlocal( 44, "^[ (escape) menu        ESC-Enter: exit ee                                 ");
 	help_text[10] = catgetlocal( 45, "                                                                           ");
 	help_text[11] = catgetlocal( 46, "Commands:                                                                  ");
 	help_text[12] = catgetlocal( 47, "help    : get this info                 file    : print file name          ");
@@ -5097,7 +5147,7 @@ strings_init()
 	control_keys[1] = catgetlocal( 58, "^a ascii code     ^x search         ^z undelete line  ^d down   ^n next page  ");
 	control_keys[2] = catgetlocal( 59, "^b bottom of text ^g begin of line  ^w delete word    ^l left                 ");
 	control_keys[3] = catgetlocal( 60, "^t top of text    ^o end of line    ^v undelete word  ^r right                ");
-	control_keys[4] = catgetlocal( 61, "^c command        ^k delete char    ^f undelete char                          ");
+	control_keys[4] = catgetlocal( 61, "^c command        ^k delete char    ^f undelete char      ESC-Enter: exit ee  ");
 	command_strings[0] = catgetlocal( 62, "help : get help info  |file  : print file name         |line : print line # ");
 	command_strings[1] = catgetlocal( 63, "read : read a file    |char  : ascii code of char      |0-9 : go to line \"#\"");
 	command_strings[2] = catgetlocal( 64, "write: write a file   |case  : case sensitive search   |exit : leave and save ");
@@ -5207,11 +5257,11 @@ strings_init()
 	emacs_help_text[19] = help_text[19];
 	emacs_help_text[20] = help_text[20];
 	emacs_help_text[21] = help_text[21];
-	emacs_control_keys[0] = catgetlocal( 154, "^[ (escape) menu  ^y search prompt  ^k delete line   ^p prev li   ^g prev page");
-	emacs_control_keys[1] = catgetlocal( 155, "^o ascii code     ^x search         ^l undelete line ^n next li   ^v next page");
-	emacs_control_keys[2] = catgetlocal( 156, "^u end of file    ^a begin of line  ^w delete word   ^b back 1 char           ");
-	emacs_control_keys[3] = catgetlocal( 157, "^t top of text    ^e end of line    ^r restore word  ^f forward 1 char        ");
-	emacs_control_keys[4] = catgetlocal( 158, "^c command        ^d delete char    ^j undelete char ^z next word              ");
+	emacs_control_keys[0] = catgetlocal( 154, "^[ (escape) menu ^y search prompt ^k delete line   ^p prev li     ^g prev page");
+	emacs_control_keys[1] = catgetlocal( 155, "^o ascii code    ^x search        ^l undelete line ^n next li     ^v next page");
+	emacs_control_keys[2] = catgetlocal( 156, "^u end of file   ^a begin of line ^w delete word   ^b back 1 char ^z next word");
+	emacs_control_keys[3] = catgetlocal( 157, "^t top of text   ^e end of line   ^r restore word  ^f forward char            ");
+	emacs_control_keys[4] = catgetlocal( 158, "^c command       ^d delete char   ^j undelete char              ESC-Enter: exit");
 	EMACS_string = catgetlocal( 159, "EMACS");
 	NOEMACS_string = catgetlocal( 160, "NOEMACS");
 	usage4 = catgetlocal( 161, "       +#   put cursor at line #\n");

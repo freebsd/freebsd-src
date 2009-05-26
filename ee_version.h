@@ -2,5 +2,5 @@
  |	provide a version number for ee
  */
 
-#define EE_VERSION "1.4.7"
-#define DATE_STRING "$Date: 2002/09/21 00:50:54 $"
+#define EE_VERSION "1.5.0"
+#define DATE_STRING "$Date: 2009/02/17 03:32:30 $"
