@@ -82,6 +82,14 @@ SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_privport, CTLFLAG_RW,
     &nfs_privport, 0,
     "Only allow clients using a privileged port for NFSv2 and 3");
 
+static int	nfs_minvers = NFS_VER2;
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, server_min_nfsvers, CTLFLAG_RW,
+    &nfs_minvers, 0, "The lowest version of NFS handled by the server");
+
+static int	nfs_maxvers = NFS_VER4;
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, server_max_nfsvers, CTLFLAG_RW,
+    &nfs_maxvers, 0, "The highest version of NFS handled by the server");
+
 static int nfs_proc(struct nfsrv_descript *, u_int32_t, struct socket *,
     u_int64_t, struct nfsrvcache **);
 
@@ -353,9 +361,15 @@ nfsrvd_addsock(struct file *fp)
 		fp->f_ops = &badfileops;
 		fp->f_data = NULL;
 		xprt->xp_sockref = ++sockref;
-		svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program, NULL);
-		svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program, NULL);
-		svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program, NULL);
+		if (nfs_minvers == NFS_VER2)
+			svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program,
+			    NULL);
+		if (nfs_minvers <= NFS_VER3 && nfs_maxvers >= NFS_VER3)
+			svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program,
+			    NULL);
+		if (nfs_maxvers >= NFS_VER4)
+			svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program,
+			    NULL);
 	}
 
 	return (0);
