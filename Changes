@@ -1,3 +1,13 @@
+version 1.4.5a (12/23/2001)
+- modified get_options to be cleaner for arg handling
+
+version 1.4.5 (12/15/2001)
+- made changes to check usage of arguments provided so that if a file is
+  specified options are no longer accepted (that is, they are treated as file
+  names)
+- changed to use ee_version.h to allow changing version number without need
+  to change ee.c directly
+
 version 1.4.4 (8/17/2001)
 - added code to check if the parent process has died, and if so to exit 
   gracefully

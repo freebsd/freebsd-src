@@ -49,7 +49,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.97 2001/08/17 23:14:05 hugh Exp $
+ |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.99 2001/12/24 05:43:32 hugh Exp $
  |
  */
 
@@ -62,7 +62,9 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.4.1  $Revision: 1.97 $";
+#include "ee_version.h"
+
+char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.99 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -2046,6 +2048,7 @@ char *arguments[];
 	struct files *temp_names;
 	char *name;
 	char *ptr;
+	int no_more_opts = FALSE;
 
 	/*
 	 |	see if editor was invoked as 'ree' (restricted mode)
@@ -2062,7 +2065,7 @@ char *arguments[];
 	input_file = FALSE;
 	recv_file = FALSE;
 	count = 1;
-	while (count < numargs)
+	while ((count < numargs)&& (!no_more_opts))
 	{
 		buff = arguments[count];
 		if (!strcmp("-i", buff))
@@ -2086,35 +2089,43 @@ char *arguments[];
 			fprintf(stderr, usage4);
 			exit(1);
 		}
-		else if (*buff == '+')
+		else if ((*buff == '+') && (start_at_line == NULL))
 		{
 			buff++;
 			start_at_line = buff;
 		}
-
+		else if (!(strcmp("--", buff)))
+			no_more_opts = TRUE;
 		else
 		{
-			if (top_of_stack == NULL)
-			{
-				temp_names = top_of_stack = name_alloc();
-			}
-			else
-			{
-				temp_names->next_name = name_alloc();
-				temp_names = temp_names->next_name;
-			}
-			ptr = temp_names->name = malloc(strlen(buff) + 1);
-			while (*buff != (char) NULL)
-			{
-				*ptr = *buff;
-				buff++;
-				ptr++;
-			}
-			*ptr = (char) NULL;
-			temp_names->next_name = NULL;
-			input_file = TRUE;
-			recv_file = TRUE;
+			count--;
+			no_more_opts = TRUE;
 		}
+		count++;
+	}
+	while (count < numargs)
+	{
+		buff = arguments[count];
+		if (top_of_stack == NULL)
+		{
+			temp_names = top_of_stack = name_alloc();
+		}
+		else
+		{
+			temp_names->next_name = name_alloc();
+			temp_names = temp_names->next_name;
+		}
+		ptr = temp_names->name = malloc(strlen(buff) + 1);
+		while (*buff != (char) NULL)
+		{
+			*ptr = *buff;
+			buff++;
+			ptr++;
+		}
+		*ptr = (char) NULL;
+		temp_names->next_name = NULL;
+		input_file = TRUE;
+		recv_file = TRUE;
 		count++;
 	}
 }
