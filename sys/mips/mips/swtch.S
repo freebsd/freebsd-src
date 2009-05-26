@@ -224,6 +224,11 @@ LEAF(fork_trampoline)
 	RESTORE_U_PCB_REG(s8, S8, k1)
 	RESTORE_U_PCB_REG(ra, RA, k1)
 	RESTORE_U_PCB_REG(sp, SP, k1)
+	li	k1, ~SR_INT_MASK
+	and	k0, k0, k1
+	mfc0	k1, COP_0_STATUS_REG
+	and	k1, k1, SR_INT_MASK
+	or	k0, k0, k1
 	mtc0	k0, COP_0_STATUS_REG	# switch to user mode (when eret...)
 	HAZARD_DELAY
 	sync
@@ -410,6 +415,10 @@ sw2:
 	 * In case there are CPU-specific registers that need
 	 * to be restored with the other registers do so here.
 	 */
+	mfc0	t0, COP_0_STATUS_REG
+	and	t0, t0, SR_INT_MASK
+	and	v0, v0, ~SR_INT_MASK
+	or	v0, v0, t0
 	mtc0	v0, COP_0_STATUS_REG
 	ITLBNOPFIX
 
