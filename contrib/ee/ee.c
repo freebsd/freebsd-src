@@ -53,6 +53,9 @@
  |
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 char *ee_copyright_message = 
 "Copyright (c) 1986, 1990, 1991, 1992, 1993, 1994, 1995, 1996 Hugh Mahon ";
 
@@ -66,38 +69,36 @@ char *version = "@(#) ee, version 1.4.1  $Revision: 1.96 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
+#elif HAS_NCURSES
+#include <ncurses.h>
 #else
 #include <curses.h>
-#endif
-
-#include <signal.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <string.h>
-#include <pwd.h>
-
-#ifdef HAS_SYS_WAIT
-#include <sys/wait.h>
-#endif
-
-#ifdef HAS_STDLIB
-#include <stdlib.h>
-#endif
-
-#ifdef HAS_STDARG
-#include <stdarg.h>
-#endif
-
-#ifdef HAS_UNISTD
-#include <unistd.h>
 #endif
 
 #ifdef HAS_CTYPE
 #include <ctype.h>
 #endif
-
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <pwd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#ifdef HAS_SYS_WAIT
+#include <sys/wait.h>
+#endif
+#ifdef HAS_STDARG
+#include <stdarg.h>
+#endif
+#ifdef HAS_STDLIB
+#include <stdlib.h>
+#endif
+#include <string.h>
+#ifdef HAS_UNISTD
+#include <unistd.h>
+#endif
 
 #ifndef NO_CATGETS
 #include <locale.h>
@@ -202,8 +203,11 @@ unsigned char *d_char;		/* deleted character			*/
 unsigned char *d_word;		/* deleted word				*/
 unsigned char *d_line;		/* deleted line				*/
 char in_string[513];	/* buffer for reading a file		*/
-unsigned char *print_command = "lp";	/* string to use for the print command 	*/
+unsigned char *print_command = "lpr";	/* string to use for the print command 	*/
 unsigned char *start_at_line = NULL;	/* move to this line at start of session*/
+const char count_text_default[] = "===============================================================================";
+int count_text_len = sizeof(count_text_default);	/* length of the line above	*/
+char count_text[sizeof(count_text_default)];	/* buffer for current position display	*/
 int in;				/* input character			*/
 
 FILE *temp_fp;			/* temporary file pointer		*/
@@ -219,6 +223,7 @@ WINDOW *com_win;
 WINDOW *text_win;
 WINDOW *help_win;
 WINDOW *info_win;
+WINDOW *count_win;
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define P_(s) s
@@ -298,7 +303,7 @@ void finish P_((void));
 int quit P_((int noverify));
 void edit_abort P_((int arg));
 void delete_text P_((void));
-int write_file P_((char *file_name));
+int write_file P_((char *file_name, int warn_if_exists));
 int search P_((int display_message));
 void search_prompt P_((void));
 void del_char P_((void));
@@ -339,6 +344,7 @@ char *is_in_string P_((char *string, char *substring));
 char *resolve_name P_((char *name));
 int restrict_mode P_((void));
 int unique_test P_((char *string, char *list[]));
+void renumber_lines P_((struct text *firstline, int startnumber));
 void strings_init P_((void));
 
 #undef P_
@@ -535,28 +541,23 @@ char *more_above_str, *more_below_str;
 
 char *chinese_cmd, *nochinese_cmd;
 
-#ifndef __STDC__
-#ifndef HAS_STDLIB
-extern char *malloc();
-extern char *realloc();
-extern char *getenv();
-FILE *fopen();			/* declaration for open function	*/
-#endif /* HAS_STDLIB */
-#endif /* __STDC__ */
 
 int
 main(argc, argv)		/* beginning of main program		*/
 int argc;
 char *argv[];
 {
-	int counter;
-
-	for (counter = 1; counter < 24; counter++)
-		signal(counter, SIG_IGN);
+	/* Always read from (and write to) a terminal. */
+	if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
+		fprintf(stderr, "ee's standard input and output must be a terminal\n");
+		exit(1);
+	}
 
 	signal(SIGCHLD, SIG_DFL);
 	signal(SIGSEGV, SIG_DFL);
 	signal(SIGINT, edit_abort);
+	signal(SIGHUP, edit_abort);
+
 	d_char = malloc(3);	/* provide a buffer for multi-byte chars */
 	d_word = malloc(150);
 	*d_word = (char) NULL;
@@ -577,7 +578,7 @@ char *argv[];
 	scr_pos =0;
 	scr_vert = 0;
 	scr_horz = 0;
-	bit_bucket = fopen("/dev/null", "w");
+	bit_bucket = fopen(_PATH_DEVNULL, "w");
 	edit = TRUE;
 	gold = case_sen = FALSE;
 	shell_fork = TRUE;
@@ -608,10 +609,23 @@ char *argv[];
 
 	while(edit) 
 	{
-		wrefresh(text_win);
+		if (info_window)
+		{
+			snprintf(count_text, count_text_len, "L: %d C: %d %s", \
+				curr_line->line_number, scr_horz + 1, count_text_default);
+			wmove(count_win, 0, 0);
+			if (!nohighlight)
+				wstandout(count_win);
+			wprintw(count_win, count_text);
+			wstandend(count_win);
+			wnoutrefresh(count_win);
+		}
+
+		wnoutrefresh(text_win);
+		doupdate();
 		in = wgetch(text_win);
 		if (in == -1)
-			exit(0);
+			continue;
 
 		resize_check();
 
@@ -810,6 +824,7 @@ int disp;
 		if (temp_buff->next_line != NULL)
 			temp_buff->next_line->prev_line = curr_line;
 		curr_line->next_line = temp_buff->next_line;
+		renumber_lines(curr_line->next_line, curr_line->line_number + 1);
 		temp2 = temp_buff->line;
 		if (in == 8)
 		{
@@ -943,13 +958,13 @@ int column;
 		}
 		else
 		{
-			waddch(window, (char)character );
+			waddch(window, (unsigned char)character );
 			return(1);
 		}
 	}
 	else
 	{
-		waddch(window, (char)character);
+		waddch(window, (unsigned char)character);
 		return(1);
 	}
 	for (i2 = 0; (string[i2] != (char) NULL) && (((column+i2+1)-horiz_offset) < last_col); i2++)
@@ -1054,8 +1069,8 @@ int disp;
 	temp_nod->line = extra= malloc(10);
 	temp_nod->line_length = 1;
 	temp_nod->max_length = 10;
-	temp_nod->line_number = curr_line->line_number + 1;
 	temp_nod->next_line = curr_line->next_line;
+	renumber_lines(temp_nod, curr_line->line_number + 1);
 	if (temp_nod->next_line != NULL)
 		temp_nod->next_line->prev_line = temp_nod;
 	temp_nod->prev_line = curr_line;
@@ -1507,8 +1522,10 @@ function_key()				/* process function key		*/
 		left(TRUE);
 	else if (in == KEY_RIGHT)
 		right(TRUE);
-	else if ( in == KEY_HOME)
-		top();
+	else if (in == KEY_HOME)
+		bol();
+	else if (in == KEY_END)
+		eol();
 	else if ( in == KEY_UP)
 		up();
 	else if (in == KEY_DOWN)
@@ -1674,7 +1691,7 @@ char *cmd_str1;
 			cmd_str = cmd_str2 = get_string(file_write_prompt_str, TRUE);
 		}
 		tmp_file = resolve_name(cmd_str);
-		write_file(tmp_file);
+		write_file(tmp_file, 1);
 		if (tmp_file != cmd_str)
 			free(tmp_file);
 	}
@@ -1855,7 +1872,7 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 		esc_flag = FALSE;
 		in = wgetch(com_win);
 		if (in == -1)
-			exit(0);
+			continue;
 		if (((in == 8) || (in == 127) || (in == KEY_BACKSPACE)) && (g_pos > 0))
 		{
 			tmp_int = g_horz;
@@ -1880,7 +1897,7 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 				esc_flag = TRUE;
 				in = wgetch(com_win);
 				if (in == -1)
-					exit(0);
+					continue;
 			}
 			*nam_str = in;
 			g_pos++;
@@ -1954,7 +1971,7 @@ char *cmd_str;
 	int number;
 	int i;
 	char *ptr;
-	char *direction;
+	char *direction = NULL;
 	struct text *t_line;
 
 	ptr = cmd_str;
@@ -2025,9 +2042,10 @@ char *arguments[];
 {
 	char *buff;
 	int count;
-	struct files *temp_names;
+	struct files *temp_names = NULL;
 	char *name;
 	char *ptr;
+	int no_more_opts = FALSE;
 
 	/*
 	 |	see if editor was invoked as 'ree' (restricted mode)
@@ -2044,7 +2062,7 @@ char *arguments[];
 	input_file = FALSE;
 	recv_file = FALSE;
 	count = 1;
-	while (count < numargs)
+	while ((count < numargs) && (!no_more_opts))
 	{
 		buff = arguments[count];
 		if (!strcmp("-i", buff))
@@ -2073,30 +2091,38 @@ char *arguments[];
 			buff++;
 			start_at_line = buff;
 		}
-
+		else if (!(strcmp("--", buff)))
+			no_more_opts = TRUE;
 		else
 		{
-			if (top_of_stack == NULL)
-			{
-				temp_names = top_of_stack = name_alloc();
-			}
-			else
-			{
-				temp_names->next_name = name_alloc();
-				temp_names = temp_names->next_name;
-			}
-			ptr = temp_names->name = malloc(strlen(buff) + 1);
-			while (*buff != (char) NULL)
-			{
-				*ptr = *buff;
-				buff++;
-				ptr++;
-			}
-			*ptr = (char) NULL;
-			temp_names->next_name = NULL;
-			input_file = TRUE;
-			recv_file = TRUE;
+			count--;
+			no_more_opts = TRUE;
 		}
+		count++;
+	}
+	while (count < numargs)
+	{
+		buff = arguments[count];
+		if (top_of_stack == NULL)
+		{
+			temp_names = top_of_stack = name_alloc();
+		}
+		else
+		{
+			temp_names->next_name = name_alloc();
+			temp_names = temp_names->next_name;
+		}
+		ptr = temp_names->name = malloc(strlen(buff) + 1);
+		while (*buff != (char) NULL)
+		{
+			*ptr = *buff;
+			buff++;
+			ptr++;
+		}
+		*ptr = (char) NULL;
+		temp_names->next_name = NULL;
+		input_file = TRUE;
+		recv_file = TRUE;
 		count++;
 	}
 }
@@ -2292,8 +2318,8 @@ int *append;	/* TRUE if must append more text to end of current line	*/
 		if (!(*append))	/* if not append to current line, insert new one */
 		{
 			tline = txtalloc();	/* allocate data structure for next line */
-			tline->line_number = curr_line->line_number + 1;
 			tline->next_line = curr_line->next_line;
+			renumber_lines(tline, curr_line->line_number + 1);
 			tline->prev_line = curr_line;
 			curr_line->next_line = tline;
 			if (tline->next_line != NULL)
@@ -2372,7 +2398,7 @@ finish()	/* prepare to exit edit session	*/
 		file_name = tmp_file;
 	}
 
-	if (write_file(file_name))
+	if (write_file(file_name, 1))
 	{
 		text_changes = FALSE;
 		quit(0);
@@ -2412,6 +2438,7 @@ int noverify;
 		recv_file = TRUE;
 		input_file = TRUE;
 		check_fp();
+		text_changes = FALSE;
 	}
 	return(0);
 }
@@ -2448,8 +2475,9 @@ delete_text()
 }
 
 int 
-write_file(file_name)
+write_file(file_name, warn_if_exists)
 char *file_name;
+int warn_if_exists;
 {
 	char cr;
 	char *tmp_point;
@@ -2459,7 +2487,8 @@ char *file_name;
 	int write_flag = TRUE;
 
 	charac = lines = 0;
-	if ((in_file_name == NULL) || strcmp(in_file_name, file_name))
+	if (warn_if_exists &&
+	    ((in_file_name == NULL) || strcmp(in_file_name, file_name)))
 	{
 		if ((temp_fp = fopen(file_name, "r")))
 		{
@@ -3125,9 +3154,8 @@ char *string;		/* string containing user command		*/
 			}
 			for (value = 1; value < 24; value++)
 				signal(value, SIG_DFL);
-			execl(path, last_slash, "-c", string, NULL);
-			printf(exec_err_msg, path);
-			exit(-1);
+			execl(path, last_slash, "-c", string, (char *)NULL);
+			errx(1, exec_err_msg, path);
 		}
 		else	/* if the parent	*/
 		{
@@ -3170,7 +3198,7 @@ char *string;		/* string containing user command		*/
 	}
 	if (shell_fork)
 	{
-		printf(continue_msg);
+		printf("%s", continue_msg);
 		fflush(stdout);
 		while ((in = getchar()) != '\n')
 			;
@@ -3230,9 +3258,12 @@ set_up_term()		/* set up the terminal for operating with ae	*/
 	if (info_window)
 	{
 		info_type = CONTROL_KEYS;
-		info_win = newwin(6, COLS, 0, 0);
+		info_win = newwin(5, COLS, 0, 0);
 		werase(info_win);
 		paint_info_win();
+		count_win = newwin(1, COLS, 5, 0);
+		leaveok(count_win, TRUE);
+		wrefresh(count_win);
 	}
 
 	last_col = COLS - 1;
@@ -3257,6 +3288,7 @@ resize_check()
 	delwin(text_win);
 	delwin(com_win);
 	delwin(help_win);
+	delwin(count_win);
 	set_up_term();
 	redraw();
 	wrefresh(text_win);
@@ -3274,7 +3306,7 @@ struct menu_entries menu_list[];
 	int counter;
 	int length;
 	int input;
-	int temp;
+	int temp = 0;
 	int list_size;
 	int top_offset;		/* offset from top where menu items start */
 	int vert_pos;		/* vertical position			  */
@@ -3356,10 +3388,7 @@ struct menu_entries menu_list[];
 			wmove(temp_win, (counter + top_offset - off_start), 3);
 
 		wrefresh(temp_win);
-		in = wgetch(temp_win);
-		input = in;
-		if (input == -1)
-			exit(0);
+		input = wgetch(temp_win);
 
 		if (((tolower(input) >= 'a') && (tolower(input) <= 'z')) || 
 		    ((input >= '0') && (input <= '9')))
@@ -3602,8 +3631,6 @@ help()
 	wprintw(com_win, press_any_key_msg);
 	wrefresh(com_win);
 	counter = wgetch(com_win);
-	if (counter == -1)
-		exit(0);
 	werase(com_win);
 	wmove(com_win, 0, 0);
 	werase(help_win);
@@ -3631,11 +3658,6 @@ paint_info_win()
 		else if (info_type == COMMANDS)
 			waddstr(info_win, command_strings[counter]);
 	}
-	wmove(info_win, 5, 0);
-	if (!nohighlight)
-		wstandout(info_win);
-	waddstr(info_win, "===============================================================================");
-	wstandend(info_win);
 	wrefresh(info_win);
 }
 
@@ -3669,12 +3691,15 @@ create_info_window()
 	idlok(text_win, TRUE);
 	werase(text_win);
 	info_window = TRUE;
-	info_win = newwin(6, COLS, 0, 0);
+	info_win = newwin(5, COLS, 0, 0);
 	werase(info_win);
 	info_type = CONTROL_KEYS;
 	midscreen(min(scr_vert, last_line), point);
 	clearok(info_win, TRUE);
 	paint_info_win();
+	count_win = newwin(1, COLS, 5, 0);
+	leaveok(count_win, TRUE);
+	wrefresh(count_win);
 	wrefresh(text_win);
 	clear_com_win = TRUE;
 }
@@ -3705,7 +3730,7 @@ int arg;
 	{
 		string = get_string(file_write_prompt_str, TRUE);
 		tmp_file = resolve_name(string);
-		write_file(tmp_file);
+		write_file(tmp_file, 1);
 		if (tmp_file != string)
 			free(tmp_file);
 		free(string);
@@ -3742,7 +3767,7 @@ int arg;
 				string = tmp_file;
 			}
 		}
-		if (write_file(string))
+		if (write_file(string, 1))
 		{
 			in_file_name = string;
 			text_changes = FALSE;
@@ -4051,7 +4076,7 @@ Format()	/* format the paragraph according to set margins	*/
 }
 
 unsigned char *init_name[3] = {
-	"/usr/local/lib/init.ee", 
+	"/usr/share/misc/init.ee", 
 	NULL, 
 	".init.ee"
 	};
@@ -4068,6 +4093,8 @@ ee_init()	/* check for init file and read it if it exists	*/
 	int temp_int;
 
 	string = getenv("HOME");
+	if (!string)
+	    string = "/root"; /* Set to reasonable default so we don't crash */
 	str1 = home = malloc(strlen(string)+10);
 	strcpy(home, string);
 	strcat(home, "/.init.ee");
@@ -4353,17 +4380,25 @@ spell_op()	/* check spelling of words in the editor	*/
 void 
 ispell_op()
 {
-	char name[128];
+	char template[128], *name;
 	char string[256];
-	int pid;
+	int fd;
 
 	if (restrict_mode())
 	{
 		return;
 	}
-	pid = getpid();
-	sprintf(name, "/tmp/ee.%d", pid);
-	if (write_file(name))
+	(void)sprintf(template, "/tmp/ee.XXXXXXXX");
+	name = mktemp(&template[0]);
+	fd = open(name, O_CREAT | O_EXCL | O_RDWR, 0600);
+	if (fd < 0) {
+		wmove(com_win, 0, 0);
+		wprintw(com_win, create_file_fail_msg, name);
+		wrefresh(com_win);
+		return;
+	}
+	close(fd);
+	if (write_file(name, 0))
 	{
 		sprintf(string, "ispell %s", name);
 		sh_command(string);
@@ -4961,6 +4996,19 @@ char *list[];
 	return(num_match);
 }
 
+void
+renumber_lines(firstline, startnumber)
+struct text *firstline;
+int startnumber;
+{
+	struct text *lineptr;
+	int i;
+	
+	i = startnumber;
+	for (lineptr = firstline; lineptr != NULL; lineptr = lineptr->next_line)
+		lineptr->line_number = i++;
+}
+
 #ifndef NO_CATGETS
 /*
  |	Get the catalog entry, and if it got it from the catalog, 
@@ -5001,7 +5049,7 @@ strings_init()
 
 #ifndef NO_CATGETS
 	setlocale(LC_ALL, "");
-	catalog = catopen("ee", 0);
+	catalog = catopen("ee", NL_CAT_LOCALE);
 #endif /* NO_CATGETS */
 
 	modes_menu[0].item_string = catgetlocal( 1, "modes menu");
@@ -5047,7 +5095,7 @@ strings_init()
 	help_text[6] = catgetlocal( 41, "^f undelete char        ^n next page            ^x search                  ");
 	help_text[7] = catgetlocal( 42, "^g begin of line        ^o end of line          ^y delete line             ");
 	help_text[8] = catgetlocal( 43, "^h backspace            ^p prev page            ^z undelete line           ");
-	help_text[9] = catgetlocal( 44, "^[ (escape) menu                                                           ");
+	help_text[9] = catgetlocal( 44, "^[ (escape) menu        ESC-Enter: exit ee                                 ");
 	help_text[10] = catgetlocal( 45, "                                                                           ");
 	help_text[11] = catgetlocal( 46, "Commands:                                                                  ");
 	help_text[12] = catgetlocal( 47, "help    : get this info                 file    : print file name          ");
@@ -5064,7 +5112,7 @@ strings_init()
 	control_keys[1] = catgetlocal( 58, "^a ascii code     ^x search         ^z undelete line  ^d down   ^n next page  ");
 	control_keys[2] = catgetlocal( 59, "^b bottom of text ^g begin of line  ^w delete word    ^l left                 ");
 	control_keys[3] = catgetlocal( 60, "^t top of text    ^o end of line    ^v undelete word  ^r right                ");
-	control_keys[4] = catgetlocal( 61, "^c command        ^k delete char    ^f undelete char                          ");
+	control_keys[4] = catgetlocal( 61, "^c command        ^k delete char    ^f undelete char      ESC-Enter: exit ee  ");
 	command_strings[0] = catgetlocal( 62, "help : get help info  |file  : print file name         |line : print line # ");
 	command_strings[1] = catgetlocal( 63, "read : read a file    |char  : ascii code of char      |0-9 : go to line \"#\"");
 	command_strings[2] = catgetlocal( 64, "write: write a file   |case  : case sensitive search   |exit : leave and save ");
@@ -5106,7 +5154,7 @@ strings_init()
 	searching_msg = catgetlocal( 100, "           ...searching");
 	str_not_found_msg = catgetlocal( 101, "string \"%s\" not found");
 	search_prompt_str = catgetlocal( 102, "search for: ");
-	exec_err_msg = catgetlocal( 103, "could not exec %s\n");
+	exec_err_msg = catgetlocal( 103, "could not exec %s");
 	continue_msg = catgetlocal( 104, "press return to continue ");
 	menu_cancel_msg = catgetlocal( 105, "press Esc to cancel");
 	menu_size_err_msg = catgetlocal( 106, "menu too large for window");
@@ -5154,8 +5202,8 @@ strings_init()
 	mode_strings[7] = catgetlocal( 145, "emacs key bindings   ");
 	emacs_help_text[0] = help_text[0];
 	emacs_help_text[1] = catgetlocal( 146, "^a beginning of line    ^i tab                  ^r restore word            ");
-	emacs_help_text[2] = catgetlocal( 147, "^b back 1 char          ^j undel char           ^t top of text             ");
-	emacs_help_text[3] = catgetlocal( 148, "^c command              ^k delete line          ^u bottom of text          ");
+	emacs_help_text[2] = catgetlocal( 147, "^b back 1 char          ^j undel char           ^t begin of file           ");
+	emacs_help_text[3] = catgetlocal( 148, "^c command              ^k delete line          ^u end of file             ");
 	emacs_help_text[4] = catgetlocal( 149, "^d delete char          ^l undelete line        ^v next page               ");
 	emacs_help_text[5] = catgetlocal( 150, "^e end of line          ^m newline              ^w delete word             ");
 	emacs_help_text[6] = catgetlocal( 151, "^f forward 1 char       ^n next line            ^x search                  ");
@@ -5174,11 +5222,11 @@ strings_init()
 	emacs_help_text[19] = help_text[19];
 	emacs_help_text[20] = help_text[20];
 	emacs_help_text[21] = help_text[21];
-	emacs_control_keys[0] = catgetlocal( 154, "^[ (escape) menu  ^y search prompt  ^k delete line   ^p prev li   ^g prev page");
-	emacs_control_keys[1] = catgetlocal( 155, "^o ascii code     ^x search         ^l undelete line ^n next li   ^v next page");
-	emacs_control_keys[2] = catgetlocal( 156, "^u end of file    ^a begin of line  ^w delete word   ^b back 1 char           ");
-	emacs_control_keys[3] = catgetlocal( 157, "^t top of text    ^e end of line    ^r restore word  ^f forward 1 char        ");
-	emacs_control_keys[4] = catgetlocal( 158, "^c command        ^d delete char    ^j undelete char ^z next word              ");
+	emacs_control_keys[0] = catgetlocal( 154, "^[ (escape) menu ^y search prompt ^k delete line    ^p prev line  ^g prev page");
+	emacs_control_keys[1] = catgetlocal( 155, "^o ascii code    ^x search        ^l undelete line  ^n next line  ^v next page");
+	emacs_control_keys[2] = catgetlocal( 156, "^u end of file   ^a begin of line ^w delete word    ^b back char  ^z next word");
+	emacs_control_keys[3] = catgetlocal( 157, "^t begin of file ^e end of line   ^r restore word   ^f forward char           ");
+	emacs_control_keys[4] = catgetlocal( 158, "^c command       ^d delete char   ^j undelete char              ESC-Enter: exit");
 	EMACS_string = catgetlocal( 159, "EMACS");
 	NOEMACS_string = catgetlocal( 160, "NOEMACS");
 	usage4 = catgetlocal( 161, "       +#   put cursor at line #\n");
