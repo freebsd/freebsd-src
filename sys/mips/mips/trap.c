@@ -928,7 +928,7 @@ dofault:
 		goto err;
 		break;
 	case T_COP_UNUSABLE + T_USER:
-#if defined(SOFTFLOAT)
+#if !defined(CPU_HAVEFPU)
 		/* FP (COP1) instruction */
 		if ((trapframe->cause & CR_COP_ERR) == 0x10000000) {
 			i = SIGILL;

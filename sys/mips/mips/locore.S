@@ -145,7 +145,7 @@ VECTOR(_locore, unknown)
 	/* Read and store the PrID FPU ID for CPU identification, if any. */
 	mfc0	t2, COP_0_STATUS_REG
 	mfc0	t0, MIPS_COP_0_PRID
-#ifndef CPU_NOFPU
+#ifdef CPU_HAVEFPU
 	and	t2, MIPS_SR_COP_1_BIT
 	beqz	t2, 1f
 	move	t1, zero
