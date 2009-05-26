@@ -167,7 +167,6 @@ struct usb2_com_softc {
 #define	UCOM_FLAG_GONE		0x02	/* the device is gone */
 #define	UCOM_FLAG_ATTACHED	0x04	/* set if attached */
 #define	UCOM_FLAG_GP_DATA	0x08	/* set if get and put data is possible */
-#define	UCOM_FLAG_WR_START	0x10	/* set if write start was issued */
 #define	UCOM_FLAG_LL_READY	0x20	/* set if low layer is ready */
 #define	UCOM_FLAG_HL_READY	0x40	/* set if high layer is ready */
 	uint8_t	sc_lsr;
