@@ -78,7 +78,7 @@ sohasdns(struct socket *so, void *arg, int waitflag)
 	if (sb->sb_cc >= sb->sb_hiwat || sb->sb_mbcnt >= sb->sb_mbmax)
 		goto ready;
 
-	/* Check and see if we have a request. */
+	/* Check to see if we have a request. */
 	if (skippacket(sb) == DNS_WAIT)
 		return;
 
@@ -128,7 +128,7 @@ skippacket(struct sockbuf *sb) {
 	q.len = sb->sb_cc;
 
 	GET16(p, packlen);
-	if (packlen + 2 < q.len)
+	if (packlen + 2 > q.len)
 		return DNS_WAIT;
 
 	return DNS_OK;
