@@ -35,6 +35,7 @@
 #include <sys/_lock.h>
 #include <sys/_rwlock.h>
 #include <sys/lock_profile.h>
+#include <sys/lockstat.h>
 
 #ifdef _KERNEL
 #include <sys/pcpu.h>
@@ -107,9 +108,9 @@
 						                        \
 	if (!_rw_write_lock((rw), _tid))				\
 		_rw_wlock_hard((rw), _tid, (file), (line));		\
-	else								\
-		lock_profile_obtain_lock_success(&(rw)->lock_object, 0,	\
-		    0, (file), (line));					\
+	else 								\
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_WLOCK_ACQUIRE, \
+		    rw, 0, 0, (file), (line));				\
 } while (0)
 
 /* Release a write lock. */

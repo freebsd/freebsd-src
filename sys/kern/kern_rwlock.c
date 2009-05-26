@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 #include "opt_no_adaptive_rwlocks.h"
 
 #include <sys/param.h>
@@ -71,6 +72,9 @@ static void	db_show_rwlock(struct lock_object *lock);
 #endif
 static void	assert_rw(struct lock_object *lock, int what);
 static void	lock_rw(struct lock_object *lock, int how);
+#ifdef KDTRACE_HOOKS
+static int	owner_rw(struct lock_object *lock, struct thread **owner);
+#endif
 static int	unlock_rw(struct lock_object *lock);
 
 struct lock_class lock_class_rw = {
@@ -82,6 +86,9 @@ struct lock_class lock_class_rw = {
 #endif
 	.lc_lock = lock_rw,
 	.lc_unlock = unlock_rw,
+#ifdef KDTRACE_HOOKS
+	.lc_owner = owner_rw,
+#endif
 };
 
 /*
@@ -148,6 +155,19 @@ unlock_rw(struct lock_object *lock)
 		return (1);
 	}
 }
+
+#ifdef KDTRACE_HOOKS
+int
+owner_rw(struct lock_object *lock, struct thread **owner)
+{
+	struct rwlock *rw = (struct rwlock *)lock;
+	uintptr_t x = rw->rw_lock;
+
+	*owner = rw_wowner(rw);
+	return ((x & RW_LOCK_READ) != 0 ?  (RW_READERS(x) != 0) :
+	    (*owner != NULL));
+}
+#endif
 
 void
 rw_init_flags(struct rwlock *rw, const char *name, int opts)
@@ -258,7 +278,7 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
 	    line);
 	if (!rw_recursed(rw))
-		lock_profile_release_lock(&rw->lock_object);
+		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_RW_WUNLOCK_RELEASE, rw);
 	__rw_wunlock(rw, curthread, file, line);
 }
 /*
@@ -287,6 +307,11 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	int contested = 0;
 #endif
 	uintptr_t v;
+#ifdef KDTRACE_HOOKS
+	uint64_t spin_cnt = 0;
+	uint64_t sleep_cnt = 0;
+	int64_t sleep_time = 0;
+#endif
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_rlock() of destroyed rwlock @ %s:%d", file, line));
@@ -296,6 +321,9 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER, file, line, NULL);
 
 	for (;;) {
+#ifdef KDTRACE_HOOKS
+		spin_cnt++;
+#endif
 		/*
 		 * Handle the easy case.  If no other thread has a write
 		 * lock, then try to bump up the count of read locks.  Note
@@ -342,8 +370,12 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 					    "%s: spinning on %p held by %p",
 					    __func__, rw, owner);
 				while ((struct thread*)RW_OWNER(rw->rw_lock) ==
-				    owner && TD_IS_RUNNING(owner))
+				    owner && TD_IS_RUNNING(owner)) {
 					cpu_spinwait();
+#ifdef KDTRACE_HOOKS
+					spin_cnt++;
+#endif
+				}
 				continue;
 			}
 		} else if (spintries < rowner_retries) {
@@ -423,7 +455,14 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
+#ifdef KDTRACE_HOOKS
+		sleep_time -= lockstat_nsecs();
+#endif
 		turnstile_wait(ts, rw_owner(rw), TS_SHARED_QUEUE);
+#ifdef KDTRACE_HOOKS
+		sleep_time += lockstat_nsecs();
+		sleep_cnt++;
+#endif
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
 			    __func__, rw);
@@ -434,12 +473,22 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	 * however.  turnstiles don't like owners changing between calls to
 	 * turnstile_wait() currently.
 	 */
-	lock_profile_obtain_lock_success( &rw->lock_object, contested,
+	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_RLOCK_ACQUIRE, rw, contested,
 	    waittime, file, line);
 	LOCK_LOG_LOCK("RLOCK", &rw->lock_object, 0, 0, file, line);
 	WITNESS_LOCK(&rw->lock_object, 0, file, line);
 	curthread->td_locks++;
 	curthread->td_rw_rlocks++;
+#ifdef KDTRACE_HOOKS
+	if (sleep_time)
+		LOCKSTAT_RECORD1(LS_RW_RLOCK_BLOCK, rw, sleep_time);
+
+	/*
+	 * Record only the loops spinning and not sleeping. 
+	 */
+	if (spin_cnt > sleep_cnt)
+		LOCKSTAT_RECORD1(LS_RW_RLOCK_SPIN, rw, (spin_cnt - sleep_cnt));
+#endif
 }
 
 int
@@ -569,7 +618,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		turnstile_chain_unlock(&rw->lock_object);
 		break;
 	}
-	lock_profile_release_lock(&rw->lock_object);
+	LOCKSTAT_PROFILE_RELEASE_LOCK(LS_RW_RUNLOCK_RELEASE, rw);
 }
 
 /*
@@ -591,6 +640,11 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	uint64_t waittime = 0;
 	int contested = 0;
 #endif
+#ifdef KDTRACE_HOOKS
+	uint64_t spin_cnt = 0;
+	uint64_t sleep_cnt = 0;
+	int64_t sleep_time = 0;
+#endif
 
 	if (rw_wlocked(rw)) {
 		KASSERT(rw->lock_object.lo_flags & RW_RECURSE,
@@ -607,6 +661,9 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
 
 	while (!_rw_write_lock(rw, tid)) {
+#ifdef KDTRACE_HOOKS
+		spin_cnt++;
+#endif
 		lock_profile_obtain_lock_failed(&rw->lock_object,
 		    &contested, &waittime);
 #ifdef ADAPTIVE_RWLOCKS
@@ -622,8 +679,12 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
 				    __func__, rw, owner);
 			while ((struct thread*)RW_OWNER(rw->rw_lock) == owner &&
-			    TD_IS_RUNNING(owner))
+			    TD_IS_RUNNING(owner)) {
 				cpu_spinwait();
+#ifdef KDTRACE_HOOKS
+				spin_cnt++;
+#endif
+			}
 			continue;
 		}
 		if ((v & RW_LOCK_READ) && RW_READERS(v) &&
@@ -641,6 +702,9 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 					break;
 				cpu_spinwait();
 			}
+#ifdef KDTRACE_HOOKS
+			spin_cnt += rowner_loops - i;
+#endif
 			if (i != rowner_loops)
 				continue;
 		}
@@ -706,7 +770,14 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
+#ifdef KDTRACE_HOOKS
+		sleep_time -= lockstat_nsecs();
+#endif
 		turnstile_wait(ts, rw_owner(rw), TS_EXCLUSIVE_QUEUE);
+#ifdef KDTRACE_HOOKS
+		sleep_time += lockstat_nsecs();
+		sleep_cnt++;
+#endif
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
 			    __func__, rw);
@@ -714,8 +785,18 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		spintries = 0;
 #endif
 	}
-	lock_profile_obtain_lock_success(&rw->lock_object, contested, waittime,
-	    file, line);
+	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_WLOCK_ACQUIRE, rw, contested,
+	    waittime, file, line);
+#ifdef KDTRACE_HOOKS
+	if (sleep_time)
+		LOCKSTAT_RECORD1(LS_RW_WLOCK_BLOCK, rw, sleep_time);
+
+	/*
+	 * Record only the loops spinning and not sleeping.
+	 */ 
+	if (spin_cnt > sleep_cnt)
+		LOCKSTAT_RECORD1(LS_RW_WLOCK_SPIN, rw, (spin_cnt - sleep_cnt));
+#endif
 }
 
 /*
@@ -847,6 +928,7 @@ _rw_try_upgrade(struct rwlock *rw, const char *file, int line)
 		curthread->td_rw_rlocks--;
 		WITNESS_UPGRADE(&rw->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
+		LOCKSTAT_RECORD0(LS_RW_TRYUPGRADE_UPGRADE, rw);
 	}
 	return (success);
 }
@@ -912,6 +994,7 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 out:
 	curthread->td_rw_rlocks++;
 	LOCK_LOG_LOCK("WDOWNGRADE", &rw->lock_object, 0, 0, file, line);
+	LOCKSTAT_RECORD0(LS_RW_DOWNGRADE_DOWNGRADE, rw);
 }
 
 #ifdef INVARIANT_SUPPORT
