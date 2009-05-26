@@ -1310,11 +1310,11 @@ DB_SHOW_COMMAND(bio, db_show_bio)
 		db_print_bio_flags(bp);
 		db_printf("  cflags: 0x%hhx\n", bp->bio_cflags);
 		db_printf("  pflags: 0x%hhx\n", bp->bio_pflags);
-		db_printf("  offset: %lld\n", bp->bio_offset);
-		db_printf("  length: %lld\n", bp->bio_length);
+		db_printf("  offset: %jd\n", (intmax_t)bp->bio_offset);
+		db_printf("  length: %jd\n", (intmax_t)bp->bio_length);
 		db_printf("  bcount: %ld\n", bp->bio_bcount);
 		db_printf("  resid: %ld\n", bp->bio_resid);
-		db_printf("  completed: %lld\n", bp->bio_completed);
+		db_printf("  completed: %jd\n", (intmax_t)bp->bio_completed);
 		db_printf("  children: %u\n", bp->bio_children);
 		db_printf("  inbed: %u\n", bp->bio_inbed);
 		db_printf("  error: %d\n", bp->bio_error);
