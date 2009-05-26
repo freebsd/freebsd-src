@@ -1,3 +1,8 @@
+version 1.5.0 (2/16/2009)
+- added display of line number, column, and lines from top to separator line 
+  for info window
+- minor changes to reduce number of warnings when using -pedantic option
+
 version 1.4.7 (2/10/2009)
 - changed how strings are terminated from the old usage of NULL to the current 
   use of character zero, '\0'
