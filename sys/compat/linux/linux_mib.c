@@ -318,7 +318,7 @@ linux_set_oss_version(struct thread *td, int oss_version)
 	return (0);
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(KTR)
 
 u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
 
@@ -377,4 +377,4 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
             0, 0, linux_sysctl_debug, "A",
             "Linux debugging control");
 
-#endif /* DEBUG */
+#endif /* DEBUG || KTR */
