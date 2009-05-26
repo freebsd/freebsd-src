@@ -1085,6 +1085,7 @@ dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
 dev/kbdmux/kbdmux.c		optional kbdmux
+dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
 dev/le/am79900.c		optional le
 dev/le/if_le_pci.c		optional le pci

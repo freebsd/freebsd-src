@@ -1080,6 +1080,9 @@ device		random
 # The system memory devices; /dev/mem, /dev/kmem
 device		mem
 
+# The kernel symbol table device; /dev/ksyms
+device		ksyms
+
 # Optional character code conversion support with LIBICONV.
 # Each option requires their base file system and LIBICONV.
 options 	CD9660_ICONV

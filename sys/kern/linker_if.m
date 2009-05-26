@@ -105,6 +105,24 @@ METHOD int ctf_get {
 };
 
 #
+# Get the symbol table, returning it in **symtab.  Return the 
+# number of symbols, otherwise zero.
+#
+METHOD long symtab_get {
+	linker_file_t	file;
+	Elf_Sym		**symtab;
+};
+
+#
+# Get the string table, returning it in *strtab.  Return the
+# size (in bytes) of the string table, otherwise zero.
+#
+METHOD long strtab_get {
+	linker_file_t	file;
+	caddr_t		*strtab;
+};
+
+#
 # Load a file, returning the new linker_file_t in *result.  If
 # the class does not recognise the file type, zero should be
 # returned, without modifying *result.  If the file is
