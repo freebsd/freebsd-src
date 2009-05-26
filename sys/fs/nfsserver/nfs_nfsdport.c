@@ -187,7 +187,11 @@ nfsvno_accchk(struct vnode *vp, u_int32_t accessbits, struct ucred *cred,
 	if (vpislocked == 0)
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
-#ifdef NFS4_ACL_EXTATTR_NAME
+#if defined(NFS4_ACL_EXTATTR_NAME) && defined(notyet)
+	/*
+	 * This function should be called once FFS has NFSv4 ACL support
+	 * in it.
+	 */
 	/*
 	 * Should the override still be applied when ACLs are enabled?
 	 */
