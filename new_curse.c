@@ -37,7 +37,7 @@
  |	Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon
  |	All are rights reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/new_curse.c,v 1.52 2001/06/28 05:39:42 hugh Exp $
+ |	$Header: /home/hugh/sources/old_ae/RCS/new_curse.c,v 1.52 2001/06/28 05:39:42 hugh Exp hugh $
  |
  */
 

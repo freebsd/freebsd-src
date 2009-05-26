@@ -1,0 +1,15 @@
+version 1.4.4 (8/17/2001)
+- added code to check if the parent process has died, and if so to exit 
+  gracefully
+
+version 1.4.3 (6/25/2001)
+- modified create.make and new_curse.c to allow defining TERMCAP file 
+  location (since some distributions move the file)
+- source directory now has version number attached to directory name
+
+version 1.4.2 (1/19/2001)
+- change to create.make script to add unistd.h to files to search for 
+  select() declaration
+- change to new_curse.c for proper raw mode operation
+
+
