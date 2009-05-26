@@ -4,10 +4,12 @@
 #	This script will determine if the system is a System V or BSD based
 #	UNIX system and create a makefile for ee appropriate for the system.
 #
-# $Header: /home/hugh/sources/old_ae/RCS/create.make,v 1.12 2001/06/28 05:39:14 hugh Exp $
+# $Header: /home/hugh/sources/old_ae/RCS/create.make,v 1.13 2002/09/23 04:18:13 hugh Exp $
 #
 
 #set -x
+
+name_string="`uname`"
 
 # test for existence of termcap (exists on both BSD and SysV systems)
 
@@ -223,16 +225,27 @@ else
 fi
 
 
-if [ -n "$CFLAGS" ]
+if [ "$name_string" = "Darwin" ]
 then
-	if [ -z "`echo $CFLAGS | grep '[-]g'`" ]
+	if [ -n "$CFLAGS" ]
 	then
-		other_cflags="${CFLAGS} -s"
+		other_cflags="${CFLAGS} -DNO_CATGETS"
 	else
-		other_cflags="${CFLAGS}"
+		other_cflags="-DNO_CATGETS"
 	fi
 else
-	other_cflags="-s"
+
+	if [ -n "$CFLAGS" ]
+	then
+		if [ -z "`echo $CFLAGS | grep '[-]g'`" ]
+		then
+			other_cflags="${CFLAGS} -s"
+		else
+			other_cflags="${CFLAGS}"
+		fi
+	else
+		other_cflags="-s"
+	fi
 fi
 
 # time to write the makefile

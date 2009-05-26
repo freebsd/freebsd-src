@@ -37,14 +37,14 @@
  |	Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon
  |	All are rights reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/new_curse.c,v 1.52 2001/06/28 05:39:42 hugh Exp hugh $
+ |	$Header: /home/hugh/sources/old_ae/RCS/new_curse.c,v 1.54 2002/09/21 00:47:14 hugh Exp $
  |
  */
 
 char *copyright_message[] = { "Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon",
 				"All rights are reserved."};
 
-char * new_curse_name= "@(#) new_curse.c $Revision: 1.52 $";
+char * new_curse_name= "@(#) new_curse.c $Revision: 1.54 $";
 
 #include "new_curse.h"
 #include <signal.h>
@@ -662,6 +662,13 @@ int *virtual_lines;
 
 static char nc_scrolling_ability = FALSE;
 
+char *terminfo_path[] = {
+        "/usr/lib/terminfo", 
+        "/usr/share/lib/terminfo", 
+        "/usr/share/terminfo", 
+        NULL 
+        };
+
 #ifdef CAP
 
 #if defined(__STDC__) || defined(__cplusplus)
@@ -771,6 +778,7 @@ void
 initscr()		/* initialize terminal for operations	*/
 {
 	int value;
+	int counter;
 	char *lines_string;
 	char *columns_string;
 #ifdef CAP
@@ -903,30 +911,26 @@ printf("starting initscr \n");fflush(stdout);
 		Term_File_name = malloc(Data_Line_len);
 		sprintf(Term_File_name, "%s/%c/%s", TERM_PATH, *TERMINAL_TYPE, TERMINAL_TYPE);
 		Fildes = open(Term_File_name, O_RDONLY);
+		if (Fildes == -1)
+		{
+        		sprintf(Term_File_name, "%s/%x/%s", TERM_PATH, *TERMINAL_TYPE, TERMINAL_TYPE);
+        		Fildes = open(Term_File_name, O_RDONLY);
+		}
 	}
-	if (Fildes == -1)
+	counter = 0;
+	while ((Fildes == -1) && (terminfo_path[counter] != NULL))
 	{
-		TERM_PATH = "/usr/lib/terminfo";
+		TERM_PATH = terminfo_path[counter];
 		Data_Line_len = 23 + strlen(TERM_PATH) + strlen(TERMINAL_TYPE);
 		Term_File_name = malloc(Data_Line_len);
 		sprintf(Term_File_name, "%s/%c/%s", TERM_PATH, *TERMINAL_TYPE, TERMINAL_TYPE);
 		Fildes = open(Term_File_name, O_RDONLY);
-	}
-	if (Fildes == -1)
-	{
-		TERM_PATH = "/usr/share/lib/terminfo";
-		Data_Line_len = 23 + strlen(TERM_PATH) + strlen(TERMINAL_TYPE);
-		Term_File_name = malloc(Data_Line_len);
-		sprintf(Term_File_name, "%s/%c/%s", TERM_PATH, *TERMINAL_TYPE, TERMINAL_TYPE);
-		Fildes = open(Term_File_name, O_RDONLY);
-	}
-	if (Fildes == -1)
-	{
-		TERM_PATH = "/usr/share/terminfo";
-		Data_Line_len = 23 + strlen(TERM_PATH) + strlen(TERMINAL_TYPE);
-		Term_File_name = malloc(Data_Line_len);
-		sprintf(Term_File_name, "%s/%c/%s", TERM_PATH, *TERMINAL_TYPE, TERMINAL_TYPE);
-		Fildes = open(Term_File_name, O_RDONLY);
+		if (Fildes == -1)
+		{
+        		sprintf(Term_File_name, "%s/%x/%s", TERM_PATH, *TERMINAL_TYPE, TERMINAL_TYPE);
+        		Fildes = open(Term_File_name, O_RDONLY);
+		}
+		counter++;
 	}
 	if (Fildes == -1)
 	{
@@ -1364,7 +1368,7 @@ Find_term()		/* find terminal description in termcap file	*/
 	char *Name;
 	char *Ftemp;
 
-	Ftemp = Name = malloc(strlen(TERMINAL_TYPE + 1) + 1);
+	Ftemp = Name = malloc(strlen(TERMINAL_TYPE) + 2);
 	strcpy(Name, TERMINAL_TYPE);
 	while (*Ftemp != (char)NULL)
 		Ftemp++;
