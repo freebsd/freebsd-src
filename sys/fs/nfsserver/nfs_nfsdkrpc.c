@@ -210,8 +210,15 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
-		if ((nd.nd_flag & ND_NFSV4))
+		if ((nd.nd_flag & ND_NFSV4) != 0) {
 			nd.nd_repstat = nfsvno_v4rootexport(&nd);
+			if (nd.nd_repstat != 0) {
+				svcerr_weakauth(rqst);
+				svc_freereq(rqst);
+				m_freem(nd.nd_mrep);
+				return;
+			}
+		}
 
 		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt->xp_socket,
 		    xprt->xp_sockref, &rp);
@@ -272,22 +279,17 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 	NFSGETTIME(&nd->nd_starttime);
 
 	/*
-	 * Several cases:
+	 * Two cases:
 	 * 1 - For NFSv2 over UDP, if we are near our malloc/mget
 	 *     limit, just drop the request. There is no
 	 *     NFSERR_RESOURCE or NFSERR_DELAY for NFSv2 and the
 	 *     client will timeout/retry over UDP in a little while.
-	 * 2 - nd_repstat set to some error, so generate the reply now.
-	 * 3 - nd_repstat == 0 && nd_mreq == NULL, which
+	 * 2 - nd_repstat == 0 && nd_mreq == NULL, which
 	 *     means a normal nfs rpc, so check the cache
 	 */
 	if ((nd->nd_flag & ND_NFSV2) && nd->nd_nam2 != NULL &&
 	    nfsrv_mallocmget_limit()) {
 		cacherep = RC_DROPIT;
-	} else if (nd->nd_repstat) {
-		cacherep = RC_REPLY;
-		if ((nd->nd_flag & ND_NFSV4) == 0)
-			panic("nfs_repstat for nfsv2,3");
 	} else {
 		/*
 		 * For NFSv3, play it safe and assume that the client is
@@ -315,9 +317,6 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 		else
 			cacherep = RC_REPLY;
 		*rpp = nfsrvd_updatecache(nd, so);
-	} else if (cacherep == RC_REPLY) {
-		/* Generate the error reply message for NFSv4 */
-		nfsrvd_dorpc(nd, isdgram, td);
 	}
 	return (cacherep);
 }
