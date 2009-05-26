@@ -1,3 +1,7 @@
+version 1.4.6
+- modified new_curse.c to handle different subdirectory naming in terminfo 
+  directory; first noted on Mac OS 10.2
+
 version 1.4.5a (12/23/2001)
 - modified get_options to be cleaner for arg handling
 
