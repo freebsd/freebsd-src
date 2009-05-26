@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/psl.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
 #include <machine/mips_opcode.h>
