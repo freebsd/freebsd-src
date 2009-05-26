@@ -241,16 +241,12 @@ struct pfs_node {
 /*
  * VFS interface
  */
-int		 pfs_mount	(struct pfs_info *pi, struct mount *mp,
-				 struct thread *td);
-int		 pfs_cmount	(struct mntarg *ma, void *data, int flags,
-				 struct thread *td);
-int		 pfs_unmount	(struct mount *mp, int mntflags,
-				 struct thread *td);
+int		 pfs_mount	(struct pfs_info *pi, struct mount *mp);
+int		 pfs_cmount	(struct mntarg *ma, void *data, int flags);
+int		 pfs_unmount	(struct mount *mp, int mntflags);
 int		 pfs_root	(struct mount *mp, int flags,
-				 struct vnode **vpp, struct thread *td);
-int		 pfs_statfs	(struct mount *mp, struct statfs *sbp,
-				 struct thread *td);
+				 struct vnode **vpp);
+int		 pfs_statfs	(struct mount *mp, struct statfs *sbp);
 int		 pfs_init	(struct pfs_info *pi, struct vfsconf *vfc);
 int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
 
@@ -284,8 +280,8 @@ static struct pfs_info name##_info = {					\
 };									\
 									\
 static int								\
-_##name##_mount(struct mount *mp, struct thread *td) {			\
-	return pfs_mount(&name##_info, mp, td);				\
+_##name##_mount(struct mount *mp) {					\
+	return pfs_mount(&name##_info, mp);				\
 }									\
 									\
 static int								\

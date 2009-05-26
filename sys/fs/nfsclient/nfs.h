@@ -87,7 +87,7 @@ int ncl_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,
     struct thread *);
 int ncl_init(struct vfsconf *);
 int ncl_uninit(struct vfsconf *);
-int ncl_mountroot(struct mount *, struct thread *);
+int ncl_mountroot(struct mount *);
 int ncl_nfsiodnew(void);
 
 #endif	/* _KERNEL */

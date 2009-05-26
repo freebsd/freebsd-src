@@ -2441,14 +2441,14 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5780:
 	case BGE_ASICREV_BCM5714:
 		sc->bge_flags |= BGE_FLAG_5714_FAMILY /* | BGE_FLAG_JUMBO */;
-		/* FALLTHRU */
+		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5750:
 	case BGE_ASICREV_BCM5752:
 	case BGE_ASICREV_BCM5755:
 	case BGE_ASICREV_BCM5787:
 	case BGE_ASICREV_BCM5906:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
-		/* FALLTHRU */
+		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
 		break;
@@ -3073,7 +3073,7 @@ bge_rxeof(struct bge_softc *sc)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTREAD);
 
-	while(sc->bge_rx_saved_considx !=
+	while (sc->bge_rx_saved_considx !=
 	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx) {
 		struct bge_rx_bd	*cur_rx;
 		uint32_t		rxidx;
@@ -3193,6 +3193,9 @@ bge_rxeof(struct bge_softc *sc)
 		BGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		BGE_LOCK(sc);
+
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+			return;
 	}
 
 	if (stdcnt > 0)
@@ -3301,6 +3304,10 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	sc->rxcycles = count;
 	bge_rxeof(sc);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		BGE_UNLOCK(sc);
+		return;
+	}
 	bge_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
@@ -3370,7 +3377,9 @@ bge_intr(void *xsc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check RX return ring producer/consumer. */
 		bge_rxeof(sc);
+	}
 
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc);
 	}

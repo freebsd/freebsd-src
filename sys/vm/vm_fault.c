@@ -1248,8 +1248,6 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
  *
  * Return value:
  *  number of pages in marray
- *
- * This routine can't block.
  */
 static int
 vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)

@@ -286,7 +286,7 @@ soalloc(struct vnet *vnet)
 	so->so_gencnt = ++so_gencnt;
 	++numopensockets;
 #ifdef VIMAGE
-	++vnet->sockcnt;	/* locked with so_global_mtx */
+	++vnet->sockcnt;	/* Locked with so_global_mtx. */
 	so->so_vnet = vnet;
 #endif
 	mtx_unlock(&so_global_mtx);
@@ -1306,7 +1306,7 @@ sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 
 	CURVNET_SET(so->so_vnet);
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, addr, uio, top,
-		control, flags, td);
+	    control, flags, td);
 	CURVNET_RESTORE();
 	return (error);
 }

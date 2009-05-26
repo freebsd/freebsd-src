@@ -116,19 +116,19 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_uathreg.h>
 #include <dev/usb/wlan/if_uathvar.h>
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
+SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
 
 static	int uath_countrycode = CTRY_DEFAULT;	/* country code */
-SYSCTL_INT(_hw_usb2_uath, OID_AUTO, countrycode, CTLFLAG_RW, &uath_countrycode,
+SYSCTL_INT(_hw_usb_uath, OID_AUTO, countrycode, CTLFLAG_RW, &uath_countrycode,
     0, "country code");
-TUNABLE_INT("hw.usb2.uath.countrycode", &uath_countrycode);
+TUNABLE_INT("hw.usb.uath.countrycode", &uath_countrycode);
 static	int uath_regdomain = 0;			/* regulatory domain */
-SYSCTL_INT(_hw_usb2_uath, OID_AUTO, regdomain, CTLFLAG_RD, &uath_regdomain,
+SYSCTL_INT(_hw_usb_uath, OID_AUTO, regdomain, CTLFLAG_RD, &uath_regdomain,
     0, "regulatory domain");
 
 #ifdef UATH_DEBUG
 int uath_debug = 0;
-SYSCTL_INT(_hw_usb2_uath, OID_AUTO, debug, CTLFLAG_RW, &uath_debug, 0,
+SYSCTL_INT(_hw_usb_uath, OID_AUTO, debug, CTLFLAG_RW, &uath_debug, 0,
     "uath debug level");
 TUNABLE_INT("hw.usb.uath.debug", &uath_debug);
 enum {
@@ -192,6 +192,7 @@ static const struct usb2_device_id uath_devs[] = {
 	UATH_DEV(NETGEAR3,		WPN111),
 	UATH_DEV(UMEDIA,		TEW444UBEU),
 	UATH_DEV(UMEDIA,		AR5523_2),
+	UATH_DEV(UMEDIA,		AR5523_3),
 	UATH_DEV(WISTRONNEWEB,		AR5523_1),
 	UATH_DEV(WISTRONNEWEB,		AR5523_2),
 	UATH_DEV(ZCOM,			AR5523)
@@ -328,7 +329,7 @@ uath_match(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != UATH_CONFIG_INDEX)
 		return (ENXIO);
@@ -354,6 +355,7 @@ uath_attach(device_t dev)
 #ifdef UATH_DEBUG
 	sc->sc_debug = uath_debug;
 #endif
+	device_set_usb2_desc(dev);
 
 	/*
 	 * Only post-firmware devices here.
@@ -480,16 +482,11 @@ uath_attach(device_t dev)
 	ic->ic_update_mcast = uath_update_mcast;
 	ic->ic_update_promisc = uath_update_promisc;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof(sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(UATH_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(UATH_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		UATH_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		UATH_RX_RADIOTAP_PRESENT);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -516,12 +513,12 @@ uath_detach(device_t dev)
 
 	sc->sc_flags |= UATH_FLAG_INVALID;
 	uath_stop(ifp);
-	ieee80211_ifdetach(ic);
 
 	callout_drain(&sc->stat_ch);
 	callout_drain(&sc->watchdog_ch);
 
 	usb2_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
+	ieee80211_ifdetach(ic);
 
 	/* free buffers */
 	UATH_LOCK(sc);
@@ -530,7 +527,6 @@ uath_detach(device_t dev)
 	uath_free_cmd_list(sc, sc->sc_cmd, UATH_CMD_LIST_COUNT);
 	UATH_UNLOCK(sc);
 
-	bpfdetach(ifp);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
 	return (0);
@@ -1492,9 +1488,9 @@ uath_set_chan(struct uath_softc *sc, struct ieee80211_channel *c)
 	if (IEEE80211_IS_CHAN_5GHZ(c))
 		reset.flags |= htobe32(UATH_CHAN_5GHZ);
 	/* NB: 11g =>'s 11b so don't specify both OFDM and CCK */
-	if (IEEE80211_IS_CHAN_G(c))
+	if (IEEE80211_IS_CHAN_OFDM(c))
 		reset.flags |= htobe32(UATH_CHAN_OFDM);
-	else if (IEEE80211_IS_CHAN_B(c))
+	else if (IEEE80211_IS_CHAN_CCK(c))
 		reset.flags |= htobe32(UATH_CHAN_CCK);
 	/* turbo can be used in either 2GHz or 5GHz */
 	if (c->ic_flags & IEEE80211_CHAN_TURBO)
@@ -1600,8 +1596,6 @@ static int
 uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     struct uath_data *data)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct uath_chunk *chunk;
 	struct uath_tx_desc *desc;
@@ -1616,16 +1610,14 @@ uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	chunk = (struct uath_chunk *)data->buf;
 	desc = (struct uath_tx_desc *)(chunk + 1);
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct uath_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		if (m0->m_flags & M_FRAG)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	wh = mtod(m0, struct ieee80211_frame *);
@@ -1920,7 +1912,7 @@ uath_set_channel(struct ieee80211com *ic)
 static int
 uath_set_rxmulti_filter(struct uath_softc *sc)
 {
-
+	/* XXX broken */
 	return (0);
 }
 static void
@@ -1928,13 +1920,14 @@ uath_update_mcast(struct ifnet *ifp)
 {
 	struct uath_softc *sc = ifp->if_softc;
 
+	UATH_LOCK(sc);
 	/*
 	 * this is for avoiding the race condition when we're try to
 	 * connect to the AP with WPA.
 	 */
-	if (!(sc->sc_flags & UATH_FLAG_INITDONE))
-		return;
-	(void)uath_set_rxmulti_filter(sc);
+	if (sc->sc_flags & UATH_FLAG_INITDONE)
+		(void)uath_set_rxmulti_filter(sc);
+	UATH_UNLOCK(sc);
 }
 
 static void
@@ -1942,12 +1935,14 @@ uath_update_promisc(struct ifnet *ifp)
 {
 	struct uath_softc *sc = ifp->if_softc;
 
-	if (!(sc->sc_flags & UATH_FLAG_INITDONE))
-		return;
-	uath_set_rxfilter(sc,
-	    UATH_FILTER_RX_UCAST | UATH_FILTER_RX_MCAST |
-	    UATH_FILTER_RX_BCAST | UATH_FILTER_RX_BEACON |
-	    UATH_FILTER_RX_PROM, UATH_FILTER_OP_SET);
+	UATH_LOCK(sc);
+	if (sc->sc_flags & UATH_FLAG_INITDONE) {
+		uath_set_rxfilter(sc,
+		    UATH_FILTER_RX_UCAST | UATH_FILTER_RX_MCAST |
+		    UATH_FILTER_RX_BCAST | UATH_FILTER_RX_BEACON |
+		    UATH_FILTER_RX_PROM, UATH_FILTER_OP_SET);
+	}
+	UATH_UNLOCK(sc);
 }
 
 static int
@@ -2652,14 +2647,22 @@ uath_data_rxeof(struct usb2_xfer *xfer, struct uath_data *data,
 	}
 
 	/* there are a lot more fields in the RX descriptor */
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active(ic)) {
 		struct uath_rx_radiotap_header *tap = &sc->sc_rxtap;
+		uint32_t tsf_hi = be32toh(desc->tstamp_high);
+		uint32_t tsf_lo = be32toh(desc->tstamp_low);
 
-		tap->wr_chan_freq = htole16(be32toh(desc->channel));
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
-		tap->wr_dbm_antsignal = (int8_t)be32toh(desc->rssi);
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
+		/* XXX only get low order 24bits of tsf from h/w */
+		tap->wr_tsf = htole64(((uint64_t)tsf_hi << 32) | tsf_lo);
+		tap->wr_flags = 0;
+		if (be32toh(desc->status) == UATH_STATUS_CRC_ERR)
+			tap->wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
+		/* XXX map other status to BADFCS? */
+		/* XXX ath h/w rate code, need to map */
+		tap->wr_rate = be32toh(desc->rate);
+		tap->wr_antenna = be32toh(desc->antenna);
+		tap->wr_antsignal = -95 + be32toh(desc->rssi);
+		tap->wr_antnoise = -95;
 	}
 
 	ifp->if_ipackets++;
@@ -2720,12 +2723,12 @@ setup:
 			nf = -95;	/* XXX */
 			if (ni != NULL) {
 				(void) ieee80211_input(ni, m,
-				    (int)be32toh(desc->rssi), nf, 0);
+				    (int)be32toh(desc->rssi), nf);
 				/* node is no longer needed */
 				ieee80211_free_node(ni);
 			} else
 				(void) ieee80211_input_all(ic, m,
-				    (int)be32toh(desc->rssi), nf, 0);
+				    (int)be32toh(desc->rssi), nf);
 			m = NULL;
 			desc = NULL;
 		}

@@ -123,7 +123,7 @@ static int	bwi_calc_rssi(struct bwi_softc *, const struct bwi_rxbuf_hdr *);
 static int	bwi_calc_noise(struct bwi_softc *);
 static __inline uint8_t bwi_ofdm_plcp2rate(const uint32_t *);
 static __inline uint8_t bwi_ds_plcp2rate(const struct ieee80211_ds_plcp_hdr *);
-static void	bwi_rx_radiotap(struct ifnet *, struct mbuf *,
+static void	bwi_rx_radiotap(struct bwi_softc *, struct mbuf *,
 			struct bwi_rxbuf_hdr *, const void *, int, int, int);
 
 static void	bwi_restart(void *, int);
@@ -532,19 +532,11 @@ bwi_attach(struct bwi_softc *sc)
 
 	sc->sc_rates = ieee80211_get_ratetable(ic->ic_curchan);
 
-	/*
-	 * Attach bpf.
-	 */
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof(struct ieee80211_frame) + sizeof(sc->sc_tx_th));
-
-	sc->sc_tx_th_len = roundup(sizeof(sc->sc_tx_th), sizeof(uint32_t));
-	sc->sc_tx_th.wt_ihdr.it_len = htole16(sc->sc_tx_th_len);
-	sc->sc_tx_th.wt_ihdr.it_present = htole32(BWI_TX_RADIOTAP_PRESENT);
-
-	sc->sc_rx_th_len = roundup(sizeof(sc->sc_rx_th), sizeof(uint32_t));
-	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_th_len);
-	sc->sc_rx_th.wr_ihdr.it_present = htole32(BWI_RX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),
+		BWI_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th),
+		BWI_RX_RADIOTAP_PRESENT);
 
 	/*
 	 * Add sysctl nodes
@@ -2675,8 +2667,8 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 			rate = bwi_ds_plcp2rate(plcp);
 
 		/* RX radio tap */
-		if (bpf_peers_present(ifp->if_bpf))
-			bwi_rx_radiotap(ifp, m, hdr, plcp, rate, rssi, noise);
+		if (ieee80211_radiotap_active(ic))
+			bwi_rx_radiotap(sc, m, hdr, plcp, rate, rssi, noise);
 
 		m_adj(m, -IEEE80211_CRC_LEN);
 
@@ -2685,11 +2677,10 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 		wh = mtod(m, struct ieee80211_frame_min *);
 		ni = ieee80211_find_rxnode(ic, wh);
 		if (ni != NULL) {
-			type = ieee80211_input(ni, m, rssi - noise, noise, 0);
+			type = ieee80211_input(ni, m, rssi - noise, noise);
 			ieee80211_free_node(ni);
 		} else
-			type = ieee80211_input_all(ic, m, rssi - noise,
-			    noise, 0);
+			type = ieee80211_input_all(ic, m, rssi - noise, noise);
 		if (type == IEEE80211_FC0_TYPE_DATA) {
 			rx_data = 1;
 			sc->sc_rx_rate = rate;
@@ -3001,7 +2992,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	/*
 	 * TX radio tap
 	 */
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
@@ -3012,7 +3003,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 		}
 		sc->sc_tx_th.wt_rate = rate;
 
-		bpf_mtap2(ifp->if_bpf, &sc->sc_tx_th, sc->sc_tx_th_len, m);
+		ieee80211_radiotap_tx(vap, m);
 	}
 
 	/*
@@ -3134,6 +3125,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	  struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct bwi_ring_data *rd = &sc->sc_tx_rdata[BWI_TX_DATA_RING];
 	struct bwi_txbuf_data *tbd = &sc->sc_tx_bdata[BWI_TX_DATA_RING];
 	struct bwi_txbuf *tb = &tbd->tbd_buf[idx];
@@ -3169,7 +3161,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	/*
 	 * TX radio tap
 	 */
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
 		/* XXX IEEE80211_BPF_CRYPTO */
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
@@ -3178,7 +3170,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 		sc->sc_tx_th.wt_rate = rate;
 
-		bpf_mtap2(ifp->if_bpf, &sc->sc_tx_th, sc->sc_tx_th_len, m);
+		ieee80211_radiotap_tx(vap, m);
 	}
 
 	/*
@@ -3806,10 +3798,9 @@ bwi_ds_plcp2rate(const struct ieee80211_ds_plcp_hdr *hdr)
 }
 
 static void
-bwi_rx_radiotap(struct ifnet *ifp, struct mbuf *m,
+bwi_rx_radiotap(struct bwi_softc *sc, struct mbuf *m,
     struct bwi_rxbuf_hdr *hdr, const void *plcp, int rate, int rssi, int noise)
 {
-	struct bwi_softc *sc = ifp->if_softc;
 	const struct ieee80211_frame_min *wh;
 
 	sc->sc_rx_th.wr_flags = IEEE80211_RADIOTAP_F_FCS;
@@ -3824,8 +3815,6 @@ bwi_rx_radiotap(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_rate = rate;
 	sc->sc_rx_th.wr_antsignal = rssi;
 	sc->sc_rx_th.wr_antnoise = noise;
-
-	bpf_mtap2(ifp->if_bpf, &sc->sc_rx_th, sc->sc_rx_th_len, m);
 }
 
 static void

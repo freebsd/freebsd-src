@@ -993,7 +993,7 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 }
 
 static void
-smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
+smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 {
 	int ncpu, othercpus;
 	struct _call_data data;
@@ -1072,7 +1072,7 @@ smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 }
 
 void
-smp_masked_invltlb(u_int mask)
+smp_masked_invltlb(cpumask_t mask)
 {
 
 	if (smp_started) {
@@ -1081,7 +1081,7 @@ smp_masked_invltlb(u_int mask)
 }
 
 void
-smp_masked_invlpg(u_int mask, vm_offset_t addr)
+smp_masked_invlpg(cpumask_t mask, vm_offset_t addr)
 {
 
 	if (smp_started) {
@@ -1090,7 +1090,7 @@ smp_masked_invlpg(u_int mask, vm_offset_t addr)
 }
 
 void
-smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
+smp_masked_invlpg_range(cpumask_t mask, vm_offset_t addr1, vm_offset_t addr2)
 {
 
 	if (smp_started) {
@@ -1102,7 +1102,7 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(uint32_t cpus, u_int ipi)
+ipi_selected(cpumask_t cpus, u_int ipi)
 {
 	int cpu;
 	u_int bitmap = 0;
@@ -1114,12 +1114,6 @@ ipi_selected(uint32_t cpus, u_int ipi)
 		ipi = IPI_BITMAP_VECTOR;
 	} 
 
-#ifdef STOP_NMI
-	if (ipi == IPI_STOP && stop_cpus_with_nmi) {
-		ipi_nmi_selected(cpus);
-		return;
-	}
-#endif
 	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
@@ -1159,56 +1153,6 @@ ipi_all_but_self(u_int ipi)
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	ipi_selected(PCPU_GET(other_cpus), ipi);
 }
-
-#ifdef STOP_NMI
-/*
- * send NMI IPI to selected CPUs
- */
-
-#define	BEFORE_SPIN	1000000
-
-void
-ipi_nmi_selected(u_int32_t cpus)
-{
-	int cpu;
-	register_t icrlo;
-
-	icrlo = APIC_DELMODE_NMI | APIC_DESTMODE_PHY | APIC_LEVEL_ASSERT 
-		| APIC_TRIGMOD_EDGE; 
-	
-	CTR2(KTR_SMP, "%s: cpus: %x nmi", __func__, cpus);
-
-	atomic_set_int(&ipi_nmi_pending, cpus);
-
-	while ((cpu = ffs(cpus)) != 0) {
-		cpu--;
-		cpus &= ~(1 << cpu);
-
-		KASSERT(cpu_apic_ids[cpu] != -1,
-		    ("IPI NMI to non-existent CPU %d", cpu));
-		
-		/* Wait for an earlier IPI to finish. */
-		if (!lapic_ipi_wait(BEFORE_SPIN))
-			panic("ipi_nmi_selected: previous IPI has not cleared");
-
-		lapic_ipi_raw(icrlo, cpu_apic_ids[cpu]);
-	}
-}
-
-int
-ipi_nmi_handler(void)
-{
-	int cpumask = PCPU_GET(cpumask);
-
-	if (!(ipi_nmi_pending & cpumask))
-		return 1;
-
-	atomic_clear_int(&ipi_nmi_pending, cpumask);
-	cpustop_handler();
-	return 0;
-}
-
-#endif /* STOP_NMI */
 
 /*
  * Handle an IPI_STOP by saving our current context and spinning until we

@@ -53,11 +53,11 @@ static int usb2_pr_poll_delay = USB_PORT_RESET_DELAY;
 static int usb2_pr_recovery_delay = USB_PORT_RESET_RECOVERY;
 static int usb2_ss_delay = 0;
 
-SYSCTL_INT(_hw_usb2, OID_AUTO, pr_poll_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, pr_poll_delay, CTLFLAG_RW,
     &usb2_pr_poll_delay, 0, "USB port reset poll delay in ms");
-SYSCTL_INT(_hw_usb2, OID_AUTO, pr_recovery_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, pr_recovery_delay, CTLFLAG_RW,
     &usb2_pr_recovery_delay, 0, "USB port reset recovery delay in ms");
-SYSCTL_INT(_hw_usb2, OID_AUTO, ss_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, ss_delay, CTLFLAG_RW,
     &usb2_ss_delay, 0, "USB status stage delay in ms");
 #endif
 
@@ -176,7 +176,7 @@ static usb2_handle_request_t *
 usb2_get_hr_func(struct usb2_device *udev)
 {
 	/* figure out if there is a Handle Request function */
-	if (udev->flags.usb2_mode == USB_MODE_DEVICE)
+	if (udev->flags.usb_mode == USB_MODE_DEVICE)
 		return (usb2_temp_get_desc_p);
 	else if (udev->parent_hub == NULL)
 		return (udev->bus->methods->roothub_exec);
@@ -1485,7 +1485,7 @@ usb2_req_re_enumerate(struct usb2_device *udev, struct mtx *mtx)
 	uint8_t old_addr;
 	uint8_t do_retry = 1;
 
-	if (udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (udev->flags.usb_mode != USB_MODE_HOST) {
 		return (USB_ERR_INVAL);
 	}
 	old_addr = udev->address;

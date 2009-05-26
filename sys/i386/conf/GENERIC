@@ -69,7 +69,7 @@ options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
-options  	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 
@@ -117,7 +117,7 @@ options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		hptiop		# Highpoint RocketRaid 3xxx series
 device		isp		# Qlogic family
-#device 	ispfw		# Firmware for QLogic HBAs- normally a module
+#device		ispfw		# Firmware for QLogic HBAs- normally a module
 device		mpt		# LSI-Logic MPT-Fusion
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
@@ -272,7 +272,7 @@ device		wlan_amrr	# AMRR transmit rate control algorithm
 device		an		# Aironet 4500/4800 802.11 wireless NICs.
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# pci/cardbus chip support
-options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ral		# Ralink Technology RT2500 wireless NICs.
 device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.

@@ -36,7 +36,7 @@
 .Nd mount NFS file systems
 .Sh SYNOPSIS
 .Nm
-.Op Fl 234bcdiLlNPsTU
+.Op Fl 23bcdiLlNPsTU
 .Op Fl a Ar maxreadahead
 .Op Fl D Ar deadthresh
 .Op Fl g Ar maxgroups
@@ -157,8 +157,6 @@ then version 2).
 Note that NFS version 2 has a file size limit of 2 gigabytes.
 .It Cm nfsv3
 Use the NFS Version 3 protocol.
-.It Cm nfsv4
-Use the NFS Version 4 protocol.
 .It Cm noconn
 For UDP mount points, do not do a
 .Xr connect 2 .
@@ -303,9 +301,6 @@ Same as
 .It Fl 3
 Same as
 .Fl o Cm nfsv3
-.It Fl 4
-Same as
-.Fl o Cm nfsv4
 .It Fl D
 Same as
 .Fl o Cm deadthresh

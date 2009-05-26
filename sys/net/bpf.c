@@ -534,6 +534,8 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 
 	bpf_bpfd_cnt++;
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, bp->bif_dlt, 1);
 }
 
 /*
@@ -560,6 +562,8 @@ bpf_detachd(struct bpf_d *d)
 	d->bd_bif = NULL;
 	BPFD_UNLOCK(d);
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, ifp, bp->bif_dlt, 0);
 
 	/*
 	 * Check if this descriptor had requested promiscuous mode.

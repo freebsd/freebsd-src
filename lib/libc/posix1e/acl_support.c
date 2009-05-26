@@ -376,3 +376,24 @@ _posix1e_acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id, acl_perm_t perm)
 
 	return (0);
 }
+
+/*
+ * Convert "old" type - ACL_TYPE_{ACCESS,DEFAULT}_OLD - into its "new"
+ * counterpart.  It's neccessary for the old (pre-NFS4 ACLs) binaries
+ * to work with new libc and kernel.  Fixing 'type' for old binaries with
+ * old libc and new kernel is being done by kern/vfs_acl.c:type_unold().
+ */
+int
+_acl_type_unold(acl_type_t type)
+{
+	switch (type) {
+	case ACL_TYPE_ACCESS_OLD:
+		return (ACL_TYPE_ACCESS);
+
+	case ACL_TYPE_DEFAULT_OLD:
+		return (ACL_TYPE_DEFAULT);
+
+	default:
+		return (type);
+	}
+}

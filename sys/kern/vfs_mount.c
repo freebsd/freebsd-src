@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	ROOTNAME		"root_device"
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
+static void	set_rootvnode(void);
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata);
 static int	vfs_mountroot_ask(void);
@@ -782,7 +783,7 @@ mount(td, uap)
 	ma = mount_argb(ma, !(uap->flags & MNT_NOSUID), "nosuid");
 	ma = mount_argb(ma, !(uap->flags & MNT_NOEXEC), "noexec");
 
-	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, uap->flags, td);
+	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, uap->flags);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -977,7 +978,7 @@ vfs_domount(
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-        error = VFS_MOUNT(mp, td);
+        error = VFS_MOUNT(mp);
 
 	/*
 	 * Process the export option only if we are
@@ -1006,7 +1007,7 @@ vfs_domount(
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);
 		mp->mnt_opt = mp->mnt_optnew;
-		(void)VFS_STATFS(mp, &mp->mnt_stat, td);
+		(void)VFS_STATFS(mp, &mp->mnt_stat);
 	}
 	/*
 	 * Prevent external consumers of mount options from reading
@@ -1063,7 +1064,7 @@ vfs_domount(
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
 		vfs_event_signal(NULL, VQ_MOUNT, 0);
-		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp, td))
+		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
 			panic("mount: lost mount");
 		mountcheckdirs(vp, newdp);
 		vput(newdp);
@@ -1269,7 +1270,7 @@ dounmount(mp, flags, td)
 	 * such references to cause an EBUSY error.
 	 */
 	if ((flags & MNT_FORCE) &&
-	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
+	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
 		if (mp->mnt_vnodecovered != NULL)
 			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
@@ -1279,10 +1280,8 @@ dounmount(mp, flags, td)
 		vput(fsrootvp);
 	}
 	if (((mp->mnt_flag & MNT_RDONLY) ||
-	     (error = VFS_SYNC(mp, MNT_WAIT, td)) == 0) ||
-	    (flags & MNT_FORCE)) {
-		error = VFS_UNMOUNT(mp, flags, td);
-	}
+	     (error = VFS_SYNC(mp, MNT_WAIT)) == 0) || (flags & MNT_FORCE) != 0)
+		error = VFS_UNMOUNT(mp, flags);
 	vn_finished_write(mp);
 	/*
 	 * If we failed to flush the dirty blocks for this mount point,
@@ -1292,7 +1291,7 @@ dounmount(mp, flags, td)
 	 */
 	if (error && error != ENXIO) {
 		if ((flags & MNT_FORCE) &&
-		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
+		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
 			if (mp->mnt_vnodecovered != NULL)
 				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
@@ -1464,14 +1463,14 @@ root_mount_wait(void)
 }
 
 static void
-set_rootvnode(struct thread *td)
+set_rootvnode()
 {
 	struct proc *p;
 
-	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode, td))
+	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode))
 		panic("Cannot find root vnode");
 
-	p = td->td_proc;
+	p = curthread->td_proc;
 	FILEDESC_XLOCK(p->p_fd);
 
 	if (p->p_fd->fd_cdir != NULL)
@@ -1512,7 +1511,7 @@ devfs_first(void)
 
 	mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td->td_ucred);
 
-	error = VFS_MOUNT(mp, td);
+	error = VFS_MOUNT(mp);
 	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
 	if (error)
 		return;
@@ -1525,7 +1524,7 @@ devfs_first(void)
 	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 
-	set_rootvnode(td);
+	set_rootvnode();
 
 	error = kern_symlink(td, "/", "dev", UIO_SYSSPACE);
 	if (error)
@@ -1551,7 +1550,7 @@ devfs_fixup(struct thread *td)
 	mtx_unlock(&mountlist_mtx);
 	cache_purgevfs(mp);
 
-	VFS_ROOT(mp, LK_EXCLUSIVE, &dvp, td);
+	VFS_ROOT(mp, LK_EXCLUSIVE, &dvp);
 	VI_LOCK(dvp);
 	dvp->v_iflag &= ~VI_MOUNT;
 	VI_UNLOCK(dvp);
@@ -1559,7 +1558,7 @@ devfs_fixup(struct thread *td)
 
 	/* Set up the real rootvnode, and purge the cache */
 	TAILQ_FIRST(&mountlist)->mnt_vnodecovered = NULL;
-	set_rootvnode(td);
+	set_rootvnode();
 	cache_purgevfs(rootvnode->v_mount);
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, "/dev", td);
@@ -2176,11 +2175,11 @@ __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
 
 
 int
-__vfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+__vfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	int error;
 
-	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat, td);
+	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat);
 	if (sbp != &mp->mnt_stat)
 		*sbp = mp->mnt_stat;
 	return (error);

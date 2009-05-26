@@ -174,6 +174,7 @@ ibcs2_setipdomainname(td, uap)
         struct thread *td;
         struct setipdomainname_args *uap;
 {
+	INIT_VPROCG(TD_TO_VPROCG(td));
 	char hname[MAXHOSTNAMELEN], *ptr;
 	int error, sctl[2], hlen;
 

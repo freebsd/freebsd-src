@@ -498,6 +498,13 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 	}
 
 	pCap->halTstampPrecision = 13;
+	pCap->halIntrMask = HAL_INT_COMMON
+			| HAL_INT_RX
+			| HAL_INT_TX
+			| HAL_INT_FATAL
+			| HAL_INT_BNR
+			| HAL_INT_TIM
+			;
 
 	/* XXX might be ok w/ some chip revs */
 	ahpriv->ah_rxornIsFatal = AH_TRUE;

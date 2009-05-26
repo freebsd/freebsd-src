@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/in.h>
 
-#include <rpc/rpcclnt.h>
 #include <rpc/rpc.h>
 
 #include <nfs/rpcv2.h>
@@ -256,9 +255,10 @@ nfs_convert_diskless(void)
  * nfs statfs call
  */
 static int
-nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+nfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct vnode *vp;
+	struct thread *td;
 	struct nfs_statfs *sfp;
 	caddr_t bpos, dpos;
 	struct nfsmount *nmp = VFSTONFS(mp);
@@ -267,6 +267,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	struct nfsnode *np;
 	u_quad_t tquad;
 
+	td = curthread;
 #ifndef nolint
 	sfp = NULL;
 #endif
@@ -411,8 +412,9 @@ nfsmout:
  * client activity occurs.
  */
 int
-nfs_mountroot(struct mount *mp, struct thread *td)
+nfs_mountroot(struct mount *mp)
 {
+	struct thread *td = curthread;
 	INIT_VPROCG(TD_TO_VPROCG(td));
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
@@ -799,7 +801,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
  */
 /* ARGSUSED */
 static int
-nfs_mount(struct mount *mp, struct thread *td)
+nfs_mount(struct mount *mp)
 {
 	struct nfs_args args = {
 	    .version = NFS_ARGSVERSION,
@@ -846,7 +848,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 	}
 
 	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_UPDATE)) == MNT_ROOTFS) {
-		error = nfs_mountroot(mp, td);
+		error = nfs_mountroot(mp);
 		goto out;
 	}
 
@@ -1131,7 +1133,8 @@ nfs_mount(struct mount *mp, struct thread *td)
 			}
 		}
 	}
-	error = mountnfs(&args, mp, nam, args.hostname, &vp, td->td_ucred);
+	error = mountnfs(&args, mp, nam, args.hostname, &vp,
+	    curthread->td_ucred);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1153,7 +1156,7 @@ out:
  */
 /* ARGSUSED */
 static int
-nfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+nfs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	int error;
 	struct nfs_args args;
@@ -1298,7 +1301,7 @@ bad:
  * unmount system call
  */
 static int
-nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+nfs_unmount(struct mount *mp, int mntflags)
 {
 	struct nfsmount *nmp;
 	int error, flags = 0;
@@ -1319,7 +1322,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 			goto out;
 	}
 	/* We hold 1 extra ref on the root vnode; see comment in mountnfs(). */
-	error = vflush(mp, 1, flags, td);
+	error = vflush(mp, 1, flags, curthread);
 	if (error)
 		goto out;
 
@@ -1339,7 +1342,7 @@ out:
  * Return root of a filesystem
  */
 static int
-nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+nfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct vnode *vp;
 	struct nfsmount *nmp;
@@ -1373,10 +1376,13 @@ nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
  */
 /* ARGSUSED */
 static int
-nfs_sync(struct mount *mp, int waitfor, struct thread *td)
+nfs_sync(struct mount *mp, int waitfor)
 {
 	struct vnode *vp, *mvp;
+	struct thread *td;
 	int error, allerror = 0;
+
+	td = curthread;
 
 	/*
 	 * Force stale buffer cache information to be flushed.

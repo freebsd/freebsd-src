@@ -458,9 +458,15 @@
 #define PRIV_CPUCTL_UPDATE	641	/* Update cpu microcode. */
 
 /*
+ * Capi4BSD privileges.
+ */
+#define	PRIV_C4B_RESET_CTLR	650	/* Load firmware, reset controller. */
+#define	PRIV_C4B_TRACE		651	/* Unrestricted CAPI message tracing. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		642
+#define	_PRIV_HIGHEST		652
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid

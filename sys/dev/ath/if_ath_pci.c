@@ -250,6 +250,6 @@ static driver_t ath_pci_driver = {
 	sizeof (struct ath_pci_softc)
 };
 static	devclass_t ath_devclass;
-DRIVER_MODULE(if_ath, pci, ath_pci_driver, ath_devclass, 0, 0);
-MODULE_VERSION(if_ath, 1);
-MODULE_DEPEND(if_ath, wlan, 1, 1, 1);		/* 802.11 media layer */
+DRIVER_MODULE(ath, pci, ath_pci_driver, ath_devclass, 0, 0);
+MODULE_VERSION(ath, 1);
+MODULE_DEPEND(ath, wlan, 1, 1, 1);		/* 802.11 media layer */

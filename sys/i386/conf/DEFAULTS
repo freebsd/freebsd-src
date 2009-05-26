@@ -7,7 +7,7 @@ machine		i386
 
 # Bus support.
 device		isa
-options		ISAPNP
+options 	ISAPNP
 
 # Floating point support.
 device		npx
@@ -29,4 +29,4 @@ options 	GEOM_PART_MBR
 options 	NATIVE
 device		atpic
 
-options		FLOWTABLE
+options 	FLOWTABLE

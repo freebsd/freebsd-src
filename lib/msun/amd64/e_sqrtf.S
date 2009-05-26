@@ -30,3 +30,4 @@ __FBSDID("$FreeBSD$")
 ENTRY(sqrtf)
 	sqrtss	%xmm0, %xmm0
 	ret
+END(sqrtf)

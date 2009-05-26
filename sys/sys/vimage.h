@@ -44,12 +44,14 @@
 #define	VNET_DEBUG
 #endif
 
+struct vprocg;
+struct vnet;
+struct kld_sym_lookup;
+
 typedef int vnet_attach_fn(const void *);
 typedef int vnet_detach_fn(const void *);
 
 #ifndef VIMAGE_GLOBALS
-
-struct kld_sym_lookup;
 
 struct vnet_symmap {
 	char	*name;
@@ -93,6 +95,7 @@ struct vnet_modlink {
 #define	VNET_MOD_MLD		13
 
 /* Stateless modules. */
+#define	VNET_MOD_IF_CLONE	19
 #define	VNET_MOD_NG_ETHER	20
 #define	VNET_MOD_NG_IFACE	21
 #define	VNET_MOD_NG_EIFACE	22
@@ -111,6 +114,7 @@ struct vnet_modlink {
 /* Major module IDs for vimage sysctl virtualization. */
 #define	V_GLOBAL		0	/* global variable - no indirection */
 #define	V_NET			1
+#define	V_PROCG			2
 
 /* Name mappings for minor module IDs in vimage sysctl virtualization. */
 #define	V_MOD_vnet_net		VNET_MOD_NET
@@ -121,6 +125,8 @@ struct vnet_modlink {
 #define	V_MOD_vnet_pf		VNET_MOD_PF
 #define	V_MOD_vnet_gif		VNET_MOD_GIF
 #define	V_MOD_vnet_ipsec	VNET_MOD_IPSEC
+ 
+#define	V_MOD_vprocg		0	/* no minor module ids like in vnet */
 
 int	vi_symlookup(struct kld_sym_lookup *, char *);
 void	vnet_mod_register(const struct vnet_modinfo *);
@@ -132,13 +138,13 @@ void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 
 #ifdef VIMAGE_GLOBALS
 #define	VSYM(base, sym) (sym)
-#else
+#else /* !VIMAGE_GLOBALS */
 #ifdef VIMAGE
 #define	VSYM(base, sym) ((base)->_ ## sym)
-#else
+#else /* !VIMAGE */
 #define	VSYM(base, sym) (base ## _0._ ## sym)
-#endif
-#endif
+#endif /* VIMAGE */
+#endif /* VIMAGE_GLOBALS */
 
 #ifndef VIMAGE_GLOBALS
 #ifdef VIMAGE
@@ -149,75 +155,97 @@ void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 #define	VNET_SYMMAP(mod, name)						\
 	{ #name, offsetof(struct vnet_ ## mod, _ ## name),		\
 	sizeof(((struct vnet_ ## mod *) NULL)->_ ## name) }
-#else
+#else /* !VIMAGE */
 #define	VNET_SYMMAP(mod, name)						\
 	{ #name, (size_t) &(vnet_ ## mod ## _0._ ## name),		\
 	sizeof(vnet_ ## mod ## _0._ ## name) }
-#endif
+#endif /* VIMAGE */
 #define	VNET_SYMMAP_END		{ NULL, 0 }
-#endif /* !VIMAGE_GLOBALS */
 
-#ifdef VIMAGE
-struct vnet {
-	void		*mod_data[VNET_MOD_MAX];
-	LIST_ENTRY(vnet) vnet_le;	/* all vnets list */
-	u_int		 vnet_magic_n;
-	u_int		 ifccnt;
-	u_int		 sockcnt;
+struct vimage {
+	LIST_ENTRY(vimage)	 vi_le;		/* all vimage list */
+	LIST_ENTRY(vimage)	 vi_sibling;	/* vimages with same parent */
+	LIST_HEAD(, vimage)	 vi_child_head;	/* direct offspring list */
+	struct vimage		*vi_parent;	/* ptr to parent vimage */
+	u_int			 vi_id;		/* ID num */
+	u_int			 vi_ucredrefc;	/* # of ucreds pointing to us */
+	char			 vi_name[MAXHOSTNAMELEN];
+	struct vnet		*v_net;
+	struct vprocg		*v_procg;
 };
-#endif
+
+struct vnet {
+	void			*mod_data[VNET_MOD_MAX];
+	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
+	u_int			 vnet_magic_n;
+	u_int			 vnet_id;	/* ID num */
+	u_int			 ifcnt;
+	u_int			 sockcnt;
+};
+
+struct vprocg {
+	LIST_ENTRY(vprocg)	 vprocg_le;
+	u_int			 vprocg_id;	/* ID num */
+	u_int			 nprocs;
+	char			 _hostname[MAXHOSTNAMELEN];
+	char			 _domainname[MAXHOSTNAMELEN];
+};
 
 #ifdef VIMAGE
-#define curvnet curthread->td_vnet
-#else
-#define	curvnet NULL
-#endif
+LIST_HEAD(vimage_list_head, vimage);
+extern struct vimage_list_head vimage_head;
+#else /* !VIMAGE */
+extern struct vprocg vprocg_0;
+#endif /* VIMAGE */
+#endif /* !VIMAGE_GLOBALS */
+ 
+#define	curvnet curthread->td_vnet
 
-#define VNET_MAGIC_N 0x3e0d8f29
+#define	VNET_MAGIC_N 0x3e0d8f29
 
 #ifdef VIMAGE
 #ifdef VNET_DEBUG
-#define VNET_ASSERT(condition)						\
+#define	VNET_ASSERT(condition)						\
 	if (!(condition)) {						\
 		printf("VNET_ASSERT @ %s:%d %s():\n",			\
 			__FILE__, __LINE__, __FUNCTION__);		\
 		panic(#condition);					\
 	}
 
-#define CURVNET_SET_QUIET(arg)						\
+#define	CURVNET_SET_QUIET(arg)						\
 	VNET_ASSERT((arg)->vnet_magic_n == VNET_MAGIC_N);		\
 	struct vnet *saved_vnet = curvnet;				\
 	const char *saved_vnet_lpush = curthread->td_vnet_lpush;	\
 	curvnet = arg;							\
 	curthread->td_vnet_lpush = __FUNCTION__;
  
-#define CURVNET_SET_VERBOSE(arg)					\
+#define	CURVNET_SET_VERBOSE(arg)					\
 	CURVNET_SET_QUIET(arg)						\
 	if (saved_vnet)							\
-		printf("curvnet_set(%p) in %s() on cpu %d, prev %p in %s()\n", curvnet,			\
-		       curthread->td_vnet_lpush, curcpu,		\
+		printf("CURVNET_SET(%p) in %s() on cpu %d, prev %p in %s()\n", \
+		       curvnet,	curthread->td_vnet_lpush, curcpu,	\
 		       saved_vnet, saved_vnet_lpush);
 
-#define CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
+#define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  
-#define CURVNET_RESTORE()						\
+#define	CURVNET_RESTORE()						\
 	VNET_ASSERT(saved_vnet == NULL ||				\
 		    saved_vnet->vnet_magic_n == VNET_MAGIC_N);		\
 	curvnet = saved_vnet;						\
 	curthread->td_vnet_lpush = saved_vnet_lpush;
 #else /* !VNET_DEBUG */
-#define VNET_ASSERT(condition)
+#define	VNET_ASSERT(condition)
 
-#define CURVNET_SET(arg)						\
+#define	CURVNET_SET(arg)						\
 	struct vnet *saved_vnet = curvnet;				\
 	curvnet = arg;	
  
-#define CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
-#define CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
+#define	CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
+#define	CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
  
-#define CURVNET_RESTORE()						\
+#define	CURVNET_RESTORE()						\
 	curvnet = saved_vnet;
-#endif /* !VNET_DEBUG */
+#endif /* VNET_DEBUG */
 #else /* !VIMAGE */
 #define	VNET_ASSERT(condition)
 #define	CURVNET_SET(arg)
@@ -239,11 +267,12 @@ struct vnet {
 #endif /* !VNET_DEBUG */
 #else /* !VIMAGE */
 #define	INIT_FROM_VNET(vnet, modindex, modtype, sym)
-#endif
+#endif /* VIMAGE */
 
 #ifdef VIMAGE
 LIST_HEAD(vnet_list_head, vnet);
 extern struct vnet_list_head vnet_head;
+extern struct vnet *vnet0;
 #define	VNET_ITERATOR_DECL(arg) struct vnet *arg;
 #define	VNET_FOREACH(arg) LIST_FOREACH(arg, &vnet_head, vnet_le)
 #else
@@ -251,28 +280,57 @@ extern struct vnet_list_head vnet_head;
 #define	VNET_FOREACH(arg)
 #endif
 
-#define	TD_TO_VNET(td)	(td)->td_ucred->cr_vnet
+#ifdef VIMAGE
+LIST_HEAD(vprocg_list_head, vprocg);
+extern struct vprocg_list_head vprocg_head;
+#define	INIT_VPROCG(arg)	struct vprocg *vprocg = (arg);
+#else
+#define	INIT_VPROCG(arg)
+#endif
+
+#ifdef VIMAGE
+#define	IS_DEFAULT_VIMAGE(arg)	((arg)->vi_id == 0)
+#define	IS_DEFAULT_VNET(arg)	((arg)->vnet_id == 0)
+#else
+#define	IS_DEFAULT_VIMAGE(arg)	1
+#define	IS_DEFAULT_VNET(arg)	1
+#endif
+
+#ifdef VIMAGE
+#define	TD_TO_VIMAGE(td)	(td)->td_ucred->cr_vimage
+#define	TD_TO_VNET(td)		(td)->td_ucred->cr_vimage->v_net
+#define	TD_TO_VPROCG(td)	(td)->td_ucred->cr_vimage->v_procg
+#define	P_TO_VIMAGE(p)		(p)->p_ucred->cr_vimage
+#define	P_TO_VNET(p)		(p)->p_ucred->cr_vimage->v_net
+#define	P_TO_VPROCG(p)		(p)->p_ucred->cr_vimage->v_procg
+#else /* !VIMAGE */
+#define	TD_TO_VIMAGE(td)	NULL
+#define	TD_TO_VNET(td)		NULL
+#define	P_TO_VIMAGE(p)		NULL
+#define	P_TO_VNET(p)		NULL
+#ifdef VIMAGE_GLOBALS
+#define	TD_TO_VPROCG(td)	NULL
+#define	P_TO_VPROCG(p)		NULL
+#else /* !VIMAGE_GLOBALS */
+#define	TD_TO_VPROCG(td)	&vprocg_0
+#define	P_TO_VPROCG(p)		&vprocg_0
+#endif /* VIMAGE_GLOBALS */
+#endif /* VIMAGE */
 
 /* Non-VIMAGE null-macros */
-#define	IS_DEFAULT_VNET(arg) 1
 #define	VNET_LIST_RLOCK()
 #define	VNET_LIST_RUNLOCK()
-#define	INIT_VPROCG(arg)
-#define	INIT_VCPU(arg)
-#define	TD_TO_VIMAGE(td)
-#define	TD_TO_VPROCG(td)
-#define	TD_TO_VCPU(td)
-#define	P_TO_VIMAGE(p)
-#define	P_TO_VNET(p)
-#define	P_TO_VPROCG(p)
-#define	P_TO_VCPU(p)
 
 /* XXX those defines bellow should probably go into vprocg.h and vcpu.h */
-#define	VPROCG(sym)		(sym)
-#define	VCPU(sym)		(sym)
+#define	VPROCG(sym)		VSYM(vprocg, sym)
+
+#ifdef VIMAGE
+#define	G_hostname		TD_TO_VPROCG(&thread0)->_hostname
+#else
+#define	G_hostname		VPROCG(hostname)
+#endif
 
 #define	V_hostname		VPROCG(hostname)
-#define	G_hostname		VPROCG(hostname) /* global hostname */
 #define	V_domainname		VPROCG(domainname)
 
 /*

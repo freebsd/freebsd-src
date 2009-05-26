@@ -177,6 +177,7 @@ device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		gem		# Sun GEM/Sun ERI/Apple GMAC
 device		hme		# Sun HME (Happy Meal Ethernet)
+device		nge		# NatSemi DP83820 gigabit Ethernet
 #device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'le')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
@@ -200,7 +201,7 @@ device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# Atheros HAL (Hardware Access Layer)
-options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
 # Pseudo devices.

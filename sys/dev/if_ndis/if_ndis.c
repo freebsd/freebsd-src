@@ -3306,7 +3306,6 @@ ndis_scan_results(struct ndis_softc *sc)
 	struct ieee80211_channel *saved_chan;
 	int i, j;
 	int error, len, rssi, noise, freq, chanflag;
-	static long rstamp;
 	uint8_t ssid[2+IEEE80211_NWID_LEN];
 	uint8_t rates[2+IEEE80211_RATE_MAXSIZE];
 	uint8_t *frm, *efrm;
@@ -3337,7 +3336,6 @@ ndis_scan_results(struct ndis_softc *sc)
 	}
 
 	DPRINTF(("%s: %d results\n", __func__, bl->nblx_items));
-	rstamp++;
 	wb = &bl->nblx_bssid[0];
 	for (i = 0; i < bl->nblx_items; i++) {
 		memset(&sp, 0, sizeof(sp));
@@ -3408,7 +3406,7 @@ done:
 		DPRINTF(("scan: bssid %s chan %dMHz (%d/%d) rssi %d\n",
 		    ether_sprintf(wb->nwbx_macaddr), freq, sp.bchan, chanflag,
 		    rssi));
-		ieee80211_add_scan(vap, &sp, &wh, 0, rssi, noise, rstamp);
+		ieee80211_add_scan(vap, &sp, &wh, 0, rssi, noise);
 		wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
 	}
 	free(bl, M_DEVBUF);

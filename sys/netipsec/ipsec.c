@@ -167,6 +167,9 @@ SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
 SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
 	ipsecstats,	CTLFLAG_RD,	ipsec4stat, ipsecstat,	
 	"IPsec IPv4 statistics.");
+SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
+	filtertunnel, CTLFLAG_RW, ip4_ipsec_filtertunnel,  0,
+	"If set filter packets from an IPsec tunnel.");
 
 #ifdef REGRESSION
 #ifdef VIMAGE_GLOBALS
@@ -228,6 +231,9 @@ SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_DEBUG,
 SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_STATS,
 	ipsecstats, CTLFLAG_RD, ipsec6stat, ipsecstat,
 	"IPsec IPv6 statistics.");
+SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, OID_AUTO,
+	filtertunnel, CTLFLAG_RW, ip6_ipsec6_filtertunnel,  0,
+	"If set filter packets from an IPsec tunnel.");
 #endif /* INET6 */
 
 static int ipsec_setspidx_inpcb __P((struct mbuf *, struct inpcb *));
@@ -273,6 +279,11 @@ ipsec_init(void)
 	V_ip4_ah_net_deflev = IPSEC_LEVEL_USE;
 	V_ip4_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
 	V_ip4_esp_randpad = -1;
+#ifdef IPSEC_FILTERTUNNEL
+	V_ip4_ipsec_filtertunnel = 1;
+#else
+	V_ip4_ipsec_filtertunnel = 0;
+#endif
 
 	V_crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
 
@@ -287,6 +298,11 @@ ipsec_init(void)
 	V_ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
 	V_ip6_ah_net_deflev = IPSEC_LEVEL_USE;
 	V_ip6_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+#ifdef IPSEC_FILTERTUNNEL
+	V_ip6_ipsec6_filtertunnel = 1;
+#else
+	V_ip6_ipsec6_filtertunnel = 0;
+#endif
 #endif
 }
 

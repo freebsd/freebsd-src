@@ -261,7 +261,17 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
 	AUXARGS_ENTRY_32(pos, LINUX_AT_HWCAP, cpu_feature);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_CLKTCK, hz);
+
+	/*
+	 * Do not export AT_CLKTCK when emulating Linux kernel prior to 2.4.0,
+	 * as it has appeared in the 2.4.0-rc7 first time.
+	 * Being exported, AT_CLKTCK is returned by sysconf(_SC_CLK_TCK),
+	 * glibc falls back to the hard-coded CLK_TCK value when aux entry
+	 * is not present.
+	 * Also see linux_times() implementation.
+	 */
+	if (linux_kernver(curthread) >= LINUX_KERNVER_2004000)
+		AUXARGS_ENTRY_32(pos, LINUX_AT_CLKTCK, stclohz);
 	AUXARGS_ENTRY_32(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY_32(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY_32(pos, AT_PHNUM, args->phnum);
@@ -1124,6 +1134,8 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			    linux_proc_exec, NULL, 1000);
 			linux_szplatform = roundup(strlen(linux_platform) + 1,
 			    sizeof(char *));
+			linux_osd_jail_register();
+			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else
@@ -1151,6 +1163,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
 			EVENTHANDLER_DEREGISTER(schedtail, linux_schedtail_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
+			linux_osd_jail_deregister();
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else

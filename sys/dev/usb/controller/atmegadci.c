@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int atmegadci_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
-SYSCTL_INT(_hw_usb2_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
+SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif
 
@@ -672,7 +672,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	 * that like RESUME. Resume is set when there is at least 3
 	 * milliseconds of inactivity on the USB BUS.
 	 */
-	if (status & ATMEGA_UDINT_EORSMI) {
+	if (status & ATMEGA_UDINT_WAKEUPI) {
 
 		DPRINTFN(5, "resume interrupt\n");
 
@@ -700,7 +700,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 
 			/* disable suspend interrupt */
 			ATMEGA_WRITE_1(sc, ATMEGA_UDIEN,
-			    ATMEGA_UDINT_EORSMI |
+			    ATMEGA_UDINT_WAKEUPE |
 			    ATMEGA_UDINT_EORSTE);
 
 			/* complete root HUB interrupt endpoint */
@@ -751,7 +751,7 @@ atmegadci_setup_standard_chain_sub(struct atmegadci_std_temp *temp)
 	td->offset = temp->offset;
 	td->remainder = temp->len;
 	td->error = 0;
-	td->did_stall = 0;
+	td->did_stall = temp->did_stall;
 	td->short_pkt = temp->short_pkt;
 	td->alt_next = temp->setup_alt_next;
 }
@@ -782,6 +782,7 @@ atmegadci_setup_standard_chain(struct usb2_xfer *xfer)
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = ATMEGA_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
@@ -1076,7 +1077,7 @@ atmegadci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	DPRINTFN(9, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
 
-	if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		ep_no = (xfer->endpoint & UE_ADDR);
 
 		/* select endpoint number */
@@ -1152,13 +1153,12 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 	    ATMEGA_UECONX_STALLRQC);
 
 	do {
-		temp = 0;
 		if (ep_type == UE_BULK) {
-			temp |= ATMEGA_UECFG0X_EPTYPE2;
+			temp = ATMEGA_UECFG0X_EPTYPE2;
 		} else if (ep_type == UE_INTERRUPT) {
-			temp |= ATMEGA_UECFG0X_EPTYPE3;
+			temp = ATMEGA_UECFG0X_EPTYPE3;
 		} else {
-			temp |= ATMEGA_UECFG0X_EPTYPE1;
+			temp = ATMEGA_UECFG0X_EPTYPE1;
 		}
 		if (ep_dir & UE_DIR_IN) {
 			temp |= ATMEGA_UECFG0X_EPDIR;
@@ -1188,7 +1188,7 @@ atmegadci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	/* check mode */
-	if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+	if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 		/* not supported */
 		return;
 	}
@@ -1217,13 +1217,28 @@ atmegadci_init(struct atmegadci_softc *sc)
 	sc->sc_bus.methods = &atmegadci_bus_methods;
 
 	USB_BUS_LOCK(&sc->sc_bus);
-#if 0
-	/* XXX TODO - currently done by boot strap */
+
+	/* make sure USB is enabled */
+	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
+	    ATMEGA_USBCON_USBE |
+	    ATMEGA_USBCON_FRZCLK);
 
 	/* enable USB PAD regulator */
 	ATMEGA_WRITE_1(sc, ATMEGA_UHWCON,
-	    ATMEGA_UHWCON_UVREGE | ATMEGA_UHWCON_UIMOD);
-#endif
+	    ATMEGA_UHWCON_UVREGE |
+	    ATMEGA_UHWCON_UIMOD);
+
+	/* the following register sets up the USB PLL, assuming 16MHz X-tal */
+	ATMEGA_WRITE_1(sc, 0x49 /* PLLCSR */, 0x14 | 0x02);
+
+	/* wait for PLL to lock */
+	for (n = 0; n != 20; n++) {
+		if (ATMEGA_READ_1(sc, 0x49) & 0x01)
+			break;
+		/* wait a little bit for PLL to start */
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+	}
+
 	/* make sure USB is enabled */
 	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
 	    ATMEGA_USBCON_USBE |
@@ -1847,6 +1862,11 @@ tr_handle_clear_port_feature:
 		/* clear connect change flag */
 		sc->sc_flags.change_connect = 0;
 
+		if (!sc->sc_flags.status_bus_reset) {
+			/* we are not connected */
+			break;
+		}
+
 		/* configure the control endpoint */
 
 		/* select endpoint number */
@@ -2075,12 +2095,12 @@ atmegadci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *e
 
 	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d,%d)\n",
 	    pipe, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb2_mode,
+	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr, udev->device_index);
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 			/* not supported */
 			return;
 		}

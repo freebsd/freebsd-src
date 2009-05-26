@@ -470,7 +470,7 @@ fail:
 	if (bktr->res_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, bktr->irq_rid, bktr->res_irq);
 	if (bktr->res_mem)
-		bus_release_resource(dev, SYS_RES_IRQ, bktr->mem_rid, bktr->res_mem);
+		bus_release_resource(dev, SYS_RES_MEMORY, bktr->mem_rid, bktr->res_mem);
 	return error;
 
 }

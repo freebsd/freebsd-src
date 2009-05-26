@@ -145,20 +145,21 @@ fdesc_remove_entry(struct fdescnode *fd)
 }
 
 int
-fdesc_allocvp(ftype, fd_fd, ix, mp, vpp, td)
+fdesc_allocvp(ftype, fd_fd, ix, mp, vpp)
 	fdntype ftype;
 	unsigned fd_fd;
 	int ix;
 	struct mount *mp;
 	struct vnode **vpp;
-	struct thread *td;
 {
 	struct fdescmount *fmp;
 	struct fdhashhead *fc;
 	struct fdescnode *fd, *fd2;
 	struct vnode *vp, *vp2;
+	struct thread *td;
 	int error = 0;
 
+	td = curthread;
 	fc = FD_NHASH(ix);
 loop:
 	mtx_lock(&fdesc_hashmtx);
@@ -264,7 +265,7 @@ fdesc_lookup(ap)
 	struct thread *td = cnp->cn_thread;
 	struct file *fp;
 	int nlen = cnp->cn_namelen;
-	u_int fd;
+	u_int fd, fd1;
 	int error;
 	struct vnode *fvp;
 
@@ -296,7 +297,12 @@ fdesc_lookup(ap)
 			error = ENOENT;
 			goto bad;
 		}
-		fd = 10 * fd + *pname++ - '0';
+		fd1 = 10 * fd + *pname++ - '0';
+		if (fd1 < fd) {
+			error = ENOENT;
+			goto bad;
+		}
+		fd = fd1;
 	}
 
 	if ((error = fget(td, fd, &fp)) != 0)
@@ -328,7 +334,7 @@ fdesc_lookup(ap)
 		vhold(dvp);
 		VOP_UNLOCK(dvp, 0);
 		error = fdesc_allocvp(Fdesc, fd, FD_DESC + fd, dvp->v_mount,
-		    &fvp, td);
+		    &fvp);
 		fdrop(fp, td);
 		/*
 		 * The root vnode must be locked last to prevent deadlock condition.
@@ -383,78 +389,34 @@ fdesc_getattr(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	struct thread *td = curthread;
-	struct file *fp;
-	struct stat stb;
-	u_int fd;
-	int error = 0;
+
+	vap->va_mode = S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
+	vap->va_fileid = VTOFDESC(vp)->fd_ix;
+	vap->va_uid = 0;
+	vap->va_gid = 0;
+	vap->va_blocksize = DEV_BSIZE;
+	vap->va_atime.tv_sec = boottime.tv_sec;
+	vap->va_atime.tv_nsec = 0;
+	vap->va_mtime = vap->va_atime;
+	vap->va_ctime = vap->va_mtime;
+	vap->va_gen = 0;
+	vap->va_flags = 0;
+	vap->va_bytes = 0;
+	vap->va_filerev = 0;
 
 	switch (VTOFDESC(vp)->fd_type) {
 	case Froot:
-		vap->va_mode = S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 		vap->va_type = VDIR;
 		vap->va_nlink = 2;
 		vap->va_size = DEV_BSIZE;
-		vap->va_fileid = VTOFDESC(vp)->fd_ix;
-		vap->va_uid = 0;
-		vap->va_gid = 0;
-		vap->va_blocksize = DEV_BSIZE;
-		vap->va_atime.tv_sec = boottime.tv_sec;
-		vap->va_atime.tv_nsec = 0;
-		vap->va_mtime = vap->va_atime;
-		vap->va_ctime = vap->va_mtime;
-		vap->va_gen = 0;
-		vap->va_flags = 0;
 		vap->va_rdev = NODEV;
-		vap->va_bytes = 0;
-		vap->va_filerev = 0;
 		break;
 
 	case Fdesc:
-		fd = VTOFDESC(vp)->fd_fd;
-
-		if ((error = fget(td, fd, &fp)) != 0)
-			return (error);
-
-		bzero(&stb, sizeof(stb));
-		error = fo_stat(fp, &stb, td->td_ucred, td);
-		fdrop(fp, td);
-		if (error == 0) {
-			vap->va_type = IFTOVT(stb.st_mode);
-			vap->va_mode = stb.st_mode;
-			if (vap->va_type == VDIR)
-				vap->va_mode &= ~(S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
-			vap->va_nlink = 1;
-			vap->va_flags = 0;
-			vap->va_bytes = stb.st_blocks * stb.st_blksize;
-			vap->va_fileid = VTOFDESC(vp)->fd_ix;
-			vap->va_size = stb.st_size;
-			vap->va_blocksize = stb.st_blksize;
-			vap->va_rdev = stb.st_rdev;
-
-			/*
-			 * If no time data is provided, use the current time.
-			 */
-			if (stb.st_atimespec.tv_sec == 0 &&
-			    stb.st_atimespec.tv_nsec == 0)
-				nanotime(&stb.st_atimespec);
-
-			if (stb.st_ctimespec.tv_sec == 0 &&
-			    stb.st_ctimespec.tv_nsec == 0)
-				nanotime(&stb.st_ctimespec);
-
-			if (stb.st_mtimespec.tv_sec == 0 &&
-			    stb.st_mtimespec.tv_nsec == 0)
-				nanotime(&stb.st_mtimespec);
-
-			vap->va_atime = stb.st_atimespec;
-			vap->va_mtime = stb.st_mtimespec;
-			vap->va_ctime = stb.st_ctimespec;
-			vap->va_uid = stb.st_uid;
-			vap->va_gid = stb.st_gid;
-			vap->va_gen = 0;
-			vap->va_filerev = 0;
-		}
+		vap->va_type = VCHR;
+		vap->va_nlink = 1;
+		vap->va_size = 0;
+		vap->va_rdev = makedev(0, vap->va_fileid);
 		break;
 
 	default:
@@ -462,9 +424,8 @@ fdesc_getattr(ap)
 		break;
 	}
 
-	if (error == 0)
-		vp->v_type = vap->va_type;
-	return (error);
+	vp->v_type = vap->va_type;
+	return (0);
 }
 
 static int

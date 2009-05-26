@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -1551,7 +1551,8 @@ init()
 		 */
 		for (i = 1; i < sc_height; i++)
 			putchr('\n');
-	}
+	} else
+		line_left();
 #else
 #if MSDOS_COMPILER==WIN32C
 	if (!no_init)
@@ -1788,7 +1789,7 @@ win32_scroll_up(n)
 
 	/* Move the source text to the top of the screen. */
 	new_org.X = rcSrc.Left;
-	new_org.Y = 0;
+	/* new_org.Y = rcClip.top; -- doesn't compile under MSVC6 */
 
 	/* Fill the right character and attributes. */
 	fillchar.Char.AsciiChar = ' ';
@@ -2468,5 +2469,35 @@ WIN32getch(tty)
 	 */
 	pending_scancode = (ascii == 0x00);
 	return ((char)ascii);
+}
+#endif
+
+#if MSDOS_COMPILER
+/*
+ */
+	public void
+WIN32setcolors(fg, bg)
+	int fg;
+	int bg;
+{
+	SETCOLORS(fg, bg);
+}
+
+/*
+ */
+	public void
+WIN32textout(text, len)
+	char *text;
+	int len;
+{
+#if MSDOS_COMPILER==WIN32C
+	DWORD written;
+	WriteConsole(con_out, text, len, &written, NULL);
+#else
+	char c = text[len];
+	text[len] = '\0';
+	cputs(text);
+	text[len] = c;
+#endif
 }
 #endif

@@ -144,9 +144,7 @@ struct iwn_softc {
 	const struct ieee80211_channel *sc_curchan;
 
         struct iwn_rx_radiotap_header sc_rxtap;
-        int                     sc_rxtap_len;
         struct iwn_tx_radiotap_header sc_txtap;
-        int                     sc_txtap_len;
 
 	/* locks */
 	struct mtx		sc_mtx;

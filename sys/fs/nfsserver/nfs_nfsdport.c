@@ -42,8 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/nfs/nfsport.h>
 #include <sys/sysctl.h>
+#include <nlm/nlm_prot.h>
+#include <nlm/nlm.h>
 
-extern int nfsrv_dolocallocks;
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern int nfsv4root_set;
 extern int nfsrv_useacl;
@@ -57,18 +58,28 @@ struct mtx nfs_cache_mutex;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
+static uint32_t nfsv4_sysid = 0;
 
-static int nfssvc_srvcall(struct thread *, struct nfssvc_args *, struct ucred *);
+static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
+    struct ucred *);
 
 static int enable_crossmntpt = 1;
 static int nfs_commit_blks;
 static int nfs_commit_miss;
 extern int nfsrv_issuedelegs;
+extern int nfsrv_dolocallocks;
+
 SYSCTL_DECL(_vfs_newnfs);
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, mirrormnt, CTLFLAG_RW, &enable_crossmntpt, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, issue_delegations, CTLFLAG_RW, &nfsrv_issuedelegs, 0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, mirrormnt, CTLFLAG_RW, &enable_crossmntpt,
+    0, "Enable nfsd to cross mount points");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks,
+    0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss,
+    0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, issue_delegations, CTLFLAG_RW,
+    &nfsrv_issuedelegs, 0, "Enable nfsd to issue delegations");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, enable_locallocks, CTLFLAG_RW,
+    &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
 
 #define	NUM_HEURISTIC		1017
 #define	NHUSE_INIT		64
@@ -1257,13 +1268,10 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
  * Statfs vnode op.
  */
 int
-nfsvno_statfs(struct vnode *vp, struct statfs *sf, struct ucred *cred,
-    struct thread *p)
+nfsvno_statfs(struct vnode *vp, struct statfs *sf)
 {
-	int error;
 
-	error = VFS_STATFS(vp->v_mount, sf, p);
-	return (error);
+	return (VFS_STATFS(vp->v_mount, sf));
 }
 
 /*
@@ -2355,14 +2363,16 @@ nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
 	 * Check/setup credentials.
 	 */
 	if (nd->nd_flag & ND_GSS)
-		exp->nes_exflag &= ~(MNT_EXGSSONLY | MNT_EXPORTANON);
+		exp->nes_exflag &= ~MNT_EXPORTANON;
 
 	/*
-	 * For AUTH_SYS, check to see if it is allowed.
+	 * Check to see if the operation is allowed for this security flavor.
 	 * RFC2623 suggests that the NFSv3 Fsinfo RPC be allowed to
 	 * AUTH_NONE or AUTH_SYS for file systems requiring RPCSEC_GSS.
+	 * Also, allow Secinfo, so that it can acquire the correct flavor(s).
 	 */
-	if (NFSVNO_EXGSSONLY(exp) &&
+	if (nfsvno_testexp(nd, exp) &&
+	    nd->nd_procnum != NFSV4OP_SECINFO &&
 	    nd->nd_procnum != NFSPROC_FSINFO) {
 		if (nd->nd_flag & ND_NFSV4)
 			error = NFSERR_WRONGSEC;
@@ -2403,14 +2413,20 @@ int
 nfsvno_checkexp(struct mount *mp, struct sockaddr *nam, struct nfsexstuff *exp,
     struct ucred **credp)
 {
-	int error;
-	int numsecflavor, *secflavors;
+	int i, error, *secflavors;
 
 	error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
-	    &numsecflavor, &secflavors);
-	if (error && nfs_rootfhset) {
-		exp->nes_exflag = 0;
-		error = 0;
+	    &exp->nes_numsecflavor, &secflavors);
+	if (error) {
+		if (nfs_rootfhset) {
+			exp->nes_exflag = 0;
+			exp->nes_numsecflavor = 0;
+			error = 0;
+		}
+	} else {
+		/* Copy the security flavors. */
+		for (i = 0; i < exp->nes_numsecflavor; i++)
+			exp->nes_secflavors[i] = secflavors[i];
 	}
 	return (error);
 }
@@ -2422,20 +2438,26 @@ int
 nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
     struct vnode **vpp, struct nfsexstuff *exp, struct ucred **credp)
 {
-	int error;
-	int numsecflavor, *secflavors;
+	int i, error, *secflavors;
 
+	*credp = NULL;
+	exp->nes_numsecflavor = 0;
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
 	if (nam && !error) {
 		error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
-		    &numsecflavor, &secflavors);
+		    &exp->nes_numsecflavor, &secflavors);
 		if (error) {
 			if (nfs_rootfhset) {
 				exp->nes_exflag = 0;
+				exp->nes_numsecflavor = 0;
 				error = 0;
 			} else {
 				vput(*vpp);
 			}
+		} else {
+			/* Copy the security flavors. */
+			for (i = 0; i < exp->nes_numsecflavor; i++)
+				exp->nes_secflavors[i] = secflavors[i];
 		}
 	}
 	return (error);
@@ -2541,18 +2563,19 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp,
 	 */
 #ifdef NFS_REQRSVPORT
 	if (!nd->nd_repstat) {
-	  struct sockaddr_in *saddr;
-	  struct sockaddr_in6 *saddr6;
-	  saddr = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in *);
-	  saddr6 = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in6 *);
-	  if (!(nd->nd_flag & ND_NFSV4) &&
-	      ((saddr->sin_family == AF_INET &&
-	        ntohs(saddr->sin_port) >= IPPORT_RESERVED) ||
-	       (saddr6->sin6_family == AF_INET6 &&
-	        ntohs(saddr6->sin6_port) >= IPPORT_RESERVED))) {
-		vput(*vpp);
-		nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
-	  }
+		struct sockaddr_in *saddr;
+		struct sockaddr_in6 *saddr6;
+
+		saddr = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in *);
+		saddr6 = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in6 *);
+		if (!(nd->nd_flag & ND_NFSV4) &&
+		    ((saddr->sin_family == AF_INET &&
+		      ntohs(saddr->sin_port) >= IPPORT_RESERVED) ||
+		     (saddr6->sin6_family == AF_INET6 &&
+		      ntohs(saddr6->sin6_port) >= IPPORT_RESERVED))) {
+			vput(*vpp);
+			nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
+		}
 	}
 #endif	/* NFS_REQRSVPORT */
 
@@ -2565,6 +2588,8 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp,
 		if (nd->nd_repstat)
 			vput(*vpp);
 	}
+	if (credanon != NULL)
+		crfree(credanon);
 	if (nd->nd_repstat) {
 		if (startwrite)
 			vn_finished_write(mp);
@@ -2598,17 +2623,7 @@ fp_getfvp(struct thread *p, int fd, struct file **fpp, struct vnode **vpp)
 }
 
 /*
- * Network export information
- */
-struct netexport {
-	struct	netcred ne_defexported;		      /* Default export */
-	struct	radix_node_head *ne_rtable[AF_MAX+1]; /* Individual exports */
-};
-
-struct netexport nfsv4root_export;
-
-/*
- * Called from newnfssvc() to update the exports list. Just call
+ * Called from nfssvc() to update the exports list. Just call
  * vfs_export(). This has to be done, since the v4 root fake fs isn't
  * in the mount list.
  */
@@ -2620,11 +2635,6 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 	struct nameidata nd;
 	fhandle_t fh;
 
-	/*
-	 * Until newmountd is using the secflavor fields, just make
-	 * sure it's 0.
-	 */
-	nfsexargp->export.ex_numsecflavors = 0;
 	error = vfs_export(&nfsv4root_mnt, &nfsexargp->export);
 	if ((nfsexargp->export.ex_flags & MNT_DELEXPORT)) {
 		nfs_rootfhset = 0;
@@ -2742,14 +2752,13 @@ nfsvno_getvp(fhandle_t *fhp)
 	return (vp);
 }
 
-static int id_for_advlock;
 /*
  * Check to see it a byte range lock held by a process running
  * locally on the server conflicts with the new lock.
  */
 int
 nfsvno_localconflict(struct vnode *vp, int ftype, u_int64_t first,
-    u_int64_t end, struct nfslockconflict *cfp, struct thread *p)
+    u_int64_t end, struct nfslockconflict *cfp, struct thread *td)
 {
 	int error;
 	struct flock fl;
@@ -2764,11 +2773,22 @@ nfsvno_localconflict(struct vnode *vp, int ftype, u_int64_t first,
 	else
 		fl.l_len = (off_t)(end - first);
 	/*
-	 * FreeBSD8 doesn't like 0, so I'll use the address of id_for_advlock.
+	 * For FreeBSD8, the l_pid and l_sysid must be set to the same
+	 * values for all calls, so that all locks will be held by the
+	 * nfsd server. (The nfsd server handles conflicts between the
+	 * various clients.)
+	 * Since an NFSv4 lockowner is a ClientID plus an array of up to 1024
+	 * bytes, so it can't be put in l_sysid.
 	 */
-	NFSVOPUNLOCK(vp, 0, p);
-	error = VOP_ADVLOCK(vp, &id_for_advlock, F_GETLK, &fl, F_POSIX);
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	if (nfsv4_sysid == 0)
+		nfsv4_sysid = nlm_acquire_next_sysid();
+	fl.l_pid = (pid_t)0;
+	fl.l_sysid = (int)nfsv4_sysid;
+
+	NFSVOPUNLOCK(vp, 0, td);
+	error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_GETLK, &fl,
+	    (F_POSIX | F_REMOTE));
+	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (error)
 		return (error);
 	if (fl.l_type == F_UNLCK)
@@ -2797,7 +2817,7 @@ nfsvno_localconflict(struct vnode *vp, int ftype, u_int64_t first,
  */
 int
 nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
-    u_int64_t end, struct thread *p)
+    u_int64_t end, struct thread *td)
 {
 	int error;
 	struct flock fl;
@@ -2815,11 +2835,22 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 		fl.l_len = (off_t)tlen;
 	}
 	/*
-	 * FreeBSD8 doesn't like 0, so I'll use the address of id_for_advlock.
+	 * For FreeBSD8, the l_pid and l_sysid must be set to the same
+	 * values for all calls, so that all locks will be held by the
+	 * nfsd server. (The nfsd server handles conflicts between the
+	 * various clients.)
+	 * Since an NFSv4 lockowner is a ClientID plus an array of up to 1024
+	 * bytes, so it can't be put in l_sysid.
 	 */
-	NFSVOPUNLOCK(vp, 0, p);
-	error = VOP_ADVLOCK(vp, &id_for_advlock, F_SETLK, &fl, F_POSIX);
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	if (nfsv4_sysid == 0)
+		nfsv4_sysid = nlm_acquire_next_sysid();
+	fl.l_pid = (pid_t)0;
+	fl.l_sysid = (int)nfsv4_sysid;
+
+	NFSVOPUNLOCK(vp, 0, td);
+	error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_SETLK, &fl,
+	    (F_POSIX | F_REMOTE));
+	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return (error);
 }
 
@@ -2853,14 +2884,24 @@ int
 nfsvno_v4rootexport(struct nfsrv_descript *nd)
 {
 	struct ucred *credanon;
-	int exflags, error;
+	int exflags, error, numsecflavor, *secflavors, i;
 
 	error = vfs_stdcheckexp(&nfsv4root_mnt, nd->nd_nam, &exflags,
-	    &credanon, NULL, NULL);
+	    &credanon, &numsecflavor, &secflavors);
 	if (error)
 		return (NFSERR_PROGUNAVAIL);
-	if ((exflags & MNT_EXGSSONLY))
-		nd->nd_flag |= ND_EXGSSONLY;
+	if (credanon != NULL)
+		crfree(credanon);
+	for (i = 0; i < numsecflavor; i++) {
+		if (secflavors[i] == AUTH_SYS)
+			nd->nd_flag |= ND_EXAUTHSYS;
+		else if (secflavors[i] == RPCSEC_GSS_KRB5)
+			nd->nd_flag |= ND_EXGSS;
+		else if (secflavors[i] == RPCSEC_GSS_KRB5I)
+			nd->nd_flag |= ND_EXGSSINTEGRITY;
+		else if (secflavors[i] == RPCSEC_GSS_KRB5P)
+			nd->nd_flag |= ND_EXGSSPRIVACY;
+	}
 	return (0);
 }
 
@@ -2874,14 +2915,15 @@ static int
 nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 {
 	struct file *fp;
-	struct nfsd_args nfsdarg;
+	struct nfsd_addsock_args sockarg;
+	struct nfsd_nfsd_args nfsdarg;
 	int error;
 
 	if (uap->flag & NFSSVC_NFSDADDSOCK) {
-		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
+		error = copyin(uap->argp, (caddr_t)&sockarg, sizeof (sockarg));
 		if (error)
 			return (error);
-		if ((error = fget(td, nfsdarg.sock, &fp)) != 0) {
+		if ((error = fget(td, sockarg.sock, &fp)) != 0) {
 			return (error);
 		}
 		if (fp->f_type != DTYPE_SOCKET) {
@@ -2891,7 +2933,13 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		error = nfsrvd_addsock(fp);
 		fdrop(fp, td);
 	} else if (uap->flag & NFSSVC_NFSDNFSD) {
-		error = nfsrvd_nfsd(td, NULL);
+		if (uap->argp == NULL) 
+			return (EINVAL);
+		error = copyin(uap->argp, (caddr_t)&nfsdarg,
+		    sizeof (nfsdarg));
+		if (error)
+			return (error);
+		error = nfsrvd_nfsd(td, &nfsdarg);
 	} else {
 		error = nfssvc_srvcall(td, uap, td->td_ucred);
 	}
@@ -2986,6 +3034,45 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	return (error);
 }
 
+/*
+ * Check exports.
+ * Returns 0 if ok, 1 otherwise.
+ */
+int
+nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
+{
+	int i;
+
+	/*
+	 * This seems odd, but allow the case where the security flavor
+	 * list is empty. This happens when NFSv4 is traversing non-exported
+	 * file systems. Exported file systems should always have a non-empty
+	 * security flavor list.
+	 */
+	if (exp->nes_numsecflavor == 0)
+		return (0);
+
+	for (i = 0; i < exp->nes_numsecflavor; i++) {
+		/*
+		 * The tests for privacy and integrity must be first,
+		 * since ND_GSS is set for everything but AUTH_SYS.
+		 */
+		if (exp->nes_secflavors[i] == RPCSEC_GSS_KRB5P &&
+		    (nd->nd_flag & ND_GSSPRIVACY))
+			return (0);
+		if (exp->nes_secflavors[i] == RPCSEC_GSS_KRB5I &&
+		    (nd->nd_flag & ND_GSSINTEGRITY))
+			return (0);
+		if (exp->nes_secflavors[i] == RPCSEC_GSS_KRB5 &&
+		    (nd->nd_flag & ND_GSS))
+			return (0);
+		if (exp->nes_secflavors[i] == AUTH_SYS &&
+		    (nd->nd_flag & ND_GSS) == 0)
+			return (0);
+	}
+	return (1);
+}
+
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
 
 /*
@@ -3057,4 +3144,5 @@ DECLARE_MODULE(nfsd, nfsd_mod, SI_SUB_VFS, SI_ORDER_ANY);
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfsd, 1);
 MODULE_DEPEND(nfsd, nfscommon, 1, 1, 1);
+MODULE_DEPEND(nfsd, nfslockd, 1, 1, 1);
 

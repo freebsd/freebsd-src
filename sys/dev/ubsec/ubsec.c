@@ -220,7 +220,8 @@ ubsec_probe(device_t dev)
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5820 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5821 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
-	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823 ||
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5825
 	     ))
 		return (BUS_PROBE_DEFAULT);
 	return (ENXIO);
@@ -240,6 +241,7 @@ ubsec_partname(struct ubsec_softc *sc)
 		case PCI_PRODUCT_BROADCOM_5821:	return "Broadcom 5821";
 		case PCI_PRODUCT_BROADCOM_5822:	return "Broadcom 5822";
 		case PCI_PRODUCT_BROADCOM_5823:	return "Broadcom 5823";
+		case PCI_PRODUCT_BROADCOM_5825:	return "Broadcom 5825";
 		}
 		return "Broadcom unknown-part";
 	case PCI_VENDOR_BLUESTEEL:
@@ -301,7 +303,8 @@ ubsec_attach(device_t dev)
 	if ((pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
 	     (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5821 ||
 	      pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
-	      pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823)) ||
+	      pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823 ||
+	      pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5825)) ||
 	    (pci_get_vendor(dev) == PCI_VENDOR_SUN &&
 	     (pci_get_device(dev) == PCI_PRODUCT_SUN_SCA1K ||
 	      pci_get_device(dev) == PCI_PRODUCT_SUN_5821))) {

@@ -67,8 +67,8 @@
 #if USB_DEBUG
 static int musbotgdebug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, musbotg, CTLFLAG_RW, 0, "USB musbotg");
-SYSCTL_INT(_hw_usb2_musbotg, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, musbotg, CTLFLAG_RW, 0, "USB musbotg");
+SYSCTL_INT(_hw_usb_musbotg, OID_AUTO, debug, CTLFLAG_RW,
     &musbotgdebug, 0, "Debug level");
 #endif
 
@@ -1099,7 +1099,7 @@ musbotg_setup_standard_chain_sub(struct musbotg_std_temp *temp)
 	td->offset = temp->offset;
 	td->remainder = temp->len;
 	td->error = 0;
-	td->did_stall = 0;
+	td->did_stall = temp->did_stall;
 	td->short_pkt = temp->short_pkt;
 	td->alt_next = temp->setup_alt_next;
 }
@@ -1129,6 +1129,7 @@ musbotg_setup_standard_chain(struct usb2_xfer *xfer)
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
@@ -1441,7 +1442,7 @@ musbotg_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
 
-	if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 
 		musbotg_ep_int_set(xfer, 0);
 
@@ -1645,7 +1646,7 @@ musbotg_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	/* check mode */
-	if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+	if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 		/* not supported */
 		return;
 	}
@@ -2673,12 +2674,12 @@ musbotg_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *ede
 
 	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
 	    pipe, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb2_mode,
+	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr);
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 			/* not supported */
 			return;
 		}

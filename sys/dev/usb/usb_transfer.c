@@ -63,7 +63,7 @@ static const struct usb2_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 		.bufsize = USB_EP0_BUFSIZE,	/* bytes */
 		.flags = {.proxy_buffer = 1,},
 		.callback = &usb2_request_callback,
-		.usb_mode = USB_MODE_MAX,	/* both modes */
+		.usb_mode = USB_MODE_DUAL,	/* both modes */
 	},
 
 	/* This transfer is used for generic clear stall only */
@@ -93,7 +93,7 @@ static void	usb2_dma_delay_done_cb(void *);
 static void	usb2_transfer_start_cb(void *);
 static uint8_t	usb2_callback_wrapper_sub(struct usb2_xfer *);
 static void	usb2_get_std_packet_size(struct usb2_std_packet_size *ptr, 
-		    uint8_t type, uint8_t usb_speed);
+		    uint8_t type, enum usb_dev_speed speed);
 
 /*------------------------------------------------------------------------*
  *	usb2_request_callback
@@ -101,7 +101,7 @@ static void	usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
 static void
 usb2_request_callback(struct usb2_xfer *xfer)
 {
-	if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE)
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE)
 		usb2_handle_request_callback(xfer);
 	else
 		usb2_do_request_callback(xfer);
@@ -327,7 +327,7 @@ usb2_transfer_setup_sub(struct usb2_setup_params *parm)
 	xfer->max_packet_size = UGETW(edesc->wMaxPacketSize);
 	xfer->max_packet_count = 1;
 	/* make a shadow copy: */
-	xfer->flags_int.usb2_mode = parm->udev->flags.usb2_mode;
+	xfer->flags_int.usb_mode = parm->udev->flags.usb_mode;
 
 	parm->bufsize = setup->bufsize;
 
@@ -858,8 +858,8 @@ usb2_transfer_setup(struct usb2_device *udev,
 			if ((pipe == NULL) || (pipe->methods == NULL)) {
 				if (setup->flags.no_pipe_ok)
 					continue;
-				if ((setup->usb_mode != USB_MODE_MAX) &&
-				    (setup->usb_mode != udev->flags.usb2_mode))
+				if ((setup->usb_mode != USB_MODE_DUAL) &&
+				    (setup->usb_mode != udev->flags.usb_mode))
 					continue;
 				parm.err = USB_ERR_NO_PIPE;
 				goto done;
@@ -1225,9 +1225,13 @@ usb2_start_hardware_sub(struct usb2_xfer *xfer)
 	usb2_frlength_t len;
 
 	/* Check for control endpoint stall */
-	if (xfer->flags.stall_pipe) {
-		/* no longer active */
+	if (xfer->flags.stall_pipe && xfer->flags_int.control_act) {
+		/* the control transfer is no longer active */
+		xfer->flags_int.control_stall = 1;
 		xfer->flags_int.control_act = 0;
+	} else {
+		/* don't stall control transfer by default */
+		xfer->flags_int.control_stall = 0;
 	}
 
 	/* Check for invalid number of frames */
@@ -1256,7 +1260,7 @@ usb2_start_hardware_sub(struct usb2_xfer *xfer)
 			xfer->flags_int.control_hdr = 0;
 
 			/* setup control transfer */
-			if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+			if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 				usb2_control_transfer_init(xfer);
 			}
 		}
@@ -1275,7 +1279,7 @@ usb2_start_hardware_sub(struct usb2_xfer *xfer)
 			goto error;
 		}
 		/* check USB mode */
-		if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+		if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 
 			/* check number of frames */
 			if (xfer->nframes != 1) {
@@ -1439,7 +1443,11 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	/* Check if the device is still alive */
 	if (info->udev->state < USB_STATE_POWERED) {
 		USB_BUS_LOCK(bus);
-		usb2_transfer_done(xfer, USB_ERR_NOT_CONFIGURED);
+		/*
+		 * Must return cancelled error code else
+		 * device drivers can hang.
+		 */
+		usb2_transfer_done(xfer, USB_ERR_CANCELLED);
 		USB_BUS_UNLOCK(bus);
 		return;
 	}
@@ -2237,7 +2245,7 @@ usb2_pipe_start(struct usb2_xfer_queue *pq)
 			udev = info->udev;
 			pipe->is_stalled = 1;
 
-			if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
+			if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 				(udev->bus->methods->set_stall) (
 				    udev, NULL, pipe);
 			} else if (udev->default_xfer[1]) {
@@ -2570,7 +2578,7 @@ repeat:
 		    ((xfer->address == udev->address) &&
 		    (udev->default_ep_desc.wMaxPacketSize[0] ==
 		    udev->ddesc.bMaxPacketSize));
-		if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
+		if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 			if (no_resetup) {
 				/*
 				 * NOTE: checking "xfer->address" and
@@ -2738,8 +2746,8 @@ usb2_do_poll(struct usb2_xfer **ppxfer, uint16_t max)
 }
 
 static void
-usb2_get_std_packet_size(struct usb2_std_packet_size *ptr, 
-    uint8_t type, uint8_t usb_speed)
+usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
+    uint8_t type, enum usb_dev_speed speed)
 {
 	static const uint16_t intr_range_max[USB_SPEED_MAX] = {
 		[USB_SPEED_LOW] = 8,
@@ -2779,16 +2787,16 @@ usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
 
 	switch (type) {
 	case UE_INTERRUPT:
-		ptr->range.max = intr_range_max[usb_speed];
+		ptr->range.max = intr_range_max[speed];
 		break;
 	case UE_ISOCHRONOUS:
-		ptr->range.max = isoc_range_max[usb_speed];
+		ptr->range.max = isoc_range_max[speed];
 		break;
 	default:
 		if (type == UE_BULK)
-			temp = bulk_min[usb_speed];
+			temp = bulk_min[speed];
 		else /* UE_CONTROL */
-			temp = control_min[usb_speed];
+			temp = control_min[speed];
 
 		/* default is fixed */
 		ptr->fixed[0] = temp;
@@ -2796,13 +2804,13 @@ usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
 		ptr->fixed[2] = temp;
 		ptr->fixed[3] = temp;
 
-		if (usb_speed == USB_SPEED_FULL) {
+		if (speed == USB_SPEED_FULL) {
 			/* multiple sizes */
 			ptr->fixed[1] = 16;
 			ptr->fixed[2] = 32;
 			ptr->fixed[3] = 64;
 		}
-		if ((usb_speed == USB_SPEED_VARIABLE) &&
+		if ((speed == USB_SPEED_VARIABLE) &&
 		    (type == UE_BULK)) {
 			/* multiple sizes */
 			ptr->fixed[2] = 1024;

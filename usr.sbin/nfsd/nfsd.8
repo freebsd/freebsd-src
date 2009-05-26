@@ -38,7 +38,7 @@
 server
 .Sh SYNOPSIS
 .Nm
-.Op Fl ardut
+.Op Fl ardut4
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
 .Sh DESCRIPTION
@@ -100,6 +100,18 @@ clients.
 Serve
 .Tn UDP NFS
 clients.
+.It Fl 4
+Forces
+.Nm
+to try and start the experimental server that includes NFSv4 support in it.
+If this flag isn't specified, the experimental server will only be started
+if it is linked into the kernel and the regular one isn't.
+.br
+ie. The kernel is built with the following:
+.Bd -literal -offset indent -compact
+# options	NFSSERVER
+options		NFSD
+.Ed
 .El
 .Pp
 For example,
@@ -120,8 +132,11 @@ utility listens for service requests at the port indicated in the
 .Tn NFS
 server specification; see
 .%T "Network File System Protocol Specification" ,
-RFC1094 and
-.%T "NFS: Network File System Version 3 Protocol Specification" .
+RFC1094,
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+RFC1813 and
+.%T "Network File System (NFS) Version 4 Protocol" ,
+RFC3530.
 .Pp
 If
 .Nm
@@ -178,13 +193,28 @@ just do a
 .Xr nfsstat 1 ,
 .Xr kldload 2 ,
 .Xr nfssvc 2 ,
+.Xr nfsv4 4 ,
 .Xr exports 5 ,
+.Xr gssd 8 ,
 .Xr ipfw 8 ,
 .Xr mountd 8 ,
 .Xr nfsiod 8 ,
+.Xr nfsrevoke 8 ,
+.Xr nfsuserd 8 ,
 .Xr rpcbind 8
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
 .Bx 4.4 .
+.Sh BUGS
+If
+.Nm
+is started when
+.Xr gssd 8
+is not running, it will service AUTH_SYS requests only. To fix the problem
+you must kill
+.Nm
+and then restart it, after the
+.Xr gssd 8
+is running.

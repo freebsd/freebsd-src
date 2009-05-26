@@ -364,8 +364,6 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 			continue;
 		}
 
-		MPASS(v != MTX_CONTESTED);
-
 #ifdef ADAPTIVE_MUTEXES
 		/*
 		 * If the current owner of the lock is executing on another

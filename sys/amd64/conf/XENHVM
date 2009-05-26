@@ -69,12 +69,12 @@ options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
-options  	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 #options 	KDTRACE_FRAME		# Ensure frames are compiled in
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
-options		NO_ADAPTIVE_MUTEXES
-options		NO_ADAPTIVE_RWLOCKS
+options 	NO_ADAPTIVE_MUTEXES
+options 	NO_ADAPTIVE_RWLOCKS
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
@@ -99,7 +99,7 @@ device		pci
 device		fdc
 
 # Xen HVM support
-options		XENHVM
+options 	XENHVM
 device		xenpci
 
 # ATA and ATAPI devices

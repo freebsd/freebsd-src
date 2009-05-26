@@ -435,34 +435,11 @@ skip_ipsec2:;
 #endif /* IPSEC */
 
 	/*
-	 * If there is a routing header, replace the destination address field
-	 * with the first hop of the routing header.
+	 * If there is a routing header, discard the packet.
 	 */
 	if (exthdrs.ip6e_rthdr) {
-		struct ip6_rthdr *rh =
-			(struct ip6_rthdr *)(mtod(exthdrs.ip6e_rthdr,
-						  struct ip6_rthdr *));
-
-		/*
-		 * While this switch may look gratuitous, leave it in
-		 * in favour of RH2 implementations, etc.
-		 */
-		switch (rh->ip6r_type) {
-#ifndef BURN_BRIDGES
-		case IPV6_RTHDR_TYPE_0:
-			/*
-			 * According to RFC 5095 we should not implement
-			 * it in any way but we may want to give the user
-			 * a hint for now.
-			 */
-			log(LOG_INFO, "[%s:%d] IPv6 Type 0 Routing Headers are "
-			    "deprecated.\n", __func__, __LINE__);
-			/* FALLTHROUGH */
-#endif
-		default:	/* is it possible? */
-			 error = EINVAL;
-			 goto bad;
-		}
+		 error = EINVAL;
+		 goto bad;
 	}
 
 	/* Source address validation */

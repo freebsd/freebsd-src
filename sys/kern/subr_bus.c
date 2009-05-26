@@ -403,7 +403,7 @@ devinit(void)
 }
 
 static int
-devopen(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
+devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	if (devsoftc.inuse)
 		return (EBUSY);
@@ -415,7 +415,7 @@ devopen(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
 }
 
 static int
-devclose(struct cdev *dev, int fflag, int devtype, d_thread_t *td)
+devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	devsoftc.inuse = 0;
 	mtx_lock(&devsoftc.mtx);
@@ -464,7 +464,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static	int
-devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
+devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	switch (cmd) {
 
@@ -494,7 +494,7 @@ devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 }
 
 static	int
-devpoll(struct cdev *dev, int events, d_thread_t *td)
+devpoll(struct cdev *dev, int events, struct thread *td)
 {
 	int	revents = 0;
 
@@ -712,7 +712,7 @@ fail:
 
 /*
  * Called when there's no match for this device.  This is only called
- * the first time that no match happens, so we don't keep getitng this
+ * the first time that no match happens, so we don't keep getting this
  * message.  Should that prove to be undesirable, we can change it.
  * This is called when all drivers that can attach to a given bus
  * decline to accept this device.  Other errrors may not be detected.

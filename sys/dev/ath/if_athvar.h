@@ -187,7 +187,7 @@ struct ath_vap {
 	struct ath_txq	av_mcastq;	/* buffered mcast s/w queue */
 
 	void		(*av_recv_mgmt)(struct ieee80211_node *,
-				struct mbuf *, int, int, int, u_int32_t);
+				struct mbuf *, int, int, int);
 	int		(*av_newstate)(struct ieee80211vap *,
 				enum ieee80211_state, int);
 	void		(*av_bmiss)(struct ieee80211vap *);
@@ -284,12 +284,6 @@ struct ath_softc {
 	u_int			sc_rfsilentpin;	/* GPIO pin for rfkill int */
 	u_int			sc_rfsilentpol;	/* pin setting for rfkill on */
 
-	struct ath_tx_radiotap_header sc_tx_th;
-	int			sc_tx_th_len;
-	struct ath_rx_radiotap_header sc_rx_th;
-	int			sc_rx_th_len;
-	u_int			sc_monpass;	/* frames to pass in mon.mode */
-
 	struct ath_descdma	sc_rxdma;	/* RX descriptors */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
 	struct mbuf		*sc_rxpending;	/* pending receive data */
@@ -298,6 +292,10 @@ struct ath_softc {
 	u_int8_t		sc_defant;	/* current default antenna */
 	u_int8_t		sc_rxotherant;	/* rx's on non-default antenna*/
 	u_int64_t		sc_lastrx;	/* tsf at last rx'd frame */
+	struct ath_rx_status	*sc_lastrs;	/* h/w status of last rx */
+	struct ath_rx_radiotap_header sc_rx_th;
+	int			sc_rx_th_len;
+	u_int			sc_monpass;	/* frames to pass in mon.mode */
 
 	struct ath_descdma	sc_txdma;	/* TX descriptors */
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
@@ -310,6 +308,8 @@ struct ath_softc {
 	struct task		sc_txtask;	/* tx int processing */
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
+	struct ath_tx_radiotap_header sc_tx_th;
+	int			sc_tx_th_len;
 
 	struct ath_descdma	sc_bdma;	/* beacon descriptors */
 	ath_bufhead		sc_bbuf;	/* beacon buffers */
@@ -338,7 +338,6 @@ struct ath_softc {
 	u_int32_t		sc_tdmabintval;	/* TDMA beacon interval (TU) */
 	u_int32_t		sc_tdmaguard;	/* TDMA guard time (usec) */
 	u_int			sc_tdmaslotlen;	/* TDMA slot length (usec) */
-	struct ath_rx_status	*sc_tdmars;	/* TDMA status of last rx */
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
 };

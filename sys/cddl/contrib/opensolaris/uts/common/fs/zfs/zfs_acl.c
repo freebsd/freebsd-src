@@ -1909,7 +1909,6 @@ zfs_perm_init(znode_t *zp, znode_t *parent, int flag,
 		zfs_acl_free(aclp);
 }
 
-#ifdef TODO
 /*
  * Retrieve a files ACL
  */
@@ -2005,7 +2004,6 @@ zfs_getacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 
 	return (0);
 }
-#endif	/* TODO */
 
 int
 zfs_vsec_2_aclp(zfsvfs_t *zfsvfs, vtype_t obj_type,
@@ -2062,7 +2060,6 @@ zfs_vsec_2_aclp(zfsvfs_t *zfsvfs, vtype_t obj_type,
 	return (0);
 }
 
-#ifdef TODO
 /*
  * Set a files ACL
  */
@@ -2170,7 +2167,6 @@ done:
 
 	return (error);
 }
-#endif	/* TODO */
 
 /*
  * working_mode returns the permissions that were not granted

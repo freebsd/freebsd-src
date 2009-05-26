@@ -55,10 +55,13 @@
 static void	if_clone_free(struct if_clone *ifc);
 static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
 		    caddr_t params);
+static int	vnet_clone_iattach(const void *);
 
 static struct mtx	if_cloners_mtx;
+#ifdef VIMAGE_GLOBALS
 static int		if_cloners_count;
-LIST_HEAD(, if_clone)	if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
+LIST_HEAD(, if_clone)	if_cloners;
+#endif
 
 #define IF_CLONERS_LOCK_INIT()		\
     mtx_init(&if_cloners_mtx, "if_cloners lock", NULL, MTX_DEF)
@@ -112,10 +115,32 @@ LIST_HEAD(, if_clone)	if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 
 static MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_clone_modinfo = {
+	.vmi_id		= VNET_MOD_IF_CLONE,
+	.vmi_name	= "if_clone",
+	.vmi_iattach	= vnet_clone_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
+
+static int vnet_clone_iattach(const void *unused __unused)
+{
+	INIT_VNET_NET(curvnet);
+
+	LIST_INIT(&V_if_cloners);
+	return (0);
+}
+
 void
 if_clone_init(void)
 {
+
 	IF_CLONERS_LOCK_INIT();
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_clone_modinfo);
+#else
+	vnet_clone_iattach(NULL);
+#endif
 }
 
 /*
@@ -124,15 +149,27 @@ if_clone_init(void)
 int
 if_clone_create(char *name, size_t len, caddr_t params)
 {
+	INIT_VNET_NET(curvnet);
 	struct if_clone *ifc;
 
 	/* Try to find an applicable cloner for this request */
 	IF_CLONERS_LOCK();
-	LIST_FOREACH(ifc, &if_cloners, ifc_list) {
+	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
 		if (ifc->ifc_match(ifc, name)) {
 			break;
 		}
 	}
+#ifdef VIMAGE
+	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
+		CURVNET_SET_QUIET(vnet0);
+		INIT_VNET_NET(vnet0);
+		LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
+			if (ifc->ifc_match(ifc, name))
+				break;
+		}
+		CURVNET_RESTORE();
+	}
+#endif
 	IF_CLONERS_UNLOCK();
 
 	if (ifc == NULL)
@@ -176,6 +213,7 @@ if_clone_createif(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 int
 if_clone_destroy(const char *name)
 {
+	INIT_VNET_NET(curvnet);
 	struct if_clone *ifc;
 	struct ifnet *ifp;
 
@@ -185,11 +223,22 @@ if_clone_destroy(const char *name)
 
 	/* Find the cloner for this interface */
 	IF_CLONERS_LOCK();
-	LIST_FOREACH(ifc, &if_cloners, ifc_list) {
+	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
 		if (strcmp(ifc->ifc_name, ifp->if_dname) == 0) {
 			break;
 		}
 	}
+#ifdef VIMAGE
+	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
+		CURVNET_SET_QUIET(vnet0);
+		INIT_VNET_NET(vnet0);
+		LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
+			if (ifc->ifc_match(ifc, name))
+				break;
+		}
+		CURVNET_RESTORE();
+	}
+#endif
 	IF_CLONERS_UNLOCK();
 	if (ifc == NULL)
 		return (EINVAL);
@@ -208,11 +257,17 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 	if (ifc->ifc_destroy == NULL)
 		return(EOPNOTSUPP);
 
+	/*
+	 * Given that the cloned ifnet might be attached to a different
+	 * vnet from where its cloner was registered, we have to
+	 * switch to the vnet context of the target vnet.
+	 */
+	CURVNET_SET_QUIET(ifp->if_vnet);
+
 	IF_CLONE_LOCK(ifc);
 	IFC_IFLIST_REMOVE(ifc, ifp);
 	IF_CLONE_UNLOCK(ifc);
 
-	CURVNET_SET_QUIET(ifp->if_vnet);
 	if_delgroup(ifp, ifc->ifc_name);
 
 	err =  (*ifc->ifc_destroy)(ifc, ifp);
@@ -234,6 +289,7 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 void
 if_clone_attach(struct if_clone *ifc)
 {
+	INIT_VNET_NET(curvnet);
 	int len, maxclone;
 
 	/*
@@ -249,8 +305,8 @@ if_clone_attach(struct if_clone *ifc)
 	IF_CLONE_ADDREF(ifc);
 
 	IF_CLONERS_LOCK();
-	LIST_INSERT_HEAD(&if_cloners, ifc, ifc_list);
-	if_cloners_count++;
+	LIST_INSERT_HEAD(&V_if_cloners, ifc, ifc_list);
+	V_if_cloners_count++;
 	IF_CLONERS_UNLOCK();
 
 	LIST_INIT(&ifc->ifc_iflist);
@@ -266,11 +322,12 @@ if_clone_attach(struct if_clone *ifc)
 void
 if_clone_detach(struct if_clone *ifc)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifc_simple_data *ifcs = ifc->ifc_data;
 
 	IF_CLONERS_LOCK();
 	LIST_REMOVE(ifc, ifc_list);
-	if_cloners_count--;
+	V_if_cloners_count--;
 	IF_CLONERS_UNLOCK();
 
 	/* Allow all simples to be destroyed */
@@ -305,6 +362,7 @@ if_clone_free(struct if_clone *ifc)
 int
 if_clone_list(struct if_clonereq *ifcr)
 {
+	INIT_VNET_NET(curvnet);
 	char *buf, *dst, *outbuf = NULL;
 	struct if_clone *ifc;
 	int buf_count, count, err = 0;
@@ -321,23 +379,23 @@ if_clone_list(struct if_clonereq *ifcr)
 	 * could be because that would let arbitrary users cause us to
 	 * allocate abritrary amounts of kernel memory.
 	 */
-	buf_count = (if_cloners_count < ifcr->ifcr_count) ?
-	    if_cloners_count : ifcr->ifcr_count;
+	buf_count = (V_if_cloners_count < ifcr->ifcr_count) ?
+	    V_if_cloners_count : ifcr->ifcr_count;
 	IF_CLONERS_UNLOCK();
 
 	outbuf = malloc(IFNAMSIZ*buf_count, M_CLONE, M_WAITOK | M_ZERO);
 
 	IF_CLONERS_LOCK();
 
-	ifcr->ifcr_total = if_cloners_count;
+	ifcr->ifcr_total = V_if_cloners_count;
 	if ((dst = ifcr->ifcr_buffer) == NULL) {
 		/* Just asking how many there are. */
 		goto done;
 	}
-	count = (if_cloners_count < buf_count) ?
-	    if_cloners_count : buf_count;
+	count = (V_if_cloners_count < buf_count) ?
+	    V_if_cloners_count : buf_count;
 
-	for (ifc = LIST_FIRST(&if_cloners), buf = outbuf;
+	for (ifc = LIST_FIRST(&V_if_cloners), buf = outbuf;
 	    ifc != NULL && count != 0;
 	    ifc = LIST_NEXT(ifc, ifc_list), count--, buf += IFNAMSIZ) {
 		strlcpy(buf, ifc->ifc_name, IFNAMSIZ);

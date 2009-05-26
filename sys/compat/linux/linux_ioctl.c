@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);

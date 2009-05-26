@@ -60,10 +60,9 @@ void	ieee80211_syncifflag_locked(struct ieee80211com *, int flag);
 void	ieee80211_syncflag(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 
-#define	ieee80211_input(ni, m, rssi, noise, rstamp) \
-	((ni)->ni_vap->iv_input(ni, m, rssi, noise, rstamp))
-int	ieee80211_input_all(struct ieee80211com *, struct mbuf *,
-		int, int, uint32_t);
+#define	ieee80211_input(ni, m, rssi, nf) \
+	((ni)->ni_vap->iv_input(ni, m, rssi, nf))
+int	ieee80211_input_all(struct ieee80211com *, struct mbuf *, int, int);
 struct ieee80211_bpf_params;
 int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
 		struct ieee80211_bpf_params *);

@@ -59,8 +59,8 @@
 #if USB_DEBUG
 static int usb2_fifo_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
-SYSCTL_INT(_hw_usb2_dev, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
+SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RW,
     &usb2_fifo_debug, 0, "Debug Level");
 #endif
 
@@ -597,13 +597,13 @@ usb2_dev_get_pipe(struct usb2_device *udev, uint8_t ep_index, uint8_t dir)
 		pipe = &udev->default_pipe;
 	} else {
 		if (dir == USB_FIFO_RX) {
-			if (udev->flags.usb2_mode == USB_MODE_HOST) {
+			if (udev->flags.usb_mode == USB_MODE_HOST) {
 				ep_dir = UE_DIR_IN;
 			} else {
 				ep_dir = UE_DIR_OUT;
 			}
 		} else {
-			if (udev->flags.usb2_mode == USB_MODE_HOST) {
+			if (udev->flags.usb_mode == USB_MODE_HOST) {
 				ep_dir = UE_DIR_OUT;
 			} else {
 				ep_dir = UE_DIR_IN;
@@ -1203,7 +1203,7 @@ usb2_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 			(f->methods->f_start_read) (f);
 
-			if (fflags & IO_NDELAY) {
+			if (ioflag & IO_NDELAY) {
 				if (tr_data) {
 					/* return length before error */
 					break;
@@ -1326,7 +1326,7 @@ usb2_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 		if (m == NULL) {
 
-			if (fflags & IO_NDELAY) {
+			if (ioflag & IO_NDELAY) {
 				if (tr_data) {
 					/* return length before error */
 					break;

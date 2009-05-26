@@ -30,7 +30,7 @@
 #define	_USB2_DEBUG_H_
 
 /* Declare parent SYSCTL USB node. */
-SYSCTL_DECL(_hw_usb2);
+SYSCTL_DECL(_hw_usb);
 
 /* Declare global USB debug variable. */
 extern int usb2_debug;

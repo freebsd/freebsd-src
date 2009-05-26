@@ -543,7 +543,7 @@ ndis_free_bufs(b0)
 
 	return;
 }
-int in_reset = 0;
+
 void
 ndis_free_packet(p)
 	ndis_packet		*p;

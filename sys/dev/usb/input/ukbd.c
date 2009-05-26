@@ -86,8 +86,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int ukbd_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
-SYSCTL_INT(_hw_usb2_ukbd, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW,
     &ukbd_debug, 0, "Debug level");
 #endif
 
@@ -598,7 +598,7 @@ ukbd_probe(device_t dev)
 	if (sw == NULL) {
 		return (ENXIO);
 	}
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	/* check that the keyboard speaks the boot protocol: */

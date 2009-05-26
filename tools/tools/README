@@ -32,6 +32,8 @@ hcomp		Compress header files by removing comments and whitespace.
 html-mv         Rename HTML generated filenames to human readable filenames.
 ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
+iso             Tool to compare the iso3166 and iso639 files in
+		/usr/share/misc with the data from the master sites.
 iwi		Tools specific to the Intel PRO/Wireless 2200BG/2225BG/2915ABG
 		support.
 kdrv		KernelDriver; add/list/remove third-party kernel driver
@@ -45,6 +47,7 @@ mfc		Merge a directory from HEAD to a branch where it does not
 		already exist and other MFC related script(s).
 mid	 	Create a Message-ID database for mailing lists.
 ncpus		Count the number of processors
+npe		Tools specific to the Intel IXP4XXX NPE device
 nxge		A diagnostic tool for the nxge(4) driver
 pciid		Generate src/share/misc/pci_vendors.
 pciroms		A tool for dumping PCI ROM images. WARNING: alpha quality.

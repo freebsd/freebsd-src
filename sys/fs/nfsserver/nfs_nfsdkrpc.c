@@ -82,6 +82,14 @@ SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_privport, CTLFLAG_RW,
     &nfs_privport, 0,
     "Only allow clients using a privileged port for NFSv2 and 3");
 
+static int	nfs_minvers = NFS_VER2;
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, server_min_nfsvers, CTLFLAG_RW,
+    &nfs_minvers, 0, "The lowest version of NFS handled by the server");
+
+static int	nfs_maxvers = NFS_VER4;
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, server_max_nfsvers, CTLFLAG_RW,
+    &nfs_maxvers, 0, "The highest version of NFS handled by the server");
+
 static int nfs_proc(struct nfsrv_descript *, u_int32_t, struct socket *,
     u_int64_t, struct nfsrvcache **);
 
@@ -97,7 +105,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 {
 	struct nfsrv_descript nd;
 	struct nfsrvcache *rp = NULL;
-	int cacherep;
+	int cacherep, credflavor;
 
 	memset(&nd, 0, sizeof(nd));
 	if (rqst->rq_vers == NFS_VER2) {
@@ -186,17 +194,39 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	}
 
 	if (nd.nd_procnum != NFSPROC_NULL) {
-		if (!svc_getcred(rqst, &nd.nd_cred, &nd.nd_credflavor)) {
+		if (!svc_getcred(rqst, &nd.nd_cred, &credflavor)) {
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
 			return;
 		}
+
+		/* Set the flag based on credflavor */
+		if (credflavor == RPCSEC_GSS_KRB5) {
+			nd.nd_flag |= ND_GSS;
+		} else if (credflavor == RPCSEC_GSS_KRB5I) {
+			nd.nd_flag |= (ND_GSS | ND_GSSINTEGRITY);
+		} else if (credflavor == RPCSEC_GSS_KRB5P) {
+			nd.nd_flag |= (ND_GSS | ND_GSSPRIVACY);
+		} else if (credflavor != AUTH_SYS) {
+			svcerr_weakauth(rqst);
+			svc_freereq(rqst);
+			m_freem(nd.nd_mrep);
+			return;
+		}
+
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
-		if ((nd.nd_flag & ND_NFSV4))
+		if ((nd.nd_flag & ND_NFSV4) != 0) {
 			nd.nd_repstat = nfsvno_v4rootexport(&nd);
+			if (nd.nd_repstat != 0) {
+				svcerr_weakauth(rqst);
+				svc_freereq(rqst);
+				m_freem(nd.nd_mrep);
+				return;
+			}
+		}
 
 		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt->xp_socket,
 		    xprt->xp_sockref, &rp);
@@ -257,20 +287,17 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 	NFSGETTIME(&nd->nd_starttime);
 
 	/*
-	 * Several cases:
+	 * Two cases:
 	 * 1 - For NFSv2 over UDP, if we are near our malloc/mget
 	 *     limit, just drop the request. There is no
 	 *     NFSERR_RESOURCE or NFSERR_DELAY for NFSv2 and the
 	 *     client will timeout/retry over UDP in a little while.
-	 * 2 - nd_repstat set to some error, so generate the reply now.
-	 * 3 - nd_repstat == 0 && nd_mreq == NULL, which
+	 * 2 - nd_repstat == 0 && nd_mreq == NULL, which
 	 *     means a normal nfs rpc, so check the cache
 	 */
 	if ((nd->nd_flag & ND_NFSV2) && nd->nd_nam2 != NULL &&
 	    nfsrv_mallocmget_limit()) {
 		cacherep = RC_DROPIT;
-	} else if (nd->nd_repstat) {
-		cacherep = RC_REPLY;
 	} else {
 		/*
 		 * For NFSv3, play it safe and assume that the client is
@@ -334,9 +361,15 @@ nfsrvd_addsock(struct file *fp)
 		fp->f_ops = &badfileops;
 		fp->f_data = NULL;
 		xprt->xp_sockref = ++sockref;
-		svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program, NULL);
-		svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program, NULL);
-		svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program, NULL);
+		if (nfs_minvers == NFS_VER2)
+			svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program,
+			    NULL);
+		if (nfs_minvers <= NFS_VER3 && nfs_maxvers >= NFS_VER3)
+			svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program,
+			    NULL);
+		if (nfs_maxvers >= NFS_VER4)
+			svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program,
+			    NULL);
 	}
 
 	return (0);
@@ -350,20 +383,16 @@ int
 nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 {
 #ifdef KGSSAPI
-	char principal[128];
+	char principal[MAXHOSTNAMELEN + 5];
 	int error;
 	bool_t ret2, ret3, ret4;
 #endif
 
 #ifdef KGSSAPI
-	if (args != NULL) {
-		error = copyinstr(args->principal, principal,
-		    sizeof(principal), NULL);
-		if (error)
-			return (error);
-	} else {
-		snprintf(principal, sizeof(principal), "nfs@%s", hostname);
-	}
+	error = copyinstr(args->principal, principal, sizeof (principal),
+	    NULL);
+	if (error)
+		return (error);
 #endif
 
 	/*
@@ -380,40 +409,36 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		NFSD_UNLOCK();
 
 #ifdef KGSSAPI
-		ret2 = rpc_gss_set_svc_name(principal, "kerberosv5",
-		    GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
-		ret3 = rpc_gss_set_svc_name(principal, "kerberosv5",
-		    GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
-		ret4 = rpc_gss_set_svc_name(principal, "kerberosv5",
-		    GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
+		/* An empty string implies AUTH_SYS only. */
+		if (principal[0] != '\0') {
+			ret2 = rpc_gss_set_svc_name(principal, "kerberosv5",
+			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
+			ret3 = rpc_gss_set_svc_name(principal, "kerberosv5",
+			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
+			ret4 = rpc_gss_set_svc_name(principal, "kerberosv5",
+			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
 
-		/*
-		 * If the principal name was specified, these should have
-		 * succeeded.
-		 */
-		if (args != NULL && principal[0] != '\0' &&
-		    (!ret2 || !ret3 || !ret4)) {
-			NFSD_LOCK();
-			newnfs_numnfsd--;
-			NFSD_UNLOCK();
-			return (EAUTH);
+			if (!ret2 || !ret3 || !ret4) {
+				NFSD_LOCK();
+				newnfs_numnfsd--;
+				nfsrvd_init(1);
+				NFSD_UNLOCK();
+				return (EAUTH);
+			}
 		}
 #endif
 
-		if (args != NULL) {
-			nfsrvd_pool->sp_minthreads = args->minthreads;
-			nfsrvd_pool->sp_maxthreads = args->maxthreads;
-		} else {
-			nfsrvd_pool->sp_minthreads = 4;
-			nfsrvd_pool->sp_maxthreads = 4;
-		}
+		nfsrvd_pool->sp_minthreads = args->minthreads;
+		nfsrvd_pool->sp_maxthreads = args->maxthreads;
 			
 		svc_run(nfsrvd_pool);
 
 #ifdef KGSSAPI
-		rpc_gss_clear_svc_name(NFS_PROG, NFS_VER2);
-		rpc_gss_clear_svc_name(NFS_PROG, NFS_VER3);
-		rpc_gss_clear_svc_name(NFS_PROG, NFS_VER4);
+		if (principal[0] != '\0') {
+			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER2);
+			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER3);
+			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER4);
+		}
 #endif
 
 		NFSD_LOCK();

@@ -38,8 +38,9 @@
  * Types of address specifications
  */
 enum e_atype {
-	AT_RE,					/* Line that match RE */
+	AT_RE	    = 1,			/* Line that match RE */
 	AT_LINE,				/* Specific line */
+	AT_RELLINE,				/* Relative line */
 	AT_LAST,				/* Last line */
 };
 
@@ -91,6 +92,7 @@ struct s_tr {
 struct s_command {
 	struct s_command *next;			/* Pointer to next command */
 	struct s_addr *a1, *a2;			/* Start and end address */
+	u_long startline;			/* Start line number or zero */
 	char *t;				/* Text for : a c i r w */
 	union {
 		struct s_command *c;		/* Command(s) for b t { */
@@ -100,7 +102,6 @@ struct s_command {
 	} u;
 	char code;				/* Command code */
 	u_int nonsel:1;				/* True if ! */
-	u_int inrange:1;			/* True if in range */
 };
 
 /*

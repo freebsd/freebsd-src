@@ -255,16 +255,11 @@
 #define	USS820_UNK1 0x1f		/* Unknown */
 #define	USS820_UNK1_UNKNOWN 0xFF
 
-#define	USS820_GET_REG(sc,reg) \
-  ((reg) << (sc)->sc_reg_shift)
-
 #define	USS820_READ_1(sc, reg) \
-  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, \
-    USS820_GET_REG(sc,reg))
+  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
 
 #define	USS820_WRITE_1(sc, reg, data)	\
-  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, \
-    USS820_GET_REG(sc,reg), data)
+  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
 
 struct uss820dci_td;
 
@@ -279,26 +274,13 @@ struct uss820dci_td {
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_packet_size;
-	uint8_t	rx_stat_reg;
-	uint8_t	tx_stat_reg;
-	uint8_t	rx_flag_reg;
-	uint8_t	tx_flag_reg;
-	uint8_t	rx_fifo_reg;
-	uint8_t	tx_fifo_reg;
-	uint8_t	rx_count_low_reg;
-	uint8_t	rx_count_high_reg;
-	uint8_t	tx_count_low_reg;
-	uint8_t	tx_count_high_reg;
-	uint8_t	rx_cntl_reg;
-	uint8_t	tx_cntl_reg;
-	uint8_t	ep_reg;
-	uint8_t	pend_reg;
 	uint8_t	ep_index;
 	uint8_t	error:1;
 	uint8_t	alt_next:1;
 	uint8_t	short_pkt:1;
 	uint8_t	support_multi_buffer:1;
 	uint8_t	did_stall:1;
+	uint8_t	did_enable:1;
 };
 
 struct uss820_std_temp {
@@ -315,6 +297,7 @@ struct uss820_std_temp {
          * short_pkt = 1: transfer should not be short terminated
          */
 	uint8_t	setup_alt_next;
+	uint8_t did_stall;
 };
 
 struct uss820dci_config_desc {
@@ -356,7 +339,6 @@ struct uss820dci_softc {
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root HUB config */
-	uint8_t	sc_reg_shift;
 
 	uint8_t	sc_hub_idata[1];
 
