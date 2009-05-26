@@ -8,6 +8,7 @@ SUBDIR=		dtmalloc	\
 		dtrace		\
 		dtraceall	\
 		dtrace_test	\
+		lockstat	\
 		profile		\
 		prototype	\
 		sdt		\
