@@ -31,8 +31,8 @@
 CPU_MIPS4KC	opt_global.h
 CPU_MIPS32	opt_global.h
 CPU_MIPS64	opt_global.h
-CPU_NOFPU	opt_global.h
 CPU_SENTRY5	opt_global.h
+CPU_HAVEFPU	opt_global.h
 
 ISA_MIPS1	opt_cputype.h
 ISA_MIPS3	opt_cputype.h
@@ -48,7 +48,6 @@ CFE_CONSOLE	opt_global.h
 KERNPHYSADDR	opt_global.h
 KERNVIRTADDR	opt_global.h
 PHYSADDR	opt_global.h
-SOFTFLOAT	opt_global.h
 
 TARGET_OCTEON	opt_global.h
 TARGET_EMULATOR	opt_ddb.h
