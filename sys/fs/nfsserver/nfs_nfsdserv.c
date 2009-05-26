@@ -237,7 +237,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		return (0);
 	}
 #ifdef NFS4_ACL_EXTATTR_NAME
-	aclp = acl_alloc();
+	aclp = acl_alloc(M_WAITOK);
 	aclp->acl_cnt = 0;
 #endif
 	NFSVNO_ATTRINIT(&nva);
@@ -1041,7 +1041,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 		return (0);
 	}
 #ifdef NFS4_ACL_EXTATTR_NAME
-	aclp = acl_alloc();
+	aclp = acl_alloc(M_WAITOK);
 	aclp->acl_cnt = 0;
 #endif
 
@@ -2418,7 +2418,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSACL_T *aclp = NULL;
 
 #ifdef NFS4_ACL_EXTATTR_NAME
-	aclp = acl_alloc();
+	aclp = acl_alloc(M_WAITOK);
 	aclp->acl_cnt = 0;
 #endif
 	NFSZERO_ATTRBIT(&attrbits);
