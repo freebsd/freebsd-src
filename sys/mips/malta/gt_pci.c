@@ -91,6 +91,13 @@ __FBSDID("$FreeBSD$");
 #define OCW3_POLL_IRQ(x) ((x) & 0x7f)
 #define OCW3_POLL_PENDING (1U << 7)
 
+struct gt_pci_softc;
+
+struct gt_pci_intr_cookie {
+	int irq;
+	struct gt_pci_softc *sc;
+};
+
 struct gt_pci_softc {
 	device_t 		sc_dev;
 	bus_space_tag_t 	sc_st;
@@ -107,6 +114,7 @@ struct gt_pci_softc {
 
 	struct resource		*sc_irq;
 	struct intr_event	*sc_eventstab[ICU_LEN];
+	struct gt_pci_intr_cookie	sc_intr_cookies[ICU_LEN];
 	uint16_t		sc_imask;
 	uint16_t		sc_elcr;
 
@@ -114,6 +122,51 @@ struct gt_pci_softc {
 
 	void			*sc_ih;
 };
+
+static void gt_pci_set_icus(struct gt_pci_softc *);
+static int gt_pci_intr(void *v);
+static int gt_pci_probe(device_t);
+static int gt_pci_attach(device_t);
+static int gt_pci_activate_resource(device_t, device_t, int, int, 
+    struct resource *);
+static int gt_pci_setup_intr(device_t, device_t, struct resource *, 
+    int, driver_filter_t *, driver_intr_t *, void *, void **);
+static int gt_pci_teardown_intr(device_t, device_t, struct resource *, void*);
+static int gt_pci_maxslots(device_t );
+static int gt_pci_conf_setup(struct gt_pci_softc *, int, int, int, int, 
+    uint32_t *);
+static uint32_t gt_pci_read_config(device_t, int, int, int, int, int);
+static void gt_pci_write_config(device_t, int, int, int, int, uint32_t, int);
+static int gt_pci_route_interrupt(device_t pcib, device_t dev, int pin);
+static struct resource * gt_pci_alloc_resource(device_t, device_t, int, 
+    int *, u_long, u_long, u_long, u_int);
+
+static void
+gt_pci_mask_irq(void *source)
+{
+	struct gt_pci_intr_cookie *cookie = source;
+	struct gt_pci_softc *sc = cookie->sc;
+	int irq = cookie->irq;
+
+	sc->sc_imask |= (1 << irq);
+	sc->sc_elcr |= (1 << irq);
+
+	gt_pci_set_icus(sc);
+}
+
+static void
+gt_pci_unmask_irq(void *source)
+{
+	struct gt_pci_intr_cookie *cookie = source;
+	struct gt_pci_softc *sc = cookie->sc;
+	int irq = cookie->irq;
+
+	/* Enable it, set trigger mode. */
+	sc->sc_imask &= ~(1 << irq);
+	sc->sc_elcr &= ~(1 << irq);
+
+	gt_pci_set_icus(sc);
+}
 
 static void
 gt_pci_set_icus(struct gt_pci_softc *sc)
@@ -629,10 +682,13 @@ gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
 		panic("%s: bad irq or type", __func__);
 
 	event = sc->sc_eventstab[irq];
+	sc->sc_intr_cookies[irq].irq = irq;
+	sc->sc_intr_cookies[irq].sc = sc;
 	if (event == NULL) {
-                error = intr_event_create(&event, (void *)irq, 0, irq,
-		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
-		    (mask_fn)mips_unmask_irq, NULL, "gt_pci intr%d:", irq);
+                error = intr_event_create(&event, 
+		    (void *)&sc->sc_intr_cookies[irq], 0, irq,
+		    gt_pci_mask_irq, gt_pci_unmask_irq,
+		    NULL, NULL, "gt_pci intr%d:", irq);
 		if (error)
 			return 0;
 		sc->sc_eventstab[irq] = event;
@@ -641,12 +697,7 @@ gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
 	intr_event_add_handler(event, device_get_nameunit(child), filt, 
 	    handler, arg, intr_priority(flags), flags, cookiep);
 
-	/* Enable it, set trigger mode. */
-	sc->sc_imask &= ~(1 << irq);
-	sc->sc_elcr &= ~(1 << irq);
-
-	gt_pci_set_icus(sc);
-
+	gt_pci_unmask_irq((void *)&sc->sc_intr_cookies[irq]);
 	return 0;
 }
 
@@ -654,6 +705,12 @@ static int
 gt_pci_teardown_intr(device_t dev, device_t child, struct resource *res,
     void *cookie)
 {
+	struct gt_pci_softc *sc = device_get_softc(dev);
+	int irq;
+
+	irq = rman_get_start(res);
+	gt_pci_mask_irq((void *)&sc->sc_intr_cookies[irq]);
+
 	return (intr_event_remove_handler(cookie));
 }
 
