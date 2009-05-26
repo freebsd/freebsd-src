@@ -639,13 +639,16 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 	for (i = 0; i < numops; i++) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		NFSM_BUILD(repp, u_int32_t *, 2 * NFSX_UNSIGNED);
-		*repp++ = *tl;
+		*repp = *tl;
 		op = fxdr_unsigned(int, *tl);
 		if (op < NFSV4OP_ACCESS || op >= NFSV4OP_NOPS) {
-		    nd->nd_repstat = NFSERR_OPILLEGAL;
-		    *repp = nfsd_errmap(nd);
-		    retops++;
-		    break;
+			nd->nd_repstat = NFSERR_OPILLEGAL;
+			*repp++ = txdr_unsigned(NFSV4OP_OPILLEGAL);
+			*repp = nfsd_errmap(nd);
+			retops++;
+			break;
+		} else {
+			repp++;
 		}
 
 		/*
@@ -682,12 +685,12 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			nd->nd_repstat = NFSERR_RESOURCE;
 			*repp = nfsd_errmap(nd);
 			if (op == NFSV4OP_SETATTR) {
-			    /*
-			     * Setattr replies require a bitmap.
-			     * even for errors like these.
-			     */
-			    NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			    *tl = 0;
+				/*
+				 * Setattr replies require a bitmap.
+				 * even for errors like these.
+				 */
+				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+				*tl = 0;
 			}
 			retops++;
 			break;
