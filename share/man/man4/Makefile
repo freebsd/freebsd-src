@@ -160,6 +160,7 @@ MAN=	aac.4 \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
+	ksyms.4 \
 	ktr.4 \
 	kue.4 \
 	lagg.4 \

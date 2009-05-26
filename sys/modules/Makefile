@@ -139,6 +139,7 @@ SUBDIR=	${_3dfx} \
 	joy \
 	kbdmux \
 	krpc \
+	ksyms \
 	le \
 	lge \
 	libalias \

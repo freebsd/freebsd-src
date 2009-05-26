@@ -140,6 +140,8 @@ static int	link_elf_each_function_nameval(linker_file_t,
 				linker_function_nameval_callback_t,
 				void *);
 static void	link_elf_reloc_local(linker_file_t);
+static long	link_elf_symtab_get(linker_file_t, Elf_Sym **);
+static long	link_elf_strtab_get(linker_file_t, caddr_t *);
 
 static Elf_Addr elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps);
 
@@ -155,6 +157,8 @@ static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_each_function_name,	link_elf_each_function_name),
 	KOBJMETHOD(linker_each_function_nameval, link_elf_each_function_nameval),
 	KOBJMETHOD(linker_ctf_get,		link_elf_ctf_get),
+	KOBJMETHOD(linker_symtab_get, 		link_elf_symtab_get),
+	KOBJMETHOD(linker_strtab_get, 		link_elf_strtab_get),
 	{ 0, 0 }
 };
 
@@ -1285,4 +1289,30 @@ link_elf_reloc_local(linker_file_t lf)
 			    elf_obj_lookup);
 		}
 	}
+}
+
+static long
+link_elf_symtab_get(linker_file_t lf, Elf_Sym **symtab)
+{
+    elf_file_t ef = (elf_file_t)lf;
+    
+    *symtab = ef->ddbsymtab;
+    
+    if (*symtab == NULL)
+        return (0);
+
+    return (ef->ddbsymcnt);
+}
+    
+static long
+link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
+{
+    elf_file_t ef = (elf_file_t)lf;
+
+    *strtab = ef->ddbstrtab;
+
+    if (*strtab == NULL)
+        return (0);
+
+    return (ef->ddbstrcnt);
 }
