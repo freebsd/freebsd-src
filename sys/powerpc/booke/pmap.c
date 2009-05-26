@@ -1574,6 +1574,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			flags |= PTE_SW;
 			if (!su)
 				flags |= PTE_UW;
+
+			vm_page_flag_set(m, PG_WRITEABLE);
 		} else {
 			/* Handle modified pages, sense modify status. */
 
@@ -1638,6 +1640,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			flags |= PTE_SW;
 			if (!su)
 				flags |= PTE_UW;
+
+			vm_page_flag_set(m, PG_WRITEABLE);
 		}
 
 		if (prot & VM_PROT_EXECUTE) {
