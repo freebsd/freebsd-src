@@ -31,6 +31,10 @@ __FBSDID("$FreeBSD$");
 /*
  * AR71XX gigabit ethernet driver
  */
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
@@ -84,7 +88,6 @@ MODULE_DEPEND(arge, miibus, 1, 1, 1);
 
 static int arge_attach(device_t);
 static int arge_detach(device_t);
-static int arge_fix_chain(struct mbuf **mp);
 static void arge_flush_ddr(struct arge_softc *);
 static int arge_ifmedia_upd(struct ifnet *);
 static void arge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -100,6 +103,7 @@ static void arge_reset_dma(struct arge_softc *);
 static int arge_resume(device_t);
 static int arge_rx_ring_init(struct arge_softc *);
 static int arge_tx_ring_init(struct arge_softc *);
+static void arge_poll(struct ifnet *, enum poll_cmd, int);
 static void arge_shutdown(device_t);
 static void arge_start(struct ifnet *);
 static void arge_start_locked(struct ifnet *);
@@ -110,8 +114,6 @@ static void arge_rx_locked(struct arge_softc *);
 static void arge_tx_locked(struct arge_softc *);
 static void arge_intr(void *);
 static int arge_intr_filter(void *);
-static void arge_tx_intr(struct arge_softc *, uint32_t);
-static void arge_rx_intr(struct arge_softc *, uint32_t);
 static void arge_tick(void *);
 
 static void arge_dmamap_cb(void *, bus_dma_segment_t *, int, int);
@@ -271,11 +273,14 @@ arge_attach(device_t dev)
 	ifp->if_init = arge_init;
 
 	/* XXX: add real size */
-	IFQ_SET_MAXLEN(&ifp->if_snd, 9);
-	ifp->if_snd.ifq_maxlen = 9;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ifp->if_capenable = ifp->if_capabilities;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 
 	is_base_mac_empty = 1;
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -348,20 +353,20 @@ arge_attach(device_t dev)
 	 * Set all Ethernet address registers to the same initial values
 	 * set all four addresses to 66-88-aa-cc-dd-ee 
 	 */
-	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR1, 0x6dc1282e);
-	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR2, 0x00000015);
+	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR1, 
+	    (eaddr[2] << 24) | (eaddr[3] << 16) | (eaddr[4] << 8)  | eaddr[5]);
+	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR2, (eaddr[0] << 8) | eaddr[1]);
 
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG0, 
 	    FIFO_CFG0_ALL << FIFO_CFG0_ENABLE_SHIFT);
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0fff0000);
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x00001fff);
 
-	reg = FIFO_RX_FILTMATCH_ALL;
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMATCH, reg);
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMATCH, 
+	    FIFO_RX_FILTMATCH_DEFAULT);
 
-	reg = FIFO_RX_FILTMASK_ALL;
-	reg &= ~FIFO_RX_FILTMASK_BYTE_MODE;
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, reg);
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, 
+	    FIFO_RX_FILTMASK_DEFAULT);
 
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->arge_miibus,
@@ -394,7 +399,7 @@ fail:
 static int
 arge_detach(device_t dev)
 {
-	struct arge_softc		*sc = device_get_softc(dev);
+	struct arge_softc	*sc = device_get_softc(dev);
 	struct ifnet		*ifp = sc->arge_ifp;
 
 	KASSERT(mtx_initialized(&sc->arge_mtx), ("arge mutex not initialized"));
@@ -403,6 +408,11 @@ arge_detach(device_t dev)
 	if (device_is_attached(dev)) {
 		ARGE_LOCK(sc);
 		sc->arge_detach = 1;
+#ifdef DEVICE_POLLING
+		if (ifp->if_capenable & IFCAP_POLLING)
+			ether_poll_deregister(ifp);
+#endif
+
 		arge_stop(sc);
 		ARGE_UNLOCK(sc);
 		taskqueue_drain(taskqueue_swi, &sc->arge_link_task);
@@ -558,15 +568,18 @@ arge_link_task(void *arg, int pending)
 			sc->arge_link_status = 1;
 
 			cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
-			ifcontrol = ARGE_READ(sc, AR71XX_MAC_IFCONTROL);
-			rx_filtmask = 
-			    ARGE_READ(sc, AR71XX_MAC_FIFO_RX_FILTMASK);
-			
 			cfg &= ~(MAC_CFG2_IFACE_MODE_1000 
 			    | MAC_CFG2_IFACE_MODE_10_100 
 			    | MAC_CFG2_FULL_DUPLEX);
+
+			if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
+				cfg |= MAC_CFG2_FULL_DUPLEX;
+
+			ifcontrol = ARGE_READ(sc, AR71XX_MAC_IFCONTROL);
 			ifcontrol &= ~MAC_IFCONTROL_SPEED;
-			rx_filtmask &= ~FIFO_RX_FILTMASK_BYTE_MODE;
+			rx_filtmask = 
+			    ARGE_READ(sc, AR71XX_MAC_FIFO_RX_FILTMASK);
+			rx_filtmask &= ~FIFO_RX_MASK_BYTE_MODE;
 
 			switch(media) {
 			case IFM_10_T:
@@ -581,7 +594,7 @@ arge_link_task(void *arg, int pending)
 			case IFM_1000_T:
 			case IFM_1000_SX:
 				cfg |= MAC_CFG2_IFACE_MODE_1000;
-				rx_filtmask |= FIFO_RX_FILTMASK_BYTE_MODE;
+				rx_filtmask |= FIFO_RX_MASK_BYTE_MODE;
 				pll = PLL_ETH_INT_CLK_1000;
 				break;
 			default:
@@ -694,6 +707,7 @@ arge_init_locked(struct arge_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
+
 	ARGE_WRITE(sc, AR71XX_DMA_TX_DESC, ARGE_TX_RING_ADDR(sc, 0));
 	ARGE_WRITE(sc, AR71XX_DMA_RX_DESC, ARGE_RX_RING_ADDR(sc, 0));
 
@@ -715,8 +729,23 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	struct arge_desc	*desc, *prev_desc;
 	bus_dma_segment_t	txsegs[ARGE_MAXFRAGS];
 	int			error, i, nsegs, prod, prev_prod;
+	struct mbuf		*m;
 
 	ARGE_LOCK_ASSERT(sc);
+
+	/*
+	 * Fix mbuf chain, all fragments should be 4 bytes aligned and
+	 * even 4 bytes
+	 */
+	m = *m_head;
+	if((mtod(m, intptr_t) & 3) != 0) {
+		m = m_defrag(*m_head, M_DONTWAIT);
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		*m_head = m;
+	}
 
 	prod = sc->arge_cdata.arge_tx_prod;
 	txd = &sc->arge_cdata.arge_txdesc[prod];
@@ -754,7 +783,11 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 		desc = &sc->arge_rdata.arge_tx_ring[prod];
 		desc->packet_ctrl = ARGE_DMASIZE(txsegs[i].ds_len);
 
+		if (txsegs[i].ds_addr & 3)
+			panic("TX packet address unaligned\n");
+
 		desc->packet_addr = txsegs[i].ds_addr;
+		
 		/* link with previous descriptor */
 		if (prev_desc)
 			prev_desc->packet_ctrl |= ARGE_DESC_MORE;
@@ -812,15 +845,6 @@ arge_start_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
-		/*
-		 * Fix mbuf chain, all fragments should be 4 bytes aligned and
-		 * even 4 bytes
-		 */
-		arge_fix_chain(&m_head);
-
-		if (m_head == NULL) {
-			dprintf("failed to adjust mbuf chain\n");
-		}
 
 		/*
 		 * Pack the data into the transmit ring.
@@ -867,6 +891,9 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
 	int			error;
+#ifdef DEVICE_POLLING
+	int			mask;
+#endif
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -884,11 +911,30 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		mii = device_get_softc(sc->arge_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
-	case SIOCSIFCAP:
-		error = 0;
-		ifp->if_hwassist = 0;
+        case SIOCSIFCAP:
 		printf("Implement me: SIOCSIFCAP\n");
-		break;
+#ifdef DEVICE_POLLING
+                mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		error  = 0;
+                if (mask & IFCAP_POLLING) {
+                        if (ifr->ifr_reqcap & IFCAP_POLLING) {
+				ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
+                                error = ether_poll_register(arge_poll, ifp);
+                                if (error)
+                                        return error;
+                                ARGE_LOCK(sc);
+                                ifp->if_capenable |= IFCAP_POLLING;
+                                ARGE_UNLOCK(sc);
+                        } else {
+				ARGE_WRITE(sc, AR71XX_DMA_INTR, DMA_INTR_ALL);
+                                error = ether_poll_deregister(ifp);
+                                ARGE_LOCK(sc);
+                                ifp->if_capenable &= ~IFCAP_POLLING;
+                                ARGE_UNLOCK(sc);
+                        }
+                }
+                break;
+#endif
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
@@ -1040,7 +1086,7 @@ arge_dma_alloc(struct arge_softc *sc)
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    MCLBYTES,			/* maxsize */
-	    1,				/* nsegments */
+	    BUS_SPACE_UNRESTRICTED,	/* nsegments */
 	    MCLBYTES,			/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
@@ -1265,10 +1311,10 @@ arge_rx_ring_init(struct arge_softc *sc)
 			addr = ARGE_RX_RING_ADDR(sc, 0);
 		else
 			addr = ARGE_RX_RING_ADDR(sc, i + 1);
-		rd->arge_rx_ring[i].packet_ctrl = ARGE_DESC_EMPTY;
 		rd->arge_rx_ring[i].next_desc = addr;
-		if (arge_newbuf(sc, i) != 0)
+		if (arge_newbuf(sc, i) != 0) {
 			return (ENOBUFS);
+		}
 	}
 
 	bus_dmamap_sync(sc->arge_cdata.arge_rx_ring_tag,
@@ -1313,13 +1359,12 @@ arge_newbuf(struct arge_softc *sc, int idx)
 	map = rxd->rx_dmamap;
 	rxd->rx_dmamap = sc->arge_cdata.arge_rx_sparemap;
 	sc->arge_cdata.arge_rx_sparemap = map;
-	bus_dmamap_sync(sc->arge_cdata.arge_rx_tag, rxd->rx_dmamap,
-	    BUS_DMASYNC_PREREAD);
 	rxd->rx_m = m;
 	desc = rxd->desc;
+	if (segs[0].ds_addr & 3)
+		panic("RX packet address unaligned");
 	desc->packet_addr = segs[0].ds_addr;
-	desc->packet_ctrl =  (desc->packet_ctrl & ~ARGE_DESC_SIZE_MASK)
-	    | ARGE_DMASIZE(segs[0].ds_len);
+	desc->packet_ctrl = ARGE_DESC_EMPTY | ARGE_DMASIZE(segs[0].ds_len);
 
 	return (0);
 }
@@ -1338,6 +1383,21 @@ arge_fixup_rx(struct mbuf *m)
 
 	m->m_data -= ETHER_ALIGN;
 }
+
+#ifdef DEVICE_POLLING
+static void
+arge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct arge_softc *sc = ifp->if_softc;
+
+        if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		ARGE_LOCK(sc);
+		arge_tx_locked(sc);
+		arge_rx_locked(sc);
+		ARGE_UNLOCK(sc);
+        }
+}
+#endif /* DEVICE_POLLING */
 
 
 static void
@@ -1406,7 +1466,7 @@ arge_rx_locked(struct arge_softc *sc)
 {
 	struct arge_rxdesc	*rxd;
 	struct ifnet		*ifp = sc->arge_ifp;
-	int			cons, prog, packet_len;
+	int			cons, prog, packet_len, i;
 	struct arge_desc	*cur_rx;
 	struct mbuf		*m;
 
@@ -1445,50 +1505,32 @@ arge_rx_locked(struct arge_softc *sc)
 		ARGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		ARGE_LOCK(sc);
-
-		/* Reinit descriptor */
-		cur_rx->packet_ctrl = ARGE_DESC_EMPTY;
 		cur_rx->packet_addr = 0;
-		if (arge_newbuf(sc, cons) != 0) {
-			device_printf(sc->arge_dev, 
-			    "Failed to allocate buffer\n");
-			break;
+	}
+
+	if (prog > 0) {
+
+		i = sc->arge_cdata.arge_rx_cons;
+		for (; prog > 0 ; prog--) {
+			if (arge_newbuf(sc, i) != 0) {
+				device_printf(sc->arge_dev, 
+				    "Failed to allocate buffer\n");
+				break;
+			}
+			ARGE_INC(i, ARGE_RX_RING_COUNT);
 		}
 
 		bus_dmamap_sync(sc->arge_cdata.arge_rx_ring_tag,
 		    sc->arge_cdata.arge_rx_ring_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	}
 
-	if (prog > 0) {
 		sc->arge_cdata.arge_rx_cons = cons;
 
 		bus_dmamap_sync(sc->arge_cdata.arge_rx_ring_tag,
 		    sc->arge_cdata.arge_rx_ring_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
-}
-
-static void
-arge_rx_intr(struct arge_softc *sc, uint32_t status)
-{
-
-	ARGE_LOCK(sc);
-	/* interrupts are masked by filter */
-	arge_rx_locked(sc);
-
-	/* RX overrun disables the receiver. Clear indication and
-	   re-enable rx. */
-	if ( status & DMA_INTR_RX_OVERFLOW) {
-		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_OVERFLOW);
-		ARGE_WRITE(sc, AR71XX_DMA_RX_CONTROL, DMA_RX_CONTROL_EN);
-	}
-
-	/* unmask interrupts */
-	ARGE_SET_BITS(sc, 
-	    AR71XX_DMA_INTR, DMA_INTR_RX_OVERFLOW | DMA_INTR_RX_PKT_RCVD);
-	ARGE_UNLOCK(sc);
 }
 
 static int
@@ -1510,17 +1552,10 @@ arge_intr_filter(void *arg)
 #endif
 
 	if (status & DMA_INTR_ALL) {
-		if (status & (DMA_INTR_RX_PKT_RCVD | DMA_INTR_RX_OVERFLOW))
-			ARGE_CLEAR_BITS(sc, AR71XX_DMA_INTR, 
-			    DMA_INTR_RX_OVERFLOW | DMA_INTR_RX_PKT_RCVD);
-
-		if (status & (DMA_INTR_TX_PKT_SENT | DMA_INTR_TX_UNDERRUN))
-			ARGE_CLEAR_BITS(sc, AR71XX_DMA_INTR, 
-			    DMA_INTR_TX_UNDERRUN | DMA_INTR_TX_PKT_SENT);
-
 		sc->arge_intr_status |= status;
+		ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
 		return (FILTER_SCHEDULE_THREAD);
-	}
+	} 
 
 	sc->arge_intr_status = 0;
 	return (FILTER_STRAY);
@@ -1532,8 +1567,8 @@ arge_intr(void *arg)
 	struct arge_softc	*sc = arg;
 	uint32_t		status;
 
-	status = sc->arge_intr_status;
-	sc->arge_intr_status = 0;
+	status = ARGE_READ(sc, AR71XX_DMA_INTR_STATUS);
+	status |= sc->arge_intr_status;
 
 #if 0
 	dprintf("int status(intr) = %b\n", status, 
@@ -1559,36 +1594,41 @@ arge_intr(void *arg)
 		return;
 	}
 
-	if (status & (DMA_INTR_RX_PKT_RCVD | DMA_INTR_RX_OVERFLOW))
-		arge_rx_intr(sc, status);
-
-	if (status & (DMA_INTR_TX_PKT_SENT | DMA_INTR_TX_UNDERRUN))
-		arge_tx_intr(sc, status);
-}
-
-static void
-arge_tx_intr(struct arge_softc *sc, uint32_t status)
-{
 	ARGE_LOCK(sc);
 
-	/* Interrupts are masked by filter */
-	arge_tx_locked(sc);
+	if (status & DMA_INTR_RX_PKT_RCVD)
+		arge_rx_locked(sc);
 
-	/* Underrun turns off TX. Clear underrun indication.
-	   If there's anything left in the ring, reactivate the tx. */
-	if (status & DMA_INTR_TX_UNDERRUN) {
-		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_UNDERRUN);
-	    if (sc->arge_cdata.arge_tx_pkts > 0 ) {
-		ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, DMA_TX_CONTROL_EN);
-	    }
+	/* 
+	 * RX overrun disables the receiver. 
+	 * Clear indication and re-enable rx. 
+	 */
+	if ( status & DMA_INTR_RX_OVERFLOW) {
+		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_OVERFLOW);
+		ARGE_WRITE(sc, AR71XX_DMA_RX_CONTROL, DMA_RX_CONTROL_EN);
 	}
 
-        /* unmask interrupts */
-        ARGE_SET_BITS(sc,
-            AR71XX_DMA_INTR, DMA_INTR_TX_UNDERRUN | DMA_INTR_TX_PKT_SENT);
+	if (status & DMA_INTR_TX_PKT_SENT)
+		arge_tx_locked(sc);
+	/* 
+	 * Underrun turns off TX. Clear underrun indication. 
+	 * If there's anything left in the ring, reactivate the tx. 
+	 */
+	if (status & DMA_INTR_TX_UNDERRUN) {
+		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_UNDERRUN);
+		if (sc->arge_cdata.arge_tx_pkts > 0 ) {
+			ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, 
+			    DMA_TX_CONTROL_EN);
+		}
+	}
 
 	ARGE_UNLOCK(sc);
+	/*
+	 * re-enable all interrupts 
+	 */
+	ARGE_WRITE(sc, AR71XX_DMA_INTR, DMA_INTR_ALL);
 }
+
 
 static void
 arge_tick(void *xsc)
@@ -1601,118 +1641,4 @@ arge_tick(void *xsc)
 	mii = device_get_softc(sc->arge_miibus);
 	mii_tick(mii);
 	callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
-}
-
-/*
- * Create a copy of a single mbuf. It can have either internal or
- * external data, it may have a packet header. External data is really
- * copied, so the new buffer is writeable.
- */
-static struct mbuf *
-copy_mbuf(struct mbuf *m)
-{
-	struct mbuf *new;
-
-	MGET(new, M_DONTWAIT, MT_DATA);
-	if (new == NULL)
-		return (NULL);
-
-	if (m->m_flags & M_PKTHDR) {
-		M_MOVE_PKTHDR(new, m);
-		if (m->m_len > MHLEN)
-			MCLGET(new, M_WAIT);
-	} else {
-		if (m->m_len > MLEN)
-			MCLGET(new, M_WAIT);
-	}
-
-	bcopy(m->m_data, new->m_data, m->m_len);
-	new->m_len = m->m_len;
-	new->m_flags &= ~M_RDONLY;
-
-	return (new);
-}
-
-
-
-static int
-arge_fix_chain(struct mbuf **mp)
-{
-	struct mbuf *m = *mp, *prev = NULL, *next, *new;
-	u_int mlen = 0, fill = 0;	
-	int first, off;
-	u_char *d, *cp;
-
-	do {
-		next = m->m_next;
-
-		if ((uintptr_t)mtod(m, void *) % 4 != 0 ||
-		   (m->m_len % 4 != 0 && next)) {
-			/*
-			 * Needs fixing
-			 */
-			first = (m == *mp);
-
-			d = mtod(m, u_char *);
-			if ((off = (uintptr_t)(void *)d % 4) != 0) {
-				if (M_WRITABLE(m)) {
-					bcopy(d, d - off, m->m_len);
-					m->m_data = (caddr_t)(d - off);
-				} else {
-					if ((new = copy_mbuf(m)) == NULL) {
-						goto fail;
-					}
-					if (prev)
-						prev->m_next = new;
-					new->m_next = next;
-					m_free(m);
-					m = new;
-				}
-			}
-
-			if ((off = m->m_len % 4) != 0) {
-				if (!M_WRITABLE(m)) {
-					if ((new = copy_mbuf(m)) == NULL) {
-						goto fail;
-					}
-					if (prev)
-						prev->m_next = new;
-					new->m_next = next;
-					m_free(m);
-					m = new;
-				}
-				d = mtod(m, u_char *) + m->m_len;
-				off = 4 - off;
-				while (off) {
-					if (next == NULL) {
-						*d++ = 0;
-						fill++;
-					} else if (next->m_len == 0) {
-						next = m_free(next);
-						continue;
-					} else {
-						cp = mtod(next, u_char *);
-						*d++ = *cp++;
-						next->m_len--;
-						next->m_data = (caddr_t)cp;
-					}
-					off--;
-					m->m_len++;
-				}
-			}
-
-			if (first)
-				*mp = m;
-		}
-
-		mlen += m->m_len;
-		prev = m;
-	} while ((m = next) != NULL);
-
-	return (mlen - fill);
-
-  fail:
-	m_freem(*mp);
-	*mp = NULL;
-	return (0);
 }
