@@ -103,7 +103,9 @@ static void arge_reset_dma(struct arge_softc *);
 static int arge_resume(device_t);
 static int arge_rx_ring_init(struct arge_softc *);
 static int arge_tx_ring_init(struct arge_softc *);
+#ifdef DEVICE_POLLING
 static void arge_poll(struct ifnet *, enum poll_cmd, int);
+#endif
 static void arge_shutdown(device_t);
 static void arge_start(struct ifnet *);
 static void arge_start_locked(struct ifnet *);
@@ -1086,7 +1088,7 @@ arge_dma_alloc(struct arge_softc *sc)
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    MCLBYTES,			/* maxsize */
-	    BUS_SPACE_UNRESTRICTED,	/* nsegments */
+	    ARGE_MAXFRAGS,		/* nsegments */
 	    MCLBYTES,			/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
