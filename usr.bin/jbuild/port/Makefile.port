@@ -1,0 +1,6 @@
+SUBDIR = \
+	filemon \
+	jbuild \
+	jdirdep
+
+.include <bsd.subdir.mk>

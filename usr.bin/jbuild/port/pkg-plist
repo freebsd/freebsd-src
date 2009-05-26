@@ -1,0 +1,4 @@
+bin/jbuild
+bin/jdirdep
+bin/jgetsrc
+sbin/filemon.ko
