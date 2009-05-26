@@ -1048,12 +1048,12 @@ g_valid_obj(void const *ptr)
 #ifdef DDB
 
 #define	gprintf(...)	do {						\
-	printf("%*s", indent, "");					\
-	printf(__VA_ARGS__);						\
+	db_printf("%*s", indent, "");					\
+	db_printf(__VA_ARGS__);						\
 } while (0)
 #define	gprintln(...)	do {						\
 	gprintf(__VA_ARGS__);						\
-	printf("\n");							\
+	db_printf("\n");						\
 } while (0)
 
 #define	ADDFLAG(obj, flag, sflag)	do {				\
@@ -1118,8 +1118,8 @@ db_show_geom_consumer(int indent, struct g_consumer *cp)
 		    cp->provider != NULL ? cp->provider->name : "none",
 		    cp->acr, cp->acw, cp->ace);
 		if (cp->spoiled)
-			printf(", spoiled=%d", cp->spoiled);
-		printf("\n");
+			db_printf(", spoiled=%d", cp->spoiled);
+		db_printf("\n");
 	}
 }
 
@@ -1152,11 +1152,11 @@ db_show_geom_provider(int indent, struct g_provider *pp)
 		gprintf("provider: %s (%p), access=r%dw%de%d",
 		    pp->name, pp, pp->acr, pp->acw, pp->ace);
 		if (pp->flags != 0) {
-			printf(", flags=%s (0x%04x)",
+			db_printf(", flags=%s (0x%04x)",
 			    provider_flags_to_string(pp, flags, sizeof(flags)),
 			    pp->flags);
 		}
-		printf("\n");
+		db_printf("\n");
 	}
 	if (!LIST_EMPTY(&pp->consumers)) {
 		LIST_FOREACH(cp, &pp->consumers, consumers) {
@@ -1187,11 +1187,11 @@ db_show_geom_geom(int indent, struct g_geom *gp)
 	} else {
 		gprintf("geom: %s (%p), rank=%d", gp->name, gp, gp->rank);
 		if (gp->flags != 0) {
-			printf(", flags=%s (0x%04x)",
+			db_printf(", flags=%s (0x%04x)",
 			    geom_flags_to_string(gp, flags, sizeof(flags)),
 			    gp->flags);
 		}
-		printf("\n");
+		db_printf("\n");
 	}
 	if (!LIST_EMPTY(&gp->provider)) {
 		LIST_FOREACH(pp, &gp->provider, provider) {
@@ -1214,7 +1214,7 @@ db_show_geom_class(struct g_class *mp)
 {
 	struct g_geom *gp;
 
-	printf("class: %s (%p)\n", mp->name, mp);
+	db_printf("class: %s (%p)\n", mp->name, mp);
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		db_show_geom_geom(2, gp);
 		if (db_pager_quit)
@@ -1233,7 +1233,7 @@ DB_SHOW_COMMAND(geom, db_show_geom)
 		/* No address given, print the entire topology. */
 		LIST_FOREACH(mp, &g_classes, class) {
 			db_show_geom_class(mp);
-			printf("\n");
+			db_printf("\n");
 			if (db_pager_quit)
 				break;
 		}
@@ -1252,7 +1252,7 @@ DB_SHOW_COMMAND(geom, db_show_geom)
 			db_show_geom_provider(0, (struct g_provider *)addr);
 			break;
 		default:
-			printf("Not a GEOM object.\n");
+			db_printf("Not a GEOM object.\n");
 			break;
 		}
 	}
@@ -1261,19 +1261,19 @@ DB_SHOW_COMMAND(geom, db_show_geom)
 static void
 db_print_bio_cmd(struct bio *bp)
 {
-	printf("  cmd: ");
+	db_printf("  cmd: ");
 	switch (bp->bio_cmd) {
-	case BIO_READ: printf("BIO_READ"); break;
-	case BIO_WRITE: printf("BIO_WRITE"); break;
-	case BIO_DELETE: printf("BIO_DELETE"); break;
-	case BIO_GETATTR: printf("BIO_GETATTR"); break;
-	case BIO_FLUSH: printf("BIO_FLUSH"); break;
-	case BIO_CMD0: printf("BIO_CMD0"); break;
-	case BIO_CMD1: printf("BIO_CMD1"); break;
-	case BIO_CMD2: printf("BIO_CMD2"); break;
-	default: printf("UNKNOWN"); break;
+	case BIO_READ: db_printf("BIO_READ"); break;
+	case BIO_WRITE: db_printf("BIO_WRITE"); break;
+	case BIO_DELETE: db_printf("BIO_DELETE"); break;
+	case BIO_GETATTR: db_printf("BIO_GETATTR"); break;
+	case BIO_FLUSH: db_printf("BIO_FLUSH"); break;
+	case BIO_CMD0: db_printf("BIO_CMD0"); break;
+	case BIO_CMD1: db_printf("BIO_CMD1"); break;
+	case BIO_CMD2: db_printf("BIO_CMD2"); break;
+	default: db_printf("UNKNOWN"); break;
 	}
-	printf("\n");
+	db_printf("\n");
 }
 
 static void
@@ -1282,18 +1282,18 @@ db_print_bio_flags(struct bio *bp)
 	int comma;
 
 	comma = 0;
-	printf("  flags: ");
+	db_printf("  flags: ");
 	if (bp->bio_flags & BIO_ERROR) {
-		printf("BIO_ERROR");
+		db_printf("BIO_ERROR");
 		comma = 1;
 	}
 	if (bp->bio_flags & BIO_DONE) {
-		printf("%sBIO_ERROR", (comma ? ", " : ""));
+		db_printf("%sBIO_DONE", (comma ? ", " : ""));
 		comma = 1;
 	}
 	if (bp->bio_flags & BIO_ONQUEUE)
-		printf("%sBIO_ONQUEUE", (comma ? ", " : ""));
-	printf("\n");
+		db_printf("%sBIO_ONQUEUE", (comma ? ", " : ""));
+	db_printf("\n");
 }
 
 /*
@@ -1305,26 +1305,26 @@ DB_SHOW_COMMAND(bio, db_show_bio)
 
 	if (have_addr) {
 		bp = (struct bio *)addr;
-		printf("BIO %p\n", bp);
+		db_printf("BIO %p\n", bp);
 		db_print_bio_cmd(bp);
 		db_print_bio_flags(bp);
-		printf("  cflags: 0x%hhx\n", bp->bio_cflags);
-		printf("  pflags: 0x%hhx\n", bp->bio_pflags);
-		printf("  offset: %lld\n", bp->bio_offset);
-		printf("  length: %lld\n", bp->bio_length);
-		printf("  bcount: %ld\n", bp->bio_bcount);
-		printf("  resid: %ld\n", bp->bio_resid);
-		printf("  completed: %lld\n", bp->bio_completed);
-		printf("  children: %u\n", bp->bio_children);
-		printf("  inbed: %u\n", bp->bio_inbed);
-		printf("  error: %d\n", bp->bio_error);
-		printf("  parent: %p\n", bp->bio_parent);
-		printf("  driver1: %p\n", bp->bio_driver1);
-		printf("  driver2: %p\n", bp->bio_driver2);
-		printf("  caller1: %p\n", bp->bio_caller1);
-		printf("  caller2: %p\n", bp->bio_caller2);
-		printf("  bio_from: %p\n", bp->bio_from);
-		printf("  bio_to: %p\n", bp->bio_to);
+		db_printf("  cflags: 0x%hhx\n", bp->bio_cflags);
+		db_printf("  pflags: 0x%hhx\n", bp->bio_pflags);
+		db_printf("  offset: %lld\n", bp->bio_offset);
+		db_printf("  length: %lld\n", bp->bio_length);
+		db_printf("  bcount: %ld\n", bp->bio_bcount);
+		db_printf("  resid: %ld\n", bp->bio_resid);
+		db_printf("  completed: %lld\n", bp->bio_completed);
+		db_printf("  children: %u\n", bp->bio_children);
+		db_printf("  inbed: %u\n", bp->bio_inbed);
+		db_printf("  error: %d\n", bp->bio_error);
+		db_printf("  parent: %p\n", bp->bio_parent);
+		db_printf("  driver1: %p\n", bp->bio_driver1);
+		db_printf("  driver2: %p\n", bp->bio_driver2);
+		db_printf("  caller1: %p\n", bp->bio_caller1);
+		db_printf("  caller2: %p\n", bp->bio_caller2);
+		db_printf("  bio_from: %p\n", bp->bio_from);
+		db_printf("  bio_to: %p\n", bp->bio_to);
 	}
 }
 
