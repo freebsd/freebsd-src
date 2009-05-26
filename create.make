@@ -4,12 +4,12 @@
 #	This script will determine if the system is a System V or BSD based
 #	UNIX system and create a makefile for ee appropriate for the system.
 #
-# $Header: /home/hugh/sources/old_ae/RCS/create.make,v 1.6 1995/08/21 02:25:23 hugh Exp $
+# $Header: /home/hugh/sources/old_ae/RCS/create.make,v 1.7 2001/01/20 04:57:17 hugh Exp hugh $
 #
 
 # test for existence of termcap (exists on both BSD and SysV systems)
 
-if [ -f /etc/termcap -o -f /usr/share/lib/termcap ]
+if [ -f /etc/termcap -o -f /usr/share/lib/termcap -o -f /usr/share/misc/termcap ]
 then
 	termcap_exists="TRUE"
 else
@@ -18,7 +18,7 @@ fi
 
 # test for terminfo directory (exists on SysV systems)
 
-if [ -d /usr/lib/terminfo -o -d /usr/share/lib/terminfo ]
+if [ -d /usr/lib/terminfo -o -d /usr/share/lib/terminfo -o -d /usr/share/terminfo ]
 then
 	terminfo_exists=""
 else
@@ -57,6 +57,16 @@ then
 	HEADER_FILES="$HEADER_FILES /usr/include/sys/types.h"
 fi
 
+# check for unistd.h
+
+if [ -f /usr/include/unistd.h ]
+then
+	HAS_UNISTD=-DHAS_UNISTD
+	HEADER_FILES="$HEADER_FILES /usr/include/unistd.h"
+else
+	HAS_UNISTD=""
+fi
+
 if [ -n "$HEADER_FILES" ]
 then
 	string="`grep select $HEADER_FILES`"
@@ -93,15 +103,6 @@ then
 	HAS_STDARG=-DHAS_STDARG
 else
 	HAS_STDARG=""
-fi
-
-# check for unistd.h
-
-if [ -f /usr/include/unistd.h ]
-then
-	HAS_UNISTD=-DHAS_UNISTD
-else
-	HAS_UNISTD=""
 fi
 
 # check for ctype.h
