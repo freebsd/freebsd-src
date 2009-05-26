@@ -94,7 +94,6 @@ struct bounce_zone {
 	int		total_bounced;
 	int		total_deferred;
 	bus_size_t	alignment;
-	bus_size_t	boundary;
 	bus_addr_t	lowaddr;
 	char		zoneid[8];
 	char		lowaddrid[20];
@@ -974,7 +973,6 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	/* Check to see if we already have a suitable zone */
 	STAILQ_FOREACH(bz, &bounce_zone_list, links) {
 		if ((dmat->alignment <= bz->alignment)
-		 && (dmat->boundary <= bz->boundary)
 		 && (dmat->lowaddr >= bz->lowaddr)) {
 			dmat->bounce_zone = bz;
 			return (0);
@@ -990,8 +988,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	bz->reserved_bpages = 0;
 	bz->active_bpages = 0;
 	bz->lowaddr = dmat->lowaddr;
-	bz->alignment = dmat->alignment;
-	bz->boundary = dmat->boundary;
+	bz->alignment = MAX(dmat->alignment, PAGE_SIZE);
 	snprintf(bz->zoneid, 8, "zone%d", busdma_zonecount);
 	busdma_zonecount++;
 	snprintf(bz->lowaddrid, 18, "%#jx", (uintmax_t)bz->lowaddr);
@@ -1037,9 +1034,6 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "boundary", CTLFLAG_RD, &bz->boundary, 0, "");
 
 	return (0);
 }
@@ -1064,7 +1058,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 							 M_NOWAIT, 0ul,
 							 bz->lowaddr,
 							 PAGE_SIZE,
-							 bz->boundary);
+							 0);
 		if (bpage->vaddr == 0) {
 			free(bpage, M_DEVBUF);
 			break;
