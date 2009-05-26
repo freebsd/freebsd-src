@@ -27,6 +27,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -126,6 +127,9 @@ static void	 assert_lockmgr(struct lock_object *lock, int how);
 static void	 db_show_lockmgr(struct lock_object *lock);
 #endif
 static void	 lock_lockmgr(struct lock_object *lock, int how);
+#ifdef KDTRACE_HOOKS
+static int	 owner_lockmgr(struct lock_object *lock, struct thread **owner);
+#endif
 static int	 unlock_lockmgr(struct lock_object *lock);
 
 struct lock_class lock_class_lockmgr = {
@@ -136,7 +140,10 @@ struct lock_class lock_class_lockmgr = {
 	.lc_ddb_show = db_show_lockmgr,
 #endif
 	.lc_lock = lock_lockmgr,
-	.lc_unlock = unlock_lockmgr
+	.lc_unlock = unlock_lockmgr,
+#ifdef KDTRACE_HOOKS
+	.lc_owner = owner_lockmgr,
+#endif
 };
 
 static __inline struct thread *
@@ -292,6 +299,15 @@ unlock_lockmgr(struct lock_object *lock)
 
 	panic("lockmgr locks do not support sleep interlocking");
 }
+
+#ifdef KDTRACE_HOOKS
+static int
+owner_lockmgr(struct lock_object *lock, struct thread **owner)
+{
+
+	panic("lockmgr locks do not support owner inquiring");
+}
+#endif
 
 void
 lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
