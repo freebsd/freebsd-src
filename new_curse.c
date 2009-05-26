@@ -37,14 +37,14 @@
  |	Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon
  |	All are rights reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/new_curse.c,v 1.50 2001/01/19 02:53:40 hugh Exp hugh $
+ |	$Header: /home/hugh/sources/old_ae/RCS/new_curse.c,v 1.52 2001/06/28 05:39:42 hugh Exp $
  |
  */
 
 char *copyright_message[] = { "Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon",
 				"All rights are reserved."};
 
-char * new_curse_name= "@(#) new_curse.c $Revision: 1.50 $";
+char * new_curse_name= "@(#) new_curse.c $Revision: 1.52 $";
 
 #include "new_curse.h"
 #include <signal.h>
@@ -501,6 +501,10 @@ int interrupt_flag = FALSE;	/* set true if SIGWINCH received	*/
 char *Strings;
 #endif
 
+#if !defined(TERMCAP)
+#define TERMCAP "/etc/termcap"
+#endif 
+
 struct KEYS {
 	int length;	/* length of string sent by key			*/
 	char *string;	/* string sent by key				*/
@@ -939,15 +943,15 @@ printf("starting initscr \n");fflush(stdout);
 	if ((pointer = Term_File_name = getenv("TERMCAP")) != NULL)
 	{
 		if (*Term_File_name != '/')
-			Term_File_name = "/etc/termcap";
+			Term_File_name = TERMCAP;
 	}
 	else
 	{
-		Term_File_name = "/etc/termcap";
+		Term_File_name = TERMCAP;
 	}
 	if ((TFP = fopen(Term_File_name, "r")) == NULL)
 	{
-		printf("unable to open /etc/termcap file \n");
+		printf("unable to open %s file \n", TERMCAP);
 		exit(0);
 	}
  	for (value = 0; value < 1024; value++)	

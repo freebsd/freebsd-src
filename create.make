@@ -4,14 +4,25 @@
 #	This script will determine if the system is a System V or BSD based
 #	UNIX system and create a makefile for ee appropriate for the system.
 #
-# $Header: /home/hugh/sources/old_ae/RCS/create.make,v 1.7 2001/01/20 04:57:17 hugh Exp hugh $
+# $Header: /home/hugh/sources/old_ae/RCS/create.make,v 1.12 2001/06/28 05:39:14 hugh Exp $
 #
+
+#set -x
 
 # test for existence of termcap (exists on both BSD and SysV systems)
 
 if [ -f /etc/termcap -o -f /usr/share/lib/termcap -o -f /usr/share/misc/termcap ]
 then
-	termcap_exists="TRUE"
+	if [ -f /usr/share/lib/termcap ]
+	then
+		termcap_exists="-DTERMCAP=\"\\\"/usr/share/lib/termcap\\\"\""
+	elif [ -f /usr/share/misc/termcap ]
+	then
+		termcap_exists="-DTERMCAP=\"\\\"/usr/share/misc/termcap\\\"\""
+	elif [ -f /etc/termcap ]
+	then
+		termcap_exists="-DTERMCAP=\"\\\"/etc/termcap\\\"\""
+	fi
 else
 	termcap_exists=""
 fi
@@ -235,7 +246,7 @@ fi
 
 echo "DEFINES =	$termio $terminfo_exists $BSD_SELECT $catgets $select $curses " > make.local
 echo "" >> make.local
-echo "CFLAGS =	$HAS_UNISTD $HAS_STDARG $HAS_STDLIB $HAS_CTYPE $HAS_SYS_IOCTL $HAS_SYS_WAIT $five_lib $five_include $select_hdr $other_cflags" >> make.local
+echo "CFLAGS =	$HAS_UNISTD $HAS_STDARG $HAS_STDLIB $HAS_CTYPE $HAS_SYS_IOCTL $HAS_SYS_WAIT $five_lib $five_include $select_hdr $other_cflags $termcap_exists" >> make.local
 echo "" >> make.local
 echo "" >> make.local
 echo "all :	$TARGET" >> make.local
