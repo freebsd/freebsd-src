@@ -45,7 +45,6 @@
 #include <sys/errno.h>
 #include <sys/unistd.h>
 #include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/fs/zfs.h>
 #include <sys/dmu.h>
@@ -67,6 +66,7 @@
 #include <sys/buf.h>
 #include <sys/sf_buf.h>
 #include <sys/sched.h>
+#include <sys/acl.h>
 
 /*
  * Programming rules.
@@ -3846,7 +3846,6 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 	}
 }
 
-#ifdef TODO
 /*ARGSUSED*/
 static int
 zfs_getsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
@@ -3864,9 +3863,7 @@ zfs_getsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 
 	return (error);
 }
-#endif	/* TODO */
 
-#ifdef TODO
 /*ARGSUSED*/
 static int
 zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
@@ -3883,7 +3880,6 @@ zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 	ZFS_EXIT(zfsvfs);
 	return (error);
 }
-#endif	/* TODO */
 
 static int
 zfs_freebsd_open(ap)
@@ -4777,6 +4773,90 @@ vop_listextattr {
 	return (error);
 }
 
+int
+zfs_freebsd_getacl(ap)
+	struct vop_getacl_args /* {
+		struct vnode *vp;
+		acl_type_t type;
+		struct acl *aclp;
+		struct ucred *cred;
+		struct thread *td;
+	} */ *ap;
+{
+	int		error;
+	vsecattr_t      vsecattr;
+
+	if (ap->a_type != ACL_TYPE_NFS4)
+		return (EOPNOTSUPP);
+
+	vsecattr.vsa_mask = VSA_ACE | VSA_ACECNT;
+	if (error = zfs_getsecattr(ap->a_vp, &vsecattr, 0, ap->a_cred, NULL))
+		return (error);
+
+	error = acl_from_aces(ap->a_aclp, vsecattr.vsa_aclentp, vsecattr.vsa_aclcnt);
+        if (vsecattr.vsa_aclentp != NULL)
+                kmem_free(vsecattr.vsa_aclentp, vsecattr.vsa_aclentsz);
+
+        return (error);
+}
+
+int
+zfs_freebsd_setacl(ap)
+	struct vop_setacl_args /* {
+		struct vnode *vp;
+		acl_type_t type;
+		struct acl *aclp;
+		struct ucred *cred;
+		struct thread *td;
+	} */ *ap;
+{
+	int		error;
+	vsecattr_t      vsecattr;
+	int		aclbsize;	/* size of acl list in bytes */
+	aclent_t	*aaclp;
+
+	if (ap->a_type != ACL_TYPE_NFS4)
+		return (EOPNOTSUPP);
+
+	if (ap->a_aclp->acl_cnt < 1 || ap->a_aclp->acl_cnt > MAX_ACL_ENTRIES)
+		return (EINVAL);
+
+	/*
+	 * With NFS4 ACLs, chmod(2) may need to add additional entries,
+	 * splitting every entry into two and appending "canonical six"
+	 * entries at the end.  Don't allow for setting an ACL that would
+	 * cause chmod(2) to run out of ACL entries.
+	 */
+	if (ap->a_aclp->acl_cnt * 2 + 6 > ACL_MAX_ENTRIES)
+		return (ENOSPC);
+
+	vsecattr.vsa_mask = VSA_ACE;
+	aclbsize = ap->a_aclp->acl_cnt * sizeof(ace_t);
+	vsecattr.vsa_aclentp = kmem_alloc(aclbsize, KM_SLEEP);
+	aaclp = vsecattr.vsa_aclentp;
+	vsecattr.vsa_aclentsz = aclbsize;
+
+	aces_from_acl(vsecattr.vsa_aclentp, &vsecattr.vsa_aclcnt, ap->a_aclp);
+	error = zfs_setsecattr(ap->a_vp, &vsecattr, 0, ap->a_cred, NULL);
+	kmem_free(aaclp, aclbsize);
+
+	return (error);
+}
+
+int
+zfs_freebsd_aclcheck(ap)
+	struct vop_aclcheck_args /* {
+		struct vnode *vp;
+		acl_type_t type;
+		struct acl *aclp;
+		struct ucred *cred;
+		struct thread *td;
+	} */ *ap;
+{
+
+	return (EOPNOTSUPP);
+}
+
 struct vop_vector zfs_vnodeops;
 struct vop_vector zfs_fifoops;
 
@@ -4816,6 +4896,11 @@ struct vop_vector zfs_vnodeops = {
 	.vop_deleteextattr =	zfs_deleteextattr,
 	.vop_setextattr =	zfs_setextattr,
 	.vop_listextattr =	zfs_listextattr,
+#ifdef notyet
+	.vop_getacl =		zfs_freebsd_getacl,
+	.vop_setacl =		zfs_freebsd_setacl,
+	.vop_aclcheck =		zfs_freebsd_aclcheck,
+#endif
 };
 
 struct vop_vector zfs_fifoops = {
@@ -4829,4 +4914,9 @@ struct vop_vector zfs_fifoops = {
 	.vop_setattr =		zfs_freebsd_setattr,
 	.vop_write =		VOP_PANIC,
 	.vop_fid =		zfs_freebsd_fid,
+#ifdef notyet
+	.vop_getacl =		zfs_freebsd_getacl,
+	.vop_setacl =		zfs_freebsd_setacl,
+	.vop_aclcheck =		zfs_freebsd_aclcheck,
+#endif
 };
