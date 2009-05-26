@@ -1,4 +1,5 @@
 bin/jbuild
 bin/jdirdep
 bin/jgetsrc
-sbin/filemon.ko
+@cwd /boot/modules
+filemon.ko

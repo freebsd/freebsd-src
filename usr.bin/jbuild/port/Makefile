@@ -19,7 +19,7 @@ do-extract:
 	cp Makefile.port ${WRKSRC}/Makefile
 
 do-install:
-	( cd ${WRKSRC}/filemon.ko; ${MAKE} install BINDIR=${PREFIX}/sbin )
+	( cd ${WRKSRC}/filemon.ko; ${MAKE} install BINDIR=/boot/modules )
 	( cd ${WRKSRC}/jbuild; ${MAKE} install BINDIR=${PREFIX}/bin )
 	( cd ${WRKSRC}/jdirdep; ${MAKE} install BINDIR=${PREFIX}/bin )
 	cp ${WRKSRC}/jdirdep/jgetsrc ${PREFIX}/bin
