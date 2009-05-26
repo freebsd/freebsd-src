@@ -531,7 +531,10 @@ windrv_bus_attach(drv, name)
 
 	RtlInitAnsiString(&as, name);
 	if (RtlAnsiStringToUnicodeString(&drv->dro_drivername, &as, TRUE))
+	{
+		free(new, M_DEVBUF);
 		return(ENOMEM);
+	}
 
 	/*
 	 * Set up a fake image pointer to avoid false matches

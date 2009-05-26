@@ -453,11 +453,13 @@ lookup(struct nameidata *ndp)
 	int error = 0;
 	int dpunlocked = 0;		/* dp has already been unlocked */
 	struct componentname *cnp = &ndp->ni_cnd;
-	struct thread *td = cnp->cn_thread;
 	int vfslocked;			/* VFS Giant state for child */
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
 	int lkflags_save;
+#ifdef AUDIT
+	struct thread *td = curthread;
+#endif
 	
 	/*
 	 * Setup: break out flag bits into variables.
@@ -637,7 +639,8 @@ dirloop:
 unionlookup:
 #ifdef MAC
 	if ((cnp->cn_flags & NOMACCHECK) == 0) {
-		error = mac_vnode_check_lookup(td->td_ucred, dp, cnp);
+		error = mac_vnode_check_lookup(cnp->cn_thread->td_ucred, dp,
+		    cnp);
 		if (error)
 			goto bad;
 	}
@@ -758,7 +761,8 @@ unionlookup:
 		dvfslocked = 0;
 		vref(vp_crossmp);
 		ndp->ni_dvp = vp_crossmp;
-		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags), &tdp, td);
+		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags),
+		    &tdp);
 		vfs_unbusy(mp);
 		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
 			panic("vp_crossmp exclusively locked or reclaimed");

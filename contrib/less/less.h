@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -160,7 +160,7 @@ void free();
 #define IS_DIGIT(c)	((c) >= '0' && (c) <= '9')
 #endif
 
-#define IS_CSI_START(c)	((c) == ESC || ((unsigned char)(c)) == CSI)
+#define IS_CSI_START(c)	(((LWCHAR)(c)) == ESC || (((LWCHAR)(c)) == CSI))
 
 #ifndef NULL
 #define	NULL	0
@@ -336,14 +336,15 @@ struct textlist
 #define	BS_CONTROL	2	/* \b treated as control char; prints as ^H */
 
 /* How should we search? */
-#define	SRCH_FORW	(1 << 0)  /* Search forward from current position */
-#define	SRCH_BACK	(1 << 1)  /* Search backward from current position */
-#define	SRCH_NO_MOVE	(1 << 2)  /* Highlight, but don't move */
-#define	SRCH_FIND_ALL	(1 << 4)  /* Find and highlight all matches */
-#define	SRCH_NO_MATCH	(1 << 8)  /* Search for non-matching lines */
-#define	SRCH_PAST_EOF	(1 << 9)  /* Search past end-of-file, into next file */
-#define	SRCH_FIRST_FILE	(1 << 10) /* Search starting at the first file */
-#define	SRCH_NO_REGEX	(1 << 12) /* Don't use regular expressions */
+#define	SRCH_FORW       (1 << 0)  /* Search forward from current position */
+#define	SRCH_BACK       (1 << 1)  /* Search backward from current position */
+#define SRCH_NO_MOVE    (1 << 2)  /* Highlight, but don't move */
+#define SRCH_FIND_ALL   (1 << 4)  /* Find and highlight all matches */
+#define SRCH_NO_MATCH   (1 << 8)  /* Search for non-matching lines */
+#define SRCH_PAST_EOF   (1 << 9)  /* Search past end-of-file, into next file */
+#define SRCH_FIRST_FILE (1 << 10) /* Search starting at the first file */
+#define SRCH_NO_REGEX   (1 << 12) /* Don't use regular expressions */
+#define SRCH_FILTER     (1 << 13) /* Search is for '&' (filter) command */
 
 #define	SRCH_REVERSE(t)	(((t) & SRCH_FORW) ? \
 				(((t) & ~SRCH_FORW) | SRCH_BACK) : \

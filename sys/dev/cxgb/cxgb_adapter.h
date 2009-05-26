@@ -100,6 +100,12 @@ extern int cxgb_debug;
 #define SX_DESTROY sx_destroy
 #endif
 
+enum {
+	LF_NO = 0,
+	LF_MAYBE,
+	LF_YES
+};
+
 struct port_info {
 	struct adapter	*adapter;
 	struct ifnet	*ifp;
@@ -123,7 +129,6 @@ struct port_info {
 
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
 	struct task	timer_reclaim_task;
-	struct task	link_fault_task;
 	struct cdev     *port_cdev;
 
 #define PORT_LOCK_NAME_LEN 32
@@ -393,6 +398,7 @@ struct adapter {
 	device_t		portdev[MAX_NPORTS];
 	struct t3cdev           tdev;
 	char                    fw_version[64];
+	char                    port_types[MAX_NPORTS + 1];
 	uint32_t                open_device_map;
 	uint32_t                registered_device_map;
 #ifdef USE_SX
@@ -435,6 +441,7 @@ struct t3_rx_mode {
 #define ADAPTER_LOCK_INIT(adap, name)      SX_INIT(&(adap)->lock, name)
 #define ADAPTER_LOCK_DEINIT(adap)          SX_DESTROY(&(adap)->lock)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) sx_assert(&(adap)->lock, SA_UNLOCKED)
+#define ADAPTER_LOCK_ASSERT_OWNED(adap) sx_assert(&(adap)->lock, SA_LOCKED)
 #else
 #define PORT_LOCK(port)		     mtx_lock(&(port)->lock);
 #define PORT_UNLOCK(port)	     mtx_unlock(&(port)->lock);
@@ -446,7 +453,8 @@ struct t3_rx_mode {
 #define ADAPTER_UNLOCK(adap)	mtx_unlock(&(adap)->lock);
 #define ADAPTER_LOCK_INIT(adap, name) mtx_init(&(adap)->lock, name, 0, MTX_DEF)
 #define ADAPTER_LOCK_DEINIT(adap) mtx_destroy(&(adap)->lock)
-#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) mtx_assert(&(adap)->lock, MO_NOTOWNED)
+#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) mtx_assert(&(adap)->lock, MA_NOTOWNED)
+#define ADAPTER_LOCK_ASSERT_OWNED(adap) mtx_assert(&(adap)->lock, MA_OWNED)
 #endif
 
 
@@ -530,8 +538,6 @@ int t3_os_pci_restore_state(struct adapter *adapter);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc);
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
-void t3_os_link_fault(adapter_t *adapter, int port_id, int state);
-void t3_os_link_fault_handler(adapter_t *adapter, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
 int t3_offload_tx(struct t3cdev *, struct mbuf *);
 void t3_os_ext_intr_handler(adapter_t *adapter);

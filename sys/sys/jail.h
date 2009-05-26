@@ -162,7 +162,7 @@ struct prison {
 	struct vnode	*pr_root;			/* (c) vnode to rdir */
 	char		 pr_host[MAXHOSTNAMELEN];	/* (p) jail hostname */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
-	void		*pr_linux;			/* (p) linux abi */
+	void		*pr_spare;			/*     was pr_linux */
 	int		 pr_securelevel;		/* (p) securelevel */
 	struct task	 pr_task;			/* (d) destroy task */
 	struct mtx	 pr_mtx;

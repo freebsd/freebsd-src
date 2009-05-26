@@ -663,6 +663,9 @@ nfscl_openrelease(struct nfsclopen *op, int error, int candelete)
  * client data structures to do the SetClientId/SetClientId_confirm,
  * but will release that lock and return the clientid with a refernce
  * count on it.
+ * If the p argument is NULL, it will not do the SetClientId/Confirm
+ * and the cred argument is not used, so it can be NULL too.
+ * It always clpp with a reference count on it, unless returning an error.
  */
 APPLESTATIC int
 nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
@@ -2748,8 +2751,8 @@ nfscl_dupopen(vnode_t vp, int dupopens)
  * on ohp.
  */
 APPLESTATIC int
-nfscl_getclose(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
-    struct nfsclclient **clpp, struct nfsclopenhead *ohp)
+nfscl_getclose(vnode_t vp, struct nfsclclient **clpp,
+    struct nfsclopenhead *ohp)
 {
 	struct nfsclclient *clp;
 	struct nfsclowner *owp, *nowp;
@@ -2758,12 +2761,13 @@ nfscl_getclose(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	struct nfsfh *nfhp;
 	int error, notdecr, candelete;
 
-	error = nfscl_getcl(vp, cred, p, &clp);
+	error = nfscl_getcl(vp, NULL, NULL, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
 
-	LIST_INIT(ohp);
+	if (ohp != NULL)
+		LIST_INIT(ohp);
 	nfhp = VTONFS(vp)->n_fhp;
 	notdecr = 1;
 	NFSLOCKCLSTATE();
@@ -2798,49 +2802,56 @@ nfscl_getclose(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 
 	/* Now process the opens against the server. */
 	LIST_FOREACH(owp, &clp->nfsc_owner, nfsow_list) {
-	    op = LIST_FIRST(&owp->nfsow_open);
-	    while (op != NULL) {
-		nop = LIST_NEXT(op, nfso_list);
-		if (op->nfso_fhlen == nfhp->nfh_len &&
-		    !NFSBCMP(op->nfso_fh, nfhp->nfh_fh, nfhp->nfh_len)) {
-		    /* Found an open, decrement cnt if possible */
-		    if (notdecr && op->nfso_opencnt > 0) {
-			notdecr = 0;
-			op->nfso_opencnt--;
-		    }
-		    /*
-		     * There are more opens, so just return after
-		     * putting any opens already found back in the
-		     * state list.
-		     */
-		    if (op->nfso_opencnt > 0) {
-			/* reuse op, since we're returning */
-			op = LIST_FIRST(ohp);
-			while (op != NULL) {
-			    nop = LIST_NEXT(op, nfso_list);
-			    LIST_REMOVE(op, nfso_list);
-			    LIST_INSERT_HEAD(&op->nfso_own->nfsow_open,
-				op, nfso_list);
-			    op = nop;
-			}
-			NFSUNLOCKCLSTATE();
-			LIST_INIT(ohp);
-			return (0);
-		    }
+		op = LIST_FIRST(&owp->nfsow_open);
+		while (op != NULL) {
+			nop = LIST_NEXT(op, nfso_list);
+			if (op->nfso_fhlen == nfhp->nfh_len &&
+			    !NFSBCMP(op->nfso_fh, nfhp->nfh_fh,
+			    nfhp->nfh_len)) {
+				/* Found an open, decrement cnt if possible */
+				if (notdecr && op->nfso_opencnt > 0) {
+					notdecr = 0;
+					op->nfso_opencnt--;
+				}
+				/*
+				 * There are more opens, so just return after
+				 * putting any opens already found back in the
+				 * state list.
+				 */
+				if (op->nfso_opencnt > 0) {
+					if (ohp != NULL) {
+					    /* Reattach open until later */
+					    op = LIST_FIRST(ohp);
+					    while (op != NULL) {
+						nop = LIST_NEXT(op, nfso_list);
+						LIST_REMOVE(op, nfso_list);
+						LIST_INSERT_HEAD(
+						    &op->nfso_own->nfsow_open,
+						    op, nfso_list);
+						op = nop;
+					    }
+					    LIST_INIT(ohp);
+					}
+					NFSUNLOCKCLSTATE();
+					return (0);
+				}
 
-		    /*
-		     * Move this entry to the list of opens to be returned.
-		     * (If we find other open(s) still in use, it will be
-		     *  put back in the state list in the code just above.)
-		     */
-		    LIST_REMOVE(op, nfso_list);
-		    LIST_INSERT_HEAD(ohp, op, nfso_list);
+				/*
+				 * Move this entry to the list of opens to be
+				 * returned. (If we find other open(s) still in
+				 * use, it will be put back in the state list
+				 * in the code just above.)
+				 */
+				if (ohp != NULL) {
+					LIST_REMOVE(op, nfso_list);
+					LIST_INSERT_HEAD(ohp, op, nfso_list);
+				}
+			}
+			op = nop;
 		}
-		op = nop;
-	    }
 	}
 
-	if (dp != NULL) {
+	if (dp != NULL && ohp != NULL) {
 		/*
 		 * If we are flushing all writes against the server for this
 		 * file upon close, we do not need to keep the local opens
@@ -2869,8 +2880,8 @@ nfscl_getclose(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		}
 	}
 	NFSUNLOCKCLSTATE();
-	if (notdecr)
-	    printf("nfscl: never fnd open\n");
+	if (notdecr && ohp == NULL)
+		printf("nfscl: never fnd open\n");
 	return (0);
 }
 

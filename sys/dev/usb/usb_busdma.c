@@ -1279,7 +1279,7 @@ usb2_bdma_work_loop(struct usb2_xfer_queue *pq)
 		if (xfer->flags_int.control_xfr &&
 		    xfer->flags_int.control_hdr) {
 			/* special case */
-			if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+			if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 				/* The device controller writes to memory */
 				xfer->frbuffers[0].isread = 1;
 			} else {

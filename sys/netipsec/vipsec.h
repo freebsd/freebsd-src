@@ -57,6 +57,7 @@ struct vnet_ipsec {
 	int			_ip4_ah_offsetmask;
 	int			_ip4_ipsec_dfbit;
 	int			_ip4_ipsec_ecn;
+	int			_ip4_ipsec_filtertunnel;
 	int			_ip4_esp_randpad;
 
 	int			_ipsec_replay;
@@ -90,6 +91,7 @@ struct vnet_ipsec {
 	int			_ip6_ah_trans_deflev;
 	int			_ip6_ah_net_deflev;
 	int			_ip6_ipsec_ecn;
+	int			_ip6_ipsec6_filtertunnel;
 
 	int			_ah_enable;
 	int			_ah_cleartos;
@@ -142,12 +144,14 @@ extern struct vnet_ipsec vnet_ipsec_0;
 #define	V_ip4_esp_trans_deflev		VNET_IPSEC(ip4_esp_trans_deflev)
 #define	V_ip4_ipsec_dfbit		VNET_IPSEC(ip4_ipsec_dfbit)
 #define	V_ip4_ipsec_ecn			VNET_IPSEC(ip4_ipsec_ecn)
+#define	V_ip4_ipsec_filtertunnel	VNET_IPSEC(ip4_ipsec_filtertunnel)
 #define	V_ip6_ah_net_deflev		VNET_IPSEC(ip6_ah_net_deflev)
 #define	V_ip6_ah_trans_deflev		VNET_IPSEC(ip6_ah_trans_deflev)
 #define	V_ip6_esp_net_deflev		VNET_IPSEC(ip6_esp_net_deflev)
 #define	V_ip6_esp_randpad		VNET_IPSEC(ip6_esp_randpad)
 #define	V_ip6_esp_trans_deflev		VNET_IPSEC(ip6_esp_trans_deflev)
 #define	V_ip6_ipsec_ecn			VNET_IPSEC(ip6_ipsec_ecn)
+#define	V_ip6_ipsec6_filtertunnel	VNET_IPSEC(ip6_ipsec6_filtertunnel)
 #define	V_ipcomp_enable			VNET_IPSEC(ipcomp_enable)
 #define	V_ipcompstat			VNET_IPSEC(ipcompstat)
 #define	V_ipip_allow			VNET_IPSEC(ipip_allow)

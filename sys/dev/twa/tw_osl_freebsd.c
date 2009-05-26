@@ -86,7 +86,7 @@ static devclass_t	twa_devclass;
  *			non-zero-- failure
  */
 static TW_INT32
-twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
+twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, struct thread *proc)
 {
 	struct twa_softc	*sc = (struct twa_softc *)(dev->si_drv1);
 
@@ -111,7 +111,7 @@ twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
  *			non-zero-- failure
  */
 static TW_INT32
-twa_close(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
+twa_close(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, struct thread *proc)
 {
 	struct twa_softc	*sc = (struct twa_softc *)(dev->si_drv1);
 
@@ -140,7 +140,7 @@ twa_close(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
  *			non-zero-- failure
  */
 static TW_INT32
-twa_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, TW_INT32 flags, d_thread_t *proc)
+twa_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, TW_INT32 flags, struct thread *proc)
 {
 	struct twa_softc	*sc = (struct twa_softc *)(dev->si_drv1);
 	TW_INT32		error;

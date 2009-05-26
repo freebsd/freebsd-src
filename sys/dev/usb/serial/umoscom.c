@@ -38,8 +38,8 @@
 #if USB_DEBUG
 static int umoscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
-SYSCTL_INT(_hw_usb2_umoscom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
+SYSCTL_INT(_hw_usb_umoscom, OID_AUTO, debug, CTLFLAG_RW,
     &umoscom_debug, 0, "Debug level");
 #endif
 
@@ -274,7 +274,7 @@ umoscom_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UMOSCOM_CONFIG_INDEX) {

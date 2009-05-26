@@ -818,7 +818,7 @@ ar5416SetTransmitPower(struct ath_hal *ah,
     HALASSERT(AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER14_1);
 
     /* Setup info for the actual eeprom */
-    ath_hal_memzero(ratesArray, sizeof(ratesArray));
+    OS_MEMZERO(ratesArray, sizeof(ratesArray));
     cfgCtl = ath_hal_getctl(ah, chan);
     powerLimit = chan->ic_maxregpower * 2;
     twiceAntennaReduction = chan->ic_maxantgain;
@@ -1759,7 +1759,7 @@ ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
     uint16_t xpdGainValues[AR5416_NUM_PD_GAINS];
     uint32_t reg32, regOffset, regChainOffset;
 
-    ath_hal_memzero(xpdGainValues, sizeof(xpdGainValues));
+    OS_MEMZERO(xpdGainValues, sizeof(xpdGainValues));
     
     xpdMask = pEepData->modalHeader[IEEE80211_IS_CHAN_2GHZ(chan)].xpdGain;
 

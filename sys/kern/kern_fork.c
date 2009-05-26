@@ -350,6 +350,9 @@ norfproc_fail:
 	 * are hard-limits as to the number of processes that can run.
 	 */
 	nprocs++;
+#ifdef VIMAGE
+	P_TO_VPROCG(p1)->nprocs++;
+#endif
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs

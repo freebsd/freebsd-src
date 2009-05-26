@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -1824,6 +1825,11 @@ crfree(struct ucred *cr)
 		 */
 		if (jailed(cr))
 			prison_free(cr->cr_prison);
+#ifdef VIMAGE
+	/* XXX TODO: find out why and when cr_vimage can be NULL here! */
+	if (cr->cr_vimage != NULL)
+		refcount_release(&cr->cr_vimage->vi_ucredrefc);
+#endif
 #ifdef AUDIT
 		audit_cred_destroy(cr);
 #endif
@@ -1859,6 +1865,10 @@ crcopy(struct ucred *dest, struct ucred *src)
 	uihold(dest->cr_ruidinfo);
 	if (jailed(dest))
 		prison_hold(dest->cr_prison);
+#ifdef VIMAGE
+	KASSERT(src->cr_vimage != NULL, ("cr_vimage == NULL"));
+	refcount_acquire(&dest->cr_vimage->vi_ucredrefc);
+#endif
 #ifdef AUDIT
 	audit_cred_copy(src, dest);
 #endif

@@ -1,5 +1,5 @@
-@(#)Theory	7.15
-
+@(#)Theory	8.2
+$FreeBSD$
 
 ----- Outline -----
 
@@ -12,26 +12,27 @@
 
 ----- Time and date functions -----
 
-These time and date functions are upwards compatible with POSIX.1,
+These time and date functions are upwards compatible with POSIX,
 an international standard for UNIX-like systems.
-As of this writing, the current edition of POSIX.1 is:
+As of this writing, the current edition of POSIX is:
 
-  Information technology --Portable Operating System Interface (POSIX (R))
-  -- Part 1: System Application Program Interface (API) [C Language]
-  ISO/IEC 9945-1:1996
-  ANSI/IEEE Std 1003.1, 1996 Edition
-  1996-07-12
+  Standard for Information technology
+  -- Portable Operating System Interface (POSIX (R))
+  -- System Interfaces
+  IEEE Std 1003.1, 2004 Edition
+  <http://www.opengroup.org/online-pubs?DOC=7999959899>
+  <http://www.opengroup.org/pubs/catalog/t041.htm>
 
-POSIX.1 has the following properties and limitations.
+POSIX has the following properties and limitations.
 
-*	In POSIX.1, time display in a process is controlled by the
-	environment variable TZ.  Unfortunately, the POSIX.1 TZ string takes
+*	In POSIX, time display in a process is controlled by the
+	environment variable TZ.  Unfortunately, the POSIX TZ string takes
 	a form that is hard to describe and is error-prone in practice.
-	Also, POSIX.1 TZ strings can't deal with other (for example, Israeli)
+	Also, POSIX TZ strings can't deal with other (for example, Israeli)
 	daylight saving time rules, or situations where more than two
 	time zone abbreviations are used in an area.
 
-	The POSIX.1 TZ string takes the following form:
+	The POSIX TZ string takes the following form:
 
 		stdoffset[dst[offset],date[/time],date[/time]]
 
@@ -40,6 +41,9 @@ POSIX.1 has the following properties and limitations.
 	std and dst
 		are 3 or more characters specifying the standard
 		and daylight saving time (DST) zone names.
+		Starting with POSIX.1-2001, std and dst may also be
+		in a quoted form like "<UTC+10>"; this allows
+		"+" and "-" in the names.
 	offset
 		is of the form `[-]hh:[mm[:ss]]' and specifies the
 		offset west of UTC.  The default DST offset is one hour
@@ -62,14 +66,25 @@ POSIX.1 has the following properties and limitations.
 			and `5' stands for the last week in which day d appears
 			(which may be either the 4th or 5th week).
 
-*	In POSIX.1, when a TZ value like "EST5EDT" is parsed,
-	typically the current US DST rules are used,
+	Here is an example POSIX TZ string, for US Pacific time using rules
+	appropriate from 1987 through 2006:
+
+		TZ='PST8PDT,M4.1.0/02:00,M10.5.0/02:00'
+
+	This POSIX TZ string is hard to remember, and mishandles time stamps
+	before 1987 and after 2006.  With this package you can use this
+	instead:
+
+		TZ='America/Los_Angeles'
+
+*	POSIX does not define the exact meaning of TZ values like "EST5EDT".
+	Typically the current US DST rules are used to interpret such values,
 	but this means that the US DST rules are compiled into each program
 	that does time conversion.  This means that when US time conversion
 	rules change (as in the United States in 1987), all programs that
 	do time conversion must be recompiled to ensure proper results.
 
-*	In POSIX.1, there's no tamper-proof way for a process to learn the
+*	In POSIX, there's no tamper-proof way for a process to learn the
 	system's best idea of local wall clock.  (This is important for
 	applications that an administrator wants used only at certain times--
 	without regard to whether the user has fiddled the "TZ" environment
@@ -78,9 +93,9 @@ POSIX.1 has the following properties and limitations.
 	daylight saving time shifts--as might be required to limit phone
 	calls to off-peak hours.)
 
-*	POSIX.1 requires that systems ignore leap seconds.
+*	POSIX requires that systems ignore leap seconds.
 
-These are the extensions that have been made to the POSIX.1 functions:
+These are the extensions that have been made to the POSIX functions:
 
 *	The "TZ" environment variable is used in generating the name of a file
 	from which time zone information is read (or is interpreted a la
@@ -108,7 +123,7 @@ These are the extensions that have been made to the POSIX.1 functions:
 *	To handle places where more than two time zone abbreviations are used,
 	the functions "localtime" and "gmtime" set tzname[tmp->tm_isdst]
 	(where "tmp" is the value the function returns) to the time zone
-	abbreviation to be used.  This differs from POSIX.1, where the elements
+	abbreviation to be used.  This differs from POSIX, where the elements
 	of tzname are only changed as a result of calls to tzset.
 
 *	Since the "TZ" environment variable can now be used to control time
@@ -131,8 +146,7 @@ These are the extensions that have been made to the POSIX.1 functions:
 	environment variable; portable applications should not, however, rely
 	on this behavior since it's not the way SVR2 systems behave.)
 
-*	These functions can account for leap seconds, thanks to Bradley White
-	(bww@k.cs.cmu.edu).
+*	These functions can account for leap seconds, thanks to Bradley White.
 
 Points of interest to folks with other systems:
 
@@ -173,9 +187,9 @@ Hewlett Packard, offer a wider selection of functions that provide capabilities
 beyond those provided here.  The absence of such functions from this package
 is not meant to discourage the development, standardization, or use of such
 functions.  Rather, their absence reflects the decision to make this package
-contain valid extensions to POSIX.1, to ensure its broad
-acceptability.  If more powerful time conversion functions can be standardized,
-so much the better.
+contain valid extensions to POSIX, to ensure its broad acceptability.  If
+more powerful time conversion functions can be standardized, so much the
+better.
 
 
 ----- Names of time zone rule files -----
@@ -228,6 +242,8 @@ in decreasing order of importance:
 	Include at least one location per time zone rule set per country.
 		One such location is enough.  Use ISO 3166 (see the file
 		iso3166.tab) to help decide whether something is a country.
+		However, uninhabited ISO 3166 regions like Bouvet Island
+		do not need locations, since local time is not defined there.
 	If all the clocks in a country's region have agreed since 1970,
 		don't bother to include more than one location
 		even if subregions' clocks disagreed before 1970.
@@ -263,7 +279,8 @@ in decreasing order of importance:
 	If a name is changed, put its old spelling in the `backward' file.
 
 The file `zone.tab' lists the geographical locations used to name
-time zone rule files.
+time zone rule files.  It is intended to be an exhaustive list
+of canonical names for geographic regions.
 
 Older versions of this package used a different naming scheme,
 and these older names are still supported.
@@ -277,7 +294,7 @@ and `Factory' (see the file `factory').
 ----- Time zone abbreviations -----
 
 When this package is installed, it generates time zone abbreviations
-like `EST' to be compatible with human tradition and POSIX.1.
+like `EST' to be compatible with human tradition and POSIX.
 Here are the general rules used for choosing time zone abbreviations,
 in decreasing order of importance:
 
@@ -292,17 +309,16 @@ in decreasing order of importance:
 		preferred "ChST", so the rule has been relaxed.
 
 		This rule guarantees that all abbreviations could have
-		been specified by a POSIX.1 TZ string.  POSIX.1
+		been specified by a POSIX TZ string.  POSIX
 		requires at least three characters for an
-		abbreviation.  POSIX.1-1996 says that an abbreviation
+		abbreviation.  POSIX through 2000 says that an abbreviation
 		cannot start with ':', and cannot contain ',', '-',
-		'+', NUL, or a digit.  Draft 7 of POSIX 1003.1-200x
-		changes this rule to say that an abbreviation can
-		contain only '-', '+', and alphanumeric characters in
-		the current locale.  To be portable to both sets of
+		'+', NUL, or a digit.  POSIX from 2001 on changes this
+		rule to say that an abbreviation can contain only '-', '+',
+		and alphanumeric characters from the portable character set
+		in the current locale.  To be portable to both sets of
 		rules, an abbreviation must therefore use only ASCII
-		letters, as these are the only letters that are
-		alphabetic in all locales.
+		letters.
 
 	Use abbreviations that are in common use among English-speakers,
 		e.g. `EST' for Eastern Standard Time in North America.
@@ -328,8 +344,9 @@ in decreasing order of importance:
 			and then append `T', `ST', etc. as before;
 			e.g. `VLAST' for VLAdivostok Summer Time.
 
-	Use "zzz" for locations while uninhabited.  The mnemonic is that
-		these locations are, in some sense, asleep.
+	Use UTC (with time zone abbreviation "zzz") for locations while
+		uninhabited.  The "zzz" mnemonic is that these locations are,
+		in some sense, asleep.
 
 Application writers should note that these abbreviations are ambiguous
 in practice: e.g. `EST' has a different meaning in Australia than
@@ -343,10 +360,10 @@ abbreviations like `EST'; this avoids the ambiguity.
 Calendrical issues are a bit out of scope for a time zone database,
 but they indicate the sort of problems that we would run into if we
 extended the time zone database further into the past.  An excellent
-resource in this area is Nachum Dershowitz and Edward M. Reingold,
-<a href="http://emr.cs.uiuc.edu/home/reingold/calendar-book/index.shtml">
-Calendrical Calculations
-</a>, Cambridge University Press (1997).  Other information and
+resource in this area is Edward M. Reingold and Nachum Dershowitz,
+<a href="http://emr.cs.uiuc.edu/home/reingold/calendar-book/second-edition/">
+Calendrical Calculations: The Millennium Edition
+</a>, Cambridge University Press (2001).  Other information and
 sources are given below.  They sometimes disagree.
 
 
@@ -359,7 +376,7 @@ and (in Paris only) 1871-05-06 through 1871-05-23.
 
 Russia
 
-From Chris Carrier <72157.3334@CompuServe.COM> (1996-12-02):
+From Chris Carrier (1996-12-02):
 On 1929-10-01 the Soviet Union instituted an ``Eternal Calendar''
 with 30-day months plus 5 holidays, with a 5-day week.
 On 1931-12-01 it changed to a 6-day week; in 1934 it reverted to the
@@ -374,7 +391,7 @@ by Frank Parise (1982, Facts on File, ISBN 0-8719-6467-8), page 377.  But:
 
 From: Petteri Sulonen (via Usenet)
 Date: 14 Jan 1999 00:00:00 GMT
-Message-ID: <Petteri.Sulonen-1401991626030001@lapin-kulta.in.helsinki.fi>
+...
 
 If your source is correct, how come documents between 1929 -- 1940 were
 still dated using the conventional, Gregorian calendar?
@@ -387,7 +404,7 @@ Executive Committee of the Supreme Soviet, if you like.
 
 Sweden (and Finland)
 
-From: msb@sq.com (Mark Brader)
+From: Mark Brader
 <a href="news:1996Jul6.012937.29190@sq.com">
 Subject: Re: Gregorian reform -- a part of locale?
 </a>
@@ -415,11 +432,11 @@ kalendervasen" by Lars-Olof Lode'n (no date was given).)
 
 Grotefend's data
 
-From: "Michael Palmer" <mpalmer@netcom.com> [with one obvious typo fixed]
+From: "Michael Palmer" [with one obvious typo fixed]
 Subject: Re: Gregorian Calendar (was Re: Another FHC related question
 Newsgroups: soc.genealogy.german
 Date: Tue, 9 Feb 1999 02:32:48 -800
-Message-ID: <199902091032.CAA09644@netcom10.netcom.com>
+...
 
 The following is a(n incomplete) listing, arranged chronologically, of
 European states, with the date they converted from the Julian to the
@@ -546,7 +563,7 @@ Sources:
 
 Michael Allison and Robert Schmunk,
 "Technical Notes on Mars Solar Time as Adopted by the Mars24 Sunclock"
-<http://www.giss.nasa.gov/tools/mars24/help/notes.html> (2004-03-15).
+<http://www.giss.nasa.gov/tools/mars24/help/notes.html> (2004-07-30).
 
 Jia-Rui Chong, "Workdays Fit for a Martian", Los Angeles Times
 (2004-01-14), pp A1, A20-A21.

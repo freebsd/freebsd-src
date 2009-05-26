@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_stropts.h>
 #include <compat/svr4/svr4_ioctl.h>
 #include <compat/svr4/svr4_termios.h>
-#include <compat/svr4/svr4_ttold.h>
 #include <compat/svr4/svr4_filio.h>
 #include <compat/svr4/svr4_sockio.h>
 
@@ -119,13 +118,6 @@ svr4_sys_ioctl(td, uap)
 #endif
 
 	switch (cmd & 0xff00) {
-#ifndef BURN_BRIDGES
-	case SVR4_tIOC:
-	        DPRINTF(("ttold\n"));
-		fun = svr4_ttold_ioctl;
-		break;
-#endif
-
 	case SVR4_TIOC:
 	        DPRINTF(("term\n"));
 		fun = svr4_term_ioctl;

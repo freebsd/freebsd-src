@@ -46,7 +46,7 @@ move_file(char *from, char *to)
 		fromfd = open(from, 0);
 		if (fromfd < 0)
 			pfatal2("internal error, can't reopen %s", from);
-		while ((i = read(fromfd, buf, sizeof buf)) > 0)
+		while ((i = read(fromfd, buf, buf_size)) > 0)
 			if (write(1, buf, i) != 1)
 				pfatal1("write failed");
 		Close(fromfd);
@@ -126,7 +126,7 @@ move_file(char *from, char *to)
 		fromfd = open(from, 0);
 		if (fromfd < 0)
 			pfatal2("internal error, can't reopen %s", from);
-		while ((i = read(fromfd, buf, sizeof buf)) > 0)
+		while ((i = read(fromfd, buf, buf_size)) > 0)
 			if (write(tofd, buf, i) != i)
 				pfatal1("write failed");
 		Close(fromfd);
@@ -152,7 +152,7 @@ copy_file(char *from, char *to)
 	fromfd = open(from, 0);
 	if (fromfd < 0)
 		pfatal2("internal error, can't reopen %s", from);
-	while ((i = read(fromfd, buf, sizeof buf)) > 0)
+	while ((i = read(fromfd, buf, buf_size)) > 0)
 		if (write(tofd, buf, i) != i)
 			pfatal2("write to %s failed", to);
 	Close(fromfd);
@@ -256,20 +256,20 @@ long arg1,arg2,arg3;
 	Fflush(stderr);
 	write(2, buf, strlen(buf));
 	if (tty2) {			/* might be redirected to a file */
-		r = read(2, buf, sizeof buf);
+		r = read(2, buf, buf_size);
 	} else if (isatty(1)) {		/* this may be new file output */
 		Fflush(stdout);
 		write(1, buf, strlen(buf));
-		r = read(1, buf, sizeof buf);
+		r = read(1, buf, buf_size);
 	} else if ((ttyfd = open(_PATH_TTY, 2)) >= 0 && isatty(ttyfd)) {
 					/* might be deleted or unwriteable */
 		write(ttyfd, buf, strlen(buf));
-		r = read(ttyfd, buf, sizeof buf);
+		r = read(ttyfd, buf, buf_size);
 		Close(ttyfd);
 	} else if (isatty(0)) {		/* this is probably patch input */
 		Fflush(stdin);
 		write(0, buf, strlen(buf));
-		r = read(0, buf, sizeof buf);
+		r = read(0, buf, buf_size);
 	} else {			/* no terminal at all--default it */
 		buf[0] = '\n';
 		buf[1] = 0;

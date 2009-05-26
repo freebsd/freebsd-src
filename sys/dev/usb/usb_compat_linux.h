@@ -370,7 +370,7 @@ struct usb_device {
 
 	uint16_t devnum;
 
-	uint8_t	speed;			/* USB_SPEED_XXX */
+	enum usb_dev_speed	speed;	/* USB_SPEED_XXX */
 } __aligned(USB_HOST_ALIGN);
 
 /*

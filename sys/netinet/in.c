@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_carp.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -45,12 +46,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -811,9 +815,13 @@ static int
 in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
     int scrub)
 {
+	INIT_VNET_NET(ifp->if_vnet);
 	INIT_VNET_INET(ifp->if_vnet);
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
+	struct rtentry *rt = NULL;
+	struct rt_addrinfo info;
+	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 	int s = splimp(), flags = RTF_UP, error = 0;
 
 	oldaddr = ia->ia_addr;
@@ -900,6 +908,32 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	if ((error = in_addprefix(ia, flags)) != 0)
 		return (error);
 
+	if (ia->ia_addr.sin_addr.s_addr == INADDR_ANY)
+		return (0);
+
+	/*
+	 * add a loopback route to self
+	 */
+	if (!(ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+		bzero(&info, sizeof(info));
+		info.rti_ifp = V_loif;
+		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+		error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+
+		if (error == 0 && rt != NULL) {
+			RT_LOCK(rt);
+			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
+				rt->rt_ifp->if_type;
+			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+				rt->rt_ifp->if_index;
+			RT_REMREF(rt);
+			RT_UNLOCK(rt);
+		} else if (error != 0)
+			log(LOG_INFO, "in_ifinit: insertion failed\n");
+	}
+
 	return (error);
 }
 
@@ -975,13 +1009,34 @@ extern void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
 static int
 in_scrubprefix(struct in_ifaddr *target)
 {
+	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET(curvnet);
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p;
 	int error;
+	struct sockaddr_in prefix0, mask0;
+	struct rt_addrinfo info;
+	struct sockaddr_dl null_sdl;
 
 	if ((target->ia_flags & IFA_ROUTE) == 0)
 		return (0);
+
+	if ((target->ia_addr.sin_addr.s_addr != INADDR_ANY) &&
+	    !(target->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+		bzero(&null_sdl, sizeof(null_sdl));
+		null_sdl.sdl_len = sizeof(null_sdl);
+		null_sdl.sdl_family = AF_LINK;
+		null_sdl.sdl_type = V_loif->if_type;
+		null_sdl.sdl_index = V_loif->if_index;
+		bzero(&info, sizeof(info));
+		info.rti_flags = target->ia_flags | RTF_HOST | RTF_STATIC;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&target->ia_addr;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+		error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+
+		if (error != 0)
+			log(LOG_INFO, "in_scrubprefix: deletion failed\n");
+	}
 
 	if (rtinitflags(target))
 		prefix = target->ia_dstaddr.sin_addr;
@@ -1027,6 +1082,20 @@ in_scrubprefix(struct in_ifaddr *target)
 			return (error);
 		}
 	}
+
+	/*
+	 * remove all L2 entries on the given prefix
+	 */
+	bzero(&prefix0, sizeof(prefix0));
+	prefix0.sin_len = sizeof(prefix0);
+	prefix0.sin_family = AF_INET;
+	prefix0.sin_addr.s_addr = target->ia_subnet;
+	bzero(&mask0, sizeof(mask0));
+	mask0.sin_len = sizeof(mask0);
+	mask0.sin_family = AF_INET;
+	mask0.sin_addr.s_addr = target->ia_subnetmask;
+	lltable_prefix_free(AF_INET, (struct sockaddr *)&prefix0, 
+			    (struct sockaddr *)&mask0);
 
 	/*
 	 * As no-one seem to have this prefix, we can remove the route.
@@ -1136,7 +1205,6 @@ in_purgemaddrs(struct ifnet *ifp)
 	IN_MULTI_UNLOCK();
 }
 
-#include <sys/syslog.h>
 #include <net/if_dl.h>
 #include <netinet/if_ether.h>
 
@@ -1179,6 +1247,34 @@ in_lltable_free(struct lltable *llt, struct llentry *lle)
 	LLE_LOCK_DESTROY(lle);
 	free(lle, M_LLTABLE);
 }
+
+
+#define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
+	    (((ntohl((d)->sin_addr.s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
+
+static void
+in_lltable_prefix_free(struct lltable *llt, 
+		       const struct sockaddr *prefix,
+		       const struct sockaddr *mask)
+{
+	const struct sockaddr_in *pfx = (const struct sockaddr_in *)prefix;
+	const struct sockaddr_in *msk = (const struct sockaddr_in *)mask;
+	struct llentry *lle, *next;
+	register int i;
+
+	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
+
+			if (IN_ARE_MASKED_ADDR_EQUAL((struct sockaddr_in *)L3_ADDR(lle), 
+						     pfx, msk)) {
+				callout_drain(&lle->la_timer);
+				LLE_WLOCK(lle);
+				llentry_free(lle);
+			}
+		}
+	}
+}
+
 
 static int
 in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
@@ -1370,6 +1466,7 @@ in_domifattach(struct ifnet *ifp)
 	if (llt != NULL) {
 		llt->llt_new = in_lltable_new;
 		llt->llt_free = in_lltable_free;
+		llt->llt_prefix_free = in_lltable_prefix_free;
 		llt->llt_rtcheck = in_lltable_rtcheck;
 		llt->llt_lookup = in_lltable_lookup;
 		llt->llt_dump = in_lltable_dump;

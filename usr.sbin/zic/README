@@ -1,4 +1,5 @@
-@(#)README	7.11
+@(#)README	8.2
+$FreeBSD$
 
 "What time is it?" -- Richard Deacon as The King
 "Any time you want it to be." -- Frank Baxter as The Scientist
@@ -52,8 +53,10 @@ substituting your desired installation directory for "$HOME/tzdir":
 
 To use the new functions, use a "-ltz" option when compiling or linking.
 
-Historical local time information has been included here not because it
-is particularly useful, but rather to:
+Historical local time information has been included here to:
+
+*	provide a compendium of data about the history of civil time
+	that is useful even if the data are not 100% accurate;
 
 *	give an idea of the variety of local time rules that have
 	existed in the past and thus an idea of the variety that may be
@@ -63,7 +66,9 @@ is particularly useful, but rather to:
 	system.
 
 The information in the time zone data files is by no means authoritative;
-if you know that the rules are different from those in a file, by all means
+the files currently do not even attempt to cover all time stamps before
+1970, and there are undoubtedly errors even for time stamps since 1970.
+If you know that the rules are different from those in a file, by all means
 feel free to change file (and please send the changed version to
 tz@elsie.nci.nih.gov for use in the future).  Europeans take note!
 

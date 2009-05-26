@@ -637,7 +637,7 @@ tcp_hc_purge(void *arg)
 	CURVNET_SET((struct vnet *) arg);
 	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry, *hc_next;
-	int all = 0;	/* XXX was: (intptr_t)arg - makes no sense? */
+	int all = 0;
 	int i;
 
 	if (V_tcp_hostcache.purgeall) {

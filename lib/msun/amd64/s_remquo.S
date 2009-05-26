@@ -63,3 +63,4 @@ ENTRY(remquo)
 	fstpl	-8(%rsp)
 	movsd	-8(%rsp),%xmm0
 	ret
+END(remquo)

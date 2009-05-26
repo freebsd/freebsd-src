@@ -51,6 +51,19 @@ struct udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
+typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
+
+/*
+ * UDP control block; one per udp.
+ */
+struct udpcb {
+	udp_tun_func_t	u_tun_func;	/* UDP kernel tunneling callback. */
+	u_int		u_flags;	/* Generic UDP flags. */
+};
+
+#define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
+#define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
+
 struct udpstat {
 				/* input statistics: */
 	u_long	udps_ipackets;		/* total input packets */
@@ -110,14 +123,15 @@ extern u_long			udp_sendspace;
 extern u_long			udp_recvspace;
 extern int			udp_log_in_vain;
 
+int		 udp_newudpcb(struct inpcb *);
+void		 udp_discardcb(struct udpcb *);
+
 void		 udp_ctlinput(int, struct sockaddr *, void *);
 void		 udp_init(void);
 void		 udp_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);
 int		 udp_shutdown(struct socket *so);
 
-
-typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
 int udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f);
 #endif
 

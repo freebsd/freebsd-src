@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/linker.h>
 #include <sys/firmware.h>
-#include <sys/kthread.h>
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
@@ -154,6 +153,7 @@ static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwi_wme_init(struct iwi_softc *);
 static int	iwi_wme_setparams(struct iwi_softc *, struct ieee80211com *);
+static void	iwi_update_wme(void *, int);
 static int	iwi_wme_update(struct ieee80211com *);
 static uint16_t	iwi_read_prom_word(struct iwi_softc *, uint8_t);
 static void	iwi_frame_intr(struct iwi_softc *, struct iwi_rx_data *, int,
@@ -291,6 +291,7 @@ iwi_attach(device_t dev)
 	TASK_INIT(&sc->sc_radiofftask, 0, iwi_radio_off, sc);
 	TASK_INIT(&sc->sc_restarttask, 0, iwi_restart, sc);
 	TASK_INIT(&sc->sc_disassoctask, 0, iwi_disassoc, sc);
+	TASK_INIT(&sc->sc_wmetask, 0, iwi_update_wme, sc);
 
 	callout_init_mtx(&sc->sc_wdtimer, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_rftimer, &sc->sc_mtx, 0);
@@ -418,16 +419,11 @@ iwi_attach(device_t dev)
 	ic->ic_vap_create = iwi_vap_create;
 	ic->ic_vap_delete = iwi_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(IWI_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(IWI_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		IWI_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		IWI_RX_RADIOTAP_PRESENT);
 
 	iwi_sysctlattach(sc);
 	iwi_ledattach(sc);
@@ -459,16 +455,15 @@ iwi_detach(device_t dev)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
-	iwi_stop(sc);
-
-	bpfdetach(ifp);
-	ieee80211_ifdetach(ic);
-
 	/* NB: do early to drain any pending tasks */
 	ieee80211_draintask(ic, &sc->sc_radiontask);
 	ieee80211_draintask(ic, &sc->sc_radiofftask);
 	ieee80211_draintask(ic, &sc->sc_restarttask);
 	ieee80211_draintask(ic, &sc->sc_disassoctask);
+
+	iwi_stop(sc);
+
+	ieee80211_ifdetach(ic);
 
 	iwi_put_firmware(sc);
 	iwi_release_fw_dma(sc);
@@ -1082,6 +1077,18 @@ iwi_wme_setparams(struct iwi_softc *sc, struct ieee80211com *ic)
 #undef IWI_USEC
 #undef IWI_EXP2
 
+static void
+iwi_update_wme(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	IWI_LOCK_DECL;
+
+	IWI_LOCK(sc);
+	(void) iwi_wme_setparams(sc, ic);
+	IWI_UNLOCK(sc);
+}
+
 static int
 iwi_wme_update(struct ieee80211com *ic)
 {
@@ -1091,13 +1098,13 @@ iwi_wme_update(struct ieee80211com *ic)
 	/*
 	 * We may be called to update the WME parameters in
 	 * the adapter at various places.  If we're already
-	 * associated then initiate the request immediately
-	 * (via the taskqueue); otherwise we assume the params
-	 * will get sent down to the adapter as part of the
-	 * work iwi_auth_and_assoc does.
+	 * associated then initiate the request immediately;
+	 * otherwise we assume the params will get sent down
+	 * to the adapter as part of the work iwi_auth_and_assoc
+	 * does.
 	 */
 	if (vap->iv_state == IEEE80211_S_RUN)
-		(void) iwi_wme_setparams(sc, ic);
+		ieee80211_runtask(ic, &sc->sc_wmetask);
 	return (0);
 }
 
@@ -1183,11 +1190,7 @@ iwi_setcurchan(struct iwi_softc *sc, int chan)
 	struct ieee80211com *ic = ifp->if_l2com;
 
 	sc->curchan = chan;
-
-	sc->sc_rxtap.wr_chan_freq = sc->sc_txtap.wt_chan_freq =
-		htole16(ic->ic_curchan->ic_freq);
-	sc->sc_rxtap.wr_chan_flags = sc->sc_txtap.wt_chan_flags =
-		htole16(ic->ic_curchan->ic_flags);
+	ieee80211_radiotap_chan_change(ic);
 }
 
 static void
@@ -1199,6 +1202,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	struct mbuf *mnew, *m;
 	struct ieee80211_node *ni;
 	int type, error, framelen;
+	int8_t rssi, nf;
 	IWI_LOCK_DECL;
 
 	framelen = le16toh(frame->len);
@@ -1270,24 +1274,25 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 
 	m_adj(m, sizeof (struct iwi_hdr) + sizeof (struct iwi_frame));
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	rssi = frame->rssi_dbm;
+	nf = -95;
+	if (ieee80211_radiotap_active(ic)) {
 		struct iwi_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
+		tap->wr_antsignal = rssi;
+		tap->wr_antnoise = nf;
 		tap->wr_rate = iwi_cvtrate(frame->rate);
-		tap->wr_antsignal = frame->signal;
 		tap->wr_antenna = frame->antenna;
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
 	}
 	IWI_UNLOCK(sc);
 
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 	if (ni != NULL) {
-		type = ieee80211_input(ni, m, frame->rssi_dbm, 0, 0);
+		type = ieee80211_input(ni, m, rssi, nf);
 		ieee80211_free_node(ni);
 	} else
-		type = ieee80211_input_all(ic, m, frame->rssi_dbm, 0, 0);
+		type = ieee80211_input_all(ic, m, rssi, nf);
 
 	IWI_LOCK(sc);
 	if (sc->sc_softled) {
@@ -1622,8 +1627,11 @@ iwi_fatal_error_intr(struct iwi_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	device_printf(sc->sc_dev, "firmware error\n");
+	if (vap != NULL)
+		ieee80211_cancel_scan(vap);
 	ieee80211_runtask(ic, &sc->sc_restarttask);
 
 	sc->flags &= ~IWI_FLAG_BUSY;
@@ -1836,12 +1844,12 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwi_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data = &txq->data[txq->cur];
@@ -1951,8 +1959,6 @@ iwi_start_locked(struct ifnet *ifp)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-
-		BPF_MTAP(ifp, m);
 
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (iwi_tx_start(ifp, m, ni, ac) != 0) {

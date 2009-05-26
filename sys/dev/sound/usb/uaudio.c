@@ -17,13 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -87,14 +80,14 @@ static int uaudio_default_channels = 2;
 #if USB_DEBUG
 static int uaudio_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
-SYSCTL_INT(_hw_usb2_uaudio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RW,
     &uaudio_debug, 0, "uaudio debug level");
-SYSCTL_INT(_hw_usb2_uaudio, OID_AUTO, default_rate, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_rate, CTLFLAG_RW,
     &uaudio_default_rate, 0, "uaudio default sample rate");
-SYSCTL_INT(_hw_usb2_uaudio, OID_AUTO, default_bits, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_bits, CTLFLAG_RW,
     &uaudio_default_bits, 0, "uaudio default sample bits");
-SYSCTL_INT(_hw_usb2_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
     &uaudio_default_channels, 0, "uaudio default sample channels");
 #endif
 
@@ -539,7 +532,7 @@ uaudio_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
 	if (uaa->use_generic == 0)

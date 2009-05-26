@@ -71,6 +71,10 @@ __FBSDID("$FreeBSD$");
 
 extern	struct protosw inetsw[];
 
+#ifdef VIMAGE_GLOBALS
+int ip4_ipsec_filtertunnel;
+#endif
+
 /*
  * Check if we have to jump over firewall processing for this packet.
  * Called from ip_input().
@@ -79,11 +83,14 @@ extern	struct protosw inetsw[];
 int
 ip_ipsec_filtertunnel(struct mbuf *m)
 {
-#if defined(IPSEC) && !defined(IPSEC_FILTERTUNNEL)
+#if defined(IPSEC)
+	INIT_VNET_IPSEC(curvnet);
+
 	/*
 	 * Bypass packet filtering for packets from a tunnel.
 	 */
-	if (m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
+	if (!V_ip4_ipsec_filtertunnel &&
+	    m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
 		return 1;
 #endif
 	return 0;

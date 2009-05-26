@@ -1477,23 +1477,11 @@ age_resume(device_t dev)
 {
 	struct age_softc *sc;
 	struct ifnet *ifp;
-	uint16_t cmd;
 
 	sc = device_get_softc(dev);
 
 	AGE_LOCK(sc);
-	/*
-	 * Clear INTx emulation disable for hardwares that
-	 * is set in resume event. From Linux.
-	 */
-	cmd = pci_read_config(sc->age_dev, PCIR_COMMAND, 2);
-	if ((cmd & 0x0400) != 0) {
-		cmd &= ~0x0400;
-		pci_write_config(sc->age_dev, PCIR_COMMAND, cmd, 2);
-	}
-	AGE_UNLOCK(sc);
 	age_phy_reset(sc);
-	AGE_LOCK(sc);
 	ifp = sc->age_ifp;
 	if ((ifp->if_flags & IFF_UP) != 0)
 		age_init_locked(sc);

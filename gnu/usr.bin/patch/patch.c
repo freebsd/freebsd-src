@@ -155,6 +155,11 @@ char **argv;
     for (i = 0; i<MAXFILEC; i++)
 	filearg[i] = Nullch;
 
+    buf_size = INITLINELEN;
+    buf = malloc((MEM)(buf_size));
+    if (buf == Nullch)
+	fatal1("out of memory\n");
+
     myuid = getuid();
 
     index_first = getenv ("PATCH_INDEX_FIRST") != 0;

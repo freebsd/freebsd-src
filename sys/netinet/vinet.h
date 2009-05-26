@@ -149,6 +149,7 @@ struct vnet_inet {
 
 	struct inpcbhead	_udb;
 	struct inpcbinfo	_udbinfo;
+	uma_zone_t		_udpcb_zone;
 	struct udpstat		_udpstat;
 	int			_udp_blackhole;
 
@@ -373,6 +374,7 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_twq_2msl		VNET_INET(twq_2msl)
 #define	V_udb			VNET_INET(udb)
 #define	V_udbinfo		VNET_INET(udbinfo)
+#define	V_udpcb_zone		VNET_INET(udpcb_zone)
 #define	V_udp_blackhole		VNET_INET(udp_blackhole)
 #define	V_udpstat		VNET_INET(udpstat)
 #define	V_useloopback		VNET_INET(useloopback)

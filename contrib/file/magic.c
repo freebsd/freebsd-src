@@ -28,7 +28,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.59 2009/02/03 20:27:51 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.62 2009/03/20 21:25:41 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -57,10 +57,6 @@ FILE_RCSID("@(#)$File: magic.c,v 1.59 2009/02/03 20:27:51 christos Exp $")
 #include <unistd.h>	/* for read() */
 #endif
 
-#ifdef HAVE_LOCALE_H
-#include <locale.h>
-#endif
-
 #include <netinet/in.h>		/* for byte swapping */
 
 #include "patchlevel.h"
@@ -73,12 +69,6 @@ FILE_RCSID("@(#)$File: magic.c,v 1.59 2009/02/03 20:27:51 christos Exp $")
 #define PIPE_BUF 512
 #endif
 #endif
-
-#ifdef __EMX__
-private char *apptypeName = NULL;
-protected int file_os2_apptype(struct magic_set *ms, const char *fn,
-    const void *buf, size_t nb);
-#endif /* __EMX__ */
 
 private void free_mlist(struct mlist *);
 private void close_and_restore(const struct magic_set *, const char *, int,
@@ -297,26 +287,10 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 
 		errno = 0;
 		if ((fd = open(inname, flags)) < 0) {
-#ifdef __CYGWIN__
-			/* FIXME: Do this with EXEEXT from autotools */
-			size_t len = strlen(inname) + 5;
-			char *tmp = alloca(len);
-			(void)strlcat(strlcpy(tmp, inname, len), ".exe", len);
-			if ((fd = open(tmp, flags)) < 0) {
-#endif
-				if (unreadable_info(ms, sb.st_mode,
-#ifdef __CYGWIN
-						    tmp
-#else
-						    inname
-#endif
-						    ) == -1)
-					goto done;
-				rv = 0;
+			if (unreadable_info(ms, sb.st_mode, inname) == -1)
 				goto done;
-#ifdef __CYGWIN__
-			}
-#endif
+			rv = 0;
+			goto done;
 		}
 #ifdef O_NONBLOCK
 		if ((flags = fcntl(fd, F_GETFL)) != -1) {

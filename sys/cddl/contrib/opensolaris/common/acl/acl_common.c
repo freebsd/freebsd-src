@@ -424,6 +424,7 @@ cacl_free(void *ptr, size_t size)
 #endif
 }
 
+#if !defined(_KERNEL)
 acl_t *
 acl_alloc(enum acl_type type)
 {
@@ -1725,3 +1726,4 @@ out:
 	return (error);
 #endif
 }
+#endif /* _KERNEL */

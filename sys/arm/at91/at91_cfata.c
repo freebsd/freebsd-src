@@ -131,9 +131,9 @@ ata_at91_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 
-	KASSERT(type == SYS_RES_IRQ && *rid == ATA_IRQ_RID,
+	KASSERT(type == SYS_RES_IRQ && rid == ATA_IRQ_RID,
 	    ("[at91_cfata, %d]: illegal resource request (type %u rid %u)",
-	    __LINE__, type, *rid));
+	    __LINE__, type, rid));
 	return (0);
 }
 

@@ -363,6 +363,7 @@ FBSD_1.1 {
 	posix_spawnattr_setsigmask;
 	posix_spawnp;
 	tcgetsid;
+	tcsetsid;
 };
 
 FBSDprivate_1.0 {

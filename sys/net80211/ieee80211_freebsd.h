@@ -32,6 +32,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 /*
@@ -275,6 +276,9 @@ void	ieee80211_sysctl_attach(struct ieee80211com *);
 void	ieee80211_sysctl_detach(struct ieee80211com *);
 void	ieee80211_sysctl_vattach(struct ieee80211vap *);
 void	ieee80211_sysctl_vdetach(struct ieee80211vap *);
+
+SYSCTL_DECL(_net_wlan);
+int	ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS);
 
 void	ieee80211_load_module(const char *);
 

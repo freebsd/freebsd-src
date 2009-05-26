@@ -1196,20 +1196,18 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 
 	if (flags & ~JAIL_GET_MASK)
 		return (EINVAL);
-	if (jailed(td->td_ucred)) {
-		/*
-		 * Don't allow a jailed process to see any jails,
-		 * not even its own.
-		 */
-		vfs_opterror(opts, "jail not found");
-		return (ENOENT);
-	}
 
 	/* Get the parameter list. */
 	error = vfs_buildopts(optuio, &opts);
 	if (error)
 		return (error);
 	errmsg_pos = vfs_getopt_pos(opts, "errmsg");
+
+	/* Don't allow a jailed process to see any jails, not even its own. */
+	if (jailed(td->td_ucred)) {
+		vfs_opterror(opts, "jail not found");
+		return (ENOENT);
+	}
 
 	/*
 	 * Find the prison specified by one of: lastjid, jid, name.
@@ -1713,7 +1711,6 @@ prison_deref(struct prison *pr, int flags)
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	mtx_destroy(&pr->pr_mtx);
-	free(pr->pr_linux, M_PRISON);
 #ifdef INET
 	free(pr->pr_ip4, M_PRISON);
 #endif
@@ -2219,6 +2216,10 @@ prison_check(struct ucred *cred1, struct ucred *cred2)
 		if (cred2->cr_prison != cred1->cr_prison)
 			return (ESRCH);
 	}
+#ifdef VIMAGE
+	if (cred2->cr_vimage->v_procg != cred1->cr_vimage->v_procg)
+		return (ESRCH);
+#endif
 
 	return (0);
 }

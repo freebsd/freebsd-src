@@ -219,7 +219,7 @@ static int
 sta_add(struct ieee80211_scan_state *ss, 
 	const struct ieee80211_scanparams *sp,
 	const struct ieee80211_frame *wh,
-	int subtype, int rssi, int noise, int rstamp)
+	int subtype, int rssi, int noise)
 {
 #define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 #define	PICK1ST(_ss) \
@@ -278,7 +278,6 @@ found:
 		ise->se_rssi = IEEE80211_RSSI_GET(se->se_avgrssi);
 		ise->se_noise = noise;
 	}
-	ise->se_rstamp = rstamp;
 	memcpy(ise->se_tstamp.data, sp->tstamp, sizeof(ise->se_tstamp));
 	ise->se_intval = sp->bintval;
 	ise->se_capinfo = sp->capinfo;

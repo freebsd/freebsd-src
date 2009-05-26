@@ -120,6 +120,8 @@ int	ipport_tcplastcount;
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
 
+static void	in_pcbremlists(struct inpcb *inp);
+
 static int
 sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
@@ -1512,7 +1514,7 @@ in_pcbrehash(struct inpcb *inp)
 /*
  * Remove PCB from various lists.
  */
-void
+static void
 in_pcbremlists(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
@@ -1878,7 +1880,7 @@ db_print_inpvflag(u_char inp_vflag)
 	}
 }
 
-void
+static void
 db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 {
 

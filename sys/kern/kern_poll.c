@@ -53,7 +53,6 @@ static void netisr_pollmore(void);
 static int poll_switch(SYSCTL_HANDLER_ARGS);
 
 void hardclock_device_poll(void);	/* hook from hardclock		*/
-void ether_poll(int);			/* polling in idle loop		*/
 
 static struct mtx	poll_mtx;
 
@@ -325,7 +324,7 @@ hardclock_device_poll(void)
 /*
  * ether_poll is called from the idle loop.
  */
-void
+static void
 ether_poll(int count)
 {
 	int i;

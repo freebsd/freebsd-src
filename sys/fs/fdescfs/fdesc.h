@@ -65,5 +65,5 @@ extern struct mtx fdesc_hashmtx;
 extern vfs_init_t fdesc_init;
 extern vfs_uninit_t fdesc_uninit;
 extern int fdesc_allocvp(fdntype, unsigned, int, struct mount *,
-    struct vnode **, struct thread *);
+    struct vnode **);
 #endif /* _KERNEL */

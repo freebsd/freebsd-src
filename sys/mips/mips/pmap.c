@@ -1749,8 +1749,8 @@ retry:
  *	insert this page into the given map NOW.
  */
 void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t fault_type, vm_page_t m, vm_prot_t prot,
-    boolean_t wired)
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+    vm_prot_t prot, boolean_t wired)
 {
 	vm_offset_t pa, opa;
 	register pt_entry_t *pte;
@@ -1869,6 +1869,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t fault_type, vm_page_t m, vm_pr
 		pmap->pm_stats.wired_count++;
 
 validate:
+	if ((access & VM_PROT_WRITE) != 0)
+		m->md.pv_flags |= PV_TABLE_MOD | PV_TABLE_REF;
 	rw = init_pte_prot(va, m, prot);
 
 #ifdef PMAP_DEBUG
@@ -3139,10 +3141,12 @@ init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
 			 */
 			rw = PTE_RWPAGE;
 			vm_page_dirty(m);
-		} else if ((m->md.pv_flags & PV_TABLE_MOD) || m->dirty)
+		} else if ((m->md.pv_flags & PV_TABLE_MOD) ||
+		    m->dirty == VM_PAGE_BITS_ALL)
 			rw = PTE_RWPAGE;
 		else
 			rw = PTE_CWPAGE;
+		vm_page_flag_set(m, PG_WRITEABLE);
 	}
 	return rw;
 }

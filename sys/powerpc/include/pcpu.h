@@ -31,6 +31,7 @@
 #define	_MACHINE_PCPU_H_
 
 #include <machine/cpufunc.h>
+#include <machine/tlb.h>
 
 struct pmap;
 #define	CPUSAVE_LEN	8
@@ -61,6 +62,7 @@ struct pmap;
 	register_t	pc_booke_mchksave[CPUSAVE_LEN];			\
 	register_t	pc_booke_tlbsave[BOOKE_TLBSAVE_LEN];		\
 	register_t	pc_booke_tlb_level;				\
+	uint32_t	*pc_booke_tlb_lock;				\
 	int		pc_tid_next;
 
 /* Definitions for register offsets within the exception tmp save areas */

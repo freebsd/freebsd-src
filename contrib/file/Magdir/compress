@@ -195,6 +195,10 @@
 # bug #364260)
 #0	string		]\000\000\200\000	LZMA compressed data
 
+# http://tukaani.org/xz/xz-file-format.txt
+0	ustring		\xFD7zXZ\x00		xz compressed data
+!:mime	application/x-xz
+
 # AFX compressed files (Wolfram Kleff)
 2	string		-afx-		AFX compressed file data
 
@@ -208,3 +212,8 @@
 >4	byte		x		- version %d
 >5	byte		x		\b.%d
 >6	belong		x		(%d bytes)
+
+# Type: XZ
+# URL: http://tukaani.org/xz/
+0	string		\xfd\x37\x7a\x58\x5a\x00	XZ compressed data
+!:mime application/x-xz

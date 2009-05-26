@@ -336,7 +336,7 @@ SYSCTL_DECL(_net_inet_raw);
 LIST_HEAD(in_multihead, in_multi);	/* XXX unused */
 #ifdef VIMAGE_GLOBALS
 extern struct in_multihead in_multihead;
-#endif /* BURN_BRIDGES */
+#endif
 
 /*
  * Lock macros for IPv4 layer multicast address lists.  IPv4 lock goes

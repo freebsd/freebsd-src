@@ -232,10 +232,8 @@ ncl_getpages(struct vop_getpages_args *ap)
 		vm_page_t m = pages[ap->a_reqpage];
 
 		VM_OBJECT_LOCK(object);
-		vm_page_lock_queues();
 		if (m->valid != 0) {
-			/* handled by vm_fault now	  */
-			/* vm_page_zero_invalid(m, TRUE); */
+			vm_page_lock_queues();
 			for (i = 0; i < npages; ++i) {
 				if (i != ap->a_reqpage)
 					vm_page_free(pages[i]);
@@ -244,7 +242,6 @@ ncl_getpages(struct vop_getpages_args *ap)
 			VM_OBJECT_UNLOCK(object);
 			return(0);
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 	}
 
@@ -306,15 +303,16 @@ ncl_getpages(struct vop_getpages_args *ap)
 			 * Read operation filled an entire page
 			 */
 			m->valid = VM_PAGE_BITS_ALL;
-			vm_page_undirty(m);
+			KASSERT(m->dirty == 0,
+			    ("nfs_getpages: page %p is dirty", m));
 		} else if (size > toff) {
 			/*
 			 * Read operation filled a partial page.
 			 */
 			m->valid = 0;
-			vm_page_set_validclean(m, 0, size - toff);
-			/* handled by vm_fault now	  */
-			/* vm_page_zero_invalid(m, TRUE); */
+			vm_page_set_valid(m, 0, size - toff);
+			KASSERT((m->dirty & vm_page_bits(0, size - toff)) == 0,
+			    ("nfs_getpages: page %p is dirty", m));
 		} else {
 			/*
 			 * Read operation was short.  If no error occured

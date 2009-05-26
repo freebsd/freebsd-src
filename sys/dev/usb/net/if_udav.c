@@ -174,8 +174,8 @@ static const struct usb2_ether_methods udav_ue_methods = {
 #if USB_DEBUG
 static int udav_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
-SYSCTL_INT(_hw_usb2_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
+SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
     "Debug level");
 #endif
 
@@ -211,7 +211,7 @@ udav_probe(device_t dev)
 {
 	struct usb2_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != UDAV_CONFIG_INDEX)
 		return (ENXIO);

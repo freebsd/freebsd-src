@@ -412,6 +412,7 @@ svr4_sys_systeminfo(td, uap)
 	struct thread *td;
 	struct svr4_sys_systeminfo_args *uap;
 {
+	INIT_VPROCG(TD_TO_VPROCG(td));
 	char		*str = NULL;
 	int		error = 0;
 	register_t	*retval = td->td_retval;

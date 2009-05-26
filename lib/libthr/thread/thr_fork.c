@@ -105,7 +105,7 @@ _fork(void)
 	struct pthread_atfork *af;
 	pid_t ret;
 	int errsave;
-	int unlock_malloc;
+	int was_threaded;
 	int rtld_locks[MAX_RTLD_LOCKS];
 
 	if (!_thr_is_inited())
@@ -122,16 +122,16 @@ _fork(void)
 	}
 
 	/*
-	 * Try our best to protect memory from being corrupted in
-	 * child process because another thread in malloc code will
-	 * simply be kill by fork().
+	 * All bets are off as to what should happen soon if the parent
+	 * process was not so kindly as to set up pthread fork hooks to
+	 * relinquish all running threads.
 	 */
 	if (_thr_isthreaded() != 0) {
-		unlock_malloc = 1;
+		was_threaded = 1;
 		_malloc_prefork();
 		_rtld_atfork_pre(rtld_locks);
 	} else {
-		unlock_malloc = 0;
+		was_threaded = 0;
 	}
 
 	/*
@@ -159,7 +159,7 @@ _fork(void)
 		_thr_umutex_init(&curthread->lock);
 		_thr_umutex_init(&_thr_atfork_lock);
 
-		if (unlock_malloc)
+		if (was_threaded)
 			_rtld_atfork_post(rtld_locks);
 		_thr_setthreaded(0);
 
@@ -173,7 +173,7 @@ _fork(void)
 		/* Ready to continue, unblock signals. */ 
 		_thr_signal_unblock(curthread);
 
-		if (unlock_malloc) {
+		if (was_threaded) {
 			__isthreaded = 1;
 			_malloc_postfork();
 			__isthreaded = 0;
@@ -191,7 +191,7 @@ _fork(void)
 		/* Ready to continue, unblock signals. */ 
 		_thr_signal_unblock(curthread);
 
-		if (unlock_malloc) {
+		if (was_threaded) {
 			_rtld_atfork_post(rtld_locks);
 			_malloc_postfork();
 		}

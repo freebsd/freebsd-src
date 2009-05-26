@@ -80,7 +80,7 @@ DEV_MODULE(mfi_linux, mfi_linux_modevent, NULL);
 MODULE_DEPEND(mfi, linux, 1, 1, 1);
 
 static int
-mfi_linux_ioctl(d_thread_t *p, struct linux_ioctl_args *args)
+mfi_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	int error;

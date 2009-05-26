@@ -898,6 +898,8 @@
 
       &hwlist.ath;
 
+      &hwlist.bwi;
+
       <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100
 	MiniPCI network adapter (&man.ipw.4; driver)</para>
 
@@ -921,6 +923,8 @@
       &hwlist.upgt;
 
       &hwlist.ural;
+
+      &hwlist.urtw;
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent
 	Technologies WaveLAN/IEEE 802.11b wireless network adapters

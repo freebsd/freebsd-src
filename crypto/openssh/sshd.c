@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.364 2008/07/10 18:08:11 markus Exp $ */
+/* $OpenBSD: sshd.c,v 1.366 2009/01/22 10:02:34 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -128,7 +128,6 @@ __RCSID("$FreeBSD$");
 #include "ssh-gss.h"
 #endif
 #include "monitor_wrap.h"
-#include "monitor_fdpass.h"
 #include "version.h"
 
 #ifdef LIBWRAP
@@ -1345,7 +1344,7 @@ main(int ac, char **av)
 				exit(1);
 			}
 			options.ports[options.num_ports++] = a2port(optarg);
-			if (options.ports[options.num_ports-1] == 0) {
+			if (options.ports[options.num_ports-1] <= 0) {
 				fprintf(stderr, "Bad port number.\n");
 				exit(1);
 			}

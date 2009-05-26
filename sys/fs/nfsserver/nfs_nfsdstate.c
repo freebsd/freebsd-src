@@ -3560,6 +3560,14 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 		panic("docallb");
 	}
 	clp->lc_cbref++;
+
+	/*
+	 * Fill the callback program# and version into the request
+	 * structure for newnfs_connect() to use.
+	 */
+	clp->lc_req.nr_prog = clp->lc_program;
+	clp->lc_req.nr_vers = NFSV4_CBVERS;
+
 	/*
 	 * First, fill in some of the fields of nd and cr.
 	 */
@@ -3683,8 +3691,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 /*
  * Return the next index# for a clientid. Mostly just increment and return
  * the next one, but... if the 32bit unsigned does actually wrap around,
- * reboot. This is here more for fun than practical purposes. At an
- * average rate of one new client per second, it will wrap around in
+ * it should be rebooted.
+ * At an average rate of one new client per second, it will wrap around in
  * approximately 136 years. (I think the server will have been shut
  * down or rebooted before then.)
  */
@@ -3697,12 +3705,8 @@ nfsrv_nextclientindex(void)
 	if (client_index != 0)
 		return (client_index);
 
-	/*
-	 * In practice, we'll never get here, but the reboot is here,
-	 * just for fun. (client_index will not wrap around on any real server)
-	 */
-	printf("you must reboot now\n");
-	return (0);	/* Just to shut the compiler up */
+	printf("%s: out of clientids\n", __func__);
+	return (client_index);
 }
 
 /*

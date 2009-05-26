@@ -194,8 +194,7 @@ amd64_fbsd32_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     fsc.nargs = nargs;
   }
 
-  fsc.s_args = malloc((1+fsc.nargs) * sizeof(char*));
-  memset(fsc.s_args, 0, fsc.nargs * sizeof(char*));
+  fsc.s_args = calloc(1, (1+fsc.nargs) * sizeof(char*));
   fsc.sc = sc;
 
   /*
@@ -339,7 +338,8 @@ amd64_fbsd32_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
    * but that complicates things considerably.
    */
 
-  print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp, retval);
+  print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp,
+		    retval, fsc.sc);
   clear_fsc();
 
   return (retval);

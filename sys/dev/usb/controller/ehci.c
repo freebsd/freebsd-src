@@ -73,10 +73,10 @@ __FBSDID("$FreeBSD$");
 static int ehcidebug = 0;
 static int ehcinohighspeed = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
-SYSCTL_INT(_hw_usb2_ehci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
     &ehcidebug, 0, "Debug level");
-SYSCTL_INT(_hw_usb2_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
     &ehcinohighspeed, 0, "Disable High Speed USB");
 
 static void ehci_dump_regs(ehci_softc_t *sc);
@@ -1156,13 +1156,6 @@ ehci_non_isoc_done_sub(struct usb2_xfer *xfer)
 		}
 		/* Check for last transfer */
 		if (((void *)td) == xfer->td_transfer_last) {
-			if (len == 0) {
-				/*
-			         * Halt is ok if descriptor is last,
-			         * and complete:
-			         */
-				status &= ~EHCI_QTD_HALTED;
-			}
 			td = NULL;
 			break;
 		}
@@ -2028,6 +2021,8 @@ ehci_isoc_fs_done(ehci_softc_t *sc, struct usb2_xfer *xfer)
 
 		len = EHCI_SITD_GET_LEN(status);
 
+		DPRINTFN(2, "status=0x%08x, rem=%u\n", status, len);
+
 		if (*plen >= len) {
 			len = *plen - len;
 		} else {
@@ -2080,6 +2075,8 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb2_xfer *xfer)
 		status = hc32toh(sc, td->itd_status[td_no]);
 
 		len = EHCI_ITD_GET_LEN(status);
+
+		DPRINTFN(2, "status=0x%08x, len=%u\n", status, len);
 
 		if (*plen >= len) {
 			/*
@@ -3645,10 +3642,10 @@ ehci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
 
 	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
 	    pipe, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb2_mode,
+	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_addr);
 
-	if (udev->flags.usb2_mode != USB_MODE_HOST) {
+	if (udev->flags.usb_mode != USB_MODE_HOST) {
 		/* not supported */
 		return;
 	}
