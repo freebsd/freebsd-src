@@ -26,7 +26,6 @@
 
 ident		SENTRY5
 cpu		CPU_MIPS4KC
-options		CPU_NOFPU
 options 	ISA_MIPS32
 options		CPU_SENTRY5			# XXX should this be a
 						# sub-cpu option?
