@@ -224,7 +224,7 @@ nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
 	}
 	if (mask & NFSV4ACE_SEARCH) {
 		mask &= ~NFSV4ACE_SEARCH;
-		perm |= ACL_SEARCH;
+		perm |= ACL_EXECUTE;
 	}
 	if (mask & NFSV4ACE_DELETECHILD) {
 		mask &= ~NFSV4ACE_DELETECHILD;
@@ -505,7 +505,7 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 			acemask |= NFSV4ACE_READNAMEDATTR;
 		if (ace->ae_perm & ACL_WRITE_NAMED_ATTRS)
 			acemask |= NFSV4ACE_WRITENAMEDATTR;
-		if (ace->ae_perm & ACL_SEARCH)
+		if (ace->ae_perm & ACL_EXECUTE)
 			acemask |= NFSV4ACE_SEARCH;
 		if (ace->ae_perm & ACL_DELETE_CHILD)
 			acemask |= NFSV4ACE_DELETECHILD;
