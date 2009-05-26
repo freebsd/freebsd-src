@@ -689,7 +689,6 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 /*
  * Call the interrupt handler.
  */
-	break
 	la	k0, _C_LABEL(cpu_intr)
 	jalr	k0
 	sw	a3, STAND_RA_OFFSET(sp)	# for debugging
