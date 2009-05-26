@@ -8,6 +8,7 @@ options		CPU_NOFPU
 options 	ISA_MIPS32
 makeoptions	TARGET_BIG_ENDIAN
 makeoptions	KERNLOADADDR=0x80050000
+options		HZ=1000
 
 files		"../atheros/files.ar71xx"
 hints		"AR71XX.hints"
@@ -27,8 +28,15 @@ options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 options		NFS_LEGACYRPC
 # Debugging for use in -current
-options		INVARIANTS
-options		INVARIANT_SUPPORT
+# options		INVARIANTS
+# options		INVARIANT_SUPPORT
+# options		WITNESS
+# options		WITNESS_SKIPSPIN
+options         FFS                     #Berkeley Fast Filesystem
+options         SOFTUPDATES             #Enable FFS soft updates support
+options         UFS_ACL                 #Support for access control lists
+options         UFS_DIRHASH             #Improve performance on big directories
+
 
 options		BOOTP
 options		BOOTP_NFSROOT
@@ -37,29 +45,40 @@ options		BOOTP_WIRED_TO=arge0
 options		BOOTP_COMPAT
 options		ROOTDEVNAME=\"nfs:192.168.10.1:/mnt/bsd\"
 
-# device	pci
-# Wireless NIC cards
-# device	wlan            # 802.11 support
-# device	wlan_wep        # 802.11 WEP support
-# device	wlan_ccmp       # 802.11 CCMP support
-# device	wlan_tkip       # 802.11 TKIP support
+device		pci
 
-# device	ath             # Atheros pci/cardbus NIC's
-# option	AH_SUPPORT_AR5416
-# device	ath_hal
-# device	ath_ar5212      # Atheros HAL (Hardware Access Layer)
-# device	ath_rate_sample
+# Wireless NIC cards
+options		IEEE80211_DEBUG
+options		IEEE80211_SUPPORT_TDMA
+device		wlan            # 802.11 support
+device		wlan_wep        # 802.11 WEP support
+device		wlan_ccmp       # 802.11 CCMP support
+device		wlan_tkip       # 802.11 TKIP support
+
+device		ath             # Atheros pci/cardbus NIC's
+options 	ATH_DEBUG
+option		AH_SUPPORT_AR5416
+device		ath_hal
+device		ath_ar5212      # Atheros HAL (Hardware Access Layer)
+device		ath_rate_sample
 
 device		mii
 device		arge
 
-device		uart
+# device		usb
+# options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
+# options		USB_DEBUG
+# device		ehci
 
-device		usb
-options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
-options		USB_DEBUG
-device		ehci
+device		spibus
+device		ar71xx_spi
+device		mx25l
+# device		geom_redboot
+
+device		uart
 
 device		loop
 device		ether
 device		md
+device		bpf
+device		random
