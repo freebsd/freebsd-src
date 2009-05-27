@@ -46,14 +46,18 @@
 #include <signal.h>
 #include <assert.h>
 
-#if !defined(sun)
-/* needed for FreeBSD */ 
+#if defined(sun)
+#define	GETOPT_EOF	EOF
+#else
+/* FreeBSD */ 
 #include <sys/time.h>
 #include <sys/resource.h>
-typedef uintptr_t pc_t;
 
-#define mergesort(a, b, c, d)	lsmergesort(a, b, c, d)
-#endif
+#define	mergesort(a, b, c, d)	lsmergesort(a, b, c, d)
+#define	GETOPT_EOF		(-1)
+
+typedef	uintptr_t	pc_t;
+#endif /* defined(sun) */
 
 #define	LOCKSTAT_OPTSTR	"x:bths:n:d:i:l:f:e:ckwWgCHEATID:RpPo:V"
 
@@ -1059,7 +1063,7 @@ main(int argc, char **argv)
 	char *data_buf;
 	lsrec_t *lsp, **current, **first, **sort_buf, **merge_buf;
 	FILE *out = stdout;
-	char c;
+	int c;
 	pid_t child;
 	int status;
 	int i, j;
@@ -1092,7 +1096,7 @@ main(int argc, char **argv)
 
 	g_nrecs = DEFAULT_NRECS;
 
-	while ((c = getopt(argc, argv, LOCKSTAT_OPTSTR)) != EOF) {
+	while ((c = getopt(argc, argv, LOCKSTAT_OPTSTR)) != GETOPT_EOF) {
 		switch (c) {
 		case 'b':
 			g_recsize = LS_BASIC;
@@ -1386,7 +1390,7 @@ main(int argc, char **argv)
 		dfail("failed to set 'statusrate'");
 
 	optind = 1;
-	while ((c = getopt(argc, argv, LOCKSTAT_OPTSTR)) != EOF) {
+	while ((c = getopt(argc, argv, LOCKSTAT_OPTSTR)) != GETOPT_EOF) {
 		switch (c) {
 		case 'x':
 			if ((p = strchr(optarg, '=')) != NULL)
