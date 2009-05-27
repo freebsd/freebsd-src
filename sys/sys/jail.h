@@ -84,19 +84,11 @@ struct xprison {
 	struct in6_addr	 pr_ip6[];
 #endif
 };
-#define	XPRISON_VERSION	3
+#define	XPRISON_VERSION		3
 
-static const struct prison_state {
-	int		pr_state;
-	const char *	state_name;
-} prison_states[] = {
-#define	PRISON_STATE_INVALID		0
-	{ PRISON_STATE_INVALID,		"INVALID" },
-#define	PRISON_STATE_ALIVE		1
-	{ PRISON_STATE_ALIVE,		"ALIVE" },
-#define	PRISON_STATE_DYING		2
-	{ PRISON_STATE_DYING,		"DYING" },
-};
+#define	PRISON_STATE_INVALID	0
+#define	PRISON_STATE_ALIVE	1
+#define	PRISON_STATE_DYING	2
 
 /*
  * Flags for jail_set and jail_get.
