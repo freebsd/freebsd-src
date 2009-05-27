@@ -14,6 +14,39 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090527: removal of legacy USB stack
+OLD_FILES+=usr/include/legacy/dev/usb/dsbr100io.h
+OLD_FILES+=usr/include/legacy/dev/usb/ehcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ehcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/hid.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_urtwreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_urtwvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/ohcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ohcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/rio500_usb.h
+OLD_FILES+=usr/include/legacy/dev/usb/rt2573_ucode.h
+OLD_FILES+=usr/include/legacy/dev/usb/sl811hsreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/sl811hsvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/ubser.h
+OLD_FILES+=usr/include/legacy/dev/usb/ucomvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/udbp.h
+OLD_FILES+=usr/include/legacy/dev/usb/uftdireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ugraphire_rdesc.h
+OLD_FILES+=usr/include/legacy/dev/usb/uhcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/uhcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_mem.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_port.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_quirks.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbcdc.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdi.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdi_util.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbhid.h
+OLD_FILES+=usr/include/legacy/dev/usb/uxb360gp_rdesc.h
+OLD_DIRS+=usr/include/legacy/dev/usb
+OLD_DIRS+=usr/include/legacy/dev
+OLD_DIRS+=usr/include/legacy
 # 20090522: removal of University of Michigan NFSv4 client
 OLD_FILES+=etc/rc.d/idmapd
 OLD_FILES+=sbin/idmapd
