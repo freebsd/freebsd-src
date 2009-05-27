@@ -47,6 +47,9 @@ OLD_FILES+=usr/include/legacy/dev/usb/uxb360gp_rdesc.h
 OLD_DIRS+=usr/include/legacy/dev/usb
 OLD_DIRS+=usr/include/legacy/dev
 OLD_DIRS+=usr/include/legacy
+# 20090526: removal of makekey(8)
+OLD_FILES+=libexec/makekey
+OLD_FILES+=usr/share/man/man8/makekey.8.gz
 # 20090522: removal of University of Michigan NFSv4 client
 OLD_FILES+=etc/rc.d/idmapd
 OLD_FILES+=sbin/idmapd
