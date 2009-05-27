@@ -122,9 +122,9 @@ static void	mld_slowtimo_vnet(void);
 static void	mld_sysinit(void);
 static void	mld_sysuninit(void);
 static int	mld_v1_input_query(struct ifnet *, const struct ip6_hdr *,
-		    const struct mld_hdr *);
+		    /*const*/ struct mld_hdr *);
 static int	mld_v1_input_report(struct ifnet *, const struct ip6_hdr *,
-		    const struct mld_hdr *);
+		    /*const*/ struct mld_hdr *);
 static void	mld_v1_process_group_timer(struct in6_multi *, const int);
 static void	mld_v1_process_querier_timers(struct mld_ifinfo *);
 static int	mld_v1_transmit_report(struct in6_multi *, const int);
@@ -238,6 +238,11 @@ SYSCTL_V_PROC(V_NET, vnet_inet6, _net_inet6_mld, OID_AUTO, gsrdelay,
  */
 SYSCTL_NODE(_net_inet6_mld, OID_AUTO, ifinfo, CTLFLAG_RD | CTLFLAG_MPSAFE,
     sysctl_mld_ifinfo, "Per-interface MLDv2 state");
+
+static int	mld_v1enable = 1;
+SYSCTL_INT(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_RW,
+    &mld_v1enable, 0, "Enable fallback to MLDv1");
+TUNABLE_INT("net.inet6.mld.v1enable", &mld_v1enable);
 
 /*
  * Packed Router Alert option structure declaration.
@@ -615,36 +620,97 @@ mli_delete_locked(const struct ifnet *ifp)
 /*
  * Process a received MLDv1 general or address-specific query.
  * Assumes that the query header has been pulled up to sizeof(mld_hdr).
+ *
+ * NOTE: Can't be fully const correct as we temporarily embed scope ID in
+ * mld_addr. This is OK as we own the mbuf chain.
  */
 static int
 mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
-    const struct mld_hdr *mld)
+    /*const*/ struct mld_hdr *mld)
 {
 	struct ifmultiaddr	*ifma;
 	struct mld_ifinfo	*mli;
 	struct in6_multi	*inm;
+	int			 is_general_query;
 	uint16_t		 timer;
 #ifdef KTR
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
 
+	is_general_query = 0;
+
+	if (!mld_v1enable) {
+		CTR3(KTR_MLD, "ignore v1 query %s on ifp %p(%s)",
+		    ip6_sprintf(ip6tbuf, &mld->mld_addr),
+		    ifp, ifp->if_xname);
+		return (0);
+	}
+
+	/*
+	 * RFC3810 Section 6.2: MLD queries must originate from
+	 * a router's link-local address.
+	 */
+	if (!IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
+		CTR3(KTR_MLD, "ignore v1 query src %s on ifp %p(%s)",
+		    ip6_sprintf(ip6tbuf, &ip6->ip6_src),
+		    ifp, ifp->if_xname);
+		return (0);
+	}
+
+	/*
+	 * Do address field validation upfront before we accept
+	 * the query.
+	 */
+	if (IN6_IS_ADDR_UNSPECIFIED(&mld->mld_addr)) {
+		/*
+		 * MLDv1 General Query.
+		 * If this was not sent to the all-nodes group, ignore it.
+		 */
+		struct in6_addr		 dst;
+
+		dst = ip6->ip6_dst;
+		in6_clearscope(&dst);
+		if (!IN6_ARE_ADDR_EQUAL(&dst, &in6addr_linklocal_allnodes))
+			return (EINVAL);
+		is_general_query = 1;
+	} else {
+		/*
+		 * Embed scope ID of receiving interface in MLD query for
+		 * lookup whilst we don't hold other locks.
+		 */
+		in6_setscope(&mld->mld_addr, ifp, NULL);
+	}
+
 	IN6_MULTI_LOCK();
 	MLD_LOCK();
 	IF_ADDR_LOCK(ifp);
 
-	mli = MLD_IFINFO(ifp);
-	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
-
 	/*
 	 * Switch to MLDv1 host compatibility mode.
 	 */
+	mli = MLD_IFINFO(ifp);
+	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
 	mld_set_version(mli, MLD_VERSION_1);
 
-	timer = ntohs(mld->mld_maxdelay) * PR_FASTHZ / MLD_TIMER_SCALE;
+	timer = (ntohs(mld->mld_maxdelay) * PR_FASTHZ) / MLD_TIMER_SCALE;
 	if (timer == 0)
 		timer = 1;
 
-	if (!IN6_IS_ADDR_UNSPECIFIED(&mld->mld_addr)) {
+	if (is_general_query) {
+		/*
+		 * For each reporting group joined on this
+		 * interface, kick the report timer.
+		 */
+		CTR2(KTR_MLD, "process v1 general query on ifp %p(%s)",
+		    ifp, ifp->if_xname);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_INET6 ||
+			    ifma->ifma_protospec == NULL)
+				continue;
+			inm = (struct in6_multi *)ifma->ifma_protospec;
+			mld_v1_update_group(inm, timer);
+		}
+	} else {
 		/*
 		 * MLDv1 Group-Specific Query.
 		 * If this is a group-specific MLDv1 query, we need only
@@ -657,32 +723,8 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 			    ifp, ifp->if_xname);
 			mld_v1_update_group(inm, timer);
 		}
-	} else {
-		/*
-		 * MLDv1 General Query.
-		 * If this was not sent to the all-nodes group, ignore it.
-		 */
-		struct in6_addr dst;
-
-		dst = ip6->ip6_dst;
-		in6_clearscope(&dst);
-		if (IN6_ARE_ADDR_EQUAL(&dst, &in6addr_linklocal_allnodes)) {
-			/*
-			 * For each reporting group joined on this
-			 * interface, kick the report timer.
-			 */
-			CTR2(KTR_MLD,
-			    "process v1 general query on ifp %p(%s)",
-			    ifp, ifp->if_xname);
-
-			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				if (ifma->ifma_addr->sa_family != AF_INET6 ||
-				    ifma->ifma_protospec == NULL)
-					continue;
-				inm = (struct in6_multi *)ifma->ifma_protospec;
-				mld_v1_update_group(inm, timer);
-			}
-		}
+		/* XXX Clear embedded scope ID as userland won't expect it. */
+		in6_clearscope(&mld->mld_addr);
 	}
 
 	IF_ADDR_UNLOCK(ifp);
@@ -769,18 +811,38 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	struct mldv2_query	*mld;
 	struct in6_multi	*inm;
 	uint32_t		 maxdelay, nsrc, qqi;
+	int			 is_general_query;
 	uint16_t		 timer;
 	uint8_t			 qrv;
+#ifdef KTR
+	char			 ip6tbuf[INET6_ADDRSTRLEN];
+#endif
 
-	CTR2(KTR_MLD, "process v2 query on ifp %p(%s)", ifp, ifp->if_xname);
+	is_general_query = 0;
+
+	/*
+	 * RFC3810 Section 6.2: MLD queries must originate from
+	 * a router's link-local address.
+	 */
+	if (!IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
+		CTR3(KTR_MLD, "ignore v1 query src %s on ifp %p(%s)",
+		    ip6_sprintf(ip6tbuf, &ip6->ip6_src),
+		    ifp, ifp->if_xname);
+		return (0);
+	}
+
+	CTR2(KTR_MLD, "input v2 query on ifp %p(%s)", ifp, ifp->if_xname);
 
 	mld = (struct mldv2_query *)(mtod(m, uint8_t *) + off);
 
 	maxdelay = ntohs(mld->mld_maxdelay);	/* in 1/10ths of a second */
 	if (maxdelay >= 32678) {
-		maxdelay = (MLD_MRC_MANT(mld->mld_maxdelay) | 0x1000) <<
-			   (MLD_MRC_EXP(mld->mld_maxdelay) + 3);
+		maxdelay = (MLD_MRC_MANT(maxdelay) | 0x1000) <<
+			   (MLD_MRC_EXP(maxdelay) + 3);
 	}
+	timer = (maxdelay * PR_FASTHZ) / MLD_TIMER_SCALE;
+	if (timer == 0)
+		timer = 1;
 
 	qrv = MLD_QRV(mld->mld_misc);
 	if (qrv < 2) {
@@ -795,16 +857,39 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		     (MLD_QQIC_EXP(mld->mld_qqi) + 3);
 	}
 
-	timer = maxdelay * PR_FASTHZ / MLD_TIMER_SCALE;
-	if (timer == 0)
-		timer = 1;
-
 	nsrc = ntohs(mld->mld_numsrc);
 	if (nsrc > MLD_MAX_GS_SOURCES)
 		return (EMSGSIZE);
 	if (icmp6len < sizeof(struct mldv2_query) +
 	    (nsrc * sizeof(struct in6_addr)))
 		return (EMSGSIZE);
+
+	/*
+	 * Do further input validation upfront to avoid resetting timers
+	 * should we need to discard this query.
+	 */
+	if (IN6_IS_ADDR_UNSPECIFIED(&mld->mld_addr)) {
+		/*
+		 * General Queries SHOULD be directed to ff02::1.
+		 * A general query with a source list has undefined
+		 * behaviour; discard it.
+		 */
+		struct in6_addr		 dst;
+
+		dst = ip6->ip6_dst;
+		in6_clearscope(&dst);
+		if (!IN6_ARE_ADDR_EQUAL(&dst, &in6addr_linklocal_allnodes) ||
+		    nsrc > 0)
+			return (EINVAL);
+		is_general_query = 1;
+	} else {
+		/*
+		 * Embed scope ID of receiving interface in MLD query for
+		 * lookup whilst we don't hold other locks (due to KAME
+		 * locking lameness). We own this mbuf chain just now.
+		 */
+		in6_setscope(&mld->mld_addr, ifp, NULL);
+	}
 
 	IN6_MULTI_LOCK();
 	MLD_LOCK();
@@ -813,8 +898,15 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	mli = MLD_IFINFO(ifp);
 	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
 
-	mld_set_version(mli, MLD_VERSION_2);
+	/*
+	 * Discard the v2 query if we're in Compatibility Mode.
+	 * The RFC is pretty clear that hosts need to stay in MLDv1 mode
+	 * until the Old Version Querier Present timer expires.
+	 */
+	if (mli->mli_version != MLD_VERSION_2)
+		goto out_locked;
 
+	mld_set_version(mli, MLD_VERSION_2);
 	mli->mli_rv = qrv;
 	mli->mli_qi = qqi;
 	mli->mli_qri = maxdelay;
@@ -822,39 +914,20 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	CTR4(KTR_MLD, "%s: qrv %d qi %d maxdelay %d", __func__, qrv, qqi,
 	    maxdelay);
 
-	if (IN6_IS_ADDR_UNSPECIFIED(&mld->mld_addr)) {
+	if (is_general_query) {
 		/*
 		 * MLDv2 General Query.
 		 *
 		 * Schedule a current-state report on this ifp for
 		 * all groups, possibly containing source lists.
 		 *
-		 * Strip scope ID embedded by ip6_input(). We do not need
-		 * to do this for the MLD payload.
-		 */
-		struct in6_addr dst;
-
-		dst = ip6->ip6_dst;
-		in6_clearscope(&dst);
-		if (!IN6_ARE_ADDR_EQUAL(&dst, &in6addr_linklocal_allnodes) ||
-		    nsrc > 0) {
-			/*
-			 * General Queries SHOULD be directed to ff02::1.
-			 * A general query with a source list has undefined
-			 * behaviour; discard it.
-			 */
-			goto out_locked;
-		}
-
-		CTR2(KTR_MLD, "process v2 general query on ifp %p(%s)",
-		    ifp, ifp->if_xname);
-
-		/*
 		 * If there is a pending General Query response
 		 * scheduled earlier than the selected delay, do
 		 * not schedule any other reports.
 		 * Otherwise, reset the interface timer.
 		 */
+		CTR2(KTR_MLD, "process v2 general query on ifp %p(%s)",
+		    ifp, ifp->if_xname);
 		if (mli->mli_v2_timer == 0 || mli->mli_v2_timer >= timer) {
 			mli->mli_v2_timer = MLD_RANDOM_DELAY(timer);
 			V_interface_timers_running6 = 1;
@@ -890,6 +963,9 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 */
 		if (mli->mli_v2_timer == 0 || mli->mli_v2_timer >= timer)
 			mld_v2_process_group_query(inm, mli, timer, m, off);
+
+		/* XXX Clear embedded scope ID as userland won't expect it. */
+		in6_clearscope(&mld->mld_addr);
 	}
 
 out_locked:
@@ -1017,27 +1093,57 @@ mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifinfo *mli,
 /*
  * Process a received MLDv1 host membership report.
  * Assumes mld points to mld_hdr in pulled up mbuf chain.
+ *
+ * NOTE: Can't be fully const correct as we temporarily embed scope ID in
+ * mld_addr. This is OK as we own the mbuf chain.
  */
 static int
 mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
-    const struct mld_hdr *mld)
+    /*const*/ struct mld_hdr *mld)
 {
+	struct in6_addr		 src, dst;
 	struct in6_ifaddr	*ia;
 	struct in6_multi	*inm;
-	struct in6_addr		 src, dst;
 #ifdef KTR
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
 
+	if (!mld_v1enable) {
+		CTR3(KTR_MLD, "ignore v1 report %s on ifp %p(%s)",
+		    ip6_sprintf(ip6tbuf, &mld->mld_addr),
+		    ifp, ifp->if_xname);
+		return (0);
+	}
+
 	if (ifp->if_flags & IFF_LOOPBACK)
 		return (0);
-	if (!IN6_IS_ADDR_MULTICAST(&mld->mld_addr))
-		return (EINVAL);
 
+	/*
+	 * MLDv1 reports must originate from a host's link-local address,
+	 * or the unspecified address (when booting).
+	 */
+	src = ip6->ip6_src;
+	in6_clearscope(&src);
+	if (!IN6_IS_SCOPE_LINKLOCAL(&src) && !IN6_IS_ADDR_UNSPECIFIED(&src)) {
+		CTR3(KTR_MLD, "ignore v1 query src %s on ifp %p(%s)",
+		    ip6_sprintf(ip6tbuf, &ip6->ip6_src),
+		    ifp, ifp->if_xname);
+		return (EINVAL);
+	}
+
+	/*
+	 * RFC2710 Section 4: MLDv1 reports must pertain to a multicast
+	 * group, and must be directed to the group itself.
+	 */
 	dst = ip6->ip6_dst;
 	in6_clearscope(&dst);
-	if (!IN6_ARE_ADDR_EQUAL(&mld->mld_addr, &dst))
+	if (!IN6_IS_ADDR_MULTICAST(&mld->mld_addr) ||
+	    !IN6_ARE_ADDR_EQUAL(&mld->mld_addr, &dst)) {
+		CTR3(KTR_MLD, "ignore v1 query dst %s on ifp %p(%s)",
+		    ip6_sprintf(ip6tbuf, &ip6->ip6_dst),
+		    ifp, ifp->if_xname);
 		return (EINVAL);
+	}
 
 	/*
 	 * Make sure we don't hear our own membership report, as fast
@@ -1050,14 +1156,19 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	 * performed for the on-wire address.
 	 */
 	ia = in6ifa_ifpforlinklocal(ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
-	src = ip6->ip6_src;
-	in6_clearscope(&src);
 	if ((ia && IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, IA6_IN6(ia))) ||
 	    (ia == NULL && IN6_IS_ADDR_UNSPECIFIED(&src)))
 		return (0);
 
 	CTR3(KTR_MLD, "process v1 report %s on ifp %p(%s)",
 	    ip6_sprintf(ip6tbuf, &mld->mld_addr), ifp, ifp->if_xname);
+
+	/*
+	 * Embed scope ID of receiving interface in MLD query for lookup
+	 * whilst we don't hold other locks (due to KAME locking lameness).
+	 */
+	if (!IN6_IS_ADDR_UNSPECIFIED(&mld->mld_addr))
+		in6_setscope(&mld->mld_addr, ifp, NULL);
 
 	IN6_MULTI_LOCK();
 	MLD_LOCK();
@@ -1113,6 +1224,9 @@ out_locked:
 	IF_ADDR_UNLOCK(ifp);
 	IN6_MULTI_UNLOCK();
 
+	/* XXX Clear embedded scope ID as userland won't expect it. */
+	in6_clearscope(&mld->mld_addr);
+
 	return (0);
 }
 
@@ -1156,6 +1270,10 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 		return (IPPROTO_DONE);
 	}
 
+	/*
+	 * Userland needs to see all of this traffic for implementing
+	 * the endpoint discovery portion of multicast routing.
+	 */
 	switch (mld->mld_type) {
 	case MLD_LISTENER_QUERY:
 		icmp6_ifstat_inc(ifp, ifs6_in_mldquery);
@@ -1171,7 +1289,7 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 	case MLD_LISTENER_REPORT:
 		icmp6_ifstat_inc(ifp, ifs6_in_mldreport);
 		if (mld_v1_input_report(ifp, ip6, mld) != 0)
-			return (0);	/* Userland needs to see it. */
+			return (0);
 		break;
 	case MLDV2_LISTENER_REPORT:
 		icmp6_ifstat_inc(ifp, ifs6_in_mldreport);
@@ -1290,8 +1408,16 @@ mld_fasttimo_vnet(void)
 			inm = (struct in6_multi *)ifma->ifma_protospec;
 			switch (mli->mli_version) {
 			case MLD_VERSION_1:
+				/*
+				 * XXX Drop IF_ADDR lock temporarily to
+				 * avoid recursion caused by a potential
+				 * call by in6ifa_ifpforlinklocal().
+				 * rwlock candidate?
+				 */
+				IF_ADDR_UNLOCK(ifp);
 				mld_v1_process_group_timer(inm,
 				    mli->mli_version);
+				IF_ADDR_LOCK(ifp);
 				break;
 			case MLD_VERSION_2:
 				mld_v2_process_group_timers(mli, &qrq,
@@ -1510,7 +1636,7 @@ mld_set_version(struct mld_ifinfo *mli, const int version)
 		 * Compute the "Older Version Querier Present" timer as per
 		 * Section 9.12.
 		 */
-		old_version_timer = mli->mli_rv * mli->mli_qi + mli->mli_qri;
+		old_version_timer = (mli->mli_rv * mli->mli_qi) + mli->mli_qri;
 		old_version_timer *= PR_SLOWHZ;
 		mli->mli_v1_timer = old_version_timer;
 	}
@@ -1643,7 +1769,7 @@ mld_v1_process_querier_timers(struct mld_ifinfo *mli)
 
 	MLD_LOCK_ASSERT();
 
-	if (mli->mli_v1_timer == 0 && mli->mli_version != MLD_VERSION_2) {
+	if (mli->mli_version != MLD_VERSION_2 && --mli->mli_v1_timer == 0) {
 		/*
 		 * MLDv1 Querier Present timer expired; revert to MLDv2.
 		 */
