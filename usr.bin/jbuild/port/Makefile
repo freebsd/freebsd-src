@@ -15,11 +15,11 @@ do-fetch:
 
 do-extract:
 	mkdir -p ${WRKSRC}
-	( cd ${WRKSRC} ;  ln -s ../../../* . )
+	( cd ${WRKSRC} ;  ln -s ../../../filemon . ; ln -s ../../../../jbuild .; ln -s ../../../../jdirdep .; ln -s ../../../../make .)
 	cp Makefile.port ${WRKSRC}/Makefile
 
 do-install:
-	( cd ${WRKSRC}/filemon.ko; ${MAKE} install BINDIR=/boot/modules )
+	( cd ${WRKSRC}/filemon; ${MAKE} install BINDIR=/boot/modules )
 	( cd ${WRKSRC}/jbuild; ${MAKE} install BINDIR=${PREFIX}/bin )
 	( cd ${WRKSRC}/jdirdep; ${MAKE} install BINDIR=${PREFIX}/bin )
 	cp ${WRKSRC}/jdirdep/jgetsrc ${PREFIX}/bin
