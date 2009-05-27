@@ -46,13 +46,13 @@ static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/mount.h>
 #include <sys/fcntl.h>
-#include <sys/stat.h>
-#include <sys/syslog.h>
-#include <sys/sysctl.h>
 #include <sys/linker.h>
 #include <sys/module.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
@@ -61,7 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/mount.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
+#include <nfs/nfssvc.h>
 #include <nfsserver/nfs.h>
+
+#include <fs/nfs/nfsport.h>
 
 #include <arpa/inet.h>
 
@@ -233,6 +236,11 @@ char *svcport_str = NULL;
 int opt_flags;
 static int have_v6 = 1;
 
+int v4root_phase = 0;
+char v4root_dirpath[PATH_MAX + 1];
+int run_v4server = 0;
+int has_publicfh = 0;
+
 struct pidfh *pfh = NULL;
 /* Bits for opt_flags above */
 #define	OP_MAPROOT	0x01
@@ -288,16 +296,14 @@ main(argc, argv)
 		have_v6 = 0;
 	else
 		close(s);
-	if (modfind("nfsserver") < 0) {
-		/* Not present in kernel, try loading it */
-		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
-			errx(1, "NFS server is not available or loadable");
-	}
 
-	while ((c = getopt(argc, argv, "2dh:lnp:r")) != -1)
+	while ((c = getopt(argc, argv, "24dh:lnp:r")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
+			break;
+		case '4':
+			run_v4server = 1;
 			break;
 		case 'n':
 			resvport_only = 0;
@@ -343,6 +349,26 @@ main(argc, argv)
 		default:
 			usage();
 		};
+
+	/*
+	 * If the "-4" option was specified OR only the nfsd module is
+	 * found in the server, run "nfsd".
+	 * Otherwise, try and run "nfsserver".
+	 */
+	if (run_v4server > 0) {
+		if (modfind("nfsd") < 0) {
+			/* Not present in kernel, try loading it */
+			if (kldload("nfsd") < 0 || modfind("nfsd") < 0)
+				errx(1, "NFS server is not available");
+		}
+	} else if (modfind("nfsserver") < 0 && modfind("nfsd") >= 0) {
+		run_v4server = 1;
+	} else if (modfind("nfsserver") < 0) {
+		/* Not present in kernel, try loading it */
+		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
+			errx(1, "NFS server is not available");
+	}
+
 	argc -= optind;
 	argv += optind;
 	grphead = (struct grouplist *)NULL;
@@ -707,7 +733,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-		"usage: mountd [-2] [-d] [-l] [-n] [-p <port>] [-r] "
+		"usage: mountd [-2] [-4] [-d] [-l] [-n] [-p <port>] [-r] "
 		"[-h <bindip>] [export_file ...]\n");
 	exit(1);
 }
@@ -1146,6 +1172,7 @@ get_exportlist_one()
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
 	int len, has_host, exflags, got_nondir, dirplen, netgrp;
 
+	v4root_phase = 0;
 	dirhead = (struct dirlist *)NULL;
 	while (get_line()) {
 		if (debug)
@@ -1164,6 +1191,24 @@ get_exportlist_one()
 		got_nondir = 0;
 		opt_flags = 0;
 		ep = (struct exportlist *)NULL;
+		dirp = NULL;
+
+		/*
+		 * Handle the V4 root dir.
+		 */
+		if (*cp == 'V' && *(cp + 1) == '4' && *(cp + 2) == ':') {
+			/*
+			 * V4: just indicates that it is the v4 root point,
+			 * so skip over that and set v4root_phase.
+			 */
+			if (v4root_phase > 0) {
+				syslog(LOG_ERR, "V4:duplicate line, ignored");
+				goto nextline;
+			}
+			v4root_phase = 1;
+			cp += 3;
+			nextfield(&cp, &endcp);
+		}
 
 		/*
 		 * Create new exports list entry
@@ -1191,6 +1236,13 @@ get_exportlist_one()
 			} else if (*cp == '/') {
 			    savedc = *endcp;
 			    *endcp = '\0';
+			    if (v4root_phase > 1) {
+				    if (dirp != NULL) {
+					syslog(LOG_ERR, "Multiple V4 dirs");
+					getexp_err(ep, tgrp);
+					goto nextline;
+				    }
+			    }
 			    if (check_dirpath(cp) &&
 				statfs(cp, &fsb) >= 0) {
 				if (got_nondir) {
@@ -1198,43 +1250,68 @@ get_exportlist_one()
 				    getexp_err(ep, tgrp);
 				    goto nextline;
 				}
-				if (ep) {
-				    if (ep->ex_fs.val[0] != fsb.f_fsid.val[0] ||
-					ep->ex_fs.val[1] != fsb.f_fsid.val[1]) {
+				if (v4root_phase == 1) {
+				    if (dirp != NULL) {
+					syslog(LOG_ERR, "Multiple V4 dirs");
 					getexp_err(ep, tgrp);
 					goto nextline;
 				    }
+				    if (strlen(v4root_dirpath) == 0) {
+					strlcpy(v4root_dirpath, cp,
+					    sizeof (v4root_dirpath));
+				    } else if (strcmp(v4root_dirpath, cp)
+					!= 0) {
+					syslog(LOG_ERR,
+					    "different V4 dirpath %s", cp);
+					getexp_err(ep, tgrp);
+					goto nextline;
+				    }
+				    dirp = cp;
+				    v4root_phase = 2;
+				    got_nondir = 1;
+				    ep = get_exp();
 				} else {
-				    /*
-				     * See if this directory is already
-				     * in the list.
-				     */
-				    ep = ex_search(&fsb.f_fsid);
-				    if (ep == (struct exportlist *)NULL) {
-					ep = get_exp();
-					ep->ex_fs = fsb.f_fsid;
-					ep->ex_fsdir = (char *)
-					    malloc(strlen(fsb.f_mntonname) + 1);
-					if (ep->ex_fsdir)
-					    strcpy(ep->ex_fsdir,
-						fsb.f_mntonname);
-					else
-					    out_of_mem();
-					if (debug)
-						warnx("making new ep fs=0x%x,0x%x",
-						    fsb.f_fsid.val[0],
-						    fsb.f_fsid.val[1]);
-				    } else if (debug)
-					warnx("found ep fs=0x%x,0x%x",
-					    fsb.f_fsid.val[0],
-					    fsb.f_fsid.val[1]);
-				}
+				    if (ep) {
+					if (ep->ex_fs.val[0] !=
+					    fsb.f_fsid.val[0] ||
+					    ep->ex_fs.val[1] !=
+					    fsb.f_fsid.val[1]) {
+						getexp_err(ep, tgrp);
+						goto nextline;
+					}
+				    } else {
+					/*
+					 * See if this directory is already
+					 * in the list.
+					 */
+					ep = ex_search(&fsb.f_fsid);
+					if (ep == (struct exportlist *)NULL) {
+					    ep = get_exp();
+					    ep->ex_fs = fsb.f_fsid;
+					    ep->ex_fsdir = (char *)malloc
+					        (strlen(fsb.f_mntonname) + 1);
+					    if (ep->ex_fsdir)
+						strcpy(ep->ex_fsdir,
+						    fsb.f_mntonname);
+					    else
+						out_of_mem();
+					    if (debug)
+						warnx(
+						  "making new ep fs=0x%x,0x%x",
+						  fsb.f_fsid.val[0],
+						  fsb.f_fsid.val[1]);
+					} else if (debug)
+					    warnx("found ep fs=0x%x,0x%x",
+						fsb.f_fsid.val[0],
+						fsb.f_fsid.val[1]);
+				    }
 
-				/*
-				 * Add dirpath to export mount point.
-				 */
-				dirp = add_expdir(&dirhead, cp, len);
-				dirplen = len;
+				    /*
+				     * Add dirpath to export mount point.
+				     */
+				    dirp = add_expdir(&dirhead, cp, len);
+				    dirplen = len;
+				}
 			    } else {
 				getexp_err(ep, tgrp);
 				goto nextline;
@@ -1314,6 +1391,12 @@ get_exportlist_one()
 			}
 		}
 
+		if (v4root_phase == 1) {
+			syslog(LOG_ERR, "V4:root, no dirp, ignored");
+			getexp_err(ep, tgrp);
+			goto nextline;
+		}
+
 		/*
 		 * Loop through hosts, pushing the exports into the kernel.
 		 * After loop, tgrp points to the start of the list and
@@ -1327,6 +1410,12 @@ get_exportlist_one()
 				goto nextline;
 			}
 		} while (grp->gr_next && (grp = grp->gr_next));
+
+		/*
+		 * For V4: don't enter in mount lists.
+		 */
+		if (v4root_phase > 0 && v4root_phase <= 2)
+			goto nextline;
 
 		/*
 		 * Success. Update the data structures.
@@ -1358,6 +1447,7 @@ get_exportlist_one()
 			ep->ex_flag |= EX_LINKED;
 		}
 nextline:
+		v4root_phase = 0;
 		if (dirhead) {
 			free_dir(dirhead);
 			dirhead = (struct dirlist *)NULL;
@@ -1382,7 +1472,9 @@ get_exportlist()
 	int dirplen, num, i;
 	int iovlen;
 	int done;
+	struct nfsex_args eargs;
 
+	v4root_dirpath[0] = '\0';
 	bzero(&export, sizeof(export));
 	export.ex_flags = MNT_DELEXPORT;
 	dirp = NULL;
@@ -1409,6 +1501,21 @@ get_exportlist()
 		free_grp(tgrp);
 	}
 	grphead = (struct grouplist *)NULL;
+
+	/*
+	 * and the old V4 root dir.
+	 */
+	bzero(&eargs, sizeof (eargs));
+	eargs.export.ex_flags = MNT_DELEXPORT;
+	if (run_v4server > 0 &&
+	    nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&eargs) < 0 &&
+	    errno != ENOENT)
+		syslog(LOG_ERR, "Can't delete exports for V4:");
+
+	/*
+	 * and clear flag that notes if a public fh has been exported.
+	 */
+	has_publicfh = 0;
 
 	/*
 	 * And delete exports that are in the kernel for all local
@@ -1491,6 +1598,12 @@ get_exportlist()
 		syslog(LOG_ERR, "can't open any exports file");
 		exit(2);
 	}
+
+	/*
+	 * If there was no public fh, clear any previous one set.
+	 */
+	if (run_v4server > 0 && has_publicfh == 0)
+		(void) nfssvc(NFSSVC_NOPUBLICFH, NULL);
 }
 
 /*
@@ -2085,7 +2198,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 {
 	struct statfs fsb1;
 	struct addrinfo *ai;
-	struct export_args eap;
+	struct export_args ea, *eap;
 	char errmsg[255];
 	char *cp;
 	int done;
@@ -2093,6 +2206,12 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 	struct iovec *iov;
 	int i, iovlen;
 	int ret;
+	struct nfsex_args nfsea;
+
+	if (run_v4server > 0)
+		eap = &nfsea.export;
+	else
+		eap = &ea;
 
 	cp = NULL;
 	savedc = '\0';
@@ -2100,57 +2219,60 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 	iovlen = 0;
 	ret = 0;
 
-	bzero(&eap, sizeof(eap));
+	bzero(eap, sizeof (struct export_args));
 	bzero(errmsg, sizeof(errmsg));
-	eap.ex_flags = exflags;
-	eap.ex_anon = *anoncrp;
-	eap.ex_indexfile = ep->ex_indexfile;
+	eap->ex_flags = exflags;
+	eap->ex_anon = *anoncrp;
+	eap->ex_indexfile = ep->ex_indexfile;
 	if (grp->gr_type == GT_HOST)
 		ai = grp->gr_ptr.gt_addrinfo;
 	else
 		ai = NULL;
-	eap.ex_numsecflavors = ep->ex_numsecflavors;
-	for (i = 0; i < eap.ex_numsecflavors; i++)
-		eap.ex_secflavors[i] = ep->ex_secflavors[i];
-	if (eap.ex_numsecflavors == 0) {
-		eap.ex_numsecflavors = 1;
-		eap.ex_secflavors[0] = AUTH_SYS;
+	eap->ex_numsecflavors = ep->ex_numsecflavors;
+	for (i = 0; i < eap->ex_numsecflavors; i++)
+		eap->ex_secflavors[i] = ep->ex_secflavors[i];
+	if (eap->ex_numsecflavors == 0) {
+		eap->ex_numsecflavors = 1;
+		eap->ex_secflavors[0] = AUTH_SYS;
 	}
 	done = FALSE;
 
-	build_iovec(&iov, &iovlen, "fstype", NULL, 0);
-	build_iovec(&iov, &iovlen, "fspath", NULL, 0);
-	build_iovec(&iov, &iovlen, "from", NULL, 0);
-	build_iovec(&iov, &iovlen, "update", NULL, 0);
-	build_iovec(&iov, &iovlen, "export", &eap, sizeof(eap));
-	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+	if (v4root_phase == 0) {
+		build_iovec(&iov, &iovlen, "fstype", NULL, 0);
+		build_iovec(&iov, &iovlen, "fspath", NULL, 0);
+		build_iovec(&iov, &iovlen, "from", NULL, 0);
+		build_iovec(&iov, &iovlen, "update", NULL, 0);
+		build_iovec(&iov, &iovlen, "export", eap,
+		    sizeof (struct export_args));
+		build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+	}
 
 	while (!done) {
 		switch (grp->gr_type) {
 		case GT_HOST:
 			if (ai->ai_addr->sa_family == AF_INET6 && have_v6 == 0)
 				goto skip;
-			eap.ex_addr = ai->ai_addr;
-			eap.ex_addrlen = ai->ai_addrlen;
-			eap.ex_masklen = 0;
+			eap->ex_addr = ai->ai_addr;
+			eap->ex_addrlen = ai->ai_addrlen;
+			eap->ex_masklen = 0;
 			break;
 		case GT_NET:
 			if (grp->gr_ptr.gt_net.nt_net.ss_family == AF_INET6 &&
 			    have_v6 == 0)
 				goto skip;
-			eap.ex_addr =
+			eap->ex_addr =
 			    (struct sockaddr *)&grp->gr_ptr.gt_net.nt_net;
-			eap.ex_addrlen =
+			eap->ex_addrlen =
 			    ((struct sockaddr *)&grp->gr_ptr.gt_net.nt_net)->sa_len;
-			eap.ex_mask =
+			eap->ex_mask =
 			    (struct sockaddr *)&grp->gr_ptr.gt_net.nt_mask;
-			eap.ex_masklen = ((struct sockaddr *)&grp->gr_ptr.gt_net.nt_mask)->sa_len;
+			eap->ex_masklen = ((struct sockaddr *)&grp->gr_ptr.gt_net.nt_mask)->sa_len;
 			break;
 		case GT_DEFAULT:
-			eap.ex_addr = NULL;
-			eap.ex_addrlen = 0;
-			eap.ex_mask = NULL;
-			eap.ex_masklen = 0;
+			eap->ex_addr = NULL;
+			eap->ex_addrlen = 0;
+			eap->ex_mask = NULL;
+			eap->ex_masklen = 0;
 			break;
 		case GT_IGNORE:
 			ret = 0;
@@ -2165,73 +2287,115 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 		};
 
 		/*
-		 * XXX:
-		 * Maybe I should just use the fsb->f_mntonname path instead
-		 * of looping back up the dirp to the mount point??
-		 * Also, needs to know how to export all types of local
-		 * exportable filesystems and not just "ufs".
+		 * For V4:, use the nfssvc() syscall, instead of mount().
 		 */
-		iov[1].iov_base = fsb->f_fstypename; /* "fstype" */
-		iov[1].iov_len = strlen(fsb->f_fstypename) + 1;
-		iov[3].iov_base = fsb->f_mntonname; /* "fspath" */
-		iov[3].iov_len = strlen(fsb->f_mntonname) + 1;
-		iov[5].iov_base = fsb->f_mntfromname; /* "from" */
-		iov[5].iov_len = strlen(fsb->f_mntfromname) + 1;
-
-		while (nmount(iov, iovlen, fsb->f_flags) < 0) {
-			if (cp)
-				*cp-- = savedc;
-			else
-				cp = dirp + dirplen - 1;
-			if (opt_flags & OP_QUIET) {
-				ret = 1;
-				goto error_exit;
+		if (v4root_phase == 2) {
+			nfsea.fspec = v4root_dirpath;
+			if (run_v4server > 0 &&
+			    nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&nfsea) < 0) {
+				syslog(LOG_ERR, "Exporting V4: failed");
+				return (2);
 			}
-			if (errno == EPERM) {
-				if (debug)
-					warnx("can't change attributes for %s",
-					    dirp);
-				syslog(LOG_ERR,
-				   "can't change attributes for %s", dirp);
-				ret = 1;
-				goto error_exit;
-			}
-			if (opt_flags & OP_ALLDIRS) {
-				if (errno == EINVAL)
-					syslog(LOG_ERR,
-		"-alldirs requested but %s is not a filesystem mountpoint",
-						dirp);
+		} else {
+			/*
+			 * XXX:
+			 * Maybe I should just use the fsb->f_mntonname path
+			 * instead of looping back up the dirp to the mount
+			 * point??
+			 * Also, needs to know how to export all types of local
+			 * exportable filesystems and not just "ufs".
+			 */
+			iov[1].iov_base = fsb->f_fstypename; /* "fstype" */
+			iov[1].iov_len = strlen(fsb->f_fstypename) + 1;
+			iov[3].iov_base = fsb->f_mntonname; /* "fspath" */
+			iov[3].iov_len = strlen(fsb->f_mntonname) + 1;
+			iov[5].iov_base = fsb->f_mntfromname; /* "from" */
+			iov[5].iov_len = strlen(fsb->f_mntfromname) + 1;
+	
+			while (nmount(iov, iovlen, fsb->f_flags) < 0) {
+				if (cp)
+					*cp-- = savedc;
 				else
+					cp = dirp + dirplen - 1;
+				if (opt_flags & OP_QUIET) {
+					ret = 1;
+					goto error_exit;
+				}
+				if (errno == EPERM) {
+					if (debug)
+						warnx("can't change attributes for %s",
+						    dirp);
 					syslog(LOG_ERR,
-						"could not remount %s: %m",
-						dirp);
-				ret = 1;
-				goto error_exit;
+					   "can't change attributes for %s",
+					    dirp);
+					ret = 1;
+					goto error_exit;
+				}
+				if (opt_flags & OP_ALLDIRS) {
+					if (errno == EINVAL)
+						syslog(LOG_ERR,
+		"-alldirs requested but %s is not a filesystem mountpoint",
+						    dirp);
+					else
+						syslog(LOG_ERR,
+						    "could not remount %s: %m",
+						    dirp);
+					ret = 1;
+					goto error_exit;
+				}
+				/* back up over the last component */
+				while (*cp == '/' && cp > dirp)
+					cp--;
+				while (*(cp - 1) != '/' && cp > dirp)
+					cp--;
+				if (cp == dirp) {
+					if (debug)
+						warnx("mnt unsucc");
+					syslog(LOG_ERR, "can't export %s %s",
+					    dirp, errmsg);
+					ret = 1;
+					goto error_exit;
+				}
+				savedc = *cp;
+				*cp = '\0';
+				/*
+				 * Check that we're still on the same
+				 * filesystem.
+				 */
+				if (statfs(dirp, &fsb1) != 0 ||
+				    bcmp(&fsb1.f_fsid, &fsb->f_fsid,
+				    sizeof (fsb1.f_fsid)) != 0) {
+					*cp = savedc;
+					syslog(LOG_ERR,
+					    "can't export %s %s", dirp,
+					    errmsg);
+					ret = 1;
+					goto error_exit;
+				}
 			}
-			/* back up over the last component */
-			while (*cp == '/' && cp > dirp)
-				cp--;
-			while (*(cp - 1) != '/' && cp > dirp)
-				cp--;
-			if (cp == dirp) {
-				if (debug)
-					warnx("mnt unsucc");
-				syslog(LOG_ERR, "can't export %s %s", dirp,
-				    errmsg);
-				ret = 1;
-				goto error_exit;
-			}
-			savedc = *cp;
-			*cp = '\0';
-			/* Check that we're still on the same filesystem. */
-			if (statfs(dirp, &fsb1) != 0 || bcmp(&fsb1.f_fsid,
-			    &fsb->f_fsid, sizeof(fsb1.f_fsid)) != 0) {
-				*cp = savedc;
-				syslog(LOG_ERR, "can't export %s %s", dirp,
-				    errmsg);
-				ret = 1;
-				goto error_exit;
-			}
+		}
+
+		/*
+		 * For the experimental server:
+		 * If this is the public directory, get the file handle
+		 * and load it into the kernel via the nfssvc() syscall.
+		 */
+		if (run_v4server > 0 && (exflags & MNT_EXPUBLIC) != 0) {
+			fhandle_t fh;
+			char *public_name;
+
+			if (eap->ex_indexfile != NULL)
+				public_name = eap->ex_indexfile;
+			else
+				public_name = dirp;
+			if (getfh(public_name, &fh) < 0)
+				syslog(LOG_ERR,
+				    "Can't get public fh for %s", public_name);
+			else if (nfssvc(NFSSVC_PUBLICFH, (caddr_t)&fh) < 0)
+				syslog(LOG_ERR,
+				    "Can't set public fh for %s", public_name);
+			else
+				has_publicfh = 1;
 		}
 skip:
 		if (ai != NULL)
@@ -2688,7 +2852,7 @@ check_options(dp)
 	struct dirlist *dp;
 {
 
-	if (dp == (struct dirlist *)NULL)
+	if (v4root_phase == 0 && dp == NULL)
 	    return (1);
 	if ((opt_flags & (OP_MAPROOT | OP_MAPALL)) == (OP_MAPROOT | OP_MAPALL)) {
 	    syslog(LOG_ERR, "-mapall and -maproot mutually exclusive");
@@ -2708,6 +2872,12 @@ check_options(dp)
 	}
 	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
 	    syslog(LOG_ERR, "-alldirs has multiple directories");
+	    return (1);
+	}
+	if (v4root_phase > 0 &&
+	    (opt_flags &
+	     ~(OP_SEC | OP_MASK | OP_NET | OP_HAVEMASK | OP_MASKLEN)) != 0) {
+	    syslog(LOG_ERR,"only -sec,-net,-mask options allowed on V4:");
 	    return (1);
 	}
 	return (0);
@@ -2871,3 +3041,4 @@ int sig;
 	rpcb_unset(RPCPROG_MNT, RPCMNT_VER3, NULL);
 	exit (0);
 }
+
