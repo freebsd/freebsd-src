@@ -176,6 +176,7 @@ static int xennet_get_responses(struct netfront_info *np,
  */
 struct xn_chain_data {
 		struct mbuf		*xn_tx_chain[NET_TX_RING_SIZE+1];
+		int			xn_tx_chain_cnt;
 		struct mbuf		*xn_rx_chain[NET_RX_RING_SIZE+1];
 };
 
@@ -727,6 +728,10 @@ netif_release_tx_bufs(struct netfront_info *np)
 		    np->grant_tx_ref[i]);
 		np->grant_tx_ref[i] = GRANT_INVALID_REF;
 		add_id_to_freelist(np->tx_mbufs, i);
+		np->xn_cdata.xn_tx_chain_cnt--;
+		if (np->xn_cdata.xn_tx_chain_cnt < 0) {
+			panic("netif_release_tx_bufs: tx_chain_cnt must be >= 0");
+		}
 		m_freem(m);
 	}
 }
@@ -1089,6 +1094,10 @@ xn_txeof(struct netfront_info *np)
 			
 			np->xn_cdata.xn_tx_chain[id] = NULL;
 			add_id_to_freelist(np->xn_cdata.xn_tx_chain, id);
+			np->xn_cdata.xn_tx_chain_cnt--;
+			if (np->xn_cdata.xn_tx_chain_cnt < 0) {
+				panic("netif_release_tx_bufs: tx_chain_cnt must be >= 0");
+			}
 			m_free(m);
 		}
 		np->tx.rsp_cons = prod;
@@ -1417,7 +1426,6 @@ xn_start_locked(struct ifnet *ifp)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-		
 
 		/*
 		 * Defragment the mbuf if necessary.
@@ -1433,6 +1441,36 @@ xn_start_locked(struct ifnet *ifp)
 			m_head = m;
 		}
 
+		/* Determine how many fragments now exist */
+		for (m = m_head, nfrags = 0; m; m = m->m_next)
+			nfrags++;
+
+		/*
+		 * Don't attempt to queue this packet if there aren't enough free entries in the chain.
+		 * There isn't a 1:1 correspondance between the mbuf TX ring and the xenbus TX ring.
+		 * xn_txeof() may need to be called to free up some slots.
+		 *
+		 * It is quite possible that this can be later eliminated if it turns out that partial
+		 * packets can be pushed into the ringbuffer, with fragments pushed in when further slots
+		 * free up.
+		 *
+		 * It is also quite possible that the driver will lock up - Xen may not send another
+		 * interrupt to kick the tx/rx processing if the xenbus RX ring is full and xenbus TX ring
+		 * is empty - no further TX work can be done until space is made in the TX mbuf ring and
+		 * the RX side may be waiting for TX data to continue. It is quite possible some timer
+		 * event should be created to kick TX/RX processing along in certain conditions.
+		 */
+
+		/* its not +1 like the allocation because we need to keep slot [0] free for the freelist head */
+		if (sc->xn_cdata.xn_tx_chain_cnt + nfrags >= NET_TX_RING_SIZE) {
+			printf("xn_start_locked: xn_tx_chain_cnt (%d) + nfrags %d >= NET_TX_RING_SIZE (%d); must be full!\n",
+			    (int) sc->xn_cdata.xn_tx_chain_cnt, (int) nfrags, (int) NET_TX_RING_SIZE);
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
+
+
 		/*
 		 * Start packing the mbufs in this chain into
 		 * the fragment pointers. Stop when we run out
@@ -1443,6 +1481,11 @@ xn_start_locked(struct ifnet *ifp)
 		for (m = m_head; m; m = m->m_next) {
 			tx = RING_GET_REQUEST(&sc->tx, i);
 			id = get_id_from_freelist(sc->xn_cdata.xn_tx_chain);
+			if (id == 0)
+				panic("xn_start_locked: was allocated the freelist head!\n");
+			sc->xn_cdata.xn_tx_chain_cnt++;
+			if (sc->xn_cdata.xn_tx_chain_cnt >= NET_TX_RING_SIZE+1)
+				panic("xn_start_locked: tx_chain_cnt must be < NET_TX_RING_SIZE+1\n");
 			sc->xn_cdata.xn_tx_chain[id] = m;
 			tx->id = id;
 			ref = gnttab_claim_grant_reference(&sc->gref_tx_head);
