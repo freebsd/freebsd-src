@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2008
+.Dd May 27, 2009
 .Dt JEXEC 8
 .Os
 .Sh NAME
@@ -34,36 +34,18 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl u Ar username | Fl U Ar username
-.Op Fl n Ar jailname
-.Ar jid command ...
+.Ar jail command ...
 .Sh DESCRIPTION
 The
 .Nm
 utility executes
 .Ar command
-inside the jail identified by either
-.Ar jailname
-or
-.Ar jid
-or both.
-.Pp
-If the jail cannot be identified uniquely by the given parameters,
-an error message is printed.
-.Nm
-will also check the state of the jail (once supported) to be
-.Dv ALIVE
-and ignore jails in other states.
-The mandatory argument
-.Ar jid
-is the unique jail identifier as given by
-.Xr jls 8 .
-In case you only want to match on other criteria, give an empty string.
+inside the
+.Ar jail
+identified by its jid or name.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Fl n Ar jailname
-The name of the jail, if given upon creation of the jail.
-This is not the hostname of the jail.
 .It Fl u Ar username
 The user name from host environment as whom the
 .Ar command
