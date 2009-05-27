@@ -29,12 +29,16 @@
 
 #include <sys/param.h>
 #include <sys/jail.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <login_cap.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,153 +47,6 @@
 #include <unistd.h>
 
 static void	usage(void);
-
-#ifdef SUPPORT_OLD_XPRISON
-static
-char *lookup_xprison_v1(void *p, char *end, int *id)
-{
-	struct xprison_v1 *xp;
-
-	if (id == NULL)
-		errx(1, "Internal error. Invalid ID pointer.");
-
-	if ((char *)p + sizeof(struct xprison_v1) > end)
-		errx(1, "Invalid length for jail");
-
-	xp = (struct xprison_v1 *)p;
-
-	*id = xp->pr_id;
-	return ((char *)(xp + 1));
-}
-#endif
-
-static
-char *lookup_xprison_v3(void *p, char *end, int *id, char *jailname)
-{
-	struct xprison *xp;
-	char *q;
-	int ok;
-
-	if (id == NULL)
-		errx(1, "Internal error. Invalid ID pointer.");
-
-	if ((char *)p + sizeof(struct xprison) > end)
-		errx(1, "Invalid length for jail");
-
-	xp = (struct xprison *)p;
-	ok = 1;
-
-	/* Jail state and name. */
-	if (xp->pr_state < 0 || xp->pr_state >=
-	    (int)((sizeof(prison_states) / sizeof(struct prison_state))))
-		errx(1, "Invalid jail state.");
-	else if (xp->pr_state != PRISON_STATE_ALIVE)
-		ok = 0;
-	if (jailname != NULL) {
-		if (xp->pr_name[0] == '\0')
-			ok = 0;
-		else if (strcmp(jailname, xp->pr_name) != 0)
-			ok = 0;
-	}
-
-	q = (char *)(xp + 1);
-	/* IPv4 addresses. */
-	q += (xp->pr_ip4s * sizeof(struct in_addr));
-	if ((char *)q > end)
-		errx(1, "Invalid length for jail");
-	/* IPv6 addresses. */
-	q += (xp->pr_ip6s * sizeof(struct in6_addr));
-	if ((char *)q > end)
-		errx(1, "Invalid length for jail");
-
-	if (ok)
-		*id = xp->pr_id;
-	return (q);
-}
-
-static int
-lookup_jail(int jid, char *jailname)
-{
-	size_t i, j, len;
-	void *p, *q;
-	int version, id, xid, count;
-
-	if (sysctlbyname("security.jail.list", NULL, &len, NULL, 0) == -1)
-		err(1, "sysctlbyname(): security.jail.list");
-
-	j = len;
-	for (i = 0; i < 4; i++) {
-		if (len == 0)
-			return (-1);
-		p = q = malloc(len);
-		if (p == NULL)
-			err(1, "malloc()");
-
-		if (sysctlbyname("security.jail.list", q, &len, NULL, 0) == -1) {
-			if (errno == ENOMEM) {
-				free(p);
-				p = NULL;
-				len += j;
-				continue;
-			}
-			err(1, "sysctlbyname(): security.jail.list");
-		}
-		break;
-	}
-	if (p == NULL)
-		err(1, "sysctlbyname(): security.jail.list");
-	if (len < sizeof(int))
-		errx(1, "This is no prison. Kernel and userland out of sync?");
-	version = *(int *)p;
-	if (version > XPRISON_VERSION)
-		errx(1, "Sci-Fi prison. Kernel/userland out of sync?");
-
-	count = 0;
-	xid = -1;
-	for (; q != NULL && (char *)q + sizeof(int) < (char *)p + len;) {
-		version = *(int *)q;
-		if (version > XPRISON_VERSION)
-			errx(1, "Sci-Fi prison. Kernel/userland out of sync?");
-		id = -1;
-		switch (version) {
-#ifdef SUPPORT_OLD_XPRISON
-		case 1:
-			if (jailname != NULL)
-				errx(1, "Version 1 prisons did not "
-				    "support jail names.");
-			q = lookup_xprison_v1(q, (char *)p + len, &id);
-			break;
-		case 2:
-			errx(1, "Version 2 was used by multi-IPv4 jail "
-			    "implementations that never made it into the "
-			    "official kernel.");
-			/* NOTREACHED */
-			break;
-#endif
-		case 3:
-			q = lookup_xprison_v3(q, (char *)p + len, &id, jailname);
-			break;
-		default:
-			errx(1, "Prison unknown. Kernel/userland out of sync?");
-			/* NOTREACHED */
-			break;
-		}
-		/* Possible match; see if we have a jail ID to match as well.  */
-		if (id > 0 && (jid <= 0 || id == jid)) {
-			xid = id;
-			count++;
-		}
-	}
-
-	free(p);
-
-	if (count == 1)
-		return (xid);
-	else if (count > 1)
-		errx(1, "Could not uniquely identify the jail.");
-	else
-		return (-1);
-}
 
 #define GET_USER_INFO do {						\
 	pwd = getpwnam(username);					\
@@ -210,21 +67,20 @@ lookup_jail(int jid, char *jailname)
 int
 main(int argc, char *argv[])
 {
+	struct iovec params[2];
 	int jid;
 	login_cap_t *lcap = NULL;
 	struct passwd *pwd = NULL;
 	gid_t groups[NGROUPS];
 	int ch, ngroups, uflag, Uflag;
-	char *jailname, *username;
-
+	char *ep, *username;
 	ch = uflag = Uflag = 0;
-	jailname = username = NULL;
-	jid = -1;
+	username = NULL;
 
-	while ((ch = getopt(argc, argv, "i:n:u:U:")) != -1) {
+	while ((ch = getopt(argc, argv, "nu:U:")) != -1) {
 		switch (ch) {
 		case 'n':
-			jailname = optarg;
+			/* Specified name, now unused */
 			break;
 		case 'u':
 			username = optarg;
@@ -242,22 +98,20 @@ main(int argc, char *argv[])
 	argv += optind;
 	if (argc < 2)
 		usage();
-	if (strlen(argv[0]) > 0) {
-		jid = (int)strtol(argv[0], NULL, 10);
-		if (errno)
-			err(1, "Unable to parse jail ID.");
-	}
-	if (jid <= 0 && jailname == NULL) {
-		fprintf(stderr, "Neither jail ID nor jail name given.\n");
-		usage();
-	}
 	if (uflag && Uflag)
 		usage();
 	if (uflag)
 		GET_USER_INFO;
-	jid = lookup_jail(jid, jailname);
-	if (jid <= 0)
-		errx(1, "Cannot identify jail.");
+	jid = strtoul(argv[0], &ep, 10);
+	if (!*argv[0] || *ep) {
+		*(const void **)&params[0].iov_base = "name";
+		params[0].iov_len = sizeof("name");
+		params[1].iov_base = argv[0];
+		params[1].iov_len = strlen(argv[0]) + 1;
+		jid = jail_get(params, 2, 0);
+		if (jid < 0)
+			errx(1, "Unknown jail: %s", argv[0]);
+	}
 	if (jail_attach(jid) == -1)
 		err(1, "jail_attach(): %d", jid);
 	if (chdir("/") == -1)
@@ -283,8 +137,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "%s%s\n",
-		"usage: jexec [-u username | -U username]",
-		" [-n jailname] jid command ...");
+	fprintf(stderr, "%s\n",
+		"usage: jexec [-u username | -U username] jail command ...");
 	exit(1); 
 }
