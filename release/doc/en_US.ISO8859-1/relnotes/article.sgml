@@ -141,8 +141,6 @@
       <sect3 id="proc">
 	<title>Hardware Support</title>
 
-	<para></para>
-
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
@@ -174,7 +172,15 @@
       <sect3 id="fs">
 	<title>File Systems</title>
 
-	<para></para>
+	<para>ZFS has been updated from version 6 to version 13.
+	  This update includes numerous new ZFS features, such as
+	  permitting non-<username>root</username> users to perform
+	  some administrative functions, supporting additional disks
+	  for caching or the ZFS Intent Log, and partial &man.chflags.2;
+	  support.  It also includes some &os;-specific additions,
+	  such as booting from ZFS file systems, removal of ARC
+	  size limitations, ARC backpressure (which allows ZFS to work
+	  without tunables on &arch.amd64;), and many bugfixes.</para>
       </sect3>
     </sect2>
 
