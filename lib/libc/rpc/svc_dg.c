@@ -98,6 +98,7 @@ int svc_dg_enablecache(SVCXPRT *, u_int);
 static const char svc_dg_str[] = "svc_dg_create: %s";
 static const char svc_dg_err1[] = "could not get transport information";
 static const char svc_dg_err2[] = " transport does not support data transfer";
+static const char svc_dg_err3[] = "getsockname failed";
 static const char __no_mem_str[] = "out of memory";
 
 SVCXPRT *
@@ -146,8 +147,10 @@ svc_dg_create(fd, sendsize, recvsize)
 	xprt->xp_rtaddr.maxlen = sizeof (struct sockaddr_storage);
 
 	slen = sizeof ss;
-	if (_getsockname(fd, (struct sockaddr *)(void *)&ss, &slen) < 0)
-		goto freedata;
+	if (_getsockname(fd, (struct sockaddr *)(void *)&ss, &slen) < 0) {
+		warnx(svc_dg_str, svc_dg_err3);
+		goto freedata_nowarn;
+	}
 	xprt->xp_ltaddr.buf = mem_alloc(sizeof (struct sockaddr_storage));
 	xprt->xp_ltaddr.maxlen = sizeof (struct sockaddr_storage);
 	xprt->xp_ltaddr.len = slen;
@@ -157,6 +160,7 @@ svc_dg_create(fd, sendsize, recvsize)
 	return (xprt);
 freedata:
 	(void) warnx(svc_dg_str, __no_mem_str);
+freedata_nowarn:
 	if (xprt) {
 		if (su)
 			(void) mem_free(su, sizeof (*su));
@@ -171,6 +175,58 @@ svc_dg_stat(xprt)
 	SVCXPRT *xprt;
 {
 	return (XPRT_IDLE);
+}
+
+static int
+svc_dg_recvfrom(int fd, char *buf, int buflen,
+    struct sockaddr *raddr, socklen_t *raddrlen,
+    struct sockaddr *laddr, socklen_t *laddrlen)
+{
+	struct msghdr msg;
+	struct iovec msg_iov[1];
+	struct sockaddr_in *lin = (struct sockaddr_in *)laddr;
+	int rlen;
+	bool_t have_lin = FALSE;
+	char tmp[CMSG_LEN(sizeof(*lin))];
+	struct cmsghdr *cmsg;
+
+	memset((char *)&msg, 0, sizeof(msg));
+	msg_iov[0].iov_base = buf;
+	msg_iov[0].iov_len = buflen;
+	msg.msg_iov = msg_iov;
+	msg.msg_iovlen = 1;
+	msg.msg_namelen = *raddrlen;
+	msg.msg_name = (char *)raddr;
+	msg.msg_control = (caddr_t)tmp;
+	msg.msg_controllen = CMSG_LEN(sizeof(*lin));
+	rlen = _recvmsg(fd, &msg, 0);
+	if (rlen >= 0)
+		*raddrlen = msg.msg_namelen;
+
+	if (rlen == -1 || !laddr ||
+	    msg.msg_controllen < sizeof(struct cmsghdr) ||
+	    msg.msg_flags & MSG_CTRUNC)
+		return rlen;
+
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+	     cmsg = CMSG_NXTHDR(&msg, cmsg)){
+		if (cmsg->cmsg_level == IPPROTO_IP &&
+		    cmsg->cmsg_type == IP_RECVDSTADDR) {
+			have_lin = TRUE;
+			memcpy(&lin->sin_addr,
+			    (struct in_addr *)CMSG_DATA(cmsg), sizeof(struct in_addr));
+			break;
+		}
+	}
+
+	if (!have_lin)
+		return rlen;
+
+	lin->sin_family = AF_INET;
+	lin->sin_port = 0;
+	*laddrlen = sizeof(struct sockaddr_in);
+
+	return rlen;
 }
 
 static bool_t
@@ -188,8 +244,9 @@ svc_dg_recv(xprt, msg)
 
 again:
 	alen = sizeof (struct sockaddr_storage);
-	rlen = _recvfrom(xprt->xp_fd, rpc_buffer(xprt), su->su_iosz, 0,
-	    (struct sockaddr *)(void *)&ss, &alen);
+	rlen = svc_dg_recvfrom(xprt->xp_fd, rpc_buffer(xprt), su->su_iosz,
+	    (struct sockaddr *)(void *)&ss, &alen,
+	    (struct sockaddr *)xprt->xp_ltaddr.buf, &xprt->xp_ltaddr.len);
 	if (rlen == -1 && errno == EINTR)
 		goto again;
 	if (rlen == -1 || (rlen < (ssize_t)(4 * sizeof (u_int32_t))))
@@ -223,6 +280,39 @@ again:
 	return (TRUE);
 }
 
+static int
+svc_dg_sendto(int fd, char *buf, int buflen,
+    const struct sockaddr *raddr, socklen_t raddrlen,
+    const struct sockaddr *laddr, socklen_t laddrlen)
+{
+	struct msghdr msg;
+	struct iovec msg_iov[1];
+	struct sockaddr_in *laddr_in = (struct sockaddr_in *)laddr;
+	struct in_addr *lin = &laddr_in->sin_addr;
+	char tmp[CMSG_SPACE(sizeof(*lin))];
+	struct cmsghdr *cmsg;
+
+	memset((char *)&msg, 0, sizeof(msg));
+	msg_iov[0].iov_base = buf;
+	msg_iov[0].iov_len = buflen;
+	msg.msg_iov = msg_iov;
+	msg.msg_iovlen = 1;
+	msg.msg_namelen = raddrlen;
+	msg.msg_name = (char *)raddr;
+
+	if (laddr->sa_family == AF_INET) {
+		msg.msg_control = (caddr_t)tmp;
+		msg.msg_controllen = CMSG_LEN(sizeof(*lin));
+		cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_len = CMSG_LEN(sizeof(*lin));
+		cmsg->cmsg_level = IPPROTO_IP;
+		cmsg->cmsg_type = IP_SENDSRCADDR;
+		memcpy(CMSG_DATA(cmsg), lin, sizeof(*lin));
+	}
+
+	return _sendmsg(fd, &msg, 0);
+}
+
 static bool_t
 svc_dg_reply(xprt, msg)
 	SVCXPRT *xprt;
@@ -253,9 +343,11 @@ svc_dg_reply(xprt, msg)
 	}
 	if (stat) {
 		slen = XDR_GETPOS(xdrs);
-		if (_sendto(xprt->xp_fd, rpc_buffer(xprt), slen, 0,
+		if (svc_dg_sendto(xprt->xp_fd, rpc_buffer(xprt), slen,
 		    (struct sockaddr *)xprt->xp_rtaddr.buf,
-		    (socklen_t)xprt->xp_rtaddr.len) == (ssize_t) slen) {
+		    (socklen_t)xprt->xp_rtaddr.len,
+		    (struct sockaddr *)xprt->xp_ltaddr.buf,
+		    xprt->xp_ltaddr.len) == (ssize_t) slen) {
 			stat = TRUE;
 			if (su->su_cache)
 				cache_set(xprt, slen);
