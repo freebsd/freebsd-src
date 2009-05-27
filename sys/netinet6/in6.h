@@ -619,6 +619,7 @@ struct ip6_mtuinfo {
 #define	M_DECRYPTED	M_PROTO3
 #define	M_LOOP		M_PROTO4
 #define	M_AUTHIPDGM	M_PROTO5
+#define	M_RTALERT_MLD	M_PROTO6
 
 #ifdef _KERNEL
 struct cmsghdr;
