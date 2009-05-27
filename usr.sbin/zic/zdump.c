@@ -1,7 +1,12 @@
+/*
+** This file is in the public domain, so clarified as of
+** 2009-05-17 by Arthur David Olson.
+*/
+
 #ifndef lint
 static const char rcsid[] =
   "$FreeBSD$";
-static char	elsieid[] = "@(#)zdump.c	8.8";
+static char	elsieid[] = "@(#)zdump.c	8.9";
 #endif /* not lint */
 
 /*
