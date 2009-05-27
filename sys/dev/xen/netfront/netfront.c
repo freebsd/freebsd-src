@@ -352,9 +352,6 @@ xennet_get_rx_ref(struct netfront_info *np, RING_IDX ri)
 	return ref;
 }
 
-#ifdef DEBUG
-
-#endif
 #define IPRINTK(fmt, args...) \
     printf("[XEN] " fmt, ##args)
 #define WPRINTK(fmt, args...) \
@@ -1738,7 +1735,7 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_capenable |= IFCAP_TSO4;
 				ifp->if_hwassist |= CSUM_TSO;
 			} else {
-				DPRINTK("Xen requires tx checksum offload"
+				IPRINTK("Xen requires tx checksum offload"
 				    " be enabled to use TSO\n");
 				error = EINVAL;
 			}
