@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/devicestat.h>
 #include <sys/eventhandler.h>
+#include <sys/fail.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -1167,6 +1168,15 @@ buf_dirty_count_severe(void)
 	return(numdirtybuffers >= hidirtybuffers);
 }
 
+static __noinline int
+buf_vm_page_count_severe(void)
+{
+
+	KFAIL_POINT_CODE(DEBUG_FP, buf_pressure, return 1);
+
+	return vm_page_count_severe();
+}
+
 /*
  *	brelse:
  *
@@ -1233,7 +1243,7 @@ brelse(struct buf *bp)
 	 */
 	if (bp->b_flags & B_DELWRI)
 		bp->b_flags &= ~B_RELBUF;
-	else if (vm_page_count_severe()) {
+	else if (buf_vm_page_count_severe()) {
 		/*
 		 * The locking of the BO_LOCK is not necessary since
 		 * BKGRDINPROG cannot be set while we hold the buf
@@ -1502,7 +1512,7 @@ bqrelse(struct buf *bp)
 		 * lock, it can only be cleared if it is already
 		 * pending.
 		 */
-		if (!vm_page_count_severe() || (bp->b_vflags & BV_BKGRDINPROG)) {
+		if (!buf_vm_page_count_severe() || (bp->b_vflags & BV_BKGRDINPROG)) {
 			bp->b_qindex = QUEUE_CLEAN;
 			TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp,
 			    b_freelist);
@@ -1571,7 +1581,7 @@ vfs_vmio_release(struct buf *bp)
 				vm_page_free(m);
 			} else if (bp->b_flags & B_DIRECT) {
 				vm_page_try_to_free(m);
-			} else if (vm_page_count_severe()) {
+			} else if (buf_vm_page_count_severe()) {
 				vm_page_try_to_cache(m);
 			}
 		}
