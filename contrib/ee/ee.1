@@ -4,7 +4,7 @@
 .\"
 .\"    nroff -man ee.1
 .\"
-.\"  $Header: /home/hugh/sources/old_ae/RCS/ee.1,v 1.19 1995/11/29 04:03:15 hugh Exp hugh $
+.\"  $Header: /home/hugh/sources/old_ae/RCS/ee.1,v 1.22 2001/12/16 04:49:27 hugh Exp $
 .\"
 .\"
 .TH ee 1 "" "" "" ""
@@ -28,6 +28,10 @@ is the same as
 .I ee, 
 but restricted to editing the named 
 file (no file operations, or shell escapes are allowed).
+.PP
+An editor with similar user-friendly qualities but more features is available 
+and is called 
+.I aee.
 .PP
 For 
 .I ee
@@ -402,7 +406,7 @@ cursor location.  The old information would have to be deleted by the user.
 .PP
 Since different users have different preferences, \fIee\fR allows some 
 slight configurability.  There are three possible locations for an 
-initialization file for ee:  the file \fI/usr/local/lib/init.ee\fR, the 
+initialization file for ee:  the file \fI/usr/share/misc/init.ee\fR, the 
 file \fI.init.ee\fR in the user's home directory, or the file \fI.init.ee\fR 
 in the current directory (if different from the home 
 directory).  This allows system administrators to set some preferences for 
@@ -410,7 +414,7 @@ the users on a system-wide basis (for example, the \fBprint\fR command),
 and the user to customize settings for particular directories (like one 
 for correspondence, and a different directory for programming).
 .PP
-The file \fI\/usr/local/lib/init.ee\fR is read first, then 
+The file \fI\/usr/share/misc/init.ee\fR is read first, then 
 \fI$HOME/.init.ee\fR, then \fI.init.ee\fR, with the settings specified by the 
 most recent file read taking precedence.
 .PP
@@ -517,7 +521,7 @@ The automatic paragraph formatting operation
 may be too slow for slower systems.
 .SH FILES
 .PP
-.I /usr/local/lib/init.ee
+.I /usr/share/misc/init.ee
 .br
 .I $HOME/.init.ee
 .br
@@ -532,8 +536,8 @@ This software and documentation contains
 proprietary information which is protected by 
 copyright.  All rights are reserved. 
 .PP
-Copyright (c) 1990, 1991, 1992, 1993, 1995, 1996 Hugh Mahon.
+Copyright (c) 1990, 1991, 1992, 1993, 1995, 1996, 2001 Hugh Mahon.
 .SH "SEE ALSO"
 .PP
-termcap(4), terminfo(4), environ(5), spell(1), ispell(1), lp(1)
+termcap(4), terminfo(4), environ(5), spell(1), ispell(1), lp(1), aee(1)
 

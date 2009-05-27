@@ -1,26 +1,29 @@
-          THIS MATERIAL IS PROVIDED "AS IS".  THERE ARE NO WARRANTIES OF 
-          ANY KIND WITH REGARD TO THIS MATERIAL, INCLUDING, BUT NOT 
-          LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
-          FITNESS FOR A PARTICULAR PURPOSE.  Neither Hewlett-Packard nor 
-          Hugh Mahon shall be liable for errors contained herein, nor for 
-          incidental or consequential damages in connection with the 
-          furnishing, performance or use of this material.  Neither 
-          Hewlett-Packard nor Hugh Mahon assumes any responsibility for 
-          the use or reliability of this software or documentation.  This 
-          software and documentation is totally UNSUPPORTED.  There is no 
-          support contract available.  Hewlett-Packard has done NO 
-          Quality Assurance on ANY of the program or documentation.  You 
-          may find the quality of the materials inferior to supported 
-          materials. 
+Copyright (c) 2009, Hugh Mahon
+All rights reserved.
 
-      This software may be distributed under the terms of Larry Wall's 
-      Artistic license, a copy of which is included in this distribution. 
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
 
-      This notice must be included with this software and any 
-      derivatives. 
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
 
-      Any modifications to this software by anyone but the original author 
-      must be so noted. 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 
 
 The editor 'ee' (easy editor) is intended to be a simple, easy to use 
@@ -51,7 +54,7 @@ completely replaced by graphical user interfaces for at least a few more
 years, I'd like to do what I can to make using computers with less 
 glamorous interfaces as easy to use as possible.  If terminal interfaces 
 are still used in ten years, I hope neophytes won't still be stuck with 
-only vi.  
+only vi.
 
 For a text editor to be easy to use requires a certain set of abilities.  In 
 order for ee to work, a terminal must have the ability to position the cursor 
@@ -110,7 +113,7 @@ are:
            people.
 
 Hugh Mahon              |___|     
-h_mahon@fc.hp.com       |   |     
+hugh4242@yahoo.com      |   |     
                             |\  /|
                             | \/ |
 
