@@ -395,29 +395,15 @@ static int
 ksyms_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 {
 	vm_map_t map;
-	int error;
 	vm_size_t size;
     
 	map = &td->td_proc->p_vmspace->vm_map;
-
 	size = (vm_size_t) round_page(sz);	
 
-	/* check for address wrap-around */
-	if (addr + size < addr || addr < vm_map_min(map) || 
-	    addr + size > vm_map_max(map))
+	if (!vm_map_remove(map, addr, addr + size))
 		return (EINVAL);
 
-	vm_map_lock(map);
-	/* make sure the pages are mapped */
-	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE)) {
-		vm_map_unlock(map);
-		return (EINVAL);
-	}
-
-	error = vm_map_delete(map, addr, addr + size);
-	vm_map_unlock(map);
-
-	return (error);
+	return (0);
 }
 
 static void
