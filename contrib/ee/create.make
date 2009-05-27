@@ -4,14 +4,27 @@
 #	This script will determine if the system is a System V or BSD based
 #	UNIX system and create a makefile for ee appropriate for the system.
 #
-# $Header: /home/hugh/sources/old_ae/RCS/create.make,v 1.7 2001/01/20 04:57:17 hugh Exp hugh $
+# $Header: /home/hugh/sources/old_ae/RCS/create.make,v 1.13 2002/09/23 04:18:13 hugh Exp $
 #
+
+#set -x
+
+name_string="`uname`"
 
 # test for existence of termcap (exists on both BSD and SysV systems)
 
 if [ -f /etc/termcap -o -f /usr/share/lib/termcap -o -f /usr/share/misc/termcap ]
 then
-	termcap_exists="TRUE"
+	if [ -f /usr/share/lib/termcap ]
+	then
+		termcap_exists="-DTERMCAP=\"\\\"/usr/share/lib/termcap\\\"\""
+	elif [ -f /usr/share/misc/termcap ]
+	then
+		termcap_exists="-DTERMCAP=\"\\\"/usr/share/misc/termcap\\\"\""
+	elif [ -f /etc/termcap ]
+	then
+		termcap_exists="-DTERMCAP=\"\\\"/etc/termcap\\\"\""
+	fi
 else
 	termcap_exists=""
 fi
@@ -212,16 +225,27 @@ else
 fi
 
 
-if [ -n "$CFLAGS" ]
+if [ "$name_string" = "Darwin" ]
 then
-	if [ -z "`echo $CFLAGS | grep '[-]g'`" ]
+	if [ -n "$CFLAGS" ]
 	then
-		other_cflags="${CFLAGS} -s"
+		other_cflags="${CFLAGS} -DNO_CATGETS"
 	else
-		other_cflags="${CFLAGS}"
+		other_cflags="-DNO_CATGETS"
 	fi
 else
-	other_cflags="-s"
+
+	if [ -n "$CFLAGS" ]
+	then
+		if [ -z "`echo $CFLAGS | grep '[-]g'`" ]
+		then
+			other_cflags="${CFLAGS} -s"
+		else
+			other_cflags="${CFLAGS}"
+		fi
+	else
+		other_cflags="-s"
+	fi
 fi
 
 # time to write the makefile
@@ -235,7 +259,7 @@ fi
 
 echo "DEFINES =	$termio $terminfo_exists $BSD_SELECT $catgets $select $curses " > make.local
 echo "" >> make.local
-echo "CFLAGS =	$HAS_UNISTD $HAS_STDARG $HAS_STDLIB $HAS_CTYPE $HAS_SYS_IOCTL $HAS_SYS_WAIT $five_lib $five_include $select_hdr $other_cflags" >> make.local
+echo "CFLAGS =	$HAS_UNISTD $HAS_STDARG $HAS_STDLIB $HAS_CTYPE $HAS_SYS_IOCTL $HAS_SYS_WAIT $five_lib $five_include $select_hdr $other_cflags $termcap_exists" >> make.local
 echo "" >> make.local
 echo "" >> make.local
 echo "all :	$TARGET" >> make.local
