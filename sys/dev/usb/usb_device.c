@@ -71,9 +71,7 @@ static void	usb2_suspend_resume_sub(struct usb2_device *, device_t,
 		    uint8_t);
 static void	usb2_clear_stall_proc(struct usb2_proc_msg *_pm);
 usb2_error_t	usb2_config_parse(struct usb2_device *, uint8_t, uint8_t);
-#if USB_HAVE_STRINGS
-static void	usb2_check_strings(struct usb2_device *);
-#endif
+static void	usb2_set_device_strings(struct usb2_device *);
 #if USB_HAVE_UGEN
 static void	usb2_notify_addq(const char *type, struct usb2_device *);
 static void	usb2_fifo_free_wrap(struct usb2_device *, uint8_t, uint8_t);
@@ -1676,32 +1674,8 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 
 	/* assume 100mA bus powered for now. Changed when configured. */
 	udev->power = USB_MIN_POWER;
-
-#if USB_HAVE_STRINGS
-	/* get serial number string */
-	err = usb2_req_get_string_any
-	    (udev, NULL, (char *)scratch_ptr,
-	    scratch_size, udev->ddesc.iSerialNumber);
-
-	strlcpy(udev->serial, (char *)scratch_ptr, sizeof(udev->serial));
-
-	/* get manufacturer string */
-	err = usb2_req_get_string_any
-	    (udev, NULL, (char *)scratch_ptr,
-	    scratch_size, udev->ddesc.iManufacturer);
-
-	strlcpy(udev->manufacturer, (char *)scratch_ptr, sizeof(udev->manufacturer));
-
-	/* get product string */
-	err = usb2_req_get_string_any
-	    (udev, NULL, (char *)scratch_ptr,
-	    scratch_size, udev->ddesc.iProduct);
-
-	strlcpy(udev->product, (char *)scratch_ptr, sizeof(udev->product));
-
-	/* finish up all the strings */
-	usb2_check_strings(udev);
-#endif
+	/* fetch the vendor and product strings from the device */
+	usb2_set_device_strings(udev);
 
 	if (udev->flags.usb_mode == USB_MODE_HOST) {
 		uint8_t config_index;
@@ -2113,11 +2087,7 @@ usb2_devinfo(struct usb2_device *udev, char *dst_ptr, uint16_t dst_len)
 	if (udd->bDeviceClass != 0xFF) {
 		snprintf(dst_ptr, dst_len, "%s %s, class %d/%d, rev %x.%02x/"
 		    "%x.%02x, addr %d",
-#if USB_HAVE_STRINGS
 		    udev->manufacturer, udev->product,
-#else
-		    "-", "-",
-#endif
 		    udd->bDeviceClass, udd->bDeviceSubClass,
 		    (bcdUSB >> 8), bcdUSB & 0xFF,
 		    (bcdDevice >> 8), bcdDevice & 0xFF,
@@ -2125,18 +2095,13 @@ usb2_devinfo(struct usb2_device *udev, char *dst_ptr, uint16_t dst_len)
 	} else {
 		snprintf(dst_ptr, dst_len, "%s %s, rev %x.%02x/"
 		    "%x.%02x, addr %d",
-#if USB_HAVE_STRINGS
 		    udev->manufacturer, udev->product,
-#else
-		    "-", "-",
-#endif
 		    (bcdUSB >> 8), bcdUSB & 0xFF,
 		    (bcdDevice >> 8), bcdDevice & 0xFF,
 		    udev->address);
 	}
 }
 
-#if USB_HAVE_STRINGS
 #if USB_VERBOSE
 /*
  * Descriptions of of known vendors and devices ("products").
@@ -2155,85 +2120,74 @@ struct usb_knowndev {
 #include "usbdevs_data.h"
 #endif					/* USB_VERBOSE */
 
-/*------------------------------------------------------------------------*
- *	usb2_check_strings
- *
- * This function checks the manufacturer and product strings and will
- * fill in defaults for missing strings.
- *------------------------------------------------------------------------*/
 static void
-usb2_check_strings(struct usb2_device *udev)
+usb2_set_device_strings(struct usb2_device *udev)
 {
 	struct usb2_device_descriptor *udd = &udev->ddesc;
-	const char *vendor;
-	const char *product;
-
 #if USB_VERBOSE
 	const struct usb_knowndev *kdp;
-
 #endif
+	char temp[64];
 	uint16_t vendor_id;
 	uint16_t product_id;
-
-	usb2_trim_spaces(udev->manufacturer);
-	usb2_trim_spaces(udev->product);
-
-	if (udev->manufacturer[0]) {
-		vendor = udev->manufacturer;
-	} else {
-		vendor = NULL;
-	}
-
-	if (udev->product[0]) {
-		product = udev->product;
-	} else {
-		product = NULL;
-	}
 
 	vendor_id = UGETW(udd->idVendor);
 	product_id = UGETW(udd->idProduct);
 
-#if USB_VERBOSE
-	if (vendor == NULL || product == NULL) {
+	/* get serial number string */
+	bzero(temp, sizeof(temp));
+	usb2_req_get_string_any(udev, NULL, temp, sizeof(temp),
+	    udev->ddesc.iSerialNumber);
+	udev->serial = strdup(temp, M_USB);
 
-		for (kdp = usb_knowndevs;
-		    kdp->vendorname != NULL;
-		    kdp++) {
+	/* get manufacturer string */
+	bzero(temp, sizeof(temp));
+	usb2_req_get_string_any(udev, NULL, temp, sizeof(temp),
+	    udev->ddesc.iManufacturer);
+	usb2_trim_spaces(temp);
+	if (temp[0] != '\0')
+		udev->manufacturer = strdup(temp, M_USB);
+
+	/* get product string */
+	bzero(temp, sizeof(temp));
+	usb2_req_get_string_any(udev, NULL, temp, sizeof(temp),
+	    udev->ddesc.iProduct);
+	usb2_trim_spaces(temp);
+	if (temp[0] != '\0')
+		udev->product = strdup(temp, M_USB);
+
+#if USB_VERBOSE
+	if (udev->manufacturer == NULL || udev->product == NULL) {
+		for (kdp = usb_knowndevs; kdp->vendorname != NULL; kdp++) {
 			if (kdp->vendor == vendor_id &&
 			    (kdp->product == product_id ||
 			    (kdp->flags & USB_KNOWNDEV_NOPROD) != 0))
 				break;
 		}
 		if (kdp->vendorname != NULL) {
-			if (vendor == NULL)
-				vendor = kdp->vendorname;
-			if (product == NULL)
-				product = (kdp->flags & USB_KNOWNDEV_NOPROD) == 0 ?
-				    kdp->productname : NULL;
+			/* XXX should use pointer to knowndevs string */
+			if (udev->manufacturer == NULL) {
+				udev->manufacturer = strdup(kdp->vendorname,
+				    M_USB);
+			}
+			if (udev->product == NULL &&
+			    (kdp->flags & USB_KNOWNDEV_NOPROD) == 0) {
+				udev->product = strdup(kdp->productname,
+				    M_USB);
+			}
 		}
 	}
 #endif
-	if (vendor && *vendor) {
-		if (udev->manufacturer != vendor) {
-			strlcpy(udev->manufacturer, vendor,
-			    sizeof(udev->manufacturer));
-		}
-	} else {
-		snprintf(udev->manufacturer,
-		    sizeof(udev->manufacturer), "vendor 0x%04x", vendor_id);
+	/* Provide default strings if none were found */
+	if (udev->manufacturer == NULL) {
+		snprintf(temp, sizeof(temp), "vendor 0x%04x", vendor_id);
+		udev->manufacturer = strdup(temp, M_USB);
 	}
-
-	if (product && *product) {
-		if (udev->product != product) {
-			strlcpy(udev->product, product,
-			    sizeof(udev->product));
-		}
-	} else {
-		snprintf(udev->product,
-		    sizeof(udev->product), "product 0x%04x", product_id);
+	if (udev->product == NULL) {
+		snprintf(temp, sizeof(temp), "product 0x%04x", product_id);
+		udev->product = strdup(temp, M_USB);
 	}
 }
-#endif
 
 /*
  * Returns:
@@ -2367,11 +2321,7 @@ usb2_notify_addq(const char *type, struct usb2_device *udev)
 	    UGETW(udev->ddesc.idProduct),
 	    udev->ddesc.bDeviceClass,
 	    udev->ddesc.bDeviceSubClass,
-#if USB_HAVE_STRINGS
 	    udev->serial,
-#else
-	    "",
-#endif
 	    udev->port_no,
 	    udev->parent_hub != NULL ?
 		udev->parent_hub->ugen_name :
