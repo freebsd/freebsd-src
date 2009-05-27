@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
- * Copyright by Hannu Savolainen 1995
+ * Copyright (c) 1995 Hannu Savolainen
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
