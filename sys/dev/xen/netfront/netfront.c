@@ -1446,30 +1446,42 @@ xn_start_locked(struct ifnet *ifp)
 			nfrags++;
 
 		/*
-		 * Don't attempt to queue this packet if there aren't enough free entries in the chain.
-		 * There isn't a 1:1 correspondance between the mbuf TX ring and the xenbus TX ring.
+		 * Don't attempt to queue this packet if there aren't
+		 * enough free entries in the chain.
+		 *
+		 * There isn't a 1:1 correspondance between the mbuf TX ring
+		 * and the xenbus TX ring.
 		 * xn_txeof() may need to be called to free up some slots.
 		 *
-		 * It is quite possible that this can be later eliminated if it turns out that partial
-		 * packets can be pushed into the ringbuffer, with fragments pushed in when further slots
+		 * It is quite possible that this can be later eliminated if
+		 * it turns out that partial * packets can be pushed into
+		 * the ringbuffer, with fragments pushed in when further slots
 		 * free up.
 		 *
-		 * It is also quite possible that the driver will lock up - Xen may not send another
-		 * interrupt to kick the tx/rx processing if the xenbus RX ring is full and xenbus TX ring
-		 * is empty - no further TX work can be done until space is made in the TX mbuf ring and
-		 * the RX side may be waiting for TX data to continue. It is quite possible some timer
-		 * event should be created to kick TX/RX processing along in certain conditions.
+		 * It is also quite possible that the driver will lock up
+		 * if the TX queue fills up with no RX traffic, and
+		 * the mbuf ring is exhausted. The queue may need
+		 * a swift kick to continue.
 		 */
 
-		/* its not +1 like the allocation because we need to keep slot [0] free for the freelist head */
+		/*
+		 * It is not +1 like the allocation because we need to keep
+		 * slot [0] free for the freelist head
+		 */
 		if (sc->xn_cdata.xn_tx_chain_cnt + nfrags >= NET_TX_RING_SIZE) {
 			printf("xn_start_locked: xn_tx_chain_cnt (%d) + nfrags %d >= NET_TX_RING_SIZE (%d); must be full!\n",
-			    (int) sc->xn_cdata.xn_tx_chain_cnt, (int) nfrags, (int) NET_TX_RING_SIZE);
+			    (int) sc->xn_cdata.xn_tx_chain_cnt,
+			    (int) nfrags, (int) NET_TX_RING_SIZE);
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
+		/*
+		 * XXX TODO - make sure there's actually space available
+		 *  in the Xen TX ring for this rather than the hacky way
+		 * its currently done.
+		 */
 
 		/*
 		 * Start packing the mbufs in this chain into
