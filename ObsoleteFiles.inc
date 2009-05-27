@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090527: renaming of S{LIST,TAILQ}_REMOVE_NEXT() to _REMOVE_AFTER()
+OLD_FILES+=usr/share/man/man3/SLIST_REMOVE_NEXT.3.gz
+OLD_FILES+=usr/share/man/man3/STAILQ_REMOVE_NEXT.3.gz
 # 20090527: removal of legacy USB stack
 OLD_FILES+=usr/include/legacy/dev/usb/dsbr100io.h
 OLD_FILES+=usr/include/legacy/dev/usb/ehcireg.h
