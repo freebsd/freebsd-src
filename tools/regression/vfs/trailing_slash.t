@@ -37,6 +37,6 @@ for testspec ; do
 		else
 			echo "fail $n - expected $4, got $ret"
 		fi
-		n=$((n+1))
 	)
+	n=$((n+1))
 done
