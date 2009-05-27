@@ -78,7 +78,6 @@ device_delete_all_children(device_t dev)
 void
 device_set_usb2_desc(device_t dev)
 {
-#if USB_HAVE_STRINGS
 	struct usb2_attach_arg *uaa;
 	struct usb2_device *udev;
 	struct usb2_interface *iface;
@@ -121,7 +120,6 @@ device_set_usb2_desc(device_t dev)
 	device_set_desc_copy(dev, temp_p);
 	device_printf(dev, "<%s> on %s\n", temp_p,
 	    device_get_nameunit(udev->bus->bdev));
-#endif
 }
 
 /*------------------------------------------------------------------------*
@@ -181,7 +179,6 @@ usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
  * This function removes spaces at the beginning and the end of the string
  * pointed to by the "p" argument.
  *------------------------------------------------------------------------*/
-#if USB_HAVE_STRINGS
 void
 usb2_trim_spaces(char *p)
 {
@@ -198,7 +195,6 @@ usb2_trim_spaces(char *p)
 			e = p;
 	*e = 0;				/* kill trailing spaces */
 }
-#endif
 
 /*------------------------------------------------------------------------*
  *	usb2_make_str_desc - convert an ASCII string into a UNICODE string
