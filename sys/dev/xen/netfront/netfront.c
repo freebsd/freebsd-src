@@ -1099,6 +1099,8 @@ xn_txeof(struct netfront_info *np)
 				panic("netif_release_tx_bufs: tx_chain_cnt must be >= 0");
 			}
 			m_free(m);
+			/* Only mark the queue active if we've freed up at least one slot to try */
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		}
 		np->tx.rsp_cons = prod;
 		
@@ -1115,7 +1117,6 @@ xn_txeof(struct netfront_info *np)
 		    prod + ((np->tx.sring->req_prod - prod) >> 1) + 1;
 
 		mb();
-		
 	} while (prod != np->tx.sring->rsp_prod);
 	
  out: 
