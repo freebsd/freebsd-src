@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/bus.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -89,6 +90,28 @@ cpu_topo(void)
 	return smp_topo_none();
 }
 
+static void
+ia64_store_mca_state(void* arg)
+{
+	unsigned int ncpu = (unsigned int)(uintptr_t)arg;
+	struct thread* td;
+
+	/* ia64_mca_save_state() is CPU-sensitive, so bind ourself to our target CPU */
+	td = curthread;
+	thread_lock(td);
+	sched_bind(td, ncpu);
+	thread_unlock(td);
+
+	/*
+	 * Get and save the CPU specific MCA records. Should we get the
+	 * MCA state for each processor, or just the CMC state?
+	 */
+	ia64_mca_save_state(SAL_INFO_MCA);
+	ia64_mca_save_state(SAL_INFO_CMC);
+
+	kproc_exit(0);
+}
+
 void
 ia64_ap_startup(void)
 {
@@ -117,13 +140,6 @@ ia64_ap_startup(void)
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
-
-	/*
-	 * Get and save the CPU specific MCA records. Should we get the
-	 * MCA state for each processor, or just the CMC state?
-	 */
-	ia64_mca_save_state(SAL_INFO_MCA);
-	ia64_mca_save_state(SAL_INFO_CMC);
 
 	atomic_add_int(&ap_awake, 1);
 	while (!smp_started)
@@ -285,8 +301,10 @@ cpu_mp_unleash(void *dummy)
 	smp_cpus = 0;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
-		if (pc->pc_awake)
+		if (pc->pc_awake) {
+			kproc_create(ia64_store_mca_state, (void*)((uintptr_t)pc->pc_cpuid), NULL, 0, 0, "mca %u", pc->pc_cpuid);
 			smp_cpus++;
+		}
 	}
 
 	ap_awake = 1;
