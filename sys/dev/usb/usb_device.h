@@ -174,11 +174,9 @@ struct usb2_device {
 	struct usb2_endpoint_descriptor default_ep_desc;	/* for pipe 0 */
 	struct usb2_device_descriptor ddesc;	/* device descriptor */
 
-#if USB_HAVE_STRINGS
-	char	serial[64];		/* serial number */
-	char	manufacturer[64];	/* manufacturer string */
-	char	product[64];		/* product string */
-#endif
+	char	*serial;		/* serial number */
+	char	*manufacturer;		/* manufacturer string */
+	char	*product;		/* product string */
 };
 
 /* globals */

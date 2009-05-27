@@ -801,14 +801,9 @@ usb2_gen_fill_deviceinfo(struct usb2_fifo *f, struct usb2_device_info *di)
 	di->udi_bus = device_get_unit(udev->bus->bdev);
 	di->udi_addr = udev->address;
 	di->udi_index = udev->device_index;
-#if USB_HAVE_STRINGS
-	strlcpy(di->udi_serial, udev->serial,
-	    sizeof(di->udi_serial));
-	strlcpy(di->udi_vendor, udev->manufacturer,
-	    sizeof(di->udi_vendor));
-	strlcpy(di->udi_product, udev->product,
-	    sizeof(di->udi_product));
-#endif
+	strlcpy(di->udi_serial, udev->serial, sizeof(di->udi_serial));
+	strlcpy(di->udi_vendor, udev->manufacturer, sizeof(di->udi_vendor));
+	strlcpy(di->udi_product, udev->product, sizeof(di->udi_product));
 	usb2_printBCD(di->udi_release, sizeof(di->udi_release),
 	    UGETW(udev->ddesc.bcdDevice));
 	di->udi_vendorNo = UGETW(udev->ddesc.idVendor);
