@@ -231,7 +231,7 @@ typedef struct Struct_Obj_Entry {
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
 
-#define RTLD_STATIC_TLS_EXTRA	64
+#define RTLD_STATIC_TLS_EXTRA	128
 
 /* Flags to be passed into symlook_ family of functions. */
 #define SYMLOOK_IN_PLT	0x01	/* Lookup for PLT symbol */
