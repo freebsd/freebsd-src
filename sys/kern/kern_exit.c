@@ -455,9 +455,8 @@ exit1(struct thread *td, int rv)
 	p->p_xstat = rv;
 	p->p_xthread = td;
 
-	/* In case we are jailed tell the prison that we are gone. */
-	if (jailed(p->p_ucred))
-		prison_proc_free(p->p_ucred->cr_prison);
+	/* Tell the prison that we are gone. */
+	prison_proc_free(p->p_ucred->cr_prison);
 
 #ifdef KDTRACE_HOOKS
 	/*

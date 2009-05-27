@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090527:
+	Add support for hierarchical jails.  Remove global securelevel.
+	Bump __FreeBSD_version to 800091.
+
 20090523:
 	The layout of struct vnet_net has changed, therefore modules
 	need to be rebuilt.

@@ -344,7 +344,7 @@ semsys(td, uap)
 {
 	int error;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	if (uap->which < 0 ||
 	    uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
@@ -583,7 +583,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 
 	DPRINTF(("call to semctl(%d, %d, %d, 0x%p)\n",
 	    semid, semnum, cmd, arg));
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	array = NULL;
@@ -855,7 +855,7 @@ semget(struct thread *td, struct semget_args *uap)
 	struct ucred *cred = td->td_ucred;
 
 	DPRINTF(("semget(0x%x, %d, 0%o)\n", key, nsems, semflg));
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	mtx_lock(&sem_mtx);
@@ -982,7 +982,7 @@ semop(struct thread *td, struct semop_args *uap)
 #endif
 	DPRINTF(("call to semop(%d, %p, %u)\n", semid, sops, nsops));
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	semid = IPCID_TO_IX(semid);	/* Convert back to zero origin */
