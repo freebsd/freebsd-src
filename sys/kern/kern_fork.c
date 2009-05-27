@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/sysctl.h>
@@ -54,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/jail.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -458,9 +458,8 @@ again:
 
 	p2->p_ucred = crhold(td->td_ucred);
 
-	/* In case we are jailed tell the prison that we exist. */
-	if (jailed(p2->p_ucred))
-		prison_proc_hold(p2->p_ucred->cr_prison);
+	/* Tell the prison that we exist. */
+	prison_proc_hold(p2->p_ucred->cr_prison);
 
 	PROC_UNLOCK(p2);
 
