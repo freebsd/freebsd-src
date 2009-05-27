@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -699,6 +700,8 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	nd = malloc(sizeof (struct nfsrv_descript),
 		M_NFSRVDESC, M_WAITOK);
 	nd->nd_cr = crget();
+	prison_hold(&prison0);
+	nd->nd_cr->cr_prison = &prison0;
 	NFSD_LOCK();
 	nd->nd_md = nd->nd_mrep = m;
 	nd->nd_nam2 = nam;

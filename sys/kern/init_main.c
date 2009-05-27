@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
@@ -436,6 +437,7 @@ proc0_init(void *dummy __unused)
 	td->td_oncpu = 0;
 	td->td_flags = TDF_INMEM|TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
+	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
 	p->p_peers = 0;
 	p->p_leader = p;
 
@@ -452,7 +454,7 @@ proc0_init(void *dummy __unused)
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
 	p->p_ucred->cr_uidinfo = uifind(0);
 	p->p_ucred->cr_ruidinfo = uifind(0);
-	p->p_ucred->cr_prison = NULL;	/* Don't jail it. */
+	p->p_ucred->cr_prison = &prison0;
 #ifdef VIMAGE
 	KASSERT(LIST_FIRST(&vimage_head) != NULL, ("vimage_head empty"));
 	P_TO_VIMAGE(p) =  LIST_FIRST(&vimage_head); /* set ucred->cr_vimage */

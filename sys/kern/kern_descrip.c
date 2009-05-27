@@ -2416,24 +2416,25 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 }
 
 /*
- * Scan all active processes to see if any of them have a current or root
- * directory of `olddp'. If so, replace them with the new mount point.
+ * Scan all active processes and prisons to see if any of them have a current
+ * or root directory of `olddp'. If so, replace them with the new mount point.
  */
 void
 mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 {
 	struct filedesc *fdp;
+	struct prison *pr;
 	struct proc *p;
 	int nrele;
 
 	if (vrefcnt(olddp) == 1)
 		return;
+	nrele = 0;
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		fdp = fdhold(p);
 		if (fdp == NULL)
 			continue;
-		nrele = 0;
 		FILEDESC_XLOCK(fdp);
 		if (fdp->fd_cdir == olddp) {
 			vref(newdp);
@@ -2445,17 +2446,40 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 			fdp->fd_rdir = newdp;
 			nrele++;
 		}
+		if (fdp->fd_jdir == olddp) {
+			vref(newdp);
+			fdp->fd_jdir = newdp;
+			nrele++;
+		}
 		FILEDESC_XUNLOCK(fdp);
 		fddrop(fdp);
-		while (nrele--)
-			vrele(olddp);
 	}
 	sx_sunlock(&allproc_lock);
 	if (rootvnode == olddp) {
-		vrele(rootvnode);
 		vref(newdp);
 		rootvnode = newdp;
+		nrele++;
 	}
+	mtx_lock(&prison0.pr_mtx);
+	if (prison0.pr_root == olddp) {
+		vref(newdp);
+		prison0.pr_root = newdp;
+		nrele++;
+	}
+	mtx_unlock(&prison0.pr_mtx);
+	sx_slock(&allprison_lock);
+	TAILQ_FOREACH(pr, &allprison, pr_list) {
+		mtx_lock(&pr->pr_mtx);
+		if (pr->pr_root == olddp) {
+			vref(newdp);
+			pr->pr_root = newdp;
+			nrele++;
+		}
+		mtx_unlock(&pr->pr_mtx);
+	}
+	sx_sunlock(&allprison_lock);
+	while (nrele--)
+		vrele(olddp);
 }
 
 struct filedesc_to_leader *

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -446,6 +447,7 @@ lookup(struct nameidata *ndp)
 	struct vnode *dp = 0;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
+	struct prison *pr;
 	int docache;			/* == 0 do not cache last component */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
@@ -603,9 +605,14 @@ dirloop:
 			goto bad;
 		}
 		for (;;) {
+			for (pr = cnp->cn_cred->cr_prison; pr != NULL;
+			     pr = pr->pr_parent)
+				if (dp == pr->pr_root)
+					break;
 			if (dp == ndp->ni_rootdir || 
 			    dp == ndp->ni_topdir || 
 			    dp == rootvnode ||
+			    pr != NULL ||
 			    ((dp->v_vflag & VV_ROOT) != 0 &&
 			     (cnp->cn_flags & NOCROSSMOUNT) != 0)) {
 				ndp->ni_dvp = dp;

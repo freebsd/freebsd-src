@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/linker.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/libkern.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
@@ -375,7 +376,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 	int foundfile, error;
 
 	/* Refuse to load modules if securelevel raised */
-	if (securelevel > 0)
+	if (prison0.pr_securelevel > 0)
 		return (EPERM);
 
 	KLD_LOCK_ASSERT();
@@ -580,7 +581,7 @@ linker_file_unload(linker_file_t file, int flags)
 	int error, i;
 
 	/* Refuse to unload modules if securelevel raised. */
-	if (securelevel > 0)
+	if (prison0.pr_securelevel > 0)
 		return (EPERM);
 
 	KLD_LOCK_ASSERT();
