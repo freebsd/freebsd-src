@@ -310,6 +310,7 @@ struct netfront_rx_info {
 static inline void
 add_id_to_freelist(struct mbuf **list, unsigned short id)
 {
+	KASSERT(id != 0, ("add_id_to_freelist: the head item (0) must always be free."));
 	list[id] = list[0];
 	list[0]  = (void *)(u_long)id;
 }
@@ -318,6 +319,7 @@ static inline unsigned short
 get_id_from_freelist(struct mbuf **list)
 {
 	u_int id = (u_int)(u_long)list[0];
+	KASSERT(id != 0, ("get_id_from_freelist: the head item (0) must always remain free."));
 	list[0] = list[id];
 	return (id);
 }
