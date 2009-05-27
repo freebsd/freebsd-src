@@ -1065,6 +1065,8 @@ xn_txeof(struct netfront_info *np)
 
 			id = txr->id;
 			m = np->xn_cdata.xn_tx_chain[id]; 
+			KASSERT(m != NULL, ("mbuf not found in xn_tx_chain"));
+			M_ASSERTVALID(m);
 			
 			/*
 			 * Increment packet count if this is the last
@@ -1072,8 +1074,6 @@ xn_txeof(struct netfront_info *np)
 			 */
 			if (!m->m_next)
 				ifp->if_opackets++;
-			KASSERT(m != NULL, ("mbuf not found in xn_tx_chain"));
-			M_ASSERTVALID(m);
 			if (unlikely(gnttab_query_foreign_access(
 			    np->grant_tx_ref[id]) != 0)) {
 				printf("network_tx_buf_gc: warning "
