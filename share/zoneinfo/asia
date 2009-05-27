@@ -1,5 +1,7 @@
-# @(#)asia	8.30
 # <pre>
+# @(#)asia	8.32
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -1107,7 +1109,7 @@ Rule	Jordan	1995	1998	-	Sep	Fri>=15	0:00s	0	-
 Rule	Jordan	1999	only	-	Jul	 1	0:00s	1:00	S
 Rule	Jordan	1999	2002	-	Sep	lastFri	0:00s	0	-
 Rule	Jordan	2000	2001	-	Mar	lastThu	0:00s	1:00	S
-Rule	Jordan	2002	max	-	Mar	lastFri	0:00s	1:00	S
+Rule	Jordan	2002	max	-	Mar	lastThu	24:00	1:00	S
 Rule	Jordan	2003	only	-	Oct	24	0:00s	0	-
 Rule	Jordan	2004	only	-	Oct	15	0:00s	0	-
 Rule	Jordan	2005	only	-	Sep	lastFri	0:00s	0	-
