@@ -1356,7 +1356,7 @@ ip_forward(struct mbuf *m, int srcrt)
 {
 	INIT_VNET_INET(curvnet);
 	struct ip *ip = mtod(m, struct ip *);
-	struct in_ifaddr *ia = NULL;
+	struct in_ifaddr *ia;
 	struct mbuf *mcopy;
 	struct in_addr dest;
 	struct route ro;
@@ -1380,10 +1380,17 @@ ip_forward(struct mbuf *m, int srcrt)
 #endif
 
 	ia = ip_rtaddr(ip->ip_dst, M_GETFIB(m));
+#ifndef IPSEC
+	/*
+	 * 'ia' may be NULL if there is no route for this destination.
+	 * In case of IPsec, Don't discard it just yet, but pass it to
+	 * ip_output in case of outgoing IPsec policy.
+	 */
 	if (!srcrt && ia == NULL) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		return;
 	}
+#endif
 
 	/*
 	 * Save the IP header and at most 8 bytes of the payload,
@@ -1435,7 +1442,8 @@ ip_forward(struct mbuf *m, int srcrt)
 	 * or a route modified by a redirect.
 	 */
 	dest.s_addr = 0;
-	if (!srcrt && V_ipsendredirects && ia->ia_ifp == m->m_pkthdr.rcvif) {
+	if (!srcrt && V_ipsendredirects &&
+	    ia != NULL && ia->ia_ifp == m->m_pkthdr.rcvif) {
 		struct sockaddr_in *sin;
 		struct rtentry *rt;
 
@@ -1502,7 +1510,7 @@ ip_forward(struct mbuf *m, int srcrt)
 		/* type, code set above */
 		break;
 
-	case ENETUNREACH:		/* shouldn't happen, checked above */
+	case ENETUNREACH:
 	case EHOSTUNREACH:
 	case ENETDOWN:
 	case EHOSTDOWN:
