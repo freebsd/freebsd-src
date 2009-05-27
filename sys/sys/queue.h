@@ -96,8 +96,8 @@
  * _INSERT_AFTER		+	+	+	+
  * _INSERT_TAIL			-	-	+	+
  * _CONCAT			-	-	+	+
+ * _REMOVE_AFTER		+	-	+	-
  * _REMOVE_HEAD			+	-	+	-
- * _REMOVE_NEXT			+	-	+	-
  * _REMOVE			+	+	+	+
  *
  */
@@ -196,12 +196,12 @@ struct {								\
 		struct type *curelm = SLIST_FIRST((head));		\
 		while (SLIST_NEXT(curelm, field) != (elm))		\
 			curelm = SLIST_NEXT(curelm, field);		\
-		SLIST_REMOVE_NEXT(head, curelm, field);			\
+		SLIST_REMOVE_AFTER(curelm, field);			\
 	}								\
 	TRASHIT((elm)->field.sle_next);					\
 } while (0)
 
-#define SLIST_REMOVE_NEXT(head, elm, field) do {				\
+#define SLIST_REMOVE_AFTER(elm, field) do {				\
 	SLIST_NEXT(elm, field) =					\
 	    SLIST_NEXT(SLIST_NEXT(elm, field), field);			\
 } while (0)
@@ -292,7 +292,7 @@ struct {								\
 		struct type *curelm = STAILQ_FIRST((head));		\
 		while (STAILQ_NEXT(curelm, field) != (elm))		\
 			curelm = STAILQ_NEXT(curelm, field);		\
-		STAILQ_REMOVE_NEXT(head, curelm, field);		\
+		STAILQ_REMOVE_AFTER(head, curelm, field);		\
 	}								\
 	TRASHIT((elm)->field.stqe_next);				\
 } while (0)
@@ -303,7 +303,7 @@ struct {								\
 		(head)->stqh_last = &STAILQ_FIRST((head));		\
 } while (0)
 
-#define STAILQ_REMOVE_NEXT(head, elm, field) do {			\
+#define STAILQ_REMOVE_AFTER(head, elm, field) do {			\
 	if ((STAILQ_NEXT(elm, field) =					\
 	     STAILQ_NEXT(STAILQ_NEXT(elm, field), field)) == NULL)	\
 		(head)->stqh_last = &STAILQ_NEXT((elm), field);		\
