@@ -45,6 +45,8 @@ static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -111,11 +113,13 @@ int addrlen = 0;
 u_char *fh = NULL;
 int fhsize = 0;
 int secflavor = -1;
+int got_principal = 0;
 
 enum mountmode {
 	ANY,
 	V2,
 	V3,
+	V4
 } mountmode = ANY;
 
 /* Return codes for nfs_tryproto. */
@@ -150,11 +154,13 @@ main(int argc, char *argv[])
 	int osversion;
 	char *name, *p, *spec, *fstype;
 	char mntpath[MAXPATHLEN], errmsg[255];
+	char hostname[MAXHOSTNAMELEN + 1], *gssname, gssn[MAXHOSTNAMELEN + 50];
 
 	mntflags = 0;
 	iov = NULL;
 	iovlen = 0;
 	memset(errmsg, 0, sizeof(errmsg));
+	gssname = NULL;
 
 	fstype = strrchr(argv[0], '_');
 	if (fstype == NULL)
@@ -242,6 +248,9 @@ main(int argc, char *argv[])
 				} else if (strcmp(opt, "fg") == 0) {
 					/* same as not specifying -o bg */
 					pass_flag_to_nmount=0;
+				} else if (strcmp(opt, "gssname") == 0) {
+					pass_flag_to_nmount = 0;
+					gssname = val;
 				} else if (strcmp(opt, "mntudp") == 0) {
 					mnttcp_ok = 0;
 					nfsproto = IPPROTO_UDP;
@@ -262,12 +271,21 @@ main(int argc, char *argv[])
 					mountmode = V2;
 				} else if (strcmp(opt, "nfsv3") == 0) {
 					mountmode = V3;
+				} else if (strcmp(opt, "nfsv4") == 0) {
+					pass_flag_to_nmount=0;
+					mountmode = V4;
+					fstype = "newnfs";
+					nfsproto = IPPROTO_TCP;
+					if (portspec == NULL)
+						portspec = "2049";
 				} else if (strcmp(opt, "port") == 0) {
 					pass_flag_to_nmount=0;
 					asprintf(&portspec, "%d",
 					    atoi(val));
 					if (portspec == NULL)
 						err(1, "asprintf");
+				} else if (strcmp(opt, "principal") == 0) {
+					got_principal = 1;
 				} else if (strcmp(opt, "sec") == 0) {
 					/*
 					 * Don't add this option to
@@ -362,6 +380,37 @@ main(int argc, char *argv[])
 	if (retrycnt == -1)
 		/* The default is to keep retrying forever. */
 		retrycnt = 0;
+
+	/*
+	 * If the experimental nfs subsystem is loaded into the kernel
+	 * and the regular one is not, use it. Otherwise, use it if the
+	 * fstype is set to "newnfs", either via "mount -t newnfs ..."
+	 * or by specifying an nfsv4 mount.
+	 */
+	if (modfind("nfscl") >= 0 && modfind("nfs") < 0) {
+		fstype = "newnfs";
+	} else if (strcmp(fstype, "newnfs") == 0) {
+		if (modfind("nfscl") < 0) {
+			/* Not present in kernel, try loading it */
+			if (kldload("nfscl") < 0 ||
+			    modfind("nfscl") < 0)
+				errx(1, "nfscl is not available");
+		}
+	}
+
+	/*
+	 * Add the fqdn to the gssname, as required.
+	 */
+	if (gssname != NULL) {
+		if (strchr(gssname, '@') == NULL &&
+		    gethostname(hostname, MAXHOSTNAMELEN) == 0) {
+			snprintf(gssn, sizeof (gssn), "%s@%s", gssname,
+			    hostname);
+			gssname = gssn;
+		}
+		build_iovec(&iov, &iovlen, "gssname", gssname,
+		    strlen(gssname) + 1);
+	}
 
 	if (!getnfsargs(spec, &iov, &iovlen))
 		exit(1);
@@ -652,7 +701,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 	int ecode, speclen, remoteerr;
 	char *hostp, *delimp, *errstr;
 	size_t len;
-	static char nam[MNAMELEN + 1];
+	static char nam[MNAMELEN + 1], pname[MAXHOSTNAMELEN + 5];
 
 	if ((delimp = strrchr(spec, ':')) != NULL) {
 		hostp = spec;
@@ -699,7 +748,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 		hints.ai_socktype = SOCK_DGRAM;
 
 	if (getaddrinfo(hostp, portspec, &hints, &ai_nfs) != 0) {
-		hints.ai_flags = 0;
+		hints.ai_flags = AI_CANONNAME;
 		if ((ecode = getaddrinfo(hostp, portspec, &hints, &ai_nfs))
 		    != 0) {
 			if (portspec == NULL)
@@ -708,6 +757,18 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 				errx(1, "%s:%s: %s", hostp, portspec,
 				    gai_strerror(ecode));
 			return (0);
+		}
+
+		/*
+		 * For a Kerberized nfs mount where the "principal"
+		 * argument has not been set, add it here.
+		 */
+		if (got_principal == 0 && secflavor >= 0 &&
+		    secflavor != AUTH_SYS && ai_nfs->ai_canonname != NULL) {
+			snprintf(pname, sizeof (pname), "nfs@%s",
+			    ai_nfs->ai_canonname);
+			build_iovec(iov, iovlen, "principal", pname,
+			    strlen(pname) + 1);
 		}
 	}
 
@@ -834,7 +895,9 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 	}
 
 tryagain:
-	if (trymntmode == V2) {
+	if (trymntmode == V4) {
+		nfsvers = 4;
+	} else if (trymntmode == V2) {
 		nfsvers = 2;
 		mntvers = 1;
 	} else {
@@ -894,8 +957,7 @@ tryagain:
 	try.tv_sec = 10;
 	try.tv_usec = 0;
 	stat = clnt_call(clp, NFSPROC_NULL, (xdrproc_t)xdr_void, NULL,
-			 (xdrproc_t)xdr_void, NULL,
-	    try);
+			 (xdrproc_t)xdr_void, NULL, try);
 	if (stat != RPC_SUCCESS) {
 		if (stat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
 			clnt_destroy(clp);
@@ -909,6 +971,30 @@ tryagain:
 		return (returncode(stat, &rpcerr));
 	}
 	clnt_destroy(clp);
+
+	/*
+	 * For NFSv4, there is no mount protocol.
+	 */
+	if (trymntmode == V4) {
+		/*
+		 * Store the server address in nfsargsp, making
+		 * sure to copy any locally allocated structures.
+		 */
+		addrlen = nfs_nb.len;
+		addr = malloc(addrlen);
+		if (addr == NULL)
+			err(1, "malloc");
+		bcopy(nfs_nb.buf, addr, addrlen);
+
+		build_iovec(iov, iovlen, "addr", addr, addrlen);
+		secname = sec_num_to_name(secflavor);
+		if (secname != NULL)
+			build_iovec(iov, iovlen, "sec", secname, (size_t)-1);
+		build_iovec(iov, iovlen, "nfsv4", NULL, 0);
+		build_iovec(iov, iovlen, "dirpath", spec, (size_t)-1);
+
+		return (TRYRET_SUCCESS);
+	}
 
 	/* Send the RPCMNT_MOUNT RPC to get the root filehandle. */
 	try.tv_sec = 10;
