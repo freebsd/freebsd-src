@@ -1,5 +1,6 @@
 .\"
 .\" Copyright (c) 2000, 2003 Robert N. M. Watson
+.\" Copyright (c) 2008 James Gritton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -33,49 +34,67 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2009
+.Dd May 27, 2009
 .Dt JAIL 8
 .Os
 .Sh NAME
 .Nm jail
-.Nd "imprison process and its descendants"
+.Nd "create or modify a system jail"
 .Sh SYNOPSIS
+.Nm
+.Op Fl dhi
+.Op Fl J Ar jid_file
+.Op Fl l u Ar username | Fl U Ar username
+.Op Fl c | m
+.Op Ar parameter=value ...
+.Br
 .Nm
 .Op Fl hi
 .Op Fl n Ar jailname
 .Op Fl J Ar jid_file
 .Op Fl s Ar securelevel
 .Op Fl l u Ar username | Fl U Ar username
-.Ar path hostname [ip[,..]] command ...
+.Op Ar path hostname [ip[,..]] command ...
+.Br
+.Nm
+.Op Fl r Ar jail
 .Sh DESCRIPTION
 The
 .Nm
-utility imprisons a process and all future descendants.
+utility creates a new jail or modifies an existing jail, optionally
+imprisoning the current process (and future descendants) inside it.
 .Pp
 The options are as follows:
-.Bl -tag -width ".Fl u Ar username"
+.Bl -tag -width indent
+.It Fl d
+Allow making changes to a
+.Va
+dying jail.
 .It Fl h
-Resolve
-.Va hostname
+Resolve the
+.Va host.hostname
+parameter (or
+.Va hostname )
 and add all IP addresses returned by the resolver
 to the list of
-.Va ip-addresses
-for this prison.
+.Va ip
+addresses for this prison.
 This may affect default address selection for outgoing IPv4 connections
 of prisons.
 The address first returned by the resolver for each address family
 will be used as primary address.
-See
-.Va ip-addresses
-further down for details.
+See the
+.Va ip4.addr
+and
+.Va ip6.addr
+parameters further down for details.
 .It Fl i
 Output the jail identifier of the newly created jail.
 .It Fl n Ar jailname
-Assign and administrative name to the jail that can be used for management
-or auditing purposes.
-The system will
-.Sy not enforce
-the name to be unique.
+Set the jail's name.
+This is deprecated and is equivalent to setting the
+.Va name
+parameter.
 .It Fl J Ar jid_file
 Write a
 .Ar jid_file
@@ -98,9 +117,12 @@ is imported from the current environment.
 The environment variables from the login class capability database for the
 target login are also set.
 .It Fl s Ar securelevel
-Sets the
+Set the
 .Va kern.securelevel
-sysctl variable to the specified value inside the newly created jail.
+MIB entry to the specified value inside the newly created jail.
+This is deprecated and is equivalent to setting the
+.Va securelevel
+parameter.
 .It Fl u Ar username
 The user name from host environment as whom the
 .Ar command
@@ -109,20 +131,241 @@ should run.
 The user name from jailed environment as whom the
 .Ar command
 should run.
-.It Ar path
+.It Fl c
+Create a new jail.
+The
+.Va jid
+and
+.Va name
+parameters (if specified) must not refer to an existing jail.
+.It Fl m
+Modify an existing jail.
+One of the
+.Va jid
+or
+.Va name
+parameters must exist and refer to an existing jail.
+.It Fl cm
+Create a jail if it does not exist, or modify a jail if it does exist.
+.It Fl r
+Remove the
+.Ar jail
+specified by jid or name.
+All jailed processes are killed, and all children of this jail are also
+removed.
+.El
+.Pp
+At least one of the
+.Fl c ,
+.Fl m
+or
+.Fl r
+options must be specified.
+.Pp
+.Ar Parameters
+are listed in
+.Dq name=value
+form, following the options.
+Some parameters are boolean, and do not have a value but are set by the
+name alone with or without a
+.Dq no
+prefix, e.g.
+.Va persist
+or
+.Va nopersist .
+Any parameters not set will be given default values, often based on the
+current environment.
+.Pp
+The pseudo-parameter
+.Va command
+specifies that the current process should enter the new (or modified) jail,
+and run the specified command.
+It must be the last parameter specified, because it includes not only
+the value following the
+.Sq =
+sign, but also passes the rest of the arguments to the command.
+.Pp
+Instead of supplying named
+.Ar parameters ,
+four fixed parameters may be supplied in order on the command line:
+.Ar path ,
+.Ar hostname ,
+.Ar ip ,
+and
+.Ar command .
+As the
+.Va jid
+and
+.Va name
+parameters aren't in this list, this mode will always create a new jail, and
+the
+.Fl c
+and
+.Fl o
+options don't apply (and must not exist).
+.Pp
+Jails have a set a core parameters, and modules can add their own jail
+parameters.
+The current set of available parameters can be retrieved via
+.Dq Nm sysctl Fl d Va security.jail.param .
+The core parameters are:
+.Bl -tag -width indent
+.It Va jid
+The jail identifier.
+This will be assigned automatically to a new jail (or can be explicitly
+set), and can be used to identify the jail for later modification, or
+for such commands as
+.Xr jls 8
+or
+.Xr jexec 8 .
+.It Va name
+The jail name.
+This is an arbitrary string that identifies a jail (except it may not
+contain a
+.Sq \&. ) .
+Like the
+.Va jid ,
+it can be passed to later
+.Nm
+commands, or to
+.Xr jls 8
+or
+.Xr jexec 8 .
+If no
+.Va name
+is supplied, a default is assumed that is the same as the
+.Va jid .
+.It Va path
 Directory which is to be the root of the prison.
-.It Ar hostname
-Hostname of the prison.
-.It Ar ip-addresses
-None, one or more IPv4 and IPv6 addresses assigned to the prison.
-The first address of each address family that was assigned to the jail will
-be used as the source address in case source address selection on unbound
-sockets cannot find a better match.
+The
+.Va command
+(if any) is run from this directory, as are commands from
+.Xr jexec 8 .
+.It Va ip4.addr
+A comma-separated list of IPv4 addresses assigned to the prison.
+If this is set, the jail is restricted to using only these address.
+Any attempts to use other addresses fail, and attempts to use wildcard
+addresses silently use the jailed address instead.
+For IPv4 the first address given will be kept used as the source address
+in case source address selection on unbound sockets cannot find a better
+match.
 It is only possible to start multiple jails with the same IP address,
 if none of the jails has more than this single overlapping IP address
-assigned to itself for the address family in question.
-.It Ar command
-Pathname of the program which is to be executed.
+assigned to itself.
+.Pp
+A list of zero elements (an empty string) will stop the jail from using IPv4
+entirely; setting the boolean parameter
+.Ar noip4
+will not restrict the jail at all.
+.It Va ip6.addr
+A list of IPv6 addresses assigned to the prison, the counterpart to
+.Ar ip4.addr
+above.
+.It Va host.hostname
+Hostname of the prison.
+If not specified, a jail will use the system hostname.
+.It Va securelevel
+The value of the jail's
+.Va kern.securelevel
+sysctl.
+A jail never has a lower securelevel than the default system, but by
+setting this parameter it may have a higher one.
+If the system securelevel is changed, any jail securelevels will be at
+least as secure.
+.It Va enforce_statfs
+This determines which information processes in a jail are able to get
+about mount points.
+It affects the behaviour of the following syscalls:
+.Xr statfs 2 ,
+.Xr fstatfs 2 ,
+.Xr getfsstat 2
+and
+.Xr fhstatfs 2
+(as well as similar compatibility syscalls).
+When set to 0, all mount points are available without any restrictions.
+When set to 1, only mount points below the jail's chroot directory are
+visible.
+In addition to that, the path to the jail's chroot directory is removed
+from the front of their pathnames.
+When set to 2 (default), above syscalls can operate only on a mount-point
+where the jail's chroot directory is located.
+.It Va persist
+Setting this boolean parameter allows a jail to exist without any
+processes.
+Normally, a jail is destroyed as its last process exits.
+A new jail must have either the
+.Va persist
+parameter or
+.Va command
+pseudo-parameter set.
+.It Va cpuset
+The ID of the cpuset associated with this jail (read-only).
+.It Va dying
+This is true if the jail is in the process of shutting down (read-only).
+.It Va parent
+The
+.Va jid
+of the parent of this jail, or zero if this is a top-level jail
+(read-only).
+.It Va allow.*
+Some restrictions of the jail environment may be set on a per-jail
+basis.
+With the exception of
+.Va allow.set_hostname ,
+these boolean parameters are off by default.
+.Bl -tag -width indent
+.It Va allow.set_hostname
+The jail's hostname may be changed via
+.Xr hostname 1
+or
+.Xr sethostname 3 .
+.It Va allow.sysvipc
+A process within the jail has access to System V IPC primitives.
+In the current jail implementation, System V primitives share a single
+namespace across the host and jail environments, meaning that processes
+within a jail would be able to communicate with (and potentially interfere
+with) processes outside of the jail, and in other jails.
+.It Va allow.raw_sockets
+The prison root is allowed to create raw sockets.
+Setting this parameter allows utilities like
+.Xr ping 8
+and
+.Xr traceroute 8
+to operate inside the prison.
+If this is set, the source IP addresses are enforced to comply
+with the IP address bound to the jail, regardless of whether or not
+the
+.Dv IP_HDRINCL
+flag has been set on the socket.
+Since raw sockets can be used to configure and interact with various
+network subsystems, extra caution should be used where privileged access
+to jails is given out to untrusted parties.
+.It Va allow.chflags
+Normally, priveleged users inside a jail are treated as unprivileged by
+.Xr chflags 2 .
+When this parameter is set, such users are treated as privileged, and
+may manipulate system file flags subject to the usual constraints on
+.Va kern.securelevel .
+.It Va allow.mount
+privileged users inside the jail will be able to mount and unmount file
+system types marked as jail-friendly.
+The
+.Xr lsvfs 1
+command can be used to find file system types available for mount from
+within a jail.
+.It Va allow.quotas
+The prison root may administer quotas on the jail's filesystem(s).
+This includes filesystems that the jail may share with other jails or
+with non-jailed parts of the system.
+.It Va allow.socket_af
+Sockets within a jail are normally restricted to IPv4, IPv6, local
+(UNIX), and route.  This allows access to other protocol stacks that
+have not had jail functionality added to them.
+.It Va allow.jails
+The prison root may create child jails under this jail.  See the
+.Va "Hierarchical Jails"
+section for more information.
+.El
 .El
 .Pp
 Jails are typically set up using one of two philosophies: either to
@@ -142,10 +385,6 @@ process.
 This manual page documents the configuration steps necessary to support
 either of these steps, although the configuration steps may be
 refined based on local requirements.
-.Pp
-Please see the
-.Xr jail 2
-man page for further details.
 .Sh EXAMPLES
 .Ss "Setting up a Jail Directory Tree"
 To set up a jail directory tree containing an entire
@@ -289,7 +528,10 @@ or for running a virtual server.
 .Pp
 Start a shell in the jail:
 .Pp
-.Dl "jail /data/jail/192.0.2.100 testhostname 192.0.2.100 /bin/sh"
+.Bd -literal -offset indent
+jail path=/data/jail/192.0.2.100 host.hostname=testhostname \\
+	ip4.addr=192.0.2.100 command=/bin/sh
+.Ed
 .Pp
 Assuming no errors, you will end up with a shell prompt within the jail.
 You can now run
@@ -359,20 +601,11 @@ To do this, first bring up the
 virtual host interface, and then start the jail's
 .Pa /etc/rc
 script from within the jail.
-.Pp
-NOTE: If you plan to allow untrusted users to have root access inside the
-jail, you may wish to consider setting the
-.Va security.jail.set_hostname_allowed
-sysctl variable to 0.
-Please see the management discussion later in this document as to why this
-may be a good idea.
-If you do decide to set this variable,
-it must be set before starting any jails, and once each boot.
 .Bd -literal -offset indent
 ifconfig ed0 inet alias 192.0.2.100/32
 mount -t procfs proc /data/jail/192.0.2.100/proc
-jail /data/jail/192.0.2.100 testhostname 192.0.2.100 \\
-	/bin/sh /etc/rc
+jail path=/data/jail/192.0.2.100 host.hostname=testhostname \\
+	ip4=addr.192.0.2.100 command=/bin/sh /etc/rc
 .Ed
 .Pp
 A few warnings will be produced, because most
@@ -442,10 +675,15 @@ To kill processes from outside the jail, use the
 utility in conjunction with the one of the
 .Xr kill 1
 commands above.
+You may also remove the jail with
+.Nm
+.Ar -r ,
+which will killall the jail's processes with
+.Dv SIGKILL .
 .Pp
 The
 .Pa /proc/ Ns Ar pid Ns Pa /status
-file contains, as its last field, the hostname of the jail in which the
+file contains, as its last field, the name of the jail in which the
 process runs, or
 .Dq Li -
 to indicate that the process is not running within a jail.
@@ -454,20 +692,6 @@ The
 command also shows a
 .Ql J
 flag for processes in a jail.
-However, the hostname for a jail may be, by
-default, modified from within the jail, so the
-.Pa /proc
-status entry is unreliable by default.
-To disable the setting of the hostname
-from within a jail, set the
-.Va security.jail.set_hostname_allowed
-sysctl variable in the host environment to 0, which will affect all jails.
-You can have this sysctl set on each boot using
-.Xr sysctl.conf 5 .
-Just add the following line to
-.Pa /etc/sysctl.conf :
-.Pp
-.Dl security.jail.set_hostname_allowed=0
 .Pp
 You can also list/kill processes based on their jail ID.
 To show processes and their jail ID, use the following command:
@@ -488,12 +712,9 @@ It is not possible to
 or
 .Xr umount 8
 any file system inside a jail unless the file system is marked
-jail-friendly.
-See
-.Va security.jail.mount_allowed
-in the
-.Va "Sysctl MIB Entries"
-section.
+jail-friendly and the jail's
+.Va allow.mount
+parameter is set.
 .Pp
 Multiple jails sharing the same file system can influence each other.
 For example a user in one jail can fill the file system also
@@ -506,132 +727,77 @@ This means the same user ID in two jails share the same file
 system quota.
 One would need to use one file system per jail to make this working.
 .Ss "Sysctl MIB Entries"
-Certain aspects of the jail containments environment may be modified from
-the host environment using
-.Xr sysctl 8
-MIB variables.
-Currently, these variables affect all jails on the system, although in
-the future this functionality may be finer grained.
-.Bl -tag -width XXX
-.It Va security.jail.allow_raw_sockets
-This MIB entry determines whether or not prison root is allowed to
-create raw sockets.
-Setting this MIB to 1 allows utilities like
-.Xr ping 8
-and
-.Xr traceroute 8
-to operate inside the prison.
-If this MIB
-is set, the source IP addresses are enforced to comply
-with the IP address bound to the jail, regardless of whether or not
-the
-.Dv IP_HDRINCL
-flag has been set on the socket.
-Since raw sockets can be used to configure
-and interact with various network subsystems, extra caution should be used
-where privileged access to jails is given out to untrusted parties.
-As such,
-by default this option is disabled.
-.It Va security.jail.enforce_statfs
-This MIB entry determines which information processes in a jail are
-able to get about mount-points.
-It affects the behaviour of the following syscalls:
-.Xr statfs 2 ,
-.Xr fstatfs 2 ,
-.Xr getfsstat 2
-and
-.Xr fhstatfs 2
-(as well as similar compatibility syscalls).
-When set to 0, all mount-points are available without any restrictions.
-When set to 1, only mount-points below the jail's chroot directory are
-visible.
-In addition to that, the path to the jail's chroot directory is removed
-from the front of their pathnames.
-When set to 2 (default), above syscalls can operate only on a mount-point
-where the jail's chroot directory is located.
-.It Va security.jail.set_hostname_allowed
-This MIB entry determines whether or not processes within a jail are
-allowed to change their hostname via
-.Xr hostname 1
-or
-.Xr sethostname 3 .
-In the current jail implementation, the ability to set the hostname from
-within the jail can impact management tools relying on the accuracy of jail
-information in
-.Pa /proc .
-As such, this should be disabled in environments where privileged access to
-jails is given out to untrusted parties.
-.It Va security.jail.socket_unixiproute_only
-The jail functionality binds an IPv4 address to each jail, and limits
-access to other network addresses in the IPv4 space that may be available
-in the host environment.
-However, jail is not currently able to limit access to other network
-protocol stacks that have not had jail functionality added to them.
-As such, by default, processes within jails may only access protocols
-in the following domains:
-.Dv PF_LOCAL , PF_INET ,
-and
-.Dv PF_ROUTE ,
-permitting them access to
-.Ux
-domain sockets,
-IPv4 addresses, and routing sockets.
-To enable access to other domains, this MIB variable may be set to
-0.
-.It Va security.jail.sysvipc_allowed
-This MIB entry determines whether or not processes within a jail have access
-to System V IPC primitives.
-In the current jail implementation, System V primitives share a single
-namespace across the host and jail environments, meaning that processes
-within a jail would be able to communicate with (and potentially interfere
-with) processes outside of the jail, and in other jails.
-As such, this functionality is disabled by default, but can be enabled
-by setting this MIB entry to 1.
-.It Va security.jail.chflags_allowed
-This MIB entry determines how a privileged user inside a jail will be
-treated by
-.Xr chflags 2 .
-If zero, such users are treated as unprivileged, and are unable to set
-or clear system file flags; if non-zero, such users are treated as
-privileged, and may manipulate system file flags subject to the usual
-constraints on
-.Va kern.securelevel .
-.It Va security.jail.mount_allowed
-This MIB entry determines if a privileged user inside a jail will be
-able to mount and unmount file system types marked as jail-friendly.
-The
-.Xr lsvfs 1
-command can be used to find file system types available for mount from within
-a jail.
-This functionality is disabled by default, but can be enabled by setting this
-MIB entry to 1.
-.It Va security.jail.jail_max_af_ips
-This MIB entry determines how may address per address family a prison
-may have. The default is 255.
-.El
-.Pp
-The read-only sysctl variable
+The read-only entry
 .Va security.jail.jailed
 can be used to determine if a process is running inside a jail (value
 is one) or not (value is zero).
 .Pp
-The
-.Va security.jail.list
-MIB entry is read-only and it returns an array of
-.Vt "struct xprison"
-defined in
-.In sys/jail.h .
-It is recommended to use the
-.Xr jls 8
-utility to see current active list of jails.
+The variable
+.Va security.jail.max_af_ips
+determines how may address per address family a prison may have.
+The default is 255.
 .Pp
-There are currently two MIB related variables that have per-jail settings.
+There are currently two MIB variables that have per-jail settings.
 Changes to these variables by a jailed process do not effect the host
 environment, only the jail environment.
 The variables are
 .Va kern.securelevel
 and
 .Va kern.hostname .
+.Ss "Hierarchical Jails"
+By setting a jail's
+.Va allow.jails
+parameter, processes within a jail may be able to create jails of their own.
+These child jails are kept in a hierarchy, with jails only able to see and/or
+modify the jails they created (or those jails' children).
+Each jail has a read-only
+.Va parent
+parameter, containing the
+.Va jid
+of the jail that created it; a
+.Va jid
+of 0 indicates the jail is a child of the current jail (or is a top-level
+jail if the current process isn't jailed).
+.Pp
+Jailed processes are not allowed to confer greater permissions than they
+themselves are given, e.g. if a jail is created with
+.Va allow.nomount ,
+it is not able to create a jail with
+.Va allow.mount
+set.
+Similarly, such restrictions as
+.Va ip4.addr
+and
+.Va securelevel
+may not be bypassed in child jails.
+.Pp
+A child jail may in turn create its own child jails if its own
+.Va allow.jails
+parameter is set (remember it is off by default).
+These jails are visible to and can be modified by their parent and all
+ancestors.
+.Pp
+Jail names reflect this hierarchy, with a full name being an MIB-type string
+separated by dots.
+For example, if a base system process creates a jail
+.Dq foo ,
+and a process under that jail creates another jail
+.Dq bar ,
+then the second jail will be seen as
+.Dq foo.bar
+in the base system (though it is only seen as
+.Dq bar
+to any processes inside jail
+.Dq foo ) .
+Jids on the other hand exist in a single space, and each jail must have a
+unique jid.
+.Pp
+Like the names, a child jail's
+.Va path
+is relative to its creator's own
+.Va path .
+This is by virtue of the child jail being created in the chrooted
+environment of the first jail.
 .Sh SEE ALSO
 .Xr killall 1 ,
 .Xr lsvfs 1 ,
@@ -641,7 +807,7 @@ and
 .Xr ps 1 ,
 .Xr quota 1 ,
 .Xr chroot 2 ,
-.Xr jail 2 ,
+.Xr jail_set 2 ,
 .Xr jail_attach 2 ,
 .Xr procfs 5 ,
 .Xr rc.conf 5 ,
@@ -665,6 +831,8 @@ The
 .Nm
 utility appeared in
 .Fx 4.0 .
+Hierarchical/extensible jails were introduced in
+.Fx 8.0 .
 .Sh AUTHORS
 .An -nosplit
 The jail feature was written by
@@ -683,6 +851,9 @@ added multi-IP jail support for IPv4 and IPv6 based on a patch
 originally done by
 .An Pawel Jakub Dawidek
 for IPv4.
+.Pp
+.An James Gritton
+added the extensible jail parameters and hierchical jails.
 .Sh BUGS
 Jail currently lacks the ability to allow access to
 specific jail information via

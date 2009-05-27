@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1999 Poul-Henning Kamp.
+ * Copyright (c) 2009 James Gritton
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,50 +30,53 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/jail.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
+#include <sys/uio.h>
 
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
+#include <netinet/in.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
 #include <login_cap.h>
+#include <netdb.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
 #include <string.h>
 #include <unistd.h>
 
-static void		usage(void);
-static int		add_addresses(struct addrinfo *);
-static struct in_addr	*copy_addr4(void);
+#define	SJPARAM		"security.jail.param"
+#define	ERRMSG_SIZE	256
+
+struct param {
+	struct iovec name;
+	struct iovec value;
+};
+
+static struct param *params;
+static char **param_values;
+static int nparams;
+
+static char *ip4_addr;
 #ifdef INET6
-static struct in6_addr	*copy_addr6(void);
+static char *ip6_addr;
 #endif
 
-extern char	**environ;
-
-struct addr4entry {
-	STAILQ_ENTRY(addr4entry)	addr4entries;
-	struct in_addr			ip4;
-	int				count;
-};
-struct addr6entry {
-	STAILQ_ENTRY(addr6entry)	addr6entries;
+static void add_ip_addr(char **addrp, char *newaddr);
 #ifdef INET6
-	struct in6_addr			ip6;
+static void add_ip_addr46(char *newaddr);
 #endif
-	int				count;
-};
-STAILQ_HEAD(addr4head, addr4entry) addr4 = STAILQ_HEAD_INITIALIZER(addr4);
-STAILQ_HEAD(addr6head, addr6entry) addr6 = STAILQ_HEAD_INITIALIZER(addr6);
+static void add_ip_addrinfo(int ai_flags, char *value);
+static void quoted_print(FILE *fp, char *str);
+static void set_param(const char *name, char *value);
+static void usage(void);
+
+extern char **environ;
 
 #define GET_USER_INFO do {						\
 	pwd = getpwnam(username);					\
@@ -94,25 +98,28 @@ int
 main(int argc, char **argv)
 {
 	login_cap_t *lcap = NULL;
-	struct jail j;
+	struct iovec rparams[2];
 	struct passwd *pwd = NULL;
 	gid_t groups[NGROUPS];
-	int ch, error, i, ngroups, securelevel;
-	int hflag, iflag, Jflag, lflag, uflag, Uflag;
-	char path[PATH_MAX], *jailname, *ep, *username, *JidFile, *ip;
+	int ch, cmdarg, i, jail_set_flags, jid, ngroups;
+	int hflag, iflag, Jflag, lflag, rflag, uflag, Uflag;
+	char *ep, *jailname, *securelevel, *username, *JidFile;
+	char errmsg[ERRMSG_SIZE];
 	static char *cleanenv;
 	const char *shell, *p = NULL;
-	long ltmp;
 	FILE *fp;
-	struct addrinfo hints, *res0;
 
-	hflag = iflag = Jflag = lflag = uflag = Uflag = 0;
-	securelevel = -1;
-	jailname = username = JidFile = cleanenv = NULL;
+	hflag = iflag = Jflag = lflag = rflag = uflag = Uflag =
+	    jail_set_flags = 0;
+	cmdarg = jid = -1;
+	jailname = securelevel = username = JidFile = cleanenv = NULL;
 	fp = NULL;
 
-	while ((ch = getopt(argc, argv, "hiln:s:u:U:J:")) != -1) {
+	while ((ch = getopt(argc, argv, "cdhilmn:r:s:u:U:J:")) != -1) {
 		switch (ch) {
+		case 'd':
+			jail_set_flags |= JAIL_DYING;
+			break;
 		case 'h':
 			hflag = 1;
 			break;
@@ -127,10 +134,7 @@ main(int argc, char **argv)
 			jailname = optarg;
 			break;
 		case 's':
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp > INT_MAX || !ltmp)
-				errx(1, "invalid securelevel: `%s'", optarg);
-			securelevel = ltmp;
+			securelevel = optarg;
 			break;
 		case 'u':
 			username = optarg;
@@ -143,13 +147,39 @@ main(int argc, char **argv)
 		case 'l':
 			lflag = 1;
 			break;
+		case 'c':
+			jail_set_flags |= JAIL_CREATE;
+			break;
+		case 'm':
+			jail_set_flags |= JAIL_UPDATE;
+			break;
+		case 'r':
+			jid = strtoul(optarg, &ep, 10);
+			if (!*optarg || *ep) {
+				*(const void **)&rparams[0].iov_base = "name";
+				rparams[0].iov_len = sizeof("name");
+				rparams[1].iov_base = optarg;
+				rparams[1].iov_len = strlen(optarg) + 1;
+				jid = jail_get(rparams, 2, 0);
+				if (jid < 0)
+					errx(1, "unknown jail: %s", optarg);
+			}
+			rflag = 1;
+			break;
 		default:
 			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
-	if (argc < 4)
+	if (rflag) {
+		if (argc > 0 || iflag || Jflag || lflag || uflag || Uflag)
+			usage();
+		if (jail_remove(jid) < 0)
+			err(1, "jail_remove");
+		exit (0);
+	}
+	if (argc == 0)
 		usage();
 	if (uflag && Uflag)
 		usage();
@@ -157,92 +187,118 @@ main(int argc, char **argv)
 		usage();
 	if (uflag)
 		GET_USER_INFO;
-	if (realpath(argv[0], path) == NULL)
-		err(1, "realpath: %s", argv[0]);
-	if (chdir(path) != 0)
-		err(1, "chdir: %s", path);
-	/* Initialize struct jail. */
-	memset(&j, 0, sizeof(j));
-	j.version = JAIL_API_VERSION;
-	j.path = path;
-	j.hostname = argv[1];
-	if (jailname != NULL)
-		j.jailname = jailname;
 
-	/* Handle IP addresses. If requested resolve hostname too. */
-	bzero(&hints, sizeof(struct addrinfo));
-	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_socktype = SOCK_STREAM;
-	if (JAIL_API_VERSION < 2)
-		hints.ai_family = PF_INET;
-	else
-		hints.ai_family = PF_UNSPEC;
-	/* Handle hostname. */
-	if (hflag != 0) {
-		error = getaddrinfo(j.hostname, NULL, &hints, &res0);
-		if (error != 0)
-			errx(1, "failed to handle hostname: %s",
-			    gai_strerror(error));
-		error = add_addresses(res0);
-		freeaddrinfo(res0);
-		if (error != 0)
-			errx(1, "failed to add addresses.");
-	}
-	/* Handle IP addresses. */
-	hints.ai_flags = AI_NUMERICHOST;
-	ip = strtok(argv[2], ",");
-	while (ip != NULL) {
-		error = getaddrinfo(ip, NULL, &hints, &res0);
-		if (error != 0)
-			errx(1, "failed to handle ip: %s", gai_strerror(error));
-		error = add_addresses(res0);
-		freeaddrinfo(res0);
-		if (error != 0)
-			errx(1, "failed to add addresses.");
-		ip = strtok(NULL, ",");
-	}
-	/* Count IP addresses and add them to struct jail. */
-	if (!STAILQ_EMPTY(&addr4)) {
-		j.ip4s = STAILQ_FIRST(&addr4)->count;
-		j.ip4 = copy_addr4();
-		if (j.ip4s > 0 && j.ip4 == NULL)
-			errx(1, "copy_addr4()");
-	}
+	/*
+	 * If the first argument (path) starts with a slash, and the third
+	 * argument (IP address) starts with a digit, it is likely to be
+	 * an old-style fixed-parameter command line.
+	 */
+	if (jailname)
+		set_param("name", jailname);
+	if (securelevel)
+		set_param("securelevel", securelevel);
+	if (jail_set_flags) {
+		for (i = 0; i < argc; i++) {
+			if (!strncmp(argv[i], "command=", 8)) {
+				cmdarg = i;
+				argv[cmdarg] += 8;
+				jail_set_flags |= JAIL_ATTACH;
+				break;
+			}
+			if (hflag) {
+				if (!strncmp(argv[i], "ip4.addr=", 9)) {
+					add_ip_addr(&ip4_addr, argv[i] + 9);
+					break;
+				}
 #ifdef INET6
-	if (!STAILQ_EMPTY(&addr6)) {
-		j.ip6s = STAILQ_FIRST(&addr6)->count;
-		j.ip6 = copy_addr6();
-		if (j.ip6s > 0 && j.ip6 == NULL)
-			errx(1, "copy_addr6()");
+				if (!strncmp(argv[i], "ip6.addr=", 9)) {
+					add_ip_addr(&ip6_addr, argv[i] + 9);
+					break;
+				}
+#endif
+				if (!strncmp(argv[i], "host.hostname=", 14))
+					add_ip_addrinfo(0, argv[i] + 14);
+			}
+			set_param(NULL, argv[i]);
+		}
+	} else {
+		if (argc < 4 || argv[0][0] != '/')
+			errx(1, "%s\n%s",
+			   "no -c or -m, so this must be an old-style command.",
+			   "But it doesn't look like one.");
+		set_param("path", argv[0]);
+		set_param("host.hostname", argv[1]);
+		if (hflag)
+			add_ip_addrinfo(0, argv[1]);
+#ifdef INET6
+		add_ip_addr46(argv[2]);
+#else
+		add_ip_addr(&ip4_addr, argv[2]);
+#endif
+		cmdarg = 3;
 	}
-#endif 
+	if (ip4_addr != NULL)
+		set_param("ip4.addr", ip4_addr);
+#ifdef INET6
+	if (ip6_addr != NULL)
+		set_param("ip6.addr", ip6_addr);
+#endif
+	errmsg[0] = 0;
+	set_param("errmsg", errmsg);
 
 	if (Jflag) {
 		fp = fopen(JidFile, "w");
 		if (fp == NULL)
 			errx(1, "Could not create JidFile: %s", JidFile);
 	}
-	i = jail(&j);
-	if (i == -1)
-		err(1, "syscall failed with");
+	jid = jail_set(&params->name, 2 * nparams,
+	    jail_set_flags ? jail_set_flags : JAIL_CREATE | JAIL_ATTACH);
+	if (jid < 0) {
+		if (errmsg[0] != '\0')
+			errx(1, "%s", errmsg);
+		err(1, "jail_set");
+	}
 	if (iflag) {
-		printf("%d\n", i);
+		printf("%d\n", jid);
 		fflush(stdout);
 	}
 	if (Jflag) {
-		if (fp != NULL) {
-			fprintf(fp, "%d\t%s\t%s\t%s\t%s\n",
-			    i, j.path, j.hostname, argv[2], argv[3]);
-			(void)fclose(fp);
+		if (jail_set_flags) {
+			fprintf(fp, "jid=%d", jid);
+			for (i = 0; i < nparams; i++)
+				if (strcmp(params[i].name.iov_base, "jid") &&
+				    strcmp(params[i].name.iov_base, "errmsg")) {
+					fprintf(fp, " %s",
+					    (char *)params[i].name.iov_base);
+					if (param_values[i]) {
+						putc('=', fp);
+						quoted_print(fp,
+						    param_values[i]);
+					}
+				}
+			fprintf(fp, "\n");
 		} else {
-			errx(1, "Could not write JidFile: %s", JidFile);
+			for (i = 0; i < nparams; i++)
+				if (!strcmp(params[i].name.iov_base, "path"))
+					break;
+#ifdef INET6
+			fprintf(fp, "%d\t%s\t%s\t%s%s%s\t%s\n",
+			    jid, i < nparams
+			    ? (char *)params[i].value.iov_base : argv[0],
+			    argv[1], ip4_addr ? ip4_addr : "",
+			    ip4_addr && ip4_addr[0] && ip6_addr && ip6_addr[0]
+			    ? "," : "", ip6_addr ? ip6_addr : "", argv[3]);
+#else
+			fprintf(fp, "%d\t%s\t%s\t%s\t%s\n",
+			    jid, i < nparams
+			    ? (char *)params[i].value.iov_base : argv[0],
+			    argv[1], ip4_addr ? ip4_addr : "", argv[3]);
+#endif
 		}
+		(void)fclose(fp);
 	}
-	if (securelevel > 0) {
-		if (sysctlbyname("kern.securelevel", NULL, 0, &securelevel,
-		    sizeof(securelevel)))
-			err(1, "Can not set securelevel to %d", securelevel);
-	}
+	if (cmdarg < 0)
+		exit(0);
 	if (username != NULL) {
 		if (Uflag)
 			GET_USER_INFO;
@@ -272,158 +328,328 @@ main(int argc, char **argv)
 		if (p)
 			setenv("TERM", p, 1);
 	}
-	if (execv(argv[3], argv + 3) != 0)
-		err(1, "execv: %s", argv[3]);
-	exit(0);
+	execvp(argv[cmdarg], argv + cmdarg);
+	err(1, "execvp: %s", argv[cmdarg]);
+}
+
+static void
+add_ip_addr(char **addrp, char *value)
+{
+	int addrlen;
+	char *addr;
+
+	if (!*addrp) {
+		*addrp = strdup(value);
+		if (!*addrp)
+			err(1, "malloc");
+	} else if (value[0]) {
+		addrlen = strlen(*addrp) + strlen(value) + 2;
+		addr = malloc(addrlen);
+		if (!addr)
+			err(1, "malloc");
+		snprintf(addr, addrlen, "%s,%s", *addrp, value);
+		free(*addrp);
+		*addrp = addr;
+	}
+}
+
+#ifdef INET6
+static void
+add_ip_addr46(char *value)
+{
+	char *p, *np;
+
+	if (!value[0]) {
+		add_ip_addr(&ip4_addr, value);
+		add_ip_addr(&ip6_addr, value);
+		return;
+	}
+	for (p = value;; p = np + 1)
+	{
+		np = strchr(p, ',');
+		if (np)
+			*np = '\0';
+		add_ip_addrinfo(AI_NUMERICHOST, p);
+		if (!np)
+			break;
+	}
+}
+#endif
+
+static void
+add_ip_addrinfo(int ai_flags, char *value)
+{
+	struct addrinfo hints, *ai0, *ai;
+	struct in_addr addr4;
+	int error;
+	char avalue4[INET_ADDRSTRLEN];
+#ifdef INET6
+	struct in6_addr addr6;
+	char avalue6[INET6_ADDRSTRLEN];
+#endif
+
+	/* Look up the hostname (or get the address) */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_STREAM;
+#ifdef INET6
+	hints.ai_family = PF_UNSPEC;
+#else
+	hints.ai_family = PF_INET;
+#endif
+	hints.ai_flags = ai_flags;
+	error = getaddrinfo(value, NULL, &hints, &ai0);
+	if (error != 0)
+		errx(1, "hostname %s: %s", value, gai_strerror(error));
+	
+	/* Convert the addresses to ASCII so set_param can convert them back. */
+	for (ai = ai0; ai; ai = ai->ai_next)
+		switch (ai->ai_family) {
+		case AF_INET:
+			memcpy(&addr4, &((struct sockaddr_in *)
+			    (void *)ai->ai_addr)->sin_addr, sizeof(addr4));
+			if (inet_ntop(AF_INET, &addr4, avalue4,
+			    INET_ADDRSTRLEN) == NULL)
+				err(1, "inet_ntop");
+			add_ip_addr(&ip4_addr, avalue4);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			memcpy(&addr6, &((struct sockaddr_in6 *)
+			    (void *)ai->ai_addr)->sin6_addr, sizeof(addr6));
+			if (inet_ntop(AF_INET6, &addr6, avalue6,
+			    INET6_ADDRSTRLEN) == NULL)
+				err(1, "inet_ntop");
+			add_ip_addr(&ip6_addr, avalue6);
+			break;
+#endif
+		}
+	freeaddrinfo(ai0);
+}
+
+static void
+quoted_print(FILE *fp, char *str)
+{
+	int c, qc;
+	char *p = str;
+
+	/* An empty string needs quoting. */
+	if (!*p) {
+		fputs("\"\"", fp);
+		return;
+	}
+
+	/*
+	 * The value will be surrounded by quotes if it contains spaces
+	 * or quotes.
+	 */
+	qc = strchr(p, '\'') ? '"'
+	    : strchr(p, '"') ? '\''
+	    : strchr(p, ' ') || strchr(p, '\t') ? '"'
+	    : 0;
+	if (qc)
+		putc(qc, fp);
+	while ((c = *p++)) {
+		if (c == '\\' || c == qc)
+			putc('\\', fp);
+		putc(c, fp);
+	}
+	if (qc)
+		putc(qc, fp);
+}
+
+static void
+set_param(const char *name, char *value)
+{
+	struct param *param;
+	char *ep, *p;
+	size_t buflen, mlen;
+	int i, nval, mib[CTL_MAXNAME];
+	struct {
+		int i;
+		char s[MAXPATHLEN];
+	} buf;
+
+	static int paramlistsize;
+
+	/* Separate the name from the value, if not done already. */
+	if (name == NULL) {
+		name = value;
+		if ((value = strchr(value, '=')))
+			*value++ = '\0';
+	}
+
+	/* Check for repeat parameters */
+	for (i = 0; i < nparams; i++)
+		if (!strcmp(name, params[i].name.iov_base)) {
+			memcpy(params + i, params + i + 1,
+			    (--nparams - i) * sizeof(struct param));
+			break;
+		}
+
+	/* Make sure there is room for the new param record. */
+	if (!nparams) {
+		paramlistsize = 32;
+		params = malloc(paramlistsize * sizeof(*params));
+		param_values = malloc(paramlistsize * sizeof(*param_values));
+		if (params == NULL || param_values == NULL)
+			err(1, "malloc");
+	} else if (nparams >= paramlistsize) {
+		paramlistsize *= 2;
+		params = realloc(params, paramlistsize * sizeof(*params));
+		param_values = realloc(param_values,
+		    paramlistsize * sizeof(*param_values));
+		if (params == NULL)
+			err(1, "realloc");
+	}
+
+	/* Look up the paramter. */
+	param_values[nparams] = value;
+	param = params + nparams++;
+	*(const void **)&param->name.iov_base = name;
+	param->name.iov_len = strlen(name) + 1;
+	/* Trivial values - no value or errmsg. */
+	if (value == NULL) {
+		param->value.iov_base = NULL;
+		param->value.iov_len = 0;
+		return;
+	}
+	if (!strcmp(name, "errmsg")) {
+		param->value.iov_base = value;
+		param->value.iov_len = ERRMSG_SIZE;
+		return;
+	}
+	mib[0] = 0;
+	mib[1] = 3;
+	snprintf(buf.s, sizeof(buf.s), SJPARAM ".%s", name);
+	mlen = sizeof(mib) - 2 * sizeof(int);
+	if (sysctl(mib, 2, mib + 2, &mlen, buf.s, strlen(buf.s)) < 0)
+		errx(1, "unknown parameter: %s", name);
+	mib[1] = 4;
+	buflen = sizeof(buf);
+	if (sysctl(mib, (mlen / sizeof(int)) + 2, &buf, &buflen, NULL, 0) < 0)
+		err(1, "sysctl(0.4.%s)", name);
+	/*
+	 * See if this is an array type.
+	 * Treat non-arrays as an array of one.
+	 */
+	p = strchr(buf.s, '\0');
+	nval = 1;
+	if (p - 2 >= buf.s && !strcmp(p - 2, ",a")) {
+		if (value[0] == '\0' ||
+		    (value[0] == '-' && value[1] == '\0')) {
+			param->value.iov_base = value;
+			param->value.iov_len = 0;
+			return;
+		}
+		p[-2] = 0;
+		for (p = strchr(value, ','); p; p = strchr(p + 1, ',')) {
+			*p = '\0';
+			nval++;
+		}
+	}
+	
+	/* Set the values according to the parameter type. */
+	switch (buf.i & CTLTYPE) {
+	case CTLTYPE_INT:
+	case CTLTYPE_UINT:
+		param->value.iov_len = nval * sizeof(int);
+		break;
+	case CTLTYPE_LONG:
+	case CTLTYPE_ULONG:
+		param->value.iov_len = nval * sizeof(long);
+		break;
+	case CTLTYPE_STRUCT:
+		if (!strcmp(buf.s, "S,in_addr"))
+			param->value.iov_len = nval * sizeof(struct in_addr);
+#ifdef INET6
+		else if (!strcmp(buf.s, "S,in6_addr"))
+			param->value.iov_len = nval * sizeof(struct in6_addr);
+#endif
+		else
+			errx(1, "%s: unknown parameter structure (%s)",
+			    name, buf.s);
+		break;
+	case CTLTYPE_STRING:
+		if (!strcmp(name, "path")) {
+			param->value.iov_base = malloc(MAXPATHLEN);
+			if (param->value.iov_base == NULL)
+				err(1, "malloc");
+			if (realpath(value, param->value.iov_base) == NULL)
+				err(1, "%s: realpath(%s)", name, value);
+			if (chdir(param->value.iov_base) != 0)
+				err(1, "chdir: %s",
+				    (char *)param->value.iov_base);
+		} else
+			param->value.iov_base = value;
+		param->value.iov_len = strlen(param->value.iov_base) + 1;
+		return;
+	default:
+		errx(1, "%s: unknown parameter type %d (%s)",
+		    name, buf.i, buf.s);
+	}
+	param->value.iov_base = malloc(param->value.iov_len);
+	for (i = 0; i < nval; i++) {
+		switch (buf.i & CTLTYPE) {
+		case CTLTYPE_INT:
+			((int *)param->value.iov_base)[i] =
+			    strtol(value, &ep, 10);
+			if (ep[0] != '\0')
+				errx(1, "%s: non-integer value \"%s\"",
+				    name, value);
+			break;
+		case CTLTYPE_UINT:
+			((unsigned *)param->value.iov_base)[i] =
+			    strtoul(value, &ep, 10);
+			if (ep[0] != '\0')
+				errx(1, "%s: non-integer value \"%s\"",
+				    name, value);
+			break;
+		case CTLTYPE_LONG:
+			((long *)param->value.iov_base)[i] =
+			    strtol(value, &ep, 10);
+			if (ep[0] != '\0')
+			    errx(1, "%s: non-integer value \"%s\"",
+				name, value);
+			break;
+		case CTLTYPE_ULONG:
+			((unsigned long *)param->value.iov_base)[i] =
+			    strtoul(value, &ep, 10);
+			if (ep[0] != '\0')
+			    errx(1, "%s: non-integer value \"%s\"",
+				name, value);
+			break;
+		case CTLTYPE_STRUCT:
+			if (!strcmp(buf.s, "S,in_addr")) {
+				if (inet_pton(AF_INET, value,
+				    &((struct in_addr *)
+				    param->value.iov_base)[i]) != 1)
+					errx(1, "%s: not an IPv4 address: %s",
+					    name, value);
+			}
+#ifdef INET6
+			else if (!strcmp(buf.s, "S,in6_addr")) {
+				if (inet_pton(AF_INET6, value,
+				    &((struct in6_addr *)
+				    param->value.iov_base)[i]) != 1)
+					errx(1, "%s: not an IPv6 address: %s",
+					    name, value);
+			}
+#endif
+		}
+		if (i > 0)
+			value[-1] = ',';
+		value = strchr(value, '\0') + 1;
+	}
 }
 
 static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "%s%s%s\n",
-	     "usage: jail [-hi] [-n jailname] [-J jid_file] ",
-	     "[-s securelevel] [-l -u username | -U username] ",
-	     "path hostname [ip[,..]] command ...");
+	(void)fprintf(stderr,
+	    "usage: jail [-d] [-h] [-i] [-J jid_file] "
+			"[-l -u username | -U username]\n"
+	    "            [-c | -m] param=value ... [command=command ...]\n"
+	    "       jail [-r jail]\n");
 	exit(1);
 }
-
-static int
-add_addresses(struct addrinfo *res0)
-{
-	int error;
-	struct addrinfo *res;
-	struct addr4entry *a4p;
-	struct sockaddr_in *sai;
-#ifdef INET6
-	struct addr6entry *a6p;
-	struct sockaddr_in6 *sai6;
-#endif
-	int count;
-
-	error = 0;
-	for (res = res0; res && error == 0; res = res->ai_next) {
-		switch (res->ai_family) {
-		case AF_INET:
-			sai = (struct sockaddr_in *)(void *)res->ai_addr;
-			STAILQ_FOREACH(a4p, &addr4, addr4entries) {
-			    if (bcmp(&sai->sin_addr, &a4p->ip4,
-				sizeof(struct in_addr)) == 0) {
-				    err(1, "Ignoring duplicate IPv4 address.");
-				    break;
-			    }
-			}
-			a4p = (struct addr4entry *) malloc(
-			    sizeof(struct addr4entry));
-			if (a4p == NULL) {
-				error = 1;
-				break;
-			}
-			bzero(a4p, sizeof(struct addr4entry));
-			bcopy(&sai->sin_addr, &a4p->ip4,
-			    sizeof(struct in_addr));
-			if (!STAILQ_EMPTY(&addr4))
-				count = STAILQ_FIRST(&addr4)->count;
-			else
-				count = 0;
-			STAILQ_INSERT_TAIL(&addr4, a4p, addr4entries);
-			STAILQ_FIRST(&addr4)->count = count + 1;
-			break;
-#ifdef INET6
-		case AF_INET6:
-			sai6 = (struct sockaddr_in6 *)(void *)res->ai_addr;
-			STAILQ_FOREACH(a6p, &addr6, addr6entries) {
-			    if (bcmp(&sai6->sin6_addr, &a6p->ip6,
-				sizeof(struct in6_addr)) == 0) {
-				    err(1, "Ignoring duplicate IPv6 address.");
-				    break;
-			    }
-			}
-			a6p = (struct addr6entry *) malloc(
-			    sizeof(struct addr6entry));
-			if (a6p == NULL) {
-				error = 1;
-				break;
-			}
-			bzero(a6p, sizeof(struct addr6entry));
-			bcopy(&sai6->sin6_addr, &a6p->ip6,
-			    sizeof(struct in6_addr));
-			if (!STAILQ_EMPTY(&addr6))
-				count = STAILQ_FIRST(&addr6)->count;
-			else
-				count = 0;
-			STAILQ_INSERT_TAIL(&addr6, a6p, addr6entries);
-			STAILQ_FIRST(&addr6)->count = count + 1;
-			break;
-#endif
-		default:
-			err(1, "Address family %d not supported. Ignoring.\n",
-			    res->ai_family);
-			break;
-		}
-	}
-
-	return (error);
-}
-
-static struct in_addr *
-copy_addr4(void)
-{
-	size_t len;
-	struct in_addr *ip4s, *p, ia;
-	struct addr4entry *a4p;
-
-	if (STAILQ_EMPTY(&addr4))
-		return NULL;
-
-	len = STAILQ_FIRST(&addr4)->count * sizeof(struct in_addr);
-
-	ip4s = p = (struct in_addr *)malloc(len);
-	if (ip4s == NULL)
-	return (NULL);
-
-	bzero(p, len);
-
-	while (!STAILQ_EMPTY(&addr4)) {
-		a4p = STAILQ_FIRST(&addr4);
-		STAILQ_REMOVE_HEAD(&addr4, addr4entries);
-		ia.s_addr = a4p->ip4.s_addr;
-		bcopy(&ia, p, sizeof(struct in_addr));
-		p++;
-		free(a4p);
-	}
-
-	return (ip4s);
-}
-
-#ifdef INET6
-static struct in6_addr *
-copy_addr6(void)
-{
-	size_t len;
-	struct in6_addr *ip6s, *p;
-	struct addr6entry *a6p;
-
-	if (STAILQ_EMPTY(&addr6))
-		return NULL;
-
-	len = STAILQ_FIRST(&addr6)->count * sizeof(struct in6_addr);
-
-	ip6s = p = (struct in6_addr *)malloc(len);
-	if (ip6s == NULL)
-		return (NULL);
-
-	bzero(p, len);
-
-	while (!STAILQ_EMPTY(&addr6)) {
-		a6p = STAILQ_FIRST(&addr6);
-		STAILQ_REMOVE_HEAD(&addr6, addr6entries);
-		bcopy(&a6p->ip6, p, sizeof(struct in6_addr));
-		p++;
-		free(a6p);
-	}
-
-	return (ip6s);
-}
-#endif
-
