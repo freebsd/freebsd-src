@@ -22,7 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
- *
+ */
+
+/*
  * This driver exists largely as a result of other people's efforts.
  * Much of register handling is based on NetBSD CMI8x38 audio driver
  * by Takuya Shiozaki <AoiMoe@imou.to>.  Chen-Li Tien
