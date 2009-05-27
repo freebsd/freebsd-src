@@ -117,8 +117,7 @@
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_ubt.h>
-
-#include <dev/usb/bluetooth/ng_ubt_var.h>
+#include <netgraph/bluetooth/drivers/ubt/ng_ubt_var.h>
 
 static int		ubt_modevent(module_t, int, void *);
 static device_probe_t	ubt_probe;
