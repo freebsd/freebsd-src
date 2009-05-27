@@ -97,6 +97,7 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
+#define	UAUDIO_MAX_CHAN(x) (((x) < 2) ? (x) : 2)	/* XXX fixme later */
 
 struct uaudio_mixer_node {
 	int32_t	minval;
@@ -936,7 +937,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb2_device *udev,
 #endif
 
 			wFormat = UGETW(asid->wFormatTag);
-			bChannels = asf1d->bNrChannels;
+			bChannels = UAUDIO_MAX_CHAN(asf1d->bNrChannels);
 			bBitResolution = asf1d->bBitResolution;
 
 			if (asf1d->bSamFreqType == 0) {
@@ -1020,7 +1021,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb2_device *udev,
 						chan->usb2_cfg =
 						    uaudio_cfg_play;
 
-					sample_size = ((chan->p_asf1d->bNrChannels *
+					sample_size = ((
+					    UAUDIO_MAX_CHAN(chan->p_asf1d->bNrChannels) *
 					    chan->p_asf1d->bBitResolution) / 8);
 
 					/*
@@ -1334,7 +1336,7 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 
 	ch->pcm_cap.fmtlist[0] = ch->p_fmt->freebsd_fmt;
 
-	if (ch->p_asf1d->bNrChannels == 2) {
+	if (ch->p_asf1d->bNrChannels >= 2) {
 		ch->pcm_cap.fmtlist[0] |= AFMT_STEREO;
 	}
 	ch->pcm_cap.fmtlist[1] = 0;
