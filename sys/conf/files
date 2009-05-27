@@ -1860,6 +1860,7 @@ kern/kern_environment.c		standard
 kern/kern_event.c		standard
 kern/kern_exec.c		standard
 kern/kern_exit.c		standard
+kern/kern_fail.c		standard
 kern/kern_fork.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
