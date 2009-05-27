@@ -1478,10 +1478,20 @@ xn_start_locked(struct ifnet *ifp)
 		}
 
 		/*
-		 * XXX TODO - make sure there's actually space available
-		 *  in the Xen TX ring for this rather than the hacky way
-		 * its currently done.
+		 * Make sure there's actually space available in the
+		 * Xen TX ring for this. Overcompensate for the possibility
+		 * of having a TCP offload fragment just in case for now
+		 * (the +1) rather than adding logic to accurately calculate
+		 * the required size.
 		 */
+		if (RING_FREE_REQUESTS(&sc->tx) < (nfrags + 1)) {
+			printf("xn_start_locked: free ring slots (%d) < (nfrags + 1) (%d); must be full!\n",
+			    (int) RING_FREE_REQUESTS(&sc->tx),
+			    (int) (nfrags + 1));
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
 
 		/*
 		 * Start packing the mbufs in this chain into
