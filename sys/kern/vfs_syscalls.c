@@ -164,12 +164,6 @@ sync(td, uap)
 	return (0);
 }
 
-/* XXX PRISON: could be per prison flag */
-static int prison_quotas;
-#if 0
-SYSCTL_INT(_kern_prison, OID_AUTO, quotas, CTLFLAG_RW, &prison_quotas, 0, "");
-#endif
-
 /*
  * Change filesystem quotas.
  */
@@ -198,7 +192,7 @@ quotactl(td, uap)
 
 	AUDIT_ARG(cmd, uap->cmd);
 	AUDIT_ARG(uid, uap->uid);
-	if (jailed(td->td_ucred) && !prison_quotas)
+	if (!prison_allow(td->td_ucred, PR_ALLOW_QUOTAS))
 		return (EPERM);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
 	   UIO_USERSPACE, uap->path, td);

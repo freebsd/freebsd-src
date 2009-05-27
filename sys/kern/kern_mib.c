@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/jail.h>
 #include <sys/smp.h>
+#include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/vimage.h>
 
@@ -228,8 +229,8 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	pr = req->td->td_ucred->cr_prison;
-	if (pr != NULL) {
-		if (!jail_set_hostname_allowed && req->newptr)
+	if (pr != &prison0) {
+		if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME) && req->newptr)
 			return (EPERM);
 		/*
 		 * Process is in jail, so make a local copy of jail
@@ -259,9 +260,12 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 		error = sysctl_handle_string(oidp, tmphostname,
 		    sizeof tmphostname, req);
 		if (req->newptr != NULL && error == 0) {
+			mtx_lock(&prison0.pr_mtx);
 			mtx_lock(&hostname_mtx);
+			bcopy(tmphostname, prison0.pr_host, MAXHOSTNAMELEN);
 			bcopy(tmphostname, V_hostname, MAXHOSTNAMELEN);
 			mtx_unlock(&hostname_mtx);
+			mtx_unlock(&prison0.pr_mtx);
 		}
 	}
 	return (error);
@@ -278,55 +282,43 @@ SYSCTL_INT(_regression, OID_AUTO, securelevel_nonmonotonic, CTLFLAG_RW,
     &regression_securelevel_nonmonotonic, 0, "securelevel may be lowered");
 #endif
 
-int securelevel = -1;
-static struct mtx securelevel_mtx;
-
-MTX_SYSINIT(securelevel_lock, &securelevel_mtx, "securelevel mutex lock",
-    MTX_DEF);
-
 static int
 sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 {
-	struct prison *pr;
-	int error, level;
+	struct prison *pr, *cpr;
+	int descend, error, level;
 
 	pr = req->td->td_ucred->cr_prison;
 
 	/*
-	 * If the process is in jail, return the maximum of the global and
-	 * local levels; otherwise, return the global level.  Perform a
-	 * lockless read since the securelevel is an integer.
+	 * Reading the securelevel is easy, since the current jail's level
+	 * is known to be at least as secure as any higher levels.  Perform
+	 * a lockless read since the securelevel is an integer.
 	 */
-	if (pr != NULL)
-		level = imax(securelevel, pr->pr_securelevel);
-	else
-		level = securelevel;
+	level = pr->pr_securelevel;
 	error = sysctl_handle_int(oidp, &level, 0, req);
 	if (error || !req->newptr)
 		return (error);
-	/*
-	 * Permit update only if the new securelevel exceeds the
-	 * global level, and local level if any.
-	 */
-	if (pr != NULL) {
-		mtx_lock(&pr->pr_mtx);
-		if (!regression_securelevel_nonmonotonic &&
-		    (level < imax(securelevel, pr->pr_securelevel))) {
-			mtx_unlock(&pr->pr_mtx);
-			return (EPERM);
-		}
-		pr->pr_securelevel = level;
+	/* Permit update only if the new securelevel exceeds the old. */
+	sx_slock(&allprison_lock);
+	mtx_lock(&pr->pr_mtx);
+	if (!regression_securelevel_nonmonotonic &&
+	    level < pr->pr_securelevel) {
 		mtx_unlock(&pr->pr_mtx);
-	} else {
-		mtx_lock(&securelevel_mtx);
-		if (!regression_securelevel_nonmonotonic &&
-		    (level < securelevel)) {
-			mtx_unlock(&securelevel_mtx);
-			return (EPERM);
-		}
-		securelevel = level;
-		mtx_unlock(&securelevel_mtx);
+		sx_sunlock(&allprison_lock);
+		return (EPERM);
 	}
+	pr->pr_securelevel = level;
+	/*
+	 * Set all child jails to be at least this level, but do not lower
+	 * them (even if regression_securelevel_nonmonotonic).
+	 */
+	FOREACH_PRISON_DESCENDANT_LOCKED(pr, cpr, descend) {
+		if (cpr->pr_securelevel < level)
+			cpr->pr_securelevel = level;
+	}
+	mtx_unlock(&pr->pr_mtx);
+	sx_sunlock(&allprison_lock);
 	return (error);
 }
 

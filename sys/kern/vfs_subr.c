@@ -467,20 +467,12 @@ vfs_suser(struct mount *mp, struct thread *td)
 		return (EPERM);
 
 	/*
-	 * If the file system was mounted outside a jail and a jailed thread
-	 * tries to access it, deny immediately.
+	 * If the file system was mounted outside the jail of the calling
+	 * thread, deny immediately.
 	 */
-	if (!jailed(mp->mnt_cred) && jailed(td->td_ucred))
+	if (mp->mnt_cred->cr_prison != td->td_ucred->cr_prison &&
+	    !prison_ischild(td->td_ucred->cr_prison, mp->mnt_cred->cr_prison))
 		return (EPERM);
-
-	/*
-	 * If the file system was mounted inside different jail that the jail of
-	 * the calling thread, deny immediately.
-	 */
-	if (jailed(mp->mnt_cred) && jailed(td->td_ucred) &&
-	    mp->mnt_cred->cr_prison != td->td_ucred->cr_prison) {
-		return (EPERM);
-	}
 
 	/*
 	 * If file system supports delegated administration, we don't check
@@ -2900,7 +2892,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 
 	db_printf("    mnt_cred = { uid=%u ruid=%u",
 	    (u_int)mp->mnt_cred->cr_uid, (u_int)mp->mnt_cred->cr_ruid);
-	if (mp->mnt_cred->cr_prison != NULL)
+	if (jailed(mp->mnt_cred))
 		db_printf(", jail=%d", mp->mnt_cred->cr_prison->pr_id);
 	db_printf(" }\n");
 	db_printf("    mnt_ref = %d\n", mp->mnt_ref);

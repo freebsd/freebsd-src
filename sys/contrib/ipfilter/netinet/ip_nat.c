@@ -662,7 +662,11 @@ void *ctx;
 		return EPERM;
 	}
 # else
+#  if defined(__FreeBSD_version) && (__FreeBSD_version >= 500034)
+	if (securelevel_ge(curthread->td_ucred, 3) && (mode & FWRITE)) {
+#  else
 	if ((securelevel >= 3) && (mode & FWRITE)) {
+#  endif
 		return EPERM;
 	}
 # endif

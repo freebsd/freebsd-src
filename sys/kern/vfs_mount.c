@@ -1420,6 +1420,11 @@ static void
 root_mount_done(void)
 {
 
+	/* Keep prison0's root in sync with the global rootvnode. */
+	mtx_lock(&prison0.pr_mtx);
+	prison0.pr_root = rootvnode;
+	vref(prison0.pr_root);
+	mtx_unlock(&prison0.pr_mtx);
 	/*
 	 * Use a mutex to prevent the wakeup being missed and waiting for
 	 * an extra 1 second sleep.

@@ -337,7 +337,7 @@ msgsys(td, uap)
 {
 	int error;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	if (uap->which < 0 ||
 	    uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
@@ -410,7 +410,7 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 	int rval, error, msqix;
 	register struct msqid_kernel *msqkptr;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	msqix = IPCID_TO_IX(msqid);
@@ -564,7 +564,7 @@ msgget(td, uap)
 
 	DPRINTF(("msgget(0x%x, 0%o)\n", key, msgflg));
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	mtx_lock(&msq_mtx);
@@ -674,7 +674,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	register struct msg *msghdr;
 	short next;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	mtx_lock(&msq_mtx);
@@ -1012,7 +1012,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	int msqix, error = 0;
 	short next;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	msqix = IPCID_TO_IX(msqid);

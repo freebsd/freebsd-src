@@ -1263,33 +1263,25 @@ groupmember(gid_t gid, struct ucred *cred)
  * (securelevel >= level).  Note that the logic is inverted -- these
  * functions return EPERM on "success" and 0 on "failure".
  *
+ * Due to care taken when setting the securelevel, we know that no jail will
+ * be less secure that its parent (or the physical system), so it is sufficient
+ * to test the current jail only.
+ *
  * XXXRW: Possibly since this has to do with privilege, it should move to
  * kern_priv.c.
  */
 int
 securelevel_gt(struct ucred *cr, int level)
 {
-	int active_securelevel;
 
-	active_securelevel = securelevel;
-	KASSERT(cr != NULL, ("securelevel_gt: null cr"));
-	if (cr->cr_prison != NULL)
-		active_securelevel = imax(cr->cr_prison->pr_securelevel,
-		    active_securelevel);
-	return (active_securelevel > level ? EPERM : 0);
+	return (cr->cr_prison->pr_securelevel > level ? EPERM : 0);
 }
 
 int
 securelevel_ge(struct ucred *cr, int level)
 {
-	int active_securelevel;
 
-	active_securelevel = securelevel;
-	KASSERT(cr != NULL, ("securelevel_ge: null cr"));
-	if (cr->cr_prison != NULL)
-		active_securelevel = imax(cr->cr_prison->pr_securelevel,
-		    active_securelevel);
-	return (active_securelevel >= level ? EPERM : 0);
+	return (cr->cr_prison->pr_securelevel >= level ? EPERM : 0);
 }
 
 /*
@@ -1823,7 +1815,7 @@ crfree(struct ucred *cr)
 		/*
 		 * Free a prison, if any.
 		 */
-		if (jailed(cr))
+		if (cr->cr_prison != NULL)
 			prison_free(cr->cr_prison);
 #ifdef VIMAGE
 	/* XXX TODO: find out why and when cr_vimage can be NULL here! */
@@ -1863,8 +1855,7 @@ crcopy(struct ucred *dest, struct ucred *src)
 		(caddr_t)&src->cr_startcopy));
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
-	if (jailed(dest))
-		prison_hold(dest->cr_prison);
+	prison_hold(dest->cr_prison);
 #ifdef VIMAGE
 	KASSERT(src->cr_vimage != NULL, ("cr_vimage == NULL"));
 	refcount_acquire(&dest->cr_vimage->vi_ucredrefc);
