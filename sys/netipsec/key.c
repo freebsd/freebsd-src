@@ -4103,10 +4103,21 @@ restart:
 			if (sp->scangen == gen)		/* previously handled */
 				continue;
 			sp->scangen = gen;
-			if (sp->state == IPSEC_SPSTATE_DEAD) {
-				/* NB: clean entries created by key_spdflush */
+			if (sp->state == IPSEC_SPSTATE_DEAD &&
+			    sp->refcnt == 1) {
+				/*
+				 * Ensure that we only decrease refcnt once,
+				 * when we're the last consumer.
+				 * Directly call SP_DELREF/key_delsp instead
+				 * of KEY_FREESP to avoid unlocking/relocking
+				 * SPTREE_LOCK before key_delsp: may refcnt
+				 * be increased again during that time ?
+				 * NB: also clean entries created by
+				 * key_spdflush
+				 */
+				SP_DELREF(sp);
+				key_delsp(sp);
 				SPTREE_UNLOCK();
-				KEY_FREESP(&sp);
 				goto restart;
 			}
 			if (sp->lifetime == 0 && sp->validtime == 0)
@@ -4116,7 +4127,6 @@ restart:
 				sp->state = IPSEC_SPSTATE_DEAD;
 				SPTREE_UNLOCK();
 				key_spdexpire(sp);
-				KEY_FREESP(&sp);
 				goto restart;
 			}
 		}
