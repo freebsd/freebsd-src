@@ -22,7 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
- *
+ */
+
+/*
  * The order of pokes in the initiation sequence is based on Linux
  * driver by Thomas Sailer, gw boynton (wesb@crystal.cirrus.com), tom
  * woller (twoller@crystal.cirrus.com).  Shingo Watanabe (nabe@nabechan.org)
