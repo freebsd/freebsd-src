@@ -1,0 +1,12 @@
+After installing the jbuild package, do:
+
+   kldload filemon.ko
+
+to load the filemon kernel module.
+
+Add the following to /boot/loader.conf
+to automatically load the module on system reboot:
+
+  filemon_load="YES"
+
+
