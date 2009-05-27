@@ -606,8 +606,8 @@ out:
 		VM_OBJECT_LOCK(vobj);
 	vm_page_lock_queues();
 	if (error == 0) {
-		vm_page_set_validclean(tpg, offset, tlen);
-		vm_page_zero_invalid(tpg, TRUE);
+		KASSERT(tpg->valid == VM_PAGE_BITS_ALL,
+		    ("parts of tpg invalid"));
 		vm_page_dirty(tpg);
 	}
 	vm_page_unwire(tpg, TRUE);
