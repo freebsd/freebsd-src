@@ -82,6 +82,14 @@ SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_privport, CTLFLAG_RW,
     &nfs_privport, 0,
     "Only allow clients using a privileged port for NFSv2 and 3");
 
+static int	nfs_minvers = NFS_VER2;
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, server_min_nfsvers, CTLFLAG_RW,
+    &nfs_minvers, 0, "The lowest version of NFS handled by the server");
+
+static int	nfs_maxvers = NFS_VER4;
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, server_max_nfsvers, CTLFLAG_RW,
+    &nfs_maxvers, 0, "The highest version of NFS handled by the server");
+
 static int nfs_proc(struct nfsrv_descript *, u_int32_t, struct socket *,
     u_int64_t, struct nfsrvcache **);
 
@@ -210,8 +218,15 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
-		if ((nd.nd_flag & ND_NFSV4))
+		if ((nd.nd_flag & ND_NFSV4) != 0) {
 			nd.nd_repstat = nfsvno_v4rootexport(&nd);
+			if (nd.nd_repstat != 0) {
+				svcerr_weakauth(rqst);
+				svc_freereq(rqst);
+				m_freem(nd.nd_mrep);
+				return;
+			}
+		}
 
 		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt->xp_socket,
 		    xprt->xp_sockref, &rp);
@@ -272,22 +287,17 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 	NFSGETTIME(&nd->nd_starttime);
 
 	/*
-	 * Several cases:
+	 * Two cases:
 	 * 1 - For NFSv2 over UDP, if we are near our malloc/mget
 	 *     limit, just drop the request. There is no
 	 *     NFSERR_RESOURCE or NFSERR_DELAY for NFSv2 and the
 	 *     client will timeout/retry over UDP in a little while.
-	 * 2 - nd_repstat set to some error, so generate the reply now.
-	 * 3 - nd_repstat == 0 && nd_mreq == NULL, which
+	 * 2 - nd_repstat == 0 && nd_mreq == NULL, which
 	 *     means a normal nfs rpc, so check the cache
 	 */
 	if ((nd->nd_flag & ND_NFSV2) && nd->nd_nam2 != NULL &&
 	    nfsrv_mallocmget_limit()) {
 		cacherep = RC_DROPIT;
-	} else if (nd->nd_repstat) {
-		cacherep = RC_REPLY;
-		if ((nd->nd_flag & ND_NFSV4) == 0)
-			panic("nfs_repstat for nfsv2,3");
 	} else {
 		/*
 		 * For NFSv3, play it safe and assume that the client is
@@ -315,9 +325,6 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 		else
 			cacherep = RC_REPLY;
 		*rpp = nfsrvd_updatecache(nd, so);
-	} else if (cacherep == RC_REPLY) {
-		/* Generate the error reply message for NFSv4 */
-		nfsrvd_dorpc(nd, isdgram, td);
 	}
 	return (cacherep);
 }
@@ -354,9 +361,15 @@ nfsrvd_addsock(struct file *fp)
 		fp->f_ops = &badfileops;
 		fp->f_data = NULL;
 		xprt->xp_sockref = ++sockref;
-		svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program, NULL);
-		svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program, NULL);
-		svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program, NULL);
+		if (nfs_minvers == NFS_VER2)
+			svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program,
+			    NULL);
+		if (nfs_minvers <= NFS_VER3 && nfs_maxvers >= NFS_VER3)
+			svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program,
+			    NULL);
+		if (nfs_maxvers >= NFS_VER4)
+			svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program,
+			    NULL);
 	}
 
 	return (0);

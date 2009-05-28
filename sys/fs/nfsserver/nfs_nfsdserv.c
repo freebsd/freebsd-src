@@ -237,7 +237,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		return (0);
 	}
 #ifdef NFS4_ACL_EXTATTR_NAME
-	aclp = acl_alloc();
+	aclp = acl_alloc(M_WAITOK);
 	aclp->acl_cnt = 0;
 #endif
 	NFSVNO_ATTRINIT(&nva);
@@ -1041,7 +1041,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 		return (0);
 	}
 #ifdef NFS4_ACL_EXTATTR_NAME
-	aclp = acl_alloc();
+	aclp = acl_alloc(M_WAITOK);
 	aclp->acl_cnt = 0;
 #endif
 
@@ -2418,7 +2418,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSACL_T *aclp = NULL;
 
 #ifdef NFS4_ACL_EXTATTR_NAME
-	aclp = acl_alloc();
+	aclp = acl_alloc(M_WAITOK);
 	aclp->acl_cnt = 0;
 #endif
 	NFSZERO_ATTRBIT(&attrbits);
@@ -2830,6 +2830,11 @@ nfsrvd_delegpurge(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0;
 	nfsquad_t clientid;
 
+	if ((!nfs_rootfhset && !nfsv4root_set) ||
+	    nfsd_checkrootexp(nd)) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		return (0);
+	}
 	NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
@@ -3024,6 +3029,11 @@ nfsrvd_renew(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0;
 	nfsquad_t clientid;
 
+	if ((!nfs_rootfhset && !nfsv4root_set) ||
+	    nfsd_checkrootexp(nd)) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		return (0);
+	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
@@ -3355,6 +3365,11 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0, len;
 	nfsquad_t clientid;
 
+	if ((!nfs_rootfhset && !nfsv4root_set) ||
+	    nfsd_checkrootexp(nd)) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		return (0);
+	}
 	NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 	len = fxdr_unsigned(int, *(tl + 2));
 	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + len,

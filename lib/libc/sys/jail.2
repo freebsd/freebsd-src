@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2009
+.Dd May 27, 2009
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -283,7 +283,7 @@ of the jail for the given address family.
 It is possible to identify a process as jailed by examining
 .Dq Li /proc/<pid>/status :
 it will show a field near the end of the line, either as
-a single hyphen for a process at large, or the hostname currently
+a single hyphen for a process at large, or the name currently
 set for the prison for jailed processes.
 .Sh ERRORS
 The
@@ -292,7 +292,10 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
-This process is not allowed to create a jail.
+This process is not allowed to create a jail, either because it is not
+the super-user, or because it is in a jail where the
+.Va allow.jails
+parameter is not set.
 .It Bq Er EFAULT
 .Fa jail
 points to an address outside the allocated address space of the process.
@@ -308,7 +311,10 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
-This process is not allowed to create a jail.
+This process is not allowed to create a jail, either because it is not
+the super-user, or because it is in a jail where the
+.Va allow.jails
+parameter is not set.
 .It Bq Er EPERM
 A jail parameter was set to a less restrictive value then the current
 environment.
@@ -324,6 +330,11 @@ or
 parameter does not exist, and the
 .Dv JAIL_CREATE
 flag is not set.
+.It Bq Er ENOENT
+The jail referred to by a
+.Va jid
+is not accessible by the process, because the process is in a different
+jail. 
 .It Bq Er EEXIST
 The jail referred to by a
 .Va jid
@@ -367,6 +378,11 @@ The jail referred to by a
 or
 .Va name
 parameter does not exist.
+.It Bq Er ENOENT
+The jail referred to by a
+.Va jid
+is not accessible by the process, because the process is in a different
+jail. 
 .It Bq Er ENOENT
 The
 .Va lastjid
@@ -429,4 +445,4 @@ for R&D Associates
 who contributed it to
 .Fx .
 .An James Gritton
-added the extensible jail parameters.
+added the extensible jail parameters and hierarchical jails.

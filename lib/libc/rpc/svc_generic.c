@@ -199,6 +199,7 @@ svc_tli_create(fd, nconf, bindaddr, sendsz, recvsz)
 	struct __rpc_sockinfo si;
 	struct sockaddr_storage ss;
 	socklen_t slen;
+	static const uint32_t true_value = 1;
 
 	if (fd == RPC_ANYFD) {
 		if (nconf == NULL) {
@@ -221,6 +222,14 @@ svc_tli_create(fd, nconf, bindaddr, sendsz, recvsz)
 		if (!__rpc_fd2sockinfo(fd, &si)) {
 			warnx(
 		"svc_tli_create: could not get transport information");
+			return (NULL);
+		}
+	}
+
+	if (si.si_af == AF_INET && si.si_socktype == SOCK_DGRAM) {
+		if (_setsockopt(fd, IPPROTO_IP, IP_RECVDSTADDR,
+			        &true_value, sizeof(true_value))) {
+			warnx("svc_tli_create: cannot set IP_RECVDSTADDR");
 			return (NULL);
 		}
 	}

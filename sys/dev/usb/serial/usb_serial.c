@@ -589,13 +589,9 @@ usb2_com_cfg_close(struct usb2_proc_msg *_task)
 	DPRINTF("\n");
 
 	if (sc->sc_flag & UCOM_FLAG_LL_READY) {
-
-		sc->sc_flag &= ~(UCOM_FLAG_LL_READY |
-		    UCOM_FLAG_GP_DATA);
-
-		if (sc->sc_callback->usb2_com_cfg_close) {
+		sc->sc_flag &= ~UCOM_FLAG_LL_READY;
+		if (sc->sc_callback->usb2_com_cfg_close)
 			(sc->sc_callback->usb2_com_cfg_close) (sc);
-		}
 	} else {
 		/* already closed */
 	}
@@ -620,15 +616,10 @@ usb2_com_close(struct tty *tp)
 	    &sc->sc_close_task[0].hdr,
 	    &sc->sc_close_task[1].hdr);
 
-	sc->sc_flag &= ~(UCOM_FLAG_HL_READY |
-	    UCOM_FLAG_WR_START |
-	    UCOM_FLAG_RTS_IFLOW);
+	sc->sc_flag &= ~(UCOM_FLAG_HL_READY | UCOM_FLAG_RTS_IFLOW);
 
 	if (sc->sc_callback->usb2_com_stop_read) {
 		(sc->sc_callback->usb2_com_stop_read) (sc);
-	}
-	if (sc->sc_callback->usb2_com_stop_write) {
-		(sc->sc_callback->usb2_com_stop_write) (sc);
 	}
 }
 
@@ -1005,8 +996,6 @@ usb2_com_outwakeup(struct tty *tp)
 		/* The higher layer is not ready */
 		return;
 	}
-	sc->sc_flag |= UCOM_FLAG_WR_START;
-
 	usb2_com_start_transfers(sc);
 }
 
@@ -1028,9 +1017,8 @@ usb2_com_get_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
-	if ((!(sc->sc_flag & UCOM_FLAG_HL_READY)) ||
-	    (!(sc->sc_flag & UCOM_FLAG_GP_DATA)) ||
-	    (!(sc->sc_flag & UCOM_FLAG_WR_START))) {
+	if (tty_gone(tp) ||
+	    !(sc->sc_flag & UCOM_FLAG_GP_DATA)) {
 		actlen[0] = 0;
 		return (0);		/* multiport device polling */
 	}
@@ -1076,10 +1064,9 @@ usb2_com_put_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
-	if ((!(sc->sc_flag & UCOM_FLAG_HL_READY)) ||
-	    (!(sc->sc_flag & UCOM_FLAG_GP_DATA))) {
+	if (tty_gone(tp))
 		return;			/* multiport device polling */
-	}
+
 	if (len == 0)
 		return;			/* no data */
 

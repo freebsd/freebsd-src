@@ -80,12 +80,12 @@ teken_state.h		optional sc					   \
 	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
-usbdevs.h			optional usb | ousb			   \
+usbdevs.h			optional usb				   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"usbdevs.h"
-usbdevs_data.h			optional usb | ousb			   \
+usbdevs_data.h			optional usb				   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
 	no-obj no-implicit-rule before-depend				   \
@@ -503,7 +503,6 @@ dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
 dev/ata/ata-raid.c		optional ataraid
 dev/ata/ata-usb.c		optional atausb usb
-legacy/dev/ata/ata-usb.c	optional atausb ousb
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
@@ -1085,6 +1084,7 @@ dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
 dev/kbdmux/kbdmux.c		optional kbdmux
+dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
 dev/le/am79900.c		optional le
 dev/le/if_le_pci.c		optional le pci
@@ -1420,8 +1420,6 @@ dev/sound/pcm/sound.c		optional sound
 dev/sound/pcm/vchan.c		optional sound
 dev/sound/usb/uaudio.c		optional snd_uaudio usb
 dev/sound/usb/uaudio_pcm.c	optional snd_uaudio usb
-legacy/dev/sound/usb/uaudio.c		optional snd_uaudio ousb
-legacy/dev/sound/usb/uaudio_pcm.c	optional snd_uaudio ousb
 dev/sound/midi/midi.c		optional sound
 dev/sound/midi/mpu401.c		optional sound
 dev/sound/midi/mpu_if.m		optional sound
@@ -1500,51 +1498,6 @@ dev/uart/uart_if.m		optional uart
 dev/uart/uart_subr.c		optional uart
 dev/uart/uart_tty.c		optional uart
 dev/ubsec/ubsec.c		optional ubsec
-#
-# USB support
-legacy/dev/usb/ehci.c		optional oehci
-legacy/dev/usb/ehci_ddb.c	optional oehci
-legacy/dev/usb/ehci_pci.c	optional oehci pci
-legacy/dev/usb/hid.c		optional ousb
-legacy/dev/usb/ohci.c		optional oohci
-legacy/dev/usb/ohci_pci.c	optional oohci pci
-legacy/dev/usb/sl811hs.c	optional oslhci
-legacy/dev/usb/slhci_pccard.c	optional oslhci pccard
-legacy/dev/usb/uark.c		optional ouark
-legacy/dev/usb/u3g.c		optional ou3g
-legacy/dev/usb/ubsa.c		optional oubsa
-legacy/dev/usb/ubser.c		optional oubser
-legacy/dev/usb/ucom.c		optional oucom
-legacy/dev/usb/ucycom.c		optional oucycom
-legacy/dev/usb/udbp.c		optional oudbp
-legacy/dev/usb/ufoma.c		optional oufoma
-legacy/dev/usb/ufm.c		optional oufm
-legacy/dev/usb/uftdi.c		optional ouftdi
-legacy/dev/usb/ugen.c		optional ougen
-legacy/dev/usb/uhci.c		optional ouhci
-legacy/dev/usb/uhci_pci.c	optional ouhci pci
-legacy/dev/usb/uhid.c		optional ouhid
-legacy/dev/usb/uhub.c		optional ousb
-legacy/dev/usb/uipaq.c		optional ouipaq
-legacy/dev/usb/ukbd.c		optional oukbd
-legacy/dev/usb/ulpt.c		optional oulpt
-legacy/dev/usb/umass.c		optional oumass
-legacy/dev/usb/umct.c		optional oumct
-legacy/dev/usb/umodem.c		optional oumodem
-legacy/dev/usb/ums.c		optional oums
-legacy/dev/usb/uplcom.c		optional ouplcom
-legacy/dev/usb/urio.c		optional ourio
-legacy/dev/usb/usb.c		optional ousb
-legacy/dev/usb/usb_if.m		optional ousb
-legacy/dev/usb/usb_mem.c	optional ousb
-legacy/dev/usb/usb_quirks.c	optional ousb
-legacy/dev/usb/usb_subr.c	optional ousb
-legacy/dev/usb/usbdi.c		optional ousb
-legacy/dev/usb/usbdi_util.c	optional ousb
-legacy/dev/usb/uscanner.c	optional ouscanner
-legacy/dev/usb/uslcom.c		optional ouslcom
-legacy/dev/usb/uvisor.c		optional ouvisor
-legacy/dev/usb/uvscom.c		optional ouvscom
 #
 # USB controller drivers
 #
@@ -1634,11 +1587,6 @@ dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | \
 	(u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
-#
-# USB bluetooth drivers
-#
-dev/usb/bluetooth/ng_ubt.c		optional netgraph_bluetooth_ubt usb
-dev/usb/bluetooth/ubtbcmfw.c		optional netgraph_bluetooth_ubtbcmfw usb
 #
 # USB misc drivers
 #
@@ -1907,6 +1855,7 @@ kern/kern_environment.c		standard
 kern/kern_event.c		standard
 kern/kern_exec.c		standard
 kern/kern_exit.c		standard
+kern/kern_fail.c		standard
 kern/kern_fork.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
@@ -1917,6 +1866,7 @@ kern/kern_ktrace.c		standard
 kern/kern_linker.c		standard
 kern/kern_lock.c		standard
 kern/kern_lockf.c		standard
+kern/kern_lockstat.c		optional kdtrace_hooks
 kern/kern_malloc.c		standard
 kern/kern_mbuf.c		standard
 kern/kern_mib.c			standard
@@ -2250,8 +2200,8 @@ netgraph/atm/uni/ng_uni.c	optional ngatm_uni \
 netgraph/bluetooth/common/ng_bluetooth.c optional netgraph_bluetooth
 netgraph/bluetooth/drivers/bt3c/ng_bt3c_pccard.c optional netgraph_bluetooth_bt3c
 netgraph/bluetooth/drivers/h4/ng_h4.c optional netgraph_bluetooth_h4
-netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt ousb
-netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw ousb
+netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt usb
+netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw usb
 netgraph/bluetooth/hci/ng_hci_cmds.c optional netgraph_bluetooth_hci
 netgraph/bluetooth/hci/ng_hci_evnt.c optional netgraph_bluetooth_hci
 netgraph/bluetooth/hci/ng_hci_main.c optional netgraph_bluetooth_hci
@@ -2427,6 +2377,7 @@ netipx/ipx_pcb.c		optional ipx
 netipx/ipx_proto.c		optional ipx
 netipx/ipx_usrreq.c		optional ipx
 netipx/spx_debug.c		optional ipx
+netipx/spx_reass.c		optional ipx
 netipx/spx_usrreq.c		optional ipx
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm

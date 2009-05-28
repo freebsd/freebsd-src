@@ -41,3 +41,4 @@ ENTRY(sqrt)
 	fldl	4(%esp)
 	fsqrt
 	ret
+END(sqrt)

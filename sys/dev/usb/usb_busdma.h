@@ -36,12 +36,10 @@
 
 #define	USB_PAGE_SIZE PAGE_SIZE		/* use system PAGE_SIZE */
 
-#ifdef __FreeBSD__
 #if (__FreeBSD_version >= 700020)
 #define	USB_GET_DMA_TAG(dev) bus_get_dma_tag(dev)
 #else
 #define	USB_GET_DMA_TAG(dev) NULL	/* XXX */
-#endif
 #endif
 
 /* structure prototypes */
@@ -86,23 +84,13 @@ struct usb2_page_search {
  */
 struct usb2_page_cache {
 
-#if USB_HAVE_BUSDMA && defined(__FreeBSD__)
-	bus_dma_tag_t tag;
-	bus_dmamap_t map;
-#endif
-#if USB_HAVE_BUSDMA && defined(__NetBSD__)
-	bus_dma_tag_t tag;
-	bus_dmamap_t map;
-	bus_dma_segment_t *p_seg;
-#endif
 #if USB_HAVE_BUSDMA
+	bus_dma_tag_t tag;
+	bus_dmamap_t map;
 	struct usb2_page *page_start;
 #endif
 	struct usb2_dma_parent_tag *tag_parent;	/* always set */
 	void   *buffer;			/* virtual buffer pointer */
-#if USB_HAVE_BUSDMA && defined(_NetBSD__)
-	int	n_seg;
-#endif
 #if USB_HAVE_BUSDMA
 	usb2_size_t page_offset_buf;
 	usb2_size_t page_offset_end;
@@ -118,9 +106,7 @@ struct usb2_page_cache {
  */
 #if USB_HAVE_BUSDMA
 struct usb2_dma_parent_tag {
-#if defined(__FreeBSD__)
 	struct cv cv[1];		/* internal condition variable */
-#endif
 	bus_dma_tag_t tag;		/* always set */
 
 	struct mtx *mtx;		/* private mutex, always set */
@@ -139,17 +125,10 @@ struct usb2_dma_parent_tag {};		/* empty struct */
  */
 #if USB_HAVE_BUSDMA
 struct usb2_dma_tag {
-#if defined(__NetBSD__)
-	bus_dma_segment_t *p_seg;
-#endif
 	struct usb2_dma_parent_tag *tag_parent;
 	bus_dma_tag_t tag;
-
 	usb2_size_t align;
 	usb2_size_t size;
-#if defined(__NetBSD__)
-	usb2_size_t n_seg;
-#endif
 };
 #else
 struct usb2_dma_tag {};			/* empty struct */

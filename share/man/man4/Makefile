@@ -160,6 +160,7 @@ MAN=	aac.4 \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
+	ksyms.4 \
 	ktr.4 \
 	kue.4 \
 	lagg.4 \
@@ -190,6 +191,7 @@ MAN=	aac.4 \
 	meteor.4 \
 	mfi.4 \
 	miibus.4 \
+	mld.4 \
 	mlx.4 \
 	mly.4 \
 	mmc.4 \

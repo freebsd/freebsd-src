@@ -773,10 +773,11 @@ passin:
 		 * case we should pass the packet to the multicast routing
 		 * daemon.
 		 */
-		if (rtalert != ~0 && V_ip6_forwarding) {
+		if (rtalert != ~0) {
 			switch (rtalert) {
 			case IP6OPT_RTALERT_MLD:
-				ours = 1;
+				if (V_ip6_forwarding)
+					ours = 1;
 				break;
 			default:
 				/*
@@ -820,6 +821,9 @@ passin:
 		 * The packet is returned (relatively) intact; if
 		 * ip6_mforward() returns a non-zero value, the packet
 		 * must be discarded, else it may be accepted below.
+		 *
+		 * XXX TODO: Check hlim and multicast scope here to avoid
+		 * unnecessarily calling into ip6_mforward().
 		 */
 		if (ip6_mforward &&
 		    ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
@@ -882,6 +886,14 @@ passin:
 		if (ip6_ipsec_input(m, nxt))
 			goto bad;
 #endif /* IPSEC */
+
+		/*
+		 * Use mbuf flags to propagate Router Alert option to
+		 * ICMPv6 layer, as hop-by-hop options have been stripped.
+		 */
+		if (nxt == IPPROTO_ICMPV6 && rtalert != ~0)
+			m->m_flags |= M_RTALERT_MLD;
+
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
 	goto out;

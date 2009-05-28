@@ -185,17 +185,23 @@ ncl_inactive(struct vop_inactive_args *ap)
 {
 	struct nfsnode *np;
 	struct sillyrename *sp;
-	struct thread *td = curthread;	/* XXX */
 
 	np = VTONFS(ap->a_vp);
 	if (prtactive && vrefcnt(ap->a_vp) != 0)
 		vprint("ncl_inactive: pushing active", ap->a_vp);
 
-	/*
-	 * Since mmap()'d files to I/O after VOP_CLOSE(), the NFSv4 Close
-	 * operations are delayed until now.
-	 */
-	(void) nfsrpc_close(ap->a_vp, 1, td);
+	if (NFS_ISV4(ap->a_vp)) {
+		/*
+		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
+		 * Close operations are delayed until now. Any dirty buffers
+		 * must be flushed before the close, so that the stateid is
+		 * available for the writes.
+		 */
+		if (nfscl_mustflush(ap->a_vp))
+			(void) ncl_flush(ap->a_vp, MNT_WAIT, NULL, ap->a_td,
+			    1);
+		(void) nfsrpc_close(ap->a_vp, 1, ap->a_td);
+	}
 
 	if (ap->a_vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
@@ -203,7 +209,7 @@ ncl_inactive(struct vop_inactive_args *ap)
 	} else
 		sp = NULL;
 	if (sp) {
-		(void)ncl_vinvalbuf(ap->a_vp, 0, td, 1);
+		(void)ncl_vinvalbuf(ap->a_vp, 0, ap->a_td, 1);
 		/*
 		 * Remove the silly file that was rename'd earlier
 		 */

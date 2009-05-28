@@ -17,7 +17,10 @@ SRCS=	linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	device_if.h bus_if.h assym.s
 
 # XXX: for assym.s
-SRCS+=  opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h opt_hwpmc_hooks.h
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_compat.h opt_hwpmc_hooks.h
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	opt_apic.h
+.endif
 
 OBJS=	linux${SFX}_locore.o linux${SFX}_support.o
 

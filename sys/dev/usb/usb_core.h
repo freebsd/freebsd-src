@@ -57,14 +57,6 @@
 #endif
 
 /*
- * The following macro defines if the code shall support any forms of
- * ASCII strings.
- */
-#ifndef USB_HAVE_STRINGS
-#define	USB_HAVE_STRINGS 1
-#endif
-
-/*
  * The following macro defines if the code shall support BUS-DMA.
  */
 #ifndef USB_HAVE_BUSDMA

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2008
+.Dd May 27, 2009
 .Dt JLS 8
 .Os
 .Sh NAME
@@ -33,38 +33,68 @@
 .Nd "list jails"
 .Sh SYNOPSIS
 .Nm
-.Op Fl av
+.Op Fl dhnqsv
+.Op Fl j Ar jail
+.Op Ar parameter ...
 .Sh DESCRIPTION
 The
 .Nm
-utility lists all jails.
-By default only active jails are listed.
+utility lists all active jails, or the specified jail.
+Each jail is represented by one row which contains space-separated values of
+the listed
+.Ar parameters ,
+including the pseudo-parameter
+.Va all
+which will show all available jail parameters.
+A list of available parameters can be retrieved via
+.Dq Nm sysctl Fl d Va security.jail.param .
+See
+.Xr jail 8
+for a description of some core parameters.
 .Pp
-The options are as follows:
-.Bl -tag -width ".Fl a"
-.It Fl a
-Show jails in all states, not only active ones.
+If no
+.Ar parameters
+are given, the following four columns will be printed:
+jail identifier (jid), IP address (ip4.addr), hostname (host.hostname),
+and path (path).
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+List
+.Va dying
+as well as active jails.
+.It Fl h
+Print a header line containing the parameters listed.
+If no parameters are given on the command line, the default output always
+contains a header.
+.It Fl n
+Print parameters in
+.Dq name=value
+format, where each parameter is preceded by its name.
+This option is ignored for the default four-column output.
+.It Fl q
+Put quotes around parameters if they contain spaces or quotes, or are
+the empty string.
+.It Fl c
+Print parameters suitable for passing to
+.Xr jail 8 ,
+skipping read-only and unused parameters.
+Implies
+.Fl nq .
 .It Fl v
-Show more verbose information.
-This also lists cpusets, jail state, multi-IP, etc. instead of the
-classic single-IP jail output.
-.El
-.Pp
-Each jail is represented by rows which, depending on
-.Fl v ,
-contain the following columns:
-.Bl -item -offset indent -compact
-.It
-jail identifier (JID), hostname and path
-.It
-jail state and name
-.It
-jail cpuset
-.It
-followed by one IP adddress per line.
+Print a multiple-line summary per jail, with the following parameters:
+jail identifier (jid), hostname (host.hostname), path (path),
+jail name (name), jail state (dying), cpuset ID (cpuset),
+IP address(es) (ip4.addr and ip6.addr).
+.It Fl j Ar jail
+The jid or name of the
+.Ar jail
+to list.
+Without this option, all active jails will be listed.
 .El
 .Sh SEE ALSO
-.Xr jail 2 ,
+.Xr jail_get 2 ,
 .Xr jail 8 ,
 .Xr jexec 8
 .Sh HISTORY
@@ -72,3 +102,5 @@ The
 .Nm
 utility was added in
 .Fx 5.1 .
+Extensible jail parameters were introduced in
+.Fx 8.0 .

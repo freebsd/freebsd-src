@@ -14,6 +14,7 @@ ENTRY(scalbnl)
 	fscale
 	fstp	%st(1)
 	ret
+END(scalbnl)
 
 .globl	CNAME(ldexpl)
 .set	CNAME(ldexpl),CNAME(scalbnl)

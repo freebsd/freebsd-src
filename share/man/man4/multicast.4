@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2009
+.Dd May 27, 2009
 .Dt MULTICAST 4
 .Os
 .\"
@@ -962,6 +962,7 @@ after the previous upcall.
 .Xr intro 4 ,
 .Xr ip 4 ,
 .Xr ip6 4 ,
+.Xr mld 4 ,
 .Xr pim 4
 .\"
 .Sh HISTORY
@@ -1002,6 +1003,8 @@ monitoring were implemented by
 in collaboration with
 .An Chris Brown
 (NextHop).
+The IGMPv3 and MLDv2 multicast support was implemented by
+.An Bruce Simpson .
 .Pp
 This manual page was written by
 .An Pavlin Radoslavov

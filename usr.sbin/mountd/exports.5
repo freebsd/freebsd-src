@@ -54,11 +54,11 @@ Appendix I.
 Each line in the file
 (other than comment lines that begin with a #)
 specifies the mount point(s) and export flags within one local server
-file system for one or more hosts.
+file system or the NFSv4 tree root for one or more hosts.
 A long line may be split over several lines by ending all but the
 last line with a backslash
 .Pq Ql \e .
-A host may be specified only once for each local file system on the
+A host may be specified only once for each local file or the NFSv4 tree root on the
 server and there may be only one default entry for each server
 file system that applies to all other hosts.
 The latter exports the file system to the
@@ -69,7 +69,7 @@ be used only when the file system contains public information.
 In a mount entry,
 the first field(s) specify the directory path(s) within a server file system
 that can be mounted on by the corresponding client(s).
-There are two forms of this specification.
+There are three forms of this specification.
 The first is to list all mount points as absolute
 directory paths separated by whitespace.
 The second is to specify the pathname of the root of the file system
@@ -81,6 +81,8 @@ including regular files if the
 .Fl r
 option is used on
 .Xr mountd 8 .
+The third form has the string ``V4:'' followed by a single absolute path
+name, to sepcify the NFSv4 tree root.
 The pathnames must not have any symbolic links in them and should not have
 any
 .Dq Pa \&.
@@ -95,6 +97,9 @@ exported to the host set.
 The option flags specify whether the file system
 is exported read-only or read-write and how the client UID is mapped to
 user credentials on the server.
+For the NFSv4 tree root, the only option that can be specified in this
+section is
+.Fl sec .
 .Pp
 Export options are specified as follows:
 .Pp
@@ -282,6 +287,32 @@ on
 .Li re2
 interface.
 .Pp
+For the third form which specifies the NFSv4 tree root, the directory path
+specifies the location within the server's file system tree which is the
+root of the NFSv4 tree.
+All entries of this form must specify the same directory path.
+This location can be any directory and does not
+need to be within an exported file system. If it is not in an exported
+file system, a very limited set of operations are permitted, so that an
+NFSv4 client can traverse the tree to an exported file system.
+Although parts of the NFSv4 tree can be non-exported, the entire NFSv4 tree
+must consist of local file systems capable of being exported via NFS.
+NFSv4 does not use the mount protocol and does permit clients to cross server
+mount point boundaries, although not all clients are capable of crossing the
+mount points.
+.Pp
+The
+.Fl sec
+option on these line(s) specifies what security flavors may be used for
+NFSv4 operations that do not use file handles. Since these operations
+(SetClientID, SetClientIDConfirm, Renew, DelegPurge and ReleaseLockOnwer)
+allocate/modify state in the server, it is possible to restrict some clients to
+the use of the krb5[ip] security flavors, via this option.
+See the
+.Sx EXAMPLES
+section below.
+This third form is meaningless for NFSv2 and NFSv3 and is ignored for them.
+.Pp
 The
 .Xr mountd 8
 utility can be made to re-read the
@@ -318,6 +349,8 @@ the default remote mount-point file
 /cdrom -alldirs,quiet,ro -network 192.168.33.0 -mask 255.255.255.0
 /private -sec=krb5i
 /secret -sec=krb5p
+V4: /	-sec=krb5:krb5i:krb5p -network 131.104.48 -mask 255.255.255.0
+V4: /	-sec=sys:krb5:krb5i:krb5p grumpy.cis.uoguelph.ca
 .Ed
 .Pp
 Given that
@@ -433,6 +466,12 @@ The file system rooted at
 .Pa /secret
 will also be exported using Kerberos 5 authentication and all messages
 used to access it will be encrypted.
+.Pp
+For the experimental server, the NFSv4 tree is rooted at ``/'',
+and any client within the 131.104.48 subnet is permitted to perform NFSv4 state
+operations on the server, so long as valid Kerberos credentials are provided.
+The machine grumpy.cis.uoguelph.ca is permitted to perform NFSv4 state
+operations on the server using AUTH_SYS credentials, as well as Kerberos ones.
 .Sh SEE ALSO
 .Xr netgroup 5 ,
 .Xr mountd 8 ,

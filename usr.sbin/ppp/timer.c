@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1996 - 2001 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1996 - 2001, 2009 Brian Somers <brian@Awfulhak.org>
  *          based on work by Toshiharu OHNO <tony-o@iij.ad.jp>
  *                           Internet Initiative Japan, Inc (IIJ)
  * All rights reserved.
@@ -94,9 +94,12 @@ timer_Start(struct pppTimer *tp)
     return;
   }
 
-  /* Adjust our first delta so that it reflects what's really happening */
+  /*
+   * We just need to insert tp in the correct relative place.  We don't
+   * need to adjust TimerList->rest (yet).
+   */
   if (TimerList && getitimer(ITIMER_REAL, &itimer) == 0)
-    TimerList->rest = RESTVAL(itimer);
+    ticks = RESTVAL(itimer) - TimerList->rest;
 
   pt = NULL;
   for (t = TimerList; t; t = t->next) {
@@ -132,6 +135,7 @@ timer_Start(struct pppTimer *tp)
 static void
 StopTimerNoBlock(struct pppTimer *tp)
 {
+  struct itimerval itimer;
   struct pppTimer *t, *pt;
 
   /*
@@ -156,14 +160,11 @@ StopTimerNoBlock(struct pppTimer *tp)
 	timer_TermService();	/* Terminate Timer Service */
     }
     if (t->next) {
-      if (!pt) {		/* t (tp) was the first in the list */
-        struct itimerval itimer;
-
-        if (getitimer(ITIMER_REAL, &itimer) == 0)
-          t->rest = RESTVAL(itimer);
-      }
-      t->next->rest += t->rest;
-      if (!pt)			/* t->next is now the first in the list */
+      if (!pt && getitimer(ITIMER_REAL, &itimer) == 0)
+        t->next->rest += RESTVAL(itimer); /* t (tp) was the first in the list */
+      else
+        t->next->rest += t->rest;
+      if (!pt && t->next->rest > 0)   /* t->next is now the first in the list */
         timer_InitService(1);
     }
   } else {
@@ -235,11 +236,19 @@ timer_Show(int LogLevel, struct prompt *prompt)
 {
   struct itimerval itimer;
   struct pppTimer *pt;
-  u_long rest = 0;
+  long rest;
 
-  /* Adjust our first delta so that it reflects what's really happening */
+  /*
+   * Adjust the base time so that the deltas reflect what's really
+   * happening.  Changing TimerList->rest might cause it to become zero
+   * (if getitimer() returns a value close to zero), and the
+   * timer_InitService() call will call setitimer() with zero it_value,
+   * stopping the itimer... so be careful!
+   */
   if (TimerList && getitimer(ITIMER_REAL, &itimer) == 0)
-    TimerList->rest = RESTVAL(itimer);
+    rest = RESTVAL(itimer) - TimerList->rest;
+  else
+    rest = 0;
 
 #define SECS(val)	((val) / SECTICKS)
 #define HSECS(val)	(((val) % SECTICKS) * 100 / SECTICKS)
