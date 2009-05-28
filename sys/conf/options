@@ -232,6 +232,13 @@ NFSSERVER	opt_nfs.h
 # supports modern features such as RPCSEC_GSS
 NFS_LEGACYRPC	opt_nfs.h
 
+# Use these options to compile the experimental nfs client and/or
+# server that supports NFSv4 into a kernel.
+# NFSCL - client
+# NFSD - server
+NFSCL		opt_nfs.h
+NFSD		opt_nfs.h
+
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
 MSDOSFS_ICONV	opt_dontuse.h
