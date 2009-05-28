@@ -63,8 +63,10 @@ bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 	 */
 	if (((intptr_t)data) & 0x3f) {
 		p2 = malloc(size);
-		if (p2 == NULL)
+		if (p2 == NULL) {
 			ERROR(disk, "allocate bounce buffer");
+			goto fail;
+		}
 	}
 	cnt = pread(disk->d_fd, p2, size, (off_t)(blockno * disk->d_bsize));
 	if (cnt == -1) {
@@ -114,8 +116,10 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 	 */
 	if (((intptr_t)data) & 0x3f) {
 		p2 = malloc(size);
-		if (p2 == NULL)
+		if (p2 == NULL) {
 			ERROR(disk, "allocate bounce buffer");
+			return (-1);
+		}
 		memcpy(p2, data, size);
 		data = p2;
 	}
