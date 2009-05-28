@@ -193,7 +193,7 @@ getent(char **cap, u_int *len, char **db_array, int fd, const char *name,
 {
 	DB *capdbp;
 	char *r_end, *rp, **db_p;
-	int myfd, eof, foundit, retval, clen;
+	int myfd, eof, foundit, retval;
 	char *record, *cbuf;
 	int tc_not_resolved;
 	char pbuf[_POSIX_PATH_MAX];
@@ -255,14 +255,16 @@ getent(char **cap, u_int *len, char **db_array, int fd, const char *name,
 					return (retval);
 				}
 				/* save the data; close frees it */
-				clen = strlen(record);
-				cbuf = malloc(clen + 1);
-				memcpy(cbuf, record, clen + 1);
+				cbuf = strdup(record);
 				if (capdbp->close(capdbp) < 0) {
 					free(cbuf);
 					return (-2);
 				}
-				*len = clen;
+				if (cbuf == NULL) {
+					errno = ENOMEM;
+					return (-2);
+				}
+				*len = strlen(cbuf);
 				*cap = cbuf;
 				return (retval);
 			} else {
