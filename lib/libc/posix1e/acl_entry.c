@@ -51,7 +51,12 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 
 	acl_int = &(*acl_p)->ats_acl;
 
-	if ((acl_int->acl_cnt >= ACL_MAX_ENTRIES) || (acl_int->acl_cnt < 0)) {
+	/*
+	 * +1, because we are checking if there is space left for one more
+	 * entry.
+	 */
+	if ((acl_int->acl_cnt + 1 >= ACL_MAX_ENTRIES) ||
+	    (acl_int->acl_cnt < 0)) {
 		errno = EINVAL;
 		return (-1);
 	}
