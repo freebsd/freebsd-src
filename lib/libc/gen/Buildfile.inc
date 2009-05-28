@@ -25,7 +25,6 @@ SRCS += \
 	dirname.c \
 	disklabel.c \
 	dlfcn.c \
-	dlfunc.c \
 	drand48.c \
 	erand48.c \
 	err.c \

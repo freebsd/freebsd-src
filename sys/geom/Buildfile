@@ -11,5 +11,4 @@ INCS = \
 	geom_slice.h \
 	geom_vfs.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

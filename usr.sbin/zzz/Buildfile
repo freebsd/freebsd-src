@@ -4,5 +4,4 @@ SCRDIR = ${BINDIR}
 
 SCRIPTS = zzz.sh
 
-DIRDEP= stage
 .include <bsd.scripts.mk>

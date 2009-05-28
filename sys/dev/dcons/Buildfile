@@ -7,5 +7,4 @@ INCS = \
 	dcons.h \
 	dcons_os.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

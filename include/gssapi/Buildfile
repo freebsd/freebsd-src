@@ -6,5 +6,4 @@ COMMONDIR =
 INCS = \
 	gssapi.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

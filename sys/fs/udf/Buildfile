@@ -9,5 +9,4 @@ INCS = \
 	udf.h \
 	udf_mount.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

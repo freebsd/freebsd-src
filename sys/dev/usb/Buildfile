@@ -33,7 +33,6 @@ INCS = \
 	usb_process.h \
 	usb_request.h \
 	usb_revision.h \
-	usb_sw_transfer.h \
 	usb_transfer.h \
 	usb_util.h \
 	usbhid.h

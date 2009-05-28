@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+.PATH : ${BSDSRCTOP}/contrib/libpcap/pcap
+
+INCDIR = ${STAGEDIR}/usr/include/pcap
+COMMONDIR =
+
+INCS = pcap.h
+
+.include <bsd.headers.mk>

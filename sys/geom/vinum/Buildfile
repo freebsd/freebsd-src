@@ -9,5 +9,4 @@ INCS = \
 	geom_vinum_share.h \
 	geom_vinum_var.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

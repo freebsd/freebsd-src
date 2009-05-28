@@ -27,6 +27,4 @@ INCS += ${SRCDIR}/config/cpu/generic/${h}
 .endif
 .endfor
 
-SRCDIRDEP= contrib/libstdc++/config/cpu/generic
-DIRDEP= stage
 .include <bsd.headers.mk>

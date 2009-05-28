@@ -6,5 +6,4 @@ COMMONDIR =
 INCS = \
 	types.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

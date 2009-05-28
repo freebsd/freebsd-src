@@ -7,5 +7,4 @@ INCS = \
 	if_aironet_ieee.h \
 	if_anreg.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

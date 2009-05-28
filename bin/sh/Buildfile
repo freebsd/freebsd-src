@@ -1,65 +1,70 @@
-#	@(#)Makefile	8.4 (Berkeley) 5/5/95
 # $FreeBSD$
 
-PROG=	sh
-INSTALLFLAGS= -S
-SHSRCS=	alias.c arith.y arith_lex.l cd.c echo.c error.c eval.c exec.c expand.c \
-	histedit.c input.c jobs.c mail.c main.c memalloc.c miscbltin.c \
-	mystring.c options.c output.c parser.c redir.c show.c \
-	test.c trap.c var.c
-GENSRCS= builtins.c init.c nodes.c syntax.c
-GENHDRS= builtins.h nodes.h syntax.h token.h
-SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS} y.tab.h
+.PATH: ${BSDSRCTOP}/bin/sh
+.PATH: ${BSDSRCTOP}/bin/sh/bltin
+#.PATH: ${BSDSRCTOP}/usr.bin/printf
+.PATH: ${BSDSRCTOP}/bin/test
 
-# MLINKS for Shell built in commands for which there are no userland
-# utilities of the same name are handled with the associated manpage,
-# builtin.1 in share/man/man1/.
+SRCS = \
+	alias.c \
+	arith_lex.l \
+	cd.c \
+	echo.c \
+	error.c \
+	eval.c \
+	exec.c \
+	expand.c \
+	histedit.c \
+	input.c \
+	jobs.c \
+	mail.c \
+	main.c \
+	memalloc.c \
+	miscbltin.c \
+	mystring.c \
+	options.c \
+	output.c \
+	parser.c \
+	redir.c \
+	show.c \
+	test.c \
+	trap.c \
+	var.c \
+	xarith.y
 
-DPADD= ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
-LDADD= -ll -ledit -ltermcap
+GENSRCS = builtins.c init.c nodes.c syntax.c
+GENHDRS = builtins.h nodes.h syntax.h token.h
+SRCS += ${GENHDRS} ${GENSRCS}
 
-LFLAGS= -8	# 8-bit lex scanner for arithmetic
-CFLAGS+=-DSHELL -I. -I${.CURDIR}
+CFLAGS += -DSHELL -I. -I${.CURDIR}
+
 # for debug:
 # CFLAGS+= -g -DDEBUG=2
-WARNS?=	2
-WFORMAT=0
+WARNS ?= 2
+WFORMAT = 0
+W_error =
 
-.PATH:	${.CURDIR}/bltin \
-	${.CURDIR}/../../bin/test
+LDADD += -ll -ledit -lncurses
 
-CLEANFILES+= mkinit mkinit.o mknodes mknodes.o \
-	mksyntax mksyntax.o
-CLEANFILES+= ${GENSRCS} ${GENHDRS}
+# 8-bit lex scanner for arithmetic
+LFLAGS = -8
 
-build-tools: mkinit mknodes mksyntax
+xarith.y: arith.y
+	cp ${.ALLSRC} ${.TARGET}
 
-.ORDER: builtins.c builtins.h
-builtins.c builtins.h: mkbuiltins builtins.def
-	cd ${.CURDIR}; sh mkbuiltins ${.OBJDIR}
+builtins.c builtins.h: builtins.def
+	cd ${.CURDIR} && ${SHELL} ${BSDSRCTOP}/bin/sh/mkbuiltins ${.OBJDIR}
 
-init.c: mkinit alias.c eval.c exec.c input.c jobs.c options.c parser.c \
-	redir.c trap.c var.c
-	./mkinit ${.ALLSRC:S/^mkinit$//}
+init.c: alias.c eval.c exec.c input.c jobs.c options.c parser.c redir.c trap.c var.c
+	${HOSTTOOL_STAGEDIR}/buildtools/mkinit ${.ALLSRC:S/^mkinit$//}
 
-# XXX this is just to stop the default .c rule being used, so that the
-# intermediate object has a fixed name.
-# XXX we have a default .c rule, but no default .o rule.
-.o:
-	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-mkinit: mkinit.o
-mknodes: mknodes.o
-mksyntax: mksyntax.o
+nodes.c nodes.h: nodetypes nodes.c.pat
+	${HOSTTOOL_STAGEDIR}/buildtools/mknodes ${BSDSRCTOP}/bin/sh/nodetypes ${BSDSRCTOP}/bin/sh/nodes.c.pat
 
-.ORDER: nodes.c nodes.h
-nodes.c nodes.h: mknodes nodetypes nodes.c.pat
-	./mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
+syntax.c syntax.h:
+	${HOSTTOOL_STAGEDIR}/buildtools/mksyntax
 
-.ORDER: syntax.c syntax.h
-syntax.c syntax.h: mksyntax
-	./mksyntax
-
-token.h: mktokens
-	sh ${.CURDIR}/mktokens
+token.h:
+	${SHELL} ${BSDSRCTOP}/bin/sh/mktokens
 
 .include <bsd.prog.mk>

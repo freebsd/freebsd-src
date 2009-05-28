@@ -5,6 +5,7 @@ DIRDEP = \
 
 
 SRCDIRDEP = \
+	sys/i386/include \
 	sys/sys \
 
 

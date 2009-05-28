@@ -43,6 +43,4 @@ INCS = \
 	vstring_fwd.h \
 	vstring_util.h
 
-SRCDIRDEP= contrib/libstdc++/include/ext
-DIRDEP= stage
 .include <bsd.headers.mk>

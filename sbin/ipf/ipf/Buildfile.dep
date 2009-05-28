@@ -10,6 +10,7 @@ DIRDEP = \
 	lib/libc \
 	lib/libkvm \
 	lib/libpcap \
+	lib/libpcap/h \
 	sbin/ipf/libipf \
 	stage \
 	sys/MACHINE_ARCH/include \

@@ -20,6 +20,4 @@ INCS = \
 	altqconf.h \
 	if_altq.h
 
-SRCDIRDEP= sys/contrib/altq/altq
-DIRDEP= stage
 .include <bsd.headers.mk>

@@ -10,6 +10,5 @@ SRCS = \
 
 NO_PIC =
 
-DIRDEP= stage
 .include <bsd.lib.mk>
 

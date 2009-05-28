@@ -21,5 +21,4 @@ INCS = \
 	vipsec.h \
 	xform.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

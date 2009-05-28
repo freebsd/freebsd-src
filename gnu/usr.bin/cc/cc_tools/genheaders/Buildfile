@@ -114,6 +114,4 @@ gthr-default.h: ${GCCDIR}/gthr-posix.h
 unwind.h: ${GCCDIR}/unwind-generic.h
 	cp ${.ALLSRC} ${.TARGET}
 
-SRCDIRDEP= contrib/gcc contrib/gcc/config/i386 gnu/usr.bin/cc/cc_tools
-DIRDEP= stage
 .include <bsd.headers.mk>

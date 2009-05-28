@@ -12,5 +12,4 @@ INCS = \
 	audit_record.h \
 	audit_socket_type.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

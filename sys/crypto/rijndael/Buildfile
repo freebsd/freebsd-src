@@ -8,5 +8,4 @@ INCS = \
 	rijndael.h \
 	rijndael_local.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

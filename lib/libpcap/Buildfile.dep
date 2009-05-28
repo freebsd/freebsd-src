@@ -16,5 +16,6 @@ DIRDEP = \
 SRCDIRDEP = \
 	contrib/libpcap \
 	contrib/libpcap/bpf/net \
+	contrib/libpcap/pcap \
 
 

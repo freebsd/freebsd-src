@@ -18,5 +18,4 @@ INCS = \
 	if_fwipvar.h \
 	sbp.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

@@ -8,6 +8,7 @@ DIRDEP = \
 	lib/csu/MACHINE_ARCH \
 	lib/libc \
 	lib/libpcap \
+	lib/libpcap/h \
 	lib/libutil \
 	stage \
 	sys/MACHINE_ARCH/include \

@@ -8,5 +8,4 @@ INCS = \
 	fs.h \
 	softdep.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

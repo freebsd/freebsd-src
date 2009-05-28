@@ -32,6 +32,4 @@ ${h:R:S;^std_;;}: ${h}
 	cp ${.ALLSRC} ${.TARGET}
 .endfor
 
-SRCDIRDEP= contrib/libstdc++/include/c_std
-DIRDEP= stage
 .include <bsd.headers.mk>

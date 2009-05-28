@@ -6,5 +6,4 @@ COMMONDIR =
 INCS = \
 	g_concat.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

@@ -6,5 +6,4 @@ COMMONDIR =
 INCS = \
 	vkbd_var.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

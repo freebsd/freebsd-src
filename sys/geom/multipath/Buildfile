@@ -6,5 +6,4 @@ COMMONDIR =
 INCS = \
 	g_multipath.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

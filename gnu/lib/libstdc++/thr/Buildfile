@@ -48,6 +48,4 @@ gthr-default.h: ${GCCDIR}/gthr-posix.h
 	    -e 's,^#include "\(.*\)",#include <bits/\1>,g' \
 	    < ${.ALLSRC} > ${.TARGET}
 
-SRCDIRDEP= contrib/gcc
-DIRDEP= stage
 .include <bsd.headers.mk>

@@ -10,5 +10,4 @@ INCS = \
 	talkd.h \
 	timed.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

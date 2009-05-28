@@ -8,5 +8,4 @@ INCS = \
 	g_virstor.h \
 	g_virstor_md.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

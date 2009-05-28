@@ -7,5 +7,4 @@ INCS = \
 	g_label.h \
 	g_label_msdosfs.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

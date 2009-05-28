@@ -6,5 +6,4 @@ COMMONDIR =
 INCS = \
 	g_raid3.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

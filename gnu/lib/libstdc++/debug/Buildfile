@@ -30,6 +30,4 @@ INCS = \
 	set set.h \
 	string vector
 
-SRCDIRDEP= contrib/libstdc++/include/debug
-DIRDEP= stage
 .include <bsd.headers.mk>

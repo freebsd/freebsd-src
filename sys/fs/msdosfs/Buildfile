@@ -11,5 +11,4 @@ INCS = \
 	fat.h \
 	msdosfsmount.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

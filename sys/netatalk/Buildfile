@@ -14,5 +14,4 @@ INCS = \
 	endian.h \
 	phase2.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

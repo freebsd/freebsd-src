@@ -16,5 +16,4 @@ INCS = \
 	ng_l2cap.h \
 	ng_ubt.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

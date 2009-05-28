@@ -9,5 +9,4 @@ INCS = \
 	utopia.h \
 	utopia_priv.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

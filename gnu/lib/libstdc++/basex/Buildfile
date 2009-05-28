@@ -8,6 +8,4 @@ COMMONDIR =
 # Some of the different "C" header models need extra files.
 INCS = cmath.tcc
 
-SRCDIRDEP= contrib/libstdc++/include/c_std
-DIRDEP= stage
 .include <bsd.headers.mk>

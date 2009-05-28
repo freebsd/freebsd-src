@@ -12,5 +12,4 @@ INCS = \
 	openfirmio.h \
 	openpromio.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

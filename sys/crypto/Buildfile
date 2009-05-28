@@ -15,6 +15,4 @@ INCS = \
 	skipjack.h \
 	xform.h
 
-SRCDIRDEP= sys/opencrypto
-DIRDEP= stage
 .include <bsd.headers.mk>

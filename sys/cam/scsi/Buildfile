@@ -20,5 +20,4 @@ INCS = \
 	scsi_sg.h \
 	scsi_targetio.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

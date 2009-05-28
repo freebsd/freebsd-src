@@ -10,5 +10,4 @@ INCS = \
 	iso.h \
 	iso_rrip.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

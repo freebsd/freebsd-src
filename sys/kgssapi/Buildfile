@@ -7,5 +7,4 @@ INCS = \
 	gssapi.h \
 	gssapi_impl.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

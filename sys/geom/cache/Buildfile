@@ -6,5 +6,4 @@ COMMONDIR =
 INCS = \
 	g_cache.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

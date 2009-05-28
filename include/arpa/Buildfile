@@ -11,5 +11,4 @@ INCS = \
 	telnet.h \
 	tftp.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

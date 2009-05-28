@@ -82,6 +82,7 @@ INCS = \
 	eventvar.h \
 	exec.h \
 	extattr.h \
+	fail.h \
 	fbio.h \
 	fcntl.h \
 	fdcio.h \
@@ -113,6 +114,7 @@ INCS = \
 	kerneldump.h \
 	kobj.h \
 	ksem.h \
+	ksyms.h\
 	kthread.h \
 	ktr.h \
 	ktrace.h \
@@ -126,6 +128,7 @@ INCS = \
 	lock_profile.h \
 	lockf.h \
 	lockmgr.h \
+	lockstat.h \
 	mac.h \
 	malloc.h \
 	mbpool.h \

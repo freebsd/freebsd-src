@@ -12,5 +12,4 @@ INCS = \
 	ntfs_vfsops.h \
 	ntfsmount.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

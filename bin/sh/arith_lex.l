@@ -44,7 +44,11 @@ __FBSDID("$FreeBSD$");
 
 #include "arith.h"
 #include "shell.h"
+#ifdef JBUILD
+#include "xarith.h"
+#else
 #include "y.tab.h"
+#endif
 #include "error.h"
 #include "memalloc.h"
 #include "var.h"

@@ -55,5 +55,4 @@ INCS = \
 	ng_vjc.h \
 	ng_vlan.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

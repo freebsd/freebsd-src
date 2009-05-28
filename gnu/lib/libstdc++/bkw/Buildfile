@@ -43,6 +43,4 @@ INCS = \
 	tree.h \
 	vector.h
 
-SRCDIRDEP= contrib/libstdc++/include/backward
-DIRDEP= stage
 .include <bsd.headers.mk>

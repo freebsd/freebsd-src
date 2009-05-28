@@ -23,5 +23,4 @@ INCS = \
 	wd33c93reg.h \
 	z8530.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

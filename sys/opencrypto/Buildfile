@@ -13,5 +13,4 @@ INCS = \
 	skipjack.h \
 	xform.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

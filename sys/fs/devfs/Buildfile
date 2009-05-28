@@ -7,5 +7,4 @@ INCS = \
 	devfs.h \
 	devfs_int.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

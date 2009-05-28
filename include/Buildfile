@@ -1,9 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${BSDSRCTOP}/sys/sys
+.PATH: ${BSDSRCTOP}/sys/sys ${BSDSRCTOP}/sys/${MACHINE_ARCH}/include
 
 INCDIR = ${STAGEDIR}/usr/include
-COMMONDIR =
 
 INCS = \
 	_ctype.h \
@@ -78,6 +77,7 @@ INCS = \
 	signal.h \
 	spawn.h \
 	stab.h \
+	stdarg.h \
 	stdbool.h \
 	stddef.h \
 	stdint.h \
@@ -105,5 +105,7 @@ INCS = \
 	wchar.h \
 	wctype.h \
 	wordexp.h
+
+NOT_MACHINE_ARCH = host
 
 .include <bsd.headers.mk>

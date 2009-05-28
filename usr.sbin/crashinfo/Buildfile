@@ -4,5 +4,4 @@ SCRDIR = ${BINDIR}
 
 SCRIPTS = crashinfo.sh
 
-DIRDEP= stage
 .include <bsd.scripts.mk>

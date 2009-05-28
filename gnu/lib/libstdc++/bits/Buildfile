@@ -72,6 +72,4 @@ INCS = \
 	valarray_before.h \
 	vector.tcc
 
-SRCDIRDEP= contrib/libstdc++/include/bits gnu/lib/libstdc++
-DIRDEP= stage
 .include <bsd.headers.mk>

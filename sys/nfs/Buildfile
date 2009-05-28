@@ -9,5 +9,4 @@ INCS = \
 	rpcv2.h \
 	xdr_subs.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

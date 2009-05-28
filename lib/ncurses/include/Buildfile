@@ -15,6 +15,4 @@ ncurses_def.h:
 	AWK=${AWK} sh ${NCURSES_DIR}/include/MKncurses_def.sh \
 	    ${NCURSES_DIR}/include/ncurses_defs > ncurses_def.h
 
-SRCDIRDEP= contrib/ncurses/include lib/ncurses/ncurses
-DIRDEP= stage
 .include <bsd.headers.mk>

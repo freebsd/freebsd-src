@@ -6,7 +6,10 @@ LIB = bluetooth
 
 SHLIB_MAJOR = 3
 
-SRCS = bluetooth.c
+SRCS = \
+	bluetooth.c \
+	dev.c \
+	hci.c
 
 INCS = bluetooth.h
 

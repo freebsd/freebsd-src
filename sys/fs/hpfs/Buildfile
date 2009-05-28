@@ -9,5 +9,4 @@ INCS = \
 	hpfs_subr.h \
 	hpfsmount.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

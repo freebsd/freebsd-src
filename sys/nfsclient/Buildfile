@@ -15,5 +15,4 @@ INCS = \
 	nfsstats.h \
 	nlminfo.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

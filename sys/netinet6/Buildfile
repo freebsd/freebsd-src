@@ -27,5 +27,4 @@ INCS = \
 	udp6_var.h \
 	vinet6.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

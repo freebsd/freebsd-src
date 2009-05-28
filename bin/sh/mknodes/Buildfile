@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+.PATH: ${.CURDIR}/..
+
+HOSTPROG = yes
+
+PROG = mknodes
+BINDIR = ${STAGEDIR}/buildtools
+
+.include <bsd.prog.mk>

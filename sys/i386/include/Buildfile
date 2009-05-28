@@ -94,5 +94,4 @@ INCS = \
 
 ONLY_MACHINE = i386
 
-DIRDEP= stage
 .include <bsd.headers.mk>

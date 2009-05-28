@@ -24,5 +24,4 @@ INCS = \
 	vm_reserv.h \
 	vnode_pager.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

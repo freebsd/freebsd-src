@@ -14,7 +14,17 @@ INCMK= \
 	bsd.objs.mk \
 	bsd.package.mk \
 	bsd.prog.mk \
-	bsd.scripts.mk
+	bsd.scripts.mk \
+	jnx.errmsg.mk \
+	jnx.rrdl.mk \
+	pfe.common.mk \
+	pfe.lib.mk \
+	pfe.pm.mk \
+	pfe.mk
+
+.if exists(${.CURDIR}/Buildfile.dep)
+.include "${.CURDIR}/Buildfile.dep"
+.endif
 
 JDIRDEP ?= jdirdep
 
@@ -79,17 +89,16 @@ gendirdep : .PHONY
 	echo ".if !defined(NODIRDEP)" >> ${BUILDFILE_DIRDEP}
 .for t in ${MACHINE_LIST}
 .if !empty(DIRDEP.${t})
-	{ echo "# DIRDEP.${t}= ${DIRDEP.${t}}"; \
-	for _d in ${DIRDEP.${t}}; \
+	{ for _d in ${DIRDEP.${t}}; \
 	do \
-		echo ".if empty(D_INC_DONE:M$${_d})"; \
-		echo "D_INC_DONE+= $${_d}"; \
-		echo -n "D_INC_DONE:= $$"; \
-		echo "{D_INC_DONE}"; \
+		echo -n "dirdep := $$"; \
+		echo "{.SRCTOP}/$${_d}/Buildfile.dirdep"; \
+		echo -n ".if empty(.MAKEFILE_LIST:M$$"; \
+		echo "{dirdep})"; \
 		echo -n ".if exists($$"; \
-		echo "{.SRCTOP}/$${_d}/Buildfile.dirdep)"; \
+		echo "{dirdep})"; \
 		echo -n ".include \"$$"; \
-		echo "{.SRCTOP}/$${_d}/Buildfile.dirdep\""; \
+		echo "{dirdep}\""; \
 		echo ".endif"; \
 		echo ".endif"; \
 		echo ""; \
@@ -97,19 +106,17 @@ gendirdep : .PHONY
 	} >> ${BUILDFILE_DIRDEP}
 .endif
 .endfor
-	{ echo "# DIRDEP= ${DIRDEP}"; \
-	} >> ${BUILDFILE_DIRDEP}
 .if defined(DIRDEP) && !empty(DIRDEP)
 	{ for _d in ${_DIRDEP}; \
 	do \
-		echo ".if empty(D_INC_DONE:M$${_d})"; \
-		echo "D_INC_DONE+= $${_d}"; \
-		echo -n "D_INC_DONE:= $$"; \
-		echo "{D_INC_DONE}"; \
+		echo -n "dirdep := $$"; \
+		echo "{.SRCTOP}/$${_d}/Buildfile.dirdep"; \
+		echo -n ".if empty(.MAKEFILE_LIST:M$$"; \
+		echo "{dirdep})"; \
 		echo -n ".if exists($$"; \
-		echo "{.SRCTOP}/$${_d}/Buildfile.dirdep)"; \
+		echo "{dirdep})"; \
 		echo -n ".include \"$$"; \
-		echo "{.SRCTOP}/$${_d}/Buildfile.dirdep\""; \
+		echo "{dirdep}\""; \
 		echo ".endif"; \
 		echo ".endif"; \
 		echo ""; \
@@ -119,26 +126,17 @@ gendirdep : .PHONY
 		echo -n ".for t in $$"; \
 		echo "{MACHINE_LIST}"; \
 			echo "_d=$$_d"; \
-			echo -n ".if empty(D_INC_DONE:M$$"; \
+			echo -n "dirdep := $$"; \
+			echo -n "{.SRCTOP}/$$"; \
 			echo -n "{_d:S,MACHINE_ARCH,$$"; \
 			echo -n "{MACHINE_ARCH.$$"; \
-			echo "{t}},g})"; \
-			echo -n "D_INC_DONE+= $$"; \
-			echo -n "{_d:S,MACHINE_ARCH,$$"; \
-			echo -n "{MACHINE_ARCH.$$"; \
-			echo "{t}},g}"; \
-			echo -n "D_INC_DONE:= $$"; \
-			echo "{D_INC_DONE}"; \
+			echo "{t}},g}/Buildfile.dirdep"; \
+			echo -n ".if empty(.MAKEFILE_LIST:M$$"; \
+			echo "{dirdep})"; \
 			echo -n ".if exists($$"; \
-			echo -n "{.SRCTOP}/$$"; \
-			echo -n "{_d:S,MACHINE_ARCH,$$"; \
-			echo -n "{MACHINE_ARCH.$$"; \
-			echo "{t}},g}/Buildfile.dirdep)"; \
+			echo "{dirdep})"; \
 			echo -n ".include \"$$"; \
-			echo -n "{.SRCTOP}/$$"; \
-			echo -n "{_d:S,MACHINE_ARCH,$$"; \
-			echo -n "{MACHINE_ARCH.$$"; \
-			echo "{t}},g}/Buildfile.dirdep\""; \
+			echo "{dirdep}\""; \
 			echo ".endif"; \
 			echo ".endif"; \
 			echo ""; \
@@ -319,11 +317,18 @@ updatedirdep	: .PHONY
 	echo "Updating DIRDEP in Buildfiles..."
 	${ENV_JDIRDEP} ${JDIRDEP} -su
 
-.else
+.elif make(filedep)
 
-# D_INC_DONE is used to keep track of which dependencies have been included
-# to avoid including more than once. See the generation code above.
-D_INC_DONE=
+filedep	: .PHONY
+	${ENV_JDIRDEP} ${JDIRDEP} -d ${.SRCTOP}
+
+
+.elif make(rfiledep)
+
+rfiledep : .PHONY
+	${ENV_JDIRDEP} ${JDIRDEP} -rd ${.SRCTOP}
+
+.else
 
 # Only include dependencies in the top-level build
 .if ${__MKLVL__} == 1

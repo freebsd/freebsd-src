@@ -5,13 +5,15 @@
 OBJSDIR = ${STAGEDIR}/usr/lib
 
 SRCS = \
-	crt1.c crti.S crtn.S
+	crt1.c \
+	crti.S \
+	crtn.S
 
 OBJS += gcrt1.o
 
-WARNS?=		6
+WARNS ?= 6
 
-NO_SHARED=
+NO_SHARED =
 
 CFLAGS += \
 	-I${STAGEDIR}/usr/include \

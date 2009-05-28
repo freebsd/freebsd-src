@@ -25,9 +25,9 @@ INCS = \
 	ieee80211_rssadapt.h \
 	ieee80211_scan.h \
 	ieee80211_sta.h \
+	ieee80211_superg.h \
 	ieee80211_tdma.h \
 	ieee80211_var.h \
 	ieee80211_wds.h
 
-DIRDEP= stage
 .include <bsd.headers.mk>

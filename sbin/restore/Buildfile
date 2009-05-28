@@ -14,8 +14,8 @@ SRCS = \
 	tape.c \
 	utilities.c
 
-WARNS?=	0
+WARNS ?= 0
 
-CFLAGS += -DRRESTORE
+CFLAGS += -DRRESTORE  -D_ACL_PRIVATE
 
 .include <bsd.prog.mk>

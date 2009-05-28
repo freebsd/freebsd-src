@@ -15,6 +15,7 @@ INCS = \
 	ethernet.h \
 	fddi.h \
 	firewire.h \
+	flowtable.h \
 	ieee8023ad_lacp.h \
 	if.h \
 	if_arc.h \
@@ -33,9 +34,6 @@ INCS = \
 	if_mib.h \
 	if_pflog.h \
 	if_pfsync.h \
-	if_ppp.h \
-	if_pppvar.h \
-	if_slvar.h \
 	if_sppp.h \
 	if_stf.h \
 	if_tap.h \
@@ -50,17 +48,13 @@ INCS = \
 	pfil.h \
 	pfkeyv2.h \
 	pfvar.h \
-	ppp_comp.h \
 	ppp_defs.h \
 	radix.h \
 	radix_mpath.h \
 	raw_cb.h \
 	route.h \
 	slcompress.h \
-	slip.h \
 	vnet.h \
 	zlib.h
 
-SRCDIRDEP= sys/contrib/pf/net
-DIRDEP= stage
 .include <bsd.headers.mk>
