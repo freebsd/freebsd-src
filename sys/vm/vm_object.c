@@ -1902,8 +1902,10 @@ again:
 				pmap_remove_all(p);
 			/* Account for removal of managed, wired mappings. */
 			p->wire_count -= wirings;
-			if (!clean_only)
+			if (!clean_only) {
 				p->valid = 0;
+				vm_page_undirty(p);
+			}
 			continue;
 		}
 		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
