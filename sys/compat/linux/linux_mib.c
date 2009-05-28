@@ -52,7 +52,7 @@ struct linux_prison {
 	char	pr_osname[LINUX_MAX_UTSNAME];
 	char	pr_osrelease[LINUX_MAX_UTSNAME];
 	int	pr_oss_version;
-	int	pr_use_linux26;	/* flag to determine whether to use 2.6 emulation */
+	int	pr_osrel;
 };
 
 SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0,
@@ -83,7 +83,7 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, osname,
 	    "Linux kernel OS name");
 
 static char	linux_osrelease[LINUX_MAX_UTSNAME] = "2.4.2";
-static int	linux_use_linux26 = 0;
+static int	linux_osrel = 2004002;
 
 static int
 linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
@@ -124,6 +124,37 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, oss_version,
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON,
 	    0, 0, linux_sysctl_oss_version, "I",
 	    "Linux OSS version");
+
+/*
+ * Map the osrelease into integer
+ */
+static int
+linux_map_osrel(char *osrelease, int *osrel)
+{
+	char *sep, *eosrelease;
+	int len, v0, v1, v2, v;
+
+	len = strlen(osrelease);
+	eosrelease = osrelease + len;
+	v0 = strtol(osrelease, &sep, 10);
+	if (osrelease == sep || sep + 1 >= eosrelease || *sep != '.')
+		return (EINVAL);
+	osrelease = sep + 1;
+	v1 = strtol(osrelease, &sep, 10);
+	if (osrelease == sep || sep + 1 >= eosrelease || *sep != '.')
+		return (EINVAL);
+	osrelease = sep + 1;
+	v2 = strtol(osrelease, &sep, 10);
+	if (osrelease == sep || sep != eosrelease)
+		return (EINVAL);
+
+	v = v0 * 1000000 + v1 * 1000 + v2;
+	if (v < 1000000)
+		return (EINVAL);
+
+	*osrel = v;
+	return (0);
+}
 
 /*
  * Returns holding the prison mutex if return non-NULL.
@@ -229,21 +260,21 @@ linux_get_osrelease(struct thread *td, char *dst)
 }
 
 int
-linux_use26(struct thread *td)
+linux_kernver(struct thread *td)
 {
 	struct prison *pr;
 	struct linux_prison *lpr;
-	int use26 = linux_use_linux26;
+	int osrel;
 
 	pr = td->td_ucred->cr_prison;
 	if (pr != NULL) {
 		if (pr->pr_linux != NULL) {
 			lpr = (struct linux_prison *)pr->pr_linux;
-			use26 = lpr->pr_use_linux26;
+			osrel = lpr->pr_osrel;
 		}
-	}
-	
-	return (use26);
+	} else
+		osrel = linux_osrel;
+	return (osrel);
 }
 
 int
@@ -251,20 +282,26 @@ linux_set_osrelease(struct thread *td, char *osrelease)
 {
 	struct prison *pr;
 	struct linux_prison *lpr;
-	int use26;
-
-	use26 = (strlen(osrelease) >= 3 && osrelease[2] == '6');
+	int error;
 
 	pr = linux_get_prison(td);
 	if (pr != NULL) {
 		lpr = (struct linux_prison *)pr->pr_linux;
+		error = linux_map_osrel(osrelease, &lpr->pr_osrel);
+		if (error) {
+			mtx_unlock(&pr->pr_mtx);
+			return (error);
+		}
 		strcpy(lpr->pr_osrelease, osrelease);
-		lpr->pr_use_linux26 = use26;
 		mtx_unlock(&pr->pr_mtx);
 	} else {
 		mtx_lock(&osname_lock);
+		error = linux_map_osrel(osrelease, &linux_osrel);
+		if (error) {
+			mtx_unlock(&osname_lock);
+			return (error);
+		}
 		strcpy(linux_osrelease, osrelease);
-		linux_use_linux26 = use26;
 		mtx_unlock(&osname_lock);
 	}
 
