@@ -2,8 +2,9 @@
 
 .PATH: ${BSDSRCTOP}/bin/sh
 .PATH: ${BSDSRCTOP}/bin/sh/bltin
-#.PATH: ${BSDSRCTOP}/usr.bin/printf
 .PATH: ${BSDSRCTOP}/bin/test
+
+PROG = sh
 
 SRCS = \
 	alias.c \
