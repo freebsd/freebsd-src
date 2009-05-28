@@ -979,7 +979,7 @@ newnfs_copyincred(struct ucred *cr, struct nfscred *nfscr)
 	int ngroups, i;
 
 	nfscr->nfsc_uid = cr->cr_uid;
-	ngroups = (cr->cr_ngroups > NGROUPS) ? NGROUPS :
+	ngroups = (cr->cr_ngroups > XU_NGROUPS) ? XU_NGROUPS :
 	    cr->cr_ngroups;
 	for (i = 0; i < ngroups; i++)
 		nfscr->nfsc_groups[i] = cr->cr_groups[i];
