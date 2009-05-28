@@ -23,4 +23,6 @@ WARNS ?= 6
 CFLAGS += -DLIBC_SCCS -DINET6
 CFLAGS += -I${.CURDIR} -I${BSDSRCTOP}/lib/libc/gen
 
+NOT_MACHINE_ARCH = host
+
 .include <bsd.lib.mk>

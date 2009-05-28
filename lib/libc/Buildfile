@@ -75,4 +75,6 @@ SRCS +=	${_src}
 .endfor
 .endif
 
+NOT_MACHINE_ARCH = host
+
 .include <bsd.lib.mk>
