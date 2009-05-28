@@ -270,7 +270,7 @@ struct uss820dci_td {
 	bus_space_handle_t io_hdl;
 	struct uss820dci_td *obj_next;
 	uss820dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_packet_size;
@@ -285,7 +285,7 @@ struct uss820dci_td {
 
 struct uss820_std_temp {
 	uss820dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	struct uss820dci_td *td;
 	struct uss820dci_td *td_next;
 	uint32_t len;
@@ -301,14 +301,14 @@ struct uss820_std_temp {
 };
 
 struct uss820dci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union uss820_hub_temp {
 	uWord	wValue;
-	struct usb2_port_status ps;
+	struct usb_port_status ps;
 };
 
 struct uss820_flags {
@@ -325,10 +325,10 @@ struct uss820_flags {
 };
 
 struct uss820dci_softc {
-	struct usb2_bus sc_bus;
+	struct usb_bus sc_bus;
 	union uss820_hub_temp sc_hub_temp;
 
-	struct usb2_device *sc_devices[USS820_MAX_DEVICES];
+	struct usb_device *sc_devices[USS820_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;

@@ -121,10 +121,10 @@ static int	upgt_fw_load(struct upgt_softc *);
 static int	upgt_fw_copy(const uint8_t *, char *, int);
 static uint32_t	upgt_crc32_le(const void *, size_t);
 static struct mbuf *
-		upgt_rxeof(struct usb2_xfer *, struct upgt_data *, int *);
+		upgt_rxeof(struct usb_xfer *, struct upgt_data *, int *);
 static struct mbuf *
 		upgt_rx(struct upgt_softc *, uint8_t *, int, int *);
-static void	upgt_txeof(struct usb2_xfer *, struct upgt_data *);
+static void	upgt_txeof(struct usb_xfer *, struct upgt_data *);
 static int	upgt_eeprom_read(struct upgt_softc *);
 static int	upgt_eeprom_parse(struct upgt_softc *);
 static void	upgt_eeprom_parse_hwrx(struct upgt_softc *, uint8_t *);
@@ -175,7 +175,7 @@ static int	upgt_tx_start(struct upgt_softc *, struct mbuf *,
 
 static const char *upgt_fwname = "upgt-gw3887";
 
-static const struct usb2_device_id upgt_devs_2[] = {
+static const struct usb_device_id upgt_devs_2[] = {
 #define	UPGT_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	/* version 2 devices */
 	UPGT_DEV(ACCTON,	PRISM_GT),
@@ -199,7 +199,7 @@ static const struct usb2_device_id upgt_devs_2[] = {
 static usb2_callback_t upgt_bulk_rx_callback;
 static usb2_callback_t upgt_bulk_tx_callback;
 
-static const struct usb2_config upgt_config[UPGT_N_XFERS] = {
+static const struct usb_config upgt_config[UPGT_N_XFERS] = {
 	[UPGT_BULK_TX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -230,7 +230,7 @@ static const struct usb2_config upgt_config[UPGT_N_XFERS] = {
 static int
 upgt_match(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -249,7 +249,7 @@ upgt_attach(device_t dev)
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	struct upgt_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	uint8_t bands, iface_index = UPGT_IFACE_INDEX;
 
 	sc->sc_dev = dev;
@@ -391,7 +391,7 @@ fail1:	mtx_destroy(&sc->sc_mtx);
 }
 
 static void
-upgt_txeof(struct usb2_xfer *xfer, struct upgt_data *data)
+upgt_txeof(struct usb_xfer *xfer, struct upgt_data *data)
 {
 	struct upgt_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -1383,7 +1383,7 @@ upgt_eeprom_read(struct upgt_softc *sc)
  * When a rx data came in the function returns a mbuf and a rssi values.
  */
 static struct mbuf *
-upgt_rxeof(struct usb2_xfer *xfer, struct upgt_data *data, int *rssi)
+upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 {
 	struct mbuf *m = NULL;
 	struct upgt_softc *sc = xfer->priv_sc;
@@ -2244,7 +2244,7 @@ done:
 }
 
 static void
-upgt_bulk_rx_callback(struct usb2_xfer *xfer)
+upgt_bulk_rx_callback(struct usb_xfer *xfer)
 {
 	struct upgt_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2316,7 +2316,7 @@ setup:
 }
 
 static void
-upgt_bulk_tx_callback(struct usb2_xfer *xfer)
+upgt_bulk_tx_callback(struct usb_xfer *xfer)
 {
 	struct upgt_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;

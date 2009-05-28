@@ -118,16 +118,16 @@ struct ums_info {
 };
 
 struct ums_softc {
-	struct usb2_fifo_sc sc_fifo;
+	struct usb_fifo_sc sc_fifo;
 	struct mtx sc_mtx;
-	struct usb2_callout sc_callout;
+	struct usb_callout sc_callout;
 	struct ums_info sc_info[UMS_INFO_MAX];
 
 	mousehw_t sc_hw;
 	mousemode_t sc_mode;
 	mousestatus_t sc_status;
 
-	struct usb2_xfer *sc_xfer[UMS_N_TRANSFER];
+	struct usb_xfer *sc_xfer[UMS_N_TRANSFER];
 
 	uint8_t	sc_buttons;
 	uint8_t	sc_iid;
@@ -150,7 +150,7 @@ static usb2_fifo_ioctl_t ums_ioctl;
 
 static void ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy, int32_t dz, int32_t dt, int32_t buttons);
 
-static struct usb2_fifo_methods ums_fifo_methods = {
+static struct usb_fifo_methods ums_fifo_methods = {
 	.f_open = &ums_open,
 	.f_close = &ums_close,
 	.f_ioctl = &ums_ioctl,
@@ -170,7 +170,7 @@ ums_put_queue_timeout(void *__sc)
 }
 
 static void
-ums_intr_callback(struct usb2_xfer *xfer)
+ums_intr_callback(struct usb_xfer *xfer)
 {
 	struct ums_softc *sc = xfer->priv_sc;
 	struct ums_info *info = &sc->sc_info[0];
@@ -316,7 +316,7 @@ tr_setup:
 	}
 }
 
-static const struct usb2_config ums_config[UMS_N_TRANSFER] = {
+static const struct usb_config ums_config[UMS_N_TRANSFER] = {
 
 	[UMS_INTR_DT] = {
 		.type = UE_INTERRUPT,
@@ -331,8 +331,8 @@ static const struct usb2_config ums_config[UMS_N_TRANSFER] = {
 static int
 ums_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 	void *d_ptr;
 	int error;
 	uint16_t d_len;
@@ -467,7 +467,7 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 static int
 ums_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ums_softc *sc = device_get_softc(dev);
 	struct ums_info *info;
 	void *d_ptr = NULL;
@@ -638,7 +638,7 @@ ums_detach(device_t self)
 }
 
 static void
-ums_start_read(struct usb2_fifo *fifo)
+ums_start_read(struct usb_fifo *fifo)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
@@ -646,7 +646,7 @@ ums_start_read(struct usb2_fifo *fifo)
 }
 
 static void
-ums_stop_read(struct usb2_fifo *fifo)
+ums_stop_read(struct usb_fifo *fifo)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
@@ -713,7 +713,7 @@ ums_reset_buf(struct ums_softc *sc)
 }
 
 static int
-ums_open(struct usb2_fifo *fifo, int fflags)
+ums_open(struct usb_fifo *fifo, int fflags)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
@@ -740,7 +740,7 @@ ums_open(struct usb2_fifo *fifo, int fflags)
 }
 
 static void
-ums_close(struct usb2_fifo *fifo, int fflags)
+ums_close(struct usb_fifo *fifo, int fflags)
 {
 	if (fflags & FREAD) {
 		usb2_fifo_free_buffer(fifo);
@@ -748,7 +748,7 @@ ums_close(struct usb2_fifo *fifo, int fflags)
 }
 
 static int
-ums_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr, int fflags)
+ums_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 	mousemode_t mode;

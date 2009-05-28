@@ -51,15 +51,15 @@ extern int usb2_debug;
 #endif
 #endif
 
-struct usb2_interface;
-struct usb2_device;
-struct usb2_pipe;
-struct usb2_xfer;
+struct usb_interface;
+struct usb_device;
+struct usb_pipe;
+struct usb_xfer;
 
-void	usb2_dump_iface(struct usb2_interface *iface);
-void	usb2_dump_device(struct usb2_device *udev);
-void	usb2_dump_queue(struct usb2_pipe *pipe);
-void	usb2_dump_pipe(struct usb2_pipe *pipe);
-void	usb2_dump_xfer(struct usb2_xfer *xfer);
+void	usb2_dump_iface(struct usb_interface *iface);
+void	usb2_dump_device(struct usb_device *udev);
+void	usb2_dump_queue(struct usb_pipe *pipe);
+void	usb2_dump_pipe(struct usb_pipe *pipe);
+void	usb2_dump_xfer(struct usb_xfer *xfer);
 
 #endif					/* _USB2_DEBUG_H_ */

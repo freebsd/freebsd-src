@@ -32,15 +32,15 @@
  * explore process.
  */
 
-struct usb2_bus_msg {
-	struct usb2_proc_msg hdr;
-	struct usb2_bus *bus;
+struct usb_bus_msg {
+	struct usb_proc_msg hdr;
+	struct usb_bus *bus;
 };
 
 /*
  * The following structure defines the USB statistics structure.
  */
-struct usb2_bus_stat {
+struct usb_bus_stat {
 	uint32_t uds_requests[4];
 };
 
@@ -48,43 +48,43 @@ struct usb2_bus_stat {
  * The following structure defines an USB BUS. There is one USB BUS
  * for every Host or Device controller.
  */
-struct usb2_bus {
-	struct usb2_bus_stat stats_err;
-	struct usb2_bus_stat stats_ok;
+struct usb_bus {
+	struct usb_bus_stat stats_err;
+	struct usb_bus_stat stats_ok;
 	struct root_hold_token *bus_roothold;
 	/*
 	 * There are two callback processes. One for Giant locked
 	 * callbacks. One for non-Giant locked callbacks. This should
 	 * avoid congestion and reduce response time in most cases.
 	 */
-	struct usb2_process giant_callback_proc;
-	struct usb2_process non_giant_callback_proc;
+	struct usb_process giant_callback_proc;
+	struct usb_process non_giant_callback_proc;
 
 	/* Explore process */
-	struct usb2_process explore_proc;
+	struct usb_process explore_proc;
 
 	/* Control request process */
-	struct usb2_process control_xfer_proc;
+	struct usb_process control_xfer_proc;
 
-	struct usb2_bus_msg explore_msg[2];
-	struct usb2_bus_msg detach_msg[2];
-	struct usb2_bus_msg attach_msg[2];
+	struct usb_bus_msg explore_msg[2];
+	struct usb_bus_msg detach_msg[2];
+	struct usb_bus_msg attach_msg[2];
 	/*
 	 * This mutex protects the USB hardware:
 	 */
 	struct mtx bus_mtx;
-	struct usb2_xfer_queue intr_q;
-	struct usb2_callout power_wdog;	/* power management */
+	struct usb_xfer_queue intr_q;
+	struct usb_callout power_wdog;	/* power management */
 
 	device_t parent;
 	device_t bdev;			/* filled by HC driver */
 
 #if USB_HAVE_BUSDMA
-	struct usb2_dma_parent_tag dma_parent_tag[1];
-	struct usb2_dma_tag dma_tags[USB_BUS_DMA_TAG_MAX];
+	struct usb_dma_parent_tag dma_parent_tag[1];
+	struct usb_dma_tag dma_tags[USB_BUS_DMA_TAG_MAX];
 #endif
-	struct usb2_bus_methods *methods;	/* filled by HC driver */
-	struct usb2_device **devices;
+	struct usb_bus_methods *methods;	/* filled by HC driver */
+	struct usb_device **devices;
 
 	usb2_power_mask_t hw_power_state;	/* see USB_HW_POWER_XXX */
 	usb2_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
@@ -99,8 +99,8 @@ struct usb2_bus {
 	uint8_t	do_probe;		/* set if USB BUS should be re-probed */
 
 	union {
-		struct usb2_hw_ep_scratch hw_ep_scratch[1];
-		struct usb2_temp_setup temp_setup[1];
+		struct usb_hw_ep_scratch hw_ep_scratch[1];
+		struct usb_temp_setup temp_setup[1];
 		uint8_t	data[128];
 	}	scratch[1];
 };

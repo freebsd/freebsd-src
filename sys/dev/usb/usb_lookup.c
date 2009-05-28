@@ -30,22 +30,22 @@
 /*------------------------------------------------------------------------*
  *	usb2_lookup_id_by_info
  *
- * This functions takes an array of "struct usb2_device_id" and tries
- * to match the entries with the information in "struct usb2_lookup_info".
+ * This functions takes an array of "struct usb_device_id" and tries
+ * to match the entries with the information in "struct usb_lookup_info".
  *
  * NOTE: The "sizeof_id" parameter must be a multiple of the
- * usb2_device_id structure size. Else the behaviour of this function
+ * usb_device_id structure size. Else the behaviour of this function
  * is undefined.
  *
  * Return values:
  * NULL: No match found.
  * Else: Pointer to matching entry.
  *------------------------------------------------------------------------*/
-const struct usb2_device_id *
-usb2_lookup_id_by_info(const struct usb2_device_id *id, usb2_size_t sizeof_id,
-    const struct usb2_lookup_info *info)
+const struct usb_device_id *
+usb2_lookup_id_by_info(const struct usb_device_id *id, usb2_size_t sizeof_id,
+    const struct usb_lookup_info *info)
 {
-	const struct usb2_device_id *id_end;
+	const struct usb_device_id *id_end;
 
 	if (id == NULL) {
 		goto done;
@@ -121,8 +121,8 @@ done:
  * Else: Failure
  *------------------------------------------------------------------------*/
 int
-usb2_lookup_id_by_uaa(const struct usb2_device_id *id, usb2_size_t sizeof_id,
-    struct usb2_attach_arg *uaa)
+usb2_lookup_id_by_uaa(const struct usb_device_id *id, usb2_size_t sizeof_id,
+    struct usb_attach_arg *uaa)
 {
 	id = usb2_lookup_id_by_info(id, sizeof_id, &uaa->info);
 	if (id) {

@@ -155,11 +155,11 @@ enum {
 };
 
 struct uvisor_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UVISOR_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UVISOR_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint16_t sc_flag;
@@ -181,16 +181,16 @@ static device_detach_t uvisor_detach;
 static usb2_callback_t uvisor_write_callback;
 static usb2_callback_t uvisor_read_callback;
 
-static usb2_error_t uvisor_init(struct uvisor_softc *, struct usb2_device *,
-		    struct usb2_config *);
-static void	uvisor_cfg_open(struct usb2_com_softc *);
-static void	uvisor_cfg_close(struct usb2_com_softc *);
-static void	uvisor_start_read(struct usb2_com_softc *);
-static void	uvisor_stop_read(struct usb2_com_softc *);
-static void	uvisor_start_write(struct usb2_com_softc *);
-static void	uvisor_stop_write(struct usb2_com_softc *);
+static usb2_error_t uvisor_init(struct uvisor_softc *, struct usb_device *,
+		    struct usb_config *);
+static void	uvisor_cfg_open(struct ucom_softc *);
+static void	uvisor_cfg_close(struct ucom_softc *);
+static void	uvisor_start_read(struct ucom_softc *);
+static void	uvisor_stop_read(struct ucom_softc *);
+static void	uvisor_start_write(struct ucom_softc *);
+static void	uvisor_stop_write(struct ucom_softc *);
 
-static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
+static const struct usb_config uvisor_config[UVISOR_N_TRANSFER] = {
 
 	[UVISOR_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -211,7 +211,7 @@ static const struct usb2_config uvisor_config[UVISOR_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback uvisor_callback = {
+static const struct ucom_callback uvisor_callback = {
 	.usb2_com_cfg_open = &uvisor_cfg_open,
 	.usb2_com_cfg_close = &uvisor_cfg_close,
 	.usb2_com_start_read = &uvisor_start_read,
@@ -239,7 +239,7 @@ DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
 MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
 MODULE_DEPEND(uvisor, usb, 1, 1, 1);
 
-static const struct usb2_device_id uvisor_devs[] = {
+static const struct usb_device_id uvisor_devs[] = {
 	{USB_VPI(USB_VENDOR_ACEECA, USB_PRODUCT_ACEECA_MEZ1000, UVISOR_FLAG_PALM4)},
 	{USB_VPI(USB_VENDOR_GARMIN, USB_PRODUCT_GARMIN_IQUE_3600, UVISOR_FLAG_PALM4)},
 	{USB_VPI(USB_VENDOR_FOSSIL, USB_PRODUCT_FOSSIL_WRISTPDA, UVISOR_FLAG_PALM4)},
@@ -271,7 +271,7 @@ static const struct usb2_device_id uvisor_devs[] = {
 static int
 uvisor_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -288,9 +288,9 @@ uvisor_probe(device_t dev)
 static int
 uvisor_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uvisor_softc *sc = device_get_softc(dev);
-	struct usb2_config uvisor_config_copy[UVISOR_N_TRANSFER];
+	struct usb_config uvisor_config_copy[UVISOR_N_TRANSFER];
 	int error;
 
 	DPRINTF("sc=%p\n", sc);
@@ -356,10 +356,10 @@ uvisor_detach(device_t dev)
 }
 
 static usb2_error_t
-uvisor_init(struct uvisor_softc *sc, struct usb2_device *udev, struct usb2_config *config)
+uvisor_init(struct uvisor_softc *sc, struct usb_device *udev, struct usb_config *config)
 {
 	usb2_error_t err = 0;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	struct uvisor_connection_info coninfo;
 	struct uvisor_palm_connection_info pconinfo;
 	uint16_t actlen;
@@ -502,17 +502,17 @@ done:
 }
 
 static void
-uvisor_cfg_open(struct usb2_com_softc *ucom)
+uvisor_cfg_open(struct ucom_softc *ucom)
 {
 	return;
 }
 
 static void
-uvisor_cfg_close(struct usb2_com_softc *ucom)
+uvisor_cfg_close(struct ucom_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 	uint8_t buffer[UVISOR_CONNECTION_INFO_SIZE];
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 
 	req.bmRequestType = UT_READ_VENDOR_ENDPOINT;	/* XXX read? */
@@ -530,7 +530,7 @@ uvisor_cfg_close(struct usb2_com_softc *ucom)
 }
 
 static void
-uvisor_start_read(struct usb2_com_softc *ucom)
+uvisor_start_read(struct ucom_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
@@ -538,7 +538,7 @@ uvisor_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uvisor_stop_read(struct usb2_com_softc *ucom)
+uvisor_stop_read(struct ucom_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
@@ -546,7 +546,7 @@ uvisor_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uvisor_start_write(struct usb2_com_softc *ucom)
+uvisor_start_write(struct ucom_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
@@ -554,7 +554,7 @@ uvisor_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uvisor_stop_write(struct usb2_com_softc *ucom)
+uvisor_stop_write(struct ucom_softc *ucom)
 {
 	struct uvisor_softc *sc = ucom->sc_parent;
 
@@ -562,7 +562,7 @@ uvisor_stop_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uvisor_write_callback(struct usb2_xfer *xfer)
+uvisor_write_callback(struct usb_xfer *xfer)
 {
 	struct uvisor_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -590,7 +590,7 @@ tr_setup:
 }
 
 static void
-uvisor_read_callback(struct usb2_xfer *xfer)
+uvisor_read_callback(struct usb_xfer *xfer)
 {
 	struct uvisor_softc *sc = xfer->priv_sc;
 

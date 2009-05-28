@@ -49,13 +49,13 @@ struct atmegadci_super_softc {
 };
 
 static void
-atmegadci_clocks_on(struct usb2_bus *bus)
+atmegadci_clocks_on(struct usb_bus *bus)
 {
 	/* TODO */
 }
 
 static void
-atmegadci_clocks_off(struct usb2_bus *bus)
+atmegadci_clocks_off(struct usb_bus *bus)
 {
 	/* TODO */
 }

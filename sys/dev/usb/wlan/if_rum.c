@@ -90,7 +90,7 @@ SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RW, &rum_debug, 0,
     "Debug level");
 #endif
 
-static const struct usb2_device_id rum_devs[] = {
+static const struct usb_device_id rum_devs[] = {
     { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_HWU54DM) },
     { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT2573_2) },
     { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT2573_3) },
@@ -153,7 +153,7 @@ static usb2_callback_t rum_bulk_read_callback;
 static usb2_callback_t rum_bulk_write_callback;
 
 static usb2_error_t	rum_do_request(struct rum_softc *sc,
-			    struct usb2_device_request *req, void *data);
+			    struct usb_device_request *req, void *data);
 static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
 			    const char name[IFNAMSIZ], int unit, int opmode,
 			    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
@@ -386,7 +386,7 @@ static const struct rfprog {
 	{ 165, 0x00b33, 0x012ad, 0x2e014, 0x30285 }
 };
 
-static const struct usb2_config rum_config[RUM_N_TRANSFER] = {
+static const struct usb_config rum_config[RUM_N_TRANSFER] = {
 	[RUM_BULK_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -409,7 +409,7 @@ static const struct usb2_config rum_config[RUM_N_TRANSFER] = {
 static int
 rum_match(device_t self)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -424,7 +424,7 @@ rum_match(device_t self)
 static int
 rum_attach(device_t self)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct rum_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
@@ -566,7 +566,7 @@ rum_detach(device_t self)
 
 static usb2_error_t
 rum_do_request(struct rum_softc *sc,
-    struct usb2_device_request *req, void *data)
+    struct usb_device_request *req, void *data)
 {
 	usb2_error_t err;
 	int ntries = 10;
@@ -764,7 +764,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 }
 
 static void
-rum_bulk_write_callback(struct usb2_xfer *xfer)
+rum_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct rum_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -852,7 +852,7 @@ tr_setup:
 }
 
 static void
-rum_bulk_read_callback(struct usb2_xfer *xfer)
+rum_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct rum_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -1339,7 +1339,7 @@ rum_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 rum_eeprom_read(struct rum_softc *sc, uint16_t addr, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -1368,7 +1368,7 @@ rum_read(struct rum_softc *sc, uint16_t reg)
 static void
 rum_read_multi(struct rum_softc *sc, uint16_t reg, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -1396,7 +1396,7 @@ rum_write(struct rum_softc *sc, uint16_t reg, uint32_t val)
 static usb2_error_t
 rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -2068,7 +2068,7 @@ rum_stop(struct rum_softc *sc)
 static void
 rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t reg = RT2573_MCU_CODE_BASE;
 	usb2_error_t err;
 

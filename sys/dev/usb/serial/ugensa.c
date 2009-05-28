@@ -72,13 +72,13 @@ enum {
 };
 
 struct ugensa_sub_softc {
-	struct usb2_com_softc *sc_usb2_com_ptr;
-	struct usb2_xfer *sc_xfer[UGENSA_N_TRANSFER];
+	struct ucom_softc *sc_usb2_com_ptr;
+	struct usb_xfer *sc_xfer[UGENSA_N_TRANSFER];
 };
 
 struct ugensa_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom[UGENSA_IFACE_MAX];
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom[UGENSA_IFACE_MAX];
 	struct ugensa_sub_softc sc_sub[UGENSA_IFACE_MAX];
 
 	struct mtx sc_mtx;
@@ -94,12 +94,12 @@ static device_detach_t ugensa_detach;
 static usb2_callback_t ugensa_bulk_write_callback;
 static usb2_callback_t ugensa_bulk_read_callback;
 
-static void	ugensa_start_read(struct usb2_com_softc *);
-static void	ugensa_stop_read(struct usb2_com_softc *);
-static void	ugensa_start_write(struct usb2_com_softc *);
-static void	ugensa_stop_write(struct usb2_com_softc *);
+static void	ugensa_start_read(struct ucom_softc *);
+static void	ugensa_stop_read(struct ucom_softc *);
+static void	ugensa_start_write(struct ucom_softc *);
+static void	ugensa_stop_write(struct ucom_softc *);
 
-static const struct usb2_config
+static const struct usb_config
 	ugensa_xfer_config[UGENSA_N_TRANSFER] = {
 
 	[UGENSA_BULK_DT_WR] = {
@@ -121,7 +121,7 @@ static const struct usb2_config
 	},
 };
 
-static const struct usb2_com_callback ugensa_callback = {
+static const struct ucom_callback ugensa_callback = {
 	.usb2_com_start_read = &ugensa_start_read,
 	.usb2_com_stop_read = &ugensa_stop_read,
 	.usb2_com_start_write = &ugensa_start_write,
@@ -148,7 +148,7 @@ DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
 MODULE_DEPEND(ugensa, ucom, 1, 1, 1);
 MODULE_DEPEND(ugensa, usb, 1, 1, 1);
 
-static const struct usb2_device_id ugensa_devs[] = {
+static const struct usb_device_id ugensa_devs[] = {
 	{USB_VPI(USB_VENDOR_AIRPRIME, USB_PRODUCT_AIRPRIME_PC5220, 0)},
 	{USB_VPI(USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CDMA_MODEM1, 0)},
 	{USB_VPI(USB_VENDOR_KYOCERA2, USB_PRODUCT_KYOCERA2_CDMA_MSM_K, 0)},
@@ -159,7 +159,7 @@ static const struct usb2_device_id ugensa_devs[] = {
 static int
 ugensa_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -176,10 +176,10 @@ ugensa_probe(device_t dev)
 static int
 ugensa_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ugensa_softc *sc = device_get_softc(dev);
 	struct ugensa_sub_softc *ssc;
-	struct usb2_interface *iface;
+	struct usb_interface *iface;
 	int32_t error;
 	uint8_t iface_index;
 	int x, cnt;
@@ -264,7 +264,7 @@ ugensa_detach(device_t dev)
 }
 
 static void
-ugensa_bulk_write_callback(struct usb2_xfer *xfer)
+ugensa_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct ugensa_sub_softc *ssc = xfer->priv_sc;
 	uint32_t actlen;
@@ -291,7 +291,7 @@ tr_setup:
 }
 
 static void
-ugensa_bulk_read_callback(struct usb2_xfer *xfer)
+ugensa_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct ugensa_sub_softc *ssc = xfer->priv_sc;
 
@@ -317,7 +317,7 @@ tr_setup:
 }
 
 static void
-ugensa_start_read(struct usb2_com_softc *ucom)
+ugensa_start_read(struct ucom_softc *ucom)
 {
 	struct ugensa_softc *sc = ucom->sc_parent;
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
@@ -326,7 +326,7 @@ ugensa_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-ugensa_stop_read(struct usb2_com_softc *ucom)
+ugensa_stop_read(struct ucom_softc *ucom)
 {
 	struct ugensa_softc *sc = ucom->sc_parent;
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
@@ -335,7 +335,7 @@ ugensa_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-ugensa_start_write(struct usb2_com_softc *ucom)
+ugensa_start_write(struct ucom_softc *ucom)
 {
 	struct ugensa_softc *sc = ucom->sc_parent;
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
@@ -344,7 +344,7 @@ ugensa_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-ugensa_stop_write(struct usb2_com_softc *ucom)
+ugensa_stop_write(struct ucom_softc *ucom)
 {
 	struct ugensa_softc *sc = ucom->sc_parent;
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;

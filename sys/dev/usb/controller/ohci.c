@@ -87,20 +87,20 @@ static void ohci_dump_itds(ohci_itd_t *);
 
 #define	OHCI_INTR_ENDPT 1
 
-extern struct usb2_bus_methods ohci_bus_methods;
-extern struct usb2_pipe_methods ohci_device_bulk_methods;
-extern struct usb2_pipe_methods ohci_device_ctrl_methods;
-extern struct usb2_pipe_methods ohci_device_intr_methods;
-extern struct usb2_pipe_methods ohci_device_isoc_methods;
+extern struct usb_bus_methods ohci_bus_methods;
+extern struct usb_pipe_methods ohci_device_bulk_methods;
+extern struct usb_pipe_methods ohci_device_ctrl_methods;
+extern struct usb_pipe_methods ohci_device_intr_methods;
+extern struct usb_pipe_methods ohci_device_isoc_methods;
 
-static void ohci_do_poll(struct usb2_bus *bus);
-static void ohci_device_done(struct usb2_xfer *xfer, usb2_error_t error);
+static void ohci_do_poll(struct usb_bus *bus);
+static void ohci_device_done(struct usb_xfer *xfer, usb2_error_t error);
 static void ohci_timeout(void *arg);
-static uint8_t ohci_check_transfer(struct usb2_xfer *xfer);
+static uint8_t ohci_check_transfer(struct usb_xfer *xfer);
 static void ohci_root_intr(ohci_softc_t *sc);
 
 struct ohci_std_temp {
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	ohci_td_t *td;
 	ohci_td_t *td_next;
 	uint32_t average;
@@ -120,7 +120,7 @@ ohci_get_hcca(ohci_softc_t *sc)
 }
 
 void
-ohci_iterate_hw_softc(struct usb2_bus *bus, usb2_bus_mem_sub_cb_t *cb)
+ohci_iterate_hw_softc(struct usb_bus *bus, usb2_bus_mem_sub_cb_t *cb)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(bus);
 	uint32_t i;
@@ -146,7 +146,7 @@ ohci_iterate_hw_softc(struct usb2_bus *bus, usb2_bus_mem_sub_cb_t *cb)
 static usb2_error_t
 ohci_controller_init(ohci_softc_t *sc)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	uint32_t i;
 	uint32_t ctl;
 	uint32_t ival;
@@ -273,9 +273,9 @@ reset:
 }
 
 static struct ohci_ed *
-ohci_init_ed(struct usb2_page_cache *pc)
+ohci_init_ed(struct usb_page_cache *pc)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	struct ohci_ed *ed;
 
 	usb2_get_page(pc, 0, &buf_res);
@@ -292,7 +292,7 @@ ohci_init_ed(struct usb2_page_cache *pc)
 usb2_error_t
 ohci_init(ohci_softc_t *sc)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	uint16_t i;
 	uint16_t bit;
 	uint16_t x;
@@ -653,7 +653,7 @@ ohci_dump_ed(ohci_ed_t *sed)
 #endif
 
 static void
-ohci_transfer_intr_enqueue(struct usb2_xfer *xfer)
+ohci_transfer_intr_enqueue(struct usb_xfer *xfer)
 {
 	/* check for early completion */
 	if (ohci_check_transfer(xfer)) {
@@ -731,7 +731,7 @@ _ohci_remove_qh(ohci_ed_t *sed, ohci_ed_t *last)
 }
 
 static void
-ohci_isoc_done(struct usb2_xfer *xfer)
+ohci_isoc_done(struct usb_xfer *xfer)
 {
 	uint8_t nframes;
 	uint32_t *plen = xfer->frlengths;
@@ -813,7 +813,7 @@ static const char *const
 #endif
 
 static usb2_error_t
-ohci_non_isoc_done_sub(struct usb2_xfer *xfer)
+ohci_non_isoc_done_sub(struct usb_xfer *xfer)
 {
 	ohci_td_t *td;
 	ohci_td_t *td_alt_next;
@@ -906,7 +906,7 @@ ohci_non_isoc_done_sub(struct usb2_xfer *xfer)
 }
 
 static void
-ohci_non_isoc_done(struct usb2_xfer *xfer)
+ohci_non_isoc_done(struct usb_xfer *xfer)
 {
 	usb2_error_t err = 0;
 
@@ -958,7 +958,7 @@ done:
  *	ohci_check_transfer_sub
  *------------------------------------------------------------------------*/
 static void
-ohci_check_transfer_sub(struct usb2_xfer *xfer)
+ohci_check_transfer_sub(struct usb_xfer *xfer)
 {
 	ohci_td_t *td;
 	ohci_ed_t *ed;
@@ -1042,7 +1042,7 @@ ohci_check_transfer_sub(struct usb2_xfer *xfer)
  * Else: USB transfer is finished
  *------------------------------------------------------------------------*/
 static uint8_t
-ohci_check_transfer(struct usb2_xfer *xfer)
+ohci_check_transfer(struct usb_xfer *xfer)
 {
 	ohci_ed_t *ed;
 	uint32_t ed_headp;
@@ -1104,7 +1104,7 @@ ohci_rhsc_enable(ohci_softc_t *sc)
 static void
 ohci_interrupt_poll(ohci_softc_t *sc)
 {
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 
 repeat:
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
@@ -1240,7 +1240,7 @@ done:
 static void
 ohci_timeout(void *arg)
 {
-	struct usb2_xfer *xfer = arg;
+	struct usb_xfer *xfer = arg;
 
 	DPRINTF("xfer=%p\n", xfer);
 
@@ -1251,7 +1251,7 @@ ohci_timeout(void *arg)
 }
 
 static void
-ohci_do_poll(struct usb2_bus *bus)
+ohci_do_poll(struct usb_bus *bus)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(bus);
 
@@ -1263,7 +1263,7 @@ ohci_do_poll(struct usb2_bus *bus)
 static void
 ohci_setup_standard_chain_sub(struct ohci_std_temp *temp)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	ohci_td_t *td;
 	ohci_td_t *td_next;
 	ohci_td_t *td_alt_next;
@@ -1405,10 +1405,10 @@ restart:
 }
 
 static void
-ohci_setup_standard_chain(struct usb2_xfer *xfer, ohci_ed_t **ed_last)
+ohci_setup_standard_chain(struct usb_xfer *xfer, ohci_ed_t **ed_last)
 {
 	struct ohci_std_temp temp;
-	struct usb2_pipe_methods *methods;
+	struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 	ohci_td_t *td;
 	uint32_t ed_flags;
@@ -1645,9 +1645,9 @@ ohci_root_intr(ohci_softc_t *sc)
  * from close and from interrupt
  */
 static void
-ohci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
+ohci_device_done(struct usb_xfer *xfer, usb2_error_t error)
 {
-	struct usb2_pipe_methods *methods = xfer->pipe->methods;
+	struct usb_pipe_methods *methods = xfer->pipe->methods;
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	ohci_ed_t *ed;
 
@@ -1684,25 +1684,25 @@ ohci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
  * ohci bulk support
  *------------------------------------------------------------------------*/
 static void
-ohci_device_bulk_open(struct usb2_xfer *xfer)
+ohci_device_bulk_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-ohci_device_bulk_close(struct usb2_xfer *xfer)
+ohci_device_bulk_close(struct usb_xfer *xfer)
 {
 	ohci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-ohci_device_bulk_enter(struct usb2_xfer *xfer)
+ohci_device_bulk_enter(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-ohci_device_bulk_start(struct usb2_xfer *xfer)
+ohci_device_bulk_start(struct usb_xfer *xfer)
 {
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
@@ -1713,7 +1713,7 @@ ohci_device_bulk_start(struct usb2_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb2_pipe_methods ohci_device_bulk_methods =
+struct usb_pipe_methods ohci_device_bulk_methods =
 {
 	.open = ohci_device_bulk_open,
 	.close = ohci_device_bulk_close,
@@ -1725,25 +1725,25 @@ struct usb2_pipe_methods ohci_device_bulk_methods =
  * ohci control support
  *------------------------------------------------------------------------*/
 static void
-ohci_device_ctrl_open(struct usb2_xfer *xfer)
+ohci_device_ctrl_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-ohci_device_ctrl_close(struct usb2_xfer *xfer)
+ohci_device_ctrl_close(struct usb_xfer *xfer)
 {
 	ohci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-ohci_device_ctrl_enter(struct usb2_xfer *xfer)
+ohci_device_ctrl_enter(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-ohci_device_ctrl_start(struct usb2_xfer *xfer)
+ohci_device_ctrl_start(struct usb_xfer *xfer)
 {
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
@@ -1754,7 +1754,7 @@ ohci_device_ctrl_start(struct usb2_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb2_pipe_methods ohci_device_ctrl_methods =
+struct usb_pipe_methods ohci_device_ctrl_methods =
 {
 	.open = ohci_device_ctrl_open,
 	.close = ohci_device_ctrl_close,
@@ -1766,7 +1766,7 @@ struct usb2_pipe_methods ohci_device_ctrl_methods =
  * ohci interrupt support
  *------------------------------------------------------------------------*/
 static void
-ohci_device_intr_open(struct usb2_xfer *xfer)
+ohci_device_intr_open(struct usb_xfer *xfer)
 {
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	uint16_t best;
@@ -1799,7 +1799,7 @@ ohci_device_intr_open(struct usb2_xfer *xfer)
 }
 
 static void
-ohci_device_intr_close(struct usb2_xfer *xfer)
+ohci_device_intr_close(struct usb_xfer *xfer)
 {
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
@@ -1809,13 +1809,13 @@ ohci_device_intr_close(struct usb2_xfer *xfer)
 }
 
 static void
-ohci_device_intr_enter(struct usb2_xfer *xfer)
+ohci_device_intr_enter(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-ohci_device_intr_start(struct usb2_xfer *xfer)
+ohci_device_intr_start(struct usb_xfer *xfer)
 {
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 
@@ -1826,7 +1826,7 @@ ohci_device_intr_start(struct usb2_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb2_pipe_methods ohci_device_intr_methods =
+struct usb_pipe_methods ohci_device_intr_methods =
 {
 	.open = ohci_device_intr_open,
 	.close = ohci_device_intr_close,
@@ -1838,22 +1838,22 @@ struct usb2_pipe_methods ohci_device_intr_methods =
  * ohci isochronous support
  *------------------------------------------------------------------------*/
 static void
-ohci_device_isoc_open(struct usb2_xfer *xfer)
+ohci_device_isoc_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-ohci_device_isoc_close(struct usb2_xfer *xfer)
+ohci_device_isoc_close(struct usb_xfer *xfer)
 {
 	/**/
 	ohci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-ohci_device_isoc_enter(struct usb2_xfer *xfer)
+ohci_device_isoc_enter(struct usb_xfer *xfer)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	struct ohci_hcca *hcca;
 	uint32_t buf_offset;
@@ -2028,13 +2028,13 @@ ohci_device_isoc_enter(struct usb2_xfer *xfer)
 }
 
 static void
-ohci_device_isoc_start(struct usb2_xfer *xfer)
+ohci_device_isoc_start(struct usb_xfer *xfer)
 {
 	/* put transfer on interrupt queue */
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb2_pipe_methods ohci_device_isoc_methods =
+struct usb_pipe_methods ohci_device_isoc_methods =
 {
 	.open = ohci_device_isoc_open,
 	.close = ohci_device_isoc_close,
@@ -2049,9 +2049,9 @@ struct usb2_pipe_methods ohci_device_isoc_methods =
  *------------------------------------------------------------------------*/
 
 static const
-struct usb2_device_descriptor ohci_devd =
+struct usb_device_descriptor ohci_devd =
 {
-	sizeof(struct usb2_device_descriptor),
+	sizeof(struct usb_device_descriptor),
 	UDESC_DEVICE,			/* type */
 	{0x00, 0x01},			/* USB version */
 	UDCLASS_HUB,			/* class */
@@ -2067,7 +2067,7 @@ static const
 struct ohci_config_desc ohci_confd =
 {
 	.confd = {
-		.bLength = sizeof(struct usb2_config_descriptor),
+		.bLength = sizeof(struct usb_config_descriptor),
 		.bDescriptorType = UDESC_CONFIG,
 		.wTotalLength[0] = sizeof(ohci_confd),
 		.bNumInterface = 1,
@@ -2077,7 +2077,7 @@ struct ohci_config_desc ohci_confd =
 		.bMaxPower = 0,		/* max power */
 	},
 	.ifcd = {
-		.bLength = sizeof(struct usb2_interface_descriptor),
+		.bLength = sizeof(struct usb_interface_descriptor),
 		.bDescriptorType = UDESC_INTERFACE,
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
@@ -2085,7 +2085,7 @@ struct ohci_config_desc ohci_confd =
 		.bInterfaceProtocol = UIPROTO_FSHUB,
 	},
 	.endpd = {
-		.bLength = sizeof(struct usb2_endpoint_descriptor),
+		.bLength = sizeof(struct usb_endpoint_descriptor),
 		.bDescriptorType = UDESC_ENDPOINT,
 		.bEndpointAddress = UE_DIR_IN | OHCI_INTR_ENDPT,
 		.bmAttributes = UE_INTERRUPT,
@@ -2095,7 +2095,7 @@ struct ohci_config_desc ohci_confd =
 };
 
 static const
-struct usb2_hub_descriptor ohci_hubd =
+struct usb_hub_descriptor ohci_hubd =
 {
 	0,				/* dynamic length */
 	UDESC_HUB,
@@ -2107,8 +2107,8 @@ struct usb2_hub_descriptor ohci_hubd =
 };
 
 static usb2_error_t
-ohci_roothub_exec(struct usb2_device *udev,
-    struct usb2_device_request *req, const void **pptr, uint16_t *plength)
+ohci_roothub_exec(struct usb_device *udev,
+    struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
 	ohci_softc_t *sc = OHCI_BUS2SC(udev->bus);
 	const void *ptr;
@@ -2399,12 +2399,12 @@ done:
 }
 
 static void
-ohci_xfer_setup(struct usb2_setup_params *parm)
+ohci_xfer_setup(struct usb_setup_params *parm)
 {
-	struct usb2_page_search page_info;
-	struct usb2_page_cache *pc;
+	struct usb_page_search page_info;
+	struct usb_page_cache *pc;
 	ohci_softc_t *sc;
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
 	uint32_t nitd;
@@ -2563,8 +2563,8 @@ alloc_dma_set:
 }
 
 static void
-ohci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
-    struct usb2_pipe *pipe)
+ohci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_pipe *pipe)
 {
 	ohci_softc_t *sc = OHCI_BUS2SC(udev->bus);
 
@@ -2603,13 +2603,13 @@ ohci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
 }
 
 static void
-ohci_xfer_unsetup(struct usb2_xfer *xfer)
+ohci_xfer_unsetup(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-ohci_get_dma_delay(struct usb2_bus *bus, uint32_t *pus)
+ohci_get_dma_delay(struct usb_bus *bus, uint32_t *pus)
 {
 	/*
 	 * Wait until hardware has finished any possible use of the
@@ -2619,11 +2619,11 @@ ohci_get_dma_delay(struct usb2_bus *bus, uint32_t *pus)
 }
 
 static void
-ohci_device_resume(struct usb2_device *udev)
+ohci_device_resume(struct usb_device *udev)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
-	struct usb2_xfer *xfer;
-	struct usb2_pipe_methods *methods;
+	struct usb_xfer *xfer;
+	struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 
 	DPRINTF("\n");
@@ -2657,11 +2657,11 @@ ohci_device_resume(struct usb2_device *udev)
 }
 
 static void
-ohci_device_suspend(struct usb2_device *udev)
+ohci_device_suspend(struct usb_device *udev)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
-	struct usb2_xfer *xfer;
-	struct usb2_pipe_methods *methods;
+	struct usb_xfer *xfer;
+	struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 
 	DPRINTF("\n");
@@ -2693,7 +2693,7 @@ ohci_device_suspend(struct usb2_device *udev)
 }
 
 static void
-ohci_set_hw_power(struct usb2_bus *bus)
+ohci_set_hw_power(struct usb_bus *bus)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(bus);
 	uint32_t temp;
@@ -2727,7 +2727,7 @@ ohci_set_hw_power(struct usb2_bus *bus)
 	return;
 }
 
-struct usb2_bus_methods ohci_bus_methods =
+struct usb_bus_methods ohci_bus_methods =
 {
 	.pipe_init = ohci_pipe_init,
 	.xfer_setup = ohci_xfer_setup,

@@ -108,7 +108,7 @@ struct atausb2_softc {
 
 #define	ATAUSB_T_MAX ATAUSB_T_BBB_MAX
 
-	struct usb2_xfer *xfer[ATAUSB_T_MAX];
+	struct usb_xfer *xfer[ATAUSB_T_MAX];
 	caddr_t	ata_data;
 	device_t dev;
 
@@ -145,7 +145,7 @@ static usb2_callback_t atausb2_tr_error;
 
 static void atausb2_cancel_request(struct atausb2_softc *sc);
 static void atausb2_transfer_start(struct atausb2_softc *sc, uint8_t xfer_no);
-static void atausb2_t_bbb_data_clear_stall_callback(struct usb2_xfer *xfer, uint8_t next_xfer, uint8_t stall_xfer);
+static void atausb2_t_bbb_data_clear_stall_callback(struct usb_xfer *xfer, uint8_t next_xfer, uint8_t stall_xfer);
 static int ata_usbchannel_begin_transaction(struct ata_request *request);
 static int ata_usbchannel_end_transaction(struct ata_request *request);
 
@@ -160,13 +160,13 @@ static ata_locking_t ata_usbchannel_locking;
  * USB frontend part
  */
 
-struct usb2_config atausb2_config[ATAUSB_T_BBB_MAX] = {
+struct usb_config atausb2_config[ATAUSB_T_BBB_MAX] = {
 
 	[ATAUSB_T_BBB_RESET1] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
+		.mh.bufsize = sizeof(struct usb_device_request),
 		.mh.flags = {},
 		.mh.callback = &atausb2_t_bbb_reset1_callback,
 		.mh.timeout = 5000,	/* 5 seconds */
@@ -177,7 +177,7 @@ struct usb2_config atausb2_config[ATAUSB_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
+		.mh.bufsize = sizeof(struct usb_device_request),
 		.mh.flags = {},
 		.mh.callback = &atausb2_t_bbb_reset2_callback,
 		.mh.timeout = 5000,	/* 5 seconds */
@@ -188,7 +188,7 @@ struct usb2_config atausb2_config[ATAUSB_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
+		.mh.bufsize = sizeof(struct usb_device_request),
 		.mh.flags = {},
 		.mh.callback = &atausb2_t_bbb_reset3_callback,
 		.mh.timeout = 5000,	/* 5 seconds */
@@ -219,7 +219,7 @@ struct usb2_config atausb2_config[ATAUSB_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
+		.mh.bufsize = sizeof(struct usb_device_request),
 		.mh.flags = {},
 		.mh.callback = &atausb2_t_bbb_data_rd_cs_callback,
 		.mh.timeout = 5000,	/* 5 seconds */
@@ -239,7 +239,7 @@ struct usb2_config atausb2_config[ATAUSB_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
+		.mh.bufsize = sizeof(struct usb_device_request),
 		.mh.flags = {},
 		.mh.callback = &atausb2_t_bbb_data_wr_cs_callback,
 		.mh.timeout = 5000,	/* 5 seconds */
@@ -278,8 +278,8 @@ MODULE_VERSION(atausb, 1);
 static int
 atausb2_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -318,10 +318,10 @@ static int
 atausb2_attach(device_t dev)
 {
 	struct atausb2_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 	const char *proto, *subclass;
-	struct usb2_device_request request;
+	struct usb_device_request request;
 	device_t child;
 	uint16_t i;
 	uint8_t maxlun;
@@ -467,10 +467,10 @@ atausb2_transfer_start(struct atausb2_softc *sc, uint8_t xfer_no)
 }
 
 static void
-atausb2_t_bbb_reset1_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_reset1_callback(struct usb_xfer *xfer)
 {
 	struct atausb2_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -500,21 +500,21 @@ atausb2_t_bbb_reset1_callback(struct usb2_xfer *xfer)
 }
 
 static void
-atausb2_t_bbb_reset2_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_reset2_callback(struct usb_xfer *xfer)
 {
 	atausb2_t_bbb_data_clear_stall_callback(xfer, ATAUSB_T_BBB_RESET3,
 	    ATAUSB_T_BBB_DATA_READ);
 }
 
 static void
-atausb2_t_bbb_reset3_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_reset3_callback(struct usb_xfer *xfer)
 {
 	atausb2_t_bbb_data_clear_stall_callback(xfer, ATAUSB_T_BBB_COMMAND,
 	    ATAUSB_T_BBB_DATA_WRITE);
 }
 
 static void
-atausb2_t_bbb_data_clear_stall_callback(struct usb2_xfer *xfer,
+atausb2_t_bbb_data_clear_stall_callback(struct usb_xfer *xfer,
     uint8_t next_xfer,
     uint8_t stall_xfer)
 {
@@ -540,7 +540,7 @@ tr_transferred:
 }
 
 static void
-atausb2_t_bbb_command_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_command_callback(struct usb_xfer *xfer)
 {
 	struct atausb2_softc *sc = xfer->priv_sc;
 	struct ata_request *request = sc->ata_request;
@@ -590,7 +590,7 @@ atausb2_t_bbb_command_callback(struct usb2_xfer *xfer)
 }
 
 static void
-atausb2_t_bbb_data_read_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_data_read_callback(struct usb_xfer *xfer)
 {
 	struct atausb2_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -640,14 +640,14 @@ atausb2_t_bbb_data_read_callback(struct usb2_xfer *xfer)
 }
 
 static void
-atausb2_t_bbb_data_rd_cs_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_data_rd_cs_callback(struct usb_xfer *xfer)
 {
 	atausb2_t_bbb_data_clear_stall_callback(xfer, ATAUSB_T_BBB_STATUS,
 	    ATAUSB_T_BBB_DATA_READ);
 }
 
 static void
-atausb2_t_bbb_data_write_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_data_write_callback(struct usb_xfer *xfer)
 {
 	struct atausb2_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -693,14 +693,14 @@ atausb2_t_bbb_data_write_callback(struct usb2_xfer *xfer)
 }
 
 static void
-atausb2_t_bbb_data_wr_cs_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_data_wr_cs_callback(struct usb_xfer *xfer)
 {
 	atausb2_t_bbb_data_clear_stall_callback(xfer, ATAUSB_T_BBB_STATUS,
 	    ATAUSB_T_BBB_DATA_WRITE);
 }
 
 static void
-atausb2_t_bbb_status_callback(struct usb2_xfer *xfer)
+atausb2_t_bbb_status_callback(struct usb_xfer *xfer)
 {
 	struct atausb2_softc *sc = xfer->priv_sc;
 	struct ata_request *request = sc->ata_request;
@@ -820,7 +820,7 @@ atausb2_cancel_request(struct atausb2_softc *sc)
 }
 
 static void
-atausb2_tr_error(struct usb2_xfer *xfer)
+atausb2_tr_error(struct usb_xfer *xfer)
 {
 	struct atausb2_softc *sc = xfer->priv_sc;
 

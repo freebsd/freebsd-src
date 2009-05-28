@@ -650,11 +650,11 @@ hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
  * NULL: No more HID descriptors.
  * Else: Pointer to HID descriptor.
  *------------------------------------------------------------------------*/
-struct usb2_hid_descriptor *
-hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
-    struct usb2_interface_descriptor *id)
+struct usb_hid_descriptor *
+hid_get_descriptor_from_usb(struct usb_config_descriptor *cd,
+    struct usb_interface_descriptor *id)
 {
-	struct usb2_descriptor *desc = (void *)id;
+	struct usb_descriptor *desc = (void *)id;
 
 	if (desc == NULL) {
 		return (NULL);
@@ -682,12 +682,12 @@ hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
  * Else: Success. The pointer should eventually be passed to free().
  *------------------------------------------------------------------------*/
 usb2_error_t
-usb2_req_get_hid_desc(struct usb2_device *udev, struct mtx *mtx,
+usb2_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
     void **descp, uint16_t *sizep,
     usb2_malloc_type mem, uint8_t iface_index)
 {
-	struct usb2_interface *iface = usb2_get_iface(udev, iface_index);
-	struct usb2_hid_descriptor *hid;
+	struct usb_interface *iface = usb2_get_iface(udev, iface_index);
+	struct usb_hid_descriptor *hid;
 	usb2_error_t err;
 
 	if ((iface == NULL) || (iface->idesc == NULL)) {

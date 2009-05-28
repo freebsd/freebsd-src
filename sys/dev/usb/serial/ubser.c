@@ -116,11 +116,11 @@ enum {
 };
 
 struct ubser_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom[UBSER_UNIT_MAX];
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom[UBSER_UNIT_MAX];
 
-	struct usb2_xfer *sc_xfer[UBSER_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UBSER_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint16_t sc_tx_size;
@@ -141,16 +141,16 @@ static device_detach_t ubser_detach;
 static usb2_callback_t ubser_write_callback;
 static usb2_callback_t ubser_read_callback;
 
-static int	ubser_pre_param(struct usb2_com_softc *, struct termios *);
-static void	ubser_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static void	ubser_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static int	ubser_pre_param(struct ucom_softc *, struct termios *);
+static void	ubser_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	ubser_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
-static void	ubser_start_read(struct usb2_com_softc *);
-static void	ubser_stop_read(struct usb2_com_softc *);
-static void	ubser_start_write(struct usb2_com_softc *);
-static void	ubser_stop_write(struct usb2_com_softc *);
+static void	ubser_start_read(struct ucom_softc *);
+static void	ubser_stop_read(struct ucom_softc *);
+static void	ubser_start_write(struct ucom_softc *);
+static void	ubser_stop_write(struct ucom_softc *);
 
-static const struct usb2_config ubser_config[UBSER_N_TRANSFER] = {
+static const struct usb_config ubser_config[UBSER_N_TRANSFER] = {
 
 	[UBSER_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -171,7 +171,7 @@ static const struct usb2_config ubser_config[UBSER_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback ubser_callback = {
+static const struct ucom_callback ubser_callback = {
 	.usb2_com_cfg_set_break = &ubser_cfg_set_break,
 	.usb2_com_cfg_get_status = &ubser_cfg_get_status,
 	.usb2_com_pre_param = &ubser_pre_param,
@@ -203,7 +203,7 @@ MODULE_DEPEND(ubser, usb, 1, 1, 1);
 static int
 ubser_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -220,9 +220,9 @@ ubser_probe(device_t dev)
 static int
 ubser_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ubser_softc *sc = device_get_softc(dev);
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t n;
 	int error;
 
@@ -309,7 +309,7 @@ ubser_detach(device_t dev)
 }
 
 static int
-ubser_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+ubser_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	DPRINTF("\n");
 
@@ -367,7 +367,7 @@ ubser_inc_tx_unit(struct ubser_softc *sc)
 }
 
 static void
-ubser_write_callback(struct usb2_xfer *xfer)
+ubser_write_callback(struct usb_xfer *xfer)
 {
 	struct ubser_softc *sc = xfer->priv_sc;
 	uint8_t buf[1];
@@ -412,7 +412,7 @@ tr_setup:
 }
 
 static void
-ubser_read_callback(struct usb2_xfer *xfer)
+ubser_read_callback(struct usb_xfer *xfer)
 {
 	struct ubser_softc *sc = xfer->priv_sc;
 	uint8_t buf[1];
@@ -450,11 +450,11 @@ tr_setup:
 }
 
 static void
-ubser_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+ubser_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 	uint8_t x = ucom->sc_portno;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 
 	if (onoff) {
@@ -477,7 +477,7 @@ ubser_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-ubser_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+ubser_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	/* fake status bits */
 	*lsr = 0;
@@ -485,7 +485,7 @@ ubser_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static void
-ubser_start_read(struct usb2_com_softc *ucom)
+ubser_start_read(struct ucom_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
@@ -493,7 +493,7 @@ ubser_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-ubser_stop_read(struct usb2_com_softc *ucom)
+ubser_stop_read(struct ucom_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
@@ -501,7 +501,7 @@ ubser_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-ubser_start_write(struct usb2_com_softc *ucom)
+ubser_start_write(struct ucom_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
@@ -509,7 +509,7 @@ ubser_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-ubser_stop_write(struct usb2_com_softc *ucom)
+ubser_stop_write(struct ucom_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 

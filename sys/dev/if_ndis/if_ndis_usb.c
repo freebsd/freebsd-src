@@ -111,7 +111,7 @@ DRIVER_MODULE(ndis, uhub, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 static int
 ndisusb_devcompare(interface_type bustype, struct ndis_usb_type *t, device_t dev)
 {
-	struct usb2_attach_arg *uaa;
+	struct usb_attach_arg *uaa;
 
 	if (bustype != PNPBus)
 		return (FALSE);
@@ -134,7 +134,7 @@ static int
 ndisusb_match(device_t self)
 {
 	struct drvdb_ent *db;
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -159,7 +159,7 @@ ndisusb_attach(device_t self)
 {
 	const struct drvdb_ent	*db;
 	struct ndisusb_softc *dummy = device_get_softc(self);
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ndis_softc	*sc;
 	struct ndis_usb_type	*t;
 	driver_object		*drv;

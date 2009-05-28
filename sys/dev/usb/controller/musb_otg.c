@@ -74,11 +74,11 @@ SYSCTL_INT(_hw_usb_musbotg, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb2_bus_methods musbotg_bus_methods;
-struct usb2_pipe_methods musbotg_device_bulk_methods;
-struct usb2_pipe_methods musbotg_device_ctrl_methods;
-struct usb2_pipe_methods musbotg_device_intr_methods;
-struct usb2_pipe_methods musbotg_device_isoc_methods;
+struct usb_bus_methods musbotg_bus_methods;
+struct usb_pipe_methods musbotg_device_bulk_methods;
+struct usb_pipe_methods musbotg_device_ctrl_methods;
+struct usb_pipe_methods musbotg_device_intr_methods;
+struct usb_pipe_methods musbotg_device_isoc_methods;
 
 static musbotg_cmd_t musbotg_setup_rx;
 static musbotg_cmd_t musbotg_setup_data_rx;
@@ -86,16 +86,16 @@ static musbotg_cmd_t musbotg_setup_data_tx;
 static musbotg_cmd_t musbotg_setup_status;
 static musbotg_cmd_t musbotg_data_rx;
 static musbotg_cmd_t musbotg_data_tx;
-static void	musbotg_device_done(struct usb2_xfer *, usb2_error_t);
-static void	musbotg_do_poll(struct usb2_bus *);
-static void	musbotg_standard_done(struct usb2_xfer *);
+static void	musbotg_device_done(struct usb_xfer *, usb2_error_t);
+static void	musbotg_do_poll(struct usb_bus *);
+static void	musbotg_standard_done(struct usb_xfer *);
 static void	musbotg_interrupt_poll(struct musbotg_softc *);
 static void	musbotg_root_intr(struct musbotg_softc *);
 
 /*
  * Here is a configuration that the chip supports.
  */
-static const struct usb2_hw_ep_profile musbotg_ep_profile[1] = {
+static const struct usb_hw_ep_profile musbotg_ep_profile[1] = {
 
 	[0] = {
 		.max_in_frame_size = 64,/* fixed */
@@ -106,8 +106,8 @@ static const struct usb2_hw_ep_profile musbotg_ep_profile[1] = {
 };
 
 static void
-musbotg_get_hw_ep_profile(struct usb2_device *udev,
-    const struct usb2_hw_ep_profile **ppf, uint8_t ep_addr)
+musbotg_get_hw_ep_profile(struct usb_device *udev,
+    const struct usb_hw_ep_profile **ppf, uint8_t ep_addr)
 {
 	struct musbotg_softc *sc;
 
@@ -228,7 +228,7 @@ static uint8_t
 musbotg_setup_rx(struct musbotg_td *td)
 {
 	struct musbotg_softc *sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t count;
 	uint8_t csr;
 
@@ -337,7 +337,7 @@ not_complete:
 static uint8_t
 musbotg_setup_data_rx(struct musbotg_td *td)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	struct musbotg_softc *sc;
 	uint16_t count;
 	uint8_t csr;
@@ -480,7 +480,7 @@ musbotg_setup_data_rx(struct musbotg_td *td)
 static uint8_t
 musbotg_setup_data_tx(struct musbotg_td *td)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	struct musbotg_softc *sc;
 	uint16_t count;
 	uint8_t csr;
@@ -632,7 +632,7 @@ musbotg_setup_status(struct musbotg_td *td)
 static uint8_t
 musbotg_data_rx(struct musbotg_td *td)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	struct musbotg_softc *sc;
 	uint16_t count;
 	uint8_t csr;
@@ -771,7 +771,7 @@ repeat:
 static uint8_t
 musbotg_data_tx(struct musbotg_td *td)
 {
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	struct musbotg_softc *sc;
 	uint16_t count;
 	uint8_t csr;
@@ -887,7 +887,7 @@ repeat:
 }
 
 static uint8_t
-musbotg_xfer_do_fifo(struct usb2_xfer *xfer)
+musbotg_xfer_do_fifo(struct usb_xfer *xfer)
 {
 	struct musbotg_softc *sc;
 	struct musbotg_td *td;
@@ -936,7 +936,7 @@ done:
 static void
 musbotg_interrupt_poll(struct musbotg_softc *sc)
 {
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 
 repeat:
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
@@ -1105,7 +1105,7 @@ musbotg_setup_standard_chain_sub(struct musbotg_std_temp *temp)
 }
 
 static void
-musbotg_setup_standard_chain(struct usb2_xfer *xfer)
+musbotg_setup_standard_chain(struct usb_xfer *xfer)
 {
 	struct musbotg_std_temp temp;
 	struct musbotg_softc *sc;
@@ -1234,7 +1234,7 @@ musbotg_setup_standard_chain(struct usb2_xfer *xfer)
 static void
 musbotg_timeout(void *arg)
 {
-	struct usb2_xfer *xfer = arg;
+	struct usb_xfer *xfer = arg;
 
 	DPRINTFN(1, "xfer=%p\n", xfer);
 
@@ -1245,7 +1245,7 @@ musbotg_timeout(void *arg)
 }
 
 static void
-musbotg_ep_int_set(struct usb2_xfer *xfer, uint8_t on)
+musbotg_ep_int_set(struct usb_xfer *xfer, uint8_t on)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint16_t temp;
@@ -1285,7 +1285,7 @@ musbotg_ep_int_set(struct usb2_xfer *xfer, uint8_t on)
 }
 
 static void
-musbotg_start_standard_chain(struct usb2_xfer *xfer)
+musbotg_start_standard_chain(struct usb_xfer *xfer)
 {
 	DPRINTFN(8, "\n");
 
@@ -1322,7 +1322,7 @@ musbotg_root_intr(struct musbotg_softc *sc)
 }
 
 static usb2_error_t
-musbotg_standard_done_sub(struct usb2_xfer *xfer)
+musbotg_standard_done_sub(struct usb_xfer *xfer)
 {
 	struct musbotg_td *td;
 	uint32_t len;
@@ -1386,7 +1386,7 @@ musbotg_standard_done_sub(struct usb2_xfer *xfer)
 }
 
 static void
-musbotg_standard_done(struct usb2_xfer *xfer)
+musbotg_standard_done(struct usb_xfer *xfer)
 {
 	usb2_error_t err = 0;
 
@@ -1435,7 +1435,7 @@ done:
  * same USB transfer!
  *------------------------------------------------------------------------*/
 static void
-musbotg_device_done(struct usb2_xfer *xfer, usb2_error_t error)
+musbotg_device_done(struct usb_xfer *xfer, usb2_error_t error)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
@@ -1453,8 +1453,8 @@ musbotg_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 }
 
 static void
-musbotg_set_stall(struct usb2_device *udev, struct usb2_xfer *xfer,
-    struct usb2_pipe *pipe)
+musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+    struct usb_pipe *pipe)
 {
 	struct musbotg_softc *sc;
 	uint8_t ep_no;
@@ -1636,10 +1636,10 @@ musbotg_clear_stall_sub(struct musbotg_softc *sc, uint16_t wMaxPacket,
 }
 
 static void
-musbotg_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
+musbotg_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 {
 	struct musbotg_softc *sc;
-	struct usb2_endpoint_descriptor *ed;
+	struct usb_endpoint_descriptor *ed;
 
 	DPRINTFN(4, "pipe=%p\n", pipe);
 
@@ -1667,7 +1667,7 @@ musbotg_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 usb2_error_t
 musbotg_init(struct musbotg_softc *sc)
 {
-	struct usb2_hw_ep_profile *pf;
+	struct usb_hw_ep_profile *pf;
 	uint8_t nrx;
 	uint8_t ntx;
 	uint8_t temp;
@@ -1855,7 +1855,7 @@ musbotg_resume(struct musbotg_softc *sc)
 }
 
 static void
-musbotg_do_poll(struct usb2_bus *bus)
+musbotg_do_poll(struct usb_bus *bus)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(bus);
 
@@ -1868,32 +1868,32 @@ musbotg_do_poll(struct usb2_bus *bus)
  * musbotg bulk support
  *------------------------------------------------------------------------*/
 static void
-musbotg_device_bulk_open(struct usb2_xfer *xfer)
+musbotg_device_bulk_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-musbotg_device_bulk_close(struct usb2_xfer *xfer)
+musbotg_device_bulk_close(struct usb_xfer *xfer)
 {
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-musbotg_device_bulk_enter(struct usb2_xfer *xfer)
+musbotg_device_bulk_enter(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-musbotg_device_bulk_start(struct usb2_xfer *xfer)
+musbotg_device_bulk_start(struct usb_xfer *xfer)
 {
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods musbotg_device_bulk_methods =
+struct usb_pipe_methods musbotg_device_bulk_methods =
 {
 	.open = musbotg_device_bulk_open,
 	.close = musbotg_device_bulk_close,
@@ -1905,32 +1905,32 @@ struct usb2_pipe_methods musbotg_device_bulk_methods =
  * musbotg control support
  *------------------------------------------------------------------------*/
 static void
-musbotg_device_ctrl_open(struct usb2_xfer *xfer)
+musbotg_device_ctrl_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-musbotg_device_ctrl_close(struct usb2_xfer *xfer)
+musbotg_device_ctrl_close(struct usb_xfer *xfer)
 {
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-musbotg_device_ctrl_enter(struct usb2_xfer *xfer)
+musbotg_device_ctrl_enter(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-musbotg_device_ctrl_start(struct usb2_xfer *xfer)
+musbotg_device_ctrl_start(struct usb_xfer *xfer)
 {
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods musbotg_device_ctrl_methods =
+struct usb_pipe_methods musbotg_device_ctrl_methods =
 {
 	.open = musbotg_device_ctrl_open,
 	.close = musbotg_device_ctrl_close,
@@ -1942,32 +1942,32 @@ struct usb2_pipe_methods musbotg_device_ctrl_methods =
  * musbotg interrupt support
  *------------------------------------------------------------------------*/
 static void
-musbotg_device_intr_open(struct usb2_xfer *xfer)
+musbotg_device_intr_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-musbotg_device_intr_close(struct usb2_xfer *xfer)
+musbotg_device_intr_close(struct usb_xfer *xfer)
 {
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-musbotg_device_intr_enter(struct usb2_xfer *xfer)
+musbotg_device_intr_enter(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-musbotg_device_intr_start(struct usb2_xfer *xfer)
+musbotg_device_intr_start(struct usb_xfer *xfer)
 {
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods musbotg_device_intr_methods =
+struct usb_pipe_methods musbotg_device_intr_methods =
 {
 	.open = musbotg_device_intr_open,
 	.close = musbotg_device_intr_close,
@@ -1979,19 +1979,19 @@ struct usb2_pipe_methods musbotg_device_intr_methods =
  * musbotg full speed isochronous support
  *------------------------------------------------------------------------*/
 static void
-musbotg_device_isoc_open(struct usb2_xfer *xfer)
+musbotg_device_isoc_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-musbotg_device_isoc_close(struct usb2_xfer *xfer)
+musbotg_device_isoc_close(struct usb_xfer *xfer)
 {
 	musbotg_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-musbotg_device_isoc_enter(struct usb2_xfer *xfer)
+musbotg_device_isoc_enter(struct usb_xfer *xfer)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint32_t temp;
@@ -2050,13 +2050,13 @@ musbotg_device_isoc_enter(struct usb2_xfer *xfer)
 }
 
 static void
-musbotg_device_isoc_start(struct usb2_xfer *xfer)
+musbotg_device_isoc_start(struct usb_xfer *xfer)
 {
 	/* start TD chain */
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods musbotg_device_isoc_methods =
+struct usb_pipe_methods musbotg_device_isoc_methods =
 {
 	.open = musbotg_device_isoc_open,
 	.close = musbotg_device_isoc_close,
@@ -2070,8 +2070,8 @@ struct usb2_pipe_methods musbotg_device_isoc_methods =
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
 
-static const struct usb2_device_descriptor musbotg_devd = {
-	.bLength = sizeof(struct usb2_device_descriptor),
+static const struct usb_device_descriptor musbotg_devd = {
+	.bLength = sizeof(struct usb_device_descriptor),
 	.bDescriptorType = UDESC_DEVICE,
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
@@ -2084,8 +2084,8 @@ static const struct usb2_device_descriptor musbotg_devd = {
 	.bNumConfigurations = 1,
 };
 
-static const struct usb2_device_qualifier musbotg_odevd = {
-	.bLength = sizeof(struct usb2_device_qualifier),
+static const struct usb_device_qualifier musbotg_odevd = {
+	.bLength = sizeof(struct usb_device_qualifier),
 	.bDescriptorType = UDESC_DEVICE_QUALIFIER,
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
@@ -2097,7 +2097,7 @@ static const struct usb2_device_qualifier musbotg_odevd = {
 
 static const struct musbotg_config_desc musbotg_confd = {
 	.confd = {
-		.bLength = sizeof(struct usb2_config_descriptor),
+		.bLength = sizeof(struct usb_config_descriptor),
 		.bDescriptorType = UDESC_CONFIG,
 		.wTotalLength[0] = sizeof(musbotg_confd),
 		.bNumInterface = 1,
@@ -2107,7 +2107,7 @@ static const struct musbotg_config_desc musbotg_confd = {
 		.bMaxPower = 0,
 	},
 	.ifcd = {
-		.bLength = sizeof(struct usb2_interface_descriptor),
+		.bLength = sizeof(struct usb_interface_descriptor),
 		.bDescriptorType = UDESC_INTERFACE,
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
@@ -2115,7 +2115,7 @@ static const struct musbotg_config_desc musbotg_confd = {
 		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
 	},
 	.endpd = {
-		.bLength = sizeof(struct usb2_endpoint_descriptor),
+		.bLength = sizeof(struct usb_endpoint_descriptor),
 		.bDescriptorType = UDESC_ENDPOINT,
 		.bEndpointAddress = (UE_DIR_IN | MUSBOTG_INTR_ENDPT),
 		.bmAttributes = UE_INTERRUPT,
@@ -2124,7 +2124,7 @@ static const struct musbotg_config_desc musbotg_confd = {
 	},
 };
 
-static const struct usb2_hub_descriptor_min musbotg_hubd = {
+static const struct usb_hub_descriptor_min musbotg_hubd = {
 	.bDescLength = sizeof(musbotg_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
@@ -2154,8 +2154,8 @@ USB_MAKE_STRING_DESC(STRING_VENDOR, musbotg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, musbotg_product);
 
 static usb2_error_t
-musbotg_roothub_exec(struct usb2_device *udev,
-    struct usb2_device_request *req, const void **pptr, uint16_t *plength)
+musbotg_roothub_exec(struct usb_device *udev,
+    struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(udev->bus);
 	const void *ptr;
@@ -2554,11 +2554,11 @@ done:
 }
 
 static void
-musbotg_xfer_setup(struct usb2_setup_params *parm)
+musbotg_xfer_setup(struct usb_setup_params *parm)
 {
-	const struct usb2_hw_ep_profile *pf;
+	const struct usb_hw_ep_profile *pf;
 	struct musbotg_softc *sc;
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
 	uint32_t n;
@@ -2661,14 +2661,14 @@ musbotg_xfer_setup(struct usb2_setup_params *parm)
 }
 
 static void
-musbotg_xfer_unsetup(struct usb2_xfer *xfer)
+musbotg_xfer_unsetup(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-musbotg_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
-    struct usb2_pipe *pipe)
+musbotg_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_pipe *pipe)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(udev->bus);
 
@@ -2708,7 +2708,7 @@ musbotg_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *ede
 	}
 }
 
-struct usb2_bus_methods musbotg_bus_methods =
+struct usb_bus_methods musbotg_bus_methods =
 {
 	.pipe_init = &musbotg_pipe_init,
 	.xfer_setup = &musbotg_xfer_setup,

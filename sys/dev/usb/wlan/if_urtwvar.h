@@ -89,7 +89,7 @@ struct urtw_vap {
 struct urtw_softc {
 	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
-	struct usb2_device		*sc_udev;
+	struct usb_device		*sc_udev;
 	struct mtx			sc_mtx;
 
 	int				sc_debug;
@@ -121,7 +121,7 @@ struct urtw_softc {
 	uint32_t			sc_max_sens;
 	uint32_t			sc_sens;
 	/* for LED  */
-	struct usb2_callout		sc_led_ch;
+	struct usb_callout		sc_led_ch;
 	struct task			sc_led_task;
 	uint8_t				sc_psr;
 	uint8_t				sc_strategy;
@@ -133,7 +133,7 @@ struct urtw_softc {
 	uint8_t				sc_gpio_blinktime;
 	uint8_t				sc_gpio_blinkstate;
 	/* RX/TX */
-	struct usb2_xfer		*sc_xfer[URTW_8187B_N_XFERS];
+	struct usb_xfer		*sc_xfer[URTW_8187B_N_XFERS];
 #define	URTW_PRIORITY_LOW		0
 #define	URTW_PRIORITY_NORMAL		1
 #define URTW_DATA_TIMEOUT		10000		/* 10 sec  */

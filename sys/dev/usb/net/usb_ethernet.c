@@ -67,7 +67,7 @@ static void	ue_watchdog(void *);
  * Else: device has been detached
  */
 uint8_t
-usb2_ether_pause(struct usb2_ether *ue, unsigned int _ticks)
+usb2_ether_pause(struct usb_ether *ue, unsigned int _ticks)
 {
 	if (usb2_proc_is_gone(&ue->ue_tq)) {
 		/* nothing to do */
@@ -78,11 +78,11 @@ usb2_ether_pause(struct usb2_ether *ue, unsigned int _ticks)
 }
 
 static void
-ue_queue_command(struct usb2_ether *ue,
+ue_queue_command(struct usb_ether *ue,
     usb2_proc_callback_t *fn,
-    struct usb2_proc_msg *t0, struct usb2_proc_msg *t1)
+    struct usb_proc_msg *t0, struct usb_proc_msg *t1)
 {
-	struct usb2_ether_cfg_task *task;
+	struct usb_ether_cfg_task *task;
 
 	UE_LOCK_ASSERT(ue, MA_OWNED);
 
@@ -94,7 +94,7 @@ ue_queue_command(struct usb2_ether *ue,
 	 * "sc_mtx" mutex. It is safe to update fields in the message
 	 * structure after that the message got queued.
 	 */
-	task = (struct usb2_ether_cfg_task *)
+	task = (struct usb_ether_cfg_task *)
 	  usb2_proc_msignal(&ue->ue_tq, t0, t1);
 
 	/* Setup callback and self pointers */
@@ -109,19 +109,19 @@ ue_queue_command(struct usb2_ether *ue,
 }
 
 struct ifnet *
-usb2_ether_getifp(struct usb2_ether *ue)
+usb2_ether_getifp(struct usb_ether *ue)
 {
 	return (ue->ue_ifp);
 }
 
 struct mii_data *
-usb2_ether_getmii(struct usb2_ether *ue)
+usb2_ether_getmii(struct usb_ether *ue)
 {
 	return (device_get_softc(ue->ue_miibus));
 }
 
 void *
-usb2_ether_getsc(struct usb2_ether *ue)
+usb2_ether_getsc(struct usb_ether *ue)
 {
 	return (ue->ue_sc);
 }
@@ -129,7 +129,7 @@ usb2_ether_getsc(struct usb2_ether *ue)
 static int
 ue_sysctl_parent(SYSCTL_HANDLER_ARGS)
 {
-	struct usb2_ether *ue = arg1;
+	struct usb_ether *ue = arg1;
 	const char *name;
 
 	name = device_get_nameunit(ue->ue_dev);
@@ -137,7 +137,7 @@ ue_sysctl_parent(SYSCTL_HANDLER_ARGS)
 }
 
 int
-usb2_ether_ifattach(struct usb2_ether *ue)
+usb2_ether_ifattach(struct usb_ether *ue)
 {
 	int error;
 
@@ -167,11 +167,11 @@ error:
 }
 
 static void
-ue_attach_post_task(struct usb2_proc_msg *_task)
+ue_attach_post_task(struct usb_proc_msg *_task)
 {
-	struct usb2_ether_cfg_task *task =
-	    (struct usb2_ether_cfg_task *)_task;
-	struct usb2_ether *ue = task->ue;
+	struct usb_ether_cfg_task *task =
+	    (struct usb_ether_cfg_task *)_task;
+	struct usb_ether *ue = task->ue;
 	struct ifnet *ifp;
 	int error;
 	char num[14];			/* sufficient for 32 bits */
@@ -244,7 +244,7 @@ error:
 }
 
 void
-usb2_ether_ifdetach(struct usb2_ether *ue)
+usb2_ether_ifdetach(struct usb_ether *ue)
 {
 	struct ifnet *ifp;
 
@@ -289,7 +289,7 @@ usb2_ether_ifdetach(struct usb2_ether *ue)
 }
 
 uint8_t
-usb2_ether_is_gone(struct usb2_ether *ue)
+usb2_ether_is_gone(struct usb_ether *ue)
 {
 	return (usb2_proc_is_gone(&ue->ue_tq));
 }
@@ -297,7 +297,7 @@ usb2_ether_is_gone(struct usb2_ether *ue)
 static void
 ue_init(void *arg)
 {
-	struct usb2_ether *ue = arg;
+	struct usb_ether *ue = arg;
 
 	UE_LOCK(ue);
 	ue_queue_command(ue, ue_start_task,
@@ -307,11 +307,11 @@ ue_init(void *arg)
 }
 
 static void
-ue_start_task(struct usb2_proc_msg *_task)
+ue_start_task(struct usb_proc_msg *_task)
 {
-	struct usb2_ether_cfg_task *task =
-	    (struct usb2_ether_cfg_task *)_task;
-	struct usb2_ether *ue = task->ue;
+	struct usb_ether_cfg_task *task =
+	    (struct usb_ether_cfg_task *)_task;
+	struct usb_ether *ue = task->ue;
 	struct ifnet *ifp = ue->ue_ifp;
 
 	UE_LOCK_ASSERT(ue, MA_OWNED);
@@ -326,11 +326,11 @@ ue_start_task(struct usb2_proc_msg *_task)
 }
 
 static void
-ue_stop_task(struct usb2_proc_msg *_task)
+ue_stop_task(struct usb_proc_msg *_task)
 {
-	struct usb2_ether_cfg_task *task =
-	    (struct usb2_ether_cfg_task *)_task;
-	struct usb2_ether *ue = task->ue;
+	struct usb_ether_cfg_task *task =
+	    (struct usb_ether_cfg_task *)_task;
+	struct usb_ether *ue = task->ue;
 
 	UE_LOCK_ASSERT(ue, MA_OWNED);
 
@@ -342,7 +342,7 @@ ue_stop_task(struct usb2_proc_msg *_task)
 static void
 ue_start(struct ifnet *ifp)
 {
-	struct usb2_ether *ue = ifp->if_softc;
+	struct usb_ether *ue = ifp->if_softc;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
@@ -353,21 +353,21 @@ ue_start(struct ifnet *ifp)
 }
 
 static void
-ue_promisc_task(struct usb2_proc_msg *_task)
+ue_promisc_task(struct usb_proc_msg *_task)
 {
-	struct usb2_ether_cfg_task *task =
-	    (struct usb2_ether_cfg_task *)_task;
-	struct usb2_ether *ue = task->ue;
+	struct usb_ether_cfg_task *task =
+	    (struct usb_ether_cfg_task *)_task;
+	struct usb_ether *ue = task->ue;
 
 	ue->ue_methods->ue_setpromisc(ue);
 }
 
 static void
-ue_setmulti_task(struct usb2_proc_msg *_task)
+ue_setmulti_task(struct usb_proc_msg *_task)
 {
-	struct usb2_ether_cfg_task *task =
-	    (struct usb2_ether_cfg_task *)_task;
-	struct usb2_ether *ue = task->ue;
+	struct usb_ether_cfg_task *task =
+	    (struct usb_ether_cfg_task *)_task;
+	struct usb_ether *ue = task->ue;
 
 	ue->ue_methods->ue_setmulti(ue);
 }
@@ -375,7 +375,7 @@ ue_setmulti_task(struct usb2_proc_msg *_task)
 static int
 ue_ifmedia_upd(struct ifnet *ifp)
 {
-	struct usb2_ether *ue = ifp->if_softc;
+	struct usb_ether *ue = ifp->if_softc;
 
 	/* Defer to process context */
 	UE_LOCK(ue);
@@ -388,11 +388,11 @@ ue_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-ue_ifmedia_task(struct usb2_proc_msg *_task)
+ue_ifmedia_task(struct usb_proc_msg *_task)
 {
-	struct usb2_ether_cfg_task *task =
-	    (struct usb2_ether_cfg_task *)_task;
-	struct usb2_ether *ue = task->ue;
+	struct usb_ether_cfg_task *task =
+	    (struct usb_ether_cfg_task *)_task;
+	struct usb_ether *ue = task->ue;
 	struct ifnet *ifp = ue->ue_ifp;
 
 	ue->ue_methods->ue_mii_upd(ifp);
@@ -401,7 +401,7 @@ ue_ifmedia_task(struct usb2_proc_msg *_task)
 static void
 ue_watchdog(void *arg)
 {
-	struct usb2_ether *ue = arg;
+	struct usb_ether *ue = arg;
 	struct ifnet *ifp = ue->ue_ifp;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -415,11 +415,11 @@ ue_watchdog(void *arg)
 }
 
 static void
-ue_tick_task(struct usb2_proc_msg *_task)
+ue_tick_task(struct usb_proc_msg *_task)
 {
-	struct usb2_ether_cfg_task *task =
-	    (struct usb2_ether_cfg_task *)_task;
-	struct usb2_ether *ue = task->ue;
+	struct usb_ether_cfg_task *task =
+	    (struct usb_ether_cfg_task *)_task;
+	struct usb_ether *ue = task->ue;
 	struct ifnet *ifp = ue->ue_ifp;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -431,7 +431,7 @@ ue_tick_task(struct usb2_proc_msg *_task)
 int
 usb2_ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct usb2_ether *ue = ifp->if_softc;
+	struct usb_ether *ue = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
 	int error = 0;
@@ -514,7 +514,7 @@ usb2_ether_newbuf(void)
 }
 
 int
-usb2_ether_rxmbuf(struct usb2_ether *ue, struct mbuf *m, 
+usb2_ether_rxmbuf(struct usb_ether *ue, struct mbuf *m, 
     unsigned int len)
 {
 	struct ifnet *ifp = ue->ue_ifp;
@@ -532,7 +532,7 @@ usb2_ether_rxmbuf(struct usb2_ether *ue, struct mbuf *m,
 }
 
 int
-usb2_ether_rxbuf(struct usb2_ether *ue, struct usb2_page_cache *pc, 
+usb2_ether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc, 
     unsigned int offset, unsigned int len)
 {
 	struct ifnet *ifp = ue->ue_ifp;
@@ -562,7 +562,7 @@ usb2_ether_rxbuf(struct usb2_ether *ue, struct usb2_page_cache *pc,
 }
 
 void
-usb2_ether_rxflush(struct usb2_ether *ue)
+usb2_ether_rxflush(struct usb_ether *ue)
 {
 	struct ifnet *ifp = ue->ue_ifp;
 	struct mbuf *m;

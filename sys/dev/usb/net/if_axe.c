@@ -120,7 +120,7 @@ SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
 /*
  * Various supported device vendors/products.
  */
-static const struct usb2_device_id axe_devs[] = {
+static const struct usb_device_id axe_devs[] = {
 	{USB_VPI(USB_VENDOR_ABOCOM, USB_PRODUCT_ABOCOM_UF200, 0)},
 	{USB_VPI(USB_VENDOR_ACERCM, USB_PRODUCT_ACERCM_EP1427X2, 0)},
 	{USB_VPI(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_ETHERNET, AXE_FLAG_772)},
@@ -175,7 +175,7 @@ static void	axe_ax88178_init(struct axe_softc *);
 static void	axe_ax88772_init(struct axe_softc *);
 static int	axe_get_phyno(struct axe_softc *, int);
 
-static const struct usb2_config axe_config[AXE_N_TRANSFER] = {
+static const struct usb_config axe_config[AXE_N_TRANSFER] = {
 
 	[AXE_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -243,7 +243,7 @@ MODULE_DEPEND(axe, usb, 1, 1, 1);
 MODULE_DEPEND(axe, ether, 1, 1, 1);
 MODULE_DEPEND(axe, miibus, 1, 1, 1);
 
-static const struct usb2_ether_methods axe_ue_methods = {
+static const struct usb_ether_methods axe_ue_methods = {
 	.ue_attach_post = axe_attach_post,
 	.ue_start = axe_start,
 	.ue_init = axe_init,
@@ -258,7 +258,7 @@ static const struct usb2_ether_methods axe_ue_methods = {
 static int
 axe_cmd(struct axe_softc *sc, int cmd, int index, int val, void *buf)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
@@ -440,7 +440,7 @@ axe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-axe_setmulti(struct usb2_ether *ue)
+axe_setmulti(struct usb_ether *ue)
 {
 	struct axe_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -599,7 +599,7 @@ axe_ax88772_init(struct axe_softc *sc)
 static void
 axe_reset(struct axe_softc *sc)
 {
-	struct usb2_config_descriptor *cd;
+	struct usb_config_descriptor *cd;
 	usb2_error_t err;
 
 	cd = usb2_get_config_descriptor(sc->sc_ue.ue_udev);
@@ -614,7 +614,7 @@ axe_reset(struct axe_softc *sc)
 }
 
 static void
-axe_attach_post(struct usb2_ether *ue)
+axe_attach_post(struct usb_ether *ue)
 {
 	struct axe_softc *sc = usb2_ether_getsc(ue);
 
@@ -660,7 +660,7 @@ axe_attach_post(struct usb2_ether *ue)
 static int
 axe_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -679,9 +679,9 @@ axe_probe(device_t dev)
 static int
 axe_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct axe_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
 	int error;
 
@@ -721,7 +721,7 @@ static int
 axe_detach(device_t dev)
 {
 	struct axe_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 
 	usb2_transfer_unsetup(sc->sc_xfer, AXE_N_TRANSFER);
 	usb2_ether_ifdetach(ue);
@@ -731,7 +731,7 @@ axe_detach(device_t dev)
 }
 
 static void
-axe_intr_callback(struct usb2_xfer *xfer)
+axe_intr_callback(struct usb_xfer *xfer)
 {
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -756,10 +756,10 @@ tr_setup:
 #endif
 
 static void
-axe_bulk_read_callback(struct usb2_xfer *xfer)
+axe_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct axe_softc *sc = xfer->priv_sc;
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	struct ifnet *ifp = usb2_ether_getifp(ue);
 	struct axe_sframe_hdr hdr;
 	int error, pos, len, adjust;
@@ -838,7 +838,7 @@ tr_setup:
 #endif
 
 static void
-axe_bulk_write_callback(struct usb2_xfer *xfer)
+axe_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct axe_softc *sc = xfer->priv_sc;
 	struct axe_sframe_hdr hdr;
@@ -935,7 +935,7 @@ tr_setup:
 }
 
 static void
-axe_tick(struct usb2_ether *ue)
+axe_tick(struct usb_ether *ue)
 {
 	struct axe_softc *sc = usb2_ether_getsc(ue);
 	struct mii_data *mii = GET_MII(sc);
@@ -951,7 +951,7 @@ axe_tick(struct usb2_ether *ue)
 }
 
 static void
-axe_start(struct usb2_ether *ue)
+axe_start(struct usb_ether *ue)
 {
 	struct axe_softc *sc = usb2_ether_getsc(ue);
 
@@ -964,7 +964,7 @@ axe_start(struct usb2_ether *ue)
 }
 
 static void
-axe_init(struct usb2_ether *ue)
+axe_init(struct usb_ether *ue)
 {
 	struct axe_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -1017,7 +1017,7 @@ axe_init(struct usb2_ether *ue)
 }
 
 static void
-axe_setpromisc(struct usb2_ether *ue)
+axe_setpromisc(struct usb_ether *ue)
 {
 	struct axe_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -1039,7 +1039,7 @@ axe_setpromisc(struct usb2_ether *ue)
 }
 
 static void
-axe_stop(struct usb2_ether *ue)
+axe_stop(struct usb_ether *ue)
 {
 	struct axe_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);

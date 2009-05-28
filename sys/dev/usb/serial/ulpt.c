@@ -94,15 +94,15 @@ enum {
 };
 
 struct ulpt_softc {
-	struct usb2_fifo_sc sc_fifo;
-	struct usb2_fifo_sc sc_fifo_noreset;
+	struct usb_fifo_sc sc_fifo;
+	struct usb_fifo_sc sc_fifo_noreset;
 	struct mtx sc_mtx;
-	struct usb2_callout sc_watchdog;
+	struct usb_callout sc_watchdog;
 
 	device_t sc_dev;
-	struct usb2_device *sc_udev;
-	struct usb2_fifo *sc_fifo_open[2];
-	struct usb2_xfer *sc_xfer[ULPT_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct usb_fifo *sc_fifo_open[2];
+	struct usb_xfer *sc_xfer[ULPT_N_TRANSFER];
 
 	int	sc_fflags;		/* current open flags, FREAD and
 					 * FWRITE */
@@ -134,7 +134,7 @@ static usb2_fifo_ioctl_t ulpt_ioctl;
 static usb2_fifo_open_t ulpt_open;
 static usb2_fifo_open_t unlpt_open;
 
-static struct usb2_fifo_methods ulpt_fifo_methods = {
+static struct usb_fifo_methods ulpt_fifo_methods = {
 	.f_close = &ulpt_close,
 	.f_ioctl = &ulpt_ioctl,
 	.f_open = &ulpt_open,
@@ -145,7 +145,7 @@ static struct usb2_fifo_methods ulpt_fifo_methods = {
 	.basename[0] = "ulpt",
 };
 
-static struct usb2_fifo_methods unlpt_fifo_methods = {
+static struct usb_fifo_methods unlpt_fifo_methods = {
 	.f_close = &ulpt_close,
 	.f_ioctl = &ulpt_ioctl,
 	.f_open = &unlpt_open,
@@ -159,7 +159,7 @@ static struct usb2_fifo_methods unlpt_fifo_methods = {
 static void
 ulpt_reset(struct ulpt_softc *sc)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTFN(2, "\n");
 
@@ -189,10 +189,10 @@ ulpt_reset(struct ulpt_softc *sc)
 }
 
 static void
-ulpt_write_callback(struct usb2_xfer *xfer)
+ulpt_write_callback(struct usb_xfer *xfer)
 {
 	struct ulpt_softc *sc = xfer->priv_sc;
-	struct usb2_fifo *f = sc->sc_fifo_open[USB_FIFO_TX];
+	struct usb_fifo *f = sc->sc_fifo_open[USB_FIFO_TX];
 	uint32_t actlen;
 
 	if (f == NULL) {
@@ -225,10 +225,10 @@ tr_setup:
 }
 
 static void
-ulpt_read_callback(struct usb2_xfer *xfer)
+ulpt_read_callback(struct usb_xfer *xfer)
 {
 	struct ulpt_softc *sc = xfer->priv_sc;
-	struct usb2_fifo *f = sc->sc_fifo_open[USB_FIFO_RX];
+	struct usb_fifo *f = sc->sc_fifo_open[USB_FIFO_RX];
 
 	if (f == NULL) {
 		/* should not happen */
@@ -281,10 +281,10 @@ tr_setup:
 }
 
 static void
-ulpt_status_callback(struct usb2_xfer *xfer)
+ulpt_status_callback(struct usb_xfer *xfer)
 {
 	struct ulpt_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t cur_status;
 	uint8_t new_status;
 
@@ -333,7 +333,7 @@ ulpt_status_callback(struct usb2_xfer *xfer)
 	}
 }
 
-static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
+static const struct usb_config ulpt_config[ULPT_N_TRANSFER] = {
 	[ULPT_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -356,14 +356,14 @@ static const struct usb2_config ulpt_config[ULPT_N_TRANSFER] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request) + 1,
+		.bufsize = sizeof(struct usb_device_request) + 1,
 		.callback = &ulpt_status_callback,
 		.timeout = 1000,	/* 1 second */
 	},
 };
 
 static void
-ulpt_start_read(struct usb2_fifo *fifo)
+ulpt_start_read(struct usb_fifo *fifo)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -371,7 +371,7 @@ ulpt_start_read(struct usb2_fifo *fifo)
 }
 
 static void
-ulpt_stop_read(struct usb2_fifo *fifo)
+ulpt_stop_read(struct usb_fifo *fifo)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -379,7 +379,7 @@ ulpt_stop_read(struct usb2_fifo *fifo)
 }
 
 static void
-ulpt_start_write(struct usb2_fifo *fifo)
+ulpt_start_write(struct usb_fifo *fifo)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -387,7 +387,7 @@ ulpt_start_write(struct usb2_fifo *fifo)
 }
 
 static void
-ulpt_stop_write(struct usb2_fifo *fifo)
+ulpt_stop_write(struct usb_fifo *fifo)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -395,7 +395,7 @@ ulpt_stop_write(struct usb2_fifo *fifo)
 }
 
 static int
-ulpt_open(struct usb2_fifo *fifo, int fflags)
+ulpt_open(struct usb_fifo *fifo, int fflags)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -408,7 +408,7 @@ ulpt_open(struct usb2_fifo *fifo, int fflags)
 }
 
 static int
-unlpt_open(struct usb2_fifo *fifo, int fflags)
+unlpt_open(struct usb_fifo *fifo, int fflags)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -446,7 +446,7 @@ unlpt_open(struct usb2_fifo *fifo, int fflags)
 }
 
 static void
-ulpt_close(struct usb2_fifo *fifo, int fflags)
+ulpt_close(struct usb_fifo *fifo, int fflags)
 {
 	struct ulpt_softc *sc = fifo->priv_sc0;
 
@@ -458,7 +458,7 @@ ulpt_close(struct usb2_fifo *fifo, int fflags)
 }
 
 static int
-ulpt_ioctl(struct usb2_fifo *fifo, u_long cmd, void *data,
+ulpt_ioctl(struct usb_fifo *fifo, u_long cmd, void *data,
     int fflags)
 {
 	return (ENODEV);
@@ -467,7 +467,7 @@ ulpt_ioctl(struct usb2_fifo *fifo, u_long cmd, void *data,
 static int
 ulpt_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	DPRINTFN(11, "\n");
 
@@ -487,9 +487,9 @@ ulpt_probe(device_t dev)
 static int
 ulpt_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ulpt_softc *sc = device_get_softc(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_interface_descriptor *id;
 	int unit = device_get_unit(dev);
 	int error;
 	uint8_t iface_index = uaa->info.bIfaceIndex;
@@ -566,8 +566,8 @@ found:
  * UHCI and less often with OHCI.  *sigh*
  */
 	{
-		struct usb2_config_descriptor *cd = usb2_get_config_descriptor(dev);
-		struct usb2_device_request req;
+		struct usb_config_descriptor *cd = usb2_get_config_descriptor(dev);
+		struct usb_device_request req;
 		int len, alen;
 
 		req.bmRequestType = UT_READ_CLASS_INTERFACE;

@@ -421,7 +421,7 @@ struct upgt_vap {
 struct upgt_softc {
 	device_t		 sc_dev;
 	struct ifnet		*sc_ifp;
-	struct usb2_device	*sc_udev;
+	struct usb_device	*sc_udev;
 	struct mtx		 sc_mtx;
 	struct upgt_stat	 sc_stat;
 	int			 sc_flags;
@@ -459,7 +459,7 @@ struct upgt_softc {
 	uint8_t			 sc_eeprom_freq6_settings;
 
 	/* RX/TX  */
-	struct usb2_xfer	*sc_xfer[UPGT_N_XFERS];
+	struct usb_xfer	*sc_xfer[UPGT_N_XFERS];
 	int			 sc_rx_no;
 	int			 sc_tx_no;
 	struct upgt_data	 sc_rx_data[UPGT_RX_MAXCOUNT];
