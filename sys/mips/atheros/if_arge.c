@@ -1624,6 +1624,10 @@ arge_intr(void *arg)
 		}
 	}
 
+	/*
+	 * We handled all bits, clear status
+	 */
+	sc->arge_intr_status = 0;
 	ARGE_UNLOCK(sc);
 	/*
 	 * re-enable all interrupts 
