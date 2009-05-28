@@ -12,7 +12,7 @@
 #
 
 LIBDIR = ${STAGEDIR}/lib
-INCDIR = ${STAGEDIR}//usr/include
+INCDIR = ${STAGEDIR}/usr/include
 
 .if ${MACHINE_ARCH} == "i386"
 ARCH_SUBDIR = i387
@@ -20,6 +20,7 @@ ARCH_SUBDIR = i387
 ARCH_SUBDIR = ${MACHINE_ARCH}
 .endif
 
+.if exists(${ARCH_SUBDIR})
 .include "${ARCH_SUBDIR}/Buildfile.inc"
 
 .PATH:	${.CURDIR}/${ARCH_SUBDIR}
@@ -31,6 +32,7 @@ CFLAGS+=	-I${.CURDIR}/ld80
 .elif ${LDBL_PREC} == 113
 .PATH:  ${.CURDIR}/ld128
 CFLAGS+=	-I${.CURDIR}/ld128
+.endif
 .endif
 
 .PATH:	${.CURDIR}/bsdsrc
@@ -211,7 +213,7 @@ COMMON_SRCS += \
 	s_lrintl.c \
 	s_modfl.c
 
-.if ${LDBL_PREC} != 53
+.if defined(LDBL_PREC) && ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
 COMMON_SRCS += \
 	e_acosl.c \
@@ -276,5 +278,7 @@ SRCS = ${COMMON_SRCS} ${ARCH_SRCS}
 INCS = \
 	fenv.h \
 	math.h
+
+NOT_MACHINE_ARCH = host
 
 .include <bsd.lib.mk>
