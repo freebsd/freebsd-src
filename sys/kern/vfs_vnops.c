@@ -1226,26 +1226,30 @@ int
 vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
 {
 	struct mount *mp;
+	struct thread *td;
 	int ltype, error;
 
 	mp = vp->v_mount;
-	ltype = VOP_ISLOCKED(vp, curthread);
+	td = curthread;
+	ltype = VOP_ISLOCKED(vp, td);
 	KASSERT(ltype == LK_EXCLUSIVE || ltype == LK_SHARED,
 	    ("vn_vget_ino: vp not locked"));
-	for (;;) {
-		error = vfs_busy(mp, LK_NOWAIT, NULL, curthread);
-		if (error == 0)
-			break;
-		VOP_UNLOCK(vp, 0, curthread);
-		pause("vn_vget", 1);
-		vn_lock(vp, ltype | LK_RETRY, curthread);
-		if (vp->v_iflag & VI_DOOMED)
+	error = vfs_busy(mp, LK_NOWAIT, NULL, td);
+	if (error != 0) {
+		VOP_UNLOCK(vp, 0, td);
+		error = vfs_busy(mp, 0, NULL, td);
+		vn_lock(vp, ltype | LK_RETRY, td);
+		if (error != 0)
 			return (ENOENT);
+		if (vp->v_iflag & VI_DOOMED) {
+			vfs_unbusy(mp, td);
+			return (ENOENT);
+		}
 	}
-	VOP_UNLOCK(vp, 0, curthread);
+	VOP_UNLOCK(vp, 0, td);
 	error = VFS_VGET(mp, ino, lkflags, rvp);
-	vfs_unbusy(mp, curthread);
-	vn_lock(vp, ltype | LK_RETRY, curthread);
+	vfs_unbusy(mp, td);
+	vn_lock(vp, ltype | LK_RETRY, td);
 	if (vp->v_iflag & VI_DOOMED) {
 		if (error == 0)
 			vput(*rvp);
