@@ -649,14 +649,15 @@ mpt_terminate_raid_thread(struct mpt_softc *mpt)
 static void
 mpt_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
+
 	xpt_free_path(ccb->ccb_h.path);
+	xpt_free_ccb(ccb);
 }
 
 static void
 mpt_raid_thread(void *arg)
 {
 	struct mpt_softc *mpt;
-	union ccb *ccb;
 	int firstrun;
 
 #if __FreeBSD_version >= 500000
@@ -664,7 +665,6 @@ mpt_raid_thread(void *arg)
 #endif
 	mpt = (struct mpt_softc *)arg;
 	firstrun = 1;
-	ccb = xpt_alloc_ccb();
 	MPT_LOCK(mpt);
 	while (mpt->shutdwn_raid == 0) {
 
@@ -692,15 +692,21 @@ mpt_raid_thread(void *arg)
 		}
 
 		if (mpt->raid_rescan != 0) {
+			union ccb *ccb;
 			struct cam_path *path;
 			int error;
 
 			mpt->raid_rescan = 0;
+			MPT_UNLOCK(mpt);
 
+			ccb = xpt_alloc_ccb();
+
+			MPT_LOCK(mpt);
 			error = xpt_create_path(&path, xpt_periph,
 			    cam_sim_path(mpt->phydisk_sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 			if (error != CAM_REQ_CMP) {
+				xpt_free_ccb(ccb);
 				mpt_prt(mpt, "Unable to rescan RAID Bus!\n");
 			} else {
 				xpt_setup_ccb(&ccb->ccb_h, path, 5);
@@ -713,7 +719,6 @@ mpt_raid_thread(void *arg)
 			}
 		}
 	}
-	xpt_free_ccb(ccb);
 	mpt->raid_thread = NULL;
 	wakeup(&mpt->raid_thread);
 	MPT_UNLOCK(mpt);
