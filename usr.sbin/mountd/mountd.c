@@ -297,12 +297,12 @@ main(argc, argv)
 	else
 		close(s);
 
-	while ((c = getopt(argc, argv, "24dh:lnp:r")) != -1)
+	while ((c = getopt(argc, argv, "2deh:lnp:r")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
 			break;
-		case '4':
+		case 'e':
 			run_v4server = 1;
 			break;
 		case 'n':
@@ -351,7 +351,7 @@ main(argc, argv)
 		};
 
 	/*
-	 * If the "-4" option was specified OR only the nfsd module is
+	 * If the "-e" option was specified OR only the nfsd module is
 	 * found in the server, run "nfsd".
 	 * Otherwise, try and run "nfsserver".
 	 */
@@ -733,7 +733,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-		"usage: mountd [-2] [-4] [-d] [-l] [-n] [-p <port>] [-r] "
+		"usage: mountd [-2] [-d] [-e] [-l] [-n] [-p <port>] [-r] "
 		"[-h <bindip>] [export_file ...]\n");
 	exit(1);
 }
