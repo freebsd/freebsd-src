@@ -24,9 +24,8 @@ D_TGTS_${_t}:= ${D_TGTS_${_t}}
 
 
 .endif
-.for t in ${MACHINE_LIST:Ncommon}
-${.OBJROOT}/${t}/include/osreldate/all : ${.OBJROOT}/common/include/osreldate/all .PHONY
+.for t in ${MACHINE_LIST}
+${.OBJROOT}/${t}/include/osreldate/all : ${D_TGTS_${t}} .PHONY
+	echo Checking ${.OBJROOT}/${t}/include/osreldate
+	cd ${.SRCTOP}/include/osreldate && MACHINE=${t} ${MAKE} ${.MAKEFLAGS:NMACHINE=*:N-DALLMACHINES} all
 .endfor
-${.OBJROOT}/common/include/osreldate/all : ${D_TGTS_common} .PHONY
-	echo Checking ${.OBJROOT}/common/include/osreldate
-	cd ${.SRCTOP}/include/osreldate && MACHINE=common ${MAKE} ${.MAKEFLAGS:NMACHINE=*:N-DALLMACHINES} all

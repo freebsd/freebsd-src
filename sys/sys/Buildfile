@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 INCDIR = ${STAGEDIR}/usr/include/sys
-COMMONDIR =
 
 INCS = \
 	_bus_dma.h \
@@ -258,5 +257,7 @@ INCS = \
 	vtoc.h \
 	wait.h \
 	watchdog.h
+
+NOT_MACHINE_ARCH = host
 
 .include <bsd.headers.mk>

@@ -24,9 +24,8 @@ D_TGTS_${_t}:= ${D_TGTS_${_t}}
 
 
 .endif
-.for t in ${MACHINE_LIST:Ncommon}
-${.OBJROOT}/${t}/sys/sys/all : ${.OBJROOT}/common/sys/sys/all .PHONY
+.for t in ${MACHINE_LIST}
+${.OBJROOT}/${t}/sys/sys/all : ${D_TGTS_${t}} .PHONY
+	echo Checking ${.OBJROOT}/${t}/sys/sys
+	cd ${.SRCTOP}/sys/sys && MACHINE=${t} ${MAKE} ${.MAKEFLAGS:NMACHINE=*:N-DALLMACHINES} all
 .endfor
-${.OBJROOT}/common/sys/sys/all : ${D_TGTS_common} .PHONY
-	echo Checking ${.OBJROOT}/common/sys/sys
-	cd ${.SRCTOP}/sys/sys && MACHINE=common ${MAKE} ${.MAKEFLAGS:NMACHINE=*:N-DALLMACHINES} all

@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 INCDIR= ${STAGEDIR}/usr/include
-COMMONDIR=
 
 INCS = osreldate.h
 
@@ -17,5 +16,7 @@ osreldate.h : ${BSDSRCTOP}/sys/sys/param.h
 	echo "#define __FreeBSD_version $$RELDATE"; \
 	echo "#endif"; } >> ${.TARGET}
 	rm -f version vers.c
+
+NOT_MACHINE_ARCH = host
 
 .include <bsd.headers.mk>
