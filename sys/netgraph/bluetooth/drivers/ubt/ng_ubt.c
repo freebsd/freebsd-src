@@ -246,7 +246,7 @@ static usb2_callback_t	ubt_isoc_read_callback;
 static usb2_callback_t	ubt_isoc_write_callback;
 
 static int		ubt_fwd_mbuf_up(ubt_softc_p, struct mbuf **);
-static int		ubt_isoc_read_one_frame(struct usb2_xfer *, int);
+static int		ubt_isoc_read_one_frame(struct usb_xfer *, int);
 
 /*
  * USB config
@@ -263,7 +263,7 @@ static int		ubt_isoc_read_one_frame(struct usb2_xfer *, int);
  *	2) Isochronous OUT endpoint to send SCO data
  */
 
-static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
+static const struct usb_config		ubt_config[UBT_N_TRANSFER] =
 {
 	/*
 	 * Interface #0
@@ -370,14 +370,14 @@ static const struct usb2_config		ubt_config[UBT_N_TRANSFER] =
  * where VENDOR_ID and PRODUCT_ID are hex numbers.
  */
 
-static const struct usb2_device_id ubt_ignore_devs[] = 
+static const struct usb_device_id ubt_ignore_devs[] = 
 {
 	/* AVM USB Bluetooth-Adapter BlueFritz! v1.0 */
 	{ USB_VPI(USB_VENDOR_AVM, 0x2200, 0) },
 };
 
 /* List of supported bluetooth devices */
-static const struct usb2_device_id ubt_devs[] =
+static const struct usb_device_id ubt_devs[] =
 {
 	/* Generic Bluetooth class devices */
 	{ USB_IFACE_CLASS(UDCLASS_WIRELESS),
@@ -396,7 +396,7 @@ static const struct usb2_device_id ubt_devs[] =
 static int
 ubt_probe(device_t dev)
 {
-	struct usb2_attach_arg	*uaa = device_get_ivars(dev);
+	struct usb_attach_arg	*uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -422,10 +422,10 @@ ubt_probe(device_t dev)
 static int
 ubt_attach(device_t dev)
 {
-	struct usb2_attach_arg		*uaa = device_get_ivars(dev);
+	struct usb_attach_arg		*uaa = device_get_ivars(dev);
 	struct ubt_softc		*sc = device_get_softc(dev);
-	struct usb2_endpoint_descriptor	*ed;
-	struct usb2_interface_descriptor *id;
+	struct usb_endpoint_descriptor	*ed;
+	struct usb_interface_descriptor *id;
 	uint16_t			wMaxPacketSize;
 	uint8_t				alt_index, i, j;
 	uint8_t				iface_index[2] = { 0, 1 };
@@ -502,13 +502,13 @@ ubt_attach(device_t dev)
 	 * Search through all the descriptors looking for the largest
 	 * packet size:
 	 */
-	while ((ed = (struct usb2_endpoint_descriptor *)usb2_desc_foreach(
+	while ((ed = (struct usb_endpoint_descriptor *)usb2_desc_foreach(
 	    usb2_get_config_descriptor(uaa->device), 
-	    (struct usb2_descriptor *)ed))) {
+	    (struct usb_descriptor *)ed))) {
 
 		if ((ed->bDescriptorType == UDESC_INTERFACE) &&
 		    (ed->bLength >= sizeof(*id))) {
-			id = (struct usb2_interface_descriptor *)ed;
+			id = (struct usb_interface_descriptor *)ed;
 			i = id->bInterfaceNumber;
 			j = id->bAlternateSetting;
 		}
@@ -597,10 +597,10 @@ ubt_detach(device_t dev)
  */
 
 static void
-ubt_ctrl_write_callback(struct usb2_xfer *xfer)
+ubt_ctrl_write_callback(struct usb_xfer *xfer)
 {
 	struct ubt_softc		*sc = xfer->priv_sc;
-	struct usb2_device_request	req;
+	struct usb_device_request	req;
 	struct mbuf			*m;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -664,7 +664,7 @@ send_next:
  */
 
 static void
-ubt_intr_read_callback(struct usb2_xfer *xfer)
+ubt_intr_read_callback(struct usb_xfer *xfer)
 {
 	struct ubt_softc	*sc = xfer->priv_sc;
 	struct mbuf		*m;
@@ -759,7 +759,7 @@ submit_next:
  */
 
 static void
-ubt_bulk_read_callback(struct usb2_xfer *xfer)
+ubt_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct ubt_softc	*sc = xfer->priv_sc;
 	struct mbuf		*m;
@@ -855,7 +855,7 @@ submit_next:
  */
 
 static void
-ubt_bulk_write_callback(struct usb2_xfer *xfer)
+ubt_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct ubt_softc	*sc = xfer->priv_sc;
 	struct mbuf		*m;
@@ -918,7 +918,7 @@ send_next:
  */
 
 static void
-ubt_isoc_read_callback(struct usb2_xfer *xfer)
+ubt_isoc_read_callback(struct usb_xfer *xfer)
 {
 	struct ubt_softc	*sc = xfer->priv_sc;
 	int			n;
@@ -956,7 +956,7 @@ read_next:
  */
 
 static int
-ubt_isoc_read_one_frame(struct usb2_xfer *xfer, int frame_no)
+ubt_isoc_read_one_frame(struct usb_xfer *xfer, int frame_no)
 {
 	struct ubt_softc	*sc = xfer->priv_sc;
 	struct mbuf		*m;
@@ -1039,7 +1039,7 @@ ubt_isoc_read_one_frame(struct usb2_xfer *xfer, int frame_no)
  */
 
 static void
-ubt_isoc_write_callback(struct usb2_xfer *xfer)
+ubt_isoc_write_callback(struct usb_xfer *xfer)
 {
 	struct ubt_softc	*sc = xfer->priv_sc;
 	struct mbuf		*m;

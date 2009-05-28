@@ -78,9 +78,9 @@ device_delete_all_children(device_t dev)
 void
 device_set_usb2_desc(device_t dev)
 {
-	struct usb2_attach_arg *uaa;
-	struct usb2_device *udev;
-	struct usb2_interface *iface;
+	struct usb_attach_arg *uaa;
+	struct usb_device *udev;
+	struct usb_interface *iface;
 	char *temp_p;
 	usb2_error_t err;
 
@@ -202,7 +202,7 @@ usb2_trim_spaces(char *p)
 uint8_t
 usb2_make_str_desc(void *ptr, uint16_t max_len, const char *s)
 {
-	struct usb2_string_descriptor *p = ptr;
+	struct usb_string_descriptor *p = ptr;
 	uint8_t totlen;
 	int j;
 

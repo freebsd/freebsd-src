@@ -93,7 +93,7 @@ SYSCTL_INT(_hw_usb_cdce, OID_AUTO, debug, CTLFLAG_RW, &cdce_debug, 0,
     "Debug level");
 #endif
 
-static const struct usb2_config cdce_config[CDCE_N_TRANSFER] = {
+static const struct usb_config cdce_config[CDCE_N_TRANSFER] = {
 
 	[CDCE_BULK_RX] = {
 		.type = UE_BULK,
@@ -174,7 +174,7 @@ MODULE_DEPEND(cdce, uether, 1, 1, 1);
 MODULE_DEPEND(cdce, usb, 1, 1, 1);
 MODULE_DEPEND(cdce, ether, 1, 1, 1);
 
-static const struct usb2_ether_methods cdce_ue_methods = {
+static const struct usb_ether_methods cdce_ue_methods = {
 	.ue_attach_post = cdce_attach_post,
 	.ue_start = cdce_start,
 	.ue_init = cdce_init,
@@ -183,7 +183,7 @@ static const struct usb2_ether_methods cdce_ue_methods = {
 	.ue_setpromisc = cdce_setpromisc,
 };
 
-static const struct usb2_device_id cdce_devs[] = {
+static const struct usb_device_id cdce_devs[] = {
 	{USB_IF_CSI(UICLASS_CDC, UISUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL, 0)},
 	{USB_IF_CSI(UICLASS_CDC, UISUBCLASS_MOBILE_DIRECT_LINE_MODEL, 0)},
 
@@ -205,13 +205,13 @@ static const struct usb2_device_id cdce_devs[] = {
 static int
 cdce_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	return (usb2_lookup_id_by_uaa(cdce_devs, sizeof(cdce_devs), uaa));
 }
 
 static void
-cdce_attach_post(struct usb2_ether *ue)
+cdce_attach_post(struct usb_ether *ue)
 {
 	/* no-op */
 	return;
@@ -221,12 +221,12 @@ static int
 cdce_attach(device_t dev)
 {
 	struct cdce_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface *iface;
-	const struct usb2_cdc_union_descriptor *ud;
-	const struct usb2_interface_descriptor *id;
-	const struct usb2_cdc_ethernet_descriptor *ued;
+	struct usb_ether *ue = &sc->sc_ue;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface *iface;
+	const struct usb_cdc_union_descriptor *ud;
+	const struct usb_interface_descriptor *id;
+	const struct usb_cdc_ethernet_descriptor *ued;
 	int error;
 	uint8_t i;
 	char eaddr_str[5 * ETHER_ADDR_LEN];	/* approx */
@@ -391,7 +391,7 @@ static int
 cdce_detach(device_t dev)
 {
 	struct cdce_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 
 	/* stop all USB transfers first */
 	usb2_transfer_unsetup(sc->sc_xfer, CDCE_N_TRANSFER);
@@ -402,7 +402,7 @@ cdce_detach(device_t dev)
 }
 
 static void
-cdce_start(struct usb2_ether *ue)
+cdce_start(struct usb_ether *ue)
 {
 	struct cdce_softc *sc = usb2_ether_getsc(ue);
 
@@ -426,7 +426,7 @@ cdce_free_queue(struct mbuf **ppm, uint8_t n)
 }
 
 static void
-cdce_bulk_write_callback(struct usb2_xfer *xfer)
+cdce_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct cdce_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -540,7 +540,7 @@ cdce_m_crc32(struct mbuf *m, uint32_t src_offset, uint32_t src_len)
 }
 
 static void
-cdce_init(struct usb2_ether *ue)
+cdce_init(struct usb_ether *ue)
 {
 	struct cdce_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -561,7 +561,7 @@ cdce_init(struct usb2_ether *ue)
 }
 
 static void
-cdce_stop(struct usb2_ether *ue)
+cdce_stop(struct usb_ether *ue)
 {
 	struct cdce_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -580,14 +580,14 @@ cdce_stop(struct usb2_ether *ue)
 }
 
 static void
-cdce_setmulti(struct usb2_ether *ue)
+cdce_setmulti(struct usb_ether *ue)
 {
 	/* no-op */
 	return;
 }
 
 static void
-cdce_setpromisc(struct usb2_ether *ue)
+cdce_setpromisc(struct usb_ether *ue)
 {
 	/* no-op */
 	return;
@@ -608,7 +608,7 @@ cdce_resume(device_t dev)
 }
 
 static void
-cdce_bulk_read_callback(struct usb2_xfer *xfer)
+cdce_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct cdce_softc *sc = xfer->priv_sc;
 	struct mbuf *m;
@@ -684,7 +684,7 @@ tr_stall:
 }
 
 static void
-cdce_intr_read_callback(struct usb2_xfer *xfer)
+cdce_intr_read_callback(struct usb_xfer *xfer)
 {
 	;				/* style fix */
 	switch (USB_GET_STATE(xfer)) {
@@ -713,7 +713,7 @@ tr_setup:
 }
 
 static void
-cdce_intr_write_callback(struct usb2_xfer *xfer)
+cdce_intr_write_callback(struct usb_xfer *xfer)
 {
 	;				/* style fix */
 	switch (USB_GET_STATE(xfer)) {

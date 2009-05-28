@@ -140,11 +140,11 @@ enum {
 };
 
 struct uplcom_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UPLCOM_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UPLCOM_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint16_t sc_line;
@@ -159,18 +159,18 @@ struct uplcom_softc {
 
 /* prototypes */
 
-static usb2_error_t uplcom_reset(struct uplcom_softc *, struct usb2_device *);
-static int	uplcom_pl2303x_init(struct usb2_device *);
-static void	uplcom_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	uplcom_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static void	uplcom_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static int	uplcom_pre_param(struct usb2_com_softc *, struct termios *);
-static void	uplcom_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	uplcom_start_read(struct usb2_com_softc *);
-static void	uplcom_stop_read(struct usb2_com_softc *);
-static void	uplcom_start_write(struct usb2_com_softc *);
-static void	uplcom_stop_write(struct usb2_com_softc *);
-static void	uplcom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static usb2_error_t uplcom_reset(struct uplcom_softc *, struct usb_device *);
+static int	uplcom_pl2303x_init(struct usb_device *);
+static void	uplcom_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	uplcom_cfg_set_rts(struct ucom_softc *, uint8_t);
+static void	uplcom_cfg_set_break(struct ucom_softc *, uint8_t);
+static int	uplcom_pre_param(struct ucom_softc *, struct termios *);
+static void	uplcom_cfg_param(struct ucom_softc *, struct termios *);
+static void	uplcom_start_read(struct ucom_softc *);
+static void	uplcom_stop_read(struct ucom_softc *);
+static void	uplcom_start_write(struct ucom_softc *);
+static void	uplcom_stop_write(struct ucom_softc *);
+static void	uplcom_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 
 static device_probe_t uplcom_probe;
@@ -181,7 +181,7 @@ static usb2_callback_t uplcom_intr_callback;
 static usb2_callback_t uplcom_write_callback;
 static usb2_callback_t uplcom_read_callback;
 
-static const struct usb2_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
+static const struct usb_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 
 	[UPLCOM_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -214,7 +214,7 @@ static const struct usb2_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 	},
 };
 
-struct usb2_com_callback uplcom_callback = {
+struct ucom_callback uplcom_callback = {
 	.usb2_com_cfg_get_status = &uplcom_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &uplcom_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &uplcom_cfg_set_rts,
@@ -231,7 +231,7 @@ struct usb2_com_callback uplcom_callback = {
   USB_VENDOR(v), USB_PRODUCT(p), USB_DEV_BCD_GTEQ(rl),	\
   USB_DEV_BCD_LTEQ(rh), USB_DRIVER_INFO(t)
 
-static const struct usb2_device_id uplcom_devs[] = {
+static const struct usb_device_id uplcom_devs[] = {
 	/* Belkin F5U257 */
 	{USB_UPL(USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U257, 0, 0xFFFF, TYPE_PL2303X)},
 	/* I/O DATA USB-RSAQ */
@@ -302,7 +302,7 @@ MODULE_VERSION(uplcom, UPLCOM_MODVER);
 static int
 uplcom_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	DPRINTFN(11, "\n");
 
@@ -321,10 +321,10 @@ uplcom_probe(device_t dev)
 static int
 uplcom_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uplcom_softc *sc = device_get_softc(dev);
-	struct usb2_interface *iface;
-	struct usb2_interface_descriptor *id;
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
 	int error;
 
 	DPRINTFN(11, "\n");
@@ -430,9 +430,9 @@ uplcom_detach(device_t dev)
 }
 
 static usb2_error_t
-uplcom_reset(struct uplcom_softc *sc, struct usb2_device *udev)
+uplcom_reset(struct uplcom_softc *sc, struct usb_device *udev)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UPLCOM_SET_REQUEST;
@@ -471,9 +471,9 @@ static const struct pl2303x_init pl2303x[] = {
 #define	N_PL2302X_INIT	(sizeof(pl2303x)/sizeof(pl2303x[0]))
 
 static int
-uplcom_pl2303x_init(struct usb2_device *udev)
+uplcom_pl2303x_init(struct usb_device *udev)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 	uint8_t buf[4];
 	uint8_t i;
@@ -495,10 +495,10 @@ uplcom_pl2303x_init(struct usb2_device *udev)
 }
 
 static void
-uplcom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+uplcom_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("onoff = %d\n", onoff);
 
@@ -519,10 +519,10 @@ uplcom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-uplcom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+uplcom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("onoff = %d\n", onoff);
 
@@ -543,10 +543,10 @@ uplcom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-uplcom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+uplcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t temp;
 
 	DPRINTF("onoff = %d\n", onoff);
@@ -577,7 +577,7 @@ static const int32_t uplcom_rates[] = {
 #define	N_UPLCOM_RATES	(sizeof(uplcom_rates)/sizeof(uplcom_rates[0]))
 
 static int
-uplcom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	uint8_t i;
 
@@ -601,11 +601,11 @@ uplcom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-uplcom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
-	struct usb2_cdc_line_state ls;
-	struct usb2_device_request req;
+	struct usb_cdc_line_state ls;
+	struct usb_device_request req;
 
 	DPRINTF("sc = %p\n", sc);
 
@@ -685,7 +685,7 @@ uplcom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-uplcom_start_read(struct usb2_com_softc *ucom)
+uplcom_start_read(struct ucom_softc *ucom)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
 
@@ -697,7 +697,7 @@ uplcom_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uplcom_stop_read(struct usb2_com_softc *ucom)
+uplcom_stop_read(struct ucom_softc *ucom)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
 
@@ -709,7 +709,7 @@ uplcom_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uplcom_start_write(struct usb2_com_softc *ucom)
+uplcom_start_write(struct ucom_softc *ucom)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
 
@@ -717,7 +717,7 @@ uplcom_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uplcom_stop_write(struct usb2_com_softc *ucom)
+uplcom_stop_write(struct ucom_softc *ucom)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
 
@@ -725,7 +725,7 @@ uplcom_stop_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uplcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+uplcom_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
 
@@ -736,7 +736,7 @@ uplcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static void
-uplcom_intr_callback(struct usb2_xfer *xfer)
+uplcom_intr_callback(struct usb_xfer *xfer)
 {
 	struct uplcom_softc *sc = xfer->priv_sc;
 	uint8_t buf[9];
@@ -783,7 +783,7 @@ tr_setup:
 }
 
 static void
-uplcom_write_callback(struct usb2_xfer *xfer)
+uplcom_write_callback(struct usb_xfer *xfer)
 {
 	struct uplcom_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -813,7 +813,7 @@ tr_setup:
 }
 
 static void
-uplcom_read_callback(struct usb2_xfer *xfer)
+uplcom_read_callback(struct usb_xfer *xfer)
 {
 	struct uplcom_softc *sc = xfer->priv_sc;
 

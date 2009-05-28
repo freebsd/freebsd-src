@@ -84,10 +84,10 @@ static usb2_callback_t usbd_ctrl_callback;
 #define	USBD_CTRL_MAX_PIPE		2
 #define	USBD_CTRL_READ_BUFFER_SP	256
 #define	USBD_CTRL_READ_BUFFER_SIZE	\
-	(sizeof(struct usb2_device_request) + USBD_CTRL_READ_BUFFER_SP)
+	(sizeof(struct usb_device_request) + USBD_CTRL_READ_BUFFER_SP)
 #define	USBD_CTRL_WRITE_BUFFER_SIZE	\
-	(sizeof(struct usb2_device_request))
-static struct usb2_config usbd_default_epconfig[USBD_CTRL_MAX_PIPE] = {
+	(sizeof(struct usb_device_request))
+static struct usb_config usbd_default_epconfig[USBD_CTRL_MAX_PIPE] = {
 	[USBD_CTRL_READ_PIPE] = {
 		.type =		UE_CONTROL,
 		.endpoint =	0x00,	/* control pipe */
@@ -115,10 +115,10 @@ static int32_t		 usbd_func_vendorclass(irp *);
 static int32_t		 usbd_func_selconf(irp *);
 static int32_t		 usbd_func_abort_pipe(irp *);
 static usb2_error_t	 usbd_setup_endpoint(irp *, uint8_t,
-			    struct usb2_endpoint_descriptor	*);
+			    struct usb_endpoint_descriptor	*);
 static usb2_error_t	 usbd_setup_endpoint_default(irp *, uint8_t);
 static usb2_error_t	 usbd_setup_endpoint_one(irp *, uint8_t,
-			    struct ndisusb_ep *, struct usb2_config *);
+			    struct ndisusb_ep *, struct usb_config *);
 static int32_t		 usbd_func_getdesc(irp *);
 static union usbd_urb	*usbd_geturb(irp *);
 static struct ndisusb_ep*usbd_get_ndisep(irp *, usb_endpoint_descriptor_t *);
@@ -519,8 +519,8 @@ usbd_func_selconf(ip)
 	device_t dev = IRP_NDIS_DEV(ip);
 	int i, j;
 	struct ndis_softc *sc = device_get_softc(dev);
-	struct usb2_device *udev = sc->ndisusb_dev;
-	struct usb2_pipe *p = NULL;
+	struct usb_device *udev = sc->ndisusb_dev;
+	struct usb_pipe *p = NULL;
 	struct usbd_interface_information *intf;
 	struct usbd_pipe_information *pipe;
 	struct usbd_urb_select_configuration *selconf;
@@ -597,11 +597,11 @@ usbd_setup_endpoint_one(ip, ifidx, ne, epconf)
 	irp				*ip;
 	uint8_t				ifidx;
 	struct ndisusb_ep		*ne;
-	struct usb2_config		*epconf;
+	struct usb_config		*epconf;
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 	usb2_error_t status;
 
 	InitializeListHead(&ne->ne_active);
@@ -647,13 +647,13 @@ static usb2_error_t
 usbd_setup_endpoint(ip, ifidx, ep)
 	irp				*ip;
 	uint8_t				ifidx;
-	struct usb2_endpoint_descriptor	*ep;
+	struct usb_endpoint_descriptor	*ep;
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
 	struct ndisusb_ep *ne;
-	struct usb2_config cfg;
-	struct usb2_xfer *xfer;
+	struct usb_config cfg;
+	struct usb_xfer *xfer;
 	usb2_error_t status;
 
 	/* check for non-supported transfer types */
@@ -670,7 +670,7 @@ usbd_setup_endpoint(ip, ifidx, ep)
 	KeInitializeSpinLock(&ne->ne_lock);
 	ne->ne_dirin = UE_GET_DIR(ep->bEndpointAddress) >> 7;
 
-	memset(&cfg, 0, sizeof(struct usb2_config));
+	memset(&cfg, 0, sizeof(struct usb_config));
 	cfg.type	= UE_GET_XFERTYPE(ep->bmAttributes);
 	cfg.endpoint	= UE_GET_ADDR(ep->bEndpointAddress);
 	cfg.direction	= UE_GET_DIR(ep->bEndpointAddress);
@@ -853,7 +853,7 @@ usbd_aq_getfirst(struct ndis_softc *sc, struct ndisusb_ep *ne)
 }
 
 static void
-usbd_non_isoc_callback(struct usb2_xfer *xfer)
+usbd_non_isoc_callback(struct usb_xfer *xfer)
 {
 	irp *ip;
 	struct ndis_softc *sc = xfer->priv_sc;
@@ -951,7 +951,7 @@ extra:
 }
 
 static void
-usbd_ctrl_callback(struct usb2_xfer *xfer)
+usbd_ctrl_callback(struct usb_xfer *xfer)
 {
 	irp *ip;
 	struct ndis_softc *sc = xfer->priv_sc;
@@ -961,7 +961,7 @@ usbd_ctrl_callback(struct usb2_xfer *xfer)
 	union usbd_urb *urb;
 	struct usbd_urb_vendor_or_class_request *vcreq;
 	uint8_t type = 0;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -1434,7 +1434,7 @@ USBD_ParseConfigurationDescriptorEx(conf, start, intfnum,
 	int32_t intfsubclass;
 	int32_t intfproto;
 {
-	struct usb2_descriptor *next = NULL;
+	struct usb_descriptor *next = NULL;
 	usb_interface_descriptor_t *desc;
 
 	while ((next = usb2_desc_foreach(conf, next)) != NULL) {

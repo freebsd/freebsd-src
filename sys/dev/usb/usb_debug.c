@@ -49,7 +49,7 @@ SYSCTL_INT(_hw_usb, OID_AUTO, debug, CTLFLAG_RW,
  * This function dumps information about an USB interface.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_iface(struct usb2_interface *iface)
+usb2_dump_iface(struct usb_interface *iface)
 {
 	printf("usb2_dump_iface: iface=%p\n", iface);
 	if (iface == NULL) {
@@ -65,7 +65,7 @@ usb2_dump_iface(struct usb2_interface *iface)
  * This function dumps information about an USB device.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_device(struct usb2_device *udev)
+usb2_dump_device(struct usb_device *udev)
 {
 	printf("usb2_dump_device: dev=%p\n", udev);
 	if (udev == NULL) {
@@ -85,9 +85,9 @@ usb2_dump_device(struct usb2_device *udev)
  * This function dumps the USB transfer that are queued up on an USB pipe.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_queue(struct usb2_pipe *pipe)
+usb2_dump_queue(struct usb_pipe *pipe)
 {
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 
 	printf("usb2_dump_queue: pipe=%p xfer: ", pipe);
 	TAILQ_FOREACH(xfer, &pipe->pipe_q.head, wait_entry) {
@@ -102,7 +102,7 @@ usb2_dump_queue(struct usb2_pipe *pipe)
  * This function dumps information about an USB pipe.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_pipe(struct usb2_pipe *pipe)
+usb2_dump_pipe(struct usb_pipe *pipe)
 {
 	if (pipe) {
 		printf("usb2_dump_pipe: pipe=%p", pipe);
@@ -127,9 +127,9 @@ usb2_dump_pipe(struct usb2_pipe *pipe)
  * This function dumps information about an USB transfer.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_xfer(struct usb2_xfer *xfer)
+usb2_dump_xfer(struct usb_xfer *xfer)
 {
-	struct usb2_device *udev;
+	struct usb_device *udev;
 	printf("usb2_dump_xfer: xfer=%p\n", xfer);
 	if (xfer == NULL) {
 		return;

@@ -157,16 +157,16 @@ enum {
 };
 
 struct ufoma_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 	struct cv sc_cv;
 	struct mtx sc_mtx;
 
-	struct usb2_xfer *sc_ctrl_xfer[UFOMA_CTRL_ENDPT_MAX];
-	struct usb2_xfer *sc_bulk_xfer[UFOMA_BULK_ENDPT_MAX];
+	struct usb_xfer *sc_ctrl_xfer[UFOMA_CTRL_ENDPT_MAX];
+	struct usb_xfer *sc_bulk_xfer[UFOMA_BULK_ENDPT_MAX];
 	uint8_t *sc_modetable;
 	device_t sc_dev;
-	struct usb2_device *sc_udev;
+	struct usb_device *sc_udev;
 
 	uint32_t sc_unit;
 
@@ -199,25 +199,25 @@ static usb2_callback_t ufoma_intr_callback;
 static usb2_callback_t ufoma_bulk_write_callback;
 static usb2_callback_t ufoma_bulk_read_callback;
 
-static void	*ufoma_get_intconf(struct usb2_config_descriptor *,
-		    struct usb2_interface_descriptor *, uint8_t, uint8_t);
+static void	*ufoma_get_intconf(struct usb_config_descriptor *,
+		    struct usb_interface_descriptor *, uint8_t, uint8_t);
 static void	ufoma_cfg_link_state(struct ufoma_softc *);
 static void	ufoma_cfg_activate_state(struct ufoma_softc *, uint16_t);
-static void	ufoma_cfg_open(struct usb2_com_softc *);
-static void	ufoma_cfg_close(struct usb2_com_softc *);
-static void	ufoma_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static void	ufoma_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static void	ufoma_cfg_open(struct ucom_softc *);
+static void	ufoma_cfg_close(struct ucom_softc *);
+static void	ufoma_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	ufoma_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
-static void	ufoma_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	ufoma_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static int	ufoma_pre_param(struct usb2_com_softc *, struct termios *);
-static void	ufoma_cfg_param(struct usb2_com_softc *, struct termios *);
+static void	ufoma_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	ufoma_cfg_set_rts(struct ucom_softc *, uint8_t);
+static int	ufoma_pre_param(struct ucom_softc *, struct termios *);
+static void	ufoma_cfg_param(struct ucom_softc *, struct termios *);
 static int	ufoma_modem_setup(device_t, struct ufoma_softc *,
-		    struct usb2_attach_arg *);
-static void	ufoma_start_read(struct usb2_com_softc *);
-static void	ufoma_stop_read(struct usb2_com_softc *);
-static void	ufoma_start_write(struct usb2_com_softc *);
-static void	ufoma_stop_write(struct usb2_com_softc *);
+		    struct usb_attach_arg *);
+static void	ufoma_start_read(struct ucom_softc *);
+static void	ufoma_stop_read(struct ucom_softc *);
+static void	ufoma_start_write(struct ucom_softc *);
+static void	ufoma_stop_write(struct ucom_softc *);
 
 /*sysctl stuff*/
 static int ufoma_sysctl_support(SYSCTL_HANDLER_ARGS);
@@ -225,7 +225,7 @@ static int ufoma_sysctl_current(SYSCTL_HANDLER_ARGS);
 static int ufoma_sysctl_open(SYSCTL_HANDLER_ARGS);
 
 
-static const struct usb2_config
+static const struct usb_config
 	ufoma_ctrl_config[UFOMA_CTRL_ENDPT_MAX] = {
 
 	[UFOMA_CTRL_ENDPT_INTR] = {
@@ -233,7 +233,7 @@ static const struct usb2_config
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.bufsize = sizeof(struct usb2_cdc_notification),
+		.bufsize = sizeof(struct usb_cdc_notification),
 		.callback = &ufoma_intr_callback,
 	},
 
@@ -241,7 +241,7 @@ static const struct usb2_config
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = (sizeof(struct usb2_device_request) + UFOMA_CMD_BUF_SIZE),
+		.bufsize = (sizeof(struct usb_device_request) + UFOMA_CMD_BUF_SIZE),
 		.flags = {.short_xfer_ok = 1,},
 		.callback = &ufoma_ctrl_read_callback,
 		.timeout = 1000,	/* 1 second */
@@ -251,13 +251,13 @@ static const struct usb2_config
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = (sizeof(struct usb2_device_request) + 1),
+		.bufsize = (sizeof(struct usb_device_request) + 1),
 		.callback = &ufoma_ctrl_write_callback,
 		.timeout = 1000,	/* 1 second */
 	},
 };
 
-static const struct usb2_config
+static const struct usb_config
 	ufoma_bulk_config[UFOMA_BULK_ENDPT_MAX] = {
 
 	[UFOMA_BULK_ENDPT_WRITE] = {
@@ -279,7 +279,7 @@ static const struct usb2_config
 	},
 };
 
-static const struct usb2_com_callback ufoma_callback = {
+static const struct ucom_callback ufoma_callback = {
 	.usb2_com_cfg_get_status = &ufoma_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &ufoma_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &ufoma_cfg_set_rts,
@@ -317,9 +317,9 @@ MODULE_DEPEND(ufoma, usb, 1, 1, 1);
 static int
 ufoma_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
-	struct usb2_config_descriptor *cd;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
+	struct usb_config_descriptor *cd;
 	usb2_mcpc_acm_descriptor *mad;
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
@@ -350,10 +350,10 @@ ufoma_probe(device_t dev)
 static int
 ufoma_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ufoma_softc *sc = device_get_softc(dev);
-	struct usb2_config_descriptor *cd;
-	struct usb2_interface_descriptor *id;
+	struct usb_config_descriptor *cd;
+	struct usb_interface_descriptor *id;
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
 
@@ -481,10 +481,10 @@ ufoma_detach(device_t dev)
 }
 
 static void *
-ufoma_get_intconf(struct usb2_config_descriptor *cd, struct usb2_interface_descriptor *id,
+ufoma_get_intconf(struct usb_config_descriptor *cd, struct usb_interface_descriptor *id,
     uint8_t type, uint8_t subtype)
 {
-	struct usb2_descriptor *desc = (void *)id;
+	struct usb_descriptor *desc = (void *)id;
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
 
@@ -502,7 +502,7 @@ ufoma_get_intconf(struct usb2_config_descriptor *cd, struct usb2_interface_descr
 static void
 ufoma_cfg_link_state(struct ufoma_softc *sc)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	int32_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_INTERFACE;
@@ -524,7 +524,7 @@ ufoma_cfg_link_state(struct ufoma_softc *sc)
 static void
 ufoma_cfg_activate_state(struct ufoma_softc *sc, uint16_t state)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	int32_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_INTERFACE;
@@ -544,10 +544,10 @@ ufoma_cfg_activate_state(struct ufoma_softc *sc, uint16_t state)
 }
 
 static void
-ufoma_ctrl_read_callback(struct usb2_xfer *xfer)
+ufoma_ctrl_read_callback(struct usb_xfer *xfer)
 {
 	struct ufoma_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -594,10 +594,10 @@ tr_setup:
 }
 
 static void
-ufoma_ctrl_write_callback(struct usb2_xfer *xfer)
+ufoma_ctrl_write_callback(struct usb_xfer *xfer)
 {
 	struct ufoma_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -639,10 +639,10 @@ tr_setup:
 }
 
 static void
-ufoma_intr_callback(struct usb2_xfer *xfer)
+ufoma_intr_callback(struct usb_xfer *xfer)
 {
 	struct ufoma_softc *sc = xfer->priv_sc;
-	struct usb2_cdc_notification pkt;
+	struct usb_cdc_notification pkt;
 	uint16_t wLen;
 	uint16_t temp;
 	uint8_t mstatus;
@@ -745,7 +745,7 @@ tr_setup:
 }
 
 static void
-ufoma_bulk_write_callback(struct usb2_xfer *xfer)
+ufoma_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct ufoma_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -772,7 +772,7 @@ tr_setup:
 }
 
 static void
-ufoma_bulk_read_callback(struct usb2_xfer *xfer)
+ufoma_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct ufoma_softc *sc = xfer->priv_sc;
 
@@ -798,7 +798,7 @@ tr_setup:
 }
 
 static void
-ufoma_cfg_open(struct usb2_com_softc *ucom)
+ufoma_cfg_open(struct ucom_softc *ucom)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
@@ -816,7 +816,7 @@ ufoma_cfg_open(struct usb2_com_softc *ucom)
 }
 
 static void
-ufoma_cfg_close(struct usb2_com_softc *ucom)
+ufoma_cfg_close(struct ucom_softc *ucom)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
@@ -824,10 +824,10 @@ ufoma_cfg_close(struct usb2_com_softc *ucom)
 }
 
 static void
-ufoma_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+ufoma_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t wValue;
 
 	if (sc->sc_nobulk ||
@@ -851,7 +851,7 @@ ufoma_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-ufoma_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+ufoma_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
@@ -862,7 +862,7 @@ ufoma_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 static void
 ufoma_cfg_set_line_state(struct ufoma_softc *sc)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	/* Don't send line state emulation request for OBEX port */
 	if (sc->sc_currentmode == UMCPC_ACM_MODE_OBEX) {
@@ -880,7 +880,7 @@ ufoma_cfg_set_line_state(struct ufoma_softc *sc)
 }
 
 static void
-ufoma_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+ufoma_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
@@ -896,7 +896,7 @@ ufoma_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-ufoma_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+ufoma_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
@@ -912,17 +912,17 @@ ufoma_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static int
-ufoma_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+ufoma_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	return (0);			/* we accept anything */
 }
 
 static void
-ufoma_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+ufoma_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
-	struct usb2_cdc_line_state ls;
+	struct usb_device_request req;
+	struct usb_cdc_line_state ls;
 
 	if (sc->sc_nobulk ||
 	    (sc->sc_currentmode == UMCPC_ACM_MODE_OBEX)) {
@@ -978,13 +978,13 @@ ufoma_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 
 static int
 ufoma_modem_setup(device_t dev, struct ufoma_softc *sc,
-    struct usb2_attach_arg *uaa)
+    struct usb_attach_arg *uaa)
 {
-	struct usb2_config_descriptor *cd;
-	struct usb2_cdc_acm_descriptor *acm;
-	struct usb2_cdc_cm_descriptor *cmd;
-	struct usb2_interface_descriptor *id;
-	struct usb2_interface *iface;
+	struct usb_config_descriptor *cd;
+	struct usb_cdc_acm_descriptor *acm;
+	struct usb_cdc_cm_descriptor *cmd;
+	struct usb_interface_descriptor *id;
+	struct usb_interface *iface;
 	uint8_t i;
 	int32_t error;
 
@@ -1048,7 +1048,7 @@ ufoma_modem_setup(device_t dev, struct ufoma_softc *sc,
 }
 
 static void
-ufoma_start_read(struct usb2_com_softc *ucom)
+ufoma_start_read(struct ucom_softc *ucom)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
@@ -1064,7 +1064,7 @@ ufoma_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-ufoma_stop_read(struct usb2_com_softc *ucom)
+ufoma_stop_read(struct ucom_softc *ucom)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
@@ -1080,7 +1080,7 @@ ufoma_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-ufoma_start_write(struct usb2_com_softc *ucom)
+ufoma_start_write(struct ucom_softc *ucom)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
@@ -1092,7 +1092,7 @@ ufoma_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-ufoma_stop_write(struct usb2_com_softc *ucom)
+ufoma_stop_write(struct ucom_softc *ucom)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 

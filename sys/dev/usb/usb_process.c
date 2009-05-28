@@ -61,15 +61,15 @@ SYSCTL_INT(_hw_usb_proc, OID_AUTO, debug, CTLFLAG_RW, &usb2_proc_debug, 0,
 #endif
 
 /*------------------------------------------------------------------------*
- *	usb2_process
+ *	usb_process
  *
  * This function is the USB process dispatcher.
  *------------------------------------------------------------------------*/
 static void
-usb2_process(void *arg)
+usb_process(void *arg)
 {
-	struct usb2_process *up = arg;
-	struct usb2_proc_msg *pm;
+	struct usb_process *up = arg;
+	struct usb_proc_msg *pm;
 	struct thread *td;
 
 	/* adjust priority */
@@ -177,7 +177,7 @@ usb2_process(void *arg)
  * Else: failure
  *------------------------------------------------------------------------*/
 int
-usb2_proc_create(struct usb2_process *up, struct mtx *p_mtx,
+usb2_proc_create(struct usb_process *up, struct mtx *p_mtx,
     const char *pmesg, uint8_t prio)
 {
 	up->up_mtx = p_mtx;
@@ -188,7 +188,7 @@ usb2_proc_create(struct usb2_process *up, struct mtx *p_mtx,
 	usb2_cv_init(&up->up_cv, "wmsg");
 	usb2_cv_init(&up->up_drain, "dmsg");
 
-	if (USB_THREAD_CREATE(&usb2_process, up,
+	if (USB_THREAD_CREATE(&usb_process, up,
 	    &up->up_ptr, pmesg)) {
 		DPRINTFN(0, "Unable to create USB process.");
 		up->up_ptr = NULL;
@@ -211,7 +211,7 @@ error:
  * removed nor called.
  *------------------------------------------------------------------------*/
 void
-usb2_proc_free(struct usb2_process *up)
+usb2_proc_free(struct usb_process *up)
 {
 	/* check if not initialised */
 	if (up->up_mtx == NULL)
@@ -238,11 +238,11 @@ usb2_proc_free(struct usb2_process *up)
  * at a time. The message that was queued is returned.
  *------------------------------------------------------------------------*/
 void   *
-usb2_proc_msignal(struct usb2_process *up, void *_pm0, void *_pm1)
+usb2_proc_msignal(struct usb_process *up, void *_pm0, void *_pm1)
 {
-	struct usb2_proc_msg *pm0 = _pm0;
-	struct usb2_proc_msg *pm1 = _pm1;
-	struct usb2_proc_msg *pm2;
+	struct usb_proc_msg *pm0 = _pm0;
+	struct usb_proc_msg *pm1 = _pm1;
+	struct usb_proc_msg *pm2;
 	usb2_size_t d;
 	uint8_t t;
 
@@ -321,7 +321,7 @@ usb2_proc_msignal(struct usb2_process *up, void *_pm0, void *_pm1)
  * Else: USB process is tearing down
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_proc_is_gone(struct usb2_process *up)
+usb2_proc_is_gone(struct usb_process *up)
 {
 	if (up->up_gone)
 		return (1);
@@ -338,10 +338,10 @@ usb2_proc_is_gone(struct usb2_process *up)
  * having "up->up_mtx" locked.
  *------------------------------------------------------------------------*/
 void
-usb2_proc_mwait(struct usb2_process *up, void *_pm0, void *_pm1)
+usb2_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
 {
-	struct usb2_proc_msg *pm0 = _pm0;
-	struct usb2_proc_msg *pm1 = _pm1;
+	struct usb_proc_msg *pm0 = _pm0;
+	struct usb_proc_msg *pm1 = _pm1;
 
 	/* check if gone */
 	if (up->up_gone)
@@ -380,7 +380,7 @@ usb2_proc_mwait(struct usb2_process *up, void *_pm0, void *_pm1)
  * this function does nothing.
  *------------------------------------------------------------------------*/
 void
-usb2_proc_drain(struct usb2_process *up)
+usb2_proc_drain(struct usb_process *up)
 {
 	/* check if not initialised */
 	if (up->up_mtx == NULL)

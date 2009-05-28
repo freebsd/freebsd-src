@@ -174,8 +174,8 @@ struct uhci_td {
 	struct uhci_td *next;
 	struct uhci_td *prev;
 	struct uhci_td *obj_next;
-	struct usb2_page_cache *page_cache;
-	struct usb2_page_cache *fix_pc;
+	struct usb_page_cache *page_cache;
+	struct usb_page_cache *fix_pc;
 	uint32_t td_self;
 	uint16_t len;
 } __aligned(UHCI_TD_ALIGN);
@@ -213,7 +213,7 @@ struct uhci_qh {
 	struct uhci_qh *h_prev;
 	struct uhci_qh *obj_next;
 	struct uhci_td *e_next;
-	struct usb2_page_cache *page_cache;
+	struct usb_page_cache *page_cache;
 	uint32_t qh_self;
 	uint16_t intr_pos;
 } __aligned(UHCI_QH_ALIGN);
@@ -235,44 +235,44 @@ typedef struct uhci_qh uhci_qh_t;
 #endif
 
 struct uhci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union uhci_hub_desc {
-	struct usb2_status stat;
-	struct usb2_port_status ps;
+	struct usb_status stat;
+	struct usb_port_status ps;
 	uint8_t	temp[128];
 };
 
 struct uhci_hw_softc {
-	struct usb2_page_cache pframes_pc;
-	struct usb2_page_cache isoc_start_pc[UHCI_VFRAMELIST_COUNT];
-	struct usb2_page_cache intr_start_pc[UHCI_IFRAMELIST_COUNT];
-	struct usb2_page_cache ls_ctl_start_pc;
-	struct usb2_page_cache fs_ctl_start_pc;
-	struct usb2_page_cache bulk_start_pc;
-	struct usb2_page_cache last_qh_pc;
-	struct usb2_page_cache last_td_pc;
+	struct usb_page_cache pframes_pc;
+	struct usb_page_cache isoc_start_pc[UHCI_VFRAMELIST_COUNT];
+	struct usb_page_cache intr_start_pc[UHCI_IFRAMELIST_COUNT];
+	struct usb_page_cache ls_ctl_start_pc;
+	struct usb_page_cache fs_ctl_start_pc;
+	struct usb_page_cache bulk_start_pc;
+	struct usb_page_cache last_qh_pc;
+	struct usb_page_cache last_td_pc;
 
-	struct usb2_page pframes_pg;
-	struct usb2_page isoc_start_pg[UHCI_VFRAMELIST_COUNT];
-	struct usb2_page intr_start_pg[UHCI_IFRAMELIST_COUNT];
-	struct usb2_page ls_ctl_start_pg;
-	struct usb2_page fs_ctl_start_pg;
-	struct usb2_page bulk_start_pg;
-	struct usb2_page last_qh_pg;
-	struct usb2_page last_td_pg;
+	struct usb_page pframes_pg;
+	struct usb_page isoc_start_pg[UHCI_VFRAMELIST_COUNT];
+	struct usb_page intr_start_pg[UHCI_IFRAMELIST_COUNT];
+	struct usb_page ls_ctl_start_pg;
+	struct usb_page fs_ctl_start_pg;
+	struct usb_page bulk_start_pg;
+	struct usb_page last_qh_pg;
+	struct usb_page last_td_pg;
 };
 
 typedef struct uhci_softc {
 	struct uhci_hw_softc sc_hw;
-	struct usb2_bus sc_bus;		/* base device */
+	struct usb_bus sc_bus;		/* base device */
 	union uhci_hub_desc sc_hub_desc;
-	struct usb2_callout sc_root_intr;
+	struct usb_callout sc_root_intr;
 
-	struct usb2_device *sc_devices[UHCI_MAX_DEVICES];
+	struct usb_device *sc_devices[UHCI_MAX_DEVICES];
 	/* pointer to last TD for isochronous */
 	struct uhci_td *sc_isoc_p_last[UHCI_VFRAMELIST_COUNT];
 	/* pointer to last QH for interrupt */

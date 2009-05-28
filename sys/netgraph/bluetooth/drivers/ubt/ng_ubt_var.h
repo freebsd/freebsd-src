@@ -90,13 +90,13 @@ struct ubt_softc {
 
 	/* USB device specific */
 	struct mtx		sc_if_mtx;	/* interfaces lock */
-	struct usb2_xfer	*sc_xfer[UBT_N_TRANSFER];
+	struct usb_xfer	*sc_xfer[UBT_N_TRANSFER];
 
 	struct mtx		sc_ng_mtx;	/* lock for shared NG data */
 
 	/* HCI commands */
 	struct ng_bt_mbufq	sc_cmdq;	/* HCI command queue */
-#define	UBT_CTRL_BUFFER_SIZE	(sizeof(struct usb2_device_request) +	\
+#define	UBT_CTRL_BUFFER_SIZE	(sizeof(struct usb_device_request) +	\
 				 sizeof(ng_hci_cmd_pkt_t) + NG_HCI_CMD_PKT_SIZE)
 #define	UBT_INTR_BUFFER_SIZE	(MCLBYTES-1)	/* reserve 1 byte for ID-tag */
 

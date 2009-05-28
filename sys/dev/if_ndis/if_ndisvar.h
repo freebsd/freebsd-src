@@ -121,7 +121,7 @@ struct ndis_vap {
 #define	NDISUSB_TX_TIMEOUT			10000
 struct ndisusb_xfer;
 struct ndisusb_ep {
-	struct usb2_xfer	*ne_xfer[1];
+	struct usb_xfer	*ne_xfer[1];
 	list_entry		ne_active;
 	list_entry		ne_pending;
 	kspin_lock		ne_lock;
@@ -225,7 +225,7 @@ struct ndis_softc {
 	int			ndis_tx_timer;
 	int			ndis_hang_timer;
 
-	struct usb2_device	*ndisusb_dev;
+	struct usb_device	*ndisusb_dev;
 	struct mtx		ndisusb_mtx;
 	struct ndisusb_ep	ndisusb_dread_ep;
 	struct ndisusb_ep	ndisusb_dwrite_ep;

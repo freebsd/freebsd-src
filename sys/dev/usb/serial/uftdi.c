@@ -90,11 +90,11 @@ enum {
 };
 
 struct uftdi_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[UFTDI_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[UFTDI_N_TRANSFER];
 	device_t sc_dev;
 	struct mtx sc_mtx;
 
@@ -128,23 +128,23 @@ static device_detach_t uftdi_detach;
 static usb2_callback_t uftdi_write_callback;
 static usb2_callback_t uftdi_read_callback;
 
-static void	uftdi_cfg_open(struct usb2_com_softc *);
-static void	uftdi_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	uftdi_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static void	uftdi_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	uftdi_cfg_open(struct ucom_softc *);
+static void	uftdi_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	uftdi_cfg_set_rts(struct ucom_softc *, uint8_t);
+static void	uftdi_cfg_set_break(struct ucom_softc *, uint8_t);
 static int	uftdi_set_parm_soft(struct termios *,
 		    struct uftdi_param_config *, uint8_t);
-static int	uftdi_pre_param(struct usb2_com_softc *, struct termios *);
-static void	uftdi_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	uftdi_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static int	uftdi_pre_param(struct ucom_softc *, struct termios *);
+static void	uftdi_cfg_param(struct ucom_softc *, struct termios *);
+static void	uftdi_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
-static void	uftdi_start_read(struct usb2_com_softc *);
-static void	uftdi_stop_read(struct usb2_com_softc *);
-static void	uftdi_start_write(struct usb2_com_softc *);
-static void	uftdi_stop_write(struct usb2_com_softc *);
+static void	uftdi_start_read(struct ucom_softc *);
+static void	uftdi_stop_read(struct ucom_softc *);
+static void	uftdi_start_write(struct ucom_softc *);
+static void	uftdi_stop_write(struct ucom_softc *);
 static uint8_t	uftdi_8u232am_getrate(uint32_t, uint16_t *);
 
-static const struct usb2_config uftdi_config[UFTDI_N_TRANSFER] = {
+static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 
 	[UFTDI_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -165,7 +165,7 @@ static const struct usb2_config uftdi_config[UFTDI_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback uftdi_callback = {
+static const struct ucom_callback uftdi_callback = {
 	.usb2_com_cfg_get_status = &uftdi_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &uftdi_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &uftdi_cfg_set_rts,
@@ -200,7 +200,7 @@ DRIVER_MODULE(uftdi, uhub, uftdi_driver, uftdi_devclass, NULL, 0);
 MODULE_DEPEND(uftdi, ucom, 1, 1, 1);
 MODULE_DEPEND(uftdi, usb, 1, 1, 1);
 
-static struct usb2_device_id uftdi_devs[] = {
+static struct usb_device_id uftdi_devs[] = {
 	{USB_VPI(USB_VENDOR_ATMEL, USB_PRODUCT_ATMEL_STK541, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_DRESDENELEKTRONIK, USB_PRODUCT_DRESDENELEKTRONIK_SENSORTERMINALBOARD, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_DRESDENELEKTRONIK, USB_PRODUCT_DRESDENELEKTRONIK_WIRELESSHANDHELDTERMINAL, UFTDI_TYPE_8U232AM)},
@@ -238,7 +238,7 @@ static struct usb2_device_id uftdi_devs[] = {
 static int
 uftdi_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -254,7 +254,7 @@ uftdi_probe(device_t dev)
 static int
 uftdi_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uftdi_softc *sc = device_get_softc(dev);
 	int error;
 
@@ -332,11 +332,11 @@ uftdi_detach(device_t dev)
 }
 
 static void
-uftdi_cfg_open(struct usb2_com_softc *ucom)
+uftdi_cfg_open(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	uint16_t wIndex = ucom->sc_portno;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("");
 
@@ -368,7 +368,7 @@ uftdi_cfg_open(struct usb2_com_softc *ucom)
 }
 
 static void
-uftdi_write_callback(struct usb2_xfer *xfer)
+uftdi_write_callback(struct usb_xfer *xfer)
 {
 	struct uftdi_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -403,7 +403,7 @@ tr_setup:
 }
 
 static void
-uftdi_read_callback(struct usb2_xfer *xfer)
+uftdi_read_callback(struct usb_xfer *xfer)
 {
 	struct uftdi_softc *sc = xfer->priv_sc;
 	uint8_t buf[2];
@@ -466,12 +466,12 @@ tr_setup:
 }
 
 static void
-uftdi_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+uftdi_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	uint16_t wIndex = ucom->sc_portno;
 	uint16_t wValue;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	wValue = onoff ? FTDI_SIO_SET_DTR_HIGH : FTDI_SIO_SET_DTR_LOW;
 
@@ -485,12 +485,12 @@ uftdi_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-uftdi_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+uftdi_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	uint16_t wIndex = ucom->sc_portno;
 	uint16_t wValue;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	wValue = onoff ? FTDI_SIO_SET_RTS_HIGH : FTDI_SIO_SET_RTS_LOW;
 
@@ -504,12 +504,12 @@ uftdi_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-uftdi_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+uftdi_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	uint16_t wIndex = ucom->sc_portno;
 	uint16_t wValue;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	if (onoff) {
 		sc->sc_last_lcr |= FTDI_SIO_SET_BREAK;
@@ -626,7 +626,7 @@ uftdi_set_parm_soft(struct termios *t,
 }
 
 static int
-uftdi_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+uftdi_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	struct uftdi_param_config cfg;
@@ -637,12 +637,12 @@ uftdi_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-uftdi_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	uint16_t wIndex = ucom->sc_portno;
 	struct uftdi_param_config cfg;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	if (uftdi_set_parm_soft(t, &cfg, sc->sc_type)) {
 		/* should not happen */
@@ -678,7 +678,7 @@ uftdi_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-uftdi_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+uftdi_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
@@ -690,7 +690,7 @@ uftdi_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static void
-uftdi_start_read(struct usb2_com_softc *ucom)
+uftdi_start_read(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
@@ -698,7 +698,7 @@ uftdi_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uftdi_stop_read(struct usb2_com_softc *ucom)
+uftdi_stop_read(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
@@ -706,7 +706,7 @@ uftdi_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uftdi_start_write(struct usb2_com_softc *ucom)
+uftdi_start_write(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
@@ -714,7 +714,7 @@ uftdi_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uftdi_stop_write(struct usb2_com_softc *ucom)
+uftdi_stop_write(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 

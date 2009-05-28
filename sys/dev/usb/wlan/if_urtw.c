@@ -107,7 +107,7 @@ TUNABLE_INT("hw.usb.urtw.preamble_mode", &urtw_preamble_mode);
 	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, URTW_REV_RTL8187L) }
 #define	URTW_REV_RTL8187B	0
 #define	URTW_REV_RTL8187L	1
-static const struct usb2_device_id urtw_devs[] = {
+static const struct usb_device_id urtw_devs[] = {
 	{ USB_VPI(USB_VENDOR_BELKIN, 0x705e, URTW_REV_RTL8187B) },
 	{ USB_VPI(USB_VENDOR_REALTEK, 0x8189, URTW_REV_RTL8187B) },
 	{ USB_VPI(USB_VENDOR_REALTEK, 0x8197, URTW_REV_RTL8187B) },
@@ -483,7 +483,7 @@ static const uint8_t urtw_8187b_reg_table[][3] = {
 static usb2_callback_t urtw_bulk_rx_callback;
 static usb2_callback_t urtw_bulk_tx_callback;
 
-static const struct usb2_config urtw_8187b_usbconfig[URTW_8187B_N_XFERS] = {
+static const struct usb_config urtw_8187b_usbconfig[URTW_8187B_N_XFERS] = {
 	[URTW_8187B_BULK_RX] = {
 		.type = UE_BULK,
 		.endpoint = 0x83,
@@ -563,7 +563,7 @@ static const struct usb2_config urtw_8187b_usbconfig[URTW_8187B_N_XFERS] = {
 	}
 };
 
-static const struct usb2_config urtw_8187l_usbconfig[URTW_8187L_N_XFERS] = {
+static const struct usb_config urtw_8187l_usbconfig[URTW_8187L_N_XFERS] = {
 	[URTW_8187L_BULK_RX] = {
 		.type = UE_BULK,
 		.endpoint = 0x81,
@@ -711,7 +711,7 @@ static usb2_error_t	urtw_write16_i(struct urtw_softc *, int, uint16_t, int);
 static usb2_error_t	urtw_write8_i(struct urtw_softc *, int, uint8_t, int);
 static usb2_error_t	urtw_write32_i(struct urtw_softc *, int, uint32_t, int);
 static usb2_error_t	urtw_do_request(struct urtw_softc *,
-			    struct usb2_device_request *, void *);
+			    struct usb_device_request *, void *);
 static usb2_error_t	urtw_8225v2b_set_txpwrlvl(struct urtw_softc *, int);
 static usb2_error_t	urtw_led_off(struct urtw_softc *, int);
 static void		urtw_abort_xfers(struct urtw_softc *);
@@ -721,7 +721,7 @@ static struct urtw_data *
 static int
 urtw_match(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -736,10 +736,10 @@ urtw_match(device_t dev)
 static int
 urtw_attach(device_t dev)
 {
-	const struct usb2_config *setup_start;
+	const struct usb_config *setup_start;
 	int ret = ENXIO;
 	struct urtw_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	uint8_t bands, iface_index = URTW_IFACE_INDEX;		/* XXX */
@@ -1337,7 +1337,7 @@ fail:
 static usb2_error_t
 urtw_write16_i(struct urtw_softc *sc, int val, uint16_t data, int idx)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = URTW_8187_SETREGS_REQ;
@@ -1350,7 +1350,7 @@ urtw_write16_i(struct urtw_softc *sc, int val, uint16_t data, int idx)
 
 static usb2_error_t
 urtw_do_request(struct urtw_softc *sc,
-    struct usb2_device_request *req, void *data)
+    struct usb_device_request *req, void *data)
 {
 	usb2_error_t err;
 	int ntries = 10;
@@ -1374,7 +1374,7 @@ urtw_do_request(struct urtw_softc *sc,
 static usb2_error_t
 urtw_write8_i(struct urtw_softc *sc, int val, uint8_t data, int idx)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = URTW_8187_SETREGS_REQ;
@@ -1388,7 +1388,7 @@ urtw_write8_i(struct urtw_softc *sc, int val, uint8_t data, int idx)
 static usb2_error_t
 urtw_write32_i(struct urtw_softc *sc, int val, uint32_t data, int idx)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = URTW_8187_SETREGS_REQ;
@@ -1745,13 +1745,13 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct urtw_8187b_txhdr *hdr;
-	struct usb2_xfer *rtl8187b_pipes[URTW_8187B_TXPIPE_MAX] = {
+	struct usb_xfer *rtl8187b_pipes[URTW_8187B_TXPIPE_MAX] = {
 		sc->sc_xfer[URTW_8187B_BULK_TX_BE],
 		sc->sc_xfer[URTW_8187B_BULK_TX_BK],
 		sc->sc_xfer[URTW_8187B_BULK_TX_VI],
 		sc->sc_xfer[URTW_8187B_BULK_TX_VO]
 	};
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 	usb2_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
@@ -2053,7 +2053,7 @@ fail:
 static usb2_error_t
 urtw_read8_c(struct urtw_softc *sc, int val, uint8_t *data)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
@@ -2071,7 +2071,7 @@ urtw_read8_c(struct urtw_softc *sc, int val, uint8_t *data)
 static usb2_error_t
 urtw_read16_c(struct urtw_softc *sc, int val, uint16_t *data)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
@@ -2089,7 +2089,7 @@ urtw_read16_c(struct urtw_softc *sc, int val, uint16_t *data)
 static usb2_error_t
 urtw_read32_c(struct urtw_softc *sc, int val, uint32_t *data)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
@@ -2107,7 +2107,7 @@ urtw_read32_c(struct urtw_softc *sc, int val, uint32_t *data)
 static usb2_error_t
 urtw_write8_c(struct urtw_softc *sc, int val, uint8_t data)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -2123,7 +2123,7 @@ urtw_write8_c(struct urtw_softc *sc, int val, uint8_t data)
 static usb2_error_t
 urtw_write16_c(struct urtw_softc *sc, int val, uint16_t data)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -2139,7 +2139,7 @@ urtw_write16_c(struct urtw_softc *sc, int val, uint16_t data)
 static usb2_error_t
 urtw_write32_c(struct urtw_softc *sc, int val, uint32_t data)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -2734,7 +2734,7 @@ urtw_8225_write_s16(struct urtw_softc *sc, uint8_t addr, int index,
 {
 	uint8_t *buf;
 	uint16_t data16;
-	struct usb2_device_request *req;
+	struct usb_device_request *req;
 	usb2_error_t error = 0;
 
 	data16 = *data;
@@ -3445,7 +3445,7 @@ fail:
 static usb2_error_t
 urtw_read8e(struct urtw_softc *sc, int val, uint8_t *data)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -3461,7 +3461,7 @@ urtw_read8e(struct urtw_softc *sc, int val, uint8_t *data)
 static usb2_error_t
 urtw_write8e(struct urtw_softc *sc, int val, uint8_t data)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = URTW_8187_SETREGS_REQ;
@@ -3932,7 +3932,7 @@ fail:
 }
 
 static struct mbuf *
-urtw_rxeof(struct usb2_xfer *xfer, struct urtw_data *data, int *rssi_p,
+urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
     int8_t *nf_p)
 {
 	int actlen, flen, len, nf = -95, rssi;
@@ -4023,7 +4023,7 @@ urtw_rxeof(struct usb2_xfer *xfer, struct urtw_data *data, int *rssi_p,
 }
 
 static void
-urtw_bulk_rx_callback(struct usb2_xfer *xfer)
+urtw_bulk_rx_callback(struct usb_xfer *xfer)
 {
 	struct urtw_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -4096,7 +4096,7 @@ setup:
 }
 
 static void
-urtw_txeof(struct usb2_xfer *xfer, struct urtw_data *data)
+urtw_txeof(struct usb_xfer *xfer, struct urtw_data *data)
 {
 	struct urtw_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -4127,7 +4127,7 @@ urtw_txeof(struct usb2_xfer *xfer, struct urtw_data *data)
 }
 
 static void
-urtw_bulk_tx_callback(struct usb2_xfer *xfer)
+urtw_bulk_tx_callback(struct usb_xfer *xfer)
 {
 	struct urtw_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;

@@ -152,9 +152,9 @@ enum {
 };
 
 struct udav_softc {
-	struct usb2_ether	sc_ue;
+	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
-	struct usb2_xfer	*sc_xfer[UDAV_N_TRANSFER];
+	struct usb_xfer	*sc_xfer[UDAV_N_TRANSFER];
 
 	int			sc_flags;
 #define	UDAV_FLAG_LINK		0x0001

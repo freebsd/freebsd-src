@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Various supported device vendors/products.
  */
-static const struct usb2_device_id kue_devs[] = {
+static const struct usb_device_id kue_devs[] = {
 	{USB_VPI(USB_VENDOR_3COM, USB_PRODUCT_3COM_3C19250, 0)},
 	{USB_VPI(USB_VENDOR_3COM, USB_PRODUCT_3COM_3C460, 0)},
 	{USB_VPI(USB_VENDOR_ABOCOM, USB_PRODUCT_ABOCOM_URE450, 0)},
@@ -141,7 +141,7 @@ static usb2_ether_fn_t kue_setmulti;
 static usb2_ether_fn_t kue_setpromisc;
 
 static int	kue_do_request(struct kue_softc *,
-		    struct usb2_device_request *, void *);
+		    struct usb_device_request *, void *);
 static int	kue_setword(struct kue_softc *, uint8_t, uint16_t);
 static int	kue_ctl(struct kue_softc *, uint8_t, uint8_t, uint16_t,
 		    void *, int);
@@ -156,7 +156,7 @@ SYSCTL_INT(_hw_usb_kue, OID_AUTO, debug, CTLFLAG_RW, &kue_debug, 0,
     "Debug level");
 #endif
 
-static const struct usb2_config kue_config[KUE_N_TRANSFER] = {
+static const struct usb_config kue_config[KUE_N_TRANSFER] = {
 
 	[KUE_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -201,7 +201,7 @@ MODULE_DEPEND(kue, uether, 1, 1, 1);
 MODULE_DEPEND(kue, usb, 1, 1, 1);
 MODULE_DEPEND(kue, ether, 1, 1, 1);
 
-static const struct usb2_ether_methods kue_ue_methods = {
+static const struct usb_ether_methods kue_ue_methods = {
 	.ue_attach_post = kue_attach_post,
 	.ue_start = kue_start,
 	.ue_init = kue_init,
@@ -218,7 +218,7 @@ static const struct usb2_ether_methods kue_ue_methods = {
  * than the default timeout.
  */
 static int
-kue_do_request(struct kue_softc *sc, struct usb2_device_request *req,
+kue_do_request(struct kue_softc *sc, struct usb_device_request *req,
     void *data)
 {
 	usb2_error_t err;
@@ -231,7 +231,7 @@ kue_do_request(struct kue_softc *sc, struct usb2_device_request *req,
 static int
 kue_setword(struct kue_softc *sc, uint8_t breq, uint16_t word)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = breq;
@@ -246,7 +246,7 @@ static int
 kue_ctl(struct kue_softc *sc, uint8_t rw, uint8_t breq,
     uint16_t val, void *data, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	if (rw == KUE_CTL_WRITE)
 		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -265,7 +265,7 @@ kue_ctl(struct kue_softc *sc, uint8_t rw, uint8_t breq,
 static int
 kue_load_fw(struct kue_softc *sc)
 {
-	struct usb2_device_descriptor *dd;
+	struct usb_device_descriptor *dd;
 	uint16_t hwrev;
 	usb2_error_t err;
 
@@ -320,7 +320,7 @@ kue_load_fw(struct kue_softc *sc)
 }
 
 static void
-kue_setpromisc(struct usb2_ether *ue)
+kue_setpromisc(struct usb_ether *ue)
 {
 	struct kue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -336,7 +336,7 @@ kue_setpromisc(struct usb2_ether *ue)
 }
 
 static void
-kue_setmulti(struct usb2_ether *ue)
+kue_setmulti(struct usb_ether *ue)
 {
 	struct kue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -390,7 +390,7 @@ kue_setmulti(struct usb2_ether *ue)
 static void
 kue_reset(struct kue_softc *sc)
 {
-	struct usb2_config_descriptor *cd;
+	struct usb_config_descriptor *cd;
 	usb2_error_t err;
 
 	cd = usb2_get_config_descriptor(sc->sc_ue.ue_udev);
@@ -405,7 +405,7 @@ kue_reset(struct kue_softc *sc)
 }
 
 static void
-kue_attach_post(struct usb2_ether *ue)
+kue_attach_post(struct usb_ether *ue)
 {
 	struct kue_softc *sc = usb2_ether_getsc(ue);
 	int error;
@@ -434,7 +434,7 @@ kue_attach_post(struct usb2_ether *ue)
 static int
 kue_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -453,9 +453,9 @@ kue_probe(device_t dev)
 static int
 kue_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct kue_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
 	int error;
 
@@ -499,7 +499,7 @@ static int
 kue_detach(device_t dev)
 {
 	struct kue_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 
 	usb2_transfer_unsetup(sc->sc_xfer, KUE_N_TRANSFER);
 	usb2_ether_ifdetach(ue);
@@ -514,10 +514,10 @@ kue_detach(device_t dev)
  * the higher level protocols.
  */
 static void
-kue_bulk_read_callback(struct usb2_xfer *xfer)
+kue_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct kue_softc *sc = xfer->priv_sc;
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	struct ifnet *ifp = usb2_ether_getifp(ue);
 	uint8_t buf[2];
 	int len;
@@ -558,7 +558,7 @@ tr_setup:
 }
 
 static void
-kue_bulk_write_callback(struct usb2_xfer *xfer)
+kue_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct kue_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -628,7 +628,7 @@ tr_setup:
 }
 
 static void
-kue_start(struct usb2_ether *ue)
+kue_start(struct usb_ether *ue)
 {
 	struct kue_softc *sc = usb2_ether_getsc(ue);
 
@@ -640,7 +640,7 @@ kue_start(struct usb2_ether *ue)
 }
 
 static void
-kue_init(struct usb2_ether *ue)
+kue_init(struct usb_ether *ue)
 {
 	struct kue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -671,7 +671,7 @@ kue_init(struct usb2_ether *ue)
 }
 
 static void
-kue_stop(struct usb2_ether *ue)
+kue_stop(struct usb_ether *ue)
 {
 	struct kue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);

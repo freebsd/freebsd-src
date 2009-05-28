@@ -186,8 +186,8 @@ struct ustorage_fs_softc {
 	}	sc_transfer;
 
 	device_t sc_dev;
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[USTORAGE_FS_T_BBB_MAX];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[USTORAGE_FS_T_BBB_MAX];
 
 	uint8_t	sc_iface_no;		/* interface number */
 	uint8_t	sc_last_lun;
@@ -254,7 +254,7 @@ DRIVER_MODULE(ustorage_fs, uhub, ustorage_fs_driver, ustorage_fs_devclass, NULL,
 MODULE_VERSION(ustorage_fs, 0);
 MODULE_DEPEND(ustorage_fs, usb, 1, 1, 1);
 
-struct usb2_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
+struct usb_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
 
 	[USTORAGE_FS_T_BBB_COMMAND] = {
 		.type = UE_BULK,
@@ -314,8 +314,8 @@ struct usb2_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
 static int
 ustorage_fs_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 
 	if (uaa->usb_mode != USB_MODE_DEVICE) {
 		return (ENXIO);
@@ -339,8 +339,8 @@ static int
 ustorage_fs_attach(device_t dev)
 {
 	struct ustorage_fs_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 	int err;
 	int unit;
 
@@ -463,7 +463,7 @@ ustorage_fs_handle_request(device_t dev,
     uint16_t offset, uint8_t is_complete)
 {
 	struct ustorage_fs_softc *sc = device_get_softc(dev);
-	const struct usb2_device_request *req = preq;
+	const struct usb_device_request *req = preq;
 
 	if (!is_complete) {
 		if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
@@ -491,7 +491,7 @@ ustorage_fs_handle_request(device_t dev,
 }
 
 static void
-ustorage_fs_t_bbb_command_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_command_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 	uint32_t tag;
@@ -621,7 +621,7 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_data_dump_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_dump_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -673,7 +673,7 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_data_read_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_read_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -726,7 +726,7 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_data_write_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_write_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -788,7 +788,7 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_status_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_status_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 

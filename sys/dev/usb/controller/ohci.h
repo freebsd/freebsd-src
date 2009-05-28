@@ -196,7 +196,7 @@ struct ohci_ed {
 	struct ohci_ed *next;
 	struct ohci_ed *prev;
 	struct ohci_ed *obj_next;
-	struct usb2_page_cache *page_cache;
+	struct usb_page_cache *page_cache;
 	uint32_t ed_self;
 } __aligned(OHCI_ED_ALIGN);
 
@@ -230,7 +230,7 @@ struct ohci_td {
  */
 	struct ohci_td *obj_next;
 	struct ohci_td *alt_next;
-	struct usb2_page_cache *page_cache;
+	struct usb_page_cache *page_cache;
 	uint32_t td_self;
 	uint16_t len;
 } __aligned(OHCI_TD_ALIGN);
@@ -262,7 +262,7 @@ struct ohci_itd {
  * Extra information needed:
  */
 	struct ohci_itd *obj_next;
-	struct usb2_page_cache *page_cache;
+	struct usb_page_cache *page_cache;
 	uint32_t itd_self;
 	uint8_t	frames;
 } __aligned(OHCI_ITD_ALIGN);
@@ -290,39 +290,39 @@ typedef struct ohci_itd ohci_itd_t;
 #define	OHCI_NO_EDS			(2*OHCI_NO_INTRS)
 
 struct ohci_hw_softc {
-	struct usb2_page_cache hcca_pc;
-	struct usb2_page_cache ctrl_start_pc;
-	struct usb2_page_cache bulk_start_pc;
-	struct usb2_page_cache isoc_start_pc;
-	struct usb2_page_cache intr_start_pc[OHCI_NO_EDS];
+	struct usb_page_cache hcca_pc;
+	struct usb_page_cache ctrl_start_pc;
+	struct usb_page_cache bulk_start_pc;
+	struct usb_page_cache isoc_start_pc;
+	struct usb_page_cache intr_start_pc[OHCI_NO_EDS];
 
-	struct usb2_page hcca_pg;
-	struct usb2_page ctrl_start_pg;
-	struct usb2_page bulk_start_pg;
-	struct usb2_page isoc_start_pg;
-	struct usb2_page intr_start_pg[OHCI_NO_EDS];
+	struct usb_page hcca_pg;
+	struct usb_page ctrl_start_pg;
+	struct usb_page bulk_start_pg;
+	struct usb_page isoc_start_pg;
+	struct usb_page intr_start_pg[OHCI_NO_EDS];
 };
 
 struct ohci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union ohci_hub_desc {
-	struct usb2_status stat;
-	struct usb2_port_status ps;
-	struct usb2_hub_descriptor hubd;
+	struct usb_status stat;
+	struct usb_port_status ps;
+	struct usb_hub_descriptor hubd;
 	uint8_t	temp[128];
 };
 
 typedef struct ohci_softc {
 	struct ohci_hw_softc sc_hw;
-	struct usb2_bus sc_bus;		/* base device */
-	struct usb2_callout sc_tmo_rhsc;
+	struct usb_bus sc_bus;		/* base device */
+	struct usb_callout sc_tmo_rhsc;
 	union ohci_hub_desc sc_hub_desc;
 
-	struct usb2_device *sc_devices[OHCI_MAX_DEVICES];
+	struct usb_device *sc_devices[OHCI_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	struct ohci_hcca *sc_hcca_p;

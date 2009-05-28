@@ -925,7 +925,7 @@ libusb20_dev_free(struct libusb20_device *pdev)
 
 int
 libusb20_dev_get_info(struct libusb20_device *pdev,
-    struct usb2_device_info *pinfo)
+    struct usb_device_info *pinfo)
 {
 	if (pinfo == NULL)
 		return (LIBUSB20_ERROR_INVALID_PARAM);
