@@ -338,6 +338,22 @@ typedef struct netobj netobj;
 extern bool_t   xdr_netobj(XDR *, struct netobj *);
 
 /*
+ * These are XDR control operators
+ */
+
+#define	XDR_GET_BYTES_AVAIL 	1
+#define	XDR_PEEK		2
+#define	XDR_SKIPBYTES		3
+
+struct xdr_bytesrec {
+	bool_t xc_is_last_record;
+	size_t xc_num_avail;
+};
+
+typedef struct xdr_bytesrec xdr_bytesrec;
+
+
+/*
  * These are the public routines for the various implementations of
  * xdr streams.
  */
