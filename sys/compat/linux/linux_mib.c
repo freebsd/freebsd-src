@@ -267,11 +267,9 @@ linux_kernver(struct thread *td)
 	int osrel;
 
 	pr = td->td_ucred->cr_prison;
-	if (pr != NULL) {
-		if (pr->pr_linux != NULL) {
-			lpr = (struct linux_prison *)pr->pr_linux;
-			osrel = lpr->pr_osrel;
-		}
+	if (pr != NULL && pr->pr_linux != NULL) {
+		lpr = (struct linux_prison *)pr->pr_linux;
+		osrel = lpr->pr_osrel;
 	} else
 		osrel = linux_osrel;
 	return (osrel);
