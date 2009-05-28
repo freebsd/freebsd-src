@@ -937,7 +937,7 @@ int temp_int;
 int 
 out_char(window, character, column)	/* output non-printing character */
 WINDOW *window;
-char character;
+int character;
 int column;
 {
 	int i1, i2;
@@ -985,7 +985,7 @@ int column;
 
 int 
 len_char(character, column)	/* return the length of the character	*/
-char character;
+int character;
 int column;	/* the column must be known to provide spacing for tabs	*/
 {
 	int length;
