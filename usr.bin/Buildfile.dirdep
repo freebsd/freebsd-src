@@ -546,6 +546,20 @@ dirdep := ${.SRCTOP}/usr.bin/ipcs/Buildfile.dirdep
 .endif
 .endif
 
+dirdep := ${.SRCTOP}/usr.bin/jbuild/Buildfile.dirdep
+.if empty(.MAKEFILE_LIST:M${dirdep})
+.if exists(${dirdep})
+.include "${dirdep}"
+.endif
+.endif
+
+dirdep := ${.SRCTOP}/usr.bin/jdirdep/Buildfile.dirdep
+.if empty(.MAKEFILE_LIST:M${dirdep})
+.if exists(${dirdep})
+.include "${dirdep}"
+.endif
+.endif
+
 dirdep := ${.SRCTOP}/usr.bin/join/Buildfile.dirdep
 .if empty(.MAKEFILE_LIST:M${dirdep})
 .if exists(${dirdep})
@@ -2160,6 +2174,20 @@ D_TGTS_${_t}:= ${D_TGTS_${_t}}
 .if exists(${.SRCTOP}/usr.bin/ipcs/Buildfile.dirdep)
 .for _t in ${_MACHINE_LIST}
 D_TGTS_${_t}+= ${.OBJROOT}/${_t}/usr.bin/ipcs/all
+D_TGTS_${_t}:= ${D_TGTS_${_t}}
+.endfor
+.endif
+
+.if exists(${.SRCTOP}/usr.bin/jbuild/Buildfile.dirdep)
+.for _t in ${_MACHINE_LIST}
+D_TGTS_${_t}+= ${.OBJROOT}/${_t}/usr.bin/jbuild/all
+D_TGTS_${_t}:= ${D_TGTS_${_t}}
+.endfor
+.endif
+
+.if exists(${.SRCTOP}/usr.bin/jdirdep/Buildfile.dirdep)
+.for _t in ${_MACHINE_LIST}
+D_TGTS_${_t}+= ${.OBJROOT}/${_t}/usr.bin/jdirdep/all
 D_TGTS_${_t}:= ${D_TGTS_${_t}}
 .endfor
 .endif

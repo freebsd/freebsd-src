@@ -79,6 +79,8 @@ SUBDIR = \
 	indent \
 	ipcrm \
 	ipcs \
+	jbuild \
+	jdirdep \
 	join \
 	jot \
 	kdump \

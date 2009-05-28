@@ -1,0 +1,44 @@
+# $FreeBSD$
+
+.PATH: ${BSDSRCTOP}/usr.bin/make
+
+PROG = jbuild
+
+HOSTPROG =
+
+SRCS = \
+	arch.c \
+	buf.c \
+	cond.c \
+	dir.c \
+	for.c \
+	hash.c \
+	hash_tables.c \
+	job.c \
+	lst.c \
+	main.c \
+	make.c \
+	parse.c \
+	proc.c \
+	shell.c \
+	str.c \
+	suff.c \
+	targ.c \
+	util.c \
+	var.c
+
+WARNS ?= 6
+NO_SHARED ?= YES
+
+CFLAGS += -I${.CURDIR}
+CFLAGS += -DMAKE_VERSION=\"5200408120\"
+CFLAGS += -DDEFSHELLNAME=\"sh\"
+CFLAGS += -I${.CURDIR}/filemon
+
+# We're building 'build', not 'make' so the behaviour is different in
+# some areas like defaulting to silent.
+CFLAGS += -DMAKE_IS_BUILD -DJBUILD
+
+.include "${BSDSRCTOP}/usr.bin/jdirdep/Buildfile.common"
+
+.include <bsd.prog.mk>

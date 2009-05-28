@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+PROG = jdirdep
+
+HOSTPROG =
+
+.include "Buildfile.common"
+
+WARNS = 6
+
+CFLAGS += -DJDIRDEP_MAIN
+CFLAGS += -DDEBUG
+CFLAGS += -g
+STRIP =
+
+RELDIR = ${STAGEDIR}/usr/bin
+RELFILES = jgetsrc
+
+.include <bsd.prog.mk>
