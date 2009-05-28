@@ -1672,6 +1672,29 @@ fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
 fs/msdosfs/msdosfs_vnops.c	optional msdosfs
+fs/nfs/nfs_commonkrpc.c		optional nfscl | nfsd
+fs/nfs/nfs_commonsubs.c		optional nfscl | nfsd
+fs/nfs/nfs_commonport.c		optional nfscl | nfsd
+fs/nfs/nfs_commonacl.c		optional nfscl | nfsd
+fs/nfsclient/nfs_clcomsubs.c	optional nfscl
+fs/nfsclient/nfs_clsubs.c	optional nfscl
+fs/nfsclient/nfs_clstate.c	optional nfscl
+fs/nfsclient/nfs_clkrpc.c	optional nfscl
+fs/nfsclient/nfs_clrpcops.c	optional nfscl
+fs/nfsclient/nfs_clvnops.c	optional nfscl
+fs/nfsclient/nfs_clnode.c	optional nfscl
+fs/nfsclient/nfs_clvfsops.c	optional nfscl
+fs/nfsclient/nfs_cllock.c	optional nfscl
+fs/nfsclient/nfs_clport.c	optional nfscl
+fs/nfsclient/nfs_clbio.c	optional nfscl
+fs/nfsclient/nfs_clnfsiod.c	optional nfscl
+fs/nfsserver/nfs_nfsdsocket.c	optional nfsd
+fs/nfsserver/nfs_nfsdsubs.c	optional nfsd
+fs/nfsserver/nfs_nfsdstate.c	optional nfsd
+fs/nfsserver/nfs_nfsdkrpc.c	optional nfsd
+fs/nfsserver/nfs_nfsdserv.c	optional nfsd
+fs/nfsserver/nfs_nfsdport.c	optional nfsd
+fs/nfsserver/nfs_nfsdcache.c	optional nfsd
 fs/ntfs/ntfs_compr.c		optional ntfs
 fs/ntfs/ntfs_iconv.c		optional ntfs_iconv
 fs/ntfs/ntfs_ihash.c		optional ntfs
@@ -2420,14 +2443,14 @@ nfsserver/nfs_srvsock.c		optional nfsserver
 nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
-nfs/nfs_nfssvc.c		optional nfsserver
-nlm/nlm_advlock.c		optional nfslockd nfsclient
-nlm/nlm_prot_clnt.c		optional nfslockd
-nlm/nlm_prot_impl.c		optional nfslockd
-nlm/nlm_prot_server.c		optional nfslockd
-nlm/nlm_prot_svc.c		optional nfslockd
-nlm/nlm_prot_xdr.c		optional nfslockd
-nlm/sm_inter_xdr.c		optional nfslockd
+nfs/nfs_nfssvc.c		optional nfsserver | nfscl | nfsd
+nlm/nlm_advlock.c		optional nfslockd nfsclient | nfsd nfsclient
+nlm/nlm_prot_clnt.c		optional nfslockd | nfsd
+nlm/nlm_prot_impl.c		optional nfslockd | nfsd
+nlm/nlm_prot_server.c		optional nfslockd | nfsd
+nlm/nlm_prot_svc.c		optional nfslockd | nfsd
+nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
+nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec
 opencrypto/criov.c		optional crypto
@@ -2447,32 +2470,32 @@ pci/intpm.c			optional intpm pci
 pci/ncr.c			optional ncr pci
 pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
-rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/auth_unix.c			optional krpc | nfslockd | nfsclient
-rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver
-rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient
-rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient
-rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver
-rpc/inet_ntop.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/inet_pton.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/replay.c			optional krpc | nfslockd | nfsserver
-rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/svc.c			optional krpc | nfslockd | nfsserver
-rpc/svc_auth.c			optional krpc | nfslockd | nfsserver
-rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsserver
-rpc/svc_dg.c			optional krpc | nfslockd | nfsserver
-rpc/svc_generic.c		optional krpc | nfslockd | nfsserver
-rpc/svc_vc.c			optional krpc | nfslockd | nfsserver
-rpc/rpcsec_gss/rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi
-rpc/rpcsec_gss/rpcsec_gss_conf.c optional krpc kgssapi | nfslockd kgssapi
-rpc/rpcsec_gss/rpcsec_gss_misc.c optional krpc kgssapi | nfslockd kgssapi
-rpc/rpcsec_gss/rpcsec_gss_prot.c optional krpc kgssapi | nfslockd kgssapi
-rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi
+rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/auth_unix.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
+rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
+rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
+rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/inet_ntop.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/inet_pton.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/replay.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/svc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_auth.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_dg.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_generic.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_vc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/rpcsec_gss/rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_conf.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_misc.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_prot.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
+rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
