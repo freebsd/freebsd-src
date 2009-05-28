@@ -49,7 +49,6 @@ struct ucred {
 	uid_t	cr_ruid;		/* real user id */
 	uid_t	cr_svuid;		/* saved user id */
 	short	cr_ngroups;		/* number of groups */
-	gid_t	cr_groups[NGROUPS];	/* groups */
 	gid_t	cr_rgid;		/* real group id */
 	gid_t	cr_svgid;		/* saved group id */
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
@@ -60,10 +59,14 @@ struct ucred {
 #define	cr_endcopy	cr_label
 	struct label	*cr_label;	/* MAC label */
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
+	gid_t	*cr_groups;		/* groups */
+	short	cr_agroups;		/* Available groups */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
 #endif /* _KERNEL || _WANT_UCRED */
+
+#define	XU_NGROUPS	16
 
 /*
  * This is the external representation of struct ucred.
@@ -72,7 +75,7 @@ struct xucred {
 	u_int	cr_version;		/* structure layout version */
 	uid_t	cr_uid;			/* effective user id */
 	short	cr_ngroups;		/* number of groups */
-	gid_t	cr_groups[NGROUPS];	/* groups */
+	gid_t	cr_groups[XU_NGROUPS];	/* groups */
 	void	*_cr_unused1;		/* compatibility with old ucred */
 };
 #define	XUCRED_VERSION	0
@@ -81,6 +84,7 @@ struct xucred {
 #define	cr_gid cr_groups[0]
 
 #ifdef _KERNEL
+struct proc;
 struct thread;
 
 void	change_egid(struct ucred *newcred, gid_t egid);
@@ -90,6 +94,7 @@ void	change_ruid(struct ucred *newcred, struct uidinfo *ruip);
 void	change_svgid(struct ucred *newcred, gid_t svgid);
 void	change_svuid(struct ucred *newcred, uid_t svuid);
 void	crcopy(struct ucred *dest, struct ucred *src);
+struct ucred	*crcopysafe(struct proc *, struct ucred *);
 struct ucred	*crdup(struct ucred *cr);
 void	cred_update_thread(struct thread *td);
 void	crfree(struct ucred *cr);
@@ -97,6 +102,7 @@ struct ucred	*crget(void);
 struct ucred	*crhold(struct ucred *cr);
 int	crshared(struct ucred *cr);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
+void	crextend(struct ucred *cr, int n);
 int	groupmember(gid_t gid, struct ucred *cred);
 #endif /* _KERNEL */
 

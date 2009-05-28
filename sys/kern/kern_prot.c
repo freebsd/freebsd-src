@@ -276,18 +276,21 @@ struct getgroups_args {
 int
 getgroups(struct thread *td, register struct getgroups_args *uap)
 {
-	gid_t groups[NGROUPS];
+	gid_t *groups;
 	u_int ngrp;
 	int error;
 
 	ngrp = MIN(uap->gidsetsize, NGROUPS);
+	groups = malloc(ngrp * sizeof(*groups), M_TEMP, M_WAITOK);
 	error = kern_getgroups(td, &ngrp, groups);
 	if (error)
-		return (error);
+		goto out;
 	if (uap->gidsetsize > 0)
 		error = copyout(groups, uap->gidset, ngrp * sizeof(gid_t));
 	if (error == 0)
 		td->td_retval[0] = ngrp;
+out:
+	free(groups, M_TEMP);
 	return (error);
 }
 
@@ -486,7 +489,10 @@ setuid(struct thread *td, struct setuid_args *uap)
 	newcred = crget();
 	uip = uifind(uid);
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	/*
+	 * Copy credentials so other references do not see our changes.
+	 */
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_setuid(oldcred, uid);
@@ -521,10 +527,6 @@ setuid(struct thread *td, struct setuid_args *uap)
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETUID, 0)) != 0)
 		goto fail;
 
-	/*
-	 * Copy credentials so other references do not see our changes.
-	 */
-	crcopy(newcred, oldcred);
 #ifdef _POSIX_SAVED_IDS
 	/*
 	 * Do we have "appropriate privileges" (are we root or uid == euid)
@@ -598,7 +600,10 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	newcred = crget();
 	euip = uifind(euid);
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	/*
+	 * Copy credentials so other references do not see our changes.
+	 */
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_seteuid(oldcred, euid);
@@ -612,8 +617,7 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 		goto fail;
 
 	/*
-	 * Everything's okay, do it.  Copy credentials so other references do
-	 * not see our changes.
+	 * Everything's okay, do it.
 	 */
 	crcopy(newcred, oldcred);
 	if (oldcred->cr_uid != euid) {
@@ -651,7 +655,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 	AUDIT_ARG(gid, gid);
 	newcred = crget();
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_setgid(oldcred, gid);
@@ -680,7 +684,6 @@ setgid(struct thread *td, struct setgid_args *uap)
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETGID, 0)) != 0)
 		goto fail;
 
-	crcopy(newcred, oldcred);
 #ifdef _POSIX_SAVED_IDS
 	/*
 	 * Do we have "appropriate privileges" (are we root or gid == egid)
@@ -750,7 +753,7 @@ setegid(struct thread *td, struct setegid_args *uap)
 	AUDIT_ARG(egid, egid);
 	newcred = crget();
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_setegid(oldcred, egid);
@@ -763,7 +766,6 @@ setegid(struct thread *td, struct setegid_args *uap)
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETEGID, 0)) != 0)
 		goto fail;
 
-	crcopy(newcred, oldcred);
 	if (oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
@@ -789,15 +791,19 @@ struct setgroups_args {
 int
 setgroups(struct thread *td, struct setgroups_args *uap)
 {
-	gid_t groups[NGROUPS];
+	gid_t *groups = NULL;
 	int error;
 
 	if (uap->gidsetsize > NGROUPS)
 		return (EINVAL);
+	groups = malloc(uap->gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
 	error = copyin(uap->gidset, groups, uap->gidsetsize * sizeof(gid_t));
 	if (error)
-		return (error);
-	return (kern_setgroups(td, uap->gidsetsize, groups));
+		goto out;
+	error = kern_setgroups(td, uap->gidsetsize, groups);
+out:
+	free(groups, M_TEMP);
+	return (error);
 }
 
 int
@@ -811,8 +817,9 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 		return (EINVAL);
 	AUDIT_ARG(groupset, groups, ngrp);
 	newcred = crget();
+	crextend(newcred, ngrp);
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_setgroups(oldcred, ngrp, groups);
@@ -824,11 +831,6 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	if (error)
 		goto fail;
 
-	/*
-	 * XXX A little bit lazy here.  We could test if anything has
-	 * changed before crcopy() and setting P_SUGID.
-	 */
-	crcopy(newcred, oldcred);
 	if (ngrp < 1) {
 		/*
 		 * setgroups(0, NULL) is a legitimate way of clearing the
@@ -877,7 +879,7 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	euip = uifind(euid);
 	ruip = uifind(ruid);
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_setreuid(oldcred, ruid, euid);
@@ -892,7 +894,6 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREUID, 0)) != 0)
 		goto fail;
 
-	crcopy(newcred, oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
 		change_euid(newcred, euip);
 		setsugid(p);
@@ -942,7 +943,7 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	AUDIT_ARG(rgid, rgid);
 	newcred = crget();
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_setregid(oldcred, rgid, egid);
@@ -957,7 +958,6 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREGID, 0)) != 0)
 		goto fail;
 
-	crcopy(newcred, oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
@@ -1013,7 +1013,7 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	euip = uifind(euid);
 	ruip = uifind(ruid);
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_setresuid(oldcred, ruid, euid, suid);
@@ -1033,7 +1033,6 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESUID, 0)) != 0)
 		goto fail;
 
-	crcopy(newcred, oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
 		change_euid(newcred, euip);
 		setsugid(p);
@@ -1090,7 +1089,7 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	AUDIT_ARG(sgid, sgid);
 	newcred = crget();
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
 	error = mac_cred_check_setresgid(oldcred, rgid, egid, sgid);
@@ -1110,7 +1109,6 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESGID, 0)) != 0)
 		goto fail;
 
-	crcopy(newcred, oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
@@ -1786,6 +1784,7 @@ crget(void)
 #ifdef MAC
 	mac_cred_init(cr);
 #endif
+	crextend(cr, XU_NGROUPS);
 	return (cr);
 }
 
@@ -1830,6 +1829,7 @@ crfree(struct ucred *cr)
 #ifdef MAC
 		mac_cred_destroy(cr);
 #endif
+		free(cr->cr_groups, M_CRED);
 		free(cr, M_CRED);
 	}
 }
@@ -1855,6 +1855,9 @@ crcopy(struct ucred *dest, struct ucred *src)
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));
+	crextend(dest, src->cr_agroups);
+	memcpy(dest->cr_groups, src->cr_groups,
+	    src->cr_ngroups * sizeof(gid_t));
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
 	if (jailed(dest))
@@ -1886,12 +1889,16 @@ crdup(struct ucred *cr)
 void
 cru2x(struct ucred *cr, struct xucred *xcr)
 {
+	int ngroups;
 
 	bzero(xcr, sizeof(*xcr));
 	xcr->cr_version = XUCRED_VERSION;
 	xcr->cr_uid = cr->cr_uid;
-	xcr->cr_ngroups = cr->cr_ngroups;
-	bcopy(cr->cr_groups, xcr->cr_groups, sizeof(cr->cr_groups));
+
+	ngroups = min(cr->cr_ngroups, XU_NGROUPS);
+	xcr->cr_ngroups = ngroups;
+	bcopy(cr->cr_groups, xcr->cr_groups,
+	    ngroups * sizeof(cr->cr_groups[0]));
 }
 
 /*
@@ -1911,6 +1918,59 @@ cred_update_thread(struct thread *td)
 	PROC_UNLOCK(p);
 	if (cred != NULL)
 		crfree(cred);
+}
+
+struct ucred *
+crcopysafe(struct proc *p, struct ucred *cr)
+{
+	struct ucred *oldcred;
+	int groups;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	oldcred = p->p_ucred;
+	while (cr->cr_agroups < oldcred->cr_agroups) {
+		groups = oldcred->cr_agroups;
+		PROC_UNLOCK(p);
+		crextend(cr, groups);
+		PROC_LOCK(p);
+		oldcred = p->p_ucred;
+	}
+	crcopy(cr, oldcred);
+
+	return (oldcred);
+}
+
+/*
+ * Extend the passed in credential to hold n items.
+ */
+void
+crextend(struct ucred *cr, int n)
+{
+	int cnt;
+
+	/* Truncate? */
+	if (n <= cr->cr_agroups)
+		return;
+
+	/*
+	 * We extend by 2 each time since we're using a power of two
+	 * allocator.
+	 */
+	if (cr->cr_agroups)
+		cnt = cr->cr_agroups * 2;
+	else
+		cnt = MINALLOCSIZE / sizeof(gid_t);
+
+	while (cnt < n)
+		cnt *= 2;
+
+	/* Free the old array. */
+	if (cr->cr_groups)
+		free(cr->cr_groups, M_CRED);
+
+	cr->cr_groups = malloc(cnt * sizeof(gid_t), M_CRED, M_WAITOK | M_ZERO);
+	cr->cr_agroups = cnt;
 }
 
 /*
