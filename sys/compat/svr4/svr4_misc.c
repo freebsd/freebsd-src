@@ -370,7 +370,7 @@ again:
 			svr4_dirent.d_off = (svr4_off_t)(off + reclen);
 			svr4_dirent.d_reclen = (u_short) svr4reclen;
 		}
-		strcpy(svr4_dirent.d_name, bdp->d_name);
+		strlcpy(svr4_dirent.d_name, bdp->d_name, sizeof(svr4_dirent.d_name));
 		if ((error = copyout((caddr_t)&svr4_dirent, outp, svr4reclen)))
 			goto out;
 		inp += reclen;
@@ -511,7 +511,7 @@ again:
 		idb.d_ino = (svr4_ino_t)bdp->d_fileno;
 		idb.d_off = (svr4_off_t)off;
 		idb.d_reclen = (u_short)svr4_reclen;
-		strcpy(idb.d_name, bdp->d_name);
+		strlcpy(idb.d_name, bdp->d_name, sizeof(idb.d_name));
 		if ((error = copyout((caddr_t)&idb, outp, svr4_reclen)))
 			goto out;
 		/* advance past this real entry */
