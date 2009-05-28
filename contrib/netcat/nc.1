@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.47 2008/05/06 16:21:03 jmc Exp $
+.\"     $OpenBSD: nc.1,v 1.48 2008/09/19 13:24:41 sobrado Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -53,7 +53,7 @@
 .Ar port Oc Oc
 .Xc
 .Op Ar hostname
-.Op Ar port Ns Bq Ar s
+.Op Ar port
 .Ek
 .Sh DESCRIPTION
 The
@@ -275,8 +275,8 @@ unless the
 option is given
 (in which case the local host is used).
 .Pp
-.Ar port Ns Op Ar s
-can be single integers or ranges.
+.Ar port
+can be a single integer or a range of ports.
 Ranges are in the form nn-mm.
 In general,
 a destination port must be specified,
