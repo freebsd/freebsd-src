@@ -364,12 +364,13 @@ pfs_vptocnp(struct vop_vptocnp_args *ap)
 		}
 		bcopy(pidbuf, buf + i, len);
 	} else {
-		i -= strlen(pd->pn_name);
+		len = strlen(pd->pn_name);
+		i -= len;
 		if (i < 0) {
 			error = ENOMEM;
 			goto failed;
 		}
-		bcopy(pd->pn_name, buf + i, strlen(pd->pn_name));
+		bcopy(pd->pn_name, buf + i, len);
 	}
 
 	pn = pd->pn_parent;
