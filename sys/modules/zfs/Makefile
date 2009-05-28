@@ -44,10 +44,10 @@ SRCS+=	list.c
 SRCS+=	nvpair_alloc_system.c
 SRCS+=	taskq.c
 
-.PATH:	${SUNW}/uts/common/rpc
-SRCS+=	opensolaris_xdr.c
-SRCS+=	opensolaris_xdr_array.c
-SRCS+=	opensolaris_xdr_mem.c
+#.PATH:	${SUNW}/uts/common/rpc
+#SRCS+=	opensolaris_xdr.c
+#SRCS+=	opensolaris_xdr_array.c
+#SRCS+=	opensolaris_xdr_mem.c
 
 .PATH:	${SUNW}/uts/common/zmod
 SRCS+=	adler32.c
