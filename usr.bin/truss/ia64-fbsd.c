@@ -135,7 +135,7 @@ ia64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     syscall_num = (int)*parm_offset++;
 
   fsc.number = syscall_num;
-  fsc.name = (syscall_num < 0 || syscall_num > nsyscalls)
+  fsc.name = (syscall_num < 0 || syscall_num >= nsyscalls)
       ? NULL : syscallnames[syscall_num];
   if (!fsc.name) {
     fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall_num);
