@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.91 2008/05/09 09:00:11 markus Exp $ */
+/* $OpenBSD: netcat.c,v 1.92 2008/09/19 13:24:41 sobrado Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -967,14 +967,15 @@ add_ipsec_policy(int s, char *policy)
 void
 usage(int ret)
 {
+	fprintf(stderr,
 #ifdef IPSEC
-	fprintf(stderr, "usage: nc [-46DdEhklnorStUuvz] [-e policy] [-I receive_buffer_len] [-i interval]\n");
+	    "usage: nc [-46DdEhklnorStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
 #else
-	fprintf(stderr, "usage: nc [-46DdhklnorStUuvz] [-I receive_buffer_len] [-i interval]\n");
+	    "usage: nc [-46DdhklnorStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
-	fprintf(stderr, "\t  [-O send_buffer_len] [-P proxy_username] [-p source_port]\n");
-	fprintf(stderr, "\t  [-s source_ip_address] [-T ToS] [-w timeout] [-X proxy_protocol]\n");
-	fprintf(stderr, "\t  [-x proxy_address[:port]] [hostname] [port[s]]\n");
+	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
+	    "\t  [-w timeout] [-X proxy_protocol] [-x proxy_address[:port]] [hostname]\n"
+	    "\t  [port]\n");
 	if (ret)
 		exit(1);
 }
