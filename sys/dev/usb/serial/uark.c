@@ -68,11 +68,11 @@ enum {
 };
 
 struct uark_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UARK_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UARK_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint8_t	sc_msr;
@@ -88,18 +88,18 @@ static device_detach_t uark_detach;
 static usb2_callback_t uark_bulk_write_callback;
 static usb2_callback_t uark_bulk_read_callback;
 
-static void	uark_start_read(struct usb2_com_softc *);
-static void	uark_stop_read(struct usb2_com_softc *);
-static void	uark_start_write(struct usb2_com_softc *);
-static void	uark_stop_write(struct usb2_com_softc *);
-static int	uark_pre_param(struct usb2_com_softc *, struct termios *);
-static void	uark_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	uark_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static void	uark_start_read(struct ucom_softc *);
+static void	uark_stop_read(struct ucom_softc *);
+static void	uark_start_write(struct ucom_softc *);
+static void	uark_stop_write(struct ucom_softc *);
+static int	uark_pre_param(struct ucom_softc *, struct termios *);
+static void	uark_cfg_param(struct ucom_softc *, struct termios *);
+static void	uark_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
-static void	uark_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	uark_cfg_set_break(struct ucom_softc *, uint8_t);
 static void	uark_cfg_write(struct uark_softc *, uint16_t, uint16_t);
 
-static const struct usb2_config
+static const struct usb_config
 	uark_xfer_config[UARK_N_TRANSFER] = {
 
 	[UARK_BULK_DT_WR] = {
@@ -121,7 +121,7 @@ static const struct usb2_config
 	},
 };
 
-static const struct usb2_com_callback uark_callback = {
+static const struct ucom_callback uark_callback = {
 	.usb2_com_cfg_get_status = &uark_cfg_get_status,
 	.usb2_com_cfg_set_break = &uark_cfg_set_break,
 	.usb2_com_cfg_param = &uark_cfg_param,
@@ -152,14 +152,14 @@ DRIVER_MODULE(uark, uhub, uark_driver, uark_devclass, NULL, 0);
 MODULE_DEPEND(uark, ucom, 1, 1, 1);
 MODULE_DEPEND(uark, usb, 1, 1, 1);
 
-static const struct usb2_device_id uark_devs[] = {
+static const struct usb_device_id uark_devs[] = {
 	{USB_VPI(USB_VENDOR_ARKMICRO, USB_PRODUCT_ARKMICRO_ARK3116, 0)},
 };
 
 static int
 uark_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -176,7 +176,7 @@ uark_probe(device_t dev)
 static int
 uark_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uark_softc *sc = device_get_softc(dev);
 	int32_t error;
 	uint8_t iface_index;
@@ -228,7 +228,7 @@ uark_detach(device_t dev)
 }
 
 static void
-uark_bulk_write_callback(struct usb2_xfer *xfer)
+uark_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct uark_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -256,7 +256,7 @@ tr_setup:
 }
 
 static void
-uark_bulk_read_callback(struct usb2_xfer *xfer)
+uark_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct uark_softc *sc = xfer->priv_sc;
 
@@ -282,7 +282,7 @@ tr_setup:
 }
 
 static void
-uark_start_read(struct usb2_com_softc *ucom)
+uark_start_read(struct ucom_softc *ucom)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
@@ -290,7 +290,7 @@ uark_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uark_stop_read(struct usb2_com_softc *ucom)
+uark_stop_read(struct ucom_softc *ucom)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
@@ -298,7 +298,7 @@ uark_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uark_start_write(struct usb2_com_softc *ucom)
+uark_start_write(struct ucom_softc *ucom)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
@@ -306,7 +306,7 @@ uark_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uark_stop_write(struct usb2_com_softc *ucom)
+uark_stop_write(struct ucom_softc *ucom)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
@@ -314,7 +314,7 @@ uark_stop_write(struct usb2_com_softc *ucom)
 }
 
 static int
-uark_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+uark_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	if ((t->c_ospeed < 300) || (t->c_ospeed > 115200))
 		return (EINVAL);
@@ -322,7 +322,7 @@ uark_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-uark_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+uark_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 	uint32_t speed = t->c_ospeed;
@@ -372,7 +372,7 @@ uark_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-uark_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+uark_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
@@ -381,7 +381,7 @@ uark_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static void
-uark_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+uark_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
@@ -393,7 +393,7 @@ uark_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 static void
 uark_cfg_write(struct uark_softc *sc, uint16_t index, uint16_t value)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 
 	req.bmRequestType = UARK_WRITE;

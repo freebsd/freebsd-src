@@ -94,7 +94,7 @@ static miibus_readreg_t udav_miibus_readreg;
 static miibus_writereg_t udav_miibus_writereg;
 static miibus_statchg_t udav_miibus_statchg;
 
-static const struct usb2_config udav_config[UDAV_N_TRANSFER] = {
+static const struct usb_config udav_config[UDAV_N_TRANSFER] = {
 
 	[UDAV_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -159,7 +159,7 @@ MODULE_DEPEND(udav, usb, 1, 1, 1);
 MODULE_DEPEND(udav, ether, 1, 1, 1);
 MODULE_DEPEND(udav, miibus, 1, 1, 1);
 
-static const struct usb2_ether_methods udav_ue_methods = {
+static const struct usb_ether_methods udav_ue_methods = {
 	.ue_attach_post = udav_attach_post,
 	.ue_start = udav_start,
 	.ue_init = udav_init,
@@ -185,7 +185,7 @@ SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
 #define	UDAV_CLRBIT(sc, reg, x)	\
 	udav_csr_write1(sc, reg, udav_csr_read1(sc, reg) & ~(x))
 
-static const struct usb2_device_id udav_devs[] = {
+static const struct usb_device_id udav_devs[] = {
 	/* ShanTou DM9601 USB NIC */
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601, 0)},
 	/* ShanTou ST268 USB NIC */
@@ -195,7 +195,7 @@ static const struct usb2_device_id udav_devs[] = {
 };
 
 static void
-udav_attach_post(struct usb2_ether *ue)
+udav_attach_post(struct usb_ether *ue)
 {
 	struct udav_softc *sc = usb2_ether_getsc(ue);
 
@@ -209,7 +209,7 @@ udav_attach_post(struct usb2_ether *ue)
 static int
 udav_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -224,9 +224,9 @@ udav_probe(device_t dev)
 static int
 udav_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct udav_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
 	int error;
 
@@ -267,7 +267,7 @@ static int
 udav_detach(device_t dev)
 {
 	struct udav_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 
 	usb2_transfer_unsetup(sc->sc_xfer, UDAV_N_TRANSFER);
 	usb2_ether_ifdetach(ue);
@@ -281,7 +281,7 @@ static int
 udav_mem_read(struct udav_softc *sc, uint16_t offset, void *buf,
     int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	len &= 0xff;
 
@@ -298,7 +298,7 @@ static int
 udav_mem_write(struct udav_softc *sc, uint16_t offset, void *buf,
     int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	len &= 0xff;
 
@@ -315,7 +315,7 @@ static int
 udav_mem_write1(struct udav_softc *sc, uint16_t offset,
     uint8_t ch)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UDAV_REQ_MEM_WRITE1;
@@ -330,7 +330,7 @@ udav_mem_write1(struct udav_softc *sc, uint16_t offset,
 static int
 udav_csr_read(struct udav_softc *sc, uint16_t offset, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	len &= 0xff;
 
@@ -346,7 +346,7 @@ udav_csr_read(struct udav_softc *sc, uint16_t offset, void *buf, int len)
 static int
 udav_csr_write(struct udav_softc *sc, uint16_t offset, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	offset &= 0xff;
 	len &= 0xff;
@@ -373,7 +373,7 @@ static int
 udav_csr_write1(struct udav_softc *sc, uint16_t offset,
     uint8_t ch)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	offset &= 0xff;
 
@@ -387,7 +387,7 @@ udav_csr_write1(struct udav_softc *sc, uint16_t offset,
 }
 
 static void
-udav_init(struct usb2_ether *ue)
+udav_init(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -459,7 +459,7 @@ udav_reset(struct udav_softc *sc)
 
 #define	UDAV_BITS	6
 static void
-udav_setmulti(struct usb2_ether *ue)
+udav_setmulti(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -499,7 +499,7 @@ udav_setmulti(struct usb2_ether *ue)
 }
 
 static void
-udav_setpromisc(struct usb2_ether *ue)
+udav_setpromisc(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -518,7 +518,7 @@ udav_setpromisc(struct usb2_ether *ue)
 }
 
 static void
-udav_start(struct usb2_ether *ue)
+udav_start(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
 
@@ -531,7 +531,7 @@ udav_start(struct usb2_ether *ue)
 }
 
 static void
-udav_bulk_write_callback(struct usb2_xfer *xfer)
+udav_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct udav_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -614,10 +614,10 @@ tr_setup:
 }
 
 static void
-udav_bulk_read_callback(struct usb2_xfer *xfer)
+udav_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct udav_softc *sc = xfer->priv_sc;
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	struct ifnet *ifp = usb2_ether_getifp(ue);
 	struct udav_rxpkt stat;
 	int len;
@@ -665,7 +665,7 @@ tr_setup:
 }
 
 static void
-udav_intr_callback(struct usb2_xfer *xfer)
+udav_intr_callback(struct usb_xfer *xfer)
 {
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -686,7 +686,7 @@ tr_setup:
 }
 
 static void
-udav_stop(struct usb2_ether *ue)
+udav_stop(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -739,7 +739,7 @@ udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-udav_tick(struct usb2_ether *ue)
+udav_tick(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
 	struct mii_data *mii = GET_MII(sc);

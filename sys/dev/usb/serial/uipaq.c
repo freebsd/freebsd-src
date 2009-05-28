@@ -81,11 +81,11 @@ enum {
 };
 
 struct uipaq_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UIPAQ_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UIPAQ_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint16_t sc_line;
@@ -101,15 +101,15 @@ static device_detach_t uipaq_detach;
 static usb2_callback_t uipaq_write_callback;
 static usb2_callback_t uipaq_read_callback;
 
-static void	uipaq_start_read(struct usb2_com_softc *);
-static void	uipaq_stop_read(struct usb2_com_softc *);
-static void	uipaq_start_write(struct usb2_com_softc *);
-static void	uipaq_stop_write(struct usb2_com_softc *);
-static void	uipaq_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	uipaq_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static void	uipaq_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	uipaq_start_read(struct ucom_softc *);
+static void	uipaq_stop_read(struct ucom_softc *);
+static void	uipaq_start_write(struct ucom_softc *);
+static void	uipaq_stop_write(struct ucom_softc *);
+static void	uipaq_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	uipaq_cfg_set_rts(struct ucom_softc *, uint8_t);
+static void	uipaq_cfg_set_break(struct ucom_softc *, uint8_t);
 
-static const struct usb2_config uipaq_config_data[UIPAQ_N_TRANSFER] = {
+static const struct usb_config uipaq_config_data[UIPAQ_N_TRANSFER] = {
 
 	[UIPAQ_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -130,7 +130,7 @@ static const struct usb2_config uipaq_config_data[UIPAQ_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback uipaq_callback = {
+static const struct ucom_callback uipaq_callback = {
 	.usb2_com_cfg_set_dtr = &uipaq_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &uipaq_cfg_set_rts,
 	.usb2_com_cfg_set_break = &uipaq_cfg_set_break,
@@ -145,7 +145,7 @@ static const struct usb2_com_callback uipaq_callback = {
  * support the same hardware. Numeric values are used where no usbdevs
  * entries exist.
  */
-static const struct usb2_device_id uipaq_devs[] = {
+static const struct usb_device_id uipaq_devs[] = {
 	/* Socket USB Sync */
 	{USB_VPI(0x0104, 0x00be, 0)},
 	/* USB Sync 0301 */
@@ -1078,7 +1078,7 @@ MODULE_DEPEND(uipaq, usb, 1, 1, 1);
 static int
 uipaq_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -1095,8 +1095,8 @@ uipaq_probe(device_t dev)
 static int
 uipaq_attach(device_t dev)
 {
-	struct usb2_device_request req;
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_device_request req;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uipaq_softc *sc = device_get_softc(dev);
 	int error;
 	uint8_t iface_index;
@@ -1165,7 +1165,7 @@ uipaq_detach(device_t dev)
 }
 
 static void
-uipaq_start_read(struct usb2_com_softc *ucom)
+uipaq_start_read(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
@@ -1174,7 +1174,7 @@ uipaq_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uipaq_stop_read(struct usb2_com_softc *ucom)
+uipaq_stop_read(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
@@ -1183,7 +1183,7 @@ uipaq_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uipaq_start_write(struct usb2_com_softc *ucom)
+uipaq_start_write(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
@@ -1191,7 +1191,7 @@ uipaq_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uipaq_stop_write(struct usb2_com_softc *ucom)
+uipaq_stop_write(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
@@ -1199,10 +1199,10 @@ uipaq_stop_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uipaq_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+uipaq_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("onoff=%d\n", onoff);
 
@@ -1223,10 +1223,10 @@ uipaq_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-uipaq_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+uipaq_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("onoff=%d\n", onoff);
 
@@ -1247,10 +1247,10 @@ uipaq_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-uipaq_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+uipaq_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t temp;
 
 	temp = onoff ? UCDC_BREAK_ON : UCDC_BREAK_OFF;
@@ -1267,7 +1267,7 @@ uipaq_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-uipaq_write_callback(struct usb2_xfer *xfer)
+uipaq_write_callback(struct usb_xfer *xfer)
 {
 	struct uipaq_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -1294,7 +1294,7 @@ tr_setup:
 }
 
 static void
-uipaq_read_callback(struct usb2_xfer *xfer)
+uipaq_read_callback(struct usb_xfer *xfer)
 {
 	struct uipaq_softc *sc = xfer->priv_sc;
 

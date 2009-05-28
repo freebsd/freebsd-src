@@ -74,23 +74,23 @@ SYSCTL_INT(_hw_usb_avr32dci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb2_bus_methods avr32dci_bus_methods;
-struct usb2_pipe_methods avr32dci_device_non_isoc_methods;
-struct usb2_pipe_methods avr32dci_device_isoc_fs_methods;
+struct usb_bus_methods avr32dci_bus_methods;
+struct usb_pipe_methods avr32dci_device_non_isoc_methods;
+struct usb_pipe_methods avr32dci_device_isoc_fs_methods;
 
 static avr32dci_cmd_t avr32dci_setup_rx;
 static avr32dci_cmd_t avr32dci_data_rx;
 static avr32dci_cmd_t avr32dci_data_tx;
 static avr32dci_cmd_t avr32dci_data_tx_sync;
-static void avr32dci_device_done(struct usb2_xfer *, usb2_error_t);
-static void avr32dci_do_poll(struct usb2_bus *);
-static void avr32dci_standard_done(struct usb2_xfer *);
+static void avr32dci_device_done(struct usb_xfer *, usb2_error_t);
+static void avr32dci_do_poll(struct usb_bus *);
+static void avr32dci_standard_done(struct usb_xfer *);
 static void avr32dci_root_intr(struct avr32dci_softc *sc);
 
 /*
  * Here is a list of what the chip supports:
  */
-static const struct usb2_hw_ep_profile
+static const struct usb_hw_ep_profile
 	avr32dci_ep_profile[4] = {
 
 	[0] = {
@@ -134,8 +134,8 @@ static const struct usb2_hw_ep_profile
 };
 
 static void
-avr32dci_get_hw_ep_profile(struct usb2_device *udev,
-    const struct usb2_hw_ep_profile **ppf, uint8_t ep_addr)
+avr32dci_get_hw_ep_profile(struct usb_device *udev,
+    const struct usb_hw_ep_profile **ppf, uint8_t ep_addr)
 {
 	if (ep_addr == 0)
 		*ppf = avr32dci_ep_profile;
@@ -254,7 +254,7 @@ static uint8_t
 avr32dci_setup_rx(struct avr32dci_td *td)
 {
 	struct avr32dci_softc *sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t count;
 	uint32_t temp;
 
@@ -329,7 +329,7 @@ static uint8_t
 avr32dci_data_rx(struct avr32dci_td *td)
 {
 	struct avr32dci_softc *sc;
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	uint16_t count;
 	uint32_t temp;
 	uint8_t to;
@@ -429,7 +429,7 @@ static uint8_t
 avr32dci_data_tx(struct avr32dci_td *td)
 {
 	struct avr32dci_softc *sc;
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	uint16_t count;
 	uint8_t to;
 	uint32_t temp;
@@ -538,7 +538,7 @@ not_complete:
 }
 
 static uint8_t
-avr32dci_xfer_do_fifo(struct usb2_xfer *xfer)
+avr32dci_xfer_do_fifo(struct usb_xfer *xfer)
 {
 	struct avr32dci_td *td;
 
@@ -583,7 +583,7 @@ done:
 static void
 avr32dci_interrupt_poll(struct avr32dci_softc *sc)
 {
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 
 repeat:
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
@@ -727,7 +727,7 @@ avr32dci_setup_standard_chain_sub(struct avr32dci_std_temp *temp)
 }
 
 static void
-avr32dci_setup_standard_chain(struct usb2_xfer *xfer)
+avr32dci_setup_standard_chain(struct usb_xfer *xfer)
 {
 	struct avr32dci_std_temp temp;
 	struct avr32dci_softc *sc;
@@ -878,7 +878,7 @@ avr32dci_setup_standard_chain(struct usb2_xfer *xfer)
 static void
 avr32dci_timeout(void *arg)
 {
-	struct usb2_xfer *xfer = arg;
+	struct usb_xfer *xfer = arg;
 
 	DPRINTF("xfer=%p\n", xfer);
 
@@ -889,7 +889,7 @@ avr32dci_timeout(void *arg)
 }
 
 static void
-avr32dci_start_standard_chain(struct usb2_xfer *xfer)
+avr32dci_start_standard_chain(struct usb_xfer *xfer)
 {
 	DPRINTFN(9, "\n");
 
@@ -925,7 +925,7 @@ avr32dci_root_intr(struct avr32dci_softc *sc)
 }
 
 static usb2_error_t
-avr32dci_standard_done_sub(struct usb2_xfer *xfer)
+avr32dci_standard_done_sub(struct usb_xfer *xfer)
 {
 	struct avr32dci_td *td;
 	uint32_t len;
@@ -989,7 +989,7 @@ avr32dci_standard_done_sub(struct usb2_xfer *xfer)
 }
 
 static void
-avr32dci_standard_done(struct usb2_xfer *xfer)
+avr32dci_standard_done(struct usb_xfer *xfer)
 {
 	usb2_error_t err = 0;
 
@@ -1038,7 +1038,7 @@ done:
  * same USB transfer!
  *------------------------------------------------------------------------*/
 static void
-avr32dci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
+avr32dci_device_done(struct usb_xfer *xfer, usb2_error_t error)
 {
 	struct avr32dci_softc *sc = AVR32_BUS2SC(xfer->xroot->bus);
 	uint8_t ep_no;
@@ -1061,8 +1061,8 @@ avr32dci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 }
 
 static void
-avr32dci_set_stall(struct usb2_device *udev, struct usb2_xfer *xfer,
-    struct usb2_pipe *pipe)
+avr32dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+    struct usb_pipe *pipe)
 {
 	struct avr32dci_softc *sc;
 	uint8_t ep_no;
@@ -1086,7 +1086,7 @@ static void
 avr32dci_clear_stall_sub(struct avr32dci_softc *sc, uint8_t ep_no,
     uint8_t ep_type, uint8_t ep_dir)
 {
-	const struct usb2_hw_ep_profile *pf;
+	const struct usb_hw_ep_profile *pf;
 	uint32_t temp;
 	uint32_t epsize;
 	uint8_t n;
@@ -1148,10 +1148,10 @@ avr32dci_clear_stall_sub(struct avr32dci_softc *sc, uint8_t ep_no,
 }
 
 static void
-avr32dci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
+avr32dci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 {
 	struct avr32dci_softc *sc;
-	struct usb2_endpoint_descriptor *ed;
+	struct usb_endpoint_descriptor *ed;
 
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
@@ -1279,7 +1279,7 @@ avr32dci_resume(struct avr32dci_softc *sc)
 }
 
 static void
-avr32dci_do_poll(struct usb2_bus *bus)
+avr32dci_do_poll(struct usb_bus *bus)
 {
 	struct avr32dci_softc *sc = AVR32_BUS2SC(bus);
 
@@ -1294,32 +1294,32 @@ avr32dci_do_poll(struct usb2_bus *bus)
  * at91dci interrupt support
  *------------------------------------------------------------------------*/
 static void
-avr32dci_device_non_isoc_open(struct usb2_xfer *xfer)
+avr32dci_device_non_isoc_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-avr32dci_device_non_isoc_close(struct usb2_xfer *xfer)
+avr32dci_device_non_isoc_close(struct usb_xfer *xfer)
 {
 	avr32dci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-avr32dci_device_non_isoc_enter(struct usb2_xfer *xfer)
+avr32dci_device_non_isoc_enter(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-avr32dci_device_non_isoc_start(struct usb2_xfer *xfer)
+avr32dci_device_non_isoc_start(struct usb_xfer *xfer)
 {
 	/* setup TDs */
 	avr32dci_setup_standard_chain(xfer);
 	avr32dci_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods avr32dci_device_non_isoc_methods =
+struct usb_pipe_methods avr32dci_device_non_isoc_methods =
 {
 	.open = avr32dci_device_non_isoc_open,
 	.close = avr32dci_device_non_isoc_close,
@@ -1331,19 +1331,19 @@ struct usb2_pipe_methods avr32dci_device_non_isoc_methods =
  * at91dci full speed isochronous support
  *------------------------------------------------------------------------*/
 static void
-avr32dci_device_isoc_fs_open(struct usb2_xfer *xfer)
+avr32dci_device_isoc_fs_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-avr32dci_device_isoc_fs_close(struct usb2_xfer *xfer)
+avr32dci_device_isoc_fs_close(struct usb_xfer *xfer)
 {
 	avr32dci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-avr32dci_device_isoc_fs_enter(struct usb2_xfer *xfer)
+avr32dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 {
 	struct avr32dci_softc *sc = AVR32_BUS2SC(xfer->xroot->bus);
 	uint32_t temp;
@@ -1398,13 +1398,13 @@ avr32dci_device_isoc_fs_enter(struct usb2_xfer *xfer)
 }
 
 static void
-avr32dci_device_isoc_fs_start(struct usb2_xfer *xfer)
+avr32dci_device_isoc_fs_start(struct usb_xfer *xfer)
 {
 	/* start TD chain */
 	avr32dci_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods avr32dci_device_isoc_fs_methods =
+struct usb_pipe_methods avr32dci_device_isoc_fs_methods =
 {
 	.open = avr32dci_device_isoc_fs_open,
 	.close = avr32dci_device_isoc_fs_close,
@@ -1418,8 +1418,8 @@ struct usb2_pipe_methods avr32dci_device_isoc_fs_methods =
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
 
-static const struct usb2_device_descriptor avr32dci_devd = {
-	.bLength = sizeof(struct usb2_device_descriptor),
+static const struct usb_device_descriptor avr32dci_devd = {
+	.bLength = sizeof(struct usb_device_descriptor),
 	.bDescriptorType = UDESC_DEVICE,
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
@@ -1432,8 +1432,8 @@ static const struct usb2_device_descriptor avr32dci_devd = {
 	.bNumConfigurations = 1,
 };
 
-static const struct usb2_device_qualifier avr32dci_odevd = {
-	.bLength = sizeof(struct usb2_device_qualifier),
+static const struct usb_device_qualifier avr32dci_odevd = {
+	.bLength = sizeof(struct usb_device_qualifier),
 	.bDescriptorType = UDESC_DEVICE_QUALIFIER,
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
@@ -1445,7 +1445,7 @@ static const struct usb2_device_qualifier avr32dci_odevd = {
 
 static const struct avr32dci_config_desc avr32dci_confd = {
 	.confd = {
-		.bLength = sizeof(struct usb2_config_descriptor),
+		.bLength = sizeof(struct usb_config_descriptor),
 		.bDescriptorType = UDESC_CONFIG,
 		.wTotalLength[0] = sizeof(avr32dci_confd),
 		.bNumInterface = 1,
@@ -1455,7 +1455,7 @@ static const struct avr32dci_config_desc avr32dci_confd = {
 		.bMaxPower = 0,
 	},
 	.ifcd = {
-		.bLength = sizeof(struct usb2_interface_descriptor),
+		.bLength = sizeof(struct usb_interface_descriptor),
 		.bDescriptorType = UDESC_INTERFACE,
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
@@ -1463,7 +1463,7 @@ static const struct avr32dci_config_desc avr32dci_confd = {
 		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
 	},
 	.endpd = {
-		.bLength = sizeof(struct usb2_endpoint_descriptor),
+		.bLength = sizeof(struct usb_endpoint_descriptor),
 		.bDescriptorType = UDESC_ENDPOINT,
 		.bEndpointAddress = (UE_DIR_IN | AVR32_INTR_ENDPT),
 		.bmAttributes = UE_INTERRUPT,
@@ -1472,7 +1472,7 @@ static const struct avr32dci_config_desc avr32dci_confd = {
 	},
 };
 
-static const struct usb2_hub_descriptor_min avr32dci_hubd = {
+static const struct usb_hub_descriptor_min avr32dci_hubd = {
 	.bDescLength = sizeof(avr32dci_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
@@ -1501,8 +1501,8 @@ USB_MAKE_STRING_DESC(STRING_VENDOR, avr32dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, avr32dci_product);
 
 static usb2_error_t
-avr32dci_roothub_exec(struct usb2_device *udev,
-    struct usb2_device_request *req, const void **pptr, uint16_t *plength)
+avr32dci_roothub_exec(struct usb_device *udev,
+    struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
 	struct avr32dci_softc *sc = AVR32_BUS2SC(udev->bus);
 	const void *ptr;
@@ -1928,11 +1928,11 @@ done:
 }
 
 static void
-avr32dci_xfer_setup(struct usb2_setup_params *parm)
+avr32dci_xfer_setup(struct usb_setup_params *parm)
 {
-	const struct usb2_hw_ep_profile *pf;
+	const struct usb_hw_ep_profile *pf;
 	struct avr32dci_softc *sc;
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
 	uint32_t n;
@@ -2019,14 +2019,14 @@ avr32dci_xfer_setup(struct usb2_setup_params *parm)
 }
 
 static void
-avr32dci_xfer_unsetup(struct usb2_xfer *xfer)
+avr32dci_xfer_unsetup(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-avr32dci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
-    struct usb2_pipe *pipe)
+avr32dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_pipe *pipe)
 {
 	struct avr32dci_softc *sc = AVR32_BUS2SC(udev->bus);
 
@@ -2053,7 +2053,7 @@ avr32dci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *ed
 	}
 }
 
-struct usb2_bus_methods avr32dci_bus_methods =
+struct usb_bus_methods avr32dci_bus_methods =
 {
 	.pipe_init = &avr32dci_pipe_init,
 	.xfer_setup = &avr32dci_xfer_setup,

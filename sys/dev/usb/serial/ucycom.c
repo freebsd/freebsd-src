@@ -66,11 +66,11 @@ enum {
 };
 
 struct ucycom_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[UCYCOM_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[UCYCOM_N_TRANSFER];
 	struct mtx sc_mtx;
 
 	uint32_t sc_model;
@@ -105,22 +105,22 @@ static device_detach_t ucycom_detach;
 static usb2_callback_t ucycom_ctrl_write_callback;
 static usb2_callback_t ucycom_intr_read_callback;
 
-static void	ucycom_cfg_open(struct usb2_com_softc *);
-static void	ucycom_start_read(struct usb2_com_softc *);
-static void	ucycom_stop_read(struct usb2_com_softc *);
-static void	ucycom_start_write(struct usb2_com_softc *);
-static void	ucycom_stop_write(struct usb2_com_softc *);
+static void	ucycom_cfg_open(struct ucom_softc *);
+static void	ucycom_start_read(struct ucom_softc *);
+static void	ucycom_stop_read(struct ucom_softc *);
+static void	ucycom_start_write(struct ucom_softc *);
+static void	ucycom_stop_write(struct ucom_softc *);
 static void	ucycom_cfg_write(struct ucycom_softc *, uint32_t, uint8_t);
-static int	ucycom_pre_param(struct usb2_com_softc *, struct termios *);
-static void	ucycom_cfg_param(struct usb2_com_softc *, struct termios *);
+static int	ucycom_pre_param(struct ucom_softc *, struct termios *);
+static void	ucycom_cfg_param(struct ucom_softc *, struct termios *);
 
-static const struct usb2_config ucycom_config[UCYCOM_N_TRANSFER] = {
+static const struct usb_config ucycom_config[UCYCOM_N_TRANSFER] = {
 
 	[UCYCOM_CTRL_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = (sizeof(struct usb2_device_request) + UCYCOM_MAX_IOLEN),
+		.bufsize = (sizeof(struct usb_device_request) + UCYCOM_MAX_IOLEN),
 		.callback = &ucycom_ctrl_write_callback,
 		.timeout = 1000,	/* 1 second */
 	},
@@ -135,7 +135,7 @@ static const struct usb2_config ucycom_config[UCYCOM_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback ucycom_callback = {
+static const struct ucom_callback ucycom_callback = {
 	.usb2_com_cfg_param = &ucycom_cfg_param,
 	.usb2_com_cfg_open = &ucycom_cfg_open,
 	.usb2_com_pre_param = &ucycom_pre_param,
@@ -167,7 +167,7 @@ MODULE_DEPEND(ucycom, usb, 1, 1, 1);
 /*
  * Supported devices
  */
-static const struct usb2_device_id ucycom_devs[] = {
+static const struct usb_device_id ucycom_devs[] = {
 	{USB_VPI(USB_VENDOR_DELORME, USB_PRODUCT_DELORME_EARTHMATE, MODEL_CY7C64013)},
 };
 
@@ -177,7 +177,7 @@ static const struct usb2_device_id ucycom_devs[] = {
 static int
 ucycom_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -194,7 +194,7 @@ ucycom_probe(device_t dev)
 static int
 ucycom_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ucycom_softc *sc = device_get_softc(dev);
 	void *urd_ptr = NULL;
 	int32_t error;
@@ -288,7 +288,7 @@ ucycom_detach(device_t dev)
 }
 
 static void
-ucycom_cfg_open(struct usb2_com_softc *ucom)
+ucycom_cfg_open(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
@@ -297,7 +297,7 @@ ucycom_cfg_open(struct usb2_com_softc *ucom)
 }
 
 static void
-ucycom_start_read(struct usb2_com_softc *ucom)
+ucycom_start_read(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
@@ -305,7 +305,7 @@ ucycom_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-ucycom_stop_read(struct usb2_com_softc *ucom)
+ucycom_stop_read(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
@@ -313,7 +313,7 @@ ucycom_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-ucycom_start_write(struct usb2_com_softc *ucom)
+ucycom_start_write(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
@@ -321,7 +321,7 @@ ucycom_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-ucycom_stop_write(struct usb2_com_softc *ucom)
+ucycom_stop_write(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
@@ -329,10 +329,10 @@ ucycom_stop_write(struct usb2_com_softc *ucom)
 }
 
 static void
-ucycom_ctrl_write_callback(struct usb2_xfer *xfer)
+ucycom_ctrl_write_callback(struct usb_xfer *xfer)
 {
 	struct ucycom_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t data[2];
 	uint8_t offset;
 	uint32_t actlen;
@@ -399,7 +399,7 @@ tr_transferred:
 static void
 ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t len;
 	usb2_error_t err;
 
@@ -431,7 +431,7 @@ ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg)
 }
 
 static int
-ucycom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+ucycom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	switch (t->c_ospeed) {
 		case 600:
@@ -459,7 +459,7 @@ ucycom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-ucycom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+ucycom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 	uint8_t cfg;
@@ -494,7 +494,7 @@ ucycom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-ucycom_intr_read_callback(struct usb2_xfer *xfer)
+ucycom_intr_read_callback(struct usb_xfer *xfer)
 {
 	struct ucycom_softc *sc = xfer->priv_sc;
 	uint8_t buf[2];

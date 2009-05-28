@@ -191,12 +191,12 @@
 struct atmegadci_td;
 
 typedef uint8_t (atmegadci_cmd_t)(struct atmegadci_td *td);
-typedef void (atmegadci_clocks_t)(struct usb2_bus *);
+typedef void (atmegadci_clocks_t)(struct usb_bus *);
 
 struct atmegadci_td {
 	struct atmegadci_td *obj_next;
 	atmegadci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_packet_size;
@@ -210,7 +210,7 @@ struct atmegadci_td {
 
 struct atmegadci_std_temp {
 	atmegadci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	struct atmegadci_td *td;
 	struct atmegadci_td *td_next;
 	uint32_t len;
@@ -226,14 +226,14 @@ struct atmegadci_std_temp {
 };
 
 struct atmegadci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union atmegadci_hub_temp {
 	uWord	wValue;
-	struct usb2_port_status ps;
+	struct usb_port_status ps;
 };
 
 struct atmegadci_flags {
@@ -251,14 +251,14 @@ struct atmegadci_flags {
 };
 
 struct atmegadci_softc {
-	struct usb2_bus sc_bus;
+	struct usb_bus sc_bus;
 	union atmegadci_hub_temp sc_hub_temp;
 
 	/* must be set by by the bus interface layer */
 	atmegadci_clocks_t *sc_clocks_on;
 	atmegadci_clocks_t *sc_clocks_off;
 
-	struct usb2_device *sc_devices[ATMEGA_MAX_DEVICES];
+	struct usb_device *sc_devices[ATMEGA_MAX_DEVICES];
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
 	struct resource *sc_io_res;

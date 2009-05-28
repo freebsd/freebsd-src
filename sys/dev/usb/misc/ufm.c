@@ -55,10 +55,10 @@ __FBSDID("$FreeBSD$");
 #define	UFM_CMD2		0x02
 
 struct ufm_softc {
-	struct usb2_fifo_sc sc_fifo;
+	struct usb_fifo_sc sc_fifo;
 	struct mtx sc_mtx;
 
-	struct usb2_device *sc_udev;
+	struct usb_device *sc_udev;
 
 	uint32_t sc_unit;
 	uint32_t sc_freq;
@@ -75,7 +75,7 @@ static device_detach_t ufm_detach;
 static usb2_fifo_ioctl_t ufm_ioctl;
 static usb2_fifo_open_t ufm_open;
 
-static struct usb2_fifo_methods ufm_fifo_methods = {
+static struct usb_fifo_methods ufm_fifo_methods = {
 	.f_ioctl = &ufm_ioctl,
 	.f_open = &ufm_open,
 	.basename[0] = "ufm",
@@ -110,7 +110,7 @@ MODULE_DEPEND(ufm, usb, 1, 1, 1);
 static int
 ufm_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -125,7 +125,7 @@ ufm_probe(device_t dev)
 static int
 ufm_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ufm_softc *sc = device_get_softc(dev);
 	int error;
 
@@ -166,7 +166,7 @@ ufm_detach(device_t dev)
 }
 
 static int
-ufm_open(struct usb2_fifo *dev, int fflags)
+ufm_open(struct usb_fifo *dev, int fflags)
 {
 	if ((fflags & (FWRITE | FREAD)) != (FWRITE | FREAD)) {
 		return (EACCES);
@@ -180,7 +180,7 @@ ufm_do_req(struct ufm_softc *sc, uint8_t request,
 {
 	int error;
 
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t buf[1];
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -296,7 +296,7 @@ ufm_get_stat(struct ufm_softc *sc, void *addr)
 }
 
 static int
-ufm_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
+ufm_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
     int fflags)
 {
 	struct ufm_softc *sc = fifo->priv_sc0;

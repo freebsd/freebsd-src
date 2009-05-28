@@ -157,12 +157,12 @@
 struct avr32dci_td;
 
 typedef uint8_t (avr32dci_cmd_t)(struct avr32dci_td *td);
-typedef void (avr32dci_clocks_t)(struct usb2_bus *);
+typedef void (avr32dci_clocks_t)(struct usb_bus *);
 
 struct avr32dci_td {
 	struct avr32dci_td *obj_next;
 	avr32dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_packet_size;
@@ -176,7 +176,7 @@ struct avr32dci_td {
 
 struct avr32dci_std_temp {
 	avr32dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	struct avr32dci_td *td;
 	struct avr32dci_td *td_next;
 	uint32_t len;
@@ -193,14 +193,14 @@ struct avr32dci_std_temp {
 };
 
 struct avr32dci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union avr32dci_hub_temp {
 	uWord	wValue;
-	struct usb2_port_status ps;
+	struct usb_port_status ps;
 };
 
 struct avr32dci_flags {
@@ -218,14 +218,14 @@ struct avr32dci_flags {
 };
 
 struct avr32dci_softc {
-	struct usb2_bus sc_bus;
+	struct usb_bus sc_bus;
 	union avr32dci_hub_temp sc_hub_temp;
 
 	/* must be set by by the bus interface layer */
 	avr32dci_clocks_t *sc_clocks_on;
 	avr32dci_clocks_t *sc_clocks_off;
 
-	struct usb2_device *sc_devices[AVR32_MAX_DEVICES];
+	struct usb_device *sc_devices[AVR32_MAX_DEVICES];
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
 	struct resource *sc_io_res;

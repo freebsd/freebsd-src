@@ -65,10 +65,10 @@ enum {
 };
 
 struct ubtbcmfw_softc {
-	struct usb2_device	*sc_udev;
+	struct usb_device	*sc_udev;
 	struct mtx		sc_mtx;
-	struct usb2_xfer	*sc_xfer[UBTBCMFW_N_TRANSFER];
-	struct usb2_fifo_sc	sc_fifo;
+	struct usb_xfer	*sc_xfer[UBTBCMFW_N_TRANSFER];
+	struct usb_fifo_sc	sc_fifo;
 };
 
 /*
@@ -90,7 +90,7 @@ static usb2_fifo_cmd_t		ubtbcmfw_stop_write;
 static usb2_fifo_ioctl_t	ubtbcmfw_ioctl;
 static usb2_fifo_open_t		ubtbcmfw_open;
 
-static struct usb2_fifo_methods	ubtbcmfw_fifo_methods = 
+static struct usb_fifo_methods	ubtbcmfw_fifo_methods = 
 {
 	.f_close =		&ubtbcmfw_close,
 	.f_ioctl =		&ubtbcmfw_ioctl,
@@ -111,7 +111,7 @@ static struct usb2_fifo_methods	ubtbcmfw_fifo_methods =
  * Device's config structure
  */
 
-static const struct usb2_config	ubtbcmfw_config[UBTBCMFW_N_TRANSFER] =
+static const struct usb_config	ubtbcmfw_config[UBTBCMFW_N_TRANSFER] =
 {
 	[UBTBCMFW_BULK_DT_WR] = {
 		.type =		UE_BULK,
@@ -167,12 +167,12 @@ MODULE_DEPEND(ubtbcmfw, usb, 1, 1, 1);
 static int
 ubtbcmfw_probe(device_t dev)
 {
-	const struct usb2_device_id	devs[] = {
+	const struct usb_device_id	devs[] = {
 	/* Broadcom BCM2033 devices only */
 	{ USB_VPI(USB_VENDOR_BROADCOM, USB_PRODUCT_BROADCOM_BCM2033, 0) },
 	};
 
-	struct usb2_attach_arg	*uaa = device_get_ivars(dev);
+	struct usb_attach_arg	*uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -190,7 +190,7 @@ ubtbcmfw_probe(device_t dev)
 static int
 ubtbcmfw_attach(device_t dev)
 {
-	struct usb2_attach_arg	*uaa = device_get_ivars(dev);
+	struct usb_attach_arg	*uaa = device_get_ivars(dev);
 	struct ubtbcmfw_softc	*sc = device_get_softc(dev);
 	uint8_t			iface_index;
 	int			error;
@@ -252,10 +252,10 @@ ubtbcmfw_detach(device_t dev)
  */
 
 static void
-ubtbcmfw_write_callback(struct usb2_xfer *xfer)
+ubtbcmfw_write_callback(struct usb_xfer *xfer)
 {
 	struct ubtbcmfw_softc	*sc = xfer->priv_sc;
-	struct usb2_fifo	*f = sc->sc_fifo.fp[USB_FIFO_TX];
+	struct usb_fifo	*f = sc->sc_fifo.fp[USB_FIFO_TX];
 	uint32_t		actlen;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -284,10 +284,10 @@ setup_next:
  */
 
 static void
-ubtbcmfw_read_callback(struct usb2_xfer *xfer)
+ubtbcmfw_read_callback(struct usb_xfer *xfer)
 {
 	struct ubtbcmfw_softc	*sc = xfer->priv_sc;
-	struct usb2_fifo	*fifo = sc->sc_fifo.fp[USB_FIFO_RX];
+	struct usb_fifo	*fifo = sc->sc_fifo.fp[USB_FIFO_RX];
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -317,7 +317,7 @@ setup_next:
  */
 
 static void
-ubtbcmfw_start_read(struct usb2_fifo *fifo)
+ubtbcmfw_start_read(struct usb_fifo *fifo)
 {
 	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
 
@@ -329,7 +329,7 @@ ubtbcmfw_start_read(struct usb2_fifo *fifo)
  */
 
 static void
-ubtbcmfw_stop_read(struct usb2_fifo *fifo)
+ubtbcmfw_stop_read(struct usb_fifo *fifo)
 {
 	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
 
@@ -342,7 +342,7 @@ ubtbcmfw_stop_read(struct usb2_fifo *fifo)
  */
 
 static void
-ubtbcmfw_start_write(struct usb2_fifo *fifo)
+ubtbcmfw_start_write(struct usb_fifo *fifo)
 {
 	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
 
@@ -354,7 +354,7 @@ ubtbcmfw_start_write(struct usb2_fifo *fifo)
  */
 
 static void
-ubtbcmfw_stop_write(struct usb2_fifo *fifo)
+ubtbcmfw_stop_write(struct usb_fifo *fifo)
 {
 	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
 
@@ -366,10 +366,10 @@ ubtbcmfw_stop_write(struct usb2_fifo *fifo)
  */
 
 static int
-ubtbcmfw_open(struct usb2_fifo *fifo, int fflags)
+ubtbcmfw_open(struct usb_fifo *fifo, int fflags)
 {
 	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
-	struct usb2_xfer	*xfer;
+	struct usb_xfer	*xfer;
 
 	/*
 	 * f_open fifo method can only be called with either FREAD
@@ -395,7 +395,7 @@ ubtbcmfw_open(struct usb2_fifo *fifo, int fflags)
  */
 
 static void
-ubtbcmfw_close(struct usb2_fifo *fifo, int fflags)
+ubtbcmfw_close(struct usb_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE))
 		usb2_fifo_free_buffer(fifo);
@@ -406,7 +406,7 @@ ubtbcmfw_close(struct usb2_fifo *fifo, int fflags)
  */
 
 static int
-ubtbcmfw_ioctl(struct usb2_fifo *fifo, u_long cmd, void *data,
+ubtbcmfw_ioctl(struct usb_fifo *fifo, u_long cmd, void *data,
     int fflags)
 {
 	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
@@ -415,7 +415,7 @@ ubtbcmfw_ioctl(struct usb2_fifo *fifo, u_long cmd, void *data,
 	switch (cmd) {
 	case USB_GET_DEVICE_DESC:
 		memcpy(data, usb2_get_device_descriptor(sc->sc_udev),
-			sizeof(struct usb2_device_descriptor));
+			sizeof(struct usb_device_descriptor));
 		break;
 
 	default:

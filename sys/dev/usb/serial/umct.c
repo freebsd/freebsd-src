@@ -87,11 +87,11 @@ enum {
 };
 
 struct umct_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[UMCT_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[UMCT_N_TRANSFER];
 	struct mtx sc_mtx;
 
 	uint32_t sc_unit;
@@ -118,20 +118,20 @@ static usb2_callback_t umct_read_callback;
 
 static void	umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 		    uint16_t len, uint32_t value);
-static void	umct_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static void	umct_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
-static void	umct_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static void	umct_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	umct_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	umct_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	umct_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	umct_cfg_set_rts(struct ucom_softc *, uint8_t);
 static uint8_t	umct_calc_baud(uint32_t);
-static int	umct_pre_param(struct usb2_com_softc *, struct termios *);
-static void	umct_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	umct_start_read(struct usb2_com_softc *);
-static void	umct_stop_read(struct usb2_com_softc *);
-static void	umct_start_write(struct usb2_com_softc *);
-static void	umct_stop_write(struct usb2_com_softc *);
+static int	umct_pre_param(struct ucom_softc *, struct termios *);
+static void	umct_cfg_param(struct ucom_softc *, struct termios *);
+static void	umct_start_read(struct ucom_softc *);
+static void	umct_stop_read(struct ucom_softc *);
+static void	umct_start_write(struct ucom_softc *);
+static void	umct_stop_write(struct ucom_softc *);
 
-static const struct usb2_config umct_config[UMCT_N_TRANSFER] = {
+static const struct usb_config umct_config[UMCT_N_TRANSFER] = {
 
 	[UMCT_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -163,7 +163,7 @@ static const struct usb2_config umct_config[UMCT_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback umct_callback = {
+static const struct ucom_callback umct_callback = {
 	.usb2_com_cfg_get_status = &umct_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &umct_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &umct_cfg_set_rts,
@@ -176,7 +176,7 @@ static const struct usb2_com_callback umct_callback = {
 	.usb2_com_stop_write = &umct_stop_write,
 };
 
-static const struct usb2_device_id umct_devs[] = {
+static const struct usb_device_id umct_devs[] = {
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_USB232, 0)},
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_SITECOM_USB232, 0)},
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_DU_H3SP_USB232, 0)},
@@ -206,7 +206,7 @@ MODULE_DEPEND(umct, usb, 1, 1, 1);
 static int
 umct_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -223,7 +223,7 @@ umct_probe(device_t dev)
 static int
 umct_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umct_softc *sc = device_get_softc(dev);
 	int32_t error;
 	uint16_t maxp;
@@ -259,7 +259,7 @@ umct_attach(device_t dev)
 
 		/* guessed wrong - switch around endpoints */
 
-		struct usb2_xfer *temp = sc->sc_xfer[UMCT_INTR_DT_RD];
+		struct usb_xfer *temp = sc->sc_xfer[UMCT_INTR_DT_RD];
 
 		sc->sc_xfer[UMCT_INTR_DT_RD] = sc->sc_xfer[UMCT_BULK_DT_RD];
 		sc->sc_xfer[UMCT_BULK_DT_RD] = temp;
@@ -302,7 +302,7 @@ static void
 umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
     uint16_t len, uint32_t value)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 	uint8_t temp[4];
 
@@ -326,7 +326,7 @@ umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 }
 
 static void
-umct_intr_callback(struct usb2_xfer *xfer)
+umct_intr_callback(struct usb_xfer *xfer)
 {
 	struct umct_softc *sc = xfer->priv_sc;
 	uint8_t buf[2];
@@ -361,7 +361,7 @@ tr_setup:
 }
 
 static void
-umct_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+umct_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -370,7 +370,7 @@ umct_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static void
-umct_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+umct_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -383,7 +383,7 @@ umct_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umct_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+umct_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -396,7 +396,7 @@ umct_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umct_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+umct_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -439,13 +439,13 @@ umct_calc_baud(uint32_t baud)
 }
 
 static int
-umct_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+umct_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	return (0);			/* we accept anything */
 }
 
 static void
-umct_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+umct_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 	uint32_t value;
@@ -486,7 +486,7 @@ umct_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-umct_start_read(struct usb2_com_softc *ucom)
+umct_start_read(struct ucom_softc *ucom)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -498,7 +498,7 @@ umct_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-umct_stop_read(struct usb2_com_softc *ucom)
+umct_stop_read(struct ucom_softc *ucom)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -510,7 +510,7 @@ umct_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-umct_start_write(struct usb2_com_softc *ucom)
+umct_start_write(struct ucom_softc *ucom)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -518,7 +518,7 @@ umct_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-umct_stop_write(struct usb2_com_softc *ucom)
+umct_stop_write(struct ucom_softc *ucom)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -526,7 +526,7 @@ umct_stop_write(struct usb2_com_softc *ucom)
 }
 
 static void
-umct_write_callback(struct usb2_xfer *xfer)
+umct_write_callback(struct usb_xfer *xfer)
 {
 	struct umct_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -554,7 +554,7 @@ tr_setup:
 }
 
 static void
-umct_read_callback(struct usb2_xfer *xfer)
+umct_read_callback(struct usb_xfer *xfer)
 {
 	struct umct_softc *sc = xfer->priv_sc;
 

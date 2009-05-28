@@ -172,7 +172,7 @@ enum {
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
 /* recognized device vendors/products */
-static const struct usb2_device_id uath_devs[] = {
+static const struct usb_device_id uath_devs[] = {
 #define	UATH_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	UATH_DEV(ATHEROS,		AR5523),
 	UATH_DEV(ATHEROS2,		AR5523_1),
@@ -204,7 +204,7 @@ static usb2_callback_t uath_intr_tx_callback;
 static usb2_callback_t uath_bulk_rx_callback;
 static usb2_callback_t uath_bulk_tx_callback;
 
-static const struct usb2_config uath_usbconfig[UATH_N_XFERS] = {
+static const struct usb_config uath_usbconfig[UATH_N_XFERS] = {
 	[UATH_INTR_RX] = {
 		.type = UE_BULK,
 		.endpoint = 0x1,
@@ -327,7 +327,7 @@ static void	uath_sysctl_node(struct uath_softc *);
 static int
 uath_match(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -343,7 +343,7 @@ static int
 uath_attach(device_t dev)
 {
 	struct uath_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	uint8_t bands, iface_index = UATH_IFACE_INDEX;		/* XXX */
@@ -2380,7 +2380,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 }
 
 static void
-uath_intr_rx_callback(struct usb2_xfer *xfer)
+uath_intr_rx_callback(struct usb_xfer *xfer)
 {
 	struct uath_softc *sc = xfer->priv_sc;
 	struct uath_cmd *cmd;
@@ -2416,7 +2416,7 @@ setup:
 }
 
 static void
-uath_intr_tx_callback(struct usb2_xfer *xfer)
+uath_intr_tx_callback(struct usb_xfer *xfer)
 {
 	struct uath_softc *sc = xfer->priv_sc;
 	struct uath_cmd *cmd;
@@ -2502,7 +2502,7 @@ uath_update_rxstat(struct uath_softc *sc, uint32_t status)
 }
 
 static struct mbuf *
-uath_data_rxeof(struct usb2_xfer *xfer, struct uath_data *data,
+uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
     struct uath_rx_desc **pdesc)
 {
 	struct uath_softc *sc = xfer->priv_sc;
@@ -2672,7 +2672,7 @@ uath_data_rxeof(struct usb2_xfer *xfer, struct uath_data *data,
 }
 
 static void
-uath_bulk_rx_callback(struct usb2_xfer *xfer)
+uath_bulk_rx_callback(struct usb_xfer *xfer)
 {
 	struct uath_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2753,7 +2753,7 @@ setup:
 }
 
 static void
-uath_data_txeof(struct usb2_xfer *xfer, struct uath_data *data)
+uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 {
 	struct uath_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2784,7 +2784,7 @@ uath_data_txeof(struct usb2_xfer *xfer, struct uath_data *data)
 }
 
 static void
-uath_bulk_tx_callback(struct usb2_xfer *xfer)
+uath_bulk_tx_callback(struct usb_xfer *xfer)
 {
 	struct uath_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;

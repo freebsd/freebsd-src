@@ -30,7 +30,7 @@
 /*
  * The following structure defines an USB port. 
  */
-struct usb2_port {
+struct usb_port {
 	uint8_t	restartcnt;
 #define	USB_RESTART_MAX 5
 	uint8_t	device_index;		/* zero means not valid */
@@ -41,7 +41,7 @@ struct usb2_port {
  * The following structure defines how many bytes are
  * left in an 1ms USB time slot.
  */
-struct usb2_fs_isoc_schedule {
+struct usb_fs_isoc_schedule {
 	uint16_t total_bytes;
 	uint8_t	frame_bytes;
 	uint8_t	frame_slot;
@@ -50,33 +50,33 @@ struct usb2_fs_isoc_schedule {
 /*
  * The following structure defines an USB HUB.
  */
-struct usb2_hub {
+struct usb_hub {
 #if USB_HAVE_TT_SUPPORT
-	struct usb2_fs_isoc_schedule fs_isoc_schedule[USB_ISOC_TIME_MAX];
+	struct usb_fs_isoc_schedule fs_isoc_schedule[USB_ISOC_TIME_MAX];
 #endif
-	struct usb2_device *hubudev;	/* the HUB device */
-	usb2_error_t (*explore) (struct usb2_device *hub);
+	struct usb_device *hubudev;	/* the HUB device */
+	usb2_error_t (*explore) (struct usb_device *hub);
 	void   *hubsoftc;
 	usb2_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
 	uint16_t portpower;		/* mA per USB port */
 	uint8_t	isoc_last_time;
 	uint8_t	nports;
-	struct usb2_port ports[0];
+	struct usb_port ports[0];
 };
 
 /* function prototypes */
 
-uint8_t	usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len,
+uint8_t	usb2_intr_schedule_adjust(struct usb_device *udev, int16_t len,
 	    uint8_t slot);
-void	usb2_fs_isoc_schedule_init_all(struct usb2_fs_isoc_schedule *fss);
-void	usb2_bus_port_set_device(struct usb2_bus *bus, struct usb2_port *up,
-	    struct usb2_device *udev, uint8_t device_index);
-struct usb2_device *usb2_bus_port_get_device(struct usb2_bus *bus,
-	    struct usb2_port *up);
-void	usb2_needs_explore(struct usb2_bus *bus, uint8_t do_probe);
+void	usb2_fs_isoc_schedule_init_all(struct usb_fs_isoc_schedule *fss);
+void	usb2_bus_port_set_device(struct usb_bus *bus, struct usb_port *up,
+	    struct usb_device *udev, uint8_t device_index);
+struct usb_device *usb2_bus_port_get_device(struct usb_bus *bus,
+	    struct usb_port *up);
+void	usb2_needs_explore(struct usb_bus *bus, uint8_t do_probe);
 void	usb2_needs_explore_all(void);
-void	usb2_bus_power_update(struct usb2_bus *bus);
-void	usb2_bus_powerd(struct usb2_bus *bus);
-void	uhub_root_intr(struct usb2_bus *, const uint8_t *, uint8_t);
+void	usb2_bus_power_update(struct usb_bus *bus);
+void	usb2_bus_powerd(struct usb_bus *bus);
+void	uhub_root_intr(struct usb_bus *, const uint8_t *, uint8_t);
 
 #endif					/* _USB2_HUB_H_ */

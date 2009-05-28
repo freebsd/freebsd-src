@@ -102,14 +102,14 @@
 
 /* Declaration of USB records */
 
-struct usb2_device_request {
+struct usb_device_request {
 	uByte	bmRequestType;
 	uByte	bRequest;
 	uWord	wValue;
 	uWord	wIndex;
 	uWord	wLength;
 } __packed;
-typedef struct usb2_device_request usb_device_request_t;
+typedef struct usb_device_request usb_device_request_t;
 
 #define	UT_WRITE		0x00
 #define	UT_READ			0x80
@@ -226,14 +226,14 @@ typedef struct usb2_device_request usb_device_request_t;
 #define	UHF_C_BH_PORT_RESET	29
 #define	UHF_FORCE_LINKPM_ACCEPT	30
 
-struct usb2_descriptor {
+struct usb_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDescriptorSubtype;
 } __packed;
-typedef struct usb2_descriptor usb_descriptor_t;
+typedef struct usb_descriptor usb_descriptor_t;
 
-struct usb2_device_descriptor {
+struct usb_device_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uWord	bcdUSB;
@@ -254,19 +254,19 @@ struct usb2_device_descriptor {
 	uByte	iSerialNumber;
 	uByte	bNumConfigurations;
 } __packed;
-typedef struct usb2_device_descriptor usb_device_descriptor_t;
+typedef struct usb_device_descriptor usb_device_descriptor_t;
 
 /* Binary Device Object Store (BOS) */
-struct usb2_bos_descriptor {
+struct usb_bos_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uWord	wTotalLength;
 	uByte	bNumDeviceCaps;
 } __packed;
-typedef struct usb2_bos_descriptor usb_bos_descriptor_t;
+typedef struct usb_bos_descriptor usb_bos_descriptor_t;
 
 /* Binary Device Object Store Capability */
-struct usb2_bos_cap_descriptor {
+struct usb_bos_cap_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDevCapabilityType;
@@ -277,18 +277,18 @@ struct usb2_bos_cap_descriptor {
 #define	USB_DEVCAP_CONTAINER_ID	0x04
 	/* data ... */
 } __packed;
-typedef struct usb2_bos_cap_descriptor usb_bos_cap_descriptor_t;
+typedef struct usb_bos_cap_descriptor usb_bos_cap_descriptor_t;
 
-struct usb2_devcap_usb2ext_descriptor {
+struct usb_devcap_usb2ext_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDevCapabilityType;
 	uByte	bmAttributes;
 #define	USB_V2EXT_LPM 0x02
 } __packed;
-typedef struct usb2_devcap_usb2ext_descriptor usb_devcap_usb2ext_descriptor_t;
+typedef struct usb_devcap_usb2ext_descriptor usb_devcap_usb2ext_descriptor_t;
 
-struct usb2_devcap_ss_descriptor {
+struct usb_devcap_ss_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDevCapabilityType;
@@ -298,16 +298,16 @@ struct usb2_devcap_ss_descriptor {
 	uByte	bU1DevExitLat;
 	uByte	bU2DevExitLat;
 } __packed;
-typedef struct usb2_devcap_ss_descriptor usb_devcap_ss_descriptor_t;
+typedef struct usb_devcap_ss_descriptor usb_devcap_ss_descriptor_t;
 
-struct usb2_devcap_container_id_descriptor {
+struct usb_devcap_container_id_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDevCapabilityType;
 	uByte	bReserved;
 	uByte	ContainerID;
 } __packed;
-typedef struct usb2_devcap_container_id_descriptor
+typedef struct usb_devcap_container_id_descriptor
 		usb_devcap_container_id_descriptor_t;
 
 /* Device class codes */
@@ -324,7 +324,7 @@ typedef struct usb2_devcap_container_id_descriptor
 #define	UDPROTO_BLUETOOTH	0x01
 #define	UDCLASS_VENDOR		0xff
 
-struct usb2_config_descriptor {
+struct usb_config_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uWord	wTotalLength;
@@ -339,9 +339,9 @@ struct usb2_config_descriptor {
 	uByte	bMaxPower;		/* max current in 2 mA units */
 #define	UC_POWER_FACTOR 2
 } __packed;
-typedef struct usb2_config_descriptor usb_config_descriptor_t;
+typedef struct usb_config_descriptor usb_config_descriptor_t;
 
-struct usb2_interface_descriptor {
+struct usb_interface_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bInterfaceNumber;
@@ -352,9 +352,9 @@ struct usb2_interface_descriptor {
 	uByte	bInterfaceProtocol;
 	uByte	iInterface;
 } __packed;
-typedef struct usb2_interface_descriptor usb_interface_descriptor_t;
+typedef struct usb_interface_descriptor usb_interface_descriptor_t;
 
-struct usb2_interface_assoc_descriptor {
+struct usb_interface_assoc_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bFirstInterface;
@@ -364,7 +364,7 @@ struct usb2_interface_assoc_descriptor {
 	uByte	bFunctionProtocol;
 	uByte	iFunction;
 } __packed;
-typedef struct usb2_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
+typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 
 /* Interface class codes */
 #define	UICLASS_UNSPEC		0x00
@@ -455,7 +455,7 @@ typedef struct usb2_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 #define	UISUBCLASS_XBOX360_CONTROLLER	0x5d
 #define	UIPROTO_XBOX360_GAMEPAD	0x01
 
-struct usb2_endpoint_descriptor {
+struct usb_endpoint_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bEndpointAddress;
@@ -487,25 +487,25 @@ struct usb2_endpoint_descriptor {
 #define	UE_ZERO_MPS 0xFFFF		/* for internal use only */
 	uByte	bInterval;
 } __packed;
-typedef struct usb2_endpoint_descriptor usb_endpoint_descriptor_t;
+typedef struct usb_endpoint_descriptor usb_endpoint_descriptor_t;
 
-struct usb2_endpoint_ss_comp_descriptor {
+struct usb_endpoint_ss_comp_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uWord	bMaxBurst;
 	uByte	bmAttributes;
 	uWord	wBytesPerInterval;
 } __packed;
-typedef struct usb2_endpoint_ss_comp_descriptor
+typedef struct usb_endpoint_ss_comp_descriptor
 		usb_endpoint_ss_comp_descriptor_t;
 
-struct usb2_string_descriptor {
+struct usb_string_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uWord	bString[126];
 	uByte	bUnused;
 } __packed;
-typedef struct usb2_string_descriptor usb_string_descriptor_t;
+typedef struct usb_string_descriptor usb_string_descriptor_t;
 
 #define	USB_MAKE_STRING_DESC(m,name)	\
 struct name {				\
@@ -519,7 +519,7 @@ static const struct name name = {	\
   .bData = { m },			\
 }
 
-struct usb2_hub_descriptor {
+struct usb_hub_descriptor {
 	uByte	bDescLength;
 	uByte	bDescriptorType;
 	uByte	bNbrPorts;
@@ -547,9 +547,9 @@ struct usb2_hub_descriptor {
     (((desc)->DeviceRemovable[(i)/8] >> ((i) % 8)) & 1)
 	uByte	PortPowerCtrlMask[1];	/* deprecated */
 } __packed;
-typedef struct usb2_hub_descriptor usb_hub_descriptor_t;
+typedef struct usb_hub_descriptor usb_hub_descriptor_t;
 
-struct usb2_hub_ss_descriptor {
+struct usb_hub_ss_descriptor {
 	uByte	bDescLength;
 	uByte	bDescriptorType;
 	uByte	bNbrPorts;		/* max 15 */
@@ -560,10 +560,10 @@ struct usb2_hub_ss_descriptor {
 	uWord	wHubDelay;
 	uByte	DeviceRemovable[2];	/* max 15 ports */
 } __packed;
-typedef struct usb2_hub_ss_descriptor usb_hub_ss_descriptor_t;
+typedef struct usb_hub_ss_descriptor usb_hub_ss_descriptor_t;
 
 /* minimum HUB descriptor (8-ports maximum) */
-struct usb2_hub_descriptor_min {
+struct usb_hub_descriptor_min {
 	uByte	bDescLength;
 	uByte	bDescriptorType;
 	uByte	bNbrPorts;
@@ -573,9 +573,9 @@ struct usb2_hub_descriptor_min {
 	uByte	DeviceRemovable[1];
 	uByte	PortPowerCtrlMask[1];
 } __packed;
-typedef struct usb2_hub_descriptor_min usb_hub_descriptor_min_t;
+typedef struct usb_hub_descriptor_min usb_hub_descriptor_min_t;
 
-struct usb2_device_qualifier {
+struct usb_device_qualifier {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uWord	bcdUSB;
@@ -586,23 +586,23 @@ struct usb2_device_qualifier {
 	uByte	bNumConfigurations;
 	uByte	bReserved;
 } __packed;
-typedef struct usb2_device_qualifier usb_device_qualifier_t;
+typedef struct usb_device_qualifier usb_device_qualifier_t;
 
-struct usb2_otg_descriptor {
+struct usb_otg_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bmAttributes;
 #define	UOTG_SRP	0x01
 #define	UOTG_HNP	0x02
 } __packed;
-typedef struct usb2_otg_descriptor usb_otg_descriptor_t;
+typedef struct usb_otg_descriptor usb_otg_descriptor_t;
 
 /* OTG feature selectors */
 #define	UOTG_B_HNP_ENABLE	3
 #define	UOTG_A_HNP_SUPPORT	4
 #define	UOTG_A_ALT_HNP_SUPPORT	5
 
-struct usb2_status {
+struct usb_status {
 	uWord	wStatus;
 /* Device status flags */
 #define	UDS_SELF_POWERED		0x0001
@@ -610,17 +610,17 @@ struct usb2_status {
 /* Endpoint status flags */
 #define	UES_HALT			0x0001
 } __packed;
-typedef struct usb2_status usb_status_t;
+typedef struct usb_status usb_status_t;
 
-struct usb2_hub_status {
+struct usb_hub_status {
 	uWord	wHubStatus;
 #define	UHS_LOCAL_POWER			0x0001
 #define	UHS_OVER_CURRENT		0x0002
 	uWord	wHubChange;
 } __packed;
-typedef struct usb2_hub_status usb_hub_status_t;
+typedef struct usb_hub_status usb_hub_status_t;
 
-struct usb2_port_status {
+struct usb_port_status {
 	uWord	wPortStatus;
 #define	UPS_CURRENT_CONNECT_STATUS	0x0001
 #define	UPS_PORT_ENABLED		0x0002
@@ -640,6 +640,6 @@ struct usb2_port_status {
 #define	UPS_C_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_C_PORT_RESET		0x0010
 } __packed;
-typedef struct usb2_port_status usb_port_status_t;
+typedef struct usb_port_status usb_port_status_t;
 
 #endif					/* _USB2_STANDARD_H_ */

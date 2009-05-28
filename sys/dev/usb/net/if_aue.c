@@ -97,7 +97,7 @@ SYSCTL_INT(_hw_usb_aue, OID_AUTO, debug, CTLFLAG_RW, &aue_debug, 0,
 /*
  * Various supported device vendors/products.
  */
-static const struct usb2_device_id aue_devs[] = {
+static const struct usb_device_id aue_devs[] = {
     {USB_VPI(USB_VENDOR_3COM, USB_PRODUCT_3COM_3C460B, AUE_FLAG_PII)},
     {USB_VPI(USB_VENDOR_ABOCOM, USB_PRODUCT_ABOCOM_DSB650TX_PNA, 0)},
     {USB_VPI(USB_VENDOR_ABOCOM, USB_PRODUCT_ABOCOM_UFE1000, AUE_FLAG_LSYS)},
@@ -202,7 +202,7 @@ static void	aue_reset_pegasus_II(struct aue_softc *);
 static int	aue_ifmedia_upd(struct ifnet *);
 static void	aue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static const struct usb2_config aue_config[AUE_N_TRANSFER] = {
+static const struct usb_config aue_config[AUE_N_TRANSFER] = {
 
 	[AUE_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -266,7 +266,7 @@ MODULE_DEPEND(aue, usb, 1, 1, 1);
 MODULE_DEPEND(aue, ether, 1, 1, 1);
 MODULE_DEPEND(aue, miibus, 1, 1, 1);
 
-static const struct usb2_ether_methods aue_ue_methods = {
+static const struct usb_ether_methods aue_ue_methods = {
 	.ue_attach_post = aue_attach_post,
 	.ue_start = aue_start,
 	.ue_init = aue_init,
@@ -287,7 +287,7 @@ static const struct usb2_ether_methods aue_ue_methods = {
 static uint8_t
 aue_csr_read_1(struct aue_softc *sc, uint16_t reg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 	uint8_t val;
 
@@ -306,7 +306,7 @@ aue_csr_read_1(struct aue_softc *sc, uint16_t reg)
 static uint16_t
 aue_csr_read_2(struct aue_softc *sc, uint16_t reg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 	uint16_t val;
 
@@ -325,7 +325,7 @@ aue_csr_read_2(struct aue_softc *sc, uint16_t reg)
 static void
 aue_csr_write_1(struct aue_softc *sc, uint16_t reg, uint8_t val)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = AUE_UR_WRITEREG;
@@ -342,7 +342,7 @@ aue_csr_write_1(struct aue_softc *sc, uint16_t reg, uint8_t val)
 static void
 aue_csr_write_2(struct aue_softc *sc, uint16_t reg, uint16_t val)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = AUE_UR_WRITEREG;
@@ -518,7 +518,7 @@ aue_miibus_statchg(device_t dev)
 
 #define	AUE_BITS	6
 static void
-aue_setmulti(struct usb2_ether *ue)
+aue_setmulti(struct usb_ether *ue)
 {
 	struct aue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -609,7 +609,7 @@ aue_reset(struct aue_softc *sc)
 }
 
 static void
-aue_attach_post(struct usb2_ether *ue)
+aue_attach_post(struct usb_ether *ue)
 {
 	struct aue_softc *sc = usb2_ether_getsc(ue);
 
@@ -626,7 +626,7 @@ aue_attach_post(struct usb2_ether *ue)
 static int
 aue_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -654,9 +654,9 @@ aue_probe(device_t dev)
 static int
 aue_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct aue_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
 	int error;
 
@@ -701,7 +701,7 @@ static int
 aue_detach(device_t dev)
 {
 	struct aue_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 
 	usb2_transfer_unsetup(sc->sc_xfer, AUE_N_TRANSFER);
 	usb2_ether_ifdetach(ue);
@@ -711,7 +711,7 @@ aue_detach(device_t dev)
 }
 
 static void
-aue_intr_callback(struct usb2_xfer *xfer)
+aue_intr_callback(struct usb_xfer *xfer)
 {
 	struct aue_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -749,10 +749,10 @@ tr_setup:
 }
 
 static void
-aue_bulk_read_callback(struct usb2_xfer *xfer)
+aue_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct aue_softc *sc = xfer->priv_sc;
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	struct ifnet *ifp = usb2_ether_getifp(ue);
 	struct aue_rxpkt stat;
 
@@ -811,7 +811,7 @@ tr_setup:
 }
 
 static void
-aue_bulk_write_callback(struct usb2_xfer *xfer)
+aue_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct aue_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -893,7 +893,7 @@ tr_setup:
 }
 
 static void
-aue_tick(struct usb2_ether *ue)
+aue_tick(struct usb_ether *ue)
 {
 	struct aue_softc *sc = usb2_ether_getsc(ue);
 	struct mii_data *mii = GET_MII(sc);
@@ -910,7 +910,7 @@ aue_tick(struct usb2_ether *ue)
 }
 
 static void
-aue_start(struct usb2_ether *ue)
+aue_start(struct usb_ether *ue)
 {
 	struct aue_softc *sc = usb2_ether_getsc(ue);
 
@@ -923,7 +923,7 @@ aue_start(struct usb2_ether *ue)
 }
 
 static void
-aue_init(struct usb2_ether *ue)
+aue_init(struct usb_ether *ue)
 {
 	struct aue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -958,7 +958,7 @@ aue_init(struct usb2_ether *ue)
 }
 
 static void
-aue_setpromisc(struct usb2_ether *ue)
+aue_setpromisc(struct usb_ether *ue)
 {
 	struct aue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -1015,7 +1015,7 @@ aue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
  * RX and TX lists.
  */
 static void
-aue_stop(struct usb2_ether *ue)
+aue_stop(struct usb_ether *ue)
 {
 	struct aue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);

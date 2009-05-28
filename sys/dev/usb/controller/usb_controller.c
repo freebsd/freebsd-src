@@ -47,7 +47,7 @@ static device_probe_t usb2_probe;
 static device_attach_t usb2_attach;
 static device_detach_t usb2_detach;
 
-static void	usb2_attach_sub(device_t, struct usb2_bus *);
+static void	usb2_attach_sub(device_t, struct usb_bus *);
 static void	usb2_post_init(void *);
 
 /* static variables */
@@ -104,7 +104,7 @@ usb2_probe(device_t dev)
 static int
 usb2_attach(device_t dev)
 {
-	struct usb2_bus *bus = device_get_ivars(dev);
+	struct usb_bus *bus = device_get_ivars(dev);
 
 	DPRINTF("\n");
 
@@ -131,7 +131,7 @@ usb2_attach(device_t dev)
 static int
 usb2_detach(device_t dev)
 {
-	struct usb2_bus *bus = device_get_softc(dev);
+	struct usb_bus *bus = device_get_softc(dev);
 
 	DPRINTF("\n");
 
@@ -182,12 +182,12 @@ usb2_detach(device_t dev)
  * This function is used to explore the device tree from the root.
  *------------------------------------------------------------------------*/
 static void
-usb2_bus_explore(struct usb2_proc_msg *pm)
+usb2_bus_explore(struct usb_proc_msg *pm)
 {
-	struct usb2_bus *bus;
-	struct usb2_device *udev;
+	struct usb_bus *bus;
+	struct usb_device *udev;
 
-	bus = ((struct usb2_bus_msg *)pm)->bus;
+	bus = ((struct usb_bus_msg *)pm)->bus;
 	udev = bus->devices[USB_ROOT_HUB_ADDR];
 
 	if (udev && udev->hub) {
@@ -230,13 +230,13 @@ usb2_bus_explore(struct usb2_proc_msg *pm)
  * This function is used to detach the device tree from the root.
  *------------------------------------------------------------------------*/
 static void
-usb2_bus_detach(struct usb2_proc_msg *pm)
+usb2_bus_detach(struct usb_proc_msg *pm)
 {
-	struct usb2_bus *bus;
-	struct usb2_device *udev;
+	struct usb_bus *bus;
+	struct usb_device *udev;
 	device_t dev;
 
-	bus = ((struct usb2_bus_msg *)pm)->bus;
+	bus = ((struct usb_bus_msg *)pm)->bus;
 	udev = bus->devices[USB_ROOT_HUB_ADDR];
 	dev = bus->bdev;
 	/* clear the softc */
@@ -264,7 +264,7 @@ usb2_bus_detach(struct usb2_proc_msg *pm)
 static void
 usb2_power_wdog(void *arg)
 {
-	struct usb2_bus *bus = arg;
+	struct usb_bus *bus = arg;
 
 	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
 
@@ -284,15 +284,15 @@ usb2_power_wdog(void *arg)
  * This function attaches USB in context of the explore thread.
  *------------------------------------------------------------------------*/
 static void
-usb2_bus_attach(struct usb2_proc_msg *pm)
+usb2_bus_attach(struct usb_proc_msg *pm)
 {
-	struct usb2_bus *bus;
-	struct usb2_device *child;
+	struct usb_bus *bus;
+	struct usb_device *child;
 	device_t dev;
 	usb2_error_t err;
 	enum usb_dev_speed speed;
 
-	bus = ((struct usb2_bus_msg *)pm)->bus;
+	bus = ((struct usb_bus_msg *)pm)->bus;
 	dev = bus->bdev;
 
 	DPRINTF("\n");
@@ -382,7 +382,7 @@ usb2_bus_attach(struct usb2_proc_msg *pm)
  * "usb2_attach()" method.
  *------------------------------------------------------------------------*/
 static void
-usb2_attach_sub(device_t dev, struct usb2_bus *bus)
+usb2_attach_sub(device_t dev, struct usb_bus *bus)
 {
 	const char *pname = device_get_nameunit(dev);
 
@@ -440,7 +440,7 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 static void
 usb2_post_init(void *arg)
 {
-	struct usb2_bus *bus;
+	struct usb_bus *bus;
 	devclass_t dc;
 	device_t dev;
 	int max;
@@ -484,8 +484,8 @@ SYSUNINIT(usb2_bus_unload, SI_SUB_KLD, SI_ORDER_ANY, usb2_bus_unload, NULL);
  *------------------------------------------------------------------------*/
 #if USB_HAVE_BUSDMA
 static void
-usb2_bus_mem_flush_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
-    struct usb2_page *pg, uint32_t size, uint32_t align)
+usb2_bus_mem_flush_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
+    struct usb_page *pg, uint32_t size, uint32_t align)
 {
 	usb2_pc_cpu_flush(pc);
 }
@@ -496,7 +496,7 @@ usb2_bus_mem_flush_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
  *------------------------------------------------------------------------*/
 #if USB_HAVE_BUSDMA
 void
-usb2_bus_mem_flush_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
+usb2_bus_mem_flush_all(struct usb_bus *bus, usb2_bus_mem_cb_t *cb)
 {
 	if (cb) {
 		cb(bus, &usb2_bus_mem_flush_all_cb);
@@ -509,8 +509,8 @@ usb2_bus_mem_flush_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
  *------------------------------------------------------------------------*/
 #if USB_HAVE_BUSDMA
 static void
-usb2_bus_mem_alloc_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
-    struct usb2_page *pg, uint32_t size, uint32_t align)
+usb2_bus_mem_alloc_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
+    struct usb_page *pg, uint32_t size, uint32_t align)
 {
 	/* need to initialize the page cache */
 	pc->tag_parent = bus->dma_parent_tag;
@@ -529,7 +529,7 @@ usb2_bus_mem_alloc_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
  * Else: Failure
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
+usb2_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
     usb2_bus_mem_cb_t *cb)
 {
 	bus->alloc_failed = 0;
@@ -569,8 +569,8 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
  *------------------------------------------------------------------------*/
 #if USB_HAVE_BUSDMA
 static void
-usb2_bus_mem_free_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
-    struct usb2_page *pg, uint32_t size, uint32_t align)
+usb2_bus_mem_free_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
+    struct usb_page *pg, uint32_t size, uint32_t align)
 {
 	usb2_pc_free_mem(pc);
 }
@@ -580,7 +580,7 @@ usb2_bus_mem_free_all_cb(struct usb2_bus *bus, struct usb2_page_cache *pc,
  *	usb2_bus_mem_free_all - factored out code
  *------------------------------------------------------------------------*/
 void
-usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
+usb2_bus_mem_free_all(struct usb_bus *bus, usb2_bus_mem_cb_t *cb)
 {
 #if USB_HAVE_BUSDMA
 	if (cb) {

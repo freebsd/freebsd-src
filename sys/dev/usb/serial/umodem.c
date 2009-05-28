@@ -108,7 +108,7 @@ SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
     &umodem_debug, 0, "Debug level");
 #endif
 
-static const struct usb2_device_id umodem_devs[] = {
+static const struct usb_device_id umodem_devs[] = {
 	/* Generic Modem class match */
 	{USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
@@ -137,11 +137,11 @@ enum {
 #define	UMODEM_MODVER			1	/* module version */
 
 struct umodem_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UMODEM_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UMODEM_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint16_t sc_line;
@@ -164,25 +164,25 @@ static usb2_callback_t umodem_intr_callback;
 static usb2_callback_t umodem_write_callback;
 static usb2_callback_t umodem_read_callback;
 
-static void	umodem_start_read(struct usb2_com_softc *);
-static void	umodem_stop_read(struct usb2_com_softc *);
-static void	umodem_start_write(struct usb2_com_softc *);
-static void	umodem_stop_write(struct usb2_com_softc *);
-static void	umodem_get_caps(struct usb2_attach_arg *, uint8_t *, uint8_t *);
-static void	umodem_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static void	umodem_start_read(struct ucom_softc *);
+static void	umodem_stop_read(struct ucom_softc *);
+static void	umodem_start_write(struct ucom_softc *);
+static void	umodem_stop_write(struct ucom_softc *);
+static void	umodem_get_caps(struct usb_attach_arg *, uint8_t *, uint8_t *);
+static void	umodem_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
-static int	umodem_pre_param(struct usb2_com_softc *, struct termios *);
-static void	umodem_cfg_param(struct usb2_com_softc *, struct termios *);
-static int	umodem_ioctl(struct usb2_com_softc *, uint32_t, caddr_t, int,
+static int	umodem_pre_param(struct ucom_softc *, struct termios *);
+static void	umodem_cfg_param(struct ucom_softc *, struct termios *);
+static int	umodem_ioctl(struct ucom_softc *, uint32_t, caddr_t, int,
 		    struct thread *);
-static void	umodem_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	umodem_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static void	umodem_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static void	*umodem_get_desc(struct usb2_attach_arg *, uint8_t, uint8_t);
-static usb2_error_t umodem_set_comm_feature(struct usb2_device *, uint8_t,
+static void	umodem_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	umodem_cfg_set_rts(struct ucom_softc *, uint8_t);
+static void	umodem_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	*umodem_get_desc(struct usb_attach_arg *, uint8_t, uint8_t);
+static usb2_error_t umodem_set_comm_feature(struct usb_device *, uint8_t,
 		    uint16_t, uint16_t);
 
-static const struct usb2_config umodem_config[UMODEM_N_TRANSFER] = {
+static const struct usb_config umodem_config[UMODEM_N_TRANSFER] = {
 
 	[UMODEM_BULK_WR] = {
 		.type = UE_BULK,
@@ -215,7 +215,7 @@ static const struct usb2_config umodem_config[UMODEM_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback umodem_callback = {
+static const struct ucom_callback umodem_callback = {
 	.usb2_com_cfg_get_status = &umodem_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &umodem_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &umodem_cfg_set_rts,
@@ -252,7 +252,7 @@ MODULE_VERSION(umodem, UMODEM_MODVER);
 static int
 umodem_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	int error;
 
 	DPRINTFN(11, "\n");
@@ -267,10 +267,10 @@ umodem_probe(device_t dev)
 static int
 umodem_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umodem_softc *sc = device_get_softc(dev);
-	struct usb2_cdc_cm_descriptor *cmd;
-	struct usb2_cdc_union_descriptor *cud;
+	struct usb_cdc_cm_descriptor *cmd;
+	struct usb_cdc_union_descriptor *cud;
 	uint8_t i;
 	int error;
 
@@ -312,8 +312,8 @@ umodem_attach(device_t dev)
 	/* get the data interface too */
 
 	for (i = 0;; i++) {
-		struct usb2_interface *iface;
-		struct usb2_interface_descriptor *id;
+		struct usb_interface *iface;
+		struct usb_interface_descriptor *id;
 
 		iface = usb2_get_iface(uaa->device, i);
 
@@ -370,7 +370,7 @@ detach:
 }
 
 static void
-umodem_start_read(struct usb2_com_softc *ucom)
+umodem_start_read(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
@@ -382,7 +382,7 @@ umodem_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-umodem_stop_read(struct usb2_com_softc *ucom)
+umodem_stop_read(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
@@ -394,7 +394,7 @@ umodem_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-umodem_start_write(struct usb2_com_softc *ucom)
+umodem_start_write(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
@@ -402,7 +402,7 @@ umodem_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-umodem_stop_write(struct usb2_com_softc *ucom)
+umodem_stop_write(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
@@ -410,10 +410,10 @@ umodem_stop_write(struct usb2_com_softc *ucom)
 }
 
 static void
-umodem_get_caps(struct usb2_attach_arg *uaa, uint8_t *cm, uint8_t *acm)
+umodem_get_caps(struct usb_attach_arg *uaa, uint8_t *cm, uint8_t *acm)
 {
-	struct usb2_cdc_cm_descriptor *cmd;
-	struct usb2_cdc_acm_descriptor *cad;
+	struct usb_cdc_cm_descriptor *cmd;
+	struct usb_cdc_acm_descriptor *cad;
 
 	cmd = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
@@ -431,7 +431,7 @@ umodem_get_caps(struct usb2_attach_arg *uaa, uint8_t *cm, uint8_t *acm)
 }
 
 static void
-umodem_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+umodem_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
@@ -442,17 +442,17 @@ umodem_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static int
-umodem_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+umodem_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	return (0);			/* we accept anything */
 }
 
 static void
-umodem_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+umodem_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
-	struct usb2_cdc_line_state ls;
-	struct usb2_device_request req;
+	struct usb_cdc_line_state ls;
+	struct usb_device_request req;
 
 	DPRINTF("sc=%p\n", sc);
 
@@ -498,7 +498,7 @@ umodem_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static int
-umodem_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data,
+umodem_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
     int flag, struct thread *td)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
@@ -527,10 +527,10 @@ umodem_ioctl(struct usb2_com_softc *ucom, uint32_t cmd, caddr_t data,
 }
 
 static void
-umodem_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+umodem_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("onoff=%d\n", onoff);
 
@@ -551,10 +551,10 @@ umodem_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umodem_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+umodem_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("onoff=%d\n", onoff);
 
@@ -575,10 +575,10 @@ umodem_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umodem_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+umodem_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t temp;
 
 	DPRINTF("onoff=%d\n", onoff);
@@ -600,9 +600,9 @@ umodem_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umodem_intr_callback(struct usb2_xfer *xfer)
+umodem_intr_callback(struct usb_xfer *xfer)
 {
-	struct usb2_cdc_notification pkt;
+	struct usb_cdc_notification pkt;
 	struct umodem_softc *sc = xfer->priv_sc;
 	uint16_t wLen;
 
@@ -687,7 +687,7 @@ tr_setup:
 }
 
 static void
-umodem_write_callback(struct usb2_xfer *xfer)
+umodem_write_callback(struct usb_xfer *xfer)
 {
 	struct umodem_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -715,7 +715,7 @@ tr_setup:
 }
 
 static void
-umodem_read_callback(struct usb2_xfer *xfer)
+umodem_read_callback(struct usb_xfer *xfer)
 {
 	struct umodem_softc *sc = xfer->priv_sc;
 
@@ -744,18 +744,18 @@ tr_setup:
 }
 
 static void *
-umodem_get_desc(struct usb2_attach_arg *uaa, uint8_t type, uint8_t subtype)
+umodem_get_desc(struct usb_attach_arg *uaa, uint8_t type, uint8_t subtype)
 {
 	return (usb2_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
 	    type, 0 - 1, subtype, 0 - 1));
 }
 
 static usb2_error_t
-umodem_set_comm_feature(struct usb2_device *udev, uint8_t iface_no,
+umodem_set_comm_feature(struct usb_device *udev, uint8_t iface_no,
     uint16_t feature, uint16_t state)
 {
-	struct usb2_device_request req;
-	struct usb2_cdc_abstract_state ast;
+	struct usb_device_request req;
+	struct usb_cdc_abstract_state ast;
 
 	DPRINTF("feature=%d state=%d\n",
 	    feature, state);

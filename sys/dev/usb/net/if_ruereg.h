@@ -170,9 +170,9 @@ enum {
 };
 
 struct rue_softc {
-	struct usb2_ether	sc_ue;
+	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
-	struct usb2_xfer	*sc_xfer[RUE_N_TRANSFER];
+	struct usb_xfer	*sc_xfer[RUE_N_TRANSFER];
 
 	int			sc_flags;
 #define	RUE_FLAG_LINK		0x0001

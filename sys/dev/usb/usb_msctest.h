@@ -27,7 +27,7 @@
 #ifndef _USB2_MSCTEST_H_
 #define	_USB2_MSCTEST_H_
 
-usb2_error_t usb2_test_autoinstall(struct usb2_device *udev,
+usb2_error_t usb2_test_autoinstall(struct usb_device *udev,
 	    uint8_t iface_index, uint8_t do_eject);
 
 #endif					/* _USB2_MSCTEST_H_ */
