@@ -22,6 +22,7 @@ INCS = \
 	err.h \
 	errno.h \
 	fcntl.h \
+	float.h \
 	fmtmsg.h \
 	fnmatch.h \
 	fstab.h \
