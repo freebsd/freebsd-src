@@ -390,8 +390,8 @@ INCS += \
 	ssl_locl.h \
 	tls1.h
 
-SRCS+=	buildinf.h
-INCS+=	opensslconf.h
+GENHDRS += buildinf.h evp.h fips.h fips_rand.h opensslconf.h
+INCS += opensslconf.h
 INCSDIR=	${INCLUDEDIR}/openssl
 
 CSTD=	gnu89
