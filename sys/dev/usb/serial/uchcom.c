@@ -153,11 +153,11 @@ enum {
 };
 
 struct uchcom_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UCHCOM_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UCHCOM_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint8_t	sc_dtr;			/* local copy */
@@ -192,23 +192,23 @@ static const struct uchcom_divider_record dividers[] =
 
 #define	NUM_DIVIDERS	(sizeof (dividers) / sizeof (dividers[0]))
 
-static const struct usb2_device_id uchcom_devs[] = {
+static const struct usb_device_id uchcom_devs[] = {
 	{USB_VPI(USB_VENDOR_WCH, USB_PRODUCT_WCH_CH341SER, 0)},
 };
 
 /* protypes */
 
-static int	uchcom_pre_param(struct usb2_com_softc *, struct termios *);
-static void	uchcom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static int	uchcom_pre_param(struct ucom_softc *, struct termios *);
+static void	uchcom_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
-static void	uchcom_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	uchcom_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static void	uchcom_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	uchcom_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static void	uchcom_start_read(struct usb2_com_softc *);
-static void	uchcom_start_write(struct usb2_com_softc *);
-static void	uchcom_stop_read(struct usb2_com_softc *);
-static void	uchcom_stop_write(struct usb2_com_softc *);
+static void	uchcom_cfg_param(struct ucom_softc *, struct termios *);
+static void	uchcom_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	uchcom_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	uchcom_cfg_set_rts(struct ucom_softc *, uint8_t);
+static void	uchcom_start_read(struct ucom_softc *);
+static void	uchcom_start_write(struct ucom_softc *);
+static void	uchcom_stop_read(struct ucom_softc *);
+static void	uchcom_stop_write(struct ucom_softc *);
 static void	uchcom_update_version(struct uchcom_softc *);
 static void	uchcom_convert_status(struct uchcom_softc *, uint8_t);
 static void	uchcom_update_status(struct uchcom_softc *);
@@ -227,7 +227,7 @@ static usb2_callback_t uchcom_intr_callback;
 static usb2_callback_t uchcom_write_callback;
 static usb2_callback_t uchcom_read_callback;
 
-static const struct usb2_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
+static const struct usb_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 
 	[UCHCOM_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -257,7 +257,7 @@ static const struct usb2_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 	},
 };
 
-struct usb2_com_callback uchcom_callback = {
+struct ucom_callback uchcom_callback = {
 	.usb2_com_cfg_get_status = &uchcom_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &uchcom_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &uchcom_cfg_set_rts,
@@ -277,7 +277,7 @@ struct usb2_com_callback uchcom_callback = {
 static int
 uchcom_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	DPRINTFN(11, "\n");
 
@@ -297,7 +297,7 @@ static int
 uchcom_attach(device_t dev)
 {
 	struct uchcom_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	int error;
 	uint8_t iface_index;
 
@@ -379,7 +379,7 @@ static void
 uchcom_ctrl_write(struct uchcom_softc *sc, uint8_t reqno,
     uint16_t value, uint16_t index)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = reqno;
@@ -395,7 +395,7 @@ static void
 uchcom_ctrl_read(struct uchcom_softc *sc, uint8_t reqno,
     uint16_t value, uint16_t index, void *buf, uint16_t buflen)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = reqno;
@@ -517,7 +517,7 @@ uchcom_set_dtrrts(struct uchcom_softc *sc)
 }
 
 static void
-uchcom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+uchcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 	uint8_t brk1;
@@ -667,7 +667,7 @@ uchcom_reset_chip(struct uchcom_softc *sc)
  * methods for ucom
  */
 static void
-uchcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+uchcom_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
@@ -678,7 +678,7 @@ uchcom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static void
-uchcom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+uchcom_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
@@ -689,7 +689,7 @@ uchcom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-uchcom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+uchcom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
@@ -700,7 +700,7 @@ uchcom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static int
-uchcom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+uchcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uchcom_divider dv;
 
@@ -720,7 +720,7 @@ uchcom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-uchcom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+uchcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
@@ -729,7 +729,7 @@ uchcom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-uchcom_start_read(struct usb2_com_softc *ucom)
+uchcom_start_read(struct ucom_softc *ucom)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
@@ -741,7 +741,7 @@ uchcom_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uchcom_stop_read(struct usb2_com_softc *ucom)
+uchcom_stop_read(struct ucom_softc *ucom)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
@@ -753,7 +753,7 @@ uchcom_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-uchcom_start_write(struct usb2_com_softc *ucom)
+uchcom_start_write(struct ucom_softc *ucom)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
@@ -761,7 +761,7 @@ uchcom_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-uchcom_stop_write(struct usb2_com_softc *ucom)
+uchcom_stop_write(struct ucom_softc *ucom)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
 
@@ -772,7 +772,7 @@ uchcom_stop_write(struct usb2_com_softc *ucom)
  * callback when the modem status is changed.
  */
 static void
-uchcom_intr_callback(struct usb2_xfer *xfer)
+uchcom_intr_callback(struct usb_xfer *xfer)
 {
 	struct uchcom_softc *sc = xfer->priv_sc;
 	uint8_t buf[UCHCOM_INTR_LEAST];
@@ -810,7 +810,7 @@ tr_setup:
 }
 
 static void
-uchcom_write_callback(struct usb2_xfer *xfer)
+uchcom_write_callback(struct usb_xfer *xfer)
 {
 	struct uchcom_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -841,7 +841,7 @@ tr_setup:
 }
 
 static void
-uchcom_read_callback(struct usb2_xfer *xfer)
+uchcom_read_callback(struct usb_xfer *xfer)
 {
 	struct uchcom_softc *sc = xfer->priv_sc;
 

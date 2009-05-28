@@ -97,7 +97,7 @@ SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &ural_debug, 0,
 	 ((rssi) - (RAL_NOISE_FLOOR + RAL_RSSI_CORR)) : 0)
 
 /* various supported device vendors/products */
-static const struct usb2_device_id ural_devs[] = {
+static const struct usb_device_id ural_devs[] = {
 	{ USB_VP(USB_VENDOR_ASUS, USB_PRODUCT_ASUS_WL167G) },
 	{ USB_VP(USB_VENDOR_ASUS, USB_PRODUCT_RALINK_RT2570) },
 	{ USB_VP(USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5D7050) },
@@ -133,7 +133,7 @@ static usb2_callback_t ural_bulk_read_callback;
 static usb2_callback_t ural_bulk_write_callback;
 
 static usb2_error_t	ural_do_request(struct ural_softc *sc,
-			    struct usb2_device_request *req, void *data);
+			    struct usb_device_request *req, void *data);
 static struct ieee80211vap *ural_vap_create(struct ieee80211com *,
 			    const char name[IFNAMSIZ], int unit, int opmode,
 			    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
@@ -363,7 +363,7 @@ static const struct {
 	{ 161, 0x08808, 0x0242f, 0x00281 }
 };
 
-static const struct usb2_config ural_config[URAL_N_TRANSFER] = {
+static const struct usb_config ural_config[URAL_N_TRANSFER] = {
 	[URAL_BULK_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -412,7 +412,7 @@ MODULE_DEPEND(ural, wlan_amrr, 1, 1, 1);
 static int
 ural_match(device_t self)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -427,7 +427,7 @@ ural_match(device_t self)
 static int
 ural_attach(device_t self)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ural_softc *sc = device_get_softc(self);
 	struct ifnet *ifp;
 	struct ieee80211com *ic;
@@ -557,7 +557,7 @@ ural_detach(device_t self)
 
 static usb2_error_t
 ural_do_request(struct ural_softc *sc,
-    struct usb2_device_request *req, void *data)
+    struct usb_device_request *req, void *data)
 {
 	usb2_error_t err;
 	int ntries = 10;
@@ -777,7 +777,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 
 static void
-ural_bulk_write_callback(struct usb2_xfer *xfer)
+ural_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct ural_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -865,7 +865,7 @@ tr_setup:
 }
 
 static void
-ural_bulk_read_callback(struct usb2_xfer *xfer)
+ural_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct ural_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -1391,7 +1391,7 @@ ural_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 ural_set_testmode(struct ural_softc *sc)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -1410,7 +1410,7 @@ ural_set_testmode(struct ural_softc *sc)
 static void
 ural_eeprom_read(struct ural_softc *sc, uint16_t addr, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -1429,7 +1429,7 @@ ural_eeprom_read(struct ural_softc *sc, uint16_t addr, void *buf, int len)
 static uint16_t
 ural_read(struct ural_softc *sc, uint16_t reg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 	uint16_t val;
 
@@ -1452,7 +1452,7 @@ ural_read(struct ural_softc *sc, uint16_t reg)
 static void
 ural_read_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -1471,7 +1471,7 @@ ural_read_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 static void
 ural_write(struct ural_softc *sc, uint16_t reg, uint16_t val)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -1490,7 +1490,7 @@ ural_write(struct ural_softc *sc, uint16_t reg, uint16_t val)
 static void
 ural_write_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;

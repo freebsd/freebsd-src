@@ -141,7 +141,7 @@ struct at91dci_td {
 	bus_space_handle_t io_hdl;
 	struct at91dci_td *obj_next;
 	at91dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_packet_size;
@@ -157,7 +157,7 @@ struct at91dci_td {
 
 struct at91dci_std_temp {
 	at91dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	struct at91dci_td *td;
 	struct at91dci_td *td_next;
 	uint32_t len;
@@ -173,14 +173,14 @@ struct at91dci_std_temp {
 };
 
 struct at91dci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union at91dci_hub_temp {
 	uWord	wValue;
-	struct usb2_port_status ps;
+	struct usb_port_status ps;
 };
 
 struct at91dci_ep_flags {
@@ -202,10 +202,10 @@ struct at91dci_flags {
 };
 
 struct at91dci_softc {
-	struct usb2_bus sc_bus;
+	struct usb_bus sc_bus;
 	union at91dci_hub_temp sc_hub_temp;
 
-	struct usb2_device *sc_devices[AT91_MAX_DEVICES];
+	struct usb_device *sc_devices[AT91_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;

@@ -1257,9 +1257,9 @@ enum {
 struct zyd_softc {
 	struct ifnet		*sc_ifp;
 	device_t		sc_dev;
-	struct usb2_device	*sc_udev;
+	struct usb_device	*sc_udev;
 
-	struct usb2_xfer	*sc_xfer[ZYD_N_TRANSFER];
+	struct usb_xfer	*sc_xfer[ZYD_N_TRANSFER];
 
 	int			sc_flags;
 #define	ZYD_FLAG_FWLOADED		(1 << 0)

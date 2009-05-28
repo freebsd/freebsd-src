@@ -42,9 +42,9 @@
  *   NULL: End of descriptors
  *   Else: Next descriptor after "desc"
  *------------------------------------------------------------------------*/
-struct usb2_descriptor *
-usb2_desc_foreach(struct usb2_config_descriptor *cd, 
-    struct usb2_descriptor *_desc)
+struct usb_descriptor *
+usb2_desc_foreach(struct usb_config_descriptor *cd, 
+    struct usb_descriptor *_desc)
 {
 	uint8_t *desc_next;
 	uint8_t *start;
@@ -80,7 +80,7 @@ usb2_desc_foreach(struct usb2_config_descriptor *cd,
 		return (NULL);		/* too short descriptor */
 
 	/* Return start of next descriptor. */
-	return ((struct usb2_descriptor *)desc);
+	return ((struct usb_descriptor *)desc);
 }
 
 /*------------------------------------------------------------------------*
@@ -94,21 +94,21 @@ usb2_desc_foreach(struct usb2_config_descriptor *cd,
  *   NULL: End of descriptors
  *   Else: A valid interface descriptor
  *------------------------------------------------------------------------*/
-struct usb2_interface_descriptor *
-usb2_idesc_foreach(struct usb2_config_descriptor *cd,
-    struct usb2_idesc_parse_state *ps)
+struct usb_interface_descriptor *
+usb2_idesc_foreach(struct usb_config_descriptor *cd,
+    struct usb_idesc_parse_state *ps)
 {
-	struct usb2_interface_descriptor *id;
+	struct usb_interface_descriptor *id;
 	uint8_t new_iface;
 
 	/* retrieve current descriptor */
-	id = (struct usb2_interface_descriptor *)ps->desc;
+	id = (struct usb_interface_descriptor *)ps->desc;
 	/* default is to start a new interface */
 	new_iface = 1;
 
 	while (1) {
-		id = (struct usb2_interface_descriptor *)
-		    usb2_desc_foreach(cd, (struct usb2_descriptor *)id);
+		id = (struct usb_interface_descriptor *)
+		    usb2_desc_foreach(cd, (struct usb_descriptor *)id);
 		if (id == NULL)
 			break;
 		if ((id->bDescriptorType == UDESC_INTERFACE) &&
@@ -132,7 +132,7 @@ usb2_idesc_foreach(struct usb2_config_descriptor *cd,
 	}
 
 	/* store and return current descriptor */
-	ps->desc = (struct usb2_descriptor *)id;
+	ps->desc = (struct usb_descriptor *)id;
 	return (id);
 }
 
@@ -147,13 +147,13 @@ usb2_idesc_foreach(struct usb2_config_descriptor *cd,
  *   NULL: End of descriptors
  *   Else: A valid endpoint descriptor
  *------------------------------------------------------------------------*/
-struct usb2_endpoint_descriptor *
-usb2_edesc_foreach(struct usb2_config_descriptor *cd,
-    struct usb2_endpoint_descriptor *ped)
+struct usb_endpoint_descriptor *
+usb2_edesc_foreach(struct usb_config_descriptor *cd,
+    struct usb_endpoint_descriptor *ped)
 {
-	struct usb2_descriptor *desc;
+	struct usb_descriptor *desc;
 
-	desc = ((struct usb2_descriptor *)ped);
+	desc = ((struct usb_descriptor *)ped);
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
 		if (desc->bDescriptorType == UDESC_INTERFACE) {
@@ -164,7 +164,7 @@ usb2_edesc_foreach(struct usb2_config_descriptor *cd,
 				/* endpoint index is invalid */
 				break;
 			}
-			return ((struct usb2_endpoint_descriptor *)desc);
+			return ((struct usb_endpoint_descriptor *)desc);
 		}
 	}
 	return (NULL);
@@ -177,9 +177,9 @@ usb2_edesc_foreach(struct usb2_config_descriptor *cd,
  * configuration descriptor of type "type".
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_get_no_descriptors(struct usb2_config_descriptor *cd, uint8_t type)
+usb2_get_no_descriptors(struct usb_config_descriptor *cd, uint8_t type)
 {
-	struct usb2_descriptor *desc = NULL;
+	struct usb_descriptor *desc = NULL;
 	uint8_t count = 0;
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
@@ -199,21 +199,21 @@ usb2_get_no_descriptors(struct usb2_config_descriptor *cd, uint8_t type)
  *   Number of alternate settings for the given interface descriptor pointer.
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_get_no_alts(struct usb2_config_descriptor *cd,
-    struct usb2_interface_descriptor *id)
+usb2_get_no_alts(struct usb_config_descriptor *cd,
+    struct usb_interface_descriptor *id)
 {
-	struct usb2_descriptor *desc;
+	struct usb_descriptor *desc;
 	uint8_t n = 0;
 	uint8_t ifaceno;
 
 	ifaceno = id->bInterfaceNumber;
 
-	desc = (struct usb2_descriptor *)id;
+	desc = (struct usb_descriptor *)id;
 
 	while ((desc = usb2_desc_foreach(cd, desc))) {
 		if ((desc->bDescriptorType == UDESC_INTERFACE) &&
 		    (desc->bLength >= sizeof(*id))) {
-			id = (struct usb2_interface_descriptor *)desc;
+			id = (struct usb_interface_descriptor *)desc;
 			if (id->bInterfaceNumber == ifaceno) {
 				n++;
 				if (n == 0xFF)

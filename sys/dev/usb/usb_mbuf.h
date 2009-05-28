@@ -31,11 +31,11 @@
  * The following structure defines a minimum re-implementation of the
  * mbuf system in the kernel.
  */
-struct usb2_mbuf {
+struct usb_mbuf {
 	uint8_t *cur_data_ptr;
 	uint8_t *min_data_ptr;
-	struct usb2_mbuf *usb2_nextpkt;
-	struct usb2_mbuf *usb2_next;
+	struct usb_mbuf *usb2_nextpkt;
+	struct usb_mbuf *usb2_next;
 
 	usb2_size_t cur_data_len;
 	usb2_size_t max_data_len;
@@ -47,9 +47,9 @@ struct usb2_mbuf {
  * The following structure defines a minimum re-implementation of the
  * ifqueue structure in the kernel.
  */
-struct usb2_ifqueue {
-	struct usb2_mbuf *ifq_head;
-	struct usb2_mbuf *ifq_tail;
+struct usb_ifqueue {
+	struct usb_mbuf *ifq_head;
+	struct usb_mbuf *ifq_tail;
 
 	usb2_size_t ifq_len;
 	usb2_size_t ifq_maxlen;
@@ -96,7 +96,7 @@ struct usb2_ifqueue {
   } while (0)
 
 /* prototypes */
-void   *usb2_alloc_mbufs(struct malloc_type *type, struct usb2_ifqueue *ifq,
+void   *usb2_alloc_mbufs(struct malloc_type *type, struct usb_ifqueue *ifq,
 	    usb2_size_t block_size, uint16_t nblocks);
 
 #endif					/* _USB2_MBUF_H_ */

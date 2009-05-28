@@ -161,11 +161,11 @@ enum {
 };
 
 struct umoscom_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UMOSCOM_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UMOSCOM_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint8_t	sc_mcr;
@@ -182,23 +182,23 @@ static usb2_callback_t umoscom_write_callback;
 static usb2_callback_t umoscom_read_callback;
 static usb2_callback_t umoscom_intr_callback;
 
-static void	umoscom_cfg_open(struct usb2_com_softc *);
-static void	umoscom_cfg_close(struct usb2_com_softc *);
-static void	umoscom_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static void	umoscom_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	umoscom_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static int	umoscom_pre_param(struct usb2_com_softc *, struct termios *);
-static void	umoscom_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	umoscom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static void	umoscom_cfg_open(struct ucom_softc *);
+static void	umoscom_cfg_close(struct ucom_softc *);
+static void	umoscom_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	umoscom_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	umoscom_cfg_set_rts(struct ucom_softc *, uint8_t);
+static int	umoscom_pre_param(struct ucom_softc *, struct termios *);
+static void	umoscom_cfg_param(struct ucom_softc *, struct termios *);
+static void	umoscom_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 static void	umoscom_cfg_write(struct umoscom_softc *, uint16_t, uint16_t);
 static uint8_t	umoscom_cfg_read(struct umoscom_softc *, uint16_t);
-static void	umoscom_start_read(struct usb2_com_softc *);
-static void	umoscom_stop_read(struct usb2_com_softc *);
-static void	umoscom_start_write(struct usb2_com_softc *);
-static void	umoscom_stop_write(struct usb2_com_softc *);
+static void	umoscom_start_read(struct ucom_softc *);
+static void	umoscom_stop_read(struct ucom_softc *);
+static void	umoscom_start_write(struct ucom_softc *);
+static void	umoscom_stop_write(struct ucom_softc *);
 
-static const struct usb2_config umoscom_config_data[UMOSCOM_N_TRANSFER] = {
+static const struct usb_config umoscom_config_data[UMOSCOM_N_TRANSFER] = {
 
 	[UMOSCOM_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -228,7 +228,7 @@ static const struct usb2_config umoscom_config_data[UMOSCOM_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback umoscom_callback = {
+static const struct ucom_callback umoscom_callback = {
 	/* configuration callbacks */
 	.usb2_com_cfg_get_status = &umoscom_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &umoscom_cfg_set_dtr,
@@ -265,14 +265,14 @@ DRIVER_MODULE(umoscom, uhub, umoscom_driver, umoscom_devclass, NULL, 0);
 MODULE_DEPEND(umoscom, ucom, 1, 1, 1);
 MODULE_DEPEND(umoscom, usb, 1, 1, 1);
 
-static const struct usb2_device_id umoscom_devs[] = {
+static const struct usb_device_id umoscom_devs[] = {
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7703, 0)}
 };
 
 static int
 umoscom_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
@@ -289,7 +289,7 @@ umoscom_probe(device_t dev)
 static int
 umoscom_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umoscom_softc *sc = device_get_softc(dev);
 	int error;
 	uint8_t iface_index;
@@ -343,7 +343,7 @@ umoscom_detach(device_t dev)
 }
 
 static void
-umoscom_cfg_open(struct usb2_com_softc *ucom)
+umoscom_cfg_open(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -369,13 +369,13 @@ umoscom_cfg_open(struct usb2_com_softc *ucom)
 }
 
 static void
-umoscom_cfg_close(struct usb2_com_softc *ucom)
+umoscom_cfg_close(struct ucom_softc *ucom)
 {
 	return;
 }
 
 static void
-umoscom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+umoscom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 	uint16_t val;
@@ -388,7 +388,7 @@ umoscom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umoscom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+umoscom_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -401,7 +401,7 @@ umoscom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umoscom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+umoscom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -414,7 +414,7 @@ umoscom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static int
-umoscom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+umoscom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	if ((t->c_ospeed <= 1) || (t->c_ospeed > 115200))
 		return (EINVAL);
@@ -423,7 +423,7 @@ umoscom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-umoscom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+umoscom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 	uint16_t data;
@@ -478,7 +478,7 @@ umoscom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-umoscom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *p_lsr, uint8_t *p_msr)
+umoscom_cfg_get_status(struct ucom_softc *ucom, uint8_t *p_lsr, uint8_t *p_msr)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 	uint8_t lsr;
@@ -509,7 +509,7 @@ umoscom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *p_lsr, uint8_t *p_m
 static void
 umoscom_cfg_write(struct umoscom_softc *sc, uint16_t reg, uint16_t val)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UMOSCOM_WRITE;
@@ -524,7 +524,7 @@ umoscom_cfg_write(struct umoscom_softc *sc, uint16_t reg, uint16_t val)
 static uint8_t
 umoscom_cfg_read(struct umoscom_softc *sc, uint16_t reg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t val;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -542,7 +542,7 @@ umoscom_cfg_read(struct umoscom_softc *sc, uint16_t reg)
 }
 
 static void
-umoscom_start_read(struct usb2_com_softc *ucom)
+umoscom_start_read(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -555,7 +555,7 @@ umoscom_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-umoscom_stop_read(struct usb2_com_softc *ucom)
+umoscom_stop_read(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -567,7 +567,7 @@ umoscom_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-umoscom_start_write(struct usb2_com_softc *ucom)
+umoscom_start_write(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -575,7 +575,7 @@ umoscom_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-umoscom_stop_write(struct usb2_com_softc *ucom)
+umoscom_stop_write(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -583,7 +583,7 @@ umoscom_stop_write(struct usb2_com_softc *ucom)
 }
 
 static void
-umoscom_write_callback(struct usb2_xfer *xfer)
+umoscom_write_callback(struct usb_xfer *xfer)
 {
 	struct umoscom_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -614,7 +614,7 @@ tr_setup:
 }
 
 static void
-umoscom_read_callback(struct usb2_xfer *xfer)
+umoscom_read_callback(struct usb_xfer *xfer)
 {
 	struct umoscom_softc *sc = xfer->priv_sc;
 
@@ -643,7 +643,7 @@ tr_setup:
 }
 
 static void
-umoscom_intr_callback(struct usb2_xfer *xfer)
+umoscom_intr_callback(struct usb_xfer *xfer)
 {
 	struct umoscom_softc *sc = xfer->priv_sc;
 

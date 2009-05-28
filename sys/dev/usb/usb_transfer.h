@@ -31,41 +31,41 @@
  * The following structure defines the messages that is used to signal
  * the "done_p" USB process.
  */
-struct usb2_done_msg {
-	struct usb2_proc_msg hdr;
-	struct usb2_xfer_root *xroot;
+struct usb_done_msg {
+	struct usb_proc_msg hdr;
+	struct usb_xfer_root *xroot;
 };
 
 #define	USB_DMATAG_TO_XROOT(dpt)				\
-  ((struct usb2_xfer_root *)(					\
+  ((struct usb_xfer_root *)(					\
    ((uint8_t *)(dpt)) -						\
-   ((uint8_t *)&((struct usb2_xfer_root *)0)->dma_parent_tag)))
+   ((uint8_t *)&((struct usb_xfer_root *)0)->dma_parent_tag)))
 
 /*
  * The following structure is used to keep information about memory
  * that should be automatically freed at the moment all USB transfers
  * have been freed.
  */
-struct usb2_xfer_root {
-	struct usb2_dma_parent_tag dma_parent_tag;
+struct usb_xfer_root {
+	struct usb_dma_parent_tag dma_parent_tag;
 #if USB_HAVE_BUSDMA
-	struct usb2_xfer_queue dma_q;
+	struct usb_xfer_queue dma_q;
 #endif
-	struct usb2_xfer_queue done_q;
-	struct usb2_done_msg done_m[2];
+	struct usb_xfer_queue done_q;
+	struct usb_done_msg done_m[2];
 	struct cv cv_drain;
 
-	struct usb2_process *done_p;	/* pointer to callback process */
+	struct usb_process *done_p;	/* pointer to callback process */
 	void   *memory_base;
 	struct mtx *xfer_mtx;	/* cannot be changed during operation */
 #if USB_HAVE_BUSDMA
-	struct usb2_page_cache *dma_page_cache_start;
-	struct usb2_page_cache *dma_page_cache_end;
+	struct usb_page_cache *dma_page_cache_start;
+	struct usb_page_cache *dma_page_cache_end;
 #endif
-	struct usb2_page_cache *xfer_page_cache_start;
-	struct usb2_page_cache *xfer_page_cache_end;
-	struct usb2_bus *bus;		/* pointer to USB bus (cached) */
-	struct usb2_device *udev;	/* pointer to USB device */
+	struct usb_page_cache *xfer_page_cache_start;
+	struct usb_page_cache *xfer_page_cache_end;
+	struct usb_bus *bus;		/* pointer to USB bus (cached) */
+	struct usb_device *udev;	/* pointer to USB device */
 
 	usb2_size_t memory_size;
 	usb2_size_t setup_refcount;
@@ -83,17 +83,17 @@ struct usb2_xfer_root {
  * The following structure is used when setting up an array of USB
  * transfers.
  */
-struct usb2_setup_params {
-	struct usb2_dma_tag *dma_tag_p;
-	struct usb2_page *dma_page_ptr;
-	struct usb2_page_cache *dma_page_cache_ptr;	/* these will be
+struct usb_setup_params {
+	struct usb_dma_tag *dma_tag_p;
+	struct usb_page *dma_page_ptr;
+	struct usb_page_cache *dma_page_cache_ptr;	/* these will be
 							 * auto-freed */
-	struct usb2_page_cache *xfer_page_cache_ptr;	/* these will not be
+	struct usb_page_cache *xfer_page_cache_ptr;	/* these will not be
 							 * auto-freed */
-	struct usb2_device *udev;
-	struct usb2_xfer *curr_xfer;
-	const struct usb2_config *curr_setup;
-	const struct usb2_pipe_methods *methods;
+	struct usb_device *udev;
+	struct usb_xfer *curr_xfer;
+	const struct usb_config *curr_setup;
+	const struct usb_pipe_methods *methods;
 	void   *buf;
 	usb2_frlength_t *xfer_length_ptr;
 
@@ -111,28 +111,28 @@ struct usb2_setup_params {
 
 /* function prototypes */
 
-uint8_t	usb2_transfer_setup_sub_malloc(struct usb2_setup_params *parm,
-	    struct usb2_page_cache **ppc, usb2_size_t size, usb2_size_t align,
+uint8_t	usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
+	    struct usb_page_cache **ppc, usb2_size_t size, usb2_size_t align,
 	    usb2_size_t count);
-void	usb2_command_wrapper(struct usb2_xfer_queue *pq,
-	    struct usb2_xfer *xfer);
-void	usb2_pipe_enter(struct usb2_xfer *xfer);
-void	usb2_pipe_start(struct usb2_xfer_queue *pq);
-void	usb2_transfer_dequeue(struct usb2_xfer *xfer);
-void	usb2_transfer_done(struct usb2_xfer *xfer, usb2_error_t error);
-void	usb2_transfer_enqueue(struct usb2_xfer_queue *pq,
-	    struct usb2_xfer *xfer);
-void	usb2_transfer_setup_sub(struct usb2_setup_params *parm);
-void	usb2_default_transfer_setup(struct usb2_device *udev);
-void	usb2_clear_data_toggle(struct usb2_device *udev,
-	    struct usb2_pipe *pipe);
-void	usb2_do_poll(struct usb2_xfer **ppxfer, uint16_t max);
+void	usb2_command_wrapper(struct usb_xfer_queue *pq,
+	    struct usb_xfer *xfer);
+void	usb2_pipe_enter(struct usb_xfer *xfer);
+void	usb2_pipe_start(struct usb_xfer_queue *pq);
+void	usb2_transfer_dequeue(struct usb_xfer *xfer);
+void	usb2_transfer_done(struct usb_xfer *xfer, usb2_error_t error);
+void	usb2_transfer_enqueue(struct usb_xfer_queue *pq,
+	    struct usb_xfer *xfer);
+void	usb2_transfer_setup_sub(struct usb_setup_params *parm);
+void	usb2_default_transfer_setup(struct usb_device *udev);
+void	usb2_clear_data_toggle(struct usb_device *udev,
+	    struct usb_pipe *pipe);
+void	usb2_do_poll(struct usb_xfer **ppxfer, uint16_t max);
 usb2_callback_t usb2_do_request_callback;
 usb2_callback_t usb2_handle_request_callback;
 usb2_callback_t usb2_do_clear_stall_callback;
-void	usb2_transfer_timeout_ms(struct usb2_xfer *xfer,
+void	usb2_transfer_timeout_ms(struct usb_xfer *xfer,
 	    void (*cb) (void *arg), usb2_timeout_t ms);
-usb2_timeout_t usb2_get_dma_delay(struct usb2_bus *bus);
-void	usb2_transfer_power_ref(struct usb2_xfer *xfer, int val);
+usb2_timeout_t usb2_get_dma_delay(struct usb_bus *bus);
+void	usb2_transfer_power_ref(struct usb_xfer *xfer, int val);
 
 #endif					/* _USB2_TRANSFER_H_ */

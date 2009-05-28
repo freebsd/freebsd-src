@@ -156,7 +156,7 @@ static void	zyd_update_mcast(struct ifnet *);
 static int	zyd_set_rxfilter(struct zyd_softc *);
 static void	zyd_set_chan(struct zyd_softc *, struct ieee80211_channel *);
 static int	zyd_set_beacon_interval(struct zyd_softc *, int);
-static void	zyd_rx_data(struct usb2_xfer *, int, uint16_t);
+static void	zyd_rx_data(struct usb_xfer *, int, uint16_t);
 static int	zyd_tx_mgt(struct zyd_softc *, struct mbuf *,
 		    struct ieee80211_node *);
 static int	zyd_tx_data(struct zyd_softc *, struct mbuf *,
@@ -204,7 +204,7 @@ static const struct zyd_phy_pair zyd_def_phyB[] = ZYD_DEF_PHYB;
 #define ZYD_ZD1211	0
 #define ZYD_ZD1211B	1
 
-static const struct usb2_device_id zyd_devs[] = {
+static const struct usb_device_id zyd_devs[] = {
     /* ZYD_ZD1211 */
     {USB_VPI(USB_VENDOR_3COM2, USB_PRODUCT_3COM2_3CRUSB10075, ZYD_ZD1211)},
     {USB_VPI(USB_VENDOR_ABOCOM, USB_PRODUCT_ABOCOM_WL54, ZYD_ZD1211)},
@@ -255,7 +255,7 @@ static const struct usb2_device_id zyd_devs[] = {
     {USB_VPI(USB_VENDOR_ZYXEL, USB_PRODUCT_ZYXEL_G220V2, ZYD_ZD1211B)},
 };
 
-static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
+static const struct usb_config zyd_config[ZYD_N_TRANSFER] = {
 	[ZYD_BULK_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -318,7 +318,7 @@ static const struct usb2_config zyd_config[ZYD_N_TRANSFER] = {
 static int
 zyd_match(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -333,7 +333,7 @@ zyd_match(device_t dev)
 static int
 zyd_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct zyd_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	struct ieee80211com *ic;
@@ -629,7 +629,7 @@ fail:
  * Callback handler for interrupt transfer
  */
 static void
-zyd_intr_read_callback(struct usb2_xfer *xfer)
+zyd_intr_read_callback(struct usb_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -734,7 +734,7 @@ tr_setup:
 }
 
 static void
-zyd_intr_write_callback(struct usb2_xfer *xfer)
+zyd_intr_write_callback(struct usb_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
 	struct zyd_rq *rqp;
@@ -1876,7 +1876,7 @@ fail:
 static int
 zyd_get_macaddr(struct zyd_softc *sc)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -2124,7 +2124,7 @@ fail:
 }
 
 static void
-zyd_rx_data(struct usb2_xfer *xfer, int offset, uint16_t len)
+zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2200,7 +2200,7 @@ zyd_rx_data(struct usb2_xfer *xfer, int offset, uint16_t len)
 }
 
 static void
-zyd_bulk_read_callback(struct usb2_xfer *xfer)
+zyd_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2424,7 +2424,7 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 }
 
 static void
-zyd_bulk_write_callback(struct usb2_xfer *xfer)
+zyd_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct zyd_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2709,7 +2709,7 @@ zyd_init_locked(struct zyd_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
-	struct usb2_config_descriptor *cd;
+	struct usb_config_descriptor *cd;
 	int error;
 	uint32_t val;
 
@@ -2868,7 +2868,7 @@ fail:
 static int
 zyd_loadfirmware(struct zyd_softc *sc)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	size_t size;
 	u_char *fw;
 	uint8_t stat;

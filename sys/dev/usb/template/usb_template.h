@@ -31,20 +31,20 @@
 #define	_USB_TEMPLATE_H_
 
 typedef const void *(usb2_temp_get_string_desc_t)(uint16_t lang_id, uint8_t string_index);
-typedef const void *(usb2_temp_get_vendor_desc_t)(const struct usb2_device_request *req);
+typedef const void *(usb2_temp_get_vendor_desc_t)(const struct usb_device_request *req);
 
-struct usb2_temp_packet_size {
+struct usb_temp_packet_size {
 	uint16_t mps[USB_SPEED_MAX];
 };
 
-struct usb2_temp_interval {
+struct usb_temp_interval {
 	uint8_t	bInterval[USB_SPEED_MAX];
 };
 
-struct usb2_temp_endpoint_desc {
+struct usb_temp_endpoint_desc {
 	const void **ppRawDesc;
-	const struct usb2_temp_packet_size *pPacketSize;
-	const struct usb2_temp_interval *pIntervals;
+	const struct usb_temp_packet_size *pPacketSize;
+	const struct usb_temp_interval *pIntervals;
 	/*
 	 * If (bEndpointAddress & UE_ADDR) is non-zero the endpoint number
 	 * is pre-selected for this endpoint descriptor. Else an endpoint
@@ -54,9 +54,9 @@ struct usb2_temp_endpoint_desc {
 	uint8_t	bmAttributes;
 };
 
-struct usb2_temp_interface_desc {
+struct usb_temp_interface_desc {
 	const void **ppRawDesc;
-	const struct usb2_temp_endpoint_desc **ppEndpoints;
+	const struct usb_temp_endpoint_desc **ppEndpoints;
 	uint8_t	bInterfaceClass;
 	uint8_t	bInterfaceSubClass;
 	uint8_t	bInterfaceProtocol;
@@ -64,17 +64,17 @@ struct usb2_temp_interface_desc {
 	uint8_t	isAltInterface;
 };
 
-struct usb2_temp_config_desc {
-	const struct usb2_temp_interface_desc **ppIfaceDesc;
+struct usb_temp_config_desc {
+	const struct usb_temp_interface_desc **ppIfaceDesc;
 	uint8_t	bmAttributes;
 	uint8_t	bMaxPower;
 	uint8_t	iConfiguration;
 };
 
-struct usb2_temp_device_desc {
+struct usb_temp_device_desc {
 	usb2_temp_get_string_desc_t *getStringDesc;
 	usb2_temp_get_vendor_desc_t *getVendorDesc;
-	const struct usb2_temp_config_desc **ppConfigDesc;
+	const struct usb_temp_config_desc **ppConfigDesc;
 	uint16_t idVendor;
 	uint16_t idProduct;
 	uint16_t bcdDevice;
@@ -86,17 +86,17 @@ struct usb2_temp_device_desc {
 	uint8_t	iSerialNumber;
 };
 
-struct usb2_temp_data {
-	const struct usb2_temp_device_desc *tdd;
-	struct usb2_device_descriptor udd;	/* device descriptor */
-	struct usb2_device_qualifier udq;	/* device qualifier */
+struct usb_temp_data {
+	const struct usb_temp_device_desc *tdd;
+	struct usb_device_descriptor udd;	/* device descriptor */
+	struct usb_device_qualifier udq;	/* device qualifier */
 };
 
 /* prototypes */
 
-extern const struct usb2_temp_device_desc usb2_template_cdce;
-extern const struct usb2_temp_device_desc usb2_template_msc;	/* Mass Storage Class */
-extern const struct usb2_temp_device_desc usb2_template_mtp;	/* Message Transfer
+extern const struct usb_temp_device_desc usb2_template_cdce;
+extern const struct usb_temp_device_desc usb2_template_msc;	/* Mass Storage Class */
+extern const struct usb_temp_device_desc usb2_template_mtp;	/* Message Transfer
 								 * Protocol */
 
 #endif					/* _USB_TEMPLATE_H_ */

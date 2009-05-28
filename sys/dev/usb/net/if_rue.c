@@ -95,7 +95,7 @@ SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
  * Various supported device vendors/products.
  */
 
-static const struct usb2_device_id rue_devs[] = {
+static const struct usb_device_id rue_devs[] = {
 	{USB_VPI(USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUAKTX, 0)},
 	{USB_VPI(USB_VENDOR_REALTEK, USB_PRODUCT_REALTEK_USBKR100, 0)},
 };
@@ -134,7 +134,7 @@ static void	rue_reset(struct rue_softc *);
 static int	rue_ifmedia_upd(struct ifnet *);
 static void	rue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static const struct usb2_config rue_config[RUE_N_TRANSFER] = {
+static const struct usb_config rue_config[RUE_N_TRANSFER] = {
 
 	[RUE_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -199,7 +199,7 @@ MODULE_DEPEND(rue, usb, 1, 1, 1);
 MODULE_DEPEND(rue, ether, 1, 1, 1);
 MODULE_DEPEND(rue, miibus, 1, 1, 1);
 
-static const struct usb2_ether_methods rue_ue_methods = {
+static const struct usb_ether_methods rue_ue_methods = {
 	.ue_attach_post = rue_attach_post,
 	.ue_start = rue_start,
 	.ue_init = rue_init,
@@ -220,7 +220,7 @@ static const struct usb2_ether_methods rue_ue_methods = {
 static int
 rue_read_mem(struct rue_softc *sc, uint16_t addr, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = UR_SET_ADDRESS;
@@ -234,7 +234,7 @@ rue_read_mem(struct rue_softc *sc, uint16_t addr, void *buf, int len)
 static int
 rue_write_mem(struct rue_softc *sc, uint16_t addr, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UR_SET_ADDRESS;
@@ -434,7 +434,7 @@ rue_miibus_statchg(device_t dev)
 }
 
 static void
-rue_setpromisc(struct usb2_ether *ue)
+rue_setpromisc(struct usb_ether *ue)
 {
 	struct rue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -452,7 +452,7 @@ rue_setpromisc(struct usb2_ether *ue)
  * Program the 64-bit multicast hash filter.
  */
 static void
-rue_setmulti(struct usb2_ether *ue)
+rue_setmulti(struct usb_ether *ue)
 {
 	struct rue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -527,7 +527,7 @@ rue_reset(struct rue_softc *sc)
 }
 
 static void
-rue_attach_post(struct usb2_ether *ue)
+rue_attach_post(struct usb_ether *ue)
 {
 	struct rue_softc *sc = usb2_ether_getsc(ue);
 
@@ -544,7 +544,7 @@ rue_attach_post(struct usb2_ether *ue)
 static int
 rue_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -563,9 +563,9 @@ rue_probe(device_t dev)
 static int
 rue_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct rue_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
 	int error;
 
@@ -603,7 +603,7 @@ static int
 rue_detach(device_t dev)
 {
 	struct rue_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 
 	usb2_transfer_unsetup(sc->sc_xfer, RUE_N_TRANSFER);
 	usb2_ether_ifdetach(ue);
@@ -613,7 +613,7 @@ rue_detach(device_t dev)
 }
 
 static void
-rue_intr_callback(struct usb2_xfer *xfer)
+rue_intr_callback(struct usb_xfer *xfer)
 {
 	struct rue_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -649,10 +649,10 @@ tr_setup:
 }
 
 static void
-rue_bulk_read_callback(struct usb2_xfer *xfer)
+rue_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct rue_softc *sc = xfer->priv_sc;
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	struct ifnet *ifp = usb2_ether_getifp(ue);
 	uint16_t status;
 
@@ -696,7 +696,7 @@ tr_setup:
 }
 
 static void
-rue_bulk_write_callback(struct usb2_xfer *xfer)
+rue_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct rue_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
@@ -768,7 +768,7 @@ tr_setup:
 }
 
 static void
-rue_tick(struct usb2_ether *ue)
+rue_tick(struct usb_ether *ue)
 {
 	struct rue_softc *sc = usb2_ether_getsc(ue);
 	struct mii_data *mii = GET_MII(sc);
@@ -785,7 +785,7 @@ rue_tick(struct usb2_ether *ue)
 }
 
 static void
-rue_start(struct usb2_ether *ue)
+rue_start(struct usb_ether *ue)
 {
 	struct rue_softc *sc = usb2_ether_getsc(ue);
 
@@ -798,7 +798,7 @@ rue_start(struct usb2_ether *ue)
 }
 
 static void
-rue_init(struct usb2_ether *ue)
+rue_init(struct usb_ether *ue)
 {
 	struct rue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);
@@ -874,7 +874,7 @@ rue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-rue_stop(struct usb2_ether *ue)
+rue_stop(struct usb_ether *ue)
 {
 	struct rue_softc *sc = usb2_ether_getsc(ue);
 	struct ifnet *ifp = usb2_ether_getifp(ue);

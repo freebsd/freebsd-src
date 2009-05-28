@@ -253,7 +253,7 @@ struct ehci_itd {
 	struct ehci_itd *next;
 	struct ehci_itd *prev;
 	struct ehci_itd *obj_next;
-	struct usb2_page_cache *page_cache;
+	struct usb_page_cache *page_cache;
 } __aligned(EHCI_ITD_ALIGN);
 
 typedef struct ehci_itd ehci_itd_t;
@@ -301,7 +301,7 @@ struct ehci_sitd {
 	struct ehci_sitd *next;
 	struct ehci_sitd *prev;
 	struct ehci_sitd *obj_next;
-	struct usb2_page_cache *page_cache;
+	struct usb_page_cache *page_cache;
 } __aligned(EHCI_SITD_ALIGN);
 
 typedef struct ehci_sitd ehci_sitd_t;
@@ -347,7 +347,7 @@ struct ehci_qtd {
  */
 	struct ehci_qtd *alt_next;
 	struct ehci_qtd *obj_next;
-	struct usb2_page_cache *page_cache;
+	struct usb_page_cache *page_cache;
 	uint32_t qtd_self;
 	uint16_t len;
 } __aligned(EHCI_QTD_ALIGN);
@@ -409,7 +409,7 @@ struct ehci_qh {
 	struct ehci_qh *next;
 	struct ehci_qh *prev;
 	struct ehci_qh *obj_next;
-	struct usb2_page_cache *page_cache;
+	struct usb_page_cache *page_cache;
 	uint32_t qh_self;
 } __aligned(EHCI_QH_ALIGN);
 
@@ -424,39 +424,39 @@ struct ehci_fstn {
 typedef struct ehci_fstn ehci_fstn_t;
 
 struct ehci_hw_softc {
-	struct usb2_page_cache pframes_pc;
-	struct usb2_page_cache async_start_pc;
-	struct usb2_page_cache intr_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
-	struct usb2_page_cache isoc_hs_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
-	struct usb2_page_cache isoc_fs_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
+	struct usb_page_cache pframes_pc;
+	struct usb_page_cache async_start_pc;
+	struct usb_page_cache intr_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
+	struct usb_page_cache isoc_hs_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
+	struct usb_page_cache isoc_fs_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
 
-	struct usb2_page pframes_pg;
-	struct usb2_page async_start_pg;
-	struct usb2_page intr_start_pg[EHCI_VIRTUAL_FRAMELIST_COUNT];
-	struct usb2_page isoc_hs_start_pg[EHCI_VIRTUAL_FRAMELIST_COUNT];
-	struct usb2_page isoc_fs_start_pg[EHCI_VIRTUAL_FRAMELIST_COUNT];
+	struct usb_page pframes_pg;
+	struct usb_page async_start_pg;
+	struct usb_page intr_start_pg[EHCI_VIRTUAL_FRAMELIST_COUNT];
+	struct usb_page isoc_hs_start_pg[EHCI_VIRTUAL_FRAMELIST_COUNT];
+	struct usb_page isoc_fs_start_pg[EHCI_VIRTUAL_FRAMELIST_COUNT];
 };
 
 struct ehci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union ehci_hub_desc {
-	struct usb2_status stat;
-	struct usb2_port_status ps;
-	struct usb2_hub_descriptor hubd;
+	struct usb_status stat;
+	struct usb_port_status ps;
+	struct usb_hub_descriptor hubd;
 	uint8_t	temp[128];
 };
 
 typedef struct ehci_softc {
 	struct ehci_hw_softc sc_hw;
-	struct usb2_bus sc_bus;		/* base device */
-	struct usb2_callout sc_tmo_pcd;
+	struct usb_bus sc_bus;		/* base device */
+	struct usb_callout sc_tmo_pcd;
 	union ehci_hub_desc sc_hub_desc;
 
-	struct usb2_device *sc_devices[EHCI_MAX_DEVICES];
+	struct usb_device *sc_devices[EHCI_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	struct ehci_qh *sc_async_p_last;

@@ -202,9 +202,9 @@ struct aue_rxpkt {
 } __packed;
 
 struct aue_softc {
-	struct usb2_ether	sc_ue;
+	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
-	struct usb2_xfer	*sc_xfer[AUE_N_TRANSFER];
+	struct usb_xfer	*sc_xfer[AUE_N_TRANSFER];
 
 	int			sc_flags;
 #define	AUE_FLAG_LSYS		0x0001	/* use Linksys reset */

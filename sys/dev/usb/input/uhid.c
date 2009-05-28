@@ -92,11 +92,11 @@ enum {
 };
 
 struct uhid_softc {
-	struct usb2_fifo_sc sc_fifo;
+	struct usb_fifo_sc sc_fifo;
 	struct mtx sc_mtx;
 
-	struct usb2_xfer *sc_xfer[UHID_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UHID_N_TRANSFER];
+	struct usb_device *sc_udev;
 	void   *sc_repdesc_ptr;
 
 	uint32_t sc_isize;
@@ -138,7 +138,7 @@ static usb2_fifo_open_t uhid_open;
 static usb2_fifo_close_t uhid_close;
 static usb2_fifo_ioctl_t uhid_ioctl;
 
-static struct usb2_fifo_methods uhid_fifo_methods = {
+static struct usb_fifo_methods uhid_fifo_methods = {
 	.f_open = &uhid_open,
 	.f_close = &uhid_close,
 	.f_ioctl = &uhid_ioctl,
@@ -150,7 +150,7 @@ static struct usb2_fifo_methods uhid_fifo_methods = {
 };
 
 static void
-uhid_intr_callback(struct usb2_xfer *xfer)
+uhid_intr_callback(struct usb_xfer *xfer)
 {
 	struct uhid_softc *sc = xfer->priv_sc;
 
@@ -189,7 +189,7 @@ re_submit:
 }
 
 static void
-uhid_fill_set_report(struct usb2_device_request *req, uint8_t iface_no,
+uhid_fill_set_report(struct usb_device_request *req, uint8_t iface_no,
     uint8_t type, uint8_t id, uint16_t size)
 {
 	req->bmRequestType = UT_WRITE_CLASS_INTERFACE;
@@ -201,7 +201,7 @@ uhid_fill_set_report(struct usb2_device_request *req, uint8_t iface_no,
 }
 
 static void
-uhid_fill_get_report(struct usb2_device_request *req, uint8_t iface_no,
+uhid_fill_get_report(struct usb_device_request *req, uint8_t iface_no,
     uint8_t type, uint8_t id, uint16_t size)
 {
 	req->bmRequestType = UT_READ_CLASS_INTERFACE;
@@ -213,10 +213,10 @@ uhid_fill_get_report(struct usb2_device_request *req, uint8_t iface_no,
 }
 
 static void
-uhid_write_callback(struct usb2_xfer *xfer)
+uhid_write_callback(struct usb_xfer *xfer)
 {
 	struct uhid_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint32_t size = sc->sc_osize;
 	uint32_t actlen;
 	uint8_t id;
@@ -275,10 +275,10 @@ tr_error:
 }
 
 static void
-uhid_read_callback(struct usb2_xfer *xfer)
+uhid_read_callback(struct usb_xfer *xfer)
 {
 	struct uhid_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -310,7 +310,7 @@ uhid_read_callback(struct usb2_xfer *xfer)
 	}
 }
 
-static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
+static const struct usb_config uhid_config[UHID_N_TRANSFER] = {
 
 	[UHID_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
@@ -325,7 +325,7 @@ static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
+		.bufsize = sizeof(struct usb_device_request) + UHID_BSIZE,
 		.callback = &uhid_write_callback,
 		.timeout = 1000,	/* 1 second */
 	},
@@ -334,14 +334,14 @@ static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request) + UHID_BSIZE,
+		.bufsize = sizeof(struct usb_device_request) + UHID_BSIZE,
 		.callback = &uhid_read_callback,
 		.timeout = 1000,	/* 1 second */
 	},
 };
 
 static void
-uhid_start_read(struct usb2_fifo *fifo)
+uhid_start_read(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
@@ -353,7 +353,7 @@ uhid_start_read(struct usb2_fifo *fifo)
 }
 
 static void
-uhid_stop_read(struct usb2_fifo *fifo)
+uhid_stop_read(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
@@ -362,7 +362,7 @@ uhid_stop_read(struct usb2_fifo *fifo)
 }
 
 static void
-uhid_start_write(struct usb2_fifo *fifo)
+uhid_start_write(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
@@ -370,7 +370,7 @@ uhid_start_write(struct usb2_fifo *fifo)
 }
 
 static void
-uhid_stop_write(struct usb2_fifo *fifo)
+uhid_stop_write(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
@@ -447,7 +447,7 @@ done:
 }
 
 static int
-uhid_open(struct usb2_fifo *fifo, int fflags)
+uhid_open(struct usb_fifo *fifo, int fflags)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
@@ -474,7 +474,7 @@ uhid_open(struct usb2_fifo *fifo, int fflags)
 }
 
 static void
-uhid_close(struct usb2_fifo *fifo, int fflags)
+uhid_close(struct usb_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
@@ -482,11 +482,11 @@ uhid_close(struct usb2_fifo *fifo, int fflags)
 }
 
 static int
-uhid_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
+uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
     int fflags)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
-	struct usb2_gen_descriptor *ugd;
+	struct usb_gen_descriptor *ugd;
 	uint32_t size;
 	int error = 0;
 	uint8_t id;
@@ -595,7 +595,7 @@ uhid_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
 static int
 uhid_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	DPRINTFN(11, "\n");
 
@@ -625,7 +625,7 @@ uhid_probe(device_t dev)
 static int
 uhid_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uhid_softc *sc = device_get_softc(dev);
 	int unit = device_get_unit(dev);
 	int error = 0;
