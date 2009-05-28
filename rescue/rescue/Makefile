@@ -71,7 +71,7 @@ CRUNCH_SRCDIRS+= bin
 CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv pax ps pwd 	\
 	 realpath rm rmdir setfacl sh stty sync test
-CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -lm -ltermcap -lutil
+CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -ltermcap -lutil
 .if ${MK_OPENSSL} != "no"
 CRUNCH_LIBS+= -lcrypto
 .endif
@@ -129,6 +129,10 @@ CRUNCH_PROGS_sbin+= ping6
 .if ${MK_IPFILTER} != "no"
 CRUNCH_PROGS_sbin+= ipf
 .endif
+.if ${MK_ZFS} != "no"
+CRUNCH_PROGS_sbin+= zfs
+CRUNCH_PROGS_sbin+= zpool
+.endif
 
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
@@ -136,6 +140,9 @@ CRUNCH_PROGS_sbin+= ipf
 CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
 .if ${MK_IPX} != "no"
 CRUNCH_LIBS+= -lipx
+.endif
+.if ${MK_ZFS} != "no"
+CRUNCH_LIBS+= -lzfs -lnvpair -luutil -lavl
 .endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv -lmd -lreadline -lsbuf -lufs -lz
 
@@ -173,6 +180,10 @@ CRUNCH_SRCDIR_fore_dnld= $(.CURDIR)/../../sbin/atm/fore_dnld
 CRUNCH_SRCDIR_ilmid= $(.CURDIR)/../../sbin/atm/ilmid
 CRUNCH_SRCDIR_rtquery= $(.CURDIR)/../../sbin/routed/rtquery
 CRUNCH_SRCDIR_ipf= $(.CURDIR)/../../sbin/ipf/ipf
+.if ${MK_ZFS} != "no"
+CRUNCH_SRCDIR_zfs= ${.CURDIR}/../../cddl/sbin/zfs
+CRUNCH_SRCDIR_zpool= ${.CURDIR}/../../cddl/sbin/zpool
+.endif
 CRUNCH_ALIAS_reboot= fastboot halt fasthalt
 CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
@@ -209,6 +220,11 @@ CRUNCH_ALIAS_id= groups whoami
 CRUNCH_SRCDIRS+= usr.sbin
 
 CRUNCH_PROGS_usr.sbin+= chroot
+
+CRUNCH_PROGS_usr.sbin+= chown
+CRUNCH_ALIAS_chown= chgrp
+##################################################################
+CRUNCH_LIBS+= -lm
 
 ##################################################################
 #  The following is pretty nearly a generic crunchgen-handling makefile
