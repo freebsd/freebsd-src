@@ -38,6 +38,7 @@
 #ifdef	_KERNEL
 #include <sys/pcpu.h>
 #include <sys/lock_profile.h>
+#include <sys/lockstat.h>
 #include <machine/atomic.h>
 #endif
 
@@ -152,9 +153,9 @@ __sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
 
 	if (!atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid))
 		error = _sx_xlock_hard(sx, tid, opts, file, line);
-	else
-		lock_profile_obtain_lock_success(&sx->lock_object, 0, 0, file,
-		    line);
+	else 
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_XLOCK_ACQUIRE,
+		    sx, 0, 0, file, line);
 
 	return (error);
 }
@@ -180,8 +181,8 @@ __sx_slock(struct sx *sx, int opts, const char *file, int line)
 	    !atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER))
 		error = _sx_slock_hard(sx, opts, file, line);
 	else
-		lock_profile_obtain_lock_success(&sx->lock_object, 0, 0, file,
-		    line);
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_SLOCK_ACQUIRE, sx, 0,
+		    0, file, line);
 
 	return (error);
 }

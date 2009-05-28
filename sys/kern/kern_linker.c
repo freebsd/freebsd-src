@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/linker.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/libkern.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
@@ -375,7 +376,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 	int foundfile, error;
 
 	/* Refuse to load modules if securelevel raised */
-	if (securelevel > 0)
+	if (prison0.pr_securelevel > 0)
 		return (EPERM);
 
 	KLD_LOCK_ASSERT();
@@ -580,7 +581,7 @@ linker_file_unload(linker_file_t file, int flags)
 	int error, i;
 
 	/* Refuse to unload modules if securelevel raised. */
-	if (securelevel > 0)
+	if (prison0.pr_securelevel > 0)
 		return (EPERM);
 
 	KLD_LOCK_ASSERT();
@@ -992,8 +993,14 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
 		return (error);
 
+#ifdef VIMAGE
+	/* Only the default vimage is permitted to kldload modules. */
+	if (!IS_DEFAULT_VIMAGE(TD_TO_VIMAGE(td)))
+		return (EPERM);
+#endif
+
 	/*
-	 * It's possible that kldloaded module will attach a new ifnet,
+	 * It is possible that kldloaded module will attach a new ifnet,
 	 * so vnet context must be set when this ocurs.
 	 */
 	CURVNET_SET(TD_TO_VNET(td));
@@ -1062,6 +1069,12 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 
 	if ((error = priv_check(td, PRIV_KLD_UNLOAD)) != 0)
 		return (error);
+
+#ifdef VIMAGE
+	/* Only the default vimage is permitted to kldunload modules. */
+	if (!IS_DEFAULT_VIMAGE(TD_TO_VIMAGE(td)))
+		return (EPERM);
+#endif
 
 	CURVNET_SET(TD_TO_VNET(td));
 	KLD_LOCK();

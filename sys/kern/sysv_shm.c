@@ -303,7 +303,7 @@ shmdt(td, uap)
 	int i;
 	int error = 0;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	mtx_lock(&Giant);
 	shmmap_s = p->p_vmspace->vm_shm;
@@ -357,7 +357,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	int rv;
 	int error = 0;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	mtx_lock(&Giant);
 	shmmap_s = p->p_vmspace->vm_shm;
@@ -480,7 +480,7 @@ oshmctl(td, uap)
 	struct shmid_kernel *shmseg;
 	struct oshmid_ds outbuf;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	mtx_lock(&Giant);
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
@@ -542,7 +542,7 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 	int error = 0;
 	struct shmid_kernel *shmseg;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	mtx_lock(&Giant);
@@ -823,7 +823,7 @@ shmget(td, uap)
 	int segnum, mode;
 	int error;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	mtx_lock(&Giant);
 	mode = uap->shmflg & ACCESSPERMS;
@@ -861,7 +861,7 @@ shmsys(td, uap)
 #if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
 	int error;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	if (uap->which < 0 ||
 	    uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))

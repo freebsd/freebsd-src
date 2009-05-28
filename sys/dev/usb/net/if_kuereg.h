@@ -124,10 +124,10 @@ enum {
 };
 
 struct kue_softc {
-	struct usb2_ether	sc_ue;
+	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
 	struct kue_ether_desc	sc_desc;
-	struct usb2_xfer	*sc_xfer[KUE_N_TRANSFER];
+	struct usb_xfer	*sc_xfer[KUE_N_TRANSFER];
 	uint8_t			*sc_mcfilters;
 
 	int			sc_flags;

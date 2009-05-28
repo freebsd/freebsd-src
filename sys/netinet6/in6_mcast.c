@@ -305,6 +305,10 @@ im6o_match_group(const struct ip6_moptions *imo, const struct ifnet *ifp,
  * Find an IPv6 multicast source entry for this imo which matches
  * the given group index for this socket, and source address.
  *
+ * XXX TODO: The scope ID, if present in src, is stripped before
+ * any comparison. We SHOULD enforce scope/zone checks where the source
+ * filter entry has a link scope.
+ *
  * NOTE: This does not check if the entry is in-mode, merely if
  * it exists, which may not be the desired behaviour.
  */
@@ -328,6 +332,7 @@ im6o_match_source(const struct ip6_moptions *imo, const size_t gidx,
 
 	psa = (const sockunion_t *)src;
 	find.im6s_addr = psa->sin6.sin6_addr;
+	in6_clearscope(&find.im6s_addr);		/* XXX */
 	ims = RB_FIND(ip6_msource_tree, &imf->im6f_sources, &find);
 
 	return ((struct in6_msource *)ims);
@@ -1159,6 +1164,20 @@ in6_mc_join_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
 
+#ifdef INVARIANTS
+	/*
+	 * Sanity: Check scope zone ID was set for ifp, if and
+	 * only if group is scoped to an interface.
+	 */
+	KASSERT(IN6_IS_ADDR_MULTICAST(mcaddr),
+	    ("%s: not a multicast address", __func__));
+	if (IN6_IS_ADDR_MC_LINKLOCAL(mcaddr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(mcaddr)) {
+		KASSERT(mcaddr->s6_addr16[1] != 0,
+		    ("%s: scope zone ID not set", __func__));
+	}
+#endif
+
 	IN6_MULTI_LOCK_ASSERT();
 
 	CTR4(KTR_MLD, "%s: join %s on %p(%s))", __func__,
@@ -1359,6 +1378,8 @@ in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 
 	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))
 		return (EINVAL);
+
+	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
 	/*
 	 * Check if we are actually a member of this group.
@@ -1566,19 +1587,26 @@ in6p_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (error)
 		return (error);
 
-	if (msfr.msfr_ifindex == 0 || V_if_index < msfr.msfr_ifindex)
+	if (msfr.msfr_group.ss_family != AF_INET6 ||
+	    msfr.msfr_group.ss_len != sizeof(struct sockaddr_in6))
 		return (EINVAL);
 
+	gsa = (sockunion_t *)&msfr.msfr_group;
+	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))
+		return (EINVAL);
+
+	if (msfr.msfr_ifindex == 0 || V_if_index < msfr.msfr_ifindex)
+		return (EADDRNOTAVAIL);
 	ifp = ifnet_byindex(msfr.msfr_ifindex);
 	if (ifp == NULL)
-		return (EINVAL);
+		return (EADDRNOTAVAIL);
+	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
 	INP_WLOCK(inp);
 
 	/*
 	 * Lookup group on the socket.
 	 */
-	gsa = (sockunion_t *)&msfr.msfr_group;
 	idx = im6o_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1 || imo->im6o_mfilters == NULL) {
 		INP_WUNLOCK(inp);
@@ -1803,6 +1831,12 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	ssa = (sockunion_t *)&gsr.gsr_source;
 	ssa->ss.ss_family = AF_UNSPEC;
 
+	/*
+	 * Chew everything into struct group_source_req.
+	 * Overwrite the port field if present, as the sockaddr
+	 * being copied in may be matched with a binary comparison.
+	 * Ignore passed-in scope ID.
+	 */
 	switch (sopt->sopt_name) {
 	case IPV6_JOIN_GROUP: {
 		struct ipv6_mreq mreq;
@@ -1846,16 +1880,20 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		    gsa->sin6.sin6_len != sizeof(struct sockaddr_in6))
 			return (EINVAL);
 
-		/*
-		 * Overwrite the port field if present, as the sockaddr
-		 * being copied in may be matched with a binary comparison.
-		 */
-		gsa->sin6.sin6_port = 0;
 		if (sopt->sopt_name == MCAST_JOIN_SOURCE_GROUP) {
 			if (ssa->sin6.sin6_family != AF_INET6 ||
 			    ssa->sin6.sin6_len != sizeof(struct sockaddr_in6))
 				return (EINVAL);
+			if (IN6_IS_ADDR_MULTICAST(&ssa->sin6.sin6_addr))
+				return (EINVAL);
+			/*
+			 * TODO: Validate embedded scope ID in source
+			 * list entry against passed-in ifp, if and only
+			 * if source list filter entry is iface or node local.
+			 */
+			in6_clearscope(&ssa->sin6.sin6_addr);
 			ssa->sin6.sin6_port = 0;
+			ssa->sin6.sin6_scope_id = 0;
 		}
 
 		if (gsr.gsr_interface == 0 || V_if_index < gsr.gsr_interface)
@@ -1870,34 +1908,22 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		break;
 	}
 
-#ifdef notyet
-	/*
-	 * FIXME: Check for unspecified address (all groups).
-	 * Do we have a normative reference for this 'feature'?
-	 *
-	 * We use the unspecified address to specify to accept
-	 * all multicast addresses. Only super user is allowed
-	 * to do this.
-	 * XXX-BZ might need a better PRIV_NETINET_x for this
-	 */
-	if (IN6_IS_ADDR_UNSPECIFIED(&gsa->sin6.sin6_addr)) {
-		error = priv_check(curthread, PRIV_NETINET_MROUTE);
-		if (error)
-		break;
-	} else
-#endif
 	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))
 		return (EINVAL);
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
 
-#ifdef notyet
+	gsa->sin6.sin6_port = 0;
+	gsa->sin6.sin6_scope_id = 0;
+
 	/*
-	 * FIXME: Set interface scope in group address.
+	 * Always set the scope zone ID on memberships created from userland.
+	 * Use the passed-in ifp to do this.
+	 * XXX The in6_setscope() return value is meaningless.
+	 * XXX SCOPE6_LOCK() is taken by in6_setscope().
 	 */
-	(void)in6_setscope(&gsa->sin6.sin_addr, ifp, NULL);
-#endif
+	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
 	/*
 	 * MCAST_JOIN_SOURCE on an exclusive membership is an error.
@@ -2031,6 +2057,8 @@ static int
 in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 {
 	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET6(curvnet);
+	struct ipv6_mreq		 mreq;
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -2038,6 +2066,7 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	struct ip6_moptions		*imo;
 	struct in6_msource		*ims;
 	struct in6_multi		*inm;
+	uint32_t			 ifindex;
 	size_t				 idx;
 	int				 error, is_final;
 #ifdef KTR
@@ -2045,6 +2074,7 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 #endif
 
 	ifp = NULL;
+	ifindex = 0;
 	error = 0;
 	is_final = 1;
 
@@ -2054,39 +2084,26 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	ssa = (sockunion_t *)&gsr.gsr_source;
 	ssa->ss.ss_family = AF_UNSPEC;
 
+	/*
+	 * Chew everything passed in up into a struct group_source_req
+	 * as that is easier to process.
+	 * Note: Any embedded scope ID in the multicast group passed
+	 * in by userland is ignored, the interface index is the recommended
+	 * mechanism to specify an interface; see below.
+	 */
 	switch (sopt->sopt_name) {
-	case IPV6_LEAVE_GROUP: {
-		struct ipv6_mreq mreq;
-
+	case IPV6_LEAVE_GROUP:
 		error = sooptcopyin(sopt, &mreq, sizeof(struct ipv6_mreq),
 		    sizeof(struct ipv6_mreq));
 		if (error)
 			return (error);
-
 		gsa->sin6.sin6_family = AF_INET6;
 		gsa->sin6.sin6_len = sizeof(struct sockaddr_in6);
 		gsa->sin6.sin6_addr = mreq.ipv6mr_multiaddr;
-
-		if (mreq.ipv6mr_interface == 0) {
-#ifdef notyet
-			/*
-			 * FIXME: Resolve scope ambiguity when interface
-			 * index is unspecified.
-			 */
-			ifp = in6p_lookup_mcast_ifp(inp, &gsa->sin6);
-#else
-			return (EADDRNOTAVAIL);
-#endif
-		} else {
-			if (mreq.ipv6mr_interface < 0 ||
-			    V_if_index < mreq.ipv6mr_interface)
-				return (EADDRNOTAVAIL);
-			ifp = ifnet_byindex(mreq.ipv6mr_interface);
-		}
-
-		CTR3(KTR_MLD, "%s: ipv6mr_interface = %d, ifp = %p",
-		    __func__, mreq.ipv6mr_interface, ifp);
-	} break;
+		gsa->sin6.sin6_port = 0;
+		gsa->sin6.sin6_scope_id = 0;
+		ifindex = mreq.ipv6mr_interface;
+		break;
 
 	case MCAST_LEAVE_GROUP:
 	case MCAST_LEAVE_SOURCE_GROUP:
@@ -2105,17 +2122,22 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		if (gsa->sin6.sin6_family != AF_INET6 ||
 		    gsa->sin6.sin6_len != sizeof(struct sockaddr_in6))
 			return (EINVAL);
-
 		if (sopt->sopt_name == MCAST_LEAVE_SOURCE_GROUP) {
 			if (ssa->sin6.sin6_family != AF_INET6 ||
 			    ssa->sin6.sin6_len != sizeof(struct sockaddr_in6))
 				return (EINVAL);
+			if (IN6_IS_ADDR_MULTICAST(&ssa->sin6.sin6_addr))
+				return (EINVAL);
+			/*
+			 * TODO: Validate embedded scope ID in source
+			 * list entry against passed-in ifp, if and only
+			 * if source list filter entry is iface or node local.
+			 */
+			in6_clearscope(&ssa->sin6.sin6_addr);
 		}
-
-		if (gsr.gsr_interface == 0 || V_if_index < gsr.gsr_interface)
-			return (EADDRNOTAVAIL);
-
-		ifp = ifnet_byindex(gsr.gsr_interface);
+		gsa->sin6.sin6_port = 0;
+		gsa->sin6.sin6_scope_id = 0;
+		ifindex = gsr.gsr_interface;
 		break;
 
 	default:
@@ -2128,14 +2150,39 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))
 		return (EINVAL);
 
-#ifdef notyet
 	/*
-	 * FIXME: Need to embed ifp's scope ID in the address
-	 * handed down to MLD.
-	 * See KAME IPV6_LEAVE_GROUP implementation.
+	 * Validate interface index if provided. If no interface index
+	 * was provided separately, attempt to look the membership up
+	 * from the default scope as a last resort to disambiguate
+	 * the membership we are being asked to leave.
+	 * XXX SCOPE6 lock potentially taken here.
 	 */
-	(void)in6_setscope(&mreq->ipv6mr_multiaddr, ifp, NULL);
-#endif
+	if (ifindex != 0) {
+		if (ifindex < 0 || V_if_index < ifindex)
+			return (EADDRNOTAVAIL);
+		ifp = ifnet_byindex(ifindex);
+		if (ifp == NULL)
+			return (EADDRNOTAVAIL);
+		(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
+	} else {
+		error = sa6_embedscope(&gsa->sin6, V_ip6_use_defzone);
+		if (error)
+			return (EADDRNOTAVAIL);
+		/*
+		 * XXX For now, stomp on zone ID for the corner case.
+		 * This is not the 'KAME way', but we need to see the ifp
+		 * directly until such time as this implementation is
+		 * refactored, assuming the scope IDs are the way to go.
+		 */
+		ifindex = ntohs(gsa->sin6.sin6_addr.s6_addr16[1]);
+		KASSERT(ifindex != 0, ("%s: bad zone ID", __func__));
+		ifp = ifnet_byindex(ifindex);
+		if (ifp == NULL)
+			return (EADDRNOTAVAIL);
+	}
+
+	CTR2(KTR_MLD, "%s: ifp = %p", __func__, ifp);
+	KASSERT(ifp != NULL, ("%s: ifp did not resolve", __func__));
 
 	/*
 	 * Find the membership in the membership array.
@@ -2312,10 +2359,10 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 
 	if (msfr.msfr_ifindex == 0 || V_if_index < msfr.msfr_ifindex)
 		return (EADDRNOTAVAIL);
-
 	ifp = ifnet_byindex(msfr.msfr_ifindex);
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
+	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
 	/*
 	 * Take the INP write lock.
@@ -2393,6 +2440,16 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 				error = EINVAL;
 				break;
 			}
+			if (IN6_IS_ADDR_MULTICAST(&psin->sin6_addr)) {
+				error = EINVAL;
+				break;
+			}
+			/*
+			 * TODO: Validate embedded scope ID in source
+			 * list entry against passed-in ifp, if and only
+			 * if source list filter entry is iface or node local.
+			 */
+			in6_clearscope(&psin->sin6_addr);
 			error = im6f_get_source(imf, psin, &lims);
 			if (error)
 				break;
@@ -2560,7 +2617,7 @@ static int
 sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 {
 	INIT_VNET_NET(curvnet);
-	struct in6_addr			*pgina;
+	struct in6_addr			 mcaddr;
 	struct in6_addr			 src;
 	struct ifnet			*ifp;
 	struct ifmultiaddr		*ifma;
@@ -2591,10 +2648,10 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 		return (ENOENT);
 	}
 
-	pgina = (struct in6_addr *)&name[1];
-	if (!IN6_IS_ADDR_MULTICAST(pgina)) {
+	memcpy(&mcaddr, &name[1], sizeof(struct in6_addr));
+	if (!IN6_IS_ADDR_MULTICAST(&mcaddr)) {
 		CTR2(KTR_MLD, "%s: group %s is not multicast",
-		    __func__, ip6_sprintf(ip6tbuf, pgina));
+		    __func__, ip6_sprintf(ip6tbuf, &mcaddr));
 		return (EINVAL);
 	}
 
@@ -2604,6 +2661,10 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 		    __func__, ifindex);
 		return (ENOENT);
 	}
+	/*
+	 * Internal MLD lookups require that scope/zone ID is set.
+	 */
+	(void)in6_setscope(&mcaddr, ifp, NULL);
 
 	retval = sysctl_wire_old_buffer(req,
 	    sizeof(uint32_t) + (in6_mcast_maxgrpsrc * sizeof(struct in6_addr)));
@@ -2618,7 +2679,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 		    ifma->ifma_protospec == NULL)
 			continue;
 		inm = (struct in6_multi *)ifma->ifma_protospec;
-		if (!IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, pgina))
+		if (!IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, &mcaddr))
 			continue;
 		fmode = inm->in6m_st[1].iss_fmode;
 		retval = SYSCTL_OUT(req, &fmode, sizeof(uint32_t));

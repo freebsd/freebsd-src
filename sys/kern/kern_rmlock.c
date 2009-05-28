@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,6 +72,9 @@ static __inline void compiler_memory_barrier(void) {
 
 static void	assert_rm(struct lock_object *lock, int what);
 static void	lock_rm(struct lock_object *lock, int how);
+#ifdef KDTRACE_HOOKS
+static int	owner_rm(struct lock_object *lock, struct thread **owner);
+#endif
 static int	unlock_rm(struct lock_object *lock);
 
 struct lock_class lock_class_rm = {
@@ -84,6 +88,9 @@ struct lock_class lock_class_rm = {
 #endif
 	.lc_lock = lock_rm,
 	.lc_unlock = unlock_rm,
+#ifdef KDTRACE_HOOKS
+	.lc_owner = owner_rm,
+#endif
 };
 
 static void
@@ -106,6 +113,15 @@ unlock_rm(struct lock_object *lock)
 
 	panic("unlock_rm called");
 }
+
+#ifdef KDTRACE_HOOKS
+static int
+owner_rm(struct lock_object *lock, struct thread **owner)
+{
+
+	panic("owner_rm called");
+}
+#endif
 
 static struct mtx rm_spinlock;
 

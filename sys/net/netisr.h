@@ -53,12 +53,8 @@
 #define	NETISR_ATALK1	17		/* Appletalk phase 1 */
 #define	NETISR_ARP	18		/* same as AF_LINK */
 #define	NETISR_IPX	23		/* same as AF_IPX */
-#define	NETISR_USB	25		/* USB soft interrupt */
-#define	NETISR_PPP	26		/* PPP soft interrupt */
 #define	NETISR_IPV6	27
 #define	NETISR_NATM	28
-#define	NETISR_ATM	29
-#define	NETISR_NETGRAPH	30
 #define	NETISR_POLLMORE	31		/* polling callback, must be last */
 
 #ifndef LOCORE
@@ -84,7 +80,6 @@ typedef void netisr_t (struct mbuf *);
   
 void	netisr_dispatch(int, struct mbuf *);
 int	netisr_queue(int, struct mbuf *);
-#define	NETISR_FORCEQUEUE	0x0002		/* Force queued dispatch. */
 void	netisr_register(int, netisr_t *, struct ifqueue *, int);
 void	netisr_unregister(int);
 

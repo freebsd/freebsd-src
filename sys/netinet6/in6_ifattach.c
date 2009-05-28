@@ -620,23 +620,44 @@ int
 in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
     struct in6_addr *in6)
 {
+	INIT_VPROCG(TD_TO_VPROCG(curthread)); /* XXX V_hostname needs this */
 	const char *p;
 	u_char *q;
 	MD5_CTX ctxt;
+	int use_hostname;
 	u_int8_t digest[16];
 	char l;
 	char n[64];	/* a single label must not exceed 63 chars */
 
-	if (!namelen || !name)
+	/*
+	 * If no name is given and namelen is -1,
+	 * we try to do the hostname lookup ourselves.
+	 */
+	if (!name && namelen == -1) {
+		use_hostname = 1;
+		mtx_lock(&hostname_mtx);
+		name = V_hostname;
+		namelen = strlen(name);
+	} else
+		use_hostname = 0;
+	if (!name || !namelen) {
+		if (use_hostname)
+			mtx_unlock(&hostname_mtx);
 		return -1;
+	}
 
 	p = name;
 	while (p && *p && *p != '.' && p - name < namelen)
 		p++;
-	if (p - name > sizeof(n) - 1)
+	if (p == name || p - name > sizeof(n) - 1) {
+		if (use_hostname)
+			mtx_unlock(&hostname_mtx);
 		return -1;	/* label too long */
+	}
 	l = p - name;
 	strncpy(n, name, l);
+	if (use_hostname)
+		mtx_unlock(&hostname_mtx);
 	n[(int)l] = '\0';
 	for (q = n; *q; q++) {
 		if ('A' <= *q && *q <= 'Z')

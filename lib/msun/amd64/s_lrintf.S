@@ -34,3 +34,4 @@ __FBSDID("$FreeBSD$")
 ENTRY(fn)
 	cvtss2si %xmm0, %rax
 	ret
+END(fn)

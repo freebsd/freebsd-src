@@ -37,6 +37,7 @@
 struct file;
 struct itimerval;
 struct image_args;
+struct jail;
 struct mbuf;
 struct msghdr;
 struct msqid_ds;
@@ -105,6 +106,7 @@ int	kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
 int	kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data);
+int	kern_jail(struct thread *td, struct jail *j);
 int	kern_jail_get(struct thread *td, struct uio *options, int flags);
 int	kern_jail_set(struct thread *td, struct uio *options, int flags);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,

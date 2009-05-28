@@ -146,7 +146,7 @@ sync(td, uap)
 			mp->mnt_kern_flag &= ~MNTK_ASYNC;
 			MNT_IUNLOCK(mp);
 			vfs_msync(mp, MNT_NOWAIT);
-			VFS_SYNC(mp, MNT_NOWAIT, td);
+			VFS_SYNC(mp, MNT_NOWAIT);
 			MNT_ILOCK(mp);
 			mp->mnt_noasync--;
 			if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
@@ -163,12 +163,6 @@ sync(td, uap)
 	mtx_unlock(&mountlist_mtx);
 	return (0);
 }
-
-/* XXX PRISON: could be per prison flag */
-static int prison_quotas;
-#if 0
-SYSCTL_INT(_kern_prison, OID_AUTO, quotas, CTLFLAG_RW, &prison_quotas, 0, "");
-#endif
 
 /*
  * Change filesystem quotas.
@@ -198,7 +192,7 @@ quotactl(td, uap)
 
 	AUDIT_ARG(cmd, uap->cmd);
 	AUDIT_ARG(uid, uap->uid);
-	if (jailed(td->td_ucred) && !prison_quotas)
+	if (!prison_allow(td->td_ucred, PR_ALLOW_QUOTAS))
 		return (EPERM);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
 	   UIO_USERSPACE, uap->path, td);
@@ -215,7 +209,7 @@ quotactl(td, uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
+	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg);
 	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
@@ -326,7 +320,7 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp, td);
+	error = VFS_STATFS(mp, sp);
 	if (error)
 		goto out;
 	if (priv_check(td, PRIV_VFS_GENERATION)) {
@@ -415,7 +409,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp, td);
+	error = VFS_STATFS(mp, sp);
 	if (error)
 		goto out;
 	if (priv_check(td, PRIV_VFS_GENERATION)) {
@@ -522,7 +516,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			 */
 			if (((flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
 			    (flags & MNT_WAIT)) &&
-			    (error = VFS_STATFS(mp, sp, td))) {
+			    (error = VFS_STATFS(mp, sp))) {
 				VFS_UNLOCK_GIANT(vfslocked);
 				mtx_lock(&mountlist_mtx);
 				nmp = TAILQ_NEXT(mp, mnt_list);
@@ -766,7 +760,7 @@ fchdir(td, uap)
 		if (vfs_busy(mp, 0))
 			continue;
 		tvfslocked = VFS_LOCK_GIANT(mp);
-		error = VFS_ROOT(mp, LK_SHARED, &tdp, td);
+		error = VFS_ROOT(mp, LK_SHARED, &tdp);
 		vfs_unbusy(mp);
 		if (error) {
 			VFS_UNLOCK_GIANT(tvfslocked);
@@ -2596,6 +2590,9 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 
+	if (count > INT_MAX)
+		return (EINVAL);
+
 	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, fd, td);
 
@@ -4232,22 +4229,13 @@ getvnode(fdp, fd, fpp)
 	int error;
 	struct file *fp;
 
+	error = 0;
 	fp = NULL;
-	if (fdp == NULL)
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
 		error = EBADF;
-	else {
-		FILEDESC_SLOCK(fdp);
-		if ((u_int)fd >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[fd]) == NULL)
-			error = EBADF;
-		else if (fp->f_vnode == NULL) {
-			fp = NULL;
-			error = EINVAL;
-		} else {
-			fhold(fp);
-			error = 0;
-		}
-		FILEDESC_SUNLOCK(fdp);
+	else if (fp->f_vnode == NULL) {
+		error = EINVAL;
+		fdrop(fp, curthread);
 	}
 	*fpp = fp;
 	return (error);
@@ -4638,7 +4626,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	sp->f_version = STATFS_VERSION;
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp, td);
+	error = VFS_STATFS(mp, sp);
 	if (error == 0)
 		*buf = *sp;
 out:

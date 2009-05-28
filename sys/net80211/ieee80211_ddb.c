@@ -255,9 +255,9 @@ _db_show_sta(const struct ieee80211_node *ni)
 	db_printf("\trxfrag[0] %p rxfrag[1] %p rxfrag[2] %p\n",
 		ni->ni_rxfrag[0], ni->ni_rxfrag[1], ni->ni_rxfrag[2]);
 	_db_show_key("\tucastkey", 0, &ni->ni_ucastkey);
-	db_printf("\trstamp %u avgrssi 0x%x (rssi %d) noise %d\n",
-		ni->ni_rstamp, ni->ni_avgrssi,
-		IEEE80211_RSSI_GET(ni->ni_avgrssi), ni->ni_noise);
+	db_printf("\tavgrssi 0x%x (rssi %d) noise %d\n",
+		ni->ni_avgrssi, IEEE80211_RSSI_GET(ni->ni_avgrssi),
+		ni->ni_noise);
 	db_printf("\tintval %u capinfo %b\n",
 		ni->ni_intval, ni->ni_capinfo, IEEE80211_CAPINFO_BITS);
 	db_printf("\tbssid %s", ether_sprintf(ni->ni_bssid));

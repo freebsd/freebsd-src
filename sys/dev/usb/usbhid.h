@@ -43,7 +43,7 @@
 #define	UR_GET_PROTOCOL		0x03
 #define	UR_SET_PROTOCOL		0x0b
 
-struct usb2_hid_descriptor {
+struct usb_hid_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uWord	bcdHID;
@@ -128,6 +128,7 @@ struct usb2_hid_descriptor {
 #define	HUG_SYSTEM_MENU_LEFT	0x008b
 #define	HUG_SYSTEM_MENU_UP	0x008c
 #define	HUG_SYSTEM_MENU_DOWN	0x008d
+#define	HUG_APPLE_EJECT		0x00b8
 
 /* Usages Digitizers */
 #define	HUD_UNDEFINED		0x0000

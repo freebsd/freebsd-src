@@ -297,7 +297,7 @@ zfs_prop_init(void)
 
 	/* hidden properties */
 	register_hidden(ZFS_PROP_CREATETXG, "createtxg", PROP_TYPE_NUMBER,
-	    PROP_READONLY, ZFS_TYPE_DATASET, NULL);
+	    PROP_READONLY, ZFS_TYPE_DATASET, "CREATETXG");
 	register_hidden(ZFS_PROP_NUMCLONES, "numclones", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_SNAPSHOT, NULL);
 	register_hidden(ZFS_PROP_NAME, "name", PROP_TYPE_STRING,

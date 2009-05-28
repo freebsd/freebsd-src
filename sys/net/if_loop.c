@@ -111,9 +111,14 @@ static int	vnet_loif_iattach(const void *);
 struct ifnet *loif;			/* Used externally */
 #endif
 
+#ifdef VIMAGE
+MALLOC_DEFINE(M_LO_CLONER, "lo_cloner", "lo_cloner");
+#endif
+
 #ifndef VIMAGE_GLOBALS
 static const vnet_modinfo_t vnet_loif_modinfo = {
 	.vmi_id		= VNET_MOD_LOIF,
+	.vmi_dependson	= VNET_MOD_IF_CLONE,
 	.vmi_name	= "loif",
 	.vmi_iattach	= vnet_loif_iattach
 };
@@ -167,7 +172,15 @@ static int vnet_loif_iattach(const void *unused __unused)
 	INIT_VNET_NET(curvnet);
 
 	V_loif = NULL;
+	
+#ifdef VIMAGE
+	V_lo_cloner = malloc(sizeof(*V_lo_cloner), M_LO_CLONER,
+	    M_WAITOK | M_ZERO);
+	bcopy(&lo_cloner, V_lo_cloner, sizeof(*V_lo_cloner));
+	if_clone_attach(V_lo_cloner);
+#else
 	if_clone_attach(&lo_cloner);
+#endif
 	return (0);
 }
 

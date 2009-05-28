@@ -302,6 +302,14 @@ secpolicy_setid_setsticky_clear(struct vnode *vp, struct vattr *vap,
 		if (error)
 			return (error);
 	}
+	/*
+	 * Deny setting setuid if we are not the file owner.
+	 */
+	if ((vap->va_mode & S_ISUID) && ovap->va_uid != cred->cr_uid) {
+		error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
+		if (error)
+			return (error);
+	}
 	return (0);
 }
 

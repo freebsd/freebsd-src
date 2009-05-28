@@ -110,7 +110,11 @@ SUBDIR=	${_ac} \
 	${_ndiscvt} \
 	${_ndp} \
 	newsyslog \
+	nfscbd \
 	nfsd \
+	nfsdumpstate \
+	nfsrevoke \
+	nfsuserd \
 	${_ngctl} \
 	${_nghook} \
 	nologin \

@@ -80,12 +80,12 @@ teken_state.h		optional sc					   \
 	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
-usbdevs.h			optional usb | ousb			   \
+usbdevs.h			optional usb				   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"usbdevs.h"
-usbdevs_data.h			optional usb | ousb			   \
+usbdevs_data.h			optional usb				   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
 	no-obj no-implicit-rule before-depend				   \
@@ -503,7 +503,6 @@ dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
 dev/ata/ata-raid.c		optional ataraid
 dev/ata/ata-usb.c		optional atausb usb
-legacy/dev/ata/ata-usb.c	optional atausb ousb
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
@@ -712,9 +711,9 @@ dev/buslogic/bt_eisa.c		optional bt eisa
 dev/buslogic/bt_isa.c		optional bt isa
 dev/buslogic/bt_mca.c		optional bt mca
 dev/buslogic/bt_pci.c		optional bt pci
-dev/bwi/bwiirf.c		optional bwi
 dev/bwi/bwimac.c		optional bwi
 dev/bwi/bwiphy.c		optional bwi
+dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
 dev/cardbus/cardbus.c		optional cardbus
@@ -1085,6 +1084,7 @@ dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
 dev/kbdmux/kbdmux.c		optional kbdmux
+dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
 dev/le/am79900.c		optional le
 dev/le/if_le_pci.c		optional le pci
@@ -1420,8 +1420,6 @@ dev/sound/pcm/sound.c		optional sound
 dev/sound/pcm/vchan.c		optional sound
 dev/sound/usb/uaudio.c		optional snd_uaudio usb
 dev/sound/usb/uaudio_pcm.c	optional snd_uaudio usb
-legacy/dev/sound/usb/uaudio.c		optional snd_uaudio ousb
-legacy/dev/sound/usb/uaudio_pcm.c	optional snd_uaudio ousb
 dev/sound/midi/midi.c		optional sound
 dev/sound/midi/mpu401.c		optional sound
 dev/sound/midi/mpu_if.m		optional sound
@@ -1500,52 +1498,6 @@ dev/uart/uart_if.m		optional uart
 dev/uart/uart_subr.c		optional uart
 dev/uart/uart_tty.c		optional uart
 dev/ubsec/ubsec.c		optional ubsec
-#
-# USB support
-legacy/dev/usb/ehci.c		optional oehci
-legacy/dev/usb/ehci_ddb.c	optional oehci
-legacy/dev/usb/ehci_pci.c	optional oehci pci
-legacy/dev/usb/hid.c		optional ousb
-legacy/dev/usb/ohci.c		optional oohci
-legacy/dev/usb/ohci_pci.c	optional oohci pci
-legacy/dev/usb/sl811hs.c	optional oslhci
-legacy/dev/usb/slhci_pccard.c	optional oslhci pccard
-legacy/dev/usb/uark.c		optional ouark
-legacy/dev/usb/u3g.c		optional ou3g
-legacy/dev/usb/ubsa.c		optional oubsa
-legacy/dev/usb/ubser.c		optional oubser
-legacy/dev/usb/ucom.c		optional oucom
-legacy/dev/usb/ucycom.c		optional oucycom
-legacy/dev/usb/udbp.c		optional oudbp
-legacy/dev/usb/ufoma.c		optional oufoma
-legacy/dev/usb/ufm.c		optional oufm
-legacy/dev/usb/uftdi.c		optional ouftdi
-legacy/dev/usb/ugen.c		optional ougen
-legacy/dev/usb/uhci.c		optional ouhci
-legacy/dev/usb/uhci_pci.c	optional ouhci pci
-legacy/dev/usb/uhid.c		optional ouhid
-legacy/dev/usb/uhub.c		optional ousb
-legacy/dev/usb/uipaq.c		optional ouipaq
-legacy/dev/usb/ukbd.c		optional oukbd
-legacy/dev/usb/ulpt.c		optional oulpt
-legacy/dev/usb/umass.c		optional oumass
-legacy/dev/usb/umct.c		optional oumct
-legacy/dev/usb/umodem.c		optional oumodem
-legacy/dev/usb/ums.c		optional oums
-legacy/dev/usb/uplcom.c		optional ouplcom
-legacy/dev/usb/urio.c		optional ourio
-legacy/dev/usb/usb.c		optional ousb
-legacy/dev/usb/usb_ethersubr.c	optional ousb
-legacy/dev/usb/usb_if.m		optional ousb
-legacy/dev/usb/usb_mem.c	optional ousb
-legacy/dev/usb/usb_quirks.c	optional ousb
-legacy/dev/usb/usb_subr.c	optional ousb
-legacy/dev/usb/usbdi.c		optional ousb
-legacy/dev/usb/usbdi_util.c	optional ousb
-legacy/dev/usb/uscanner.c	optional ouscanner
-legacy/dev/usb/uslcom.c		optional ouslcom
-legacy/dev/usb/uvisor.c		optional ouvisor
-legacy/dev/usb/uvscom.c		optional ouvscom
 #
 # USB controller drivers
 #
@@ -1636,11 +1588,6 @@ dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | \
 	(u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
 #
-# USB bluetooth drivers
-#
-dev/usb/bluetooth/ng_ubt.c		optional netgraph_bluetooth_ubt usb
-dev/usb/bluetooth/ubtbcmfw.c		optional netgraph_bluetooth_ubtbcmfw usb
-#
 # USB misc drivers
 #
 dev/usb/misc/ufm.c		optional ufm
@@ -1725,6 +1672,29 @@ fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
 fs/msdosfs/msdosfs_vnops.c	optional msdosfs
+fs/nfs/nfs_commonkrpc.c		optional nfscl | nfsd
+fs/nfs/nfs_commonsubs.c		optional nfscl | nfsd
+fs/nfs/nfs_commonport.c		optional nfscl | nfsd
+fs/nfs/nfs_commonacl.c		optional nfscl | nfsd
+fs/nfsclient/nfs_clcomsubs.c	optional nfscl
+fs/nfsclient/nfs_clsubs.c	optional nfscl
+fs/nfsclient/nfs_clstate.c	optional nfscl
+fs/nfsclient/nfs_clkrpc.c	optional nfscl
+fs/nfsclient/nfs_clrpcops.c	optional nfscl
+fs/nfsclient/nfs_clvnops.c	optional nfscl
+fs/nfsclient/nfs_clnode.c	optional nfscl
+fs/nfsclient/nfs_clvfsops.c	optional nfscl
+fs/nfsclient/nfs_cllock.c	optional nfscl
+fs/nfsclient/nfs_clport.c	optional nfscl
+fs/nfsclient/nfs_clbio.c	optional nfscl
+fs/nfsclient/nfs_clnfsiod.c	optional nfscl
+fs/nfsserver/nfs_nfsdsocket.c	optional nfsd
+fs/nfsserver/nfs_nfsdsubs.c	optional nfsd
+fs/nfsserver/nfs_nfsdstate.c	optional nfsd
+fs/nfsserver/nfs_nfsdkrpc.c	optional nfsd
+fs/nfsserver/nfs_nfsdserv.c	optional nfsd
+fs/nfsserver/nfs_nfsdport.c	optional nfsd
+fs/nfsserver/nfs_nfsdcache.c	optional nfsd
 fs/ntfs/ntfs_compr.c		optional ntfs
 fs/ntfs/ntfs_iconv.c		optional ntfs_iconv
 fs/ntfs/ntfs_ihash.c		optional ntfs
@@ -1908,6 +1878,7 @@ kern/kern_environment.c		standard
 kern/kern_event.c		standard
 kern/kern_exec.c		standard
 kern/kern_exit.c		standard
+kern/kern_fail.c		standard
 kern/kern_fork.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
@@ -1918,6 +1889,7 @@ kern/kern_ktrace.c		standard
 kern/kern_linker.c		standard
 kern/kern_lock.c		standard
 kern/kern_lockf.c		standard
+kern/kern_lockstat.c		optional kdtrace_hooks
 kern/kern_malloc.c		standard
 kern/kern_mbuf.c		standard
 kern/kern_mib.c			standard
@@ -2219,6 +2191,7 @@ net80211/ieee80211_output.c	optional wlan
 net80211/ieee80211_phy.c	optional wlan
 net80211/ieee80211_power.c	optional wlan
 net80211/ieee80211_proto.c	optional wlan
+net80211/ieee80211_radiotap.c	optional wlan
 net80211/ieee80211_regdomain.c	optional wlan
 net80211/ieee80211_rssadapt.c	optional wlan wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan
@@ -2250,8 +2223,8 @@ netgraph/atm/uni/ng_uni.c	optional ngatm_uni \
 netgraph/bluetooth/common/ng_bluetooth.c optional netgraph_bluetooth
 netgraph/bluetooth/drivers/bt3c/ng_bt3c_pccard.c optional netgraph_bluetooth_bt3c
 netgraph/bluetooth/drivers/h4/ng_h4.c optional netgraph_bluetooth_h4
-netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt ousb
-netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw ousb
+netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt usb
+netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw usb
 netgraph/bluetooth/hci/ng_hci_cmds.c optional netgraph_bluetooth_hci
 netgraph/bluetooth/hci/ng_hci_evnt.c optional netgraph_bluetooth_hci
 netgraph/bluetooth/hci/ng_hci_main.c optional netgraph_bluetooth_hci
@@ -2427,6 +2400,7 @@ netipx/ipx_pcb.c		optional ipx
 netipx/ipx_proto.c		optional ipx
 netipx/ipx_usrreq.c		optional ipx
 netipx/spx_debug.c		optional ipx
+netipx/spx_reass.c		optional ipx
 netipx/spx_usrreq.c		optional ipx
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
@@ -2450,14 +2424,6 @@ netsmb/smb_subr.c		optional netsmb
 netsmb/smb_trantcp.c		optional netsmb
 netsmb/smb_usr.c		optional netsmb
 nfs/nfs_common.c		optional nfsclient | nfsserver
-nfs4client/nfs4_dev.c		optional nfsclient
-nfs4client/nfs4_idmap.c		optional nfsclient
-nfs4client/nfs4_socket.c	optional nfsclient
-nfs4client/nfs4_subs.c		optional nfsclient
-nfs4client/nfs4_vfs_subs.c	optional nfsclient
-nfs4client/nfs4_vfsops.c	optional nfsclient
-nfs4client/nfs4_vn_subs.c	optional nfsclient
-nfs4client/nfs4_vnops.c		optional nfsclient
 nfsclient/bootp_subr.c		optional bootp nfsclient
 nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
@@ -2477,14 +2443,14 @@ nfsserver/nfs_srvsock.c		optional nfsserver
 nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
-nfs/nfs_nfssvc.c		optional nfsserver
-nlm/nlm_advlock.c		optional nfslockd nfsclient
-nlm/nlm_prot_clnt.c		optional nfslockd
-nlm/nlm_prot_impl.c		optional nfslockd
-nlm/nlm_prot_server.c		optional nfslockd
-nlm/nlm_prot_svc.c		optional nfslockd
-nlm/nlm_prot_xdr.c		optional nfslockd
-nlm/sm_inter_xdr.c		optional nfslockd
+nfs/nfs_nfssvc.c		optional nfsserver | nfscl | nfsd
+nlm/nlm_advlock.c		optional nfslockd nfsclient | nfsd nfsclient
+nlm/nlm_prot_clnt.c		optional nfslockd | nfsd
+nlm/nlm_prot_impl.c		optional nfslockd | nfsd
+nlm/nlm_prot_server.c		optional nfslockd | nfsd
+nlm/nlm_prot_svc.c		optional nfslockd | nfsd
+nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
+nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec
 opencrypto/criov.c		optional crypto
@@ -2504,33 +2470,32 @@ pci/intpm.c			optional intpm pci
 pci/ncr.c			optional ncr pci
 pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
-rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/auth_unix.c			optional krpc | nfslockd | nfsclient
-rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver
-rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient
-rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient
-rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver
-rpc/inet_ntop.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/inet_pton.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/replay.c			optional krpc | nfslockd | nfsserver
-rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver
-rpc/rpcclnt.c			optional nfsclient
-rpc/svc.c			optional krpc | nfslockd | nfsserver
-rpc/svc_auth.c			optional krpc | nfslockd | nfsserver
-rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsserver
-rpc/svc_dg.c			optional krpc | nfslockd | nfsserver
-rpc/svc_generic.c		optional krpc | nfslockd | nfsserver
-rpc/svc_vc.c			optional krpc | nfslockd | nfsserver
-rpc/rpcsec_gss/rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi
-rpc/rpcsec_gss/rpcsec_gss_conf.c optional krpc kgssapi | nfslockd kgssapi
-rpc/rpcsec_gss/rpcsec_gss_misc.c optional krpc kgssapi | nfslockd kgssapi
-rpc/rpcsec_gss/rpcsec_gss_prot.c optional krpc kgssapi | nfslockd kgssapi
-rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi
+rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/auth_unix.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
+rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
+rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
+rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/inet_ntop.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/inet_pton.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/replay.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/svc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_auth.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_dg.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_generic.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc_vc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/rpcsec_gss/rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_conf.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_misc.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_prot.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
+rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit

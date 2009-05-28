@@ -127,11 +127,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
-#include <machine/pmap.h>
 #include <machine/sigframe.h>
 #include <machine/metadata.h>
 #include <machine/bootinfo.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 
 #include <sys/linker.h>
 #include <sys/reboot.h>
@@ -156,9 +155,6 @@ extern unsigned char __bss_start[];
 extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
-
-extern struct mem_region availmem_regions[];
-extern int availmem_regions_sz;
 
 extern void dcache_enable(void);
 extern void dcache_inval(void);
@@ -339,9 +335,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	struct pcpu *pc;
 	void *kmdp;
 	vm_offset_t end;
-	struct bi_mem_region *mr;
 	uint32_t csr;
-	int i;
 
 	kmdp = NULL;
 
@@ -381,30 +375,11 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		while(1);
 	}
 
-	/* Initialize memory regions table */
-	mr = bootinfo_mr();
-	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++) {
-		if (i == MEM_REGIONS)
-			break;
-		if (mr->mem_base < 1048576) {
-			availmem_regions[i].mr_start = 1048576;
-			availmem_regions[i].mr_size = mr->mem_size -
-			    (1048576 - mr->mem_base);
-		} else {
-			availmem_regions[i].mr_start = mr->mem_base;
-			availmem_regions[i].mr_size = mr->mem_size;
-		}
-	}
-	availmem_regions_sz = i;
-
 	/* Initialize TLB1 handling */
 	tlb1_init(bootinfo->bi_bar_base);
 
-	/*
-	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
-	 * HID0[SEL_TBCLK] = 0
-	 */
-	decr_config(bootinfo->bi_bus_clk / 8);
+	/* Reset Time Base */
+	mttb(0);
 
 	/* Init params/tunables that can be overridden by the loader. */
 	init_param1();
@@ -436,6 +411,11 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	debugf(" MSR = 0x%08x\n", mfmsr());
 	debugf(" HID0 = 0x%08x\n", mfspr(SPR_HID0));
 	debugf(" HID1 = 0x%08x\n", mfspr(SPR_HID1));
+	debugf(" BUCSR = 0x%08x\n", mfspr(SPR_BUCSR));
+
+	__asm __volatile("msync; isync");
+	csr = ccsr_read4(OCP85XX_L2CTL);
+	debugf(" L2CTL = 0x%08x\n", csr);
 
 	print_bootinfo();
 	print_kernel_section_addr();
@@ -449,6 +429,9 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
+
+	/* Initialise platform module */
+	platform_probe_and_attach();
 
 	/* Initialise virtual memory. */
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);
@@ -504,12 +487,25 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	return (((uintptr_t)thread0.td_pcb - 16) & ~15);
 }
 
+#define RES_GRANULE 32
+extern uint32_t tlb0_miss_locks[];
+
 /* Initialise a struct pcpu. */
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 
 	pcpu->pc_tid_next = TID_MIN;
+
+#ifdef SMP
+	uint32_t *ptr;
+	int words_per_gran = RES_GRANULE / sizeof(uint32_t);
+
+	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
+	pcpu->pc_booke_tlb_lock = ptr;
+	*ptr = MTX_UNOWNED;
+	*(ptr + 1) = 0;		/* recurse counter */
+#endif
 }
 
 /* Set set up registers on exec. */
@@ -579,6 +575,16 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
 	return (0);
+}
+
+/*
+ * Flush the D-cache for non-DMA I/O so that the I-cache can
+ * be made coherent later.
+ */
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+	/* TBD */
 }
 
 /* Get current clock frequency for the given cpu id. */

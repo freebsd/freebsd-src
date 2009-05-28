@@ -161,7 +161,6 @@ DRIVER_MODULE(hwpstate, cpu, hwpstate_driver, hwpstate_devclass, 0, 0);
 static int
 hwpstate_goto_pstate(device_t dev, int pstate)
 {
-	struct hwpstate_softc *sc;
 	struct pcpu *pc;
 	int i;
 	uint64_t msr;
@@ -170,7 +169,6 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 	int id = pstate;
 	int error;
 	
-	sc = device_get_softc(dev);
 	/* get the current pstate limit */
 	msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
 	limit = AMD_10H_11H_GET_PSTATE_LIMIT(msr);
@@ -299,7 +297,6 @@ hwpstate_type(device_t dev, int *type)
 static void
 hwpstate_identify(driver_t *driver, device_t parent)
 {
-	device_t child;
 
 	if (device_find_child(parent, "hwpstate", -1) != NULL)
 		return;
@@ -318,7 +315,7 @@ hwpstate_identify(driver_t *driver, device_t parent)
 	if (resource_disabled("hwpstate", 0))
 		return;
 
-	if ((child = BUS_ADD_CHILD(parent, 10, "hwpstate", -1)) == NULL)
+	if (BUS_ADD_CHILD(parent, 10, "hwpstate", -1) == NULL)
 		device_printf(parent, "hwpstate: add child failed\n");
 }
 

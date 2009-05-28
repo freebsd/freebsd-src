@@ -370,7 +370,7 @@ again:
 			svr4_dirent.d_off = (svr4_off_t)(off + reclen);
 			svr4_dirent.d_reclen = (u_short) svr4reclen;
 		}
-		strcpy(svr4_dirent.d_name, bdp->d_name);
+		strlcpy(svr4_dirent.d_name, bdp->d_name, sizeof(svr4_dirent.d_name));
 		if ((error = copyout((caddr_t)&svr4_dirent, outp, svr4reclen)))
 			goto out;
 		inp += reclen;
@@ -511,7 +511,7 @@ again:
 		idb.d_ino = (svr4_ino_t)bdp->d_fileno;
 		idb.d_off = (svr4_off_t)off;
 		idb.d_reclen = (u_short)svr4_reclen;
-		strcpy(idb.d_name, bdp->d_name);
+		strlcpy(idb.d_name, bdp->d_name, sizeof(idb.d_name));
 		if ((error = copyout((caddr_t)&idb, outp, svr4_reclen)))
 			goto out;
 		/* advance past this real entry */
@@ -1199,12 +1199,12 @@ svr4_sys_waitsys(td, uap)
 
 	/*
 	 * Ok, handle the weird cases.  Either WNOWAIT is set (meaning we
-	 * just want to see if there is a process to harvest, we dont'
+	 * just want to see if there is a process to harvest, we don't
 	 * want to actually harvest it), or WEXIT and WTRAPPED are clear
 	 * meaning we want to ignore zombies.  Either way, we don't have
 	 * to handle harvesting zombies here.  We do have to duplicate the
-	 * other portions of kern_wait() though, especially for the
-	 * WCONTINUED and WSTOPPED.
+	 * other portions of kern_wait() though, especially for WCONTINUED
+	 * and WSTOPPED.
 	 */
 loop:
 	nfound = 0;
@@ -1611,14 +1611,14 @@ svr4_sys_resolvepath(td, uap)
 	struct nameidata nd;
 	int error, *retval = td->td_retval;
 	unsigned int ncopy;
-	int vfslocked;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | SAVENAME | MPSAFE, UIO_USERSPACE,
 	    uap->path, td);
 
 	if ((error = namei(&nd)) != 0)
-		return error;
-	vfslocked = NDHASGIANT(&nd);
+		return (error);
+	NDFREE(&nd, NDF_NO_FREE_PNBUF);
+	VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
 
 	ncopy = min(uap->bufsiz, strlen(nd.ni_cnd.cn_pnbuf) + 1);
 	if ((error = copyout(nd.ni_cnd.cn_pnbuf, uap->buf, ncopy)) != 0)
@@ -1627,7 +1627,5 @@ svr4_sys_resolvepath(td, uap)
 	*retval = ncopy;
 bad:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return error;
 }

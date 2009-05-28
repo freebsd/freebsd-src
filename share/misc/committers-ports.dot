@@ -144,6 +144,7 @@ stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
 tabthorpe [label="Thomas Abthorpe\ntabthorpe@FreeBSD.org\n2007/08/20"]
 tdb [label="Tim Bishop\ntdb@FreeBSD.org\n2005/11/30"]
 timur [label="Timur Bakeyev\ntimur@FreeBSD.org\n2007/06/07"]
+tota [label="TAKATSU Tomonari\ntota@FreeBSD.org\n2009/03/30"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
@@ -256,6 +257,8 @@ lawrance -> itetcu
 leeym -> clsung
 
 lioux -> pat
+
+maho -> tota
 
 marcus -> ahze
 marcus -> bland

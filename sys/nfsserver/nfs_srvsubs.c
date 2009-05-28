@@ -1193,6 +1193,9 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 	if (!lockflag)
 		VOP_UNLOCK(*vpp, 0);
 out:
+	if (credanon != NULL)
+		crfree(credanon);
+
 	if (error) {
 		VFS_UNLOCK_GIANT(vfslocked);
 	} else

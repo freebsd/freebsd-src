@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2009
+.Dd May 21, 2009
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -109,7 +109,7 @@ USB access library (libusb -lusb)
 .Ft const char *
 .Fn libusb20_dev_get_backend_name "struct libusb20_device *"
 .Ft int
-.Fn libusb20_dev_get_info "struct libusb20_device *pdev" "struct usb2_device_info *pinfo"
+.Fn libusb20_dev_get_info "struct libusb20_device *pdev" "struct usb_device_info *pinfo"
 .Ft int
 .Fn libusb20_dev_get_iface_desc "struct libusb20_device *pdev" "uint8_t iface_index" "char *buf" "uint8_t len"
 .Ft const char *
@@ -148,8 +148,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_dev_get_power_mode "struct libusb20_device *pdev"
 .Ft int
 .Fn libusb20_dev_set_alt_index "struct libusb20_device *pdev" "uint8_t iface_index" "uint8_t alt_index"
-.Ft int
-.Fn libusb20_dev_get_device_desc "struct libusb20_device *pdev" "uint8_t iface_indexr", "char *buf" "uint8_t len"
+.Ft struct LIBUSB20_DEVICE_DESC_DECODED *
+.Fn libusb20_dev_get_device_desc "struct libusb20_device *pdev"
 .Ft struct libusb20_config *
 .Fn libusb20_dev_alloc_config "struct libusb20_device *pdev" "uint8_t config_index"
 .Ft struct libusb20_device *
@@ -465,7 +465,7 @@ returns a zero terminated string describing the backend used.
 .Pp
 .
 .Fn libusb20_dev_get_info
-retrives the BSD specific usb2_device_info structure into the memory location given by 
+retrives the BSD specific usb_device_info structure into the memory location given by 
 .Fa pinfo .
 The USB device given by
 .Fa pdev
@@ -945,7 +945,7 @@ These functions are compliant with LibUSB version 0.1.12.
 .
 /dev/usb
 .Sh SEE ALSO
-.Xr usb2_core 4 ,
+.Xr usb 4 ,
 .Xr usbconfig 8
 .
 .

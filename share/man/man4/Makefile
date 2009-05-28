@@ -51,6 +51,7 @@ MAN=	aac.4 \
 	blackhole.4 \
 	bpf.4 \
 	bt.4 \
+	bwi.4 \
 	cardbus.4 \
 	carp.4 \
 	ccd.4 \
@@ -151,6 +152,7 @@ MAN=	aac.4 \
 	ispfw.4 \
 	iwi.4 \
 	iwn.4 \
+	iwnfw.4 \
 	ixgb.4 \
 	ixgbe.4 \
 	jme.4 \
@@ -158,6 +160,7 @@ MAN=	aac.4 \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
+	ksyms.4 \
 	ktr.4 \
 	kue.4 \
 	lagg.4 \
@@ -188,6 +191,7 @@ MAN=	aac.4 \
 	meteor.4 \
 	mfi.4 \
 	miibus.4 \
+	mld.4 \
 	mlx.4 \
 	mly.4 \
 	mmc.4 \
@@ -464,6 +468,7 @@ MLINKS+=bce.4 if_bce.4
 MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
+MLINKS+=bwi.4 if_bwi.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=dc.4 if_dc.4

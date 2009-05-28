@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
- * (C) 1997 Luigi Rizzo
+ * Copyright (c) 1997 Luigi Rizzo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

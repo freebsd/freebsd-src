@@ -307,10 +307,6 @@ ieee80211_start(struct ifnet *ifp)
 			}
 		}
 
-		/* XXX fragmented frames not handled */
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
-
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
@@ -419,9 +415,6 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	/* XXX assumes an 802.3 frame */
 	if (ieee80211_classify(ni, m))
 		senderr(EIO);		/* XXX */
-
-	if (bpf_peers_present(vap->iv_rawbpf))
-		bpf_mtap(vap->iv_rawbpf, m);
 
 	IEEE80211_NODE_STAT(ni, tx_data);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {

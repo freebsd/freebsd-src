@@ -255,7 +255,8 @@ ocpbus_attach(device_t dev)
 		if ((sr & 0x80000000) == 0)
 			continue;
 		tgt = (sr & 0x01f00000) >> 20;
-		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2)
+		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2 ||
+		    tgt == OCP85XX_TGTIF_RAM_INTL)
 			continue;
 
 		ccsr_write4(OCP85XX_LAWSR(i), sr & 0x7fffffff);

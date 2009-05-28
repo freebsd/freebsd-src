@@ -363,6 +363,7 @@ pim6_init(void)
 int
 X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 {
+	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	int optval;
 	struct mif6ctl mifc;
@@ -1715,6 +1716,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 static int
 register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *mm;
 	int i, len = m->m_pkthdr.len;
 	static struct sockaddr_in6 sin6 = { sizeof(sin6), AF_INET6 };
@@ -2036,6 +2038,7 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 static int
 ip6_mroute_modevent(module_t mod, int type, void *unused)
 {
+	INIT_VNET_INET6(curvnet);
 
 	switch (type) {
 	case MOD_LOAD:

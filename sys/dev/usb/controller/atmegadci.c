@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int atmegadci_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
-SYSCTL_INT(_hw_usb2_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
+SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif
 
@@ -74,23 +74,23 @@ SYSCTL_INT(_hw_usb2_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb2_bus_methods atmegadci_bus_methods;
-struct usb2_pipe_methods atmegadci_device_non_isoc_methods;
-struct usb2_pipe_methods atmegadci_device_isoc_fs_methods;
+struct usb_bus_methods atmegadci_bus_methods;
+struct usb_pipe_methods atmegadci_device_non_isoc_methods;
+struct usb_pipe_methods atmegadci_device_isoc_fs_methods;
 
 static atmegadci_cmd_t atmegadci_setup_rx;
 static atmegadci_cmd_t atmegadci_data_rx;
 static atmegadci_cmd_t atmegadci_data_tx;
 static atmegadci_cmd_t atmegadci_data_tx_sync;
-static void atmegadci_device_done(struct usb2_xfer *, usb2_error_t);
-static void atmegadci_do_poll(struct usb2_bus *);
-static void atmegadci_standard_done(struct usb2_xfer *);
+static void atmegadci_device_done(struct usb_xfer *, usb2_error_t);
+static void atmegadci_do_poll(struct usb_bus *);
+static void atmegadci_standard_done(struct usb_xfer *);
 static void atmegadci_root_intr(struct atmegadci_softc *sc);
 
 /*
  * Here is a list of what the chip supports:
  */
-static const struct usb2_hw_ep_profile
+static const struct usb_hw_ep_profile
 	atmegadci_ep_profile[2] = {
 
 	[0] = {
@@ -112,8 +112,8 @@ static const struct usb2_hw_ep_profile
 };
 
 static void
-atmegadci_get_hw_ep_profile(struct usb2_device *udev,
-    const struct usb2_hw_ep_profile **ppf, uint8_t ep_addr)
+atmegadci_get_hw_ep_profile(struct usb_device *udev,
+    const struct usb_hw_ep_profile **ppf, uint8_t ep_addr)
 {
 	if (ep_addr == 0)
 		*ppf = atmegadci_ep_profile;
@@ -223,7 +223,7 @@ static uint8_t
 atmegadci_setup_rx(struct atmegadci_td *td)
 {
 	struct atmegadci_softc *sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t count;
 	uint8_t temp;
 
@@ -308,7 +308,7 @@ static uint8_t
 atmegadci_data_rx(struct atmegadci_td *td)
 {
 	struct atmegadci_softc *sc;
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	uint16_t count;
 	uint8_t temp;
 	uint8_t to;
@@ -422,7 +422,7 @@ static uint8_t
 atmegadci_data_tx(struct atmegadci_td *td)
 {
 	struct atmegadci_softc *sc;
-	struct usb2_page_search buf_res;
+	struct usb_page_search buf_res;
 	uint16_t count;
 	uint8_t to;
 	uint8_t temp;
@@ -549,7 +549,7 @@ not_complete:
 }
 
 static uint8_t
-atmegadci_xfer_do_fifo(struct usb2_xfer *xfer)
+atmegadci_xfer_do_fifo(struct usb_xfer *xfer)
 {
 	struct atmegadci_td *td;
 
@@ -594,7 +594,7 @@ done:
 static void
 atmegadci_interrupt_poll(struct atmegadci_softc *sc)
 {
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 
 repeat:
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
@@ -672,7 +672,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 	 * that like RESUME. Resume is set when there is at least 3
 	 * milliseconds of inactivity on the USB BUS.
 	 */
-	if (status & ATMEGA_UDINT_EORSMI) {
+	if (status & ATMEGA_UDINT_WAKEUPI) {
 
 		DPRINTFN(5, "resume interrupt\n");
 
@@ -700,7 +700,7 @@ atmegadci_interrupt(struct atmegadci_softc *sc)
 
 			/* disable suspend interrupt */
 			ATMEGA_WRITE_1(sc, ATMEGA_UDIEN,
-			    ATMEGA_UDINT_EORSMI |
+			    ATMEGA_UDINT_WAKEUPE |
 			    ATMEGA_UDINT_EORSTE);
 
 			/* complete root HUB interrupt endpoint */
@@ -751,13 +751,13 @@ atmegadci_setup_standard_chain_sub(struct atmegadci_std_temp *temp)
 	td->offset = temp->offset;
 	td->remainder = temp->len;
 	td->error = 0;
-	td->did_stall = 0;
+	td->did_stall = temp->did_stall;
 	td->short_pkt = temp->short_pkt;
 	td->alt_next = temp->setup_alt_next;
 }
 
 static void
-atmegadci_setup_standard_chain(struct usb2_xfer *xfer)
+atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 {
 	struct atmegadci_std_temp temp;
 	struct atmegadci_softc *sc;
@@ -782,6 +782,7 @@ atmegadci_setup_standard_chain(struct usb2_xfer *xfer)
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = ATMEGA_BUS2SC(xfer->xroot->bus);
 	ep_no = (xfer->endpoint & UE_ADDR);
@@ -909,7 +910,7 @@ atmegadci_setup_standard_chain(struct usb2_xfer *xfer)
 static void
 atmegadci_timeout(void *arg)
 {
-	struct usb2_xfer *xfer = arg;
+	struct usb_xfer *xfer = arg;
 
 	DPRINTF("xfer=%p\n", xfer);
 
@@ -920,7 +921,7 @@ atmegadci_timeout(void *arg)
 }
 
 static void
-atmegadci_start_standard_chain(struct usb2_xfer *xfer)
+atmegadci_start_standard_chain(struct usb_xfer *xfer)
 {
 	DPRINTFN(9, "\n");
 
@@ -953,7 +954,7 @@ atmegadci_root_intr(struct atmegadci_softc *sc)
  }
 
 static usb2_error_t
-atmegadci_standard_done_sub(struct usb2_xfer *xfer)
+atmegadci_standard_done_sub(struct usb_xfer *xfer)
 {
 	struct atmegadci_td *td;
 	uint32_t len;
@@ -1017,7 +1018,7 @@ atmegadci_standard_done_sub(struct usb2_xfer *xfer)
 }
 
 static void
-atmegadci_standard_done(struct usb2_xfer *xfer)
+atmegadci_standard_done(struct usb_xfer *xfer)
 {
 	usb2_error_t err = 0;
 
@@ -1066,7 +1067,7 @@ done:
  * same USB transfer!
  *------------------------------------------------------------------------*/
 static void
-atmegadci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
+atmegadci_device_done(struct usb_xfer *xfer, usb2_error_t error)
 {
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
 	uint8_t ep_no;
@@ -1076,7 +1077,7 @@ atmegadci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	DPRINTFN(9, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
 
-	if (xfer->flags_int.usb2_mode == USB_MODE_DEVICE) {
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		ep_no = (xfer->endpoint & UE_ADDR);
 
 		/* select endpoint number */
@@ -1092,8 +1093,8 @@ atmegadci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 }
 
 static void
-atmegadci_set_stall(struct usb2_device *udev, struct usb2_xfer *xfer,
-    struct usb2_pipe *pipe)
+atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+    struct usb_pipe *pipe)
 {
 	struct atmegadci_softc *sc;
 	uint8_t ep_no;
@@ -1152,13 +1153,12 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 	    ATMEGA_UECONX_STALLRQC);
 
 	do {
-		temp = 0;
 		if (ep_type == UE_BULK) {
-			temp |= ATMEGA_UECFG0X_EPTYPE2;
+			temp = ATMEGA_UECFG0X_EPTYPE2;
 		} else if (ep_type == UE_INTERRUPT) {
-			temp |= ATMEGA_UECFG0X_EPTYPE3;
+			temp = ATMEGA_UECFG0X_EPTYPE3;
 		} else {
-			temp |= ATMEGA_UECFG0X_EPTYPE1;
+			temp = ATMEGA_UECFG0X_EPTYPE1;
 		}
 		if (ep_dir & UE_DIR_IN) {
 			temp |= ATMEGA_UECFG0X_EPDIR;
@@ -1178,17 +1178,17 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 }
 
 static void
-atmegadci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
+atmegadci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 {
 	struct atmegadci_softc *sc;
-	struct usb2_endpoint_descriptor *ed;
+	struct usb_endpoint_descriptor *ed;
 
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	/* check mode */
-	if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+	if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 		/* not supported */
 		return;
 	}
@@ -1217,13 +1217,28 @@ atmegadci_init(struct atmegadci_softc *sc)
 	sc->sc_bus.methods = &atmegadci_bus_methods;
 
 	USB_BUS_LOCK(&sc->sc_bus);
-#if 0
-	/* XXX TODO - currently done by boot strap */
+
+	/* make sure USB is enabled */
+	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
+	    ATMEGA_USBCON_USBE |
+	    ATMEGA_USBCON_FRZCLK);
 
 	/* enable USB PAD regulator */
 	ATMEGA_WRITE_1(sc, ATMEGA_UHWCON,
-	    ATMEGA_UHWCON_UVREGE | ATMEGA_UHWCON_UIMOD);
-#endif
+	    ATMEGA_UHWCON_UVREGE |
+	    ATMEGA_UHWCON_UIMOD);
+
+	/* the following register sets up the USB PLL, assuming 16MHz X-tal */
+	ATMEGA_WRITE_1(sc, 0x49 /* PLLCSR */, 0x14 | 0x02);
+
+	/* wait for PLL to lock */
+	for (n = 0; n != 20; n++) {
+		if (ATMEGA_READ_1(sc, 0x49) & 0x01)
+			break;
+		/* wait a little bit for PLL to start */
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+	}
+
 	/* make sure USB is enabled */
 	ATMEGA_WRITE_1(sc, ATMEGA_USBCON,
 	    ATMEGA_USBCON_USBE |
@@ -1329,7 +1344,7 @@ atmegadci_resume(struct atmegadci_softc *sc)
 }
 
 static void
-atmegadci_do_poll(struct usb2_bus *bus)
+atmegadci_do_poll(struct usb_bus *bus)
 {
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(bus);
 
@@ -1344,32 +1359,32 @@ atmegadci_do_poll(struct usb2_bus *bus)
  * at91dci interrupt support
  *------------------------------------------------------------------------*/
 static void
-atmegadci_device_non_isoc_open(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-atmegadci_device_non_isoc_close(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_close(struct usb_xfer *xfer)
 {
 	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-atmegadci_device_non_isoc_enter(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_enter(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-atmegadci_device_non_isoc_start(struct usb2_xfer *xfer)
+atmegadci_device_non_isoc_start(struct usb_xfer *xfer)
 {
 	/* setup TDs */
 	atmegadci_setup_standard_chain(xfer);
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods atmegadci_device_non_isoc_methods =
+struct usb_pipe_methods atmegadci_device_non_isoc_methods =
 {
 	.open = atmegadci_device_non_isoc_open,
 	.close = atmegadci_device_non_isoc_close,
@@ -1381,19 +1396,19 @@ struct usb2_pipe_methods atmegadci_device_non_isoc_methods =
  * at91dci full speed isochronous support
  *------------------------------------------------------------------------*/
 static void
-atmegadci_device_isoc_fs_open(struct usb2_xfer *xfer)
+atmegadci_device_isoc_fs_open(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-atmegadci_device_isoc_fs_close(struct usb2_xfer *xfer)
+atmegadci_device_isoc_fs_close(struct usb_xfer *xfer)
 {
 	atmegadci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
 static void
-atmegadci_device_isoc_fs_enter(struct usb2_xfer *xfer)
+atmegadci_device_isoc_fs_enter(struct usb_xfer *xfer)
 {
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(xfer->xroot->bus);
 	uint32_t temp;
@@ -1449,13 +1464,13 @@ atmegadci_device_isoc_fs_enter(struct usb2_xfer *xfer)
 }
 
 static void
-atmegadci_device_isoc_fs_start(struct usb2_xfer *xfer)
+atmegadci_device_isoc_fs_start(struct usb_xfer *xfer)
 {
 	/* start TD chain */
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb2_pipe_methods atmegadci_device_isoc_fs_methods =
+struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
 {
 	.open = atmegadci_device_isoc_fs_open,
 	.close = atmegadci_device_isoc_fs_close,
@@ -1469,8 +1484,8 @@ struct usb2_pipe_methods atmegadci_device_isoc_fs_methods =
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
 
-static const struct usb2_device_descriptor atmegadci_devd = {
-	.bLength = sizeof(struct usb2_device_descriptor),
+static const struct usb_device_descriptor atmegadci_devd = {
+	.bLength = sizeof(struct usb_device_descriptor),
 	.bDescriptorType = UDESC_DEVICE,
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
@@ -1483,8 +1498,8 @@ static const struct usb2_device_descriptor atmegadci_devd = {
 	.bNumConfigurations = 1,
 };
 
-static const struct usb2_device_qualifier atmegadci_odevd = {
-	.bLength = sizeof(struct usb2_device_qualifier),
+static const struct usb_device_qualifier atmegadci_odevd = {
+	.bLength = sizeof(struct usb_device_qualifier),
 	.bDescriptorType = UDESC_DEVICE_QUALIFIER,
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
@@ -1496,7 +1511,7 @@ static const struct usb2_device_qualifier atmegadci_odevd = {
 
 static const struct atmegadci_config_desc atmegadci_confd = {
 	.confd = {
-		.bLength = sizeof(struct usb2_config_descriptor),
+		.bLength = sizeof(struct usb_config_descriptor),
 		.bDescriptorType = UDESC_CONFIG,
 		.wTotalLength[0] = sizeof(atmegadci_confd),
 		.bNumInterface = 1,
@@ -1506,7 +1521,7 @@ static const struct atmegadci_config_desc atmegadci_confd = {
 		.bMaxPower = 0,
 	},
 	.ifcd = {
-		.bLength = sizeof(struct usb2_interface_descriptor),
+		.bLength = sizeof(struct usb_interface_descriptor),
 		.bDescriptorType = UDESC_INTERFACE,
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
@@ -1514,7 +1529,7 @@ static const struct atmegadci_config_desc atmegadci_confd = {
 		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
 	},
 	.endpd = {
-		.bLength = sizeof(struct usb2_endpoint_descriptor),
+		.bLength = sizeof(struct usb_endpoint_descriptor),
 		.bDescriptorType = UDESC_ENDPOINT,
 		.bEndpointAddress = (UE_DIR_IN | ATMEGA_INTR_ENDPT),
 		.bmAttributes = UE_INTERRUPT,
@@ -1523,7 +1538,7 @@ static const struct atmegadci_config_desc atmegadci_confd = {
 	},
 };
 
-static const struct usb2_hub_descriptor_min atmegadci_hubd = {
+static const struct usb_hub_descriptor_min atmegadci_hubd = {
 	.bDescLength = sizeof(atmegadci_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
@@ -1552,8 +1567,8 @@ USB_MAKE_STRING_DESC(STRING_VENDOR, atmegadci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, atmegadci_product);
 
 static usb2_error_t
-atmegadci_roothub_exec(struct usb2_device *udev,
-    struct usb2_device_request *req, const void **pptr, uint16_t *plength)
+atmegadci_roothub_exec(struct usb_device *udev,
+    struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(udev->bus);
 	const void *ptr;
@@ -1847,6 +1862,11 @@ tr_handle_clear_port_feature:
 		/* clear connect change flag */
 		sc->sc_flags.change_connect = 0;
 
+		if (!sc->sc_flags.status_bus_reset) {
+			/* we are not connected */
+			break;
+		}
+
 		/* configure the control endpoint */
 
 		/* select endpoint number */
@@ -1975,11 +1995,11 @@ done:
 }
 
 static void
-atmegadci_xfer_setup(struct usb2_setup_params *parm)
+atmegadci_xfer_setup(struct usb_setup_params *parm)
 {
-	const struct usb2_hw_ep_profile *pf;
+	const struct usb_hw_ep_profile *pf;
 	struct atmegadci_softc *sc;
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
 	uint32_t n;
@@ -2062,25 +2082,25 @@ atmegadci_xfer_setup(struct usb2_setup_params *parm)
 }
 
 static void
-atmegadci_xfer_unsetup(struct usb2_xfer *xfer)
+atmegadci_xfer_unsetup(struct usb_xfer *xfer)
 {
 	return;
 }
 
 static void
-atmegadci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *edesc,
-    struct usb2_pipe *pipe)
+atmegadci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_pipe *pipe)
 {
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(udev->bus);
 
 	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d,%d)\n",
 	    pipe, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb2_mode,
+	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr, udev->device_index);
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
+		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
 			/* not supported */
 			return;
 		}
@@ -2095,7 +2115,7 @@ atmegadci_pipe_init(struct usb2_device *udev, struct usb2_endpoint_descriptor *e
 	}
 }
 
-struct usb2_bus_methods atmegadci_bus_methods =
+struct usb_bus_methods atmegadci_bus_methods =
 {
 	.pipe_init = &atmegadci_pipe_init,
 	.xfer_setup = &atmegadci_xfer_setup,

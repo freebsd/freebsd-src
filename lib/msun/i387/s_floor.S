@@ -56,3 +56,4 @@ ENTRY(floor)
 
 	leave
 	ret
+END(floor)

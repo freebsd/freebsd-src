@@ -132,9 +132,10 @@ static const char *ffs_opts[] = { "acls", "async", "noatime", "noclusterr",
     "union", NULL };
 
 static int
-ffs_mount(struct mount *mp, struct thread *td)
+ffs_mount(struct mount *mp)
 {
 	struct vnode *devvp;
+	struct thread *td;
 	struct ufsmount *ump = 0;
 	struct fs *fs;
 	int error, flags;
@@ -143,6 +144,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 	struct nameidata ndp;
 	char *fspec;
 
+	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, ffs_opts))
 		return (EINVAL);
 	if (uma_inode == NULL) {
@@ -213,7 +215,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 					 * ignore the suspension to
 					 * synchronize on-disk state.
 					 */
-					curthread->td_pflags |= TDP_IGNSUSP;
+					td->td_pflags |= TDP_IGNSUSP;
 					break;
 				}
 				MNT_IUNLOCK(mp);
@@ -431,7 +433,7 @@ ffs_mount(struct mount *mp, struct thread *td)
  */
 
 static int
-ffs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+ffs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct ufs_args args;
 	int error;
@@ -1025,11 +1027,11 @@ ffs_oldfscompat_write(fs, ump)
  * unmount system call
  */
 static int
-ffs_unmount(mp, mntflags, td)
+ffs_unmount(mp, mntflags)
 	struct mount *mp;
 	int mntflags;
-	struct thread *td;
 {
+	struct thread *td;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
 	int error, flags, susp;
@@ -1038,6 +1040,7 @@ ffs_unmount(mp, mntflags, td)
 #endif
 
 	flags = 0;
+	td = curthread;
 	fs = ump->um_fs;
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
@@ -1069,7 +1072,7 @@ ffs_unmount(mp, mntflags, td)
 				    MNTK_SUSPEND2);
 				wakeup(&mp->mnt_flag);
 				MNT_IUNLOCK(mp);
-				curthread->td_pflags |= TDP_IGNSUSP;
+				td->td_pflags |= TDP_IGNSUSP;
 				break;
 			}
 			MNT_IUNLOCK(mp);
@@ -1199,10 +1202,9 @@ ffs_flushfiles(mp, flags, td)
  * Get filesystem statistics.
  */
 static int
-ffs_statfs(mp, sbp, td)
+ffs_statfs(mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
 	struct ufsmount *ump;
 	struct fs *fs;
@@ -1235,12 +1237,12 @@ ffs_statfs(mp, sbp, td)
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
 static int
-ffs_sync(mp, waitfor, td)
+ffs_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
-	struct thread *td;
 {
 	struct vnode *mvp, *vp, *devvp;
+	struct thread *td;
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
@@ -1253,6 +1255,7 @@ ffs_sync(mp, waitfor, td)
 	int softdep_accdeps;
 	struct bufobj *bo;
 
+	td = curthread;
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0) {		/* XXX */
 		printf("fs = %s\n", fs->fs_fsmnt);
@@ -1698,15 +1701,15 @@ ffs_sbupdate(mp, waitfor, suspended)
 
 static int
 ffs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
-	int attrnamespace, const char *attrname, struct thread *td)
+	int attrnamespace, const char *attrname)
 {
 
 #ifdef UFS_EXTATTR
 	return (ufs_extattrctl(mp, cmd, filename_vp, attrnamespace,
-	    attrname, td));
+	    attrname));
 #else
 	return (vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace,
-	    attrname, td));
+	    attrname));
 #endif
 }
 

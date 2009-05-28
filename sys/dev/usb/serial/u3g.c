@@ -53,8 +53,8 @@
 #if USB_DEBUG
 static int u3g_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
-SYSCTL_INT(_hw_usb2_u3g, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
+SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
     &u3g_debug, 0, "Debug level");
 #endif
 
@@ -83,11 +83,11 @@ enum {
 };
 
 struct u3g_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom[U3G_MAXPORTS];
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom[U3G_MAXPORTS];
 
-	struct usb2_xfer *sc_xfer[U3G_MAXPORTS][U3G_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[U3G_MAXPORTS][U3G_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint8_t	sc_lsr;			/* local status register */
@@ -102,14 +102,14 @@ static device_detach_t u3g_detach;
 static usb2_callback_t u3g_write_callback;
 static usb2_callback_t u3g_read_callback;
 
-static void u3g_start_read(struct usb2_com_softc *ucom);
-static void u3g_stop_read(struct usb2_com_softc *ucom);
-static void u3g_start_write(struct usb2_com_softc *ucom);
-static void u3g_stop_write(struct usb2_com_softc *ucom);
+static void u3g_start_read(struct ucom_softc *ucom);
+static void u3g_stop_read(struct ucom_softc *ucom);
+static void u3g_start_write(struct ucom_softc *ucom);
+static void u3g_stop_write(struct ucom_softc *ucom);
 
 static int u3g_driver_loaded(struct module *mod, int what, void *arg);
 
-static const struct usb2_config u3g_config[U3G_N_TRANSFER] = {
+static const struct usb_config u3g_config[U3G_N_TRANSFER] = {
 
 	[U3G_BULK_WR] = {
 		.type = UE_BULK,
@@ -130,7 +130,7 @@ static const struct usb2_config u3g_config[U3G_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback u3g_callback = {
+static const struct ucom_callback u3g_callback = {
 	.usb2_com_start_read = &u3g_start_read,
 	.usb2_com_stop_read = &u3g_stop_read,
 	.usb2_com_start_write = &u3g_start_write,
@@ -156,13 +156,14 @@ DRIVER_MODULE(u3g, uhub, u3g_driver, u3g_devclass, u3g_driver_loaded, 0);
 MODULE_DEPEND(u3g, ucom, 1, 1, 1);
 MODULE_DEPEND(u3g, usb, 1, 1, 1);
 
-static const struct usb2_device_id u3g_devs[] = {
+static const struct usb_device_id u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	/* OEM: Option */
 	U3G_DEV(OPTION, GT3G, 0),
 	U3G_DEV(OPTION, GT3GQUAD, 0),
 	U3G_DEV(OPTION, GT3GPLUS, 0),
 	U3G_DEV(OPTION, GTMAX36, 0),
+	U3G_DEV(OPTION, GTHSDPA, 0),
 	U3G_DEV(OPTION, GTMAXHSUPA, 0),
 	U3G_DEV(OPTION, VODAFONEMC3G, 0),
 	/* OEM: Qualcomm, Inc. */
@@ -225,9 +226,9 @@ static const struct usb2_device_id u3g_devs[] = {
 };
 
 static void
-u3g_sierra_init(struct usb2_device *udev)
+u3g_sierra_init(struct usb_device *udev)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTFN(0, "\n");
 
@@ -245,9 +246,9 @@ u3g_sierra_init(struct usb2_device *udev)
 }
 
 static void
-u3g_huawei_init(struct usb2_device *udev)
+u3g_huawei_init(struct usb_device *udev)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTFN(0, "\n");
 
@@ -265,7 +266,7 @@ u3g_huawei_init(struct usb2_device *udev)
 }
 
 static void
-u3g_sael_m460_init(struct usb2_device *udev)
+u3g_sael_m460_init(struct usb_device *udev)
 {
 	static const uint8_t setup[][24] = {
 	     { 0x41, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
@@ -297,7 +298,7 @@ u3g_sael_m460_init(struct usb2_device *udev)
 	     { 0x41, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 },
 	};
 
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	usb2_error_t err;
 	uint16_t len;
 	uint8_t buf[0x300];
@@ -345,7 +346,7 @@ u3g_sael_m460_init(struct usb2_device *udev)
 }
 
 static int
-u3g_lookup_huawei(struct usb2_attach_arg *uaa)
+u3g_lookup_huawei(struct usb_attach_arg *uaa)
 {
 	/* Calling the lookup function will also set the driver info! */
 	return (usb2_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
@@ -358,11 +359,11 @@ u3g_lookup_huawei(struct usb2_attach_arg *uaa)
  * to a modem.
  */
 static usb2_error_t
-u3g_test_huawei_autoinst(struct usb2_device *udev,
-    struct usb2_attach_arg *uaa)
+u3g_test_huawei_autoinst(struct usb_device *udev,
+    struct usb_attach_arg *uaa)
 {
-	struct usb2_interface *iface;
-	struct usb2_interface_descriptor *id;
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
 	uint32_t flags;
 
 	if (udev == NULL) {
@@ -418,9 +419,9 @@ u3g_driver_loaded(struct module *mod, int what, void *arg)
 static int
 u3g_probe(device_t self)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != U3G_CONFIG_INDEX) {
@@ -435,12 +436,13 @@ u3g_probe(device_t self)
 static int
 u3g_attach(device_t dev)
 {
-	struct usb2_config u3g_config_tmp[U3G_N_TRANSFER];
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_config u3g_config_tmp[U3G_N_TRANSFER];
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct u3g_softc *sc = device_get_softc(dev);
-	struct usb2_interface *iface;
-	struct usb2_interface_descriptor *id;
-	int error, iface_valid, flags, nports;
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
+	uint32_t iface_valid;
+	int error, flags, nports;
 	int ep, n;
 	uint8_t i;
 
@@ -548,7 +550,7 @@ u3g_detach(device_t dev)
 }
 
 static void
-u3g_start_read(struct usb2_com_softc *ucom)
+u3g_start_read(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
@@ -558,7 +560,7 @@ u3g_start_read(struct usb2_com_softc *ucom)
 }
 
 static void
-u3g_stop_read(struct usb2_com_softc *ucom)
+u3g_stop_read(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
@@ -568,7 +570,7 @@ u3g_stop_read(struct usb2_com_softc *ucom)
 }
 
 static void
-u3g_start_write(struct usb2_com_softc *ucom)
+u3g_start_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
@@ -577,7 +579,7 @@ u3g_start_write(struct usb2_com_softc *ucom)
 }
 
 static void
-u3g_stop_write(struct usb2_com_softc *ucom)
+u3g_stop_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
@@ -586,9 +588,9 @@ u3g_stop_write(struct usb2_com_softc *ucom)
 }
 
 static void
-u3g_write_callback(struct usb2_xfer *xfer)
+u3g_write_callback(struct usb_xfer *xfer)
 {
-	struct usb2_com_softc *ucom = xfer->priv_sc;
+	struct ucom_softc *ucom = xfer->priv_sc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -614,9 +616,9 @@ tr_setup:
 }
 
 static void
-u3g_read_callback(struct usb2_xfer *xfer)
+u3g_read_callback(struct usb_xfer *xfer)
 {
-	struct usb2_com_softc *ucom = xfer->priv_sc;
+	struct ucom_softc *ucom = xfer->priv_sc;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:

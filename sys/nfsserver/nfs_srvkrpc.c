@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
 #include <sys/eventhandler.h>
+#include <sys/vimage.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -488,7 +489,7 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		if (error)
 			return (error);
 	} else {
-		snprintf(principal, sizeof(principal), "nfs@%s", hostname);
+		snprintf(principal, sizeof(principal), "nfs@%s", V_hostname);
 	}
 #endif
 

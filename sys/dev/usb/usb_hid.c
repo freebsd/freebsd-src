@@ -296,9 +296,6 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				} else {
 					s->ncount = 1;
 				}
-				/* set default usage */
-				/* use the undefined HID PAGE */
-				s->usage_last = 0;
 				goto top;
 
 			case 9:	/* Output */
@@ -309,6 +306,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->kind = hid_collection;
 				c->collection = dval;
 				c->collevel++;
+				c->usage = s->usage_last;
 				*h = *c;
 				return (1);
 			case 11:	/* Feature */
@@ -407,6 +405,9 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 			case 0:
 				if (bSize != 4)
 					dval = (dval & mask) | c->_usage_page;
+
+				/* set last usage, in case of a collection */
+				s->usage_last = dval;
 
 				if (s->nusage < MAXUSAGE) {
 					s->usages_min[s->nusage] = dval;
@@ -630,9 +631,11 @@ hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
 	if (hd == NULL)
 		return (0);
 
-	err = hid_get_item(hd, &hi) &&
-	    hi.kind == hid_collection &&
-	    hi.usage == usage;
+	while ((err = hid_get_item(hd, &hi))) {
+		 if (hi.kind == hid_collection &&
+		     hi.usage == usage)
+			break;
+	}
 	hid_end_parse(hd);
 	return (err);
 }
@@ -647,11 +650,11 @@ hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
  * NULL: No more HID descriptors.
  * Else: Pointer to HID descriptor.
  *------------------------------------------------------------------------*/
-struct usb2_hid_descriptor *
-hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
-    struct usb2_interface_descriptor *id)
+struct usb_hid_descriptor *
+hid_get_descriptor_from_usb(struct usb_config_descriptor *cd,
+    struct usb_interface_descriptor *id)
 {
-	struct usb2_descriptor *desc = (void *)id;
+	struct usb_descriptor *desc = (void *)id;
 
 	if (desc == NULL) {
 		return (NULL);
@@ -679,12 +682,12 @@ hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
  * Else: Success. The pointer should eventually be passed to free().
  *------------------------------------------------------------------------*/
 usb2_error_t
-usb2_req_get_hid_desc(struct usb2_device *udev, struct mtx *mtx,
+usb2_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
     void **descp, uint16_t *sizep,
     usb2_malloc_type mem, uint8_t iface_index)
 {
-	struct usb2_interface *iface = usb2_get_iface(udev, iface_index);
-	struct usb2_hid_descriptor *hid;
+	struct usb_interface *iface = usb2_get_iface(udev, iface_index);
+	struct usb_hid_descriptor *hid;
 	usb2_error_t err;
 
 	if ((iface == NULL) || (iface->idesc == NULL)) {

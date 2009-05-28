@@ -6,7 +6,7 @@ are used by the ZFS bootstrap:
     fletcher.c			checksum support
     sha256.c			checksum support
     lzjb.c			compression support
-    zfssubr.c			mostly checksum and compression support
+    zfssubr.c			checksum, compression and raidz support
     zfsimpl.h			mostly describing the physical layout
 
 The files fletcher.c, lzjb.c and sha256.c are largely identical to the

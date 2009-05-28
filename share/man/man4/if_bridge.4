@@ -358,7 +358,8 @@ For the bridge to forward packets all member interfaces and the bridge need
 to be up.
 The above example would also require:
 .Bd -literal -offset indent
-ifconfig_wlan0="up ssid my_ap mode 11g mediaopt hostap"
+create_args_wlan0="wlanmode hostap"
+ifconfig_wlan0="up ssid my_ap mode 11g"
 ifconfig_fxp0="up"
 .Ed
 .Pp

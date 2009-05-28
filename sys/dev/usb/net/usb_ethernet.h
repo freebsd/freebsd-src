@@ -49,12 +49,12 @@
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-struct usb2_ether;
-struct usb2_device_request;
+struct usb_ether;
+struct usb_device_request;
 
-typedef void (usb2_ether_fn_t)(struct usb2_ether *);
+typedef void (usb2_ether_fn_t)(struct usb_ether *);
 
-struct usb2_ether_methods {
+struct usb_ether_methods {
 	usb2_ether_fn_t		*ue_attach_post;
 	usb2_ether_fn_t		*ue_start;
 	usb2_ether_fn_t		*ue_init;
@@ -69,31 +69,31 @@ struct usb2_ether_methods {
 
 };
 
-struct usb2_ether_cfg_task {
-	struct usb2_proc_msg hdr;
-	struct usb2_ether *ue;
+struct usb_ether_cfg_task {
+	struct usb_proc_msg hdr;
+	struct usb_ether *ue;
 };
 
-struct usb2_ether {
+struct usb_ether {
 	/* NOTE: the "ue_ifp" pointer must be first --hps */
 	struct ifnet		*ue_ifp;
 	struct mtx		*ue_mtx;
-	const struct usb2_ether_methods *ue_methods;
+	const struct usb_ether_methods *ue_methods;
 	struct sysctl_oid	*ue_sysctl_oid;
 	void			*ue_sc;
-	struct usb2_device	*ue_udev; /* used by usb2_ether_do_request() */
+	struct usb_device	*ue_udev; /* used by usb2_ether_do_request() */
 	device_t		ue_dev;
 	device_t		ue_miibus;
 
-	struct usb2_process	ue_tq;
+	struct usb_process	ue_tq;
 	struct sysctl_ctx_list	ue_sysctl_ctx;
 	struct ifqueue		ue_rxq;
-	struct usb2_callout	ue_watchdog;
-	struct usb2_ether_cfg_task	ue_sync_task[2];
-	struct usb2_ether_cfg_task	ue_media_task[2];
-	struct usb2_ether_cfg_task	ue_multi_task[2];
-	struct usb2_ether_cfg_task	ue_promisc_task[2];
-	struct usb2_ether_cfg_task	ue_tick_task[2];
+	struct usb_callout	ue_watchdog;
+	struct usb_ether_cfg_task	ue_sync_task[2];
+	struct usb_ether_cfg_task	ue_media_task[2];
+	struct usb_ether_cfg_task	ue_multi_task[2];
+	struct usb_ether_cfg_task	ue_promisc_task[2];
+	struct usb_ether_cfg_task	ue_tick_task[2];
 
 	int			ue_unit;
 
@@ -104,19 +104,19 @@ struct usb2_ether {
 #define	usb2_ether_do_request(ue,req,data,timo) \
     usb2_do_request_proc((ue)->ue_udev,&(ue)->ue_tq,req,data,0,NULL,timo)
 
-uint8_t		usb2_ether_pause(struct usb2_ether *, unsigned int);
-struct ifnet	*usb2_ether_getifp(struct usb2_ether *);
-struct mii_data *usb2_ether_getmii(struct usb2_ether *);
-void		*usb2_ether_getsc(struct usb2_ether *);
-int		usb2_ether_ifattach(struct usb2_ether *);
-void		usb2_ether_ifdetach(struct usb2_ether *);
+uint8_t		usb2_ether_pause(struct usb_ether *, unsigned int);
+struct ifnet	*usb2_ether_getifp(struct usb_ether *);
+struct mii_data *usb2_ether_getmii(struct usb_ether *);
+void		*usb2_ether_getsc(struct usb_ether *);
+int		usb2_ether_ifattach(struct usb_ether *);
+void		usb2_ether_ifdetach(struct usb_ether *);
 int		usb2_ether_ioctl(struct ifnet *, u_long, caddr_t);
 struct mbuf	*usb2_ether_newbuf(void);
-int		usb2_ether_rxmbuf(struct usb2_ether *, struct mbuf *, 
+int		usb2_ether_rxmbuf(struct usb_ether *, struct mbuf *, 
 		    unsigned int);
-int		usb2_ether_rxbuf(struct usb2_ether *,
-		    struct usb2_page_cache *, 
+int		usb2_ether_rxbuf(struct usb_ether *,
+		    struct usb_page_cache *, 
 		    unsigned int, unsigned int);
-void		usb2_ether_rxflush(struct usb2_ether *);
-uint8_t		usb2_ether_is_gone(struct usb2_ether *);
+void		usb2_ether_rxflush(struct usb_ether *);
+uint8_t		usb2_ether_is_gone(struct usb_ether *);
 #endif					/* _USB2_ETHERNET_H_ */

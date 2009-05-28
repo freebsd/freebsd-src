@@ -1006,14 +1006,17 @@ em_transmit_locked(struct ifnet *ifp, struct mbuf *m)
 	    || (!adapter->link_active)) {
 		error = drbr_enqueue(ifp, adapter->br, m);
 		return (error);
-	}
-	
-	if (ADAPTER_RING_EMPTY(adapter) &&
+	} else if (ADAPTER_RING_EMPTY(adapter) &&
 	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
 		if (em_xmit(adapter, &m)) {
 			if (m && (error = drbr_enqueue(ifp, adapter->br, m)) != 0)
 				return (error);
 		} else {
+			/*
+			 * We've bypassed the buf ring so we need to update
+			 * ifp directly
+			 */
+			drbr_stats_update(ifp, m->m_pkthdr.len, m->m_flags);
 			/*
 			** Send a copy of the frame to the BPF
 			** listener and set the watchdog on.

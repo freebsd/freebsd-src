@@ -51,13 +51,13 @@ usb2_quirk_ioctl_t *usb2_quirk_ioctl_p = &usb2_quirk_ioctl_w;
 devclass_t usb2_devclass_ptr = NULL;
 
 static usb2_error_t
-usb2_temp_setup_by_index_w(struct usb2_device *udev, uint16_t index)
+usb2_temp_setup_by_index_w(struct usb_device *udev, uint16_t index)
 {
 	return (USB_ERR_INVAL);
 }
 
 static uint8_t
-usb2_test_quirk_w(const struct usb2_lookup_info *info, uint16_t quirk)
+usb2_test_quirk_w(const struct usb_lookup_info *info, uint16_t quirk)
 {
 	return (0);			/* no match */
 }
@@ -69,14 +69,14 @@ usb2_quirk_ioctl_w(unsigned long cmd, caddr_t data, int fflag, struct thread *td
 }
 
 static usb2_error_t
-usb2_temp_get_desc_w(struct usb2_device *udev, struct usb2_device_request *req, const void **pPtr, uint16_t *pLength)
+usb2_temp_get_desc_w(struct usb_device *udev, struct usb_device_request *req, const void **pPtr, uint16_t *pLength)
 {
 	/* stall */
 	return (USB_ERR_STALLED);
 }
 
 static void
-usb2_temp_unsetup_w(struct usb2_device *udev)
+usb2_temp_unsetup_w(struct usb_device *udev)
 {
 	if (udev->usb2_template_ptr) {
 
@@ -87,8 +87,8 @@ usb2_temp_unsetup_w(struct usb2_device *udev)
 }
 
 static uint8_t
-usb2_test_huawei_autoinst_w(struct usb2_device *udev,
-    struct usb2_attach_arg *uaa)
+usb2_test_huawei_autoinst_w(struct usb_device *udev,
+    struct usb_attach_arg *uaa)
 {
 	return (USB_ERR_INVAL);
 }

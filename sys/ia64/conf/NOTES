@@ -15,7 +15,7 @@ cpu		ITANIUM2
 # option: COMPAT_IA32
 # This option enables the support for execution of i386 (32-bit) programs on
 # ia64. It is based on the ia32 emulation in the processor.
-options		COMPAT_IA32
+options 	COMPAT_IA32
 
 # option: LOG2_ID_PAGE_SIZE
 # Specify the log2 size of the identity (direct) mappings in regions 6 and 7
@@ -25,20 +25,20 @@ options 	LOG2_ID_PAGE_SIZE=27		# 128M
 # option: LOG2_PAGE_SIZE
 # Specify the log2 size of the page to be used for virtual memory management.
 # The page size being equal to 1<<LOG2_PAGE_SIZE.
-options		LOG2_PAGE_SIZE=15		# 32K
+options 	LOG2_PAGE_SIZE=15		# 32K
 
 # option: SKI
 # Build support for running under the ski simulator.
-options		SKI
+options 	SKI
 
 # option: UWX_TRACE_ENABLE
 # Build the unwinder with tracing support. This option is used to debug the
 # unwinder itself and the glue around it.
-options		UWX_TRACE_ENABLE
+options 	UWX_TRACE_ENABLE
 
 # MI options
-options		ACPI_DEBUG
-options		KSTACK_PAGES=3
+options 	ACPI_DEBUG
+options 	KSTACK_PAGES=3
 
 device		acpi
 
@@ -102,7 +102,7 @@ options 	VGA_WIDTH90		# support 90 column modes
 options 	VGA_DEBUG
 
 # AGP debugging.
-options		AGP_DEBUG
+options 	AGP_DEBUG
 
 # The following devices are not supported.
 nodevice	fdc

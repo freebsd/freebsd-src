@@ -57,14 +57,6 @@
 #endif
 
 /*
- * The following macro defines if the code shall support any forms of
- * ASCII strings.
- */
-#ifndef USB_HAVE_STRINGS
-#define	USB_HAVE_STRINGS 1
-#endif
-
-/*
  * The following macro defines if the code shall support BUS-DMA.
  */
 #ifndef USB_HAVE_BUSDMA
@@ -233,9 +225,9 @@
  * The following macro will tell if an USB transfer is currently
  * receiving or transferring data.
  */
-#define	USB_GET_DATA_ISREAD(xfer) (((xfer)->flags_int.usb2_mode == \
-	USB_MODE_DEVICE) ? ((xfer->endpoint & UE_DIR_IN) ? 0 : 1) : \
-	((xfer->endpoint & UE_DIR_IN) ? 1 : 0))
+#define	USB_GET_DATA_ISREAD(xfer) ((xfer)->flags_int.usb_mode == \
+	USB_MODE_DEVICE ? (((xfer)->endpoint & UE_DIR_IN) ? 0 : 1) : \
+	(((xfer)->endpoint & UE_DIR_IN) ? 1 : 0))
 
 /*
  * The following macros are used used to convert milliseconds into
@@ -264,17 +256,17 @@
 /* structure prototypes */
 
 struct file;
-struct usb2_bus;
-struct usb2_device;
-struct usb2_device_request;
-struct usb2_page;
-struct usb2_page_cache;
-struct usb2_xfer;
-struct usb2_xfer_root;
+struct usb_bus;
+struct usb_device;
+struct usb_device_request;
+struct usb_page;
+struct usb_page_cache;
+struct usb_xfer;
+struct usb_xfer_root;
 
 /* typedefs */
 
-typedef void (usb2_callback_t)(struct usb2_xfer *);
+typedef void (usb2_callback_t)(struct usb_xfer *);
 
 #ifndef USB_HAVE_USB_ERROR_T
 typedef uint8_t usb2_error_t;		/* see "USB_ERR_XXX" */
@@ -304,18 +296,18 @@ typedef uint32_t usb2_ticks_t;		/* system defined */
 typedef uint16_t usb2_power_mask_t;	/* see "USB_HW_POWER_XXX" */
 #endif
 
-typedef usb2_error_t (usb2_handle_request_t)(struct usb2_device *, 
-    struct usb2_device_request *, const void **, uint16_t *);
+typedef usb2_error_t (usb2_handle_request_t)(struct usb_device *, 
+    struct usb_device_request *, const void **, uint16_t *);
 
 /* structures */
 
 /*
  * Common queue structure for USB transfers.
  */
-struct usb2_xfer_queue {
-	TAILQ_HEAD(, usb2_xfer) head;
-	struct usb2_xfer *curr;		/* current USB transfer processed */
-	void    (*command) (struct usb2_xfer_queue *pq);
+struct usb_xfer_queue {
+	TAILQ_HEAD(, usb_xfer) head;
+	struct usb_xfer *curr;		/* current USB transfer processed */
+	void    (*command) (struct usb_xfer_queue *pq);
 	uint8_t	recurse_1:1;
 	uint8_t	recurse_2:1;
 };
@@ -324,14 +316,14 @@ struct usb2_xfer_queue {
  * The following is a wrapper for the callout structure to ease
  * porting the code to other platforms.
  */
-struct usb2_callout {
+struct usb_callout {
 	struct callout co;
 };
 
 /*
  * The following structure defines a set of USB transfer flags.
  */
-struct usb2_xfer_flags {
+struct usb_xfer_flags {
 	uint8_t	force_short_xfer:1;	/* force a short transmit transfer
 					 * last */
 	uint8_t	short_xfer_ok:1;	/* allow short receive transfers */
@@ -353,7 +345,9 @@ struct usb2_xfer_flags {
  * The following structure defines a set of internal USB transfer
  * flags.
  */
-struct usb2_xfer_flags_int {
+struct usb_xfer_flags_int {
+
+	enum usb_hc_mode usb_mode;	/* shadow copy of "udev->usb_mode" */
 	uint16_t control_rem;		/* remainder in bytes */
 
 	uint8_t	open:1;			/* set if USB pipe has been opened */
@@ -369,6 +363,7 @@ struct usb2_xfer_flags_int {
 	uint8_t	control_hdr:1;		/* set if control header should be
 					 * sent */
 	uint8_t	control_act:1;		/* set if control transfer is active */
+	uint8_t	control_stall:1;	/* set if control transfer should be stalled */
 
 	uint8_t	short_frames_ok:1;	/* filtered version */
 	uint8_t	short_xfer_ok:1;	/* filtered version */
@@ -381,7 +376,6 @@ struct usb2_xfer_flags_int {
 	uint8_t	bdma_setup:1;		/* set if BUS-DMA has been setup */
 #endif
 	uint8_t	isochronous_xfr:1;	/* set if isochronous transfer */
-	uint8_t	usb2_mode:1;		/* shadow copy of "udev->usb2_mode" */
 	uint8_t	curr_dma_set:1;		/* used by USB HC/DC driver */
 	uint8_t	can_cancel_immed:1;	/* set if USB transfer can be
 					 * cancelled immediately */
@@ -391,36 +385,35 @@ struct usb2_xfer_flags_int {
  * The following structure define an USB configuration, that basically
  * is used when setting up an USB transfer.
  */
-struct usb2_config {
+struct usb_config {
 	usb2_callback_t *callback;	/* USB transfer callback */
 	usb2_frlength_t bufsize;	/* total pipe buffer size in bytes */
 	usb2_frcount_t frames;		/* maximum number of USB frames */
 	usb2_timeout_t interval;	/* interval in milliseconds */
 #define	USB_DEFAULT_INTERVAL	0
 	usb2_timeout_t timeout;		/* transfer timeout in milliseconds */
-	struct usb2_xfer_flags flags;	/* transfer flags */
+	struct usb_xfer_flags flags;	/* transfer flags */
+	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	type;			/* pipe type */
 	uint8_t	endpoint;		/* pipe number */
 	uint8_t	direction;		/* pipe direction */
 	uint8_t	ep_index;		/* pipe index match to use */
 	uint8_t	if_index;		/* "ifaces" index to use */
-	uint8_t usb_mode;		/* see "USB_MODE_XXX", 
-					 * "USB_MODE_MAX" means any mode! */
 };
 
 /*
  * The following structure defines an USB transfer.
  */
-struct usb2_xfer {
-	struct usb2_callout timeout_handle;
-	TAILQ_ENTRY(usb2_xfer) wait_entry;	/* used at various places */
+struct usb_xfer {
+	struct usb_callout timeout_handle;
+	TAILQ_ENTRY(usb_xfer) wait_entry;	/* used at various places */
 
-	struct usb2_page_cache *buf_fixup;	/* fixup buffer(s) */
-	struct usb2_xfer_queue *wait_queue;	/* pointer to queue that we
+	struct usb_page_cache *buf_fixup;	/* fixup buffer(s) */
+	struct usb_xfer_queue *wait_queue;	/* pointer to queue that we
 						 * are waiting on */
-	struct usb2_page *dma_page_ptr;
-	struct usb2_pipe *pipe;		/* our USB pipe */
-	struct usb2_xfer_root *xroot;	/* used by HC driver */
+	struct usb_page *dma_page_ptr;
+	struct usb_pipe *pipe;		/* our USB pipe */
+	struct usb_xfer_root *xroot;	/* used by HC driver */
 	void   *qh_start[2];		/* used by HC driver */
 	void   *td_start[2];		/* used by HC driver */
 	void   *td_transfer_first;	/* used by HC driver */
@@ -430,7 +423,7 @@ struct usb2_xfer {
 	void   *priv_fifo;		/* device driver data pointer 2 */
 	void   *local_buffer;
 	usb2_frlength_t *frlengths;
-	struct usb2_page_cache *frbuffers;
+	struct usb_page_cache *frbuffers;
 	usb2_callback_t *callback;
 
 	usb2_frlength_t max_hc_frame_size;
@@ -463,15 +456,15 @@ struct usb2_xfer {
 
 	usb2_error_t error;
 
-	struct usb2_xfer_flags flags;
-	struct usb2_xfer_flags_int flags_int;
+	struct usb_xfer_flags flags;
+	struct usb_xfer_flags_int flags_int;
 };
 
 /*
  * The following structure keeps information that is used to match
- * against an array of "usb2_device_id" elements.
+ * against an array of "usb_device_id" elements.
  */
-struct usb2_lookup_info {
+struct usb_lookup_info {
 	uint16_t idVendor;
 	uint16_t idProduct;
 	uint16_t bcdDevice;
@@ -489,13 +482,13 @@ struct usb2_lookup_info {
 
 /* Structure used by probe and attach */
 
-struct usb2_attach_arg {
-	struct usb2_lookup_info info;
+struct usb_attach_arg {
+	struct usb_lookup_info info;
 	device_t temp_dev;		/* for internal use */
 	const void *driver_info;	/* for internal use */
-	struct usb2_device *device;	/* current device */
-	struct usb2_interface *iface;	/* current interface */
-	uint8_t	usb2_mode;		/* see USB_MODE_XXX */
+	struct usb_device *device;	/* current device */
+	struct usb_interface *iface;	/* current interface */
+	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	port;
 	uint8_t	use_generic;		/* hint for generic drivers */
 };
@@ -515,44 +508,44 @@ typedef struct malloc_type *usb2_malloc_type;
 /* prototypes */
 
 const char *usb2_errstr(usb2_error_t error);
-const char *usb2_statestr(enum usb2_dev_state state);
-struct usb2_config_descriptor *usb2_get_config_descriptor(
-	    struct usb2_device *udev);
-struct usb2_device_descriptor *usb2_get_device_descriptor(
-	    struct usb2_device *udev);
-struct usb2_interface *usb2_get_iface(struct usb2_device *udev,
+const char *usb2_statestr(enum usb_dev_state state);
+struct usb_config_descriptor *usb2_get_config_descriptor(
+	    struct usb_device *udev);
+struct usb_device_descriptor *usb2_get_device_descriptor(
+	    struct usb_device *udev);
+struct usb_interface *usb2_get_iface(struct usb_device *udev,
 	    uint8_t iface_index);
-struct usb2_interface_descriptor *usb2_get_interface_descriptor(
-	    struct usb2_interface *iface);
-uint8_t	usb2_clear_stall_callback(struct usb2_xfer *xfer1,
-	    struct usb2_xfer *xfer2);
-uint8_t	usb2_get_interface_altindex(struct usb2_interface *iface);
-usb2_error_t usb2_set_alt_interface_index(struct usb2_device *udev,
+struct usb_interface_descriptor *usb2_get_interface_descriptor(
+	    struct usb_interface *iface);
+uint8_t	usb2_clear_stall_callback(struct usb_xfer *xfer1,
+	    struct usb_xfer *xfer2);
+uint8_t	usb2_get_interface_altindex(struct usb_interface *iface);
+usb2_error_t usb2_set_alt_interface_index(struct usb_device *udev,
 	    uint8_t iface_index, uint8_t alt_index);
-uint8_t	usb2_get_mode(struct usb2_device *udev);
-uint8_t	usb2_get_speed(struct usb2_device *udev);
-uint32_t usb2_get_isoc_fps(struct usb2_device *udev);
-usb2_error_t usb2_transfer_setup(struct usb2_device *udev,
-	    const uint8_t *ifaces, struct usb2_xfer **pxfer,
-	    const struct usb2_config *setup_start, uint16_t n_setup,
+enum usb_hc_mode	usb2_get_mode(struct usb_device *udev);
+enum usb_dev_speed	usb2_get_speed(struct usb_device *udev);
+uint32_t usb2_get_isoc_fps(struct usb_device *udev);
+usb2_error_t usb2_transfer_setup(struct usb_device *udev,
+	    const uint8_t *ifaces, struct usb_xfer **pxfer,
+	    const struct usb_config *setup_start, uint16_t n_setup,
 	    void *priv_sc, struct mtx *priv_mtx);
-void	usb2_set_frame_data(struct usb2_xfer *xfer, void *ptr,
+void	usb2_set_frame_data(struct usb_xfer *xfer, void *ptr,
 	    usb2_frcount_t frindex);
-void	usb2_set_frame_offset(struct usb2_xfer *xfer, usb2_frlength_t offset,
+void	usb2_set_frame_offset(struct usb_xfer *xfer, usb2_frlength_t offset,
 	    usb2_frcount_t frindex);
-void	usb2_start_hardware(struct usb2_xfer *xfer);
-void	usb2_transfer_clear_stall(struct usb2_xfer *xfer);
-void	usb2_transfer_drain(struct usb2_xfer *xfer);
-void	usb2_transfer_set_stall(struct usb2_xfer *xfer);
-uint8_t	usb2_transfer_pending(struct usb2_xfer *xfer);
-void	usb2_transfer_start(struct usb2_xfer *xfer);
-void	usb2_transfer_stop(struct usb2_xfer *xfer);
-void	usb2_transfer_unsetup(struct usb2_xfer **pxfer, uint16_t n_setup);
-void	usb2_set_parent_iface(struct usb2_device *udev, uint8_t iface_index,
+void	usb2_start_hardware(struct usb_xfer *xfer);
+void	usb2_transfer_clear_stall(struct usb_xfer *xfer);
+void	usb2_transfer_drain(struct usb_xfer *xfer);
+void	usb2_transfer_set_stall(struct usb_xfer *xfer);
+uint8_t	usb2_transfer_pending(struct usb_xfer *xfer);
+void	usb2_transfer_start(struct usb_xfer *xfer);
+void	usb2_transfer_stop(struct usb_xfer *xfer);
+void	usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup);
+void	usb2_set_parent_iface(struct usb_device *udev, uint8_t iface_index,
 	    uint8_t parent_index);
-uint8_t	usb2_get_bus_index(struct usb2_device *udev);
-uint8_t	usb2_get_device_index(struct usb2_device *udev);
-void	usb2_set_power_mode(struct usb2_device *udev, uint8_t power_mode);
-uint8_t	usb2_device_attached(struct usb2_device *udev);
+uint8_t	usb2_get_bus_index(struct usb_device *udev);
+uint8_t	usb2_get_device_index(struct usb_device *udev);
+void	usb2_set_power_mode(struct usb_device *udev, uint8_t power_mode);
+uint8_t	usb2_device_attached(struct usb_device *udev);
 
 #endif					/* _USB2_CORE_H_ */
