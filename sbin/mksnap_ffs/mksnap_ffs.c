@@ -44,30 +44,37 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <limits.h>
+#include <mntopts.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
-void usage(void);
+static void
+usage(void)
+{
+
+	errx(EX_USAGE, "usage: mksnap_ffs snapshot_name");
+}
 
 int
 main(int argc, char **argv)
 {
-	char *dir, *cp, path[PATH_MAX];
+	char errmsg[255], path[PATH_MAX];
+	char *cp, *snapname;
 	struct statfs stfsbuf;
-	struct ufs_args args;
 	struct group *grp;
 	struct stat stbuf;
-	int fd;
+	struct iovec *iov;
+	int fd, iovlen;
 
-	if (argc != 3)
+	if (argc == 2)
+		snapname = argv[1];
+	else if (argc == 3)
+		snapname = argv[2];	/* Old usage. */
+	else
 		usage();
-
-	dir = argv[1];
-	memset(&args, 0, sizeof args);
-	args.fspec = argv[2];
 
 	/*
 	 * Check that the user running this program has permission
@@ -77,15 +84,15 @@ main(int argc, char **argv)
 	 * will not be able to remove the snapshot when they are
 	 * done with it.
 	 */
-	if (strlen(args.fspec) >= PATH_MAX)
-		errx(1, "pathname too long %s", args.fspec);
-	cp = strrchr(args.fspec, '/');
+	if (strlen(snapname) >= PATH_MAX)
+		errx(1, "pathname too long %s", snapname);
+	cp = strrchr(snapname, '/');
 	if (cp == NULL) {
 		strlcpy(path, ".", PATH_MAX);
-	} else if (cp == args.fspec) {
+	} else if (cp == snapname) {
 		strlcpy(path, "/", PATH_MAX);
 	} else {
-		strlcpy(path, args.fspec, cp - args.fspec + 1);
+		strlcpy(path, snapname, cp - snapname + 1);
 	}
 	if (statfs(path, &stfsbuf) < 0)
 		err(1, "%s", path);
@@ -104,27 +111,26 @@ main(int argc, char **argv)
 	 */
 	if ((grp = getgrnam("operator")) == NULL)
 		errx(1, "Cannot retrieve operator gid");
-	if (mount("ufs", dir, MNT_UPDATE | MNT_SNAPSHOT | stfsbuf.f_flags,
-	    &args) < 0)
-		err(1, "Cannot create %s", args.fspec);
-	if ((fd = open(args.fspec, O_RDONLY)) < 0)
-		err(1, "Cannot open %s", args.fspec);
+
+	build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
+	build_iovec(&iov, &iovlen, "from", snapname, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", stfsbuf.f_mntonname, (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+	build_iovec(&iov, &iovlen, "update", NULL, 0);
+	build_iovec(&iov, &iovlen, "snapshot", NULL, 0);
+
+	if (nmount(iov, iovlen, stfsbuf.f_flags) < 0)
+		err(1, "Cannot create snapshot %s: %s", snapname, errmsg);
+	if ((fd = open(snapname, O_RDONLY)) < 0)
+		err(1, "Cannot open %s", snapname);
 	if (fstat(fd, &stbuf) != 0)
-		err(1, "Cannot stat %s", args.fspec);
+		err(1, "Cannot stat %s", snapname);
 	if ((stbuf.st_flags & SF_SNAPSHOT) == 0)
-		errx(1, "File %s is not a snapshot", args.fspec);
+		errx(1, "File %s is not a snapshot", snapname);
 	if (fchown(fd, -1, grp->gr_gid) != 0)
-		err(1, "Cannot chown %s", args.fspec);
+		err(1, "Cannot chown %s", snapname);
 	if (fchmod(fd, S_IRUSR | S_IRGRP) != 0)
-		err(1, "Cannot chmod %s", args.fspec);
+		err(1, "Cannot chmod %s", snapname);
 
 	exit(EXIT_SUCCESS);
-}
-
-void
-usage()
-{
-
-	fprintf(stderr, "usage: mksnap_ffs mountpoint snapshot_name\n");
-	exit(EX_USAGE);
 }
