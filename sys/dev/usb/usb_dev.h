@@ -41,11 +41,11 @@
 struct usb_fifo;
 struct usb_mbuf;
 
-typedef int (usb2_fifo_open_t)(struct usb_fifo *fifo, int fflags);
-typedef void (usb2_fifo_close_t)(struct usb_fifo *fifo, int fflags);
-typedef int (usb2_fifo_ioctl_t)(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags);
-typedef void (usb2_fifo_cmd_t)(struct usb_fifo *fifo);
-typedef void (usb2_fifo_filter_t)(struct usb_fifo *fifo, struct usb_mbuf *m);
+typedef int (usb_fifo_open_t)(struct usb_fifo *fifo, int fflags);
+typedef void (usb_fifo_close_t)(struct usb_fifo *fifo, int fflags);
+typedef int (usb_fifo_ioctl_t)(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags);
+typedef void (usb_fifo_cmd_t)(struct usb_fifo *fifo);
+typedef void (usb_fifo_filter_t)(struct usb_fifo *fifo, struct usb_mbuf *m);
 
 struct usb_symlink {
 	TAILQ_ENTRY(usb_symlink) sym_entry;
@@ -59,24 +59,24 @@ struct usb_symlink {
 
 /*
  * Locking note for the following functions.  All the
- * "usb2_fifo_cmd_t" and "usb2_fifo_filter_t" functions are called
+ * "usb_fifo_cmd_t" and "usb_fifo_filter_t" functions are called
  * locked. The others are called unlocked.
  */
 struct usb_fifo_methods {
-	usb2_fifo_open_t *f_open;
-	usb2_fifo_close_t *f_close;
-	usb2_fifo_ioctl_t *f_ioctl;
+	usb_fifo_open_t *f_open;
+	usb_fifo_close_t *f_close;
+	usb_fifo_ioctl_t *f_ioctl;
 	/*
 	 * NOTE: The post-ioctl callback is called after the USB reference
 	 * gets locked in the IOCTL handler:
 	 */
-	usb2_fifo_ioctl_t *f_ioctl_post;
-	usb2_fifo_cmd_t *f_start_read;
-	usb2_fifo_cmd_t *f_stop_read;
-	usb2_fifo_cmd_t *f_start_write;
-	usb2_fifo_cmd_t *f_stop_write;
-	usb2_fifo_filter_t *f_filter_read;
-	usb2_fifo_filter_t *f_filter_write;
+	usb_fifo_ioctl_t *f_ioctl_post;
+	usb_fifo_cmd_t *f_start_read;
+	usb_fifo_cmd_t *f_stop_read;
+	usb_fifo_cmd_t *f_start_write;
+	usb_fifo_cmd_t *f_stop_write;
+	usb_fifo_filter_t *f_filter_read;
+	usb_fifo_filter_t *f_filter_write;
 	const char *basename[4];
 	const char *postfix[4];
 };
@@ -135,9 +135,9 @@ struct usb_fifo {
 	void   *priv_sc0;		/* client data */
 	void   *priv_sc1;		/* client data */
 	void   *queue_data;
-	usb2_timeout_t timeout;		/* timeout in milliseconds */
-	usb2_frlength_t bufsize;		/* BULK and INTERRUPT buffer size */
-	usb2_frcount_t nframes;		/* for isochronous mode */
+	usb_timeout_t timeout;		/* timeout in milliseconds */
+	usb_frlength_t bufsize;		/* BULK and INTERRUPT buffer size */
+	usb_frcount_t nframes;		/* for isochronous mode */
 	uint16_t dev_ep_index;		/* our device endpoint index */
 	uint8_t	flag_sleeping;		/* set if FIFO is sleeping */
 	uint8_t	flag_iscomplete;	/* set if a USB transfer is complete */
@@ -175,18 +175,18 @@ int	usb2_fifo_attach(struct usb_device *udev, void *priv_sc,
 void	usb2_fifo_detach(struct usb_fifo_sc *f_sc);
 uint32_t usb2_fifo_put_bytes_max(struct usb_fifo *fifo);
 void	usb2_fifo_put_data(struct usb_fifo *fifo, struct usb_page_cache *pc,
-	    usb2_frlength_t offset, usb2_frlength_t len, uint8_t what);
+	    usb_frlength_t offset, usb_frlength_t len, uint8_t what);
 void	usb2_fifo_put_data_linear(struct usb_fifo *fifo, void *ptr,
-	    usb2_size_t len, uint8_t what);
-uint8_t	usb2_fifo_put_data_buffer(struct usb_fifo *f, void *ptr, usb2_size_t len);
+	    size_t len, uint8_t what);
+uint8_t	usb2_fifo_put_data_buffer(struct usb_fifo *f, void *ptr, size_t len);
 void	usb2_fifo_put_data_error(struct usb_fifo *fifo);
 uint8_t	usb2_fifo_get_data(struct usb_fifo *fifo, struct usb_page_cache *pc,
-	    usb2_frlength_t offset, usb2_frlength_t len, usb2_frlength_t *actlen,
+	    usb_frlength_t offset, usb_frlength_t len, usb_frlength_t *actlen,
 	    uint8_t what);
 uint8_t	usb2_fifo_get_data_linear(struct usb_fifo *fifo, void *ptr,
-	    usb2_size_t len, usb2_size_t *actlen, uint8_t what);
+	    size_t len, size_t *actlen, uint8_t what);
 uint8_t	usb2_fifo_get_data_buffer(struct usb_fifo *f, void **pptr,
-	    usb2_size_t *plen);
+	    size_t *plen);
 void	usb2_fifo_get_data_error(struct usb_fifo *fifo);
 uint8_t	usb2_fifo_opened(struct usb_fifo *fifo);
 void	usb2_fifo_free(struct usb_fifo *f);

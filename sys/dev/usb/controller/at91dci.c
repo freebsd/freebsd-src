@@ -92,7 +92,7 @@ static at91dci_cmd_t at91dci_setup_rx;
 static at91dci_cmd_t at91dci_data_rx;
 static at91dci_cmd_t at91dci_data_tx;
 static at91dci_cmd_t at91dci_data_tx_sync;
-static void	at91dci_device_done(struct usb_xfer *, usb2_error_t);
+static void	at91dci_device_done(struct usb_xfer *, usb_error_t);
 static void	at91dci_do_poll(struct usb_bus *);
 static void	at91dci_standard_done(struct usb_xfer *);
 static void	at91dci_root_intr(struct at91dci_softc *sc);
@@ -1070,7 +1070,7 @@ at91dci_root_intr(struct at91dci_softc *sc)
 	    sizeof(sc->sc_hub_idata));
 }
 
-static usb2_error_t
+static usb_error_t
 at91dci_standard_done_sub(struct usb_xfer *xfer)
 {
 	struct at91dci_td *td;
@@ -1137,7 +1137,7 @@ at91dci_standard_done_sub(struct usb_xfer *xfer)
 static void
 at91dci_standard_done(struct usb_xfer *xfer)
 {
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 
 	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
 	    xfer, xfer->pipe);
@@ -1184,7 +1184,7 @@ done:
  * same USB transfer!
  *------------------------------------------------------------------------*/
 static void
-at91dci_device_done(struct usb_xfer *xfer, usb2_error_t error)
+at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	uint8_t ep_no;
@@ -1355,7 +1355,7 @@ at91dci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 	    (ed->bEndpointAddress & (UE_DIR_IN | UE_DIR_OUT)));
 }
 
-usb2_error_t
+usb_error_t
 at91dci_init(struct at91dci_softc *sc)
 {
 	uint32_t csr_val;
@@ -1745,7 +1745,7 @@ USB_MAKE_STRING_DESC(STRING_LANG, at91dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, at91dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, at91dci_product);
 
-static usb2_error_t
+static usb_error_t
 at91dci_roothub_exec(struct usb_device *udev,
     struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
@@ -1754,7 +1754,7 @@ at91dci_roothub_exec(struct usb_device *udev,
 	uint16_t len;
 	uint16_t value;
 	uint16_t index;
-	usb2_error_t err;
+	usb_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 

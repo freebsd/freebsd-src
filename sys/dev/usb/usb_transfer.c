@@ -50,7 +50,7 @@ struct usb2_std_packet_size {
 	uint16_t fixed[4];
 };
 
-static usb2_callback_t usb2_request_callback;
+static usb_callback_t usb2_request_callback;
 
 static const struct usb_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 
@@ -137,7 +137,7 @@ usb2_update_max_frame_size(struct usb_xfer *xfer)
  *    0: no DMA delay required
  * Else: milliseconds of DMA delay
  *------------------------------------------------------------------------*/
-usb2_timeout_t
+usb_timeout_t
 usb2_get_dma_delay(struct usb_bus *bus)
 {
 	uint32_t temp = 0;
@@ -168,18 +168,18 @@ usb2_get_dma_delay(struct usb_bus *bus)
 #if USB_HAVE_BUSDMA
 uint8_t
 usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
-    struct usb_page_cache **ppc, usb2_size_t size, usb2_size_t align,
-    usb2_size_t count)
+    struct usb_page_cache **ppc, size_t size, size_t align,
+    size_t count)
 {
 	struct usb_page_cache *pc;
 	struct usb_page *pg;
 	void *buf;
-	usb2_size_t n_dma_pc;
-	usb2_size_t n_obj;
-	usb2_size_t x;
-	usb2_size_t y;
-	usb2_size_t r;
-	usb2_size_t z;
+	size_t n_dma_pc;
+	size_t n_obj;
+	size_t x;
+	size_t y;
+	size_t r;
+	size_t z;
 
 	USB_ASSERT(align > 1, ("Invalid alignment, 0x%08x!\n",
 	    align));
@@ -298,9 +298,9 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 	const struct usb_config *setup = parm->curr_setup;
 	struct usb_endpoint_descriptor *edesc;
 	struct usb2_std_packet_size std_size;
-	usb2_frcount_t n_frlengths;
-	usb2_frcount_t n_frbuffers;
-	usb2_frcount_t x;
+	usb_frcount_t n_frlengths;
+	usb_frcount_t n_frbuffers;
+	usb_frcount_t x;
 	uint8_t type;
 	uint8_t zmps;
 
@@ -713,7 +713,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_transfer_setup(struct usb_device *udev,
     const uint8_t *ifaces, struct usb_xfer **ppxfer,
     const struct usb_config *setup_start, uint16_t n_setup,
@@ -754,7 +754,7 @@ usb2_transfer_setup(struct usb_device *udev,
 	/* sanity checks */
 	for (setup = setup_start, n = 0;
 	    setup != setup_end; setup++, n++) {
-		if (setup->bufsize == (usb2_frlength_t)-1) {
+		if (setup->bufsize == (usb_frlength_t)-1) {
 			parm.err = USB_ERR_BAD_BUFSIZE;
 			DPRINTF("invalid bufsize\n");
 		}
@@ -1059,7 +1059,7 @@ usb2_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
 	/* wait for any outstanding DMA operations */
 
 	if (needs_delay) {
-		usb2_timeout_t temp;
+		usb_timeout_t temp;
 		temp = usb2_get_dma_delay(info->bus);
 		usb2_pause_mtx(&info->bus->bus_mtx,
 		    USB_MS_TO_TICKS(temp));
@@ -1222,7 +1222,7 @@ usb2_control_transfer_init(struct usb_xfer *xfer)
 static uint8_t
 usb2_start_hardware_sub(struct usb_xfer *xfer)
 {
-	usb2_frlength_t len;
+	usb_frlength_t len;
 
 	/* Check for control endpoint stall */
 	if (xfer->flags.stall_pipe && xfer->flags_int.control_act) {
@@ -1371,7 +1371,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 {
 	struct usb_xfer_root *info;
 	struct usb_bus *bus;
-	usb2_frcount_t x;
+	usb_frcount_t x;
 
 	info = xfer->xroot;
 	bus = info->bus;
@@ -1789,7 +1789,7 @@ usb2_transfer_drain(struct usb_xfer *xfer)
  * than zero gives undefined results!
  *------------------------------------------------------------------------*/
 void
-usb2_set_frame_data(struct usb_xfer *xfer, void *ptr, usb2_frcount_t frindex)
+usb2_set_frame_data(struct usb_xfer *xfer, void *ptr, usb_frcount_t frindex)
 {
 	/* set virtual address to load and length */
 	xfer->frbuffers[frindex].buffer = ptr;
@@ -1802,8 +1802,8 @@ usb2_set_frame_data(struct usb_xfer *xfer, void *ptr, usb2_frcount_t frindex)
  * of the USB DMA buffer allocated for this USB transfer.
  *------------------------------------------------------------------------*/
 void
-usb2_set_frame_offset(struct usb_xfer *xfer, usb2_frlength_t offset,
-    usb2_frcount_t frindex)
+usb2_set_frame_offset(struct usb_xfer *xfer, usb_frlength_t offset,
+    usb_frcount_t frindex)
 {
 	USB_ASSERT(!xfer->flags.ext_buffer, ("Cannot offset data frame "
 	    "when the USB buffer is external!\n"));
@@ -2070,7 +2070,7 @@ usb2_transfer_enqueue(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
  *  - This function is used to stop any USB transfer timeouts.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_done(struct usb_xfer *xfer, usb2_error_t error)
+usb2_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
@@ -2316,7 +2316,7 @@ usb2_pipe_start(struct usb_xfer_queue *pq)
  *------------------------------------------------------------------------*/
 void
 usb2_transfer_timeout_ms(struct usb_xfer *xfer,
-    void (*cb) (void *arg), usb2_timeout_t ms)
+    void (*cb) (void *arg), usb_timeout_t ms)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
@@ -2346,7 +2346,7 @@ static uint8_t
 usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 {
 	struct usb_pipe *pipe;
-	usb2_frcount_t x;
+	usb_frcount_t x;
 
 	if ((!xfer->flags_int.open) &&
 	    (!xfer->flags_int.did_close)) {
@@ -2366,7 +2366,7 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 	    (xfer->error == USB_ERR_TIMEOUT)) &&
 	    (!xfer->flags_int.did_dma_delay)) {
 
-		usb2_timeout_t temp;
+		usb_timeout_t temp;
 
 		/* only delay once */
 		xfer->flags_int.did_dma_delay = 1;

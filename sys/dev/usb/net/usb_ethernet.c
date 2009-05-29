@@ -48,13 +48,13 @@ MODULE_DEPEND(uether, miibus, 1, 1, 1);
 
 static struct unrhdr *ueunit;
 
-static usb2_proc_callback_t ue_attach_post_task;
-static usb2_proc_callback_t ue_promisc_task;
-static usb2_proc_callback_t ue_setmulti_task;
-static usb2_proc_callback_t ue_ifmedia_task;
-static usb2_proc_callback_t ue_tick_task;
-static usb2_proc_callback_t ue_start_task;
-static usb2_proc_callback_t ue_stop_task;
+static usb_proc_callback_t ue_attach_post_task;
+static usb_proc_callback_t ue_promisc_task;
+static usb_proc_callback_t ue_setmulti_task;
+static usb_proc_callback_t ue_ifmedia_task;
+static usb_proc_callback_t ue_tick_task;
+static usb_proc_callback_t ue_start_task;
+static usb_proc_callback_t ue_stop_task;
 
 static void	ue_init(void *);
 static void	ue_start(struct ifnet *);
@@ -79,7 +79,7 @@ usb2_ether_pause(struct usb_ether *ue, unsigned int _ticks)
 
 static void
 ue_queue_command(struct usb_ether *ue,
-    usb2_proc_callback_t *fn,
+    usb_proc_callback_t *fn,
     struct usb_proc_msg *t0, struct usb_proc_msg *t1)
 {
 	struct usb_ether_cfg_task *task;

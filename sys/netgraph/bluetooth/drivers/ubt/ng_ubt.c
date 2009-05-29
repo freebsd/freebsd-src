@@ -238,12 +238,12 @@ static struct ng_type	typestruct =
  ****************************************************************************/
 
 /* USB methods */
-static usb2_callback_t	ubt_ctrl_write_callback;
-static usb2_callback_t	ubt_intr_read_callback;
-static usb2_callback_t	ubt_bulk_read_callback;
-static usb2_callback_t	ubt_bulk_write_callback;
-static usb2_callback_t	ubt_isoc_read_callback;
-static usb2_callback_t	ubt_isoc_write_callback;
+static usb_callback_t	ubt_ctrl_write_callback;
+static usb_callback_t	ubt_intr_read_callback;
+static usb_callback_t	ubt_bulk_read_callback;
+static usb_callback_t	ubt_bulk_write_callback;
+static usb_callback_t	ubt_isoc_read_callback;
+static usb_callback_t	ubt_isoc_write_callback;
 
 static int		ubt_fwd_mbuf_up(ubt_softc_p, struct mbuf **);
 static int		ubt_isoc_read_one_frame(struct usb_xfer *, int);

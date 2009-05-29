@@ -309,9 +309,9 @@ typedef struct uhci_softc {
 	char	sc_vendor[16];		/* vendor string for root hub */
 } uhci_softc_t;
 
-usb2_bus_mem_cb_t uhci_iterate_hw_softc;
+usb_bus_mem_cb_t uhci_iterate_hw_softc;
 
-usb2_error_t uhci_init(uhci_softc_t *sc);
+usb_error_t uhci_init(uhci_softc_t *sc);
 void	uhci_suspend(uhci_softc_t *sc);
 void	uhci_resume(uhci_softc_t *sc);
 void	uhci_reset(uhci_softc_t *sc);

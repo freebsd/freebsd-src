@@ -111,12 +111,12 @@ struct urtw_softc {
 	struct ieee80211_channel	*sc_curchan;
 
 	/* for RF  */
-	usb2_error_t			(*sc_rf_init)(struct urtw_softc *);
-	usb2_error_t			(*sc_rf_set_chan)(struct urtw_softc *,
+	usb_error_t			(*sc_rf_init)(struct urtw_softc *);
+	usb_error_t			(*sc_rf_set_chan)(struct urtw_softc *,
 					    int);
-	usb2_error_t			(*sc_rf_set_sens)(struct urtw_softc *,
+	usb_error_t			(*sc_rf_set_sens)(struct urtw_softc *,
 					    int);
-	usb2_error_t			(*sc_rf_stop)(struct urtw_softc *);
+	usb_error_t			(*sc_rf_stop)(struct urtw_softc *);
 	uint8_t				sc_rfchip;
 	uint32_t			sc_max_sens;
 	uint32_t			sc_sens;

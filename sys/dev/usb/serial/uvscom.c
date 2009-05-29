@@ -152,9 +152,9 @@ static device_probe_t uvscom_probe;
 static device_attach_t uvscom_attach;
 static device_detach_t uvscom_detach;
 
-static usb2_callback_t uvscom_write_callback;
-static usb2_callback_t uvscom_read_callback;
-static usb2_callback_t uvscom_intr_callback;
+static usb_callback_t uvscom_write_callback;
+static usb_callback_t uvscom_read_callback;
+static usb_callback_t uvscom_intr_callback;
 
 static void	uvscom_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uvscom_cfg_set_rts(struct ucom_softc *, uint8_t);
@@ -672,7 +672,7 @@ static void
 uvscom_cfg_write(struct uvscom_softc *sc, uint8_t index, uint16_t value)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = index;
@@ -692,7 +692,7 @@ static uint16_t
 uvscom_cfg_read_status(struct uvscom_softc *sc)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t data[2];
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;

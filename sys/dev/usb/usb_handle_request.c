@@ -52,12 +52,12 @@ enum {
 /* function prototypes */
 
 static uint8_t usb2_handle_get_stall(struct usb_device *, uint8_t);
-static usb2_error_t	 usb2_handle_remote_wakeup(struct usb_xfer *, uint8_t);
-static usb2_error_t	 usb2_handle_request(struct usb_xfer *);
-static usb2_error_t	 usb2_handle_set_config(struct usb_xfer *, uint8_t);
-static usb2_error_t	 usb2_handle_set_stall(struct usb_xfer *, uint8_t,
+static usb_error_t	 usb2_handle_remote_wakeup(struct usb_xfer *, uint8_t);
+static usb_error_t	 usb2_handle_request(struct usb_xfer *);
+static usb_error_t	 usb2_handle_set_config(struct usb_xfer *, uint8_t);
+static usb_error_t	 usb2_handle_set_stall(struct usb_xfer *, uint8_t,
 			    uint8_t);
-static usb2_error_t	 usb2_handle_iface_request(struct usb_xfer *, void **,
+static usb_error_t	 usb2_handle_iface_request(struct usb_xfer *, void **,
 			    uint16_t *, struct usb_device_request, uint16_t,
 			    uint8_t);
 
@@ -70,7 +70,7 @@ static usb2_error_t	 usb2_handle_iface_request(struct usb_xfer *, void **,
 void
 usb2_handle_request_callback(struct usb_xfer *xfer)
 {
-	usb2_error_t err;
+	usb_error_t err;
 
 	/* check the current transfer state */
 
@@ -122,11 +122,11 @@ tr_restart:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 usb2_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 {
 	struct usb_device *udev = xfer->xroot->udev;
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 
 	/*
 	 * We need to protect against other threads doing probe and
@@ -170,7 +170,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 usb2_handle_iface_request(struct usb_xfer *xfer,
     void **ppdata, uint16_t *plen,
     struct usb_device_request req, uint16_t off, uint8_t state)
@@ -333,11 +333,11 @@ tr_stalled:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 usb2_handle_set_stall(struct usb_xfer *xfer, uint8_t ep, uint8_t do_stall)
 {
 	struct usb_device *udev = xfer->xroot->udev;
-	usb2_error_t err;
+	usb_error_t err;
 
 	USB_XFER_UNLOCK(xfer);
 	err = usb2_set_endpoint_stall(udev,
@@ -378,7 +378,7 @@ usb2_handle_get_stall(struct usb_device *udev, uint8_t ea_val)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 usb2_handle_remote_wakeup(struct usb_xfer *xfer, uint8_t is_on)
 {
 	struct usb_device *udev;
@@ -413,7 +413,7 @@ usb2_handle_remote_wakeup(struct usb_xfer *xfer, uint8_t is_on)
  * 0: Ready to start hardware
  * Else: Stall current transfer, if any
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 usb2_handle_request(struct usb_xfer *xfer)
 {
 	struct usb_device_request req;
@@ -426,7 +426,7 @@ usb2_handle_request(struct usb_xfer *xfer)
 	uint16_t wValue;
 	uint16_t wIndex;
 	uint8_t state;
-	usb2_error_t err;
+	usb_error_t err;
 	union {
 		uWord	wStatus;
 		uint8_t	buf[2];

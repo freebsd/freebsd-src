@@ -128,10 +128,10 @@ static device_probe_t udbp_probe;
 static device_attach_t udbp_attach;
 static device_detach_t udbp_detach;
 
-static usb2_callback_t udbp_bulk_read_callback;
-static usb2_callback_t udbp_bulk_read_clear_stall_callback;
-static usb2_callback_t udbp_bulk_write_callback;
-static usb2_callback_t udbp_bulk_write_clear_stall_callback;
+static usb_callback_t udbp_bulk_read_callback;
+static usb_callback_t udbp_bulk_read_clear_stall_callback;
+static usb_callback_t udbp_bulk_write_callback;
+static usb_callback_t udbp_bulk_write_clear_stall_callback;
 
 static void	udbp_bulk_read_complete(node_p, hook_p, void *, int);
 

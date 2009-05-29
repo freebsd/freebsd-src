@@ -87,16 +87,16 @@ static device_probe_t cue_probe;
 static device_attach_t cue_attach;
 static device_detach_t cue_detach;
 
-static usb2_callback_t cue_bulk_read_callback;
-static usb2_callback_t cue_bulk_write_callback;
+static usb_callback_t cue_bulk_read_callback;
+static usb_callback_t cue_bulk_write_callback;
 
-static usb2_ether_fn_t cue_attach_post;
-static usb2_ether_fn_t cue_init;
-static usb2_ether_fn_t cue_stop;
-static usb2_ether_fn_t cue_start;
-static usb2_ether_fn_t cue_tick;
-static usb2_ether_fn_t cue_setmulti;
-static usb2_ether_fn_t cue_setpromisc;
+static uether_fn_t cue_attach_post;
+static uether_fn_t cue_init;
+static uether_fn_t cue_stop;
+static uether_fn_t cue_start;
+static uether_fn_t cue_tick;
+static uether_fn_t cue_setmulti;
+static uether_fn_t cue_setpromisc;
 
 static uint8_t	cue_csr_read_1(struct cue_softc *, uint16_t);
 static uint16_t	cue_csr_read_2(struct cue_softc *, uint8_t);

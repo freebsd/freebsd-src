@@ -178,10 +178,10 @@ static device_probe_t uvisor_probe;
 static device_attach_t uvisor_attach;
 static device_detach_t uvisor_detach;
 
-static usb2_callback_t uvisor_write_callback;
-static usb2_callback_t uvisor_read_callback;
+static usb_callback_t uvisor_write_callback;
+static usb_callback_t uvisor_read_callback;
 
-static usb2_error_t uvisor_init(struct uvisor_softc *, struct usb_device *,
+static usb_error_t uvisor_init(struct uvisor_softc *, struct usb_device *,
 		    struct usb_config *);
 static void	uvisor_cfg_open(struct ucom_softc *);
 static void	uvisor_cfg_close(struct ucom_softc *);
@@ -355,10 +355,10 @@ uvisor_detach(device_t dev)
 	return (0);
 }
 
-static usb2_error_t
+static usb_error_t
 uvisor_init(struct uvisor_softc *sc, struct usb_device *udev, struct usb_config *config)
 {
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 	struct usb_device_request req;
 	struct uvisor_connection_info coninfo;
 	struct uvisor_palm_connection_info pconinfo;
@@ -513,7 +513,7 @@ uvisor_cfg_close(struct ucom_softc *ucom)
 	struct uvisor_softc *sc = ucom->sc_parent;
 	uint8_t buffer[UVISOR_CONNECTION_INFO_SIZE];
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 
 	req.bmRequestType = UT_READ_VENDOR_ENDPOINT;	/* XXX read? */
 	req.bRequest = UVISOR_CLOSE_NOTIFICATION;

@@ -138,7 +138,7 @@ struct ndisusb_xfer {
 };
 struct ndisusb_xferdone {
 	struct ndisusb_xfer	*nd_xfer;
-	usb2_error_t		nd_status;
+	usb_error_t		nd_status;
 	list_entry		nd_donelist;
 };
 

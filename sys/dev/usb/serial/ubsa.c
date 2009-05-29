@@ -165,9 +165,9 @@ static device_probe_t ubsa_probe;
 static device_attach_t ubsa_attach;
 static device_detach_t ubsa_detach;
 
-static usb2_callback_t ubsa_write_callback;
-static usb2_callback_t ubsa_read_callback;
-static usb2_callback_t ubsa_intr_callback;
+static usb_callback_t ubsa_write_callback;
+static usb_callback_t ubsa_read_callback;
+static usb_callback_t ubsa_intr_callback;
 
 static void	ubsa_cfg_request(struct ubsa_softc *, uint8_t, uint16_t);
 static void	ubsa_cfg_set_dtr(struct ucom_softc *, uint8_t);
@@ -340,7 +340,7 @@ static void
 ubsa_cfg_request(struct ubsa_softc *sc, uint8_t index, uint16_t value)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = index;

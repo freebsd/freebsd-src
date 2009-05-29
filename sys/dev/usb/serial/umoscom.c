@@ -178,9 +178,9 @@ static device_probe_t umoscom_probe;
 static device_attach_t umoscom_attach;
 static device_detach_t umoscom_detach;
 
-static usb2_callback_t umoscom_write_callback;
-static usb2_callback_t umoscom_read_callback;
-static usb2_callback_t umoscom_intr_callback;
+static usb_callback_t umoscom_write_callback;
+static usb_callback_t umoscom_read_callback;
+static usb_callback_t umoscom_intr_callback;
 
 static void	umoscom_cfg_open(struct ucom_softc *);
 static void	umoscom_cfg_close(struct ucom_softc *);

@@ -244,7 +244,7 @@ struct avr32dci_softc {
 
 /* prototypes */
 
-usb2_error_t avr32dci_init(struct avr32dci_softc *sc);
+usb_error_t avr32dci_init(struct avr32dci_softc *sc);
 void	avr32dci_uninit(struct avr32dci_softc *sc);
 void	avr32dci_suspend(struct avr32dci_softc *sc);
 void	avr32dci_resume(struct avr32dci_softc *sc);

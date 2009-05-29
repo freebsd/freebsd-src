@@ -94,7 +94,7 @@ extern struct usb_pipe_methods ohci_device_intr_methods;
 extern struct usb_pipe_methods ohci_device_isoc_methods;
 
 static void ohci_do_poll(struct usb_bus *bus);
-static void ohci_device_done(struct usb_xfer *xfer, usb2_error_t error);
+static void ohci_device_done(struct usb_xfer *xfer, usb_error_t error);
 static void ohci_timeout(void *arg);
 static uint8_t ohci_check_transfer(struct usb_xfer *xfer);
 static void ohci_root_intr(ohci_softc_t *sc);
@@ -120,7 +120,7 @@ ohci_get_hcca(ohci_softc_t *sc)
 }
 
 void
-ohci_iterate_hw_softc(struct usb_bus *bus, usb2_bus_mem_sub_cb_t *cb)
+ohci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(bus);
 	uint32_t i;
@@ -143,7 +143,7 @@ ohci_iterate_hw_softc(struct usb_bus *bus, usb2_bus_mem_sub_cb_t *cb)
 	}
 }
 
-static usb2_error_t
+static usb_error_t
 ohci_controller_init(ohci_softc_t *sc)
 {
 	struct usb_page_search buf_res;
@@ -289,7 +289,7 @@ ohci_init_ed(struct usb_page_cache *pc)
 	return (ed);
 }
 
-usb2_error_t
+usb_error_t
 ohci_init(ohci_softc_t *sc)
 {
 	struct usb_page_search buf_res;
@@ -812,7 +812,7 @@ static const char *const
 
 #endif
 
-static usb2_error_t
+static usb_error_t
 ohci_non_isoc_done_sub(struct usb_xfer *xfer)
 {
 	ohci_td_t *td;
@@ -908,7 +908,7 @@ ohci_non_isoc_done_sub(struct usb_xfer *xfer)
 static void
 ohci_non_isoc_done(struct usb_xfer *xfer)
 {
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 
 	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
 	    xfer, xfer->pipe);
@@ -1645,7 +1645,7 @@ ohci_root_intr(ohci_softc_t *sc)
  * from close and from interrupt
  */
 static void
-ohci_device_done(struct usb_xfer *xfer, usb2_error_t error)
+ohci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usb_pipe_methods *methods = xfer->pipe->methods;
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
@@ -2106,7 +2106,7 @@ struct usb_hub_descriptor ohci_hubd =
 	{0},
 };
 
-static usb2_error_t
+static usb_error_t
 ohci_roothub_exec(struct usb_device *udev,
     struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
@@ -2119,7 +2119,7 @@ ohci_roothub_exec(struct usb_device *udev,
 	uint16_t value;
 	uint16_t index;
 	uint8_t l;
-	usb2_error_t err;
+	usb_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 

@@ -574,10 +574,10 @@ hc16toh(const struct ehci_softc *sc, const uint16_t v)
 }
 #endif
 
-usb2_bus_mem_cb_t ehci_iterate_hw_softc;
+usb_bus_mem_cb_t ehci_iterate_hw_softc;
 
-usb2_error_t ehci_reset(ehci_softc_t *sc);
-usb2_error_t ehci_init(ehci_softc_t *sc);
+usb_error_t ehci_reset(ehci_softc_t *sc);
+usb_error_t ehci_init(ehci_softc_t *sc);
 void	ehci_detach(struct ehci_softc *sc);
 void	ehci_suspend(struct ehci_softc *sc);
 void	ehci_resume(struct ehci_softc *sc);
