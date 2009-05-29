@@ -215,11 +215,11 @@ options 	NO_ADAPTIVE_MUTEXES
 # to disable it.
 options 	NO_ADAPTIVE_RWLOCKS
 
-# ADAPTIVE_SX changes the behavior of sx locks to spin if the thread
-# that currently owns the lock is executing on another CPU.  Note that
-# in addition to enabling this option, individual sx locks must be
-# initialized with the SX_ADAPTIVESPIN flag.
-options 	ADAPTIVE_SX
+# ADAPTIVE_SX changes the behavior of sx locks to spin if the thread that
+# currently owns the sx lock is executing on another CPU.
+# This behaviour is enabled by default, so this option can be used to
+# disable it.
+options 	NO_ADAPTIVE_SX
 
 # MUTEX_NOINLINE forces mutex operations to call functions to perform each
 # operation rather than inlining the simple cases.  This can be used to
