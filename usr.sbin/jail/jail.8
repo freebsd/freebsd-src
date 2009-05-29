@@ -201,7 +201,7 @@ parameters aren't in this list, this mode will always create a new jail, and
 the
 .Fl c
 and
-.Fl o
+.Fl m
 options don't apply (and must not exist).
 .Pp
 Jails have a set a core parameters, and modules can add their own jail
@@ -298,7 +298,7 @@ A new jail must have either the
 parameter or
 .Va command
 pseudo-parameter set.
-.It Va cpuset
+.It Va cpuset.id
 The ID of the cpuset associated with this jail (read-only).
 .It Va dying
 This is true if the jail is in the process of shutting down (read-only).
