@@ -3796,30 +3796,25 @@ vm_hold_load_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 	from = round_page(from);
 	index = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
 
-	VM_OBJECT_LOCK(kernel_object);
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 tryagain:
 		/*
 		 * note: must allocate system pages since blocking here
-		 * could intefere with paging I/O, no matter which
+		 * could interfere with paging I/O, no matter which
 		 * process we are.
 		 */
-		p = vm_page_alloc(kernel_object,
-			((pg - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
-		    VM_ALLOC_NOBUSY | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		p = vm_page_alloc(NULL, pg >> PAGE_SHIFT, VM_ALLOC_NOOBJ |
+		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 		if (!p) {
 			atomic_add_int(&vm_pageout_deficit,
 			    (to - pg) >> PAGE_SHIFT);
-			VM_OBJECT_UNLOCK(kernel_object);
 			VM_WAIT;
-			VM_OBJECT_LOCK(kernel_object);
 			goto tryagain;
 		}
 		p->valid = VM_PAGE_BITS_ALL;
 		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
 	}
-	VM_OBJECT_UNLOCK(kernel_object);
 	bp->b_npages = index;
 }
 
@@ -3835,7 +3830,6 @@ vm_hold_free_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 	to = round_page(to);
 	newnpages = index = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
 
-	VM_OBJECT_LOCK(kernel_object);
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];
 		if (p && (index < bp->b_npages)) {
@@ -3847,13 +3841,11 @@ vm_hold_free_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 			}
 			bp->b_pages[index] = NULL;
 			pmap_qremove(pg, 1);
-			vm_page_lock_queues();
-			vm_page_unwire(p, 0);
+			p->wire_count--;
 			vm_page_free(p);
-			vm_page_unlock_queues();
+			atomic_subtract_int(&cnt.v_wire_count, 1);
 		}
 	}
-	VM_OBJECT_UNLOCK(kernel_object);
 	bp->b_npages = newnpages;
 }
 
