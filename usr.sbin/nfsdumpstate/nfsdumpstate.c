@@ -194,7 +194,7 @@ dump_lockstate(char *fname)
 			    lp[cnt].ndlck_stateid.other[1],
 			    lp[cnt].ndlck_stateid.other[2]);
 		else
-			printf("%-11s  %17lld %17lld ",
+			printf("%-11s  %17jd %17jd ",
 			    lock_flags(lp[cnt].ndlck_flags),
 			    lp[cnt].ndlck_first,
 			    lp[cnt].ndlck_end);
