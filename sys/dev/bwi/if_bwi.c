@@ -3126,6 +3126,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct bwi_ring_data *rd = &sc->sc_tx_rdata[BWI_TX_DATA_RING];
 	struct bwi_txbuf_data *tbd = &sc->sc_tx_bdata[BWI_TX_DATA_RING];
 	struct bwi_txbuf *tb = &tbd->tbd_buf[idx];
@@ -3152,8 +3153,20 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	 * Find TX rate
 	 */
 	rate = params->ibp_rate0;
-	rate_fb = (params->ibp_try1 != 0) ?
-	    params->ibp_rate1 : params->ibp_rate0;
+	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
+		/* XXX fall back to mcast/mgmt rate? */
+		m_freem(m0);
+		return EINVAL;
+	}
+	if (params->ibp_try1 != 0) {
+		rate_fb = params->ibp_rate1;
+		if (!ieee80211_isratevalid(ic->ic_rt, rate_fb)) {
+			/* XXX fall back to rate0? */
+			m_freem(m0);
+			return EINVAL;
+		}
+	} else
+		rate_fb = rate;
 	tb->tb_rate[0] = rate;
 	tb->tb_rate[1] = rate_fb;
 	sc->sc_tx_rate = rate;
