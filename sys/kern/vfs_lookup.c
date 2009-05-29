@@ -268,7 +268,7 @@ namei(struct nameidata *ndp)
 		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
 		ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 		/*
-		 * Check for symbolic link
+		 * If not a symbolic link, we're done.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
