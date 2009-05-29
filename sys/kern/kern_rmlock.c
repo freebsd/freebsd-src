@@ -188,14 +188,26 @@ rm_cleanIPI(void *arg)
 }
 
 void
-rm_init(struct rmlock *rm, const char *name, int opts)
+rm_init_flags(struct rmlock *rm, const char *name, int opts)
 {
+	int liflags;
 
+	liflags = 0;
+	if (!(opts & RM_NOWITNESS))
+		liflags |= LO_WITNESS;
+	if (opts & RM_RECURSE)
+		liflags |= LO_RECURSABLE;
 	rm->rm_noreadtoken = 1;
 	LIST_INIT(&rm->rm_activeReaders);
-	mtx_init(&rm->rm_lock, name, "RM_MTX",MTX_NOWITNESS);
-	lock_init(&rm->lock_object, &lock_class_rm, name, NULL,
-	    (opts & LO_RECURSABLE)| LO_WITNESS);
+	mtx_init(&rm->rm_lock, name, "rmlock_mtx", MTX_NOWITNESS);
+	lock_init(&rm->lock_object, &lock_class_rm, name, NULL, liflags);
+}
+
+void
+rm_init(struct rmlock *rm, const char *name)
+{
+
+	rm_init_flags(rm, name, 0);
 }
 
 void
@@ -216,9 +228,17 @@ rm_wowned(struct rmlock *rm)
 void
 rm_sysinit(void *arg)
 {
-
 	struct rm_args *args = arg;
-	rm_init(args->ra_rm, args->ra_desc, args->ra_opts);
+
+	rm_init(args->ra_rm, args->ra_desc);
+}
+
+void
+rm_sysinit_flags(void *arg)
+{
+	struct rm_args_flags *args = arg;
+
+	rm_init_flags(args->ra_rm, args->ra_desc, args->ra_opts);
 }
 
 static void
