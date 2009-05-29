@@ -1442,7 +1442,7 @@ svr4_stream_ioctl(fp, td, retval, fd, cmd, dat)
 
 int
 svr4_sys_putmsg(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_putmsg_args *uap;
 {
 	struct file     *fp;
@@ -1633,7 +1633,7 @@ svr4_sys_getmsg(td, uap)
 
 int
 svr4_do_getmsg(td, uap, fp)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_getmsg_args *uap;
 	struct file *fp;
 {
