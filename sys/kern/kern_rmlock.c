@@ -527,7 +527,8 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 
 void
 _rm_runlock_debug(struct rmlock *rm,  struct rm_priotracker *tracker,
-    const char *file, int line) {
+    const char *file, int line)
+{
 
 	_rm_runlock(rm, tracker);
 }
