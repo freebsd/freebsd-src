@@ -1990,6 +1990,9 @@ usb2_free_device(struct usb_device *udev, uint8_t flag)
 #endif
 
 	/* free device */
+	free(udev->serial, M_USB);
+	free(udev->manufacturer, M_USB);
+	free(udev->product, M_USB);
 	free(udev, M_USB);
 }
 
