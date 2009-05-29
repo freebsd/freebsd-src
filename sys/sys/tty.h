@@ -152,7 +152,8 @@ struct xtty {
 #ifdef _KERNEL
 
 /* Allocation and deallocation. */
-struct tty *tty_alloc(struct ttydevsw *tsw, void *softc, struct mtx *mtx);
+struct tty *tty_alloc(struct ttydevsw *tsw, void *softc);
+struct tty *tty_alloc_mutex(struct ttydevsw *tsw, void *softc, struct mtx *mtx);
 void	tty_rel_pgrp(struct tty *tp, struct pgrp *pgrp);
 void	tty_rel_sess(struct tty *tp, struct session *sess);
 void	tty_rel_gone(struct tty *tp);

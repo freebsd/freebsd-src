@@ -230,7 +230,7 @@ xc_attach(device_t dev)
 		xc_consdev.cn_putc = xccnputc_dom0;
 	} 
 
-	xccons = tty_alloc(&xc_ttydevsw, NULL, NULL);
+	xccons = tty_alloc(&xc_ttydevsw, NULL);
 	tty_makedev(xccons, NULL, "xc%r", 0);
 
 	callout_init(&xc_callout, 0);
