@@ -121,7 +121,7 @@ static struct proc *svr4_pfind(pid_t pid);
 #if defined(BOGUS)
 int
 svr4_sys_setitimer(td, uap)
-        register struct thread *td;
+        struct thread *td;
 	struct svr4_sys_setitimer_args *uap;
 {
         td->td_retval[0] = 0;
@@ -231,7 +231,7 @@ svr4_sys_getdents64(td, uap)
 	struct thread *td;
 	struct svr4_sys_getdents64_args *uap;
 {
-	register struct dirent *bdp;
+	struct dirent *bdp;
 	struct vnode *vp;
 	caddr_t inp, buf;		/* BSD-format */
 	int len, reclen;		/* BSD-format */
@@ -668,7 +668,7 @@ svr4_mknod(td, retval, path, mode, dev)
 
 int
 svr4_sys_mknod(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_mknod_args *uap;
 {
         int *retval = td->td_retval;
