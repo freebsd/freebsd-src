@@ -50,56 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/vcpu.h>
 #include <machine/cpu.h>
 
+#include <machine/xen/xen_clock_util.h>
+
 #include "clock_if.h"
-
-/*
- * Read the current hypervisor start time (wall clock) from Xen.
- */
-static void
-xen_fetch_wallclock(struct timespec *ts)
-{ 
-        shared_info_t *s = HYPERVISOR_shared_info;
-        uint32_t ts_version;
-   
-        do {
-                ts_version = s->wc_version;
-                rmb();
-                ts->tv_sec  = s->wc_sec;
-                ts->tv_nsec = s->wc_nsec;
-                rmb();
-        }
-        while ((s->wc_version & 1) | (ts_version ^ s->wc_version));
-}
-
-/*
- * Read the current hypervisor system uptime value from Xen.
- */
-static void
-xen_fetch_uptime(struct timespec *ts)
-{
-        shared_info_t           *s = HYPERVISOR_shared_info;
-        struct vcpu_time_info   *src;
-	struct shadow_time_info	dst;
-        uint32_t pre_version, post_version;
-        
-        src = &s->vcpu_info[smp_processor_id()].time;
-
-        spinlock_enter();
-        do {
-                pre_version = dst.version = src->version;
-                rmb();
-                dst.system_timestamp  = src->system_time;
-                rmb();
-                post_version = src->version;
-        }
-        while ((pre_version & 1) | (pre_version ^ post_version));
-
-        spinlock_exit();
-
-	ts->tv_sec = dst.system_timestamp / 1000000000;
-	ts->tv_nsec = dst.system_timestamp % 1000000000;
-}
-
 
 static int
 xen_rtc_probe(device_t dev)
