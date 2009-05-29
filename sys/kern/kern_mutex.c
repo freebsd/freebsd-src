@@ -399,8 +399,11 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 
 #ifdef ADAPTIVE_MUTEXES
 		/*
-		 * If the current owner of the lock is executing on another
-		 * CPU quit the hard path and try to spin.
+		 * The current lock owner might have started executing
+		 * on another CPU (or the lock could have changed
+		 * owners) while we were waiting on the turnstile
+		 * chain lock.  If so, drop the turnstile lock and try
+		 * again.
 		 */
 		owner = (struct thread *)(v & ~MTX_FLAGMASK);
 		if (TD_IS_RUNNING(owner)) {
