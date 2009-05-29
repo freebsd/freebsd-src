@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/vimage.h>
 
 #include <kgssapi/gssapi.h>
 #include <kgssapi/gssapi_impl.h>
@@ -200,7 +199,7 @@ gss_OID GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X = &gss_krb5_set_allowable_enctypes_x_d
  * use them to exchange signed and sealed messages.
  */
 static int
-gsstest_1(void)
+gsstest_1(struct thread *td)
 {
 	OM_uint32 maj_stat, min_stat;
 	OM_uint32 smaj_stat, smin_stat;
@@ -228,7 +227,8 @@ gsstest_1(void)
 
 	{
 		static char sbuf[512];
-		snprintf(sbuf, sizeof(sbuf), "nfs@%s", V_hostname);
+		memcpy(sbuf, "nfs@", 4);
+		getcredhostname(td->td_ucred, sbuf + 4, sizeof(sbuf) - 4);
 		name_desc.value = sbuf;
 	}
 
@@ -410,7 +410,7 @@ out:
  * wrapped reply to userland.
  */
 static int
-gsstest_2(int step, const gss_buffer_t input_token,
+gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
     OM_uint32 *maj_stat_res, OM_uint32 *min_stat_res, gss_buffer_t output_token)
 {
 	OM_uint32 maj_stat, min_stat;
@@ -431,7 +431,9 @@ gsstest_2(int step, const gss_buffer_t input_token,
 	case 1:
 		if (server_context == GSS_C_NO_CONTEXT) {
 			static char sbuf[512];
-			snprintf(sbuf, sizeof(sbuf), "nfs@%s", V_hostname);
+			memcpy(sbuf, "nfs@", 4);
+			getcredhostname(td->td_ucred, sbuf + 4,
+			    sizeof(sbuf) - 4);
 			name_desc.value = sbuf;
 			name_desc.length = strlen((const char *)
 			    name_desc.value);
@@ -789,7 +791,7 @@ again:
  * RPCSEC_GSS client
  */
 static int
-gsstest_3(void)
+gsstest_3(struct thread *td)
 {
 	struct sockaddr_in sin;
 	char service[128];
@@ -812,7 +814,8 @@ gsstest_3(void)
 		return(1);
 	}
 
-	snprintf(service, sizeof(service), "host@%s", V_hostname);
+	memcpy(service, "host@", 5);
+	getcredhostname(td->td_ucred, service + 5, sizeof(service) - 5);
 
 	auth = rpc_gss_seccreate(client, curthread->td_ucred,
 	    service, "kerberosv5", rpc_gss_svc_privacy,
@@ -875,14 +878,15 @@ static bool_t server_new_context(struct svc_req *req, gss_cred_id_t deleg,
 static void server_program_1(struct svc_req *rqstp, register SVCXPRT *transp);
 
 static int
-gsstest_4(void)
+gsstest_4(struct thread *td)
 {
 	SVCPOOL *pool;
 	char principal[128 + 5];
 	const char **mechs;
 	static rpc_gss_callback_t cb;
 
-	snprintf(principal, sizeof(principal), "host@%s", V_hostname);
+	memcpy(principal, "host@", 5);
+	getcredhostname(td->td_ucred, principal + 5, sizeof(principal) - 5);
 
 	mechs = rpc_gss_get_mechanisms();
 	while (*mechs) {
@@ -1054,7 +1058,7 @@ gsstest(struct thread *td, struct gsstest_args *uap)
 
 	switch (uap->a_op) {
 	case 1:
-                return (gsstest_1());
+                return (gsstest_1(td));
 
 	case 2: {
 		struct gsstest_2_args args;
@@ -1076,7 +1080,7 @@ gsstest(struct thread *td, struct gsstest_args *uap)
 		}
 		output_token.length = 0;
 		output_token.value = NULL;
-		gsstest_2(args.step, &input_token,
+		gsstest_2(td, args.step, &input_token,
 		    &res.maj_stat, &res.min_stat, &output_token);
 		gss_release_buffer(&junk, &input_token);
 		if (output_token.length > args.output_token.length) {
@@ -1096,9 +1100,9 @@ gsstest(struct thread *td, struct gsstest_args *uap)
 		break;
 	}
 	case 3:
-		return (gsstest_3());
+		return (gsstest_3(td));
 	case 4:
-		return (gsstest_4());
+		return (gsstest_4(td));
 	}
 
         return (EINVAL);

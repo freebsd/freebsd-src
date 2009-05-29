@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>

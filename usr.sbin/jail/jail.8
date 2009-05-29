@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2009
+.Dd May 29, 2009
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -263,7 +263,14 @@ A list of IPv6 addresses assigned to the prison, the counterpart to
 above.
 .It Va host.hostname
 Hostname of the prison.
-If not specified, a jail will use the system hostname.
+Other similar parameters are
+.Va host.domainname ,
+.Va host.hostuuid
+and
+.Va host.hostid .
+Setting the boolean parameter
+.Va nohost
+will retain the system values of these settings.
 .It Va securelevel
 The value of the jail's
 .Va kern.securelevel
@@ -737,13 +744,16 @@ The variable
 determines how may address per address family a prison may have.
 The default is 255.
 .Pp
-There are currently two MIB variables that have per-jail settings.
+Some MIB variables have per-jail settings.
 Changes to these variables by a jailed process do not effect the host
 environment, only the jail environment.
-The variables are
-.Va kern.securelevel
+These variables are
+.Va kern.securelevel ,
+.Va kern.hostname ,
+.Va kern.domainname ,
+.Va kern.hostid ,
 and
-.Va kern.hostname .
+.Va kern.hostuuid .
 .Ss "Hierarchical Jails"
 By setting a jail's
 .Va allow.jails

@@ -187,8 +187,6 @@ struct vprocg {
 	LIST_ENTRY(vprocg)	 vprocg_le;
 	u_int			 vprocg_id;	/* ID num */
 	u_int			 nprocs;
-	char			 _hostname[MAXHOSTNAMELEN];
-	char			 _domainname[MAXHOSTNAMELEN];
 };
 
 #ifdef VIMAGE
@@ -323,15 +321,6 @@ extern struct vprocg_list_head vprocg_head;
 
 /* XXX those defines bellow should probably go into vprocg.h and vcpu.h */
 #define	VPROCG(sym)		VSYM(vprocg, sym)
-
-#ifdef VIMAGE
-#define	G_hostname		TD_TO_VPROCG(&thread0)->_hostname
-#else
-#define	G_hostname		VPROCG(hostname)
-#endif
-
-#define	V_hostname		VPROCG(hostname)
-#define	V_domainname		VPROCG(domainname)
 
 /*
  * Size-guards for the vimage structures.
