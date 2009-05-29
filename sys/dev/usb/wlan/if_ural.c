@@ -129,10 +129,10 @@ static const struct usb_device_id ural_devs[] = {
 	{ USB_VP(USB_VENDOR_ZINWELL, USB_PRODUCT_ZINWELL_RT2570) },
 };
 
-static usb2_callback_t ural_bulk_read_callback;
-static usb2_callback_t ural_bulk_write_callback;
+static usb_callback_t ural_bulk_read_callback;
+static usb_callback_t ural_bulk_write_callback;
 
-static usb2_error_t	ural_do_request(struct ural_softc *sc,
+static usb_error_t	ural_do_request(struct ural_softc *sc,
 			    struct usb_device_request *req, void *data);
 static struct ieee80211vap *ural_vap_create(struct ieee80211com *,
 			    const char name[IFNAMSIZ], int unit, int opmode,
@@ -555,11 +555,11 @@ ural_detach(device_t self)
 	return (0);
 }
 
-static usb2_error_t
+static usb_error_t
 ural_do_request(struct ural_softc *sc,
     struct usb_device_request *req, void *data)
 {
-	usb2_error_t err;
+	usb_error_t err;
 	int ntries = 10;
 
 	while (ntries--) {
@@ -1392,7 +1392,7 @@ static void
 ural_set_testmode(struct ural_softc *sc)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = RAL_VENDOR_REQUEST;
@@ -1411,7 +1411,7 @@ static void
 ural_eeprom_read(struct ural_softc *sc, uint16_t addr, void *buf, int len)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = RAL_READ_EEPROM;
@@ -1430,7 +1430,7 @@ static uint16_t
 ural_read(struct ural_softc *sc, uint16_t reg)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 	uint16_t val;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -1453,7 +1453,7 @@ static void
 ural_read_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = RAL_READ_MULTI_MAC;
@@ -1472,7 +1472,7 @@ static void
 ural_write(struct ural_softc *sc, uint16_t reg, uint16_t val)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = RAL_WRITE_MAC;
@@ -1491,7 +1491,7 @@ static void
 ural_write_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = RAL_WRITE_MULTI_MAC;

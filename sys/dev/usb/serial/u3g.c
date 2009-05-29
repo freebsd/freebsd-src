@@ -99,8 +99,8 @@ static device_probe_t u3g_probe;
 static device_attach_t u3g_attach;
 static device_detach_t u3g_detach;
 
-static usb2_callback_t u3g_write_callback;
-static usb2_callback_t u3g_read_callback;
+static usb_callback_t u3g_write_callback;
+static usb_callback_t u3g_read_callback;
 
 static void u3g_start_read(struct ucom_softc *ucom);
 static void u3g_stop_read(struct ucom_softc *ucom);
@@ -299,7 +299,7 @@ u3g_sael_m460_init(struct usb_device *udev)
 	};
 
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 	uint16_t len;
 	uint8_t buf[0x300];
 	uint8_t n;
@@ -358,7 +358,7 @@ u3g_lookup_huawei(struct usb_attach_arg *uaa)
  * interface.  After some command or some delay they change appearance
  * to a modem.
  */
-static usb2_error_t
+static usb_error_t
 u3g_test_huawei_autoinst(struct usb_device *udev,
     struct usb_attach_arg *uaa)
 {

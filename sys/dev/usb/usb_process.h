@@ -43,15 +43,15 @@ struct usb_proc_msg;
 
 /* typedefs */
 
-typedef void (usb2_proc_callback_t)(struct usb_proc_msg *hdr);
+typedef void (usb_proc_callback_t)(struct usb_proc_msg *hdr);
 
 /*
  * The following structure defines the USB process message header.
  */
 struct usb_proc_msg {
 	TAILQ_ENTRY(usb_proc_msg) pm_qentry;
-	usb2_proc_callback_t *pm_callback;
-	usb2_size_t pm_num;
+	usb_proc_callback_t *pm_callback;
+	size_t pm_num;
 };
 
 /*
@@ -66,7 +66,7 @@ struct usb_process {
 	struct thread *up_curtd;
 	struct mtx *up_mtx;
 
-	usb2_size_t up_msg_num;
+	size_t up_msg_num;
 
 	uint8_t	up_prio;
 	uint8_t	up_gone;

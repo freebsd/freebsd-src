@@ -86,7 +86,7 @@ static musbotg_cmd_t musbotg_setup_data_tx;
 static musbotg_cmd_t musbotg_setup_status;
 static musbotg_cmd_t musbotg_data_rx;
 static musbotg_cmd_t musbotg_data_tx;
-static void	musbotg_device_done(struct usb_xfer *, usb2_error_t);
+static void	musbotg_device_done(struct usb_xfer *, usb_error_t);
 static void	musbotg_do_poll(struct usb_bus *);
 static void	musbotg_standard_done(struct usb_xfer *);
 static void	musbotg_interrupt_poll(struct musbotg_softc *);
@@ -1321,7 +1321,7 @@ musbotg_root_intr(struct musbotg_softc *sc)
 	    sizeof(sc->sc_hub_idata));
 }
 
-static usb2_error_t
+static usb_error_t
 musbotg_standard_done_sub(struct usb_xfer *xfer)
 {
 	struct musbotg_td *td;
@@ -1388,7 +1388,7 @@ musbotg_standard_done_sub(struct usb_xfer *xfer)
 static void
 musbotg_standard_done(struct usb_xfer *xfer)
 {
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 
 	DPRINTFN(12, "xfer=%p pipe=%p transfer done\n",
 	    xfer, xfer->pipe);
@@ -1435,7 +1435,7 @@ done:
  * same USB transfer!
  *------------------------------------------------------------------------*/
 static void
-musbotg_device_done(struct usb_xfer *xfer, usb2_error_t error)
+musbotg_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
@@ -1664,7 +1664,7 @@ musbotg_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 	    (ed->bEndpointAddress & (UE_DIR_IN | UE_DIR_OUT)));
 }
 
-usb2_error_t
+usb_error_t
 musbotg_init(struct musbotg_softc *sc)
 {
 	struct usb_hw_ep_profile *pf;
@@ -2153,7 +2153,7 @@ USB_MAKE_STRING_DESC(STRING_LANG, musbotg_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, musbotg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, musbotg_product);
 
-static usb2_error_t
+static usb_error_t
 musbotg_roothub_exec(struct usb_device *udev,
     struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
@@ -2162,7 +2162,7 @@ musbotg_roothub_exec(struct usb_device *udev,
 	uint16_t len;
 	uint16_t value;
 	uint16_t index;
-	usb2_error_t err;
+	usb_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 

@@ -92,19 +92,19 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
     &usb2_com_debug, 0, "ucom debug level");
 #endif
 
-static usb2_proc_callback_t usb2_com_cfg_start_transfers;
-static usb2_proc_callback_t usb2_com_cfg_open;
-static usb2_proc_callback_t usb2_com_cfg_close;
-static usb2_proc_callback_t usb2_com_cfg_line_state;
-static usb2_proc_callback_t usb2_com_cfg_status_change;
-static usb2_proc_callback_t usb2_com_cfg_param;
+static usb_proc_callback_t usb2_com_cfg_start_transfers;
+static usb_proc_callback_t usb2_com_cfg_open;
+static usb_proc_callback_t usb2_com_cfg_close;
+static usb_proc_callback_t usb2_com_cfg_line_state;
+static usb_proc_callback_t usb2_com_cfg_status_change;
+static usb_proc_callback_t usb2_com_cfg_param;
 
 static uint8_t	usb2_com_units_alloc(uint32_t, uint32_t *);
 static void	usb2_com_units_free(uint32_t, uint32_t);
 static int	usb2_com_attach_tty(struct ucom_softc *, uint32_t);
 static void	usb2_com_detach_tty(struct ucom_softc *);
 static void	usb2_com_queue_command(struct ucom_softc *,
-		    usb2_proc_callback_t *, struct termios *pt,
+		    usb_proc_callback_t *, struct termios *pt,
 		    struct usb_proc_msg *t0, struct usb_proc_msg *t1);
 static void	usb2_com_shutdown(struct ucom_softc *);
 static void	usb2_com_break(struct ucom_softc *, uint8_t);
@@ -375,7 +375,7 @@ usb2_com_detach_tty(struct ucom_softc *sc)
 
 static void
 usb2_com_queue_command(struct ucom_softc *sc,
-    usb2_proc_callback_t *fn, struct termios *pt,
+    usb_proc_callback_t *fn, struct termios *pt,
     struct usb_proc_msg *t0, struct usb_proc_msg *t1)
 {
 	struct ucom_super_softc *ssc = sc->sc_super;

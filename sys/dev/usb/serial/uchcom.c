@@ -223,9 +223,9 @@ static device_probe_t uchcom_probe;
 static device_attach_t uchcom_attach;
 static device_detach_t uchcom_detach;
 
-static usb2_callback_t uchcom_intr_callback;
-static usb2_callback_t uchcom_write_callback;
-static usb2_callback_t uchcom_read_callback;
+static usb_callback_t uchcom_intr_callback;
+static usb_callback_t uchcom_write_callback;
+static usb_callback_t uchcom_read_callback;
 
 static const struct usb_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 

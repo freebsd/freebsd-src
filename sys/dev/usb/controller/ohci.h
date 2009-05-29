@@ -352,9 +352,9 @@ typedef struct ohci_softc {
 
 } ohci_softc_t;
 
-usb2_bus_mem_cb_t ohci_iterate_hw_softc;
+usb_bus_mem_cb_t ohci_iterate_hw_softc;
 
-usb2_error_t ohci_init(ohci_softc_t *sc);
+usb_error_t ohci_init(ohci_softc_t *sc);
 void	ohci_detach(struct ohci_softc *sc);
 void	ohci_suspend(ohci_softc_t *sc);
 void	ohci_resume(ohci_softc_t *sc);

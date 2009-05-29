@@ -130,15 +130,15 @@ static device_probe_t kue_probe;
 static device_attach_t kue_attach;
 static device_detach_t kue_detach;
 
-static usb2_callback_t kue_bulk_read_callback;
-static usb2_callback_t kue_bulk_write_callback;
+static usb_callback_t kue_bulk_read_callback;
+static usb_callback_t kue_bulk_write_callback;
 
-static usb2_ether_fn_t kue_attach_post;
-static usb2_ether_fn_t kue_init;
-static usb2_ether_fn_t kue_stop;
-static usb2_ether_fn_t kue_start;
-static usb2_ether_fn_t kue_setmulti;
-static usb2_ether_fn_t kue_setpromisc;
+static uether_fn_t kue_attach_post;
+static uether_fn_t kue_init;
+static uether_fn_t kue_stop;
+static uether_fn_t kue_start;
+static uether_fn_t kue_setmulti;
+static uether_fn_t kue_setpromisc;
 
 static int	kue_do_request(struct kue_softc *,
 		    struct usb_device_request *, void *);
@@ -221,7 +221,7 @@ static int
 kue_do_request(struct kue_softc *sc, struct usb_device_request *req,
     void *data)
 {
-	usb2_error_t err;
+	usb_error_t err;
 
 	err = usb2_ether_do_request(&sc->sc_ue, req, data, 60000);
 
@@ -267,7 +267,7 @@ kue_load_fw(struct kue_softc *sc)
 {
 	struct usb_device_descriptor *dd;
 	uint16_t hwrev;
-	usb2_error_t err;
+	usb_error_t err;
 
 	dd = usb2_get_device_descriptor(sc->sc_ue.ue_udev);
 	hwrev = UGETW(dd->bcdDevice);
@@ -391,7 +391,7 @@ static void
 kue_reset(struct kue_softc *sc)
 {
 	struct usb_config_descriptor *cd;
-	usb2_error_t err;
+	usb_error_t err;
 
 	cd = usb2_get_config_descriptor(sc->sc_ue.ue_udev);
 

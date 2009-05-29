@@ -79,16 +79,16 @@ static device_probe_t		ubtbcmfw_probe;
 static device_attach_t		ubtbcmfw_attach;
 static device_detach_t		ubtbcmfw_detach;
 
-static usb2_callback_t		ubtbcmfw_write_callback;
-static usb2_callback_t		ubtbcmfw_read_callback;
+static usb_callback_t		ubtbcmfw_write_callback;
+static usb_callback_t		ubtbcmfw_read_callback;
 
-static usb2_fifo_close_t	ubtbcmfw_close;
-static usb2_fifo_cmd_t		ubtbcmfw_start_read;
-static usb2_fifo_cmd_t		ubtbcmfw_start_write;
-static usb2_fifo_cmd_t		ubtbcmfw_stop_read;
-static usb2_fifo_cmd_t		ubtbcmfw_stop_write;
-static usb2_fifo_ioctl_t	ubtbcmfw_ioctl;
-static usb2_fifo_open_t		ubtbcmfw_open;
+static usb_fifo_close_t	ubtbcmfw_close;
+static usb_fifo_cmd_t		ubtbcmfw_start_read;
+static usb_fifo_cmd_t		ubtbcmfw_start_write;
+static usb_fifo_cmd_t		ubtbcmfw_stop_read;
+static usb_fifo_cmd_t		ubtbcmfw_stop_write;
+static usb_fifo_ioctl_t	ubtbcmfw_ioctl;
+static usb_fifo_open_t		ubtbcmfw_open;
 
 static struct usb_fifo_methods	ubtbcmfw_fifo_methods = 
 {

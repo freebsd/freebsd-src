@@ -132,16 +132,16 @@ static device_probe_t atausb2_probe;
 static device_attach_t atausb2_attach;
 static device_detach_t atausb2_detach;
 
-static usb2_callback_t atausb2_t_bbb_reset1_callback;
-static usb2_callback_t atausb2_t_bbb_reset2_callback;
-static usb2_callback_t atausb2_t_bbb_reset3_callback;
-static usb2_callback_t atausb2_t_bbb_command_callback;
-static usb2_callback_t atausb2_t_bbb_data_read_callback;
-static usb2_callback_t atausb2_t_bbb_data_rd_cs_callback;
-static usb2_callback_t atausb2_t_bbb_data_write_callback;
-static usb2_callback_t atausb2_t_bbb_data_wr_cs_callback;
-static usb2_callback_t atausb2_t_bbb_status_callback;
-static usb2_callback_t atausb2_tr_error;
+static usb_callback_t atausb2_t_bbb_reset1_callback;
+static usb_callback_t atausb2_t_bbb_reset2_callback;
+static usb_callback_t atausb2_t_bbb_reset3_callback;
+static usb_callback_t atausb2_t_bbb_command_callback;
+static usb_callback_t atausb2_t_bbb_data_read_callback;
+static usb_callback_t atausb2_t_bbb_data_rd_cs_callback;
+static usb_callback_t atausb2_t_bbb_data_write_callback;
+static usb_callback_t atausb2_t_bbb_data_wr_cs_callback;
+static usb_callback_t atausb2_t_bbb_status_callback;
+static usb_callback_t atausb2_tr_error;
 
 static void atausb2_cancel_request(struct atausb2_softc *sc);
 static void atausb2_transfer_start(struct atausb2_softc *sc, uint8_t xfer_no);

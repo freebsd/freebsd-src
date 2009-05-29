@@ -1008,26 +1008,26 @@ static device_probe_t umass_probe;
 static device_attach_t umass_attach;
 static device_detach_t umass_detach;
 
-static usb2_callback_t umass_tr_error;
-static usb2_callback_t umass_t_bbb_reset1_callback;
-static usb2_callback_t umass_t_bbb_reset2_callback;
-static usb2_callback_t umass_t_bbb_reset3_callback;
-static usb2_callback_t umass_t_bbb_command_callback;
-static usb2_callback_t umass_t_bbb_data_read_callback;
-static usb2_callback_t umass_t_bbb_data_rd_cs_callback;
-static usb2_callback_t umass_t_bbb_data_write_callback;
-static usb2_callback_t umass_t_bbb_data_wr_cs_callback;
-static usb2_callback_t umass_t_bbb_status_callback;
-static usb2_callback_t umass_t_cbi_reset1_callback;
-static usb2_callback_t umass_t_cbi_reset2_callback;
-static usb2_callback_t umass_t_cbi_reset3_callback;
-static usb2_callback_t umass_t_cbi_reset4_callback;
-static usb2_callback_t umass_t_cbi_command_callback;
-static usb2_callback_t umass_t_cbi_data_read_callback;
-static usb2_callback_t umass_t_cbi_data_rd_cs_callback;
-static usb2_callback_t umass_t_cbi_data_write_callback;
-static usb2_callback_t umass_t_cbi_data_wr_cs_callback;
-static usb2_callback_t umass_t_cbi_status_callback;
+static usb_callback_t umass_tr_error;
+static usb_callback_t umass_t_bbb_reset1_callback;
+static usb_callback_t umass_t_bbb_reset2_callback;
+static usb_callback_t umass_t_bbb_reset3_callback;
+static usb_callback_t umass_t_bbb_command_callback;
+static usb_callback_t umass_t_bbb_data_read_callback;
+static usb_callback_t umass_t_bbb_data_rd_cs_callback;
+static usb_callback_t umass_t_bbb_data_write_callback;
+static usb_callback_t umass_t_bbb_data_wr_cs_callback;
+static usb_callback_t umass_t_bbb_status_callback;
+static usb_callback_t umass_t_cbi_reset1_callback;
+static usb_callback_t umass_t_cbi_reset2_callback;
+static usb_callback_t umass_t_cbi_reset3_callback;
+static usb_callback_t umass_t_cbi_reset4_callback;
+static usb_callback_t umass_t_cbi_command_callback;
+static usb_callback_t umass_t_cbi_data_read_callback;
+static usb_callback_t umass_t_cbi_data_rd_cs_callback;
+static usb_callback_t umass_t_cbi_data_write_callback;
+static usb_callback_t umass_t_cbi_data_wr_cs_callback;
+static usb_callback_t umass_t_cbi_status_callback;
 
 static void	umass_cancel_ccb(struct umass_softc *);
 static void	umass_init_shuttle(struct umass_softc *);
@@ -1636,7 +1636,7 @@ static void
 umass_init_shuttle(struct umass_softc *sc)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t status[2] = {0, 0};
 
 	/*
@@ -2157,7 +2157,7 @@ static uint8_t
 umass_bbb_get_max_lun(struct umass_softc *sc)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t buf = 0;
 
 	/* The Get Max Lun command is a class-specific request. */

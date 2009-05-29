@@ -688,7 +688,7 @@ ukbd_attach(device_t dev)
 	int32_t unit = device_get_unit(dev);
 	keyboard_t *kbd = &sc->sc_kbd;
 	void *hid_ptr = NULL;
-	usb2_error_t err;
+	usb_error_t err;
 	uint32_t flags;
 	uint16_t n;
 	uint16_t hid_len;

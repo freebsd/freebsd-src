@@ -82,7 +82,7 @@ static avr32dci_cmd_t avr32dci_setup_rx;
 static avr32dci_cmd_t avr32dci_data_rx;
 static avr32dci_cmd_t avr32dci_data_tx;
 static avr32dci_cmd_t avr32dci_data_tx_sync;
-static void avr32dci_device_done(struct usb_xfer *, usb2_error_t);
+static void avr32dci_device_done(struct usb_xfer *, usb_error_t);
 static void avr32dci_do_poll(struct usb_bus *);
 static void avr32dci_standard_done(struct usb_xfer *);
 static void avr32dci_root_intr(struct avr32dci_softc *sc);
@@ -924,7 +924,7 @@ avr32dci_root_intr(struct avr32dci_softc *sc)
 	    sizeof(sc->sc_hub_idata));
 }
 
-static usb2_error_t
+static usb_error_t
 avr32dci_standard_done_sub(struct usb_xfer *xfer)
 {
 	struct avr32dci_td *td;
@@ -991,7 +991,7 @@ avr32dci_standard_done_sub(struct usb_xfer *xfer)
 static void
 avr32dci_standard_done(struct usb_xfer *xfer)
 {
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 
 	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
 	    xfer, xfer->pipe);
@@ -1038,7 +1038,7 @@ done:
  * same USB transfer!
  *------------------------------------------------------------------------*/
 static void
-avr32dci_device_done(struct usb_xfer *xfer, usb2_error_t error)
+avr32dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct avr32dci_softc *sc = AVR32_BUS2SC(xfer->xroot->bus);
 	uint8_t ep_no;
@@ -1175,7 +1175,7 @@ avr32dci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 	    (ed->bEndpointAddress & (UE_DIR_IN | UE_DIR_OUT)));
 }
 
-usb2_error_t
+usb_error_t
 avr32dci_init(struct avr32dci_softc *sc)
 {
 	uint8_t n;
@@ -1500,7 +1500,7 @@ USB_MAKE_STRING_DESC(STRING_LANG, avr32dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, avr32dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, avr32dci_product);
 
-static usb2_error_t
+static usb_error_t
 avr32dci_roothub_exec(struct usb_device *udev,
     struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
@@ -1510,7 +1510,7 @@ avr32dci_roothub_exec(struct usb_device *udev,
 	uint16_t value;
 	uint16_t index;
 	uint32_t temp;
-	usb2_error_t err;
+	usb_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 

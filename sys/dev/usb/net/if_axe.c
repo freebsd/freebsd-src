@@ -152,21 +152,21 @@ static device_probe_t axe_probe;
 static device_attach_t axe_attach;
 static device_detach_t axe_detach;
 
-static usb2_callback_t axe_intr_callback;
-static usb2_callback_t axe_bulk_read_callback;
-static usb2_callback_t axe_bulk_write_callback;
+static usb_callback_t axe_intr_callback;
+static usb_callback_t axe_bulk_read_callback;
+static usb_callback_t axe_bulk_write_callback;
 
 static miibus_readreg_t axe_miibus_readreg;
 static miibus_writereg_t axe_miibus_writereg;
 static miibus_statchg_t axe_miibus_statchg;
 
-static usb2_ether_fn_t axe_attach_post;
-static usb2_ether_fn_t axe_init;
-static usb2_ether_fn_t axe_stop;
-static usb2_ether_fn_t axe_start;
-static usb2_ether_fn_t axe_tick;
-static usb2_ether_fn_t axe_setmulti;
-static usb2_ether_fn_t axe_setpromisc;
+static uether_fn_t axe_attach_post;
+static uether_fn_t axe_init;
+static uether_fn_t axe_stop;
+static uether_fn_t axe_start;
+static uether_fn_t axe_tick;
+static uether_fn_t axe_setmulti;
+static uether_fn_t axe_setpromisc;
 
 static int	axe_ifmedia_upd(struct ifnet *);
 static void	axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -259,7 +259,7 @@ static int
 axe_cmd(struct axe_softc *sc, int cmd, int index, int val, void *buf)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -600,7 +600,7 @@ static void
 axe_reset(struct axe_softc *sc)
 {
 	struct usb_config_descriptor *cd;
-	usb2_error_t err;
+	usb_error_t err;
 
 	cd = usb2_get_config_descriptor(sc->sc_ue.ue_udev);
 

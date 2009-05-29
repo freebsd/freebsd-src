@@ -101,18 +101,18 @@ static device_probe_t urio_probe;
 static device_attach_t urio_attach;
 static device_detach_t urio_detach;
 
-static usb2_callback_t urio_write_callback;
-static usb2_callback_t urio_write_clear_stall_callback;
-static usb2_callback_t urio_read_callback;
-static usb2_callback_t urio_read_clear_stall_callback;
+static usb_callback_t urio_write_callback;
+static usb_callback_t urio_write_clear_stall_callback;
+static usb_callback_t urio_read_callback;
+static usb_callback_t urio_read_clear_stall_callback;
 
-static usb2_fifo_close_t urio_close;
-static usb2_fifo_cmd_t urio_start_read;
-static usb2_fifo_cmd_t urio_start_write;
-static usb2_fifo_cmd_t urio_stop_read;
-static usb2_fifo_cmd_t urio_stop_write;
-static usb2_fifo_ioctl_t urio_ioctl;
-static usb2_fifo_open_t urio_open;
+static usb_fifo_close_t urio_close;
+static usb_fifo_cmd_t urio_start_read;
+static usb_fifo_cmd_t urio_start_write;
+static usb_fifo_cmd_t urio_stop_read;
+static usb_fifo_cmd_t urio_stop_write;
+static usb_fifo_ioctl_t urio_ioctl;
+static usb_fifo_open_t urio_open;
 
 static struct usb_fifo_methods urio_fifo_methods = {
 	.f_close = &urio_close,
