@@ -289,7 +289,7 @@ mac_init(void)
 	mac_labelzone_init();
 
 #ifndef MAC_STATIC
-	rm_init(&mac_policy_rm, "mac_policy_rm", 0);
+	rm_init(&mac_policy_rm, "mac_policy_rm");
 	sx_init(&mac_policy_sx, "mac_policy_sx");
 #endif
 }
