@@ -706,9 +706,6 @@ svr4_sys_sysconfig(td, uap)
 	retval = &(td->td_retval[0]);
 
 	switch (uap->name) {
-	case SVR4_CONFIG_UNUSED:
-		*retval = 0;
-		break;
 	case SVR4_CONFIG_NGROUPS:
 		*retval = NGROUPS_MAX;
 		break;
@@ -788,7 +785,45 @@ svr4_sys_sysconfig(td, uap)
 #endif
 		break;
 #endif /* NOTYET */
-
+	case SVR4_CONFIG_COHERENCY:
+		*retval = 0;	/* XXX */
+		break;
+	case SVR4_CONFIG_SPLIT_CACHE:
+		*retval = 0;	/* XXX */
+		break;
+	case SVR4_CONFIG_ICACHESZ:
+		*retval = 256;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHESZ:
+		*retval = 256;	/* XXX */
+		break;
+	case SVR4_CONFIG_ICACHELINESZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHELINESZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_ICACHEBLKSZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHEBLKSZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHETBLKSZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_ICACHE_ASSOC:
+		*retval = 1;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHE_ASSOC:
+		*retval = 1;	/* XXX */
+		break;
+	case SVR4_CONFIG_MAXPID:
+		*retval = PID_MAX;
+		break;
+	case SVR4_CONFIG_STACK_PROT:
+		*retval = PROT_READ|PROT_WRITE|PROT_EXEC;
+		break;
 	default:
 		return EINVAL;
 	}
