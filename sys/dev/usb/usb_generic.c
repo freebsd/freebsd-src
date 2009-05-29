@@ -57,21 +57,21 @@
 
 /* function prototypes */
 
-static usb2_callback_t ugen_read_clear_stall_callback;
-static usb2_callback_t ugen_write_clear_stall_callback;
-static usb2_callback_t ugen_default_read_callback;
-static usb2_callback_t ugen_default_write_callback;
-static usb2_callback_t ugen_isoc_read_callback;
-static usb2_callback_t ugen_isoc_write_callback;
-static usb2_callback_t ugen_default_fs_callback;
+static usb_callback_t ugen_read_clear_stall_callback;
+static usb_callback_t ugen_write_clear_stall_callback;
+static usb_callback_t ugen_default_read_callback;
+static usb_callback_t ugen_default_write_callback;
+static usb_callback_t ugen_isoc_read_callback;
+static usb_callback_t ugen_isoc_write_callback;
+static usb_callback_t ugen_default_fs_callback;
 
-static usb2_fifo_open_t ugen_open;
-static usb2_fifo_close_t ugen_close;
-static usb2_fifo_ioctl_t ugen_ioctl;
-static usb2_fifo_ioctl_t ugen_ioctl_post;
-static usb2_fifo_cmd_t ugen_start_read;
-static usb2_fifo_cmd_t ugen_start_write;
-static usb2_fifo_cmd_t ugen_stop_io;
+static usb_fifo_open_t ugen_open;
+static usb_fifo_close_t ugen_close;
+static usb_fifo_ioctl_t ugen_ioctl;
+static usb_fifo_ioctl_t ugen_ioctl_post;
+static usb_fifo_cmd_t ugen_start_read;
+static usb_fifo_cmd_t ugen_start_write;
+static usb_fifo_cmd_t ugen_stop_io;
 
 static int	ugen_transfer_setup(struct usb_fifo *,
 		     const struct usb_config *, uint8_t);
@@ -432,7 +432,7 @@ static void
 ugen_default_write_callback(struct usb_xfer *xfer)
 {
 	struct usb_fifo *f = xfer->priv_sc;
-	usb2_frlength_t actlen;
+	usb_frlength_t actlen;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -504,8 +504,8 @@ static void
 ugen_isoc_read_callback(struct usb_xfer *xfer)
 {
 	struct usb_fifo *f = xfer->priv_sc;
-	usb2_frlength_t offset;
-	usb2_frcount_t n;
+	usb_frlength_t offset;
+	usb_frcount_t n;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -543,9 +543,9 @@ static void
 ugen_isoc_write_callback(struct usb_xfer *xfer)
 {
 	struct usb_fifo *f = xfer->priv_sc;
-	usb2_frlength_t actlen;
-	usb2_frlength_t offset;
-	usb2_frcount_t n;
+	usb_frlength_t actlen;
+	usb_frlength_t offset;
+	usb_frcount_t n;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
 
@@ -1017,9 +1017,9 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 	struct usb_fs_endpoint fs_ep;
 	void *uaddr;			/* userland pointer */
 	void *kaddr;
-	usb2_frlength_t offset;
-	usb2_frlength_t rem;
-	usb2_frcount_t n;
+	usb_frlength_t offset;
+	usb_frlength_t rem;
+	usb_frcount_t n;
 	uint32_t length;
 	int error;
 	uint8_t isread;
@@ -1194,9 +1194,9 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 	struct usb_fs_endpoint *fs_ep_uptr;	/* userland ptr */
 	void *uaddr;			/* userland ptr */
 	void *kaddr;
-	usb2_frlength_t offset;
-	usb2_frlength_t rem;
-	usb2_frcount_t n;
+	usb_frlength_t offset;
+	usb_frlength_t rem;
+	usb_frcount_t n;
 	uint32_t length;
 	uint32_t temp;
 	int error;
@@ -1611,7 +1611,7 @@ ugen_get_frame_size(struct usb_fifo *f, void *addr)
 static int
 ugen_set_buffer_size(struct usb_fifo *f, void *addr)
 {
-	usb2_frlength_t t;
+	usb_frlength_t t;
 
 	if (*(int *)addr < 0)
 		t = 0;		/* use "wMaxPacketSize" */

@@ -98,8 +98,8 @@ static device_probe_t uipaq_probe;
 static device_attach_t uipaq_attach;
 static device_detach_t uipaq_detach;
 
-static usb2_callback_t uipaq_write_callback;
-static usb2_callback_t uipaq_read_callback;
+static usb_callback_t uipaq_write_callback;
+static usb_callback_t uipaq_read_callback;
 
 static void	uipaq_start_read(struct ucom_softc *);
 static void	uipaq_stop_read(struct ucom_softc *);

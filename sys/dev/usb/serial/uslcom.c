@@ -106,8 +106,8 @@ static device_probe_t uslcom_probe;
 static device_attach_t uslcom_attach;
 static device_detach_t uslcom_detach;
 
-static usb2_callback_t uslcom_write_callback;
-static usb2_callback_t uslcom_read_callback;
+static usb_callback_t uslcom_write_callback;
+static usb_callback_t uslcom_read_callback;
 
 static void uslcom_open(struct ucom_softc *);
 static void uslcom_close(struct ucom_softc *);

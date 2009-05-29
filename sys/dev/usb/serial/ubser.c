@@ -138,8 +138,8 @@ static device_probe_t ubser_probe;
 static device_attach_t ubser_attach;
 static device_detach_t ubser_detach;
 
-static usb2_callback_t ubser_write_callback;
-static usb2_callback_t ubser_read_callback;
+static usb_callback_t ubser_write_callback;
+static usb_callback_t ubser_read_callback;
 
 static int	ubser_pre_param(struct ucom_softc *, struct termios *);
 static void	ubser_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -455,7 +455,7 @@ ubser_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	struct ubser_softc *sc = ucom->sc_parent;
 	uint8_t x = ucom->sc_portno;
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 
 	if (onoff) {
 

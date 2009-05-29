@@ -204,11 +204,11 @@ static device_suspend_t ustorage_fs_suspend;
 static device_resume_t ustorage_fs_resume;
 static usb_handle_request_t ustorage_fs_handle_request;
 
-static usb2_callback_t ustorage_fs_t_bbb_command_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_dump_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_read_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_write_callback;
-static usb2_callback_t ustorage_fs_t_bbb_status_callback;
+static usb_callback_t ustorage_fs_t_bbb_command_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_dump_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_read_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_write_callback;
+static usb_callback_t ustorage_fs_t_bbb_status_callback;
 
 static void ustorage_fs_transfer_start(struct ustorage_fs_softc *sc, uint8_t xfer_index);
 static void ustorage_fs_transfer_stop(struct ustorage_fs_softc *sc);

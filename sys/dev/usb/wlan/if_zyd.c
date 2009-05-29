@@ -116,10 +116,10 @@ static device_probe_t zyd_match;
 static device_attach_t zyd_attach;
 static device_detach_t zyd_detach;
 
-static usb2_callback_t zyd_intr_read_callback;
-static usb2_callback_t zyd_intr_write_callback;
-static usb2_callback_t zyd_bulk_read_callback;
-static usb2_callback_t zyd_bulk_write_callback;
+static usb_callback_t zyd_intr_read_callback;
+static usb_callback_t zyd_intr_write_callback;
+static usb_callback_t zyd_bulk_read_callback;
+static usb_callback_t zyd_bulk_write_callback;
 
 static struct ieee80211vap *zyd_vap_create(struct ieee80211com *,
 		    const char name[IFNAMSIZ], int unit, int opmode,
@@ -1877,7 +1877,7 @@ static int
 zyd_get_macaddr(struct zyd_softc *sc)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = ZYD_READFWDATAREQ;

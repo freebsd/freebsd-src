@@ -109,10 +109,10 @@ struct bbb_transfer {
 
 	uint8_t *data_ptr;
 
-	usb2_size_t data_len;		/* bytes */
-	usb2_size_t data_rem;		/* bytes */
-	usb2_timeout_t data_timeout;	/* ms */
-	usb2_frlength_t actlen;		/* bytes */
+	size_t data_len;		/* bytes */
+	size_t data_rem;		/* bytes */
+	usb_timeout_t data_timeout;	/* ms */
+	usb_frlength_t actlen;		/* bytes */
 
 	uint8_t	cmd_len;		/* bytes */
 	uint8_t	dir;
@@ -124,12 +124,12 @@ struct bbb_transfer {
 	uint8_t	buffer[256];
 };
 
-static usb2_callback_t bbb_command_callback;
-static usb2_callback_t bbb_data_read_callback;
-static usb2_callback_t bbb_data_rd_cs_callback;
-static usb2_callback_t bbb_data_write_callback;
-static usb2_callback_t bbb_data_wr_cs_callback;
-static usb2_callback_t bbb_status_callback;
+static usb_callback_t bbb_command_callback;
+static usb_callback_t bbb_data_read_callback;
+static usb_callback_t bbb_data_rd_cs_callback;
+static usb_callback_t bbb_data_write_callback;
+static usb_callback_t bbb_data_wr_cs_callback;
+static usb_callback_t bbb_status_callback;
 
 static const struct usb_config bbb_config[ST_MAX] = {
 
@@ -286,7 +286,7 @@ static void
 bbb_data_read_callback(struct usb_xfer *xfer)
 {
 	struct bbb_transfer *sc = xfer->priv_sc;
-	usb2_frlength_t max_bulk = xfer->max_data_length;
+	usb_frlength_t max_bulk = xfer->max_data_length;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -337,7 +337,7 @@ static void
 bbb_data_write_callback(struct usb_xfer *xfer)
 {
 	struct bbb_transfer *sc = xfer->priv_sc;
-	usb2_frlength_t max_bulk = xfer->max_data_length;
+	usb_frlength_t max_bulk = xfer->max_data_length;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -435,8 +435,8 @@ bbb_status_callback(struct usb_xfer *xfer)
  *------------------------------------------------------------------------*/
 static uint8_t
 bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
-    void *data_ptr, usb2_size_t data_len, uint8_t cmd_len,
-    usb2_timeout_t data_timeout)
+    void *data_ptr, size_t data_len, uint8_t cmd_len,
+    usb_timeout_t data_timeout)
 {
 	sc->lun = lun;
 	sc->dir = data_len ? dir : DIR_NONE;
@@ -462,13 +462,13 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
  * 0: This interface is an auto install disk (CD-ROM)
  * Else: Not an auto install disk.
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_test_autoinstall(struct usb_device *udev, uint8_t iface_index,
     uint8_t do_eject)
 {
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t timeout;
 	uint8_t sid_type;
 	struct bbb_transfer *sc;

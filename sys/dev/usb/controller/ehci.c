@@ -94,7 +94,7 @@ extern struct usb_pipe_methods ehci_device_isoc_fs_methods;
 extern struct usb_pipe_methods ehci_device_isoc_hs_methods;
 
 static void ehci_do_poll(struct usb_bus *bus);
-static void ehci_device_done(struct usb_xfer *xfer, usb2_error_t error);
+static void ehci_device_done(struct usb_xfer *xfer, usb_error_t error);
 static uint8_t ehci_check_transfer(struct usb_xfer *xfer);
 static void ehci_timeout(void *arg);
 static void ehci_root_intr(ehci_softc_t *sc);
@@ -115,7 +115,7 @@ struct ehci_std_temp {
 };
 
 void
-ehci_iterate_hw_softc(struct usb_bus *bus, usb2_bus_mem_sub_cb_t *cb)
+ehci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(bus);
 	uint32_t i;
@@ -145,7 +145,7 @@ ehci_iterate_hw_softc(struct usb_bus *bus, usb2_bus_mem_sub_cb_t *cb)
 	}
 }
 
-usb2_error_t
+usb_error_t
 ehci_reset(ehci_softc_t *sc)
 {
 	uint32_t hcr;
@@ -181,7 +181,7 @@ ehci_reset(ehci_softc_t *sc)
 	return (USB_ERR_IOERROR);
 }
 
-static usb2_error_t
+static usb_error_t
 ehci_hcreset(ehci_softc_t *sc)
 {
 	uint32_t hcr;
@@ -205,7 +205,7 @@ ehci_hcreset(ehci_softc_t *sc)
 	return ehci_reset(sc);
 }
 
-usb2_error_t
+usb_error_t
 ehci_init(ehci_softc_t *sc)
 {
 	struct usb_page_search buf_res;
@@ -217,7 +217,7 @@ ehci_init(ehci_softc_t *sc)
 	uint16_t x;
 	uint16_t y;
 	uint16_t bit;
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 
 	DPRINTF("start\n");
 
@@ -1120,7 +1120,7 @@ _ehci_remove_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 	return (last);
 }
 
-static usb2_error_t
+static usb_error_t
 ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
@@ -1216,7 +1216,7 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 static void
 ehci_non_isoc_done(struct usb_xfer *xfer)
 {
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 
 	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
 	    xfer, xfer->pipe);
@@ -2111,7 +2111,7 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
  * from close and from interrupt
  */
 static void
-ehci_device_done(struct usb_xfer *xfer, usb2_error_t error)
+ehci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usb_pipe_methods *methods = xfer->pipe->methods;
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
@@ -2984,7 +2984,7 @@ ehci_disown(ehci_softc_t *sc, uint16_t index, uint8_t lowspeed)
 	EOWRITE4(sc, port, v | EHCI_PS_PO);
 }
 
-static usb2_error_t
+static usb_error_t
 ehci_roothub_exec(struct usb_device *udev,
     struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
@@ -2998,7 +2998,7 @@ ehci_roothub_exec(struct usb_device *udev,
 	uint16_t value;
 	uint16_t index;
 	uint8_t l;
-	usb2_error_t err;
+	usb_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 

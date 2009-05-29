@@ -136,17 +136,17 @@ struct ums_softc {
 
 static void ums_put_queue_timeout(void *__sc);
 
-static usb2_callback_t ums_intr_callback;
+static usb_callback_t ums_intr_callback;
 
 static device_probe_t ums_probe;
 static device_attach_t ums_attach;
 static device_detach_t ums_detach;
 
-static usb2_fifo_cmd_t ums_start_read;
-static usb2_fifo_cmd_t ums_stop_read;
-static usb2_fifo_open_t ums_open;
-static usb2_fifo_close_t ums_close;
-static usb2_fifo_ioctl_t ums_ioctl;
+static usb_fifo_cmd_t ums_start_read;
+static usb_fifo_cmd_t ums_stop_read;
+static usb_fifo_open_t ums_open;
+static usb_fifo_close_t ums_close;
+static usb_fifo_ioctl_t ums_ioctl;
 
 static void ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy, int32_t dz, int32_t dt, int32_t buttons);
 

@@ -193,11 +193,11 @@ static device_probe_t ufoma_probe;
 static device_attach_t ufoma_attach;
 static device_detach_t ufoma_detach;
 
-static usb2_callback_t ufoma_ctrl_read_callback;
-static usb2_callback_t ufoma_ctrl_write_callback;
-static usb2_callback_t ufoma_intr_callback;
-static usb2_callback_t ufoma_bulk_write_callback;
-static usb2_callback_t ufoma_bulk_read_callback;
+static usb_callback_t ufoma_ctrl_read_callback;
+static usb_callback_t ufoma_ctrl_write_callback;
+static usb_callback_t ufoma_intr_callback;
+static usb_callback_t ufoma_bulk_write_callback;
+static usb_callback_t ufoma_bulk_read_callback;
 
 static void	*ufoma_get_intconf(struct usb_config_descriptor *,
 		    struct usb_interface_descriptor *, uint8_t, uint8_t);

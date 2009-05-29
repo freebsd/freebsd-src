@@ -70,7 +70,7 @@ static void	usb2_init_attach_arg(struct usb_device *,
 static void	usb2_suspend_resume_sub(struct usb_device *, device_t,
 		    uint8_t);
 static void	usb2_clear_stall_proc(struct usb_proc_msg *_pm);
-usb2_error_t	usb2_config_parse(struct usb_device *, uint8_t, uint8_t);
+usb_error_t	usb2_config_parse(struct usb_device *, uint8_t, uint8_t);
 static void	usb2_set_device_strings(struct usb_device *);
 #if USB_HAVE_UGEN
 static void	usb2_notify_addq(const char *type, struct usb_device *);
@@ -287,7 +287,7 @@ found:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_interface_count(struct usb_device *udev, uint8_t *count)
 {
 	if (udev->cdesc == NULL) {
@@ -438,7 +438,7 @@ usb2_unconfigure(struct usb_device *udev, uint8_t flag)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_set_config_index(struct usb_device *udev, uint8_t index)
 {
 	struct usb_status ds;
@@ -447,7 +447,7 @@ usb2_set_config_index(struct usb_device *udev, uint8_t index)
 	uint16_t max_power;
 	uint8_t selfpowered;
 	uint8_t do_unlock;
-	usb2_error_t err;
+	usb_error_t err;
 
 	DPRINTFN(6, "udev=%p index=%d\n", udev, index);
 
@@ -588,7 +588,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 {
 	struct usb_idesc_parse_state ips;
@@ -596,7 +596,7 @@ usb2_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 	struct usb_endpoint_descriptor *ed;
 	struct usb_interface *iface;
 	struct usb_pipe *pipe;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t ep_curr;
 	uint8_t ep_max;
 	uint8_t temp;
@@ -794,12 +794,12 @@ cleanup:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_set_alt_interface_index(struct usb_device *udev,
     uint8_t iface_index, uint8_t alt_index)
 {
 	struct usb_interface *iface = usb2_get_iface(udev, iface_index);
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t do_unlock;
 
 	/* automatic locking */
@@ -858,7 +858,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_set_endpoint_stall(struct usb_device *udev, struct usb_pipe *pipe,
     uint8_t do_stall)
 {
@@ -934,12 +934,12 @@ usb2_set_endpoint_stall(struct usb_device *udev, struct usb_pipe *pipe,
 /*------------------------------------------------------------------------*
  *	usb2_reset_iface_endpoints - used in USB device side mode
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_reset_iface_endpoints(struct usb_device *udev, uint8_t iface_index)
 {
 	struct usb_pipe *pipe;
 	struct usb_pipe *pipe_end;
-	usb2_error_t err;
+	usb_error_t err;
 
 	pipe = udev->pipes;
 	pipe_end = udev->pipes + udev->pipes_max;
@@ -1199,7 +1199,7 @@ usb2_init_attach_arg(struct usb_device *udev,
  *    0: Success
  * Else: A control transfer failed
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 {
 	struct usb_attach_arg uaa;
@@ -1339,7 +1339,7 @@ usb2_suspend_resume_sub(struct usb_device *udev, device_t dev, uint8_t do_suspen
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_suspend_resume(struct usb_device *udev, uint8_t do_suspend)
 {
 	struct usb_interface *iface;
@@ -1423,7 +1423,7 @@ usb2_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	struct usb_device *hub;
 	uint8_t *scratch_ptr;
 	uint32_t scratch_size;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t device_index;
 
 	DPRINTF("parent_dev=%p, bus=%p, parent_hub=%p, depth=%u, "
@@ -1484,7 +1484,7 @@ usb2_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	udev->depth = depth;
 	udev->bus = bus;
 	udev->address = USB_START_ADDR;	/* default value */
-	udev->plugtime = (usb2_ticks_t)ticks;
+	udev->plugtime = (usb_ticks_t)ticks;
 	usb2_set_device_state(udev, USB_STATE_POWERED);
 	/*
 	 * We need to force the power mode to "on" because there are plenty

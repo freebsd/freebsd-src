@@ -125,8 +125,8 @@ static device_probe_t uftdi_probe;
 static device_attach_t uftdi_attach;
 static device_detach_t uftdi_detach;
 
-static usb2_callback_t uftdi_write_callback;
-static usb2_callback_t uftdi_read_callback;
+static usb_callback_t uftdi_write_callback;
+static usb_callback_t uftdi_read_callback;
 
 static void	uftdi_cfg_open(struct ucom_softc *);
 static void	uftdi_cfg_set_dtr(struct ucom_softc *, uint8_t);
