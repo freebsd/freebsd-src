@@ -327,7 +327,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker)
 
 	rm_tracker_add(pc, tracker);
 
-	td->td_pinned++; /*  sched_pin(); */
+	sched_pin();
 
 	compiler_memory_barrier();
 
@@ -387,7 +387,7 @@ _rm_runlock(struct rmlock *rm, struct rm_priotracker *tracker)
 	pc = cpuid_to_pcpu[td->td_oncpu]; /* pcpu_find(td->td_oncpu); */
 	rm_tracker_remove(pc, tracker);
 	td->td_critnest--;
-	td->td_pinned--; /*  sched_unpin(); */
+	sched_unpin();
 
 	if (0 == (td->td_owepreempt | tracker->rmp_flags))
 		return;
