@@ -129,6 +129,8 @@ MALLOC_DECLARE(M_PRISON);
 
 #include <sys/osd.h>
 
+#define	HOSTUUIDLEN	64
+
 /*
  * This structure describes a prison.  It is pointed to by all struct
  * ucreds's of the inmates.  pr_ref keeps track of them and is used to
@@ -166,12 +168,16 @@ struct prison {
 	int		 pr_prisoncount;		/* (a) number of child jails */
 	unsigned	 pr_allow;			/* (p) PR_ALLOW_* flags */
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
+	char		 pr_domain[MAXHOSTNAMELEN];	/* (p) jail domainname */
+	char		 pr_uuid[HOSTUUIDLEN];		/* (p) jail hostuuid */
+	unsigned long	 pr_hostid;			/* (p) jail hostid */
 };
 #endif /* _KERNEL || _WANT_PRISON */
 
 #ifdef _KERNEL
 /* Flag bits set via options */
 #define	PR_PERSIST	0x00000001	/* Can exist without processes */
+#define	PR_HOST		0x00000002	/* Virtualize hostname et al */
 #define	PR_IP4_USER	0x00000004	/* Virtualize IPv4 addresses */
 #define	PR_IP6_USER	0x00000008	/* Virtualize IPv6 addresses */
 

@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/namei.h>
 #include <sys/mount.h>
 #include <sys/queue.h>
@@ -79,7 +81,9 @@ struct prison prison0 = {
 	.pr_uref	= 1,
 	.pr_path	= "/",
 	.pr_securelevel	= -1,
+	.pr_uuid	= "00000000-0000-0000-0000-000000000000",
 	.pr_children	= LIST_HEAD_INITIALIZER(&prison0.pr_children),
+	.pr_flags	= PR_HOST,
 	.pr_allow	= PR_ALLOW_ALL,
 };
 MTX_SYSINIT(prison0, &prison0.pr_mtx, "jail mutex", MTX_DEF);
@@ -116,8 +120,9 @@ static int prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6);
  */
 static char *pr_flag_names[] = {
 	[0] = "persist",
+	"host",
 #ifdef INET
-	[2] = "ip4",
+	"ip4",
 #endif
 #ifdef INET6
 	[3] = "ip6",
@@ -126,8 +131,9 @@ static char *pr_flag_names[] = {
 
 static char *pr_flag_nonames[] = {
 	[0] = "nopersist",
+	"nohost",
 #ifdef INET
-	[2] = "noip4",
+	"noip4",
 #endif
 #ifdef INET6
 	[3] = "noip6",
@@ -453,13 +459,14 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	struct vfsoptlist *opts;
 	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
 	struct vnode *root;
-	char *errmsg, *host, *name, *p, *path;
+	char *domain, *errmsg, *host, *name, *p, *path, *uuid;
 #if defined(INET) || defined(INET6)
 	void *op;
 #endif
+	unsigned long hid;
 	size_t namelen, onamelen;
 	int created, cuflags, descend, enforce, error, errmsg_len, errmsg_pos;
-	int gotenforce, gotslevel, fi, jid, len;
+	int gotenforce, gothid, gotslevel, fi, jid, len;
 	int slevel, vfslocked;
 #if defined(INET) || defined(INET6)
 	int ii, ij;
@@ -578,6 +585,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	else if (error != 0)
 		goto done_free;
 	else {
+		ch_flags |= PR_HOST;
+		pr_flags |= PR_HOST;
 		if (len == 0 || host[len - 1] != '\0') {
 			error = EINVAL;
 			goto done_free;
@@ -586,6 +595,61 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			error = ENAMETOOLONG;
 			goto done_free;
 		}
+	}
+
+	error = vfs_getopt(opts, "host.domainname", (void **)&domain, &len);
+	if (error == ENOENT)
+		domain = NULL;
+	else if (error != 0)
+		goto done_free;
+	else {
+		ch_flags |= PR_HOST;
+		pr_flags |= PR_HOST;
+		if (len == 0 || domain[len - 1] != '\0') {
+			error = EINVAL;
+			goto done_free;
+		}
+		if (len > MAXHOSTNAMELEN) {
+			error = ENAMETOOLONG;
+			goto done_free;
+		}
+	}
+
+	error = vfs_getopt(opts, "host.hostuuid", (void **)&uuid, &len);
+	if (error == ENOENT)
+		uuid = NULL;
+	else if (error != 0)
+		goto done_free;
+	else {
+		ch_flags |= PR_HOST;
+		pr_flags |= PR_HOST;
+		if (len == 0 || uuid[len - 1] != '\0') {
+			error = EINVAL;
+			goto done_free;
+		}
+		if (len > HOSTUUIDLEN) {
+			error = ENAMETOOLONG;
+			goto done_free;
+		}
+	}
+
+#ifdef COMPAT_IA32
+	if (td->td_proc->p_sysent->sv_flags & SV_IA32) {
+		uint32_t hid32;
+
+		error = vfs_copyopt(opts, "host.hostid", &hid32, sizeof(hid32));
+		hid = hid32;
+	} else
+#endif
+		error = vfs_copyopt(opts, "host.hostid", &hid, sizeof(hid));
+	if (error == ENOENT)
+		gothid = 0;
+	else if (error != 0)
+		goto done_free;
+	else {
+		gothid = 1;
+		ch_flags |= PR_HOST;
+		pr_flags |= PR_HOST;
 	}
 
 	/* This might be the second time around for this option. */
@@ -1000,6 +1064,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		/* Set some default values, and inherit some from the parent. */
 		if (name == NULL)
 			name = "";
+		if (host != NULL || domain != NULL || uuid != NULL || gothid) {
+			if (host == NULL)
+				host = ppr->pr_host;
+			if (domain == NULL)
+				domain = ppr->pr_domain;
+			if (uuid == NULL)
+				uuid = ppr->pr_uuid;
+			if (!gothid)
+				hid = ppr->pr_hostid;
+		}
 		if (path == NULL) {
 			path = "/";
 			root = mypr->pr_root;
@@ -1436,8 +1510,50 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			strlcpy(pr->pr_path, path, sizeof(pr->pr_path));
 		pr->pr_root = root;
 	}
-	if (host != NULL)
-		strlcpy(pr->pr_host, host, sizeof(pr->pr_host));
+	if (PR_HOST & ch_flags & ~pr_flags) {
+		if (pr->pr_flags & PR_HOST) {
+			/*
+			 * Copy the parent's host info.  As with pr_ip4 above,
+			 * the lack of a lock on the parent is not a problem;
+			 * it is always set with allprison_lock at least
+			 * shared, and is held exclusively here.
+			 */
+			strlcpy(pr->pr_host, pr->pr_parent->pr_host,
+			    sizeof(pr->pr_host));
+			strlcpy(pr->pr_domain, pr->pr_parent->pr_domain,
+			    sizeof(pr->pr_domain));
+			strlcpy(pr->pr_uuid, pr->pr_parent->pr_uuid,
+			    sizeof(pr->pr_uuid));
+			pr->pr_hostid = pr->pr_parent->pr_hostid;
+		}
+	} else if (host != NULL || domain != NULL || uuid != NULL || gothid) {
+		/* Set this prison, and any descendants without PR_HOST. */
+		if (host != NULL)
+			strlcpy(pr->pr_host, host, sizeof(pr->pr_host));
+		if (domain != NULL)
+			strlcpy(pr->pr_domain, domain, sizeof(pr->pr_domain));
+		if (uuid != NULL)
+			strlcpy(pr->pr_uuid, uuid, sizeof(pr->pr_uuid));
+		if (gothid)
+			pr->pr_hostid = hid;
+		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend) {
+			if (tpr->pr_flags & PR_HOST)
+				descend = 0;
+			else {
+				if (host != NULL)
+					strlcpy(tpr->pr_host, pr->pr_host,
+					    sizeof(tpr->pr_host));
+				if (domain != NULL)
+					strlcpy(tpr->pr_domain, pr->pr_domain,
+					    sizeof(tpr->pr_domain));
+				if (uuid != NULL)
+					strlcpy(tpr->pr_uuid, pr->pr_uuid,
+					    sizeof(tpr->pr_uuid));
+				if (gothid)
+					tpr->pr_hostid = hid;
+			}
+		}
+	}
 	if ((tallow = ch_allow & ~pr_allow)) {
 		/* Clear allow bits in all children. */
 		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend)
@@ -1751,6 +1867,23 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
 	error = vfs_setopts(opts, "host.hostname", pr->pr_host);
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
+	error = vfs_setopts(opts, "host.domainname", pr->pr_domain);
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
+	error = vfs_setopts(opts, "host.hostuuid", pr->pr_uuid);
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
+#ifdef COMPAT_IA32
+	if (td->td_proc->p_sysent->sv_flags & SV_IA32) {
+		uint32_t hid32 = pr->pr_hostid;
+
+		error = vfs_setopt(opts, "host.hostid", &hid32, sizeof(hid32));
+	} else
+#endif
+	error = vfs_setopt(opts, "host.hostid", &pr->pr_hostid,
+	    sizeof(pr->pr_hostid));
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
 	error = vfs_setopt(opts, "enforce_statfs", &pr->pr_enforce_statfs,
@@ -3072,17 +3205,12 @@ jailed(struct ucred *cred)
 void
 getcredhostname(struct ucred *cred, char *buf, size_t size)
 {
-	INIT_VPROCG(cred->cr_vimage->v_procg);
+	struct prison *pr;
 
-	if (jailed(cred)) {
-		mtx_lock(&cred->cr_prison->pr_mtx);
-		strlcpy(buf, cred->cr_prison->pr_host, size);
-		mtx_unlock(&cred->cr_prison->pr_mtx);
-	} else {
-		mtx_lock(&hostname_mtx);
-		strlcpy(buf, V_hostname, size);
-		mtx_unlock(&hostname_mtx);
-	}
+	pr = (cred != NULL) ? cred->cr_prison : &prison0;
+	mtx_lock(&pr->pr_mtx);
+	strlcpy(buf, pr->pr_host, size);
+	mtx_unlock(&pr->pr_mtx);
 }
 
 /*
@@ -3683,8 +3811,16 @@ SYSCTL_JAIL_PARAM(, dying, CTLTYPE_INT | CTLFLAG_RD,
     "B", "Jail is in the process of shutting down");
 
 SYSCTL_JAIL_PARAM_NODE(host, "Jail host info");
+SYSCTL_JAIL_PARAM(, nohost, CTLTYPE_INT | CTLFLAG_RW,
+    "BN", "Jail w/ no host info");
 SYSCTL_JAIL_PARAM_STRING(_host, hostname, CTLFLAG_RW, MAXHOSTNAMELEN,
     "Jail hostname");
+SYSCTL_JAIL_PARAM_STRING(_host, domainname, CTLFLAG_RW, MAXHOSTNAMELEN,
+    "Jail NIS domainname");
+SYSCTL_JAIL_PARAM_STRING(_host, hostuuid, CTLFLAG_RW, HOSTUUIDLEN,
+    "Jail host UUID");
+SYSCTL_JAIL_PARAM(_host, hostid, CTLTYPE_ULONG | CTLFLAG_RW,
+    "LU", "Jail host ID");
 
 SYSCTL_JAIL_PARAM_NODE(cpuset, "Jail cpuset");
 SYSCTL_JAIL_PARAM(_cpuset, id, CTLTYPE_INT | CTLFLAG_RD, "I", "Jail cpuset ID");
@@ -3762,6 +3898,9 @@ db_show_prison(struct prison *pr)
 	db_printf("\n");
 	db_printf(" enforce_statfs  = %d\n", pr->pr_enforce_statfs);
 	db_printf(" host.hostname   = %s\n", pr->pr_host);
+	db_printf(" host.domainname = %s\n", pr->pr_domain);
+	db_printf(" host.hostuuid   = %s\n", pr->pr_uuid);
+	db_printf(" host.hostid     = %lu\n", pr->pr_hostid);
 #ifdef INET
 	db_printf(" ip4s            = %d\n", pr->pr_ip4s);
 	for (ii = 0; ii < pr->pr_ip4s; ii++)

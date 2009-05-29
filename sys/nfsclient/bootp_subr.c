@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
@@ -1558,10 +1559,10 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 			printf("hostname %s (ignored) ", p);
 		} else {
 			strcpy(nd->my_hostnam, p);
-			mtx_lock(&hostname_mtx);
-			strcpy(G_hostname, p);
-			printf("hostname %s ", G_hostname);
-			mtx_unlock(&hostname_mtx);
+			mtx_lock(&prison0.pr_mtx);
+			strcpy(prison0.pr_host, p);
+			mtx_unlock(&prison0.pr_mtx);
+			printf("hostname %s ", p);
 			gctx->sethostname = ifctx;
 		}
 	}

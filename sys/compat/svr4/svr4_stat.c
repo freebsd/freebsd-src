@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/un.h>
-#include <sys/vimage.h>
 
 #include <vm/vm.h>
 
@@ -386,7 +385,7 @@ svr4_ustat(td, uap)
 	return 0;
 }
 
-/*extern char ostype[], hostname[], osrelease[], version[], machine[];*/
+/*extern char ostype[], osrelease[], version[], machine[];*/
 
 int
 svr4_sys_uname(td, uap)
@@ -412,15 +411,12 @@ svr4_sys_systeminfo(td, uap)
 	struct thread *td;
 	struct svr4_sys_systeminfo_args *uap;
 {
-	INIT_VPROCG(TD_TO_VPROCG(td));
+	struct prison	*pr;
 	char		*str = NULL;
 	int		error = 0;
 	register_t	*retval = td->td_retval;
 	size_t		len = 0;
-	char		buf[11];   /* XXX NetBSD uses 256, but we use 11
-				     here as that seems like awfully
-				     excessive kstack usage for hostid
-				     string... */
+	char		buf[MAXHOSTNAMELEN];
 	u_int		rlen = uap->len;
 
 	switch (uap->what) {
@@ -429,7 +425,8 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_HOSTNAME:
-		str = V_hostname;
+		getcredhostname(td->td_ucred, buf, sizeof(buf));
+		str = buf;
 		break;
 
 	case SVR4_SI_RELEASE:
@@ -470,8 +467,11 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_SRPC_DOMAIN:
-		/* XXXRW: locking? */
-		str = V_domainname;
+		pr = td->td_ucred->cr_prison;
+		mtx_lock(&pr->pr_mtx);
+		strlcpy(buf, pr->pr_domain, sizeof(buf));
+		mtx_unlock(&pr->pr_mtx);
+		str = buf;
 		break;
 
 	case SVR4_SI_PLATFORM:
