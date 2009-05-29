@@ -293,7 +293,7 @@ usb2_com_attach_tty(struct ucom_softc *sc, uint32_t sub_units)
 	int error = 0;
 	char buf[32];			/* temporary TTY device name buffer */
 
-	tp = tty_alloc(&usb2_com_class, sc, sc->sc_mtx);
+	tp = tty_alloc_mutex(&usb2_com_class, sc, sc->sc_mtx);
 	if (tp == NULL) {
 		error = ENOMEM;
 		goto done;

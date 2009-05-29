@@ -334,7 +334,7 @@ sc_alloc_tty(int index, int devnum)
 	stc = malloc(sizeof(struct sc_ttysoftc), M_DEVBUF, M_WAITOK);
 	stc->st_index = index;
 	stc->st_stat = NULL;
-	tp = tty_alloc(&sc_ttydevsw, stc, &Giant);
+	tp = tty_alloc_mutex(&sc_ttydevsw, stc, &Giant);
 
 	/* Create device node. */
 	tty_makedev(tp, NULL, "v%r", devnum);
