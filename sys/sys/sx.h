@@ -265,7 +265,7 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 #define	SX_NOPROFILE		0x02
 #define	SX_NOWITNESS		0x04
 #define	SX_QUIET		0x08
-#define	SX_ADAPTIVESPIN		0x10
+#define	SX_NOADAPTIVE		0x10
 #define	SX_RECURSE		0x20
 
 /*
