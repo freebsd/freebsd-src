@@ -55,13 +55,6 @@
 /* Global variables for the kernel. */
 
 /* 1.1 */
-extern struct mtx hostname_mtx;
-extern unsigned long hostid;
-extern char hostuuid[64];
-#ifdef VIMAGE_GLOBALS
-extern char hostname[MAXHOSTNAMELEN];
-extern char domainname[MAXHOSTNAMELEN];
-#endif
 extern char kernelname[MAXPATHLEN];
 
 extern int tick;			/* usec per tick (1000000 / hz) */

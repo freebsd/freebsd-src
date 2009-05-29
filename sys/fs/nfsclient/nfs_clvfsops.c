@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/clock.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -368,12 +369,11 @@ int
 ncl_mountroot(struct mount *mp)
 {
 	struct thread *td = curthread;
-	INIT_VPROCG(TD_TO_VPROCG(td));
 	struct nfsv3_diskless *nd = &newnfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
 	struct ifreq ir;
-	int error, i;
+	int error;
 	u_long l;
 	char buf[128];
 	char *cp;
@@ -477,13 +477,9 @@ ncl_mountroot(struct mount *mp)
 	 * set hostname here and then let the "/etc/rc.xxx" files
 	 * mount the right /var based upon its preset value.
 	 */
-	mtx_lock(&hostname_mtx);
-	bcopy(nd->my_hostnam, V_hostname, MAXHOSTNAMELEN);
-	V_hostname[MAXHOSTNAMELEN - 1] = '\0';
-	for (i = 0; i < MAXHOSTNAMELEN; i++)
-		if (V_hostname[i] == '\0')
-			break;
-	mtx_unlock(&hostname_mtx);
+	mtx_lock(&prison0.pr_mtx);
+	strlcpy(prison0.pr_host, nd->my_hostnam, sizeof(prison0.pr_host));
+	mtx_unlock(&prison0.pr_mtx);
 	inittodr(ntohl(nd->root_time));
 	return (0);
 }

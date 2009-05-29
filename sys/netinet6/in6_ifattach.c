@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/md5.h>
@@ -104,24 +105,27 @@ static void in6_purgemaddrs(struct ifnet *);
 static int
 get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 {
-	INIT_VPROCG(TD_TO_VPROCG(curthread)); /* XXX V_hostname needs this */
 	MD5_CTX ctxt;
+	struct prison *pr;
 	u_int8_t digest[16];
 	int hostnamelen;
 
-	mtx_lock(&hostname_mtx);
-	hostnamelen = strlen(V_hostname);
+	pr = curthread->td_ucred->cr_prison;
+	mtx_lock(&pr->pr_mtx);
+	hostnamelen = strlen(pr->pr_host);
 #if 0
 	/* we need at least several letters as seed for ifid */
-	if (hostnamelen < 3)
+	if (hostnamelen < 3) {
+		mtx_unlock(&pr->pr_mtx);
 		return -1;
+	}
 #endif
 
 	/* generate 8 bytes of pseudo-random value. */
 	bzero(&ctxt, sizeof(ctxt));
 	MD5Init(&ctxt);
-	MD5Update(&ctxt, V_hostname, hostnamelen);
-	mtx_unlock(&hostname_mtx);
+	MD5Update(&ctxt, pr->pr_host, hostnamelen);
+	mtx_unlock(&pr->pr_mtx);
 	MD5Final(digest, &ctxt);
 
 	/* assumes sizeof(digest) > sizeof(ifid) */
@@ -620,11 +624,10 @@ int
 in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
     struct in6_addr *in6)
 {
-	INIT_VPROCG(TD_TO_VPROCG(curthread)); /* XXX V_hostname needs this */
+	struct prison *pr;
 	const char *p;
 	u_char *q;
 	MD5_CTX ctxt;
-	int use_hostname;
 	u_int8_t digest[16];
 	char l;
 	char n[64];	/* a single label must not exceed 63 chars */
@@ -634,15 +637,15 @@ in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
 	 * we try to do the hostname lookup ourselves.
 	 */
 	if (!name && namelen == -1) {
-		use_hostname = 1;
-		mtx_lock(&hostname_mtx);
-		name = V_hostname;
+		pr = curthread->td_ucred->cr_prison;
+		mtx_lock(&pr->pr_mtx);
+		name = pr->pr_host;
 		namelen = strlen(name);
 	} else
-		use_hostname = 0;
+		pr = NULL;
 	if (!name || !namelen) {
-		if (use_hostname)
-			mtx_unlock(&hostname_mtx);
+		if (pr != NULL)
+			mtx_unlock(&pr->pr_mtx);
 		return -1;
 	}
 
@@ -650,14 +653,14 @@ in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
 	while (p && *p && *p != '.' && p - name < namelen)
 		p++;
 	if (p == name || p - name > sizeof(n) - 1) {
-		if (use_hostname)
-			mtx_unlock(&hostname_mtx);
+		if (pr != NULL)
+			mtx_unlock(&pr->pr_mtx);
 		return -1;	/* label too long */
 	}
 	l = p - name;
 	strncpy(n, name, l);
-	if (use_hostname)
-		mtx_unlock(&hostname_mtx);
+	if (pr != NULL)
+		mtx_unlock(&pr->pr_mtx);
 	n[(int)l] = '\0';
 	for (q = n; *q; q++) {
 		if ('A' <= *q && *q <= 'Z')
