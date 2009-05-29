@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -47,32 +47,38 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "telldir.h"
+
+static DIR * __opendir_common(int, const char *, int);
+
 /*
  * Open a directory.
  */
 DIR *
-opendir(name)
-	const char *name;
+opendir(const char *name)
 {
 
 	return (__opendir2(name, DTF_HIDEW|DTF_NODUP));
 }
 
+/*
+ * Open a directory with existing file descriptor.
+ */
 DIR *
-__opendir2(name, flags)
-	const char *name;
-	int flags;
+fdopendir(int fd)
 {
-	DIR *dirp;
+
+	return (__opendir_common(fd, NULL, DTF_HIDEW|DTF_NODUP));
+}
+
+DIR *
+__opendir2(const char *name, int flags)
+{
 	int fd;
-	int incr;
-	int saved_errno;
-	int unionstack;
 	struct stat statb;
 
 	/*
 	 * stat() before _open() because opening of special files may be
-	 * harmful.  _fstat() after open because the file may have changed.
+	 * harmful.
 	 */
 	if (stat(name, &statb) != 0)
 		return (NULL);
@@ -82,7 +88,24 @@ __opendir2(name, flags)
 	}
 	if ((fd = _open(name, O_RDONLY | O_NONBLOCK)) == -1)
 		return (NULL);
+
+	return __opendir_common(fd, name, flags);
+}
+
+/*
+ * Common routine for opendir(3), __opendir2(3) and fdopendir(3).
+ */
+static DIR *
+__opendir_common(int fd, const char *name, int flags)
+{
+	DIR *dirp;
+	int incr;
+	int saved_errno;
+	int unionstack;
+	struct stat statb;
+
 	dirp = NULL;
+	/* _fstat() the open handler because the file may have changed.  */
 	if (_fstat(fd, &statb) != 0)
 		goto fail;
 	if (!S_ISDIR(statb.st_mode)) {
