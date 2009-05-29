@@ -79,7 +79,7 @@ svr4_decode_cmd(cmd, dir, c, num, argsiz)
 
 int
 svr4_sys_ioctl(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_ioctl_args *uap;
 {
 	int             *retval;

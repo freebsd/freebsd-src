@@ -367,7 +367,7 @@ fd_truncate(td, fd, flp)
 
 int
 svr4_sys_open(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_open_args *uap;
 {
 	struct proc *p = td->td_proc;
@@ -419,7 +419,7 @@ svr4_sys_open(td, uap)
 
 int
 svr4_sys_open64(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_open64_args *uap;
 {
 	return svr4_sys_open(td, (struct svr4_sys_open_args *)uap);
@@ -427,7 +427,7 @@ svr4_sys_open64(td, uap)
 
 int
 svr4_sys_creat(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_creat_args *uap;
 {
 	char *newpath;
@@ -443,7 +443,7 @@ svr4_sys_creat(td, uap)
 
 int
 svr4_sys_creat64(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_creat64_args *uap;
 {
 	return svr4_sys_creat(td, (struct svr4_sys_creat_args *)uap);
@@ -451,7 +451,7 @@ svr4_sys_creat64(td, uap)
 
 int
 svr4_sys_llseek(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_llseek_args *uap;
 {
 	struct lseek_args ap;
@@ -472,7 +472,7 @@ svr4_sys_llseek(td, uap)
 
 int
 svr4_sys_access(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_access_args *uap;
 {
 	char *newpath;
@@ -487,7 +487,7 @@ svr4_sys_access(td, uap)
 #if defined(NOTYET)
 int
 svr4_sys_pread(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_pread_args *uap;
 {
 	struct pread_args pra;
@@ -508,7 +508,7 @@ svr4_sys_pread(td, uap)
 #if defined(NOTYET)
 int
 svr4_sys_pread64(td, v, retval)
-	register struct thread *td;
+	struct thread *td;
 	void *v; 
 	register_t *retval;
 {
@@ -532,7 +532,7 @@ svr4_sys_pread64(td, v, retval)
 #if defined(NOTYET)
 int
 svr4_sys_pwrite(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_pwrite_args *uap;
 {
 	struct pwrite_args pwa;
@@ -553,7 +553,7 @@ svr4_sys_pwrite(td, uap)
 #if defined(NOTYET)
 int
 svr4_sys_pwrite64(td, v, retval)
-	register struct thread *td;
+	struct thread *td;
 	void *v; 
 	register_t *retval;
 {
@@ -575,7 +575,7 @@ svr4_sys_pwrite64(td, v, retval)
 
 int
 svr4_sys_fcntl(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_fcntl_args *uap;
 {
 	int cmd, error, *retval;
