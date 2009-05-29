@@ -120,7 +120,8 @@ svr4_add_socket(td, path, st)
 	struct stat *st;
 {
 	struct svr4_sockcache_entry *e;
-	int len, error;
+	size_t len;
+	int error;
 
 	e = malloc(sizeof(*e), M_TEMP, M_WAITOK);
 	e->cookie = NULL;
