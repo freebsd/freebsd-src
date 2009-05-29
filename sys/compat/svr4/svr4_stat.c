@@ -417,9 +417,10 @@ svr4_sys_systeminfo(td, uap)
 	int		error = 0;
 	register_t	*retval = td->td_retval;
 	size_t		len = 0;
-	char		buf[1];   /* XXX NetBSD uses 256, but that seems
-				     like awfully excessive kstack usage
-				     for an empty string... */
+	char		buf[11];   /* XXX NetBSD uses 256, but we use 11
+				     here as that seems like awfully
+				     excessive kstack usage for hostid
+				     string... */
 	u_int		rlen = uap->len;
 
 	switch (uap->what) {
@@ -448,7 +449,8 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_HW_SERIAL:
-		str = "0";
+		snprintf(buf, sizeof(buf), "%lu", hostid);
+		str = buf;
 		break;
 
 	case SVR4_SI_HW_PROVIDER:
