@@ -82,7 +82,7 @@ device_set_usb2_desc(device_t dev)
 	struct usb_device *udev;
 	struct usb_interface *iface;
 	char *temp_p;
-	usb2_error_t err;
+	usb_error_t err;
 
 	if (dev == NULL) {
 		/* should not happen */

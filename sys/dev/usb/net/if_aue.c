@@ -177,17 +177,17 @@ static miibus_readreg_t aue_miibus_readreg;
 static miibus_writereg_t aue_miibus_writereg;
 static miibus_statchg_t aue_miibus_statchg;
 
-static usb2_callback_t aue_intr_callback;
-static usb2_callback_t aue_bulk_read_callback;
-static usb2_callback_t aue_bulk_write_callback;
+static usb_callback_t aue_intr_callback;
+static usb_callback_t aue_bulk_read_callback;
+static usb_callback_t aue_bulk_write_callback;
 
-static usb2_ether_fn_t aue_attach_post;
-static usb2_ether_fn_t aue_init;
-static usb2_ether_fn_t aue_stop;
-static usb2_ether_fn_t aue_start;
-static usb2_ether_fn_t aue_tick;
-static usb2_ether_fn_t aue_setmulti;
-static usb2_ether_fn_t aue_setpromisc;
+static uether_fn_t aue_attach_post;
+static uether_fn_t aue_init;
+static uether_fn_t aue_stop;
+static uether_fn_t aue_start;
+static uether_fn_t aue_tick;
+static uether_fn_t aue_setmulti;
+static uether_fn_t aue_setpromisc;
 
 static uint8_t	aue_csr_read_1(struct aue_softc *, uint16_t);
 static uint16_t	aue_csr_read_2(struct aue_softc *, uint16_t);
@@ -288,7 +288,7 @@ static uint8_t
 aue_csr_read_1(struct aue_softc *sc, uint16_t reg)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t val;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -307,7 +307,7 @@ static uint16_t
 aue_csr_read_2(struct aue_softc *sc, uint16_t reg)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 	uint16_t val;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;

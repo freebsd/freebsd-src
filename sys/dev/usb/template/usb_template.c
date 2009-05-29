@@ -69,7 +69,7 @@ static uint8_t	usb2_hw_ep_find_match(struct usb_hw_ep_scratch *,
 		    struct usb_hw_ep_scratch_sub *, uint8_t);
 static uint8_t	usb2_hw_ep_get_needs(struct usb_hw_ep_scratch *, uint8_t,
 		    uint8_t);
-static usb2_error_t usb2_hw_ep_resolve(struct usb_device *,
+static usb_error_t usb2_hw_ep_resolve(struct usb_device *,
 		    struct usb_descriptor *);
 static const struct usb_temp_device_desc *usb2_temp_get_tdd(struct usb_device *);
 static void	*usb2_temp_get_device_desc(struct usb_device *);
@@ -81,12 +81,12 @@ static const void *usb2_temp_get_string_desc(struct usb_device *, uint16_t,
 static const void *usb2_temp_get_vendor_desc(struct usb_device *,
 		    const struct usb_device_request *);
 static const void *usb2_temp_get_hub_desc(struct usb_device *);
-static usb2_error_t usb2_temp_get_desc(struct usb_device *,
+static usb_error_t usb2_temp_get_desc(struct usb_device *,
 		    struct usb_device_request *, const void **, uint16_t *);
-static usb2_error_t usb_temp_setup(struct usb_device *,
+static usb_error_t usb_temp_setup(struct usb_device *,
 		    const struct usb_temp_device_desc *);
 static void	usb2_temp_unsetup(struct usb_device *);
-static usb2_error_t usb2_temp_setup_by_index(struct usb_device *,
+static usb_error_t usb2_temp_setup_by_index(struct usb_device *,
 		    uint16_t index);
 static void	usb2_temp_init(void *);
 
@@ -780,7 +780,7 @@ handle_endpoint_desc:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 usb2_hw_ep_resolve(struct usb_device *udev,
     struct usb_descriptor *desc)
 {
@@ -1072,7 +1072,7 @@ usb2_temp_get_hub_desc(struct usb_device *udev)
  * This function is a demultiplexer for local USB device side control
  * endpoint requests.
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 usb2_temp_get_desc(struct usb_device *udev, struct usb_device_request *req,
     const void **pPtr, uint16_t *pLength)
 {
@@ -1176,7 +1176,7 @@ tr_stalled:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 usb_temp_setup(struct usb_device *udev,
     const struct usb_temp_device_desc *tdd)
 {
@@ -1277,10 +1277,10 @@ usb2_temp_unsetup(struct usb_device *udev)
 	}
 }
 
-static usb2_error_t
+static usb_error_t
 usb2_temp_setup_by_index(struct usb_device *udev, uint16_t index)
 {
-	usb2_error_t err;
+	usb_error_t err;
 
 	switch (index) {
 	case 0:

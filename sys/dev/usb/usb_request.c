@@ -172,7 +172,7 @@ tr_setup:
 	USB_BUS_UNLOCK(udev->bus);
 }
 
-static usb2_handle_request_t *
+static usb_handle_req_t *
 usb2_get_hr_func(struct usb_device *udev)
 {
 	/* figure out if there is a Handle Request function */
@@ -239,18 +239,18 @@ usb2_get_hr_func(struct usb_device *udev)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_do_request_flags(struct usb_device *udev, struct mtx *mtx,
     struct usb_device_request *req, void *data, uint16_t flags,
-    uint16_t *actlen, usb2_timeout_t timeout)
+    uint16_t *actlen, usb_timeout_t timeout)
 {
-	usb2_handle_request_t *hr_func;
+	usb_handle_req_t *hr_func;
 	struct usb_xfer *xfer;
 	const void *desc;
 	int err = 0;
-	usb2_ticks_t start_ticks;
-	usb2_ticks_t delta_ticks;
-	usb2_ticks_t max_ticks;
+	usb_ticks_t start_ticks;
+	usb_ticks_t delta_ticks;
+	usb_ticks_t max_ticks;
 	uint16_t length;
 	uint16_t temp;
 
@@ -519,7 +519,7 @@ done:
 	if (mtx) {
 		mtx_lock(mtx);
 	}
-	return ((usb2_error_t)err);
+	return ((usb_error_t)err);
 }
 
 /*------------------------------------------------------------------------*
@@ -532,12 +532,12 @@ done:
  * is assumed that the mutex associated with the process is locked
  * when calling this function.
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_do_request_proc(struct usb_device *udev, struct usb_process *pproc,
     struct usb_device_request *req, void *data, uint16_t flags,
-    uint16_t *actlen, usb2_timeout_t timeout)
+    uint16_t *actlen, usb_timeout_t timeout)
 {
-	usb2_error_t err;
+	usb_error_t err;
 	uint16_t len;
 
 	/* get request data length */
@@ -576,11 +576,11 @@ done:
  * Else: Failure. No USB device is present and the USB port should be
  *       disabled.
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 {
 	struct usb_port_status ps;
-	usb2_error_t err;
+	usb_error_t err;
 	uint16_t n;
 
 #if USB_DEBUG
@@ -684,7 +684,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_desc(struct usb_device *udev,
     struct mtx *mtx, uint16_t *actlen, void *desc,
     uint16_t min_len, uint16_t max_len,
@@ -693,7 +693,7 @@ usb2_req_get_desc(struct usb_device *udev,
 {
 	struct usb_device_request req;
 	uint8_t *buf;
-	usb2_error_t err;
+	usb_error_t err;
 
 	DPRINTFN(4, "id=%d, type=%d, index=%d, max_len=%d\n",
 	    id, type, index, max_len);
@@ -775,7 +775,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_string_any(struct usb_device *udev, struct mtx *mtx, char *buf,
     uint16_t len, uint8_t string_index)
 {
@@ -785,7 +785,7 @@ usb2_req_get_string_any(struct usb_device *udev, struct mtx *mtx, char *buf,
 	uint16_t n;
 	uint16_t c;
 	uint8_t swap;
-	usb2_error_t err;
+	usb_error_t err;
 
 	if (len == 0) {
 		/* should not happen */
@@ -870,7 +870,7 @@ usb2_req_get_string_any(struct usb_device *udev, struct mtx *mtx, char *buf,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_string_desc(struct usb_device *udev, struct mtx *mtx, void *sdesc,
     uint16_t max_len, uint16_t lang_id,
     uint8_t string_index)
@@ -890,15 +890,15 @@ usb2_req_get_string_desc(struct usb_device *udev, struct mtx *mtx, void *sdesc,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_descriptor_ptr(struct usb_device *udev,
     struct usb_config_descriptor **ppcd, uint16_t wValue)
 {
 	struct usb_device_request req;
-	usb2_handle_request_t *hr_func;
+	usb_handle_req_t *hr_func;
 	const void *ptr;
 	uint16_t len;
-	usb2_error_t err;
+	usb_error_t err;
 
 	req.bmRequestType = UT_READ_DEVICE;
 	req.bRequest = UR_GET_DESCRIPTOR;
@@ -936,11 +936,11 @@ usb2_req_get_descriptor_ptr(struct usb_device *udev,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_config_desc(struct usb_device *udev, struct mtx *mtx,
     struct usb_config_descriptor *d, uint8_t conf_index)
 {
-	usb2_error_t err;
+	usb_error_t err;
 
 	DPRINTFN(4, "confidx=%d\n", conf_index);
 
@@ -967,7 +967,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_config_desc_full(struct usb_device *udev, struct mtx *mtx,
     struct usb_config_descriptor **ppcd, struct malloc_type *mtype,
     uint8_t index)
@@ -975,7 +975,7 @@ usb2_req_get_config_desc_full(struct usb_device *udev, struct mtx *mtx,
 	struct usb_config_descriptor cd;
 	struct usb_config_descriptor *cdesc;
 	uint16_t len;
-	usb2_error_t err;
+	usb_error_t err;
 
 	DPRINTFN(4, "index=%d\n", index);
 
@@ -1016,7 +1016,7 @@ usb2_req_get_config_desc_full(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_device_desc(struct usb_device *udev, struct mtx *mtx,
     struct usb_device_descriptor *d)
 {
@@ -1032,7 +1032,7 @@ usb2_req_get_device_desc(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_alt_interface_no(struct usb_device *udev, struct mtx *mtx,
     uint8_t *alt_iface_no, uint8_t iface_index)
 {
@@ -1058,7 +1058,7 @@ usb2_req_get_alt_interface_no(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_alt_interface_no(struct usb_device *udev, struct mtx *mtx,
     uint8_t iface_index, uint8_t alt_no)
 {
@@ -1085,7 +1085,7 @@ usb2_req_set_alt_interface_no(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_device_status(struct usb_device *udev, struct mtx *mtx,
     struct usb_status *st)
 {
@@ -1106,7 +1106,7 @@ usb2_req_get_device_status(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_hub_descriptor(struct usb_device *udev, struct mtx *mtx,
     struct usb_hub_descriptor *hd, uint8_t nports)
 {
@@ -1128,7 +1128,7 @@ usb2_req_get_hub_descriptor(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_hub_status(struct usb_device *udev, struct mtx *mtx,
     struct usb_hub_status *st)
 {
@@ -1152,7 +1152,7 @@ usb2_req_get_hub_status(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t addr)
 {
 	struct usb_device_request req;
@@ -1177,7 +1177,7 @@ usb2_req_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t addr)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
     struct usb_port_status *ps, uint8_t port)
 {
@@ -1199,7 +1199,7 @@ usb2_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_clear_hub_feature(struct usb_device *udev, struct mtx *mtx,
     uint16_t sel)
 {
@@ -1220,7 +1220,7 @@ usb2_req_clear_hub_feature(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_hub_feature(struct usb_device *udev, struct mtx *mtx,
     uint16_t sel)
 {
@@ -1241,7 +1241,7 @@ usb2_req_set_hub_feature(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_clear_port_feature(struct usb_device *udev, struct mtx *mtx,
     uint8_t port, uint16_t sel)
 {
@@ -1263,7 +1263,7 @@ usb2_req_clear_port_feature(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_port_feature(struct usb_device *udev, struct mtx *mtx,
     uint8_t port, uint16_t sel)
 {
@@ -1285,7 +1285,7 @@ usb2_req_set_port_feature(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_protocol(struct usb_device *udev, struct mtx *mtx,
     uint8_t iface_index, uint16_t report)
 {
@@ -1314,7 +1314,7 @@ usb2_req_set_protocol(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_report(struct usb_device *udev, struct mtx *mtx, void *data, uint16_t len,
     uint8_t iface_index, uint8_t type, uint8_t id)
 {
@@ -1342,7 +1342,7 @@ usb2_req_set_report(struct usb_device *udev, struct mtx *mtx, void *data, uint16
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_report(struct usb_device *udev, struct mtx *mtx, void *data,
     uint16_t len, uint8_t iface_index, uint8_t type, uint8_t id)
 {
@@ -1370,7 +1370,7 @@ usb2_req_get_report(struct usb_device *udev, struct mtx *mtx, void *data,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_idle(struct usb_device *udev, struct mtx *mtx,
     uint8_t iface_index, uint8_t duration, uint8_t id)
 {
@@ -1398,7 +1398,7 @@ usb2_req_set_idle(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_report_descriptor(struct usb_device *udev, struct mtx *mtx,
     void *d, uint16_t size, uint8_t iface_index)
 {
@@ -1428,7 +1428,7 @@ usb2_req_get_report_descriptor(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_config(struct usb_device *udev, struct mtx *mtx, uint8_t conf)
 {
 	struct usb_device_request req;
@@ -1453,7 +1453,7 @@ usb2_req_set_config(struct usb_device *udev, struct mtx *mtx, uint8_t conf)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_get_config(struct usb_device *udev, struct mtx *mtx, uint8_t *pconf)
 {
 	struct usb_device_request req;
@@ -1477,11 +1477,11 @@ usb2_req_get_config(struct usb_device *udev, struct mtx *mtx, uint8_t *pconf)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_re_enumerate(struct usb_device *udev, struct mtx *mtx)
 {
 	struct usb_device *parent_hub;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t old_addr;
 	uint8_t do_retry = 1;
 
@@ -1562,7 +1562,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_clear_device_feature(struct usb_device *udev, struct mtx *mtx,
     uint16_t sel)
 {
@@ -1583,7 +1583,7 @@ usb2_req_clear_device_feature(struct usb_device *udev, struct mtx *mtx,
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb2_error_t
+usb_error_t
 usb2_req_set_device_feature(struct usb_device *udev, struct mtx *mtx,
     uint16_t sel)
 {

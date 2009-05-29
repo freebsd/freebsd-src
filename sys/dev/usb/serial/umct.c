@@ -112,9 +112,9 @@ static device_probe_t umct_probe;
 static device_attach_t umct_attach;
 static device_detach_t umct_detach;
 
-static usb2_callback_t umct_intr_callback;
-static usb2_callback_t umct_write_callback;
-static usb2_callback_t umct_read_callback;
+static usb_callback_t umct_intr_callback;
+static usb_callback_t umct_write_callback;
+static usb_callback_t umct_read_callback;
 
 static void	umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 		    uint16_t len, uint32_t value);
@@ -303,7 +303,7 @@ umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
     uint16_t len, uint32_t value)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t temp[4];
 
 	if (len > 4)

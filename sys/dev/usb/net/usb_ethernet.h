@@ -52,16 +52,16 @@
 struct usb_ether;
 struct usb_device_request;
 
-typedef void (usb2_ether_fn_t)(struct usb_ether *);
+typedef void (uether_fn_t)(struct usb_ether *);
 
 struct usb_ether_methods {
-	usb2_ether_fn_t		*ue_attach_post;
-	usb2_ether_fn_t		*ue_start;
-	usb2_ether_fn_t		*ue_init;
-	usb2_ether_fn_t		*ue_stop;
-	usb2_ether_fn_t		*ue_setmulti;
-	usb2_ether_fn_t		*ue_setpromisc;
-	usb2_ether_fn_t		*ue_tick;
+	uether_fn_t		*ue_attach_post;
+	uether_fn_t		*ue_start;
+	uether_fn_t		*ue_init;
+	uether_fn_t		*ue_stop;
+	uether_fn_t		*ue_setmulti;
+	uether_fn_t		*ue_setpromisc;
+	uether_fn_t		*ue_tick;
 	int			(*ue_mii_upd)(struct ifnet *);
 	void			(*ue_mii_sts)(struct ifnet *,
 				    struct ifmediareq *);

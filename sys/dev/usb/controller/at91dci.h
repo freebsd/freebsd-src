@@ -233,7 +233,7 @@ struct at91dci_softc {
 
 /* prototypes */
 
-usb2_error_t at91dci_init(struct at91dci_softc *sc);
+usb_error_t at91dci_init(struct at91dci_softc *sc);
 void	at91dci_uninit(struct at91dci_softc *sc);
 void	at91dci_suspend(struct at91dci_softc *sc);
 void	at91dci_resume(struct at91dci_softc *sc);

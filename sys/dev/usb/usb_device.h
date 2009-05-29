@@ -61,7 +61,7 @@ struct usb_host_endpoint {
 	TAILQ_HEAD(, urb) bsd_urb_list;
 	struct usb_xfer *bsd_xfer[2];
 	uint8_t *extra;			/* Extra descriptors */
-	usb2_frlength_t fbsd_buf_size;
+	usb_frlength_t fbsd_buf_size;
 	uint16_t extralen;
 	uint8_t	bsd_iface_index;
 } __aligned(USB_HOST_ALIGN);
@@ -139,10 +139,10 @@ struct usb_device_flags {
  * in this structure is protected by the USB BUS lock.
  */
 struct usb_power_save {
-	usb2_ticks_t last_xfer_time;	/* copy of "ticks" */
-	usb2_size_t type_refs[4];	/* transfer reference count */
-	usb2_size_t read_refs;		/* data read references */
-	usb2_size_t write_refs;		/* data write references */
+	usb_ticks_t last_xfer_time;	/* copy of "ticks" */
+	size_t type_refs[4];	/* transfer reference count */
+	size_t read_refs;		/* data read references */
+	size_t write_refs;		/* data write references */
 };
 
 /*
@@ -175,7 +175,7 @@ struct usb_device {
 	LIST_HEAD(,usb_fs_privdata) pd_list;
 	char	ugen_name[20];		/* name of ugenX.X device */
 #endif
-	usb2_ticks_t plugtime;		/* copy of "ticks" */
+	usb_ticks_t plugtime;		/* copy of "ticks" */
 
 	enum usb_dev_state state;
 	enum usb_dev_speed speed;
@@ -235,15 +235,15 @@ struct usb_device *usb2_alloc_device(device_t parent_dev, struct usb_bus *bus,
 struct usb_pipe *usb2_get_pipe(struct usb_device *udev, uint8_t iface_index,
 		    const struct usb_config *setup);
 struct usb_pipe *usb2_get_pipe_by_addr(struct usb_device *udev, uint8_t ea_val);
-usb2_error_t	usb2_interface_count(struct usb_device *udev, uint8_t *count);
-usb2_error_t	usb2_probe_and_attach(struct usb_device *udev,
+usb_error_t	usb2_interface_count(struct usb_device *udev, uint8_t *count);
+usb_error_t	usb2_probe_and_attach(struct usb_device *udev,
 		    uint8_t iface_index);
-usb2_error_t	usb2_reset_iface_endpoints(struct usb_device *udev,
+usb_error_t	usb2_reset_iface_endpoints(struct usb_device *udev,
 		    uint8_t iface_index);
-usb2_error_t	usb2_set_config_index(struct usb_device *udev, uint8_t index);
-usb2_error_t	usb2_set_endpoint_stall(struct usb_device *udev,
+usb_error_t	usb2_set_config_index(struct usb_device *udev, uint8_t index);
+usb_error_t	usb2_set_endpoint_stall(struct usb_device *udev,
 		    struct usb_pipe *pipe, uint8_t do_stall);
-usb2_error_t	usb2_suspend_resume(struct usb_device *udev,
+usb_error_t	usb2_suspend_resume(struct usb_device *udev,
 		    uint8_t do_suspend);
 void	usb2_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len);
 void	usb2_free_device(struct usb_device *, uint8_t);

@@ -71,17 +71,17 @@ static device_suspend_t cdce_suspend;
 static device_resume_t cdce_resume;
 static usb_handle_request_t cdce_handle_request;
 
-static usb2_callback_t cdce_bulk_write_callback;
-static usb2_callback_t cdce_bulk_read_callback;
-static usb2_callback_t cdce_intr_read_callback;
-static usb2_callback_t cdce_intr_write_callback;
+static usb_callback_t cdce_bulk_write_callback;
+static usb_callback_t cdce_bulk_read_callback;
+static usb_callback_t cdce_intr_read_callback;
+static usb_callback_t cdce_intr_write_callback;
 
-static usb2_ether_fn_t cdce_attach_post;
-static usb2_ether_fn_t cdce_init;
-static usb2_ether_fn_t cdce_stop;
-static usb2_ether_fn_t cdce_start;
-static usb2_ether_fn_t cdce_setmulti;
-static usb2_ether_fn_t cdce_setpromisc;
+static uether_fn_t cdce_attach_post;
+static uether_fn_t cdce_init;
+static uether_fn_t cdce_stop;
+static uether_fn_t cdce_start;
+static uether_fn_t cdce_setmulti;
+static uether_fn_t cdce_setpromisc;
 
 static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
 

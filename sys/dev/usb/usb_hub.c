@@ -100,7 +100,7 @@ static bus_driver_added_t uhub_driver_added;
 static bus_child_location_str_t uhub_child_location_string;
 static bus_child_pnpinfo_str_t uhub_child_pnpinfo_string;
 
-static usb2_callback_t uhub_intr_callback;
+static usb_callback_t uhub_intr_callback;
 
 static void usb2_dev_resume_peer(struct usb_device *udev);
 static void usb2_dev_suspend_peer(struct usb_device *udev);
@@ -191,13 +191,13 @@ uhub_intr_callback(struct usb_xfer *xfer)
  *    0: Success
  * Else: A control transaction failed
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 {
 	struct usb_bus *bus;
 	struct usb_device *child;
 	uint8_t refcount;
-	usb2_error_t err;
+	usb_error_t err;
 
 	bus = sc->sc_udev->bus;
 	err = 0;
@@ -238,11 +238,11 @@ done:
 /*------------------------------------------------------------------------*
  *	uhub_read_port_status - factored out code
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 uhub_read_port_status(struct uhub_softc *sc, uint8_t portno)
 {
 	struct usb_port_status ps;
-	usb2_error_t err;
+	usb_error_t err;
 
 	err = usb2_req_get_port_status(
 	    sc->sc_udev, NULL, &ps, portno);
@@ -268,14 +268,14 @@ uhub_read_port_status(struct uhub_softc *sc, uint8_t portno)
  *    0: Success
  * Else: A control transaction failed
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 uhub_reattach_port(struct uhub_softc *sc, uint8_t portno)
 {
 	struct usb_device *child;
 	struct usb_device *udev;
 	enum usb_dev_speed speed;
 	enum usb_hc_mode mode;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t timeout;
 
 	DPRINTF("reattaching port %d\n", portno);
@@ -446,13 +446,13 @@ error:
  *    0: Success
  * Else: A control transaction failed
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 {
 	struct usb_device *child;
 	struct usb_device *udev;
 	uint8_t is_suspend;
-	usb2_error_t err;
+	usb_error_t err;
 
 	DPRINTF("port %d\n", portno);
 
@@ -524,13 +524,13 @@ uhub_root_intr(struct usb_bus *bus, const uint8_t *ptr, uint8_t len)
  *     0: Success
  *  Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
+static usb_error_t
 uhub_explore(struct usb_device *udev)
 {
 	struct usb_hub *hub;
 	struct uhub_softc *sc;
 	struct usb_port *up;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t portno;
 	uint8_t x;
 
@@ -667,7 +667,7 @@ uhub_attach(device_t dev)
 	uint8_t portno;
 	uint8_t removable;
 	uint8_t iface_index;
-	usb2_error_t err;
+	usb_error_t err;
 
 	sc->sc_udev = udev;
 	sc->sc_dev = dev;
@@ -1058,9 +1058,9 @@ done:
  *   The best Transaction Translation slot for an interrupt endpoint.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_intr_find_best_slot(usb2_size_t *ptr, uint8_t start, uint8_t end)
+usb2_intr_find_best_slot(size_t *ptr, uint8_t start, uint8_t end)
 {
-	usb2_size_t max = 0 - 1;
+	size_t max = 0 - 1;
 	uint8_t x;
 	uint8_t y;
 
@@ -1475,7 +1475,7 @@ usb2_bus_power_update(struct usb_bus *bus)
 void
 usb2_transfer_power_ref(struct usb_xfer *xfer, int val)
 {
-	static const usb2_power_mask_t power_mask[4] = {
+	static const usb_power_mask_t power_mask[4] = {
 		[UE_CONTROL] = USB_HW_POWER_CONTROL,
 		[UE_BULK] = USB_HW_POWER_BULK,
 		[UE_INTERRUPT] = USB_HW_POWER_INTERRUPT,
@@ -1555,10 +1555,10 @@ void
 usb2_bus_powerd(struct usb_bus *bus)
 {
 	struct usb_device *udev;
-	usb2_ticks_t temp;
-	usb2_ticks_t limit;
-	usb2_ticks_t mintime;
-	usb2_size_t type_refs[5];
+	usb_ticks_t temp;
+	usb_ticks_t limit;
+	usb_ticks_t mintime;
+	size_t type_refs[5];
 	uint8_t x;
 	uint8_t rem_wakeup;
 
@@ -1846,7 +1846,7 @@ repeat:
 	USB_BUS_UNLOCK(udev->bus);
 
 	if (udev->bus->methods->device_suspend != NULL) {
-		usb2_timeout_t temp;
+		usb_timeout_t temp;
 
 		/* suspend device on the USB controller */
 		(udev->bus->methods->device_suspend) (udev);

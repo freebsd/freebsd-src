@@ -118,21 +118,21 @@ static device_probe_t ulpt_probe;
 static device_attach_t ulpt_attach;
 static device_detach_t ulpt_detach;
 
-static usb2_callback_t ulpt_write_callback;
-static usb2_callback_t ulpt_read_callback;
-static usb2_callback_t ulpt_status_callback;
+static usb_callback_t ulpt_write_callback;
+static usb_callback_t ulpt_read_callback;
+static usb_callback_t ulpt_status_callback;
 
 static void	ulpt_reset(struct ulpt_softc *);
 static void	ulpt_watchdog(void *);
 
-static usb2_fifo_close_t ulpt_close;
-static usb2_fifo_cmd_t ulpt_start_read;
-static usb2_fifo_cmd_t ulpt_start_write;
-static usb2_fifo_cmd_t ulpt_stop_read;
-static usb2_fifo_cmd_t ulpt_stop_write;
-static usb2_fifo_ioctl_t ulpt_ioctl;
-static usb2_fifo_open_t ulpt_open;
-static usb2_fifo_open_t unlpt_open;
+static usb_fifo_close_t ulpt_close;
+static usb_fifo_cmd_t ulpt_start_read;
+static usb_fifo_cmd_t ulpt_start_write;
+static usb_fifo_cmd_t ulpt_stop_read;
+static usb_fifo_cmd_t ulpt_stop_write;
+static usb_fifo_ioctl_t ulpt_ioctl;
+static usb_fifo_open_t ulpt_open;
+static usb_fifo_open_t unlpt_open;
 
 static struct usb_fifo_methods ulpt_fifo_methods = {
 	.f_close = &ulpt_close,

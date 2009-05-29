@@ -126,17 +126,17 @@ static device_probe_t uhid_probe;
 static device_attach_t uhid_attach;
 static device_detach_t uhid_detach;
 
-static usb2_callback_t uhid_intr_callback;
-static usb2_callback_t uhid_write_callback;
-static usb2_callback_t uhid_read_callback;
+static usb_callback_t uhid_intr_callback;
+static usb_callback_t uhid_write_callback;
+static usb_callback_t uhid_read_callback;
 
-static usb2_fifo_cmd_t uhid_start_read;
-static usb2_fifo_cmd_t uhid_stop_read;
-static usb2_fifo_cmd_t uhid_start_write;
-static usb2_fifo_cmd_t uhid_stop_write;
-static usb2_fifo_open_t uhid_open;
-static usb2_fifo_close_t uhid_close;
-static usb2_fifo_ioctl_t uhid_ioctl;
+static usb_fifo_cmd_t uhid_start_read;
+static usb_fifo_cmd_t uhid_stop_read;
+static usb_fifo_cmd_t uhid_start_write;
+static usb_fifo_cmd_t uhid_stop_write;
+static usb_fifo_open_t uhid_open;
+static usb_fifo_close_t uhid_close;
+static usb_fifo_ioctl_t uhid_ioctl;
 
 static struct usb_fifo_methods uhid_fifo_methods = {
 	.f_open = &uhid_open,

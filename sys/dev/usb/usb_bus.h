@@ -86,8 +86,8 @@ struct usb_bus {
 	struct usb_bus_methods *methods;	/* filled by HC driver */
 	struct usb_device **devices;
 
-	usb2_power_mask_t hw_power_state;	/* see USB_HW_POWER_XXX */
-	usb2_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
+	usb_power_mask_t hw_power_state;	/* see USB_HW_POWER_XXX */
+	size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
 
 	uint16_t isoc_time_last;	/* in milliseconds */
 

@@ -85,8 +85,8 @@ static device_probe_t uark_probe;
 static device_attach_t uark_attach;
 static device_detach_t uark_detach;
 
-static usb2_callback_t uark_bulk_write_callback;
-static usb2_callback_t uark_bulk_read_callback;
+static usb_callback_t uark_bulk_write_callback;
+static usb_callback_t uark_bulk_read_callback;
 
 static void	uark_start_read(struct ucom_softc *);
 static void	uark_stop_read(struct ucom_softc *);
@@ -394,7 +394,7 @@ static void
 uark_cfg_write(struct uark_softc *sc, uint16_t index, uint16_t value)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 
 	req.bmRequestType = UARK_WRITE;
 	req.bRequest = UARK_REQUEST;

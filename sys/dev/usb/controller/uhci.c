@@ -134,14 +134,14 @@ extern struct usb_pipe_methods uhci_device_isoc_methods;
 
 static uint8_t	uhci_restart(uhci_softc_t *sc);
 static void	uhci_do_poll(struct usb_bus *);
-static void	uhci_device_done(struct usb_xfer *, usb2_error_t);
+static void	uhci_device_done(struct usb_xfer *, usb_error_t);
 static void	uhci_transfer_intr_enqueue(struct usb_xfer *);
 static void	uhci_timeout(void *);
 static uint8_t	uhci_check_transfer(struct usb_xfer *);
 static void	uhci_root_intr(uhci_softc_t *sc);
 
 void
-uhci_iterate_hw_softc(struct usb_bus *bus, usb2_bus_mem_sub_cb_t *cb)
+uhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 {
 	struct uhci_softc *sc = UHCI_BUS2SC(bus);
 	uint32_t i;
@@ -424,7 +424,7 @@ uhci_init_td(struct usb_page_cache *pc)
 	return (td);
 }
 
-usb2_error_t
+usb_error_t
 uhci_init(uhci_softc_t *sc)
 {
 	uint16_t bit;
@@ -1089,7 +1089,7 @@ uhci_isoc_done(uhci_softc_t *sc, struct usb_xfer *xfer)
 	xfer->aframes = xfer->nframes;
 }
 
-static usb2_error_t
+static usb_error_t
 uhci_non_isoc_done_sub(struct usb_xfer *xfer)
 {
 	struct usb_page_search res;
@@ -1205,7 +1205,7 @@ uhci_non_isoc_done_sub(struct usb_xfer *xfer)
 static void
 uhci_non_isoc_done(struct usb_xfer *xfer)
 {
-	usb2_error_t err = 0;
+	usb_error_t err = 0;
 
 	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
 	    xfer, xfer->pipe);
@@ -1857,7 +1857,7 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
  */
 
 static void
-uhci_device_done(struct usb_xfer *xfer, usb2_error_t error)
+uhci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usb_pipe_methods *methods = xfer->pipe->methods;
 	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
@@ -2392,7 +2392,7 @@ struct usb_hub_descriptor_min uhci_hubd_piix =
  * outstanding "port enable change" and "connection status change"
  * events have been reset.
  */
-static usb2_error_t
+static usb_error_t
 uhci_portreset(uhci_softc_t *sc, uint16_t index)
 {
 	uint16_t port;
@@ -2493,7 +2493,7 @@ done:
 	return (USB_ERR_NORMAL_COMPLETION);
 }
 
-static usb2_error_t
+static usb_error_t
 uhci_roothub_exec(struct usb_device *udev,
     struct usb_device_request *req, const void **pptr, uint16_t *plength)
 {
@@ -2507,7 +2507,7 @@ uhci_roothub_exec(struct usb_device *udev,
 	uint16_t status;
 	uint16_t change;
 	uint16_t len;
-	usb2_error_t err;
+	usb_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
