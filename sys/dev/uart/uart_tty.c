@@ -356,7 +356,7 @@ uart_tty_attach(struct uart_softc *sc)
 	struct tty *tp;
 	int unit;
 
-	sc->sc_u.u_tty.tp = tp = tty_alloc(&uart_tty_class, sc, NULL);
+	sc->sc_u.u_tty.tp = tp = tty_alloc(&uart_tty_class, sc);
 
 	unit = device_get_unit(sc->sc_dev);
 

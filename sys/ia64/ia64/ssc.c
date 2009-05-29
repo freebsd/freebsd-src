@@ -106,7 +106,7 @@ ssc_cnattach(void *arg)
 {
 	struct tty *tp;
 
-	tp = tty_alloc(&ssc_class, NULL, NULL);
+	tp = tty_alloc(&ssc_class, NULL);
 	tty_makedev(tp, NULL, "ssccons");
 }
 
