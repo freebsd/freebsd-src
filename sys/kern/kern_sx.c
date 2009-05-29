@@ -36,23 +36,25 @@
  * so should not be relied upon in combination with sx locks.
  */
 
-#include "opt_adaptive_sx.h"
 #include "opt_ddb.h"
 #include "opt_kdtrace.h"
+#include "opt_no_adaptive_sx.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ktr.h>
+#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sleepqueue.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#ifdef ADAPTIVE_SX
+#if defined(SMP) && !defined(NO_ADAPTIVE_SX)
 #include <machine/cpu.h>
 #endif
 
