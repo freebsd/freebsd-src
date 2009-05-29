@@ -60,7 +60,6 @@ KDB_UNATTENDED	opt_kdb.h
 SYSCTL_DEBUG	opt_sysctl.h
 
 # Miscellaneous options.
-ADAPTIVE_SX
 ALQ
 AUDIT		opt_global.h
 CODA_COMPAT_5	opt_coda.h
@@ -134,6 +133,7 @@ MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
+NO_ADAPTIVE_SX
 NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
