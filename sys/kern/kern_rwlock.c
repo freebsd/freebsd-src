@@ -412,8 +412,11 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 
 #ifdef ADAPTIVE_RWLOCKS
 		/*
-		 * If the current owner of the lock is executing on another
-		 * CPU quit the hard path and try to spin.
+		 * The current lock owner might have started executing
+		 * on another CPU (or the lock could have changed
+		 * owners) while we were waiting on the turnstile
+		 * chain lock.  If so, drop the turnstile lock and try
+		 * again.
 		 */
 		if ((v & RW_LOCK_READ) == 0) {
 			owner = (struct thread *)RW_OWNER(v);
@@ -714,8 +717,11 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 
 #ifdef ADAPTIVE_RWLOCKS
 		/*
-		 * If the current owner of the lock is executing on another
-		 * CPU quit the hard path and try to spin.
+		 * The current lock owner might have started executing
+		 * on another CPU (or the lock could have changed
+		 * owners) while we were waiting on the turnstile
+		 * chain lock.  If so, drop the turnstile lock and try
+		 * again.
 		 */
 		if (!(v & RW_LOCK_READ)) {
 			owner = (struct thread *)RW_OWNER(v);
