@@ -31,10 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>
@@ -157,9 +157,7 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 		hdr = g_malloc(sizeof(*hdr), M_WAITOK | M_ZERO);
 		hdr->magic = GV_MAGIC;
 		hdr->config_length = GV_CFG_LEN;
-		mtx_lock(&hostname_mtx);
-		bcopy(G_hostname, hdr->label.sysname, GV_HOSTNAME_LEN);
-		mtx_unlock(&hostname_mtx);
+		getcredhostname(NULL, hdr->label.sysname, GV_HOSTNAME_LEN);
 		strlcpy(hdr->label.name, d->name, sizeof(hdr->label.name));
 		microtime(&hdr->label.date_of_birth);
 		d->hdr = hdr;

@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -42,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
-#include <sys/vimage.h>
 #include <sys/vnode.h>
 
 #include <nfs/nfsproto.h>
@@ -231,9 +231,7 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	sa = nmp->nm_nam;
 	memcpy(&ss, sa, sa->sa_len);
 	sa = (struct sockaddr *) &ss;
-	mtx_lock(&hostname_mtx);
 	strcpy(servername, nmp->nm_hostname);
-	mtx_unlock(&hostname_mtx);
 	fhlen = np->n_fhsize;
 	memcpy(&fh.fh_bytes, np->n_fhp, fhlen);
 	timo.tv_sec = nmp->nm_timeo / NFS_HZ;
@@ -1222,13 +1220,13 @@ nlm_init_lock(struct flock *fl, int flags, int svid,
 			return (EOVERFLOW);
 	}
 
-	mtx_lock(&hostname_mtx);
-	snprintf(oh_space, 32, "%d@%s", svid, G_hostname);
-	mtx_unlock(&hostname_mtx);
+	snprintf(oh_space, 32, "%d@", svid);
+	oh_len = strlen(oh_space);
+	getcredhostname(NULL, oh_space + oh_len, 32 - oh_len);
 	oh_len = strlen(oh_space);
 
 	memset(lock, 0, sizeof(*lock));
-	lock->caller_name = G_hostname;
+	lock->caller_name = prison0.pr_host;
 	lock->fh.n_len = fhlen;
 	lock->fh.n_bytes = fh;
 	lock->oh.n_len = oh_len;

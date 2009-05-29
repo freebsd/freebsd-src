@@ -78,7 +78,7 @@
 #define	PRIV_NTP_ADJTIME	16	/* Set NTP time adjustment. */
 #define	PRIV_CLOCK_SETTIME	17	/* Can call clock_settime. */
 #define	PRIV_SETTIMEOFDAY	18	/* Can call settimeofday. */
-#define	PRIV_SETHOSTID		19	/* Can call sethostid. */
+#define	_PRIV_SETHOSTID		19	/* Removed. */
 #define	_PRIV_SETDOMAINNAME	20	/* Removed. */
 
 /*

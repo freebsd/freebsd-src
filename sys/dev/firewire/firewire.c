@@ -39,13 +39,13 @@
 #include <sys/systm.h>
 #include <sys/types.h>
 
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/sysctl.h>
 #include <sys/kthread.h>
-#include <sys/vimage.h>
 
 #include <sys/kdb.h>
 
@@ -723,7 +723,9 @@ fw_reset_crom(struct firewire_comm *fc)
 	crom_add_simple_text(src, root, &buf->vendor, "FreeBSD Project");
 	crom_add_entry(root, CSRKEY_HW, __FreeBSD_version);
 #endif
-	crom_add_simple_text(src, root, &buf->hw, G_hostname);
+	mtx_lock(&prison0.pr_mtx);
+	crom_add_simple_text(src, root, &buf->hw, prison0.pr_host);
+	mtx_unlock(&prison0.pr_mtx);
 }
 
 /*
