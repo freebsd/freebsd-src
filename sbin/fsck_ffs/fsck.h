@@ -297,8 +297,8 @@ int	lfmode;			/* lost & found directory creation mode */
 ufs2_daddr_t n_blks;		/* number of blocks in use */
 ino_t n_files;			/* number of files in use */
 
-int	got_siginfo;		/* received a SIGINFO */
-int	got_sigalarm;		/* received a SIGALRM */
+sig_atomic_t	got_siginfo;	/* received a SIGINFO */
+sig_atomic_t	got_sigalarm;	/* received a SIGALRM */
 
 #define	clearinode(dp) \
 	if (sblock.fs_magic == FS_UFS1_MAGIC) { \
