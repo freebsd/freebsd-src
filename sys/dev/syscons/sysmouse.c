@@ -164,7 +164,7 @@ static struct ttydevsw smdev_ttydevsw = {
 static void
 sm_attach_mouse(void *unused)
 {
-	sysmouse_tty = tty_alloc(&smdev_ttydevsw, NULL, NULL);
+	sysmouse_tty = tty_alloc(&smdev_ttydevsw, NULL);
 	tty_makedev(sysmouse_tty, NULL, "sysmouse");
 }
 
