@@ -147,6 +147,9 @@ namei(struct nameidata *ndp)
 		cnp->cn_flags &= ~LOCKSHARED;
 	fdp = p->p_fd;
 
+	/* We will set this ourselves if we need it. */
+	cnp->cn_flags &= ~TRAILINGSLASH;
+
 	/*
 	 * Get a buffer for the name to be translated, and copy the
 	 * name into the buffer.
@@ -533,6 +536,7 @@ dirloop:
 		if (*cp == '\0') {
 			trailing_slash = 1;
 			*ndp->ni_next = '\0';	/* XXX for direnter() ... */
+			cnp->cn_flags |= TRAILINGSLASH;
 		}
 	}
 	ndp->ni_next = cp;
@@ -807,14 +811,6 @@ unionlookup:
 		goto success;
 	}
 
-	/*
-	 * Check for bogus trailing slashes.
-	 */
-	if (trailing_slash && dp->v_type != VDIR) {
-		error = ENOTDIR;
-		goto bad2;
-	}
-
 nextname:
 	/*
 	 * Not a symbolic link.  If more pathname,
@@ -836,6 +832,14 @@ nextname:
 		dvfslocked = vfslocked;	/* dp becomes dvp in dirloop */
 		vfslocked = 0;
 		goto dirloop;
+	}
+	/*
+	 * If we're processing a path with a trailing slash,
+	 * check that the end result is a directory.
+	 */
+	if ((cnp->cn_flags & TRAILINGSLASH) && dp->v_type != VDIR) {
+		error = ENOTDIR;
+		goto bad2;
 	}
 	/*
 	 * Disallow directory write attempts on read-only filesystems.
