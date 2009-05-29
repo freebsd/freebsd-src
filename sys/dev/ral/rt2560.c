@@ -1715,6 +1715,7 @@ rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
     struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	bus_dma_segment_t segs[RT2560_MAX_SCATTER];
@@ -1724,9 +1725,8 @@ rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
 	desc = &sc->prioq.desc[sc->prioq.cur];
 	data = &sc->prioq.data[sc->prioq.cur];
 
-	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
-	/* XXX validate */
-	if (rate == 0) {
+	rate = params->ibp_rate0;
+	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
 		/* XXX fall back to mcast/mgmt rate? */
 		m_freem(m0);
 		return EINVAL;

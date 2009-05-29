@@ -1192,6 +1192,7 @@ static int
 ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     const struct ieee80211_bpf_params *params)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ural_tx_data *data;
 	uint32_t flags;
 	int error;
@@ -1200,9 +1201,8 @@ ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	RAL_LOCK_ASSERT(sc, MA_OWNED);
 	KASSERT(params != NULL, ("no raw xmit params"));
 
-	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
-	/* XXX validate */
-	if (rate == 0) {
+	rate = params->ibp_rate0;
+	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
 		m_freem(m0);
 		return EINVAL;
 	}
