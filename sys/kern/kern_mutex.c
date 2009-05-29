@@ -393,7 +393,6 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 */
 		if (v == MTX_UNOWNED) {
 			turnstile_cancel(ts);
-			cpu_spinwait();
 			continue;
 		}
 
@@ -408,7 +407,6 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		owner = (struct thread *)(v & ~MTX_FLAGMASK);
 		if (TD_IS_RUNNING(owner)) {
 			turnstile_cancel(ts);
-			cpu_spinwait();
 			continue;
 		}
 #endif
@@ -421,7 +419,6 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		if ((v & MTX_CONTESTED) == 0 &&
 		    !atomic_cmpset_ptr(&m->mtx_lock, v, v | MTX_CONTESTED)) {
 			turnstile_cancel(ts);
-			cpu_spinwait();
 			continue;
 		}
 
