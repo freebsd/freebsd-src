@@ -101,7 +101,7 @@ main(int argc, char **argv)
 	struct iovec rparams[2];
 	struct passwd *pwd = NULL;
 	gid_t *groups = NULL;
-	int ch, cmdarg, i, jail_set_flags, jid, ngroups;
+	int ch, cmdarg, i, jail_set_flags, jid, ngroups, ngroups_max;
 	int hflag, iflag, Jflag, lflag, rflag, uflag, Uflag;
 	char *ep, *jailname, *securelevel, *username, *JidFile;
 	char errmsg[ERRMSG_SIZE];
@@ -119,7 +119,6 @@ main(int argc, char **argv)
 	if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
 		err(1, "malloc");
 
-	while ((ch = getopt(argc, argv, "hiln:s:u:U:J:")) != -1) {
 	while ((ch = getopt(argc, argv, "cdhilmn:r:s:u:U:J:")) != -1) {
 		switch (ch) {
 		case 'd':
