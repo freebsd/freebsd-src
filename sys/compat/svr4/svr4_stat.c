@@ -448,6 +448,18 @@ svr4_sys_systeminfo(td, uap)
 		str = machine;
 		break;
 
+	case SVR4_SI_ISALIST:
+#if defined(__sparc__)
+		str = "sparcv9 sparcv9-fsmuld sparcv8 sparcv8-fsmuld sparcv7 sparc";
+#elif defined(__i386__)
+		str = "i386";
+#elif defined(__amd64__)
+		str = "amd64";
+#else
+		str = "unknown";
+#endif
+		break;
+
 	case SVR4_SI_HW_SERIAL:
 		snprintf(buf, sizeof(buf), "%lu", hostid);
 		str = buf;
@@ -463,7 +475,7 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_PLATFORM:
-#ifdef __i386__
+#if defined(__i386__)
 		str = "i86pc";
 #else
 		str = "unknown";
