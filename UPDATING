@@ -23,7 +23,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090529:
-	Add mnt_xflag field to 'struct mount.  File system modules
+	Add mnt_xflag field to 'struct mount'.  File system modules
 	need to be rebuilt.
 	Bump __FreeBSD_version to 800093.
 
