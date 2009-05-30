@@ -29,17 +29,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd May 30, 2009
 .Os
 .Dt VOP_ACCESS 9
 .Sh NAME
-.Nm VOP_ACCESS
+.Nm VOP_ACCESS ,
+.Nm VOP_ACCESSX
 .Nd "check access permissions of a file or Unix domain socket"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
 .Fn VOP_ACCESS "struct vnode *vp" "accmode_t accmode" "struct ucred *cred" "struct thread *td"
+.Ft int
+.Fn VOP_ACCESSX "struct vnode *vp" "accmode_t accmode" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
 This entry point checks the access permissions of the file against the
 given credentials.
@@ -63,6 +66,20 @@ is a mask which can contain flags described in <sys/vnode.h>, e.g.
 .Dv VWRITE
 or
 .Dv VEXEC .
+For
+.Fn VOP_ACCESS ,
+the only flags that may be set in
+.Fa accmode
+are
+.Dv VEXEC ,
+.Dv VWRITE ,
+.Dv VREAD ,
+.Dv VADMIN
+and
+.Dv VAPPEND .
+To check for other bits, one has to use
+.Fn VOP_ACCESSX
+instead.
 .Sh LOCKS
 The vnode will be locked on entry and should remain locked on return.
 .Sh RETURN VALUES
