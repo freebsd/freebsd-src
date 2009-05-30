@@ -1145,7 +1145,7 @@ npe_rxdone(int qid, void *arg)
 			/* XXX should not happen */
 		}
 	}
-	return (rx_npkts);
+	return rx_npkts;
 #undef P2V
 }
 
@@ -1160,7 +1160,7 @@ npe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		rx_npkts = npe_rxdone(sc->rx_qid, sc);
 		npe_txdone(sc->tx_doneqid, sc);	/* XXX polls both NPE's */
 	}
-	return (rx_npkts);
+	return rx_npkts;
 }
 #endif /* DEVICE_POLLING */
 
