@@ -1288,6 +1288,7 @@ MLINKS+=vm_page_io.9 vm_page_io_finish.9 \
 MLINKS+=vm_page_wakeup.9 vm_page_busy.9 \
 	vm_page_wakeup.9 vm_page_flash.9
 MLINKS+=vm_page_wire.9 vm_page_unwire.9
+MLINKS+=VOP_ACCESS.9 VOP_ACCESSX.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9 \
 	VOP_ATTRIB.9 VOP_SETATTR.9
 MLINKS+=VOP_CREATE.9 VOP_MKDIR.9 \

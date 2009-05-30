@@ -472,6 +472,32 @@ null_access(struct vop_access_args *ap)
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
+static int
+null_accessx(struct vop_accessx_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	accmode_t accmode = ap->a_accmode;
+
+	/*
+	 * Disallow write attempts on read-only layers;
+	 * unless the file is a socket, fifo, or a block or
+	 * character device resident on the filesystem.
+	 */
+	if (accmode & VWRITE) {
+		switch (vp->v_type) {
+		case VDIR:
+		case VLNK:
+		case VREG:
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+			break;
+		default:
+			break;
+		}
+	}
+	return (null_bypass((struct vop_generic_args *)ap));
+}
+
 /*
  * We handle this to eliminate null FS to lower FS
  * file moving. Don't know why we don't allow this,
@@ -720,6 +746,7 @@ null_vptofh(struct vop_vptofh_args *ap)
 struct vop_vector null_vnodeops = {
 	.vop_bypass =		null_bypass,
 	.vop_access =		null_access,
+	.vop_accessx =		null_accessx,
 	.vop_bmap =		VOP_EOPNOTSUPP,
 	.vop_getattr =		null_getattr,
 	.vop_getwritemount =	null_getwritemount,
