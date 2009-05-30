@@ -458,7 +458,10 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_HW_SERIAL:
-		snprintf(buf, sizeof(buf), "%lu", hostid);
+		pr = td->td_ucred->cr_prison;
+		mtx_lock(&pr->pr_mtx);
+		snprintf(buf, sizeof(buf), "%lu", pr->pr_hostid);
+		mtx_unlock(&pr->pr_mtx);
 		str = buf;
 		break;
 
