@@ -42,7 +42,7 @@
 #include <dev/usb/usb_bus.h>
 
 #if USB_HAVE_BUSDMA
-static void	usb2_dma_tag_create(struct usb_dma_tag *, size_t, size_t);
+static void	usb2_dma_tag_create(struct usb_dma_tag *, usb_size_t, usb_size_t);
 static void	usb2_dma_tag_destroy(struct usb_dma_tag *);
 static void	usb2_dma_lock_cb(void *, bus_dma_lock_op_t);
 static void	usb2_pc_alloc_mem_cb(void *, bus_dma_segment_t *, int, int);
@@ -189,7 +189,7 @@ usb2_m_copy_in_cb(void *arg, void *src, uint32_t count)
 
 void
 usb2_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
-    struct mbuf *m, size_t src_offset, usb_frlength_t src_len)
+    struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len)
 {
 	struct usb2_m_copy_in_arg arg = {cache, dst_offset};
 	int error;
@@ -332,7 +332,7 @@ usb2_dma_lock_cb(void *arg, bus_dma_lock_op_t op)
  *------------------------------------------------------------------------*/
 static void
 usb2_dma_tag_create(struct usb_dma_tag *udt,
-    size_t size, size_t align)
+    usb_size_t size, usb_size_t align)
 {
 	bus_dma_tag_t tag;
 
@@ -397,7 +397,7 @@ usb2_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	struct usb_dma_parent_tag *uptag;
 	struct usb_page_cache *pc;
 	struct usb_page *pg;
-	size_t rem;
+	usb_size_t rem;
 	uint8_t owned;
 
 	pc = arg;
@@ -460,7 +460,7 @@ done:
  *------------------------------------------------------------------------*/
 uint8_t
 usb2_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
-    size_t size, size_t align)
+    usb_size_t size, usb_size_t align)
 {
 	struct usb_dma_parent_tag *uptag;
 	struct usb_dma_tag *utag;
@@ -583,7 +583,7 @@ usb2_pc_free_mem(struct usb_page_cache *pc)
  * Else: Error
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_pc_load_mem(struct usb_page_cache *pc, size_t size, uint8_t sync)
+usb2_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 {
 	/* setup page cache */
 	pc->page_offset_buf = 0;
@@ -684,7 +684,7 @@ usb2_pc_cpu_flush(struct usb_page_cache *pc)
  * Else: Failure
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_pc_dmamap_create(struct usb_page_cache *pc, size_t size)
+usb2_pc_dmamap_create(struct usb_page_cache *pc, usb_size_t size)
 {
 	struct usb_xfer_root *info;
 	struct usb_dma_tag *utag;
@@ -733,7 +733,7 @@ usb2_pc_dmamap_destroy(struct usb_page_cache *pc)
  *------------------------------------------------------------------------*/
 struct usb_dma_tag *
 usb2_dma_tag_find(struct usb_dma_parent_tag *udpt,
-    size_t size, size_t align)
+    usb_size_t size, usb_size_t align)
 {
 	struct usb_dma_tag *udt;
 	uint8_t nudt;

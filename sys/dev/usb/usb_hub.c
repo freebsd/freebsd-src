@@ -1058,9 +1058,9 @@ done:
  *   The best Transaction Translation slot for an interrupt endpoint.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_intr_find_best_slot(size_t *ptr, uint8_t start, uint8_t end)
+usb2_intr_find_best_slot(usb_size_t *ptr, uint8_t start, uint8_t end)
 {
-	size_t max = 0 - 1;
+	usb_size_t max = 0 - 1;
 	uint8_t x;
 	uint8_t y;
 
@@ -1558,7 +1558,7 @@ usb2_bus_powerd(struct usb_bus *bus)
 	usb_ticks_t temp;
 	usb_ticks_t limit;
 	usb_ticks_t mintime;
-	size_t type_refs[5];
+	usb_size_t type_refs[5];
 	uint8_t x;
 	uint8_t rem_wakeup;
 

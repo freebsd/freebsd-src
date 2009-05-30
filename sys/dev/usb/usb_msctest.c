@@ -109,8 +109,8 @@ struct bbb_transfer {
 
 	uint8_t *data_ptr;
 
-	size_t data_len;		/* bytes */
-	size_t data_rem;		/* bytes */
+	usb_size_t data_len;		/* bytes */
+	usb_size_t data_rem;		/* bytes */
 	usb_timeout_t data_timeout;	/* ms */
 	usb_frlength_t actlen;		/* bytes */
 
@@ -435,7 +435,7 @@ bbb_status_callback(struct usb_xfer *xfer)
  *------------------------------------------------------------------------*/
 static uint8_t
 bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
-    void *data_ptr, size_t data_len, uint8_t cmd_len,
+    void *data_ptr, usb_size_t data_len, uint8_t cmd_len,
     usb_timeout_t data_timeout)
 {
 	sc->lun = lun;
