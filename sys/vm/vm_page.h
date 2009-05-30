@@ -92,10 +92,6 @@
  *	Fields in this structure are locked either by the lock on the
  *	object that the page belongs to (O) or by the lock on the page
  *	queues (P).
- *
- *	The 'valid' and 'dirty' fields are distinct.  A page may have dirty
- *	bits set without having associated valid bits set.  This is used by
- *	NFS to implement piecemeal writes.
  */
 
 TAILQ_HEAD(pglist, vm_page);
@@ -308,13 +304,13 @@ void vm_pageq_remove(vm_page_t m);
 void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
-void vm_page_cache (register vm_page_t);
+void vm_page_cache(vm_page_t);
 void vm_page_cache_free(vm_object_t, vm_pindex_t, vm_pindex_t);
 void vm_page_cache_remove(vm_page_t);
 void vm_page_cache_transfer(vm_object_t, vm_pindex_t, vm_object_t);
 int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
-void vm_page_dontneed (register vm_page_t);
+void vm_page_dontneed(vm_page_t);
 void vm_page_deactivate (vm_page_t);
 void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
