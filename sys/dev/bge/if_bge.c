@@ -3193,7 +3193,7 @@ bge_rxeof(struct bge_softc *sc)
 		BGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		BGE_LOCK(sc);
-		rk_npkts++;
+		rx_npkts++;
 
 		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 			return;
