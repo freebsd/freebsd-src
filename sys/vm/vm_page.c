@@ -566,10 +566,13 @@ vm_page_sleep(vm_page_t m, const char *msg)
 void
 vm_page_dirty(vm_page_t m)
 {
+
 	KASSERT((m->flags & PG_CACHED) == 0,
 	    ("vm_page_dirty: page in cache!"));
 	KASSERT(!VM_PAGE_IS_FREE(m),
 	    ("vm_page_dirty: page is free!"));
+	KASSERT(m->valid == VM_PAGE_BITS_ALL,
+	    ("vm_page_dirty: page is invalid!"));
 	m->dirty = VM_PAGE_BITS_ALL;
 }
 
@@ -1889,6 +1892,13 @@ vm_page_set_valid(vm_page_t m, int base, int size)
 	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, endoff,
 		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1)));
+
+	/*
+	 * Assert that no previously invalid block that is now being validated
+	 * is already dirty. 
+	 */
+	KASSERT((~m->valid & vm_page_bits(base, size) & m->dirty) == 0,
+	    ("vm_page_set_valid: page %p is dirty", m)); 
 
 	/*
 	 * Set valid bits inclusive of any overlap.
