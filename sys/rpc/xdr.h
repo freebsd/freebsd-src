@@ -216,8 +216,8 @@ xdr_putint32(XDR *xdrs, int32_t *ip)
 		(*(xdrs)->x_ops->x_destroy)(xdrs)
 
 #define XDR_CONTROL(xdrs, req, op)			\
-	if ((xdrs)->x_ops->x_control)			\
-		(*(xdrs)->x_ops->x_control)(xdrs, req, op)
+	(((xdrs)->x_ops->x_control == NULL) ? (FALSE) :	\
+		(*(xdrs)->x_ops->x_control)(xdrs, req, op))
 #define xdr_control(xdrs, req, op) XDR_CONTROL(xdrs, req, op)
 
 /*
