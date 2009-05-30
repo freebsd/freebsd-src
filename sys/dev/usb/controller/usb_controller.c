@@ -485,7 +485,7 @@ SYSUNINIT(usb2_bus_unload, SI_SUB_KLD, SI_ORDER_ANY, usb2_bus_unload, NULL);
 #if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_flush_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
-    struct usb_page *pg, size_t size, size_t align)
+    struct usb_page *pg, usb_size_t size, usb_size_t align)
 {
 	usb2_pc_cpu_flush(pc);
 }
@@ -510,7 +510,7 @@ usb2_bus_mem_flush_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 #if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_alloc_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
-    struct usb_page *pg, size_t size, size_t align)
+    struct usb_page *pg, usb_size_t size, usb_size_t align)
 {
 	/* need to initialize the page cache */
 	pc->tag_parent = bus->dma_parent_tag;
@@ -570,7 +570,7 @@ usb2_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 #if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_free_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
-    struct usb_page *pg, size_t size, size_t align)
+    struct usb_page *pg, usb_size_t size, usb_size_t align)
 {
 	usb2_pc_free_mem(pc);
 }

@@ -710,7 +710,7 @@ usb_set_interface(struct usb_device *dev, uint8_t iface_no, uint8_t alt_index)
  *------------------------------------------------------------------------*/
 int
 usb_setup_endpoint(struct usb_device *dev,
-    struct usb_host_endpoint *uhe, size_t bufsize)
+    struct usb_host_endpoint *uhe, usb_size_t bufsize)
 {
 	struct usb_config cfg[2];
 	uint8_t type = uhe->desc.bmAttributes & UE_XFERTYPE;
@@ -804,7 +804,7 @@ usb_linux_create_usb_device(struct usb_device *udev, device_t dev)
 	struct usb_interface *p_ui = NULL;
 	struct usb_host_interface *p_uhi = NULL;
 	struct usb_host_endpoint *p_uhe = NULL;
-	size_t size;
+	usb_size_t size;
 	uint16_t niface_total;
 	uint16_t nedesc;
 	uint16_t iface_no_curr;
@@ -928,7 +928,7 @@ struct urb *
 usb_alloc_urb(uint16_t iso_packets, uint16_t mem_flags)
 {
 	struct urb *urb;
-	size_t size;
+	usb_size_t size;
 
 	if (iso_packets == 0xFFFF) {
 		/*
@@ -1059,7 +1059,7 @@ usb_ifnum_to_if(struct usb_device *dev, uint8_t iface_no)
  *	usb_buffer_alloc
  *------------------------------------------------------------------------*/
 void   *
-usb_buffer_alloc(struct usb_device *dev, size_t size, uint16_t mem_flags, uint8_t *dma_addr)
+usb_buffer_alloc(struct usb_device *dev, usb_size_t size, uint16_t mem_flags, uint8_t *dma_addr)
 {
 	return (malloc(size, M_USBDEV, M_WAITOK | M_ZERO));
 }
@@ -1150,7 +1150,7 @@ usb_linux_free_device(struct usb_device *dev)
  *	usb_buffer_free
  *------------------------------------------------------------------------*/
 void
-usb_buffer_free(struct usb_device *dev, size_t size,
+usb_buffer_free(struct usb_device *dev, usb_size_t size,
     void *addr, uint8_t dma_addr)
 {
 	free(addr, M_USBDEV);

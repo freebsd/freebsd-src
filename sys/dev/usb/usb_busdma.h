@@ -75,7 +75,7 @@ struct usb_page_search {
 #if USB_HAVE_BUSDMA
 	bus_size_t physaddr;
 #endif
-	size_t length;
+	usb_size_t length;
 };
 
 /*
@@ -92,8 +92,8 @@ struct usb_page_cache {
 	struct usb_dma_parent_tag *tag_parent;	/* always set */
 	void   *buffer;			/* virtual buffer pointer */
 #if USB_HAVE_BUSDMA
-	size_t page_offset_buf;
-	size_t page_offset_end;
+	usb_size_t page_offset_buf;
+	usb_size_t page_offset_end;
 	uint8_t	isread:1;		/* set if we are currently reading
 					 * from the memory. Else write. */
 	uint8_t	ismultiseg:1;		/* set if we can have multiple
@@ -127,8 +127,8 @@ struct usb_dma_parent_tag {};		/* empty struct */
 struct usb_dma_tag {
 	struct usb_dma_parent_tag *tag_parent;
 	bus_dma_tag_t tag;
-	size_t align;
-	size_t size;
+	usb_size_t align;
+	usb_size_t size;
 };
 #else
 struct usb_dma_tag {};			/* empty struct */
@@ -139,11 +139,11 @@ struct usb_dma_tag {};			/* empty struct */
 int	usb2_uiomove(struct usb_page_cache *pc, struct uio *uio,
 	    usb_frlength_t pc_offset, usb_frlength_t len);
 struct usb_dma_tag *usb2_dma_tag_find(struct usb_dma_parent_tag *udpt,
-	    size_t size, size_t align);
+	    usb_size_t size, usb_size_t align);
 uint8_t	usb2_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
-	    size_t size, size_t align);
-uint8_t	usb2_pc_dmamap_create(struct usb_page_cache *pc, size_t size);
-uint8_t	usb2_pc_load_mem(struct usb_page_cache *pc, size_t size,
+	    usb_size_t size, usb_size_t align);
+uint8_t	usb2_pc_dmamap_create(struct usb_page_cache *pc, usb_size_t size);
+uint8_t	usb2_pc_load_mem(struct usb_page_cache *pc, usb_size_t size,
 	    uint8_t sync);
 void	usb2_bdma_done_event(struct usb_dma_parent_tag *udpt);
 void	usb2_bdma_post_sync(struct usb_xfer *xfer);
@@ -166,7 +166,7 @@ void	usb2_dma_tag_unsetup(struct usb_dma_parent_tag *udpt);
 void	usb2_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 	    struct usb_page_search *res);
 void	usb2_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
-	    struct mbuf *m, size_t src_offset, usb_frlength_t src_len);
+	    struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len);
 void	usb2_pc_cpu_flush(struct usb_page_cache *pc);
 void	usb2_pc_cpu_invalidate(struct usb_page_cache *pc);
 void	usb2_pc_dmamap_destroy(struct usb_page_cache *pc);

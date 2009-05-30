@@ -284,6 +284,10 @@ typedef uint32_t usb_frlength_t;	/* bytes */
 typedef uint32_t usb_frcount_t;	/* units */
 #endif
 
+#ifndef USB_HAVE_SIZE_T
+typedef uint32_t usb_size_t;		/* bytes */
+#endif
+
 #ifndef USB_HAVE_TICKS_T
 typedef uint32_t usb_ticks_t;		/* system defined */
 #endif
