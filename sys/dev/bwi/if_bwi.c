@@ -3155,14 +3155,14 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	rate = params->ibp_rate0;
 	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
 		/* XXX fall back to mcast/mgmt rate? */
-		m_freem(m0);
+		m_freem(m);
 		return EINVAL;
 	}
 	if (params->ibp_try1 != 0) {
 		rate_fb = params->ibp_rate1;
 		if (!ieee80211_isratevalid(ic->ic_rt, rate_fb)) {
 			/* XXX fall back to rate0? */
-			m_freem(m0);
+			m_freem(m);
 			return EINVAL;
 		}
 	} else
