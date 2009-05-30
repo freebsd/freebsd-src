@@ -51,7 +51,7 @@ typedef void (usb_proc_callback_t)(struct usb_proc_msg *hdr);
 struct usb_proc_msg {
 	TAILQ_ENTRY(usb_proc_msg) pm_qentry;
 	usb_proc_callback_t *pm_callback;
-	size_t pm_num;
+	usb_size_t pm_num;
 };
 
 /*
@@ -66,7 +66,7 @@ struct usb_process {
 	struct thread *up_curtd;
 	struct mtx *up_mtx;
 
-	size_t up_msg_num;
+	usb_size_t up_msg_num;
 
 	uint8_t	up_prio;
 	uint8_t	up_gone;

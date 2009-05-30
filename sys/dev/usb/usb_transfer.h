@@ -67,8 +67,8 @@ struct usb_xfer_root {
 	struct usb_bus *bus;		/* pointer to USB bus (cached) */
 	struct usb_device *udev;	/* pointer to USB device */
 
-	size_t memory_size;
-	size_t setup_refcount;
+	usb_size_t memory_size;
+	usb_size_t setup_refcount;
 #if USB_HAVE_BUSDMA
 	usb_frcount_t dma_nframes;	/* number of page caches to load */
 	usb_frcount_t dma_currframe;	/* currect page cache number */
@@ -97,7 +97,7 @@ struct usb_setup_params {
 	void   *buf;
 	usb_frlength_t *xfer_length_ptr;
 
-	size_t size[7];
+	usb_size_t size[7];
 	usb_frlength_t bufsize;
 	usb_frlength_t bufsize_max;
 
@@ -112,8 +112,8 @@ struct usb_setup_params {
 /* function prototypes */
 
 uint8_t	usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
-	    struct usb_page_cache **ppc, size_t size, size_t align,
-	    size_t count);
+	    struct usb_page_cache **ppc, usb_size_t size, usb_size_t align,
+	    usb_size_t count);
 void	usb2_command_wrapper(struct usb_xfer_queue *pq,
 	    struct usb_xfer *xfer);
 void	usb2_pipe_enter(struct usb_xfer *xfer);
