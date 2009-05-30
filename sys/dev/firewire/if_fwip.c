@@ -112,18 +112,19 @@ TUNABLE_INT("hw.firewire.fwip.rx_queue_len", &rx_queue_len);
 #ifdef DEVICE_POLLING
 static poll_handler_t fwip_poll;
 
-static void
+static int
 fwip_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct fwip_softc *fwip;
 	struct firewire_comm *fc;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-		return;
+		return (0);
 
 	fwip = ((struct fwip_eth_softc *)ifp->if_softc)->fwip;
 	fc = fwip->fd.fc;
 	fc->poll(fc, (cmd == POLL_AND_CHECK_STATUS)?0:1, count);
+	return (0);
 }
 #endif /* DEVICE_POLLING */
 
@@ -436,7 +437,8 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				return(error);
 			/* Disable interrupts */
 			fc->set_intr(fc, 0);
-			ifp->if_capenable |= IFCAP_POLLING;
+			ifp->if_capenable |= IFCAP_POLLING |
+			    IFCAP_POLLING_NOCOUNT;
 			return (error);
 			
 		}
@@ -446,6 +448,7 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* Enable interrupts. */
 			fc->set_intr(fc, 1);
 			ifp->if_capenable &= ~IFCAP_POLLING;
+			ifp->if_capenable &= ~IFCAP_POLLING_NOCOUNT;
 			return (error);
 		}
 	    }

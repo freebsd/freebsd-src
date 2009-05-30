@@ -228,7 +228,7 @@ static int xl_newbuf(struct xl_softc *, struct xl_chain_onefrag *);
 static void xl_stats_update(void *);
 static void xl_stats_update_locked(struct xl_softc *);
 static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf **);
-static void xl_rxeof(struct xl_softc *);
+static int xl_rxeof(struct xl_softc *);
 static void xl_rxeof_task(void *, int);
 static int xl_rx_resync(struct xl_softc *);
 static void xl_txeof(struct xl_softc *);
@@ -248,8 +248,8 @@ static int xl_suspend(device_t);
 static int xl_resume(device_t);
 
 #ifdef DEVICE_POLLING
-static void xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
-static void xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 
 static int xl_ifmedia_upd(struct ifnet *);
@@ -1882,13 +1882,14 @@ xl_rx_resync(struct xl_softc *sc)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 xl_rxeof(struct xl_softc *sc)
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
 	int			total_len = 0;
+	int			rx_npkts = 0;
 	u_int32_t		rxstat;
 
 	XL_LOCK_ASSERT(sc);
@@ -1990,6 +1991,7 @@ again:
 		XL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		XL_LOCK(sc);
+		rx_npkts++;
 
 		/*
 		 * If we are running from the taskqueue, the interface
@@ -1997,7 +1999,7 @@ again:
 		 * packet up the network stack.
 		 */
 		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-			return;
+			return (rx_npkts);
 	}
 
 	/*
@@ -2021,6 +2023,7 @@ again:
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_UP_UNSTALL);
 		goto again;
 	}
+	return (rx_npkts);
 }
 
 /*
@@ -2265,26 +2268,29 @@ xl_intr(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct xl_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	XL_LOCK(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		xl_poll_locked(ifp, cmd, count);
+		rx_npkts = xl_poll_locked(ifp, cmd, count);
 	XL_UNLOCK(sc);
+	return (rx_npkts);
 }
 
-static void
+static int
 xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct xl_softc *sc = ifp->if_softc;
+	int rx_npkts;
 
 	XL_LOCK_ASSERT(sc);
 
 	sc->rxcycles = count;
-	xl_rxeof(sc);
+	rx_npkts = xl_rxeof(sc);
 	if (sc->xl_type == XL_TYPE_905B)
 		xl_txeof_90xB(sc);
 	else
@@ -2322,6 +2328,7 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			}
 		}
 	}
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
