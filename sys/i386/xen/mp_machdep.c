@@ -973,14 +973,14 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 	u_int ncpu;
 	struct _call_data data;
 
-	call_data = &data;
-	
 	ncpu = mp_ncpus - 1;	/* does not shootdown self */
 	if (ncpu < 1)
 		return;		/* no other cpus */
 	if (!(read_eflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
+	KASSERT(call_data == NULL, ("call_data isn't null?!"));
+	call_data = &data;
 	call_data->func_id = vector;
 	call_data->arg1 = addr1;
 	call_data->arg2 = addr2;
@@ -1021,6 +1021,7 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	if (!(read_eflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
+	KASSERT(call_data == NULL, ("call_data isn't null?!"));
 	call_data = &data;		
 	call_data->func_id = vector;
 	call_data->arg1 = addr1;
