@@ -13,3 +13,4 @@ ENTRY(logbf)
 	fxtract
 	fstp	%st
 	ret
+END(logbf)

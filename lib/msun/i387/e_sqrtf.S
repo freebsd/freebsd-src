@@ -12,3 +12,4 @@ ENTRY(sqrtf)
 	flds	4(%esp)
 	fsqrt
 	ret
+END(sqrtf)

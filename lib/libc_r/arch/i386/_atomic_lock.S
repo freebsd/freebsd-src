@@ -39,4 +39,5 @@ ENTRY(_atomic_lock)
 	movl	$1, %eax
 	xchg	%eax, (%ecx)
 	ret
+END(_atomic_lock)
 

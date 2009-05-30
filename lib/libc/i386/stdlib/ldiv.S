@@ -40,3 +40,4 @@ ENTRY(ldiv)
         movl    %edx,8(%esp)
         ret
 END(ldiv)
+END(ldiv)
