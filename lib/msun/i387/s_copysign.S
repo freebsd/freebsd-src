@@ -46,3 +46,4 @@ ENTRY(copysign)
 	movl	%eax,8(%esp)
 	fldl	4(%esp)
 	ret
+END(copysign)
