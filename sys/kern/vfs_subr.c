@@ -115,15 +115,6 @@ static int	vfs_knllocked(void *arg);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
 
 /*
- * Enable Giant pushdown based on whether or not the vm is mpsafe in this
- * build.  Without mpsafevm the buffer cache can not run Giant free.
- */
-int mpsafe_vfs = 1;
-TUNABLE_INT("debug.mpsafevfs", &mpsafe_vfs);
-SYSCTL_INT(_debug, OID_AUTO, mpsafevfs, CTLFLAG_RD, &mpsafe_vfs, 0,
-    "MPSAFE VFS");
-
-/*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
  * allocates a new vnode, decreased on vdestroy() called on VI_DOOMed
  * vnode.
