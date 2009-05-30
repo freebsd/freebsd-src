@@ -3,7 +3,7 @@
 
 LIB=	archive
 DPADD=	${LIBBZ2} ${LIBZ}
-LDADD=	-lbz2 -lz
+LDADD=	-lbz2 -lz -lmd
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
@@ -17,6 +17,7 @@ CFLAGS+=	-I${.OBJDIR}
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL
+LDFLAGS+=	-lcrypto
 .endif
 
 
