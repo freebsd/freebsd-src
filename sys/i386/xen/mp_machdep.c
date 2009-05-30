@@ -1132,10 +1132,10 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 				ipi_pcpu(cpu, RESCHEDULE_VECTOR);
 			continue;
 			
+		} else {
+			KASSERT(call_data != NULL, ("call_data not set"));
+			ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
 		}
-		
-		KASSERT(call_data != NULL, ("call_data not set"));
-		ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
 	}
 }
 
