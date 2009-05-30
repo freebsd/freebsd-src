@@ -160,7 +160,7 @@ static int vr_newbuf(struct vr_softc *, int);
 #ifndef __NO_STRICT_ALIGNMENT
 static __inline void vr_fixup_rx(struct mbuf *);
 #endif
-static void vr_rxeof(struct vr_softc *);
+static int vr_rxeof(struct vr_softc *);
 static void vr_txeof(struct vr_softc *);
 static void vr_tick(void *);
 static int vr_error(struct vr_softc *, uint16_t);
@@ -1296,19 +1296,20 @@ vr_fixup_rx(struct mbuf *m)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 vr_rxeof(struct vr_softc *sc)
 {
 	struct vr_rxdesc	*rxd;
 	struct mbuf		*m;
 	struct ifnet		*ifp;
 	struct vr_desc		*cur_rx;
-	int			cons, prog, total_len;
+	int			cons, prog, total_len, rx_npkts;
 	uint32_t		rxstat, rxctl;
 
 	VR_LOCK_ASSERT(sc);
 	ifp = sc->vr_ifp;
 	cons = sc->vr_cdata.vr_rx_cons;
+	rx_npkts = 0;
 
 	bus_dmamap_sync(sc->vr_cdata.vr_rx_ring_tag,
 	    sc->vr_cdata.vr_rx_ring_map,
@@ -1414,6 +1415,7 @@ vr_rxeof(struct vr_softc *sc)
 		VR_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		VR_LOCK(sc);
+		rx_npkts++;
 	}
 
 	if (prog > 0) {
@@ -1422,6 +1424,7 @@ vr_rxeof(struct vr_softc *sc)
 		    sc->vr_cdata.vr_rx_ring_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
+	return (rx_npkts);
 }
 
 /*
@@ -1571,30 +1574,34 @@ vr_tick(void *xsc)
 static poll_handler_t vr_poll;
 static poll_handler_t vr_poll_locked;
 
-static void
+static int
 vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct vr_softc *sc;
+	int rx_npkts;
 
 	sc = ifp->if_softc;
+	rx_npkts = 0;
 
 	VR_LOCK(sc);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-		vr_poll_locked(ifp, cmd, count);
+		rx_npkts = vr_poll_locked(ifp, cmd, count);
 	VR_UNLOCK(sc);
+	return (rx_npkts);
 }
 
-static void
+static int
 vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct vr_softc *sc;
+	int rx_npkts;
 
 	sc = ifp->if_softc;
 
 	VR_LOCK_ASSERT(sc);
 
 	sc->rxcycles = count;
-	vr_rxeof(sc);
+	rx_npkts = vr_rxeof(sc);
 	vr_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		vr_start_locked(ifp);
@@ -1608,12 +1615,12 @@ vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			CSR_WRITE_2(sc, VR_ISR, status);
 
 		if ((status & VR_INTRS) == 0)
-			return;
+			return (rx_npkts);
 
 		if ((status & (VR_ISR_BUSERR | VR_ISR_LINKSTAT2 |
 		    VR_ISR_STATSOFLOW)) != 0) {
 			if (vr_error(sc, status) != 0)
-				return;
+				return (rx_npkts);
 		}
 		if ((status & (VR_ISR_RX_NOBUF | VR_ISR_RX_OFLOW)) != 0) {
 #ifdef	VR_SHOW_ERRORS
@@ -1623,6 +1630,7 @@ vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			vr_rx_start(sc);
 		}
 	}
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 

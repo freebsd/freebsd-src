@@ -261,7 +261,7 @@ static void	em_txeof(struct adapter *);
 static void	em_tx_purge(struct adapter *);
 static int	em_allocate_receive_structures(struct adapter *);
 static int	em_allocate_transmit_structures(struct adapter *);
-static int	em_rxeof(struct adapter *, int);
+static int	em_rxeof(struct adapter *, int, int *);
 #ifndef __NO_STRICT_ALIGNMENT
 static int	em_fixup_rx(struct adapter *);
 #endif
@@ -1653,16 +1653,20 @@ em_init(void *arg)
  *  Legacy polling routine  
  *
  *********************************************************************/
-static void
+static int
 em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
-	struct adapter *adapter = ifp->if_softc;
+	struct adapter *adapter;
 	u32		reg_icr;
+	int		rx_npkts;
+
+	adapter = ifp->if_softc;
+	rx_npkts = 0;
 
 	EM_CORE_LOCK(adapter);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		EM_CORE_UNLOCK(adapter);
-		return;
+		return (rx_npkts);
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1677,7 +1681,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	EM_CORE_UNLOCK(adapter);
 
-	em_rxeof(adapter, count);
+	em_rxeof(adapter, count, &rx_npkts);
 
 	EM_TX_LOCK(adapter);
 	em_txeof(adapter);
@@ -1685,6 +1689,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (!ADAPTER_RING_EMPTY(adapter))
 		em_start_locked(ifp);
 	EM_TX_UNLOCK(adapter);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1718,7 +1723,7 @@ em_intr(void *arg)
 
 	EM_TX_LOCK(adapter);
 	em_txeof(adapter);
-	em_rxeof(adapter, -1);
+	em_rxeof(adapter, -1, NULL);
 	em_txeof(adapter);
 	EM_TX_UNLOCK(adapter);
 
@@ -1771,7 +1776,7 @@ em_handle_rxtx(void *context, int pending)
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		if (em_rxeof(adapter, adapter->rx_process_limit) != 0)
+		if (em_rxeof(adapter, adapter->rx_process_limit, NULL) != 0)
 			taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
 		EM_TX_LOCK(adapter);
 		em_txeof(adapter);
@@ -1882,7 +1887,7 @@ em_msix_rx(void *arg)
 
 	++adapter->rx_irq;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-	    (em_rxeof(adapter, adapter->rx_process_limit) != 0))
+	    (em_rxeof(adapter, adapter->rx_process_limit, NULL) != 0))
 		taskqueue_enqueue(adapter->tq, &adapter->rx_task);
 	/* Reenable this interrupt */
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_RX);
@@ -1920,7 +1925,7 @@ em_handle_rx(void *context, int pending)
 	struct ifnet	*ifp = adapter->ifp;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-	    (em_rxeof(adapter, adapter->rx_process_limit) != 0))
+	    (em_rxeof(adapter, adapter->rx_process_limit, NULL) != 0))
 		taskqueue_enqueue(adapter->tq, &adapter->rx_task);
 
 }
@@ -4461,23 +4466,26 @@ em_free_receive_structures(struct adapter *adapter)
  *
  *********************************************************************/
 static int
-em_rxeof(struct adapter *adapter, int count)
+em_rxeof(struct adapter *adapter, int count, int *rx_npktsp)
 {
 	struct ifnet	*ifp = adapter->ifp;;
 	struct mbuf	*mp;
 	u8		status, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;
-	int		i;
+	int		i, rx_npkts;
 	struct e1000_rx_desc   *current_desc;
 
 	EM_RX_LOCK(adapter);
 	i = adapter->next_rx_desc_to_check;
+	rx_npkts = 0;
 	current_desc = &adapter->rx_desc_base[i];
 	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 	    BUS_DMASYNC_POSTREAD);
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
 		EM_RX_UNLOCK(adapter);
+		if (rx_npktsp != NULL)
+			*rx_npktsp = rx_npkts;
 		return (0);
 	}
 
@@ -4626,6 +4634,7 @@ discard:
 			EM_RX_UNLOCK(adapter);
 			(*ifp->if_input)(ifp, m);
 			EM_RX_LOCK(adapter);
+			rx_npkts++;
 			i = adapter->next_rx_desc_to_check;
 		}
 		current_desc = &adapter->rx_desc_base[i];
@@ -4637,6 +4646,8 @@ discard:
 		i = adapter->num_rx_desc - 1;
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), i);
 	EM_RX_UNLOCK(adapter);
+	if (rx_npktsp != NULL)
+		*rx_npktsp = rx_npkts;
 	if (!((current_desc->status) & E1000_RXD_STAT_DD))
 		return (0);
 
