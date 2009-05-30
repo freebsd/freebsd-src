@@ -443,7 +443,7 @@ f_delete(PLAN *plan __unused, FTSENT *entry)
 	if ((entry->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 	    !(entry->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 	    geteuid() == 0)
-		chflags(entry->fts_accpath,
+		lchflags(entry->fts_accpath,
 		       entry->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
 
 	/* rmdir directories, unlink everything else */
