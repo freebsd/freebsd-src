@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090530: removal of early.sh
+OLD_FILES+=etc/rc.d/early.sh
 # 20090527: renaming of S{LIST,TAILQ}_REMOVE_NEXT() to _REMOVE_AFTER()
 OLD_FILES+=usr/share/man/man3/SLIST_REMOVE_NEXT.3.gz
 OLD_FILES+=usr/share/man/man3/STAILQ_REMOVE_NEXT.3.gz
