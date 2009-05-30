@@ -619,10 +619,8 @@ vfs_statfs_t	__vfs_statfs;
 	({if (*(MP)->mnt_op->vfs_susp_clean != NULL)		\
 	       (*(MP)->mnt_op->vfs_susp_clean)(MP); })
 
-extern int mpsafe_vfs;
-
 #define	VFS_NEEDSGIANT_(MP)						\
-    (!mpsafe_vfs || ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0))
+    ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0)
 
 #define	VFS_NEEDSGIANT(MP) __extension__				\
 ({									\
