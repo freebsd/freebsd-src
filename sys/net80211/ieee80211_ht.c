@@ -79,15 +79,30 @@ static const struct ieee80211_htrateset ieee80211_rateset_11n =
 	};
 
 #ifdef IEEE80211_AMPDU_AGE
-/* XXX public for sysctl hookup */
-int	ieee80211_ampdu_age = -1;	/* threshold for ampdu reorder q (ms) */
+static	int ieee80211_ampdu_age = -1;	/* threshold for ampdu reorder q (ms) */
+SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
+	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"AMPDU max reorder age (ms)");
 #endif
-int	ieee80211_recv_bar_ena = 1;
-int	ieee80211_addba_timeout = -1;	/* timeout waiting for ADDBA response */
-int	ieee80211_addba_backoff = -1;	/* backoff after max ADDBA requests */
-int	ieee80211_addba_maxtries = 3;	/* max ADDBA requests before backoff */
-int	ieee80211_bar_timeout = -1;	/* timeout waiting for BAR response */
-int	ieee80211_bar_maxtries = 50;	/* max BAR requests before DELBA */
+
+static	int ieee80211_recv_bar_ena = 1;
+SYSCTL_INT(_net_wlan, OID_AUTO, recv_bar, CTLFLAG_RW, &ieee80211_recv_bar_ena,
+	    0, "BAR frame processing (ena/dis)");
+
+static	int ieee80211_addba_timeout = -1;/* timeout for ADDBA response */
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLTYPE_INT | CTLFLAG_RW,
+	&ieee80211_addba_timeout, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"ADDBA request timeout (ms)");
+static	int ieee80211_addba_backoff = -1;/* backoff after max ADDBA requests */
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
+	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"ADDBA request backoff (ms)");
+static	int ieee80211_addba_maxtries = 3;/* max ADDBA requests before backoff */
+SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLTYPE_INT | CTLFLAG_RW,
+	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
+
+static	int ieee80211_bar_timeout = -1;	/* timeout waiting for BAR response */
+static	int ieee80211_bar_maxtries = 50;/* max BAR requests before DELBA */
 
 /*
  * Setup HT parameters that depends on the clock frequency.

@@ -54,10 +54,14 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_80211_DFS, "80211dfs", "802.11 DFS state");
 
-/* XXX public for sysctl hookup */
-int	ieee80211_nol_timeout = 30*60;		/* 30 minutes */
+static	int ieee80211_nol_timeout = 30*60;		/* 30 minutes */
+SYSCTL_INT(_net_wlan, OID_AUTO, nol_timeout, CTLFLAG_RW,
+	&ieee80211_nol_timeout, 0, "NOL timeout (secs)");
 #define	NOL_TIMEOUT	msecs_to_ticks(ieee80211_nol_timeout*1000)
-int	ieee80211_cac_timeout = 60;		/* 60 seconds */
+
+static	int ieee80211_cac_timeout = 60;		/* 60 seconds */
+SYSCTL_INT(_net_wlan, OID_AUTO, cac_timeout, CTLFLAG_RW,
+	&ieee80211_cac_timeout, 0, "CAC timeout (secs)");
 #define	CAC_TIMEOUT	msecs_to_ticks(ieee80211_cac_timeout*1000)
 
 void
