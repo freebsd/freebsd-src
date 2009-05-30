@@ -217,7 +217,7 @@ static int		fxp_resume(device_t dev);
 static void		fxp_intr(void *xsc);
 static void		fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp,
 			    struct mbuf *m, uint16_t status, int pos);
-static void		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
+static int		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
 			    uint8_t statack, int count);
 static void 		fxp_init(void *xsc);
 static void 		fxp_init_body(struct fxp_softc *sc);
@@ -1619,16 +1619,17 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 #ifdef DEVICE_POLLING
 static poll_handler_t fxp_poll;
 
-static void
+static int
 fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	uint8_t statack;
+	int rx_npkts = 0;
 
 	FXP_LOCK(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		FXP_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	statack = FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA |
@@ -1639,7 +1640,7 @@ fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		tmp = CSR_READ_1(sc, FXP_CSR_SCB_STATACK);
 		if (tmp == 0xff || tmp == 0) {
 			FXP_UNLOCK(sc);
-			return; /* nothing to do */
+			return (rx_npkts); /* nothing to do */
 		}
 		tmp &= ~statack;
 		/* ack what we can */
@@ -1647,8 +1648,9 @@ fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, tmp);
 		statack |= tmp;
 	}
-	fxp_intr_body(sc, ifp, statack, count);
+	rx_npkts = fxp_intr_body(sc, ifp, statack, count);
 	FXP_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1805,7 +1807,7 @@ fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp, struct mbuf *m,
 	m->m_pkthdr.csum_data = csum;
 }
 
-static void
+static int
 fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
     int count)
 {
@@ -1813,9 +1815,12 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	struct fxp_rx *rxp;
 	struct fxp_rfa *rfa;
 	int rnr = (statack & FXP_SCB_STATACK_RNR) ? 1 : 0;
+	int rx_npkts;
 	uint16_t status;
 
+	rx_npkts = 0;
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
+
 	if (rnr)
 		sc->rnr++;
 #ifdef DEVICE_POLLING
@@ -1852,7 +1857,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	 * Just return if nothing happened on the receive side.
 	 */
 	if (!rnr && (statack & FXP_SCB_STATACK_FR) == 0)
-		return;
+		return (rx_npkts);
 
 	/*
 	 * Process receiver interrupts. If a no-resource (RNR)
@@ -1944,6 +1949,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			FXP_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
 			FXP_LOCK(sc);
+			rx_npkts++;
 		} else {
 			/* Reuse RFA and loaded DMA map. */
 			ifp->if_iqdrops++;
@@ -1957,6 +1963,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 		    sc->fxp_desc.rx_head->rx_addr);
 		fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
 	}
+	return (rx_npkts);
 }
 
 /*

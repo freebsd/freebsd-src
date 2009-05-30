@@ -229,7 +229,7 @@ static void	npe_getmac(struct npe_softc *sc, u_char *eaddr);
 static void	npe_txdone(int qid, void *arg);
 static int	npe_rxbuf_init(struct npe_softc *, struct npebuf *,
 			struct mbuf *);
-static void	npe_rxdone(int qid, void *arg);
+static int	npe_rxdone(int qid, void *arg);
 static void	npeinit(void *);
 static void	npestart_locked(struct ifnet *);
 static void	npestart(struct ifnet *);
@@ -777,7 +777,7 @@ npe_activate(device_t dev)
 	 */
 	sc->rx_qid = npeconfig[sc->sc_npeid].rx_qid;
 	ixpqmgr_qconfig(sc->rx_qid, npe_rxbuf, 0,  1,
-		IX_QMGR_Q_SOURCE_ID_NOT_E, npe_rxdone, sc);
+		IX_QMGR_Q_SOURCE_ID_NOT_E, (qconfig_hand_t *)npe_rxdone, sc);
 	sc->rx_freeqid = npeconfig[sc->sc_npeid].rx_freeqid;
 	ixpqmgr_qconfig(sc->rx_freeqid,	npe_rxbuf, 0, npe_rxbuf/2, 0, NULL, sc);
 	/*
@@ -1091,7 +1091,7 @@ npe_rxbuf_init(struct npe_softc *sc, struct npebuf *npe, struct mbuf *m)
  * from the hardware queue and pass the frames up the
  * stack. Pass the rx buffers to the free list.
  */
-static void
+static int
 npe_rxdone(int qid, void *arg)
 {
 #define	P2V(a, dma) \
@@ -1099,6 +1099,7 @@ npe_rxdone(int qid, void *arg)
 	struct npe_softc *sc = arg;
 	struct npedma *dma = &sc->rxdma;
 	uint32_t entry;
+	int rx_npkts = 0;
 
 	while (ixpqmgr_qread(qid, &entry) == 0) {
 		struct npebuf *npe = P2V(NPE_QM_Q_ADDR(entry), dma);
@@ -1132,6 +1133,7 @@ npe_rxdone(int qid, void *arg)
 
 			ifp->if_ipackets++;
 			ifp->if_input(ifp, mrx);
+			rx_npkts++;
 		} else {
 			/* discard frame and re-use mbuf */
 			m = npe->ix_m;
@@ -1143,19 +1145,22 @@ npe_rxdone(int qid, void *arg)
 			/* XXX should not happen */
 		}
 	}
+	return (rx_npkts);
 #undef P2V
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 npe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct npe_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		npe_rxdone(sc->rx_qid, sc);
+		rx_npkts = npe_rxdone(sc->rx_qid, sc);
 		npe_txdone(sc->tx_doneqid, sc);	/* XXX polls both NPE's */
 	}
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
