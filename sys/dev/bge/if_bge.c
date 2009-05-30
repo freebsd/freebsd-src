@@ -3196,7 +3196,7 @@ bge_rxeof(struct bge_softc *sc)
 		rx_npkts++;
 
 		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-			return;
+			return (rx_npkts);
 	}
 
 	if (stdcnt > 0)
@@ -3309,7 +3309,7 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	rx_npkts = bge_rxeof(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		BGE_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 	bge_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
