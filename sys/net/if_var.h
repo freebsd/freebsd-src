@@ -807,7 +807,7 @@ void	if_deregister_com_alloc(u_char type);
 #ifdef DEVICE_POLLING
 enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };
 
-typedef	void poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
+typedef	int poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
 int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
 int    ether_poll_deregister(struct ifnet *ifp);
 #endif /* DEVICE_POLLING */

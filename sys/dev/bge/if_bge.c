@@ -332,7 +332,7 @@ static int bge_get_eaddr_eeprom(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr(struct bge_softc *, uint8_t[]);
 
 static void bge_txeof(struct bge_softc *);
-static void bge_rxeof(struct bge_softc *);
+static int bge_rxeof(struct bge_softc *);
 
 static void bge_asf_driver_up (struct bge_softc *);
 static void bge_tick(void *);
@@ -390,7 +390,7 @@ static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
 static void bge_miibus_statchg(device_t);
 #ifdef DEVICE_POLLING
-static void bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 
 #define	BGE_RESET_START 1
@@ -3050,18 +3050,18 @@ bge_reset(struct bge_softc *sc)
  * 2) the frame is from the standard receive ring
  */
 
-static void
+static int
 bge_rxeof(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
-	int stdcnt = 0, jumbocnt = 0;
+	int rx_npkts = 0, stdcnt = 0, jumbocnt = 0;
 
 	BGE_LOCK_ASSERT(sc);
 
 	/* Nothing to do. */
 	if (sc->bge_rx_saved_considx ==
 	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx)
-		return;
+		return (rx_npkts);
 
 	ifp = sc->bge_ifp;
 
@@ -3193,6 +3193,7 @@ bge_rxeof(struct bge_softc *sc)
 		BGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		BGE_LOCK(sc);
+		rk_npkts++;
 
 		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 			return;
@@ -3219,6 +3220,7 @@ bge_rxeof(struct bge_softc *sc)
 	if (BGE_IS_5705_PLUS(sc))
 		ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
 #endif
+	return (rx_npkts);
 }
 
 static void
@@ -3271,16 +3273,17 @@ bge_txeof(struct bge_softc *sc)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	uint32_t statusword;
-	
+	int rx_npkts = 0;
+
 	BGE_LOCK(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		BGE_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
@@ -3303,7 +3306,7 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			bge_link_upd(sc);
 
 	sc->rxcycles = count;
-	bge_rxeof(sc);
+	rx_npkts = bge_rxeof(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		BGE_UNLOCK(sc);
 		return;
@@ -3313,6 +3316,7 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		bge_start_locked(ifp);
 
 	BGE_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 

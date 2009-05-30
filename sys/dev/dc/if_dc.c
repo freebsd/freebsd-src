@@ -236,7 +236,7 @@ static int dc_newbuf(struct dc_softc *, int, int);
 static int dc_encap(struct dc_softc *, struct mbuf **);
 static void dc_pnic_rx_bug_war(struct dc_softc *, int);
 static int dc_rx_resync(struct dc_softc *);
-static void dc_rxeof(struct dc_softc *);
+static int dc_rxeof(struct dc_softc *);
 static void dc_txeof(struct dc_softc *);
 static void dc_tick(void *);
 static void dc_tx_underrun(struct dc_softc *);
@@ -2640,19 +2640,21 @@ dc_rx_resync(struct dc_softc *sc)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 dc_rxeof(struct dc_softc *sc)
 {
 	struct mbuf *m, *m0;
 	struct ifnet *ifp;
 	struct dc_desc *cur_rx;
-	int i, total_len = 0;
+	int i, total_len, rx_npkts;
 	u_int32_t rxstat;
 
 	DC_LOCK_ASSERT(sc);
 
 	ifp = sc->dc_ifp;
 	i = sc->dc_cdata.dc_rx_prod;
+	total_len = 0;
+	rx_npkts = 0;
 
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap, BUS_DMASYNC_POSTREAD);
 	while (!(le32toh(sc->dc_ldata->dc_rx_list[i].dc_status) &
@@ -2706,7 +2708,7 @@ dc_rxeof(struct dc_softc *sc)
 					continue;
 				} else {
 					dc_init_locked(sc);
-					return;
+					return (rx_npkts);
 				}
 			}
 		}
@@ -2745,9 +2747,11 @@ dc_rxeof(struct dc_softc *sc)
 		DC_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		DC_LOCK(sc);
+		rx_npkts++;
 	}
 
 	sc->dc_cdata.dc_rx_prod = i;
+	return (rx_npkts);
 }
 
 /*
@@ -2989,20 +2993,21 @@ dc_tx_underrun(struct dc_softc *sc)
 #ifdef DEVICE_POLLING
 static poll_handler_t dc_poll;
 
-static void
+static int
 dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct dc_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	DC_LOCK(sc);
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		DC_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	sc->rxcycles = count;
-	dc_rxeof(sc);
+	rx_npkts = dc_rxeof(sc);
 	dc_txeof(sc);
 	if (!IFQ_IS_EMPTY(&ifp->if_snd) &&
 	    !(ifp->if_drv_flags & IFF_DRV_OACTIVE))
@@ -3017,7 +3022,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			DC_ISR_BUS_ERR);
 		if (!status) {
 			DC_UNLOCK(sc);
-			return;
+			return (rx_npkts);
 		}
 		/* ack what we have */
 		CSR_WRITE_4(sc, DC_ISR, status);
@@ -3043,6 +3048,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		}
 	}
 	DC_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
