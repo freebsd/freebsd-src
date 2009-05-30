@@ -168,18 +168,18 @@ usb2_get_dma_delay(struct usb_bus *bus)
 #if USB_HAVE_BUSDMA
 uint8_t
 usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
-    struct usb_page_cache **ppc, size_t size, size_t align,
-    size_t count)
+    struct usb_page_cache **ppc, usb_size_t size, usb_size_t align,
+    usb_size_t count)
 {
 	struct usb_page_cache *pc;
 	struct usb_page *pg;
 	void *buf;
-	size_t n_dma_pc;
-	size_t n_obj;
-	size_t x;
-	size_t y;
-	size_t r;
-	size_t z;
+	usb_size_t n_dma_pc;
+	usb_size_t n_obj;
+	usb_size_t x;
+	usb_size_t y;
+	usb_size_t r;
+	usb_size_t z;
 
 	USB_ASSERT(align > 1, ("Invalid alignment, 0x%08x!\n",
 	    align));

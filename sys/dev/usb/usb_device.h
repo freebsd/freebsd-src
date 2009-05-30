@@ -140,9 +140,9 @@ struct usb_device_flags {
  */
 struct usb_power_save {
 	usb_ticks_t last_xfer_time;	/* copy of "ticks" */
-	size_t type_refs[4];	/* transfer reference count */
-	size_t read_refs;		/* data read references */
-	size_t write_refs;		/* data write references */
+	usb_size_t type_refs[4];	/* transfer reference count */
+	usb_size_t read_refs;		/* data read references */
+	usb_size_t write_refs;		/* data write references */
 };
 
 /*

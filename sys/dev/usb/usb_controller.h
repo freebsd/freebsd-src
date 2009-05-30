@@ -45,7 +45,7 @@ struct usb_endpoint_descriptor;
 
 /* typedefs */
 
-typedef void (usb_bus_mem_sub_cb_t)(struct usb_bus *bus, struct usb_page_cache *pc, struct usb_page *pg, size_t size, size_t align);
+typedef void (usb_bus_mem_sub_cb_t)(struct usb_bus *bus, struct usb_page_cache *pc, struct usb_page *pg, usb_size_t size, usb_size_t align);
 typedef void (usb_bus_mem_cb_t)(struct usb_bus *bus, usb_bus_mem_sub_cb_t *scb);
 
 /*
@@ -170,7 +170,7 @@ struct usb_hw_ep_scratch {
  */
 struct usb_temp_setup {
 	void   *buf;
-	size_t size;
+	usb_size_t size;
 	enum usb_dev_speed	usb_speed;
 	uint8_t	self_powered;
 	uint8_t	bNumEndpoints;

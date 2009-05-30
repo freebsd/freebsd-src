@@ -278,9 +278,9 @@ struct urb {
 	void   *context;		/* (in) context for completion */
 	usb_complete_t *complete;	/* (in) completion routine */
 
-	size_t transfer_buffer_length;/* (in) data buffer length */
-	size_t bsd_length_rem;
-	size_t actual_length;	/* (return) actual transfer length */
+	usb_size_t transfer_buffer_length;/* (in) data buffer length */
+	usb_size_t bsd_length_rem;
+	usb_size_t actual_length;	/* (return) actual transfer length */
 	usb_timeout_t timeout;		/* FreeBSD specific */
 
 	uint16_t transfer_flags;	/* (in) */
@@ -326,11 +326,11 @@ struct usb_host_interface *usb_altnum_to_altsetting(
 	    const struct usb_interface *intf, uint8_t alt_index);
 struct usb_interface *usb_ifnum_to_if(struct usb_device *dev, uint8_t iface_no);
 
-void   *usb_buffer_alloc(struct usb_device *dev, size_t size,
+void   *usb_buffer_alloc(struct usb_device *dev, usb_size_t size,
 	    uint16_t mem_flags, uint8_t *dma_addr);
 void   *usb_get_intfdata(struct usb_interface *intf);
 
-void	usb_buffer_free(struct usb_device *dev, size_t size, void *addr, uint8_t dma_addr);
+void	usb_buffer_free(struct usb_device *dev, usb_size_t size, void *addr, uint8_t dma_addr);
 void	usb_free_urb(struct urb *urb);
 void	usb_init_urb(struct urb *urb);
 void	usb_kill_urb(struct urb *urb);

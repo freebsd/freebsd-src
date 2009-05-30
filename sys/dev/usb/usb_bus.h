@@ -87,7 +87,7 @@ struct usb_bus {
 	struct usb_device **devices;
 
 	usb_power_mask_t hw_power_state;	/* see USB_HW_POWER_XXX */
-	size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
+	usb_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
 
 	uint16_t isoc_time_last;	/* in milliseconds */
 
