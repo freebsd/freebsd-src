@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090530:
+	Add VOP_ACCESSX(9).  File system modules need to be rebuilt.
+	Bump __FreeBSD_version to 800094.
+
 20090529:
 	Add mnt_xflag field to 'struct mount'.  File system modules
 	need to be rebuilt.
