@@ -157,7 +157,7 @@ static int nge_encap(struct nge_softc *, struct mbuf **);
 #ifndef __NO_STRICT_ALIGNMENT
 static __inline void nge_fixup_rx(struct mbuf *);
 #endif
-static void nge_rxeof(struct nge_softc *);
+static int nge_rxeof(struct nge_softc *);
 static void nge_txeof(struct nge_softc *);
 static void nge_intr(void *);
 static void nge_tick(void *);
@@ -1575,20 +1575,21 @@ nge_fixup_rx(struct mbuf *m)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 nge_rxeof(struct nge_softc *sc)
 {
 	struct mbuf *m;
 	struct ifnet *ifp;
 	struct nge_desc *cur_rx;
 	struct nge_rxdesc *rxd;
-	int cons, prog, total_len;
+	int cons, prog, rx_npkts, total_len;
 	uint32_t cmdsts, extsts;
 
 	NGE_LOCK_ASSERT(sc);
 
 	ifp = sc->nge_ifp;
 	cons = sc->nge_cdata.nge_rx_cons;
+	rx_npkts = 0;
 
 	bus_dmamap_sync(sc->nge_cdata.nge_rx_ring_tag,
 	    sc->nge_cdata.nge_rx_ring_map,
@@ -1734,6 +1735,7 @@ nge_rxeof(struct nge_softc *sc)
 		NGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		NGE_LOCK(sc);
+		rx_npkts++;
 	}
 
 	if (prog > 0) {
@@ -1742,6 +1744,7 @@ nge_rxeof(struct nge_softc *sc)
 		    sc->nge_cdata.nge_rx_ring_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
+	return (rx_npkts);
 }
 
 /*
@@ -1888,17 +1891,18 @@ nge_stats_update(struct nge_softc *sc)
 #ifdef DEVICE_POLLING
 static poll_handler_t nge_poll;
 
-static void
+static int
 nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct nge_softc *sc;
+	int rx_npkts = 0;
 
 	sc = ifp->if_softc;
 
 	NGE_LOCK(sc);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		NGE_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	/*
@@ -1909,7 +1913,7 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	 * and then call the interrupt routine.
 	 */
 	sc->rxcycles = count;
-	nge_rxeof(sc);
+	rx_npkts = nge_rxeof(sc);
 	nge_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		nge_start_locked(ifp);
@@ -1921,7 +1925,7 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		status = CSR_READ_4(sc, NGE_ISR);
 
 		if ((status & (NGE_ISR_RX_ERR|NGE_ISR_RX_OFLOW)) != 0)
-			nge_rxeof(sc);
+			rx_npkts += nge_rxeof(sc);
 
 		if ((status & NGE_ISR_RX_IDLE) != 0)
 			NGE_SETBIT(sc, NGE_CSR, NGE_CSR_RX_ENABLE);
@@ -1932,6 +1936,7 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		}
 	}
 	NGE_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 

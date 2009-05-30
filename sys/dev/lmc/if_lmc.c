@@ -3976,12 +3976,13 @@ fbsd_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
     {
     /* Last call -- reenable card interrupts. */
     WRITE_CSR(TLP_INT_ENBL, TLP_INT_TXRX);
-    return;
+    return 0;
     }
 #endif
 
   sc->quota = count;
   core_interrupt(sc, (cmd==POLL_AND_CHECK_STATUS));
+  return 0;
   }
 
 # endif  /* (__FreeBSD__ && DEVICE_POLLING) */
