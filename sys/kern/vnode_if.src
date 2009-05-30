@@ -153,6 +153,16 @@ vop_access {
 };
 
 
+%% accessx	vp	L L L
+
+vop_accessx {
+	IN struct vnode *vp;
+	IN accmode_t accmode;
+	IN struct ucred *cred;
+	IN struct thread *td;
+};
+
+
 %% getattr	vp	L L L
 
 vop_getattr {
