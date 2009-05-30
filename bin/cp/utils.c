@@ -365,7 +365,7 @@ setfile(struct stat *fs, int fd)
 	if (!gotstat || fs->st_flags != ts.st_flags)
 		if (fdval ?
 		    fchflags(fd, fs->st_flags) :
-		    (islink ? (errno = ENOSYS) :
+		    (islink ? lchflags(to.p_path, fs->st_flags) :
 		    chflags(to.p_path, fs->st_flags))) {
 			warn("chflags: %s", to.p_path);
 			rval = 1;
