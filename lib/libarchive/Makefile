@@ -2,7 +2,7 @@
 .include <bsd.own.mk>
 
 LIB=	archive
-DPADD=	${LIBBZ2} ${LIBZ}
+DPADD=	${LIBBZ2} ${LIBZ} ${LIBMD}
 LDADD=	-lbz2 -lz -lmd
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
@@ -12,14 +12,15 @@ SHLIB_MAJOR= 4
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I${.OBJDIR}
 #Uncomment to build with full lzma/xz support via liblzma
+#liblzma is not (yet?) part of the FreeBSD base system
 #CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 #LDADD+= -L/usr/local/lib -llzma
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL
-LDFLAGS+=	-lcrypto
+DPADD+=	${LIBCRYPTO}
+LDADD+=	-lcrypto
 .endif
-
 
 WARNS?=	6
 
