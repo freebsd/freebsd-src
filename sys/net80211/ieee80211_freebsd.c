@@ -61,15 +61,6 @@ int	ieee80211_debug = 0;
 SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 	    0, "debugging printfs");
 #endif
-extern int ieee80211_recv_bar_ena;
-SYSCTL_INT(_net_wlan, OID_AUTO, recv_bar, CTLFLAG_RW, &ieee80211_recv_bar_ena,
-	    0, "BAR frame processing (ena/dis)");
-extern int ieee80211_nol_timeout;
-SYSCTL_INT(_net_wlan, OID_AUTO, nol_timeout, CTLFLAG_RW,
-	&ieee80211_nol_timeout, 0, "NOL timeout (secs)");
-extern int ieee80211_cac_timeout;
-SYSCTL_INT(_net_wlan, OID_AUTO, cac_timeout, CTLFLAG_RW,
-	&ieee80211_cac_timeout, 0, "CAC timeout (secs)");
 
 MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
 
@@ -173,33 +164,6 @@ ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS)
 	*(int *)arg1 = (t < 1) ? 1 : t;
 	return 0;
 }
-
-#ifdef IEEE80211_AMPDU_AGE
-extern int ieee80211_ampdu_age;
-SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"AMPDU max reorder age (ms)");
-#endif
-extern int ieee80211_addba_timeout;
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_addba_timeout, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"ADDBA request timeout (ms)");
-extern int ieee80211_addba_backoff;
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"ADDBA request backoff (ms)");
-extern int ieee80211_addba_maxtries;
-SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
-#ifdef IEEE80211_SUPPORT_SUPERG
-extern int ieee80211_ffppsmin;
-SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
-extern int ieee80211_ffagemax;
-SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"max hold time for fast-frame staging (ms)");
-#endif /* IEEE80211_SUPPORT_SUPERG */
 
 static int
 ieee80211_sysctl_inact(SYSCTL_HANDLER_ARGS)
@@ -320,7 +284,7 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	if (vap->iv_caps & IEEE80211_C_DFS) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 			"radar", CTLTYPE_INT | CTLFLAG_RW, vap->iv_ic, 0,
-			ieee80211_sysctl_radar, "I", "simulare radar event");
+			ieee80211_sysctl_radar, "I", "simulate radar event");
 	}
 	vap->iv_sysctl = ctx;
 	vap->iv_oid = oid;
