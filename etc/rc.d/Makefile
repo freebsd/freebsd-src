@@ -9,7 +9,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ccd cleanvar cleartmp cron \
 	ddb defaultroute devd devfs dhclient \
 	dmesg dumpon \
-	early.sh encswap \
+	encswap \
 	fsck ftp-proxy ftpd \
 	gbde geli geli2 gssd \
 	hcsecd \
