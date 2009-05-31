@@ -275,7 +275,7 @@ tftp_open(path, f)
 	    return(ENOMEM);
 	}
 
-	res = tftp_makereq(tftpfile, path);
+	res = tftp_makereq(tftpfile);
 
 	if (res) {
 		free(tftpfile->path);
