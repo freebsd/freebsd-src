@@ -1200,7 +1200,7 @@ again:
 				bp->b_dirtyoff = on;
 				bp->b_dirtyend = on + n;
 			}
-			vfs_bio_set_validclean(bp, on, n);
+			vfs_bio_set_valid(bp, on, n);
 		}
 
 		/*
