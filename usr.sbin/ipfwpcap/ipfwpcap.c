@@ -29,6 +29,8 @@
 #include <paths.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -61,15 +63,14 @@ static int reflect = 0;		/* 1 == write packet back to socket. */
 static ssize_t totbytes = 0, maxbytes = 0;
 static ssize_t totpkts = 0, maxpkts = 0;
 
-char *prog = NULL;
-char pidfile[MAXPATHLEN] = { '\0' };
+static char *prog = NULL;
+static char pidfile[MAXPATHLEN];
 
 /*
  * tidy up.
  */
-void
-quit(sig)
-int sig;
+static void
+quit(int sig)
 {
 	(void) unlink(pidfile);
 	exit(sig);
@@ -79,80 +80,76 @@ int sig;
  * do the "paper work"
  *	- save my own pid in /var/run/$0.{port#}.pid
  */
-okay(pn)
-int pn;
+static void
+okay(int pn)
 {
-	FILE *fp;
-	int fd, numlen, n;
+	int fd;
 	char *p, numbuf[80];
 
-	numlen = sizeof(numbuf);
-	bzero(numbuf, numlen);
-	snprintf(numbuf, numlen-1, "%ld\n", getpid());
-	numlen = strlen(numbuf);
-
 	if (pidfile[0] == '\0') {
-		p = (char *)rindex(prog, '/');
-		p = (p == NULL) ? prog : p+1 ;
+		p = rindex(prog, '/');
+		p = (p == NULL) ? prog : p + 1;
 
-		snprintf(pidfile, sizeof(pidfile)-1,
+		snprintf(pidfile, sizeof pidfile,
 			"%s%s.%d.pid", _PATH_VARRUN, p, pn);
 	}
 
 	fd = open(pidfile, O_WRONLY|O_CREAT|O_EXCL, 0644);
-	if (fd < 0) { perror(pidfile); exit(21); }
+	if (fd < 0) {
+		perror(pidfile);
+		exit(21);
+	}
 
-        siginterrupt(SIGTERM, 1);
-        siginterrupt(SIGHUP, 1);
-        signal (SIGTERM, quit);
-        signal (SIGHUP, quit);
-        signal (SIGINT, quit);
+	siginterrupt(SIGTERM, 1);
+	siginterrupt(SIGHUP, 1);
+	signal(SIGTERM, quit);
+	signal(SIGHUP, quit);
+	signal(SIGINT, quit);
 
-	n = write(fd, numbuf, numlen);
-	if (n < 0) { perror(pidfile); quit(23); }
+	snprintf(numbuf, sizeof numbuf, "%d\n", getpid());
+	if (write(fd, numbuf, strlen(numbuf)) < 0) {
+		perror(pidfile);
+		quit(23);
+	}
 	(void) close(fd);
 }
 
-usage()
+static void
+usage(void)
 {
-	fprintf(stderr, "\
-\n\
-usage:\n\
-    %s [-dr] [-b maxbytes] [-p maxpkts] [-P pidfile] portnum dumpfile\n\
-\n\
-where:\n\
-	'-d'  = enable debugging messages.\n\
-	'-r'  = reflect. write packets back to the divert socket.\n\
-		(ie. simulate the original intent of \"ipfw tee\").\n\
-	'-rr' = indicate that it is okay to quit if packet-count or\n\
-		byte-count limits are reached (see the NOTE below\n\
-		about what this implies).\n\
-	'-b bytcnt'   = stop dumping after {bytcnt} bytes.\n\
-	'-p pktcnt'   = stop dumping after {pktcnt} packets.\n\
-	'-P pidfile'  = alternate file to store the PID\n\
-			(default: /var/run/%s.{portnum}.pid).\n\
-\n\
-	portnum  = divert(4) socket port number.\n\
-	dumpfile = file to write captured packets (tcpdump format).\n\
-		   (specify '-' to write packets to stdout).\n\
-\n\
-", prog, prog);
-
-	fprintf(stderr, "\
-The '-r' option should not be necessary, but because \"ipfw tee\" is broken\n\
-(see BUGS in ipfw(8) for details) this feature can be used along with\n\
-an \"ipfw divert\" rule to simulate the original intent of \"ipfw tee\".\n\
-\n\
-NOTE: With an \"ipfw divert\" rule, diverted packets will silently\n\
-      disappear if there is nothing listening to the divert socket.\n\
-\n\
-");
-	exit(-1);
+	fprintf(stderr,
+"\n"
+"usage:\n"
+"    %s [-dr] [-b maxbytes] [-p maxpkts] [-P pidfile] portnum dumpfile\n"
+"\n"
+"where:\n"
+"	'-d'  = enable debugging messages.\n"
+"	'-r'  = reflect. write packets back to the divert socket.\n"
+"		(ie. simulate the original intent of \"ipfw tee\").\n"
+"	'-rr' = indicate that it is okay to quit if packet-count or\n"
+"		byte-count limits are reached (see the NOTE below\n"
+"		about what this implies).\n"
+"	'-b bytcnt'   = stop dumping after {bytcnt} bytes.\n"
+"	'-p pktcnt'   = stop dumping after {pktcnt} packets.\n"
+"	'-P pidfile'  = alternate file to store the PID\n"
+"			(default: /var/run/%s.{portnum}.pid).\n"
+"\n"
+"	portnum  = divert(4) socket port number.\n"
+"	dumpfile = file to write captured packets (tcpdump format).\n"
+"		   (specify '-' to write packets to stdout).\n"
+"\n"
+"The '-r' option should not be necessary, but because \"ipfw tee\" is broken\n"
+"(see BUGS in ipfw(8) for details) this feature can be used along with\n"
+"an \"ipfw divert\" rule to simulate the original intent of \"ipfw tee\".\n"
+"\n"
+"NOTE: With an \"ipfw divert\" rule, diverted packets will silently\n"
+"      disappear if there is nothing listening to the divert socket.\n"
+"\n", prog, prog);
+	exit(1);
 }
 
-main(ac, av)
-int ac;
-char *av[];
+int
+main(int ac, char *av[])
 {
 	int r, sd, portnum, l;
         struct sockaddr_in sin;
@@ -254,7 +251,7 @@ if (debug) fprintf(stderr, "bind to %d.\ndump to '%s'.\n", portnum, dumpf);
 		 */
 		l = sizeof(sin);
 		nr = recvfrom(sd, buf, sizeof(buf), 0, (struct sockaddr *)&sin, &l);
-if (debug) fprintf(stderr, "recvfrom(%d) = %d (%d)\n", sd, nr, l);
+if (debug) fprintf(stderr, "recvfrom(%d) = %zd (%d)\n", sd, nr, l);
 		if (nr < 0 && errno != EINTR) {
 			perror("recvfrom(sd)");
 			quit(12);
