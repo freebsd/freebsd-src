@@ -108,6 +108,10 @@
 #define	SIOCGPRIVATE_0	_IOWR('i', 80, struct ifreq)	/* device private 0 */
 #define	SIOCGPRIVATE_1	_IOWR('i', 81, struct ifreq)	/* device private 1 */
 
+#define	SIOCSPVIMAGE	 _IOW('i', 101, struct vi_req)	/* set proc vimage */
+#define	SIOCGPVIMAGE	_IOWR('i', 102, struct vi_req)	/* get proc vimage */
+#define	SIOCSIFVIMAGE	_IOWR('i', 103, struct vi_req)	/* set ifc vi/net */
+
 #define	SIOCSDRVSPEC	_IOW('i', 123, struct ifdrv)	/* set driver-specific
 								  parameters */
 #define	SIOCGDRVSPEC	_IOWR('i', 123, struct ifdrv)	/* get driver-specific
