@@ -2,9 +2,11 @@
 
 # Misc. stuff
 .cvsignore
+bind.keys
 configure
 contrib
 docutil
+isc-config.*
 
 # Tests
 bin/tests
@@ -12,6 +14,9 @@ lib/tests
 
 # Doc stuff
 doc/arm/latex-fixup.pl
+doc/draft
+doc/doxygen
+doc/rfc
 doc/xsl
 
 # Windows directories
