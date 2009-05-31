@@ -1,10 +1,10 @@
-# $Id: version,v 1.29.134.23.2.2 2009/03/17 02:23:49 marka Exp $
-#
+# $Id: version,v 1.43.12.4 2009/04/08 06:55:37 marka Exp $
+# 
 # This file must follow /bin/sh rules.  It is imported directly via
 # configure.
 #
 MAJORVER=9
-MINORVER=4
-PATCHVER=3
-RELEASETYPE=-P
-RELEASEVER=2
+MINORVER=6
+PATCHVER=1
+RELEASETYPE=rc
+RELEASEVER=1

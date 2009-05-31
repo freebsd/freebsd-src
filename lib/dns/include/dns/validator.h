@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.h,v 1.27.18.10 2007/09/26 04:39:45 each Exp $ */
+/* $Id: validator.h,v 1.41.48.3 2009/01/18 23:25:17 marka Exp $ */
 
 #ifndef DNS_VALIDATOR_H
 #define DNS_VALIDATOR_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/validator.h
  *
  * \brief
  * DNS Validator
@@ -74,7 +74,7 @@
  * caller so that they may be freed.
  *
  * If the RESULT is ISC_R_SUCCESS and the answer is secure then
- * proofs[] will contain the the names of the NSEC records that hold the
+ * proofs[] will contain the names of the NSEC records that hold the
  * various proofs.  Note the same name may appear multiple times.
  */
 typedef struct dns_validatorevent {
@@ -99,12 +99,17 @@ typedef struct dns_validatorevent {
 	/*
 	 * Proofs to be cached.
 	 */
-	dns_name_t *			proofs[3];
+	dns_name_t *			proofs[4];
+	/*
+	 * Optout proof seen.
+	 */
+	isc_boolean_t			optout;
 } dns_validatorevent_t;
 
 #define DNS_VALIDATOR_NOQNAMEPROOF 0
 #define DNS_VALIDATOR_NODATAPROOF 1
 #define DNS_VALIDATOR_NOWILDCARDPROOF 2
+#define DNS_VALIDATOR_CLOSESTENCLOSER 3
 
 /*%
  * A validator object represents a validation in progress.
@@ -139,11 +144,14 @@ struct dns_validator {
 	dns_rdataset_t *		dsset;
 	dns_rdataset_t *		soaset;
 	dns_rdataset_t *		nsecset;
+	dns_rdataset_t *		nsec3set;
 	dns_name_t *			soaname;
 	dns_rdataset_t			frdataset;
 	dns_rdataset_t			fsigrdataset;
 	dns_fixedname_t			fname;
 	dns_fixedname_t			wild;
+	dns_fixedname_t			nearest;
+	dns_fixedname_t			closest;
 	ISC_LINK(dns_validator_t)	link;
 	dns_rdataset_t 			dlv;
 	dns_fixedname_t			dlvsep;
@@ -202,7 +210,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  * options:
  * If DNS_VALIDATOR_DLV is set the caller knows there is not a
  * trusted key and the validator should immediately attempt to validate
- * the answer by looking for a appopriate DLV RRset.
+ * the answer by looking for an appropriate DLV RRset.
  */
 
 void

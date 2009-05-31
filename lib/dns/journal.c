@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.86.18.14 2008/09/25 04:01:36 tbox Exp $ */
+/* $Id: journal.c,v 1.103.48.2 2009/01/18 23:47:37 tbox Exp $ */
 
 #include <config.h>
 
@@ -42,7 +42,7 @@
 #include <dns/soa.h>
 
 /*! \file
- * \brief Journalling.
+ * \brief Journaling.
  *
  * A journal file consists of
  *
@@ -172,7 +172,7 @@ dns_db_createsoatuple(dns_db_t *db, dns_dbversion_t *ver, isc_mem_t *mctx,
 	return (result);
 }
 
-/* Journalling */
+/* Journaling */
 
 /*%
  * On-disk representation of a "pointer" to a journal entry.
@@ -641,7 +641,7 @@ journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 	dns_rdata_init(&j->it.rdata);
 
 	/*
-	 * Set up empty initial buffers for uncheched and checked
+	 * Set up empty initial buffers for unchecked and checked
 	 * wire format RR data.  They will be reallocated
 	 * later.
 	 */
@@ -709,8 +709,35 @@ ixfr_order(const void *av, const void *bv) {
 	dns_difftuple_t const *a = *ap;
 	dns_difftuple_t const *b = *bp;
 	int r;
+	int bop = 0, aop = 0;
 
-	r = (b->op == DNS_DIFFOP_DEL) - (a->op == DNS_DIFFOP_DEL);
+	switch (a->op) {
+	case DNS_DIFFOP_DEL:
+	case DNS_DIFFOP_DELRESIGN:
+		aop = 1;
+		break;
+	case DNS_DIFFOP_ADD:
+	case DNS_DIFFOP_ADDRESIGN:
+		aop = 0;
+		break;
+	default:
+		INSIST(0);
+	}
+
+	switch (b->op) {
+	case DNS_DIFFOP_DEL:
+	case DNS_DIFFOP_DELRESIGN:
+		bop = 1;
+		break;
+	case DNS_DIFFOP_ADD:
+	case DNS_DIFFOP_ADDRESIGN:
+		bop = 0;
+		break;
+	default:
+		INSIST(0);
+	}
+
+	r = bop - aop;
 	if (r != 0)
 		return (r);
 
@@ -1191,7 +1218,7 @@ dns_journal_destroy(dns_journal_t **journalp) {
 /* XXX Share code with incoming IXFR? */
 
 static isc_result_t
-roll_forward(dns_journal_t *j, dns_db_t *db) {
+roll_forward(dns_journal_t *j, dns_db_t *db, unsigned int options) {
 	isc_buffer_t source;		/* Transaction data from disk */
 	isc_buffer_t target;		/* Ditto after _fromwire check */
 	isc_uint32_t db_serial;		/* Database SOA serial */
@@ -1202,6 +1229,7 @@ roll_forward(dns_journal_t *j, dns_db_t *db) {
 	dns_diff_t diff;
 	unsigned int n_soa = 0;
 	unsigned int n_put = 0;
+	dns_diffop_t op;
 
 	REQUIRE(DNS_JOURNAL_VALID(j));
 	REQUIRE(DNS_DB_VALID(db));
@@ -1209,7 +1237,7 @@ roll_forward(dns_journal_t *j, dns_db_t *db) {
 	dns_diff_init(j->mctx, &diff);
 
 	/*
-	 * Set up empty initial buffers for uncheched and checked
+	 * Set up empty initial buffers for unchecked and checked
 	 * wire format transaction data.  They will be reallocated
 	 * later.
 	 */
@@ -1273,9 +1301,14 @@ roll_forward(dns_journal_t *j, dns_db_t *db) {
 					 "initial SOA", j->filename);
 			FAIL(ISC_R_UNEXPECTED);
 		}
-		CHECK(dns_difftuple_create(diff.mctx, n_soa == 1 ?
-					   DNS_DIFFOP_DEL : DNS_DIFFOP_ADD,
-					   name, ttl, rdata, &tuple));
+		if ((options & DNS_JOURNALOPT_RESIGN) != 0)
+			op = (n_soa == 1) ? DNS_DIFFOP_DELRESIGN :
+					    DNS_DIFFOP_ADDRESIGN;
+		else
+			op = (n_soa == 1) ? DNS_DIFFOP_DEL : DNS_DIFFOP_ADD;
+
+		CHECK(dns_difftuple_create(diff.mctx, op, name, ttl, rdata,
+					   &tuple));
 		dns_diff_append(&diff, &tuple);
 
 		if (++n_put > 100)  {
@@ -1317,7 +1350,9 @@ roll_forward(dns_journal_t *j, dns_db_t *db) {
 }
 
 isc_result_t
-dns_journal_rollforward(isc_mem_t *mctx, dns_db_t *db, const char *filename) {
+dns_journal_rollforward(isc_mem_t *mctx, dns_db_t *db,
+			unsigned int options, const char *filename)
+{
 	dns_journal_t *j;
 	isc_result_t result;
 
@@ -1336,7 +1371,7 @@ dns_journal_rollforward(isc_mem_t *mctx, dns_db_t *db, const char *filename) {
 	if (JOURNAL_EMPTY(&j->header))
 		result = DNS_R_UPTODATE;
 	else
-		result = roll_forward(j, db);
+		result = roll_forward(j, db, options);
 
 	dns_journal_destroy(&j);
 
@@ -1374,7 +1409,7 @@ dns_journal_print(isc_mem_t *mctx, const char *filename, FILE *file) {
 	dns_diff_init(j->mctx, &diff);
 
 	/*
-	 * Set up empty initial buffers for uncheched and checked
+	 * Set up empty initial buffers for unchecked and checked
 	 * wire format transaction data.  They will be reallocated
 	 * later.
 	 */
@@ -1852,10 +1887,10 @@ dns_db_diff(isc_mem_t *mctx,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
-	result = dns_db_createiterator(db[0], ISC_FALSE, &dbit[0]);
+	result = dns_db_createiterator(db[0], 0, &dbit[0]);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_journal;
-	result = dns_db_createiterator(db[1], ISC_FALSE, &dbit[1]);
+	result = dns_db_createiterator(db[1], 0, &dbit[1]);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_interator0;
 

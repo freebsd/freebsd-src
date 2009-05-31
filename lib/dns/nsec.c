@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec.c,v 1.5.20.2 2005/04/29 00:15:59 marka Exp $ */
+/* $Id: nsec.c,v 1.11.48.2 2009/01/06 23:47:26 tbox Exp $ */
 
 /*! \file */
 
@@ -32,6 +32,8 @@
 #include <dns/rdatasetiter.h>
 #include <dns/rdatastruct.h>
 #include <dns/result.h>
+
+#include <dst/dst.h>
 
 #define RETERR(x) do { \
 	result = (x); \
@@ -88,6 +90,7 @@ dns_nsec_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 	 */
 	bm = r.base + r.length + 512;
 	nsec_bits = r.base + r.length;
+	set_bit(bm, dns_rdatatype_rrsig, 1);
 	set_bit(bm, dns_rdatatype_nsec, 1);
 	max_type = dns_rdatatype_nsec;
 	dns_rdataset_init(&rdataset);
@@ -100,7 +103,9 @@ dns_nsec_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 	     result = dns_rdatasetiter_next(rdsiter))
 	{
 		dns_rdatasetiter_current(rdsiter, &rdataset);
-		if (rdataset.type != dns_rdatatype_nsec) {
+		if (rdataset.type != dns_rdatatype_nsec &&
+		    rdataset.type != dns_rdatatype_nsec3 &&
+		    rdataset.type != dns_rdatatype_rrsig) {
 			if (rdataset.type > max_type)
 				max_type = rdataset.type;
 			set_bit(bm, rdataset.type, 1);
@@ -197,7 +202,7 @@ dns_nsec_typepresent(dns_rdata_t *nsec, dns_rdatatype_t type) {
 	/* This should never fail */
 	result = dns_rdata_tostruct(nsec, &nsecstruct, NULL);
 	INSIST(result == ISC_R_SUCCESS);
-	
+
 	present = ISC_FALSE;
 	for (i = 0; i < nsecstruct.len; i += len) {
 		INSIST(i + 2 <= nsecstruct.len);
@@ -215,6 +220,58 @@ dns_nsec_typepresent(dns_rdata_t *nsec, dns_rdatatype_t type) {
 						   type % 256));
 		break;
 	}
-	dns_rdata_freestruct(&nsec);
+	dns_rdata_freestruct(&nsecstruct);
 	return (present);
+}
+
+isc_result_t
+dns_nsec_nseconly(dns_db_t *db, dns_dbversion_t *version,
+		  isc_boolean_t *answer)
+{
+	dns_dbnode_t *node = NULL;
+	dns_rdataset_t rdataset;
+	dns_rdata_dnskey_t dnskey;
+	isc_result_t result;
+
+	REQUIRE(answer != NULL);
+
+	dns_rdataset_init(&rdataset);
+
+	result = dns_db_getoriginnode(db, &node);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	result = dns_db_findrdataset(db, node, version, dns_rdatatype_dnskey,
+				     0, 0, &rdataset, NULL);
+	dns_db_detachnode(db, &node);
+
+	if (result == ISC_R_NOTFOUND) {
+		*answer = ISC_FALSE;
+		return (ISC_R_SUCCESS);
+	}
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	for (result = dns_rdataset_first(&rdataset);
+	     result == ISC_R_SUCCESS;
+	     result = dns_rdataset_next(&rdataset)) {
+		dns_rdata_t rdata = DNS_RDATA_INIT;
+
+		dns_rdataset_current(&rdataset, &rdata);
+		result = dns_rdata_tostruct(&rdata, &dnskey, NULL);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
+
+		if (dnskey.algorithm == DST_ALG_RSAMD5 ||
+		    dnskey.algorithm == DST_ALG_RSASHA1 ||
+		    dnskey.algorithm == DST_ALG_DSA ||
+		    dnskey.algorithm == DST_ALG_ECC)
+			break;
+	}
+	dns_rdataset_disassociate(&rdataset);
+	if (result == ISC_R_SUCCESS)
+		*answer = ISC_TRUE;
+	if (result == ISC_R_NOMORE) {
+		*answer = ISC_FALSE;
+		result = ISC_R_SUCCESS;
+	}
+	return (result);
 }

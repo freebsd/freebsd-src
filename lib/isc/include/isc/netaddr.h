@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netaddr.h,v 1.25.18.5 2005/07/28 04:58:47 marka Exp $ */
+/* $Id: netaddr.h,v 1.35.332.2 2009/01/18 23:47:41 tbox Exp $ */
 
 #ifndef ISC_NETADDR_H
 #define ISC_NETADDR_H 1
 
-/*! \file */
+/*! \file isc/netaddr.h */
 
 #include <isc/lang.h>
 #include <isc/net.h>
@@ -36,7 +36,7 @@ ISC_LANG_BEGINDECLS
 struct isc_netaddr {
 	unsigned int family;
 	union {
-    		struct in_addr in;
+		struct in_addr in;
 		struct in6_addr in6;
 #ifdef ISC_PLATFORM_HAVESYSUNH
 		char un[sizeof(((struct sockaddr_un *)0)->sun_path)];
@@ -48,13 +48,18 @@ struct isc_netaddr {
 isc_boolean_t
 isc_netaddr_equal(const isc_netaddr_t *a, const isc_netaddr_t *b);
 
+/*%<
+ * Compare network addresses 'a' and 'b'.  Return #ISC_TRUE if
+ * they are equal, #ISC_FALSE if not.
+ */
+
 isc_boolean_t
 isc_netaddr_eqprefix(const isc_netaddr_t *a, const isc_netaddr_t *b,
 		     unsigned int prefixlen);
 /*%<
  * Compare the 'prefixlen' most significant bits of the network
- * addresses 'a' and 'b'.  Return #ISC_TRUE if they are equal,
- * #ISC_FALSE if not.
+ * addresses 'a' and 'b'.  If 'b''s scope is zero then 'a''s scope is
+ * ignored.  Return #ISC_TRUE if they are equal, #ISC_FALSE if not.
  */
 
 isc_result_t
@@ -166,7 +171,7 @@ isc_netaddr_prefixok(const isc_netaddr_t *na, unsigned int prefixlen);
  * Returns:
  *	ISC_R_SUCCESS
  *	ISC_R_RANGE		prefixlen out of range
- *	ISC_R_NOTIMPLENTED	unsupported family
+ *	ISC_R_NOTIMPLEMENTED	unsupported family
  *	ISC_R_FAILURE		extra bits.
  */
 

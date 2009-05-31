@@ -1,9 +1,22 @@
 /*
- * Portions Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2000-2002  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC AND NETWORK ASSOCIATES DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE
+ * FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+ * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -16,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_internal.h,v 1.1.6.5 2006/01/27 23:57:44 marka Exp $ */
+/* $Id: dst_internal.h,v 1.11 2008/04/01 23:47:10 tbox Exp $ */
 
 #ifndef DST_DST_INTERNAL_H
 #define DST_DST_INTERNAL_H 1
@@ -27,8 +40,21 @@
 #include <isc/magic.h>
 #include <isc/region.h>
 #include <isc/types.h>
+#include <isc/md5.h>
+#include <isc/sha1.h>
+#include <isc/hmacmd5.h>
+#include <isc/hmacsha.h>
 
 #include <dst/dst.h>
+
+#ifdef OPENSSL
+#include <openssl/dh.h>
+#include <openssl/dsa.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include <openssl/rsa.h>
+#endif
 
 ISC_LANG_BEGINDECLS
 
@@ -46,6 +72,13 @@ extern isc_mem_t *dst__memory_pool;
 
 typedef struct dst_func dst_func_t;
 
+typedef struct dst_hmacmd5_key    dst_hmacmd5_key_t;
+typedef struct dst_hmacsha1_key   dst_hmacsha1_key_t;
+typedef struct dst_hmacsha224_key dst_hmacsha224_key_t;
+typedef struct dst_hmacsha256_key dst_hmacsha256_key_t;
+typedef struct dst_hmacsha384_key dst_hmacsha384_key_t;
+typedef struct dst_hmacsha512_key dst_hmacsha512_key_t;
+
 /*% DST Key Structure */
 struct dst_key {
 	unsigned int	magic;
@@ -58,7 +91,27 @@ struct dst_key {
 	isc_uint16_t	key_bits;	/*%< hmac digest bits */
 	dns_rdataclass_t key_class;	/*%< class of the key record */
 	isc_mem_t	*mctx;		/*%< memory context */
-	void *		opaque;		/*%< pointer to key in crypto pkg fmt */
+	char		*engine;	/*%< engine name (HSM) */
+	char		*label;		/*%< engine label (HSM) */
+	union {
+		void *generic;
+		gss_ctx_id_t gssctx;
+#ifdef OPENSSL
+#if USE_EVP_RSA
+		RSA *rsa;
+#endif
+		DSA *dsa;
+		DH *dh;
+		EVP_PKEY *pkey;
+#endif
+		dst_hmacmd5_key_t *hmacmd5;
+		dst_hmacsha1_key_t *hmacsha1;
+		dst_hmacsha224_key_t *hmacsha224;
+		dst_hmacsha256_key_t *hmacsha256;
+		dst_hmacsha384_key_t *hmacsha384;
+		dst_hmacsha512_key_t *hmacsha512;
+
+	} keydata;			/*%< pointer to key in crypto pkg fmt */
 	dst_func_t *	func;		/*%< crypto package specific functions */
 };
 
@@ -66,7 +119,21 @@ struct dst_context {
 	unsigned int magic;
 	dst_key_t *key;
 	isc_mem_t *mctx;
-	void *opaque;
+	union {
+		void *generic;
+		dst_gssapi_signverifyctx_t *gssctx;
+		isc_md5_t *md5ctx;
+		isc_sha1_t *sha1ctx;
+		isc_hmacmd5_t *hmacmd5ctx;
+		isc_hmacsha1_t *hmacsha1ctx;
+		isc_hmacsha224_t *hmacsha224ctx;
+		isc_hmacsha256_t *hmacsha256ctx;
+		isc_hmacsha384_t *hmacsha384ctx;
+		isc_hmacsha512_t *hmacsha512ctx;
+#ifdef OPENSSL
+		EVP_MD_CTX *evp_md_ctx;
+#endif
+	} ctxdata;
 };
 
 struct dst_func {
@@ -100,6 +167,9 @@ struct dst_func {
 
 	/* cleanup */
 	void (*cleanup)(void);
+
+	isc_result_t (*fromlabel)(dst_key_t *key, const char *engine,
+				  const char *label, const char *pin);
 };
 
 /*%
@@ -135,6 +205,11 @@ void * dst__mem_realloc(void *ptr, size_t size);
  */
 isc_result_t dst__entropy_getdata(void *buf, unsigned int len,
 				  isc_boolean_t pseudo);
+
+/*
+ * Entropy status hook.
+ */
+unsigned int dst__entropy_status(void);
 
 ISC_LANG_ENDDECLS
 

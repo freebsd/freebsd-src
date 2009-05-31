@@ -1,7 +1,7 @@
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
        "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" []>
 <!--
- - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: FAQ.xml,v 1.4.4.24 2008/09/10 01:32:25 tbox Exp $ -->
+<!-- $Id: FAQ.xml,v 1.46.56.4 2009/02/19 01:51:58 tbox Exp $ -->
 
 <article class="faq">
   <title>Frequently Asked Questions about BIND 9</title>
@@ -28,6 +28,7 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -1067,7 +1068,7 @@ empty:
 	  NSEC3 records are strictly meta data and can only be
 	  returned in the authority section.  This is done so that
 	  signing the zone using NSEC3 records does not bring names
-	  into existance that do not exist in the unsigned version
+	  into existence that do not exist in the unsigned version
 	  of the zone.
 	</para>
       </answer>
@@ -1470,7 +1471,6 @@ options {
 	</para>
 	<informalexample>
 	  <programlisting>
-/etc/rc.conf
 rand_irqs="3 14 15"</programlisting>
 	</informalexample>
 	<para>

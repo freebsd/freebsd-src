@@ -1,7 +1,7 @@
-# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
-# Permission to use, copy, modify, and distribute this software for any
+# Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
 #
@@ -13,13 +13,15 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.80.18.7 2005/09/05 00:18:10 marka Exp $
+# $Id: Makefile.in,v 1.101 2008/09/23 17:25:47 jinmei Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
 
 @BIND9_VERSION@
+
+@BIND9_CONFIGARGS@
 
 @BIND9_MAKE_INCLUDES@
 
@@ -38,7 +40,7 @@ DLZDRIVER_SRCS =	@DLZ_DRIVER_SRCS@
 DLZDRIVER_INCLUDES =	@DLZ_DRIVER_INCLUDES@
 DLZDRIVER_LIBS =	@DLZ_DRIVER_LIBS@
 
-CINCLUDES =	-I${srcdir}/include -I${srcdir}/unix/include \
+CINCLUDES =	-I${srcdir}/include -I${srcdir}/unix/include -I. \
 		${LWRES_INCLUDES} ${DNS_INCLUDES} ${BIND9_INCLUDES} \
 		${ISCCFG_INCLUDES} ${ISCCC_INCLUDES} ${ISC_INCLUDES} \
 		${DLZDRIVER_INCLUDES} ${DBDRIVER_INCLUDES}
@@ -75,7 +77,7 @@ TARGETS =	named@EXEEXT@ lwresd@EXEEXT@
 OBJS =		builtin.@O@ client.@O@ config.@O@ control.@O@ \
 		controlconf.@O@ interfacemgr.@O@ \
 		listenlist.@O@ log.@O@ logconf.@O@ main.@O@ notify.@O@ \
-		query.@O@ server.@O@ sortlist.@O@ \
+		query.@O@ server.@O@ sortlist.@O@ statschannel.@O@ \
 		tkeyconf.@O@ tsigconf.@O@ update.@O@ xfrout.@O@ \
 		zoneconf.@O@ \
 		lwaddr.@O@ lwresd.@O@ lwdclient.@O@ lwderror.@O@ lwdgabn.@O@ \
@@ -87,7 +89,7 @@ UOBJS =		unix/os.@O@
 SRCS =		builtin.c client.c config.c control.c \
 		controlconf.c interfacemgr.c \
 		listenlist.c log.c logconf.c main.c notify.c \
-		query.c server.c sortlist.c \
+		query.c server.c sortlist.c statschannel.c \
 		tkeyconf.c tsigconf.c update.c xfrout.c \
 		zoneconf.c \
 		lwaddr.c lwresd.c lwdclient.c lwderror.c lwdgabn.c \
@@ -105,6 +107,7 @@ MANOBJS =	${MANPAGES} ${HTMLPAGES}
 main.@O@: main.c
 	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
 		-DVERSION=\"${VERSION}\" \
+		-DCONFIGARGS="\"${CONFIGARGS}\"" \
 		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
 		-DNS_SYSCONFDIR=\"${sysconfdir}\" -c ${srcdir}/main.c
 
@@ -129,6 +132,12 @@ docclean manclean maintainer-clean::
 
 clean distclean maintainer-clean::
 	rm -f ${TARGETS} ${OBJS}
+
+bind9.xsl.h: bind9.xsl convertxsl.pl
+	${PERL} ${srcdir}/convertxsl.pl < ${srcdir}/bind9.xsl > bind9.xsl.h
+
+depend: bind9.xsl.h
+statschannel.@O@: bind9.xsl.h
 
 installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${sbindir}
