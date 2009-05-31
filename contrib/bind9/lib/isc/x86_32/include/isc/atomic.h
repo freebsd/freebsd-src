@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: atomic.h,v 1.2.2.3 2005/07/27 04:23:33 marka Exp $ */
+/* $Id: atomic.h,v 1.10 2008/01/24 23:47:00 tbox Exp $ */
 
 #ifndef ISC_ATOMIC_H
 #define ISC_ATOMIC_H 1
@@ -27,7 +27,7 @@
  * This routine atomically increments the value stored in 'p' by 'val', and
  * returns the previous value.
  */
-static inline isc_int32_t
+static __inline__ isc_int32_t
 isc_atomic_xadd(isc_int32_t *p, isc_int32_t val) {
 	isc_int32_t prev = val;
 
@@ -43,10 +43,28 @@ isc_atomic_xadd(isc_int32_t *p, isc_int32_t val) {
 	return (prev);
 }
 
+#ifdef ISC_PLATFORM_HAVEXADDQ
+static __inline__ isc_int64_t
+isc_atomic_xaddq(isc_int64_t *p, isc_int64_t val) {
+	isc_int64_t prev = val;
+
+	__asm__ volatile(
+#ifdef ISC_PLATFORM_USETHREADS
+	    "lock;"
+#endif
+	    "xaddq %0, %1"
+	    :"=q"(prev)
+	    :"m"(*p), "0"(prev)
+	    :"memory", "cc");
+
+	return (prev);
+}
+#endif /* ISC_PLATFORM_HAVEXADDQ */
+
 /*
  * This routine atomically stores the value 'val' in 'p'.
  */
-static inline void
+static __inline__ void
 isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
 	__asm__ volatile(
 #ifdef ISC_PLATFORM_USETHREADS
@@ -54,7 +72,7 @@ isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
 		 * xchg should automatically lock memory, but we add it
 		 * explicitly just in case (it at least doesn't harm)
 		 */
-		"lock;"		
+		"lock;"
 #endif
 
 		"xchgl %1, %0"
@@ -68,7 +86,7 @@ isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
  * original value is equal to 'cmpval'.  The original value is returned in any
  * case.
  */
-static inline isc_int32_t
+static __inline__ isc_int32_t
 isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 	__asm__ volatile(
 #ifdef ISC_PLATFORM_USETHREADS

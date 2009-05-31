@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_getifaddrs.c,v 1.4.18.5 2007/08/28 07:20:06 tbox Exp $ */
+/* $Id: ifiter_getifaddrs.c,v 1.11 2008/03/20 23:47:00 tbox Exp $ */
 
 /*! \file
  * \brief
@@ -29,6 +29,10 @@
 /*% Valid Iterator */
 #define VALID_IFITER(t)		ISC_MAGIC_VALID(t, IFITER_MAGIC)
 
+#ifdef __linux
+static isc_boolean_t seenv6 = ISC_FALSE;
+#endif
+
 /*% Iterator structure */
 struct isc_interfaceiter {
 	unsigned int		magic;		/*%< Magic number. */
@@ -39,8 +43,12 @@ struct isc_interfaceiter {
 	struct ifaddrs		*pos;		/*%< Ptr to current ifaddr */
 	isc_interface_t		current;	/*%< Current interface data. */
 	isc_result_t		result;		/*%< Last result code. */
+#ifdef  __linux
+	FILE *                  proc;
+	char                    entry[ISC_IF_INET6_SZ];
+	isc_result_t            valid;
+#endif
 };
-
 
 isc_result_t
 isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
@@ -60,6 +68,17 @@ isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 	iter->buf = NULL;
 	iter->bufsize = 0;
 	iter->ifaddrs = NULL;
+#ifdef __linux
+	/*
+	 * Only open "/proc/net/if_inet6" if we have never seen a IPv6
+	 * address returned by getifaddrs().
+	 */
+	if (!seenv6)
+		iter->proc = fopen("/proc/net/if_inet6", "r");
+	else
+		iter->proc = NULL;
+	iter->valid = ISC_R_FAILURE;
+#endif
 
 	if (getifaddrs(&iter->ifaddrs) < 0) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));
@@ -86,6 +105,10 @@ isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 	return (ISC_R_SUCCESS);
 
  failure:
+#ifdef __linux
+	if (iter->proc != NULL)
+		fclose(iter->proc);
+#endif
 	if (iter->ifaddrs != NULL) /* just in case */
 		freeifaddrs(iter->ifaddrs);
 	isc_mem_put(mctx, iter, sizeof(*iter));
@@ -109,6 +132,11 @@ internal_current(isc_interfaceiter_t *iter) {
 
 	ifa = iter->pos;
 
+#ifdef __linux
+	if (iter->pos == NULL)
+		return (linux_if_inet6_current(iter));
+#endif
+
 	INSIST(ifa != NULL);
 	INSIST(ifa->ifa_name != NULL);
 
@@ -118,6 +146,11 @@ internal_current(isc_interfaceiter_t *iter) {
 	family = ifa->ifa_addr->sa_family;
 	if (family != AF_INET && family != AF_INET6)
 		return (ISC_R_IGNORE);
+
+#ifdef __linux
+	if (family == AF_INET6)
+		seenv6 = ISC_TRUE;
+#endif
 
 	memset(&iter->current, 0, sizeof(iter->current));
 
@@ -164,16 +197,28 @@ internal_current(isc_interfaceiter_t *iter) {
  */
 static isc_result_t
 internal_next(isc_interfaceiter_t *iter) {
-	iter->pos = iter->pos->ifa_next;
 
-	if (iter->pos == NULL)
+	if (iter->pos != NULL)
+		iter->pos = iter->pos->ifa_next;
+	if (iter->pos == NULL) {
+#ifdef __linux
+		if (!seenv6)
+			return (linux_if_inet6_next(iter));
+#endif
 		return (ISC_R_NOMORE);
+	}
 
 	return (ISC_R_SUCCESS);
 }
 
 static void
 internal_destroy(isc_interfaceiter_t *iter) {
+
+#ifdef __linux
+	if (iter->proc != NULL)
+		fclose(iter->proc);
+	iter->proc = NULL;
+#endif
 	if (iter->ifaddrs)
 		freeifaddrs(iter->ifaddrs);
 	iter->ifaddrs = NULL;
@@ -181,5 +226,9 @@ internal_destroy(isc_interfaceiter_t *iter) {
 
 static
 void internal_first(isc_interfaceiter_t *iter) {
+
+#ifdef __linux
+	linux_if_inet6_first(iter);
+#endif
 	iter->pos = iter->ifaddrs;
 }

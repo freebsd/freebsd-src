@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.1.6.3 2005/04/29 00:16:29 marka Exp $ */
+/* $Id: lib.h,v 1.7 2007/06/19 23:47:17 tbox Exp $ */
 
 #ifndef DST_LIB_H
 #define DST_LIB_H 1
 
-/*! \file */
+/*! \file dst/lib.h */
 
 #include <isc/types.h>
 #include <isc/lang.h>

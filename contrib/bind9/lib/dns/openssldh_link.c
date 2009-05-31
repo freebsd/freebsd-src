@@ -1,6 +1,19 @@
 /*
- * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC AND NETWORK ASSOCIATES DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE
+ * FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+ * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssldh_link.c,v 1.1.6.10 2007/08/28 07:20:04 tbox Exp $
+ * $Id: openssldh_link.c,v 1.14 2008/04/01 23:47:10 tbox Exp $
  */
 
 #ifdef OPENSSL
@@ -36,8 +49,6 @@
 #include "dst_internal.h"
 #include "dst_openssl.h"
 #include "dst_parse.h"
-
-#include <openssl/dh.h>
 
 #define PRIME768 "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088" \
 	"A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25" \
@@ -71,11 +82,11 @@ openssldh_computesecret(const dst_key_t *pub, const dst_key_t *priv,
 	isc_region_t r;
 	unsigned int len;
 
-	REQUIRE(pub->opaque != NULL);
-	REQUIRE(priv->opaque != NULL);
+	REQUIRE(pub->keydata.dh != NULL);
+	REQUIRE(priv->keydata.dh != NULL);
 
-	dhpub = (DH *) pub->opaque;
-	dhpriv = (DH *) priv->opaque;
+	dhpub = pub->keydata.dh;
+	dhpriv = priv->keydata.dh;
 
 	len = DH_size(dhpriv);
 	isc_buffer_availableregion(secret, &r);
@@ -93,8 +104,8 @@ openssldh_compare(const dst_key_t *key1, const dst_key_t *key2) {
 	int status;
 	DH *dh1, *dh2;
 
-	dh1 = (DH *) key1->opaque;
-	dh2 = (DH *) key2->opaque;
+	dh1 = key1->keydata.dh;
+	dh2 = key2->keydata.dh;
 
 	if (dh1 == NULL && dh2 == NULL)
 		return (ISC_TRUE);
@@ -122,8 +133,8 @@ openssldh_paramcompare(const dst_key_t *key1, const dst_key_t *key2) {
 	int status;
 	DH *dh1, *dh2;
 
-	dh1 = (DH *) key1->opaque;
-	dh2 = (DH *) key2->opaque;
+	dh1 = key1->keydata.dh;
+	dh2 = key2->keydata.dh;
 
 	if (dh1 == NULL && dh2 == NULL)
 		return (ISC_TRUE);
@@ -141,7 +152,7 @@ openssldh_paramcompare(const dst_key_t *key1, const dst_key_t *key2) {
 static isc_result_t
 openssldh_generate(dst_key_t *key, int generator) {
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
-        BN_GENCB cb;
+	BN_GENCB cb;
 #endif
 	DH *dh = NULL;
 
@@ -192,20 +203,20 @@ openssldh_generate(dst_key_t *key, int generator) {
 	}
 	dh->flags &= ~DH_FLAG_CACHE_MONT_P;
 
-	key->opaque = dh;
+	key->keydata.dh = dh;
 
 	return (ISC_R_SUCCESS);
 }
 
 static isc_boolean_t
 openssldh_isprivate(const dst_key_t *key) {
-	DH *dh = (DH *) key->opaque;
+	DH *dh = key->keydata.dh;
 	return (ISC_TF(dh != NULL && dh->priv_key != NULL));
 }
 
 static void
 openssldh_destroy(dst_key_t *key) {
-	DH *dh = key->opaque;
+	DH *dh = key->keydata.dh;
 
 	if (dh == NULL)
 		return;
@@ -215,7 +226,7 @@ openssldh_destroy(dst_key_t *key) {
 	if (dh->g == &bn2)
 		dh->g = NULL;
 	DH_free(dh);
-	key->opaque = NULL;
+	key->keydata.dh = NULL;
 }
 
 static void
@@ -242,9 +253,9 @@ openssldh_todns(const dst_key_t *key, isc_buffer_t *data) {
 	isc_region_t r;
 	isc_uint16_t dnslen, plen, glen, publen;
 
-	REQUIRE(key->opaque != NULL);
+	REQUIRE(key->keydata.dh != NULL);
 
-	dh = (DH *) key->opaque;
+	dh = key->keydata.dh;
 
 	isc_buffer_availableregion(data, &r);
 
@@ -401,7 +412,7 @@ openssldh_fromdns(dst_key_t *key, isc_buffer_t *data) {
 
 	isc_buffer_forward(data, plen + glen + publen + 6);
 
-	key->opaque = (void *) dh;
+	key->keydata.dh = dh;
 
 	return (ISC_R_SUCCESS);
 }
@@ -414,10 +425,10 @@ openssldh_tofile(const dst_key_t *key, const char *directory) {
 	unsigned char *bufs[4];
 	isc_result_t result;
 
-	if (key->opaque == NULL)
+	if (key->keydata.dh == NULL)
 		return (DST_R_NULLKEY);
 
-	dh = (DH *) key->opaque;
+	dh = key->keydata.dh;
 
 	for (i = 0; i < 4; i++) {
 		bufs[i] = isc_mem_get(key->mctx, BN_num_bytes(dh->p));
@@ -484,7 +495,7 @@ openssldh_parse(dst_key_t *key, isc_lex_t *lexer) {
 	if (dh == NULL)
 		DST_RET(ISC_R_NOMEMORY);
 	dh->flags &= ~DH_FLAG_CACHE_MONT_P;
-	key->opaque = dh;
+	key->keydata.dh = dh;
 
 	for (i = 0; i < priv.nelements; i++) {
 		BIGNUM *bn;
@@ -597,6 +608,7 @@ static dst_func_t openssldh_functions = {
 	openssldh_tofile,
 	openssldh_parse,
 	openssldh_cleanup,
+	NULL, /*%< fromlabel */
 };
 
 isc_result_t
