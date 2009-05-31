@@ -805,6 +805,7 @@ product AINCOMM AWU2000B	0x1001	AWU2000B Wireless Adapter
 /* AIPTEK products */
 product AIPTEK POCKETCAM3M	0x2011	PocketCAM 3Mega
 product AIPTEK2 PENCAM_MEGA_1_3 0x504a	PenCam Mega 1.3
+product AIPTEK2 SUNPLUS_TECH	0x0c15	Sunplus Technology Inc.
 
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
