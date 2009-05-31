@@ -220,6 +220,8 @@ int	kern_utimesat(struct thread *td, int fd, char *path,
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
 int	kern_writev(struct thread *td, int fd, struct uio *auio);
+int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
+	    int *rsv);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */
