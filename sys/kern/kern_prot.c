@@ -1748,7 +1748,11 @@ p_canwait(struct thread *td, struct proc *p)
 
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((error = prison_check(td->td_ucred, p->p_ucred)))
+	if (
+#ifdef VIMAGE /* XXX temporary until struct vimage goes away */
+	    !vi_child_of(TD_TO_VIMAGE(td), P_TO_VIMAGE(p)) &&
+#endif
+	    (error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
 #ifdef MAC
 	if ((error = mac_proc_check_wait(td->td_ucred, p)))

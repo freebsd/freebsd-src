@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2006-2008 University of Zagreb
- * Copyright (c) 2006-2008 FreeBSD Foundation
+ * Copyright (c) 2006-2009 University of Zagreb
+ * Copyright (c) 2006-2009 FreeBSD Foundation
  *
  * This software was developed by the University of Zagreb and the
  * FreeBSD Foundation under sponsorship by the Stichting NLnet and the
@@ -36,6 +36,31 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 
+/* Interim userspace API. */
+struct vi_req {
+	int	vi_api_cookie;		/* Catch API mismatch. */
+	int	vi_req_action;		/* What to do with this request? */
+	u_short	vi_proc_count;		/* Current number of processes. */
+	int	vi_if_count;		/* Current number of ifnets. */
+	int	vi_sock_count;
+	char	vi_name[MAXPATHLEN];
+	char	vi_if_xname[MAXPATHLEN]; /* XXX should be IFNAMSIZ */
+};
+
+#define	VI_CREATE		0x00000001
+#define	VI_DESTROY		0x00000002
+#define	VI_SWITCHTO		0x00000008
+#define	VI_IFACE		0x00000010
+#define	VI_GET			0x00000100
+#define	VI_GETNEXT		0x00000200
+#define	VI_GETNEXT_RECURSE	0x00000300
+
+#define	VI_API_VERSION		1		/* Bump on struct changes. */
+
+#define	VI_API_COOKIE		((sizeof(struct vi_req) << 16) | VI_API_VERSION)
+
+#ifdef _KERNEL
+
 #if defined(VIMAGE) && defined(VIMAGE_GLOBALS)
 #error "You cannot have both option VIMAGE and option VIMAGE_GLOBALS!"
 #endif
@@ -46,6 +71,8 @@
 
 struct vprocg;
 struct vnet;
+struct vi_req;
+struct ifnet;
 struct kld_sym_lookup;
 
 typedef int vnet_attach_fn(const void *);
@@ -129,6 +156,9 @@ struct vnet_modlink {
 #define	V_MOD_vprocg		0	/* no minor module ids like in vnet */
 
 int	vi_symlookup(struct kld_sym_lookup *, char *);
+int	vi_td_ioctl(u_long, struct vi_req *, struct thread *);
+int	vi_if_move(struct vi_req *, struct ifnet *, struct vimage *);
+int	vi_child_of(struct vimage *, struct vimage *);
 void	vnet_mod_register(const struct vnet_modinfo *);
 void	vnet_mod_register_multi(const struct vnet_modinfo *, void *, char *);
 void	vnet_mod_deregister(const struct vnet_modinfo *);
@@ -448,5 +478,7 @@ extern struct vprocg_list_head vprocg_head;
 #else
 #define	VIMAGE_CTASSERT(x, y)		struct __hack
 #endif
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_VIMAGE_H_ */
