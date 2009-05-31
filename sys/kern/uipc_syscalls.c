@@ -588,51 +588,43 @@ done1:
 }
 
 int
-socketpair(td, uap)
-	struct thread *td;
-	struct socketpair_args /* {
-		int	domain;
-		int	type;
-		int	protocol;
-		int	*rsv;
-	} */ *uap;
+kern_socketpair(struct thread *td, int domain, int type, int protocol,
+    int *rsv)
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp1, *fp2;
 	struct socket *so1, *so2;
-	int fd, error, sv[2];
+	int fd, error;
 
 #ifdef MAC
 	/* We might want to have a separate check for socket pairs. */
-	error = mac_socket_check_create(td->td_ucred, uap->domain, uap->type,
-	    uap->protocol);
+	error = mac_socket_check_create(td->td_ucred, domain, type,
+	    protocol);
 	if (error)
 		return (error);
 #endif
 
-	error = socreate(uap->domain, &so1, uap->type, uap->protocol,
-	    td->td_ucred, td);
+	error = socreate(domain, &so1, type, protocol, td->td_ucred, td);
 	if (error)
 		return (error);
-	error = socreate(uap->domain, &so2, uap->type, uap->protocol,
-	    td->td_ucred, td);
+	error = socreate(domain, &so2, type, protocol, td->td_ucred, td);
 	if (error)
 		goto free1;
 	/* On success extra reference to `fp1' and 'fp2' is set by falloc. */
 	error = falloc(td, &fp1, &fd);
 	if (error)
 		goto free2;
-	sv[0] = fd;
+	rsv[0] = fd;
 	fp1->f_data = so1;	/* so1 already has ref count */
 	error = falloc(td, &fp2, &fd);
 	if (error)
 		goto free3;
 	fp2->f_data = so2;	/* so2 already has ref count */
-	sv[1] = fd;
+	rsv[1] = fd;
 	error = soconnect2(so1, so2);
 	if (error)
 		goto free4;
-	if (uap->type == SOCK_DGRAM) {
+	if (type == SOCK_DGRAM) {
 		/*
 		 * Datagram socket connection is asymmetric.
 		 */
@@ -642,18 +634,14 @@ socketpair(td, uap)
 	}
 	finit(fp1, FREAD | FWRITE, DTYPE_SOCKET, fp1->f_data, &socketops);
 	finit(fp2, FREAD | FWRITE, DTYPE_SOCKET, fp2->f_data, &socketops);
-	so1 = so2 = NULL;
-	error = copyout(sv, uap->rsv, 2 * sizeof (int));
-	if (error)
-		goto free4;
 	fdrop(fp1, td);
 	fdrop(fp2, td);
 	return (0);
 free4:
-	fdclose(fdp, fp2, sv[1], td);
+	fdclose(fdp, fp2, rsv[1], td);
 	fdrop(fp2, td);
 free3:
-	fdclose(fdp, fp1, sv[0], td);
+	fdclose(fdp, fp1, rsv[0], td);
 	fdrop(fp1, td);
 free2:
 	if (so2 != NULL)
@@ -661,6 +649,23 @@ free2:
 free1:
 	if (so1 != NULL)
 		(void)soclose(so1);
+	return (error);
+}
+
+int
+socketpair(struct thread *td, struct socketpair_args *uap)
+{
+	int error, sv[2];
+
+	error = kern_socketpair(td, uap->domain, uap->type,
+	    uap->protocol, sv);
+	if (error)
+		return (error);
+	error = copyout(sv, uap->rsv, 2 * sizeof(int));
+	if (error) {
+		(void)kern_close(td, sv[0]);
+		(void)kern_close(td, sv[1]);
+	}
 	return (error);
 }
 
