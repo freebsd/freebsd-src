@@ -884,12 +884,20 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 		int protocol;
 		int *rsv;
 	} */ bsd_args;
+	int error, socket_flags;
+	int sv[2];
 
 	bsd_args.domain = linux_to_bsd_domain(args->domain);
 	if (bsd_args.domain != PF_LOCAL)
 		return (EAFNOSUPPORT);
 
-	bsd_args.type = args->type;
+	socket_flags = args->type & ~LINUX_SOCK_TYPE_MASK;
+	if (socket_flags & ~(LINUX_SOCK_CLOEXEC | LINUX_SOCK_NONBLOCK))
+		return (EINVAL);
+	bsd_args.type = args->type & LINUX_SOCK_TYPE_MASK;
+	if (bsd_args.type < 0 || bsd_args.type > LINUX_SOCK_MAX)
+		return (EINVAL);
+
 	if (args->protocol != 0 && args->protocol != PF_UNIX)
 
 		/*
@@ -902,7 +910,25 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 	else
 		bsd_args.protocol = 0;
 	bsd_args.rsv = (int *)PTRIN(args->rsv);
-	return (socketpair(td, &bsd_args));
+	error = kern_socketpair(td, bsd_args.domain, bsd_args.type,
+	    bsd_args.protocol, sv);
+	if (error)
+		return (error);
+	error = linux_set_socket_flags(td, sv[0], socket_flags);
+	if (error)
+		goto out;
+	error = linux_set_socket_flags(td, sv[1], socket_flags);
+	if (error)
+		goto out;
+
+	error = copyout(sv, bsd_args.rsv, 2 * sizeof(int));
+
+out:
+	if (error) {
+		(void)kern_close(td, sv[0]);
+		(void)kern_close(td, sv[1]);
+	}
+	return (error);
 }
 
 struct linux_send_args {
