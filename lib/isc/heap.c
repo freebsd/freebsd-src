@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.c,v 1.30.18.3 2006/04/17 18:27:33 explorer Exp $ */
+/* $Id: heap.c,v 1.37 2007/10/19 17:15:53 explorer Exp $ */
 
 /*! \file
  * Heap implementation of priority queues adapted from the following:
@@ -208,9 +208,13 @@ isc_heap_delete(isc_heap_t *heap, unsigned int index) {
 	REQUIRE(index >= 1 && index <= heap->last);
 
 	if (index == heap->last) {
+		heap->array[heap->last] = NULL;
 		heap->last--;
 	} else {
-		elt = heap->array[heap->last--];
+		elt = heap->array[heap->last];
+		heap->array[heap->last] = NULL;
+		heap->last--;
+
 		less = heap->compare(elt, heap->array[index]);
 		heap->array[index] = elt;
 		if (less)
@@ -239,9 +243,11 @@ isc_heap_decreased(isc_heap_t *heap, unsigned int index) {
 void *
 isc_heap_element(isc_heap_t *heap, unsigned int index) {
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1 && index <= heap->last);
+	REQUIRE(index >= 1);
 
-	return (heap->array[index]);
+	if (index <= heap->last)
+		return (heap->array[index]);
+	return (NULL);
 }
 
 void

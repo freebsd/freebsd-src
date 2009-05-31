@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rcode.h,v 1.13.18.2 2005/04/29 00:16:18 marka Exp $ */
+/* $Id: rcode.h,v 1.21 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef DNS_RCODE_H
 #define DNS_RCODE_H 1
 
-/*! \file */
+/*! \file dns/rcode.h */
 
 #include <isc/lang.h>
 
@@ -91,6 +91,21 @@ isc_result_t dns_tsigrcode_totext(dns_rcode_t rcode, isc_buffer_t *target);
  * Returns:
  *\li	#ISC_R_SUCCESS			on success
  *\li	#ISC_R_NOSPACE			target buffer is too small
+ */
+
+isc_result_t
+dns_hashalg_fromtext(unsigned char *hashalg, isc_textregion_t *source);
+/*%<
+ * Convert the text 'source' refers to into a has algorithm value.
+ *
+ * Requires:
+ *\li	'hashalg' is a valid pointer.
+ *
+ *\li	'source' is a valid text region.
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS			on success
+ *\li	#DNS_R_UNKNOWN			type is unknown
  */
 
 ISC_LANG_ENDDECLS
