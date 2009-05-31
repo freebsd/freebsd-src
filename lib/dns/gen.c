@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen.c,v 1.73.18.6 2006/10/02 06:36:43 marka Exp $ */
+/* $Id: gen.c,v 1.83 2008/09/25 04:02:38 tbox Exp $ */
 
 /*! \file */
 
@@ -40,6 +40,8 @@
 #else
 #include "gen-unix.h"
 #endif
+
+#define TYPECLASSLEN 21
 
 #define FROMTEXTARGS "rdclass, type, lexer, origin, options, target, callbacks"
 #define FROMTEXTCLASS "rdclass"
@@ -134,21 +136,21 @@ const char copyright[] =
 struct cc {
 	struct cc *next;
 	int rdclass;
-	char classname[11];
+	char classname[TYPECLASSLEN];
 } *classes;
 
 struct tt {
 	struct tt *next;
 	int rdclass;
 	int type;
-	char classname[11];
-	char typename[11];
+	char classname[TYPECLASSLEN];
+	char typename[TYPECLASSLEN];
 	char dirname[256];		/* XXX Should be max path length */
 } *types;
 
 struct ttnam {
-	char typename[11];
-	char macroname[11];
+	char typename[TYPECLASSLEN];
+	char macroname[TYPECLASSLEN];
 	char attr[256];
 	unsigned int sorted;
 	int type;
@@ -215,7 +217,7 @@ doswitch(const char *name, const char *function, const char *args,
 	int first = 1;
 	int lasttype = 0;
 	int subswitch = 0;
-	char buf1[11], buf2[11];
+	char buf1[TYPECLASSLEN], buf2[TYPECLASSLEN];
 	const char *result = " result =";
 
 	if (res == NULL)
@@ -281,7 +283,7 @@ doswitch(const char *name, const char *function, const char *args,
 void
 dodecl(char *type, char *function, char *args) {
 	struct tt *tt;
-	char buf1[11], buf2[11];
+	char buf1[TYPECLASSLEN], buf2[TYPECLASSLEN];
 
 	fputs("\n", stdout);
 	for (tt = types; tt; tt = tt->next)
@@ -332,7 +334,7 @@ insert_into_typenames(int type, const char *typename, const char *attr) {
 		fprintf(stderr, "Error: typenames array too small\n");
 		exit(1);
 	}
-	
+
 	if (strlen(typename) > sizeof(ttn->typename) - 1) {
 		fprintf(stderr, "Error:  type name %s is too long\n",
 			typename);
@@ -392,6 +394,8 @@ add(int rdclass, const char *classname, int type, const char *typename,
 	newtt->type = type;
 	strcpy(newtt->classname, classname);
 	strcpy(newtt->typename, typename);
+	if (strncmp(dirname, "./", 2) == 0)
+		dirname += 2;
 	strcpy(newtt->dirname, dirname);
 
 	tt = types;
@@ -449,16 +453,16 @@ add(int rdclass, const char *classname, int type, const char *typename,
 
 void
 sd(int rdclass, const char *classname, const char *dirname, char filetype) {
-	char buf[sizeof("0123456789_65535.h")];
-	char fmt[sizeof("%10[-0-9a-z]_%d.h")];
+	char buf[sizeof("01234567890123456789_65535.h")];
+	char fmt[sizeof("%20[-0-9a-z]_%d.h")];
 	int type;
-	char typename[11];
+	char typename[TYPECLASSLEN];
 	isc_dir_t dir;
 
 	if (!start_directory(dirname, &dir))
 		return;
 
-	sprintf(fmt,"%s%c", "%10[-0-9a-z]_%d.", filetype);
+	sprintf(fmt,"%s%c", "%20[-0-9a-z]_%d.", filetype);
 	while (next_file(&dir)) {
 		if (sscanf(dir.filename, fmt, typename, &type) != 2)
 			continue;
@@ -495,7 +499,7 @@ main(int argc, char **argv) {
 	char buf[256];			/* XXX Should be max path length */
 	char srcdir[256];		/* XXX Should be max path length */
 	int rdclass;
-	char classname[11];
+	char classname[TYPECLASSLEN];
 	struct tt *tt;
 	struct cc *cc;
 	struct ttnam *ttn, *ttn2;
@@ -510,7 +514,7 @@ main(int argc, char **argv) {
 	int structs = 0;
 	int depend = 0;
 	int c, i, j;
-	char buf1[11];
+	char buf1[TYPECLASSLEN];
 	char filetype = 'c';
 	FILE *fd;
 	char *prefix = NULL;
@@ -594,7 +598,7 @@ main(int argc, char **argv) {
 	sd(0, "", buf, filetype);
 
 	if (time(&now) != -1) {
-		if ((tm = localtime(&now)) != NULL && tm->tm_year > 104) 
+		if ((tm = localtime(&now)) != NULL && tm->tm_year > 104)
 			sprintf(year, "-%d", tm->tm_year + 1900);
 		else
 			year[0] = 0;
@@ -692,7 +696,7 @@ main(int argc, char **argv) {
 				"\t\t    strncasecmp(_s,(_tn),"
 				"(sizeof(_s) - 1)) == 0) { \\\n");
 		fprintf(stdout, "\t\t\tif ((dns_rdatatype_attributes(_d) & "
-		       		  "DNS_RDATATYPEATTR_RESERVED) != 0) \\\n");
+				  "DNS_RDATATYPEATTR_RESERVED) != 0) \\\n");
 		fprintf(stdout, "\t\t\t\treturn (ISC_R_NOTIMPLEMENTED); \\\n");
 		fprintf(stdout, "\t\t\t*(_tp) = _d; \\\n");
 		fprintf(stdout, "\t\t\treturn (ISC_R_SUCCESS); \\\n");
@@ -743,7 +747,7 @@ main(int argc, char **argv) {
 			if (ttn == NULL)
 				continue;
 			fprintf(stdout, "\tcase %u: return (%s); \\\n",
-			        i, upper(ttn->attr));
+				i, upper(ttn->attr));
 		}
 		fprintf(stdout, "\t}\n");
 
@@ -755,7 +759,7 @@ main(int argc, char **argv) {
 				continue;
 			fprintf(stdout, "\tcase %u: return "
 				"(str_totext(\"%s\", target)); \\\n",
-			        i, upper(ttn->typename));
+				i, upper(ttn->typename));
 		}
 		fprintf(stdout, "\t}\n");
 

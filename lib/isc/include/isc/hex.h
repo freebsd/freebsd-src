@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hex.h,v 1.5.18.2 2005/04/29 00:16:55 marka Exp $ */
+/* $Id: hex.h,v 1.13 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef ISC_HEX_H
 #define ISC_HEX_H 1
 
-/*! \file */
+/*! \file isc/hex.h */
 
 #include <isc/lang.h>
 #include <isc/types.h>
@@ -56,7 +56,7 @@ isc_hex_totext(isc_region_t *source, int wordlength,
  */
 
 isc_result_t
-isc_hex_decodestring(char *cstr, isc_buffer_t *target);
+isc_hex_decodestring(const char *cstr, isc_buffer_t *target);
 /*!<
  * \brief Decode a null-terminated hex string.
  *
