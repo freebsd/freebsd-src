@@ -445,8 +445,6 @@ bsd_to_linux_cmsg_type(int cmsg_type)
 	return (-1);
 }
 
-
-
 static int
 linux_to_bsd_msghdr(struct msghdr *bhdr, const struct l_msghdr *lhdr)
 {
