@@ -3673,47 +3673,6 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 }
 
 /*
- *	vfs_bio_set_validclean:
- *
- *	Set the range within the buffer to valid and clean.  The range is 
- *	relative to the beginning of the buffer, b_offset.  Note that b_offset
- *	itself may be offset from the beginning of the first page.
- *
- */
-
-void   
-vfs_bio_set_validclean(struct buf *bp, int base, int size)
-{
-	int i, n;
-	vm_page_t m;
-
-	if (!(bp->b_flags & B_VMIO))
-		return;
-	/*
-	 * Fixup base to be relative to beginning of first page.
-	 * Set initial n to be the maximum number of bytes in the
-	 * first page that can be validated.
-	 */
-
-	base += (bp->b_offset & PAGE_MASK);
-	n = PAGE_SIZE - (base & PAGE_MASK);
-
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
-	vm_page_lock_queues();
-	for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
-		m = bp->b_pages[i];
-		if (n > size)
-			n = size;
-		vm_page_set_validclean(m, base & PAGE_MASK, n);
-		base += n;
-		size -= n;
-		n = PAGE_SIZE;
-	}
-	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
-}
-
-/*
  *	vfs_bio_clrbuf:
  *
  *	If the specified buffer is a non-VMIO buffer, clear the entire
