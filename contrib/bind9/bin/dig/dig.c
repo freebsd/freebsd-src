@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.186.18.33 2008/10/15 02:19:18 marka Exp $ */
+/* $Id: dig.c,v 1.225.26.4 2009/05/06 10:18:33 fdupont Exp $ */
 
 /*! \file */
 
@@ -111,6 +111,24 @@ static const char * const rcodetext[] = {
 	"BADVERS"
 };
 
+/*% safe rcodetext[] */
+static char *
+rcode_totext(dns_rcode_t rcode)
+{
+	static char buf[sizeof("?65535")];
+	union {
+		const char *consttext;
+		char *deconsttext;
+	} totext;
+
+	if (rcode >= (sizeof(rcodetext)/sizeof(rcodetext[0]))) {
+		snprintf(buf, sizeof(buf), "?%u", rcode);
+		totext.deconsttext = buf;
+	} else
+		totext.consttext = rcodetext[rcode];
+	return totext.deconsttext;
+}
+
 /*% print usage */
 static void
 print_usage(FILE *fp) {
@@ -195,6 +213,7 @@ help(void) {
 "                 +[no]identify       (ID responders in short answers)\n"
 "                 +[no]trace          (Trace delegation down from root)\n"
 "                 +[no]dnssec         (Request DNSSEC records)\n"
+"                 +[no]nsid           (Request Name Server ID)\n"
 #ifdef DIG_SIGCHASE
 "                 +[no]sigchase       (Chase DNSSEC signatures)\n"
 "                 +trusted-key=####   (Trusted Key when chasing DNSSEC sigs)\n"
@@ -468,7 +487,8 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 		if (headers) {
 			printf(";; ->>HEADER<<- opcode: %s, status: %s, "
 			       "id: %u\n",
-			       opcodetext[msg->opcode], rcodetext[msg->rcode],
+			       opcodetext[msg->opcode],
+			       rcode_totext(msg->rcode),
 			       msg->id);
 			printf(";; flags:");
 			if ((msg->flags & DNS_MESSAGEFLAG_QR) != 0)
@@ -640,9 +660,9 @@ printgreeting(int argc, char **argv, dig_lookup_t *lookup) {
 		}
 		if (first) {
 			snprintf(append, sizeof(append),
-				 ";; global options: %s %s\n",
-			       short_form ? "short_form" : "",
-			       printcmd ? "printcmd" : "");
+				 ";; global options:%s%s\n",
+				 short_form ? " +short" : "",
+				 printcmd ? " +cmd" : "");
 			first = ISC_FALSE;
 			remaining = sizeof(lookup->cmdline) -
 				    strlen(lookup->cmdline) - 1;
@@ -800,7 +820,9 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 		switch (cmd[1]) {
 		case 'e': /* defname */
 			FULLCHECK("defname");
-			usesearch = state;
+			if (!lookup->trace) {
+				usesearch = state;
+			}
 			break;
 		case 'n': /* dnssec */
 			FULLCHECK("dnssec");
@@ -842,7 +864,7 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 			lookup->identify = state;
 			break;
 		case 'g': /* ignore */
-		default: /* Inherets default for compatibility */
+		default: /* Inherits default for compatibility */
 			FULLCHECK("ignore");
 			lookup->ignore = ISC_TRUE;
 		}
@@ -861,21 +883,33 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 				goto invalid_option;
 			ndots = parse_uint(value, "ndots", MAXNDOTS);
 			break;
-		case 's': /* nssearch */
-			FULLCHECK("nssearch");
-			lookup->ns_search_only = state;
-			if (state) {
-				lookup->trace_root = ISC_TRUE;
-				lookup->recurse = ISC_TRUE;
-				lookup->identify = ISC_TRUE;
-				lookup->stats = ISC_FALSE;
-				lookup->comments = ISC_FALSE;
-				lookup->section_additional = ISC_FALSE;
-				lookup->section_authority = ISC_FALSE;
-				lookup->section_question = ISC_FALSE;
-				lookup->rdtype = dns_rdatatype_ns;
-				lookup->rdtypeset = ISC_TRUE;
-				short_form = ISC_TRUE;
+		case 's':
+			switch (cmd[2]) {
+			case 'i': /* nsid */
+				FULLCHECK("nsid");
+				if (state && lookup->edns == -1)
+					lookup->edns = 0;
+				lookup->nsid = state;
+				break;
+			case 's': /* nssearch */
+				FULLCHECK("nssearch");
+				lookup->ns_search_only = state;
+				if (state) {
+					lookup->trace_root = ISC_TRUE;
+					lookup->recurse = ISC_TRUE;
+					lookup->identify = ISC_TRUE;
+					lookup->stats = ISC_FALSE;
+					lookup->comments = ISC_FALSE;
+					lookup->section_additional = ISC_FALSE;
+					lookup->section_authority = ISC_FALSE;
+					lookup->section_question = ISC_FALSE;
+					lookup->rdtype = dns_rdatatype_ns;
+					lookup->rdtypeset = ISC_TRUE;
+					short_form = ISC_TRUE;
+				}
+				break;
+			default:
+				goto invalid_option;
 			}
 			break;
 		default:
@@ -928,7 +962,9 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 		switch (cmd[1]) {
 		case 'e': /* search */
 			FULLCHECK("search");
-			usesearch = state;
+			if (!lookup->trace) {
+				usesearch = state;
+			}
 			break;
 		case 'h':
 			if (cmd[2] != 'o')
@@ -949,8 +985,10 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 				break;
 			case 'w': /* showsearch */
 				FULLCHECK("showsearch");
-				showsearch = state;
-				usesearch = state;
+				if (!lookup->trace) {
+					showsearch = state;
+					usesearch = state;
+				}
 				break;
 			default:
 				goto invalid_option;
@@ -1009,6 +1047,7 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 					lookup->section_additional = ISC_FALSE;
 					lookup->section_authority = ISC_TRUE;
 					lookup->section_question = ISC_FALSE;
+					usesearch = ISC_FALSE;
 				}
 				break;
 			case 'i': /* tries */
@@ -1254,6 +1293,7 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 						MAXSERIAL);
 				(*lookup)->section_question = plusquest;
 				(*lookup)->comments = pluscomm;
+				(*lookup)->tcp_mode = ISC_TRUE;
 			} else {
 				(*lookup)->rdtype = rdtype;
 				(*lookup)->rdtypeset = ISC_TRUE;
@@ -1594,6 +1634,7 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 						lookup->section_question =
 							plusquest;
 						lookup->comments = pluscomm;
+						lookup->tcp_mode = ISC_TRUE;
 					} else {
 						lookup->rdtype = rdtype;
 						lookup->rdtypeset = ISC_TRUE;

@@ -42,29 +42,50 @@ BIND 9
 		Stichting NLnet - NLnet Foundation
 		Nominum, Inc.
 
-BIND 9.4.3
+BIND 9.6.0
 
-	BIND 9.4.3 is a maintenance release, fixing bugs in 9.4.2.
+        BIND 9.6.0 includes a number of changes from BIND 9.5 and earlier
+        releases, including:
 
-BIND 9.4.2
+        Full NSEC3 support
 
-	BIND 9.4.2 is a maintenance release, containing fixes for
-	a number of bugs in 9.4.1.
+        Automatic zone re-signing
 
-	Warning: If you installed BIND 9.4.2rc1 then any applications
-	linked against this release candidate will need to be rebuilt.
+	New update-policy methods tcp-self and 6to4-self
 
-BIND 9.4.1
+        The BIND 8 resolver library, libbind, has been removed from the
+        BIND 9 distribution and is now available as a separate download.
 
-	BIND 9.4.1 is a security release, containing a fix for
-	a security bugs in 9.4.0.
+	Change the default pid file location from /var/run to
+	/var/run/{named,lwresd} for improved chroot/setuid support.
+
+BIND 9.5.0
+
+	BIND 9.5.0 has a number of new features over 9.4,
+	including:
+
+	GSS-TSIG support (RFC 3645).
+
+	DHCID support.
+
+	Experimental http server and statistics support for named via xml.
+
+	More detailed statistics counters including those supported in BIND 8.
+
+	Faster ACL processing.
+
+	Use Doxygen to generate internal documentation.
+
+        Efficient LRU cache-cleaning mechanism.
+
+        NSID support.
 
 BIND 9.4.0
 
 	BIND 9.4.0 has a number of new features over 9.3,
 	including:
 
-	Implemented "additional section caching" (or "acache"), an
+	Implemented "additional section caching (or acache)", an
 	internal cache framework for additional section content to
 	improve response performance.  Several configuration options
 	were provided to control the behavior.
@@ -76,13 +97,14 @@ BIND 9.4.0
 
 	rndc now allows addresses to be set in the server clauses.
 
-	New option "allow-query-cache".  This lets allow-query be
-	used to specify the default zone access level rather than
-	having to have every zone override the global value.
-	allow-query-cache can be set at both the options and view
-	levels. If allow-query-cache is not set then allow-recursion
-	is used if set, otherwise allow-query is used if set, otherwise
-	the default (localhost; localnets;) is used.
+	New option "allow-query-cache".  This lets "allow-query"
+	be used to specify the default zone access level rather
+	than having to have every zone override the global value.
+	"allow-query-cache" can be set at both the options and view
+	levels.  If "allow-query-cache" is not set then "allow-recursion"
+	is used if set, otherwise "allow-query" is used if set
+	unless "recursion no;" is set in which case "none;" is used,
+	otherwise the default (localhost; localnets;) is used.
 
 	rndc: the source address can now be specified.
 
@@ -155,10 +177,11 @@ BIND 9.4.0
 
 	Add support for CH A record.
 
-	Add additional zone data consistancy checks.  named-checkzone
+	Add additional zone data constancy checks.  named-checkzone
 	has extended checking of NS, MX and SRV record and the hosts
 	they reference.  named has extended post zone load checks.
 	New zone options: check-mx and integrity-check.
+
 
 	edns-udp-size can now be overridden on a per server basis.
 
@@ -172,7 +195,7 @@ BIND 9.4.0
 	Detect duplicates of UDP queries we are recursing on and
 	drop them.  New stats category "duplicates".
 
-	Memory management. "USE INTERNAL MALLOC" is now runtime selectable.
+	"USE INTERNAL MALLOC" is now runtime selectable.
 
 	The lame cache is now done on a <qname,qclass,qtype> basis
 	as some servers only appear to be lame for certain query
@@ -187,9 +210,9 @@ BIND 9.4.0
 
 	Support for IPSECKEY rdata type.
 
-	Raise the UDP receive buffer size to 32k if it is less than 32k.
+	Raise the UDP recieve buffer size to 32k if it is less than 32k.
 
-	x86 and x86_64 now have separate atomic locking implementations.
+	x86 and x86_64 now have seperate atomic locking implementations.
 
 	named-checkconf now validates update-policy entries.
 
@@ -217,69 +240,9 @@ BIND 9.4.0
 	to set 'RA' when 'RD' is set unless a server is explicitly
 	set.
 
-	Integrate contributed DLZ code into named.
+	Integrate contibuted DLZ code into named.
 
-	Integrate contributed IDN code from JPNIC.
-
-	Validate pending NS RRsets, in the authority section, prior
-	to returning them if it can be done without requiring DNSKEYs
-	to be fetched.
-
-	It is now possible to configure named to accept expired
-	RRSIGs.  Default "dnssec-accept-expired no;".  Setting
-	"dnssec-accept-expired yes;" leaves named vulnerable to
-	replay attacks.
-
-	Additional memory leakage checks.
-
-	The maximum EDNS UDP response named will send can now be
-	set in named.conf (max-udp-size).  This is independent of
-	the advertised receive buffer (edns-udp-size).
-
-	Named now falls back to advertising EDNS with a 512 byte
-	receive buffer if the initial EDNS queries fail.
-
-	Control the zeroing of the negative response TTL to a soa
-	query.  Defaults "zero-no-soa-ttl yes;" and
-	"zero-no-soa-ttl-cache no;".
-			
-	Separate out MX and SRV to CNAME checks.
-
-	dig/nslookup/host: warn about missing "QR".
-
-	TSIG HMACSHA1, HMACSHA224, HMACSHA256, HMACSHA384 and
-	HMACSHA512 support.
-
-	dnssec-signzone: output the SOA record as the first record
-	in the signed zone.
-
-	Two new update policies.  "selfsub" and "selfwild".
-
-	dig, nslookup and host now advertise a 4096 byte EDNS UDP
-	buffer size by default.
-
-	Report when a zone is removed.
-
-	DS/DLV SHA256 digest algorithm support.
-
-	Implement "rrset-order fixed".
-
-	Check the KSK flag when updating a secure dynamic zone.
-	New zone option "update-check-ksk yes;".
-
-	It is now possible to explicitly enable DNSSEC validation.
-	default dnssec-validation no; to be changed to yes in 9.5.0.
-
-	It is now possible to enable/disable DNSSEC validation
-	from rndc.  This is useful for the mobile hosts where the
-	current connection point breaks DNSSEC (firewall/proxy).
-
-		rndc validation newstate [view]
-
-	dnssec-signzone can now update the SOA record of the signed
-	zone, either as an increment or as the system time().
-
-	Statistics about acache now recorded and sent to log.
+	Integrate contibuted IDN code from JPNIC.
 
 	libbind: corresponds to that from BIND 8.4.7.
 
@@ -423,31 +386,35 @@ Building
 	We've had successful builds and tests on the following systems:
 
 		COMPAQ Tru64 UNIX 5.1B
+		Fedora Core 6
 		FreeBSD 4.10, 5.2.1, 6.2
 		HP-UX 11.11
-		NetBSD 1.5
-		Slackware Linux 8.1
-		Solaris 8, 9, 9 (x86)
+		Mac OS X 10.5
+		NetBSD 3.x and 4.0-beta
+		OpenBSD 3.3 and up
+		Solaris 8, 9, 9 (x86), 10
+		Ubuntu 7.04, 7.10
 		Windows XP/2003/2008
 
         NOTE:  As of BIND 9.5.1, 9.4.3, and 9.3.6, older versions of
         Windows, including Windows NT and Windows 2000, are no longer
         supported.
 
-	Additionally, we have unverified reports of success building
-	previous versions of BIND 9 from users of the following systems:
+	We have recent reports from the user community that a supported
+	version of BIND will build and run on the following systems:
 
-		AIX 5L
-		SuSE Linux 7.0
-		Slackware Linux 7.x, 8.0
-	        Red Hat Linux 7.1
-		Debian GNU/Linux 2.2 and 3.0
-		Mandrake 8.1
-		OpenBSD 2.6, 2.8, 2.9, 3.1, 3.6, 3.8
-		UnixWare 7.1.1
-		HP-UX 10.20
-		BSD/OS 4.2
-		Mac OS X 10.1, 10.3.8
+		AIX 4.3, 5L
+		CentOS 4, 4.5, 5
+		Darwin 9.0.0d1/ARM
+		Debian 4
+		Fedora Core 5, 7
+		FreeBSD 6.1
+		HP-UX 11.23 PA
+		MacOS X 10.4, 10.5
+		Red Hat Enterprise Linux 4, 5
+		SCO OpenServer 5.0.6
+		Slackware 9, 10
+		SuSE 9, 10
 
 	To build, just
 
@@ -484,12 +451,13 @@ Building
 				    -DDIG_SIGCHASE_BU=1)
 		Disable dropping queries from particular well known ports.
 		  -DNS_CLIENT_DROPPORT=0
-		Disable support for "rrset-order fixed".
-		  -DDNS_RDATASET_FIXED=0
-		Sibling glue checking in named-checkzone is enabled by default.
+	        Sibling glue checking in named-checkzone is enabled by default.
 		To disable the default check set.  -DCHECK_SIBLING=0
 		named-checkzone checks out-of-zone addresses by default.
 		To disable this default set.  -DCHECK_LOCAL=0
+		To create the default pid files in ${localstatedir}/run rather
+		than ${localstatedir}/run/{named,lwresd}/ set.
+		  -DNS_RUN_PID_DIR=0
 		Enable workaround for Solaris kernel bug about /dev/poll
 		  -DISC_SOCKET_USE_POLLWATCH=1
 		  The watch timeout is also configurable, e.g.,
@@ -519,9 +487,6 @@ Building
 	a nonstandard prefix, you can tell configure where to
 	look for it using "--with-openssl=/prefix".
 
-	To build libbind (the BIND 8 resolver library), specify
-	"--enable-libbind" on the configure command line.
-
 	On some platforms it is necessary to explictly request large
 	file support to handle files bigger than 2GB.  This can be
 	done by "--enable-largefile" on the configure command line.
@@ -532,6 +497,11 @@ Building
 	by specifying "--enable-threads" or "--disable-threads"
 	on the configure command line.  The default is operating
 	system dependent.
+
+        Support for the "fixed" rrset-order option can be enabled
+        or disabled by specifying "--enable-fixed-rrset" or
+        "--disable-fixed-rrset" on the configure command line.
+        The default is "disabled", to reduce memory footprint.
 
 	If your operating system has integrated support for IPv6, it
 	will be used automatically.  If you have installed KAME IPv6
@@ -613,8 +583,9 @@ Bug Reports and Mailing Lists
 		http://www.isc.org/ops/lists/
 
 	If you're planning on making changes to the BIND 9 source
-	code, you might want to join the BIND Forum as a Worker.
-	This gives you access to the bind-workers@isc.org mailing
-	list and pre-release access to the code.
+	code, you might want to join the BIND Workers mailing list.
+	Send mail to
 
-		http://www.isc.org/sw/guild/bf/
+		bind-workers-request@isc.org
+
+
