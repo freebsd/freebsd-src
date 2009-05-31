@@ -6,7 +6,9 @@ bind.keys
 configure
 contrib
 docutil
-isc-config.*
+isc-config.sh.1
+isc-config.sh.docbook
+isc-config.sh.html
 
 # Tests
 bin/tests
