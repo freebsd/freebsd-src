@@ -1073,7 +1073,7 @@ vn_vptocnp_locked(struct vnode **vp, char *buf, u_int *buflen)
 			numfullpathfail4++;
 			error = ENOMEM;
 			SDT_PROBE(vfs, namecache, fullpath, return, error,
-			    startvp, NULL, 0, 0);
+			    vp, NULL, 0, 0);
 			return (error);
 		}
 		*buflen -= ncp->nc_nlen;
@@ -1095,7 +1095,7 @@ vn_vptocnp_locked(struct vnode **vp, char *buf, u_int *buflen)
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
 		numfullpathfail2++;
-		SDT_PROBE(vfs, namecache, fullpath, return,  error, startvp,
+		SDT_PROBE(vfs, namecache, fullpath, return,  error, vp,
 		    NULL, 0, 0);
 		return (error);
 	}
@@ -1107,7 +1107,7 @@ vn_vptocnp_locked(struct vnode **vp, char *buf, u_int *buflen)
 		CACHE_RUNLOCK();
 		vdrop(*vp);
 		error = ENOENT;
-		SDT_PROBE(vfs, namecache, fullpath, return, error, startvp,
+		SDT_PROBE(vfs, namecache, fullpath, return, error, vp,
 		    NULL, 0, 0);
 		return (error);
 	}
@@ -1150,6 +1150,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			if (vp->v_iflag & VI_DOOMED) {	/* forced unmount */
 				CACHE_RUNLOCK();
 				error = ENOENT;
+				SDT_PROBE(vfs, namecache, fullpath, return,
+				    error, vp, NULL, 0, 0);
 				break;
 			}
 			vp = vp->v_mount->mnt_vnodecovered;
@@ -1159,6 +1161,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			CACHE_RUNLOCK();
 			numfullpathfail1++;
 			error = ENOTDIR;
+			SDT_PROBE(vfs, namecache, fullpath, return,
+			    error, vp, NULL, 0, 0);
 			break;
 		}
 		error = vn_vptocnp_locked(&vp, buf, &buflen);
@@ -1166,6 +1170,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			break;
 		if (buflen == 0) {
 			error = ENOMEM;
+			SDT_PROBE(vfs, namecache, fullpath, return, error,
+			    startvp, NULL, 0, 0);
 			break;
 		}
 		buf[--buflen] = '/';
@@ -1177,8 +1183,8 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		if (buflen == 0) {
 			CACHE_RUNLOCK();
 			numfullpathfail4++;
-			SDT_PROBE(vfs, namecache, fullpath, return, 0,
-			    startvp, fullpath, 0, 0);
+			SDT_PROBE(vfs, namecache, fullpath, return, ENOMEM,
+			    startvp, NULL, 0, 0);
 			return (ENOMEM);
 		}
 		buf[--buflen] = '/';
@@ -1186,7 +1192,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	numfullpathfound++;
 	CACHE_RUNLOCK();
 
-	SDT_PROBE(vfs, namecache, fullpath, return, 0, startvp, buf + *buflen,
+	SDT_PROBE(vfs, namecache, fullpath, return, 0, startvp, buf + buflen,
 	    0, 0);
 	*retbuf = buf + buflen;
 	return (0);
