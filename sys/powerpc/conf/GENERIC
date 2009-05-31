@@ -76,6 +76,9 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 # To make an SMP kernel, the next line is needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
 
+# CPU frequency control
+device		cpufreq
+
 # Standard busses
 device		pci
 
