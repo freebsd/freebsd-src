@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nsupdate.html,v 1.14.18.23 2008/09/01 02:29:00 tbox Exp $ -->
+<!-- $Id: nsupdate.html,v 1.40.48.2 2009/03/10 01:54:11 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -22,17 +22,17 @@
 <meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<a name="man.nsupdate"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
-<p>nsupdate &#8212; Dynamic DNS update utility</p>
+<p><span class="application">nsupdate</span> &#8212; Dynamic DNS update utility</p>
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [[<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-v</code>] [filename]</p></div>
+<div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [<code class="option">-D</code>] [[<code class="option">-g</code>] |  [<code class="option">-o</code>] |  [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-R <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-v</code>] [filename]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543420"></a><h2>DESCRIPTION</h2>
+<a name="id2543449"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       is used to submit Dynamic DNS Update requests as defined in RFC2136
       to a name server.
@@ -66,31 +66,31 @@
       made and the replies received from the name server.
     </p>
 <p>
-      Transaction signatures can be used to authenticate the Dynamic DNS
-      updates.
-      These use the TSIG resource record type described in RFC2845 or the
-      SIG(0) record described in RFC3535 and RFC2931.
-      TSIG relies on a shared secret that should only be known to
-      <span><strong class="command">nsupdate</strong></span> and the name server.
-      Currently, the only supported encryption algorithm for TSIG is
-      HMAC-MD5, which is defined in RFC 2104.
-      Once other algorithms are defined for TSIG, applications will need to
-      ensure they select the appropriate algorithm as well as the key when
-      authenticating each other.
-      For instance, suitable
-      <span class="type">key</span>
-      and
-      <span class="type">server</span>
-      statements would be added to
-      <code class="filename">/etc/named.conf</code>
-      so that the name server can associate the appropriate secret key
-      and algorithm with the IP address of the
-      client application that will be using TSIG authentication.
-      SIG(0) uses public key cryptography.  To use a SIG(0) key, the public
-      key must be stored in a KEY record in a zone served by the name server.
-      <span><strong class="command">nsupdate</strong></span>
-      does not read
+      The <code class="option">-D</code> option makes <span><strong class="command">nsupdate</strong></span>
+      report additional debugging information to <code class="option">-d</code>.
+    </p>
+<p>
+      Transaction signatures can be used to authenticate the Dynamic
+      DNS updates.  These use the TSIG resource record type described
+      in RFC2845 or the SIG(0) record described in RFC3535 and
+      RFC2931 or GSS-TSIG as described in RFC3645.  TSIG relies on
+      a shared secret that should only be known to
+      <span><strong class="command">nsupdate</strong></span> and the name server.  Currently,
+      the only supported encryption algorithm for TSIG is HMAC-MD5,
+      which is defined in RFC 2104.  Once other algorithms are
+      defined for TSIG, applications will need to ensure they select
+      the appropriate algorithm as well as the key when authenticating
+      each other.  For instance, suitable <span class="type">key</span> and
+      <span class="type">server</span> statements would be added to
+      <code class="filename">/etc/named.conf</code> so that the name server
+      can associate the appropriate secret key and algorithm with
+      the IP address of the client application that will be using
+      TSIG authentication.  SIG(0) uses public key cryptography.
+      To use a SIG(0) key, the public key must be stored in a KEY
+      record in a zone served by the name server.
+      <span><strong class="command">nsupdate</strong></span> does not read
       <code class="filename">/etc/named.conf</code>.
+      GSS-TSIG uses Kerberos credentials.
     </p>
 <p><span><strong class="command">nsupdate</strong></span>
       uses the <code class="option">-y</code> or <code class="option">-k</code> option
@@ -121,7 +121,12 @@
       specified is not an HMAC-MD5 key.
     </p>
 <p>
-      By default
+      The <code class="option">-g</code> and <code class="option">-o</code> specify that
+      GSS-TSIG is to be used.  The <code class="option">-o</code> should only
+      be used with old Microsoft Windows 2000 servers.
+    </p>
+<p>
+      By default,
       <span><strong class="command">nsupdate</strong></span>
       uses UDP to send update requests to the name server unless they are too
       large to fit in a UDP request in which case TCP will be used.
@@ -151,9 +156,20 @@
       default is
       3.  If zero, only one update request will be made.
     </p>
+<p>
+      The <code class="option">-R <em class="replaceable"><code>randomdev</code></em></code> option
+      specifies a source of randomness.  If the operating system
+      does not provide a <code class="filename">/dev/random</code> or
+      equivalent device, the default source of randomness is keyboard
+      input.  <code class="filename">randomdev</code> specifies the name of
+      a character device or file containing random data to be used
+      instead of the default.  The special value
+      <code class="filename">keyboard</code> indicates that keyboard input
+      should be used.  This option may be specified multiple times.
+    </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543649"></a><h2>INPUT FORMAT</h2>
+<a name="id2543726"></a><h2>INPUT FORMAT</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       reads input from
       <em class="parameter"><code>filename</code></em>
@@ -245,6 +261,15 @@
               If no <em class="parameter"><code>class</code></em> is specified, the
               default class is
               <em class="parameter"><code>IN</code></em>.
+            </p></dd>
+<dt><span class="term">
+              <span><strong class="command">ttl</strong></span>
+               {seconds}
+            </span></dt>
+<dd><p>
+              Specify the default time to live for records to be added.
+	      The value <em class="parameter"><code>none</code></em> will clear the default
+	      ttl.
             </p></dd>
 <dt><span class="term">
               <span><strong class="command">key</strong></span>
@@ -394,6 +419,12 @@
 <dd><p>
               Displays the answer.
             </p></dd>
+<dt><span class="term">
+              <span><strong class="command">debug</strong></span>
+            </span></dt>
+<dd><p>
+              Turn on debugging.
+            </p></dd>
 </dl></div>
 <p>
     </p>
@@ -402,7 +433,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544446"></a><h2>EXAMPLES</h2>
+<a name="id2544567"></a><h2>EXAMPLES</h2>
 <p>
       The examples below show how
       <span><strong class="command">nsupdate</strong></span>
@@ -456,7 +487,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544490"></a><h2>FILES</h2>
+<a name="id2544611"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -475,7 +506,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544560"></a><h2>SEE ALSO</h2>
+<a name="id2544680"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">RFC2136</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC3007</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC2104</span></span>,
@@ -488,7 +519,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2542172"></a><h2>BUGS</h2>
+<a name="id2542156"></a><h2>BUGS</h2>
 <p>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library

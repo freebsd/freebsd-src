@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.109.18.12 2006/05/02 12:55:31 shane Exp $ */
+/* $Id: types.h,v 1.130.50.3 2009/01/29 22:40:35 jinmei Exp $ */
 
 #ifndef DNS_TYPES_H
 #define DNS_TYPES_H 1
 
-/*! \file
+/*! \file dns/types.h
  * \brief
  * Including this file gives you type declarations suitable for use in
  * .h files, which lets us avoid circular type reference problems.
@@ -68,6 +68,8 @@ typedef struct dns_fetch			dns_fetch_t;
 typedef struct dns_fixedname			dns_fixedname_t;
 typedef struct dns_forwarders			dns_forwarders_t;
 typedef struct dns_fwdtable			dns_fwdtable_t;
+typedef struct dns_iptable			dns_iptable_t;
+typedef isc_uint32_t				dns_iterations_t;
 typedef isc_uint16_t				dns_keyflags_t;
 typedef struct dns_keynode			dns_keynode_t;
 typedef struct dns_keytable			dns_keytable_t;
@@ -105,6 +107,8 @@ typedef isc_uint8_t				dns_secproto_t;
 typedef struct dns_signature			dns_signature_t;
 typedef struct dns_ssurule			dns_ssurule_t;
 typedef struct dns_ssutable			dns_ssutable_t;
+typedef struct dns_stats			dns_stats_t;
+typedef isc_uint32_t				dns_rdatastatstype_t;
 typedef struct dns_tkeyctx			dns_tkeyctx_t;
 typedef isc_uint16_t				dns_trust_t;
 typedef struct dns_tsig_keyring			dns_tsig_keyring_t;
@@ -117,6 +121,19 @@ typedef struct dns_zone				dns_zone_t;
 typedef ISC_LIST(dns_zone_t)			dns_zonelist_t;
 typedef struct dns_zonemgr			dns_zonemgr_t;
 typedef struct dns_zt				dns_zt_t;
+
+/*
+ * If we are not using GSSAPI, define the types we use as opaque types here.
+ */
+#ifndef GSSAPI
+typedef struct not_defined_gss_cred_id *gss_cred_id_t;
+typedef struct not_defined_gss_ctx *gss_ctx_id_t;
+#endif
+typedef struct dst_gssapi_signverifyctx dst_gssapi_signverifyctx_t;
+
+typedef enum {
+	dns_hash_sha1 = 1
+} dns_hash_t;
 
 typedef enum {
 	dns_fwdpolicy_none = 0,
@@ -249,11 +266,11 @@ enum {
 	dns_trust_additional = 2,
 #define dns_trust_additional		((dns_trust_t)dns_trust_additional)
 
-	/* Received in a referral response. */ 
+	/* Received in a referral response. */
 	dns_trust_glue = 3,
 #define dns_trust_glue			((dns_trust_t)dns_trust_glue)
 
-	/* Answser from a non-authoritative server */
+	/* Answer from a non-authoritative server */
 	dns_trust_answer = 4,
 #define dns_trust_answer		((dns_trust_t)dns_trust_answer)
 
@@ -262,11 +279,11 @@ enum {
 	dns_trust_authauthority = 5,
 #define dns_trust_authauthority		((dns_trust_t)dns_trust_authauthority)
 
-	/* Answser from an authoritative server */
+	/* Answer from an authoritative server */
 	dns_trust_authanswer = 6,
 #define dns_trust_authanswer		((dns_trust_t)dns_trust_authanswer)
 
-	/* Successfully DNSSEC validated */	
+	/* Successfully DNSSEC validated */
 	dns_trust_secure = 7,
 #define dns_trust_secure		((dns_trust_t)dns_trust_secure)
 
@@ -276,7 +293,7 @@ enum {
 };
 
 /*%
- * Name checking severites.
+ * Name checking severities.
  */
 typedef enum {
 	dns_severity_ignore,
@@ -308,7 +325,7 @@ typedef void
 typedef void
 (*dns_updatecallback_t)(void *, isc_result_t, dns_message_t *);
 
-typedef int 
+typedef int
 (*dns_rdatasetorderfunc_t)(const dns_rdata_t *, const void *);
 
 typedef isc_boolean_t

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatalist.c,v 1.28.18.3 2005/04/29 00:16:02 marka Exp $ */
+/* $Id: rdatalist.c,v 1.36 2008/09/24 02:46:22 marka Exp $ */
 
 /*! \file */
 
@@ -26,6 +26,7 @@
 #include <isc/util.h>
 
 #include <dns/name.h>
+#include <dns/nsec3.h>
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
@@ -41,6 +42,8 @@ static dns_rdatasetmethods_t methods = {
 	isc__rdatalist_count,
 	isc__rdatalist_addnoqname,
 	isc__rdatalist_getnoqname,
+	isc__rdatalist_addclosest,
+	isc__rdatalist_getclosest,
 	NULL,
 	NULL,
 	NULL
@@ -63,8 +66,8 @@ dns_rdatalist_init(dns_rdatalist_t *rdatalist) {
 
 isc_result_t
 dns_rdatalist_tordataset(dns_rdatalist_t *rdatalist,
-			 dns_rdataset_t *rdataset) {
-
+			 dns_rdataset_t *rdataset)
+{
 	/*
 	 * Make 'rdataset' refer to the rdata in 'rdatalist'.
 	 */
@@ -84,6 +87,16 @@ dns_rdatalist_tordataset(dns_rdatalist_t *rdatalist,
 	rdataset->private3 = NULL;
 	rdataset->privateuint4 = 0;
 	rdataset->private5 = NULL;
+
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_rdatalist_fromrdataset(dns_rdataset_t *rdataset,
+			   dns_rdatalist_t **rdatalist)
+{
+	REQUIRE(rdatalist != NULL && rdataset != NULL);
+	*rdatalist = rdataset->private1;
 
 	return (ISC_R_SUCCESS);
 }
@@ -161,8 +174,8 @@ isc__rdatalist_count(dns_rdataset_t *rdataset) {
 
 isc_result_t
 isc__rdatalist_addnoqname(dns_rdataset_t *rdataset, dns_name_t *name) {
-	dns_rdataset_t *nsec = NULL;
-	dns_rdataset_t *nsecsig = NULL;
+	dns_rdataset_t *neg = NULL;
+	dns_rdataset_t *negsig = NULL;
 	dns_rdataset_t *rdset;
 	dns_ttl_t ttl;
 
@@ -172,24 +185,33 @@ isc__rdatalist_addnoqname(dns_rdataset_t *rdataset, dns_name_t *name) {
 	{
 		if (rdset->rdclass != rdataset->rdclass)
 			continue;
-		if (rdset->type == dns_rdatatype_nsec)
-			nsec = rdset;
+		if (rdset->type == dns_rdatatype_nsec ||
+		    rdset->type == dns_rdatatype_nsec3)
+			neg = rdset;
+	}
+	if (neg == NULL)
+		return (ISC_R_NOTFOUND);
+
+	for (rdset = ISC_LIST_HEAD(name->list);
+	     rdset != NULL;
+	     rdset = ISC_LIST_NEXT(rdset, link))
+	{
 		if (rdset->type == dns_rdatatype_rrsig &&
-		    rdset->covers == dns_rdatatype_nsec)
-			nsecsig = rdset;
+		    rdset->covers == neg->type)
+			negsig = rdset;
 	}
 
-	if (nsec == NULL || nsecsig == NULL)
+	if (negsig == NULL)
 		return (ISC_R_NOTFOUND);
 	/*
 	 * Minimise ttl.
 	 */
 	ttl = rdataset->ttl;
-	if (nsec->ttl < ttl)
-		ttl = nsec->ttl;
-	if (nsecsig->ttl < ttl)
-		ttl = nsecsig->ttl;
-	rdataset->ttl = nsec->ttl = nsecsig->ttl = ttl;
+	if (neg->ttl < ttl)
+		ttl = neg->ttl;
+	if (negsig->ttl < ttl)
+		ttl = negsig->ttl;
+	rdataset->ttl = neg->ttl = negsig->ttl = ttl;
 	rdataset->attributes |= DNS_RDATASETATTR_NOQNAME;
 	rdataset->private6 = name;
 	return (ISC_R_SUCCESS);
@@ -197,11 +219,11 @@ isc__rdatalist_addnoqname(dns_rdataset_t *rdataset, dns_name_t *name) {
 
 isc_result_t
 isc__rdatalist_getnoqname(dns_rdataset_t *rdataset, dns_name_t *name,
-			 dns_rdataset_t *nsec, dns_rdataset_t *nsecsig)
+			  dns_rdataset_t *neg, dns_rdataset_t *negsig)
 {
 	dns_rdataclass_t rdclass = rdataset->rdclass;
-	dns_rdataset_t *tnsec = NULL;
-	dns_rdataset_t *tnsecsig = NULL;
+	dns_rdataset_t *tneg = NULL;
+	dns_rdataset_t *tnegsig = NULL;
 	dns_name_t *noqname = rdataset->private6;
 
 	REQUIRE((rdataset->attributes & DNS_RDATASETATTR_NOQNAME) != 0);
@@ -213,17 +235,113 @@ isc__rdatalist_getnoqname(dns_rdataset_t *rdataset, dns_name_t *name,
 	{
 		if (rdataset->rdclass != rdclass)
 			continue;
-		if (rdataset->type == dns_rdatatype_nsec)
-			tnsec = rdataset;
-		if (rdataset->type == dns_rdatatype_rrsig &&
-		    rdataset->covers == dns_rdatatype_nsec)
-			tnsecsig = rdataset;
+		if (rdataset->type == dns_rdatatype_nsec ||
+		    rdataset->type == dns_rdatatype_nsec3)
+			tneg = rdataset;
 	}
-	if (tnsec == NULL || tnsecsig == NULL)
+	if (tneg == NULL)
+		return (ISC_R_NOTFOUND);
+
+	for (rdataset = ISC_LIST_HEAD(noqname->list);
+	     rdataset != NULL;
+	     rdataset = ISC_LIST_NEXT(rdataset, link))
+	{
+		if (rdataset->type == dns_rdatatype_rrsig &&
+		    rdataset->covers == tneg->type)
+			tnegsig = rdataset;
+	}
+	if (tnegsig == NULL)
 		return (ISC_R_NOTFOUND);
 
 	dns_name_clone(noqname, name);
-	dns_rdataset_clone(tnsec, nsec);
-	dns_rdataset_clone(tnsecsig, nsecsig);
+	dns_rdataset_clone(tneg, neg);
+	dns_rdataset_clone(tnegsig, negsig);
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc__rdatalist_addclosest(dns_rdataset_t *rdataset, dns_name_t *name) {
+	dns_rdataset_t *neg = NULL;
+	dns_rdataset_t *negsig = NULL;
+	dns_rdataset_t *rdset;
+	dns_ttl_t ttl;
+
+	for (rdset = ISC_LIST_HEAD(name->list);
+	     rdset != NULL;
+	     rdset = ISC_LIST_NEXT(rdset, link))
+	{
+		if (rdset->rdclass != rdataset->rdclass)
+			continue;
+		if (rdset->type == dns_rdatatype_nsec ||
+		    rdset->type == dns_rdatatype_nsec3)
+			neg = rdset;
+	}
+	if (neg == NULL)
+		return (ISC_R_NOTFOUND);
+
+	for (rdset = ISC_LIST_HEAD(name->list);
+	     rdset != NULL;
+	     rdset = ISC_LIST_NEXT(rdset, link))
+	{
+		if (rdset->type == dns_rdatatype_rrsig &&
+		    rdset->covers == neg->type)
+			negsig = rdset;
+	}
+
+	if (negsig == NULL)
+		return (ISC_R_NOTFOUND);
+	/*
+	 * Minimise ttl.
+	 */
+	ttl = rdataset->ttl;
+	if (neg->ttl < ttl)
+		ttl = neg->ttl;
+	if (negsig->ttl < ttl)
+		ttl = negsig->ttl;
+	rdataset->ttl = neg->ttl = negsig->ttl = ttl;
+	rdataset->attributes |= DNS_RDATASETATTR_CLOSEST;
+	rdataset->private7 = name;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc__rdatalist_getclosest(dns_rdataset_t *rdataset, dns_name_t *name,
+			  dns_rdataset_t *neg, dns_rdataset_t *negsig)
+{
+	dns_rdataclass_t rdclass = rdataset->rdclass;
+	dns_rdataset_t *tneg = NULL;
+	dns_rdataset_t *tnegsig = NULL;
+	dns_name_t *closest = rdataset->private7;
+
+	REQUIRE((rdataset->attributes & DNS_RDATASETATTR_CLOSEST) != 0);
+	(void)dns_name_dynamic(closest);	/* Sanity Check. */
+
+	for (rdataset = ISC_LIST_HEAD(closest->list);
+	     rdataset != NULL;
+	     rdataset = ISC_LIST_NEXT(rdataset, link))
+	{
+		if (rdataset->rdclass != rdclass)
+			continue;
+		if (rdataset->type == dns_rdatatype_nsec ||
+		    rdataset->type == dns_rdatatype_nsec3)
+			tneg = rdataset;
+	}
+	if (tneg == NULL)
+		return (ISC_R_NOTFOUND);
+
+	for (rdataset = ISC_LIST_HEAD(closest->list);
+	     rdataset != NULL;
+	     rdataset = ISC_LIST_NEXT(rdataset, link))
+	{
+		if (rdataset->type == dns_rdatatype_rrsig &&
+		    rdataset->covers == tneg->type)
+			tnegsig = rdataset;
+	}
+	if (tnegsig == NULL)
+		return (ISC_R_NOTFOUND);
+
+	dns_name_clone(closest, name);
+	dns_rdataset_clone(tneg, neg);
+	dns_rdataset_clone(tnegsig, negsig);
 	return (ISC_R_SUCCESS);
 }

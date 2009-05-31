@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-keygen.8,v 1.23.18.16 2008/10/16 01:29:40 tbox Exp $
+.\" $Id: dnssec-keygen.8,v 1.40 2008/10/15 01:11:35 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -44,7 +44,7 @@ generates keys for DNSSEC (Secure DNS), as defined in RFC 2535 and RFC 4034. It 
 .RS 4
 Selects the cryptographic algorithm. The value of
 \fBalgorithm\fR
-must be one of RSAMD5 (RSA) or RSASHA1, DSA, DH (Diffie Hellman), or HMAC\-MD5. These values are case insensitive.
+must be one of RSAMD5 (RSA) or RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA, DH (Diffie Hellman), or HMAC\-MD5. These values are case insensitive.
 .sp
 Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement algorithm, and DSA is recommended. For TSIG, HMAC\-MD5 is mandatory.
 .sp
@@ -60,7 +60,7 @@ Specifies the number of bits in the key. The choice of key size depends on the a
 .RS 4
 Specifies the owner type of the key. The value of
 \fBnametype\fR
-must either be ZONE (for a DNSSEC zone key (KEY/DNSKEY)), HOST or ENTITY (for a key associated with a host (KEY)), USER (for a key associated with a user(KEY)) or OTHER (DNSKEY). These values are case insensitive.
+must either be ZONE (for a DNSSEC zone key (KEY/DNSKEY)), HOST or ENTITY (for a key associated with a host (KEY)), USER (for a key associated with a user(KEY)) or OTHER (DNSKEY). These values are case insensitive. Defaults to ZONE for DNSKEY generation.
 .RE
 .PP
 \-c \fIclass\fR
