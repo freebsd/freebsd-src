@@ -491,7 +491,7 @@ scteken_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
 }
 
 static void
-scteken_param(void *arg, int cmd, int value)
+scteken_param(void *arg, int cmd, unsigned int value)
 {
 	scr_stat *scp = arg;
 
@@ -507,6 +507,10 @@ scteken_param(void *arg, int cmd, int value)
 		break;
 	case TP_SWITCHVT:
 		sc_switch_scr(scp->sc, value);
+		break;
+	case TP_SETBELLPD:
+		scp->bell_pitch = TP_SETBELLPD_PITCH(value);
+		scp->bell_duration = TP_SETBELLPD_DURATION(value);
 		break;
 	}
 }

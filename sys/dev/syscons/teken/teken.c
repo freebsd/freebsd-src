@@ -167,7 +167,7 @@ teken_funcs_copy(teken_t *t, const teken_rect_t *r, const teken_pos_t *p)
 }
 
 static inline void
-teken_funcs_param(teken_t *t, int cmd, int value)
+teken_funcs_param(teken_t *t, int cmd, unsigned int value)
 {
 
 	t->t_funcs->tf_param(t->t_softc, cmd, value);
