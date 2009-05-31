@@ -475,6 +475,24 @@ bsd_to_linux_msghdr(const struct msghdr *bhdr, struct l_msghdr *lhdr)
 }
 
 static int
+linux_set_socket_flags(struct thread *td, int s, int flags)
+{
+	int error;
+
+	if (flags & LINUX_SOCK_NONBLOCK) {
+		error = kern_fcntl(td, s, F_SETFL, O_NONBLOCK);
+		if (error)
+			return (error);
+	}
+	if (flags & LINUX_SOCK_CLOEXEC) {
+		error = kern_fcntl(td, s, F_SETFD, FD_CLOEXEC);
+		if (error)
+			return (error);
+	}
+	return (0);
+}
+
+static int
 linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
     struct mbuf *control, enum uio_seg segflg)
 {
@@ -608,21 +626,11 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	if (retval_socket)
 		return (retval_socket);
 
-	if (socket_flags & LINUX_SOCK_NONBLOCK) {
-		retval_socket = kern_fcntl(td, td->td_retval[0],
-		    F_SETFL, O_NONBLOCK);
-		if (retval_socket) {
-			(void)kern_close(td, td->td_retval[0]);
-			goto out;
-		}
-	}
-	if (socket_flags & LINUX_SOCK_CLOEXEC) {
-		retval_socket = kern_fcntl(td, td->td_retval[0],
-		    F_SETFD, FD_CLOEXEC);
-		if (retval_socket) {
-			(void)kern_close(td, td->td_retval[0]);
-			goto out;
-		}
+	retval_socket = linux_set_socket_flags(td, td->td_retval[0],
+	    socket_flags);
+	if (retval_socket) {
+		(void)kern_close(td, td->td_retval[0]);
+		goto out;
 	}
 
 	if (bsd_args.type == SOCK_RAW
