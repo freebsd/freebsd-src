@@ -21,6 +21,9 @@ options 	PSIM			#GDB PSIM ppc simulator
 
 options 	SC_OFWFB		# OFW frame buffer
 
+# The cpufreq(4) driver provides support for CPU frequency control
+device		cpufreq
+
 # Standard busses
 device		pci
 

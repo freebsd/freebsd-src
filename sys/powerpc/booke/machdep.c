@@ -587,14 +587,6 @@ cpu_flush_dcache(void *ptr, size_t len)
 	/* TBD */
 }
 
-/* Get current clock frequency for the given cpu id. */
-int
-cpu_est_clockrate(int cpu_id, uint64_t *rate)
-{
-
-	return (ENXIO);
-}
-
 /*
  * Construct a PCB from a trapframe. This is called from kdb_trap() where
  * we want to start a backtrace from the function that caused us to enter
