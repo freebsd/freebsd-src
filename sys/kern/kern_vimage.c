@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2004-2008 University of Zagreb
- * Copyright (c) 2006-2008 FreeBSD Foundation
+ * Copyright (c) 2004-2009 University of Zagreb
+ * Copyright (c) 2006-2009 FreeBSD Foundation
  *
  * This software was developed by the University of Zagreb and the
  * FreeBSD Foundation under sponsorship by the Stichting NLnet and the
@@ -34,15 +34,23 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/systm.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/sx.h>
+#include <sys/priv.h>
+#include <sys/refcount.h>
 #include <sys/vimage.h>
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
+
+#include <net/if.h>
+#include <net/route.h>
+#include <net/vnet.h>
 
 #ifndef VIMAGE_GLOBALS
 
@@ -57,6 +65,22 @@ static int vnet_mod_constructor(struct vnet_modlink *);
 static int vnet_mod_destructor(struct vnet_modlink *);
 
 #ifdef VIMAGE
+static struct vimage *vimage_by_name(struct vimage *, char *);
+static struct vimage *vi_alloc(struct vimage *, char *);
+static struct vimage *vimage_get_next(struct vimage *, struct vimage *, int);
+static void vimage_relative_name(struct vimage *, struct vimage *,
+    char *, int);
+#endif
+
+#define	VNET_LIST_WLOCK()						\
+	mtx_lock(&vnet_list_refc_mtx);					\
+	while (vnet_list_refc != 0)					\
+		cv_wait(&vnet_list_condvar, &vnet_list_refc_mtx);
+
+#define	VNET_LIST_WUNLOCK()						\
+	mtx_unlock(&vnet_list_refc_mtx);
+
+#ifdef VIMAGE
 struct vimage_list_head vimage_head;
 struct vnet_list_head vnet_head;
 struct vprocg_list_head vprocg_head;
@@ -67,8 +91,293 @@ struct vprocg vprocg_0;
 #endif
 
 #ifdef VIMAGE
+struct cv vnet_list_condvar;
+struct mtx vnet_list_refc_mtx;
+int vnet_list_refc = 0;
+
+static u_int last_vi_id = 0;
+static u_int last_vnet_id = 0;
+static u_int last_vprocg_id = 0;
+
 struct vnet *vnet0;
 #endif
+
+#ifdef VIMAGE
+
+/*
+ * Interim userspace interface - will be replaced by jail soon.
+ */
+
+/*
+ * Move an ifnet to another vnet.  The ifnet can be specified either
+ * by ifp argument, or by name contained in vi_req->vi_if_xname if NULL is
+ * passed as ifp.  The target vnet can be specified either by vnet
+ * argument or by name. If vnet name equals to ".." or vi_req is set to
+ * NULL the interface is moved to the parent vnet.
+ */
+int
+vi_if_move(struct vi_req *vi_req, struct ifnet *ifp, struct vimage *vip)
+{
+	struct vimage *new_vip;
+	struct vnet *new_vnet = NULL;
+
+	/* Check for API / ABI version mismatch. */
+	if (vi_req->vi_api_cookie != VI_API_COOKIE)
+		return (EDOOFUS);
+
+	/* Find the target vnet. */
+	if (vi_req == NULL || strcmp(vi_req->vi_name, "..") == 0) {
+		if (IS_DEFAULT_VIMAGE(vip))
+			return (ENXIO);
+		new_vnet = vip->vi_parent->v_net;
+	} else {
+		new_vip = vimage_by_name(vip, vi_req->vi_name);
+		if (new_vip == NULL)
+			return (ENXIO);
+		new_vnet = new_vip->v_net;
+	}
+
+	/* Try to find the target ifnet by name. */
+	if (ifp == NULL)
+		ifp = ifunit(vi_req->vi_if_xname);
+
+	if (ifp == NULL)
+		return (ENXIO);
+
+	/*
+	 * Check for naming clashes in target vnet.  Not locked so races
+	 * are possible.
+	 */
+	if (vi_req != NULL) {
+		struct ifnet *t_ifp;
+
+		CURVNET_SET_QUIET(new_vnet);
+		t_ifp = ifunit(vi_req->vi_if_xname);
+		CURVNET_RESTORE();
+		if (t_ifp != NULL)
+			return (EEXIST);
+	}
+
+	/* Detach from curvnet and attach to new_vnet. */
+	if_vmove(ifp, new_vnet);
+
+	/* Report the new if_xname back to the userland */
+	if (vi_req != NULL)
+		sprintf(vi_req->vi_if_xname, "%s", ifp->if_xname);
+
+	return (0);
+}
+
+int
+vi_td_ioctl(u_long cmd, struct vi_req *vi_req, struct thread *td)
+{
+	int error = 0;
+	struct vimage *vip = TD_TO_VIMAGE(td);
+	struct vimage *vip_r = NULL;
+
+	/* Check for API / ABI version mismatch. */
+	if (vi_req->vi_api_cookie != VI_API_COOKIE)
+		return (EDOOFUS);
+
+	error = priv_check(td, PRIV_REBOOT); /* XXX temp. priv abuse */
+	if (error)
+		return (error);
+
+	vip_r = vimage_by_name(vip, vi_req->vi_name);
+	if (vip_r == NULL && !(vi_req->vi_req_action & VI_CREATE))
+		return (ESRCH);
+	if (vip_r != NULL && vi_req->vi_req_action & VI_CREATE)
+		return (EADDRINUSE);
+	if (vi_req->vi_req_action == VI_GETNEXT) {
+		vip_r = vimage_get_next(vip, vip_r, 0);
+		if (vip_r == NULL)
+			return (ESRCH);
+	}
+	if (vi_req->vi_req_action == VI_GETNEXT_RECURSE) {
+		vip_r = vimage_get_next(vip, vip_r, 1);
+		if (vip_r == NULL)
+			return (ESRCH);
+	}
+
+	if (vip_r && !vi_child_of(vip, vip_r) && /* XXX delete the rest? */
+	    vi_req->vi_req_action != VI_GET &&
+	    vi_req->vi_req_action != VI_GETNEXT)
+		return (EPERM);
+
+	switch (cmd) {
+
+	case SIOCGPVIMAGE:
+		vimage_relative_name(vip, vip_r, vi_req->vi_name,
+		    sizeof (vi_req->vi_name));
+		vi_req->vi_proc_count = vip_r->v_procg->nprocs;
+		vi_req->vi_if_count = vip_r->v_net->ifcnt;
+		vi_req->vi_sock_count = vip_r->v_net->sockcnt;
+		break;
+
+	case SIOCSPVIMAGE:
+		if (vi_req->vi_req_action == VI_DESTROY) {
+#ifdef NOTYET
+			error = vi_destroy(vip_r);
+#else
+			error = EOPNOTSUPP;
+#endif
+			break;
+		}
+
+		if (vi_req->vi_req_action == VI_SWITCHTO) {
+			struct proc *p = td->td_proc;
+			struct ucred *oldcred, *newcred;
+
+			/*
+			 * XXX priv_check()?
+			 * XXX allow only a single td per proc here?
+			 */
+			newcred = crget();
+			PROC_LOCK(p);
+			oldcred = p->p_ucred;
+			setsugid(p);
+			crcopy(newcred, oldcred);
+			refcount_release(&newcred->cr_vimage->vi_ucredrefc);
+			newcred->cr_vimage = vip_r;
+			refcount_acquire(&newcred->cr_vimage->vi_ucredrefc);
+			p->p_ucred = newcred;
+			PROC_UNLOCK(p);
+			sx_xlock(&allproc_lock);
+			oldcred->cr_vimage->v_procg->nprocs--;
+			refcount_release(&oldcred->cr_vimage->vi_ucredrefc);
+			P_TO_VPROCG(p)->nprocs++;
+			sx_xunlock(&allproc_lock);
+			crfree(oldcred);
+			break;
+		}
+
+		if (vi_req->vi_req_action & VI_CREATE) {
+			char *dotpos;
+
+			dotpos = strrchr(vi_req->vi_name, '.');
+			if (dotpos != NULL) {
+				*dotpos = 0;
+				vip = vimage_by_name(vip, vi_req->vi_name);
+				if (vip == NULL)
+					return (ESRCH);
+				dotpos++;
+				vip_r = vi_alloc(vip, dotpos);
+			} else
+				vip_r = vi_alloc(vip, vi_req->vi_name);
+			if (vip_r == NULL)
+				return (ENOMEM);
+		}
+	}
+	return (error);
+}
+
+int
+vi_child_of(struct vimage *parent, struct vimage *child)
+{
+
+	if (child == parent)
+		return (0);
+	for (; child; child = child->vi_parent)
+		if (child == parent)
+			return (1);
+	return (0);
+}
+
+static struct vimage *
+vimage_by_name(struct vimage *top, char *name)
+{
+	struct vimage *vip;
+	char *next_name;
+	int namelen;
+
+	next_name = strchr(name, '.');
+	if (next_name != NULL) {
+		namelen = next_name - name;
+		next_name++;
+		if (namelen == 0) {
+			if (strlen(next_name) == 0)
+				return (top);	/* '.' == this vimage */
+			else
+				return (NULL);
+		}
+	} else
+		namelen = strlen(name);
+	if (namelen == 0)
+		return (NULL);
+	LIST_FOREACH(vip, &top->vi_child_head, vi_sibling) {
+		if (strlen(vip->vi_name) == namelen &&
+		    strncmp(name, vip->vi_name, namelen) == 0) {
+			if (next_name != NULL)
+				return (vimage_by_name(vip, next_name));
+			else
+				return (vip);
+		}
+	}
+	return (NULL);
+}
+
+static void
+vimage_relative_name(struct vimage *top, struct vimage *where,
+    char *buffer, int bufflen)
+{
+	int used = 1;
+
+	if (where == top) {
+		sprintf(buffer, ".");
+		return;
+	} else
+		*buffer = 0;
+
+	do {
+		int namelen = strlen(where->vi_name);
+
+		if (namelen + used + 1 >= bufflen)
+			panic("buffer overflow");
+
+		if (used > 1) {
+			bcopy(buffer, &buffer[namelen + 1], used);
+			buffer[namelen] = '.';
+			used++;
+		} else
+			bcopy(buffer, &buffer[namelen], used);
+		bcopy(where->vi_name, buffer, namelen);
+		used += namelen;
+		where = where->vi_parent;
+	} while (where != top);
+}
+
+static struct vimage *
+vimage_get_next(struct vimage *top, struct vimage *where, int recurse)
+{
+	struct vimage *next;
+
+	if (recurse) {
+		/* Try to go deeper in the hierarchy */
+		next = LIST_FIRST(&where->vi_child_head);
+		if (next != NULL)
+			return (next);
+	}
+
+	do {
+		/* Try to find next sibling */
+		next = LIST_NEXT(where, vi_sibling);
+		if (!recurse || next != NULL)
+			return (next);
+
+		/* Nothing left on this level, go one level up */
+		where = where->vi_parent;
+	} while (where != top->vi_parent);
+
+	/* Nothing left to be visited, we are done */
+	return (NULL);
+}
+
+#endif /* VIMAGE */ /* User interface block */
+
+
+/*
+ * Kernel interfaces and handlers.
+ */
 
 void
 vnet_mod_register(const struct vnet_modinfo *vmi)
@@ -221,7 +530,7 @@ vnet_mod_constructor(struct vnet_modlink *vml)
 		void *mem = malloc(vmi->vmi_size, M_VNET,
 		    M_NOWAIT | M_ZERO);
 		if (mem == NULL) /* XXX should return error, not panic. */
-			panic("vi_alloc: malloc for %s\n", vmi->vmi_name);
+			panic("malloc for %s\n", vmi->vmi_name);
 		curvnet->mod_data[vmi->vmi_id] = mem;
 	}
 #endif
@@ -301,14 +610,64 @@ vi_symlookup(struct kld_sym_lookup *lookup, char *symstr)
 	return (ENOENT);
 }
 
-static void
-vi_init(void *unused)
-{
 #ifdef VIMAGE
+static struct vimage *
+vi_alloc(struct vimage *parent, char *name)
+{
 	struct vimage *vip;
 	struct vprocg *vprocg;
 	struct vnet *vnet;
-#endif
+	struct vnet_modlink *vml;
+
+	vip = malloc(sizeof(struct vimage), M_VIMAGE, M_NOWAIT | M_ZERO);
+	if (vip == NULL)
+		panic("vi_alloc: malloc failed for vimage \"%s\"\n", name);
+	vip->vi_id = last_vi_id++;
+	LIST_INIT(&vip->vi_child_head);
+	sprintf(vip->vi_name, "%s", name);
+	vip->vi_parent = parent;
+	/* XXX locking */
+	if (parent != NULL)
+		LIST_INSERT_HEAD(&parent->vi_child_head, vip, vi_sibling);
+	else if (!LIST_EMPTY(&vimage_head))
+		panic("there can be only one default vimage!");
+	LIST_INSERT_HEAD(&vimage_head, vip, vi_le);
+
+	vnet = malloc(sizeof(struct vnet), M_VNET, M_NOWAIT | M_ZERO);
+	if (vnet == NULL)
+		panic("vi_alloc: malloc failed for vnet \"%s\"\n", name);
+	vip->v_net = vnet;
+	vnet->vnet_id = last_vnet_id++;
+	if (vnet->vnet_id == 0)
+		vnet0 = vnet;
+	vnet->vnet_magic_n = VNET_MAGIC_N;
+
+	vprocg = malloc(sizeof(struct vprocg), M_VPROCG, M_NOWAIT | M_ZERO);
+	if (vprocg == NULL)
+		panic("vi_alloc: malloc failed for vprocg \"%s\"\n", name);
+	vip->v_procg = vprocg;
+	vprocg->vprocg_id = last_vprocg_id++;
+
+	/* Initialize / attach vnet module instances. */
+	CURVNET_SET_QUIET(vnet);
+	TAILQ_FOREACH(vml, &vnet_modlink_head, vml_mod_le)
+		vnet_mod_constructor(vml);
+	CURVNET_RESTORE();
+
+	VNET_LIST_WLOCK();
+	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
+	VNET_LIST_WUNLOCK();
+
+	/* XXX locking */
+	LIST_INSERT_HEAD(&vprocg_head, vprocg, vprocg_le);
+
+	return (vip);
+}
+#endif /* VIMAGE */
+
+static void
+vi_init(void *unused)
+{
 
 	TAILQ_INIT(&vnet_modlink_head);
 	TAILQ_INIT(&vnet_modpending_head);
@@ -318,26 +677,17 @@ vi_init(void *unused)
 	LIST_INIT(&vprocg_head);
 	LIST_INIT(&vnet_head);
 
-	vip = malloc(sizeof(struct vimage), M_VIMAGE, M_NOWAIT | M_ZERO);
-	if (vip == NULL)
-		panic("malloc failed for struct vimage");
-	LIST_INSERT_HEAD(&vimage_head, vip, vi_le);
+	mtx_init(&vnet_list_refc_mtx, "vnet_list_refc_mtx", NULL, MTX_DEF);
+	cv_init(&vnet_list_condvar, "vnet_list_condvar");
 
-	vprocg = malloc(sizeof(struct vprocg), M_VPROCG, M_NOWAIT | M_ZERO);
-	if (vprocg == NULL)
-		panic("malloc failed for struct vprocg");
-	vip->v_procg = vprocg;
-	LIST_INSERT_HEAD(&vprocg_head, vprocg, vprocg_le);
+	/* Default image has no parent and no name. */
+	vi_alloc(NULL, "");
 
-	vnet = malloc(sizeof(struct vnet), M_VNET, M_NOWAIT | M_ZERO);
-	if (vnet == NULL)
-		panic("vi_alloc: malloc failed");
-	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
-	vnet->vnet_magic_n = VNET_MAGIC_N;
-	vip->v_net = vnet;
-	vnet0 = vnet;
-
-	/* We MUST clear curvnet in vi_init_done before going SMP. */
+	/*
+	 * We MUST clear curvnet in vi_init_done() before going SMP,
+	 * otherwise CURVNET_SET() macros would scream about unnecessary
+	 * curvnet recursions.
+	 */
 	curvnet = LIST_FIRST(&vnet_head);
 #endif
 }

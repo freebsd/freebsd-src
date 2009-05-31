@@ -2283,6 +2283,21 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	ifr = (struct ifreq *)data;
 
 	switch (cmd) {
+#ifdef VIMAGE
+	/*
+	 * XXX vnet creation will be implemented through the new jail
+	 * framework - this is just a temporary hack for testing the
+	 * vnet create / destroy mechanisms.
+	 */
+	case SIOCSIFVIMAGE:
+		error = vi_if_move((struct vi_req *) data, NULL,
+		    TD_TO_VIMAGE(td));
+		return (error);
+	case SIOCSPVIMAGE:
+	case SIOCGPVIMAGE:
+		error = vi_td_ioctl(cmd, (struct vi_req *) data, td);
+		return (error);
+#endif
 	case SIOCIFCREATE:
 	case SIOCIFCREATE2:
 		error = priv_check(td, PRIV_NET_IFCREATE);
