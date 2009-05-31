@@ -1,6 +1,19 @@
 /*
- * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC AND NETWORK ASSOCIATES DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE
+ * FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+ * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,9 +29,12 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: openssldsa_link.c,v 1.1.6.9.28.1 2008/12/24 00:21:22 marka Exp $ */
+/* $Id: openssldsa_link.c,v 1.13.120.2 2009/01/14 23:47:26 tbox Exp $ */
 
 #ifdef OPENSSL
+#ifndef USE_EVP
+#define USE_EVP 1
+#endif
 
 #include <config.h>
 
@@ -41,32 +57,68 @@ static isc_result_t openssldsa_todns(const dst_key_t *key, isc_buffer_t *data);
 
 static isc_result_t
 openssldsa_createctx(dst_key_t *key, dst_context_t *dctx) {
+#if USE_EVP
+	EVP_MD_CTX *evp_md_ctx;
+
+	UNUSED(key);
+
+	evp_md_ctx = EVP_MD_CTX_create();
+	if (evp_md_ctx == NULL)
+		return (ISC_R_NOMEMORY);
+
+	if (!EVP_DigestInit_ex(evp_md_ctx, EVP_dss1(), NULL)) {
+		EVP_MD_CTX_destroy(evp_md_ctx);
+			return (ISC_R_FAILURE);
+	}
+
+	dctx->ctxdata.evp_md_ctx = evp_md_ctx;
+
+	return (ISC_R_SUCCESS);
+#else
 	isc_sha1_t *sha1ctx;
 
 	UNUSED(key);
 
 	sha1ctx = isc_mem_get(dctx->mctx, sizeof(isc_sha1_t));
 	isc_sha1_init(sha1ctx);
-	dctx->opaque = sha1ctx;
+	dctx->ctxdata.sha1ctx = sha1ctx;
 	return (ISC_R_SUCCESS);
+#endif
 }
 
 static void
 openssldsa_destroyctx(dst_context_t *dctx) {
-	isc_sha1_t *sha1ctx = dctx->opaque;
+#if USE_EVP
+	EVP_MD_CTX *evp_md_ctx = dctx->ctxdata.evp_md_ctx;
+
+	if (evp_md_ctx != NULL) {
+		EVP_MD_CTX_destroy(evp_md_ctx);
+		dctx->ctxdata.evp_md_ctx = NULL;
+	}
+#else
+	isc_sha1_t *sha1ctx = dctx->ctxdata.sha1ctx;
 
 	if (sha1ctx != NULL) {
 		isc_sha1_invalidate(sha1ctx);
 		isc_mem_put(dctx->mctx, sha1ctx, sizeof(isc_sha1_t));
-		dctx->opaque = NULL;
+		dctx->ctxdata.sha1ctx = NULL;
 	}
+#endif
 }
 
 static isc_result_t
 openssldsa_adddata(dst_context_t *dctx, const isc_region_t *data) {
-	isc_sha1_t *sha1ctx = dctx->opaque;
+#if USE_EVP
+	EVP_MD_CTX *evp_md_ctx = dctx->ctxdata.evp_md_ctx;
+
+	if (!EVP_DigestUpdate(evp_md_ctx, data->base, data->length)) {
+		return (ISC_R_FAILURE);
+	}
+#else
+	isc_sha1_t *sha1ctx = dctx->ctxdata.sha1ctx;
 
 	isc_sha1_update(sha1ctx, data->base, data->length);
+#endif
 	return (ISC_R_SUCCESS);
 }
 
@@ -81,23 +133,72 @@ BN_bn2bin_fixed(BIGNUM *bn, unsigned char *buf, int size) {
 
 static isc_result_t
 openssldsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
-	isc_sha1_t *sha1ctx = dctx->opaque;
 	dst_key_t *key = dctx->key;
-	DSA *dsa = key->opaque;
-	DSA_SIG *dsasig;
+	DSA *dsa = key->keydata.dsa;
 	isc_region_t r;
+	DSA_SIG *dsasig;
+#if USE_EVP
+	EVP_MD_CTX *evp_md_ctx = dctx->ctxdata.evp_md_ctx;
+	EVP_PKEY *pkey;
+	unsigned char *sigbuf;
+	const unsigned char *sb;
+	unsigned int siglen;
+#else
+	isc_sha1_t *sha1ctx = dctx->ctxdata.sha1ctx;
 	unsigned char digest[ISC_SHA1_DIGESTLENGTH];
+#endif
 
 	isc_buffer_availableregion(sig, &r);
 	if (r.length < ISC_SHA1_DIGESTLENGTH * 2 + 1)
 		return (ISC_R_NOSPACE);
 
+#if USE_EVP
+	pkey = EVP_PKEY_new();
+	if (pkey == NULL)
+		return (ISC_R_NOMEMORY);
+	if (!EVP_PKEY_set1_DSA(pkey, dsa)) {
+		EVP_PKEY_free(pkey);
+		return (ISC_R_FAILURE);
+	}
+	sigbuf = malloc(EVP_PKEY_size(pkey));
+	if (sigbuf == NULL) {
+		EVP_PKEY_free(pkey);
+		return (ISC_R_NOMEMORY);
+	}
+	if (!EVP_SignFinal(evp_md_ctx, sigbuf, &siglen, pkey)) {
+		EVP_PKEY_free(pkey);
+		free(sigbuf);
+		return (ISC_R_FAILURE);
+	}
+	INSIST(EVP_PKEY_size(pkey) >= (int) siglen);
+	EVP_PKEY_free(pkey);
+	/* Convert from Dss-Sig-Value (RFC2459). */
+	dsasig = DSA_SIG_new();
+	if (dsasig == NULL) {
+		free(sigbuf);
+		return (ISC_R_NOMEMORY);
+	}
+	sb = sigbuf;
+	if (d2i_DSA_SIG(&dsasig, &sb, (long) siglen) == NULL) {
+		free(sigbuf);
+		return (ISC_R_FAILURE);
+	}
+	free(sigbuf);
+#elif 0
+	/* Only use EVP for the Digest */
+	if (!EVP_DigestFinal_ex(evp_md_ctx, digest, &siglen)) {
+		return (ISC_R_FAILURE);
+	}
+	dsasig = DSA_do_sign(digest, ISC_SHA1_DIGESTLENGTH, dsa);
+	if (dsasig == NULL)
+		return (dst__openssl_toresult(DST_R_SIGNFAILURE));
+#else
 	isc_sha1_final(sha1ctx, digest);
 
 	dsasig = DSA_do_sign(digest, ISC_SHA1_DIGESTLENGTH, dsa);
 	if (dsasig == NULL)
 		return (dst__openssl_toresult(DST_R_SIGNFAILURE));
-
+#endif
 	*r.base++ = (key->key_size - 512)/64;
 	BN_bn2bin_fixed(dsasig->r, r.base, ISC_SHA1_DIGESTLENGTH);
 	r.base += ISC_SHA1_DIGESTLENGTH;
@@ -111,27 +212,70 @@ openssldsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 
 static isc_result_t
 openssldsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
-	isc_sha1_t *sha1ctx = dctx->opaque;
 	dst_key_t *key = dctx->key;
-	DSA *dsa = key->opaque;
-	DSA_SIG *dsasig;
+	DSA *dsa = key->keydata.dsa;
 	int status = 0;
-	unsigned char digest[ISC_SHA1_DIGESTLENGTH];
 	unsigned char *cp = sig->base;
+	DSA_SIG *dsasig;
+#if USE_EVP
+	EVP_MD_CTX *evp_md_ctx = dctx->ctxdata.evp_md_ctx;
+#if 0
+	EVP_PKEY *pkey;
+	unsigned char *sigbuf;
+#endif
+	unsigned int siglen;
+#else
+	isc_sha1_t *sha1ctx = dctx->ctxdata.sha1ctx;
+#endif
+	unsigned char digest[ISC_SHA1_DIGESTLENGTH];
 
+
+#if USE_EVP
+#if 1
+	/* Only use EVP for the digest */
+	if (!EVP_DigestFinal_ex(evp_md_ctx, digest, &siglen)) {
+		return (ISC_R_FAILURE);
+	}
+#endif
+#else
 	isc_sha1_final(sha1ctx, digest);
+#endif
 
-	if (sig->length < 2 * ISC_SHA1_DIGESTLENGTH + 1)
+	if (sig->length != 2 * ISC_SHA1_DIGESTLENGTH + 1) {
 		return (DST_R_VERIFYFAILURE);
+	}
 
 	cp++;	/*%< Skip T */
 	dsasig = DSA_SIG_new();
+	if (dsasig == NULL)
+		return (ISC_R_NOMEMORY);
 	dsasig->r = BN_bin2bn(cp, ISC_SHA1_DIGESTLENGTH, NULL);
 	cp += ISC_SHA1_DIGESTLENGTH;
 	dsasig->s = BN_bin2bn(cp, ISC_SHA1_DIGESTLENGTH, NULL);
 	cp += ISC_SHA1_DIGESTLENGTH;
 
+#if 0
+	pkey = EVP_PKEY_new();
+	if (pkey == NULL)
+		return (ISC_R_NOMEMORY);
+	if (!EVP_PKEY_set1_DSA(pkey, dsa)) {
+		EVP_PKEY_free(pkey);
+		return (ISC_R_FAILURE);
+	}
+	/* Convert to Dss-Sig-Value (RFC2459). */
+	sigbuf = malloc(EVP_PKEY_size(pkey) + 50);
+	if (sigbuf == NULL) {
+		EVP_PKEY_free(pkey);
+		return (ISC_R_NOMEMORY);
+	}
+	siglen = (unsigned) i2d_DSA_SIG(dsasig, &sigbuf);
+	INSIST(EVP_PKEY_size(pkey) >= (int) siglen);
+	status = EVP_VerifyFinal(evp_md_ctx, sigbuf, siglen, pkey);
+	EVP_PKEY_free(pkey);
+	free(sigbuf);
+#else
 	status = DSA_do_verify(digest, ISC_SHA1_DIGESTLENGTH, dsasig, dsa);
+#endif
 	DSA_SIG_free(dsasig);
 	if (status != 1)
 		return (dst__openssl_toresult(DST_R_VERIFYFAILURE));
@@ -144,8 +288,8 @@ openssldsa_compare(const dst_key_t *key1, const dst_key_t *key2) {
 	int status;
 	DSA *dsa1, *dsa2;
 
-	dsa1 = (DSA *) key1->opaque;
-	dsa2 = (DSA *) key2->opaque;
+	dsa1 = key1->keydata.dsa;
+	dsa2 = key2->keydata.dsa;
 
 	if (dsa1 == NULL && dsa2 == NULL)
 		return (ISC_TRUE);
@@ -172,7 +316,7 @@ openssldsa_compare(const dst_key_t *key1, const dst_key_t *key2) {
 static isc_result_t
 openssldsa_generate(dst_key_t *key, int unused) {
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
-        BN_GENCB cb;
+	BN_GENCB cb;
 #endif
 	DSA *dsa;
 	unsigned char rand_array[ISC_SHA1_DIGESTLENGTH];
@@ -186,12 +330,12 @@ openssldsa_generate(dst_key_t *key, int unused) {
 		return (result);
 
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
-        dsa = DSA_new();
+	dsa = DSA_new();
 	if (dsa == NULL)
 		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
 
 	BN_GENCB_set_old(&cb, NULL, NULL);
-  
+
 	if (!DSA_generate_parameters_ex(dsa, key->key_size, rand_array,
 					ISC_SHA1_DIGESTLENGTH,  NULL, NULL,
 					&cb))
@@ -213,22 +357,22 @@ openssldsa_generate(dst_key_t *key, int unused) {
 	}
 	dsa->flags &= ~DSA_FLAG_CACHE_MONT_P;
 
-	key->opaque = dsa;
+	key->keydata.dsa = dsa;
 
 	return (ISC_R_SUCCESS);
 }
 
 static isc_boolean_t
 openssldsa_isprivate(const dst_key_t *key) {
-	DSA *dsa = (DSA *) key->opaque;
+	DSA *dsa = key->keydata.dsa;
 	return (ISC_TF(dsa != NULL && dsa->priv_key != NULL));
 }
 
 static void
 openssldsa_destroy(dst_key_t *key) {
-	DSA *dsa = key->opaque;
+	DSA *dsa = key->keydata.dsa;
 	DSA_free(dsa);
-	key->opaque = NULL;
+	key->keydata.dsa = NULL;
 }
 
 
@@ -239,9 +383,9 @@ openssldsa_todns(const dst_key_t *key, isc_buffer_t *data) {
 	int dnslen;
 	unsigned int t, p_bytes;
 
-	REQUIRE(key->opaque != NULL);
+	REQUIRE(key->keydata.dsa != NULL);
 
-	dsa = (DSA *) key->opaque;
+	dsa = key->keydata.dsa;
 
 	isc_buffer_availableregion(data, &r);
 
@@ -315,7 +459,7 @@ openssldsa_fromdns(dst_key_t *key, isc_buffer_t *data) {
 
 	isc_buffer_forward(data, 1 + ISC_SHA1_DIGESTLENGTH + 3 * p_bytes);
 
-	key->opaque = (void *) dsa;
+	key->keydata.dsa = dsa;
 
 	return (ISC_R_SUCCESS);
 }
@@ -328,10 +472,10 @@ openssldsa_tofile(const dst_key_t *key, const char *directory) {
 	dst_private_t priv;
 	unsigned char bufs[5][128];
 
-	if (key->opaque == NULL)
+	if (key->keydata.dsa == NULL)
 		return (DST_R_NULLKEY);
 
-	dsa = (DSA *) key->opaque;
+	dsa = key->keydata.dsa;
 
 	priv.elements[cnt].tag = TAG_DSA_PRIME;
 	priv.elements[cnt].length = BN_num_bytes(dsa->p);
@@ -385,7 +529,7 @@ openssldsa_parse(dst_key_t *key, isc_lex_t *lexer) {
 	if (dsa == NULL)
 		DST_RET(ISC_R_NOMEMORY);
 	dsa->flags &= ~DSA_FLAG_CACHE_MONT_P;
-	key->opaque = dsa;
+	key->keydata.dsa = dsa;
 
 	for (i=0; i < priv.nelements; i++) {
 		BIGNUM *bn;
@@ -442,6 +586,7 @@ static dst_func_t openssldsa_functions = {
 	openssldsa_tofile,
 	openssldsa_parse,
 	NULL, /*%< cleanup */
+	NULL, /*%< fromlabel */
 };
 
 isc_result_t

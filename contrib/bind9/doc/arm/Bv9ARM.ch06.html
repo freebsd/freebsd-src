@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch06.html,v 1.82.18.88 2008/10/18 01:29:58 tbox Exp $ -->
+<!-- $Id: Bv9ARM.ch06.html,v 1.201.14.8 2009/04/03 01:52:21 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -48,54 +48,59 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#configuration_file_elements">Configuration File Elements</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#address_match_lists">Address Match Lists</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2573436">Comment Syntax</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2573716">Comment Syntax</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#Configuration_File_Grammar">Configuration File Grammar</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574117"><span><strong class="command">acl</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574346"><span><strong class="command">acl</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#acl"><span><strong class="command">acl</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574307"><span><strong class="command">controls</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574536"><span><strong class="command">controls</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#controls_statement_definition_and_usage"><span><strong class="command">controls</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574736"><span><strong class="command">include</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574753"><span><strong class="command">include</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574965"><span><strong class="command">include</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574982"><span><strong class="command">include</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574776"><span><strong class="command">key</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574800"><span><strong class="command">key</strong></span> Statement Definition and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574958"><span><strong class="command">logging</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575084"><span><strong class="command">logging</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575005"><span><strong class="command">key</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575029"><span><strong class="command">key</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575120"><span><strong class="command">logging</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575245"><span><strong class="command">logging</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576435"><span><strong class="command">lwres</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576508"><span><strong class="command">lwres</strong></span> Statement Definition and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576572"><span><strong class="command">masters</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576616"><span><strong class="command">masters</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577306"><span><strong class="command">lwres</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577448"><span><strong class="command">lwres</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577512"><span><strong class="command">masters</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577556"><span><strong class="command">masters</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576631"><span><strong class="command">options</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577571"><span><strong class="command">options</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#options"><span><strong class="command">options</strong></span> Statement Definition and
           Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_grammar"><span><strong class="command">server</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_definition_and_usage"><span><strong class="command">server</strong></span> Statement Definition and
             Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585614"><span><strong class="command">trusted-keys</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585666"><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#statschannels"><span><strong class="command">statistics-channels</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2586754"><span><strong class="command">statistics-channels</strong></span> Statement Definition and
+            Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2586908"><span><strong class="command">trusted-keys</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2586960"><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#view_statement_grammar"><span><strong class="command">view</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585748"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2587042"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zone_statement_grammar"><span><strong class="command">zone</strong></span>
             Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2587332"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2588510"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2589477">Zone File</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2591109">Zone File</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them">Types of Resource Records and When to Use Them</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2591500">Discussion of MX Records</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2593203">Discussion of MX Records</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#Setting_TTLs">Setting TTLs</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592188">Inverse Mapping in IPv4</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592384">Other Zone File Directives</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592572"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2593886">Inverse Mapping in IPv4</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2594013">Other Zone File Directives</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2594270"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zonefile_format">Additional File Formats</a></span></dt>
 </dl></dd>
+<dt><span class="sect1"><a href="Bv9ARM.ch06.html#statistics">BIND9 Statistics</a></span></dt>
+<dd><dl><dt><span class="sect2"><a href="Bv9ARM.ch06.html#statistics_counters">Statistics Counters</a></span></dt></dl></dd>
 </dl>
 </div>
 <p>
@@ -221,27 +226,23 @@
 <td>
                 <p>
                   An IPv6 address, such as <span><strong class="command">2001:db8::1234</strong></span>.
-                  IPv6 scoped addresses that have ambiguity on their scope
-                  zones must be
-                  disambiguated by an appropriate zone ID with the percent
-                  character
-                  (`%') as delimiter.
-                  It is strongly recommended to use string zone names rather
-                  than
-                  numeric identifiers, in order to be robust against system
-                  configuration changes.
-                  However, since there is no standard mapping for such names
-                  and
-                  identifier values, currently only interface names as link
-                  identifiers
+                  IPv6 scoped addresses that have ambiguity on their
+                  scope zones must be disambiguated by an appropriate
+                  zone ID with the percent character (`%') as
+                  delimiter.  It is strongly recommended to use
+                  string zone names rather than numeric identifiers,
+                  in order to be robust against system configuration
+                  changes.  However, since there is no standard
+                  mapping for such names and identifier values,
+                  currently only interface names as link identifiers
                   are supported, assuming one-to-one mapping between
-                  interfaces and links.
-                  For example, a link-local address <span><strong class="command">fe80::1</strong></span> on the
-                  link attached to the interface <span><strong class="command">ne0</strong></span>
+                  interfaces and links.  For example, a link-local
+                  address <span><strong class="command">fe80::1</strong></span> on the link
+                  attached to the interface <span><strong class="command">ne0</strong></span>
                   can be specified as <span><strong class="command">fe80::1%ne0</strong></span>.
-                  Note that on most systems link-local addresses always have
-                  the
-                  ambiguity, and need to be disambiguated.
+                  Note that on most systems link-local addresses
+                  always have the ambiguity, and need to be
+                  disambiguated.
                 </p>
               </td>
 </tr>
@@ -293,6 +294,11 @@
                   network <span><strong class="command">127.0.0.0</strong></span> with
                   netmask <span><strong class="command">255.0.0.0</strong></span> and <span><strong class="command">1.2.3.0/28</strong></span> is
                   network <span><strong class="command">1.2.3.0</strong></span> with netmask <span><strong class="command">255.255.255.240</strong></span>.
+                </p>
+                <p>
+                  When specifying a prefix involving a IPv6 scoped address
+                  the scope may be omitted.  In that case the prefix will
+                  match packets from any scope.
                 </p>
               </td>
 </tr>
@@ -455,7 +461,7 @@
 <a name="address_match_lists"></a>Address Match Lists</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573302"></a>Syntax</h4></div></div></div>
+<a name="id2573414"></a>Syntax</h4></div></div></div>
 <pre class="programlisting"><code class="varname">address_match_list</code> = address_match_list_element ;
   [<span class="optional"> address_match_list_element; ... </span>]
 <code class="varname">address_match_list_element</code> = [<span class="optional"> ! </span>] (ip_address [<span class="optional">/length</span>] |
@@ -464,14 +470,13 @@
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573330"></a>Definition and Usage</h4></div></div></div>
+<a name="id2573442"></a>Definition and Usage</h4></div></div></div>
 <p>
             Address match lists are primarily used to determine access
             control for various server operations. They are also used in
             the <span><strong class="command">listen-on</strong></span> and <span><strong class="command">sortlist</strong></span>
-            statements. The elements
-            which constitute an address match list can be any of the
-            following:
+            statements. The elements which constitute an address match
+            list can be any of the following:
           </p>
 <div class="itemizedlist"><ul type="disc">
 <li>an IP address (IPv4 or IPv6)</li>
@@ -488,61 +493,68 @@
 <p>
             Elements can be negated with a leading exclamation mark (`!'),
             and the match list names "any", "none", "localhost", and
-            "localnets"
-            are predefined. More information on those names can be found in
-            the description of the acl statement.
+            "localnets" are predefined. More information on those names
+            can be found in the description of the acl statement.
           </p>
 <p>
             The addition of the key clause made the name of this syntactic
             element something of a misnomer, since security keys can be used
             to validate access without regard to a host or network address.
-            Nonetheless,
-            the term "address match list" is still used throughout the
-            documentation.
+            Nonetheless, the term "address match list" is still used
+            throughout the documentation.
           </p>
 <p>
             When a given IP address or prefix is compared to an address
-            match list, the list is traversed in order until an element
-            matches.
+            match list, the comparison takes place in approximately O(1)
+            time.  However, key comparisons require that the list of keys
+            be traversed until a matching key is found, and therefore may
+            be somewhat slower.
+          </p>
+<p>
             The interpretation of a match depends on whether the list is being
-            used
-            for access control, defining listen-on ports, or in a sortlist,
-            and whether the element was negated.
+            used for access control, defining <span><strong class="command">listen-on</strong></span> ports, or in a
+            <span><strong class="command">sortlist</strong></span>, and whether the element was negated.
           </p>
 <p>
             When used as an access control list, a non-negated match
             allows access and a negated match denies access. If
             there is no match, access is denied. The clauses
             <span><strong class="command">allow-notify</strong></span>,
+            <span><strong class="command">allow-recursion</strong></span>,
+            <span><strong class="command">allow-recursion-on</strong></span>,
             <span><strong class="command">allow-query</strong></span>,
+            <span><strong class="command">allow-query-on</strong></span>,
             <span><strong class="command">allow-query-cache</strong></span>,
+            <span><strong class="command">allow-query-cache-on</strong></span>,
             <span><strong class="command">allow-transfer</strong></span>,
             <span><strong class="command">allow-update</strong></span>,
             <span><strong class="command">allow-update-forwarding</strong></span>, and
             <span><strong class="command">blackhole</strong></span> all use address match
-            lists.  Similarly, the listen-on option will cause the
-            server to not accept queries on any of the machine's
+            lists.  Similarly, the <span><strong class="command">listen-on</strong></span> option will cause the
+            server to refuse queries on any of the machine's
             addresses which do not match the list.
           </p>
 <p>
-            Because of the first-match aspect of the algorithm, an element
-            that defines a subset of another element in the list should come
-            before the broader element, regardless of whether either is
-            negated. For
-            example, in
-            <span><strong class="command">1.2.3/24; ! 1.2.3.13;</strong></span> the 1.2.3.13
-            element is
-            completely useless because the algorithm will match any lookup for
-            1.2.3.13 to the 1.2.3/24 element.
-            Using <span><strong class="command">! 1.2.3.13; 1.2.3/24</strong></span> fixes
-            that problem by having 1.2.3.13 blocked by the negation but all
-            other 1.2.3.* hosts fall through.
+            Order of insertion is significant.  If more than one element
+            in an ACL is found to match a given IP address or prefix,
+            preference will be given to the one that came
+            <span class="emphasis"><em>first</em></span> in the ACL definition.
+            Because of this first-match behavior, an element that
+            defines a subset of another element in the list should
+            come before the broader element, regardless of whether
+            either is negated. For example, in
+            <span><strong class="command">1.2.3/24; ! 1.2.3.13;</strong></span>
+            the 1.2.3.13 element is completely useless because the
+            algorithm will match any lookup for 1.2.3.13 to the 1.2.3/24
+            element.  Using <span><strong class="command">! 1.2.3.13; 1.2.3/24</strong></span> fixes
+            that problem by having 1.2.3.13 blocked by the negation, but
+            all other 1.2.3.* hosts fall through.
           </p>
 </div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2573436"></a>Comment Syntax</h3></div></div></div>
+<a name="id2573716"></a>Comment Syntax</h3></div></div></div>
 <p>
           The <acronym class="acronym">BIND</acronym> 9 comment syntax allows for
           comments to appear
@@ -552,7 +564,7 @@
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573588"></a>Syntax</h4></div></div></div>
+<a name="id2573731"></a>Syntax</h4></div></div></div>
 <p>
             </p>
 <pre class="programlisting">/* This is a <acronym class="acronym">BIND</acronym> comment as in C */</pre>
@@ -567,7 +579,7 @@
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573618"></a>Definition and Usage</h4></div></div></div>
+<a name="id2573761"></a>Definition and Usage</h4></div></div></div>
 <p>
             Comments may appear anywhere that whitespace may appear in
             a <acronym class="acronym">BIND</acronym> configuration file.
@@ -598,8 +610,6 @@
             slash) and continue to the end of the physical line. They cannot
             be continued across multiple physical lines; to have one logical
             comment span multiple lines, each line must use the // pair.
-          </p>
-<p>
             For example:
           </p>
 <p>
@@ -617,8 +627,6 @@
             with the character <code class="literal">#</code> (number sign)
             and continue to the end of the
             physical line, as in C++ comments.
-          </p>
-<p>
             For example:
           </p>
 <p>
@@ -763,6 +771,17 @@
 </tr>
 <tr>
 <td>
+                <p><span><strong class="command">statistics-channels</strong></span></p>
+              </td>
+<td>
+                <p>
+                  declares communication channels to get access to
+                  <span><strong class="command">named</strong></span> statistics.
+                </p>
+              </td>
+</tr>
+<tr>
+<td>
                 <p><span><strong class="command">trusted-keys</strong></span></p>
               </td>
 <td>
@@ -801,7 +820,7 @@
       </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574117"></a><span><strong class="command">acl</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574346"></a><span><strong class="command">acl</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">acl</strong></span> acl-name {
     address_match_list
 };
@@ -819,8 +838,7 @@
 <p>
           Note that an address match list's name must be defined
           with <span><strong class="command">acl</strong></span> before it can be used
-          elsewhere; no
-          forward references are allowed.
+          elsewhere; no forward references are allowed.
         </p>
 <p>
           The following ACLs are built-in:
@@ -884,7 +902,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574307"></a><span><strong class="command">controls</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574536"></a><span><strong class="command">controls</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">controls</strong></span> {
    [ inet ( ip_addr | * ) [ port ip_port ] allow { <em class="replaceable"><code> address_match_list </code></em> }
                 keys { <em class="replaceable"><code>key_list</code></em> }; ]
@@ -1006,12 +1024,12 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574736"></a><span><strong class="command">include</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574965"></a><span><strong class="command">include</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">include</strong></span> <em class="replaceable"><code>filename</code></em>;</pre>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574753"></a><span><strong class="command">include</strong></span> Statement Definition and
+<a name="id2574982"></a><span><strong class="command">include</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">include</strong></span> statement inserts the
@@ -1026,7 +1044,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574776"></a><span><strong class="command">key</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2575005"></a><span><strong class="command">key</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">key</strong></span> <em class="replaceable"><code>key_id</code></em> {
     algorithm <em class="replaceable"><code>string</code></em>;
     secret <em class="replaceable"><code>string</code></em>;
@@ -1035,7 +1053,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574800"></a><span><strong class="command">key</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2575029"></a><span><strong class="command">key</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">key</strong></span> statement defines a shared
           secret key for use with TSIG (see <a href="Bv9ARM.ch04.html#tsig" title="TSIG">the section called &#8220;TSIG&#8221;</a>)
@@ -1082,10 +1100,10 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574958"></a><span><strong class="command">logging</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2575120"></a><span><strong class="command">logging</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">logging</strong></span> {
    [ <span><strong class="command">channel</strong></span> <em class="replaceable"><code>channel_name</code></em> {
-     ( <span><strong class="command">file</strong></span> <em class="replaceable"><code>path name</code></em>
+     ( <span><strong class="command">file</strong></span> <em class="replaceable"><code>path_name</code></em>
          [ <span><strong class="command">versions</strong></span> ( <em class="replaceable"><code>number</code></em> | <span><strong class="command">unlimited</strong></span> ) ]
          [ <span><strong class="command">size</strong></span> <em class="replaceable"><code>size spec</code></em> ]
        | <span><strong class="command">syslog</strong></span> <em class="replaceable"><code>syslog_facility</code></em>
@@ -1106,7 +1124,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575084"></a><span><strong class="command">logging</strong></span> Statement Definition and
+<a name="id2575245"></a><span><strong class="command">logging</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">logging</strong></span> statement configures a
@@ -1140,7 +1158,7 @@
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2575137"></a>The <span><strong class="command">channel</strong></span> Phrase</h4></div></div></div>
+<a name="id2575298"></a>The <span><strong class="command">channel</strong></span> Phrase</h4></div></div></div>
 <p>
             All log output goes to one or more <span class="emphasis"><em>channels</em></span>;
             you can make as many of them as you want.
@@ -1302,7 +1320,7 @@ notrace</strong></span>. All debugging messages in the server have a debug
             the date and time will be logged. <span><strong class="command">print-time</strong></span> may
             be specified for a <span><strong class="command">syslog</strong></span> channel,
             but is usually
-            pointless since <span><strong class="command">syslog</strong></span> also prints
+            pointless since <span><strong class="command">syslog</strong></span> also logs
             the date and
             time. If <span><strong class="command">print-category</strong></span> is
             requested, then the
@@ -1536,7 +1554,7 @@ category notify { null; };
                   </td>
 <td>
                     <p>
-                      Messages that named was unable to determine the
+                      Messages that <span><strong class="command">named</strong></span> was unable to determine the
                       class of or for which there was no matching <span><strong class="command">view</strong></span>.
                       A one line summary is also logged to the <span><strong class="command">client</strong></span> category.
                       This category is best sent to a file or stderr, by
@@ -1588,20 +1606,34 @@ category notify { null; };
                       enable query logging unless <span><strong class="command">querylog</strong></span> option has been
                       specified.
                     </p>
+
                     <p>
-                      The query log entry reports the client's IP address and
-                      port number, and the
-                      query name, class and type.  It also reports whether the
-                      Recursion Desired
-                      flag was set (+ if set, - if not set), EDNS was in use
-                      (E) or if the
-                      query was signed (S).
+                      The query log entry reports the client's IP
+                      address and port number, and the query name,
+                      class and type.  It also reports whether the
+                      Recursion Desired flag was set (+ if set, -
+                      if not set), if the query was signed (S),
+                      EDNS was in use (E), if DO (DNSSEC Ok) was
+                      set (D), or if CD (Checking Disabled) was set
+                      (C).
                     </p>
+
                     <p>
                       <code class="computeroutput">client 127.0.0.1#62536: query: www.example.com IN AAAA +SE</code>
                     </p>
                     <p>
                       <code class="computeroutput">client ::1#62537: query: www.example.net IN AAAA -SE</code>
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><span><strong class="command">query-errors</strong></span></p>
+                  </td>
+<td>
+                    <p>
+                      Information about queries that resulted in some
+                      failure.
                     </p>
                   </td>
 </tr>
@@ -1645,7 +1677,7 @@ category notify { null; };
                   </td>
 <td>
                     <p>
-                      Delegation only.  Logs queries that have have
+                      Delegation only.  Logs queries that have
                       been forced to NXDOMAIN as the result of a
                       delegation-only zone or
                       a <span><strong class="command">delegation-only</strong></span> in a
@@ -1653,13 +1685,266 @@ category notify { null; };
                     </p>
                   </td>
 </tr>
+<tr>
+<td>
+                    <p><span><strong class="command">edns-disabled</strong></span></p>
+                  </td>
+<td>
+                    <p>
+                      Log queries that have been forced to use plain
+                      DNS due to timeouts.  This is often due to
+                      the remote servers not being RFC 1034 compliant
+                      (not always returning FORMERR or similar to
+                      EDNS queries and other extensions to the DNS
+                      when they are not understood).  In other words, this is
+                      targeted at servers that fail to respond to
+                      DNS queries that they don't understand.
+                    </p>
+                    <p>
+                      Note: the log message can also be due to
+                      packet loss.  Before reporting servers for
+                      non-RFC 1034 compliance they should be re-tested
+                      to determine the nature of the non-compliance.
+                      This testing should prevent or reduce the
+                      number of false-positive reports.
+                    </p>
+                    <p>
+                      Note: eventually <span><strong class="command">named</strong></span> will have to stop
+                      treating such timeouts as due to RFC 1034 non
+                      compliance and start treating it as plain
+                      packet loss.  Falsely classifying packet
+                      loss as due to RFC 1034 non compliance impacts
+                      on DNSSEC validation which requires EDNS for
+                      the DNSSEC records to be returned.
+                    </p>
+                  </td>
+</tr>
 </tbody>
 </table></div>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2576793"></a>The <span><strong class="command">query-errors</strong></span> Category</h4></div></div></div>
+<p>
+            The <span><strong class="command">query-errors</strong></span> category is
+            specifically intended for debugging purposes: To identify
+            why and how specific queries result in responses which
+            indicate an error.
+            Messages of this category are therefore only logged
+            with <span><strong class="command">debug</strong></span> levels.
+          </p>
+<p>
+            At the debug levels of 1 or higher, each response with the
+            rcode of SERVFAIL is logged as follows:
+          </p>
+<p>
+            <code class="computeroutput">client 127.0.0.1#61502: query failed (SERVFAIL) for www.example.com/IN/AAAA at query.c:3880</code>
+          </p>
+<p>
+            This means an error resulting in SERVFAIL was
+            detected at line 3880 of source file
+            <code class="filename">query.c</code>.
+            Log messages of this level will particularly
+            help identify the cause of SERVFAIL for an
+            authoritative server.
+          </p>
+<p>
+            At the debug levels of 2 or higher, detailed context
+            information of recursive resolutions that resulted in
+            SERVFAIL is logged.
+            The log message will look like as follows:
+          </p>
+<p>
+            <code class="computeroutput">fetch completed at resolver.c:2970 for www.example.com/A in 30.000183: timed out/success [domain:example.com,referral:2,restart:7,qrysent:8,timeout:5,lame:0,neterr:0,badresp:1,adberr:0,findfail:0,valfail:0]</code>
+          </p>
+<p>
+            The first part before the colon shows that a recursive
+            resolution for AAAA records of www.example.com completed
+            in 30.000183 seconds and the final result that led to the
+            SERVFAIL was determined at line 2970 of source file
+            <code class="filename">resolver.c</code>.
+          </p>
+<p>
+            The following part shows the detected final result and the
+            latest result of DNSSEC validation.
+            The latter is always success when no validation attempt
+            is made.
+            In this example, this query resulted in SERVFAIL probably
+            because all name servers are down or unreachable, leading
+            to a timeout in 30 seconds.
+            DNSSEC validation was probably not attempted.
+          </p>
+<p>
+            The last part enclosed in square brackets shows statistics
+            information collected for this particular resolution
+            attempt.
+            The <code class="varname">domain</code> field shows the deepest zone
+            that the resolver reached;
+            it is the zone where the error was finally detected.
+            The meaning of the other fields is summarized in the
+            following table.
+          </p>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                    <p><code class="varname">referral</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of referrals the resolver received
+                      throughout the resolution process.
+                      In the above example this is 2, which are most
+                      likely com and example.com.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">restart</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of cycles that the resolver tried
+                      remote servers at the <code class="varname">domain</code>
+                      zone.
+                      In each cycle the resolver sends one query
+                      (possibly resending it, depending on the response)
+                      to each known name server of
+                      the <code class="varname">domain</code> zone.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">qrysent</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of queries the resolver sent at the
+                      <code class="varname">domain</code> zone.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">timeout</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of timeouts since the resolver
+                      received the last response.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">lame</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of lame servers the resolver detected
+                      at the <code class="varname">domain</code> zone.
+                      A server is detected to be lame either by an
+                      invalid response or as a result of lookup in
+                      BIND9's address database (ADB), where lame
+                      servers are cached.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">neterr</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of erroneous results that the
+                      resolver encountered in sending queries
+                      at the <code class="varname">domain</code> zone.
+                      One common case is the remote server is
+                      unreachable and the resolver receives an ICMP
+                      unreachable error message.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">badresp</code></p>
+                  </td>
+<td>
+                    <p>
+                      The number of unexpected responses (other than
+                      <code class="varname">lame</code>) to queries sent by the
+                      resolver at the <code class="varname">domain</code> zone.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">adberr</code></p>
+                  </td>
+<td>
+                    <p>
+                      Failures in finding remote server addresses
+                      of the <code class="varname">domain</code> zone in the ADB.
+                      One common case of this is that the remote
+                      server's name does not have any address records.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">findfail</code></p>
+                  </td>
+<td>
+                    <p>
+                      Failures of resolving remote server addresses.
+                      This is a total number of failures throughout
+                      the resolution process.
+                    </p>
+                  </td>
+</tr>
+<tr>
+<td>
+                    <p><code class="varname">valfail</code></p>
+                  </td>
+<td>
+                    <p>
+                      Failures of DNSSEC validation.
+                      Validation failures are counted throughout
+                      the resolution process (not limited to
+                      the <code class="varname">domain</code> zone), but should
+                      only happen in <code class="varname">domain</code>.
+                    </p>
+                  </td>
+</tr>
+</tbody>
+</table></div>
+<p>
+            At the debug levels of 3 or higher, the same messages
+            as those at the debug 1 level are logged for other errors
+            than SERVFAIL.
+            Note that negative responses such as NXDOMAIN are not
+            regarded as errors here.
+          </p>
+<p>
+            At the debug levels of 4 or higher, the same messages
+            as those at the debug 2 level are logged for other errors
+            than SERVFAIL.
+            Unlike the above case of level 3, messages are logged for
+            negative responses.
+            This is because any unexpected results can be difficult to
+            debug in the recursion case.
+          </p>
 </div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576435"></a><span><strong class="command">lwres</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2577306"></a><span><strong class="command">lwres</strong></span> Statement Grammar</h3></div></div></div>
 <p>
            This is the grammar of the <span><strong class="command">lwres</strong></span>
           statement in the <code class="filename">named.conf</code> file:
@@ -1674,7 +1959,7 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576508"></a><span><strong class="command">lwres</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2577448"></a><span><strong class="command">lwres</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">lwres</strong></span> statement configures the
           name
@@ -1725,14 +2010,14 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576572"></a><span><strong class="command">masters</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2577512"></a><span><strong class="command">masters</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting">
 <span><strong class="command">masters</strong></span> <em class="replaceable"><code>name</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] { ( <em class="replaceable"><code>masters_list</code></em> | <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] [<span class="optional">key <em class="replaceable"><code>key</code></em></span>] ) ; [<span class="optional">...</span>] };
 </pre>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576616"></a><span><strong class="command">masters</strong></span> Statement Definition and
+<a name="id2577556"></a><span><strong class="command">masters</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p><span><strong class="command">masters</strong></span>
           lists allow for a common set of masters to be easily used by
@@ -1741,7 +2026,7 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576631"></a><span><strong class="command">options</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2577571"></a><span><strong class="command">options</strong></span> Statement Grammar</h3></div></div></div>
 <p>
           This is the grammar of the <span><strong class="command">options</strong></span>
           statement in the <code class="filename">named.conf</code> file:
@@ -1753,10 +2038,12 @@ category notify { null; };
     [<span class="optional"> directory <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> key-directory <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> named-xfer <em class="replaceable"><code>path_name</code></em>; </span>]
+    [<span class="optional"> tkey-gssapi-credential <em class="replaceable"><code>principal</code></em>; </span>]
     [<span class="optional"> tkey-domain <em class="replaceable"><code>domainname</code></em>; </span>]
     [<span class="optional"> tkey-dhkey <em class="replaceable"><code>key_name</code></em> <em class="replaceable"><code>key_tag</code></em>; </span>]
     [<span class="optional"> cache-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> dump-file <em class="replaceable"><code>path_name</code></em>; </span>]
+    [<span class="optional"> memstatistics <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> memstatistics-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> pid-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> recursing-file <em class="replaceable"><code>path_name</code></em>; </span>]
@@ -1778,6 +2065,7 @@ category notify { null; };
     [<span class="optional"> rfc2308-type1 <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> use-id-pool <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> maintain-ixfr-base <em class="replaceable"><code>yes_or_no</code></em>; </span>]
+    [<span class="optional"> ixfr-from-differences (<em class="replaceable"><code>yes_or_no</code></em> | <code class="constant">master</code> | <code class="constant">slave</code>); </span>]
     [<span class="optional"> dnssec-enable <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> dnssec-validation <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> dnssec-lookaside <em class="replaceable"><code>domain</code></em> trust-anchor <em class="replaceable"><code>domain</code></em>; </span>]
@@ -1799,12 +2087,16 @@ category notify { null; };
     [<span class="optional"> check-sibling <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> allow-notify { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-query { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
+    [<span class="optional"> allow-query-on { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-query-cache { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
+    [<span class="optional"> allow-query-cache-on { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-transfer { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-recursion { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
+    [<span class="optional"> allow-recursion-on { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-update { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-update-forwarding { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> update-check-ksk <em class="replaceable"><code>yes_or_no</code></em>; </span>]
+    [<span class="optional"> try-tcp-refresh <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> allow-v6-synthesis { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> blackhole { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> use-v4-udp-ports { <em class="replaceable"><code>port_list</code></em> }; </span>]
@@ -1821,6 +2113,9 @@ category notify { null; };
         [<span class="optional"> port ( <em class="replaceable"><code>ip_port</code></em> | <em class="replaceable"><code>*</code></em> ) </span>] | 
         [<span class="optional"> address ( <em class="replaceable"><code>ip6_addr</code></em> | <em class="replaceable"><code>*</code></em> ) </span>] 
         [<span class="optional"> port ( <em class="replaceable"><code>ip_port</code></em> | <em class="replaceable"><code>*</code></em> ) </span>] ) ; </span>]
+    [<span class="optional"> use-queryport-pool <em class="replaceable"><code>yes_or_no</code></em>; </span>]
+    [<span class="optional"> queryport-pool-ports <em class="replaceable"><code>number</code></em>; </span>]
+    [<span class="optional"> queryport-pool-interval <em class="replaceable"><code>number</code></em>; </span>]
     [<span class="optional"> max-transfer-time-in <em class="replaceable"><code>number</code></em>; </span>]
     [<span class="optional"> max-transfer-time-out <em class="replaceable"><code>number</code></em>; </span>]
     [<span class="optional"> max-transfer-idle-in <em class="replaceable"><code>number</code></em>; </span>]
@@ -1843,6 +2138,7 @@ category notify { null; };
     [<span class="optional"> notify-delay <em class="replaceable"><code>seconds</code></em> ; </span>]
     [<span class="optional"> notify-source (<em class="replaceable"><code>ip4_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
     [<span class="optional"> notify-source-v6 (<em class="replaceable"><code>ip6_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
+    [<span class="optional"> notify-to-soa <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
     [<span class="optional"> also-notify { <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; [<span class="optional"> <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; ... </span>] }; </span>]
     [<span class="optional"> max-ixfr-log-size <em class="replaceable"><code>number</code></em>; </span>]
     [<span class="optional"> max-journal-size <em class="replaceable"><code>size_spec</code></em>; </span>]
@@ -1861,6 +2157,9 @@ category notify { null; };
     [<span class="optional"> max-ncache-ttl <em class="replaceable"><code>number</code></em>; </span>]
     [<span class="optional"> max-cache-ttl <em class="replaceable"><code>number</code></em>; </span>]
     [<span class="optional"> sig-validity-interval <em class="replaceable"><code>number</code></em> ; </span>]
+    [<span class="optional"> sig-signing-nodes <em class="replaceable"><code>number</code></em> ; </span>]
+    [<span class="optional"> sig-signing-signatures <em class="replaceable"><code>number</code></em> ; </span>]
+    [<span class="optional"> sig-signing-type <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> min-roots <em class="replaceable"><code>number</code></em>; </span>]
     [<span class="optional"> use-ixfr <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
     [<span class="optional"> provide-ixfr <em class="replaceable"><code>yes_or_no</code></em>; </span>]
@@ -1937,28 +2236,42 @@ category notify { null; };
               </p></dd>
 <dt><span class="term"><span><strong class="command">named-xfer</strong></span></span></dt>
 <dd><p>
-                <span class="emphasis"><em>This option is obsolete.</em></span>
-                It was used in <acronym class="acronym">BIND</acronym> 8 to
-                specify the pathname to the <span><strong class="command">named-xfer</strong></span> program.
-                In <acronym class="acronym">BIND</acronym> 9, no separate <span><strong class="command">named-xfer</strong></span> program is
-                needed; its functionality is built into the name server.
+                <span class="emphasis"><em>This option is obsolete.</em></span> It
+                was used in <acronym class="acronym">BIND</acronym> 8 to specify
+                the pathname to the <span><strong class="command">named-xfer</strong></span>
+                program.  In <acronym class="acronym">BIND</acronym> 9, no separate
+                <span><strong class="command">named-xfer</strong></span> program is needed;
+                its functionality is built into the name server.
+              </p></dd>
+<dt><span class="term"><span><strong class="command">tkey-gssapi-credential</strong></span></span></dt>
+<dd><p>
+                The security credential with which the server should
+                authenticate keys requested by the GSS-TSIG protocol.
+                Currently only Kerberos 5 authentication is available
+                and the credential is a Kerberos principal which
+                the server can acquire through the default system
+                key file, normally <code class="filename">/etc/krb5.keytab</code>.
+                Normally this principal is of the form
+                "<strong class="userinput"><code>dns/</code></strong><code class="varname">server.domain</code>".
+                To use GSS-TSIG, <span><strong class="command">tkey-domain</strong></span>
+                must also be set.
               </p></dd>
 <dt><span class="term"><span><strong class="command">tkey-domain</strong></span></span></dt>
 <dd><p>
-                The domain appended to the names of all
-                shared keys generated with
-                <span><strong class="command">TKEY</strong></span>. When a client
-                requests a <span><strong class="command">TKEY</strong></span> exchange, it
-                may or may not specify
-                the desired name for the key. If present, the name of the
-                shared
-                key will be "<code class="varname">client specified part</code>" +
-                "<code class="varname">tkey-domain</code>".
-                Otherwise, the name of the shared key will be "<code class="varname">random hex
-digits</code>" + "<code class="varname">tkey-domain</code>". In most cases,
-                the <span><strong class="command">domainname</strong></span> should be the
-                server's domain
-                name.
+                The domain appended to the names of all shared keys
+                generated with <span><strong class="command">TKEY</strong></span>.  When a
+                client requests a <span><strong class="command">TKEY</strong></span> exchange,
+                it may or may not specify the desired name for the
+                key. If present, the name of the shared key will
+                be <code class="varname">client specified part</code> +
+                <code class="varname">tkey-domain</code>.  Otherwise, the
+                name of the shared key will be <code class="varname">random hex
+                digits</code> + <code class="varname">tkey-domain</code>.
+                In most cases, the <span><strong class="command">domainname</strong></span>
+                should be the server's domain name, or an otherwise
+                non-existent subdomain like
+                "_tkey.<code class="varname">domainname</code>".  If you are
+                using GSS-TSIG, this variable must be defined.
               </p></dd>
 <dt><span class="term"><span><strong class="command">tkey-dhkey</strong></span></span></dt>
 <dd><p>
@@ -1983,25 +2296,17 @@ digits</code>" + "<code class="varname">tkey-domain</code>". In most cases,
                 If not specified, the default is <code class="filename">named_dump.db</code>.
               </p></dd>
 <dt><span class="term"><span><strong class="command">memstatistics-file</strong></span></span></dt>
-<dd>
-<p>
+<dd><p>
                 The pathname of the file the server writes memory
-                usage statistics to on exit.  If specified the
-                statistics will be written to the file on exit.
-              </p>
-<p>
-                In <acronym class="acronym">BIND</acronym> 9.5 and later this will
-                default to <code class="filename">named.memstats</code>.
-                <acronym class="acronym">BIND</acronym> 9.5 will also introduce
-                <span><strong class="command">memstatistics</strong></span> to control the
-                writing.
-              </p>
-</dd>
+                usage statistics to on exit. If not specified,
+                the default is <code class="filename">named.memstats</code>.
+              </p></dd>
 <dt><span class="term"><span><strong class="command">pid-file</strong></span></span></dt>
 <dd><p>
                 The pathname of the file the server writes its process ID
-                in. If not specified, the default is <code class="filename">/var/run/named.pid</code>.
-                The pid-file is used by programs that want to send signals to
+                in. If not specified, the default is
+                <code class="filename">/var/run/named/named.pid</code>.
+                The PID file is used by programs that want to send signals to
                 the running
                 name server. Specifying <span><strong class="command">pid-file none</strong></span> disables the
                 use of a PID file &#8212; no file will be written and any
@@ -2096,7 +2401,7 @@ options {
                 top of a zone.  When a DNSKEY is at or below a domain
                 specified by the
                 deepest <span><strong class="command">dnssec-lookaside</strong></span>, and
-                the normal dnssec validation
+                the normal DNSSEC validation
                 has left the key untrusted, the trust-anchor will be append to
                 the key
                 name and a DLV record will be looked up to see if it can
@@ -2109,10 +2414,10 @@ options {
 <dd><p>
                 Specify hierarchies which must be or may not be secure (signed and
                 validated).
-                If <strong class="userinput"><code>yes</code></strong>, then named will only accept
+                If <strong class="userinput"><code>yes</code></strong>, then <span><strong class="command">named</strong></span> will only accept
                 answers if they
                 are secure.
-                If <strong class="userinput"><code>no</code></strong>, then normal dnssec validation
+                If <strong class="userinput"><code>no</code></strong>, then normal DNSSEC validation
                 applies
                 allowing for insecure answers to be accepted.
                 The specified domain must be under a <span><strong class="command">trusted-key</strong></span> or
@@ -2141,6 +2446,14 @@ options {
                   8 to enable checking
                   for memory leaks on exit. <acronym class="acronym">BIND</acronym> 9 ignores the option and always performs
                   the checks.
+                </p></dd>
+<dt><span class="term"><span><strong class="command">memstatistics</strong></span></span></dt>
+<dd><p>
+                  Write memory statistics to the file specified by
+                  <span><strong class="command">memstatistics-file</strong></span> at exit.
+                  The default is <strong class="userinput"><code>no</code></strong> unless
+                  '-m record' is specified on the command line in
+                  which case it is <strong class="userinput"><code>yes</code></strong>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">dialup</strong></span></span></dt>
 <dd>
@@ -2461,6 +2774,17 @@ options {
                   to crash.
                 </p>
 </dd>
+<dt><span class="term"><span><strong class="command">notify-to-soa</strong></span></span></dt>
+<dd><p>
+                  If <strong class="userinput"><code>yes</code></strong> do not check the nameservers
+                  in the NS RRset against the SOA MNAME.  Normally a NOTIFY
+                  message is not sent to the SOA MNAME (SOA ORIGIN) as it is
+                  supposed to contain the name of the ultimate master.
+                  Sometimes, however, a slave is listed as the SOA MNAME in
+                  hidden master configurations and in that case you would
+                  want the ultimate master to still send NOTIFY messages to
+                  all the nameservers listed in the NS RRset.
+                </p></dd>
 <dt><span class="term"><span><strong class="command">recursion</strong></span></span></dt>
 <dd><p>
                   If <strong class="userinput"><code>yes</code></strong>, and a
@@ -2675,43 +2999,44 @@ options {
                   also accepts <span><strong class="command">master</strong></span> and
                   <span><strong class="command">slave</strong></span> at the view and options
                   levels which causes
-                  <span><strong class="command">ixfr-from-differences</strong></span> to apply to
+                  <span><strong class="command">ixfr-from-differences</strong></span> to be enabled for
                   all <span><strong class="command">master</strong></span> or
                   <span><strong class="command">slave</strong></span> zones respectively.
+                  It is off by default.
                 </p>
 </dd>
 <dt><span class="term"><span><strong class="command">multi-master</strong></span></span></dt>
 <dd><p>
                   This should be set when you have multiple masters for a zone
                   and the
-                  addresses refer to different machines.  If <strong class="userinput"><code>yes</code></strong>, named will
+                  addresses refer to different machines.  If <strong class="userinput"><code>yes</code></strong>, <span><strong class="command">named</strong></span> will
                   not log
-                  when the serial number on the master is less than what named
+                  when the serial number on the master is less than what <span><strong class="command">named</strong></span>
                   currently
                   has.  The default is <strong class="userinput"><code>no</code></strong>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">dnssec-enable</strong></span></span></dt>
 <dd><p>
-                  Enable DNSSEC support in named.  Unless set to <strong class="userinput"><code>yes</code></strong>,
-                  named behaves as if it does not support DNSSEC.
+                  Enable DNSSEC support in <span><strong class="command">named</strong></span>.  Unless set to <strong class="userinput"><code>yes</code></strong>,
+                  <span><strong class="command">named</strong></span> behaves as if it does not support DNSSEC.
                   The default is <strong class="userinput"><code>yes</code></strong>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">dnssec-validation</strong></span></span></dt>
 <dd><p>
-                  Enable DNSSEC validation in named.
+                  Enable DNSSEC validation in <span><strong class="command">named</strong></span>.
                   Note <span><strong class="command">dnssec-enable</strong></span> also needs to be
                   set to <strong class="userinput"><code>yes</code></strong> to be effective.
-                  The default is <strong class="userinput"><code>no</code></strong>.
+                  The default is <strong class="userinput"><code>yes</code></strong>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">dnssec-accept-expired</strong></span></span></dt>
 <dd><p>
                   Accept expired signatures when verifying DNSSEC signatures.
                   The default is <strong class="userinput"><code>no</code></strong>.
-                  Setting this option to "yes" leaves named vulnerable to replay attacks.
+                  Setting this option to "yes" leaves <span><strong class="command">named</strong></span> vulnerable to replay attacks.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">querylog</strong></span></span></dt>
 <dd><p>
-                  Specify whether query logging should be started when named
+                  Specify whether query logging should be started when <span><strong class="command">named</strong></span>
                   starts.
                   If <span><strong class="command">querylog</strong></span> is not specified,
                   then the query logging
@@ -2737,9 +3062,9 @@ options {
                   from RFC 952 and RFC 821 as modified by RFC 1123.
                 </p>
 <p><span><strong class="command">check-names</strong></span>
-                  applies to the owner names of A, AAA and MX records.
-                  It also applies to the domain names in the RDATA of NS, SOA
-                  and MX records.
+                  applies to the owner names of A, AAAA and MX records.
+                  It also applies to the domain names in the RDATA of NS, SOA,
+                  MX, and SRV records.
                   It also applies to the RDATA of PTR records where the owner
                   name indicated that it is a reverse lookup of a hostname
                   (the owner name ends in IN-ADDR.ARPA, IP6.ARPA, or IP6.INT).
@@ -2796,7 +3121,7 @@ options {
 <dt><span class="term"><span><strong class="command">zero-no-soa-ttl</strong></span></span></dt>
 <dd><p>
                   When returning authoritative negative responses to
-                  SOA queries set the TTL of the SOA recored returned in
+                  SOA queries set the TTL of the SOA record returned in
                   the authority section to zero.
                   The default is <span><strong class="command">yes</strong></span>.
                 </p></dd>
@@ -2816,11 +3141,17 @@ options {
                   a KSK.
                   The default is <span><strong class="command">yes</strong></span>.
                 </p></dd>
+<dt><span class="term"><span><strong class="command">try-tcp-refresh</strong></span></span></dt>
+<dd><p>
+                  Try to refresh the zone using TCP if UDP queries fail.
+                  For BIND 8 compatibility, the default is
+                  <span><strong class="command">yes</strong></span>.
+                </p></dd>
 </dl></div>
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2580525"></a>Forwarding</h4></div></div></div>
+<a name="id2581667"></a>Forwarding</h4></div></div></div>
 <p>
             The forwarding facility can be used to create a large site-wide
             cache on a few servers, reducing traffic over links to external
@@ -2864,7 +3195,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2580721"></a>Dual-stack Servers</h4></div></div></div>
+<a name="id2581725"></a>Dual-stack Servers</h4></div></div></div>
 <p>
             Dual-stack servers are used as servers of last resort to work
             around
@@ -2929,15 +3260,51 @@ options {
                   </p>
 </div>
 </dd>
+<dt><span class="term"><span><strong class="command">allow-query-on</strong></span></span></dt>
+<dd>
+<p>
+                  Specifies which local addresses can accept ordinary
+                  DNS questions. This makes it possible, for instance,
+                  to allow queries on internal-facing interfaces but
+                  disallow them on external-facing ones, without
+                  necessarily knowing the internal network's addresses.
+                </p>
+<p>
+                  <span><strong class="command">allow-query-on</strong></span> may
+                  also be specified in the <span><strong class="command">zone</strong></span>
+                  statement, in which case it overrides the
+                  <span><strong class="command">options allow-query-on</strong></span> statement.
+                </p>
+<p>
+                  If not specified, the default is to allow queries
+                  on all addresses.
+                </p>
+<div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>
+<p>
+                    <span><strong class="command">allow-query-cache</strong></span> is
+                    used to specify access to the cache.
+                  </p>
+</div>
+</dd>
 <dt><span class="term"><span><strong class="command">allow-query-cache</strong></span></span></dt>
 <dd><p>
                   Specifies which hosts are allowed to get answers
                   from the cache.  If <span><strong class="command">allow-query-cache</strong></span>
                   is not set then <span><strong class="command">allow-recursion</strong></span>
                   is used if set, otherwise <span><strong class="command">allow-query</strong></span>
-                  is used if set, otherwise the default
-                  (<span><strong class="command">localnets;</strong></span>
+                  is used if set unless <span><strong class="command">recursion no;</strong></span> is
+                  set in which case <span><strong class="command">none;</strong></span> is used,
+                  otherwise the default (<span><strong class="command">localnets;</strong></span>
                   <span><strong class="command">localhost;</strong></span>) is used.
+                </p></dd>
+<dt><span class="term"><span><strong class="command">allow-query-cache-on</strong></span></span></dt>
+<dd><p>
+                  Specifies which local addresses can give answers
+                  from the cache.  If not specified, the default is
+                  to allow cache queries on any address,
+                  <span><strong class="command">localnets</strong></span> and
+                  <span><strong class="command">localhost</strong></span>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">allow-recursion</strong></span></span></dt>
 <dd><p>
@@ -2949,6 +3316,12 @@ options {
                   is used if set, otherwise the default
                   (<span><strong class="command">localnets;</strong></span>
                   <span><strong class="command">localhost;</strong></span>) is used.
+                </p></dd>
+<dt><span class="term"><span><strong class="command">allow-recursion-on</strong></span></span></dt>
+<dd><p>
+                  Specifies which local addresses can accept recursive
+                  queries.  If not specified, the default is to allow
+                  recursive queries on all addresses.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">allow-update</strong></span></span></dt>
 <dd><p>
@@ -3019,11 +3392,11 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2581142"></a>Interfaces</h4></div></div></div>
+<a name="id2582231"></a>Interfaces</h4></div></div></div>
 <p>
             The interfaces and ports that the server will answer queries
             from may be specified using the <span><strong class="command">listen-on</strong></span> option. <span><strong class="command">listen-on</strong></span> takes
-            an optional port, and an <code class="varname">address_match_list</code>.
+            an optional port and an <code class="varname">address_match_list</code>.
             The server will listen on all interfaces allowed by the address
             match list. If a port is not specified, port 53 will be used.
           </p>
@@ -3042,7 +3415,7 @@ listen-on port 1234 { !1.2.3.4; 1.2/16; };
           </p>
 <p>
             If no <span><strong class="command">listen-on</strong></span> is specified, the
-            server will listen on port 53 on all interfaces.
+            server will listen on port 53 on all IPv4 interfaces.
           </p>
 <p>
             The <span><strong class="command">listen-on-v6</strong></span> option is used to
@@ -3093,8 +3466,10 @@ listen-on-v6 port 1234 { !2001:db8::/32; any; };
 </pre>
 <p>
             If no <span><strong class="command">listen-on-v6</strong></span> option is
-            specified,
-            the server will not listen on any IPv6 address.
+            specified, the server will not listen on any IPv6 address
+            unless <span><strong class="command">-6</strong></span> is specified when <span><strong class="command">named</strong></span> is
+            invoked.  If <span><strong class="command">-6</strong></span> is specified then
+            <span><strong class="command">named</strong></span> will listen on port 53 on all IPv6 interfaces by default.
           </p>
 </div>
 <div class="sect3" lang="en">
@@ -3178,20 +3553,37 @@ use-v6-udp-ports { range 1024 65535; };
 avoid-v6-udp-ports {};
 </pre>
 <p>
-            Note: it is generally strongly discouraged to
+            Note: BIND 9.5.0 introduced
+            the <span><strong class="command">use-queryport-pool</strong></span> 
+            option to support a pool of such random ports, but this
+            option is now obsolete because reusing the same ports in
+            the pool may not be sufficiently secure.
+            For the same reason, it is generally strongly discouraged to
             specify a particular port for the
             <span><strong class="command">query-source</strong></span> or
             <span><strong class="command">query-source-v6</strong></span> options;
-            it implicitly disables the use of randomized port numbers
-            and can be insecure.
+            it implicitly disables the use of randomized port numbers.
           </p>
+<div class="variablelist"><dl>
+<dt><span class="term"><span><strong class="command">use-queryport-pool</strong></span></span></dt>
+<dd><p>
+                  This option is obsolete.
+                </p></dd>
+<dt><span class="term"><span><strong class="command">queryport-pool-ports</strong></span></span></dt>
+<dd><p>
+                  This option is obsolete.
+                </p></dd>
+<dt><span class="term"><span><strong class="command">queryport-pool-updateinterval</strong></span></span></dt>
+<dd><p>
+                  This option is obsolete.
+                </p></dd>
+</dl></div>
 <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>
 <p>
               The address specified in the <span><strong class="command">query-source</strong></span> option
               is used for both UDP and TCP queries, but the port applies only
-              to
-              UDP queries.  TCP queries always use a random
+              to UDP queries.  TCP queries always use a random
               unprivileged port.
             </p>
 </div>
@@ -3228,7 +3620,12 @@ avoid-v6-udp-ports {};
                   zone is loaded, in addition to the servers listed in the
                   zone's NS records.
                   This helps to ensure that copies of the zones will
-                  quickly converge on stealth servers. If an <span><strong class="command">also-notify</strong></span> list
+                  quickly converge on stealth servers.
+                  Optionally, a port may be specified with each
+                  <span><strong class="command">also-notify</strong></span> address to send
+                  the notify messages to a port other than the
+                  default of 53.
+                  If an <span><strong class="command">also-notify</strong></span> list
                   is given in a <span><strong class="command">zone</strong></span> statement,
                   it will override
                   the <span><strong class="command">options also-notify</strong></span>
@@ -3395,7 +3792,7 @@ avoid-v6-udp-ports {};
                   to be used, you should set
                   <span><strong class="command">use-alt-transfer-source</strong></span>
                   appropriately and you should not depend upon
-                  getting a answer back to the first refresh
+                  getting an answer back to the first refresh
                   query.
                 </div>
 </dd>
@@ -3447,7 +3844,7 @@ avoid-v6-udp-ports {};
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582140"></a>UDP Port Lists</h4></div></div></div>
+<a name="id2583571"></a>UDP Port Lists</h4></div></div></div>
 <p>
             <span><strong class="command">use-v4-udp-ports</strong></span>,
             <span><strong class="command">avoid-v4-udp-ports</strong></span>,
@@ -3489,7 +3886,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582200"></a>Operating System Resource Limits</h4></div></div></div>
+<a name="id2583699"></a>Operating System Resource Limits</h4></div></div></div>
 <p>
             The server's usage of many system resources can be limited.
             Scaled values are allowed when specifying resource limits.  For
@@ -3548,7 +3945,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582452"></a>Server  Resource Limits</h4></div></div></div>
+<a name="server_resource_limits"></a>Server  Resource Limits</h4></div></div></div>
 <p>
             The following options set limits on the server's
             resource consumption that are enforced internally by the
@@ -3571,6 +3968,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   journal
                   will be automatically removed.  The default is
                   <code class="literal">unlimited</code>.
+                  This may also be set on a per-zone basis.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">host-statistics-max</strong></span></span></dt>
 <dd><p>
@@ -3602,7 +4000,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <p>
                   The number of file descriptors reserved for TCP, stdio,
                   etc.  This needs to be big enough to cover the number of
-                  interfaces named listens on, tcp-clients as well as
+                  interfaces <span><strong class="command">named</strong></span> listens on, <span><strong class="command">tcp-clients</strong></span> as well as
                   to provide room for outgoing TCP queries and incoming zone
                   transfers.  The default is <code class="literal">512</code>.
                   The minimum value is <code class="literal">128</code> and the
@@ -3619,7 +4017,8 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   server's cache, in bytes.
                   When the amount of data in the cache
                   reaches this limit, the server will cause records to expire
-                  prematurely so that the limit is not exceeded.
+                  prematurely based on an LRU based strategy so that
+                  the limit is not exceeded.
                   A value of 0 is special, meaning that
                   records are purged from the cache only when their
                   TTLs expire.
@@ -3649,15 +4048,18 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582682"></a>Periodic Task Intervals</h4></div></div></div>
+<a name="id2583985"></a>Periodic Task Intervals</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">cleaning-interval</strong></span></span></dt>
 <dd><p>
-                  The server will remove expired resource records
+                  This interval is effectively obsolete.  Previously,
+                  the server would remove expired resource records
                   from the cache every <span><strong class="command">cleaning-interval</strong></span> minutes.
-                  The default is 60 minutes.  The maximum value is 28 days
-                  (40320 minutes).
-                  If set to 0, no periodic cleaning will occur.
+                  <acronym class="acronym">BIND</acronym> 9 now manages cache
+                  memory in a more sophisticated manner and does not
+                  rely on the periodic cleaning any more.
+                  Specifying this option therefore has no effect on
+                  the server's behavior.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">heartbeat-interval</strong></span></span></dt>
 <dd><p>
@@ -3914,8 +4316,13 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   </td>
 <td>
                     <p>
-                      Records are returned in a round-robin
-                      order.
+                      Records are returned in a cyclic round-robin order.
+                    </p>
+                    <p>
+                      If <acronym class="acronym">BIND</acronym> is configured with the
+                      "--enable-fixed-rrset" option at compile time, then
+                      the initial ordering of the RRset will match the
+                      one specified in the zone file.
                     </p>
                   </td>
 </tr>
@@ -3943,9 +4350,11 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>
 <p>
-              The <span><strong class="command">rrset-order</strong></span> statement
-              is not yet fully implemented in <acronym class="acronym">BIND</acronym> 9.
-              BIND 9 currently does not fully support "fixed" ordering.
+              In this release of <acronym class="acronym">BIND</acronym> 9, the
+              <span><strong class="command">rrset-order</strong></span> statement does not support
+              "fixed" ordering by default.  Fixed ordering can be enabled
+              at compile time by specifying "--enable-fixed-rrset" on
+              the "configure" command line.
             </p>
 </div>
 </div>
@@ -4000,17 +4409,59 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 </dd>
 <dt><span class="term"><span><strong class="command">sig-validity-interval</strong></span></span></dt>
+<dd>
+<p>
+                  Specifies the number of days into the future when
+                  DNSSEC signatures automatically generated as a
+                  result of dynamic updates (<a href="Bv9ARM.ch04.html#dynamic_update" title="Dynamic Update">the section called &#8220;Dynamic Update&#8221;</a>) will expire.  There
+                  is a optional second field which specifies how
+                  long before expiry that the signatures will be
+                  regenerated.  If not specified, the signatures will
+                  be regenerated at 1/4 of base interval.  The second
+                  field is specified in days if the base interval is
+                  greater than 7 days otherwise it is specified in hours.
+                  The default base interval is <code class="literal">30</code> days
+                  giving a re-signing interval of 7 1/2 days.  The maximum
+                  values are 10 years (3660 days).
+                </p>
+<p>
+                  The signature inception time is unconditionally
+                  set to one hour before the current time to allow
+                  for a limited amount of clock skew.
+                </p>
+<p>
+                  The <span><strong class="command">sig-validity-interval</strong></span>
+                  should be, at least, several multiples of the SOA
+                  expire interval to allow for reasonable interaction
+                  between the various timer and expiry dates.
+                </p>
+</dd>
+<dt><span class="term"><span><strong class="command">sig-signing-nodes</strong></span></span></dt>
 <dd><p>
-                  Specifies the number of days into the
-                  future when DNSSEC signatures automatically generated as a
-                  result
-                  of dynamic updates (<a href="Bv9ARM.ch04.html#dynamic_update" title="Dynamic Update">the section called &#8220;Dynamic Update&#8221;</a>)
-                  will expire. The default is <code class="literal">30</code> days.
-                  The maximum value is 10 years (3660 days). The signature
-                  inception time is unconditionally set to one hour before the
-                  current time
-                  to allow for a limited amount of clock skew.
+                  Specify the maximum number of nodes to be
+                  examined in each quantum when signing a zone with
+                  a new DNSKEY. The default is
+                  <code class="literal">100</code>.
                 </p></dd>
+<dt><span class="term"><span><strong class="command">sig-signing-signatures</strong></span></span></dt>
+<dd><p>
+                  Specify a threshold number of signatures that
+                  will terminate processing a quantum when signing
+                  a zone with a new DNSKEY.  The default is
+                  <code class="literal">10</code>.
+                </p></dd>
+<dt><span class="term"><span><strong class="command">sig-signing-type</strong></span></span></dt>
+<dd>
+<p>
+                  Specify a private RDATA type to be used when generating
+                  key signing records.  The default is
+                  <code class="literal">65535</code>.
+                </p>
+<p>
+                  It is expected that this parameter may be removed
+                  in a future version once there is a standard type.
+                </p>
+</dd>
 <dt>
 <span class="term"><span><strong class="command">min-refresh-time</strong></span>, </span><span class="term"><span><strong class="command">max-refresh-time</strong></span>, </span><span class="term"><span><strong class="command">min-retry-time</strong></span>, </span><span class="term"><span><strong class="command">max-retry-time</strong></span></span>
 </dt>
@@ -4037,22 +4488,23 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </dd>
 <dt><span class="term"><span><strong class="command">edns-udp-size</strong></span></span></dt>
 <dd><p>
-                  Sets the advertised EDNS UDP buffer size in bytes.  Valid
-                  values are 512 to 4096 (values outside this range
-                  will be silently adjusted).  The default value is
-                  4096.  The usual reason for setting edns-udp-size to
-                  a non-default value is to get UDP answers to pass
-                  through broken firewalls that block fragmented
-                  packets and/or block UDP packets that are greater
-                  than 512 bytes.
+                  Sets the advertised EDNS UDP buffer size in bytes
+                  to control the size of packets received.
+                  Valid values are 512 to 4096 (values outside this range
+                  will be silently adjusted).  The default value
+                  is 4096.  The usual reason for setting
+                  <span><strong class="command">edns-udp-size</strong></span> to a non-default
+                  value is to get UDP answers to pass through broken
+                  firewalls that block fragmented packets and/or
+                  block UDP packets that are greater than 512 bytes.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">max-udp-size</strong></span></span></dt>
 <dd><p>
-                  Sets the maximum EDNS UDP message size named will
+                  Sets the maximum EDNS UDP message size <span><strong class="command">named</strong></span> will
                   send in bytes.  Valid values are 512 to 4096 (values outside
                   this range will be silently adjusted).  The default
                   value is 4096.  The usual reason for setting
-                  max-udp-size to a non-default value is to get UDP
+                  <span><strong class="command">max-udp-size</strong></span> to a non-default value is to get UDP
                   answers to pass through broken firewalls that
                   block fragmented packets and/or block UDP packets
                   that are greater than 512 bytes.
@@ -4085,21 +4537,21 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   file.
                 </p></dd>
 <dt>
-<span class="term"><span><strong class="command">clients-per-query</strong></span>, </span><span class="term"><span><strong class="command">max-clients-per-query</strong></span></span>
+<a name="clients-per-query"></a><span class="term"><span><strong class="command">clients-per-query</strong></span>, </span><span class="term"><span><strong class="command">max-clients-per-query</strong></span></span>
 </dt>
 <dd>
 <p>These set the
                   initial value (minimum) and maximum number of recursive
-                  simultanious clients for any given query
+                  simultaneous clients for any given query
                   (&lt;qname,qtype,qclass&gt;) that the server will accept
-                  before dropping additional clients.  named will attempt to
+                  before dropping additional clients.  <span><strong class="command">named</strong></span> will attempt to
                   self tune this value and changes will be logged.  The
                   default values are 10 and 100.
                 </p>
 <p>
                   This value should reflect how many queries come in for
                   a given name in the time it takes to resolve that name.
-                  If the number of queries exceed this value, named will
+                  If the number of queries exceed this value, <span><strong class="command">named</strong></span> will
                   assume that it is dealing with a non-responsive zone
                   and will drop additional queries.  If it gets a response
                   after dropping queries, it will raise the estimate.  The
@@ -4172,14 +4624,15 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                 </p></dd>
 <dt><span class="term"><span><strong class="command">server-id</strong></span></span></dt>
 <dd><p>
-                  The ID of the server should report via a query of
-                  the name <code class="filename">ID.SERVER</code>
-                  with type <span><strong class="command">TXT</strong></span>, class <span><strong class="command">CHAOS</strong></span>.
+                  The ID the server should report when receiving a Name
+                  Server Identifier (NSID) query, or a query of the name
+                  <code class="filename">ID.SERVER</code> with type
+                  <span><strong class="command">TXT</strong></span>, class <span><strong class="command">CHAOS</strong></span>.
                   The primary purpose of such queries is to
                   identify which of a group of anycast servers is actually
                   answering your queries.  Specifying <span><strong class="command">server-id none;</strong></span>
                   disables processing of the queries.
-                  Specifying <span><strong class="command">server-id hostname;</strong></span> will cause named to
+                  Specifying <span><strong class="command">server-id hostname;</strong></span> will cause <span><strong class="command">named</strong></span> to
                   use the hostname as found by the gethostname() function.
                   The default <span><strong class="command">server-id</strong></span> is <span><strong class="command">none</strong></span>.
                 </p></dd>
@@ -4197,12 +4650,12 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
             these cover the reverse namespace for addresses from RFC 1918 and
             RFC 3330.  They also include the reverse namespace for IPv6 local
             address (locally assigned), IPv6 link local addresses, the IPv6
-            loopback address and the IPv6 unknown addresss.
+            loopback address and the IPv6 unknown address.
           </p>
 <p>
-            Named will attempt to determine if a built in zone already exists
+            Named will attempt to determine if a built-in zone already exists
             or is active (covered by a forward-only forwarding declaration)
-            and will not not create a empty zone in that case.
+            and will not create a empty zone in that case.
           </p>
 <p>
             The current list of empty zones is:
@@ -4248,7 +4701,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <h3 class="title">Note</h3>
             The real parent servers for these zones should disable all
             empty zone under the parent zone they serve.  For the real
-            root servers, this is all built in empty zones.  This will
+            root servers, this is all built-in empty zones.  This will
             enable them to return referrals to deeper in the tree.
           </div>
 <div class="variablelist"><dl>
@@ -4266,170 +4719,15 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                 </p></dd>
 <dt><span class="term"><span><strong class="command">empty-zones-enable</strong></span></span></dt>
 <dd><p>
-                  Enable or disable all empty zones.  By default they
+                  Enable or disable all empty zones.  By default, they
                   are enabled.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">disable-empty-zone</strong></span></span></dt>
 <dd><p>
-                  Disable individual empty zones.  By default none are
+                  Disable individual empty zones.  By default, none are
                   disabled.  This option can be specified multiple times.
                 </p></dd>
 </dl></div>
-</div>
-<div class="sect3" lang="en">
-<div class="titlepage"><div><div><h4 class="title">
-<a name="statsfile"></a>The Statistics File</h4></div></div></div>
-<p>
-            The statistics file generated by <acronym class="acronym">BIND</acronym> 9
-            is similar, but not identical, to that
-            generated by <acronym class="acronym">BIND</acronym> 8.
-          </p>
-<p>
-            The statistics dump begins with a line, like:
-          </p>
-<p>
-            <span><strong class="command">+++ Statistics Dump +++ (973798949)</strong></span>
-          </p>
-<p>
-            The number in parentheses is a standard
-            Unix-style timestamp, measured as seconds since January 1, 1970.
-            Following
-            that line are a series of lines containing a counter type, the
-            value of the
-            counter, optionally a zone name, and optionally a view name.
-            The lines without view and zone listed are global statistics for
-            the entire server.
-            Lines with a zone and view name for the given view and zone (the
-            view name is
-            omitted for the default view).
-          </p>
-<p>
-            The statistics dump ends with the line where the
-            number is identical to the number in the beginning line; for example:
-          </p>
-<p>
-            <span><strong class="command">--- Statistics Dump --- (973798949)</strong></span>
-          </p>
-<p>
-            The following statistics counters are maintained:
-          </p>
-<div class="informaltable"><table border="1">
-<colgroup>
-<col>
-<col>
-</colgroup>
-<tbody>
-<tr>
-<td>
-                    <p><span><strong class="command">success</strong></span></p>
-                  </td>
-<td>
-                    <p>
-                      The number of
-                      successful queries made to the server or zone.  A
-                      successful query
-                      is defined as query which returns a NOERROR response
-                      with at least
-                      one answer RR.
-                    </p>
-                  </td>
-</tr>
-<tr>
-<td>
-                    <p><span><strong class="command">referral</strong></span></p>
-                  </td>
-<td>
-                    <p>
-                      The number of queries which resulted
-                      in referral responses.
-                    </p>
-                  </td>
-</tr>
-<tr>
-<td>
-                    <p><span><strong class="command">nxrrset</strong></span></p>
-                  </td>
-<td>
-                    <p>
-                      The number of queries which resulted in
-                      NOERROR responses with no data.
-                    </p>
-                  </td>
-</tr>
-<tr>
-<td>
-                    <p><span><strong class="command">nxdomain</strong></span></p>
-                  </td>
-<td>
-                    <p>
-                      The number
-                      of queries which resulted in NXDOMAIN responses.
-                    </p>
-                  </td>
-</tr>
-<tr>
-<td>
-                    <p><span><strong class="command">failure</strong></span></p>
-                  </td>
-<td>
-                    <p>
-                      The number of queries which resulted in a
-                      failure response other than those above.
-                    </p>
-                  </td>
-</tr>
-<tr>
-<td>
-                    <p><span><strong class="command">recursion</strong></span></p>
-                  </td>
-<td>
-                    <p>
-                      The number of queries which caused the server
-                      to perform recursion in order to find the final answer.
-                    </p>
-                  </td>
-</tr>
-<tr>
-<td>
-                    <p><span><strong class="command">duplicate</strong></span></p>
-                  </td>
-<td>
-                    <p>
-                      The number of queries which the server attempted to
-                      recurse but discover a existing query with the same
-                      IP address, port, query id, name, type and class
-                      already being processed.
-                    </p>
-                  </td>
-</tr>
-<tr>
-<td>
-                    <p><span><strong class="command">dropped</strong></span></p>
-                  </td>
-<td>
-                    <p>
-                      The number of queries for which the server
-                      discovered a excessive number of existing
-                      recursive queries for the same name, type and
-                      class and were subsequently dropped.
-                    </p>
-                  </td>
-</tr>
-</tbody>
-</table></div>
-<p>
-            Each query received by the server will cause exactly one of
-            <span><strong class="command">success</strong></span>,
-            <span><strong class="command">referral</strong></span>,
-            <span><strong class="command">nxrrset</strong></span>,
-            <span><strong class="command">nxdomain</strong></span>,
-            <span><strong class="command">failure</strong></span>,
-            <span><strong class="command">duplicate</strong></span>, or
-            <span><strong class="command">dropped</strong></span>
-            to be incremented, and may additionally cause the
-            <span><strong class="command">recursion</strong></span> counter to be
-            incremented.
-          </p>
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
@@ -4518,10 +4816,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   In a server with multiple views, the limit applies
                   separately to the
                   acache of each view.
-                  The default is <code class="literal">unlimited</code>,
-                  meaning that
-                  entries are purged from the acache only at the
-                  periodic cleaning time.
+                  The default is <code class="literal">16M</code>.
                 </p></dd>
 </dl></div>
 </div>
@@ -4545,6 +4840,9 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
     [<span class="optional"> notify-source-v6 (<em class="replaceable"><code>ip6_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
     [<span class="optional"> query-source [<span class="optional"> address ( <em class="replaceable"><code>ip_addr</code></em> | <em class="replaceable"><code>*</code></em> ) </span>] [<span class="optional"> port ( <em class="replaceable"><code>ip_port</code></em> | <em class="replaceable"><code>*</code></em> ) </span>]; </span>]
     [<span class="optional"> query-source-v6 [<span class="optional"> address ( <em class="replaceable"><code>ip_addr</code></em> | <em class="replaceable"><code>*</code></em> ) </span>] [<span class="optional"> port ( <em class="replaceable"><code>ip_port</code></em> | <em class="replaceable"><code>*</code></em> ) </span>]; </span>]
+    [<span class="optional"> use-queryport-pool <em class="replaceable"><code>yes_or_no</code></em>; </span>]
+    [<span class="optional"> queryport-pool-ports <em class="replaceable"><code>number</code></em>; </span>]
+    [<span class="optional"> queryport-pool-interval <em class="replaceable"><code>number</code></em>; </span>]
 };
 </pre>
 </div>
@@ -4628,7 +4926,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
           </p>
 <p>
             The <span><strong class="command">edns-udp-size</strong></span> option sets the EDNS UDP size
-            that is advertised by named when querying the remote server.
+            that is advertised by <span><strong class="command">named</strong></span> when querying the remote server.
             Valid values are 512 to 4096 bytes (values outside this range will be
             silently adjusted).  This option is useful when you wish to
             advertises a different value to this server than the value you
@@ -4637,11 +4935,11 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
           </p>
 <p>
             The <span><strong class="command">max-udp-size</strong></span> option sets the
-            maximum EDNS UDP message size named will send.  Valid
+            maximum EDNS UDP message size <span><strong class="command">named</strong></span> will send.  Valid
             values are 512 to 4096 bytes (values outside this range will
             be silently adjusted).  This option is useful when you
             know that there is a firewall that is blocking large
-            replies from named.
+            replies from <span><strong class="command">named</strong></span>.
           </p>
 <p>
             The server supports two zone transfer methods. The first, <span><strong class="command">one-answer</strong></span>,
@@ -4719,7 +5017,67 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585614"></a><span><strong class="command">trusted-keys</strong></span> Statement Grammar</h3></div></div></div>
+<a name="statschannels"></a><span><strong class="command">statistics-channels</strong></span> Statement Grammar</h3></div></div></div>
+<pre class="programlisting"><span><strong class="command">statistics-channels</strong></span> {
+   [ inet ( ip_addr | * ) [ port ip_port ] [allow { <em class="replaceable"><code> address_match_list </code></em> } ]; ]
+   [ inet ...; ]
+};
+</pre>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2586754"></a><span><strong class="command">statistics-channels</strong></span> Statement Definition and
+            Usage</h3></div></div></div>
+<p>
+          The <span><strong class="command">statistics-channels</strong></span> statement
+          declares communication channels to be used by system
+          administrators to get access to statistics information of
+          the name server.
+        </p>
+<p>
+          This statement intends to be flexible to support multiple
+          communication protocols in the future, but currently only
+          HTTP access is supported.
+          It requires that BIND 9 be compiled with libxml2;
+          the <span><strong class="command">statistics-channels</strong></span> statement is
+          still accepted even if it is built without the library,
+          but any HTTP access will fail with an error.
+        </p>
+<p>
+          An <span><strong class="command">inet</strong></span> control channel is a TCP socket
+          listening at the specified <span><strong class="command">ip_port</strong></span> on the
+          specified <span><strong class="command">ip_addr</strong></span>, which can be an IPv4 or IPv6
+          address.  An <span><strong class="command">ip_addr</strong></span> of <code class="literal">*</code> (asterisk) is
+          interpreted as the IPv4 wildcard address; connections will be
+          accepted on any of the system's IPv4 addresses.
+          To listen on the IPv6 wildcard address,
+          use an <span><strong class="command">ip_addr</strong></span> of <code class="literal">::</code>.
+        </p>
+<p>
+          If no port is specified, port 80 is used for HTTP channels.
+          The asterisk "<code class="literal">*</code>" cannot be used for
+          <span><strong class="command">ip_port</strong></span>.
+        </p>
+<p>
+          The attempt of opening a statistics channel is
+          restricted by the optional <span><strong class="command">allow</strong></span> clause.
+          Connections to the statistics channel are permitted based on the
+          <span><strong class="command">address_match_list</strong></span>.
+          If no <span><strong class="command">allow</strong></span> clause is present,
+          <span><strong class="command">named</strong></span> accepts connection
+          attempts from any address; since the statistics may
+          contain sensitive internal information, it is highly
+          recommended to restrict the source of connection requests
+          appropriately.
+        </p>
+<p>
+          If no <span><strong class="command">statistics-channels</strong></span> statement is present,
+          <span><strong class="command">named</strong></span> will not open any communication channels.
+        </p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2586908"></a><span><strong class="command">trusted-keys</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">trusted-keys</strong></span> {
     <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ;
     [<span class="optional"> <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; [<span class="optional">...</span>]</span>]
@@ -4728,7 +5086,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585666"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<a name="id2586960"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">trusted-keys</strong></span> statement defines
@@ -4754,6 +5112,9 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
             multiple key entries, each consisting of the key's
             domain name, flags, protocol, algorithm, and the Base-64
             representation of the key data.
+            Spaces, tabs, newlines and carriage returns are ignored
+            in the key data, so the configuration may be split up into
+            multiple lines.
           </p>
 </div>
 <div class="sect2" lang="en">
@@ -4771,7 +5132,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585748"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2587042"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">view</strong></span> statement is a powerful
             feature
@@ -4894,6 +5255,7 @@ view "external" {
 <pre class="programlisting"><span><strong class="command">zone</strong></span> <em class="replaceable"><code>zone_name</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em></span>] {
     type master;
     [<span class="optional"> allow-query { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
+    [<span class="optional"> allow-query-on { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-transfer { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-update { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> update-policy { <em class="replaceable"><code>update_policy_rule</code></em> [<span class="optional">...</span>] }; </span>]
@@ -4906,9 +5268,11 @@ view "external" {
     [<span class="optional"> file <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> masterfile-format (<code class="constant">text</code>|<code class="constant">raw</code>) ; </span>]
     [<span class="optional"> journal <em class="replaceable"><code>string</code></em> ; </span>]
+    [<span class="optional"> max-journal-size <em class="replaceable"><code>size_spec</code></em>; </span>]
     [<span class="optional"> forward (<code class="constant">only</code>|<code class="constant">first</code>) ; </span>]
     [<span class="optional"> forwarders { [<span class="optional"> <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; ... </span>] }; </span>]
     [<span class="optional"> ixfr-base <em class="replaceable"><code>string</code></em> ; </span>]
+    [<span class="optional"> ixfr-from-differences <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> ixfr-tmp-file <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> maintain-ixfr-base <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
     [<span class="optional"> max-ixfr-log-size <em class="replaceable"><code>number</code></em> ; </span>]
@@ -4916,11 +5280,15 @@ view "external" {
     [<span class="optional"> max-transfer-time-out <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> notify <em class="replaceable"><code>yes_or_no</code></em> | <em class="replaceable"><code>explicit</code></em> | <em class="replaceable"><code>master-only</code></em> ; </span>]
     [<span class="optional"> notify-delay <em class="replaceable"><code>seconds</code></em> ; </span>]
+    [<span class="optional"> notify-to-soa <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> pubkey <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> notify-source (<em class="replaceable"><code>ip4_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
     [<span class="optional"> notify-source-v6 (<em class="replaceable"><code>ip6_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
     [<span class="optional"> zone-statistics <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
     [<span class="optional"> sig-validity-interval <em class="replaceable"><code>number</code></em> ; </span>]
+    [<span class="optional"> sig-signing-nodes <em class="replaceable"><code>number</code></em> ; </span>]
+    [<span class="optional"> sig-signing-signatures <em class="replaceable"><code>number</code></em> ; </span>]
+    [<span class="optional"> sig-signing-type <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> database <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> min-refresh-time <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> max-refresh-time <em class="replaceable"><code>number</code></em> ; </span>]
@@ -4934,18 +5302,22 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
     type slave;
     [<span class="optional"> allow-notify { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-query { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
+    [<span class="optional"> allow-query-on { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-transfer { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> allow-update-forwarding { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> update-check-ksk <em class="replaceable"><code>yes_or_no</code></em>; </span>]
+    [<span class="optional"> try-tcp-refresh <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> also-notify { <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; [<span class="optional"> <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; ... </span>] }; </span>]
     [<span class="optional"> check-names (<code class="constant">warn</code>|<code class="constant">fail</code>|<code class="constant">ignore</code>) ; </span>]
     [<span class="optional"> dialup <em class="replaceable"><code>dialup_option</code></em> ; </span>]
     [<span class="optional"> file <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> masterfile-format (<code class="constant">text</code>|<code class="constant">raw</code>) ; </span>]
     [<span class="optional"> journal <em class="replaceable"><code>string</code></em> ; </span>]
+    [<span class="optional"> max-journal-size <em class="replaceable"><code>size_spec</code></em>; </span>]
     [<span class="optional"> forward (<code class="constant">only</code>|<code class="constant">first</code>) ; </span>]
     [<span class="optional"> forwarders { [<span class="optional"> <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; ... </span>] }; </span>]
     [<span class="optional"> ixfr-base <em class="replaceable"><code>string</code></em> ; </span>]
+    [<span class="optional"> ixfr-from-differences <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> ixfr-tmp-file <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> maintain-ixfr-base <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
     [<span class="optional"> masters [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] { ( <em class="replaceable"><code>masters_list</code></em> | <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] [<span class="optional">key <em class="replaceable"><code>key</code></em></span>] ) ; [<span class="optional">...</span>] }; </span>]
@@ -4955,6 +5327,8 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
     [<span class="optional"> max-transfer-time-in <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> max-transfer-time-out <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> notify <em class="replaceable"><code>yes_or_no</code></em> | <em class="replaceable"><code>explicit</code></em> | <em class="replaceable"><code>master-only</code></em> ; </span>]
+    [<span class="optional"> notify-delay <em class="replaceable"><code>seconds</code></em> ; </span>]
+    [<span class="optional"> notify-to-soa <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> pubkey <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> transfer-source (<em class="replaceable"><code>ip4_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
     [<span class="optional"> transfer-source-v6 (<em class="replaceable"><code>ip6_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
@@ -4983,6 +5357,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em></span>] {
     type stub;
     [<span class="optional"> allow-query { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
+    [<span class="optional"> allow-query-on { <em class="replaceable"><code>address_match_list</code></em> }; </span>]
     [<span class="optional"> check-names (<code class="constant">warn</code>|<code class="constant">fail</code>|<code class="constant">ignore</code>) ; </span>]
     [<span class="optional"> dialup <em class="replaceable"><code>dialup_option</code></em> ; </span>]
     [<span class="optional"> delegation-only <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
@@ -5023,10 +5398,10 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2587332"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2588510"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587339"></a>Zone Types</h4></div></div></div>
+<a name="id2588518"></a>Zone Types</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -5089,7 +5464,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                         <code class="filename">ex/example.com</code> where <code class="filename">ex/</code> is
                         just the first two letters of the zone name. (Most
                         operating systems
-                        behave very slowly if you put 100 000 files into
+                        behave very slowly if you put 100000 files into
                         a single directory.)
                       </p>
                     </td>
@@ -5235,7 +5610,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587690"></a>Class</h4></div></div></div>
+<a name="id2588937"></a>Class</h4></div></div></div>
 <p>
               The zone's name may optionally be followed by a class. If
               a class is not specified, class <code class="literal">IN</code> (for <code class="varname">Internet</code>),
@@ -5257,7 +5632,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587723"></a>Zone Options</h4></div></div></div>
+<a name="id2588970"></a>Zone Options</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">allow-notify</strong></span></span></dt>
 <dd><p>
@@ -5268,6 +5643,11 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 <dd><p>
                     See the description of
                     <span><strong class="command">allow-query</strong></span> in <a href="Bv9ARM.ch06.html#access_control" title="Access Control">the section called &#8220;Access Control&#8221;</a>.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">allow-query-on</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">allow-query-on</strong></span> in <a href="Bv9ARM.ch06.html#access_control" title="Access Control">the section called &#8220;Access Control&#8221;</a>.
                   </p></dd>
 <dt><span class="term"><span><strong class="command">allow-transfer</strong></span></span></dt>
 <dd><p>
@@ -5348,6 +5728,11 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                     See the description of
                     <span><strong class="command">update-check-ksk</strong></span> in <a href="Bv9ARM.ch06.html#boolean_options" title="Boolean Options">the section called &#8220;Boolean Options&#8221;</a>.
                   </p></dd>
+<dt><span class="term"><span><strong class="command">try-tcp-refresh</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">try-tcp-refresh</strong></span> in <a href="Bv9ARM.ch06.html#boolean_options" title="Boolean Options">the section called &#8220;Boolean Options&#8221;</a>.
+                  </p></dd>
 <dt><span class="term"><span><strong class="command">database</strong></span></span></dt>
 <dd>
 <p>
@@ -5424,6 +5809,11 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                     The default is the zone's filename with "<code class="filename">.jnl</code>" appended.
                     This is applicable to <span><strong class="command">master</strong></span> and <span><strong class="command">slave</strong></span> zones.
                   </p></dd>
+<dt><span class="term"><span><strong class="command">max-journal-size</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">max-journal-size</strong></span> in <a href="Bv9ARM.ch06.html#server_resource_limits" title="Server  Resource Limits">the section called &#8220;Server  Resource Limits&#8221;</a>.
+                  </p></dd>
 <dt><span class="term"><span><strong class="command">max-transfer-time-in</strong></span></span></dt>
 <dd><p>
                     See the description of
@@ -5454,6 +5844,12 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                     See the description of
                     <span><strong class="command">notify-delay</strong></span> in <a href="Bv9ARM.ch06.html#tuning" title="Tuning">the section called &#8220;Tuning&#8221;</a>.
                   </p></dd>
+<dt><span class="term"><span><strong class="command">notify-to-soa</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">notify-to-soa</strong></span> in
+                    <a href="Bv9ARM.ch06.html#boolean_options" title="Boolean Options">the section called &#8220;Boolean Options&#8221;</a>.
+                  </p></dd>
 <dt><span class="term"><span><strong class="command">pubkey</strong></span></span></dt>
 <dd><p>
                     In <acronym class="acronym">BIND</acronym> 8, this option was
@@ -5475,6 +5871,21 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 <dd><p>
                     See the description of
                     <span><strong class="command">sig-validity-interval</strong></span> in <a href="Bv9ARM.ch06.html#tuning" title="Tuning">the section called &#8220;Tuning&#8221;</a>.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">sig-signing-nodes</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">sig-signing-nodes</strong></span> in <a href="Bv9ARM.ch06.html#tuning" title="Tuning">the section called &#8220;Tuning&#8221;</a>.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">sig-signing-signatures</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">sig-signing-signatures</strong></span> in <a href="Bv9ARM.ch06.html#tuning" title="Tuning">the section called &#8220;Tuning&#8221;</a>.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">sig-signing-type</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">sig-signing-type</strong></span> in <a href="Bv9ARM.ch06.html#tuning" title="Tuning">the section called &#8220;Tuning&#8221;</a>.
                   </p></dd>
 <dt><span class="term"><span><strong class="command">transfer-source</strong></span></span></dt>
 <dd><p>
@@ -5521,6 +5932,10 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 <dd><p>
                     See the description of
                     <span><strong class="command">ixfr-from-differences</strong></span> in <a href="Bv9ARM.ch06.html#boolean_options" title="Boolean Options">the section called &#8220;Boolean Options&#8221;</a>.
+                    (Note that the <span><strong class="command">ixfr-from-differences</strong></span>
+                    <strong class="userinput"><code>master</code></strong> and
+                    <strong class="userinput"><code>slave</code></strong> choices are not
+                    available at the zone level.)
                   </p></dd>
 <dt><span class="term"><span><strong class="command">key-directory</strong></span></span></dt>
 <dd><p>
@@ -5544,43 +5959,38 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
 <a name="dynamic_update_policies"></a>Dynamic Update Policies</h4></div></div></div>
-<p>
-              <acronym class="acronym">BIND</acronym> 9 supports two alternative
-              methods of granting clients
-              the right to perform dynamic updates to a zone,
-              configured by the <span><strong class="command">allow-update</strong></span>
-              and
-              <span><strong class="command">update-policy</strong></span> option,
-              respectively.
+<p><acronym class="acronym">BIND</acronym> 9 supports two alternative
+              methods of granting clients the right to perform
+              dynamic updates to a zone, configured by the
+              <span><strong class="command">allow-update</strong></span> and
+              <span><strong class="command">update-policy</strong></span> option, respectively.
             </p>
 <p>
               The <span><strong class="command">allow-update</strong></span> clause works the
-              same
-              way as in previous versions of <acronym class="acronym">BIND</acronym>. It grants given clients the
-              permission to update any record of any name in the zone.
+              same way as in previous versions of <acronym class="acronym">BIND</acronym>.
+              It grants given clients the permission to update any
+              record of any name in the zone.
             </p>
 <p>
               The <span><strong class="command">update-policy</strong></span> clause is new
-              in <acronym class="acronym">BIND</acronym>
-              9 and allows more fine-grained control over what updates are
-              allowed.
-              A set of rules is specified, where each rule either grants or
-              denies
-              permissions for one or more names to be updated by one or more
-              identities.
-              If the dynamic update request message is signed (that is, it
-              includes
-              either a TSIG or SIG(0) record), the identity of the signer can
-              be determined.
+              in <acronym class="acronym">BIND</acronym> 9 and allows more fine-grained
+              control over what updates are allowed.  A set of rules
+              is specified, where each rule either grants or denies
+              permissions for one or more names to be updated by
+              one or more identities.  If the dynamic update request
+              message is signed (that is, it includes either a TSIG
+              or SIG(0) record), the identity of the signer can be
+              determined.
             </p>
 <p>
-              Rules are specified in the <span><strong class="command">update-policy</strong></span> zone
-              option, and are only meaningful for master zones.  When the <span><strong class="command">update-policy</strong></span> statement
-              is present, it is a configuration error for the <span><strong class="command">allow-update</strong></span> statement
-              to be present.  The <span><strong class="command">update-policy</strong></span>
-              statement only
-              examines the signer of a message; the source address is not
-              relevant.
+              Rules are specified in the <span><strong class="command">update-policy</strong></span>
+              zone option, and are only meaningful for master zones.
+              When the <span><strong class="command">update-policy</strong></span> statement
+              is present, it is a configuration error for the
+              <span><strong class="command">allow-update</strong></span> statement to be
+              present.  The <span><strong class="command">update-policy</strong></span> statement
+              only examines the signer of a message; the source
+              address is not relevant.
             </p>
 <p>
               This is how a rule definition looks:
@@ -5599,26 +6009,38 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
               the types specified in the type field.
             </p>
 <p>
-              The identity field specifies a name or a wildcard name.
-              Normally, this
-              is the name of the TSIG or SIG(0) key used to sign the update
-              request.  When a
-              TKEY exchange has been used to create a shared secret, the
-              identity of the
-              shared secret is the same as the identity of the key used to
-              authenticate the
-              TKEY exchange.  When the <em class="replaceable"><code>identity</code></em> field specifies a
-              wildcard name, it is subject to DNS wildcard expansion, so the
-              rule will apply
-              to multiple identities.  The <em class="replaceable"><code>identity</code></em> field must
+              No signer is required for <em class="replaceable"><code>tcp-self</code></em>
+              or <em class="replaceable"><code>6to4-self</code></em> however the standard
+              reverse mapping / prefix conversion must match the identity
+              field.
+            </p>
+<p>
+              The identity field specifies a name or a wildcard
+              name.  Normally, this is the name of the TSIG or
+              SIG(0) key used to sign the update request.  When a
+              TKEY exchange has been used to create a shared secret,
+              the identity of the shared secret is the same as the
+              identity of the key used to authenticate the TKEY
+              exchange.  TKEY is also the negotiation method used
+              by GSS-TSIG, which establishes an identity that is
+              the Kerberos principal of the client, such as
+              <strong class="userinput"><code>"user@host.domain"</code></strong>.  When the
+              <em class="replaceable"><code>identity</code></em> field specifies
+              a wildcard name, it is subject to DNS wildcard
+              expansion, so the rule will apply to multiple identities.
+              The <em class="replaceable"><code>identity</code></em> field must
               contain a fully-qualified domain name.
             </p>
 <p>
-              The <em class="replaceable"><code>nametype</code></em> field has 6
+              The <em class="replaceable"><code>nametype</code></em> field has 12
               values:
               <code class="varname">name</code>, <code class="varname">subdomain</code>,
               <code class="varname">wildcard</code>, <code class="varname">self</code>,
-               <code class="varname">selfsub</code>, and <code class="varname">selfwild</code>.
+              <code class="varname">selfsub</code>, <code class="varname">selfwild</code>,
+              <code class="varname">krb5-self</code>, <code class="varname">ms-self</code>,
+              <code class="varname">krb5-subdomain</code>,
+              <code class="varname">ms-subdomain</code>,
+              <code class="varname">tcp-self</code> and <code class="varname">6to4-self</code>.
             </p>
 <div class="informaltable"><table border="1">
 <colgroup>
@@ -5723,6 +6145,47 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                       </p>
                     </td>
 </tr>
+<tr>
+<td>
+                      <p>
+                        <code class="varname">tcp-self</code>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        Allow updates that have been sent via TCP and
+                        for which the standard mapping from the initiating
+                        IP address into the IN-ADDR.ARPA and IP6.ARPA
+                        namespaces match the name to be updated.
+                      </p>
+                      <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>
+                        It is theoretically possible to spoof these TCP
+                        sessions.
+                      </div>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p>
+                        <code class="varname">6to4-self</code>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        Allow the 6to4 prefix to be update by any TCP
+                        conection from the 6to4 network or from the
+                        corresponding IPv4 address.  This is intended
+                        to allow NS or DNAME RRsets to be added to the
+                        reverse tree.
+                      </p>
+                      <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>
+                        It is theoretically possible to spoof these TCP
+                        sessions.
+                      </div>
+                    </td>
+</tr>
 </tbody>
 </table></div>
 <p>
@@ -5731,21 +6194,20 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
               specify a fully-qualified domain name.
             </p>
 <p>
-              If no types are explicitly specified, this rule matches all
-              types except
-              RRSIG, NS, SOA, and NSEC. Types may be specified by name, including
-              "ANY" (ANY matches all types except NSEC, which can never be
-              updated).
-              Note that when an attempt is made to delete all records
-              associated with a
-              name, the rules are checked for each existing record type.
+              If no types are explicitly specified, this rule matches
+              all types except RRSIG, NS, SOA, NSEC and NSEC3. Types
+              may be specified by name, including "ANY" (ANY matches
+              all types except NSEC and NSEC3, which can never be
+              updated).  Note that when an attempt is made to delete
+              all records associated with a name, the rules are
+              checked for each existing record type.
             </p>
 </div>
 </div>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2589477"></a>Zone File</h2></div></div></div>
+<a name="id2591109"></a>Zone File</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="types_of_resource_records_and_when_to_use_them"></a>Types of Resource Records and When to Use Them</h3></div></div></div>
@@ -5758,7 +6220,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2589495"></a>Resource Records</h4></div></div></div>
+<a name="id2591127"></a>Resource Records</h4></div></div></div>
 <p>
               A domain name identifies a node.  Each node has a set of
               resource information, which may be empty.  The set of resource
@@ -5947,6 +6409,19 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                       <p>
                         Identifies the canonical name of an alias.
                         Described in RFC 1035.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p>
+                        DHCID
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        Is used for identifying which DHCP client is
+                        associated with this name.  Described in RFC 4701.
                       </p>
                     </td>
 </tr>
@@ -6159,6 +6634,40 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 <tr>
 <td>
                       <p>
+                        NSEC3
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        Used in DNSSECbis to securely indicate that
+                        RRs with an owner name in a certain name
+                        interval do not exist in a zone and indicate
+                        what RR types are present for an existing
+                        name.  NSEC3 differs from NSEC in that it
+                        prevents zone enumeration but is more
+                        computationally expensive on both the server
+                        and the client than NSEC.  Described in RFC
+                        5155.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p>
+                        NSEC3PARAM
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        Used in DNSSECbis to tell the authoritative
+                        server which NSEC3 chains are available to use.
+                        Described in RFC 5155.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p>
                         NXT
                       </p>
                     </td>
@@ -6304,7 +6813,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
                     </td>
 <td>
                       <p>
-                        Provides a way to securly publish a secure shell key's
+                        Provides a way to securely publish a secure shell key's
                         fingerprint.  Described in RFC 4255.
                       </p>
                     </td>
@@ -6448,7 +6957,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2590912"></a>Textual expression of RRs</h4></div></div></div>
+<a name="id2592682"></a>Textual expression of RRs</h4></div></div></div>
 <p>
               RRs are represented in binary form in the packets of the DNS
               protocol, and are usually represented in highly encoded form
@@ -6651,7 +7160,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2591500"></a>Discussion of MX Records</h3></div></div></div>
+<a name="id2593203"></a>Discussion of MX Records</h3></div></div></div>
 <p>
             As described above, domain servers store information as a
             series of resource records, each of which contains a particular
@@ -6685,8 +7194,6 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
             the mail will be delivered to the server specified in the MX
             record
             pointed to by the CNAME.
-          </p>
-<p>
             For example:
           </p>
 <div class="informaltable"><table border="1">
@@ -6909,7 +7416,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592188"></a>Inverse Mapping in IPv4</h3></div></div></div>
+<a name="id2593886"></a>Inverse Mapping in IPv4</h3></div></div></div>
 <p>
             Reverse name resolution (that is, translation from IP address
             to name) is achieved by means of the <span class="emphasis"><em>in-addr.arpa</em></span> domain
@@ -6970,7 +7477,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592384"></a>Other Zone File Directives</h3></div></div></div>
+<a name="id2594013"></a>Other Zone File Directives</h3></div></div></div>
 <p>
             The Master File Format was initially defined in RFC 1035 and
             has subsequently been extended. While the Master File Format
@@ -6985,7 +7492,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592406"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
+<a name="id2594036"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$ORIGIN</strong></span>
               <em class="replaceable"><code>domain-name</code></em>
@@ -7013,7 +7520,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592467"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
+<a name="id2594097"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$INCLUDE</strong></span>
               <em class="replaceable"><code>filename</code></em>
@@ -7049,7 +7556,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592536"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
+<a name="id2594234"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$TTL</strong></span>
               <em class="replaceable"><code>default-ttl</code></em>
@@ -7068,7 +7575,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592572"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
+<a name="id2594270"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
 <p>
             Syntax: <span><strong class="command">$GENERATE</strong></span>
             <em class="replaceable"><code>range</code></em>
@@ -7128,7 +7635,7 @@ $GENERATE 1-127 $ CNAME $.0</pre>
                       describes the owner name of the resource records
                       to be created.  Any single <span><strong class="command">$</strong></span>
                       (dollar sign)
-                      symbols within the <span><strong class="command">lhs</strong></span> side
+                      symbols within the <span><strong class="command">lhs</strong></span> string
                       are replaced by the iterator value.
 
                       To get a $ in the output, you need to escape the
@@ -7172,7 +7679,7 @@ $GENERATE 1-127 $ CNAME $.0</pre>
                     <p>
                       Specifies the time-to-live of the generated records. If
                       not specified this will be inherited using the
-                      normal ttl inheritance rules.
+                      normal TTL inheritance rules.
                     </p>
                     <p><span><strong class="command">class</strong></span>
                       and <span><strong class="command">ttl</strong></span> can be
@@ -7269,6 +7776,1470 @@ $GENERATE 1-127 $ CNAME $.0</pre>
              portable backup of the file, it is recommended to
              convert the file to the standard textual representation.
           </p>
+</div>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="statistics"></a>BIND9 Statistics</h2></div></div></div>
+<p>
+          <acronym class="acronym">BIND</acronym> 9 maintains lots of statistics
+          information and provides several interfaces for users to
+          get access to the statistics.
+          The available statistics include all statistics counters
+          that were available in <acronym class="acronym">BIND</acronym> 8 and
+          are meaningful in <acronym class="acronym">BIND</acronym> 9,
+          and other information that is considered useful.
+        </p>
+<p>
+          The statistics information is categorized into the following
+          sections.
+        </p>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                  <p>Incoming Requests</p>
+                </td>
+<td>
+                  <p>
+                    The number of incoming DNS requests for each OPCODE.
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>Incoming Queries</p>
+                </td>
+<td>
+                  <p>
+                    The number of incoming queries for each RR type.
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>Outgoing Queries</p>
+                </td>
+<td>
+                  <p>
+                    The number of outgoing queries for each RR
+                    type sent from the internal resolver.
+                    Maintained per view.
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>Name Server Statistics</p>
+                </td>
+<td>
+                  <p>
+                    Statistics counters about incoming request processing.
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>Zone Maintenance Statistics</p>
+                </td>
+<td>
+                  <p>
+                    Statistics counters regarding zone maintenance
+                    operations such as zone transfers.
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>Resolver Statistics</p>
+                </td>
+<td>
+                  <p>
+                    Statistics counters about name resolution
+                    performed in the internal resolver.
+                    Maintained per view.
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>Cache DB RRsets</p>
+                </td>
+<td>
+                  <p>
+                    The number of RRsets per RR type (positive
+                    or negative) and nonexistent names stored in the
+                    cache database.
+                    Maintained per view.
+                  </p>
+                </td>
+</tr>
+<tr>
+<td>
+                  <p>Socket I/O Statistics</p>
+                </td>
+<td>
+                  <p>
+                    Statistics counters about network related events.
+                  </p>
+                </td>
+</tr>
+</tbody>
+</table></div>
+<p>
+          A subset of Name Server Statistics is collected and shown
+          per zone for which the server has the authority when
+          <span><strong class="command">zone-statistics</strong></span> is set to
+          <strong class="userinput"><code>yes</code></strong>.
+          These statistics counters are shown with their zone and view
+          names.
+          In some cases the view names are omitted for the default view.
+        </p>
+<p>
+          There are currently two user interfaces to get access to the
+          statistics.
+          One is in the plain text format dumped to the file specified
+          by the <span><strong class="command">statistics-file</strong></span> configuration option.
+          The other is remotely accessible via a statistics channel
+          when the <span><strong class="command">statistics-channels</strong></span> statement
+          is specified in the configuration file
+          (see <a href="Bv9ARM.ch06.html#statschannels" title="statistics-channels Statement Grammar">the section called &#8220;<span><strong class="command">statistics-channels</strong></span> Statement Grammar&#8221;</a>.)
+        </p>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="statsfile"></a>The Statistics File</h4></div></div></div>
+<p>
+            The text format statistics dump begins with a line, like:
+          </p>
+<p>
+            <span><strong class="command">+++ Statistics Dump +++ (973798949)</strong></span>
+          </p>
+<p>
+            The number in parentheses is a standard
+            Unix-style timestamp, measured as seconds since January 1, 1970.
+
+            Following
+            that line is a set of statistics information, which is categorized
+            as described above.
+            Each section begins with a line, like:
+          </p>
+<p>
+            <span><strong class="command">++ Name Server Statistics ++</strong></span>
+          </p>
+<p>
+            Each section consists of lines, each containing the statistics
+            counter value followed by its textual description.
+            See below for available counters.
+            For brevity, counters that have a value of 0 are not shown
+            in the statistics file.
+          </p>
+<p>
+            The statistics dump ends with the line where the
+            number is identical to the number in the beginning line; for example:
+          </p>
+<p>
+            <span><strong class="command">--- Statistics Dump --- (973798949)</strong></span>
+          </p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="statistics_counters"></a>Statistics Counters</h3></div></div></div>
+<p>
+            The following tables summarize statistics counters that
+            <acronym class="acronym">BIND</acronym> 9 provides.
+            For each row of the tables, the leftmost column is the
+            abbreviated symbol name of that counter.
+            These symbols are shown in the statistics information
+            accessed via an HTTP statistics channel.
+            The rightmost column gives the description of the counter,
+            which is also shown in the statistics file
+            (but, in this document, possibly with slight modification
+            for better readability).
+            Additional notes may also be provided in this column.
+            When a middle column exists between these two columns,
+            it gives the corresponding counter name of the
+            <acronym class="acronym">BIND</acronym> 8 statistics, if applicable.
+          </p>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2595267"></a>Name Server Statistics Counters</h4></div></div></div>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                      <p>
+                        <span class="emphasis"><em>Symbol</em></span>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        <span class="emphasis"><em>BIND8 Symbol</em></span>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        <span class="emphasis"><em>Description</em></span>
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Requestv4</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 requests received.
+                        Note: this also counts non query requests.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Requestv6</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 requests received.
+                        Note: this also counts non query requests.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ReqEdns0</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Requests with EDNS(0) received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ReqBadEDNSVer</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Requests with unsupported EDNS version received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ReqTSIG</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Requests with TSIG received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ReqSIG0</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Requests with SIG(0) received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ReqBadSIG</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Requests with invalid (TSIG or SIG(0)) signature.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ReqTCP</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RTCP</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        TCP requests received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">AuthQryRej</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RUQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Authoritative (non recursive) queries rejected.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">RecQryRej</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RURQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Recursive queries rejected.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">XfrRej</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RUXFR</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Zone transfer requests rejected.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">UpdateRej</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RUUpd</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Dynamic update requests rejected.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Response</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SAns</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Responses sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">RespTruncated</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Truncated responses sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">RespEDNS0</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Responses with EDNS(0) sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">RespTSIG</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Responses with TSIG sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">RespSIG0</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Responses with SIG(0) sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QrySuccess</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries resulted in a successful answer.
+                        This means the query which returns a NOERROR response
+                        with at least one answer RR.
+                        This corresponds to the
+                        <span><strong class="command">success</strong></span> counter
+                        of previous versions of
+                        <acronym class="acronym">BIND</acronym> 9.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryAuthAns</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries resulted in authoritative answer.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryNoauthAns</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SNaAns</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries resulted in non authoritative answer.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryReferral</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries resulted in referral answer.
+                        This corresponds to the
+                        <span><strong class="command">referral</strong></span> counter
+                        of previous versions of
+                        <acronym class="acronym">BIND</acronym> 9.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryNxrrset</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries resulted in NOERROR responses with no data.
+                        This corresponds to the
+                        <span><strong class="command">nxrrset</strong></span> counter
+                        of previous versions of
+                        <acronym class="acronym">BIND</acronym> 9.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QrySERVFAIL</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SFail</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries resulted in SERVFAIL.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryFORMERR</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SFErr</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries resulted in FORMERR.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryNXDOMAIN</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SNXD</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries resulted in NXDOMAIN.
+                        This corresponds to the
+                        <span><strong class="command">nxdomain</strong></span> counter
+                        of previous versions of
+                        <acronym class="acronym">BIND</acronym> 9.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryRecursion</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RFwdQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries which caused the server
+                        to perform recursion in order to find the final answer.
+                        This corresponds to the
+                        <span><strong class="command">recursion</strong></span> counter
+                        of previous versions of
+                        <acronym class="acronym">BIND</acronym> 9.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryDuplicate</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RDupQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries which the server attempted to
+                        recurse but discovered an existing query with the same
+                        IP address, port, query ID, name, type and class
+                        already being processed.
+                        This corresponds to the
+                        <span><strong class="command">duplicate</strong></span> counter
+                        of previous versions of
+                        <acronym class="acronym">BIND</acronym> 9.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryDropped</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Recursive queries for which the server
+                        discovered an excessive number of existing
+                        recursive queries for the same name, type and
+                        class and were subsequently dropped.
+                        This is the number of dropped queries due to
+                        the reason explained with the
+                        <span><strong class="command">clients-per-query</strong></span>
+                        and
+                        <span><strong class="command">max-clients-per-query</strong></span>
+                        options
+                        (see the description about
+                        <a href="Bv9ARM.ch06.html#clients-per-query"><span><strong class="command">clients-per-query</strong></span></a>.)
+                        This corresponds to the
+                        <span><strong class="command">dropped</strong></span> counter
+                        of previous versions of
+                        <acronym class="acronym">BIND</acronym> 9.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryFailure</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Other query failures.
+                        This corresponds to the
+                        <span><strong class="command">failure</strong></span> counter
+                        of previous versions of
+                        <acronym class="acronym">BIND</acronym> 9.
+                        Note: this counter is provided mainly for
+                        backward compatibility with the previous versions.
+                        Normally a more fine-grained counters such as
+                        <span><strong class="command">AuthQryRej</strong></span> and
+                        <span><strong class="command">RecQryRej</strong></span>
+                        that would also fall into this counter are provided,
+                        and so this counter would not be of much
+                        interest in practice.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">XfrReqDone</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Requested zone transfers completed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">UpdateReqFwd</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Update requests forwarded.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">UpdateRespFwd</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Update responses forwarded.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">UpdateFwdFail</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Dynamic update forward failed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">UpdateDone</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Dynamic updates completed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">UpdateFail</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Dynamic updates failed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">UpdateBadPrereq</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Dynamic updates rejected due to prerequisite failure.
+                      </p>
+                    </td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2596808"></a>Zone Maintenance Statistics Counters</h4></div></div></div>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                      <p>
+                        <span class="emphasis"><em>Symbol</em></span>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        <span class="emphasis"><em>Description</em></span>
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">NotifyOutv4</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 notifies sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">NotifyOutv6</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 notifies sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">NotifyInv4</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 notifies received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">NotifyInv6</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 notifies received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">NotifyRej</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Incoming notifies rejected.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">SOAOutv4</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 SOA queries sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">SOAOutv6</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 SOA queries sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">AXFRReqv4</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 AXFR requested.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">AXFRReqv6</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 AXFR requested.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">IXFRReqv4</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 IXFR requested.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">IXFRReqv6</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 IXFR requested.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">XfrSuccess</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Zone transfer requests succeeded.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">XfrFail</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Zone transfer requests failed.
+                      </p>
+                    </td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2597191"></a>Resolver Statistics Counters</h4></div></div></div>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                      <p>
+                        <span class="emphasis"><em>Symbol</em></span>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        <span class="emphasis"><em>BIND8 Symbol</em></span>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        <span class="emphasis"><em>Description</em></span>
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Queryv4</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SFwdQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 queries sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Queryv6</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SFwdQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 queries sent.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Responsev4</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RR</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 responses received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Responsev6</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RR</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 responses received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">NXDOMAIN</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RNXD</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        NXDOMAIN received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">SERVFAIL</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RFail</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        SERVFAIL received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">FORMERR</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RFErr</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        FORMERR received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">OtherError</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RErr</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Other errors received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">EDNS0Fail</strong></span></p>
+                                                 </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        EDNS(0) query failures.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Mismatch</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RDupR</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Mismatch responses received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Truncated</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Truncated responses received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Lame</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">RLame</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Lame delegations received.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">Retry</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SDupQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Query retries performed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QueryAbort</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Queries aborted due to quota control.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QuerySockFail</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Failures in opening query sockets.
+                        One common reason for such failures is a
+                        failure of opening a new socket due to a
+                        limitation on file descriptors.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QueryTimeout</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Query timeouts.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">GlueFetchv4</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SSysQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 NS address fetches invoked.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">GlueFetchv6</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command">SSysQ</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 NS address fetches invoked.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">GlueFetchv4Fail</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv4 NS address fetch failed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">GlueFetchv6Fail</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        IPv6 NS address fetch failed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ValAttempt</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        DNSSEC validation attempted.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ValOk</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        DNSSEC validation succeeded.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ValNegOk</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        DNSSEC validation on negative information succeeded.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">ValFail</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        DNSSEC validation failed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">QryRTTnn</strong></span></p>
+                    </td>
+<td>
+                      <p><span><strong class="command"></strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Frequency table on round trip times (RTTs) of
+                        queries.
+                        Each <span><strong class="command">nn</strong></span> specifies the corresponding
+                        frequency.
+                        In the sequence of
+                        <span><strong class="command">nn_1</strong></span>,
+                        <span><strong class="command">nn_2</strong></span>,
+                        ...,
+                        <span><strong class="command">nn_m</strong></span>,
+                        the value of <span><strong class="command">nn_i</strong></span> is the
+                        number of queries whose RTTs are between
+                        <span><strong class="command">nn_(i-1)</strong></span> (inclusive) and
+                        <span><strong class="command">nn_i</strong></span> (exclusive) milliseconds.
+                        For the sake of convenience we define
+                        <span><strong class="command">nn_0</strong></span> to be 0.
+                        The last entry should be represented as
+                        <span><strong class="command">nn_m+</strong></span>, which means the
+                        number of queries whose RTTs are equal to or over
+                        <span><strong class="command">nn_m</strong></span> milliseconds.
+                      </p>
+                    </td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2598210"></a>Socket I/O Statistics Counters</h4></div></div></div>
+<p>
+              Socket I/O statistics counters are defined per socket
+              types, which are
+              <span><strong class="command">UDP4</strong></span> (UDP/IPv4),
+              <span><strong class="command">UDP6</strong></span> (UDP/IPv6),
+              <span><strong class="command">TCP4</strong></span> (TCP/IPv4),
+              <span><strong class="command">TCP6</strong></span> (TCP/IPv6),
+              <span><strong class="command">Unix</strong></span> (Unix Domain), and
+              <span><strong class="command">FDwatch</strong></span> (sockets opened outside the
+              socket module).
+              In the following table <span><strong class="command">&lt;TYPE&gt;</strong></span>
+              represents a socket type.
+              Not all counters are available for all socket types;
+              exceptions are noted in the description field.
+            </p>
+<div class="informaltable"><table border="1">
+<colgroup>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td>
+                      <p>
+                        <span class="emphasis"><em>Symbol</em></span>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        <span class="emphasis"><em>Description</em></span>
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;Open</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Sockets opened successfully.
+                        This counter is not applicable to the
+                        <span><strong class="command">FDwatch</strong></span> type.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;OpenFail</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Failures of opening sockets.
+                        This counter is not applicable to the
+                        <span><strong class="command">FDwatch</strong></span> type.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;Close</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Sockets closed.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;BindFail</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Failures of binding sockets.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;ConnFail</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Failures of connecting sockets.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;Conn</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Connections established successfully.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;AcceptFail</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Failures of accepting incoming connection requests.
+                        This counter is not applicable to the
+                        <span><strong class="command">UDP</strong></span> and
+                        <span><strong class="command">FDwatch</strong></span> types.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;Accept</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Incoming connections successfully accepted.
+                        This counter is not applicable to the
+                        <span><strong class="command">UDP</strong></span> and
+                        <span><strong class="command">FDwatch</strong></span> types.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;SendErr</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Errors in socket send operations.
+                        This counter corresponds
+                        to <span><strong class="command">SErr</strong></span> counter of
+                        <span><strong class="command">BIND</strong></span> 8.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p><span><strong class="command">&lt;TYPE&gt;RecvErr</strong></span></p>
+                    </td>
+<td>
+                      <p>
+                        Errors in socket receive operations.
+                        This includes errors of send operations on a
+                        connected UDP socket notified by an ICMP error
+                        message.
+                      </p>
+                    </td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2598651"></a>Compatibility with <span class="emphasis"><em>BIND</em></span> 8 Counters</h4></div></div></div>
+<p>
+              Most statistics counters that were available
+              in <span><strong class="command">BIND</strong></span> 8 are also supported in
+              <span><strong class="command">BIND</strong></span> 9 as shown in the above tables.
+              Here are notes about other counters that do not appear
+              in these tables.
+            </p>
+<div class="variablelist"><dl>
+<dt><span class="term"><span><strong class="command">RFwdR,SFwdR</strong></span></span></dt>
+<dd><p>
+                    These counters are not supported
+                    because <span><strong class="command">BIND</strong></span> 9 does not adopt
+                    the notion of <span class="emphasis"><em>forwarding</em></span>
+                    as <span><strong class="command">BIND</strong></span> 8 did.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">RAXFR</strong></span></span></dt>
+<dd><p>
+                    This counter is accessible in the Incoming Queries section.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">RIQ</strong></span></span></dt>
+<dd><p>
+                    This counter is accessible in the Incoming Requests section.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">ROpts</strong></span></span></dt>
+<dd><p>
+                    This counter is not supported
+                    because <span><strong class="command">BIND</strong></span> 9 does not care
+                    about IP options in the first place.
+                  </p></dd>
+</dl></div>
+</div>
 </div>
 </div>
 </div>

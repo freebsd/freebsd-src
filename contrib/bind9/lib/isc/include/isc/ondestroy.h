@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ondestroy.h,v 1.8.18.2 2005/04/29 00:17:00 marka Exp $ */
+/* $Id: ondestroy.h,v 1.14 2007/06/19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_ONDESTROY_H
 #define ISC_ONDESTROY_H 1
@@ -25,7 +25,7 @@
 
 ISC_LANG_BEGINDECLS
 
-/*! \file 
+/*! \file isc/ondestroy.h
  * ondestroy handling.
  *
  * Any class ``X'' of objects that wants to send out notifications
