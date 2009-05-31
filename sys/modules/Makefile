@@ -576,6 +576,7 @@ _xe=		xe
 .if ${MACHINE_ARCH} == "powerpc"
 _an=		an
 _bm=		bm
+_cpufreq=	cpufreq
 _nvram=		powermac_nvram
 _smbfs=		smbfs
 _sound=		sound
