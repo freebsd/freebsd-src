@@ -74,6 +74,7 @@ const char *modes[] = {
 };
 
 #define ACPIAC		"hw.acpi.acline"
+#define PMUAC		"dev.pmu.0.acline"
 #define APMDEV		"/dev/apm"
 #define DEVDPIPE	"/var/run/devd.pipe"
 #define DEVCTL_MAXBUF	1024
@@ -93,7 +94,8 @@ static void	usage(void);
 static int	cp_times_mib[2];
 static int	freq_mib[4];
 static int	levels_mib[4];
-static int	acline_mib[3];
+static int	acline_mib[4];
+static size_t	acline_mib_len;
 
 /* Configuration */
 static int	cpu_running_mark;
@@ -105,7 +107,7 @@ static volatile sig_atomic_t exit_requested;
 static power_src_t acline_status;
 static enum {
 	ac_none,
-	ac_acpi_sysctl,
+	ac_sysctl,
 	ac_acpi_devd,
 #ifdef USE_APM
 	ac_apm,
@@ -259,13 +261,18 @@ get_freq_id(int freq, int *freqs, int numfreqs)
 static void
 acline_init()
 {
-	size_t len;
+	acline_mib_len = 4;
 
-	len = 3;
-	if (sysctlnametomib(ACPIAC, acline_mib, &len) == 0) {
-		acline_mode = ac_acpi_sysctl;
+	if (sysctlnametomib(ACPIAC, acline_mib, &acline_mib_len) == 0) {
+		acline_mode = ac_sysctl;
 		if (vflag)
 			warnx("using sysctl for AC line status");
+#if __powerpc__
+	} else if (sysctlnametomib(PMUAC, acline_mib, &acline_mib_len) == 0) {
+		acline_mode = ac_sysctl;
+		if (vflag)
+			warnx("using sysctl for AC line status");
+#endif
 #ifdef USE_APM
 	} else if ((apm_fd = open(APMDEV, O_RDONLY)) >= 0) {
 		if (vflag)
@@ -291,7 +298,7 @@ acline_read(void)
 			if (vflag)
 				warnx("lost devd connection, switching to sysctl");
 			devd_close();
-			acline_mode = ac_acpi_sysctl;
+			acline_mode = ac_sysctl;
 			/* FALLTHROUGH */
 		}
 		if (rlen > 0 &&
@@ -301,12 +308,13 @@ acline_read(void)
 		    sscanf(ptr, "notify=%x", &notify) == 1)
 			acline_status = (notify ? SRC_AC : SRC_BATTERY);
 	}
-	if (acline_mode == ac_acpi_sysctl) {
+	if (acline_mode == ac_sysctl) {
 		int acline;
 		size_t len;
 
 		len = sizeof(acline);
-		if (sysctl(acline_mib, 3, &acline, &len, NULL, 0) == 0)
+		if (sysctl(acline_mib, acline_mib_len, &acline, &len,
+		    NULL, 0) == 0)
 			acline_status = (acline ? SRC_AC : SRC_BATTERY);
 		else
 			acline_status = SRC_UNKNOWN;
@@ -326,7 +334,7 @@ acline_read(void)
 	}
 #endif
 	/* try to (re)connect to devd */
-	if (acline_mode == ac_acpi_sysctl) {
+	if (acline_mode == ac_sysctl) {
 		struct timeval now;
 
 		gettimeofday(&now, NULL);
