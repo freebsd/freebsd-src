@@ -62,13 +62,14 @@
 
 10) Generate and run configure:
 
+	NOTE: Disabling libxml and idn is temporary, adding support
+	      for these features is planned.
+
 	aclocal ; autoheader ; autoconf
-	cd lib/bind
-	aclocal ; autoheader ; autoconf
-	cd ../..
 	$ ./configure --prefix=/usr \
+		--without-libxml2 --without-idn \
 		--infodir=/usr/share/info --mandir=/usr/share/man \
-		--enable-threads --enable-libbind --disable-ipv6 \
+		--enable-threads --disable-ipv6 \
 		--enable-getifaddrs --disable-linux-caps \
 		--with-openssl=/usr --with-randomdev=/dev/random
 
@@ -80,11 +81,8 @@
 
 	Path in src/contrib/bind9		Path in src/lib/bind
 	------------------------------------------------------------
-	s=/usr/src/lib/bind
+	s=../../lib/bind
 	cp config.h				${s}/config.h
-	cp lib/bind/config.h			${s}/bind/config.h
-	cp lib/bind/port_after.h		${s}/bind/port_after.h
-	cp lib/bind/port_before.h		${s}/bind/port_before.h
 	cp lib/isc/include/isc/platform.h	${s}/isc/isc/platform.h
 	cp lib/lwres/include/lwres/netdb.h	${s}/lwres/lwres/netdb.h
 	cp lib/lwres/include/lwres/platform.h	${s}/lwres/lwres/platform.h
@@ -102,7 +100,6 @@
 	FreeBSD directory		ISC directory
 	========================================================
 	src/lib/bind			bind9/lib
-	src/lib/bind/bind		bind9/lib/bind
 	src/lib/bind/bind9		bind9/lib/bind9
 	src/lib/bind/dns		bind9/lib/dns
 	src/lib/bind/isc		bind9/lib/isc
@@ -114,7 +111,9 @@
 	src/usr.bin/host		bind9/bin/dig
 	src/usr.bin/nslookup		bind9/bin/dig
 	src/usr.bin/nsupdate		bind9/bin/nsupdate
+	src/usr.sbin/dnssec-dsfromkey	bind9/bin/dnssec
 	src/usr.sbin/dnssec-keygen	bind9/bin/dnssec
+	src/usr.sbin/dnssec-keyfromlabel bind9/bin/dnssec
 	src/usr.sbin/dnssec-signzone	bind9/bin/dnssec
 	src/usr.sbin/named		bind9/bin/named
 	src/usr.sbin/named-checkconf	bind9/bin/check
