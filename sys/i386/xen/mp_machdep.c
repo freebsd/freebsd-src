@@ -1146,11 +1146,6 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 void
 ipi_all_but_self(u_int ipi)
 {
-
-	if (IPI_IS_BITMAPED(ipi) || (ipi == IPI_STOP && stop_cpus_with_nmi)) {
-		ipi_selected(PCPU_GET(other_cpus), ipi);
-		return;
-	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	ipi_selected(PCPU_GET(other_cpus), ipi);
 }
