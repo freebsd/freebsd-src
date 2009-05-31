@@ -741,6 +741,55 @@ null_vptofh(struct vop_vptofh_args *ap)
 	return VOP_VPTOFH(lvp, ap->a_fhp);
 }
 
+static int
+null_vptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode **dvp = ap->a_vpp;
+	struct vnode *lvp, *ldvp;
+	int error, locked;
+
+	if (vp->v_type == VDIR)
+		return (vop_stdvptocnp(ap));
+
+	locked = VOP_ISLOCKED(vp);
+	lvp = NULLVPTOLOWERVP(vp);
+	vhold(lvp);
+	VOP_UNLOCK(vp, 0); /* vp is held by vn_vptocnp_locked that called us */
+	ldvp = lvp;
+	error = vn_vptocnp(&ldvp, ap->a_buf, ap->a_buflen);
+	vdrop(lvp);
+	if (error != 0) {
+		vn_lock(vp, locked | LK_RETRY);
+		return (ENOENT);
+	}
+
+	/*
+	 * Exclusive lock is required by insmntque1 call in
+	 * null_nodeget()
+	 */
+	error = vn_lock(ldvp, LK_EXCLUSIVE);
+	if (error != 0) {
+		vn_lock(vp, locked | LK_RETRY);
+		vdrop(ldvp);
+		return (ENOENT);
+	}
+	vref(ldvp);
+	vdrop(ldvp);
+	error = null_nodeget(vp->v_mount, ldvp, dvp);
+	if (error == 0) {
+#ifdef DIAGNOSTIC
+		NULLVPTOLOWERVP(*dvp);
+#endif
+		vhold(*dvp);
+		vput(*dvp);
+	} else
+		vput(ldvp);
+
+	vn_lock(vp, locked | LK_RETRY);
+	return (error);
+}
+
 /*
  * Global vfs data structures
  */
@@ -762,6 +811,6 @@ struct vop_vector null_vnodeops = {
 	.vop_setattr =		null_setattr,
 	.vop_strategy =		VOP_EOPNOTSUPP,
 	.vop_unlock =		null_unlock,
-	.vop_vptocnp =		vop_stdvptocnp,
+	.vop_vptocnp =		null_vptocnp,
 	.vop_vptofh =		null_vptofh,
 };
