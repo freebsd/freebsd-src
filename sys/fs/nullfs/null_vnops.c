@@ -683,14 +683,15 @@ null_reclaim(struct vop_reclaim_args *ap)
 	 * Use the interlock to protect the clearing of v_data to
 	 * prevent faults in null_lock().
 	 */
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
-	if (lowervp) {
-		lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp));
+	VI_UNLOCK(vp);
+	if (lowervp)
 		vput(lowervp);
-	} else
+	else
 		panic("null_reclaim: reclaiming a node with no lowervp");
 	free(xp, M_NULLFSNODE);
 
