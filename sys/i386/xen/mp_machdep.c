@@ -350,17 +350,11 @@ iv_lazypmap(uintptr_t a, uintptr_t b)
 	atomic_add_int(&smp_tlb_wait, 1);
 }
 
-
-static void
-iv_noop(uintptr_t a, uintptr_t b)
+/*
+ * These start from "IPI offset" APIC_IPI_INTS
+ */
+static call_data_func_t *ipi_vectors[6] = 
 {
-	atomic_add_int(&smp_tlb_wait, 1);
-}
-
-static call_data_func_t *ipi_vectors[IPI_BITMAP_VECTOR] = 
-{
-  iv_noop,
-  iv_noop,
   iv_rendezvous,
   iv_invltlb,
   iv_invlpg,
@@ -419,10 +413,11 @@ smp_call_function_interrupt(void *unused)
 	atomic_t *started = &call_data->started;
 	atomic_t *finished = &call_data->finished;
 
-	if (call_data->func_id > IPI_BITMAP_VECTOR)
+	/* We only handle function IPIs, not bitmap IPIs */
+	if (call_data->func_id < APIC_IPI_INTS || call_data->func_id > IPI_BITMAP_VECTOR)
 		panic("invalid function id %u", call_data->func_id);
 	
-	func = ipi_vectors[call_data->func_id];
+	func = ipi_vectors[call_data->func_id - APIC_IPI_INTS];
 	/*
 	 * Notify initiating CPU that I've grabbed the data and am
 	 * about to execute the function
