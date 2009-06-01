@@ -98,7 +98,8 @@ static void	igmp_final_leave(struct in_multi *, struct igmp_ifinfo *);
 static int	igmp_handle_state_change(struct in_multi *,
 		    struct igmp_ifinfo *);
 static int	igmp_initial_join(struct in_multi *, struct igmp_ifinfo *);
-static int	igmp_input_v1_query(struct ifnet *, const struct ip *);
+static int	igmp_input_v1_query(struct ifnet *, const struct ip *,
+		    const struct igmp *);
 static int	igmp_input_v2_query(struct ifnet *, const struct ip *,
 		    const struct igmp *);
 static int	igmp_input_v3_query(struct ifnet *, const struct ip *,
@@ -702,7 +703,8 @@ igi_delete_locked(const struct ifnet *ifp)
  * VIMAGE: The curvnet pointer is derived from the input ifp.
  */
 static int
-igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip)
+igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip,
+    const struct igmp *igmp)
 {
 	INIT_VNET_INET(ifp->if_vnet);
 	struct ifmultiaddr	*ifma;
@@ -710,20 +712,18 @@ igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip)
 	struct in_multi		*inm;
 
 	/*
-	 * IGMPv1 General Queries SHOULD always addressed to 224.0.0.1.
+	 * IGMPv1 Host Mmembership Queries SHOULD always be addressed to
+	 * 224.0.0.1. They are always treated as General Queries.
 	 * igmp_group is always ignored. Do not drop it as a userland
 	 * daemon may wish to see it.
+	 * XXX SMPng: unlocked increments in igmpstat assumed atomic.
 	 */
-	if (!in_allhosts(ip->ip_dst)) {
+	if (!in_allhosts(ip->ip_dst) || !in_nullhost(igmp->igmp_group)) {
 		IGMPSTAT_INC(igps_rcv_badqueries);
 		return (0);
 	}
-
 	IGMPSTAT_INC(igps_rcv_gen_queries);
 
-	/*
-	 * Switch to IGMPv1 host compatibility mode.
-	 */
 	IN_MULTI_LOCK();
 	IGMP_LOCK();
 
@@ -736,6 +736,9 @@ igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip)
 		goto out_locked;
 	}
 
+	/*
+	 * Switch to IGMPv1 host compatibility mode.
+	 */
 	igmp_set_version(igi, IGMP_VERSION_1);
 
 	CTR2(KTR_IGMPV3, "process v1 query on ifp %p(%s)", ifp, ifp->if_xname);
@@ -793,12 +796,29 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 	struct ifmultiaddr	*ifma;
 	struct igmp_ifinfo	*igi;
 	struct in_multi		*inm;
+	int			 is_general_query;
 	uint16_t		 timer;
 
+	is_general_query = 0;
+
 	/*
-	 * Perform lazy allocation of IGMP link info if required,
-	 * and switch to IGMPv2 host compatibility mode.
+	 * Validate address fields upfront.
+	 * XXX SMPng: unlocked increments in igmpstat assumed atomic.
 	 */
+	if (in_nullhost(igmp->igmp_group)) {
+		/*
+		 * IGMPv2 General Query.
+		 * If this was not sent to the all-hosts group, ignore it.
+		 */
+		if (!in_allhosts(ip->ip_dst))
+			return (0);
+		IGMPSTAT_INC(igps_rcv_gen_queries);
+		is_general_query = 1;
+	} else {
+		/* IGMPv2 Group-Specific Query. */
+		IGMPSTAT_INC(igps_rcv_group_queries);
+	}
+
 	IN_MULTI_LOCK();
 	IGMP_LOCK();
 
@@ -811,16 +831,37 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 		goto out_locked;
 	}
 
+	/*
+	 * Ignore v2 query if in v1 Compatibility Mode.
+	 */
+	if (igi->igi_version == IGMP_VERSION_1)
+		goto out_locked;
+
 	igmp_set_version(igi, IGMP_VERSION_2);
 
 	timer = igmp->igmp_code * PR_FASTHZ / IGMP_TIMER_SCALE;
 	if (timer == 0)
 		timer = 1;
 
-	if (!in_nullhost(igmp->igmp_group)) {
+	if (is_general_query) {
 		/*
-		 * IGMPv2 Group-Specific Query.
-		 * If this is a group-specific IGMPv2 query, we need only
+		 * For each reporting group joined on this
+		 * interface, kick the report timer.
+		 */
+		CTR2(KTR_IGMPV3, "process v2 general query on ifp %p(%s)",
+		    ifp, ifp->if_xname);
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_INET ||
+			    ifma->ifma_protospec == NULL)
+				continue;
+			inm = (struct in_multi *)ifma->ifma_protospec;
+			igmp_v2_update_group(inm, timer);
+		}
+		IF_ADDR_UNLOCK(ifp);
+	} else {
+		/*
+		 * Group-specific IGMPv2 query, we need only
 		 * look up the single group to process it.
 		 */
 		inm = inm_lookup(ifp, igmp->igmp_group);
@@ -829,32 +870,6 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 			    inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
 			igmp_v2_update_group(inm, timer);
 		}
-		IGMPSTAT_INC(igps_rcv_group_queries);
-	} else {
-		/*
-		 * IGMPv2 General Query.
-		 * If this was not sent to the all-hosts group, ignore it.
-		 */
-		if (in_allhosts(ip->ip_dst)) {
-			/*
-			 * For each reporting group joined on this
-			 * interface, kick the report timer.
-			 */
-			CTR2(KTR_IGMPV3,
-			    "process v2 general query on ifp %p(%s)",
-			    ifp, ifp->if_xname);
-
-			IF_ADDR_LOCK(ifp);
-			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				if (ifma->ifma_addr->sa_family != AF_INET ||
-				    ifma->ifma_protospec == NULL)
-					continue;
-				inm = (struct in_multi *)ifma->ifma_protospec;
-				igmp_v2_update_group(inm, timer);
-			}
-			IF_ADDR_UNLOCK(ifp);
-		}
-		IGMPSTAT_INC(igps_rcv_gen_queries);
 	}
 
 out_locked:
@@ -933,9 +948,12 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 	INIT_VNET_INET(ifp->if_vnet);
 	struct igmp_ifinfo	*igi;
 	struct in_multi		*inm;
+	int			 is_general_query;
 	uint32_t		 maxresp, nsrc, qqi;
 	uint16_t		 timer;
 	uint8_t			 qrv;
+
+	is_general_query = 0;
 
 	CTR2(KTR_IGMPV3, "process v3 query on ifp %p(%s)", ifp, ifp->if_xname);
 
@@ -947,7 +965,7 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 
 	/*
 	 * Robustness must never be less than 2 for on-wire IGMPv3.
-	 * FIXME: Check if ifp has IGIF_LOOPBACK set, as we make
+	 * FUTURE: Check if ifp has IGIF_LOOPBACK set, as we will make
 	 * an exception for interfaces whose IGMPv3 state changes
 	 * are redirected to loopback (e.g. MANET).
 	 */
@@ -970,6 +988,33 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 
 	nsrc = ntohs(igmpv3->igmp_numsrc);
 
+	/*
+	 * Validate address fields and versions upfront before
+	 * accepting v3 query.
+	 * XXX SMPng: Unlocked access to igmpstat counters here.
+	 */
+	if (in_nullhost(igmpv3->igmp_group)) {
+		/*
+		 * IGMPv3 General Query.
+		 *
+		 * General Queries SHOULD be directed to 224.0.0.1.
+		 * A general query with a source list has undefined
+		 * behaviour; discard it.
+		 */
+		IGMPSTAT_INC(igps_rcv_gen_queries);
+		if (!in_allhosts(ip->ip_dst) || nsrc > 0) {
+			IGMPSTAT_INC(igps_rcv_badqueries);
+			return (0);
+		}
+		is_general_query = 1;
+	} else {
+		/* Group or group-source specific query. */
+		if (nsrc == 0)
+			IGMPSTAT_INC(igps_rcv_group_queries);
+		else
+			IGMPSTAT_INC(igps_rcv_gsr_queries);
+	}
+
 	IN_MULTI_LOCK();
 	IGMP_LOCK();
 
@@ -982,8 +1027,19 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 		goto out_locked;
 	}
 
-	igmp_set_version(igi, IGMP_VERSION_3);
+	/*
+	 * Discard the v3 query if we're in Compatibility Mode.
+	 * The RFC is not obviously worded that hosts need to stay in
+	 * compatibility mode until the Old Version Querier Present
+	 * timer expires.
+	 */
+	if (igi->igi_version != IGMP_VERSION_3) {
+		CTR3(KTR_IGMPV3, "ignore v3 query in v%d mode on ifp %p(%s)",
+		    igi->igi_version, ifp, ifp->if_xname);
+		goto out_locked;
+	}
 
+	igmp_set_version(igi, IGMP_VERSION_3);
 	igi->igi_rv = qrv;
 	igi->igi_qi = qqi;
 	igi->igi_qri = maxresp;
@@ -991,41 +1047,23 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 	CTR4(KTR_IGMPV3, "%s: qrv %d qi %d qri %d", __func__, qrv, qqi,
 	    maxresp);
 
-	if (in_nullhost(igmpv3->igmp_group)) {
+	if (is_general_query) {
 		/*
-		 * IGMPv3 General Query.
 		 * Schedule a current-state report on this ifp for
 		 * all groups, possibly containing source lists.
-		 */
-		IGMPSTAT_INC(igps_rcv_gen_queries);
-
-		if (!in_allhosts(ip->ip_dst) || nsrc > 0) {
-			/*
-			 * General Queries SHOULD be directed to 224.0.0.1.
-			 * A general query with a source list has undefined
-			 * behaviour; discard it.
-			 */
-			IGMPSTAT_INC(igps_rcv_badqueries);
-			goto out_locked;
-		}
-
-		CTR2(KTR_IGMPV3, "process v3 general query on ifp %p(%s)",
-		    ifp, ifp->if_xname);
-
-		/*
 		 * If there is a pending General Query response
 		 * scheduled earlier than the selected delay, do
 		 * not schedule any other reports.
 		 * Otherwise, reset the interface timer.
 		 */
+		CTR2(KTR_IGMPV3, "process v3 general query on ifp %p(%s)",
+		    ifp, ifp->if_xname);
 		if (igi->igi_v3_timer == 0 || igi->igi_v3_timer >= timer) {
 			igi->igi_v3_timer = IGMP_RANDOM_DELAY(timer);
 			V_interface_timers_running = 1;
 		}
 	} else {
 		/*
-		 * IGMPv3 Group-specific or Group-and-source-specific Query.
-		 *
 		 * Group-source-specific queries are throttled on
 		 * a per-group basis to defeat denial-of-service attempts.
 		 * Queries for groups we are not a member of on this
@@ -1035,7 +1073,6 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 		if (inm == NULL)
 			goto out_locked;
 		if (nsrc > 0) {
-			IGMPSTAT_INC(igps_rcv_gsr_queries);
 			if (!ratecheck(&inm->inm_lastgsrtv,
 			    &V_igmp_gsrdelay)) {
 				CTR1(KTR_IGMPV3, "%s: GS query throttled.",
@@ -1043,8 +1080,6 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 				IGMPSTAT_INC(igps_drop_gsr_queries);
 				goto out_locked;
 			}
-		} else {
-			IGMPSTAT_INC(igps_rcv_group_queries);
 		}
 		CTR3(KTR_IGMPV3, "process v3 %s query on ifp %p(%s)",
 		     inet_ntoa(igmpv3->igmp_group), ifp, ifp->if_xname);
@@ -1467,7 +1502,7 @@ igmp_input(struct mbuf *m, int off)
 			IGMPSTAT_INC(igps_rcv_v1v2_queries);
 			if (!V_igmp_v1enable)
 				break;
-			if (igmp_input_v1_query(ifp, ip) != 0) {
+			if (igmp_input_v1_query(ifp, ip, igmp) != 0) {
 				m_freem(m);
 				return;
 			}
@@ -1909,6 +1944,7 @@ igmp_v3_suppress_group_record(struct in_multi *inm)
 static void
 igmp_set_version(struct igmp_ifinfo *igi, const int version)
 {
+	int old_version_timer;
 
 	IGMP_LOCK_ASSERT();
 
@@ -1916,7 +1952,6 @@ igmp_set_version(struct igmp_ifinfo *igi, const int version)
 	    version, igi->igi_ifp, igi->igi_ifp->if_xname);
 
 	if (version == IGMP_VERSION_1 || version == IGMP_VERSION_2) {
-		int old_version_timer;
 		/*
 		 * Compute the "Older Version Querier Present" timer as per
 		 * Section 8.12.
@@ -1949,6 +1984,11 @@ igmp_set_version(struct igmp_ifinfo *igi, const int version)
 /*
  * Cancel pending IGMPv3 timers for the given link and all groups
  * joined on it; state-change, general-query, and group-query timers.
+ *
+ * Only ever called on a transition from v3 to Compatibility mode. Kill
+ * the timers stone dead (this may be expensive for large N groups), they
+ * will be restarted if Compatibility Mode deems that they must be due to
+ * query processing.
  */
 static void
 igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
@@ -1965,21 +2005,21 @@ igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 	IGMP_LOCK_ASSERT();
 
 	/*
-	 * Fast-track this potentially expensive operation
-	 * by checking all the global 'timer pending' flags.
+	 * Stop the v3 General Query Response on this link stone dead.
+	 * If fasttimo is woken up due to V_interface_timers_running,
+	 * the flag will be cleared if there are no pending link timers.
 	 */
-	if (!V_interface_timers_running &&
-	    !V_state_change_timers_running &&
-	    !V_current_state_timers_running)
-		return;
-
 	igi->igi_v3_timer = 0;
 
+	/*
+	 * Now clear the current-state and state-change report timers
+	 * for all memberships scoped to this link.
+	 */
 	ifp = igi->igi_ifp;
-
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_INET)
+		if (ifma->ifma_addr->sa_family != AF_INET ||
+		    ifma->ifma_protospec == NULL)
 			continue;
 		inm = (struct in_multi *)ifma->ifma_protospec;
 		switch (inm->inm_state) {
@@ -1989,12 +2029,19 @@ igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 		case IGMP_LAZY_MEMBER:
 		case IGMP_SLEEPING_MEMBER:
 		case IGMP_AWAKENING_MEMBER:
+			/*
+			 * These states are either not relevant in v3 mode,
+			 * or are unreported. Do nothing.
+			 */
 			break;
 		case IGMP_LEAVING_MEMBER:
 			/*
-			 * If we are leaving the group and switching
-			 * IGMP version, we need to release the final
-			 * reference held for issuing the INCLUDE {}.
+			 * If we are leaving the group and switching to
+			 * compatibility mode, we need to release the final
+			 * reference held for issuing the INCLUDE {}, and
+			 * transition to REPORTING to ensure the host leave
+			 * message is sent upstream to the old querier --
+			 * transition to NOT would lose the leave and race.
 			 *
 			 * SMPNG: Must drop and re-acquire IF_ADDR_LOCK
 			 * around inm_release_locked(), as it is not
@@ -2009,15 +2056,16 @@ igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 			inm_clear_recorded(inm);
 			/* FALLTHROUGH */
 		case IGMP_REPORTING_MEMBER:
-			inm->inm_sctimer = 0;
-			inm->inm_timer = 0;
 			inm->inm_state = IGMP_REPORTING_MEMBER;
-			/*
-			 * Free any pending IGMPv3 state-change records.
-			 */
-			_IF_DRAIN(&inm->inm_scq);
 			break;
 		}
+		/*
+		 * Always clear state-change and group report timers.
+		 * Free any pending IGMPv3 state-change records.
+		 */
+		inm->inm_sctimer = 0;
+		inm->inm_timer = 0;
+		_IF_DRAIN(&inm->inm_scq);
 	}
 	IF_ADDR_UNLOCK(ifp);
 }
