@@ -251,14 +251,14 @@ static void
 in_rtqtimo(void *rock)
 {
 	CURVNET_SET((struct vnet *) rock);
-	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET(curvnet);
 	int fibnum;
 	void *newrock;
 	struct timeval atv;
 
 	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		if ((newrock = V_rt_tables[fibnum][AF_INET]) != NULL)
+		newrock = rt_tables_get_rnh(fibnum, AF_INET);
+		if (newrock != NULL)
 			in_rtqtimo_one(newrock);
 	}
 	atv.tv_usec = 0;
@@ -324,10 +324,9 @@ in_rtqdrain(void)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_NET(vnet_iter);
 
 		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-			rnh = V_rt_tables[fibnum][AF_INET];
+			rnh = rt_tables_get_rnh(fibnum, AF_INET);
 			arg.found = arg.killed = 0;
 			arg.rnh = rnh;
 			arg.nextstop = 0;
@@ -423,7 +422,6 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 int
 in_ifadown(struct ifaddr *ifa, int delete)
 {
-	INIT_VNET_NET(curvnet);
 	struct in_ifadown_arg arg;
 	struct radix_node_head *rnh;
 	int	fibnum;
@@ -432,7 +430,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 		return 1;
 
 	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = V_rt_tables[fibnum][AF_INET];
+		rnh = rt_tables_get_rnh(fibnum, AF_INET);
 		arg.ifa = ifa;
 		arg.del = delete;
 		RADIX_NODE_HEAD_LOCK(rnh);

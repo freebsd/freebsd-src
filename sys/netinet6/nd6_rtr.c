@@ -1549,7 +1549,6 @@ pfxlist_onlink_check()
 int
 nd6_prefix_onlink(struct nd_prefix *pr)
 {
-	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	struct ifaddr *ifa;
 	struct ifnet *ifp = pr->ndpr_ifp;
@@ -1632,7 +1631,8 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	    ifa->ifa_addr, (struct sockaddr *)&mask6, rtflags, &rt);
 	if (error == 0) {
 		if (rt != NULL) /* this should be non NULL, though */ {
-			rnh = V_rt_tables[rt->rt_fibnum][AF_INET6];
+			rnh = rt_tables_get_rnh(rt->rt_fibnum, AF_INET6);
+			/* XXX what if rhn == NULL? */
 			RADIX_NODE_HEAD_LOCK(rnh);
 			RT_LOCK(rt);
 			if (!rt_setgate(rt, rt_key(rt), (struct sockaddr *)&null_sdl)) {
@@ -2058,8 +2058,7 @@ in6_init_address_ltimes(struct nd_prefix *new, struct in6_addrlifetime *lt6)
 void
 rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 {
-	INIT_VNET_NET(curvnet);
-	struct radix_node_head *rnh = V_rt_tables[0][AF_INET6];
+	struct radix_node_head *rnh;
 	int s = splnet();
 
 	/* We'll care only link-local addresses */
@@ -2067,6 +2066,10 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 		splx(s);
 		return;
 	}
+
+	rnh = rt_tables_get_rnh(0, AF_INET6);
+	if (rnh == NULL)
+		return;
 
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, rt6_deleteroute, (void *)gateway);
