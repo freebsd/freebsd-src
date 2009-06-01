@@ -287,7 +287,7 @@ getbootfile(int try)
 int
 getrootmount(char *rootdev)
 {
-    char	lbuf[128], *cp, *ep, *dev, *fstyp;
+    char	lbuf[128], *cp, *ep, *dev, *fstyp, *options;
     int		fd, error;
 
     if (getenv("vfs.root.mountfrom") != NULL)
@@ -331,11 +331,30 @@ getrootmount(char *rootdev)
 	*cp = 0;
 	fstyp = strdup(ep);
 
-	/* build the final result and save it */
+	/* skip whitespace up to mount options */
+	cp += 1;
+	while ((*cp != 0) && isspace(*cp))
+		cp++;
+	if (*cp == 0)           /* misformatted */
+		continue;
+	/* skip text to end of mount options and delimit */
+	ep = cp;
+	while ((*cp != 0) && !isspace(*cp))
+		cp++;
+	*cp = 0;
+	options = strdup(ep);
+	/* Build the <fstype>:<device> and save it in vfs.root.mountfrom */
 	sprintf(lbuf, "%s:%s", fstyp, dev);
 	free(dev);
 	free(fstyp);
 	setenv("vfs.root.mountfrom", lbuf, 0);
+
+	/* Don't override vfs.root.mountfrom.options if it is already set */
+	if (getenv("vfs.root.mountfrom.options") == NULL) {
+		/* save mount options */
+		setenv("vfs.root.mountfrom.options", options, 0);
+	}
+	free(options);
 	error = 0;
 	break;
     }

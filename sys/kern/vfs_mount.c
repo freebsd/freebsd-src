@@ -77,7 +77,7 @@ static void	set_rootvnode(void);
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata);
 static int	vfs_mountroot_ask(void);
-static int	vfs_mountroot_try(const char *mountfrom);
+static int	vfs_mountroot_try(const char *mountfrom, const char *options);
 static void	free_mntarg(struct mntarg *ma);
 
 static int	usermount = 0;
@@ -110,6 +110,10 @@ struct vnode	*rootvnode;
  *              of being mounted as root
  * path      := disk device name or other data used by the filesystem
  *              to locate its physical store
+ *
+ * The environment variable vfs.root.mountfrom options is a comma delimited
+ * set of string mount options.  These mount options must be parseable
+ * by nmount() in the kernel.
  */
 
 /*
@@ -1637,8 +1641,10 @@ vfs_opterror(struct vfsoptlist *opts, const char *fmt, ...)
 void
 vfs_mountroot(void)
 {
-	char *cp;
+	char *cp, *options;
 	int error, i, asked = 0;
+
+	options = NULL;
 
 	root_mount_prepare();
 
@@ -1656,12 +1662,14 @@ vfs_mountroot(void)
 		asked = 1;
 	}
 
+	options = getenv("vfs.root.mountfrom.options");
+
 	/*
 	 * The root filesystem information is compiled in, and we are
 	 * booted with instructions to use it.
 	 */
 	if (ctrootdevname != NULL && (boothowto & RB_DFLTROOT)) {
-		if (!vfs_mountroot_try(ctrootdevname))
+		if (!vfs_mountroot_try(ctrootdevname, options))
 			goto mounted;
 		ctrootdevname = NULL;
 	}
@@ -1673,7 +1681,7 @@ vfs_mountroot(void)
 	 */
 	if (boothowto & RB_CDROM) {
 		for (i = 0; cdrom_rootdevnames[i] != NULL; i++) {
-			if (!vfs_mountroot_try(cdrom_rootdevnames[i]))
+			if (!vfs_mountroot_try(cdrom_rootdevnames[i], options))
 				goto mounted;
 		}
 	}
@@ -1685,7 +1693,7 @@ vfs_mountroot(void)
 	 */
 	cp = getenv("vfs.root.mountfrom");
 	if (cp != NULL) {
-		error = vfs_mountroot_try(cp);
+		error = vfs_mountroot_try(cp, options);
 		freeenv(cp);
 		if (!error)
 			goto mounted;
@@ -1694,16 +1702,16 @@ vfs_mountroot(void)
 	/*
 	 * Try values that may have been computed by code during boot
 	 */
-	if (!vfs_mountroot_try(rootdevnames[0]))
+	if (!vfs_mountroot_try(rootdevnames[0], options))
 		goto mounted;
-	if (!vfs_mountroot_try(rootdevnames[1]))
+	if (!vfs_mountroot_try(rootdevnames[1], options))
 		goto mounted;
 
 	/*
 	 * If we (still) have a compiled-in default, try it.
 	 */
 	if (ctrootdevname != NULL)
-		if (!vfs_mountroot_try(ctrootdevname))
+		if (!vfs_mountroot_try(ctrootdevname, options))
 			goto mounted;
 	/*
 	 * Everything so far has failed, prompt on the console if we haven't
@@ -1717,24 +1725,75 @@ vfs_mountroot(void)
 
 mounted:
 	root_mount_done();
+	freeenv(options);
+}
+
+static struct mntarg *
+parse_mountroot_options(struct mntarg *ma, const char *options)
+{
+	char *p;
+	char *name, *name_arg;
+	char *val, *val_arg;
+	char *opts;
+
+	if (options == NULL || options[0] == '\0')
+		return (ma);
+
+	p = opts = strdup(options, M_MOUNT);
+	if (opts == NULL) {
+		return (ma);
+	} 
+
+	while((name = strsep(&p, ",")) != NULL) {
+		if (name[0] == '\0')
+			break;
+
+		val = strchr(name, '=');
+		if (val != NULL) {
+			*val = '\0';
+			++val;
+		}
+		if( strcmp(name, "rw") == 0 ||
+		    strcmp(name, "noro") == 0) {
+			/*
+			 * The first time we mount the root file system,
+			 * we need to mount 'ro', so We need to ignore
+			 * 'rw' and 'noro' mount options.
+			 */
+			continue;
+		}
+		name_arg = strdup(name, M_MOUNT);
+		val_arg = NULL;
+		if (val != NULL) 
+			val_arg = strdup(val, M_MOUNT);
+
+		ma = mount_arg(ma, name_arg, val_arg,
+		    (val_arg != NULL ? -1 : 0));
+	}
+	free(opts, M_MOUNT);
+	return (ma);
 }
 
 /*
  * Mount (mountfrom) as the root filesystem.
  */
 static int
-vfs_mountroot_try(const char *mountfrom)
+vfs_mountroot_try(const char *mountfrom, const char *options)
 {
 	struct mount	*mp;
+	struct mntarg	*ma;
 	char		*vfsname, *path;
 	time_t		timebase;
 	int		error;
 	char		patt[32];
+	char		errmsg[255];
 
 	vfsname = NULL;
 	path    = NULL;
 	mp      = NULL;
+	ma	= NULL;
 	error   = EINVAL;
+	bzero(errmsg, sizeof(errmsg));
 
 	if (mountfrom == NULL)
 		return (error);		/* don't complain */
@@ -1751,12 +1810,14 @@ vfs_mountroot_try(const char *mountfrom)
 	if (path[0] == '\0')
 		strcpy(path, ROOTNAME);
 
-	error = kernel_vmount(
-	    MNT_RDONLY | MNT_ROOTFS,
-	    "fstype", vfsname,
-	    "fspath", "/",
-	    "from", path,
-	    NULL);
+	ma = mount_arg(ma, "fstype", vfsname, -1);
+	ma = mount_arg(ma, "fspath", "/", -1);
+	ma = mount_arg(ma, "from", path, -1);
+	ma = mount_arg(ma, "errmsg", errmsg, sizeof(errmsg));
+	ma = mount_arg(ma, "ro", NULL, 0);
+	ma = parse_mountroot_options(ma, options);
+	error = kernel_mount(ma, MNT_ROOTFS);
+
 	if (error == 0) {
 		/*
 		 * We mount devfs prior to mounting the / FS, so the first
@@ -1783,6 +1844,16 @@ vfs_mountroot_try(const char *mountfrom)
 
 		devfs_fixup(curthread);
 	}
+
+	if (error != 0 ) {
+		printf("ROOT MOUNT ERROR: %s\n", errmsg);
+		printf("If you have invalid mount options, reboot, and ");
+		printf("first try the following from\n");
+		printf("the loader prompt:\n\n");
+		printf("     set vfs.root.mountfrom.options=rw\n\n");
+		printf("and then remove invalid mount options from ");
+		printf("/etc/fstab.\n\n");
+	}
 out:
 	free(path, M_MOUNT);
 	free(vfsname, M_MOUNT);
@@ -1798,15 +1869,32 @@ static int
 vfs_mountroot_ask(void)
 {
 	char name[128];
+	char *mountfrom;
+	char *options;
 
 	for(;;) {
+		printf("Loader variables:\n");
+		printf("vfs.root.mountfrom=");
+		mountfrom = getenv("vfs.root.mountfrom");
+		if (mountfrom != NULL) {
+			printf("%s", mountfrom);
+		}
+		printf("\n");
+		printf("vfs.root.mountfrom.options=");
+		options = getenv("vfs.root.mountfrom.options");
+		if (options != NULL) {
+			printf("%s", options);
+		}
+		printf("\n");
+		freeenv(mountfrom);
+		freeenv(options);
 		printf("\nManual root filesystem specification:\n");
 		printf("  <fstype>:<device>  Mount <device> using filesystem <fstype>\n");
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
-		printf("                       eg. ufs:da0s1a\n");
-#else
-		printf("                       eg. ufs:/dev/da0a\n");
-#endif
+		printf("                       eg. ufs:/dev/da0s1a\n");
+		printf("                       eg. cd9660:/dev/acd0\n");
+		printf("                       This is equivalent to: ");
+		printf("mount -t cd9660 /dev/acd0 /\n"); 
+		printf("\n");
 		printf("  ?                  List valid disk boot devices\n");
 		printf("  <empty line>       Abort manual input\n");
 		printf("\nmountroot> ");
@@ -1818,7 +1906,7 @@ vfs_mountroot_ask(void)
 			g_dev_print();
 			continue;
 		}
-		if (!vfs_mountroot_try(name))
+		if (!vfs_mountroot_try(name, NULL))
 			return (0);
 	}
 }
