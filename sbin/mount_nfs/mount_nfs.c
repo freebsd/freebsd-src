@@ -430,7 +430,7 @@ main(int argc, char *argv[])
 	 * struct nfs_args to be passed in via nmount().
 	 */
 	osversion = getosreldate();
-	if (osversion >= 800048) {
+	if (osversion >= 702100) {
 		if (nmount(iov, iovlen, mntflags))
 			err(1, "%s, %s", mntpath, errmsg);
 	} else {
