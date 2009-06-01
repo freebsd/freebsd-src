@@ -115,8 +115,8 @@
  *
  *****************************************************************************/
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acevents.h>
+#include "acpi.h"
+#include "acevents.h"
 
 #define _COMPONENT          ACPI_HARDWARE
         ACPI_MODULE_NAME    ("hwgpe")

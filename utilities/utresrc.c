@@ -117,8 +117,8 @@
 
 #define __UTRESRC_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/amlresrc.h>
+#include "acpi.h"
+#include "amlresrc.h"
 
 
 #define _COMPONENT          ACPI_UTILITIES

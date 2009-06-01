@@ -115,7 +115,7 @@
  *
  *****************************************************************************/
 
-#include <contrib/dev/acpica/acpi.h>
+#include "acpi.h"
 
 #define _COMPONENT          ACPI_HARDWARE
         ACPI_MODULE_NAME    ("hwtimer")

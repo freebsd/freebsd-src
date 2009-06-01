@@ -116,10 +116,10 @@
 
 #define __ASLLOAD_C__
 
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include "aslcompiler.h"
+#include "amlcode.h"
+#include "acdispat.h"
+#include "acnamesp.h"
 
 #include "aslcompiler.y.h"
 

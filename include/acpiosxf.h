@@ -121,8 +121,8 @@
 #ifndef __ACPIOSXF_H__
 #define __ACPIOSXF_H__
 
-#include <contrib/dev/acpica/acenv.h>
-#include <contrib/dev/acpica/actypes.h>
+#include "platform/acenv.h"
+#include "actypes.h"
 
 
 /* Types for AcpiOsExecute */

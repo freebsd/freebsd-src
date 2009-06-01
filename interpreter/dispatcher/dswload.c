@@ -116,16 +116,16 @@
 
 #define __DSWLOAD_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/acinterp.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/acevents.h>
+#include "acpi.h"
+#include "acparser.h"
+#include "amlcode.h"
+#include "acdispat.h"
+#include "acinterp.h"
+#include "acnamesp.h"
+#include "acevents.h"
 
 #ifdef ACPI_ASL_COMPILER
-#include <contrib/dev/acpica/acdisasm.h>
+#include "acdisasm.h"
 #endif
 
 #define _COMPONENT          ACPI_DISPATCHER

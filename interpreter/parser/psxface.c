@@ -116,10 +116,10 @@
 
 #define __PSXFACE_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/acinterp.h>
+#include "acpi.h"
+#include "acparser.h"
+#include "acdispat.h"
+#include "acinterp.h"
 
 
 #define _COMPONENT          ACPI_PARSER

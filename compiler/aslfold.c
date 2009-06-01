@@ -116,12 +116,12 @@
  *****************************************************************************/
 
 
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include "aslcompiler.h"
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/amlcode.h>
+#include "amlcode.h"
 
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/acparser.h>
+#include "acdispat.h"
+#include "acparser.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslfold")

@@ -116,8 +116,8 @@
 
 #define __TBFIND_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/actables.h>
+#include "acpi.h"
+#include "actables.h"
 
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbfind")

@@ -116,10 +116,10 @@
 
 #define __NSACCESS_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/acdispat.h>
+#include "acpi.h"
+#include "amlcode.h"
+#include "acnamesp.h"
+#include "acdispat.h"
 
 
 #define _COMPONENT          ACPI_NAMESPACE

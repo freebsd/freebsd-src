@@ -117,10 +117,10 @@
 
 #define __NSEVAL_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/acinterp.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include "acpi.h"
+#include "acparser.h"
+#include "acinterp.h"
+#include "acnamesp.h"
 
 
 #define _COMPONENT          ACPI_NAMESPACE

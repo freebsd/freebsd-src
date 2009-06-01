@@ -116,9 +116,9 @@
  *****************************************************************************/
 
 #include <stdio.h>
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/actables.h>
+#include "aslcompiler.h"
+#include "acdispat.h"
+#include "actables.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstubs")

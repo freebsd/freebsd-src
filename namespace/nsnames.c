@@ -116,9 +116,9 @@
 
 #define __NSNAMES_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include "acpi.h"
+#include "amlcode.h"
+#include "acnamesp.h"
 
 
 #define _COMPONENT          ACPI_NAMESPACE

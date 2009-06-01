@@ -116,10 +116,10 @@
 
 #define __DSINIT_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/actables.h>
+#include "acpi.h"
+#include "acdispat.h"
+#include "acnamesp.h"
+#include "actables.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
         ACPI_MODULE_NAME    ("dsinit")

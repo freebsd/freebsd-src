@@ -117,7 +117,7 @@
 #ifndef __ACDISASM_H__
 #define __ACDISASM_H__
 
-#include <contrib/dev/acpica/amlresrc.h>
+#include "amlresrc.h"
 
 
 #define BLOCK_NONE              0

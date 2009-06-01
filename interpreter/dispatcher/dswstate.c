@@ -117,10 +117,10 @@
 
 #define __DSWSTATE_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include "acpi.h"
+#include "acparser.h"
+#include "acdispat.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
         ACPI_MODULE_NAME    ("dswstate")

@@ -115,10 +115,10 @@
  *****************************************************************************/
 
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/acdebug.h>
-#include <contrib/dev/acpica/acdisasm.h>
+#include "acpi.h"
+#include "acnamesp.h"
+#include "acdebug.h"
+#include "acdisasm.h"
 
 
 #ifdef ACPI_DEBUGGER
