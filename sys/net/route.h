@@ -373,7 +373,8 @@ struct rt_addrinfo {
 	}							\
 } while (0)
 
-extern struct radix_node_head *rt_tables[][AF_MAX+1];
+extern struct radix_node_head *rt_tables;
+struct radix_node_head *rt_tables_get_rnh(int, int);
 
 struct ifmultiaddr;
 
