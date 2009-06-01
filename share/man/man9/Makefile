@@ -218,6 +218,7 @@ MAN=	accept_filter.9 \
 	selrecord.9 \
 	sema.9 \
 	sf_buf.9 \
+	sglist.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
@@ -1022,6 +1023,24 @@ MLINKS+=sf_buf.9 sf_buf_alloc.9 \
 	sf_buf.9 sf_buf_free.9 \
 	sf_buf.9 sf_buf_kva.9 \
 	sf_buf.9 sf_buf_page.9
+MLINKS+=sglist.9 sglist_alloc.9 \
+	sglist.9 sglist_append.9 \
+	sglist.9 sglist_append_mbuf.9 \
+	sglist.9 sglist_append_phys.9 \
+	sglist.9 sglist_append_uio.9 \
+	sglist.9 sglist_append_user.9 \
+	sglist.9 sglist_build.9 \
+	sglist.9 sglist_clone.9 \
+	sglist.9 sglist_consume_uio.9 \
+	sglist.9 sglist_count.9 \
+	sglist.9 sglist_free.9 \
+	sglist.9 sglist_hold.9 \
+	sglist.9 sglist_init.9 \
+	sglist.9 sglist_join.9 \
+	sglist.9 sglist_length.9 \
+	sglist.9 sglist_reset.9 \
+	sglist.9 sglist_slice.9 \
+	sglist.9 sglist_split.9
 MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
