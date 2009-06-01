@@ -579,6 +579,7 @@ bwi_detach(struct bwi_softc *sc)
 	int i;
 
 	bwi_stop(sc, 1);
+	callout_drain(&sc->sc_led_blink_ch);
 	callout_drain(&sc->sc_calib_ch);
 	ieee80211_ifdetach(ic);
 
