@@ -9,7 +9,25 @@ SRCDIR=		${BIND_DIR}/bin/named
 
 PROG=		named
 
-CONFIGARGS='--prefix=/usr' '--without-libxml2' '--without-idn' '--infodir=/usr/share/info' '--mandir=/usr/share/man' '--enable-threads' '--disable-ipv6' '--enable-getifaddrs' '--disable-linux-caps' '--with-openssl=/usr' '--with-randomdev=/dev/random'
+CONFIGARGS='--prefix=/usr' '--infodir=/usr/share/info' '--mandir=/usr/share/man' '--enable-threads' '--disable-ipv6' '--enable-getifaddrs' '--disable-linux-caps' '--with-openssl=/usr' '--with-randomdev=/dev/random'
+
+# Optional features
+.if ${MK_BIND_LARGE_FILE} == "yes"
+CONFIGARGS+='--enable-largefile'
+.endif
+.if ${MK_BIND_SIGCHASE} == "yes"
+CONFIGARGS+='STD_CDEFINES=-DDIG_SIGCHASE=1'
+.endif
+.if ${MK_BIND_IDN} == "yes"
+CONFIGARGS+='--with-idn=/usr/local'
+.else
+CONFIGARGS+='--without-idn'
+.endif
+.if ${MK_BIND_XML} == "yes"
+CONFIGARGS+='--with-libxml2=/usr/local'
+.else
+CONFIGARGS+='--without-libxml2'
+.endif
 
 .PATH: ${SRCDIR}/unix
 SRCS+=		os.c
