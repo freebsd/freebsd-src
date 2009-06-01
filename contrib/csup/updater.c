@@ -1858,7 +1858,7 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 			goto bad;
 	}
 	if (nread == -1) {
-		xasprintf(&up->errmsg, "%s: Error reading: %s",
+		xasprintf(&up->errmsg, "%s: Error reading: %s", fup->destpath,
 		    strerror(errno));
 		return (UPDATER_ERR_MSG);
 	}
