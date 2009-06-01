@@ -23,10 +23,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20090601:
-	The way we are storing and accessing `routeing table' entries
+	The way we are storing and accessing `routing table' entries
 	has changed. Programs reading the FIB, like netstat, need to
 	be re-compiled.
 	Bump __FreeBSD_version to 800097.
+
+20090601:
+	A new netisr implementation has been added for FreeBSD 8.  Network
+	file system modules, such as igmp, ipdivert, and others, should be
+	rebuilt.
+	Bump __FreeBSD_version to 800096.
 
 20090530:
 	Remove the tunable/sysctl debug.mpsafevfs as its initial purpose
