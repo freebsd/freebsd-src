@@ -763,14 +763,9 @@ linux_listen(struct thread *td, struct linux_listen_args *args)
 	return (listen(td, &bsd_args));
 }
 
-struct linux_accept_args {
-	int s;
-	l_uintptr_t addr;
-	l_uintptr_t namelen;
-};
-
 static int
-linux_accept(struct thread *td, struct linux_accept_args *args)
+linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
+    l_uintptr_t namelen)
 {
 	struct accept_args /* {
 		int	s;
@@ -779,19 +774,19 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	} */ bsd_args;
 	int error, fd;
 
-	bsd_args.s = args->s;
+	bsd_args.s = s;
 	/* XXX: */
-	bsd_args.name = (struct sockaddr * __restrict)PTRIN(args->addr);
-	bsd_args.anamelen = PTRIN(args->namelen);/* XXX */
+	bsd_args.name = (struct sockaddr * __restrict)PTRIN(addr);
+	bsd_args.anamelen = PTRIN(namelen);/* XXX */
 	error = accept(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.name);
 	if (error) {
-		if (error == EFAULT && args->namelen != sizeof(struct sockaddr_in))
+		if (error == EFAULT && namelen != sizeof(struct sockaddr_in))
 			return (EINVAL);
 		return (error);
 	}
-	if (args->addr) {
-		error = linux_sa_put(PTRIN(args->addr));
+	if (addr) {
+		error = linux_sa_put(PTRIN(addr));
 		if (error) {
 			(void)kern_close(td, td->td_retval[0]);
 			return (error);
@@ -807,6 +802,20 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	(void)kern_fcntl(td, fd, F_SETFL, 0);
 	td->td_retval[0] = fd;
 	return (0);
+}
+
+struct linux_accept_args {
+	int s;
+	l_uintptr_t addr;
+	l_uintptr_t namelen;
+};
+
+static int
+linux_accept(struct thread *td, struct linux_accept_args *args)
+{
+
+	return (linux_accept_common(td, args->s, args->addr,
+	    args->namelen));
 }
 
 struct linux_getsockname_args {
