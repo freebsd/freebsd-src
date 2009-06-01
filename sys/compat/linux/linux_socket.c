@@ -765,7 +765,7 @@ linux_listen(struct thread *td, struct linux_listen_args *args)
 
 static int
 linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
-    l_uintptr_t namelen)
+    l_uintptr_t namelen, int flags)
 {
 	struct accept_args /* {
 		int	s;
@@ -822,7 +822,7 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 {
 
 	return (linux_accept_common(td, args->s, args->addr,
-	    args->namelen));
+	    args->namelen, 0));
 }
 
 struct linux_accept4_args {
