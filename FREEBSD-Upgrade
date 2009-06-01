@@ -10,6 +10,7 @@
 	svn co $REPO/vendor/bind9/dist
 
 	NOTE: For RELENG_6 (BIND 9.3.x) s/dist/dist-9.3/ throughout this file
+	      For RELENG_7 (BIND 9.4.x) s/dist/dist-9.4/ throughout this file
 
 3) Unpack the tarball in a suitable directory:
 
