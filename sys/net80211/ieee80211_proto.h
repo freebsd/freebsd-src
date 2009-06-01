@@ -305,6 +305,7 @@ struct ieee80211_beacon_offsets {
 	uint16_t	bo_appie_len;	/* AppIE length in bytes */
 	uint16_t	bo_csa_trailer_len;;
 	uint8_t		*bo_csa;	/* start of CSA element */
+	uint8_t		*bo_spare[4];
 };
 struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *,
 		struct ieee80211_beacon_offsets *);
