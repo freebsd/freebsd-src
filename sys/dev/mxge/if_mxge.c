@@ -2351,7 +2351,7 @@ mxge_get_buf_big(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 		err = ENOBUFS;
 		goto done;
 	}
-	m->m_len = rx->cl_size;
+	m->m_len = rx->mlen;
 	err = bus_dmamap_load_mbuf_sg(rx->dmat, map, m, 
 				      seg, &cnt, BUS_DMA_NOWAIT);
 	if (err != 0) {
@@ -3432,6 +3432,8 @@ mxge_slice_open(struct mxge_slice_state *ss, int nbufs, int cl_size)
 	}
 	ss->rx_big.nbufs = nbufs;
 	ss->rx_big.cl_size = cl_size;
+	ss->rx_big.mlen = ss->sc->ifp->if_mtu + ETHER_HDR_LEN +
+		ETHER_VLAN_ENCAP_LEN + MXGEFW_PAD;
 	for (i = 0; i <= ss->rx_big.mask; i += ss->rx_big.nbufs) {
 		map = ss->rx_big.info[i].map;
 		err = mxge_get_buf_big(ss, map, i);
