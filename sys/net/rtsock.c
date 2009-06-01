@@ -460,7 +460,6 @@ static int
 route_output(struct mbuf *m, struct socket *so)
 {
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
-	INIT_VNET_NET(so->so_vnet);
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
 	struct radix_node_head *rnh;
@@ -561,7 +560,8 @@ route_output(struct mbuf *m, struct socket *so)
 	case RTM_GET:
 	case RTM_CHANGE:
 	case RTM_LOCK:
-		rnh = V_rt_tables[so->so_fibnum][info.rti_info[RTAX_DST]->sa_family];
+		rnh = rt_tables_get_rnh(so->so_fibnum,
+		    info.rti_info[RTAX_DST]->sa_family);
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
 		RADIX_NODE_HEAD_RLOCK(rnh);
@@ -1418,10 +1418,9 @@ done:
 static int
 sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_NET(curvnet);
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
-	struct radix_node_head *rnh;
+	struct radix_node_head *rnh = NULL; /* silence compiler. */
 	int	i, lim, error = EINVAL;
 	u_char	af;
 	struct	walkarg w;
@@ -1469,7 +1468,8 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		 * take care of routing entries
 		 */
 		for (error = 0; error == 0 && i <= lim; i++)
-			if ((rnh = V_rt_tables[req->td->td_proc->p_fibnum][i]) != NULL) {
+			rnh = rt_tables_get_rnh(req->td->td_proc->p_fibnum, i);
+			if (rnh != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);

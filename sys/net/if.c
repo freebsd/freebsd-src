@@ -1001,7 +1001,8 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	 */
 	for (i = 1; i <= AF_MAX; i++) {
 		for (j = 0; j < rt_numfibs; j++) {
-			if ((rnh = V_rt_tables[j][i]) == NULL)
+			rnh = rt_tables_get_rnh(j, i);
+			if (rnh == NULL)
 				continue;
 			RADIX_NODE_HEAD_LOCK(rnh);
 			(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);

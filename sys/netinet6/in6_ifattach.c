@@ -777,11 +777,11 @@ statinit:
 void
 in6_ifdetach(struct ifnet *ifp)
 {
-	INIT_VNET_NET(ifp->if_vnet);
 	INIT_VNET_INET(ifp->if_vnet);
 	INIT_VNET_INET6(ifp->if_vnet);
 	struct in6_ifaddr *ia, *oia;
 	struct ifaddr *ifa, *next;
+	struct radix_node_head *rnh;
 	struct rtentry *rt;
 	short rtflags;
 	struct sockaddr_in6 sin6;
@@ -874,15 +874,16 @@ in6_ifdetach(struct ifnet *ifp)
 		/* XXX: should not fail */
 		return;
 	/* XXX grab lock first to avoid LOR */
-	if (V_rt_tables[0][AF_INET6] != NULL) {
-		RADIX_NODE_HEAD_LOCK(V_rt_tables[0][AF_INET6]);
+	rnh = rt_tables_get_rnh(0, AF_INET6);
+	if (rnh != NULL) {
+		RADIX_NODE_HEAD_LOCK(rnh);
 		rt = rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED);
 		if (rt) {
 			if (rt->rt_ifp == ifp)
 				rtexpunge(rt);
 			RTFREE_LOCKED(rt);
 		}
-		RADIX_NODE_HEAD_UNLOCK(V_rt_tables[0][AF_INET6]);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 	}
 }
 
