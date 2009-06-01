@@ -374,6 +374,7 @@
 #define	PRIV_NETINET_IPSEC	503	/* Administer IPSEC. */
 #define	PRIV_NETINET_REUSEPORT	504	/* Allow [rapid] port/address reuse. */
 #define	PRIV_NETINET_SETHDROPTS	505	/* Set certain IPv4/6 header options. */
+#define	PRIV_NETINET_BINDANY	506	/* Allow bind to any address. */
 
 /*
  * IPX/SPX privileges.

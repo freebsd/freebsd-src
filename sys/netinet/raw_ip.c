@@ -853,14 +853,15 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (error != 0)
 		return (error);
 
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip_bind: inp == NULL"));
+
 	if (TAILQ_EMPTY(&V_ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
-	     ifa_ifwithaddr((struct sockaddr *)addr) == 0))
+	     (inp->inp_flags & INP_BINDANY) == 0 &&
+	     ifa_ifwithaddr((struct sockaddr *)addr) == NULL))
 		return (EADDRNOTAVAIL);
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("rip_bind: inp == NULL"));
 
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
