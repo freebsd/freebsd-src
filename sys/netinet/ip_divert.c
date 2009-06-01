@@ -472,7 +472,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		SOCK_UNLOCK(so);
 #endif
 		/* Send packet to input processing via netisr */
-		netisr_queue(NETISR_IP, m);
+		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
 	}
 
 	return error;

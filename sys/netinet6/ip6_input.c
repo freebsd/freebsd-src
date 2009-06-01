@@ -120,7 +120,13 @@ __FBSDID("$FreeBSD$");
 extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
-static struct ifqueue ip6intrq;
+
+static struct netisr_handler ip6_nh = {
+	.nh_name = "ip6",
+	.nh_handler = ip6_input,
+	.nh_proto = NETISR_IPV6,
+	.nh_policy = NETISR_POLICY_FLOW,
+};
 
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
@@ -129,7 +135,6 @@ struct vnet_inet6 vnet_inet6_0;
 #endif
 
 #ifdef VIMAGE_GLOBALS
-static int ip6qmaxlen;
 struct in6_ifaddr *in6_ifaddr;
 struct ip6stat ip6stat;
 
@@ -186,7 +191,6 @@ ip6_init(void)
 	struct ip6protosw *pr;
 	int i;
 
-	V_ip6qmaxlen = IFQ_MAXLEN;
 	V_in6_maxmtu = 0;
 #ifdef IP6_AUTO_LINKLOCAL
 	V_ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
@@ -296,9 +300,7 @@ ip6_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
-	ip6intrq.ifq_maxlen = V_ip6qmaxlen; /* XXX */
-	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, 0);
+	netisr_register(&ip6_nh);
 }
 
 static int
