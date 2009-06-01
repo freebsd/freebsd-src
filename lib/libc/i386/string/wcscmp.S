@@ -78,4 +78,3 @@ no0:	subl	(%esi),%eax
 	popl	%edi
 	ret
 END(wcscmp)
-END(wcscmp)
