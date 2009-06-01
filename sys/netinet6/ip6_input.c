@@ -380,7 +380,7 @@ ip6_input(struct mbuf *m)
 #define M2MMAX	(sizeof(V_ip6stat.ip6s_m2m)/sizeof(V_ip6stat.ip6s_m2m[0]))
 		if (m->m_next) {
 			if (m->m_flags & M_LOOP) {
-				V_ip6stat.ip6s_m2m[V_loif[0].if_index]++; /* XXX */
+				V_ip6stat.ip6s_m2m[V_loif->if_index]++;
 			} else if (m->m_pkthdr.rcvif->if_index < M2MMAX)
 				V_ip6stat.ip6s_m2m[m->m_pkthdr.rcvif->if_index]++;
 			else
