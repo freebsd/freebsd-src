@@ -81,7 +81,7 @@ struct futex {
 	TAILQ_HEAD(lf_waiting_proc, waiting_proc) f_waiting_proc;
 };
 
-LIST_HEAD(futex_list, futex) futex_list;
+struct futex_list futex_list;
 
 #define FUTEX_LOCK(f)		sx_xlock(&(f)->f_lck)
 #define FUTEX_UNLOCK(f)		sx_xunlock(&(f)->f_lck)
