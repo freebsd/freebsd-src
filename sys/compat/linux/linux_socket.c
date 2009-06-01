@@ -772,7 +772,10 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 		struct sockaddr * __restrict name;
 		socklen_t * __restrict anamelen;
 	} */ bsd_args;
-	int error, fd;
+	int error;
+
+	if (flags & ~(LINUX_SOCK_CLOEXEC | LINUX_SOCK_NONBLOCK))
+		return (EINVAL);
 
 	bsd_args.s = s;
 	/* XXX: */
@@ -785,23 +788,27 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 			return (EINVAL);
 		return (error);
 	}
-	if (addr) {
-		error = linux_sa_put(PTRIN(addr));
-		if (error) {
-			(void)kern_close(td, td->td_retval[0]);
-			return (error);
-		}
-	}
 
 	/*
 	 * linux appears not to copy flags from the parent socket to the
-	 * accepted one, so we must clear the flags in the new descriptor.
-	 * Ignore any errors, because we already have an open fd.
+	 * accepted one, so we must clear the flags in the new descriptor
+	 * and apply the requested flags.
 	 */
-	fd = td->td_retval[0];
-	(void)kern_fcntl(td, fd, F_SETFL, 0);
-	td->td_retval[0] = fd;
-	return (0);
+	error = kern_fcntl(td, td->td_retval[0], F_SETFL, 0);
+	if (error)
+		goto out;
+	error = linux_set_socket_flags(td, td->td_retval[0], flags);
+	if (error)
+		goto out;
+	if (addr)
+		error = linux_sa_put(PTRIN(addr));
+
+out:
+	if (error) {
+		(void)kern_close(td, td->td_retval[0]);
+		td->td_retval[0] = 0;
+	}
+	return (error);
 }
 
 struct linux_accept_args {
