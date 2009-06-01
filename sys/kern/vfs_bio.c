@@ -638,13 +638,6 @@ bufinit(void)
 	hifreebuffers = 2 * lofreebuffers;
 	numfreebuffers = nbuf;
 
-/*
- * Maximum number of async ops initiated per buf_daemon loop.  This is
- * somewhat of a hack at the moment, we really need to limit ourselves
- * based on the number of bytes of I/O in-transit that were initiated
- * from buf_daemon.
- */
-
 	bogus_page = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 }
@@ -1202,7 +1195,7 @@ brelse(struct buf *bp)
 		/*
 		 * Failed write, redirty.  Must clear BIO_ERROR to prevent
 		 * pages from being scrapped.  If the error is anything
-		 * other than an I/O error (EIO), assume that retryingi
+		 * other than an I/O error (EIO), assume that retrying
 		 * is futile.
 		 */
 		bp->b_ioflags &= ~BIO_ERROR;
@@ -2403,14 +2396,8 @@ vfs_setdirty(struct buf *bp)
 	/*
 	 * Degenerate case - empty buffer
 	 */
-
 	if (bp->b_bufsize == 0)
 		return;
-
-	/*
-	 * We qualify the scan for modified pages on whether the
-	 * object has been flushed yet.
-	 */
 
 	if ((bp->b_flags & B_VMIO) == 0)
 		return;
@@ -2428,6 +2415,11 @@ vfs_setdirty_locked_object(struct buf *bp)
 
 	object = bp->b_bufobj->bo_object;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+
+	/*
+	 * We qualify the scan for modified pages on whether the
+	 * object has been flushed yet.
+	 */
 	if (object->flags & (OBJ_MIGHTBEDIRTY|OBJ_CLEANING)) {
 		vm_offset_t boffset;
 		vm_offset_t eoffset;
