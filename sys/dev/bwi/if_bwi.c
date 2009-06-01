@@ -1628,6 +1628,23 @@ bwi_intr(void *xsc)
 	/* Disable all interrupts */
 	bwi_disable_intrs(sc, BWI_ALL_INTRS);
 
+	/*
+	 * http://bcm-specs.sipsolutions.net/Interrupts
+	 * Says for this bit (0x800):
+	 * "Fatal Error
+	 *
+	 * We got this one while testing things when by accident the
+	 * template ram wasn't set to big endian when it should have
+	 * been after writing the initial values. It keeps on being
+	 * triggered, the only way to stop it seems to shut down the
+	 * chip."
+	 *
+	 * Suggesting that we should never get it and if we do we're not
+	 * feeding TX packets into the MAC correctly if we do...  Apparently,
+	 * it is valid only on mac version 5 and higher, but I couldn't
+	 * find a reference for that...  Since I see them from time to time
+	 * on my card, this suggests an error in the tx path still...
+	 */
 	if (intr_status & BWI_INTR_PHY_TXERR) {
 		if (mac->mac_flags & BWI_MAC_F_PHYE_RESET) {
 			if_printf(ifp, "%s: intr PHY TX error\n", __func__);
