@@ -63,9 +63,6 @@
 
 10) Generate and run configure:
 
-	NOTE: Disabling libxml and idn is temporary, adding support
-	      for these features is planned.
-
 	aclocal ; autoheader ; autoconf
 	$ ./configure --prefix=/usr \
 		--without-libxml2 --without-idn \
@@ -74,9 +71,10 @@
 		--enable-getifaddrs --disable-linux-caps \
 		--with-openssl=/usr --with-randomdev=/dev/random
 
-   Note that we intentionally disable IPv6 support on the configure
-   command line; src/lib/bind/config.mk will re-enable it at compile
-   time if WITHOUT_INET6 is not defined.
+	NOTE: Disabling libxml, idn, and IPv6 is the default.
+	      Knobs are provided for users to enabled the first 2, and
+	      src/lib/bind/config.mk will re-enable IPv6 at compile
+	      time if WITHOUT_INET6 is not defined.
 
 11) Copy the following generated files to src/lib/bind:
 
@@ -113,8 +111,8 @@
 	src/usr.bin/nslookup		bind9/bin/dig
 	src/usr.bin/nsupdate		bind9/bin/nsupdate
 	src/usr.sbin/dnssec-dsfromkey	bind9/bin/dnssec
-	src/usr.sbin/dnssec-keygen	bind9/bin/dnssec
 	src/usr.sbin/dnssec-keyfromlabel bind9/bin/dnssec
+	src/usr.sbin/dnssec-keygen	bind9/bin/dnssec
 	src/usr.sbin/dnssec-signzone	bind9/bin/dnssec
 	src/usr.sbin/named		bind9/bin/named
 	src/usr.sbin/named-checkconf	bind9/bin/check
