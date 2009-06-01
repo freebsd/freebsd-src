@@ -39,19 +39,17 @@
  * Historically, this was implemented by the BSD software ISR facility; it is
  * now implemented via a software ithread (SWI).
  */
-#define	NETISR_POLL	0		/* polling callback, must be first */
-#define	NETISR_IP	2		/* same as AF_INET */
-#define	NETISR_IGMP	3		/* IGMPv3 output queue */
-#define	NETISR_ROUTE	14		/* routing socket */
-#define	NETISR_AARP	15		/* Appletalk ARP */
-#define	NETISR_ATALK2	16		/* Appletalk phase 2 */
-#define	NETISR_ATALK1	17		/* Appletalk phase 1 */
-#define	NETISR_ARP	18		/* same as AF_LINK */
-#define	NETISR_IPX	23		/* same as AF_IPX */
-#define	NETISR_ETHER	24		/* ethernet input */
-#define	NETISR_IPV6	27
-#define	NETISR_NATM	28
-#define	NETISR_POLLMORE	31		/* polling callback, must be last */
+#define	NETISR_IP	1
+#define	NETISR_IGMP	2		/* IGMPv3 output queue */
+#define	NETISR_ROUTE	3		/* routing socket */
+#define	NETISR_AARP	4		/* Appletalk ARP */
+#define	NETISR_ATALK2	5		/* Appletalk phase 2 */
+#define	NETISR_ATALK1	6		/* Appletalk phase 1 */
+#define	NETISR_ARP	7		/* same as AF_LINK */
+#define	NETISR_IPX	8		/* same as AF_IPX */
+#define	NETISR_ETHER	9		/* ethernet input */
+#define	NETISR_IPV6	10
+#define	NETISR_NATM	11
 
 /*-
  * Protocols express ordering constraints and affinity preferences by
