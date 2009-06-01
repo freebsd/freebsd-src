@@ -307,6 +307,7 @@ struct ieee80211com {
 				    int batimeout, int baseqctl);
 	void			(*ic_ampdu_rx_stop)(struct ieee80211_node *,
 				    struct ieee80211_rx_ampdu *);
+	uint64_t		ic_spare[8];
 };
 
 struct ieee80211_aclator;
@@ -456,6 +457,7 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    struct sockaddr *, struct route *);
+	uint64_t		iv_spare[8];
 };
 MALLOC_DECLARE(M_80211_VAP);
 

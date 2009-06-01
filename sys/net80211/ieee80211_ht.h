@@ -58,6 +58,7 @@ struct ieee80211_tx_ampdu {
 	int		txa_nextrequest;/* soonest to make next request */
 	struct callout	txa_timer;
 	void		*txa_private;	/* driver-private storage */
+	uint64_t	txa_pad[4];
 };
 
 /* return non-zero if AMPDU tx for the TID is running */
@@ -141,6 +142,7 @@ struct ieee80211_rx_ampdu {
 	int		rxa_age;	/* age of oldest frame in window */
 	int		rxa_nframes;	/* frames since ADDBA */
 	struct mbuf *rxa_m[IEEE80211_AGGR_BAWMAX];
+	uint64_t	rxa_pad[4];
 };
 
 void	ieee80211_ht_attach(struct ieee80211com *);

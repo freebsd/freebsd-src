@@ -211,6 +211,7 @@ struct ieee80211_scanparams {
 	uint8_t		*htinfo;
 	uint8_t		*ath;
 	uint8_t		*tdma;
+	uint8_t		*spare[4];
 };
 
 /*
@@ -281,6 +282,10 @@ struct ieee80211_scanner {
 	/* iterate over entries in the scan cache */
 	void	(*scan_iterate)(struct ieee80211_scan_state *,
 			ieee80211_scan_iter_func *, void *);
+	void	(*scan_spare0)(void);
+	void	(*scan_spare1)(void);
+	void	(*scan_spare2)(void);
+	void	(*scan_spare4)(void);
 };
 void	ieee80211_scanner_register(enum ieee80211_opmode,
 		const struct ieee80211_scanner *);
