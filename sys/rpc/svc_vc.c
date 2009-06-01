@@ -80,7 +80,7 @@ static bool_t svc_vc_rendezvous_control (SVCXPRT *xprt, const u_int rq,
 static SVCXPRT *svc_vc_create_conn(SVCPOOL *pool, struct socket *so,
     struct sockaddr *raddr);
 static int svc_vc_accept(struct socket *head, struct socket **sop);
-static void svc_vc_soupcall(struct socket *so, void *arg, int waitflag);
+static int svc_vc_soupcall(struct socket *so, void *arg, int waitflag);
 
 static struct xp_ops svc_vc_rendezvous_ops = {
 	.xp_recv =	svc_vc_rendezvous_recv,
@@ -160,9 +160,7 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	solisten(so, SOMAXCONN, curthread);
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_upcallarg = xprt;
-	so->so_upcall = svc_vc_soupcall;
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(so, SO_RCV, svc_vc_soupcall, xprt);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	return (xprt);
@@ -236,9 +234,7 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	xprt_register(xprt);
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_upcallarg = xprt;
-	so->so_upcall = svc_vc_soupcall;
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(so, SO_RCV, svc_vc_soupcall, xprt);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	/*
@@ -358,9 +354,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	if (error) {
 		SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-		xprt->xp_socket->so_upcallarg = NULL;
-		xprt->xp_socket->so_upcall = NULL;
-		xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+		soupcall_clear(xprt->xp_socket, SO_RCV);
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 		xprt_inactive(xprt);
 		sx_xunlock(&xprt->xp_lock);
@@ -405,9 +399,7 @@ static void
 svc_vc_destroy_common(SVCXPRT *xprt)
 {
 	SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-	xprt->xp_socket->so_upcallarg = NULL;
-	xprt->xp_socket->so_upcall = NULL;
-	xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+	soupcall_clear(xprt->xp_socket, SO_RCV);
 	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 
 	sx_destroy(&xprt->xp_lock);
@@ -642,9 +634,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 		if (error) {
 			SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-			xprt->xp_socket->so_upcallarg = NULL;
-			xprt->xp_socket->so_upcall = NULL;
-			xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+			soupcall_clear(xprt->xp_socket, SO_RCV);
 			SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 			xprt_inactive(xprt);
 			cd->strm_stat = XPRT_DIED;
@@ -729,12 +719,13 @@ svc_vc_null()
 	return (FALSE);
 }
 
-static void
+static int
 svc_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	SVCXPRT *xprt = (SVCXPRT *) arg;
 
 	xprt_active(xprt);
+	return (SU_OK);
 }
 
 #if 0

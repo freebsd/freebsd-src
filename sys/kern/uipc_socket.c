@@ -3054,8 +3054,10 @@ soisconnecting(struct socket *so)
 void
 soisconnected(struct socket *so)
 {
-	struct socket *head;
+	struct socket *head;	
+	int ret;
 
+restart:
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
@@ -3075,13 +3077,17 @@ soisconnected(struct socket *so)
 			wakeup_one(&head->so_timeo);
 		} else {
 			ACCEPT_UNLOCK();
-			so->so_upcall =
-			    head->so_accf->so_accept_filter->accf_callback;
-			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
-			so->so_rcv.sb_flags |= SB_UPCALL;
+			soupcall_set(so, SO_RCV,
+			    head->so_accf->so_accept_filter->accf_callback,
+			    head->so_accf->so_accept_filter_arg);
 			so->so_options &= ~SO_ACCEPTFILTER;
+			ret = head->so_accf->so_accept_filter->accf_callback(so,
+			    head->so_accf->so_accept_filter_arg, M_DONTWAIT);
+			if (ret == SU_ISCONNECTED)
+				soupcall_clear(so, SO_RCV);
 			SOCK_UNLOCK(so);
-			so->so_upcall(so, so->so_upcallarg, M_DONTWAIT);
+			if (ret == SU_ISCONNECTED)
+				goto restart;
 		}
 		return;
 	}
@@ -3143,6 +3149,57 @@ sodupsockaddr(const struct sockaddr *sa, int mflags)
 	if (sa2)
 		bcopy(sa, sa2, sa->sa_len);
 	return sa2;
+}
+
+/*
+ * Register per-socket buffer upcalls.
+ */
+void
+soupcall_set(struct socket *so, int which,
+    int (*func)(struct socket *, void *, int), void *arg)
+{
+	struct sockbuf *sb;
+	
+	switch (which) {
+	case SO_RCV:
+		sb = &so->so_rcv;
+		break;
+	case SO_SND:
+		sb = &so->so_snd;
+		break;
+	default:
+		panic("soupcall_set: bad which");
+	}
+	SOCKBUF_LOCK_ASSERT(sb);
+#if 0
+	/* XXX: accf_http actually wants to do this on purpose. */
+	KASSERT(sb->sb_upcall == NULL, ("soupcall_set: overwriting upcall"));
+#endif
+	sb->sb_upcall = func;
+	sb->sb_upcallarg = arg;
+	sb->sb_flags |= SB_UPCALL;
+}
+
+void
+soupcall_clear(struct socket *so, int which)
+{
+	struct sockbuf *sb;
+
+	switch (which) {
+	case SO_RCV:
+		sb = &so->so_rcv;
+		break;
+	case SO_SND:
+		sb = &so->so_snd;
+		break;
+	default:
+		panic("soupcall_clear: bad which");
+	}
+	SOCKBUF_LOCK_ASSERT(sb);
+	KASSERT(sb->sb_upcall != NULL, ("soupcall_clear: no upcall to clear"));
+	sb->sb_upcall = NULL;
+	sb->sb_upcallarg = NULL;
+	sb->sb_flags &= ~SB_UPCALL;
 }
 
 /*
