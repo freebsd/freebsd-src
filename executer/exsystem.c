@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: exsystem - Interface to OS services
- *              $Revision: 1.93 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,8 +117,8 @@
 #define __EXSYSTEM_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
-#include "acevents.h"
 
 #define _COMPONENT          ACPI_EXECUTER
         ACPI_MODULE_NAME    ("exsystem")

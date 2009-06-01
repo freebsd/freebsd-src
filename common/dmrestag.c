@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: dmrestag - Add tags to resource descriptors (Application-level)
- *              $Revision: 1.11 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "acdisasm.h"
 #include "acnamesp.h"
@@ -636,13 +636,22 @@ AcpiGetTagPathname (
     /* Get the full pathname to the parent buffer */
 
     RequiredSize = AcpiNsGetPathnameLength (BufferNode);
+    if (!RequiredSize)
+    {
+        return (NULL);
+    }
+
     Pathname = ACPI_ALLOCATE_ZEROED (RequiredSize + ACPI_PATH_SEGMENT_LENGTH);
     if (!Pathname)
     {
         return (NULL);
     }
 
-    AcpiNsBuildExternalPath (BufferNode, RequiredSize, Pathname);
+    Status = AcpiNsBuildExternalPath (BufferNode, RequiredSize, Pathname);
+    if (ACPI_FAILURE (Status))
+    {
+        return (NULL);
+    }
 
     /*
      * Create the full path to the resource and tag by: remove the buffer name,
@@ -720,7 +729,7 @@ AcpiDmUpdateResourceName (
 
     /* Change the resource descriptor name */
 
-    ResourceNode->Name.Integer = *(UINT32 *) Name;
+    ResourceNode->Name.Integer = *ACPI_CAST_PTR (UINT32, &Name[0]);
 }
 
 

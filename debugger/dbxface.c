@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dbxface - AML Debugger external interfaces
- *              $Revision: 1.78 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "amlcode.h"
 #include "acdebug.h"
 #include "acdisasm.h"
@@ -563,10 +563,6 @@ AcpiDbTerminate (
     void)
 {
 
-    if (AcpiGbl_DbTablePtr)
-    {
-        AcpiOsFree (AcpiGbl_DbTablePtr);
-    }
     if (AcpiGbl_DbBuffer)
     {
         AcpiOsFree (AcpiGbl_DbBuffer);

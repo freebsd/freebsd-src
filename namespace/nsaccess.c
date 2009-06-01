@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 1.206 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __NSACCESS_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "amlcode.h"
 #include "acnamesp.h"
 #include "acdispat.h"
@@ -202,9 +202,8 @@ AcpiNsRootInitialize (
         }
 
         /*
-         * Name entered successfully.
-         * If entry in PreDefinedNames[] specifies an
-         * initial value, create the initial value.
+         * Name entered successfully. If entry in PreDefinedNames[] specifies
+         * an initial value, create the initial value.
          */
         if (InitVal->Val)
         {
@@ -252,10 +251,7 @@ AcpiNsRootInitialize (
                 /* Mark this as a very SPECIAL method */
 
                 ObjDesc->Method.MethodFlags = AML_METHOD_INTERNAL_ONLY;
-
-#ifndef ACPI_DUMP_APP
                 ObjDesc->Method.Implementation = AcpiUtOsiImplementation;
-#endif
 #endif
                 break;
 
@@ -267,9 +263,8 @@ AcpiNsRootInitialize (
 
             case ACPI_TYPE_STRING:
 
-                /*
-                 * Build an object around the static string
-                 */
+                /* Build an object around the static string */
+
                 ObjDesc->String.Length = (UINT32) ACPI_STRLEN (Val);
                 ObjDesc->String.Pointer = Val;
                 ObjDesc->Common.Flags |= AOPOBJ_STATIC_POINTER;
@@ -321,7 +316,7 @@ AcpiNsRootInitialize (
             /* Store pointer to value descriptor in the Node */
 
             Status = AcpiNsAttachObject (NewNode, ObjDesc,
-                        ACPI_GET_OBJECT_TYPE (ObjDesc));
+                        ObjDesc->Common.Type);
 
             /* Remove local reference to the object */
 
@@ -409,10 +404,8 @@ AcpiNsLookup (
         return_ACPI_STATUS (AE_NO_NAMESPACE);
     }
 
-    /*
-     * Get the prefix scope.
-     * A null scope means use the root scope
-     */
+    /* Get the prefix scope. A null scope means use the root scope */
+
     if ((!ScopeInfo) ||
         (!ScopeInfo->Scope.Node))
     {
@@ -436,8 +429,8 @@ AcpiNsLookup (
         {
             /*
              * This node might not be a actual "scope" node (such as a
-             * Device/Method, etc.)  It could be a Package or other object node.
-             * Backup up the tree to find the containing scope node.
+             * Device/Method, etc.)  It could be a Package or other object
+             * node. Backup up the tree to find the containing scope node.
              */
             while (!AcpiNsOpensScope (PrefixNode->Type) &&
                     PrefixNode->Type != ACPI_TYPE_ANY)
@@ -447,7 +440,7 @@ AcpiNsLookup (
         }
     }
 
-    /* Save type   TBD: may be no longer necessary */
+    /* Save type. TBD: may be no longer necessary */
 
     TypeToCheckFor = Type;
 
@@ -513,6 +506,7 @@ AcpiNsLookup (
                 /* Name is fully qualified, no search rules apply */
 
                 SearchParentFlag = ACPI_NS_NO_UPSEARCH;
+
                 /*
                  * Point past this prefix to the name segment
                  * part or the next Parent Prefix
@@ -528,7 +522,8 @@ AcpiNsLookup (
                     /* Current scope has no parent scope */
 
                     ACPI_ERROR ((AE_INFO,
-                        "ACPI path has too many parent prefixes (^) - reached beyond root node"));
+                        "ACPI path has too many parent prefixes (^) "
+                        "- reached beyond root node"));
                     return_ACPI_STATUS (AE_NOT_FOUND);
                 }
             }
@@ -618,11 +613,11 @@ AcpiNsLookup (
 
 
     /*
-     * Search namespace for each segment of the name.  Loop through and
+     * Search namespace for each segment of the name. Loop through and
      * verify (or add to the namespace) each name segment.
      *
      * The object type is significant only at the last name
-     * segment.  (We don't care about the types along the path, only
+     * segment. (We don't care about the types along the path, only
      * the type of the final target object.)
      */
     ThisSearchType = ACPI_TYPE_ANY;
@@ -632,9 +627,8 @@ AcpiNsLookup (
         NumSegments--;
         if (!NumSegments)
         {
-            /*
-             * This is the last segment, enable typechecking
-             */
+            /* This is the last segment, enable typechecking */
+
             ThisSearchType = Type;
 
             /*
@@ -679,44 +673,73 @@ AcpiNsLookup (
             return_ACPI_STATUS (Status);
         }
 
-        /*
-         * Sanity typecheck of the target object:
-         *
-         * If 1) This is the last segment (NumSegments == 0)
-         *    2) And we are looking for a specific type
-         *       (Not checking for TYPE_ANY)
-         *    3) Which is not an alias
-         *    4) Which is not a local type (TYPE_SCOPE)
-         *    5) And the type of target object is known (not TYPE_ANY)
-         *    6) And target object does not match what we are looking for
-         *
-         * Then we have a type mismatch.  Just warn and ignore it.
-         */
-        if ((NumSegments == 0)                                  &&
-            (TypeToCheckFor != ACPI_TYPE_ANY)                   &&
-            (TypeToCheckFor != ACPI_TYPE_LOCAL_ALIAS)           &&
-            (TypeToCheckFor != ACPI_TYPE_LOCAL_METHOD_ALIAS)    &&
-            (TypeToCheckFor != ACPI_TYPE_LOCAL_SCOPE)           &&
-            (ThisNode->Type != ACPI_TYPE_ANY)                   &&
-            (ThisNode->Type != TypeToCheckFor))
-        {
-            /* Complain about a type mismatch */
+        /* More segments to follow? */
 
-            ACPI_WARNING ((AE_INFO,
-                "NsLookup: Type mismatch on %4.4s (%s), searching for (%s)",
-                ACPI_CAST_PTR (char, &SimpleName),
-                AcpiUtGetTypeName (ThisNode->Type),
-                AcpiUtGetTypeName (TypeToCheckFor)));
+        if (NumSegments > 0)
+        {
+            /*
+             * If we have an alias to an object that opens a scope (such as a
+             * device or processor), we need to dereference the alias here so
+             * that we can access any children of the original node (via the
+             * remaining segments).
+             */
+            if (ThisNode->Type == ACPI_TYPE_LOCAL_ALIAS)
+            {
+                if (!ThisNode->Object)
+                {
+                    return_ACPI_STATUS (AE_NOT_EXIST);
+                }
+
+                if (AcpiNsOpensScope (((ACPI_NAMESPACE_NODE *)
+                        ThisNode->Object)->Type))
+                {
+                    ThisNode = (ACPI_NAMESPACE_NODE *) ThisNode->Object;
+                }
+            }
         }
 
-        /*
-         * If this is the last name segment and we are not looking for a
-         * specific type, but the type of found object is known, use that type
-         * to see if it opens a scope.
-         */
-        if ((NumSegments == 0) && (Type == ACPI_TYPE_ANY))
+        /* Special handling for the last segment (NumSegments == 0) */
+
+        else
         {
-            Type = ThisNode->Type;
+            /*
+             * Sanity typecheck of the target object:
+             *
+             * If 1) This is the last segment (NumSegments == 0)
+             *    2) And we are looking for a specific type
+             *       (Not checking for TYPE_ANY)
+             *    3) Which is not an alias
+             *    4) Which is not a local type (TYPE_SCOPE)
+             *    5) And the type of target object is known (not TYPE_ANY)
+             *    6) And target object does not match what we are looking for
+             *
+             * Then we have a type mismatch. Just warn and ignore it.
+             */
+            if ((TypeToCheckFor != ACPI_TYPE_ANY)                   &&
+                (TypeToCheckFor != ACPI_TYPE_LOCAL_ALIAS)           &&
+                (TypeToCheckFor != ACPI_TYPE_LOCAL_METHOD_ALIAS)    &&
+                (TypeToCheckFor != ACPI_TYPE_LOCAL_SCOPE)           &&
+                (ThisNode->Type != ACPI_TYPE_ANY)                   &&
+                (ThisNode->Type != TypeToCheckFor))
+            {
+                /* Complain about a type mismatch */
+
+                ACPI_WARNING ((AE_INFO,
+                    "NsLookup: Type mismatch on %4.4s (%s), searching for (%s)",
+                    ACPI_CAST_PTR (char, &SimpleName),
+                    AcpiUtGetTypeName (ThisNode->Type),
+                    AcpiUtGetTypeName (TypeToCheckFor)));
+            }
+
+            /*
+             * If this is the last name segment and we are not looking for a
+             * specific type, but the type of found object is known, use that
+             * type to (later) see if it opens a scope.
+             */
+            if (Type == ACPI_TYPE_ANY)
+            {
+                Type = ThisNode->Type;
+            }
         }
 
         /* Point to next name segment and make this node current */
@@ -725,9 +748,8 @@ AcpiNsLookup (
         CurrentNode = ThisNode;
     }
 
-    /*
-     * Always check if we need to open a new scope
-     */
+    /* Always check if we need to open a new scope */
+
     if (!(Flags & ACPI_NS_DONT_OPEN_SCOPE) && (WalkState))
     {
         /*

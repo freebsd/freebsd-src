@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: utdebug - Debug print routines
- *              $Revision: 1.133 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __UTDEBUG_C__
 
 #include "acpi.h"
+#include "accommon.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utdebug")
@@ -124,9 +124,9 @@
 
 #ifdef ACPI_DEBUG_OUTPUT
 
-static UINT32   AcpiGbl_PrevThreadId = 0xFFFFFFFF;
-static char     *AcpiGbl_FnEntryStr = "----Entry";
-static char     *AcpiGbl_FnExitStr  = "----Exit-";
+static ACPI_THREAD_ID       AcpiGbl_PrevThreadId = (ACPI_THREAD_ID) 0xFFFFFFFF;
+static char                 *AcpiGbl_FnEntryStr = "----Entry";
+static char                 *AcpiGbl_FnExitStr  = "----Exit-";
 
 /* Local prototypes */
 
@@ -151,10 +151,10 @@ void
 AcpiUtInitStackPtrTrace (
     void)
 {
-    UINT32                  CurrentSp;
+    ACPI_SIZE               CurrentSp;
 
 
-    AcpiGbl_EntryStackPointer = ACPI_PTR_DIFF (&CurrentSp, NULL);
+    AcpiGbl_EntryStackPointer = &CurrentSp;
 }
 
 
@@ -177,11 +177,9 @@ AcpiUtTrackStackPtr (
     ACPI_SIZE               CurrentSp;
 
 
-    CurrentSp = ACPI_PTR_DIFF (&CurrentSp, NULL);
-
-    if (CurrentSp < AcpiGbl_LowestStackPointer)
+    if (&CurrentSp < AcpiGbl_LowestStackPointer)
     {
-        AcpiGbl_LowestStackPointer = CurrentSp;
+        AcpiGbl_LowestStackPointer = &CurrentSp;
     }
 
     if (AcpiGbl_NestingLevel > AcpiGbl_DeepestNesting)
@@ -232,7 +230,7 @@ AcpiUtTrimFunctionName (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtDebugPrint
+ * FUNCTION:    AcpiDebugPrint
  *
  * PARAMETERS:  RequestedDebugLevel - Requested debug print level
  *              LineNumber          - Caller's line number (for error output)
@@ -250,13 +248,13 @@ AcpiUtTrimFunctionName (
  ******************************************************************************/
 
 void  ACPI_INTERNAL_VAR_XFACE
-AcpiUtDebugPrint (
+AcpiDebugPrint (
     UINT32                  RequestedDebugLevel,
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
-    char                    *Format,
+    const char              *Format,
     ...)
 {
     ACPI_THREAD_ID          ThreadId;
@@ -281,8 +279,9 @@ AcpiUtDebugPrint (
         if (ACPI_LV_THREADS & AcpiDbgLevel)
         {
             AcpiOsPrintf (
-                "\n**** Context Switch from TID %X to TID %X ****\n\n",
-                AcpiGbl_PrevThreadId, ThreadId);
+                "\n**** Context Switch from TID %p to TID %p ****\n\n",
+                ACPI_CAST_PTR (void, AcpiGbl_PrevThreadId),
+                ACPI_CAST_PTR (void, ThreadId));
         }
 
         AcpiGbl_PrevThreadId = ThreadId;
@@ -296,7 +295,7 @@ AcpiUtDebugPrint (
 
     if (ACPI_LV_THREADS & AcpiDbgLevel)
     {
-        AcpiOsPrintf ("[%04lX] ", ThreadId);
+        AcpiOsPrintf ("[%p] ", ACPI_CAST_PTR (void, ThreadId));
     }
 
     AcpiOsPrintf ("[%02ld] %-22.22s: ",
@@ -304,14 +303,15 @@ AcpiUtDebugPrint (
 
     va_start (args, Format);
     AcpiOsVprintf (Format, args);
+    va_end (args);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiUtDebugPrint)
+ACPI_EXPORT_SYMBOL (AcpiDebugPrint)
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtDebugPrintRaw
+ * FUNCTION:    AcpiDebugPrintRaw
  *
  * PARAMETERS:  RequestedDebugLevel - Requested debug print level
  *              LineNumber          - Caller's line number
@@ -329,13 +329,13 @@ ACPI_EXPORT_SYMBOL (AcpiUtDebugPrint)
  ******************************************************************************/
 
 void  ACPI_INTERNAL_VAR_XFACE
-AcpiUtDebugPrintRaw (
+AcpiDebugPrintRaw (
     UINT32                  RequestedDebugLevel,
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
-    char                    *Format,
+    const char              *Format,
     ...)
 {
     va_list                 args;
@@ -349,9 +349,10 @@ AcpiUtDebugPrintRaw (
 
     va_start (args, Format);
     AcpiOsVprintf (Format, args);
+    va_end (args);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiUtDebugPrintRaw)
+ACPI_EXPORT_SYMBOL (AcpiDebugPrintRaw)
 
 
 /*******************************************************************************
@@ -374,14 +375,14 @@ void
 AcpiUtTrace (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId)
 {
 
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
         LineNumber, FunctionName, ModuleName, ComponentId,
         "%s\n", AcpiGbl_FnEntryStr);
 }
@@ -410,14 +411,14 @@ void
 AcpiUtTracePtr (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     void                    *Pointer)
 {
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
         LineNumber, FunctionName, ModuleName, ComponentId,
         "%s %p\n", AcpiGbl_FnEntryStr, Pointer);
 }
@@ -444,7 +445,7 @@ void
 AcpiUtTraceStr (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     char                    *String)
 {
@@ -452,7 +453,7 @@ AcpiUtTraceStr (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
         LineNumber, FunctionName, ModuleName, ComponentId,
         "%s %s\n", AcpiGbl_FnEntryStr, String);
 }
@@ -479,7 +480,7 @@ void
 AcpiUtTraceU32 (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     UINT32                  Integer)
 {
@@ -487,7 +488,7 @@ AcpiUtTraceU32 (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
         LineNumber, FunctionName, ModuleName, ComponentId,
         "%s %08X\n", AcpiGbl_FnEntryStr, Integer);
 }
@@ -513,11 +514,11 @@ void
 AcpiUtExit (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId)
 {
 
-    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
         LineNumber, FunctionName, ModuleName, ComponentId,
         "%s\n", AcpiGbl_FnExitStr);
 
@@ -548,21 +549,21 @@ void
 AcpiUtStatusExit (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     ACPI_STATUS             Status)
 {
 
     if (ACPI_SUCCESS (Status))
     {
-        AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
             LineNumber, FunctionName, ModuleName, ComponentId,
             "%s %s\n", AcpiGbl_FnExitStr,
             AcpiFormatException (Status));
     }
     else
     {
-        AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
             LineNumber, FunctionName, ModuleName, ComponentId,
             "%s ****Exception****: %s\n", AcpiGbl_FnExitStr,
             AcpiFormatException (Status));
@@ -595,12 +596,12 @@ void
 AcpiUtValueExit (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     ACPI_INTEGER            Value)
 {
 
-    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
         LineNumber, FunctionName, ModuleName, ComponentId,
         "%s %8.8X%8.8X\n", AcpiGbl_FnExitStr,
         ACPI_FORMAT_UINT64 (Value));
@@ -632,12 +633,12 @@ void
 AcpiUtPtrExit (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     UINT8                   *Ptr)
 {
 
-    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS,
+    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
         LineNumber, FunctionName, ModuleName, ComponentId,
         "%s %p\n", AcpiGbl_FnExitStr, Ptr);
 
@@ -668,11 +669,17 @@ AcpiUtDumpBuffer2 (
     UINT32                  Count,
     UINT32                  Display)
 {
-    ACPI_NATIVE_UINT        i = 0;
-    ACPI_NATIVE_UINT        j;
+    UINT32                  i = 0;
+    UINT32                  j;
     UINT32                  Temp32;
     UINT8                   BufChar;
 
+
+    if (!Buffer)
+    {
+        AcpiOsPrintf ("Null Buffer Pointer in DumpBuffer!\n");
+        return;
+    }
 
     if ((Count < 4) || (Count & 0x01))
     {
@@ -685,7 +692,7 @@ AcpiUtDumpBuffer2 (
     {
         /* Print current offset */
 
-        AcpiOsPrintf ("%6.4X: ", (UINT32) i);
+        AcpiOsPrintf ("%6.4X: ", i);
 
         /* Print 16 hex chars */
 
@@ -696,7 +703,7 @@ AcpiUtDumpBuffer2 (
                 /* Dump fill spaces */
 
                 AcpiOsPrintf ("%*s", ((Display * 2) + 1), " ");
-                j += (ACPI_NATIVE_UINT) Display;
+                j += Display;
                 continue;
             }
 
@@ -705,35 +712,35 @@ AcpiUtDumpBuffer2 (
             case DB_BYTE_DISPLAY:
             default:    /* Default is BYTE display */
 
-                AcpiOsPrintf ("%02X ", Buffer[i + j]);
+                AcpiOsPrintf ("%02X ", Buffer[(ACPI_SIZE) i + j]);
                 break;
 
 
             case DB_WORD_DISPLAY:
 
-                ACPI_MOVE_16_TO_32 (&Temp32, &Buffer[i + j]);
+                ACPI_MOVE_16_TO_32 (&Temp32, &Buffer[(ACPI_SIZE) i + j]);
                 AcpiOsPrintf ("%04X ", Temp32);
                 break;
 
 
             case DB_DWORD_DISPLAY:
 
-                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[i + j]);
+                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[(ACPI_SIZE) i + j]);
                 AcpiOsPrintf ("%08X ", Temp32);
                 break;
 
 
             case DB_QWORD_DISPLAY:
 
-                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[i + j]);
+                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[(ACPI_SIZE) i + j]);
                 AcpiOsPrintf ("%08X", Temp32);
 
-                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[i + j + 4]);
+                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[(ACPI_SIZE) i + j + 4]);
                 AcpiOsPrintf ("%08X ", Temp32);
                 break;
             }
 
-            j += (ACPI_NATIVE_UINT) Display;
+            j += Display;
         }
 
         /*
@@ -749,7 +756,7 @@ AcpiUtDumpBuffer2 (
                 return;
             }
 
-            BufChar = Buffer[i + j];
+            BufChar = Buffer[(ACPI_SIZE) i + j];
             if (ACPI_IS_PRINT (BufChar))
             {
                 AcpiOsPrintf ("%c", BufChar);

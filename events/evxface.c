@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: evxface - External interfaces for ACPI events
- *              $Revision: 1.165 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __EVXFACE_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 #include "acevents.h"
 #include "acinterp.h"
@@ -378,7 +378,7 @@ AcpiInstallNotifyHandler (
     /*
      * Root Object:
      * Registering a notify handler on the root object indicates that the
-     * caller wishes to receive notifications for all objects.  Note that
+     * caller wishes to receive notifications for all objects. Note that
      * only one <external> global handler can be regsitered (per notify type).
      */
     if (Device == ACPI_ROOT_OBJECT)
@@ -727,7 +727,8 @@ AcpiInstallGpeHandler (
 
     /* Make sure that there isn't a handler there already */
 
-    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) == ACPI_GPE_DISPATCH_HANDLER)
+    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+            ACPI_GPE_DISPATCH_HANDLER)
     {
         Status = AE_ALREADY_EXISTS;
         goto UnlockAndExit;
@@ -761,7 +762,7 @@ AcpiInstallGpeHandler (
 
     /* Setup up dispatch flags to indicate handler (vs. method) */
 
-    GpeEventInfo->Flags &= ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);  /* Clear bits */
+    GpeEventInfo->Flags &= ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
     GpeEventInfo->Flags |= (UINT8) (Type | ACPI_GPE_DISPATCH_HANDLER);
 
     AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
@@ -829,7 +830,8 @@ AcpiRemoveGpeHandler (
 
     /* Make sure that a handler is indeed installed */
 
-    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) != ACPI_GPE_DISPATCH_HANDLER)
+    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) !=
+            ACPI_GPE_DISPATCH_HANDLER)
     {
         Status = AE_NOT_EXIST;
         goto UnlockAndExit;

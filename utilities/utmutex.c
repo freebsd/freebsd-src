@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: utmutex - local mutex support
- *              $Revision: 1.12 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __UTMUTEX_C__
 
 #include "acpi.h"
+#include "accommon.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utmutex")
@@ -141,7 +141,8 @@ AcpiUtDeleteMutex (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create the system mutex objects.
+ * DESCRIPTION: Create the system mutex objects. This includes mutexes,
+ *              spin locks, and reader/writer locks.
  *
  ******************************************************************************/
 
@@ -156,9 +157,8 @@ AcpiUtMutexInitialize (
     ACPI_FUNCTION_TRACE (UtMutexInitialize);
 
 
-    /*
-     * Create each of the predefined mutex objects
-     */
+    /* Create each of the predefined mutex objects */
+
     for (i = 0; i < ACPI_NUM_MUTEX; i++)
     {
         Status = AcpiUtCreateMutex (i);
@@ -177,6 +177,14 @@ AcpiUtMutexInitialize (
     }
 
     Status = AcpiOsCreateLock (&AcpiGbl_HardwareLock);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Create the reader/writer lock for namespace access */
+
+    Status = AcpiUtCreateRwLock (&AcpiGbl_NamespaceRwLock);
     return_ACPI_STATUS (Status);
 }
 
@@ -189,7 +197,8 @@ AcpiUtMutexInitialize (
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Delete all of the system mutex objects.
+ * DESCRIPTION: Delete all of the system mutex objects. This includes mutexes,
+ *              spin locks, and reader/writer locks.
  *
  ******************************************************************************/
 
@@ -203,9 +212,8 @@ AcpiUtMutexTerminate (
     ACPI_FUNCTION_TRACE (UtMutexTerminate);
 
 
-    /*
-     * Delete each predefined mutex object
-     */
+    /* Delete each predefined mutex object */
+
     for (i = 0; i < ACPI_NUM_MUTEX; i++)
     {
         (void) AcpiUtDeleteMutex (i);
@@ -215,6 +223,10 @@ AcpiUtMutexTerminate (
 
     AcpiOsDeleteLock (AcpiGbl_GpeLock);
     AcpiOsDeleteLock (AcpiGbl_HardwareLock);
+
+    /* Delete the reader/writer lock */
+
+    AcpiUtDeleteRwLock (&AcpiGbl_NamespaceRwLock);
     return_VOID;
 }
 
@@ -332,22 +344,23 @@ AcpiUtAcquireMutex (
          * the mutex ordering rule.  This indicates a coding error somewhere in
          * the ACPI subsystem code.
          */
-        for (i = MutexId; i < ACPI_MAX_MUTEX; i++)
+        for (i = MutexId; i < ACPI_NUM_MUTEX; i++)
         {
             if (AcpiGbl_MutexInfo[i].ThreadId == ThisThreadId)
             {
                 if (i == MutexId)
                 {
                     ACPI_ERROR ((AE_INFO,
-                        "Mutex [%s] already acquired by this thread [%X]",
-                        AcpiUtGetMutexName (MutexId), ThisThreadId));
+                        "Mutex [%s] already acquired by this thread [%p]",
+                        AcpiUtGetMutexName (MutexId),
+                        ACPI_CAST_PTR (void, ThisThreadId)));
 
                     return (AE_ALREADY_ACQUIRED);
                 }
 
                 ACPI_ERROR ((AE_INFO,
-                    "Invalid acquire order: Thread %X owns [%s], wants [%s]",
-                    ThisThreadId, AcpiUtGetMutexName (i),
+                    "Invalid acquire order: Thread %p owns [%s], wants [%s]",
+                    ACPI_CAST_PTR (void, ThisThreadId), AcpiUtGetMutexName (i),
                     AcpiUtGetMutexName (MutexId)));
 
                 return (AE_ACQUIRE_DEADLOCK);
@@ -357,15 +370,15 @@ AcpiUtAcquireMutex (
 #endif
 
     ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX,
-        "Thread %X attempting to acquire Mutex [%s]\n",
-        ThisThreadId, AcpiUtGetMutexName (MutexId)));
+        "Thread %p attempting to acquire Mutex [%s]\n",
+        ACPI_CAST_PTR (void, ThisThreadId), AcpiUtGetMutexName (MutexId)));
 
     Status = AcpiOsAcquireMutex (AcpiGbl_MutexInfo[MutexId].Mutex,
                 ACPI_WAIT_FOREVER);
     if (ACPI_SUCCESS (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %X acquired Mutex [%s]\n",
-            ThisThreadId, AcpiUtGetMutexName (MutexId)));
+        ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %p acquired Mutex [%s]\n",
+            ACPI_CAST_PTR (void, ThisThreadId), AcpiUtGetMutexName (MutexId)));
 
         AcpiGbl_MutexInfo[MutexId].UseCount++;
         AcpiGbl_MutexInfo[MutexId].ThreadId = ThisThreadId;
@@ -373,7 +386,8 @@ AcpiUtAcquireMutex (
     else
     {
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "Thread %X could not acquire Mutex [%X]", ThisThreadId, MutexId));
+            "Thread %p could not acquire Mutex [%X]",
+            ACPI_CAST_PTR (void, ThisThreadId), MutexId));
     }
 
     return (Status);
@@ -403,9 +417,8 @@ AcpiUtReleaseMutex (
 
 
     ThisThreadId = AcpiOsGetThreadId ();
-    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX,
-        "Thread %X releasing Mutex [%s]\n", ThisThreadId,
-        AcpiUtGetMutexName (MutexId)));
+    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %p releasing Mutex [%s]\n",
+        ACPI_CAST_PTR (void, ThisThreadId), AcpiUtGetMutexName (MutexId)));
 
     if (MutexId > ACPI_MAX_MUTEX)
     {
@@ -434,7 +447,7 @@ AcpiUtReleaseMutex (
          * ordering rule.  This indicates a coding error somewhere in
          * the ACPI subsystem code.
          */
-        for (i = MutexId; i < ACPI_MAX_MUTEX; i++)
+        for (i = MutexId; i < ACPI_NUM_MUTEX; i++)
         {
             if (AcpiGbl_MutexInfo[i].ThreadId == ThisThreadId)
             {

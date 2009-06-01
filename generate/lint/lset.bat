@@ -1,0 +1,1 @@
+set path=%PATH%;$G

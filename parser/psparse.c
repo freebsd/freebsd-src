@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 1.171 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,6 +124,7 @@
  */
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "acdispat.h"
 #include "amlcode.h"
@@ -222,6 +222,7 @@ AcpiPsCompleteThisOp (
     ACPI_PARSE_OBJECT       *Next;
     const ACPI_OPCODE_INFO  *ParentInfo;
     ACPI_PARSE_OBJECT       *ReplacementOp = NULL;
+    ACPI_STATUS             Status = AE_OK;
 
 
     ACPI_FUNCTION_TRACE_PTR (PsCompleteThisOp, Op);
@@ -274,7 +275,7 @@ AcpiPsCompleteThisOp (
             ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
             if (!ReplacementOp)
             {
-                goto AllocateError;
+                Status = AE_NO_MEMORY;
             }
             break;
 
@@ -288,12 +289,13 @@ AcpiPsCompleteThisOp (
                 (Op->Common.Parent->Common.AmlOpcode == AML_DATA_REGION_OP)  ||
                 (Op->Common.Parent->Common.AmlOpcode == AML_BUFFER_OP)       ||
                 (Op->Common.Parent->Common.AmlOpcode == AML_PACKAGE_OP)      ||
+                (Op->Common.Parent->Common.AmlOpcode == AML_BANK_FIELD_OP)   ||
                 (Op->Common.Parent->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
             {
                 ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
                 if (!ReplacementOp)
                 {
-                    goto AllocateError;
+                    Status = AE_NO_MEMORY;
                 }
             }
             else if ((Op->Common.Parent->Common.AmlOpcode == AML_NAME_OP) &&
@@ -306,11 +308,13 @@ AcpiPsCompleteThisOp (
                     ReplacementOp = AcpiPsAllocOp (Op->Common.AmlOpcode);
                     if (!ReplacementOp)
                     {
-                        goto AllocateError;
+                        Status = AE_NO_MEMORY;
                     }
-
-                    ReplacementOp->Named.Data = Op->Named.Data;
-                    ReplacementOp->Named.Length = Op->Named.Length;
+                    else
+                    {
+                        ReplacementOp->Named.Data = Op->Named.Data;
+                        ReplacementOp->Named.Length = Op->Named.Length;
+                    }
                 }
             }
             break;
@@ -320,7 +324,7 @@ AcpiPsCompleteThisOp (
             ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
             if (!ReplacementOp)
             {
-                goto AllocateError;
+                Status = AE_NO_MEMORY;
             }
         }
 
@@ -378,15 +382,7 @@ Cleanup:
     /* Now we can actually delete the subtree rooted at Op */
 
     AcpiPsDeleteParseTree (Op);
-    return_ACPI_STATUS (AE_OK);
-
-
-AllocateError:
-
-    /* Always delete the subtree, even on error */
-
-    AcpiPsDeleteParseTree (Op);
-    return_ACPI_STATUS (AE_NO_MEMORY);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -544,12 +540,23 @@ AcpiPsParseAml (
         WalkState, WalkState->ParserState.Aml,
         WalkState->ParserState.AmlSize));
 
+    if (!WalkState->ParserState.Aml)
+    {
+        return_ACPI_STATUS (AE_NULL_OBJECT);
+    }
 
     /* Create and initialize a new thread state */
 
     Thread = AcpiUtCreateThreadState ();
     if (!Thread)
     {
+        if (WalkState->MethodDesc)
+        {
+            /* Executing a control method - additional cleanup */
+
+            AcpiDsTerminateControlMethod (WalkState->MethodDesc, WalkState);
+        }
+
         AcpiDsDeleteWalkState (WalkState);
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
@@ -630,7 +637,8 @@ AcpiPsParseAml (
             if ((Status == AE_ALREADY_EXISTS) &&
                 (!WalkState->MethodDesc->Method.Mutex))
             {
-                ACPI_INFO ((AE_INFO, "Marking method %4.4s as Serialized",
+                ACPI_INFO ((AE_INFO,
+                    "Marking method %4.4s as Serialized because of AE_ALREADY_EXISTS error",
                     WalkState->MethodNode->Name.Ascii));
 
                 /*
@@ -689,6 +697,25 @@ AcpiPsParseAml (
                  */
                 if (!PreviousWalkState->ReturnDesc)
                 {
+                    /*
+                     * In slack mode execution, if there is no return value
+                     * we should implicitly return zero (0) as a default value.
+                     */
+                    if (AcpiGbl_EnableInterpreterSlack &&
+                        !PreviousWalkState->ImplicitReturnObj)
+                    {
+                        PreviousWalkState->ImplicitReturnObj =
+                            AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+                        if (!PreviousWalkState->ImplicitReturnObj)
+                        {
+                            return_ACPI_STATUS (AE_NO_MEMORY);
+                        }
+
+                        PreviousWalkState->ImplicitReturnObj->Integer.Value = 0;
+                    }
+
+                    /* Restart the calling control method */
+
                     Status = AcpiDsRestartControlMethod (WalkState,
                                 PreviousWalkState->ImplicitReturnObj);
                 }
@@ -710,9 +737,10 @@ AcpiPsParseAml (
             }
             else
             {
-                /* On error, delete any return object */
+                /* On error, delete any return object or implicit return */
 
                 AcpiUtRemoveReference (PreviousWalkState->ReturnDesc);
+                AcpiDsClearImplicitReturn (PreviousWalkState);
             }
         }
 

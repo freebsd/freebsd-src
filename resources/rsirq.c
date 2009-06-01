@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: rsirq - IRQ resource descriptors
- *              $Revision: 1.50 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __RSIRQ_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acresrc.h"
 
 #define _COMPONENT          ACPI_RESOURCES
@@ -129,7 +129,7 @@
  *
  ******************************************************************************/
 
-ACPI_RSCONVERT_INFO     AcpiRsGetIrq[7] =
+ACPI_RSCONVERT_INFO     AcpiRsGetIrq[8] =
 {
     {ACPI_RSC_INITGET,  ACPI_RESOURCE_TYPE_IRQ,
                         ACPI_RS_SIZE (ACPI_RESOURCE_IRQ),
@@ -146,6 +146,12 @@ ACPI_RSCONVERT_INFO     AcpiRsGetIrq[7] =
     {ACPI_RSC_SET8,     ACPI_RS_OFFSET (Data.Irq.Triggering),
                         ACPI_EDGE_SENSITIVE,
                         1},
+
+    /* Get the descriptor length (2 or 3 for IRQ descriptor) */
+
+    {ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET (Data.Irq.DescriptorLength),
+                        AML_OFFSET (Irq.DescriptorType),
+                        0},
 
     /* All done if no flag byte present in descriptor */
 
@@ -173,8 +179,10 @@ ACPI_RSCONVERT_INFO     AcpiRsGetIrq[7] =
  *
  ******************************************************************************/
 
-ACPI_RSCONVERT_INFO     AcpiRsSetIrq[9] =
+ACPI_RSCONVERT_INFO     AcpiRsSetIrq[13] =
 {
+    /* Start with a default descriptor of length 3 */
+
     {ACPI_RSC_INITSET,  ACPI_RESOURCE_NAME_IRQ,
                         sizeof (AML_RESOURCE_IRQ),
                         ACPI_RSC_TABLE_SIZE (AcpiRsSetIrq)},
@@ -185,7 +193,7 @@ ACPI_RSCONVERT_INFO     AcpiRsSetIrq[9] =
                         AML_OFFSET (Irq.IrqMask),
                         ACPI_RS_OFFSET (Data.Irq.InterruptCount)},
 
-    /* Set the flags byte by default */
+    /* Set the flags byte */
 
     {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.Irq.Triggering),
                         AML_OFFSET (Irq.Flags),
@@ -198,6 +206,33 @@ ACPI_RSCONVERT_INFO     AcpiRsSetIrq[9] =
     {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.Irq.Sharable),
                         AML_OFFSET (Irq.Flags),
                         4},
+
+    /*
+     * All done if the output descriptor length is required to be 3
+     * (i.e., optimization to 2 bytes cannot be attempted)
+     */
+    {ACPI_RSC_EXIT_EQ,  ACPI_RSC_COMPARE_VALUE,
+                        ACPI_RS_OFFSET(Data.Irq.DescriptorLength),
+                        3},
+
+    /* Set length to 2 bytes (no flags byte) */
+
+    {ACPI_RSC_LENGTH,   0, 0, sizeof (AML_RESOURCE_IRQ_NOFLAGS)},
+
+    /*
+     * All done if the output descriptor length is required to be 2.
+     *
+     * TBD: Perhaps we should check for error if input flags are not
+     * compatible with a 2-byte descriptor.
+     */
+    {ACPI_RSC_EXIT_EQ,  ACPI_RSC_COMPARE_VALUE,
+                        ACPI_RS_OFFSET(Data.Irq.DescriptorLength),
+                        2},
+
+    /* Reset length to 3 bytes (descriptor with flags byte) */
+
+    {ACPI_RSC_LENGTH,   0, 0, sizeof (AML_RESOURCE_IRQ)},
+
     /*
      * Check if the flags byte is necessary. Not needed if the flags are:
      * ACPI_EDGE_SENSITIVE, ACPI_ACTIVE_HIGH, ACPI_EXCLUSIVE
@@ -214,7 +249,7 @@ ACPI_RSCONVERT_INFO     AcpiRsSetIrq[9] =
                         ACPI_RS_OFFSET (Data.Irq.Sharable),
                         ACPI_EXCLUSIVE},
 
-    /* IrqNoFlags() descriptor can be used */
+    /* We can optimize to a 2-byte IrqNoFlags() descriptor */
 
     {ACPI_RSC_LENGTH,   0, 0, sizeof (AML_RESOURCE_IRQ_NOFLAGS)}
 };

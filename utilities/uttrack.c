@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: uttrack - Memory allocation tracking routines (debug only)
- *              $Revision: 1.5 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,6 +127,7 @@
 #define __UTTRACK_C__
 
 #include "acpi.h"
+#include "accommon.h"
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
@@ -146,14 +146,14 @@ AcpiUtTrackAllocation (
     ACPI_SIZE               Size,
     UINT8                   AllocType,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line);
 
 static ACPI_STATUS
 AcpiUtRemoveAllocation (
     ACPI_DEBUG_MEM_BLOCK    *Address,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line);
 
 
@@ -215,7 +215,7 @@ void *
 AcpiUtAllocateAndTrack (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line)
 {
     ACPI_DEBUG_MEM_BLOCK    *Allocation;
@@ -268,7 +268,7 @@ void *
 AcpiUtAllocateZeroedAndTrack (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line)
 {
     ACPI_DEBUG_MEM_BLOCK    *Allocation;
@@ -325,7 +325,7 @@ void
 AcpiUtFreeAndTrack (
     void                    *Allocation,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line)
 {
     ACPI_DEBUG_MEM_BLOCK    *DebugBlock;
@@ -425,7 +425,7 @@ AcpiUtTrackAllocation (
     ACPI_SIZE               Size,
     UINT8                   AllocType,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line)
 {
     ACPI_MEMORY_LIST        *MemList;
@@ -508,7 +508,7 @@ static ACPI_STATUS
 AcpiUtRemoveAllocation (
     ACPI_DEBUG_MEM_BLOCK    *Allocation,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line)
 {
     ACPI_MEMORY_LIST        *MemList;
@@ -639,7 +639,7 @@ AcpiUtDumpAllocationInfo (
 void
 AcpiUtDumpAllocations (
     UINT32                  Component,
-    char                    *Module)
+    const char              *Module)
 {
     ACPI_DEBUG_MEM_BLOCK    *Element;
     ACPI_DESCRIPTOR         *Descriptor;

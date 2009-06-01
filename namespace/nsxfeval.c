@@ -2,7 +2,6 @@
  *
  * Module Name: nsxfeval - Public interfaces to the ACPI subsystem
  *                         ACPI Object evaluation interfaces
- *              $Revision: 1.30 $
  *
  ******************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,12 +118,19 @@
 #define __NSXFEVAL_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 #include "acinterp.h"
 
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsxfeval")
+
+/* Local prototypes */
+
+static void
+AcpiNsResolveReferences (
+    ACPI_EVALUATE_INFO      *Info);
 
 
 /*******************************************************************************
@@ -272,7 +278,6 @@ AcpiEvaluateObject (
     }
 
     Info->Pathname = Pathname;
-    Info->ParameterType = ACPI_PARAM_ARGS;
 
     /* Convert and validate the device handle */
 
@@ -386,6 +391,10 @@ AcpiEvaluateObject (
 
             if (ACPI_SUCCESS (Status))
             {
+                /* Dereference Index and RefOf references */
+
+                AcpiNsResolveReferences (Info);
+
                 /* Get the size of the returned object */
 
                 Status = AcpiUtGetObjectSize (Info->ReturnObject,
@@ -454,6 +463,82 @@ ACPI_EXPORT_SYMBOL (AcpiEvaluateObject)
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiNsResolveReferences
+ *
+ * PARAMETERS:  Info                    - Evaluation info block
+ *
+ * RETURN:      Info->ReturnObject is replaced with the dereferenced object
+ *
+ * DESCRIPTION: Dereference certain reference objects. Called before an
+ *              internal return object is converted to an external ACPI_OBJECT.
+ *
+ * Performs an automatic dereference of Index and RefOf reference objects.
+ * These reference objects are not supported by the ACPI_OBJECT, so this is a
+ * last resort effort to return something useful. Also, provides compatibility
+ * with other ACPI implementations.
+ *
+ * NOTE: does not handle references within returned package objects or nested
+ * references, but this support could be added later if found to be necessary.
+ *
+ ******************************************************************************/
+
+static void
+AcpiNsResolveReferences (
+    ACPI_EVALUATE_INFO      *Info)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc = NULL;
+    ACPI_NAMESPACE_NODE     *Node;
+
+
+    /* We are interested in reference objects only */
+
+    if ((Info->ReturnObject)->Common.Type != ACPI_TYPE_LOCAL_REFERENCE)
+    {
+        return;
+    }
+
+    /*
+     * Two types of references are supported - those created by Index and
+     * RefOf operators. A name reference (AML_NAMEPATH_OP) can be converted
+     * to an ACPI_OBJECT, so it is not dereferenced here. A DdbHandle
+     * (AML_LOAD_OP) cannot be dereferenced, nor can it be converted to
+     * an ACPI_OBJECT.
+     */
+    switch (Info->ReturnObject->Reference.Class)
+    {
+    case ACPI_REFCLASS_INDEX:
+
+        ObjDesc = *(Info->ReturnObject->Reference.Where);
+        break;
+
+    case ACPI_REFCLASS_REFOF:
+
+        Node = Info->ReturnObject->Reference.Object;
+        if (Node)
+        {
+            ObjDesc = Node->Object;
+        }
+        break;
+
+    default:
+        return;
+    }
+
+    /* Replace the existing reference object */
+
+    if (ObjDesc)
+    {
+        AcpiUtAddReference (ObjDesc);
+        AcpiUtRemoveReference (Info->ReturnObject);
+        Info->ReturnObject = ObjDesc;
+    }
+
+    return;
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiWalkNamespace
  *
  * PARAMETERS:  Type                - ACPI_OBJECT_TYPE to search for
@@ -507,22 +592,41 @@ AcpiWalkNamespace (
     }
 
     /*
-     * Lock the namespace around the walk.
-     * The namespace will be unlocked/locked around each call
-     * to the user function - since this function
-     * must be allowed to make Acpi calls itself.
+     * Need to acquire the namespace reader lock to prevent interference
+     * with any concurrent table unloads (which causes the deletion of
+     * namespace objects). We cannot allow the deletion of a namespace node
+     * while the user function is using it. The exception to this are the
+     * nodes created and deleted during control method execution -- these
+     * nodes are marked as temporary nodes and are ignored by the namespace
+     * walk. Thus, control methods can be executed while holding the
+     * namespace deletion lock (and the user function can execute control
+     * methods.)
+     */
+    Status = AcpiUtAcquireReadLock (&AcpiGbl_NamespaceRwLock);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /*
+     * Lock the namespace around the walk. The namespace will be
+     * unlocked/locked around each call to the user function - since the user
+     * function must be allowed to make ACPICA calls itself (for example, it
+     * will typically execute control methods during device enumeration.)
      */
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        goto UnlockAndExit;
     }
 
     Status = AcpiNsWalkNamespace (Type, StartObject, MaxDepth,
-                    ACPI_NS_WALK_UNLOCK,
-                    UserFunction, Context, ReturnValue);
+                ACPI_NS_WALK_UNLOCK, UserFunction, Context, ReturnValue);
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+
+UnlockAndExit:
+    (void) AcpiUtReleaseReadLock (&AcpiGbl_NamespaceRwLock);
     return_ACPI_STATUS (Status);
 }
 
@@ -556,7 +660,8 @@ AcpiNsGetDeviceCallback (
     UINT32                  Flags;
     ACPI_DEVICE_ID          Hid;
     ACPI_COMPATIBLE_ID_LIST *Cid;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
+    BOOLEAN                 Found;
 
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
@@ -585,10 +690,14 @@ AcpiNsGetDeviceCallback (
         return (AE_CTRL_DEPTH);
     }
 
-    if (!(Flags & ACPI_STA_DEVICE_PRESENT))
+    if (!(Flags & ACPI_STA_DEVICE_PRESENT) &&
+        !(Flags & ACPI_STA_DEVICE_FUNCTIONING))
     {
-        /* Don't examine children of the device if not present */
-
+        /*
+         * Don't examine the children of the device only when the
+         * device is neither present nor functional. See ACPI spec,
+         * description of _STA for more information.
+         */
         return (AE_CTRL_DEPTH);
     }
 
@@ -608,8 +717,10 @@ AcpiNsGetDeviceCallback (
 
         if (ACPI_STRNCMP (Hid.Value, Info->Hid, sizeof (Hid.Value)) != 0)
         {
-            /* Get the list of Compatible IDs */
-
+            /*
+             * HID does not match, attempt match within the
+             * list of Compatible IDs (CIDs)
+             */
             Status = AcpiUtExecute_CID (Node, &Cid);
             if (Status == AE_NOT_FOUND)
             {
@@ -622,18 +733,28 @@ AcpiNsGetDeviceCallback (
 
             /* Walk the CID list */
 
+            Found = FALSE;
             for (i = 0; i < Cid->Count; i++)
             {
                 if (ACPI_STRNCMP (Cid->Id[i].Value, Info->Hid,
-                                        sizeof (ACPI_COMPATIBLE_ID)) != 0)
+                        sizeof (ACPI_COMPATIBLE_ID)) == 0)
                 {
-                    ACPI_FREE (Cid);
-                    return (AE_OK);
+                    /* Found a matching CID */
+
+                    Found = TRUE;
+                    break;
                 }
             }
+
             ACPI_FREE (Cid);
+            if (!Found)
+            {
+                return (AE_OK);
+            }
         }
     }
+
+    /* We have a valid device, invoke the user function */
 
     Status = Info->UserFunction (ObjHandle, NestingLevel, Info->Context,
                 ReturnValue);
@@ -662,7 +783,7 @@ AcpiNsGetDeviceCallback (
  *              value is returned to the caller.
  *
  *              This is a wrapper for WalkNamespace, but the callback performs
- *              additional filtering. Please see AcpiGetDeviceCallback.
+ *              additional filtering. Please see AcpiNsGetDeviceCallback.
  *
  ******************************************************************************/
 

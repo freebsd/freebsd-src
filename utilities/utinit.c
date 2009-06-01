@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: utinit - Common ACPI subsystem initialization
- *              $Revision: 1.135 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __UTINIT_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 #include "acevents.h"
 #include "actables.h"
@@ -216,9 +216,12 @@ AcpiUtSubsystemShutdown (
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "Shutting down ACPI Subsystem\n"));
 
+#ifndef ACPI_ASL_COMPILER
+
     /* Close the AcpiEvent Handling */
 
     AcpiEvTerminate ();
+#endif
 
     /* Close the Namespace */
 

@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 1.87 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acdebug.h"
 #include "acnamesp.h"
 
@@ -173,7 +173,6 @@ static ARGUMENT_INFO        AcpiDbStatTypes [] =
 
 
 #if defined ACPI_DBG_TRACK_ALLOCATIONS || defined ACPI_USE_LOCAL_CACHE
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbListInfo
@@ -277,18 +276,18 @@ AcpiDbEnumerateObject (
 
     AcpiGbl_NumObjects++;
 
-    if (ACPI_GET_OBJECT_TYPE (ObjDesc) > ACPI_TYPE_NS_NODE_MAX)
+    if (ObjDesc->Common.Type > ACPI_TYPE_NS_NODE_MAX)
     {
         AcpiGbl_ObjTypeCountMisc++;
     }
     else
     {
-        AcpiGbl_ObjTypeCount [ACPI_GET_OBJECT_TYPE (ObjDesc)]++;
+        AcpiGbl_ObjTypeCount [ObjDesc->Common.Type]++;
     }
 
     /* Count the sub-objects */
 
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+    switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_PACKAGE:
 
@@ -531,7 +530,7 @@ AcpiDbDisplayStatistics (
 #endif
 
 #ifdef ACPI_USE_LOCAL_CACHE
-        AcpiOsPrintf ("\n----Cache Statistics (all in hex)----------\n");
+        AcpiOsPrintf ("\n----Cache Statistics (all in hex)---------\n");
         AcpiDbListInfo (AcpiGbl_OperandCache);
         AcpiDbListInfo (AcpiGbl_PsNodeCache);
         AcpiDbListInfo (AcpiGbl_PsNodeExtCache);
@@ -593,6 +592,7 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("ParseObjectAsl   %3d\n", sizeof (ACPI_PARSE_OBJ_ASL));
         AcpiOsPrintf ("OperandObject    %3d\n", sizeof (ACPI_OPERAND_OBJECT));
         AcpiOsPrintf ("NamespaceNode    %3d\n", sizeof (ACPI_NAMESPACE_NODE));
+        AcpiOsPrintf ("AcpiObject       %3d\n", sizeof (ACPI_OBJECT));
 
         break;
 
@@ -600,13 +600,13 @@ AcpiDbDisplayStatistics (
     case CMD_STAT_STACK:
 #if defined(ACPI_DEBUG_OUTPUT)
 
-        Temp = (UINT32) (AcpiGbl_EntryStackPointer - AcpiGbl_LowestStackPointer);
+        Temp = (UINT32) ACPI_PTR_DIFF (AcpiGbl_EntryStackPointer, AcpiGbl_LowestStackPointer);
 
         AcpiOsPrintf ("\nSubsystem Stack Usage:\n\n");
-        AcpiOsPrintf ("Entry Stack Pointer          %X\n", AcpiGbl_EntryStackPointer);
-        AcpiOsPrintf ("Lowest Stack Pointer         %X\n", AcpiGbl_LowestStackPointer);
-        AcpiOsPrintf ("Stack Use                    %X (%d)\n", Temp, Temp);
-        AcpiOsPrintf ("Deepest Procedure Nesting    %d\n", AcpiGbl_DeepestNesting);
+        AcpiOsPrintf ("Entry Stack Pointer          %p\n", AcpiGbl_EntryStackPointer);
+        AcpiOsPrintf ("Lowest Stack Pointer         %p\n", AcpiGbl_LowestStackPointer);
+        AcpiOsPrintf ("Stack Use                    %X (%u)\n", Temp, Temp);
+        AcpiOsPrintf ("Deepest Procedure Nesting    %u\n", AcpiGbl_DeepestNesting);
 #endif
         break;
 

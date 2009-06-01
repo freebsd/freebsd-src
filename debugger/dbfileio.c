@@ -1,8 +1,7 @@
 /*******************************************************************************
  *
- * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
+ * Module Name: dbfileio - Debugger file I/O commands. These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 1.94 $
  *
  ******************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,10 +116,12 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acdebug.h"
-#include "acnamesp.h"
+
+#ifdef ACPI_APPLICATION
 #include "actables.h"
-#include "acdisasm.h"
+#endif
 
 #if (defined ACPI_DEBUGGER || defined ACPI_DISASSEMBLER)
 
@@ -128,7 +129,7 @@
         ACPI_MODULE_NAME    ("dbfileio")
 
 /*
- * NOTE: this is here for lack of a better place.  It is used in all
+ * NOTE: this is here for lack of a better place. It is used in all
  * flavors of the debugger, need LCD file
  */
 #ifdef ACPI_APPLICATION
@@ -263,7 +264,7 @@ AcpiDbCheckTextModeCorruption (
         {
             if (Table[i - 1] != 0x0D)
             {
-                /* The LF does not have a preceeding CR, table not corrupted */
+                /* The LF does not have a preceding CR, table not corrupted */
 
                 return (AE_OK);
             }
@@ -355,7 +356,7 @@ AcpiDbReadTable (
     }
     else
     {
-    /* Read the table header */
+        /* Read the table header */
 
         if (fread (&TableHeader, 1, sizeof (TableHeader), fp) !=
                 sizeof (ACPI_TABLE_HEADER))
@@ -462,8 +463,8 @@ AcpiDbReadTable (
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to load a table from the caller's
- *              buffer.  The buffer must contain an entire ACPI Table including
- *              a valid header.  The header fields will be verified, and if it
+ *              buffer. The buffer must contain an entire ACPI Table including
+ *              a valid header. The header fields will be verified, and if it
  *              is determined that the table is invalid, the call will fail.
  *
  ******************************************************************************/

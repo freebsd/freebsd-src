@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -168,7 +168,10 @@ AdGetLocalTables (
 
 ACPI_STATUS
 AdParseTable (
-    ACPI_TABLE_HEADER       *Table);
+    ACPI_TABLE_HEADER       *Table,
+    ACPI_OWNER_ID           *OwnerId,
+    BOOLEAN                 LoadTable,
+    BOOLEAN                 External);
 
 ACPI_STATUS
 AdDisplayTables (
@@ -184,7 +187,8 @@ AdDisplayStatistics (void);
 void
 AcpiDmCrossReferenceNamespace (
     ACPI_PARSE_OBJECT       *ParseTreeRoot,
-    ACPI_NAMESPACE_NODE     *NamespaceRoot);
+    ACPI_NAMESPACE_NODE     *NamespaceRoot,
+    ACPI_OWNER_ID           OwnerId);
 
 void
 AcpiDmDumpTree (
@@ -197,7 +201,8 @@ AcpiDmFindOrphanMethods (
 void
 AcpiDmFinishNamespaceLoad (
     ACPI_PARSE_OBJECT       *ParseTreeRoot,
-    ACPI_NAMESPACE_NODE     *NamespaceRoot);
+    ACPI_NAMESPACE_NODE     *NamespaceRoot,
+    ACPI_OWNER_ID           OwnerId);
 
 void
 AcpiDmConvertResourceIndexes (

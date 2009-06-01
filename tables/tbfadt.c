@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: tbfadt   - FADT table utilities
- *              $Revision: 1.5 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __TBFADT_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "actables.h"
 
 #define _COMPONENT          ACPI_TABLES
@@ -124,10 +124,11 @@
 
 /* Local prototypes */
 
-static void inline
+static inline void
 AcpiTbInitGenericAddress (
     ACPI_GENERIC_ADDRESS    *GenericAddress,
-    UINT8                   BitWidth,
+    UINT8                   SpaceId,
+    UINT8                   ByteWidth,
     UINT64                  Address);
 
 static void
@@ -138,15 +139,20 @@ static void
 AcpiTbValidateFadt (
     void);
 
+static void
+AcpiTbSetupFadtRegisters (
+    void);
+
 
 /* Table for conversion of FADT to common internal format and FADT validation */
 
 typedef struct acpi_fadt_info
 {
     char                    *Name;
-    UINT8                   Target;
-    UINT8                   Source;
+    UINT8                   Address64;
+    UINT8                   Address32;
     UINT8                   Length;
+    UINT8                   DefaultLength;
     UINT8                   Type;
 
 } ACPI_FADT_INFO;
@@ -156,40 +162,98 @@ typedef struct acpi_fadt_info
 
 static ACPI_FADT_INFO     FadtInfoTable[] =
 {
-    {"Pm1aEventBlock",      ACPI_FADT_OFFSET (XPm1aEventBlock),
-                            ACPI_FADT_OFFSET (Pm1aEventBlock),
-                            ACPI_FADT_OFFSET (Pm1EventLength),      ACPI_FADT_REQUIRED},
+    {"Pm1aEventBlock",
+        ACPI_FADT_OFFSET (XPm1aEventBlock),
+        ACPI_FADT_OFFSET (Pm1aEventBlock),
+        ACPI_FADT_OFFSET (Pm1EventLength),
+        ACPI_PM1_REGISTER_WIDTH * 2,        /* Enable + Status register */
+        ACPI_FADT_REQUIRED},
 
-    {"Pm1bEventBlock",      ACPI_FADT_OFFSET (XPm1bEventBlock),
-                            ACPI_FADT_OFFSET (Pm1bEventBlock),
-                            ACPI_FADT_OFFSET (Pm1EventLength),      0},
+    {"Pm1bEventBlock",
+        ACPI_FADT_OFFSET (XPm1bEventBlock),
+        ACPI_FADT_OFFSET (Pm1bEventBlock),
+        ACPI_FADT_OFFSET (Pm1EventLength),
+        ACPI_PM1_REGISTER_WIDTH * 2,        /* Enable + Status register */
+        0},
 
-    {"Pm1aControlBlock",    ACPI_FADT_OFFSET (XPm1aControlBlock),
-                            ACPI_FADT_OFFSET (Pm1aControlBlock),
-                            ACPI_FADT_OFFSET (Pm1ControlLength),    ACPI_FADT_REQUIRED},
+    {"Pm1aControlBlock",
+        ACPI_FADT_OFFSET (XPm1aControlBlock),
+        ACPI_FADT_OFFSET (Pm1aControlBlock),
+        ACPI_FADT_OFFSET (Pm1ControlLength),
+        ACPI_PM1_REGISTER_WIDTH,
+        ACPI_FADT_REQUIRED},
 
-    {"Pm1bControlBlock",    ACPI_FADT_OFFSET (XPm1bControlBlock),
-                            ACPI_FADT_OFFSET (Pm1bControlBlock),
-                            ACPI_FADT_OFFSET (Pm1ControlLength),    0},
+    {"Pm1bControlBlock",
+        ACPI_FADT_OFFSET (XPm1bControlBlock),
+        ACPI_FADT_OFFSET (Pm1bControlBlock),
+        ACPI_FADT_OFFSET (Pm1ControlLength),
+        ACPI_PM1_REGISTER_WIDTH,
+        0},
 
-    {"Pm2ControlBlock",     ACPI_FADT_OFFSET (XPm2ControlBlock),
-                            ACPI_FADT_OFFSET (Pm2ControlBlock),
-                            ACPI_FADT_OFFSET (Pm2ControlLength),    ACPI_FADT_SEPARATE_LENGTH},
+    {"Pm2ControlBlock",
+        ACPI_FADT_OFFSET (XPm2ControlBlock),
+        ACPI_FADT_OFFSET (Pm2ControlBlock),
+        ACPI_FADT_OFFSET (Pm2ControlLength),
+        ACPI_PM2_REGISTER_WIDTH,
+        ACPI_FADT_SEPARATE_LENGTH},
 
-    {"PmTimerBlock",        ACPI_FADT_OFFSET (XPmTimerBlock),
-                            ACPI_FADT_OFFSET (PmTimerBlock),
-                            ACPI_FADT_OFFSET (PmTimerLength),       ACPI_FADT_REQUIRED},
+    {"PmTimerBlock",
+        ACPI_FADT_OFFSET (XPmTimerBlock),
+        ACPI_FADT_OFFSET (PmTimerBlock),
+        ACPI_FADT_OFFSET (PmTimerLength),
+        ACPI_PM_TIMER_WIDTH,
+        ACPI_FADT_REQUIRED},
 
-    {"Gpe0Block",           ACPI_FADT_OFFSET (XGpe0Block),
-                            ACPI_FADT_OFFSET (Gpe0Block),
-                            ACPI_FADT_OFFSET (Gpe0BlockLength),     ACPI_FADT_SEPARATE_LENGTH},
+    {"Gpe0Block",
+        ACPI_FADT_OFFSET (XGpe0Block),
+        ACPI_FADT_OFFSET (Gpe0Block),
+        ACPI_FADT_OFFSET (Gpe0BlockLength),
+        0,
+        ACPI_FADT_SEPARATE_LENGTH},
 
-    {"Gpe1Block",           ACPI_FADT_OFFSET (XGpe1Block),
-                            ACPI_FADT_OFFSET (Gpe1Block),
-                            ACPI_FADT_OFFSET (Gpe1BlockLength),     ACPI_FADT_SEPARATE_LENGTH}
+    {"Gpe1Block",
+        ACPI_FADT_OFFSET (XGpe1Block),
+        ACPI_FADT_OFFSET (Gpe1Block),
+        ACPI_FADT_OFFSET (Gpe1BlockLength),
+        0,
+        ACPI_FADT_SEPARATE_LENGTH}
 };
 
-#define ACPI_FADT_INFO_ENTRIES        (sizeof (FadtInfoTable) / sizeof (ACPI_FADT_INFO))
+#define ACPI_FADT_INFO_ENTRIES \
+            (sizeof (FadtInfoTable) / sizeof (ACPI_FADT_INFO))
+
+
+/* Table used to split Event Blocks into separate status/enable registers */
+
+typedef struct acpi_fadt_pm_info
+{
+    ACPI_GENERIC_ADDRESS    *Target;
+    UINT8                   Source;
+    UINT8                   RegisterNum;
+
+} ACPI_FADT_PM_INFO;
+
+static ACPI_FADT_PM_INFO    FadtPmInfoTable[] =
+{
+    {&AcpiGbl_XPm1aStatus,
+        ACPI_FADT_OFFSET (XPm1aEventBlock),
+        0},
+
+    {&AcpiGbl_XPm1aEnable,
+        ACPI_FADT_OFFSET (XPm1aEventBlock),
+        1},
+
+    {&AcpiGbl_XPm1bStatus,
+        ACPI_FADT_OFFSET (XPm1bEventBlock),
+        0},
+
+    {&AcpiGbl_XPm1bEnable,
+        ACPI_FADT_OFFSET (XPm1bEventBlock),
+        1}
+};
+
+#define ACPI_FADT_PM_INFO_ENTRIES \
+            (sizeof (FadtPmInfoTable) / sizeof (ACPI_FADT_PM_INFO))
 
 
 /*******************************************************************************
@@ -197,7 +261,8 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
  * FUNCTION:    AcpiTbInitGenericAddress
  *
  * PARAMETERS:  GenericAddress      - GAS struct to be initialized
- *              BitWidth            - Width of this register
+ *              SpaceId             - ACPI Space ID for this register
+ *              ByteWidth           - Width of this register, in bytes
  *              Address             - Address of the register
  *
  * RETURN:      None
@@ -208,10 +273,11 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
  *
  ******************************************************************************/
 
-static void inline
+static inline void
 AcpiTbInitGenericAddress (
     ACPI_GENERIC_ADDRESS    *GenericAddress,
-    UINT8                   BitWidth,
+    UINT8                   SpaceId,
+    UINT8                   ByteWidth,
     UINT64                  Address)
 {
 
@@ -223,10 +289,10 @@ AcpiTbInitGenericAddress (
 
     /* All other fields are byte-wide */
 
-    GenericAddress->SpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
-    GenericAddress->BitWidth = BitWidth;
+    GenericAddress->SpaceId = SpaceId;
+    GenericAddress->BitWidth = (UINT8) ACPI_MUL_8 (ByteWidth);
     GenericAddress->BitOffset = 0;
-    GenericAddress->AccessWidth = 0;
+    GenericAddress->AccessWidth = 0; /* Access width ANY */
 }
 
 
@@ -235,7 +301,6 @@ AcpiTbInitGenericAddress (
  * FUNCTION:    AcpiTbParseFadt
  *
  * PARAMETERS:  TableIndex          - Index for the FADT
- *              Flags               - Flags
  *
  * RETURN:      None
  *
@@ -246,8 +311,7 @@ AcpiTbInitGenericAddress (
 
 void
 AcpiTbParseFadt (
-    ACPI_NATIVE_UINT        TableIndex,
-    UINT8                   Flags)
+    UINT32                  TableIndex)
 {
     UINT32                  Length;
     ACPI_TABLE_HEADER       *Table;
@@ -275,7 +339,7 @@ AcpiTbParseFadt (
      */
     (void) AcpiTbVerifyChecksum (Table, Length);
 
-    /* Obtain a local copy of the FADT in common ACPI 2.0+ format */
+    /* Create a local copy of the FADT in common ACPI 2.0+ format */
 
     AcpiTbCreateLocalFadt (Table, Length);
 
@@ -286,10 +350,10 @@ AcpiTbParseFadt (
     /* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
     AcpiTbInstallTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XDsdt,
-        Flags, ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
+        ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
 
     AcpiTbInstallTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XFacs,
-        Flags, ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
+        ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
 }
 
 
@@ -305,6 +369,8 @@ AcpiTbParseFadt (
  * DESCRIPTION: Get a local copy of the FADT and convert it to a common format.
  *              Performs validation on some important FADT fields.
  *
+ * NOTE:        We create a local copy of the FADT regardless of the version.
+ *
  ******************************************************************************/
 
 void
@@ -314,29 +380,38 @@ AcpiTbCreateLocalFadt (
 {
 
     /*
-     * Check if the FADT is larger than what we know about (ACPI 2.0 version).
-     * Truncate the table, but make some noise.
+     * Check if the FADT is larger than the largest table that we expect
+     * (the ACPI 2.0/3.0 version). If so, truncate the table, and issue
+     * a warning.
      */
     if (Length > sizeof (ACPI_TABLE_FADT))
     {
         ACPI_WARNING ((AE_INFO,
-            "FADT (revision %u) is longer than ACPI 2.0 version, truncating length 0x%X to 0x%zX",
-            Table->Revision, Length, sizeof (ACPI_TABLE_FADT)));
+            "FADT (revision %u) is longer than ACPI 2.0 version, "
+            "truncating length 0x%X to 0x%X",
+            Table->Revision, Length, (UINT32) sizeof (ACPI_TABLE_FADT)));
     }
 
-    /* Copy the entire FADT locally. Zero first for TbConvertFadt */
+    /* Clear the entire local FADT */
 
     ACPI_MEMSET (&AcpiGbl_FADT, 0, sizeof (ACPI_TABLE_FADT));
+
+    /* Copy the original FADT, up to sizeof (ACPI_TABLE_FADT) */
 
     ACPI_MEMCPY (&AcpiGbl_FADT, Table,
         ACPI_MIN (Length, sizeof (ACPI_TABLE_FADT)));
 
-    /*
-     * 1) Convert the local copy of the FADT to the common internal format
-     * 2) Validate some of the important values within the FADT
-     */
+    /* Convert the local copy of the FADT to the common internal format */
+
     AcpiTbConvertFadt ();
+
+    /* Validate FADT values now, before we make any changes */
+
     AcpiTbValidateFadt ();
+
+    /* Initialize the global ACPI register structures */
+
+    AcpiTbSetupFadtRegisters ();
 }
 
 
@@ -349,23 +424,28 @@ AcpiTbCreateLocalFadt (
  * RETURN:      None
  *
  * DESCRIPTION: Converts all versions of the FADT to a common internal format.
- *              -> Expand all 32-bit addresses to 64-bit.
+ *              Expand 32-bit addresses to 64-bit as necessary.
  *
  * NOTE:        AcpiGbl_FADT must be of size (ACPI_TABLE_FADT),
  *              and must contain a copy of the actual FADT.
  *
- * ACPICA will use the "X" fields of the FADT for all addresses.
+ * Notes on 64-bit register addresses:
  *
- * "X" fields are optional extensions to the original V1.0 fields. Even if
- * they are present in the structure, they can be optionally not used by
- * setting them to zero. Therefore, we must selectively expand V1.0 fields
- * if the corresponding X field is zero.
+ * After this FADT conversion, later ACPICA code will only use the 64-bit "X"
+ * fields of the FADT for all ACPI register addresses.
  *
- * For ACPI 1.0 FADTs, all address fields are expanded to the corresponding
- * "X" fields.
+ * The 64-bit "X" fields are optional extensions to the original 32-bit FADT
+ * V1.0 fields. Even if they are present in the FADT, they are optional and
+ * are unused if the BIOS sets them to zero. Therefore, we must copy/expand
+ * 32-bit V1.0 fields if the corresponding X field is zero.
  *
- * For ACPI 2.0 FADTs, any "X" fields that are NULL are filled in by
- * expanding the corresponding ACPI 1.0 field.
+ * For ACPI 1.0 FADTs, all 32-bit address fields are expanded to the
+ * corresponding "X" fields in the internal FADT.
+ *
+ * For ACPI 2.0+ FADTs, all valid (non-zero) 32-bit address fields are expanded
+ * to the corresponding 64-bit X fields. For compatibility with other ACPI
+ * implementations, we ignore the 64-bit field if the 32-bit field is valid,
+ * regardless of whether the host OS is 32-bit or 64-bit.
  *
  ******************************************************************************/
 
@@ -373,73 +453,96 @@ static void
 AcpiTbConvertFadt (
     void)
 {
-    UINT8                       Pm1RegisterLength;
-    ACPI_GENERIC_ADDRESS        *Target;
-    ACPI_NATIVE_UINT            i;
+    ACPI_GENERIC_ADDRESS    *Address64;
+    UINT32                  Address32;
+    UINT32                  i;
 
 
     /* Update the local FADT table header length */
 
     AcpiGbl_FADT.Header.Length = sizeof (ACPI_TABLE_FADT);
 
-    /* Expand the 32-bit FACS and DSDT addresses to 64-bit as necessary */
-
+    /*
+     * Expand the 32-bit FACS and DSDT addresses to 64-bit as necessary.
+     * Later code will always use the X 64-bit field.
+     */
     if (!AcpiGbl_FADT.XFacs)
     {
         AcpiGbl_FADT.XFacs = (UINT64) AcpiGbl_FADT.Facs;
     }
-
     if (!AcpiGbl_FADT.XDsdt)
     {
         AcpiGbl_FADT.XDsdt = (UINT64) AcpiGbl_FADT.Dsdt;
     }
 
     /*
-     * Expand the 32-bit V1.0 addresses to the 64-bit "X" generic address
-     * structures as necessary.
+     * For ACPI 1.0 FADTs (revision 1 or 2), ensure that reserved fields which
+     * should be zero are indeed zero. This will workaround BIOSs that
+     * inadvertently place values in these fields.
+     *
+     * The ACPI 1.0 reserved fields that will be zeroed are the bytes located
+     * at offset 45, 55, 95, and the word located at offset 109, 110.
      */
-    for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++)
+    if (AcpiGbl_FADT.Header.Revision < 3)
     {
-        Target = ACPI_ADD_PTR (
-            ACPI_GENERIC_ADDRESS, &AcpiGbl_FADT, FadtInfoTable[i].Target);
-
-        /* Expand only if the X target is null */
-
-        if (!Target->Address)
-        {
-            AcpiTbInitGenericAddress (Target,
-                *ACPI_ADD_PTR (UINT8, &AcpiGbl_FADT, FadtInfoTable[i].Length),
-                (UINT64) *ACPI_ADD_PTR (UINT32, &AcpiGbl_FADT, FadtInfoTable[i].Source));
-        }
+        AcpiGbl_FADT.PreferredProfile = 0;
+        AcpiGbl_FADT.PstateControl = 0;
+        AcpiGbl_FADT.CstControl = 0;
+        AcpiGbl_FADT.BootFlags = 0;
     }
 
     /*
-     * Calculate separate GAS structs for the PM1 Enable registers.
-     * These addresses do not appear (directly) in the FADT, so it is
-     * useful to calculate them once, here.
+     * Expand the ACPI 1.0 32-bit addresses to the ACPI 2.0 64-bit "X"
+     * generic address structures as necessary. Later code will always use
+     * the 64-bit address structures.
      *
-     * The PM event blocks are split into two register blocks, first is the
-     * PM Status Register block, followed immediately by the PM Enable Register
-     * block. Each is of length (Pm1EventLength/2)
+     * March 2009:
+     * We now always use the 32-bit address if it is valid (non-null). This
+     * is not in accordance with the ACPI specification which states that
+     * the 64-bit address supersedes the 32-bit version, but we do this for
+     * compatibility with other ACPI implementations. Most notably, in the
+     * case where both the 32 and 64 versions are non-null, we use the 32-bit
+     * version. This is the only address that is guaranteed to have been
+     * tested by the BIOS manufacturer.
      */
-    Pm1RegisterLength = (UINT8) ACPI_DIV_2 (AcpiGbl_FADT.Pm1EventLength);
-
-    /* The PM1A register block is required */
-
-    AcpiTbInitGenericAddress (&AcpiGbl_XPm1aEnable, Pm1RegisterLength,
-        (AcpiGbl_FADT.XPm1aEventBlock.Address + Pm1RegisterLength));
-
-    /* The PM1B register block is optional, ignore if not present */
-
-    if (AcpiGbl_FADT.XPm1bEventBlock.Address)
+    for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++)
     {
-        AcpiTbInitGenericAddress (&AcpiGbl_XPm1bEnable, Pm1RegisterLength,
-            (AcpiGbl_FADT.XPm1bEventBlock.Address + Pm1RegisterLength));
+        Address32 = *ACPI_ADD_PTR (UINT32,
+            &AcpiGbl_FADT, FadtInfoTable[i].Address32);
+
+        Address64 = ACPI_ADD_PTR (ACPI_GENERIC_ADDRESS,
+            &AcpiGbl_FADT, FadtInfoTable[i].Address64);
+
+        /*
+         * If both 32- and 64-bit addresses are valid (non-zero),
+         * they must match.
+         */
+        if (Address64->Address && Address32 &&
+           (Address64->Address != (UINT64) Address32))
+        {
+            ACPI_ERROR ((AE_INFO,
+                "32/64X address mismatch in %s: %8.8X/%8.8X%8.8X, using 32",
+                FadtInfoTable[i].Name, Address32,
+                ACPI_FORMAT_UINT64 (Address64->Address)));
+        }
+
+        /* Always use 32-bit address if it is valid (non-null) */
+
+        if (Address32)
+        {
+            /*
+             * Copy the 32-bit address to the 64-bit GAS structure. The
+             * Space ID is always I/O for 32-bit legacy address fields
+             */
+            AcpiTbInitGenericAddress (Address64, ACPI_ADR_SPACE_SYSTEM_IO,
+                *ACPI_ADD_PTR (UINT8, &AcpiGbl_FADT, FadtInfoTable[i].Length),
+                (UINT64) Address32);
+        }
     }
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiTbValidateFadt
  *
@@ -463,21 +566,64 @@ static void
 AcpiTbValidateFadt (
     void)
 {
-    UINT32                  *Address32;
+    char                    *Name;
     ACPI_GENERIC_ADDRESS    *Address64;
     UINT8                   Length;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
 
+
+    /*
+     * Check for FACS and DSDT address mismatches. An address mismatch between
+     * the 32-bit and 64-bit address fields (FIRMWARE_CTRL/X_FIRMWARE_CTRL and
+     * DSDT/X_DSDT) would indicate the presence of two FACS or two DSDT tables.
+     */
+    if (AcpiGbl_FADT.Facs &&
+        (AcpiGbl_FADT.XFacs != (UINT64) AcpiGbl_FADT.Facs))
+    {
+        ACPI_WARNING ((AE_INFO,
+            "32/64X FACS address mismatch in FADT - "
+            "%8.8X/%8.8X%8.8X, using 32",
+            AcpiGbl_FADT.Facs, ACPI_FORMAT_UINT64 (AcpiGbl_FADT.XFacs)));
+
+        AcpiGbl_FADT.XFacs = (UINT64) AcpiGbl_FADT.Facs;
+    }
+
+    if (AcpiGbl_FADT.Dsdt &&
+        (AcpiGbl_FADT.XDsdt != (UINT64) AcpiGbl_FADT.Dsdt))
+    {
+        ACPI_WARNING ((AE_INFO,
+            "32/64X DSDT address mismatch in FADT - "
+            "%8.8X/%8.8X%8.8X, using 32",
+            AcpiGbl_FADT.Dsdt, ACPI_FORMAT_UINT64 (AcpiGbl_FADT.XDsdt)));
+
+        AcpiGbl_FADT.XDsdt = (UINT64) AcpiGbl_FADT.Dsdt;
+    }
 
     /* Examine all of the 64-bit extended address fields (X fields) */
 
     for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++)
     {
-        /* Generate pointers to the 32-bit and 64-bit addresses and get the length */
+        /*
+         * Generate pointer to the 64-bit address, get the register
+         * length (width) and the register name
+         */
+        Address64 = ACPI_ADD_PTR (ACPI_GENERIC_ADDRESS,
+                        &AcpiGbl_FADT, FadtInfoTable[i].Address64);
+        Length = *ACPI_ADD_PTR (UINT8,
+                        &AcpiGbl_FADT, FadtInfoTable[i].Length);
+        Name = FadtInfoTable[i].Name;
 
-        Address64 = ACPI_ADD_PTR (ACPI_GENERIC_ADDRESS, &AcpiGbl_FADT, FadtInfoTable[i].Target);
-        Address32 = ACPI_ADD_PTR (UINT32, &AcpiGbl_FADT, FadtInfoTable[i].Source);
-        Length = *ACPI_ADD_PTR (UINT8, &AcpiGbl_FADT, FadtInfoTable[i].Length);
+        /*
+         * For each extended field, check for length mismatch between the
+         * legacy length field and the corresponding 64-bit X length field.
+         */
+        if (Address64->Address &&
+           (Address64->BitWidth != ACPI_MUL_8 (Length)))
+        {
+            ACPI_WARNING ((AE_INFO,
+                "32/64X length mismatch in %s: %d/%d",
+                Name, ACPI_MUL_8 (Length), Address64->BitWidth));
+        }
 
         if (FadtInfoTable[i].Type & ACPI_FADT_REQUIRED)
         {
@@ -488,32 +634,118 @@ AcpiTbValidateFadt (
             if (!Address64->Address || !Length)
             {
                 ACPI_ERROR ((AE_INFO,
-                    "Required field \"%s\" has zero address and/or length: %8.8X%8.8X/%X",
-                    FadtInfoTable[i].Name, ACPI_FORMAT_UINT64 (Address64->Address), Length));
+                    "Required field %s has zero address and/or length:"
+                    " %8.8X%8.8X/%X",
+                    Name, ACPI_FORMAT_UINT64 (Address64->Address), Length));
             }
         }
         else if (FadtInfoTable[i].Type & ACPI_FADT_SEPARATE_LENGTH)
         {
             /*
              * Field is optional (PM2Control, GPE0, GPE1) AND has its own
-             * length field. If present, both the address and length must be valid.
+             * length field. If present, both the address and length must
+             * be valid.
              */
-            if ((Address64->Address && !Length) || (!Address64->Address && Length))
+            if ((Address64->Address && !Length) ||
+                (!Address64->Address && Length))
             {
                 ACPI_WARNING ((AE_INFO,
-                    "Optional field \"%s\" has zero address or length: %8.8X%8.8X/%X",
-                    FadtInfoTable[i].Name, ACPI_FORMAT_UINT64 (Address64->Address), Length));
+                    "Optional field %s has zero address or length: "
+                    "%8.8X%8.8X/%X",
+                    Name, ACPI_FORMAT_UINT64 (Address64->Address), Length));
             }
         }
+    }
+}
 
-        /* If both 32- and 64-bit addresses are valid (non-zero), they must match */
 
-        if (Address64->Address && *Address32 &&
-           (Address64->Address != (UINT64) *Address32))
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbSetupFadtRegisters
+ *
+ * PARAMETERS:  None, uses AcpiGbl_FADT.
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Initialize global ACPI PM1 register definitions. Optionally,
+ *              force FADT register definitions to their default lengths.
+ *
+ ******************************************************************************/
+
+static void
+AcpiTbSetupFadtRegisters (
+    void)
+{
+    ACPI_GENERIC_ADDRESS    *Target64;
+    ACPI_GENERIC_ADDRESS    *Source64;
+    UINT8                   Pm1RegisterByteWidth;
+    UINT32                  i;
+
+
+    /*
+     * Optionally check all register lengths against the default values and
+     * update them if they are incorrect.
+     */
+    if (AcpiGbl_UseDefaultRegisterWidths)
+    {
+        for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++)
         {
-            ACPI_ERROR ((AE_INFO,
-                "32/64X address mismatch in \"%s\": [%8.8X] [%8.8X%8.8X], using 64X",
-                FadtInfoTable[i].Name, *Address32, ACPI_FORMAT_UINT64 (Address64->Address)));
+            Target64 = ACPI_ADD_PTR (ACPI_GENERIC_ADDRESS, &AcpiGbl_FADT,
+                FadtInfoTable[i].Address64);
+
+            /*
+             * If a valid register (Address != 0) and the (DefaultLength > 0)
+             * (Not a GPE register), then check the width against the default.
+             */
+            if ((Target64->Address) &&
+                (FadtInfoTable[i].DefaultLength > 0) &&
+                (FadtInfoTable[i].DefaultLength != Target64->BitWidth))
+            {
+                ACPI_WARNING ((AE_INFO,
+                    "Invalid length for %s: %d, using default %d",
+                    FadtInfoTable[i].Name, Target64->BitWidth,
+                    FadtInfoTable[i].DefaultLength));
+
+                /* Incorrect size, set width to the default */
+
+                Target64->BitWidth = FadtInfoTable[i].DefaultLength;
+            }
+        }
+    }
+
+    /*
+     * Get the length of the individual PM1 registers (enable and status).
+     * Each register is defined to be (event block length / 2). Extra divide
+     * by 8 converts bits to bytes.
+     */
+    Pm1RegisterByteWidth = (UINT8)
+        ACPI_DIV_16 (AcpiGbl_FADT.XPm1aEventBlock.BitWidth);
+
+    /*
+     * Calculate separate GAS structs for the PM1x (A/B) Status and Enable
+     * registers. These addresses do not appear (directly) in the FADT, so it
+     * is useful to pre-calculate them from the PM1 Event Block definitions.
+     *
+     * The PM event blocks are split into two register blocks, first is the
+     * PM Status Register block, followed immediately by the PM Enable
+     * Register block. Each is of length (Pm1EventLength/2)
+     *
+     * Note: The PM1A event block is required by the ACPI specification.
+     * However, the PM1B event block is optional and is rarely, if ever,
+     * used.
+     */
+
+    for (i = 0; i < ACPI_FADT_PM_INFO_ENTRIES; i++)
+    {
+        Source64 = ACPI_ADD_PTR (ACPI_GENERIC_ADDRESS, &AcpiGbl_FADT,
+            FadtPmInfoTable[i].Source);
+
+        if (Source64->Address)
+        {
+            AcpiTbInitGenericAddress (FadtPmInfoTable[i].Target,
+                Source64->SpaceId, Pm1RegisterByteWidth,
+                Source64->Address +
+                    (FadtPmInfoTable[i].RegisterNum * Pm1RegisterByteWidth));
         }
     }
 }

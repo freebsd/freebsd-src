@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI Hardware Initialization/Mode Interface
- *              $Revision: 1.78 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __HWACPI_C__
 
 #include "acpi.h"
+#include "accommon.h"
 
 
 #define _COMPONENT          ACPI_HARDWARE
@@ -167,7 +167,8 @@ AcpiHwSetMode (
     if (!AcpiGbl_FADT.AcpiEnable && !AcpiGbl_FADT.AcpiDisable)
     {
         ACPI_ERROR ((AE_INFO,
-            "No ACPI mode transition supported in this system (enable/disable both zero)"));
+            "No ACPI mode transition supported in this system "
+            "(enable/disable both zero)"));
         return_ACPI_STATUS (AE_OK);
     }
 
@@ -177,7 +178,7 @@ AcpiHwSetMode (
 
         /* BIOS should have disabled ALL fixed and GP events */
 
-        Status = AcpiOsWritePort (AcpiGbl_FADT.SmiCommand,
+        Status = AcpiHwWritePort (AcpiGbl_FADT.SmiCommand,
                         (UINT32) AcpiGbl_FADT.AcpiEnable, 8);
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Attempting to enable ACPI mode\n"));
         break;
@@ -188,7 +189,7 @@ AcpiHwSetMode (
          * BIOS should clear all fixed status bits and restore fixed event
          * enable bits to default
          */
-        Status = AcpiOsWritePort (AcpiGbl_FADT.SmiCommand,
+        Status = AcpiHwWritePort (AcpiGbl_FADT.SmiCommand,
                     (UINT32) AcpiGbl_FADT.AcpiDisable, 8);
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                     "Attempting to enable Legacy (non-ACPI) mode\n"));
@@ -260,7 +261,7 @@ AcpiHwGetMode (
         return_UINT32 (ACPI_SYS_MODE_ACPI);
     }
 
-    Status = AcpiGetRegister (ACPI_BITREG_SCI_ENABLE, &Value);
+    Status = AcpiReadBitRegister (ACPI_BITREG_SCI_ENABLE, &Value);
     if (ACPI_FAILURE (Status))
     {
         return_UINT32 (ACPI_SYS_MODE_LEGACY);

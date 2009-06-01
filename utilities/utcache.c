@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: utcache - local cache allocation routines
- *              $Revision: 1.8 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __UTCACHE_C__
 
 #include "acpi.h"
+#include "accommon.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utcache")
@@ -194,6 +194,7 @@ AcpiOsPurgeCache (
     ACPI_MEMORY_LIST        *Cache)
 {
     char                    *Next;
+    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -202,6 +203,12 @@ AcpiOsPurgeCache (
     if (!Cache)
     {
         return (AE_BAD_PARAMETER);
+    }
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_CACHES);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
     }
 
     /* Walk the list of objects in this cache */
@@ -218,6 +225,7 @@ AcpiOsPurgeCache (
         Cache->CurrentDepth--;
     }
 
+    (void) AcpiUtReleaseMutex (ACPI_MTX_CACHES);
     return (AE_OK);
 }
 

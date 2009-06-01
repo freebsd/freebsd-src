@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: nseval - Object evaluation, includes control method execution
- *              $Revision: 1.144 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __NSEVAL_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "acinterp.h"
 #include "acnamesp.h"
@@ -159,6 +159,7 @@ AcpiNsEvaluate (
     ACPI_EVALUATE_INFO      *Info)
 {
     ACPI_STATUS             Status;
+    ACPI_NAMESPACE_NODE     *Node;
 
 
     ACPI_FUNCTION_TRACE (NsEvaluate);
@@ -172,6 +173,7 @@ AcpiNsEvaluate (
     /* Initialize the return value to an invalid object */
 
     Info->ReturnObject = NULL;
+    Info->ParamCount = 0;
 
     /*
      * Get the actual namespace node for the target object. Handles these cases:
@@ -200,6 +202,8 @@ AcpiNsEvaluate (
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%s [%p] Value %p\n", Info->Pathname,
         Info->ResolvedNode, AcpiNsGetAttachedObject (Info->ResolvedNode)));
 
+    Node = Info->ResolvedNode;
+
     /*
      * Two major cases here:
      *
@@ -221,7 +225,21 @@ AcpiNsEvaluate (
             return_ACPI_STATUS (AE_NULL_OBJECT);
         }
 
-        ACPI_DUMP_PATHNAME (Info->ResolvedNode, "Execute Method:",
+        /* Count the number of arguments being passed to the method */
+
+        if (Info->Parameters)
+        {
+            while (Info->Parameters[Info->ParamCount])
+            {
+                if (Info->ParamCount > ACPI_METHOD_MAX_ARG)
+                {
+                    return_ACPI_STATUS (AE_LIMIT);
+                }
+                Info->ParamCount++;
+            }
+        }
+
+        ACPI_DUMP_PATHNAME (Info->ResolvedNode, "ACPI: Execute Method",
             ACPI_LV_INFO, _COMPONENT);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
@@ -245,7 +263,28 @@ AcpiNsEvaluate (
     {
         /*
          * 2) Object is not a method, return its current value
+         *
+         * Disallow certain object types. For these, "evaluation" is undefined.
          */
+        switch (Info->ResolvedNode->Type)
+        {
+        case ACPI_TYPE_DEVICE:
+        case ACPI_TYPE_EVENT:
+        case ACPI_TYPE_MUTEX:
+        case ACPI_TYPE_REGION:
+        case ACPI_TYPE_THERMAL:
+        case ACPI_TYPE_LOCAL_SCOPE:
+
+            ACPI_ERROR ((AE_INFO,
+                "[%4.4s] Evaluation of object type [%s] is not supported",
+                Info->ResolvedNode->Name.Ascii,
+                AcpiUtGetTypeName (Info->ResolvedNode->Type)));
+
+            return_ACPI_STATUS (AE_TYPE);
+
+        default:
+            break;
+        }
 
         /*
          * Objects require additional resolution steps (e.g., the Node may be
@@ -287,8 +326,15 @@ AcpiNsEvaluate (
     }
 
     /*
-     * Check if there is a return value that must be dealt with
+     * Check input argument count against the ASL-defined count for a method.
+     * Also check predefined names: argument count and return value against
+     * the ACPI specification. Some incorrect return value types are repaired.
      */
+    (void) AcpiNsCheckPredefinedNames (Node, Info->ParamCount,
+                Status, &Info->ReturnObject);
+
+    /* Check if there is a return value that must be dealt with */
+
     if (Status == AE_CTRL_RETURN_VALUE)
     {
         /* If caller does not want the return value, delete it */

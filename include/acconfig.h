@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 1.234 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -135,10 +134,6 @@
  *
  */
 
-/* Current ACPICA subsystem version in YYYYMMDD format */
-
-#define ACPI_CA_VERSION                 0x20070320
-
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
  * but there is a large base of ASL/AML code in existing machines that check
@@ -194,17 +189,16 @@
 
 #define ACPI_ROOT_TABLE_SIZE_INCREMENT  4
 
+/* Maximum number of While() loop iterations before forced abort */
+
+#define ACPI_MAX_LOOP_ITERATIONS        0xFFFF
+
 
 /******************************************************************************
  *
  * ACPI Specification constants (Do not change unless the specification changes)
  *
  *****************************************************************************/
-
-/* Number of distinct GPE register blocks and register width */
-
-#define ACPI_MAX_GPE_BLOCKS             2
-#define ACPI_GPE_REGISTER_WIDTH         8
 
 /* Method info (in WALK_STATE), containing local variables and argumetns */
 
@@ -213,12 +207,6 @@
 
 #define ACPI_METHOD_NUM_ARGS            7
 #define ACPI_METHOD_MAX_ARG             6
-
-/* Length of _HID, _UID, _CID, and UUID values */
-
-#define ACPI_DEVICE_ID_LENGTH           0x09
-#define ACPI_MAX_CID_LENGTH             48
-#define ACPI_UUID_LENGTH                16
 
 /*
  * Operand Stack (in WALK_STATE), Must be large enough to contain METHOD_MAX_ARG
@@ -236,17 +224,6 @@
  * ResultSize and ResultCount (now UINT8).
  */
 #define ACPI_RESULTS_OBJ_NUM_MAX        255
-
-/* Names within the namespace are 4 bytes long */
-
-#define ACPI_NAME_SIZE                  4
-#define ACPI_PATH_SEGMENT_LENGTH        5           /* 4 chars for name + 1 char for separator */
-#define ACPI_PATH_SEPARATOR             '.'
-
-/* Sizes for ACPI table headers */
-
-#define ACPI_OEM_ID_SIZE                6
-#define ACPI_OEM_TABLE_ID_SIZE          8
 
 /* Constants used in searching for the RSDP in low memory */
 

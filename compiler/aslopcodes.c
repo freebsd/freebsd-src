@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslopcode - AML opcode generation
- *              $Revision: 1.74 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -546,7 +545,7 @@ OpcDoEisaId (
     UINT32                  BigEndianId;
     char                    *InString;
     ACPI_STATUS             Status = AE_OK;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
 
 
     InString = (char *) Op->Asl.Value.String;
@@ -642,7 +641,7 @@ OpcDoUuId (
     char                    *InString;
     char                    *Buffer;
     ACPI_STATUS             Status = AE_OK;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
     ACPI_PARSE_OBJECT       *NewOp;
 
 

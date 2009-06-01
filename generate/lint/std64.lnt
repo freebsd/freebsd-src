@@ -1,0 +1,18 @@
+//  Generic Compilers, -si4 -sl4 -sp8
+//  Standard lint options
+
+-dACPI_MACHINE_WIDTH=64
+
+-e747	// Compiler supports parameter conversions
+-e46    // Compiler supports bitfields other than int
+-d_IA64
+-dWIN64
+-d_WIN64
+-d_MAC
++fll            // enable long long
+
+-si4 -sl4 -sp8 -sll8
+
+co.lnt
+options.lnt  
+

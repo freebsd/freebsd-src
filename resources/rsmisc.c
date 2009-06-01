@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: rsmisc - Miscellaneous resource descriptors
- *              $Revision: 1.46 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __RSMISC_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acresrc.h"
 
 #define _COMPONENT          ACPI_RESOURCES
@@ -166,7 +166,7 @@ AcpiRsConvertAmlToResource (
     ACPI_FUNCTION_TRACE (RsConvertAmlToResource);
 
 
-    if (((ACPI_NATIVE_UINT) Resource) & 0x3)
+    if (((ACPI_SIZE) Resource) & 0x3)
     {
         /* Each internal resource struct is expected to be 32-bit aligned */
 
@@ -606,6 +606,18 @@ AcpiRsConvertResourceToAml (
 
                 ACPI_ERROR ((AE_INFO, "Invalid conversion sub-opcode"));
                 return_ACPI_STATUS (AE_BAD_PARAMETER);
+            }
+            break;
+
+
+        case ACPI_RSC_EXIT_EQ:
+            /*
+             * Control - Exit conversion if equal
+             */
+            if (*ACPI_ADD_PTR (UINT8, Resource,
+                    COMPARE_TARGET (Info)) == COMPARE_VALUE (Info))
+            {
+                goto Exit;
             }
             break;
 

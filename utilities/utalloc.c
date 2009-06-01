@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: utalloc - local memory allocation routines
- *              $Revision: 1.164 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __UTALLOC_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acdebug.h"
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -225,7 +225,7 @@ AcpiUtDeleteCaches (
     if (AcpiGbl_DisplayFinalMemStats)
     {
         ACPI_STRCPY (Buffer, "MEMORY");
-        AcpiDbDisplayStatistics (Buffer);
+        (void) AcpiDbDisplayStatistics (Buffer);
     }
 #endif
 
@@ -318,7 +318,7 @@ AcpiUtValidateBuffer (
  * RETURN:      Status
  *
  * DESCRIPTION: Validate that the buffer is of the required length or
- *              allocate a new buffer.  Returned buffer is always zeroed.
+ *              allocate a new buffer. Returned buffer is always zeroed.
  *
  ******************************************************************************/
 
@@ -327,65 +327,71 @@ AcpiUtInitializeBuffer (
     ACPI_BUFFER             *Buffer,
     ACPI_SIZE               RequiredLength)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_SIZE               InputBufferLength;
 
 
-    switch (Buffer->Length)
+    /* Parameter validation */
+
+    if (!Buffer || !RequiredLength)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    /*
+     * Buffer->Length is used as both an input and output parameter. Get the
+     * input actual length and set the output required buffer length.
+     */
+    InputBufferLength = Buffer->Length;
+    Buffer->Length = RequiredLength;
+
+    /*
+     * The input buffer length contains the actual buffer length, or the type
+     * of buffer to be allocated by this routine.
+     */
+    switch (InputBufferLength)
     {
     case ACPI_NO_BUFFER:
 
-        /* Set the exception and returned the required length */
+        /* Return the exception (and the required buffer length) */
 
-        Status = AE_BUFFER_OVERFLOW;
-        break;
-
+        return (AE_BUFFER_OVERFLOW);
 
     case ACPI_ALLOCATE_BUFFER:
 
         /* Allocate a new buffer */
 
         Buffer->Pointer = AcpiOsAllocate (RequiredLength);
-        if (!Buffer->Pointer)
-        {
-            return (AE_NO_MEMORY);
-        }
-
-        /* Clear the buffer */
-
-        ACPI_MEMSET (Buffer->Pointer, 0, RequiredLength);
         break;
-
 
     case ACPI_ALLOCATE_LOCAL_BUFFER:
 
         /* Allocate a new buffer with local interface to allow tracking */
 
-        Buffer->Pointer = ACPI_ALLOCATE_ZEROED (RequiredLength);
-        if (!Buffer->Pointer)
-        {
-            return (AE_NO_MEMORY);
-        }
+        Buffer->Pointer = ACPI_ALLOCATE (RequiredLength);
         break;
-
 
     default:
 
         /* Existing buffer: Validate the size of the buffer */
 
-        if (Buffer->Length < RequiredLength)
+        if (InputBufferLength < RequiredLength)
         {
-            Status = AE_BUFFER_OVERFLOW;
-            break;
+            return (AE_BUFFER_OVERFLOW);
         }
-
-        /* Clear the buffer */
-
-        ACPI_MEMSET (Buffer->Pointer, 0, RequiredLength);
         break;
     }
 
-    Buffer->Length = RequiredLength;
-    return (Status);
+    /* Validate allocation from above or input buffer pointer */
+
+    if (!Buffer->Pointer)
+    {
+        return (AE_NO_MEMORY);
+    }
+
+    /* Have a valid buffer, clear it */
+
+    ACPI_MEMSET (Buffer->Pointer, 0, RequiredLength);
+    return (AE_OK);
 }
 
 
@@ -408,7 +414,7 @@ void *
 AcpiUtAllocate (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line)
 {
     void                    *Allocation;
@@ -460,7 +466,7 @@ void *
 AcpiUtAllocateZeroed (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line)
 {
     void                    *Allocation;

@@ -1,0 +1,79 @@
+acpica-unix
+-----------
+
+This source release includes:
+
+
+1) a cross-OS AML interpreter
+
+This is intended to allow commercial and open source operating systems
+to be enabled for ACPI. OS specific code is still needed, but the
+AML interpreter should greatly improve the development speed of ACPI
+support.
+
+The AML interpreter source should be integrated into the kernel's
+build process. We recommend establishing an automated method for
+this, so later versions can also be incorporated easily. Please see
+the documentation on the website for API and other implementation
+information.
+
+
+2) iasl, an ASL compiler/decompiler
+
+iasl compiles ASL (ACPI Source Language) into AML (ACPI Machine
+Language). This AML is suitable for inclusion as a DSDT in system
+firmware. It also can disassemble AML, for debugging purposes.
+
+To compile:
+
+cd compiler
+make
+
+It has been compiled on Linux, but should easily port to other Unix
+environments.
+
+Run 'iasl -h' for more information, or download the binary version for
+documentation in PDF format.
+
+
+3) acpisrc, a source code conversion tool
+
+acpisrc converts the standard form of the acpica source release (included
+here) into a version that meets Linux coding guidelines. This consists
+mainly of performing a series of string replacements and transformations
+to the code.
+
+To compile:
+
+cd tools/acpisrc
+make
+
+It has been compiled on Linux, but should easily port to other Unix
+environments.
+
+
+4) acpibin, an AML file tool
+
+acpibin compares AML files, dumps AML binary files to text files,
+extracts binary AML from text files, and other AML file
+manipulation.
+
+To compile:
+
+cd tools/acpibin
+make
+
+
+5) acpiexec, a user-space AML interpreter
+
+acpiexec allows the loading of ACPI tables and execution of control
+methods from user space.  Useful for debugging AML code and testing
+the AML interpreter.
+
+To compile:
+
+cd tools/acpiexec
+make
+
+
+Thanks -- The ACPI CA Team

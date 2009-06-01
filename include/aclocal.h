@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 1.247 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,10 +116,9 @@
 #ifndef __ACLOCAL_H__
 #define __ACLOCAL_H__
 
+
 /* acpisrc:StructDefs -- for acpisrc conversion */
 
-#define ACPI_WAIT_FOREVER               0xFFFF  /* UINT16, as per ACPI spec */
-#define ACPI_DO_NOT_WAIT                0
 #define ACPI_SERIALIZED                 0xFF
 
 typedef UINT32                          ACPI_MUTEX_HANDLE;
@@ -175,8 +173,8 @@ union acpi_parse_object;
 static char                 *AcpiGbl_MutexNames[ACPI_NUM_MUTEX] =
 {
     "ACPI_MTX_Interpreter",
-    "ACPI_MTX_Tables",
     "ACPI_MTX_Namespace",
+    "ACPI_MTX_Tables",
     "ACPI_MTX_Events",
     "ACPI_MTX_Caches",
     "ACPI_MTX_Memory",
@@ -186,6 +184,16 @@ static char                 *AcpiGbl_MutexNames[ACPI_NUM_MUTEX] =
 
 #endif
 #endif
+
+/* Lock structure for reader/writer interfaces */
+
+typedef struct acpi_rw_lock
+{
+    ACPI_MUTEX              WriterMutex;
+    ACPI_MUTEX              ReaderMutex;
+    UINT32                  NumReaders;
+
+} ACPI_RW_LOCK;
 
 
 /*
@@ -199,14 +207,9 @@ static char                 *AcpiGbl_MutexNames[ACPI_NUM_MUTEX] =
 #define ACPI_NUM_LOCK                   ACPI_MAX_LOCK+1
 
 
-/* Owner IDs are used to track namespace nodes for selective deletion */
-
-typedef UINT8                           ACPI_OWNER_ID;
-#define ACPI_OWNER_ID_MAX               0xFF
-
 /* This Thread ID means that the mutex is not in use (unlocked) */
 
-#define ACPI_MUTEX_NOT_ACQUIRED         (UINT32) -1
+#define ACPI_MUTEX_NOT_ACQUIRED         (ACPI_THREAD_ID) -1
 
 /* Table for the global mutexes */
 
@@ -252,13 +255,6 @@ typedef enum
 
 } ACPI_INTERPRETER_MODE;
 
-typedef union acpi_name_union
-{
-    UINT32                          Integer;
-    char                            Ascii[4];
-
-} ACPI_NAME_UNION;
-
 
 /*
  * The Namespace Node describes a named object that appears in the AML.
@@ -301,6 +297,8 @@ typedef struct acpi_namespace_node
 #define ANOBJ_METHOD_ARG                0x04    /* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08    /* Node is a method local */
 #define ANOBJ_SUBTREE_HAS_INI           0x10    /* Used to optimize device initialization */
+#define ANOBJ_EVALUATED                 0x20    /* Set on first evaluation of node */
+#define ANOBJ_ALLOCATED_BUFFER          0x40    /* Method AML buffer is dynamic (InstallMethod) */
 
 #define ANOBJ_IS_EXTERNAL               0x08    /* iASL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10    /* iASL only: Method has no return value */
@@ -308,27 +306,6 @@ typedef struct acpi_namespace_node
 #define ANOBJ_IS_BIT_OFFSET             0x40    /* iASL only: Reference is a bit offset */
 #define ANOBJ_IS_REFERENCED             0x80    /* iASL only: Object was referenced */
 
-/*
- * ACPI Table Descriptor.  One per ACPI table
- */
-typedef struct acpi_table_desc
-{
-    ACPI_PHYSICAL_ADDRESS           Address;
-    ACPI_TABLE_HEADER               *Pointer;
-    UINT32                          Length;     /* Length fixed at 32 bits */
-    ACPI_NAME_UNION                 Signature;
-    ACPI_OWNER_ID                   OwnerId;
-    UINT8                           Flags;
-
-} ACPI_TABLE_DESC;
-
-/* Flags for above */
-
-#define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
-#define ACPI_TABLE_ORIGIN_MAPPED        (1)
-#define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
-#define ACPI_TABLE_ORIGIN_MASK          (3)
-#define ACPI_TABLE_IS_LOADED            (4)
 
 /* One internal RSDT for table management */
 
@@ -370,18 +347,6 @@ typedef struct acpi_ns_search_data
 } ACPI_NS_SEARCH_DATA;
 
 
-/*
- * Predefined Namespace items
- */
-typedef struct acpi_predefined_names
-{
-    char                            *Name;
-    UINT8                           Type;
-    char                            *Val;
-
-} ACPI_PREDEFINED_NAMES;
-
-
 /* Object types used during package copies */
 
 #define ACPI_COPY_TYPE_SIMPLE           0
@@ -392,8 +357,8 @@ typedef struct acpi_predefined_names
 
 typedef struct acpi_namestring_info
 {
-    char                            *ExternalName;
-    char                            *NextExternalChar;
+    const char                      *ExternalName;
+    const char                      *NextExternalChar;
     char                            *InternalName;
     UINT32                          Length;
     UINT32                          NumSegments;
@@ -456,6 +421,93 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
 #define ACPI_BTYPE_DEVICE_OBJECTS       (ACPI_BTYPE_DEVICE | ACPI_BTYPE_THERMAL | ACPI_BTYPE_PROCESSOR)
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF  /* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
+
+
+/*
+ * Information structure for ACPI predefined names.
+ * Each entry in the table contains the following items:
+ *
+ * Name                 - The ACPI reserved name
+ * ParamCount           - Number of arguments to the method
+ * ExpectedReturnBtypes - Allowed type(s) for the return value
+ */
+typedef struct acpi_name_info
+{
+    char                        Name[ACPI_NAME_SIZE];
+    UINT8                       ParamCount;
+    UINT8                       ExpectedBtypes;
+
+} ACPI_NAME_INFO;
+
+/*
+ * Secondary information structures for ACPI predefined objects that return
+ * package objects. This structure appears as the next entry in the table
+ * after the NAME_INFO structure above.
+ *
+ * The reason for this is to minimize the size of the predefined name table.
+ */
+
+/*
+ * Used for ACPI_PTYPE1_FIXED, ACPI_PTYPE1_VAR, ACPI_PTYPE2,
+ * ACPI_PTYPE2_MIN, ACPI_PTYPE2_PKG_COUNT, ACPI_PTYPE2_COUNT
+ */
+typedef struct acpi_package_info
+{
+    UINT8                       Type;
+    UINT8                       ObjectType1;
+    UINT8                       Count1;
+    UINT8                       ObjectType2;
+    UINT8                       Count2;
+    UINT8                       Reserved;
+
+} ACPI_PACKAGE_INFO;
+
+/* Used for ACPI_PTYPE2_FIXED */
+
+typedef struct acpi_package_info2
+{
+    UINT8                       Type;
+    UINT8                       Count;
+    UINT8                       ObjectType[4];
+
+} ACPI_PACKAGE_INFO2;
+
+/* Used for ACPI_PTYPE1_OPTION */
+
+typedef struct acpi_package_info3
+{
+    UINT8                       Type;
+    UINT8                       Count;
+    UINT8                       ObjectType[2];
+    UINT8                       TailObjectType;
+    UINT8                       Reserved;
+
+} ACPI_PACKAGE_INFO3;
+
+typedef union acpi_predefined_info
+{
+    ACPI_NAME_INFO              Info;
+    ACPI_PACKAGE_INFO           RetInfo;
+    ACPI_PACKAGE_INFO2          RetInfo2;
+    ACPI_PACKAGE_INFO3          RetInfo3;
+
+} ACPI_PREDEFINED_INFO;
+
+/*
+ * Bitmapped return value types
+ * Note: the actual data types must be contiguous, a loop in nspredef.c
+ * depends on this.
+ */
+#define ACPI_RTYPE_ANY                  0x00
+#define ACPI_RTYPE_NONE                 0x01
+#define ACPI_RTYPE_INTEGER              0x02
+#define ACPI_RTYPE_STRING               0x04
+#define ACPI_RTYPE_BUFFER               0x08
+#define ACPI_RTYPE_PACKAGE              0x10
+#define ACPI_RTYPE_REFERENCE            0x20
+#define ACPI_RTYPE_ALL                  0x3F
+
+#define ACPI_NUM_RTYPES                 5   /* Number of actual object types */
 
 
 /*****************************************************************************
@@ -535,7 +587,6 @@ typedef struct acpi_gpe_xrupt_info
 
 } ACPI_GPE_XRUPT_INFO;
 
-
 typedef struct acpi_gpe_walk_info
 {
     ACPI_NAMESPACE_NODE             *GpeDevice;
@@ -543,10 +594,19 @@ typedef struct acpi_gpe_walk_info
 
 } ACPI_GPE_WALK_INFO;
 
+typedef struct acpi_gpe_device_info
+{
+    UINT32                          Index;
+    UINT32                          NextBlockBaseIndex;
+    ACPI_STATUS                     Status;
+    ACPI_NAMESPACE_NODE             *GpeDevice;
+
+} ACPI_GPE_DEVICE_INFO;
 
 typedef ACPI_STATUS (*ACPI_GPE_CALLBACK) (
     ACPI_GPE_XRUPT_INFO             *GpeXruptInfo,
-    ACPI_GPE_BLOCK_INFO             *GpeBlock);
+    ACPI_GPE_BLOCK_INFO             *GpeBlock,
+    void                            *Context);
 
 
 /* Information about each particular fixed event */
@@ -644,6 +704,7 @@ typedef struct acpi_control_state
     union acpi_parse_object         *PredicateOp;
     UINT8                           *AmlPredicateStart;     /* Start of if/while predicate */
     UINT8                           *PackageEnd;            /* End of if/while block */
+    UINT32                          LoopCount;              /* While() loop counter */
 
 } ACPI_CONTROL_STATE;
 
@@ -784,6 +845,13 @@ typedef union acpi_parse_value
 
 } ACPI_PARSE_VALUE;
 
+
+#ifdef ACPI_DISASSEMBLER
+#define ACPI_DISASM_ONLY_MEMBERS(a)     a;
+#else
+#define ACPI_DISASM_ONLY_MEMBERS(a)
+#endif
+
 #define ACPI_PARSE_COMMON \
     union acpi_parse_object         *Parent;        /* Parent op */\
     UINT8                           DescriptorType; /* To differentiate various internal objs */\
@@ -921,9 +989,6 @@ typedef struct acpi_parse_state
  *
  ****************************************************************************/
 
-#define PCI_ROOT_HID_STRING             "PNP0A03"
-#define PCI_EXPRESS_ROOT_HID_STRING     "PNP0A08"
-
 typedef struct acpi_bit_register_info
 {
     UINT8                           ParentRegister;
@@ -938,8 +1003,27 @@ typedef struct acpi_bit_register_info
  * must be preserved.
  */
 #define ACPI_PM1_STATUS_PRESERVED_BITS          0x0800  /* Bit 11 */
-#define ACPI_PM1_CONTROL_PRESERVED_BITS         0x0201  /* Bit 9, Bit 0 (SCI_EN) */
 
+/* Write-only bits must be zeroed by software */
+
+#define ACPI_PM1_CONTROL_WRITEONLY_BITS         0x2004  /* Bits 13, 2 */
+
+/* For control registers, both ignored and reserved bits must be preserved */
+
+/*
+ * For PM1 control, the SCI enable bit (bit 0, SCI_EN) is defined by the
+ * ACPI specification to be a "preserved" bit - "OSPM always preserves this
+ * bit position", section 4.7.3.2.1. However, on some machines the OS must
+ * write a one to this bit after resume for the machine to work properly.
+ * To enable this, we no longer attempt to preserve this bit. No machines
+ * are known to fail if the bit is not preserved. (May 2009)
+ */
+#define ACPI_PM1_CONTROL_IGNORED_BITS           0x0200  /* Bit 9 */
+#define ACPI_PM1_CONTROL_RESERVED_BITS          0xC1F8  /* Bits 14-15, 3-8 */
+#define ACPI_PM1_CONTROL_PRESERVED_BITS \
+         (ACPI_PM1_CONTROL_IGNORED_BITS | ACPI_PM1_CONTROL_RESERVED_BITS)
+
+#define ACPI_PM2_CONTROL_PRESERVED_BITS         0xFFFFFFFE /* All except bit 0 */
 
 /*
  * Register IDs
@@ -948,12 +1032,10 @@ typedef struct acpi_bit_register_info
 #define ACPI_REGISTER_PM1_STATUS                0x01
 #define ACPI_REGISTER_PM1_ENABLE                0x02
 #define ACPI_REGISTER_PM1_CONTROL               0x03
-#define ACPI_REGISTER_PM1A_CONTROL              0x04
-#define ACPI_REGISTER_PM1B_CONTROL              0x05
-#define ACPI_REGISTER_PM2_CONTROL               0x06
-#define ACPI_REGISTER_PM_TIMER                  0x07
-#define ACPI_REGISTER_PROCESSOR_BLOCK           0x08
-#define ACPI_REGISTER_SMI_COMMAND_BLOCK         0x09
+#define ACPI_REGISTER_PM2_CONTROL               0x04
+#define ACPI_REGISTER_PM_TIMER                  0x05
+#define ACPI_REGISTER_PROCESSOR_BLOCK           0x06
+#define ACPI_REGISTER_SMI_COMMAND_BLOCK         0x07
 
 
 /* Masks used to access the BitRegisters */
@@ -986,7 +1068,7 @@ typedef struct acpi_bit_register_info
 #define ACPI_BITMASK_SCI_ENABLE                 0x0001
 #define ACPI_BITMASK_BUS_MASTER_RLD             0x0002
 #define ACPI_BITMASK_GLOBAL_LOCK_RELEASE        0x0004
-#define ACPI_BITMASK_SLEEP_TYPE_X               0x1C00
+#define ACPI_BITMASK_SLEEP_TYPE                 0x1C00
 #define ACPI_BITMASK_SLEEP_ENABLE               0x2000
 
 #define ACPI_BITMASK_ARB_DISABLE                0x0001
@@ -1013,10 +1095,39 @@ typedef struct acpi_bit_register_info
 #define ACPI_BITPOSITION_SCI_ENABLE             0x00
 #define ACPI_BITPOSITION_BUS_MASTER_RLD         0x01
 #define ACPI_BITPOSITION_GLOBAL_LOCK_RELEASE    0x02
-#define ACPI_BITPOSITION_SLEEP_TYPE_X           0x0A
+#define ACPI_BITPOSITION_SLEEP_TYPE             0x0A
 #define ACPI_BITPOSITION_SLEEP_ENABLE           0x0D
 
 #define ACPI_BITPOSITION_ARB_DISABLE            0x00
+
+
+/* Structs and definitions for _OSI support and I/O port validation */
+
+#define ACPI_OSI_WIN_2000               0x01
+#define ACPI_OSI_WIN_XP                 0x02
+#define ACPI_OSI_WIN_XP_SP1             0x03
+#define ACPI_OSI_WINSRV_2003            0x04
+#define ACPI_OSI_WIN_XP_SP2             0x05
+#define ACPI_OSI_WINSRV_2003_SP1        0x06
+#define ACPI_OSI_WIN_VISTA              0x07
+
+#define ACPI_ALWAYS_ILLEGAL             0x00
+
+typedef struct acpi_interface_info
+{
+    char                    *Name;
+    UINT8                   Value;
+
+} ACPI_INTERFACE_INFO;
+
+typedef struct acpi_port_info
+{
+    char                    *Name;
+    UINT16                  Start;
+    UINT16                  End;
+    UINT8                   OsiDependency;
+
+} ACPI_PORT_INFO;
 
 
 /*****************************************************************************
@@ -1095,6 +1206,7 @@ typedef struct acpi_db_method_info
 {
     ACPI_HANDLE                     MainThreadGate;
     ACPI_HANDLE                     ThreadCompleteGate;
+    ACPI_HANDLE                     InfoGate;
     UINT32                          *Threads;
     UINT32                          NumThreads;
     UINT32                          NumCreated;
@@ -1172,31 +1284,6 @@ typedef struct acpi_debug_mem_block
 #define ACPI_MEM_LIST_NSNODE            1
 #define ACPI_MEM_LIST_MAX               1
 #define ACPI_NUM_MEM_LISTS              2
-
-
-typedef struct acpi_memory_list
-{
-    char                            *ListName;
-    void                            *ListHead;
-    UINT16                          ObjectSize;
-    UINT16                          MaxDepth;
-    UINT16                          CurrentDepth;
-    UINT16                          LinkOffset;
-
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
-
-    /* Statistics for debug memory tracking only */
-
-    UINT32                          TotalAllocated;
-    UINT32                          TotalFreed;
-    UINT32                          MaxOccupied;
-    UINT32                          TotalSize;
-    UINT32                          CurrentTotalSize;
-    UINT32                          Requests;
-    UINT32                          Hits;
-#endif
-
-} ACPI_MEMORY_LIST;
 
 
 #endif /* __ACLOCAL_H__ */

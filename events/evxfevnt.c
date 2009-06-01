@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: evxfevnt - External Interfaces, ACPI event disable/enable
- *              $Revision: 1.93 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,12 +117,21 @@
 #define __EVXFEVNT_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acevents.h"
 #include "acnamesp.h"
 #include "actables.h"
 
 #define _COMPONENT          ACPI_EVENTS
         ACPI_MODULE_NAME    ("evxfevnt")
+
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiEvGetGpeDevice (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context);
 
 
 /*******************************************************************************
@@ -264,10 +272,12 @@ AcpiEnableEvent (
     }
 
     /*
-     * Enable the requested fixed event (by writing a one to the
-     * enable register bit)
+     * Enable the requested fixed event (by writing a one to the enable
+     * register bit)
      */
-    Status = AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId, 1);
+    Status = AcpiWriteBitRegister (
+                AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
+                ACPI_ENABLE_EVENT);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -275,8 +285,8 @@ AcpiEnableEvent (
 
     /* Make sure that the hardware responded */
 
-    Status = AcpiGetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                    &Value);
+    Status = AcpiReadBitRegister (
+                AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &Value);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -504,17 +514,19 @@ AcpiDisableEvent (
     }
 
     /*
-     * Disable the requested fixed event (by writing a zero to the
-     * enable register bit)
+     * Disable the requested fixed event (by writing a zero to the enable
+     * register bit)
      */
-    Status = AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId, 0);
+    Status = AcpiWriteBitRegister (
+                AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
+                ACPI_DISABLE_EVENT);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    Status = AcpiGetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                &Value);
+    Status = AcpiReadBitRegister (
+                AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &Value);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -563,10 +575,12 @@ AcpiClearEvent (
     }
 
     /*
-     * Clear the requested fixed event (By writing a one to the
-     * status register bit)
+     * Clear the requested fixed event (By writing a one to the status
+     * register bit)
      */
-    Status = AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].StatusRegisterId, 1);
+    Status = AcpiWriteBitRegister (
+                AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
+                ACPI_CLEAR_STATUS);
 
     return_ACPI_STATUS (Status);
 }
@@ -673,8 +687,8 @@ AcpiGetEventStatus (
 
     /* Get the status of the requested fixed event */
 
-    Status = AcpiGetRegister (AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
-                    EventStatus);
+    Status = AcpiReadBitRegister (
+                AcpiGbl_FixedEventInfo[Event].StatusRegisterId, EventStatus);
 
     return_ACPI_STATUS (Status);
 }
@@ -803,7 +817,7 @@ AcpiInstallGpeBlock (
      * is always zero
      */
     Status = AcpiEvCreateGpeBlock (Node, GpeBlockAddress, RegisterCount,
-                    0, InterruptNumber, &GpeBlock);
+                0, InterruptNumber, &GpeBlock);
     if (ACPI_FAILURE (Status))
     {
         goto UnlockAndExit;
@@ -921,4 +935,178 @@ UnlockAndExit:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiRemoveGpeBlock)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiGetGpeDevice
+ *
+ * PARAMETERS:  Index               - System GPE index (0-CurrentGpeCount)
+ *              GpeDevice           - Where the parent GPE Device is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Obtain the GPE device associated with the input index. A NULL
+ *              gpe device indicates that the gpe number is contained in one of
+ *              the FADT-defined gpe blocks. Otherwise, the GPE block device.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiGetGpeDevice (
+    UINT32                  Index,
+    ACPI_HANDLE             *GpeDevice)
+{
+    ACPI_GPE_DEVICE_INFO    Info;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (AcpiGetGpeDevice);
+
+
+    if (!GpeDevice)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    if (Index >= AcpiCurrentGpeCount)
+    {
+        return_ACPI_STATUS (AE_NOT_EXIST);
+    }
+
+    /* Setup and walk the GPE list */
+
+    Info.Index = Index;
+    Info.Status = AE_NOT_EXIST;
+    Info.GpeDevice = NULL;
+    Info.NextBlockBaseIndex = 0;
+
+    Status = AcpiEvWalkGpeList (AcpiEvGetGpeDevice, &Info);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    *GpeDevice = ACPI_CAST_PTR (ACPI_HANDLE, Info.GpeDevice);
+    return_ACPI_STATUS (Info.Status);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiGetGpeDevice)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvGetGpeDevice
+ *
+ * PARAMETERS:  GPE_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Matches the input GPE index (0-CurrentGpeCount) with a GPE
+ *              block device. NULL if the GPE is one of the FADT-defined GPEs.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiEvGetGpeDevice (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context)
+{
+    ACPI_GPE_DEVICE_INFO    *Info = Context;
+
+
+    /* Increment Index by the number of GPEs in this block */
+
+    Info->NextBlockBaseIndex +=
+        (GpeBlock->RegisterCount * ACPI_GPE_REGISTER_WIDTH);
+
+    if (Info->Index < Info->NextBlockBaseIndex)
+    {
+        /*
+         * The GPE index is within this block, get the node. Leave the node
+         * NULL for the FADT-defined GPEs
+         */
+        if ((GpeBlock->Node)->Type == ACPI_TYPE_DEVICE)
+        {
+            Info->GpeDevice = GpeBlock->Node;
+        }
+
+        Info->Status = AE_OK;
+        return (AE_CTRL_END);
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiDisableAllGpes
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Disable and clear all GPEs in all GPE blocks
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDisableAllGpes (
+    void)
+{
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (AcpiDisableAllGpes);
+
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiHwDisableAllGpes ();
+    (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+
+    return_ACPI_STATUS (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiEnableAllRuntimeGpes
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enable all "runtime" GPEs, in all GPE blocks
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEnableAllRuntimeGpes (
+    void)
+{
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (AcpiEnableAllRuntimeGpes);
+
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiHwEnableAllRuntimeGpes ();
+    (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+
+    return_ACPI_STATUS (Status);
+}
+
 

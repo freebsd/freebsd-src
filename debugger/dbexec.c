@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 1.81 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acdebug.h"
 #include "acnamesp.h"
 
@@ -175,7 +175,10 @@ AcpiDbExecuteMethod (
     ACPI_STATUS             Status;
     ACPI_OBJECT_LIST        ParamObjects;
     ACPI_OBJECT             Params[ACPI_METHOD_NUM_ARGS];
+    ACPI_HANDLE             Handle;
+    ACPI_BUFFER             Buffer;
     UINT32                  i;
+    ACPI_DEVICE_INFO        *ObjInfo;
 
 
     if (AcpiGbl_DbOutputToFile && !AcpiDbgLevel)
@@ -183,33 +186,77 @@ AcpiDbExecuteMethod (
         AcpiOsPrintf ("Warning: debug output is not enabled!\n");
     }
 
-    /* Are there arguments to the method? */
+    /* Get the NS node, determines existence also */
 
-    if (Info->Args && Info->Args[0])
+    Status = AcpiGetHandle (NULL, Info->Pathname, &Handle);
+    if (ACPI_FAILURE (Status))
     {
-        for (i = 0; Info->Args[i] && i < ACPI_METHOD_NUM_ARGS; i++)
+        return (Status);
+    }
+
+    /* Get the object info for number of method parameters */
+
+    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
+    Status = AcpiGetObjectInfo (Handle, &Buffer);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParamObjects.Pointer = NULL;
+    ParamObjects.Count   = 0;
+
+    ObjInfo = Buffer.Pointer;
+    if (ObjInfo->Type == ACPI_TYPE_METHOD)
+    {
+        /* Are there arguments to the method? */
+
+        if (Info->Args && Info->Args[0])
         {
-            Params[i].Type          = ACPI_TYPE_INTEGER;
-            Params[i].Integer.Value = ACPI_STRTOUL (Info->Args[i], NULL, 16);
+            for (i = 0; Info->Args[i] && i < ACPI_METHOD_NUM_ARGS; i++)
+            {
+                Params[i].Type          = ACPI_TYPE_INTEGER;
+                Params[i].Integer.Value = ACPI_STRTOUL (Info->Args[i], NULL, 16);
+            }
+
+            ParamObjects.Pointer = Params;
+            ParamObjects.Count   = i;
         }
+        else
+        {
+            /* Setup default parameters */
 
-        ParamObjects.Pointer = Params;
-        ParamObjects.Count   = i;
+            for (i = 0; i < ObjInfo->ParamCount; i++)
+            {
+                switch (i)
+                {
+                case 0:
+
+                    Params[0].Type           = ACPI_TYPE_INTEGER;
+                    Params[0].Integer.Value  = 0x01020304;
+                    break;
+
+                case 1:
+
+                    Params[1].Type           = ACPI_TYPE_STRING;
+                    Params[1].String.Length  = 12;
+                    Params[1].String.Pointer = "AML Debugger";
+                    break;
+
+                default:
+
+                    Params[i].Type           = ACPI_TYPE_INTEGER;
+                    Params[i].Integer.Value  = i * (ACPI_INTEGER) 0x1000;
+                    break;
+                }
+            }
+
+            ParamObjects.Pointer     = Params;
+            ParamObjects.Count       = ObjInfo->ParamCount;
+        }
     }
-    else
-    {
-        /* Setup default parameters */
 
-        Params[0].Type           = ACPI_TYPE_INTEGER;
-        Params[0].Integer.Value  = 0x01020304;
-
-        Params[1].Type           = ACPI_TYPE_STRING;
-        Params[1].String.Length  = 12;
-        Params[1].String.Pointer = "AML Debugger";
-
-        ParamObjects.Pointer     = Params;
-        ParamObjects.Count       = 2;
-    }
+    ACPI_FREE (Buffer.Pointer);
 
     /* Prepare for a return object of arbitrary size */
 
@@ -504,25 +551,47 @@ AcpiDbMethodThread (
 {
     ACPI_STATUS             Status;
     ACPI_DB_METHOD_INFO     *Info = Context;
+    ACPI_DB_METHOD_INFO     LocalInfo;
     UINT32                  i;
     UINT8                   Allow;
     ACPI_BUFFER             ReturnObj;
 
 
+    /*
+     * AcpiGbl_DbMethodInfo.Arguments will be passed as method arguments.
+     * Prevent AcpiGbl_DbMethodInfo from being modified by multiple threads
+     * concurrently.
+     *
+     * Note: The arguments we are passing are used by the ASL test suite
+     * (aslts). Do not change them without updating the tests.
+     */
+    (void) AcpiOsWaitSemaphore (Info->InfoGate, 1, ACPI_WAIT_FOREVER);
+
     if (Info->InitArgs)
     {
         AcpiDbUInt32ToHexString (Info->NumCreated, Info->IndexOfThreadStr);
-        AcpiDbUInt32ToHexString (AcpiOsGetThreadId (), Info->IdOfThreadStr);
+        AcpiDbUInt32ToHexString (ACPI_TO_INTEGER (AcpiOsGetThreadId ()),
+            Info->IdOfThreadStr);
     }
 
     if (Info->Threads && (Info->NumCreated < Info->NumThreads))
     {
-        Info->Threads[Info->NumCreated++] = AcpiOsGetThreadId();
+        Info->Threads[Info->NumCreated++] =
+            ACPI_TO_INTEGER (AcpiOsGetThreadId());
     }
+
+    LocalInfo = *Info;
+    LocalInfo.Args = LocalInfo.Arguments;
+    LocalInfo.Arguments[0] = LocalInfo.NumThreadsStr;
+    LocalInfo.Arguments[1] = LocalInfo.IdOfThreadStr;
+    LocalInfo.Arguments[2] = LocalInfo.IndexOfThreadStr;
+    LocalInfo.Arguments[3] = NULL;
+
+    (void) AcpiOsSignalSemaphore (Info->InfoGate, 1);
 
     for (i = 0; i < Info->NumLoops; i++)
     {
-        Status = AcpiDbExecuteMethod (Info, &ReturnObj);
+        Status = AcpiDbExecuteMethod (&LocalInfo, &ReturnObj);
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf ("%s During execution of %s at iteration %X\n",
@@ -551,7 +620,7 @@ AcpiDbMethodThread (
     /* Signal our completion */
 
     Allow = 0;
-    AcpiOsWaitSemaphore (Info->ThreadCompleteGate, 1, ACPI_WAIT_FOREVER);
+    (void) AcpiOsWaitSemaphore (Info->ThreadCompleteGate, 1, ACPI_WAIT_FOREVER);
     Info->NumCompleted++;
 
     if (Info->NumCompleted == Info->NumThreads)
@@ -560,7 +629,7 @@ AcpiDbMethodThread (
         Allow = 1;
     }
 
-    AcpiOsSignalSemaphore (Info->ThreadCompleteGate, 1);
+    (void) AcpiOsSignalSemaphore (Info->ThreadCompleteGate, 1);
 
     if (Allow)
     {
@@ -601,6 +670,8 @@ AcpiDbCreateExecutionThreads (
     UINT32                  Size;
     ACPI_MUTEX              MainThreadGate;
     ACPI_MUTEX              ThreadCompleteGate;
+    ACPI_MUTEX              InfoGate;
+
 
     /* Get the arguments */
 
@@ -639,6 +710,16 @@ AcpiDbCreateExecutionThreads (
         return;
     }
 
+    Status = AcpiOsCreateSemaphore (1, 1, &InfoGate);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("Could not create semaphore for synchronization of AcpiGbl_DbMethodInfo, %s\n",
+            AcpiFormatException (Status));
+        (void) AcpiOsDeleteSemaphore (ThreadCompleteGate);
+        (void) AcpiOsDeleteSemaphore (MainThreadGate);
+        return;
+    }
+
     ACPI_MEMSET (&AcpiGbl_DbMethodInfo, 0, sizeof (ACPI_DB_METHOD_INFO));
 
     /* Array to store IDs of threads */
@@ -651,6 +732,7 @@ AcpiDbCreateExecutionThreads (
         AcpiOsPrintf ("No memory for thread IDs array\n");
         (void) AcpiOsDeleteSemaphore (MainThreadGate);
         (void) AcpiOsDeleteSemaphore (ThreadCompleteGate);
+        (void) AcpiOsDeleteSemaphore (InfoGate);
         return;
     }
     ACPI_MEMSET (AcpiGbl_DbMethodInfo.Threads, 0, Size);
@@ -662,6 +744,7 @@ AcpiDbCreateExecutionThreads (
     AcpiGbl_DbMethodInfo.NumLoops = NumLoops;
     AcpiGbl_DbMethodInfo.MainThreadGate = MainThreadGate;
     AcpiGbl_DbMethodInfo.ThreadCompleteGate = ThreadCompleteGate;
+    AcpiGbl_DbMethodInfo.InfoGate = InfoGate;
 
     /* Init arguments to be passed to method */
 
@@ -692,7 +775,7 @@ AcpiDbCreateExecutionThreads (
 
     /* Wait for all threads to complete */
 
-    AcpiOsWaitSemaphore (MainThreadGate, 1, ACPI_WAIT_FOREVER);
+    (void) AcpiOsWaitSemaphore (MainThreadGate, 1, ACPI_WAIT_FOREVER);
 
     AcpiDbSetOutputDestination (ACPI_DB_DUPLICATE_OUTPUT);
     AcpiOsPrintf ("All threads (%X) have completed\n", NumThreads);
@@ -702,6 +785,7 @@ AcpiDbCreateExecutionThreads (
 
     (void) AcpiOsDeleteSemaphore (MainThreadGate);
     (void) AcpiOsDeleteSemaphore (ThreadCompleteGate);
+    (void) AcpiOsDeleteSemaphore (InfoGate);
 
     AcpiOsFree (AcpiGbl_DbMethodInfo.Threads);
     AcpiGbl_DbMethodInfo.Threads = NULL;

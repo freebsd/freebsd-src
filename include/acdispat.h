@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acdispat.h - dispatcher (parser to interpreter interface)
- *       $Revision: 1.76 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -131,6 +130,10 @@ AcpiDsGetBufferFieldArguments (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
 ACPI_STATUS
+AcpiDsGetBankFieldArguments (
+    ACPI_OPERAND_OBJECT     *ObjDesc);
+
+ACPI_STATUS
 AcpiDsGetRegionArguments (
     ACPI_OPERAND_OBJECT     *RgnDesc);
 
@@ -153,10 +156,20 @@ AcpiDsEvalRegionOperands (
     ACPI_PARSE_OBJECT       *Op);
 
 ACPI_STATUS
+AcpiDsEvalTableRegionOperands (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op);
+
+ACPI_STATUS
 AcpiDsEvalDataObjectOperands (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op,
     ACPI_OPERAND_OBJECT     *ObjDesc);
+
+ACPI_STATUS
+AcpiDsEvalBankFieldOperands (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op);
 
 ACPI_STATUS
 AcpiDsInitializeRegion (
@@ -259,7 +272,7 @@ AcpiDsInitCallbacks (
  */
 ACPI_STATUS
 AcpiDsStoreObjectToLocal (
-    UINT16                  Opcode,
+    UINT8                   Type,
     UINT32                  Index,
     ACPI_OPERAND_OBJECT     *SrcDesc,
     ACPI_WALK_STATE         *WalkState);
@@ -281,7 +294,7 @@ AcpiDsIsMethodValue (
 
 ACPI_STATUS
 AcpiDsMethodDataGetValue (
-    UINT16                  Opcode,
+    UINT8                   Type,
     UINT32                  Index,
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **DestDesc);
@@ -294,7 +307,7 @@ AcpiDsMethodDataInitArgs (
 
 ACPI_STATUS
 AcpiDsMethodDataGetNode (
-    UINT16                  Opcode,
+    UINT8                   Type,
     UINT32                  Index,
     ACPI_WALK_STATE         *WalkState,
     ACPI_NAMESPACE_NODE     **Node);
@@ -343,7 +356,7 @@ AcpiDsMethodError (
  */
 ACPI_STATUS
 AcpiDsInitializeObjects (
-    ACPI_NATIVE_UINT        TableIndex,
+    UINT32                  TableIndex,
     ACPI_NAMESPACE_NODE     *StartNode);
 
 

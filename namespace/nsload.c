@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
- *              $Revision: 1.80 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __NSLOAD_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 #include "acdispat.h"
 #include "actables.h"
@@ -154,7 +154,7 @@ AcpiNsDeleteSubtree (
 
 ACPI_STATUS
 AcpiNsLoadTable (
-    ACPI_NATIVE_UINT        TableIndex,
+    UINT32                  TableIndex,
     ACPI_NAMESPACE_NODE     *Node)
 {
     ACPI_STATUS             Status;
@@ -195,14 +195,14 @@ AcpiNsLoadTable (
         goto Unlock;
     }
 
-    Status = AcpiNsParseTable (TableIndex, Node->Child);
+    Status = AcpiNsParseTable (TableIndex, Node);
     if (ACPI_SUCCESS (Status))
     {
         AcpiTbSetTableLoadedFlag (TableIndex, TRUE);
     }
     else
     {
-        AcpiTbReleaseOwnerId (TableIndex);
+        (void) AcpiTbReleaseOwnerId (TableIndex);
     }
 
 Unlock:
@@ -220,12 +220,12 @@ Unlock:
      * parse trees.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "**** Begin Table Method Parsing and Object Initialization ****\n"));
+        "**** Begin Table Method Parsing and Object Initialization\n"));
 
     Status = AcpiDsInitializeObjects (TableIndex, Node);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "**** Completed Table Method Parsing and Object Initialization ****\n"));
+        "**** Completed Table Method Parsing and Object Initialization\n"));
 
     return_ACPI_STATUS (Status);
 }

@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dmwalk - AML disassembly tree walk
- *              $Revision: 1.33 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
 #include "acdisasm.h"
@@ -147,6 +147,69 @@ AcpiDmAscendingOp (
 static UINT32
 AcpiDmBlockType (
     ACPI_PARSE_OBJECT       *Op);
+
+static const char *
+AcpiDmGetObjectTypeName (
+    ACPI_OBJECT_TYPE        Type);
+
+/*
+ * This table maps ACPI_OBJECT_TYPEs to the corresponding ASL
+ * ObjectTypeKeyword. Used to generate typed external declarations
+ */
+static const char           *AcpiGbl_DmTypeNames[] =
+{
+    /* 00 */ "",                    /* Type ANY */
+    /* 01 */ ", IntObj",
+    /* 02 */ ", StrObj",
+    /* 03 */ ", BuffObj",
+    /* 04 */ ", PkgObj",
+    /* 05 */ ", FieldUnitObj",
+    /* 06 */ ", DeviceObj",
+    /* 07 */ ", EventObj",
+    /* 08 */ ", MethodObj",
+    /* 09 */ ", MutexObj",
+    /* 10 */ ", OpRegionObj",
+    /* 11 */ ", PowerResObj",
+    /* 12 */ ", ProcessorObj",
+    /* 13 */ ", ThermalZoneObj",
+    /* 14 */ ", BuffFieldObj",
+    /* 15 */ ", DDBHandleObj",
+    /* 16 */ "",                    /* Debug object */
+    /* 17 */ ", FieldUnitObj",
+    /* 18 */ ", FieldUnitObj",
+    /* 19 */ ", FieldUnitObj"
+};
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmGetObjectTypeName
+ *
+ * PARAMETERS:  Type        - An ACPI_OBJECT_TYPE
+ *
+ * RETURN:      Pointer to a string
+ *
+ * DESCRIPTION: Map an object type to the ASL object type string.
+ *
+ ******************************************************************************/
+
+static const char *
+AcpiDmGetObjectTypeName (
+    ACPI_OBJECT_TYPE        Type)
+{
+
+    if (Type == ACPI_TYPE_LOCAL_SCOPE)
+    {
+        Type = ACPI_TYPE_DEVICE;
+    }
+
+    else if (Type > ACPI_TYPE_LOCAL_INDEX_FIELD)
+    {
+        return ("");
+    }
+
+    return (AcpiGbl_DmTypeNames[Type]);
+}
 
 
 /*******************************************************************************
@@ -499,28 +562,9 @@ AcpiDmDescendingOp (
                  */
                 while (AcpiGbl_ExternalList)
                 {
-                    AcpiOsPrintf ("    External (%s",
-                        AcpiGbl_ExternalList->Path);
-
-                    /* TBD: should be a lookup table */
-
-                    switch (AcpiGbl_ExternalList->Type)
-                    {
-                    case ACPI_TYPE_DEVICE:
-                        AcpiOsPrintf (", DeviceObj");
-                        break;
-
-                    case ACPI_TYPE_METHOD:
-                        AcpiOsPrintf (", MethodObj");
-                        break;
-
-                    case ACPI_TYPE_INTEGER:
-                        AcpiOsPrintf (", IntObj");
-                        break;
-
-                    default:
-                        break;
-                    }
+                    AcpiOsPrintf ("    External (%s%s",
+                        AcpiGbl_ExternalList->Path,
+                        AcpiDmGetObjectTypeName (AcpiGbl_ExternalList->Type));
 
                     if (AcpiGbl_ExternalList->Type == ACPI_TYPE_METHOD)
                     {
@@ -622,7 +666,7 @@ AcpiDmDescendingOp (
                 }
                 else
                 {
-                    AcpiDmDumpName ((char *) &Name);
+                    AcpiDmDumpName (Name);
                 }
 
                 if (Op->Common.AmlOpcode != AML_INT_NAMEDFIELD_OP)

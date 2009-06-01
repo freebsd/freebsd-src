@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 1.142 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __EXPREP_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acnamesp.h"
@@ -367,7 +367,7 @@ AcpiExDecodeFieldAccess (
         return_UINT32 (0);
     }
 
-    if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_BUFFER_FIELD)
+    if (ObjDesc->Common.Type == ACPI_TYPE_BUFFER_FIELD)
     {
         /*
          * BufferField access can be on any byte boundary, so the
@@ -511,6 +511,7 @@ AcpiExPrepFieldValue (
     ACPI_CREATE_FIELD_INFO  *Info)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *SecondDesc = NULL;
     UINT32                  Type;
     ACPI_STATUS             Status;
 
@@ -597,6 +598,16 @@ AcpiExPrepFieldValue (
             ObjDesc->Field.AccessByteWidth,
             ObjDesc->BankField.RegionObj,
             ObjDesc->BankField.BankObj));
+
+        /*
+         * Remember location in AML stream of the field unit
+         * opcode and operands -- since the BankValue
+         * operands must be evaluated.
+         */
+        SecondDesc                  = ObjDesc->Common.NextObject;
+        SecondDesc->Extra.AmlStart  = ACPI_CAST_PTR (ACPI_PARSE_OBJECT, Info->DataRegisterNode)->Named.Data;
+        SecondDesc->Extra.AmlLength = ACPI_CAST_PTR (ACPI_PARSE_OBJECT, Info->DataRegisterNode)->Named.Length;
+
         break;
 
 

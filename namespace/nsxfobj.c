@@ -2,7 +2,6 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 1.122 $
  *
  ******************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,6 +118,7 @@
 #define __NSXFOBJ_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 
 
@@ -209,6 +209,7 @@ AcpiGetParent (
     ACPI_HANDLE             *RetHandle)
 {
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_NAMESPACE_NODE     *ParentNode;
     ACPI_STATUS             Status;
 
 
@@ -241,12 +242,12 @@ AcpiGetParent (
 
     /* Get the parent entry */
 
-    *RetHandle =
-        AcpiNsConvertEntryToHandle (AcpiNsGetParentNode (Node));
+    ParentNode = AcpiNsGetParentNode (Node);
+    *RetHandle = AcpiNsConvertEntryToHandle (ParentNode);
 
     /* Return exception if parent is null */
 
-    if (!AcpiNsGetParentNode (Node))
+    if (!ParentNode)
     {
         Status = AE_NULL_ENTRY;
     }
@@ -333,7 +334,7 @@ AcpiGetNextObject (
 
     /* Internal function does the real work */
 
-    Node = AcpiNsGetNextNode (Type, ParentNode, ChildNode);
+    Node = AcpiNsGetNextNodeTyped (Type, ParentNode, ChildNode);
     if (!Node)
     {
         Status = AE_NOT_FOUND;

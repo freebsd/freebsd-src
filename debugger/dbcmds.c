@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 1.150 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,15 +115,14 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acdispat.h"
-#include "amlcode.h"
 #include "acnamesp.h"
 #include "acevents.h"
 #include "acdebug.h"
 #include "acresrc.h"
 #include "acdisasm.h"
-
-
+#include "actables.h"
 #include "acparser.h"
 
 #ifdef ACPI_DEBUGGER
@@ -390,6 +388,228 @@ AcpiDbFindReferences (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDbWalkForPredefinedNames
+ *
+ * PARAMETERS:  Callback from WalkNamespace
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Detect and display predefined ACPI names (names that start with
+ *              an underscore)
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDbWalkForPredefinedNames (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  NestingLevel,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_NAMESPACE_NODE         *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
+    UINT32                      *Count = (UINT32 *) Context;
+    const ACPI_PREDEFINED_INFO  *Predefined;
+    const ACPI_PREDEFINED_INFO  *Package = NULL;
+    char                        *Pathname;
+
+
+    Predefined = AcpiNsCheckForPredefinedName (Node);
+    if (!Predefined)
+    {
+        return (AE_OK);
+    }
+
+    Pathname = AcpiNsGetExternalPathname (Node);
+    if (!Pathname)
+    {
+        return (AE_OK);
+    }
+
+    /* If method returns a package, the info is in the next table entry */
+
+    if (Predefined->Info.ExpectedBtypes & ACPI_BTYPE_PACKAGE)
+    {
+        Package = Predefined + 1;
+    }
+
+    AcpiOsPrintf ("%-32s arg %X ret %2.2X", Pathname,
+        Predefined->Info.ParamCount, Predefined->Info.ExpectedBtypes);
+
+    if (Package)
+    {
+        AcpiOsPrintf (" PkgType %2.2X ObjType %2.2X Count %2.2X",
+            Package->RetInfo.Type, Package->RetInfo.ObjectType1,
+            Package->RetInfo.Count1);
+    }
+
+    AcpiOsPrintf("\n");
+
+    AcpiNsCheckParameterCount (Pathname, Node, ACPI_UINT32_MAX, Predefined);
+    ACPI_FREE (Pathname);
+    (*Count)++;
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbCheckPredefinedNames
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Validate all predefined names in the namespace
+ *
+ ******************************************************************************/
+
+void
+AcpiDbCheckPredefinedNames (
+    void)
+{
+    UINT32                  Count = 0;
+
+
+    /* Search all nodes in namespace */
+
+    (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+                AcpiDbWalkForPredefinedNames, (void *) &Count, NULL);
+
+    AcpiOsPrintf ("Found %d predefined names in the namespace\n", Count);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbWalkForExecute
+ *
+ * PARAMETERS:  Callback from WalkNamespace
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Batch execution module. Currently only executes predefined
+ *              ACPI names.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDbWalkForExecute (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  NestingLevel,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_NAMESPACE_NODE         *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
+    UINT32                      *Count = (UINT32 *) Context;
+    const ACPI_PREDEFINED_INFO  *Predefined;
+    ACPI_BUFFER                 ReturnObj;
+    ACPI_STATUS                 Status;
+    char                        *Pathname;
+    ACPI_BUFFER             Buffer;
+    UINT32                  i;
+    ACPI_DEVICE_INFO        *ObjInfo;
+    ACPI_OBJECT_LIST        ParamObjects;
+    ACPI_OBJECT             Params[ACPI_METHOD_NUM_ARGS];
+
+
+    Predefined = AcpiNsCheckForPredefinedName (Node);
+    if (!Predefined)
+    {
+        return (AE_OK);
+    }
+
+    if (Node->Type == ACPI_TYPE_LOCAL_SCOPE)
+    {
+        return (AE_OK);
+    }
+
+    Pathname = AcpiNsGetExternalPathname (Node);
+    if (!Pathname)
+    {
+        return (AE_OK);
+    }
+
+    /* Get the object info for number of method parameters */
+
+    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
+    Status = AcpiGetObjectInfo (ObjHandle, &Buffer);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParamObjects.Pointer = NULL;
+    ParamObjects.Count   = 0;
+
+    ObjInfo = Buffer.Pointer;
+    if (ObjInfo->Type == ACPI_TYPE_METHOD)
+    {
+
+        /* Setup default parameters */
+
+        for (i = 0; i < ObjInfo->ParamCount; i++)
+        {
+            Params[i].Type           = ACPI_TYPE_INTEGER;
+            Params[i].Integer.Value  = 1;
+        }
+
+        ParamObjects.Pointer     = Params;
+        ParamObjects.Count       = ObjInfo->ParamCount;
+    }
+
+    ACPI_FREE (Buffer.Pointer);
+
+    ReturnObj.Pointer = NULL;
+    ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
+
+
+    /* Do the actual method execution */
+
+    AcpiGbl_MethodExecuting = TRUE;
+
+    Status = AcpiEvaluateObject (Node, NULL, &ParamObjects, &ReturnObj);
+
+    AcpiOsPrintf ("%-32s returned %s\n", Pathname, AcpiFormatException (Status));
+    AcpiGbl_MethodExecuting = FALSE;
+
+    ACPI_FREE (Pathname);
+    (*Count)++;
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbBatchExecute
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Namespace batch execution.
+ *
+ ******************************************************************************/
+
+void
+AcpiDbBatchExecute (
+    void)
+{
+    UINT32                  Count = 0;
+
+
+    /* Search all nodes in namespace */
+
+    (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+                AcpiDbWalkForExecute, (void *) &Count, NULL);
+
+    AcpiOsPrintf ("Executed %d predefined names in the namespace\n", Count);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDbDisplayLocks
  *
  * PARAMETERS:  None
@@ -433,28 +653,39 @@ void
 AcpiDbDisplayTableInfo (
     char                    *TableArg)
 {
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
     ACPI_TABLE_DESC         *TableDesc;
+    ACPI_STATUS             Status;
 
 
-    /*
-     * Walk the root table list
-     */
+    /* Walk the entire root table list */
+
     for (i = 0; i < AcpiGbl_RootTableList.Count; i++)
     {
         TableDesc = &AcpiGbl_RootTableList.Tables[i];
-        AcpiOsPrintf ( "%4.4s at %p length %.5X",
-                TableDesc->Signature.Ascii, TableDesc->Pointer,
-                (UINT32) TableDesc->Length);
+        AcpiOsPrintf ("%d ", i);
 
-        if (TableDesc->Pointer && (i != ACPI_TABLE_INDEX_FACS))
+        /* Make sure that the table is mapped */
+
+        Status = AcpiTbVerifyTable (TableDesc);
+        if (ACPI_FAILURE (Status))
         {
-            AcpiOsPrintf (" OemId=\"%6s\" OemTableId=\"%8s\" OemRevision=%8.8X",
-                    TableDesc->Pointer->OemId,
-                    TableDesc->Pointer->OemTableId,
-                    TableDesc->Pointer->OemRevision);
+            return;
         }
-        AcpiOsPrintf ("\n");
+
+        /* Dump the table header */
+
+        if (TableDesc->Pointer)
+        {
+            AcpiTbPrintTableHeader (TableDesc->Address, TableDesc->Pointer);
+        }
+        else
+        {
+            /* If the pointer is null, the table has been unloaded */
+
+            ACPI_INFO ((AE_INFO, "%4.4s - Table has been unloaded",
+                TableDesc->Signature.Ascii));
+        }
     }
 }
 
@@ -938,7 +1169,7 @@ AcpiDbSetMethodData (
             goto Cleanup;
         }
 
-        Status = AcpiDsStoreObjectToLocal (AML_ARG_OP, Index, ObjDesc,
+        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_ARG, Index, ObjDesc,
                     WalkState);
         if (ACPI_FAILURE (Status))
         {
@@ -961,7 +1192,7 @@ AcpiDbSetMethodData (
             goto Cleanup;
         }
 
-        Status = AcpiDsStoreObjectToLocal (AML_LOCAL_OP, Index, ObjDesc,
+        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_LOCAL, Index, ObjDesc,
                     WalkState);
         if (ACPI_FAILURE (Status))
         {
@@ -1168,6 +1399,9 @@ ACPI_STATUS
 AcpiDbFindNameInNamespace (
     char                    *NameArg)
 {
+    char                    AcpiName[5] = "____";
+    char                    *AcpiNamePtr = AcpiName;
+
 
     if (ACPI_STRLEN (NameArg) > 4)
     {
@@ -1175,11 +1409,20 @@ AcpiDbFindNameInNamespace (
         return (AE_OK);
     }
 
-    /* Walk the namespace from the root */
+    /* Pad out name with underscores as necessary to create a 4-char name */
 
     AcpiUtStrupr (NameArg);
+    while (*NameArg)
+    {
+        *AcpiNamePtr = *NameArg;
+        AcpiNamePtr++;
+        NameArg++;
+    }
+
+    /* Walk the namespace from the root */
+
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                        AcpiDbWalkAndMatchName, NameArg, NULL);
+                        AcpiDbWalkAndMatchName, AcpiName, NULL);
 
     AcpiDbSetOutputDestination (ACPI_DB_CONSOLE_OUTPUT);
     return (AE_OK);
@@ -1411,8 +1654,8 @@ AcpiDmTestResourceConversion (
     OriginalAml = ReturnObj.Pointer;
 
     AcpiDmCompareAmlResources (
-        OriginalAml->Buffer.Pointer, OriginalAml->Buffer.Length,
-        NewAml.Pointer, NewAml.Length);
+        OriginalAml->Buffer.Pointer, (ACPI_RSDESC_SIZE) OriginalAml->Buffer.Length,
+        NewAml.Pointer, (ACPI_RSDESC_SIZE) NewAml.Length);
 
     /* Cleanup and exit */
 
@@ -1603,24 +1846,45 @@ AcpiDbIntegrityWalk (
     ACPI_INTEGRITY_INFO     *Info = (ACPI_INTEGRITY_INFO *) Context;
     ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
     ACPI_OPERAND_OBJECT     *Object;
+    BOOLEAN                 Alias = TRUE;
 
 
     Info->Nodes++;
-    if (ACPI_GET_DESCRIPTOR_TYPE (Node) != ACPI_DESC_TYPE_NAMED)
+
+    /* Verify the NS node, and dereference aliases */
+
+    while (Alias)
     {
-        AcpiOsPrintf ("Invalid Descriptor Type for Node %p [%s]\n",
-            Node, AcpiUtGetDescriptorName (Node));
+        if (ACPI_GET_DESCRIPTOR_TYPE (Node) != ACPI_DESC_TYPE_NAMED)
+        {
+            AcpiOsPrintf ("Invalid Descriptor Type for Node %p [%s] - is %2.2X should be %2.2X\n",
+                Node, AcpiUtGetDescriptorName (Node), ACPI_GET_DESCRIPTOR_TYPE (Node),
+                ACPI_DESC_TYPE_NAMED);
+            return (AE_OK);
+        }
+
+        if ((Node->Type == ACPI_TYPE_LOCAL_ALIAS)  ||
+            (Node->Type == ACPI_TYPE_LOCAL_METHOD_ALIAS))
+        {
+            Node = (ACPI_NAMESPACE_NODE *) Node->Object;
+        }
+        else
+        {
+            Alias = FALSE;
+        }
     }
 
     if (Node->Type > ACPI_TYPE_LOCAL_MAX)
     {
         AcpiOsPrintf ("Invalid Object Type for Node %p, Type = %X\n",
             Node, Node->Type);
+        return (AE_OK);
     }
 
     if (!AcpiUtValidAcpiName (Node->Name.Integer))
     {
         AcpiOsPrintf ("Invalid AcpiName for Node %p\n", Node);
+        return (AE_OK);
     }
 
     Object = AcpiNsGetAttachedObject (Node);

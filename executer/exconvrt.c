@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: exconvrt - Object conversion routines
- *              $Revision: 1.74 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __EXCONVRT_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
 #include "amlcode.h"
 
@@ -139,7 +139,7 @@ AcpiExConvertToAscii (
  *
  * FUNCTION:    AcpiExConvertToInteger
  *
- * PARAMETERS:  ObjDesc         - Object to be converted.  Must be an
+ * PARAMETERS:  ObjDesc         - Object to be converted. Must be an
  *                                Integer, Buffer, or String
  *              ResultDesc      - Where the new Integer object is returned
  *              Flags           - Used for string conversion
@@ -167,7 +167,7 @@ AcpiExConvertToInteger (
     ACPI_FUNCTION_TRACE_PTR (ExConvertToInteger, ObjDesc);
 
 
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+    switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
 
@@ -190,7 +190,7 @@ AcpiExConvertToInteger (
     }
 
     /*
-     * Convert the buffer/string to an integer.  Note that both buffers and
+     * Convert the buffer/string to an integer. Note that both buffers and
      * strings are treated as raw data - we don't convert ascii to hex for
      * strings.
      *
@@ -202,13 +202,13 @@ AcpiExConvertToInteger (
 
     /* String conversion is different than Buffer conversion */
 
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+    switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_STRING:
 
         /*
          * Convert string to an integer - for most cases, the string must be
-         * hexadecimal as per the ACPI specification.  The only exception (as
+         * hexadecimal as per the ACPI specification. The only exception (as
          * of ACPI 3.0) is that the ToInteger() operator allows both decimal
          * and hexadecimal strings (hex prefixed with "0x").
          */
@@ -253,6 +253,7 @@ AcpiExConvertToInteger (
 
 
     default:
+
         /* No other types can get here */
         break;
     }
@@ -281,7 +282,7 @@ AcpiExConvertToInteger (
  *
  * FUNCTION:    AcpiExConvertToBuffer
  *
- * PARAMETERS:  ObjDesc         - Object to be converted.  Must be an
+ * PARAMETERS:  ObjDesc         - Object to be converted. Must be an
  *                                Integer, Buffer, or String
  *              ResultDesc      - Where the new buffer object is returned
  *
@@ -303,7 +304,7 @@ AcpiExConvertToBuffer (
     ACPI_FUNCTION_TRACE_PTR (ExConvertToBuffer, ObjDesc);
 
 
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+    switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_BUFFER:
 
@@ -395,11 +396,11 @@ AcpiExConvertToAscii (
     UINT8                   DataWidth)
 {
     ACPI_INTEGER            Digit;
-    ACPI_NATIVE_UINT        i;
-    ACPI_NATIVE_UINT        j;
-    ACPI_NATIVE_UINT        k = 0;
-    ACPI_NATIVE_UINT        HexLength;
-    ACPI_NATIVE_UINT        DecimalLength;
+    UINT32                  i;
+    UINT32                  j;
+    UINT32                  k = 0;
+    UINT32                  HexLength;
+    UINT32                  DecimalLength;
     UINT32                  Remainder;
     BOOLEAN                 SupressZeros;
 
@@ -461,7 +462,7 @@ AcpiExConvertToAscii (
 
         /* HexLength: 2 ascii hex chars per data byte */
 
-        HexLength = (ACPI_NATIVE_UINT) ACPI_MUL_2 (DataWidth);
+        HexLength = ACPI_MUL_2 (DataWidth);
         for (i = 0, j = (HexLength-1); i < HexLength; i++, j--)
         {
             /* Get one hex digit, most significant digits first */
@@ -476,7 +477,7 @@ AcpiExConvertToAscii (
     }
 
     /*
-     * Since leading zeros are supressed, we must check for the case where
+     * Since leading zeros are suppressed, we must check for the case where
      * the integer equals 0
      *
      * Finally, null terminate the string and return the length
@@ -496,7 +497,7 @@ AcpiExConvertToAscii (
  *
  * FUNCTION:    AcpiExConvertToString
  *
- * PARAMETERS:  ObjDesc         - Object to be converted.  Must be an
+ * PARAMETERS:  ObjDesc         - Object to be converted. Must be an
  *                                Integer, Buffer, or String
  *              ResultDesc      - Where the string object is returned
  *              Type            - String flags (base and conversion type)
@@ -524,7 +525,7 @@ AcpiExConvertToString (
     ACPI_FUNCTION_TRACE_PTR (ExConvertToString, ObjDesc);
 
 
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+    switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_STRING:
 
@@ -592,7 +593,7 @@ AcpiExConvertToString (
             Base = 10;
 
             /*
-             * Calculate the final string length.  Individual string values
+             * Calculate the final string length. Individual string values
              * are variable length (include separator for each)
              */
             for (i = 0; i < ObjDesc->Buffer.Length; i++)
@@ -637,8 +638,14 @@ AcpiExConvertToString (
         /*
          * Create a new string object and string buffer
          * (-1 because of extra separator included in StringLength from above)
+         * Allow creation of zero-length strings from zero-length buffers.
          */
-        ReturnDesc = AcpiUtCreateStringObject ((ACPI_SIZE) (StringLength - 1));
+        if (StringLength)
+        {
+            StringLength--;
+        }
+
+        ReturnDesc = AcpiUtCreateStringObject ((ACPI_SIZE) StringLength);
         if (!ReturnDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
@@ -662,7 +669,10 @@ AcpiExConvertToString (
          * Null terminate the string
          * (overwrites final comma/space from above)
          */
-        NewBuf--;
+        if (ObjDesc->Buffer.Length)
+        {
+            NewBuf--;
+        }
         *NewBuf = 0;
         break;
 
@@ -728,7 +738,7 @@ AcpiExConvertToTargetType (
         default:
             /* No conversion allowed for these types */
 
-            if (DestinationType != ACPI_GET_OBJECT_TYPE (SourceDesc))
+            if (DestinationType != SourceDesc->Common.Type)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                     "Explicit operator, will store (%s) over existing type (%s)\n",
@@ -749,7 +759,7 @@ AcpiExConvertToTargetType (
         case ACPI_TYPE_LOCAL_BANK_FIELD:
         case ACPI_TYPE_LOCAL_INDEX_FIELD:
             /*
-             * These types require an Integer operand.  We can convert
+             * These types require an Integer operand. We can convert
              * a Buffer or a String to an Integer if necessary.
              */
             Status = AcpiExConvertToInteger (SourceDesc, ResultDesc,
@@ -759,7 +769,7 @@ AcpiExConvertToTargetType (
 
         case ACPI_TYPE_STRING:
             /*
-             * The operand must be a String.  We can convert an
+             * The operand must be a String. We can convert an
              * Integer or Buffer if necessary
              */
             Status = AcpiExConvertToString (SourceDesc, ResultDesc,
@@ -769,7 +779,7 @@ AcpiExConvertToTargetType (
 
         case ACPI_TYPE_BUFFER:
             /*
-             * The operand must be a Buffer.  We can convert an
+             * The operand must be a Buffer. We can convert an
              * Integer or String if necessary
              */
             Status = AcpiExConvertToBuffer (SourceDesc, ResultDesc);

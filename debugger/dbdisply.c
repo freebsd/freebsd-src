@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 1.120 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "amlcode.h"
 #include "acdispat.h"
 #include "acnamesp.h"
@@ -685,7 +685,7 @@ AcpiDbDisplayObjectType (
     ACPI_BUFFER             Buffer;
     ACPI_DEVICE_INFO        *Info;
     ACPI_STATUS             Status;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
 
 
     Handle = ACPI_TO_POINTER (ACPI_STRTOUL (ObjectArg, NULL, 16));
@@ -707,7 +707,7 @@ AcpiDbDisplayObjectType (
         {
             for (i = 0; i < Info->CompatibilityId.Count; i++)
             {
-                AcpiOsPrintf ("CID #%d: %s\n", (UINT32) i,
+                AcpiOsPrintf ("CID #%d: %s\n", i,
                     Info->CompatibilityId.Id[i].Value);
             }
         }

@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 1.104 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,8 +116,8 @@
 #define __UTOBJECT_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
-#include "amlcode.h"
 
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -167,7 +166,7 @@ AcpiUtGetElementLength (
 
 ACPI_OPERAND_OBJECT  *
 AcpiUtCreateInternalObjectDbg (
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId,
     ACPI_OBJECT_TYPE        Type)
@@ -192,6 +191,7 @@ AcpiUtCreateInternalObjectDbg (
     {
     case ACPI_TYPE_REGION:
     case ACPI_TYPE_BUFFER_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
 
         /* These types require a secondary object */
 
@@ -227,6 +227,55 @@ AcpiUtCreateInternalObjectDbg (
     /* Any per-type initialization should go here */
 
     return_PTR (Object);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtCreatePackageObject
+ *
+ * PARAMETERS:  Count               - Number of package elements
+ *
+ * RETURN:      Pointer to a new Package object, null on failure
+ *
+ * DESCRIPTION: Create a fully initialized package object
+ *
+ ******************************************************************************/
+
+ACPI_OPERAND_OBJECT *
+AcpiUtCreatePackageObject (
+    UINT32                  Count)
+{
+    ACPI_OPERAND_OBJECT     *PackageDesc;
+    ACPI_OPERAND_OBJECT     **PackageElements;
+
+
+    ACPI_FUNCTION_TRACE_U32 (UtCreatePackageObject, Count);
+
+
+    /* Create a new Package object */
+
+    PackageDesc = AcpiUtCreateInternalObject (ACPI_TYPE_PACKAGE);
+    if (!PackageDesc)
+    {
+        return_PTR (NULL);
+    }
+
+    /*
+     * Create the element array. Count+1 allows the array to be null
+     * terminated.
+     */
+    PackageElements = ACPI_ALLOCATE_ZEROED (
+                        ((ACPI_SIZE) Count + 1) * sizeof (void *));
+    if (!PackageElements)
+    {
+        ACPI_FREE (PackageDesc);
+        return_PTR (NULL);
+    }
+
+    PackageDesc->Package.Count = Count;
+    PackageDesc->Package.Elements = PackageElements;
+    return_PTR (PackageDesc);
 }
 
 
@@ -370,7 +419,7 @@ AcpiUtValidInternalObject (
 
     if (!Object)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Null Object Ptr\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "**** Null Object Ptr\n"));
         return (FALSE);
     }
 
@@ -385,7 +434,7 @@ AcpiUtValidInternalObject (
         return (TRUE);
 
     default:
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                 "%p is not not an ACPI operand obj [%s]\n",
                 Object, AcpiUtGetDescriptorName (Object)));
         break;
@@ -412,7 +461,7 @@ AcpiUtValidInternalObject (
 
 void *
 AcpiUtAllocateObjectDescDbg (
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId)
 {
@@ -499,32 +548,36 @@ AcpiUtGetSimpleObjectSize (
     ACPI_SIZE               *ObjLength)
 {
     ACPI_SIZE               Length;
+    ACPI_SIZE               Size;
     ACPI_STATUS             Status = AE_OK;
 
 
     ACPI_FUNCTION_TRACE_PTR (UtGetSimpleObjectSize, InternalObject);
 
 
-    /*
-     * Handle a null object (Could be a uninitialized package
-     * element -- which is legal)
-     */
-    if (!InternalObject)
-    {
-        *ObjLength = 0;
-        return_ACPI_STATUS (AE_OK);
-    }
-
-    /* Start with the length of the Acpi object */
+    /* Start with the length of the (external) Acpi object */
 
     Length = sizeof (ACPI_OBJECT);
 
+    /* A NULL object is allowed, can be a legal uninitialized package element */
+
+    if (!InternalObject)
+    {
+        /*
+         * Object is NULL, just return the length of ACPI_OBJECT
+         * (A NULL ACPI_OBJECT is an object of all zeroes.)
+         */
+        *ObjLength = ACPI_ROUND_UP_TO_NATIVE_WORD (Length);
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* A Namespace Node should never appear here */
+
     if (ACPI_GET_DESCRIPTOR_TYPE (InternalObject) == ACPI_DESC_TYPE_NAMED)
     {
-        /* Object is a named object (reference), just return the length */
+        /* A namespace node should never get here */
 
-        *ObjLength = ACPI_ROUND_UP_TO_NATIVE_WORD (Length);
-        return_ACPI_STATUS (Status);
+        return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
     /*
@@ -533,7 +586,7 @@ AcpiUtGetSimpleObjectSize (
      * must be accessed bytewise or there may be alignment problems on
      * certain processors
      */
-    switch (ACPI_GET_OBJECT_TYPE (InternalObject))
+    switch (InternalObject->Common.Type)
     {
     case ACPI_TYPE_STRING:
 
@@ -551,24 +604,28 @@ AcpiUtGetSimpleObjectSize (
     case ACPI_TYPE_PROCESSOR:
     case ACPI_TYPE_POWER:
 
-        /*
-         * No extra data for these types
-         */
+        /* No extra data for these types */
+
         break;
 
 
     case ACPI_TYPE_LOCAL_REFERENCE:
 
-        switch (InternalObject->Reference.Opcode)
+        switch (InternalObject->Reference.Class)
         {
-        case AML_INT_NAMEPATH_OP:
+        case ACPI_REFCLASS_NAME:
 
             /*
              * Get the actual length of the full pathname to this object.
              * The reference will be converted to the pathname to the object
              */
-            Length += ACPI_ROUND_UP_TO_NATIVE_WORD (
-                        AcpiNsGetPathnameLength (InternalObject->Reference.Node));
+            Size = AcpiNsGetPathnameLength (InternalObject->Reference.Node);
+            if (!Size)
+            {
+                return_ACPI_STATUS (AE_BAD_PARAMETER);
+            }
+
+            Length += ACPI_ROUND_UP_TO_NATIVE_WORD (Size);
             break;
 
         default:
@@ -578,9 +635,10 @@ AcpiUtGetSimpleObjectSize (
              * Notably, Locals and Args are not supported, but this may be
              * required eventually.
              */
-            ACPI_ERROR ((AE_INFO,
-                "Unsupported Reference opcode=%X in object %p",
-                InternalObject->Reference.Opcode, InternalObject));
+            ACPI_ERROR ((AE_INFO, "Cannot convert to external object - "
+                "unsupported Reference Class [%s] %X in object %p",
+                AcpiUtGetReferenceName (InternalObject),
+                InternalObject->Reference.Class, InternalObject));
             Status = AE_TYPE;
             break;
         }
@@ -589,8 +647,10 @@ AcpiUtGetSimpleObjectSize (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unsupported type=%X in object %p",
-            ACPI_GET_OBJECT_TYPE (InternalObject), InternalObject));
+        ACPI_ERROR ((AE_INFO, "Cannot convert to external object - "
+            "unsupported type [%s] %X in object %p",
+            AcpiUtGetObjectTypeName (InternalObject),
+            InternalObject->Common.Type, InternalObject));
         Status = AE_TYPE;
         break;
     }
@@ -749,7 +809,7 @@ AcpiUtGetObjectSize (
 
 
     if ((ACPI_GET_DESCRIPTOR_TYPE (InternalObject) == ACPI_DESC_TYPE_OPERAND) &&
-        (ACPI_GET_OBJECT_TYPE (InternalObject) == ACPI_TYPE_PACKAGE))
+        (InternalObject->Common.Type == ACPI_TYPE_PACKAGE))
     {
         Status = AcpiUtGetPackageObjectSize (InternalObject, ObjLength);
     }

@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: exoparg6 - AML execution - opcodes with 6 arguments
- *              $Revision: 1.29 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,6 +118,7 @@
 #define __EXOPARG6_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
 #include "acparser.h"
 #include "amlcode.h"
