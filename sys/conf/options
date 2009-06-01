@@ -777,6 +777,14 @@ MALO_DEBUG		opt_malo.h
 MALO_TXBUF		opt_malo.h
 MALO_RXBUF		opt_malo.h
 
+# options for the Marvell wireless driver
+MWL_DEBUG		opt_mwl.h
+MWL_TXBUF		opt_mwl.h
+MWL_RXBUF		opt_mwl.h
+MWL_DIAGAPI		opt_mwl.h
+MWL_AGGR_SIZE		opt_mwl.h
+MWL_TX_NODROP		opt_mwl.h
+
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
