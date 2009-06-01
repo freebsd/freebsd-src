@@ -552,7 +552,7 @@ ksyms_read(struct cdev *dev, struct uio *uio, int flags __unused)
 /* ARGSUSED */
 static int
 ksyms_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int32_t flag __unused,
-    d_thread_t *td __unused)
+    struct thread *td __unused)
 {
 	int error = 0;
 	struct ksyms_softc *sc;
