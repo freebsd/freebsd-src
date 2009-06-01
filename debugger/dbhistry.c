@@ -115,8 +115,8 @@
  *****************************************************************************/
 
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acdebug.h>
+#include "acpi.h"
+#include "acdebug.h"
 
 #ifdef ACPI_DEBUGGER
 

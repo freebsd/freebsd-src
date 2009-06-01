@@ -115,12 +115,12 @@
  *****************************************************************************/
 
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acdisasm.h>
+#include "acpi.h"
+#include "amlcode.h"
+#include "acdisasm.h"
 
 #ifdef ACPI_ASL_COMPILER
-#include <contrib/dev/acpica/acnamesp.h>
+#include <acnamesp.h>
 #endif
 
 #ifdef ACPI_DISASSEMBLER

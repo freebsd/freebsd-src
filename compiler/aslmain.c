@@ -118,10 +118,10 @@
 
 #define _DECLARE_GLOBALS
 
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/actables.h>
-#include <contrib/dev/acpica/acapps.h>
+#include "aslcompiler.h"
+#include "acnamesp.h"
+#include "actables.h"
+#include "acapps.h"
 
 #ifdef _DEBUG
 #include <crtdbg.h>

@@ -118,8 +118,8 @@
 
 #define __EXREGION_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acinterp.h>
+#include "acpi.h"
+#include "acinterp.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER

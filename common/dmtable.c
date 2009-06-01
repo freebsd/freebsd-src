@@ -114,9 +114,9 @@
  *
  *****************************************************************************/
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acdisasm.h>
-#include <contrib/dev/acpica/actables.h>
+#include "acpi.h"
+#include "acdisasm.h"
+#include "actables.h"
 
 /* This module used for application-level code only */
 

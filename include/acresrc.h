@@ -120,7 +120,7 @@
 
 /* Need the AML resource descriptor structs */
 
-#include <contrib/dev/acpica/amlresrc.h>
+#include "amlresrc.h"
 
 
 /*

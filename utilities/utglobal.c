@@ -117,8 +117,8 @@
 #define __UTGLOBAL_C__
 #define DEFINE_ACPI_GLOBALS
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include "acpi.h"
+#include "acnamesp.h"
 
 ACPI_EXPORT_SYMBOL (AcpiGbl_FADT)
 

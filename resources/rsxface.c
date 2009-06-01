@@ -117,9 +117,9 @@
 
 #define __RSXFACE_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acresrc.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include "acpi.h"
+#include "acresrc.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_RESOURCES
         ACPI_MODULE_NAME    ("rsxface")

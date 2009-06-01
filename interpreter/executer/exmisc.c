@@ -118,10 +118,10 @@
 
 #define __EXMISC_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acinterp.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/amlresrc.h>
+#include "acpi.h"
+#include "acinterp.h"
+#include "amlcode.h"
+#include "amlresrc.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER

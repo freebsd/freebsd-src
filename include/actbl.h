@@ -386,7 +386,7 @@ enum AcpiPreferedPmProfiles
 /*
  * Get the remaining ACPI tables
  */
-#include <contrib/dev/acpica/actbl1.h>
+#include "actbl1.h"
 
 /* Macros used to generate offsets to specific table fields */
 

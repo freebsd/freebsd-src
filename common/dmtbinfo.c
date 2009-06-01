@@ -114,8 +114,8 @@
  *
  *****************************************************************************/
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acdisasm.h>
+#include "acpi.h"
+#include "acdisasm.h"
 
 /* This module used for application-level code only */
 

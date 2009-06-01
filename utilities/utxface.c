@@ -117,10 +117,10 @@
 
 #define __UTXFACE_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acevents.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/acdebug.h>
+#include "acpi.h"
+#include "acevents.h"
+#include "acnamesp.h"
+#include "acdebug.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utxface")

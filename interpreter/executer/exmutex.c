@@ -117,9 +117,9 @@
 
 #define __EXMUTEX_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acinterp.h>
-#include <contrib/dev/acpica/acevents.h>
+#include "acpi.h"
+#include "acinterp.h"
+#include "acevents.h"
 
 #define _COMPONENT          ACPI_EXECUTER
         ACPI_MODULE_NAME    ("exmutex")

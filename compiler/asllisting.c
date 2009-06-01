@@ -116,11 +116,11 @@
  *****************************************************************************/
 
 
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include "aslcompiler.h"
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include "amlcode.h"
+#include "acparser.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslisting")

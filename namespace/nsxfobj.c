@@ -118,8 +118,8 @@
 
 #define __NSXFOBJ_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include "acpi.h"
+#include "acnamesp.h"
 
 
 #define _COMPONENT          ACPI_NAMESPACE

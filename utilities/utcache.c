@@ -116,7 +116,7 @@
 
 #define __UTCACHE_C__
 
-#include <contrib/dev/acpica/acpi.h>
+#include "acpi.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utcache")

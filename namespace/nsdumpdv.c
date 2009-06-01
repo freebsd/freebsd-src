@@ -117,7 +117,7 @@
 
 #define __NSDUMPDV_C__
 
-#include <contrib/dev/acpica/acpi.h>
+#include "acpi.h"
 
 
 /* TBD: This entire module is apparently obsolete and should be removed */
@@ -128,7 +128,7 @@
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-#include <contrib/dev/acpica/acnamesp.h>
+#include "acnamesp.h"
 
 /*******************************************************************************
  *

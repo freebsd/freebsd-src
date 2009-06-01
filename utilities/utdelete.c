@@ -116,11 +116,11 @@
 
 #define __UTDELETE_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acinterp.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/acevents.h>
-#include <contrib/dev/acpica/amlcode.h>
+#include "acpi.h"
+#include "acinterp.h"
+#include "acnamesp.h"
+#include "acevents.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utdelete")

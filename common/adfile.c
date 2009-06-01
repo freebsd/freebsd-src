@@ -115,8 +115,8 @@
  *****************************************************************************/
 
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acapps.h>
+#include "acpi.h"
+#include "acapps.h"
 
 #include <stdio.h>
 #include <string.h>

@@ -116,8 +116,8 @@
 
 #define __RSIO_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acresrc.h>
+#include "acpi.h"
+#include "acresrc.h"
 
 #define _COMPONENT          ACPI_RESOURCES
         ACPI_MODULE_NAME    ("rsio")

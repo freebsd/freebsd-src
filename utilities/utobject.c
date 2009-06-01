@@ -116,9 +116,9 @@
 
 #define __UTOBJECT_C__
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/amlcode.h>
+#include "acpi.h"
+#include "acnamesp.h"
+#include "amlcode.h"
 
 
 #define _COMPONENT          ACPI_UTILITIES
