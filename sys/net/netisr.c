@@ -201,7 +201,7 @@ struct netisr_proto {
 	u_int		 np_policy;	/* Work placement policy. */
 };
 
-#define	NETISR_MAXPROT		32		/* Compile-time limit. */
+#define	NETISR_MAXPROT		16		/* Compile-time limit. */
 
 /*
  * The np array describes all registered protocols, indexed by protocol
@@ -1045,20 +1045,31 @@ netisr_init(void *arg)
 	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
 
 	NETISR_LOCK_INIT();
-	if (netisr_maxthreads < 1)
+	if (netisr_maxthreads < 1) {
+		printf("netisr2: forcing maxthreads to 1\n");
 		netisr_maxthreads = 1;
-	if (netisr_maxthreads > MAXCPU)
+	}
+	if (netisr_maxthreads > MAXCPU) {
+		printf("netisr2: forcing maxthreads to %d\n", MAXCPU);
 		netisr_maxthreads = MAXCPU;
-	if (netisr_defaultqlimit > netisr_maxqlimit)
+	}
+	if (netisr_defaultqlimit > netisr_maxqlimit) {
+		printf("netisr2: forcing defaultqlimit to %d\n",
+		    netisr_maxqlimit);
 		netisr_defaultqlimit = netisr_maxqlimit;
+	}
 #ifdef DEVICE_POLLING
 	/*
 	 * The device polling code is not yet aware of how to deal with
 	 * multiple netisr threads, so for the time being compiling in device
 	 * polling disables parallel netisr workers.
 	 */
-	netisr_maxthreads = 1;
-	netisr_bindthreads = 0;
+	if (netisr_maxthreads != 1 || netisr_bindthreads != 0) {
+		printf("netisr2: forcing maxthreads to 1 and bindthreads to "
+		    "0 for device polling\n");
+		netisr_maxthreads = 1;
+		netisr_bindthreads = 0;
+	}
 #endif
 
 	netisr_start_swi(curcpu, pcpu_find(curcpu));
