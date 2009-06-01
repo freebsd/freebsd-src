@@ -4069,8 +4069,8 @@ bwi_restart(void *xsc, int pending)
 	if_printf(ifp, "%s begin, help!\n", __func__);
 	BWI_LOCK(sc);
 	bwi_init_statechg(xsc, 0);
-	BWI_UNLOCK(sc);
 #if 0
 	bwi_start_locked(ifp);
 #endif
+	BWI_UNLOCK(sc);
 }
