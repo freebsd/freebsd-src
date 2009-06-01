@@ -76,6 +76,7 @@ static const char	*pci_maptype(uint64_t mapreg);
 static int		pci_mapsize(uint64_t testval);
 static int		pci_maprange(uint64_t mapreg);
 static void		pci_fixancient(pcicfgregs *cfg);
+static int		pci_printf(pcicfgregs *cfg, const char *fmt, ...);
 
 static int		pci_porten(device_t dev);
 static int		pci_memen(device_t dev);
@@ -311,6 +312,20 @@ pci_find_device(uint16_t vendor, uint16_t device)
 	}
 
 	return (NULL);
+}
+
+static int
+pci_printf(pcicfgregs *cfg, const char *fmt, ...)
+{
+	va_list ap;
+	int retval;
+
+	retval = printf("pci%d:%d:%d:%d: ", cfg->domain, cfg->bus, cfg->slot,
+	    cfg->func);
+	va_start(ap, fmt);
+	retval += vprintf(fmt, ap);
+	va_end(ap);
+	return (retval);
 }
 
 /* return base address of memory or port map */
@@ -2049,10 +2064,8 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	}
 
 	if (bootverbose)
-		printf(
-		    "pci%d:%d:%d:%d: Transition from D%d to D%d\n",
-		    dinfo->cfg.domain, dinfo->cfg.bus, dinfo->cfg.slot,
-		    dinfo->cfg.func, oldstate, state);
+		pci_printf(cfg, "Transition from D%d to D%d\n", oldstate,
+		    state);
 
 	PCI_WRITE_CONFIG(dev, child, cfg->pp.pp_status, status, 2);
 	if (delay)
@@ -2815,9 +2828,7 @@ pci_driver_added(device_t dev, driver_t *driver)
 		dinfo = device_get_ivars(child);
 		pci_print_verbose(dinfo);
 		if (bootverbose)
-			printf("pci%d:%d:%d:%d: reprobing on driver added\n",
-			    dinfo->cfg.domain, dinfo->cfg.bus, dinfo->cfg.slot,
-			    dinfo->cfg.func);
+			pci_printf(&dinfo->cfg, "reprobing on driver added\n");
 		pci_cfg_restore(child, dinfo);
 		if (device_probe_and_attach(child) != 0)
 			pci_cfg_save(child, dinfo, 1);
