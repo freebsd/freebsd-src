@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
@@ -109,9 +110,6 @@ static register_t *linux_copyout_strings(struct image_params *imgp);
 
 static int linux_szplatform;
 const char *linux_platform;
-
-extern LIST_HEAD(futex_list, futex) futex_list;
-extern struct mtx futex_mtx;
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_schedtail_tag;
