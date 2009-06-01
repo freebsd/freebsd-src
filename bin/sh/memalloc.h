@@ -33,6 +33,8 @@
  * $FreeBSD$
  */
 
+#include <string.h>
+
 struct stackmark {
 	struct stack_block *stackp;
 	char *stacknxt;
@@ -46,7 +48,7 @@ extern int stacknleft;
 extern int sstrnleft;
 extern int herefd;
 
-pointer ckmalloc(int);
+pointer ckmalloc(size_t);
 pointer ckrealloc(pointer, int);
 void ckfree(pointer);
 char *savestr(char *);

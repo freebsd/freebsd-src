@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
  */
 
 pointer
-ckmalloc(int nbytes)
+ckmalloc(size_t nbytes)
 {
 	pointer p;
 
