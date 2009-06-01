@@ -159,10 +159,10 @@ typedef struct pcicfg {
     uint8_t	slot;		/* config space slot address */
     uint8_t	func;		/* config space function number */
 
-    struct pcicfg_pp pp;	/* pci power management */
-    struct pcicfg_vpd vpd;	/* pci vital product data */
-    struct pcicfg_msi msi;	/* pci msi */
-    struct pcicfg_msix msix;	/* pci msi-x */
+    struct pcicfg_pp pp;	/* Power management */
+    struct pcicfg_vpd vpd;	/* Vital product data */
+    struct pcicfg_msi msi;	/* PCI MSI */
+    struct pcicfg_msix msix;	/* PCI MSI-X */
     struct pcicfg_ht ht;	/* HyperTransport */
 } pcicfgregs;
 
