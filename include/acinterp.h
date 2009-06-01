@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 1.171 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -334,10 +333,6 @@ AcpiExCreateRegion (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExCreateTableRegion (
-    ACPI_WALK_STATE         *WalkState);
-
-ACPI_STATUS
 AcpiExCreateEvent (
     ACPI_WALK_STATE         *WalkState);
 
@@ -568,12 +563,8 @@ AcpiExDumpOperand (
 void
 AcpiExDumpOperands (
     ACPI_OPERAND_OBJECT     **Operands,
-    ACPI_INTERPRETER_MODE   InterpreterMode,
-    char                    *Ident,
-    UINT32                  NumLevels,
-    char                    *Note,
-    char                    *ModuleName,
-    UINT32                  LineNumber);
+    const char              *OpcodeName,
+    UINT32                  NumOpcodes);
 
 void
 AcpiExDumpObjectDescriptor (

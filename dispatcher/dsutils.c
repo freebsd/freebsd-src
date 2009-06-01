@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 1.124 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __DSUTILS_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
 #include "acdispat.h"
@@ -374,7 +374,8 @@ AcpiDsIsResultUsed (
             (Op->Common.Parent->Common.AmlOpcode == AML_PACKAGE_OP)      ||
             (Op->Common.Parent->Common.AmlOpcode == AML_VAR_PACKAGE_OP)  ||
             (Op->Common.Parent->Common.AmlOpcode == AML_BUFFER_OP)       ||
-            (Op->Common.Parent->Common.AmlOpcode == AML_INT_EVAL_SUBTREE_OP))
+            (Op->Common.Parent->Common.AmlOpcode == AML_INT_EVAL_SUBTREE_OP) ||
+            (Op->Common.Parent->Common.AmlOpcode == AML_BANK_FIELD_OP))
         {
             /*
              * These opcodes allow TermArg(s) as operands and therefore
@@ -826,10 +827,9 @@ AcpiDsCreateOperands (
     ACPI_STATUS             Status = AE_OK;
     ACPI_PARSE_OBJECT       *Arg;
     ACPI_PARSE_OBJECT       *Arguments[ACPI_OBJ_NUM_OPERANDS];
-    UINT8                   ArgCount = 0;
-    UINT8                   Count = 0;
-    UINT8                   Index = WalkState->NumOperands;
-    UINT8                   i;
+    UINT32                  ArgCount = 0;
+    UINT32                  Index = WalkState->NumOperands;
+    UINT32                  i;
 
 
     ACPI_FUNCTION_TRACE_PTR (DsCreateOperands, FirstArg);
@@ -865,7 +865,7 @@ AcpiDsCreateOperands (
 
         /* Force the filling of the operand stack in inverse order */
 
-        WalkState->OperandIndex = Index;
+        WalkState->OperandIndex = (UINT8) Index;
 
         Status = AcpiDsCreateOperand (WalkState, Arg, Index);
         if (ACPI_FAILURE (Status))
@@ -873,7 +873,6 @@ AcpiDsCreateOperands (
             goto Cleanup;
         }
 
-        Count++;
         Index--;
 
         ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Arg #%d (%p) done, Arg1=%p\n",
@@ -954,7 +953,7 @@ AcpiDsEvaluateNamePath (
         goto PushResult;
     }
 
-    Type = ACPI_GET_OBJECT_TYPE (*Operand);
+    Type = (*Operand)->Common.Type;
 
     Status = AcpiExResolveToValue (Operand, WalkState);
     if (ACPI_FAILURE (Status))

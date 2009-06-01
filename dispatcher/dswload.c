@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 1.117 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __DSWLOAD_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
 #include "acdispat.h"
@@ -534,6 +534,15 @@ AcpiDsLoad1EndOp (
                 return_ACPI_STATUS (Status);
             }
         }
+        else if (Op->Common.AmlOpcode == AML_DATA_REGION_OP)
+        {
+            Status = AcpiExCreateRegion (Op->Named.Data, Op->Named.Length,
+                        REGION_DATA_TABLE, WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
+        }
     }
 #endif
 
@@ -860,6 +869,13 @@ AcpiDsLoad2BeginOp (
 
         Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
                     ACPI_IMODE_LOAD_PASS2, Flags, WalkState, &Node);
+
+        if (ACPI_SUCCESS (Status) && (Flags & ACPI_NS_TEMPORARY))
+        {
+            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+                "***New Node [%4.4s] %p is temporary\n",
+                AcpiUtGetNodeName (Node), Node));
+        }
         break;
     }
 
@@ -922,6 +938,7 @@ AcpiDsLoad2EndOp (
     ACPI_NAMESPACE_NODE     *NewNode;
 #ifndef ACPI_NO_METHOD_EXECUTION
     UINT32                  i;
+    UINT8                   RegionSpace;
 #endif
 
 
@@ -1105,10 +1122,6 @@ AcpiDsLoad2EndOp (
             Status = AcpiExCreateEvent (WalkState);
             break;
 
-        case AML_DATA_REGION_OP:
-
-            Status = AcpiExCreateTableRegion (WalkState);
-            break;
 
         case AML_ALIAS_OP:
 
@@ -1139,6 +1152,17 @@ AcpiDsLoad2EndOp (
         {
 #ifndef ACPI_NO_METHOD_EXECUTION
         case AML_REGION_OP:
+        case AML_DATA_REGION_OP:
+
+            if (Op->Common.AmlOpcode == AML_REGION_OP)
+            {
+                RegionSpace = (ACPI_ADR_SPACE_TYPE)
+                      ((Op->Common.Value.Arg)->Common.Value.Integer);
+            }
+            else
+            {
+                RegionSpace = REGION_DATA_TABLE;
+            }
 
             /*
              * If we are executing a method, initialize the region
@@ -1146,9 +1170,7 @@ AcpiDsLoad2EndOp (
             if (WalkState->MethodNode)
             {
                 Status = AcpiExCreateRegion (Op->Named.Data, Op->Named.Length,
-                            (ACPI_ADR_SPACE_TYPE)
-                                ((Op->Common.Value.Arg)->Common.Value.Integer),
-                            WalkState);
+                            RegionSpace, WalkState);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);

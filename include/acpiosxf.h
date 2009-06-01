@@ -12,7 +12,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -233,8 +233,11 @@ AcpiOsSignalSemaphore (
 
 
 /*
- * Mutex primitives
+ * Mutex primitives. May be configured to use semaphores instead via
+ * ACPI_MUTEX_TYPE (see platform/acenv.h)
  */
+#if (ACPI_MUTEX_TYPE != ACPI_BINARY_SEMAPHORE)
+
 ACPI_STATUS
 AcpiOsCreateMutex (
     ACPI_MUTEX              *OutHandle);
@@ -251,13 +254,7 @@ AcpiOsAcquireMutex (
 void
 AcpiOsReleaseMutex (
     ACPI_MUTEX              Handle);
-
-/* Temporary macros for Mutex* interfaces, map to existing semaphore xfaces */
-
-#define AcpiOsCreateMutex(OutHandle)        AcpiOsCreateSemaphore (1, 1, OutHandle)
-#define AcpiOsDeleteMutex(Handle)           (void) AcpiOsDeleteSemaphore (Handle)
-#define AcpiOsAcquireMutex(Handle,Time)     AcpiOsWaitSemaphore (Handle, 1, Time)
-#define AcpiOsReleaseMutex(Handle)          (void) AcpiOsSignalSemaphore (Handle, 1)
+#endif
 
 
 /*
@@ -274,7 +271,7 @@ AcpiOsFree (
 void *
 AcpiOsMapMemory (
     ACPI_PHYSICAL_ADDRESS   Where,
-    ACPI_NATIVE_UINT        Length);
+    ACPI_SIZE               Length);
 
 void
 AcpiOsUnmapMemory (
@@ -424,12 +421,6 @@ AcpiOsDerivePciId(
 ACPI_STATUS
 AcpiOsValidateInterface (
     char                    *Interface);
-
-ACPI_STATUS
-AcpiOsValidateAddress (
-    UINT8                   SpaceId,
-    ACPI_PHYSICAL_ADDRESS   Address,
-    ACPI_SIZE               Length);
 
 BOOLEAN
 AcpiOsReadable (

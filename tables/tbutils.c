@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: tbutils   - table utilities
- *              $Revision: 1.88 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __TBUTILS_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "actables.h"
 
 #define _COMPONENT          ACPI_TABLES
@@ -127,7 +127,33 @@
 static ACPI_PHYSICAL_ADDRESS
 AcpiTbGetRootTableEntry (
     UINT8                   *TableEntry,
-    ACPI_NATIVE_UINT        TableEntrySize);
+    UINT32                  TableEntrySize);
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbInitializeFacs
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Create a permanent mapping for the FADT and save it in a global
+ *              for accessing the Global Lock and Firmware Waking Vector
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbInitializeFacs (
+    void)
+{
+    ACPI_STATUS             Status;
+
+
+    Status = AcpiGetTableByIndex (ACPI_TABLE_INDEX_FACS,
+                ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &AcpiGbl_FACS));
+    return (Status);
+}
 
 
 /*******************************************************************************
@@ -176,18 +202,23 @@ AcpiTbPrintTableHeader (
     ACPI_TABLE_HEADER       *Header)
 {
 
+    /*
+     * The reason that the Address is cast to a void pointer is so that we
+     * can use %p which will work properly on both 32-bit and 64-bit hosts.
+     */
     if (ACPI_COMPARE_NAME (Header->Signature, ACPI_SIG_FACS))
     {
-        /* FACS only has signature and length fields of common table header */
+        /* FACS only has signature and length fields */
 
-        ACPI_INFO ((AE_INFO, "%4.4s @ 0x%p/0x%04X",
-            Header->Signature, ACPI_CAST_PTR (void, Address), Header->Length));
+        ACPI_INFO ((AE_INFO, "%4.4s %p %05X",
+            Header->Signature, ACPI_CAST_PTR (void, Address),
+            Header->Length));
     }
     else if (ACPI_COMPARE_NAME (Header->Signature, ACPI_SIG_RSDP))
     {
         /* RSDP has no common fields */
 
-        ACPI_INFO ((AE_INFO, "RSDP @ 0x%p/0x%04X (v%3.3d %6.6s)",
+        ACPI_INFO ((AE_INFO, "RSDP %p %05X (v%.2d %6.6s)",
             ACPI_CAST_PTR (void, Address),
             (ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->Revision > 0) ?
                 ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->Length : 20,
@@ -199,7 +230,7 @@ AcpiTbPrintTableHeader (
         /* Standard ACPI table with full common header */
 
         ACPI_INFO ((AE_INFO,
-            "%4.4s @ 0x%p/0x%04X (v%3.3d %6.6s %8.8s 0x%08X %4.4s 0x%08X)",
+            "%4.4s %p %05X (v%.2d %6.6s %8.8s %08X %4.4s %08X)",
             Header->Signature, ACPI_CAST_PTR (void, Address),
             Header->Length, Header->Revision, Header->OemId,
             Header->OemTableId, Header->OemRevision, Header->AslCompilerId,
@@ -239,8 +270,9 @@ AcpiTbVerifyChecksum (
     if (Checksum)
     {
         ACPI_WARNING ((AE_INFO,
-            "Incorrect checksum in table [%4.4s] -  %2.2X, should be %2.2X",
-            Table->Signature, Table->Checksum, (UINT8) (Table->Checksum - Checksum)));
+            "Incorrect checksum in table [%4.4s] - %2.2X, should be %2.2X",
+            Table->Signature, Table->Checksum,
+            (UINT8) (Table->Checksum - Checksum)));
 
 #if (ACPI_CHECKSUM_ABORT)
         return (AE_BAD_CHECKSUM);
@@ -267,7 +299,7 @@ AcpiTbVerifyChecksum (
 UINT8
 AcpiTbChecksum (
     UINT8                   *Buffer,
-    ACPI_NATIVE_UINT        Length)
+    UINT32                  Length)
 {
     UINT8                   Sum = 0;
     UINT8                   *End = Buffer + Length;
@@ -287,25 +319,30 @@ AcpiTbChecksum (
  * FUNCTION:    AcpiTbInstallTable
  *
  * PARAMETERS:  Address                 - Physical address of DSDT or FACS
- *              Flags                   - Flags
  *              Signature               - Table signature, NULL if no need to
  *                                        match
  *              TableIndex              - Index into root table array
  *
  * RETURN:      None
  *
- * DESCRIPTION: Install an ACPI table into the global data structure.
+ * DESCRIPTION: Install an ACPI table into the global data structure. The
+ *              table override mechanism is implemented here to allow the host
+ *              OS to replace any table before it is installed in the root
+ *              table array.
  *
  ******************************************************************************/
 
 void
 AcpiTbInstallTable (
     ACPI_PHYSICAL_ADDRESS   Address,
-    UINT8                   Flags,
     char                    *Signature,
-    ACPI_NATIVE_UINT        TableIndex)
+    UINT32                  TableIndex)
 {
-    ACPI_TABLE_HEADER       *Table;
+    UINT8                   Flags;
+    ACPI_STATUS             Status;
+    ACPI_TABLE_HEADER       *TableToInstall;
+    ACPI_TABLE_HEADER       *MappedTable;
+    ACPI_TABLE_HEADER       *OverrideTable = NULL;
 
 
     if (!Address)
@@ -317,43 +354,70 @@ AcpiTbInstallTable (
 
     /* Map just the table header */
 
-    Table = AcpiOsMapMemory (Address, sizeof (ACPI_TABLE_HEADER));
-    if (!Table)
+    MappedTable = AcpiOsMapMemory (Address, sizeof (ACPI_TABLE_HEADER));
+    if (!MappedTable)
     {
         return;
     }
 
-    /* If a particular signature is expected, signature must match */
+    /* If a particular signature is expected (DSDT/FACS), it must match */
 
     if (Signature &&
-        !ACPI_COMPARE_NAME (Table->Signature, Signature))
+        !ACPI_COMPARE_NAME (MappedTable->Signature, Signature))
     {
-        ACPI_ERROR ((AE_INFO, "Invalid signature 0x%X for ACPI table [%s]",
-            *ACPI_CAST_PTR (UINT32, Table->Signature), Signature));
+        ACPI_ERROR ((AE_INFO,
+            "Invalid signature 0x%X for ACPI table, expected [%s]",
+            *ACPI_CAST_PTR (UINT32, MappedTable->Signature), Signature));
         goto UnmapAndExit;
+    }
+
+    /*
+     * ACPI Table Override:
+     *
+     * Before we install the table, let the host OS override it with a new
+     * one if desired. Any table within the RSDT/XSDT can be replaced,
+     * including the DSDT which is pointed to by the FADT.
+     */
+    Status = AcpiOsTableOverride (MappedTable, &OverrideTable);
+    if (ACPI_SUCCESS (Status) && OverrideTable)
+    {
+        ACPI_INFO ((AE_INFO,
+            "%4.4s @ 0x%p Table override, replaced with:",
+            MappedTable->Signature, ACPI_CAST_PTR (void, Address)));
+
+        AcpiGbl_RootTableList.Tables[TableIndex].Pointer = OverrideTable;
+        Address = ACPI_PTR_TO_PHYSADDR (OverrideTable);
+
+        TableToInstall = OverrideTable;
+        Flags = ACPI_TABLE_ORIGIN_OVERRIDE;
+    }
+    else
+    {
+        TableToInstall = MappedTable;
+        Flags = ACPI_TABLE_ORIGIN_MAPPED;
     }
 
     /* Initialize the table entry */
 
     AcpiGbl_RootTableList.Tables[TableIndex].Address = Address;
-    AcpiGbl_RootTableList.Tables[TableIndex].Length = Table->Length;
+    AcpiGbl_RootTableList.Tables[TableIndex].Length = TableToInstall->Length;
     AcpiGbl_RootTableList.Tables[TableIndex].Flags = Flags;
 
     ACPI_MOVE_32_TO_32 (
         &(AcpiGbl_RootTableList.Tables[TableIndex].Signature),
-        Table->Signature);
+        TableToInstall->Signature);
 
-    AcpiTbPrintTableHeader (Address, Table);
+    AcpiTbPrintTableHeader (Address, TableToInstall);
 
     if (TableIndex == ACPI_TABLE_INDEX_DSDT)
     {
         /* Global integer width is based upon revision of the DSDT */
 
-        AcpiUtSetIntegerWidth (Table->Revision);
+        AcpiUtSetIntegerWidth (TableToInstall->Revision);
     }
 
 UnmapAndExit:
-    AcpiOsUnmapMemory (Table, sizeof (ACPI_TABLE_HEADER));
+    AcpiOsUnmapMemory (MappedTable, sizeof (ACPI_TABLE_HEADER));
 }
 
 
@@ -377,7 +441,7 @@ UnmapAndExit:
 static ACPI_PHYSICAL_ADDRESS
 AcpiTbGetRootTableEntry (
     UINT8                   *TableEntry,
-    ACPI_NATIVE_UINT        TableEntrySize)
+    UINT32                  TableEntrySize)
 {
     UINT64                  Address64;
 
@@ -398,7 +462,8 @@ AcpiTbGetRootTableEntry (
     {
         /*
          * 32-bit platform, XSDT: Truncate 64-bit to 32-bit and return
-         * 64-bit platform, XSDT: Move (unaligned) 64-bit to local, return 64-bit
+         * 64-bit platform, XSDT: Move (unaligned) 64-bit to local,
+         *  return 64-bit
          */
         ACPI_MOVE_64_TO_64 (&Address64, TableEntry);
 
@@ -408,7 +473,8 @@ AcpiTbGetRootTableEntry (
             /* Will truncate 64-bit address to 32 bits, issue warning */
 
             ACPI_WARNING ((AE_INFO,
-                "64-bit Physical Address in XSDT is too large (%8.8X%8.8X), truncating",
+                "64-bit Physical Address in XSDT is too large (%8.8X%8.8X),"
+                " truncating",
                 ACPI_FORMAT_UINT64 (Address64)));
         }
 #endif
@@ -422,7 +488,6 @@ AcpiTbGetRootTableEntry (
  * FUNCTION:    AcpiTbParseRootTable
  *
  * PARAMETERS:  Rsdp                    - Pointer to the RSDP
- *              Flags                   - Flags
  *
  * RETURN:      Status
  *
@@ -437,12 +502,11 @@ AcpiTbGetRootTableEntry (
 
 ACPI_STATUS
 AcpiTbParseRootTable (
-    ACPI_PHYSICAL_ADDRESS   RsdpAddress,
-    UINT8                   Flags)
+    ACPI_PHYSICAL_ADDRESS   RsdpAddress)
 {
     ACPI_TABLE_RSDP         *Rsdp;
-    ACPI_NATIVE_UINT        TableEntrySize;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  TableEntrySize;
+    UINT32                  i;
     UINT32                  TableCount;
     ACPI_TABLE_HEADER       *Table;
     ACPI_PHYSICAL_ADDRESS   Address;
@@ -463,7 +527,8 @@ AcpiTbParseRootTable (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    AcpiTbPrintTableHeader (RsdpAddress, ACPI_CAST_PTR (ACPI_TABLE_HEADER, Rsdp));
+    AcpiTbPrintTableHeader (RsdpAddress,
+        ACPI_CAST_PTR (ACPI_TABLE_HEADER, Rsdp));
 
     /* Differentiate between RSDT and XSDT root tables */
 
@@ -530,11 +595,13 @@ AcpiTbParseRootTable (
 
     /* Calculate the number of tables described in the root table */
 
-    TableCount = (UINT32) ((Table->Length - sizeof (ACPI_TABLE_HEADER)) / TableEntrySize);
+    TableCount = (UINT32) ((Table->Length - sizeof (ACPI_TABLE_HEADER)) /
+        TableEntrySize);
 
     /*
-     * First two entries in the table array are reserved for the DSDT and FACS,
-     * which are not actually present in the RSDT/XSDT - they come from the FADT
+     * First two entries in the table array are reserved for the DSDT
+     * and FACS, which are not actually present in the RSDT/XSDT - they
+     * come from the FADT
      */
     TableEntry = ACPI_CAST_PTR (UINT8, Table) + sizeof (ACPI_TABLE_HEADER);
     AcpiGbl_RootTableList.Count = 2;
@@ -552,7 +619,8 @@ AcpiTbParseRootTable (
             if (ACPI_FAILURE (Status))
             {
                 ACPI_WARNING ((AE_INFO, "Truncating %u table entries!",
-                    (unsigned) (AcpiGbl_RootTableList.Size - AcpiGbl_RootTableList.Count)));
+                    (unsigned) (TableCount -
+                    (AcpiGbl_RootTableList.Count - 2))));
                 break;
             }
         }
@@ -579,14 +647,14 @@ AcpiTbParseRootTable (
     for (i = 2; i < AcpiGbl_RootTableList.Count; i++)
     {
         AcpiTbInstallTable (AcpiGbl_RootTableList.Tables[i].Address,
-            Flags, NULL, i);
+            NULL, i);
 
         /* Special case for FADT - get the DSDT and FACS */
 
         if (ACPI_COMPARE_NAME (
                 &AcpiGbl_RootTableList.Tables[i].Signature, ACPI_SIG_FADT))
         {
-            AcpiTbParseFadt (i, Flags);
+            AcpiTbParseFadt (i);
         }
     }
 

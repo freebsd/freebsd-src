@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: getopt
- *              $Revision: 1.10 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "acpi.h"
+#include "accommon.h"
+#include "acapps.h"
 
 #define ERR(szz,czz) if(AcpiGbl_Opterr){fprintf(stderr,"%s%s%c\n",argv[0],szz,czz);}
 

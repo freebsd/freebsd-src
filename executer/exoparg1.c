@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
- *              $Revision: 1.184 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __EXOPARG1_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "acdispat.h"
 #include "acinterp.h"
@@ -880,23 +880,36 @@ AcpiExOpcode_1A_0T_1R (
             Value = AcpiGbl_IntegerByteWidth;
             break;
 
-        case ACPI_TYPE_BUFFER:
-            Value = TempDesc->Buffer.Length;
-            break;
-
         case ACPI_TYPE_STRING:
             Value = TempDesc->String.Length;
             break;
 
+        case ACPI_TYPE_BUFFER:
+
+            /* Buffer arguments may not be evaluated at this point */
+
+            Status = AcpiDsGetBufferArguments (TempDesc);
+            Value = TempDesc->Buffer.Length;
+            break;
+
         case ACPI_TYPE_PACKAGE:
+
+            /* Package arguments may not be evaluated at this point */
+
+            Status = AcpiDsGetPackageArguments (TempDesc);
             Value = TempDesc->Package.Count;
             break;
 
         default:
             ACPI_ERROR ((AE_INFO,
-                "Operand is not Buf/Int/Str/Pkg - found type %s",
+                "Operand must be Buffer/Integer/String/Package - found type %s",
                 AcpiUtGetTypeName (Type)));
             Status = AE_AML_OPERAND_TYPE;
+            goto Cleanup;
+        }
+
+        if (ACPI_FAILURE (Status))
+        {
             goto Cleanup;
         }
 
@@ -934,8 +947,8 @@ AcpiExOpcode_1A_0T_1R (
             TempDesc = AcpiNsGetAttachedObject (
                            (ACPI_NAMESPACE_NODE *) Operand[0]);
             if (TempDesc &&
-                 ((ACPI_GET_OBJECT_TYPE (TempDesc) == ACPI_TYPE_STRING) ||
-                  (ACPI_GET_OBJECT_TYPE (TempDesc) == ACPI_TYPE_LOCAL_REFERENCE)))
+                 ((TempDesc->Common.Type == ACPI_TYPE_STRING) ||
+                  (TempDesc->Common.Type == ACPI_TYPE_LOCAL_REFERENCE)))
             {
                 Operand[0] = TempDesc;
                 AcpiUtAddReference (TempDesc);
@@ -948,7 +961,7 @@ AcpiExOpcode_1A_0T_1R (
         }
         else
         {
-            switch (ACPI_GET_OBJECT_TYPE (Operand[0]))
+            switch ((Operand[0])->Common.Type)
             {
             case ACPI_TYPE_LOCAL_REFERENCE:
                 /*
@@ -956,16 +969,16 @@ AcpiExOpcode_1A_0T_1R (
                  *
                  * Must resolve/dereference the local/arg reference first
                  */
-                switch (Operand[0]->Reference.Opcode)
+                switch (Operand[0]->Reference.Class)
                 {
-                case AML_LOCAL_OP:
-                case AML_ARG_OP:
+                case ACPI_REFCLASS_LOCAL:
+                case ACPI_REFCLASS_ARG:
 
                     /* Set Operand[0] to the value of the local/arg */
 
                     Status = AcpiDsMethodDataGetValue (
-                                Operand[0]->Reference.Opcode,
-                                Operand[0]->Reference.Offset,
+                                Operand[0]->Reference.Class,
+                                Operand[0]->Reference.Value,
                                 WalkState, &TempDesc);
                     if (ACPI_FAILURE (Status))
                     {
@@ -980,7 +993,7 @@ AcpiExOpcode_1A_0T_1R (
                     Operand[0] = TempDesc;
                     break;
 
-                case AML_REF_OF_OP:
+                case ACPI_REFCLASS_REFOF:
 
                     /* Get the object to which the reference refers */
 
@@ -1007,7 +1020,7 @@ AcpiExOpcode_1A_0T_1R (
 
         if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) != ACPI_DESC_TYPE_NAMED)
         {
-            if (ACPI_GET_OBJECT_TYPE (Operand[0]) == ACPI_TYPE_STRING)
+            if ((Operand[0])->Common.Type == ACPI_TYPE_STRING)
             {
                 /*
                  * This is a DerefOf (String). The string is a reference
@@ -1055,9 +1068,9 @@ AcpiExOpcode_1A_0T_1R (
              * This must be a reference object produced by either the
              * Index() or RefOf() operator
              */
-            switch (Operand[0]->Reference.Opcode)
+            switch (Operand[0]->Reference.Class)
             {
-            case AML_INDEX_OP:
+            case ACPI_REFCLASS_INDEX:
 
                 /*
                  * The target type for the Index operator must be
@@ -1090,7 +1103,7 @@ AcpiExOpcode_1A_0T_1R (
                      * reference to the buffer itself.
                      */
                     ReturnDesc->Integer.Value =
-                        TempDesc->Buffer.Pointer[Operand[0]->Reference.Offset];
+                        TempDesc->Buffer.Pointer[Operand[0]->Reference.Value];
                     break;
 
 
@@ -1111,7 +1124,7 @@ AcpiExOpcode_1A_0T_1R (
                 default:
 
                     ACPI_ERROR ((AE_INFO,
-                        "Unknown Index TargetType %X in obj %p",
+                        "Unknown Index TargetType %X in reference object %p",
                         Operand[0]->Reference.TargetType, Operand[0]));
                     Status = AE_AML_OPERAND_TYPE;
                     goto Cleanup;
@@ -1119,7 +1132,7 @@ AcpiExOpcode_1A_0T_1R (
                 break;
 
 
-            case AML_REF_OF_OP:
+            case ACPI_REFCLASS_REFOF:
 
                 ReturnDesc = Operand[0]->Reference.Object;
 
@@ -1138,8 +1151,8 @@ AcpiExOpcode_1A_0T_1R (
 
             default:
                 ACPI_ERROR ((AE_INFO,
-                    "Unknown opcode in reference(%p) - %X",
-                    Operand[0], Operand[0]->Reference.Opcode));
+                    "Unknown class in reference(%p) - %2.2X",
+                    Operand[0], Operand[0]->Reference.Class));
 
                 Status = AE_TYPE;
                 goto Cleanup;

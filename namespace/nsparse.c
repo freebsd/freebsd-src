@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: nsparse - namespace interface to AML parser
- *              $Revision: 1.16 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __NSPARSE_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 #include "acparser.h"
 #include "acdispat.h"
@@ -142,12 +142,13 @@
 
 ACPI_STATUS
 AcpiNsOneCompleteParse (
-    ACPI_NATIVE_UINT        PassNumber,
-    ACPI_NATIVE_UINT        TableIndex)
+    UINT32                  PassNumber,
+    UINT32                  TableIndex,
+    ACPI_NAMESPACE_NODE     *StartNode)
 {
     ACPI_PARSE_OBJECT       *ParseRoot;
     ACPI_STATUS             Status;
-    ACPI_NATIVE_UINT        AmlLength;
+    UINT32                  AmlLength;
     UINT8                   *AmlStart;
     ACPI_WALK_STATE         *WalkState;
     ACPI_TABLE_HEADER       *Table;
@@ -205,16 +206,27 @@ AcpiNsOneCompleteParse (
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
-        AcpiPsDeleteParseTree (ParseRoot);
-        return_ACPI_STATUS (Status);
+        goto Cleanup;
+    }
+
+    /* StartNode is the default location to load the table  */
+
+    if (StartNode && StartNode != AcpiGbl_RootNode)
+    {
+        Status = AcpiDsScopeStackPush (StartNode, ACPI_TYPE_METHOD, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            AcpiDsDeleteWalkState (WalkState);
+            goto Cleanup;
+        }
     }
 
     /* Parse the AML */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "*PARSE* pass %lu parse\n",
-        (unsigned long) PassNumber));
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "*PARSE* pass %d parse\n", PassNumber));
     Status = AcpiPsParseAml (WalkState);
 
+Cleanup:
     AcpiPsDeleteParseTree (ParseRoot);
     return_ACPI_STATUS (Status);
 }
@@ -235,7 +247,7 @@ AcpiNsOneCompleteParse (
 
 ACPI_STATUS
 AcpiNsParseTable (
-    ACPI_NATIVE_UINT        TableIndex,
+    UINT32                  TableIndex,
     ACPI_NAMESPACE_NODE     *StartNode)
 {
     ACPI_STATUS             Status;
@@ -255,7 +267,8 @@ AcpiNsParseTable (
      * performs another complete parse of the AML.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "**** Start pass 1\n"));
-    Status = AcpiNsOneCompleteParse (ACPI_IMODE_LOAD_PASS1, TableIndex);
+    Status = AcpiNsOneCompleteParse (ACPI_IMODE_LOAD_PASS1,
+                TableIndex, StartNode);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -271,7 +284,8 @@ AcpiNsParseTable (
      * parse objects are all cached.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "**** Start pass 2\n"));
-    Status = AcpiNsOneCompleteParse (ACPI_IMODE_LOAD_PASS2, TableIndex);
+    Status = AcpiNsOneCompleteParse (ACPI_IMODE_LOAD_PASS2,
+                TableIndex, StartNode);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);

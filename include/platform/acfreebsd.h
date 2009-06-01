@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 1.25 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -115,7 +114,7 @@
  *****************************************************************************/
 
 #ifndef __ACFREEBSD_H__
-#define __ACFREEBSD_H__
+#define	__ACFREEBSD_H__
 
 
 /* FreeBSD uses GCC */
@@ -124,78 +123,58 @@
 #include <sys/types.h>
 #include <machine/acpica_machdep.h>
 
-#define ACPI_THREAD_ID                  pid_t
-#define ACPI_UINTPTR_T                  uintptr_t
-#define ACPI_USE_LOCAL_CACHE
-#define __cdecl
+#define	ACPI_UINTPTR_T		uintptr_t
+
+#define	ACPI_USE_LOCAL_CACHE
+#define	ACPI_USE_SYSTEM_CLIBRARY
+
+#define	__cdecl
 
 #ifdef _KERNEL
-#include "opt_acpi.h"
-#endif
 
-#ifdef ACPI_DEBUG
-#define ACPI_DEBUG_OUTPUT   /* for backward compatibility */
-#define ACPI_DISASSEMBLER
-#endif
-
-#ifdef _KERNEL
 #include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <machine/stdarg.h>
 
-#ifdef DEBUGGER_THREADING
-#undef DEBUGGER_THREADING
-#endif /* DEBUGGER_THREADING */
+#include "opt_acpi.h"
 
-#define DEBUGGER_THREADING 0    /* integrated with DDB */
+#define	ACPI_THREAD_ID		lwpid_t
+
+#ifdef ACPI_DEBUG
+#define	ACPI_DEBUG_OUTPUT	/* for backward compatibility */
+#define	ACPI_DISASSEMBLER
+#endif
 
 #ifdef ACPI_DEBUG_OUTPUT
 #include "opt_ddb.h"
 #ifdef DDB
-#define ACPI_DEBUGGER
+#define	ACPI_DEBUGGER
 #endif /* DDB */
 #endif /* ACPI_DEBUG_OUTPUT */
 
-#else /* _KERNEL */
+#ifdef DEBUGGER_THREADING
+#undef DEBUGGER_THREADING
+#endif /* DEBUGGER_THREADING */
 
-/* Not building kernel code, so use libc */
-#define ACPI_USE_STANDARD_HEADERS
-#define ACPI_FLUSH_CPU_CACHE()
+#define	DEBUGGER_THREADING	0	/* integrated with DDB */
+
+#else /* _KERNEL */
 
 #if __STDC_HOSTED__
 #include <ctype.h>
 #endif
 
-#define __cli()
-#define __sti()
+#define	ACPI_THREAD_ID		pthread_t
 
-#endif /* _KERNEL */
+/* Not building kernel code, so use libc */
+#define	ACPI_USE_STANDARD_HEADERS
+#define	ACPI_FLUSH_CPU_CACHE()
 
-/* Always use FreeBSD code over our local versions */
-#define ACPI_USE_SYSTEM_CLIBRARY
+#define	__cli()
+#define	__sti()
 
-#if defined(_KERNEL) && (__FreeBSD_version < 700020)
-/* Or strstr (used in debugging mode, also move to libkern) */
-static __inline char *
-strstr (char *s, char *find)
-{
-    char c, sc;
-    size_t len;
-
-    if ((c = *find++) != 0) {
-        len = strlen (find);
-        do {
-            do {
-                if ((sc = *s++) == 0)
-                    return (NULL);
-            } while (sc != c);
-        } while (strncmp (s, find, len) != 0);
-        s--;
-    }
-    return ((char *) s);
-}
 #endif /* _KERNEL */
 
 #endif /* __ACFREEBSD_H__ */

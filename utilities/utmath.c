@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: utmath - Integer math support routines
- *              $Revision: 1.22 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __UTMATH_C__
 
 #include "acpi.h"
+#include "accommon.h"
 
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -387,7 +387,7 @@ AcpiUtShortDivide (
     }
     if (OutRemainder)
     {
-        *OutRemainder = (UINT32) InDividend % Divisor;
+        *OutRemainder = (UINT32) (InDividend % Divisor);
     }
 
     return_ACPI_STATUS (AE_OK);

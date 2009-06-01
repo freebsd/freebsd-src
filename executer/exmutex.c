@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: exmutex - ASL Mutex Acquire/Release functions
- *              $Revision: 1.40 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __EXMUTEX_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
 #include "acevents.h"
 
@@ -166,6 +166,15 @@ AcpiExUnlinkMutex (
     if (ObjDesc->Mutex.Prev)
     {
         (ObjDesc->Mutex.Prev)->Mutex.Next = ObjDesc->Mutex.Next;
+
+        /*
+         * Migrate the previous sync level associated with this mutex to the
+         * previous mutex on the list so that it may be preserved. This handles
+         * the case where several mutexes have been acquired at the same level,
+         * but are not released in opposite order.
+         */
+        (ObjDesc->Mutex.Prev)->Mutex.OriginalSyncLevel =
+            ObjDesc->Mutex.OriginalSyncLevel;
     }
     else
     {
@@ -461,6 +470,7 @@ AcpiExReleaseMutex (
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_STATUS             Status = AE_OK;
+    UINT8                   PreviousSyncLevel;
 
 
     ACPI_FUNCTION_TRACE (ExReleaseMutex);
@@ -488,10 +498,10 @@ AcpiExReleaseMutex (
         (ObjDesc != AcpiGbl_GlobalLockMutex))
     {
         ACPI_ERROR ((AE_INFO,
-            "Thread %X cannot release Mutex [%4.4s] acquired by thread %X",
-            WalkState->Thread->ThreadId,
+            "Thread %p cannot release Mutex [%4.4s] acquired by thread %p",
+            ACPI_CAST_PTR (void, WalkState->Thread->ThreadId),
             AcpiUtGetNodeName (ObjDesc->Mutex.Node),
-            ObjDesc->Mutex.OwnerThread->ThreadId));
+            ACPI_CAST_PTR (void, ObjDesc->Mutex.OwnerThread->ThreadId)));
         return_ACPI_STATUS (AE_AML_NOT_OWNER);
     }
 
@@ -505,10 +515,13 @@ AcpiExReleaseMutex (
     }
 
     /*
-     * The sync level of the mutex must be less than or equal to the current
-     * sync level
+     * The sync level of the mutex must be equal to the current sync level. In
+     * other words, the current level means that at least one mutex at that
+     * level is currently being held. Attempting to release a mutex of a
+     * different level can only mean that the mutex ordering rule is being
+     * violated. This behavior is clarified in ACPI 4.0 specification.
      */
-    if (ObjDesc->Mutex.SyncLevel > WalkState->Thread->CurrentSyncLevel)
+    if (ObjDesc->Mutex.SyncLevel != WalkState->Thread->CurrentSyncLevel)
     {
         ACPI_ERROR ((AE_INFO,
             "Cannot release Mutex [%4.4s], SyncLevel mismatch: mutex %d current %d",
@@ -517,13 +530,25 @@ AcpiExReleaseMutex (
         return_ACPI_STATUS (AE_AML_MUTEX_ORDER);
     }
 
+    /*
+     * Get the previous SyncLevel from the head of the acquired mutex list.
+     * This handles the case where several mutexes at the same level have been
+     * acquired, but are not released in reverse order.
+     */
+    PreviousSyncLevel =
+        WalkState->Thread->AcquiredMutexList->Mutex.OriginalSyncLevel;
+
     Status = AcpiExReleaseMutexObject (ObjDesc);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     if (ObjDesc->Mutex.AcquisitionDepth == 0)
     {
-        /* Restore the original SyncLevel */
+        /* Restore the previous SyncLevel */
 
-        WalkState->Thread->CurrentSyncLevel = ObjDesc->Mutex.OriginalSyncLevel;
+        WalkState->Thread->CurrentSyncLevel = PreviousSyncLevel;
     }
     return_ACPI_STATUS (Status);
 }

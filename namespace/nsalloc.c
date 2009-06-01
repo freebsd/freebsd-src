@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 1.108 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __NSALLOC_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 
 
@@ -159,7 +159,8 @@ AcpiNsCreateNode (
     ACPI_MEM_TRACKING (AcpiGbl_NsNodeList->TotalAllocated++);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
-        Temp = AcpiGbl_NsNodeList->TotalAllocated - AcpiGbl_NsNodeList->TotalFreed;
+        Temp = AcpiGbl_NsNodeList->TotalAllocated -
+                AcpiGbl_NsNodeList->TotalFreed;
         if (Temp > AcpiGbl_NsNodeList->MaxOccupied)
         {
             AcpiGbl_NsNodeList->MaxOccupied = Temp;
@@ -238,9 +239,8 @@ AcpiNsDeleteNode (
 
     ACPI_MEM_TRACKING (AcpiGbl_NsNodeList->TotalFreed++);
 
-    /*
-     * Detach an object if there is one, then delete the node
-     */
+    /* Detach an object if there is one, then delete the node */
+
     AcpiNsDetachObject (Node);
     (void) AcpiOsReleaseObject (AcpiGbl_NamespaceCache, Node);
     return_VOID;
@@ -282,9 +282,8 @@ AcpiNsInstallNode (
 
 
     /*
-     * Get the owner ID from the Walk state
-     * The owner ID is used to track table deletion and
-     * deletion of objects created by methods
+     * Get the owner ID from the Walk state. The owner ID is used to track
+     * table deletion and deletion of objects created by methods.
      */
     if (WalkState)
     {
@@ -369,9 +368,8 @@ AcpiNsDeleteChildren (
         return_VOID;
     }
 
-    /*
-     * Deallocate all children at this level
-     */
+    /* Deallocate all children at this level */
+
     do
     {
         /* Get the things we need */
@@ -394,9 +392,8 @@ AcpiNsDeleteChildren (
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Object %p, Remaining %X\n",
             ChildNode, AcpiGbl_CurrentNodeCount));
 
-        /*
-         * Detach an object if there is one, then free the child node
-         */
+        /* Detach an object if there is one, then free the child node */
+
         AcpiNsDetachObject (ChildNode);
 
         /* Now we can delete the node */
@@ -409,11 +406,9 @@ AcpiNsDeleteChildren (
 
     } while (!(Flags & ANOBJ_END_OF_PEER_LIST));
 
-
     /* Clear the parent's child pointer */
 
     ParentNode->Child = NULL;
-
     return_VOID;
 }
 
@@ -455,7 +450,7 @@ AcpiNsDeleteNamespaceSubtree (
     {
         /* Get the next node in this scope (NULL if none) */
 
-        ChildNode = AcpiNsGetNextNode (ACPI_TYPE_ANY, ParentNode, ChildNode);
+        ChildNode = AcpiNsGetNextNode (ParentNode, ChildNode);
         if (ChildNode)
         {
             /* Found a child node - detach any attached object */
@@ -464,7 +459,7 @@ AcpiNsDeleteNamespaceSubtree (
 
             /* Check if this node has any children */
 
-            if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, NULL))
+            if (ChildNode->Child)
             {
                 /*
                  * There is at least one child of this node,
@@ -561,7 +556,7 @@ AcpiNsDeleteNamespaceByOwner (
          * Get the next child of this parent node. When ChildNode is NULL,
          * the first child of the parent is returned
          */
-        ChildNode = AcpiNsGetNextNode (ACPI_TYPE_ANY, ParentNode, ChildNode);
+        ChildNode = AcpiNsGetNextNode (ParentNode, ChildNode);
 
         if (DeletionNode)
         {
@@ -581,7 +576,7 @@ AcpiNsDeleteNamespaceByOwner (
 
             /* Check if this node has any children */
 
-            if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, NULL))
+            if (ChildNode->Child)
             {
                 /*
                  * There is at least one child of this node,

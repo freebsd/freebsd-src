@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
- *       $Revision: 1.107 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -199,12 +198,14 @@ AcpiEvValidGpeEvent (
 
 ACPI_STATUS
 AcpiEvWalkGpeList (
-    ACPI_GPE_CALLBACK       GpeWalkCallback);
+    ACPI_GPE_CALLBACK       GpeWalkCallback,
+    void                    *Context);
 
 ACPI_STATUS
 AcpiEvDeleteGpeHandlers (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock);
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context);
 
 ACPI_STATUS
 AcpiEvCreateGpeBlock (
@@ -262,7 +263,7 @@ ACPI_STATUS
 AcpiEvAddressSpaceDispatch (
     ACPI_OPERAND_OBJECT    *RegionObj,
     UINT32                  Function,
-    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT32                  RegionOffset,
     UINT32                  BitWidth,
     ACPI_INTEGER            *Value);
 

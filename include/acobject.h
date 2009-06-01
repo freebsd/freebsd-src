@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 1.143 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -171,7 +170,6 @@
 #define AOPOBJ_OBJECT_INITIALIZED   0x08
 #define AOPOBJ_SETUP_COMPLETE       0x10
 #define AOPOBJ_SINGLE_DATUM         0x20
-#define AOPOBJ_INVALID              0x40 /* Used if host OS won't allow an OpRegion address */
 
 
 /******************************************************************************
@@ -480,20 +478,38 @@ typedef struct acpi_object_addr_handler
  *****************************************************************************/
 
 /*
- * The Reference object type is used for these opcodes:
- * Arg[0-6], Local[0-7], IndexOp, NameOp, ZeroOp, OneOp, OnesOp, DebugOp
+ * The Reference object is used for these opcodes:
+ * Arg[0-6], Local[0-7], IndexOp, NameOp, RefOfOp, LoadOp, LoadTableOp, DebugOp
+ * The Reference.Class differentiates these types.
  */
 typedef struct acpi_object_reference
 {
     ACPI_OBJECT_COMMON_HEADER
-    UINT8                           TargetType;         /* Used for IndexOp */
-    UINT16                          Opcode;
-    void                            *Object;            /* NameOp=>HANDLE to obj, IndexOp=>ACPI_OPERAND_OBJECT  */
-    ACPI_NAMESPACE_NODE             *Node;
-    union acpi_operand_object       **Where;
-    UINT32                          Offset;             /* Used for ArgOp, LocalOp, and IndexOp */
+     UINT8                           Class;              /* Reference Class */
+     UINT8                           TargetType;         /* Used for Index Op */
+     UINT8                           Reserved;
+     void                            *Object;            /* NameOp=>HANDLE to obj, IndexOp=>ACPI_OPERAND_OBJECT */
+     ACPI_NAMESPACE_NODE             *Node;              /* RefOf or Namepath */
+     union acpi_operand_object       **Where;            /* Target of Index */
+     UINT32                          Value;              /* Used for Local/Arg/Index/DdbHandle */
 
 } ACPI_OBJECT_REFERENCE;
+
+/* Values for Reference.Class above */
+
+typedef enum
+{
+    ACPI_REFCLASS_LOCAL             = 0,        /* Method local */
+    ACPI_REFCLASS_ARG               = 1,        /* Method argument */
+    ACPI_REFCLASS_REFOF             = 2,        /* Result of RefOf() TBD: Split to Ref/Node and Ref/OperandObj? */
+    ACPI_REFCLASS_INDEX             = 3,        /* Result of Index() */
+    ACPI_REFCLASS_TABLE             = 4,        /* DdbHandle - Load(), LoadTable() */
+    ACPI_REFCLASS_NAME              = 5,        /* Reference to a named object */
+    ACPI_REFCLASS_DEBUG             = 6,        /* Debug object */
+
+    ACPI_REFCLASS_MAX               = 6
+
+} ACPI_REFERENCE_CLASSES;
 
 
 /*
@@ -568,6 +584,13 @@ typedef union acpi_operand_object
     ACPI_OBJECT_EXTRA                   Extra;
     ACPI_OBJECT_DATA                    Data;
     ACPI_OBJECT_CACHE_LIST              Cache;
+
+    /*
+     * Add namespace node to union in order to simplify code that accepts both
+     * ACPI_OPERAND_OBJECTs and ACPI_NAMESPACE_NODEs. The structures share
+     * a common DescriptorType field in order to differentiate them.
+     */
+    ACPI_NAMESPACE_NODE                 Node;
 
 } ACPI_OPERAND_OBJECT;
 

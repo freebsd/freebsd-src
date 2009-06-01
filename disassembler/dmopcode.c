@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dmopcode - AML disassembler, specific AML opcodes
- *              $Revision: 1.101 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -115,6 +114,7 @@
  *****************************************************************************/
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
 #include "acdisasm.h"
@@ -201,8 +201,6 @@ AcpiDmFieldFlags (
 {
     UINT32                  Flags;
 
-
-    /* The next peer Op (not child op) contains the flags */
 
     Op = Op->Common.Next;
     Flags = (UINT8) Op->Common.Value.Integer;
@@ -406,6 +404,9 @@ AcpiDmDisassembleOneOp (
         case AML_LLESS_OP:
             AcpiOsPrintf ("LGreaterEqual");
             break;
+
+        default:
+            break;
         }
         Op->Common.DisasmOpcode = 0;
         Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
@@ -548,7 +549,7 @@ AcpiDmDisassembleOneOp (
 
     case AML_INT_NAMEDFIELD_OP:
 
-        Length = AcpiDmDumpName ((char *) &Op->Named.Name);
+        Length = AcpiDmDumpName (Op->Named.Name);
         AcpiOsPrintf (",%*.s  %d", (int) (5 - Length), " ",
             (UINT32) Op->Common.Value.Integer);
         AcpiDmCommaIfFieldMember (Op);

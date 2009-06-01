@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: psloop - Main AML parse loop
- *              $Revision: 1.16 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,6 +123,7 @@
  */
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "acdispat.h"
 #include "amlcode.h"
@@ -338,7 +338,8 @@ AcpiPsBuildNamedOp (
     AcpiPsAppendArg (*Op, UnnamedOp->Common.Value.Arg);
     AcpiGbl_Depth++;
 
-    if ((*Op)->Common.AmlOpcode == AML_REGION_OP)
+    if ((*Op)->Common.AmlOpcode == AML_REGION_OP ||
+        (*Op)->Common.AmlOpcode == AML_DATA_REGION_OP)
     {
         /*
          * Defer final parsing of an OperationRegion body, because we don't
@@ -423,6 +424,16 @@ AcpiPsCreateOp (
     {
         /*
          * Backup to beginning of CreateXXXfield declaration
+         * BodyLength is unknown until we parse the body
+         */
+        Op->Named.Data = AmlOpStart;
+        Op->Named.Length = 0;
+    }
+
+    if (WalkState->Opcode == AML_BANK_FIELD_OP)
+    {
+        /*
+         * Backup to beginning of BankField declaration
          * BodyLength is unknown until we parse the body
          */
         Op->Named.Data = AmlOpStart;
@@ -1132,7 +1143,8 @@ AcpiPsParseLoop (
                 AcpiGbl_Depth--;
             }
 
-            if (Op->Common.AmlOpcode == AML_REGION_OP)
+            if (Op->Common.AmlOpcode == AML_REGION_OP ||
+                Op->Common.AmlOpcode == AML_DATA_REGION_OP)
             {
                 /*
                  * Skip parsing of control method or opregion body,
@@ -1151,6 +1163,16 @@ AcpiPsParseLoop (
             /*
              * Backup to beginning of CreateXXXfield declaration (1 for
              * Opcode)
+             *
+             * BodyLength is unknown until we parse the body
+             */
+            Op->Named.Length = (UINT32) (ParserState->Aml - Op->Named.Data);
+        }
+
+        if (Op->Common.AmlOpcode == AML_BANK_FIELD_OP)
+        {
+            /*
+             * Backup to beginning of BankField declaration
              *
              * BodyLength is unknown until we parse the body
              */

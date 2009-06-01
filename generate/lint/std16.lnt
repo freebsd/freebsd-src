@@ -1,0 +1,16 @@
+//  Microsoft C and Visual C++ 4.x, -mL -si2 -spN2 -spF4, lib-win.lnt
+//  Standard lint options
+
+
+c:\acpi\generate\lint\co-msc40.lnt
+//c:\acpi\generate\lint\lib-win.lnt
+
+-dMSDOS
+-dACPI_MACHINE_WIDTH=16
+//-d_MSC_VER
+
+-e747	// Compiler supports parameter conversions
+
+
+options.lnt  -mL -si2 -spN2 -spF4 -sl4
+

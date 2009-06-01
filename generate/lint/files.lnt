@@ -1,0 +1,15 @@
+//
+// Basic ACPICA components
+//
+..\..\source\components\debugger\*.c
+..\..\source\components\disassembler\*.c
+..\..\source\components\dispatcher\*.c
+..\..\source\components\events\*.c
+..\..\source\components\executer\*.c
+..\..\source\components\hardware\*.c
+..\..\source\components\namespace\*.c
+..\..\source\components\parser\*.c
+..\..\source\components\resources\*.c
+..\..\source\components\tables\*.c
+..\..\source\components\utilities\*.c
+

@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 1.101 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,6 +118,7 @@
 #define __EXREGION_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
 
 
@@ -240,12 +240,13 @@ AcpiExSystemMemorySpaceHandler (
 
         /* Create a new mapping starting at the address given */
 
-        MemInfo->MappedLogicalAddress = AcpiOsMapMemory ((ACPI_NATIVE_UINT) Address, WindowSize);
+        MemInfo->MappedLogicalAddress = AcpiOsMapMemory (
+            (ACPI_PHYSICAL_ADDRESS) Address, WindowSize);
         if (!MemInfo->MappedLogicalAddress)
         {
             ACPI_ERROR ((AE_INFO,
                 "Could not map memory at %8.8X%8.8X, size %X",
-                ACPI_FORMAT_UINT64 (Address), (UINT32) WindowSize));
+                ACPI_FORMAT_NATIVE_UINT (Address), (UINT32) WindowSize));
             MemInfo->MappedLength = 0;
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
@@ -265,7 +266,7 @@ AcpiExSystemMemorySpaceHandler (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "System-Memory (width %d) R/W %d Address=%8.8X%8.8X\n",
-        BitWidth, Function, ACPI_FORMAT_UINT64 (Address)));
+        BitWidth, Function, ACPI_FORMAT_NATIVE_UINT (Address)));
 
     /*
      * Perform the memory read or write
@@ -375,7 +376,7 @@ AcpiExSystemIoSpaceHandler (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "System-IO (width %d) R/W %d Address=%8.8X%8.8X\n",
-        BitWidth, Function, ACPI_FORMAT_UINT64 (Address)));
+        BitWidth, Function, ACPI_FORMAT_NATIVE_UINT (Address)));
 
     /* Decode the function parameter */
 
@@ -383,14 +384,14 @@ AcpiExSystemIoSpaceHandler (
     {
     case ACPI_READ:
 
-        Status = AcpiOsReadPort ((ACPI_IO_ADDRESS) Address,
+        Status = AcpiHwReadPort ((ACPI_IO_ADDRESS) Address,
                     &Value32, BitWidth);
         *Value = Value32;
         break;
 
     case ACPI_WRITE:
 
-        Status = AcpiOsWritePort ((ACPI_IO_ADDRESS) Address,
+        Status = AcpiHwWritePort ((ACPI_IO_ADDRESS) Address,
                     (UINT32) *Value, BitWidth);
         break;
 

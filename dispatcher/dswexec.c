@@ -2,7 +2,6 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 1.134 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __DSWEXEC_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
 #include "acdispat.h"
@@ -224,11 +224,11 @@ AcpiDsGetPredicateValue (
         goto Cleanup;
     }
 
-    if (ACPI_GET_OBJECT_TYPE (LocalObjDesc) != ACPI_TYPE_INTEGER)
+    if (LocalObjDesc->Common.Type != ACPI_TYPE_INTEGER)
     {
         ACPI_ERROR ((AE_INFO,
             "Bad predicate (not an integer) ObjDesc=%p State=%p Type=%X",
-            ObjDesc, WalkState, ACPI_GET_OBJECT_TYPE (ObjDesc)));
+            ObjDesc, WalkState, ObjDesc->Common.Type));
 
         Status = AE_AML_OPERAND_TYPE;
         goto Cleanup;
@@ -255,6 +255,10 @@ AcpiDsGetPredicateValue (
         WalkState->ControlState->Common.Value = FALSE;
         Status = AE_CTRL_FALSE;
     }
+
+    /* Predicate can be used for an implicit return value */
+
+    (void) AcpiDsDoImplicitReturn (LocalObjDesc, WalkState, TRUE);
 
 
 Cleanup:
@@ -515,12 +519,6 @@ AcpiDsExecEndOp (
             Status = AcpiExResolveOperands (WalkState->Opcode,
                         &(WalkState->Operands [WalkState->NumOperands -1]),
                         WalkState);
-            if (ACPI_SUCCESS (Status))
-            {
-                ACPI_DUMP_OPERANDS (ACPI_WALK_OPERANDS, ACPI_IMODE_EXECUTE,
-                    AcpiPsGetOpcodeName (WalkState->Opcode),
-                    WalkState->NumOperands, "after ExResolveOperands");
-            }
         }
 
         if (ACPI_SUCCESS (Status))
@@ -542,10 +540,10 @@ AcpiDsExecEndOp (
                 (WalkState->Opcode == AML_STORE_OP) &&
                 (WalkState->Operands[0]->Common.Type == ACPI_TYPE_LOCAL_REFERENCE) &&
                 (WalkState->Operands[1]->Common.Type == ACPI_TYPE_LOCAL_REFERENCE) &&
-                (WalkState->Operands[0]->Reference.Opcode ==
-                 WalkState->Operands[1]->Reference.Opcode) &&
-                (WalkState->Operands[0]->Reference.Offset ==
-                 WalkState->Operands[1]->Reference.Offset))
+                (WalkState->Operands[0]->Reference.Class ==
+                 WalkState->Operands[1]->Reference.Class) &&
+                (WalkState->Operands[0]->Reference.Value ==
+                 WalkState->Operands[1]->Reference.Value))
             {
                 Status = AE_OK;
             }
@@ -600,7 +598,7 @@ AcpiDsExecEndOp (
                 ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
                     "Method Reference in a Package, Op=%p\n", Op));
 
-                Op->Common.Node = (ACPI_NAMESPACE_NODE *) Op->Asl.Value.Arg->Asl.Node->Object;
+                Op->Common.Node = (ACPI_NAMESPACE_NODE *) Op->Asl.Value.Arg->Asl.Node;
                 AcpiUtAddReference (Op->Asl.Value.Arg->Asl.Node->Object);
                 return_ACPI_STATUS (AE_OK);
             }
@@ -737,6 +735,28 @@ AcpiDsExecEndOp (
                     "Executing OpRegion Address/Length Op=%p\n", Op));
 
                 Status = AcpiDsEvalRegionOperands (WalkState, Op);
+                if (ACPI_FAILURE (Status))
+                {
+                    break;
+                }
+            }
+            else if (Op->Common.AmlOpcode == AML_DATA_REGION_OP)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                    "Executing DataTableRegion Strings Op=%p\n", Op));
+
+                Status = AcpiDsEvalTableRegionOperands (WalkState, Op);
+                if (ACPI_FAILURE (Status))
+                {
+                    break;
+                }
+            }
+            else if (Op->Common.AmlOpcode == AML_BANK_FIELD_OP)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                    "Executing BankField Op=%p\n", Op));
+
+                Status = AcpiDsEvalBankFieldOperands (WalkState, Op);
                 if (ACPI_FAILURE (Status))
                 {
                     break;

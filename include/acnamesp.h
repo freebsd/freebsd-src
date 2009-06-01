@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 1.152 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -169,7 +168,7 @@ AcpiNsLoadNamespace (
 
 ACPI_STATUS
 AcpiNsLoadTable (
-    ACPI_NATIVE_UINT        TableIndex,
+    UINT32                  TableIndex,
     ACPI_NAMESPACE_NODE     *Node);
 
 
@@ -188,23 +187,28 @@ AcpiNsWalkNamespace (
 
 ACPI_NAMESPACE_NODE *
 AcpiNsGetNextNode (
-    ACPI_OBJECT_TYPE        Type,
     ACPI_NAMESPACE_NODE     *Parent,
     ACPI_NAMESPACE_NODE     *Child);
 
+ACPI_NAMESPACE_NODE *
+AcpiNsGetNextNodeTyped (
+    ACPI_OBJECT_TYPE        Type,
+    ACPI_NAMESPACE_NODE     *Parent,
+    ACPI_NAMESPACE_NODE     *Child);
 
 /*
  * nsparse - table parsing
  */
 ACPI_STATUS
 AcpiNsParseTable (
-    ACPI_NATIVE_UINT        TableIndex,
+    UINT32                  TableIndex,
     ACPI_NAMESPACE_NODE     *StartNode);
 
 ACPI_STATUS
 AcpiNsOneCompleteParse (
-    ACPI_NATIVE_UINT        PassNumber,
-    ACPI_NATIVE_UINT        TableIndex);
+    UINT32                  PassNumber,
+    UINT32                  TableIndex,
+    ACPI_NAMESPACE_NODE     *StartNode);
 
 
 /*
@@ -308,13 +312,35 @@ AcpiNsEvaluate (
 
 
 /*
+ * nspredef - Support for predefined/reserved names
+ */
+ACPI_STATUS
+AcpiNsCheckPredefinedNames (
+    ACPI_NAMESPACE_NODE     *Node,
+    UINT32                  UserParamCount,
+    ACPI_STATUS             ReturnStatus,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+const ACPI_PREDEFINED_INFO *
+AcpiNsCheckForPredefinedName (
+    ACPI_NAMESPACE_NODE     *Node);
+
+void
+AcpiNsCheckParameterCount (
+    char                        *Pathname,
+    ACPI_NAMESPACE_NODE         *Node,
+    UINT32                      UserParamCount,
+    const ACPI_PREDEFINED_INFO  *Info);
+
+
+/*
  * nsnames - Name and Scope manipulation
  */
 UINT32
 AcpiNsOpensScope (
     ACPI_OBJECT_TYPE        Type);
 
-void
+ACPI_STATUS
 AcpiNsBuildExternalPath (
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_SIZE               Size,
@@ -341,7 +367,7 @@ AcpiNsPatternMatch (
 ACPI_STATUS
 AcpiNsGetNode (
     ACPI_NAMESPACE_NODE     *PrefixNode,
-    char                    *ExternalPathname,
+    const char              *ExternalPathname,
     UINT32                  Flags,
     ACPI_NAMESPACE_NODE     **OutNode);
 
@@ -430,24 +456,24 @@ AcpiNsLocal (
 
 void
 AcpiNsReportError (
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  LineNumber,
-    char                    *InternalName,
+    const char              *InternalName,
     ACPI_STATUS             LookupStatus);
 
 void
 AcpiNsReportMethodError (
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  LineNumber,
-    char                    *Message,
+    const char              *Message,
     ACPI_NAMESPACE_NODE     *Node,
-    char                    *Path,
+    const char              *Path,
     ACPI_STATUS             LookupStatus);
 
 void
 AcpiNsPrintNodePathname (
     ACPI_NAMESPACE_NODE     *Node,
-    char                    *Msg);
+    const char              *Msg);
 
 ACPI_STATUS
 AcpiNsBuildInternalName (
@@ -459,13 +485,13 @@ AcpiNsGetInternalNameLength (
 
 ACPI_STATUS
 AcpiNsInternalizeName (
-    char                    *DottedName,
+    const char              *DottedName,
     char                    **ConvertedName);
 
 ACPI_STATUS
 AcpiNsExternalizeName (
     UINT32                  InternalNameLength,
-    char                    *InternalName,
+    const char              *InternalName,
     UINT32                  *ConvertedNameLength,
     char                    **ConvertedName);
 

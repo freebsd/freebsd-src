@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 1.114 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acdebug.h"
 
 
@@ -160,6 +160,7 @@ enum AcpiExDebuggerCommands
     CMD_ALLOCATIONS,
     CMD_ARGS,
     CMD_ARGUMENTS,
+    CMD_BATCH,
     CMD_BREAKPOINT,
     CMD_BUSINFO,
     CMD_CALL,
@@ -194,6 +195,7 @@ enum AcpiExDebuggerCommands
     CMD_OBJECT,
     CMD_OPEN,
     CMD_OWNER,
+    CMD_PREDEFINED,
     CMD_PREFIX,
     CMD_QUIT,
     CMD_REFERENCES,
@@ -214,6 +216,9 @@ enum AcpiExDebuggerCommands
 
 #define CMD_FIRST_VALID     2
 
+
+/* Second parameter is the required argument count */
+
 static const COMMAND_INFO       AcpiGbl_DbCommands[] =
 {
     {"<NOT FOUND>",  0},
@@ -221,6 +226,7 @@ static const COMMAND_INFO       AcpiGbl_DbCommands[] =
     {"ALLOCATIONS",  0},
     {"ARGS",         0},
     {"ARGUMENTS",    0},
+    {"BATCH",        0},
     {"BREAKPOINT",   1},
     {"BUSINFO",      0},
     {"CALL",         0},
@@ -255,6 +261,7 @@ static const COMMAND_INFO       AcpiGbl_DbCommands[] =
     {"OBJECT",       1},
     {"OPEN",         1},
     {"OWNER",        1},
+    {"PREDEFINED",   0},
     {"PREFIX",       0},
     {"QUIT",         0},
     {"REFERENCES",   1},
@@ -360,6 +367,7 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Notify <Object> <Value>             Send a notification on Object\n");
         AcpiOsPrintf ("Objects <ObjectType>                Display all objects of the given type\n");
         AcpiOsPrintf ("Owner <OwnerId> [Depth]             Display loaded namespace by object owner\n");
+        AcpiOsPrintf ("Predefined                          Check all predefined names\n");
         AcpiOsPrintf ("Prefix [<NamePath>]                 Set or Get current execution prefix\n");
         AcpiOsPrintf ("References <Addr>                   Find all references to object at addr\n");
         AcpiOsPrintf ("Resources <Device>                  Get and display Device resources\n");
@@ -635,6 +643,10 @@ AcpiDbCommandDispatch (
         AcpiDbDisplayArguments ();
         break;
 
+    case CMD_BATCH:
+        AcpiDbBatchExecute ();
+        break;
+
     case CMD_BREAKPOINT:
         AcpiDbSetMethodBreakpoint (AcpiGbl_DbArgs[1], WalkState, Op);
         break;
@@ -812,6 +824,10 @@ AcpiDbCommandDispatch (
         AcpiDbDumpNamespaceByOwner (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
+    case CMD_PREDEFINED:
+        AcpiDbCheckPredefinedNames ();
+        break;
+
     case CMD_PREFIX:
         AcpiDbSetScope (AcpiGbl_DbArgs[1]);
         break;
@@ -866,7 +882,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_TRACE:
-        AcpiDebugTrace (AcpiGbl_DbArgs[1],0,0,1);
+        (void) AcpiDebugTrace (AcpiGbl_DbArgs[1],0,0,1);
         break;
 
     case CMD_TREE:

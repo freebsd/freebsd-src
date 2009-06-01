@@ -1,0 +1,79 @@
+// Please note -- this is a representative set of error suppression
+//                options.  Please adjust to suit your own policies
+//                See  manual (chapter LIVING WITH LINT)
+//                for further details.
+
+-i"..\..\source\include"
+-i"..\..\source\include\platform"
+
+/* Global options */
+
+-A              // ANSI C only
++fie            // Enum is integer
+-dACPI_USE_DO_WHILE_0
+-dACPI_DEBUG_OUTPUT
+//-dACPI_APPLICATION
+-dACPI_DEBUGGER
+-dACPI_DISASSEMBLER
+-dACPI_ENABLE_OBJECT_CACHE
+-dACPI_DBG_TRACK_ALLOCATIONS
+-dACPI_USE_LOCAL_CACHE
+-dACPI_CACHE_T=ACPI_MEMORY_LIST
+-d_LINT=1
+
+-printf(4, AcpiUtDebugPrint, AcpiUtDebugPrintRaw)
+-printf(1, AcpiOsPrintf, AcpiOsVprintf)
+
+/* Macro exceptions */
+
+-emacro( (413), ACPI_OFFSET )               // use of NULL pointer creates a stir
+-emacro( (413), ACPI_TO_INTEGER )           // use of NULL pointer creates a stir
+-emacro( (413), ACPI_TO_POINTER )           // use of NULL pointer creates a stir
+-emacro( (413), ACPI_ADD_PTR )              // use of NULL pointer creates a stir
+-emacro( (413), ACPI_PTR_DIFF )             // use of NULL pointer creates a stir
+-emacro( (413), ACPI_FADT_OFFSET )          // use of NULL pointer creates a stir
+-emacro( (413), ASL_RESDESC_OFFSET )        // use of NULL pointer creates a stir
+
+-emacro( 826, ACPI_NEXT_RESOURCE)           // Pointer cast
+-emacro( 826, ACPI_MOVE_UNALIGNED16_TO_16)  // Pointer cast
+-emacro( 826, ACPI_MOVE_UNALIGNED16_TO_32)  // Pointer cast
+-emacro( 826, ACPI_MOVE_UNALIGNED32_TO_32)  // Pointer cast
+-emacro( 826, ACPI_MOVE_32_TO_32)           // Pointer cast
+-emacro( 950, ACPI_INTERNAL_VAR_XFACE)      // Uses non-ANSI
+-emacro( 950, ACPI_SYSTEM_XFACE)            // Uses non-ANSI
+-emacro( 826, ACPI_CAST_PTR)                // Pointer cast
+-emacro( 826, ACPI_ADD_PTR)                 // Pointer cast
+-emacro( 826, ACPI_LODWORD)					// Pointer cast
+-emacro( 826, ACPI_HIDWORD)					// Pointer cast
+
+/* Symbol exceptions */
+
+-esym( 528, _AcpiModuleName)                // Symbol not always used, but always present
+-esym( 550, CurrentSp)                      // Used to track stack use
+-esym( 789, CurrentSp)                      // Used to track stack use
+-esym( 534, AcpiDmDumpName)                 // Return value not always used
+-esym( 534, AcpiDmCommaIfListMember)        // Return value not always used
+
+// Suppress warning about redefinition during lint of multiple modules
+-esym(767,_COMPONENT)
+
+
+/* Symbol exceptions for generation of iASL compiler */
+
+-esym( 534, TrWalkParseTree)                // Return value not always used
+-esym( 534, AslCompilerparse)               // Return value not always used
+-esym( 534, OpcSetOptimalIntegerSize)       // Return value not always used
+-esym( 534, AslCompilererror)               // Return value not always used
+
+/* Global exceptions */
+
+-e716   // Allow while(1)
+-e717   // Allow do..while(0)
+-e801   // Allow judicious use of goto without incurring complaint
+-e818   // Don't make suggestions about const to avoid "const" pollution
+-e715   // Ignore non-referenced formal parameters
+-e750   // Ignore non-referenced local macros (_MODULE_NAME, _COMPONENT, etc.)
+-e834   // - followed by + is "confusing" NOT.
+-e820   // Allow Boolean test of a parenthesized assignment
+-e778   // Allow constant expressions to evaluate to zero
+-e831

@@ -2,7 +2,6 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 1.102 $
  *
  ******************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
  *****************************************************************************/
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acevents.h"
 
 
@@ -171,6 +171,7 @@ AcpiEvSciXruptHandler (
      */
     InterruptHandled |= AcpiEvGpeDetect (GpeXruptList);
 
+    AcpiSciCount++;
     return_UINT32 (InterruptHandled);
 }
 
@@ -203,10 +204,8 @@ AcpiEvGpeXruptHandler (
      * if this interrupt handler is installed, ACPI is enabled.
      */
 
-    /*
-     * GPEs:
-     * Check for and dispatch any GPEs that have occurred
-     */
+    /* GPEs: Check for and dispatch any GPEs that have occurred */
+
     InterruptHandled |= AcpiEvGpeDetect (GpeXruptList);
 
     return_UINT32 (InterruptHandled);
@@ -250,11 +249,11 @@ AcpiEvInstallSciHandler (
  * RETURN:      E_OK if handler uninstalled OK, E_ERROR if handler was not
  *              installed to begin with
  *
- * DESCRIPTION: Remove the SCI interrupt handler.  No further SCIs will be
+ * DESCRIPTION: Remove the SCI interrupt handler. No further SCIs will be
  *              taken.
  *
  * Note:  It doesn't seem important to disable all events or set the event
- *        enable registers to their original values.  The OS should disable
+ *        enable registers to their original values. The OS should disable
  *        the SCI interrupt level when the handler is removed, so no more
  *        events will come in.
  *

@@ -3,7 +3,6 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 1.71 $
  *
  *****************************************************************************/
 
@@ -11,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,6 +118,7 @@
 #define __EXSTOREN_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
 #include "amlcode.h"
 
@@ -177,7 +177,7 @@ AcpiExResolveObject (
          * are all essentially the same.  This case handles the
          * "interchangeable" types Integer, String, and Buffer.
          */
-        if (ACPI_GET_OBJECT_TYPE (SourceDesc) == ACPI_TYPE_LOCAL_REFERENCE)
+        if (SourceDesc->Common.Type == ACPI_TYPE_LOCAL_REFERENCE)
         {
             /* Resolve a reference object first */
 
@@ -197,10 +197,11 @@ AcpiExResolveObject (
 
         /* Must have a Integer, Buffer, or String */
 
-        if ((ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_TYPE_INTEGER)    &&
-            (ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_TYPE_BUFFER)     &&
-            (ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_TYPE_STRING)     &&
-            !((ACPI_GET_OBJECT_TYPE (SourceDesc) == ACPI_TYPE_LOCAL_REFERENCE) && (SourceDesc->Reference.Opcode == AML_LOAD_OP)))
+        if ((SourceDesc->Common.Type != ACPI_TYPE_INTEGER)    &&
+            (SourceDesc->Common.Type != ACPI_TYPE_BUFFER)     &&
+            (SourceDesc->Common.Type != ACPI_TYPE_STRING)     &&
+            !((SourceDesc->Common.Type == ACPI_TYPE_LOCAL_REFERENCE) &&
+                    (SourceDesc->Reference.Class== ACPI_REFCLASS_TABLE)))
         {
             /* Conversion successful but still not a valid type */
 
@@ -300,7 +301,7 @@ AcpiExStoreObjectToObject (
         return_ACPI_STATUS (Status);
     }
 
-    if (ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_GET_OBJECT_TYPE (DestDesc))
+    if (SourceDesc->Common.Type != DestDesc->Common.Type)
     {
         /*
          * The source type does not match the type of the destination.
@@ -311,7 +312,7 @@ AcpiExStoreObjectToObject (
          * Otherwise, ActualSrcDesc is a temporary object to hold the
          * converted object.
          */
-        Status = AcpiExConvertToTargetType (ACPI_GET_OBJECT_TYPE (DestDesc),
+        Status = AcpiExConvertToTargetType (DestDesc->Common.Type,
                         SourceDesc, &ActualSrcDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
@@ -333,7 +334,7 @@ AcpiExStoreObjectToObject (
      * We now have two objects of identical types, and we can perform a
      * copy of the *value* of the source object.
      */
-    switch (ACPI_GET_OBJECT_TYPE (DestDesc))
+    switch (DestDesc->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
 

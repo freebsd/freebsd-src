@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dmresrcl.c - "Large" Resource Descriptor disassembly
- *              $Revision: 1.37 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acdisasm.h"
 
 
@@ -215,7 +215,7 @@ AcpiDmMemoryFields (
     UINT8                   Type,
     UINT32                  Level)
 {
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
 
 
     for (i = 0; i < 4; i++)
@@ -261,7 +261,7 @@ AcpiDmAddressFields (
     UINT8                   Type,
     UINT32                  Level)
 {
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
 
 
     AcpiOsPrintf ("\n");
@@ -1026,7 +1026,7 @@ AcpiDmInterruptDescriptor (
      */
     AcpiDmResourceSource (Resource,
         sizeof (AML_RESOURCE_EXTENDED_IRQ) +
-            (Resource->ExtendedIrq.InterruptCount - 1) * sizeof (UINT32),
+            ((UINT32) Resource->ExtendedIrq.InterruptCount - 1) * sizeof (UINT32),
         Resource->ExtendedIrq.ResourceLength);
 
     /* Insert a descriptor name */

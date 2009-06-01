@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 1.84 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -260,6 +259,13 @@ AcpiDbGenerateGpe (
     char                    *GpeArg,
     char                    *BlockArg);
 
+void
+AcpiDbCheckPredefinedNames (
+    void);
+
+void
+AcpiDbBatchExecute (
+    void);
 
 /*
  * dbdisply - debug display commands
@@ -307,6 +313,13 @@ AcpiDbDisplayArgumentObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_WALK_STATE         *WalkState);
 
+void
+AcpiDbCheckPredefinedNames (
+    void);
+
+void
+AcpiDbBatchExecute (
+    void);
 
 /*
  * dbexec - debugger control method execution

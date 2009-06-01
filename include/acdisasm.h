@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acdisasm.h - AML disassembler
- *       $Revision: 1.39 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -174,21 +173,26 @@ typedef const struct acpi_dmtable_info
 #define ACPI_DMT_CHKSUM                 20
 #define ACPI_DMT_SPACEID                21
 #define ACPI_DMT_GAS                    22
-#define ACPI_DMT_DMAR                   23
-#define ACPI_DMT_MADT                   24
-#define ACPI_DMT_SRAT                   25
-#define ACPI_DMT_EXIT                   26
-#define ACPI_DMT_SIG                    27
+#define ACPI_DMT_ASF                    23
+#define ACPI_DMT_DMAR                   24
+#define ACPI_DMT_HEST                   25
+#define ACPI_DMT_HESTNTFY               26
+#define ACPI_DMT_HESTNTYP               27
+#define ACPI_DMT_MADT                   28
+#define ACPI_DMT_SRAT                   29
+#define ACPI_DMT_EXIT                   30
+#define ACPI_DMT_SIG                    31
+#define ACPI_DMT_FADTPM                 32
 
 typedef
-void (*ACPI_TABLE_HANDLER) (
+void (*ACPI_DMTABLE_HANDLER) (
     ACPI_TABLE_HEADER       *Table);
 
 typedef struct acpi_dmtable_data
 {
     char                    *Signature;
-    ACPI_DMTABLE_INFO        *TableInfo;
-    ACPI_TABLE_HANDLER      TableHandler;
+    ACPI_DMTABLE_INFO       *TableInfo;
+    ACPI_DMTABLE_HANDLER    TableHandler;
     char                    *Name;
 
 } ACPI_DMTABLE_DATA;
@@ -236,6 +240,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsf3[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsf4[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsfHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBoot[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBert[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbgp[];
@@ -244,12 +249,28 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmarHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmarScope[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoEcdt[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoEinj[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoEinj0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoErst[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFacs[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt2[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt3[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoGas[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHeader[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest3[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest4[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest5[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest6[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest7[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest8[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest9[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHestNotify[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHpet[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt0[];
@@ -261,18 +282,23 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt5[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt6[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt7[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt8[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt9[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt10[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadtHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMcfg[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMcfg0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSbst[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlic[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlit[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSpcr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSpmi[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSratHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTcpa[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdrt[];
 
@@ -284,7 +310,7 @@ void
 AcpiDmDumpDataTable (
     ACPI_TABLE_HEADER       *Table);
 
-void
+ACPI_STATUS
 AcpiDmDumpTable (
     UINT32                  TableLength,
     UINT32                  TableOffset,
@@ -322,11 +348,19 @@ AcpiDmDumpDmar (
     ACPI_TABLE_HEADER       *Table);
 
 void
+AcpiDmDumpEinj (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpErst (
+    ACPI_TABLE_HEADER       *Table);
+
+void
 AcpiDmDumpFadt (
     ACPI_TABLE_HEADER       *Table);
 
 void
-AcpiDmDumpSrat (
+AcpiDmDumpHest (
     ACPI_TABLE_HEADER       *Table);
 
 void
@@ -347,6 +381,10 @@ AcpiDmDumpRsdt (
 
 void
 AcpiDmDumpSlit (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpSrat (
     ACPI_TABLE_HEADER       *Table);
 
 void
@@ -422,7 +460,7 @@ AcpiDmCommaIfFieldMember (
  */
 UINT32
 AcpiDmDumpName (
-    char                    *Name);
+    UINT32                  Name);
 
 ACPI_STATUS
 AcpiPsDisplayObjectPathname (

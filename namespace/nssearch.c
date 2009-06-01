@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 1.121 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,8 +116,12 @@
 #define __NSSEARCH_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 
+#ifdef ACPI_ASL_COMPILER
+#include "amlcode.h"
+#endif
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nssearch")
@@ -245,7 +248,8 @@ AcpiNsSearchOneScope (
     /* Searched entire namespace level, not found */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-        "Name [%4.4s] (%s) not found in search in scope [%4.4s] %p first child %p\n",
+        "Name [%4.4s] (%s) not found in search in scope [%4.4s] "
+        "%p first child %p\n",
         ACPI_CAST_PTR (char, &TargetName), AcpiUtGetTypeName (Type),
         AcpiUtGetNodeName (ParentNode), ParentNode, ParentNode->Child));
 
@@ -319,9 +323,8 @@ AcpiNsSearchParentTree (
         "Searching parent [%4.4s] for [%4.4s]\n",
         AcpiUtGetNodeName (ParentNode), ACPI_CAST_PTR (char, &TargetName)));
 
-    /*
-     * Search parents until target is found or we have backed up to the root
-     */
+    /* Search parents until target is found or we have backed up to the root */
+
     while (ParentNode)
     {
         /*
@@ -408,25 +411,7 @@ AcpiNsSearchAndEnter (
      * this problem, and we want to be able to enable ACPI support for them,
      * even though there are a few bad names.
      */
-    if (!AcpiUtValidAcpiName (TargetName))
-    {
-        TargetName = AcpiUtRepairName (ACPI_CAST_PTR (char, &TargetName));
-
-        /* Report warning only if in strict mode or debug mode */
-
-        if (!AcpiGbl_EnableInterpreterSlack)
-        {
-            ACPI_WARNING ((AE_INFO,
-                "Found bad character(s) in name, repaired: [%4.4s]\n",
-                ACPI_CAST_PTR (char, &TargetName)));
-        }
-        else
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_WARN,
-                "Found bad character(s) in name, repaired: [%4.4s]\n",
-                ACPI_CAST_PTR (char, &TargetName)));
-        }
-    }
+    AcpiUtRepairName (ACPI_CAST_PTR (char, &TargetName));
 
     /* Try to find the name in the namespace level specified by the caller */
 
@@ -443,6 +428,13 @@ AcpiNsSearchAndEnter (
         {
             Status = AE_ALREADY_EXISTS;
         }
+
+#ifdef ACPI_ASL_COMPILER
+        if (*ReturnNode && (*ReturnNode)->Type == ACPI_TYPE_ANY)
+        {
+            (*ReturnNode)->Flags |= ANOBJ_IS_EXTERNAL;
+        }
+#endif
 
         /* Either found it or there was an error: finished either way */
 
@@ -491,10 +483,11 @@ AcpiNsSearchAndEnter (
     }
 
 #ifdef ACPI_ASL_COMPILER
-    /*
-     * Node is an object defined by an External() statement
-     */
-    if (Flags & ACPI_NS_EXTERNAL)
+
+    /* Node is an object defined by an External() statement */
+
+    if (Flags & ACPI_NS_EXTERNAL ||
+        (WalkState && WalkState->Opcode == AML_SCOPE_OP))
     {
         NewNode->Flags |= ANOBJ_IS_EXTERNAL;
     }

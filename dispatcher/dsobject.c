@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 1.135 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,6 +116,7 @@
 #define __DSOBJECT_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
 #include "acdispat.h"
@@ -211,6 +211,72 @@ AcpiDsBuildInternalObject (
                 return_ACPI_STATUS (Status);
             }
         }
+
+        /* Special object resolution for elements of a package */
+
+        if ((Op->Common.Parent->Common.AmlOpcode == AML_PACKAGE_OP) ||
+            (Op->Common.Parent->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
+        {
+            /*
+             * Attempt to resolve the node to a value before we insert it into
+             * the package. If this is a reference to a common data type,
+             * resolve it immediately. According to the ACPI spec, package
+             * elements can only be "data objects" or method references.
+             * Attempt to resolve to an Integer, Buffer, String or Package.
+             * If cannot, return the named reference (for things like Devices,
+             * Methods, etc.) Buffer Fields and Fields will resolve to simple
+             * objects (int/buf/str/pkg).
+             *
+             * NOTE: References to things like Devices, Methods, Mutexes, etc.
+             * will remain as named references. This behavior is not described
+             * in the ACPI spec, but it appears to be an oversight.
+             */
+            ObjDesc = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Op->Common.Node);
+
+            Status = AcpiExResolveNodeToValue (
+                        ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &ObjDesc),
+                        WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
+
+            switch (Op->Common.Node->Type)
+            {
+            /*
+             * For these types, we need the actual node, not the subobject.
+             * However, the subobject did not get an extra reference count above.
+             *
+             * TBD: should ExResolveNodeToValue be changed to fix this?
+             */
+            case ACPI_TYPE_DEVICE:
+            case ACPI_TYPE_THERMAL:
+
+                AcpiUtAddReference (Op->Common.Node->Object);
+
+                /*lint -fallthrough */
+            /*
+             * For these types, we need the actual node, not the subobject.
+             * The subobject got an extra reference count in ExResolveNodeToValue.
+             */
+            case ACPI_TYPE_MUTEX:
+            case ACPI_TYPE_METHOD:
+            case ACPI_TYPE_POWER:
+            case ACPI_TYPE_PROCESSOR:
+            case ACPI_TYPE_EVENT:
+            case ACPI_TYPE_REGION:
+
+                /* We will create a reference object for these types below */
+                break;
+
+            default:
+                /*
+                 * All other types - the node was resolved to an actual
+                 * object, we are done.
+                 */
+                goto Exit;
+            }
+        }
     }
 
     /* Create and init a new internal ACPI object */
@@ -230,8 +296,9 @@ AcpiDsBuildInternalObject (
         return_ACPI_STATUS (Status);
     }
 
+Exit:
     *ObjDescPtr = ObjDesc;
-    return_ACPI_STATUS (AE_OK);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -392,7 +459,7 @@ AcpiDsBuildInternalPackageObj (
     ACPI_PARSE_OBJECT       *Parent;
     ACPI_OPERAND_OBJECT     *ObjDesc = NULL;
     ACPI_STATUS             Status = AE_OK;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
     UINT16                  Index;
     UINT16                  ReferenceCount;
 
@@ -454,10 +521,23 @@ AcpiDsBuildInternalPackageObj (
     {
         if (Arg->Common.AmlOpcode == AML_INT_RETURN_VALUE_OP)
         {
-            /* This package element is already built, just get it */
+            if (Arg->Common.Node->Type == ACPI_TYPE_METHOD)
+            {
+                /*
+                 * A method reference "looks" to the parser to be a method
+                 * invocation, so we special case it here
+                 */
+                Arg->Common.AmlOpcode = AML_INT_NAMEPATH_OP;
+                Status = AcpiDsBuildInternalObject (WalkState, Arg,
+                            &ObjDesc->Package.Elements[i]);
+            }
+            else
+            {
+                /* This package element is already built, just get it */
 
-            ObjDesc->Package.Elements[i] =
-                ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Arg->Common.Node);
+                ObjDesc->Package.Elements[i] =
+                    ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Arg->Common.Node);
+            }
         }
         else
         {
@@ -484,11 +564,40 @@ AcpiDsBuildInternalPackageObj (
         Arg = Arg->Common.Next;
     }
 
-    if (!Arg)
+    /* Check for match between NumElements and actual length of PackageList */
+
+    if (Arg)
     {
+        /*
+         * NumElements was exhausted, but there are remaining elements in the
+         * PackageList.
+         *
+         * Note: technically, this is an error, from ACPI spec: "It is an error
+         * for NumElements to be less than the number of elements in the
+         * PackageList". However, for now, we just print an error message and
+         * no exception is returned.
+         */
+        while (Arg)
+        {
+            /* Find out how many elements there really are */
+
+            i++;
+            Arg = Arg->Common.Next;
+        }
+
+        ACPI_ERROR ((AE_INFO,
+            "Package List length (%X) larger than NumElements count (%X), truncated\n",
+            i, ElementCount));
+    }
+    else if (i < ElementCount)
+    {
+        /*
+         * Arg list (elements) was exhausted, but we did not reach NumElements count.
+         * Note: this is not an error, the package is padded out with NULLs.
+         */
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "Package List length larger than NumElements count (%X), truncated\n",
-            ElementCount));
+            "Package List length (%X) smaller than NumElements count (%X), padded with null elements\n",
+            i, ElementCount));
     }
 
     ObjDesc->Package.Flags |= AOPOBJ_DATA_VALID;
@@ -552,7 +661,7 @@ AcpiDsCreateNode (
 
     /* Re-type the object according to its argument */
 
-    Node->Type = ACPI_GET_OBJECT_TYPE (ObjDesc);
+    Node->Type = ObjDesc->Common.Type;
 
     /* Attach obj to node */
 
@@ -610,7 +719,7 @@ AcpiDsInitObjectFromOp (
 
     /* Perform per-object initialization */
 
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+    switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_BUFFER:
 
@@ -730,45 +839,59 @@ AcpiDsInitObjectFromOp (
         {
         case AML_TYPE_LOCAL_VARIABLE:
 
-            /* Split the opcode into a base opcode + offset */
+            /* Local ID (0-7) is (AML opcode - base AML_LOCAL_OP) */
 
-            ObjDesc->Reference.Opcode = AML_LOCAL_OP;
-            ObjDesc->Reference.Offset = Opcode - AML_LOCAL_OP;
+            ObjDesc->Reference.Value = ((UINT32) Opcode) - AML_LOCAL_OP;
+            ObjDesc->Reference.Class = ACPI_REFCLASS_LOCAL;
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-            Status = AcpiDsMethodDataGetNode (AML_LOCAL_OP,
-                        ObjDesc->Reference.Offset,
-                        WalkState,
-                        (ACPI_NAMESPACE_NODE **) &ObjDesc->Reference.Object);
+            Status = AcpiDsMethodDataGetNode (ACPI_REFCLASS_LOCAL,
+                        ObjDesc->Reference.Value, WalkState,
+                        ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE,
+                            &ObjDesc->Reference.Object));
 #endif
             break;
 
 
         case AML_TYPE_METHOD_ARGUMENT:
 
-            /* Split the opcode into a base opcode + offset */
+            /* Arg ID (0-6) is (AML opcode - base AML_ARG_OP) */
 
-            ObjDesc->Reference.Opcode = AML_ARG_OP;
-            ObjDesc->Reference.Offset = Opcode - AML_ARG_OP;
+            ObjDesc->Reference.Value = ((UINT32) Opcode) - AML_ARG_OP;
+            ObjDesc->Reference.Class = ACPI_REFCLASS_ARG;
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-            Status = AcpiDsMethodDataGetNode (AML_ARG_OP,
-                        ObjDesc->Reference.Offset,
-                        WalkState,
-                        (ACPI_NAMESPACE_NODE **) &ObjDesc->Reference.Object);
+            Status = AcpiDsMethodDataGetNode (ACPI_REFCLASS_ARG,
+                        ObjDesc->Reference.Value, WalkState,
+                        ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE,
+                            &ObjDesc->Reference.Object));
 #endif
             break;
 
-        default: /* Other literals, etc.. */
+        default: /* Object name or Debug object */
 
-            if (Op->Common.AmlOpcode == AML_INT_NAMEPATH_OP)
+            switch (Op->Common.AmlOpcode)
             {
+            case AML_INT_NAMEPATH_OP:
+
                 /* Node was saved in Op */
 
                 ObjDesc->Reference.Node = Op->Common.Node;
-            }
+                ObjDesc->Reference.Object = Op->Common.Node->Object;
+                ObjDesc->Reference.Class = ACPI_REFCLASS_NAME;
+                break;
 
-            ObjDesc->Reference.Opcode = Opcode;
+            case AML_DEBUG_OP:
+
+                ObjDesc->Reference.Class = ACPI_REFCLASS_DEBUG;
+                break;
+
+            default:
+
+                ACPI_ERROR ((AE_INFO,
+                    "Unimplemented reference type for AML opcode: %4.4X", Opcode));
+                return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+            }
             break;
         }
         break;
@@ -777,7 +900,7 @@ AcpiDsInitObjectFromOp (
     default:
 
         ACPI_ERROR ((AE_INFO, "Unimplemented data type: %X",
-            ACPI_GET_OBJECT_TYPE (ObjDesc)));
+            ObjDesc->Common.Type));
 
         Status = AE_AML_OPERAND_TYPE;
         break;

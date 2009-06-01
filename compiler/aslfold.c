@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslfold - Constant folding
- *              $Revision: 1.20 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -481,7 +480,7 @@ OpcAmlConstantWalk (
          * Because we know we executed type 3/4/5 opcodes above, we know that
          * the result must be either an Integer, String, or Buffer.
          */
-        switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+        switch (ObjDesc->Common.Type)
         {
         case ACPI_TYPE_INTEGER:
 

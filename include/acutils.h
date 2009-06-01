@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 1.200 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -190,7 +189,7 @@ typedef struct acpi_pkg_info
 /*
  * utglobal - Global data structures and procedures
  */
-void
+ACPI_STATUS
 AcpiUtInitGlobals (
     void);
 
@@ -199,6 +198,10 @@ AcpiUtInitGlobals (
 char *
 AcpiUtGetMutexName (
     UINT32                  MutexId);
+
+const char *
+AcpiUtGetNotifyName (
+    UINT32                  NotifyValue);
 
 #endif
 
@@ -213,6 +216,10 @@ AcpiUtGetNodeName (
 char *
 AcpiUtGetDescriptorName (
     void                    *Object);
+
+const char *
+AcpiUtGetReferenceName (
+    ACPI_OPERAND_OBJECT     *Object);
 
 char *
 AcpiUtGetObjectTypeName (
@@ -316,7 +323,7 @@ AcpiUtMemcpy (
 void *
 AcpiUtMemset (
     void                    *Dest,
-    ACPI_NATIVE_UINT        Value,
+    UINT8                   Value,
     ACPI_SIZE               Count);
 
 int
@@ -348,7 +355,9 @@ extern const UINT8 _acpi_ctype[];
 #define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_SP | _ACPI_PU))
 #define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
 
-#endif /* ACPI_USE_SYSTEM_CLIBRARY */
+#endif /* !ACPI_USE_SYSTEM_CLIBRARY */
+
+#define ACPI_IS_ASCII(c)  ((c) < 0x80)
 
 
 /*
@@ -413,14 +422,14 @@ void
 AcpiUtTrace (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId);
 
 void
 AcpiUtTracePtr (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     void                    *Pointer);
 
@@ -428,7 +437,7 @@ void
 AcpiUtTraceU32 (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     UINT32                  Integer);
 
@@ -436,7 +445,7 @@ void
 AcpiUtTraceStr (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     char                    *String);
 
@@ -444,14 +453,14 @@ void
 AcpiUtExit (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId);
 
 void
 AcpiUtStatusExit (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     ACPI_STATUS             Status);
 
@@ -459,7 +468,7 @@ void
 AcpiUtValueExit (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     ACPI_INTEGER            Value);
 
@@ -467,7 +476,7 @@ void
 AcpiUtPtrExit (
     UINT32                  LineNumber,
     const char              *FunctionName,
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  ComponentId,
     UINT8                   *Ptr);
 
@@ -498,58 +507,6 @@ void
 AcpiUtReportWarning (
     char                    *ModuleName,
     UINT32                  LineNumber);
-
-/* Error and message reporting interfaces */
-
-void ACPI_INTERNAL_VAR_XFACE
-AcpiUtDebugPrint (
-    UINT32                  RequestedDebugLevel,
-    UINT32                  LineNumber,
-    const char              *FunctionName,
-    char                    *ModuleName,
-    UINT32                  ComponentId,
-    char                    *Format,
-    ...) ACPI_PRINTF_LIKE(6);
-
-void ACPI_INTERNAL_VAR_XFACE
-AcpiUtDebugPrintRaw (
-    UINT32                  RequestedDebugLevel,
-    UINT32                  LineNumber,
-    const char              *FunctionName,
-    char                    *ModuleName,
-    UINT32                  ComponentId,
-    char                    *Format,
-    ...) ACPI_PRINTF_LIKE(6);
-
-void ACPI_INTERNAL_VAR_XFACE
-AcpiUtError (
-    char                    *ModuleName,
-    UINT32                  LineNumber,
-    char                    *Format,
-    ...) ACPI_PRINTF_LIKE(3);
-
-void  ACPI_INTERNAL_VAR_XFACE
-AcpiUtException (
-    char                    *ModuleName,
-    UINT32                  LineNumber,
-    ACPI_STATUS             Status,
-    char                    *Format,
-    ...) ACPI_PRINTF_LIKE(4);
-
-void ACPI_INTERNAL_VAR_XFACE
-AcpiUtWarning (
-    char                    *ModuleName,
-    UINT32                  LineNumber,
-    char                    *Format,
-    ...) ACPI_PRINTF_LIKE(3);
-
-void ACPI_INTERNAL_VAR_XFACE
-AcpiUtInfo (
-    char                    *ModuleName,
-    UINT32                  LineNumber,
-    char                    *Format,
-    ...) ACPI_PRINTF_LIKE(3);
-
 
 /*
  * utdelete - Object deletion and reference counts
@@ -620,20 +577,47 @@ AcpiUtExecute_Sxds (
     ACPI_NAMESPACE_NODE     *DeviceNode,
     UINT8                   *Highest);
 
+/*
+ * utlock - reader/writer locks
+ */
+ACPI_STATUS
+AcpiUtCreateRwLock (
+    ACPI_RW_LOCK            *Lock);
+
+void
+AcpiUtDeleteRwLock (
+    ACPI_RW_LOCK            *Lock);
+
+ACPI_STATUS
+AcpiUtAcquireReadLock (
+    ACPI_RW_LOCK            *Lock);
+
+ACPI_STATUS
+AcpiUtReleaseReadLock (
+    ACPI_RW_LOCK            *Lock);
+
+ACPI_STATUS
+AcpiUtAcquireWriteLock (
+    ACPI_RW_LOCK            *Lock);
+
+void
+AcpiUtReleaseWriteLock (
+    ACPI_RW_LOCK            *Lock);
+
 
 /*
  * utobject - internal object create/delete/cache routines
  */
 ACPI_OPERAND_OBJECT  *
 AcpiUtCreateInternalObjectDbg (
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId,
     ACPI_OBJECT_TYPE        Type);
 
 void *
 AcpiUtAllocateObjectDescDbg (
-    char                    *ModuleName,
+    const char              *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId);
 
@@ -647,6 +631,10 @@ AcpiUtDeleteObjectDesc (
 BOOLEAN
 AcpiUtValidInternalObject (
     void                    *Object);
+
+ACPI_OPERAND_OBJECT *
+AcpiUtCreatePackageObject (
+    UINT32                  Count);
 
 ACPI_OPERAND_OBJECT *
 AcpiUtCreateBufferObject (
@@ -772,14 +760,14 @@ BOOLEAN
 AcpiUtValidAcpiName (
     UINT32                  Name);
 
-ACPI_NAME
+void
 AcpiUtRepairName (
     char                    *Name);
 
 BOOLEAN
 AcpiUtValidAcpiChar (
     char                    Character,
-    ACPI_NATIVE_UINT        Position);
+    UINT32                  Position);
 
 ACPI_STATUS
 AcpiUtStrtoul64 (
@@ -889,14 +877,14 @@ void *
 AcpiUtAllocate (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line);
 
 void *
 AcpiUtAllocateZeroed (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
@@ -904,21 +892,21 @@ void *
 AcpiUtAllocateAndTrack (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line);
 
 void *
 AcpiUtAllocateZeroedAndTrack (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line);
 
 void
 AcpiUtFreeAndTrack (
     void                    *Address,
     UINT32                  Component,
-    char                    *Module,
+    const char              *Module,
     UINT32                  Line);
 
 void
@@ -928,7 +916,7 @@ AcpiUtDumpAllocationInfo (
 void
 AcpiUtDumpAllocations (
     UINT32                  Component,
-    char                    *Module);
+    const char              *Module);
 
 ACPI_STATUS
 AcpiUtCreateList (

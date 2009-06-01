@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 1.123 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,10 +116,11 @@
 #define __UTDELETE_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
 #include "acnamesp.h"
 #include "acevents.h"
-#include "amlcode.h"
+
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utdelete")
@@ -158,6 +158,7 @@ AcpiUtDeleteInternalObj (
     ACPI_OPERAND_OBJECT     *HandlerDesc;
     ACPI_OPERAND_OBJECT     *SecondDesc;
     ACPI_OPERAND_OBJECT     *NextDesc;
+    ACPI_OPERAND_OBJECT     **LastObjPtr;
 
 
     ACPI_FUNCTION_TRACE_PTR (UtDeleteInternalObj, Object);
@@ -172,7 +173,7 @@ AcpiUtDeleteInternalObj (
      * Must delete or free any pointers within the object that are not
      * actual ACPI objects (for example, a raw buffer pointer).
      */
-    switch (ACPI_GET_OBJECT_TYPE (Object))
+    switch (Object->Common.Type)
     {
     case ACPI_TYPE_STRING:
 
@@ -222,6 +223,10 @@ AcpiUtDeleteInternalObj (
         break;
 
 
+    /*
+     * These objects have a possible list of notify handlers.
+     * Device object also may have a GPE block.
+     */
     case ACPI_TYPE_DEVICE:
 
         if (Object->Device.GpeBlock)
@@ -229,9 +234,14 @@ AcpiUtDeleteInternalObj (
             (void) AcpiEvDeleteGpeBlock (Object->Device.GpeBlock);
         }
 
-        /* Walk the handler list for this device */
+        /*lint -fallthrough */
 
-        HandlerDesc = Object->Device.Handler;
+    case ACPI_TYPE_PROCESSOR:
+    case ACPI_TYPE_THERMAL:
+
+        /* Walk the notify handler list for this object */
+
+        HandlerDesc = Object->CommonNotify.Handler;
         while (HandlerDesc)
         {
             NextDesc = HandlerDesc->AddressSpace.Next;
@@ -308,6 +318,25 @@ AcpiUtDeleteInternalObj (
             HandlerDesc = Object->Region.Handler;
             if (HandlerDesc)
             {
+                NextDesc = HandlerDesc->AddressSpace.RegionList;
+                LastObjPtr = &HandlerDesc->AddressSpace.RegionList;
+
+                /* Remove the region object from the handler's list */
+
+                while (NextDesc)
+                {
+                    if (NextDesc == Object)
+                    {
+                        *LastObjPtr = NextDesc->Region.Next;
+                        break;
+                    }
+
+                    /* Walk the linked list of handler */
+
+                    LastObjPtr = &NextDesc->Region.Next;
+                    NextDesc = NextDesc->Region.Next;
+                }
+
                 if (HandlerDesc->AddressSpace.HandlerFlags &
                     ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
                 {
@@ -336,6 +365,19 @@ AcpiUtDeleteInternalObj (
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
             "***** Buffer Field %p\n", Object));
+
+        SecondDesc = AcpiNsGetSecondaryObject (Object);
+        if (SecondDesc)
+        {
+            AcpiUtDeleteObjectDesc (SecondDesc);
+        }
+        break;
+
+
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+            "***** Bank Field %p\n", Object));
 
         SecondDesc = AcpiNsGetSecondaryObject (Object);
         if (SecondDesc)
@@ -472,7 +514,7 @@ AcpiUtUpdateRefCount (
                 Object, NewCount));
         }
 
-        if (ACPI_GET_OBJECT_TYPE (Object) == ACPI_TYPE_METHOD)
+        if (Object->Common.Type == ACPI_TYPE_METHOD)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
                 "Method Obj %p Refs=%X, [Decremented]\n", Object, NewCount));
@@ -544,7 +586,7 @@ AcpiUtUpdateObjectReference (
     ACPI_GENERIC_STATE      *StateList = NULL;
     ACPI_OPERAND_OBJECT     *NextObject = NULL;
     ACPI_GENERIC_STATE      *State;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
 
 
     ACPI_FUNCTION_TRACE_PTR (UtUpdateObjectReference, Object);
@@ -565,7 +607,7 @@ AcpiUtUpdateObjectReference (
          * All sub-objects must have their reference count incremented also.
          * Different object types have different subobjects.
          */
-        switch (ACPI_GET_OBJECT_TYPE (Object))
+        switch (Object->Common.Type)
         {
         case ACPI_TYPE_DEVICE:
         case ACPI_TYPE_PROCESSOR:
@@ -633,10 +675,12 @@ AcpiUtUpdateObjectReference (
 
         case ACPI_TYPE_LOCAL_REFERENCE:
             /*
-             * The target of an Index (a package, string, or buffer) must track
-             * changes to the ref count of the index.
+             * The target of an Index (a package, string, or buffer) or a named
+             * reference must track changes to the ref count of the index or
+             * target object.
              */
-            if (Object->Reference.Opcode == AML_INDEX_OP)
+            if ((Object->Reference.Class == ACPI_REFCLASS_INDEX) ||
+                (Object->Reference.Class== ACPI_REFCLASS_NAME))
             {
                 NextObject = Object->Reference.Object;
             }
@@ -672,10 +716,19 @@ AcpiUtUpdateObjectReference (
 
     return_ACPI_STATUS (AE_OK);
 
+
 ErrorExit:
 
     ACPI_EXCEPTION ((AE_INFO, Status,
         "Could not update object reference count"));
+
+    /* Free any stacked Update State objects */
+
+    while (StateList)
+    {
+        State = AcpiUtPopGenericState (&StateList);
+        AcpiUtDeleteGenericState (State);
+    }
 
     return_ACPI_STATUS (Status);
 }

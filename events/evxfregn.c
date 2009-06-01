@@ -2,7 +2,6 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 1.70 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __EVXFREGN_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acnamesp.h"
 #include "acevents.h"
 
@@ -285,7 +285,8 @@ AcpiRemoveAddressSpaceHandler (
             /* Matched SpaceId, first dereference this in the Regions */
 
             ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
-                "Removing address handler %p(%p) for region %s on Device %p(%p)\n",
+                "Removing address handler %p(%p) for region %s "
+                "on Device %p(%p)\n",
                 HandlerObj, Handler, AcpiUtGetRegionName (SpaceId),
                 Node, ObjDesc));
 

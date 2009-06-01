@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dmnames - AML disassembler, names, namestrings, pathnames
- *              $Revision: 1.17 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
 #include "acnamesp.h"
@@ -150,16 +150,20 @@ AcpiDmDisplayPath (
 
 UINT32
 AcpiDmDumpName (
-    char                    *Name)
+    UINT32                  Name)
 {
     UINT32                  i;
     UINT32                  Length;
     char                    NewName[4];
 
 
+    /* Copy name locally in case the original name is not writeable */
+
+    *ACPI_CAST_PTR (UINT32, &NewName[0]) = Name;
+
     /* Ensure that the name is printable, even if we have to fix it */
 
-    *(UINT32 *) NewName = AcpiUtRepairName (Name);
+    AcpiUtRepairName (NewName);
 
     /* Remove all trailing underscores from the name */
 
@@ -327,7 +331,7 @@ AcpiDmNamestring (
     {
         /* Append Name segment */
 
-        AcpiDmDumpName ((char *) Name);
+        AcpiDmDumpName (*ACPI_CAST_PTR (UINT32, Name));
 
         SegCount--;
         if (SegCount)

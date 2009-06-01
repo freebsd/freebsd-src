@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 1.93 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,9 +116,11 @@
 #define __PSXFACE_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "acdispat.h"
 #include "acinterp.h"
+#include "amlcode.h"
 
 
 #define _COMPONENT          ACPI_PARSER
@@ -393,6 +394,40 @@ AcpiPsExecuteMethod (
         goto Cleanup;
     }
 
+    /* Invoke an internal method if necessary */
+
+    if (Info->ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY)
+    {
+        Status = Info->ObjDesc->Method.Implementation (WalkState);
+        Info->ReturnObject = WalkState->ReturnDesc;
+
+        /* Cleanup states */
+
+        AcpiDsScopeStackClear (WalkState);
+        AcpiPsCleanupScope (&WalkState->ParserState);
+        AcpiDsTerminateControlMethod (WalkState->MethodDesc, WalkState);
+        AcpiDsDeleteWalkState (WalkState);
+        goto Cleanup;
+    }
+
+    /*
+     * Start method evaluation with an implicit return of zero. This is done
+     * for Windows compatibility.
+     */
+    if (AcpiGbl_EnableInterpreterSlack)
+    {
+        WalkState->ImplicitReturnObj =
+            AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        if (!WalkState->ImplicitReturnObj)
+        {
+            Status = AE_NO_MEMORY;
+            AcpiDsDeleteWalkState (WalkState);
+            goto Cleanup;
+        }
+
+        WalkState->ImplicitReturnObj->Integer.Value = 0;
+    }
+
     /* Parse the AML */
 
     Status = AcpiPsParseAml (WalkState);
@@ -453,11 +488,10 @@ AcpiPsUpdateParameterList (
     ACPI_EVALUATE_INFO      *Info,
     UINT16                  Action)
 {
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
 
 
-    if ((Info->ParameterType == ACPI_PARAM_ARGS) &&
-        (Info->Parameters))
+    if (Info->Parameters)
     {
         /* Update reference count for each parameter */
 

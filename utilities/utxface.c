@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: utxface - External interfaces for "global" ACPI functions
- *              $Revision: 1.125 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,13 +117,17 @@
 #define __UTXFACE_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acevents.h"
 #include "acnamesp.h"
 #include "acdebug.h"
+#include "actables.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utxface")
 
+
+#ifndef ACPI_ASL_COMPILER
 
 /*******************************************************************************
  *
@@ -163,7 +166,12 @@ AcpiInitializeSubsystem (
 
     /* Initialize all globals used by the subsystem */
 
-    AcpiUtInitGlobals ();
+    Status = AcpiUtInitGlobals ();
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status, "During initialization of globals"));
+        return_ACPI_STATUS (Status);
+    }
 
     /* Create the default mutex objects */
 
@@ -234,6 +242,17 @@ AcpiEnableSubsystem (
     }
 
     /*
+     * Obtain a permanent mapping for the FACS. This is required for the
+     * Global Lock and the Firmware Waking Vector
+     */
+    Status = AcpiTbInitializeFacs ();
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_WARNING ((AE_INFO, "Could not map the FACS table"));
+        return_ACPI_STATUS (Status);
+    }
+
+    /*
      * Install the default OpRegion handlers.  These are installed unless
      * other handlers have already been installed via the
      * InstallAddressSpaceHandler interface.
@@ -260,7 +279,9 @@ AcpiEnableSubsystem (
      *
      * Note2: Fixed events are initialized and enabled here. GPEs are
      * initialized, but cannot be enabled until after the hardware is
-     * completely initialized (SCI and GlobalLock activated)
+     * completely initialized (SCI and GlobalLock activated) and the various
+     * initialization control methods are run (_REG, _STA, _INI) on the
+     * entire namespace.
      */
     if (!(Flags & ACPI_NO_EVENT_INIT))
     {
@@ -287,26 +308,6 @@ AcpiEnableSubsystem (
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
-        }
-    }
-
-    /*
-     * Complete the GPE initialization for the GPE blocks defined in the FADT
-     * (GPE block 0 and 1).
-     *
-     * Note1: This is where the _PRW methods are executed for the GPEs. These
-     * methods can only be executed after the SCI and Global Lock handlers are
-     * installed and initialized.
-     *
-     * Note2: Currently, there seems to be no need to run the _REG methods
-     * before execution of the _PRW methods and enabling of the GPEs.
-     */
-    if (!(Flags & ACPI_NO_EVENT_INIT))
-    {
-        Status = AcpiEvInstallFadtGpes ();
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
         }
     }
 
@@ -392,6 +393,27 @@ AcpiInitializeObjects (
     }
 
     /*
+     * Initialize the GPE blocks defined in the FADT (GPE block 0 and 1).
+     * The runtime GPEs are enabled here.
+     *
+     * This is where the _PRW methods are executed for the GPEs. These
+     * methods can only be executed after the SCI and Global Lock handlers are
+     * installed and initialized.
+     *
+     * GPEs can only be enabled after the _REG, _STA, and _INI methods have
+     * been run. This ensures that all Operation Regions and all Devices have
+     * been initialized and are ready.
+     */
+    if (!(Flags & ACPI_NO_EVENT_INIT))
+    {
+        Status = AcpiEvInstallFadtGpes ();
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+    }
+
+    /*
      * Empty the caches (delete the cached objects) on the assumption that
      * the table load filled them up more than they will be at runtime --
      * thus wasting non-paged memory.
@@ -404,6 +426,8 @@ AcpiInitializeObjects (
 
 ACPI_EXPORT_SYMBOL (AcpiInitializeObjects)
 
+
+#endif
 
 /*******************************************************************************
  *
@@ -456,6 +480,7 @@ AcpiTerminate (
 
 ACPI_EXPORT_SYMBOL (AcpiTerminate)
 
+#ifndef ACPI_ASL_COMPILER
 
 /*******************************************************************************
  *
@@ -572,6 +597,51 @@ AcpiGetSystemInfo (
 ACPI_EXPORT_SYMBOL (AcpiGetSystemInfo)
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiGetStatistics
+ *
+ * PARAMETERS:  Stats           - Where the statistics are returned
+ *
+ * RETURN:      Status          - the status of the call
+ *
+ * DESCRIPTION: Get the contents of the various system counters
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiGetStatistics (
+    ACPI_STATISTICS         *Stats)
+{
+    ACPI_FUNCTION_TRACE (AcpiGetStatistics);
+
+
+    /* Parameter validation */
+
+    if (!Stats)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    /* Various interrupt-based event counters */
+
+    Stats->SciCount = AcpiSciCount;
+    Stats->GpeCount = AcpiGpeCount;
+
+    ACPI_MEMCPY (Stats->FixedEventCount, AcpiFixedEventCount,
+        sizeof (AcpiFixedEventCount));
+
+
+    /* Other counters */
+
+    Stats->MethodCount = AcpiMethodCount;
+
+    return_ACPI_STATUS (AE_OK);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiGetStatistics)
+
+
 /*****************************************************************************
  *
  * FUNCTION:    AcpiInstallInitializationHandler
@@ -636,3 +706,6 @@ AcpiPurgeCachedObjects (
 }
 
 ACPI_EXPORT_SYMBOL (AcpiPurgeCachedObjects)
+
+#endif /* ACPI_ASL_COMPILER */
+

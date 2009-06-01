@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 1.101 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,6 +117,7 @@
 #define __DSWSTATE_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acparser.h"
 #include "acdispat.h"
 #include "acnamesp.h"
@@ -154,7 +154,7 @@ AcpiDsResultPop (
     ACPI_OPERAND_OBJECT     **Object,
     ACPI_WALK_STATE         *WalkState)
 {
-    ACPI_NATIVE_UINT        Index;
+    UINT32                  Index;
     ACPI_GENERIC_STATE      *State;
     ACPI_STATUS             Status;
 
@@ -189,7 +189,7 @@ AcpiDsResultPop (
     /* Return object of the top element and clean that top element result stack */
 
     WalkState->ResultCount--;
-    Index = WalkState->ResultCount % ACPI_RESULTS_FRAME_OBJ_NUM;
+    Index = (UINT32) WalkState->ResultCount % ACPI_RESULTS_FRAME_OBJ_NUM;
 
     *Object = State->Results.ObjDesc [Index];
     if (!*Object)
@@ -212,7 +212,7 @@ AcpiDsResultPop (
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
         "Obj=%p [%s] Index=%X State=%p Num=%X\n", *Object,
         AcpiUtGetObjectTypeName (*Object),
-        (UINT32) Index, WalkState, WalkState->ResultCount));
+        Index, WalkState, WalkState->ResultCount));
 
     return (AE_OK);
 }
@@ -238,7 +238,7 @@ AcpiDsResultPush (
 {
     ACPI_GENERIC_STATE      *State;
     ACPI_STATUS             Status;
-    ACPI_NATIVE_UINT        Index;
+    UINT32                  Index;
 
 
     ACPI_FUNCTION_NAME (DsResultPush);
@@ -284,7 +284,7 @@ AcpiDsResultPush (
 
     /* Assign the address of object to the top free element of result stack */
 
-    Index = WalkState->ResultCount % ACPI_RESULTS_FRAME_OBJ_NUM;
+    Index = (UINT32) WalkState->ResultCount % ACPI_RESULTS_FRAME_OBJ_NUM;
     State->Results.ObjDesc [Index] = Object;
     WalkState->ResultCount++;
 
@@ -320,7 +320,7 @@ AcpiDsResultStackPush (
 
     /* Check for stack overflow */
 
-    if ((WalkState->ResultSize + ACPI_RESULTS_FRAME_OBJ_NUM) >
+    if (((UINT32) WalkState->ResultSize + ACPI_RESULTS_FRAME_OBJ_NUM) >
         ACPI_RESULTS_OBJ_NUM_MAX)
     {
         ACPI_ERROR ((AE_INFO, "Result stack overflow: State=%p Num=%X",
@@ -517,7 +517,7 @@ AcpiDsObjStackPopAndDelete (
     UINT32                  PopCount,
     ACPI_WALK_STATE         *WalkState)
 {
-    UINT32                  i;
+    INT32                   i;
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
 
@@ -529,7 +529,7 @@ AcpiDsObjStackPopAndDelete (
         return;
     }
 
-    for (i = (PopCount - 1); i >= 0; i--)
+    for (i = (INT32) PopCount - 1; i >= 0; i--)
     {
         if (WalkState->NumOperands == 0)
         {
@@ -763,16 +763,8 @@ AcpiDsInitAmlWalk (
 
     if (Info)
     {
-        if (Info->ParameterType == ACPI_PARAM_GPE)
-        {
-            WalkState->GpeEventInfo =
-                ACPI_CAST_PTR (ACPI_GPE_EVENT_INFO, Info->Parameters);
-        }
-        else
-        {
-            WalkState->Params = Info->Parameters;
-            WalkState->CallerReturnDesc = &Info->ReturnObject;
-        }
+        WalkState->Params = Info->Parameters;
+        WalkState->CallerReturnDesc = &Info->ReturnObject;
     }
 
     Status = AcpiPsInitScope (&WalkState->ParserState, Op);

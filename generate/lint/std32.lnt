@@ -1,0 +1,14 @@
+//  Generic Compilers, -si4 -sp4
+//  Standard lint options
+
+-dACPI_MACHINE_WIDTH=32
+-dWIN32=1
+-d_MSC_VER=1
++fll            // enable long long
++rw(__asm)      // enable in-line assembly
+-esym( 950, __asm) 
+                     // Used to track stack use
+-si4 -sp4
+
+co.lnt
+options.lnt

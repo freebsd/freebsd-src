@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Name: achware.h -- hardware specific interfaces
- *       $Revision: 1.83 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,20 +117,13 @@
 #define __ACHWARE_H__
 
 
-/* PM Timer ticks per second (HZ) */
-
-#define PM_TIMER_FREQUENCY  3579545
-
-/* Values for the _SST reserved method */
+/* Values for the _SST predefined method */
 
 #define ACPI_SST_INDICATOR_OFF  0
 #define ACPI_SST_WORKING        1
 #define ACPI_SST_WAKING         2
 #define ACPI_SST_SLEEPING       3
 #define ACPI_SST_SLEEP_CONTEXT  4
-
-
-/* Prototypes */
 
 
 /*
@@ -154,28 +146,19 @@ AcpiHwGetBitRegisterInfo (
     UINT32                  RegisterId);
 
 ACPI_STATUS
+AcpiHwWritePm1Control (
+    UINT32                  Pm1aControl,
+    UINT32                  Pm1bControl);
+
+ACPI_STATUS
 AcpiHwRegisterRead (
-    BOOLEAN                 UseLock,
     UINT32                  RegisterId,
     UINT32                  *ReturnValue);
 
 ACPI_STATUS
 AcpiHwRegisterWrite (
-    BOOLEAN                 UseLock,
     UINT32                  RegisterId,
     UINT32                  Value);
-
-ACPI_STATUS
-AcpiHwLowLevelRead (
-    UINT32                  Width,
-    UINT32                  *Value,
-    ACPI_GENERIC_ADDRESS    *Reg);
-
-ACPI_STATUS
-AcpiHwLowLevelWrite (
-    UINT32                  Width,
-    UINT32                  Value,
-    ACPI_GENERIC_ADDRESS    *Reg);
 
 ACPI_STATUS
 AcpiHwClearAcpiStatus (
@@ -183,8 +166,28 @@ AcpiHwClearAcpiStatus (
 
 
 /*
+ * hwvalid - Port I/O with validation
+ */
+ACPI_STATUS
+AcpiHwReadPort (
+    ACPI_IO_ADDRESS         Address,
+    UINT32                  *Value,
+    UINT32                  Width);
+
+ACPI_STATUS
+AcpiHwWritePort (
+    ACPI_IO_ADDRESS         Address,
+    UINT32                  Value,
+    UINT32                  Width);
+
+
+/*
  * hwgpe - GPE support
  */
+ACPI_STATUS
+AcpiHwLowDisableGpe (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
+
 ACPI_STATUS
 AcpiHwWriteGpeEnableReg (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo);
@@ -192,7 +195,8 @@ AcpiHwWriteGpeEnableReg (
 ACPI_STATUS
 AcpiHwDisableGpeBlock (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock);
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context);
 
 ACPI_STATUS
 AcpiHwClearGpe (
@@ -201,7 +205,8 @@ AcpiHwClearGpe (
 ACPI_STATUS
 AcpiHwClearGpeBlock (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock);
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context);
 
 ACPI_STATUS
 AcpiHwGetGpeStatus (
@@ -223,7 +228,8 @@ AcpiHwEnableAllWakeupGpes (
 ACPI_STATUS
 AcpiHwEnableRuntimeGpeBlock (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock);
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context);
 
 
 /*

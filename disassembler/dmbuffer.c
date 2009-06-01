@@ -1,7 +1,6 @@
 /*******************************************************************************
  *
  * Module Name: dmbuffer - AML disassembler, buffer and string support
- *              $Revision: 1.25 $
  *
  ******************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,6 +115,7 @@
 
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acdisasm.h"
 #include "acparser.h"
 #include "amlcode.h"
@@ -130,6 +130,10 @@
 
 static void
 AcpiDmUnicode (
+    ACPI_PARSE_OBJECT       *Op);
+
+static void
+AcpiDmIsEisaIdElement (
     ACPI_PARSE_OBJECT       *Op);
 
 
@@ -282,7 +286,7 @@ AcpiDmIsUnicodeBuffer (
     UINT32                  WordCount;
     ACPI_PARSE_OBJECT       *SizeOp;
     ACPI_PARSE_OBJECT       *NextOp;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
 
 
     /* Buffer size is the buffer argument */
@@ -320,7 +324,7 @@ AcpiDmIsUnicodeBuffer (
     for (i = 0; i < (ByteCount - 2); i += 2)
     {
         if ((!ACPI_IS_PRINT (ByteData[i])) ||
-            (ByteData[i + 1] != 0))
+            (ByteData[(ACPI_SIZE) i + 1] != 0))
         {
             return (FALSE);
         }
@@ -441,54 +445,37 @@ AcpiDmUnicode (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDmIsEisaId
+ * FUNCTION:    AcpiDmIsEisaIdElement
  *
  * PARAMETERS:  Op              - Op to be examined
  *
  * RETURN:      None
  *
- * DESCRIPTION: Determine if an Op can be converted to an EisaId.
+ * DESCRIPTION: Determine if an Op (argument to _HID or _CID) can be converted
+ *              to an EISA ID.
  *
  ******************************************************************************/
 
-void
-AcpiDmIsEisaId (
+static void
+AcpiDmIsEisaIdElement (
     ACPI_PARSE_OBJECT       *Op)
 {
-    UINT32                  Name;
     UINT32                  BigEndianId;
-    ACPI_PARSE_OBJECT       *NextOp;
-    ACPI_NATIVE_UINT        i;
     UINT32                  Prefix[3];
+    UINT32                  i;
 
-
-    /* Get the NameSegment */
-
-    Name = AcpiPsGetName (Op);
-    if (!Name)
-    {
-        return;
-    }
-
-    /* We are looking for _HID */
-
-    if (!ACPI_COMPARE_NAME (&Name, METHOD_NAME__HID))
-    {
-        return;
-    }
 
     /* The parameter must be either a word or a dword */
 
-    NextOp = AcpiPsGetDepthNext (NULL, Op);
-    if ((NextOp->Common.AmlOpcode != AML_DWORD_OP) &&
-        (NextOp->Common.AmlOpcode != AML_WORD_OP))
+    if ((Op->Common.AmlOpcode != AML_DWORD_OP) &&
+        (Op->Common.AmlOpcode != AML_WORD_OP))
     {
         return;
     }
 
     /* Swap from little-endian to big-endian to simplify conversion */
 
-    BigEndianId = AcpiUtDwordByteSwap ((UINT32) NextOp->Common.Value.Integer);
+    BigEndianId = AcpiUtDwordByteSwap ((UINT32) Op->Common.Value.Integer);
 
     /* Create the 3 leading ASCII letters */
 
@@ -509,7 +496,79 @@ AcpiDmIsEisaId (
 
     /* OK - mark this node as convertable to an EISA ID */
 
-    NextOp->Common.DisasmOpcode = ACPI_DASM_EISAID;
+    Op->Common.DisasmOpcode = ACPI_DASM_EISAID;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmIsEisaId
+ *
+ * PARAMETERS:  Op              - Op to be examined
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Determine if a Name() Op can be converted to an EisaId.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmIsEisaId (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    UINT32                  Name;
+    ACPI_PARSE_OBJECT       *NextOp;
+
+
+    /* Get the NameSegment */
+
+    Name = AcpiPsGetName (Op);
+    if (!Name)
+    {
+        return;
+    }
+
+    NextOp = AcpiPsGetDepthNext (NULL, Op);
+    if (!NextOp)
+    {
+        return;
+    }
+
+    /* Check for _HID - has one argument */
+
+    if (ACPI_COMPARE_NAME (&Name, METHOD_NAME__HID))
+    {
+        AcpiDmIsEisaIdElement (NextOp);
+        return;
+    }
+
+    /* Exit if not _CID */
+
+    if (!ACPI_COMPARE_NAME (&Name, METHOD_NAME__CID))
+    {
+        return;
+    }
+
+    /* _CID can contain a single argument or a package */
+
+    if (NextOp->Common.AmlOpcode != AML_PACKAGE_OP)
+    {
+        AcpiDmIsEisaIdElement (NextOp);
+        return;
+    }
+
+    /* _CID with Package: get the package length */
+
+    NextOp = AcpiPsGetDepthNext (NULL, NextOp);
+
+    /* Don't need to use the length, just walk the peer list */
+
+    NextOp = NextOp->Common.Next;
+    while (NextOp)
+    {
+        AcpiDmIsEisaIdElement (NextOp);
+        NextOp = NextOp->Common.Next;
+    }
 }
 
 

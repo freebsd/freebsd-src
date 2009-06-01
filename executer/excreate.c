@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 1.114 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,11 +117,10 @@
 #define __EXCREATE_C__
 
 #include "acpi.h"
+#include "accommon.h"
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acnamesp.h"
-#include "acevents.h"
-#include "actables.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -180,16 +178,28 @@ AcpiExCreateAlias (
      */
     switch (TargetNode->Type)
     {
+
+    /* For these types, the sub-object can change dynamically via a Store */
+
     case ACPI_TYPE_INTEGER:
     case ACPI_TYPE_STRING:
     case ACPI_TYPE_BUFFER:
     case ACPI_TYPE_PACKAGE:
     case ACPI_TYPE_BUFFER_FIELD:
 
+    /*
+     * These types open a new scope, so we need the NS node in order to access
+     * any children.
+     */
+    case ACPI_TYPE_DEVICE:
+    case ACPI_TYPE_POWER:
+    case ACPI_TYPE_PROCESSOR:
+    case ACPI_TYPE_THERMAL:
+    case ACPI_TYPE_LOCAL_SCOPE:
+
         /*
          * The new alias has the type ALIAS and points to the original
-         * NS node, not the object itself.  This is because for these
-         * types, the object can change dynamically via a Store.
+         * NS node, not the object itself.
          */
         AliasNode->Type = ACPI_TYPE_LOCAL_ALIAS;
         AliasNode->Object = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, TargetNode);
@@ -198,9 +208,7 @@ AcpiExCreateAlias (
     case ACPI_TYPE_METHOD:
 
         /*
-         * The new alias has the type ALIAS and points to the original
-         * NS node, not the object itself.  This is because for these
-         * types, the object can change dynamically via a Store.
+         * Control method aliases need to be differentiated
          */
         AliasNode->Type = ACPI_TYPE_LOCAL_METHOD_ALIAS;
         AliasNode->Object = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, TargetNode);
@@ -441,115 +449,6 @@ Cleanup:
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExCreateTableRegion
- *
- * PARAMETERS:  WalkState           - Current state
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Create a new DataTableRegion object
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiExCreateTableRegion (
-    ACPI_WALK_STATE         *WalkState)
-{
-    ACPI_STATUS             Status;
-    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
-    ACPI_OPERAND_OBJECT     *ObjDesc;
-    ACPI_NAMESPACE_NODE     *Node;
-    ACPI_OPERAND_OBJECT     *RegionObj2;
-    ACPI_NATIVE_UINT        TableIndex;
-    ACPI_TABLE_HEADER       *Table;
-
-
-    ACPI_FUNCTION_TRACE (ExCreateTableRegion);
-
-
-    /* Get the Node from the object stack  */
-
-    Node = WalkState->Op->Common.Node;
-
-    /*
-     * If the region object is already attached to this node,
-     * just return
-     */
-    if (AcpiNsGetAttachedObject (Node))
-    {
-        return_ACPI_STATUS (AE_OK);
-    }
-
-    /* Find the ACPI table */
-
-    Status = AcpiTbFindTable (Operand[1]->String.Pointer,
-                Operand[2]->String.Pointer, Operand[3]->String.Pointer,
-                &TableIndex);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Create the region descriptor */
-
-    ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_REGION);
-    if (!ObjDesc)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    RegionObj2 = ObjDesc->Common.NextObject;
-    RegionObj2->Extra.RegionContext = NULL;
-
-    Status = AcpiGetTableByIndex (TableIndex, &Table);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Init the region from the operands */
-
-    ObjDesc->Region.SpaceId = REGION_DATA_TABLE;
-    ObjDesc->Region.Address = (ACPI_PHYSICAL_ADDRESS) ACPI_TO_INTEGER (Table);
-    ObjDesc->Region.Length = Table->Length;
-    ObjDesc->Region.Node = Node;
-    ObjDesc->Region.Flags = AOPOBJ_DATA_VALID;
-
-    /* Install the new region object in the parent Node */
-
-    Status = AcpiNsAttachObject (Node, ObjDesc, ACPI_TYPE_REGION);
-    if (ACPI_FAILURE (Status))
-    {
-        goto Cleanup;
-    }
-
-    Status = AcpiEvInitializeRegion (ObjDesc, FALSE);
-    if (ACPI_FAILURE (Status))
-    {
-        if (Status == AE_NOT_EXIST)
-        {
-            Status = AE_OK;
-        }
-        else
-        {
-            goto Cleanup;
-        }
-    }
-
-    ObjDesc->Region.Flags |= AOPOBJ_SETUP_COMPLETE;
-
-
-Cleanup:
-
-    /* Remove local reference to the object */
-
-    AcpiUtRemoveReference (ObjDesc);
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AcpiExCreateProcessor
  *
  * PARAMETERS:  WalkState           - Current state
@@ -715,7 +614,7 @@ AcpiExCreateMethod (
          * ACPI 2.0: SyncLevel = SyncLevel in method declaration
          */
         ObjDesc->Method.SyncLevel = (UINT8)
-            ((MethodFlags & AML_METHOD_SYNCH_LEVEL) >> 4);
+            ((MethodFlags & AML_METHOD_SYNC_LEVEL) >> 4);
     }
 
     /* Attach the new object to the method Node */
