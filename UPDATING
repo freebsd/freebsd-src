@@ -26,7 +26,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	The way we are storing and accessing `routing table' entries
 	has changed. Programs reading the FIB, like netstat, need to
 	be re-compiled.
-	Bump __FreeBSD_version to 800097.
 
 20090601:
 	A new netisr implementation has been added for FreeBSD 8.  Network
