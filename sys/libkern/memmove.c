@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/libkern.h>
 
+#if !defined(__arm__)
 void *
 memmove(void *dest, const void *src, size_t n)
 {
@@ -36,3 +37,4 @@ memmove(void *dest, const void *src, size_t n)
 	bcopy(src, dest, n);
 	return (dest);
 }
+#endif
