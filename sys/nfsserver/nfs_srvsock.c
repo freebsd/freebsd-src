@@ -406,7 +406,7 @@ nfsmout:
  * Essentially do as much as possible non-blocking, else punt and it will
  * be called with M_WAIT from an nfsd.
  */
-void
+int
 nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 {
 	struct nfssvc_sock *slp = (struct nfssvc_sock *)arg;
@@ -420,7 +420,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 
 	/* XXXRW: Unlocked read. */
 	if ((slp->ns_flag & SLP_VALID) == 0)
-		return;
+		return (SU_OK);
 
 	/*
 	 * We can't do this in the context of a socket callback
