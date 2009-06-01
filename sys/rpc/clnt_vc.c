@@ -91,7 +91,7 @@ static bool_t clnt_vc_control(CLIENT *, u_int, void *);
 static void clnt_vc_close(CLIENT *);
 static void clnt_vc_destroy(CLIENT *);
 static bool_t time_not_ok(struct timeval *);
-static void clnt_vc_soupcall(struct socket *so, void *arg, int waitflag);
+static int clnt_vc_soupcall(struct socket *so, void *arg, int waitflag);
 
 static struct clnt_ops clnt_vc_ops = {
 	.cl_call =	clnt_vc_call,
@@ -286,9 +286,7 @@ clnt_vc_create(
 	soreserve(ct->ct_socket, sendsz, recvsz);
 
 	SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
-	ct->ct_socket->so_upcallarg = ct;
-	ct->ct_socket->so_upcall = clnt_vc_soupcall;
-	ct->ct_socket->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(ct->ct_socket, SO_RCV, clnt_vc_soupcall, ct);
 	SOCKBUF_UNLOCK(&ct->ct_socket->so_rcv);
 
 	ct->ct_record = NULL;
@@ -750,17 +748,18 @@ clnt_vc_close(CLIENT *cl)
 	}
 
 	if (ct->ct_socket) {
+		ct->ct_closing = TRUE;
+		mtx_unlock(&ct->ct_lock);
+
 		SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
-		ct->ct_socket->so_upcallarg = NULL;
-		ct->ct_socket->so_upcall = NULL;
-		ct->ct_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+		soupcall_clear(ct->ct_socket, SO_RCV);
 		SOCKBUF_UNLOCK(&ct->ct_socket->so_rcv);
 
 		/*
 		 * Abort any pending requests and wait until everyone
 		 * has finished with clnt_vc_call.
 		 */
-		ct->ct_closing = TRUE;
+		mtx_lock(&ct->ct_lock);
 		TAILQ_FOREACH(cr, &ct->ct_pending, cr_link) {
 			cr->cr_xid = 0;
 			cr->cr_error = ESHUTDOWN;
@@ -815,7 +814,7 @@ time_not_ok(struct timeval *t)
 		t->tv_usec <= -1 || t->tv_usec > 1000000);
 }
 
-void
+int
 clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	struct ct_data *ct = (struct ct_data *) arg;
@@ -840,20 +839,20 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			 * error condition
 			 */
 			do_read = FALSE;
-			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_cc >= sizeof(uint32_t)
 			    || (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			    || so->so_error)
 				do_read = TRUE;
-			SOCKBUF_UNLOCK(&so->so_rcv);
 
 			if (!do_read)
-				return;
+				return (SU_OK);
 
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			uio.uio_resid = sizeof(uint32_t);
 			m = NULL;
 			rcvflag = MSG_DONTWAIT | MSG_SOCALLBCK;
 			error = soreceive(so, NULL, &uio, &m, NULL, &rcvflag);
+			SOCKBUF_LOCK(&so->so_rcv);
 
 			if (error == EWOULDBLOCK)
 				break;
@@ -893,25 +892,25 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			 * buffered.
 			 */
 			do_read = FALSE;
-			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_cc >= ct->ct_record_resid
 			    || (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			    || so->so_error)
 				do_read = TRUE;
-			SOCKBUF_UNLOCK(&so->so_rcv);
 
 			if (!do_read)
-				return;
+				return (SU_OK);
 
 			/*
 			 * We have the record mark. Read as much as
 			 * the socket has buffered up to the end of
 			 * this record.
 			 */
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			uio.uio_resid = ct->ct_record_resid;
 			m = NULL;
 			rcvflag = MSG_DONTWAIT | MSG_SOCALLBCK;
 			error = soreceive(so, NULL, &uio, &m, NULL, &rcvflag);
+			SOCKBUF_LOCK(&so->so_rcv);
 
 			if (error == EWOULDBLOCK)
 				break;
@@ -980,4 +979,5 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			}
 		}
 	} while (m);
+	return (SU_OK);
 }
