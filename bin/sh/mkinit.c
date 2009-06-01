@@ -159,7 +159,7 @@ void addstr(char *, struct text *);
 void addchar(int, struct text *);
 void writetext(struct text *, FILE *);
 FILE *ckfopen(char *, char *);
-void *ckmalloc(int);
+void *ckmalloc(size_t);
 char *savestr(char *);
 void error(char *);
 
@@ -464,7 +464,7 @@ ckfopen(char *file, char *mode)
 }
 
 void *
-ckmalloc(int nbytes)
+ckmalloc(size_t nbytes)
 {
 	char *p;
 
