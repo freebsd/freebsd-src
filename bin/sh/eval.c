@@ -594,7 +594,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *lastarg;
 	int realstatus;
 	int do_clearcmdentry;
-#if __GNUC__
+#ifdef __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &argv;
 	(void) &argc;
