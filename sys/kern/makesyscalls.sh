@@ -318,6 +318,13 @@ s/\$//g
 		auditev = $2;
 	}
 
+	#
+	# The currently-empty flags field.
+	#
+	{
+		flags = "0";
+	}
+
 	$3 == "STD" || $3 == "NODEF" || $3 == "NOARGS"  || $3 == "NOPROTO" \
 	    || $3 == "NOIMPL" || $3 == "NOSTD" {
 		parseline()
@@ -369,14 +376,14 @@ s/\$//g
 		printf("\t{ %s, (sy_call_t *)", argssize) > sysent
 		column = 8 + 2 + length(argssize) + 15
 		if ($3 == "NOIMPL") {
-			printf("%s },", "nosys, AUE_NULL, NULL, 0, 0") > sysent
-			column = column + length("nosys") + 3
+			printf("%s },", "nosys, AUE_NULL, NULL, 0, 0, 0") > sysent
+			column = column + length("nosys") + length("AUE_NULL") + 3
 		} else if ($3 == "NOSTD") {
-			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0") > sysent
-			column = column + length("lkmressys") + 3
+			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0, 0") > sysent
+			column = column + length("lkmressys") + length("AUE_NULL") + 3
 		} else {
-			printf("%s, %s, NULL, 0, 0 },", funcname, auditev) > sysent
-			column = column + length(funcname) + length(auditev) + 3
+			printf("%s, %s, NULL, 0, 0, %s },", funcname, auditev, flags) > sysent
+			column = column + length(funcname) + length(auditev) + length(flags) + 3
 		} 
 		align_sysent_comment(column)
 		printf("/* %d = %s */\n", syscall, funcalias) > sysent
@@ -426,10 +433,10 @@ s/\$//g
 			    argalias) > sysarg
 		printf("%s\t%s%s(struct thread *, struct %s *);\n",
 		    rettype, prefix, funcname, argalias) > outdcl
-		printf("\t{ %s(%s,%s), %s, NULL, 0, 0 },",
-		    wrap, argssize, funcname, auditev) > sysent
+		printf("\t{ %s(%s,%s), %s, NULL, 0, 0, %s },",
+		    wrap, argssize, funcname, auditev, flags) > sysent
 		align_sysent_comment(8 + 9 + \
-		    length(argssize) + 1 + length(funcname) + length(auditev) + 4)
+		    length(argssize) + 1 + length(funcname) + length(auditev) + length(flags) + 4)
 		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"%s.%s\",\t\t/* %d = old %s */\n",
 		    wrap, funcalias, syscall, funcalias) > sysnames
@@ -448,10 +455,10 @@ s/\$//g
 		ncompat++
 		parseline()
 		printf("%s\to%s();\n", rettype, funcname) > syscompatdcl
-		printf("\t{ compat(%s,%s), %s, NULL, 0, 0 },",
-		    argssize, funcname, auditev) > sysent
+		printf("\t{ compat(%s,%s), %s, NULL, 0, 0, %s },",
+		    argssize, funcname, auditev, flags) > sysent
 		align_sysent_comment(8 + 9 + \
-		    length(argssize) + 1 + length(funcname) + length(auditev) + 4)
+		    length(argssize) + 1 + length(funcname) + length(auditev) + length(flags) + 4)
 		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
@@ -462,7 +469,7 @@ s/\$//g
 		next
 	}
 	$3 == "OBSOL" {
-		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },") > sysent
+		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0 },") > sysent
 		align_sysent_comment(34)
 		printf("/* %d = obsolete %s */\n", syscall, comment) > sysent
 		printf("\t\"obs_%s\",\t\t\t/* %d = obsolete %s */\n",
@@ -473,7 +480,7 @@ s/\$//g
 		next
 	}
 	$3 == "UNIMPL" {
-		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },\t\t\t/* %d = %s */\n",
+		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0 },\t\t\t/* %d = %s */\n",
 		    syscall, comment) > sysent
 		printf("\t\"#%d\",\t\t\t/* %d = %s */\n",
 		    syscall, syscall, comment) > sysnames
