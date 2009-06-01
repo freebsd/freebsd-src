@@ -86,6 +86,7 @@ struct pcpu {
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
 	struct device	*pc_device;
+	void		*pc_netisr;		/* netisr SWI cookie. */
 
 	/* 
 	 * Stuff for read mostly lock
