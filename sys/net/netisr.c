@@ -893,10 +893,8 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 	if (netisr_direct_force) {
 		nwsp = &nws[curcpu];
 		npwp = &nwsp->nws_work[proto];
-		NWS_LOCK(nwsp);
 		npwp->nw_dispatched++;
 		npwp->nw_handled++;
-		NWS_UNLOCK(nwsp);
 		np[proto].np_handler(m);
 		error = 0;
 		goto out_unlock;
