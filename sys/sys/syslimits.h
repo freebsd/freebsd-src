@@ -54,7 +54,7 @@
 #define	MAX_CANON		  255	/* max bytes in term canon input line */
 #define	MAX_INPUT		  255	/* max bytes in terminal input */
 #define	NAME_MAX		  255	/* max bytes in a file name */
-#define	NGROUPS_MAX		   16	/* max supplemental group id's */
+#define	NGROUPS_MAX	 	32767	/* max supplemental group id's */
 #ifndef OPEN_MAX
 #define	OPEN_MAX		   64	/* max open files per process */
 #endif
