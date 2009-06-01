@@ -144,6 +144,13 @@ static int	sysctl_igmp_ifinfo(SYSCTL_HANDLER_ARGS);
 static vnet_attach_fn	vnet_igmp_iattach;
 static vnet_detach_fn	vnet_igmp_idetach;
 
+static const struct netisr_handler igmp_nh = {
+	.nh_name = "igmp",
+	.nh_handler = igmp_intr,
+	.nh_proto = NETISR_IGMP,
+	.nh_policy = NETISR_POLICY_SOURCE,
+};
+
 /*
  * System-wide globals.
  *
@@ -188,11 +195,6 @@ struct mtx		 igmp_mtx;
 
 struct mbuf		*m_raopt;		 /* Router Alert option */
 MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
-
-/*
- * Global netisr output queue.
- */
-struct ifqueue		 igmpoq;
 
 /*
  * VIMAGE-wide globals.
@@ -3537,12 +3539,9 @@ igmp_sysinit(void)
 
 	IGMP_LOCK_INIT();
 
-	mtx_init(&igmpoq.ifq_mtx, "igmpoq_mtx", NULL, MTX_DEF);
-	IFQ_SET_MAXLEN(&igmpoq, IFQ_MAXLEN);
-
 	m_raopt = igmp_ra_alloc();
 
-	netisr_register(NETISR_IGMP, igmp_intr, &igmpoq, 0);
+	netisr_register(&igmp_nh);
 }
 
 static void
@@ -3551,8 +3550,7 @@ igmp_sysuninit(void)
 
 	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
 
-	netisr_unregister(NETISR_IGMP);
-	mtx_destroy(&igmpoq.ifq_mtx);
+	netisr_unregister(&igmp_nh);
 
 	m_free(m_raopt);
 	m_raopt = NULL;
