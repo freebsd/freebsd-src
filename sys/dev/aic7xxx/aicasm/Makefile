@@ -15,7 +15,6 @@ SRCS=	${GENHDRS} ${CSRCS} ${YSRCS} ${LSRCS}
 CLEANFILES+= ${GENHDRS} ${YSRCS:R:C/(.*)/\1.output/g}
 DPADD=	${LIBL}
 LDADD=	-ll
-WARNS?=	6
 
 # Correct path for kernel builds
 # Don't rely on the kernel's .depend file
