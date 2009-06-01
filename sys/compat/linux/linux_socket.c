@@ -825,6 +825,21 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	    args->namelen));
 }
 
+struct linux_accept4_args {
+	int s;
+	l_uintptr_t addr;
+	l_uintptr_t namelen;
+	int flags;
+};
+
+static int
+linux_accept4(struct thread *td, struct linux_accept4_args *args)
+{
+
+	return (linux_accept_common(td, args->s, args->addr,
+	    args->namelen, args->flags));
+}
+
 struct linux_getsockname_args {
 	int s;
 	l_uintptr_t addr;
@@ -1528,7 +1543,8 @@ static const unsigned char lxs_args[] = {
 	LINUX_AL(4) /* recv */,		LINUX_AL(6) /* sendto */,
 	LINUX_AL(6) /* recvfrom */,	LINUX_AL(2) /* shutdown */,
 	LINUX_AL(5) /* setsockopt */,	LINUX_AL(5) /* getsockopt */,
-	LINUX_AL(3) /* sendmsg */,	LINUX_AL(3) /* recvmsg */
+	LINUX_AL(3) /* sendmsg */,	LINUX_AL(3) /* recvmsg */,
+	LINUX_AL(4) /* accept4 */
 };
 
 #define	LINUX_AL_SIZE	sizeof(lxs_args) / sizeof(lxs_args[0]) - 1
@@ -1582,6 +1598,8 @@ linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
 		return (linux_sendmsg(td, arg));
 	case LINUX_RECVMSG:
 		return (linux_recvmsg(td, arg));
+	case LINUX_ACCEPT4:
+		return (linux_accept4(td, arg));
 	}
 
 	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
