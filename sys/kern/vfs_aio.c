@@ -1313,12 +1313,12 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 	struct aiocblist *cb, *cbn;
 	int opcode;
 
+	SOCKBUF_LOCK_ASSERT(sb);
 	if (sb == &so->so_snd)
 		opcode = LIO_WRITE;
 	else
 		opcode = LIO_READ;
 
-	SOCKBUF_LOCK(sb);
 	sb->sb_flags &= ~SB_AIO;
 	mtx_lock(&aio_job_mtx);
 	TAILQ_FOREACH_SAFE(cb, &so->so_aiojobq, list, cbn) {
@@ -1336,7 +1336,6 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 		}
 	}
 	mtx_unlock(&aio_job_mtx);
-	SOCKBUF_UNLOCK(sb);
 }
 
 static int

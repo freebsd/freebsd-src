@@ -99,6 +99,8 @@ struct	sockbuf {
 	int	sb_lowat;	/* (c/d) low water mark */
 	int	sb_timeo;	/* (c/d) timeout for read/write */
 	short	sb_flags;	/* (c/d) flags, see below */
+	int	(*sb_upcall)(struct socket *, void *, int); /* (c/d) */
+	void	*sb_upcallarg;	/* (c/d) */
 };
 
 #ifdef _KERNEL

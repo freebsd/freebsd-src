@@ -263,11 +263,11 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam)
 	slp->ns_nam = mynam;
 	fhold(fp);
 	slp->ns_fp = fp;
+	NFSD_UNLOCK();
 	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_upcallarg = (caddr_t)slp;
-	so->so_upcall = nfsrv_rcv;
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(so, SO_RCV, nfsrv_rcv, slp);
 	SOCKBUF_UNLOCK(&so->so_rcv);
+	NFSD_LOCK();
 	slp->ns_flag = (SLP_VALID | SLP_NEEDQ);
 	nfsrv_wakenfsd(slp);
 	NFSD_UNLOCK();
@@ -585,9 +585,7 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 		slp->ns_fp = NULL;
 		so = slp->ns_so;
 		SOCKBUF_LOCK(&so->so_rcv);
-		so->so_rcv.sb_flags &= ~SB_UPCALL;
-		so->so_upcall = NULL;
-		so->so_upcallarg = NULL;
+		soupcall_clear(so, SO_RCV);
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		soshutdown(so, SHUT_RDWR);
 		closef(fp, NULL);
