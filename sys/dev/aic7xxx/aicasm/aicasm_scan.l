@@ -516,6 +516,7 @@ expand_macro(struct symbol *macro_symbol)
 	const char *body_head;
 	const char *body_pos;
 	const char *next_match;
+	regmatch_t match = { .rm_so = 0, .rm_eo = 0 };
 
 	/*
 	 * Due to the nature of unput, we must work
@@ -525,8 +526,6 @@ expand_macro(struct symbol *macro_symbol)
 	body_head = macro_symbol->info.macroinfo->body;
 	body_pos = body_head + strlen(body_head);
 	while (body_pos > body_head) {
-		regmatch_t match;
-
 		next_match = body_head;
 		match_marg = NULL;
 		next_substitution(macro_symbol, body_pos, &next_match,
