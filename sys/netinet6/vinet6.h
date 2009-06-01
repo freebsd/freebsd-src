@@ -118,7 +118,6 @@ struct vnet_inet6 {
 	int			_icmp6_nodeinfo;
 	int			_udp6_sendspace;
 	int			_udp6_recvspace;
-	int			_ip6qmaxlen;
 	int			_ip6_prefer_tempaddr;
 
 	int			_nd6_prune;
@@ -224,7 +223,6 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_ip6_use_tempaddr		VNET_INET6(ip6_use_tempaddr)
 #define	V_ip6_v6only			VNET_INET6(ip6_v6only)
 #define	V_ip6q				VNET_INET6(ip6q)
-#define	V_ip6qmaxlen			VNET_INET6(ip6qmaxlen)
 #define	V_ip6stat			VNET_INET6(ip6stat)
 #define	V_ip6stealth			VNET_INET6(ip6stealth)
 #define	V_llinfo_nd6			VNET_INET6(llinfo_nd6)
