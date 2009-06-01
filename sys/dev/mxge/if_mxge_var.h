@@ -120,6 +120,7 @@ typedef struct
 	int cl_size;
 	int alloc_fail;
 	int mask;			/* number of rx slots -1 */
+	int mlen;
 } mxge_rx_ring_t;
 
 typedef struct
