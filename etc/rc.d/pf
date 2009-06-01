@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: pf
-# REQUIRE: FILESYSTEMS netif pflog pfsync
+# REQUIRE: FILESYSTEMS pflog pfsync
 # BEFORE:  routing
 # KEYWORD: nojail
 
