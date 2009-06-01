@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090401_0132"
+#define HDA_DRV_TEST_REV	"20090601_0133"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -4657,6 +4657,7 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 	}
 
 	switch (id) {
+#if 0
 	case HDA_CODEC_ALC883:
 		/*
 		 * nid: 24/25 = External (jack) or Internal (fixed) Mic.
@@ -4686,6 +4687,7 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		 * nid: 26 = Line-in, leave it alone.
 		 */
 		break;
+#endif
 	case HDA_CODEC_AD1983:
 		/*
 		 * This codec has several possible usages, but none
