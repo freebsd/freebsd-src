@@ -33,6 +33,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	rebuilt.
 	Bump __FreeBSD_version to 800096.
 
+20090531:
+	For those who use ipfw and especially pf, those two firewalls
+	are now started BEFORE the network is initialized (i.e., before
+	rc.d/netif). Please review your rules to make sure that your
+	interfaces will be properly described.
+
 20090530:
 	Remove the tunable/sysctl debug.mpsafevfs as its initial purpose
 	is no more valid.
