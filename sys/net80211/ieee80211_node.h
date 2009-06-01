@@ -81,6 +81,7 @@ struct ieee80211_ies {
 	uint8_t	*htcap_ie;	/* captured HTCAP ie */
 	uint8_t	*htinfo_ie;	/* captured HTINFO ie */
 	uint8_t	*tdma_ie;	/* captured TDMA ie */
+	uint8_t	*spare[4];
 	/* NB: these must be the last members of this structure */
 	uint8_t	*data;		/* frame data > 802.11 header */
 	int	len;		/* data size in bytes */
@@ -192,6 +193,7 @@ struct ieee80211_node {
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
 	/* XXX move to vap? */
 	struct ifqueue		ni_wdsq;	/* wds pending queue */
+	uint64_t		ni_spare[4];
 };
 MALLOC_DECLARE(M_80211_NODE);
 MALLOC_DECLARE(M_80211_NODE_IE);
