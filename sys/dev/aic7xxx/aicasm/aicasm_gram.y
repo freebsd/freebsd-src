@@ -88,7 +88,7 @@ static int in_critical_section;
 static u_int enum_increment;
 static u_int enum_next_value;
 
-static void process_field(int field_type, symbol_t *sym, int mask);
+static void process_field(unsigned int field_type, symbol_t *sym, int mask);
 static void initialize_symbol(symbol_t *symbol);
 static void add_macro_arg(const char *argtext, int position);
 static void add_macro_body(const char *bodytext);
@@ -106,6 +106,9 @@ static void make_expression(expression_t *immed, int value);
 static void add_conditional(symbol_t *symbol);
 static void add_version(const char *verstring);
 static int  is_download_const(expression_t *immed);
+
+extern int yylex (void);
+extern int yyparse (void);
 
 #define SRAM_SYMNAME "SRAM_BASE"
 #define SCB_SYMNAME "SCB_BASE"
@@ -867,7 +870,7 @@ reg_symbol:
 			stop("register offset must be a constant", EX_DATAERR);
 			/* NOTREACHED */
 		}
-		if (($3->info.cinfo->value + 1) > $1->info.rinfo->size) {
+		if (($3->info.cinfo->value + 1) > (unsigned)$1->info.rinfo->size) {
 			stop("Accessing offset beyond range of register",
 			     EX_DATAERR);
 			/* NOTREACHED */
@@ -878,7 +881,7 @@ reg_symbol:
 |	T_SYMBOL '[' T_NUMBER ']'
 	{
 		process_register(&$1);
-		if (($3 + 1) > $1->info.rinfo->size) {
+		if (($3 + 1) > (unsigned)$1->info.rinfo->size) {
 			stop("Accessing offset beyond range of register",
 			     EX_DATAERR);
 			/* NOTREACHED */
@@ -1379,7 +1382,7 @@ code:
 %%
 
 static void
-process_field(int field_type, symbol_t *sym, int value)
+process_field(unsigned int field_type, symbol_t *sym, int value)
 {
 	/*
 	 * Add the current register to its
@@ -1531,10 +1534,9 @@ initialize_symbol(symbol_t *symbol)
 }
 
 static void
-add_macro_arg(const char *argtext, int argnum)
+add_macro_arg(const char *argtext, int argnum __unused)
 {
 	struct macro_arg *marg;
-	int i;
 	int retval;
 		
 
@@ -1553,7 +1555,7 @@ add_macro_arg(const char *argtext, int argnum)
 	retval = snprintf(regex_pattern, sizeof(regex_pattern),
 			  "[^-/A-Za-z0-9_](%s)([^-/A-Za-z0-9_]|$)",
 			  argtext);
-	if (retval >= sizeof(regex_pattern)) {
+	if (retval >= (int)sizeof(regex_pattern)) {
 		stop("Regex text buffer too small for arg",
 		     EX_SOFTWARE);
 		/* NOTREACHED */
@@ -1911,24 +1913,24 @@ add_conditional(symbol_t *symbol)
 static void
 add_version(const char *verstring)
 {
-	const char prefix[] = " * ";
+	const char verprefix[] = " * ";
 	int newlen;
 	int oldlen;
 
-	newlen = strlen(verstring) + strlen(prefix);
+	newlen = strlen(verstring) + strlen(verprefix);
 	oldlen = 0;
 	if (versions != NULL)
 		oldlen = strlen(versions);
 	versions = realloc(versions, newlen + oldlen + 2);
 	if (versions == NULL)
 		stop("Can't allocate version string", EX_SOFTWARE);
-	strcpy(&versions[oldlen], prefix);
-	strcpy(&versions[oldlen + strlen(prefix)], verstring);
+	strcpy(&versions[oldlen], verprefix);
+	strcpy(&versions[oldlen + strlen(verprefix)], verstring);
 	versions[newlen + oldlen] = '\n';
 	versions[newlen + oldlen + 1] = '\0';
 }
 
-void
+static void
 yyerror(const char *string)
 {
 	stop(string, EX_DATAERR);
