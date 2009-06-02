@@ -410,12 +410,8 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		goto out;
 
 #ifdef MAC
-	SOCK_LOCK(ddp->ddp_socket);
-	if (mac_socket_check_deliver(ddp->ddp_socket, m) != 0) {
-		SOCK_UNLOCK(ddp->ddp_socket);
+	if (mac_socket_check_deliver(ddp->ddp_socket, m) != 0)
 		goto out;
-	}
-	SOCK_UNLOCK(ddp->ddp_socket);
 #endif
 
 	/* 

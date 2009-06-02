@@ -1562,9 +1562,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_connects);
 			soisconnected(so);
 #ifdef MAC
-			SOCK_LOCK(so);
 			mac_socketpeer_set_from_mbuf(m, so);
-			SOCK_UNLOCK(so);
 #endif
 			/* Do window scaling on this connection? */
 			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
