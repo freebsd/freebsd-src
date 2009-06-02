@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <machine/stdarg.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/intr_machdep.h>
