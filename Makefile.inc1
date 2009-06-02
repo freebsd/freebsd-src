@@ -1021,8 +1021,13 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
+.if ${MK_CLANG_IS_CC} != "no"
+_clang=		usr.bin/clang
+.endif
+
 cross-tools:
 .for _tool in \
+    ${_clang} \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
     usr.bin/sed \

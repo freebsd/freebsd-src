@@ -1,15 +1,18 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 .include "../Makefile.fe"
 
-PROG=	cc
-MAN=	gcc.1
+PROG=	gcc
 SRCS+=  gccspec.c
 
 NO_SHARED?=yes
 
-LINKS=	${BINDIR}/cc ${BINDIR}/gcc
+.if ${MK_CLANG_IS_CC} == "no"
+LINKS=	${BINDIR}/gcc ${BINDIR}/cc
+.endif
 MLINKS=	gcc.1 cc.1 gcc.1 c++.1 gcc.1 g++.1 gcc.1 CC.1
 
 .include <bsd.prog.mk>
