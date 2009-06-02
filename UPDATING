@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090602:
+	window(1) has been removed from the base system. It can now be
+	installed from ports. The port is called misc/window.
+
 20090601:
 	The way we are storing and accessing `routing table' entries
 	has changed. Programs reading the FIB, like netstat, need to

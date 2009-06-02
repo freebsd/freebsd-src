@@ -222,7 +222,6 @@ SUBDIR=	alias \
 	which \
 	who \
 	whois \
-	window \
 	write \
 	xargs \
 	xinstall \
