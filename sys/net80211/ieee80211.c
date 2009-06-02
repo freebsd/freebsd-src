@@ -313,6 +313,8 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211vap *vap;
 
+	if_detach(ifp);
+
 	while ((vap = TAILQ_FIRST(&ic->ic_vaps)) != NULL)
 		ieee80211_vap_destroy(vap);
 	ieee80211_waitfor_parent(ic);
@@ -329,11 +331,10 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_crypto_detach(ic);
 	ieee80211_power_detach(ic);
 	ieee80211_node_detach(ic);
-	ifmedia_removeall(&ic->ic_media);
 
+	ifmedia_removeall(&ic->ic_media);
 	taskqueue_free(ic->ic_tq);
 	IEEE80211_LOCK_DESTROY(ic);
-	if_detach(ifp);
 }
 
 /*
