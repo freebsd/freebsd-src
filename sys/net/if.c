@@ -574,6 +574,7 @@ if_free_internal(struct ifnet *ifp)
 	knlist_destroy(&ifp->if_klist);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
+	ifq_detach(&ifp->if_snd);
 	free(ifp, M_IFNET);
 }
 
@@ -1025,9 +1026,6 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	}
 	ifp->if_afdata_initialized = 0;
 	IF_AFDATA_UNLOCK(ifp);
-
-	if (!vmove)
-		ifq_detach(&ifp->if_snd);
 }
 
 #ifdef VIMAGE
