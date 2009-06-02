@@ -258,8 +258,8 @@ static void msk_intr_hwerr(struct msk_softc *);
 #ifndef __NO_STRICT_ALIGNMENT
 static __inline void msk_fixup_rx(struct mbuf *);
 #endif
-static void msk_rxeof(struct msk_if_softc *, uint32_t, int);
-static void msk_jumbo_rxeof(struct msk_if_softc *, uint32_t, int);
+static void msk_rxeof(struct msk_if_softc *, uint32_t, uint32_t, int);
+static void msk_jumbo_rxeof(struct msk_if_softc *, uint32_t, uint32_t, int);
 static void msk_txeof(struct msk_if_softc *, int);
 static int msk_encap(struct msk_if_softc *, struct mbuf **);
 static void msk_tx_task(void *, int);
@@ -267,6 +267,7 @@ static void msk_start(struct ifnet *);
 static int msk_ioctl(struct ifnet *, u_long, caddr_t);
 static void msk_set_prefetch(struct msk_softc *, int, bus_addr_t, uint32_t);
 static void msk_set_rambuffer(struct msk_if_softc *);
+static void msk_set_tx_stfwd(struct msk_if_softc *);
 static void msk_init(void *);
 static void msk_init_locked(struct msk_if_softc *);
 static void msk_stop(struct msk_if_softc *);
@@ -991,12 +992,17 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			else
 				ifp->if_hwassist &= ~MSK_CSUM_FEATURES;
 		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
 		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			msk_setvlan(sc_if, ifp);
 		}
-
+		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
+		    (IFCAP_VLAN_HWCSUM & ifp->if_capabilities) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
 		if ((mask & IFCAP_TSO4) != 0 &&
 		    (IFCAP_TSO4 & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_TSO4;
@@ -1492,6 +1498,13 @@ msk_attach(device_t dev)
 	 * make Rx checksum offload work on Yukon II hardware.
 	 */
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
+	/*
+	 * Enable Rx checksum offloading if controller support new
+	 * descriptor format.
+	 */
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 && 
+	    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
+		ifp->if_capabilities |= IFCAP_RXCSUM;
 	ifp->if_hwassist = MSK_CSUM_FEATURES | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = msk_ioctl;
@@ -1535,6 +1548,13 @@ msk_attach(device_t dev)
 		 * for VLAN interface.
 		 */
         	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
+		/*
+		 * Enable Rx checksum offloading for VLAN taggedd frames
+		 * if controller support new descriptor format.
+		 */
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 && 
+		    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
+			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
 	}
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -1711,7 +1731,8 @@ mskc_attach(device_t dev)
 			 * Just pass received frames to upper stack with
 			 * minimal test and let upper stack handle them.
 			 */
-			sc->msk_pflags |= MSK_FLAG_NOHWVLAN | MSK_FLAG_NORXCHK;
+			sc->msk_pflags |= MSK_FLAG_NOHWVLAN |
+			    MSK_FLAG_NORXCHK | MSK_FLAG_NORX_CSUM;
 		}
 		break;
 	case CHIP_ID_YUKON_XL:
@@ -2942,7 +2963,8 @@ msk_fixup_rx(struct mbuf *m)
 #endif
 
 static void
-msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
+msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
+    int len)
 {
 	struct mbuf *m;
 	struct ifnet *ifp;
@@ -2994,6 +3016,18 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 			msk_fixup_rx(m);
 #endif
 		ifp->if_ipackets++;
+		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
+		    (control & (CSS_IPV4 | CSS_IPFRAG)) == CSS_IPV4) {
+			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if ((control & CSS_IPV4_CSUM_OK) != 0)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((control & (CSS_TCP | CSS_UDP)) != 0 &&
+			    (control & (CSS_TCPUDP_CSUM_OK)) != 0) {
+				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
+				    CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
@@ -3010,7 +3044,8 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 }
 
 static void
-msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
+msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
+    int len)
 {
 	struct mbuf *m;
 	struct ifnet *ifp;
@@ -3051,6 +3086,18 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 			msk_fixup_rx(m);
 #endif
 		ifp->if_ipackets++;
+		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
+		    (control & (CSS_IPV4 | CSS_IPFRAG)) == CSS_IPV4) {
+			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if ((control & CSS_IPV4_CSUM_OK) != 0)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((control & (CSS_TCP | CSS_UDP)) != 0 &&
+			    (control & (CSS_TCPUDP_CSUM_OK)) != 0) {
+				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
+				    CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
@@ -3379,9 +3426,9 @@ msk_handle_events(struct msk_softc *sc)
 		case OP_RXSTAT:
 			if (sc_if->msk_framesize >
 			    (MCLBYTES - MSK_RX_BUF_ALIGN))
-				msk_jumbo_rxeof(sc_if, status, len);
+				msk_jumbo_rxeof(sc_if, status, control, len);
 			else
-				msk_rxeof(sc_if, status, len);
+				msk_rxeof(sc_if, status, control, len);
 			rxprog++;
 			/*
 			 * Because there is no way to sync single Rx LE
