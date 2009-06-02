@@ -169,21 +169,23 @@ usb2_ref_device(struct usb_cdev_privdata* cpd, int need_uref)
 	cpd->bus = devclass_get_softc(usb2_devclass_ptr, cpd->bus_index);
 	if (cpd->bus == NULL) {
 		DPRINTFN(2, "no bus at %u\n", cpd->bus_index);
+		need_uref = 0;
 		goto error;
 	}
 	cpd->udev = cpd->bus->devices[cpd->dev_index];
 	if (cpd->udev == NULL) {
 		DPRINTFN(2, "no device at %u\n", cpd->dev_index);
+		need_uref = 0;
 		goto error;
 	}
 	if (cpd->udev->refcount == USB_DEV_REF_MAX) {
 		DPRINTFN(2, "no dev ref\n");
+		need_uref = 0;
 		goto error;
 	}
 	if (need_uref) {
 		DPRINTFN(2, "ref udev - needed\n");
 		cpd->udev->refcount++;
-		cpd->is_uref = 1;
 
 		mtx_unlock(&usb2_ref_lock);
 
@@ -194,6 +196,11 @@ usb2_ref_device(struct usb_cdev_privdata* cpd, int need_uref)
 		sx_xlock(cpd->udev->default_sx + 1);
 
 		mtx_lock(&usb2_ref_lock);
+
+		/* 
+		 * Set "is_uref" after grabbing the default SX lock
+		 */
+		cpd->is_uref = 1;
 	}
 
 	/* check if we are doing an open */
@@ -258,18 +265,18 @@ usb2_ref_device(struct usb_cdev_privdata* cpd, int need_uref)
 	}
 	mtx_unlock(&usb2_ref_lock);
 
-	if (cpd->is_uref) {
+	if (need_uref) {
 		mtx_lock(&Giant);	/* XXX */
 	}
 	return (0);
 
 error:
-	if (cpd->is_uref) {
+	if (need_uref) {
+		cpd->is_uref = 0;
 		sx_unlock(cpd->udev->default_sx + 1);
 		if (--(cpd->udev->refcount) == 0) {
 			usb2_cv_signal(cpd->udev->default_cv + 1);
 		}
-		cpd->is_uref = 0;
 	}
 	mtx_unlock(&usb2_ref_lock);
 	DPRINTFN(2, "fail\n");
@@ -289,10 +296,14 @@ error:
 static usb_error_t
 usb2_usb_ref_device(struct usb_cdev_privdata *cpd)
 {
+	uint8_t is_uref;
+
+	is_uref = cpd->is_uref && sx_xlocked(cpd->udev->default_sx + 1);
+
 	/*
 	 * Check if we already got an USB reference on this location:
 	 */
-	if (cpd->is_uref)
+	if (is_uref)
 		return (0);		/* success */
 
 	/*
@@ -313,7 +324,12 @@ usb2_usb_ref_device(struct usb_cdev_privdata *cpd)
 void
 usb2_unref_device(struct usb_cdev_privdata *cpd)
 {
-	if (cpd->is_uref) {
+	uint8_t is_uref;
+
+	is_uref = cpd->is_uref && sx_xlocked(cpd->udev->default_sx + 1);
+
+	if (is_uref) {
+		cpd->is_uref = 0;
 		mtx_unlock(&Giant);	/* XXX */
 		sx_unlock(cpd->udev->default_sx + 1);
 	}
@@ -330,11 +346,10 @@ usb2_unref_device(struct usb_cdev_privdata *cpd)
 		}
 		cpd->is_write = 0;
 	}
-	if (cpd->is_uref) {
+	if (is_uref) {
 		if (--(cpd->udev->refcount) == 0) {
 			usb2_cv_signal(cpd->udev->default_cv + 1);
 		}
-		cpd->is_uref = 0;
 	}
 	mtx_unlock(&usb2_ref_lock);
 }
