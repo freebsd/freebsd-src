@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <machine/resource.h>
-#include <contrib/dev/acpica/acpi.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
+
 #include <dev/acpica/acpivar.h>
 #include <dev/asmc/asmcvar.h>
 
