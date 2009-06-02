@@ -30,8 +30,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define IFNET_BUF_RING
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/linker.h>
@@ -68,9 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
 #include <machine/resource.h>
-#ifdef IFNET_BUF_RING
-#include <sys/buf_ring.h>
-#endif
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
@@ -90,6 +85,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/mxge/mcp_gen_header.h>
 /*#define MXGE_FAKE_IFP*/
 #include <dev/mxge/if_mxge_var.h>
+#ifdef IFNET_BUF_RING
+#include <sys/buf_ring.h>
+#endif
 
 /* tunable params */
 static int mxge_nvidia_ecrc_enable = 1;
@@ -2200,6 +2198,7 @@ mxge_transmit_locked(struct mxge_slice_state *ss, struct mbuf *m)
 		BPF_MTAP(ifp, m);
 		/* give it to the nic */
 		mxge_encap(ss, m);
+		drbr_stats_update(ifp, m->m_pkthdr.len, m->m_flags);
 	} else if ((err = drbr_enqueue(ifp, tx->br, m)) != 0) {
 		return (err);
 	}
@@ -2656,11 +2655,6 @@ mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 		/* mbuf and DMA map only attached to the first
 		   segment per-mbuf */
 		if (m != NULL) {
-#ifdef IFNET_BUF_RING			
-			ss->obytes += m->m_pkthdr.len;
-			if (m->m_flags & M_MCAST)
-				ss->omcasts++;
-#endif
 			ss->opackets++;
 			tx->info[idx].m = NULL;
 			map = tx->info[idx].map;
@@ -3787,11 +3781,6 @@ mxge_update_stats(mxge_softc_t *sc)
 	struct mxge_slice_state *ss;
 	u_long ipackets = 0;
 	u_long opackets = 0;
-#ifdef IFNET_BUF_RING
-	u_long obytes = 0;
-	u_long omcasts = 0;
-	u_long odrops = 0;
-#endif
 	u_long oerrors = 0;
 	int slice;
 
@@ -3799,20 +3788,10 @@ mxge_update_stats(mxge_softc_t *sc)
 		ss = &sc->ss[slice];
 		ipackets += ss->ipackets;
 		opackets += ss->opackets;
-#ifdef IFNET_BUF_RING
-		obytes += ss->obytes;
-		omcasts += ss->omcasts;
-		odrops += ss->tx.br->br_drops;
-#endif
 		oerrors += ss->oerrors;
 	}
 	sc->ifp->if_ipackets = ipackets;
 	sc->ifp->if_opackets = opackets;
-#ifdef IFNET_BUF_RING
-	sc->ifp->if_obytes = obytes;
-	sc->ifp->if_omcasts = omcasts;
-	sc->ifp->if_snd.ifq_drops = odrops;
-#endif
 	sc->ifp->if_oerrors = oerrors;
 }
 
