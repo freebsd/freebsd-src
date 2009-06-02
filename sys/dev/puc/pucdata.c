@@ -234,6 +234,17 @@ const struct puc_cfg puc_pci_devices[] = {
 	},
 
 	/*
+	 * IBM SurePOS 300 Series (481033H) serial ports
+	 * Details can be found on the IBM RSS websites
+	 */
+
+	{   0x1014, 0x0297, 0xffff, 0,
+	    "IBM SurePOS 300 Series (481033H) serial ports",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x10, 4, 0
+	},
+
+	/*
 	 * SIIG Boards.
 	 *
 	 * SIIG provides documentation for their boards at:
