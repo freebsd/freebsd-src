@@ -271,9 +271,7 @@ svc_vc_accept(struct socket *head, struct socket **sop)
 		goto done;
 	}
 #ifdef MAC
-	SOCK_LOCK(head);
 	error = mac_socket_check_accept(td->td_ucred, head);
-	SOCK_UNLOCK(head);
 	if (error != 0)
 		goto done;
 #endif
