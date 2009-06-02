@@ -88,13 +88,19 @@ struct usb_cdev_privdata {
 	struct usb_bus		*bus;
 	struct usb_device	*udev;
 	struct usb_interface	*iface;
-	struct usb_fifo	*rxfifo;
-	struct usb_fifo	*txfifo;
 	int			bus_index;	/* bus index */
 	int			dev_index;	/* device index */
 	int			ep_addr;	/* endpoint address */
 	int			fflags;
 	uint8_t			fifo_index;	/* FIFO index */
+};
+
+/*
+ * Private per-device and per-thread reference information
+ */
+struct usb_cdev_refdata {
+	struct usb_fifo		*rxfifo;
+	struct usb_fifo		*txfifo;
 	uint8_t			is_read;	/* location has read access */
 	uint8_t			is_write;	/* location has write access */
 	uint8_t			is_uref;	/* USB refcount decr. needed */
