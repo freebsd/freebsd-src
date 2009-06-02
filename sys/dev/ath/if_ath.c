@@ -1153,8 +1153,14 @@ ath_vap_delete(struct ieee80211vap *vap)
 		if (ath_startrecv(sc) != 0)
 			if_printf(ifp, "%s: unable to restart recv logic\n",
 			    __func__);
-		if (sc->sc_beacons)
-			ath_beacon_config(sc, NULL);
+		if (sc->sc_beacons) {		/* restart beacons */
+#ifdef IEEE80211_SUPPORT_TDMA
+			if (sc->sc_tdma)
+				ath_tdma_config(sc, NULL);
+			else
+#endif
+				ath_beacon_config(sc, NULL);
+		}
 		ath_hal_intrset(ah, sc->sc_imask);
 	}
 }
@@ -1652,13 +1658,13 @@ ath_reset(struct ifnet *ifp)
 	 * might change as a result.
 	 */
 	ath_chan_change(sc, ic->ic_curchan);
-	if (sc->sc_beacons) {
+	if (sc->sc_beacons) {		/* restart beacons */
 #ifdef IEEE80211_SUPPORT_TDMA
 		if (sc->sc_tdma)
 			ath_tdma_config(sc, NULL);
 		else
 #endif
-			ath_beacon_config(sc, NULL);	/* restart beacons */
+			ath_beacon_config(sc, NULL);
 	}
 	ath_hal_intrset(ah, sc->sc_imask);
 
