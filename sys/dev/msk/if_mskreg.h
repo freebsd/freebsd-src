@@ -225,6 +225,8 @@
 #define PCI_OUR_REG_3	0x80	/* 32 bit Our Register 3 */
 #define PCI_OUR_REG_4	0x84	/* 32 bit Our Register 4 */
 #define PCI_OUR_REG_5	0x88	/* 32 bit Our Register 5 */
+#define PCI_CFG_REG_0	0x90	/* 32 bit Config Register 0 */
+#define PCI_CFG_REG_1	0x94	/* 32 bit Config Register 1 */
 
 /* PCI Express Capability */
 #define PEX_CAP_ID	0xe0	/*  8 bit PEX Capability ID */
@@ -324,6 +326,56 @@
 #define	PCI_ASPM_A1_MODE_SELECT	BIT_2	/* A1 Mode Select (A1 only) */
 #define	PCI_CLK_GATE_PEX_UNIT_ENA	BIT_1	/* Enable Gate PEX Unit Clock */
 #define	PCI_CLK_GATE_ROOT_COR_ENA	BIT_0	/* Enable Gate Root Core Clock */
+
+/* PCI_OUR_REG_5	32 bit	Our Register 5 (Yukon-ECU only) */
+						/* Bit 31..27: for A3 & later */
+#define	PCI_CTL_DIV_CORE_CLK_ENA	BIT_31	/* Divide Core Clock Enable */
+#define	PCI_CTL_SRESET_VMAIN_AV		BIT_30	/* Soft Reset for Vmain_av De-Glitch */
+#define	PCI_CTL_BYPASS_VMAIN_AV		BIT_29	/* Bypass En. for Vmain_av De-Glitch */
+#define	PCI_CTL_TIM_VMAIN_AV1		BIT_28	/* Bit 28..27: Timer Vmain_av Mask */
+#define	PCI_CTL_TIM_VMAIN_AV0		BIT_27	/* Bit 28..27: Timer Vmain_av Mask */
+#define	PCI_CTL_TIM_VMAIN_AV_MSK	(BIT_28 | BIT_27)
+					/* Bit 26..16: Release Clock on Event */
+#define	PCI_REL_PCIE_RST_DE_ASS		BIT_26	/* PCIe Reset De-Asserted */
+#define	PCI_REL_GPHY_REC_PACKET		BIT_25	/* GPHY Received Packet */
+#define	PCI_REL_INT_FIFO_N_EMPTY	BIT_24	/* Internal FIFO Not Empty */
+#define	PCI_REL_MAIN_PWR_AVAIL		BIT_23	/* Main Power Available */
+#define	PCI_REL_CLKRUN_REQ_REL		BIT_22	/* CLKRUN Request Release */
+#define	PCI_REL_PCIE_RESET_ASS		BIT_21	/* PCIe Reset Asserted */
+#define	PCI_REL_PME_ASSERTED		BIT_20	/* PME Asserted */
+#define	PCI_REL_PCIE_EXIT_L1_ST		BIT_19	/* PCIe Exit L1 State */
+#define	PCI_REL_LOADER_NOT_FIN		BIT_18	/* EPROM Loader Not Finished */
+#define	PCI_REL_PCIE_RX_EX_IDLE		BIT_17	/* PCIe Rx Exit Electrical Idle State */
+#define	PCI_REL_GPHY_LINK_UP		BIT_16	/* GPHY Link Up */
+					/* Bit 10.. 0: Mask for Gate Clock */
+#define	PCI_GAT_PCIE_RST_ASSERTED	BIT_10	/* PCIe Reset Asserted */
+#define	PCI_GAT_GPHY_N_REC_PACKET	BIT_9	/* GPHY Not Received Packet */
+#define	PCI_GAT_INT_FIFO_EMPTY		BIT_8	/* Internal FIFO Empty */
+#define	PCI_GAT_MAIN_PWR_N_AVAIL	BIT_7	/* Main Power Not Available */
+#define	PCI_GAT_CLKRUN_REQ_REL		BIT_6	/* CLKRUN Not Requested */
+#define	PCI_GAT_PCIE_RESET_ASS		BIT_5	/* PCIe Reset Asserted */
+#define	PCI_GAT_PME_DE_ASSERTED		BIT_4	/* PME De-Asserted */
+#define	PCI_GAT_PCIE_ENTER_L1_ST	BIT_3	/* PCIe Enter L1 State */
+#define	PCI_GAT_LOADER_FINISHED		BIT_2	/* EPROM Loader Finished */
+#define	PCI_GAT_PCIE_RX_EL_IDLE		BIT_1	/* PCIe Rx Electrical Idle State */
+#define	PCI_GAT_GPHY_LINK_DOWN		BIT_0	/* GPHY Link Down */
+
+/* PCI_CFG_REG_1	32 bit	Config Register 1 */
+#define	PCI_CF1_DIS_REL_EVT_RST		BIT_24	/* Dis. Rel. Event during PCIE reset */
+						/* Bit 23..21: Release Clock on Event */
+#define	PCI_CF1_REL_LDR_NOT_FIN		BIT_23	/* EEPROM Loader Not Finished */
+#define	PCI_CF1_REL_VMAIN_AVLBL		BIT_22	/* Vmain available */
+#define	PCI_CF1_REL_PCIE_RESET		BIT_21	/* PCI-E reset */
+						/* Bit 20..18: Gate Clock on Event */
+#define	PCI_CF1_GAT_LDR_NOT_FIN		BIT_20	/* EEPROM Loader Finished */
+#define	PCI_CF1_GAT_PCIE_RX_IDLE	BIT_19	/* PCI-E Rx Electrical idle */
+#define	PCI_CF1_GAT_PCIE_RESET		BIT_18	/* PCI-E Reset */
+#define	PCI_CF1_PRST_PHY_CLKREQ		BIT_17	/* Enable PCI-E rst & PM2PHY gen. CLKREQ */
+#define	PCI_CF1_PCIE_RST_CLKREQ		BIT_16	/* Enable PCI-E rst generate CLKREQ */
+
+#define	PCI_CF1_ENA_CFG_LDR_DONE	BIT_8	/* Enable core level Config loader done */
+#define	PCI_CF1_ENA_TXBMU_RD_IDLE	BIT_1	/* Enable TX BMU Read  IDLE for ASPM */
+#define	PCI_CF1_ENA_TXBMU_WR_IDLE	BIT_0	/* Enable TX BMU Write IDLE for ASPM */
 
 /* PEX_DEV_CTRL	16 bit	PEX Device Control (Yukon-2) */
 #define PEX_DC_MAX_RRS_MSK	(7<<12)	/* Bit 14..12:	Max. Read Request Size */
@@ -621,6 +673,7 @@
 #define B28_Y2_SMB_CSD_REG	0x0e44	/* 32 bit ASF SMB Control/Status/Data */
 #define B28_Y2_ASF_IRQ_V_BASE	0x0e60	/* 32 bit ASF IRQ Vector Base */
 #define B28_Y2_ASF_STAT_CMD	0x0e68	/* 32 bit ASF Status and Command Reg */
+#define B28_Y2_ASF_HCU_CCSR	0x0e68	/* 32 bit ASF HCU CCSR (Yukon EX) */
 #define B28_Y2_ASF_HOST_COM	0x0e6c	/* 32 bit ASF Host Communication Reg */
 #define B28_Y2_DATA_REG_1	0x0e70	/* 32 bit ASF/Host Data Register 1 */
 #define B28_Y2_DATA_REG_2	0x0e74	/* 32 bit ASF/Host Data Register 2 */
@@ -830,6 +883,7 @@
 #define CHIP_ID_YUKON_LP	0xb2 /* Chip ID for YUKON-LP */
 #define CHIP_ID_YUKON_XL	0xb3 /* Chip ID for YUKON-2 XL */
 #define CHIP_ID_YUKON_EC_U	0xb4 /* Chip ID for YUKON-2 EC Ultra */
+#define CHIP_ID_YUKON_EX	0xb5 /* Chip ID for YUKON-2 Extreme */
 #define CHIP_ID_YUKON_EC	0xb6 /* Chip ID for YUKON-2 EC */
 #define CHIP_ID_YUKON_FE	0xb7 /* Chip ID for YUKON-2 FE */
 #define CHIP_ID_YUKON_FE_P	0xb8 /* Chip ID for YUKON-2 FE+ */
@@ -847,6 +901,9 @@
 #define	CHIP_REV_YU_EC_U_A1	2
 
 #define	CHIP_REV_YU_FE_P_A0	0 /* Chip Rev. for Yukon-2 FE+ A0 */
+
+#define	CHIP_REV_YU_EX_A0	1 /* Chip Rev. for Yukon-2 EX A0 */
+#define	CHIP_REV_YU_EX_B0	2 /* Chip Rev. for Yukon-2 EX B0 */
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 #define Y2_STATUS_LNK2_INAC	BIT_7	/* Status Link 2 inactiv (0 = activ) */
@@ -911,6 +968,18 @@
 #define TST_FRC_APERR_T		BIT_2	/* force ADDRPERR on TRG */
 #define TST_CFG_WRITE_ON	BIT_1	/* Enable  Config Reg WR */
 #define TST_CFG_WRITE_OFF	BIT_0	/* Disable Config Reg WR */
+
+/*	B2_GP_IO */
+#define	GLB_GPIO_CLK_DEB_ENA	BIT_31	/* Clock Debug Enable */
+#define	GLB_GPIO_CLK_DBG_MSK	0x3c000000	/* Clock Debug */
+
+#define	GLB_GPIO_INT_RST_D3_DIS	BIT_15	/* Disable Internal Reset After D3 to D0 */
+#define	GLB_GPIO_LED_PAD_SPEED_UP	BIT_14	/* LED PAD Speed Up */
+#define	GLB_GPIO_STAT_RACE_DIS	BIT_13	/* Status Race Disable */
+#define	GLB_GPIO_TEST_SEL_MSK	0x00001800	/* Testmode Select */
+#define	GLB_GPIO_TEST_SEL_BASE	BIT_11
+#define	GLB_GPIO_RAND_ENA	BIT_10	/* Random Enable */
+#define	GLB_GPIO_RAND_BIT_1	BIT_9	/* Random Bit 1 */
 
 /*	B2_I2C_CTRL	32 bit	I2C HW Control Register */
 #define I2C_FLAG	BIT_31		/* Start read/write if WR */
@@ -1033,13 +1102,16 @@
 					/* Bit 10..0: same as for Rx */
 
 /*	Q_F		32 bit	Flag Register */
-#define F_ALM_FULL	BIT_27	/* Rx FIFO: almost full */
-#define F_EMPTY		BIT_27	/* Tx FIFO: empty flag */
-#define F_FIFO_EOF	BIT_26	/* Tag (EOF Flag) bit in FIFO */
-#define F_WM_REACHED	BIT_25	/* Watermark reached */
-#define F_M_RX_RAM_DIS	BIT_24	/* MAC Rx RAM Read Port disable */
-#define F_FIFO_LEVEL	(0x1f<<16)	/* Bit 23..16:	# of Qwords in FIFO */
-#define F_WATER_MARK	0x0007ff	/* Bit 10.. 0:	Watermark */
+#define F_TX_CHK_AUTO_OFF	BIT_31	/* Tx checksum auto-calc Off(Yukon EX)*/
+#define F_TX_CHK_AUTO_ON	BIT_30	/* Tx checksum auto-calc On(Yukon EX)*/
+#define F_ALM_FULL		BIT_28	/* Rx FIFO: almost full */
+#define F_EMPTY			BIT_27	/* Tx FIFO: empty flag */
+#define F_FIFO_EOF		BIT_26	/* Tag (EOF Flag) bit in FIFO */
+#define F_WM_REACHED		BIT_25	/* Watermark reached */
+#define F_M_RX_RAM_DIS		BIT_24	/* MAC Rx RAM Read Port disable */
+#define F_FIFO_LEVEL		(0x1f<<16)
+					/* Bit 23..16:	# of Qwords in FIFO */
+#define F_WATER_MARK		0x0007ff/* Bit 10.. 0:	Watermark */
 
 /* Queue Prefetch Unit Offsets, use Y2_PREF_Q_ADDR() to address (Yukon-2 only)*/
 /* PREF_UNIT_CTRL_REG	32 bit	Prefetch Control register */
@@ -1927,6 +1999,28 @@
 #define Y2_ASF_UC_STATE	(3<<2)	/* ASF uC State */
 #define Y2_ASF_CLK_HALT	0	/* ASF system clock stopped */
 
+/* B28_Y2_ASF_HCU_CCSR	32bit CPU Control and Status Register (Yukon EX) */
+#define	Y2_ASF_HCU_CCSR_SMBALERT_MONITOR	BIT_27	/* SMBALERT pin monitor */
+#define	Y2_ASF_HCU_CCSR_CPU_SLEEP	BIT_26	/* CPU sleep status */
+#define	Y2_ASF_HCU_CCSR_CS_TO		BIT_25	/* Clock Stretching Timeout */
+#define	Y2_ASF_HCU_CCSR_WDOG		BIT_24	/* Watchdog Reset */
+#define	Y2_ASF_HCU_CCSR_CLR_IRQ_HOST	BIT_17	/* Clear IRQ_HOST */
+#define	Y2_ASF_HCU_CCSR_SET_IRQ_HCU	BIT_16	/* Set IRQ_HCU */
+#define	Y2_ASF_HCU_CCSR_AHB_RST		BIT_9	/* Reset AHB bridge */
+#define	Y2_ASF_HCU_CCSR_CPU_RST_MODE	BIT_8	/* CPU Reset Mode */
+#define	Y2_ASF_HCU_CCSR_SET_SYNC_CPU	BIT_5
+#define	Y2_ASF_HCU_CCSR_CPU_CLK_DIVIDE1	BIT_4
+#define	Y2_ASF_HCU_CCSR_CPU_CLK_DIVIDE0	BIT_3
+#define	Y2_ASF_HCU_CCSR_CPU_CLK_DIVIDE_MSK	(BIT_4 | BIT_3)	/* CPU Clock Divide */
+#define	Y2_ASF_HCU_CCSR_CPU_CLK_DIVIDE_BASE	BIT_3
+#define	Y2_ASF_HCU_CCSR_OS_PRSNT	BIT_2	/* ASF OS Present */
+	/* Microcontroller State */
+#define	Y2_ASF_HCU_CCSR_UC_STATE_MSK	3
+#define	Y2_ASF_HCU_CCSR_UC_STATE_BASE	BIT_0
+#define	Y2_ASF_HCU_CCSR_ASF_RESET	0
+#define	Y2_ASF_HCU_CCSR_ASF_HALTED	BIT_1
+#define	Y2_ASF_HCU_CCSR_ASF_RUNNING	BIT_0
+
 /* B28_Y2_ASF_HOST_COM	32 bit	ASF Host Communication Reg */
 /* This register is used by the ASF firmware */
 #define Y2_ASF_CLR_ASFI	BIT_1	/* Clear host IRQ */
@@ -1940,6 +2034,14 @@
 #define SC_STAT_RST_SET	BIT_0	/* Set   Status Unit Reset */
 
 /*	GMAC_CTRL	32 bit	GMAC Control Reg (YUKON only) */
+#define GMC_SEC_RST	BIT_15	/* MAC SEC RST */
+#define GMC_SEC_RST_OFF	BIT_14	/* MAC SEC RST Off */
+#define GMC_BYP_MACSECRX_ON	BIT_13	/* Bypass MAC SEC RX */
+#define GMC_BYP_MACSECRX_OFF	BIT_12	/* Bypass MAC SEC RX Off */
+#define GMC_BYP_MACSECTX_ON	BIT_11	/* Bypass MAC SEC TX */
+#define GMC_BYP_MACSECTX_OFF	BIT_10	/* Bypass MAC SEC TX Off */
+#define GMC_BYP_RETR_ON	BIT_9	/* Bypass MAC retransmit FIFO On */
+#define GMC_BYP_RETR_OFF	BIT_8	/* Bypass MAC retransmit FIFO Off */
 #define GMC_H_BURST_ON	BIT_7	/* Half Duplex Burst Mode On */
 #define GMC_H_BURST_OFF	BIT_6	/* Half Duplex Burst Mode Off */
 #define GMC_F_LOOPB_ON	BIT_5	/* FIFO Loopback On */
