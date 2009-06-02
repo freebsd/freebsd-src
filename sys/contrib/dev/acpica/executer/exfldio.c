@@ -116,12 +116,12 @@
 
 #define __EXFLDIO_C__
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acinterp.h"
-#include "amlcode.h"
-#include "acevents.h"
-#include "acdispat.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acevents.h>
+#include <contrib/dev/acpica/include/acdispat.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER

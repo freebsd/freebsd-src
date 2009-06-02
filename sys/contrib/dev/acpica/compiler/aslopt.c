@@ -114,12 +114,12 @@
  *****************************************************************************/
 
 
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 
-#include "acparser.h"
-#include "amlcode.h"
-#include "acnamesp.h"
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 
 #define _COMPONENT          ACPI_COMPILER

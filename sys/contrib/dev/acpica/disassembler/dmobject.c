@@ -114,10 +114,10 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acnamesp.h"
-#include "acdisasm.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
 
 
 #ifdef ACPI_DISASSEMBLER

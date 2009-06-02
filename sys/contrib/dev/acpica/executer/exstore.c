@@ -116,12 +116,12 @@
 
 #define __EXSTORE_C__
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acdispat.h"
-#include "acinterp.h"
-#include "amlcode.h"
-#include "acnamesp.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acdispat.h>
+#include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER

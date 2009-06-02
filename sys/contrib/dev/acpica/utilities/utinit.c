@@ -116,11 +116,11 @@
 
 #define __UTINIT_C__
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acnamesp.h"
-#include "acevents.h"
-#include "actables.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acevents.h>
+#include <contrib/dev/acpica/include/actables.h>
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utinit")

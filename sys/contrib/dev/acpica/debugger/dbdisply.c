@@ -114,15 +114,15 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "accommon.h"
-#include "amlcode.h"
-#include "acdispat.h"
-#include "acnamesp.h"
-#include "acparser.h"
-#include "acinterp.h"
-#include "acdebug.h"
-#include "acdisasm.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acdispat.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acdebug.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
 
 
 #ifdef ACPI_DEBUGGER

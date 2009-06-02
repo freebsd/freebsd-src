@@ -114,10 +114,10 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acdebug.h"
-#include "acnamesp.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acdebug.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #ifdef ACPI_DEBUGGER
 

@@ -115,9 +115,9 @@
 
 #define __RSLIST_C__
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acresrc.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acresrc.h>
 
 #define _COMPONENT          ACPI_RESOURCES
         ACPI_MODULE_NAME    ("rslist")

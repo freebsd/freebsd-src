@@ -122,8 +122,8 @@
 
 #define ACPI_CA_VERSION                 0x20090521
 
-#include "actypes.h"
-#include "actbl.h"
+#include <contrib/dev/acpica/include/actypes.h>
+#include <contrib/dev/acpica/include/actbl.h>
 
 /*
  * Globals that are publically available

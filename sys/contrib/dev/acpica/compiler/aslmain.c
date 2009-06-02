@@ -117,8 +117,8 @@
 
 #define _DECLARE_GLOBALS
 
-#include "aslcompiler.h"
-#include "acapps.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #ifdef _DEBUG
 #include <crtdbg.h>

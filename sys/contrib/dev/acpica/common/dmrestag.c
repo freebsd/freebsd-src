@@ -114,12 +114,12 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acparser.h"
-#include "acdisasm.h"
-#include "acnamesp.h"
-#include "amlcode.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 /* This module used for application-level code only */
 

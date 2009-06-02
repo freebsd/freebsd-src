@@ -123,13 +123,13 @@
  * templates in AmlOpInfo[]
  */
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acparser.h"
-#include "acdispat.h"
-#include "amlcode.h"
-#include "acnamesp.h"
-#include "acinterp.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/acdispat.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acinterp.h>
 
 #define _COMPONENT          ACPI_PARSER
         ACPI_MODULE_NAME    ("psparse")

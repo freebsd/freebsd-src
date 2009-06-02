@@ -125,15 +125,15 @@
 #include <string.h>
 #include <signal.h>
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acparser.h"
-#include "amlcode.h"
-#include "acnamesp.h"
-#include "acdebug.h"
-#include "actables.h"
-#include "acinterp.h"
-#include "acapps.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acdebug.h>
+#include <contrib/dev/acpica/include/actables.h>
+#include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 extern FILE                     *AcpiGbl_DebugFile;
 extern BOOLEAN                  AcpiGbl_IgnoreErrors;

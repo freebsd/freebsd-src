@@ -115,9 +115,9 @@
  *****************************************************************************/
 
 
-#include "aslcompiler.h"
-#include "actables.h"
-#include "acapps.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/include/actables.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstartup")
