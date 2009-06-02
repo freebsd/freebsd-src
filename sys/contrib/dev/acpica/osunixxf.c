@@ -127,11 +127,11 @@
 #include <semaphore.h>
 #include <pthread.h>
 
-#include "acpi.h"
-#include "accommon.h"
-#include "amlcode.h"
-#include "acparser.h"
-#include "acdebug.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/acdebug.h>
 
 #define _COMPONENT          ACPI_OS_SERVICES
         ACPI_MODULE_NAME    ("osunixxf")

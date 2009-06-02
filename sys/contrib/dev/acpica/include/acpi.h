@@ -125,14 +125,14 @@
  *
  * Note: The order of these include files is important.
  */
-#include "platform/acenv.h"     /* Environment-specific items */
-#include "acnames.h"            /* Common ACPI names and strings */
-#include "actypes.h"            /* ACPICA data types and structures */
-#include "acexcep.h"            /* ACPICA exceptions */
-#include "actbl.h"              /* ACPI table definitions */
-#include "acoutput.h"           /* Error output and Debug macros */
-#include "acrestyp.h"           /* Resource Descriptor structs */
-#include "acpiosxf.h"           /* OSL interfaces (ACPICA-to-OS) */
-#include "acpixf.h"             /* ACPI core subsystem external interfaces */
+#include <contrib/dev/acpica/include/platform/acenv.h>     /* Environment-specific items */
+#include <contrib/dev/acpica/include/acnames.h>            /* Common ACPI names and strings */
+#include <contrib/dev/acpica/include/actypes.h>            /* ACPICA data types and structures */
+#include <contrib/dev/acpica/include/acexcep.h>            /* ACPICA exceptions */
+#include <contrib/dev/acpica/include/actbl.h>              /* ACPI table definitions */
+#include <contrib/dev/acpica/include/acoutput.h>           /* Error output and Debug macros */
+#include <contrib/dev/acpica/include/acrestyp.h>           /* Resource Descriptor structs */
+#include <contrib/dev/acpica/include/acpiosxf.h>           /* OSL interfaces (ACPICA-to-OS) */
+#include <contrib/dev/acpica/include/acpixf.h>             /* ACPI core subsystem external interfaces */
 
 #endif /* __ACPI_H__ */

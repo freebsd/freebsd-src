@@ -115,7 +115,7 @@
  *****************************************************************************/
 
 #define ASL_EXCEPTIONS
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslerror")

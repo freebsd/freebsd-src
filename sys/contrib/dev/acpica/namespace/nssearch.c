@@ -115,12 +115,12 @@
 
 #define __NSSEARCH_C__
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acnamesp.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #ifdef ACPI_ASL_COMPILER
-#include "amlcode.h"
+#include <contrib/dev/acpica/include/amlcode.h>
 #endif
 
 #define _COMPONENT          ACPI_NAMESPACE

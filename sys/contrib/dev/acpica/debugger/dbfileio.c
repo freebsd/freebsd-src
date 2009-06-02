@@ -115,12 +115,12 @@
  *****************************************************************************/
 
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acdebug.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acdebug.h>
 
 #ifdef ACPI_APPLICATION
-#include "actables.h"
+#include <contrib/dev/acpica/include/actables.h>
 #endif
 
 #if (defined ACPI_DEBUGGER || defined ACPI_DISASSEMBLER)

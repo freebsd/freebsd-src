@@ -123,14 +123,14 @@
  *
  * Note: The order of these include files is important.
  */
-#include "acconfig.h"           /* Global configuration constants */
-#include "acmacros.h"           /* C macros */
-#include "aclocal.h"            /* Internal data types */
-#include "acobject.h"           /* ACPI internal object */
-#include "acstruct.h"           /* Common structures */
-#include "acglobal.h"           /* All global variables */
-#include "achware.h"            /* Hardware defines and interfaces */
-#include "acutils.h"            /* Utility interfaces */
+#include <contrib/dev/acpica/include/acconfig.h>           /* Global configuration constants */
+#include <contrib/dev/acpica/include/acmacros.h>           /* C macros */
+#include <contrib/dev/acpica/include/aclocal.h>            /* Internal data types */
+#include <contrib/dev/acpica/include/acobject.h>           /* ACPI internal object */
+#include <contrib/dev/acpica/include/acstruct.h>           /* Common structures */
+#include <contrib/dev/acpica/include/acglobal.h>           /* All global variables */
+#include <contrib/dev/acpica/include/achware.h>            /* Hardware defines and interfaces */
+#include <contrib/dev/acpica/include/acutils.h>            /* Utility interfaces */
 
 
 #endif /* __ACCOMMON_H__ */

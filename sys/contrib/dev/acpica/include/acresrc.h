@@ -119,7 +119,7 @@
 
 /* Need the AML resource descriptor structs */
 
-#include "amlresrc.h"
+#include <contrib/dev/acpica/include/amlresrc.h>
 
 
 /*

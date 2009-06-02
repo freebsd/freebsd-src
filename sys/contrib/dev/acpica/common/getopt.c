@@ -117,9 +117,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "acpi.h"
-#include "accommon.h"
-#include "acapps.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define ERR(szz,czz) if(AcpiGbl_Opterr){fprintf(stderr,"%s%s%c\n",argv[0],szz,czz);}
 

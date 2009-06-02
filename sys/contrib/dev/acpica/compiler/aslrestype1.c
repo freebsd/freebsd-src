@@ -115,7 +115,7 @@
  *****************************************************************************/
 
 
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 
 #define _COMPONENT          ACPI_COMPILER
