@@ -544,24 +544,10 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	    __func__, ieee80211_opmode_name[vap->iv_opmode],
 	    ic->ic_ifp->if_xname);
 
-	IEEE80211_LOCK(ic);
-	/* block traffic from above */
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	/*
-	 * Evil hack.  Clear the backpointer from the ifnet to the
-	 * vap so any requests from above will return an error or
-	 * be ignored.  In particular this short-circuits requests
-	 * by the bridge to turn off promiscuous mode as a result
-	 * of calling ether_ifdetach.
-	 */
-	ifp->if_softc = NULL;
-	/*
-	 * Stop the vap before detaching the ifnet.  Ideally we'd
-	 * do this in the other order so the ifnet is inaccessible
-	 * while we cleanup internal state but that is hard.
-	 */
-	ieee80211_stop_locked(vap);
-	IEEE80211_UNLOCK(ic);
+	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
+	ether_ifdetach(ifp);
+
+	ieee80211_stop(vap);
 
 	/*
 	 * Flush any deferred vap tasks.
@@ -586,10 +572,6 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 	ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 	IEEE80211_UNLOCK(ic);
-
-	/* XXX can't hold com lock */
-	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
-	ether_ifdetach(ifp);
 
 	ifmedia_removeall(&vap->iv_media);
 
