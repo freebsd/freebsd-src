@@ -3,7 +3,6 @@
 /******************************************************************************
  *
  * Module Name: aslcompiler.l - Flex input file
- *              $Revision: 1.79 $
  *
  *****************************************************************************/
 
@@ -11,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,7 +118,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include "aslcompiler.h"
 #include "aslcompiler.y.h"
 YYSTYPE AslCompilerlval;
 
@@ -169,7 +168,8 @@ NamePathTail                [.]{NameSeg}
 %%
 
 [ ]                         { count (0); }
-[\n]                        { count (0); }
+[\n]                        { count (0); } /* Handle files with both LF and CR/LF */
+[\r]                        { count (0); } /* termination on both Unix and Windows */
 [ \t]                       { count (0); }
 
 
