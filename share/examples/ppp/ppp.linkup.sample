@@ -30,10 +30,15 @@ MYADDR:
 192.244.176.32:
  add 192.244.176.0 0 HISADDR
 
-#You may want to execute a script after connecting.  This script can do
+# You may want to execute a script after connecting.  This script can do
 # nice things such as kick off "sendmail -q", "popclient my.isp" and
 # "slurp -d news".  It can be passed MYADDR, HISADDR and INTERFACE
 # as arguments too - useful for informing a DNS of your assigned IP.
+#
+# NOTE: It's vital that you use ``!bg'' rather than ``!'' if the program
+#       you're running will take some time or will require network
+#       connectivity.  Using ``!'' will delay ppp 'till the completion
+#       of the program being run!
 #
 # You may also want some sound effects....
 #
