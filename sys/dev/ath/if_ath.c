@@ -1820,6 +1820,7 @@ ath_start(struct ifnet *ifp)
 			DPRINTF(sc, ATH_DEBUG_XMIT,
 			    "%s: out of txfrag buffers\n", __func__);
 			sc->sc_stats.ast_tx_nofrag++;
+			ifp->if_oerrors++;
 			ath_freetx(m);
 			goto bad;
 		}
