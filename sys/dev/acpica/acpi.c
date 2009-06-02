@@ -61,11 +61,12 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
-#include <contrib/dev/acpica/achware.h>
-#include <contrib/dev/acpica/acnamesp.h>
 
 #include "pci_if.h"
 #include <dev/pci/pcivar.h>
@@ -416,7 +417,6 @@ static int
 acpi_attach(device_t dev)
 {
     struct acpi_softc	*sc;
-    ACPI_TABLE_FACS	*facs;
     ACPI_STATUS		status;
     int			error, state;
     UINT32		flags;
@@ -593,14 +593,7 @@ acpi_attach(device_t dev)
     }
 
     /* Only enable S4BIOS by default if the FACS says it is available. */
-    status = AcpiGetTable(ACPI_SIG_FACS, 0, (ACPI_TABLE_HEADER **)&facs);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "couldn't get FACS: %s\n",
-		      AcpiFormatException(status));
-	error = ENXIO;
-	goto out;
-    }
-    if (facs->Flags & ACPI_FACS_S4_BIOS_PRESENT)
+    if (AcpiGbl_FACS->Flags & ACPI_FACS_S4_BIOS_PRESENT)
 	sc->acpi_s4bios = 1;
 
     /* Probe all supported sleep states. */
@@ -1848,8 +1841,7 @@ acpi_shutdown_final(void *arg, int howto)
 	(AcpiGbl_FADT.Flags & ACPI_FADT_RESET_REGISTER) &&
 	sc->acpi_handle_reboot) {
 	/* Reboot using the reset register. */
-	status = AcpiHwLowLevelWrite(
-	    AcpiGbl_FADT.ResetRegister.BitWidth,
+	status = AcpiWrite(
 	    AcpiGbl_FADT.ResetValue, &AcpiGbl_FADT.ResetRegister);
 	if (ACPI_FAILURE(status))
 	    device_printf(sc->acpi_dev, "reset failed - %s\n",
@@ -3391,8 +3383,6 @@ static struct debugtag	dbg_layer[] = {
 };
 
 static struct debugtag dbg_level[] = {
-    {"ACPI_LV_ERROR",		ACPI_LV_ERROR},
-    {"ACPI_LV_WARN",		ACPI_LV_WARN},
     {"ACPI_LV_INIT",		ACPI_LV_INIT},
     {"ACPI_LV_DEBUG_OBJECT",	ACPI_LV_DEBUG_OBJECT},
     {"ACPI_LV_INFO",		ACPI_LV_INFO},
