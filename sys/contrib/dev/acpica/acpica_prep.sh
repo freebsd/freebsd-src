@@ -34,6 +34,7 @@ src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
 	actypes.h acutils.h amlcode.h amlresrc.h platform/acenv.h	\
 	platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h asltypes.h"
+platform_headers="acfreebsd.h acgcc.h"
 
 # pre-clean
 echo pre-clean
@@ -70,6 +71,10 @@ done
 for H in ${comp_headers}; do
 	find ${dst}/compiler -name "*.[chly]" -type f |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/compiler/$H\>|g"
+done
+for H in ${platform_headers}; do
+	find ${dst}/include/platform -name "*.h" -type f |	\
+	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/include/platform/$H\>|g"
 done
 
 # post-clean
