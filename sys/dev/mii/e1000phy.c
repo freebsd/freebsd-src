@@ -238,7 +238,8 @@ e1000phy_reset(struct mii_softc *sc)
 		}
 		PHY_WRITE(sc, E1000_SCR, reg);
 
-		if (esc->mii_model == MII_MODEL_MARVELL_E1116) {
+		if (esc->mii_model == MII_MODEL_MARVELL_E1116 ||
+		    esc->mii_model == MII_MODEL_MARVELL_E1149) {
 			page = PHY_READ(sc, E1000_EADR);
 			/* Select page 2, MAC specific control register. */
 			PHY_WRITE(sc, E1000_EADR, 2);
@@ -252,9 +253,22 @@ e1000phy_reset(struct mii_softc *sc)
 	switch (MII_MODEL(esc->mii_model)) {
 	case MII_MODEL_MARVELL_E3082:
 	case MII_MODEL_MARVELL_E1112:
-	case MII_MODEL_MARVELL_E1116:
 	case MII_MODEL_MARVELL_E1118:
+		break;
+	case MII_MODEL_MARVELL_E1116:
 	case MII_MODEL_MARVELL_E1149:
+		page = PHY_READ(sc, E1000_EADR);
+		/* Select page 3, LED control register. */
+		PHY_WRITE(sc, E1000_EADR, 3);
+		PHY_WRITE(sc, E1000_SCR,
+		    E1000_SCR_LED_LOS(1) |	/* Link/Act */
+		    E1000_SCR_LED_INIT(8) |	/* 10Mbps */
+		    E1000_SCR_LED_STAT1(7) |	/* 100Mbps */
+		    E1000_SCR_LED_STAT0(7));	/* 1000Mbps */
+		/* Set blink rate. */
+		PHY_WRITE(sc, E1000_IER, E1000_PULSE_DUR(E1000_PULSE_170MS) |
+		    E1000_BLINK_RATE(E1000_BLINK_84MS));
+		PHY_WRITE(sc, E1000_EADR, page);
 		break;
 	case MII_MODEL_MARVELL_E3016:
 		/* LED2 -> ACT, LED1 -> LINK, LED0 -> SPEED. */
