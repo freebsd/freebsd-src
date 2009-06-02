@@ -2255,7 +2255,18 @@ struct msk_stat_desc {
 #define OP_PUTIDX	0x70000000
 
 #define	STLE_OP_MASK	0xff000000
+#define	STLE_CSS_MASK	0x00ff0000
 #define	STLE_LEN_MASK	0x0000ffff
+
+/* CSS defined in status LE(valid for descriptor V2 format). */
+#define	CSS_TCPUDP_CSUM_OK	0x00800000
+#define	CSS_UDP			0x00400000
+#define	CSS_TCP			0x00200000
+#define	CSS_IPFRAG		0x00100000
+#define	CSS_IPV6		0x00080000
+#define	CSS_IPV4_CSUM_OK	0x00040000
+#define	CSS_IPV4		0x00020000
+#define	CSS_PORT		0x00010000
 
 /* Descriptor Bit Definition */
 /*	TxCtrl		Transmit Buffer Control Field */
@@ -2505,6 +2516,7 @@ struct msk_if_softc {
 #define	MSK_FLAG_AUTOTX_CSUM	0x0080
 #define	MSK_FLAG_NOHWVLAN	0x0100
 #define	MSK_FLAG_NORXCHK	0x0200
+#define	MSK_FLAG_NORX_CSUM	0x0400
 #define	MSK_FLAG_SUSPEND	0x2000
 #define	MSK_FLAG_DETACH		0x4000
 #define	MSK_FLAG_LINK		0x8000
