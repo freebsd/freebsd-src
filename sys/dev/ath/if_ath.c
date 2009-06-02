@@ -1710,7 +1710,6 @@ _ath_getbuf_locked(struct ath_softc *sc)
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: %s\n", __func__,
 		    STAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
-		sc->sc_stats.ast_tx_nobuf++;
 	}
 	return bf;
 }
@@ -6832,55 +6831,60 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ath_softc *sc = ifp->if_softc;
 	struct ath_buf *bf;
+	int error;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, %s", __func__,
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ?
 			"!running" : "invalid");
-		sc->sc_stats.ast_tx_raw_fail++;
-		ieee80211_free_node(ni);
 		m_freem(m);
-		return ENETDOWN;
+		error = ENETDOWN;
+		goto bad;
 	}
 	/*
 	 * Grab a TX buffer and associated resources.
 	 */
 	bf = ath_getbuf(sc);
 	if (bf == NULL) {
-		/* NB: ath_getbuf handles stat+msg */
-		ieee80211_free_node(ni);
+		sc->sc_stats.ast_tx_nobuf++;
 		m_freem(m);
-		return ENOBUFS;
+		error = ENOBUFS;
+		goto bad;
 	}
-
-	ifp->if_opackets++;
-	sc->sc_stats.ast_tx_raw++;
 
 	if (params == NULL) {
 		/*
 		 * Legacy path; interpret frame contents to decide
 		 * precisely how to send the frame.
 		 */
-		if (ath_tx_start(sc, ni, bf, m))
-			goto bad;
+		if (ath_tx_start(sc, ni, bf, m)) {
+			error = EIO;		/* XXX */
+			goto bad2;
+		}
 	} else {
 		/*
 		 * Caller supplied explicit parameters to use in
 		 * sending the frame.
 		 */
-		if (ath_tx_raw_start(sc, ni, bf, m, params))
-			goto bad;
+		if (ath_tx_raw_start(sc, ni, bf, m, params)) {
+			error = EIO;		/* XXX */
+			goto bad2;
+		}
 	}
 	sc->sc_wd_timer = 5;
+	ifp->if_opackets++;
+	sc->sc_stats.ast_tx_raw++;
 
 	return 0;
-bad:
-	ifp->if_oerrors++;
+bad2:
 	ATH_TXBUF_LOCK(sc);
 	STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 	ATH_TXBUF_UNLOCK(sc);
+bad:
+	ifp->if_oerrors++;
+	sc->sc_stats.ast_tx_raw_fail++;
 	ieee80211_free_node(ni);
-	return EIO;		/* XXX */
+	return error;
 }
 
 /*
