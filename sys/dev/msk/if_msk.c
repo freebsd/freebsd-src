@@ -1676,7 +1676,21 @@ mskc_attach(device_t dev)
 		break;
 	case CHIP_ID_YUKON_EX:
 		sc->msk_clock = 125;	/* 125 Mhz */
-		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_DESCV2;
+		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_DESCV2 |
+		    MSK_FLAG_AUTOTX_CSUM;
+		/*
+		 * Yukon Extreme seems to have silicon bug for
+		 * automatic Tx checksum calculation capability.
+		 */
+		if (sc->msk_hw_rev == CHIP_REV_YU_EX_B0)
+			sc->msk_pflags &= ~MSK_FLAG_AUTOTX_CSUM;
+		/*
+		 * Yukon Extreme A0 could not use store-and-forward
+		 * for jumbo frames, so disable Tx checksum
+		 * offloading for jumbo frames.
+		 */
+		if (sc->msk_hw_rev == CHIP_REV_YU_EX_A0)
+			sc->msk_pflags |= MSK_FLAG_JUMBO_NOCSUM;
 		break;
 	case CHIP_ID_YUKON_FE:
 		sc->msk_clock = 100;	/* 100 Mhz */
@@ -1684,7 +1698,8 @@ mskc_attach(device_t dev)
 		break;
 	case CHIP_ID_YUKON_FE_P:
 		sc->msk_clock = 50;	/* 50 Mhz */
-		sc->msk_pflags |= MSK_FLAG_FASTETHER | MSK_FLAG_DESCV2;
+		sc->msk_pflags |= MSK_FLAG_FASTETHER | MSK_FLAG_DESCV2 |
+		    MSK_FLAG_AUTOTX_CSUM;
 		if (sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
 			/*
 			 * XXX
@@ -2477,8 +2492,10 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	tcp_offset = offset = 0;
 	m = *m_head;
-	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
-	    (m->m_pkthdr.csum_flags & (MSK_CSUM_FEATURES | CSUM_TSO)) != 0) {
+	if (((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
+	    (m->m_pkthdr.csum_flags & MSK_CSUM_FEATURES) != 0) ||
+	    ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    (m->m_pkthdr.csum_flags & CSUM_TSO) != 0)) {
 		/*
 		 * Since mbuf has no protocol specific structure information
 		 * in it we have to inspect protocol information here to
@@ -2537,9 +2554,12 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		 * resort to S/W checksum routine when we encounter short
 		 * TCP frames.
 		 * Short UDP packets appear to be handled correctly by
-		 * Yukon II.
+		 * Yukon II. Also I assume this bug does not happen on
+		 * controllers that use newer descriptor format or
+		 * automatic Tx checksum calaulcation.
 		 */
-		if (m->m_pkthdr.len < MSK_MIN_FRAMELEN &&
+		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
+		    (m->m_pkthdr.len < MSK_MIN_FRAMELEN) &&
 		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
 			m = m_pullup(m, offset + sizeof(struct tcphdr));
 			if (m == NULL) {
@@ -2640,7 +2660,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	}
 	/* Check if we have to handle checksum offload. */
 	if (tso == 0 && (m->m_pkthdr.csum_flags & MSK_CSUM_FEATURES) != 0) {
-		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) != 0)
 			control |= CALSUM;
 		else {
 			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
@@ -3784,10 +3804,23 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR), BMU_OPER_INIT);
 	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR), BMU_FIFO_OP_ON);
 	CSR_WRITE_2(sc, Q_ADDR(sc_if->msk_txq, Q_WM), MSK_BMU_TX_WM);
-	if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U &&
-	    sc->msk_hw_rev == CHIP_REV_YU_EC_U_A0) {
-		/* Fix for Yukon-EC Ultra: set BMU FIFO level */
-		CSR_WRITE_2(sc, Q_ADDR(sc_if->msk_txq, Q_AL), MSK_ECU_TXFF_LEV);
+	switch (sc->msk_hw_id) {
+	case CHIP_ID_YUKON_EC_U:
+		if (sc->msk_hw_rev == CHIP_REV_YU_EC_U_A0) {
+			/* Fix for Yukon-EC Ultra: set BMU FIFO level */
+			CSR_WRITE_2(sc, Q_ADDR(sc_if->msk_txq, Q_AL),
+			    MSK_ECU_TXFF_LEV);
+		}
+		break;
+	case CHIP_ID_YUKON_EX:
+		/*
+		 * Yukon Extreme seems to have silicon bug for
+		 * automatic Tx checksum calculation capability.
+		 */
+		if (sc->msk_hw_rev == CHIP_REV_YU_EX_B0)
+			CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_F),
+			    F_TX_CHK_AUTO_OFF);
+		break;
 	}
 
 	/* Setup Rx Queue Bus Memory Interface. */
