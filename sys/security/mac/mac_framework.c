@@ -179,6 +179,7 @@ static struct sx mac_policy_sx;		/* Sleeping entry points. */
 
 struct mac_policy_list_head mac_policy_list;
 struct mac_policy_list_head mac_static_policy_list;
+u_int mac_policy_count;			/* Registered policy count. */
 
 static void	mac_policy_xlock(void);
 static void	mac_policy_xlock_assert(void);
@@ -351,17 +352,22 @@ mac_policy_getlabeled(struct mac_policy_conf *mpc)
  * requiring labels across all policies.
  */
 static void
-mac_policy_updateflags(void)
+mac_policy_update(void)
 {
 	struct mac_policy_conf *mpc;
 
 	mac_policy_xlock_assert();
 
 	mac_labeled = 0;
-	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list)
+	mac_policy_count = 0;
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {
 		mac_labeled |= mac_policy_getlabeled(mpc);
-	LIST_FOREACH(mpc, &mac_policy_list, mpc_list)
+		mac_policy_count++;
+	}
+	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {
 		mac_labeled |= mac_policy_getlabeled(mpc);
+		mac_policy_count++;
+	}
 }
 
 static int
@@ -434,7 +440,7 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	 */
 	if (mpc->mpc_ops->mpo_init != NULL)
 		(*(mpc->mpc_ops->mpo_init))(mpc);
-	mac_policy_updateflags();
+	mac_policy_update();
 
 	SDT_PROBE(mac, kernel, policy, register, mpc, 0, 0, 0, 0);
 	printf("Security policy loaded: %s (%s)\n", mpc->mpc_fullname,
@@ -480,7 +486,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 
 	LIST_REMOVE(mpc, mpc_list);
 	mpc->mpc_runtime_flags &= ~MPC_RUNTIME_FLAG_REGISTERED;
-	mac_policy_updateflags();
+	mac_policy_update();
 	mac_policy_xunlock();
 
 	SDT_PROBE(mac, kernel, policy, unregister, mpc, 0, 0, 0, 0);
