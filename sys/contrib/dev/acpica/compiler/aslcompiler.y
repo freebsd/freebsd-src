@@ -123,12 +123,12 @@
  */
 #define YYINITDEPTH 600
 
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "acpi.h"
-#include "accommon.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslparse")

@@ -415,7 +415,7 @@ typedef struct acpi_table_desc
 /*
  * Get the remaining ACPI tables
  */
-#include "actbl1.h"
+#include <contrib/dev/acpica/include/actbl1.h>
 
 /* Macros used to generate offsets to specific table fields */
 

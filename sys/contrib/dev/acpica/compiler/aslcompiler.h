@@ -138,16 +138,16 @@
 #include <ctype.h>
 
 
-#include "acpi.h"
-#include "accommon.h"
-#include "amlresrc.h"
-#include "acdebug.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/amlresrc.h>
+#include <contrib/dev/acpica/include/acdebug.h>
 
 /* Compiler headers */
 
-#include "asldefine.h"
-#include "asltypes.h"
-#include "aslglobal.h"
+#include <contrib/dev/acpica/compiler/asldefine.h>
+#include <contrib/dev/acpica/compiler/asltypes.h>
+#include <contrib/dev/acpica/compiler/aslglobal.h>
 
 
 /*******************************************************************************

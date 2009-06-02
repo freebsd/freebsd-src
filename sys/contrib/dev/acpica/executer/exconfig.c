@@ -116,13 +116,13 @@
 
 #define __EXCONFIG_C__
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acinterp.h"
-#include "acnamesp.h"
-#include "actables.h"
-#include "acdispat.h"
-#include "acevents.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/actables.h>
+#include <contrib/dev/acpica/include/acdispat.h>
+#include <contrib/dev/acpica/include/acevents.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER

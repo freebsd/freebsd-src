@@ -118,7 +118,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "aslcompiler.h"
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 YYSTYPE AslCompilerlval;
 

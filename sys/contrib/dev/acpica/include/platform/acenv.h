@@ -194,7 +194,7 @@
 #include "aclinux.h"
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include "acfreebsd.h"
+#include <contrib/dev/acpica/include/platform/acfreebsd.h>
 
 #elif defined(__NetBSD__)
 #include "acnetbsd.h"
