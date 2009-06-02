@@ -1214,15 +1214,36 @@ void InitializeIncludePaths(const char *Argv0, HeaderSearch &Headers,
     MainExecutablePath.eraseComponent();  // Remove /bin   from foo/bin
 
     // Get foo/lib/clang/<version>/include    
+#ifdef LLVM_ON_FREEBSD
+    MainExecutablePath.appendComponent("include");
+    MainExecutablePath.appendComponent("clang");
+    MainExecutablePath.appendComponent("1.0");
+#else
     MainExecutablePath.appendComponent("lib");
     MainExecutablePath.appendComponent("clang");
     MainExecutablePath.appendComponent(CLANG_VERSION_STRING);
     MainExecutablePath.appendComponent("include");
+#endif
     
     // We pass true to ignore sysroot so that we *always* look for clang headers
     // relative to our executable, never relative to -isysroot.
     Init.AddPath(MainExecutablePath.c_str(), InitHeaderSearch::System,
                  false, false, false, true /*ignore sysroot*/);
+
+#ifdef LLVM_ON_FREEBSD
+    if (!nostdinc) {
+      MainExecutablePath.eraseComponent();
+      MainExecutablePath.eraseComponent();
+      if (Lang.CPlusPlus) {
+        MainExecutablePath.appendComponent("c++");
+        MainExecutablePath.appendComponent("4.2");
+        Init.AddPath(MainExecutablePath.c_str(), InitHeaderSearch::System, true, false, false);
+        MainExecutablePath.eraseComponent();
+        MainExecutablePath.eraseComponent();
+      }
+      Init.AddPath(MainExecutablePath.c_str(), InitHeaderSearch::System, false, false, false);
+    }
+#endif
   }
   
   if (!nostdinc) 

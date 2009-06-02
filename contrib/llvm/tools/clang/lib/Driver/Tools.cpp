@@ -352,7 +352,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       if (getToolChain().getArchName() == "x86_64")
         CmdArgs.push_back("--mcpu=x86-64");
       else if (getToolChain().getArchName() == "i386")
-        CmdArgs.push_back("--mcpu=pentium4");
+        CmdArgs.push_back("--mcpu=i486");
     }
   }
 
@@ -1734,6 +1734,8 @@ void freebsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   // instruct as in the base system to assemble 32-bit code.
   if (getToolChain().getArchName() == "i386")
     CmdArgs.push_back("--32");
+  else if (getToolChain().getArchName() == "arm")
+    CmdArgs.push_back("-mfpu=softvfp");
 
   Args.AddAllArgValues(CmdArgs, options::OPT_Wa_COMMA,
                        options::OPT_Xassembler);

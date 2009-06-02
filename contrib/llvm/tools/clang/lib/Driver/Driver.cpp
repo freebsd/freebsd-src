@@ -53,6 +53,9 @@ Driver::Driver(const char *_Name, const char *_Dir,
   // Only use clang on i386 and x86_64 by default.
   CCCClangArchs.insert("i386");
   CCCClangArchs.insert("x86_64");
+
+  // XXX: Enable ARM
+  CCCClangArchs.insert("arm");
 }
 
 Driver::~Driver() {
