@@ -706,11 +706,16 @@ bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 		 * vap.  This flag is used by drivers to prepare radiotap
 		 * state only when needed.
 		 */
-		if (attach)
+		if (attach) {
 			ieee80211_syncflag_ext(vap, IEEE80211_FEXT_BPF);
+			if (vap->iv_opmode == IEEE80211_M_MONITOR)
+				atomic_add_int(&vap->iv_ic->ic_montaps, 1);
 		/* NB: if_softc is NULL on vap detach */
-		else if (vap != NULL && !bpf_peers_present(vap->iv_rawbpf))
+		} else if (vap != NULL && !bpf_peers_present(vap->iv_rawbpf)) {
 			ieee80211_syncflag_ext(vap, -IEEE80211_FEXT_BPF);
+			if (vap->iv_opmode == IEEE80211_M_MONITOR)
+				atomic_subtract_int(&vap->iv_ic->ic_montaps, 1);
+		}
 	}
 }
 

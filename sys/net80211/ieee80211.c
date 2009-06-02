@@ -513,8 +513,6 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 
 	IEEE80211_LOCK(ic);
 	TAILQ_INSERT_TAIL(&ic->ic_vaps, vap, iv_next);
-	if (vap->iv_opmode == IEEE80211_M_MONITOR)
-		ic->ic_monvaps++;
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
@@ -575,8 +573,6 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	IEEE80211_LOCK(ic);
 	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
 	TAILQ_REMOVE(&ic->ic_vaps, vap, iv_next);
-	if (vap->iv_opmode == IEEE80211_M_MONITOR)
-		ic->ic_monvaps--;
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
