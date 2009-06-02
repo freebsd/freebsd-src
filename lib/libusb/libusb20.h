@@ -216,6 +216,7 @@ void	libusb20_tr_drain(struct libusb20_transfer *xfer);
 void	libusb20_tr_set_buffer(struct libusb20_transfer *xfer, void *buffer, uint16_t fr_index);
 void	libusb20_tr_set_callback(struct libusb20_transfer *xfer, libusb20_tr_callback_t *cb);
 void	libusb20_tr_set_flags(struct libusb20_transfer *xfer, uint8_t flags);
+uint32_t libusb20_tr_get_length(struct libusb20_transfer *xfer, uint16_t fr_index);
 void	libusb20_tr_set_length(struct libusb20_transfer *xfer, uint32_t length, uint16_t fr_index);
 void	libusb20_tr_set_priv_sc0(struct libusb20_transfer *xfer, void *sc0);
 void	libusb20_tr_set_priv_sc1(struct libusb20_transfer *xfer, void *sc1);

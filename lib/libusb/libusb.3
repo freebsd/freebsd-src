@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2009
+.Dd May 28, 2009
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -78,6 +78,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_set_callback "struct libusb20_transfer *xfer" "libusb20_tr_callback_t *cb"
 .Ft void
 .Fn libusb20_tr_set_flags "struct libusb20_transfer *xfer" "uint8_t flags"
+.Ft uint32_t
+.Fn libusb20_tr_get_length "struct libusb20_transfer *xfer" "uint16_t fr_index"
 .Ft void
 .Fn libusb20_tr_set_length "struct libusb20_transfer *xfer" "uint32_t length" "uint16_t fr_index"
 .Ft void
@@ -183,6 +185,10 @@ USB access library (libusb -lusb)
 .Ft int
 .Fn libusb20_be_remove_dev_quirk "struct libusb20_backend *pbe" "struct libusb20_quirk *pq"
 .Ft struct libusb20_backend *
+.Fn libusb20_be_alloc_default "void"
+.Ft struct libusb20_backend *
+.Fn libusb20_be_alloc_freebsd "void"
+.Ft struct libusb20_backend *
 .Fn libusb20_be_alloc_linux "void"
 .Ft struct libusb20_device *
 .Fn libusb20_be_device_foreach  "struct libusb20_backend *pbe" "struct libusb20_device *pdev"
@@ -227,7 +233,7 @@ Non-zero return values indicate a LIBUSB20_ERROR value.
 .Pp
 .
 .Fn libusb20_tr_open
-will allocate kernel resources like
+will allocate kernel buffer resources according to
 .Fa max_buf_size
 and
 .Fa max_frame_count
@@ -235,6 +241,18 @@ associated with an USB
 .Fa pxfer
 and bind the transfer to the specified
 .Fa ep_no .
+.Fa max_buf_size
+is the minimum buffer size which the data transport layer has to support.
+If
+.Fa max_buf_size
+is zero, the
+.Nm
+library will use wMaxPacketSize to compute the buffer size.
+This can be useful for isochronous transfers.
+The actual buffer size can be greater than
+.Fa max_buf_size
+and is returned by
+.Fn libusb20_tr_get_max_total_length .
 .
 This function returns zero upon success.
 .
@@ -367,8 +385,14 @@ Will do a clear-stall before starting the transfer.
 .
 .Pp
 .
+.Fn libusb20_tr_get_length
+returns the length of the given USB frame by index.
+After an USB transfer is complete the USB frame length will get updated to the actual transferred length.
+.
+.Pp
+.
 .Fn libusb20_tr_set_length
-sets the length of a given USB transfer and frame index.
+sets the length of the given USB frame by index.
 .
 .Pp
 .
@@ -750,7 +774,7 @@ function will wait until a pending USB transfer has completed on
 the given USB device.
 .
 A timeout value can be specified which is passed on to the
-.Xr 2 poll
+.Xr poll 2
 function.
 .
 .Sh USB BACKEND OPERATIONS
@@ -829,6 +853,10 @@ returned.
 If the given quirk does not exist LIBUSB20_ERROR_NOT_FOUND is
 returned.
 .
+.Pp
+.
+.Fn libusb20_be_alloc_default
+.Fn libusb20_be_alloc_freebsd
 .Fn libusb20_be_alloc_linux
 These functions are used to allocate a specific USB backend or the
 operating system default USB backend. Allocating a backend is a way to
