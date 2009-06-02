@@ -1,0 +1,146 @@
+PROG=	acpiexec
+SRCS=	aetables.c aehandlers.c aeexec.c aemain.c \
+	../../common/getopt.c \
+	../../debugger/dbcmds.c \
+	../../debugger/dbdisply.c \
+	../../debugger/dbexec.c \
+	../../debugger/dbfileio.c \
+	../../debugger/dbhistry.c \
+	../../debugger/dbinput.c \
+	../../debugger/dbstats.c \
+	../../debugger/dbutils.c \
+	../../debugger/dbxface.c \
+	../../disassembler/dmbuffer.c \
+	../../disassembler/dmnames.c \
+	../../disassembler/dmobject.c \
+	../../disassembler/dmopcode.c \
+	../../disassembler/dmresrc.c \
+	../../disassembler/dmresrcl.c \
+	../../disassembler/dmresrcs.c \
+	../../disassembler/dmutils.c \
+	../../disassembler/dmwalk.c \
+	../../events/evevent.c \
+	../../events/evgpeblk.c \
+	../../events/evgpe.c \
+	../../events/evmisc.c \
+	../../events/evregion.c \
+	../../events/evrgnini.c \
+	../../events/evsci.c \
+	../../events/evxface.c \
+	../../events/evxfevnt.c \
+	../../events/evxfregn.c \
+	../../hardware/hwacpi.c \
+	../../hardware/hwgpe.c \
+	../../hardware/hwregs.c \
+	../../hardware/hwsleep.c \
+	../../hardware/hwvalid.c \
+	../../hardware/hwxface.c \
+	../../dispatcher/dsfield.c \
+	../../dispatcher/dsinit.c \
+	../../dispatcher/dsmethod.c \
+	../../dispatcher/dsmthdat.c \
+	../../dispatcher/dsobject.c \
+	../../dispatcher/dsopcode.c \
+	../../dispatcher/dsutils.c \
+	../../dispatcher/dswexec.c \
+	../../dispatcher/dswload.c \
+	../../dispatcher/dswscope.c \
+	../../dispatcher/dswstate.c \
+	../../executer/exconfig.c \
+	../../executer/exconvrt.c \
+	../../executer/excreate.c \
+	../../executer/exdump.c \
+	../../executer/exfield.c \
+	../../executer/exfldio.c \
+	../../executer/exmisc.c \
+	../../executer/exmutex.c \
+	../../executer/exnames.c \
+	../../executer/exoparg1.c \
+	../../executer/exoparg2.c \
+	../../executer/exoparg3.c \
+	../../executer/exoparg6.c \
+	../../executer/exprep.c \
+	../../executer/exregion.c \
+	../../executer/exresnte.c \
+	../../executer/exresolv.c \
+	../../executer/exresop.c \
+	../../executer/exstore.c \
+	../../executer/exstoren.c \
+	../../executer/exstorob.c \
+	../../executer/exsystem.c \
+	../../executer/exutils.c \
+	../../parser/psargs.c \
+	../../parser/psloop.c \
+	../../parser/psopcode.c \
+	../../parser/psparse.c \
+	../../parser/psscope.c \
+	../../parser/pstree.c \
+	../../parser/psutils.c \
+	../../parser/pswalk.c \
+	../../parser/psxface.c \
+	../../namespace/nsaccess.c \
+	../../namespace/nsalloc.c \
+	../../namespace/nsdump.c \
+	../../namespace/nsdumpdv.c \
+	../../namespace/nseval.c \
+	../../namespace/nsinit.c \
+	../../namespace/nsload.c \
+	../../namespace/nsnames.c \
+	../../namespace/nsobject.c \
+	../../namespace/nsparse.c \
+	../../namespace/nspredef.c \
+	../../namespace/nssearch.c \
+	../../namespace/nsutils.c \
+	../../namespace/nswalk.c \
+	../../namespace/nsxfeval.c \
+	../../namespace/nsxfname.c \
+	../../namespace/nsxfobj.c \
+	../../resources/rsaddr.c \
+	../../resources/rscalc.c \
+	../../resources/rscreate.c \
+	../../resources/rsdump.c \
+	../../resources/rsio.c \
+	../../resources/rsinfo.c \
+	../../resources/rsirq.c \
+	../../resources/rslist.c \
+	../../resources/rsmemory.c \
+	../../resources/rsmisc.c \
+	../../resources/rsutils.c \
+	../../resources/rsxface.c \
+	../../tables/tbfadt.c \
+	../../tables/tbfind.c \
+	../../tables/tbinstal.c \
+	../../tables/tbutils.c \
+	../../tables/tbxface.c \
+	../../tables/tbxfroot.c \
+	../../utilities/utalloc.c \
+	../../utilities/utcache.c \
+	../../utilities/utcopy.c \
+	../../utilities/utdebug.c \
+	../../utilities/utdelete.c \
+	../../utilities/uteval.c \
+	../../utilities/utglobal.c \
+	../../utilities/utinit.c \
+	../../utilities/utlock.c \
+	../../utilities/utmath.c \
+	../../utilities/utmisc.c \
+	../../utilities/utmutex.c \
+	../../utilities/utobject.c \
+	../../utilities/utresrc.c \
+	../../utilities/utstate.c \
+	../../utilities/uttrack.c \
+	../../utilities/utxface.c \
+	../../osunixxf.c
+
+
+CFLAGS+= -Wall -g -D_LINUX -DNDEBUG -D_CONSOLE -DACPI_EXEC_APP -D_MULTI_THREADED -Wstrict-prototypes -I../../include 
+
+
+acpiexec : $(patsubst %.c,%.o, $(SRCS))
+	$(CC) $(LDFLAGS) $(patsubst %.c,%.o, $(SRCS)) -lrt -lpthread -o $(PROG)
+
+CLEANFILES= $(PROG)
+
+clean : 
+	rm -f $(CLEANFILES) $(patsubst %.c,%.o, $(SRCS))
+

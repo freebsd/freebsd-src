@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslerror - Error handling and statistics
- *              $Revision: 1.92 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,7 +115,7 @@
  *****************************************************************************/
 
 #define ASL_EXCEPTIONS
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include "aslcompiler.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslerror")
@@ -126,6 +125,26 @@
 static void
 AeAddToErrorLog (
     ASL_ERROR_MSG           *Enode);
+
+
+void
+AeClearErrorLog (
+    void)
+{
+    ASL_ERROR_MSG           *Enode = Gbl_ErrorLog;
+    ASL_ERROR_MSG           *Next;
+
+    /* Walk the error node list */
+
+    while (Enode)
+    {
+        Next = Enode->Next;
+        ACPI_FREE (Enode);
+        Enode = Next;
+    }
+
+    Gbl_ErrorLog = NULL;
+}
 
 
 /*******************************************************************************
@@ -228,6 +247,11 @@ AePrintException (
     FILE                    *SourceFile;
 
 
+    if (Gbl_NoErrors)
+    {
+        return;
+    }
+
     /*
      * Only listing files have a header, and remarks/optimizations
      * are always output
@@ -288,7 +312,8 @@ AePrintException (
                 if (Actual)
                 {
                     fprintf (OutputFile,
-                        "[*** iASL: Seek error on source code temp file ***]");
+                        "[*** iASL: Seek error on source code temp file %s ***]",
+                        Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
                 }
                 else
                 {
@@ -296,7 +321,8 @@ AePrintException (
                     if (!RActual)
                     {
                         fprintf (OutputFile,
-                            "[*** iASL: Read error on source code temp file ***]");
+                            "[*** iASL: Read error on source code temp file %s ***]",
+                            Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
                     }
 
                     else while (RActual && SourceByte && (SourceByte != '\n'))
