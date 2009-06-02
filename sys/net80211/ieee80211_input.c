@@ -65,6 +65,9 @@ ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 		struct ieee80211_node *ni;
 		struct mbuf *mcopy;
 
+		/* NB: could check for IFF_UP but this is cheaper */
+		if (vap->iv_state == IEEE80211_S_INIT)
+			continue;
 		/*
 		 * WDS vap's only receive directed traffic from the
 		 * station at the ``far end''.  That traffic should
