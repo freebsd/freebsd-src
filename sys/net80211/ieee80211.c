@@ -1186,7 +1186,7 @@ ieee80211_media_change(struct ifnet *ifp)
 		return EINVAL;
 	if (vap->iv_des_mode != newmode) {
 		vap->iv_des_mode = newmode;
-		return ENETRESET;
+		/* XXX kick state machine if up+running */
 	}
 	return 0;
 }
