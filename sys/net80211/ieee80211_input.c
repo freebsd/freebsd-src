@@ -60,6 +60,8 @@ ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 	struct ieee80211vap *vap;
 	int type = -1;
 
+	m->m_flags |= M_BCAST;		/* NB: mark for bpf tap'ing */
+
 	/* XXX locking */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		struct ieee80211_node *ni;
@@ -199,6 +201,9 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	struct ether_header *eh = mtod(m, struct ether_header *);
 	struct ifnet *ifp = vap->iv_ifp;
 
+	/* clear driver/net80211 flags before passing up */
+	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
+
 	/* NB: see hostap_deliver_data, this path doesn't handle hostap */
 	KASSERT(vap->iv_opmode != IEEE80211_M_HOSTAP, ("gack, hostap"));
 	/*
@@ -213,9 +218,6 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	} else
 		IEEE80211_NODE_STAT(ni, rx_ucast);
 	m->m_pkthdr.rcvif = ifp;
-
-	/* clear driver/net80211 flags before passing up */
-	m->m_flags &= ~M_80211_RX;
 
 	if (ni->ni_vlan != 0) {
 		/* attach vlan tag */
