@@ -66,8 +66,7 @@ __FBSDID("$FreeBSD$");
 #define	ADAPTIVE_SX
 #endif
 
-CTASSERT(((SX_NOADAPTIVE | SX_RECURSE) & LO_CLASSFLAGS) ==
-    (SX_NOADAPTIVE | SX_RECURSE));
+CTASSERT((SX_NOADAPTIVE & LO_CLASSFLAGS) == SX_NOADAPTIVE);
 
 /* Handy macros for sleep queues. */
 #define	SQ_EXCLUSIVE_QUEUE	0
@@ -207,17 +206,19 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
 	    SX_NOPROFILE | SX_NOADAPTIVE)) == 0);
 
-	flags = LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE;
+	flags = LO_SLEEPABLE | LO_UPGRADABLE;
 	if (opts & SX_DUPOK)
 		flags |= LO_DUPOK;
 	if (opts & SX_NOPROFILE)
 		flags |= LO_NOPROFILE;
 	if (!(opts & SX_NOWITNESS))
 		flags |= LO_WITNESS;
+	if (opts & SX_RECURSE)
+		flags |= LO_RECURSABLE;
 	if (opts & SX_QUIET)
 		flags |= LO_QUIET;
 
-	flags |= opts & (SX_NOADAPTIVE | SX_RECURSE);
+	flags |= opts & SX_NOADAPTIVE;
 	sx->sx_lock = SX_LOCK_UNLOCKED;
 	sx->sx_recurse = 0;
 	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
@@ -305,7 +306,8 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_try_xlock() of destroyed sx @ %s:%d", file, line));
 
-	if (sx_xlocked(sx) && (sx->lock_object.lo_flags & SX_RECURSE) != 0) {
+	if (sx_xlocked(sx) &&
+	    (sx->lock_object.lo_flags & LO_RECURSABLE) != 0) {
 		sx->sx_recurse++;
 		atomic_set_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
 		rval = 1;
@@ -479,7 +481,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 
 	/* If we already hold an exclusive lock, then recurse. */
 	if (sx_xlocked(sx)) {
-		KASSERT((sx->lock_object.lo_flags & SX_RECURSE) != 0,
+		KASSERT((sx->lock_object.lo_flags & LO_RECURSABLE) != 0,
 	    ("_sx_xlock_hard: recursed on non-recursive sx %s @ %s:%d\n",
 		    sx->lock_object.lo_name, file, line));
 		sx->sx_recurse++;

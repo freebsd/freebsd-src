@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
-CTASSERT((RW_RECURSE & LO_CLASSFLAGS) == RW_RECURSE);
-
 #if defined(SMP) && !defined(NO_ADAPTIVE_RWLOCKS)
 #define	ADAPTIVE_RWLOCKS
 #endif
@@ -177,16 +175,17 @@ rw_init_flags(struct rwlock *rw, const char *name, int opts)
 	MPASS((opts & ~(RW_DUPOK | RW_NOPROFILE | RW_NOWITNESS | RW_QUIET |
 	    RW_RECURSE)) == 0);
 
-	flags = LO_UPGRADABLE | LO_RECURSABLE;
+	flags = LO_UPGRADABLE;
 	if (opts & RW_DUPOK)
 		flags |= LO_DUPOK;
 	if (opts & RW_NOPROFILE)
 		flags |= LO_NOPROFILE;
 	if (!(opts & RW_NOWITNESS))
 		flags |= LO_WITNESS;
+	if (opts & RW_RECURSE)
+		flags |= LO_RECURSABLE;
 	if (opts & RW_QUIET)
 		flags |= LO_QUIET;
-	flags |= opts & RW_RECURSE;
 
 	rw->rw_lock = RW_UNLOCKED;
 	rw->rw_recurse = 0;
@@ -249,7 +248,8 @@ _rw_try_wlock(struct rwlock *rw, const char *file, int line)
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_try_wlock() of destroyed rwlock @ %s:%d", file, line));
 
-	if (rw_wlocked(rw) && (rw->lock_object.lo_flags & RW_RECURSE) != 0) {
+	if (rw_wlocked(rw) &&
+	    (rw->lock_object.lo_flags & LO_RECURSABLE) != 0) {
 		rw->rw_recurse++;
 		rval = 1;
 	} else
@@ -646,7 +646,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 #endif
 
 	if (rw_wlocked(rw)) {
-		KASSERT(rw->lock_object.lo_flags & RW_RECURSE,
+		KASSERT(rw->lock_object.lo_flags & LO_RECURSABLE,
 		    ("%s: recursing but non-recursive rw %s @ %s:%d\n",
 		    __func__, rw->lock_object.lo_name, file, line));
 		rw->rw_recurse++;
