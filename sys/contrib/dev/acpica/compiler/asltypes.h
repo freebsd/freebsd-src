@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: asltypes.h - compiler data types and struct definitions
- *              $Revision: 1.89 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -340,6 +339,7 @@ typedef enum
     ASL_MSG_EARLY_EOF,
     ASL_MSG_ENCODING_LENGTH,
     ASL_MSG_EX_INTERRUPT_LIST,
+    ASL_MSG_EX_INTERRUPT_LIST_MIN,
     ASL_MSG_EX_INTERRUPT_NUMBER,
     ASL_MSG_FIELD_ACCESS_WIDTH,
     ASL_MSG_FIELD_UNIT_ACCESS_WIDTH,
@@ -422,7 +422,11 @@ typedef enum
     ASL_MSG_RESULT_NOT_USED,
     ASL_MSG_NOT_REFERENCED,
     ASL_MSG_NON_ZERO,
-    ASL_MSG_STRING_LENGTH
+    ASL_MSG_STRING_LENGTH,
+    ASL_MSG_SERIALIZED,
+    ASL_MSG_COMPILER_RESERVED,
+    ASL_MSG_NAMED_OBJECT_IN_WHILE,
+    ASL_MSG_LOCAL_OUTSIDE_METHOD
 
 } ASL_MESSAGE_IDS;
 
@@ -454,6 +458,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_EARLY_EOF */                  "Premature end-of-file reached",
 /*    ASL_MSG_ENCODING_LENGTH */            "Package length too long to encode",
 /*    ASL_MSG_EX_INTERRUPT_LIST */          "Too many interrupts (255 max)",
+/*    ASL_MSG_EX_INTERRUPT_LIST_MIN */      "Too few interrupts (1 minimum required)",
 /*    ASL_MSG_EX_INTERRUPT_NUMBER */        "Invalid interrupt number (must be 32 bits)",
 /*    ASL_MSG_FIELD_ACCESS_WIDTH */         "Access width is greater than region size",
 /*    ASL_MSG_FIELD_UNIT_ACCESS_WIDTH */    "Access width of Field Unit extends beyond region limit",
@@ -510,7 +515,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_RESERVED_OPERAND_TYPE */      "Invalid operand type for reserved name, must be",
 /*    ASL_MSG_RESERVED_RETURN_VALUE */      "Reserved method must return a value",
 /*    ASL_MSG_RESERVED_USE */               "Invalid use of reserved name",
-/*    ASL_MSG_RESERVED_WORD */              "Use of reserved word",
+/*    ASL_MSG_RESERVED_WORD */              "Use of reserved name",
 /*    ASL_MSG_RESOURCE_FIELD */             "Resource field name cannot be used as a target",
 /*    ASL_MSG_RESOURCE_INDEX */             "Missing ResourceSourceIndex (required)",
 /*    ASL_MSG_RESOURCE_LIST */              "Too many resource items (internal error)",
@@ -536,7 +541,11 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_RESULT_NOT_USED */            "Result is not used, operator has no effect",
 /*    ASL_MSG_NOT_REFERENCED */             "Namespace object is not referenced",
 /*    ASL_MSG_NON_ZERO */                   "Operand evaluates to zero",
-/*    ASL_MSG_STRING_LENGTH */              "String literal too long"
+/*    ASL_MSG_STRING_LENGTH */              "String literal too long",
+/*    ASL_MSG_SERIALIZED */                 "Control Method marked Serialized",
+/*    ASL_MSG_COMPILER_RESERVED */          "Use of compiler reserved name",
+/*    ASL_MSG_NAMED_OBJECT_IN_WHILE */      "Creating a named object in a While loop",
+/*    ASL_MSG_LOCAL_OUTSIDE_METHOD */       "Local or Arg used outside a control method"
 
 };
 
