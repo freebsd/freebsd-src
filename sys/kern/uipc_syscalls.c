@@ -221,16 +221,10 @@ kern_bind(td, fd, sa)
 		ktrsockaddr(sa);
 #endif
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_bind(td->td_ucred, so, sa);
-	SOCK_UNLOCK(so);
-	if (error)
-		goto done;
+	if (error == 0)
 #endif
-	error = sobind(so, sa, td);
-#ifdef MAC
-done:
-#endif
+		error = sobind(so, sa, td);
 	fdrop(fp, td);
 	return (error);
 }
@@ -252,17 +246,14 @@ listen(td, uap)
 	if (error == 0) {
 		so = fp->f_data;
 #ifdef MAC
-		SOCK_LOCK(so);
 		error = mac_socket_check_listen(td->td_ucred, so);
-		SOCK_UNLOCK(so);
-		if (error)
-			goto done;
+		if (error == 0) {
 #endif
-		CURVNET_SET(so->so_vnet);
-		error = solisten(so, uap->backlog, td);
-		CURVNET_RESTORE();
+			CURVNET_SET(so->so_vnet);
+			error = solisten(so, uap->backlog, td);
+			CURVNET_RESTORE();
 #ifdef MAC
-done:
+		}
 #endif
 		fdrop(fp, td);
 	}
@@ -354,9 +345,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 		goto done;
 	}
 #ifdef MAC
-	SOCK_LOCK(head);
 	error = mac_socket_check_accept(td->td_ucred, head);
-	SOCK_UNLOCK(head);
 	if (error != 0)
 		goto done;
 #endif
@@ -549,9 +538,7 @@ kern_connect(td, fd, sa)
 		ktrsockaddr(sa);
 #endif
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_connect(td->td_ucred, so, sa);
-	SOCK_UNLOCK(so);
 	if (error)
 		goto bad;
 #endif
@@ -603,7 +590,6 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	if (error)
 		return (error);
 #endif
-
 	error = socreate(domain, &so1, type, protocol, td->td_ucred, td);
 	if (error)
 		return (error);
@@ -752,13 +738,13 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	so = (struct socket *)fp->f_data;
 
 #ifdef MAC
-	SOCK_LOCK(so);
-	if (mp->msg_name != NULL)
+	if (mp->msg_name != NULL) {
 		error = mac_socket_check_connect(td->td_ucred, so,
 		    mp->msg_name);
-	if (error == 0)
-		error = mac_socket_check_send(td->td_ucred, so);
-	SOCK_UNLOCK(so);
+		if (error)
+			goto bad;
+	}
+	error = mac_socket_check_send(td->td_ucred, so);
 	if (error)
 		goto bad;
 #endif
@@ -951,9 +937,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	so = fp->f_data;
 
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_receive(td->td_ucred, so);
-	SOCK_UNLOCK(so);
 	if (error) {
 		fdrop(fp, td);
 		return (error);
@@ -1887,9 +1871,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	}
 
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_send(td->td_ucred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		goto out;
 #endif
@@ -2417,9 +2399,7 @@ sctp_generic_sendmsg (td, uap)
 
 	so = (struct socket *)fp->f_data;
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_send(td->td_ucred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		goto sctp_bad;
 #endif /* MAC */
@@ -2521,9 +2501,7 @@ sctp_generic_sendmsg_iov(td, uap)
 
 	so = (struct socket *)fp->f_data;
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_send(td->td_ucred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		goto sctp_bad;
 #endif /* MAC */
@@ -2618,9 +2596,7 @@ sctp_generic_recvmsg(td, uap)
 
 	so = fp->f_data;
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_receive(td->td_ucred, so);
-	SOCK_UNLOCK(so);
 	if (error) {
 		goto out;
 		return (error);
