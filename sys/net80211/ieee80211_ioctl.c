@@ -3202,29 +3202,14 @@ ieee80211_ioctl_updatemulti(struct ieee80211com *ic)
 int
 ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ieee80211vap *vap;
-	struct ieee80211com *ic;
+	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211com *ic = vap->iv_ic;
 	int error = 0;
 	struct ifreq *ifr;
 	struct ifaddr *ifa;			/* XXX */
 
-	vap = ifp->if_softc;
-	if (vap == NULL) {
-		/*
-		 * During detach we clear the backpointer in the softc
-		 * so any ioctl request through the ifnet that arrives
-		 * before teardown is ignored/rejected.  In particular
-		 * this hack handles destroying a vap used by an app
-		 * like wpa_supplicant that will respond to the vap
-		 * being forced into INIT state by immediately trying
-		 * to force it back up.  We can yank this hack if/when
-		 * we can destroy the ifnet before cleaning up vap state.
-		 */
-		return ENXIO;
-	}
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-		ic = vap->iv_ic;
 		IEEE80211_LOCK(ic);
 		ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 		ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
@@ -3250,7 +3235,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		ieee80211_ioctl_updatemulti(vap->iv_ic);
+		ieee80211_ioctl_updatemulti(ic);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
