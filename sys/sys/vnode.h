@@ -419,7 +419,7 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 #define	VI_MTX(vp)	(&(vp)->v_interlock)
 
 #define	VN_LOCK_AREC(vp)						\
-	((vp)->v_vnlock->lock_object.lo_flags |= LK_CANRECURSE)
+	((vp)->v_vnlock->lock_object.lo_flags |= LO_RECURSABLE)
 #define	VN_LOCK_ASHARE(vp)						\
 	((vp)->v_vnlock->lock_object.lo_flags &= ~LK_NOSHARE)
 
