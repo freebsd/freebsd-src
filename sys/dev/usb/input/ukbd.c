@@ -822,7 +822,7 @@ detach:
 	return (ENXIO);			/* error */
 }
 
-int
+static int
 ukbd_detach(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
@@ -1569,7 +1569,7 @@ static int
 ukbd_driver_load(module_t mod, int what, void *arg)
 {
 	switch (what) {
-		case MOD_LOAD:
+	case MOD_LOAD:
 		kbd_add_driver(&ukbd_kbd_driver);
 		break;
 	case MOD_UNLOAD:
