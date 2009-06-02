@@ -274,7 +274,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		/*
 		 * If the last page is partially mapped, then zero out
 		 * the garbage at the end of the page.  See comments
-		 * in vnode_page_setsize() for more details.
+		 * in vnode_pager_setsize() for more details.
 		 *
 		 * XXXJHB: This handles in memory pages, but what about
 		 * a page swapped out to disk?
@@ -286,10 +286,23 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			int size = PAGE_SIZE - base;
 
 			pmap_zero_page_area(m, base, size);
+
+			/*
+			 * Update the valid bits to reflect the blocks that
+			 * have been zeroed.  Some of these valid bits may
+			 * have already been set.
+			 */
+			vm_page_set_valid(m, base, size);
+
+			/*
+			 * Round "base" to the next block boundary so that the
+			 * dirty bit for a partially zeroed block is not
+			 * cleared.
+			 */
+			base = roundup2(base, DEV_BSIZE);
+
 			vm_page_lock_queues();
-			vm_page_set_validclean(m, base, size);
-			if (m->dirty != 0)
-				m->dirty = VM_PAGE_BITS_ALL;
+			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
 			vm_page_unlock_queues();
 		} else if ((length & PAGE_MASK) &&
 		    __predict_false(object->cache != NULL)) {
