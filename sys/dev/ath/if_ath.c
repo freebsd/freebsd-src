@@ -4132,7 +4132,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 		/*
 		 * AIFS is zero so there's no pre-transmit wait.  The
 		 * burst time defines the slot duration and is configured
-		 * via sysctl.  The QCU is setup to not do post-xmit
+		 * through net80211.  The QCU is setup to not do post-xmit
 		 * back off, lockout all lower-priority QCU's, and fire
 		 * off the DMA beacon alert timer which is setup based
 		 * on the slot configuration.
