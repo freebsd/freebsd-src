@@ -37,6 +37,13 @@ mountd_precmd()
 		fi
 	fi
 
+	# If nfsv4_server_enable is yes, force use of the experimental
+	# server
+	#
+	if checkyesno nfsv4_server_enable; then
+		rc_flags="-e ${rc_flags}"
+	fi
+
 	if checkyesno zfs_enable; then
 		rc_flags="${rc_flags} /etc/exports /etc/zfs/exports"
 	fi
