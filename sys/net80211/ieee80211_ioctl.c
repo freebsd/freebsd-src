@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_input.h>
 
 #define	IS_UP_AUTO(_vap) \
-	(IFNET_IS_UP_RUNNING(vap->iv_ifp) && \
+	(IFNET_IS_UP_RUNNING((_vap)->iv_ifp) && \
 	 (_vap)->iv_roaming == IEEE80211_ROAMING_AUTO)
 
 static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
