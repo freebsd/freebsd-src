@@ -407,6 +407,7 @@ MK_${var}:=	yes
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    CLANG \
     GNU_CPIO \
     HESIOD \
     IDEA

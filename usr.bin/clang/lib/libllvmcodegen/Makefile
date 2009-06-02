@@ -1,0 +1,33 @@
+# $FreeBSD$
+
+LIB=	llvmcodegen
+
+SRCDIR=	lib/CodeGen
+SRCS=	BranchFolding.cpp CodePlacementOpt.cpp \
+	DeadMachineInstructionElim.cpp DwarfEHPrepare.cpp \
+	ELFWriter.cpp GCMetadata.cpp GCMetadataPrinter.cpp \
+	GCStrategy.cpp IfConversion.cpp IntrinsicLowering.cpp \
+	LLVMTargetMachine.cpp LatencyPriorityQueue.cpp \
+	LiveInterval.cpp LiveIntervalAnalysis.cpp \
+	LiveStackAnalysis.cpp LiveVariables.cpp LowerSubregs.cpp \
+	MachOWriter.cpp MachineBasicBlock.cpp MachineDominators.cpp \
+	MachineFunction.cpp MachineInstr.cpp MachineLICM.cpp \
+	MachineLoopInfo.cpp MachineModuleInfo.cpp \
+	MachinePassRegistry.cpp MachineRegisterInfo.cpp \
+	MachineSink.cpp MachineVerifier.cpp OcamlGC.cpp PBQP.cpp \
+	PHIElimination.cpp Passes.cpp PostRASchedulerList.cpp \
+	PreAllocSplitting.cpp PrologEpilogInserter.cpp \
+	PseudoSourceValue.cpp RegAllocBigBlock.cpp \
+	RegAllocLinearScan.cpp RegAllocLocal.cpp RegAllocPBQP.cpp \
+	RegAllocSimple.cpp RegisterCoalescer.cpp \
+	RegisterScavenging.cpp ScheduleDAG.cpp ScheduleDAGEmit.cpp \
+	ScheduleDAGInstrs.cpp ScheduleDAGPrinter.cpp \
+	ShrinkWrapping.cpp ShadowStackGC.cpp \
+	SimpleRegisterCoalescing.cpp Spiller.cpp StackProtector.cpp \
+	StackSlotColoring.cpp StrongPHIElimination.cpp \
+	TargetInstrInfoImpl.cpp TwoAddressInstructionPass.cpp \
+	UnreachableBlockElim.cpp VirtRegMap.cpp VirtRegRewriter.cpp
+
+TGHDRS=	Intrinsics
+
+.include "../../clang.lib.mk"

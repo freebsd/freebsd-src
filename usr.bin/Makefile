@@ -34,6 +34,7 @@ SUBDIR=	alias \
 	${_chkey} \
 	chpass \
 	cksum \
+	${_clang} \
 	cmp \
 	col \
 	${_colcrt} \
@@ -268,6 +269,10 @@ _cpio=		cpio
 
 .if ${MK_CALENDAR} != "no"
 _calendar=	calendar
+.endif
+
+.if ${MK_CLANG} != "no"
+_clang=		clang
 .endif
 
 .if ${MK_HESIOD} != "no"
