@@ -671,7 +671,9 @@ test_inpcb_create(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	LABEL_CHECK(inplabel, MAGIC_INPCB);
 	COUNTER_INC(inpcb_create);
 }
@@ -716,6 +718,8 @@ static void
 test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
+
+	SOCK_LOCK_ASSERT(so);
 
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
 	LABEL_CHECK(inplabel, MAGIC_INPCB);
@@ -1526,7 +1530,9 @@ test_socket_check_accept(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_accept);
 
 	return (0);
@@ -1539,7 +1545,9 @@ test_socket_check_bind(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_bind);
 
 	return (0);
@@ -1552,7 +1560,9 @@ test_socket_check_connect(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_connect);
 
 	return (0);
@@ -1564,7 +1574,9 @@ test_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(socket_check_deliver);
 
@@ -1578,7 +1590,9 @@ test_socket_check_listen(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_listen);
 
 	return (0);
@@ -1591,7 +1605,9 @@ test_socket_check_poll(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_poll);
 
 	return (0);
@@ -1604,7 +1620,9 @@ test_socket_check_receive(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_receive);
 
 	return (0);
@@ -1615,6 +1633,8 @@ static int
 test_socket_check_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
+
+	SOCK_LOCK_ASSERT(so);
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
@@ -1631,7 +1651,9 @@ test_socket_check_send(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_send);
 
 	return (0);
@@ -1644,7 +1666,9 @@ test_socket_check_stat(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_stat);
 
 	return (0);
@@ -1657,7 +1681,9 @@ test_socket_check_visible(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_visible);
 
 	return (0);
@@ -1686,11 +1712,13 @@ test_socket_create(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(socket_create_mbuf);
 static void
-test_socket_create_mbuf(struct socket *so, struct label *socketlabel,
+test_socket_create_mbuf(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
-	LABEL_CHECK(socketlabel, MAGIC_SOCKET);
+	SOCK_LOCK(so);
+	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(socket_create_mbuf);
 }
@@ -1749,8 +1777,12 @@ test_socket_newconn(struct socket *oldso, struct label *oldsolabel,
     struct socket *newso, struct label *newsolabel)
 {
 
+	SOCK_LOCK(oldso);
 	LABEL_CHECK(oldsolabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(oldso);
+	SOCK_LOCK(newso);
 	LABEL_CHECK(newsolabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(newso);
 	COUNTER_INC(socket_newconn);
 }
 
@@ -1759,6 +1791,8 @@ static void
 test_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
+
+	SOCK_LOCK_ASSERT(so);
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
@@ -1805,11 +1839,13 @@ test_socketpeer_init_label(struct label *label, int flag)
 COUNTER_DECL(socketpeer_set_from_mbuf);
 static void
 test_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
-    struct socket *socket, struct label *socketpeerlabel)
+    struct socket *so, struct label *sopeerlabel)
 {
 
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
-	LABEL_CHECK(socketpeerlabel, MAGIC_SOCKET);
+	SOCK_LOCK(so);
+	LABEL_CHECK(sopeerlabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socketpeer_set_from_mbuf);
 }
 
@@ -1820,8 +1856,12 @@ test_socketpeer_set_from_socket(struct socket *oldso,
     struct label *newsopeerlabel)
 {
 
+	SOCK_LOCK(oldso);
 	LABEL_CHECK(oldsolabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(oldso);
+	SOCK_LOCK(newso);
 	LABEL_CHECK(newsopeerlabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(newso);
 	COUNTER_INC(socketpeer_set_from_socket);
 }
 
