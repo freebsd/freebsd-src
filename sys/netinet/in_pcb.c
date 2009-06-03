@@ -212,9 +212,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	error = mac_inpcb_init(inp, M_NOWAIT);
 	if (error != 0)
 		goto out;
-	SOCK_LOCK(so);
 	mac_inpcb_create(so, inp);
-	SOCK_UNLOCK(so);
 #endif
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);

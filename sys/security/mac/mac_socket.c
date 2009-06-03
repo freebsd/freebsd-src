@@ -88,6 +88,16 @@ __FBSDID("$FreeBSD$");
  * remote socket for UNIX domain sockets rather than keeping a local copy on
  * this endpoint, but be cached and updated based on packets received for
  * TCP/IP.
+ *
+ * Unlike with many other object types, the lock protecting MAC labels on
+ * sockets (the socket lock) is not frequently held at the points in code
+ * where socket-related checks are called.  The MAC Framework acquires the
+ * lock over some entry points in order to enforce atomicity (such as label
+ * copies) but in other cases the policy modules will have to acquire the
+ * lock themselves if they use labels.  This approach (a) avoids lock
+ * acquisitions when policies don't require labels and (b) solves a number of
+ * potential lock order issues when multiple sockets are used in the same
+ * entry point.
  */
 
 struct label *
@@ -234,13 +244,8 @@ void
 mac_socket_newconn(struct socket *oldso, struct socket *newso)
 {
 
-	if (mac_policy_count == 0)
-		return;
-
-	SOCK_LOCK(oldso);
 	MAC_POLICY_PERFORM_NOSLEEP(socket_newconn, oldso, oldso->so_label,
 	    newso, newso->so_label);
-	SOCK_UNLOCK(oldso);
 }
 
 static void
@@ -259,12 +264,13 @@ mac_socketpeer_set_from_mbuf(struct mbuf *m, struct socket *so)
 {
 	struct label *label;
 
+	if (mac_policy_count == 0)
+		return;
+
 	label = mac_mbuf_to_label(m);
 
-	SOCK_LOCK(so);
 	MAC_POLICY_PERFORM_NOSLEEP(socketpeer_set_from_mbuf, m, label, so,
 	    so->so_peerlabel);
-	SOCK_UNLOCK(so);
 }
 
 void
@@ -274,15 +280,8 @@ mac_socketpeer_set_from_socket(struct socket *oldso, struct socket *newso)
 	if (mac_policy_count == 0)
 		return;
 
-	/*
-	 * XXXRW: We want to hold locks on both sockets, but can't currently
-	 * due to lock order -- opt to lock the socket where we're accessing
-	 * so_label as it's more likely to change.
-	 */
-	SOCK_LOCK(oldso);
 	MAC_POLICY_PERFORM_NOSLEEP(socketpeer_set_from_socket, oldso,
 	    oldso->so_label, newso, newso->so_peerlabel);
-	SOCK_UNLOCK(oldso);
 }
 
 void
@@ -295,10 +294,8 @@ mac_socket_create_mbuf(struct socket *so, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	SOCK_LOCK(so);
 	MAC_POLICY_PERFORM_NOSLEEP(socket_create_mbuf, so, so->so_label, m,
 	    label);
-	SOCK_UNLOCK(so);
 }
 
 MAC_CHECK_PROBE_DEFINE2(socket_check_accept, "struct ucred *",
@@ -309,14 +306,9 @@ mac_socket_check_accept(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_accept, cred, so,
 	    so->so_label);
 	MAC_CHECK_PROBE2(socket_check_accept, error, cred, so);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -330,14 +322,9 @@ mac_socket_check_bind(struct ucred *cred, struct socket *so,
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_bind, cred, so, so->so_label,
 	    sa);
 	MAC_CHECK_PROBE3(socket_check_bind, error, cred, so, sa);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -351,14 +338,9 @@ mac_socket_check_connect(struct ucred *cred, struct socket *so,
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_connect, cred, so,
 	    so->so_label, sa);
 	MAC_CHECK_PROBE3(socket_check_connect, error, cred, so, sa);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -393,11 +375,9 @@ mac_socket_check_deliver(struct socket *so, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_deliver, so, so->so_label, m,
 	    label);
 	MAC_CHECK_PROBE2(socket_check_deliver, error, so, m);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -410,14 +390,9 @@ mac_socket_check_listen(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_listen, cred, so,
 	    so->so_label);
 	MAC_CHECK_PROBE2(socket_check_listen, error, cred, so);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -430,13 +405,8 @@ mac_socket_check_poll(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_poll, cred, so, so->so_label);
 	MAC_CHECK_PROBE2(socket_check_poll, error, cred, so);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -449,14 +419,9 @@ mac_socket_check_receive(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_receive, cred, so,
 	    so->so_label);
 	MAC_CHECK_PROBE2(socket_check_receive, error, cred, so);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -487,13 +452,8 @@ mac_socket_check_send(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_send, cred, so, so->so_label);
 	MAC_CHECK_PROBE2(socket_check_send, error, cred, so);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -506,13 +466,8 @@ mac_socket_check_stat(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_stat, cred, so, so->so_label);
 	MAC_CHECK_PROBE2(socket_check_stat, error, cred, so);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
@@ -525,14 +480,9 @@ mac_socket_check_visible(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	if (mac_policy_count == 0)
-		return (0);
-
-	SOCK_LOCK(so);
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_visible, cred, so,
 	    so->so_label);
 	MAC_CHECK_PROBE2(socket_check_visible, error, cred, so);
-	SOCK_UNLOCK(so);
 
 	return (error);
 }
