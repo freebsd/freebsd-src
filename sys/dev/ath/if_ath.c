@@ -2802,7 +2802,7 @@ ath_beacon_proc(void *arg, int pending)
 		slot = ((tsftu % ic->ic_lintval) * ATH_BCBUF) / ic->ic_lintval;
 		vap = sc->sc_bslot[(slot+1) % ATH_BCBUF];
 		bfaddr = 0;
-		if (vap != NULL && vap->iv_state == IEEE80211_S_RUN) {
+		if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
 			bf = ath_beacon_generate(sc, vap);
 			if (bf != NULL)
 				bfaddr = bf->bf_daddr;
@@ -2812,7 +2812,7 @@ ath_beacon_proc(void *arg, int pending)
 
 		for (slot = 0; slot < ATH_BCBUF; slot++) {
 			vap = sc->sc_bslot[slot];
-			if (vap != NULL && vap->iv_state == IEEE80211_S_RUN) {
+			if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
 				bf = ath_beacon_generate(sc, vap);
 				if (bf != NULL) {
 					*bflink = bf->bf_daddr;
@@ -2878,7 +2878,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	struct mbuf *m;
 	int nmcastq, error;
 
-	KASSERT(vap->iv_state == IEEE80211_S_RUN,
+	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
 	    ("not running, state %d", vap->iv_state));
 	KASSERT(avp->av_bcbuf != NULL, ("no beacon buffer"));
 
@@ -5506,7 +5506,7 @@ ath_isanyrunningvaps(struct ieee80211vap *this)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-		if (vap != this && vap->iv_state == IEEE80211_S_RUN)
+		if (vap != this && vap->iv_state >= IEEE80211_S_RUN)
 			return 1;
 	}
 	return 0;
