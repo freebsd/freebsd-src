@@ -19,18 +19,18 @@ fulldirs="common compiler debugger disassembler dispatcher events	\
 	tools utilities"
 
 # files to remove
-stripdirs="acpisrc generate os_specific"
+stripdirs="acpisrc acpixtract examples generate os_specific"
 stripfiles="Makefile README acintel.h aclinux.h acmsvc.h acnetbsd.h	\
-	acos2.h acpixtract.c accygwin.h acefi.h acwin.h acwin64.h	\
-	aeexec.c aehandlers.c aemain.c aetables.c examples.c		\
-	osunixdir.c oswindir.c oswintbl.c oswinxf.c readme.txt utclib.c"
+	acos2.h accygwin.h acefi.h actbl2.h acwin.h acwin64.h aeexec.c	\
+	aehandlers.c aemain.c aetables.c osunixdir.c readme.txt		\
+	utclib.c"
 
 # include files to canonify
 src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
 	acdispat.h acevents.h acexcep.h acglobal.h achware.h acinterp.h	\
 	aclocal.h acmacros.h acnames.h acnamesp.h acobject.h acopcode.h	\
 	acoutput.h acparser.h acpi.h acpiosxf.h acpixf.h acpredef.h	\
-	acresrc.h acrestyp.h acstruct.h	actables.h actbl.h actbl1.h	\
+	acresrc.h acrestyp.h acstruct.h actables.h actbl.h actbl1.h	\
 	actypes.h acutils.h amlcode.h amlresrc.h platform/acenv.h	\
 	platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h asltypes.h"
