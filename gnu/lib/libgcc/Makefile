@@ -9,6 +9,11 @@ SHLIBDIR?=	/lib
 .include <bsd.own.mk>
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
+# XXX: a lot of missing GCC builtins
+.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
+CC=		gcc
+.endif
+
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}/config ${GCCDIR}
 
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \

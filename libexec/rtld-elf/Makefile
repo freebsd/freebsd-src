@@ -3,6 +3,11 @@
 .include <bsd.own.mk>
 MK_SSP=		no
 
+# XXX: prevents failed assertion on startup
+.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
+CC=	gcc
+.endif
+
 PROG?=		ld-elf.so.1
 SRCS=		rtld_start.S \
 		reloc.c rtld.c rtld_lock.c map_object.c \

@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
+.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
+CC=		gcc
+.endif
+
 .PATH:		${.CURDIR}/../boot2
 
 FILES=		zfsboot

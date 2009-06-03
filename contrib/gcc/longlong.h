@@ -322,22 +322,22 @@ UDItype __umulsidi3 (USItype, USItype);
 	     "g" ((USItype) (bl)))
 #define sub_ddmmss(sh, sl, ah, al, bh, bl) \
   __asm__ ("subl %5,%1\n\tsbbl %3,%0"					\
-	   : "=r" ((USItype) (sh)),					\
-	     "=&r" ((USItype) (sl))					\
+	   : "=r" ((sh)),					\
+	     "=&r" ((sl))					\
 	   : "0" ((USItype) (ah)),					\
 	     "g" ((USItype) (bh)),					\
 	     "1" ((USItype) (al)),					\
 	     "g" ((USItype) (bl)))
 #define umul_ppmm(w1, w0, u, v) \
   __asm__ ("mull %3"							\
-	   : "=a" ((USItype) (w0)),					\
-	     "=d" ((USItype) (w1))					\
+	   : "=a" ((w0)),					\
+	     "=d" ((w1))					\
 	   : "%0" ((USItype) (u)),					\
 	     "rm" ((USItype) (v)))
 #define udiv_qrnnd(q, r, n1, n0, dv) \
   __asm__ ("divl %4"							\
-	   : "=a" ((USItype) (q)),					\
-	     "=d" ((USItype) (r))					\
+	   : "=a" ((q)),					\
+	     "=d" ((r))					\
 	   : "0" ((USItype) (n0)),					\
 	     "1" ((USItype) (n1)),					\
 	     "rm" ((USItype) (dv)))
@@ -387,10 +387,10 @@ UDItype __umulsidi3 (USItype, USItype);
 #define sub_ddmmss(sh, sl, ah, al, bh, bl) \
   /* The cmp clears the condition bit.  */ \
   __asm__ ("cmp %0,%0\n\tsubx %1,%5\n\tsubx %0,%3"			\
-	   : "=r" ((USItype) (sh)),					\
-	     "=&r" ((USItype) (sl))					\
-	   : "0" ((USItype) (ah)),					\
-	     "r" ((USItype) (bh)),					\
+	   : "=r" ((USItype)(sh)),					\
+	   "=&r" ((USItype)(sl))					\
+	   : "0" ((USItype)(ah)),					\
+	   "r" ((USItype)(bh)),						\
 	     "1" ((USItype) (al)),					\
 	     "r" ((USItype) (bl))					\
 	   : "cbit")

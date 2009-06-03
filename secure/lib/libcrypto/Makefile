@@ -3,10 +3,11 @@
 SHLIBDIR?=	/lib
 SUBDIR=		engines
 
-.include <bsd.own.mk>
-
 LIB=		crypto
 SHLIB_MAJOR=	5
+
+# XXX: LLVM PR3678
+CFLAGS+=	-DOPENSSL_NO_INLINE_ASM
 
 NO_LINT=
 

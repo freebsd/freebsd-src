@@ -658,7 +658,7 @@ static void *first_edge_aux_obj = 0;
 /* Allocate a memory block of SIZE as BB->aux.  The obstack must
    be first initialized by alloc_aux_for_blocks.  */
 
-inline void
+void
 alloc_aux_for_block (basic_block bb, int size)
 {
   /* Verify that aux field is clear.  */
@@ -721,7 +721,7 @@ free_aux_for_blocks (void)
 /* Allocate a memory edge of SIZE as BB->aux.  The obstack must
    be first initialized by alloc_aux_for_edges.  */
 
-inline void
+void
 alloc_aux_for_edge (edge e, int size)
 {
   /* Verify that aux field is clear.  */

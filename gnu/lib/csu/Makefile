@@ -3,6 +3,11 @@
 .include <bsd.own.mk>
 MK_SSP=		no
 
+# XXX: prevents infinite loop on startup
+.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
+CC=		gcc
+.endif
+
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 CCDIR=	${.CURDIR}/../../usr.bin/cc

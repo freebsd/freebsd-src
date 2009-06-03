@@ -625,7 +625,7 @@ static rtx last_scheduled_insn;
    This is the number of cycles between instruction issue and
    instruction results.  */
 
-HAIFA_INLINE int
+int
 insn_cost (rtx insn, rtx link, rtx used)
 {
   return insn_cost1 (insn, used ? REG_NOTE_KIND (link) : REG_NOTE_MAX,
