@@ -635,9 +635,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		goto abort2;
 	}
 #ifdef MAC
-	SOCK_LOCK(so);
 	mac_socketpeer_set_from_mbuf(m, so);
-	SOCK_UNLOCK(so);
 #endif
 
 	inp = sotoinpcb(so);

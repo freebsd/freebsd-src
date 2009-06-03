@@ -40,6 +40,7 @@ options 	INVARIANTS	# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT # required by INVARIANTS
 options 	KDB		# Enable kernel debugger support
 options 	KTRACE		# ktrace(1) syscall trace support
+options 	MAC			# TrustedBSD MAC Framework
 options 	MD_ROOT		# MD usable as root device
 options 	MSDOSFS		# MSDOS Filesystem
 options 	NFSCLIENT	# Network Filesystem Client

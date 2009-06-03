@@ -413,6 +413,8 @@ stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 
+	SOCK_LOCK_ASSERT(so);
+
 }
 
 static void
@@ -809,6 +811,11 @@ stub_socket_check_accept(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -817,6 +824,11 @@ stub_socket_check_bind(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -824,6 +836,11 @@ static int
 stub_socket_check_connect(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -840,6 +857,11 @@ stub_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -847,6 +869,11 @@ static int
 stub_socket_check_listen(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -856,6 +883,11 @@ stub_socket_check_poll(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -863,6 +895,11 @@ static int
 stub_socket_check_receive(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -872,12 +909,19 @@ stub_socket_check_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 
+	SOCK_LOCK_ASSERT(so);
+
 	return (0);
 }
 static int
 stub_socket_check_send(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -886,6 +930,11 @@ static int
 stub_socket_check_stat(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -903,6 +952,11 @@ stub_socket_check_visible(struct ucred *cred, struct socket *so,
    struct label *solabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -918,6 +972,10 @@ stub_socket_create_mbuf(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 }
 
 static void
@@ -925,6 +983,14 @@ stub_socket_newconn(struct socket *oldso, struct label *oldsolabel,
     struct socket *newso, struct label *newsolabel)
 {
 
+#if 0
+	SOCK_LOCK(oldso);
+	SOCK_UNLOCK(oldso);
+#endif
+#if 0
+	SOCK_LOCK(newso);
+	SOCK_UNLOCK(newso);
+#endif
 }
 
 static void
@@ -932,6 +998,7 @@ stub_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 
+	SOCK_LOCK_ASSERT(so);
 }
 
 static void
@@ -939,6 +1006,10 @@ stub_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
     struct socket *so, struct label *sopeerlabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 }
 
 static void
@@ -947,6 +1018,14 @@ stub_socketpeer_set_from_socket(struct socket *oldso,
     struct label *newsopeerlabel)
 {
 
+#if 0
+	SOCK_LOCK(oldso);
+	SOCK_UNLOCK(oldso);
+#endif
+#if 0
+	SOCK_LOCK(newso);
+	SOCK_UNLOCK(newso);
+#endif
 }
 
 static void

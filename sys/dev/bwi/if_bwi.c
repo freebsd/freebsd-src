@@ -1771,10 +1771,12 @@ static int
 bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct bwi_vap *bvp = BWI_VAP(vap);
-	struct ifnet *ifp = vap->iv_ic->ic_ifp;
+	struct ieee80211com *ic= vap->iv_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	enum ieee80211_state ostate = vap->iv_state;
 	struct bwi_softc *sc = ifp->if_softc;
 	struct bwi_mac *mac;
-	struct ieee80211_node *ni;
+	struct ieee80211_node *ni = vap->iv_bss;
 	int error;
 
 	BWI_LOCK(sc);
@@ -1790,11 +1792,25 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (error != 0)
 		goto back;
 
+	/*
+	 * Clear the BSSID when we stop a STA
+	 */
+	if (vap->iv_opmode == IEEE80211_M_STA) {
+		if (ostate == IEEE80211_S_RUN && nstate != IEEE80211_S_RUN) {
+			/*
+			 * Clear out the BSSID.  If we reassociate to
+			 * the same AP, this will reinialize things
+			 * correctly...
+			 */
+			if (ic->ic_opmode == IEEE80211_M_STA && 
+			    !(sc->sc_flags & BWI_F_STOP))
+				bwi_set_bssid(sc, bwi_zero_addr);
+		}
+	}
+
 	if (vap->iv_opmode == IEEE80211_M_MONITOR) {
 		/* Nothing to do */
 	} else if (nstate == IEEE80211_S_RUN) {
-		ni = vap->iv_bss;
-
 		bwi_set_bssid(sc, vap->iv_bss->ni_bssid);
 
 		KASSERT(sc->sc_cur_regwin->rw_type == BWI_REGWIN_T_MAC,
@@ -1814,8 +1830,6 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		callout_reset(&sc->sc_calib_ch, hz, bwi_calibrate, sc);
-	} else {
-		bwi_set_bssid(sc, bwi_zero_addr);
 	}
 back:
 	BWI_UNLOCK(sc);

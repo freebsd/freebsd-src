@@ -112,6 +112,8 @@ main(int argc, char **argv)
 	if ((grp = getgrnam("operator")) == NULL)
 		errx(1, "Cannot retrieve operator gid");
 
+	iov = NULL;
+	iovlen = 0;
 	build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
 	build_iovec(&iov, &iovlen, "from", snapname, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", stfsbuf.f_mntonname, (size_t)-1);
