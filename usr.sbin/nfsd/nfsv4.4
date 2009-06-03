@@ -38,14 +38,16 @@ The experimental nfs client and server provides support for the
 specification; see
 .%T "Network File System (NFS) Version 4 Protocol \\*(tNRFC\\*(sP 3530" .
 The protocol is somewhat similar to NFS Version 3, but differs in significant
-ways. It uses a single Compound RPC that concatenates operations to-gether.
+ways.
+It uses a single Compound RPC that concatenates operations to-gether.
 Each of these operations are similar to the RPCs of NFS Version 3.
 The operations in the compound are performed in order, until one of
 them fails (returns an error) and then the RPC terminates at that point.
 .Pp
 It has
 integrated locking support, which implies that the server is no longer
-stateless. As such, the
+stateless.
+As such, the
 .Tn NFSv4
 server remains in recovery mode for a Grace period (always greater than the
 lease duration the server uses) after a reboot.
@@ -53,7 +55,8 @@ During this Grace period, clients may recover state but not perform other
 open/lock state changing operations.
 To provide for correct recovery semantics, a small file described by
 .Xr stablerestart 5
-is used by the server during the recovery phase. If this file is missing,
+is used by the server during the recovery phase.
+If this file is missing,
 the server will not start.
 If this file is lost, it should be recovered from backups, since creating
 an empty
@@ -91,7 +94,8 @@ The
 allows a limited subset of operations to be performed on non-exported subtrees
 of the local file system, so that traversal of the tree to the exported
 subtrees is possible.
-As such, the ``<rootdir>'' can be in a non-exported file system. However,
+As such, the ``<rootdir>'' can be in a non-exported file system.
+However,
 the entire tree that is rooted at that point must be in local file systems
 that are of types that can be NFS exported.
 Since the
@@ -106,7 +110,8 @@ multiple server file systems, although not all clients are capable of doing
 this.
 .Pp
 .Nm
-uses names for users and groups instead of numbers. On the wire, they
+uses names for users and groups instead of numbers.
+On the wire, they
 take the form:
 .sp
 .Bd -literal -offset indent -compact
@@ -114,10 +119,12 @@ take the form:
 .Ed
 .sp
 where ``<dns.domain>'' is not the same as the DNS domain used
-for host name lookups, but is usually set to the same string. Most systems set this ``<dns.domain>''
+for host name lookups, but is usually set to the same string.
+Most systems set this ``<dns.domain>''
 to the domain name part of the machine's
 .Xr hostname 1
-by default. However, this can normally be overridden by a command line
+by default.
+However, this can normally be overridden by a command line
 option or configuration file for the daemon used to do the name<->number
 mapping.
 On FreeBSD, the mapping daemon is called
@@ -200,8 +207,10 @@ variables that you can change, which might improve performance.
 .Bl -tag -width Ds
 .It Cm vfs.newnfs.issue_delegations
 when set non-zero, allows the server to issue Open Delegations to
-clients. These delegations permit the client to manipulate the file
-locally on the client. Unfortunately, at this time, client use of
+clients.
+These delegations permit the client to manipulate the file
+locally on the client.
+Unfortunately, at this time, client use of
 delegations is limited, so performance gains may not be observed.
 This can only be enabled when the file systems being exported to
 .Nm
@@ -304,6 +313,7 @@ NFS V4 stable restart file
 .Xr nfsuserd 8
 .Sh BUGS
 At this time, there is no recall of delegations for local file system
-operations. As such, delegations should only be enabled for file systems
+operations.
+As such, delegations should only be enabled for file systems
 that are being used soley as NFS export volumes and are not being accessed
 via local system calls nor services such as Samba.
