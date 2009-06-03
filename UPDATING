@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090602:
+	window(1) has been removed from the base system. It can now be
+	installed from ports. The port is called misc/window.
+
 20090601:
 	The way we are storing and accessing `routing table' entries
 	has changed. Programs reading the FIB, like netstat, need to
@@ -32,6 +36,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	file system modules, such as igmp, ipdivert, and others, should be
 	rebuilt.
 	Bump __FreeBSD_version to 800096.
+
+20090531:
+	For those who use ipfw and especially pf, those two firewalls
+	are now started BEFORE the network is initialized (i.e., before
+	rc.d/netif). Please review your rules to make sure that your
+	interfaces will be properly described.
 
 20090530:
 	Remove the tunable/sysctl debug.mpsafevfs as its initial purpose

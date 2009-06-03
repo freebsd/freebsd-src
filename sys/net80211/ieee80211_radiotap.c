@@ -168,6 +168,7 @@ ieee80211_radiotap_chan_change(struct ieee80211com *ic)
 	}
 }
 
+#if 0
 static void
 dispatch_radiotap(struct ieee80211vap *vap0, struct mbuf *m,
 	struct ieee80211_radiotap_header *rh)
@@ -175,15 +176,44 @@ dispatch_radiotap(struct ieee80211vap *vap0, struct mbuf *m,
 	struct ieee80211com *ic = vap0->iv_ic;
 	int len = le16toh(rh->it_len);
 
-	if (ieee80211_radiotap_active_vap(vap0))
+	if (vap0->iv_flags_ext & IEEE80211_FEXT_BPF)
 		bpf_mtap2(vap0->iv_rawbpf, rh, len, m);
-	if (ic->ic_monvaps) {
+	/*
+	 * Spam monitor mode vaps with unicast frames.  Multicast
+	 * frames are handled by passing through ieee80211_input_all
+	 * which distributes copies to the monitor mode vaps to be
+	 * processed above.
+	 */
+	if (ic->ic_montaps != 0 && (m->m_flags & M_BCAST) == 0) {
 		struct ieee80211vap *vap;
 		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-			if (vap->iv_opmode == IEEE80211_M_MONITOR &&
-			    vap != vap0 && ieee80211_radiotap_active_vap(vap))
+			if (vap != vap0 &&
+			    vap->iv_opmode == IEEE80211_M_MONITOR &&
+			    (vap->iv_flags_ext & IEEE80211_FEXT_BPF) &&
+			    vap->iv_state != IEEE80211_S_INIT)
 				bpf_mtap2(vap->iv_rawbpf, rh, len, m);
 		}
+	}
+}
+#endif
+
+/*
+ * Distribute radiotap data (+packet) to all monitor mode
+ * vaps with an active tap other than vap0.
+ */
+static void
+spam_vaps(struct ieee80211vap *vap0, struct mbuf *m,
+	struct ieee80211_radiotap_header *rh, int len)
+{
+	struct ieee80211com *ic = vap0->iv_ic;
+	struct ieee80211vap *vap;
+
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		if (vap != vap0 &&
+		    vap->iv_opmode == IEEE80211_M_MONITOR &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_BPF) &&
+		    vap->iv_state != IEEE80211_S_INIT)
+			bpf_mtap2(vap->iv_rawbpf, rh, len, m);
 	}
 }
 
@@ -193,8 +223,20 @@ dispatch_radiotap(struct ieee80211vap *vap0, struct mbuf *m,
 void
 ieee80211_radiotap_tx(struct ieee80211vap *vap0, struct mbuf *m)
 {
-	KASSERT(vap0->iv_ic->ic_th != NULL, ("no tx radiotap header"));
-	dispatch_radiotap(vap0, m, vap0->iv_ic->ic_th);
+	struct ieee80211com *ic = vap0->iv_ic;
+	struct ieee80211_radiotap_header *th = ic->ic_th;
+	int len;
+
+	KASSERT(th != NULL, ("no tx radiotap header"));
+	len = le16toh(th->it_len);
+
+	if (vap0->iv_flags_ext & IEEE80211_FEXT_BPF)
+		bpf_mtap2(vap0->iv_rawbpf, th, len, m);
+	/*
+	 * Spam monitor mode vaps.
+	 */
+	if (ic->ic_montaps != 0)
+		spam_vaps(vap0, m, th, len);
 }
 
 /*
@@ -203,8 +245,22 @@ ieee80211_radiotap_tx(struct ieee80211vap *vap0, struct mbuf *m)
 void
 ieee80211_radiotap_rx(struct ieee80211vap *vap0, struct mbuf *m)
 {
-	KASSERT(vap0->iv_ic->ic_rh != NULL, ("no rx radiotap header"));
-	dispatch_radiotap(vap0, m, vap0->iv_ic->ic_rh);
+	struct ieee80211com *ic = vap0->iv_ic;
+	struct ieee80211_radiotap_header *rh = ic->ic_rh;
+	int len;
+
+	KASSERT(rh != NULL, ("no rx radiotap header"));
+	len = le16toh(rh->it_len);
+
+	if (vap0->iv_flags_ext & IEEE80211_FEXT_BPF)
+		bpf_mtap2(vap0->iv_rawbpf, rh, len, m);
+	/*
+	 * Spam monitor mode vaps with unicast frames.  Multicast
+	 * frames are handled by passing through ieee80211_input_all
+	 * which distributes copies to the monitor mode vaps.
+	 */
+	if (ic->ic_montaps != 0 && (m->m_flags & M_BCAST) == 0)
+		spam_vaps(vap0, m, rh, len);
 }
 
 /*
@@ -221,7 +277,8 @@ ieee80211_radiotap_rx_all(struct ieee80211com *ic, struct mbuf *m)
 
 	/* XXX locking? */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-		if (ieee80211_radiotap_active_vap(vap))
+		if (ieee80211_radiotap_active_vap(vap) &&
+		    vap->iv_state != IEEE80211_S_INIT)
 			bpf_mtap2(vap->iv_rawbpf, rh, len, m);
 	}
 }

@@ -215,7 +215,7 @@ struct ieee80211com {
 	void			*ic_txchan;	/* channel state in ic_th */
 	struct ieee80211_radiotap_header *ic_rh;/* rx radiotap headers */
 	void			*ic_rxchan;	/* channel state in ic_rh */
-	int			ic_monvaps;	/* # monitor mode vaps */
+	int			ic_montaps;	/* active monitor mode taps */
 
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,
@@ -669,7 +669,8 @@ ieee80211_radiotap_active(const struct ieee80211com *ic)
 static __inline int
 ieee80211_radiotap_active_vap(const struct ieee80211vap *vap)
 {
-	return (vap->iv_flags_ext & IEEE80211_FEXT_BPF) != 0;
+	return (vap->iv_flags_ext & IEEE80211_FEXT_BPF) ||
+	    vap->iv_ic->ic_montaps != 0;
 }
 
 /*

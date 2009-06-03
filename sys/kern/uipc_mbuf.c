@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/uio.h>
 
-#include <security/mac/mac_framework.h>
-
 int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;

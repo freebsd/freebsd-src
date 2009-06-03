@@ -256,8 +256,18 @@
 
 /* 88E1116 page 0 */
 #define	E1000_SCR_POWER_DOWN		0x0004
-/* 88E1116 page 2 */
+/* 88E1116, 88E1149 page 2 */
 #define	E1000_SCR_RGMII_POWER_UP	0x0008
+
+/* 88E1116, 88E1149 page 3 */
+#define E1000_SCR_LED_STAT0_MASK	0x000F
+#define E1000_SCR_LED_STAT1_MASK	0x00F0
+#define E1000_SCR_LED_INIT_MASK		0x0F00
+#define E1000_SCR_LED_LOS_MASK		0xF000
+#define E1000_SCR_LED_STAT0(x)		((x) & E1000_SCR_LED_STAT0_MASK)
+#define E1000_SCR_LED_STAT1(x)		((x) & E1000_SCR_LED_STAT1_MASK)
+#define E1000_SCR_LED_INIT(x)		((x) & E1000_SCR_LED_INIT_MASK)
+#define E1000_SCR_LED_LOS(x)		((x) & E1000_SCR_LED_LOS_MASK)
 
 #define E1000_SSR			0x11	/* special status register */
 #define E1000_SSR_JABBER		0x0001
@@ -285,6 +295,26 @@
 #define E1000_IER_DUPLEX_CHANGED	0x2000
 #define E1000_IER_SPEED_CHANGED		0x4000
 #define E1000_IER_AUTO_NEG_ERR		0x8000
+
+/* 88E1116, 88E1149 page 3, LED timer control. */
+#define	E1000_PULSE_MASK	0x7000
+#define	E1000_PULSE_NO_STR	0	/* no pulse stretching */
+#define	E1000_PULSE_21MS	1	/* 21 ms to 42 ms */
+#define	E1000_PULSE_42MS	2	/* 42 ms to 84 ms */
+#define	E1000_PULSE_84MS	3	/* 84 ms to 170 ms */
+#define	E1000_PULSE_170MS	4	/* 170 ms to 340 ms */
+#define	E1000_PULSE_340MS	5	/* 340 ms to 670 ms */
+#define	E1000_PULSE_670MS	6	/* 670 ms to 1300 ms */
+#define	E1000_PULSE_1300MS	7	/* 1300 ms to 2700 ms */
+#define	E1000_PULSE_DUR(x)	((x) &	E1000_PULSE_MASK) 
+
+#define	E1000_BLINK_MASK	0x0700
+#define	E1000_BLINK_42MS	0	/* 42 ms */
+#define	E1000_BLINK_84MS	1	/* 84 ms */
+#define	E1000_BLINK_170MS	2	/* 170 ms */
+#define	E1000_BLINK_340MS	3	/* 340 ms */
+#define	E1000_BLINK_670MS	4	/* 670 ms */
+#define	E1000_BLINK_RATE(x)	((x) &	E1000_BLINK_MASK) 
 
 #define E1000_ISR			0x13	/* interrupt status reg */
 #define E1000_ISR_JABBER		0x0001

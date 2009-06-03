@@ -1690,9 +1690,7 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 	if (error)
 		return (ENOENT);
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_visible(cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif

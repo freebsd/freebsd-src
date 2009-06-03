@@ -109,11 +109,11 @@ usb2_do_clear_stall_callback(struct usb_xfer *xfer)
 	pipe_end = udev->pipes + udev->pipes_max;
 	pipe_first = udev->pipes;
 	to = udev->pipes_max;
-	if (pipe == NULL) {
-		pipe = pipe_first;
-	}
+
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
+		if (pipe == NULL)
+			goto tr_setup;		/* device was unconfigured */
 		if (pipe->edesc &&
 		    pipe->is_stalled) {
 			pipe->toggle_next = 0;
@@ -126,9 +126,10 @@ usb2_do_clear_stall_callback(struct usb_xfer *xfer)
 
 	case USB_ST_SETUP:
 tr_setup:
-		if (pipe == pipe_end) {
-			pipe = pipe_first;
-		}
+		if (to == 0)
+			break;			/* no pipes - nothing to do */
+		if ((pipe < pipe_first) || (pipe >= pipe_end))
+			pipe = pipe_first;	/* pipe wrapped around */
 		if (pipe->edesc &&
 		    pipe->is_stalled) {
 
@@ -156,9 +157,8 @@ tr_setup:
 			break;
 		}
 		pipe++;
-		if (--to)
-			goto tr_setup;
-		break;
+		to--;
+		goto tr_setup;
 
 	default:
 		if (xfer->error == USB_ERR_CANCELLED) {

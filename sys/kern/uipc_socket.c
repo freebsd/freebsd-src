@@ -444,9 +444,7 @@ sonewconn(struct socket *head, int connstatus)
 	so->so_proto = head->so_proto;
 	so->so_cred = crhold(head->so_cred);
 #ifdef MAC
-	SOCK_LOCK(head);
 	mac_socket_newconn(head, so);
-	SOCK_UNLOCK(head);
 #endif
 	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv),
 	    NULL, NULL, NULL);

@@ -2075,9 +2075,13 @@ fget_unlocked(struct filedesc *fdp, int fd)
 		count = fp->f_count;
 		if (count == 0)
 			continue;
-		if (atomic_cmpset_int(&fp->f_count, count, count + 1) != 1)
+		/*
+		 * Use an acquire barrier to prevent caching of fd_ofiles
+		 * so it is refreshed for verification.
+		 */
+		if (atomic_cmpset_acq_int(&fp->f_count, count, count + 1) != 1)
 			continue;
-		if (fp == ((struct file *volatile*)fdp->fd_ofiles)[fd])
+		if (fp == fdp->fd_ofiles[fd])
 			break;
 		fdrop(fp, curthread);
 	}

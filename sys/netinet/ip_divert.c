@@ -467,9 +467,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			m->m_pkthdr.rcvif = ifa->ifa_ifp;
 		}
 #ifdef MAC
-		SOCK_LOCK(so);
 		mac_socket_create_mbuf(so, m);
-		SOCK_UNLOCK(so);
 #endif
 		/* Send packet to input processing via netisr */
 		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);

@@ -51,8 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-CTASSERT(((LK_CANRECURSE | LK_NOSHARE) & LO_CLASSFLAGS) ==
-    (LK_CANRECURSE | LK_NOSHARE));
+CTASSERT((LK_NOSHARE & LO_CLASSFLAGS) == LK_NOSHARE);
 
 #define	SQ_EXCLUSIVE_QUEUE	0
 #define	SQ_SHARED_QUEUE		1
@@ -316,7 +315,9 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 
 	MPASS((flags & ~LK_INIT_MASK) == 0);
 
-	iflags = LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE;
+	iflags = LO_SLEEPABLE | LO_UPGRADABLE;
+	if (flags & LK_CANRECURSE)
+		iflags |= LO_RECURSABLE;
 	if ((flags & LK_NODUP) == 0)
 		iflags |= LO_DUPOK;
 	if (flags & LK_NOPROFILE)
@@ -325,7 +326,7 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 		iflags |= LO_WITNESS;
 	if (flags & LK_QUIET)
 		iflags |= LO_QUIET;
-	iflags |= flags & (LK_CANRECURSE | LK_NOSHARE);
+	iflags |= flags & LK_NOSHARE;
 
 	lk->lk_lock = LK_UNLOCKED;
 	lk->lk_recurse = 0;
@@ -530,7 +531,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 */
 		if (lockmgr_xlocked(lk)) {
 			if ((flags & LK_CANRECURSE) == 0 &&
-			    (lk->lock_object.lo_flags & LK_CANRECURSE) == 0) {
+			    (lk->lock_object.lo_flags & LO_RECURSABLE) == 0) {
 
 				/*
 				 * If the lock is expected to not panic just
