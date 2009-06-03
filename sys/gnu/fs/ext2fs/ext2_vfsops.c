@@ -78,8 +78,8 @@
 
 #include <gnu/fs/ext2fs/fs.h>
 #include <gnu/fs/ext2fs/ext2_extern.h>
-#include <gnu/fs/ext2fs/ext2_fs.h>
 #include <gnu/fs/ext2fs/ext2_fs_sb.h>
+#include <gnu/fs/ext2fs/ext2_fs.h>
 
 static int ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
 static int ext2_mountfs(struct vnode *, struct mount *);
@@ -412,7 +412,7 @@ static int compute_sb_data(devvp, es, fs)
     V(s_fsbtodb)
     fs->s_qbmask = fs->s_blocksize - 1;
     V(s_qbmask)
-    fs->s_blocksize_bits = EXT2_BLOCK_SIZE_BITS(es);
+    fs->s_blocksize_bits = es->s_log_block_size + 10;
     V(s_blocksize_bits)
     fs->s_frag_size = EXT2_MIN_FRAG_SIZE << es->s_log_frag_size;
     V(s_frag_size)
@@ -425,10 +425,23 @@ static int compute_sb_data(devvp, es, fs)
     V(s_frags_per_group)
     fs->s_inodes_per_group = es->s_inodes_per_group;
     V(s_inodes_per_group)
-    fs->s_inode_size = es->s_inode_size;
-    V(s_inode_size)
-    fs->s_first_inode = es->s_first_ino;
-    V(s_first_inode);
+    if (es->s_rev_level == EXT2_GOOD_OLD_REV) {
+	fs->s_first_ino = EXT2_GOOD_OLD_FIRST_INO;
+	fs->s_inode_size = EXT2_GOOD_OLD_INODE_SIZE;
+    } else {
+	fs->s_first_ino = es->s_first_ino;
+	fs->s_inode_size = es->s_inode_size;
+	
+	/*
+	 * Simple sanity check for superblock inode size value.
+	 */
+	if (fs->s_inode_size < EXT2_GOOD_OLD_INODE_SIZE ||
+	    fs->s_inode_size > fs->s_blocksize ||
+	    (fs->s_inode_size & (fs->s_inode_size - 1)) != 0) {
+		printf("EXT2-fs: invalid inode size %d\n", fs->s_inode_size);
+		return (EIO);
+	}
+    }
     fs->s_inodes_per_block = fs->s_blocksize / EXT2_INODE_SIZE(fs);
     V(s_inodes_per_block)
     fs->s_itb_per_group = fs->s_inodes_per_group /fs->s_inodes_per_block;
@@ -443,8 +456,8 @@ static int compute_sb_data(devvp, es, fs)
     V(s_groups_count)
     db_count = (fs->s_groups_count + EXT2_DESC_PER_BLOCK(fs) - 1) /
 	EXT2_DESC_PER_BLOCK(fs);
-    fs->s_db_per_group = db_count;
-    V(s_db_per_group)
+    fs->s_gdb_count = db_count;
+    V(s_gdb_count)
 
     fs->s_group_desc = bsd_malloc(db_count * sizeof (struct buf *),
 		M_EXT2MNT, M_WAITOK);
@@ -761,7 +774,7 @@ ext2_unmount(mp, mntflags)
 	}
 
 	/* release buffers containing group descriptors */
-	for(i = 0; i < fs->s_db_per_group; i++)
+	for(i = 0; i < fs->s_gdb_count; i++)
 		ULCK_BUF(fs->s_group_desc[i])
 	bsd_free(fs->s_group_desc, M_EXT2MNT);
 
@@ -839,7 +852,7 @@ ext2_statfs(mp, sbp)
 		nsb = fs->s_groups_count;
 	overhead = es->s_first_data_block +
 	    /* Superblocks and block group descriptors: */
-	    nsb * (1 + fs->s_db_per_group) +
+	    nsb * (1 + fs->s_gdb_count) +
 	    /* Inode bitmap, block bitmap, and inode table: */
 	    fs->s_groups_count * (1 + 1 + fs->s_itb_per_group);
 

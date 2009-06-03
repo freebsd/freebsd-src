@@ -78,9 +78,7 @@ soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	int error;
 
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_receive(active_cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif
@@ -99,9 +97,7 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	int error;
 
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_send(active_cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif
@@ -222,9 +218,7 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
 #ifdef MAC
 	int error;
 
-	SOCK_LOCK(so);
 	error = mac_socket_check_poll(active_cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif
@@ -243,9 +237,7 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_stat(active_cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif

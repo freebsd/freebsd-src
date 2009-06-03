@@ -1220,22 +1220,12 @@ ieee80211_init(void *arg)
 {
 	struct ieee80211vap *vap = arg;
 
-	/*
-	 * This routine is publicly accessible through the vap's
-	 * if_init method so guard against calls during detach.
-	 * ieee80211_vap_detach null's the backpointer before
-	 * tearing down state to signal any callback should be
-	 * rejected/ignored.
-	 */
-	if (vap != NULL) {
-		IEEE80211_DPRINTF(vap,
-		    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
-		    "%s\n", __func__);
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
+	    "%s\n", __func__);
 
-		IEEE80211_LOCK(vap->iv_ic);
-		ieee80211_start_locked(vap);
-		IEEE80211_UNLOCK(vap->iv_ic);
-	}
+	IEEE80211_LOCK(vap->iv_ic);
+	ieee80211_start_locked(vap);
+	IEEE80211_UNLOCK(vap->iv_ic);
 }
 
 /*
