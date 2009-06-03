@@ -584,6 +584,11 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf(" lastnonht %d", ic->ic_lastnonht);
 	db_printf("\n");
 
+	db_printf("\tsuperg %p\n", ic->ic_superg);
+
+	db_printf("\tmontaps %d th %p txchan %p rh %p rxchan %p\n",
+	    ic->ic_montaps, ic->ic_th, ic->ic_txchan, ic->ic_rh, ic->ic_rxchan);
+
 	if (showprocs) {
 		DB_PRINTSYM("\t", "ic_vap_create", ic->ic_vap_create);
 		DB_PRINTSYM("\t", "ic_vap_delete", ic->ic_vap_delete);

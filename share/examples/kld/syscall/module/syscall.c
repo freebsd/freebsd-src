@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/module.h>
@@ -38,18 +37,17 @@
 /*
  * The function for implementing the syscall.
  */
-
 static int
-hello (struct thread *td, void *arg)
+hello(struct thread *td, void *arg)
 {
-	printf ("hello kernel\n");
-	return 0;
+
+	printf("hello kernel\n");
+	return (0);
 }
 
 /*
  * The `sysent' for the new syscall
  */
-
 static struct sysent hello_sysent = {
 	0,			/* sy_narg */
 	hello			/* sy_call */
@@ -58,30 +56,28 @@ static struct sysent hello_sysent = {
 /*
  * The offset in sysent where the syscall is allocated.
  */
-
 static int offset = NO_SYSCALL;
 
 /*
  * The function called at load/unload.
  */
-
 static int
-load (struct module *module, int cmd, void *arg)
+load(struct module *module, int cmd, void *arg)
 {
 	int error = 0;
 
 	switch (cmd) {
 	case MOD_LOAD :
-		printf ("syscall loaded at %d\n", offset);
+		printf("syscall loaded at %d\n", offset);
 		break;
 	case MOD_UNLOAD :
-		printf ("syscall unloaded from %d\n", offset);
+		printf("syscall unloaded from %d\n", offset);
 		break;
 	default :
 		error = EOPNOTSUPP;
 		break;
 	}
-	return error;
+	return (error);
 }
 
 SYSCALL_MODULE(syscall, &offset, &hello_sysent, load, NULL);

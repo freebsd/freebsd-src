@@ -61,6 +61,9 @@ mac_netatalk_aarp_send(struct ifnet *ifp, struct mbuf *m)
 {
 	struct label *mlabel;
 
+	if (mac_policy_count == 0)
+		return;
+
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp);

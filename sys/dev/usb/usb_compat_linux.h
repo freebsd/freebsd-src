@@ -339,6 +339,6 @@ void	usb_linux_register(void *arg);
 void	usb_linux_deregister(void *arg);
 
 #define	interface_to_usbdev(intf) (intf)->linux_udev
-#define	interface_to_bsddev(intf) (intf)->linux_udev->bsd_udev
+#define	interface_to_bsddev(intf) (intf)->linux_udev
 
 #endif					/* _USB_COMPAT_LINUX_H */
