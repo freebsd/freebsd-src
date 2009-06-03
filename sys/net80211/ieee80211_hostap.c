@@ -114,6 +114,19 @@ sta_disassoc(void *arg, struct ieee80211_node *ni)
 	}
 }
 
+static void
+sta_csa(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = arg;
+
+	if (ni->ni_vap == vap && ni->ni_associd != 0)
+		if (ni->ni_inact > vap->iv_inact_init) {
+			ni->ni_inact = vap->iv_inact_init;
+			IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
+			    "%s: inact %u", __func__, ni->ni_inact);
+		}
+}
+
 /*
  * IEEE80211_M_HOSTAP vap state machine handler.
  */
@@ -248,6 +261,11 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 */
 			/* fall thru... */
 		case IEEE80211_S_CSA:
+			/*
+			 * Shorten inactivity timer of associated stations
+			 * to weed out sta's that don't follow a CSA.
+			 */
+			ieee80211_iterate_nodes(&ic->ic_sta, sta_csa, vap);
 			/*
 			 * Update bss node channel to reflect where
 			 * we landed after CSA.
