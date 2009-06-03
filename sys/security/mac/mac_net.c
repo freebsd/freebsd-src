@@ -258,6 +258,9 @@ mac_mbuf_copy(struct mbuf *m_from, struct mbuf *m_to)
 {
 	struct label *src_label, *dest_label;
 
+	if (mac_policy_count == 0)
+		return;
+
 	src_label = mac_mbuf_to_label(m_from);
 	dest_label = mac_mbuf_to_label(m_to);
 
