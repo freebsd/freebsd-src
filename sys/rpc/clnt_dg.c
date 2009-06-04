@@ -123,7 +123,10 @@ struct cu_socket {
 	struct mtx		cs_lock;
 	int			cs_refs;	/* Count of clients */
 	struct cu_request_list	cs_pending;	/* Requests awaiting replies */
+	int			cs_upcallrefs;	/* Refcnt of upcalls in prog.*/
 };
+
+static void clnt_dg_upcallsdone(struct socket *, struct cu_socket *);
 
 /*
  * Private data kept per client handle
@@ -291,6 +294,7 @@ recheck_socket:
 		}
 		mtx_init(&cs->cs_lock, "cs->cs_lock", NULL, MTX_DEF);
 		cs->cs_refs = 1;
+		cs->cs_upcallrefs = 0;
 		TAILQ_INIT(&cs->cs_pending);
 		soupcall_set(so, SO_RCV, clnt_dg_soupcall, cs);
 	}
@@ -988,10 +992,12 @@ clnt_dg_destroy(CLIENT *cl)
 
 	cs->cs_refs--;
 	if (cs->cs_refs == 0) {
-		mtx_destroy(&cs->cs_lock);
+		mtx_unlock(&cs->cs_lock);
 		SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
 		soupcall_clear(cu->cu_socket, SO_RCV);
+		clnt_dg_upcallsdone(cu->cu_socket, cs);
 		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
+		mtx_destroy(&cs->cs_lock);
 		mem_free(cs, sizeof(*cs));
 		lastsocketref = TRUE;
 	} else {
@@ -1036,6 +1042,7 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 	int error, rcvflag, foundreq;
 	uint32_t xid;
 
+	cs->cs_upcallrefs++;
 	uio.uio_resid = 1000000000;
 	uio.uio_td = curthread;
 	do {
@@ -1111,6 +1118,24 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 		if (!foundreq)
 			m_freem(m);
 	} while (m);
+	cs->cs_upcallrefs--;
+	if (cs->cs_upcallrefs < 0)
+		panic("rpcdg upcall refcnt");
+	if (cs->cs_upcallrefs == 0)
+		wakeup(&cs->cs_upcallrefs);
 	return (SU_OK);
 }
 
+/*
+ * Wait for all upcalls in progress to complete.
+ */
+static void
+clnt_dg_upcallsdone(struct socket *so, struct cu_socket *cs)
+{
+
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+
+	while (cs->cs_upcallrefs > 0)
+		(void) msleep(&cs->cs_upcallrefs, SOCKBUF_MTX(&so->so_rcv), 0,
+		    "rpcdgup", 0);
+}
