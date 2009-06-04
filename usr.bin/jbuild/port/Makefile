@@ -4,7 +4,7 @@
 #
 
 PORTNAME=      jbuild
-PORTVERSION=   10
+PORTVERSION=   11
 CATEGORIES=    devel
 
 MAINTAINER=    rodrigc@FreeBSD.org
@@ -22,6 +22,7 @@ do-install:
 	( cd ${WRKSRC}/filemon; ${MAKE} install KMODDIR=/boot/modules)
 	( cd ${WRKSRC}/jbuild; ${MAKE} install BINDIR=${PREFIX}/bin )
 	( cd ${WRKSRC}/jdirdep; ${MAKE} install BINDIR=${PREFIX}/bin )
+	cp ${WRKSRC}/jdirdep/jcommit ${PREFIX}/bin
 	cp ${WRKSRC}/jdirdep/jgetsrc ${PREFIX}/bin
 
 do-clean:

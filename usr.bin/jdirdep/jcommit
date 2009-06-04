@@ -1,0 +1,14 @@
+#
+# $FreeBSD$
+#
+
+srcdir=`jbuild -V .SRCTOP test`
+
+jbuild check-commit
+if [ $? -ne 0 ]
+then
+	exit 1;
+fi
+echo $srcdir
+cd $srcdir
+svn commit
