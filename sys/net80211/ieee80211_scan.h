@@ -176,6 +176,7 @@ enum {
 	IEEE80211_BPARSE_CHAN_INVALID	= 0x10,	/* invalid FH/DSPARMS chan */
 	IEEE80211_BPARSE_OFFCHAN	= 0x20,	/* DSPARMS chan != curchan */
 	IEEE80211_BPARSE_BINTVAL_INVALID= 0x40,	/* invalid beacon interval */
+	IEEE80211_BPARSE_CSA_INVALID	= 0x80,	/* invalid CSA ie */
 };
 
 /*
@@ -211,7 +212,8 @@ struct ieee80211_scanparams {
 	uint8_t		*htinfo;
 	uint8_t		*ath;
 	uint8_t		*tdma;
-	uint8_t		*spare[4];
+	uint8_t		*csa;
+	uint8_t		*spare[3];
 };
 
 /*

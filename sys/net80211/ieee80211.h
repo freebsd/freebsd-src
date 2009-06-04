@@ -686,7 +686,7 @@ enum {
 	IEEE80211_ELEMID_TPCREQ		= 34,
 	IEEE80211_ELEMID_TPCREP		= 35,
 	IEEE80211_ELEMID_SUPPCHAN	= 36,
-	IEEE80211_ELEMID_CHANSWITCHANN	= 37,
+	IEEE80211_ELEMID_CSA		= 37,
 	IEEE80211_ELEMID_MEASREQ	= 38,
 	IEEE80211_ELEMID_MEASREP	= 39,
 	IEEE80211_ELEMID_QUIET		= 40,
@@ -735,6 +735,14 @@ struct ieee80211_csa_ie {
 	uint8_t		csa_newchan;		/* New Channel Number */
 	uint8_t		csa_count;		/* Channel Switch Count */
 } __packed;
+
+/*
+ * Note the min acceptable CSA count is used to guard against
+ * malicious CSA injection in station mode.  Defining this value
+ * as other than 0 violates the 11h spec.
+ */
+#define	IEEE80211_CSA_COUNT_MIN	2
+#define	IEEE80211_CSA_COUNT_MAX	255
 
 /* rate set entries are in .5 Mb/s units, and potentially marked as basic */
 #define	IEEE80211_RATE_BASIC		0x80
