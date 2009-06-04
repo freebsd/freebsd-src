@@ -27,55 +27,60 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/linker.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/param.h>
-#include <sys/linker.h>
+
+static void	usage(void);
 
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldload [-v] file ...\n");
-    exit(1);
+	fprintf(stderr, "usage: kldload [-v] file ...\n");
+	exit(1);
 }
 
 int
 main(int argc, char** argv)
 {
-    int c;
-    int errors;
-    int fileid;
-    int verbose;
+	int c;
+	int errors;
+	int fileid;
+	int verbose;
 
-    errors = 0;
-    verbose = 0;
+	errors = 0;
+	verbose = 0;
 
-    while ((c = getopt(argc, argv, "v")) != -1)
-	switch (c) {
-	case 'v':
-	    verbose = 1;
-	    break;
-	default:
-	    usage();
+	while ((c = getopt(argc, argv, "v")) != -1) {
+		switch (c) {
+		case 'v':
+			verbose = 1;
+			break;
+		default:
+			usage();
+		}
 	}
-    argc -= optind;
-    argv += optind;
+	argc -= optind;
+	argv += optind;
 
-    if (argc == 0)
-	usage();
+	if (argc == 0)
+		usage();
 
-    while (argc-- != 0) {
-	fileid = kldload(argv[0]);
-	if (fileid < 0) {
-	    warn("can't load %s", argv[0]);
-	    errors++;
-	} else
-	    if (verbose)
-		printf("Loaded %s, id=%d\n", argv[0], fileid);
-	argv++;
-    }
+	while (argc-- != 0) {
+		fileid = kldload(argv[0]);
+		if (fileid < 0) {
+			warn("can't load %s", argv[0]);
+			errors++;
+		} else {
+			if (verbose) {
+				printf("Loaded %s, id=%d\n", argv[0], fileid);
+			}
+		}
+		argv++;
+	}
 
-    return errors ? 1 : 0;
+	return (errors ? 1 : 0);
 }
