@@ -360,6 +360,21 @@ AcpiTbInstallTable (
         return;
     }
 
+    /* Skip SSDT when DSDT is overriden */
+
+    if (ACPI_COMPARE_NAME (MappedTable->Signature, ACPI_SIG_SSDT) &&
+       (AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Flags &
+            ACPI_TABLE_ORIGIN_OVERRIDE))
+    {
+        ACPI_INFO ((AE_INFO,
+            "%4.4s @ 0x%p Table override, replaced with:", ACPI_SIG_SSDT,
+            ACPI_CAST_PTR (void, Address)));
+        AcpiTbPrintTableHeader (
+            AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Address,
+            AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Pointer);
+        goto UnmapAndExit;
+    }
+
     /* If a particular signature is expected (DSDT/FACS), it must match */
 
     if (Signature &&
