@@ -78,7 +78,7 @@ AcpiOsTableOverride(ACPI_TABLE_HEADER *ExistingTable,
 	modname[i + 5] = tolower(ExistingTable->Signature[i]);
 #else
     /* If we're not overriding the DSDT, just return. */
-    if (strncmp(ExistingTable->Signature, "DSDT", ACPI_NAME_SIZE) != 0) {
+    if (strncmp(ExistingTable->Signature, ACPI_SIG_DSDT, ACPI_NAME_SIZE) != 0) {
 	*NewTable = NULL;
 	return (AE_OK);
     }
