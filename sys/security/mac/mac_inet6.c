@@ -118,6 +118,9 @@ mac_ip6q_reassemble(struct ip6q *q6, struct mbuf *m)
 {
 	struct label *label;
 
+	if (mac_policy_count == 0)
+		return;
+
 	label = mac_mbuf_to_label(m);
 
 	MAC_POLICY_PERFORM_NOSLEEP(ip6q_reassemble, q6, q6->ip6q_label, m,
@@ -128,6 +131,9 @@ void
 mac_ip6q_create(struct mbuf *m, struct ip6q *q6)
 {
 	struct label *label;
+
+	if (mac_policy_count == 0)
+		return;
 
 	label = mac_mbuf_to_label(m);
 
@@ -140,6 +146,9 @@ mac_ip6q_match(struct mbuf *m, struct ip6q *q6)
 {
 	struct label *label;
 	int result;
+
+	if (mac_policy_count == 0)
+		return (1);
 
 	label = mac_mbuf_to_label(m);
 
@@ -155,6 +164,9 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 {
 	struct label *label;
 
+	if (mac_policy_count == 0)
+		return;
+
 	label = mac_mbuf_to_label(m);
 
 	MAC_POLICY_PERFORM_NOSLEEP(ip6q_update, m, label, q6,
@@ -165,6 +177,9 @@ void
 mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)
 {
 	struct label *mlabel;
+
+	if (mac_policy_count == 0)
+		return;
 
 	mlabel = mac_mbuf_to_label(m);
 

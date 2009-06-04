@@ -5,12 +5,13 @@ LIB=	llvmcodegen
 SRCDIR=	lib/CodeGen
 SRCS=	BranchFolding.cpp CodePlacementOpt.cpp \
 	DeadMachineInstructionElim.cpp DwarfEHPrepare.cpp \
-	ELFWriter.cpp GCMetadata.cpp GCMetadataPrinter.cpp \
-	GCStrategy.cpp IfConversion.cpp IntrinsicLowering.cpp \
-	LLVMTargetMachine.cpp LatencyPriorityQueue.cpp \
-	LiveInterval.cpp LiveIntervalAnalysis.cpp \
-	LiveStackAnalysis.cpp LiveVariables.cpp LowerSubregs.cpp \
-	MachOWriter.cpp MachineBasicBlock.cpp MachineDominators.cpp \
+	ELFCodeEmitter.cpp ELFWriter.cpp GCMetadata.cpp \
+	GCMetadataPrinter.cpp GCStrategy.cpp IfConversion.cpp \
+	IntrinsicLowering.cpp LLVMTargetMachine.cpp \
+	LatencyPriorityQueue.cpp LiveInterval.cpp \
+	LiveIntervalAnalysis.cpp LiveStackAnalysis.cpp \
+	LiveVariables.cpp LowerSubregs.cpp MachOWriter.cpp \
+	MachineBasicBlock.cpp MachineDominators.cpp \
 	MachineFunction.cpp MachineInstr.cpp MachineLICM.cpp \
 	MachineLoopInfo.cpp MachineModuleInfo.cpp \
 	MachinePassRegistry.cpp MachineRegisterInfo.cpp \

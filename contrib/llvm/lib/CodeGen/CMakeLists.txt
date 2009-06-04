@@ -3,6 +3,7 @@ add_llvm_library(LLVMCodeGen
   CodePlacementOpt.cpp
   DeadMachineInstructionElim.cpp
   DwarfEHPrepare.cpp
+  ELFCodeEmitter.cpp
   ELFWriter.cpp
   GCMetadata.cpp
   GCMetadataPrinter.cpp
@@ -16,6 +17,7 @@ add_llvm_library(LLVMCodeGen
   LiveStackAnalysis.cpp
   LiveVariables.cpp
   LowerSubregs.cpp
+  MachOCodeEmitter.cpp
   MachOWriter.cpp
   MachineBasicBlock.cpp
   MachineDominators.cpp

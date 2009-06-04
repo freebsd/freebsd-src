@@ -52,10 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <machine/bus.h>
-#include <vm/vm.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-#include <vm/pmap.h>
 
 #include <dev/iir/iir.h>
 
