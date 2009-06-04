@@ -706,7 +706,6 @@ ukbd_attach(device_t dev)
 	sc->sc_iface_index = uaa->info.bIfaceIndex;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_mode = K_XLATE;
-	sc->sc_iface = uaa->iface;
 
 	usb2_callout_init_mtx(&sc->sc_callout, &Giant, 0);
 
