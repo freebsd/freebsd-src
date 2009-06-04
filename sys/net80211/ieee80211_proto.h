@@ -340,6 +340,7 @@ int	ieee80211_beacon_update(struct ieee80211_node *,
 void	ieee80211_csa_startswitch(struct ieee80211com *,
 		struct ieee80211_channel *, int mode, int count);
 void	ieee80211_csa_completeswitch(struct ieee80211com *);
+void	ieee80211_csa_cancelswitch(struct ieee80211com *);
 void	ieee80211_cac_completeswitch(struct ieee80211vap *);
 
 /*

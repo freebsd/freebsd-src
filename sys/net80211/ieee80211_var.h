@@ -181,7 +181,8 @@ struct ieee80211com {
 
 	/* 802.11h/DFS state */
 	struct ieee80211_channel *ic_csa_newchan;/* channel for doing CSA */
-	int			ic_csa_count;	/* count for doing CSA */
+	short			ic_csa_mode;	/* mode for doing CSA */
+	short			ic_csa_count;	/* count for doing CSA */
 	struct ieee80211_dfs_state ic_dfs;	/* DFS state */
 
 	struct ieee80211_scan_state *ic_scan;	/* scan state */
