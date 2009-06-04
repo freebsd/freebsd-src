@@ -716,8 +716,8 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 	newfl.l_sysid = NLM_SYSID_CLIENT | sysid;
 
 	error = lf_advlockasync(&a, &vp->v_lockf, size);
-	KASSERT(error == 0, ("Failed to register NFS lock locally - error=%d",
-		error));
+	KASSERT(error == 0 || errno == ENOENT,
+	    ("Failed to register NFS lock locally - error=%d", error));
 }
 
 static int
