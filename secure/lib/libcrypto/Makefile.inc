@@ -14,7 +14,7 @@ CFLAGS+=	-DOPENSSL_NO_IDEA
 .endif
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
-CFLAGS+= -DL_ENDIAN
+CFLAGS+= -DL_ENDIAN -DMD32_REG_T=int
 .endif
 
 MANDIR=	${SHAREDIR}/openssl/man/man

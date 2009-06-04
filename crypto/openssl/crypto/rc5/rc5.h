@@ -73,7 +73,11 @@ extern "C" {
 #define RC5_DECRYPT	0
 
 /* 32 bit.  For Alpha, things may get weird */
+#ifdef __amd64__
+#define RC5_32_INT unsigned int
+#else
 #define RC5_32_INT unsigned long
+#endif
 
 #define RC5_32_BLOCK		8
 #define RC5_32_KEY_LENGTH	16 /* This is a default, max is 255 */
