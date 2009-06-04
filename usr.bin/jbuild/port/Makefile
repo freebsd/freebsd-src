@@ -10,6 +10,8 @@ CATEGORIES=    devel
 MAINTAINER=    rodrigc@FreeBSD.org
 COMMENT=       Utility for building software and tracking build dependencies.
 
+BUILD_DEPENDS += ${LOCALBASE}/lib/mysql/libmysqlclient.a:${PORTSDIR}/databases/mysql60-client
+
 do-fetch:
 	${DO_NADA}
 
