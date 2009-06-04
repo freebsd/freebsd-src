@@ -50,10 +50,22 @@ using
 .Nm .
 It does not hurt to specify it though.
 .Pp
+If a bare filename is requested it will only be loaded if it is found within
+the module path as defined by the sysctl
+.Va kern.module_path .
+To load a module from the current directory it must be specified as a full or
+relative path.
+The
+.Nm
+utility will warn if a module is requested as a bare filename and is present
+in the current directory.
+.Pp
 The following option is available:
 .Bl -tag -width indent
 .It Fl v
 Be more verbose.
+.It Fl q
+Silence any extraneous warnings.
 .El
 .Sh FILES
 .Bl -tag -width /boot/kernel -compact
@@ -64,6 +76,26 @@ Modules must have an extension of
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+To load by module name:
+.Bd -literal -offset indent
+\*[Gt] kldload foo
+.Ed
+.Pp
+To load by file name within the module path:
+.Bd -literal -offset indent
+\*[Gt] kldload foo.ko
+.Ed
+.Pp
+To load by relative path:
+.Bd -literal -offset indent
+\*[Gt] kldload ./foo.ko
+.Ed
+.Pp
+To load by full path:
+.Bd -literal -offset indent
+\*[Gt] kldload /boot/kernel/foo.ko
+.Ed
 .Sh AUTOMATICALLY LOADING MODULES
 Some modules (pf, ipfw, ipf, etc.) may be automatically loaded at boot
 time when the corresponding
