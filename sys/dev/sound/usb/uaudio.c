@@ -97,7 +97,7 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
-#define	UAUDIO_MAX_CHAN(x) (((x) < 2) ? (x) : 2)	/* XXX fixme later */
+#define	UAUDIO_MAX_CHAN(x) (x)
 
 struct uaudio_mixer_node {
 	int32_t	minval;
@@ -939,6 +939,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			wFormat = UGETW(asid->wFormatTag);
 			bChannels = UAUDIO_MAX_CHAN(asf1d->bNrChannels);
 			bBitResolution = asf1d->bBitResolution;
+
+			DPRINTFN(9, "bChannels=%u\n", bChannels);
 
 			if (asf1d->bSamFreqType == 0) {
 				DPRINTFN(16, "Sample rate: %d-%dHz\n",
