@@ -1374,7 +1374,7 @@ beacon_miss(void *arg, int npending)
 		 * handlers duplicating these checks.
 		 */
 		if (vap->iv_opmode == IEEE80211_M_STA &&
-		    vap->iv_state == IEEE80211_S_RUN &&
+		    vap->iv_state >= IEEE80211_S_RUN &&
 		    vap->iv_bmiss != NULL)
 			vap->iv_bmiss(vap);
 	}
@@ -1451,8 +1451,8 @@ ieee80211_csa_startswitch(struct ieee80211com *ic,
 	IEEE80211_LOCK_ASSERT(ic);
 
 	ic->ic_csa_newchan = c;
+	ic->ic_csa_mode = mode;
 	ic->ic_csa_count = count;
-	/* XXX record mode? */
 	ic->ic_flags |= IEEE80211_F_CSAPENDING;
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
@@ -1465,6 +1465,19 @@ ieee80211_csa_startswitch(struct ieee80211com *ic,
 	ieee80211_notify_csa(ic, c, mode, count);
 }
 
+static void
+csa_completeswitch(struct ieee80211com *ic)
+{
+	struct ieee80211vap *vap;
+
+	ic->ic_csa_newchan = NULL;
+	ic->ic_flags &= ~IEEE80211_F_CSAPENDING;
+
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_state == IEEE80211_S_CSA)
+			ieee80211_new_state_locked(vap, IEEE80211_S_RUN, 0);
+}
+
 /*
  * Complete an 802.11h channel switch started by ieee80211_csa_startswitch.
  * We clear state and move all vap's in CSA state to RUN state
@@ -1473,19 +1486,25 @@ ieee80211_csa_startswitch(struct ieee80211com *ic,
 void
 ieee80211_csa_completeswitch(struct ieee80211com *ic)
 {
-	struct ieee80211vap *vap;
-
 	IEEE80211_LOCK_ASSERT(ic);
 
 	KASSERT(ic->ic_flags & IEEE80211_F_CSAPENDING, ("csa not pending"));
 
 	ieee80211_setcurchan(ic, ic->ic_csa_newchan);
-	ic->ic_csa_newchan = NULL;
-	ic->ic_flags &= ~IEEE80211_F_CSAPENDING;
+	csa_completeswitch(ic);
+}
 
-	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-		if (vap->iv_state == IEEE80211_S_CSA)
-			ieee80211_new_state_locked(vap, IEEE80211_S_RUN, 0);
+/*
+ * Cancel an 802.11h channel switch started by ieee80211_csa_startswitch.
+ * We clear state and move all vap's in CSA state to RUN state
+ * so they can again transmit.
+ */
+void
+ieee80211_csa_cancelswitch(struct ieee80211com *ic)
+{
+	IEEE80211_LOCK_ASSERT(ic);
+
+	csa_completeswitch(ic);
 }
 
 /*
