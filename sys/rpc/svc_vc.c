@@ -160,6 +160,7 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	solisten(so, SOMAXCONN, curthread);
 
 	SOCKBUF_LOCK(&so->so_rcv);
+	xprt->xp_upcallset = 1;
 	soupcall_set(so, SO_RCV, svc_vc_soupcall, xprt);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
@@ -234,6 +235,7 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	xprt_register(xprt);
 
 	SOCKBUF_LOCK(&so->so_rcv);
+	xprt->xp_upcallset = 1;
 	soupcall_set(so, SO_RCV, svc_vc_soupcall, xprt);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
@@ -352,7 +354,10 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	if (error) {
 		SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-		soupcall_clear(xprt->xp_socket, SO_RCV);
+		if (xprt->xp_upcallset) {
+			xprt->xp_upcallset = 0;
+			soupcall_clear(xprt->xp_socket, SO_RCV);
+		}
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 		xprt_inactive(xprt);
 		sx_xunlock(&xprt->xp_lock);
@@ -397,7 +402,10 @@ static void
 svc_vc_destroy_common(SVCXPRT *xprt)
 {
 	SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-	soupcall_clear(xprt->xp_socket, SO_RCV);
+	if (xprt->xp_upcallset) {
+		xprt->xp_upcallset = 0;
+		soupcall_clear(xprt->xp_socket, SO_RCV);
+	}
 	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 
 	sx_destroy(&xprt->xp_lock);
@@ -632,7 +640,10 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 		if (error) {
 			SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-			soupcall_clear(xprt->xp_socket, SO_RCV);
+			if (xprt->xp_upcallset) {
+				xprt->xp_upcallset = 0;
+				soupcall_clear(xprt->xp_socket, SO_RCV);
+			}
 			SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 			xprt_inactive(xprt);
 			cd->strm_stat = XPRT_DIED;

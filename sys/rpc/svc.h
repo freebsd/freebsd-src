@@ -166,6 +166,7 @@ typedef struct __rpc_svcxprt {
 	int		xp_idletimeout; /* idle time before closing */
 	time_t		xp_lastactive;	/* time of last RPC */
 	u_int64_t	xp_sockref;	/* set by nfsv4 to identify socket */
+	int		xp_upcallset;	/* socket upcall is set up */
 #else
 	int		xp_fd;
 	u_short		xp_port;	 /* associated port number */
