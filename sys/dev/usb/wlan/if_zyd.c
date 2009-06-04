@@ -190,9 +190,10 @@ static int	zyd_al2210_set_channel(struct zyd_rf *, uint8_t);
 static int	zyd_gct_init(struct zyd_rf *);
 static int	zyd_gct_switch_radio(struct zyd_rf *, int);
 static int	zyd_gct_set_channel(struct zyd_rf *, uint8_t);
-static int	zyd_maxim_init(struct zyd_rf *);
-static int	zyd_maxim_switch_radio(struct zyd_rf *, int);
-static int	zyd_maxim_set_channel(struct zyd_rf *, uint8_t);
+static int	zyd_gct_mode(struct zyd_rf *);
+static int	zyd_gct_set_channel_synth(struct zyd_rf *, int, int);
+static int	zyd_gct_write(struct zyd_rf *, uint16_t);
+static int	zyd_gct_txgain(struct zyd_rf *, uint8_t);
 static int	zyd_maxim2_init(struct zyd_rf *);
 static int	zyd_maxim2_switch_radio(struct zyd_rf *, int);
 static int	zyd_maxim2_set_channel(struct zyd_rf *, uint8_t);
@@ -1421,11 +1422,14 @@ fail:
 static int
 zyd_gct_init(struct zyd_rf *rf)
 {
+#define	ZYD_GCT_INTR_REG	0x85c1
 #define N(a)	(sizeof(a) / sizeof((a)[0]))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phyini[] = ZYD_GCT_PHY;
 	static const uint32_t rfini[] = ZYD_GCT_RF;
-	int i, error;
+	static const uint16_t vco[11][7] = ZYD_GCT_VCO;
+	int i, idx = -1, error;
+	uint16_t data;
 
 	/* init RF-dependent PHY registers */
 	for (i = 0; i < N(phyini); i++)
@@ -1436,119 +1440,150 @@ zyd_gct_init(struct zyd_rf *rf)
 		if ((error = zyd_rfwrite(sc, rfini[i])) != 0)
 			return (error);
 	}
+
+	error = zyd_gct_mode(rf);
+	if (error != 0)
+		return (error);
+
+	for (i = 0; i < N(vco) - 1; i++) {
+		error = zyd_gct_set_channel_synth(rf, 1, 0);
+		if (error != 0)
+			goto fail;
+		error = zyd_gct_write(rf, vco[i][0]);
+		if (error != 0)
+			goto fail;
+		zyd_write16_m(sc, ZYD_GCT_INTR_REG, 0xf);
+		zyd_read16_m(sc, ZYD_GCT_INTR_REG, &data);
+		if ((data & 0xf) == 0) {
+			idx = i;
+			break;
+		}
+	}
+	if (idx == -1) {
+		error = zyd_gct_set_channel_synth(rf, 1, 1);
+		if (error != 0)
+			goto fail;
+		error = zyd_gct_write(rf, 0x6662);
+		if (error != 0)
+			goto fail;
+	}
+
+	rf->idx = idx;
+	zyd_write16_m(sc, ZYD_CR203, 0x6);
 fail:
 	return (error);
 #undef N
+#undef ZYD_GCT_INTR_REG
+}
+
+static int
+zyd_gct_mode(struct zyd_rf *rf)
+{
+#define N(a)	(sizeof(a) / sizeof((a)[0]))
+	struct zyd_softc *sc = rf->rf_sc;
+	static const uint32_t mode[] = {
+		0x25f98, 0x25f9a, 0x25f94, 0x27fd4
+	};
+	int i, error;
+
+	for (i = 0; i < N(mode); i++) {
+		if ((error = zyd_rfwrite(sc, mode[i])) != 0)
+			break;
+	}
+	return (error);
+#undef N
+}
+
+static int
+zyd_gct_set_channel_synth(struct zyd_rf *rf, int chan, int acal)
+{
+	int error, idx = chan - 1;
+	struct zyd_softc *sc = rf->rf_sc;
+	static uint32_t acal_synth[] = ZYD_GCT_CHANNEL_ACAL;
+	static uint32_t std_synth[] = ZYD_GCT_CHANNEL_STD;
+	static uint32_t div_synth[] = ZYD_GCT_CHANNEL_DIV;
+
+	error = zyd_rfwrite(sc,
+	    (acal == 1) ? acal_synth[idx] : std_synth[idx]);
+	if (error != 0)
+		return (error);
+	return zyd_rfwrite(sc, div_synth[idx]);
+}
+
+static int
+zyd_gct_write(struct zyd_rf *rf, uint16_t value)
+{
+	struct zyd_softc *sc = rf->rf_sc;
+
+	return zyd_rfwrite(sc, 0x300000 | 0x40000 | value);
 }
 
 static int
 zyd_gct_switch_radio(struct zyd_rf *rf, int on)
 {
-	/* vendor driver does nothing for this RF chip */
+#define N(a)	(sizeof(a) / sizeof((a)[0]))
+	int error;
+	struct zyd_softc *sc = rf->rf_sc;
 
-	return (0);
+	error = zyd_rfwrite(sc, on ? 0x25f94 : 0x25f90);
+	if (error != 0)
+		return (error);
+
+	zyd_write16_m(sc, ZYD_CR11, on ? 0x00 : 0x04);
+	zyd_write16_m(sc, ZYD_CR251,
+	    on ? ((sc->sc_macrev == ZYD_ZD1211B) ? 0x7f : 0x3f) : 0x2f);
+fail:
+	return (error);
 }
 
 static int
 zyd_gct_set_channel(struct zyd_rf *rf, uint8_t chan)
 {
-	int error;
-	struct zyd_softc *sc = rf->rf_sc;
-	static const uint32_t rfprog[] = ZYD_GCT_CHANTABLE;
-
-	error = zyd_rfwrite(sc, 0x1c0000);
-	if (error != 0)
-		goto fail;
-	error = zyd_rfwrite(sc, rfprog[chan - 1]);
-	if (error != 0)
-		goto fail;
-	error = zyd_rfwrite(sc, 0x1c0008);
-fail:
-	return (error);
-}
-
-/*
- * Maxim RF methods.
- */
-static int
-zyd_maxim_init(struct zyd_rf *rf)
-{
 #define N(a)	(sizeof(a) / sizeof((a)[0]))
+	int error, i;
 	struct zyd_softc *sc = rf->rf_sc;
-	static const struct zyd_phy_pair phyini[] = ZYD_MAXIM_PHY;
-	static const uint32_t rfini[] = ZYD_MAXIM_RF;
-	uint16_t tmp;
-	int i, error;
+	static const struct zyd_phy_pair cmd[] = {
+		{ ZYD_CR80, 0x30 }, { ZYD_CR81, 0x30 }, { ZYD_CR79, 0x58 },
+		{ ZYD_CR12, 0xf0 }, { ZYD_CR77, 0x1b }, { ZYD_CR78, 0x58 },
+	};
+	static const uint16_t vco[11][7] = ZYD_GCT_VCO;
 
-	/* init RF-dependent PHY registers */
-	for (i = 0; i < N(phyini); i++)
-		zyd_write16_m(sc, phyini[i].reg, phyini[i].val);
-
-	zyd_read16_m(sc, ZYD_CR203, &tmp);
-	zyd_write16_m(sc, ZYD_CR203, tmp & ~(1 << 4));
-
-	/* init maxim radio */
-	for (i = 0; i < N(rfini); i++) {
-		if ((error = zyd_rfwrite(sc, rfini[i])) != 0)
-			return (error);
-	}
-	zyd_read16_m(sc, ZYD_CR203, &tmp);
-	zyd_write16_m(sc, ZYD_CR203, tmp | (1 << 4));
+	error = zyd_gct_set_channel_synth(rf, chan, 0);
+	if (error != 0)
+		goto fail;
+	error = zyd_gct_write(rf, (rf->idx == -1) ? 0x6662 :
+	    vco[rf->idx][((chan - 1) / 2)]);
+	if (error != 0)
+		goto fail;
+	error = zyd_gct_mode(rf);
+	if (error != 0)
+		return (error);
+	for (i = 0; i < N(cmd); i++)
+		zyd_write16_m(sc, cmd[i].reg, cmd[i].val);
+	error = zyd_gct_txgain(rf, chan);
+	if (error != 0)
+		return (error);
+	zyd_write16_m(sc, ZYD_CR203, 0x6);
 fail:
 	return (error);
 #undef N
 }
 
 static int
-zyd_maxim_switch_radio(struct zyd_rf *rf, int on)
-{
-
-	/* vendor driver does nothing for this RF chip */
-	return (0);
-}
-
-static int
-zyd_maxim_set_channel(struct zyd_rf *rf, uint8_t chan)
+zyd_gct_txgain(struct zyd_rf *rf, uint8_t chan)
 {
 #define N(a)	(sizeof(a) / sizeof((a)[0]))
 	struct zyd_softc *sc = rf->rf_sc;
-	static const struct zyd_phy_pair phyini[] = ZYD_MAXIM_PHY;
-	static const uint32_t rfini[] = ZYD_MAXIM_RF;
-	static const struct {
-		uint32_t	r1, r2;
-	} rfprog[] = ZYD_MAXIM_CHANTABLE;
-	uint16_t tmp;
-	int i, error;
+	static uint32_t txgain[] = ZYD_GCT_TXGAIN;
+	uint8_t idx = sc->sc_pwrint[chan - 1];
 
-	/*
-	 * Do the same as we do when initializing it, except for the channel
-	 * values coming from the two channel tables.
-	 */
-
-	/* init RF-dependent PHY registers */
-	for (i = 0; i < N(phyini); i++)
-		zyd_write16_m(sc, phyini[i].reg, phyini[i].val);
-
-	zyd_read16_m(sc, ZYD_CR203, &tmp);
-	zyd_write16_m(sc, ZYD_CR203, tmp & ~(1 << 4));
-
-	/* first two values taken from the chantables */
-	error = zyd_rfwrite(sc, rfprog[chan - 1].r1);
-	if (error != 0)
-		goto fail;
-	error = zyd_rfwrite(sc, rfprog[chan - 1].r2);
-	if (error != 0)
-		goto fail;
-
-	/* init maxim radio - skipping the two first values */
-	for (i = 2; i < N(rfini); i++) {
-		if ((error = zyd_rfwrite(sc, rfini[i])) != 0)
-			return (error);
+	if (idx >= N(txgain)) {
+		device_printf(sc->sc_dev, "could not set TX gain (%d %#x)\n",
+		    chan, idx);
+		return 0;
 	}
-	zyd_read16_m(sc, ZYD_CR203, &tmp);
-	zyd_write16_m(sc, ZYD_CR203, tmp | (1 << 4));
-fail:
-	return (error);
+
+	return zyd_rfwrite(sc, 0x700000 | txgain[idx]);
 #undef N
 }
 
@@ -1643,6 +1678,7 @@ zyd_rf_attach(struct zyd_softc *sc, uint8_t type)
 	struct zyd_rf *rf = &sc->sc_rf;
 
 	rf->rf_sc = sc;
+	rf->update_pwr = 1;
 
 	switch (type) {
 	case ZYD_RF_RFMD:
@@ -1676,17 +1712,13 @@ zyd_rf_attach(struct zyd_softc *sc, uint8_t type)
 		rf->set_channel  = zyd_al2210_set_channel;
 		rf->width        = 24;	/* 24-bit RF values */
 		break;
+	case ZYD_RF_MAXIM_NEW:
 	case ZYD_RF_GCT:
 		rf->init         = zyd_gct_init;
 		rf->switch_radio = zyd_gct_switch_radio;
 		rf->set_channel  = zyd_gct_set_channel;
-		rf->width        = 21;	/* 21-bit RF values */
-		break;
-	case ZYD_RF_MAXIM_NEW:
-		rf->init         = zyd_maxim_init;
-		rf->switch_radio = zyd_maxim_switch_radio;
-		rf->set_channel  = zyd_maxim_set_channel;
-		rf->width        = 18;	/* 18-bit RF values */
+		rf->width        = 24;	/* 24-bit RF values */
+		rf->update_pwr   = 0;
 		break;
 	case ZYD_RF_MAXIM_NEW2:
 		rf->init         = zyd_maxim2_init;
@@ -2066,16 +2098,21 @@ zyd_set_chan(struct zyd_softc *sc, struct ieee80211_channel *c)
 	if (error != 0)
 		goto fail;
 
-	/* update Tx power */
-	zyd_write16_m(sc, ZYD_CR31, sc->sc_pwrint[chan - 1]);
+	if (rf->update_pwr) {
+		/* update Tx power */
+		zyd_write16_m(sc, ZYD_CR31, sc->sc_pwrint[chan - 1]);
 
-	if (sc->sc_macrev == ZYD_ZD1211B) {
-		zyd_write16_m(sc, ZYD_CR67, sc->sc_ofdm36_cal[chan - 1]);
-		zyd_write16_m(sc, ZYD_CR66, sc->sc_ofdm48_cal[chan - 1]);
-		zyd_write16_m(sc, ZYD_CR65, sc->sc_ofdm54_cal[chan - 1]);
-		zyd_write16_m(sc, ZYD_CR68, sc->sc_pwrcal[chan - 1]);
-		zyd_write16_m(sc, ZYD_CR69, 0x28);
-		zyd_write16_m(sc, ZYD_CR69, 0x2a);
+		if (sc->sc_macrev == ZYD_ZD1211B) {
+			zyd_write16_m(sc, ZYD_CR67,
+			    sc->sc_ofdm36_cal[chan - 1]);
+			zyd_write16_m(sc, ZYD_CR66,
+			    sc->sc_ofdm48_cal[chan - 1]);
+			zyd_write16_m(sc, ZYD_CR65,
+			    sc->sc_ofdm54_cal[chan - 1]);
+			zyd_write16_m(sc, ZYD_CR68, sc->sc_pwrcal[chan - 1]);
+			zyd_write16_m(sc, ZYD_CR69, 0x28);
+			zyd_write16_m(sc, ZYD_CR69, 0x2a);
+		}
 	}
 	if (sc->sc_cckgain) {
 		/* set CCK baseband gain from EEPROM */
