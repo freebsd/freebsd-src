@@ -594,8 +594,7 @@ vn_write(fp, uio, active_cred, flags, td)
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
  
-	if (vp->v_mount != NULL &&
-	    (vp->v_mount->mnt_kern_flag & MNTK_SHARED_WRITES) &&
+	if (mp != NULL && (mp->mnt_kern_flag & MNTK_SHARED_WRITES) &&
 	    (flags & FOF_OFFSET) != 0) {
 		lock_flags = LK_SHARED;
 	} else {
