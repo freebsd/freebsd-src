@@ -27,14 +27,104 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/linker.h>
+#include <sys/sysctl.h>
+#include <sys/stat.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
+#define	PATHCTL	"kern.module_path"
+
+static int	path_check(const char *, int);
 static void	usage(void);
+
+/*
+ * Check to see if the requested module is specified as a filename with no
+ * path.  If so and if a file by the same name exists in the module path,
+ * warn the user that the module in the path will be used in preference.
+ */
+static int
+path_check(const char *kldname, int quiet)
+{
+	int	mib[5], found;
+	size_t	miblen, pathlen;
+	char	kldpath[MAXPATHLEN];
+	char	*path, *tmppath, *element;
+	struct	stat sb;
+	dev_t	dev;
+	ino_t	ino;
+
+	if (strchr(kldname, '/') != NULL) {
+		return (0);
+	}
+	if (strstr(kldname, ".ko") == NULL) {
+		return (0);
+	}
+	if (stat(kldname, &sb) != 0) {
+		return (0);
+	}
+
+	found = 0;
+	dev = sb.st_dev;
+	ino = sb.st_ino;
+
+	miblen = sizeof(mib) / sizeof(mib[0]);
+	if (sysctlnametomib(PATHCTL, mib, &miblen) != 0) {
+		err(1, "sysctlnametomib(%s)", PATHCTL);
+	}
+	if (sysctl(mib, miblen, NULL, &pathlen, NULL, 0) == -1) {
+		err(1, "getting path: sysctl(%s) - size only", PATHCTL);
+	}
+	path = malloc(pathlen + 1);
+	if (path == NULL) {
+		err(1, "allocating %lu bytes for the path",
+		    (unsigned long)pathlen + 1);
+	}
+	if (sysctl(mib, miblen, path, &pathlen, NULL, 0) == -1) {
+		err(1, "getting path: sysctl(%s)", PATHCTL);
+	}
+	tmppath = path;
+
+	while ((element = strsep(&tmppath, ";")) != NULL) {
+		strlcpy(kldpath, element, MAXPATHLEN);
+		if (kldpath[strlen(kldpath) - 1] != '/') {
+			strlcat(kldpath, "/", MAXPATHLEN);
+		}
+		strlcat(kldpath, kldname, MAXPATHLEN);
+				
+		if (stat(kldpath, &sb) == -1) {
+			continue;
+		}	
+
+		found = 1;
+
+		if (sb.st_dev != dev || sb.st_ino != ino) {
+			if (!quiet) {
+				warnx("%s will be loaded from %s, not the "
+				    "current directory", kldname, element);
+			}
+			break;
+		} else if (sb.st_dev == dev && sb.st_ino == ino) {
+			break;
+		}
+	}
+
+	free(path);
+	
+	if (!found) {
+		if (!quiet) {
+			warnx("%s is not in the module path", kldname);
+		}
+		return (-1);
+	}
+	
+	return (0);
+}
 
 static void
 usage(void)
@@ -50,14 +140,21 @@ main(int argc, char** argv)
 	int errors;
 	int fileid;
 	int verbose;
+	int quiet;
 
 	errors = 0;
 	verbose = 0;
-
-	while ((c = getopt(argc, argv, "v")) != -1) {
+	quiet = 0;
+    
+	while ((c = getopt(argc, argv, "qv")) != -1) {
 		switch (c) {
+		case 'q':
+			quiet = 1;
+			verbose = 0;
+			break;
 		case 'v':
 			verbose = 1;
+			quiet = 0;
 			break;
 		default:
 			usage();
@@ -70,14 +167,18 @@ main(int argc, char** argv)
 		usage();
 
 	while (argc-- != 0) {
-		fileid = kldload(argv[0]);
-		if (fileid < 0) {
-			warn("can't load %s", argv[0]);
-			errors++;
-		} else {
-			if (verbose) {
-				printf("Loaded %s, id=%d\n", argv[0], fileid);
+		if (path_check(argv[0], quiet) == 0) {
+			fileid = kldload(argv[0]);
+			if (fileid < 0) {
+				warn("can't load %s", argv[0]);
+				errors++;
+			} else {
+				if (verbose)
+					printf("Loaded %s, id=%d\n", argv[0],
+					    fileid);
 			}
+		} else {
+			errors++;
 		}
 		argv++;
 	}
