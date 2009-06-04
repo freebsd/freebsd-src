@@ -252,7 +252,7 @@ cpackl(long double x, long double y)
 }
 #endif /* _COMPLEX_H */
  
-#if defined(__GNUCLIKE_ASM) && !defined(__clang__)
+#ifdef __GNUCLIKE_ASM
 
 /* Asm versions of some functions. */
 
@@ -262,7 +262,7 @@ irint(double x)
 {
 	int n;
 
-	asm("cvtsd2si %1,%0" : "=r" (n) : "Y" (x));
+	asm("cvtsd2si %1,%0" : "=r" (n) : "x" (x));
 	return (n);
 }
 #define	HAVE_EFFICIENT_IRINT
@@ -280,7 +280,7 @@ irint(double x)
 #define	HAVE_EFFICIENT_IRINT
 #endif
 
-#endif /* __GNUCLIKE_ASM && !__clang__ */
+#endif /* __GNUCLIKE_ASM */
 
 /*
  * ieee style elementary functions
