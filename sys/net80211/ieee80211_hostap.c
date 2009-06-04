@@ -114,6 +114,41 @@ sta_disassoc(void *arg, struct ieee80211_node *ni)
 	}
 }
 
+static void
+sta_csa(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = arg;
+
+	if (ni->ni_vap == vap && ni->ni_associd != 0)
+		if (ni->ni_inact > vap->iv_inact_init) {
+			ni->ni_inact = vap->iv_inact_init;
+			IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
+			    "%s: inact %u", __func__, ni->ni_inact);
+		}
+}
+
+static void
+sta_drop(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = arg;
+
+	if (ni->ni_vap == vap && ni->ni_associd != 0)
+		ieee80211_node_leave(ni);
+}
+
+/*
+ * Does a channel change require associated stations to re-associate
+ * so protocol state is correct.  This is used when doing CSA across
+ * bands or similar (e.g. HT -> legacy).
+ */
+static int
+isbandchange(struct ieee80211com *ic)
+{
+	return ((ic->ic_bsschan->ic_flags ^ ic->ic_csa_newchan->ic_flags) &
+	    (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_HALF |
+	     IEEE80211_CHAN_QUARTER | IEEE80211_CHAN_HT)) != 0;
+}
+
 /*
  * IEEE80211_M_HOSTAP vap state machine handler.
  */
@@ -249,6 +284,11 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			/* fall thru... */
 		case IEEE80211_S_CSA:
 			/*
+			 * Shorten inactivity timer of associated stations
+			 * to weed out sta's that don't follow a CSA.
+			 */
+			ieee80211_iterate_nodes(&ic->ic_sta, sta_csa, vap);
+			/*
 			 * Update bss node channel to reflect where
 			 * we landed after CSA.
 			 */
@@ -288,6 +328,18 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			vap->iv_auth->ia_detach(vap);
 		}
 		ieee80211_node_authorize(vap->iv_bss);
+		break;
+	case IEEE80211_S_CSA:
+		if (ostate == IEEE80211_S_RUN && isbandchange(ic)) {
+			/*
+			 * On a ``band change'' silently drop associated
+			 * stations as they must re-associate before they
+			 * can pass traffic (as otherwise protocol state
+			 * such as capabilities and the negotiated rate
+			 * set may/will be wrong).
+			 */
+			ieee80211_iterate_nodes(&ic->ic_sta, sta_drop, vap);
+		}
 		break;
 	default:
 		break;
