@@ -367,7 +367,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	struct iovec aiov;
 	struct mount *mp;
 	struct ucred *cred;
-	int error;
+	int error, lock_flags;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
@@ -378,7 +378,13 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
 				return (error);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+			if (mp != NULL &&
+			    (mp->mnt_kern_flag & MNTK_SHARED_WRITES)) {
+				lock_flags = LK_SHARED;
+			} else {
+				lock_flags = LK_EXCLUSIVE;
+			}
+			vn_lock(vp, lock_flags | LK_RETRY);
 		} else
 			vn_lock(vp, LK_SHARED | LK_RETRY);
 
@@ -564,7 +570,7 @@ vn_write(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	int error, ioflag;
+	int error, ioflag, lock_flags;
 	int vfslocked;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
@@ -587,7 +593,16 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR &&
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+ 
+	if (vp->v_mount != NULL &&
+	    (vp->v_mount->mnt_kern_flag & MNTK_SHARED_WRITES) &&
+	    (flags & FOF_OFFSET) != 0) {
+		lock_flags = LK_SHARED;
+	} else {
+		lock_flags = LK_EXCLUSIVE;
+	}
+
+	vn_lock(vp, lock_flags | LK_RETRY);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 	ioflag |= sequential_heuristic(uio, fp);
