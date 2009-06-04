@@ -475,6 +475,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	 *	[tlv] ssid
 	 *	[tlv] supported rates
 	 *	[tlv] country information
+	 *	[tlv] channel switch announcement (CSA)
 	 *	[tlv] parameter set (FH/DS)
 	 *	[tlv] erp information
 	 *	[tlv] extended supported rates
@@ -507,6 +508,9 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_COUNTRY:
 			scan->country = frm;
+			break;
+		case IEEE80211_ELEMID_CSA:
+			scan->csa = frm;
 			break;
 		case IEEE80211_ELEMID_FHPARMS:
 			if (ic->ic_phytype == IEEE80211_T_FH) {
@@ -641,6 +645,14 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		IEEE80211_VERIFY_LENGTH(scan->country[1], 3 * sizeof(uint8_t),
 		    scan->country = NULL);
+	}
+	if (scan->csa != NULL) {
+		/*
+		 * Validate Channel Switch Announcement; this must
+		 * be the correct length or we toss the frame.
+		 */
+		IEEE80211_VERIFY_LENGTH(scan->csa[1], 3 * sizeof(uint8_t),
+		    scan->status |= IEEE80211_BPARSE_CSA_INVALID);
 	}
 	/*
 	 * Process HT ie's.  This is complicated by our

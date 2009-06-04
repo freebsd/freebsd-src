@@ -2304,8 +2304,10 @@ ieee80211_ioctl_chanswitch(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	error = copyin(ireq->i_data, &csr, sizeof(csr));
 	if (error != 0)
 		return error;
-	if ((vap->iv_flags & IEEE80211_F_DOTH) == 0)
-		return EINVAL;
+	/* XXX adhoc mode not supported */
+	if (vap->iv_opmode != IEEE80211_M_HOSTAP ||
+	    (vap->iv_flags & IEEE80211_F_DOTH) == 0)
+		return EOPNOTSUPP;
 	c = ieee80211_find_channel(ic,
 	    csr.csa_chan.ic_freq, csr.csa_chan.ic_flags);
 	if (c == NULL)
@@ -2313,6 +2315,8 @@ ieee80211_ioctl_chanswitch(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	IEEE80211_LOCK(ic);
 	if ((ic->ic_flags & IEEE80211_F_CSAPENDING) == 0)
 		ieee80211_csa_startswitch(ic, c, csr.csa_mode, csr.csa_count);
+	else if (csr.csa_count == 0)
+		ieee80211_csa_cancelswitch(ic);
 	else
 		error = EBUSY;
 	IEEE80211_UNLOCK(ic);
