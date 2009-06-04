@@ -175,11 +175,11 @@ svcpool_destroy(SVCPOOL *pool)
 		mtx_lock(&pool->sp_lock);
 	}
 
-	mtx_destroy(&pool->sp_lock);
-
 	TAILQ_FOREACH_SAFE(xprt, &cleanup, xp_link, nxprt) {
 		SVC_RELEASE(xprt);
 	}
+
+	mtx_destroy(&pool->sp_lock);
 
 	if (pool->sp_rcache)
 		replay_freecache(pool->sp_rcache);
@@ -353,14 +353,15 @@ xprt_active(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
 
+	mtx_lock(&pool->sp_lock);
+
 	if (!xprt->xp_registered) {
 		/*
 		 * Race with xprt_unregister - we lose.
 		 */
+		mtx_unlock(&pool->sp_lock);
 		return;
 	}
-
-	mtx_lock(&pool->sp_lock);
 
 	if (!xprt->xp_active) {
 		TAILQ_INSERT_TAIL(&pool->sp_active, xprt, xp_alink);
