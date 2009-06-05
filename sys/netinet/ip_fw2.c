@@ -140,8 +140,9 @@ static uma_zone_t ipfw_dyn_rule_zone;
  * the user specified UID/GID based constraints in
  * a firewall rule.
  */
+#define FW_NGROUPS	16
 struct ip_fw_ugid {
-	gid_t		fw_groups[NGROUPS];
+	gid_t		fw_groups[FW_NGROUPS];	/* XXX: should be dynamic */
 	int		fw_ngroups;
 	uid_t		fw_uid;
 	int		fw_prid;
@@ -2017,8 +2018,8 @@ fill_ugid_cache(struct inpcb *inp, struct ip_fw_ugid *ugp)
 	cr = inp->inp_cred;
 	ugp->fw_prid = jailed(cr) ? cr->cr_prison->pr_id : -1;
 	ugp->fw_uid = cr->cr_uid;
-	ugp->fw_ngroups = cr->cr_ngroups;
-	bcopy(cr->cr_groups, ugp->fw_groups, sizeof(ugp->fw_groups));
+	ugp->fw_ngroups = MIN(cr->cr_ngroups, FW_NGROUPS);
+	bcopy(cr->cr_groups, ugp->fw_groups, sizeof(gid_t) * ugp->fw_ngroups);
 }
 
 static int
