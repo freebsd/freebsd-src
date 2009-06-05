@@ -2859,7 +2859,7 @@ chkarg:
 			if (have_tag)
 				errx(EX_USAGE, "tag and untag cannot be "
 				    "specified more than once");
-			GET_UINT_ARG(tag, 1, IPFW_DEFAULT_RULE - 1, i,
+			GET_UINT_ARG(tag, IPFW_ARG_MIN, IPFW_ARG_MAX, i,
 			   rule_action_params);
 			have_tag = cmd;
 			fill_cmd(cmd, O_TAG, (i == TOK_TAG) ? 0: F_NOT, tag);
@@ -3336,7 +3336,7 @@ read_options:
 			if (c->limit_mask == 0)
 				errx(EX_USAGE, "limit: missing limit mask");
 
-			GET_UINT_ARG(c->conn_limit, 1, IPFW_DEFAULT_RULE - 1,
+			GET_UINT_ARG(c->conn_limit, IPFW_ARG_MIN, IPFW_ARG_MAX,
 			    TOK_LIMIT, rule_options);
 
 			ac--; av++;
@@ -3464,7 +3464,7 @@ read_options:
 			else {
 				uint16_t tag;
 
-				GET_UINT_ARG(tag, 1, IPFW_DEFAULT_RULE - 1,
+				GET_UINT_ARG(tag, IPFW_ARG_MIN, IPFW_ARG_MAX,
 				    TOK_TAGGED, rule_options);
 				fill_cmd(cmd, O_TAGGED, 0, tag);
 			}
