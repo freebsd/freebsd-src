@@ -528,14 +528,14 @@ ieee80211_notify_scan_done(struct ieee80211vap *vap)
 void
 ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh, const struct ieee80211_key *k,
-	u_int64_t rsc)
+	u_int64_t rsc, int tid)
 {
 	struct ifnet *ifp = vap->iv_ifp;
 
 	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 	    "%s replay detected <rsc %ju, csc %ju, keyix %u rxkeyix %u>",
 	    k->wk_cipher->ic_name, (intmax_t) rsc,
-	    (intmax_t) k->wk_keyrsc[IEEE80211_NONQOS_TID],
+	    (intmax_t) k->wk_keyrsc[tid],
 	    k->wk_keyix, k->wk_rxkeyix);
 
 	if (ifp != NULL) {		/* NB: for cipher test modules */
@@ -548,7 +548,7 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 			iev.iev_keyix = k->wk_rxkeyix;
 		else
 			iev.iev_keyix = k->wk_keyix;
-		iev.iev_keyrsc = k->wk_keyrsc[0];	/* XXX need tid */
+		iev.iev_keyrsc = k->wk_keyrsc[tid];
 		iev.iev_rsc = rsc;
 		CURVNET_SET(ifp->if_vnet);
 		rt_ieee80211msg(ifp, RTM_IEEE80211_REPLAY, &iev, sizeof(iev));
