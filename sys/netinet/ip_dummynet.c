@@ -242,7 +242,7 @@ static void	dummynet(void *);
 static void	dummynet_flush(void);
 static void	dummynet_send(struct mbuf *);
 void		dummynet_drain(void);
-static ip_dn_io_t dummynet_io;
+static int	dummynet_io(struct mbuf **, int , struct ip_fw_args *);
 static void	dn_rule_delete(void *);
 
 /*
@@ -1638,9 +1638,11 @@ dn_rule_delete_fs(struct dn_flow_set *fs, void *r)
 		    pkt->rule = ip_fw_default_rule ;
 	    }
 }
+
 /*
- * when a firewall rule is deleted, scan all queues and remove the flow-id
- * from packets matching this rule.
+ * When a firewall rule is deleted, scan all queues and remove the pointer
+ * to the rule from matching packets, making them point to the default rule.
+ * The pointer is used to reinject packets in case one_pass = 0.
  */
 void
 dn_rule_delete(void *r)
@@ -2337,7 +2339,7 @@ dummynet_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		if (DUMMYNET_LOADED) {
+		if (ip_dn_io_ptr) {
 		    printf("DUMMYNET already loaded\n");
 		    return EEXIST ;
 		}
