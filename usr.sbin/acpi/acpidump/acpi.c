@@ -34,7 +34,9 @@
 #include <assert.h>
 #include <err.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -803,11 +805,26 @@ dsdt_save_file(char *outfile, struct ACPIsdt *rsdt, struct ACPIsdt *dsdp)
 void
 aml_disassemble(struct ACPIsdt *rsdt, struct ACPIsdt *dsdp)
 {
-	char tmpstr[32], buf[256];
+	char buf[PATH_MAX], tmpstr[PATH_MAX];
+	const char *tmpdir;
+	char *tmpext;
 	FILE *fp;
-	int fd, len;
+	size_t len;
+	int fd;
 
-	strcpy(tmpstr, "/tmp/acpidump.XXXXXX");
+	tmpdir = getenv("TMPDIR");
+	if (tmpdir == NULL)
+		tmpdir = _PATH_TMP;
+	strncpy(tmpstr, tmpdir, sizeof(tmpstr));
+	strncat(tmpstr, "/acpidump.", sizeof(tmpstr) - strlen(tmpdir));
+	if (realpath(tmpstr, buf) == NULL) {
+		perror("realpath tmp file");
+		return;
+	}
+	strncpy(tmpstr, buf, sizeof(tmpstr));
+	len = strlen(buf);
+	tmpext = tmpstr + len;
+	strncpy(tmpext, "XXXXXX", sizeof(tmpstr) - len);
 	fd = mkstemp(tmpstr);
 	if (fd < 0) {
 		perror("iasl tmp file");
@@ -821,7 +838,7 @@ aml_disassemble(struct ACPIsdt *rsdt, struct ACPIsdt *dsdp)
 		close(STDOUT_FILENO);
 		if (vflag == 0)
 			close(STDERR_FILENO);
-		execl("/usr/sbin/iasl", "iasl", "-d", tmpstr, (char *) 0);
+		execl("/usr/sbin/iasl", "iasl", "-d", tmpstr, NULL);
 		err(1, "exec");
 	}
 
@@ -829,8 +846,9 @@ aml_disassemble(struct ACPIsdt *rsdt, struct ACPIsdt *dsdp)
 	unlink(tmpstr);
 
 	/* Dump iasl's output to stdout */
-	fp = fopen("acpidump.dsl", "r");
-	unlink("acpidump.dsl");
+	strncpy(tmpext, "dsl", sizeof(tmpstr) - len);
+	fp = fopen(tmpstr, "r");
+	unlink(tmpstr);
 	if (fp == NULL) {
 		perror("iasl tmp file (read)");
 		return;
