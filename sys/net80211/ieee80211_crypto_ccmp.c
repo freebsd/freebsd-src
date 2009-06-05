@@ -230,7 +230,7 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 		/*
 		 * Replay violation.
 		 */
-		ieee80211_notify_replay_failure(vap, wh, k, pn);
+		ieee80211_notify_replay_failure(vap, wh, k, pn, tid);
 		vap->iv_stats.is_rx_ccmpreplay++;
 		return 0;
 	}
