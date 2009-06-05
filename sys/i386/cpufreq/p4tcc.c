@@ -51,7 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include "cpufreq_if.h"
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+
 #include <dev/acpica/acpivar.h>
 #include "acpi_if.h"
  

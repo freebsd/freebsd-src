@@ -46,7 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+
 #include <dev/acpica/acpivar.h>
 
 /*
@@ -897,9 +899,9 @@ acpi_cpu_idle()
      * time if USB is loaded.
      */
     if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
-	AcpiGetRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
+	AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
 	if (bm_active != 0) {
-	    AcpiSetRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1);
+	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 	    cx_next_idx = min(cx_next_idx, sc->cpu_non_c3);
 	}
     }
@@ -926,8 +928,8 @@ acpi_cpu_idle()
      */
     if (cx_next->type == ACPI_STATE_C3) {
 	if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
-	    AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 1);
-	    AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
+	    AcpiWriteBitRegister(ACPI_BITREG_ARB_DISABLE, 1);
+	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
 	} else
 	    ACPI_FLUSH_CPU_CACHE();
     }
@@ -938,7 +940,7 @@ acpi_cpu_idle()
      * get the time very close to the CPU start/stop clock logic, this
      * is the only reliable time source.
      */
-    AcpiHwLowLevelRead(32, &start_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
     CPU_GET_REG(cx_next->p_lvlx, 1);
 
     /*
@@ -947,14 +949,14 @@ acpi_cpu_idle()
      * the processor has stopped.  Doing it again provides enough
      * margin that we are certain to have a correct value.
      */
-    AcpiHwLowLevelRead(32, &end_time, &AcpiGbl_FADT.XPmTimerBlock);
-    AcpiHwLowLevelRead(32, &end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
 
     /* Enable bus master arbitration and disable bus master wakeup. */
     if (cx_next->type == ACPI_STATE_C3 &&
 	(cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
-	AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 0);
-	AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
+	AcpiWriteBitRegister(ACPI_BITREG_ARB_DISABLE, 0);
+	AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
     }
     ACPI_ENABLE_IRQS();
 
@@ -1069,11 +1071,11 @@ acpi_cpu_quirks(void)
 	    	val |= PIIX4_STOP_BREAK_MASK;
 		pci_write_config(acpi_dev, PIIX4_DEVACTB_REG, val, 4);
 	    }
-	    AcpiGetRegister(ACPI_BITREG_BUS_MASTER_RLD, &val);
+	    AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_RLD, &val);
 	    if (val) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		    "acpi_cpu: PIIX4: reset BRLD_EN_BM\n"));
-		AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
+		AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
 	    }
 	    break;
 	default:
