@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: aslopt- Compiler optimizations
- *              $Revision: 1.26 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,9 +117,9 @@
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 
 #define _COMPONENT          ACPI_COMPILER
@@ -288,9 +287,9 @@ OptBuildShortestPath (
 {
     UINT32                  NumCommonSegments;
     UINT32                  MaxCommonSegments;
-    ACPI_NATIVE_UINT        Index;
+    UINT32                  Index;
     UINT32                  NumCarats;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
     char                    *NewPath;
     char                    *NewPathExternal;
     ACPI_NAMESPACE_NODE     *Node;
@@ -437,7 +436,7 @@ OptBuildShortestPath (
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
             " NOT SHORTER (New %u old %u)",
-            ACPI_STRLEN (NewPath), AmlNameStringLength));
+            (UINT32) ACPI_STRLEN (NewPath), (UINT32) AmlNameStringLength));
         ACPI_FREE (NewPathExternal);
         return (AE_NOT_FOUND);
     }
@@ -753,8 +752,8 @@ OptOptimizeNamePath (
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
         "%37s (%2u) ==> %-32s(%2u) %-32s",
-        (char *) CurrentPath.Pointer, CurrentPath.Length,
-        (char *) TargetPath.Pointer, TargetPath.Length, ExternalNameString));
+        (char *) CurrentPath.Pointer, (UINT32) CurrentPath.Length,
+        (char *) TargetPath.Pointer, (UINT32) TargetPath.Length, ExternalNameString));
 
     ACPI_FREE (ExternalNameString);
 
@@ -812,7 +811,7 @@ OptOptimizeNamePath (
         OptTotal += HowMuchShorter;
 
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " REDUCED %2u (%u)",
-            HowMuchShorter, OptTotal));
+            (UINT32) HowMuchShorter, OptTotal));
 
         if (Flags & AML_NAMED)
         {

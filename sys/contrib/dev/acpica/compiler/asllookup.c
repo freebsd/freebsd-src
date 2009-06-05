@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: asllookup- Namespace lookup
- *              $Revision: 1.103 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,10 +117,10 @@
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/acdispat.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acdispat.h>
 
 
 #define _COMPONENT          ACPI_COMPILER
@@ -173,6 +172,21 @@ LkIsObjectUsed (
     UINT32                  Level,
     void                    *Context,
     void                    **ReturnValue);
+
+static ACPI_STATUS
+LsDoOnePathname (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
+void
+LsSetupNsList (
+    void                    *Handle);
+
+ACPI_PARSE_OBJECT *
+LkGetNameOp (
+    ACPI_PARSE_OBJECT       *Op);
 
 
 /*******************************************************************************
@@ -416,12 +430,63 @@ LsDoOneNamespaceObject (
 }
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    LsSetupNsList
+ *
+ * PARAMETERS:  Handle          - local file handle
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Set the namespace output file to the input handle
+ *
+ ******************************************************************************/
+
 void
-LsSetupNsList (void * Handle)
+LsSetupNsList (
+    void                    *Handle)
 {
 
     Gbl_NsOutputFlag = TRUE;
     Gbl_Files[ASL_FILE_NAMESPACE_OUTPUT].Handle = Handle;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    LsDoOnePathname
+ *
+ * PARAMETERS:  ACPI_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Print the full pathname for a namespace node.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+LsDoOnePathname (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
+    ACPI_STATUS             Status;
+    ACPI_BUFFER             TargetPath;
+
+
+    TargetPath.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
+    Status = AcpiNsHandleToPathname (Node, &TargetPath);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "%s\n", TargetPath.Pointer);
+    ACPI_FREE (TargetPath.Pointer);
+
+    return (AE_OK);
 }
 
 
@@ -463,6 +528,15 @@ LsDisplayNamespace (
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
                 ACPI_UINT32_MAX, FALSE, LsDoOneNamespaceObject,
                 NULL, NULL);
+
+    /* Print the full pathname for each namespace node */
+
+    FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "\nNamespace pathnames\n\n");
+
+    Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
+                ACPI_UINT32_MAX, FALSE, LsDoOnePathname,
+                NULL, NULL);
+
     return (Status);
 }
 
@@ -857,6 +931,17 @@ LkNamespaceLocateBegin (
     }
 
     /*
+     * One special case: CondRefOf operator - we don't care if the name exists
+     * or not at this point, just ignore it, the point of the operator is to
+     * determine if the name exists at runtime.
+     */
+    if ((Op->Asl.Parent) &&
+        (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CONDREFOF))
+    {
+        return (AE_OK);
+    }
+
+    /*
      * We must enable the "search-to-root" for single NameSegs, but
      * we have to be very careful about opening up scopes
      */
@@ -944,14 +1029,6 @@ LkNamespaceLocateBegin (
                 {
                     /* The name doesn't exist, period */
 
-                    if ((Op->Asl.Parent) &&
-                        (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CONDREFOF))
-                    {
-                        /* Ignore not found if parent is CondRefOf */
-
-                        return (AE_OK);
-                    }
-
                     AslError (ASL_ERROR, ASL_MSG_NOT_EXIST,
                         Op, Op->Asl.ExternalName);
                 }
@@ -963,14 +1040,6 @@ LkNamespaceLocateBegin (
                 if (Path[0] == AML_ROOT_PREFIX)
                 {
                     /* Gave full path, the object does not exist */
-
-                    if ((Op->Asl.Parent) &&
-                        (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CONDREFOF))
-                    {
-                        /* Ignore not found if parent is CondRefOf */
-
-                        return (AE_OK);
-                    }
 
                     AslError (ASL_ERROR, ASL_MSG_NOT_EXIST, Op,
                         Op->Asl.ExternalName);
