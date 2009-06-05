@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-.PATH:  ${.CURDIR}/../../netinet
+.PATH:  ${.CURDIR}/../../netinet/ipfw
 KMOD=   dummynet
 SRCS=   ip_dummynet.c
 SRCS+=	opt_inet6.h
