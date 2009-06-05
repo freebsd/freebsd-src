@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 #include "opt_route.h"
 
 #include <sys/param.h>

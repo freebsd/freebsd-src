@@ -70,7 +70,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_mac.h"
 #include "opt_mrouting.h"
 
 #define _PIM_VT 1

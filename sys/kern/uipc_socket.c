@@ -99,7 +99,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 #include "opt_zero.h"
 #include "opt_compat.h"
 
