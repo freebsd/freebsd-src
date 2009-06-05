@@ -2305,7 +2305,7 @@ cxgb_tick(void *arg)
 	if(sc->flags & CXGB_SHUTDOWN)
 		return;
 
-	taskqueue_enqueue(sc->tq, &sc->tick_task);
+	taskqueue_enqueue(sc->tq, &sc->tick_task);	
 	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
 }
 
@@ -2323,6 +2323,7 @@ cxgb_tick_handler(void *arg, int count)
 	if (p->linkpoll_period)
 		check_link_status(sc);
 
+	
 	sc->check_task_cnt++;
 
 	/*
@@ -2334,17 +2335,59 @@ cxgb_tick_handler(void *arg, int count)
 	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);
 
-	/* Update MAC stats if it's time to do so */
-	if (!p->linkpoll_period ||
-	    (sc->check_task_cnt * p->linkpoll_period) / 10 >=
-	    p->stats_update_period) {
-		for_each_port(sc, i) {
-			struct port_info *port = &sc->port[i];
-			PORT_LOCK(port);
-			t3_mac_update_stats(&port->mac);
-			PORT_UNLOCK(port);
-		}
-		sc->check_task_cnt = 0;
+	for (i = 0; i < sc->params.nports; i++) {
+		struct port_info *pi = &sc->port[i];
+		struct ifnet *ifp = pi->ifp;
+		struct mac_stats *mstats = &pi->mac.stats;
+		PORT_LOCK(pi);
+		t3_mac_update_stats(&pi->mac);
+		PORT_UNLOCK(pi);
+
+		
+		ifp->if_opackets =
+		    mstats->tx_frames_64 +
+		    mstats->tx_frames_65_127 +
+		    mstats->tx_frames_128_255 +
+		    mstats->tx_frames_256_511 +
+		    mstats->tx_frames_512_1023 +
+		    mstats->tx_frames_1024_1518 +
+		    mstats->tx_frames_1519_max;
+		
+		ifp->if_ipackets =
+		    mstats->rx_frames_64 +
+		    mstats->rx_frames_65_127 +
+		    mstats->rx_frames_128_255 +
+		    mstats->rx_frames_256_511 +
+		    mstats->rx_frames_512_1023 +
+		    mstats->rx_frames_1024_1518 +
+		    mstats->rx_frames_1519_max;
+
+		ifp->if_obytes = mstats->tx_octets;
+		ifp->if_ibytes = mstats->rx_octets;
+		ifp->if_omcasts = mstats->tx_mcast_frames;
+		ifp->if_imcasts = mstats->rx_mcast_frames;
+		
+		ifp->if_collisions =
+		    mstats->tx_total_collisions;
+
+		ifp->if_iqdrops = mstats->rx_cong_drops;
+		
+		ifp->if_oerrors =
+		    mstats->tx_excess_collisions +
+		    mstats->tx_underrun +
+		    mstats->tx_len_errs +
+		    mstats->tx_mac_internal_errs +
+		    mstats->tx_excess_deferral +
+		    mstats->tx_fcs_errs;
+		ifp->if_ierrors =
+		    mstats->rx_jabber +
+		    mstats->rx_data_errs +
+		    mstats->rx_sequence_errs +
+		    mstats->rx_runt + 
+		    mstats->rx_too_long +
+		    mstats->rx_mac_internal_errs +
+		    mstats->rx_short +
+		    mstats->rx_fcs_errs;
 	}
 }
 
