@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #endif
 
+#include <security/mac/mac_framework.h>
+
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
@@ -354,7 +356,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (dst->sa_family != AF_IEEE80211)
 		return vap->iv_output(ifp, m, dst, ro);
 #ifdef MAC
-	error = mac_check_ifnet_transmit(ifp, m);
+	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
 		senderr(error);
 #endif
