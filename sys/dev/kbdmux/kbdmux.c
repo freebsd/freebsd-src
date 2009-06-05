@@ -36,7 +36,6 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/clist.h>
 #include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/fcntl.h>
@@ -134,7 +133,9 @@ typedef struct kbdmux_kbd	kbdmux_kbd_t;
  */
 struct kbdmux_state
 {
-	struct clist		 ks_inq;	/* input chars queue */
+	char			 ks_inq[KBDMUX_Q_SIZE]; /* input chars queue */
+	unsigned int		 ks_inq_start;
+	unsigned int		 ks_inq_length;
 	struct task		 ks_task;	/* interrupt task */
 	struct callout		 ks_timo;	/* timeout handler */
 #define TICKS			(hz)		/* rate */
@@ -166,6 +167,34 @@ typedef struct kbdmux_state	kbdmux_state_t;
 static task_fn_t		kbdmux_kbd_intr;
 static timeout_t		kbdmux_kbd_intr_timo;
 static kbd_callback_func_t	kbdmux_kbd_event;
+
+static void
+kbdmux_kbd_putc(kbdmux_state_t *state, char c)
+{
+	unsigned int p;
+
+	if (state->ks_inq_length == KBDMUX_Q_SIZE)
+		return;
+
+	p = (state->ks_inq_start + state->ks_inq_length) % KBDMUX_Q_SIZE;
+	state->ks_inq[p] = c;
+	state->ks_inq_length++;
+}
+
+static char
+kbdmux_kbd_getc(kbdmux_state_t *state)
+{
+	char c;
+
+	if (state->ks_inq_length == 0)
+		return (-1);
+
+	c = state->ks_inq[state->ks_inq_start];
+	state->ks_inq_start = (state->ks_inq_start + 1) % KBDMUX_Q_SIZE;
+	state->ks_inq_length--;
+
+	return (c);
+}
 
 /*
  * Interrupt handler task
@@ -205,7 +234,7 @@ kbdmux_kbd_intr_timo(void *xstate)
 	callout_deactivate(&state->ks_timo);
 
 	/* queue interrupt task if needed */
-	if (state->ks_inq.c_cc > 0 && !(state->ks_flags & TASK) &&
+	if (state->ks_inq_length > 0 && !(state->ks_flags & TASK) &&
 	    KBDMUX_QUEUE_INTR(state) == 0)
 		state->ks_flags |= TASK;
 
@@ -246,11 +275,11 @@ kbdmux_kbd_event(keyboard_t *kbd, int event, void *arg)
 			if (!KBD_IS_BUSY(kbd))
 				continue; /* not open - discard the input */
 
-			putc(c, &state->ks_inq);
+			kbdmux_kbd_putc(state, c);
 		}
 
 		/* queue interrupt task if needed */
-		if (state->ks_inq.c_cc > 0 && !(state->ks_flags & TASK) &&
+		if (state->ks_inq_length > 0 && !(state->ks_flags & TASK) &&
 		    KBDMUX_QUEUE_INTR(state) == 0)
 			state->ks_flags |= TASK;
 
@@ -384,8 +413,6 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		}
 
 		KBDMUX_LOCK_INIT(state);
-		clist_alloc_cblocks(&state->ks_inq,
-				KBDMUX_Q_SIZE, KBDMUX_Q_SIZE / 2);
 		TASK_INIT(&state->ks_task, 0, kbdmux_kbd_intr, (void *) kbd);
 		KBDMUX_CALLOUT_INIT(state);
 		SLIST_INIT(&state->ks_kbds);
@@ -448,10 +475,8 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	return (0);
 bad:
 	if (needfree) {
-		if (state != NULL) {
-			clist_free_cblocks(&state->ks_inq);
+		if (state != NULL)
 			free(state, M_KBDMUX);
-		}
 		if (keymap != NULL)
 			free(keymap, M_KBDMUX);
 		if (accmap != NULL)
@@ -494,10 +519,6 @@ kbdmux_term(keyboard_t *kbd)
 
 		free(k, M_KBDMUX);
 	}
-
-	/* flush input queue */
-	ndflush(&state->ks_inq, state->ks_inq.c_cc);
-	clist_free_cblocks(&state->ks_inq);
 
 	KBDMUX_UNLOCK(state);
 
@@ -577,7 +598,7 @@ kbdmux_read(keyboard_t *kbd, int wait)
 	int		 c;
 
 	KBDMUX_LOCK(state);
-	c = getc(&state->ks_inq);
+	c = kbdmux_kbd_getc(state);
 	KBDMUX_UNLOCK(state);
 
 	if (c != -1)
@@ -599,7 +620,7 @@ kbdmux_check(keyboard_t *kbd)
 		return (FALSE);
 
 	KBDMUX_LOCK(state);
-	ready = (state->ks_inq.c_cc > 0)? TRUE : FALSE;
+	ready = (state->ks_inq_length > 0) ? TRUE : FALSE;
 	KBDMUX_UNLOCK(state);
 
 	return (ready);
@@ -635,7 +656,7 @@ next_code:
 	}
 
 	/* see if there is something in the keyboard queue */
-	scancode = getc(&state->ks_inq);
+	scancode = kbdmux_kbd_getc(state);
 	if (scancode == -1) {
 		if (state->ks_flags & POLLING) {
 			kbdmux_kbd_t	*k;
@@ -650,11 +671,11 @@ next_code:
 					if (!KBD_IS_BUSY(k->kbd))
 						continue; 
 
-					putc(scancode, &state->ks_inq);
+					kbdmux_kbd_putc(state, scancode);
 				}
 			}
 
-			if (state->ks_inq.c_cc > 0)
+			if (state->ks_inq_length > 0)
 				goto next_code;
 		}
 
@@ -895,7 +916,7 @@ kbdmux_check_char(keyboard_t *kbd)
 	if (!(state->ks_flags & COMPOSE) && (state->ks_composed_char != 0))
 		ready = TRUE;
 	else
-		ready = (state->ks_inq.c_cc > 0)? TRUE : FALSE;
+		ready = (state->ks_inq_length > 0) ? TRUE : FALSE;
 
 	KBDMUX_UNLOCK(state);
 
@@ -1219,8 +1240,7 @@ kbdmux_clear_state_locked(kbdmux_state_t *state)
 	state->ks_accents = 0;
 	state->ks_composed_char = 0;
 /*	state->ks_prefix = 0;		XXX */
-
-	ndflush(&state->ks_inq, state->ks_inq.c_cc);
+	state->ks_inq_length = 0;
 }
 
 static void
