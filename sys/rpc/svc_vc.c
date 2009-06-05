@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -62,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 
 #include <rpc/rpc_com.h>
+
+#include <security/mac/mac_framework.h>
 
 static bool_t svc_vc_rendezvous_recv(SVCXPRT *, struct rpc_msg *,
     struct sockaddr **, struct mbuf **);
@@ -273,7 +276,7 @@ svc_vc_accept(struct socket *head, struct socket **sop)
 		goto done;
 	}
 #ifdef MAC
-	error = mac_socket_check_accept(td->td_ucred, head);
+	error = mac_socket_check_accept(curthread->td_ucred, head);
 	if (error != 0)
 		goto done;
 #endif
