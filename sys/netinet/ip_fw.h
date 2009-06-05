@@ -636,9 +636,6 @@ void ipfw_destroy(void);
 void ipfw_nat_destroy(void);
 #endif
 
-typedef int ip_fw_ctl_t(struct sockopt *);
-extern ip_fw_ctl_t *ip_fw_ctl_ptr;
-
 #ifdef VIMAGE_GLOBALS
 extern int fw_one_pass;
 extern int fw_enable;
@@ -646,11 +643,6 @@ extern int fw_enable;
 extern int fw6_enable;
 #endif
 #endif
-
-/* For kernel ipfw_ether and ipfw_bridge. */
-typedef	int ip_fw_chk_t(struct ip_fw_args *args);
-extern	ip_fw_chk_t	*ip_fw_chk_ptr;
-#define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
 
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */

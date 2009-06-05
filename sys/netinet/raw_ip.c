@@ -70,8 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_mroute.h>
 
-#include <netinet/ip_fw.h>
-#include <netinet/ip_dummynet.h>
 #include <netinet/vinet.h>
 
 #ifdef IPSEC
@@ -85,9 +83,15 @@ struct	inpcbhead ripcb;
 struct	inpcbinfo ripcbinfo;
 #endif
 
-/* control hooks for ipfw and dummynet */
-ip_fw_ctl_t *ip_fw_ctl_ptr = NULL;
-ip_dn_ctl_t *ip_dn_ctl_ptr = NULL;
+/*
+ * Control and data hooks for ipfw and dummynet.
+ * The data hooks are not used here but it is convenient
+ * to keep them all in one place.
+ */
+int (*ip_fw_ctl_ptr)(struct sockopt *) = NULL;
+int (*ip_dn_ctl_ptr)(struct sockopt *) = NULL;
+int (*ip_fw_chk_ptr)(struct ip_fw_args *args) = NULL;
+int (*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa) = NULL;
 
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
