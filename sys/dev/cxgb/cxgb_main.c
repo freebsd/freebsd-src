@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2008, Chelsio Inc.
+Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -123,6 +123,7 @@ static int offload_open(struct port_info *pi);
 static void touch_bars(device_t dev);
 static int offload_close(struct t3cdev *tdev);
 static void cxgb_link_start(struct port_info *p);
+static void cxgb_link_fault(void *arg, int ncount);
 
 static device_method_t cxgb_controller_methods[] = {
 	DEVMETHOD(device_probe,		cxgb_controller_probe),
@@ -406,8 +407,8 @@ cxgb_controller_probe(device_t dev)
 }
 
 #define FW_FNAME "cxgb_t3fw"
-#define TPEEPROM_NAME "t3b_tp_eeprom"
-#define TPSRAM_NAME "t3b_protocol_sram"
+#define TPEEPROM_NAME "t3%c_tp_eeprom"
+#define TPSRAM_NAME "t3%c_protocol_sram"
 
 static int
 upgrade_fw(adapter_t *sc)
@@ -445,7 +446,6 @@ cxgb_controller_attach(device_t dev)
 #ifdef MSI_SUPPORTED
 	int msi_needed, reg;
 #endif
-	int must_load = 0;
 	char buf[80];
 
 	sc = device_get_softc(dev);
@@ -595,7 +595,7 @@ cxgb_controller_attach(device_t dev)
 	/* Create a periodic callout for checking adapter status */
 	callout_init(&sc->cxgb_tick_ch, TRUE);
 	
-	if ((t3_check_fw_version(sc, &must_load) != 0 && must_load) || force_fw_update) {
+	if (t3_check_fw_version(sc) < 0 || force_fw_update) {
 		/*
 		 * Warn user that a firmware update will be attempted in init.
 		 */
@@ -606,7 +606,7 @@ cxgb_controller_attach(device_t dev)
 		sc->flags |= FW_UPTODATE;
 	}
 
-	if (t3_check_tpsram_version(sc, &must_load) != 0 && must_load) {
+	if (t3_check_tpsram_version(sc) < 0) {
 		/*
 		 * Warn user that a firmware update will be attempted in init.
 		 */
@@ -1054,6 +1054,9 @@ cxgb_port_attach(device_t dev)
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(IF_LLADDR(p->ifp), p->hw_addr, ETHER_ADDR_LEN);
 	t3_sge_init_port(p);
+
+	TASK_INIT(&p->link_fault_task, 0, cxgb_link_fault, p);
+
 #if defined(LINK_ATTACH)	
 	cxgb_link_start(p);
 	t3_link_changed(sc, p->port_id);
@@ -1186,6 +1189,32 @@ t3_os_pci_restore_state(struct adapter *sc)
 	return (0);
 }
 
+void t3_os_link_fault(struct adapter *adap, int port_id, int state)
+{
+	struct port_info *pi = &adap->port[port_id];
+
+	if (!state) {
+		if_link_state_change(pi->ifp, LINK_STATE_DOWN);
+		return;
+	}
+
+	if (adap->params.nports <= 2) {
+		struct cmac *mac = &pi->mac;
+
+		/* Clear local faults */
+		t3_xgm_intr_disable(adap, port_id);
+		t3_read_reg(adap, A_XGM_INT_STATUS + pi->mac.offset);
+		t3_write_reg(adap, A_XGM_INT_CAUSE + pi->mac.offset, F_XGM_INT);
+				
+		t3_set_reg_field(adap, A_XGM_INT_ENABLE + pi->mac.offset,
+				 F_XGM_INT, F_XGM_INT);
+		t3_xgm_intr_enable(adap, pi->port_id);
+		t3_mac_enable(mac, MAC_DIRECTION_TX);
+	}
+
+	if_link_state_change(pi->ifp, LINK_STATE_UP);
+}
+
 /**
  *	t3_os_link_changed - handle link status changes
  *	@adapter: the adapter associated with the link change
@@ -1209,17 +1238,41 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 	if (link_status) {
 		DELAY(10);
 		t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
-			/* Clear errors created by MAC enable */
-			t3_set_reg_field(adapter,
-					 A_XGM_STAT_CTRL + pi->mac.offset,
-					 F_CLRSTATS, 1);
-		if_link_state_change(pi->ifp, LINK_STATE_UP);
+		/* Clear errors created by MAC enable */
+		t3_set_reg_field(adapter, A_XGM_STAT_CTRL + pi->mac.offset,
+				 F_CLRSTATS, 1);
 
+		if (adapter->params.nports <= 2) {
+			/* Clear local faults */
+			t3_xgm_intr_disable(adapter, pi->port_id);
+			t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
+			t3_write_reg(adapter, A_XGM_INT_CAUSE + pi->mac.offset,
+				     F_XGM_INT); 
+
+			t3_set_reg_field(adapter,
+					 A_XGM_INT_ENABLE + pi->mac.offset,
+					 F_XGM_INT, F_XGM_INT);
+			t3_xgm_intr_enable(adapter, pi->port_id);
+		}
+
+		if_link_state_change(pi->ifp, LINK_STATE_UP);
 	} else {
-		pi->phy.ops->power_down(&pi->phy, 1);
+		t3_xgm_intr_disable(adapter, pi->port_id);
+		t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
+		if (adapter->params.nports <= 2) {
+			t3_set_reg_field(adapter,
+					 A_XGM_INT_ENABLE + pi->mac.offset,
+					 F_XGM_INT, 0);
+		}
+
+		/* PR 5666. We shouldn't power down 1G phys */
+		if (is_10G(adapter))
+			pi->phy.ops->power_down(&pi->phy, 1);
+
+		t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
 		t3_mac_disable(mac, MAC_DIRECTION_RX);
 		t3_link_start(&pi->phy, mac, &pi->link_config);
-		t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
+
 		if_link_state_change(pi->ifp, LINK_STATE_DOWN);
 	}
 }
@@ -1271,6 +1324,24 @@ t3_os_ext_intr_handler(adapter_t *sc)
 		t3_write_reg(sc, A_PL_INT_ENABLE0, sc->slow_intr_mask);
 		taskqueue_enqueue(sc->tq, &sc->ext_intr_task);
 	}
+	ADAPTER_UNLOCK(sc);
+}
+
+static void
+cxgb_link_fault(void *arg, int ncount)
+{
+	struct port_info *pi = arg;
+
+	t3_link_fault(pi->adapter, pi->port_id);
+}
+
+void t3_os_link_fault_handler(struct adapter *sc, int port_id)
+{
+	struct port_info *pi = &sc->port[port_id];
+
+	ADAPTER_LOCK(sc);
+	pi->link_fault = 1;
+	taskqueue_enqueue(sc->tq, &pi->link_fault_task);
 	ADAPTER_UNLOCK(sc);
 }
 
@@ -1557,7 +1628,7 @@ update_tpeeprom(struct adapter *adap)
 	uint32_t version;
 	unsigned int major, minor;
 	int ret, len;
-	char rev;
+	char rev, name[32];
 
 	t3_seeprom_read(adap, TP_SRAM_OFFSET, &version);
 
@@ -1567,8 +1638,9 @@ update_tpeeprom(struct adapter *adap)
 		return; 
 
 	rev = t3rev2char(adap);
+	snprintf(name, sizeof(name), TPEEPROM_NAME, rev);
 
-	tpeeprom = firmware_get(TPEEPROM_NAME);
+	tpeeprom = firmware_get(name);
 	if (tpeeprom == NULL) {
 		device_printf(adap->dev, "could not load TP EEPROM: unable to load %s\n",
 		    TPEEPROM_NAME);
@@ -1611,15 +1683,14 @@ update_tpsram(struct adapter *adap)
 	struct firmware *tpsram;
 #endif	
 	int ret;
-	char rev;
+	char rev, name[32];
 
 	rev = t3rev2char(adap);
-	if (!rev)
-		return 0;
+	snprintf(name, sizeof(name), TPSRAM_NAME, rev);
 
 	update_tpeeprom(adap);
 
-	tpsram = firmware_get(TPSRAM_NAME);
+	tpsram = firmware_get(name);
 	if (tpsram == NULL){
 		device_printf(adap->dev, "could not load TP SRAM\n");
 		return (EINVAL);
@@ -1647,7 +1718,6 @@ release_tpsram:
  *	Called when the first port is enabled, this function performs the
  *	actions necessary to make an adapter operational, such as completing
  *	the initialization of HW modules, and enabling interrupts.
- *
  */
 static int
 cxgb_up(struct adapter *sc)
@@ -1739,7 +1809,7 @@ cxgb_down_locked(struct adapter *sc)
 	
 	t3_sge_stop(sc);
 	t3_intr_disable(sc);
-	
+
 	if (sc->intr_tag != NULL) {
 		bus_teardown_intr(sc->dev, sc->irq_res, sc->intr_tag);
 		sc->intr_tag = NULL;
@@ -2315,6 +2385,7 @@ cxgb_tick_handler(void *arg, int count)
 	adapter_t *sc = (adapter_t *)arg;
 	const struct adapter_params *p = &sc->params;
 	int i;
+	uint32_t cause, reset;
 
 	if(sc->flags & CXGB_SHUTDOWN)
 		return;
@@ -2323,7 +2394,6 @@ cxgb_tick_handler(void *arg, int count)
 	if (p->linkpoll_period)
 		check_link_status(sc);
 
-	
 	sc->check_task_cnt++;
 
 	/*
@@ -2335,15 +2405,38 @@ cxgb_tick_handler(void *arg, int count)
 	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);
 
+	cause = t3_read_reg(sc, A_SG_INT_CAUSE);
+	reset = 0;
+	if (cause & F_FLEMPTY) {
+		struct sge_qset *qs = &sc->sge.qs[0];
+
+		i = 0;
+		reset |= F_FLEMPTY;
+
+		cause = (t3_read_reg(sc, A_SG_RSPQ_FL_STATUS) >>
+			 S_FL0EMPTY) & 0xffff;
+		while (cause) {
+			qs->fl[i].empty += (cause & 1);
+			if (i)
+				qs++;
+			i ^= 1;
+			cause >>= 1;
+		}
+	}
+	t3_write_reg(sc, A_SG_INT_CAUSE, reset);
+
 	for (i = 0; i < sc->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
 		struct ifnet *ifp = pi->ifp;
-		struct mac_stats *mstats = &pi->mac.stats;
+		struct cmac *mac = &pi->mac;
+		struct mac_stats *mstats = &mac->stats;
 		PORT_LOCK(pi);
-		t3_mac_update_stats(&pi->mac);
+		t3_mac_update_stats(mac);
 		PORT_UNLOCK(pi);
 
-		
+		if (pi->link_fault)
+			taskqueue_enqueue(sc->tq, &pi->link_fault_task);
+
 		ifp->if_opackets =
 		    mstats->tx_frames_64 +
 		    mstats->tx_frames_65_127 +
@@ -2388,6 +2481,18 @@ cxgb_tick_handler(void *arg, int count)
 		    mstats->rx_mac_internal_errs +
 		    mstats->rx_short +
 		    mstats->rx_fcs_errs;
+
+		if (mac->multiport)
+			continue;
+
+		/* Count rx fifo overflows, once per second */
+		cause = t3_read_reg(sc, A_XGM_INT_CAUSE + mac->offset);
+		reset = 0;
+		if (cause & F_RXFIFO_OVERFLOW) {
+			mac->stats.rx_fifo_ovfl++;
+			reset |= F_RXFIFO_OVERFLOW;
+		}
+		t3_write_reg(sc, A_XGM_INT_CAUSE + mac->offset, reset);
 	}
 }
 
@@ -2859,7 +2964,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		if (regs->len > reglen)
 			regs->len = reglen;
 		else if (regs->len < reglen)
-			error = E2BIG;
+			error = ENOBUFS;
 
 		if (!error) {
 			cxgb_get_regs(sc, regs, buf);
@@ -2931,6 +3036,53 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		t3_mac_update_stats(&pi->mac);
 		memset(&pi->mac.stats, 0, sizeof(pi->mac.stats));
 		PORT_UNLOCK(pi);
+		break;
+	}
+	case CHELSIO_GET_UP_LA: {
+		struct ch_up_la *la = (struct ch_up_la *)data;
+		uint8_t *buf = malloc(LA_BUFSIZE, M_DEVBUF, M_NOWAIT);
+		if (buf == NULL) {
+			return (ENOMEM);
+		}
+		if (la->bufsize < LA_BUFSIZE)
+			error = ENOBUFS;
+
+		if (!error)
+			error = -t3_get_up_la(sc, &la->stopped, &la->idx,
+					      &la->bufsize, buf);
+		if (!error)
+			error = copyout(buf, la->data, la->bufsize);
+
+		free(buf, M_DEVBUF);
+		break;
+	}
+	case CHELSIO_GET_UP_IOQS: {
+		struct ch_up_ioqs *ioqs = (struct ch_up_ioqs *)data;
+		uint8_t *buf = malloc(IOQS_BUFSIZE, M_DEVBUF, M_NOWAIT);
+		uint32_t *v;
+
+		if (buf == NULL) {
+			return (ENOMEM);
+		}
+		if (ioqs->bufsize < IOQS_BUFSIZE)
+			error = ENOBUFS;
+
+		if (!error)
+			error = -t3_get_up_ioqs(sc, &ioqs->bufsize, buf);
+
+		if (!error) {
+			v = (uint32_t *)buf;
+
+			ioqs->bufsize -= 4 * sizeof(uint32_t);
+			ioqs->ioq_rx_enable = *v++;
+			ioqs->ioq_tx_enable = *v++;
+			ioqs->ioq_rx_status = *v++;
+			ioqs->ioq_tx_status = *v++;
+
+			error = copyout(v, ioqs->data, ioqs->bufsize);
+		}
+
+		free(buf, M_DEVBUF);
 		break;
 	}
 	default:
