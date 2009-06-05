@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,6 +41,20 @@
  * (IPFW_TABLES_MAX - 1).
  */
 #define	IPFW_TABLES_MAX		128
+
+/*
+ * Most commands (queue, pipe, tag, untag, limit...) can have a 16-bit
+ * argument between 1 and 65534. The value 0 is unused, the value
+ * 65535 (IP_FW_TABLEARG) is used to represent 'tablearg', i.e. the
+ * can be 1..65534, or 65535 to indicate the use of a 'tablearg'
+ * result of the most recent table() lookup.
+ * Note that 16bit is only a historical limit, resulting from
+ * the use of a 16-bit fields for that value. In reality, we can have
+ * 2^32 pipes, queues, tag values and so on, and use 0 as a tablearg.
+ */
+#define	IPFW_ARG_MIN		1
+#define	IPFW_ARG_MAX		65534
+#define IP_FW_TABLEARG		65535	/* XXX should use 0 */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -238,8 +252,6 @@ typedef struct	_ipfw_insn {	/* template for instructions */
  * a given type.
  */
 #define	F_INSN_SIZE(t)	((sizeof (t))/sizeof(u_int32_t))
-
-#define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
 
 /*
  * This is used to store an array of 16-bit entries (ports etc.)
@@ -558,12 +570,12 @@ typedef struct	_ipfw_table {
 	ipfw_table_entry ent[0];	/* entries			*/
 } ipfw_table;
 
-#define IP_FW_TABLEARG	65535
-
 /*
  * Main firewall chains definitions and global var's definitions.
  */
 #ifdef _KERNEL
+
+#define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
 
 /* Return values from ipfw_chk() */
 enum {
