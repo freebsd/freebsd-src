@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #if !defined(KLD_MODULE)
 #include "opt_inet.h"
 #include "opt_ipfw.h"
-#include "opt_mac.h"
 #include "opt_sctp.h"
 #ifndef INET
 #error "IPDIVERT requires INET."

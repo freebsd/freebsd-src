@@ -34,8 +34,6 @@
  * $FreeBSD$
  */
 
-#include "opt_mac.h"		/* To set MNT_MULTILABEL. */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
