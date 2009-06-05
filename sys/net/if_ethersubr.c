@@ -432,7 +432,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	INIT_VNET_NET(ifp->if_vnet);
 	struct ip_fw *rule = ip_dn_claim_rule(m);
 
-	if (IPFW_LOADED && V_ether_ipfw != 0) {
+	if (ip_fw_chk_ptr && V_ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
 			if (m) {
 				m_freem(m);
@@ -520,7 +520,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	if (i == IP_FW_PASS) /* a PASS rule.  */
 		return 1;
 
-	if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
+	if (ip_dn_io_ptr && (i == IP_FW_DUMMYNET)) {
 		/*
 		 * Pass the pkt to dummynet, which consumes it.
 		 * If shared, make a copy and keep the original.
@@ -766,7 +766,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	 * Allow dummynet and/or ipfw to claim the frame.
 	 * Do not do this for PROMISC frames in case we are re-entered.
 	 */
-	if (IPFW_LOADED && V_ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
+	if (ip_fw_chk_ptr && V_ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
 		struct ip_fw *rule = ip_dn_claim_rule(m);
 
 		if (ether_ipfw_chk(&m, NULL, &rule, 0) == 0) {

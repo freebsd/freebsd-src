@@ -3603,6 +3603,12 @@ remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 	return n;
 }
 
+/*
+ * Hook for cleaning up dummynet when an ipfw rule is deleted.
+ * Set/cleared when dummynet module is loaded/unloaded.
+ */
+void   (*ip_dn_ruledel_ptr)(void *) = NULL;
+
 /**
  * Reclaim storage associated with a list of rules.  This is
  * typically the list created using remove_rule.
@@ -3614,7 +3620,7 @@ reap_rules(struct ip_fw *head)
 
 	while ((rule = head) != NULL) {
 		head = head->next;
-		if (DUMMYNET_LOADED)
+		if (ip_dn_ruledel_ptr)
 			ip_dn_ruledel_ptr(rule);
 		free(rule, M_IPFW);
 	}

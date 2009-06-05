@@ -77,9 +77,6 @@ int fw6_enable = 1;
 
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
-/* Dummynet hooks. */
-ip_dn_ruledel_t	*ip_dn_ruledel_ptr = NULL;
-
 /* Divert hooks. */
 ip_divert_packet_t *ip_divert_ptr = NULL;
 
@@ -167,7 +164,7 @@ again:
 		break;			/* not reached */
 
 	case IP_FW_DUMMYNET:
-		if (!DUMMYNET_LOADED)
+		if (ip_dn_io_ptr == NULL)
 			goto drop;
 		if (mtod(*m0, struct ip *)->ip_v == 4)
 			ip_dn_io_ptr(m0, DN_TO_IP_IN, &args);
@@ -302,7 +299,7 @@ again:
 		break;  		/* not reached */
 
 	case IP_FW_DUMMYNET:
-		if (!DUMMYNET_LOADED)
+		if (ip_dn_io_ptr == NULL)
 			break;
 		if (mtod(*m0, struct ip *)->ip_v == 4)
 			ip_dn_io_ptr(m0, DN_TO_IP_OUT, &args);
