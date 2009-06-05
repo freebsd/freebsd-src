@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090605: removal of clists
+OLD_FILES+=usr/include/sys/clist.h
 # 20090602: removal of window(1)
 OLD_FILES+=usr/bin/window
 OLD_FILES+=usr/share/man/man1/window.1.gz
