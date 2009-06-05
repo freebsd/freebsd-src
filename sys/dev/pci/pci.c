@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_if.h"
 
 #ifdef __HAVE_ACPI
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
 #else
 #define	ACPI_PWR_FOR_SLEEP(x, y, z)
