@@ -3,7 +3,7 @@
 SUBDIR=		mbr pmbr boot0 boot0sio btx boot2 cdboot gptboot \
 		kgzldr libi386 libfirewire loader
 
-.if ${MK_ZFS} != "no"
+.if defined(LOADER_ZFS_SUPPORT)
 SUBDIR+=		zfsboot gptzfsboot
 .endif
 
