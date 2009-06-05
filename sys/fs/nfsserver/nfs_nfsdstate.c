@@ -3577,7 +3577,6 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	nd->nd_repstat = 0;
 	cred->cr_uid = clp->lc_uid;
 	cred->cr_gid = clp->lc_gid;
-	cred->cr_groups[0] = clp->lc_gid;
 	callback = clp->lc_callback;
 	NFSUNLOCKSTATE();
 	cred->cr_ngroups = 1;
