@@ -35,7 +35,7 @@
 .\"	@(#)tail.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2006
+.Dd June 05, 2009
 .Dt TAIL 1
 .Os
 .Sh NAME
@@ -106,9 +106,16 @@ will also check to see if the file being followed has been renamed or rotated.
 The file is closed and reopened when
 .Nm
 detects that the filename being read from has a new inode number.
+.Pp
+If the file being followed does not (yet) exist or if it is removed, tail
+will keep looking and will display the file from the beginning if and when
+it is created.
+.Pp
 The
 .Fl F
-option is ignored if reading from standard input rather than a file.
+option is the same as the
+.Fl f
+option if reading from standard input rather than a file.
 .It Fl n Ar number
 The location is
 .Ar number
