@@ -311,13 +311,14 @@ _C_LABEL(x):
 	la	s0, _C_LABEL(disableintr)           ;\
 	jalr	s0                                  ;\
 	nop                                         ;\
+	move	a0, v0                              ;\
 	GET_CPU_PCPU(s1)                            ;\
 	lw	s3, PC_CURPCB(s1)                   ;\
 	lw	s1, PC_CURTHREAD(s1)                ;\
 	lw	s2, TD_FLAGS(s1)                    ;\
 	li	s0, TDF_ASTPENDING | TDF_NEEDRESCHED;\
 	and	s2, s0                              ;\
-	la	s0, _C_LABEL(enableintr)            ;\
+	la	s0, _C_LABEL(restoreintr)           ;\
 	jalr	s0                                  ;\
 	nop                                         ;\
 	beq	s2, zero, 4f                        ;\
