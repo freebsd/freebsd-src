@@ -53,7 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+
 #include <dev/acpica/acpivar.h>
 
 #include "acpi_wakecode.h"
