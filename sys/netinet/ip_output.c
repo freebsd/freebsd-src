@@ -467,7 +467,7 @@ again:
 
 sendit:
 #ifdef IPSEC
-	switch(ip_ipsec_output(&m, inp, &flags, &error, &ro, &iproute, &dst, &ia, &ifp)) {
+	switch(ip_ipsec_output(&m, inp, &flags, &error, &ifp)) {
 	case 1:
 		goto bad;
 	case -1:
