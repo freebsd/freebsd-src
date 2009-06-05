@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -65,75 +65,9 @@ __FBSDID("$FreeBSD$");
 #define ACPI_BUS_HANDLE		0
 #endif
 
-/*
- * Some BIOS vendors use AML to read/write directly to IO space.  This
- * can cause a problem if such accesses interfere with the OS's access to
- * the same ports.  Windows XP and newer systems block accesses to certain
- * IO ports.  We print a message or block accesses based on a tunable.
- */
-static int illegal_bios_ports[] = {
-	0x000, 0x00f,	/* DMA controller 1 */
-	0x020, 0x021,	/* PIC */
-	0x040, 0x043,	/* Timer 1 */
-	0x048, 0x04b,	/* Timer 2 failsafe */
-	0x070, 0x071,	/* CMOS and RTC */
-	0x074, 0x076,	/* Extended CMOS */
-	0x081, 0x083,	/* DMA1 page registers */
-	0x087, 0x087,	/* DMA1 ch0 low page */
-	0x089, 0x08b,	/* DMA2 ch2 (0x89), ch3 low page (0x8a, 0x8b) */
-	0x08f, 0x091,	/* DMA2 low page refresh (0x8f) */
-			/* Arb ctrl port, card select feedback (0x90, 0x91) */
-	0x093, 0x094,	/* System board setup */
-	0x096, 0x097,	/* POS channel select */
-	0x0a0, 0x0a1,	/* PIC (cascaded) */
-	0x0c0, 0x0df,	/* ISA DMA */
-	0x4d0, 0x4d1,	/* PIC ELCR (edge/level control) */
-	0xcf8, 0xcff,	/* PCI config space. Microsoft adds 0xd00 also but
-			   that seems incorrect. */
-	-1, -1
-};
-
-/* Block accesses to bad IO port addresses or just print a warning. */
-static int block_bad_io;
-TUNABLE_INT("debug.acpi.block_bad_io", &block_bad_io);
-
-/*
- * Look up bad ports in our table.  Returns 0 if ok, 1 if marked bad but
- * access is still allowed, or -1 to deny access.
- */
-static int
-acpi_os_check_port(UINT32 addr, UINT32 width)
-{
-	int error, *port;
-
-	error = 0;
-	for (port = illegal_bios_ports; *port != -1; port += 2) {
-		if ((addr >= port[0] && addr <= port[1]) ||
-		    (addr < port[0] && addr + (width / 8) > port[0])) {
-			if (block_bad_io)
-			    error = -1;
-			else
-			    error = 1;
-			break;
-		}
-	}
-
-	return (error);
-}
-
 ACPI_STATUS
 AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
 {
-    int error;
-
-    error = acpi_os_check_port(InPort, Width);
-    if (error != 0) {
-	if (bootverbose)
-		printf("acpi: bad read from port 0x%03x (%d)\n",
-			(int)InPort, Width);
-	if (error == -1)
-	    return (AE_BAD_PARAMETER);
-    }
 
     switch (Width) {
     case 8:
@@ -159,16 +93,6 @@ AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
 ACPI_STATUS
 AcpiOsWritePort(ACPI_IO_ADDRESS OutPort, UINT32	Value, UINT32 Width)
 {
-    int error;
-
-    error = acpi_os_check_port(OutPort, Width);
-    if (error != 0) {
-	if (bootverbose)
-		printf("acpi: bad write to port 0x%03x (%d), val %#x\n",
-			(int)OutPort, Width, Value);
-	if (error == -1)
-	    return (AE_BAD_PARAMETER);
-    }
 
     switch (Width) {
     case 8:
