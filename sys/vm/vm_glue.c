@@ -455,7 +455,6 @@ vm_thread_swapin(struct thread *td)
 			if (rv != VM_PAGER_OK)
 				panic("vm_thread_swapin: cannot get kstack for proc: %d", td->td_proc->p_pid);
 			m = vm_page_lookup(ksobj, i);
-			m->valid = VM_PAGE_BITS_ALL;
 		}
 		ma[i] = m;
 		vm_page_lock_queues();
