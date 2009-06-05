@@ -256,8 +256,7 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
  */
 int
 ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-    struct route **ro, struct route *iproute, struct sockaddr_in **dst,
-    struct in_ifaddr **ia, struct ifnet **ifp)
+    struct ifnet **ifp)
 {
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
