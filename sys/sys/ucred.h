@@ -48,7 +48,7 @@ struct ucred {
 	uid_t	cr_uid;			/* effective user id */
 	uid_t	cr_ruid;		/* real user id */
 	uid_t	cr_svuid;		/* saved user id */
-	short	cr_ngroups;		/* number of groups */
+	int	cr_ngroups;		/* number of groups */
 	gid_t	cr_rgid;		/* real group id */
 	gid_t	cr_svgid;		/* saved group id */
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
@@ -60,7 +60,7 @@ struct ucred {
 	struct label	*cr_label;	/* MAC label */
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 	gid_t	*cr_groups;		/* groups */
-	short	cr_agroups;		/* Available groups */
+	int	cr_agroups;		/* Available groups */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
@@ -94,7 +94,7 @@ void	change_ruid(struct ucred *newcred, struct uidinfo *ruip);
 void	change_svgid(struct ucred *newcred, gid_t svgid);
 void	change_svuid(struct ucred *newcred, uid_t svuid);
 void	crcopy(struct ucred *dest, struct ucred *src);
-struct ucred	*crcopysafe(struct proc *, struct ucred *);
+struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
 struct ucred	*crdup(struct ucred *cr);
 void	cred_update_thread(struct thread *td);
 void	crfree(struct ucred *cr);
@@ -103,6 +103,7 @@ struct ucred	*crhold(struct ucred *cr);
 int	crshared(struct ucred *cr);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
 void	crextend(struct ucred *cr, int n);
+void	crsetgroups(struct ucred *cr, int n, gid_t *groups);
 int	groupmember(gid_t gid, struct ucred *cred);
 #endif /* _KERNEL */
 

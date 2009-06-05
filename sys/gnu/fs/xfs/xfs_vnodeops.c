@@ -3379,7 +3379,7 @@ xfs_symlink(
 	 */
 	error = XFS_QM_DQVOPALLOC(mp, dp,
 				  current->td_ucred->cr_uid,
-				  current->td_ucred->cr_groups[0],
+				  current->td_ucred->cr_gid,
 				  prid,
 				  XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT, &udqp, &gdqp);
 	if (error)

@@ -253,7 +253,7 @@ nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
 		*tl++ = 0;		/* stamp ?? */
 		*tl++ = 0;		/* NULL hostname */
 		*tl++ = txdr_unsigned(cr->cr_uid);
-		*tl++ = txdr_unsigned(cr->cr_groups[0]);
+		*tl++ = txdr_unsigned(cr->cr_gid);
 		grpsiz = (auth_len >> 2) - 5;
 		*tl++ = txdr_unsigned(grpsiz);
 		for (i = 1; i <= grpsiz; i++)

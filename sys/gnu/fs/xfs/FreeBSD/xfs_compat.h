@@ -163,7 +163,7 @@ typedef struct mtx xfs_mutex_t;
  * Cedentials manipulation.
  */
 #define current_fsuid(credp)	(credp)->cr_uid
-#define current_fsgid(credp)	(credp)->cr_groups[0]
+#define current_fsgid(credp)	(credp)->cr_gid
 
 #define PAGE_CACHE_SIZE PAGE_SIZE
 

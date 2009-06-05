@@ -360,7 +360,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		tl = nfsm_dissect_nonblock(u_int32_t *, 3 * NFSX_UNSIGNED);
 		nd->nd_cr->cr_uid = nd->nd_cr->cr_ruid =
 		    nd->nd_cr->cr_svuid = fxdr_unsigned(uid_t, *tl++);
-		nd->nd_cr->cr_groups[0] = nd->nd_cr->cr_rgid =
+		nd->nd_cr->cr_gid = nd->nd_cr->cr_rgid =
 		    nd->nd_cr->cr_svgid = fxdr_unsigned(gid_t, *tl++);
 #ifdef MAC
 		mac_cred_associate_nfsd(nd->nd_cr);
@@ -376,7 +376,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 			nd->nd_cr->cr_groups[i] = fxdr_unsigned(gid_t, *tl++);
 		    else
 			tl++;
-		nd->nd_cr->cr_ngroups = (len >= XU_NGROUPS) ? XU_NGROUPS : (len + 1);
+		nd->nd_cr->cr_ngroups = MIN(XU_NGROUPS, len + 1);
 		if (nd->nd_cr->cr_ngroups > 1)
 		    nfsrvw_sort(nd->nd_cr->cr_groups, nd->nd_cr->cr_ngroups);
 		len = fxdr_unsigned(int, *++tl);

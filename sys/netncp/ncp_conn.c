@@ -249,7 +249,7 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct thread *td, struct ucred *cred,
 	ncp->connid = 0xFFFF;
 	ncp->li = *cap;
 	ncp->nc_group = (cap->group != NCP_DEFAULT_GROUP) ?
-		cap->group : cred->cr_groups[0];
+		cap->group : cred->cr_gid;
 
 	if (cap->retry_count == 0)
 		ncp->li.retry_count = NCP_RETRY_COUNT;

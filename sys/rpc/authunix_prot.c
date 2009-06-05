@@ -101,7 +101,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 
 	if (!xdr_uint32_t(xdrs, &cred->cr_uid))
 		return (FALSE);
-	if (!xdr_uint32_t(xdrs, &cred->cr_groups[0]))
+	if (!xdr_uint32_t(xdrs, &cred->cr_gid))
 		return (FALSE);
 
 	if (xdrs->x_op == XDR_ENCODE) {
