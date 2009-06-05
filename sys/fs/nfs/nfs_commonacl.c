@@ -703,10 +703,6 @@ nfsrv_setacl(vnode_t vp, NFSACL_T *aclp, struct ucred *cred,
 	if (aclp->acl_cnt > (ACL_MAX_ENTRIES - 6) / 2)
 		return (NFSERR_ATTRNOTSUPP);
 	error = VOP_ACLCHECK(vp, ACL_TYPE_NFS4, aclp, cred, p);
-#ifdef MAC
-	if (!error)
-		error = mac_check_vnode_setacl(cred, vp, ACL_TYPE_NFS4, aclp);
-#endif
 	if (!error)
 		error = VOP_SETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
 	return (error);
