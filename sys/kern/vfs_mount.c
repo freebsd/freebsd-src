@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #include "opt_rootdevname.h"
-#include "opt_mac.h"
 
 #define	ROOTNAME		"root_device"
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)

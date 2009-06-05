@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/jail.h>

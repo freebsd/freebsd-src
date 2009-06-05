@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef __FreeBSD__
-#include "opt_mac.h"
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
