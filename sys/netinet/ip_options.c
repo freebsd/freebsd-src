@@ -33,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ipstealth.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

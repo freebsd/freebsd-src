@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
  * IBCS2 system calls that are implemented differently in BSD are
  * handled here.
  */
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/dirent.h>
