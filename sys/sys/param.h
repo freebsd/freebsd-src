@@ -196,11 +196,6 @@
 
 #define	NODEV	(dev_t)(-1)	/* non-existent device */
 
-#define	CBLOCK	128		/* Clist block size, must be a power of 2. */
-				/* Data chars/clist. */
-#define	CBSIZE	(CBLOCK - sizeof(struct cblock *))
-#define	CROUND	(CBLOCK - 1)	/* Clist rounding. */
-
 /*
  * File system parameters and macros.
  *
