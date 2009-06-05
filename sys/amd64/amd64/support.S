@@ -38,6 +38,7 @@
 
 #include "assym.s"
 
+	.data
 	ALIGN_DATA
 	.globl	intrcnt, eintrcnt
 intrcnt:
