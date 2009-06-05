@@ -674,8 +674,9 @@ Liza Minnelli.
 %
 	... with liberty and justice for all who can afford it.
 %
-	12 + 144 + 20 + 3(4)                  2
-	----------------------  +  5(11)  =  9  +  0
+			   1/2
+	12 + 144 + 20 + 3*4                    2
+	----------------------  +  5 * 11  =  9  +  0
 		  7
 
 A dozen, a gross and a score,
@@ -758,7 +759,7 @@ his honeymoon a chastened man.  He'd become aware of the will of the wisp.
 	A farm in the country side had several turkeys, it was known as the
 house of seven gobbles.
 %
-	A father gave his teen-age daughter an untrained pedigreed pup for
+	A father gave his teenage daughter an untrained pedigreed pup for
 her birthday.  An hour later, when wandered through the house, he found her
 looking at a puddle in the center of the kitchen.  "My pup," she murmured
 sadly, "runneth over."
@@ -2547,7 +2548,7 @@ library and I'm half way through the second cabinet, (3 shelves to go), so I
 should find what I'm looking for by mid May.  I hope I can remember what it
 was by the time I find it.
 	I had this idea for a new horror film, "VMS Manuals from Hell" or maybe
-"The Paper Chase : IBM vs. DEC".  It's based on Hitchcock's "The Birds", except
+"The Paper Chase: IBM vs. DEC".  It's based on Hitchcock's "The Birds", except
 that it's centered around a programmer who is attacked by a swarm of binder
 pages with an index number and the single line "This page intentionally left
 blank."
@@ -2941,7 +2942,7 @@ Esther and hustle them off to prison.
 	They can't prove who they are because they've left their
 passports in their hotel room.  For three weeks they're tortured day
 and night to get them to name their contacts in the liberation
-movement..  Finally they're hauled in front of a military court,
+movement.  Finally they're hauled in front of a military court,
 charged with espionage, and sentenced to death.
 	The next morning they're lined up in front of the wall where
 they'll be shot.  The sergeant in charge of the firing squad asks them
@@ -2998,7 +2999,7 @@ a girl should not do before twenty."
 	"Your mother is right," said the executive, "I don't like a large
 audience, either."
 %
-	NEW YORK-- Kraft Foods, Inc. announced today that its board of
+	NEW YORK -- Kraft Foods, Inc. announced today that its board of
 directors unanimously rejected the $11 billion takeover bid by Philip
 Morris and Co. A Kraft spokesman stated in a press conference that the
 offer was rejected because the $90-per-share bid did not reflect the
@@ -4083,7 +4084,7 @@ right!  Can I have a dollar?"
 %
 	The master programmer moves from program to program without fear.  No
 change in management can harm him.  He will not be fired, even if the project
-is canceled. Why is this?  He is filled with the Tao.
+is canceled.  Why is this?  He is filled with the Tao.
 		-- Geoffrey James, "The Tao of Programming"
 %
 	The Minnesota Board of Education voted to consider requiring all
@@ -4248,7 +4249,7 @@ With a lot of these folks you'd have to check their green cards just to
 make sure that they are Earthlings.  Then there's the police.  In Portland,
 when some guy goes bananas, the cops rope off a sixteen block area around
 him and call a shrink from the medical school who stands atop a patrol car
-with a megaphone and shouts, "OK! THIS!  ALL!  STARTED!  WHEN!  YOU!  WERE!
+with a megaphone and shouts, "OK!  THIS!  ALL!  STARTED!  WHEN!  YOU!  WERE!
 THREE! YEARS!  OLD!  ON!  ACCOUNT! OF!  YOUR MOTHER!  RIGHT?  SO!  LET'S!
 TALK! ABOUT!  IT!"  Down here they don't waste that kind of time.  The LAPD
 has SWAT teams composed of guys who make Darth Vader look like Mr. Peepers.
@@ -4383,7 +4384,7 @@ against a wall, and this was inscribed on the floor:
 warlord Wu.  The warlord asked the programmer: "Which is easier to design:
 an accounting package or an operating system?"
 	"An operating system," replied the programmer.
-	The warlord uttered an exclamation of disbelief. "Surely an
+	The warlord uttered an exclamation of disbelief.  "Surely an
 accounting package is trivial next to the complexity of an operating
 system," he said.
 	"Not so," said the programmer, "when designing an accounting package,
@@ -4393,7 +4394,7 @@ tax laws.  By contrast, an operating system is not limited by outward
 appearances.  When designing an operating system, the programmer seeks the
 simplest harmony between machine and ideas.  This is why an operating system
 is easier to design."
-	The warlord of Wu nodded and smiled. "That is all good and well,"
+	The warlord of Wu nodded and smiled.  "That is all good and well,"
 he said, "but which is easier to debug?"
 	The programmer made no reply.
 		-- Geoffrey James, "The Tao of Programming"
@@ -4834,7 +4835,7 @@ invariably he can't speak English, and if he can, he always says, "Why,
 sure, little lady, it's eleven-thirty.  Wanna get high?
 	Don't bother thinking that instant lust will turn into the real thing.
 It may, but then you may also wake up one morning to find you're the Queen of
-Rumania.
+Romania.
 		-- Cynthia Hemiel, "Sex Tips for Girls"
 %
 	"When you wake up in the morning, Pooh," said Piglet at last,
@@ -5276,9 +5277,9 @@ marked "450 volts", react as you would normally.
 For those who have had too much of Esalen, Topanga, and Kairos.
 Tired of being genuine all the time?  Would you like to learn how
 to be a little phony again?  Have you disclosed so much that you're
-beginning to avoid people? Have you touched so many people that
-they're all beginning to feel the same? Like to be a little dependent?
-Are perfect orgasms beginning to bore you? Would you like, for once,
+beginning to avoid people?  Have you touched so many people that
+they're all beginning to feel the same?  Like to be a little dependent?
+Are perfect orgasms beginning to bore you?  Would you like, for once,
 not to express a feeling?  Or better yet, not be in touch with it at
 all?  Come to us.  We promise to relieve you of the burden of your
 great potential.
@@ -6578,7 +6579,7 @@ A critic is a bundle of biases held loosely together by a sense of taste.
 		-- Whitney Balliett
 %
 A "critic" is a man who creates nothing and thereby feels
-qualified to judge the work of creative men. There is logic
+qualified to judge the work of creative men.  There is logic
 in this; he is unbiased -- he hates all creative people equally.
 %
 A cynic is a person searching for an honest man, with a stolen lantern.
@@ -7270,7 +7271,7 @@ A little inaccuracy sometimes saves tons of explanation.
 %
 A little kid went up to Santa and asked him, "Santa, you know when I'm bad
 right?"  And Santa says, "Yes, I do."  The little kid then asks, "And you
-know when I'm sleeping?" To which Santa replies, "Every minute." So the
+know when I'm sleeping?"  To which Santa replies, "Every minute."  So the
 little kid then says, "Well, if you know when I'm bad and when I'm good,
 then how come you don't know what I want for Christmas?"
 %
