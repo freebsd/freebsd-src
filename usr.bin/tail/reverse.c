@@ -58,8 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-static void r_buf(FILE *);
-static void r_reg(FILE *, enum STYLE, off_t, struct stat *);
+static void r_buf(FILE *, const char *);
+static void r_reg(FILE *, const char *, enum STYLE, off_t, struct stat *);
 
 /*
  * reverse -- display input in reverse order by line.
@@ -80,25 +80,25 @@ static void r_reg(FILE *, enum STYLE, off_t, struct stat *);
  *	NOREG	cyclically read input into a linked list of buffers
  */
 void
-reverse(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
+reverse(FILE *fp, const char *fn, enum STYLE style, off_t off, struct stat *sbp)
 {
 	if (style != REVERSE && off == 0)
 		return;
 
 	if (S_ISREG(sbp->st_mode))
-		r_reg(fp, style, off, sbp);
+		r_reg(fp, fn, style, off, sbp);
 	else
 		switch(style) {
 		case FBYTES:
 		case RBYTES:
-			bytes(fp, off);
+			bytes(fp, fn, off);
 			break;
 		case FLINES:
 		case RLINES:
-			lines(fp, off);
+			lines(fp, fn, off);
 			break;
 		case REVERSE:
-			r_buf(fp);
+			r_buf(fp, fn);
 			break;
 		default:
 			break;
@@ -109,7 +109,7 @@ reverse(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
  * r_reg -- display a regular file in reverse order by line.
  */
 static void
-r_reg(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
+r_reg(FILE *fp, const char *fn, enum STYLE style, off_t off, struct stat *sbp)
 {
 	struct mapinfo map;
 	off_t curoff, size, lineend;
@@ -132,7 +132,7 @@ r_reg(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 		if (curoff < map.mapoff ||
 		    curoff >= map.mapoff + (off_t)map.maplen) {
 			if (maparound(&map, curoff) != 0) {
-				ierr();
+				ierr(fn);
 				return;
 			}
 		}
@@ -149,7 +149,7 @@ r_reg(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 
 		/* Print the line and update offsets. */
 		if (mapprint(&map, curoff + 1, lineend - curoff - 1) != 0) {
-			ierr();
+			ierr(fn);
 			return;
 		}
 		lineend = curoff + 1;
@@ -165,11 +165,11 @@ r_reg(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 		}
 	}
 	if (curoff < 0 && mapprint(&map, 0, lineend) != 0) {
-		ierr();
+		ierr(fn);
 		return;
 	}
 	if (map.start != NULL && munmap(map.start, map.maplen))
-		ierr();
+		ierr(fn);
 }
 
 typedef struct bf {
@@ -190,7 +190,7 @@ typedef struct bf {
  * user warned).
  */
 static void
-r_buf(FILE *fp)
+r_buf(FILE *fp, const char *fn)
 {
 	BF *mark, *tl, *tr;
 	int ch, len, llen;
@@ -227,7 +227,7 @@ r_buf(FILE *fp)
 			*p++ = ch;
 
 		if (ferror(fp)) {
-			ierr();
+			ierr(fn);
 			return;
 		}
 
