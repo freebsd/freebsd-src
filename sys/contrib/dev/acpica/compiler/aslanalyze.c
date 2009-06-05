@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslanalyze.c - check for semantic errors
- *              $Revision: 1.115 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,10 +117,8 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/amlcode.h>
-
-#include <ctype.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslanalyze")
@@ -177,6 +174,10 @@ AnIsInternalMethod (
 
 static UINT32
 AnGetInternalMethodReturnType (
+    ACPI_PARSE_OBJECT       *Op);
+
+BOOLEAN
+AnIsResultUsed (
     ACPI_PARSE_OBJECT       *Op);
 
 
@@ -272,7 +273,11 @@ AnMapArgTypeToBtype (
         return (ACPI_BTYPE_MUTEX);
 
     case ARGI_DDBHANDLE:
-        return (ACPI_BTYPE_DDB_HANDLE);
+        /*
+         * DDBHandleObject := SuperName
+         * ACPI_BTYPE_REFERENCE: Index reference as parameter of Load/Unload
+         */
+        return (ACPI_BTYPE_DDB_HANDLE | ACPI_BTYPE_REFERENCE);
 
     /* Interchangeable types */
     /*
@@ -682,7 +687,15 @@ AnCheckForReservedName (
             return (ACPI_NOT_RESERVED_NAME);
         }
 
-        AslError (ASL_ERROR, ASL_MSG_RESERVED_WORD, Op, Op->Asl.ExternalName);
+        /*
+         * Was not actually emitted by the compiler. This is a special case,
+         * however. If the ASL code being compiled was the result of a
+         * dissasembly, it may possibly contain valid compiler-emitted names
+         * of the form "_T_x". We don't want to issue an error or even a
+         * warning and force the user to manually change the names. So, we
+         * will issue a remark instead.
+         */
+        AslError (ASL_REMARK, ASL_MSG_COMPILER_RESERVED, Op, Op->Asl.ExternalName);
         return (ACPI_COMPILER_RESERVED_NAME);
     }
 
@@ -718,6 +731,8 @@ AnCheckForReservedMethod (
     ASL_METHOD_INFO         *MethodInfo)
 {
     UINT32                  Index;
+    UINT32                  RequiredArgsCurrent;
+    UINT32                  RequiredArgsOld;
 
 
     /* Check for a match against the reserved name list */
@@ -754,15 +769,23 @@ AnCheckForReservedMethod (
 
         Gbl_ReservedMethods++;
 
-        /* Matched a reserved method name */
+        /*
+         * Matched a reserved method name
+         *
+         * Validate the ASL-defined argument count. Allow two different legal
+         * arg counts.
+         */
+        RequiredArgsCurrent = ReservedMethods[Index].NumArguments & 0x0F;
+        RequiredArgsOld = ReservedMethods[Index].NumArguments >> 4;
 
-        if (MethodInfo->NumArguments != ReservedMethods[Index].NumArguments)
+        if ((MethodInfo->NumArguments != RequiredArgsCurrent) &&
+            (MethodInfo->NumArguments != RequiredArgsOld))
         {
             sprintf (MsgBuffer, "%s requires %d",
                         ReservedMethods[Index].Name,
-                        ReservedMethods[Index].NumArguments);
+                        RequiredArgsCurrent);
 
-            if (MethodInfo->NumArguments > ReservedMethods[Index].NumArguments)
+            if (MethodInfo->NumArguments > RequiredArgsCurrent)
             {
                 AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_HI, Op,
                     MsgBuffer);
@@ -956,9 +979,9 @@ AnMethodAnalysisWalkBegin (
                 MethodInfo->ValidArgTypes[ActualArgs] =
                     AnMapObjTypeToBtype (NextType);
                 NextType->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
+                ActualArgs++;
             }
 
-            ActualArgs++;
             NextType = NextType->Asl.Next;
         }
 
@@ -1010,10 +1033,10 @@ AnMethodAnalysisWalkBegin (
         if (!MethodInfo)
         {
             /*
-             * Probably was an error in the method declaration,
-             * no additional error here
+             * Local was used outside a control method, or there was an error
+             * in the method declaration.
              */
-            ACPI_WARNING ((AE_INFO, "%p, No parent method", Op));
+            AslError (ASL_REMARK, ASL_MSG_LOCAL_OUTSIDE_METHOD, Op, Op->Asl.ExternalName);
             return (AE_ERROR);
         }
 
@@ -1054,10 +1077,10 @@ AnMethodAnalysisWalkBegin (
         if (!MethodInfo)
         {
             /*
-             * Probably was an error in the method declaration,
-             * no additional error here
+             * Arg was used outside a control method, or there was an error
+             * in the method declaration.
              */
-            ACPI_WARNING ((AE_INFO, "%p, No parent method", Op));
+            AslError (ASL_REMARK, ASL_MSG_LOCAL_OUTSIDE_METHOD, Op, Op->Asl.ExternalName);
             return (AE_ERROR);
         }
 
@@ -1705,6 +1728,30 @@ AnOperandTypecheckWalkEnd (
     RuntimeArgTypes = OpInfo->RuntimeArgs;
     OpcodeClass     = OpInfo->Class;
 
+#ifdef ASL_ERROR_NAMED_OBJECT_IN_WHILE
+    /*
+     * Update 11/2008: In practice, we can't perform this check. A simple
+     * analysis is not sufficient. Also, it can cause errors when compiling
+     * disassembled code because of the way Switch operators are implemented
+     * (a While(One) loop with a named temp variable created within.)
+     */
+
+    /*
+     * If we are creating a named object, check if we are within a while loop
+     * by checking if the parent is a WHILE op. This is a simple analysis, but
+     * probably sufficient for many cases.
+     *
+     * Allow Scope(), Buffer(), and Package().
+     */
+    if (((OpcodeClass == AML_CLASS_NAMED_OBJECT) && (Op->Asl.AmlOpcode != AML_SCOPE_OP)) ||
+        ((OpcodeClass == AML_CLASS_CREATE) && (OpInfo->Flags & AML_NSNODE)))
+    {
+        if (Op->Asl.Parent->Asl.AmlOpcode == AML_WHILE_OP)
+        {
+            AslError (ASL_ERROR, ASL_MSG_NAMED_OBJECT_IN_WHILE, Op, NULL);
+        }
+    }
+#endif
 
     /*
      * Special case for control opcodes IF/RETURN/WHILE since they
@@ -2074,6 +2121,7 @@ AnOtherSemanticAnalysisWalkBegin (
             {
             case PARSEOP_ACQUIRE:
             case PARSEOP_WAIT:
+            case PARSEOP_LOADTABLE:
                 break;
 
             default:
