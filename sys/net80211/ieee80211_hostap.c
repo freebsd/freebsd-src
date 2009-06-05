@@ -1628,7 +1628,7 @@ htcapmismatch(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
 	IEEE80211_NOTE_MAC(ni->ni_vap, IEEE80211_MSG_ANY, wh->i_addr2,
 	    "deny %s request, %s missing HT ie", reassoc ? "reassoc" : "assoc");
 	/* XXX no better code */
-	IEEE80211_SEND_MGMT(ni, resp, IEEE80211_STATUS_OTHER);
+	IEEE80211_SEND_MGMT(ni, resp, IEEE80211_STATUS_MISSING_HT_CAPS);
 	ieee80211_node_leave(ni);
 }
 
