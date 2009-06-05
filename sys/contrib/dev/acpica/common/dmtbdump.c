@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: dmtbdump - Dump ACPI data tables that contain no AML code
- *              $Revision: 1.15 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -114,9 +113,10 @@
  *
  *****************************************************************************/
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acdisasm.h>
-#include <contrib/dev/acpica/actables.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
+#include <contrib/dev/acpica/include/actables.h>
 
 /* This module used for application-level code only */
 
@@ -260,11 +260,18 @@ AcpiDmDumpFadt (
 
     AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt1);
 
-    /* Check for ACPI 2.0+ extended data (cannot depend on Revision field) */
+    /* Check for ACPI 1.0B MS extensions (FADT revision 2) */
 
-    if (Table->Length >= sizeof (ACPI_TABLE_FADT))
+    if (Table->Revision == 2)
     {
         AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt2);
+    }
+
+    /* Check for ACPI 2.0+ extended data (FADT revision 3+) */
+
+    else if (Table->Length >= sizeof (ACPI_TABLE_FADT))
+    {
+        AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt3);
     }
 
     /* Validate various fields in the FADT, including length */
@@ -289,15 +296,16 @@ void
 AcpiDmDumpAsf (
     ACPI_TABLE_HEADER       *Table)
 {
+    ACPI_STATUS             Status;
     UINT32                  Offset = sizeof (ACPI_TABLE_HEADER);
     ACPI_ASF_INFO           *SubTable;
     ACPI_DMTABLE_INFO       *InfoTable;
     ACPI_DMTABLE_INFO       *DataInfoTable = NULL;
     UINT8                   *DataTable = NULL;
-    ACPI_NATIVE_UINT        DataCount = 0;
-    ACPI_NATIVE_UINT        DataLength = 0;
-    ACPI_NATIVE_UINT        DataOffset = 0;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  DataCount = 0;
+    UINT32                  DataLength = 0;
+    UINT32                  DataOffset = 0;
+    UINT32                  i;
 
 
     /* No main table, only sub-tables */
@@ -307,7 +315,12 @@ AcpiDmDumpAsf (
     {
         /* Common sub-table header */
 
-        AcpiDmDumpTable (Table->Length, Offset, SubTable, 0, AcpiDmTableInfoAsfHdr);
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    SubTable->Header.Length, AcpiDmTableInfoAsfHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
         switch (SubTable->Header.Type & 0x7F) /* Mask off top bit */
         {
@@ -349,8 +362,12 @@ AcpiDmDumpAsf (
             return;
         }
 
-        AcpiDmDumpTable (Table->Length, Offset, SubTable, SubTable->Header.Length, InfoTable);
-
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    SubTable->Header.Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
         /* Dump variable-length extra data */
 
@@ -362,7 +379,12 @@ AcpiDmDumpAsf (
             for (i = 0; i < DataCount; i++)
             {
                 AcpiOsPrintf ("\n");
-                AcpiDmDumpTable (Table->Length, DataOffset, DataTable, DataLength, DataInfoTable);
+                Status = AcpiDmDumpTable (Table->Length, DataOffset,
+                            DataTable, DataLength, DataInfoTable);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
 
                 DataTable = ACPI_ADD_PTR (UINT8, DataTable, DataLength);
                 DataOffset += DataLength;
@@ -381,15 +403,29 @@ AcpiDmDumpAsf (
                 AcpiOsPrintf ("%2.2X ", *DataTable);
                 DataTable++;
                 DataOffset++;
+                if (DataOffset > Table->Length)
+                {
+                    AcpiOsPrintf ("**** ACPI table terminates in the middle of a data structure!\n");
+                    return;
+                }
             }
 
             AcpiOsPrintf ("\n");
+            break;
+
+        default:
             break;
         }
 
         AcpiOsPrintf ("\n");
 
         /* Point to next sub-table */
+
+        if (!SubTable->Header.Length)
+        {
+            AcpiOsPrintf ("Invalid zero subtable header length\n");
+            return;
+        }
 
         Offset += SubTable->Header.Length;
         SubTable = ACPI_ADD_PTR (ACPI_ASF_INFO, SubTable, SubTable->Header.Length);
@@ -414,6 +450,7 @@ void
 AcpiDmDumpCpep (
     ACPI_TABLE_HEADER       *Table)
 {
+    ACPI_STATUS             Status;
     ACPI_CPEP_POLLING       *SubTable;
     UINT32                  Length = Table->Length;
     UINT32                  Offset = sizeof (ACPI_TABLE_CPEP);
@@ -421,7 +458,11 @@ AcpiDmDumpCpep (
 
     /* Main table */
 
-    AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoCpep);
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoCpep);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
     /* Sub-tables */
 
@@ -429,7 +470,12 @@ AcpiDmDumpCpep (
     while (Offset < Table->Length)
     {
         AcpiOsPrintf ("\n");
-        AcpiDmDumpTable (Length, Offset, SubTable, SubTable->Length, AcpiDmTableInfoCpep0);
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, AcpiDmTableInfoCpep0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
         /* Point to next sub-table */
 
@@ -456,6 +502,7 @@ void
 AcpiDmDumpDmar (
     ACPI_TABLE_HEADER       *Table)
 {
+    ACPI_STATUS             Status;
     ACPI_DMAR_HEADER        *SubTable;
     UINT32                  Length = Table->Length;
     UINT32                  Offset = sizeof (ACPI_TABLE_DMAR);
@@ -468,7 +515,11 @@ AcpiDmDumpDmar (
 
     /* Main table */
 
-    AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoDmar);
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoDmar);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
     /* Sub-tables */
 
@@ -478,7 +529,12 @@ AcpiDmDumpDmar (
         /* Common sub-table header */
 
         AcpiOsPrintf ("\n");
-        AcpiDmDumpTable (Length, Offset, SubTable, 0, AcpiDmTableInfoDmarHdr);
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, AcpiDmTableInfoDmarHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
         switch (SubTable->Type)
         {
@@ -490,58 +546,278 @@ AcpiDmDumpDmar (
             InfoTable = AcpiDmTableInfoDmar1;
             ScopeOffset = sizeof (ACPI_DMAR_RESERVED_MEMORY);
             break;
+        case ACPI_DMAR_TYPE_ATSR:
+            InfoTable = AcpiDmTableInfoDmar2;
+            ScopeOffset = sizeof (ACPI_DMAR_ATSR);
+            break;
         default:
             AcpiOsPrintf ("\n**** Unknown DMAR sub-table type %X\n\n", SubTable->Type);
             return;
         }
 
-        AcpiDmDumpTable (Length, Offset, SubTable, SubTable->Length, InfoTable);
-
-        /*
-         * Currently, a common flag indicates whether there are any
-         * device scope entries present at the end of the subtable.
-         */
-        if ((SubTable->Flags & ACPI_DMAR_INCLUDE_ALL) == 0)
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
         {
-            /* Dump the device scope entries */
+            return;
+        }
 
-            ScopeTable = ACPI_ADD_PTR (ACPI_DMAR_DEVICE_SCOPE, SubTable, ScopeOffset);
-            while (ScopeOffset < SubTable->Length)
+        /* Dump the device scope entries (if any) */
+
+        ScopeTable = ACPI_ADD_PTR (ACPI_DMAR_DEVICE_SCOPE, SubTable, ScopeOffset);
+        while (ScopeOffset < SubTable->Length)
+        {
+            AcpiOsPrintf ("\n");
+            Status = AcpiDmDumpTable (Length, Offset + ScopeOffset, ScopeTable,
+                        ScopeTable->Length, AcpiDmTableInfoDmarScope);
+            if (ACPI_FAILURE (Status))
             {
-                AcpiOsPrintf ("\n");
-                AcpiDmDumpTable (Length, Offset + ScopeOffset, ScopeTable,
-                    ScopeTable->Length, AcpiDmTableInfoDmarScope);
-
-                /* Dump the PCI Path entries for this device scope */
-
-                PathOffset = sizeof (ACPI_DMAR_DEVICE_SCOPE); /* Path entries start at this offset */
-
-                PciPath = ACPI_ADD_PTR (UINT8, ScopeTable,
-                    sizeof (ACPI_DMAR_DEVICE_SCOPE));
-
-                while (PathOffset < ScopeTable->Length)
-                {
-                    AcpiDmLineHeader ((PathOffset + ScopeOffset + Offset), 2, "PCI Path");
-                    AcpiOsPrintf ("[%2.2X, %2.2X]\n", PciPath[0], PciPath[1]);
-
-                    /* Point to next PCI Path entry */
-
-                    PathOffset += 2;
-                    PciPath += 2;
-                }
-
-                /* Point to next device scope entry */
-
-                ScopeOffset += ScopeTable->Length;
-                ScopeTable = ACPI_ADD_PTR (ACPI_DMAR_DEVICE_SCOPE,
-                    ScopeTable, ScopeTable->Length);
+                return;
             }
+
+            /* Dump the PCI Path entries for this device scope */
+
+            PathOffset = sizeof (ACPI_DMAR_DEVICE_SCOPE); /* Path entries start at this offset */
+
+            PciPath = ACPI_ADD_PTR (UINT8, ScopeTable,
+                sizeof (ACPI_DMAR_DEVICE_SCOPE));
+
+            while (PathOffset < ScopeTable->Length)
+            {
+                AcpiDmLineHeader ((PathOffset + ScopeOffset + Offset), 2, "PCI Path");
+                AcpiOsPrintf ("[%2.2X, %2.2X]\n", PciPath[0], PciPath[1]);
+
+                /* Point to next PCI Path entry */
+
+                PathOffset += 2;
+                PciPath += 2;
+            }
+
+            /* Point to next device scope entry */
+
+            ScopeOffset += ScopeTable->Length;
+            ScopeTable = ACPI_ADD_PTR (ACPI_DMAR_DEVICE_SCOPE,
+                ScopeTable, ScopeTable->Length);
         }
 
         /* Point to next sub-table */
 
         Offset += SubTable->Length;
         SubTable = ACPI_ADD_PTR (ACPI_DMAR_HEADER, SubTable, SubTable->Length);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpEinj
+ *
+ * PARAMETERS:  Table               - A EINJ table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a EINJ. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpEinj (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_WHEA_HEADER        *SubTable;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_EINJ);
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoEinj);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Sub-tables */
+
+    SubTable = ACPI_ADD_PTR (ACPI_WHEA_HEADER, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    sizeof (ACPI_WHEA_HEADER), AcpiDmTableInfoEinj0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to next sub-table (each subtable is of fixed length) */
+
+        Offset += sizeof (ACPI_WHEA_HEADER);
+        SubTable = ACPI_ADD_PTR (ACPI_WHEA_HEADER, SubTable,
+                        sizeof (ACPI_WHEA_HEADER));
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpErst
+ *
+ * PARAMETERS:  Table               - A ERST table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a ERST. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpErst (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_WHEA_HEADER        *SubTable;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_ERST);
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoErst);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Sub-tables */
+
+    SubTable = ACPI_ADD_PTR (ACPI_WHEA_HEADER, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    sizeof (ACPI_WHEA_HEADER), AcpiDmTableInfoEinj0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to next sub-table (each subtable is of fixed length) */
+
+        Offset += sizeof (ACPI_WHEA_HEADER);
+        SubTable = ACPI_ADD_PTR (ACPI_WHEA_HEADER, SubTable,
+                        sizeof (ACPI_WHEA_HEADER));
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpHest
+ *
+ * PARAMETERS:  Table               - A HEST table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a HEST. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpHest (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_HEST_HEADER        *SubTable;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_HEST);
+    ACPI_DMTABLE_INFO       *InfoTable;
+    UINT32                  SubTableLength;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoHest);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Sub-tables */
+
+    SubTable = ACPI_ADD_PTR (ACPI_HEST_HEADER, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        switch (SubTable->Type)
+        {
+        case ACPI_HEST_TYPE_XPF_MACHINE_CHECK:
+            InfoTable = AcpiDmTableInfoHest0;
+            SubTableLength = sizeof (ACPI_HEST_XPF_MACHINE_CHECK);
+            break;
+
+        case ACPI_HEST_TYPE_XPF_CORRECTED_MACHINE_CHECK:
+            InfoTable = AcpiDmTableInfoHest1;
+            SubTableLength = sizeof (ACPI_HEST_XPF_CORRECTED);
+            break;
+
+        case ACPI_HEST_TYPE_XPF_NON_MASKABLE_INTERRUPT:
+            InfoTable = AcpiDmTableInfoHest3;
+            SubTableLength = sizeof (ACPI_HEST_XPF_NMI);
+            break;
+
+        case ACPI_HEST_TYPE_IPF_CORRECTED_MACHINE_CHECK:
+            InfoTable = AcpiDmTableInfoHest4;
+            SubTableLength = sizeof (ACPI_HEST_IPF_CORRECTED);
+            break;
+
+        case ACPI_HEST_TYPE_IPF_CORRECTED_PLATFORM_ERROR:
+            InfoTable = AcpiDmTableInfoHest5;
+            SubTableLength = sizeof (ACPI_HEST_IPF_CORRECTED_PLATFORM);
+            break;
+
+        case ACPI_HEST_TYPE_AER_ROOT_PORT:
+            InfoTable = AcpiDmTableInfoHest6;
+            SubTableLength = sizeof (ACPI_HEST_AER_ROOT);
+            break;
+
+        case ACPI_HEST_TYPE_AER_ENDPOINT:
+            InfoTable = AcpiDmTableInfoHest7;
+            SubTableLength = sizeof (ACPI_HEST_AER);
+            break;
+
+        case ACPI_HEST_TYPE_AER_BRIDGE:
+            InfoTable = AcpiDmTableInfoHest8;
+            SubTableLength = sizeof (ACPI_HEST_AER_BRIDGE);
+            break;
+
+        case ACPI_HEST_TYPE_GENERIC_HARDWARE_ERROR_SOURCE:
+            InfoTable = AcpiDmTableInfoHest9;
+            SubTableLength = sizeof (ACPI_HEST_GENERIC);
+            break;
+
+        default:
+            /* Cannot continue on unknown type - no length */
+
+            AcpiOsPrintf ("\n**** Unknown HEST sub-table type %X\n", SubTable->Type);
+            return;
+        }
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTableLength, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to next sub-table (each subtable is of fixed length) */
+
+        Offset += SubTableLength;
+        SubTable = ACPI_ADD_PTR (ACPI_HEST_HEADER, SubTable, SubTableLength);
     }
 }
 
@@ -563,6 +839,7 @@ void
 AcpiDmDumpMadt (
     ACPI_TABLE_HEADER       *Table)
 {
+    ACPI_STATUS             Status;
     ACPI_SUBTABLE_HEADER    *SubTable;
     UINT32                  Length = Table->Length;
     UINT32                  Offset = sizeof (ACPI_TABLE_MADT);
@@ -571,7 +848,11 @@ AcpiDmDumpMadt (
 
     /* Main table */
 
-    AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoMadt);
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoMadt);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
     /* Sub-tables */
 
@@ -581,7 +862,12 @@ AcpiDmDumpMadt (
         /* Common sub-table header */
 
         AcpiOsPrintf ("\n");
-        AcpiDmDumpTable (Length, Offset, SubTable, 0, AcpiDmTableInfoMadtHdr);
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, AcpiDmTableInfoMadtHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
         switch (SubTable->Type)
         {
@@ -612,13 +898,33 @@ AcpiDmDumpMadt (
         case ACPI_MADT_TYPE_INTERRUPT_SOURCE:
             InfoTable = AcpiDmTableInfoMadt8;
             break;
+        case ACPI_MADT_TYPE_LOCAL_X2APIC:
+            InfoTable = AcpiDmTableInfoMadt9;
+            break;
+        case ACPI_MADT_TYPE_LOCAL_X2APIC_NMI:
+            InfoTable = AcpiDmTableInfoMadt10;
+            break;
         default:
             AcpiOsPrintf ("\n**** Unknown MADT sub-table type %X\n\n", SubTable->Type);
+
+            /* Attempt to continue */
+
+            if (!SubTable->Length)
+            {
+                AcpiOsPrintf ("Invalid zero length subtable\n");
+                return;
+            }
+            goto NextSubTable;
+        }
+
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
             return;
         }
 
-        AcpiDmDumpTable (Length, Offset, SubTable, SubTable->Length, InfoTable);
-
+NextSubTable:
         /* Point to next sub-table */
 
         Offset += SubTable->Length;
@@ -643,13 +949,18 @@ void
 AcpiDmDumpMcfg (
     ACPI_TABLE_HEADER       *Table)
 {
+    ACPI_STATUS             Status;
     UINT32                  Offset = sizeof (ACPI_TABLE_MCFG);
     ACPI_MCFG_ALLOCATION    *SubTable;
 
 
     /* Main table */
 
-    AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoMcfg);
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoMcfg);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
     /* Sub-tables */
 
@@ -664,7 +975,12 @@ AcpiDmDumpMcfg (
         }
 
         AcpiOsPrintf ("\n");
-        AcpiDmDumpTable (Table->Length, Offset, SubTable, 0, AcpiDmTableInfoMcfg0);
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    sizeof (ACPI_MCFG_ALLOCATION), AcpiDmTableInfoMcfg0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
         /* Point to next sub-table (each subtable is of fixed length) */
 
@@ -691,6 +1007,7 @@ void
 AcpiDmDumpSlit (
     ACPI_TABLE_HEADER       *Table)
 {
+    ACPI_STATUS             Status;
     UINT32                  Offset;
     UINT8                   *Row;
     UINT32                  Localities;
@@ -700,7 +1017,11 @@ AcpiDmDumpSlit (
 
     /* Main table */
 
-    AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoSlit);
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoSlit);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
     /* Display the Locality NxN Matrix */
 
@@ -759,6 +1080,7 @@ void
 AcpiDmDumpSrat (
     ACPI_TABLE_HEADER       *Table)
 {
+    ACPI_STATUS             Status;
     UINT32                  Offset = sizeof (ACPI_TABLE_SRAT);
     ACPI_SUBTABLE_HEADER    *SubTable;
     ACPI_DMTABLE_INFO       *InfoTable;
@@ -766,13 +1088,27 @@ AcpiDmDumpSrat (
 
     /* Main table */
 
-    AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoSrat);
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoSrat);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
     /* Sub-tables */
 
     SubTable = ACPI_ADD_PTR (ACPI_SUBTABLE_HEADER, Table, Offset);
     while (Offset < Table->Length)
     {
+        /* Common sub-table header */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    SubTable->Length, AcpiDmTableInfoSratHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
         switch (SubTable->Type)
         {
         case ACPI_SRAT_TYPE_CPU_AFFINITY:
@@ -781,14 +1117,31 @@ AcpiDmDumpSrat (
         case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
             InfoTable = AcpiDmTableInfoSrat1;
             break;
+        case ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY:
+            InfoTable = AcpiDmTableInfoSrat2;
+            break;
         default:
             AcpiOsPrintf ("\n**** Unknown SRAT sub-table type %X\n", SubTable->Type);
-            return;
+
+            /* Attempt to continue */
+
+            if (!SubTable->Length)
+            {
+                AcpiOsPrintf ("Invalid zero length subtable\n");
+                return;
+            }
+            goto NextSubTable;
         }
 
         AcpiOsPrintf ("\n");
-        AcpiDmDumpTable (Table->Length, Offset, SubTable, SubTable->Length, InfoTable);
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    SubTable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
+NextSubTable:
         /* Point to next sub-table */
 
         Offset += SubTable->Length;
