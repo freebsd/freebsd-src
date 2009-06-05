@@ -17,7 +17,7 @@ SUBDIR+=		efi
 SUBDIR+=		ofw
 .endif
 
-.if ${MK_ZFS} != "no"
+.if defined(LOADER_ZFS_SUPPORT)
 SUBDIR+=		zfs
 .endif
 
