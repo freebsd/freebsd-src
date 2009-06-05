@@ -326,10 +326,9 @@ SlowFault:
 
 #define	RESTORE_CPU \
 	mtc0	zero,COP_0_STATUS_REG	;\
-	RESTORE_REG(a0, SR, sp)		;\
+	RESTORE_REG(k0, SR, sp)		;\
 	RESTORE_REG(t0, MULLO, sp)	;\
 	RESTORE_REG(t1, MULHI, sp)	;\
-	mtc0	a0, COP_0_STATUS_REG	;\
 	mtlo	t0			;\
 	mthi	t1			;\
 	_MTC0	v0, COP_0_EXC_PC	;\
@@ -362,7 +361,8 @@ SlowFault:
 	RESTORE_REG(s8, S8, sp)	        ;\
 	RESTORE_REG(gp, GP, sp)		;\
 	RESTORE_REG(ra, RA, sp)		;\
-	addu	sp, sp, KERN_EXC_FRAME_SIZE
+	addu	sp, sp, KERN_EXC_FRAME_SIZE;\
+	mtc0	k0, COP_0_STATUS_REG
 
 
 /*
@@ -484,16 +484,19 @@ NNON_LEAF(MipsUserGenException, STAND_FRAME_SIZE, ra)
 	la	k0, _C_LABEL(trap)
 	jalr	k0
 	nop
+
 /*
  * Restore user registers and return.
  * First disable interrupts and set exeption level.
  */
 	DO_AST
 
-	mtc0	zero, COP_0_STATUS_REG	# disable int
+	mfc0	t0, COP_0_STATUS_REG	# disable int
+	and	t0, t0, ~(MIPS_SR_INT_IE)
+	mtc0	t0, COP_0_STATUS_REG
 	ITLBNOPFIX
-	li	v0, SR_EXL
-	mtc0	v0, COP_0_STATUS_REG	# set exeption level
+	or	t0, t0, SR_EXL
+	mtc0	t0, COP_0_STATUS_REG	# set exeption level
 	ITLBNOPFIX
 
 /*
@@ -503,6 +506,18 @@ NNON_LEAF(MipsUserGenException, STAND_FRAME_SIZE, ra)
  */
 	GET_CPU_PCPU(k1)
 	lw	k1, PC_CURPCB(k1)
+
+	/*
+	 * Update interrupt mask in saved status register
+	 * Some of interrupts could be enabled by ithread
+	 * scheduled by ast()
+	 */
+	mfc0	a0, COP_0_STATUS_REG
+	and	a0, a0, SR_INT_MASK
+	RESTORE_U_PCB_REG(a1, SR, k1)
+	and	a1, a1, ~SR_INT_MASK
+	or	a1, a1, a0
+	SAVE_U_PCB_REG(a1, SR, k1)
 
 	RESTORE_U_PCB_REG(t0, MULLO, k1)
 	RESTORE_U_PCB_REG(t1, MULHI, k1)
@@ -714,14 +729,29 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 /*
  * Restore user registers and return. 
  */
-	mtc0	zero, COP_0_STATUS_REG	# re-disable interrupts
+	mfc0	t0, COP_0_STATUS_REG	# disable int
+	and	t0, t0, ~(MIPS_SR_INT_IE)
+	mtc0	t0, COP_0_STATUS_REG
 	ITLBNOPFIX
-	li	v0, SR_EXL
-	mtc0	v0, COP_0_STATUS_REG	# set exeption level bit.
+	or	t0, t0, SR_EXL
+	mtc0	t0, COP_0_STATUS_REG	# set exeption level
 	ITLBNOPFIX
 
 	GET_CPU_PCPU(k1)
 	lw	k1, PC_CURPCB(k1)
+
+	/*
+	 * Update interrupt mask in saved status register
+	 * Some of interrupts could be disabled by
+	 * intr filters
+	 */
+	mfc0	a0, COP_0_STATUS_REG
+	and	a0, a0, SR_INT_MASK
+	RESTORE_U_PCB_REG(a1, SR, k1)
+	and	a1, a1, ~SR_INT_MASK
+	or	a1, a1, a0
+	SAVE_U_PCB_REG(a1, SR, k1)
+
 	RESTORE_U_PCB_REG(s0, S0, k1)
 	RESTORE_U_PCB_REG(s1, S1, k1)
 	RESTORE_U_PCB_REG(s2, S2, k1)
