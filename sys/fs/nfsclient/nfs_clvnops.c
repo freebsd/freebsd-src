@@ -1374,7 +1374,7 @@ again:
 	}
 	mtx_unlock(&dnp->n_mtx);
 
-	CURVNET_SET(nmp->nm_sockreq.nr_so->so_vnet);
+	CURVNET_SET(P_TO_VNET(&proc0));
 #ifdef INET
 	INIT_VNET_INET(curvnet);
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead))

@@ -149,10 +149,10 @@ static device_probe_t rum_match;
 static device_attach_t rum_attach;
 static device_detach_t rum_detach;
 
-static usb2_callback_t rum_bulk_read_callback;
-static usb2_callback_t rum_bulk_write_callback;
+static usb_callback_t rum_bulk_read_callback;
+static usb_callback_t rum_bulk_write_callback;
 
-static usb2_error_t	rum_do_request(struct rum_softc *sc,
+static usb_error_t	rum_do_request(struct rum_softc *sc,
 			    struct usb_device_request *req, void *data);
 static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
 			    const char name[IFNAMSIZ], int unit, int opmode,
@@ -181,8 +181,8 @@ static void		rum_eeprom_read(struct rum_softc *, uint16_t, void *,
 static uint32_t		rum_read(struct rum_softc *, uint16_t);
 static void		rum_read_multi(struct rum_softc *, uint16_t, void *,
 			    int);
-static usb2_error_t	rum_write(struct rum_softc *, uint16_t, uint32_t);
-static usb2_error_t	rum_write_multi(struct rum_softc *, uint16_t, void *,
+static usb_error_t	rum_write(struct rum_softc *, uint16_t, uint32_t);
+static usb_error_t	rum_write_multi(struct rum_softc *, uint16_t, void *,
 			    size_t);
 static void		rum_bbp_write(struct rum_softc *, uint8_t, uint8_t);
 static uint8_t		rum_bbp_read(struct rum_softc *, uint8_t);
@@ -564,11 +564,11 @@ rum_detach(device_t self)
 	return (0);
 }
 
-static usb2_error_t
+static usb_error_t
 rum_do_request(struct rum_softc *sc,
     struct usb_device_request *req, void *data)
 {
-	usb2_error_t err;
+	usb_error_t err;
 	int ntries = 10;
 
 	while (ntries--) {
@@ -1137,6 +1137,7 @@ static int
 rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     const struct ieee80211_bpf_params *params)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct rum_tx_data *data;
 	uint32_t flags;
 	int rate, error;
@@ -1144,9 +1145,8 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	RUM_LOCK_ASSERT(sc, MA_OWNED);
 	KASSERT(params != NULL, ("no raw xmit params"));
 
-	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
-	/* XXX validate */
-	if (rate == 0) {
+	rate = params->ibp_rate0;
+	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
 		m_freem(m0);
 		return EINVAL;
 	}
@@ -1340,7 +1340,7 @@ static void
 rum_eeprom_read(struct rum_softc *sc, uint16_t addr, void *buf, int len)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = RT2573_READ_EEPROM;
@@ -1369,7 +1369,7 @@ static void
 rum_read_multi(struct rum_softc *sc, uint16_t reg, void *buf, int len)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = RT2573_READ_MULTI_MAC;
@@ -1385,7 +1385,7 @@ rum_read_multi(struct rum_softc *sc, uint16_t reg, void *buf, int len)
 	}
 }
 
-static usb2_error_t
+static usb_error_t
 rum_write(struct rum_softc *sc, uint16_t reg, uint32_t val)
 {
 	uint32_t tmp = htole32(val);
@@ -1393,11 +1393,11 @@ rum_write(struct rum_softc *sc, uint16_t reg, uint32_t val)
 	return (rum_write_multi(sc, reg, &tmp, sizeof tmp));
 }
 
-static usb2_error_t
+static usb_error_t
 rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = RT2573_WRITE_MULTI_MAC;
@@ -1945,7 +1945,7 @@ rum_init_locked(struct rum_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t tmp;
-	usb2_error_t error;
+	usb_error_t error;
 	int i, ntries;
 
 	RUM_LOCK_ASSERT(sc, MA_OWNED);
@@ -2070,7 +2070,7 @@ rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 {
 	struct usb_device_request req;
 	uint16_t reg = RT2573_MCU_CODE_BASE;
-	usb2_error_t err;
+	usb_error_t err;
 
 	/* copy firmware image into NIC */
 	for (; size >= 4; reg += 4, ucode += 4, size -= 4) {

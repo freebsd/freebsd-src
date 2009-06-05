@@ -196,8 +196,8 @@ static const struct usb_device_id upgt_devs_2[] = {
 	UPGT_DEV(ZCOM,		XM142)
 };
 
-static usb2_callback_t upgt_bulk_rx_callback;
-static usb2_callback_t upgt_bulk_tx_callback;
+static usb_callback_t upgt_bulk_rx_callback;
+static usb_callback_t upgt_bulk_tx_callback;
 
 static const struct usb_config upgt_config[UPGT_N_XFERS] = {
 	[UPGT_BULK_TX] = {

@@ -189,6 +189,7 @@ struct label {
  */
 extern struct mac_policy_list_head	mac_policy_list;
 extern struct mac_policy_list_head	mac_static_policy_list;
+extern u_int				mac_policy_count;
 extern uint64_t				mac_labeled;
 extern struct mtx			mac_ifnet_mtx;
 

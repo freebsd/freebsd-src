@@ -34,7 +34,6 @@
 #include "opt_inet6.h"
 #include "opt_inet.h"
 #include "opt_route.h"
-#include "opt_mac.h"
 #include "opt_carp.h"
 
 #include <sys/param.h>
@@ -574,6 +573,7 @@ if_free_internal(struct ifnet *ifp)
 	knlist_destroy(&ifp->if_klist);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
+	ifq_detach(&ifp->if_snd);
 	free(ifp, M_IFNET);
 }
 
@@ -1001,7 +1001,8 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	 */
 	for (i = 1; i <= AF_MAX; i++) {
 		for (j = 0; j < rt_numfibs; j++) {
-			if ((rnh = V_rt_tables[j][i]) == NULL)
+			rnh = rt_tables_get_rnh(j, i);
+			if (rnh == NULL)
 				continue;
 			RADIX_NODE_HEAD_LOCK(rnh);
 			(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
@@ -1024,9 +1025,6 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	}
 	ifp->if_afdata_initialized = 0;
 	IF_AFDATA_UNLOCK(ifp);
-
-	if (!vmove)
-		ifq_detach(&ifp->if_snd);
 }
 
 #ifdef VIMAGE
@@ -2283,6 +2281,21 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	ifr = (struct ifreq *)data;
 
 	switch (cmd) {
+#ifdef VIMAGE
+	/*
+	 * XXX vnet creation will be implemented through the new jail
+	 * framework - this is just a temporary hack for testing the
+	 * vnet create / destroy mechanisms.
+	 */
+	case SIOCSIFVIMAGE:
+		error = vi_if_move((struct vi_req *) data, NULL,
+		    TD_TO_VIMAGE(td));
+		return (error);
+	case SIOCSPVIMAGE:
+	case SIOCGPVIMAGE:
+		error = vi_td_ioctl(cmd, (struct vi_req *) data, td);
+		return (error);
+#endif
 	case SIOCIFCREATE:
 	case SIOCIFCREATE2:
 		error = priv_check(td, PRIV_NET_IFCREATE);

@@ -160,9 +160,9 @@ static device_probe_t umodem_probe;
 static device_attach_t umodem_attach;
 static device_detach_t umodem_detach;
 
-static usb2_callback_t umodem_intr_callback;
-static usb2_callback_t umodem_write_callback;
-static usb2_callback_t umodem_read_callback;
+static usb_callback_t umodem_intr_callback;
+static usb_callback_t umodem_write_callback;
+static usb_callback_t umodem_read_callback;
 
 static void	umodem_start_read(struct ucom_softc *);
 static void	umodem_stop_read(struct ucom_softc *);
@@ -179,7 +179,7 @@ static void	umodem_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	umodem_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	umodem_cfg_set_break(struct ucom_softc *, uint8_t);
 static void	*umodem_get_desc(struct usb_attach_arg *, uint8_t, uint8_t);
-static usb2_error_t umodem_set_comm_feature(struct usb_device *, uint8_t,
+static usb_error_t umodem_set_comm_feature(struct usb_device *, uint8_t,
 		    uint16_t, uint16_t);
 
 static const struct usb_config umodem_config[UMODEM_N_TRANSFER] = {
@@ -750,7 +750,7 @@ umodem_get_desc(struct usb_attach_arg *uaa, uint8_t type, uint8_t subtype)
 	    type, 0 - 1, subtype, 0 - 1));
 }
 
-static usb2_error_t
+static usb_error_t
 umodem_set_comm_feature(struct usb_device *udev, uint8_t iface_no,
     uint16_t feature, uint16_t state)
 {

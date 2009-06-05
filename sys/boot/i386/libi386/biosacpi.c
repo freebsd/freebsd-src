@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <btxv86.h>
 #include "libi386.h"
 
-#include "acfreebsd.h"
+#include "platform/acfreebsd.h"
 #include "acconfig.h"
 #define ACPI_SYSTEM_XFACE
 #include "actypes.h"

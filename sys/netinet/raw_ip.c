@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/jail.h>
@@ -70,8 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_mroute.h>
 
-#include <netinet/ip_fw.h>
-#include <netinet/ip_dummynet.h>
 #include <netinet/vinet.h>
 
 #ifdef IPSEC
@@ -85,9 +82,15 @@ struct	inpcbhead ripcb;
 struct	inpcbinfo ripcbinfo;
 #endif
 
-/* control hooks for ipfw and dummynet */
-ip_fw_ctl_t *ip_fw_ctl_ptr = NULL;
-ip_dn_ctl_t *ip_dn_ctl_ptr = NULL;
+/*
+ * Control and data hooks for ipfw and dummynet.
+ * The data hooks are not used here but it is convenient
+ * to keep them all in one place.
+ */
+int (*ip_fw_ctl_ptr)(struct sockopt *) = NULL;
+int (*ip_dn_ctl_ptr)(struct sockopt *) = NULL;
+int (*ip_fw_chk_ptr)(struct ip_fw_args *args) = NULL;
+int (*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa) = NULL;
 
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
@@ -853,14 +856,15 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (error != 0)
 		return (error);
 
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip_bind: inp == NULL"));
+
 	if (TAILQ_EMPTY(&V_ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
-	     ifa_ifwithaddr((struct sockaddr *)addr) == 0))
+	     (inp->inp_flags & INP_BINDANY) == 0 &&
+	     ifa_ifwithaddr((struct sockaddr *)addr) == NULL))
 		return (EADDRNOTAVAIL);
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("rip_bind: inp == NULL"));
 
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);

@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslmap - parser to AML opcode mapping table
- *              $Revision: 1.87 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,8 +116,8 @@
 
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acparser.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acparser.h>
 
 
 #define _COMPONENT          ACPI_COMPILER
@@ -205,7 +204,7 @@ MpDisplayReservedNames (
         else
         {
             printf ("Method with %d arguments, ",
-                ReservedMethods[i].NumArguments);
+                ReservedMethods[i].NumArguments & 0x0F);
 
             if (ReservedMethods[i].Flags & ASL_RSVD_RETURN_VALUE)
             {
@@ -266,6 +265,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_ALR",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_ALT",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_ASI",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_ASZ",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_BAS",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_BBN",     0,      ASL_RSVD_RETURN_VALUE},
     {"_BCL",     0,      ASL_RSVD_RETURN_VALUE},
@@ -343,6 +343,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_MIN",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_MLS",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_MSG",     1,      0},
+    {"_MTP",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_OFF",     0,      0},
     {"_ON_",     0,      0},
     {"_OS_",     0,      ASL_RSVD_RETURN_VALUE},
@@ -403,7 +404,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_S4W",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_SB_",     0,      ASL_RSVD_SCOPE},
     {"_SBS",     0,      ASL_RSVD_RETURN_VALUE},
-    {"_SCP",     1,      0},
+    {"_SCP",     0x13,   0},                        /* Acpi 1.0 - one arg; Acpi 3.0 - three args */
     {"_SDD",     1,      0},                        /* Acpi 3.0 */
     {"_SEG",     0,      ASL_RSVD_RETURN_VALUE},
     {"_SHR",     0,      ASL_RSVD_RESOURCE_NAME},

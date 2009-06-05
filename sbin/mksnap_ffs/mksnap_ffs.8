@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2003
+.Dd May 29, 2009
 .Dt MKSNAP_FFS 8
 .Os
 .Sh NAME
@@ -42,19 +42,12 @@
 .Nd take a file system snapshot
 .Sh SYNOPSIS
 .Nm
-.Ar mountpoint
 .Ar snapshot_name
 .Sh DESCRIPTION
 The
 .Nm
 utility creates a snapshot named
-.Ar snapshot_name
-on the file system mounted at
-.Ar mountpoint .
-The
-.Ar snapshot_name
-argument must be contained within the file system mounted at
-.Ar mountpoint .
+.Ar snapshot_name .
 .Pp
 The group ownership of the file is set to
 .Dq Li operator ;
@@ -64,9 +57,19 @@ The mode of the snapshot is set to be readable by the owner
 or members of the
 .Dq Li operator
 group.
+.Sh EXAMPLES
+Create a snapshot of
+.Pa /usr/home
+file system and mount the snapshot elsewhere:
+.Bd -literal -offset indent
+mksnap_ffs /usr/home/snapshot
+mdconfig -a -t vnode -o readonly -f /usr/home/snapshot
+mount -o ro /dev/md0 /mnt/
+.Ed
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr chown 8 ,
+.Xr mdconfig 8,
 .Xr mount 8
 .Sh CAVEATS
 The disk full situation is not handled gracefully and may

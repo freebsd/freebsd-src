@@ -181,7 +181,8 @@ struct ieee80211com {
 
 	/* 802.11h/DFS state */
 	struct ieee80211_channel *ic_csa_newchan;/* channel for doing CSA */
-	int			ic_csa_count;	/* count for doing CSA */
+	short			ic_csa_mode;	/* mode for doing CSA */
+	short			ic_csa_count;	/* count for doing CSA */
 	struct ieee80211_dfs_state ic_dfs;	/* DFS state */
 
 	struct ieee80211_scan_state *ic_scan;	/* scan state */
@@ -215,7 +216,7 @@ struct ieee80211com {
 	void			*ic_txchan;	/* channel state in ic_th */
 	struct ieee80211_radiotap_header *ic_rh;/* rx radiotap headers */
 	void			*ic_rxchan;	/* channel state in ic_rh */
-	int			ic_monvaps;	/* # monitor mode vaps */
+	int			ic_montaps;	/* active monitor mode taps */
 
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,
@@ -307,6 +308,7 @@ struct ieee80211com {
 				    int batimeout, int baseqctl);
 	void			(*ic_ampdu_rx_stop)(struct ieee80211_node *,
 				    struct ieee80211_rx_ampdu *);
+	uint64_t		ic_spare[8];
 };
 
 struct ieee80211_aclator;
@@ -456,6 +458,7 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    struct sockaddr *, struct route *);
+	uint64_t		iv_spare[8];
 };
 MALLOC_DECLARE(M_80211_VAP);
 
@@ -667,7 +670,8 @@ ieee80211_radiotap_active(const struct ieee80211com *ic)
 static __inline int
 ieee80211_radiotap_active_vap(const struct ieee80211vap *vap)
 {
-	return (vap->iv_flags_ext & IEEE80211_FEXT_BPF) != 0;
+	return (vap->iv_flags_ext & IEEE80211_FEXT_BPF) ||
+	    vap->iv_ic->ic_montaps != 0;
 }
 
 /*

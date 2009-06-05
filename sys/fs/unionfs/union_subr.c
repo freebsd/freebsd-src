@@ -52,9 +52,7 @@
 #include <sys/stat.h>
 #include <sys/resourcevar.h>
 
-#ifdef MAC
-#include <sys/mac.h>
-#endif
+#include <security/mac/mac_framework.h>
 
 #include <vm/uma.h>
 

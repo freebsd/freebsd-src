@@ -46,6 +46,7 @@ mctest		A multicast test program
 mfc		Merge a directory from HEAD to a branch where it does not
 		already exist and other MFC related script(s).
 mid	 	Create a Message-ID database for mailing lists.
+mwl		Tools specific to the Marvell 88W8363 support
 ncpus		Count the number of processors
 npe		Tools specific to the Intel IXP4XXX NPE device
 nxge		A diagnostic tool for the nxge(4) driver

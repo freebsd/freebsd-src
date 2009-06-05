@@ -17,7 +17,7 @@ SRCS+=	evevent.c evgpe.c evgpeblk.c evmisc.c evregion.c	\
 	evrgnini.c evsci.c evxface.c evxfevnt.c evxfregn.c
 
 # hardware
-SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c
+SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwvalid.c hwxface.c
 
 # interpreter/dispatcher
 SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c	\
@@ -37,8 +37,9 @@ SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
 
 # namespace
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c		\
-	nsload.c nsnames.c nsobject.c nsparse.c nssearch.c	\
-	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
+	nsload.c nsnames.c nsobject.c nsparse.c nspredef.c	\
+	nssearch.c nsutils.c nswalk.c nsxfeval.c nsxfname.c	\
+	nsxfobj.c
 
 # resources
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c		\
@@ -51,14 +52,15 @@ SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
 
 # utilities
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
-	uteval.c utglobal.c utinit.c utmath.c utmisc.c		\
+	uteval.c utglobal.c utinit.c utlock.c utmath.c utmisc.c	\
 	utmutex.c utobject.c utresrc.c utstate.c uttrack.c	\
 	utxface.c
 
 MAN=	acpidb.8
 WARNS?=	2
 
-CFLAGS+= -DACPI_EXEC_APP
-CFLAGS+=-fno-strict-aliasing
+CFLAGS+= -DACPI_EXEC_APP -fno-strict-aliasing
+DPADD=	${LIBPTHREAD}
+LDADD=	-lpthread
 
 .include <bsd.prog.mk>

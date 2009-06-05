@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #endif
 
+#include <security/mac/mac_framework.h>
+
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
@@ -354,7 +356,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (dst->sa_family != AF_IEEE80211)
 		return vap->iv_output(ifp, m, dst, ro);
 #ifdef MAC
-	error = mac_check_ifnet_transmit(ifp, m);
+	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
 		senderr(error);
 #endif
@@ -1468,7 +1470,7 @@ ieee80211_add_csa(uint8_t *frm, struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_csa_ie *csa = (struct ieee80211_csa_ie *) frm;
 
-	csa->csa_ie = IEEE80211_ELEMID_CHANSWITCHANN;
+	csa->csa_ie = IEEE80211_ELEMID_CSA;
 	csa->csa_len = 3;
 	csa->csa_mode = 1;		/* XXX force quiet on channel */
 	csa->csa_newchan = ieee80211_chan2ieee(ic, ic->ic_csa_newchan);

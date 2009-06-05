@@ -97,7 +97,7 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
-#define	UAUDIO_MAX_CHAN(x) (((x) < 2) ? (x) : 2)	/* XXX fixme later */
+#define	UAUDIO_MAX_CHAN(x) (x)
 
 struct uaudio_mixer_node {
 	int32_t	minval;
@@ -308,13 +308,13 @@ static device_probe_t uaudio_probe;
 static device_attach_t uaudio_attach;
 static device_detach_t uaudio_detach;
 
-static usb2_callback_t uaudio_chan_play_callback;
-static usb2_callback_t uaudio_chan_record_callback;
-static usb2_callback_t uaudio_mixer_write_cfg_callback;
-static usb2_callback_t umidi_read_clear_stall_callback;
-static usb2_callback_t umidi_bulk_read_callback;
-static usb2_callback_t umidi_write_clear_stall_callback;
-static usb2_callback_t umidi_bulk_write_callback;
+static usb_callback_t uaudio_chan_play_callback;
+static usb_callback_t uaudio_chan_record_callback;
+static usb_callback_t uaudio_mixer_write_cfg_callback;
+static usb_callback_t umidi_read_clear_stall_callback;
+static usb_callback_t umidi_bulk_read_callback;
+static usb_callback_t umidi_write_clear_stall_callback;
+static usb_callback_t umidi_bulk_write_callback;
 
 static void	uaudio_chan_fill_info_sub(struct uaudio_softc *,
 		    struct usb_device *, uint32_t, uint16_t, uint8_t, uint8_t);
@@ -362,7 +362,7 @@ static uint16_t	uaudio_mixer_get(struct usb_device *, uint8_t,
 		    struct uaudio_mixer_node *);
 static void	uaudio_mixer_ctl_set(struct uaudio_softc *,
 		    struct uaudio_mixer_node *, uint8_t, int32_t val);
-static usb2_error_t uaudio_set_speed(struct usb_device *, uint8_t, uint32_t);
+static usb_error_t uaudio_set_speed(struct usb_device *, uint8_t, uint32_t);
 static int	uaudio_mixer_signext(uint8_t, int);
 static int	uaudio_mixer_bsd2value(struct uaudio_mixer_node *, int32_t val);
 static const void *uaudio_mixer_verify_desc(const void *, uint32_t);
@@ -940,6 +940,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			bChannels = UAUDIO_MAX_CHAN(asf1d->bNrChannels);
 			bBitResolution = asf1d->bBitResolution;
 
+			DPRINTFN(9, "bChannels=%u\n", bChannels);
+
 			if (asf1d->bSamFreqType == 0) {
 				DPRINTFN(16, "Sample rate: %d-%dHz\n",
 				    UA_SAMP_LO(asf1d), UA_SAMP_HI(asf1d));
@@ -1295,7 +1297,7 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 	uint8_t endpoint;
 	uint8_t iface_index;
 	uint8_t alt_index;
-	usb2_error_t err;
+	usb_error_t err;
 
 	/* compute required buffer size */
 	buf_size = (ch->bytes_per_frame * UAUDIO_MINFRAMES);
@@ -2873,7 +2875,7 @@ uaudio_mixer_get(struct usb_device *udev, uint8_t what,
 	uint16_t val;
 	uint16_t len = MIX_SIZE(mc->type);
 	uint8_t data[4];
-	usb2_error_t err;
+	usb_error_t err;
 
 	if (mc->wValue[0] == -1) {
 		return (0);
@@ -2987,7 +2989,7 @@ tr_setup:
 	}
 }
 
-static usb2_error_t
+static usb_error_t
 uaudio_set_speed(struct usb_device *udev, uint8_t endpt, uint32_t speed)
 {
 	struct usb_device_request req;

@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -635,9 +634,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		goto abort2;
 	}
 #ifdef MAC
-	SOCK_LOCK(so);
 	mac_socketpeer_set_from_mbuf(m, so);
-	SOCK_UNLOCK(so);
 #endif
 
 	inp = sotoinpcb(so);

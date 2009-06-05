@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cfg.h,v 1.34.18.5 2006/03/02 00:37:22 marka Exp $ */
+/* $Id: cfg.h,v 1.44 2007/10/12 04:17:18 each Exp $ */
 
 #ifndef ISCCFG_CFG_H
 #define ISCCFG_CFG_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file isccfg/cfg.h
  * \brief
  * This is the new, table-driven, YACC-free configuration file parser.
  */
@@ -345,6 +345,14 @@ cfg_list_next(const cfg_listelt_t *elt);
  * Returns:
  * \li     A pointer to a cfg_listelt_t representing the next element,
  * 	or NULL if there are no more elements.
+ */
+
+unsigned int
+cfg_list_length(const cfg_obj_t *obj, isc_boolean_t recurse);
+/*%<
+ * Returns the length of a list of configure objects.  If obj is
+ * not a list, returns 0.  If recurse is true, add in the length of
+ * all contained lists.
  */
 
 const cfg_obj_t *

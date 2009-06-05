@@ -62,6 +62,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -288,13 +289,38 @@ void
 cpu_print_speed(void)
 {
 	uint64_t	cps;
+	
+	if (cpu_est_clockrate(0, &cps) == 0)
+		printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
+}
 
-	mtspr(SPR_MMCR0, SPR_MMCR0_FC);
-	mtspr(SPR_PMC1, 0);
-	mtspr(SPR_MMCR0, SPR_MMCR0_PMC1SEL(PMCN_CYCLES));
-	DELAY(100000);
-	cps = (mfspr(SPR_PMC1) * 10) + 4999;
-	printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *cps)
+{
+	uint16_t	vers;
+
+	vers = mfpvr() >> 16;
+
+	switch (vers) {
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
+		case MPC750:
+		case IBM750FX:
+		case MPC7400:
+		case MPC7410:
+		case MPC7447A:
+		case MPC7448:
+			mtspr(SPR_MMCR0, SPR_MMCR0_FC);
+			mtspr(SPR_PMC1, 0);
+			mtspr(SPR_MMCR0, SPR_MMCR0_PMC1SEL(PMCN_CYCLES));
+			DELAY(100000);
+			*cps = (mfspr(SPR_PMC1) * 10) + 4999;
+			return (0);
+	}
+		
+	return (ENXIO);
 }
 
 void

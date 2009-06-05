@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xenfunc.h>
 #include <xen/interface/vcpu.h>
 #include <machine/cpu.h>
+#include <machine/xen/xen_clock_util.h>
 
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
@@ -236,6 +237,15 @@ static void update_wallclock(void)
 
 }
 
+static void
+add_uptime_to_wallclock(void)
+{
+	struct timespec ut;
+
+	xen_fetch_uptime(&ut);
+	timespecadd(&shadow_tv, &ut);
+}
+
 /*
  * Reads a consistent set of time-base values from Xen, into a shadow data
  * area. Must be called with the xtime_lock held for writing.
@@ -331,7 +341,9 @@ clkintr(void *arg)
 	 */
 	
 	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version) {
+		printf("[XEN] hypervisor wallclock nudged; nudging TOD.\n");
 		update_wallclock();
+		add_uptime_to_wallclock();
 		tc_setclock(&shadow_tv);
 	}
 	
@@ -542,6 +554,7 @@ domu_inittodr(time_t base)
 	struct timespec ts;
 
 	update_wallclock();
+	add_uptime_to_wallclock();
 	
 	RTC_LOCK;
 	
@@ -591,6 +604,7 @@ domu_resettodr(void)
 		op.u.settime.system_time = shadow->system_timestamp;
 		HYPERVISOR_dom0_op(&op);
 		update_wallclock();
+		add_uptime_to_wallclock();
 	} else if (independent_wallclock) {
 		/* notyet */
 		;

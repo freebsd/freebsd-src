@@ -195,7 +195,7 @@ setvarsafe(char *name, char *val, int flags)
 	struct jmploc jmploc;
 	struct jmploc *volatile savehandler = handler;
 	int err = 0;
-#if __GNUC__
+#ifdef __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &err;
 #endif

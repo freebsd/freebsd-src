@@ -35,10 +35,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_inet.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -213,9 +211,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	error = mac_inpcb_init(inp, M_NOWAIT);
 	if (error != 0)
 		goto out;
-	SOCK_LOCK(so);
 	mac_inpcb_create(so, inp);
-	SOCK_UNLOCK(so);
 #endif
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
@@ -357,14 +353,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
 			/*
 			 * Is the address a local IP address? 
-			 * If INP_NONLOCALOK is set, then the socket may be bound
+			 * If INP_BINDANY is set, then the socket may be bound
 			 * to any endpoint address, local or not.
 			 */
-			if (
-#if defined(IP_NONLOCALBIND)
-			    ((inp->inp_flags & INP_NONLOCALOK) == 0) &&
-#endif
-			    (ifa_ifwithaddr((struct sockaddr *)sin) == 0))
+			if ((inp->inp_flags & INP_BINDANY) == 0 &&
+			    ifa_ifwithaddr((struct sockaddr *)sin) == NULL)
 				return (EADDRNOTAVAIL);
 		}
 		laddr = sin->sin_addr;

@@ -396,7 +396,7 @@ struct musbotg_softc {
 
 /* prototypes */
 
-usb2_error_t musbotg_init(struct musbotg_softc *sc);
+usb_error_t musbotg_init(struct musbotg_softc *sc);
 void	musbotg_uninit(struct musbotg_softc *sc);
 void	musbotg_suspend(struct musbotg_softc *sc);
 void	musbotg_resume(struct musbotg_softc *sc);

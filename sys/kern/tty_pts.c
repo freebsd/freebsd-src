@@ -741,7 +741,7 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	psc->pts_uidinfo = uid;
 	uihold(uid);
 
-	tp = tty_alloc(&pts_class, psc, NULL);
+	tp = tty_alloc(&pts_class, psc);
 	knlist_init(&psc->pts_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
 	knlist_init(&psc->pts_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
 
@@ -781,7 +781,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 	psc->pts_uidinfo = uid;
 	uihold(uid);
 
-	tp = tty_alloc(&pts_class, psc, NULL);
+	tp = tty_alloc(&pts_class, psc);
 	knlist_init(&psc->pts_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
 	knlist_init(&psc->pts_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
 

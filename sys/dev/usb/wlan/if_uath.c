@@ -174,6 +174,8 @@ enum {
 /* recognized device vendors/products */
 static const struct usb_device_id uath_devs[] = {
 #define	UATH_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
+	UATH_DEV(ACCTON,		SMCWUSBG),
+	UATH_DEV(ACCTON,		SMCWUSBTG2),
 	UATH_DEV(ATHEROS,		AR5523),
 	UATH_DEV(ATHEROS2,		AR5523_1),
 	UATH_DEV(ATHEROS2,		AR5523_2),
@@ -199,10 +201,10 @@ static const struct usb_device_id uath_devs[] = {
 #undef UATH_DEV
 };
 
-static usb2_callback_t uath_intr_rx_callback;
-static usb2_callback_t uath_intr_tx_callback;
-static usb2_callback_t uath_bulk_rx_callback;
-static usb2_callback_t uath_bulk_tx_callback;
+static usb_callback_t uath_intr_rx_callback;
+static usb_callback_t uath_intr_tx_callback;
+static usb_callback_t uath_bulk_rx_callback;
+static usb_callback_t uath_bulk_tx_callback;
 
 static const struct usb_config uath_usbconfig[UATH_N_XFERS] = {
 	[UATH_INTR_RX] = {
@@ -347,7 +349,7 @@ uath_attach(device_t dev)
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	uint8_t bands, iface_index = UATH_IFACE_INDEX;		/* XXX */
-	usb2_error_t error;
+	usb_error_t error;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;

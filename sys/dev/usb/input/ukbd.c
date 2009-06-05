@@ -688,7 +688,7 @@ ukbd_attach(device_t dev)
 	int32_t unit = device_get_unit(dev);
 	keyboard_t *kbd = &sc->sc_kbd;
 	void *hid_ptr = NULL;
-	usb2_error_t err;
+	usb_error_t err;
 	uint32_t flags;
 	uint16_t n;
 	uint16_t hid_len;
@@ -706,7 +706,6 @@ ukbd_attach(device_t dev)
 	sc->sc_iface_index = uaa->info.bIfaceIndex;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_mode = K_XLATE;
-	sc->sc_iface = uaa->iface;
 
 	usb2_callout_init_mtx(&sc->sc_callout, &Giant, 0);
 
@@ -822,7 +821,7 @@ detach:
 	return (ENXIO);			/* error */
 }
 
-int
+static int
 ukbd_detach(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
@@ -1569,7 +1568,7 @@ static int
 ukbd_driver_load(module_t mod, int what, void *arg)
 {
 	switch (what) {
-		case MOD_LOAD:
+	case MOD_LOAD:
 		kbd_add_driver(&ukbd_kbd_driver);
 		break;
 	case MOD_UNLOAD:

@@ -1219,7 +1219,7 @@ install_offload_ops(struct socket *so)
 static __inline int
 select_rcv_wscale(int space, struct vnet *vnet)
 {
-	INIT_VNET_INET(so->so_vnet);
+	INIT_VNET_INET(vnet);
 	int wscale = 0;
 
 	if (space > MAX_RCV_WND)

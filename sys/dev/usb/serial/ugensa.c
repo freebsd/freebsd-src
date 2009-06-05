@@ -91,8 +91,8 @@ static device_probe_t ugensa_probe;
 static device_attach_t ugensa_attach;
 static device_detach_t ugensa_detach;
 
-static usb2_callback_t ugensa_bulk_write_callback;
-static usb2_callback_t ugensa_bulk_read_callback;
+static usb_callback_t ugensa_bulk_write_callback;
+static usb_callback_t ugensa_bulk_read_callback;
 
 static void	ugensa_start_read(struct ucom_softc *);
 static void	ugensa_stop_read(struct ucom_softc *);

@@ -480,8 +480,8 @@ static const uint8_t urtw_8187b_reg_table[][3] = {
 	{ 0x8d, 0x10, 0 }, { 0x8e, 0x08, 0 }, { 0x8f, 0x00, 0 }
 };
 
-static usb2_callback_t urtw_bulk_rx_callback;
-static usb2_callback_t urtw_bulk_tx_callback;
+static usb_callback_t urtw_bulk_rx_callback;
+static usb_callback_t urtw_bulk_tx_callback;
 
 static const struct usb_config urtw_8187b_usbconfig[URTW_8187B_N_XFERS] = {
 	[URTW_8187B_BULK_RX] = {
@@ -634,86 +634,86 @@ static void		urtw_set_multi(void *);
 static int		urtw_isbmode(uint16_t);
 static uint16_t		urtw_rate2rtl(int);
 static uint16_t		urtw_rtl2rate(int);
-static usb2_error_t	urtw_set_rate(struct urtw_softc *);
-static usb2_error_t	urtw_update_msr(struct urtw_softc *);
-static usb2_error_t	urtw_read8_c(struct urtw_softc *, int, uint8_t *);
-static usb2_error_t	urtw_read16_c(struct urtw_softc *, int, uint16_t *);
-static usb2_error_t	urtw_read32_c(struct urtw_softc *, int, uint32_t *);
-static usb2_error_t	urtw_write8_c(struct urtw_softc *, int, uint8_t);
-static usb2_error_t	urtw_write16_c(struct urtw_softc *, int, uint16_t);
-static usb2_error_t	urtw_write32_c(struct urtw_softc *, int, uint32_t);
-static usb2_error_t	urtw_eprom_cs(struct urtw_softc *, int);
-static usb2_error_t	urtw_eprom_ck(struct urtw_softc *);
-static usb2_error_t	urtw_eprom_sendbits(struct urtw_softc *, int16_t *,
+static usb_error_t	urtw_set_rate(struct urtw_softc *);
+static usb_error_t	urtw_update_msr(struct urtw_softc *);
+static usb_error_t	urtw_read8_c(struct urtw_softc *, int, uint8_t *);
+static usb_error_t	urtw_read16_c(struct urtw_softc *, int, uint16_t *);
+static usb_error_t	urtw_read32_c(struct urtw_softc *, int, uint32_t *);
+static usb_error_t	urtw_write8_c(struct urtw_softc *, int, uint8_t);
+static usb_error_t	urtw_write16_c(struct urtw_softc *, int, uint16_t);
+static usb_error_t	urtw_write32_c(struct urtw_softc *, int, uint32_t);
+static usb_error_t	urtw_eprom_cs(struct urtw_softc *, int);
+static usb_error_t	urtw_eprom_ck(struct urtw_softc *);
+static usb_error_t	urtw_eprom_sendbits(struct urtw_softc *, int16_t *,
 			    int);
-static usb2_error_t	urtw_eprom_read32(struct urtw_softc *, uint32_t,
+static usb_error_t	urtw_eprom_read32(struct urtw_softc *, uint32_t,
 			    uint32_t *);
-static usb2_error_t	urtw_eprom_readbit(struct urtw_softc *, int16_t *);
-static usb2_error_t	urtw_eprom_writebit(struct urtw_softc *, int16_t);
-static usb2_error_t	urtw_get_macaddr(struct urtw_softc *);
-static usb2_error_t	urtw_get_txpwr(struct urtw_softc *);
-static usb2_error_t	urtw_get_rfchip(struct urtw_softc *);
-static usb2_error_t	urtw_led_init(struct urtw_softc *);
-static usb2_error_t	urtw_8185_rf_pins_enable(struct urtw_softc *);
-static usb2_error_t	urtw_8185_tx_antenna(struct urtw_softc *, uint8_t);
-static usb2_error_t	urtw_8187_write_phy(struct urtw_softc *, uint8_t,
+static usb_error_t	urtw_eprom_readbit(struct urtw_softc *, int16_t *);
+static usb_error_t	urtw_eprom_writebit(struct urtw_softc *, int16_t);
+static usb_error_t	urtw_get_macaddr(struct urtw_softc *);
+static usb_error_t	urtw_get_txpwr(struct urtw_softc *);
+static usb_error_t	urtw_get_rfchip(struct urtw_softc *);
+static usb_error_t	urtw_led_init(struct urtw_softc *);
+static usb_error_t	urtw_8185_rf_pins_enable(struct urtw_softc *);
+static usb_error_t	urtw_8185_tx_antenna(struct urtw_softc *, uint8_t);
+static usb_error_t	urtw_8187_write_phy(struct urtw_softc *, uint8_t,
 			    uint32_t);
-static usb2_error_t	urtw_8187_write_phy_ofdm_c(struct urtw_softc *,
+static usb_error_t	urtw_8187_write_phy_ofdm_c(struct urtw_softc *,
 			    uint8_t, uint32_t);
-static usb2_error_t	urtw_8187_write_phy_cck_c(struct urtw_softc *, uint8_t,
+static usb_error_t	urtw_8187_write_phy_cck_c(struct urtw_softc *, uint8_t,
 			    uint32_t);
-static usb2_error_t	urtw_8225_setgain(struct urtw_softc *, int16_t);
-static usb2_error_t	urtw_8225_usb_init(struct urtw_softc *);
-static usb2_error_t	urtw_8225_write_c(struct urtw_softc *, uint8_t,
+static usb_error_t	urtw_8225_setgain(struct urtw_softc *, int16_t);
+static usb_error_t	urtw_8225_usb_init(struct urtw_softc *);
+static usb_error_t	urtw_8225_write_c(struct urtw_softc *, uint8_t,
 			    uint16_t);
-static usb2_error_t	urtw_8225_write_s16(struct urtw_softc *, uint8_t, int,
+static usb_error_t	urtw_8225_write_s16(struct urtw_softc *, uint8_t, int,
 			    uint16_t *);
-static usb2_error_t	urtw_8225_read(struct urtw_softc *, uint8_t,
+static usb_error_t	urtw_8225_read(struct urtw_softc *, uint8_t,
 			    uint32_t *);
-static usb2_error_t	urtw_8225_rf_init(struct urtw_softc *);
-static usb2_error_t	urtw_8225_rf_set_chan(struct urtw_softc *, int);
-static usb2_error_t	urtw_8225_rf_set_sens(struct urtw_softc *, int);
-static usb2_error_t	urtw_8225_set_txpwrlvl(struct urtw_softc *, int);
-static usb2_error_t	urtw_8225_rf_stop(struct urtw_softc *);
-static usb2_error_t	urtw_8225v2_rf_init(struct urtw_softc *);
-static usb2_error_t	urtw_8225v2_rf_set_chan(struct urtw_softc *, int);
-static usb2_error_t	urtw_8225v2_set_txpwrlvl(struct urtw_softc *, int);
-static usb2_error_t	urtw_8225v2_setgain(struct urtw_softc *, int16_t);
-static usb2_error_t	urtw_8225_isv2(struct urtw_softc *, int *);
-static usb2_error_t	urtw_8225v2b_rf_init(struct urtw_softc *);
-static usb2_error_t	urtw_8225v2b_rf_set_chan(struct urtw_softc *, int);
-static usb2_error_t	urtw_read8e(struct urtw_softc *, int, uint8_t *);
-static usb2_error_t	urtw_write8e(struct urtw_softc *, int, uint8_t);
-static usb2_error_t	urtw_8180_set_anaparam(struct urtw_softc *, uint32_t);
-static usb2_error_t	urtw_8185_set_anaparam2(struct urtw_softc *, uint32_t);
-static usb2_error_t	urtw_intr_enable(struct urtw_softc *);
-static usb2_error_t	urtw_intr_disable(struct urtw_softc *);
-static usb2_error_t	urtw_reset(struct urtw_softc *);
-static usb2_error_t	urtw_led_on(struct urtw_softc *, int);
-static usb2_error_t	urtw_led_ctl(struct urtw_softc *, int);
-static usb2_error_t	urtw_led_blink(struct urtw_softc *);
-static usb2_error_t	urtw_led_mode0(struct urtw_softc *, int);
-static usb2_error_t	urtw_led_mode1(struct urtw_softc *, int);
-static usb2_error_t	urtw_led_mode2(struct urtw_softc *, int);
-static usb2_error_t	urtw_led_mode3(struct urtw_softc *, int);
-static usb2_error_t	urtw_rx_setconf(struct urtw_softc *);
-static usb2_error_t	urtw_rx_enable(struct urtw_softc *);
-static usb2_error_t	urtw_tx_enable(struct urtw_softc *sc);
+static usb_error_t	urtw_8225_rf_init(struct urtw_softc *);
+static usb_error_t	urtw_8225_rf_set_chan(struct urtw_softc *, int);
+static usb_error_t	urtw_8225_rf_set_sens(struct urtw_softc *, int);
+static usb_error_t	urtw_8225_set_txpwrlvl(struct urtw_softc *, int);
+static usb_error_t	urtw_8225_rf_stop(struct urtw_softc *);
+static usb_error_t	urtw_8225v2_rf_init(struct urtw_softc *);
+static usb_error_t	urtw_8225v2_rf_set_chan(struct urtw_softc *, int);
+static usb_error_t	urtw_8225v2_set_txpwrlvl(struct urtw_softc *, int);
+static usb_error_t	urtw_8225v2_setgain(struct urtw_softc *, int16_t);
+static usb_error_t	urtw_8225_isv2(struct urtw_softc *, int *);
+static usb_error_t	urtw_8225v2b_rf_init(struct urtw_softc *);
+static usb_error_t	urtw_8225v2b_rf_set_chan(struct urtw_softc *, int);
+static usb_error_t	urtw_read8e(struct urtw_softc *, int, uint8_t *);
+static usb_error_t	urtw_write8e(struct urtw_softc *, int, uint8_t);
+static usb_error_t	urtw_8180_set_anaparam(struct urtw_softc *, uint32_t);
+static usb_error_t	urtw_8185_set_anaparam2(struct urtw_softc *, uint32_t);
+static usb_error_t	urtw_intr_enable(struct urtw_softc *);
+static usb_error_t	urtw_intr_disable(struct urtw_softc *);
+static usb_error_t	urtw_reset(struct urtw_softc *);
+static usb_error_t	urtw_led_on(struct urtw_softc *, int);
+static usb_error_t	urtw_led_ctl(struct urtw_softc *, int);
+static usb_error_t	urtw_led_blink(struct urtw_softc *);
+static usb_error_t	urtw_led_mode0(struct urtw_softc *, int);
+static usb_error_t	urtw_led_mode1(struct urtw_softc *, int);
+static usb_error_t	urtw_led_mode2(struct urtw_softc *, int);
+static usb_error_t	urtw_led_mode3(struct urtw_softc *, int);
+static usb_error_t	urtw_rx_setconf(struct urtw_softc *);
+static usb_error_t	urtw_rx_enable(struct urtw_softc *);
+static usb_error_t	urtw_tx_enable(struct urtw_softc *sc);
 static void		urtw_free_tx_data_list(struct urtw_softc *);
 static void		urtw_free_rx_data_list(struct urtw_softc *);
 static void		urtw_free_data_list(struct urtw_softc *,
 			    struct urtw_data data[], int, int);
-static usb2_error_t	urtw_adapter_start(struct urtw_softc *);
-static usb2_error_t	urtw_adapter_start_b(struct urtw_softc *);
-static usb2_error_t	urtw_set_mode(struct urtw_softc *, uint32_t);
-static usb2_error_t	urtw_8187b_cmd_reset(struct urtw_softc *);
-static usb2_error_t	urtw_write16_i(struct urtw_softc *, int, uint16_t, int);
-static usb2_error_t	urtw_write8_i(struct urtw_softc *, int, uint8_t, int);
-static usb2_error_t	urtw_write32_i(struct urtw_softc *, int, uint32_t, int);
-static usb2_error_t	urtw_do_request(struct urtw_softc *,
+static usb_error_t	urtw_adapter_start(struct urtw_softc *);
+static usb_error_t	urtw_adapter_start_b(struct urtw_softc *);
+static usb_error_t	urtw_set_mode(struct urtw_softc *, uint32_t);
+static usb_error_t	urtw_8187b_cmd_reset(struct urtw_softc *);
+static usb_error_t	urtw_write16_i(struct urtw_softc *, int, uint16_t, int);
+static usb_error_t	urtw_write8_i(struct urtw_softc *, int, uint8_t, int);
+static usb_error_t	urtw_write32_i(struct urtw_softc *, int, uint32_t, int);
+static usb_error_t	urtw_do_request(struct urtw_softc *,
 			    struct usb_device_request *, void *);
-static usb2_error_t	urtw_8225v2b_set_txpwrlvl(struct urtw_softc *, int);
-static usb2_error_t	urtw_led_off(struct urtw_softc *, int);
+static usb_error_t	urtw_8225v2b_set_txpwrlvl(struct urtw_softc *, int);
+static usb_error_t	urtw_led_off(struct urtw_softc *, int);
 static void		urtw_abort_xfers(struct urtw_softc *);
 static struct urtw_data *
 			urtw_getbuf(struct urtw_softc *sc);
@@ -745,7 +745,7 @@ urtw_attach(device_t dev)
 	uint8_t bands, iface_index = URTW_IFACE_INDEX;		/* XXX */
 	uint16_t n_setup;
 	uint32_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	device_set_usb2_desc(dev);
 
@@ -988,7 +988,7 @@ urtw_init_locked(void *arg)
 	int ret;
 	struct urtw_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
-	usb2_error_t error;
+	usb_error_t error;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		urtw_stop_locked(ifp, 0);
@@ -1036,13 +1036,13 @@ urtw_init(void *arg)
 	URTW_UNLOCK(sc);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_adapter_start_b(struct urtw_softc *sc)
 {
 #define N(a)	(sizeof(a) / sizeof((a)[0]))
 	int i;
 	uint8_t data8;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_set_mode(sc, URTW_EPROM_CMD_CONFIG);
 	if (error)
@@ -1216,10 +1216,10 @@ fail:
 #undef N
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_adapter_start(struct urtw_softc *sc)
 {
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_reset(sc);
 	if (error)
@@ -1278,11 +1278,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_set_mode(struct urtw_softc *sc, uint32_t mode)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read8_m(sc, URTW_EPROM_CMD, &data);
 	data = (data & ~URTW_EPROM_CMD_MASK) | (mode << URTW_EPROM_CMD_SHIFT);
@@ -1292,12 +1292,12 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8187b_cmd_reset(struct urtw_softc *sc)
 {
 	int i;
 	uint8_t data8;
-	usb2_error_t error;
+	usb_error_t error;
 
 	/* XXX the code can be duplicate with urtw_reset().  */
 	urtw_read8_m(sc, URTW_CMD, &data8);
@@ -1334,7 +1334,7 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_write16_i(struct urtw_softc *sc, int val, uint16_t data, int idx)
 {
 	struct usb_device_request req;
@@ -1348,11 +1348,11 @@ urtw_write16_i(struct urtw_softc *sc, int val, uint16_t data, int idx)
 	return (urtw_do_request(sc, &req, &data));
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_do_request(struct urtw_softc *sc,
     struct usb_device_request *req, void *data)
 {
-	usb2_error_t err;
+	usb_error_t err;
 	int ntries = 10;
 
 	URTW_ASSERT_LOCKED(sc);
@@ -1371,7 +1371,7 @@ urtw_do_request(struct urtw_softc *sc,
 	return (err);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_write8_i(struct urtw_softc *sc, int val, uint8_t data, int idx)
 {
 	struct usb_device_request req;
@@ -1385,7 +1385,7 @@ urtw_write8_i(struct urtw_softc *sc, int val, uint8_t data, int idx)
 	return (urtw_do_request(sc, &req, &data));
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_write32_i(struct urtw_softc *sc, int val, uint32_t data, int idx)
 {
 	struct usb_device_request req;
@@ -1404,7 +1404,7 @@ urtw_stop_locked(struct ifnet *ifp, int disable)
 {
 	struct urtw_softc *sc = ifp->if_softc;
 	uint8_t data8;
-	usb2_error_t error;
+	usb_error_t error;
 
 	(void)disable;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -1682,7 +1682,7 @@ urtw_set_channel(struct ieee80211com *ic)
 	struct urtw_softc *sc  = ic->ic_ifp->if_softc;
 	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t data, orig;
-	usb2_error_t error;
+	usb_error_t error;
 
 	/*
 	 * if the user set a channel explicitly using ifconfig(8) this function
@@ -1752,7 +1752,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		sc->sc_xfer[URTW_8187B_BULK_TX_VO]
 	};
 	struct usb_xfer *xfer;
-	usb2_error_t error;
+	usb_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -1878,7 +1878,7 @@ urtw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct urtw_softc *sc = ic->ic_ifp->if_softc;
 	struct urtw_vap *uvp = URTW_VAP(vap);
-	usb2_error_t error = 0;
+	usb_error_t error = 0;
 
 	DPRINTF(sc, URTW_DEBUG_STATE, "%s: %s -> %s\n", __func__,
 	    ieee80211_state_name[vap->iv_state],
@@ -1956,12 +1956,12 @@ urtw_set_multi(void *arg)
 	IF_ADDR_UNLOCK(ifp);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_set_rate(struct urtw_softc *sc)
 {
 	int i, basic_rate, min_rr_rate, max_rr_rate;
 	uint16_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	basic_rate = urtw_rate2rtl(48);
 	min_rr_rate = urtw_rate2rtl(12);
@@ -2012,13 +2012,13 @@ urtw_rtl2rate(int rate)
 #undef N
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_update_msr(struct urtw_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read8_m(sc, URTW_MSR, &data);
 	data &= ~URTW_MSR_LINK_MASK;
@@ -2050,11 +2050,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_read8_c(struct urtw_softc *sc, int val, uint8_t *data)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -2068,11 +2068,11 @@ urtw_read8_c(struct urtw_softc *sc, int val, uint8_t *data)
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_read16_c(struct urtw_softc *sc, int val, uint16_t *data)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -2086,11 +2086,11 @@ urtw_read16_c(struct urtw_softc *sc, int val, uint16_t *data)
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_read32_c(struct urtw_softc *sc, int val, uint32_t *data)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -2104,7 +2104,7 @@ urtw_read32_c(struct urtw_softc *sc, int val, uint32_t *data)
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_write8_c(struct urtw_softc *sc, int val, uint8_t data)
 {
 	struct usb_device_request req;
@@ -2120,7 +2120,7 @@ urtw_write8_c(struct urtw_softc *sc, int val, uint8_t data)
 	return (urtw_do_request(sc, &req, &data));
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_write16_c(struct urtw_softc *sc, int val, uint16_t data)
 {
 	struct usb_device_request req;
@@ -2136,7 +2136,7 @@ urtw_write16_c(struct urtw_softc *sc, int val, uint16_t data)
 	return (urtw_do_request(sc, &req, &data));
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_write32_c(struct urtw_softc *sc, int val, uint32_t data)
 {
 	struct usb_device_request req;
@@ -2152,11 +2152,11 @@ urtw_write32_c(struct urtw_softc *sc, int val, uint32_t data)
 	return (urtw_do_request(sc, &req, &data));
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_get_macaddr(struct urtw_softc *sc)
 {
 	uint32_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_eprom_read32(sc, URTW_EPROM_MACADDR, &data);
 	if (error != 0)
@@ -2177,13 +2177,13 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_eprom_read32(struct urtw_softc *sc, uint32_t addr, uint32_t *data)
 {
 #define URTW_READCMD_LEN		3
 	int addrlen, i;
 	int16_t addrstr[8], data16, readcmd[] = { 1, 1, 0 };
-	usb2_error_t error;
+	usb_error_t error;
 
 	/* NB: make sure the buffer is initialized  */
 	*data = 0;
@@ -2253,11 +2253,11 @@ fail:
 #undef URTW_READCMD_LEN
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_eprom_cs(struct urtw_softc *sc, int able)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read8_m(sc, URTW_EPROM_CMD, &data);
 	if (able == URTW_EPROM_ENABLE)
@@ -2269,11 +2269,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_eprom_ck(struct urtw_softc *sc)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	/* masking  */
 	urtw_read8_m(sc, URTW_EPROM_CMD, &data);
@@ -2287,11 +2287,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_eprom_readbit(struct urtw_softc *sc, int16_t *data)
 {
 	uint8_t data8;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read8_m(sc, URTW_EPROM_CMD, &data8);
 	*data = (data8 & URTW_EPROM_READBIT) ? 1 : 0;
@@ -2301,11 +2301,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_eprom_writebit(struct urtw_softc *sc, int16_t bit)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read8_m(sc, URTW_EPROM_CMD, &data);
 	if (bit != 0)
@@ -2317,11 +2317,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_eprom_sendbits(struct urtw_softc *sc, int16_t *buf, int buflen)
 {
 	int i = 0;
-	usb2_error_t error = 0;
+	usb_error_t error = 0;
 
 	for (i = 0; i < buflen; i++) {
 		error = urtw_eprom_writebit(sc, buf[i]);
@@ -2336,12 +2336,12 @@ fail:
 }
 
 
-static usb2_error_t
+static usb_error_t
 urtw_get_txpwr(struct urtw_softc *sc)
 {
 	int i, j;
 	uint32_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_eprom_read32(sc, URTW_EPROM_TXPW_BASE, &data);
 	if (error != 0)
@@ -2402,13 +2402,13 @@ fail:
 }
 
 
-static usb2_error_t
+static usb_error_t
 urtw_get_rfchip(struct urtw_softc *sc)
 {
 	int ret;
 	uint8_t data8;
 	uint32_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_eprom_read32(sc, URTW_EPROM_RFCHIPID, &data);
 	if (error != 0)
@@ -2461,11 +2461,11 @@ fail:
 }
 
 
-static usb2_error_t
+static usb_error_t
 urtw_led_init(struct urtw_softc *sc)
 {
 	uint32_t rev;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read8_m(sc, URTW_PSR, &sc->sc_psr);
 	error = urtw_eprom_read32(sc, URTW_EPROM_SWREV, &rev);
@@ -2496,13 +2496,13 @@ fail:
 }
 
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_rf_init(struct urtw_softc *sc)
 {
 #define N(a)	(sizeof(a) / sizeof((a)[0]))
 	int i;
 	uint16_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_8180_set_anaparam(sc, URTW_8225_ANAPARAM_ON);
 	if (error)
@@ -2601,20 +2601,20 @@ fail:
 #undef N
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8185_rf_pins_enable(struct urtw_softc *sc)
 {
-	usb2_error_t error = 0;
+	usb_error_t error = 0;
 
 	urtw_write16_m(sc, URTW_RF_PINS_ENABLE, 0x1ff7);
 fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8185_tx_antenna(struct urtw_softc *sc, uint8_t ant)
 {
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_write8_m(sc, URTW_TX_ANTENNA, ant);
 	usb2_pause_mtx(&sc->sc_mtx, 1);
@@ -2622,7 +2622,7 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8187_write_phy_ofdm_c(struct urtw_softc *sc, uint8_t addr, uint32_t data)
 {
 
@@ -2630,7 +2630,7 @@ urtw_8187_write_phy_ofdm_c(struct urtw_softc *sc, uint8_t addr, uint32_t data)
 	return urtw_8187_write_phy(sc, addr, data);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8187_write_phy_cck_c(struct urtw_softc *sc, uint8_t addr, uint32_t data)
 {
 
@@ -2638,11 +2638,11 @@ urtw_8187_write_phy_cck_c(struct urtw_softc *sc, uint8_t addr, uint32_t data)
 	return urtw_8187_write_phy(sc, addr, data | 0x10000);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8187_write_phy(struct urtw_softc *sc, uint8_t addr, uint32_t data)
 {
 	uint32_t phyw;
-	usb2_error_t error;
+	usb_error_t error;
 
 	phyw = ((data << 8) | (addr | 0x80));
 	urtw_write8_m(sc, URTW_PHY_MAGIC4, ((phyw & 0xff000000) >> 24));
@@ -2654,10 +2654,10 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_setgain(struct urtw_softc *sc, int16_t gain)
 {
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_8187_write_phy_ofdm(sc, 0x0d, urtw_8225_gain[gain * 4]);
 	urtw_8187_write_phy_ofdm(sc, 0x1b, urtw_8225_gain[gain * 4 + 2]);
@@ -2667,11 +2667,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_usb_init(struct urtw_softc *sc)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_write8_m(sc, URTW_RF_PINS_SELECT + 1, 0);
 	urtw_write8_m(sc, URTW_GPIO, 0);
@@ -2694,11 +2694,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_write_c(struct urtw_softc *sc, uint8_t addr, uint16_t data)
 {
 	uint16_t d80, d82, d84;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read16_m(sc, URTW_RF_PINS_OUTPUT, &d80);
 	d80 &= URTW_RF_PINS_MAGIC1;
@@ -2728,14 +2728,14 @@ fail:
 }
 
 /* XXX why we should allocalte memory buffer instead of using memory stack?  */
-static usb2_error_t
+static usb_error_t
 urtw_8225_write_s16(struct urtw_softc *sc, uint8_t addr, int index,
     uint16_t *data)
 {
 	uint8_t *buf;
 	uint16_t data16;
 	struct usb_device_request *req;
-	usb2_error_t error = 0;
+	usb_error_t error = 0;
 
 	data16 = *data;
 	req = (usb_device_request_t *)malloc(sizeof(usb_device_request_t),
@@ -2765,12 +2765,12 @@ fail1:	free(req, M_80211_VAP);
 fail0:	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_rf_set_chan(struct urtw_softc *sc, int chan)
 {
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211_channel *c = ic->ic_curchan;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_8225_set_txpwrlvl(sc, chan);
 	if (error)
@@ -2802,10 +2802,10 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_rf_set_sens(struct urtw_softc *sc, int sens)
 {
-	usb2_error_t error;
+	usb_error_t error;
 
 	if (sens < 0 || sens > 6)
 		return -1;
@@ -2828,7 +2828,7 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_set_txpwrlvl(struct urtw_softc *sc, int chan)
 {
 	int i, idx, set;
@@ -2836,7 +2836,7 @@ urtw_8225_set_txpwrlvl(struct urtw_softc *sc, int chan)
 	uint8_t cck_pwrlvl_max, ofdm_pwrlvl_min, ofdm_pwrlvl_max;
 	uint8_t cck_pwrlvl = sc->sc_txpwr_cck[chan] & 0xff;
 	uint8_t ofdm_pwrlvl = sc->sc_txpwr_ofdm[chan] & 0xff;
-	usb2_error_t error;
+	usb_error_t error;
 
 	cck_pwrlvl_max = 11;
 	ofdm_pwrlvl_max = 25;	/* 12 -> 25  */
@@ -2882,11 +2882,11 @@ fail:
 }
 
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_rf_stop(struct urtw_softc *sc)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_8225_write(sc, 0x4, 0x1f);
 
@@ -2916,14 +2916,14 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225v2_rf_init(struct urtw_softc *sc)
 {
 #define N(a)	(sizeof(a) / sizeof((a)[0]))
 	int i;
 	uint16_t data;
 	uint32_t data32;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_8180_set_anaparam(sc, URTW_8225_ANAPARAM_ON);
 	if (error)
@@ -3042,12 +3042,12 @@ fail:
 #undef N
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225v2_rf_set_chan(struct urtw_softc *sc, int chan)
 {
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211_channel *c = ic->ic_curchan;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_8225v2_set_txpwrlvl(sc, chan);
 	if (error)
@@ -3080,7 +3080,7 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_read(struct urtw_softc *sc, uint8_t addr, uint32_t *data)
 {
 	int i;
@@ -3089,7 +3089,7 @@ urtw_8225_read(struct urtw_softc *sc, uint8_t addr, uint32_t *data)
 	uint16_t o1, o2, o3, tmp;
 	uint32_t d2w = ((uint32_t)(addr & 0x1f)) << 27;
 	uint32_t mask = 0x80000000, value = 0;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read16_m(sc, URTW_RF_PINS_OUTPUT, &o1);
 	urtw_read16_m(sc, URTW_RF_PINS_ENABLE, &o2);
@@ -3171,7 +3171,7 @@ fail:
 }
 
 
-static usb2_error_t
+static usb_error_t
 urtw_8225v2_set_txpwrlvl(struct urtw_softc *sc, int chan)
 {
 	int i;
@@ -3179,7 +3179,7 @@ urtw_8225v2_set_txpwrlvl(struct urtw_softc *sc, int chan)
 	uint8_t cck_pwrlvl_max = 15, ofdm_pwrlvl_max = 25, ofdm_pwrlvl_min = 10;
 	uint8_t cck_pwrlvl = sc->sc_txpwr_cck[chan] & 0xff;
 	uint8_t ofdm_pwrlvl = sc->sc_txpwr_ofdm[chan] & 0xff;
-	usb2_error_t error;
+	usb_error_t error;
 
 	/* CCK power setting */
 	cck_pwrlvl = (cck_pwrlvl > cck_pwrlvl_max) ? cck_pwrlvl_max : cck_pwrlvl;
@@ -3218,11 +3218,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225v2_setgain(struct urtw_softc *sc, int16_t gain)
 {
 	uint8_t *gainp;
-	usb2_error_t error;
+	usb_error_t error;
 
 	/* XXX for A?  */
 	gainp = urtw_8225v2_gain_bg;
@@ -3238,11 +3238,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225_isv2(struct urtw_softc *sc, int *ret)
 {
 	uint32_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	*ret = 1;
 
@@ -3273,12 +3273,12 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225v2b_rf_init(struct urtw_softc *sc)
 {
 #define N(a)	(sizeof(a) / sizeof((a)[0]))
 	int i;
-	usb2_error_t error;
+	usb_error_t error;
 
 	for (i = 0; i < N(urtw_8225v2b_rf_part1); i++)
 		urtw_8225_write(sc, urtw_8225v2b_rf_part1[i].reg,
@@ -3330,12 +3330,12 @@ fail:
 #undef N
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225v2b_rf_set_chan(struct urtw_softc *sc, int chan)
 {
 	int ack;
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_8225v2b_set_txpwrlvl(sc, chan);
 	if (error)
@@ -3374,7 +3374,7 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8225v2b_set_txpwrlvl(struct urtw_softc *sc, int chan)
 {
 	int i;
@@ -3382,7 +3382,7 @@ urtw_8225v2b_set_txpwrlvl(struct urtw_softc *sc, int chan)
 	uint8_t cck_pwrlvl_max = 15;
 	uint8_t cck_pwrlvl = sc->sc_txpwr_cck[chan] & 0xff;
 	uint8_t ofdm_pwrlvl = sc->sc_txpwr_ofdm[chan] & 0xff;
-	usb2_error_t error;
+	usb_error_t error;
 
 	/* CCK power setting */
 	cck_pwrlvl = (cck_pwrlvl > cck_pwrlvl_max) ?
@@ -3442,11 +3442,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_read8e(struct urtw_softc *sc, int val, uint8_t *data)
 {
 	struct usb_device_request req;
-	usb2_error_t error;
+	usb_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = URTW_8187_GETREGS_REQ;
@@ -3458,7 +3458,7 @@ urtw_read8e(struct urtw_softc *sc, int val, uint8_t *data)
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_write8e(struct urtw_softc *sc, int val, uint8_t data)
 {
 	struct usb_device_request req;
@@ -3472,11 +3472,11 @@ urtw_write8e(struct urtw_softc *sc, int val, uint8_t data)
 	return (urtw_do_request(sc, &req, &data));
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8180_set_anaparam(struct urtw_softc *sc, uint32_t val)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_set_mode(sc, URTW_EPROM_CMD_CONFIG);
 	if (error)
@@ -3495,11 +3495,11 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_8185_set_anaparam2(struct urtw_softc *sc, uint32_t val)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_set_mode(sc, URTW_EPROM_CMD_CONFIG);
 	if (error)
@@ -3518,31 +3518,31 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_intr_enable(struct urtw_softc *sc)
 {
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_write16_m(sc, URTW_INTR_MASK, 0xffff);
 fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_intr_disable(struct urtw_softc *sc)
 {
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_write16_m(sc, URTW_INTR_MASK, 0);
 fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_reset(struct urtw_softc *sc)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	error = urtw_8180_set_anaparam(sc, URTW_8225_ANAPARAM_ON);
 	if (error)
@@ -3593,10 +3593,10 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_led_ctl(struct urtw_softc *sc, int mode)
 {
-	usb2_error_t error = 0;
+	usb_error_t error = 0;
 
 	switch (sc->sc_strategy) {
 	case URTW_SW_LED_MODE0:
@@ -3619,7 +3619,7 @@ urtw_led_ctl(struct urtw_softc *sc, int mode)
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_led_mode0(struct urtw_softc *sc, int mode)
 {
 
@@ -3668,31 +3668,31 @@ urtw_led_mode0(struct urtw_softc *sc, int mode)
 	return (0);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_led_mode1(struct urtw_softc *sc, int mode)
 {
 
 	return (USB_ERR_INVAL);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_led_mode2(struct urtw_softc *sc, int mode)
 {
 
 	return (USB_ERR_INVAL);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_led_mode3(struct urtw_softc *sc, int mode)
 {
 
 	return (USB_ERR_INVAL);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_led_on(struct urtw_softc *sc, int type)
 {
-	usb2_error_t error;
+	usb_error_t error;
 
 	if (type == URTW_LED_GPIO) {
 		switch (sc->sc_gpio_ledpin) {
@@ -3715,10 +3715,10 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_led_off(struct urtw_softc *sc, int type)
 {
-	usb2_error_t error;
+	usb_error_t error;
 
 	if (type == URTW_LED_GPIO) {
 		switch (sc->sc_gpio_ledpin) {
@@ -3766,11 +3766,11 @@ urtw_ledtask(void *arg, int pending)
 	URTW_UNLOCK(sc);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_led_blink(struct urtw_softc *sc)
 {
 	uint8_t ing = 0;
-	usb2_error_t error;
+	usb_error_t error;
 
 	if (sc->sc_gpio_blinkstate == URTW_LED_ON)
 		error = urtw_led_on(sc, URTW_LED_GPIO);
@@ -3812,11 +3812,11 @@ urtw_led_blink(struct urtw_softc *sc)
 	return (0);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_rx_enable(struct urtw_softc *sc)
 {
 	uint8_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	usb2_transfer_start((sc->sc_flags & URTW_RTL8187B) ?
 	    sc->sc_xfer[URTW_8187B_BULK_RX] : sc->sc_xfer[URTW_8187L_BULK_RX]);
@@ -3831,12 +3831,12 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_tx_enable(struct urtw_softc *sc)
 {
 	uint8_t data8;
 	uint32_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	if (sc->sc_flags & URTW_RTL8187B) {
 		urtw_read32_m(sc, URTW_TX_CONF, &data);
@@ -3883,13 +3883,13 @@ fail:
 	return (error);
 }
 
-static usb2_error_t
+static usb_error_t
 urtw_rx_setconf(struct urtw_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t data;
-	usb2_error_t error;
+	usb_error_t error;
 
 	urtw_read32_m(sc, URTW_RX, &data);
 	data = data &~ URTW_RX_FILTER_MASK;

@@ -110,17 +110,17 @@ static miibus_readreg_t rue_miibus_readreg;
 static miibus_writereg_t rue_miibus_writereg;
 static miibus_statchg_t rue_miibus_statchg;
 
-static usb2_callback_t rue_intr_callback;
-static usb2_callback_t rue_bulk_read_callback;
-static usb2_callback_t rue_bulk_write_callback;
+static usb_callback_t rue_intr_callback;
+static usb_callback_t rue_bulk_read_callback;
+static usb_callback_t rue_bulk_write_callback;
 
-static usb2_ether_fn_t rue_attach_post;
-static usb2_ether_fn_t rue_init;
-static usb2_ether_fn_t rue_stop;
-static usb2_ether_fn_t rue_start;
-static usb2_ether_fn_t rue_tick;
-static usb2_ether_fn_t rue_setmulti;
-static usb2_ether_fn_t rue_setpromisc;
+static uether_fn_t rue_attach_post;
+static uether_fn_t rue_init;
+static uether_fn_t rue_stop;
+static uether_fn_t rue_start;
+static uether_fn_t rue_tick;
+static uether_fn_t rue_setmulti;
+static uether_fn_t rue_setpromisc;
 
 static int	rue_read_mem(struct rue_softc *, uint16_t, void *, int);
 static int	rue_write_mem(struct rue_softc *, uint16_t, void *, int);

@@ -2227,6 +2227,7 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m0,
     const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct iwn_tx_cmd *cmd;
 	struct iwn_cmd_data *tx;
 	struct ieee80211_frame *wh;
@@ -2263,6 +2264,11 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m0,
 
 	/* pick a tx rate */
 	rate = params->ibp_rate0;
+	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
+		/* XXX fall back to mcast/mgmt rate? */
+		m_freem(m0);
+		return EINVAL;
+	}
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwn_tx_radiotap_header *tap = &sc->sc_txtap;

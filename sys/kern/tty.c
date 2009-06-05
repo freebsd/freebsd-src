@@ -885,7 +885,14 @@ ttydevsw_deffree(void *softc)
  */
 
 struct tty *
-tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
+tty_alloc(struct ttydevsw *tsw, void *sc)
+{
+
+	return (tty_alloc_mutex(tsw, sc, NULL));
+}
+
+struct tty *
+tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 {
 	struct tty *tp;
 

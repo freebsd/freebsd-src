@@ -289,7 +289,7 @@ usb2_bus_attach(struct usb_proc_msg *pm)
 	struct usb_bus *bus;
 	struct usb_device *child;
 	device_t dev;
-	usb2_error_t err;
+	usb_error_t err;
 	enum usb_dev_speed speed;
 
 	bus = ((struct usb_bus_msg *)pm)->bus;
@@ -485,7 +485,7 @@ SYSUNINIT(usb2_bus_unload, SI_SUB_KLD, SI_ORDER_ANY, usb2_bus_unload, NULL);
 #if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_flush_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
-    struct usb_page *pg, uint32_t size, uint32_t align)
+    struct usb_page *pg, usb_size_t size, usb_size_t align)
 {
 	usb2_pc_cpu_flush(pc);
 }
@@ -496,7 +496,7 @@ usb2_bus_mem_flush_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
  *------------------------------------------------------------------------*/
 #if USB_HAVE_BUSDMA
 void
-usb2_bus_mem_flush_all(struct usb_bus *bus, usb2_bus_mem_cb_t *cb)
+usb2_bus_mem_flush_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 {
 	if (cb) {
 		cb(bus, &usb2_bus_mem_flush_all_cb);
@@ -510,7 +510,7 @@ usb2_bus_mem_flush_all(struct usb_bus *bus, usb2_bus_mem_cb_t *cb)
 #if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_alloc_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
-    struct usb_page *pg, uint32_t size, uint32_t align)
+    struct usb_page *pg, usb_size_t size, usb_size_t align)
 {
 	/* need to initialize the page cache */
 	pc->tag_parent = bus->dma_parent_tag;
@@ -530,7 +530,7 @@ usb2_bus_mem_alloc_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
  *------------------------------------------------------------------------*/
 uint8_t
 usb2_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
-    usb2_bus_mem_cb_t *cb)
+    usb_bus_mem_cb_t *cb)
 {
 	bus->alloc_failed = 0;
 
@@ -570,7 +570,7 @@ usb2_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 #if USB_HAVE_BUSDMA
 static void
 usb2_bus_mem_free_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
-    struct usb_page *pg, uint32_t size, uint32_t align)
+    struct usb_page *pg, usb_size_t size, usb_size_t align)
 {
 	usb2_pc_free_mem(pc);
 }
@@ -580,7 +580,7 @@ usb2_bus_mem_free_all_cb(struct usb_bus *bus, struct usb_page_cache *pc,
  *	usb2_bus_mem_free_all - factored out code
  *------------------------------------------------------------------------*/
 void
-usb2_bus_mem_free_all(struct usb_bus *bus, usb2_bus_mem_cb_t *cb)
+usb2_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 {
 #if USB_HAVE_BUSDMA
 	if (cb) {

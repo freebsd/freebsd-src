@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../netinet
+.PATH: ${.CURDIR}/../../netinet/ipfw
 
 KMOD=	ipfw
 SRCS=	ip_fw2.c ip_fw_pfil.c

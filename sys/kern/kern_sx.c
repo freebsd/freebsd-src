@@ -36,23 +36,25 @@
  * so should not be relied upon in combination with sx locks.
  */
 
-#include "opt_adaptive_sx.h"
 #include "opt_ddb.h"
 #include "opt_kdtrace.h"
+#include "opt_no_adaptive_sx.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ktr.h>
+#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sleepqueue.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#ifdef ADAPTIVE_SX
+#if defined(SMP) && !defined(NO_ADAPTIVE_SX)
 #include <machine/cpu.h>
 #endif
 
@@ -60,12 +62,11 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-#if !defined(SMP) && defined(ADAPTIVE_SX)
-#error "You must have SMP to enable the ADAPTIVE_SX option"
+#if defined(SMP) && !defined(NO_ADAPTIVE_SX)
+#define	ADAPTIVE_SX
 #endif
 
-CTASSERT(((SX_ADAPTIVESPIN | SX_RECURSE) & LO_CLASSFLAGS) ==
-    (SX_ADAPTIVESPIN | SX_RECURSE));
+CTASSERT((SX_NOADAPTIVE & LO_CLASSFLAGS) == SX_NOADAPTIVE);
 
 /* Handy macros for sleep queues. */
 #define	SQ_EXCLUSIVE_QUEUE	0
@@ -133,6 +134,14 @@ struct lock_class lock_class_sx = {
 #define	_sx_assert(sx, what, file, line)
 #endif
 
+#ifdef ADAPTIVE_SX
+static u_int asx_retries = 10;
+static u_int asx_loops = 10000;
+SYSCTL_NODE(_debug, OID_AUTO, sx, CTLFLAG_RD, NULL, "sxlock debugging");
+SYSCTL_INT(_debug_sx, OID_AUTO, retries, CTLFLAG_RW, &asx_retries, 0, "");
+SYSCTL_INT(_debug_sx, OID_AUTO, loops, CTLFLAG_RW, &asx_loops, 0, "");
+#endif
+
 void
 assert_sx(struct lock_object *lock, int what)
 {
@@ -195,19 +204,21 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 	int flags;
 
 	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
-	    SX_NOPROFILE | SX_ADAPTIVESPIN)) == 0);
+	    SX_NOPROFILE | SX_NOADAPTIVE)) == 0);
 
-	flags = LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE;
+	flags = LO_SLEEPABLE | LO_UPGRADABLE;
 	if (opts & SX_DUPOK)
 		flags |= LO_DUPOK;
 	if (opts & SX_NOPROFILE)
 		flags |= LO_NOPROFILE;
 	if (!(opts & SX_NOWITNESS))
 		flags |= LO_WITNESS;
+	if (opts & SX_RECURSE)
+		flags |= LO_RECURSABLE;
 	if (opts & SX_QUIET)
 		flags |= LO_QUIET;
 
-	flags |= opts & (SX_ADAPTIVESPIN | SX_RECURSE);
+	flags |= opts & SX_NOADAPTIVE;
 	sx->sx_lock = SX_LOCK_UNLOCKED;
 	sx->sx_recurse = 0;
 	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
@@ -295,7 +306,8 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_try_xlock() of destroyed sx @ %s:%d", file, line));
 
-	if (sx_xlocked(sx) && (sx->lock_object.lo_flags & SX_RECURSE) != 0) {
+	if (sx_xlocked(sx) &&
+	    (sx->lock_object.lo_flags & LO_RECURSABLE) != 0) {
 		sx->sx_recurse++;
 		atomic_set_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
 		rval = 1;
@@ -453,6 +465,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 	GIANT_DECLARE;
 #ifdef ADAPTIVE_SX
 	volatile struct thread *owner;
+	u_int i, spintries = 0;
 #endif
 	uintptr_t x;
 #ifdef LOCK_PROFILING
@@ -468,7 +481,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 
 	/* If we already hold an exclusive lock, then recurse. */
 	if (sx_xlocked(sx)) {
-		KASSERT((sx->lock_object.lo_flags & SX_RECURSE) != 0,
+		KASSERT((sx->lock_object.lo_flags & LO_RECURSABLE) != 0,
 	    ("_sx_xlock_hard: recursed on non-recursive sx %s @ %s:%d\n",
 		    sx->lock_object.lo_name, file, line));
 		sx->sx_recurse++;
@@ -495,24 +508,44 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		 * running or the state of the lock changes.
 		 */
 		x = sx->sx_lock;
-		if (!(x & SX_LOCK_SHARED) &&
-		    (sx->lock_object.lo_flags & SX_ADAPTIVESPIN)) {
-			x = SX_OWNER(x);
-			owner = (struct thread *)x;
-			if (TD_IS_RUNNING(owner)) {
-				if (LOCK_LOG_TEST(&sx->lock_object, 0))
-					CTR3(KTR_LOCK,
+		if ((sx->lock_object.lo_flags & SX_NOADAPTIVE) != 0) {
+			if ((x & SX_LOCK_SHARED) == 0) {
+				x = SX_OWNER(x);
+				owner = (struct thread *)x;
+				if (TD_IS_RUNNING(owner)) {
+					if (LOCK_LOG_TEST(&sx->lock_object, 0))
+						CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
-					    __func__, sx, owner);
-				GIANT_SAVE();
-				while (SX_OWNER(sx->sx_lock) == x &&
-				    TD_IS_RUNNING(owner)) {
+						    __func__, sx, owner);
+					GIANT_SAVE();
+					while (SX_OWNER(sx->sx_lock) == x &&
+					    TD_IS_RUNNING(owner)) {
+						cpu_spinwait();
+#ifdef KDTRACE_HOOKS
+						spin_cnt++;
+#endif
+					}
+					continue;
+				}
+			} else if (SX_SHARERS(x) && spintries < asx_retries) {
+				spintries++;
+				for (i = 0; i < asx_loops; i++) {
+					if (LOCK_LOG_TEST(&sx->lock_object, 0))
+						CTR4(KTR_LOCK,
+				    "%s: shared spinning on %p with %u and %u",
+						    __func__, sx, spintries, i);
+					GIANT_SAVE();
+					x = sx->sx_lock;
+					if ((x & SX_LOCK_SHARED) == 0 ||
+					    SX_SHARERS(x) == 0)
+						break;
 					cpu_spinwait();
 #ifdef KDTRACE_HOOKS
 					spin_cnt++;
 #endif
 				}
-				continue;
+				if (i != asx_loops)
+					continue;
 			}
 		}
 #endif
@@ -538,7 +571,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		 * again.
 		 */
 		if (!(x & SX_LOCK_SHARED) &&
-		    (sx->lock_object.lo_flags & SX_ADAPTIVESPIN)) {
+		    (sx->lock_object.lo_flags & SX_NOADAPTIVE) == 0) {
 			owner = (struct thread *)SX_OWNER(x);
 			if (TD_IS_RUNNING(owner)) {
 				sleepq_release(&sx->lock_object);
@@ -752,7 +785,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		 * the owner stops running or the state of the lock
 		 * changes.
 		 */
-		if (sx->lock_object.lo_flags & SX_ADAPTIVESPIN) {
+		if ((sx->lock_object.lo_flags & SX_NOADAPTIVE) == 0) {
 			x = SX_OWNER(x);
 			owner = (struct thread *)x;
 			if (TD_IS_RUNNING(owner)) {
@@ -796,7 +829,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		 * changes.
 		 */
 		if (!(x & SX_LOCK_SHARED) &&
-		    (sx->lock_object.lo_flags & SX_ADAPTIVESPIN)) {
+		    (sx->lock_object.lo_flags & SX_NOADAPTIVE) == 0) {
 			owner = (struct thread *)SX_OWNER(x);
 			if (TD_IS_RUNNING(owner)) {
 				sleepq_release(&sx->lock_object);

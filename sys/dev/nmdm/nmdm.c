@@ -117,11 +117,11 @@ nmdm_alloc(unsigned long unit)
 	callout_init(&ns->ns_part2.np_callout, CALLOUT_MPSAFE);
 
 	/* Create device nodes. */
-	tp = ns->ns_part1.np_tty = tty_alloc(&nmdm_class, &ns->ns_part1,
+	tp = ns->ns_part1.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part1,
 	    &ns->ns_mtx);
 	tty_makedev(tp, NULL, "nmdm%luA", unit);
 
-	tp = ns->ns_part2.np_tty = tty_alloc(&nmdm_class, &ns->ns_part2,
+	tp = ns->ns_part2.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part2,
 	    &ns->ns_mtx);
 	tty_makedev(tp, NULL, "nmdm%luB", unit);
 

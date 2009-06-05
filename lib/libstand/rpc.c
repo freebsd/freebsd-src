@@ -405,17 +405,19 @@ rpc_getport(d, prog, vers)
 
 #ifdef RPC_DEBUG
 	if (debug)
-		printf("getport: prog=0x%x vers=%d\n", prog, vers);
+		printf("%s: prog=0x%x vers=%d\n", __func__, prog, vers);
 #endif
 
 	/* This one is fixed forever. */
-	if (prog == PMAPPROG)
-		return (PMAPPORT);
+	if (prog == PMAPPROG) {
+		port = PMAPPORT;
+		goto out;
+	}
 
 	/* Try for cached answer first */
 	port = rpc_pmap_getcache(d->destip, prog, vers);
 	if (port != -1)
-		return (port);
+		goto out;
 
 	args = &sdata.d;
 	args->prog = htonl(prog);
@@ -435,5 +437,10 @@ rpc_getport(d, prog, vers)
 
 	rpc_pmap_putcache(d->destip, prog, vers, port);
 
+out:
+#ifdef RPC_DEBUG
+	if (debug)
+		printf("%s: port=%u\n", __func__, port);
+#endif
 	return (port);
 }

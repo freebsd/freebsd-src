@@ -31,10 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <i386/ibcs2/ibcs2_socksys.h>
 #include <i386/ibcs2/ibcs2_util.h>
@@ -152,7 +149,7 @@ ibcs2_getipdomainname(td, uap)
 	char hname[MAXHOSTNAMELEN], *dptr;
 	int len;
 
-	/* Get the domain name */
+	/* Get the domain name. */
 	getcredhostname(td->td_ucred, hname, sizeof(hname));
 
 	dptr = index(hname, '.');
@@ -174,20 +171,17 @@ ibcs2_setipdomainname(td, uap)
         struct thread *td;
         struct setipdomainname_args *uap;
 {
-	INIT_VPROCG(TD_TO_VPROCG(td));
 	char hname[MAXHOSTNAMELEN], *ptr;
 	int error, sctl[2], hlen;
 
+	/* Get the domain name */
+	getcredhostname(td->td_ucred, hname, sizeof(hname));
+
 	/* W/out a hostname a domain-name is nonsense */
-	mtx_lock(&hostname_mtx);
-	if ( strlen(V_hostname) == 0 ) {
-		mtx_unlock(&hostname_mtx);
+	if ( strlen(hname) == 0 )
 		return EINVAL;
-	}
 
 	/* Get the host's unqualified name (strip off the domain) */
-	snprintf(hname, sizeof(hname), "%s", V_hostname);
-	mtx_unlock(&hostname_mtx);
 	ptr = index(hname, '.');
 	if ( ptr != NULL ) {
 		ptr++;

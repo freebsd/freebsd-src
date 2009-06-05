@@ -67,7 +67,7 @@ static const char* usb_errstr_table[USB_ERR_MAX] = {
  * This function converts an USB error code into a string.
  *------------------------------------------------------------------------*/
 const char *
-usb2_errstr(usb2_error_t err)
+usb2_errstr(usb_error_t err)
 {
 	return (err < USB_ERR_MAX ? usb_errstr_table[err] : "USB_ERR_UNKNOWN");
 }

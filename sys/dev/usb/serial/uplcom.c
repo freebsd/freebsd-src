@@ -159,7 +159,7 @@ struct uplcom_softc {
 
 /* prototypes */
 
-static usb2_error_t uplcom_reset(struct uplcom_softc *, struct usb_device *);
+static usb_error_t uplcom_reset(struct uplcom_softc *, struct usb_device *);
 static int	uplcom_pl2303x_init(struct usb_device *);
 static void	uplcom_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uplcom_cfg_set_rts(struct ucom_softc *, uint8_t);
@@ -177,9 +177,9 @@ static device_probe_t uplcom_probe;
 static device_attach_t uplcom_attach;
 static device_detach_t uplcom_detach;
 
-static usb2_callback_t uplcom_intr_callback;
-static usb2_callback_t uplcom_write_callback;
-static usb2_callback_t uplcom_read_callback;
+static usb_callback_t uplcom_intr_callback;
+static usb_callback_t uplcom_write_callback;
+static usb_callback_t uplcom_read_callback;
 
 static const struct usb_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 
@@ -429,7 +429,7 @@ uplcom_detach(device_t dev)
 	return (0);
 }
 
-static usb2_error_t
+static usb_error_t
 uplcom_reset(struct uplcom_softc *sc, struct usb_device *udev)
 {
 	struct usb_device_request req;
@@ -474,7 +474,7 @@ static int
 uplcom_pl2303x_init(struct usb_device *udev)
 {
 	struct usb_device_request req;
-	usb2_error_t err;
+	usb_error_t err;
 	uint8_t buf[4];
 	uint8_t i;
 

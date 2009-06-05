@@ -1394,13 +1394,13 @@ sis_newbuf(struct sis_softc *sc, struct sis_desc *c, struct mbuf *m)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 sis_rxeof(struct sis_softc *sc)
 {
 	struct mbuf		*m, *m0;
 	struct ifnet		*ifp;
 	struct sis_desc		*cur_rx;
-	int			total_len = 0;
+	int			total_len = 0, rx_npkts = 0;
 	u_int32_t		rxstat;
 
 	SIS_LOCK_ASSERT(sc);
@@ -1476,9 +1476,11 @@ sis_rxeof(struct sis_softc *sc)
 		SIS_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		SIS_LOCK(sc);
+		rx_npkts++;
 	}
 
 	sc->sis_rx_pdsc = cur_rx;
+	return (rx_npkts);
 }
 
 static void
@@ -1580,15 +1582,16 @@ sis_tick(void *xsc)
 #ifdef DEVICE_POLLING
 static poll_handler_t sis_poll;
 
-static void
+static int
 sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct	sis_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	SIS_LOCK(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		SIS_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	/*
@@ -1599,7 +1602,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	 * and then call the interrupt routine
 	 */
 	sc->rxcycles = count;
-	sis_rxeof(sc);
+	rx_npkts = sis_rxeof(sc);
 	sis_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sis_startl(ifp);
@@ -1623,6 +1626,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 
 	SIS_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 

@@ -69,7 +69,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
 #include "opt_swap.h"
 #include "opt_vm.h"
 

@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/limits.h>
@@ -57,7 +58,7 @@ ddi_strtoul(const char *str, char **nptr, int base, unsigned long *result)
 {
 
 	if (str == hw_serial) {
-		*result = hostid;
+		*result = prison0.pr_hostid;
 		return (0);
 	}
 

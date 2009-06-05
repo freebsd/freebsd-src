@@ -93,7 +93,7 @@ MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_RFCOMM, "netgraph_btsocks_rfcomm",
 #define	ALOT	0x7fff
 
 /* Local prototypes */
-static void ng_btsocket_rfcomm_upcall
+static int ng_btsocket_rfcomm_upcall
 	(struct socket *so, void *arg, int waitflag);
 static void ng_btsocket_rfcomm_sessions_task
 	(void *ctx, int pending);
@@ -1007,7 +1007,7 @@ ng_btsocket_rfcomm_sockaddr(struct socket *so, struct sockaddr **nam)
  * Upcall function for L2CAP sockets. Enqueue RFCOMM task.
  */
 
-static void
+static int
 ng_btsocket_rfcomm_upcall(struct socket *so, void *arg, int waitflag)
 {
 	int	error;
@@ -1018,6 +1018,7 @@ ng_btsocket_rfcomm_upcall(struct socket *so, void *arg, int waitflag)
 	if ((error = ng_btsocket_rfcomm_task_wakeup()) != 0)
 		NG_BTSOCKET_RFCOMM_ALERT(
 "%s: Could not enqueue RFCOMM task, error=%d\n", __func__, error);
+	return (SU_OK);
 } /* ng_btsocket_rfcomm_upcall */
 
 /*
@@ -1047,13 +1048,11 @@ ng_btsocket_rfcomm_sessions_task(void *ctx, int pending)
 				panic("%s: DLC list is not empty\n", __func__);
 
 			/* Close L2CAP socket */
-			s->l2so->so_upcallarg = NULL;
-			s->l2so->so_upcall = NULL;
 			SOCKBUF_LOCK(&s->l2so->so_rcv);
-			s->l2so->so_rcv.sb_flags &= ~SB_UPCALL;
+			soupcall_clear(s->l2so, SO_RCV);
 			SOCKBUF_UNLOCK(&s->l2so->so_rcv);
 			SOCKBUF_LOCK(&s->l2so->so_snd);
-			s->l2so->so_snd.sb_flags &= ~SB_UPCALL;
+			soupcall_clear(s->l2so, SO_SND);
 			SOCKBUF_UNLOCK(&s->l2so->so_snd);
 			soclose(s->l2so);
 
@@ -1286,13 +1285,11 @@ ng_btsocket_rfcomm_session_create(ng_btsocket_rfcomm_session_p *sp,
 	LIST_INIT(&s->dlcs);
 
 	/* Prepare L2CAP socket */
-	l2so->so_upcallarg = NULL;
-	l2so->so_upcall = ng_btsocket_rfcomm_upcall;
 	SOCKBUF_LOCK(&l2so->so_rcv);
-	l2so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(l2so, SO_RCV, ng_btsocket_rfcomm_upcall, NULL);
 	SOCKBUF_UNLOCK(&l2so->so_rcv);
 	SOCKBUF_LOCK(&l2so->so_snd);
-	l2so->so_snd.sb_flags |= SB_UPCALL;
+	soupcall_set(l2so, SO_SND, ng_btsocket_rfcomm_upcall, NULL);
 	SOCKBUF_UNLOCK(&l2so->so_snd);
 	l2so->so_state |= SS_NBIO;
 	s->l2so = l2so;
@@ -1370,13 +1367,11 @@ bad:
 	mtx_unlock(&s->session_mtx);
 
 	/* Return L2CAP socket back to its original state */
-	l2so->so_upcallarg = NULL;
-	l2so->so_upcall = NULL;
 	SOCKBUF_LOCK(&l2so->so_rcv);
-	l2so->so_rcv.sb_flags &= ~SB_UPCALL;
+	soupcall_clear(s->l2so, SO_RCV);
 	SOCKBUF_UNLOCK(&l2so->so_rcv);
 	SOCKBUF_LOCK(&l2so->so_snd);
-	l2so->so_snd.sb_flags &= ~SB_UPCALL;
+	soupcall_clear(s->l2so, SO_SND);
 	SOCKBUF_UNLOCK(&l2so->so_snd);
 	l2so->so_state &= ~SS_NBIO;
 

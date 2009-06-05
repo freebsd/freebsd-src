@@ -345,15 +345,30 @@ irint(double x)
 int	__kernel_rem_pio2(double*,double*,int,int,int);
 
 /* double precision kernel functions */
+#ifdef INLINE_REM_PIO2
+__inline
+#endif
 int	__ieee754_rem_pio2(double,double*);
 double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
 
 /* float precision kernel functions */
+#ifdef INLINE_REM_PIO2F
+__inline
+#endif
 int	__ieee754_rem_pio2f(float,double*);
+#ifdef INLINE_KERNEL_SINDF
+__inline
+#endif
 float	__kernel_sindf(double);
+#ifdef INLINE_KERNEL_COSDF
+__inline
+#endif
 float	__kernel_cosdf(double);
+#ifdef INLINE_KERNEL_TANDF
+__inline
+#endif
 float	__kernel_tandf(double,int);
 
 /* long double precision kernel functions */

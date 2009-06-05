@@ -669,6 +669,7 @@ union l_semun {
 #define	LINUX_GETSOCKOPT	15
 #define	LINUX_SENDMSG		16
 #define	LINUX_RECVMSG		17
+#define	LINUX_ACCEPT4		18
 
 #define	LINUX_SOL_SOCKET	1
 #define	LINUX_SOL_IP		0

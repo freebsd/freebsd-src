@@ -72,8 +72,8 @@ static device_probe_t ufm_probe;
 static device_attach_t ufm_attach;
 static device_detach_t ufm_detach;
 
-static usb2_fifo_ioctl_t ufm_ioctl;
-static usb2_fifo_open_t ufm_open;
+static usb_fifo_ioctl_t ufm_ioctl;
+static usb_fifo_open_t ufm_open;
 
 static struct usb_fifo_methods ufm_fifo_methods = {
 	.f_ioctl = &ufm_ioctl,

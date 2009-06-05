@@ -35,9 +35,9 @@ struct usb_device_request;
 
 /* typedefs */
 
-typedef usb2_error_t	(usb2_temp_setup_by_index_t)(struct usb_device *udev,
+typedef usb_error_t	(usb2_temp_setup_by_index_t)(struct usb_device *udev,
 			    uint16_t index);
-typedef usb2_error_t	(usb2_test_huawei_autoinst_t)(struct usb_device *udev, 
+typedef usb_error_t	(usb2_test_huawei_autoinst_t)(struct usb_device *udev, 
 			    struct usb_attach_arg *uaa);
 typedef uint8_t		(usb2_test_quirk_t)(const struct usb_lookup_info *info,
 			    uint16_t quirk);
@@ -47,7 +47,7 @@ typedef void		(usb2_temp_unsetup_t)(struct usb_device *udev);
 
 /* global function pointers */
 
-extern usb2_handle_request_t *usb2_temp_get_desc_p;
+extern usb_handle_req_t *usb2_temp_get_desc_p;
 extern usb2_temp_setup_by_index_t *usb2_temp_setup_by_index_p;
 extern usb2_temp_unsetup_t *usb2_temp_unsetup_p;
 extern usb2_test_quirk_t *usb2_test_quirk_p;

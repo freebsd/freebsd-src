@@ -188,14 +188,26 @@ rm_cleanIPI(void *arg)
 }
 
 void
-rm_init(struct rmlock *rm, const char *name, int opts)
+rm_init_flags(struct rmlock *rm, const char *name, int opts)
 {
+	int liflags;
 
+	liflags = 0;
+	if (!(opts & RM_NOWITNESS))
+		liflags |= LO_WITNESS;
+	if (opts & RM_RECURSE)
+		liflags |= LO_RECURSABLE;
 	rm->rm_noreadtoken = 1;
 	LIST_INIT(&rm->rm_activeReaders);
-	mtx_init(&rm->rm_lock, name, "RM_MTX",MTX_NOWITNESS);
-	lock_init(&rm->lock_object, &lock_class_rm, name, NULL,
-	    (opts & LO_RECURSABLE)| LO_WITNESS);
+	mtx_init(&rm->rm_lock, name, "rmlock_mtx", MTX_NOWITNESS);
+	lock_init(&rm->lock_object, &lock_class_rm, name, NULL, liflags);
+}
+
+void
+rm_init(struct rmlock *rm, const char *name)
+{
+
+	rm_init_flags(rm, name, 0);
 }
 
 void
@@ -216,9 +228,17 @@ rm_wowned(struct rmlock *rm)
 void
 rm_sysinit(void *arg)
 {
-
 	struct rm_args *args = arg;
-	rm_init(args->ra_rm, args->ra_desc, args->ra_opts);
+
+	rm_init(args->ra_rm, args->ra_desc);
+}
+
+void
+rm_sysinit_flags(void *arg)
+{
+	struct rm_args_flags *args = arg;
+
+	rm_init_flags(args->ra_rm, args->ra_desc, args->ra_opts);
 }
 
 static void
@@ -307,7 +327,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker)
 
 	rm_tracker_add(pc, tracker);
 
-	td->td_pinned++; /*  sched_pin(); */
+	sched_pin();
 
 	compiler_memory_barrier();
 
@@ -367,7 +387,7 @@ _rm_runlock(struct rmlock *rm, struct rm_priotracker *tracker)
 	pc = cpuid_to_pcpu[td->td_oncpu]; /* pcpu_find(td->td_oncpu); */
 	rm_tracker_remove(pc, tracker);
 	td->td_critnest--;
-	td->td_pinned--; /*  sched_unpin(); */
+	sched_unpin();
 
 	if (0 == (td->td_owepreempt | tracker->rmp_flags))
 		return;
@@ -507,7 +527,8 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 
 void
 _rm_runlock_debug(struct rmlock *rm,  struct rm_priotracker *tracker,
-    const char *file, int line) {
+    const char *file, int line)
+{
 
 	_rm_runlock(rm, tracker);
 }

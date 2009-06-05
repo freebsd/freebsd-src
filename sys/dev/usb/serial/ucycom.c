@@ -102,8 +102,8 @@ static device_probe_t ucycom_probe;
 static device_attach_t ucycom_attach;
 static device_detach_t ucycom_detach;
 
-static usb2_callback_t ucycom_ctrl_write_callback;
-static usb2_callback_t ucycom_intr_read_callback;
+static usb_callback_t ucycom_ctrl_write_callback;
+static usb_callback_t ucycom_intr_read_callback;
 
 static void	ucycom_cfg_open(struct ucom_softc *);
 static void	ucycom_start_read(struct ucom_softc *);
@@ -401,7 +401,7 @@ ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg)
 {
 	struct usb_device_request req;
 	uint16_t len;
-	usb2_error_t err;
+	usb_error_t err;
 
 	len = sc->sc_flen;
 	if (len > sizeof(sc->sc_temp_cfg)) {
