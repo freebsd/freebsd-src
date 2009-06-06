@@ -184,7 +184,7 @@ foreach my $vid (sort keys %vendors) {
 exit 0;
 
 
-# Parse a line from the Boemler file and place the vendor id, pciid,
+# Parse a line from the Boemler CSV file and place the vendor id, pciid,
 # vendor description and description in the scalars.
 #
 # Returns 0 if there is a problem.
@@ -194,17 +194,19 @@ sub vendors_parse($\$\$\$\$)
 	my ($line, $vendorid_ref, $pciid_ref, $vendor_ref, $descr_ref) = @_;
 
 	my @a = split(/","/, $line);
-	$a[0] =~ s/0x//;
+	$a[0] =~ s/0x//;	# 0x1234 -> 1234
 	$a[1] =~ s/0x//;
 
-	$a[0] =~ s/^"//;
+	$a[0] =~ s/^"//;	# Remove starting or trailing "
 	$a[4] =~ s/"$//;
 
-	$a[0] = uc($a[0]);
+	$a[0] = uc($a[0]);	# Some are lowercase hex-digits
 	$a[1] = uc($a[1]);
 
+	# Length of the Vendor ID or PCI ID is not four hex-digits, ignore it
 	return 0 if (length($a[0]) != 4 || length($a[1]) != 4);
 
+	# If there is no description, see if the chip data exists and use that
 	if ($a[4] eq "") {
 		if ($a[3] ne "") {
 			$a[4] = $a[3];
@@ -218,9 +220,7 @@ sub vendors_parse($\$\$\$\$)
 	$$pciid_ref = $a[1];
 	$$vendor_ref = $a[2];
 	$$descr_ref = clean_descr($a[4]);
-	if ($a[3] =~ /[a-zA-Z0-0]/) {
-		$$descr_ref .= clean_descr(" ($a[3])");
-	}
+	$$descr_ref .= clean_descr(" ($a[3])") if ($a[3] =~ /[a-zA-Z0-0]/);
 	return 1;
 }
 
@@ -255,7 +255,9 @@ sub clean_descr($)
 {
 	my ($descr) = @_;
 
-	$descr =~ s/[^[:print:]]//g;
+	$descr =~ s/[^[:print:]]//g;	# non-printable
+	$descr =~ s/\\//g;	# escape of 's
+	$descr =~ s/\#/*/g;	# pciconf(8) ignores data after this
 
 	return $descr;
 }
