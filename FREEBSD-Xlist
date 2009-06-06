@@ -25,11 +25,9 @@ openssl-*/crypto/dso/dso_vms.c
 openssl-*/crypto/dso/dso_win32.c
 openssl-*/crypto/threads/solaris.sh
 openssl-*/demos/engines/rsaref/
-openssl-*/fips/
 openssl-*/ms/
 openssl-*/op
 openssl-*/os2/
-openssl-*/rsaref/
 openssl-*/shlib/Makefile.hpux10-cc
 openssl-*/shlib/hpux10-cc.sh
 openssl-*/shlib/irix.sh
@@ -42,6 +40,5 @@ openssl-*/shlib/sco5-shared.sh
 openssl-*/shlib/svr5-shared-gcc.sh
 openssl-*/shlib/svr5-shared-installed
 openssl-*/shlib/svr5-shared.sh
-openssl-*/test/fips_aes_data
 openssl-*/util/cygwin.sh
 openssl-*/include
