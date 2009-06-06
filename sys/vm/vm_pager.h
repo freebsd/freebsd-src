@@ -46,8 +46,6 @@
 
 TAILQ_HEAD(pagerlst, vm_object);
 
-struct bio;
-
 typedef void pgo_init_t(void);
 typedef vm_object_t pgo_alloc_t(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t);
 typedef void pgo_dealloc_t(vm_object_t);
