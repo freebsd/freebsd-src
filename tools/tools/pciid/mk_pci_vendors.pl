@@ -30,7 +30,7 @@
 # Generate src/share/misc/pci_vendors from the Hart and Boemler lists,
 # currently available at:
 #
-# Boemler:	http://www.pcidatabase.com/reports.php?type=tab-delimeted
+# Boemler:	http://www.pcidatabase.com/reports.php?type=csv
 # Hart:		http://members.datafast.net.au/dft0802/downloads/pcidevs.txt
 #
 # -l	Where an entry is found in both input lists, use the entry with
@@ -42,26 +42,28 @@
 #
 use strict;
 use Getopt::Std;
+use Data::Dumper;
 
 my $PROGNAME = 'mk_pci_vendors';
 my $VENDORS_FILE = 'vendors.txt';
 my $PCIDEVS_FILE = 'pcidevs.txt';
 
-my $cur_vendor;
+my ($cur_vendor, $vendorid, $pciid, $vendor);
 my %opts;
-my %vendors;
+my %pciids = ();
+my %vendors = ();
 my ($descr, $existing, $id, $line, $rv, $winner, $optlused);
 
 my $IS_VENDOR = 1;
 my $IS_DEVICE = 2;
 my $V_DESCR = 0;
 my $V_DEVSL = 1;
-my $W_NOCONTEST = 0;
+my $W_FINAL = 0;
 my $W_VENDORS = 1;
 my $W_PCIDEVS = 2;
 
 sub clean_descr($);
-sub vendors_parse($\$\$);
+sub vendors_parse($\$\$\$\$);
 sub pcidevs_parse($\$\$);
 
 if (not getopts('lp:qv:', \%opts) or @ARGV > 0) {
@@ -87,15 +89,14 @@ open(VENDORS, "< $opts{v}") or
     die "$PROGNAME: $opts{v}: $!\n";
 while ($line = <VENDORS>) {
 	chomp($line);
-	$rv = vendors_parse($line, $id, $descr);
-	if ($rv == $IS_VENDOR) {
-		if (exists($vendors{$id})) {
-			die "$PROGNAME: $id: duplicate vendor ID\n";
+	$rv = vendors_parse($line, $vendorid, $pciid, $vendor, $descr);
+	if ($rv != 0) {
+		if (defined $vendors{$vendorid}
+		 && $vendors{$vendorid}[$W_VENDORS] ne $vendor) {
+			die "$PROGNAME: $vendorid: duplicate vendor ID\n";
 		}
-		$vendors{$id} = [$descr, {}];
-		$cur_vendor = $id;
-	} elsif ($rv == $IS_DEVICE) {
-		${$vendors{$cur_vendor}->[$V_DEVSL]}{$id} = $descr;
+		$vendors{$vendorid}[$W_VENDORS] = $vendor;
+		$pciids{$vendorid}{$pciid}[$W_VENDORS] = $descr;
 	}
 }
 close(VENDORS);
@@ -106,52 +107,57 @@ while ($line = <PCIDEVS>) {
 	chomp($line);
 	$rv = pcidevs_parse($line, $id, $descr);
 	if ($rv == $IS_VENDOR) {
-		if (not exists($vendors{$id})) {
-			$vendors{$id} = [$descr, {}];
-			$winner = $W_NOCONTEST;
-		} elsif ($opts{l}) {
-			$existing = $vendors{$id}->[$V_DESCR];
-			if (length($existing) < length($descr)) {
-				$vendors{$id}->[$V_DESCR] = $descr;
-				$winner = $W_PCIDEVS;
-			} else {
-				$winner = $W_VENDORS;
-			}
-		} else {
-			$winner = $W_VENDORS;
-		}
-		$cur_vendor = $id;
-		if (not $opts{q} and $winner != $W_NOCONTEST) {
-			$existing = $vendors{$id}->[$V_DESCR];
-			print STDERR "$PROGNAME: ",
-			    $winner == $W_VENDORS ? "Boemler" : "Hart",
-			    " vendor wins: $id\t$existing\n";
-		}
+		$vendorid = $id;
+		$vendors{$vendorid}[$W_PCIDEVS] = $descr;
 	} elsif ($rv == $IS_DEVICE) {
-		if (not exists(${$vendors{$cur_vendor}->[$V_DEVSL]}{$id})) {
-			${$vendors{$cur_vendor}->[$V_DEVSL]}{$id} = $descr;
-			$winner = $W_NOCONTEST;
-		} elsif ($opts{l}) {
-			$existing = ${$vendors{$cur_vendor}->[$V_DEVSL]}{$id};
-			if (length($existing) < length($descr)) {
-				${$vendors{$cur_vendor}->[$V_DEVSL]}{$id} =
-				    $descr;
-				$winner = $W_PCIDEVS;
-			} else {
-				$winner = $W_VENDORS;
-			}
-		} else {
-			$winner = $W_VENDORS;
-		}
-		if (not $opts{q} and $winner != $W_NOCONTEST) {
-			$existing = ${$vendors{$cur_vendor}->[$V_DEVSL]}{$id};
-			print STDERR "$PROGNAME: ",
-			    $winner == $W_VENDORS ? "Boemler" : "Hart",
-			    " device wins: $id\t$existing\n";
-		}
+		$pciids{$vendorid}{$id}[$W_PCIDEVS] = $descr;
 	}
 }
 close(PCIDEVS);
+
+foreach my $vid (keys(%vendors)) {
+	if (!defined $vendors{$vid}[$W_VENDORS]
+	 && defined $vendors{$vid}[$W_PCIDEVS]) {
+		$vendors{$vid}[$W_FINAL] = $vendors{$vid}[$W_PCIDEVS];
+	} elsif (defined $vendors{$vid}[$W_VENDORS]
+	      && !defined $vendors{$vid}[$W_PCIDEVS]) {
+		$vendors{$vid}[$W_FINAL] = $vendors{$vid}[$W_VENDORS];
+	} elsif (!$opts{l}) {
+		$vendors{$vid}[$W_FINAL] = $vendors{$vid}[$W_VENDORS];
+	} else {
+		if (length($vendors{$vid}[$W_VENDORS]) >
+		    length($vendors{$vid}[$W_PCIDEVS])) {
+			$vendors{$vid}[$W_FINAL] = $vendors{$vid}[$W_VENDORS];
+		} else {
+			$vendors{$vid}[$W_FINAL] = $vendors{$vid}[$W_PCIDEVS];
+		}
+	}
+
+	foreach my $pciid (keys(%{$pciids{$vid}})) {
+		if (!defined $pciids{$vid}{$pciid}[$W_VENDORS]
+		 && defined $pciids{$vid}{$pciid}[$W_PCIDEVS]) {
+			$pciids{$vid}{$pciid}[$W_FINAL] =
+			    $pciids{$vid}{$pciid}[$W_PCIDEVS];
+		} elsif (defined $pciids{$vid}{$pciid}[$W_VENDORS]
+		      && !defined $pciids{$vid}{$pciid}[$W_PCIDEVS]) {
+			$pciids{$vid}{$pciid}[$W_FINAL] =
+			    $pciids{$vid}{$pciid}[$W_VENDORS];
+		} elsif (!$opts{l}) {
+			$pciids{$vid}{$pciid}[$W_FINAL] =
+			    $pciids{$vid}{$pciid}[$W_VENDORS];
+		} else {
+			if (length($pciids{$vid}{$pciid}[$W_VENDORS]) >
+			    length($pciids{$vid}{$pciid}[$W_PCIDEVS])) {
+				$pciids{$vid}{$pciid}[$W_FINAL] =
+				    $pciids{$vid}{$pciid}[$W_VENDORS];
+			} else {
+				$pciids{$vid}{$pciid}[$W_FINAL] =
+				    $pciids{$vid}{$pciid}[$W_PCIDEVS];
+			}
+		}
+	}
+
+}
 
 $optlused = $opts{l} ? "with" : "without";
 print <<HEADER_END;
@@ -160,50 +166,62 @@ print <<HEADER_END;
 ; Automatically generated by src/tools/tools/pciid/mk_pci_vendors.pl
 ; ($optlused the -l option), using the following source lists:
 ;
-;	http://www.pcidatabase.com/reports.php?type=tab-delimeted
+;	http://www.pcidatabase.com/reports.php?type=csv
 ;	http://members.datafast.net.au/dft0802/downloads/pcidevs.txt
 ;
 ; Manual edits on this file will be lost!
 ;
 HEADER_END
 
-foreach $cur_vendor (sort keys %vendors) {
-	$id = $cur_vendor;
-	$descr = $vendors{$id}->[$V_DESCR];
-	print "$id\t$descr\n";
-	foreach $id (sort keys %{$vendors{$cur_vendor}->[$V_DEVSL]}) {
-		$descr = ${$vendors{$cur_vendor}->[$V_DEVSL]}{$id};
-		print "\t$id\t$descr\n";
+foreach my $vid (sort keys %vendors) {
+	$descr = $vendors{$vid}[0];
+	print "$vid\t$descr\n";
+	foreach $pciid (sort keys %{$pciids{$vid}}) {
+		$descr = $pciids{$vid}{$pciid}[0];
+		print "\t$pciid\t$descr\n";
 	}
 }
 exit 0;
 
 
-# Parse a line from the Boemler file and place the ID and description
-# in the scalars referenced by $id_ref and $descr_ref.
+# Parse a line from the Boemler file and place the vendor id, pciid,
+# vendor description and description in the scalars.
 #
-# On success, returns $IS_VENDOR if the line represents a vendor entity
-# or $IS_DEVICE if the line represents a device entity.
+# Returns 0 if there is a problem.
 #
-# Returns 0 on failure.
-#
-sub vendors_parse($\$\$)
+sub vendors_parse($\$\$\$\$)
 {
-	my ($line, $id_ref, $descr_ref) = @_;
+	my ($line, $vendorid_ref, $pciid_ref, $vendor_ref, $descr_ref) = @_;
 
-	if ($line =~ /^([A-Fa-f0-9]{4})\t([^\t].+?)\s*$/) {
-		($$id_ref, $$descr_ref) = (uc($1), clean_descr($2));
-		return $IS_VENDOR;
-	} elsif ($line =~ /^\t([A-Fa-f0-9]{4})\t([^\t].+?)\s*$/) {
-		($$id_ref, $$descr_ref) = (uc($1), clean_descr($2));
-		return $IS_DEVICE;
-	} elsif (not $opts{q} and
-	    $line !~ /^\s*$/ and $line !~ /^;/) {
-		chomp($line);
-		print STDERR "$PROGNAME: ignored Boemler: $line\n";
+	my @a = split(/","/, $line);
+	$a[0] =~ s/0x//;
+	$a[1] =~ s/0x//;
+
+	$a[0] =~ s/^"//;
+	$a[4] =~ s/"$//;
+
+	$a[0] = uc($a[0]);
+	$a[1] = uc($a[1]);
+
+	return 0 if (length($a[0]) != 4 || length($a[1]) != 4);
+
+	if ($a[4] eq "") {
+		if ($a[3] ne "") {
+			$a[4] = $a[3];
+			$a[3] = "";
+		} else {
+			$a[4] = "?";
+		}
 	}
 
-	return 0;
+	$$vendorid_ref = $a[0];
+	$$pciid_ref = $a[1];
+	$$vendor_ref = $a[2];
+	$$descr_ref = clean_descr($a[4]);
+	if ($a[3] =~ /[a-zA-Z0-0]/) {
+		$$descr_ref .= clean_descr(" ($a[3])");
+	}
+	return 1;
 }
 
 # Parse a line from the Hart file and place the ID and description
@@ -236,6 +254,8 @@ sub pcidevs_parse($\$\$)
 sub clean_descr($)
 {
 	my ($descr) = @_;
+
+	$descr =~ s/[^[:print:]]//g;
 
 	return $descr;
 }
