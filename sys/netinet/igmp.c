@@ -1992,7 +1992,6 @@ igmp_set_version(struct igmp_ifinfo *igi, const int version)
 static void
 igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 {
-	INIT_VNET_INET(curvnet);
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
 	struct in_multi		*inm;
