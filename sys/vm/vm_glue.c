@@ -259,7 +259,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 		m = vm_page_lookup(object, pindex);
 		if (m == NULL)
 			goto out;
-		if (m->valid == 0 || rv != VM_PAGER_OK) {
+		if (rv != VM_PAGER_OK) {
 			vm_page_lock_queues();
 			vm_page_free(m);
 			vm_page_unlock_queues();

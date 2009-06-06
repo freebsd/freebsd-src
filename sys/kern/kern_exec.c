@@ -948,8 +948,7 @@ exec_map_first_page(imgp)
 		initial_pagein = i;
 		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
 		ma[0] = vm_page_lookup(object, 0);
-		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) ||
-		    (ma[0]->valid == 0)) {
+		if ((rv != VM_PAGER_OK) || (ma[0] == NULL)) {
 			if (ma[0]) {
 				vm_page_lock_queues();
 				vm_page_free(ma[0]);
