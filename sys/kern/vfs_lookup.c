@@ -453,7 +453,6 @@ lookup(struct nameidata *ndp)
 	int docache;			/* == 0 do not cache last component */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
-	int trailing_slash;
 	int error = 0;
 	int dpunlocked = 0;		/* dp has already been unlocked */
 	struct componentname *cnp = &ndp->ni_cnd;
@@ -528,13 +527,11 @@ dirloop:
 	 * trailing slashes to handle symlinks, existing non-directories
 	 * and non-existing files that won't be directories specially later.
 	 */
-	trailing_slash = 0;
 	while (*cp == '/' && (cp[1] == '/' || cp[1] == '\0')) {
 		cp++;
 		ndp->ni_pathlen--;
 		if (*cp == '\0') {
-			trailing_slash = 1;
-			*ndp->ni_next = '\0';	/* XXX for direnter() ... */
+			*ndp->ni_next = '\0';
 			cnp->cn_flags |= TRAILINGSLASH;
 		}
 	}
@@ -703,26 +700,23 @@ unionlookup:
 		if (error != EJUSTRETURN)
 			goto bad;
 		/*
-		 * If creating and at end of pathname, then can consider
-		 * allowing file to be created.
+		 * At this point, we know we're at the end of the
+		 * pathname.  If creating / renaming, we can consider
+		 * allowing the file or directory to be created / renamed,
+		 * provided we're not on a read-only filesystem.
 		 */
 		if (rdonly) {
 			error = EROFS;
 			goto bad;
 		}
-		if (*cp == '\0' && trailing_slash &&
-		     !(cnp->cn_flags & WILLBEDIR)) {
+		/* trailing slash only allowed for directories */
+		if ((cnp->cn_flags & TRAILINGSLASH) &&
+		    !(cnp->cn_flags & WILLBEDIR)) {
 			error = ENOENT;
 			goto bad;
 		}
 		if ((cnp->cn_flags & LOCKPARENT) == 0)
 			VOP_UNLOCK(dp, 0);
-		/*
-		 * This is a temporary assert to make sure I know what the
-		 * behavior here was.
-		 */
-		KASSERT((cnp->cn_flags & (WANTPARENT|LOCKPARENT)) != 0,
-		   ("lookup: Unhandled case."));
 		/*
 		 * We return with ni_vp NULL to indicate that the entry
 		 * doesn't currently exist, leaving a pointer to the
@@ -787,7 +781,7 @@ unionlookup:
 	 * Check for symbolic link
 	 */
 	if ((dp->v_type == VLNK) &&
-	    ((cnp->cn_flags & FOLLOW) || trailing_slash ||
+	    ((cnp->cn_flags & FOLLOW) || (cnp->cn_flags & TRAILINGSLASH) ||
 	     *ndp->ni_next == '/')) {
 		cnp->cn_flags |= ISSYMLINK;
 		if (dp->v_iflag & VI_DOOMED) {
@@ -812,8 +806,8 @@ unionlookup:
 
 nextname:
 	/*
-	 * Not a symbolic link.  If more pathname,
-	 * continue at next component, else return.
+	 * Not a symbolic link that we will follow.  Continue with the
+	 * next component if there is any; otherwise, we're done.
 	 */
 	KASSERT((cnp->cn_flags & ISLASTCN) || *ndp->ni_next == '/',
 	    ("lookup: invalid path state."));
@@ -989,12 +983,6 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 			VREF(dvp);
 		if ((cnp->cn_flags & LOCKPARENT) == 0)
 			VOP_UNLOCK(dp, 0);
-		/*
-		 * This is a temporary assert to make sure I know what the
-		 * behavior here was.
-		 */
-		KASSERT((cnp->cn_flags & (WANTPARENT|LOCKPARENT)) != 0,
-		   ("relookup: Unhandled case."));
 		/*
 		 * We return with ni_vp NULL to indicate that the entry
 		 * doesn't currently exist, leaving a pointer to the
