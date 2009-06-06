@@ -21,11 +21,10 @@ namespace llvm {
   class ELFCodeEmitter : public MachineCodeEmitter {
     ELFWriter &EW;
     TargetMachine &TM;
-    ELFWriter::ELFSection *ES;  // Section to write to.
-    std::vector<unsigned char> *OutBuffer;
-    size_t FnStart;
+    ELFSection *ES;  // Section to write to.
+    uint8_t *FnStartPtr;
   public:
-    explicit ELFCodeEmitter(ELFWriter &ew) : EW(ew), TM(EW.TM), OutBuffer(0) {}
+    explicit ELFCodeEmitter(ELFWriter &ew) : EW(ew), TM(EW.TM) {}
 
     void startFunction(MachineFunction &F);
     bool finishFunction(MachineFunction &F);

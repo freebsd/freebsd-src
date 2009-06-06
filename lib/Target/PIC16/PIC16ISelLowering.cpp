@@ -46,6 +46,16 @@ static const char *getIntrinsicName(unsigned opcode) {
   case PIC16ISD::MUL_I8: Basename = "mul.i8"; break;
   case RTLIB::MUL_I16: Basename = "mul.i16"; break;
   case RTLIB::MUL_I32: Basename = "mul.i32"; break;
+
+  case RTLIB::SDIV_I16: Basename = "sdiv.i16"; break;
+  case RTLIB::SDIV_I32: Basename = "sdiv.i32"; break;
+  case RTLIB::UDIV_I16: Basename = "udiv.i16"; break;
+  case RTLIB::UDIV_I32: Basename = "udiv.i32"; break;
+
+  case RTLIB::SREM_I16: Basename = "srem.i16"; break;
+  case RTLIB::SREM_I32: Basename = "srem.i32"; break;
+  case RTLIB::UREM_I16: Basename = "urem.i16"; break;
+  case RTLIB::UREM_I32: Basename = "urem.i32"; break;
   }
   
   std::string prefix = PAN::getTagName(PAN::PREFIX_SYMBOL);
@@ -90,6 +100,20 @@ PIC16TargetLowering::PIC16TargetLowering(PIC16TargetMachine &TM)
   setLibcallName(RTLIB::MUL_I16, getIntrinsicName(RTLIB::MUL_I16));
   setLibcallName(RTLIB::MUL_I32, getIntrinsicName(RTLIB::MUL_I32));
 
+  // Signed division lib call names
+  setLibcallName(RTLIB::SDIV_I16, getIntrinsicName(RTLIB::SDIV_I16));
+  setLibcallName(RTLIB::SDIV_I32, getIntrinsicName(RTLIB::SDIV_I32));
+  // Unsigned division lib call names
+  setLibcallName(RTLIB::UDIV_I16, getIntrinsicName(RTLIB::UDIV_I16));
+  setLibcallName(RTLIB::UDIV_I32, getIntrinsicName(RTLIB::UDIV_I32));
+
+  // Signed remainder lib call names
+  setLibcallName(RTLIB::SREM_I16, getIntrinsicName(RTLIB::SREM_I16));
+  setLibcallName(RTLIB::SREM_I32, getIntrinsicName(RTLIB::SREM_I32));
+  // Unsigned remainder lib call names
+  setLibcallName(RTLIB::UREM_I16, getIntrinsicName(RTLIB::UREM_I16));
+  setLibcallName(RTLIB::UREM_I32, getIntrinsicName(RTLIB::UREM_I32));
+  
   setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
   setOperationAction(ISD::ExternalSymbol, MVT::i16, Custom);
 
@@ -105,6 +129,7 @@ PIC16TargetLowering::PIC16TargetLowering(PIC16TargetMachine &TM)
   setOperationAction(ISD::ADDC,    MVT::i8,  Custom);
   setOperationAction(ISD::SUBE,    MVT::i8,  Custom);
   setOperationAction(ISD::SUBC,    MVT::i8,  Custom);
+  setOperationAction(ISD::SUB,    MVT::i8,  Custom);
   setOperationAction(ISD::ADD,    MVT::i8,  Custom);
   setOperationAction(ISD::ADD,    MVT::i16, Custom);
 
@@ -354,20 +379,10 @@ SDValue PIC16TargetLowering::ExpandFrameIndex(SDNode *N, SelectionDAG &DAG) {
   FrameIndexSDNode *FR = dyn_cast<FrameIndexSDNode>(SDValue(N,0));
   // FIXME there isn't really debug info here
   DebugLoc dl = FR->getDebugLoc();
-  // FIXME: Not used.
-  // int Index = FR->getIndex();
 
   // Expand FrameIndex like GlobalAddress and ExternalSymbol
   // Also use Offset field for lo and hi parts. The default 
   // offset is zero.
-
-  /*
-  SDValue Offset = DAG.getConstant(0, MVT::i8);
-  SDValue FI = DAG.getTargetFrameIndex(Index, MVT::i8);
-  SDValue Lo = DAG.getNode(PIC16ISD::Lo, dl, MVT::i8, FI, Offset);
-  SDValue Hi = DAG.getNode(PIC16ISD::Hi, dl, MVT::i8, FI, Offset);
-  return DAG.getNode(ISD::BUILD_PAIR, dl, N->getValueType(0), Lo, Hi);
-  */
 
   SDValue ES;
   int FrameOffset;

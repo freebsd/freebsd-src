@@ -72,7 +72,7 @@ LTOCodeGenerator::LTOCodeGenerator()
     : _linker("LinkTimeOptimizer", "ld-temp.o"), _target(NULL),
       _emitDwarfDebugInfo(false), _scopeRestrictionsDone(false),
       _codeModel(LTO_CODEGEN_PIC_MODEL_DYNAMIC),
-      _nativeObjectFile(NULL), _gccPath(NULL)
+      _nativeObjectFile(NULL), _gccPath(NULL), _assemblerPath(NULL)
 {
 
 }
@@ -126,6 +126,13 @@ void LTOCodeGenerator::setGccPath(const char* path)
     if ( _gccPath )
         delete _gccPath;
     _gccPath = new sys::Path(path);
+}
+
+void LTOCodeGenerator::setAssemblerPath(const char* path)
+{
+    if ( _assemblerPath )
+        delete _assemblerPath;
+    _assemblerPath = new sys::Path(path);
 }
 
 void LTOCodeGenerator::addMustPreserveSymbol(const char* sym)
@@ -220,13 +227,18 @@ const void* LTOCodeGenerator::compile(size_t* length, std::string& errMsg)
 bool LTOCodeGenerator::assemble(const std::string& asmPath, 
                                 const std::string& objPath, std::string& errMsg)
 {
-    sys::Path gcc;
-    if ( _gccPath ) {
-        gcc = *_gccPath;
+    sys::Path tool;
+    bool needsCompilerOptions = true;
+    if ( _assemblerPath ) {
+        tool = *_assemblerPath;
+        needsCompilerOptions = false;
+    }
+    else if ( _gccPath ) {
+        tool = *_gccPath;
     } else {
         // find compiler driver
-        gcc = sys::Program::FindProgramByName("gcc");
-        if ( gcc.isEmpty() ) {
+        tool = sys::Program::FindProgramByName("gcc");
+        if ( tool.isEmpty() ) {
             errMsg = "can't locate gcc";
             return true;
         }
@@ -235,8 +247,9 @@ bool LTOCodeGenerator::assemble(const std::string& asmPath,
     // build argument list
     std::vector<const char*> args;
     std::string targetTriple = _linker.getModule()->getTargetTriple();
-    args.push_back(gcc.c_str());
+    args.push_back(tool.c_str());
     if ( targetTriple.find("darwin") != targetTriple.size() ) {
+        // darwin specific command line options
         if (strncmp(targetTriple.c_str(), "i386-apple-", 11) == 0) {
             args.push_back("-arch");
             args.push_back("i386");
@@ -274,17 +287,22 @@ bool LTOCodeGenerator::assemble(const std::string& asmPath,
             args.push_back("-arch");
             args.push_back("armv6");
         }
+        // add -static to assembler command line when code model requires
+        if ( (_assemblerPath != NULL) && (_codeModel == LTO_CODEGEN_PIC_MODEL_STATIC) )
+            args.push_back("-static");
     }
-    args.push_back("-c");
-    args.push_back("-x");
-    args.push_back("assembler");
+    if ( needsCompilerOptions ) {
+        args.push_back("-c");
+        args.push_back("-x");
+        args.push_back("assembler");
+    }
     args.push_back("-o");
     args.push_back(objPath.c_str());
     args.push_back(asmPath.c_str());
     args.push_back(0);
 
     // invoke assembler
-    if ( sys::Program::ExecuteAndWait(gcc, &args[0], 0, 0, 0, 0, &errMsg) ) {
+    if ( sys::Program::ExecuteAndWait(tool, &args[0], 0, 0, 0, 0, &errMsg) ) {
         errMsg = "error in assembly";    
         return true;
     }
@@ -303,6 +321,20 @@ bool LTOCodeGenerator::determineTarget(std::string& errMsg)
                                                        *mergedModule, errMsg);
         if ( march == NULL )
             return true;
+
+        // The relocation model is actually a static member of TargetMachine
+        // and needs to be set before the TargetMachine is instantiated.
+        switch( _codeModel ) {
+        case LTO_CODEGEN_PIC_MODEL_STATIC:
+            TargetMachine::setRelocationModel(Reloc::Static);
+            break;
+        case LTO_CODEGEN_PIC_MODEL_DYNAMIC:
+            TargetMachine::setRelocationModel(Reloc::PIC_);
+            break;
+        case LTO_CODEGEN_PIC_MODEL_DYNAMIC_NO_PIC:
+            TargetMachine::setRelocationModel(Reloc::DynamicNoPIC);
+            break;
+        }
 
         // construct LTModule, hand over ownership of module and target
         std::string FeatureStr =
@@ -363,19 +395,6 @@ bool LTOCodeGenerator::generateAssemblyCode(raw_ostream& out,
     if ( _target->getTargetAsmInfo()->doesSupportExceptionHandling() )
         llvm::ExceptionHandling = true;
 
-    // set codegen model
-    switch( _codeModel ) {
-        case LTO_CODEGEN_PIC_MODEL_STATIC:
-            _target->setRelocationModel(Reloc::Static);
-            break;
-        case LTO_CODEGEN_PIC_MODEL_DYNAMIC:
-            _target->setRelocationModel(Reloc::PIC_);
-            break;
-        case LTO_CODEGEN_PIC_MODEL_DYNAMIC_NO_PIC:
-            _target->setRelocationModel(Reloc::DynamicNoPIC);
-            break;
-    }
-
     // if options were requested, set them
     if ( !_codegenOptions.empty() )
         cl::ParseCommandLineOptions(_codegenOptions.size(), 
@@ -391,7 +410,6 @@ bool LTOCodeGenerator::generateAssemblyCode(raw_ostream& out,
     passes.add(new TargetData(*_target->getTargetData()));
     
     createStandardLTOPasses(&passes, /*Internalize=*/ false, !DisableInline,
-                            /*RunSecondGlobalOpt=*/ false, 
                             /*VerifyEach=*/ false);
 
     // Make sure everything is still good.

@@ -41,7 +41,6 @@ namespace llvm {
   bool RealignStack;
   bool DisableJumpTables;
   bool StrongPHIElim;
-  bool DisableRedZone;
   bool AsmVerbosityDefault(false);
 }
 
@@ -84,11 +83,6 @@ static cl::opt<bool, true>
 GenerateSoftFloatCalls("soft-float",
   cl::desc("Generate software floating point library calls"),
   cl::location(UseSoftFloat),
-  cl::init(false));
-static cl::opt<bool, true>
-GenerateNoImplicitFloats("no-implicit-float",
-  cl::desc("Don't generate implicit floating point instructions (x86-only)"),
-  cl::location(NoImplicitFloat),
   cl::init(false));
 static cl::opt<bool, true>
 DontPlaceZerosInBSS("nozero-initialized-in-bss",
@@ -162,11 +156,6 @@ static cl::opt<bool, true>
 EnableStrongPHIElim(cl::Hidden, "strong-phi-elim",
   cl::desc("Use strong PHI elimination."),
   cl::location(StrongPHIElim),
-  cl::init(false));
-static cl::opt<bool, true>
-DisableRedZoneOption("disable-red-zone",
-  cl::desc("Do not emit code that uses the red zone."),
-  cl::location(DisableRedZone),
   cl::init(false));
 
 //---------------------------------------------------------------------------

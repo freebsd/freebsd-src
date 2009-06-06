@@ -712,25 +712,26 @@ bool LLParser::ParseOptionalAttrs(unsigned &Attrs, unsigned AttrKind) {
         return Error(AttrLoc, "invalid use of parameter-only attribute");
         
       return false;
-    case lltok::kw_zeroext:      Attrs |= Attribute::ZExt; break;
-    case lltok::kw_signext:      Attrs |= Attribute::SExt; break;
-    case lltok::kw_inreg:        Attrs |= Attribute::InReg; break;
-    case lltok::kw_sret:         Attrs |= Attribute::StructRet; break;
-    case lltok::kw_noalias:      Attrs |= Attribute::NoAlias; break;
-    case lltok::kw_nocapture:    Attrs |= Attribute::NoCapture; break;
-    case lltok::kw_byval:        Attrs |= Attribute::ByVal; break;
-    case lltok::kw_nest:         Attrs |= Attribute::Nest; break;
+    case lltok::kw_zeroext:         Attrs |= Attribute::ZExt; break;
+    case lltok::kw_signext:         Attrs |= Attribute::SExt; break;
+    case lltok::kw_inreg:           Attrs |= Attribute::InReg; break;
+    case lltok::kw_sret:            Attrs |= Attribute::StructRet; break;
+    case lltok::kw_noalias:         Attrs |= Attribute::NoAlias; break;
+    case lltok::kw_nocapture:       Attrs |= Attribute::NoCapture; break;
+    case lltok::kw_byval:           Attrs |= Attribute::ByVal; break;
+    case lltok::kw_nest:            Attrs |= Attribute::Nest; break;
 
-    case lltok::kw_noreturn:     Attrs |= Attribute::NoReturn; break;
-    case lltok::kw_nounwind:     Attrs |= Attribute::NoUnwind; break;
-    case lltok::kw_noinline:     Attrs |= Attribute::NoInline; break;
-    case lltok::kw_readnone:     Attrs |= Attribute::ReadNone; break;
-    case lltok::kw_readonly:     Attrs |= Attribute::ReadOnly; break;
-    case lltok::kw_alwaysinline: Attrs |= Attribute::AlwaysInline; break;
-    case lltok::kw_optsize:      Attrs |= Attribute::OptimizeForSize; break;
-    case lltok::kw_ssp:          Attrs |= Attribute::StackProtect; break;
-    case lltok::kw_sspreq:       Attrs |= Attribute::StackProtectReq; break;
-
+    case lltok::kw_noreturn:        Attrs |= Attribute::NoReturn; break;
+    case lltok::kw_nounwind:        Attrs |= Attribute::NoUnwind; break;
+    case lltok::kw_noinline:        Attrs |= Attribute::NoInline; break;
+    case lltok::kw_readnone:        Attrs |= Attribute::ReadNone; break;
+    case lltok::kw_readonly:        Attrs |= Attribute::ReadOnly; break;
+    case lltok::kw_alwaysinline:    Attrs |= Attribute::AlwaysInline; break;
+    case lltok::kw_optsize:         Attrs |= Attribute::OptimizeForSize; break;
+    case lltok::kw_ssp:             Attrs |= Attribute::StackProtect; break;
+    case lltok::kw_sspreq:          Attrs |= Attribute::StackProtectReq; break;
+    case lltok::kw_noredzone:       Attrs |= Attribute::NoRedZone; break;
+    case lltok::kw_noimplicitfloat: Attrs |= Attribute::NoImplicitFloat; break;
         
     case lltok::kw_align: {
       unsigned Alignment;
@@ -1835,8 +1836,11 @@ bool LLParser::ParseValID(ValID &ID) {
       
   // Binary Operators.
   case lltok::kw_add:
+  case lltok::kw_fadd:
   case lltok::kw_sub:
+  case lltok::kw_fsub:
   case lltok::kw_mul:
+  case lltok::kw_fmul:
   case lltok::kw_udiv:
   case lltok::kw_sdiv:
   case lltok::kw_fdiv:
@@ -2400,8 +2404,13 @@ bool LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
   // Binary Operators.
   case lltok::kw_add:
   case lltok::kw_sub:
-  case lltok::kw_mul:    return ParseArithmetic(Inst, PFS, KeywordVal, 0);
-      
+  case lltok::kw_mul:
+    // API compatibility: Accept either integer or floating-point types.
+    return ParseArithmetic(Inst, PFS, KeywordVal, 0);
+  case lltok::kw_fadd:
+  case lltok::kw_fsub:
+  case lltok::kw_fmul:    return ParseArithmetic(Inst, PFS, KeywordVal, 2);
+
   case lltok::kw_udiv:
   case lltok::kw_sdiv:
   case lltok::kw_urem:

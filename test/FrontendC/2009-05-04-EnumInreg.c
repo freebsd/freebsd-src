@@ -1,5 +1,6 @@
 // RUN: %llvmgcc -S -m32 -mregparm=3 %s -emit-llvm -o - | grep {inreg %action}
-// XTARGET: x86
+// XFAIL: *
+// XTARGET: x86,i386,i686
 // PR3967
 
 enum kobject_action {
