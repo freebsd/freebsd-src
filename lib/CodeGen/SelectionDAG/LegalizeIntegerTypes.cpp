@@ -356,13 +356,12 @@ SDValue DAGTypeLegalizer::PromoteIntRes_FP_TO_XINT(SDNode *N) {
   unsigned NewOpc = N->getOpcode();
   DebugLoc dl = N->getDebugLoc();
 
-  // If we're promoting a UINT to a larger size, check to see if the new node
-  // will be legal.  If it isn't, check to see if FP_TO_SINT is legal, since
-  // we can use that instead.  This allows us to generate better code for
-  // FP_TO_UINT for small destination sizes on targets where FP_TO_UINT is not
-  // legal, such as PowerPC.
+  // If we're promoting a UINT to a larger size and the larger FP_TO_UINT is
+  // not Legal, check to see if we can use FP_TO_SINT instead.  (If both UINT
+  // and SINT conversions are Custom, there is no way to tell which is preferable.
+  // We choose SINT because that's the right thing on PPC.)  
   if (N->getOpcode() == ISD::FP_TO_UINT &&
-      !TLI.isOperationLegalOrCustom(ISD::FP_TO_UINT, NVT) &&
+      !TLI.isOperationLegal(ISD::FP_TO_UINT, NVT) &&
       TLI.isOperationLegalOrCustom(ISD::FP_TO_SINT, NVT))
     NewOpc = ISD::FP_TO_SINT;
 
@@ -1747,7 +1746,9 @@ void DAGTypeLegalizer::ExpandIntRes_SDIV(SDNode *N,
   DebugLoc dl = N->getDebugLoc();
 
   RTLIB::Libcall LC = RTLIB::UNKNOWN_LIBCALL;
-  if (VT == MVT::i32)
+  if (VT == MVT::i16)
+    LC = RTLIB::SDIV_I16;
+  else if (VT == MVT::i32)
     LC = RTLIB::SDIV_I32;
   else if (VT == MVT::i64)
     LC = RTLIB::SDIV_I64;
@@ -1909,7 +1910,9 @@ void DAGTypeLegalizer::ExpandIntRes_SREM(SDNode *N,
   DebugLoc dl = N->getDebugLoc();
 
   RTLIB::Libcall LC = RTLIB::UNKNOWN_LIBCALL;
-  if (VT == MVT::i32)
+  if (VT == MVT::i16)
+    LC = RTLIB::SREM_I16;
+  else if (VT == MVT::i32)
     LC = RTLIB::SREM_I32;
   else if (VT == MVT::i64)
     LC = RTLIB::SREM_I64;
@@ -1938,7 +1941,9 @@ void DAGTypeLegalizer::ExpandIntRes_UDIV(SDNode *N,
   DebugLoc dl = N->getDebugLoc();
 
   RTLIB::Libcall LC = RTLIB::UNKNOWN_LIBCALL;
-  if (VT == MVT::i32)
+  if (VT == MVT::i16)
+    LC = RTLIB::UDIV_I16;
+  else if (VT == MVT::i32)
     LC = RTLIB::UDIV_I32;
   else if (VT == MVT::i64)
     LC = RTLIB::UDIV_I64;
@@ -1956,7 +1961,9 @@ void DAGTypeLegalizer::ExpandIntRes_UREM(SDNode *N,
   DebugLoc dl = N->getDebugLoc();
 
   RTLIB::Libcall LC = RTLIB::UNKNOWN_LIBCALL;
-  if (VT == MVT::i32)
+  if (VT == MVT::i16)
+    LC = RTLIB::UREM_I16;
+  else if (VT == MVT::i32)
     LC = RTLIB::UREM_I32;
   else if (VT == MVT::i64)
     LC = RTLIB::UREM_I64;
