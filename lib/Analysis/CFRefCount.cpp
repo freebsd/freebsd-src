@@ -636,7 +636,11 @@ class VISIBILITY_HIDDEN RetainSummaryManager {
   /// ObjCAllocRetE - Default return effect for methods returning Objective-C
   ///  objects.
   RetEffect ObjCAllocRetE;
-  
+
+	/// ObjCInitRetE - Default return effect for init methods returning Objective-C
+  ///  objects.
+  RetEffect ObjCInitRetE;
+	
   RetainSummary DefaultSummary;
   RetainSummary* StopSummary;
   
@@ -776,6 +780,8 @@ public:
      GCEnabled(gcenabled), AF(BPAlloc), ScratchArgs(AF.GetEmptyMap()),
      ObjCAllocRetE(gcenabled ? RetEffect::MakeGCNotOwned()
                              : RetEffect::MakeOwned(RetEffect::ObjC, true)),
+		 ObjCInitRetE(gcenabled ? RetEffect::MakeGCNotOwned()
+														:	RetEffect::MakeOwnedWhenTrackedReceiver()),
      DefaultSummary(AF.GetEmptyMap() /* per-argument effects (none) */,
                     RetEffect::MakeNoRet() /* return effect */,
                     MayEscape, /* default argument effect */
@@ -1156,8 +1162,7 @@ RetainSummaryManager::getInitMethodSummary(QualType RetTy) {
   // 'init' methods conceptually return a newly allocated object and claim
   // the receiver.  
   if (isTrackedObjCObjectType(RetTy) || isTrackedCFObjectType(RetTy))
-    return getPersistentSummary(RetEffect::MakeOwnedWhenTrackedReceiver(),
-                                DecRefMsg);
+    return getPersistentSummary(ObjCInitRetE, DecRefMsg);
   
   return getDefaultSummary();
 }
@@ -1168,12 +1173,19 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
   if (!FD)
     return;
 
+	QualType RetTy = FD->getResultType();
+	
   // Determine if there is a special return effect for this method.
-  if (isTrackedObjCObjectType(FD->getResultType())) {
+  if (isTrackedObjCObjectType(RetTy)) {
     if (FD->getAttr<NSReturnsRetainedAttr>()) {
       Summ.setRetEffect(ObjCAllocRetE);
     }
-    else if (FD->getAttr<CFReturnsRetainedAttr>()) {
+		else if (FD->getAttr<CFReturnsRetainedAttr>()) {
+      Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
+		}
+	}
+	else if (RetTy->getAsPointerType()) {
+		if (FD->getAttr<CFReturnsRetainedAttr>()) {
       Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
     }
   }
@@ -1367,8 +1379,7 @@ void RetainSummaryManager::InitializeMethodSummaries() {
   // Create the "init" selector.  It just acts as a pass-through for the
   // receiver.
   addNSObjectMethSummary(GetNullarySelector("init", Ctx),
-                 getPersistentSummary(RetEffect::MakeOwnedWhenTrackedReceiver(),
-                 DecRefMsg));
+												 getPersistentSummary(ObjCInitRetE, DecRefMsg));
   
   // The next methods are allocators.
   RetainSummary *AllocSumm = getPersistentSummary(ObjCAllocRetE);  

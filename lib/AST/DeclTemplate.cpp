@@ -236,28 +236,42 @@ TemplateArgument::TemplateArgument(Expr *E) : Kind(Expression) {
 }
 
 //===----------------------------------------------------------------------===//
+// TemplateArgumentListBuilder Implementation
+//===----------------------------------------------------------------------===//
+void TemplateArgumentListBuilder::push_back(const TemplateArgument& Arg) {
+  switch (Arg.getKind()) {
+  default: break;
+  case TemplateArgument::Type:
+    assert(Arg.getAsType()->isCanonical() && "Type must be canonical!");
+    break;
+  }
+  
+  Args.push_back(Arg);
+}
+
+//===----------------------------------------------------------------------===//
 // TemplateArgumentList Implementation
 //===----------------------------------------------------------------------===//
 TemplateArgumentList::TemplateArgumentList(ASTContext &Context,
-                                           TemplateArgument *TemplateArgs,
-                                           unsigned NumTemplateArgs,
-                                           bool CopyArgs)
-  : NumArguments(NumTemplateArgs) {
+                                           TemplateArgumentListBuilder &Builder,
+                                           bool CopyArgs, bool FlattenArgs)
+  : NumArguments(Builder.flatSize()) {
   if (!CopyArgs) {
-    Arguments.setPointer(TemplateArgs);
+    Arguments.setPointer(Builder.getFlatArgumentList());
     Arguments.setInt(1);
     return;
   }
 
-  unsigned Size = sizeof(TemplateArgument) * NumTemplateArgs;
+  
+  unsigned Size = sizeof(TemplateArgument) * Builder.flatSize();
   unsigned Align = llvm::AlignOf<TemplateArgument>::Alignment;
   void *Mem = Context.Allocate(Size, Align);
   Arguments.setPointer((TemplateArgument *)Mem);
   Arguments.setInt(0);
 
   TemplateArgument *Args = (TemplateArgument *)Mem;
-  for (unsigned I = 0; I != NumTemplateArgs; ++I)
-    new (Args + I) TemplateArgument(TemplateArgs[I]);
+  for (unsigned I = 0; I != NumArguments; ++I)
+    new (Args + I) TemplateArgument(Builder.getFlatArgumentList()[I]);
 }
 
 TemplateArgumentList::~TemplateArgumentList() {
@@ -271,8 +285,7 @@ ClassTemplateSpecializationDecl::
 ClassTemplateSpecializationDecl(ASTContext &Context, Kind DK,
                                 DeclContext *DC, SourceLocation L,
                                 ClassTemplateDecl *SpecializedTemplate,
-                                TemplateArgument *TemplateArgs,
-                                unsigned NumTemplateArgs)
+                                TemplateArgumentListBuilder &Builder)
   : CXXRecordDecl(DK, 
                   SpecializedTemplate->getTemplatedDecl()->getTagKind(), 
                   DC, L,
@@ -280,7 +293,7 @@ ClassTemplateSpecializationDecl(ASTContext &Context, Kind DK,
                   // class template specializations?
                   SpecializedTemplate->getIdentifier()),
     SpecializedTemplate(SpecializedTemplate),
-    TemplateArgs(Context, TemplateArgs, NumTemplateArgs, /*CopyArgs=*/true),
+    TemplateArgs(Context, Builder, /*CopyArgs=*/true, /*FlattenArgs=*/true),
     SpecializationKind(TSK_Undeclared) {
 }
                   
@@ -288,16 +301,14 @@ ClassTemplateSpecializationDecl *
 ClassTemplateSpecializationDecl::Create(ASTContext &Context, 
                                         DeclContext *DC, SourceLocation L,
                                         ClassTemplateDecl *SpecializedTemplate,
-                                        TemplateArgument *TemplateArgs, 
-                                        unsigned NumTemplateArgs,
+                                        TemplateArgumentListBuilder &Builder,
                                    ClassTemplateSpecializationDecl *PrevDecl) {
   ClassTemplateSpecializationDecl *Result
     = new (Context)ClassTemplateSpecializationDecl(Context, 
                                                    ClassTemplateSpecialization,
                                                    DC, L, 
                                                    SpecializedTemplate,
-                                                   TemplateArgs, 
-                                                   NumTemplateArgs);
+                                                   Builder);
   Context.getTypeDeclType(Result, PrevDecl);
   return Result;
 }
@@ -310,14 +321,13 @@ ClassTemplatePartialSpecializationDecl::
 Create(ASTContext &Context, DeclContext *DC, SourceLocation L,
        TemplateParameterList *Params,
        ClassTemplateDecl *SpecializedTemplate,
-       TemplateArgument *TemplateArgs, unsigned NumTemplateArgs,
+       TemplateArgumentListBuilder &Builder,
        ClassTemplatePartialSpecializationDecl *PrevDecl) {
   ClassTemplatePartialSpecializationDecl *Result
     = new (Context)ClassTemplatePartialSpecializationDecl(Context, 
                                                           DC, L, Params,
                                                           SpecializedTemplate,
-                                                          TemplateArgs, 
-                                                          NumTemplateArgs);
+                                                          Builder);
   Result->setSpecializationKind(TSK_ExplicitSpecialization);
   Context.getTypeDeclType(Result, PrevDecl);
   return Result;

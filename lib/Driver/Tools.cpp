@@ -329,7 +329,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasFlag(options::OPT_msoft_float,
                    options::OPT_mno_soft_float,
                    false))
-    CmdArgs.push_back("--soft-float");
+    CmdArgs.push_back("--no-implicit-float");
 
   // FIXME: Handle -mtune=.
   (void) Args.hasArg(options::OPT_mtune_EQ);
@@ -505,6 +505,16 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-fblocks=0");
   }
 
+  // -fsigned-char/-funsigned-char default varies depending on platform; only
+  // pass if specified.
+  if (Arg *A = Args.getLastArg(options::OPT_fsigned_char,
+                               options::OPT_funsigned_char)) {
+    if (A->getOption().matches(options::OPT_fsigned_char))
+      CmdArgs.push_back("-fsigned-char");
+    else
+      CmdArgs.push_back("-fsigned-char=0");
+  }
+
   // -fno-pascal-strings is default, only pass non-default. If the
   // -tool chain happened to translate to -mpascal-strings, we want to
   // -back translate here.
@@ -539,6 +549,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasFlag(options::OPT_fdiagnostics_show_option, 
                    options::OPT_fno_diagnostics_show_option))
     CmdArgs.push_back("-fdiagnostics-show-option");
+  if (!Args.hasFlag(options::OPT_fcolor_diagnostics,
+                   options::OPT_fno_color_diagnostics))
+    CmdArgs.push_back("-fno-color-diagnostics");
 
   // -fdollars-in-identifiers default varies depending on platform and
   // language; only pass if specified.
