@@ -1,6 +1,13 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
-<html> <head>
-<title>Precompiled Headers (PCH)</title>
+<html>
+<head>
+  <title>Precompiled Headers (PCH)</title>
+  <link type="text/css" rel="stylesheet" href="../menu.css" />
+  <link type="text/css" rel="stylesheet" href="../content.css" />
+  <style type="text/css">
+    td {
+    vertical-align: top;
+    }
+  </style>
 </head>
 
 <body>
@@ -33,7 +40,9 @@
         <li><a href="#method-pool">Method Pool Block</a></li>
       </ul>
     </li>
- </ul>
+    <li><a href="#tendrils">Precompiled Header Integration
+    Points</a></li>
+</ul>
     
 <h2 id="usage">Using Precompiled Headers with <tt>clang-cc</tt></h2>
 
@@ -103,7 +112,37 @@ entity (and those entities it depends on) are deserialized from the
 PCH file. With this approach, the cost of using a precompiled header
 for a translation unit is proportional to the amount of code actually
 used from the header, rather than being proportional to the size of
-the header itself.</p> </body>
+the header itself.</p> 
+
+<p>When given the <code>-print-stats</code> option, Clang produces
+statistics describing how much of the precompiled header was actually
+loaded from disk. For a simple "Hello, World!" program that includes
+the Apple <code>Cocoa.h</code> header (which is built as a precompiled
+header), this option illustrates how little of the actual precompiled
+header is required:</p>
+
+<pre>
+*** PCH Statistics:
+  933 stat cache hits
+  4 stat cache misses
+  895/39981 source location entries read (2.238563%)
+  19/15315 types read (0.124061%)
+  20/82685 declarations read (0.024188%)
+  154/58070 identifiers read (0.265197%)
+  0/7260 selectors read (0.000000%)
+  0/30842 statements read (0.000000%)
+  4/8400 macros read (0.047619%)
+  1/4995 lexical declcontexts read (0.020020%)
+  0/4413 visible declcontexts read (0.000000%)
+  0/7230 method pool entries read (0.000000%)
+  0 method pool misses
+</pre>
+
+<p>For this small program, only a tiny fraction of the source
+locations, types, declarations, identifiers, and macros were actually
+deserialized from the precompiled header. These statistics can be
+useful to determine whether the precompiled header implementation can
+be improved by making more of the implementation lazy.</p>
 
 <h2 id="contents">Precompiled Header Contents</h2>
 
@@ -116,6 +155,14 @@ either a block or a record within <a
  href="http://llvm.org/docs/BitCodeFormat.html">LLVM's bitstream
 format</a>. The contents of each of these logical blocks are described
 below.</p>
+
+<p>For a given precompiled header, the <a
+href="http://llvm.org/cmds/llvm-bcanalyzer.html"><code>llvm-bcanalyzer</code></a>
+utility can be used to examine the actual structure of the bitstream
+for the precompiled header. This information can be used both to help
+understand the structure of the precompiled header and to isolate
+areas where precompiled headers can still be optimized, e.g., through
+the introduction of abbreviations.</p>
 
 <h3 id="metadata">Metadata Block</h3>
 
@@ -393,7 +440,60 @@ values to the offset of the selector within the on-disk hash table,
 and will be used when de-serializing an Objective-C method declaration
 (or other Objective-C construct) that refers to the selector.</p>
 
-<h2 id="tendrils"></h2>
+<h2 id="tendrils">Precompiled Header Integration Points</h2>
+
+<p>The "lazy" deserialization behavior of precompiled headers requires
+their integration into several completely different submodules of
+Clang. For example, lazily deserializing the declarations during name
+lookup requires that the name-lookup routines be able to query the
+precompiled header to find entities within the PCH file.</p>
+
+<p>For each Clang data structure that requires direct interaction with
+the precompiled header logic, there is an abstract class that provides
+the interface between the two modules. The <code>PCHReader</code>
+class, which handles the loading of a precompiled header, inherits
+from all of these abstract classes to provide lazy deserialization of
+Clang's data structures. <code>PCHReader</code> implements the
+following abstract classes:</p>
+
+<dl>
+  <dt><code>StatSysCallCache</code></dt>
+  <dd>This abstract interface is associated with the
+    <code>FileManager</code> class, and is used whenever the file
+    manager is going to perform a <code>stat()</code> system call.</dd>
+    
+  <dt><code>ExternalSLocEntrySource</code></dt>
+  <dd>This abstract interface is associated with the
+    <code>SourceManager</code> class, and is used whenever the
+    <a href="#sourcemgr">source manager</a> needs to load the details
+    of a file, buffer, or macro instantiation.</dd>
+
+  <dt><code>IdentifierInfoLookup</code></dt>
+  <dd>This abstract interface is associated with the
+    <code>IdentifierTable</code> class, and is used whenever the
+    program source refers to an identifier that has not yet been seen.
+    In this case, the precompiled header implementation searches for
+    this identifier within its <a href="#idtable">identifier table</a>
+    to load any top-level declarations or macros associated with that
+    identifier.</dd>
+
+  <dt><code>ExternalASTSource</code></dt>
+  <dd>This abstract interface is associated with the
+    <code>ASTContext</code> class, and is used whenever the abstract
+    syntax tree nodes need to loaded from the precompiled header. It
+    provides the ability to de-serialize declarations and types
+    identified by their numeric values, read the bodies of functions
+    when required, and read the declarations stored within a
+    declaration context (either for iteration or for name lookup).</dd>
+    
+  <dt><code>ExternalSemaSource</code></dt>
+  <dd>This abstract interface is associated with the <code>Sema</code>
+    class, and is used whenever semantic analysis needs to read
+    information from the <a href="#methodpool">global method
+    pool</a>.</dd>
+</dl>
+
 </div>
 
+</body>
 </html>

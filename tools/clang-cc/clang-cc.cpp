@@ -328,6 +328,11 @@ MessageLength("fmessage-length",
 			     "within N columns or fewer, when possible."),
 	      llvm::cl::value_desc("N"));
 
+static llvm::cl::opt<bool>
+NoColorDiagnostic("fno-color-diagnostics",
+	      llvm::cl::desc("Don't use colors when showing diagnostics "
+                             "(automatically turned off if output is not a "
+                             "terminal)."));
 //===----------------------------------------------------------------------===//
 // C++ Visualization.
 //===----------------------------------------------------------------------===//
@@ -649,6 +654,9 @@ NeXTRuntime("fnext-runtime",
             llvm::cl::desc("Generate output compatible with the NeXT "
                            "runtime"));
 
+static llvm::cl::opt<bool>
+CharIsSigned("fsigned-char",
+    llvm::cl::desc("Force char to be a signed/unsigned type"));
 
 
 static llvm::cl::opt<bool>
@@ -807,6 +815,8 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   Options.Exceptions = Exceptions;
   if (EnableBlocks.getPosition())
     Options.Blocks = EnableBlocks;
+  if (CharIsSigned.getPosition())
+    Options.CharIsSigned = CharIsSigned;
 
   if (!AllowBuiltins)
     Options.NoBuiltin = 1;
@@ -1390,6 +1400,17 @@ TargetCPU("mcpu",
 static llvm::cl::list<std::string>
 TargetFeatures("target-feature", llvm::cl::desc("Target specific attributes"));
 
+
+static llvm::cl::opt<bool>
+DisableRedZone("disable-red-zone",
+               llvm::cl::desc("Do not emit code that uses the red zone."),
+               llvm::cl::init(false));
+
+static llvm::cl::opt<bool>
+NoImplicitFloat("no-implicit-float",
+  llvm::cl::desc("Don't generate implicit floating point instructions (x86-only)"),
+  llvm::cl::init(false));
+
 /// ComputeTargetFeatures - Recompute the target feature list to only
 /// be the list of things that are enabled, based on the target cpu
 /// and feature list.
@@ -1466,6 +1487,9 @@ static void InitializeCompileOptions(CompileOptions &Opts,
   
   // Handle -ftime-report.
   Opts.TimePasses = TimeReport;
+
+  Opts.DisableRedZone = DisableRedZone;
+  Opts.NoImplicitFloat = NoImplicitFloat;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2150,6 +2174,10 @@ int main(int argc, char **argv) {
     if (MessageLength.getNumOccurrences() == 0)
       MessageLength.setValue(llvm::sys::Process::StandardErrColumns());
 
+    if (!NoColorDiagnostic) {
+      NoColorDiagnostic.setValue(!llvm::sys::Process::StandardErrHasColors());
+    }
+
     DiagClient.reset(new TextDiagnosticPrinter(llvm::errs(),
                                                !NoShowColumn,
                                                !NoCaretDiagnostics,
@@ -2157,7 +2185,8 @@ int main(int argc, char **argv) {
                                                PrintSourceRangeInfo,
                                                PrintDiagnosticOption,
                                                !NoDiagnosticsFixIt,
-                                               MessageLength));
+                                               MessageLength,
+                                               !NoColorDiagnostic));
   } else {
     DiagClient.reset(CreateHTMLDiagnosticClient(HTMLDiag));
   }

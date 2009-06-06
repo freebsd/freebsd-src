@@ -946,7 +946,8 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
         const QualType ElementType = Type->getAsPointerType()->getPointeeType();
 
         uint64_t D = LHSValue.getLValueOffset() - RHSValue.getLValueOffset();
-        D /= Info.Ctx.getTypeSize(ElementType) / 8;
+        if (!ElementType->isVoidType() && !ElementType->isFunctionType())
+          D /= Info.Ctx.getTypeSize(ElementType) / 8;
 
         return Success(D, E);
       }

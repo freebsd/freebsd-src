@@ -298,7 +298,7 @@ void CodeGenModule::SetFunctionDefinitionAttributes(const FunctionDecl *D,
     GV->setLinkage(llvm::Function::InternalLinkage);
   } else if (D->hasAttr<DLLExportAttr>()) {
     GV->setLinkage(llvm::Function::DLLExportLinkage);
-  } else if (D->hasAttr<WeakAttr>() || D->hasAttr<WeakImportAttr>()) {
+  } else if (D->hasAttr<WeakAttr>()) {
     GV->setLinkage(llvm::Function::WeakAnyLinkage);
   } else if (Linkage == GVA_C99Inline) {
     // In C99 mode, 'inline' functions are guaranteed to have a strong
@@ -853,7 +853,7 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D) {
     GV->setLinkage(llvm::Function::DLLImportLinkage);
   else if (D->hasAttr<DLLExportAttr>())
     GV->setLinkage(llvm::Function::DLLExportLinkage);
-  else if (D->hasAttr<WeakAttr>() || D->hasAttr<WeakImportAttr>())
+  else if (D->hasAttr<WeakAttr>())
     GV->setLinkage(llvm::GlobalVariable::WeakAnyLinkage);
   else if (!CompileOpts.NoCommon &&
            (!D->hasExternalStorage() && !D->getInit()))
@@ -891,8 +891,9 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
   for (llvm::Value::use_iterator UI = OldFn->use_begin(), E = OldFn->use_end();
        UI != E; ) {
     // TODO: Do invokes ever occur in C code?  If so, we should handle them too.
+    unsigned OpNo = UI.getOperandNo();
     llvm::CallInst *CI = dyn_cast<llvm::CallInst>(*UI++);
-    if (!CI) continue;
+    if (!CI || OpNo != 0) continue;
     
     // If the return types don't match exactly, and if the call isn't dead, then
     // we can't transform this call.

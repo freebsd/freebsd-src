@@ -575,10 +575,11 @@ void Sema::MergeTypeDefDecl(TypedefDecl *New, Decl *OldD) {
 
   // If we have a redefinition of a typedef in C, emit a warning.  This warning
   // is normally mapped to an error, but can be controlled with
-  // -Wtypedef-redefinition.  If either the original was in a system header,
-  // don't emit this for compatibility with GCC.
+  // -Wtypedef-redefinition.  If either the original or the redefinition is
+  // in a system header, don't emit this for compatibility with GCC.
   if (PP.getDiagnostics().getSuppressSystemWarnings() &&
-      Context.getSourceManager().isInSystemHeader(Old->getLocation()))
+      (Context.getSourceManager().isInSystemHeader(Old->getLocation()) ||
+       Context.getSourceManager().isInSystemHeader(New->getLocation())))
     return;
   
   Diag(New->getLocation(), diag::warn_redefinition_of_typedef)
@@ -3913,6 +3914,7 @@ TranslateIvarVisibility(tok::ObjCKeywordKind ivarVisibility) {
 /// in order to create an IvarDecl object for it.
 Sema::DeclPtrTy Sema::ActOnIvar(Scope *S,
                                 SourceLocation DeclStart, 
+                                DeclPtrTy IntfDecl,
                                 Declarator &D, ExprTy *BitfieldWidth,
                                 tok::ObjCKeywordKind Visibility) {
   
@@ -3951,14 +3953,28 @@ Sema::DeclPtrTy Sema::ActOnIvar(Scope *S,
   ObjCIvarDecl::AccessControl ac = 
     Visibility != tok::objc_not_keyword ? TranslateIvarVisibility(Visibility)
                                         : ObjCIvarDecl::None;
-
+  // Must set ivar's DeclContext to its enclosing interface.
+  Decl *EnclosingDecl = IntfDecl.getAs<Decl>();
+  DeclContext *EnclosingContext;
+  if (ObjCImplementationDecl *IMPDecl = 
+      dyn_cast<ObjCImplementationDecl>(EnclosingDecl)) {
+    // Case of ivar declared in an implementation. Context is that of its class.
+    ObjCInterfaceDecl* IDecl = IMPDecl->getClassInterface();
+    assert(IDecl && "No class- ActOnIvar");
+    EnclosingContext = cast_or_null<DeclContext>(IDecl);
+  }
+  else
+    EnclosingContext = dyn_cast<DeclContext>(EnclosingDecl);
+  assert(EnclosingContext && "null DeclContext for ivar - ActOnIvar");
+  
   // Construct the decl.
-  ObjCIvarDecl *NewID = ObjCIvarDecl::Create(Context, CurContext, Loc, II, T,ac,
+  ObjCIvarDecl *NewID = ObjCIvarDecl::Create(Context, 
+                                             EnclosingContext, Loc, II, T,ac,
                                              (Expr *)BitfieldWidth);
   
   if (II) {
     NamedDecl *PrevDecl = LookupName(S, II, LookupMemberName, true);
-    if (PrevDecl && isDeclInScope(PrevDecl, CurContext, S)
+    if (PrevDecl && isDeclInScope(PrevDecl, EnclosingContext, S)
         && !isa<TagDecl>(PrevDecl)) {
       Diag(Loc, diag::err_duplicate_member) << II;
       Diag(PrevDecl->getLocation(), diag::note_previous_declaration);
@@ -4099,7 +4115,11 @@ void Sema::ActOnFields(Scope* S,
     if (ObjCInterfaceDecl *ID = dyn_cast<ObjCInterfaceDecl>(EnclosingDecl)) {
       ID->setIVarList(ClsFields, RecFields.size(), Context);
       ID->setLocEnd(RBrac);
-      
+      // Add ivar's to class's DeclContext.
+      for (unsigned i = 0, e = RecFields.size(); i != e; ++i) {
+        ClsFields[i]->setLexicalDeclContext(ID);
+        ID->addDecl(Context, ClsFields[i]);
+      }
       // Must enforce the rule that ivars in the base classes may not be
       // duplicates.
       if (ID->getSuperClass()) {
@@ -4120,12 +4140,10 @@ void Sema::ActOnFields(Scope* S,
     } else if (ObjCImplementationDecl *IMPDecl = 
                   dyn_cast<ObjCImplementationDecl>(EnclosingDecl)) {
       assert(IMPDecl && "ActOnFields - missing ObjCImplementationDecl");
-      for (unsigned I = 0, N = RecFields.size(); I != N; ++I) {
-        // FIXME: Set the DeclContext correctly when we build the
-        // declarations.
+      for (unsigned I = 0, N = RecFields.size(); I != N; ++I)
+        // Ivar declared in @implementation never belongs to the implementation.
+        // Only it is in implementation's lexical context.
         ClsFields[I]->setLexicalDeclContext(IMPDecl);
-        IMPDecl->addDecl(Context, ClsFields[I]);
-      }
       CheckImplementationIvars(IMPDecl, ClsFields, RecFields.size(), RBrac);
     }
   }
@@ -4412,4 +4430,35 @@ Sema::DeclPtrTy Sema::ActOnFileScopeAsmDecl(SourceLocation Loc,
                                                    Loc, AsmString);
   CurContext->addDecl(Context, New);
   return DeclPtrTy::make(New);
+}
+
+void Sema::ActOnPragmaWeakID(IdentifierInfo* Name,
+                             SourceLocation PragmaLoc,
+                             SourceLocation NameLoc) {
+  Decl *PrevDecl = LookupName(TUScope, Name, LookupOrdinaryName);
+
+  // FIXME: This implementation is an ugly hack!
+  if (PrevDecl) {
+    PrevDecl->addAttr(::new (Context) WeakAttr());
+    return;
+  }
+  Diag(PragmaLoc, diag::err_unsupported_pragma_weak);
+  return;
+}
+
+void Sema::ActOnPragmaWeakAlias(IdentifierInfo* Name,
+                                IdentifierInfo* AliasName,
+                                SourceLocation PragmaLoc,
+                                SourceLocation NameLoc,
+                                SourceLocation AliasNameLoc) {
+  Decl *PrevDecl = LookupName(TUScope, Name, LookupOrdinaryName);
+
+  // FIXME: This implementation is an ugly hack!
+  if (PrevDecl) {
+    PrevDecl->addAttr(::new (Context) AliasAttr(AliasName->getName()));
+    PrevDecl->addAttr(::new (Context) WeakAttr());
+    return;
+  }
+  Diag(PragmaLoc, diag::err_unsupported_pragma_weak);
+  return;
 }

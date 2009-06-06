@@ -18,8 +18,29 @@ using namespace CodeGen;
 void CodeGenFunction::PushCXXTemporary(const CXXTemporary *Temporary, 
                                        llvm::Value *Ptr) {
   llvm::BasicBlock *DtorBlock = createBasicBlock("temp.dtor");
-    
-  LiveTemporaries.push_back(CXXLiveTemporaryInfo(Temporary, Ptr, DtorBlock, 0));
+  
+  llvm::Value *CondPtr = 0;
+  
+  // Check if temporaries need to be conditional. If so, we'll create a 
+  // condition boolean, initialize it to 0 and 
+  if (!ConditionalTempDestructionStack.empty()) {
+    CondPtr = CreateTempAlloca(llvm::Type::Int1Ty, "cond");
+  
+    // Initialize it to false. This initialization takes place right after
+    // the alloca insert point.
+    llvm::StoreInst *SI = 
+      new llvm::StoreInst(llvm::ConstantInt::getFalse(), CondPtr);
+    llvm::BasicBlock *Block = AllocaInsertPt->getParent();
+    Block->getInstList().insertAfter((llvm::Instruction *)AllocaInsertPt, SI);
+
+    // Now set it to true.
+    Builder.CreateStore(llvm::ConstantInt::getTrue(), CondPtr);
+  }
+  
+  LiveTemporaries.push_back(CXXLiveTemporaryInfo(Temporary, Ptr, DtorBlock, 
+                                                 CondPtr));
+
+  PushCleanupBlock(DtorBlock);
 }
 
 void CodeGenFunction::PopCXXTemporary() {
@@ -35,9 +56,28 @@ void CodeGenFunction::PopCXXTemporary() {
   
   EmitBlock(Info.DtorBlock);
 
+  llvm::BasicBlock *CondEnd = 0;
+
+  // If this is a conditional temporary, we need to check the condition
+  // boolean and only call the destructor if it's true.
+  if (Info.CondPtr) {
+    llvm::BasicBlock *CondBlock = createBasicBlock("cond.dtor.call");
+    CondEnd = createBasicBlock("cond.dtor.end");
+      
+    llvm::Value *Cond = Builder.CreateLoad(Info.CondPtr);
+    Builder.CreateCondBr(Cond, CondBlock, CondEnd);
+    EmitBlock(CondBlock);
+  }
+  
   EmitCXXDestructorCall(Info.Temporary->getDestructor(),
                         Dtor_Complete, Info.ThisPtr);
 
+  if (CondEnd) {
+    // Reset the condition. to false.
+    Builder.CreateStore(llvm::ConstantInt::getFalse(), Info.CondPtr);
+    EmitBlock(CondEnd);
+  }
+  
   LiveTemporaries.pop_back();
 }
 
@@ -47,21 +87,38 @@ CodeGenFunction::EmitCXXExprWithTemporaries(const CXXExprWithTemporaries *E,
                                             bool isAggLocVolatile) {
   // Keep track of the current cleanup stack depth.
   size_t CleanupStackDepth = CleanupEntries.size();
+  (void) CleanupStackDepth;
 
   unsigned OldNumLiveTemporaries = LiveTemporaries.size();
   
   RValue RV = EmitAnyExpr(E->getSubExpr(), AggLoc, isAggLocVolatile);
   
-  // Go through the temporaries backwards.
-  for (unsigned i = E->getNumTemporaries(); i != 0; --i) {
-    assert(LiveTemporaries.back().Temporary == E->getTemporary(i - 1));
-    LiveTemporaries.pop_back();
-  }
-
-  assert(OldNumLiveTemporaries == LiveTemporaries.size() &&
-         "Live temporary stack mismatch!");
+  // Pop temporaries.
+  while (LiveTemporaries.size() > OldNumLiveTemporaries)
+    PopCXXTemporary();
   
-  EmitCleanupBlocks(CleanupStackDepth);
-
+  assert(CleanupEntries.size() == CleanupStackDepth &&
+         "Cleanup size mismatch!");
+  
   return RV;
 }
+
+void 
+CodeGenFunction::PushConditionalTempDestruction() {
+  // Store the current number of live temporaries.
+  ConditionalTempDestructionStack.push_back(LiveTemporaries.size());
+}
+
+void CodeGenFunction::PopConditionalTempDestruction() {
+ size_t NumLiveTemporaries = ConditionalTempDestructionStack.back();
+ ConditionalTempDestructionStack.pop_back();
+  
+  // Pop temporaries.
+  while (LiveTemporaries.size() > NumLiveTemporaries) {
+    assert(LiveTemporaries.back().CondPtr && 
+           "Conditional temporary must have a cond ptr!");
+
+    PopCXXTemporary();
+  }  
+}
+  

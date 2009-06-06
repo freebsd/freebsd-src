@@ -182,6 +182,11 @@ static void getDarwinDefines(std::vector<char> &Defs, const LangOptions &Opts) {
     Define(Defs, "__strong", "");
   else
     Define(Defs, "__strong", "__attribute__((objc_gc(strong)))");
+
+  if (Opts.Static)
+    Define(Defs, "__STATIC__");
+  else
+    Define(Defs, "__DYNAMIC__");
 }
 
 static void getDarwinOSXDefines(std::vector<char> &Defs, const char *Triple) {
@@ -252,9 +257,8 @@ class PPCTargetInfo : public TargetInfo {
   static const TargetInfo::GCCRegAlias GCCRegAliases[];
 
 public:
-  PPCTargetInfo(const std::string& triple) : TargetInfo(triple) {
-    CharIsSigned = false;
-  }
+  PPCTargetInfo(const std::string& triple) : TargetInfo(triple) {}
+
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
                                  unsigned &NumRecords) const {
     Records = BuiltinInfo;
@@ -293,6 +297,10 @@ public:
       Info.setAllowsRegister();
       return true;
     }
+  }
+  virtual void getDefaultLangOptions(LangOptions &Opts) {
+    TargetInfo::getDefaultLangOptions(Opts);
+    Opts.CharIsSigned = false;
   }
   virtual const char *getClobbers() const {
     return "";
@@ -444,6 +452,7 @@ public:
   /// various language options.  These may be overridden by command line
   /// options.
   virtual void getDefaultLangOptions(LangOptions &Opts) {
+    PPC32TargetInfo::getDefaultLangOptions(Opts);
     GetDarwinLanguageOptions(Opts, getTargetTriple());
   }
 };
@@ -464,6 +473,7 @@ public:
   /// various language options.  These may be overridden by command line
   /// options.
   virtual void getDefaultLangOptions(LangOptions &Opts) {
+    PPC64TargetInfo::getDefaultLangOptions(Opts);
     GetDarwinLanguageOptions(Opts, getTargetTriple());
   }
 };
@@ -840,6 +850,7 @@ public:
   /// various language options.  These may be overridden by command line
   /// options.
   virtual void getDefaultLangOptions(LangOptions &Opts) {
+    X86_32TargetInfo::getDefaultLangOptions(Opts);
     GetDarwinLanguageOptions(Opts, getTargetTriple());
   }
 };
