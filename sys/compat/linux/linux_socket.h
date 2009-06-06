@@ -49,4 +49,14 @@
 #define LINUX_MSG_ERRQUEUE	0x2000
 #define LINUX_MSG_NOSIGNAL	0x4000
 
+/* Supported address families */
+
+#define	LINUX_AF_UNSPEC		0
+#define	LINUX_AF_UNIX		1
+#define	LINUX_AF_INET		2
+#define	LINUX_AF_AX25		3
+#define	LINUX_AF_IPX		4
+#define	LINUX_AF_APPLETALK	5
+#define	LINUX_AF_INET6		10
+
 #endif /* _LINUX_SOCKET_H_ */
