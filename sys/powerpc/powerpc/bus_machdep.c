@@ -190,7 +190,12 @@ bs_be_rs_4(bus_space_handle_t bsh, bus_size_t ofs)
 static uint64_t
 bs_be_rs_8(bus_space_handle_t bsh, bus_size_t ofs)
 {
-	TODO;
+	volatile uint64_t *addr;
+	uint64_t res;
+
+	addr = __ppc_ba(bsh, ofs);
+	res = *addr;
+	return (res);
 }
 
 static void
@@ -212,9 +217,9 @@ bs_be_rm_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t *addr, size_t cnt)
 }
 
 static void
-bs_be_rm_8(bus_space_handle_t bshh, bus_size_t ofs, uint64_t *addr, size_t cnt)
+bs_be_rm_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t *addr, size_t cnt)
 {
-	TODO;
+	ins64(__ppc_ba(bsh, ofs), addr, cnt);
 }
 
 static void
@@ -250,7 +255,11 @@ bs_be_rr_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t *addr, size_t cnt)
 static void
 bs_be_rr_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t *addr, size_t cnt)
 {
-	TODO;
+	volatile uint64_t *s = __ppc_ba(bsh, ofs);
+
+	while (cnt--)
+		*addr++ = *s++;
+	__asm __volatile("eieio; sync");
 }
 
 static void
@@ -286,7 +295,10 @@ bs_be_ws_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val)
 static void
 bs_be_ws_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val)
 {
-	TODO;
+	volatile uint64_t *addr;
+
+	addr = __ppc_ba(bsh, ofs);
+	*addr = val;
 }
 
 static void
@@ -314,7 +326,7 @@ static void
 bs_be_wm_8(bus_space_handle_t bsh, bus_size_t ofs, const uint64_t *addr,
     bus_size_t cnt)
 {
-	TODO;
+	outsll(__ppc_ba(bsh, ofs), addr, cnt);
 }
 
 static void
@@ -354,7 +366,11 @@ static void
 bs_be_wr_8(bus_space_handle_t bsh, bus_size_t ofs, const uint64_t *addr,
     size_t cnt)
 {
-	TODO;
+	volatile uint64_t *d = __ppc_ba(bsh, ofs);
+
+	while (cnt--)
+		*d++ = *addr++;
+	__asm __volatile("eieio; sync");
 }
 
 static void
@@ -390,7 +406,11 @@ bs_be_sm_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val, size_t cnt)
 static void
 bs_be_sm_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val, size_t cnt)
 {
-	TODO;
+	volatile uint64_t *d = __ppc_ba(bsh, ofs);
+
+	while (cnt--)
+		*d = val;
+	__asm __volatile("eieio; sync");
 }
 
 static void
@@ -426,7 +446,11 @@ bs_be_sr_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val, size_t cnt)
 static void
 bs_be_sr_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val, size_t cnt)
 {
-	TODO;
+	volatile uint64_t *d = __ppc_ba(bsh, ofs);
+
+	while (cnt--)
+		*d++ = val;
+	__asm __volatile("eieio; sync");
 }
 
 /*
