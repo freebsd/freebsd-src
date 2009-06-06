@@ -160,7 +160,7 @@ static void sf_stats_update(struct sf_softc *);
 #ifndef __NO_STRICT_ALIGNMENT
 static __inline void sf_fixup_rx(struct mbuf *);
 #endif
-static void sf_rxeof(struct sf_softc *);
+static int sf_rxeof(struct sf_softc *);
 static void sf_txeof(struct sf_softc *);
 static int sf_encap(struct sf_softc *, struct mbuf **);
 static void sf_start(struct ifnet *);
@@ -193,7 +193,7 @@ static int sf_miibus_writereg(device_t, int, int, int);
 static void sf_miibus_statchg(device_t);
 static void sf_link_task(void *, int);
 #ifdef DEVICE_POLLING
-static void sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 
 static uint32_t csr_read_4(struct sf_softc *, int);
@@ -1526,19 +1526,20 @@ sf_fixup_rx(struct mbuf *m)
  * completely unuseable on the Alpha. Our only recourse is to copy received
  * packets into properly aligned buffers before handing them off.
  */
-static void
+static int
 sf_rxeof(struct sf_softc *sc)
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp;
 	struct sf_rxdesc	*rxd;
 	struct sf_rx_rcdesc	*cur_cmp;
-	int			cons, eidx, prog;
+	int			cons, eidx, prog, rx_npkts;
 	uint32_t		status, status2;
 
 	SF_LOCK_ASSERT(sc);
 
 	ifp = sc->sf_ifp;
+	rx_npkts = 0;
 
 	bus_dmamap_sync(sc->sf_cdata.sf_rx_ring_tag,
 	    sc->sf_cdata.sf_rx_ring_map,
@@ -1652,6 +1653,7 @@ sf_rxeof(struct sf_softc *sc)
 		SF_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		SF_LOCK(sc);
+		rx_npkts++;
 
 		/* Clear completion status. */
 		cur_cmp->sf_rx_status1 = 0;
@@ -1675,6 +1677,7 @@ sf_rxeof(struct sf_softc *sc)
 		    (csr_read_4(sc, SF_RXDQ_PTR_Q1) & ~SF_RXDQ_PRODIDX) |
 		    (eidx & SF_RXDQ_PRODIDX));
 	}
+	return (rx_npkts);
 }
 
 /*
@@ -1789,22 +1792,24 @@ sf_txthresh_adjust(struct sf_softc *sc)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct sf_softc		*sc;
 	uint32_t		status;
+	int			rx_npkts;
 
 	sc = ifp->if_softc;
+	rx_npkts = 0;
 	SF_LOCK(sc);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		SF_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	sc->rxcycles = count;
-	sf_rxeof(sc);
+	rx_npkts = sf_rxeof(sc);
 	sf_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sf_start_locked(ifp);
@@ -1839,6 +1844,7 @@ sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 
 	SF_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 

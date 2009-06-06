@@ -72,6 +72,7 @@ static void	pmu_poll(device_t dev);
 
 static void	pmu_set_sleepled(void *xsc, int onoff);
 static int	pmu_server_mode(SYSCTL_HANDLER_ARGS);
+static int	pmu_acline_state(SYSCTL_HANDLER_ARGS);
 static int	pmu_query_battery(struct pmu_softc *sc, int batt, 
 		    struct pmu_battstate *info);
 static int	pmu_battquery_sysctl(SYSCTL_HANDLER_ARGS);
@@ -392,6 +393,10 @@ pmu_attach(device_t dev)
 	if (sc->sc_batteries > 0) {
 		struct sysctl_oid *oid, *battroot;
 		char battnum[2];
+
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "acline", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
+		    pmu_acline_state, "I", "AC Line Status");
 
 		battroot = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "batteries", CTLFLAG_RD, 0, "Battery Information");
@@ -840,6 +845,27 @@ pmu_query_battery(struct pmu_softc *sc, int batt, struct pmu_battstate *info)
 	}
 
 	return (0);
+}
+
+static int
+pmu_acline_state(SYSCTL_HANDLER_ARGS)
+{
+	struct pmu_softc *sc;
+	struct pmu_battstate batt;
+	int error, result;
+
+	sc = arg1;
+
+	/* The PMU treats the AC line status as a property of the battery */
+	error = pmu_query_battery(sc, 0, &batt);
+
+	if (error != 0)
+		return (error);
+	
+	result = (batt.state & PMU_PWR_AC_PRESENT) ? 1 : 0;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	return (error);
 }
 
 static int

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: grammar.h,v 1.4.18.8 2006/02/28 03:10:49 marka Exp $ */
+/* $Id: grammar.h,v 1.17 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef ISCCFG_GRAMMAR_H
 #define ISCCFG_GRAMMAR_H 1
 
-/*! \file */
+/*! \file isccfg/grammar.h */
 
 #include <isc/lex.h>
 #include <isc/netaddr.h>
@@ -51,6 +51,8 @@
  * "directory" option.
  */
 #define CFG_CLAUSEFLAG_CALLBACK		0x00000020
+/*% A option that is only used in testing. */
+#define CFG_CLAUSEFLAG_TESTONLY		0x00000040
 
 typedef struct cfg_clausedef cfg_clausedef_t;
 typedef struct cfg_tuplefielddef cfg_tuplefielddef_t;
@@ -184,8 +186,8 @@ struct cfg_parser {
 	/*%
 	 * The stack of currently active files, represented
 	 * as a configuration list of configuration strings.
-	 * The head is the top-level file, subsequent elements 
-	 * (if any) are the nested include files, and the 
+	 * The head is the top-level file, subsequent elements
+	 * (if any) are the nested include files, and the
 	 * last element is the file currently being parsed.
 	 */
 	cfg_obj_t *	open_files;
@@ -433,7 +435,7 @@ cfg_doc_terminal(cfg_printer_t *pctx, const cfg_type_t *type);
 void
 cfg_parser_error(cfg_parser_t *pctx, unsigned int flags,
 		 const char *fmt, ...) ISC_FORMAT_PRINTF(3, 4);
-/*! 
+/*!
  * Pass one of these flags to cfg_parser_error() to include the
  * token text in log message.
  */

@@ -47,9 +47,9 @@ typedef enum {
 typedef struct sx	kmutex_t;
 
 #ifndef DEBUG
-#define	MUTEX_FLAGS	(SX_DUPOK | SX_NOWITNESS | SX_ADAPTIVESPIN)
+#define	MUTEX_FLAGS	(SX_DUPOK | SX_NOWITNESS)
 #else
-#define	MUTEX_FLAGS	(SX_DUPOK | SX_ADAPTIVESPIN)
+#define	MUTEX_FLAGS	(SX_DUPOK)
 #endif
 
 #define	mutex_init(lock, desc, type, arg)	do {			\

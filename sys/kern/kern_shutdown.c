@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
-#include "opt_mac.h"
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
 #include "opt_sched.h"
@@ -51,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/eventhandler.h>
+#include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>		/* smp_active */
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
-#include <sys/vimage.h>
 
 #include <ddb/ddb.h>
 
@@ -693,7 +692,7 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
 	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, G_hostname, sizeof(kdh->hostname));
+	strncpy(kdh->hostname, prison0.pr_host, sizeof(kdh->hostname));
 	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
 		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));

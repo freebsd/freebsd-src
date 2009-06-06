@@ -129,13 +129,13 @@ struct ukbd_softc {
 	fkeytab_t sc_fkeymap[UKBD_NFKEY];
 	struct hid_location sc_loc_apple_eject;
 	struct hid_location sc_loc_apple_fn;
-	struct usb2_callout sc_callout;
+	struct usb_callout sc_callout;
 	struct ukbd_data sc_ndata;
 	struct ukbd_data sc_odata;
 
-	struct usb2_device *sc_udev;
-	struct usb2_interface *sc_iface;
-	struct usb2_xfer *sc_xfer[UKBD_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct usb_interface *sc_iface;
+	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
 
 	uint32_t sc_ntime[UKBD_NKEYCODE];
 	uint32_t sc_otime[UKBD_NKEYCODE];
@@ -480,7 +480,7 @@ ukbd_apple_swap(uint8_t keycode) {
 }
 
 static void
-ukbd_intr_callback(struct usb2_xfer *xfer)
+ukbd_intr_callback(struct usb_xfer *xfer)
 {
 	struct ukbd_softc *sc = xfer->priv_sc;
 	uint16_t len = xfer->actlen;
@@ -587,9 +587,9 @@ tr_setup:
 }
 
 static void
-ukbd_set_leds_callback(struct usb2_xfer *xfer)
+ukbd_set_leds_callback(struct usb_xfer *xfer)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t buf[2];
 	struct ukbd_softc *sc = xfer->priv_sc;
 
@@ -633,7 +633,7 @@ ukbd_set_leds_callback(struct usb2_xfer *xfer)
 	}
 }
 
-static const struct usb2_config ukbd_config[UKBD_N_TRANSFER] = {
+static const struct usb_config ukbd_config[UKBD_N_TRANSFER] = {
 
 	[UKBD_INTR_DT] = {
 		.type = UE_INTERRUPT,
@@ -648,7 +648,7 @@ static const struct usb2_config ukbd_config[UKBD_N_TRANSFER] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request) + 8,
+		.bufsize = sizeof(struct usb_device_request) + 8,
 		.callback = &ukbd_set_leds_callback,
 		.timeout = 1000,	/* 1 second */
 	},
@@ -658,7 +658,7 @@ static int
 ukbd_probe(device_t dev)
 {
 	keyboard_switch_t *sw = kbd_get_switch(UKBD_DRIVER_NAME);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	DPRINTFN(11, "\n");
 
@@ -684,11 +684,11 @@ static int
 ukbd_attach(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	int32_t unit = device_get_unit(dev);
 	keyboard_t *kbd = &sc->sc_kbd;
 	void *hid_ptr = NULL;
-	usb2_error_t err;
+	usb_error_t err;
 	uint32_t flags;
 	uint16_t n;
 	uint16_t hid_len;
@@ -706,7 +706,6 @@ ukbd_attach(device_t dev)
 	sc->sc_iface_index = uaa->info.bIfaceIndex;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_mode = K_XLATE;
-	sc->sc_iface = uaa->iface;
 
 	usb2_callout_init_mtx(&sc->sc_callout, &Giant, 0);
 
@@ -822,7 +821,7 @@ detach:
 	return (ENXIO);			/* error */
 }
 
-int
+static int
 ukbd_detach(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
@@ -1569,7 +1568,7 @@ static int
 ukbd_driver_load(module_t mod, int what, void *arg)
 {
 	switch (what) {
-		case MOD_LOAD:
+	case MOD_LOAD:
 		kbd_add_driver(&ukbd_kbd_driver);
 		break;
 	case MOD_UNLOAD:

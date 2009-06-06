@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -281,7 +280,6 @@ nd6_setmtu0(struct ifnet *ifp, struct nd_ifinfo *ndi)
 	if (ndi->maxmtu > V_in6_maxmtu)
 		in6_setmaxmtu(); /* check all interfaces just in case */
 
-#undef MIN
 }
 
 void
@@ -489,14 +487,6 @@ nd6_llinfo_timer(void *arg)
 	if ((ifp = ((ln->lle_tbl != NULL) ? ln->lle_tbl->llt_ifp : NULL)) == NULL)
 		panic("ln ifp == NULL");
 
-/*
- * XXX XXX XXX XXX XXX
- *
- * Why the ^%(@)*&%^) is this #define MIN() needed for CURVNET_SET()?!?
- * And #define MIN() is in sys/param.h already, which is #included first
- * here?!?
- */
-#define       MIN(a,b) (((a)<(b))?(a):(b))
 	CURVNET_SET(ifp->if_vnet);
 	INIT_VNET_INET6(curvnet);
 

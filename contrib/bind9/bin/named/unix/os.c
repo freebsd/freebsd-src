@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.66.18.17 2008/10/24 01:43:17 tbox Exp $ */
+/* $Id: os.c,v 1.89.12.5 2009/03/02 03:03:54 marka Exp $ */
 
 /*! \file */
 
@@ -70,7 +70,7 @@ static int devnullfd = -1;
 /*
  * Linux defines:
  *	(T) HAVE_LINUXTHREADS
- *	(C) HAVE_LINUX_CAPABILITY_H
+ *	(C) HAVE_SYS_CAPABILITY_H (or HAVE_LINUX_CAPABILITY_H)
  *	(P) HAVE_SYS_PRCTL_H
  * The possible cases are:
  *	none:	setuid() normally
@@ -117,15 +117,8 @@ static int dfd[2] = { -1, -1 };
 static isc_boolean_t non_root = ISC_FALSE;
 static isc_boolean_t non_root_caps = ISC_FALSE;
 
-#if defined(HAVE_CAPSET)
-#undef _POSIX_SOURCE
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
-#else
-#include <linux/capability.h>
-int capset(cap_user_header_t hdrp, const cap_user_data_t datap);
-#endif
-#include <sys/prctl.h>
 #else
 /*%
  * We define _LINUX_FS_H to prevent it from being included.  We don't need
@@ -134,9 +127,15 @@ int capset(cap_user_header_t hdrp, const cap_user_data_t datap);
  * and <string.h>) on 2.3 kernels.
  */
 #define _LINUX_FS_H
-
-#include <sys/syscall.h>	/* Required for syscall(). */
-#include <linux/capability.h>	/* Required for _LINUX_CAPABILITY_VERSION. */
+#include <linux/capability.h>
+#include <syscall.h>
+#ifndef SYS_capset
+#ifndef __NR_capset
+#include <asm/unistd.h> /* Slackware 4.0 needs this. */
+#endif /* __NR_capset */
+#define SYS_capset __NR_capset
+#endif /* SYS_capset */
+#endif /* HAVE_SYS_CAPABILITY_H */
 
 #ifdef HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>		/* Required for prctl(). */
@@ -153,23 +152,24 @@ int capset(cap_user_header_t hdrp, const cap_user_data_t datap);
 
 #endif /* HAVE_SYS_PRCTL_H */
 
-#ifndef SYS_capset
-#ifndef __NR_capset
-#include <asm/unistd.h> /* Slackware 4.0 needs this. */
-#endif
-#define SYS_capset __NR_capset
-#endif
-#endif
+#ifdef HAVE_LIBCAP
+#define SETCAPS_FUNC "cap_set_proc "
+#else
+typedef unsigned int cap_t;
+#define SETCAPS_FUNC "syscall(capset) "
+#endif /* HAVE_LIBCAP */
 
 static void
-linux_setcaps(unsigned int caps) {
+linux_setcaps(cap_t caps) {
+#ifndef HAVE_LIBCAP
 	struct __user_cap_header_struct caphead;
 	struct __user_cap_data_struct cap;
+#endif
 	char strbuf[ISC_STRERRORSIZE];
 
 	if ((getuid() != 0 && !non_root_caps) || non_root)
 		return;
-
+#ifndef HAVE_LIBCAP
 	memset(&caphead, 0, sizeof(caphead));
 	caphead.version = _LINUX_CAPABILITY_VERSION;
 	caphead.pid = 0;
@@ -177,46 +177,89 @@ linux_setcaps(unsigned int caps) {
 	cap.effective = caps;
 	cap.permitted = caps;
 	cap.inheritable = 0;
-#ifdef HAVE_CAPSET
-	if (capset(&caphead, &cap) < 0 ) {
-		isc__strerror(errno, strbuf, sizeof(strbuf));
-		ns_main_earlyfatal("capset failed: %s:"
-				   " please ensure that the capset kernel"
-				   " module is loaded.  see insmod(8)",
-				   strbuf);
-	}
+#endif
+#ifdef HAVE_LIBCAP
+	if (cap_set_proc(caps) < 0) {
 #else
 	if (syscall(SYS_capset, &caphead, &cap) < 0) {
+#endif
 		isc__strerror(errno, strbuf, sizeof(strbuf));
-		ns_main_earlyfatal("syscall(capset) failed: %s:"
+		ns_main_earlyfatal(SETCAPS_FUNC "failed: %s:"
 				   " please ensure that the capset kernel"
 				   " module is loaded.  see insmod(8)",
 				   strbuf);
 	}
-#endif
 }
+
+#ifdef HAVE_LIBCAP
+#define SET_CAP(flag) \
+	do { \
+		capval = (flag); \
+		cap_flag_value_t curval; \
+		err = cap_get_flag(curcaps, capval, CAP_PERMITTED, &curval); \
+		if (err != -1 && curval) { \
+			err = cap_set_flag(caps, CAP_EFFECTIVE, 1, &capval, CAP_SET); \
+			if (err == -1) { \
+				isc__strerror(errno, strbuf, sizeof(strbuf)); \
+				ns_main_earlyfatal("cap_set_proc failed: %s", strbuf); \
+			} \
+			\
+			err = cap_set_flag(caps, CAP_PERMITTED, 1, &capval, CAP_SET); \
+			if (err == -1) { \
+				isc__strerror(errno, strbuf, sizeof(strbuf)); \
+				ns_main_earlyfatal("cap_set_proc failed: %s", strbuf); \
+			} \
+		} \
+	} while (0)
+#define INIT_CAP \
+	do { \
+		caps = cap_init(); \
+		if (caps == NULL) { \
+			isc__strerror(errno, strbuf, sizeof(strbuf)); \
+			ns_main_earlyfatal("cap_init failed: %s", strbuf); \
+		} \
+		curcaps = cap_get_proc(); \
+		if (curcaps == NULL) { \
+			isc__strerror(errno, strbuf, sizeof(strbuf)); \
+			ns_main_earlyfatal("cap_get_proc failed: %s", strbuf); \
+		} \
+	} while (0)
+#define FREE_CAP \
+	{ \
+		cap_free(caps); \
+		cap_free(curcaps); \
+	} while (0)
+#else
+#define SET_CAP(flag) do { caps |= (1 << (flag)); } while (0)
+#define INIT_CAP do { caps = 0; } while (0)
+#endif /* HAVE_LIBCAP */
 
 static void
 linux_initialprivs(void) {
-	unsigned int caps;
+	cap_t caps;
+#ifdef HAVE_LIBCAP
+	cap_t curcaps;
+	cap_value_t capval;
+	char strbuf[ISC_STRERRORSIZE];
+	int err;
+#endif
 
 	/*%
 	 * We don't need most privileges, so we drop them right away.
 	 * Later on linux_minprivs() will be called, which will drop our
 	 * capabilities to the minimum needed to run the server.
 	 */
-
-	caps = 0;
+	INIT_CAP;
 
 	/*
 	 * We need to be able to bind() to privileged ports, notably port 53!
 	 */
-	caps |= (1 << CAP_NET_BIND_SERVICE);
+	SET_CAP(CAP_NET_BIND_SERVICE);
 
 	/*
 	 * We need chroot() initially too.
 	 */
-	caps |= (1 << CAP_SYS_CHROOT);
+	SET_CAP(CAP_SYS_CHROOT);
 
 #if defined(HAVE_SYS_PRCTL_H) || !defined(HAVE_LINUXTHREADS)
 	/*
@@ -225,19 +268,19 @@ linux_initialprivs(void) {
 	 * tried) or we're not using threads.  If either of these is
 	 * true, we want the setuid capability.
 	 */
-	caps |= (1 << CAP_SETUID);
+	SET_CAP(CAP_SETUID);
 #endif
 
 	/*
 	 * Since we call initgroups, we need this.
 	 */
-	caps |= (1 << CAP_SETGID);
+	SET_CAP(CAP_SETGID);
 
 	/*
 	 * Without this, we run into problems reading a configuration file
 	 * owned by a non-root user and non-world-readable on startup.
 	 */
-	caps |= (1 << CAP_DAC_READ_SEARCH);
+	SET_CAP(CAP_DAC_READ_SEARCH);
 
 	/*
 	 * XXX  We might want to add CAP_SYS_RESOURCE, though it's not
@@ -246,15 +289,26 @@ linux_initialprivs(void) {
 	 * of files, the stack size, data size, and core dump size to
 	 * support named.conf options, this is now being added to test.
 	 */
-	caps |= (1 << CAP_SYS_RESOURCE);
+	SET_CAP(CAP_SYS_RESOURCE);
 
 	linux_setcaps(caps);
+
+#ifdef HAVE_LIBCAP
+	FREE_CAP;
+#endif
 }
 
 static void
 linux_minprivs(void) {
-	unsigned int caps;
+	cap_t caps;
+#ifdef HAVE_LIBCAP
+	cap_t curcaps;
+	cap_value_t capval;
+	char strbuf[ISC_STRERRORSIZE];
+	int err;
+#endif
 
+	INIT_CAP;
 	/*%
 	 * Drop all privileges except the ability to bind() to privileged
 	 * ports.
@@ -263,8 +317,7 @@ linux_minprivs(void) {
 	 * chroot() could be used to escape from the chrooted area.
 	 */
 
-	caps = 0;
-	caps |= (1 << CAP_NET_BIND_SERVICE);
+	SET_CAP(CAP_NET_BIND_SERVICE);
 
 	/*
 	 * XXX  We might want to add CAP_SYS_RESOURCE, though it's not
@@ -273,9 +326,13 @@ linux_minprivs(void) {
 	 * of files, the stack size, data size, and core dump size to
 	 * support named.conf options, this is now being added to test.
 	 */
-	caps |= (1 << CAP_SYS_RESOURCE);
+	SET_CAP(CAP_SYS_RESOURCE);
 
 	linux_setcaps(caps);
+
+#ifdef HAVE_LIBCAP
+	FREE_CAP;
+#endif
 }
 
 #ifdef HAVE_SYS_PRCTL_H
@@ -405,10 +462,12 @@ ns_os_started(void) {
 	char buf = 0;
 
 	/*
-	 * Signal to the parent that we stated successfully.
+	 * Signal to the parent that we started successfully.
 	 */
 	if (dfd[0] != -1 && dfd[1] != -1) {
-		write(dfd[1], &buf, 1);
+		if (write(dfd[1], &buf, 1) != 1)
+			ns_main_earlyfatal("unable to signal parent that we "
+					   "otherwise started successfully.");
 		close(dfd[1]);
 		dfd[0] = dfd[1] = -1;
 	}
@@ -448,10 +507,14 @@ ns_os_chroot(const char *root) {
 	ns_smf_chroot = 0;
 #endif
 	if (root != NULL) {
+#ifdef HAVE_CHROOT
 		if (chroot(root) < 0) {
 			isc__strerror(errno, strbuf, sizeof(strbuf));
 			ns_main_earlyfatal("chroot(): %s", strbuf);
 		}
+#else
+		ns_main_earlyfatal("chroot(): disabled");
+#endif
 		if (chdir("/") < 0) {
 			isc__strerror(errno, strbuf, sizeof(strbuf));
 			ns_main_earlyfatal("chdir(/): %s", strbuf);
@@ -584,7 +647,8 @@ safe_open(const char *filename, isc_boolean_t append) {
 		fd = open(filename, O_WRONLY|O_CREAT|O_APPEND,
 			  S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 	else {
-		(void)unlink(filename);
+		if (unlink(filename) < 0 && errno != ENOENT)
+			return (-1);
 		fd = open(filename, O_WRONLY|O_CREAT|O_EXCL,
 			  S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 	}
@@ -593,11 +657,52 @@ safe_open(const char *filename, isc_boolean_t append) {
 
 static void
 cleanup_pidfile(void) {
+	int n;
 	if (pidfile != NULL) {
-		(void)unlink(pidfile);
+		n = unlink(pidfile);
+		if (n == -1 && errno != ENOENT)
+			ns_main_earlywarning("unlink '%s': failed", pidfile);
 		free(pidfile);
 	}
 	pidfile = NULL;
+}
+
+static int
+mkdirpath(char *filename, void (*report)(const char *, ...)) {
+	char *slash = strrchr(filename, '/');
+	char strbuf[ISC_STRERRORSIZE];
+	unsigned int mode;
+
+	if (slash != NULL && slash != filename) {
+		struct stat sb;
+		*slash = '\0';
+
+		if (stat(filename, &sb) == -1) {
+			if (errno != ENOENT) {
+				isc__strerror(errno, strbuf, sizeof(strbuf));
+				(*report)("couldn't stat '%s': %s", filename,
+					  strbuf);
+				goto error;
+			}
+			if (mkdirpath(filename, report) == -1)
+				goto error;
+			mode = S_IRUSR | S_IWUSR | S_IXUSR;	/* u=rwx */
+			mode |= S_IRGRP | S_IXGRP;		/* g=rx */
+			mode |= S_IROTH | S_IXOTH;		/* o=rx */
+			if (mkdir(filename, mode) == -1) {
+				isc__strerror(errno, strbuf, sizeof(strbuf));
+				(*report)("couldn't mkdir '%s': %s", filename,
+					  strbuf);
+				goto error;
+			}
+		}
+		*slash = '/';
+	}
+	return (0);
+
+ error:
+	*slash = '/';
+	return (-1);
 }
 
 void
@@ -627,8 +732,18 @@ ns_os_writepidfile(const char *filename, isc_boolean_t first_time) {
 		(*report)("couldn't malloc '%s': %s", filename, strbuf);
 		return;
 	}
+
 	/* This is safe. */
 	strcpy(pidfile, filename);
+
+	/*
+	 * Make the containing directory if it doesn't exist.
+	 */
+	if (mkdirpath(pidfile, report) == -1) {
+		free(pidfile);
+		pidfile = NULL;
+		return;
+	}
 
 	fd = safe_open(filename, ISC_FALSE);
 	if (fd < 0) {

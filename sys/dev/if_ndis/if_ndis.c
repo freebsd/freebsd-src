@@ -2727,31 +2727,7 @@ ndis_getstate_80211(sc)
 	if (rval)
 		device_printf (sc->ndis_dev, "get link speed failed: %d\n",
 		    rval);
-
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11B)) {
-		ni->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11B];
-		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-			if ((ni->ni_rates.rs_rates[i] &
-			    IEEE80211_RATE_VAL) == arg / 5000)
-				break;
-		}
-	}
-
-	if (i == ni->ni_rates.rs_nrates &&
-	    isset(ic->ic_modecaps, IEEE80211_MODE_11G)) {
-		ni->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11G];
-		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-			if ((ni->ni_rates.rs_rates[i] &
-			    IEEE80211_RATE_VAL) == arg / 5000)
-				break;
-		}
-	}
-
-	if (i == ni->ni_rates.rs_nrates)
-		device_printf(sc->ndis_dev, "no matching rate for: %d\n",
-		    arg / 5000);
-	else
-		ni->ni_txrate = i;
+	ni->ni_txrate = arg / 5000;
 
 	if (ic->ic_caps & IEEE80211_C_PMGT) {
 		len = sizeof(arg);

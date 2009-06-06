@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_init_path.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

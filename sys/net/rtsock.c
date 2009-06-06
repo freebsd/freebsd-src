@@ -90,11 +90,7 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
-static struct	ifqueue rtsintrq;
-
 SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
-SYSCTL_INT(_net_route, OID_AUTO, netisr_maxqlen, CTLFLAG_RW,
-    &rtsintrq.ifq_maxlen, 0, "maximum routing socket dispatch queue length");
 
 struct walkarg {
 	int	w_tmemsize;
@@ -119,16 +115,38 @@ static void	rt_getmetrics(const struct rt_metrics_lite *in,
 			struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, const struct sockaddr *);
 
+static struct netisr_handler rtsock_nh = {
+	.nh_name = "rtsock",
+	.nh_handler = rts_input,
+	.nh_proto = NETISR_ROUTE,
+	.nh_policy = NETISR_POLICY_SOURCE,
+};
+
+static int
+sysctl_route_netisr_maxqlen(SYSCTL_HANDLER_ARGS)
+{
+	int error, qlimit;
+
+	netisr_getqlimit(&rtsock_nh, &qlimit);
+	error = sysctl_handle_int(oidp, &qlimit, 0, req);
+        if (error || !req->newptr)
+                return (error);
+	if (qlimit < 1)
+		return (EINVAL);
+	return (netisr_setqlimit(&rtsock_nh, qlimit));
+}
+SYSCTL_PROC(_net_route, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
+    0, 0, sysctl_route_netisr_maxqlen, "I",
+    "maximum routing socket dispatch queue length");
+
 static void
 rts_init(void)
 {
 	int tmp;
 
-	rtsintrq.ifq_maxlen = 256;
 	if (TUNABLE_INT_FETCH("net.route.netisr_maxqlen", &tmp))
-		rtsintrq.ifq_maxlen = tmp;
-	mtx_init(&rtsintrq.ifq_mtx, "rts_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_ROUTE, rts_input, &rtsintrq, 0);
+		rtsock_nh.nh_qlimit = tmp;
+	netisr_register(&rtsock_nh);
 }
 SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0);
 
@@ -442,7 +460,6 @@ static int
 route_output(struct mbuf *m, struct socket *so)
 {
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
-	INIT_VNET_NET(so->so_vnet);
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
 	struct radix_node_head *rnh;
@@ -543,7 +560,8 @@ route_output(struct mbuf *m, struct socket *so)
 	case RTM_GET:
 	case RTM_CHANGE:
 	case RTM_LOCK:
-		rnh = V_rt_tables[so->so_fibnum][info.rti_info[RTAX_DST]->sa_family];
+		rnh = rt_tables_get_rnh(so->so_fibnum,
+		    info.rti_info[RTAX_DST]->sa_family);
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
 		RADIX_NODE_HEAD_RLOCK(rnh);
@@ -1400,10 +1418,9 @@ done:
 static int
 sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_NET(curvnet);
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
-	struct radix_node_head *rnh;
+	struct radix_node_head *rnh = NULL; /* silence compiler. */
 	int	i, lim, error = EINVAL;
 	u_char	af;
 	struct	walkarg w;
@@ -1451,7 +1468,8 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		 * take care of routing entries
 		 */
 		for (error = 0; error == 0 && i <= lim; i++)
-			if ((rnh = V_rt_tables[req->td->td_proc->p_fibnum][i]) != NULL) {
+			rnh = rt_tables_get_rnh(req->td->td_proc->p_fibnum, i);
+			if (rnh != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);

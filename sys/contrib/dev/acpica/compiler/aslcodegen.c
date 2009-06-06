@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslcodegen - AML code generation
- *              $Revision: 1.62 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,7 +117,7 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslcodegen")
@@ -235,24 +234,24 @@ CgAmlWriteWalk (
         DbgPrint (ASL_TREE_OUTPUT, "                ");
     }
 
-        DbgPrint (ASL_TREE_OUTPUT,
-        "%08X %04X %04X %01X     %04X  %04X %04X   %04X    %08X %08X %08X %08X %08X %04X  %02d  %02d\n",
-                /* 1  */ (UINT32) Op->Asl.Value.Integer,
-                /* 2  */ Op->Asl.ParseOpcode,
-                /* 3  */ Op->Asl.AmlOpcode,
-                /* 4  */ Op->Asl.AmlOpcodeLength,
-                /* 5  */ Op->Asl.AmlPkgLenBytes,
-                /* 6  */ Op->Asl.AmlLength,
-                /* 7  */ Op->Asl.AmlSubtreeLength,
-                /* 8  */ Op->Asl.Parent ? Op->Asl.Parent->Asl.AmlSubtreeLength : 0,
-                /* 9  */ Op,
-                /* 10 */ Op->Asl.Child,
-                /* 11 */ Op->Asl.Parent,
-                /* 12 */ Op->Asl.CompileFlags,
-                /* 13 */ Op->Asl.AcpiBtype,
-                /* 14 */ Op->Asl.FinalAmlLength,
-                /* 15 */ Op->Asl.Column,
-                /* 16 */ Op->Asl.LineNumber);
+    DbgPrint (ASL_TREE_OUTPUT,
+    "%08X %04X %04X %01X     %04X  %04X %04X   %04X    %08X %08X %08X %08X %08X %04X  %02d  %02d\n",
+            /* 1  */ (UINT32) Op->Asl.Value.Integer,
+            /* 2  */ Op->Asl.ParseOpcode,
+            /* 3  */ Op->Asl.AmlOpcode,
+            /* 4  */ Op->Asl.AmlOpcodeLength,
+            /* 5  */ Op->Asl.AmlPkgLenBytes,
+            /* 6  */ Op->Asl.AmlLength,
+            /* 7  */ Op->Asl.AmlSubtreeLength,
+            /* 8  */ Op->Asl.Parent ? Op->Asl.Parent->Asl.AmlSubtreeLength : 0,
+            /* 9  */ Op,
+            /* 10 */ Op->Asl.Child,
+            /* 11 */ Op->Asl.Parent,
+            /* 12 */ Op->Asl.CompileFlags,
+            /* 13 */ Op->Asl.AcpiBtype,
+            /* 14 */ Op->Asl.FinalAmlLength,
+            /* 15 */ Op->Asl.Column,
+            /* 16 */ Op->Asl.LineNumber);
 
     /* Generate the AML for this node */
 

@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-signzone.docbook,v 1.10.18.19 2008/10/15 23:46:06 tbox Exp $ -->
+<!-- $Id: dnssec-signzone.docbook,v 1.31 2008/10/14 14:28:25 jreed Exp $ -->
 <refentry id="man.dnssec-signzone">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -77,6 +77,9 @@
       <arg><option>-t</option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
       <arg><option>-z</option></arg>
+      <arg><option>-3 <replaceable class="parameter">salt</replaceable></option></arg>
+      <arg><option>-H <replaceable class="parameter">iterations</replaceable></option></arg>
+      <arg><option>-A</option></arg>
       <arg choice="req">zonefile</arg>
       <arg rep="repeat">key</arg>
     </cmdsynopsis>
@@ -395,6 +398,38 @@
         <listitem>
           <para>
             Ignore KSK flag on key when determining what to sign.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-3 <replaceable class="parameter">salt</replaceable></term>
+        <listitem>
+          <para>
+            Generate a NSEC3 chain with the given hex encoded salt.
+	    A dash (<replaceable class="parameter">salt</replaceable>) can
+	    be used to indicate that no salt is to be used when generating		    the NSEC3 chain.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-H <replaceable class="parameter">iterations</replaceable></term>
+        <listitem>
+          <para>
+	    When generating a NSEC3 chain use this many interations.  The
+	    default is 100.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-A</term>
+        <listitem>
+          <para>
+	    When generating a NSEC3 chain set the OPTOUT flag on all
+	    NSEC3 records and do not generate NSEC3 records for insecure
+	    delegations.
           </para>
         </listitem>
       </varlistentry>

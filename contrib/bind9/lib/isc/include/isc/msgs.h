@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgs.h,v 1.9.18.4 2008/08/08 06:27:56 tbox Exp $ */
+/* $Id: msgs.h,v 1.17 2008/08/08 06:28:59 tbox Exp $ */
 
 #ifndef ISC_MSGS_H
 #define ISC_MSGS_H 1
 
-/*! \file */
+/*! \file isc/msgs.h */
 
 #include <isc/lib.h>		/* Provide isc_msgcat global variable. */
 #include <isc/msgcat.h>		/* Provide isc_msgcat_*() functions. */

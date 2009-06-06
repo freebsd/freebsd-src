@@ -32,7 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
 
 #include "opt_acpi.h"
 #include <sys/kernel.h>
@@ -367,7 +368,7 @@ AcpiOsDeleteLock (ACPI_SPINLOCK Handle)
  * (and thus can't block) but since we have ithreads, we don't worry
  * about potentially blocking.
  */
-ACPI_NATIVE_UINT
+ACPI_CPU_FLAGS
 AcpiOsAcquireLock (ACPI_SPINLOCK Handle)
 {
     struct acpi_spinlock *h = (struct acpi_spinlock *)Handle;

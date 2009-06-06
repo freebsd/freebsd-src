@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sshfp_44.c,v 1.3.18.1 2006/03/10 04:04:32 marka Exp $ */
+/* $Id: sshfp_44.c,v 1.7 2007/06/19 23:47:17 tbox Exp $ */
 
 /* RFC 4255 */
 

@@ -1,8 +1,8 @@
 /*
- * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getnameinfo.c,v 1.34.18.3 2005/04/29 00:17:18 marka Exp $ */
+/* $Id: getnameinfo.c,v 1.39 2007/06/19 23:47:22 tbox Exp $ */
 
 /*! \file */
 

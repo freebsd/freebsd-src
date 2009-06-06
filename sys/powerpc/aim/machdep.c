@@ -881,14 +881,6 @@ cpu_initclocks(void)
 	decr_tc_init();
 }
 
-/* Get current clock frequency for the given cpu id. */
-int
-cpu_est_clockrate(int cpu_id, uint64_t *rate)
-{
-
-	return (ENXIO);
-}
-
 /*
  * Shutdown the CPU as much as possible.
  */

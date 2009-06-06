@@ -57,8 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void usage(void);
-extern int errno;
+static void usage(void);
 
 int
 main(int argc, char **argv)
@@ -66,7 +65,7 @@ main(int argc, char **argv)
 	char *cp;
 	u_char val;
 	int cnt, even;
-	struct nfsd_clid revoke;
+	struct nfsd_clid revoke_handle;
 
 	if (modfind("nfsd") < 0)
 		errx(1, "nfsd not loaded - self terminating");
@@ -80,7 +79,7 @@ main(int argc, char **argv)
 		even = 1;
 	val = 0;
 	while (*cp) {
-		if (*cp >= '0' & *cp <= '9')
+		if (*cp >= '0' && *cp <= '9')
 			val += (u_char)(*cp - '0');
 		else if (*cp >= 'A' && *cp <= 'F')
 			val += ((u_char)(*cp - 'A')) + 0xa;
@@ -92,7 +91,7 @@ main(int argc, char **argv)
 			val <<= 4;
 			even = 0;
 		} else {
-			revoke.nclid_id[cnt++] = val;
+			revoke_handle.nclid_id[cnt++] = val;
 			if (cnt > NFSV4_OPAQUELIMIT)
 				errx(1, "Clientid %s, loo long", argv[1]);
 			val = 0;
@@ -104,19 +103,19 @@ main(int argc, char **argv)
 	/*
 	 * Do the revocation system call.
 	 */
-	revoke.nclid_idlen = cnt;
+	revoke_handle.nclid_idlen = cnt;
 #ifdef DEBUG
-	printf("Idlen=%d\n", revoke.nclid_idlen);
-	for (cnt = 0; cnt < revoke.nclid_idlen; cnt++)
-		printf("%02x", revoke.nclid_id[cnt]);
+	printf("Idlen=%d\n", revoke_handle.nclid_idlen);
+	for (cnt = 0; cnt < revoke_handle.nclid_idlen; cnt++)
+		printf("%02x", revoke_handle.nclid_id[cnt]);
 	printf("\n");
 #else
-	if (nfssvc(NFSSVC_ADMINREVOKE, &revoke) < 0)
+	if (nfssvc(NFSSVC_ADMINREVOKE, &revoke_handle) < 0)
 		err(1, "Admin revoke failed");
 #endif
 }
 
-void
+static void
 usage(void)
 {
 

@@ -53,6 +53,8 @@ device		ata
 device		atadisk
 device		bpf
 device		cfi
+device		crypto
+device		cryptodev
 device		da
 device		em
 device		ether
@@ -68,6 +70,7 @@ device		random
 #device		rl
 device		scbus
 device		scc
+device		sec
 device		tsec
 device		tun
 device		uart

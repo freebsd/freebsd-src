@@ -225,12 +225,15 @@ evtchn_do_upcall(struct trapframe *frame)
 	}
 }
 
+/*
+ * Send an IPI from the current CPU to the destination CPU.
+ */
 void
 ipi_pcpu(unsigned int cpu, int vector) 
 { 
         int irq;
 
-	irq = PCPU_GET(ipi_to_irq[vector]);
+	irq = pcpu_find(cpu)->pc_ipi_to_irq[vector];
 	
         notify_remote_via_irq(irq); 
 } 

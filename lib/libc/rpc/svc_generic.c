@@ -199,7 +199,7 @@ svc_tli_create(fd, nconf, bindaddr, sendsz, recvsz)
 	struct __rpc_sockinfo si;
 	struct sockaddr_storage ss;
 	socklen_t slen;
-	static const uint32_t true_value = 1;
+	static const int true_value = 1;
 
 	if (fd == RPC_ANYFD) {
 		if (nconf == NULL) {

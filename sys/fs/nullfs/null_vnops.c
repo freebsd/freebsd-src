@@ -472,6 +472,32 @@ null_access(struct vop_access_args *ap)
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
+static int
+null_accessx(struct vop_accessx_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	accmode_t accmode = ap->a_accmode;
+
+	/*
+	 * Disallow write attempts on read-only layers;
+	 * unless the file is a socket, fifo, or a block or
+	 * character device resident on the filesystem.
+	 */
+	if (accmode & VWRITE) {
+		switch (vp->v_type) {
+		case VDIR:
+		case VLNK:
+		case VREG:
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+			break;
+		default:
+			break;
+		}
+	}
+	return (null_bypass((struct vop_generic_args *)ap));
+}
+
 /*
  * We handle this to eliminate null FS to lower FS
  * file moving. Don't know why we don't allow this,
@@ -657,14 +683,15 @@ null_reclaim(struct vop_reclaim_args *ap)
 	 * Use the interlock to protect the clearing of v_data to
 	 * prevent faults in null_lock().
 	 */
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
-	if (lowervp) {
-		lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp));
+	VI_UNLOCK(vp);
+	if (lowervp)
 		vput(lowervp);
-	} else
+	else
 		panic("null_reclaim: reclaiming a node with no lowervp");
 	free(xp, M_NULLFSNODE);
 
@@ -714,12 +741,62 @@ null_vptofh(struct vop_vptofh_args *ap)
 	return VOP_VPTOFH(lvp, ap->a_fhp);
 }
 
+static int
+null_vptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode **dvp = ap->a_vpp;
+	struct vnode *lvp, *ldvp;
+	int error, locked;
+
+	if (vp->v_type == VDIR)
+		return (vop_stdvptocnp(ap));
+
+	locked = VOP_ISLOCKED(vp);
+	lvp = NULLVPTOLOWERVP(vp);
+	vhold(lvp);
+	VOP_UNLOCK(vp, 0); /* vp is held by vn_vptocnp_locked that called us */
+	ldvp = lvp;
+	error = vn_vptocnp(&ldvp, ap->a_buf, ap->a_buflen);
+	vdrop(lvp);
+	if (error != 0) {
+		vn_lock(vp, locked | LK_RETRY);
+		return (ENOENT);
+	}
+
+	/*
+	 * Exclusive lock is required by insmntque1 call in
+	 * null_nodeget()
+	 */
+	error = vn_lock(ldvp, LK_EXCLUSIVE);
+	if (error != 0) {
+		vn_lock(vp, locked | LK_RETRY);
+		vdrop(ldvp);
+		return (ENOENT);
+	}
+	vref(ldvp);
+	vdrop(ldvp);
+	error = null_nodeget(vp->v_mount, ldvp, dvp);
+	if (error == 0) {
+#ifdef DIAGNOSTIC
+		NULLVPTOLOWERVP(*dvp);
+#endif
+		vhold(*dvp);
+		vput(*dvp);
+	} else
+		vput(ldvp);
+
+	vn_lock(vp, locked | LK_RETRY);
+	return (error);
+}
+
 /*
  * Global vfs data structures
  */
 struct vop_vector null_vnodeops = {
 	.vop_bypass =		null_bypass,
 	.vop_access =		null_access,
+	.vop_accessx =		null_accessx,
 	.vop_bmap =		VOP_EOPNOTSUPP,
 	.vop_getattr =		null_getattr,
 	.vop_getwritemount =	null_getwritemount,
@@ -734,6 +811,6 @@ struct vop_vector null_vnodeops = {
 	.vop_setattr =		null_setattr,
 	.vop_strategy =		VOP_EOPNOTSUPP,
 	.vop_unlock =		null_unlock,
-	.vop_vptocnp =		vop_stdvptocnp,
+	.vop_vptocnp =		null_vptocnp,
 	.vop_vptofh =		null_vptofh,
 };

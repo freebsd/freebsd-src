@@ -477,6 +477,8 @@ struct route_in6 {
 				    * the source address.
 				    */
 
+#define	IPV6_BINDANY		64 /* bool: allow bind to any address */
+
 /*
  * The following option is private; do not use it from user applications.
  * It is deliberately defined to the same value as IP_MSFILTER.

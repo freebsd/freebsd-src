@@ -3039,7 +3039,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
-	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
+	if (ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
 		INIT_VNET_INET(curvnet);
 
 		error = -1;
@@ -3058,7 +3058,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		if (*mp == NULL)
 			return (error);
 
-		if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
+		if (ip_dn_io_ptr && (i == IP_FW_DUMMYNET)) {
 
 			/* put the Ethernet header back on */
 			M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);

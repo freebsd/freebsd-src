@@ -59,7 +59,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/domain.h>
@@ -1246,10 +1245,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		UNP_PCB_UNLOCK(unp2);
 		UNP_PCB_UNLOCK(unp);
 #ifdef MAC
-		SOCK_LOCK(so);
 		mac_socketpeer_set_from_socket(so, so3);
 		mac_socketpeer_set_from_socket(so3, so);
-		SOCK_UNLOCK(so);
 #endif
 
 		so2 = so3;

@@ -10,7 +10,7 @@
 
 . /etc/rc.subr
 
-name=ntpd
+name="ntpd"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"

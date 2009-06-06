@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: diff.h,v 1.6.18.2 2005/04/29 00:16:12 marka Exp $ */
+/* $Id: diff.h,v 1.15.120.2 2009/01/18 23:47:41 tbox Exp $ */
 
 #ifndef DNS_DIFF_H
 #define DNS_DIFF_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/diff.h
  * \brief
  * A diff is a convenience type representing a list of changes to be
  * made to a database.
@@ -59,12 +59,18 @@
  * individual RRs of a "RRset exists (value dependent)"
  * prerequisite set.  In this case, op==DNS_DIFFOP_EXISTS,
  * and the TTL is ignored.
+ *
+ * DNS_DIFFOP_*RESIGN will cause the 'resign' attribute of the resulting
+ * RRset to be recomputed to be 'resign' seconds before the earliest RRSIG
+ * timeexpire.
  */
 
 typedef enum {
-	DNS_DIFFOP_ADD,	        /*%< Add an RR. */
-	DNS_DIFFOP_DEL,		/*%< Delete an RR. */
-	DNS_DIFFOP_EXISTS	/*%< Assert RR existence. */
+	DNS_DIFFOP_ADD = 0,		/*%< Add an RR. */
+	DNS_DIFFOP_DEL = 1,		/*%< Delete an RR. */
+	DNS_DIFFOP_EXISTS = 2,		/*%< Assert RR existence. */
+	DNS_DIFFOP_ADDRESIGN = 4,	/*%< ADD + RESIGN. */
+	DNS_DIFFOP_DELRESIGN = 5,	/*%< DEL + RESIGN. */
 } dns_diffop_t;
 
 typedef struct dns_difftuple dns_difftuple_t;
@@ -73,7 +79,7 @@ typedef struct dns_difftuple dns_difftuple_t;
 #define DNS_DIFFTUPLE_VALID(t)	ISC_MAGIC_VALID(t, DNS_DIFFTUPLE_MAGIC)
 
 struct dns_difftuple {
-        unsigned int			magic;
+	unsigned int			magic;
 	isc_mem_t			*mctx;
 	dns_diffop_t			op;
 	dns_name_t			name;
@@ -96,10 +102,15 @@ typedef struct dns_diff dns_diff_t;
 struct dns_diff {
 	unsigned int			magic;
 	isc_mem_t *			mctx;
+	/*
+	 * Set the 'resign' attribute to this many second before the
+	 * earliest RRSIG timeexpire.
+	 */
+	isc_uint32_t			resign;
 	ISC_LIST(dns_difftuple_t)	tuples;
 };
 
-/* Type of comparision function for sorting diffs. */
+/* Type of comparison function for sorting diffs. */
 typedef int dns_diff_compare_func(const void *, const void *);
 
 /***
@@ -110,7 +121,7 @@ ISC_LANG_BEGINDECLS
 
 /**************************************************************************/
 /*
- * Maniuplation of diffs and tuples.
+ * Manipulation of diffs and tuples.
  */
 
 isc_result_t

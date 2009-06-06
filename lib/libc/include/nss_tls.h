@@ -67,7 +67,6 @@ name##_getstate(struct name##_state **p)			\
 	*p = calloc(1, sizeof(**p));				\
 	if (*p == NULL)						\
 		return (ENOMEM);				\
-	memset(*p, 0, sizeof(**p));				\
 	rv = _pthread_setspecific(name##_state_key, *p);	\
 	if (rv != 0) {						\
 		free(*p);					\

@@ -38,7 +38,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm
-.Op Fl 24dlnr
+.Op Fl 2delnr
 .Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
@@ -63,7 +63,12 @@ Allow the administrator to force clients to use only the
 version 2
 .Tn NFS
 protocol to mount file systems from this server.
-.It Fl 4
+.It Fl d
+Output debugging information.
+.Nm
+will not detach from the controlling terminal and will print
+debugging messages to stderr.
+.It Fl e
 Forces
 .Nm
 to try and start the experimental server that includes NFSv4 support in it.
@@ -75,11 +80,6 @@ ie. The kernel is built with the following:
 # options	NFSSERVER
 options		NFSD
 .Ed
-.It Fl d
-Output debugging information.
-.Nm
-will not detach from the controlling terminal and will print
-debugging messages to stderr.
 .It Fl h Ar bindip
 Specify specific IP addresses to bind to for TCP and UDP requests.
 This option may be specified multiple times.

@@ -289,13 +289,17 @@ static void
 in6_rtqtimo(void *rock)
 {
 	CURVNET_SET_QUIET((struct vnet *) rock);
-	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
-	struct radix_node_head *rnh = V_rt_tables[0][AF_INET6];
+	struct radix_node_head *rnh;
 	struct rtqk_arg arg;
 	struct timeval atv;
 	static time_t last_adjusted_timeout = 0;
 
+	rnh = rt_tables_get_rnh(0, AF_INET6);
+	if (rnh == NULL) {
+		CURVNET_RESTORE();
+		return;
+	}
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = time_uptime + V_rtq_timeout6;
@@ -377,12 +381,16 @@ static void
 in6_mtutimo(void *rock)
 {
 	CURVNET_SET_QUIET((struct vnet *) rock);
-	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
-	struct radix_node_head *rnh = V_rt_tables[0][AF_INET6];
+	struct radix_node_head *rnh;
 	struct mtuex_arg arg;
 	struct timeval atv;
 
+	rnh = rt_tables_get_rnh(0, AF_INET6);
+	if (rnh == NULL) {
+		CURVNET_RESTORE();
+		return;
+	}
 	arg.rnh = rnh;
 	arg.nextstop = time_uptime + MTUTIMO_DEFAULT;
 	RADIX_NODE_HEAD_LOCK(rnh);
@@ -405,9 +413,12 @@ void
 in6_rtqdrain(void)
 {
 	INIT_VNET_NET(curvnet);
-	struct radix_node_head *rnh = V_rt_tables[0][AF_INET6];
+	struct radix_node_head *rnh;
 	struct rtqk_arg arg;
 
+	rnh = rt_tables_get_rnh(0, AF_INET6);
+	if (rnh == NULL)
+		panic("%s: rnh == NULL", __func__);
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = 0;
@@ -429,9 +440,6 @@ in6_rtqdrain(void)
 int
 in6_inithead(void **head, int off)
 {
-#ifdef INVARIANTS
-	INIT_VNET_NET(curvnet);
-#endif
 	INIT_VNET_INET6(curvnet);
 	struct radix_node_head *rnh;
 
@@ -447,7 +455,7 @@ in6_inithead(void **head, int off)
 	V_rtq_timeout6 = RTQ_TIMEOUT;
 
 	rnh = *head;
-	KASSERT(rnh == V_rt_tables[0][AF_INET6], ("rnh?"));
+	KASSERT(rnh == rt_tables_get_rnh(0, AF_INET6), ("rnh?"));
 	rnh->rnh_addaddr = in6_addroute;
 	rnh->rnh_matchaddr = in6_matroute;
 	callout_init(&V_rtq_timer6, CALLOUT_MPSAFE);

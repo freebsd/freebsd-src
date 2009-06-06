@@ -3960,7 +3960,7 @@ user_interrupt(softc_t *sc, int check_status)
 # if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
 
 /* Service the card from the kernel idle loop without interrupts. */
-static void
+static int
 fbsd_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
   {
   softc_t *sc = IFP2SC(ifp);
@@ -3976,12 +3976,13 @@ fbsd_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
     {
     /* Last call -- reenable card interrupts. */
     WRITE_CSR(TLP_INT_ENBL, TLP_INT_TXRX);
-    return;
+    return 0;
     }
 #endif
 
   sc->quota = count;
   core_interrupt(sc, (cmd==POLL_AND_CHECK_STATUS));
+  return 0;
   }
 
 # endif  /* (__FreeBSD__ && DEVICE_POLLING) */
@@ -4828,6 +4829,7 @@ setup_ifnet(struct ifnet *ifp)
 
 # if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
   ifp->if_capabilities |= IFCAP_POLLING;
+  ifp->if_capenable    |= IFCAP_POLLING_NOCOUNT;
 # if (__FreeBSD_version < 500000)
   ifp->if_capenable    |= IFCAP_POLLING;
 # endif

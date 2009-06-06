@@ -141,7 +141,7 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, cong_flavor, CTLFLAG_RDTUN, &cong_flavor, 0,
 
 static void ep_timeout(void *arg);
 static void connect_reply_upcall(struct iwch_ep *ep, int status);
-static void iwch_so_upcall(struct socket *so, void *arg, int waitflag);
+static int iwch_so_upcall(struct socket *so, void *arg, int waitflag);
 
 /*
  * Cruft to offload socket upcalls onto thread.
@@ -335,9 +335,7 @@ close_socket(struct iwch_ep_common *epc)
 {
 	CTR4(KTR_IW_CXGB, "%s ep %p so %p state %s", __FUNCTION__, epc, epc->so, states[epc->state]);
 	SOCK_LOCK(epc->so);
-	epc->so->so_upcall = NULL;
-	epc->so->so_upcallarg = NULL;
-	epc->so->so_rcv.sb_flags &= ~SB_UPCALL;
+	soupcall_clear(epc->so, SO_RCV);
 	SOCK_UNLOCK(epc->so);
 	soshutdown(epc->so, SHUT_WR|SHUT_RD);
 	epc->so = NULL;
@@ -1108,7 +1106,7 @@ terminate(struct t3cdev *tdev, struct mbuf *m, void *ctx)
 {
 	struct toepcb *toep = (struct toepcb *)ctx;
 	struct socket *so = toeptoso(toep);
-	struct iwch_ep *ep = so->so_upcallarg;
+	struct iwch_ep *ep = so->so_rcv.sb_upcallarg;
 
 	CTR2(KTR_IW_CXGB, "%s ep %p", __FUNCTION__, ep);
 	m_adj(m, sizeof(struct cpl_rdma_terminate));
@@ -1129,7 +1127,7 @@ ec_status(struct t3cdev *tdev, struct mbuf *m, void *ctx)
 	struct iwch_qp_attributes attrs;
 	int release = 0;
 
-	ep = so->so_upcallarg;
+	ep = so->so_rcv.sb_upcallarg;
 	CTR5(KTR_IW_CXGB, "%s ep %p so %p state %s ec_status %d", __FUNCTION__, ep, ep->com.so, states[ep->com.state], rep->status);
 	if (!so || !ep) {
 		panic("bogosity ep %p state %d, so %p state %x\n", ep, ep ? ep->com.state : -1, so, so ? so->so_state : -1); 
@@ -1309,10 +1307,10 @@ static int init_sock(struct iwch_ep_common *epc)
 	struct sockopt sopt;
 	int on=1;
 
-	epc->so->so_upcall = iwch_so_upcall;
-	epc->so->so_upcallarg = epc;
-	epc->so->so_rcv.sb_flags |= SB_UPCALL;
+	SOCK_LOCK(epc->so);
+	soupcall_set(epc->so, SO_RCV, iwch_so_upcall, epc);
 	epc->so->so_state |= SS_NBIO;
+	SOCK_UNLOCK(epc->so);
 	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = SOL_SOCKET;
 	sopt.sopt_name = SO_NO_DDP;
@@ -1611,10 +1609,8 @@ dequeue_socket(struct socket *head, struct sockaddr_in **remote, struct iwch_ep 
 	so->so_qstate &= ~SQ_COMP;
 	so->so_head = NULL;
 	soref(so);
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(so, SO_RCV, iwch_so_upcall, child_ep);
 	so->so_state |= SS_NBIO;
-	so->so_upcall = iwch_so_upcall;
-	so->so_upcallarg = child_ep;
 	PANIC_IF(!(so->so_state & SS_ISCONNECTED));
 	PANIC_IF(so->so_error);
 	SOCK_UNLOCK(so);
@@ -1661,7 +1657,7 @@ process_newconn(struct iwch_ep *parent_ep)
 	process_mpa_request(child_ep);
 }
 
-static void
+static int
 iwch_so_upcall(struct socket *so, void *arg, int waitflag)
 {
 	struct iwch_ep *ep = arg;
@@ -1674,6 +1670,7 @@ iwch_so_upcall(struct socket *so, void *arg, int waitflag)
 		taskqueue_enqueue(iw_cxgb_taskq, &iw_cxgb_task);
 	}
 	mtx_unlock(&req_lock);
+	return (SU_OK);
 }
 
 static void

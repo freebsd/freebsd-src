@@ -46,6 +46,10 @@ $FreeBSD$
 #define MXGE_VIRT_JUMBOS 0
 #endif
 
+#if (__FreeBSD_version > 800082)
+#define IFNET_BUF_RING 1
+#endif
+
 #ifndef VLAN_CAPABILITIES
 #define VLAN_CAPABILITIES(ifp)
 #define mxge_vlans_active(sc) (sc)->ifp->if_nvlans
@@ -120,6 +124,7 @@ typedef struct
 	int cl_size;
 	int alloc_fail;
 	int mask;			/* number of rx slots -1 */
+	int mlen;
 } mxge_rx_ring_t;
 
 typedef struct
@@ -191,8 +196,6 @@ struct mxge_slice_state {
 	volatile uint32_t *irq_claim;
 	u_long ipackets;
 	u_long opackets;
-	u_long obytes;
-	u_long omcasts;
 	u_long oerrors;
 	int if_drv_flags;
 	struct lro_head lro_active;

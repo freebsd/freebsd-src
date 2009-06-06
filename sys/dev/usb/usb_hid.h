@@ -29,8 +29,8 @@
 #ifndef _USB2_CORE_HID_H_
 #define	_USB2_CORE_HID_H_
 
-struct usb2_hid_descriptor;
-struct usb2_config_descriptor;
+struct usb_hid_descriptor;
+struct usb_config_descriptor;
 
 enum hid_kind {
 	hid_input, hid_output, hid_feature, hid_collection, hid_endcollection
@@ -74,22 +74,22 @@ struct hid_item {
 
 /* prototypes from "usb2_hid.c" */
 
-struct hid_data *hid_start_parse(const void *d, usb2_size_t len, int kindset);
+struct hid_data *hid_start_parse(const void *d, usb_size_t len, int kindset);
 void	hid_end_parse(struct hid_data *s);
 int	hid_get_item(struct hid_data *s, struct hid_item *h);
-int	hid_report_size(const void *buf, usb2_size_t len, enum hid_kind k,
+int	hid_report_size(const void *buf, usb_size_t len, enum hid_kind k,
 	    uint8_t *id);
-int	hid_locate(const void *desc, usb2_size_t size, uint32_t usage,
+int	hid_locate(const void *desc, usb_size_t size, uint32_t usage,
 	    enum hid_kind kind, uint8_t index, struct hid_location *loc,
 	    uint32_t *flags, uint8_t *id);
-uint32_t hid_get_data(const uint8_t *buf, usb2_size_t len,
+uint32_t hid_get_data(const uint8_t *buf, usb_size_t len,
 	    struct hid_location *loc);
-int	hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage);
-struct usb2_hid_descriptor *hid_get_descriptor_from_usb(
-	    struct usb2_config_descriptor *cd,
-	    struct usb2_interface_descriptor *id);
-usb2_error_t usb2_req_get_hid_desc(struct usb2_device *udev, struct mtx *mtx,
-	    void **descp, uint16_t *sizep, usb2_malloc_type mem,
+int	hid_is_collection(const void *desc, usb_size_t size, uint32_t usage);
+struct usb_hid_descriptor *hid_get_descriptor_from_usb(
+	    struct usb_config_descriptor *cd,
+	    struct usb_interface_descriptor *id);
+usb_error_t usb2_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
+	    void **descp, uint16_t *sizep, struct malloc_type *mem,
 	    uint8_t iface_index);
 
 #endif					/* _USB2_CORE_HID_H_ */

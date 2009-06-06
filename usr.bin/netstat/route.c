@@ -122,12 +122,7 @@ int	do_rtent = 0;
 struct	rtentry rtentry;
 struct	radix_node rnode;
 struct	radix_mask rmask;
-struct  rtline  {
-	struct	radix_node_head *tables[AF_MAX+1]; /*xxx*/
-};
-struct	rtline *rt_tables;
-
-struct	radix_node_head *rt_tables_line[1][AF_MAX+1]; /*xxx*/
+struct	radix_node_head **rt_tables;
 
 int	NewTree = 0;
 
@@ -155,7 +150,7 @@ static void domask(char *, in_addr_t, u_long);
 void
 routepr(u_long rtree)
 {
-	struct radix_node_head *rnh, head;
+	struct radix_node_head **rnhp, *rnh, head;
 	size_t intsize;
 	int i;
 	int numfibs;
@@ -165,7 +160,8 @@ routepr(u_long rtree)
 		fibnum = 0;
 	if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 		numfibs = 1;
-	rt_tables = calloc(numfibs, sizeof(struct rtline));
+	rt_tables = calloc(numfibs * (AF_MAX+1),
+	    sizeof(struct radix_node_head *));
 	if (rt_tables == NULL)
 		err(EX_OSERR, "memory allocation failed");
 	/*
@@ -186,8 +182,8 @@ routepr(u_long rtree)
 			return;
 		}
 
-		if (kread((u_long)(rtree), (char *)(rt_tables),
-		    (numfibs * sizeof(struct rtline))) != 0)
+		if (kread((u_long)(rtree), (char *)(rt_tables), (numfibs *
+		    (AF_MAX+1) * sizeof(struct radix_node_head *))) != 0)
 			return;
 		for (i = 0; i <= AF_MAX; i++) {
 			int tmpfib;
@@ -195,8 +191,15 @@ routepr(u_long rtree)
 				tmpfib = 0;
 			else
 				tmpfib = fibnum;
-			if ((rnh = rt_tables[tmpfib].tables[i]) == 0)
+			rnhp = (struct radix_node_head **)*rt_tables;
+			/* Calculate the in-kernel address. */
+			rnhp += tmpfib * (AF_MAX+1) + i;
+			/* Read the in kernel rhn pointer. */
+			if (kget(rnhp, rnh) != 0)
 				continue;
+			if (rnh == NULL)
+				continue;
+			/* Read the rnh data. */
 			if (kget(rnh, head) != 0)
 				continue;
 			if (i == AF_UNSPEC) {

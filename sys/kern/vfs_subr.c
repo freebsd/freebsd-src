@@ -42,7 +42,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -113,15 +112,6 @@ static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
 static int	vfs_knllocked(void *arg);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
-
-/*
- * Enable Giant pushdown based on whether or not the vm is mpsafe in this
- * build.  Without mpsafevm the buffer cache can not run Giant free.
- */
-int mpsafe_vfs = 1;
-TUNABLE_INT("debug.mpsafevfs", &mpsafe_vfs);
-SYSCTL_INT(_debug, OID_AUTO, mpsafevfs, CTLFLAG_RD, &mpsafe_vfs, 0,
-    "MPSAFE VFS");
 
 /*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
@@ -4252,4 +4242,51 @@ vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 
 	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		(void)VOP_MARKATIME(vp);
+}
+
+/*
+ * The purpose of this routine is to remove granularity from accmode_t,
+ * reducing it into standard unix access bits - VEXEC, VREAD, VWRITE,
+ * VADMIN and VAPPEND.
+ *
+ * If it returns 0, the caller is supposed to continue with the usual
+ * access checks using 'accmode' as modified by this routine.  If it
+ * returns nonzero value, the caller is supposed to return that value
+ * as errno.
+ *
+ * Note that after this routine runs, accmode may be zero.
+ */
+int
+vfs_unixify_accmode(accmode_t *accmode)
+{
+	/*
+	 * There is no way to specify explicit "deny" rule using
+	 * file mode or POSIX.1e ACLs.
+	 */
+	if (*accmode & VEXPLICIT_DENY) {
+		*accmode = 0;
+		return (0);
+	}
+
+	/*
+	 * None of these can be translated into usual access bits.
+	 * Also, the common case for NFSv4 ACLs is to not contain
+	 * either of these bits. Caller should check for VWRITE
+	 * on the containing directory instead.
+	 */
+	if (*accmode & (VDELETE_CHILD | VDELETE))
+		return (EPERM);
+
+	if (*accmode & VADMIN_PERMS) {
+		*accmode &= ~VADMIN_PERMS;
+		*accmode |= VADMIN;
+	}
+
+	/*
+	 * There is no way to deny VREAD_ATTRIBUTES, VREAD_ACL
+	 * or VSYNCHRONIZE using file mode or POSIX.1e ACL.
+	 */
+	*accmode &= ~(VSTAT_PERMS | VSYNCHRONIZE);
+
+	return (0);
 }

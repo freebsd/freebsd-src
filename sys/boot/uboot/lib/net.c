@@ -46,12 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "glue.h"
 #include "libuboot.h"
 
-#define NETIF_DEBUG
-#define NETIF_VERBOSE_DEBUG
-#undef NETIF_DEBUG
-#undef NETIF_VERBOSE_DEBUG
-
-
 static int	net_probe(struct netif *, void *);
 static int	net_match(struct netif *, void *);
 static void	net_init(struct iodesc *, void *);
@@ -138,7 +132,7 @@ net_put(struct iodesc *desc, void *pkt, size_t len)
 #if defined(NETIF_DEBUG)
 	struct ether_header *eh;
 
-	printf("net_put: desc 0x%x, pkt 0x%x, len %d\n", desc, pkt, len);
+	printf("net_put: desc %p, pkt %p, len %d\n", desc, pkt, len);
 	eh = pkt;
 	printf("dst: %s ", ether_sprintf(eh->ether_dhost));
 	printf("src: %s ", ether_sprintf(eh->ether_shost));
@@ -175,7 +169,7 @@ net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 	int err, rlen;
 
 #if defined(NETIF_DEBUG)
-	printf("net_get: pkt %x, len %d, timeout %d\n", pkt, len, timeout);
+	printf("net_get: pkt %p, len %d, timeout %d\n", pkt, len, timeout);
 #endif
 	t = getsecs();
 	do {

@@ -67,7 +67,13 @@ static char string_buf[MAX_STR_CONST];
 static char *string_buf_ptr;
 static int  parren_count;
 static int  quote_count;
-static char buf[255];
+static char msgbuf[255];
+
+extern int yylex(void);
+extern int mmlex(void);
+extern int mmparse(void);
+extern void mm_switch_to_buffer(YY_BUFFER_STATE);
+extern void mm_delete_buffer(YY_BUFFER_STATE);
 %}
 
 PATH		([/]*[-A-Za-z0-9_.])+
@@ -315,10 +321,10 @@ else			{ return T_ELSE; }
 				return ')';
 			}
 <MACROARGLIST>.		{
-				snprintf(buf, sizeof(buf), "Invalid character "
+				snprintf(msgbuf, sizeof(msgbuf), "Invalid character "
 					 "'%c' in macro argument list",
 					 yytext[0]);
-				stop(buf, EX_DATAERR);
+				stop(msgbuf, EX_DATAERR);
 			}
 <MACROCALLARGS>{SPACE}  ;
 <MACROCALLARGS>\(	{
@@ -375,7 +381,7 @@ else			{ return T_ELSE; }
 				char c;
 
 				yptr = yytext;
-				while (c = *yptr++) {
+				while ((c = *yptr++)) {
 					/*
 					 * Strip carriage returns.
 					 */
@@ -430,9 +436,9 @@ else			{ return T_ELSE; }
 				}
 			}
 .			{ 
-				snprintf(buf, sizeof(buf), "Invalid character "
+				snprintf(msgbuf, sizeof(msgbuf), "Invalid character "
 					 "'%c'", yytext[0]);
-				stop(buf, EX_DATAERR);
+				stop(msgbuf, EX_DATAERR);
 			}
 %%
 
@@ -510,6 +516,7 @@ expand_macro(struct symbol *macro_symbol)
 	const char *body_head;
 	const char *body_pos;
 	const char *next_match;
+	regmatch_t match = { .rm_so = 0, .rm_eo = 0 };
 
 	/*
 	 * Due to the nature of unput, we must work
@@ -519,8 +526,6 @@ expand_macro(struct symbol *macro_symbol)
 	body_head = macro_symbol->info.macroinfo->body;
 	body_pos = body_head + strlen(body_head);
 	while (body_pos > body_head) {
-		regmatch_t match;
-
 		next_match = body_head;
 		match_marg = NULL;
 		next_substitution(macro_symbol, body_pos, &next_match,

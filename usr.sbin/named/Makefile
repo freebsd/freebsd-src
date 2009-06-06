@@ -9,6 +9,26 @@ SRCDIR=		${BIND_DIR}/bin/named
 
 PROG=		named
 
+CONFIGARGS='--prefix=/usr' '--infodir=/usr/share/info' '--mandir=/usr/share/man' '--enable-threads' '--disable-ipv6' '--enable-getifaddrs' '--disable-linux-caps' '--with-openssl=/usr' '--with-randomdev=/dev/random'
+
+# Optional features
+.if ${MK_BIND_LARGE_FILE} == "yes"
+CONFIGARGS+='--enable-largefile'
+.endif
+.if ${MK_BIND_SIGCHASE} == "yes"
+CONFIGARGS+='STD_CDEFINES=-DDIG_SIGCHASE=1'
+.endif
+.if ${MK_BIND_IDN} == "yes"
+CONFIGARGS+='--with-idn=/usr/local'
+.else
+CONFIGARGS+='--without-idn'
+.endif
+.if ${MK_BIND_XML} == "yes"
+CONFIGARGS+='--with-libxml2=/usr/local'
+.else
+CONFIGARGS+='--without-libxml2'
+.endif
+
 .PATH: ${SRCDIR}/unix
 SRCS+=		os.c
 
@@ -20,7 +40,10 @@ SRCS+=		builtin.c client.c config.c control.c \
 		tkeyconf.c tsigconf.c update.c xfrout.c \
 		zoneconf.c \
 		lwaddr.c lwresd.c lwdclient.c lwderror.c lwdgabn.c \
-		lwdgnba.c lwdgrbn.c lwdnoop.c lwsearch.c
+		lwdgnba.c lwdgrbn.c lwdnoop.c lwsearch.c \
+		statschannel.c
+
+CFLAGS+=	-DCONFIGARGS="\"${CONFIGARGS}\""
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include

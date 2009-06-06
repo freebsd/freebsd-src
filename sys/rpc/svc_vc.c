@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -62,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 
 #include <rpc/rpc_com.h>
+
+#include <security/mac/mac_framework.h>
 
 static bool_t svc_vc_rendezvous_recv(SVCXPRT *, struct rpc_msg *,
     struct sockaddr **, struct mbuf **);
@@ -80,7 +83,7 @@ static bool_t svc_vc_rendezvous_control (SVCXPRT *xprt, const u_int rq,
 static SVCXPRT *svc_vc_create_conn(SVCPOOL *pool, struct socket *so,
     struct sockaddr *raddr);
 static int svc_vc_accept(struct socket *head, struct socket **sop);
-static void svc_vc_soupcall(struct socket *so, void *arg, int waitflag);
+static int svc_vc_soupcall(struct socket *so, void *arg, int waitflag);
 
 static struct xp_ops svc_vc_rendezvous_ops = {
 	.xp_recv =	svc_vc_rendezvous_recv,
@@ -160,9 +163,8 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	solisten(so, SOMAXCONN, curthread);
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_upcallarg = xprt;
-	so->so_upcall = svc_vc_soupcall;
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	xprt->xp_upcallset = 1;
+	soupcall_set(so, SO_RCV, svc_vc_soupcall, xprt);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	return (xprt);
@@ -236,9 +238,8 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	xprt_register(xprt);
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_upcallarg = xprt;
-	so->so_upcall = svc_vc_soupcall;
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	xprt->xp_upcallset = 1;
+	soupcall_set(so, SO_RCV, svc_vc_soupcall, xprt);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	/*
@@ -275,9 +276,7 @@ svc_vc_accept(struct socket *head, struct socket **sop)
 		goto done;
 	}
 #ifdef MAC
-	SOCK_LOCK(head);
-	error = mac_socket_check_accept(td->td_ucred, head);
-	SOCK_UNLOCK(head);
+	error = mac_socket_check_accept(curthread->td_ucred, head);
 	if (error != 0)
 		goto done;
 #endif
@@ -358,9 +357,10 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	if (error) {
 		SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-		xprt->xp_socket->so_upcallarg = NULL;
-		xprt->xp_socket->so_upcall = NULL;
-		xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+		if (xprt->xp_upcallset) {
+			xprt->xp_upcallset = 0;
+			soupcall_clear(xprt->xp_socket, SO_RCV);
+		}
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 		xprt_inactive(xprt);
 		sx_xunlock(&xprt->xp_lock);
@@ -405,9 +405,10 @@ static void
 svc_vc_destroy_common(SVCXPRT *xprt)
 {
 	SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-	xprt->xp_socket->so_upcallarg = NULL;
-	xprt->xp_socket->so_upcall = NULL;
-	xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+	if (xprt->xp_upcallset) {
+		xprt->xp_upcallset = 0;
+		soupcall_clear(xprt->xp_socket, SO_RCV);
+	}
 	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 
 	sx_destroy(&xprt->xp_lock);
@@ -642,9 +643,10 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 		if (error) {
 			SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-			xprt->xp_socket->so_upcallarg = NULL;
-			xprt->xp_socket->so_upcall = NULL;
-			xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+			if (xprt->xp_upcallset) {
+				xprt->xp_upcallset = 0;
+				soupcall_clear(xprt->xp_socket, SO_RCV);
+			}
 			SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 			xprt_inactive(xprt);
 			cd->strm_stat = XPRT_DIED;
@@ -729,12 +731,13 @@ svc_vc_null()
 	return (FALSE);
 }
 
-static void
+static int
 svc_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	SVCXPRT *xprt = (SVCXPRT *) arg;
 
 	xprt_active(xprt);
+	return (SU_OK);
 }
 
 #if 0

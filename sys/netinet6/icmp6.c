@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/domain.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -401,7 +402,6 @@ int
 icmp6_input(struct mbuf **mp, int *offp, int proto)
 {
 	INIT_VNET_INET6(curvnet);
-	INIT_VPROCG(TD_TO_VPROCG(curthread)); /* XXX V_hostname needs this */
 	struct mbuf *m = *mp, *n;
 	struct ifnet *ifp;
 	struct ip6_hdr *ip6, *nip6;
@@ -663,7 +663,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		else
 			goto badlen;
 
-#define hostnamelen	strlen(V_hostname)
 		if (mode == FQDN) {
 #ifndef PULLDOWN_TEST
 			IP6_EXTHDR_CHECK(m, off, sizeof(struct icmp6_nodeinfo),
@@ -675,8 +674,9 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			/* XXX meaningless if n == NULL */
 			noff = sizeof(struct ip6_hdr);
 		} else {
+			struct prison *pr;
 			u_char *p;
-			int maxlen, maxhlen;
+			int maxlen, maxhlen, hlen;
 
 			/*
 			 * XXX: this combination of flags is pointless,
@@ -718,9 +718,11 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			n->m_pkthdr.rcvif = NULL;
 			n->m_len = 0;
 			maxhlen = M_TRAILINGSPACE(n) - maxlen;
-			mtx_lock(&hostname_mtx);
-			if (maxhlen > hostnamelen)
-				maxhlen = hostnamelen;
+			pr = curthread->td_ucred->cr_prison;
+			mtx_lock(&pr->pr_mtx);
+			hlen = strlen(pr->pr_host);
+			if (maxhlen > hlen)
+				maxhlen = hlen;
 			/*
 			 * Copy IPv6 and ICMPv6 only.
 			 */
@@ -730,15 +732,14 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			bcopy(icmp6, nicmp6, sizeof(struct icmp6_hdr));
 			p = (u_char *)(nicmp6 + 1);
 			bzero(p, 4);
-			bcopy(V_hostname, p + 4, maxhlen); /* meaningless TTL */
-			mtx_unlock(&hostname_mtx);
+			bcopy(pr->pr_host, p + 4, maxhlen); /* meaningless TTL */
+			mtx_unlock(&pr->pr_mtx);
 			noff = sizeof(struct ip6_hdr);
 			n->m_pkthdr.len = n->m_len = sizeof(struct ip6_hdr) +
 				sizeof(struct icmp6_hdr) + 4 + maxhlen;
 			nicmp6->icmp6_type = ICMP6_WRUREPLY;
 			nicmp6->icmp6_code = 0;
 		}
-#undef hostnamelen
 		if (n) {
 			ICMP6STAT_INC(icp6s_reflect);
 			ICMP6STAT_INC(icp6s_outhist[ICMP6_WRUREPLY]);
@@ -1177,14 +1178,13 @@ icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
  * - joins NI group address at in6_ifattach() time only, does not cope
  *   with hostname changes by sethostname(3)
  */
-#define hostnamelen	strlen(V_hostname)
 static struct mbuf *
 ni6_input(struct mbuf *m, int off)
 {
 	INIT_VNET_INET6(curvnet);
-	INIT_VPROCG(TD_TO_VPROCG(curthread)); /* XXX V_hostname needs this */
 	struct icmp6_nodeinfo *ni6, *nni6;
 	struct mbuf *n = NULL;
+	struct prison *pr;
 	u_int16_t qtype;
 	int subjlen;
 	int replylen = sizeof(struct ip6_hdr) + sizeof(struct icmp6_nodeinfo);
@@ -1333,9 +1333,10 @@ ni6_input(struct mbuf *m, int off)
 			 *   wildcard match, if gethostname(3) side has
 			 *   truncated hostname.
 			 */
-			mtx_lock(&hostname_mtx);
-			n = ni6_nametodns(V_hostname, hostnamelen, 0);
-			mtx_unlock(&hostname_mtx);
+			pr = curthread->td_ucred->cr_prison;
+			mtx_lock(&pr->pr_mtx);
+			n = ni6_nametodns(pr->pr_host, strlen(pr->pr_host), 0);
+			mtx_unlock(&pr->pr_mtx);
 			if (!n || n->m_next || n->m_len == 0)
 				goto bad;
 			IP6_EXTHDR_GET(subj, char *, m,
@@ -1457,11 +1458,13 @@ ni6_input(struct mbuf *m, int off)
 		nni6->ni_flags = 0; /* XXX: meaningless TTL */
 		fqdn->ni_fqdn_ttl = 0;	/* ditto. */
 		/*
-		 * XXX do we really have FQDN in variable "hostname"?
+		 * XXX do we really have FQDN in hostname?
 		 */
-		mtx_lock(&hostname_mtx);
-		n->m_next = ni6_nametodns(V_hostname, hostnamelen, oldfqdn);
-		mtx_unlock(&hostname_mtx);
+		pr = curthread->td_ucred->cr_prison;
+		mtx_lock(&pr->pr_mtx);
+		n->m_next =
+		    ni6_nametodns(pr->pr_host, strlen(pr->pr_host), oldfqdn);
+		mtx_unlock(&pr->pr_mtx);
 		if (n->m_next == NULL)
 			goto bad;
 		/* XXX we assume that n->m_next is not a chain */
@@ -1497,7 +1500,6 @@ ni6_input(struct mbuf *m, int off)
 		m_freem(n);
 	return (NULL);
 }
-#undef hostnamelen
 
 /*
  * make a mbuf with DNS-encoded string.  no compression support.

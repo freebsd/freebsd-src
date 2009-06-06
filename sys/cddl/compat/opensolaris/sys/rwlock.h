@@ -49,9 +49,9 @@ typedef enum {
 typedef	struct sx	krwlock_t;
 
 #ifndef DEBUG
-#define	RW_FLAGS	(SX_DUPOK | SX_NOWITNESS | SX_ADAPTIVESPIN)
+#define	RW_FLAGS	(SX_DUPOK | SX_NOWITNESS)
 #else
-#define	RW_FLAGS	(SX_DUPOK | SX_ADAPTIVESPIN)
+#define	RW_FLAGS	(SX_DUPOK)
 #endif
 
 #define	RW_READ_HELD(x)		(rw_read_held((x)))

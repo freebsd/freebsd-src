@@ -55,6 +55,8 @@ struct vnet;
  */
 typedef	u_quad_t so_gen_t;
 
+struct socket;
+
 /*-
  * Locking key to struct socket:
  * (a) constant after allocation, no locking required.
@@ -104,8 +106,6 @@ struct socket {
 
 	struct sockbuf so_rcv, so_snd;
 
-	void	(*so_upcall)(struct socket *, void *, int);
-	void	*so_upcallarg;
 	struct	ucred *so_cred;		/* (a) user credentials */
 	struct	label *so_label;	/* (b) MAC label for socket */
 	struct	label *so_peerlabel;	/* (b) cached MAC label for peer */
@@ -280,7 +280,7 @@ struct xsocket {
 
 struct accept_filter {
 	char	accf_name[16];
-	void	(*accf_callback)
+	int	(*accf_callback)
 		(struct socket *so, void *arg, int waitflag);
 	void *	(*accf_create)
 		(struct socket *so, char *arg);
@@ -304,6 +304,14 @@ struct mbuf;
 struct sockaddr;
 struct ucred;
 struct uio;
+
+/* 'which' values for socket upcalls. */
+#define	SO_RCV		1
+#define	SO_SND		2
+
+/* Return values for socket upcalls. */
+#define	SU_OK		0
+#define	SU_ISCONNECTED	1
 
 /*
  * From uipc_socket and friends
@@ -356,6 +364,9 @@ int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    int flags, struct thread *td);
 int	soshutdown(struct socket *so, int how);
 void	sotoxsocket(struct socket *so, struct xsocket *xso);
+void	soupcall_clear(struct socket *so, int which);
+void	soupcall_set(struct socket *so, int which,
+	    int (*func)(struct socket *, void *, int), void *arg);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
 int	selsocket(struct socket *so, int events, struct timeval *tv,
 	    struct thread *td);

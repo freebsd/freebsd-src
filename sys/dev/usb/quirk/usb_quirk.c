@@ -156,7 +156,7 @@ usb2_quirkstr(uint16_t quirk)
  * Else: Quirk found
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_test_quirk_by_info(const struct usb2_lookup_info *info, uint16_t quirk)
+usb2_test_quirk_by_info(const struct usb_lookup_info *info, uint16_t quirk)
 {
 	uint16_t x;
 	uint16_t y;
@@ -249,7 +249,7 @@ static int
 usb2_quirk_ioctl(unsigned long cmd, caddr_t data,
     int fflag, struct thread *td)
 {
-	struct usb2_gen_quirk *pgq;
+	struct usb_gen_quirk *pgq;
 	struct usb2_quirk_entry *pqe;
 	uint32_t x;
 	uint32_t y;

@@ -61,8 +61,8 @@ static const char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 
 #include "extern.h"
 
-static void rlines(FILE *, off_t, struct stat *);
-static void show(file_info_t *);
+static void rlines(FILE *, const char *fn, off_t, struct stat *);
+static int show(file_info_t *);
 static void set_events(file_info_t *files);
 
 /* defines for inner loop actions */
@@ -99,7 +99,7 @@ static const file_info_t *last;
  *	NOREG	cyclically read lines into a wrap-around array of buffers
  */
 void
-forward(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
+forward(FILE *fp, const char *fn, enum STYLE style, off_t off, struct stat *sbp)
 {
 	int ch;
 
@@ -111,13 +111,13 @@ forward(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 			if (sbp->st_size < off)
 				off = sbp->st_size;
 			if (fseeko(fp, off, SEEK_SET) == -1) {
-				ierr();
+				ierr(fn);
 				return;
 			}
 		} else while (off--)
 			if ((ch = getc(fp)) == EOF) {
 				if (ferror(fp)) {
-					ierr();
+					ierr(fn);
 					return;
 				}
 				break;
@@ -129,7 +129,7 @@ forward(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 		for (;;) {
 			if ((ch = getc(fp)) == EOF) {
 				if (ferror(fp)) {
-					ierr();
+					ierr(fn);
 					return;
 				}
 				break;
@@ -142,36 +142,36 @@ forward(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 		if (S_ISREG(sbp->st_mode)) {
 			if (sbp->st_size >= off &&
 			    fseeko(fp, -off, SEEK_END) == -1) {
-				ierr();
+				ierr(fn);
 				return;
 			}
 		} else if (off == 0) {
 			while (getc(fp) != EOF);
 			if (ferror(fp)) {
-				ierr();
+				ierr(fn);
 				return;
 			}
 		} else
-			if (bytes(fp, off))
+			if (bytes(fp, fn, off))
 				return;
 		break;
 	case RLINES:
 		if (S_ISREG(sbp->st_mode))
 			if (!off) {
 				if (fseeko(fp, (off_t)0, SEEK_END) == -1) {
-					ierr();
+					ierr(fn);
 					return;
 				}
 			} else
-				rlines(fp, off, sbp);
+				rlines(fp, fn, off, sbp);
 		else if (off == 0) {
 			while (getc(fp) != EOF);
 			if (ferror(fp)) {
-				ierr();
+				ierr(fn);
 				return;
 			}
 		} else
-			if (lines(fp, off))
+			if (lines(fp, fn, off))
 				return;
 		break;
 	default:
@@ -182,7 +182,7 @@ forward(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 		if (putchar(ch) == EOF)
 			oerr();
 	if (ferror(fp)) {
-		ierr();
+		ierr(fn);
 		return;
 	}
 	(void)fflush(stdout);
@@ -192,10 +192,7 @@ forward(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
  * rlines -- display the last offset lines of the file.
  */
 static void
-rlines(fp, off, sbp)
-	FILE *fp;
-	off_t off;
-	struct stat *sbp;
+rlines(FILE *fp, const char *fn, off_t off, struct stat *sbp)
 {
 	struct mapinfo map;
 	off_t curoff, size;
@@ -214,7 +211,7 @@ rlines(fp, off, sbp)
 	curoff = size - 2;
 	while (curoff >= 0) {
 		if (curoff < map.mapoff && maparound(&map, curoff) != 0) {
-			ierr();
+			ierr(fn);
 			return;
 		}
 		for (i = curoff - map.mapoff; i >= 0; i--)
@@ -227,41 +224,44 @@ rlines(fp, off, sbp)
 	}
 	curoff++;
 	if (mapprint(&map, curoff, size - curoff) != 0) {
-		ierr();
+		ierr(fn);
 		exit(1);
 	}
 
 	/* Set the file pointer to reflect the length displayed. */
 	if (fseeko(fp, sbp->st_size, SEEK_SET) == -1) {
-		ierr();
+		ierr(fn);
 		return;
 	}
 	if (map.start != NULL && munmap(map.start, map.maplen)) {
-		ierr();
+		ierr(fn);
 		return;
 	}
 }
 
-static void
+static int
 show(file_info_t *file)
 {
-    int ch;
+	int ch;
 
-    while ((ch = getc(file->fp)) != EOF) {
-	if (last != file && no_files > 1) {
-		if (!qflag)
-			(void)printf("\n==> %s <==\n", file->file_name);
-		last = file;
+	while ((ch = getc(file->fp)) != EOF) {
+		if (last != file && no_files > 1) {
+			if (!qflag)
+				(void)printf("\n==> %s <==\n", file->file_name);
+			last = file;
+		}
+		if (putchar(ch) == EOF)
+			oerr();
 	}
-	if (putchar(ch) == EOF)
-		oerr();
-    }
-    (void)fflush(stdout);
-    if (ferror(file->fp)) {
-	    file->fp = NULL;
-	    ierr();
-    } else
-	    clearerr(file->fp);
+	(void)fflush(stdout);
+	if (ferror(file->fp)) {
+		fclose(file->fp);
+		file->fp = NULL;
+		ierr(file->file_name);
+		return 0;
+	}
+	clearerr(file->fp);
+	return 1;
 }
 
 static void
@@ -309,7 +309,7 @@ set_events(file_info_t *files)
 void
 follow(file_info_t *files, enum STYLE style, off_t off)
 {
-	int active, i, n = -1;
+	int active, ev_change, i, n = -1;
 	struct stat sb2;
 	file_info_t *file;
 	struct timespec ts;
@@ -325,12 +325,12 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 			n++;
 			if (no_files > 1 && !qflag)
 				(void)printf("\n==> %s <==\n", file->file_name);
-			forward(file->fp, style, off, &file->st);
+			forward(file->fp, file->file_name, style, off, &file->st);
 			if (Fflag && fileno(file->fp) != STDIN_FILENO)
-			    n++;
+				n++;
 		}
 	}
-	if (! active)
+	if (!Fflag && !active)
 		return;
 
 	last = --file;
@@ -344,27 +344,55 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 	set_events(files);
 
 	for (;;) {
-		for (i = 0, file = files; i < no_files; i++, file++) {
-			if (! file->fp)
-				continue;
-			if (Fflag && file->fp && fileno(file->fp) != STDIN_FILENO) {
-				if (stat(file->file_name, &sb2) == 0 &&
-				    (sb2.st_ino != file->st.st_ino ||
-				     sb2.st_dev != file->st.st_dev ||
-				     sb2.st_nlink == 0)) {
-					show(file);
-					file->fp = freopen(file->file_name, "r", file->fp);
-					if (file->fp == NULL) {
-						ierr();
-						continue;
-					} else {
-						memcpy(&file->st, &sb2, sizeof(struct stat));
-						set_events(files);
+		ev_change = 0;
+		if (Fflag) {
+			for (i = 0, file = files; i < no_files; i++, file++) {
+				if (!file->fp) {
+					file->fp = fopen(file->file_name, "r");
+					if (file->fp != NULL &&
+					    fstat(fileno(file->fp), &file->st)
+					    == -1) {
+						fclose(file->fp);
+						file->fp = NULL;
 					}
+					if (file->fp != NULL)
+						ev_change++;
+					continue;
+				}
+				if (fileno(file->fp) == STDIN_FILENO)
+					continue;
+				if (stat(file->file_name, &sb2) == -1) {
+					if (errno != ENOENT)
+						ierr(file->file_name);
+					show(file);
+					fclose(file->fp);
+					file->fp = NULL;
+					ev_change++;
+					continue;
+				}
+
+				if (sb2.st_ino != file->st.st_ino ||
+				    sb2.st_dev != file->st.st_dev ||
+				    sb2.st_nlink == 0) {
+					show(file);
+					file->fp = freopen(file->file_name, "r",
+					    file->fp);
+					if (file->fp != NULL)
+						memcpy(&file->st, &sb2,
+						    sizeof(struct stat));
+					else if (errno != ENOENT)
+						ierr(file->file_name);
+					ev_change++;
 				}
 			}
-			show(file);
 		}
+
+		for (i = 0, file = files; i < no_files; i++, file++)
+			if (file->fp && !show(file))
+				ev_change++;
+
+		if (ev_change)
+			set_events(files);
 
 		switch (action) {
 		case USE_KQUEUE:
@@ -381,9 +409,9 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 				/* timeout */
 				break;
 			} else if (ev->filter == EVFILT_READ && ev->data < 0) {
-				 /* file shrank, reposition to end */
+				/* file shrank, reposition to end */
 				if (lseek(ev->ident, (off_t)0, SEEK_END) == -1) {
-					ierr();
+					ierr(file->file_name);
 					continue;
 				}
 			}

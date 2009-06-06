@@ -402,7 +402,11 @@ MK_${var}:=	yes
 # MK_* options which default to "no".
 #
 .for var in \
+    BIND_IDN \
+    BIND_LARGE_FILE \
     BIND_LIBS \
+    BIND_SIGCHASE \
+    BIND_XML \
     GNU_CPIO \
     HESIOD \
     IDEA

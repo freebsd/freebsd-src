@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1690,9 +1689,7 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 	if (error)
 		return (ENOENT);
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_visible(cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif
@@ -1748,7 +1745,11 @@ p_canwait(struct thread *td, struct proc *p)
 
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((error = prison_check(td->td_ucred, p->p_ucred)))
+	if (
+#ifdef VIMAGE /* XXX temporary until struct vimage goes away */
+	    !vi_child_of(TD_TO_VIMAGE(td), P_TO_VIMAGE(p)) &&
+#endif
+	    (error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
 #ifdef MAC
 	if ((error = mac_proc_check_wait(td->td_ucred, p)))

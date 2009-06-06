@@ -48,9 +48,11 @@
 .Fn KFAIL_POINT_GOTO "parent" "name" "error_var" "label"
 .Sh DESCRIPTION
 Fail points are used to add code points where errors may be injected
-in a user controlled fashion. Fail points provide a convenient wrapper
-around user provided error injection code, providing a
-.Xr sysctl 9 MIB , and a parser for that MIB that describes how the error
+in a user controlled fashion.
+Fail points provide a convenient wrapper around user-provided error
+injection code, providing a
+.Xr sysctl 9
+MIB, and a parser for that MIB that describes how the error
 injection code should fire.
 .Pp
 The base fail point macro is
@@ -64,16 +66,19 @@ their own fail point trees), and
 .Fa name
 is the name of the MIB in that tree, and
 .Fa code
-is the error injection code. The
+is the error injection code.
+The
 .Fa code
 argument does not require braces, but it is considered good style to
-use braces for any multi-line code arguments. Inside the
+use braces for any multi-line code arguments.
+Inside the
 .Fa code
 argument, the evaluation of
 .Sy RETURN_VALUE
 is derived from the
 .Fn return
-value set in the sysctl MIB. See
+value set in the sysctl MIB.
+See
 .Sx SYSCTL SETTINGS
 below.
 .Pp
@@ -99,14 +104,14 @@ is the equivalent of
 .Sh SYSCTL VARIABLES
 The
 .Fn KFAIL_POINT_*
-macros add sysctl MIBs where specified. Many base kernel MIBs can be
-found in the
+macros add sysctl MIBs where specified.
+Many base kernel MIBs can be found in the
 .Sy debug.fail_point
 tree (referenced in code by
 .Sy DEBUG_FP
 ).
 .Pp
-The sysctl setting recognizes the following grammar:
+The sysctl variable may be set using the following grammar:
 .Pp
   <fail_point> ::
       <term> ( "->" <term> )*
@@ -135,27 +140,30 @@ Sleep the specified number of milliseconds
 .It Sy panic
 Panic
 .It Sy break
-Break into the debugger.
+Break into the debugger, or trap if there is no debugger support
 .It Sy print
 Print that the fail point executed
 .El
 .Pp
 The <float>% and <integer>* modifiers prior to <type> control when
-<type> is executed. The <float>% form (e.g. "1.2%") can be used to
-specify a probability that <type> will execute. The <integer>* form
-(e.g. "5*") can be used to specify the number of times <type> should
-be executed before this <term> is disabled. Only the last probability
-and the last count are used if multiple are specified, i.e. "1.2%2%"
-is the same as "2%". When both a probability and a count are
-specified, the probability is evaluated before the count, i.e. "2%5*"
-means "2% of the time, but only execute it 5 times total".
+<type> is executed.
+The <float>% form (e.g. "1.2%") can be used to specify a
+probability that <type> will execute.
+The <integer>* form (e.g. "5*") can be used to specify the number of
+times <type> should be executed before this <term> is disabled.
+Only the last probability and the last count are used if multiple
+are specified, i.e. "1.2%2%" is the same as "2%".
+When both a probability and a count are specified, the probability
+is evaluated before the count, i.e. "2%5*" means "2% of the time,
+but only 5 times total".
 .Pp
-The operator -> can be used to express cascading terms. If you specify
-<term1>-><term2>, it means that if <term1> doesn't 'execute', <term2>
-is evaluated. For the purpose of this operator, the return() and
-print() operators are the only types that cascade. A return() term
-only cascades if the code executes, and a print() term only cascades
-when passed a non-zero argument.
+The operator -> can be used to express cascading terms.
+If you specify <term1>-><term2>, it means that if <term1> doesn't
+'execute', <term2> is evaluated.
+For the purpose of this operator, the return() and print() operators
+are the only types that cascade.
+A return() term only cascades if the code executes, and a print()
+term only cascades when passed a non-zero argument.
 .Pp
 .Sh EXAMPLES
 .Bl -tag
@@ -164,29 +172,32 @@ when passed a non-zero argument.
 .Fa code
 with RETURN_VALUE set to 5.
 .It Sy sysctl debug.fail_point.foobar="2%return(5)->5%return(22)"
-2/100th of the time, execute
+2/100ths of the time, execute
 .Fa code
-with RETURN_VALUE set to 5. If that doesn't happen, 5% of the time
-execute
+with RETURN_VALUE set to 5.
+If that doesn't happen, 5% of the time execute
 .Fa code
 with RETURN_VALUE set to 22.
 .It Sy sysctl debug.fail_point.foobar="5*return(5)->0.1%return(22)"
-For 5 times, return 5. After that, 1/1000ths of the time, return 22.
+For 5 times, return 5.
+After that, 1/1000th of the time, return 22.
 .It Sy sysctl debug.fail_point.foobar="0.1%5*return(5)"
-Return 5 for 1 in 1000 executions, but only execute 5 times total.
+Return 5 for 1 in 1000 executions, but only 5 times total.
 .It Sy sysctl debug.fail_point.foobar="1%*sleep(50)"
-1/100ths of the time, sleep 50ms.
+1/100th of the time, sleep 50ms.
 .El
 .Pp
 .Sh CAVEATS
 It's easy to shoot yourself in the foot by setting fail points too
-aggressively or setting too many in combination. For example, forcing
+aggressively or setting too many in combination.
+For example, forcing
 .Fn malloc
 to fail consistently is potentially harmful to uptime.
 .Pp
 The
 .Fn sleep
-sysctl setting may not be appropriate in all situations. Currently,
+sysctl setting may not be appropriate in all situations.
+Currently,
 .Fn fail_point_eval
 does not verify whether the context is appropriate for calling
 .Fn msleep .

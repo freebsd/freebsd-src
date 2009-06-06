@@ -37,7 +37,7 @@
 #include <sys/socketvar.h>
 
 /* check for full DNS request */
-static void sohasdns(struct socket *so, void *arg, int waitflag);
+static int sohasdns(struct socket *so, void *arg, int waitflag);
 
 struct packet {
 	struct mbuf *m;		/* Current mbuf. */
@@ -69,7 +69,7 @@ static moduledata_t accf_dns_mod = {
 
 DECLARE_MODULE(accf_dns, accf_dns_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
-static void
+static int
 sohasdns(struct socket *so, void *arg, int waitflag)
 {
 	struct sockbuf *sb = &so->so_rcv;
@@ -80,13 +80,10 @@ sohasdns(struct socket *so, void *arg, int waitflag)
 
 	/* Check to see if we have a request. */
 	if (skippacket(sb) == DNS_WAIT)
-		return;
+		return (SU_OK);
 
 ready:
-	so->so_upcall = NULL;
-	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	return;
+	return (SU_ISCONNECTED);
 }
 
 #define GET8(p, val) do { \
