@@ -38,3 +38,29 @@ pmc_md_initialize()
 {
 	return NULL;
 }
+
+void
+pmc_md_finalize(struct pmc_mdep *md)
+{
+	(void) md;
+}
+
+int
+pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
+    struct trapframe *tf)
+{
+	(void) cc;
+	(void) maxsamples;
+	(void) tf;
+	return (0);
+}
+
+int
+pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
+    struct trapframe *tf)
+{
+	(void) cc;
+	(void) maxsamples;
+	(void) tf;
+	return (0);
+}

@@ -5,8 +5,8 @@
 PROG=	pmcstat
 MAN=	pmcstat.8
 
-DPADD=	${LIBKVM} ${LIBPMC} ${LIBM}
-LDADD=	-lkvm -lpmc -lm
+DPADD=	${LIBELF} ${LIBKVM} ${LIBPMC} ${LIBM}
+LDADD=	-lelf -lkvm -lpmc -lm
 
 WARNS?=	6
 

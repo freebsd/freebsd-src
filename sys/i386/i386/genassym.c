@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
 #include "opt_compat.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -44,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/assym.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/mount.h>
@@ -82,9 +86,12 @@ ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_TID, offsetof(struct thread, td_tid));
+
+ASSYM(TDP_CALLCHAIN, TDP_CALLCHAIN);
 
 ASSYM(P_MD, offsetof(struct proc, p_md));
 ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
@@ -227,4 +234,8 @@ ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
 
 ASSYM(BUS_SPACE_HANDLE_BASE, offsetof(struct bus_space_handle, bsh_base));
 ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
+#endif
+
+#ifdef	HWPMC_HOOKS
+ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
 #endif

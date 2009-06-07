@@ -36,6 +36,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -44,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/errno.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -78,6 +82,7 @@ ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_TID, offsetof(struct thread, td_tid));
 
@@ -86,6 +91,8 @@ ASSYM(P_KTHREAD, P_KTHREAD);
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
+
+ASSYM(TDP_CALLCHAIN, TDP_CALLCHAIN);
 
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
@@ -218,3 +225,7 @@ ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
 
 ASSYM(MSR_GSBASE, MSR_GSBASE);
+
+#ifdef	HWPMC_HOOKS
+ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
+#endif
