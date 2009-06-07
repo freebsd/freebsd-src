@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_wlan.h"
 
 #include <sys/param.h>
@@ -60,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#endif
+#ifdef INET6
+#include <netinet/ip6.h>
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -730,13 +734,13 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		v_wme_ac = TID_TO_WME_AC(EVL_PRIOFTAG(ni->ni_vlan));
 	}
 
+	/* XXX m_copydata may be too slow for fast path */
 #ifdef INET
 	if (eh->ether_type == htons(ETHERTYPE_IP)) {
 		uint8_t tos;
 		/*
 		 * IP frame, map the DSCP bits from the TOS field.
 		 */
-		/* XXX m_copydata may be too slow for fast path */
 		/* NB: ip header may not be in first mbuf */
 		m_copydata(m, sizeof(struct ether_header) +
 		    offsetof(struct ip, ip_tos), sizeof(tos), &tos);
@@ -744,7 +748,25 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		d_wme_ac = TID_TO_WME_AC(tos);
 	} else {
 #endif /* INET */
+#ifdef INET6
+	if (eh->ether_type == htons(ETHERTYPE_IPV6)) {
+		uint32_t flow;
+		uint8_t tos;
+		/*
+		 * IPv6 frame, map the DSCP bits from the TOS field.
+		 */
+		m_copydata(m, sizeof(struct ether_header) +
+		    offsetof(struct ip6_hdr, ip6_flow), sizeof(flow),
+		    (caddr_t) &flow);
+		tos = (uint8_t)(ntohl(flow) >> 20);
+		tos >>= 5;		/* NB: ECN + low 3 bits of DSCP */
+		d_wme_ac = TID_TO_WME_AC(tos);
+	} else {
+#endif /* INET6 */
 		d_wme_ac = WME_AC_BE;
+#ifdef INET6
+	}
+#endif
 #ifdef INET
 	}
 #endif
