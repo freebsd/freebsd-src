@@ -19,6 +19,10 @@ union pmc_md_op_pmcallocate {
 union pmc_md_pmc {
 };
 
+#define	PMC_TRAPFRAME_TO_PC(TF)	(0)	/* Stubs */
+#define	PMC_TRAPFRAME_TO_FP(TF)	(0)
+#define	PMC_TRAPFRAME_TO_SP(TF)	(0)
+
 #endif
 
 #endif /* !_MACHINE_PMC_MDEP_H_ */
