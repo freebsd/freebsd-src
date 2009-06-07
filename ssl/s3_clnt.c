@@ -173,7 +173,7 @@ int ssl3_connect(SSL *s)
 	long num1;
 	void (*cb)(const SSL *ssl,int type,int val)=NULL;
 	int ret= -1;
-	int new_state,state,skip=0;;
+	int new_state,state,skip=0;
 
 	RAND_add(&Time,sizeof(Time),0);
 	ERR_clear_error();
@@ -972,7 +972,7 @@ int ssl3_get_server_certificate(SSL *s)
 		}
 
 	i=ssl_verify_cert_chain(s,sk);
-	if ((s->verify_mode != SSL_VERIFY_NONE) && (!i)
+	if ((s->verify_mode != SSL_VERIFY_NONE) && (i <= 0)
 #ifndef OPENSSL_NO_KRB5
 	        && (s->s3->tmp.new_cipher->algorithms & (SSL_MKEY_MASK|SSL_AUTH_MASK))
 	        != (SSL_aKRB5|SSL_kKRB5)
@@ -1006,7 +1006,7 @@ int ssl3_get_server_certificate(SSL *s)
 	                 == (SSL_aKRB5|SSL_kKRB5))? 0: 1;
 
 #ifdef KSSL_DEBUG
-	printf("pkey,x = %p, %p\n", pkey,x);
+	printf("pkey,x = %p, %p\n", (void *)pkey,(void *)x);
 	printf("ssl_cert_type(x,pkey) = %d\n", ssl_cert_type(x,pkey));
 	printf("cipher, alg, nc = %s, %lx, %d\n", s->s3->tmp.new_cipher->name,
 	        s->s3->tmp.new_cipher->algorithms, need_cert);
@@ -1459,7 +1459,7 @@ int ssl3_get_key_exchange(SSL *s)
 			EVP_VerifyUpdate(&md_ctx,&(s->s3->client_random[0]),SSL3_RANDOM_SIZE);
 			EVP_VerifyUpdate(&md_ctx,&(s->s3->server_random[0]),SSL3_RANDOM_SIZE);
 			EVP_VerifyUpdate(&md_ctx,param,param_len);
-			if (!EVP_VerifyFinal(&md_ctx,p,(int)n,pkey))
+			if (EVP_VerifyFinal(&md_ctx,p,(int)n,pkey) <= 0)
 				{
 				/* bad signature */
 				al=SSL_AD_DECRYPT_ERROR;
@@ -1477,7 +1477,7 @@ int ssl3_get_key_exchange(SSL *s)
 			EVP_VerifyUpdate(&md_ctx,&(s->s3->client_random[0]),SSL3_RANDOM_SIZE);
 			EVP_VerifyUpdate(&md_ctx,&(s->s3->server_random[0]),SSL3_RANDOM_SIZE);
 			EVP_VerifyUpdate(&md_ctx,param,param_len);
-			if (!EVP_VerifyFinal(&md_ctx,p,(int)n,pkey))
+			if (EVP_VerifyFinal(&md_ctx,p,(int)n,pkey) <= 0)
 				{
 				/* bad signature */
 				al=SSL_AD_DECRYPT_ERROR;
@@ -1777,7 +1777,7 @@ int ssl3_get_cert_status(SSL *s)
 		goto f_err;
 		}
 	n2l3(p, resplen);
-	if (resplen + 4 != n)
+	if (resplen + 4 != (unsigned long)n)
 		{
 		al = SSL_AD_DECODE_ERROR;
 		SSLerr(SSL_F_SSL3_GET_CERT_STATUS,SSL_R_LENGTH_MISMATCH);

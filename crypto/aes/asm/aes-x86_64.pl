@@ -1198,19 +1198,20 @@ AES_cbc_encrypt:
 	ret
 .align	4
 .Lcbc_enc_tail:
-	cmp	$inp,$out
-	je	.Lcbc_enc_in_place
+	mov	%rax,%r11
+	mov	%rcx,%r12
 	mov	%r10,%rcx
 	mov	$inp,%rsi
 	mov	$out,%rdi
 	.long	0xF689A4F3		# rep movsb
-.Lcbc_enc_in_place:
 	mov	\$16,%rcx		# zero tail
 	sub	%r10,%rcx
 	xor	%rax,%rax
 	.long	0xF689AAF3		# rep stosb
 	mov	$out,$inp		# this is not a mistake!
 	movq	\$16,$_len		# len=16
+	mov	%r11,%rax
+	mov	%r12,%rcx
 	jmp	.Lcbc_enc_loop		# one more spin...
 #----------------------------- DECRYPT -----------------------------#
 .align	16

@@ -94,8 +94,15 @@
 #include <openssl/ui.h>
 #include <openssl/ocsp.h>
 #include <openssl/err.h>
+#ifdef OPENSSL_FIPS
+#include <openssl/fips.h>
+#endif
+
 #ifndef OPENSSL_NO_CMS
 #include <openssl/cms.h>
+#endif
+#ifndef OPENSSL_NO_JPAKE
+#include <openssl/jpake.h>
 #endif
 
 void ERR_load_crypto_strings(void)
@@ -141,8 +148,14 @@ void ERR_load_crypto_strings(void)
 #endif
 	ERR_load_OCSP_strings();
 	ERR_load_UI_strings();
+#ifdef OPENSSL_FIPS
+	ERR_load_FIPS_strings();
+#endif
 #ifndef OPENSSL_NO_CMS
 	ERR_load_CMS_strings();
+#endif
+#ifndef OPENSSL_NO_JPAKE
+	ERR_load_JPAKE_strings();
 #endif
 #endif
 	}

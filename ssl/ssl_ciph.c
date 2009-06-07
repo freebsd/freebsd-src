@@ -115,7 +115,10 @@
  */
 #include <stdio.h>
 #include <openssl/objects.h>
+#ifndef OPENSSL_NO_COMP
 #include <openssl/comp.h>
+#endif
+
 #include "ssl_locl.h"
 
 #define SSL_ENC_DES_IDX		0
@@ -1352,7 +1355,7 @@ int SSL_COMP_add_compression_method(int id, COMP_METHOD *cm)
 	comp->method=cm;
 	load_builtin_compressions();
 	if (ssl_comp_methods
-		&& !sk_SSL_COMP_find(ssl_comp_methods,comp))
+		&& sk_SSL_COMP_find(ssl_comp_methods,comp) >= 0)
 		{
 		OPENSSL_free(comp);
 		MemCheck_on();
