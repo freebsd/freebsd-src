@@ -45,6 +45,10 @@
 
 #include <machine/clock.h>	/* for DELAY */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/chip.h>
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
@@ -1325,7 +1329,7 @@ emu_vsetup(struct emu_voice *v, int fmt, int spd)
 {
 	if (fmt) {
 		v->b16 = (fmt & AFMT_16BIT) ? 1 : 0;
-		v->stereo = (fmt & AFMT_STEREO) ? 1 : 0;
+		v->stereo = (AFMT_CHANNEL(fmt) > 1) ? 1 : 0;
 		if (v->slave != NULL) {
 			v->slave->b16 = v->b16;
 			v->slave->stereo = v->stereo;
@@ -2313,7 +2317,7 @@ emu10kx_dev_init(struct emu_sc_info *sc)
 	mtx_init(&sc->emu10kx_lock, device_get_nameunit(sc->dev), "kxdevlock", 0);
 	unit = device_get_unit(sc->dev);
 
-	sc->cdev = make_dev(&emu10kx_cdevsw, unit, UID_ROOT, GID_WHEEL, 0640, "emu10kx%d", unit);
+	sc->cdev = make_dev(&emu10kx_cdevsw, PCMMINOR(unit), UID_ROOT, GID_WHEEL, 0640, "emu10kx%d", unit);
 	if (sc->cdev != NULL) {
 		sc->cdev->si_drv1 = sc;
 		return (0);
@@ -3193,7 +3197,11 @@ emu_pci_attach(device_t dev)
 
 	i = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i, RF_ACTIVE | RF_SHAREABLE);
-	if ((sc->irq == NULL) || bus_setup_intr(dev, sc->irq, INTR_MPSAFE | INTR_TYPE_AV, NULL, emu_intr, sc, &sc->ih)) {
+	if ((sc->irq == NULL) || bus_setup_intr(dev, sc->irq, INTR_MPSAFE | INTR_TYPE_AV,
+#if __FreeBSD_version >= 700031
+	    NULL,
+#endif
+	    emu_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}

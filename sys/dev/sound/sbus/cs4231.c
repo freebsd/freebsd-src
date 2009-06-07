@@ -50,6 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/ofw_machdep.h>
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/sbus/apcdmareg.h>
 #include <dev/sound/sbus/cs4231.h>
@@ -260,18 +264,18 @@ MODULE_VERSION(snd_audiocs, 1);
 
 
 static u_int32_t cs4231_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_MU_LAW,
-	AFMT_STEREO | AFMT_MU_LAW,
-	AFMT_A_LAW,
-	AFMT_STEREO | AFMT_A_LAW,
-	AFMT_IMA_ADPCM,
-	AFMT_STEREO | AFMT_IMA_ADPCM,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_S16_BE,
-	AFMT_STEREO | AFMT_S16_BE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_MU_LAW, 1, 0),
+	SND_FORMAT(AFMT_MU_LAW, 2, 0),
+	SND_FORMAT(AFMT_A_LAW, 1, 0),
+	SND_FORMAT(AFMT_A_LAW, 2, 0),
+	SND_FORMAT(AFMT_IMA_ADPCM, 1, 0),
+	SND_FORMAT(AFMT_IMA_ADPCM, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(S16_LE, 2, 0),
+	SND_FORMAT(AFMT_S16_BE, 1, 0),
+	SND_FORMAT(AFMT_S16_BE, 2, 0),
 	0
 };
 
@@ -288,7 +292,7 @@ static kobj_method_t cs4231_chan_methods[] = {
 	KOBJMETHOD(channel_trigger,		cs4231_chan_trigger),
 	KOBJMETHOD(channel_getptr,		cs4231_chan_getptr),
 	KOBJMETHOD(channel_getcaps,		cs4231_chan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(cs4231_chan); 
 
@@ -299,7 +303,7 @@ static kobj_method_t cs4231_mixer_methods[] = {
 	KOBJMETHOD(mixer_init,		cs4231_mixer_init),
 	KOBJMETHOD(mixer_set,		cs4231_mixer_set),
 	KOBJMETHOD(mixer_setrecsrc,	cs4231_mixer_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(cs4231_mixer);
 
@@ -1057,7 +1061,7 @@ cs4231_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 		return (0);
 	}
 
-	encoding = format & ~AFMT_STEREO;
+	encoding = AFMT_ENCODING(format);
 	fs = 0;
 	switch (encoding) {
 	case AFMT_U8:
@@ -1084,7 +1088,7 @@ cs4231_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 		break;
 	}
 
-	if (format & AFMT_STEREO)
+	if (AFMT_CHANNEL(format) > 1)
 		fs |= CS_AFMT_STEREO;
 	
 	DPRINTF(("FORMAT: %s : 0x%x\n", ch->dir == PCMDIR_PLAY ? "playback" :

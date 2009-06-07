@@ -66,6 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/selinfo.h>
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
 
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/midi/midiq.h>
@@ -258,13 +261,17 @@ midi_cmdtab	cmdtab_seqccmn[] = {
 	{-1,			NULL},
 };
 
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
+
 /*
  * static const char *mpu401_mprovider(kobj_t obj, struct mpu401 *m);
  */
 
 static kobj_method_t seq_methods[] = {
 	/* KOBJMETHOD(mpu_provider,mpu401_mprovider), */
-	{0, 0}
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(sequencer, seq_methods, 0);
@@ -459,7 +466,12 @@ done:
 	cv_broadcast(&scp->th_cv);
 	mtx_unlock(&scp->seq_lock);
 	SEQ_DEBUG(2, printf("seq_eventthread finished\n"));
+#if __FreeBSD_version >= 800002
 	kproc_exit(0);
+#else
+	mtx_lock(&Giant);
+	kthread_exit(0);
+#endif
 }
 
 /*
@@ -574,7 +586,13 @@ seq_addunit(void)
 	 * TODO: Add to list of sequencers this module provides
 	 */
 
-	ret = kproc_create(seq_eventthread, scp, NULL, RFHIGHPID, 0,
+	ret =
+#if __FreeBSD_version >= 800002
+	    kproc_create
+#else
+	    kthread_create
+#endif
+	    (seq_eventthread, scp, NULL, RFHIGHPID, 0,
 	    "sequencer %02d", scp->unit);
 
 	if (ret)
