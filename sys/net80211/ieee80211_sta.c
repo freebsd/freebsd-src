@@ -1342,7 +1342,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				ieee80211_parse_athparams(ni, scan.ath, wh);
 #endif
 			if (scan.htcap != NULL && scan.htinfo != NULL &&
-			    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
+			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 				ieee80211_ht_updateparams(ni,
 				    scan.htcap, scan.htinfo);
 				/* XXX state changes? */
@@ -1532,7 +1532,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			case IEEE80211_ELEMID_VENDOR:
 				if (iswmeoui(frm))
 					wme = frm;
-				else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
+				else if (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) {
 					/*
 					 * Accept pre-draft HT ie's if the
 					 * standard ones have not been seen.
@@ -1588,7 +1588,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 *     are HT capable in our AssocReq.
 		 */
 		if (htcap != NULL && htinfo != NULL &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
+		    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 			ieee80211_ht_node_init(ni);
 			ieee80211_ht_updateparams(ni, htcap, htinfo);
 			ieee80211_setup_htrates(ni, htcap,
