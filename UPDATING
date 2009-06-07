@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090606:
+	The components of PmcTools have been upgraded. Please
+	update world and the kernel.
+
 20090521:
 	The k8temp(4) driver has been renamed to amdtemp(4) since               
 	support for K10 and K11 CPU families was added.
