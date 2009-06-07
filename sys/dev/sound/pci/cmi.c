@@ -42,6 +42,10 @@
  * those that don't.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pci/cmireg.h>
 #include <dev/sound/isa/sb.h>
@@ -129,10 +133,10 @@ struct sc_info {
 /* Channel caps */
 
 static u_int32_t cmi_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 
@@ -348,7 +352,7 @@ cmichan_init(kobj_t obj, void *devinfo,
 	ch->parent     = sc;
 	ch->channel    = c;
 	ch->bps        = 1;
-	ch->fmt        = AFMT_U8;
+	ch->fmt        = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd        = DSP_DEFAULT_SPEED;
 	ch->buffer     = b;
 	ch->dma_active = 0;
@@ -384,7 +388,7 @@ cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 		ch->bps = 1;
 	}
 
-	if (format & AFMT_STEREO) {
+	if (AFMT_CHANNEL(format) > 1) {
 		f |= CMPCI_REG_FORMAT_STEREO;
 		ch->bps *= 2;
 	} else {
@@ -411,7 +415,7 @@ cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_chinfo *ch = data;
@@ -457,7 +461,7 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->spd;
 }
 
-static int
+static u_int32_t
 cmichan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
@@ -507,7 +511,7 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 cmichan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
@@ -589,7 +593,7 @@ static kobj_method_t cmichan_methods[] = {
     	KOBJMETHOD(channel_trigger,		cmichan_trigger),
     	KOBJMETHOD(channel_getptr,		cmichan_getptr),
     	KOBJMETHOD(channel_getcaps,		cmichan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(cmichan);
 
@@ -716,7 +720,7 @@ cmimix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return 0;
 }
 
-static int
+static u_int32_t
 cmimix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct sc_info *sc = mix_getdevinfo(m);
@@ -748,7 +752,6 @@ cmimix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 static int
 cmi_initsys(struct sc_info* sc)
 {
-#ifdef SND_DYNSYSCTL
 	/* XXX: an user should be able to set this with a control tool,
 	   if not done before 7.0-RELEASE, this needs to be converted
 	   to a device specific sysctl "dev.pcm.X.yyy" via
@@ -759,7 +762,7 @@ cmi_initsys(struct sc_info* sc)
 		       OID_AUTO, "spdif_enabled", CTLFLAG_RW, 
 		       &sc->spdif_enabled, 0, 
 		       "enable SPDIF output at 44.1 kHz and above");
-#endif /* SND_DYNSYSCTL */
+
 	return 0;
 }
 
@@ -768,7 +771,7 @@ static kobj_method_t cmi_mixer_methods[] = {
 	KOBJMETHOD(mixer_init,	cmimix_init),
 	KOBJMETHOD(mixer_set,	cmimix_set),
 	KOBJMETHOD(mixer_setrecsrc,	cmimix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(cmi_mixer);
 
@@ -777,7 +780,7 @@ MIXER_DECLARE(cmi_mixer);
  */
 
 static unsigned char
-cmi_mread(void *arg, struct sc_info *sc, int reg)
+cmi_mread(struct mpu401 *arg, void *sc, int reg)
 {	
 	unsigned int d;
 
@@ -788,15 +791,16 @@ cmi_mread(void *arg, struct sc_info *sc, int reg)
 }
 
 static void
-cmi_mwrite(void *arg, struct sc_info *sc, int reg, unsigned char b)
+cmi_mwrite(struct mpu401 *arg, void *sc, int reg, unsigned char b)
 {
 
 	bus_space_write_1(0,0,0x330 + reg , b);
 }
 
 static int
-cmi_muninit(void *arg, struct sc_info *sc)
+cmi_muninit(struct mpu401 *arg, void *cookie)
 {
+	struct sc_info *sc = cookie;
 
 	snd_mtxlock(sc->lock);
 	sc->mpu_intr = 0;
@@ -810,7 +814,7 @@ static kobj_method_t cmi_mpu_methods[] = {
     	KOBJMETHOD(mpufoi_read,		cmi_mread),
     	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
     	KOBJMETHOD(mpufoi_uninit,	cmi_muninit),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static DEFINE_CLASS(cmi_mpu, cmi_mpu_methods, 0);

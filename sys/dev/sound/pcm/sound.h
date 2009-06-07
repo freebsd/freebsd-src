@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
+ * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
+ * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * Copyright (c) 1995 Hannu Savolainen
  * All rights reserved.
  *
@@ -65,25 +66,23 @@
 #include <sys/soundcard.h>
 #include <sys/sysctl.h>
 #include <sys/kobj.h>
+#ifdef SND_DEBUG
+#undef KOBJMETHOD
+#define KOBJMETHOD(NAME, FUNC)						\
+	{								\
+		&NAME##_desc,						\
+		(kobjop_t) ((FUNC != (NAME##_t *)NULL) ? FUNC : NULL)	\
+	}
+#endif
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#undef	USING_MUTEX
-#undef	USING_DEVFS
-
-#if __FreeBSD_version > 500000
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
-
-#define USING_MUTEX
-#define USING_DEVFS
-#else
-#define	INTR_TYPE_AV	INTR_TYPE_TTY
-#define	INTR_MPSAFE	0
-#endif
-
-#define SND_DYNSYSCTL
 
 struct pcm_channel;
 struct pcm_feeder;
@@ -91,6 +90,8 @@ struct snd_dbuf;
 struct snd_mixer;
 
 #include <dev/sound/pcm/buffer.h>
+#include <dev/sound/pcm/matrix.h>
+#include <dev/sound/pcm/matrix_map.h>
 #include <dev/sound/pcm/channel.h>
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
@@ -98,11 +99,11 @@ struct snd_mixer;
 #include <dev/sound/clone.h>
 #include <dev/sound/unit.h>
 
-#define	PCM_SOFTC_SIZE	512
+#define	PCM_SOFTC_SIZE	(sizeof(struct snddev_info))
 
 #define SND_STATUSLEN	64
 
-#define SOUND_MODVER	2
+#define SOUND_MODVER	5
 
 #define SOUND_MINVER	SOUND_MODVER
 #define SOUND_PREFVER	SOUND_MODVER
@@ -125,6 +126,13 @@ struct snd_mixer;
 #define PCMDEV(x)		(snd_unit2d(dev2unit(x)))
 #define PCMCHAN(x)		(snd_unit2c(dev2unit(x)))
 
+/* XXX unit2minor compat */
+#if __FreeBSD_version >= 800062
+#define PCMMINOR(x)	(x)
+#else
+#define PCMMINOR(x)	unit2minor(x)
+#endif
+
 /*
  * By design, limit possible channels for each direction.
  */
@@ -134,19 +142,53 @@ struct snd_mixer;
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_AUTOVCHAN		0x00000002
 #define SD_F_SOFTPCMVOL		0x00000004
+/*
+ * Obsolete due to better matrixing
+ */
+#if 0
 #define SD_F_PSWAPLR		0x00000008
 #define SD_F_RSWAPLR		0x00000010
-#define SD_F_DYING		0x00000020
-#define SD_F_SUICIDE		0x00000040
-#define SD_F_BUSY		0x00000080
-#define SD_F_MPSAFE		0x00000100
-#define SD_F_REGISTERED		0x00000200
+#endif
+#define SD_F_DYING		0x00000008
+#define SD_F_SUICIDE		0x00000010
+#define SD_F_BUSY		0x00000020
+#define SD_F_MPSAFE		0x00000040
+#define SD_F_REGISTERED		0x00000080
+#define SD_F_BITPERFECT		0x00000100
+#define SD_F_VPC		0x00000200	/* volume-per-channel */
+#define SD_F_EQ			0x00000400	/* EQ */
+#define SD_F_EQ_ENABLED		0x00000800	/* EQ enabled */
+#define SD_F_EQ_BYPASSED	0x00001000	/* EQ bypassed */
+#define SD_F_EQ_PC		0x00002000	/* EQ per-channel */
+
+#define SD_F_EQ_DEFAULT		(SD_F_EQ | SD_F_EQ_ENABLED)
+#define SD_F_EQ_MASK		(SD_F_EQ | SD_F_EQ_ENABLED |		\
+				 SD_F_EQ_BYPASSED | SD_F_EQ_PC)
 
 #define SD_F_PRIO_RD		0x10000000
 #define SD_F_PRIO_WR		0x20000000
 #define SD_F_PRIO_SET		(SD_F_PRIO_RD | SD_F_PRIO_WR)
 #define SD_F_DIR_SET		0x40000000
 #define SD_F_TRANSIENT		0xf0000000
+
+#define SD_F_BITS		"\020"					\
+				"\001SIMPLEX"				\
+				"\002AUTOVCHAN"				\
+				"\003SOFTPCMVOL"			\
+				"\004DYING"				\
+				"\005SUICIDE"				\
+				"\006BUSY"				\
+				"\007MPSAFE"				\
+				"\010REGISTERED"			\
+				"\011BITPERFECT"			\
+				"\012VPC"				\
+				"\013EQ"				\
+				"\014EQ_ENABLED"			\
+				"\015EQ_BYPASSED"			\
+				"\016EQ_PC"				\
+				"\035PRIO_RD"				\
+				"\036PRIO_WR"				\
+				"\037DIR_SET"
 
 #define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL &&	\
 				 !((x)->flags & SD_F_DYING))
@@ -158,293 +200,97 @@ struct snd_mixer;
 	(((var)<(low))? (low) : ((var)>(high))? (high) : (var))
 #define DSP_BUFFSIZE (8192)
 
-/*
- * Macros for reading/writing PCM sample / int values from bytes array.
- * Since every process is done using signed integer (and to make our life
- * less miserable), unsigned sample will be converted to its signed
- * counterpart and restored during writing back. To avoid overflow,
- * we truncate 32bit (and only 32bit) samples down to 24bit (see below
- * for the reason), unless PCM_USE_64BIT_ARITH is defined.
- */
-
-/*
- * Automatically turn on 64bit arithmetic on suitable archs
- * (amd64 64bit, ia64, etc..) for wider 32bit samples / integer processing.
- */
-#if LONG_BIT >= 64
-#undef PCM_USE_64BIT_ARITH
-#define PCM_USE_64BIT_ARITH	1
-#else
-#if 0
-#undef PCM_USE_64BIT_ARITH
-#define PCM_USE_64BIT_ARITH	1
-#endif
-#endif
-
-#ifdef PCM_USE_64BIT_ARITH
-typedef int64_t intpcm_t;
-#else
-typedef int32_t intpcm_t;
-#endif
-
-/* 32bit fixed point shift */
-#define	PCM_FXSHIFT	8
-
-#define PCM_S8_MAX	  0x7f
-#define PCM_S8_MIN	 -0x80
-#define PCM_S16_MAX	  0x7fff
-#define PCM_S16_MIN	 -0x8000
-#define PCM_S24_MAX	  0x7fffff
-#define PCM_S24_MIN	 -0x800000
-#ifdef PCM_USE_64BIT_ARITH
-#if LONG_BIT >= 64
-#define PCM_S32_MAX	  0x7fffffffL
-#define PCM_S32_MIN	 -0x80000000L
-#else
-#define PCM_S32_MAX	  0x7fffffffLL
-#define PCM_S32_MIN	 -0x80000000LL
-#endif
-#else
-#define PCM_S32_MAX	  0x7fffffff
-#define PCM_S32_MIN	(-0x7fffffff - 1)
-#endif
-
-/* Bytes-per-sample definition */
-#define PCM_8_BPS	1
-#define PCM_16_BPS	2
-#define PCM_24_BPS	3
-#define PCM_32_BPS	4
-
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define PCM_READ_S16_LE(b8)		*((int16_t *)(b8))
-#define _PCM_READ_S32_LE(b8)		*((int32_t *)(b8))
-#define PCM_READ_S16_BE(b8) \
-		((int32_t)((b8)[1] | ((int8_t)((b8)[0])) << 8))
-#define _PCM_READ_S32_BE(b8) \
-		((int32_t)((b8)[3] | (b8)[2] << 8 | (b8)[1] << 16 | \
-			((int8_t)((b8)[0])) << 24))
-
-#define PCM_WRITE_S16_LE(b8, val)	*((int16_t *)(b8)) = (val)
-#define _PCM_WRITE_S32_LE(b8, val)	*((int32_t *)(b8)) = (val)
-#define PCM_WRITE_S16_BE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[1] = val; \
-			b8[0] = val >> 8; \
-		} while(0)
-#define _PCM_WRITE_S32_BE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[3] = val; \
-			b8[2] = val >> 8; \
-			b8[1] = val >> 16; \
-			b8[0] = val >> 24; \
-		} while(0)
-
-#define PCM_READ_U16_LE(b8)		((int16_t)(*((uint16_t *)(b8)) ^ 0x8000))
-#define _PCM_READ_U32_LE(b8)		((int32_t)(*((uint32_t *)(b8)) ^ 0x80000000))
-#define PCM_READ_U16_BE(b8) \
-		((int32_t)((b8)[1] | ((int8_t)((b8)[0] ^ 0x80)) << 8))
-#define _PCM_READ_U32_BE(b8) \
-		((int32_t)((b8)[3] | (b8)[2] << 8 | (b8)[1] << 16 | \
-			((int8_t)((b8)[0] ^ 0x80)) << 24))
-
-#define PCM_WRITE_U16_LE(b8, val)	*((uint16_t *)(b8)) = (val) ^ 0x8000
-#define _PCM_WRITE_U32_LE(b8, val)	*((uint32_t *)(b8)) = (val) ^ 0x80000000
-#define PCM_WRITE_U16_BE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[1] = val; \
-			b8[0] = (val >> 8) ^ 0x80; \
-		} while(0)
-#define _PCM_WRITE_U32_BE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[3] = val; \
-			b8[2] = val >> 8; \
-			b8[1] = val >> 16; \
-			b8[0] = (val >> 24) ^ 0x80; \
-		} while(0)
-#else /* !LITTLE_ENDIAN */
-#define PCM_READ_S16_LE(b8) \
-		((int32_t)((b8)[0] | ((int8_t)((b8)[1])) << 8))
-#define _PCM_READ_S32_LE(b8) \
-		((int32_t)((b8)[0] | (b8)[1] << 8 | (b8)[2] << 16 | \
-			((int8_t)((b8)[3])) << 24))
-#define PCM_READ_S16_BE(b8)		*((int16_t *)(b8))
-#define _PCM_READ_S32_BE(b8)		*((int32_t *)(b8))
-
-#define PCM_WRITE_S16_LE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[0] = val; \
-			b8[1] = val >> 8; \
-		} while(0)
-#define _PCM_WRITE_S32_LE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[0] = val; \
-			b8[1] = val >> 8; \
-			b8[2] = val >> 16; \
-			b8[3] = val >> 24; \
-		} while(0)
-#define PCM_WRITE_S16_BE(b8, val)	*((int16_t *)(b8)) = (val)
-#define _PCM_WRITE_S32_BE(b8, val)	*((int32_t *)(b8)) = (val)
-
-#define PCM_READ_U16_LE(b8) \
-		((int32_t)((b8)[0] | ((int8_t)((b8)[1] ^ 0x80)) << 8))
-#define _PCM_READ_U32_LE(b8) \
-		((int32_t)((b8)[0] | (b8)[1] << 8 | (b8)[2] << 16 | \
-			((int8_t)((b8)[3] ^ 0x80)) << 24))
-#define PCM_READ_U16_BE(b8) ((int16_t)(*((uint16_t *)(b8)) ^ 0x8000))
-#define _PCM_READ_U32_BE(b8) ((int32_t)(*((uint32_t *)(b8)) ^ 0x80000000))
-
-#define PCM_WRITE_U16_LE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[0] = val; \
-			b8[1] = (val >> 8) ^ 0x80; \
-		} while(0)
-#define _PCM_WRITE_U32_LE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[0] = val; \
-			b8[1] = val >> 8; \
-			b8[2] = val >> 16; \
-			b8[3] = (val >> 24) ^ 0x80; \
-		} while(0)
-#define PCM_WRITE_U16_BE(b8, val)	*((uint16_t *)(b8)) = (val) ^ 0x8000
-#define _PCM_WRITE_U32_BE(b8, val)	*((uint32_t *)(b8)) = (val) ^ 0x80000000
-#endif
-
-#define PCM_READ_S24_LE(b8) \
-		((int32_t)((b8)[0] | (b8)[1] << 8 | ((int8_t)((b8)[2])) << 16))
-#define PCM_READ_S24_BE(b8) \
-		((int32_t)((b8)[2] | (b8)[1] << 8 | ((int8_t)((b8)[0])) << 16))
-
-#define PCM_WRITE_S24_LE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[0] = val; \
-			b8[1] = val >> 8; \
-			b8[2] = val >> 16; \
-		} while(0)
-#define PCM_WRITE_S24_BE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[2] = val; \
-			b8[1] = val >> 8; \
-			b8[0] = val >> 16; \
-		} while(0)
-
-#define PCM_READ_U24_LE(b8) \
-		((int32_t)((b8)[0] | (b8)[1] << 8 | \
-			((int8_t)((b8)[2] ^ 0x80)) << 16))
-#define PCM_READ_U24_BE(b8) \
-		((int32_t)((b8)[2] | (b8)[1] << 8 | \
-			((int8_t)((b8)[0] ^ 0x80)) << 16))
-
-#define PCM_WRITE_U24_LE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[0] = val; \
-			b8[1] = val >> 8; \
-			b8[2] = (val >> 16) ^ 0x80; \
-		} while(0)
-#define PCM_WRITE_U24_BE(bb8, vval) do { \
-			int32_t val = (vval); \
-			uint8_t *b8 = (bb8); \
-			b8[2] = val; \
-			b8[1] = val >> 8; \
-			b8[0] = (val >> 16) ^ 0x80; \
-		} while(0)
-
-#ifdef PCM_USE_64BIT_ARITH
-#define PCM_READ_S32_LE(b8)		_PCM_READ_S32_LE(b8)
-#define PCM_READ_S32_BE(b8)		_PCM_READ_S32_BE(b8)
-#define PCM_WRITE_S32_LE(b8, val)	_PCM_WRITE_S32_LE(b8, val)
-#define PCM_WRITE_S32_BE(b8, val)	_PCM_WRITE_S32_BE(b8, val)
-
-#define PCM_READ_U32_LE(b8)		_PCM_READ_U32_LE(b8)
-#define PCM_READ_U32_BE(b8)		_PCM_READ_U32_BE(b8)
-#define PCM_WRITE_U32_LE(b8, val)	_PCM_WRITE_U32_LE(b8, val)
-#define PCM_WRITE_U32_BE(b8, val)	_PCM_WRITE_U32_BE(b8, val)
-#else /* !PCM_USE_64BIT_ARITH */
-/*
- * 24bit integer ?!? This is quite unfortunate, eh? Get the fact straight:
- * Dynamic range for:
- *	1) Human =~ 140db
- *	2) 16bit = 96db (close enough)
- *	3) 24bit = 144db (perfect)
- *	4) 32bit = 196db (way too much)
- *	5) Bugs Bunny = Gazillion!@%$Erbzzztt-EINVAL db
- * Since we're not Bugs Bunny ..uh..err.. avoiding 64bit arithmetic, 24bit
- * is pretty much sufficient for our signed integer processing.
- */
-#define PCM_READ_S32_LE(b8)		(_PCM_READ_S32_LE(b8) >> PCM_FXSHIFT)
-#define PCM_READ_S32_BE(b8)		(_PCM_READ_S32_BE(b8) >> PCM_FXSHIFT)
-#define PCM_WRITE_S32_LE(b8, val)	_PCM_WRITE_S32_LE(b8, (val) << PCM_FXSHIFT)
-#define PCM_WRITE_S32_BE(b8, val)	_PCM_WRITE_S32_BE(b8, (val) << PCM_FXSHIFT)
-
-#define PCM_READ_U32_LE(b8)		(_PCM_READ_U32_LE(b8) >> PCM_FXSHIFT)
-#define PCM_READ_U32_BE(b8)		(_PCM_READ_U32_BE(b8) >> PCM_FXSHIFT)
-#define PCM_WRITE_U32_LE(b8, val)	_PCM_WRITE_U32_LE(b8, (val) << PCM_FXSHIFT)
-#define PCM_WRITE_U32_BE(b8, val)	_PCM_WRITE_U32_BE(b8, (val) << PCM_FXSHIFT)
-#endif
-
-/*
- * 8bit sample is pretty much useless since it doesn't provide
- * sufficient dynamic range throughout our filtering process.
- * For the sake of completeness, declare it anyway.
- */
-#define PCM_READ_S8(b8)			*((int8_t *)(b8))
-#define PCM_READ_S8_NE(b8)		PCM_READ_S8(b8)
-#define PCM_READ_U8(b8)			((int8_t)(*((uint8_t *)(b8)) ^ 0x80))
-#define PCM_READ_U8_NE(b8)		PCM_READ_U8(b8)
-
-#define PCM_WRITE_S8(b8, val)		*((int8_t *)(b8)) = (val)
-#define PCM_WRITE_S8_NE(b8, val)	PCM_WRITE_S8(b8, val)
-#define PCM_WRITE_U8(b8, val)		*((uint8_t *)(b8)) = (val) ^ 0x80
-#define PCM_WRITE_U8_NE(b8, val)	PCM_WRITE_U8(b8, val)
-
-#define PCM_CLAMP_S8(val) \
-		(((val) > PCM_S8_MAX) ? PCM_S8_MAX : \
-			(((val) < PCM_S8_MIN) ? PCM_S8_MIN : (val)))
-#define PCM_CLAMP_S16(val) \
-		(((val) > PCM_S16_MAX) ? PCM_S16_MAX : \
-			(((val) < PCM_S16_MIN) ? PCM_S16_MIN : (val)))
-#define PCM_CLAMP_S24(val) \
-		(((val) > PCM_S24_MAX) ? PCM_S24_MAX : \
-			(((val) < PCM_S24_MIN) ? PCM_S24_MIN : (val)))
-
-#ifdef PCM_USE_64BIT_ARITH
-#define PCM_CLAMP_S32(val) \
-		(((val) > PCM_S32_MAX) ? PCM_S32_MAX : \
-			(((val) < PCM_S32_MIN) ? PCM_S32_MIN : (val)))
-#else
-#define PCM_CLAMP_S32(val) \
-		(((val) > PCM_S24_MAX) ? PCM_S32_MAX : \
-			(((val) < PCM_S24_MIN) ? PCM_S32_MIN : \
-			((val) << PCM_FXSHIFT)))
-#endif
-
-#define PCM_CLAMP_U8(val)	PCM_CLAMP_S8(val)
-#define PCM_CLAMP_U16(val)	PCM_CLAMP_S16(val)
-#define PCM_CLAMP_U24(val)	PCM_CLAMP_S24(val)
-#define PCM_CLAMP_U32(val)	PCM_CLAMP_S32(val)
-
 /* make figuring out what a format is easier. got AFMT_STEREO already */
 #define AFMT_32BIT (AFMT_S32_LE | AFMT_S32_BE | AFMT_U32_LE | AFMT_U32_BE)
 #define AFMT_24BIT (AFMT_S24_LE | AFMT_S24_BE | AFMT_U24_LE | AFMT_U24_BE)
 #define AFMT_16BIT (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)
-#define AFMT_8BIT (AFMT_MU_LAW | AFMT_A_LAW | AFMT_U8 | AFMT_S8)
+#define AFMT_G711  (AFMT_MU_LAW | AFMT_A_LAW)
+#define AFMT_8BIT (AFMT_G711 | AFMT_U8 | AFMT_S8)
 #define AFMT_SIGNED (AFMT_S32_LE | AFMT_S32_BE | AFMT_S24_LE | AFMT_S24_BE | \
 			AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
 #define AFMT_BIGENDIAN (AFMT_S32_BE | AFMT_U32_BE | AFMT_S24_BE | AFMT_U24_BE | \
 			AFMT_S16_BE | AFMT_U16_BE)
 
-struct pcm_channel *fkchan_setup(device_t dev);
-int fkchan_kill(struct pcm_channel *c);
+#define AFMT_CONVERTIBLE	(AFMT_8BIT | AFMT_16BIT | AFMT_24BIT |	\
+				 AFMT_32BIT)
+
+/* Supported vchan mixing formats */
+#define AFMT_VCHAN		(AFMT_CONVERTIBLE & ~AFMT_G711)
+
+#define AFMT_PASSTHROUGH		AFMT_AC3
+#define AFMT_PASSTHROUGH_RATE		48000
+#define AFMT_PASSTHROUGH_CHANNEL	2
+#define AFMT_PASSTHROUGH_EXTCHANNEL	0
+
+/*
+ * We're simply using unused, contiguous bits from various AFMT_ definitions.
+ * ~(0xb00ff7ff)
+ */
+#define AFMT_ENCODING_MASK	0xf00fffff
+#define AFMT_CHANNEL_MASK	0x01f00000
+#define AFMT_CHANNEL_SHIFT	20
+#define AFMT_EXTCHANNEL_MASK	0x0e000000
+#define AFMT_EXTCHANNEL_SHIFT	25
+
+#define AFMT_ENCODING(v)	((v) & AFMT_ENCODING_MASK)
+
+#define AFMT_EXTCHANNEL(v)	(((v) & AFMT_EXTCHANNEL_MASK) >>	\
+				AFMT_EXTCHANNEL_SHIFT)
+
+#define AFMT_CHANNEL(v)		(((v) & AFMT_CHANNEL_MASK) >>		\
+				AFMT_CHANNEL_SHIFT)
+
+#define AFMT_BIT(v)		(((v) & AFMT_32BIT) ? 32 :		\
+				(((v) & AFMT_24BIT) ? 24 :		\
+				((((v) & AFMT_16BIT) ||			\
+				((v) & AFMT_PASSTHROUGH)) ? 16 : 8)))
+
+#define AFMT_BPS(v)		(AFMT_BIT(v) >> 3)
+#define AFMT_ALIGN(v)		(AFMT_BPS(v) * AFMT_CHANNEL(v))
+
+#define SND_FORMAT(f, c, e)	(AFMT_ENCODING(f) |		\
+				(((c) << AFMT_CHANNEL_SHIFT) &		\
+				AFMT_CHANNEL_MASK) |			\
+				(((e) << AFMT_EXTCHANNEL_SHIFT) &	\
+				AFMT_EXTCHANNEL_MASK))
+
+#define AFMT_U8_NE	AFMT_U8
+#define AFMT_S8_NE	AFMT_S8
+
+#undef AFMT_S16_NE
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define AFMT_S16_NE	AFMT_S16_LE
+#define AFMT_S24_NE	AFMT_S24_LE
+#define AFMT_S32_NE	AFMT_S32_LE
+#define AFMT_U16_NE	AFMT_U16_LE
+#define AFMT_U24_NE	AFMT_U24_LE
+#define AFMT_U32_NE	AFMT_U32_LE
+#define AFMT_S16_OE	AFMT_S16_BE
+#define AFMT_S24_OE	AFMT_S24_BE
+#define AFMT_S32_OE	AFMT_S32_BE
+#define AFMT_U16_OE	AFMT_U16_BE
+#define AFMT_U24_OE	AFMT_U24_BE
+#define AFMT_U32_OE	AFMT_U32_BE
+#else
+#define AFMT_S16_OE	AFMT_S16_LE
+#define AFMT_S24_OE	AFMT_S24_LE
+#define AFMT_S32_OE	AFMT_S32_LE
+#define AFMT_U16_OE	AFMT_U16_LE
+#define AFMT_U24_OE	AFMT_U24_LE
+#define AFMT_U32_OE	AFMT_U32_LE
+#define AFMT_S16_NE	AFMT_S16_BE
+#define AFMT_S24_NE	AFMT_S24_BE
+#define AFMT_S32_NE	AFMT_S32_BE
+#define AFMT_U16_NE	AFMT_U16_BE
+#define AFMT_U24_NE	AFMT_U24_BE
+#define AFMT_U32_NE	AFMT_U32_BE
+#endif
+
+#define AFMT_SIGNED_NE	(AFMT_S8_NE | AFMT_S16_NE | AFMT_S24_NE | AFMT_S32_NE)
+
+#define AFMT_NE		(AFMT_SIGNED_NE | AFMT_U8_NE | AFMT_U16_NE |	\
+			 AFMT_U24_NE | AFMT_U32_NE)
 
 /*
  * Minor numbers for the sound driver.
@@ -475,9 +321,18 @@ int fkchan_kill(struct pcm_channel *c);
 
 #define SND_DEV_DSPHW_CD	15	/* s16le/stereo 44100Hz CD */
 
-#define SND_DEV_DSP_MMAP	16	/* OSSv4 compatible /dev/dsp_mmap */
+/* 
+ * OSSv4 compatible device. For now, it serve no purpose and
+ * the cloning itself will forward the request to ordinary /dev/dsp
+ * instead.
+ */
+#define SND_DEV_DSP_MMAP	16	/* /dev/dsp_mmap     */
+#define SND_DEV_DSP_AC3		17	/* /dev/dsp_ac3      */
+#define SND_DEV_DSP_MULTICH	18	/* /dev/dsp_multich  */
+#define SND_DEV_DSP_SPDIFOUT	19	/* /dev/dsp_spdifout */
+#define SND_DEV_DSP_SPDIFIN	20	/* /dev/dsp_spdifin  */
 
-#define SND_DEV_LAST		SND_DEV_DSP_MMAP
+#define SND_DEV_LAST		SND_DEV_DSP_SPDIFIN
 #define SND_DEV_MAX		PCMMAXDEV
 
 #define DSP_DEFAULT_SPEED	8000
@@ -505,8 +360,9 @@ extern struct unrhdr *pcmsg_unrhdr;
 
 SYSCTL_DECL(_hw_snd);
 
-struct pcm_channel *pcm_getfakechan(struct snddev_info *d);
-int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction, pid_t pid, int devunit);
+int pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num);
+int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
+    pid_t pid, char *comm, int devunit);
 int pcm_chnrelease(struct pcm_channel *c);
 int pcm_chnref(struct pcm_channel *c, int ref);
 int pcm_inprog(struct snddev_info *d, int delta);
@@ -535,8 +391,6 @@ void snd_mtxassert(void *m);
 #define	snd_mtxlock(m) mtx_lock(m)
 #define	snd_mtxunlock(m) mtx_unlock(m)
 
-int sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS);
-
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
 int sndstat_acquire(struct thread *td);
 int sndstat_release(struct thread *td);
@@ -564,8 +418,6 @@ int sndstat_unregisterfile(char *str);
 #define	DV_F_DEV_MASK	0x0000ff00	/* force device type/class */
 #define	DV_F_DEV_SHIFT	8		/* force device type/class */
 
-#define	PCM_DEBUG_MTX
-
 /*
  * this is rather kludgey- we need to duplicate these struct def'ns from sound.c
  * so that the macro versions of pcm_{,un}lock can dereference them.
@@ -579,11 +431,13 @@ struct snddev_info {
 			struct {
 				SLIST_HEAD(, pcm_channel) head;
 			} busy;
+			struct {
+				SLIST_HEAD(, pcm_channel) head;
+			} opened;
 		} pcm;
 	} channels;
 	TAILQ_HEAD(dsp_cdevinfo_linkhead, dsp_cdevinfo) dsp_cdevinfo_pool;
 	struct snd_clone *clones;
-	struct pcm_channel *fakechan;
 	unsigned devcount, playcount, reccount, pvchancount, rvchancount ;
 	unsigned flags;
 	int inprog;
@@ -595,6 +449,7 @@ struct snddev_info {
 	struct cdev *mixer_dev;
 	uint32_t pvchanrate, pvchanformat;
 	uint32_t rvchanrate, rvchanformat;
+	int32_t eqpreamp;
 	struct sysctl_ctx_list play_sysctl_ctx, rec_sysctl_ctx;
 	struct sysctl_oid *play_sysctl_tree, *rec_sysctl_tree;
 	struct cv cv;
@@ -603,21 +458,20 @@ struct snddev_info {
 void	sound_oss_sysinfo(oss_sysinfo *);
 int	sound_oss_card_info(oss_card_info *);
 
-#ifdef	PCM_DEBUG_MTX
-#define	pcm_lock(d) mtx_lock(((struct snddev_info *)(d))->lock)
-#define	pcm_unlock(d) mtx_unlock(((struct snddev_info *)(d))->lock)
-#else
-void pcm_lock(struct snddev_info *d);
-void pcm_unlock(struct snddev_info *d);
-#endif
+#define PCM_LOCKOWNED(d)	mtx_owned((d)->lock)
+#define	PCM_LOCK(d)		mtx_lock((d)->lock)
+#define	PCM_UNLOCK(d)		mtx_unlock((d)->lock)
+#define PCM_TRYLOCK(d)		mtx_trylock((d)->lock)
+#define PCM_LOCKASSERT(d)	mtx_assert((d)->lock, MA_OWNED)
+#define PCM_UNLOCKASSERT(d)	mtx_assert((d)->lock, MA_NOTOWNED)
 
 /*
- * For PCM_CV_[WAIT | ACQUIRE | RELEASE], be sure to surround these
- * with pcm_lock/unlock() sequence, or I'll come to gnaw upon you!
+ * For PCM_[WAIT | ACQUIRE | RELEASE], be sure to surround these
+ * with PCM_LOCK/UNLOCK() sequence, or I'll come to gnaw upon you!
  */
 #ifdef SND_DIAGNOSTIC
 #define PCM_WAIT(x)		do {					\
-	if (mtx_owned((x)->lock) == 0)					\
+	if (!PCM_LOCKOWNED(x))						\
 		panic("%s(%d): [PCM WAIT] Mutex not owned!",		\
 		    __func__, __LINE__);				\
 	while ((x)->flags & SD_F_BUSY) {				\
@@ -627,20 +481,20 @@ void pcm_unlock(struct snddev_info *d);
 			    __func__, __LINE__);			\
 		cv_wait(&(x)->cv, (x)->lock);				\
 	}								\
-} while(0)
+} while (0)
 
 #define PCM_ACQUIRE(x)		do {					\
-	if (mtx_owned((x)->lock) == 0)					\
+	if (!PCM_LOCKOWNED(x))						\
 		panic("%s(%d): [PCM ACQUIRE] Mutex not owned!",		\
 		    __func__, __LINE__);				\
 	if ((x)->flags & SD_F_BUSY)					\
 		panic("%s(%d): [PCM ACQUIRE] "				\
 		    "Trying to acquire BUSY cv!", __func__, __LINE__);	\
 	(x)->flags |= SD_F_BUSY;					\
-} while(0)
+} while (0)
 
 #define PCM_RELEASE(x)		do {					\
-	if (mtx_owned((x)->lock) == 0)					\
+	if (!PCM_LOCKOWNED(x))						\
 		panic("%s(%d): [PCM RELEASE] Mutex not owned!",		\
 		    __func__, __LINE__);				\
 	if ((x)->flags & SD_F_BUSY) {					\
@@ -657,37 +511,37 @@ void pcm_unlock(struct snddev_info *d);
 	} else								\
 		panic("%s(%d): [PCM RELEASE] Releasing non-BUSY cv!",	\
 		    __func__, __LINE__);				\
-} while(0)
+} while (0)
 
 /* Quick version, for shorter path. */
 #define PCM_ACQUIRE_QUICK(x)	do {					\
-	if (mtx_owned((x)->lock) != 0)					\
+	if (PCM_LOCKOWNED(x))						\
 		panic("%s(%d): [PCM ACQUIRE QUICK] Mutex owned!",	\
 		    __func__, __LINE__);				\
-	pcm_lock(x);							\
+	PCM_LOCK(x);							\
 	PCM_WAIT(x);							\
 	PCM_ACQUIRE(x);							\
-	pcm_unlock(x);							\
-} while(0)
+	PCM_UNLOCK(x);							\
+} while (0)
 
 #define PCM_RELEASE_QUICK(x)	do {					\
-	if (mtx_owned((x)->lock) != 0)					\
+	if (PCM_LOCKOWNED(x))						\
 		panic("%s(%d): [PCM RELEASE QUICK] Mutex owned!",	\
 		    __func__, __LINE__);				\
-	pcm_lock(x);							\
+	PCM_LOCK(x);							\
 	PCM_RELEASE(x);							\
-	pcm_unlock(x);							\
-} while(0)
+	PCM_UNLOCK(x);							\
+} while (0)
 
 #define PCM_BUSYASSERT(x)	do {					\
 	if (!((x) != NULL && ((x)->flags & SD_F_BUSY)))			\
 		panic("%s(%d): [PCM BUSYASSERT] "			\
 		    "Failed, snddev_info=%p", __func__, __LINE__, x);	\
-} while(0)
+} while (0)
 
 #define PCM_GIANT_ENTER(x)	do {					\
 	int _pcm_giant = 0;						\
-	if (mtx_owned((x)->lock) != 0)					\
+	if (PCM_LOCKOWNED(x))						\
 		panic("%s(%d): [GIANT ENTER] PCM lock owned!",		\
 		    __func__, __LINE__);				\
 	if (mtx_owned(&Giant) != 0 && snd_verbose > 3)			\
@@ -698,10 +552,10 @@ void pcm_unlock(struct snddev_info *d);
 		do {							\
 			mtx_lock(&Giant);				\
 			_pcm_giant = 1;					\
-		} while(0)
+		} while (0)
 
 #define PCM_GIANT_EXIT(x)	do {					\
-	if (mtx_owned((x)->lock) != 0)					\
+	if (PCM_LOCKOWNED(x))						\
 		panic("%s(%d): [GIANT EXIT] PCM lock owned!",		\
 		    __func__, __LINE__);				\
 	if (!(_pcm_giant == 0 || _pcm_giant == 1))			\
@@ -723,47 +577,47 @@ void pcm_unlock(struct snddev_info *d);
 		_pcm_giant = 0;						\
 		mtx_unlock(&Giant);					\
 	}								\
-} while(0)
+} while (0)
 #else /* SND_DIAGNOSTIC */
 #define PCM_WAIT(x)		do {					\
-	mtx_assert((x)->lock, MA_OWNED);				\
+	PCM_LOCKASSERT(x);						\
 	while ((x)->flags & SD_F_BUSY)					\
 		cv_wait(&(x)->cv, (x)->lock);				\
-} while(0)
+} while (0)
 
 #define PCM_ACQUIRE(x)		do {					\
-	mtx_assert((x)->lock, MA_OWNED);				\
+	PCM_LOCKASSERT(x);						\
 	KASSERT(!((x)->flags & SD_F_BUSY),				\
 	    ("%s(%d): [PCM ACQUIRE] Trying to acquire BUSY cv!",	\
 	    __func__, __LINE__));					\
 	(x)->flags |= SD_F_BUSY;					\
-} while(0)
+} while (0)
 
 #define PCM_RELEASE(x)		do {					\
-	mtx_assert((x)->lock, MA_OWNED);				\
+	PCM_LOCKASSERT(x);						\
 	KASSERT((x)->flags & SD_F_BUSY,					\
 	    ("%s(%d): [PCM RELEASE] Releasing non-BUSY cv!",		\
 	    __func__, __LINE__));					\
 	(x)->flags &= ~SD_F_BUSY;					\
 	if ((x)->cv.cv_waiters != 0)					\
 		cv_broadcast(&(x)->cv);					\
-} while(0)
+} while (0)
 
 /* Quick version, for shorter path. */
 #define PCM_ACQUIRE_QUICK(x)	do {					\
-	mtx_assert((x)->lock, MA_NOTOWNED);				\
-	pcm_lock(x);							\
+	PCM_UNLOCKASSERT(x);						\
+	PCM_LOCK(x);							\
 	PCM_WAIT(x);							\
 	PCM_ACQUIRE(x);							\
-	pcm_unlock(x);							\
-} while(0)
+	PCM_UNLOCK(x);							\
+} while (0)
 
 #define PCM_RELEASE_QUICK(x)	do {					\
-	mtx_assert((x)->lock, MA_NOTOWNED);				\
-	pcm_lock(x);							\
+	PCM_UNLOCKASSERT(x);						\
+	PCM_LOCK(x);							\
 	PCM_RELEASE(x);							\
-	pcm_unlock(x);							\
-} while(0)
+	PCM_UNLOCK(x);							\
+} while (0)
 
 #define PCM_BUSYASSERT(x)	KASSERT(x != NULL &&			\
 				    ((x)->flags & SD_F_BUSY),		\
@@ -773,15 +627,15 @@ void pcm_unlock(struct snddev_info *d);
 
 #define PCM_GIANT_ENTER(x)	do {					\
 	int _pcm_giant = 0;						\
-	mtx_assert((x)->lock, MA_NOTOWNED);				\
+	PCM_UNLOCKASSERT(x);						\
 	if (!((x)->flags & SD_F_MPSAFE) && mtx_owned(&Giant) == 0)	\
 		do {							\
 			mtx_lock(&Giant);				\
 			_pcm_giant = 1;					\
-		} while(0)
+		} while (0)
 
 #define PCM_GIANT_EXIT(x)	do {					\
-	mtx_assert((x)->lock, MA_NOTOWNED);				\
+	PCM_UNLOCKASSERT(x);						\
 	KASSERT(_pcm_giant == 0 || _pcm_giant == 1,			\
 	    ("%s(%d): [GIANT EXIT] _pcm_giant screwed!",		\
 	    __func__, __LINE__));					\
@@ -794,12 +648,12 @@ void pcm_unlock(struct snddev_info *d);
 		_pcm_giant = 0;						\
 		mtx_unlock(&Giant);					\
 	}								\
-} while(0)
+} while (0)
 #endif /* !SND_DIAGNOSTIC */
 
 #define PCM_GIANT_LEAVE(x)						\
 	PCM_GIANT_EXIT(x);						\
-} while(0)
+} while (0)
 
 #ifdef KLD_MODULE
 #define PCM_KLDSTRING(a) ("kld " # a)
