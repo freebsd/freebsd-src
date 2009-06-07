@@ -129,25 +129,33 @@ command(KINFO *k, VARENT *ve)
 	v = ve->var;
 	if (cflag) {
 		/* If it is the last field, then don't pad */
-		if (STAILQ_NEXT(ve, next_ve) == NULL)
+		if (STAILQ_NEXT(ve, next_ve) == NULL) {
+			if (k->ki_d.prefix)
+				(void)printf("%s", k->ki_d.prefix);
 			(void)printf("%s", k->ki_p->ki_comm);
-		else
+		} else
 			(void)printf("%-*s", v->width, k->ki_p->ki_comm);
 		return;
 	}
 	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
 		errx(1, "malloc failed");
 	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
-	if (k->ki_env) {
-		if ((vis_env = malloc(strlen(k->ki_env) * 4 + 1)) == NULL)
-			errx(1, "malloc failed");
-		strvis(vis_env, k->ki_env, VIS_TAB | VIS_NL | VIS_NOSLASH);
-	} else
-		vis_env = NULL;
 
 	if (STAILQ_NEXT(ve, next_ve) == NULL) {
 		/* last field */
+
+		if (k->ki_env) {
+			if ((vis_env = malloc(strlen(k->ki_env) * 4 + 1))
+			    == NULL)
+				errx(1, "malloc failed");
+			strvis(vis_env, k->ki_env,
+			    VIS_TAB | VIS_NL | VIS_NOSLASH);
+		} else
+			vis_env = NULL;
+
 		if (termwidth == UNLIMITED) {
+			if (k->ki_d.prefix)
+				(void)printf("%s", k->ki_d.prefix);
 			if (vis_env)
 				(void)printf("%s ", vis_env);
 			(void)printf("%s", vis_args);
@@ -155,6 +163,9 @@ command(KINFO *k, VARENT *ve)
 			left = termwidth - (totwidth - v->width);
 			if (left < 1) /* already wrapped, just use std width */
 				left = v->width;
+			if ((cp = k->ki_d.prefix) != NULL)
+				while (--left >= 0 && *cp)
+					(void)putchar(*cp++);
 			if ((cp = vis_env) != NULL) {
 				while (--left >= 0 && *cp)
 					(void)putchar(*cp++);
@@ -164,12 +175,12 @@ command(KINFO *k, VARENT *ve)
 			for (cp = vis_args; --left >= 0 && *cp != '\0';)
 				(void)putchar(*cp++);
 		}
+		if (vis_env != NULL)
+			free(vis_env);
 	} else
-		/* XXX env? */
+		/* ki_d.prefix & ki_env aren't shown for interim fields */
 		(void)printf("%-*.*s", v->width, v->width, vis_args);
 	free(vis_args);
-	if (vis_env != NULL)
-		free(vis_env);
 }
 
 void
@@ -178,9 +189,11 @@ ucomm(KINFO *k, VARENT *ve)
 	VAR *v;
 
 	v = ve->var;
-	if (STAILQ_NEXT(ve, next_ve) == NULL)	/* last field, don't pad */
+	if (STAILQ_NEXT(ve, next_ve) == NULL) {	/* last field, don't pad */
+		if (k->ki_d.prefix)
+			(void)printf("%s", k->ki_d.prefix);
 		(void)printf("%s", k->ki_p->ki_comm);
-	else
+	} else
 		(void)printf("%-*s", v->width, k->ki_p->ki_comm);
 }
 
