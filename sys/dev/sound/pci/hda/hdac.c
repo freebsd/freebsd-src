@@ -87,7 +87,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090601_0133"
+#define HDA_DRV_TEST_REV	"20090608_0134"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
