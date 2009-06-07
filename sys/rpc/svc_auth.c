@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/ucred.h>
 
 #include <rpc/rpc.h>
@@ -181,6 +182,8 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 		for (i = 0; i < xcr->cr_ngroups; i++)
 			cr->cr_groups[i] = xcr->cr_groups[i];
 		cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
+		cr->cr_prison = &prison0;
+		prison_hold(cr->cr_prison);
 		*crp = cr;
 		return (TRUE);
 
