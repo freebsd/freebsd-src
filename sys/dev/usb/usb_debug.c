@@ -82,42 +82,42 @@ usb2_dump_device(struct usb_device *udev)
 /*------------------------------------------------------------------------*
  *	usb2_dump_queue
  *
- * This function dumps the USB transfer that are queued up on an USB pipe.
+ * This function dumps the USB transfer that are queued up on an USB endpoint.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_queue(struct usb_pipe *pipe)
+usb2_dump_queue(struct usb_endpoint *ep)
 {
 	struct usb_xfer *xfer;
 
-	printf("usb2_dump_queue: pipe=%p xfer: ", pipe);
-	TAILQ_FOREACH(xfer, &pipe->pipe_q.head, wait_entry) {
+	printf("usb2_dump_queue: endpoint=%p xfer: ", ep);
+	TAILQ_FOREACH(xfer, &ep->endpoint_q.head, wait_entry) {
 		printf(" %p", xfer);
 	}
 	printf("\n");
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dump_pipe
+ *	usb2_dump_endpoint
  *
- * This function dumps information about an USB pipe.
+ * This function dumps information about an USB endpoint.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_pipe(struct usb_pipe *pipe)
+usb2_dump_endpoint(struct usb_endpoint *ep)
 {
-	if (pipe) {
-		printf("usb2_dump_pipe: pipe=%p", pipe);
+	if (ep) {
+		printf("usb2_dump_endpoint: endpoint=%p", ep);
 
 		printf(" edesc=%p isoc_next=%d toggle_next=%d",
-		    pipe->edesc, pipe->isoc_next, pipe->toggle_next);
+		    ep->edesc, ep->isoc_next, ep->toggle_next);
 
-		if (pipe->edesc) {
+		if (ep->edesc) {
 			printf(" bEndpointAddress=0x%02x",
-			    pipe->edesc->bEndpointAddress);
+			    ep->edesc->bEndpointAddress);
 		}
 		printf("\n");
-		usb2_dump_queue(pipe);
+		usb2_dump_queue(ep);
 	} else {
-		printf("usb2_dump_pipe: pipe=NULL\n");
+		printf("usb2_dump_endpoint: endpoint=NULL\n");
 	}
 }
 
@@ -134,18 +134,18 @@ usb2_dump_xfer(struct usb_xfer *xfer)
 	if (xfer == NULL) {
 		return;
 	}
-	if (xfer->pipe == NULL) {
-		printf("xfer %p: pipe=NULL\n",
+	if (xfer->endpoint == NULL) {
+		printf("xfer %p: endpoint=NULL\n",
 		    xfer);
 		return;
 	}
 	udev = xfer->xroot->udev;
 	printf("xfer %p: udev=%p vid=0x%04x pid=0x%04x addr=%d "
-	    "pipe=%p ep=0x%02x attr=0x%02x\n",
+	    "endpoint=%p ep=0x%02x attr=0x%02x\n",
 	    xfer, udev,
 	    UGETW(udev->ddesc.idVendor),
 	    UGETW(udev->ddesc.idProduct),
-	    udev->address, xfer->pipe,
-	    xfer->pipe->edesc->bEndpointAddress,
-	    xfer->pipe->edesc->bmAttributes);
+	    udev->address, xfer->endpoint,
+	    xfer->endpoint->edesc->bEndpointAddress,
+	    xfer->endpoint->edesc->bmAttributes);
 }

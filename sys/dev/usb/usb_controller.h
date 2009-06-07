@@ -35,7 +35,7 @@
 
 struct usb_bus;
 struct usb_page;
-struct usb_pipe;
+struct usb_endpoint;
 struct usb_page_cache;
 struct usb_setup_params;
 struct usb_hw_ep_profile;
@@ -58,7 +58,8 @@ struct usb_bus_methods {
 
 	usb_handle_req_t *roothub_exec;
 
-	void    (*pipe_init) (struct usb_device *, struct usb_endpoint_descriptor *, struct usb_pipe *);
+	void    (*endpoint_init) (struct usb_device *,
+		    struct usb_endpoint_descriptor *, struct usb_endpoint *);
 	void    (*xfer_setup) (struct usb_setup_params *);
 	void    (*xfer_unsetup) (struct usb_xfer *);
 	void    (*get_dma_delay) (struct usb_bus *, uint32_t *);
@@ -95,8 +96,8 @@ struct usb_bus_methods {
 	/* USB Device mode only - Mandatory */
 
 	void    (*get_hw_ep_profile) (struct usb_device *udev, const struct usb_hw_ep_profile **ppf, uint8_t ep_addr);
-	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_pipe *pipe);
-	void    (*clear_stall) (struct usb_device *udev, struct usb_pipe *pipe);
+	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_endpoint *ep);
+	void    (*clear_stall) (struct usb_device *udev, struct usb_endpoint *ep);
 
 };
 

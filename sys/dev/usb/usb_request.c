@@ -94,51 +94,51 @@ usb2_do_clear_stall_callback(struct usb_xfer *xfer)
 {
 	struct usb_device_request req;
 	struct usb_device *udev;
-	struct usb_pipe *pipe;
-	struct usb_pipe *pipe_end;
-	struct usb_pipe *pipe_first;
+	struct usb_endpoint *ep;
+	struct usb_endpoint *ep_end;
+	struct usb_endpoint *ep_first;
 	uint8_t to;
 
 	udev = xfer->xroot->udev;
 
 	USB_BUS_LOCK(udev->bus);
 
-	/* round robin pipe clear stall */
+	/* round robin endpoint clear stall */
 
-	pipe = udev->pipe_curr;
-	pipe_end = udev->pipes + udev->pipes_max;
-	pipe_first = udev->pipes;
-	to = udev->pipes_max;
+	ep = udev->ep_curr;
+	ep_end = udev->endpoints + udev->endpoints_max;
+	ep_first = udev->endpoints;
+	to = udev->endpoints_max;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		if (pipe == NULL)
+		if (ep == NULL)
 			goto tr_setup;		/* device was unconfigured */
-		if (pipe->edesc &&
-		    pipe->is_stalled) {
-			pipe->toggle_next = 0;
-			pipe->is_stalled = 0;
+		if (ep->edesc &&
+		    ep->is_stalled) {
+			ep->toggle_next = 0;
+			ep->is_stalled = 0;
 			/* start up the current or next transfer, if any */
-			usb2_command_wrapper(&pipe->pipe_q,
-			    pipe->pipe_q.curr);
+			usb2_command_wrapper(&ep->endpoint_q,
+			    ep->endpoint_q.curr);
 		}
-		pipe++;
+		ep++;
 
 	case USB_ST_SETUP:
 tr_setup:
 		if (to == 0)
-			break;			/* no pipes - nothing to do */
-		if ((pipe < pipe_first) || (pipe >= pipe_end))
-			pipe = pipe_first;	/* pipe wrapped around */
-		if (pipe->edesc &&
-		    pipe->is_stalled) {
+			break;			/* no endpoints - nothing to do */
+		if ((ep < ep_first) || (ep >= ep_end))
+			ep = ep_first;	/* endpoint wrapped around */
+		if (ep->edesc &&
+		    ep->is_stalled) {
 
 			/* setup a clear-stall packet */
 
 			req.bmRequestType = UT_WRITE_ENDPOINT;
 			req.bRequest = UR_CLEAR_FEATURE;
 			USETW(req.wValue, UF_ENDPOINT_HALT);
-			req.wIndex[0] = pipe->edesc->bEndpointAddress;
+			req.wIndex[0] = ep->edesc->bEndpointAddress;
 			req.wIndex[1] = 0;
 			USETW(req.wLength, 0);
 
@@ -156,7 +156,7 @@ tr_setup:
 			USB_BUS_LOCK(udev->bus);
 			break;
 		}
-		pipe++;
+		ep++;
 		to--;
 		goto tr_setup;
 
@@ -167,8 +167,8 @@ tr_setup:
 		goto tr_setup;
 	}
 
-	/* store current pipe */
-	udev->pipe_curr = pipe;
+	/* store current endpoint */
+	udev->ep_curr = ep;
 	USB_BUS_UNLOCK(udev->bus);
 }
 

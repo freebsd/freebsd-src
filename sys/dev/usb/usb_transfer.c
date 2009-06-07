@@ -314,7 +314,7 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 		parm->err = USB_ERR_INVAL;
 		goto done;
 	}
-	edesc = xfer->pipe->edesc;
+	edesc = xfer->endpoint->edesc;
 
 	type = (edesc->bmAttributes & UE_XFERTYPE);
 
@@ -323,7 +323,7 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 	xfer->timeout = setup->timeout;
 	xfer->callback = setup->callback;
 	xfer->interval = setup->interval;
-	xfer->endpoint = edesc->bEndpointAddress;
+	xfer->endpointno = edesc->bEndpointAddress;
 	xfer->max_packet_size = UGETW(edesc->wMaxPacketSize);
 	xfer->max_packet_count = 1;
 	/* make a shadow copy: */
@@ -723,7 +723,7 @@ usb2_transfer_setup(struct usb_device *udev,
 	struct usb_setup_params parm;
 	const struct usb_config *setup_end = setup_start + n_setup;
 	const struct usb_config *setup;
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	struct usb_xfer_root *info;
 	struct usb_xfer *xfer;
 	void *buf = NULL;
@@ -852,10 +852,10 @@ usb2_transfer_setup(struct usb_device *udev,
 				continue;
 			}
 			/* see if there is a matching endpoint */
-			pipe = usb2_get_pipe(udev,
+			ep = usb2_get_endpoint(udev,
 			    ifaces[setup->if_index], setup);
 
-			if ((pipe == NULL) || (pipe->methods == NULL)) {
+			if ((ep == NULL) || (ep->methods == NULL)) {
 				if (setup->flags.no_pipe_ok)
 					continue;
 				if ((setup->usb_mode != USB_MODE_DUAL) &&
@@ -896,11 +896,11 @@ usb2_transfer_setup(struct usb_device *udev,
 				refcount++;
 			}
 
-			/* set transfer pipe pointer */
-			xfer->pipe = pipe;
+			/* set transfer endpoint pointer */
+			xfer->endpoint = ep;
 
 			parm.size[0] += sizeof(xfer[0]);
-			parm.methods = xfer->pipe->methods;
+			parm.methods = xfer->endpoint->methods;
 			parm.curr_xfer = xfer;
 
 			/*
@@ -915,15 +915,15 @@ usb2_transfer_setup(struct usb_device *udev,
 
 			if (buf) {
 				/*
-				 * Increment the pipe refcount. This
+				 * Increment the endpoint refcount. This
 				 * basically prevents setting a new
 				 * configuration and alternate setting
 				 * when USB transfers are in use on
 				 * the given interface. Search the USB
-				 * code for "pipe->refcount" if you
+				 * code for "endpoint->refcount" if you
 				 * want more information.
 				 */
-				xfer->pipe->refcount++;
+				xfer->endpoint->refcount++;
 
 				/*
 				 * Whenever we set ppxfer[] then we
@@ -1154,10 +1154,10 @@ usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 			needs_delay = 1;
 #endif
 		/*
-		 * NOTE: default pipe does not have an
-		 * interface, even if pipe->iface_index == 0
+		 * NOTE: default endpoint does not have an
+		 * interface, even if endpoint->iface_index == 0
 		 */
-		xfer->pipe->refcount--;
+		xfer->endpoint->refcount--;
 
 		usb2_callout_drain(&xfer->timeout_handle);
 
@@ -1203,8 +1203,8 @@ usb2_control_transfer_init(struct usb_xfer *xfer)
 
 	/* copy direction to endpoint variable */
 
-	xfer->endpoint &= ~(UE_DIR_IN | UE_DIR_OUT);
-	xfer->endpoint |=
+	xfer->endpointno &= ~(UE_DIR_IN | UE_DIR_OUT);
+	xfer->endpointno |=
 	    (req.bmRequestType & UT_READ) ? UE_DIR_IN : UE_DIR_OUT;
 }
 
@@ -1376,15 +1376,15 @@ usb2_start_hardware(struct usb_xfer *xfer)
 	info = xfer->xroot;
 	bus = info->bus;
 
-	DPRINTF("xfer=%p, pipe=%p, nframes=%d, dir=%s\n",
-	    xfer, xfer->pipe, xfer->nframes, USB_GET_DATA_ISREAD(xfer) ?
+	DPRINTF("xfer=%p, endpoint=%p, nframes=%d, dir=%s\n",
+	    xfer, xfer->endpoint, xfer->nframes, USB_GET_DATA_ISREAD(xfer) ?
 	    "read" : "write");
 
 #if USB_DEBUG
 	if (USB_DEBUG_VAR > 0) {
 		USB_BUS_LOCK(bus);
 
-		usb2_dump_pipe(xfer->pipe);
+		usb2_dump_endpoint(xfer->endpoint);
 
 		USB_BUS_UNLOCK(bus);
 	}
@@ -1400,7 +1400,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 		DPRINTF("open\n");
 
 		USB_BUS_LOCK(bus);
-		(xfer->pipe->methods->open) (xfer);
+		(xfer->endpoint->methods->open) (xfer);
 		USB_BUS_UNLOCK(bus);
 	}
 	/* set "transferring" flag */
@@ -1464,7 +1464,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 			USB_BUS_LOCK(bus);
 			xfer->flags_int.can_cancel_immed = 1;
 			/* start the transfer */
-			usb2_command_wrapper(&xfer->pipe->pipe_q, xfer);
+			usb2_command_wrapper(&xfer->endpoint->endpoint_q, xfer);
 			USB_BUS_UNLOCK(bus);
 			return;
 		}
@@ -1557,18 +1557,18 @@ usb2_start_hardware(struct usb_xfer *xfer)
 void
 usb2_pipe_enter(struct usb_xfer *xfer)
 {
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 
 	USB_XFER_LOCK_ASSERT(xfer, MA_OWNED);
 
 	USB_BUS_LOCK(xfer->xroot->bus);
 
-	pipe = xfer->pipe;
+	ep = xfer->endpoint;
 
 	DPRINTF("enter\n");
 
 	/* enter the transfer */
-	(pipe->methods->enter) (xfer);
+	(ep->methods->enter) (xfer);
 
 	xfer->flags_int.can_cancel_immed = 1;
 
@@ -1581,7 +1581,7 @@ usb2_pipe_enter(struct usb_xfer *xfer)
 	}
 
 	/* start the transfer */
-	usb2_command_wrapper(&pipe->pipe_q, xfer);
+	usb2_command_wrapper(&ep->endpoint_q, xfer);
 	USB_BUS_UNLOCK(xfer->xroot->bus);
 }
 
@@ -1628,7 +1628,7 @@ usb2_transfer_start(struct usb_xfer *xfer)
 void
 usb2_transfer_stop(struct usb_xfer *xfer)
 {
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 
 	if (xfer == NULL) {
 		/* transfer is gone */
@@ -1665,7 +1665,7 @@ usb2_transfer_stop(struct usb_xfer *xfer)
 			 * The following will lead to an USB_ERR_CANCELLED
 			 * error code being passed to the USB callback.
 			 */
-			(xfer->pipe->methods->close) (xfer);
+			(xfer->endpoint->methods->close) (xfer);
 			/* only close once */
 			xfer->flags_int.did_close = 1;
 		} else {
@@ -1675,7 +1675,7 @@ usb2_transfer_stop(struct usb_xfer *xfer)
 		DPRINTF("close\n");
 
 		/* close here and now */
-		(xfer->pipe->methods->close) (xfer);
+		(xfer->endpoint->methods->close) (xfer);
 
 		/*
 		 * Any additional DMA delay is done by
@@ -1684,16 +1684,16 @@ usb2_transfer_stop(struct usb_xfer *xfer)
 
 		/*
 		 * Special case. Check if we need to restart a blocked
-		 * pipe.
+		 * endpoint.
 		 */
-		pipe = xfer->pipe;
+		ep = xfer->endpoint;
 
 		/*
 		 * If the current USB transfer is completing we need
 		 * to start the next one:
 		 */
-		if (pipe->pipe_q.curr == xfer) {
-			usb2_command_wrapper(&pipe->pipe_q, NULL);
+		if (ep->endpoint_q.curr == xfer) {
+			usb2_command_wrapper(&ep->endpoint_q, NULL);
 		}
 	}
 
@@ -2117,10 +2117,10 @@ usb2_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 	/* keep some statistics */
 	if (xfer->error) {
 		xfer->xroot->bus->stats_err.uds_requests
-		    [xfer->pipe->edesc->bmAttributes & UE_XFERTYPE]++;
+		    [xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE]++;
 	} else {
 		xfer->xroot->bus->stats_ok.uds_requests
-		    [xfer->pipe->edesc->bmAttributes & UE_XFERTYPE]++;
+		    [xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE]++;
 	}
 
 	/* call the USB transfer callback */
@@ -2138,14 +2138,14 @@ static void
 usb2_transfer_start_cb(void *arg)
 {
 	struct usb_xfer *xfer = arg;
-	struct usb_pipe *pipe = xfer->pipe;
+	struct usb_endpoint *ep = xfer->endpoint;
 
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	DPRINTF("start\n");
 
 	/* start the transfer */
-	(pipe->methods->start) (xfer);
+	(ep->methods->start) (xfer);
 
 	xfer->flags_int.can_cancel_immed = 1;
 
@@ -2210,23 +2210,23 @@ usb2_transfer_clear_stall(struct usb_xfer *xfer)
 void
 usb2_pipe_start(struct usb_xfer_queue *pq)
 {
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	struct usb_xfer *xfer;
 	uint8_t type;
 
 	xfer = pq->curr;
-	pipe = xfer->pipe;
+	ep = xfer->endpoint;
 
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	/*
-	 * If the pipe is already stalled we do nothing !
+	 * If the endpoint is already stalled we do nothing !
 	 */
-	if (pipe->is_stalled) {
+	if (ep->is_stalled) {
 		return;
 	}
 	/*
-	 * Check if we are supposed to stall the pipe:
+	 * Check if we are supposed to stall the endpoint:
 	 */
 	if (xfer->flags.stall_pipe) {
 		/* clear stall command */
@@ -2235,7 +2235,7 @@ usb2_pipe_start(struct usb_xfer_queue *pq)
 		/*
 		 * Only stall BULK and INTERRUPT endpoints.
 		 */
-		type = (pipe->edesc->bmAttributes & UE_XFERTYPE);
+		type = (ep->edesc->bmAttributes & UE_XFERTYPE);
 		if ((type == UE_BULK) ||
 		    (type == UE_INTERRUPT)) {
 			struct usb_device *udev;
@@ -2243,11 +2243,11 @@ usb2_pipe_start(struct usb_xfer_queue *pq)
 
 			info = xfer->xroot;
 			udev = info->udev;
-			pipe->is_stalled = 1;
+			ep->is_stalled = 1;
 
 			if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 				(udev->bus->methods->set_stall) (
-				    udev, NULL, pipe);
+				    udev, NULL, ep);
 			} else if (udev->default_xfer[1]) {
 				info = udev->default_xfer[1]->xroot;
 				if (usb2_proc_msignal(
@@ -2284,7 +2284,7 @@ usb2_pipe_start(struct usb_xfer_queue *pq)
 	 * pre transfer start delay:
 	 */
 	if (xfer->interval > 0) {
-		type = (pipe->edesc->bmAttributes & UE_XFERTYPE);
+		type = (ep->edesc->bmAttributes & UE_XFERTYPE);
 		if ((type == UE_BULK) ||
 		    (type == UE_CONTROL)) {
 			usb2_transfer_timeout_ms(xfer,
@@ -2296,7 +2296,7 @@ usb2_pipe_start(struct usb_xfer_queue *pq)
 	DPRINTF("start\n");
 
 	/* start USB transfer */
-	(pipe->methods->start) (xfer);
+	(ep->methods->start) (xfer);
 
 	xfer->flags_int.can_cancel_immed = 1;
 
@@ -2332,7 +2332,7 @@ usb2_transfer_timeout_ms(struct usb_xfer *xfer,
  *  that the USB transfer is complete.
  *
  *  - This function is used to start the next USB transfer on the
- *  pipe transfer queue, if any.
+ *  ep transfer queue, if any.
  *
  * NOTE: In some special cases the USB transfer will not be removed from
  * the pipe queue, but remain first. To enforce USB transfer removal call
@@ -2345,14 +2345,14 @@ usb2_transfer_timeout_ms(struct usb_xfer *xfer,
 static uint8_t
 usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 {
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	usb_frcount_t x;
 
 	if ((!xfer->flags_int.open) &&
 	    (!xfer->flags_int.did_close)) {
 		DPRINTF("close\n");
 		USB_BUS_LOCK(xfer->xroot->bus);
-		(xfer->pipe->methods->close) (xfer);
+		(xfer->endpoint->methods->close) (xfer);
 		USB_BUS_UNLOCK(xfer->xroot->bus);
 		/* only close once */
 		xfer->flags_int.did_close = 1;
@@ -2425,8 +2425,8 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 			xfer->actlen = xfer->sumlen;
 		}
 	}
-	DPRINTFN(6, "xfer=%p pipe=%p sts=%d alen=%d, slen=%d, afrm=%d, nfrm=%d\n",
-	    xfer, xfer->pipe, xfer->error, xfer->actlen, xfer->sumlen,
+	DPRINTFN(6, "xfer=%p endpoint=%p sts=%d alen=%d, slen=%d, afrm=%d, nfrm=%d\n",
+	    xfer, xfer->endpoint, xfer->error, xfer->actlen, xfer->sumlen,
 	    xfer->aframes, xfer->nframes);
 
 	if (xfer->error) {
@@ -2437,7 +2437,7 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 		if ((xfer->error != USB_ERR_CANCELLED) &&
 		    (xfer->flags.pipe_bof)) {
 			DPRINTFN(2, "xfer=%p: Block On Failure "
-			    "on pipe=%p\n", xfer, xfer->pipe);
+			    "on endpoint=%p\n", xfer, xfer->endpoint);
 			goto done;
 		}
 	} else {
@@ -2451,8 +2451,8 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 				xfer->error = USB_ERR_SHORT_XFER;
 				if (xfer->flags.pipe_bof) {
 					DPRINTFN(2, "xfer=%p: Block On Failure on "
-					    "Short Transfer on pipe %p.\n",
-					    xfer, xfer->pipe);
+					    "Short Transfer on endpoint %p.\n",
+					    xfer, xfer->endpoint);
 					goto done;
 				}
 			}
@@ -2463,28 +2463,28 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 			 */
 			if (xfer->flags_int.control_act) {
 				DPRINTFN(5, "xfer=%p: Control transfer "
-				    "active on pipe=%p\n", xfer, xfer->pipe);
+				    "active on endpoint=%p\n", xfer, xfer->endpoint);
 				goto done;
 			}
 		}
 	}
 
-	pipe = xfer->pipe;
+	ep = xfer->endpoint;
 
 	/*
 	 * If the current USB transfer is completing we need to start the
 	 * next one:
 	 */
 	USB_BUS_LOCK(xfer->xroot->bus);
-	if (pipe->pipe_q.curr == xfer) {
-		usb2_command_wrapper(&pipe->pipe_q, NULL);
+	if (ep->endpoint_q.curr == xfer) {
+		usb2_command_wrapper(&ep->endpoint_q, NULL);
 
-		if (pipe->pipe_q.curr || TAILQ_FIRST(&pipe->pipe_q.head)) {
+		if (ep->endpoint_q.curr || TAILQ_FIRST(&ep->endpoint_q.head)) {
 			/* there is another USB transfer waiting */
 		} else {
 			/* this is the last USB transfer */
 			/* clear isochronous sync flag */
-			xfer->pipe->is_synced = 0;
+			xfer->endpoint->is_synced = 0;
 		}
 	}
 	USB_BUS_UNLOCK(xfer->xroot->bus);
@@ -2633,12 +2633,12 @@ repeat:
  * data toggle.
  *------------------------------------------------------------------------*/
 void
-usb2_clear_data_toggle(struct usb_device *udev, struct usb_pipe *pipe)
+usb2_clear_data_toggle(struct usb_device *udev, struct usb_endpoint *ep)
 {
-	DPRINTFN(5, "udev=%p pipe=%p\n", udev, pipe);
+	DPRINTFN(5, "udev=%p endpoint=%p\n", udev, ep);
 
 	USB_BUS_LOCK(udev->bus);
-	pipe->toggle_next = 0;
+	ep->toggle_next = 0;
 	USB_BUS_UNLOCK(udev->bus);
 }
 
@@ -2693,14 +2693,14 @@ usb2_clear_stall_callback(struct usb_xfer *xfer1,
 		 * "ata-usb.c" depends on this)
 		 */
 
-		usb2_clear_data_toggle(xfer2->xroot->udev, xfer2->pipe);
+		usb2_clear_data_toggle(xfer2->xroot->udev, xfer2->endpoint);
 
 		/* setup a clear-stall packet */
 
 		req.bmRequestType = UT_WRITE_ENDPOINT;
 		req.bRequest = UR_CLEAR_FEATURE;
 		USETW(req.wValue, UF_ENDPOINT_HALT);
-		req.wIndex[0] = xfer2->pipe->edesc->bEndpointAddress;
+		req.wIndex[0] = xfer2->endpoint->edesc->bEndpointAddress;
 		req.wIndex[1] = 0;
 		USETW(req.wLength, 0);
 

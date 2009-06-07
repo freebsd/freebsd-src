@@ -687,7 +687,7 @@ at91dci_xfer_do_fifo(struct usb_xfer *xfer)
 
 done:
 	sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
-	temp = (xfer->endpoint & UE_ADDR);
+	temp = (xfer->endpointno & UE_ADDR);
 
 	/* update FIFO bank flag and multi buffer */
 	if (td->fifo_bank) {
@@ -864,7 +864,7 @@ at91dci_setup_standard_chain(struct usb_xfer *xfer)
 	uint8_t need_sync;
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
-	    xfer->address, UE_GET_ADDR(xfer->endpoint),
+	    xfer->address, UE_GET_ADDR(xfer->endpointno),
 	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
@@ -882,7 +882,7 @@ at91dci_setup_standard_chain(struct usb_xfer *xfer)
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
-	ep_no = (xfer->endpoint & UE_ADDR);
+	ep_no = (xfer->endpointno & UE_ADDR);
 
 	/* check if we should prepend a setup message */
 
@@ -908,7 +908,7 @@ at91dci_setup_standard_chain(struct usb_xfer *xfer)
 	}
 
 	if (x != xfer->nframes) {
-		if (xfer->endpoint & UE_DIR_IN) {
+		if (xfer->endpointno & UE_DIR_IN) {
 			temp.func = &at91dci_data_tx;
 			need_sync = 1;
 		} else {
@@ -984,7 +984,7 @@ at91dci_setup_standard_chain(struct usb_xfer *xfer)
 			 * Send a DATA1 message and invert the current
 			 * endpoint direction.
 			 */
-			if (xfer->endpoint & UE_DIR_IN) {
+			if (xfer->endpointno & UE_DIR_IN) {
 				temp.func = &at91dci_data_rx;
 				need_sync = 0;
 			} else {
@@ -1034,7 +1034,7 @@ at91dci_start_standard_chain(struct usb_xfer *xfer)
 	if (at91dci_xfer_do_fifo(xfer)) {
 
 		struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
-		uint8_t ep_no = xfer->endpoint & UE_ADDR;
+		uint8_t ep_no = xfer->endpointno & UE_ADDR;
 
 		/*
 		 * Only enable the endpoint interrupt when we are actually
@@ -1139,8 +1139,8 @@ at91dci_standard_done(struct usb_xfer *xfer)
 {
 	usb_error_t err = 0;
 
-	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
-	    xfer, xfer->pipe);
+	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
+	    xfer, xfer->endpoint);
 
 	/* reset scanner */
 
@@ -1191,11 +1191,11 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
-	    xfer, xfer->pipe, error);
+	DPRINTFN(2, "xfer=%p, endpoint=%p, error=%d\n",
+	    xfer, xfer->endpoint, error);
 
 	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
-		ep_no = (xfer->endpoint & UE_ADDR);
+		ep_no = (xfer->endpointno & UE_ADDR);
 
 		/* disable endpoint interrupt */
 		AT91_UDP_WRITE_4(sc, AT91_UDP_IDR, AT91_UDP_INT_EP(ep_no));
@@ -1208,7 +1208,7 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 static void
 at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_pipe *pipe)
+    struct usb_endpoint *ep)
 {
 	struct at91dci_softc *sc;
 	uint32_t csr_val;
@@ -1216,7 +1216,7 @@ at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
-	DPRINTFN(5, "pipe=%p\n", pipe);
+	DPRINTFN(5, "endpoint=%p\n", ep);
 
 	if (xfer) {
 		/* cancel any ongoing transfers */
@@ -1224,7 +1224,7 @@ at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 	}
 	/* set FORCESTALL */
 	sc = AT9100_DCI_BUS2SC(udev->bus);
-	csr_reg = (pipe->edesc->bEndpointAddress & UE_ADDR);
+	csr_reg = (ep->edesc->bEndpointAddress & UE_ADDR);
 	csr_reg = AT91_UDP_CSR(csr_reg);
 	csr_val = AT91_UDP_READ_4(sc, csr_reg);
 	AT91_CSR_ACK(csr_val, AT91_UDP_CSR_FORCESTALL);
@@ -1328,12 +1328,12 @@ at91dci_clear_stall_sub(struct at91dci_softc *sc, uint8_t ep_no,
 }
 
 static void
-at91dci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
+at91dci_clear_stall(struct usb_device *udev, struct usb_endpoint *ep)
 {
 	struct at91dci_softc *sc;
 	struct usb_endpoint_descriptor *ed;
 
-	DPRINTFN(5, "pipe=%p\n", pipe);
+	DPRINTFN(5, "endpoint=%p\n", ep);
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
@@ -1346,7 +1346,7 @@ at91dci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 	sc = AT9100_DCI_BUS2SC(udev->bus);
 
 	/* get endpoint descriptor */
-	ed = pipe->edesc;
+	ed = ep->edesc;
 
 	/* reset endpoint */
 	at91dci_clear_stall_sub(sc,
@@ -1598,7 +1598,7 @@ at91dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	uint32_t nframes;
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
-	    xfer, xfer->pipe->isoc_next, xfer->nframes);
+	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
 
 	/* get the current frame index */
 
@@ -1608,25 +1608,25 @@ at91dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	 * check if the frame index is within the window where the frames
 	 * will be inserted
 	 */
-	temp = (nframes - xfer->pipe->isoc_next) & AT91_UDP_FRM_MASK;
+	temp = (nframes - xfer->endpoint->isoc_next) & AT91_UDP_FRM_MASK;
 
-	if ((xfer->pipe->is_synced == 0) ||
+	if ((xfer->endpoint->is_synced == 0) ||
 	    (temp < xfer->nframes)) {
 		/*
-		 * If there is data underflow or the pipe queue is
+		 * If there is data underflow or the endpoint queue is
 		 * empty we schedule the transfer a few frames ahead
 		 * of the current frame position. Else two isochronous
 		 * transfers might overlap.
 		 */
-		xfer->pipe->isoc_next = (nframes + 3) & AT91_UDP_FRM_MASK;
-		xfer->pipe->is_synced = 1;
-		DPRINTFN(3, "start next=%d\n", xfer->pipe->isoc_next);
+		xfer->endpoint->isoc_next = (nframes + 3) & AT91_UDP_FRM_MASK;
+		xfer->endpoint->is_synced = 1;
+		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
 	}
 	/*
 	 * compute how many milliseconds the insertion is ahead of the
 	 * current frame position:
 	 */
-	temp = (xfer->pipe->isoc_next - nframes) & AT91_UDP_FRM_MASK;
+	temp = (xfer->endpoint->isoc_next - nframes) & AT91_UDP_FRM_MASK;
 
 	/*
 	 * pre-compute when the isochronous transfer will be finished:
@@ -1636,7 +1636,7 @@ at91dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	    xfer->nframes;
 
 	/* compute frame number for next insertion */
-	xfer->pipe->isoc_next += xfer->nframes;
+	xfer->endpoint->isoc_next += xfer->nframes;
 
 	/* setup TDs */
 	at91dci_setup_standard_chain(xfer);
@@ -2208,7 +2208,7 @@ at91dci_xfer_setup(struct usb_setup_params *parm)
 	 */
 	if (ntd) {
 
-		ep_no = xfer->endpoint & UE_ADDR;
+		ep_no = xfer->endpointno & UE_ADDR;
 		at91dci_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
 		if (pf == NULL) {
@@ -2258,13 +2258,13 @@ at91dci_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-at91dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
-    struct usb_pipe *pipe)
+at91dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_endpoint *ep)
 {
 	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(udev->bus);
 
-	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
-	    pipe, udev->address,
+	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
+	    ep, udev->address,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr);
 
@@ -2280,16 +2280,16 @@ at91dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 		}
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:
-			pipe->methods = &at91dci_device_ctrl_methods;
+			ep->methods = &at91dci_device_ctrl_methods;
 			break;
 		case UE_INTERRUPT:
-			pipe->methods = &at91dci_device_intr_methods;
+			ep->methods = &at91dci_device_intr_methods;
 			break;
 		case UE_ISOCHRONOUS:
-			pipe->methods = &at91dci_device_isoc_fs_methods;
+			ep->methods = &at91dci_device_isoc_fs_methods;
 			break;
 		case UE_BULK:
-			pipe->methods = &at91dci_device_bulk_methods;
+			ep->methods = &at91dci_device_bulk_methods;
 			break;
 		default:
 			/* do nothing */
@@ -2300,7 +2300,7 @@ at91dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 
 struct usb_bus_methods at91dci_bus_methods =
 {
-	.pipe_init = &at91dci_pipe_init,
+	.endpoint_init = &at91dci_ep_init,
 	.xfer_setup = &at91dci_xfer_setup,
 	.xfer_unsetup = &at91dci_xfer_unsetup,
 	.get_hw_ep_profile = &at91dci_get_hw_ep_profile,

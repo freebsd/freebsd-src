@@ -1114,7 +1114,7 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 	uint8_t ep_no;
 
 	DPRINTFN(8, "addr=%d endpt=%d sumlen=%d speed=%d\n",
-	    xfer->address, UE_GET_ADDR(xfer->endpoint),
+	    xfer->address, UE_GET_ADDR(xfer->endpointno),
 	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
@@ -1132,7 +1132,7 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-	ep_no = (xfer->endpoint & UE_ADDR);
+	ep_no = (xfer->endpointno & UE_ADDR);
 
 	/* check if we should prepend a setup message */
 
@@ -1152,7 +1152,7 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 	}
 
 	if (x != xfer->nframes) {
-		if (xfer->endpoint & UE_DIR_IN) {
+		if (xfer->endpointno & UE_DIR_IN) {
 			if (xfer->flags_int.control_xfr)
 				temp.func = &musbotg_setup_data_tx;
 			else
@@ -1249,7 +1249,7 @@ musbotg_ep_int_set(struct usb_xfer *xfer, uint8_t on)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint16_t temp;
-	uint8_t ep_no = xfer->endpoint & UE_ADDR;
+	uint8_t ep_no = xfer->endpointno & UE_ADDR;
 
 	/*
 	 * Only enable the endpoint interrupt when we are
@@ -1390,8 +1390,8 @@ musbotg_standard_done(struct usb_xfer *xfer)
 {
 	usb_error_t err = 0;
 
-	DPRINTFN(12, "xfer=%p pipe=%p transfer done\n",
-	    xfer, xfer->pipe);
+	DPRINTFN(12, "xfer=%p endpoint=%p transfer done\n",
+	    xfer, xfer->endpoint);
 
 	/* reset scanner */
 
@@ -1439,8 +1439,8 @@ musbotg_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
-	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
-	    xfer, xfer->pipe, error);
+	DPRINTFN(2, "xfer=%p, endpoint=%p, error=%d\n",
+	    xfer, xfer->endpoint, error);
 
 	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 
@@ -1454,14 +1454,14 @@ musbotg_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 static void
 musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_pipe *pipe)
+    struct usb_endpoint *ep)
 {
 	struct musbotg_softc *sc;
 	uint8_t ep_no;
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
-	DPRINTFN(4, "pipe=%p\n", pipe);
+	DPRINTFN(4, "endpoint=%p\n", ep);
 
 	if (xfer) {
 		/* cancel any ongoing transfers */
@@ -1470,12 +1470,12 @@ musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 	/* set FORCESTALL */
 	sc = MUSBOTG_BUS2SC(udev->bus);
 
-	ep_no = (pipe->edesc->bEndpointAddress & UE_ADDR);
+	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
 
 	/* select endpoint */
 	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, ep_no);
 
-	if (pipe->edesc->bEndpointAddress & UE_DIR_IN) {
+	if (ep->edesc->bEndpointAddress & UE_DIR_IN) {
 		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
 		    MUSB2_MASK_CSRL_TXSENDSTALL);
 	} else {
@@ -1636,12 +1636,12 @@ musbotg_clear_stall_sub(struct musbotg_softc *sc, uint16_t wMaxPacket,
 }
 
 static void
-musbotg_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
+musbotg_clear_stall(struct usb_device *udev, struct usb_endpoint *ep)
 {
 	struct musbotg_softc *sc;
 	struct usb_endpoint_descriptor *ed;
 
-	DPRINTFN(4, "pipe=%p\n", pipe);
+	DPRINTFN(4, "endpoint=%p\n", ep);
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
@@ -1654,7 +1654,7 @@ musbotg_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 	sc = MUSBOTG_BUS2SC(udev->bus);
 
 	/* get endpoint descriptor */
-	ed = pipe->edesc;
+	ed = ep->edesc;
 
 	/* reset endpoint */
 	musbotg_clear_stall_sub(sc,
@@ -1999,7 +1999,7 @@ musbotg_device_isoc_enter(struct usb_xfer *xfer)
 	uint32_t fs_frames;
 
 	DPRINTFN(5, "xfer=%p next=%d nframes=%d\n",
-	    xfer, xfer->pipe->isoc_next, xfer->nframes);
+	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
 
 	/* get the current frame index */
 
@@ -2009,7 +2009,7 @@ musbotg_device_isoc_enter(struct usb_xfer *xfer)
 	 * check if the frame index is within the window where the frames
 	 * will be inserted
 	 */
-	temp = (nframes - xfer->pipe->isoc_next) & MUSB2_MASK_FRAME;
+	temp = (nframes - xfer->endpoint->isoc_next) & MUSB2_MASK_FRAME;
 
 	if (usb2_get_speed(xfer->xroot->udev) == USB_SPEED_HIGH) {
 		fs_frames = (xfer->nframes + 7) / 8;
@@ -2017,7 +2017,7 @@ musbotg_device_isoc_enter(struct usb_xfer *xfer)
 		fs_frames = xfer->nframes;
 	}
 
-	if ((xfer->pipe->is_synced == 0) ||
+	if ((xfer->endpoint->is_synced == 0) ||
 	    (temp < fs_frames)) {
 		/*
 		 * If there is data underflow or the pipe queue is
@@ -2025,15 +2025,15 @@ musbotg_device_isoc_enter(struct usb_xfer *xfer)
 		 * of the current frame position. Else two isochronous
 		 * transfers might overlap.
 		 */
-		xfer->pipe->isoc_next = (nframes + 3) & MUSB2_MASK_FRAME;
-		xfer->pipe->is_synced = 1;
-		DPRINTFN(2, "start next=%d\n", xfer->pipe->isoc_next);
+		xfer->endpoint->isoc_next = (nframes + 3) & MUSB2_MASK_FRAME;
+		xfer->endpoint->is_synced = 1;
+		DPRINTFN(2, "start next=%d\n", xfer->endpoint->isoc_next);
 	}
 	/*
 	 * compute how many milliseconds the insertion is ahead of the
 	 * current frame position:
 	 */
-	temp = (xfer->pipe->isoc_next - nframes) & MUSB2_MASK_FRAME;
+	temp = (xfer->endpoint->isoc_next - nframes) & MUSB2_MASK_FRAME;
 
 	/*
 	 * pre-compute when the isochronous transfer will be finished:
@@ -2043,7 +2043,7 @@ musbotg_device_isoc_enter(struct usb_xfer *xfer)
 	    fs_frames;
 
 	/* compute frame number for next insertion */
-	xfer->pipe->isoc_next += fs_frames;
+	xfer->endpoint->isoc_next += fs_frames;
 
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);
@@ -2623,7 +2623,7 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 	 */
 	if (ntd) {
 
-		ep_no = xfer->endpoint & UE_ADDR;
+		ep_no = xfer->endpointno & UE_ADDR;
 		musbotg_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
 		if (pf == NULL) {
@@ -2667,13 +2667,13 @@ musbotg_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-musbotg_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
-    struct usb_pipe *pipe)
+musbotg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_endpoint *ep)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(udev->bus);
 
-	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
-	    pipe, udev->address,
+	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
+	    ep, udev->address,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr);
 
@@ -2690,16 +2690,16 @@ musbotg_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 		}
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:
-			pipe->methods = &musbotg_device_ctrl_methods;
+			ep->methods = &musbotg_device_ctrl_methods;
 			break;
 		case UE_INTERRUPT:
-			pipe->methods = &musbotg_device_intr_methods;
+			ep->methods = &musbotg_device_intr_methods;
 			break;
 		case UE_ISOCHRONOUS:
-			pipe->methods = &musbotg_device_isoc_methods;
+			ep->methods = &musbotg_device_isoc_methods;
 			break;
 		case UE_BULK:
-			pipe->methods = &musbotg_device_bulk_methods;
+			ep->methods = &musbotg_device_bulk_methods;
 			break;
 		default:
 			/* do nothing */
@@ -2710,7 +2710,7 @@ musbotg_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 
 struct usb_bus_methods musbotg_bus_methods =
 {
-	.pipe_init = &musbotg_pipe_init,
+	.endpoint_init = &musbotg_ep_init,
 	.xfer_setup = &musbotg_xfer_setup,
 	.xfer_unsetup = &musbotg_xfer_unsetup,
 	.get_hw_ep_profile = &musbotg_get_hw_ep_profile,
