@@ -767,7 +767,7 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 	uint8_t need_sync;
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
-	    xfer->address, UE_GET_ADDR(xfer->endpoint),
+	    xfer->address, UE_GET_ADDR(xfer->endpointno),
 	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
@@ -785,7 +785,7 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = ATMEGA_BUS2SC(xfer->xroot->bus);
-	ep_no = (xfer->endpoint & UE_ADDR);
+	ep_no = (xfer->endpointno & UE_ADDR);
 
 	/* check if we should prepend a setup message */
 
@@ -811,7 +811,7 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 	}
 
 	if (x != xfer->nframes) {
-		if (xfer->endpoint & UE_DIR_IN) {
+		if (xfer->endpointno & UE_DIR_IN) {
 			temp.func = &atmegadci_data_tx;
 			need_sync = 1;
 		} else {
@@ -886,7 +886,7 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 			 * Send a DATA1 message and invert the current
 			 * endpoint direction.
 			 */
-			if (xfer->endpoint & UE_DIR_IN) {
+			if (xfer->endpointno & UE_DIR_IN) {
 				temp.func = &atmegadci_data_rx;
 				need_sync = 0;
 			} else {
@@ -1022,8 +1022,8 @@ atmegadci_standard_done(struct usb_xfer *xfer)
 {
 	usb_error_t err = 0;
 
-	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
-	    xfer, xfer->pipe);
+	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
+	    xfer, xfer->endpoint);
 
 	/* reset scanner */
 
@@ -1074,11 +1074,11 @@ atmegadci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	DPRINTFN(9, "xfer=%p, pipe=%p, error=%d\n",
-	    xfer, xfer->pipe, error);
+	DPRINTFN(9, "xfer=%p, endpoint=%p, error=%d\n",
+	    xfer, xfer->endpoint, error);
 
 	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
-		ep_no = (xfer->endpoint & UE_ADDR);
+		ep_no = (xfer->endpointno & UE_ADDR);
 
 		/* select endpoint number */
 		ATMEGA_WRITE_1(sc, ATMEGA_UENUM, ep_no);
@@ -1094,14 +1094,14 @@ atmegadci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 static void
 atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_pipe *pipe)
+    struct usb_endpoint *ep)
 {
 	struct atmegadci_softc *sc;
 	uint8_t ep_no;
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
-	DPRINTFN(5, "pipe=%p\n", pipe);
+	DPRINTFN(5, "endpoint=%p\n", ep);
 
 	if (xfer) {
 		/* cancel any ongoing transfers */
@@ -1109,7 +1109,7 @@ atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 	}
 	sc = ATMEGA_BUS2SC(udev->bus);
 	/* get endpoint number */
-	ep_no = (pipe->edesc->bEndpointAddress & UE_ADDR);
+	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
 	/* select endpoint number */
 	ATMEGA_WRITE_1(sc, ATMEGA_UENUM, ep_no);
 	/* set stall */
@@ -1178,12 +1178,12 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 }
 
 static void
-atmegadci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
+atmegadci_clear_stall(struct usb_device *udev, struct usb_endpoint *ep)
 {
 	struct atmegadci_softc *sc;
 	struct usb_endpoint_descriptor *ed;
 
-	DPRINTFN(5, "pipe=%p\n", pipe);
+	DPRINTFN(5, "endpoint=%p\n", ep);
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
@@ -1196,7 +1196,7 @@ atmegadci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 	sc = ATMEGA_BUS2SC(udev->bus);
 
 	/* get endpoint descriptor */
-	ed = pipe->edesc;
+	ed = ep->edesc;
 
 	/* reset endpoint */
 	atmegadci_clear_stall_sub(sc,
@@ -1415,7 +1415,7 @@ atmegadci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	uint32_t nframes;
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
-	    xfer, xfer->pipe->isoc_next, xfer->nframes);
+	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
 
 	/* get the current frame index */
 
@@ -1429,9 +1429,9 @@ atmegadci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	 * check if the frame index is within the window where the frames
 	 * will be inserted
 	 */
-	temp = (nframes - xfer->pipe->isoc_next) & ATMEGA_FRAME_MASK;
+	temp = (nframes - xfer->endpoint->isoc_next) & ATMEGA_FRAME_MASK;
 
-	if ((xfer->pipe->is_synced == 0) ||
+	if ((xfer->endpoint->is_synced == 0) ||
 	    (temp < xfer->nframes)) {
 		/*
 		 * If there is data underflow or the pipe queue is
@@ -1439,15 +1439,15 @@ atmegadci_device_isoc_fs_enter(struct usb_xfer *xfer)
 		 * of the current frame position. Else two isochronous
 		 * transfers might overlap.
 		 */
-		xfer->pipe->isoc_next = (nframes + 3) & ATMEGA_FRAME_MASK;
-		xfer->pipe->is_synced = 1;
-		DPRINTFN(3, "start next=%d\n", xfer->pipe->isoc_next);
+		xfer->endpoint->isoc_next = (nframes + 3) & ATMEGA_FRAME_MASK;
+		xfer->endpoint->is_synced = 1;
+		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
 	}
 	/*
 	 * compute how many milliseconds the insertion is ahead of the
 	 * current frame position:
 	 */
-	temp = (xfer->pipe->isoc_next - nframes) & ATMEGA_FRAME_MASK;
+	temp = (xfer->endpoint->isoc_next - nframes) & ATMEGA_FRAME_MASK;
 
 	/*
 	 * pre-compute when the isochronous transfer will be finished:
@@ -1457,7 +1457,7 @@ atmegadci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	    xfer->nframes;
 
 	/* compute frame number for next insertion */
-	xfer->pipe->isoc_next += xfer->nframes;
+	xfer->endpoint->isoc_next += xfer->nframes;
 
 	/* setup TDs */
 	atmegadci_setup_standard_chain(xfer);
@@ -2022,7 +2022,7 @@ atmegadci_xfer_setup(struct usb_setup_params *parm)
 	/*
 	 * compute maximum number of TDs
 	 */
-	if ((xfer->pipe->edesc->bmAttributes & UE_XFERTYPE) == UE_CONTROL) {
+	if ((xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE) == UE_CONTROL) {
 
 		ntd = xfer->nframes + 1 /* STATUS */ + 1 /* SYNC 1 */
 		    + 1 /* SYNC 2 */ ;
@@ -2045,7 +2045,7 @@ atmegadci_xfer_setup(struct usb_setup_params *parm)
 	/*
 	 * get profile stuff
 	 */
-	ep_no = xfer->endpoint & UE_ADDR;
+	ep_no = xfer->endpointno & UE_ADDR;
 	atmegadci_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
 	if (pf == NULL) {
@@ -2088,13 +2088,13 @@ atmegadci_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-atmegadci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
-    struct usb_pipe *pipe)
+atmegadci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_endpoint *ep)
 {
 	struct atmegadci_softc *sc = ATMEGA_BUS2SC(udev->bus);
 
-	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d,%d)\n",
-	    pipe, udev->address,
+	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d (%d,%d)\n",
+	    ep, udev->address,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr, udev->device_index);
 
@@ -2109,15 +2109,15 @@ atmegadci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *ede
 			return;
 		}
 		if ((edesc->bmAttributes & UE_XFERTYPE) == UE_ISOCHRONOUS)
-			pipe->methods = &atmegadci_device_isoc_fs_methods;
+			ep->methods = &atmegadci_device_isoc_fs_methods;
 		else
-			pipe->methods = &atmegadci_device_non_isoc_methods;
+			ep->methods = &atmegadci_device_non_isoc_methods;
 	}
 }
 
 struct usb_bus_methods atmegadci_bus_methods =
 {
-	.pipe_init = &atmegadci_pipe_init,
+	.endpoint_init = &atmegadci_ep_init,
 	.xfer_setup = &atmegadci_xfer_setup,
 	.xfer_unsetup = &atmegadci_xfer_unsetup,
 	.get_hw_ep_profile = &atmegadci_get_hw_ep_profile,

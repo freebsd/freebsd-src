@@ -254,7 +254,7 @@ umct_attach(device_t dev)
 	 * The only way to differentiate it from the real interrupt
 	 * endpoint is to look at the wMaxPacketSize field.
 	 */
-	maxp = UGETW(sc->sc_xfer[UMCT_BULK_DT_RD]->pipe->edesc->wMaxPacketSize);
+	maxp = UGETW(sc->sc_xfer[UMCT_BULK_DT_RD]->endpoint->edesc->wMaxPacketSize);
 	if (maxp == 0x2) {
 
 		/* guessed wrong - switch around endpoints */
