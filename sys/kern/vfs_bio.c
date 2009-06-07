@@ -2946,7 +2946,6 @@ allocbuf(struct buf *bp, int size)
 			 * We are growing the buffer, possibly in a 
 			 * byte-granular fashion.
 			 */
-			struct vnode *vp;
 			vm_object_t obj;
 			vm_offset_t toff;
 			vm_offset_t tinc;
@@ -2958,7 +2957,6 @@ allocbuf(struct buf *bp, int size)
 			 * range covered by the buffer.
 			 */
 
-			vp = bp->b_vp;
 			obj = bp->b_bufobj->bo_object;
 
 			VM_OBJECT_LOCK(obj);
@@ -3762,7 +3760,6 @@ tryagain:
 			VM_WAIT;
 			goto tryagain;
 		}
-		p->valid = VM_PAGE_BITS_ALL;
 		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
 	}
