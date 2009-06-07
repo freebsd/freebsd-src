@@ -58,6 +58,7 @@ void	ieee80211_proto_vdetach(struct ieee80211vap *);
 
 void	ieee80211_syncifflag_locked(struct ieee80211com *, int flag);
 void	ieee80211_syncflag(struct ieee80211vap *, int flag);
+void	ieee80211_syncflag_ht(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 
 #define	ieee80211_input(ni, m, rssi, nf) \

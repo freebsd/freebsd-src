@@ -287,10 +287,10 @@ ieee80211_node_set_chan(struct ieee80211_node *ni,
 		 * and non-ERP rates in 11g for mixed ERP+non-ERP bss.
 		 */
 		if (mode == IEEE80211_MODE_11NA &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) == 0)
+		    (vap->iv_flags_ht & IEEE80211_FHT_PUREN) == 0)
 			mode = IEEE80211_MODE_11A;
 		else if (mode == IEEE80211_MODE_11NG &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) == 0)
+		    (vap->iv_flags_ht & IEEE80211_FHT_PUREN) == 0)
 			mode = IEEE80211_MODE_11G;
 		if (mode == IEEE80211_MODE_11G &&
 		    (vap->iv_flags & IEEE80211_F_PUREG) == 0)
@@ -650,7 +650,7 @@ ieee80211_setupcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 		 * set of running vap's.  This assumes we are called
 		 * after ni_chan is setup for each vap.
 		 */
-		/* NB: this assumes IEEE80211_FEXT_USEHT40 > IEEE80211_FEXT_HT */
+		/* NB: this assumes IEEE80211_FHT_USEHT40 > IEEE80211_FHT_HT */
 		if (flags > ieee80211_htchanflags(c))
 			c = ieee80211_ht_adjust_channel(ic, c, flags);
 	}
@@ -1204,7 +1204,7 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 			ni->ni_flags |= IEEE80211_NODE_FF;
 #endif
 		if ((ic->ic_htcaps & IEEE80211_HTC_HT) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
+		    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 			/*
 			 * Device is HT-capable and HT is enabled for
 			 * the vap; setup HT operation.  On return

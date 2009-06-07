@@ -80,6 +80,7 @@ static const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static	void ieee80211_syncflag_locked(struct ieee80211com *ic, int flag);
+static	void ieee80211_syncflag_ht_locked(struct ieee80211com *ic, int flag);
 static	void ieee80211_syncflag_ext_locked(struct ieee80211com *ic, int flag);
 static	int ieee80211_media_setup(struct ieee80211com *ic,
 		struct ifmedia *media, int caps, int addsta,
@@ -520,8 +521,8 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 #endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_USEHT40);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 	ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 	IEEE80211_UNLOCK(ic);
@@ -566,8 +567,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 #endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_USEHT40);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
 	/* NB: this handles the bpfdetach done below */
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_BPF);
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
@@ -678,7 +679,47 @@ ieee80211_syncflag(struct ieee80211vap *vap, int flag)
 }
 
 /*
- * Synchronize flag bit state in the com structure
+ * Synchronize flags_ht bit state in the com structure
+ * according to the state of all vap's.  This is used,
+ * for example, to handle state changes via ioctls.
+ */
+static void
+ieee80211_syncflag_ht_locked(struct ieee80211com *ic, int flag)
+{
+	struct ieee80211vap *vap;
+	int bit;
+
+	IEEE80211_LOCK_ASSERT(ic);
+
+	bit = 0;
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_flags_ht & flag) {
+			bit = 1;
+			break;
+		}
+	if (bit)
+		ic->ic_flags_ht |= flag;
+	else
+		ic->ic_flags_ht &= ~flag;
+}
+
+void
+ieee80211_syncflag_ht(struct ieee80211vap *vap, int flag)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	IEEE80211_LOCK(ic);
+	if (flag < 0) {
+		flag = -flag;
+		vap->iv_flags_ht &= ~flag;
+	} else
+		vap->iv_flags_ht |= flag;
+	ieee80211_syncflag_ht_locked(ic, flag);
+	IEEE80211_UNLOCK(ic);
+}
+
+/*
+ * Synchronize flags_ext bit state in the com structure
  * according to the state of all vap's.  This is used,
  * for example, to handle state changes via ioctls.
  */
