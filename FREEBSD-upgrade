@@ -4,21 +4,48 @@ the FreeBSD base system.  It is not expected to be complete but just to
 contain some hints for imports.  Note that this doesn't actually deal
 with getting OpenSSL to compile...
 
-setenv OSSLVER 0.9.8e
-# OSSLTAG format: v0_9_8e
-setenv OSSLTAG v`echo ${OSSLVER} | tr . _`
+XXX This file currently partly contain CVS and SVN instructions.
+
+First, read http://wiki.freebsd.org/SubversionPrimer/VendorImports
+
+# Xlist
+setenv XLIST /FreeBSD/work/openssl/svn-FREEBSD-files/FREEBSD-Xlist
+setenv FSVN "svn+ssh://svn.freebsd.org/base"
+setenv OSSLVER 0.9.8k
+# OSSLTAG format: v0_9_8k
+
+###setenv OSSLTAG v`echo ${OSSLVER} | tr . _`
+
+cd /FreeBSD/work/openssl/merge
 fetch  http://www.openssl.org/source/openssl-${OSSLVER}.tar.gz \
 	http://www.openssl.org/source/openssl-${OSSLVER}.tar.gz.asc
 gpg --verify openssl-${OSSLVER}.tar.gz.asc openssl-${OSSLVER}.tar.gz
-tar xf openssl-${OSSLVER}.tar.gz
-mv openssl-${OSSLVER} openssl
-cd openssl
-find . -type l -delete
-sh -c 'while read glob ; do rm -rvf $glob ; done' </usr/src/crypto/openssl/FREEBSD-Xlist
-# Check for new files
-cvs -n import src/crypto/openssl OPENSSL x | grep \^N
-cvs import -m "Vendor import of OpenSSL ${OSSLVER}." src/crypto/openssl OPENSSL ${OSSLTAG}
-cvs checkout -j<prev_rel_tag> -j${OSSLTAG} src/crypto/openssl
+
+svn co $FSVN/vendor-crypto/openssl/dist dist
+tar -x -X $XLIST -f openssl-${OSSLVER}.tar.gz
+
+cd dist
+svn list -R | grep -v '/$' | sort >../old
+cd ../openssl-${OSSLVER}
+find . -type f -or -type l | cut -c 3- | sort >../new
+cd ..
+
+# See that files to remove makes sense
+# FREEBSD-Xlist FREEBSD-upgrade will show up - ignore that.
+comm -23 old new
+# See that files to add makes sense
+comm -13 old new
+
+tar -cf - -C openssl-${OSSLVER} . | tar xf - -C dist
+cd dist
+comm -23 ../old ../new | xargs svn rm
+comm -13 ../old ../new | xargs svn --parents add
+
+svn ci
+echo svn cp $FSVN/vendor-crypto/openssl/dist $FSVN/vendor-crypto/openssl/$OSSLVER
+
+# XXX, below this point it's very WIP.
+
 # Resolve conflicts manually
 cd src/crypto/openssl
 cvs ci -m "Resolve conflicts after import of OpenSSL ${OSSLVER}."
