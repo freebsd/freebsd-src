@@ -45,6 +45,7 @@
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/conf.h>
@@ -198,6 +199,7 @@ gif_clone_create(ifc, unit, params)
 	if_initname(GIF2IFP(sc), ifc->ifc_name, unit);
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
+	sc->gif_options = GIF_ACCEPT_REVETHIP;
 
 	GIF2IFP(sc)->if_addrlen = 0;
 	GIF2IFP(sc)->if_mtu    = GIF_MTU;
@@ -534,6 +536,7 @@ gif_input(m, af, ifp)
 	struct ifnet *ifp;
 {
 	int isr, n;
+	struct gif_softc *sc = ifp->if_softc;
 	struct etherip_header *eip;
 	struct ether_header *eh;
 	struct ifnet *oldifp;
@@ -594,11 +597,25 @@ gif_input(m, af, ifp)
 		}
 
 		eip = mtod(m, struct etherip_header *);
- 		if (eip->eip_ver !=
-		    (ETHERIP_VERSION & ETHERIP_VER_VERS_MASK)) {
-			/* discard unknown versions */
-			m_freem(m);
-			return;
+		/* 
+		 * GIF_ACCEPT_REVETHIP (enabled by default) intentionally
+		 * accepts an EtherIP packet with revered version field in
+		 * the header.  This is a knob for backward compatibility
+		 * with FreeBSD 7.2R or prior.
+		 */
+		if (sc->gif_options & GIF_ACCEPT_REVETHIP) {
+			if (eip->eip_resvl != ETHERIP_VERSION
+			    && eip->eip_ver != ETHERIP_VERSION) {
+				/* discard unknown versions */
+				m_freem(m);
+				return;
+			}
+		} else {
+			if (eip->eip_ver != ETHERIP_VERSION) {
+				/* discard unknown versions */
+				m_freem(m);
+				return;
+			}
 		}
 		m_adj(m, sizeof(struct etherip_header));
 
@@ -653,6 +670,7 @@ gif_ioctl(ifp, cmd, data)
 	struct gif_softc *sc  = ifp->if_softc;
 	struct ifreq     *ifr = (struct ifreq*)data;
 	int error = 0, size;
+	u_int	options;
 	struct sockaddr *dst, *src;
 #ifdef	SIOCSIFMTU /* xxx */
 	u_long mtu;
@@ -885,6 +903,24 @@ gif_ioctl(ifp, cmd, data)
 
 	case SIOCSIFFLAGS:
 		/* if_ioctl() takes care of it */
+		break;
+
+	case GIFGOPTS:
+		options = sc->gif_options;
+		error = copyout(&options, ifr->ifr_data,
+				sizeof(options));
+		break;
+
+	case GIFSOPTS:
+		if ((error = priv_check(curthread, PRIV_NET_GIF)) != 0)
+			break;
+		if ((error = copyin(&options, &sc->gif_options,
+				sizeof(sc->gif_options)))) {
+			if ((options | GIF_FULLOPTS) == GIF_FULLOPTS)
+				ifr->ifr_data = (caddr_t)options;
+			else
+				error = EINVAL;
+		}
 		break;
 
 	default:

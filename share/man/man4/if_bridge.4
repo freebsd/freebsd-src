@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2007
+.Dd June 8, 2009
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -406,6 +406,12 @@ ifconfig gif0 tunnel 1.2.3.4 5.6.7.8 up
 ifconfig bridge0 create
 ifconfig bridge0 addm fxp0 addm gif0 up
 .Ed
+.Pp
+Note that
+.Fx
+6.1, 6.2, 6.3, 7.0, 7.1, and 7.2 have a bug in the EtherIP protocol.
+For more details and workaround, see
+.Xr gif 4 manual page.
 .Sh SEE ALSO
 .Xr gif 4 ,
 .Xr ipf 4 ,
