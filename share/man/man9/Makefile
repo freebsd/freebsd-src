@@ -162,6 +162,7 @@ MAN=	accept_filter.9 \
 	mtx_pool.9 \
 	mutex.9 \
 	namei.9 \
+	netisr.9 \
 	panic.9 \
 	pbuf.9 \
 	p_candebug.9 \
