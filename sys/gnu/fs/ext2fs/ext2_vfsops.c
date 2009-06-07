@@ -218,12 +218,12 @@ ext2_mount(struct mount *mp)
 			if ((fs->s_es->s_state & EXT2_VALID_FS) == 0 ||
 			    (fs->s_es->s_state & EXT2_ERROR_FS)) {
 				if (mp->mnt_flag & MNT_FORCE) {
-					printf("WARNING: %s was not properly "
-					    "dismounted\n", fs->fs_fsmnt);
+					printf(
+"WARNING: %s was not properly dismounted\n", fs->fs_fsmnt);
 				} else {
-					printf("WARNING: R/W mount of %s "
-					    "denied. Filesystem is not clean"
-					    " - run fsck\n", fs->fs_fsmnt);
+					printf(
+"WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
+					    fs->fs_fsmnt);
 					return (EPERM);
 				}
 			}
@@ -359,8 +359,9 @@ ext2_check_sb_compat(struct ext2_super_block *es, struct cdev *dev, int ronly)
 	}
 	if (es->s_rev_level > EXT2_GOOD_OLD_REV) {
 		if (es->s_feature_incompat & ~EXT2_FEATURE_INCOMPAT_SUPP) {
-			printf("WARNING: mount of %s denied due to unsupported "
-			    "optional features\n", devtoname(dev));
+			printf(
+"WARNING: mount of %s denied due to unsupported optional features\n",
+			    devtoname(dev));
 			return (1);
 		}
 		if (!ronly &&
@@ -629,11 +630,11 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	if ((es->s_state & EXT2_VALID_FS) == 0 ||
 	    (es->s_state & EXT2_ERROR_FS)) {
 		if (ronly || (mp->mnt_flag & MNT_FORCE)) {
-			printf("WARNING: Filesystem was not properly "
-			    "dismounted\n");
+			printf(
+"WARNING: Filesystem was not properly dismounted\n");
 		} else {
-			printf("WARNING: R/W mount denied.  Filesystem "
-			    "is not clean - run fsck\n");
+			printf(
+"WARNING: R/W mount denied.  Filesystem is not clean - run fsck\n");
 			error = EPERM;
 			goto out;
 		}
