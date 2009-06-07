@@ -174,6 +174,7 @@ svcpool_destroy(SVCPOOL *pool)
 		svc_unreg(pool, s->sc_prog, s->sc_vers);
 		mtx_lock(&pool->sp_lock);
 	}
+	mtx_unlock(&pool->sp_lock);
 
 	TAILQ_FOREACH_SAFE(xprt, &cleanup, xp_link, nxprt) {
 		SVC_RELEASE(xprt);
