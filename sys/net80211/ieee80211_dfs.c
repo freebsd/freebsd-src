@@ -232,8 +232,7 @@ dfs_timeout(void *arg)
 	}
 	if (oldest != now) {
 		/* arrange to process next channel up for a status change */
-		callout_reset(&dfs->nol_timer, oldest + NOL_TIMEOUT,
-		    dfs_timeout, ic);
+		callout_schedule(&dfs->nol_timer, oldest + NOL_TIMEOUT);
 	}
 	IEEE80211_UNLOCK(ic);
 }
