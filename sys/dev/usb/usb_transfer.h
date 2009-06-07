@@ -125,7 +125,7 @@ void	usb2_transfer_enqueue(struct usb_xfer_queue *pq,
 void	usb2_transfer_setup_sub(struct usb_setup_params *parm);
 void	usb2_default_transfer_setup(struct usb_device *udev);
 void	usb2_clear_data_toggle(struct usb_device *udev,
-	    struct usb_pipe *pipe);
+	    struct usb_endpoint *ep);
 void	usb2_do_poll(struct usb_xfer **ppxfer, uint16_t max);
 usb_callback_t usb2_do_request_callback;
 usb_callback_t usb2_handle_request_callback;

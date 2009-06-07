@@ -214,7 +214,7 @@ struct usb_driver {
 #define	PIPE_BULK			0x02	/* UE_BULK */
 
 /* Whenever Linux references an USB endpoint:
- * a) to initialize "urb->pipe"
+ * a) to initialize "urb->endpoint"
  * b) second argument passed to "usb_control_msg()"
  *
  * Then it uses one of the following macros. The "endpoint" argument
@@ -271,7 +271,7 @@ struct urb {
 	struct cv cv_wait;
 
 	struct usb_device *dev;		/* (in) pointer to associated device */
-	struct usb_host_endpoint *pipe;	/* (in) pipe pointer */
+	struct usb_host_endpoint *endpoint;	/* (in) pipe pointer */
 	uint8_t *setup_packet;		/* (in) setup packet (control only) */
 	uint8_t *bsd_data_ptr;
 	void   *transfer_buffer;	/* (in) associated data buffer */
@@ -311,7 +311,7 @@ struct urb {
 int	usb_submit_urb(struct urb *urb, uint16_t mem_flags);
 int	usb_unlink_urb(struct urb *urb);
 int	usb_clear_halt(struct usb_device *dev, struct usb_host_endpoint *uhe);
-int	usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *pipe,
+int	usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *ep,
 	    uint8_t request, uint8_t requesttype, uint16_t value,
 	    uint16_t index, void *data, uint16_t size, usb_timeout_t timeout);
 int	usb_set_interface(struct usb_device *dev, uint8_t ifnum,

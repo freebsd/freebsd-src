@@ -520,7 +520,7 @@ usbd_func_selconf(ip)
 	int i, j;
 	struct ndis_softc *sc = device_get_softc(dev);
 	struct usb_device *udev = sc->ndisusb_dev;
-	struct usb_pipe *p = NULL;
+	struct usb_endpoint *ep = NULL;
 	struct usbd_interface_information *intf;
 	struct usbd_pipe_information *pipe;
 	struct usbd_urb_select_configuration *selconf;
@@ -549,14 +549,14 @@ usbd_func_selconf(ip)
 			return usbd_usb2urb(ret);
 		}
 
-		for (j = 0; (p = usb2_pipe_foreach(udev, p)); j++) {
+		for (j = 0; (ep = usb2_endpoint_foreach(udev, ep)); j++) {
 			if (j >= intf->uii_numeps) {
 				device_printf(dev,
 				    "endpoint %d and above are ignored",
 				    intf->uii_numeps);
 				break;
 			}
-			edesc = p->edesc;
+			edesc = ep->edesc;
 			pipe = &intf->uii_pipes[j];
 			pipe->upi_handle = edesc;
 			pipe->upi_epaddr = edesc->bEndpointAddress;

@@ -1494,7 +1494,7 @@ usb2_transfer_power_ref(struct usb_xfer *xfer, int val)
 	}
 	USB_BUS_LOCK(udev->bus);
 
-	xfer_type = xfer->pipe->edesc->bmAttributes & UE_XFERTYPE;
+	xfer_type = xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE;
 
 	udev->pwr_save.last_xfer_time = ticks;
 	udev->pwr_save.type_refs[xfer_type] += val;
