@@ -183,32 +183,32 @@ ieee80211_ht_vattach(struct ieee80211vap *vap)
 		 * facilities by default.
 		 * XXX these choices may be too aggressive.
 		 */
-		vap->iv_flags_ext |= IEEE80211_FEXT_HT
-				  |  IEEE80211_FEXT_HTCOMPAT
-				  ;
+		vap->iv_flags_ht |= IEEE80211_FHT_HT
+				 |  IEEE80211_FHT_HTCOMPAT
+				 ;
 		if (vap->iv_htcaps & IEEE80211_HTCAP_SHORTGI20)
-			vap->iv_flags_ext |= IEEE80211_FEXT_SHORTGI20;
+			vap->iv_flags_ht |= IEEE80211_FHT_SHORTGI20;
 		/* XXX infer from channel list? */
 		if (vap->iv_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
-			vap->iv_flags_ext |= IEEE80211_FEXT_USEHT40;
+			vap->iv_flags_ht |= IEEE80211_FHT_USEHT40;
 			if (vap->iv_htcaps & IEEE80211_HTCAP_SHORTGI40)
-				vap->iv_flags_ext |= IEEE80211_FEXT_SHORTGI40;
+				vap->iv_flags_ht |= IEEE80211_FHT_SHORTGI40;
 		}
 		/* enable RIFS if capable */
 		if (vap->iv_htcaps & IEEE80211_HTC_RIFS)
-			vap->iv_flags_ext |= IEEE80211_FEXT_RIFS;
+			vap->iv_flags_ht |= IEEE80211_FHT_RIFS;
 
 		/* NB: A-MPDU and A-MSDU rx are mandated, these are tx only */
-		vap->iv_flags_ext |= IEEE80211_FEXT_AMPDU_RX;
+		vap->iv_flags_ht |= IEEE80211_FHT_AMPDU_RX;
 		if (vap->iv_htcaps & IEEE80211_HTC_AMPDU)
-			vap->iv_flags_ext |= IEEE80211_FEXT_AMPDU_TX;
-		vap->iv_flags_ext |= IEEE80211_FEXT_AMSDU_RX;
+			vap->iv_flags_ht |= IEEE80211_FHT_AMPDU_TX;
+		vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_RX;
 		if (vap->iv_htcaps & IEEE80211_HTC_AMSDU)
-			vap->iv_flags_ext |= IEEE80211_FEXT_AMSDU_TX;
+			vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_TX;
 	}
 	/* NB: disable default legacy WDS, too many issues right now */
 	if (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY)
-		vap->iv_flags_ext &= ~IEEE80211_FEXT_HT;
+		vap->iv_flags_ht &= ~IEEE80211_FHT_HT;
 }
 
 void
@@ -921,9 +921,9 @@ ieee80211_ht_adjust_channel(struct ieee80211com *ic,
 {
 	struct ieee80211_channel *c;
 
-	if (flags & IEEE80211_FEXT_HT) {
+	if (flags & IEEE80211_FHT_HT) {
 		/* promote to HT if possible */
-		if (flags & IEEE80211_FEXT_USEHT40) {
+		if (flags & IEEE80211_FHT_USEHT40) {
 			if (!IEEE80211_IS_CHAN_HT40(chan)) {
 				/* NB: arbitrarily pick ht40+ over ht40- */
 				c = findhtchan(ic, chan, IEEE80211_CHAN_HT40U);
@@ -961,7 +961,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 	struct ieee80211_tx_ampdu *tap;
 	int ac;
 
-	KASSERT(vap->iv_flags_ext & IEEE80211_FEXT_HT, ("no HT requested"));
+	KASSERT(vap->iv_flags_ht & IEEE80211_FHT_HT, ("no HT requested"));
 
 	/* XXX check scan cache in case peer has an ap and we have info */
 	/*
@@ -974,7 +974,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 	    ni->ni_chan, ieee80211_htchanflags(ni->ni_chan));
 
 	ni->ni_htcap = 0;
-	if (vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI20)
+	if (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20)
 		ni->ni_htcap |= IEEE80211_HTCAP_SHORTGI20;
 	if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
 		ni->ni_htcap |= IEEE80211_HTCAP_CHWIDTH40;
@@ -983,14 +983,14 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 			ni->ni_ht2ndchan = IEEE80211_HTINFO_2NDCHAN_ABOVE;
 		else if (IEEE80211_IS_CHAN_HT40D(ni->ni_chan))
 			ni->ni_ht2ndchan = IEEE80211_HTINFO_2NDCHAN_BELOW;
-		if (vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI40)
+		if (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40)
 			ni->ni_htcap |= IEEE80211_HTCAP_SHORTGI40;
 	} else {
 		ni->ni_chw = 20;
 		ni->ni_ht2ndchan = IEEE80211_HTINFO_2NDCHAN_NONE;
 	}
 	ni->ni_htctlchan = ni->ni_chan->ic_ieee;
-	if (vap->iv_flags_ext & IEEE80211_FEXT_RIFS)
+	if (vap->iv_flags_ht & IEEE80211_FHT_RIFS)
 		ni->ni_flags |= IEEE80211_NODE_RIFS;
 	/* XXX does it make sense to enable SMPS? */
 
@@ -1001,7 +1001,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 		tap = &ni->ni_tx_ampdu[ac];
 		tap->txa_ac = ac;
 	}
-	/* NB: AMPDU tx/rx governed by IEEE80211_FEXT_AMPDU_{TX,RX} */
+	/* NB: AMPDU tx/rx governed by IEEE80211_FHT_AMPDU_{TX,RX} */
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
 }
 
@@ -1031,7 +1031,7 @@ htinfo_notify(struct ieee80211com *ic)
 			    , ic->ic_sta_assoc
 			    , ic->ic_ht_sta_assoc
 			    , ic->ic_ht40_sta_assoc
-			    , (ic->ic_flags_ext & IEEE80211_FEXT_NONHT_PR) ?
+			    , (ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) ?
 				 ", non-HT sta present" : ""
 			    , ic->ic_curhtprotmode);
 			first = 0;
@@ -1052,7 +1052,7 @@ htinfo_update(struct ieee80211com *ic)
 	if (ic->ic_sta_assoc != ic->ic_ht_sta_assoc) {
 		protmode = IEEE80211_HTINFO_OPMODE_MIXED
 			 | IEEE80211_HTINFO_NONHT_PRESENT;
-	} else if (ic->ic_flags_ext & IEEE80211_FEXT_NONHT_PR) {
+	} else if (ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) {
 		protmode = IEEE80211_HTINFO_OPMODE_PROTOPT
 			 | IEEE80211_HTINFO_NONHT_PRESENT;
 	} else if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&
@@ -1125,7 +1125,7 @@ ieee80211_htprot_update(struct ieee80211com *ic, int protmode)
 	/* track non-HT station presence */
 	KASSERT(protmode & IEEE80211_HTINFO_NONHT_PRESENT,
 	    ("protmode 0x%x", protmode));
-	ic->ic_flags_ext |= IEEE80211_FEXT_NONHT_PR;
+	ic->ic_flags_ht |= IEEE80211_FHT_NONHT_PR;
 	ic->ic_lastnonht = ticks;
 
 	if (protmode != ic->ic_curhtprotmode &&
@@ -1152,13 +1152,13 @@ ieee80211_ht_timeout(struct ieee80211com *ic)
 {
 	IEEE80211_LOCK_ASSERT(ic);
 
-	if ((ic->ic_flags_ext & IEEE80211_FEXT_NONHT_PR) &&
+	if ((ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) &&
 	    time_after(ticks, ic->ic_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
 #if 0
 		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
 		    "%s", "time out non-HT STA present on channel");
 #endif
-		ic->ic_flags_ext &= ~IEEE80211_FEXT_NONHT_PR;
+		ic->ic_flags_ht &= ~IEEE80211_FHT_NONHT_PR;
 		htinfo_update(ic);
 	}
 }
@@ -1303,10 +1303,10 @@ htcap_update_shortgi(struct ieee80211_node *ni)
 
 	ni->ni_flags &= ~(IEEE80211_NODE_SGI20|IEEE80211_NODE_SGI40);
 	if ((ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI20))
+	    (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20))
 		ni->ni_flags |= IEEE80211_NODE_SGI20;
 	if ((ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI40))
+	    (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40))
 		ni->ni_flags |= IEEE80211_NODE_SGI40;
 }
 
@@ -1332,11 +1332,11 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	htinfo = (const struct ieee80211_ie_htinfo *) htinfoie;
 	htinfo_parse(ni, htinfo);
 
-	htflags = (vap->iv_flags_ext & IEEE80211_FEXT_HT) ?
+	htflags = (vap->iv_flags_ht & IEEE80211_FHT_HT) ?
 	    IEEE80211_CHAN_HT20 : 0;
 	/* NB: honor operating mode constraint */
 	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_TXWIDTH_2040) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_USEHT40)) {
+	    (vap->iv_flags_ht & IEEE80211_FHT_USEHT40)) {
 		if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_ABOVE)
 			htflags = IEEE80211_CHAN_HT40U;
 		else if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_BELOW)
@@ -1345,7 +1345,7 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	htinfo_update_chw(ni, htflags);
 
 	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_RIFSMODE_PERM) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_RIFS))
+	    (vap->iv_flags_ht & IEEE80211_FHT_RIFS))
 		ni->ni_flags |= IEEE80211_NODE_RIFS;
 	else
 		ni->ni_flags &= ~IEEE80211_NODE_RIFS;
@@ -1368,10 +1368,10 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 
 	/* NB: honor operating mode constraint */
 	/* XXX 40 MHZ intolerant */
-	htflags = (vap->iv_flags_ext & IEEE80211_FEXT_HT) ?
+	htflags = (vap->iv_flags_ht & IEEE80211_FHT_HT) ?
 	    IEEE80211_CHAN_HT20 : 0;
 	if ((ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_USEHT40)) {
+	    (vap->iv_flags_ht & IEEE80211_FHT_USEHT40)) {
 		if (IEEE80211_IS_CHAN_HT40U(vap->iv_bss->ni_chan))
 			htflags = IEEE80211_CHAN_HT40U;
 		else if (IEEE80211_IS_CHAN_HT40D(vap->iv_bss->ni_chan))
@@ -1627,7 +1627,7 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 			 * violates the 11n spec and is mostly for testing).
 			 */
 			if ((ni->ni_flags & IEEE80211_NODE_AMPDU_RX) &&
-			    (vap->iv_flags_ext & IEEE80211_FEXT_AMPDU_RX)) {
+			    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_RX)) {
 				/* XXX handle ampdu_rx_start failure */
 				ic->ic_ampdu_rx_start(ni, rap,
 				    baparamset, batimeout, baseqctl);
@@ -2298,7 +2298,7 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	 */
 	if (vap->iv_opmode == IEEE80211_M_STA) {
 		/* override 20/40 use based on config */
-		if (vap->iv_flags_ext & IEEE80211_FEXT_USEHT40)
+		if (vap->iv_flags_ht & IEEE80211_FHT_USEHT40)
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
@@ -2315,9 +2315,9 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 		density = vap->iv_ampdu_density;
 	}
 	/* adjust short GI based on channel and config */
-	if ((vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI20) == 0)
+	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 		caps &= ~IEEE80211_HTCAP_SHORTGI20;
-	if ((vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI40) == 0 ||
+	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0 ||
 	    (caps & IEEE80211_HTCAP_CHWIDTH40) == 0)
 		caps &= ~IEEE80211_HTCAP_SHORTGI40;
 	ADDSHORT(frm, caps);
@@ -2408,7 +2408,7 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 
 	/* XXX only update on channel change */
 	ht->hi_ctrlchannel = ieee80211_chan2ieee(ic, bsschan);
-	if (vap->iv_flags_ext & IEEE80211_FEXT_RIFS)
+	if (vap->iv_flags_ht & IEEE80211_FHT_RIFS)
 		ht->hi_byte1 = IEEE80211_HTINFO_RIFSMODE_PERM;
 	else
 		ht->hi_byte1 = IEEE80211_HTINFO_RIFSMODE_PROH;
@@ -2447,7 +2447,7 @@ ieee80211_add_htinfo_body(uint8_t *frm, struct ieee80211_node *ni)
 	/* primary/control channel center */
 	*frm++ = ieee80211_chan2ieee(ic, ni->ni_chan);
 
-	if (vap->iv_flags_ext & IEEE80211_FEXT_RIFS)
+	if (vap->iv_flags_ht & IEEE80211_FHT_RIFS)
 		frm[0] = IEEE80211_HTINFO_RIFSMODE_PERM;
 	else
 		frm[0] = IEEE80211_HTINFO_RIFSMODE_PROH;
