@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 1989, 1990 William F. Jolitz.
  * Copyright (c) 1990 The Regents of the University of California.
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +37,7 @@
 #include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_kdtrace.h"
+#include "opt_hwpmc_hooks.h"
 
 #include <machine/asmacros.h>
 #include <machine/psl.h>
@@ -56,6 +61,10 @@ dtrace_invop_calltrap_addr:
 	.zero	8
 #endif
 	.text
+#ifdef HWPMC_HOOKS
+	ENTRY(start_exceptions)
+#endif
+
 
 /*****************************************************************************/
 /* Trap handling                                                             */
@@ -375,19 +384,24 @@ IDTVEC(fast_syscall32)
  * NMI handling is special.
  *
  * First, NMIs do not respect the state of the processor's RFLAGS.IF
- * bit and the NMI handler may be invoked at any time, including when
- * the processor is in a critical section with RFLAGS.IF == 0.  In
- * particular, this means that the processor's GS.base values could be
- * inconsistent on entry to the handler, and so we need to read
- * MSR_GSBASE to determine if a 'swapgs' is needed.  We use '%ebx', a
- * C-preserved register, to remember whether to swap GS back on the
- * exit path.
+ * bit.  The NMI handler may be entered at any time, including when
+ * the processor is in a critical section with RFLAGS.IF == 0.
+ * The processor's GS.base value could be invalid on entry to the
+ * handler.
  *
  * Second, the processor treats NMIs specially, blocking further NMIs
- * until an 'iretq' instruction is executed.  We therefore need to
- * execute the NMI handler with interrupts disabled to prevent a
- * nested interrupt from executing an 'iretq' instruction and
- * inadvertently taking the processor out of NMI mode.
+ * until an 'iretq' instruction is executed.  We thus need to execute
+ * the NMI handler with interrupts disabled, to prevent a nested interrupt
+ * from executing an 'iretq' instruction and inadvertently taking the
+ * processor out of NMI mode.
+ *
+ * Third, the NMI handler runs on its own stack (tss_ist2). The canonical
+ * GS.base value for the processor is stored just above the bottom of its
+ * NMI stack.  For NMIs taken from kernel mode, the current value in
+ * the processor's GS.base is saved at entry to C-preserved register %r12,
+ * the canonical value for GS.base is then loaded into the processor, and
+ * the saved value is restored at exit time.  For NMIs taken from user mode,
+ * the cheaper 'SWAPGS' instructions are used for swapping GS.base.
  */
 
 IDTVEC(nmi)
@@ -412,12 +426,22 @@ IDTVEC(nmi)
 	movq	%r15,TF_R15(%rsp)
 	xorl	%ebx,%ebx
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
-	jnz	nmi_needswapgs		/* we came from userland */
+	jnz	nmi_fromuserspace
+	/*
+	 * We've interrupted the kernel.  Preserve GS.base in %r12.
+	 */
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
-	cmpl	$VM_MAXUSER_ADDRESS >> 32,%edx
-	jae	nmi_calltrap		/* GS.base holds a kernel VA */
-nmi_needswapgs:
+	movq	%rax,%r12
+	shlq	$32,%rdx
+	orq	%rdx,%r12
+	/* Retrieve and load the canonical value for GS.base. */
+	movq	TF_SIZE(%rsp),%rdx
+	movl	%edx,%eax
+	shrq	$32,%rdx
+	wrmsr
+	jmp	nmi_calltrap
+nmi_fromuserspace:
 	incl	%ebx
 	swapgs
 /* Note: this label is also used by ddb and gdb: */
@@ -426,9 +450,84 @@ nmi_calltrap:
 	movq	%rsp, %rdi
 	call	trap
 	MEXITCOUNT
+#ifdef HWPMC_HOOKS
+	/*
+	 * Capture a userspace callchain if needed.
+	 * 
+	 * - Check if the current trap was from user mode.
+	 * - Check if the current thread is valid.
+	 * - Check if the thread requires a user call chain to be
+	 *   captured.
+	 *
+	 * We are still in NMI mode at this point.
+	 */
 	testl	%ebx,%ebx
-	jz	nmi_restoreregs
+	jz	nocallchain	/* not from userspace */
+	movq	PCPU(CURTHREAD),%rax
+	orq	%rax,%rax	/* curthread present? */
+	jz	nocallchain
+	testl	$TDP_CALLCHAIN,TD_PFLAGS(%rax) /* flagged for capture? */
+	jz	nocallchain
+	/*
+	 * A user callchain is to be captured, so:
+	 * - Move execution to the regular kernel stack, to allow for
+	 *   nested NMI interrupts.
+	 * - Take the processor out of "NMI" mode by faking an "iret".
+	 * - Enable interrupts, so that copyin() can work.
+	 */
+	movq	%rsp,%rsi	/* source stack pointer */
+	movq	$TF_SIZE,%rcx
+	movq	PCPU(RSP0),%rdx
+	subq	%rcx,%rdx
+	movq	%rdx,%rdi	/* destination stack pointer */
+
+	shrq	$3,%rcx		/* trap frame size in long words */
+	cld
+	rep
+	movsq			/* copy trapframe */
+
+	movl	%ss,%eax
+	pushq	%rax		/* tf_ss */
+	pushq	%rdx		/* tf_rsp (on kernel stack) */
+	pushfq			/* tf_rflags */
+	movl	%cs,%eax
+	pushq	%rax		/* tf_cs */
+	pushq	$outofnmi	/* tf_rip */
+	iretq
+outofnmi:
+	/*
+	 * At this point the processor has exited NMI mode and is running
+	 * with interrupts turned off on the normal kernel stack.
+	 *
+	 * If a pending NMI gets recognized at or after this point, it 
+	 * will cause a kernel callchain to be traced.
+	 *
+	 * We turn interrupts back on, and call the user callchain capture hook.
+	 */
+	movq	pmc_hook,%rax
+	orq	%rax,%rax
+	jz	nocallchain
+	movq	PCPU(CURTHREAD),%rdi		/* thread */
+	movq	$PMC_FN_USER_CALLCHAIN,%rsi	/* command */
+	movq	%rsp,%rdx			/* frame */
+	sti
+	call	*%rax
+	cli
+nocallchain:
+#endif
+	testl	%ebx,%ebx
+	jz	nmi_kernelexit
 	swapgs
+	jmp	nmi_restoreregs
+nmi_kernelexit:	
+	/*
+	 * Put back the preserved MSR_GSBASE value.
+	 */
+	movl	$MSR_GSBASE,%ecx
+	movq	%r12,%rdx
+	movl	%edx,%eax
+	shrq	$32,%rdx
+	wrmsr
 nmi_restoreregs:
 	movq	TF_RDI(%rsp),%rdi
 	movq	TF_RSI(%rsp),%rsi
@@ -593,3 +692,6 @@ doreti_iret_fault:
 	movq	$0,TF_ADDR(%rsp)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	jmp	calltrap
+#ifdef HWPMC_HOOKS
+	ENTRY(end_exceptions)
+#endif
