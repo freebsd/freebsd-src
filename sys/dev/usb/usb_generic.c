@@ -117,9 +117,9 @@ static int
 ugen_transfer_setup(struct usb_fifo *f,
     const struct usb_config *setup, uint8_t n_setup)
 {
-	struct usb_pipe *pipe = f->priv_sc0;
+	struct usb_endpoint *ep = f->priv_sc0;
 	struct usb_device *udev = f->udev;
-	uint8_t iface_index = pipe->iface_index;
+	uint8_t iface_index = ep->iface_index;
 	int error;
 
 	mtx_unlock(f->priv_mtx);
@@ -152,8 +152,8 @@ ugen_transfer_setup(struct usb_fifo *f,
 static int
 ugen_open(struct usb_fifo *f, int fflags)
 {
-	struct usb_pipe *pipe = f->priv_sc0;
-	struct usb_endpoint_descriptor *ed = pipe->edesc;
+	struct usb_endpoint *ep = f->priv_sc0;
+	struct usb_endpoint_descriptor *ed = ep->edesc;
 	uint8_t type;
 
 	DPRINTFN(6, "flag=0x%x\n", fflags);
@@ -208,8 +208,8 @@ static int
 ugen_open_pipe_write(struct usb_fifo *f)
 {
 	struct usb_config usb_config[2];
-	struct usb_pipe *pipe = f->priv_sc0;
-	struct usb_endpoint_descriptor *ed = pipe->edesc;
+	struct usb_endpoint *ep = f->priv_sc0;
+	struct usb_endpoint_descriptor *ed = ep->edesc;
 
 	mtx_assert(f->priv_mtx, MA_OWNED);
 
@@ -276,8 +276,8 @@ static int
 ugen_open_pipe_read(struct usb_fifo *f)
 {
 	struct usb_config usb_config[2];
-	struct usb_pipe *pipe = f->priv_sc0;
-	struct usb_endpoint_descriptor *ed = pipe->edesc;
+	struct usb_endpoint *ep = f->priv_sc0;
+	struct usb_endpoint_descriptor *ed = ep->edesc;
 
 	mtx_assert(f->priv_mtx, MA_OWNED);
 
@@ -839,7 +839,7 @@ usb2_gen_fill_deviceinfo(struct usb_fifo *f, struct usb_device_info *di)
 static int
 ugen_check_request(struct usb_device *udev, struct usb_device_request *req)
 {
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	int error;
 
 	/*
@@ -864,13 +864,13 @@ ugen_check_request(struct usb_device *udev, struct usb_device_request *req)
 	 */
 	if (req->bmRequestType == UT_WRITE_ENDPOINT) {
 
-		pipe = usb2_get_pipe_by_addr(udev, req->wIndex[0]);
-		if (pipe == NULL) {
+		ep = usb2_get_ep_by_addr(udev, req->wIndex[0]);
+		if (ep == NULL) {
 			return (EINVAL);
 		}
 		if ((req->bRequest == UR_CLEAR_FEATURE) &&
 		    (UGETW(req->wValue) == UF_ENDPOINT_HALT)) {
-			usb2_clear_data_toggle(udev, pipe);
+			usb2_clear_data_toggle(udev, ep);
 		}
 	}
 	/* TODO: add more checks to verify the interface index */
@@ -1372,7 +1372,7 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		struct usb_fs_clear_stall_sync *pstall;
 		void   *addr;
 	}     u;
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	struct usb_endpoint_descriptor *ed;
 	int error = 0;
 	uint8_t iface_index;
@@ -1437,17 +1437,17 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			error = EINVAL;
 			break;
 		}
-		pipe = usb2_get_pipe_by_addr(f->udev, u.popen->ep_no);
-		if (pipe == NULL) {
+		ep = usb2_get_ep_by_addr(f->udev, u.popen->ep_no);
+		if (ep == NULL) {
 			error = EINVAL;
 			break;
 		}
-		ed = pipe->edesc;
+		ed = ep->edesc;
 		if (ed == NULL) {
 			error = ENXIO;
 			break;
 		}
-		iface_index = pipe->iface_index;
+		iface_index = ep->iface_index;
 
 		bzero(usb_config, sizeof(usb_config));
 
@@ -1536,19 +1536,19 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		if (error) {
 			return (EBUSY);
 		}
-		pipe = f->fs_xfer[u.pstall->ep_index]->pipe;
+		ep = f->fs_xfer[u.pstall->ep_index]->endpoint;
 
 		/* setup a clear-stall packet */
 		req.bmRequestType = UT_WRITE_ENDPOINT;
 		req.bRequest = UR_CLEAR_FEATURE;
 		USETW(req.wValue, UF_ENDPOINT_HALT);
-		req.wIndex[0] = pipe->edesc->bEndpointAddress;
+		req.wIndex[0] = ep->edesc->bEndpointAddress;
 		req.wIndex[1] = 0;
 		USETW(req.wLength, 0);
 
 		error = usb2_do_request(f->udev, NULL, &req, NULL);
 		if (error == 0) {
-			usb2_clear_data_toggle(f->udev, pipe);
+			usb2_clear_data_toggle(f->udev, ep);
 		} else {
 			error = ENXIO;
 		}
@@ -1658,12 +1658,12 @@ static int
 ugen_get_endpoint_desc(struct usb_fifo *f,
     struct usb_endpoint_descriptor *ed)
 {
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 
-	pipe = f->priv_sc0;
+	ep = f->priv_sc0;
 
-	if (pipe && pipe->edesc) {
-		*ed = *pipe->edesc;
+	if (ep && ep->edesc) {
+		*ed = *ep->edesc;
 	} else {
 		return (EINVAL);
 	}

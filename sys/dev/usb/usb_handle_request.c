@@ -341,7 +341,7 @@ usb2_handle_set_stall(struct usb_xfer *xfer, uint8_t ep, uint8_t do_stall)
 
 	USB_XFER_UNLOCK(xfer);
 	err = usb2_set_endpoint_stall(udev,
-	    usb2_get_pipe_by_addr(udev, ep), do_stall);
+	    usb2_get_ep_by_addr(udev, ep), do_stall);
 	USB_XFER_LOCK(xfer);
 	return (err);
 }
@@ -356,16 +356,16 @@ usb2_handle_set_stall(struct usb_xfer *xfer, uint8_t ep, uint8_t do_stall)
 static uint8_t
 usb2_handle_get_stall(struct usb_device *udev, uint8_t ea_val)
 {
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	uint8_t halted;
 
-	pipe = usb2_get_pipe_by_addr(udev, ea_val);
-	if (pipe == NULL) {
+	ep = usb2_get_ep_by_addr(udev, ea_val);
+	if (ep == NULL) {
 		/* nothing to do */
 		return (0);
 	}
 	USB_BUS_LOCK(udev->bus);
-	halted = pipe->is_stalled;
+	halted = ep->is_stalled;
 	USB_BUS_UNLOCK(udev->bus);
 
 	return (halted);

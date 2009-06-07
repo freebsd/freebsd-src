@@ -77,11 +77,11 @@ struct usb_host_interface {
 } __aligned(USB_HOST_ALIGN);
 
 /*
- * The following structure defines an USB pipe which is equal to an
+ * The following structure defines an USB endpoint
  * USB endpoint.
  */
-struct usb_pipe {
-	struct usb_xfer_queue pipe_q;	/* queue of USB transfers */
+struct usb_endpoint {
+	struct usb_xfer_queue endpoint_q;	/* queue of USB transfers */
 
 	struct usb_endpoint_descriptor *edesc;
 	struct usb_pipe_methods *methods;	/* set by HC driver */
@@ -90,10 +90,10 @@ struct usb_pipe {
 	uint16_t refcount;
 
 	uint8_t	toggle_next:1;		/* next data toggle value */
-	uint8_t	is_stalled:1;		/* set if pipe is stalled */
+	uint8_t	is_stalled:1;		/* set if endpoint is stalled */
 	uint8_t	is_synced:1;		/* set if we a synchronised */
 	uint8_t	unused:5;
-	uint8_t	iface_index;		/* not used by "default pipe" */
+	uint8_t	iface_index;		/* not used by "default endpoint" */
 };
 
 /*
@@ -156,8 +156,8 @@ struct usb_device {
 	struct mtx default_mtx[1];
 	struct cv default_cv[2];
 	struct usb_interface *ifaces;
-	struct usb_pipe default_pipe;	/* Control Endpoint 0 */
-	struct usb_pipe *pipes;
+	struct usb_endpoint default_ep;	/* Control Endpoint 0 */
+	struct usb_endpoint *endpoints;
 	struct usb_power_save pwr_save;/* power save data */
 	struct usb_bus *bus;		/* our USB BUS */
 	device_t parent_dev;		/* parent device */
@@ -167,7 +167,7 @@ struct usb_device {
 	struct usb_hub *hub;		/* only if this is a hub */
 	struct usb_xfer *default_xfer[USB_DEFAULT_XFER_MAX];
 	struct usb_temp_data *usb2_template_ptr;
-	struct usb_pipe *pipe_curr;	/* current clear stall pipe */
+	struct usb_endpoint *ep_curr;	/* current clear stall endpoint */
 #if USB_HAVE_UGEN
 	struct usb_fifo *fifo[USB_FIFO_MAX];
 	struct usb_symlink *ugen_symlink;	/* our generic symlink */
@@ -197,13 +197,13 @@ struct usb_device {
 	uint8_t	driver_added_refcount;	/* our driver added generation count */
 	uint8_t	power_mode;		/* see USB_POWER_XXX */
 	uint8_t ifaces_max;		/* number of interfaces present */
-	uint8_t pipes_max;		/* number of pipes present */
+	uint8_t endpoints_max;		/* number of endpoints present */
 
 	/* the "flags" field is write-protected by "bus->mtx" */
 
 	struct usb_device_flags flags;
 
-	struct usb_endpoint_descriptor default_ep_desc;	/* for pipe 0 */
+	struct usb_endpoint_descriptor default_ep_desc;	/* for endpoint 0 */
 	struct usb_device_descriptor ddesc;	/* device descriptor */
 
 	char	*serial;		/* serial number */
@@ -232,9 +232,9 @@ struct usb_device *usb2_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		    struct usb_device *parent_hub, uint8_t depth,
 		    uint8_t port_index, uint8_t port_no,
 		    enum usb_dev_speed speed, enum usb_hc_mode mode);
-struct usb_pipe *usb2_get_pipe(struct usb_device *udev, uint8_t iface_index,
+struct usb_endpoint *usb2_get_endpoint(struct usb_device *udev, uint8_t iface_index,
 		    const struct usb_config *setup);
-struct usb_pipe *usb2_get_pipe_by_addr(struct usb_device *udev, uint8_t ea_val);
+struct usb_endpoint *usb2_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val);
 usb_error_t	usb2_interface_count(struct usb_device *udev, uint8_t *count);
 usb_error_t	usb2_probe_and_attach(struct usb_device *udev,
 		    uint8_t iface_index);
@@ -242,7 +242,7 @@ usb_error_t	usb2_reset_iface_endpoints(struct usb_device *udev,
 		    uint8_t iface_index);
 usb_error_t	usb2_set_config_index(struct usb_device *udev, uint8_t index);
 usb_error_t	usb2_set_endpoint_stall(struct usb_device *udev,
-		    struct usb_pipe *pipe, uint8_t do_stall);
+		    struct usb_endpoint *ep, uint8_t do_stall);
 usb_error_t	usb2_suspend_resume(struct usb_device *udev,
 		    uint8_t do_suspend);
 void	usb2_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len);
@@ -252,7 +252,7 @@ void	*usb2_find_descriptor(struct usb_device *udev, void *id,
 	    uint8_t subtype, uint8_t subtype_mask);
 void	usb_linux_free_device(struct usb_device *dev);
 uint8_t	usb2_peer_can_wakeup(struct usb_device *udev);
-struct usb_pipe *usb2_pipe_foreach(struct usb_device *udev, struct usb_pipe *pipe);
+struct usb_endpoint *usb2_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep);
 void	usb2_set_device_state(struct usb_device *udev,
 	    enum usb_dev_state state);
 

@@ -57,8 +57,8 @@
 
 /* function prototypes  */
 
-static void	usb2_init_pipe(struct usb_device *, uint8_t,
-		    struct usb_endpoint_descriptor *, struct usb_pipe *);
+static void	usb2_init_endpoint(struct usb_device *, uint8_t,
+		    struct usb_endpoint_descriptor *, struct usb_endpoint *);
 static void	usb2_unconfigure(struct usb_device *, uint8_t);
 static void	usb2_detach_device(struct usb_device *, uint8_t, uint8_t);
 static void	usb2_detach_device_sub(struct usb_device *, device_t *,
@@ -103,20 +103,20 @@ usb2_statestr(enum usb_dev_state state)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_get_pipe_by_addr
+ *	usb2_get_ep_by_addr
  *
- * This function searches for an USB pipe by endpoint address and
+ * This function searches for an USB ep by endpoint address and
  * direction.
  *
  * Returns:
  * NULL: Failure
  * Else: Success
  *------------------------------------------------------------------------*/
-struct usb_pipe *
-usb2_get_pipe_by_addr(struct usb_device *udev, uint8_t ea_val)
+struct usb_endpoint *
+usb2_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val)
 {
-	struct usb_pipe *pipe = udev->pipes;
-	struct usb_pipe *pipe_end = udev->pipes + udev->pipes_max;
+	struct usb_endpoint *ep = udev->endpoints;
+	struct usb_endpoint *ep_end = udev->endpoints + udev->endpoints_max;
 	enum {
 		EA_MASK = (UE_DIR_IN | UE_DIR_OUT | UE_ADDR),
 	};
@@ -128,50 +128,50 @@ usb2_get_pipe_by_addr(struct usb_device *udev, uint8_t ea_val)
 	ea_val &= EA_MASK;
 
 	/*
-	 * Iterate accross all the USB pipes searching for a match
+	 * Iterate accross all the USB endpoints searching for a match
 	 * based on the endpoint address:
 	 */
-	for (; pipe != pipe_end; pipe++) {
+	for (; ep != ep_end; ep++) {
 
-		if (pipe->edesc == NULL) {
+		if (ep->edesc == NULL) {
 			continue;
 		}
 		/* do the mask and check the value */
-		if ((pipe->edesc->bEndpointAddress & EA_MASK) == ea_val) {
+		if ((ep->edesc->bEndpointAddress & EA_MASK) == ea_val) {
 			goto found;
 		}
 	}
 
 	/*
-	 * The default pipe is always present and is checked separately:
+	 * The default endpoint is always present and is checked separately:
 	 */
-	if ((udev->default_pipe.edesc) &&
-	    ((udev->default_pipe.edesc->bEndpointAddress & EA_MASK) == ea_val)) {
-		pipe = &udev->default_pipe;
+	if ((udev->default_ep.edesc) &&
+	    ((udev->default_ep.edesc->bEndpointAddress & EA_MASK) == ea_val)) {
+		ep = &udev->default_ep;
 		goto found;
 	}
 	return (NULL);
 
 found:
-	return (pipe);
+	return (ep);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_get_pipe
+ *	usb2_get_endpoint
  *
- * This function searches for an USB pipe based on the information
+ * This function searches for an USB endpoint based on the information
  * given by the passed "struct usb_config" pointer.
  *
  * Return values:
  * NULL: No match.
- * Else: Pointer to "struct usb_pipe".
+ * Else: Pointer to "struct usb_endpoint".
  *------------------------------------------------------------------------*/
-struct usb_pipe *
-usb2_get_pipe(struct usb_device *udev, uint8_t iface_index,
+struct usb_endpoint *
+usb2_get_endpoint(struct usb_device *udev, uint8_t iface_index,
     const struct usb_config *setup)
 {
-	struct usb_pipe *pipe = udev->pipes;
-	struct usb_pipe *pipe_end = udev->pipes + udev->pipes_max;
+	struct usb_endpoint *ep = udev->endpoints;
+	struct usb_endpoint *ep_end = udev->endpoints + udev->endpoints_max;
 	uint8_t index = setup->ep_index;
 	uint8_t ea_mask;
 	uint8_t ea_val;
@@ -187,7 +187,7 @@ usb2_get_pipe(struct usb_device *udev, uint8_t iface_index,
 
 	if (setup->usb_mode != USB_MODE_DUAL &&
 	    udev->flags.usb_mode != setup->usb_mode) {
-		/* wrong mode - no pipe */
+		/* wrong mode - no endpoint */
 		return (NULL);
 	}
 
@@ -238,20 +238,20 @@ usb2_get_pipe(struct usb_device *udev, uint8_t iface_index,
 	}
 
 	/*
-	 * Iterate accross all the USB pipes searching for a match
+	 * Iterate accross all the USB endpoints searching for a match
 	 * based on the endpoint address. Note that we are searching
-	 * the pipes from the beginning of the "udev->pipes" array.
+	 * the endpoints from the beginning of the "udev->endpoints" array.
 	 */
-	for (; pipe != pipe_end; pipe++) {
+	for (; ep != ep_end; ep++) {
 
-		if ((pipe->edesc == NULL) ||
-		    (pipe->iface_index != iface_index)) {
+		if ((ep->edesc == NULL) ||
+		    (ep->iface_index != iface_index)) {
 			continue;
 		}
 		/* do the masks and check the values */
 
-		if (((pipe->edesc->bEndpointAddress & ea_mask) == ea_val) &&
-		    ((pipe->edesc->bmAttributes & type_mask) == type_val)) {
+		if (((ep->edesc->bEndpointAddress & ea_mask) == ea_val) &&
+		    ((ep->edesc->bmAttributes & type_mask) == type_val)) {
 			if (!index--) {
 				goto found;
 			}
@@ -259,21 +259,21 @@ usb2_get_pipe(struct usb_device *udev, uint8_t iface_index,
 	}
 
 	/*
-	 * Match against default pipe last, so that "any pipe", "any
-	 * address" and "any direction" returns the first pipe of the
+	 * Match against default endpoint last, so that "any endpoint", "any
+	 * address" and "any direction" returns the first endpoint of the
 	 * interface. "iface_index" and "direction" is ignored:
 	 */
-	if ((udev->default_pipe.edesc) &&
-	    ((udev->default_pipe.edesc->bEndpointAddress & ea_mask) == ea_val) &&
-	    ((udev->default_pipe.edesc->bmAttributes & type_mask) == type_val) &&
+	if ((udev->default_ep.edesc) &&
+	    ((udev->default_ep.edesc->bEndpointAddress & ea_mask) == ea_val) &&
+	    ((udev->default_ep.edesc->bmAttributes & type_mask) == type_val) &&
 	    (!index)) {
-		pipe = &udev->default_pipe;
+		ep = &udev->default_ep;
 		goto found;
 	}
 	return (NULL);
 
 found:
-	return (pipe);
+	return (ep);
 }
 
 /*------------------------------------------------------------------------*
@@ -300,70 +300,70 @@ usb2_interface_count(struct usb_device *udev, uint8_t *count)
 
 
 /*------------------------------------------------------------------------*
- *	usb2_init_pipe
+ *	usb2_init_endpoint
  *
- * This function will initialise the USB pipe structure pointed to by
- * the "pipe" argument. The structure pointed to by "pipe" must be
+ * This function will initialise the USB endpoint structure pointed to by
+ * the "endpoint" argument. The structure pointed to by "endpoint" must be
  * zeroed before calling this function.
  *------------------------------------------------------------------------*/
 static void
-usb2_init_pipe(struct usb_device *udev, uint8_t iface_index,
-    struct usb_endpoint_descriptor *edesc, struct usb_pipe *pipe)
+usb2_init_endpoint(struct usb_device *udev, uint8_t iface_index,
+    struct usb_endpoint_descriptor *edesc, struct usb_endpoint *ep)
 {
 	struct usb_bus_methods *methods;
 
 	methods = udev->bus->methods;
 
-	(methods->pipe_init) (udev, edesc, pipe);
+	(methods->endpoint_init) (udev, edesc, ep);
 
-	/* initialise USB pipe structure */
-	pipe->edesc = edesc;
-	pipe->iface_index = iface_index;
-	TAILQ_INIT(&pipe->pipe_q.head);
-	pipe->pipe_q.command = &usb2_pipe_start;
+	/* initialise USB endpoint structure */
+	ep->edesc = edesc;
+	ep->iface_index = iface_index;
+	TAILQ_INIT(&ep->endpoint_q.head);
+	ep->endpoint_q.command = &usb2_pipe_start;
 
 	/* the pipe is not supported by the hardware */
- 	if (pipe->methods == NULL)
+ 	if (ep->methods == NULL)
 		return;
 
 	/* clear stall, if any */
 	if (methods->clear_stall != NULL) {
 		USB_BUS_LOCK(udev->bus);
-		(methods->clear_stall) (udev, pipe);
+		(methods->clear_stall) (udev, ep);
 		USB_BUS_UNLOCK(udev->bus);
 	}
 }
 
 /*-----------------------------------------------------------------------*
- *	usb2_pipe_foreach
+ *	usb2_endpoint_foreach
  *
  * This function will iterate all the USB endpoints except the control
  * endpoint. This function is NULL safe.
  *
  * Return values:
- * NULL: End of USB pipes
- * Else: Pointer to next USB pipe
+ * NULL: End of USB endpoints
+ * Else: Pointer to next USB endpoint
  *------------------------------------------------------------------------*/
-struct usb_pipe *
-usb2_pipe_foreach(struct usb_device *udev, struct usb_pipe *pipe)
+struct usb_endpoint *
+usb2_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep)
 {
-	struct usb_pipe *pipe_end = udev->pipes + udev->pipes_max;
+	struct usb_endpoint *ep_end = udev->endpoints + udev->endpoints_max;
 
 	/* be NULL safe */
 	if (udev == NULL)
 		return (NULL);
 
-	/* get next pipe */
-	if (pipe == NULL)
-		pipe = udev->pipes;
+	/* get next endpoint */
+	if (ep == NULL)
+		ep = udev->endpoints;
 	else
-		pipe++;
+		ep++;
 
-	/* find next allocated pipe */
-	while (pipe != pipe_end) {
-		if (pipe->edesc != NULL)
-			return (pipe);
-		pipe++;
+	/* find next allocated ep */
+	while (ep != ep_end) {
+		if (ep->edesc != NULL)
+			return (ep);
+		ep++;
 	}
 	return (NULL);
 }
@@ -371,7 +371,7 @@ usb2_pipe_foreach(struct usb_device *udev, struct usb_pipe *pipe)
 /*------------------------------------------------------------------------*
  *	usb2_unconfigure
  *
- * This function will free all USB interfaces and USB pipes belonging
+ * This function will free all USB interfaces and USB endpoints belonging
  * to an USB device.
  *
  * Flag values, see "USB_UNCFG_FLAG_XXX".
@@ -412,7 +412,7 @@ usb2_unconfigure(struct usb_device *udev, uint8_t flag)
 
 	usb2_config_parse(udev, USB_IFACE_INDEX_ANY, USB_CFG_FREE);
 
-	/* free "cdesc" after "ifaces" and "pipes", if any */
+	/* free "cdesc" after "ifaces" and "endpoints", if any */
 	if (udev->cdesc != NULL) {
 		if (udev->flags.usb_mode != USB_MODE_DEVICE)
 			free(udev->cdesc, M_USB);
@@ -574,8 +574,8 @@ done:
 /*------------------------------------------------------------------------*
  *	usb2_config_parse
  *
- * This function will allocate and free USB interfaces and USB pipes,
- * parse the USB configuration structure and initialise the USB pipes
+ * This function will allocate and free USB interfaces and USB endpoints,
+ * parse the USB configuration structure and initialise the USB endpoints
  * and interfaces. If "iface_index" is not equal to
  * "USB_IFACE_INDEX_ANY" then the "cmd" parameter is the
  * alternate_setting to be selected for the given interface. Else the
@@ -595,7 +595,7 @@ usb2_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 	struct usb_interface_descriptor *id;
 	struct usb_endpoint_descriptor *ed;
 	struct usb_interface *iface;
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	usb_error_t err;
 	uint8_t ep_curr;
 	uint8_t ep_max;
@@ -623,28 +623,28 @@ usb2_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 	if (cmd == USB_CFG_INIT) {
 		sx_assert(udev->default_sx + 1, SA_LOCKED);
 
-		/* check for in-use pipes */
+		/* check for in-use endpoints */
 
-		pipe = udev->pipes;
-		ep_max = udev->pipes_max;
+		ep = udev->endpoints;
+		ep_max = udev->endpoints_max;
 		while (ep_max--) {
-			/* look for matching pipes */
+			/* look for matching endpoints */
 			if ((iface_index == USB_IFACE_INDEX_ANY) ||
-			    (iface_index == pipe->iface_index)) {
-				if (pipe->refcount != 0) {
+			    (iface_index == ep->iface_index)) {
+				if (ep->refcount != 0) {
 					/*
 					 * This typically indicates a
 					 * more serious error.
 					 */
 					err = USB_ERR_IN_USE;
 				} else {
-					/* reset pipe */
-					memset(pipe, 0, sizeof(*pipe));
-					/* make sure we don't zero the pipe again */
-					pipe->iface_index = USB_IFACE_INDEX_ANY;
+					/* reset endpoint */
+					memset(ep, 0, sizeof(*ep));
+					/* make sure we don't zero the endpoint again */
+					ep->iface_index = USB_IFACE_INDEX_ANY;
 				}
 			}
-			pipe++;
+			ep++;
 		}
 
 		if (err)
@@ -708,11 +708,11 @@ usb2_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 			if (temp == USB_EP_MAX)
 				break;			/* crazy */
 
-			pipe = udev->pipes + temp;
+			ep = udev->endpoints + temp;
 
 			if (do_init) {
-				usb2_init_pipe(udev, 
-				    ips.iface_index, ed, pipe);
+				usb2_init_endpoint(udev, 
+				    ips.iface_index, ed, ep);
 			}
 
 			temp ++;
@@ -740,19 +740,19 @@ usb2_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 			}
 		}
 		if (ep_max != 0) {
-			udev->pipes = malloc(sizeof(*pipe) * ep_max,
+			udev->endpoints = malloc(sizeof(*ep) * ep_max,
 			        M_USB, M_WAITOK | M_ZERO);
-			if (udev->pipes == NULL) {
+			if (udev->endpoints == NULL) {
 				err = USB_ERR_NOMEM;
 				goto done;
 			}
 		} else {
-			udev->pipes = NULL;
+			udev->endpoints = NULL;
 		}
 		USB_BUS_LOCK(udev->bus);
-		udev->pipes_max = ep_max;
+		udev->endpoints_max = ep_max;
 		/* reset any ongoing clear-stall */
-		udev->pipe_curr = NULL;
+		udev->ep_curr = NULL;
 		USB_BUS_UNLOCK(udev->bus);
 	}
 
@@ -761,19 +761,19 @@ done:
 		if (cmd == USB_CFG_ALLOC) {
 cleanup:
 			USB_BUS_LOCK(udev->bus);
-			udev->pipes_max = 0;
+			udev->endpoints_max = 0;
 			/* reset any ongoing clear-stall */
-			udev->pipe_curr = NULL;
+			udev->ep_curr = NULL;
 			USB_BUS_UNLOCK(udev->bus);
 
 			/* cleanup */
 			if (udev->ifaces != NULL)
 				free(udev->ifaces, M_USB);
-			if (udev->pipes != NULL)
-				free(udev->pipes, M_USB);
+			if (udev->endpoints != NULL)
+				free(udev->endpoints, M_USB);
 
 			udev->ifaces = NULL;
-			udev->pipes = NULL;
+			udev->endpoints = NULL;
 			udev->ifaces_max = 0;
 		}
 	}
@@ -859,14 +859,14 @@ done:
  * Else: Failure
  *------------------------------------------------------------------------*/
 usb_error_t
-usb2_set_endpoint_stall(struct usb_device *udev, struct usb_pipe *pipe,
+usb2_set_endpoint_stall(struct usb_device *udev, struct usb_endpoint *ep,
     uint8_t do_stall)
 {
 	struct usb_xfer *xfer;
 	uint8_t et;
 	uint8_t was_stalled;
 
-	if (pipe == NULL) {
+	if (ep == NULL) {
 		/* nothing to do */
 		DPRINTF("Cannot find endpoint\n");
 		/*
@@ -877,7 +877,7 @@ usb2_set_endpoint_stall(struct usb_device *udev, struct usb_pipe *pipe,
 		 */
 		return (0);
 	}
-	et = (pipe->edesc->bmAttributes & UE_XFERTYPE);
+	et = (ep->edesc->bmAttributes & UE_XFERTYPE);
 
 	if ((et != UE_BULK) &&
 	    (et != UE_INTERRUPT)) {
@@ -891,22 +891,22 @@ usb2_set_endpoint_stall(struct usb_device *udev, struct usb_pipe *pipe,
 	USB_BUS_LOCK(udev->bus);
 
 	/* store current stall state */
-	was_stalled = pipe->is_stalled;
+	was_stalled = ep->is_stalled;
 
 	/* check for no change */
 	if (was_stalled && do_stall) {
-		/* if the pipe is already stalled do nothing */
+		/* if the endpoint is already stalled do nothing */
 		USB_BUS_UNLOCK(udev->bus);
 		DPRINTF("No change\n");
 		return (0);
 	}
 	/* set stalled state */
-	pipe->is_stalled = 1;
+	ep->is_stalled = 1;
 
 	if (do_stall || (!was_stalled)) {
 		if (!was_stalled) {
 			/* lookup the current USB transfer, if any */
-			xfer = pipe->pipe_q.curr;
+			xfer = ep->endpoint_q.curr;
 		} else {
 			xfer = NULL;
 		}
@@ -916,16 +916,16 @@ usb2_set_endpoint_stall(struct usb_device *udev, struct usb_pipe *pipe,
 		 * complete the USB transfer like in case of a timeout
 		 * setting the error code "USB_ERR_STALLED".
 		 */
-		(udev->bus->methods->set_stall) (udev, xfer, pipe);
+		(udev->bus->methods->set_stall) (udev, xfer, ep);
 	}
 	if (!do_stall) {
-		pipe->toggle_next = 0;	/* reset data toggle */
-		pipe->is_stalled = 0;	/* clear stalled state */
+		ep->toggle_next = 0;	/* reset data toggle */
+		ep->is_stalled = 0;	/* clear stalled state */
 
-		(udev->bus->methods->clear_stall) (udev, pipe);
+		(udev->bus->methods->clear_stall) (udev, ep);
 
 		/* start up the current or next transfer, if any */
-		usb2_command_wrapper(&pipe->pipe_q, pipe->pipe_q.curr);
+		usb2_command_wrapper(&ep->endpoint_q, ep->endpoint_q.curr);
 	}
 	USB_BUS_UNLOCK(udev->bus);
 	return (0);
@@ -937,21 +937,21 @@ usb2_set_endpoint_stall(struct usb_device *udev, struct usb_pipe *pipe,
 usb_error_t
 usb2_reset_iface_endpoints(struct usb_device *udev, uint8_t iface_index)
 {
-	struct usb_pipe *pipe;
-	struct usb_pipe *pipe_end;
+	struct usb_endpoint *ep;
+	struct usb_endpoint *ep_end;
 	usb_error_t err;
 
-	pipe = udev->pipes;
-	pipe_end = udev->pipes + udev->pipes_max;
+	ep = udev->endpoints;
+	ep_end = udev->endpoints + udev->endpoints_max;
 
-	for (; pipe != pipe_end; pipe++) {
+	for (; ep != ep_end; ep++) {
 
-		if ((pipe->edesc == NULL) ||
-		    (pipe->iface_index != iface_index)) {
+		if ((ep->edesc == NULL) ||
+		    (ep->iface_index != iface_index)) {
 			continue;
 		}
 		/* simulate a clear stall from the peer */
-		err = usb2_set_endpoint_stall(udev, pipe, 0);
+		err = usb2_set_endpoint_stall(udev, ep, 0);
 		if (err) {
 			/* just ignore */
 		}
@@ -1525,10 +1525,10 @@ usb2_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		hub = hub->parent_hub;
 	}
 
-	/* init the default pipe */
-	usb2_init_pipe(udev, 0,
+	/* init the default endpoint */
+	usb2_init_endpoint(udev, 0,
 	    &udev->default_ep_desc,
-	    &udev->default_pipe);
+	    &udev->default_ep);
 
 	/* set device index */
 	udev->device_index = device_index;

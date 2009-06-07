@@ -595,7 +595,7 @@ tr_setup:
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
@@ -664,7 +664,7 @@ tr_setup:
 		/*
 		 * If the pipe is already stalled, don't do another stall:
 		 */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
@@ -717,7 +717,7 @@ tr_setup:
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
@@ -779,7 +779,7 @@ tr_setup:
 		 * If the pipe is already stalled, don't do another
 		 * stall
 		 */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
@@ -821,7 +821,7 @@ tr_setup:
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
