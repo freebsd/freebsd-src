@@ -266,7 +266,7 @@ ieee80211_start(struct ifnet *ifp)
 		 * otherwise unable to establish a BA stream.
 		 */
 		if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_AMPDU_TX) &&
+		    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX) &&
 		    (m->m_flags & M_EAPOL) == 0) {
 			const int ac = M_WME_GETAC(m);
 			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
@@ -1853,7 +1853,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 			    ic->ic_curchan);
 			frm = ieee80211_add_supportedchannels(frm, ic);
 		}
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_HT) &&
+		if ((vap->iv_flags_ht & IEEE80211_FHT_HT) &&
 		    ni->ni_ies.htcap_ie != NULL &&
 		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_HTCAP)
 			frm = ieee80211_add_htcap(frm, ni);
@@ -1865,7 +1865,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		if ((ic->ic_flags & IEEE80211_F_WME) &&
 		    ni->ni_ies.wme_ie != NULL)
 			frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_HT) &&
+		if ((vap->iv_flags_ht & IEEE80211_FHT_HT) &&
 		    ni->ni_ies.htcap_ie != NULL &&
 		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_VENDOR)
 			frm = ieee80211_add_htcap_vendor(frm, ni);
@@ -2138,7 +2138,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	if (vap->iv_flags & IEEE80211_F_WME)
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
 	if (IEEE80211_IS_CHAN_HT(bss->ni_chan) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) &&
 	    legacy != IEEE80211_SEND_LEGACY_11B) {
 		frm = ieee80211_add_htcap_vendor(frm, bss);
 		frm = ieee80211_add_htinfo_vendor(frm, bss);
@@ -2427,7 +2427,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
 	}
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT)) {
+	    (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT)) {
 		frm = ieee80211_add_htcap_vendor(frm, ni);
 		frm = ieee80211_add_htinfo_vendor(frm, ni);
 	}

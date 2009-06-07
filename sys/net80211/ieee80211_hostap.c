@@ -201,7 +201,7 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * is set before doing anything so this is sufficient.
 			 */
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_NONERP_PR;
-			ic->ic_flags_ext &= ~IEEE80211_FEXT_NONHT_PR;
+			ic->ic_flags_ht &= ~IEEE80211_FHT_NONHT_PR;
 			/* fall thru... */
 		case IEEE80211_S_CAC:
 			/*
@@ -272,7 +272,7 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 */
 			ieee80211_create_ibss(vap,
 			    ieee80211_ht_adjust_channel(ic,
-				ic->ic_curchan, vap->iv_flags_ext));
+				ic->ic_curchan, vap->iv_flags_ht));
 			/* NB: iv_bss is changed on return */
 			break;
 		case IEEE80211_S_CAC:
@@ -1995,7 +1995,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				else if (isatherosoui(frm))
 					ath = frm;
 #endif
-				else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
+				else if (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) {
 					if (ishtcapoui(frm) && htcap == NULL)
 						htcap = frm;
 				}
@@ -2103,7 +2103,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		/*
 		 * If constrained to 11n-only stations reject legacy stations.
 		 */
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_PUREN) &&
+		if ((vap->iv_flags_ht & IEEE80211_FHT_PUREN) &&
 		    (ni->ni_flags & IEEE80211_NODE_HT) == 0) {
 			htcapmismatch(ni, wh, reassoc, resp);
 			vap->iv_stats.is_ht_assoc_nohtcap++;
