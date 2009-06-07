@@ -114,7 +114,7 @@ static const char *x509_usage[]={
 " -alias          - output certificate alias\n",
 " -noout          - no certificate output\n",
 " -ocspid         - print OCSP hash values for the subject name and public key\n",
-" -ocspurl        - print OCSP Responder URL(s)\n",
+" -ocsp_uri       - print OCSP Responder URL(s)\n",
 " -trustout       - output a \"trusted\" certificate\n",
 " -clrtrust       - clear all trusted purposes\n",
 " -clrreject      - clear all rejected purposes\n",
@@ -1151,7 +1151,7 @@ static int x509_certify(X509_STORE *ctx, char *CAfile, const EVP_MD *digest,
 	/* NOTE: this certificate can/should be self signed, unless it was
 	 * a certificate request in which case it is not. */
 	X509_STORE_CTX_set_cert(&xsc,x);
-	if (!reqfile && !X509_verify_cert(&xsc))
+	if (!reqfile && X509_verify_cert(&xsc) <= 0)
 		goto end;
 
 	if (!X509_check_private_key(xca,pkey))

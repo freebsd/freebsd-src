@@ -1,6 +1,6 @@
 /* apps/spkac.c */
 
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999. Based on an original idea by Massimiliano Pala
  * (madwolf@openca.org).
  */
@@ -285,7 +285,7 @@ bad:
 	pkey = NETSCAPE_SPKI_get_pubkey(spki);
 	if(verify) {
 		i = NETSCAPE_SPKI_verify(spki, pkey);
-		if(i) BIO_printf(bio_err, "Signature OK\n");
+		if (i > 0) BIO_printf(bio_err, "Signature OK\n");
 		else {
 			BIO_printf(bio_err, "Signature Failure\n");
 			ERR_print_errors(bio_err);

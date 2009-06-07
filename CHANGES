@@ -2,6 +2,88 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.8j and 0.9.8k  [25 Mar 2009]
+
+  *) Don't set val to NULL when freeing up structures, it is freed up by
+     underlying code. If sizeof(void *) > sizeof(long) this can result in
+     zeroing past the valid field. (CVE-2009-0789)
+     [Paolo Ganci <Paolo.Ganci@AdNovum.CH>]
+
+  *) Fix bug where return value of CMS_SignerInfo_verify_content() was not
+     checked correctly. This would allow some invalid signed attributes to
+     appear to verify correctly. (CVE-2009-0591)
+     [Ivan Nestlerode <inestlerode@us.ibm.com>]
+
+  *) Reject UniversalString and BMPString types with invalid lengths. This
+     prevents a crash in ASN1_STRING_print_ex() which assumes the strings have
+     a legal length. (CVE-2009-0590)
+     [Steve Henson]
+
+  *) Set S/MIME signing as the default purpose rather than setting it 
+     unconditionally. This allows applications to override it at the store
+     level.
+     [Steve Henson]
+
+  *) Permit restricted recursion of ASN1 strings. This is needed in practice
+     to handle some structures.
+     [Steve Henson]
+
+  *) Improve efficiency of mem_gets: don't search whole buffer each time
+     for a '\n'
+     [Jeremy Shapiro <jnshapir@us.ibm.com>]
+
+  *) New -hex option for openssl rand.
+     [Matthieu Herrb]
+
+  *) Print out UTF8String and NumericString when parsing ASN1.
+     [Steve Henson]
+
+  *) Support NumericString type for name components.
+     [Steve Henson]
+
+  *) Allow CC in the environment to override the automatically chosen
+     compiler. Note that nothing is done to ensure flags work with the
+     chosen compiler.
+     [Ben Laurie]
+
+ Changes between 0.9.8i and 0.9.8j  [07 Jan 2009]
+
+  *) Properly check EVP_VerifyFinal() and similar return values
+     (CVE-2008-5077).
+     [Ben Laurie, Bodo Moeller, Google Security Team]
+
+  *) Enable TLS extensions by default.
+     [Ben Laurie]
+
+  *) Allow the CHIL engine to be loaded, whether the application is
+     multithreaded or not. (This does not release the developer from the
+     obligation to set up the dynamic locking callbacks.)
+     [Sander Temme <sander@temme.net>]
+
+  *) Use correct exit code if there is an error in dgst command.
+     [Steve Henson; problem pointed out by Roland Dirlewanger]
+
+  *) Tweak Configure so that you need to say "experimental-jpake" to enable
+     JPAKE, and need to use -DOPENSSL_EXPERIMENTAL_JPAKE in applications.
+     [Bodo Moeller]
+
+  *) Add experimental JPAKE support, including demo authentication in
+     s_client and s_server.
+     [Ben Laurie]
+
+  *) Set the comparison function in v3_addr_canonize().
+     [Rob Austein <sra@hactrn.net>]
+
+  *) Add support for XMPP STARTTLS in s_client.
+     [Philip Paeps <philip@freebsd.org>]
+
+  *) Change the server-side SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG behavior
+     to ensure that even with this option, only ciphersuites in the
+     server's preference list will be accepted.  (Note that the option
+     applies only when resuming a session, so the earlier behavior was
+     just about the algorithm choice for symmetric cryptography.)
+     [Bodo Moeller]
+
  Changes between 0.9.8h and 0.9.8i  [15 Sep 2008]
 
   *) Fix a state transitition in s3_srvr.c and d1_srvr.c
@@ -34,6 +116,10 @@
 
      [Neel Mehta, Bodo Moeller]
 
+  *) Allow engines to be "soft loaded" - i.e. optionally don't die if
+     the load fails. Useful for distros.
+     [Ben Laurie and the FreeBSD team]
+
   *) Add support for Local Machine Keyset attribute in PKCS#12 files.
      [Steve Henson]
 
@@ -52,9 +138,11 @@
      This work was sponsored by Logica.
      [Steve Henson]
 
-  *) Allow engines to be "soft loaded" - i.e. optionally don't die if
-     the load fails. Useful for distros.
-     [Ben Laurie and the FreeBSD team]
+  *) Fix bug in X509_ATTRIBUTE creation: dont set attribute using
+     ASN1_TYPE_set1 if MBSTRING flag set. This bug would crash certain
+     attribute creation routines such as certifcate requests and PKCS#12
+     files.
+     [Steve Henson]
 
  Changes between 0.9.8g and 0.9.8h  [28 May 2008]
 

@@ -1,5 +1,5 @@
 /* ocsp_ht.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2006.
  */
 /* ====================================================================
@@ -56,11 +56,12 @@
  *
  */
 
-#include <openssl/asn1.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include "e_os.h"
+#include <openssl/asn1.h>
 #include <openssl/ocsp.h>
 #include <openssl/err.h>
 #include <openssl/buffer.h>

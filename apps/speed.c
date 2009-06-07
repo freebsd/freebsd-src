@@ -2132,7 +2132,7 @@ int MAIN(int argc, char **argv)
 				{
 				ret=RSA_verify(NID_md5_sha1, buf,36, buf2,
 					rsa_num, rsa_key[j]);
-				if (ret == 0)
+				if (ret <= 0)
 					{
 					BIO_printf(bio_err,
 						"RSA verify failure\n");
@@ -2760,6 +2760,8 @@ static int do_multi(int multi)
 	for(n=0 ; n < multi ; ++n)
 		{
 		pipe(fd);
+		fflush(stdout);
+		fflush(stderr);
 		if(fork())
 			{
 			close(fd[1]);

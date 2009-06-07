@@ -221,6 +221,7 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -crlf         - convert LF from terminal into CRLF\n");
 	BIO_printf(bio_err," -quiet        - no s_client output\n");
 	BIO_printf(bio_err," -ign_eof      - ignore input eof (default when -quiet)\n");
+	BIO_printf(bio_err," -no_ign_eof   - don't ignore input eof\n");
 	BIO_printf(bio_err," -ssl2         - just use SSLv2\n");
 	BIO_printf(bio_err," -ssl3         - just use SSLv3\n");
 	BIO_printf(bio_err," -tls1         - just use TLSv1\n");
@@ -234,7 +235,8 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -starttls prot - use the STARTTLS command before starting TLS\n");
 	BIO_printf(bio_err,"                 for those protocols that support it, where\n");
 	BIO_printf(bio_err,"                 'prot' defines which one to assume.  Currently,\n");
-	BIO_printf(bio_err,"                 only \"smtp\", \"pop3\", \"imap\", and \"ftp\" are supported.\n");
+	BIO_printf(bio_err,"                 only \"smtp\", \"pop3\", \"imap\", \"ftp\" and \"xmpp\"\n");
+	BIO_printf(bio_err,"                 are supported.\n");
 #ifndef OPENSSL_NO_ENGINE
 	BIO_printf(bio_err," -engine id    - Initialise and use the specified engine\n");
 #endif
@@ -276,7 +278,8 @@ enum
 	PROTO_SMTP,
 	PROTO_POP3,
 	PROTO_IMAP,
-	PROTO_FTP
+	PROTO_FTP,
+	PROTO_XMPP
 };
 
 int MAIN(int, char **);
@@ -318,8 +321,9 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_ENGINE
 	char *engine_id=NULL;
 	char *ssl_client_engine_id=NULL;
-	ENGINE *e=NULL, *ssl_client_engine=NULL;
+	ENGINE *ssl_client_engine=NULL;
 #endif
+	ENGINE *e=NULL;
 #if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_NETWARE)
 	struct timeval tv;
 #endif
@@ -335,6 +339,9 @@ int MAIN(int argc, char **argv)
 	int peerlen = sizeof(peer);
 	int enable_timeouts = 0 ;
 	long mtu = 0;
+#ifndef OPENSSL_NO_JPAKE
+	char *jpake_secret = NULL;
+#endif
 
 #if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
 	meth=SSLv23_client_method();
@@ -435,6 +442,8 @@ int MAIN(int argc, char **argv)
 			}
 		else if	(strcmp(*argv,"-ign_eof") == 0)
 			c_ign_eof=1;
+		else if	(strcmp(*argv,"-no_ign_eof") == 0)
+			c_ign_eof=0;
 		else if	(strcmp(*argv,"-pause") == 0)
 			c_Pause=1;
 		else if	(strcmp(*argv,"-debug") == 0)
@@ -547,6 +556,8 @@ int MAIN(int argc, char **argv)
 				starttls_proto = PROTO_IMAP;
 			else if (strcmp(*argv,"ftp") == 0)
 				starttls_proto = PROTO_FTP;
+			else if (strcmp(*argv, "xmpp") == 0)
+				starttls_proto = PROTO_XMPP;
 			else
 				goto bad;
 			}
@@ -573,6 +584,13 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			servername= *(++argv);
 			/* meth=TLSv1_client_method(); */
+			}
+#endif
+#ifndef OPENSSL_NO_JPAKE
+		else if (strcmp(*argv,"-jpake") == 0)
+			{
+			if (--argc < 1) goto bad;
+			jpake_secret = *++argv;
 			}
 #endif
 		else
@@ -837,8 +855,6 @@ re_start:
 	else
 		sbio=BIO_new_socket(s,BIO_NOCLOSE);
 
-
-
 	if (nbio_test)
 		{
 		BIO *test;
@@ -881,6 +897,10 @@ SSL_set_tlsext_status_ids(con, ids);
 }
 #endif
 		}
+#endif
+#ifndef OPENSSL_NO_JPAKE
+	if (jpake_secret)
+		jpake_client_auth(bio_c_out, sbio, jpake_secret);
 #endif
 
 	SSL_set_bio(con,sbio,sbio);
@@ -987,6 +1007,28 @@ SSL_set_tlsext_status_ids(con, ids);
 		BIO_free(fbio);
 		BIO_printf(sbio,"AUTH TLS\r\n");
 		BIO_read(sbio,sbuf,BUFSIZZ);
+		}
+	if (starttls_proto == PROTO_XMPP)
+		{
+		int seen = 0;
+		BIO_printf(sbio,"<stream:stream "
+		    "xmlns:stream='http://etherx.jabber.org/streams' "
+		    "xmlns='jabber:client' to='%s' version='1.0'>", host);
+		seen = BIO_read(sbio,mbuf,BUFSIZZ);
+		mbuf[seen] = 0;
+		while (!strstr(mbuf, "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'"))
+			{
+			if (strstr(mbuf, "/stream:features>"))
+				goto shut;
+			seen = BIO_read(sbio,mbuf,BUFSIZZ);
+			mbuf[seen] = 0;
+			}
+		BIO_printf(sbio, "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>");
+		seen = BIO_read(sbio,sbuf,BUFSIZZ);
+		sbuf[seen] = 0;
+		if (!strstr(sbuf, "<proceed"))
+			goto shut;
+		mbuf[0] = 0;
 		}
 
 	for (;;)
