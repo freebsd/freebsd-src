@@ -68,7 +68,10 @@ static int cms_copy_content(BIO *out, BIO *in, unsigned int flags)
 	if (out == NULL)
 		tmpout = BIO_new(BIO_s_null());
 	else if (flags & CMS_TEXT)
+		{
 		tmpout = BIO_new(BIO_s_mem());
+		BIO_set_mem_eof_return(tmpout, 0);
+		}
 	else
 		tmpout = out;
 
@@ -295,7 +298,7 @@ static int cms_signerinfo_verify_cert(CMS_SignerInfo *si,
 						CMS_R_STORE_INIT_ERROR);
 		goto err;
 		}
-	X509_STORE_CTX_set_purpose(&ctx, X509_PURPOSE_SMIME_SIGN);
+	X509_STORE_CTX_set_default(&ctx, "smime_sign");
 	if (crls)
 		X509_STORE_CTX_set0_crls(&ctx, crls);
 
@@ -422,7 +425,7 @@ int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs,
 		for (i = 0; i < sk_CMS_SignerInfo_num(sinfos); i++)
 			{
 			si = sk_CMS_SignerInfo_value(sinfos, i);
-			if (!CMS_SignerInfo_verify_content(si, cmsbio))
+			if (CMS_SignerInfo_verify_content(si, cmsbio) <= 0)
 				{
 				CMSerr(CMS_F_CMS_VERIFY,
 					CMS_R_CONTENT_VERIFY_ERROR);

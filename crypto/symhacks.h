@@ -62,6 +62,10 @@
    VAX. */
 #ifdef OPENSSL_SYS_VMS
 
+/* Hack a long name in crypto/cryptlib.c */
+#undef int_CRYPTO_set_do_dynlock_callback
+#define int_CRYPTO_set_do_dynlock_callback	int_CRYPTO_set_do_dynlock_cb
+
 /* Hack a long name in crypto/ex_data.c */
 #undef CRYPTO_get_ex_data_implementation
 #define CRYPTO_get_ex_data_implementation	CRYPTO_get_ex_data_impl
@@ -179,6 +183,11 @@
 #define ENGINE_set_load_privkey_function        ENGINE_set_load_privkey_fn
 #undef ENGINE_get_load_privkey_function
 #define ENGINE_get_load_privkey_function        ENGINE_get_load_privkey_fn
+#undef ENGINE_set_load_ssl_client_cert_function
+#define ENGINE_set_load_ssl_client_cert_function \
+						ENGINE_set_ld_ssl_clnt_cert_fn
+#undef ENGINE_get_ssl_client_cert_function
+#define ENGINE_get_ssl_client_cert_function	ENGINE_get_ssl_client_cert_fn
 
 /* Hack some long OCSP names */
 #undef OCSP_REQUEST_get_ext_by_critical

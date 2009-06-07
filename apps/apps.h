@@ -149,9 +149,11 @@ int WIN32_rename(const char *oldname,const char *newname);
 #ifndef NON_MAIN
 CONF *config=NULL;
 BIO *bio_err=NULL;
+int in_FIPS_mode=0;
 #else
 extern CONF *config;
 extern BIO *bio_err;
+extern int in_FIPS_mode;
 #endif
 
 #else
@@ -160,6 +162,7 @@ extern BIO *bio_err;
 extern CONF *config;
 extern char *default_config_file;
 extern BIO *bio_err;
+extern int in_FIPS_mode;
 
 #endif
 
@@ -335,6 +338,10 @@ X509_NAME *parse_name(char *str, long chtype, int multirdn);
 int args_verify(char ***pargs, int *pargc,
 			int *badarg, BIO *err, X509_VERIFY_PARAM **pm);
 void policies_print(BIO *out, X509_STORE_CTX *ctx);
+#ifndef OPENSSL_NO_JPAKE
+void jpake_client_auth(BIO *out, BIO *conn, const char *secret);
+void jpake_server_auth(BIO *out, BIO *conn, const char *secret);
+#endif
 
 #define FORMAT_UNDEF    0
 #define FORMAT_ASN1     1
