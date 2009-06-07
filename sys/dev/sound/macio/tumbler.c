@@ -75,7 +75,13 @@
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
+
 #include "mixer_if.h"
 
 extern kobj_class_t i2s_mixer_class;
@@ -94,7 +100,7 @@ static void	tumbler_uninit(struct snd_mixer *m);
 static int	tumbler_reinit(struct snd_mixer *m);
 static int	tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
-static int	tumbler_setrecsrc(struct snd_mixer *m, u_int32_t src);
+static u_int32_t	tumbler_setrecsrc(struct snd_mixer *m, u_int32_t src);
 
 static device_method_t tumbler_methods[] = {
 	/* Device interface. */
@@ -121,7 +127,7 @@ static kobj_method_t tumbler_mixer_methods[] = {
 	KOBJMETHOD(mixer_reinit, 	tumbler_reinit),
 	KOBJMETHOD(mixer_set, 		tumbler_set),
 	KOBJMETHOD(mixer_setrecsrc, 	tumbler_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 MIXER_DECLARE(tumbler_mixer);
@@ -424,7 +430,7 @@ tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return (0);
 }
 
-static int
+static u_int32_t
 tumbler_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return (0);

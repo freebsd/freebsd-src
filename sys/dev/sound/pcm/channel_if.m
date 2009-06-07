@@ -1,7 +1,9 @@
 #-
 # KOBJ
 #
-# Copyright (c) 2000 Cameron Grant <cg@freebsd.org>
+# Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
+# Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
+# Copyright (c) 2000 Cameron Grant <cg@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,12 +35,6 @@
 INTERFACE channel;
 
 CODE {
-
-	static int
-	channel_nosetdir(kobj_t obj, void *data, int dir)
-	{
-		return 0;
-	}
 
 	static int
 	channel_noreset(kobj_t obj, void *data)
@@ -86,9 +82,21 @@ CODE {
 	static int
 	channel_nosetfragments(kobj_t obj, void *data, u_int32_t blocksize, u_int32_t blockcount)
 	{
-		return 0;
+		return ENOTSUP;
 	}
 
+	static struct pcmchan_matrix *
+	channel_nogetmatrix(kobj_t obj, void *data, u_int32_t format)
+	{
+		format = feeder_matrix_default_format(format);
+		return (feeder_matrix_format_map(format));
+	}
+
+	static int
+	channel_nosetmatrix(kobj_t obj, void *data, struct pcmchan_matrix *m)
+	{
+		return ENOTSUP;
+	}
 };
 
 METHOD void* init {
@@ -114,13 +122,7 @@ METHOD int resetdone {
 	void *data;
 } DEFAULT channel_noresetdone;
 
-METHOD int setdir {
-	kobj_t obj;
-	void *data;
-	int dir;
-} DEFAULT channel_nosetdir;
-
-METHOD u_int32_t setformat {
+METHOD int setformat {
 	kobj_t obj;
 	void *data;
 	u_int32_t format;
@@ -217,3 +219,15 @@ METHOD int getrates {
 	void *data;
 	int **rates;
 } DEFAULT channel_nogetrates;
+
+METHOD struct pcmchan_matrix * getmatrix {
+	kobj_t obj;
+	void *data;
+	u_int32_t format;
+} DEFAULT channel_nogetmatrix;
+
+METHOD int setmatrix {
+	kobj_t obj;
+	void *data;
+	struct pcmchan_matrix *m;
+} DEFAULT channel_nosetmatrix;

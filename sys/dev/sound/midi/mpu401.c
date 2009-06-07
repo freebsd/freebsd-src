@@ -37,8 +37,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kobj.h>
+#ifdef SND_DEBUG
+#undef KOBJMETHOD
+#define KOBJMETHOD(NAME, FUNC)						\
+	{								\
+		&NAME##_desc,						\
+		(kobjop_t) ((FUNC != (NAME##_t *)NULL) ? FUNC : NULL)	\
+	}
+#endif
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
 #include <sys/malloc.h>
 #include <sys/bus.h>			/* to get driver_intr_t */
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
 
 #include <dev/sound/midi/mpu401.h>
 #include <dev/sound/midi/midi.h>
@@ -75,14 +90,14 @@ struct mpu401 {
 static void mpu401_timeout(void *m);
 static mpu401_intr_t mpu401_intr;
 
-static int mpu401_minit(kobj_t obj, struct mpu401 *m);
-static int mpu401_muninit(kobj_t obj, struct mpu401 *m);
-static int mpu401_minqsize(kobj_t obj, struct mpu401 *m);
-static int mpu401_moutqsize(kobj_t obj, struct mpu401 *m);
-static void mpu401_mcallback(kobj_t obj, struct mpu401 *m, int flags);
-static void mpu401_mcallbackp(kobj_t obj, struct mpu401 *m, int flags);
-static const char *mpu401_mdescr(kobj_t obj, struct mpu401 *m, int verbosity);
-static const char *mpu401_mprovider(kobj_t obj, struct mpu401 *m);
+static int mpu401_minit(struct snd_midi *, void *);
+static int mpu401_muninit(struct snd_midi *, void *);
+static int mpu401_minqsize(struct snd_midi *, void *);
+static int mpu401_moutqsize(struct snd_midi *, void *);
+static void mpu401_mcallback(struct snd_midi *, void *, int);
+static void mpu401_mcallbackp(struct snd_midi *, void *, int);
+static const char *mpu401_mdescr(struct snd_midi *, void *, int);
+static const char *mpu401_mprovider(struct snd_midi *, void *);
 
 static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_init, mpu401_minit),
@@ -93,7 +108,7 @@ static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_callbackp, mpu401_mcallbackp),
 	KOBJMETHOD(mpu_descr, mpu401_mdescr),
 	KOBJMETHOD(mpu_provider, mpu401_mprovider),
-	{0, 0}
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(mpu401, mpu401_methods, 0);
@@ -208,8 +223,9 @@ mpu401_uninit(struct mpu401 *m)
 }
 
 static int
-mpu401_minit(kobj_t obj, struct mpu401 *m)
+mpu401_minit(struct snd_midi *sm, void *arg)
 {
+	struct mpu401 *m = arg;
 	int i;
 
 	CMD(m, MPU_RESET);
@@ -232,27 +248,29 @@ mpu401_minit(kobj_t obj, struct mpu401 *m)
 
 
 int
-mpu401_muninit(kobj_t obj, struct mpu401 *m)
+mpu401_muninit(struct snd_midi *sm, void *arg)
 {
+	struct mpu401 *m = arg;
 
 	return MPUFOI_UNINIT(m, m->cookie);
 }
 
 int
-mpu401_minqsize(kobj_t obj, struct mpu401 *m)
+mpu401_minqsize(struct snd_midi *sm, void *arg)
 {
 	return 128;
 }
 
 int
-mpu401_moutqsize(kobj_t obj, struct mpu401 *m)
+mpu401_moutqsize(struct snd_midi *sm, void *arg)
 {
 	return 128;
 }
 
 static void
-mpu401_mcallback(kobj_t obj, struct mpu401 *m, int flags)
+mpu401_mcallback(struct snd_midi *sm, void *arg, int flags)
 {
+	struct mpu401 *m = arg;
 #if 0
 	printf("mpu401_callback %s %s %s %s\n",
 	    flags & M_RX ? "M_RX" : "",
@@ -267,21 +285,21 @@ mpu401_mcallback(kobj_t obj, struct mpu401 *m, int flags)
 }
 
 static void
-mpu401_mcallbackp(kobj_t obj, struct mpu401 *m, int flags)
+mpu401_mcallbackp(struct snd_midi *sm, void *arg, int flags)
 {
 /*	printf("mpu401_callbackp\n"); */
-	mpu401_mcallback(obj, m, flags);
+	mpu401_mcallback(sm, arg, flags);
 }
 
 static const char *
-mpu401_mdescr(kobj_t obj, struct mpu401 *m, int verbosity)
+mpu401_mdescr(struct snd_midi *sm, void *arg, int verbosity)
 {
 
 	return "descr mpu401";
 }
 
 static const char *
-mpu401_mprovider(kobj_t obj, struct mpu401 *m)
+mpu401_mprovider(struct snd_midi *m, void *arg)
 {
 	return "provider mpu401";
 }

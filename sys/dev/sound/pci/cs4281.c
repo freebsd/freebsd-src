@@ -31,6 +31,10 @@
  * contributed towards power management.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
@@ -119,18 +123,18 @@ static u_int32_t cs4281_format_to_bps(u_int32_t);
 /* formats (do not add formats without editing cs_fmt_tab)              */
 
 static u_int32_t cs4281_fmts[] = {
-    AFMT_U8,
-    AFMT_U8 | AFMT_STEREO,
-    AFMT_S8,
-    AFMT_S8 | AFMT_STEREO,
-    AFMT_S16_LE,
-    AFMT_S16_LE | AFMT_STEREO,
-    AFMT_U16_LE,
-    AFMT_U16_LE | AFMT_STEREO,
-    AFMT_S16_BE,
-    AFMT_S16_BE | AFMT_STEREO,
-    AFMT_U16_BE,
-    AFMT_U16_BE | AFMT_STEREO,
+    SND_FORMAT(AFMT_U8, 1, 0),
+    SND_FORMAT(AFMT_U8, 2, 0),
+    SND_FORMAT(AFMT_S8, 1, 0),
+    SND_FORMAT(AFMT_S8, 2, 0),
+    SND_FORMAT(AFMT_S16_LE, 1, 0),
+    SND_FORMAT(AFMT_S16_LE, 2, 0),
+    SND_FORMAT(AFMT_U16_LE, 1, 0),
+    SND_FORMAT(AFMT_U16_LE, 2, 0),
+    SND_FORMAT(AFMT_S16_BE, 1, 0),
+    SND_FORMAT(AFMT_S16_BE, 2, 0),
+    SND_FORMAT(AFMT_U16_BE, 1, 0),
+    SND_FORMAT(AFMT_U16_BE, 2, 0),
     0
 };
 
@@ -173,7 +177,7 @@ cs4281_waitset(struct sc_info *sc, int regno, u_int32_t mask, int tries)
 {
     u_int32_t v;
 
-    while(tries > 0) {
+    while (tries > 0) {
 	DELAY(100);
 	v = cs4281_rd(sc, regno);
 	if ((v & mask) == mask) break;
@@ -187,7 +191,7 @@ cs4281_waitclr(struct sc_info *sc, int regno, u_int32_t mask, int tries)
 {
     u_int32_t v;
 
-    while(tries > 0) {
+    while (tries > 0) {
 	DELAY(100);
 	v = ~ cs4281_rd(sc, regno);
 	if (v & mask) break;
@@ -231,7 +235,7 @@ cs4281_format_to_dmr(u_int32_t format)
 {
     u_int32_t dmr = 0;
     if (AFMT_8BIT & format)      dmr |= CS4281PCI_DMR_SIZE8;
-    if (!(AFMT_STEREO & format)) dmr |= CS4281PCI_DMR_MONO;
+    if (AFMT_CHANNEL(format) < 2) dmr |= CS4281PCI_DMR_MONO;
     if (AFMT_BIGENDIAN & format) dmr |= CS4281PCI_DMR_BEND;
     if (!(AFMT_SIGNED & format)) dmr |= CS4281PCI_DMR_USIGN;
     return dmr;
@@ -240,13 +244,14 @@ cs4281_format_to_dmr(u_int32_t format)
 static inline u_int32_t
 cs4281_format_to_bps(u_int32_t format)
 {
-    return ((AFMT_8BIT & format) ? 1 : 2) * ((AFMT_STEREO & format) ? 2 : 1);
+    return ((AFMT_8BIT & format) ? 1 : 2) *
+	((AFMT_CHANNEL(format) > 1) ? 2 : 1);
 }
 
 /* -------------------------------------------------------------------- */
 /* ac97 codec */
 
-static u_int32_t
+static int
 cs4281_rdcd(kobj_t obj, void *devinfo, int regno)
 {
     struct sc_info *sc = (struct sc_info *)devinfo;
@@ -268,19 +273,19 @@ cs4281_rdcd(kobj_t obj, void *devinfo, int regno)
     /* Wait for read to complete */
     if (cs4281_waitclr(sc, CS4281PCI_ACCTL, CS4281PCI_ACCTL_DCV, 250) == 0) {
 	device_printf(sc->dev, "cs4281_rdcd: DCV did not go\n");
-	return 0xffffffff;
+	return -1;
     }
 
     /* Wait for valid status */
     if (cs4281_waitset(sc, CS4281PCI_ACSTS, CS4281PCI_ACSTS_VSTS, 250) == 0) {
 	device_printf(sc->dev,"cs4281_rdcd: VSTS did not come\n");
-	return 0xffffffff;
+	return -1;
     }
 
     return cs4281_rd(sc, CS4281PCI_ACSDA);
 }
 
-static void
+static int
 cs4281_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
     struct sc_info *sc = (struct sc_info *)devinfo;
@@ -297,12 +302,14 @@ cs4281_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
     if (cs4281_waitclr(sc, CS4281PCI_ACCTL, CS4281PCI_ACCTL_DCV, 250) == 0) {
 	device_printf(sc->dev,"cs4281_wrcd: DCV did not go\n");
     }
+
+    return 0;
 }
 
 static kobj_method_t cs4281_ac97_methods[] = {
         KOBJMETHOD(ac97_read,           cs4281_rdcd),
         KOBJMETHOD(ac97_write,          cs4281_wrcd),
-        { 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(cs4281_ac97);
 
@@ -322,7 +329,7 @@ cs4281chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
     ch->parent = sc;
     ch->channel = c;
 
-    ch->fmt = AFMT_U8;
+    ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
     ch->spd = DSP_DEFAULT_SPEED;
     ch->bps = 1;
     ch->blksz = sndbuf_getsize(ch->buffer);
@@ -336,7 +343,7 @@ cs4281chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
     return ch;
 }
 
-static int
+static u_int32_t
 cs4281chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
     struct sc_chinfo *ch = data;
@@ -358,7 +365,7 @@ cs4281chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
     return ch->blksz;
 }
 
-static int
+static u_int32_t
 cs4281chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
     struct sc_chinfo *ch = data;
@@ -401,7 +408,7 @@ cs4281chan_setformat(kobj_t obj, void *data, u_int32_t format)
     return 0;
 }
 
-static int
+static u_int32_t
 cs4281chan_getptr(kobj_t obj, void *data)
 {
     struct sc_chinfo *ch = data;
@@ -453,7 +460,7 @@ static kobj_method_t cs4281chan_methods[] = {
     	KOBJMETHOD(channel_trigger,		cs4281chan_trigger),
     	KOBJMETHOD(channel_getptr,		cs4281chan_getptr),
     	KOBJMETHOD(channel_getcaps,		cs4281chan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(cs4281chan);
 

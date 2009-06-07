@@ -39,6 +39,10 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/chip.h>
 #include <dev/sound/pcm/sound.h>
 
@@ -65,8 +69,9 @@ static uint32_t	emu_midi_card_intr(void *p, uint32_t arg);
 static devclass_t emu_midi_devclass;
 
 static unsigned char
-emu_mread(void *arg __unused, struct emu_midi_softc *sc, int reg)
+emu_mread(struct mpu401 *arg __unused, void *cookie, int reg)
 {
+	struct emu_midi_softc *sc = cookie;
 	unsigned int d;
 
 	d = 0;
@@ -79,8 +84,9 @@ emu_mread(void *arg __unused, struct emu_midi_softc *sc, int reg)
 }
 
 static void
-emu_mwrite(void *arg __unused, struct emu_midi_softc *sc, int reg, unsigned char b)
+emu_mwrite(struct mpu401 *arg __unused, void *cookie, int reg, unsigned char b)
 {
+	struct emu_midi_softc *sc = cookie;
 
 	if (sc->is_emu10k1)
 		emu_wr(sc->card, 0x18 + reg, b, 1);
@@ -89,8 +95,9 @@ emu_mwrite(void *arg __unused, struct emu_midi_softc *sc, int reg, unsigned char
 }
 
 static int
-emu_muninit(void *arg __unused, struct emu_midi_softc *sc)
+emu_muninit(struct mpu401 *arg __unused, void *cookie)
 {
+	struct emu_midi_softc *sc = cookie;
 
 	mtx_lock(&sc->mtx);
 	sc->mpu_intr = NULL;
@@ -103,7 +110,7 @@ static kobj_method_t emu_mpu_methods[] = {
 	KOBJMETHOD(mpufoi_read, emu_mread),
 	KOBJMETHOD(mpufoi_write, emu_mwrite),
 	KOBJMETHOD(mpufoi_uninit, emu_muninit),
-	{0, 0}
+	KOBJMETHOD_END
 };
 static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
 
