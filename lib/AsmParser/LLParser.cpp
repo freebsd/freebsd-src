@@ -1043,6 +1043,8 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
         return TokError("basic block pointers are invalid");
       if (Result.get() == Type::VoidTy)
         return TokError("pointers to void are invalid; use i8* instead");
+      if (!PointerType::isValidElementType(Result.get()))
+        return TokError("pointer to this type is invalid");
       Result = HandleUpRefs(PointerType::getUnqual(Result.get()));
       Lex.Lex();
       break;
@@ -1053,6 +1055,8 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
         return TokError("basic block pointers are invalid");
       if (Result.get() == Type::VoidTy)
         return TokError("pointers to void are invalid; use i8* instead");
+      if (!PointerType::isValidElementType(Result.get()))
+        return TokError("pointer to this type is invalid");
       unsigned AddrSpace;
       if (ParseOptionalAddrSpace(AddrSpace) ||
           ParseToken(lltok::star, "expected '*' in address space"))
@@ -1149,7 +1153,7 @@ bool LLParser::ParseArgumentList(std::vector<ArgInfo> &ArgList,
       Lex.Lex();
     }
 
-    if (!ArgTy->isFirstClassType() && !isa<OpaqueType>(ArgTy))
+    if (!FunctionType::isValidArgumentType(ArgTy))
       return Error(TypeLoc, "invalid type for function argument");
     
     ArgList.push_back(ArgInfo(TypeLoc, ArgTy, Attrs, Name));
@@ -1245,6 +1249,8 @@ bool LLParser::ParseStructType(PATypeHolder &Result, bool Packed) {
   
   if (Result == Type::VoidTy)
     return Error(EltTyLoc, "struct element can not have void type");
+  if (!StructType::isValidElementType(Result))
+    return Error(EltTyLoc, "invalid element type for struct");
   
   while (EatIfPresent(lltok::comma)) {
     EltTyLoc = Lex.getLoc();
@@ -1252,6 +1258,8 @@ bool LLParser::ParseStructType(PATypeHolder &Result, bool Packed) {
     
     if (Result == Type::VoidTy)
       return Error(EltTyLoc, "struct element can not have void type");
+    if (!StructType::isValidElementType(Result))
+      return Error(EltTyLoc, "invalid element type for struct");
     
     ParamsList.push_back(Result);
   }
@@ -1299,11 +1307,11 @@ bool LLParser::ParseArrayVectorType(PATypeHolder &Result, bool isVector) {
       return Error(SizeLoc, "zero element vector is illegal");
     if ((unsigned)Size != Size)
       return Error(SizeLoc, "size too large for vector");
-    if (!EltTy->isFloatingPoint() && !EltTy->isInteger())
+    if (!VectorType::isValidElementType(EltTy))
       return Error(TypeLoc, "vector element type must be fp or integer");
     Result = VectorType::get(EltTy, unsigned(Size));
   } else {
-    if (!EltTy->isFirstClassType() && !isa<OpaqueType>(EltTy))
+    if (!ArrayType::isValidElementType(EltTy))
       return Error(TypeLoc, "invalid array element type");
     Result = HandleUpRefs(ArrayType::get(EltTy, Size));
   }
