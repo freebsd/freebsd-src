@@ -1665,7 +1665,8 @@ typedef struct
 #define SNDCTL_DSP_GET_CHNORDER         _IOR ('P', 42, unsigned long long)
 #define SNDCTL_DSP_SET_CHNORDER         _IOWR('P', 42, unsigned long long)
 #       define CHID_UNDEF       0
-#       define CHID_L           1                                               #       define CHID_R           2
+#       define CHID_L           1
+#       define CHID_R           2
 #       define CHID_C           3
 #       define CHID_LFE         4
 #       define CHID_LS          5
@@ -1680,6 +1681,25 @@ typedef unsigned short oss_peaks_t[MAX_PEAK_CHANNELS];
 #define SNDCTL_DSP_GETIPEAKS		_IOR('P', 43, oss_peaks_t)
 #define SNDCTL_DSP_GETOPEAKS		_IOR('P', 44, oss_peaks_t)
 #define SNDCTL_DSP_POLICY               _IOW('P', 45, int)    /* See the manual */
+
+/*
+ ****************************************************************************
+ * Few ioctl calls that are not official parts of OSS. They have been used
+ * by few freeware implementations of OSS.
+ */
+#define SNDCTL_DSP_GETCHANNELMASK	_IOWR('P', 64, int)
+#define SNDCTL_DSP_BIND_CHANNEL		_IOWR('P', 65, int)
+#define DSP_BIND_QUERY			0x00000000
+#define DSP_BIND_FRONT			0x00000001
+#define DSP_BIND_SURR			0x00000002
+#define DSP_BIND_CENTER_LFE		0x00000004
+#define DSP_BIND_HANDSET		0x00000008
+#define DSP_BIND_MIC			0x00000010
+#define DSP_BIND_MODEM1			0x00000020
+#define DSP_BIND_MODEM2			0x00000040
+#define DSP_BIND_I2S			0x00000080
+#define DSP_BIND_SPDIF			0x00000100
+#define DSP_BIND_REAR			0x00000200
 
 /*
  * OSS_SYSIFO is obsolete. Use SNDCTL_SYSINFO insteads.

@@ -75,7 +75,13 @@
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
+
 #include "mixer_if.h"
 
 extern kobj_class_t i2s_mixer_class;
@@ -94,7 +100,7 @@ static void	snapper_uninit(struct snd_mixer *m);
 static int	snapper_reinit(struct snd_mixer *m);
 static int	snapper_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
-static int	snapper_setrecsrc(struct snd_mixer *m, u_int32_t src);
+static u_int32_t	snapper_setrecsrc(struct snd_mixer *m, u_int32_t src);
 
 static device_method_t snapper_methods[] = {
 	/* Device interface. */
@@ -121,7 +127,7 @@ static kobj_method_t snapper_mixer_methods[] = {
 	KOBJMETHOD(mixer_reinit, 	snapper_reinit),
 	KOBJMETHOD(mixer_set, 		snapper_set),
 	KOBJMETHOD(mixer_setrecsrc, 	snapper_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 MIXER_DECLARE(snapper_mixer);
@@ -478,7 +484,7 @@ snapper_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return (0);
 }
 
-static int
+static u_int32_t
 snapper_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return (0);

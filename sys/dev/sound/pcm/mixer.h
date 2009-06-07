@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
+ * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
+ * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,4 +74,15 @@ extern int mixer_count;
 #define MIXER_SIZE	(512 + sizeof(struct kobj) +		\
 			    sizeof(oss_mixer_enuminfo))
 
+#ifdef SND_DEBUG
+#define MIXER_DECLARE(mixer)						\
+	static struct kobj_class mixer##_class = {			\
+		.name        = #mixer,					\
+		.methods     = mixer##_methods,				\
+		.size        = MIXER_SIZE,				\
+		.baseclasses = NULL,					\
+		.refs        = 0					\
+	}
+#else
 #define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
+#endif

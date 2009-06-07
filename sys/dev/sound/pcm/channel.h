@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
+ * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
+ * Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
+ * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +32,17 @@ struct pcmchan_caps {
 	u_int32_t minspeed, maxspeed;
 	u_int32_t *fmtlist;
 	u_int32_t caps;
+};
+
+struct pcmchan_matrix {
+	int id;
+	uint8_t channels, ext;
+	struct {
+		int type;
+		uint32_t members;
+	} map[SND_CHN_T_MAX + 1];
+	uint32_t mask;
+	int8_t offset[SND_CHN_T_MAX];
 };
 
 /* Forward declarations */
@@ -63,7 +76,10 @@ struct pcmchan_syncmember {
 	struct pcm_channel *ch;
 };
 
-#define	CHN_NAMELEN	32
+#define	CHN_NAMELEN		32
+#define	CHN_COMM_UNUSED		"<UNUSED>"
+#define	CHN_COMM_UNKNOWN	"<UNKNOWN>"
+
 struct pcm_channel {
 	kobj_t methods;
 
@@ -72,13 +88,12 @@ struct pcm_channel {
 	struct pcm_feeder *feeder;
 	u_int32_t align;
 
-	int volume;
 	int latency;
 	u_int32_t speed;
 	u_int32_t format;
 	u_int32_t flags;
 	u_int32_t feederflags;
-	u_int32_t blocks;
+	u_int64_t blocks;
 
 	int direction;
 	unsigned int interrupts, xruns, feedcount;
@@ -90,6 +105,7 @@ struct pcm_channel {
 	device_t dev;
 	int unit;
 	char name[CHN_NAMELEN];
+	char comm[MAXCOMLEN + 1];
 	struct mtx *lock;
 	int trigger;
 	/**
@@ -139,8 +155,15 @@ struct pcm_channel {
 			struct {
 				SLIST_ENTRY(pcm_channel) link;
 			} busy;
+			struct {
+				SLIST_ENTRY(pcm_channel) link;
+			} opened;
 		} pcm;
 	} channels;
+
+	struct pcmchan_matrix matrix;
+
+	int volume[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
 
 	void *data1, *data2;
 };
@@ -172,10 +195,9 @@ struct pcm_channel {
 		if (t == y)						\
 			break;						\
 	} 								\
-	if (t != y) {							\
+	if (t != y)							\
 		CHN_INSERT_HEAD(x, y, z);				\
-	}								\
-} while(0)
+} while (0)
 
 #define CHN_INSERT_AFTER_SAFE(w, x, y, z)	do {			\
 	struct pcm_channel *t = NULL;					\
@@ -183,10 +205,9 @@ struct pcm_channel {
 		if (t == y)						\
 			break;						\
 	} 								\
-	if (t != y) {							\
+	if (t != y)							\
 		CHN_INSERT_AFTER(x, y, z);				\
-	}								\
-} while(0)
+} while (0)
 
 #define CHN_REMOVE_SAFE(x, y, z)		do {			\
 	struct pcm_channel *t = NULL;					\
@@ -194,10 +215,26 @@ struct pcm_channel {
 		if (t == y)						\
 			break;						\
 	} 								\
-	if (t == y) {							\
+	if (t == y)							\
 		CHN_REMOVE(x, y, z);					\
+} while (0)
+
+#define CHN_INSERT_SORT(w, x, y, z)		do {			\
+	struct pcm_channel *t, *a = NULL;				\
+	CHN_FOREACH(t, x, z) {						\
+		if ((y)->unit w t->unit)				\
+			a = t;						\
+		else							\
+			break;						\
 	}								\
-} while(0)
+	if (a != NULL)							\
+		CHN_INSERT_AFTER(a, y, z);				\
+	else								\
+		CHN_INSERT_HEAD(x, y, z);				\
+} while (0)
+
+#define CHN_INSERT_SORT_ASCEND(x, y, z)		CHN_INSERT_SORT(>, x, y, z)
+#define CHN_INSERT_SORT_DESCEND(x, y, z)	CHN_INSERT_SORT(<, x, y, z)
 
 #define CHN_UNIT(x)	(snd_unit2u((x)->unit))
 #define CHN_DEV(x)	(snd_unit2d((x)->unit))
@@ -211,7 +248,7 @@ struct pcm_channel {
 #define CHN_BROADCAST(x)	do {					\
 	if ((x)->cv_waiters != 0)					\
 		cv_broadcastpri(x, PRIBIO);				\
-} while(0)
+} while (0)
 
 #include "channel_if.h"
 
@@ -225,79 +262,72 @@ int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 
 int chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction);
 int chn_kill(struct pcm_channel *c);
-int chn_setdir(struct pcm_channel *c, int dir);
-int chn_reset(struct pcm_channel *c, u_int32_t fmt);
+int chn_reset(struct pcm_channel *c, u_int32_t fmt, u_int32_t spd);
 int chn_setvolume(struct pcm_channel *c, int left, int right);
-int chn_setspeed(struct pcm_channel *c, int speed);
-int chn_setformat(struct pcm_channel *c, u_int32_t fmt);
+int chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
+    int center);
+int chn_setvolume_matrix(struct pcm_channel *c, int vc, int vt, int val);
+int chn_getvolume_matrix(struct pcm_channel *c, int vc, int vt);
+void chn_vpc_reset(struct pcm_channel *c, int vc, int force);
+int chn_setparam(struct pcm_channel *c, uint32_t format, uint32_t speed);
+int chn_setspeed(struct pcm_channel *c, uint32_t speed);
+int chn_setformat(struct pcm_channel *c, uint32_t format);
 int chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz);
 int chn_setlatency(struct pcm_channel *c, int latency);
+void chn_syncstate(struct pcm_channel *c);
 int chn_trigger(struct pcm_channel *c, int go);
 int chn_getptr(struct pcm_channel *c);
 struct pcmchan_caps *chn_getcaps(struct pcm_channel *c);
 u_int32_t chn_getformats(struct pcm_channel *c);
 
+struct pcmchan_matrix *chn_getmatrix(struct pcm_channel *);
+int chn_setmatrix(struct pcm_channel *, struct pcmchan_matrix *);
+
+int chn_oss_getorder(struct pcm_channel *, unsigned long long *);
+int chn_oss_setorder(struct pcm_channel *, unsigned long long *);
+int chn_oss_getmask(struct pcm_channel *, uint32_t *);
+
 void chn_resetbuf(struct pcm_channel *c);
+void chn_intr_locked(struct pcm_channel *c);
 void chn_intr(struct pcm_channel *c);
-int chn_wrfeed(struct pcm_channel *c);
-int chn_rdfeed(struct pcm_channel *c);
 int chn_abort(struct pcm_channel *c);
 
-void chn_wrupdate(struct pcm_channel *c);
-void chn_rdupdate(struct pcm_channel *c);
-
 int chn_notify(struct pcm_channel *c, u_int32_t flags);
-void chn_lock(struct pcm_channel *c);
-void chn_unlock(struct pcm_channel *c);
 
 int chn_getrates(struct pcm_channel *c, int **rates);
 int chn_syncdestroy(struct pcm_channel *c);
+
+#define CHN_SETVOLUME(...)		chn_setvolume_matrix(__VA_ARGS__)
+#if defined(SND_DIAGNOSTIC) || defined(INVARIANTS)
+#define CHN_GETVOLUME(...)		chn_getvolume_matrix(__VA_ARGS__)
+#else
+#define CHN_GETVOLUME(x, y, z)		((x)->volume[y][z])
+#endif
 
 #ifdef OSSV4_EXPERIMENT
 int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
 #endif
 
-#ifdef	USING_MUTEX
-#define CHN_LOCK_OWNED(c) mtx_owned((struct mtx *)((c)->lock))
-#define CHN_LOCK(c) mtx_lock((struct mtx *)((c)->lock))
-#define CHN_UNLOCK(c) mtx_unlock((struct mtx *)((c)->lock))
-#define CHN_TRYLOCK(c) mtx_trylock((struct mtx *)((c)->lock))
-#define CHN_LOCKASSERT(c) mtx_assert((struct mtx *)((c)->lock), MA_OWNED)
-#else
-#define CHN_LOCK_OWNED(c) 0
-#define CHN_LOCK(c)
-#define CHN_UNLOCK(c)
-#define CHN_TRYLOCK(c)
-#define CHN_LOCKASSERT(c)
-#endif
+#define CHN_LOCKOWNED(c)	mtx_owned((c)->lock)
+#define CHN_LOCK(c)		mtx_lock((c)->lock)
+#define CHN_UNLOCK(c)		mtx_unlock((c)->lock)
+#define CHN_TRYLOCK(c)		mtx_trylock((c)->lock)
+#define CHN_LOCKASSERT(c)	mtx_assert((c)->lock, MA_OWNED)
+#define CHN_UNLOCKASSERT(c)	mtx_assert((c)->lock, MA_NOTOWNED)
 
-int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
+int snd_fmtvalid(uint32_t fmt, uint32_t *fmtlist);
 
-#define AFMTSTR_NONE		0 /* "s16le" */
-#define AFMTSTR_SIMPLE		1 /* "s16le:s" */
-#define AFMTSTR_NUM		2 /* "s16le:2" */
-#define AFMTSTR_FULL		3 /* "s16le:stereo" */
+uint32_t snd_str2afmt(const char *);
+uint32_t snd_afmt2str(uint32_t, char *, size_t);
 
-#define AFMTSTR_MAXSZ		13 /* include null terminator */
+#define AFMTSTR_LEN	16
 
-#define AFMTSTR_MONO_RETURN	0
-#define AFMTSTR_STEREO_RETURN	1
-
-struct afmtstr_table {
-	char *fmtstr;
-	u_int32_t format;
-};
-
-int afmtstr_swap_sign(char *);
-int afmtstr_swap_endian(char *);
-u_int32_t afmtstr2afmt(struct afmtstr_table *, const char *, int);
-u_int32_t afmt2afmtstr(struct afmtstr_table *, u_int32_t, char *, size_t, int, int);
 
 extern int chn_latency;
 extern int chn_latency_profile;
 extern int report_soft_formats;
+extern int report_soft_matrix;
 
-#define PCMDIR_FAKE		0
 #define PCMDIR_PLAY		1
 #define PCMDIR_PLAY_VIRTUAL	2
 #define PCMDIR_REC		-1
@@ -313,26 +343,60 @@ extern int report_soft_formats;
 				 (x) == PCMTRIG_STOP ||			\
 				 (x) == PCMTRIG_ABORT)
 
-#define CHN_F_CLOSING           0x00000004  /* a pending close */
-#define CHN_F_ABORTING          0x00000008  /* a pending abort */
-#define CHN_F_RUNNING		0x00000010  /* dma is running */
-#define CHN_F_TRIGGERED		0x00000020
-#define CHN_F_NOTRIGGER		0x00000040
-#define CHN_F_SLEEPING		0x00000080
+#define CHN_F_CLOSING           0x00000001  /* a pending close */
+#define CHN_F_ABORTING          0x00000002  /* a pending abort */
+#define CHN_F_RUNNING		0x00000004  /* dma is running */
+#define CHN_F_TRIGGERED		0x00000008
+#define CHN_F_NOTRIGGER		0x00000010
+#define CHN_F_SLEEPING		0x00000020
 
-#define CHN_F_BUSY              0x00001000  /* has been opened 	*/
-#define	CHN_F_HAS_SIZE		0x00002000  /* user set block size */
-#define CHN_F_NBIO              0x00004000  /* do non-blocking i/o */
-#define CHN_F_MAPPED		0x00010000  /* has been mmap()ed */
-#define CHN_F_DEAD		0x00020000
-#define CHN_F_BADSETTING	0x00040000
-#define CHN_F_SETBLOCKSIZE	0x00080000
-#define CHN_F_HAS_VCHAN		0x00100000
+#define CHN_F_NBIO              0x00000040  /* do non-blocking i/o */
+#define CHN_F_MMAP		0x00000080  /* has been mmap()ed */
+
+#define CHN_F_BUSY              0x00000100  /* has been opened 	*/
+#define CHN_F_DIRTY		0x00000200  /* need re-config */
+#define CHN_F_DEAD		0x00000400  /* too many errors, dead, mdk */
+#define CHN_F_SILENCE		0x00000800  /* silence, nil, null, yada */
+
+#define	CHN_F_HAS_SIZE		0x00001000  /* user set block size */
+#define CHN_F_HAS_VCHAN		0x00002000  /* vchan master */
+
+#define CHN_F_VCHAN_PASSTHROUGH	0x00004000  /* digital ac3/dts passthrough */
+#define CHN_F_VCHAN_ADAPTIVE	0x00008000  /* adaptive format/rate selection */
+#define CHN_F_VCHAN_DYNAMIC	(CHN_F_VCHAN_PASSTHROUGH | CHN_F_VCHAN_ADAPTIVE)
 
 #define	CHN_F_VIRTUAL		0x10000000  /* not backed by hardware */
+#define CHN_F_BITPERFECT	0x20000000  /* un-cooked, Heh.. */
+#define CHN_F_PASSTHROUGH	0x40000000  /* passthrough re-config */
+#define CHN_F_EXCLUSIVE		0x80000000  /* exclusive access */
+
+#define CHN_F_BITS		"\020"					\
+				"\001CLOSING"				\
+				"\002ABORTING"				\
+				"\003RUNNING"				\
+				"\004TRIGGERED"				\
+				"\005NOTRIGGER"				\
+				"\006SLEEPING"				\
+				"\007NBIO"				\
+				"\010MMAP"				\
+				"\011BUSY"				\
+				"\012DIRTY"				\
+				"\013DEAD"				\
+				"\014SILENCE"				\
+				"\015HAS_SIZE"				\
+				"\016HAS_VCHAN"				\
+				"\017VCHAN_PASSTHROUGH"			\
+				"\020VCHAN_ADAPTIVE"			\
+				"\035VIRTUAL"				\
+				"\036BITPERFECT"			\
+				"\037PASSTHROUGH"			\
+				"\040EXCLUSIVE"
+
 
 #define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD |		\
-				 CHN_F_HAS_VCHAN | CHN_F_VIRTUAL)
+				 CHN_F_VIRTUAL | CHN_F_HAS_VCHAN |	\
+				 CHN_F_VCHAN_DYNAMIC |			\
+				 CHN_F_PASSTHROUGH | CHN_F_EXCLUSIVE)
 
 #define CHN_F_MMAP_INVALID	(CHN_F_DEAD | CHN_F_RUNNING)
 
@@ -359,6 +423,8 @@ extern int report_soft_formats;
 #define CHN_STOPPED(c)		(!CHN_STARTED(c))
 #define CHN_DIRSTR(c)		(((c)->direction == PCMDIR_PLAY) ? \
 				"PCMDIR_PLAY" : "PCMDIR_REC")
+#define CHN_BITPERFECT(c)	((c)->flags & CHN_F_BITPERFECT)
+#define CHN_PASSTHROUGH(c)	((c)->flags & CHN_F_PASSTHROUGH)
 
 #define CHN_TIMEOUT		5
 #define CHN_TIMEOUT_MIN		1
@@ -375,4 +441,15 @@ extern int report_soft_formats;
 /* The size of a whole secondary bufhard. */
 #define CHN_2NDBUFMAXSIZE	(131072)
 
+#ifdef SND_DEBUG
+#define CHANNEL_DECLARE(channel)					\
+	static struct kobj_class channel##_class = {			\
+		.name 	     = #channel,				\
+		.methods     = channel##_methods,			\
+		.size        = sizeof(struct kobj),			\
+		.baseclasses = NULL,					\
+		.refs        = 0					\
+	}
+#else
 #define CHANNEL_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))
+#endif
