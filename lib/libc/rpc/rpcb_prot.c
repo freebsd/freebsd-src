@@ -320,11 +320,13 @@ xdr_netbuf(xdrs, objp)
 	struct netbuf *objp;
 {
 	bool_t dummy;
+	void **pp;
 
 	if (!xdr_u_int32_t(xdrs, (u_int32_t *) &objp->maxlen)) {
 		return (FALSE);
 	}
-	dummy = xdr_bytes(xdrs, (char **)&(objp->buf),
+	pp = &objp->buf;
+	dummy = xdr_bytes(xdrs, (char **) pp,
 			(u_int *)&(objp->len), objp->maxlen);
 	return (dummy);
 }
