@@ -682,11 +682,130 @@ wait4(struct thread *td, struct wait_args *uap)
 	return (error);
 }
 
+/*
+ * Reap the remains of a zombie process and optionally return status and
+ * rusage.  Asserts and will release both the proctree_lock and the process
+ * lock as part of its work.
+ */
+static void
+proc_reap(struct thread *td, struct proc *p, int *status, int options,
+    struct rusage *rusage)
+{
+	INIT_VPROCG(P_TO_VPROCG(p));
+	struct proc *q, *t;
+
+	sx_assert(&proctree_lock, SA_XLOCKED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	KASSERT(p->p_state == PRS_ZOMBIE, ("proc_reap: !PRS_ZOMBIE"));
+
+	q = td->td_proc;
+	if (rusage) {
+		*rusage = p->p_ru;
+		calcru(p, &rusage->ru_utime, &rusage->ru_stime);
+	}
+	PROC_SUNLOCK(p);
+	td->td_retval[0] = p->p_pid;
+	if (status)
+		*status = p->p_xstat;	/* convert to int */
+	if (options & WNOWAIT) {
+		/*
+		 *  Only poll, returning the status.  Caller does not wish to
+		 * release the proc struct just yet.
+		 */
+		PROC_UNLOCK(p);
+		sx_xunlock(&proctree_lock);
+		return;
+	}
+
+	PROC_LOCK(q);
+	sigqueue_take(p->p_ksi);
+	PROC_UNLOCK(q);
+	PROC_UNLOCK(p);
+
+	/*
+	 * If we got the child via a ptrace 'attach', we need to give it back
+	 * to the old parent.
+	 */
+	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
+		PROC_LOCK(p);
+		p->p_oppid = 0;
+		proc_reparent(p, t);
+		PROC_UNLOCK(p);
+		tdsignal(t, NULL, SIGCHLD, p->p_ksi);
+		wakeup(t);
+		cv_broadcast(&p->p_pwait);
+		PROC_UNLOCK(t);
+		sx_xunlock(&proctree_lock);
+		return;
+	}
+
+	/*
+	 * Remove other references to this process to ensure we have an
+	 * exclusive reference.
+	 */
+	sx_xlock(&allproc_lock);
+	LIST_REMOVE(p, p_list);	/* off zombproc */
+	sx_xunlock(&allproc_lock);
+	LIST_REMOVE(p, p_sibling);
+	leavepgrp(p);
+	sx_xunlock(&proctree_lock);
+
+	/*
+	 * As a side effect of this lock, we know that all other writes to
+	 * this proc are visible now, so no more locking is needed for p.
+	 */
+	PROC_LOCK(p);
+	p->p_xstat = 0;		/* XXX: why? */
+	PROC_UNLOCK(p);
+	PROC_LOCK(q);
+	ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru, &p->p_rux);
+	PROC_UNLOCK(q);
+
+	/*
+	 * Decrement the count of procs running with this uid.
+	 */
+	(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
+
+	/*
+	 * Free credentials, arguments, and sigacts.
+	 */
+	crfree(p->p_ucred);
+	p->p_ucred = NULL;
+	pargs_drop(p->p_args);
+	p->p_args = NULL;
+	sigacts_free(p->p_sigacts);
+	p->p_sigacts = NULL;
+
+	/*
+	 * Do any thread-system specific cleanups.
+	 */
+	thread_wait(p);
+
+	/*
+	 * Give vm and machine-dependent layer a chance to free anything that
+	 * cpu_exit couldn't release while still running in process context.
+	 */
+	vm_waitproc(p);
+#ifdef MAC
+	mac_proc_destroy(p);
+#endif
+	KASSERT(FIRST_THREAD_IN_PROC(p),
+	    ("proc_reap: no residual thread!"));
+	uma_zfree(proc_zone, p);
+	sx_xlock(&allproc_lock);
+	nprocs--;
+#ifdef VIMAGE
+	vprocg->nprocs--;
+#endif
+	sx_xunlock(&allproc_lock);
+}
+
 int
 kern_wait(struct thread *td, pid_t pid, int *status, int options,
     struct rusage *rusage)
 {
-	struct proc *p, *q, *t;
+	struct proc *p, *q;
 	int error, nfound;
 
 	AUDIT_ARG(pid, pid);
@@ -736,111 +855,7 @@ loop:
 		nfound++;
 		PROC_SLOCK(p);
 		if (p->p_state == PRS_ZOMBIE) {
-			INIT_VPROCG(P_TO_VPROCG(p));
-			if (rusage) {
-				*rusage = p->p_ru;
-				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
-			}
-			PROC_SUNLOCK(p);
-			td->td_retval[0] = p->p_pid;
-			if (status)
-				*status = p->p_xstat;	/* convert to int */
-			if (options & WNOWAIT) {
-
-				/*
-				 *  Only poll, returning the status.
-				 *  Caller does not wish to release the proc
-				 *  struct just yet.
-				 */
-				PROC_UNLOCK(p);
-				sx_xunlock(&proctree_lock);
-				return (0);
-			}
-
-			PROC_LOCK(q);
-			sigqueue_take(p->p_ksi);
-			PROC_UNLOCK(q);
-			PROC_UNLOCK(p);
-
-			/*
-			 * If we got the child via a ptrace 'attach',
-			 * we need to give it back to the old parent.
-			 */
-			if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
-				PROC_LOCK(p);
-				p->p_oppid = 0;
-				proc_reparent(p, t);
-				PROC_UNLOCK(p);
-				tdsignal(t, NULL, SIGCHLD, p->p_ksi);
-				wakeup(t);
-				cv_broadcast(&p->p_pwait);
-				PROC_UNLOCK(t);
-				sx_xunlock(&proctree_lock);
-				return (0);
-			}
-
-			/*
-			 * Remove other references to this process to ensure
-			 * we have an exclusive reference.
-			 */
-			sx_xlock(&allproc_lock);
-			LIST_REMOVE(p, p_list);	/* off zombproc */
-			sx_xunlock(&allproc_lock);
-			LIST_REMOVE(p, p_sibling);
-			leavepgrp(p);
-			sx_xunlock(&proctree_lock);
-
-			/*
-			 * As a side effect of this lock, we know that
-			 * all other writes to this proc are visible now, so
-			 * no more locking is needed for p.
-			 */
-			PROC_LOCK(p);
-			p->p_xstat = 0;		/* XXX: why? */
-			PROC_UNLOCK(p);
-			PROC_LOCK(q);
-			ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru,
-			    &p->p_rux);
-			PROC_UNLOCK(q);
-
-			/*
-			 * Decrement the count of procs running with this uid.
-			 */
-			(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
-
-			/*
-			 * Free credentials, arguments, and sigacts.
-			 */
-			crfree(p->p_ucred);
-			p->p_ucred = NULL;
-			pargs_drop(p->p_args);
-			p->p_args = NULL;
-			sigacts_free(p->p_sigacts);
-			p->p_sigacts = NULL;
-
-			/*
-			 * Do any thread-system specific cleanups.
-			 */
-			thread_wait(p);
-
-			/*
-			 * Give vm and machine-dependent layer a chance
-			 * to free anything that cpu_exit couldn't
-			 * release while still running in process context.
-			 */
-			vm_waitproc(p);
-#ifdef MAC
-			mac_proc_destroy(p);
-#endif
-			KASSERT(FIRST_THREAD_IN_PROC(p),
-			    ("kern_wait: no residual thread!"));
-			uma_zfree(proc_zone, p);
-			sx_xlock(&allproc_lock);
-			nprocs--;
-#ifdef VIMAGE
-			vprocg->nprocs--;
-#endif
-			sx_xunlock(&allproc_lock);
+			proc_reap(td, p, status, options, rusage);
 			return (0);
 		}
 		if ((p->p_flag & P_STOPPED_SIG) &&
