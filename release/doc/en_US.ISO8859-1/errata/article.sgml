@@ -192,6 +192,10 @@
       <literal>0</literal> (globally on the system).  An Errata Notice
       to fix this problem is planned after the release.</para>
 
+    <para>[20090608] An issue was found in the &man.bge.4; driver that
+      it can cause a system panic upon reboot with heavy network
+      traffic.  A fix has been committed to RELENG_7 (r192127).</para>
+
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
