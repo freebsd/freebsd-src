@@ -31,7 +31,6 @@
  */
 
 #include "opt_ipsec.h"
-#include "opt_route.h"
 
 /* This code has derived from sys/net/rtsock.c on FreeBSD2.2.5 */
 

@@ -33,8 +33,6 @@ $FreeBSD$
 #define	_NET_FLOWTABLE_H_
 
 #ifdef	_KERNEL
-#include "opt_route.h"
-
 #include <net/ethernet.h>
 #include <netinet/in.h>
 
