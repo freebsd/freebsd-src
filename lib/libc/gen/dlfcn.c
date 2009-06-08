@@ -46,36 +46,35 @@ static const char sorry[] = "Service unavailable";
  * be weak symbols so that the dynamic linker can override them.
  */
 
-#pragma weak _rtld_error
 void
 _rtld_error(const char *fmt, ...)
 {
 }
+#pragma weak _rtld_error
 
-#pragma weak dladdr
 int
 dladdr(const void *addr, Dl_info *dlip)
 {
 	_rtld_error(sorry);
 	return 0;
 }
+#pragma weak dladdr
 
-#pragma weak dlclose
 int
 dlclose(void *handle)
 {
 	_rtld_error(sorry);
 	return -1;
 }
+#pragma weak dlclose
 
-#pragma weak dlerror
 const char *
 dlerror(void)
 {
 	return sorry;
 }
+#pragma weak dlerror
 
-#pragma weak dllockinit
 void
 dllockinit(void *context,
 	   void *(*lock_create)(void *context),
@@ -88,32 +87,32 @@ dllockinit(void *context,
 	if (context_destroy != NULL)
 		context_destroy(context);
 }
+#pragma weak dllockinit
 
-#pragma weak dlopen
 void *
 dlopen(const char *name, int mode)
 {
 	_rtld_error(sorry);
 	return NULL;
 }
+#pragma weak dlopen
 
-#pragma weak dlsym
 void *
 dlsym(void * __restrict handle, const char * __restrict name)
 {
 	_rtld_error(sorry);
 	return NULL;
 }
+#pragma weak dlsym
 
-#pragma weak dlfunc
 dlfunc_t
 dlfunc(void * __restrict handle, const char * __restrict name)
 {
 	_rtld_error(sorry);
 	return NULL;
 }
+#pragma weak dlfunc
 
-#pragma weak dlvsym
 void *
 dlvsym(void * __restrict handle, const char * __restrict name,
     const char * __restrict version)
@@ -121,23 +120,23 @@ dlvsym(void * __restrict handle, const char * __restrict name,
 	_rtld_error(sorry);
 	return NULL;
 }
+#pragma weak dlvsym
 
-#pragma weak dlinfo
 int
 dlinfo(void * __restrict handle, int request, void * __restrict p)
 {
 	_rtld_error(sorry);
 	return 0;
 }
+#pragma weak dlinfo
 
-#pragma weak _rtld_thread_init
 void
 _rtld_thread_init(void * li)
 {
 	_rtld_error(sorry);
 }
+#pragma weak _rtld_thread_init
 
-#pragma weak dl_iterate_phdr
 int
 dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *),
     void *data)
@@ -145,15 +144,16 @@ dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *),
 	_rtld_error(sorry);
 	return 0;
 }
+#pragma weak dl_iterate_phdr
 
-#pragma weak _rtld_atfork_pre
 void
 _rtld_atfork_pre(int *locks)
 {
 }
+#pragma weak _rtld_atfork_pre
 
-#pragma weak _rtld_atfork_post
 void
 _rtld_atfork_post(int *locks)
 {
 }
+#pragma weak _rtld_atfork_post
