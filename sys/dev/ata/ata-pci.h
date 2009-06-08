@@ -269,6 +269,7 @@ struct ata_pci_controller {
 #define ATA_NFORCE_MCP67_A9     0x055910de
 #define ATA_NFORCE_MCP67_AA     0x055A10de
 #define ATA_NFORCE_MCP67_AB     0x055B10de
+#define ATA_NFORCE_MCP67_AC     0x058410de
 #define ATA_NFORCE_MCP67        0x056010de
 #define ATA_NFORCE_MCP73        0x056c10de
 #define ATA_NFORCE_MCP73_A0     0x07f010de
