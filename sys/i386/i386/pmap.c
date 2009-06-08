@@ -161,7 +161,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if !defined(DIAGNOSTIC)
-#define PMAP_INLINE	extern inline
+#define PMAP_INLINE	__gnu89_inline
 #else
 #define PMAP_INLINE
 #endif
