@@ -153,17 +153,17 @@ ieee80211_radiotap_chan_change(struct ieee80211com *ic)
 	if (ic->ic_rxchan != NULL) {
 		struct ieee80211_radiotap_header *rh = ic->ic_rh;
 
-		if (rh->it_present & (1<<IEEE80211_RADIOTAP_XCHANNEL))
+		if (rh->it_present & htole32(1<<IEEE80211_RADIOTAP_XCHANNEL))
 			set_xchannel(ic->ic_rxchan, ic->ic_curchan);
-		else if (rh->it_present & (1<<IEEE80211_RADIOTAP_CHANNEL))
+		else if (rh->it_present & htole32(1<<IEEE80211_RADIOTAP_CHANNEL))
 			set_channel(ic->ic_rxchan, ic->ic_curchan);
 	}
 	if (ic->ic_txchan != NULL) {
 		struct ieee80211_radiotap_header *th = ic->ic_th;
 
-		if (th->it_present & (1<<IEEE80211_RADIOTAP_XCHANNEL))
+		if (th->it_present & htole32(1<<IEEE80211_RADIOTAP_XCHANNEL))
 			set_xchannel(ic->ic_txchan, ic->ic_curchan);
-		else if (th->it_present & (1<<IEEE80211_RADIOTAP_CHANNEL))
+		else if (th->it_present & htole32(1<<IEEE80211_RADIOTAP_CHANNEL))
 			set_channel(ic->ic_txchan, ic->ic_curchan);
 	}
 }
