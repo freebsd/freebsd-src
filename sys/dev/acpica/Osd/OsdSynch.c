@@ -185,8 +185,6 @@ AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Timeout)
 				status = AE_ERROR;
 				break;
 			}
-			if (ACPISEM_AVAIL(as, Units))
-				break;
 		}
 		break;
 	default:
@@ -380,8 +378,6 @@ AcpiOsAcquireMutex(ACPI_MUTEX Handle, UINT16 Timeout)
 				status = AE_ERROR;
 				break;
 			}
-			if (ACPIMTX_AVAIL(am))
-				break;
 		}
 		break;
 	default:
