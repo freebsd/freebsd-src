@@ -45,7 +45,6 @@ SUBDIR=	${_3dfx} \
 	${_cbb} \
 	cd9660 \
 	cd9660_iconv \
-	${_ce} \
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
@@ -340,7 +339,6 @@ _arcnet=	arcnet
 _bktr=		bktr
 _cardbus=	cardbus
 _cbb=		cbb
-_ce=		ce
 _coff=		coff
 _cp=		cp
 _cpuctl=	cpuctl
