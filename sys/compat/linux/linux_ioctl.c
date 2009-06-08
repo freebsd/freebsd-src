@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_route.h"
 #include "opt_compat.h"
 
 #include <sys/cdefs.h>

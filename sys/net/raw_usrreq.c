@@ -31,8 +31,6 @@
  * $FreeBSD$
  */
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
