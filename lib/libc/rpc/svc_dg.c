@@ -209,7 +209,7 @@ svc_dg_recvfrom(int fd, char *buf, int buflen,
 		return rlen;
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
-	     cmsg = CMSG_NXTHDR(&msg, cmsg)){
+	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		if (cmsg->cmsg_level == IPPROTO_IP &&
 		    cmsg->cmsg_type == IP_RECVDSTADDR) {
 			have_lin = TRUE;
@@ -300,7 +300,7 @@ svc_dg_sendto(int fd, char *buf, int buflen,
 	msg.msg_namelen = raddrlen;
 	msg.msg_name = (char *)raddr;
 
-	if (laddr->sa_family == AF_INET) {
+	if (laddr->sa_family == AF_INET && lin->s_addr != INADDR_ANY) {
 		msg.msg_control = (caddr_t)tmp;
 		msg.msg_controllen = CMSG_LEN(sizeof(*lin));
 		cmsg = CMSG_FIRSTHDR(&msg);
