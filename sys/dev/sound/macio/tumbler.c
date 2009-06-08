@@ -96,7 +96,7 @@ struct tumbler_softc
 static int	tumbler_probe(device_t);
 static int 	tumbler_attach(device_t);
 static int	tumbler_init(struct snd_mixer *m);
-static void	tumbler_uninit(struct snd_mixer *m);
+static int	tumbler_uninit(struct snd_mixer *m);
 static int	tumbler_reinit(struct snd_mixer *m);
 static int	tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
@@ -369,10 +369,10 @@ tumbler_init(struct snd_mixer *m)
 	return (0);
 }
 
-static void
+static int
 tumbler_uninit(struct snd_mixer *m)
 {
-	return;
+	return (0);
 }
 
 static int
