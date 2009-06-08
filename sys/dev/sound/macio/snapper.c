@@ -96,7 +96,7 @@ struct snapper_softc
 static int	snapper_probe(device_t);
 static int 	snapper_attach(device_t);
 static int	snapper_init(struct snd_mixer *m);
-static void	snapper_uninit(struct snd_mixer *m);
+static int	snapper_uninit(struct snd_mixer *m);
 static int	snapper_reinit(struct snd_mixer *m);
 static int	snapper_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
@@ -423,10 +423,10 @@ snapper_init(struct snd_mixer *m)
 	return (0);
 }
 
-static void
+static int
 snapper_uninit(struct snd_mixer *m)
 {
-	return;
+	return (0);
 }
 
 static int
