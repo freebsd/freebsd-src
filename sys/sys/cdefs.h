@@ -349,7 +349,11 @@
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
-#if __FreeBSD_cc_version >= 300001 && defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#ifdef __clang__
+/* Clang doesn't check for NULL fmt anyway */
+#define	__printf0like(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#elif __FreeBSD_cc_version >= 300001 && defined(__GNUC__) && !defined(__INTEL_COMPILER)
 #define	__printf0like(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #else

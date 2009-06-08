@@ -182,6 +182,11 @@ static void getDarwinDefines(std::vector<char> &Defs, const LangOptions &Opts) {
     Define(Defs, "__strong", "");
   else
     Define(Defs, "__strong", "__attribute__((objc_gc(strong)))");
+
+  if (Opts.Static)
+    Define(Defs, "__STATIC__");
+  else
+    Define(Defs, "__DYNAMIC__");
 }
 
 static void getDarwinOSXDefines(std::vector<char> &Defs, const char *Triple) {
@@ -239,6 +244,11 @@ static void GetDarwinLanguageOptions(LangOptions &Opts,
     Opts.ObjCNonFragileABI = 1;
 }
 
+/// GetWindowsLanguageOptions - Set the default language options for Windows.
+static void GetWindowsLanguageOptions(LangOptions &Opts,
+                                     const char *Triple) {
+  Opts.Microsoft = true;
+}
 
 //===----------------------------------------------------------------------===//
 // Specific target implementations.
@@ -252,9 +262,8 @@ class PPCTargetInfo : public TargetInfo {
   static const TargetInfo::GCCRegAlias GCCRegAliases[];
 
 public:
-  PPCTargetInfo(const std::string& triple) : TargetInfo(triple) {
-    CharIsSigned = false;
-  }
+  PPCTargetInfo(const std::string& triple) : TargetInfo(triple) {}
+
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
                                  unsigned &NumRecords) const {
     Records = BuiltinInfo;
@@ -293,6 +302,10 @@ public:
       Info.setAllowsRegister();
       return true;
     }
+  }
+  virtual void getDefaultLangOptions(LangOptions &Opts) {
+    TargetInfo::getDefaultLangOptions(Opts);
+    Opts.CharIsSigned = false;
   }
   virtual const char *getClobbers() const {
     return "";
@@ -444,6 +457,7 @@ public:
   /// various language options.  These may be overridden by command line
   /// options.
   virtual void getDefaultLangOptions(LangOptions &Opts) {
+    PPC32TargetInfo::getDefaultLangOptions(Opts);
     GetDarwinLanguageOptions(Opts, getTargetTriple());
   }
 };
@@ -464,6 +478,7 @@ public:
   /// various language options.  These may be overridden by command line
   /// options.
   virtual void getDefaultLangOptions(LangOptions &Opts) {
+    PPC64TargetInfo::getDefaultLangOptions(Opts);
     GetDarwinLanguageOptions(Opts, getTargetTriple());
   }
 };
@@ -840,6 +855,7 @@ public:
   /// various language options.  These may be overridden by command line
   /// options.
   virtual void getDefaultLangOptions(LangOptions &Opts) {
+    X86_32TargetInfo::getDefaultLangOptions(Opts);
     GetDarwinLanguageOptions(Opts, getTargetTriple());
   }
 };
@@ -913,9 +929,8 @@ public:
   WindowsX86_32TargetInfo(const std::string& triple)
     : X86_32TargetInfo(triple) {
     TLSSupported = false;
-    // FIXME: Fix wchar_t.
-    // FIXME: We should probably enable -fms-extensions by default for
-    // this target.
+    WCharType = SignedShort;
+    WCharWidth = WCharAlign = 16;
   }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 std::vector<char> &Defines) const {
@@ -926,6 +941,11 @@ public:
     DefineStd(Defines, "WINNT", Opts);
     Define(Defines, "_X86_");
     Define(Defines, "__MSVCRT__");
+  }
+
+  virtual void getDefaultLangOptions(LangOptions &Opts) {
+    X86_32TargetInfo::getDefaultLangOptions(Opts);
+    GetWindowsLanguageOptions(Opts, getTargetTriple());
   }
 };
 } // end anonymous namespace

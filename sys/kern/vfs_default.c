@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/dirent.h>
 #include <sys/poll.h>
 
+#include <security/mac/mac_framework.h>
+
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>

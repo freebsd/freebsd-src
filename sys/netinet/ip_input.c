@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
-#include "opt_mac.h"
 #include "opt_carp.h"
 
 #include <sys/param.h>
@@ -84,10 +83,6 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 
 #include <sys/socketvar.h>
-
-/* XXX: Temporary until ipfw_ether and ipfw_bridge are converted. */
-#include <netinet/ip_fw.h>
-#include <netinet/ip_dummynet.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -217,12 +212,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, output_flowtable_size,
     CTLFLAG_RDTUN, ip_output_flowtable_size, 2048,
     "number of entries in the per-cpu output flow caches");
 
-/*
- * ipfw_ether and ipfw_bridge hooks.
- * XXX: Temporary until those are converted to pfil_hooks as well.
- */
-ip_fw_chk_t *ip_fw_chk_ptr = NULL;
-ip_dn_io_t *ip_dn_io_ptr = NULL;
 #ifdef VIMAGE_GLOBALS
 int fw_one_pass;
 #endif

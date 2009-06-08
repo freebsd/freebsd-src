@@ -712,25 +712,26 @@ bool LLParser::ParseOptionalAttrs(unsigned &Attrs, unsigned AttrKind) {
         return Error(AttrLoc, "invalid use of parameter-only attribute");
         
       return false;
-    case lltok::kw_zeroext:      Attrs |= Attribute::ZExt; break;
-    case lltok::kw_signext:      Attrs |= Attribute::SExt; break;
-    case lltok::kw_inreg:        Attrs |= Attribute::InReg; break;
-    case lltok::kw_sret:         Attrs |= Attribute::StructRet; break;
-    case lltok::kw_noalias:      Attrs |= Attribute::NoAlias; break;
-    case lltok::kw_nocapture:    Attrs |= Attribute::NoCapture; break;
-    case lltok::kw_byval:        Attrs |= Attribute::ByVal; break;
-    case lltok::kw_nest:         Attrs |= Attribute::Nest; break;
+    case lltok::kw_zeroext:         Attrs |= Attribute::ZExt; break;
+    case lltok::kw_signext:         Attrs |= Attribute::SExt; break;
+    case lltok::kw_inreg:           Attrs |= Attribute::InReg; break;
+    case lltok::kw_sret:            Attrs |= Attribute::StructRet; break;
+    case lltok::kw_noalias:         Attrs |= Attribute::NoAlias; break;
+    case lltok::kw_nocapture:       Attrs |= Attribute::NoCapture; break;
+    case lltok::kw_byval:           Attrs |= Attribute::ByVal; break;
+    case lltok::kw_nest:            Attrs |= Attribute::Nest; break;
 
-    case lltok::kw_noreturn:     Attrs |= Attribute::NoReturn; break;
-    case lltok::kw_nounwind:     Attrs |= Attribute::NoUnwind; break;
-    case lltok::kw_noinline:     Attrs |= Attribute::NoInline; break;
-    case lltok::kw_readnone:     Attrs |= Attribute::ReadNone; break;
-    case lltok::kw_readonly:     Attrs |= Attribute::ReadOnly; break;
-    case lltok::kw_alwaysinline: Attrs |= Attribute::AlwaysInline; break;
-    case lltok::kw_optsize:      Attrs |= Attribute::OptimizeForSize; break;
-    case lltok::kw_ssp:          Attrs |= Attribute::StackProtect; break;
-    case lltok::kw_sspreq:       Attrs |= Attribute::StackProtectReq; break;
-
+    case lltok::kw_noreturn:        Attrs |= Attribute::NoReturn; break;
+    case lltok::kw_nounwind:        Attrs |= Attribute::NoUnwind; break;
+    case lltok::kw_noinline:        Attrs |= Attribute::NoInline; break;
+    case lltok::kw_readnone:        Attrs |= Attribute::ReadNone; break;
+    case lltok::kw_readonly:        Attrs |= Attribute::ReadOnly; break;
+    case lltok::kw_alwaysinline:    Attrs |= Attribute::AlwaysInline; break;
+    case lltok::kw_optsize:         Attrs |= Attribute::OptimizeForSize; break;
+    case lltok::kw_ssp:             Attrs |= Attribute::StackProtect; break;
+    case lltok::kw_sspreq:          Attrs |= Attribute::StackProtectReq; break;
+    case lltok::kw_noredzone:       Attrs |= Attribute::NoRedZone; break;
+    case lltok::kw_noimplicitfloat: Attrs |= Attribute::NoImplicitFloat; break;
         
     case lltok::kw_align: {
       unsigned Alignment;
@@ -1042,6 +1043,8 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
         return TokError("basic block pointers are invalid");
       if (Result.get() == Type::VoidTy)
         return TokError("pointers to void are invalid; use i8* instead");
+      if (!PointerType::isValidElementType(Result.get()))
+        return TokError("pointer to this type is invalid");
       Result = HandleUpRefs(PointerType::getUnqual(Result.get()));
       Lex.Lex();
       break;
@@ -1052,6 +1055,8 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
         return TokError("basic block pointers are invalid");
       if (Result.get() == Type::VoidTy)
         return TokError("pointers to void are invalid; use i8* instead");
+      if (!PointerType::isValidElementType(Result.get()))
+        return TokError("pointer to this type is invalid");
       unsigned AddrSpace;
       if (ParseOptionalAddrSpace(AddrSpace) ||
           ParseToken(lltok::star, "expected '*' in address space"))
@@ -1148,7 +1153,7 @@ bool LLParser::ParseArgumentList(std::vector<ArgInfo> &ArgList,
       Lex.Lex();
     }
 
-    if (!ArgTy->isFirstClassType() && !isa<OpaqueType>(ArgTy))
+    if (!FunctionType::isValidArgumentType(ArgTy))
       return Error(TypeLoc, "invalid type for function argument");
     
     ArgList.push_back(ArgInfo(TypeLoc, ArgTy, Attrs, Name));
@@ -1244,6 +1249,8 @@ bool LLParser::ParseStructType(PATypeHolder &Result, bool Packed) {
   
   if (Result == Type::VoidTy)
     return Error(EltTyLoc, "struct element can not have void type");
+  if (!StructType::isValidElementType(Result))
+    return Error(EltTyLoc, "invalid element type for struct");
   
   while (EatIfPresent(lltok::comma)) {
     EltTyLoc = Lex.getLoc();
@@ -1251,6 +1258,8 @@ bool LLParser::ParseStructType(PATypeHolder &Result, bool Packed) {
     
     if (Result == Type::VoidTy)
       return Error(EltTyLoc, "struct element can not have void type");
+    if (!StructType::isValidElementType(Result))
+      return Error(EltTyLoc, "invalid element type for struct");
     
     ParamsList.push_back(Result);
   }
@@ -1298,11 +1307,11 @@ bool LLParser::ParseArrayVectorType(PATypeHolder &Result, bool isVector) {
       return Error(SizeLoc, "zero element vector is illegal");
     if ((unsigned)Size != Size)
       return Error(SizeLoc, "size too large for vector");
-    if (!EltTy->isFloatingPoint() && !EltTy->isInteger())
+    if (!VectorType::isValidElementType(EltTy))
       return Error(TypeLoc, "vector element type must be fp or integer");
     Result = VectorType::get(EltTy, unsigned(Size));
   } else {
-    if (!EltTy->isFirstClassType() && !isa<OpaqueType>(EltTy))
+    if (!ArrayType::isValidElementType(EltTy))
       return Error(TypeLoc, "invalid array element type");
     Result = HandleUpRefs(ArrayType::get(EltTy, Size));
   }
@@ -1835,8 +1844,11 @@ bool LLParser::ParseValID(ValID &ID) {
       
   // Binary Operators.
   case lltok::kw_add:
+  case lltok::kw_fadd:
   case lltok::kw_sub:
+  case lltok::kw_fsub:
   case lltok::kw_mul:
+  case lltok::kw_fmul:
   case lltok::kw_udiv:
   case lltok::kw_sdiv:
   case lltok::kw_fdiv:
@@ -2400,8 +2412,13 @@ bool LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
   // Binary Operators.
   case lltok::kw_add:
   case lltok::kw_sub:
-  case lltok::kw_mul:    return ParseArithmetic(Inst, PFS, KeywordVal, 0);
-      
+  case lltok::kw_mul:
+    // API compatibility: Accept either integer or floating-point types.
+    return ParseArithmetic(Inst, PFS, KeywordVal, 0);
+  case lltok::kw_fadd:
+  case lltok::kw_fsub:
+  case lltok::kw_fmul:    return ParseArithmetic(Inst, PFS, KeywordVal, 2);
+
   case lltok::kw_udiv:
   case lltok::kw_sdiv:
   case lltok::kw_urem:

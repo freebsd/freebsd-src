@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslutils -- compiler utilities
- *              $Revision: 1.72 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,8 +117,8 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslutils")
@@ -130,6 +129,12 @@ static const char * const       *yytname = &AslCompilername[254];
 #else
 extern const char * const       yytname[];
 #endif
+
+char                    HexLookup[] =
+{
+    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
+};
+
 
 /* Local prototypes */
 
@@ -333,8 +338,8 @@ UtConvertByteToHex (
     Buffer[0] = '0';
     Buffer[1] = 'x';
 
-    Buffer[2] = (UINT8) hex[(RawByte >> 4) & 0xF];
-    Buffer[3] = (UINT8) hex[RawByte & 0xF];
+    Buffer[2] = (UINT8) HexLookup[(RawByte >> 4) & 0xF];
+    Buffer[3] = (UINT8) HexLookup[RawByte & 0xF];
 }
 
 
@@ -359,8 +364,8 @@ UtConvertByteToAsmHex (
 {
 
     Buffer[0] = '0';
-    Buffer[1] = (UINT8) hex[(RawByte >> 4) & 0xF];
-    Buffer[2] = (UINT8) hex[RawByte & 0xF];
+    Buffer[1] = (UINT8) HexLookup[(RawByte >> 4) & 0xF];
+    Buffer[2] = (UINT8) HexLookup[RawByte & 0xF];
     Buffer[3] = 'h';
 }
 
@@ -530,7 +535,7 @@ UtDisplaySummary (
     if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
     {
         FlPrintFile (FileId,
-            "AML Output: %s - %d bytes %d named objects %d executable opcodes\n\n",
+            "AML Output: %s - %d bytes, %d named objects, %d executable opcodes\n\n",
             Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength,
             TotalNamedObjects, TotalExecutableOpcodes);
     }

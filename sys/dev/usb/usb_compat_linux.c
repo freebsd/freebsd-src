@@ -385,10 +385,10 @@ usb_submit_urb(struct urb *urb, uint16_t mem_flags)
 	}
 	mtx_assert(&Giant, MA_OWNED);
 
-	if (urb->pipe == NULL) {
+	if (urb->endpoint == NULL) {
 		return (-EINVAL);
 	}
-	uhe = urb->pipe;
+	uhe = urb->endpoint;
 
 	/*
 	 * Check that we have got a FreeBSD USB transfer that will dequeue
@@ -454,10 +454,10 @@ usb_unlink_urb_sub(struct urb *urb, uint8_t drain)
 	}
 	mtx_assert(&Giant, MA_OWNED);
 
-	if (urb->pipe == NULL) {
+	if (urb->endpoint == NULL) {
 		return (-EINVAL);
 	}
-	uhe = urb->pipe;
+	uhe = urb->endpoint;
 
 	if (urb->bsd_urb_list.tqe_prev) {
 
@@ -499,7 +499,7 @@ int
 usb_clear_halt(struct usb_device *dev, struct usb_host_endpoint *uhe)
 {
 	struct usb_config cfg[1];
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	uint8_t type;
 	uint8_t addr;
 
@@ -515,11 +515,11 @@ usb_clear_halt(struct usb_device *dev, struct usb_host_endpoint *uhe)
 	cfg[0].endpoint = addr & UE_ADDR;
 	cfg[0].direction = addr & (UE_DIR_OUT | UE_DIR_IN);
 
-	pipe = usb2_get_pipe(dev, uhe->bsd_iface_index, cfg);
-	if (pipe == NULL)
+	ep = usb2_get_endpoint(dev, uhe->bsd_iface_index, cfg);
+	if (ep == NULL)
 		return (-EINVAL);
 
-	usb2_clear_data_toggle(dev, pipe);
+	usb2_clear_data_toggle(dev, ep);
 
 	return (usb_control_msg(dev, &dev->ep0,
 	    UR_CLEAR_FEATURE, UT_WRITE_ENDPOINT,
@@ -645,7 +645,7 @@ usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *uhe,
 		return (-ENOMEM);
 
 	urb->dev = dev;
-	urb->pipe = uhe;
+	urb->endpoint = uhe;
 
 	bcopy(&req, urb->setup_packet, sizeof(req));
 
@@ -908,7 +908,7 @@ usb_linux_create_usb_device(struct usb_device *udev, device_t dev)
 			udev->devnum = device_get_unit(dev);
 			bcopy(&udev->ddesc, &udev->descriptor,
 			    sizeof(udev->descriptor));
-			bcopy(udev->default_pipe.edesc, &udev->ep0.desc,
+			bcopy(udev->default_ep.edesc, &udev->ep0.desc,
 			    sizeof(udev->ep0.desc));
 		}
 	}

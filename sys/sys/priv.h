@@ -324,6 +324,7 @@
 #define	PRIV_NET_ADDIFADDR	413	/* Add protocol addr to interface. */
 #define	PRIV_NET_DELIFADDR	414	/* Delete protocol addr on interface. */
 #define	PRIV_NET_LAGG		415	/* Administer lagg interface. */
+#define	PRIV_NET_GIF		416	/* Administer gif interface. */
 
 /*
  * 802.11-related privileges.

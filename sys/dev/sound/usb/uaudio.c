@@ -67,6 +67,10 @@
 
 #include <sys/reboot.h>			/* for bootverbose */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/usb/uaudioreg.h>
 #include <dev/sound/usb/uaudio.h>
@@ -97,7 +101,7 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
-#define	UAUDIO_MAX_CHAN(x) (((x) < 2) ? (x) : 2)	/* XXX fixme later */
+#define	UAUDIO_MAX_CHAN(x) (x)
 
 struct uaudio_mixer_node {
 	int32_t	minval;
@@ -664,7 +668,7 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 
 	if (sc->sc_uq_audio_swap_lr) {
 		DPRINTF("hardware has swapped left and right\n");
-		uaudio_pcm_setflags(dev, SD_F_PSWAPLR);
+		/* uaudio_pcm_setflags(dev, SD_F_PSWAPLR); */
 	}
 	if (!(sc->sc_mix_info & SOUND_MASK_PCM)) {
 
@@ -688,6 +692,8 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 	    sc->sc_rec_chan.valid ? 1 : 0)) {
 		goto detach;
 	}
+
+	uaudio_pcm_setflags(dev, SD_F_MPSAFE);
 	sc->sc_pcm_registered = 1;
 
 	if (sc->sc_play_chan.valid) {
@@ -939,6 +945,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			wFormat = UGETW(asid->wFormatTag);
 			bChannels = UAUDIO_MAX_CHAN(asf1d->bNrChannels);
 			bBitResolution = asf1d->bBitResolution;
+
+			DPRINTFN(9, "bChannels=%u\n", bChannels);
 
 			if (asf1d->bSamFreqType == 0) {
 				DPRINTFN(16, "Sample rate: %d-%dHz\n",
@@ -1334,11 +1342,13 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 	ch->pcm_cap.minspeed = ch->sample_rate;
 	ch->pcm_cap.maxspeed = ch->sample_rate;
 
-	ch->pcm_cap.fmtlist[0] = ch->p_fmt->freebsd_fmt;
+	if (ch->p_asf1d->bNrChannels >= 2)
+		ch->pcm_cap.fmtlist[0] =
+		    SND_FORMAT(ch->p_fmt->freebsd_fmt, 2, 0);
+	else
+		ch->pcm_cap.fmtlist[0] =
+		    SND_FORMAT(ch->p_fmt->freebsd_fmt, 1, 0);
 
-	if (ch->p_asf1d->bNrChannels >= 2) {
-		ch->pcm_cap.fmtlist[0] |= AFMT_STEREO;
-	}
 	ch->pcm_cap.fmtlist[1] = 0;
 
 
@@ -1448,6 +1458,51 @@ struct pcmchan_caps *
 uaudio_chan_getcaps(struct uaudio_chan *ch)
 {
 	return (&ch->pcm_cap);
+}
+
+static struct pcmchan_matrix uaudio_chan_matrix_swap_2_0 = {
+	.id = SND_CHN_MATRIX_DRV,
+	.channels = 2,
+	.ext = 0,
+	.map = {
+		/* Right */
+		[0] = {
+			.type = SND_CHN_T_FR,
+			.members =
+			    SND_CHN_T_MASK_FR | SND_CHN_T_MASK_FC |
+			    SND_CHN_T_MASK_LF | SND_CHN_T_MASK_BR |
+			    SND_CHN_T_MASK_BC | SND_CHN_T_MASK_SR
+		},
+		/* Left */
+		[1] = {
+			.type = SND_CHN_T_FL,
+			.members =
+			    SND_CHN_T_MASK_FL | SND_CHN_T_MASK_FC |
+			    SND_CHN_T_MASK_LF | SND_CHN_T_MASK_BL |
+			    SND_CHN_T_MASK_BC | SND_CHN_T_MASK_SL
+		},
+		[2] = {
+			.type = SND_CHN_T_MAX,
+			.members = 0
+		}
+	},
+	.mask = SND_CHN_T_MASK_FR | SND_CHN_T_MASK_FL,
+	.offset = {  1,  0, -1, -1, -1, -1, -1, -1, -1,
+		    -1, -1, -1, -1, -1, -1, -1, -1, -1  }
+};
+
+struct pcmchan_matrix *
+uaudio_chan_getmatrix(struct uaudio_chan *ch, uint32_t format)
+{
+	struct uaudio_softc *sc;
+
+	sc = ch->priv_sc;
+
+	if (sc != NULL && sc->sc_uq_audio_swap_lr != 0 &&
+	    AFMT_CHANNEL(format) == 2)
+		return (&uaudio_chan_matrix_swap_2_0);
+
+	return (feeder_matrix_format_map(format));
 }
 
 int

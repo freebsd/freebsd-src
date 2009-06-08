@@ -522,7 +522,6 @@ g_new_provider_event(void *arg, int flag)
 	struct g_class *mp;
 	struct g_provider *pp;
 	struct g_consumer *cp;
-	int i;
 
 	g_topology_assert();
 	if (flag == EV_CANCEL)
@@ -536,11 +535,10 @@ g_new_provider_event(void *arg, int flag)
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;
-		i = 1;
 		LIST_FOREACH(cp, &pp->consumers, consumers)
 			if (cp->geom->class == mp)
-				i = 0;
-		if (!i)
+				break;
+		if (cp != NULL)
 			continue;
 		mp->taste(mp, pp, 0);
 		g_topology_assert();

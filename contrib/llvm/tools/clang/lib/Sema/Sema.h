@@ -20,6 +20,7 @@
 #include "SemaOverload.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/Parse/Action.h"
 #include "clang/Sema/SemaDiagnostic.h"
 #include "llvm/ADT/SmallVector.h"
@@ -471,6 +472,7 @@ public:
                             Declarator *D = 0);
   
   virtual DeclPtrTy ActOnIvar(Scope *S, SourceLocation DeclStart,
+                              DeclPtrTy IntfDecl,
                               Declarator &D, ExprTy *BitfieldWidth,
                               tok::ObjCKeywordKind visibility);
 
@@ -1045,7 +1047,7 @@ public:
   LookupResult LookupName(Scope *S, DeclarationName Name, 
                           LookupNameKind NameKind, 
                           bool RedeclarationOnly = false,
-                          bool AllowBuiltinCreation = true,
+                          bool AllowBuiltinCreation = false,
                           SourceLocation Loc = SourceLocation());
   LookupResult LookupQualifiedName(DeclContext *LookupCtx, DeclarationName Name,
                                    LookupNameKind NameKind, 
@@ -1054,7 +1056,7 @@ public:
                                 DeclarationName Name,
                                 LookupNameKind NameKind, 
                                 bool RedeclarationOnly = false,
-                                bool AllowBuiltinCreation = true,
+                                bool AllowBuiltinCreation = false,
                                 SourceLocation Loc = SourceLocation());
 
   ObjCProtocolDecl *LookupProtocol(IdentifierInfo *II);
@@ -1629,6 +1631,12 @@ public:
                                                TypeTy *Ty,
                                                SourceLocation RParen);
 
+  /// MaybeCreateCXXExprWithTemporaries - If the list of temporaries is 
+  /// non-empty, will create a new CXXExprWithTemporaries expression.
+  /// Otherwise, just returs the passed in expression.
+  Expr *MaybeCreateCXXExprWithTemporaries(Expr *SubExpr, 
+                                          bool DestroyTemps = true);
+  
   virtual OwningExprResult ActOnFinishFullExpr(ExprArg Expr);
 
   bool RequireCompleteDeclContext(const CXXScopeSpec &SS);
@@ -1688,6 +1696,10 @@ public:
   virtual ExprResult ParseObjCStringLiteral(SourceLocation *AtLocs, 
                                             ExprTy **Strings,
                                             unsigned NumStrings);
+  
+  Expr *BuildObjCEncodeExpression(SourceLocation AtLoc, 
+                                  QualType EncodedType,
+                                  SourceLocation RParenLoc);                                    
   virtual ExprResult ParseObjCEncodeExpression(SourceLocation AtLoc,
                                                SourceLocation EncodeLoc,
                                                SourceLocation LParenLoc,
@@ -1971,7 +1983,7 @@ public:
                                  const TemplateArgument *TemplateArgs,
                                  unsigned NumTemplateArgs,
                                  SourceLocation RAngleLoc,
-                       llvm::SmallVectorImpl<TemplateArgument> &Converted);
+                                 TemplateArgumentListBuilder &Converted);
 
   bool CheckTemplateArgument(TemplateTypeParmDecl *Param, QualType Arg,
                              SourceLocation ArgLoc);
@@ -1980,7 +1992,7 @@ public:
   bool CheckTemplateArgumentPointerToMember(Expr *Arg, NamedDecl *&Member);
   bool CheckTemplateArgument(NonTypeTemplateParmDecl *Param, 
                              QualType InstantiatedParamType, Expr *&Arg,
-                       llvm::SmallVectorImpl<TemplateArgument> *Converted = 0);
+                             TemplateArgumentListBuilder *Converted = 0);
   bool CheckTemplateArgument(TemplateTemplateParmDecl *Param, DeclRefExpr *Arg);
   bool TemplateParameterListsAreEqual(TemplateParameterList *New,
                                       TemplateParameterList *Old,
@@ -2019,16 +2031,9 @@ public:
                              const IdentifierInfo &II,
                              SourceRange Range);
 
-  bool DeduceTemplateArguments(QualType Param, QualType Arg,
-                               llvm::SmallVectorImpl<TemplateArgument> &Deduced);
-  bool DeduceTemplateArguments(const TemplateArgument &Param,
-                               const TemplateArgument &Arg,
-                               llvm::SmallVectorImpl<TemplateArgument> &Deduced);
-  bool DeduceTemplateArguments(const TemplateArgumentList &ParamList,
-                               const TemplateArgumentList &ArgList,
-                               llvm::SmallVectorImpl<TemplateArgument> &Deduced);
-  bool DeduceTemplateArguments(ClassTemplatePartialSpecializationDecl *Partial,
-                               const TemplateArgumentList &TemplateArgs);
+  TemplateArgumentList *
+  DeduceTemplateArguments(ClassTemplatePartialSpecializationDecl *Partial,
+                          const TemplateArgumentList &TemplateArgs);
                              
   //===--------------------------------------------------------------------===//
   // C++ Template Instantiation
@@ -2235,7 +2240,7 @@ public:
 
   QualType InstantiateType(QualType T, const TemplateArgumentList &TemplateArgs,
                            SourceLocation Loc, DeclarationName Entity);
-
+  
   OwningExprResult InstantiateExpr(Expr *E, 
                                    const TemplateArgumentList &TemplateArgs);
 
@@ -2456,7 +2461,19 @@ public:
                                  SourceLocation PragmaLoc, 
                                  SourceLocation LParenLoc,
                                  SourceLocation RParenLoc);
-  
+
+  /// ActOnPragmaWeakID - Called on well formed #pragma weak ident.
+  virtual void ActOnPragmaWeakID(IdentifierInfo* WeakName,
+                                 SourceLocation PragmaLoc,
+                                 SourceLocation WeakNameLoc);
+
+  /// ActOnPragmaWeakAlias - Called on well formed #pragma weak ident = ident.
+  virtual void ActOnPragmaWeakAlias(IdentifierInfo* WeakName,
+                                    IdentifierInfo* AliasName,
+                                    SourceLocation PragmaLoc,
+                                    SourceLocation WeakNameLoc,
+                                    SourceLocation AliasNameLoc);
+
   /// getPragmaPackAlignment() - Return the current alignment as specified by
   /// the current #pragma pack directive, or 0 if none is currently active.
   unsigned getPragmaPackAlignment() const;

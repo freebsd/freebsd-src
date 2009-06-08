@@ -119,12 +119,13 @@ TemplateExprInstantiator::VisitDeclRefExpr(DeclRefExpr *E) {
                                           T->isWideCharType(),
                                           T, 
                                        E->getSourceRange().getBegin()));
-    else if (T->isBooleanType())
+    if (T->isBooleanType())
       return SemaRef.Owned(new (SemaRef.Context) CXXBoolLiteralExpr(
                                           Arg.getAsIntegral()->getBoolValue(),
                                                  T, 
                                        E->getSourceRange().getBegin()));
 
+    assert(Arg.getAsIntegral()->getBitWidth() == SemaRef.Context.getIntWidth(T));
     return SemaRef.Owned(new (SemaRef.Context) IntegerLiteral(
                                                  *Arg.getAsIntegral(),
                                                  T, 
@@ -1215,15 +1216,22 @@ TemplateExprInstantiator::VisitCXXUnresolvedMemberExpr(
 // Objective-C Expressions
 //----------------------------------------------------------------------------
 Sema::OwningExprResult 
-TemplateExprInstantiator::VisitObjCStringLiteral(ObjCStringLiteral *E) { 
-  assert(false && "FIXME: Template instantiations for ObjC expressions");
-  return SemaRef.ExprError();
+TemplateExprInstantiator::VisitObjCStringLiteral(ObjCStringLiteral *E) {
+  return SemaRef.Owned(E->Clone(SemaRef.Context));
 }
 
 Sema::OwningExprResult 
-TemplateExprInstantiator::VisitObjCEncodeExpr(ObjCEncodeExpr *E) { 
-  assert(false && "FIXME: Template instantiations for ObjC expressions");
-  return SemaRef.ExprError();
+TemplateExprInstantiator::VisitObjCEncodeExpr(ObjCEncodeExpr *E) {
+  QualType EncodedType = SemaRef.InstantiateType(E->getEncodedType(),
+                                                 TemplateArgs,
+                                                 /*FIXME:*/E->getAtLoc(),
+                                                 DeclarationName());
+  if (EncodedType.isNull())
+    return SemaRef.ExprError();
+  
+  return SemaRef.Owned(SemaRef.BuildObjCEncodeExpression(E->getAtLoc(), 
+                                                         EncodedType, 
+                                                         E->getRParenLoc()));
 }
 
 Sema::OwningExprResult 
@@ -1234,14 +1242,12 @@ TemplateExprInstantiator::VisitObjCMessageExpr(ObjCMessageExpr *E) {
 
 Sema::OwningExprResult 
 TemplateExprInstantiator::VisitObjCSelectorExpr(ObjCSelectorExpr *E) { 
-  assert(false && "FIXME: Template instantiations for ObjC expressions");
-  return SemaRef.ExprError();
+  return SemaRef.Owned(E->Clone(SemaRef.Context));
 }
 
 Sema::OwningExprResult 
 TemplateExprInstantiator::VisitObjCProtocolExpr(ObjCProtocolExpr *E) { 
-  assert(false && "FIXME: Template instantiations for ObjC expressions");
-  return SemaRef.ExprError();
+  return SemaRef.Owned(E->Clone(SemaRef.Context));
 }
 
 Sema::OwningExprResult 

@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslcompiler.h - common include file for iASL
- *              $Revision: 1.148 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -139,9 +138,10 @@
 #include <ctype.h>
 
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/amlresrc.h>
-#include <contrib/dev/acpica/acdebug.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/amlresrc.h>
+#include <contrib/dev/acpica/include/acdebug.h>
 
 /* Compiler headers */
 
@@ -188,6 +188,16 @@ AslPushInputFileStack (
     FILE                    *InputFile,
     char                    *Filename);
 
+/*
+ * aslstartup - called from main
+ */
+ACPI_STATUS
+AslDoOnePathname (
+    char                    *Pathname);
+
+ACPI_STATUS
+AslDoOneFile (
+    char                    *Filename);
 
 /*
  * aslcompile - compile mainline
@@ -306,6 +316,10 @@ AePrintException (
 void
 AePrintErrorLog (
     UINT32                  FileId);
+
+void
+AeClearErrorLog (
+    void);
 
 ACPI_PHYSICAL_ADDRESS
 AeLocalGetRootPointer (

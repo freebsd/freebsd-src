@@ -1996,10 +1996,15 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
     ObjCInterfaceDecl *ClassDeclared;
     Ivar = IDecl->lookupInstanceVariable(Context, PropertyIvar, ClassDeclared);
     if (!Ivar) {
-      Ivar = ObjCIvarDecl::Create(Context, CurContext, PropertyLoc, 
+      DeclContext *EnclosingContext = cast_or_null<DeclContext>(IDecl);
+      assert(EnclosingContext && 
+             "null DeclContext for synthesized ivar - ActOnPropertyImplDecl");
+      Ivar = ObjCIvarDecl::Create(Context, EnclosingContext, PropertyLoc, 
                                   PropertyIvar, PropType, 
                                   ObjCIvarDecl::Public,
                                   (Expr *)0);
+      Ivar->setLexicalDeclContext(IDecl);
+      IDecl->addDecl(Context, Ivar);
       property->setPropertyIvarDecl(Ivar);
       if (!getLangOptions().ObjCNonFragileABI)
         Diag(PropertyLoc, diag::error_missing_property_ivar_decl) << PropertyId;
@@ -2113,27 +2118,6 @@ bool Sema::CheckObjCDeclScope(Decl *D) {
   return true;
 }
 
-/// Collect the instance variables declared in an Objective-C object.  Used in
-/// the creation of structures from objects using the @defs directive.
-/// FIXME: This should be consolidated with CollectObjCIvars as it is also
-/// part of the AST generation logic of @defs.
-static void CollectIvars(ObjCInterfaceDecl *Class, RecordDecl *Record,
-                         ASTContext& Ctx,
-                         llvm::SmallVectorImpl<Sema::DeclPtrTy> &ivars) {
-  if (Class->getSuperClass())
-    CollectIvars(Class->getSuperClass(), Record, Ctx, ivars);
-  
-  // For each ivar, create a fresh ObjCAtDefsFieldDecl.
-  for (ObjCInterfaceDecl::ivar_iterator I = Class->ivar_begin(),
-       E = Class->ivar_end(); I != E; ++I) {
-    ObjCIvarDecl* ID = *I;
-    Decl *FD = ObjCAtDefsFieldDecl::Create(Ctx, Record, ID->getLocation(),
-                                           ID->getIdentifier(), ID->getType(),
-                                           ID->getBitWidth());
-    ivars.push_back(Sema::DeclPtrTy::make(FD));
-  }
-}
-
 /// Called whenever @defs(ClassName) is encountered in the source.  Inserts the
 /// instance variables of ClassName into Decls.
 void Sema::ActOnDefs(Scope *S, DeclPtrTy TagD, SourceLocation DeclStart, 
@@ -2151,7 +2135,17 @@ void Sema::ActOnDefs(Scope *S, DeclPtrTy TagD, SourceLocation DeclStart,
   }
   
   // Collect the instance variables
-  CollectIvars(Class, dyn_cast<RecordDecl>(TagD.getAs<Decl>()), Context, Decls);
+  llvm::SmallVector<FieldDecl*, 32> RecFields;
+  Context.CollectObjCIvars(Class, RecFields);
+  // For each ivar, create a fresh ObjCAtDefsFieldDecl.
+  for (unsigned i = 0; i < RecFields.size(); i++) {
+    FieldDecl* ID = RecFields[i];
+    RecordDecl *Record = dyn_cast<RecordDecl>(TagD.getAs<Decl>());
+    Decl *FD = ObjCAtDefsFieldDecl::Create(Context, Record, ID->getLocation(),
+                                           ID->getIdentifier(), ID->getType(),
+                                           ID->getBitWidth());
+    Decls.push_back(Sema::DeclPtrTy::make(FD));
+  }
   
   // Introduce all of these fields into the appropriate scope.
   for (llvm::SmallVectorImpl<DeclPtrTy>::iterator D = Decls.begin();

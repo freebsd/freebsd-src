@@ -83,7 +83,7 @@ static int	usb2_fifo_uiomove(struct usb_fifo *, void *, int,
 		    struct uio *);
 static void	usb2_fifo_check_methods(struct usb_fifo_methods *);
 static struct	usb_fifo *usb2_fifo_alloc(void);
-static struct	usb_pipe *usb2_dev_get_pipe(struct usb_device *, uint8_t,
+static struct	usb_endpoint *usb2_dev_get_ep(struct usb_device *, uint8_t,
 		    uint8_t);
 static void	usb2_loc_fill(struct usb_fs_privdata *,
 		    struct usb_cdev_privdata *);
@@ -360,13 +360,13 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 {
 	struct usb_device *udev = cpd->udev;
 	struct usb_fifo *f;
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	uint8_t n;
 	uint8_t is_tx;
 	uint8_t is_rx;
 	uint8_t no_null;
 	uint8_t is_busy;
-	int ep = cpd->ep_addr;
+	int e = cpd->ep_addr;
 
 	is_tx = (cpd->fflags & FWRITE) ? 1 : 0;
 	is_rx = (cpd->fflags & FREAD) ? 1 : 0;
@@ -374,7 +374,7 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 	is_busy = 0;
 
 	/* Preallocated FIFO */
-	if (ep < 0) {
+	if (e < 0) {
 		DPRINTFN(5, "Preallocated FIFO\n");
 		if (is_tx) {
 			f = udev->fifo[cpd->fifo_index + USB_FIFO_TX];
@@ -391,10 +391,10 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 		return (0);
 	}
 
-	KASSERT(ep >= 0 && ep <= 15, ("endpoint %d out of range", ep));
+	KASSERT(e >= 0 && e <= 15, ("endpoint %d out of range", e));
 
 	/* search for a free FIFO slot */
-	DPRINTFN(5, "Endpoint device, searching for 0x%02x\n", ep);
+	DPRINTFN(5, "Endpoint device, searching for 0x%02x\n", e);
 	for (n = 0;; n += 2) {
 
 		if (n == USB_FIFO_MAX) {
@@ -411,7 +411,7 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 		if (is_tx) {
 			f = udev->fifo[n + USB_FIFO_TX];
 			if (f != NULL) {
-				if (f->dev_ep_index != ep) {
+				if (f->dev_ep_index != e) {
 					/* wrong endpoint index */
 					continue;
 				}
@@ -428,7 +428,7 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 		if (is_rx) {
 			f = udev->fifo[n + USB_FIFO_RX];
 			if (f != NULL) {
-				if (f->dev_ep_index != ep) {
+				if (f->dev_ep_index != e) {
 					/* wrong endpoint index */
 					continue;
 				}
@@ -445,14 +445,14 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 	}
 
 	if (no_null == 0) {
-		if (ep >= (USB_EP_MAX / 2)) {
+		if (e >= (USB_EP_MAX / 2)) {
 			/* we don't create any endpoints in this range */
 			DPRINTFN(5, "ep out of range\n");
 			return (is_busy ? EBUSY : EINVAL);
 		}
 	}
 
-	if ((ep != 0) && is_busy) {
+	if ((e != 0) && is_busy) {
 		/*
 		 * Only the default control endpoint is allowed to be
 		 * opened multiple times!
@@ -464,10 +464,10 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 	/* Check TX FIFO */
 	if (is_tx &&
 	    (udev->fifo[n + USB_FIFO_TX] == NULL)) {
-		pipe = usb2_dev_get_pipe(udev, ep, USB_FIFO_TX);
-		DPRINTFN(5, "dev_get_pipe(%d, 0x%x)\n", ep, USB_FIFO_TX);
-		if (pipe == NULL) {
-			DPRINTFN(5, "dev_get_pipe returned NULL\n");
+		ep = usb2_dev_get_ep(udev, e, USB_FIFO_TX);
+		DPRINTFN(5, "dev_get_endpoint(%d, 0x%x)\n", e, USB_FIFO_TX);
+		if (ep == NULL) {
+			DPRINTFN(5, "dev_get_endpoint returned NULL\n");
 			return (EINVAL);
 		}
 		f = usb2_fifo_alloc();
@@ -477,11 +477,11 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 		}
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_TX;
-		f->dev_ep_index = ep;
+		f->dev_ep_index = e;
 		f->priv_mtx = udev->default_mtx;
-		f->priv_sc0 = pipe;
+		f->priv_sc0 = ep;
 		f->methods = &usb2_ugen_methods;
-		f->iface_index = pipe->iface_index;
+		f->iface_index = ep->iface_index;
 		f->udev = udev;
 		mtx_lock(&usb2_ref_lock);
 		udev->fifo[n + USB_FIFO_TX] = f;
@@ -491,10 +491,10 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 	if (is_rx &&
 	    (udev->fifo[n + USB_FIFO_RX] == NULL)) {
 
-		pipe = usb2_dev_get_pipe(udev, ep, USB_FIFO_RX);
-		DPRINTFN(5, "dev_get_pipe(%d, 0x%x)\n", ep, USB_FIFO_RX);
-		if (pipe == NULL) {
-			DPRINTFN(5, "dev_get_pipe returned NULL\n");
+		ep = usb2_dev_get_ep(udev, e, USB_FIFO_RX);
+		DPRINTFN(5, "dev_get_endpoint(%d, 0x%x)\n", e, USB_FIFO_RX);
+		if (ep == NULL) {
+			DPRINTFN(5, "dev_get_endpoint returned NULL\n");
 			return (EINVAL);
 		}
 		f = usb2_fifo_alloc();
@@ -504,11 +504,11 @@ usb2_fifo_create(struct usb_cdev_privdata *cpd,
 		}
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_RX;
-		f->dev_ep_index = ep;
+		f->dev_ep_index = e;
 		f->priv_mtx = udev->default_mtx;
-		f->priv_sc0 = pipe;
+		f->priv_sc0 = ep;
 		f->methods = &usb2_ugen_methods;
-		f->iface_index = pipe->iface_index;
+		f->iface_index = ep->iface_index;
 		f->udev = udev;
 		mtx_lock(&usb2_ref_lock);
 		udev->fifo[n + USB_FIFO_RX] = f;
@@ -586,14 +586,14 @@ usb2_fifo_free(struct usb_fifo *f)
 	free(f, M_USBDEV);
 }
 
-static struct usb_pipe *
-usb2_dev_get_pipe(struct usb_device *udev, uint8_t ep_index, uint8_t dir)
+static struct usb_endpoint *
+usb2_dev_get_ep(struct usb_device *udev, uint8_t ep_index, uint8_t dir)
 {
-	struct usb_pipe *pipe;
+	struct usb_endpoint *ep;
 	uint8_t ep_dir;
 
 	if (ep_index == 0) {
-		pipe = &udev->default_pipe;
+		ep = &udev->default_ep;
 	} else {
 		if (dir == USB_FIFO_RX) {
 			if (udev->flags.usb_mode == USB_MODE_HOST) {
@@ -608,18 +608,18 @@ usb2_dev_get_pipe(struct usb_device *udev, uint8_t ep_index, uint8_t dir)
 				ep_dir = UE_DIR_IN;
 			}
 		}
-		pipe = usb2_get_pipe_by_addr(udev, ep_index | ep_dir);
+		ep = usb2_get_ep_by_addr(udev, ep_index | ep_dir);
 	}
 
-	if (pipe == NULL) {
-		/* if the pipe does not exist then return */
+	if (ep == NULL) {
+		/* if the endpoint does not exist then return */
 		return (NULL);
 	}
-	if (pipe->edesc == NULL) {
-		/* invalid pipe */
+	if (ep->edesc == NULL) {
+		/* invalid endpoint */
 		return (NULL);
 	}
-	return (pipe);			/* success */
+	return (ep);			/* success */
 }
 
 /*------------------------------------------------------------------------*

@@ -1,0 +1,164 @@
+.\" Copyright (c) 2002, 2003 Marko Zec <zec@tel.fer.hr>
+.\" Copyright (c) 2009 University of Zagreb
+.\" Copyright (c) 2009 FreeBSD Foundation
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2009
+.Dt VIMAGE 8
+.Os
+.Sh NAME
+.Nm vimage
+.Nd manage virtual network stacks
+.Sh SYNOPSIS
+.Nm
+.Ar vi_name
+.Op command
+.Nm
+.Fl c
+.Ar vi_name
+.Nm
+.Fl d
+.Ar vi_name
+.Nm
+.Fl l
+.Op Ar vi_name
+.Nm
+.Fl i
+.Ar vi_name interface
+.Sh DESCRIPTION
+.Nm
+command is an interm user interface for controlling the virtual network
+stacks in FreeBSD.
+.Ss Overview
+A virtual image reprepresents an isolated operating environment with its
+own independent network stack instance.  Every process, socket and network
+interface present in the system is always attached to one, and only one,
+virtual image i.e. virtual network stack instance.
+During the system bootup sequence default virtual image is created to
+which all the configured interfaces and user processes are initially
+assigned.
+Assuming that enough system resources and per virtual image privileges
+are provided, the super-user can create and manage a hierarchy of
+subordinated virtual images. The
+.Nm
+command allows for creation, deletion and monitoring of virtual images,
+as well as for execution of arbitrary processes in a targeted virtual
+image.
+.Ss Invocation
+If invoked with no modifiers, the
+.Nm
+command spawns a new shell process in virtual image 
+.Ar vi_name .
+If provided, the optional arguments following the virtual image name
+.Ar vi_name
+are interpreted as a standard command line issued at a shell,
+otherwise an interactive shell is started in the target virtual image.
+.Pp
+The following parameters are available:
+.Bl -tag -width indent
+.It Fl c
+Create a new virtual image named
+.So
+.Ar vi_name
+.Sc .
+.It Fl d
+Delete the virtual image 
+.Ar vi_name .
+No processes and/or sockets should exist in the target virtual image
+in order for the delete request to succeed. Non-loopback interfaces
+residing in the target virtual image will be reassigned to the virtual
+image's parent.
+.It Fl l
+List the properties and statistics for virtual images one level
+below the current one in the hierarchy. If an optional argument
+.Ar vi_name
+is provided, only the information regarding the target virtual image
+.Ar vi_name
+is displayed.
+.It Fl lr
+List the properties and statistics for all virtual images in
+the hierarchy of subordinated vimages. If an optional argument
+.Ar vi_name
+is provided, the hierarchy will be traversed at and below the
+.Ar vi_name
+level.
+.It Fl i
+Move the interface
+.Ar interface
+to the target virtual image
+.Ar vi_name .
+If the value of 
+.Ar vi_name
+argument is
+.So ..
+.Sc ,
+the interface is returned to the parent of the current virtual image.
+.El
+.Sh EXAMPLES
+Create a new virtual image named 
+.So v1
+.Sc :
+.Pp
+.Dl vimage -c v1
+.Pp
+Execute the
+.So ifconfig
+.Sc command in the virtual image
+.So v1
+.Sc :
+.Pp
+.Dl vimage v1 ifconfig
+.Pp
+Move the interface
+.So vlan0
+.Sc to the virtual image
+.So v1
+.Sc :
+.Pp
+.Dl vimage -i v1 vlan0
+.Pp
+Show the status information for virtual image
+.So v1
+.Sc :
+.Pp
+.Dl vimage -l v1
+.Sh DIAGNOSTICS
+The
+.Nm
+command exits 0 on success, and >0 if an error occurs.
+.Sh SEE ALSO
+.Xr jail 8
+.Sh BUGS
+If memory allocation failure occurs during the vimage creation, it will remain
+undetected/ignored in the current implementation, thus latently scheduling
+an almost imminent system crash in the future.
+.Sh AUTHOR
+.An "Marko Zec" Aq zec@fer.hr
+.Sh HISTORY
+The
+.Nm
+facility first appeared as a patch against FreeBSD 4.7-RELEASE in 2002.

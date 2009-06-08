@@ -1049,6 +1049,10 @@ TemplateSpecializationType::
 anyDependentTemplateArguments(const TemplateArgument *Args, unsigned NumArgs) {
   for (unsigned Idx = 0; Idx < NumArgs; ++Idx) {
     switch (Args[Idx].getKind()) {
+    case TemplateArgument::Null:
+      assert(false && "Should not have a NULL template argument");
+      break;
+        
     case TemplateArgument::Type:
       if (Args[Idx].getAsType()->isDependentType())
         return true;
@@ -1451,6 +1455,10 @@ TemplateSpecializationType::PrintTemplateArgumentList(
     // Print the argument into a string.
     std::string ArgString;
     switch (Args[Arg].getKind()) {
+    case TemplateArgument::Null:
+      assert(false && "Null template argument");
+      break;
+
     case TemplateArgument::Type:
       Args[Arg].getAsType().getAsStringInternal(ArgString, Policy);
       break;

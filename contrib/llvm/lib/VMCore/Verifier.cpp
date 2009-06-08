@@ -280,7 +280,6 @@ namespace {
                      bool isReturnValue, const Value *V);
     void VerifyFunctionAttrs(const FunctionType *FT, const AttrListPtr &Attrs,
                              const Value *V);
-    bool VerifyMDNode(const MDNode *N);
 
     void WriteValue(const Value *V) {
       if (!V) return;
@@ -380,24 +379,22 @@ void Verifier::visitGlobalVariable(GlobalVariable &GV) {
     // Verify that any metadata used in a global initializer points only to
     // other globals.
     if (MDNode *FirstNode = dyn_cast<MDNode>(GV.getInitializer())) {
-      if (VerifyMDNode(FirstNode)) {
-        SmallVector<const MDNode *, 4> NodesToAnalyze;
-        NodesToAnalyze.push_back(FirstNode);
-        while (!NodesToAnalyze.empty()) {
-          const MDNode *N = NodesToAnalyze.back();
-          NodesToAnalyze.pop_back();
+      SmallVector<const MDNode *, 4> NodesToAnalyze;
+      NodesToAnalyze.push_back(FirstNode);
+      while (!NodesToAnalyze.empty()) {
+        const MDNode *N = NodesToAnalyze.back();
+        NodesToAnalyze.pop_back();
 
-          for (MDNode::const_elem_iterator I = N->elem_begin(),
-                 E = N->elem_end(); I != E; ++I)
-            if (const Value *V = *I) {
-              if (const MDNode *Next = dyn_cast<MDNode>(V))
-                NodesToAnalyze.push_back(Next);
-              else
-                Assert3(isa<Constant>(V),
-                        "reference to instruction from global metadata node",
-                        &GV, N, V);
-            }
-        }
+        for (MDNode::const_elem_iterator I = N->elem_begin(),
+               E = N->elem_end(); I != E; ++I)
+          if (const Value *V = *I) {
+            if (const MDNode *Next = dyn_cast<MDNode>(V))
+              NodesToAnalyze.push_back(Next);
+            else
+              Assert3(isa<Constant>(V),
+                      "reference to instruction from global metadata node",
+                      &GV, N, V);
+          }
       }
     }
   } else {
@@ -1069,13 +1066,40 @@ void Verifier::visitBinaryOperator(BinaryOperator &B) {
           "Both operands to a binary operator are not of the same type!", &B);
 
   switch (B.getOpcode()) {
+  // Check that integer arithmetic operators are only used with
+  // integral operands.
+  case Instruction::Add:
+  case Instruction::Sub:
+  case Instruction::Mul:
+  case Instruction::SDiv:
+  case Instruction::UDiv:
+  case Instruction::SRem:
+  case Instruction::URem:
+    Assert1(B.getType()->isIntOrIntVector(),
+            "Integer arithmetic operators only work with integral types!", &B);
+    Assert1(B.getType() == B.getOperand(0)->getType(),
+            "Integer arithmetic operators must have same type "
+            "for operands and result!", &B);
+    break;
+  // Check that floating-point arithmetic operators are only used with
+  // floating-point operands.
+  case Instruction::FAdd:
+  case Instruction::FSub:
+  case Instruction::FMul:
+  case Instruction::FDiv:
+  case Instruction::FRem:
+    Assert1(B.getType()->isFPOrFPVector(),
+            "Floating-point arithmetic operators only work with "
+            "floating-point types!", &B);
+    Assert1(B.getType() == B.getOperand(0)->getType(),
+            "Floating-point arithmetic operators must have same type "
+            "for operands and result!", &B);
+    break;
   // Check that logical operators are only used with integral operands.
   case Instruction::And:
   case Instruction::Or:
   case Instruction::Xor:
-    Assert1(B.getType()->isInteger() ||
-            (isa<VectorType>(B.getType()) && 
-             cast<VectorType>(B.getType())->getElementType()->isInteger()),
+    Assert1(B.getType()->isIntOrIntVector(),
             "Logical operators only work with integral types!", &B);
     Assert1(B.getType() == B.getOperand(0)->getType(),
             "Logical operators must have same type for operands and result!",
@@ -1084,22 +1108,13 @@ void Verifier::visitBinaryOperator(BinaryOperator &B) {
   case Instruction::Shl:
   case Instruction::LShr:
   case Instruction::AShr:
-    Assert1(B.getType()->isInteger() ||
-            (isa<VectorType>(B.getType()) && 
-             cast<VectorType>(B.getType())->getElementType()->isInteger()),
+    Assert1(B.getType()->isIntOrIntVector(),
             "Shifts only work with integral types!", &B);
     Assert1(B.getType() == B.getOperand(0)->getType(),
             "Shift return type must be same as operands!", &B);
-    /* FALL THROUGH */
-  default:
-    // Arithmetic operators only work on integer or fp values
-    Assert1(B.getType() == B.getOperand(0)->getType(),
-            "Arithmetic operators must have same type for operands and result!",
-            &B);
-    Assert1(B.getType()->isInteger() || B.getType()->isFloatingPoint() ||
-            isa<VectorType>(B.getType()),
-            "Arithmetic operators must have integer, fp, or vector type!", &B);
     break;
+  default:
+    assert(0 && "Unknown BinaryOperator opcode!");
   }
 
   visitInstruction(B);
@@ -1688,44 +1703,6 @@ void Verifier::VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
   // Check parameter attributes.
   Assert1(F->getAttributes() == Intrinsic::getAttributes(ID),
           "Intrinsic has wrong parameter attributes!", F);
-}
-
-/// Verify that an MDNode is not cyclic.
-bool Verifier::VerifyMDNode(const MDNode *N) {
-  if (N->elem_empty()) return true;
-
-  // The current DFS path through the nodes. Node and element number.
-  typedef std::pair<const MDNode *, MDNode::const_elem_iterator> Edge;
-  SmallVector<Edge, 8> Path;
-
-  Path.push_back(std::make_pair(N, N->elem_begin()));
-  while (!Path.empty()) {
-    Edge &e = Path.back();
-    const MDNode *&e_N = e.first;
-    MDNode::const_elem_iterator &e_I = e.second;
-
-    if (e_N->elem_end() == e_I) {
-      Path.pop_back();
-      continue;
-    }
-
-    for (MDNode::const_elem_iterator e_E = e_N->elem_end(); e_I != e_E; ++e_I) {
-      if (const MDNode *C = dyn_cast_or_null<MDNode>(e_I->operator Value*())) {
-        // Is child MDNode C already in the Path?
-        for (SmallVectorImpl<Edge>::iterator I = Path.begin(), E = Path.end();
-             I != E; ++I) {
-          if (I->first != C) {
-            CheckFailed("MDNode is cyclic.", C);
-            return false;
-          }
-        }
-
-        Path.push_back(std::make_pair(C, C->elem_begin()));
-        break;
-      }
-    }
-  }
-  return true;
 }
 
 

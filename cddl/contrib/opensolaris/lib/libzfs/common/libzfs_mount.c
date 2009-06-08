@@ -1171,7 +1171,6 @@ dataset_cmp(const void *a, const void *b)
  * we have the list of all filesystems, we iterate over them in order and mount
  * and/or share each one.
  */
-#pragma weak zpool_mount_datasets = zpool_enable_datasets
 int
 zpool_enable_datasets(zpool_handle_t *zhp, const char *mntopts, int flags)
 {
@@ -1275,7 +1274,6 @@ mountpoint_compare(const void *a, const void *b)
  * arbitrarily (on I/O error, for example).  Instead, we walk /etc/mnttab and
  * gather all the filesystems that are currently mounted.
  */
-#pragma weak zpool_unmount_datasets = zpool_disable_datasets
 int
 zpool_disable_datasets(zpool_handle_t *zhp, boolean_t force)
 {

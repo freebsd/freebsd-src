@@ -1140,8 +1140,10 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		error = vn_vptocnp_locked(&vp, buf, &buflen);
 		if (error)
 			return (error);
-		if (buflen == 0)
+		if (buflen == 0) {
+			CACHE_RUNLOCK();
 			return (ENOMEM);
+		}
 		buf[--buflen] = '/';
 		slash_prefixed = 1;
 	}
@@ -1169,6 +1171,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		if (error)
 			break;
 		if (buflen == 0) {
+			CACHE_RUNLOCK();
 			error = ENOMEM;
 			SDT_PROBE(vfs, namecache, fullpath, return, error,
 			    startvp, NULL, 0, 0);

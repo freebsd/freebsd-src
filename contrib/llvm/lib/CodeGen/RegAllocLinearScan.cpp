@@ -40,7 +40,6 @@
 #include <queue>
 #include <memory>
 #include <cmath>
-#include <iostream>
 
 using namespace llvm;
 
@@ -399,7 +398,7 @@ unsigned RALinScan::attemptTrivialCoalescing(LiveInterval &cur, unsigned Reg) {
     }
 
     ++NumCoalesce;
-    return SrcReg;
+    return PhysReg;
   }
 
   return Reg;
@@ -543,13 +542,37 @@ void RALinScan::linearScan()
     // Ignore splited live intervals.
     if (!isPhys && vrm_->getPreSplitReg(cur.reg))
       continue;
+
+    // A register defined by an implicit_def can be liveout the def BB and livein
+    // to a use BB. Add it to the livein set of the use BB's.
+    if (!isPhys && cur.empty()) {
+      if (MachineInstr *DefMI = mri_->getVRegDef(cur.reg)) {
+        assert(DefMI->getOpcode() == TargetInstrInfo::IMPLICIT_DEF);
+        MachineBasicBlock *DefMBB = DefMI->getParent();
+        SmallPtrSet<MachineBasicBlock*, 4> Seen;
+        Seen.insert(DefMBB);
+        for (MachineRegisterInfo::reg_iterator ri = mri_->reg_begin(cur.reg),
+               re = mri_->reg_end(); ri != re; ++ri) {
+          MachineInstr *UseMI = &*ri;
+          MachineBasicBlock *UseMBB = UseMI->getParent();
+          if (Seen.insert(UseMBB)) {
+            assert(TargetRegisterInfo::isPhysicalRegister(Reg) &&
+                   "Adding a virtual register to livein set?");
+            UseMBB->addLiveIn(Reg);
+          }
+        }
+      }
+    }
     for (LiveInterval::Ranges::const_iterator I = cur.begin(), E = cur.end();
          I != E; ++I) {
       const LiveRange &LR = *I;
       if (li_->findLiveInMBBs(LR.start, LR.end, LiveInMBBs)) {
         for (unsigned i = 0, e = LiveInMBBs.size(); i != e; ++i)
-          if (LiveInMBBs[i] != EntryMBB)
+          if (LiveInMBBs[i] != EntryMBB) {
+            assert(TargetRegisterInfo::isPhysicalRegister(Reg) &&
+                   "Adding a virtual register to livein set?");
             LiveInMBBs[i]->addLiveIn(Reg);
+          }
         LiveInMBBs.clear();
       }
     }
@@ -1192,7 +1215,6 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur)
   // The earliest start of a Spilled interval indicates up to where
   // in handled we need to roll back
   
-  unsigned earliestStart = cur->beginNumber();
   LiveInterval *earliestStartInterval = cur;
 
   // Spill live intervals of virtual regs mapped to the physical register we
@@ -1206,19 +1228,10 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur)
     LiveInterval *sli = spillIs.back();
     spillIs.pop_back();
     DOUT << "\t\t\tspilling(a): " << *sli << '\n';
-    earliestStart = std::min(earliestStart, sli->beginNumber());
     earliestStartInterval =
       (earliestStartInterval->beginNumber() < sli->beginNumber()) ?
          earliestStartInterval : sli;
-    
-    if (earliestStartInterval->beginNumber()!=earliestStart) {
-      epicFail |= true;
-      std::cerr << "What the 1 - "
-      		<< "earliestStart = " << earliestStart
-      		<< "earliestStartInterval = " << earliestStartInterval->beginNumber()
-      		<< "\n";
-    }
-   
+       
     std::vector<LiveInterval*> newIs;
     if (!NewSpillFramework) {
       newIs = li_->addIntervalsForSpills(*sli, spillIs, loopInfo, *vrm_);
@@ -1229,20 +1242,12 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur)
     std::copy(newIs.begin(), newIs.end(), std::back_inserter(added));
     spilled.insert(sli->reg);
 
-    if (earliestStartInterval->beginNumber()!=earliestStart) {
-      epicFail |= true;
-      std::cerr << "What the 2 - "
-      		<< "earliestStart = " << earliestStart
-      		<< "earliestStartInterval = " << earliestStartInterval->beginNumber()
-      		<< "\n";
-    }
-
     if (epicFail) {
       //abort();
     }
   }
 
-  earliestStart = earliestStartInterval->beginNumber();
+  unsigned earliestStart = earliestStartInterval->beginNumber();
 
   DOUT << "\t\trolling back to: " << earliestStart << '\n';
 

@@ -154,7 +154,7 @@ bool ISD::isBuildVectorAllZeros(const SDNode *N) {
   // Do not accept an all-undef vector.
   if (i == e) return false;
 
-  // Do not accept build_vectors that aren't all constants or which have non-~0
+  // Do not accept build_vectors that aren't all constants or which have non-0
   // elements.
   SDValue Zero = N->getOperand(i);
   if (isa<ConstantSDNode>(Zero)) {
@@ -166,7 +166,7 @@ bool ISD::isBuildVectorAllZeros(const SDNode *N) {
   } else
     return false;
 
-  // Okay, we have at least one ~0 value, check to see if the rest match or are
+  // Okay, we have at least one 0 value, check to see if the rest match or are
   // undefs.
   for (++i; i != e; ++i)
     if (N->getOperand(i) != Zero &&
@@ -2807,16 +2807,19 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, MVT VT,
     case ISD::ADDC:
     case ISD::ADDE:
     case ISD::SUB:
-    case ISD::FADD:
-    case ISD::FSUB:
-    case ISD::FMUL:
-    case ISD::FDIV:
-    case ISD::FREM:
     case ISD::UDIV:
     case ISD::SDIV:
     case ISD::UREM:
     case ISD::SREM:
       return N2;       // fold op(arg1, undef) -> undef
+    case ISD::FADD:
+    case ISD::FSUB:
+    case ISD::FMUL:
+    case ISD::FDIV:
+    case ISD::FREM:
+      if (UnsafeFPMath)
+        return N2;
+      break;
     case ISD::MUL:
     case ISD::AND:
     case ISD::SRL:
@@ -3059,7 +3062,7 @@ bool MeetsMaxMemopRequirement(std::vector<MVT> &MemOps,
   isSrcStr = isMemSrcFromString(Src, Str);
   bool isSrcConst = isa<ConstantSDNode>(Src);
   bool AllowUnalign = TLI.allowsUnalignedMemoryAccesses();
-  MVT VT = TLI.getOptimalMemOpType(Size, Align, isSrcConst, isSrcStr);
+  MVT VT = TLI.getOptimalMemOpType(Size, Align, isSrcConst, isSrcStr, DAG);
   if (VT != MVT::iAny) {
     unsigned NewAlign = (unsigned)
       TLI.getTargetData()->getABITypeAlignment(VT.getTypeForMVT());

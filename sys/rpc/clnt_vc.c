@@ -137,7 +137,10 @@ struct ct_data {
 	size_t		ct_record_resid; /* how much left of reply to read */
 	bool_t		ct_record_eor;	 /* true if reading last fragment */
 	struct ct_request_list ct_pending;
+	int		ct_upcallrefs;	/* Ref cnt of upcalls in prog. */
 };
+
+static void clnt_vc_upcallsdone(struct ct_data *);
 
 static const char clnt_vc_errstr[] = "%s : %s";
 static const char clnt_vc_str[] = "clnt_vc_create";
@@ -184,6 +187,7 @@ clnt_vc_create(
 	ct->ct_threads = 0;
 	ct->ct_closing = FALSE;
 	ct->ct_closed = FALSE;
+	ct->ct_upcallrefs = 0;
 
 	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
 		error = soconnect(so, raddr, curthread);
@@ -753,6 +757,7 @@ clnt_vc_close(CLIENT *cl)
 
 		SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
 		soupcall_clear(ct->ct_socket, SO_RCV);
+		clnt_vc_upcallsdone(ct);
 		SOCKBUF_UNLOCK(&ct->ct_socket->so_rcv);
 
 		/*
@@ -825,6 +830,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 	uint32_t xid, header;
 	bool_t do_read;
 
+	ct->ct_upcallrefs++;
 	uio.uio_td = curthread;
 	do {
 		/*
@@ -845,7 +851,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				do_read = TRUE;
 
 			if (!do_read)
-				return (SU_OK);
+				break;
 
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			uio.uio_resid = sizeof(uint32_t);
@@ -898,7 +904,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				do_read = TRUE;
 
 			if (!do_read)
-				return (SU_OK);
+				break;
 
 			/*
 			 * We have the record mark. Read as much as
@@ -979,5 +985,24 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			}
 		}
 	} while (m);
+	ct->ct_upcallrefs--;
+	if (ct->ct_upcallrefs < 0)
+		panic("rpcvc upcall refcnt");
+	if (ct->ct_upcallrefs == 0)
+		wakeup(&ct->ct_upcallrefs);
 	return (SU_OK);
+}
+
+/*
+ * Wait for all upcalls in progress to complete.
+ */
+static void
+clnt_vc_upcallsdone(struct ct_data *ct)
+{
+
+	SOCKBUF_LOCK_ASSERT(&ct->ct_socket->so_rcv);
+
+	while (ct->ct_upcallrefs > 0)
+		(void) msleep(&ct->ct_upcallrefs,
+		    SOCKBUF_MTX(&ct->ct_socket->so_rcv), 0, "rpcvcup", 0);
 }

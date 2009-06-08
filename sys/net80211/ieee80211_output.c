@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_wlan.h"
 
 #include <sys/param.h>
@@ -61,6 +62,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #endif
+#ifdef INET6
+#include <netinet/ip6.h>
+#endif
+
+#include <security/mac/mac_framework.h>
 
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
@@ -147,13 +153,14 @@ ieee80211_start(struct ifnet *ifp)
 			break;
 		/*
 		 * Sanitize mbuf flags for net80211 use.  We cannot
-		 * clear M_PWR_SAV because this may be set for frames
-		 * that are re-submitted from the power save queue.
+		 * clear M_PWR_SAV or M_MORE_DATA because these may
+		 * be set for frames that are re-submitted from the
+		 * power save queue.
 		 *
 		 * NB: This must be done before ieee80211_classify as
 		 *     it marks EAPOL in frames with M_EAPOL.
 		 */
-		m->m_flags &= ~(M_80211_TX - M_PWR_SAV);
+		m->m_flags &= ~(M_80211_TX - M_PWR_SAV - M_MORE_DATA);
 		/*
 		 * Cancel any background scan.
 		 */
@@ -264,7 +271,7 @@ ieee80211_start(struct ifnet *ifp)
 		 * otherwise unable to establish a BA stream.
 		 */
 		if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_AMPDU_TX) &&
+		    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX) &&
 		    (m->m_flags & M_EAPOL) == 0) {
 			const int ac = M_WME_GETAC(m);
 			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
@@ -354,7 +361,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (dst->sa_family != AF_IEEE80211)
 		return vap->iv_output(ifp, m, dst, ro);
 #ifdef MAC
-	error = mac_check_ifnet_transmit(ifp, m);
+	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
 		senderr(error);
 #endif
@@ -728,13 +735,13 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		v_wme_ac = TID_TO_WME_AC(EVL_PRIOFTAG(ni->ni_vlan));
 	}
 
+	/* XXX m_copydata may be too slow for fast path */
 #ifdef INET
 	if (eh->ether_type == htons(ETHERTYPE_IP)) {
 		uint8_t tos;
 		/*
 		 * IP frame, map the DSCP bits from the TOS field.
 		 */
-		/* XXX m_copydata may be too slow for fast path */
 		/* NB: ip header may not be in first mbuf */
 		m_copydata(m, sizeof(struct ether_header) +
 		    offsetof(struct ip, ip_tos), sizeof(tos), &tos);
@@ -742,7 +749,25 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		d_wme_ac = TID_TO_WME_AC(tos);
 	} else {
 #endif /* INET */
+#ifdef INET6
+	if (eh->ether_type == htons(ETHERTYPE_IPV6)) {
+		uint32_t flow;
+		uint8_t tos;
+		/*
+		 * IPv6 frame, map the DSCP bits from the TOS field.
+		 */
+		m_copydata(m, sizeof(struct ether_header) +
+		    offsetof(struct ip6_hdr, ip6_flow), sizeof(flow),
+		    (caddr_t) &flow);
+		tos = (uint8_t)(ntohl(flow) >> 20);
+		tos >>= 5;		/* NB: ECN + low 3 bits of DSCP */
+		d_wme_ac = TID_TO_WME_AC(tos);
+	} else {
+#endif /* INET6 */
 		d_wme_ac = WME_AC_BE;
+#ifdef INET6
+	}
+#endif
 #ifdef INET
 	}
 #endif
@@ -1468,7 +1493,7 @@ ieee80211_add_csa(uint8_t *frm, struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_csa_ie *csa = (struct ieee80211_csa_ie *) frm;
 
-	csa->csa_ie = IEEE80211_ELEMID_CHANSWITCHANN;
+	csa->csa_ie = IEEE80211_ELEMID_CSA;
 	csa->csa_len = 3;
 	csa->csa_mode = 1;		/* XXX force quiet on channel */
 	csa->csa_newchan = ieee80211_chan2ieee(ic, ic->ic_csa_newchan);
@@ -1851,7 +1876,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 			    ic->ic_curchan);
 			frm = ieee80211_add_supportedchannels(frm, ic);
 		}
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_HT) &&
+		if ((vap->iv_flags_ht & IEEE80211_FHT_HT) &&
 		    ni->ni_ies.htcap_ie != NULL &&
 		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_HTCAP)
 			frm = ieee80211_add_htcap(frm, ni);
@@ -1863,7 +1888,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		if ((ic->ic_flags & IEEE80211_F_WME) &&
 		    ni->ni_ies.wme_ie != NULL)
 			frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_HT) &&
+		if ((vap->iv_flags_ht & IEEE80211_FHT_HT) &&
 		    ni->ni_ies.htcap_ie != NULL &&
 		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_VENDOR)
 			frm = ieee80211_add_htcap_vendor(frm, ni);
@@ -2136,7 +2161,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	if (vap->iv_flags & IEEE80211_F_WME)
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
 	if (IEEE80211_IS_CHAN_HT(bss->ni_chan) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) &&
 	    legacy != IEEE80211_SEND_LEGACY_11B) {
 		frm = ieee80211_add_htcap_vendor(frm, bss);
 		frm = ieee80211_add_htinfo_vendor(frm, bss);
@@ -2425,7 +2450,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
 	}
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT)) {
+	    (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT)) {
 		frm = ieee80211_add_htcap_vendor(frm, ni);
 		frm = ieee80211_add_htinfo_vendor(frm, ni);
 	}

@@ -48,6 +48,10 @@
  *
 */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/es137x.h>
@@ -216,10 +220,10 @@ static int      es1370_init(struct es_info *);
 static int      es1370_wrcodec(struct es_info *, unsigned char, unsigned char);
 
 static uint32_t es_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps es_caps = {4000, 48000, es_fmt, 0};
@@ -349,7 +353,7 @@ es1370_mixset(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return (l | (r << 8));
 }
 
-static int
+static uint32_t
 es1370_mixsetrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	struct es_info *es;
@@ -380,7 +384,7 @@ static kobj_method_t es1370_mixer_methods[] = {
 	KOBJMETHOD(mixer_init,		es1370_mixinit),
 	KOBJMETHOD(mixer_set,		es1370_mixset),
 	KOBJMETHOD(mixer_setrecsrc,	es1370_mixsetrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(es1370_mixer);
 
@@ -513,20 +517,20 @@ eschan_setformat(kobj_t obj, void *data, uint32_t format)
 			es->sctrl &= ~SCTRL_P1FMT;
 			if (format & AFMT_S16_LE)
 				es->sctrl |= SCTRL_P1SEB;
-			if (format & AFMT_STEREO)
+			if (AFMT_CHANNEL(format) > 1)
 				es->sctrl |= SCTRL_P1SMB;
 		} else {
 			es->sctrl &= ~SCTRL_P2FMT;
 			if (format & AFMT_S16_LE)
 				es->sctrl |= SCTRL_P2SEB;
-			if (format & AFMT_STEREO)
+			if (AFMT_CHANNEL(format) > 1)
 				es->sctrl |= SCTRL_P2SMB;
 		}
 	} else {
 		es->sctrl &= ~SCTRL_R1FMT;
 		if (format & AFMT_S16_LE)
 			es->sctrl |= SCTRL_R1SEB;
-		if (format & AFMT_STEREO)
+		if (AFMT_CHANNEL(format) > 1)
 			es->sctrl |= SCTRL_R1SMB;
 	}
 	es_wr(es, ES1370_REG_SERIAL_CONTROL, es->sctrl, 4);
@@ -535,7 +539,7 @@ eschan_setformat(kobj_t obj, void *data, uint32_t format)
 	return (0);
 }
 
-static int
+static uint32_t
 eschan1370_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct es_chinfo *ch = data;
@@ -580,7 +584,7 @@ eschan1370_setspeed(kobj_t obj, void *data, uint32_t speed)
 	return (speed);
 }
 
-static int
+static uint32_t
 eschan1371_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
   	struct es_chinfo *ch = data;
@@ -636,10 +640,10 @@ eschan_setfragments(kobj_t obj, void *data, uint32_t blksz, uint32_t blkcnt)
 	ch->blksz = sndbuf_getblksz(ch->buffer);
 	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
 
-	return (1);
+	return (0);
 }
 
-static int
+static uint32_t
 eschan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
   	struct es_chinfo *ch = data;
@@ -733,10 +737,10 @@ eschan_trigger(kobj_t obj, void *data, int go)
 		return 0;
 
 	ES_LOCK(es);
-	cnt = (ch->blksz / sndbuf_getbps(ch->buffer)) - 1;
+	cnt = (ch->blksz / sndbuf_getalign(ch->buffer)) - 1;
 	if (ch->fmt & AFMT_16BIT)
 		b |= 0x02;
-	if (ch->fmt & AFMT_STEREO)
+	if (AFMT_CHANNEL(ch->fmt) > 1)
 		b |= 0x01;
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START) {
@@ -820,7 +824,7 @@ eschan_trigger(kobj_t obj, void *data, int go)
 	return (0);
 }
 
-static int
+static uint32_t
 eschan_getptr(kobj_t obj, void *data)
 {
 	struct es_chinfo *ch = data;
@@ -867,7 +871,7 @@ static kobj_method_t eschan1370_methods[] = {
 	KOBJMETHOD(channel_trigger,		eschan_trigger),
 	KOBJMETHOD(channel_getptr,		eschan_getptr),
 	KOBJMETHOD(channel_getcaps,		eschan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(eschan1370);
 
@@ -880,7 +884,7 @@ static kobj_method_t eschan1371_methods[] = {
 	KOBJMETHOD(channel_trigger,		eschan_trigger),
 	KOBJMETHOD(channel_getptr,		eschan_getptr),
 	KOBJMETHOD(channel_getcaps,		eschan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(eschan1371);
 
@@ -1163,7 +1167,7 @@ es1371_rdcd(kobj_t obj, void *s, int addr)
 static kobj_method_t es1371_ac97_methods[] = {
 	KOBJMETHOD(ac97_read,		es1371_rdcd),
 	KOBJMETHOD(ac97_write,		es1371_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(es1371_ac97);
 
@@ -1362,7 +1366,6 @@ es_pci_probe(device_t dev)
 	}
 }
 
-#ifdef SND_DYNSYSCTL
 static int
 sysctl_es137x_spdif_enable(SYSCTL_HANDLER_ARGS)
 {
@@ -1595,12 +1598,10 @@ sysctl_es_polling(SYSCTL_HANDLER_ARGS)
 
 	return (err);
 }
-#endif /* SND_DYNSYSCTL */
 
 static void
 es_init_sysctls(device_t dev)
 {
-#ifdef SND_DYNSYSCTL
 	struct es_info *es;
 	int r, devid, revid;
 
@@ -1673,7 +1674,6 @@ es_init_sysctls(device_t dev)
 	    "polling", CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
 	    sysctl_es_polling, "I",
 	    "Enable polling mode");
-#endif /* SND_DYNSYSCTL */
 }
 
 static int

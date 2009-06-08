@@ -8,7 +8,7 @@ SRCS=	CGBlocks.cpp CGBuiltin.cpp CGCXX.cpp CGCXXTemp.cpp CGCall.cpp \
 	CGExprComplex.cpp CGExprConstant.cpp CGExprScalar.cpp \
 	CGObjC.cpp CGObjCGNU.cpp CGObjCMac.cpp CGStmt.cpp \
 	CodeGenFunction.cpp CodeGenModule.cpp CodeGenTypes.cpp \
-	Mangle.cpp ModuleBuilder.cpp
+	Mangle.cpp ModuleBuilder.cpp TargetABIInfo.cpp
 
 TGHDRS=	DiagnosticCommonKinds Intrinsics
 

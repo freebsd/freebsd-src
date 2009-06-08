@@ -58,13 +58,22 @@ endif( MSVC )
 option(LLVM_ENABLE_THREADS "Use threads if available." ON)
 
 if( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
-  option(LLVM_ENABLE_ASSERTS "Enable asserts" OFF)
+  option(LLVM_ENABLE_ASSERTIONS "Enable assertions" OFF)
 else()
-  option(LLVM_ENABLE_ASSERTS "Enable asserts" ON)
+  option(LLVM_ENABLE_ASSERTIONS "Enable assertions" ON)
 endif()
 
-if( LLVM_ENABLE_ASSERTS )
-  add_definitions( -D_DEBUG -UNDEBUG )
+if( LLVM_ENABLE_ASSERTIONS )
+  add_definitions( -D_DEBUG )
+  # On Release builds cmake automatically defines NDEBUG, so we
+  # explicitly undefine it:
+  if( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
+    add_definitions( -UNDEBUG )
+  endif()
+else()
+  if( NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
+    add_definitions( -DNDEBUG )
+  endif()
 endif()
 
 if( LLVM_TARGETS_TO_BUILD STREQUAL "all" )
@@ -80,6 +89,24 @@ foreach(c ${LLVM_TARGETS_TO_BUILD})
 endforeach(c)
 
 set(llvm_builded_incs_dir ${LLVM_BINARY_DIR}/include/llvm)
+
+# The USE_EXPLICIT_DEPENDENCIES variable will be TRUE to indicate that
+# we should use the library dependencies explicitly specified in the
+# CMakeLists.txt files rather than those determined by
+# llvm-config. This value must be true for non-make and IDE
+# generators.
+if (MSVC_IDE)
+  set(DEFAULT_USE_EXPLICIT_DEPENDENCIES ON)
+elseif (XCODE)
+  set(DEFAULT_USE_EXPLICIT_DEPENDENCIES ON)
+else ()
+ set(DEFAULT_USE_EXPLICIT_DEPENDENCIES OFF)
+endif ()
+
+option(USE_EXPLICIT_DEPENDENCIES 
+  "Use explicit dependencies instead of llvm-config" 
+  ${DEFAULT_USE_EXPLICIT_DEPENDENCIES})
+mark_as_advanced(USE_EXPLICIT_DEPENDENCIES)
 
 # Add path for custom modules
 set(CMAKE_MODULE_PATH
@@ -123,11 +150,13 @@ include(config-ix)
 
 option(LLVM_ENABLE_PIC "Build Position-Independent Code" OFF)
 
+set(ENABLE_PIC 0)
 if( LLVM_ENABLE_PIC )
   if( SUPPORTS_FPIC_FLAG )
     message(STATUS "Building with -fPIC")
     add_llvm_definitions(-fPIC)
-  else( SUPPORTS_FPIC_FLAG )
+    set(ENABLE_PIC 1)
+ else( SUPPORTS_FPIC_FLAG )
     message(STATUS "Warning: -fPIC not supported.")
   endif()
 endif()

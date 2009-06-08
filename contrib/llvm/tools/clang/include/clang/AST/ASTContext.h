@@ -539,11 +539,16 @@ public:
 
   void CollectObjCIvars(const ObjCInterfaceDecl *OI,
                         llvm::SmallVectorImpl<FieldDecl*> &Fields);
-  
+
+  void ShallowCollectObjCIvars(const ObjCInterfaceDecl *OI,
+                               llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars,
+                               bool CollectSynthesized = true);
   void CollectSynthesizedIvars(const ObjCInterfaceDecl *OI,
                                llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
   void CollectProtocolSynthesizedIvars(const ObjCProtocolDecl *PD,
                                llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
+  unsigned CountSynthesizedIvars(const ObjCInterfaceDecl *OI);
+  unsigned CountProtocolSynthesizedIvars(const ObjCProtocolDecl *PD);
 
   //===--------------------------------------------------------------------===//
   //                            Type Operators
@@ -691,7 +696,6 @@ public:
                                              
   /// Compatibility predicates used to check assignment expressions.
   bool typesAreCompatible(QualType, QualType); // C99 6.2.7p1
-  bool typesAreBlockCompatible(QualType lhs, QualType rhs);
   
   bool isObjCIdType(QualType T) const {
     return T == ObjCIdType;

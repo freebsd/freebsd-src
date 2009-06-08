@@ -214,8 +214,8 @@ struct dn_flow_queue {
      * With large bandwidth and large delays, extra_bits (and also numbytes)
      * can become very large, so better play safe and use 64 bit
      */
-    dn_key numbytes ;		/* credit for transmission (dynamic queues) */
-    dn_key extra_bits;		/* extra bits simulating unavailable channel */
+    uint64_t numbytes ;		/* credit for transmission (dynamic queues) */
+    int64_t extra_bits;		/* extra bits simulating unavailable channel */
 
     u_int64_t tot_pkts ;	/* statistics counters	*/
     u_int64_t tot_bytes ;
@@ -338,7 +338,7 @@ struct dn_pipe {		/* a pipe */
     int sum;			/* sum of weights of all active sessions */
 
     /* Same as in dn_flow_queue, numbytes can become large */
-    dn_key numbytes;		/* bits I can transmit (more or less). */
+    int64_t numbytes;		/* bits I can transmit (more or less). */
 
     dn_key sched_time ;		/* time pipe was scheduled in ready_heap */
 
@@ -373,13 +373,6 @@ struct dn_pipe_max {
 SLIST_HEAD(dn_pipe_head, dn_pipe);
 
 #ifdef _KERNEL
-typedef	int ip_dn_ctl_t(struct sockopt *); /* raw_ip.c */
-typedef	void ip_dn_ruledel_t(void *); /* ip_fw.c */
-typedef	int ip_dn_io_t(struct mbuf **m, int dir, struct ip_fw_args *fwa);
-extern	ip_dn_ctl_t *ip_dn_ctl_ptr;
-extern	ip_dn_ruledel_t *ip_dn_ruledel_ptr;
-extern	ip_dn_io_t *ip_dn_io_ptr;
-#define	DUMMYNET_LOADED	(ip_dn_io_ptr != NULL)
 
 /*
  * Return the IPFW rule associated with the dummynet tag; if any.

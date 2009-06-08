@@ -76,10 +76,6 @@ struct pcpu {
 	cpumask_t	pc_other_cpus;		/* Mask of all other cpus */
 	SLIST_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
-#ifdef KTR_PERCPU
-	int		pc_ktr_idx;		/* Index into trace table */
-	char		*pc_ktr_buf;
-#endif
 #ifdef KTR
 	char		pc_name[PCPU_NAME_LEN];	/* String name for KTR. */
 #endif

@@ -829,7 +829,7 @@ uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 	uint8_t ep_no;
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
-	    xfer->address, UE_GET_ADDR(xfer->endpoint),
+	    xfer->address, UE_GET_ADDR(xfer->endpointno),
 	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
@@ -847,7 +847,7 @@ uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-	ep_no = (xfer->endpoint & UE_ADDR);
+	ep_no = (xfer->endpointno & UE_ADDR);
 
 	/* check if we should prepend a setup message */
 
@@ -873,7 +873,7 @@ uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 	}
 
 	if (x != xfer->nframes) {
-		if (xfer->endpoint & UE_DIR_IN) {
+		if (xfer->endpointno & UE_DIR_IN) {
 			temp.func = &uss820dci_data_tx;
 		} else {
 			temp.func = &uss820dci_data_rx;
@@ -939,7 +939,7 @@ uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 			 * Send a DATA1 message and invert the current
 			 * endpoint direction.
 			 */
-			if (xfer->endpoint & UE_DIR_IN) {
+			if (xfer->endpointno & UE_DIR_IN) {
 				temp.func = &uss820dci_data_rx;
 				need_sync = 0;
 			} else {
@@ -979,11 +979,11 @@ static void
 uss820dci_intr_set(struct usb_xfer *xfer, uint8_t set)
 {
 	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-	uint8_t ep_no = (xfer->endpoint & UE_ADDR);
+	uint8_t ep_no = (xfer->endpointno & UE_ADDR);
 	uint8_t ep_reg;
 	uint8_t temp;
 
-	DPRINTFN(15, "endpoint 0x%02x\n", xfer->endpoint);
+	DPRINTFN(15, "endpoint 0x%02x\n", xfer->endpointno);
 
 	if (ep_no > 3) {
 		ep_reg = USS820_SBIE1;
@@ -1001,7 +1001,7 @@ uss820dci_intr_set(struct usb_xfer *xfer, uint8_t set)
 			ep_no |= (ep_no << 1);	/* RX and TX interrupt */
 		}
 	} else {
-		if (!(xfer->endpoint & UE_DIR_IN)) {
+		if (!(xfer->endpointno & UE_DIR_IN)) {
 			ep_no <<= 1;
 		}
 	}
@@ -1123,8 +1123,8 @@ uss820dci_standard_done(struct usb_xfer *xfer)
 {
 	usb_error_t err = 0;
 
-	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
-	    xfer, xfer->pipe);
+	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
+	    xfer, xfer->endpoint);
 
 	/* reset scanner */
 
@@ -1172,8 +1172,8 @@ uss820dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
-	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
-	    xfer, xfer->pipe, error);
+	DPRINTFN(2, "xfer=%p, endpoint=%p, error=%d\n",
+	    xfer, xfer->endpoint, error);
 
 	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		uss820dci_intr_set(xfer, 0);
@@ -1184,7 +1184,7 @@ uss820dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 static void
 uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_pipe *pipe)
+    struct usb_endpoint *ep)
 {
 	struct uss820dci_softc *sc;
 	uint8_t ep_no;
@@ -1194,7 +1194,7 @@ uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
-	DPRINTFN(5, "pipe=%p\n", pipe);
+	DPRINTFN(5, "endpoint=%p\n", ep);
 
 	if (xfer) {
 		/* cancel any ongoing transfers */
@@ -1202,9 +1202,9 @@ uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 	}
 	/* set FORCESTALL */
 	sc = USS820_DCI_BUS2SC(udev->bus);
-	ep_no = (pipe->edesc->bEndpointAddress & UE_ADDR);
-	ep_dir = (pipe->edesc->bEndpointAddress & (UE_DIR_IN | UE_DIR_OUT));
-	ep_type = (pipe->edesc->bmAttributes & UE_XFERTYPE);
+	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
+	ep_dir = (ep->edesc->bEndpointAddress & (UE_DIR_IN | UE_DIR_OUT));
+	ep_type = (ep->edesc->bmAttributes & UE_XFERTYPE);
 
 	if (ep_type == UE_CONTROL) {
 		/* should not happen */
@@ -1271,14 +1271,14 @@ uss820dci_clear_stall_sub(struct uss820dci_softc *sc,
 }
 
 static void
-uss820dci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
+uss820dci_clear_stall(struct usb_device *udev, struct usb_endpoint *ep)
 {
 	struct uss820dci_softc *sc;
 	struct usb_endpoint_descriptor *ed;
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
-	DPRINTFN(5, "pipe=%p\n", pipe);
+	DPRINTFN(5, "endpoint=%p\n", ep);
 
 	/* check mode */
 	if (udev->flags.usb_mode != USB_MODE_DEVICE) {
@@ -1289,7 +1289,7 @@ uss820dci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
 	sc = USS820_DCI_BUS2SC(udev->bus);
 
 	/* get endpoint descriptor */
-	ed = pipe->edesc;
+	ed = ep->edesc;
 
 	/* reset endpoint */
 	uss820dci_clear_stall_sub(sc,
@@ -1642,7 +1642,7 @@ uss820dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	uint32_t nframes;
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
-	    xfer, xfer->pipe->isoc_next, xfer->nframes);
+	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
 
 	/* get the current frame index - we don't need the high bits */
 
@@ -1652,9 +1652,9 @@ uss820dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	 * check if the frame index is within the window where the
 	 * frames will be inserted
 	 */
-	temp = (nframes - xfer->pipe->isoc_next) & USS820_SOFL_MASK;
+	temp = (nframes - xfer->endpoint->isoc_next) & USS820_SOFL_MASK;
 
-	if ((xfer->pipe->is_synced == 0) ||
+	if ((xfer->endpoint->is_synced == 0) ||
 	    (temp < xfer->nframes)) {
 		/*
 		 * If there is data underflow or the pipe queue is
@@ -1662,15 +1662,15 @@ uss820dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 		 * of the current frame position. Else two isochronous
 		 * transfers might overlap.
 		 */
-		xfer->pipe->isoc_next = (nframes + 3) & USS820_SOFL_MASK;
-		xfer->pipe->is_synced = 1;
-		DPRINTFN(3, "start next=%d\n", xfer->pipe->isoc_next);
+		xfer->endpoint->isoc_next = (nframes + 3) & USS820_SOFL_MASK;
+		xfer->endpoint->is_synced = 1;
+		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
 	}
 	/*
 	 * compute how many milliseconds the insertion is ahead of the
 	 * current frame position:
 	 */
-	temp = (xfer->pipe->isoc_next - nframes) & USS820_SOFL_MASK;
+	temp = (xfer->endpoint->isoc_next - nframes) & USS820_SOFL_MASK;
 
 	/*
 	 * pre-compute when the isochronous transfer will be finished:
@@ -1680,7 +1680,7 @@ uss820dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	    xfer->nframes;
 
 	/* compute frame number for next insertion */
-	xfer->pipe->isoc_next += xfer->nframes;
+	xfer->endpoint->isoc_next += xfer->nframes;
 
 	/* setup TDs */
 	uss820dci_setup_standard_chain(xfer);
@@ -2243,7 +2243,7 @@ uss820dci_xfer_setup(struct usb_setup_params *parm)
 	 */
 	if (ntd) {
 
-		ep_no = xfer->endpoint & UE_ADDR;
+		ep_no = xfer->endpointno & UE_ADDR;
 		uss820dci_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
 		if (pf == NULL) {
@@ -2293,13 +2293,13 @@ uss820dci_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-uss820dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
-    struct usb_pipe *pipe)
+uss820dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_endpoint *ep)
 {
 	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(udev->bus);
 
-	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
-	    pipe, udev->address,
+	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
+	    ep, udev->address,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_rt_addr);
 
@@ -2315,16 +2315,16 @@ uss820dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *ede
 		}
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:
-			pipe->methods = &uss820dci_device_ctrl_methods;
+			ep->methods = &uss820dci_device_ctrl_methods;
 			break;
 		case UE_INTERRUPT:
-			pipe->methods = &uss820dci_device_intr_methods;
+			ep->methods = &uss820dci_device_intr_methods;
 			break;
 		case UE_ISOCHRONOUS:
-			pipe->methods = &uss820dci_device_isoc_fs_methods;
+			ep->methods = &uss820dci_device_isoc_fs_methods;
 			break;
 		case UE_BULK:
-			pipe->methods = &uss820dci_device_bulk_methods;
+			ep->methods = &uss820dci_device_bulk_methods;
 			break;
 		default:
 			/* do nothing */
@@ -2335,7 +2335,7 @@ uss820dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *ede
 
 struct usb_bus_methods uss820dci_bus_methods =
 {
-	.pipe_init = &uss820dci_pipe_init,
+	.endpoint_init = &uss820dci_ep_init,
 	.xfer_setup = &uss820dci_xfer_setup,
 	.xfer_unsetup = &uss820dci_xfer_unsetup,
 	.get_hw_ep_profile = &uss820dci_get_hw_ep_profile,

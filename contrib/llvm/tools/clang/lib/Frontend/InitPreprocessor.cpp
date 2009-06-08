@@ -23,8 +23,8 @@ namespace clang {
 // Append a #define line to Buf for Macro.  Macro should be of the form XXX,
 // in which case we emit "#define XXX 1" or "XXX=Y z W" in which case we emit
 // "#define XXX Y z W".  To get a #define with no value, use "XXX=".
-static void DefineBuiltinMacro(std::vector<char> &Buf, const char *Macro,
-                               const char *Command = "#define ") {
+static void DefineBuiltinMacro(std::vector<char> &Buf, const char *Macro) {
+  const char *Command = "#define ";
   Buf.insert(Buf.end(), Command, Command+strlen(Command));
   if (const char *Equal = strchr(Macro, '=')) {
     // Turn the = into ' '.
@@ -310,7 +310,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // Filter out some microsoft extensions when trying to parse in ms-compat
   // mode. 
   if (LangOpts.Microsoft) {
-    DefineBuiltinMacro(Buf, "_cdecl=__cdecl");
     DefineBuiltinMacro(Buf, "__int8=__INT8_TYPE__");
     DefineBuiltinMacro(Buf, "__int16=__INT16_TYPE__");
     DefineBuiltinMacro(Buf, "__int32=__INT32_TYPE__");
@@ -367,7 +366,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   sprintf(MacroBuf, "__POINTER_WIDTH__=%d", (int)TI.getPointerWidth(0));
   DefineBuiltinMacro(Buf, MacroBuf);
   
-  if (!TI.isCharSigned())
+  if (!LangOpts.CharIsSigned)
     DefineBuiltinMacro(Buf, "__CHAR_UNSIGNED__");  
 
   // Define fixed-sized integer types for stdint.h
@@ -402,11 +401,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // Build configuration options.  FIXME: these should be controlled by
   // command line options or something.
   DefineBuiltinMacro(Buf, "__FINITE_MATH_ONLY__=0");
-
-  if (LangOpts.Static)
-    DefineBuiltinMacro(Buf, "__STATIC__=1");
-  else
-    DefineBuiltinMacro(Buf, "__DYNAMIC__=1");
 
   if (LangOpts.GNUInline)
     DefineBuiltinMacro(Buf, "__GNUC_GNU_INLINE__=1");

@@ -9,7 +9,7 @@ SRCS=	JumpDiagnostics.cpp IdentifierResolver.cpp ParseAST.cpp \
 	SemaDeclObjC.cpp SemaExpr.cpp SemaExprCXX.cpp SemaExprObjC.cpp \
 	SemaInherit.cpp SemaInit.cpp SemaLookup.cpp SemaNamedCast.cpp \
 	SemaOverload.cpp SemaStmt.cpp SemaTemplate.cpp \
-	SemaTemplateInstantiateDecl.cpp \
+	SemaTemplateDeduction.cpp SemaTemplateInstantiateDecl.cpp \
 	SemaTemplateInstantiateExpr.cpp \
 	SemaTemplateInstantiateStmt.cpp SemaTemplateInstantiate.cpp \
 	SemaType.cpp

@@ -64,11 +64,15 @@ namespace {
     typedef SmallVector<MemOpQueueEntry,8> MemOpQueue;
     typedef MemOpQueue::iterator MemOpQueueIter;
 
-    SmallVector<MachineBasicBlock::iterator, 4>
-    MergeLDR_STR(MachineBasicBlock &MBB, unsigned SIndex, unsigned Base,
-                 int Opcode, unsigned Size,
-                 ARMCC::CondCodes Pred, unsigned PredReg,
-                 unsigned Scratch, MemOpQueue &MemOps);
+    bool MergeOps(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
+                  int Offset, unsigned Base, bool BaseKill, int Opcode,
+                  ARMCC::CondCodes Pred, unsigned PredReg, unsigned Scratch,
+                  DebugLoc dl, SmallVector<std::pair<unsigned, bool>, 8> &Regs);
+    void MergeLDR_STR(MachineBasicBlock &MBB, unsigned SIndex, unsigned Base,
+                      int Opcode, unsigned Size,
+                      ARMCC::CondCodes Pred, unsigned PredReg,
+                      unsigned Scratch, MemOpQueue &MemOps,
+                      SmallVector<MachineBasicBlock::iterator, 4> &Merges);
 
     void AdvanceRS(MachineBasicBlock &MBB, MemOpQueue &MemOps);
     bool LoadStoreMultipleOpti(MachineBasicBlock &MBB);
@@ -108,16 +112,16 @@ static int getLoadStoreMultipleOpcode(int Opcode) {
   return 0;
 }
 
-/// mergeOps - Create and insert a LDM or STM with Base as base register and
+/// MergeOps - Create and insert a LDM or STM with Base as base register and
 /// registers in Regs as the register operands that would be loaded / stored.
 /// It returns true if the transformation is done. 
-static bool mergeOps(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
-                     int Offset, unsigned Base, bool BaseKill, int Opcode,
-                     ARMCC::CondCodes Pred, unsigned PredReg, unsigned Scratch,
-                     SmallVector<std::pair<unsigned, bool>, 8> &Regs,
-                     const TargetInstrInfo *TII) {
-  // FIXME would it be better to take a DL from one of the loads arbitrarily?
-  DebugLoc dl = DebugLoc::getUnknownLoc();
+bool
+ARMLoadStoreOpt::MergeOps(MachineBasicBlock &MBB,
+                          MachineBasicBlock::iterator MBBI,
+                          int Offset, unsigned Base, bool BaseKill,
+                          int Opcode, ARMCC::CondCodes Pred,
+                          unsigned PredReg, unsigned Scratch, DebugLoc dl,
+                          SmallVector<std::pair<unsigned, bool>, 8> &Regs) {
   // Only a single register to load / store. Don't bother.
   unsigned NumRegs = Regs.size();
   if (NumRegs <= 1)
@@ -185,20 +189,21 @@ static bool mergeOps(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
 
 /// MergeLDR_STR - Merge a number of load / store instructions into one or more
 /// load / store multiple instructions.
-SmallVector<MachineBasicBlock::iterator, 4>
+void
 ARMLoadStoreOpt::MergeLDR_STR(MachineBasicBlock &MBB, unsigned SIndex,
-                              unsigned Base, int Opcode, unsigned Size,
-                              ARMCC::CondCodes Pred, unsigned PredReg,
-                              unsigned Scratch, MemOpQueue &MemOps) {
-  SmallVector<MachineBasicBlock::iterator, 4> Merges;
+                          unsigned Base, int Opcode, unsigned Size,
+                          ARMCC::CondCodes Pred, unsigned PredReg,
+                          unsigned Scratch, MemOpQueue &MemOps,
+                          SmallVector<MachineBasicBlock::iterator, 4> &Merges) {
   bool isAM4 = Opcode == ARM::LDR || Opcode == ARM::STR;
   int Offset = MemOps[SIndex].Offset;
   int SOffset = Offset;
   unsigned Pos = MemOps[SIndex].Position;
   MachineBasicBlock::iterator Loc = MemOps[SIndex].MBBI;
-  unsigned PReg = MemOps[SIndex].MBBI->getOperand(0).getReg();
+  DebugLoc dl = Loc->getDebugLoc();
+  unsigned PReg = Loc->getOperand(0).getReg();
   unsigned PRegNum = ARMRegisterInfo::getRegisterNumbering(PReg);
-  bool isKill = MemOps[SIndex].MBBI->getOperand(0).isKill();
+  bool isKill = Loc->getOperand(0).isKill();
 
   SmallVector<std::pair<unsigned,bool>, 8> Regs;
   Regs.push_back(std::make_pair(PReg, isKill));
@@ -216,18 +221,17 @@ ARMLoadStoreOpt::MergeLDR_STR(MachineBasicBlock &MBB, unsigned SIndex,
       PRegNum = RegNum;
     } else {
       // Can't merge this in. Try merge the earlier ones first.
-      if (mergeOps(MBB, ++Loc, SOffset, Base, false, Opcode, Pred, PredReg,
-                   Scratch, Regs, TII)) {
+      if (MergeOps(MBB, ++Loc, SOffset, Base, false, Opcode, Pred, PredReg,
+                   Scratch, dl, Regs)) {
         Merges.push_back(prior(Loc));
         for (unsigned j = SIndex; j < i; ++j) {
           MBB.erase(MemOps[j].MBBI);
           MemOps[j].Merged = true;
         }
       }
-      SmallVector<MachineBasicBlock::iterator, 4> Merges2 =
-        MergeLDR_STR(MBB, i, Base, Opcode, Size, Pred, PredReg, Scratch,MemOps);
-      Merges.append(Merges2.begin(), Merges2.end());
-      return Merges;
+      MergeLDR_STR(MBB, i, Base, Opcode, Size, Pred, PredReg, Scratch,
+                   MemOps, Merges);
+      return;
     }
 
     if (MemOps[i].Position > Pos) {
@@ -237,8 +241,8 @@ ARMLoadStoreOpt::MergeLDR_STR(MachineBasicBlock &MBB, unsigned SIndex,
   }
 
   bool BaseKill = Loc->findRegisterUseOperandIdx(Base, true) != -1;
-  if (mergeOps(MBB, ++Loc, SOffset, Base, BaseKill, Opcode, Pred, PredReg,
-               Scratch, Regs, TII)) {
+  if (MergeOps(MBB, ++Loc, SOffset, Base, BaseKill, Opcode, Pred, PredReg,
+               Scratch, dl, Regs)) {
     Merges.push_back(prior(Loc));
     for (unsigned i = SIndex, e = MemOps.size(); i != e; ++i) {
       MBB.erase(MemOps[i].MBBI);
@@ -246,7 +250,7 @@ ARMLoadStoreOpt::MergeLDR_STR(MachineBasicBlock &MBB, unsigned SIndex,
     }
   }
 
-  return Merges;
+  return;
 }
 
 /// getInstrPredicate - If instruction is predicated, returns its predicate
@@ -530,7 +534,7 @@ static bool mergeBaseUpdateLoadStore(MachineBasicBlock &MBB,
     if (isAM2)
       // STR_PRE, STR_POST;
       BuildMI(MBB, MBBI, dl, TII->get(NewOpc), Base)
-        .addReg(MO.getReg(), getKillRegState(BaseKill))
+        .addReg(MO.getReg(), getKillRegState(MO.isKill()))
         .addReg(Base).addReg(0).addImm(Offset).addImm(Pred).addReg(PredReg);
     else
       // FSTMS, FSTMD
@@ -590,6 +594,7 @@ bool ARMLoadStoreOpt::LoadStoreMultipleOpti(MachineBasicBlock &MBB) {
   ARMCC::CondCodes CurrPred = ARMCC::AL;
   unsigned CurrPredReg = 0;
   unsigned Position = 0;
+  SmallVector<MachineBasicBlock::iterator,4> Merges;
 
   RS->enterBasicBlock(&MBB);
   MachineBasicBlock::iterator MBBI = MBB.begin(), E = MBB.end();
@@ -689,16 +694,16 @@ bool ARMLoadStoreOpt::LoadStoreMultipleOpti(MachineBasicBlock &MBB) {
         RS->forward(prior(MBBI));
 
         // Merge ops.
-        SmallVector<MachineBasicBlock::iterator,4> MBBII =
-          MergeLDR_STR(MBB, 0, CurrBase, CurrOpc, CurrSize,
-                       CurrPred, CurrPredReg, Scratch, MemOps);
+        Merges.clear();
+        MergeLDR_STR(MBB, 0, CurrBase, CurrOpc, CurrSize,
+                     CurrPred, CurrPredReg, Scratch, MemOps, Merges);
 
         // Try folding preceeding/trailing base inc/dec into the generated
         // LDM/STM ops.
-        for (unsigned i = 0, e = MBBII.size(); i < e; ++i)
-          if (mergeBaseUpdateLSMultiple(MBB, MBBII[i], Advance, MBBI))
+        for (unsigned i = 0, e = Merges.size(); i < e; ++i)
+          if (mergeBaseUpdateLSMultiple(MBB, Merges[i], Advance, MBBI))
             ++NumMerges;
-        NumMerges += MBBII.size();
+        NumMerges += Merges.size();
 
         // Try folding preceeding/trailing base inc/dec into those load/store
         // that were not merged to form LDM/STM ops.
@@ -709,6 +714,13 @@ bool ARMLoadStoreOpt::LoadStoreMultipleOpti(MachineBasicBlock &MBB) {
 
         // RS may be pointing to an instruction that's deleted. 
         RS->skipTo(prior(MBBI));
+      } else if (NumMemOps == 1) {
+        // Try folding preceeding/trailing base inc/dec into the single
+        // load/store.
+        if (mergeBaseUpdateLoadStore(MBB, MemOps[0].MBBI, TII, Advance, MBBI)) {
+          ++NumMerges;
+          RS->forward(prior(MBBI));
+        }
       }
 
       CurrBase = 0;

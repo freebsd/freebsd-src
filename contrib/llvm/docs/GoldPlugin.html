@@ -153,11 +153,20 @@ $ llvm-gcc -use-gold-plugin a.o b.o -o main # &lt;-- link with LLVMgold plugin
     <pre class="doc_code">
 export CC="$PREFIX/bin/llvm-gcc -use-gold-plugin"
 export CXX="$PREFIX/bin/llvm-g++ -use-gold-plugin"
-export AR="$PREFIX/bin/ar --plugin libLLVMgold.so"
-export NM="$PREFIX/bin/nm --plugin libLLVMgold.so"
+export AR="$PREFIX/bin/ar"
+export NM="$PREFIX/bin/nm"
 export RANLIB=/bin/true #ranlib is not needed, and doesn't support .bc files in .a
 export CFLAGS="-O4"
-     </pre>
+</pre>
+     </li>
+     <li>Or you can just set your path:
+    <pre class="doc_code">
+export PATH="$PREFIX/bin:$PATH"
+export CC="llvm-gcc -use-gold-plugin"
+export CXX="llvm-g++ -use-gold-plugin"
+export RANLIB=/bin/true
+export CFLAGS="-O4"
+</pre>
      </li>
      <li>Configure &amp; build the project as usual: <tt>./configure &amp;&amp; make &amp;&amp; make check</tt> </li>
    </ul>

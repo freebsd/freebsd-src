@@ -38,7 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bpf.h"
-#include "opt_mac.h"
 #include "opt_netgraph.h"
 
 #include <sys/types.h>

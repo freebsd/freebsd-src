@@ -133,7 +133,8 @@ X86TargetMachine::X86TargetMachine(const Module &M, const std::string &FS,
     DataLayout(Subtarget.getDataLayout()),
     FrameInfo(TargetFrameInfo::StackGrowsDown,
               Subtarget.getStackAlignment(), Subtarget.is64Bit() ? -8 : -4),
-    InstrInfo(*this), JITInfo(*this), TLInfo(*this) {
+    InstrInfo(*this), JITInfo(*this), TLInfo(*this),
+    ELFWriterInfo(Subtarget.is64Bit()) {
   DefRelocModel = getRelocationModel();
   // FIXME: Correctly select PIC model for Win64 stuff
   if (getRelocationModel() == Reloc::Default) {
@@ -213,6 +214,13 @@ bool X86TargetMachine::addAssemblyEmitter(PassManagerBase &PM,
                                           CodeGenOpt::Level OptLevel,
                                           bool Verbose,
                                           raw_ostream &Out) {
+  // FIXME: Move this somewhere else!
+  // On Darwin, override 64-bit static relocation to pic_ since the
+  // assembler doesn't support it.
+  if (DefRelocModel == Reloc::Static &&
+      Subtarget.isTargetDarwin() && Subtarget.is64Bit())
+    setRelocationModel(Reloc::PIC_);
+
   assert(AsmPrinterCtor && "AsmPrinter was not linked in");
   if (AsmPrinterCtor)
     PM.add(AsmPrinterCtor(Out, *this, OptLevel, Verbose));

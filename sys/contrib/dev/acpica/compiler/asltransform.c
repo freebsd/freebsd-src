@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: asltransform - Parse tree transforms
- *              $Revision: 1.42 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -468,6 +467,7 @@ TrDoSwitch (
     ACPI_PARSE_OBJECT       *Peer;
     ACPI_PARSE_OBJECT       *NewOp;
     ACPI_PARSE_OBJECT       *NewOp2;
+    ACPI_PARSE_OBJECT       *MethodOp;
     char                    *PredicateValueName;
     UINT16                  Index;
     UINT32                  Btype;
@@ -729,18 +729,32 @@ TrDoSwitch (
     {
         Next = Next->Asl.Parent;
     }
+    MethodOp = Next;
 
     NewOp->Asl.CompileFlags |= NODE_COMPILER_EMITTED;
     NewOp->Asl.Parent = Next;
 
     /* Insert name after the method name and arguments */
 
-    Next = Next->Asl.Child;
-    Next = Next->Asl.Next;
-    Next = Next->Asl.Next;
-    Next = Next->Asl.Next;
-    Next = Next->Asl.Next;
-    Next = Next->Asl.Next;
+    Next = Next->Asl.Child; /* Name */
+    Next = Next->Asl.Next;  /* NumArgs */
+    Next = Next->Asl.Next;  /* SerializeRule */
+
+    /*
+     * If method is not Serialized, we must make is so, because of the way
+     * that Switch() must be implemented -- we cannot allow multiple threads
+     * to execute this method concurrently since we need to create local
+     * temporary name(s).
+     */
+    if (Next->Asl.ParseOpcode != PARSEOP_SERIALIZERULE_SERIAL)
+    {
+        AslError (ASL_REMARK, ASL_MSG_SERIALIZED, MethodOp, "Due to use of Switch operator");
+        Next->Asl.ParseOpcode = PARSEOP_SERIALIZERULE_SERIAL;
+    }
+
+    Next = Next->Asl.Next;  /* SyncLevel */
+    Next = Next->Asl.Next;  /* ReturnType */
+    Next = Next->Asl.Next;  /* ParameterTypes */
 
     TrAmlInsertPeer (Next, NewOp);
     TrAmlInitLineNumbers (NewOp, Next);
@@ -763,7 +777,7 @@ TrDoSwitch (
 
     case ACPI_BTYPE_STRING:
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_STRING_LITERAL,
-                                (ACPI_INTEGER) "");
+                                (ACPI_INTEGER) ACPI_TO_INTEGER (""));
         break;
 
     case ACPI_BTYPE_BUFFER:

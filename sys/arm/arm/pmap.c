@@ -3124,7 +3124,19 @@ pmap_remove_all(vm_page_t m)
 		if (flush == FALSE && (pv->pv_pmap == curpm ||
 		    pv->pv_pmap == pmap_kernel()))
 			flush = TRUE;
+
 		PMAP_LOCK(pv->pv_pmap);
+		/*
+		 * Cached contents were written-back in pmap_remove_write(),
+		 * but we still have to invalidate the cache entry to make
+		 * sure stale data are not retrieved when another page will be
+		 * mapped under this virtual address.
+		 */
+		if (pmap_is_current(pv->pv_pmap)) {
+			cpu_dcache_inv_range(pv->pv_va, PAGE_SIZE);
+			cpu_l2cache_inv_range(pv->pv_va, PAGE_SIZE);
+		}
+
 		l2b = pmap_get_l2_bucket(pv->pv_pmap, pv->pv_va);
 		KASSERT(l2b != NULL, ("No l2 bucket"));
 		ptep = &l2b->l2b_kva[l2pte_index(pv->pv_va)];

@@ -189,8 +189,8 @@ ugensa_attach(device_t dev)
 
 	/* Figure out how many interfaces this device has got */
 	for (cnt = 0; cnt < UGENSA_IFACE_MAX; cnt++) {
-		if ((usb2_get_pipe(uaa->device, cnt, ugensa_xfer_config + 0) == NULL) ||
-		    (usb2_get_pipe(uaa->device, cnt, ugensa_xfer_config + 1) == NULL)) {
+		if ((usb2_get_endpoint(uaa->device, cnt, ugensa_xfer_config + 0) == NULL) ||
+		    (usb2_get_endpoint(uaa->device, cnt, ugensa_xfer_config + 1) == NULL)) {
 			/* we have reached the end */
 			break;
 		}

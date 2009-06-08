@@ -226,8 +226,8 @@
  * receiving or transferring data.
  */
 #define	USB_GET_DATA_ISREAD(xfer) ((xfer)->flags_int.usb_mode == \
-	USB_MODE_DEVICE ? (((xfer)->endpoint & UE_DIR_IN) ? 0 : 1) : \
-	(((xfer)->endpoint & UE_DIR_IN) ? 1 : 0))
+	USB_MODE_DEVICE ? (((xfer)->endpointno & UE_DIR_IN) ? 0 : 1) : \
+	(((xfer)->endpointno & UE_DIR_IN) ? 1 : 0))
 
 /*
  * The following macros are used used to convert milliseconds into
@@ -412,7 +412,7 @@ struct usb_xfer {
 	struct usb_xfer_queue *wait_queue;	/* pointer to queue that we
 						 * are waiting on */
 	struct usb_page *dma_page_ptr;
-	struct usb_pipe *pipe;		/* our USB pipe */
+	struct usb_endpoint *endpoint;	/* our USB endpoint */
 	struct usb_xfer_root *xroot;	/* used by HC driver */
 	void   *qh_start[2];		/* used by HC driver */
 	void   *td_start[2];		/* used by HC driver */
@@ -447,7 +447,7 @@ struct usb_xfer {
 	usb_timeout_t interval;	/* milliseconds */
 
 	uint8_t	address;		/* physical USB address */
-	uint8_t	endpoint;		/* physical USB endpoint */
+	uint8_t	endpointno;		/* physical USB endpoint */
 	uint8_t	max_packet_count;
 	uint8_t	usb2_smask;
 	uint8_t	usb2_cmask;
