@@ -303,12 +303,10 @@ gifmodevent(mod, type, data)
 		break;
 	case MOD_UNLOAD:
 		if_clone_detach(&gif_cloner);
+#ifdef VIMAGE
+		vnet_mod_deregister(&vnet_gif_modinfo);
+#endif
 		mtx_destroy(&gif_mtx);
-#ifdef INET6
-#ifndef VIMAGE
-		V_ip6_gif_hlim = 0;	/* XXX -> vnet_gif_idetach() */
-#endif
-#endif
 		break;
 	default:
 		return EOPNOTSUPP;

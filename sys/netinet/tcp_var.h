@@ -584,6 +584,9 @@ struct tcpcb *
 void	 tcp_drain(void);
 void	 tcp_fasttimo(void);
 void	 tcp_init(void);
+#ifdef VIMAGE
+void	 tcp_destroy(void);
+#endif
 void	 tcp_fini(void *);
 char 	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
@@ -605,6 +608,9 @@ int	 tcp_output(struct tcpcb *);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 void	 tcp_tw_init(void);
+#ifdef VIMAGE
+void	 tcp_tw_destroy(void);
+#endif
 void	 tcp_tw_zone_change(void);
 int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
@@ -625,6 +631,9 @@ void	 tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq);
  * All tcp_hc_* functions are IPv4 and IPv6 (via in_conninfo)
  */
 void	 tcp_hc_init(void);
+#ifdef VIMAGE
+void	 tcp_hc_destroy(void);
+#endif
 void	 tcp_hc_get(struct in_conninfo *, struct hc_metrics_lite *);
 u_long	 tcp_hc_getmtu(struct in_conninfo *);
 void	 tcp_hc_updatemtu(struct in_conninfo *, u_long);
