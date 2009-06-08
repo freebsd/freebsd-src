@@ -140,6 +140,7 @@
 #include "opt_acpi.h"
 
 #define	ACPI_THREAD_ID		lwpid_t
+#define	ACPI_MUTEX_TYPE		ACPI_OSL_MUTEX
 
 #ifdef ACPI_DEBUG
 #define	ACPI_DEBUG_OUTPUT	/* for backward compatibility */
