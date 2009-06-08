@@ -37,7 +37,7 @@ struct usb_attach_arg;
 struct usb_device_id {
 
 	/* Hook for driver specific information */
-	const void *driver_info;
+	unsigned long driver_info;
 
 	/* Used for product specific matches; the BCD range is inclusive */
 	uint16_t idVendor;
@@ -107,11 +107,11 @@ struct usb_device_id {
 #define	USB_IF_CSI(class,subclass,info)			\
   USB_IFACE_CLASS(class), USB_IFACE_SUBCLASS(subclass), USB_DRIVER_INFO(info)
 
-#define	USB_DRIVER_INFO(ptr)			\
-  .driver_info = ((const void *)(ptr))
+#define	USB_DRIVER_INFO(n)			\
+  .driver_info = (n)
 
 #define	USB_GET_DRIVER_INFO(did)		\
-  (((const uint8_t *)((did)->driver_info)) - ((const uint8_t *)0))
+  (did)->driver_info
 
 const struct usb_device_id *usb2_lookup_id_by_info(
 	    const struct usb_device_id *id, usb_size_t sizeof_id,
