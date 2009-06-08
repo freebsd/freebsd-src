@@ -168,35 +168,6 @@ ieee80211_radiotap_chan_change(struct ieee80211com *ic)
 	}
 }
 
-#if 0
-static void
-dispatch_radiotap(struct ieee80211vap *vap0, struct mbuf *m,
-	struct ieee80211_radiotap_header *rh)
-{
-	struct ieee80211com *ic = vap0->iv_ic;
-	int len = le16toh(rh->it_len);
-
-	if (vap0->iv_flags_ext & IEEE80211_FEXT_BPF)
-		bpf_mtap2(vap0->iv_rawbpf, rh, len, m);
-	/*
-	 * Spam monitor mode vaps with unicast frames.  Multicast
-	 * frames are handled by passing through ieee80211_input_all
-	 * which distributes copies to the monitor mode vaps to be
-	 * processed above.
-	 */
-	if (ic->ic_montaps != 0 && (m->m_flags & M_BCAST) == 0) {
-		struct ieee80211vap *vap;
-		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-			if (vap != vap0 &&
-			    vap->iv_opmode == IEEE80211_M_MONITOR &&
-			    (vap->iv_flags_ext & IEEE80211_FEXT_BPF) &&
-			    vap->iv_state != IEEE80211_S_INIT)
-				bpf_mtap2(vap->iv_rawbpf, rh, len, m);
-		}
-	}
-}
-#endif
-
 /*
  * Distribute radiotap data (+packet) to all monitor mode
  * vaps with an active tap other than vap0.
