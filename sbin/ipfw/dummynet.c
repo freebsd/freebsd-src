@@ -452,6 +452,7 @@ ipfw_delete_pipe(int pipe_or_queue, int i)
 #define ED_TOK_NAME	"name"
 #define ED_TOK_DELAY	"delay"
 #define ED_TOK_PROB	"prob"
+#define ED_TOK_BW	"bw"
 #define ED_SEPARATORS	" \t\n"
 #define ED_MIN_SAMPLES_NO	2
 
@@ -468,6 +469,50 @@ is_valid_number(const char *s)
 		if (!isdigit(s[i]) && (s[i] !='.' || ++dots_found > 1))
 			return 0;
 	return 1;
+}
+
+/*
+ * Take as input a string describing a bandwidth value
+ * and return the numeric bandwidth value.
+ * set clocking interface or bandwidth value
+ */
+void
+read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
+{
+	if (*bandwidth != -1)
+		warn("duplicate token, override bandwidth value!");
+
+	if (arg[0] >= 'a' && arg[0] <= 'z') {
+		if (namelen >= IFNAMSIZ)
+			warn("interface name truncated");
+		namelen--;
+		/* interface name */
+		strncpy(if_name, arg, namelen);
+		if_name[namelen] = '\0';
+		*bandwidth = 0;
+	} else {	/* read bandwidth value */
+		int bw;
+		char *end = NULL;
+
+		bw = strtoul(arg, &end, 0);
+		if (*end == 'K' || *end == 'k') {
+			end++;
+			bw *= 1000;
+		} else if (*end == 'M') {
+			end++;
+			bw *= 1000000;
+		}
+		if ((*end == 'B' &&
+			_substrcmp2(end, "Bi", "Bit/s") != 0) ||
+		    _substrcmp2(end, "by", "bytes") == 0)
+			bw *= 8;
+
+		if (bw < 0)
+			errx(EX_DATAERR, "bandwidth too large");
+
+		*bandwidth = bw;
+		if_name[0] = '\0';
+	}
 }
 
 struct point {
@@ -550,6 +595,8 @@ load_extra_delays(const char *filename, struct dn_pipe *p)
 			    errx(ED_EFMT("too many samples, maximum is %d"),
 				ED_MAX_SAMPLES_NO);
 		    do_points = 0;
+		} else if (!strcasecmp(name, ED_TOK_BW)) {
+		    read_bandwidth(arg, &p->bandwidth, p->if_name, sizeof(p->if_name));
 		} else if (!strcasecmp(name, ED_TOK_LOSS)) {
 		    if (loss != -1.0)
 			errx(ED_EFMT("duplicated token: %s"), name);
@@ -645,6 +692,7 @@ ipfw_config_pipe(int ac, char **av)
 	void *par = NULL;
 
 	memset(&p, 0, sizeof p);
+	p.bandwidth = -1;
 
 	av++; ac--;
 	/* Pipe number */
@@ -848,32 +896,7 @@ end_mask:
 			NEED1("bw needs bandwidth or interface\n");
 			if (co.do_pipe != 1)
 			    errx(EX_DATAERR, "bandwidth only valid for pipes");
-			/*
-			 * set clocking interface or bandwidth value
-			 */
-			if (av[0][0] >= 'a' && av[0][0] <= 'z') {
-			    int l = sizeof(p.if_name)-1;
-			    /* interface name */
-			    strncpy(p.if_name, av[0], l);
-			    p.if_name[l] = '\0';
-			    p.bandwidth = 0;
-			} else {
-			    p.if_name[0] = '\0';
-			    p.bandwidth = strtoul(av[0], &end, 0);
-			    if (*end == 'K' || *end == 'k') {
-				end++;
-				p.bandwidth *= 1000;
-			    } else if (*end == 'M') {
-				end++;
-				p.bandwidth *= 1000000;
-			    }
-			    if ((*end == 'B' &&
-				  _substrcmp2(end, "Bi", "Bit/s") != 0) ||
-			        _substrcmp2(end, "by", "bytes") == 0)
-				p.bandwidth *= 8;
-			    if (p.bandwidth < 0)
-				errx(EX_DATAERR, "bandwidth too large");
-			}
+			read_bandwidth(av[0], &p.bandwidth, p.if_name, sizeof(p.if_name));
 			ac--; av++;
 			break;
 
@@ -919,15 +942,20 @@ end_mask:
 			errx(EX_DATAERR, "pipe_nr must be > 0");
 		if (p.delay > 10000)
 			errx(EX_DATAERR, "delay must be < 10000");
-		if (p.samples_no > 0 && p.bandwidth == 0)
-			errx(EX_DATAERR,
-				"profile requires a bandwidth limit");
 	} else { /* co.do_pipe == 2, queue */
 		if (p.fs.parent_nr == 0)
 			errx(EX_DATAERR, "pipe must be > 0");
 		if (p.fs.weight >100)
 			errx(EX_DATAERR, "weight must be <= 100");
 	}
+
+	/* check for bandwidth value */
+	if (p.bandwidth == -1) {
+		p.bandwidth = 0;
+		if (p.samples_no > 0)
+			errx(EX_DATAERR, "profile requires a bandwidth limit");
+	}
+
 	if (p.fs.flags_fs & DN_QSIZE_IS_BYTES) {
 		size_t len;
 		long limit;
