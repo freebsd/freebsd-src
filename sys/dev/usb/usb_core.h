@@ -485,7 +485,8 @@ struct usb_lookup_info {
 struct usb_attach_arg {
 	struct usb_lookup_info info;
 	device_t temp_dev;		/* for internal use */
-	const void *driver_info;	/* for internal use */
+	unsigned long driver_info;	/* for internal use */
+	void *driver_ivar;
 	struct usb_device *device;	/* current device */
 	struct usb_interface *iface;	/* current interface */
 	enum usb_hc_mode usb_mode;	/* host or device mode */
