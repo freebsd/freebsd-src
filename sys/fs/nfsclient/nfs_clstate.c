@@ -663,8 +663,9 @@ nfscl_openrelease(struct nfsclopen *op, int error, int candelete)
  * client data structures to do the SetClientId/SetClientId_confirm,
  * but will release that lock and return the clientid with a refernce
  * count on it.
- * If the p argument is NULL, it will not do the SetClientId/Confirm
- * and the cred argument is not used, so it can be NULL too.
+ * If the "cred" argument is NULL, a new clientid should not be created.
+ * If the "p" argument is NULL, a SetClientID/SetClientIDConfirm cannot
+ * be done.
  * It always clpp with a reference count on it, unless returning an error.
  */
 APPLESTATIC int
@@ -672,28 +673,35 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
     struct nfsclclient **clpp)
 {
 	struct nfsclclient *clp;
-	struct nfsclclient *newclp;
+	struct nfsclclient *newclp = NULL;
 	struct nfscllockowner *lp, *nlp;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	struct prison *pr;
 	char uuid[HOSTUUIDLEN];
 	int igotlock = 0, error, trystalecnt, clidinusedelay, i;
-	u_int16_t idlen;
+	u_int16_t idlen = 0;
 
-	pr = cred->cr_prison;
-	mtx_lock(&pr->pr_mtx);
-	strlcpy(uuid, pr->pr_uuid, sizeof uuid);
-	mtx_unlock(&pr->pr_mtx);
-	idlen = strlen(uuid);
-	if (idlen > 0)
-		idlen += sizeof (u_int64_t);
-	else
-		idlen += sizeof (u_int64_t) + 16;	/* 16 random bytes */
-	MALLOC(newclp, struct nfsclclient *, sizeof (struct nfsclclient) +
-	    idlen - 1, M_NFSCLCLIENT, M_WAITOK);
+	if (cred != NULL) {
+		pr = cred->cr_prison;
+		mtx_lock(&pr->pr_mtx);
+		strlcpy(uuid, pr->pr_uuid, sizeof uuid);
+		mtx_unlock(&pr->pr_mtx);
+		idlen = strlen(uuid);
+		if (idlen > 0)
+			idlen += sizeof (u_int64_t);
+		else
+			idlen += sizeof (u_int64_t) + 16; /* 16 random bytes */
+		MALLOC(newclp, struct nfsclclient *,
+		    sizeof (struct nfsclclient) + idlen - 1, M_NFSCLCLIENT,
+		    M_WAITOK);
+	}
 	NFSLOCKCLSTATE();
 	clp = nmp->nm_clp;
 	if (clp == NULL) {
+		if (newclp == NULL) {
+			NFSUNLOCKCLSTATE();
+			return (EACCES);
+		}
 		clp = newclp;
 		NFSBZERO((caddr_t)clp, sizeof(struct nfsclclient) + idlen - 1);
 		clp->nfsc_idlen = idlen;
@@ -714,7 +722,8 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		nfscl_start_renewthread(clp);
 	} else {
 		NFSUNLOCKCLSTATE();
-		FREE((caddr_t)newclp, M_NFSCLCLIENT);
+		if (newclp != NULL)
+			FREE((caddr_t)newclp, M_NFSCLCLIENT);
 	}
 	NFSLOCKCLSTATE();
 	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock)
@@ -730,7 +739,7 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	if ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0) {
 		if (!igotlock)
 			panic("nfscl_clget");
-		if (p == NULL) {
+		if (p == NULL || cred == NULL) {
 			NFSLOCKCLSTATE();
 			nfsv4_unlock(&clp->nfsc_lock, 0);
 			NFSUNLOCKCLSTATE();
@@ -762,8 +771,8 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 			clidinusedelay = 120;
 		trystalecnt = 3;
 		do {
-			error = nfsrpc_setclient(VFSTONFS(vnode_mount(vp)), clp,
-			    cred, p);
+			error = nfsrpc_setclient(VFSTONFS(vnode_mount(vp)),
+			    clp, cred, p);
 			if (error == NFSERR_STALECLIENTID ||
 			    error == NFSERR_STALEDONTRECOVER ||
 			    error == NFSERR_CLIDINUSE) {
