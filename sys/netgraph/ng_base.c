@@ -85,6 +85,9 @@ struct vnet_netgraph vnet_netgraph_0;
 static struct mtx	ng_topo_mtx;
 
 static vnet_attach_fn vnet_netgraph_iattach;
+#ifdef VIMAGE
+static vnet_detach_fn vnet_netgraph_idetach;
+#endif
 
 #ifdef	NETGRAPH_DEBUG
 static struct mtx	ng_nodelist_mtx; /* protects global node/hook lists */
@@ -647,6 +650,9 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 		return (ENOMEM);
 	}
 	node->nd_type = type;
+#ifdef VIMAGE
+	node->nd_vnet = curvnet;
+#endif
 	NG_NODE_REF(node);				/* note reference */
 	type->refs++;
 
@@ -3074,15 +3080,17 @@ ng_mod_event(module_t mod, int event, void *data)
 static const vnet_modinfo_t vnet_netgraph_modinfo = {
 	.vmi_id		= VNET_MOD_NETGRAPH,
 	.vmi_name	= "netgraph",
-#ifdef VIMAGE
 	.vmi_size	= sizeof(struct vnet_netgraph),
+	.vmi_dependson	= VNET_MOD_LOIF,
+	.vmi_iattach	= vnet_netgraph_iattach,
+#ifdef VIMAGE
+	.vmi_idetach	= vnet_netgraph_idetach
 #endif
-	.vmi_iattach	= vnet_netgraph_iattach
 };
 #endif
 
 static int
-vnet_netgraph_iattach(const void *arg __unused)
+vnet_netgraph_iattach(const void *unused __unused)
 {
 	INIT_VNET_NETGRAPH(curvnet);
 
@@ -3090,6 +3098,33 @@ vnet_netgraph_iattach(const void *arg __unused)
 
 	return (0);
 }
+
+#ifdef VIMAGE 
+static int
+vnet_netgraph_idetach(const void *unused __unused)
+{
+	INIT_VNET_NETGRAPH(curvnet);
+	node_p node, last_killed = NULL;
+
+	while ((node = LIST_FIRST(&V_ng_nodelist)) != NULL) {
+		if (node == last_killed) {
+			/* This should never happen */
+			node->nd_flags |= NGF_REALLY_DIE;
+			printf("netgraph node %s needs NGF_REALLY_DIE\n",
+			    node->nd_name);
+			ng_rmnode(node, NULL, NULL, 0);
+			/* This must never happen */
+			if (node == LIST_FIRST(&V_ng_nodelist))
+				panic("netgraph node %s won't die",
+				    node->nd_name);
+		}
+		ng_rmnode(node, NULL, NULL, 0);
+		last_killed = node;
+	}
+
+	return (0);
+}
+#endif /* VIMAGE */
 
 /*
  * Handle loading and unloading for this code.
@@ -3313,6 +3348,7 @@ ngthread(void *arg)
 			NG_WORKLIST_SLEEP();
 		STAILQ_REMOVE_HEAD(&ng_worklist, nd_input_queue.q_work);
 		NG_WORKLIST_UNLOCK();
+		CURVNET_SET(node->nd_vnet);
 		CTR3(KTR_NET, "%20s: node [%x] (%p) taken off worklist",
 		    __func__, node->nd_ID, node);
 		/*
@@ -3342,6 +3378,7 @@ ngthread(void *arg)
 			}
 		}
 		NG_NODE_UNREF(node);
+		CURVNET_RESTORE();
 	}
 }
 
@@ -3675,7 +3712,9 @@ ng_callout_trampoline(void *arg)
 {
 	item_p item = arg;
 
+	CURVNET_SET(NGI_NODE(item)->nd_vnet);
 	ng_snd_item(item, 0);
+	CURVNET_RESTORE();
 }
 
 

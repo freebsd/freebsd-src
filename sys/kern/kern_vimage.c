@@ -65,8 +65,8 @@ static int vnet_mod_constructor(struct vnet_modlink *);
 static int vnet_mod_destructor(struct vnet_modlink *);
 
 #ifdef VIMAGE
-static struct vimage *vimage_by_name(struct vimage *, char *);
 static struct vimage *vi_alloc(struct vimage *, char *);
+static int vi_destroy(struct vimage *);
 static struct vimage *vimage_get_next(struct vimage *, struct vimage *, int);
 static void vimage_relative_name(struct vimage *, struct vimage *,
     char *, int);
@@ -122,7 +122,7 @@ vi_if_move(struct vi_req *vi_req, struct ifnet *ifp, struct vimage *vip)
 	struct vnet *new_vnet = NULL;
 
 	/* Check for API / ABI version mismatch. */
-	if (vi_req->vi_api_cookie != VI_API_COOKIE)
+	if (vi_req != NULL && vi_req->vi_api_cookie != VI_API_COOKIE)
 		return (EDOOFUS);
 
 	/* Find the target vnet. */
@@ -216,11 +216,7 @@ vi_td_ioctl(u_long cmd, struct vi_req *vi_req, struct thread *td)
 
 	case SIOCSPVIMAGE:
 		if (vi_req->vi_req_action == VI_DESTROY) {
-#ifdef NOTYET
 			error = vi_destroy(vip_r);
-#else
-			error = EOPNOTSUPP;
-#endif
 			break;
 		}
 
@@ -283,7 +279,7 @@ vi_child_of(struct vimage *parent, struct vimage *child)
 	return (0);
 }
 
-static struct vimage *
+struct vimage *
 vimage_by_name(struct vimage *top, char *name)
 {
 	struct vimage *vip;
@@ -541,7 +537,6 @@ vnet_mod_constructor(struct vnet_modlink *vml)
 	return (0);
 }
 
-
 static int
 vnet_mod_destructor(struct vnet_modlink *vml)
 {
@@ -662,6 +657,68 @@ vi_alloc(struct vimage *parent, char *name)
 	LIST_INSERT_HEAD(&vprocg_head, vprocg, vprocg_le);
 
 	return (vip);
+}
+
+/*
+ * Destroy a vnet - unlink all linked lists, hashtables etc., free all
+ * the memory, stop all the timers...
+ */
+static int
+vi_destroy(struct vimage *vip)
+{
+	struct vnet *vnet = vip->v_net;
+	struct vprocg *vprocg = vip->v_procg;
+	struct ifnet *ifp, *nifp;
+	struct vnet_modlink *vml;
+
+	/* XXX Beware of races -> more locking to be done... */
+	if (!LIST_EMPTY(&vip->vi_child_head))
+		return (EBUSY);
+
+	if (vprocg->nprocs != 0)
+		return (EBUSY);
+
+	if (vnet->sockcnt != 0)
+		return (EBUSY);
+
+#ifdef INVARIANTS
+	if (vip->vi_ucredrefc != 0)
+		printf("vi_destroy: %s ucredrefc %d\n",
+		    vip->vi_name, vip->vi_ucredrefc);
+#endif
+
+	/* Point with no return - cleanup MUST succeed! */
+	LIST_REMOVE(vip, vi_le);
+	LIST_REMOVE(vip, vi_sibling);
+	LIST_REMOVE(vprocg, vprocg_le);
+
+	VNET_LIST_WLOCK();
+	LIST_REMOVE(vnet, vnet_le);
+	VNET_LIST_WUNLOCK();
+
+	CURVNET_SET_QUIET(vnet);
+	INIT_VNET_NET(vnet);
+
+	/* Return all inherited interfaces to their parent vnets. */
+	TAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
+		if (ifp->if_home_vnet != ifp->if_vnet)
+			vi_if_move(NULL, ifp, vip);
+	}
+
+	/* Detach / free per-module state instances. */
+	TAILQ_FOREACH_REVERSE(vml, &vnet_modlink_head,
+			      vnet_modlink_head, vml_mod_le)
+		vnet_mod_destructor(vml);
+
+	CURVNET_RESTORE();
+
+	/* Hopefully, we are OK to free the vnet container itself. */
+	vnet->vnet_magic_n = 0xdeadbeef;
+	free(vnet, M_VNET);
+	free(vprocg, M_VPROCG);
+	free(vip, M_VIMAGE);
+
+	return (0);
 }
 #endif /* VIMAGE */
 

@@ -579,6 +579,9 @@ struct domain keydomain = {
 	.dom_family =		PF_KEY,
 	.dom_name =		"key",
 	.dom_init =		key_init0,
+#ifdef VIMAGE
+	.dom_destroy =		key_destroy,
+#endif
 	.dom_protosw =		keysw,
 	.dom_protoswNPROTOSW =	&keysw[sizeof(keysw)/sizeof(keysw[0])]
 };

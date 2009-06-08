@@ -339,6 +339,9 @@ int	icmp6_ctloutput __P((struct socket *, struct sockopt *sopt));
 
 struct in6_ifaddr;
 void	ip6_init __P((void));
+#ifdef VIMAGE
+void	ip6_destroy __P((void));
+#endif
 void	ip6_input __P((struct mbuf *));
 struct in6_ifaddr *ip6_getdstifaddr __P((struct mbuf *));
 void	ip6_freepcbopts __P((struct ip6_pktopts *));

@@ -153,6 +153,9 @@ extern void	nd6_setmtu(struct ifnet *);
 #endif
 
 static int	vnet_net_iattach(const void *);
+#ifdef VIMAGE
+static int	vnet_net_idetach(const void *);
+#endif
 
 #ifdef VIMAGE_GLOBALS
 struct	ifnethead ifnet;	/* depend on static init XXX */
@@ -189,7 +192,10 @@ static const vnet_modinfo_t vnet_net_modinfo = {
 	.vmi_name	= "net",
 	.vmi_size	= sizeof(struct vnet_net),
 	.vmi_symmap	= vnet_net_symmap,
-	.vmi_iattach	= vnet_net_iattach
+	.vmi_iattach	= vnet_net_iattach,
+#ifdef VIMAGE
+	.vmi_idetach	= vnet_net_idetach
+#endif
 };
 #endif /* !VIMAGE_GLOBALS */
 
@@ -446,6 +452,22 @@ vnet_net_iattach(const void *unused __unused)
 	return (0);
 }
 
+#ifdef VIMAGE
+static int
+vnet_net_idetach(const void *unused __unused)
+{
+	INIT_VNET_NET(curvnet);
+
+	VNET_ASSERT(TAILQ_EMPTY(&V_ifnet));
+	VNET_ASSERT(TAILQ_EMPTY(&V_ifg_head));
+	VNET_ASSERT(SLIST_EMPTY(&V_ifklist.kl_list));
+
+	free((caddr_t)V_ifindex_table, M_IFNET);
+
+	return (0);
+}
+#endif
+
 void
 if_grow(void)
 {
@@ -688,6 +710,8 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 
 #ifdef VIMAGE
 	ifp->if_vnet = curvnet;
+	if (ifp->if_home_vnet == NULL)
+		ifp->if_home_vnet = curvnet;
 #endif
 
 	if_addgroup(ifp, IFG_ALL);

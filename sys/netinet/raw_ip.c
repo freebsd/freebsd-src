@@ -205,6 +205,19 @@ rip_init(void)
 	    EVENTHANDLER_PRI_ANY);
 }
 
+#ifdef VIMAGE
+void
+rip_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	hashdestroy(V_ripcbinfo.ipi_hashbase, M_PCB,
+	    V_ripcbinfo.ipi_hashmask);
+	hashdestroy(V_ripcbinfo.ipi_porthashbase, M_PCB,
+	    V_ripcbinfo.ipi_porthashmask);
+}
+#endif
+
 static int
 rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
     struct sockaddr_in *ripsrc)
