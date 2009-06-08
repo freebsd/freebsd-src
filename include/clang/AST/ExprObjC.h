@@ -34,6 +34,8 @@ public:
   explicit ObjCStringLiteral(EmptyShell Empty)
     : Expr(ObjCStringLiteralClass, Empty) {}
 
+  ObjCStringLiteral* Clone(ASTContext &C) const;
+
   StringLiteral *getString() { return cast<StringLiteral>(String); }
   const StringLiteral *getString() const { return cast<StringLiteral>(String); }
   void setString(StringLiteral *S) { String = S; }
@@ -64,7 +66,8 @@ class ObjCEncodeExpr : public Expr {
 public:
   ObjCEncodeExpr(QualType T, QualType ET, 
                  SourceLocation at, SourceLocation rp)
-    : Expr(ObjCEncodeExprClass, T), EncType(ET), AtLoc(at), RParenLoc(rp) {}
+    : Expr(ObjCEncodeExprClass, T, ET->isDependentType(), 
+           ET->isDependentType()), EncType(ET), AtLoc(at), RParenLoc(rp) {}
   
   explicit ObjCEncodeExpr(EmptyShell Empty) : Expr(ObjCEncodeExprClass, Empty){}
 
@@ -103,6 +106,8 @@ public:
   explicit ObjCSelectorExpr(EmptyShell Empty)
    : Expr(ObjCSelectorExprClass, Empty) {}
 
+  ObjCSelectorExpr *Clone(ASTContext &C) const;
+  
   Selector getSelector() const { return SelName; }
   void setSelector(Selector S) { SelName = S; }
   
@@ -143,6 +148,8 @@ public:
   explicit ObjCProtocolExpr(EmptyShell Empty)
     : Expr(ObjCProtocolExprClass, Empty) {}
 
+  ObjCProtocolExpr *Clone(ASTContext &C) const;
+  
   ObjCProtocolDecl *getProtocol() const { return Protocol; }
   void setProtocol(ObjCProtocolDecl *P) { Protocol = P; }
     
