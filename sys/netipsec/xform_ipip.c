@@ -41,7 +41,6 @@
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 #include "opt_enc.h"
 
 #include <sys/param.h>
