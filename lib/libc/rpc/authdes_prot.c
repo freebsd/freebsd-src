@@ -54,10 +54,11 @@ xdr_authdes_cred(xdrs, cred)
 	XDR *xdrs;
 	struct authdes_cred *cred;
 {
+	enum authdes_namekind *padc_namekind = &cred->adc_namekind;
 	/*
 	 * Unrolled xdr
 	 */
-	ATTEMPT(xdr_enum(xdrs, (enum_t *)&cred->adc_namekind));
+	ATTEMPT(xdr_enum(xdrs, (enum_t *) padc_namekind));
 	switch (cred->adc_namekind) {
 	case ADN_FULLNAME:
 		ATTEMPT(xdr_string(xdrs, &cred->adc_fullname.name,
