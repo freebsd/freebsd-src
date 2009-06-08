@@ -376,8 +376,8 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
 				return (error);
-			if (mp != NULL &&
-			    (mp->mnt_kern_flag & MNTK_SHARED_WRITES)) {
+			if (MNT_SHARED_WRITES(mp) ||
+			    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) {
 				lock_flags = LK_SHARED;
 			} else {
 				lock_flags = LK_EXCLUSIVE;
@@ -592,7 +592,8 @@ vn_write(fp, uio, active_cred, flags, td)
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
  
-	if (mp != NULL && (mp->mnt_kern_flag & MNTK_SHARED_WRITES) &&
+	if ((MNT_SHARED_WRITES(mp) ||
+	    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) &&
 	    (flags & FOF_OFFSET) != 0) {
 		lock_flags = LK_SHARED;
 	} else {
