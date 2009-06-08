@@ -149,7 +149,7 @@ ndisusb_match(device_t self)
 	db = windrv_match((matchfuncptr)ndisusb_devcompare, self);
 	if (db == NULL)
 		return (ENXIO);
-	uaa->driver_info = db;
+	uaa->driver_ivar = db;
 
 	return (0);
 }
@@ -165,7 +165,7 @@ ndisusb_attach(device_t self)
 	driver_object		*drv;
 	int			devidx = 0;
 
-	db = uaa->driver_info;
+	db = uaa->driver_ivar;
 	sc = (struct ndis_softc *)dummy;
 	sc->ndis_dev = self;
 	mtx_init(&sc->ndisusb_mtx, "NDIS USB", MTX_NETWORK_LOCK, MTX_DEF);
