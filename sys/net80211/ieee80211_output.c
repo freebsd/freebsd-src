@@ -153,13 +153,14 @@ ieee80211_start(struct ifnet *ifp)
 			break;
 		/*
 		 * Sanitize mbuf flags for net80211 use.  We cannot
-		 * clear M_PWR_SAV because this may be set for frames
-		 * that are re-submitted from the power save queue.
+		 * clear M_PWR_SAV or M_MORE_DATA because these may
+		 * be set for frames that are re-submitted from the
+		 * power save queue.
 		 *
 		 * NB: This must be done before ieee80211_classify as
 		 *     it marks EAPOL in frames with M_EAPOL.
 		 */
-		m->m_flags &= ~(M_80211_TX - M_PWR_SAV);
+		m->m_flags &= ~(M_80211_TX - M_PWR_SAV - M_MORE_DATA);
 		/*
 		 * Cancel any background scan.
 		 */
