@@ -159,6 +159,7 @@ int	vi_symlookup(struct kld_sym_lookup *, char *);
 int	vi_td_ioctl(u_long, struct vi_req *, struct thread *);
 int	vi_if_move(struct vi_req *, struct ifnet *, struct vimage *);
 int	vi_child_of(struct vimage *, struct vimage *);
+struct vimage *vimage_by_name(struct vimage *, char *);
 void	vnet_mod_register(const struct vnet_modinfo *);
 void	vnet_mod_register_multi(const struct vnet_modinfo *, void *, char *);
 void	vnet_mod_deregister(const struct vnet_modinfo *);

@@ -275,6 +275,19 @@ syncache_init(void)
 	uma_zone_set_max(V_tcp_syncache.zone, V_tcp_syncache.cache_limit);
 }
 
+#ifdef VIMAGE
+void
+syncache_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	/* XXX walk the cache, free remaining objects, stop timers */
+
+	uma_zdestroy(V_tcp_syncache.zone);
+	FREE(V_tcp_syncache.hashbase, M_SYNCACHE);
+}
+#endif
+
 /*
  * Inserts a syncache entry into the specified bucket row.
  * Locks and unlocks the syncache_head autonomously.

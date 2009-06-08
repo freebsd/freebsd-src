@@ -112,6 +112,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 
 extern int	in6_inithead(void **head, int off);
+#ifdef VIMAGE
+extern int	in6_detachhead(void **head, int off);
+#endif
 
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
@@ -464,3 +467,15 @@ in6_inithead(void **head, int off)
 	in6_mtutimo(curvnet);	/* kick off timeout first time */
 	return 1;
 }
+
+#ifdef VIMAGE
+int
+in6_detachhead(void **head, int off)
+{
+	INIT_VNET_INET6(curvnet);
+
+	callout_drain(&V_rtq_timer6);
+	callout_drain(&V_rtq_mtutimer);
+	return (1);
+}
+#endif

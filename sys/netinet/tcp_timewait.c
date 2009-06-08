@@ -179,6 +179,20 @@ tcp_tw_init(void)
 	TAILQ_INIT(&V_twq_2msl);
 }
 
+#ifdef VIMAGE
+void
+tcp_tw_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+	struct tcptw *tw;
+
+	INP_INFO_WLOCK(&V_tcbinfo);
+	while((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
+		tcp_twclose(tw, 0);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
+}
+#endif
+
 /*
  * Move a TCP connection into TIME_WAIT state.
  *    tcbinfo is locked.
