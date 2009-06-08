@@ -508,7 +508,7 @@ print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
 	}
 	sep = " ";
 	for (i = F_LEN((ipfw_insn *)cmd) - 1; i > 0; i--, p += 2) {
-		printf(sep);
+		printf("%s", sep);
 		print_port(proto, p[0]);
 		if (p[0] != p[1]) {
 			printf("-");
