@@ -128,6 +128,9 @@ void		 udp_discardcb(struct udpcb *);
 
 void		 udp_ctlinput(int, struct sockaddr *, void *);
 void		 udp_init(void);
+#ifdef VIMAGE
+void		 udp_destroy(void);
+#endif
 void		 udp_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);
 int		 udp_shutdown(struct socket *so);

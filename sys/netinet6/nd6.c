@@ -134,13 +134,7 @@ void
 nd6_init(void)
 {
 	INIT_VNET_INET6(curvnet);
-	static int nd6_init_done = 0;
 	int i;
-
-	if (nd6_init_done) {
-		log(LOG_NOTICE, "nd6_init called more than once(ignored)\n");
-		return;
-	}
 
 	V_nd6_prune	= 1;	/* walk list every 1 seconds */
 	V_nd6_delay	= 5;	/* delay first probe time 5 second */
@@ -180,6 +174,8 @@ nd6_init(void)
 	V_ip6_temp_valid_lifetime = DEF_TEMP_VALID_LIFETIME;
 	V_ip6_temp_regen_advance = TEMPADDR_REGEN_ADVANCE;
 
+	V_ip6_desync_factor = 0;
+
 	all1_sa.sin6_family = AF_INET6;
 	all1_sa.sin6_len = sizeof(struct sockaddr_in6);
 	for (i = 0; i < sizeof(all1_sa.sin6_addr); i++)
@@ -191,10 +187,19 @@ nd6_init(void)
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
-
-	nd6_init_done = 1;
-
 }
+
+
+#ifdef VIMAGE
+void
+nd6_destroy()
+{
+	INIT_VNET_INET6(curvnet);
+
+	callout_drain(&V_nd6_slowtimo_ch);
+	callout_drain(&V_nd6_timer_ch);
+}
+#endif
 
 struct nd_ifinfo *
 nd6_ifattach(struct ifnet *ifp)

@@ -71,6 +71,7 @@ struct	ether_header;
 struct	carp_if;
 struct  ifvlantrunk;
 struct	route;
+struct	vnet;
 #endif
 
 #include <sys/queue.h>		/* get TAILQ macros */
@@ -169,6 +170,9 @@ struct ifnet {
 		(struct ifnet *);
 	int	(*if_transmit)		/* initiate output routine */
 		(struct ifnet *, struct mbuf *);
+	void	(*if_reassign)		/* reassign to vnet routine */
+		(struct ifnet *, struct vnet *, char *);
+	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	void	*if_llsoftc;		/* link layer softc */
 	int	if_drv_flags;		/* driver-managed status flags */

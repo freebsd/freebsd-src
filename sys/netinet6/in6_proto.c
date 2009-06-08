@@ -148,6 +148,9 @@ struct ip6protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_IPV6,
 	.pr_init =		ip6_init,
+#ifdef VIMAGE
+	.pr_destroy =		ip6_destroy,
+#endif
 	.pr_slowtimo =		frag6_slowtimo,
 	.pr_drain =		frag6_drain,
 	.pr_usrreqs =		&nousrreqs,
@@ -349,6 +352,9 @@ struct ip6protosw inet6sw[] = {
 };
 
 extern int in6_inithead(void **, int);
+#ifdef VIMAGE
+extern int in6_detachhead(void **, int);
+#endif
 
 struct domain inet6domain = {
 	.dom_family =		AF_INET6,
@@ -360,6 +366,9 @@ struct domain inet6domain = {
 	.dom_rtattach =		rn6_mpath_inithead,
 #else
 	.dom_rtattach =		in6_inithead,
+#endif
+#ifdef VIMAGE
+	.dom_rtdetach =		in6_detachhead,
 #endif
 	.dom_rtoffset =		offsetof(struct sockaddr_in6, sin6_addr) << 3,
 	.dom_maxrtkey =		sizeof(struct sockaddr_in6),

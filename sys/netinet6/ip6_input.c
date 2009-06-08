@@ -303,6 +303,17 @@ ip6_init(void)
 	netisr_register(&ip6_nh);
 }
 
+#ifdef VIMAGE
+void
+ip6_destroy()
+{
+	INIT_VNET_INET6(curvnet);
+
+	nd6_destroy();
+	callout_drain(&V_in6_tmpaddrtimer_ch);
+}
+#endif
+
 static int
 ip6_init2_vnet(const void *unused __unused)
 {

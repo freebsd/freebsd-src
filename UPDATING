@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090608:
+	The layout of structs ifnet, domain, protosw and vnet_net has
+	changed.  Kernel modules need to be rebuilt.
+	Bump __FreeBSD_version to 800097.
+
 20090602:
 	window(1) has been removed from the base system. It can now be
 	installed from ports. The port is called misc/window.

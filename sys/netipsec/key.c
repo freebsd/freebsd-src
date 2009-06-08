@@ -7223,9 +7223,75 @@ key_init(void)
 	keystat.getspi_count = 1;
 
 	printf("IPsec: Initialized Security Association Processing.\n");
-
-	return;
 }
+
+#ifdef VIMAGE
+void
+key_destroy(void)
+{
+	INIT_VNET_IPSEC(curvnet);
+	struct secpolicy *sp, *nextsp;
+	struct secspacq *acq, *nextacq;
+	struct secashead *sah, *nextsah;
+	struct secreg *reg;
+	int i;
+
+	SPTREE_LOCK();
+	for (i = 0; i < IPSEC_DIR_MAX; i++) {
+		for (sp = LIST_FIRST(&V_sptree[i]); 
+		    sp != NULL; sp = nextsp) {
+			nextsp = LIST_NEXT(sp, chain);
+			if (__LIST_CHAINED(sp)) {
+				LIST_REMOVE(sp, chain);
+				free(sp, M_IPSEC_SP);
+			}
+		}
+	}
+	SPTREE_UNLOCK();
+
+	SAHTREE_LOCK();
+	for (sah = LIST_FIRST(&V_sahtree); sah != NULL; sah = nextsah) {
+		nextsah = LIST_NEXT(sah, chain);
+		if (__LIST_CHAINED(sah)) {
+			LIST_REMOVE(sah, chain);
+			free(sah, M_IPSEC_SAH);
+		}
+	}
+	SAHTREE_UNLOCK();
+
+	REGTREE_LOCK();
+	for (i = 0; i <= SADB_SATYPE_MAX; i++) {
+		LIST_FOREACH(reg, &V_regtree[i], chain) {
+			if (__LIST_CHAINED(reg)) {
+				LIST_REMOVE(reg, chain);
+				free(reg, M_IPSEC_SAR);
+				break;
+			}
+		}
+	}
+	REGTREE_UNLOCK();
+
+	ACQ_LOCK();
+	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
+		nextacq = LIST_NEXT(acq, chain);
+		if (__LIST_CHAINED(acq)) {
+			LIST_REMOVE(acq, chain);
+			free(acq, M_IPSEC_SAQ);
+		}
+	}
+	ACQ_UNLOCK();
+
+	SPACQ_LOCK();
+	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
+		nextacq = LIST_NEXT(acq, chain);
+		if (__LIST_CHAINED(acq)) {
+			LIST_REMOVE(acq, chain);
+			free(acq, M_IPSEC_SAQ);
+		}
+	}
+	SPACQ_UNLOCK();
+}
+#endif
 
 /*
  * XXX: maybe This function is called after INBOUND IPsec processing.
