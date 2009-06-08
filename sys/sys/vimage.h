@@ -358,58 +358,46 @@ extern struct vprocg_list_head vprocg_head;
  * See description further down to see how to get the new values.
  */
 #ifdef __amd64__
-#define	SIZEOF_vnet_net		464
-#define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4352
-#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_net		176
+#define	SIZEOF_vnet_inet	4424
+#define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __arm__
-#define	SIZEOF_vnet_net		236
-#define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
-#define	SIZEOF_vnet_inet	2580
-#define	SIZEOF_vnet_inet6	8536
+#define	SIZEOF_vnet_net		96
+#define	SIZEOF_vnet_inet	2616
+#define	SIZEOF_vnet_inet6	8524
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __i386__ /* incl. pc98 */
-#define	SIZEOF_vnet_net		236
-#define	SIZEOF_vnet_net_LINT	2576
-#define	SIZEOF_vnet_inet	2576
-#define	SIZEOF_vnet_inet6	8528
-#define	SIZEOF_vnet_ipsec	31016
+#define	SIZEOF_vnet_net		96
+#define	SIZEOF_vnet_inet	2612
+#define	SIZEOF_vnet_inet6	8512
+#define	SIZEOF_vnet_ipsec	31024
 #endif
 #ifdef __ia64__
-#define	SIZEOF_vnet_net		464
-#define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4352
-#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_net		176
+#define	SIZEOF_vnet_inet	4424
+#define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __mips__
-#define	SIZEOF_vnet_net		236
-#define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
-#define	SIZEOF_vnet_inet	2624
-#define	SIZEOF_vnet_inet6	8552
+#define	SIZEOF_vnet_net		96
+#define	SIZEOF_vnet_inet	2648
+#define	SIZEOF_vnet_inet6	8544
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __powerpc__
-#define	SIZEOF_vnet_net		236
-#define	SIZEOF_vnet_net_LINT	2576
-#define	SIZEOF_vnet_inet	2616
-#define	SIZEOF_vnet_inet6	8536
+#define	SIZEOF_vnet_net		96
+#define	SIZEOF_vnet_inet	2640
+#define	SIZEOF_vnet_inet6	8520
 #define	SIZEOF_vnet_ipsec	31048
 #endif
 #ifdef __sparc64__ /* incl. sun4v */
-#define	SIZEOF_vnet_net		464
-#define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4352
-#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_net		176
+#define	SIZEOF_vnet_inet	4424
+#define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
-#endif
-
-#ifdef COMPILING_LINT
-#undef	SIZEOF_vnet_net
-#define	SIZEOF_vnet_net	SIZEOF_vnet_net_LINT
 #endif
 
 #ifndef	SIZEOF_vnet_net
