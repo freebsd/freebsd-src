@@ -1742,19 +1742,31 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 		goto done1;
 	}
 	
-	/* Make sure the vnode is bound to a character device. */
-	error = EINVAL;
-	if (fp->f_type != DTYPE_VNODE || fp->f_vnode->v_type != VCHR ||
-	    fp->f_vnode->v_rdev == NULL)
+	/*
+	 * Make sure the vnode is bound to a character device.
+	 * Unlocked check for the vnode type is ok there, because we
+	 * only shall prevent calling devvn_refthread on the file that
+	 * never has been opened over a character device.
+	 */
+	if (fp->f_type != DTYPE_VNODE || fp->f_vnode->v_type != VCHR) {
+		error = EINVAL;
 		goto done1;
-	dev = fp->f_vnode->v_rdev;
+	}
 
 	/* Make sure it is a TTY. */
-	cdp = dev_refthread(dev);
-	if (cdp == NULL)
+	cdp = devvn_refthread(fp->f_vnode, &dev);
+	if (cdp == NULL) {
+		error = ENXIO;
 		goto done1;
-	if (cdp != &ttydev_cdevsw)
+	}
+	if (dev != fp->f_data) {
+		error = ENXIO;
 		goto done2;
+	}
+	if (cdp != &ttydev_cdevsw) {
+		error = ENOTTY;
+		goto done2;
+	}
 	tp = dev->si_drv1;
 
 	/* Try to attach the hook to the TTY. */
