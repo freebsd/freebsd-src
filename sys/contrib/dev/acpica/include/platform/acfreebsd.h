@@ -125,10 +125,9 @@
 
 #define	ACPI_UINTPTR_T		uintptr_t
 
+#define	ACPI_USE_DO_WHILE_0
 #define	ACPI_USE_LOCAL_CACHE
 #define	ACPI_USE_SYSTEM_CLIBRARY
-
-#define	__cdecl
 
 #ifdef _KERNEL
 
@@ -168,12 +167,10 @@
 
 #define	ACPI_THREAD_ID		pthread_t
 
-/* Not building kernel code, so use libc */
 #define	ACPI_USE_STANDARD_HEADERS
-#define	ACPI_FLUSH_CPU_CACHE()
 
-#define	__cli()
-#define	__sti()
+#define	ACPI_FLUSH_CPU_CACHE()
+#define	__cdecl
 
 #endif /* _KERNEL */
 
