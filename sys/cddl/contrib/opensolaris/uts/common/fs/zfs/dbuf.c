@@ -1232,7 +1232,6 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	return (0);
 }
 
-#pragma weak dmu_buf_will_dirty = dbuf_will_dirty
 void
 dbuf_will_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 {
@@ -1246,6 +1245,7 @@ dbuf_will_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	(void) dbuf_read(db, NULL, rf);
 	(void) dbuf_dirty(db, tx);
 }
+__weak_reference(dbuf_will_dirty, dmu_buf_will_dirty);
 
 void
 dmu_buf_will_fill(dmu_buf_t *db_fake, dmu_tx_t *tx)
@@ -1264,7 +1264,6 @@ dmu_buf_will_fill(dmu_buf_t *db_fake, dmu_tx_t *tx)
 	(void) dbuf_dirty(db, tx);
 }
 
-#pragma weak dmu_buf_fill_done = dbuf_fill_done
 /* ARGSUSED */
 void
 dbuf_fill_done(dmu_buf_impl_t *db, dmu_tx_t *tx)
@@ -1285,6 +1284,7 @@ dbuf_fill_done(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	}
 	mutex_exit(&db->db_mtx);
 }
+__weak_reference(dbuf_fill_done, dmu_buf_fill_done);
 
 /*
  * "Clear" the contents of this dbuf.  This will mark the dbuf
@@ -1707,15 +1707,14 @@ dbuf_create_bonus(dnode_t *dn)
 	dn->dn_bonus = dbuf_create(dn, 0, DB_BONUS_BLKID, dn->dn_dbuf, NULL);
 }
 
-#pragma weak dmu_buf_add_ref = dbuf_add_ref
 void
 dbuf_add_ref(dmu_buf_impl_t *db, void *tag)
 {
 	int64_t holds = refcount_add(&db->db_holds, tag);
 	ASSERT(holds > 1);
 }
+__weak_reference(dbuf_add_ref, dmu_buf_add_ref);
 
-#pragma weak dmu_buf_rele = dbuf_rele
 void
 dbuf_rele(dmu_buf_impl_t *db, void *tag)
 {
@@ -1768,13 +1767,14 @@ dbuf_rele(dmu_buf_impl_t *db, void *tag)
 		mutex_exit(&db->db_mtx);
 	}
 }
+__weak_reference(dbuf_rele, dmu_buf_rele);
 
-#pragma weak dmu_buf_refcount = dbuf_refcount
 uint64_t
 dbuf_refcount(dmu_buf_impl_t *db)
 {
 	return (refcount_count(&db->db_holds));
 }
+__weak_reference(dbuf_refcount, dmu_buf_refcount);
 
 void *
 dmu_buf_set_user(dmu_buf_t *db_fake, void *user_ptr, void *user_data_ptr_ptr,

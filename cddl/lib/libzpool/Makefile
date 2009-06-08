@@ -23,13 +23,6 @@ ATOMIC_SRCS=	opensolaris_atomic.c
 
 LIB=		zpool
 
-.include <bsd.own.mk>
-
-# XXX: LLVM PR3679
-.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
-CC=		gcc
-.endif
-
 ZFS_COMMON_SRCS= ${ZFS_COMMON_OBJS:C/.o$/.c/} vdev_file.c
 ZFS_SHARED_SRCS= ${ZFS_SHARED_OBJS:C/.o$/.c/}
 KERNEL_SRCS=	kernel.c taskq.c util.c
