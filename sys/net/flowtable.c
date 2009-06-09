@@ -33,6 +33,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifndef NO_FLOWTABLE
 #include <sys/param.h>  
 #include <sys/types.h>
 #include <sys/bitstring.h>
@@ -929,4 +930,4 @@ static struct kproc_desc flow_kp = {
 	&flowcleanerproc
 };
 SYSINIT(flowcleaner, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &flow_kp);
-
+#endif /* NO_FLOWTABLE */
