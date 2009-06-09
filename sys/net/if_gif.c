@@ -912,10 +912,10 @@ gif_ioctl(ifp, cmd, data)
 	case GIFSOPTS:
 		if ((error = priv_check(curthread, PRIV_NET_GIF)) != 0)
 			break;
-		if ((error = copyin(&options, &sc->gif_options,
-				sizeof(sc->gif_options)))) {
-			if ((options | GIF_FULLOPTS) == GIF_FULLOPTS)
-				ifr->ifr_data = (caddr_t)options;
+		if (!(error = copyin(ifr->ifr_data, &options,
+				sizeof(options)))) {
+			if ((options | GIF_OPTMASK) == GIF_OPTMASK)
+				sc->gif_options = options;
 			else
 				error = EINVAL;
 		}
