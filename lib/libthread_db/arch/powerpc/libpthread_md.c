@@ -27,9 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
 #include <sys/types.h>
-#include <proc_service.h>
+#include <string.h>
 #include <thread_db.h>
 
 #include "libpthread_db.h"
@@ -76,8 +75,9 @@ pt_md_init(void)
 }
 
 int
-pt_reg_sstep(struct reg *reg, int step)
+pt_reg_sstep(struct reg *reg __unused, int step __unused)
 {
 
 	/* XXX */
+	return (0);
 }
