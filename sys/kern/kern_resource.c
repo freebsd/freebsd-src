@@ -773,7 +773,11 @@ calcru1(p, ruxp, up, sp)
 	bintime2timeval(&ruxp->rux_runtime, &tv);
 	tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 	ptu = ruxp->rux_uu + ruxp->rux_su + ruxp->rux_iu;
-	if (tu < ptu) {
+	if (tu + 3 > ptu) {
+		/* Numeric slop for low counts */
+	} else if (101 * tu > 100 * ptu) {
+		/* 1% slop for large counts */
+	} else {
 		printf(
 "calcru: runtime went backwards from %ju usec to %ju usec for pid %d (%s)\n",
 		    (uintmax_t)ptu, (uintmax_t)tu, p->p_pid, p->p_comm);
