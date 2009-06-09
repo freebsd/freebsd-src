@@ -113,6 +113,8 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 		KASSERT(ng_tag->dir == NG_IPFW_IN,
 		    ("ng_ipfw tag with wrong direction"));
 		args.rule = ng_tag->rule;
+		args.rule_id = ng_tag->rule_id;
+		args.chain_id = ng_tag->chain_id;
 		m_tag_delete(*m0, (struct m_tag *)ng_tag);
 	}
 
@@ -123,6 +125,8 @@ again:
 
 		dt = (struct dn_pkt_tag *)(dn_tag+1);
 		args.rule = dt->rule;
+		args.rule_id = dt->rule_id;
+		args.chain_id = dt->chain_id;
 
 		m_tag_delete(*m0, dn_tag);
 	}
@@ -243,6 +247,8 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 		KASSERT(ng_tag->dir == NG_IPFW_OUT,
 		    ("ng_ipfw tag with wrong direction"));
 		args.rule = ng_tag->rule;
+		args.rule_id = ng_tag->rule_id;
+		args.chain_id = ng_tag->chain_id;
 		m_tag_delete(*m0, (struct m_tag *)ng_tag);
 	}
 
@@ -253,6 +259,8 @@ again:
 
 		dt = (struct dn_pkt_tag *)(dn_tag+1);
 		args.rule = dt->rule;
+		args.rule_id = dt->rule_id;
+		args.chain_id = dt->chain_id;
 
 		m_tag_delete(*m0, dn_tag);
 	}

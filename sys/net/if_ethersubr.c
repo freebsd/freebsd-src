@@ -145,8 +145,7 @@ MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 
 #if defined(INET) || defined(INET6)
 int
-ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
-	struct ip_fw **rule, int shared);
+ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared);
 #ifdef VIMAGE_GLOBALS
 static int ether_ipfw;
 #endif
@@ -428,10 +427,9 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
 #if defined(INET) || defined(INET6)
 	INIT_VNET_NET(ifp->if_vnet);
-	struct ip_fw *rule = ip_dn_claim_rule(m);
 
 	if (ip_fw_chk_ptr && V_ether_ipfw != 0) {
-		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
+		if (ether_ipfw_chk(&m, ifp, 0) == 0) {
 			if (m) {
 				m_freem(m);
 				return EACCES;	/* pkt dropped */
@@ -455,8 +453,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
  * ether_output_frame.
  */
 int
-ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
-	struct ip_fw **rule, int shared)
+ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 {
 	INIT_VNET_INET(dst->if_vnet);
 	struct ether_header *eh;
@@ -464,9 +461,19 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct mbuf *m;
 	int i;
 	struct ip_fw_args args;
+	struct dn_pkt_tag *dn_tag;
 
-	if (*rule != NULL && V_fw_one_pass)
-		return 1; /* dummynet packet, already partially processed */
+	dn_tag = ip_dn_claim_tag(*m0);
+
+	if (dn_tag != NULL) {
+		if (dn_tag->rule != NULL && V_fw_one_pass)
+			/* dummynet packet, already partially processed */
+			return (1);
+		args.rule = dn_tag->rule;	/* matching rule to restart */
+		args.rule_id = dn_tag->rule_id;
+		args.chain_id = dn_tag->chain_id;
+	} else
+		args.rule = NULL;
 
 	/*
 	 * I need some amt of data to be contiguous, and in case others need
@@ -487,7 +494,6 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 
 	args.m = m;		/* the packet we are looking at		*/
 	args.oif = dst;		/* destination, if any			*/
-	args.rule = *rule;	/* matching rule to restart		*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	args.inp = NULL;	/* used by ipfw uid/gid/jail rules	*/
@@ -508,7 +514,6 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 				ETHER_HDR_LEN);
 	}
 	*m0 = m;
-	*rule = args.rule;
 
 	if (i == IP_FW_DENY) /* drop */
 		return 0;
@@ -765,9 +770,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	 * Do not do this for PROMISC frames in case we are re-entered.
 	 */
 	if (ip_fw_chk_ptr && V_ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
-		struct ip_fw *rule = ip_dn_claim_rule(m);
-
-		if (ether_ipfw_chk(&m, NULL, &rule, 0) == 0) {
+		if (ether_ipfw_chk(&m, NULL, 0) == 0) {
 			if (m)
 				m_freem(m);	/* dropped; free mbuf chain */
 			return;			/* consumed */
