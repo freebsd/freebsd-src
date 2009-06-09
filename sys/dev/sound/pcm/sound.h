@@ -68,11 +68,7 @@
 #include <sys/kobj.h>
 #ifdef SND_DEBUG
 #undef KOBJMETHOD
-#define KOBJMETHOD(NAME, FUNC)						\
-	{								\
-		&NAME##_desc,						\
-		(kobjop_t) ((FUNC != (NAME##_t *)NULL) ? FUNC : NULL)	\
-	}
+#define KOBJMETHOD(NAME, FUNC) { &NAME##_desc, FUNC }
 #endif
 #ifndef KOBJMETHOD_END
 #define KOBJMETHOD_END	{ NULL, NULL }
