@@ -282,6 +282,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	ieee80211_ht_attach(ic);
 	ieee80211_scan_attach(ic);
 	ieee80211_regdomain_attach(ic);
+	ieee80211_dfs_attach(ic);
 
 	ieee80211_sysctl_attach(ic);
 
@@ -321,6 +322,7 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_waitfor_parent(ic);
 
 	ieee80211_sysctl_detach(ic);
+	ieee80211_dfs_detach(ic);
 	ieee80211_regdomain_detach(ic);
 	ieee80211_scan_detach(ic);
 #ifdef IEEE80211_SUPPORT_SUPERG
