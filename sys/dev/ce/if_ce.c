@@ -165,7 +165,7 @@ typedef struct _drv_t {
 	ce_chan_t	*chan;
 	struct ifqueue	rqueue;
 #ifdef NETGRAPH
-	char	nodename [NG_NODELEN+1];
+	char	nodename [NG_NODESIZE];
 	hook_p	hook;
 	hook_p	debug_hook;
 	node_p	node;
@@ -2358,7 +2358,7 @@ static int ng_ce_rcvmsg (node_p node, struct ng_mesg *msg,
 			(resp)->header.typecookie = NGM_CE_COOKIE;
 			(resp)->header.cmd = msg->header.cmd;
 #endif
-			strncpy ((resp)->header.cmdstr, "status", NG_CMDSTRLEN);
+			strncpy ((resp)->header.cmdstr, "status", NG_CMDSTRSIZ);
 			}
 			break;
 		}
