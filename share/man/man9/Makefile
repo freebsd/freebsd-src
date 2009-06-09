@@ -28,12 +28,15 @@ MAN=	accept_filter.9 \
 	bus_dma.9 \
 	bus_generic_attach.9 \
 	bus_generic_detach.9 \
+	bus_generic_new_pass.9 \
 	bus_generic_print_child.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
+	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
 	bus_release_resource.9 \
+	bus_set_pass.9 \
 	bus_set_resource.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
