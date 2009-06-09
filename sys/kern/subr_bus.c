@@ -66,6 +66,8 @@ typedef struct driverlink *driverlink_t;
 struct driverlink {
 	kobj_class_t	driver;
 	TAILQ_ENTRY(driverlink) link;	/* list of drivers in devclass */
+	int		pass;
+	TAILQ_ENTRY(driverlink) passlink;
 };
 
 /*
@@ -759,11 +761,97 @@ static kobj_method_t null_methods[] = {
 DEFINE_CLASS(null, null_methods, 0);
 
 /*
+ * Bus pass implementation
+ */
+
+static driver_list_t passes = TAILQ_HEAD_INITIALIZER(passes);
+int bus_current_pass = BUS_PASS_ROOT;
+
+/**
+ * @internal
+ * @brief Register the pass level of a new driver attachment
+ *
+ * Register a new driver attachment's pass level.  If no driver
+ * attachment with the same pass level has been added, then @p new
+ * will be added to the global passes list.
+ *
+ * @param new		the new driver attachment
+ */
+static void
+driver_register_pass(struct driverlink *new)
+{
+	struct driverlink *dl;
+
+	/* We only consider pass numbers during boot. */
+	if (bus_current_pass == BUS_PASS_DEFAULT)
+		return;
+
+	/*
+	 * Walk the passes list.  If we already know about this pass
+	 * then there is nothing to do.  If we don't, then insert this
+	 * driver link into the list.
+	 */
+	TAILQ_FOREACH(dl, &passes, passlink) {
+		if (dl->pass < new->pass)
+			continue;
+		if (dl->pass == new->pass)
+			return;
+		TAILQ_INSERT_BEFORE(dl, new, passlink);
+		return;
+	}
+	TAILQ_INSERT_TAIL(&passes, new, passlink);
+}
+
+/**
+ * @brief Raise the current bus pass
+ *
+ * Raise the current bus pass level to @p pass.  Call the BUS_NEW_PASS()
+ * method on the root bus to kick off a new device tree scan for each
+ * new pass level that has at least one driver.
+ */
+void
+bus_set_pass(int pass)
+{
+	struct driverlink *dl;
+
+	if (bus_current_pass > pass)
+		panic("Attempt to lower bus pass level");
+
+	TAILQ_FOREACH(dl, &passes, passlink) {
+		/* Skip pass values below the current pass level. */
+		if (dl->pass <= bus_current_pass)
+			continue;
+
+		/*
+		 * Bail once we hit a driver with a pass level that is
+		 * too high.
+		 */
+		if (dl->pass > pass)
+			break;
+
+		/*
+		 * Raise the pass level to the next level and rescan
+		 * the tree.
+		 */
+		bus_current_pass = dl->pass;
+		BUS_NEW_PASS(root_bus);
+	}
+
+	/*
+	 * If there isn't a driver registered for the requested pass,
+	 * then bus_current_pass might still be less than 'pass'.  Set
+	 * it to 'pass' in that case.
+	 */
+	if (bus_current_pass < pass)
+		bus_current_pass = pass;
+	KASSERT(bus_current_pass == pass, ("Failed to update bus pass level"));
+}
+
+/*
  * Devclass implementation
  */
 
 static devclass_list_t devclasses = TAILQ_HEAD_INITIALIZER(devclasses);
-
 
 /**
  * @internal
@@ -912,11 +1000,15 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
  * @param driver	the driver to register
  */
 int
-devclass_add_driver(devclass_t dc, driver_t *driver)
+devclass_add_driver(devclass_t dc, driver_t *driver, int pass)
 {
 	driverlink_t dl;
 
 	PDEBUG(("%s", DRIVERNAME(driver)));
+
+	/* Don't allow invalid pass values. */
+	if (pass <= BUS_PASS_ROOT)
+		return (EINVAL);
 
 	dl = malloc(sizeof *dl, M_BUS, M_NOWAIT|M_ZERO);
 	if (!dl)
@@ -938,6 +1030,8 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 	dl->driver = driver;
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
 	driver->refs++;		/* XXX: kobj_mtx */
+	dl->pass = pass;
+	driver_register_pass(dl);
 
 	devclass_driver_added(dc, driver);
 	bus_data_generation_update();
@@ -1801,6 +1895,11 @@ device_probe_child(device_t dev, device_t child)
 		for (dl = first_matching_driver(dc, child);
 		     dl;
 		     dl = next_matching_driver(dc, child, dl)) {
+
+			/* If this driver's pass is too high, then ignore it. */
+			if (dl->pass > bus_current_pass)
+				continue;
+
 			PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
 			device_set_driver(child, dl->driver);
 			if (!hasclass) {
@@ -2442,8 +2541,9 @@ device_probe(device_t dev)
 		}
 		return (-1);
 	}
-	if ((error = device_probe_child(dev->parent, dev)) != 0) {
-		if (!(dev->flags & DF_DONENOMATCH)) {
+	if ((error = device_probe_child(dev->parent, dev)) != 0) {		
+		if (bus_current_pass == BUS_PASS_DEFAULT &&
+		    !(dev->flags & DF_DONENOMATCH)) {
 			BUS_PROBE_NOMATCH(dev->parent, dev);
 			devnomatch(dev);
 			dev->flags |= DF_DONENOMATCH;
@@ -2988,6 +3088,17 @@ bus_generic_probe(device_t dev)
 	driverlink_t dl;
 
 	TAILQ_FOREACH(dl, &dc->drivers, link) {
+		/*
+		 * If this driver's pass is too high, then ignore it.
+		 * For most drivers in the default pass, this will
+		 * never be true.  For early-pass drivers they will
+		 * only call the identify routines of eligible drivers
+		 * when this routine is called.  Drivers for later
+		 * passes should have their identify routines called
+		 * on early-pass busses during BUS_NEW_PASS().
+		 */
+		if (dl->pass > bus_current_pass)
+				continue;
 		DEVICE_IDENTIFY(dl->driver, dev);
 	}
 
@@ -3210,6 +3321,36 @@ bus_generic_driver_added(device_t dev, driver_t *driver)
 	TAILQ_FOREACH(child, &dev->children, link) {
 		if (child->state == DS_NOTPRESENT ||
 		    (child->flags & DF_REBID))
+			device_probe_and_attach(child);
+	}
+}
+
+/**
+ * @brief Helper function for implementing BUS_NEW_PASS().
+ *
+ * This implementing of BUS_NEW_PASS() first calls the identify
+ * routines for any drivers that probe at the current pass.  Then it
+ * walks the list of devices for this bus.  If a device is already
+ * attached, then it calls BUS_NEW_PASS() on that device.  If the
+ * device is not already attached, it attempts to attach a driver to
+ * it.
+ */
+void
+bus_generic_new_pass(device_t dev)
+{
+	driverlink_t dl;
+	devclass_t dc;
+	device_t child;
+
+	dc = dev->devclass;
+	TAILQ_FOREACH(dl, &dc->drivers, link) {
+		if (dl->pass == bus_current_pass)
+			DEVICE_IDENTIFY(dl->driver, dev);
+	}
+	TAILQ_FOREACH(child, &dev->children, link) {
+		if (child->state >= DS_ATTACHED)
+			BUS_NEW_PASS(child);
+		else if (child->state == DS_NOTPRESENT)
 			device_probe_and_attach(child);
 	}
 }
@@ -3912,13 +4053,11 @@ DECLARE_MODULE(rootbus, root_bus_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 void
 root_bus_configure(void)
 {
-	device_t dev;
 
 	PDEBUG(("."));
 
-	TAILQ_FOREACH(dev, &root_bus->children, link) {
-		device_probe_and_attach(dev);
-	}
+	/* Eventually this will be split up, but this is sufficient for now. */
+	bus_set_pass(BUS_PASS_DEFAULT);
 }
 
 /**
@@ -3932,10 +4071,10 @@ root_bus_configure(void)
 int
 driver_module_handler(module_t mod, int what, void *arg)
 {
-	int error;
 	struct driver_module_data *dmd;
 	devclass_t bus_devclass;
 	kobj_class_t driver;
+	int error, pass;
 
 	dmd = (struct driver_module_data *)arg;
 	bus_devclass = devclass_find_internal(dmd->dmd_busname, NULL, TRUE);
@@ -3946,10 +4085,11 @@ driver_module_handler(module_t mod, int what, void *arg)
 		if (dmd->dmd_chainevh)
 			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
 
+		pass = dmd->dmd_pass;
 		driver = dmd->dmd_driver;
-		PDEBUG(("Loading module: driver %s on bus %s",
-		    DRIVERNAME(driver), dmd->dmd_busname));
-		error = devclass_add_driver(bus_devclass, driver);
+		PDEBUG(("Loading module: driver %s on bus %s (pass %d)",
+		    DRIVERNAME(driver), dmd->dmd_busname, pass));
+		error = devclass_add_driver(bus_devclass, driver, pass);
 		if (error)
 			break;
 
