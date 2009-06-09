@@ -435,11 +435,8 @@ void	device_verbose(device_t dev);
 /*
  * Access functions for devclass.
  */
-int	devclass_add_driver(devclass_t dc, kobj_class_t driver, int pass);
-int	devclass_delete_driver(devclass_t dc, kobj_class_t driver);
 devclass_t	devclass_create(const char *classname);
 devclass_t	devclass_find(const char *classname);
-kobj_class_t	devclass_find_driver(devclass_t dc, const char *classname);
 const char	*devclass_get_name(devclass_t dc);
 device_t	devclass_get_device(devclass_t dc, int unit);
 void	*devclass_get_softc(devclass_t dc, int unit);
@@ -452,7 +449,6 @@ void	devclass_set_parent(devclass_t dc, devclass_t pdc);
 devclass_t	devclass_get_parent(devclass_t dc);
 struct sysctl_ctx_list *devclass_get_sysctl_ctx(devclass_t dc);
 struct sysctl_oid *devclass_get_sysctl_tree(devclass_t dc);
-int	devclass_quiesce_driver(devclass_t dc, kobj_class_t driver);
 
 /*
  * Access functions for device resources.
