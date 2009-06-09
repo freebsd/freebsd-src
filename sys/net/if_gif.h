@@ -150,11 +150,11 @@ extern struct vnet_gif vnet_gif_0;
 
 #endif /* _KERNEL */
 
-#define GIFGOPTS	_IOR('i', 150, struct ifreq)
+#define GIFGOPTS	_IOWR('i', 150, struct ifreq)
 #define GIFSOPTS	_IOW('i', 151, struct ifreq)
 
 #define	GIF_ACCEPT_REVETHIP	0x0001
 #define	GIF_SEND_REVETHIP	0x0010
-#define	GIF_FULLOPTS		(GIF_ACCEPT_REVETHIP|GIF_SEND_REVETHIP)
+#define	GIF_OPTMASK		(GIF_ACCEPT_REVETHIP|GIF_SEND_REVETHIP)
 
 #endif /* _NET_IF_GIF_H_ */
