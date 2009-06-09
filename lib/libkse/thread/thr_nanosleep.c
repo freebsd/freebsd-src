@@ -28,10 +28,16 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <stdio.h>
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	__nanosleep(const struct timespec *time_to_sleep,
+	    struct timespec *time_remaining);
 
 LT10_COMPAT_PRIVATE(__nanosleep);
 LT10_COMPAT_PRIVATE(_nanosleep);

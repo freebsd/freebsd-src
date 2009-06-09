@@ -29,13 +29,18 @@
  * $FreeBSD$
  *
  */
+
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+ssize_t	__readv(int fd, const struct iovec *iov, int iovcnt);
 
 LT10_COMPAT_PRIVATE(__readv);
 LT10_COMPAT_DEFAULT(readv);

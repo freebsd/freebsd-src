@@ -38,7 +38,7 @@
  * void atomic_swap_long(long *dst, long val, long *res);
  */
 static __inline void
-atomic_swap_long(long *dst, long val, long *res)
+atomic_swap_long(volatile long *dst, long val, long *res)
 {
 	long tmp;
 	long r;
@@ -54,7 +54,7 @@ atomic_swap_long(long *dst, long val, long *res)
 }
 
 static __inline void
-atomic_swap_int(int *dst, int val, int *res)
+atomic_swap_int(volatile int *dst, int val, int *res)
 {
 	int tmp;
 	int r;
@@ -70,6 +70,6 @@ atomic_swap_int(int *dst, int val, int *res)
 }
 
 #define	atomic_swap_ptr(dst, val, res) \
-	atomic_swap_long((long *)dst, (long)val, (long *)res)
+	atomic_swap_long((volatile long *)dst, (long)val, (long *)res)
 
 #endif

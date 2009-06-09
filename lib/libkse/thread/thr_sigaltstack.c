@@ -27,9 +27,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <errno.h>
 #include <signal.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	_sigaltstack(stack_t *_ss, stack_t *_oss);
 
 LT10_COMPAT_PRIVATE(_sigaltstack);
 LT10_COMPAT_DEFAULT(sigaltstack);

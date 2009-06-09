@@ -28,9 +28,15 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	_pthread_resume_np(pthread_t thread);
+void	_pthread_resume_all_np(void);
 
 static struct kse_mailbox *resume_common(struct pthread *);
 

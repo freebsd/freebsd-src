@@ -28,12 +28,15 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 #if defined(_PTHREADS_INVARIANTS)
@@ -73,7 +76,7 @@
  */
 static struct kse_mailbox *mutex_handoff(struct pthread *,
 			    struct pthread_mutex *);
-static inline int	mutex_self_trylock(struct pthread *, pthread_mutex_t);
+static inline int	mutex_self_trylock(pthread_mutex_t);
 static inline int	mutex_self_lock(struct pthread *, pthread_mutex_t);
 static int		mutex_unlock_common(pthread_mutex_t *, int);
 static void		mutex_priority_adjust(struct pthread *, pthread_mutex_t);
@@ -83,6 +86,16 @@ static inline pthread_t	mutex_queue_deq(pthread_mutex_t);
 static inline void	mutex_queue_remove(pthread_mutex_t, pthread_t);
 static inline void	mutex_queue_enq(pthread_mutex_t, pthread_t);
 static void		mutex_lock_backout(void *arg);
+
+int	__pthread_mutex_init(pthread_mutex_t *mutex,
+	    const pthread_mutexattr_t *mutex_attr);
+int	__pthread_mutex_trylock(pthread_mutex_t *mutex);
+int	__pthread_mutex_lock(pthread_mutex_t *m);
+int	__pthread_mutex_timedlock(pthread_mutex_t *m,
+	    const struct timespec *abs_timeout);
+int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
+	    void *(calloc_cb)(size_t, size_t));
+
 
 static struct pthread_mutex_attr	static_mutex_attr =
     PTHREAD_MUTEXATTR_STATIC_INITIALIZER;
@@ -328,7 +341,7 @@ init_static(struct pthread *thread, pthread_mutex_t *mutex)
 	THR_LOCK_ACQUIRE(thread, &_mutex_static_lock);
 
 	if (*mutex == NULL)
-		ret = pthread_mutex_init(mutex, NULL);
+		ret = _pthread_mutex_init(mutex, NULL);
 	else
 		ret = 0;
 
@@ -345,7 +358,7 @@ init_static_private(struct pthread *thread, pthread_mutex_t *mutex)
 	THR_LOCK_ACQUIRE(thread, &_mutex_static_lock);
 
 	if (*mutex == NULL)
-		ret = pthread_mutex_init(mutex, &static_mattr);
+		ret = _pthread_mutex_init(mutex, &static_mattr);
 	else
 		ret = 0;
 
@@ -391,7 +404,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 			TAILQ_INSERT_TAIL(&curthread->mutexq,
 			    (*mutex), m_qe);
 		} else if ((*mutex)->m_owner == curthread)
-			ret = mutex_self_trylock(curthread, *mutex);
+			ret = mutex_self_trylock(*mutex);
 		else
 			/* Return a busy error: */
 			ret = EBUSY;
@@ -423,7 +436,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 			TAILQ_INSERT_TAIL(&curthread->mutexq,
 			    (*mutex), m_qe);
 		} else if ((*mutex)->m_owner == curthread)
-			ret = mutex_self_trylock(curthread, *mutex);
+			ret = mutex_self_trylock(*mutex);
 		else
 			/* Return a busy error: */
 			ret = EBUSY;
@@ -460,7 +473,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 			TAILQ_INSERT_TAIL(&curthread->mutexq,
 			    (*mutex), m_qe);
 		} else if ((*mutex)->m_owner == curthread)
-			ret = mutex_self_trylock(curthread, *mutex);
+			ret = mutex_self_trylock(*mutex);
 		else
 			/* Return a busy error: */
 			ret = EBUSY;
@@ -987,7 +1000,7 @@ _mutex_cv_lock(pthread_mutex_t *m)
 }
 
 static inline int
-mutex_self_trylock(struct pthread *curthread, pthread_mutex_t m)
+mutex_self_trylock(pthread_mutex_t m)
 {
 	int	ret = 0;
 
@@ -1601,7 +1614,7 @@ _mutex_unlock_private(pthread_t pthread)
 	for (m = TAILQ_FIRST(&pthread->mutexq); m != NULL; m = m_next) {
 		m_next = TAILQ_NEXT(m, m_qe);
 		if ((m->m_flags & MUTEX_FLAGS_PRIVATE) != 0)
-			pthread_mutex_unlock(&m);
+			_pthread_mutex_unlock(&m);
 	}
 }
 

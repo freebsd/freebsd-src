@@ -28,6 +28,7 @@
  *
  * $FreeBSD$
  */
+
 #include "namespace.h"
 #include <pthread.h>
 #include "un-namespace.h"

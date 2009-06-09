@@ -28,8 +28,11 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_join);
@@ -143,7 +146,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 					THR_SCHED_UNLOCK(curthread, pthread);
 					_thr_ref_delete(curthread, pthread);
 				}
-				pthread_exit(PTHREAD_CANCELED);
+				_pthread_exit(PTHREAD_CANCELED);
 			}
 
 			/*

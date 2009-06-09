@@ -29,9 +29,13 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <stdlib.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	_system(const char *string);
 
 extern int __system(const char *);
 

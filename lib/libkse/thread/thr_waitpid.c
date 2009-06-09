@@ -39,6 +39,8 @@ LT10_COMPAT_DEFAULT(waitpid);
 
 extern int __waitpid(pid_t, int *, int);
 
+pid_t _waitpid(pid_t wpid, int *status, int options);
+
 __weak_reference(_waitpid, waitpid);
 
 pid_t
@@ -51,5 +53,5 @@ _waitpid(pid_t wpid, int *status, int options)
 	ret = __waitpid(wpid, status, options);
 	_thr_cancel_leave(curthread, 1);
 	
-	return ret;
+	return (ret);
 }

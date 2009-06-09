@@ -370,8 +370,8 @@ init_main_thread(struct pthread *thread)
 	 * resource limits, so this stack needs an explicitly mapped
 	 * red zone to protect the thread stack that is just beyond.
 	 */
-	if (mmap((void *)_usrstack - _thr_stack_initial -
-	    _thr_guard_default, _thr_guard_default, 0, MAP_ANON,
+	if (mmap((void *)((uintptr_t)_usrstack - _thr_stack_initial -
+	    _thr_guard_default), _thr_guard_default, 0, MAP_ANON,
 	    -1, 0) == MAP_FAILED)
 		PANIC("Cannot allocate red zone for initial thread");
 
@@ -384,7 +384,8 @@ init_main_thread(struct pthread *thread)
 	 *       actually free() it; it just puts it in the free
 	 *       stack queue for later reuse.
 	 */
-	thread->attr.stackaddr_attr = (void *)_usrstack - _thr_stack_initial;
+	thread->attr.stackaddr_attr = (void *)((uintptr_t)_usrstack -
+	     _thr_stack_initial);
 	thread->attr.stacksize_attr = _thr_stack_initial;
 	thread->attr.guardsize_attr = _thr_guard_default;
 	thread->attr.flags |= THR_STACK_USER;

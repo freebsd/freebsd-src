@@ -29,9 +29,13 @@
  * $FreeBSD$
  */
 
-#include <pthread.h>
+#include "namespace.h"
 #include <errno.h>
+#include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	_raise(int sig);
 
 LT10_COMPAT_PRIVATE(_raise);
 LT10_COMPAT_DEFAULT(raise);
@@ -46,7 +50,7 @@ _raise(int sig)
 	if (!_kse_isthreaded())
 		ret = kill(getpid(), sig);
 	else {
-		ret = pthread_kill(pthread_self(), sig);
+		ret = _pthread_kill(_pthread_self(), sig);
 		if (ret != 0) {
 			errno = ret;
 			ret = -1;
