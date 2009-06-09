@@ -2726,14 +2726,16 @@ nfs_advlock(struct vop_advlock_args *ap)
 	struct proc *p = (struct proc *)ap->a_id;
 	struct thread *td = curthread;	/* XXX */
 	struct vattr va;
-	int ret, error = EOPNOTSUPP, vlret;
+	int ret, error = EOPNOTSUPP;
 	u_quad_t size;
 	
 	if (NFS_ISV4(vp) && (ap->a_flags & F_POSIX)) {
 		cred = p->p_ucred;
-		vlret = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		if (vlret)
-			return (vlret);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if (vp->v_iflag & VI_DOOMED) {
+			VOP_UNLOCK(vp, 0);
+			return (EBADF);
+		}
 
 		/*
 		 * If this is unlocking a write locked region, flush and
@@ -2757,9 +2759,11 @@ nfs_advlock(struct vop_advlock_args *ap)
 				error = nfs_catnap(PZERO | PCATCH, "ncladvl");
 				if (error)
 					return (EINTR);
-				vlret = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-				if (vlret)
-					return (vlret);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+				if (vp->v_iflag & VI_DOOMED) {
+					VOP_UNLOCK(vp, 0);
+					return (EBADF);
+				}
 			}
 		} while (ret == NFSERR_DENIED && (ap->a_flags & F_WAIT) &&
 		     ap->a_op == F_SETLK);
