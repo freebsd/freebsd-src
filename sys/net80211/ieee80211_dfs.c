@@ -69,8 +69,8 @@ ieee80211_dfs_attach(struct ieee80211com *ic)
 {
 	struct ieee80211_dfs_state *dfs = &ic->ic_dfs;
 
-	callout_init(&dfs->nol_timer, CALLOUT_MPSAFE);
-	callout_init(&dfs->cac_timer, CALLOUT_MPSAFE);
+	callout_init_mtx(&dfs->nol_timer, IEEE80211_LOCK_OBJ(ic), 0);
+	callout_init_mtx(&dfs->cac_timer, IEEE80211_LOCK_OBJ(ic), 0);
 }
 
 void
@@ -102,6 +102,8 @@ cac_timeout(void *arg)
 	struct ieee80211_dfs_state *dfs = &ic->ic_dfs;
 	int i;
 
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (vap->iv_state != IEEE80211_S_CAC)	/* NB: just in case */
 		return;
 	/*
@@ -120,6 +122,7 @@ cac_timeout(void *arg)
 		/* XXX clobbers any existing desired channel */
 		/* NB: dfs->newchan may be NULL, that's ok */
 		vap->iv_des_chan = dfs->newchan;
+		/* XXX recursive lock need ieee80211_new_state_locked */
 		ieee80211_new_state(vap, IEEE80211_S_SCAN, 0);
 	} else {
 		if_printf(vap->iv_ifp,
@@ -180,7 +183,6 @@ ieee80211_dfs_cac_stop(struct ieee80211vap *vap)
 		ieee80211_notify_cac(ic, ic->ic_curchan,
 		    IEEE80211_NOTIFY_CAC_STOP);
 	}
-	/* XXX cannot use drain 'cuz holding a lock */
 	callout_stop(&dfs->cac_timer);
 }
 
@@ -205,7 +207,8 @@ dfs_timeout(void *arg)
 	struct ieee80211_channel *c;
 	int i, oldest, now;
 
-	IEEE80211_LOCK(ic);
+	IEEE80211_LOCK_ASSERT(ic);
+
 	now = oldest = ticks;
 	for (i = 0; i < ic->ic_nchans; i++) {
 		c = &ic->ic_channels[i];
@@ -234,7 +237,6 @@ dfs_timeout(void *arg)
 		/* arrange to process next channel up for a status change */
 		callout_schedule(&dfs->nol_timer, oldest + NOL_TIMEOUT);
 	}
-	IEEE80211_UNLOCK(ic);
 }
 
 static void
