@@ -150,7 +150,7 @@ ctl_show(int argc, char **argv)
 {
 	struct ng_mesg *ng_mesg;
 	struct ngnf_flows *data;
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 	int token, nread, last = 0;
 	int verbose = 0;
 
