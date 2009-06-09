@@ -202,7 +202,7 @@ ixp435_irq_read(void)
 }
 
 int
-arm_get_next_irq(void)
+arm_get_next_irq(int last __unused)
 {
 	uint32_t irq;
 
