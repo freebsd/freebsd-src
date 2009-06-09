@@ -243,7 +243,6 @@ static void	dummynet_flush(void);
 static void	dummynet_send(struct mbuf *);
 void		dummynet_drain(void);
 static int	dummynet_io(struct mbuf **, int , struct ip_fw_args *);
-static void	dn_rule_delete(void *);
 
 /*
  * Heap management functions.
@@ -1399,6 +1398,8 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	 * Build and enqueue packet + parameters.
 	 */
 	pkt->rule = fwa->rule;
+	pkt->rule_id = fwa->rule_id;
+	pkt->chain_id = fwa->chain_id;
 	pkt->dn_dir = dir;
 
 	pkt->ifp = fwa->oif;
@@ -1620,60 +1621,6 @@ dummynet_flush(void)
 			free_pipe(pipe);
 		}
 	DUMMYNET_UNLOCK();
-}
-
-extern struct ip_fw *ip_fw_default_rule ;
-static void
-dn_rule_delete_fs(struct dn_flow_set *fs, void *r)
-{
-    int i ;
-    struct dn_flow_queue *q ;
-    struct mbuf *m ;
-
-    for (i = 0 ; i <= fs->rq_size ; i++) /* last one is ovflow */
-	for (q = fs->rq[i] ; q ; q = q->next )
-	    for (m = q->head ; m ; m = m->m_nextpkt ) {
-		struct dn_pkt_tag *pkt = dn_tag_get(m) ;
-		if (pkt->rule == r)
-		    pkt->rule = ip_fw_default_rule ;
-	    }
-}
-
-/*
- * When a firewall rule is deleted, scan all queues and remove the pointer
- * to the rule from matching packets, making them point to the default rule.
- * The pointer is used to reinject packets in case one_pass = 0.
- */
-void
-dn_rule_delete(void *r)
-{
-    struct dn_pipe *pipe;
-    struct dn_flow_set *fs;
-    struct dn_pkt_tag *pkt;
-    struct mbuf *m;
-    int i;
-
-    DUMMYNET_LOCK();
-    /*
-     * If the rule references a queue (dn_flow_set), then scan
-     * the flow set, otherwise scan pipes. Should do either, but doing
-     * both does not harm.
-     */
-    for (i = 0; i < HASHSIZE; i++)
-	SLIST_FOREACH(fs, &flowsethash[i], next)
-		dn_rule_delete_fs(fs, r);
-
-    for (i = 0; i < HASHSIZE; i++)
-	SLIST_FOREACH(pipe, &pipehash[i], next) {
-		fs = &(pipe->fs);
-		dn_rule_delete_fs(fs, r);
-		for (m = pipe->head ; m ; m = m->m_nextpkt ) {
-			pkt = dn_tag_get(m);
-			if (pkt->rule == r)
-				pkt->rule = ip_fw_default_rule;
-		}
-	}
-    DUMMYNET_UNLOCK();
 }
 
 /*
@@ -2299,7 +2246,6 @@ ip_dn_init(void)
 
 	ip_dn_ctl_ptr = ip_dn_ctl;
 	ip_dn_io_ptr = dummynet_io;
-	ip_dn_ruledel_ptr = dn_rule_delete;
 
 	TASK_INIT(&dn_task, 0, dummynet_task, NULL);
 	dn_tq = taskqueue_create_fast("dummynet", M_NOWAIT,
@@ -2319,7 +2265,6 @@ ip_dn_destroy(void)
 {
 	ip_dn_ctl_ptr = NULL;
 	ip_dn_io_ptr = NULL;
-	ip_dn_ruledel_ptr = NULL;
 
 	DUMMYNET_LOCK();
 	callout_stop(&dn_timeout);

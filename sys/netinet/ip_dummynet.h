@@ -113,6 +113,8 @@ struct dn_heap {
  */
 struct dn_pkt_tag {
     struct ip_fw *rule;		/* matching rule */
+    uint32_t rule_id;		/* matching rule id */
+    uint32_t chain_id;		/* ruleset id */
     int dn_dir;			/* action when packet comes out. */
 #define DN_TO_IP_OUT	1
 #define DN_TO_IP_IN	2
@@ -375,16 +377,16 @@ SLIST_HEAD(dn_pipe_head, dn_pipe);
 #ifdef _KERNEL
 
 /*
- * Return the IPFW rule associated with the dummynet tag; if any.
+ * Return the dummynet tag; if any.
  * Make sure that the dummynet tag is not reused by lower layers.
  */
-static __inline struct ip_fw *
-ip_dn_claim_rule(struct mbuf *m)
+static __inline struct dn_pkt_tag *
+ip_dn_claim_tag(struct mbuf *m)
 {
 	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DUMMYNET, NULL);
 	if (mtag != NULL) {
 		mtag->m_tag_id = PACKET_TAG_NONE;
-		return (((struct dn_pkt_tag *)(mtag+1))->rule);
+		return ((struct dn_pkt_tag *)(mtag + 1));
 	} else
 		return (NULL);
 }
