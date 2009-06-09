@@ -25,12 +25,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/cpuset.h>
+#include <sys/mac.h>
+#include <sys/resource.h>
+#include <sys/rtprio.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/mac.h>
-#include <sys/rtprio.h>
+
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <login_cap.h>
@@ -89,7 +93,7 @@ setclassresources(login_cap_t *lc)
 	if (getrlimit(lr->why, &rlim) != 0)
 	    syslog(LOG_ERR, "getting %s resource limit: %m", lr->what);
 	else {
-	    char  	name_cur[40];
+	    char	name_cur[40];
 	    char	name_max[40];
 	    rlim_t	rcur = rlim.rlim_cur;
 	    rlim_t	rmax = rlim.rlim_max;
@@ -101,7 +105,7 @@ setclassresources(login_cap_t *lc)
 	    rmax = (*lr->who)(lc, lr->what, rmax, rmax);
 	    rlim.rlim_cur = (*lr->who)(lc, name_cur, rcur, rcur);
 	    rlim.rlim_max = (*lr->who)(lc, name_max, rmax, rmax);
-    
+
 	    if (setrlimit(lr->why, &rlim) == -1)
 		syslog(LOG_WARNING, "set class '%s' resource limit %s: %m", lc->lc_class, lr->what);
 	}
@@ -181,7 +185,7 @@ substvar(const char * var, const struct passwd * pwd, int hlen, int pch, int nle
 	}
     }
 
-    return np;
+    return (np);
 }
 
 
@@ -238,6 +242,108 @@ setclassenvironment(login_cap_t *lc, const struct passwd * pwd, int paths)
 }
 
 
+static int
+list2cpuset(const char *list, cpuset_t *mask)
+{
+	enum { NONE, NUM, DASH } state;
+	int lastnum;
+	int curnum;
+	const char *l;
+
+	state = NONE;
+	curnum = lastnum = 0;
+	for (l = list; *l != '\0';) {
+		if (isdigit(*l)) {
+			curnum = atoi(l);
+			if (curnum > CPU_SETSIZE)
+				errx(EXIT_FAILURE,
+				    "Only %d cpus supported", CPU_SETSIZE);
+			while (isdigit(*l))
+				l++;
+			switch (state) {
+			case NONE:
+				lastnum = curnum;
+				state = NUM;
+				break;
+			case DASH:
+				for (; lastnum <= curnum; lastnum++)
+					CPU_SET(lastnum, mask);
+				state = NONE;
+				break;
+			case NUM:
+			default:
+				return (0);
+			}
+			continue;
+		}
+		switch (*l) {
+		case ',':
+			switch (state) {
+			case NONE:
+				break;
+			case NUM:
+				CPU_SET(curnum, mask);
+				state = NONE;
+				break;
+			case DASH:
+				return (0);
+				break;
+			}
+			break;
+		case '-':
+			if (state != NUM)
+				return (0);
+			state = DASH;
+			break;
+		default:
+			return (0);
+		}
+		l++;
+	}
+	switch (state) {
+		case NONE:
+			break;
+		case NUM:
+			CPU_SET(curnum, mask);
+			break;
+		case DASH:
+			return (0);
+	}
+	return (1);
+}
+
+
+void
+setclasscpumask(login_cap_t *lc)
+{
+	const char *maskstr;
+	cpuset_t maskset;
+	cpusetid_t setid;
+
+	maskstr = login_getcapstr(lc, "cpumask", NULL, NULL);
+	CPU_ZERO(&maskset);
+	if (maskstr == NULL)
+		return;
+	if (strcasecmp("default", maskstr) == 0)
+		return;
+	if (!list2cpuset(maskstr, &maskset)) {
+		syslog(LOG_WARNING,
+		    "list2cpuset(%s) invalid mask specification", maskstr);
+		return;
+	}
+
+	if (cpuset(&setid) != 0) {
+		syslog(LOG_ERR, "cpuset(): %s", strerror(errno));
+		return;
+	}
+
+	if (cpuset_setaffinity(CPU_LEVEL_CPUSET, CPU_WHICH_PID, -1,
+	    sizeof(maskset), &maskset) != 0)
+		syslog(LOG_ERR, "cpuset_setaffinity(%s): %s", maskstr,
+		    strerror(errno));
+}
+
+
 /*
  * setclasscontext()
  *
@@ -262,7 +368,7 @@ setclasscontext(const char *classname, unsigned int flags)
 
     rc = lc ? setusercontext(lc, NULL, 0, flags) : -1;
     login_close(lc);
-    return rc;
+    return (rc);
 }
 
 
@@ -288,8 +394,11 @@ setlogincontext(login_cap_t *lc, const struct passwd *pwd,
 	/* Set environment */
 	if (flags & LOGIN_SETENV)
 	    setclassenvironment(lc, pwd, 0);
+	/* Set cpu affinity */
+	if (flags & LOGIN_SETCPUMASK)
+	    setclasscpumask(lc);
     }
-    return mymask;
+    return (mymask);
 }
 
 
@@ -359,13 +468,13 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	if (setgid(pwd->pw_gid) != 0) {
 	    syslog(LOG_ERR, "setgid(%lu): %m", (u_long)pwd->pw_gid);
 	    login_close(llc);
-	    return -1;
+	    return (-1);
 	}
 	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1) {
 	    syslog(LOG_ERR, "initgroups(%s,%lu): %m", pwd->pw_name,
 		   (u_long)pwd->pw_gid);
 	    login_close(llc);
-	    return -1;
+	    return (-1);
 	}
     }
 
@@ -379,7 +488,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	    if (mac_from_text(&label, label_string) == -1) {
 		syslog(LOG_ERR, "mac_from_text('%s') for %s: %m",
 		    pwd->pw_name, label_string);
-		    return -1;
+		return (-1);
 	    }
 	    if (mac_set_proc(label) == -1)
 		error = errno;
@@ -389,7 +498,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	    if (error != 0) {
 		syslog(LOG_ERR, "mac_set_proc('%s') for %s: %s",
 		    label_string, pwd->pw_name, strerror(error));
-		return -1;
+		return (-1);
 	    }
 	}
     }
@@ -398,7 +507,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     if ((flags & LOGIN_SETLOGIN) && setlogin(pwd->pw_name) != 0) {
 	syslog(LOG_ERR, "setlogin(%s): %m", pwd->pw_name);
 	login_close(llc);
-	return -1;
+	return (-1);
     }
 
     mymask = (flags & LOGIN_SETUMASK) ? umask(LOGIN_DEFUMASK) : 0;
@@ -408,7 +517,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     /* This needs to be done after anything that needs root privs */
     if ((flags & LOGIN_SETUSER) && setuid(uid) != 0) {
 	syslog(LOG_ERR, "setuid(%lu): %m", (u_long)uid);
-	return -1;	/* Paranoia again */
+	return (-1);	/* Paranoia again */
     }
 
     /*
@@ -423,6 +532,5 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     if (flags & LOGIN_SETUMASK)
 	umask(mymask);
 
-    return 0;
+    return (0);
 }
-
