@@ -165,7 +165,7 @@ static char *pr_allow_nonames[] = {
 static unsigned jail_default_allow = JAIL_DEFAULT_ALLOW;
 static int jail_default_enforce_statfs = 2;
 #if defined(INET) || defined(INET6)
-static int jail_max_af_ips = 255;
+static unsigned jail_max_af_ips = 255;
 #endif
 
 #ifdef INET
@@ -273,11 +273,19 @@ jail(struct thread *td, struct jail_args *uap)
 int
 kern_jail(struct thread *td, struct jail *j)
 {
-	struct iovec optiov[24];
+	struct iovec optiov[2 * (4
+			    + sizeof(pr_allow_names) / sizeof(pr_allow_names[0])
+#ifdef INET
+			    + 1
+#endif
+#ifdef INET6
+			    + 1
+#endif
+			    )];
 	struct uio opt;
 	char *u_path, *u_hostname, *u_name;
 #ifdef INET
-	int ip4s;
+	uint32_t ip4s;
 	struct in_addr *u_ip4;
 #endif
 #ifdef INET6
@@ -3671,7 +3679,7 @@ SYSCTL_PROC(_security_jail, OID_AUTO, jailed,
     sysctl_jail_jailed, "I", "Process in jail?");
 
 #if defined(INET) || defined(INET6)
-SYSCTL_INT(_security_jail, OID_AUTO, jail_max_af_ips, CTLFLAG_RW,
+SYSCTL_UINT(_security_jail, OID_AUTO, jail_max_af_ips, CTLFLAG_RW,
     &jail_max_af_ips, 0,
     "Number of IP addresses a jail may have at most per address family");
 #endif
