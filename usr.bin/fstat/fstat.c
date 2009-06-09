@@ -525,6 +525,11 @@ vtrans(struct vnode *vp, int i, int flag)
 		} else if (!strcmp("isofs", tagstr)) {
 			if (!isofs_filestat(&vn, &fst))
 				badtype = "error";
+#ifdef ZFS
+		} else if (!strcmp("zfs", tagstr)) {
+			if (!zfs_filestat(&vn, &fst))
+				badtype = "error";
+#endif
 		} else {
 			static char unknown[32];
 			snprintf(unknown, sizeof unknown, "?(%s)", tagstr);
@@ -938,6 +943,20 @@ getfname(const char *filename)
 	cur->name = filename;
 	return(1);
 }
+
+#ifdef ZFS
+void *
+getvnodedata(struct vnode *vp)
+{
+	return (vp->v_data);
+}
+
+struct mount *
+getvnodemount(struct vnode *vp)
+{
+	return (vp->v_mount);
+}
+#endif
 
 void
 usage(void)
