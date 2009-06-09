@@ -1475,7 +1475,7 @@ ufs_mkdir(ap)
 				refcount_init(&ucred.cr_ref, 1);
 				ucred.cr_uid = ip->i_uid;
 				ucred.cr_ngroups = 1;
-				ucred.cr_gid = dp->i_gid;
+				ucred.cr_groups[0] = dp->i_gid;
 				ucp = &ucred;
 			}
 #endif
@@ -2294,7 +2294,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			ucred.cr_uid = ip->i_uid;
 			ucred.cr_ngroups = 1;
 			ucred.cr_groups = &ucred_group;
-			ucred.cr_gid = pdir->i_gid;
+			ucred.cr_groups[0] = pdir->i_gid;
 			ucp = &ucred;
 #endif
 		} else {

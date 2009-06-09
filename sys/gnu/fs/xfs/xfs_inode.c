@@ -1124,7 +1124,7 @@ xfs_ialloc(
 	ip->i_d.di_nlink = nlink;
 	ASSERT(ip->i_d.di_nlink == nlink);
 	ip->i_d.di_uid = curthread->td_ucred->cr_uid;
-	ip->i_d.di_gid = curthread->td_ucred->cr_gid;
+	ip->i_d.di_gid = curthread->td_ucred->cr_groups[0];
 	ip->i_d.di_projid = prid;
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 

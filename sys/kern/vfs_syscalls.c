@@ -2128,7 +2128,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		cred = td->td_ucred;
 		tmpcred = crdup(cred);
 		tmpcred->cr_uid = cred->cr_ruid;
-		tmpcred->cr_gid = cred->cr_rgid;
+		tmpcred->cr_groups[0] = cred->cr_rgid;
 		td->td_ucred = tmpcred;
 	} else
 		cred = tmpcred = td->td_ucred;
