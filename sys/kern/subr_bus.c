@@ -999,7 +999,7 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
  * @param dc		the devclass to edit
  * @param driver	the driver to register
  */
-int
+static int
 devclass_add_driver(devclass_t dc, driver_t *driver, int pass)
 {
 	driverlink_t dl;
@@ -1052,7 +1052,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass)
  * @param dc		the devclass to edit
  * @param driver	the driver to unregister
  */
-int
+static int
 devclass_delete_driver(devclass_t busclass, driver_t *driver)
 {
 	devclass_t dc = devclass_find(driver->name);
@@ -1127,7 +1127,7 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
  * @param dc		the devclass to edit
  * @param driver	the driver to unregister
  */
-int
+static int
 devclass_quiesce_driver(devclass_t busclass, driver_t *driver)
 {
 	devclass_t dc = devclass_find(driver->name);
@@ -1208,7 +1208,7 @@ devclass_find_driver_internal(devclass_t dc, const char *classname)
  * @param dc		the devclass to search
  * @param classname	the driver name to search for
  */
-kobj_class_t
+static kobj_class_t
 devclass_find_driver(devclass_t dc, const char *classname)
 {
 	driverlink_t dl;
