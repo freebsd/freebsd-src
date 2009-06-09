@@ -57,7 +57,6 @@ MAN=	accept_filter.9 \
 	DECLARE_MODULE.9 \
 	DELAY.9 \
 	devclass.9 \
-	devclass_add_driver.9 \
 	devclass_find.9 \
 	devclass_get_device.9 \
 	devclass_get_devices.9 \
@@ -555,8 +554,6 @@ MLINKS+=crypto.9 crypto_dispatch.9 \
 	crypto.9 crypto_unregister_all.9
 MLINKS+=DB_COMMAND.9 DB_SHOW_COMMAND.9 \
 	DB_COMMAND.9 DB_SHOW_ALL_COMMAND.9
-MLINKS+=devclass_add_driver.9 devclass_delete_driver.9 \
-	devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=dev_clone.9 drain_dev_clone_events.9
 MLINKS+=devfs_set_cdevpriv.9 devfs_get_cdevpriv.9 \
 	devfs_set_cdevpriv.9 devfs_clear_cdevpriv.9
