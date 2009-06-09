@@ -1231,6 +1231,70 @@ cpu_idle_acpi(int busy)
 		__asm __volatile("sti; hlt");
 }
 
+static int cpu_ident_amdc1e = 0;
+
+static int
+cpu_probe_amdc1e(void)
+{ 
+#ifdef DEV_APIC
+	int i;
+
+	/*
+	 * Forget it, if we're not using local APIC timer.
+	 */
+	if (resource_disabled("apic", 0) ||
+	    (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0))
+		return (0);
+
+	/*
+	 * Detect the presence of C1E capability mostly on latest
+	 * dual-cores (or future) k8 family.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    (cpu_id & 0x00000f00) == 0x00000f00 &&
+	    (cpu_id & 0x0fff0000) >=  0x00040000) {
+		cpu_ident_amdc1e = 1;
+		return (1);
+	}
+#endif
+	return (0);
+}
+
+/*
+ * C1E renders the local APIC timer dead, so we disable it by
+ * reading the Interrupt Pending Message register and clearing
+ * both C1eOnCmpHalt (bit 28) and SmiOnCmpHalt (bit 27).
+ * 
+ * Reference:
+ *   "BIOS and Kernel Developer's Guide for AMD NPT Family 0Fh Processors"
+ *   #32559 revision 3.00+
+ */
+#define	MSR_AMDK8_IPM		0xc0010055
+#define	AMDK8_SMIONCMPHALT	(1ULL << 27)
+#define	AMDK8_C1EONCMPHALT	(1ULL << 28)
+#define	AMDK8_CMPHALT		(AMDK8_SMIONCMPHALT | AMDK8_C1EONCMPHALT)
+
+static void
+cpu_idle_amdc1e(int busy)
+{
+
+	disable_intr();
+	if (sched_runnable())
+		enable_intr();
+	else {
+		uint64_t msr;
+
+		msr = rdmsr(MSR_AMDK8_IPM);
+		if (msr & AMDK8_CMPHALT)
+			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
+
+		if (cpu_idle_hook)
+			cpu_idle_hook();
+		else
+			__asm __volatile("sti; hlt");
+	}
+}
+
 static void
 cpu_idle_spin(int busy)
 {
@@ -1332,6 +1396,7 @@ struct {
 	{ cpu_idle_spin, "spin" },
 	{ cpu_idle_mwait, "mwait" },
 	{ cpu_idle_mwait_hlt, "mwait_hlt" },
+	{ cpu_idle_amdc1e, "amdc1e" },
 	{ cpu_idle_hlt, "hlt" },
 	{ cpu_idle_acpi, "acpi" },
 	{ NULL, NULL }
@@ -1349,6 +1414,9 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
+			continue;
+		if (strcmp(idle_tbl[i].id_name, "amdc1e") == 0 &&
+		    cpu_ident_amdc1e == 0)
 			continue;
 		p += sprintf(p, "%s, ", idle_tbl[i].id_name);
 	}
@@ -1379,6 +1447,9 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
+			continue;
+		if (strcmp(idle_tbl[i].id_name, "amdc1e") == 0 &&
+		    cpu_ident_amdc1e == 0)
 			continue;
 		if (strcmp(idle_tbl[i].id_name, buf))
 			continue;
@@ -2583,6 +2654,9 @@ init386(first)
 	thread0.td_frame = &proc0_tf;
 	thread0.td_pcb->pcb_fsd = PCPU_GET(fsgs_gdt)[0];
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
+
+	if (cpu_probe_amdc1e())
+		cpu_idle_fn = cpu_idle_amdc1e;
 }
 
 #else
@@ -2847,6 +2921,9 @@ init386(first)
 #endif
 	thread0.td_pcb->pcb_ext = 0;
 	thread0.td_frame = &proc0_tf;
+
+	if (cpu_probe_amdc1e())
+		cpu_idle_fn = cpu_idle_amdc1e;
 }
 #endif
 
