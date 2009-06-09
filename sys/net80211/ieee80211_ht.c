@@ -567,7 +567,7 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 		 */
 		return PROCESS;
 	}
-	if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
+	if (IEEE80211_IS_DSTODS(wh))
 		tid = ((struct ieee80211_qosframe_addr4 *)wh)->i_qos[0];
 	else
 		tid = wh->i_qos[0];
