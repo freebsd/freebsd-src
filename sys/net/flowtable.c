@@ -33,7 +33,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef NO_FLOWTABLE
 #include <sys/param.h>  
 #include <sys/types.h>
 #include <sys/bitstring.h>
@@ -188,7 +187,7 @@ static uma_zone_t ipv6_zone;
  * - support explicit connection state (currently only ad-hoc for DSR)
  */
 SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL, "flowtable");
-int	flowtable_enable = 0;
+int	flowtable_enable = 1;
 SYSCTL_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,
     &flowtable_enable, 0, "enable flowtable caching.");
 static int flowtable_hits = 0;
@@ -930,4 +929,4 @@ static struct kproc_desc flow_kp = {
 	&flowcleanerproc
 };
 SYSINIT(flowcleaner, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &flow_kp);
-#endif /* NO_FLOWTABLE */
+

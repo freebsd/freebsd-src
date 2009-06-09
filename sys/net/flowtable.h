@@ -41,7 +41,7 @@ struct flowtable;
 extern struct flowtable *ip_ft;
 extern struct flowtable *ip_forward_ft;
 
-#ifndef NO_FLOWTABLE
+#ifdef FLOWTABLE
 struct flowtable *flowtable_alloc(int nentry, int flags);
 
 /*
