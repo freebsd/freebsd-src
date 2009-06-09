@@ -72,6 +72,7 @@ options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
+options		FLOWTABLE		# per-cpu routing cache
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 
 # Debugging for use in -current
