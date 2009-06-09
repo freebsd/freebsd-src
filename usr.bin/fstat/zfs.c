@@ -58,7 +58,7 @@
  * definition.
  */
 #define LOCATION_ZID (2 * sizeof(void *))
-#define LOCATION_ZPHYS(zsize) ((zsize) - (2 * sizeof(void *) - sizeof(struct task)))
+#define LOCATION_ZPHYS(zsize) ((zsize) - (2 * sizeof(void *) + sizeof(struct task)))
 
 int
 zfs_filestat(struct vnode *vp, struct filestat *fsp)
