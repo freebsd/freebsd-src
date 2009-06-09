@@ -35,12 +35,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <stdlib.h>
-#include <stdio.h>
 #include "namespace.h"
 #include <err.h>
 #include "un-namespace.h"
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 int
@@ -56,12 +56,11 @@ initgroups(uname, agroup)
 	 * setgroups to fail and set errno.
 	 */
 	ngroups = sysconf(_SC_NGROUPS_MAX) + 1;
-	groups = malloc(sizeof(gid_t)*ngroups);
-	if (groups == NULL)
-		return (ENOSPC);
+	if ((groups = malloc(sizeof(*groups) * ngroups)) == NULL)
+		return (ENOMEM);
 
 	getgrouplist(uname, agroup, groups, &ngroups);
 	ret = setgroups(ngroups, groups);
 	free(groups);
-	return(ret);
+	return (ret);
 }
