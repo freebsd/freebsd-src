@@ -137,7 +137,7 @@ static devclass_t mv_ic_devclass;
 DRIVER_MODULE(ic, mbus, mv_ic_driver, mv_ic_devclass, 0, 0);
 
 int
-arm_get_next_irq(void)
+arm_get_next_irq(int last __unused)
 {
 	int irq;
 
