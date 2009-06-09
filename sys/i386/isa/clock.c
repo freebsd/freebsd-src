@@ -108,6 +108,9 @@ static	int	i8254_ticked;
 static	int	using_atrtc_timer;
 static	int	using_lapic_timer;
 
+static	u_int	stat_ticks = 0;
+static	u_int	prof_ticks = 0;
+
 /* Values for timerX_state: */
 #define	RELEASED	0
 #define	RELEASE_PENDING	1
@@ -137,8 +140,6 @@ hardclockintr(struct trapframe *frame)
 		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	else
 		hardclock_cpu(TRAPF_USERMODE(frame));
-	if (!using_atrtc_timer)
-		statclockintr(frame);
 	return (FILTER_HANDLED);
 }
 
@@ -146,8 +147,6 @@ int
 statclockintr(struct trapframe *frame)
 {
 
-	if (profprocs != 0)
-		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	statclock(TRAPF_USERMODE(frame));
 	return (FILTER_HANDLED);
 }
@@ -193,6 +192,30 @@ clkintr(struct trapframe *frame)
 		ipi_all_but_self(IPI_HARDCLOCK);
 #endif 
 	hardclockintr(frame);
+
+	if (!using_atrtc_timer) {
+		prof_ticks += profhz;
+		if (prof_ticks >= hz) {
+			prof_ticks -= hz;
+			if (profprocs != 0) {
+#ifdef SMP
+				if (smp_started)
+					ipi_all_but_self(IPI_PROFCLOCK);
+#endif
+				profclockintr(frame);
+			}
+		}
+		stat_ticks += stathz;
+		if (stat_ticks >= hz) {
+			stat_ticks -= hz;
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_STATCLOCK);
+#endif
+			statclockintr(frame);
+		}
+	}
+
 #ifdef DEV_MCA
 	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
 	if (MCA_system)
@@ -549,7 +572,8 @@ cpu_initclocks()
 			    INTR_TYPE_CLK, NULL);
 			atrtc_enable_intr();
 		} else {
-			profhz = stathz = hz;
+			profhz = min(RTC_PROFRATE, hz);
+			stathz = min(RTC_NOPROFRATE, hz);
 		}
 	}
 
@@ -560,7 +584,7 @@ void
 cpu_startprofclock(void)
 {
 
-	if (using_lapic_timer)
+	if (using_lapic_timer || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_PROF);
 	psdiv = pscnt = psratio;
@@ -570,7 +594,7 @@ void
 cpu_stopprofclock(void)
 {
 
-	if (using_lapic_timer)
+	if (using_lapic_timer || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_NOPROF);
 	psdiv = pscnt = 1;
