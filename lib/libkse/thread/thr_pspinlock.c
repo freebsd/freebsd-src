@@ -26,11 +26,13 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "un-namespace.h"
 
 #include "atomic_ops.h"
 #include "thr_private.h"
@@ -106,7 +108,7 @@ _pthread_spin_trylock(pthread_spinlock_t *lock)
 	else if (lck->s_lock != 0)
 		ret = EBUSY;
 	else {
-		atomic_swap_int((int *)&(lck)->s_lock, 1, &oldval);
+		atomic_swap_int(&(lck)->s_lock, 1, &oldval);
 		if (oldval)
 			ret = EBUSY;
 		else {
@@ -141,7 +143,7 @@ _pthread_spin_lock(pthread_spinlock_t *lock)
 					_pthread_yield();
 				}
 			}
-			atomic_swap_int((int *)&(lck)->s_lock, 1, &oldval);
+			atomic_swap_int(&(lck)->s_lock, 1, &oldval);
 		} while (oldval);
 
 		lck->s_owner = self;
@@ -164,7 +166,7 @@ _pthread_spin_unlock(pthread_spinlock_t *lock)
 			ret = EPERM;
 		else {
 			lck->s_owner = NULL;
-			atomic_swap_int((int *)&lck->s_lock, 0, &ret);
+			atomic_swap_int(&lck->s_lock, 0, &ret);
 			ret = 0;
 		}
 	}

@@ -28,21 +28,25 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <pthread.h>
 #include <pthread_np.h>
-
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_single_np);
 LT10_COMPAT_DEFAULT(pthread_single_np);
 
+int _pthread_single_np(void);
+
 __weak_reference(_pthread_single_np, pthread_single_np);
 
-int _pthread_single_np()
+int _pthread_single_np(void)
 {
 
 	/* Enter single-threaded (non-POSIX) scheduling mode: */
-	pthread_suspend_all_np();
+	_pthread_suspend_all_np();
 	/*
 	 * XXX - Do we want to do this?
 	 * __is_threaded = 0;

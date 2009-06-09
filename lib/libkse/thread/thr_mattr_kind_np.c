@@ -28,8 +28,11 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_mutexattr_setkind_np);
@@ -40,6 +43,9 @@ LT10_COMPAT_PRIVATE(_pthread_mutexattr_gettype);
 LT10_COMPAT_DEFAULT(pthread_mutexattr_gettype);
 LT10_COMPAT_PRIVATE(_pthread_mutexattr_settype);
 LT10_COMPAT_DEFAULT(pthread_mutexattr_settype);
+
+int _pthread_mutexattr_setkind_np(pthread_mutexattr_t *attr, int kind);
+int _pthread_mutexattr_getkind_np(pthread_mutexattr_t attr);
 
 __weak_reference(_pthread_mutexattr_setkind_np, pthread_mutexattr_setkind_np);
 __weak_reference(_pthread_mutexattr_getkind_np, pthread_mutexattr_getkind_np);

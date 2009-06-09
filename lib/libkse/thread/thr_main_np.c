@@ -27,8 +27,10 @@
  *	$FreeBSD$
  */
 
+#include "namespace.h"
 #include <pthread.h>
 #include <pthread_np.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_main_np);
@@ -46,5 +48,5 @@ _pthread_main_np()
 	if (!_thr_initial)
 		return (-1);
 	else
-		return (pthread_equal(pthread_self(), _thr_initial) ? 1 : 0);
+		return (_pthread_equal(_pthread_self(), _thr_initial) ? 1 : 0);
 }

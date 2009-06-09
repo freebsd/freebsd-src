@@ -28,6 +28,8 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <unistd.h>
 #include <errno.h>
 #include <poll.h>
@@ -38,7 +40,11 @@
 #include <sys/time.h>
 #include <sys/fcntl.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	__select(int numfds, fd_set *readfds, fd_set *writefds,
+	    fd_set *exceptfds, struct timeval *timeout);
 
 LT10_COMPAT_PRIVATE(__select);
 LT10_COMPAT_DEFAULT(select);
@@ -55,11 +61,11 @@ __select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 
 	if (numfds == 0 && timeout != NULL) {
 		TIMEVAL_TO_TIMESPEC(timeout, &ts);
-		return nanosleep(&ts, NULL);
+		ret = _nanosleep(&ts, NULL);
 	} else {
 		_thr_cancel_enter(curthread);
 		ret = __sys_select(numfds, readfds, writefds, exceptfds, timeout);
 		_thr_cancel_leave(curthread, 1);
 	}
-	return ret;
+	return (ret);
 }

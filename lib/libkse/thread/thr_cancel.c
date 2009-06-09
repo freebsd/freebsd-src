@@ -2,8 +2,10 @@
  * David Leonard <d@openbsd.org>, 1999. Public domain.
  * $FreeBSD$
  */
+#include "namespace.h"
 #include <sys/errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_cancel);
@@ -53,7 +55,7 @@ testcancel(struct pthread *curthread)
 		THR_THREAD_UNLOCK(curthread, curthread);
 
 		_thr_exit_cleanup();
-		pthread_exit(PTHREAD_CANCELED);
+		_pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
 	}
 }
@@ -214,7 +216,7 @@ _pthread_setcancelstate(int state, int *oldstate)
 	THR_THREAD_UNLOCK(curthread, curthread);
 	if (need_exit != 0) {
 		_thr_exit_cleanup();
-		pthread_exit(PTHREAD_CANCELED);
+		_pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
 	}
 	if (ret == 0 && oldstate != NULL)
@@ -252,7 +254,7 @@ _pthread_setcanceltype(int type, int *oldtype)
 	THR_THREAD_UNLOCK(curthread, curthread);
 	if (need_exit != 0) {
 		_thr_exit_cleanup();
-		pthread_exit(PTHREAD_CANCELED);
+		_pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
 	}
 	if (ret == 0 && oldtype != NULL)
@@ -293,7 +295,7 @@ _thr_cancel_leave(struct pthread *thread, int check)
 }
 
 void
-_thr_finish_cancellation(void *arg)
+_thr_finish_cancellation(void *arg __unused)
 {
 	struct pthread	*curthread = _get_curthread();
 
@@ -305,7 +307,7 @@ _thr_finish_cancellation(void *arg)
 		curthread->cancelflags &= ~THR_CANCEL_NEEDED;
 		THR_THREAD_UNLOCK(curthread, curthread);
 		_thr_exit_cleanup();
-		pthread_exit(PTHREAD_CANCELED);
+		_pthread_exit(PTHREAD_CANCELED);
 	}
 	THR_THREAD_UNLOCK(curthread, curthread);
 }

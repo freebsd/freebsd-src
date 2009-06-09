@@ -26,10 +26,13 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 

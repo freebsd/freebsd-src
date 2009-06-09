@@ -31,13 +31,18 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
 #include <signal.h>
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	_sigpending(sigset_t *set);
 
 LT10_COMPAT_PRIVATE(_sigpending);
 LT10_COMPAT_DEFAULT(sigpending);

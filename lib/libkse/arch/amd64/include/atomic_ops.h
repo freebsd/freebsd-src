@@ -36,7 +36,7 @@
  * void atomic_swap64(intptr_t *dst, intptr_t val, intptr_t *res);
  */
 static inline void
-atomic_swap64(intptr_t *dst, intptr_t val, intptr_t *res)
+atomic_swap64(volatile intptr_t *dst, intptr_t val, intptr_t *res)
 {
 	__asm __volatile(
 	"xchgq %2, %1; movq %2, %0"
@@ -44,7 +44,7 @@ atomic_swap64(intptr_t *dst, intptr_t val, intptr_t *res)
 }
 
 static inline void
-atomic_swap_int(int *dst, int val, int *res)
+atomic_swap_int(volatile int *dst, int val, int *res)
 {
 	__asm __volatile(
 	"xchgl %2, %1; movl %2, %0"
@@ -52,6 +52,6 @@ atomic_swap_int(int *dst, int val, int *res)
 }
 
 #define	atomic_swap_ptr(d, v, r) \
-	atomic_swap64((intptr_t *)(d), (intptr_t)(v), (intptr_t *)(r))
+	atomic_swap64((volatile intptr_t *)(d), (intptr_t)(v), (intptr_t *)(r))
 
 #endif

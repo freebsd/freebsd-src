@@ -33,6 +33,7 @@
  *
  * $FreeBSD$
  */
+#include <errno.h>
 #include <pthread.h>
 #include "libc_private.h"
 #include "thr_private.h"

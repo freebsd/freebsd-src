@@ -28,6 +28,8 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
@@ -37,6 +39,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 /* Prototypes: */
@@ -169,7 +172,7 @@ static int sigproptbl[NSIG] = {
 #ifndef SYSTEM_SCOPE_ONLY
 
 static void *
-sig_daemon(void *arg /* Unused */)
+sig_daemon(void *arg __unused)
 {
 	int i;
 	kse_critical_t crit;
@@ -224,15 +227,15 @@ _thr_start_sig_daemon(void)
 	sigset_t sigset, oldset;
 
 	SIGFILLSET(sigset);
-	pthread_sigmask(SIG_SETMASK, &sigset, &oldset);
-	pthread_attr_init(&attr);
-	pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
+	_pthread_sigmask(SIG_SETMASK, &sigset, &oldset);
+	_pthread_attr_init(&attr);
+	_pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
 	attr->flags |= THR_SIGNAL_THREAD;
 	/* sigmask will be inherited */
-	if (pthread_create(&_thr_sig_daemon, &attr, sig_daemon, NULL))
+	if (_pthread_create(&_thr_sig_daemon, &attr, sig_daemon, NULL))
 		PANIC("can not create signal daemon thread!\n");
-	pthread_attr_destroy(&attr);
-	pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+	_pthread_attr_destroy(&attr);
+	_pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 	return (0);
 }
 
@@ -296,16 +299,18 @@ typedef void (*ohandler)(int sig, int code,
 	struct sigcontext *scp, char *addr, __sighandler_t *catcher);
 
 void
-_thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
+_thr_sig_handler(int sig, siginfo_t *info, void *ucp_arg)
 {
 	struct pthread_sigframe psf;
 	__siginfohandler_t *sigfunc;
 	struct pthread *curthread;
 	struct kse *curkse;
+	ucontext_t *ucp;
 	struct sigaction act;
 	int sa_flags, err_save;
 
 	err_save = errno;
+	ucp = (ucontext_t *)ucp_arg;
 
 	DBG_MSG(">>> _thr_sig_handler(%d)\n", sig);
 
@@ -644,7 +649,7 @@ _thr_getprocsig_unlocked(int sig, siginfo_t *siginfo)
  * with upcalls disabled.
  */
 struct pthread *
-thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
+thr_sig_find(struct kse *curkse, int sig, siginfo_t *info __unused)
 {
 	struct kse_mailbox *kmbx = NULL;
 	struct pthread	*pthread;

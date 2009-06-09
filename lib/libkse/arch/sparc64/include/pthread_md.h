@@ -237,7 +237,7 @@ _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 		tcb->tcb_tmbx.tm_lwp = kcb->kcb_kmbx.km_lwp;
 		if (setmbox)
 			_thr_setcontext(mc, (intptr_t)&tcb->tcb_tmbx,
-			    (intptr_t *)&kcb->kcb_kmbx.km_curthread);
+			    (intptr_t *)(void *)&kcb->kcb_kmbx.km_curthread);
 		else
 			_thr_setcontext(mc, 0, NULL);
 	} else {

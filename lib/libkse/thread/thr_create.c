@@ -29,6 +29,8 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +40,7 @@
 #include <sys/time.h>
 #include <machine/reg.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 #include "libc_private.h"
 
@@ -334,11 +337,11 @@ free_stack(struct pthread_attr *pattr)
 }
 
 static void
-thread_start(struct pthread *curthread, void *(*start_routine) (void *),
+thread_start(struct pthread *curthread __unused, void *(*start_routine) (void *),
     void *arg)
 {
 	/* Run the current thread's start routine with argument: */
-	pthread_exit(start_routine(arg));
+	_pthread_exit(start_routine(arg));
 
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");
