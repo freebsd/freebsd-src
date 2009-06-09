@@ -77,7 +77,7 @@ struct ip_ctl_cmd cmds[] = {
 };
 
 int	cs;
-char	ng_nodename[NG_PATHLEN + 1];
+char	ng_nodename[NG_PATHSIZ];
 
 int
 main(int argc, char **argv)
