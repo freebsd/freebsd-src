@@ -535,7 +535,7 @@ void
 cpu_startprofclock(void)
 {
 
-	if (using_lapic_timer || !using_atrtc_clock)
+	if (using_lapic_timer || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_PROF);
 	psdiv = pscnt = psratio;
@@ -545,7 +545,7 @@ void
 cpu_stopprofclock(void)
 {
 
-	if (using_lapic_timer || !using_atrtc_clock)
+	if (using_lapic_timer || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_NOPROF);
 	psdiv = pscnt = 1;
