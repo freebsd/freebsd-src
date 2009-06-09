@@ -29,6 +29,7 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
+#include <machine/_limits.h>
 #include <sys/_bus_dma.h>
 
 /**
@@ -299,6 +300,7 @@ bus_dma_tag_t
 	bus_generic_get_dma_tag(device_t dev, device_t child);
 struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
+void	bus_generic_new_pass(device_t dev);
 int	bus_print_child_header(device_t dev, device_t child);
 int	bus_print_child_footer(device_t dev, device_t child);
 int	bus_generic_print_child(device_t dev, device_t child);
@@ -433,7 +435,7 @@ void	device_verbose(device_t dev);
 /*
  * Access functions for devclass.
  */
-int	devclass_add_driver(devclass_t dc, kobj_class_t driver);
+int	devclass_add_driver(devclass_t dc, kobj_class_t driver, int pass);
 int	devclass_delete_driver(devclass_t dc, kobj_class_t driver);
 devclass_t	devclass_create(const char *classname);
 devclass_t	devclass_find(const char *classname);
@@ -512,6 +514,28 @@ void	bus_data_generation_update(void);
 #define BUS_PROBE_NOWILDCARD	(-2000000000) /* No wildcard device matches */
 
 /**
+ * During boot, the device tree is scanned multiple times.  Each scan,
+ * or pass, drivers may be attached to devices.  Each driver
+ * attachment is assigned a pass number.  Drivers may only probe and
+ * attach to devices if their pass number is less than or equal to the
+ * current system-wide pass number.  The default pass is the last pass
+ * and is used by most drivers.  Drivers needed by the scheduler are
+ * probed in earlier passes.
+ */
+#define	BUS_PASS_ROOT		0	/* Used to attach root0. */
+#define	BUS_PASS_BUS		10	/* Busses and bridges. */
+#define	BUS_PASS_CPU		20	/* CPU devices. */
+#define	BUS_PASS_RESOURCE	30	/* Resource discovery. */
+#define	BUS_PASS_INTERRUPT	40	/* Interrupt controllers. */
+#define	BUS_PASS_TIMER		50	/* Timers and clocks. */
+#define	BUS_PASS_SCHEDULER	60	/* Start scheduler. */
+#define	BUS_PASS_DEFAULT	__INT_MAX /* Everything else. */
+
+extern int bus_current_pass;
+
+void	bus_set_pass(int pass);
+
+/**
  * Shorthand for constructing method tables.
  */
 #define	DEVMETHOD	KOBJMETHOD
@@ -535,15 +559,17 @@ struct driver_module_data {
 	const char	*dmd_busname;
 	kobj_class_t	dmd_driver;
 	devclass_t	*dmd_devclass;
+	int		dmd_pass;
 };
 
-#define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
+#define	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg, pass) \
 									\
 static struct driver_module_data name##_##busname##_driver_mod = {	\
 	evh, arg,							\
 	#busname,							\
 	(kobj_class_t) &driver,						\
-	&devclass							\
+	&devclass,							\
+	pass								\
 };									\
 									\
 static moduledata_t name##_##busname##_mod = {				\
@@ -553,6 +579,10 @@ static moduledata_t name##_##busname##_mod = {				\
 };									\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+
+#define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
+	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg,	\
+	    BUS_PASS_DEFAULT)
 
 /**
  * Generic ivar accessor generation macros for bus drivers
