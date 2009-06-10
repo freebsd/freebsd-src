@@ -274,7 +274,9 @@ vnet_gif_iattach(const void *unused __unused)
 #else
 	V_parallel_tunnels = 0;
 #endif
+#ifdef INET
 	V_ip_gif_ttl = GIF_TTL;
+#endif
 #ifdef INET6
 	V_ip6_gif_hlim = GIF_HLIM;
 #endif
