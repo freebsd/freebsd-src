@@ -109,7 +109,9 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	u_int8_t		atype, adst;
 	int			loop_copy = 0;
 	int			isphds;
+#if defined(INET) || defined(INET6)
 	struct llentry		*lle;
+#endif
 
 	if (!((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
