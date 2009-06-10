@@ -214,6 +214,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	case SIOCSRTRFLUSH_IN6:
 	case SIOCSDEFIFACE_IN6:
 	case SIOCSIFINFO_FLAGS:
+	case SIOCSIFINFO_IN6:
 		if (td != NULL) {
 			error = priv_check(td, PRIV_NETINET_ND6);
 			if (error)
@@ -222,7 +223,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		/* FALLTHROUGH */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
-	case SIOCSIFINFO_IN6:
 	case SIOCGDRLST_IN6:
 	case SIOCGPRLST_IN6:
 	case SIOCGNBRINFO_IN6:
