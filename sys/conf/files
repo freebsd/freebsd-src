@@ -1746,13 +1746,13 @@ fs/nfsclient/nfs_cllock.c	optional nfscl
 fs/nfsclient/nfs_clport.c	optional nfscl
 fs/nfsclient/nfs_clbio.c	optional nfscl
 fs/nfsclient/nfs_clnfsiod.c	optional nfscl
-fs/nfsserver/nfs_nfsdsocket.c	optional nfsd
-fs/nfsserver/nfs_nfsdsubs.c	optional nfsd
-fs/nfsserver/nfs_nfsdstate.c	optional nfsd
-fs/nfsserver/nfs_nfsdkrpc.c	optional nfsd
-fs/nfsserver/nfs_nfsdserv.c	optional nfsd
-fs/nfsserver/nfs_nfsdport.c	optional nfsd
-fs/nfsserver/nfs_nfsdcache.c	optional nfsd
+fs/nfsserver/nfs_nfsdsocket.c	optional nfsd inet
+fs/nfsserver/nfs_nfsdsubs.c	optional nfsd inet
+fs/nfsserver/nfs_nfsdstate.c	optional nfsd inet
+fs/nfsserver/nfs_nfsdkrpc.c	optional nfsd inet
+fs/nfsserver/nfs_nfsdserv.c	optional nfsd inet
+fs/nfsserver/nfs_nfsdport.c	optional nfsd inet
+fs/nfsserver/nfs_nfsdcache.c	optional nfsd inet
 fs/ntfs/ntfs_compr.c		optional ntfs
 fs/ntfs/ntfs_iconv.c		optional ntfs_iconv
 fs/ntfs/ntfs_ihash.c		optional ntfs
