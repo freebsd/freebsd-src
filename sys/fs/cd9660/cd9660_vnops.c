@@ -257,6 +257,10 @@ cd9660_ioctl(ap)
 
 	vp = ap->a_vp;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
+	if (vp->v_iflag & VI_DOOMED) {
+		VOP_UNLOCK(vp, 0);
+		return (EBADF);
+	}
 	if (vp->v_type == VCHR || vp->v_type == VBLK) {
 		VOP_UNLOCK(vp, 0);
 		return (EOPNOTSUPP);
