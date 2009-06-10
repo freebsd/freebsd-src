@@ -36,6 +36,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include "un-namespace.h"
 #include "thr_private.h"
 
@@ -127,6 +128,7 @@ __weak_reference(__pthread_mutex_trylock, pthread_mutex_trylock);
 /* No difference between libc and application usage of these: */
 __weak_reference(_pthread_mutex_destroy, pthread_mutex_destroy);
 __weak_reference(_pthread_mutex_unlock, pthread_mutex_unlock);
+__weak_reference(_pthread_mutex_isowned_np, pthread_mutex_isowned_np);
 
 static int
 thr_mutex_init(pthread_mutex_t *mutex,
@@ -1866,3 +1868,12 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 	}
 	pthread->sflags |= THR_FLAGS_IN_SYNCQ;
 }
+
+int
+_pthread_mutex_isowned_np(pthread_mutex_t *mutex)
+{
+	struct pthread	*curthread = _get_curthread();
+
+	return ((*mutex)->m_owner == curthread);
+}
+

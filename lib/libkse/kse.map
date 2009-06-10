@@ -256,6 +256,7 @@ FBSDprivate_1.0 {
 	_pthread_mutex_getprioceiling;
 	_pthread_mutex_init;
 	_pthread_mutex_init_calloc_cb;
+	_pthread_mutex_isowned_np;
 	_pthread_mutex_lock;
 	_pthread_mutex_setprioceiling;
 	_pthread_mutex_timedlock;
@@ -359,4 +360,8 @@ FBSDprivate_1.0 {
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
+};
+
+FBSD_1.1 {
+	pthread_mutex_isowned_np;
 };
