@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 M. Warner Losh.  All Rights Reserved.
+ * Copyright (c) 2003-2008 M. Warner Losh.  All Rights Reserved.
  * Copyright (c) 2000,2001 Jonathan Chen.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,20 +99,18 @@ cardbus_probe(device_t cbdev)
 static int
 cardbus_attach(device_t cbdev)
 {
-	struct cardbus_softc *sc = device_get_softc(cbdev);
+	struct cardbus_softc *sc;
 
+	sc = device_get_softc(cbdev);
 	sc->sc_dev = cbdev;
-	cardbus_device_create(sc);
 	return (0);
 }
 
 static int
 cardbus_detach(device_t cbdev)
 {
-	struct cardbus_softc *sc = device_get_softc(cbdev);
 
 	cardbus_detach_card(cbdev);
-	cardbus_device_destroy(sc);
 	return (0);
 }
 
@@ -165,7 +163,9 @@ cardbus_attach_card(device_t cbdev)
 	int bus, domain, slot, func;
 	int cardattached = 0;
 	int cardbusfunchigh = 0;
+	struct cardbus_softc *sc;
 
+	sc = device_get_softc(cbdev);
 	cardbus_detach_card(cbdev); /* detach existing cards */
 	POWER_ENABLE_SOCKET(brdev, cbdev);
 	domain = pcib_get_domain(cbdev);
@@ -192,6 +192,7 @@ cardbus_attach_card(device_t cbdev)
 		dinfo->pci.cfg.dev = child;
 		resource_list_init(&dinfo->pci.resources);
 		device_set_ivars(child, dinfo);
+		cardbus_device_create(sc, dinfo, cbdev, child);
 		if (cardbus_do_cis(cbdev, child) != 0)
 			DEVPRINTF((cbdev, "Warning: Bogus CIS ignored\n"));
 		pci_cfg_save(dinfo->pci.cfg.dev, &dinfo->pci, 0);
@@ -235,6 +236,7 @@ cardbus_detach_card(device_t cbdev)
 		if (status == DS_ATTACHED || status == DS_BUSY)
 			device_detach(devlist[tmp]);
 		cardbus_release_all_resources(cbdev, dinfo);
+		cardbus_device_destroy(dinfo);
 		device_delete_child(cbdev, devlist[tmp]);
 		pci_freecfg((struct pci_devinfo *)dinfo);
 	}
