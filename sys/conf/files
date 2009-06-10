@@ -335,25 +335,25 @@ contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
-contrib/pf/net/if_pflog.c	optional pflog \
+contrib/pf/net/if_pflog.c	optional pflog pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/if_pfsync.c	optional pfsync \
+contrib/pf/net/if_pfsync.c	optional pfsync pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf.c		optional pf \
+contrib/pf/net/pf.c		optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_if.c		optional pf \
+contrib/pf/net/pf_if.c		optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_ioctl.c	optional pf \
+contrib/pf/net/pf_ioctl.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_norm.c	optional pf \
+contrib/pf/net/pf_norm.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_osfp.c	optional pf \
+contrib/pf/net/pf_osfp.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_ruleset.c	optional pf \
+contrib/pf/net/pf_ruleset.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_subr.c	optional pf \
+contrib/pf/net/pf_subr.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_table.c	optional pf \
+contrib/pf/net/pf_table.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/netinet/in4_cksum.c	optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec 
