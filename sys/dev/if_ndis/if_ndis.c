@@ -3264,9 +3264,7 @@ ndis_scan(void *arg)
 	ic = sc->ifp->if_l2com;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	NDIS_LOCK(sc);
 	ndis_scan_results(sc);
-	NDIS_UNLOCK(sc);
 	ieee80211_scan_done(vap);
 }
 
@@ -3403,10 +3401,8 @@ ndis_scan_start(struct ieee80211com *ic)
 	ss = ic->ic_scan;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	NDIS_LOCK(sc);
 	if (!NDIS_INITIALIZED(sc)) {
 		DPRINTF(("%s: scan aborted\n", __func__));
-		NDIS_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
 		return;
 	}
@@ -3430,11 +3426,9 @@ ndis_scan_start(struct ieee80211com *ic)
 	    NULL, &len);
 	if (error) {
 		DPRINTF(("%s: scan command failed\n", __func__));
-		NDIS_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
 		return;
 	}
-	NDIS_UNLOCK(sc);
 	/* Set a timer to collect the results */
 	callout_reset(&sc->ndis_scan_callout, hz * 3, ndis_scan, sc);
 }
