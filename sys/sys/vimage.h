@@ -359,43 +359,43 @@ extern struct vprocg_list_head vprocg_head;
  * See description further down to see how to get the new values.
  */
 #ifdef __amd64__
-#define	SIZEOF_vnet_net		184
+#define	SIZEOF_vnet_net		192
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __arm__
-#define	SIZEOF_vnet_net		100
+#define	SIZEOF_vnet_net		104
 #define	SIZEOF_vnet_inet	2616
 #define	SIZEOF_vnet_inet6	8524
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __i386__ /* incl. pc98 */
-#define	SIZEOF_vnet_net		100
+#define	SIZEOF_vnet_net		104
 #define	SIZEOF_vnet_inet	2612
 #define	SIZEOF_vnet_inet6	8512
 #define	SIZEOF_vnet_ipsec	31024
 #endif
 #ifdef __ia64__
-#define	SIZEOF_vnet_net		184
+#define	SIZEOF_vnet_net		192
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __mips__
-#define	SIZEOF_vnet_net		100
+#define	SIZEOF_vnet_net		104
 #define	SIZEOF_vnet_inet	2648
 #define	SIZEOF_vnet_inet6	8544
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __powerpc__
-#define	SIZEOF_vnet_net		100
+#define	SIZEOF_vnet_net		104
 #define	SIZEOF_vnet_inet	2640
 #define	SIZEOF_vnet_inet6	8520
 #define	SIZEOF_vnet_ipsec	31048
 #endif
 #ifdef __sparc64__ /* incl. sun4v */
-#define	SIZEOF_vnet_net		184
+#define	SIZEOF_vnet_net		192
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
