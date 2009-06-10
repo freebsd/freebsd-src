@@ -158,7 +158,6 @@ static int		arc_grow_retry = 60;
  */
 static int		arc_min_prefetch_lifespan;
 
-extern int zfs_prefetch_disable;
 extern int zfs_prefetch_enable;
 static int arc_dead;
 
@@ -3423,6 +3422,8 @@ arc_lowmem(void *arg __unused, int howto __unused)
 void
 arc_init(void)
 {
+	int prefetch_tunable_set = 0;
+	
 	mutex_init(&arc_reclaim_thr_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arc_reclaim_thr_cv, NULL, CV_DEFAULT, NULL);
 	mutex_init(&arc_lowmem_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -3551,19 +3552,23 @@ arc_init(void)
 	mutex_init(&zfs_write_limit_lock, NULL, MUTEX_DEFAULT, NULL);
 
 #ifdef _KERNEL
+	if (TUNABLE_INT_FETCH("vfs.zfs.prefetch_enable", &zfs_prefetch_enable))
+		prefetch_tunable_set = 1;
+	
 #ifdef __i386__
-	if (zfs_prefetch_enable != 1) {
+	if (prefetch_tunable_set == 0) {
 		printf("ZFS NOTICE: prefetch is disabled by default on i386"
 		    " - add enable to tunable to change.\n" );
-		zfs_prefetch_disable=1;
+		zfs_prefetch_enable=0;
 	}
-#endif	
+#else	
 	if ((((uint64_t)physmem * PAGESIZE) < (1ULL << 32)) &&
-	    (zfs_prefetch_enable != 1) && (zfs_prefetch_disable != 1)) {
+	    prefetch_tunable_set == 0) {
 		printf("ZFS NOTICE: system has less than 4GB and prefetch enable is not set"
 		    "... disabling.\n");
-		zfs_prefetch_disable=1;
+		zfs_prefetch_enable=0;
 	}
+#endif	
 	/* Warn about ZFS memory and address space requirements. */
 	if (((uint64_t)physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
 		printf("ZFS WARNING: Recommended minimum RAM size is 512MB; "
