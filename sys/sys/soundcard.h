@@ -171,12 +171,6 @@ struct snd_size {
 #define AFMT_MPEG	0x00000200	/* MPEG MP2/MP3 audio */
 #define AFMT_AC3	0x00000400	/* Dolby Digital AC3 */
 
-#if _BYTE_ORDER == _LITTLE_ENDIAN
-#define AFMT_S16_NE	AFMT_S16_LE	/* native endian signed 16 */
-#else
-#define AFMT_S16_NE	AFMT_S16_BE
-#endif
-
 /*
  * 32-bit formats below used for 24-bit audio data where the data is stored
  * in the 24 most significant bits and the least significant bits are not used
@@ -190,6 +184,35 @@ struct snd_size {
 #define AFMT_S24_BE	0x00020000	/* Big endian signed 24-bit */
 #define AFMT_U24_LE	0x00040000	/* Little endian unsigned 24-bit */
 #define AFMT_U24_BE	0x00080000	/* Big endian unsigned 24-bit */
+
+/* Machine dependant AFMT_* definitions. */
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define AFMT_S16_NE	AFMT_S16_LE
+#define AFMT_S24_NE	AFMT_S24_LE
+#define AFMT_S32_NE	AFMT_S32_LE
+#define AFMT_U16_NE	AFMT_U16_LE
+#define AFMT_U24_NE	AFMT_U24_LE
+#define AFMT_U32_NE	AFMT_U32_LE
+#define AFMT_S16_OE	AFMT_S16_BE
+#define AFMT_S24_OE	AFMT_S24_BE
+#define AFMT_S32_OE	AFMT_S32_BE
+#define AFMT_U16_OE	AFMT_U16_BE
+#define AFMT_U24_OE	AFMT_U24_BE
+#define AFMT_U32_OE	AFMT_U32_BE
+#else
+#define AFMT_S16_OE	AFMT_S16_LE
+#define AFMT_S24_OE	AFMT_S24_LE
+#define AFMT_S32_OE	AFMT_S32_LE
+#define AFMT_U16_OE	AFMT_U16_LE
+#define AFMT_U24_OE	AFMT_U24_LE
+#define AFMT_U32_OE	AFMT_U32_LE
+#define AFMT_S16_NE	AFMT_S16_BE
+#define AFMT_S24_NE	AFMT_S24_BE
+#define AFMT_S32_NE	AFMT_S32_BE
+#define AFMT_U16_NE	AFMT_U16_BE
+#define AFMT_U24_NE	AFMT_U24_BE
+#define AFMT_U32_NE	AFMT_U32_BE
+#endif
 
 #define AFMT_STEREO	0x10000000	/* can do/want stereo	*/
 
