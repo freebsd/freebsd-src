@@ -89,8 +89,6 @@ struct fifoinfo {
 static vop_print_t	fifo_print;
 static vop_open_t	fifo_open;
 static vop_close_t	fifo_close;
-static vop_ioctl_t	fifo_ioctl;
-static vop_kqfilter_t	fifo_kqfilter;
 static vop_pathconf_t	fifo_pathconf;
 static vop_advlock_t	fifo_advlock;
 
@@ -116,8 +114,8 @@ struct vop_vector fifo_specops = {
 	.vop_close =		fifo_close,
 	.vop_create =		VOP_PANIC,
 	.vop_getattr =		VOP_EBADF,
-	.vop_ioctl =		fifo_ioctl,
-	.vop_kqfilter =		fifo_kqfilter,
+	.vop_ioctl =		VOP_PANIC,
+	.vop_kqfilter =		VOP_PANIC,
 	.vop_link =		VOP_PANIC,
 	.vop_mkdir =		VOP_PANIC,
 	.vop_mknod =		VOP_PANIC,
@@ -298,42 +296,6 @@ fail1:
 	KASSERT(fp->f_ops == &badfileops, ("not badfileops in fifo_open"));
 	finit(fp, fp->f_flag, DTYPE_FIFO, fip, &fifo_ops_f);
 	return (0);
-}
-
-/*
- * Now unused vnode ioctl routine.
- */
-/* ARGSUSED */
-static int
-fifo_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		u_long  a_command;
-		caddr_t  a_data;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
-{
-
-	printf("WARNING: fifo_ioctl called unexpectedly\n");
-	return (ENOTTY);
-}
-
-/*
- * Now unused vnode kqfilter routine.
- */
-/* ARGSUSED */
-static int
-fifo_kqfilter(ap)
-	struct vop_kqfilter_args /* {
-		struct vnode *a_vp;
-		struct knote *a_kn;
-	} */ *ap;
-{
-
-	printf("WARNING: fifo_kqfilter called unexpectedly\n");
-	return (EINVAL);
 }
 
 static void
