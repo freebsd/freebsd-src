@@ -2165,9 +2165,8 @@ dummynet_get(struct sockopt *sopt)
 static int
 ip_dn_ctl(struct sockopt *sopt)
 {
-    int error = 0 ;
-    struct dn_pipe *p;
-    struct dn_pipe_max tmp_pipe;	/* pipe + large buffer */
+    int error;
+    struct dn_pipe *p = NULL;
 
     error = priv_check(sopt->sopt_td, PRIV_NETINET_DUMMYNET);
     if (error)
@@ -2188,7 +2187,8 @@ ip_dn_ctl(struct sockopt *sopt)
     switch (sopt->sopt_name) {
     default :
 	printf("dummynet: -- unknown option %d", sopt->sopt_name);
-	return EINVAL ;
+	error = EINVAL ;
+	break;
 
     case IP_DUMMYNET_GET :
 	error = dummynet_get(sopt);
@@ -2199,25 +2199,27 @@ ip_dn_ctl(struct sockopt *sopt)
 	break ;
 
     case IP_DUMMYNET_CONFIGURE :
-	p = (struct dn_pipe *)&tmp_pipe ;
-	error = sooptcopyin(sopt, p, sizeof(tmp_pipe), sizeof *p);
+	p = malloc(sizeof(struct dn_pipe_max), M_TEMP, M_WAITOK);
+	error = sooptcopyin(sopt, p, sizeof(struct dn_pipe_max), sizeof *p);
 	if (error)
 	    break ;
 	if (p->samples_no > 0)
-	    p->samples = &tmp_pipe.samples[0];
+	    p->samples = &(((struct dn_pipe_max *)p)->samples[0]);
 
 	error = config_pipe(p);
 	break ;
 
     case IP_DUMMYNET_DEL :	/* remove a pipe or queue */
-	p = (struct dn_pipe *)&tmp_pipe ;
-	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
+	p = malloc(sizeof(struct dn_pipe), M_TEMP, M_WAITOK);
+	error = sooptcopyin(sopt, p, sizeof(struct dn_pipe), sizeof *p);
 	if (error)
 	    break ;
 
 	error = delete_pipe(p);
 	break ;
     }
+    if (p != NULL)
+	free(p, M_TEMP);
     return error ;
 }
 
