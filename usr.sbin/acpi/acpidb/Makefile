@@ -56,7 +56,7 @@ SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	utxface.c
 
 MAN=	acpidb.8
-WARNS?=	2
+WARNS?=	1
 
 CFLAGS+= -DACPI_EXEC_APP
 
