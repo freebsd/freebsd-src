@@ -68,6 +68,7 @@ ENCODINGS=	ARMSCII-8 Big5 Big5HKSCS \
 		KOI8-R KOI8-U PT154 SJIS US-ASCII UTF-8
 
 BE_LINKS=	fr_BE:nl_BE
+CA_LINKS=	ca_ES:ca_AD ca_ES:ca_FR ca_ES:ca_IT
 DE_LINKS=	de_DE:de_AT
 FR_LINKS=	fr_FR:fr_CA fr_FR:fr_CH
 GB_LINKS=	en_GB:en_AU en_GB:en_NZ
@@ -92,11 +93,11 @@ eucJP_UTF-8=	ja_JP
 eucKR_CP949=	ko_KR
 eucKR_UTF-8=	ko_KR
 ISO8859-1_ISO8859-15= af_ZA ca_ES da_DK de_CH de_DE en_US es_ES eu_ES \
-		fi_FI fr_BE fr_FR is_IS it_CH it_IT nl_NL no_NO pt_PT \
-		sv_SE ${BE_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} \
+		fi_FI fr_BE fr_FR is_IS it_CH it_IT nl_NL no_NO pt_PT sv_SE \
+		${BE_LINKS} ${CA_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} \
 		${IT_LINKS} ${NO_LINKS} ${US_LINKS}
-ISO8859-1_ISO8859-1= ${BE_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} \
-		${IT_LINKS} ${NO_LINKS} ${US_LINKS}
+ISO8859-1_ISO8859-1= ${BE_LINKS} ${CA_LINKS} ${DE_LINKS} ${FR_LINKS} \
+		${GB_LINKS} ${IT_LINKS} ${NO_LINKS} ${US_LINKS}
 ISO8859-1_US-ASCII= en_US ${GB_LINKS} ${US_LINKS}
 ISO8859-1_UTF-8= af_ZA ca_ES da_DK de_CH de_DE en_US es_ES eu_ES fi_FI \
 		fr_BE fr_FR is_IS it_IT nl_NL no_NO pt_BR pt_PT sv_SE
@@ -114,8 +115,8 @@ KOI8-R_ISO8859-5= ru_RU
 KOI8-U_ISO8859-5= uk_UA
 PT154_UTF-8=	kk_KZ
 US-ASCII_UTF-8=	en_US:he_IL
-UTF-8_UTF-8=	${BE_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} en_GB:en_IE \
-		${IT_LINKS} ${NO_LINKS} ${US_LINKS}
+UTF-8_UTF-8=	${BE_LINKS} ${CA_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} \
+		en_GB:en_IE ${IT_LINKS} ${NO_LINKS} ${US_LINKS}
 
 SYMLINKS=
 .for enc1 in ${ENCODINGS}
