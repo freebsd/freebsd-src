@@ -260,34 +260,50 @@ pfs_getattr(struct vop_getattr_args *va)
 static int
 pfs_ioctl(struct vop_ioctl_args *va)
 {
-	struct vnode *vn = va->a_vp;
-	struct pfs_vdata *pvd = vn->v_data;
-	struct pfs_node *pn = pvd->pvd_pn;
+	struct vnode *vn;
+	struct pfs_vdata *pvd;
+	struct pfs_node *pn;
 	struct proc *proc;
 	int error;
+
+	vn = va->a_vp;
+	vn_lock(vn, LK_SHARED | LK_RETRY);
+	if (vn->v_iflag & VI_DOOMED) {
+		VOP_UNLOCK(vn, 0);
+		return (EBADF);
+	}
+	pvd = vn->v_data;
+	pn = pvd->pvd_pn;
 
 	PFS_TRACE(("%s: %lx", pn->pn_name, va->a_command));
 	pfs_assert_not_owned(pn);
 
-	if (vn->v_type != VREG)
+	if (vn->v_type != VREG) {
+		VOP_UNLOCK(vn, 0);
 		PFS_RETURN (EINVAL);
+	}
 	KASSERT_PN_IS_FILE(pn);
 
-	if (pn->pn_ioctl == NULL)
+	if (pn->pn_ioctl == NULL) {
+		VOP_UNLOCK(vn, 0);
 		PFS_RETURN (ENOTTY);
+	}
 
 	/*
 	 * This is necessary because process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc)) {
+		VOP_UNLOCK(vn, 0);
 		PFS_RETURN (EIO);
+	}
 
 	error = pn_ioctl(curthread, proc, pn, va->a_command, va->a_data);
 
 	if (proc != NULL)
 		PROC_UNLOCK(proc);
 
+	VOP_UNLOCK(vn, 0);
 	PFS_RETURN (error);
 }
 
