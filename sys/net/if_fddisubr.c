@@ -120,11 +120,10 @@ fddi_output(ifp, m, dst, ro)
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct fddi_header *fh;
+#if defined(INET) || defined(INET6)
 	struct llentry *lle;
-	struct rtentry *rt0 = NULL;
+#endif
 
-	if (ro != NULL)
-		rt0 = ro->ro_rt;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
@@ -141,6 +140,10 @@ fddi_output(ifp, m, dst, ro)
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET: {
+		struct rtentry *rt0 = NULL;
+
+		if (ro != NULL)
+			rt0 = ro->ro_rt;
 		error = arpresolve(ifp, rt0, m, dst, edst, &lle);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
