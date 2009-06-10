@@ -1199,27 +1199,6 @@ devclass_find_driver_internal(devclass_t dc, const char *classname)
 }
 
 /**
- * @brief Search a devclass for a driver
- *
- * This function searches the devclass's list of drivers and returns
- * the first driver whose name is @p classname or @c NULL if there is
- * no driver of that name.
- *
- * @param dc		the devclass to search
- * @param classname	the driver name to search for
- */
-static kobj_class_t
-devclass_find_driver(devclass_t dc, const char *classname)
-{
-	driverlink_t dl;
-
-	dl = devclass_find_driver_internal(dc, classname);
-	if (dl)
-		return (dl->driver);
-	return (NULL);
-}
-
-/**
  * @brief Return the name of the devclass
  */
 const char *
