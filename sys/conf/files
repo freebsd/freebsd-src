@@ -51,33 +51,33 @@ aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 	compile-with	"${NORMAL_C}"					   \
 	no-implicit-rule local
 emu10k1-alsa%diked.h		optional snd_emu10k1 | snd_emu10kx	   \
-	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
+	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
+	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"emu10k1-alsa%diked.h"
 p16v-alsa%diked.h		optional snd_emu10kx pci			   \
-	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
+	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
+	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"p16v-alsa%diked.h"
 p17v-alsa%diked.h		optional snd_emu10kx pci			   \
-	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h p17v-alsa%diked.h" \
+	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h" \
+	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h p17v-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"p17v-alsa%diked.h"
 feeder_eq_gen.h			optional sound				   \
-	dependency	"$S/tools/feeder_eq_mkfilter.awk"		   \
-	compile-with	"${AWK} -f $S/tools/feeder_eq_mkfilter.awk -- ${FEEDER_EQ_PRESETS} > feeder_eq_gen.h" \
+	dependency	"$S/tools/sound/feeder_eq_mkfilter.awk"		   \
+	compile-with	"${AWK} -f $S/tools/sound/feeder_eq_mkfilter.awk -- ${FEEDER_EQ_PRESETS} > feeder_eq_gen.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"feeder_eq_gen.h"
 feeder_rate_gen.h		optional sound				   \
-	dependency	"$S/tools/feeder_rate_mkfilter.awk"		   \
-	compile-with	"${AWK} -f $S/tools/feeder_rate_mkfilter.awk -- ${FEEDER_RATE_PRESETS} > feeder_rate_gen.h" \
+	dependency	"$S/tools/sound/feeder_rate_mkfilter.awk"		   \
+	compile-with	"${AWK} -f $S/tools/sound/feeder_rate_mkfilter.awk -- ${FEEDER_RATE_PRESETS} > feeder_rate_gen.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"feeder_rate_gen.h"
 snd_fxdiv_gen.h			optional sound				   \
-	dependency	"$S/tools/snd_fxdiv_gen.awk"			   \
-	compile-with	"${AWK} -f $S/tools/snd_fxdiv_gen.awk -- > snd_fxdiv_gen.h" \
+	dependency	"$S/tools/sound/snd_fxdiv_gen.awk"			   \
+	compile-with	"${AWK} -f $S/tools/sound/snd_fxdiv_gen.awk -- > snd_fxdiv_gen.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"snd_fxdiv_gen.h"
 miidevs.h			optional miibus | mii			   \
