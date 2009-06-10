@@ -759,6 +759,8 @@ pipe_build_write_buffer(wpipe, uio)
 	pmap = vmspace_pmap(curproc->p_vmspace);
 	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
 	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
+	if (endaddr < addr)
+		return (EFAULT);
 	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
 		/*
 		 * vm_fault_quick() can sleep.  Consequently,
