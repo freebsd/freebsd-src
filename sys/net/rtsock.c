@@ -65,9 +65,11 @@
 #include <netinet6/scope6_var.h>
 #endif
 
+#if defined(INET) || defined(INET6)
 #ifdef SCTP
 extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
 #endif /* SCTP */
+#endif
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
@@ -1063,6 +1065,7 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 		("unexpected cmd %u", cmd));
+#if defined(INET) || defined(INET6)
 #ifdef SCTP
 	/*
 	 * notify the SCTP stack
@@ -1071,6 +1074,7 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 	 */
 	sctp_addr_change(ifa, cmd);
 #endif /* SCTP */
+#endif
 	if (route_cb.any_count == 0)
 		return;
 	for (pass = 1; pass < 3; pass++) {
