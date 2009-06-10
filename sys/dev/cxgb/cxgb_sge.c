@@ -3654,6 +3654,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 		CXGB_SYSCTL_ADD_QUAD(rx_mcast_frames);
 		CXGB_SYSCTL_ADD_QUAD(rx_bcast_frames);
 		CXGB_SYSCTL_ADD_QUAD(rx_pause);
+		CXGB_SYSCTL_ADD_QUAD(rx_fcs_errs);
 		CXGB_SYSCTL_ADD_QUAD(rx_align_errs);
 		CXGB_SYSCTL_ADD_QUAD(rx_symbol_errs);
 		CXGB_SYSCTL_ADD_QUAD(rx_data_errs);
