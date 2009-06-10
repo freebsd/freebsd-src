@@ -198,7 +198,7 @@ _xfs_open(
 		int  a_mode;
 		struct ucred *a_cred;
 		struct thread *a_td;
-		int  a_fp;
+		struct file *a_fp;
 	} */ *ap)
 {
 	int error;
