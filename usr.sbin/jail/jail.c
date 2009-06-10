@@ -76,6 +76,21 @@ static void quoted_print(FILE *fp, char *str);
 static void set_param(const char *name, char *value);
 static void usage(void);
 
+static const char *perm_sysctl[][3] = {
+	{ "security.jail.set_hostname_allowed",
+	  "allow.noset_hostname", "allow.set_hostname" },
+	{ "security.jail.sysvipc_allowed",
+	  "allow.nosysvipc", "allow.sysvipc" },
+	{ "security.jail.allow_raw_sockets",
+	  "allow.noraw_sockets", "allow.raw_sockets" },
+	{ "security.jail.chflags_allowed",
+	  "allow.nochflags", "allow.chflags" },
+	{ "security.jail.mount_allowed",
+	  "allow.nomount", "allow.mount" },
+	{ "security.jail.socket_unixiproute_only",
+	  "allow.socket_af", "allow.nosocket_af" },
+};
+
 extern char **environ;
 
 #define GET_USER_INFO do {						\
@@ -101,10 +116,12 @@ main(int argc, char **argv)
 	struct iovec rparams[2];
 	struct passwd *pwd = NULL;
 	gid_t groups[NGROUPS];
-	int ch, cmdarg, i, jail_set_flags, jid, ngroups;
+	size_t sysvallen;
+	int ch, cmdarg, i, jail_set_flags, jid, ngroups, sysval;
 	int hflag, iflag, Jflag, lflag, rflag, uflag, Uflag;
+	unsigned pi;
 	char *ep, *jailname, *securelevel, *username, *JidFile;
-	char errmsg[ERRMSG_SIZE];
+	char errmsg[ERRMSG_SIZE], enforce_statfs[4];
 	static char *cleanenv;
 	const char *shell, *p = NULL;
 	FILE *fp;
@@ -236,6 +253,26 @@ main(int argc, char **argv)
 		add_ip_addr(&ip4_addr, argv[2]);
 #endif
 		cmdarg = 3;
+		/* Emulate the defaults from security.jail.* sysctls */
+		sysvallen = sizeof(sysval);
+		if (sysctlbyname("security.jail.jailed", &sysval, &sysvallen,
+		    NULL, 0) == 0 && sysval == 0) {
+			for (pi = 0; pi < sizeof(perm_sysctl) /
+			     sizeof(perm_sysctl[0]); pi++) {
+				sysvallen = sizeof(sysval);
+				if (sysctlbyname(perm_sysctl[pi][0],
+				    &sysval, &sysvallen, NULL, 0) == 0)
+					set_param(perm_sysctl[pi]
+					    [sysval ? 2 : 1], NULL);
+			}
+			sysvallen = sizeof(sysval);
+			if (sysctlbyname("security.jail.enforce_statfs",
+			    &sysval, &sysvallen, NULL, 0) == 0) {
+				snprintf(enforce_statfs,
+				    sizeof(enforce_statfs), "%d", sysval);
+				set_param("enforce_statfs", enforce_statfs);
+			}
+		}
 	}
 	if (ip4_addr != NULL)
 		set_param("ip4.addr", ip4_addr);
