@@ -52,6 +52,8 @@ LOCALES=	af_ZA.ISO8859-1 \
 		pl_PL.UTF-8 \
 		pt_BR.ISO8859-1 \
 		pt_PT.ISO8859-1 \
+		pt_PT.ISO8859-15 \
+		pt_PT.UTF-8 \
 		ro_RO.ISO8859-2 \
 		ru_RU.CP1251 \
 		ru_RU.CP866 \
@@ -105,12 +107,12 @@ ISO8859-1_ISO8859-1= ca_ES:ca_AD ca_ES:ca_FR ca_ES:ca_IT es_ES:eu_ES \
 ISO8859-1_ISO8859-15= af_ZA ca_AD ca_ES ca_FR ca_IT da_DK de_AT de_CH de_DE \
 		en_AU en_CA en_GB en_NZ en_US es_ES \
 		fi_FI fr_BE fr_CA fr_CH fr_FR \
-		is_IS it_IT it_CH nl_BE nl_NL nb_NO nn_NO no_NO pt_PT sv_SE
+		is_IS it_IT it_CH nl_BE nl_NL nb_NO nn_NO no_NO sv_SE
 ISO8859-1_US-ASCII= en_AU en_CA en_GB en_NZ en_US
 ISO8859-1_UTF-8= af_ZA ca_AD ca_ES ca_FR ca_IT da_DK de_AT de_CH de_DE \
 		en_AU en_CA en_NZ en_US es_ES \
 		fi_FI fr_BE fr_CA fr_FR is_IS it_IT nl_BE \
-		nl_NL nb_NO nn_NO no_NO pt_BR pt_PT sv_SE
+		nl_NL nb_NO nn_NO no_NO pt_BR sv_SE
 ISO8859-2_UTF-8= hr_HR hu_HU ro_RO sk_SK sl_SI sr_YU
 ISO8859-7_UTF-8= el_GR
 ISO8859-9_UTF-8= tr_TR
