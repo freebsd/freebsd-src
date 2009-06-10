@@ -2372,7 +2372,7 @@ netinet/ipfw/ip_fw_pfil.c	optional ipfirewall
 netinet/ipfw/ip_fw_nat.c	optional ipfirewall_nat
 netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet
-netinet/ip_ipsec.c		optional ipsec
+netinet/ip_ipsec.c		optional inet ipsec
 netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
@@ -2438,18 +2438,19 @@ netinet6/route6.c		optional inet6
 netinet6/scope6.c		optional inet6
 netinet6/sctp6_usrreq.c		optional inet6 sctp
 netinet6/udp6_usrreq.c		optional inet6
-netipsec/ipsec.c		optional ipsec
-netipsec/ipsec_input.c		optional ipsec
-netipsec/ipsec_mbuf.c		optional ipsec
-netipsec/ipsec_output.c		optional ipsec
-netipsec/key.c			optional ipsec
-netipsec/key_debug.c		optional ipsec
-netipsec/keysock.c		optional ipsec
-netipsec/xform_ah.c		optional ipsec
-netipsec/xform_esp.c		optional ipsec
-netipsec/xform_ipcomp.c		optional ipsec
-netipsec/xform_ipip.c		optional ipsec
-netipsec/xform_tcp.c		optional ipsec tcp_signature
+netipsec/ipsec.c		optional ipsec inet | ipsec inet6
+netipsec/ipsec_input.c		optional ipsec inet | ipsec inet6
+netipsec/ipsec_mbuf.c		optional ipsec inet | ipsec inet6
+netipsec/ipsec_output.c		optional ipsec inet | ipsec inet6
+netipsec/key.c			optional ipsec inet | ipsec inet6
+netipsec/key_debug.c		optional ipsec inet | ipsec inet6
+netipsec/keysock.c		optional ipsec inet | ipsec inet6
+netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
+netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
+netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
+netipsec/xform_ipip.c		optional ipsec inet | ipsec inet6
+netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
+					 ipsec inet6 tcp_signature
 netipx/ipx.c			optional ipx
 netipx/ipx_cksum.c		optional ipx
 netipx/ipx_input.c		optional ipx
