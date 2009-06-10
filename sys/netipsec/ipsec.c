@@ -1702,6 +1702,7 @@ vshiftl(unsigned char *bitmap, int nbit, int wsize)
 	}
 }
 
+#ifdef INET
 /* Return a printable string for the IPv4 address. */
 static char *
 inet_ntoa4(struct in_addr ina)
@@ -1716,6 +1717,7 @@ inet_ntoa4(struct in_addr ina)
 	    ucp[2] & 0xff, ucp[3] & 0xff);
 	return (buf[i]);
 }
+#endif
 
 /* Return a printable string for the address. */
 char *

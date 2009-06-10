@@ -103,7 +103,9 @@
 #define IPSEC_ISTAT(p,x,y,z) ((p) == IPPROTO_ESP ? (x)++ : \
 			    (p) == IPPROTO_AH ? (y)++ : (z)++)
 
+#ifdef INET
 static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
+#endif
 
 /*
  * ipsec_common_input gets called when an IPsec-protected packet
