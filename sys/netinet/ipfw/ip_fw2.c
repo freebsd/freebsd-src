@@ -3631,6 +3631,7 @@ remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 /*
  * Reclaim storage associated with a list of rules.  This is
  * typically the list created using remove_rule.
+ * A NULL pointer on input is handled correctly.
  */
 static void
 reap_rules(struct ip_fw *head)
@@ -3655,6 +3656,7 @@ free_chain(struct ip_fw_chain *chain, int kill_default)
 
 	IPFW_WLOCK_ASSERT(chain);
 
+	chain->reap = NULL;
 	flush_rule_ptrs(chain); /* more efficient to do outside the loop */
 	for (prev = NULL, rule = chain->rules; rule ; )
 		if (kill_default || rule->set != RESVD_SET)
@@ -3701,8 +3703,8 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 	}
 
 	IPFW_WLOCK(chain);
-	rule = chain->rules;
-	chain->reap = NULL;
+	rule = chain->rules;	/* common starting point */
+	chain->reap = NULL;	/* prepare for deletions */
 	switch (cmd) {
 	case 0:	/* delete rules with given number */
 		/*
@@ -3726,18 +3728,17 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 
 	case 1:	/* delete all rules with given set number */
 		flush_rule_ptrs(chain);
-		rule = chain->rules;
-		while (rule->rulenum < IPFW_DEFAULT_RULE)
+		while (rule->rulenum < IPFW_DEFAULT_RULE) {
 			if (rule->set == rulenum)
 				rule = remove_rule(chain, rule, prev);
 			else {
 				prev = rule;
 				rule = rule->next;
 			}
+		}
 		break;
 
 	case 2:	/* move rules with given number to new set */
-		rule = chain->rules;
 		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->rulenum == rulenum)
 				rule->set = new_set;
@@ -3756,6 +3757,7 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			else if (rule->set == new_set)
 				rule->set = rulenum;
 		break;
+
 	case 5: /* delete rules with given number and with given set number.
 		 * rulenum - given rule number;
 		 * new_set - given set number.
@@ -3782,10 +3784,8 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 	 * avoid a LOR with dummynet.
 	 */
 	rule = chain->reap;
-	chain->reap = NULL;
 	IPFW_WUNLOCK(chain);
-	if (rule)
-		reap_rules(rule);
+	reap_rules(rule);
 	return 0;
 }
 
@@ -4315,6 +4315,8 @@ ipfw_ctl(struct sockopt *sopt)
 		if (V_ipfw_dyn_v)		/* add size of dyn.rules */
 			size += (V_dyn_count * sizeof(ipfw_dyn_rule));
 
+		if (size >= sopt->sopt_valsize)
+			break;
 		/*
 		 * XXX todo: if the user passes a short length just to know
 		 * how much room is needed, do not bother filling up the
@@ -4341,13 +4343,10 @@ ipfw_ctl(struct sockopt *sopt)
 		 */
 
 		IPFW_WLOCK(&V_layer3_chain);
-		V_layer3_chain.reap = NULL;
 		free_chain(&V_layer3_chain, 0 /* keep default rule */);
 		rule = V_layer3_chain.reap;
-		V_layer3_chain.reap = NULL;
 		IPFW_WUNLOCK(&V_layer3_chain);
-		if (rule != NULL)
-			reap_rules(rule);
+		reap_rules(rule);
 		break;
 
 	case IP_FW_ADD:
@@ -4735,12 +4734,10 @@ ipfw_destroy(void)
 	callout_drain(&V_ipfw_timeout);
 	IPFW_WLOCK(&V_layer3_chain);
 	flush_tables(&V_layer3_chain);
-	V_layer3_chain.reap = NULL;
 	free_chain(&V_layer3_chain, 1 /* kill default rule */);
-	reap = V_layer3_chain.reap, V_layer3_chain.reap = NULL;
+	reap = V_layer3_chain.reap;
 	IPFW_WUNLOCK(&V_layer3_chain);
-	if (reap != NULL)
-		reap_rules(reap);
+	reap_rules(reap);
 	IPFW_DYN_LOCK_DESTROY();
 	uma_zdestroy(ipfw_dyn_rule_zone);
 	if (V_ipfw_dyn_v != NULL)
