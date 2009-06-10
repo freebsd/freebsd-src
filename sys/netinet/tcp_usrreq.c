@@ -1823,7 +1823,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->snd_recover);
 
 	db_print_indent(indent);
-	db_printf("t_maxopd: %u   t_rcvtime: %lu   t_startime: %lu\n",
+	db_printf("t_maxopd: %u   t_rcvtime: %u   t_startime: %u\n",
 	    tp->t_maxopd, tp->t_rcvtime, tp->t_starttime);
 
 	db_print_indent(indent);
@@ -1854,7 +1854,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->snd_scale, tp->rcv_scale, tp->request_r_scale);
 
 	db_print_indent(indent);
-	db_printf("ts_recent: %u   ts_recent_age: %lu\n",
+	db_printf("ts_recent: %u   ts_recent_age: %u\n",
 	    tp->ts_recent, tp->ts_recent_age);
 
 	db_print_indent(indent);
@@ -1863,7 +1863,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 
 	db_print_indent(indent);
 	db_printf("snd_ssthresh_prev: %lu   snd_recover_prev: 0x%08x   "
-	    "t_badrxtwin: %lu\n", tp->snd_ssthresh_prev,
+	    "t_badrxtwin: %u\n", tp->snd_ssthresh_prev,
 	    tp->snd_recover_prev, tp->t_badrxtwin);
 
 	db_print_indent(indent);
