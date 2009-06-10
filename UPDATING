@@ -8,6 +8,15 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090610:	p11	FreeBSD-SA-09:09.pipe, FreeBSD-SA-09:10.ipv6,
+			FreeBSD-SA-09:11.ntpd
+	Prevent integer overflow in direct pipe write code from circumventing
+	virtual-to-physical page lookups. [09:09]
+
+	Add missing permissions check for SIOCSIFINFO_IN6 ioctl. [09:10]
+
+	Fix buffer overflow in "autokey" negotiation in ntpd(8). [09:11]
+
 20090422:	p10	FreeBSD-SA-09:07.libc, FreeBSD-SA-09:08.openssl
 	Don't leak information via uninitialized space in db(3) records.
 	[09:07]

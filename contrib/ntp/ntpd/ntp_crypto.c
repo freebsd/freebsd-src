@@ -534,7 +534,7 @@ crypto_recv(
 			peer->issuer = emalloc(vallen + 1);
 			strcpy(peer->issuer, peer->subject);
 			temp32 = (fstamp >> 16) & 0xffff;
-			sprintf(statstr,
+			snprintf(statstr, NTP_MAXSTRLEN,
 			    "flags 0x%x host %s signature %s", fstamp,
 			    peer->subject, OBJ_nid2ln(temp32));
 			record_crypto_stats(&peer->srcadr, statstr);
@@ -604,7 +604,8 @@ crypto_recv(
 			}
 			peer->flash &= ~TEST10;
 			temp32 = cinfo->nid;
-			sprintf(statstr, "cert %s 0x%x %s (%u) fs %u",
+			snprintf(statstr, NTP_MAXSTRLEN,
+			    "cert %s 0x%x %s (%u) fs %u",
 			    cinfo->subject, cinfo->flags,
 			    OBJ_nid2ln(temp32), temp32,
 			    ntohl(ep->fstamp));
@@ -652,7 +653,7 @@ crypto_recv(
 			peer->crypto |= CRYPTO_FLAG_VRFY |
 			    CRYPTO_FLAG_PROV;
 			peer->flash &= ~TEST10;
-			sprintf(statstr, "iff fs %u",
+			snprintf(statstr, NTP_MAXSTRLEN, "iff fs %u",
 			    ntohl(ep->fstamp));
 			record_crypto_stats(&peer->srcadr, statstr);
 #ifdef DEBUG
@@ -699,7 +700,7 @@ crypto_recv(
 			peer->crypto |= CRYPTO_FLAG_VRFY |
 			    CRYPTO_FLAG_PROV;
 			peer->flash &= ~TEST10;
-			sprintf(statstr, "gq fs %u",
+			snprintf(statstr, NTP_MAXSTRLEN, "gq fs %u",
 			    ntohl(ep->fstamp));
 			record_crypto_stats(&peer->srcadr, statstr);
 #ifdef DEBUG
@@ -739,7 +740,7 @@ crypto_recv(
 			peer->crypto |= CRYPTO_FLAG_VRFY |
 			    CRYPTO_FLAG_PROV;
 			peer->flash &= ~TEST10;
-			sprintf(statstr, "mv fs %u",
+			snprintf(statstr, NTP_MAXSTRLEN, "mv fs %u",
 			    ntohl(ep->fstamp));
 			record_crypto_stats(&peer->srcadr, statstr);
 #ifdef DEBUG
@@ -778,7 +779,7 @@ crypto_recv(
 			peer->crypto |= CRYPTO_FLAG_SIGN;
 			peer->flash &= ~TEST10;
 			temp32 = cinfo->nid;
-			sprintf(statstr, "sign %s 0x%x %s (%u) fs %u",
+			snprintf(statstr, NTP_MAXSTRLEN, "sign %s 0x%x %s (%u) fs %u",
 			    cinfo->issuer, cinfo->flags,
 			    OBJ_nid2ln(temp32), temp32,
 			    ntohl(ep->fstamp));
@@ -833,7 +834,7 @@ crypto_recv(
 			peer->crypto &= ~CRYPTO_FLAG_AUTO;
 			peer->crypto |= CRYPTO_FLAG_AGREE;
 			peer->flash &= ~TEST10;
-			sprintf(statstr, "cook %x ts %u fs %u",
+			snprintf(statstr, NTP_MAXSTRLEN, "cook %x ts %u fs %u",
 			    peer->pcookie, ntohl(ep->tstamp),
 			    ntohl(ep->fstamp));
 			record_crypto_stats(&peer->srcadr, statstr);
@@ -897,7 +898,7 @@ crypto_recv(
 				peer->crypto &= ~CRYPTO_FLAG_AUTO;
 			peer->crypto |= CRYPTO_FLAG_AGREE;
 			peer->flash &= ~TEST10;
-			sprintf(statstr, "cook %x ts %u fs %u",
+			snprintf(statstr, NTP_MAXSTRLEN, "cook %x ts %u fs %u",
 			    peer->pcookie, ntohl(ep->tstamp),
 			    ntohl(ep->fstamp));
 			record_crypto_stats(&peer->srcadr, statstr);
@@ -947,7 +948,7 @@ crypto_recv(
 			peer->pkeyid = bp->key;
 			peer->crypto |= CRYPTO_FLAG_AUTO;
 			peer->flash &= ~TEST10;
-			sprintf(statstr,
+			snprintf(statstr, NTP_MAXSTRLEN,
 			    "auto seq %d key %x ts %u fs %u", bp->seq,
 			    bp->key, ntohl(ep->tstamp),
 			    ntohl(ep->fstamp));
@@ -1051,7 +1052,7 @@ crypto_recv(
 			(void)ntp_adjtime(&ntv);
 #endif /* NTP_API */
 #endif /* KERNEL_PLL */
-			sprintf(statstr, "leap %u ts %u fs %u",
+			snprintf(statstr, NTP_MAXSTRLEN, "leap %u ts %u fs %u",
 			    vallen, ntohl(ep->tstamp),
 			    ntohl(ep->fstamp));
 			record_crypto_stats(&peer->srcadr, statstr);
@@ -1106,7 +1107,7 @@ crypto_recv(
 		 * scan and we return the laundry to the caller.
 		 */
 		if (rval != XEVNT_OK) {
-			sprintf(statstr,
+			snprintf(statstr, NTP_MAXSTRLEN,
 			    "error %x opcode %x ts %u fs %u", rval,
 			    code, tstamp, fstamp);
 			if (rval > XEVNT_TSP)
@@ -1388,7 +1389,8 @@ crypto_xmit(
 	 */
 	if (rval > XEVNT_TSP) {
 		opcode |= CRYPTO_ERROR;
-		sprintf(statstr, "error %x opcode %x", rval, opcode);
+		snprintf(statstr, NTP_MAXSTRLEN,
+		    "error %x opcode %x", rval, opcode);
 		record_crypto_stats(srcadr_sin, statstr);
 #ifdef DEBUG
 		if (debug)
@@ -1884,7 +1886,8 @@ crypto_update(void)
 		if (EVP_SignFinal(&ctx, tai_leap.sig, &len, sign_pkey))
 			tai_leap.siglen = htonl(len);
 	}
-	sprintf(statstr, "update ts %u", ntohl(hostval.tstamp)); 
+	snprintf(statstr, NTP_MAXSTRLEN,
+	    "update ts %u", ntohl(hostval.tstamp)); 
 	record_crypto_stats(NULL, statstr);
 #ifdef DEBUG
 	if (debug)
@@ -3461,7 +3464,7 @@ crypto_key(
 	 */
 	if ((ptr = strrchr(linkname, '\n')) != NULL)
 		*ptr = '\0'; 
-	sprintf(statstr, "%s mod %d", &linkname[2],
+	snprintf(statstr, NTP_MAXSTRLEN, "%s mod %d", &linkname[2],
 	    EVP_PKEY_size(pkey) * 8);
 	record_crypto_stats(NULL, statstr);
 #ifdef DEBUG
@@ -3563,8 +3566,8 @@ crypto_cert(
 		return (NULL);
 	if ((ptr = strrchr(linkname, '\n')) != NULL)
 		*ptr = '\0'; 
-	sprintf(statstr, "%s 0x%x len %lu", &linkname[2], ret->flags,
-	    len);
+	snprintf(statstr, NTP_MAXSTRLEN,
+	    "%s 0x%x len %lu", &linkname[2], ret->flags, len);
 	record_crypto_stats(NULL, statstr);
 #ifdef DEBUG
 	if (debug)
@@ -3692,7 +3695,7 @@ crypto_tai(
 		    "crypto_tai: kernel TAI update failed");
 #endif /* NTP_API */
 #endif /* KERNEL_PLL */
-	sprintf(statstr, "%s link %d fs %u offset %u", cp, rval, fstamp,
+	snprintf(statstr, NTP_MAXSTRLEN, "%s link %d fs %u offset %u", cp, rval, fstamp,
 	    ntohl(tai_leap.vallen) / 4 + TAI_1972 - 1);
 	record_crypto_stats(NULL, statstr);
 #ifdef DEBUG
