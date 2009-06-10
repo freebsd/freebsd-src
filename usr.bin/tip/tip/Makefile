@@ -36,7 +36,7 @@ LINKS=	${BINDIR}/tip ${BINDIR}/cu
 MAN=	tip.1 cu.1
 CFLAGS+=-I${.CURDIR} -DDEFBR=9600 -DDEFFS=BUFSIZ -DACULOG -DPRISTINE \
 	-DCONNECT -DV831 -DVENTEL -DHAYES -DCOURIER -DT3000
-WARNS?=	3
+WARNS?=	2
 .PATH:	${.CURDIR}/../libacu
 SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
 	remote.c tip.c tipout.c uucplock.c value.c vars.c \
