@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_sctp.h"
 #include "opt_compat.h"
 #include "opt_ktrace.h"
@@ -77,10 +79,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
+#if defined(INET) || defined(INET6)
 #ifdef SCTP
 #include <netinet/sctp.h>
 #include <netinet/sctp_peeloff.h>
 #endif /* SCTP */
+#endif /* INET || INET6 */
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
@@ -2269,7 +2273,7 @@ sctp_peeloff(td, uap)
 		caddr_t	name;
 	} */ *uap;
 {
-#ifdef SCTP
+#if (defined(INET) || defined(INET6)) && defined(SCTP)
 	struct filedesc *fdp;
 	struct file *nfp = NULL;
 	int error;
@@ -2358,7 +2362,7 @@ sctp_generic_sendmsg (td, uap)
 		int flags
 	} */ *uap;
 {
-#ifdef SCTP
+#if (defined(INET) || defined(INET6)) && defined(SCTP)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
@@ -2459,7 +2463,7 @@ sctp_generic_sendmsg_iov(td, uap)
 		int flags
 	} */ *uap;
 {
-#ifdef SCTP
+#if (defined(INET) || defined(INET6)) && defined(SCTP)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
@@ -2570,7 +2574,7 @@ sctp_generic_recvmsg(td, uap)
 		int *msg_flags
 	} */ *uap;
 {
-#ifdef SCTP
+#if (defined(INET) || defined(INET6)) && defined(SCTP)
 	u_int8_t sockbufstore[256];
 	struct uio auio;
 	struct iovec *iov, *tiov;
