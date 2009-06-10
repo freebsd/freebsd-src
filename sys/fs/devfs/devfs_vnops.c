@@ -1276,11 +1276,19 @@ devfs_revoke(struct vop_revoke_args *ap)
 static int
 devfs_rioctl(struct vop_ioctl_args *ap)
 {
-	int error;
+	struct vnode *vp;
 	struct devfs_mount *dmp;
+	int error;
 
-	dmp = VFSTODEVFS(ap->a_vp->v_mount);
+	vp = ap->a_vp;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	if (vp->v_iflag & VI_DOOMED) {
+		VOP_UNLOCK(vp, 0);
+		return (EBADF);
+	}
+	dmp = VFSTODEVFS(vp->v_mount);
 	sx_xlock(&dmp->dm_lock);
+	VOP_UNLOCK(vp, 0);
 	DEVFS_DMP_HOLD(dmp);
 	devfs_populate(dmp);
 	if (DEVFS_DMP_DROP(dmp)) {
