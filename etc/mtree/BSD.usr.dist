@@ -357,11 +357,29 @@
             ..
             bg_BG.UTF-8
             ..
+            ca_AD.ISO8859-1
+            ..
             ca_ES.ISO8859-1
+            ..
+            ca_FR.ISO8859-1
+            ..
+            ca_IT.ISO8859-1
+            ..
+            ca_AD.ISO8859-15
             ..
             ca_ES.ISO8859-15
             ..
+            ca_FR.ISO8859-15
+            ..
+            ca_IT.ISO8859-15
+            ..
+            ca_AD.UTF-8
+            ..
             ca_ES.UTF-8
+            ..
+            ca_FR.UTF-8
+            ..
+            ca_IT.UTF-8
             ..
             cs_CZ.ISO8859-2
             ..
