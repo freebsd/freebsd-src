@@ -14,6 +14,7 @@ LOCALES=	bg_BG.CP1251 \
 		es_ES.ISO8859-15 \
 		et_EE.ISO8859-15 \
 		hi_IN.ISCII-DEV \
+		hr_HR.ISO8859-2 \
 		hy_AM.ARMSCII-8 \
 		is_IS.ISO8859-1 \
 		is_IS.ISO8859-15 \
@@ -74,7 +75,7 @@ ISO8859-15_ISO8859-15= \
 	no_NO:nb_NO no_NO:nn_NO \
 	${LATIN1LINKS:C/^/la_LN:/}
 
-LATIN2LINKS=    hr_HR hu_HU ro_RO sr_YU
+LATIN2LINKS=    hu_HU ro_RO sr_YU
 ISO8859-2_ISO8859-2= ${LATIN2LINKS:C/^/la_LN:/} cs_CZ:sk_SK
 
 US-ASCII_Big5HKSCS= la_LN:zh_HK
