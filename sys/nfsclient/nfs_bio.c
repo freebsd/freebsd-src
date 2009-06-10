@@ -389,6 +389,11 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	 * But for now, this suffices.
 	 */
 	old_lock = nfs_upgrade_vnlock(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		nfs_downgrade_vnlock(vp, old_lock);
+		return (EBADF);
+	}
+		
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NMODIFIED) {
 		mtx_unlock(&np->n_mtx);
@@ -1289,14 +1294,6 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 
 	ASSERT_VOP_LOCKED(vp, "nfs_vinvalbuf");
 
-	/*
-	 * XXX This check stops us from needlessly doing a vinvalbuf when
-	 * being called through vclean().  It is not clear that this is
-	 * unsafe.
-	 */
-	if (vp->v_iflag & VI_DOOMED)
-		return (0);
-
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
 	if (intrflg) {
@@ -1308,6 +1305,16 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	}
 
 	old_lock = nfs_upgrade_vnlock(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		/*
+		 * Since vgonel() uses the generic vinvalbuf() to flush
+		 * dirty buffers and it does not call this function, it
+		 * is safe to just return OK when VI_DOOMED is set.
+		 */
+		nfs_downgrade_vnlock(vp, old_lock);
+		return (0);
+	}
+
 	/*
 	 * Now, flush as required.
 	 */
