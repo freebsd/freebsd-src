@@ -38,6 +38,7 @@
  */
 
 int zfs_prefetch_disable = 0;
+int zfs_prefetch_enable = 0;
 
 /* max # of streams per zfetch */
 uint32_t	zfetch_max_streams = 8;
@@ -52,6 +53,9 @@ SYSCTL_DECL(_vfs_zfs);
 TUNABLE_INT("vfs.zfs.prefetch_disable", &zfs_prefetch_disable);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, prefetch_disable, CTLFLAG_RDTUN,
     &zfs_prefetch_disable, 0, "Disable prefetch");
+TUNABLE_INT("vfs.zfs.prefetch_enable", &zfs_prefetch_enable);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, prefetch_enable, CTLFLAG_RDTUN,
+    &zfs_prefetch_enable, 0, "Enable prefetch for systems with less than 4GB");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zfetch, CTLFLAG_RW, 0, "ZFS ZFETCH");
 TUNABLE_INT("vfs.zfs.zfetch.max_streams", &zfetch_max_streams);
 SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, max_streams, CTLFLAG_RDTUN,
