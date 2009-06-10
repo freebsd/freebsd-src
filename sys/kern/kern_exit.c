@@ -550,6 +550,7 @@ retry:
 	 * proc lock.
 	 */
 	wakeup(p->p_pptr);
+	cv_broadcast(&p->p_pwait);
 	PROC_SLOCK(p->p_pptr);
 	sched_exit(p->p_pptr, td);
 	PROC_SUNLOCK(p->p_pptr);
@@ -783,6 +784,7 @@ loop:
 				PROC_UNLOCK(p);
 				tdsignal(t, NULL, SIGCHLD, p->p_ksi);
 				wakeup(t);
+				cv_broadcast(&p->p_pwait);
 				PROC_UNLOCK(t);
 				sx_xunlock(&proctree_lock);
 				return (0);
