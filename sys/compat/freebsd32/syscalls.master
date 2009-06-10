@@ -708,9 +708,17 @@
 409	AUE_NULL	UNIMPL	__mac_get_pid
 410	AUE_NULL	UNIMPL	__mac_get_link
 411	AUE_NULL	UNIMPL	__mac_set_link
-412	AUE_EXTATTR_SET_LINK	UNIMPL	extattr_set_link
-413	AUE_EXTATTR_GET_LINK	UNIMPL	extattr_get_link
-414	AUE_EXTATTR_DELETE_LINK	UNIMPL	extattr_delete_link
+412	AUE_EXTATTR_SET_LINK	NOPROTO	{ int extattr_set_link( \
+				    const char *path, int attrnamespace, \
+				    const char *attrname, void *data, \
+				    size_t nbytes); }
+413	AUE_EXTATTR_GET_LINK	NOPROTO	{ ssize_t extattr_get_link( \
+				    const char *path, int attrnamespace, \
+				    const char *attrname, void *data, \
+				    size_t nbytes); }
+414	AUE_EXTATTR_DELETE_LINK	NOPROTO	{ int extattr_delete_link( \
+				    const char *path, int attrnamespace, \
+				    const char *attrname); }
 415	AUE_NULL	UNIMPL	__mac_execve
 416	AUE_SIGACTION	STD	{ int freebsd32_sigaction(int sig, \
 				    struct sigaction32 *act, \
@@ -741,9 +749,15 @@
 434	AUE_NULL	STD	{ int freebsd32_umtx_lock(struct umtx *umtx); }
 435	AUE_NULL	STD	{ int freebsd32_umtx_unlock(struct umtx *umtx); }
 436	AUE_NULL	NOPROTO	{ int jail_attach(int jid); }
-437	AUE_EXTATTR_LIST_FD	UNIMPL	extattr_list_fd
-438	AUE_EXTATTR_LIST_FILE	UNIMPL	extattr_list_file
-439	AUE_EXTATTR_LIST_LINK	UNIMPL	extattr_list_link
+437	AUE_EXTATTR_LIST_FD	NOPROTO	{ ssize_t extattr_list_fd(int fd, \
+				    int attrnamespace, void *data, \
+				    size_t nbytes); }
+438	AUE_EXTATTR_LIST_FILE	NOPROTO	{ ssize_t extattr_list_file( \
+				    const char *path, int attrnamespace, \
+				    void *data, size_t nbytes); }
+439	AUE_EXTATTR_LIST_LINK	NOPROTO	{ ssize_t extattr_list_link( \
+				    const char *path, int attrnamespace, \
+				    void *data, size_t nbytes); }
 440	AUE_NULL	UNIMPL	kse_switchin
 441	AUE_NULL	UNIMPL	ksem_timedwait
 442	AUE_NULL	STD	{ int freebsd32_thr_suspend( \
