@@ -1531,8 +1531,8 @@ mqueue_alloc(const struct mq_attr *attr)
 		mq->mq_msgsize = default_msgsize;
 	}
 	mtx_init(&mq->mq_mutex, "mqueue lock", NULL, MTX_DEF);
-	knlist_init(&mq->mq_rsel.si_note, &mq->mq_mutex, NULL, NULL, NULL);
-	knlist_init(&mq->mq_wsel.si_note, &mq->mq_mutex, NULL, NULL, NULL);
+	knlist_init_mtx(&mq->mq_rsel.si_note, &mq->mq_mutex);
+	knlist_init_mtx(&mq->mq_wsel.si_note, &mq->mq_mutex);
 	atomic_add_int(&curmq, 1);
 	return (mq);
 }

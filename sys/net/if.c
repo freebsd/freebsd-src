@@ -445,7 +445,7 @@ vnet_net_iattach(const void *unused __unused)
 
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
-	knlist_init(&V_ifklist, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&V_ifklist, NULL);
 	if_grow();				/* create initial table */
 
 	return (0);
@@ -548,7 +548,7 @@ if_alloc(u_char type)
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
 	TAILQ_INIT(&ifp->if_groups);
-	knlist_init(&ifp->if_klist, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&ifp->if_klist, NULL);
 #ifdef MAC
 	mac_ifnet_init(ifp);
 #endif

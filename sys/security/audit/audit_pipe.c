@@ -579,8 +579,7 @@ audit_pipe_alloc(void)
 		return (NULL);
 	ap->ap_qlimit = AUDIT_PIPE_QLIMIT_DEFAULT;
 	TAILQ_INIT(&ap->ap_queue);
-	knlist_init(&ap->ap_selinfo.si_note, AUDIT_PIPE_MTX(ap), NULL, NULL,
-	    NULL);
+	knlist_init_mtx(&ap->ap_selinfo.si_note, AUDIT_PIPE_MTX(ap));
 	AUDIT_PIPE_LOCK_INIT(ap);
 	AUDIT_PIPE_SX_LOCK_INIT(ap);
 	cv_init(&ap->ap_cv, "audit_pipe");
