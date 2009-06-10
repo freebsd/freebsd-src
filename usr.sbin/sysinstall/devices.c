@@ -91,7 +91,7 @@ static struct _devname {
     SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
     NETWORK("ae",	"Attansic/Atheros L2 Fast Ethernet"),
     NETWORK("age",	"Attansic/Atheros L1 Gigabit Ethernet"),
-    NETWORK("alc",	"Atheros AR8111/AR8132 PCIe Ethernet"),
+    NETWORK("alc",	"Atheros AR8131/AR8132 PCIe Ethernet"),
     NETWORK("ale",	"Atheros AR8121/AR8113/AR8114 PCIe Ethernet"),
     NETWORK("an",	"Aironet 4500/4800 802.11 wireless adapter"),
     NETWORK("ath",	"Atheros IEEE 802.11 wireless adapter"),
