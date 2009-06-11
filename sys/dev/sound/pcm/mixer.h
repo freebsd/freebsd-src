@@ -74,15 +74,4 @@ extern int mixer_count;
 #define MIXER_SIZE	(512 + sizeof(struct kobj) +		\
 			    sizeof(oss_mixer_enuminfo))
 
-#ifdef SND_DEBUG
-#define MIXER_DECLARE(mixer)						\
-	static struct kobj_class mixer##_class = {			\
-		.name        = #mixer,					\
-		.methods     = mixer##_methods,				\
-		.size        = MIXER_SIZE,				\
-		.baseclasses = NULL,					\
-		.refs        = 0					\
-	}
-#else
 #define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
-#endif

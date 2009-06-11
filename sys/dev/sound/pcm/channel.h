@@ -441,15 +441,4 @@ extern int report_soft_matrix;
 /* The size of a whole secondary bufhard. */
 #define CHN_2NDBUFMAXSIZE	(131072)
 
-#ifdef SND_DEBUG
-#define CHANNEL_DECLARE(channel)					\
-	static struct kobj_class channel##_class = {			\
-		.name 	     = #channel,				\
-		.methods     = channel##_methods,			\
-		.size        = sizeof(struct kobj),			\
-		.baseclasses = NULL,					\
-		.refs        = 0					\
-	}
-#else
 #define CHANNEL_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))
-#endif
