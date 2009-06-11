@@ -2352,7 +2352,7 @@ netinet/if_atm.c		optional atm
 netinet/if_ether.c		optional ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
-netinet/ip_carp.c		optional carp
+netinet/ip_carp.c		optional inet carp | inet6 carp
 netinet/in_gif.c		optional gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet

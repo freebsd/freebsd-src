@@ -86,8 +86,10 @@
 #include <netinet/if_ether.h>
 #include <netinet/vinet.h>
 #endif
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
+#endif
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -1738,9 +1740,11 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	ifp->if_qflush(ifp);
 
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
+#endif
 #endif
 	rt_ifmsg(ifp);
 }
@@ -1762,9 +1766,11 @@ if_route(struct ifnet *ifp, int flag, int fam)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFUP, ifa->ifa_addr);
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
+#endif
 #endif
 	rt_ifmsg(ifp);
 #ifdef INET6
@@ -1816,9 +1822,11 @@ do_link_state_change(void *arg, int pending)
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
 	    IFP2AC(ifp)->ac_netgraph != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
+#endif
 #endif
 	if (ifp->if_bridge) {
 		KASSERT(bstp_linkstate_p != NULL,("if_bridge bstp not loaded!"));
