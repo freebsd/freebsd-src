@@ -648,7 +648,7 @@ rtmsg(int cmd, struct sockaddr_inarp *dst, struct sockaddr_dl *sdl)
 	static int seq;
 	int rlen;
 	int l;
-	struct sockaddr_in so_mask;
+	struct sockaddr_in so_mask, *som = &so_mask;
 	static int s = -1;
 	static pid_t pid;
 
@@ -702,13 +702,17 @@ rtmsg(int cmd, struct sockaddr_inarp *dst, struct sockaddr_dl *sdl)
 	case RTM_GET:
 		rtm->rtm_addrs |= RTA_DST;
 	}
-#define NEXTADDR(w, s) \
-	if ((s) != NULL && rtm->rtm_addrs & (w)) { \
-		bcopy((s), cp, sizeof(*(s))); cp += SA_SIZE(s);}
+#define NEXTADDR(w, s)					   \
+	do {						   \
+		if ((s) != NULL && rtm->rtm_addrs & (w)) { \
+			bcopy((s), cp, sizeof(*(s)));	   \
+			cp += SA_SIZE(s);		   \
+		}					   \
+	} while (0)
 
 	NEXTADDR(RTA_DST, dst);
 	NEXTADDR(RTA_GATEWAY, sdl);
-	NEXTADDR(RTA_NETMASK, &so_mask);
+	NEXTADDR(RTA_NETMASK, som);
 
 	rtm->rtm_msglen = cp - (char *)&m_rtmsg;
 doit:
