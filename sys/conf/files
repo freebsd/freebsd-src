@@ -450,7 +450,7 @@ dev/advansys/adwcam.c		optional adw
 dev/advansys/adwlib.c		optional adw
 dev/advansys/adwmcode.c		optional adw
 dev/ae/if_ae.c			optional ae pci
-dev/age/if_age.c		optional age pci
+dev/age/if_age.c		optional age pci inet
 dev/agp/agp.c			optional agp pci
 dev/agp/agp_if.m			optional agp pci
 dev/aha/aha.c			optional aha
@@ -471,8 +471,8 @@ dev/aic7xxx/aic7xxx.c		optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
 dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
-dev/alc/if_alc.c		optional alc pci
-dev/ale/if_ale.c		optional ale pci
+dev/alc/if_alc.c		optional alc pci inet
+dev/ale/if_ale.c		optional ale pci inet
 dev/amd/amd.c			optional amd
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
@@ -860,7 +860,7 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
-dev/e1000/if_em.c		optional em \
+dev/e1000/if_em.c		optional em inet \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/if_igb.c		optional igb inet \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
@@ -921,7 +921,7 @@ dev/firewire/if_fwip.c		optional fwip
 dev/firewire/sbp.c		optional sbp
 dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
-dev/fxp/if_fxp.c		optional fxp
+dev/fxp/if_fxp.c		optional fxp inet
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
 dev/hatm/if_hatm.c		optional hatm pci
@@ -1098,7 +1098,7 @@ dev/ixgbe/ixgbe_82598.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82599.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/jme/if_jme.c		optional jme pci
+dev/jme/if_jme.c		optional jme pci inet
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
@@ -1180,7 +1180,7 @@ dev/mpt/mpt_debug.c		optional mpt
 dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/mpt/mpt_user.c		optional mpt
-dev/msk/if_msk.c		optional msk
+dev/msk/if_msk.c		optional msk inet
 dev/mwl/if_mwl.c		optional mwl
 dev/mwl/if_mwl_pci.c		optional mwl pci
 dev/mwl/mwlhal.c		optional mwl
@@ -1208,12 +1208,12 @@ mwlboot.fw		optional mwlfw					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/mwl/mwlboot.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"mwlboot.fw"
-dev/mxge/if_mxge.c		optional mxge pci
-dev/mxge/mxge_lro.c		optional mxge pci
-dev/mxge/mxge_eth_z8e.c		optional mxge pci
-dev/mxge/mxge_ethp_z8e.c	optional mxge pci
-dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
-dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
+dev/mxge/if_mxge.c		optional mxge pci inet
+dev/mxge/mxge_lro.c		optional mxge pci inet
+dev/mxge/mxge_eth_z8e.c		optional mxge pci inet
+dev/mxge/mxge_ethp_z8e.c	optional mxge pci inet
+dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci inet
+dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci inet
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
@@ -1386,7 +1386,7 @@ dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
 dev/sis/if_sis.c		optional sis pci
-dev/sk/if_sk.c			optional sk pci
+dev/sk/if_sk.c			optional sk pci inet
 dev/smbus/smb.c			optional smb
 dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
@@ -1535,7 +1535,7 @@ dev/twa/tw_osl_freebsd.c	optional twa \
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
 dev/tx/if_tx.c			optional tx
-dev/txp/if_txp.c		optional txp
+dev/txp/if_txp.c		optional txp inet
 dev/uart/uart_bus_acpi.c	optional uart acpi
 #dev/uart/uart_bus_cbus.c	optional uart cbus
 dev/uart/uart_bus_ebus.c	optional uart ebus
