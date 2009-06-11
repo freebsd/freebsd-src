@@ -2186,7 +2186,7 @@ net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
 net/if_atmsubr.c		optional atm
-net/if_bridge.c			optional bridge | if_bridge
+net/if_bridge.c			optional bridge inet | if_bridge inet
 net/if_clone.c			standard
 net/if_dead.c			standard
 net/if_disc.c			optional disc
