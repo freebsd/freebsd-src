@@ -4,6 +4,6 @@
 PROG=	arp
 MAN=	arp.4 arp.8
 
-WARNS?=	1
+WARNS?=	6
 
 .include <bsd.prog.mk>
