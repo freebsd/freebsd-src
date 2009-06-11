@@ -122,8 +122,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/vinet6.h>
 #endif
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
+#endif
 #endif
 #include <machine/in_cksum.h>
 #include <netinet/if_ether.h> /* for struct arpcom */
@@ -2231,7 +2233,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (m);
 	}
 
-#ifdef DEV_CARP
+#if (defined(INET) || defined(INET6)) && defined(DEV_CARP)
 #   define OR_CARP_CHECK_WE_ARE_DST(iface) \
 	|| ((iface)->if_carp \
 	    && carp_forus((iface)->if_carp, eh->ether_dhost))
