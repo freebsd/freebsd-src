@@ -66,23 +66,16 @@
 #include <sys/soundcard.h>
 #include <sys/sysctl.h>
 #include <sys/kobj.h>
-#ifdef SND_DEBUG
-#undef KOBJMETHOD
-#define KOBJMETHOD(NAME, FUNC)						\
-	{								\
-		&NAME##_desc,						\
-		(kobjop_t) ((FUNC != (NAME##_t *)NULL) ? FUNC : NULL)	\
-	}
-#endif
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
 
 struct pcm_channel;
 struct pcm_feeder;
