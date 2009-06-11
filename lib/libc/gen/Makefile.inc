@@ -10,7 +10,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
 	dlfcn.c dlfunc.c drand48.c erand48.c err.c errlst.c errno.c \
-	exec.c fmtcheck.c fmtmsg.c fnmatch.c \
+	exec.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
 	fpclassify.c frexp.c fstab.c ftok.c fts.c ftw.c \
 	getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
@@ -43,7 +43,8 @@ MAN+=	alarm.3 arc4random.3 \
 	basename.3 check_utility_compat.3 clock.3 \
 	confstr.3 ctermid.3 daemon.3 devname.3 directory.3 dirname.3 \
 	dladdr.3 dlinfo.3 dllockinit.3 dlopen.3 \
-	err.3 exec.3 fmtcheck.3 fmtmsg.3 fnmatch.3 fpclassify.3 frexp.3 \
+	err.3 exec.3 \
+	feature_present.3 fmtcheck.3 fmtmsg.3 fnmatch.3 fpclassify.3 frexp.3 \
 	ftok.3 fts.3 ftw.3 \
 	getbootfile.3 getbsize.3 getcap.3 getcontext.3 getcwd.3 \
 	getdiskbyname.3 getdomainname.3 getfsent.3 \

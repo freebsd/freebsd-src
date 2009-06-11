@@ -477,6 +477,7 @@ int	 des_setkey(const char *key);
 void	 endusershell(void);
 int	 exect(const char *, char * const *, char * const *);
 int	 execvP(const char *, const char *, char * const *);
+int	 feature_present(const char *);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
