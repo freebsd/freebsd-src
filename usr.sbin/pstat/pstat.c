@@ -76,16 +76,22 @@ enum {
 	NL_CONSTTY,
 	NL_MAXFILES,
 	NL_NFILES,
-	NL_TTY_LIST
+	NL_TTY_LIST,
+	NL_MARKER
 };
 
-static struct nlist nl[] = {
-	{ .n_name = "_constty" },
-	{ .n_name = "_maxfiles" },
-	{ .n_name = "_openfiles" },
-	{ .n_name = "_tty_list" },
-	{ .n_name = "" }
+static struct {
+	int order;
+	const char *name;
+} namelist[] = {
+	{ NL_CONSTTY, "_constty" },
+	{ NL_MAXFILES, "_maxfiles" },
+	{ NL_NFILES, "_openfiles" },
+	{ NL_TTY_LIST, "_tty_list" },
+	{ NL_MARKER, "" },
 };
+#define NNAMES	(sizeof(namelist) / sizeof(*namelist))
+static struct nlist nl[NNAMES];
 
 static int	humanflag;
 static int	usenumflag;
@@ -98,7 +104,7 @@ static kvm_t	*kd;
 static const char *usagestr;
 
 static void	filemode(void);
-static int	getfiles(char **, size_t *);
+static int	getfiles(struct xfile **, size_t *);
 static void	swapmode(void);
 static void	ttymode(void);
 static void	ttyprt(struct xtty *);
@@ -107,8 +113,9 @@ static void	usage(void);
 int
 main(int argc, char *argv[])
 {
-	int ch, i, quit, ret;
+	int ch, quit, ret;
 	int fileflag, ttyflag;
+	unsigned int i;
 	char buf[_POSIX2_LINE_MAX];
 	const char *opts;
 
@@ -169,6 +176,12 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+
+	/*
+	 * Initialize symbol names list.
+	 */
+	for (i = 0; i < NNAMES; i++)
+		nl[namelist[i].order].n_name = strdup(namelist[i].name);
 
 	if (memf != NULL) {
 		kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
@@ -253,12 +266,12 @@ ttymode_kvm(void)
 static void
 ttymode_sysctl(void)
 {
-	struct xtty *xt, *end;
-	void *xttys;
+	struct xtty *xttys;
 	size_t len;
+	unsigned int i, n;
 
 	(void)printf("%s", hdr);
-	if ((xttys = malloc(len = sizeof *xt)) == NULL)
+	if ((xttys = malloc(len = sizeof(*xttys))) == NULL)
 		err(1, "malloc()");
 	while (sysctlbyname("kern.ttys", xttys, &len, 0, 0) == -1) {
 		if (errno != ENOMEM)
@@ -267,11 +280,9 @@ ttymode_sysctl(void)
 		if ((xttys = realloc(xttys, len)) == NULL)
 			err(1, "realloc()");
 	}
-	if (len > 0) {
-		end = (struct xtty *)((char *)xttys + len);
-		for (xt = xttys; xt < end; xt++)
-			ttyprt(xt);
-	}
+	n = len / sizeof(*xttys);
+	for (i = 0; i < n; i++)
+		ttyprt(&xttys[i]);
 }
 
 static void
@@ -355,8 +366,8 @@ ttyprt(struct xtty *xt)
 static void
 filemode(void)
 {
-	struct xfile *fp;
-	char *buf, flagbuf[16], *fbp;
+	struct xfile *fp, *buf;
+	char flagbuf[16], *fbp;
 	int maxf, openf;
 	size_t len;
 	static char const * const dtypes[] = { "???", "inode", "socket",
@@ -413,11 +424,11 @@ filemode(void)
 }
 
 static int
-getfiles(char **abuf, size_t *alen)
+getfiles(struct xfile **abuf, size_t *alen)
 {
+	struct xfile *buf;
 	size_t len;
 	int mib[2];
-	char *buf;
 
 	/*
 	 * XXX
