@@ -247,7 +247,7 @@ vop_revoke {
 };
 
 
-%% fsync	vp	E E E
+%% fsync	vp	L L L
 
 vop_fsync {
 	IN struct vnode *vp;
