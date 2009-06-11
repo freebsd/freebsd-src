@@ -131,6 +131,7 @@ void	 endusershell __P((void));
 int	 exect __P((const char *, char * const *, char * const *));
 int	 fchdir __P((int));
 int	 fchown __P((int, uid_t, gid_t));
+int	 feature_present __P((const char *));
 char	*fflagstostr __P((u_long));
 int	 fsync __P((int));
 #ifndef _FTRUNCATE_DECLARED
