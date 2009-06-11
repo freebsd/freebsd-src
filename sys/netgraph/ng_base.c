@@ -2213,10 +2213,14 @@ ng_snd_item(item_p item, int flags)
 	}
 
 	/*
-	 * If sender or receiver requests queued delivery or stack usage
+	 * If sender or receiver requests queued delivery, or call graph
+	 * loops back from outbound to inbound path, or stack usage
 	 * level is dangerous - enqueue message.
 	 */
 	if ((flags & NG_QUEUE) || (hook && (hook->hk_flags & HK_QUEUE))) {
+		queue = 1;
+	} else if (hook && (hook->hk_flags & HK_TO_INBOUND) &&
+	    curthread->td_ng_outbound) {
 		queue = 1;
 	} else {
 		queue = 0;
