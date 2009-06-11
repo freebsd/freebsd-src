@@ -2349,7 +2349,7 @@ netinet/accf_data.c		optional accept_filter_data
 netinet/accf_dns.c		optional accept_filter_dns
 netinet/accf_http.c		optional accept_filter_http
 netinet/if_atm.c		optional atm
-netinet/if_ether.c		optional ether
+netinet/if_ether.c		optional inet ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
 netinet/ip_carp.c		optional inet carp | inet6 carp
