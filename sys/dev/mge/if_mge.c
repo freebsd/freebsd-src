@@ -88,7 +88,7 @@ static int mge_suspend(device_t dev);
 static int mge_resume(device_t dev);
 
 static int mge_miibus_readreg(device_t dev, int phy, int reg);
-static void mge_miibus_writereg(device_t dev, int phy, int reg, int value);
+static int mge_miibus_writereg(device_t dev, int phy, int reg, int value);
 
 static int mge_ifmedia_upd(struct ifnet *ifp);
 static void mge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
@@ -1287,13 +1287,13 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 	return (MGE_READ(sc_mge0, MGE_REG_SMI) & 0xffff);
 }
 
-static void
+static int
 mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	uint32_t retries;
 
 	if ((MV_PHY_ADDR_BASE + device_get_unit(dev)) != phy)
-		return;
+		return (0);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_WRITE | (reg << 21) | (phy << 16) | (value & 0xffff)));
@@ -1304,6 +1304,7 @@ mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	if (retries == 0)
 		device_printf(dev, "Timeout while writing to PHY\n");
+	return (0);
 }
 
 static int
