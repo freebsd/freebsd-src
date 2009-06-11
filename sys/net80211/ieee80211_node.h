@@ -286,6 +286,7 @@ ieee80211_node_is_authorized(const struct ieee80211_node *ni)
 void	ieee80211_node_authorize(struct ieee80211_node *);
 void	ieee80211_node_unauthorize(struct ieee80211_node *);
 
+void	ieee80211_node_setuptxparms(struct ieee80211_node *);
 void	ieee80211_node_set_chan(struct ieee80211_node *,
 		struct ieee80211_channel *);
 void	ieee80211_create_ibss(struct ieee80211vap*, struct ieee80211_channel *);
