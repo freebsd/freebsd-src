@@ -95,7 +95,7 @@ static char	*nlistf;
 static char	*memf;
 static kvm_t	*kd;
 
-static char	*usagestr;
+static const char *usagestr;
 
 static void	filemode(void);
 static int	getfiles(char **, size_t *);
@@ -109,7 +109,8 @@ main(int argc, char *argv[])
 {
 	int ch, i, quit, ret;
 	int fileflag, ttyflag;
-	char buf[_POSIX2_LINE_MAX],*opts;
+	char buf[_POSIX2_LINE_MAX];
+	const char *opts;
 
 	fileflag = swapflag = ttyflag = 0;
 
@@ -358,8 +359,8 @@ filemode(void)
 	char *buf, flagbuf[16], *fbp;
 	int maxf, openf;
 	size_t len;
-	static char *dtypes[] = { "???", "inode", "socket", "pipe",
-	    "fifo", "kqueue", "crypto" };
+	static const char *dtypes[] = { "???", "inode", "socket",
+	    "pipe", "fifo", "kqueue", "crypto" };
 	int i;
 	int wid;
 
@@ -466,7 +467,7 @@ print_swap_header(void)
 }
 
 static void
-print_swap_line(const char *devname, intmax_t nblks, intmax_t bused,
+print_swap_line(const char *swdevname, intmax_t nblks, intmax_t bused,
     intmax_t bavail, float bpercent)
 {
 	char usedbuf[5];
@@ -477,7 +478,7 @@ print_swap_line(const char *devname, intmax_t nblks, intmax_t bused,
 	pagesize = getpagesize();
 	getbsize(&hlen, &blocksize);
 
-	printf("%-15s %*jd ", devname, hlen, CONVERT(nblks));
+	printf("%-15s %*jd ", swdevname, hlen, CONVERT(nblks));
 	if (humanflag) {
 		humanize_number(usedbuf, sizeof(usedbuf),
 		    CONVERT(blocksize * bused), "",
