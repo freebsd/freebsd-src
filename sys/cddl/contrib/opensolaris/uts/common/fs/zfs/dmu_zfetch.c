@@ -598,7 +598,7 @@ dmu_zfetch(zfetch_t *zf, uint64_t offset, uint64_t size, int prefetched)
 	unsigned int	blkshft;
 	uint64_t	blksz;
 
-	if (zfs_prefetch_disable)
+	if (zfs_prefetch_enable == 0)
 		return;
 
 	/* files that aren't ln2 blocksz are only one block -- nothing to do */
