@@ -159,7 +159,7 @@ static void wb_init(void *);
 static void wb_init_locked(struct wb_softc *);
 static void wb_stop(struct wb_softc *);
 static void wb_watchdog(struct ifnet *);
-static void wb_shutdown(device_t);
+static int wb_shutdown(device_t);
 static int wb_ifmedia_upd(struct ifnet *);
 static void wb_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -1832,7 +1832,7 @@ wb_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 wb_shutdown(dev)
 	device_t		dev;
 {
@@ -1844,5 +1844,5 @@ wb_shutdown(dev)
 	wb_stop(sc);
 	WB_UNLOCK(sc);
 
-	return;
+	return (0);
 }
