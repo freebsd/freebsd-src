@@ -261,7 +261,9 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		 * Send packet; if hook is not connected, mbuf will get
 		 * freed.
 		 */
+		NG_OUTBOUND_THREAD_REF();
 		NG_SEND_DATA_ONLY(error, priv->ether, m);
+		NG_OUTBOUND_THREAD_UNREF();
 
 		/* Update stats */
 		if (error == 0)
@@ -414,6 +416,7 @@ ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 	priv->ether = hook;
 	NG_HOOK_SET_PRIVATE(hook, &priv->ether);
+	NG_HOOK_SET_TO_INBOUND(hook);
 
 	if_link_state_change(ifp, LINK_STATE_UP);
 

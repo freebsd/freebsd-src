@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090611:
+	The layout of struct thread has changed.  Kernel and modules
+	need to be rebuilt.
+
 20090608:
 	The layout of structs ifnet, domain, protosw and vnet_net has
 	changed.  Kernel modules need to be rebuilt.

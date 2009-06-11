@@ -282,7 +282,9 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 		return (0);
 
 	/* Send it out "upper" hook */
+	NG_OUTBOUND_THREAD_REF();
 	NG_SEND_DATA_ONLY(error, priv->upper, *mp);
+	NG_OUTBOUND_THREAD_UNREF();
 	return (error);
 }
 
@@ -416,6 +418,7 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	if (strcmp(name, NG_ETHER_HOOK_UPPER) == 0) {
 		hookptr = &priv->upper;
 		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_upper);
+		NG_HOOK_SET_TO_INBOUND(hook);
 	} else if (strcmp(name, NG_ETHER_HOOK_LOWER) == 0) {
 		hookptr = &priv->lower;
 		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_lower);
