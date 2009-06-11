@@ -58,17 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/sbuf.h>
 #include <sys/kobj.h>
-#ifdef SND_DEBUG
-#undef KOBJMETHOD
-#define KOBJMETHOD(NAME, FUNC)						\
-	{								\
-		&NAME##_desc,						\
-		(kobjop_t) ((FUNC != (NAME##_t *)NULL) ? FUNC : NULL)	\
-	}
-#endif
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
 #include <sys/module.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
@@ -82,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include "synth_if.h"
 MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
 
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 #define MIDIMKMINOR(u, d, c) PCMMKMINOR(u, d, c)
