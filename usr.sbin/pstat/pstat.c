@@ -359,7 +359,7 @@ filemode(void)
 	char *buf, flagbuf[16], *fbp;
 	int maxf, openf;
 	size_t len;
-	static const char *dtypes[] = { "???", "inode", "socket",
+	static char const * const dtypes[] = { "???", "inode", "socket",
 	    "pipe", "fifo", "kqueue", "crypto" };
 	int i;
 	int wid;
