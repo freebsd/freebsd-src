@@ -2323,13 +2323,13 @@ netgraph/ng_gif_demux.c		optional netgraph_gif_demux
 netgraph/ng_hole.c		optional netgraph_hole
 netgraph/ng_iface.c		optional netgraph_iface
 netgraph/ng_ip_input.c		optional netgraph_ip_input
-netgraph/ng_ipfw.c		optional netgraph_ipfw
+netgraph/ng_ipfw.c		optional netgraph_ipfw inet ipfirewall
 netgraph/ng_ksocket.c		optional netgraph_ksocket
 netgraph/ng_l2tp.c		optional netgraph_l2tp
 netgraph/ng_lmi.c		optional netgraph_lmi
 netgraph/ng_mppc.c		optional netgraph_mppc_compression | \
 					 netgraph_mppc_encryption
-netgraph/ng_nat.c		optional netgraph_nat
+netgraph/ng_nat.c		optional netgraph_nat inet libalias
 netgraph/ng_one2many.c		optional netgraph_one2many
 netgraph/ng_parse.c		optional netgraph
 netgraph/ng_ppp.c		optional netgraph_ppp
@@ -2405,12 +2405,12 @@ netinet/tcp_timer.c		optional inet
 netinet/tcp_timewait.c		optional inet
 netinet/tcp_usrreq.c		optional inet
 netinet/udp_usrreq.c		optional inet
-netinet/libalias/alias.c	optional libalias | netgraph_nat
-netinet/libalias/alias_db.c	optional libalias | netgraph_nat
+netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
+netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_mod.c	optional libalias | netgraph_nat
-netinet/libalias/alias_proxy.c	optional libalias | netgraph_nat
-netinet/libalias/alias_util.c	optional libalias | netgraph_nat
-netinet/libalias/alias_sctp.c	optional libalias | netgraph_nat
+netinet/libalias/alias_proxy.c	optional libalias inet | netgraph_nat inet
+netinet/libalias/alias_util.c	optional libalias inet | netgraph_nat inet
+netinet/libalias/alias_sctp.c	optional libalias inet | netgraph_nat inet
 netinet6/dest6.c		optional inet6
 netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6
