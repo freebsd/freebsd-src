@@ -1691,20 +1691,21 @@ npe_miibus_readreg(device_t dev, int phy, int reg)
 	return (v & NPE_MII_READ_FAIL) ? 0xffff : (v & 0xffff);
 }
 
-static void
+static int
 npe_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct npe_softc *sc = device_get_softc(dev);
 	uint32_t v;
 
 	if (phy != sc->sc_phy)		/* XXX */
-		return;
+		return (0);
 	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL)
 	  | data | NPE_MII_WRITE
 	  | NPE_MII_GO;
 	npe_mii_mdio_write(sc, NPE_MAC_MDIO_CMD, v);
 	/* XXX complain about timeout */
 	(void) npe_mii_mdio_wait(sc);
+	return (0);
 }
 
 static void
