@@ -72,6 +72,7 @@ struct acpi_task_ctx {
     ACPI_OSD_EXEC_CALLBACK	at_function;
     void 			*at_context;
     int				at_flag;
+#define	ACPI_TASK_FREE		0
 #define	ACPI_TASK_USED		1
 #define	ACPI_TASK_ENQUEUED	2
 };
@@ -111,7 +112,7 @@ acpi_taskq_init(void *arg)
 	    printf("AcpiOsExecute: enqueue %d pending tasks\n",
 		acpi_task_count);
 	for (i = 0; i < acpi_max_tasks; i++)
-	    if (atomic_cmpset_acq_int(&acpi_tasks[i].at_flag, ACPI_TASK_USED,
+	    if (atomic_cmpset_int(&acpi_tasks[i].at_flag, ACPI_TASK_USED,
 		ACPI_TASK_USED | ACPI_TASK_ENQUEUED))
 		taskqueue_enqueue(acpi_taskq, &acpi_tasks[i].at_task);
     }
@@ -142,7 +143,8 @@ acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
     int i;
 
     for (at = NULL, i = 0; i < acpi_max_tasks; i++)
-	if (atomic_cmpset_acq_int(&acpi_tasks[i].at_flag, 0, ACPI_TASK_USED)) {
+	if (atomic_cmpset_int(&acpi_tasks[i].at_flag, ACPI_TASK_FREE,
+	    ACPI_TASK_USED)) {
 	    at = &acpi_tasks[i];
 	    acpi_task_count++;
 	    break;
