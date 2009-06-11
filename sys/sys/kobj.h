@@ -96,7 +96,7 @@ struct kobjop_desc {
 #define KOBJMETHOD(NAME, FUNC) { &NAME##_desc, (kobjop_t) FUNC }
 #else /* notyet */
 #define KOBJMETHOD(NAME, FUNC) \
-{ &NAME##_desc, (kobjop_t) (FUNC != (NAME##_t *)NULL ? FUNC : NULL) }
+	{ &NAME##_desc, (kobjop_t) (1 ? FUNC : (NAME##_t *)NULL) }
 #endif
 
 /*
