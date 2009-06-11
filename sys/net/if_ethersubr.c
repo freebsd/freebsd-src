@@ -79,8 +79,10 @@
 #include <netinet6/nd6.h>
 #endif
 
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
+#endif
 #endif
 
 #ifdef IPX
@@ -393,10 +395,12 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		return (error);
 	}
 
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	if (ifp->if_carp &&
 	    (error = carp_output(ifp, m, dst, NULL)))
 		goto bad;
+#endif
 #endif
 
 	/* Handle ng_ether(4) processing, if any */
@@ -712,6 +716,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		}
 	}
 
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	/*
 	 * Clear M_PROMISC on frame so that carp(4) will see it when the
@@ -726,6 +731,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	if (ifp->if_carp && carp_forus(ifp->if_carp, eh->ether_dhost)) {
 		m->m_flags &= ~M_PROMISC;
 	} else
+#endif
 #endif
 	{
 		/*
