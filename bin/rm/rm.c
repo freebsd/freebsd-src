@@ -234,7 +234,7 @@ rm_tree(char **argv)
 			else if (!uid &&
 				 (p->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 				 !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
-				 chflags(p->fts_accpath,
+				 lchflags(p->fts_accpath,
 					 p->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE)) < 0)
 				goto err;
 			continue;
@@ -253,7 +253,7 @@ rm_tree(char **argv)
 		if (!uid &&
 		    (p->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 		    !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)))
-			rval = chflags(p->fts_accpath,
+			rval = lchflags(p->fts_accpath,
 				       p->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
 		if (rval == 0) {
 			/*
@@ -368,7 +368,7 @@ rm_file(char **argv)
 		if (!uid && !S_ISWHT(sb.st_mode) &&
 		    (sb.st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
-			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
+			rval = lchflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
 		if (rval == 0) {
 			if (S_ISWHT(sb.st_mode))
 				rval = undelete(f);

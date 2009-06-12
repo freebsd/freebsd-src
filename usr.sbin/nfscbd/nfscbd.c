@@ -73,13 +73,13 @@ int	debug = 0;
 
 pid_t children;
 
-void	nonfs(int);
-void	reapchild(int);
-void	usage(void);
-void	cleanup(int);
-void	child_cleanup(int);
-void	nfscbd_exit(int);
-void	killchildren(void);
+static void	nonfs(int);
+static void	reapchild(int);
+static void	usage(void);
+static void	cleanup(int);
+static void	child_cleanup(int);
+static void	nfscbd_exit(int);
+static void	killchildren(void);
 
 /*
  * Nfs callback server daemon.
@@ -95,23 +95,18 @@ void	killchildren(void);
  * socket from accept, pass the msgsock into the kernel via. nfssvc().
  */
 int
-main(int argc, char *argv[], char **envp)
+main(int argc, char *argv[])
 {
-	struct group *grp;
 	struct nfscbd_args nfscbdargs;
 	struct nfsd_nfscbd_args nfscbdargs2;
-	struct passwd *pwd;
-	struct ucred *cr;
 	struct sockaddr_in inetaddr, inetpeer;
-	struct timeval ktv;
 	fd_set ready, sockbits;
-	int ch, connect_type_cnt, i, len, maxsock, msgsock, error;
+	int ch, connect_type_cnt, len, maxsock, msgsock, error;
 	int nfssvc_flag, on, sock, tcpsock, ret, mustfreeai = 0;
-	char *cp, **cpp, princname[128];
+	char *cp, princname[128];
 	char myname[MAXHOSTNAMELEN], *myfqdnname = NULL;
 	struct addrinfo *aip, hints;
 	pid_t pid;
-	sigset_t signew;
 	short myport = NFSV4_CBPORT;
 
 	if (modfind("nfscl") < 0) {
@@ -320,24 +315,23 @@ main(int argc, char *argv[], char **envp)
 	}
 }
 
-void
+static void
 usage(void)
 {
 
 	errx(1, "usage: nfscbd %s", USAGE);
 }
 
-void
-nonfs(int signo)
+static void
+nonfs(int signo __unused)
 {
 	syslog(LOG_ERR, "missing system call: NFS not available");
 }
 
-void
-reapchild(int signo)
+static void
+reapchild(int signo __unused)
 {
 	pid_t pid;
-	int i;
 
 	while ((pid = wait3(NULL, WNOHANG, NULL)) > 0) {
 		if (pid == children)
@@ -345,10 +339,9 @@ reapchild(int signo)
 	}
 }
 
-void
+static void
 killchildren(void)
 {
-	int i;
 
 	if (children > 0)
 		kill(children, SIGKILL);
@@ -357,8 +350,8 @@ killchildren(void)
 /*
  * Cleanup master after SIGUSR1.
  */
-void
-cleanup(int signo)
+static void
+cleanup(int signo __unused)
 {
 	nfscbd_exit(0);
 }
@@ -366,14 +359,14 @@ cleanup(int signo)
 /*
  * Cleanup child after SIGUSR1.
  */
-void
-child_cleanup(int signo)
+static void
+child_cleanup(int signo __unused)
 {
 	exit(0);
 }
 
-void
-nfscbd_exit(int status)
+static void
+nfscbd_exit(int status __unused)
 {
 	killchildren();
 	exit(status);

@@ -61,15 +61,6 @@ int	ieee80211_debug = 0;
 SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 	    0, "debugging printfs");
 #endif
-extern int ieee80211_recv_bar_ena;
-SYSCTL_INT(_net_wlan, OID_AUTO, recv_bar, CTLFLAG_RW, &ieee80211_recv_bar_ena,
-	    0, "BAR frame processing (ena/dis)");
-extern int ieee80211_nol_timeout;
-SYSCTL_INT(_net_wlan, OID_AUTO, nol_timeout, CTLFLAG_RW,
-	&ieee80211_nol_timeout, 0, "NOL timeout (secs)");
-extern int ieee80211_cac_timeout;
-SYSCTL_INT(_net_wlan, OID_AUTO, cac_timeout, CTLFLAG_RW,
-	&ieee80211_cac_timeout, 0, "CAC timeout (secs)");
 
 MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
 
@@ -173,33 +164,6 @@ ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS)
 	*(int *)arg1 = (t < 1) ? 1 : t;
 	return 0;
 }
-
-#ifdef IEEE80211_AMPDU_AGE
-extern int ieee80211_ampdu_age;
-SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"AMPDU max reorder age (ms)");
-#endif
-extern int ieee80211_addba_timeout;
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_addba_timeout, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"ADDBA request timeout (ms)");
-extern int ieee80211_addba_backoff;
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"ADDBA request backoff (ms)");
-extern int ieee80211_addba_maxtries;
-SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
-#ifdef IEEE80211_SUPPORT_SUPERG
-extern int ieee80211_ffppsmin;
-SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
-extern int ieee80211_ffagemax;
-SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"max hold time for fast-frame staging (ms)");
-#endif /* IEEE80211_SUPPORT_SUPERG */
 
 static int
 ieee80211_sysctl_inact(SYSCTL_HANDLER_ARGS)
@@ -320,7 +284,7 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	if (vap->iv_caps & IEEE80211_C_DFS) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 			"radar", CTLTYPE_INT | CTLFLAG_RW, vap->iv_ic, 0,
-			ieee80211_sysctl_radar, "I", "simulare radar event");
+			ieee80211_sysctl_radar, "I", "simulate radar event");
 	}
 	vap->iv_sysctl = ctx;
 	vap->iv_oid = oid;
@@ -564,14 +528,14 @@ ieee80211_notify_scan_done(struct ieee80211vap *vap)
 void
 ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh, const struct ieee80211_key *k,
-	u_int64_t rsc)
+	u_int64_t rsc, int tid)
 {
 	struct ifnet *ifp = vap->iv_ifp;
 
 	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 	    "%s replay detected <rsc %ju, csc %ju, keyix %u rxkeyix %u>",
 	    k->wk_cipher->ic_name, (intmax_t) rsc,
-	    (intmax_t) k->wk_keyrsc[IEEE80211_NONQOS_TID],
+	    (intmax_t) k->wk_keyrsc[tid],
 	    k->wk_keyix, k->wk_rxkeyix);
 
 	if (ifp != NULL) {		/* NB: for cipher test modules */
@@ -584,7 +548,7 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 			iev.iev_keyix = k->wk_rxkeyix;
 		else
 			iev.iev_keyix = k->wk_keyix;
-		iev.iev_keyrsc = k->wk_keyrsc[0];	/* XXX need tid */
+		iev.iev_keyrsc = k->wk_keyrsc[tid];
 		iev.iev_rsc = rsc;
 		CURVNET_SET(ifp->if_vnet);
 		rt_ieee80211msg(ifp, RTM_IEEE80211_REPLAY, &iev, sizeof(iev));
@@ -742,11 +706,15 @@ bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 		 * vap.  This flag is used by drivers to prepare radiotap
 		 * state only when needed.
 		 */
-		if (attach)
+		if (attach) {
 			ieee80211_syncflag_ext(vap, IEEE80211_FEXT_BPF);
-		/* NB: if_softc is NULL on vap detach */
-		else if (vap != NULL && !bpf_peers_present(vap->iv_rawbpf))
+			if (vap->iv_opmode == IEEE80211_M_MONITOR)
+				atomic_add_int(&vap->iv_ic->ic_montaps, 1);
+		} else if (!bpf_peers_present(vap->iv_rawbpf)) {
 			ieee80211_syncflag_ext(vap, -IEEE80211_FEXT_BPF);
+			if (vap->iv_opmode == IEEE80211_M_MONITOR)
+				atomic_subtract_int(&vap->iv_ic->ic_montaps, 1);
+		}
 	}
 }
 

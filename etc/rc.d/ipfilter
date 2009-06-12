@@ -5,7 +5,6 @@
 
 # PROVIDE: ipfilter
 # REQUIRE: FILESYSTEMS
-# BEFORE:  netif
 # KEYWORD: nojail
 
 . /etc/rc.subr

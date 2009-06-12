@@ -118,7 +118,7 @@ USB_MAKE_STRING_DESC(STRING_ETH_SERIAL, string_eth_serial);
 
 static usb2_temp_get_string_desc_t eth_get_string_desc;
 
-static const struct usb2_cdc_union_descriptor eth_union_desc = {
+static const struct usb_cdc_union_descriptor eth_union_desc = {
 	.bLength = sizeof(eth_union_desc),
 	.bDescriptorType = UDESC_CS_INTERFACE,
 	.bDescriptorSubtype = UDESCSUB_CDC_UNION,
@@ -126,7 +126,7 @@ static const struct usb2_cdc_union_descriptor eth_union_desc = {
 	.bSlaveInterface[0] = 1,	/* this is automatically updated */
 };
 
-static const struct usb2_cdc_header_descriptor eth_header_desc = {
+static const struct usb_cdc_header_descriptor eth_header_desc = {
 	.bLength = sizeof(eth_header_desc),
 	.bDescriptorType = UDESC_CS_INTERFACE,
 	.bDescriptorSubtype = UDESCSUB_CDC_HEADER,
@@ -134,7 +134,7 @@ static const struct usb2_cdc_header_descriptor eth_header_desc = {
 	.bcdCDC[1] = 0x01,
 };
 
-static const struct usb2_cdc_ethernet_descriptor eth_enf_desc = {
+static const struct usb_cdc_ethernet_descriptor eth_enf_desc = {
 	.bLength = sizeof(eth_enf_desc),
 	.bDescriptorType = UDESC_CS_INTERFACE,
 	.bDescriptorSubtype = UDESCSUB_CDC_ENF,
@@ -152,17 +152,17 @@ static const void *eth_control_if_desc[] = {
 	NULL,
 };
 
-static const struct usb2_temp_packet_size bulk_mps = {
+static const struct usb_temp_packet_size bulk_mps = {
 	.mps[USB_SPEED_FULL] = 64,
 	.mps[USB_SPEED_HIGH] = 512,
 };
 
-static const struct usb2_temp_packet_size intr_mps = {
+static const struct usb_temp_packet_size intr_mps = {
 	.mps[USB_SPEED_FULL] = 8,
 	.mps[USB_SPEED_HIGH] = 8,
 };
 
-static const struct usb2_temp_endpoint_desc bulk_in_ep = {
+static const struct usb_temp_endpoint_desc bulk_in_ep = {
 	.pPacketSize = &bulk_mps,
 #ifdef USB_HIP_IN_EP_0
 	.bEndpointAddress = USB_HIP_IN_EP_0,
@@ -172,7 +172,7 @@ static const struct usb2_temp_endpoint_desc bulk_in_ep = {
 	.bmAttributes = UE_BULK,
 };
 
-static const struct usb2_temp_endpoint_desc bulk_out_ep = {
+static const struct usb_temp_endpoint_desc bulk_out_ep = {
 	.pPacketSize = &bulk_mps,
 #ifdef USB_HIP_OUT_EP_0
 	.bEndpointAddress = USB_HIP_OUT_EP_0,
@@ -182,18 +182,18 @@ static const struct usb2_temp_endpoint_desc bulk_out_ep = {
 	.bmAttributes = UE_BULK,
 };
 
-static const struct usb2_temp_endpoint_desc intr_in_ep = {
+static const struct usb_temp_endpoint_desc intr_in_ep = {
 	.pPacketSize = &intr_mps,
 	.bEndpointAddress = UE_DIR_IN,
 	.bmAttributes = UE_INTERRUPT,
 };
 
-static const struct usb2_temp_endpoint_desc *eth_intr_endpoints[] = {
+static const struct usb_temp_endpoint_desc *eth_intr_endpoints[] = {
 	&intr_in_ep,
 	NULL,
 };
 
-static const struct usb2_temp_interface_desc eth_control_interface = {
+static const struct usb_temp_interface_desc eth_control_interface = {
 	.ppEndpoints = eth_intr_endpoints,
 	.ppRawDesc = eth_control_if_desc,
 	.bInterfaceClass = UICLASS_CDC,
@@ -202,13 +202,13 @@ static const struct usb2_temp_interface_desc eth_control_interface = {
 	.iInterface = STRING_ETH_CONTROL_INDEX,
 };
 
-static const struct usb2_temp_endpoint_desc *eth_data_endpoints[] = {
+static const struct usb_temp_endpoint_desc *eth_data_endpoints[] = {
 	&bulk_in_ep,
 	&bulk_out_ep,
 	NULL,
 };
 
-static const struct usb2_temp_interface_desc eth_data_null_interface = {
+static const struct usb_temp_interface_desc eth_data_null_interface = {
 	.ppEndpoints = NULL,		/* no endpoints */
 	.bInterfaceClass = UICLASS_CDC_DATA,
 	.bInterfaceSubClass = 0,
@@ -216,7 +216,7 @@ static const struct usb2_temp_interface_desc eth_data_null_interface = {
 	.iInterface = STRING_ETH_DATA_INDEX,
 };
 
-static const struct usb2_temp_interface_desc eth_data_interface = {
+static const struct usb_temp_interface_desc eth_data_interface = {
 	.ppEndpoints = eth_data_endpoints,
 	.bInterfaceClass = UICLASS_CDC_DATA,
 	.bInterfaceSubClass = UISUBCLASS_DATA,
@@ -225,26 +225,26 @@ static const struct usb2_temp_interface_desc eth_data_interface = {
 	.isAltInterface = 1,		/* this is an alternate setting */
 };
 
-static const struct usb2_temp_interface_desc *eth_interfaces[] = {
+static const struct usb_temp_interface_desc *eth_interfaces[] = {
 	&eth_control_interface,
 	&eth_data_null_interface,
 	&eth_data_interface,
 	NULL,
 };
 
-static const struct usb2_temp_config_desc eth_config_desc = {
+static const struct usb_temp_config_desc eth_config_desc = {
 	.ppIfaceDesc = eth_interfaces,
 	.bmAttributes = UC_BUS_POWERED,
 	.bMaxPower = 25,		/* 50 mA */
 	.iConfiguration = STRING_ETH_CONFIG_INDEX,
 };
 
-static const struct usb2_temp_config_desc *eth_configs[] = {
+static const struct usb_temp_config_desc *eth_configs[] = {
 	&eth_config_desc,
 	NULL,
 };
 
-const struct usb2_temp_device_desc usb2_template_cdce = {
+const struct usb_temp_device_desc usb2_template_cdce = {
 	.getStringDesc = &eth_get_string_desc,
 	.ppConfigDesc = eth_configs,
 	.idVendor = 0x0001,

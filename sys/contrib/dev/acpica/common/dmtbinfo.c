@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: dmtbinfo - Table info for non-AML tables
- *              $Revision: 1.13 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -114,8 +113,9 @@
  *
  *****************************************************************************/
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acdisasm.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
 
 /* This module used for application-level code only */
 
@@ -130,10 +130,14 @@
 #define ACPI_HDR_OFFSET(f)              (UINT8) ACPI_OFFSET (ACPI_TABLE_HEADER,f)
 #define ACPI_RSDP_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_RSDP,f)
 #define ACPI_BOOT_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_BOOT,f)
+#define ACPI_BERT_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_BERT,f)
 #define ACPI_CPEP_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_CPEP,f)
 #define ACPI_DBGP_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_DBGP,f)
 #define ACPI_DMAR_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_DMAR,f)
 #define ACPI_ECDT_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_ECDT,f)
+#define ACPI_EINJ_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_EINJ,f)
+#define ACPI_ERST_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_ERST,f)
+#define ACPI_HEST_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_HEST,f)
 #define ACPI_HPET_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_HPET,f)
 #define ACPI_MADT_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_MADT,f)
 #define ACPI_MCFG_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_MCFG,f)
@@ -145,7 +149,7 @@
 #define ACPI_TCPA_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_TCPA,f)
 #define ACPI_WDRT_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_WDRT,f)
 
-/* Sub-tables */
+/* Subtables */
 
 #define ACPI_ASF0_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_ASF_INFO,f)
 #define ACPI_ASF1_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_ASF_ALERT,f)
@@ -158,6 +162,18 @@
 #define ACPI_DMARS_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_DMAR_DEVICE_SCOPE,f)
 #define ACPI_DMAR0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_DMAR_HARDWARE_UNIT,f)
 #define ACPI_DMAR1_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_DMAR_RESERVED_MEMORY,f)
+#define ACPI_DMAR2_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_DMAR_ATSR,f)
+#define ACPI_EINJ0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_WHEA_HEADER,f)
+#define ACPI_HEST0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_XPF_MACHINE_CHECK,f)
+#define ACPI_HEST1_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_XPF_CORRECTED,f)
+#define ACPI_HEST3_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_XPF_NMI,f)
+#define ACPI_HEST4_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_IPF_CORRECTED,f)
+#define ACPI_HEST5_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_IPF_CORRECTED_PLATFORM,f)
+#define ACPI_HEST6_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_AER_ROOT,f)
+#define ACPI_HEST7_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_AER,f)
+#define ACPI_HEST8_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_AER_BRIDGE,f)
+#define ACPI_HEST9_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_GENERIC,f)
+#define ACPI_HESTN_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_NOTIFY,f)
 #define ACPI_MADT0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MADT_LOCAL_APIC,f)
 #define ACPI_MADT1_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MADT_IO_APIC,f)
 #define ACPI_MADT2_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MADT_INTERRUPT_OVERRIDE,f)
@@ -167,10 +183,14 @@
 #define ACPI_MADT6_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MADT_IO_SAPIC,f)
 #define ACPI_MADT7_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MADT_LOCAL_SAPIC,f)
 #define ACPI_MADT8_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MADT_INTERRUPT_SOURCE,f)
+#define ACPI_MADT9_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MADT_LOCAL_X2APIC,f)
+#define ACPI_MADT10_OFFSET(f)           (UINT8) ACPI_OFFSET (ACPI_MADT_LOCAL_X2APIC_NMI,f)
 #define ACPI_MADTH_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SUBTABLE_HEADER,f)
 #define ACPI_MCFG0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MCFG_ALLOCATION,f)
+#define ACPI_SRATH_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SUBTABLE_HEADER,f)
 #define ACPI_SRAT0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SRAT_CPU_AFFINITY,f)
 #define ACPI_SRAT1_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SRAT_MEM_AFFINITY,f)
+#define ACPI_SRAT2_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SRAT_X2APIC_CPU_AFFINITY,f)
 
 /*
  * Simplify access to flag fields by breaking them up into bytes
@@ -184,6 +204,7 @@
 #define ACPI_HPET_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_HPET,f,o)
 #define ACPI_SRAT0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_SRAT_CPU_AFFINITY,f,o)
 #define ACPI_SRAT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_SRAT_MEM_AFFINITY,f,o)
+#define ACPI_SRAT2_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_SRAT_X2APIC_CPU_AFFINITY,f,o)
 #define ACPI_MADT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_MADT,f,o)
 #define ACPI_MADT0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_MADT_LOCAL_APIC,f,o)
 #define ACPI_MADT2_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_MADT_INTERRUPT_OVERRIDE,f,o)
@@ -191,6 +212,8 @@
 #define ACPI_MADT4_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_MADT_LOCAL_APIC_NMI,f,o)
 #define ACPI_MADT7_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_MADT_LOCAL_SAPIC,f,o)
 #define ACPI_MADT8_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_MADT_INTERRUPT_SOURCE,f,o)
+#define ACPI_MADT9_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_MADT_LOCAL_X2APIC,f,o)
+#define ACPI_MADT10_FLAG_OFFSET(f,o)    ACPI_FLAG_OFFSET (ACPI_MADT_LOCAL_X2APIC_NMI,f,o)
 
 
 /*
@@ -292,12 +315,14 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoFacs[] =
  *
  ******************************************************************************/
 
+/* ACPI 1.0 FADT (Version 1) */
+
 ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt1[] =
 {
     {ACPI_DMT_UINT32,   ACPI_FADT_OFFSET (Facs),                    "FACS Address"},
     {ACPI_DMT_UINT32,   ACPI_FADT_OFFSET (Dsdt),                    "DSDT Address"},
     {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (Model),                   "Model"},
-    {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (PreferredProfile),        "PM Profile"},
+    {ACPI_DMT_FADTPM,   ACPI_FADT_OFFSET (PreferredProfile),        "PM Profile"},
     {ACPI_DMT_UINT16,   ACPI_FADT_OFFSET (SciInterrupt),            "SCI Interrupt"},
     {ACPI_DMT_UINT32,   ACPI_FADT_OFFSET (SmiCommand),              "SMI Command Port"},
     {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (AcpiEnable),              "ACPI Enable Value"},
@@ -329,46 +354,64 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt1[] =
     {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (DayAlarm),                "RTC Day Alarm Index"},
     {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (MonthAlarm),              "RTC Month Alarm Index"},
     {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (Century),                 "RTC Century Index"},
-    {ACPI_DMT_UINT16,   ACPI_FADT_OFFSET (BootFlags),               "Boot Architecture Flags"},
+    {ACPI_DMT_UINT16,   ACPI_FADT_OFFSET (BootFlags),               "Boot Flags (decoded below)"},
+
+    /* Boot Architecture Flags byte 0 */
+
+    {ACPI_DMT_FLAG0,    ACPI_FADT_FLAG_OFFSET (BootFlags,0),        "Legacy Devices Supported (V2)"},
+    {ACPI_DMT_FLAG1,    ACPI_FADT_FLAG_OFFSET (BootFlags,0),        "8042 Present on ports 60/64 (V2)"},
+    {ACPI_DMT_FLAG2,    ACPI_FADT_FLAG_OFFSET (BootFlags,0),        "VGA Not Present (V4)"},
+    {ACPI_DMT_FLAG3,    ACPI_FADT_FLAG_OFFSET (BootFlags,0),        "MSI Not Supported (V4)"},
+    {ACPI_DMT_FLAG4,    ACPI_FADT_FLAG_OFFSET (BootFlags,0),        "PCIe ASPM Not Supported (V4)"},
+
     {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (Reserved),                "Reserved"},
     {ACPI_DMT_UINT32,   ACPI_FADT_OFFSET (Flags),                   "Flags (decoded below)"},
 
     /* Flags byte 0 */
 
-    {ACPI_DMT_FLAG0,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "WBINVD is operational"},
-    {ACPI_DMT_FLAG1,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "WBINVD does not invalidate"},
-    {ACPI_DMT_FLAG2,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "All CPUs support C1"},
-    {ACPI_DMT_FLAG3,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "C2 works on MP system"},
-    {ACPI_DMT_FLAG4,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "Power button is generic"},
-    {ACPI_DMT_FLAG5,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "Sleep button is generic"},
-    {ACPI_DMT_FLAG6,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "RTC wakeup not fixed"},
-    {ACPI_DMT_FLAG7,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "RTC wakeup/S4 not possible"},
+    {ACPI_DMT_FLAG0,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "WBINVD instruction is operational (V1)"},
+    {ACPI_DMT_FLAG1,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "WBINVD flushes all caches (V1)"},
+    {ACPI_DMT_FLAG2,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "All CPUs support C1 (V1)"},
+    {ACPI_DMT_FLAG3,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "C2 works on MP system (V1)"},
+    {ACPI_DMT_FLAG4,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "Control Method Power Button (V1)"},
+    {ACPI_DMT_FLAG5,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "Control Method Sleep Button (V1)"},
+    {ACPI_DMT_FLAG6,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "RTC wake not in fixed reg space (V1)"},
+    {ACPI_DMT_FLAG7,    ACPI_FADT_FLAG_OFFSET (Flags,0),            "RTC can wake system from S4 (V1)"},
 
     /* Flags byte 1 */
 
-    {ACPI_DMT_FLAG0,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "32-bit PM Timer"},
-    {ACPI_DMT_FLAG1,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Docking Supported"},
-    {ACPI_DMT_EXIT,     0,                                          NULL}
-};
-
-/* ACPI 2.0+ Extensions */
-
-ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt2[] =
-{
-    {ACPI_DMT_FLAG2,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Reset Register Supported"},
-    {ACPI_DMT_FLAG3,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Sealed Case"},
-    {ACPI_DMT_FLAG4,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Headless - No Video"},
-    {ACPI_DMT_FLAG5,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Native instr after SLP_TYP"},
-    {ACPI_DMT_FLAG6,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "PCIEXP_WAK Supported"},
-    {ACPI_DMT_FLAG7,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Use Platform Timer"},
+    {ACPI_DMT_FLAG0,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "32-bit PM Timer (V1)"},
+    {ACPI_DMT_FLAG1,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Docking Supported (V1)"},
+    {ACPI_DMT_FLAG2,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Reset Register Supported (V2)"},
+    {ACPI_DMT_FLAG3,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Sealed Case (V3)"},
+    {ACPI_DMT_FLAG4,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Headless - No Video (V3)"},
+    {ACPI_DMT_FLAG5,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Use native instr after SLP_TYPx (V3)"},
+    {ACPI_DMT_FLAG6,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "PCIEXP_WAK Bits Supported (V4)"},
+    {ACPI_DMT_FLAG7,    ACPI_FADT_FLAG_OFFSET (Flags,1),            "Use Platform Timer (V4)"},
 
     /* Flags byte 2 */
 
-    {ACPI_DMT_FLAG0,    ACPI_FADT_FLAG_OFFSET (Flags,2),            "RTC_STS valid after S4"},
-    {ACPI_DMT_FLAG1,    ACPI_FADT_FLAG_OFFSET (Flags,2),            "Remote Power-on capable"},
-    {ACPI_DMT_FLAG2,    ACPI_FADT_FLAG_OFFSET (Flags,2),            "APIC Cluster Model"},
-    {ACPI_DMT_FLAG3,    ACPI_FADT_FLAG_OFFSET (Flags,2),            "APIC Physical Dest Mode"},
+    {ACPI_DMT_FLAG0,    ACPI_FADT_FLAG_OFFSET (Flags,2),            "RTC_STS valid on S4 wake (V4)"},
+    {ACPI_DMT_FLAG1,    ACPI_FADT_FLAG_OFFSET (Flags,2),            "Remote Power-on capable (V4)"},
+    {ACPI_DMT_FLAG2,    ACPI_FADT_FLAG_OFFSET (Flags,2),            "Use APIC Cluster Model (V4)"},
+    {ACPI_DMT_FLAG3,    ACPI_FADT_FLAG_OFFSET (Flags,2),            "Use APIC Physical Destination Mode (V4)"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
 
+/* ACPI 1.0 MS Extensions (FADT version 2) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt2[] =
+{
+    {ACPI_DMT_GAS,      ACPI_FADT_OFFSET (ResetRegister),           "Reset Register"},
+    {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (ResetValue),              "Value to cause reset"},
+    {ACPI_DMT_UINT24,   ACPI_FADT_OFFSET (Reserved4[0]),            "Reserved"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* ACPI 2.0+ Extensions (FADT version 3+) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt3[] =
+{
     {ACPI_DMT_GAS,      ACPI_FADT_OFFSET (ResetRegister),           "Reset Register"},
     {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (ResetValue),              "Value to cause reset"},
     {ACPI_DMT_UINT24,   ACPI_FADT_OFFSET (Reserved4[0]),            "Reserved"},
@@ -396,11 +439,11 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt2[] =
  *
  ******************************************************************************/
 
-/* Common sub-table header (one per sub-table) */
+/* Common Subtable header (one per Subtable) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoAsfHdr[] =
 {
-    {ACPI_DMT_UINT8,    ACPI_ASF0_OFFSET (Header.Type),             "Sub-Table Type"},
+    {ACPI_DMT_ASF,      ACPI_ASF0_OFFSET (Header.Type),             "Subtable Type"},
     {ACPI_DMT_UINT8,    ACPI_ASF0_OFFSET (Header.Reserved),         "Reserved"},
     {ACPI_DMT_UINT16,   ACPI_ASF0_OFFSET (Header.Length),           "Length"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
@@ -496,6 +539,20 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoAsf4[] =
 
 /*******************************************************************************
  *
+ * BERT -  Boot Error Record table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoBert[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_BERT_OFFSET (RegionLength),            "Boot Error Region Length"},
+    {ACPI_DMT_UINT64,   ACPI_BERT_OFFSET (Address),                 "Boot Error Region Address"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+
+/*******************************************************************************
+ *
  * BOOT - Simple Boot Flag Table
  *
  ******************************************************************************/
@@ -522,7 +579,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoCpep[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoCpep0[] =
 {
-    {ACPI_DMT_UINT8,    ACPI_CPEP0_OFFSET (Type),                   "Sub-Table Type"},
+    {ACPI_DMT_UINT8,    ACPI_CPEP0_OFFSET (Type),                   "Subtable Type"},
     {ACPI_DMT_UINT8,    ACPI_CPEP0_OFFSET (Length),                 "Length"},
     {ACPI_DMT_UINT8,    ACPI_CPEP0_OFFSET (Id),                     "Processor ID"},
     {ACPI_DMT_UINT8,    ACPI_CPEP0_OFFSET (Eid),                    "Processor EID"},
@@ -555,17 +612,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDbgp[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar[] =
 {
     {ACPI_DMT_UINT8,    ACPI_DMAR_OFFSET (Width),                   "Host Address Width"},
+    {ACPI_DMT_UINT8,    ACPI_DMAR_OFFSET (Flags),                   "Flags"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
-/* Common sub-table header (one per sub-table) */
+/* Common Subtable header (one per Subtable) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoDmarHdr[] =
 {
-    {ACPI_DMT_DMAR,     ACPI_DMAR0_OFFSET (Header.Type),            "Sub-Table Type"},
+    {ACPI_DMT_DMAR,     ACPI_DMAR0_OFFSET (Header.Type),            "Subtable Type"},
     {ACPI_DMT_UINT16,   ACPI_DMAR0_OFFSET (Header.Length),          "Length"},
-    {ACPI_DMT_UINT8,    ACPI_DMAR0_OFFSET (Header.Flags),           "Flags"},
-    {ACPI_DMT_UINT24,   ACPI_DMAR0_OFFSET (Header.Reserved[0]),     "Reserved"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
@@ -575,27 +631,43 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDmarScope[] =
 {
     {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (EntryType),              "Device Scope Entry Type"},
     {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (Length),                 "Entry Length"},
-    {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (Segment),                "PCI Segment Number"},
+    {ACPI_DMT_UINT16,   ACPI_DMARS_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (EnumerationId),          "Enumeration ID"},
     {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (Bus),                    "PCI Bus Number"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
-/* DMAR sub-tables */
+/* DMAR Subtables */
 
 /* 0: Hardware Unit Definition */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar0[] =
 {
+    {ACPI_DMT_UINT8,    ACPI_DMAR0_OFFSET (Flags),                  "Flags"},
+    {ACPI_DMT_UINT8,    ACPI_DMAR0_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_UINT16,   ACPI_DMAR0_OFFSET (Segment),                "PCI Segment Number"},
     {ACPI_DMT_UINT64,   ACPI_DMAR0_OFFSET (Address),                "Register Base Address"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
-/* 1: Reserved Memory Defininition */
+/* 1: Reserved Memory Definition */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar1[] =
 {
-    {ACPI_DMT_UINT64,   ACPI_DMAR1_OFFSET (Address),                "Base Address"},
+    {ACPI_DMT_UINT16,   ACPI_DMAR1_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_UINT16,   ACPI_DMAR1_OFFSET (Segment),                "PCI Segment Number"},
+    {ACPI_DMT_UINT64,   ACPI_DMAR1_OFFSET (BaseAddress),            "Base Address"},
     {ACPI_DMT_UINT64,   ACPI_DMAR1_OFFSET (EndAddress),             "End Address (limit)"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 2: Root Port ATS Capability Definition */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar2[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_DMAR2_OFFSET (Flags),                  "Flags"},
+    {ACPI_DMT_UINT8,    ACPI_DMAR2_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_UINT16,   ACPI_DMAR2_OFFSET (Segment),                "PCI Segment Number"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
@@ -613,6 +685,236 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoEcdt[] =
     {ACPI_DMT_UINT32,   ACPI_ECDT_OFFSET (Uid),                     "UID"},
     {ACPI_DMT_UINT8,    ACPI_ECDT_OFFSET (Gpe),                     "GPE Number"},
     {ACPI_DMT_STRING,   ACPI_ECDT_OFFSET (Id[0]),                   "Namepath"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+
+/*******************************************************************************
+ *
+ * EINJ - Error Injection table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoEinj[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_EINJ_OFFSET (HeaderLength),            "Injection Header Length"},
+    {ACPI_DMT_UINT32,   ACPI_EINJ_OFFSET (Reserved),                "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_EINJ_OFFSET (Entries),                 "Injection Entry Count"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoEinj0[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_EINJ0_OFFSET (Action),                 "Action"},
+    {ACPI_DMT_UINT8,    ACPI_EINJ0_OFFSET (Instruction),            "Instruction"},
+    {ACPI_DMT_UINT8,    ACPI_EINJ0_OFFSET (Flags),                  "Flags"},
+    {ACPI_DMT_UINT8,    ACPI_EINJ0_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_GAS,      ACPI_EINJ0_OFFSET (RegisterRegion),         "Register Region"},
+    {ACPI_DMT_UINT64,   ACPI_EINJ0_OFFSET (Value),                  "Value"},
+    {ACPI_DMT_UINT64,   ACPI_EINJ0_OFFSET (Mask),                   "Mask"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+
+/*******************************************************************************
+ *
+ * ERST - Error Record Serialization table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErst[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ERST_OFFSET (HeaderLength),            "Serialization Header Length"},
+    {ACPI_DMT_UINT32,   ACPI_ERST_OFFSET (Reserved),                "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_ERST_OFFSET (Entries),                 "Instruction Entry Count"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+
+/*******************************************************************************
+ *
+ * HEST - Hardware Error Source table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_HEST_OFFSET (ErrorSourceCount),        "Error Source Count"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* HEST Subtables */
+
+/* 0: XPF Machine Check Exception */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest0[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST0_OFFSET (Header.Type),            "Subtable Type"},
+    {ACPI_DMT_UINT16,   ACPI_HEST0_OFFSET (SourceId),               "Source Id"},
+    {ACPI_DMT_UINT16,   ACPI_HEST0_OFFSET (ConfigWriteEnable),      "Configuration Write Enable"},
+    {ACPI_DMT_UINT8,    ACPI_HEST0_OFFSET (Flags),                  "Flags"},
+    {ACPI_DMT_UINT8,    ACPI_HEST0_OFFSET (Reserved1),              "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_HEST0_OFFSET (RecordsToPreAllocate),   "Records To Preallocate"},
+    {ACPI_DMT_UINT32,   ACPI_HEST0_OFFSET (MaxSectionsPerRecord),   "Max Sections Per Record"},
+    {ACPI_DMT_UINT64,   ACPI_HEST0_OFFSET (GlobalCapabilityData),   "Global Capability Data"},
+    {ACPI_DMT_UINT64,   ACPI_HEST0_OFFSET (GlobalControlData),      "Global Control Data"},
+    {ACPI_DMT_UINT8,    ACPI_HEST0_OFFSET (NumHardwareBanks),       "Num Hardware Banks"},
+    {ACPI_DMT_UINT56,   ACPI_HEST0_OFFSET (Reserved2),              "Reserved"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 1: XPF Corrected Machine Check */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest1[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST1_OFFSET (Header.Type),            "Subtable Type"},
+    {ACPI_DMT_UINT16,   ACPI_HEST1_OFFSET (SourceId),               "Source Id"},
+    {ACPI_DMT_UINT16,   ACPI_HEST1_OFFSET (ConfigWriteEnable),      "Configuration Write Enable"},
+    {ACPI_DMT_UINT8,    ACPI_HEST1_OFFSET (Flags),                  "Flags"},
+    {ACPI_DMT_UINT8,    ACPI_HEST1_OFFSET (Enabled),                "Enabled"},
+    {ACPI_DMT_UINT32,   ACPI_HEST1_OFFSET (RecordsToPreAllocate),   "Records To Preallocate"},
+    {ACPI_DMT_UINT32,   ACPI_HEST1_OFFSET (MaxSectionsPerRecord),   "Max Sections Per Record"},
+    {ACPI_DMT_HESTNTFY, ACPI_HEST1_OFFSET (Notify),                 "Notify"},
+    {ACPI_DMT_UINT8,    ACPI_HEST1_OFFSET (NumHardwareBanks),       "Num Hardware Banks"},
+    {ACPI_DMT_UINT24,   ACPI_HEST1_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 3: XPF Non-Maskable Interrupt */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest3[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST3_OFFSET (Header.Type),            "Subtable Type"},
+    {ACPI_DMT_UINT16,   ACPI_HEST3_OFFSET (SourceId),               "Source Id"},
+    {ACPI_DMT_UINT32,   ACPI_HEST3_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_HEST3_OFFSET (RecordsToPreAllocate),   "Records To Preallocate"},
+    {ACPI_DMT_UINT32,   ACPI_HEST3_OFFSET (MaxSectionsPerRecord),   "Max Sections Per Record"},
+    {ACPI_DMT_UINT32,   ACPI_HEST3_OFFSET (MaxRawDataLength),       "Max Raw Data Length"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 4: IPF Corrected Machine Check */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest4[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST4_OFFSET (Header.Type),            "Subtable Type"},
+    {ACPI_DMT_UINT8,    ACPI_HEST4_OFFSET (Enabled),                "Enabled"},
+    {ACPI_DMT_UINT8,    ACPI_HEST4_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 5: IPF Corrected Platform Error */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest5[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST5_OFFSET (Header.Type),            "Subtable Type"},
+    {ACPI_DMT_UINT8,    ACPI_HEST5_OFFSET (Enabled),                "Enabled"},
+    {ACPI_DMT_UINT8,    ACPI_HEST5_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 6: PCI Express Root Port AER */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest6[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST6_OFFSET (Header.Type),                "Subtable Type"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.SourceId),               "Source Id"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.ConfigWriteEnable),      "Configuration Write Enable"},
+    {ACPI_DMT_UINT8,    ACPI_HEST6_OFFSET (Aer.Flags),                  "Flags"},
+    {ACPI_DMT_UINT8,    ACPI_HEST6_OFFSET (Aer.Enabled),                "Enabled"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.RecordsToPreAllocate),   "Records To Preallocate"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.MaxSectionsPerRecord),   "Max Sections Per Record"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.Bus),                    "Bus"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Device),                 "Device"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Function),               "Function"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.DeviceControl),          "DeviceControl"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Reserved),               "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.UncorrectableErrorMask),     "Uncorrectable Error Mask"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.UncorrectableErrorSeverity), "Uncorrectable Error Severity"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.CorrectableErrorMask),       "Correctable Error Mask"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.AdvancedErrorCapabilities),  "Advanced Error Capabilities"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (RootErrorCommand),               "Root Error Command"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 7: PCI Express AER (AER Endpoint) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest7[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST6_OFFSET (Header.Type),                "Subtable Type"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.SourceId),               "Source Id"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.ConfigWriteEnable),      "Configuration Write Enable"},
+    {ACPI_DMT_UINT8,    ACPI_HEST6_OFFSET (Aer.Flags),                  "Flags"},
+    {ACPI_DMT_UINT8,    ACPI_HEST6_OFFSET (Aer.Enabled),                "Enabled"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.RecordsToPreAllocate),   "Records To Preallocate"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.MaxSectionsPerRecord),   "Max Sections Per Record"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.Bus),                    "Bus"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Device),                 "Device"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Function),               "Function"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.DeviceControl),          "DeviceControl"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Reserved),               "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.UncorrectableErrorMask),     "Uncorrectable Error Mask"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.UncorrectableErrorSeverity), "Uncorrectable Error Severity"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.CorrectableErrorMask),       "Correctable Error Mask"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.AdvancedErrorCapabilities),  "Advanced Error Capabilities"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 8: PCI Express/PCI-X Bridge AER */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest8[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST6_OFFSET (Header.Type),                "Subtable Type"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.SourceId),               "Source Id"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.ConfigWriteEnable),      "Configuration Write Enable"},
+    {ACPI_DMT_UINT8,    ACPI_HEST6_OFFSET (Aer.Flags),                  "Flags"},
+    {ACPI_DMT_UINT8,    ACPI_HEST6_OFFSET (Aer.Enabled),                "Enabled"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.RecordsToPreAllocate),   "Records To Preallocate"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.MaxSectionsPerRecord),   "Max Sections Per Record"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.Bus),                    "Bus"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Device),                 "Device"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Function),               "Function"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.DeviceControl),          "DeviceControl"},
+    {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Reserved),               "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.UncorrectableErrorMask),     "Uncorrectable Error Mask"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.UncorrectableErrorSeverity), "Uncorrectable Error Severity"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.CorrectableErrorMask),       "Correctable Error Mask"},
+    {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.AdvancedErrorCapabilities),  "Advanced Error Capabilities"},
+    {ACPI_DMT_UINT32,   ACPI_HEST8_OFFSET (SecondaryUncorrectableErrorMask),     "2nd Uncorrectable Err Mask"},
+    {ACPI_DMT_UINT32,   ACPI_HEST8_OFFSET (SecondaryUncorrectableErrorSeverity), "2nd Uncorrectable Err Severity"},
+    {ACPI_DMT_UINT32,   ACPI_HEST8_OFFSET (SecondaryAdvancedCapabilities),       "2nd Advanced Capabilities"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 9: Generic Hardware Error Source */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest9[] =
+{
+    {ACPI_DMT_HEST,     ACPI_HEST9_OFFSET (Header.Type),            "Subtable Type"},
+    {ACPI_DMT_UINT16,   ACPI_HEST9_OFFSET (SourceId),               "Source Id"},
+    {ACPI_DMT_UINT16,   ACPI_HEST9_OFFSET (RelatedSourceId),        "Related Source Id"},
+    {ACPI_DMT_UINT8,    ACPI_HEST9_OFFSET (ConfigWriteEnable),      "Configuration Write Enable"},
+    {ACPI_DMT_UINT8,    ACPI_HEST9_OFFSET (Enabled),                "Enabled"},
+    {ACPI_DMT_UINT32,   ACPI_HEST9_OFFSET (RecordsToPreAllocate),   "Records To Preallocate"},
+    {ACPI_DMT_UINT32,   ACPI_HEST9_OFFSET (MaxSectionsPerRecord),   "Max Sections Per Record"},
+    {ACPI_DMT_UINT32,   ACPI_HEST9_OFFSET (MaxRawDataLength),       "Max Raw Data Length"},
+    {ACPI_DMT_GAS,      ACPI_HEST9_OFFSET (ErrorStatusAddress),     "Error Status Address"},
+    {ACPI_DMT_HESTNTFY, ACPI_HEST9_OFFSET (Notify),                 "Notify"},
+    {ACPI_DMT_UINT32,   ACPI_HEST9_OFFSET (ErrorStatusBlockLength), "Error Status Block Length"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHestNotify[10] =
+{
+    {ACPI_DMT_HESTNTYP, ACPI_HESTN_OFFSET (Type),                   "Notify Type"},
+    {ACPI_DMT_UINT8,    ACPI_HESTN_OFFSET (Length),                 "Notify Length"},
+    {ACPI_DMT_UINT16,   ACPI_HESTN_OFFSET (ConfigWriteEnable),      "Configuration Write Enable"},
+    {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (PollInterval),           "PollInterval"},
+    {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (Vector),                 "Vector"},
+    {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (PollingThresholdValue),  "Polling Threshold Value"},
+    {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (PollingThresholdWindow), "Polling Threshold Window"},
+    {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (ErrorThresholdValue),    "Error Threshold Value"},
+    {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (ErrorThresholdWindow),   "Error Threshold Window"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
@@ -651,16 +953,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoMadt[] =
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
-/* Common sub-table header (one per sub-table) */
+/* Common Subtable header (one per Subtable) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoMadtHdr[] =
 {
-    {ACPI_DMT_MADT,     ACPI_MADTH_OFFSET (Type),                   "Sub-Table Type"},
+    {ACPI_DMT_MADT,     ACPI_MADTH_OFFSET (Type),                   "Subtable Type"},
     {ACPI_DMT_UINT8,    ACPI_MADTH_OFFSET (Length),                 "Length"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
-/* MADT sub-tables */
+/* MADT Subtables */
 
 /* 0: processor APIC */
 
@@ -772,10 +1074,35 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoMadt8[] =
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
+/* 9: Processor Local X2_APIC (07/2008) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoMadt9[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_MADT9_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_MADT9_OFFSET (LocalApicId),            "Processor x2Apic ID"},
+    {ACPI_DMT_UINT32,   ACPI_MADT9_OFFSET (LapicFlags),             "Flags (decoded below)"},
+    {ACPI_DMT_FLAG0,    ACPI_MADT9_FLAG_OFFSET (LapicFlags,0),      "Processor Enabled"},
+    {ACPI_DMT_UINT32,   ACPI_MADT9_OFFSET (Uid),                    "Processor UID"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 10: Local X2_APIC NMI (07/2008) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoMadt10[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_MADT10_OFFSET (IntiFlags),             "Flags (decoded below)"},
+    {ACPI_DMT_FLAGS0,   ACPI_MADT10_FLAG_OFFSET (IntiFlags,0),      "Polarity"},
+    {ACPI_DMT_FLAGS2,   ACPI_MADT10_FLAG_OFFSET (IntiFlags,0),      "Trigger Mode"},
+    {ACPI_DMT_UINT32,   ACPI_MADT10_OFFSET (Uid),                   "Processor UID"},
+    {ACPI_DMT_UINT8,    ACPI_MADT10_OFFSET (Lint),                  "Interrupt Input LINT"},
+    {ACPI_DMT_UINT24,   ACPI_MADT10_OFFSET (Reserved[0]),           "Reserved"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
 
 /*******************************************************************************
  *
- * MCFG - PCI Memory Mapped Configuration table and sub-table
+ * MCFG - PCI Memory Mapped Configuration table and Subtable
  *
  ******************************************************************************/
 
@@ -807,6 +1134,18 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSbst[] =
     {ACPI_DMT_UINT32,   ACPI_SBST_OFFSET (WarningLevel),            "Warning Level"},
     {ACPI_DMT_UINT32,   ACPI_SBST_OFFSET (LowLevel),                "Low Level"},
     {ACPI_DMT_UINT32,   ACPI_SBST_OFFSET (CriticalLevel),           "Critical Level"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+
+/*******************************************************************************
+ *
+ * SLIC - Software Licensing Description Table. NOT FULLY IMPLEMENTED
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSlic[] =
+{
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
@@ -883,7 +1222,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSpmi[] =
 
 /*******************************************************************************
  *
- * SRAT - System Resource Affinity Table and sub-tables
+ * SRAT - System Resource Affinity Table and Subtables
  *
  ******************************************************************************/
 
@@ -894,10 +1233,21 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat[] =
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
+/* Common Subtable header (one per Subtable) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSratHdr[] =
+{
+    {ACPI_DMT_SRAT,     ACPI_SRATH_OFFSET (Type),                   "Subtable Type"},
+    {ACPI_DMT_UINT8,    ACPI_SRATH_OFFSET (Length),                 "Length"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* SRAT Subtables */
+
+/* 0: Processor Local APIC/SAPIC Affinity */
+
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat0[] =
 {
-    {ACPI_DMT_SRAT,     ACPI_SRAT0_OFFSET (Header.Type),            "Sub-Table Type"},
-    {ACPI_DMT_UINT8,    ACPI_SRAT0_OFFSET (Header.Length),          "Length"},
     {ACPI_DMT_UINT8,    ACPI_SRAT0_OFFSET (ProximityDomainLo),      "Proximity Domain Low(8)"},
     {ACPI_DMT_UINT8,    ACPI_SRAT0_OFFSET (ApicId),                 "Apic ID"},
     {ACPI_DMT_UINT32,   ACPI_SRAT0_OFFSET (Flags),                  "Flags (decoded below)"},
@@ -908,20 +1258,32 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat0[] =
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
+/* 1: Memory Affinity */
+
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat1[] =
 {
-    {ACPI_DMT_SRAT,     ACPI_SRAT1_OFFSET (Header.Type),            "Sub-Table Type"},
-    {ACPI_DMT_UINT8,    ACPI_SRAT1_OFFSET (Header.Length),          "Length"},
     {ACPI_DMT_UINT32,   ACPI_SRAT1_OFFSET (ProximityDomain),        "Proximity Domain"},
     {ACPI_DMT_UINT16,   ACPI_SRAT1_OFFSET (Reserved),               "Reserved"},
     {ACPI_DMT_UINT64,   ACPI_SRAT1_OFFSET (BaseAddress),            "Base Address"},
     {ACPI_DMT_UINT64,   ACPI_SRAT1_OFFSET (Length),                 "Address Length"},
-    {ACPI_DMT_UINT32,   ACPI_SRAT1_OFFSET (MemoryType),             "Memory Type"},
+    {ACPI_DMT_UINT32,   ACPI_SRAT1_OFFSET (Reserved1),              "Reserved"},
     {ACPI_DMT_UINT32,   ACPI_SRAT1_OFFSET (Flags),                  "Flags (decoded below)"},
     {ACPI_DMT_FLAG0,    ACPI_SRAT1_FLAG_OFFSET (Flags,0),           "Enabled"},
     {ACPI_DMT_FLAG1,    ACPI_SRAT1_FLAG_OFFSET (Flags,0),           "Hot Pluggable"},
     {ACPI_DMT_FLAG2,    ACPI_SRAT1_FLAG_OFFSET (Flags,0),           "Non-Volatile"},
-    {ACPI_DMT_UINT64,   ACPI_SRAT1_OFFSET (Reserved1),              "Reserved"},
+    {ACPI_DMT_UINT64,   ACPI_SRAT1_OFFSET (Reserved2),              "Reserved"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+/* 2: Processor Local X2_APIC Affinity (07/2008) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat2[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_SRAT2_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_SRAT2_OFFSET (ProximityDomain),        "Proximity Domain"},
+    {ACPI_DMT_UINT32,   ACPI_SRAT2_OFFSET (ApicId),                 "Apic ID"},
+    {ACPI_DMT_UINT32,   ACPI_SRAT2_OFFSET (Flags),                  "Flags (decoded below)"},
+    {ACPI_DMT_FLAG0,    ACPI_SRAT2_FLAG_OFFSET (Flags,0),           "Enabled"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 

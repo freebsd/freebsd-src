@@ -163,6 +163,7 @@ struct t_op {
 struct t_op const *t_wp_op;
 int nargc;
 char **t_wp;
+int parenlevel;
 
 static int	aexpr(enum token);
 static int	binop(void);
@@ -171,7 +172,9 @@ static int	filstat(char *, enum token);
 static int	getn(const char *);
 static intmax_t	getq(const char *);
 static int	intcmp(const char *, const char *);
-static int	isoperand(void);
+static int	isunopoperand(void);
+static int	islparenoperand(void);
+static int	isrparenoperand(void);
 static int	newerf(const char *, const char *);
 static int	nexpr(enum token);
 static int	oexpr(enum token);
@@ -205,7 +208,14 @@ main(int argc, char **argv)
 #endif
 	nargc = argc;
 	t_wp = &argv[1];
-	res = !oexpr(t_lex(*t_wp));
+	parenlevel = 0;
+	if (nargc == 4 && strcmp(*t_wp, "!") == 0) {
+		/* Things like ! "" -o x do not fit in the normal grammar. */
+		--nargc;
+		++t_wp;
+		res = oexpr(t_lex(*t_wp));
+	} else
+		res = !oexpr(t_lex(*t_wp));
 
 	if (--nargc > 0)
 		syntax(*t_wp, "unexpected operator");
@@ -268,12 +278,16 @@ primary(enum token n)
 	if (n == EOI)
 		return 0;		/* missing expression */
 	if (n == LPAREN) {
+		parenlevel++;
 		if ((nn = t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL)) ==
-		    RPAREN)
+		    RPAREN) {
+			parenlevel--;
 			return 0;	/* missing expression */
+		}
 		res = oexpr(nn);
 		if (t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL) != RPAREN)
 			syntax(NULL, "closing paren expected");
+		parenlevel--;
 		return res;
 	}
 	if (t_wp_op && t_wp_op->op_type == UNOP) {
@@ -410,8 +424,10 @@ t_lex(char *s)
 	}
 	while (op->op_text) {
 		if (strcmp(s, op->op_text) == 0) {
-			if ((op->op_type == UNOP && isoperand()) ||
-			    (op->op_num == LPAREN && nargc == 1))
+			if (((op->op_type == UNOP || op->op_type == BUNOP)
+						&& isunopoperand()) ||
+			    (op->op_num == LPAREN && islparenoperand()) ||
+			    (op->op_num == RPAREN && isrparenoperand()))
 				break;
 			t_wp_op = op;
 			return op->op_num;
@@ -423,7 +439,7 @@ t_lex(char *s)
 }
 
 static int
-isoperand(void)
+isunopoperand(void)
 {
 	struct t_op const *op = ops;
 	char *s;
@@ -431,16 +447,50 @@ isoperand(void)
 
 	if (nargc == 1)
 		return 1;
-	if (nargc == 2)
-		return 0;
 	s = *(t_wp + 1);
+	if (nargc == 2)
+		return parenlevel == 1 && strcmp(s, ")") == 0;
 	t = *(t_wp + 2);
 	while (op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
 			return op->op_type == BINOP &&
-			    (t[0] != ')' || t[1] != '\0');
+			    (parenlevel == 0 || t[0] != ')' || t[1] != '\0');
 		op++;
 	}
+	return 0;
+}
+
+static int
+islparenoperand(void)
+{
+	struct t_op const *op = ops;
+	char *s;
+
+	if (nargc == 1)
+		return 1;
+	s = *(t_wp + 1);
+	if (nargc == 2)
+		return parenlevel == 1 && strcmp(s, ")") == 0;
+	if (nargc != 3)
+		return 0;
+	while (op->op_text) {
+		if (strcmp(s, op->op_text) == 0)
+			return op->op_type == BINOP;
+		op++;
+	}
+	return 0;
+}
+
+static int
+isrparenoperand(void)
+{
+	char *s;
+
+	if (nargc == 1)
+		return 0;
+	s = *(t_wp + 1);
+	if (nargc == 2)
+		return parenlevel == 1 && strcmp(s, ")") == 0;
 	return 0;
 }
 

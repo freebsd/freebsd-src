@@ -193,6 +193,9 @@ mac_ipq_reassemble(struct ipq *q, struct mbuf *m)
 {
 	struct label *label;
 
+	if (mac_policy_count == 0)
+		return;
+
 	label = mac_mbuf_to_label(m);
 
 	MAC_POLICY_PERFORM_NOSLEEP(ipq_reassemble, q, q->ipq_label, m,
@@ -203,6 +206,9 @@ void
 mac_netinet_fragment(struct mbuf *m, struct mbuf *frag)
 {
 	struct label *mlabel, *fraglabel;
+
+	if (mac_policy_count == 0)
+		return;
 
 	mlabel = mac_mbuf_to_label(m);
 	fraglabel = mac_mbuf_to_label(frag);
@@ -216,6 +222,9 @@ mac_ipq_create(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
 
+	if (mac_policy_count == 0)
+		return;
+
 	label = mac_mbuf_to_label(m);
 
 	MAC_POLICY_PERFORM_NOSLEEP(ipq_create, m, label, q, q->ipq_label);
@@ -227,6 +236,10 @@ mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m)
 	struct label *mlabel;
 
 	INP_LOCK_ASSERT(inp);
+
+	if (mac_policy_count == 0)
+		return;
+
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_POLICY_PERFORM_NOSLEEP(inpcb_create_mbuf, inp, inp->inp_label, m,
@@ -238,6 +251,9 @@ mac_ipq_match(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
 	int result;
+
+	if (mac_policy_count == 0)
+		return (1);
 
 	label = mac_mbuf_to_label(m);
 
@@ -252,6 +268,9 @@ mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m)
 {
 	struct label *mlabel;
 
+	if (mac_policy_count == 0)
+		return;
+
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp);
@@ -265,6 +284,9 @@ mac_netinet_icmp_reply(struct mbuf *mrecv, struct mbuf *msend)
 {
 	struct label *mrecvlabel, *msendlabel;
 
+	if (mac_policy_count == 0)
+		return;
+
 	mrecvlabel = mac_mbuf_to_label(mrecv);
 	msendlabel = mac_mbuf_to_label(msend);
 
@@ -277,6 +299,9 @@ mac_netinet_icmp_replyinplace(struct mbuf *m)
 {
 	struct label *label;
 
+	if (mac_policy_count == 0)
+		return;
+
 	label = mac_mbuf_to_label(m);
 
 	MAC_POLICY_PERFORM_NOSLEEP(netinet_icmp_replyinplace, m, label);
@@ -286,6 +311,9 @@ void
 mac_netinet_igmp_send(struct ifnet *ifp, struct mbuf *m)
 {
 	struct label *mlabel;
+
+	if (mac_policy_count == 0)
+		return;
 
 	mlabel = mac_mbuf_to_label(m);
 
@@ -300,6 +328,9 @@ mac_netinet_tcp_reply(struct mbuf *m)
 {
 	struct label *label;
 
+	if (mac_policy_count == 0)
+		return;
+
 	label = mac_mbuf_to_label(m);
 
 	MAC_POLICY_PERFORM_NOSLEEP(netinet_tcp_reply, m, label);
@@ -309,6 +340,9 @@ void
 mac_ipq_update(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
+
+	if (mac_policy_count == 0)
+		return;
 
 	label = mac_mbuf_to_label(m);
 
@@ -325,6 +359,9 @@ mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
 	int error;
 
 	M_ASSERTPKTHDR(m);
+
+	if (mac_policy_count == 0)
+		return (0);
 
 	label = mac_mbuf_to_label(m);
 
@@ -371,6 +408,9 @@ mac_netinet_firewall_reply(struct mbuf *mrecv, struct mbuf *msend)
 	M_ASSERTPKTHDR(mrecv);
 	M_ASSERTPKTHDR(msend);
 
+	if (mac_policy_count == 0)
+		return;
+
 	mrecvlabel = mac_mbuf_to_label(mrecv);
 	msendlabel = mac_mbuf_to_label(msend);
 
@@ -384,6 +424,9 @@ mac_netinet_firewall_send(struct mbuf *m)
 	struct label *label;
 
 	M_ASSERTPKTHDR(m);
+
+	if (mac_policy_count == 0)
+		return;
 
 	label = mac_mbuf_to_label(m);
 
@@ -454,6 +497,9 @@ mac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m)
 	struct label *mlabel;
 
 	M_ASSERTPKTHDR(m);
+
+	if (mac_policy_count == 0)
+		return;
 
 	mlabel = mac_mbuf_to_label(m);
 

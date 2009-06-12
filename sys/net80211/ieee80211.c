@@ -80,6 +80,7 @@ static const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static	void ieee80211_syncflag_locked(struct ieee80211com *ic, int flag);
+static	void ieee80211_syncflag_ht_locked(struct ieee80211com *ic, int flag);
 static	void ieee80211_syncflag_ext_locked(struct ieee80211com *ic, int flag);
 static	int ieee80211_media_setup(struct ieee80211com *ic,
 		struct ifmedia *media, int caps, int addsta,
@@ -281,6 +282,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	ieee80211_ht_attach(ic);
 	ieee80211_scan_attach(ic);
 	ieee80211_regdomain_attach(ic);
+	ieee80211_dfs_attach(ic);
 
 	ieee80211_sysctl_attach(ic);
 
@@ -313,11 +315,14 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211vap *vap;
 
+	if_detach(ifp);
+
 	while ((vap = TAILQ_FIRST(&ic->ic_vaps)) != NULL)
 		ieee80211_vap_destroy(vap);
 	ieee80211_waitfor_parent(ic);
 
 	ieee80211_sysctl_detach(ic);
+	ieee80211_dfs_detach(ic);
 	ieee80211_regdomain_detach(ic);
 	ieee80211_scan_detach(ic);
 #ifdef IEEE80211_SUPPORT_SUPERG
@@ -329,11 +334,10 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_crypto_detach(ic);
 	ieee80211_power_detach(ic);
 	ieee80211_node_detach(ic);
-	ifmedia_removeall(&ic->ic_media);
 
+	ifmedia_removeall(&ic->ic_media);
 	taskqueue_free(ic->ic_tq);
 	IEEE80211_LOCK_DESTROY(ic);
-	if_detach(ifp);
 }
 
 /*
@@ -513,16 +517,14 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 
 	IEEE80211_LOCK(ic);
 	TAILQ_INSERT_TAIL(&ic->ic_vaps, vap, iv_next);
-	if (vap->iv_opmode == IEEE80211_M_MONITOR)
-		ic->ic_monvaps++;
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
 #endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_USEHT40);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 	ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 	IEEE80211_UNLOCK(ic);
@@ -546,24 +548,10 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	    __func__, ieee80211_opmode_name[vap->iv_opmode],
 	    ic->ic_ifp->if_xname);
 
-	IEEE80211_LOCK(ic);
-	/* block traffic from above */
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	/*
-	 * Evil hack.  Clear the backpointer from the ifnet to the
-	 * vap so any requests from above will return an error or
-	 * be ignored.  In particular this short-circuits requests
-	 * by the bridge to turn off promiscuous mode as a result
-	 * of calling ether_ifdetach.
-	 */
-	ifp->if_softc = NULL;
-	/*
-	 * Stop the vap before detaching the ifnet.  Ideally we'd
-	 * do this in the other order so the ifnet is inaccessible
-	 * while we cleanup internal state but that is hard.
-	 */
-	ieee80211_stop_locked(vap);
-	IEEE80211_UNLOCK(ic);
+	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
+	ether_ifdetach(ifp);
+
+	ieee80211_stop(vap);
 
 	/*
 	 * Flush any deferred vap tasks.
@@ -575,25 +563,19 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	IEEE80211_LOCK(ic);
 	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
 	TAILQ_REMOVE(&ic->ic_vaps, vap, iv_next);
-	if (vap->iv_opmode == IEEE80211_M_MONITOR)
-		ic->ic_monvaps--;
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
 #endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_USEHT40);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
 	/* NB: this handles the bpfdetach done below */
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_BPF);
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 	ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 	IEEE80211_UNLOCK(ic);
-
-	/* XXX can't hold com lock */
-	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
-	ether_ifdetach(ifp);
 
 	ifmedia_removeall(&vap->iv_media);
 
@@ -699,7 +681,47 @@ ieee80211_syncflag(struct ieee80211vap *vap, int flag)
 }
 
 /*
- * Synchronize flag bit state in the com structure
+ * Synchronize flags_ht bit state in the com structure
+ * according to the state of all vap's.  This is used,
+ * for example, to handle state changes via ioctls.
+ */
+static void
+ieee80211_syncflag_ht_locked(struct ieee80211com *ic, int flag)
+{
+	struct ieee80211vap *vap;
+	int bit;
+
+	IEEE80211_LOCK_ASSERT(ic);
+
+	bit = 0;
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_flags_ht & flag) {
+			bit = 1;
+			break;
+		}
+	if (bit)
+		ic->ic_flags_ht |= flag;
+	else
+		ic->ic_flags_ht &= ~flag;
+}
+
+void
+ieee80211_syncflag_ht(struct ieee80211vap *vap, int flag)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	IEEE80211_LOCK(ic);
+	if (flag < 0) {
+		flag = -flag;
+		vap->iv_flags_ht &= ~flag;
+	} else
+		vap->iv_flags_ht |= flag;
+	ieee80211_syncflag_ht_locked(ic, flag);
+	IEEE80211_UNLOCK(ic);
+}
+
+/*
+ * Synchronize flags_ext bit state in the com structure
  * according to the state of all vap's.  This is used,
  * for example, to handle state changes via ioctls.
  */
@@ -1207,7 +1229,7 @@ ieee80211_media_change(struct ifnet *ifp)
 		return EINVAL;
 	if (vap->iv_des_mode != newmode) {
 		vap->iv_des_mode = newmode;
-		return ENETRESET;
+		/* XXX kick state machine if up+running */
 	}
 	return 0;
 }

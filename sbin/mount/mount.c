@@ -140,7 +140,7 @@ use_mountprog(const char *vfstype)
 	 */
 	unsigned int i;
 	const char *fs[] = {
-	"cd9660", "mfs", "msdosfs", "nfs", "nfs4", "ntfs",
+	"cd9660", "mfs", "msdosfs", "newnfs", "nfs", "ntfs",
 	"nwfs", "nullfs", "portalfs", "smbfs", "udf", "unionfs",
 	NULL
 	};

@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_input.h>
 
 #define	IS_UP_AUTO(_vap) \
-	(IFNET_IS_UP_RUNNING(vap->iv_ifp) && \
+	(IFNET_IS_UP_RUNNING((_vap)->iv_ifp) && \
 	 (_vap)->iv_roaming == IEEE80211_ROAMING_AUTO)
 
 static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
@@ -403,12 +403,12 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 		const struct ieee80211_mcs_rates *mcs =
 		    &ieee80211_htrates[ni->ni_txrate &~ IEEE80211_RATE_MCS];
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
-			if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+			if (ni->ni_flags & IEEE80211_NODE_SGI40)
 				si->isi_txmbps = mcs->ht40_rate_800ns;
 			else
 				si->isi_txmbps = mcs->ht40_rate_400ns;
 		} else {
-			if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
+			if (ni->ni_flags & IEEE80211_NODE_SGI20)
 				si->isi_txmbps = mcs->ht20_rate_800ns;
 			else
 				si->isi_txmbps = mcs->ht20_rate_400ns;
@@ -990,16 +990,16 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_SHORTGI:
 		ireq->i_val = 0;
-		if (vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI20)
+		if (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20)
 			ireq->i_val |= IEEE80211_HTCAP_SHORTGI20;
-		if (vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI40)
+		if (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40)
 			ireq->i_val |= IEEE80211_HTCAP_SHORTGI40;
 		break;
 	case IEEE80211_IOC_AMPDU:
 		ireq->i_val = 0;
-		if (vap->iv_flags_ext & IEEE80211_FEXT_AMPDU_TX)
+		if (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX)
 			ireq->i_val |= 1;
-		if (vap->iv_flags_ext & IEEE80211_FEXT_AMPDU_RX)
+		if (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_RX)
 			ireq->i_val |= 2;
 		break;
 	case IEEE80211_IOC_AMPDU_LIMIT:
@@ -1021,16 +1021,16 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_AMSDU:
 		ireq->i_val = 0;
-		if (vap->iv_flags_ext & IEEE80211_FEXT_AMSDU_TX)
+		if (vap->iv_flags_ht & IEEE80211_FHT_AMSDU_TX)
 			ireq->i_val |= 1;
-		if (vap->iv_flags_ext & IEEE80211_FEXT_AMSDU_RX)
+		if (vap->iv_flags_ht & IEEE80211_FHT_AMSDU_RX)
 			ireq->i_val |= 2;
 		break;
 	case IEEE80211_IOC_AMSDU_LIMIT:
 		ireq->i_val = vap->iv_amsdu_limit;	/* XXX truncation? */
 		break;
 	case IEEE80211_IOC_PUREN:
-		ireq->i_val = (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) != 0;
+		ireq->i_val = (vap->iv_flags_ht & IEEE80211_FHT_PUREN) != 0;
 		break;
 	case IEEE80211_IOC_DOTH:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_DOTH) != 0;
@@ -1045,7 +1045,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		error = ieee80211_ioctl_gettxparams(vap, ireq);
 		break;
 	case IEEE80211_IOC_HTCOMPAT:
-		ireq->i_val = (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) != 0;
+		ireq->i_val = (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) != 0;
 		break;
 	case IEEE80211_IOC_DWDS:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_DWDS) != 0;
@@ -1075,9 +1075,9 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		ireq->i_val = ic->ic_htprotmode;
 		break;
 	case IEEE80211_IOC_HTCONF:
-		if (vap->iv_flags_ext & IEEE80211_FEXT_HT) {
+		if (vap->iv_flags_ht & IEEE80211_FHT_HT) {
 			ireq->i_val = 1;
-			if (vap->iv_flags_ext & IEEE80211_FEXT_USEHT40)
+			if (vap->iv_flags_ht & IEEE80211_FHT_USEHT40)
 				ireq->i_val |= 2;
 		} else
 			ireq->i_val = 0;
@@ -1104,7 +1104,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			    (vap->iv_bss->ni_flags & IEEE80211_NODE_RIFS) != 0;
 		else
 			ireq->i_val =
-			    (vap->iv_flags_ext & IEEE80211_FEXT_RIFS) != 0;
+			    (vap->iv_flags_ht & IEEE80211_FHT_RIFS) != 0;
 		break;
 	default:
 		error = ieee80211_ioctl_getdefault(vap, ireq);
@@ -2304,8 +2304,10 @@ ieee80211_ioctl_chanswitch(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	error = copyin(ireq->i_data, &csr, sizeof(csr));
 	if (error != 0)
 		return error;
-	if ((vap->iv_flags & IEEE80211_F_DOTH) == 0)
-		return EINVAL;
+	/* XXX adhoc mode not supported */
+	if (vap->iv_opmode != IEEE80211_M_HOSTAP ||
+	    (vap->iv_flags & IEEE80211_F_DOTH) == 0)
+		return EOPNOTSUPP;
 	c = ieee80211_find_channel(ic,
 	    csr.csa_chan.ic_freq, csr.csa_chan.ic_flags);
 	if (c == NULL)
@@ -2313,6 +2315,8 @@ ieee80211_ioctl_chanswitch(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	IEEE80211_LOCK(ic);
 	if ((ic->ic_flags & IEEE80211_F_CSAPENDING) == 0)
 		ieee80211_csa_startswitch(ic, c, csr.csa_mode, csr.csa_count);
+	else if (csr.csa_count == 0)
+		ieee80211_csa_cancelswitch(ic);
 	else
 		error = EBUSY;
 	IEEE80211_UNLOCK(ic);
@@ -2811,13 +2815,13 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		break;
 	case IEEE80211_IOC_HTCONF:
 		if (ireq->i_val & 1)
-			ieee80211_syncflag_ext(vap, IEEE80211_FEXT_HT);
+			ieee80211_syncflag_ht(vap, IEEE80211_FHT_HT);
 		else
-			ieee80211_syncflag_ext(vap, -IEEE80211_FEXT_HT);
+			ieee80211_syncflag_ht(vap, -IEEE80211_FHT_HT);
 		if (ireq->i_val & 2)
-			ieee80211_syncflag_ext(vap, IEEE80211_FEXT_USEHT40);
+			ieee80211_syncflag_ht(vap, IEEE80211_FHT_USEHT40);
 		else
-			ieee80211_syncflag_ext(vap, -IEEE80211_FEXT_USEHT40);
+			ieee80211_syncflag_ht(vap, -IEEE80211_FHT_USEHT40);
 		error = ENETRESET;
 		break;
 	case IEEE80211_IOC_ADDMAC:
@@ -2934,26 +2938,26 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 			if (((ireq->i_val ^ vap->iv_htcaps) & IEEE80211_HTCAP_SHORTGI) != 0)
 				return EINVAL;
 			if (ireq->i_val & IEEE80211_HTCAP_SHORTGI20)
-				vap->iv_flags_ext |= IEEE80211_FEXT_SHORTGI20;
+				vap->iv_flags_ht |= IEEE80211_FHT_SHORTGI20;
 			if (ireq->i_val & IEEE80211_HTCAP_SHORTGI40)
-				vap->iv_flags_ext |= IEEE80211_FEXT_SHORTGI40;
+				vap->iv_flags_ht |= IEEE80211_FHT_SHORTGI40;
 #undef IEEE80211_HTCAP_SHORTGI
 		} else
-			vap->iv_flags_ext &=
-			    ~(IEEE80211_FEXT_SHORTGI20 | IEEE80211_FEXT_SHORTGI40);
+			vap->iv_flags_ht &=
+			    ~(IEEE80211_FHT_SHORTGI20 | IEEE80211_FHT_SHORTGI40);
 		error = ERESTART;
 		break;
 	case IEEE80211_IOC_AMPDU:
 		if (ireq->i_val && (vap->iv_htcaps & IEEE80211_HTC_AMPDU) == 0)
 			return EINVAL;
 		if (ireq->i_val & 1)
-			vap->iv_flags_ext |= IEEE80211_FEXT_AMPDU_TX;
+			vap->iv_flags_ht |= IEEE80211_FHT_AMPDU_TX;
 		else
-			vap->iv_flags_ext &= ~IEEE80211_FEXT_AMPDU_TX;
+			vap->iv_flags_ht &= ~IEEE80211_FHT_AMPDU_TX;
 		if (ireq->i_val & 2)
-			vap->iv_flags_ext |= IEEE80211_FEXT_AMPDU_RX;
+			vap->iv_flags_ht |= IEEE80211_FHT_AMPDU_RX;
 		else
-			vap->iv_flags_ext &= ~IEEE80211_FEXT_AMPDU_RX;
+			vap->iv_flags_ht &= ~IEEE80211_FHT_AMPDU_RX;
 		/* NB: reset only if we're operating on an 11n channel */
 		if (isvapht(vap))
 			error = ERESTART;
@@ -2979,13 +2983,13 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (ireq->i_val && (vap->iv_htcaps & IEEE80211_HTC_AMSDU) == 0)
 			return EINVAL;
 		if (ireq->i_val & 1)
-			vap->iv_flags_ext |= IEEE80211_FEXT_AMSDU_TX;
+			vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_TX;
 		else
-			vap->iv_flags_ext &= ~IEEE80211_FEXT_AMSDU_TX;
+			vap->iv_flags_ht &= ~IEEE80211_FHT_AMSDU_TX;
 		if (ireq->i_val & 2)
-			vap->iv_flags_ext |= IEEE80211_FEXT_AMSDU_RX;
+			vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_RX;
 		else
-			vap->iv_flags_ext &= ~IEEE80211_FEXT_AMSDU_RX;
+			vap->iv_flags_ht &= ~IEEE80211_FHT_AMSDU_RX;
 		/* NB: reset only if we're operating on an 11n channel */
 		if (isvapht(vap))
 			error = ERESTART;
@@ -2996,11 +3000,11 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		break;
 	case IEEE80211_IOC_PUREN:
 		if (ireq->i_val) {
-			if ((vap->iv_flags_ext & IEEE80211_FEXT_HT) == 0)
+			if ((vap->iv_flags_ht & IEEE80211_FHT_HT) == 0)
 				return EINVAL;
-			vap->iv_flags_ext |= IEEE80211_FEXT_PUREN;
+			vap->iv_flags_ht |= IEEE80211_FHT_PUREN;
 		} else
-			vap->iv_flags_ext &= ~IEEE80211_FEXT_PUREN;
+			vap->iv_flags_ht &= ~IEEE80211_FHT_PUREN;
 		/* NB: reset only if we're operating on an 11n channel */
 		if (isvapht(vap))
 			error = ERESTART;
@@ -3028,11 +3032,11 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		break;
 	case IEEE80211_IOC_HTCOMPAT:
 		if (ireq->i_val) {
-			if ((vap->iv_flags_ext & IEEE80211_FEXT_HT) == 0)
+			if ((vap->iv_flags_ht & IEEE80211_FHT_HT) == 0)
 				return EOPNOTSUPP;
-			vap->iv_flags_ext |= IEEE80211_FEXT_HTCOMPAT;
+			vap->iv_flags_ht |= IEEE80211_FHT_HTCOMPAT;
 		} else
-			vap->iv_flags_ext &= ~IEEE80211_FEXT_HTCOMPAT;
+			vap->iv_flags_ht &= ~IEEE80211_FHT_HTCOMPAT;
 		/* NB: reset only if we're operating on an 11n channel */
 		if (isvapht(vap))
 			error = ERESTART;
@@ -3131,9 +3135,9 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (ireq->i_val != 0) {
 			if ((vap->iv_htcaps & IEEE80211_HTC_RIFS) == 0)
 				return EOPNOTSUPP;
-			vap->iv_flags_ext |= IEEE80211_FEXT_RIFS;
+			vap->iv_flags_ht |= IEEE80211_FHT_RIFS;
 		} else
-			vap->iv_flags_ext &= ~IEEE80211_FEXT_RIFS;
+			vap->iv_flags_ht &= ~IEEE80211_FHT_RIFS;
 		/* NB: if not operating in 11n this can wait */
 		if (isvapht(vap))
 			error = ERESTART;
@@ -3202,29 +3206,14 @@ ieee80211_ioctl_updatemulti(struct ieee80211com *ic)
 int
 ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ieee80211vap *vap;
-	struct ieee80211com *ic;
+	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211com *ic = vap->iv_ic;
 	int error = 0;
 	struct ifreq *ifr;
 	struct ifaddr *ifa;			/* XXX */
 
-	vap = ifp->if_softc;
-	if (vap == NULL) {
-		/*
-		 * During detach we clear the backpointer in the softc
-		 * so any ioctl request through the ifnet that arrives
-		 * before teardown is ignored/rejected.  In particular
-		 * this hack handles destroying a vap used by an app
-		 * like wpa_supplicant that will respond to the vap
-		 * being forced into INIT state by immediately trying
-		 * to force it back up.  We can yank this hack if/when
-		 * we can destroy the ifnet before cleaning up vap state.
-		 */
-		return ENXIO;
-	}
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-		ic = vap->iv_ic;
 		IEEE80211_LOCK(ic);
 		ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 		ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
@@ -3250,7 +3239,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		ieee80211_ioctl_updatemulti(vap->iv_ic);
+		ieee80211_ioctl_updatemulti(ic);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:

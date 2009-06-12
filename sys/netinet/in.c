@@ -34,7 +34,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_carp.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -32,7 +32,6 @@
 #include "opt_inet.h"
 #ifdef __FreeBSD__
 #include "opt_inet6.h"
-#include "opt_route.h"
 #endif
 #endif /* __FreeBSD__ || __NetBSD__ */
 

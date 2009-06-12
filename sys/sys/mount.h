@@ -167,6 +167,7 @@ struct mount {
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	u_int		mnt_flag;		/* (i) flags shared with user */
+	u_int		mnt_xflag;		/* (i) more flags shared with user */
 	u_int		mnt_noasync;		/* (i) # noasync overrides */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
@@ -221,7 +222,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #endif /* _KERNEL */
 
 /*
- * User specifiable flags.
+ * User specifiable flags, stored in mnt_flag.
  */
 #define	MNT_RDONLY	0x00000001	/* read only filesystem */
 #define	MNT_SYNCHRONOUS	0x00000002	/* filesystem written synchronously */
@@ -325,6 +326,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_DRAINING	0x00000010	/* lock draining is happening */
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
+#define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
@@ -333,6 +335,9 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_MPSAFE	0x20000000	/* Filesystem is MPSAFE. */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
+
+#define	MNT_SHARED_WRITES(mp) (((mp) != NULL) && 	\
+				((mp)->mnt_kern_flag & MNTK_SHARED_WRITES))
 
 /*
  * Sysctl CTL_VFS definitions.
@@ -618,10 +623,8 @@ vfs_statfs_t	__vfs_statfs;
 	({if (*(MP)->mnt_op->vfs_susp_clean != NULL)		\
 	       (*(MP)->mnt_op->vfs_susp_clean)(MP); })
 
-extern int mpsafe_vfs;
-
 #define	VFS_NEEDSGIANT_(MP)						\
-    (!mpsafe_vfs || ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0))
+    ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0)
 
 #define	VFS_NEEDSGIANT(MP) __extension__				\
 ({									\

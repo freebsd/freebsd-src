@@ -43,11 +43,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
 #include "opt_bootp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
@@ -360,11 +360,15 @@ void
 bootpboot_p_rtlist(void)
 {
 	INIT_VNET_NET(curvnet);
+	struct radix_node_head *rnh;
 
 	printf("Routing table:\n");
-	RADIX_NODE_HEAD_RLOCK(V_rt_tables[0][AF_INET]);	/* could sleep XXX */
-	bootpboot_p_tree(V_rt_tables[0][AF_INET]->rnh_treetop);
-	RADIX_NODE_HEAD_RUNLOCK(V_rt_tables[0][AF_INET]);
+	rnh = rt_tables_get_rnh(0, AF_INET);
+	if (rnh == NULL)
+		return;
+	RADIX_NODE_HEAD_RLOCK(rnh);	/* could sleep XXX */
+	bootpboot_p_tree(rnh->rnh_treetop);
+	RADIX_NODE_HEAD_RUNLOCK(rnh);
 }
 
 void
@@ -1558,10 +1562,10 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 			printf("hostname %s (ignored) ", p);
 		} else {
 			strcpy(nd->my_hostnam, p);
-			mtx_lock(&hostname_mtx);
-			strcpy(G_hostname, p);
-			printf("hostname %s ", G_hostname);
-			mtx_unlock(&hostname_mtx);
+			mtx_lock(&prison0.pr_mtx);
+			strcpy(prison0.pr_host, p);
+			mtx_unlock(&prison0.pr_mtx);
+			printf("hostname %s ", p);
 			gctx->sethostname = ifctx;
 		}
 	}

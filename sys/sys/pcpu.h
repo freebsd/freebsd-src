@@ -76,16 +76,13 @@ struct pcpu {
 	cpumask_t	pc_other_cpus;		/* Mask of all other cpus */
 	SLIST_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
-#ifdef KTR_PERCPU
-	int		pc_ktr_idx;		/* Index into trace table */
-	char		*pc_ktr_buf;
-#endif
 #ifdef KTR
 	char		pc_name[PCPU_NAME_LEN];	/* String name for KTR. */
 #endif
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
 	struct device	*pc_device;
+	void		*pc_netisr;		/* netisr SWI cookie. */
 
 	/* 
 	 * Stuff for read mostly lock

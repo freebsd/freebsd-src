@@ -43,6 +43,8 @@ SUBDIR=	${_ac} \
 	devinfo \
 	digictl \
 	diskinfo \
+	${_dnssec-dsfromkey} \
+	${_dnssec-keyfromlabel} \
 	${_dnssec-keygen} \
 	${_dnssec-signzone} \
 	dumpcis \
@@ -226,6 +228,8 @@ _authpf=	authpf
 .endif
 
 .if ${MK_BIND_DNSSEC} != "no" && ${MK_OPENSSL} != "no"
+_dnssec-dsfromkey=	dnssec-dsfromkey
+_dnssec-keyfromlabel=	dnssec-keyfromlabel
 _dnssec-keygen=		dnssec-keygen
 _dnssec-signzone=	dnssec-signzone
 .endif

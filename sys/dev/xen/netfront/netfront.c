@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
+#include <sys/lock.h>
 #include <sys/sx.h>
 
 #include <net/if.h>
@@ -176,6 +177,7 @@ static int xennet_get_responses(struct netfront_info *np,
  */
 struct xn_chain_data {
 		struct mbuf		*xn_tx_chain[NET_TX_RING_SIZE+1];
+		int			xn_tx_chain_cnt;
 		struct mbuf		*xn_rx_chain[NET_RX_RING_SIZE+1];
 };
 
@@ -310,6 +312,7 @@ struct netfront_rx_info {
 static inline void
 add_id_to_freelist(struct mbuf **list, unsigned short id)
 {
+	KASSERT(id != 0, ("add_id_to_freelist: the head item (0) must always be free."));
 	list[id] = list[0];
 	list[0]  = (void *)(u_long)id;
 }
@@ -318,6 +321,7 @@ static inline unsigned short
 get_id_from_freelist(struct mbuf **list)
 {
 	u_int id = (u_int)(u_long)list[0];
+	KASSERT(id != 0, ("get_id_from_freelist: the head item (0) must always remain free."));
 	list[0] = list[id];
 	return (id);
 }
@@ -349,9 +353,6 @@ xennet_get_rx_ref(struct netfront_info *np, RING_IDX ri)
 	return ref;
 }
 
-#ifdef DEBUG
-
-#endif
 #define IPRINTK(fmt, args...) \
     printf("[XEN] " fmt, ##args)
 #define WPRINTK(fmt, args...) \
@@ -683,6 +684,23 @@ xn_free_tx_ring(struct netfront_info *sc)
 #endif
 }
 
+/*
+ * Do some brief math on the number of descriptors available to
+ * determine how many slots are available.
+ *
+ * Firstly - wouldn't something with RING_FREE_REQUESTS() be more applicable?
+ * Secondly - MAX_SKB_FRAGS is a Linux construct which may not apply here.
+ * Thirdly - it isn't used here anyway; the magic constant '24' is possibly
+ *   wrong?
+ * The "2" is presumably to ensure there are also enough slots available for
+ * the ring entries used for "options" (eg, the TSO entry before a packet
+ * is queued); I'm not sure why its 2 and not 1. Perhaps to make sure there's
+ * a "free" node in the tx mbuf list (node 0) to represent the freelist?
+ *
+ * This only figures out whether any xenbus ring descriptors are available;
+ * it doesn't at all reflect how many tx mbuf ring descriptors are also
+ * available.
+ */
 static inline int
 netfront_tx_slot_available(struct netfront_info *np)
 {
@@ -708,6 +726,10 @@ netif_release_tx_bufs(struct netfront_info *np)
 		    np->grant_tx_ref[i]);
 		np->grant_tx_ref[i] = GRANT_INVALID_REF;
 		add_id_to_freelist(np->tx_mbufs, i);
+		np->xn_cdata.xn_tx_chain_cnt--;
+		if (np->xn_cdata.xn_tx_chain_cnt < 0) {
+			panic("netif_release_tx_bufs: tx_chain_cnt must be >= 0");
+		}
 		m_freem(m);
 	}
 }
@@ -1046,6 +1068,8 @@ xn_txeof(struct netfront_info *np)
 
 			id = txr->id;
 			m = np->xn_cdata.xn_tx_chain[id]; 
+			KASSERT(m != NULL, ("mbuf not found in xn_tx_chain"));
+			M_ASSERTVALID(m);
 			
 			/*
 			 * Increment packet count if this is the last
@@ -1053,8 +1077,6 @@ xn_txeof(struct netfront_info *np)
 			 */
 			if (!m->m_next)
 				ifp->if_opackets++;
-			KASSERT(m != NULL, ("mbuf not found in xn_tx_chain"));
-			M_ASSERTVALID(m);
 			if (unlikely(gnttab_query_foreign_access(
 			    np->grant_tx_ref[id]) != 0)) {
 				printf("network_tx_buf_gc: warning "
@@ -1070,7 +1092,13 @@ xn_txeof(struct netfront_info *np)
 			
 			np->xn_cdata.xn_tx_chain[id] = NULL;
 			add_id_to_freelist(np->xn_cdata.xn_tx_chain, id);
+			np->xn_cdata.xn_tx_chain_cnt--;
+			if (np->xn_cdata.xn_tx_chain_cnt < 0) {
+				panic("netif_release_tx_bufs: tx_chain_cnt must be >= 0");
+			}
 			m_free(m);
+			/* Only mark the queue active if we've freed up at least one slot to try */
+			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		}
 		np->tx.rsp_cons = prod;
 		
@@ -1087,7 +1115,6 @@ xn_txeof(struct netfront_info *np)
 		    prod + ((np->tx.sring->req_prod - prod) >> 1) + 1;
 
 		mb();
-		
 	} while (prod != np->tx.sring->rsp_prod);
 	
  out: 
@@ -1387,12 +1414,17 @@ xn_start_locked(struct ifnet *ifp)
 		if (m_head == NULL) 
 			break;
 		
+		/*
+		 * netfront_tx_slot_available() tries to do some math to
+		 * ensure that there'll be enough xenbus ring slots available
+		 * for the maximum number of packet fragments (and a couple more
+		 * for what I guess are TSO and other ring entry items.)
+		 */
 		if (!netfront_tx_slot_available(sc)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-		
 
 		/*
 		 * Defragment the mbuf if necessary.
@@ -1408,6 +1440,58 @@ xn_start_locked(struct ifnet *ifp)
 			m_head = m;
 		}
 
+		/* Determine how many fragments now exist */
+		for (m = m_head, nfrags = 0; m; m = m->m_next)
+			nfrags++;
+
+		/*
+		 * Don't attempt to queue this packet if there aren't
+		 * enough free entries in the chain.
+		 *
+		 * There isn't a 1:1 correspondance between the mbuf TX ring
+		 * and the xenbus TX ring.
+		 * xn_txeof() may need to be called to free up some slots.
+		 *
+		 * It is quite possible that this can be later eliminated if
+		 * it turns out that partial * packets can be pushed into
+		 * the ringbuffer, with fragments pushed in when further slots
+		 * free up.
+		 *
+		 * It is also quite possible that the driver will lock up
+		 * if the TX queue fills up with no RX traffic, and
+		 * the mbuf ring is exhausted. The queue may need
+		 * a swift kick to continue.
+		 */
+
+		/*
+		 * It is not +1 like the allocation because we need to keep
+		 * slot [0] free for the freelist head
+		 */
+		if (sc->xn_cdata.xn_tx_chain_cnt + nfrags >= NET_TX_RING_SIZE) {
+			printf("xn_start_locked: xn_tx_chain_cnt (%d) + nfrags %d >= NET_TX_RING_SIZE (%d); must be full!\n",
+			    (int) sc->xn_cdata.xn_tx_chain_cnt,
+			    (int) nfrags, (int) NET_TX_RING_SIZE);
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
+
+		/*
+		 * Make sure there's actually space available in the
+		 * Xen TX ring for this. Overcompensate for the possibility
+		 * of having a TCP offload fragment just in case for now
+		 * (the +1) rather than adding logic to accurately calculate
+		 * the required size.
+		 */
+		if (RING_FREE_REQUESTS(&sc->tx) < (nfrags + 1)) {
+			printf("xn_start_locked: free ring slots (%d) < (nfrags + 1) (%d); must be full!\n",
+			    (int) RING_FREE_REQUESTS(&sc->tx),
+			    (int) (nfrags + 1));
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
+
 		/*
 		 * Start packing the mbufs in this chain into
 		 * the fragment pointers. Stop when we run out
@@ -1418,6 +1502,11 @@ xn_start_locked(struct ifnet *ifp)
 		for (m = m_head; m; m = m->m_next) {
 			tx = RING_GET_REQUEST(&sc->tx, i);
 			id = get_id_from_freelist(sc->xn_cdata.xn_tx_chain);
+			if (id == 0)
+				panic("xn_start_locked: was allocated the freelist head!\n");
+			sc->xn_cdata.xn_tx_chain_cnt++;
+			if (sc->xn_cdata.xn_tx_chain_cnt >= NET_TX_RING_SIZE+1)
+				panic("xn_start_locked: tx_chain_cnt must be < NET_TX_RING_SIZE+1\n");
 			sc->xn_cdata.xn_tx_chain[id] = m;
 			tx->id = id;
 			ref = gnttab_claim_grant_reference(&sc->gref_tx_head);
@@ -1647,7 +1736,7 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_capenable |= IFCAP_TSO4;
 				ifp->if_hwassist |= CSUM_TSO;
 			} else {
-				DPRINTK("Xen requires tx checksum offload"
+				IPRINTK("Xen requires tx checksum offload"
 				    " be enabled to use TSO\n");
 				error = EINVAL;
 			}

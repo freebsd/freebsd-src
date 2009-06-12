@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -215,6 +214,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	case SIOCSRTRFLUSH_IN6:
 	case SIOCSDEFIFACE_IN6:
 	case SIOCSIFINFO_FLAGS:
+	case SIOCSIFINFO_IN6:
 		if (td != NULL) {
 			error = priv_check(td, PRIV_NETINET_ND6);
 			if (error)
@@ -223,7 +223,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		/* FALLTHROUGH */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
-	case SIOCSIFINFO_IN6:
 	case SIOCGDRLST_IN6:
 	case SIOCGPRLST_IN6:
 	case SIOCGNBRINFO_IN6:
@@ -660,7 +659,6 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
     struct in6_ifaddr *ia, int flags)
 {
 	INIT_VNET_INET6(ifp->if_vnet);
-	INIT_VPROCG(TD_TO_VPROCG(curthread)); /* XXX V_hostname needs this */
 	int error = 0, hostIsNew = 0, plen = -1;
 	struct in6_ifaddr *oia;
 	struct sockaddr_in6 dst6;
@@ -1017,7 +1015,6 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		/*
 		 * join node information group address
 		 */
-#define hostnamelen	strlen(V_hostname)
 		delay = 0;
 		if ((flags & IN6_IFAUPDATE_DADDELAY)) {
 			/*
@@ -1027,10 +1024,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			delay = arc4random() %
 			    (MAX_RTR_SOLICITATION_DELAY * hz);
 		}
-		mtx_lock(&hostname_mtx);
-		if (in6_nigroup(ifp, V_hostname, hostnamelen,
-		    &mltaddr.sin6_addr) == 0) {
-			mtx_unlock(&hostname_mtx);
+		if (in6_nigroup(ifp, NULL, -1, &mltaddr.sin6_addr) == 0) {
 			imm = in6_joingroup(ifp, &mltaddr.sin6_addr, &error,
 			    delay); /* XXX jinmei */
 			if (!imm) {
@@ -1044,9 +1038,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 				LIST_INSERT_HEAD(&ia->ia6_memberships,
 				    imm, i6mm_chain);
 			}
-		} else
-			mtx_unlock(&hostname_mtx);
-#undef hostnamelen
+		}
 
 		/*
 		 * join interface-local all-nodes address.

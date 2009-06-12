@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,18 +18,18 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nsupdate.docbook,v 1.18.18.12 2008/08/29 23:46:16 tbox Exp $ -->
-<refentry>
+<!-- $Id: nsupdate.docbook,v 1.34.48.3 2009/03/09 04:21:56 marka Exp $ -->
+<refentry id="man.nsupdate">
   <refentryinfo>
     <date>Jun 30, 2000</date>
   </refentryinfo>
   <refmeta>
-    <refentrytitle>nsupdate</refentrytitle>
+    <refentrytitle><application>nsupdate</application></refentrytitle>
     <manvolnum>1</manvolnum>
     <refmiscinfo>BIND9</refmiscinfo>
   </refmeta>
   <refnamediv>
-    <refname>nsupdate</refname>
+    <refname><application>nsupdate</application></refname>
     <refpurpose>Dynamic DNS update utility</refpurpose>
   </refnamediv>
 
@@ -40,6 +40,7 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -55,13 +56,17 @@
     <cmdsynopsis>
       <command>nsupdate</command>
       <arg><option>-d</option></arg>
+      <arg><option>-D</option></arg>
       <group>
+	<arg><option>-g</option></arg>
+	<arg><option>-o</option></arg>
         <arg><option>-y <replaceable class="parameter"><optional>hmac:</optional>keyname:secret</replaceable></option></arg>
         <arg><option>-k <replaceable class="parameter">keyfile</replaceable></option></arg>
       </group>
       <arg><option>-t <replaceable class="parameter">timeout</replaceable></option></arg>
       <arg><option>-u <replaceable class="parameter">udptimeout</replaceable></option></arg>
       <arg><option>-r <replaceable class="parameter">udpretries</replaceable></option></arg>
+      <arg><option>-R <replaceable class="parameter">randomdev</replaceable></option></arg>
       <arg><option>-v</option></arg>
       <arg>filename</arg>
     </cmdsynopsis>
@@ -102,31 +107,31 @@
       made and the replies received from the name server.
     </para>
     <para>
-      Transaction signatures can be used to authenticate the Dynamic DNS
-      updates.
-      These use the TSIG resource record type described in RFC2845 or the
-      SIG(0) record described in RFC3535 and RFC2931.
-      TSIG relies on a shared secret that should only be known to
-      <command>nsupdate</command> and the name server.
-      Currently, the only supported encryption algorithm for TSIG is
-      HMAC-MD5, which is defined in RFC 2104.
-      Once other algorithms are defined for TSIG, applications will need to
-      ensure they select the appropriate algorithm as well as the key when
-      authenticating each other.
-      For instance, suitable
-      <type>key</type>
-      and
-      <type>server</type>
-      statements would be added to
-      <filename>/etc/named.conf</filename>
-      so that the name server can associate the appropriate secret key
-      and algorithm with the IP address of the
-      client application that will be using TSIG authentication.
-      SIG(0) uses public key cryptography.  To use a SIG(0) key, the public
-      key must be stored in a KEY record in a zone served by the name server.
-      <command>nsupdate</command>
-      does not read
+      The <option>-D</option> option makes <command>nsupdate</command>
+      report additional debugging information to <option>-d</option>.
+    </para>
+    <para>
+      Transaction signatures can be used to authenticate the Dynamic
+      DNS updates.  These use the TSIG resource record type described
+      in RFC2845 or the SIG(0) record described in RFC3535 and
+      RFC2931 or GSS-TSIG as described in RFC3645.  TSIG relies on
+      a shared secret that should only be known to
+      <command>nsupdate</command> and the name server.  Currently,
+      the only supported encryption algorithm for TSIG is HMAC-MD5,
+      which is defined in RFC 2104.  Once other algorithms are
+      defined for TSIG, applications will need to ensure they select
+      the appropriate algorithm as well as the key when authenticating
+      each other.  For instance, suitable <type>key</type> and
+      <type>server</type> statements would be added to
+      <filename>/etc/named.conf</filename> so that the name server
+      can associate the appropriate secret key and algorithm with
+      the IP address of the client application that will be using
+      TSIG authentication.  SIG(0) uses public key cryptography.
+      To use a SIG(0) key, the public key must be stored in a KEY
+      record in a zone served by the name server.
+      <command>nsupdate</command> does not read
       <filename>/etc/named.conf</filename>.
+      GSS-TSIG uses Kerberos credentials.
     </para>
     <para><command>nsupdate</command>
       uses the <option>-y</option> or <option>-k</option> option
@@ -159,7 +164,12 @@
       specified is not an HMAC-MD5 key.
     </para>
     <para>
-      By default
+      The <option>-g</option> and <option>-o</option> specify that
+      GSS-TSIG is to be used.  The <option>-o</option> should only
+      be used with old Microsoft Windows 2000 servers.
+    </para>
+    <para>
+      By default,
       <command>nsupdate</command>
       uses UDP to send update requests to the name server unless they are too
       large to fit in a UDP request in which case TCP will be used.
@@ -188,6 +198,18 @@
       The <option>-r</option> option sets the number of UDP retries. The
       default is
       3.  If zero, only one update request will be made.
+    </para>
+    <para>
+      The <option>-R <replaceable
+      class="parameter">randomdev</replaceable></option> option
+      specifies a source of randomness.  If the operating system
+      does not provide a <filename>/dev/random</filename> or
+      equivalent device, the default source of randomness is keyboard
+      input.  <filename>randomdev</filename> specifies the name of
+      a character device or file containing random data to be used
+      instead of the default.  The special value
+      <filename>keyboard</filename> indicates that keyboard input
+      should be used.  This option may be specified multiple times.
     </para>
   </refsect1>
 
@@ -301,6 +323,20 @@
               If no <parameter>class</parameter> is specified, the
               default class is
               <parameter>IN</parameter>.
+            </para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>
+              <command>ttl</command>
+              <arg choice="req">seconds</arg>
+            </term>
+          <listitem>
+            <para>
+              Specify the default time to live for records to be added.
+	      The value <parameter>none</parameter> will clear the default
+	      ttl.
             </para>
           </listitem>
         </varlistentry>
@@ -506,6 +542,17 @@
           <listitem>
             <para>
               Displays the answer.
+            </para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>
+              <command>debug</command>
+            </term>
+          <listitem>
+            <para>
+              Turn on debugging.
             </para>
           </listitem>
         </varlistentry>

@@ -58,6 +58,7 @@ void	ieee80211_proto_vdetach(struct ieee80211vap *);
 
 void	ieee80211_syncifflag_locked(struct ieee80211com *, int flag);
 void	ieee80211_syncflag(struct ieee80211vap *, int flag);
+void	ieee80211_syncflag_ht(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 
 #define	ieee80211_input(ni, m, rssi, nf) \
@@ -121,7 +122,7 @@ ieee80211_hdrsize(const void *data)
 	/* NB: we don't handle control frames */
 	KASSERT((wh->i_fc[0]&IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_CTL,
 		("%s: control frame", __func__));
-	if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
+	if (IEEE80211_IS_DSTODS(wh))
 		size += IEEE80211_ADDR_LEN;
 	if (IEEE80211_QOS_HAS_SEQ(wh))
 		size += sizeof(uint16_t);
@@ -254,9 +255,12 @@ ieee80211_gettid(const struct ieee80211_frame *wh)
 	uint8_t tid;
 
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
-		tid = ((const struct ieee80211_qosframe *)wh)->
-			i_qos[0] & IEEE80211_QOS_TID;
-		tid++;
+		if (IEEE80211_IS_DSTODS(wh))
+			tid = ((const struct ieee80211_qosframe_addr4 *)wh)->
+				i_qos[0];
+		else
+			tid = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+		tid &= IEEE80211_QOS_TID;
 	} else
 		tid = IEEE80211_NONQOS_TID;
 	return tid;
@@ -305,6 +309,7 @@ struct ieee80211_beacon_offsets {
 	uint16_t	bo_appie_len;	/* AppIE length in bytes */
 	uint16_t	bo_csa_trailer_len;;
 	uint8_t		*bo_csa;	/* start of CSA element */
+	uint8_t		*bo_spare[4];
 };
 struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *,
 		struct ieee80211_beacon_offsets *);
@@ -339,6 +344,7 @@ int	ieee80211_beacon_update(struct ieee80211_node *,
 void	ieee80211_csa_startswitch(struct ieee80211com *,
 		struct ieee80211_channel *, int mode, int count);
 void	ieee80211_csa_completeswitch(struct ieee80211com *);
+void	ieee80211_csa_cancelswitch(struct ieee80211com *);
 void	ieee80211_cac_completeswitch(struct ieee80211vap *);
 
 /*

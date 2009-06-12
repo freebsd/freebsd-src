@@ -35,10 +35,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_inet.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -213,9 +211,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	error = mac_inpcb_init(inp, M_NOWAIT);
 	if (error != 0)
 		goto out;
-	SOCK_LOCK(so);
 	mac_inpcb_create(so, inp);
-	SOCK_UNLOCK(so);
 #endif
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
@@ -357,14 +353,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
 			/*
 			 * Is the address a local IP address? 
-			 * If INP_NONLOCALOK is set, then the socket may be bound
+			 * If INP_BINDANY is set, then the socket may be bound
 			 * to any endpoint address, local or not.
 			 */
-			if (
-#if defined(IP_NONLOCALBIND)
-			    ((inp->inp_flags & INP_NONLOCALOK) == 0) &&
-#endif
-			    (ifa_ifwithaddr((struct sockaddr *)sin) == 0))
+			if ((inp->inp_flags & INP_BINDANY) == 0 &&
+			    ifa_ifwithaddr((struct sockaddr *)sin) == NULL)
 				return (EADDRNOTAVAIL);
 		}
 		laddr = sin->sin_addr;
@@ -602,7 +595,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			goto done;
 		}
 
-		if (cred == NULL || !jailed(cred)) {
+		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
 			goto done;
 		}
@@ -646,7 +639,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		struct ifnet *ifp;
 
 		/* If not jailed, use the default returned. */
-		if (cred == NULL || !jailed(cred)) {
+		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
 			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
 			goto done;
@@ -711,7 +704,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		if (ia == NULL)
 			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
 
-		if (cred == NULL || !jailed(cred)) {
+		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
 #if __FreeBSD_version < 800000
 			if (ia == NULL)
 				ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
@@ -1222,7 +1215,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 				 * Found?
 				 */
 				if (cred == NULL ||
-				    inp->inp_cred->cr_prison == cred->cr_prison)
+				    prison_equal_ip4(cred->cr_prison,
+					inp->inp_cred->cr_prison))
 					return (inp);
 			}
 		}
@@ -1254,7 +1248,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
 				if (cred != NULL &&
-				    inp->inp_cred->cr_prison != cred->cr_prison)
+				    !prison_equal_ip4(inp->inp_cred->cr_prison,
+					cred->cr_prison))
 					continue;
 #ifdef INET6
 				/* XXX inp locking */
@@ -1335,7 +1330,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 			 * the inp here, without any checks.
 			 * Well unless both bound with SO_REUSEPORT?
 			 */
-			if (jailed(inp->inp_cred))
+			if (prison_flag(inp->inp_cred, PR_IP4))
 				return (inp);
 			if (tmpinp == NULL)
 				tmpinp = inp;
@@ -1380,7 +1375,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 			    (inp->inp_flags & INP_FAITH) == 0)
 				continue;
 
-			injail = jailed(inp->inp_cred);
+			injail = prison_flag(inp->inp_cred, PR_IP4);
 			if (injail) {
 				if (prison_check_ip4(inp->inp_cred,
 				    &laddr) != 0)

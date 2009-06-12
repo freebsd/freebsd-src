@@ -103,7 +103,9 @@
 #define IPSEC_ISTAT(p,x,y,z) ((p) == IPPROTO_ESP ? (x)++ : \
 			    (p) == IPPROTO_AH ? (y)++ : (z)++)
 
+#ifdef INET
 static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
+#endif
 
 /*
  * ipsec_common_input gets called when an IPsec-protected packet
@@ -481,7 +483,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	/*
 	 * Re-dispatch via software interrupt.
 	 */
-	if ((error = netisr_queue(NETISR_IP, m))) {
+	if ((error = netisr_queue_src(NETISR_IP, (uintptr_t)sav, m))) {
 		IPSEC_ISTAT(sproto, V_espstat.esps_qfull, V_ahstat.ahs_qfull,
 			    V_ipcompstat.ipcomps_qfull);
 

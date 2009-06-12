@@ -46,6 +46,7 @@
 #include <sys/namei.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/endian.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
@@ -771,7 +772,7 @@ ext2_direnter(ip, dvp, cnp)
 	dp = VTOI(dvp);
 	newdir.inode = ip->i_number;
 	newdir.name_len = cnp->cn_namelen;
-	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs->s_es,
+	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs,
 	    EXT2_FEATURE_INCOMPAT_FILETYPE))
 		newdir.file_type = DTTOFT(IFTODT(ip->i_mode));
 	else
@@ -949,7 +950,7 @@ ext2_dirrewrite(dp, ip, cnp)
 	    &bp)) != 0)
 		return (error);
 	ep->inode = ip->i_number;
-	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs->s_es,
+	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs,
 	    EXT2_FEATURE_INCOMPAT_FILETYPE))
 		ep->file_type = DTTOFT(IFTODT(ip->i_mode));
 	else

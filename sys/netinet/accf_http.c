@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 
 /* check for GET/HEAD */
-static void sohashttpget(struct socket *so, void *arg, int waitflag);
+static int sohashttpget(struct socket *so, void *arg, int waitflag);
 /* check for HTTP/1.0 or HTTP/1.1 */
-static void soparsehttpvers(struct socket *so, void *arg, int waitflag);
+static int soparsehttpvers(struct socket *so, void *arg, int waitflag);
 /* check for end of HTTP/1.x request */
-static void soishttpconnected(struct socket *so, void *arg, int waitflag);
+static int soishttpconnected(struct socket *so, void *arg, int waitflag);
 /* strcmp on an mbuf chain */
 static int mbufstrcmp(struct mbuf *m, struct mbuf *npkt, int offset, char *cmp);
 /* strncmp on an mbuf chain */
@@ -158,7 +158,7 @@ mbufstrncmp(struct mbuf *m, struct mbuf *npkt, int offset, int max, char *cmp)
 		slen = sizeof(str) - 1;					\
 	} while(0)
 
-static void
+static int
 sohashttpget(struct socket *so, void *arg, int waitflag)
 {
 
@@ -170,7 +170,7 @@ sohashttpget(struct socket *so, void *arg, int waitflag)
 		m = so->so_rcv.sb_mb;
 		cc = so->so_rcv.sb_cc - 1;
 		if (cc < 1)
-			return;
+			return (SU_OK);
 		switch (*mtod(m, char *)) {
 		case 'G':
 			STRSETUP(cmp, cmplen, "ET ");
@@ -184,7 +184,7 @@ sohashttpget(struct socket *so, void *arg, int waitflag)
 		if (cc < cmplen) {
 			if (mbufstrncmp(m, m->m_nextpkt, 1, cc, cmp) == 1) {
 				DPRINT("short cc (%d) but mbufstrncmp ok", cc);
-				return;
+				return (SU_OK);
 			} else {
 				DPRINT("short cc (%d) mbufstrncmp failed", cc);
 				goto fallout;
@@ -193,23 +193,19 @@ sohashttpget(struct socket *so, void *arg, int waitflag)
 		if (mbufstrcmp(m, m->m_nextpkt, 1, cmp) == 1) {
 			DPRINT("mbufstrcmp ok");
 			if (parse_http_version == 0)
-				soishttpconnected(so, arg, waitflag);
+				return (soishttpconnected(so, arg, waitflag));
 			else
-				soparsehttpvers(so, arg, waitflag);
-			return;
+				return (soparsehttpvers(so, arg, waitflag));
 		}
 		DPRINT("mbufstrcmp bad");
 	}
 
 fallout:
 	DPRINT("fallout");
-	so->so_upcall = NULL;
-	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	return;
+	return (SU_ISCONNECTED);
 }
 
-static void
+static int
 soparsehttpvers(struct socket *so, void *arg, int waitflag)
 {
 	struct mbuf *m, *n;
@@ -261,10 +257,9 @@ soparsehttpvers(struct socket *so, void *arg, int waitflag)
 					} else if (
 					    mbufstrcmp(m, n, i, "HTTP/1.0") ||
 					    mbufstrcmp(m, n, i, "HTTP/1.1")) {
-							DPRINT("ok");
-							soishttpconnected(so,
-							    arg, waitflag);
-							return;
+						DPRINT("ok");
+						return (soishttpconnected(so,
+						    arg, waitflag));
 					} else {
 						DPRINT("bad");
 						goto fallout;
@@ -279,22 +274,18 @@ readmore:
 	 * if we hit here we haven't hit something
 	 * we don't understand or a newline, so try again
 	 */
-	so->so_upcall = soparsehttpvers;
-	so->so_rcv.sb_flags |= SB_UPCALL;
-	return;
+	soupcall_set(so, SO_RCV, soparsehttpvers, arg);
+	return (SU_OK);
 
 fallout:
 	DPRINT("fallout");
-	so->so_upcall = NULL;
-	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	return;
+	return (SU_ISCONNECTED);
 }
 
 
 #define NCHRS 3
 
-static void
+static int
 soishttpconnected(struct socket *so, void *arg, int waitflag)
 {
 	char a, b, c;
@@ -350,13 +341,9 @@ soishttpconnected(struct socket *so, void *arg, int waitflag)
 	}
 
 readmore:
-	so->so_upcall = soishttpconnected;
-	so->so_rcv.sb_flags |= SB_UPCALL;
-	return;
+	soupcall_set(so, SO_RCV, soishttpconnected, arg);
+	return (SU_OK);
 
 gotit:
-	so->so_upcall = NULL;
-	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	return;
+	return (SU_ISCONNECTED);
 }

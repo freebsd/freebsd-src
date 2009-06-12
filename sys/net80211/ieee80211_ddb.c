@@ -27,7 +27,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_route.h"
 #include "opt_wlan.h"
 
 #ifdef DDB
@@ -335,6 +334,7 @@ _db_show_vap(const struct ieee80211vap *vap, int showprocs)
 
 	db_printf("\tflags=%b\n", vap->iv_flags, IEEE80211_F_BITS);
 	db_printf("\tflags_ext=%b\n", vap->iv_flags_ext, IEEE80211_FEXT_BITS);
+	db_printf("\tflags_ht=%b\n", vap->iv_flags_ht, IEEE80211_FHT_BITS);
 	db_printf("\tflags_ven=%b\n", vap->iv_flags_ven, IEEE80211_FVEN_BITS);
 	db_printf("\tcaps=%b\n", vap->iv_caps, IEEE80211_C_BITS);
 	db_printf("\thtcaps=%b\n", vap->iv_htcaps, IEEE80211_C_HTCAP_BITS);
@@ -493,6 +493,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 
 	db_printf("\tflags=%b\n", ic->ic_flags, IEEE80211_F_BITS);
 	db_printf("\tflags_ext=%b\n", ic->ic_flags_ext, IEEE80211_FEXT_BITS);
+	db_printf("\tflags_ht=%b\n", ic->ic_flags_ht, IEEE80211_FHT_BITS);
 	db_printf("\tflags_ven=%b\n", ic->ic_flags_ven, IEEE80211_FVEN_BITS);
 	db_printf("\tcaps=%b\n", ic->ic_caps, IEEE80211_C_BITS);
 	db_printf("\tcryptocaps=%b\n",
@@ -583,6 +584,11 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf(" htprotmode %d", ic->ic_htprotmode);
 	db_printf(" lastnonht %d", ic->ic_lastnonht);
 	db_printf("\n");
+
+	db_printf("\tsuperg %p\n", ic->ic_superg);
+
+	db_printf("\tmontaps %d th %p txchan %p rh %p rxchan %p\n",
+	    ic->ic_montaps, ic->ic_th, ic->ic_txchan, ic->ic_rh, ic->ic_rxchan);
 
 	if (showprocs) {
 		DB_PRINTSYM("\t", "ic_vap_create", ic->ic_vap_create);

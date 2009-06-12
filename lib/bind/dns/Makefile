@@ -19,12 +19,13 @@ SRCS+=		acache.c acl.c adb.c byaddr.c \
 		dst_api.c dst_lib.c dst_parse.c dst_result.c \
 		forward.c \
 		gssapi_link.c gssapictx.c hmac_link.c \
+		iptable.c \
 		journal.c \
 		key.c \
 		keytable.c \
 		lib.c log.c lookup.c \
 		master.c masterdump.c message.c \
-		name.c ncache.c nsec.c \
+		name.c ncache.c nsec.c nsec3.c \
 		openssl_link.c openssldh_link.c \
 		openssldsa_link.c opensslrsa_link.c \
 		order.c peer.c portlist.c \
@@ -64,6 +65,7 @@ DNSINCS=	${SRCDIR}/include/dns/acache.h \
 		${SRCDIR}/include/dns/events.h \
 		${SRCDIR}/include/dns/fixedname.h \
 		${SRCDIR}/include/dns/forward.h \
+		${SRCDIR}/include/dns/iptable.h \
 		${SRCDIR}/include/dns/journal.h \
 		${SRCDIR}/include/dns/keyflags.h \
 		${SRCDIR}/include/dns/keytable.h \
@@ -77,6 +79,7 @@ DNSINCS=	${SRCDIR}/include/dns/acache.h \
 		${SRCDIR}/include/dns/name.h \
 		${SRCDIR}/include/dns/ncache.h \
 		${SRCDIR}/include/dns/nsec.h \
+		${SRCDIR}/include/dns/nsec3.h \
 		${SRCDIR}/include/dns/opcode.h \
 		${SRCDIR}/include/dns/order.h \
 		${SRCDIR}/include/dns/peer.h \

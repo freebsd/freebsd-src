@@ -175,7 +175,7 @@ enum {
 	LIBUSB20_POWER_RESUME,
 };
 
-struct usb2_device_info;
+struct usb_device_info;
 struct libusb20_transfer;
 struct libusb20_backend;
 struct libusb20_backend_methods;
@@ -216,6 +216,7 @@ void	libusb20_tr_drain(struct libusb20_transfer *xfer);
 void	libusb20_tr_set_buffer(struct libusb20_transfer *xfer, void *buffer, uint16_t fr_index);
 void	libusb20_tr_set_callback(struct libusb20_transfer *xfer, libusb20_tr_callback_t *cb);
 void	libusb20_tr_set_flags(struct libusb20_transfer *xfer, uint8_t flags);
+uint32_t libusb20_tr_get_length(struct libusb20_transfer *xfer, uint16_t fr_index);
 void	libusb20_tr_set_length(struct libusb20_transfer *xfer, uint32_t length, uint16_t fr_index);
 void	libusb20_tr_set_priv_sc0(struct libusb20_transfer *xfer, void *sc0);
 void	libusb20_tr_set_priv_sc1(struct libusb20_transfer *xfer, void *sc1);
@@ -253,7 +254,7 @@ int	libusb20_dev_reset(struct libusb20_device *pdev);
 int	libusb20_dev_set_power_mode(struct libusb20_device *pdev, uint8_t power_mode);
 uint8_t	libusb20_dev_get_power_mode(struct libusb20_device *pdev);
 int	libusb20_dev_set_alt_index(struct libusb20_device *pdev, uint8_t iface_index, uint8_t alt_index);
-int	libusb20_dev_get_info(struct libusb20_device *pdev, struct usb2_device_info *pinfo);
+int	libusb20_dev_get_info(struct libusb20_device *pdev, struct usb_device_info *pinfo);
 int	libusb20_dev_get_iface_desc(struct libusb20_device *pdev, uint8_t iface_index, char *buf, uint8_t len);
 
 struct LIBUSB20_DEVICE_DESC_DECODED *libusb20_dev_get_device_desc(struct libusb20_device *pdev);

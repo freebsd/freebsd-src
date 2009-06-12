@@ -367,7 +367,7 @@ void	nfsrv_timer(void *);
 int	nfsrv_getcache(struct nfsrv_descript *, struct mbuf **);
 void	nfsrv_updatecache(struct nfsrv_descript *, int, struct mbuf *);
 void	nfsrv_cleancache(void);
-void	nfsrv_rcv(struct socket *so, void *arg, int waitflag);
+int	nfsrv_rcv(struct socket *so, void *arg, int waitflag);
 void	nfsrv_slpderef(struct nfssvc_sock *slp);
 void	nfsrv_wakenfsd(struct nfssvc_sock *slp);
 int	nfsrv_writegather(struct nfsrv_descript **, struct nfssvc_sock *,

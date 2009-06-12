@@ -83,7 +83,7 @@
  * it in two places: function fill_kinfo_proc in sys/kern/kern_proc.c and
  * function kvm_proclist in lib/libkvm/kvm_proc.c .
  */
-#define	KI_NSPARE_INT	10
+#define	KI_NSPARE_INT	9
 #define	KI_NSPARE_LONG	12
 #define	KI_NSPARE_PTR	7
 
@@ -190,6 +190,7 @@ struct kinfo_proc {
 	 */
 	char	ki_sparestrings[68];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
+	u_int	ki_cr_flags;		/* Credential flags */
 	int	ki_jid;			/* Process jail ID */
 	int	ki_numthreads;		/* XXXKSE number of threads in total */
 	lwpid_t	ki_tid;			/* XXXKSE thread id */

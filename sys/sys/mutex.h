@@ -40,6 +40,7 @@
 #ifdef _KERNEL
 #include <sys/pcpu.h>
 #include <sys/lock_profile.h>
+#include <sys/lockstat.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #endif	/* _KERNEL_ */
@@ -166,11 +167,11 @@ void	_thread_lock_flags(struct thread *, int, const char *, int);
 #ifndef _get_sleep_lock
 #define _get_sleep_lock(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
-	if (!_obtain_lock((mp), _tid)) {				\
+	if (!_obtain_lock((mp), _tid)) 					\
 		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
-	} else 								\
-              	lock_profile_obtain_lock_success(&(mp)->lock_object, 0,	\
-		    0, (file), (line));					\
+	else								\
+              	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_LOCK_ACQUIRE, \
+		    mp, 0, 0, (file), (line));				\
 } while (0)
 #endif
 
@@ -193,8 +194,8 @@ void	_thread_lock_flags(struct thread *, int, const char *, int);
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
 		}							\
 	} else 								\
-              	lock_profile_obtain_lock_success(&(mp)->lock_object, 0,	\
-		    0, (file), (line));					\
+              	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, \
+		    mp, 0, 0, (file), (line));				\
 } while (0)
 #else /* SMP */
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
@@ -240,7 +241,8 @@ void	_thread_lock_flags(struct thread *, int, const char *, int);
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
 	else {								\
-		lock_profile_release_lock(&(mp)->lock_object);          \
+		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_SPIN_UNLOCK_RELEASE, \
+			mp);						\
 		_release_lock_quick((mp));				\
 	}                                                               \
 	spinlock_exit();				                \

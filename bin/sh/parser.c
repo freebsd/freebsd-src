@@ -898,7 +898,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 	int oldstyle;
 	char const *prevsyntax;	/* syntax before arithmetic */
 	int synentry;
-#if __GNUC__
+#ifdef __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &out;
 	(void) &quotef;
@@ -1323,7 +1323,7 @@ parsebackq: {
 	struct jmploc *volatile savehandler;
 	int savelen;
 	int saveprompt;
-#if __GNUC__
+#ifdef __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &saveprompt;
 #endif

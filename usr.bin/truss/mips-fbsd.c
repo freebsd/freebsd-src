@@ -139,7 +139,7 @@ mips_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 
   fsc.number = syscall_num;
   fsc.name =
-    (syscall_num < 0 || syscall_num > nsyscalls) ? NULL : syscallnames[syscall_num];
+    (syscall_num < 0 || syscall_num >= nsyscalls) ? NULL : syscallnames[syscall_num];
   if (!fsc.name) {
     fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall_num);
   }

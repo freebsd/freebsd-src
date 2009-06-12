@@ -56,7 +56,7 @@ extern uint8_t __boot_page[];		/* Boot page body */
 extern uint32_t kernload;		/* Kernel physical load address */
 #endif
 
-static int cpu;
+static int cpu, maxcpu;
 
 static int bare_probe(platform_t);
 static void bare_mem_regions(platform_t, struct mem_region **phys, int *physsz,
@@ -91,6 +91,13 @@ PLATFORM_DEF(bare_platform);
 static int
 bare_probe(platform_t plat)
 {
+	uint32_t ver;
+
+	ver = SVR_VER(mfspr(SPR_SVR));
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
+		maxcpu = 2;
+	else
+		maxcpu = 1;
 
 	return (BUS_PROBE_GENERIC);
 }
@@ -161,7 +168,7 @@ static int
 bare_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 {
 
-	if (cpu >= MAXCPU)
+	if (cpu >= maxcpu)
 		return (ENOENT);
 
 	cpuref->cr_cpuid = cpu++;

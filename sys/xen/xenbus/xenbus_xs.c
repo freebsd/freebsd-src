@@ -769,10 +769,17 @@ xenwatch_thread(void *unused)
 		mtx_unlock(&watch_events_lock);
 
 		if (msg != NULL) {
-			msg->u.watch.handle->callback(
-				msg->u.watch.handle,
-				(const char **)msg->u.watch.vec,
-				msg->u.watch.vec_size);
+			/*
+			 * XXX There are messages coming in with a NULL callback.
+			 * XXX This deserves further investigation; the workaround
+			 * XXX here simply prevents the kernel from panic'ing
+			 * XXX on startup.
+			 */
+			if (msg->u.watch.handle->callback != NULL)
+				msg->u.watch.handle->callback(
+					msg->u.watch.handle,
+					(const char **)msg->u.watch.vec,
+					msg->u.watch.vec_size);
 			free(msg->u.watch.vec, M_DEVBUF);
 			free(msg, M_DEVBUF);
 		}

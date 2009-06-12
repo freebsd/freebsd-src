@@ -45,7 +45,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
-#include "opt_mac.h"
 #ifdef __i386__
 #include "opt_npx.h"
 #endif

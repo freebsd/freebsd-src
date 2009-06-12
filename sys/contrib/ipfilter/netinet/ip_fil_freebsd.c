@@ -318,8 +318,10 @@ int iplioctl(dev, cmd, data, mode
 #  if (__FreeBSD_version >= 500024)
 struct thread *p;
 #   if (__FreeBSD_version >= 500043)
+#    define	p_cred	td_ucred
 #    define	p_uid	td_ucred->cr_ruid
 #   else
+#    define	p_cred	t_proc->p_cred
 #    define	p_uid	t_proc->p_cred->p_ruid
 #   endif
 #  else
@@ -342,7 +344,11 @@ int mode;
 	SPL_INT(s);
 
 #if (BSD >= 199306) && defined(_KERNEL)
+# if (__FreeBSD_version >= 500034)
+	if (securelevel_ge(p->p_cred, 3) && (mode & FWRITE))
+# else
 	if ((securelevel >= 3) && (mode & FWRITE))
+# endif
 		return EPERM;
 #endif
 

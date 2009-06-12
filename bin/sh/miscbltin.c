@@ -103,8 +103,6 @@ readcmd(int argc __unused, char **argv __unused)
 	struct timeval tv;
 	char *tvptr;
 	fd_set ifds;
-	struct termios told, tnew;
-	int tsaved;
 
 	rflag = 0;
 	prompt = NULL;
@@ -151,26 +149,11 @@ readcmd(int argc __unused, char **argv __unused)
 
 	if (tv.tv_sec >= 0) {
 		/*
-		 * See if we can disable input processing; this will
-		 * not give the desired result if we are in a pipeline
-		 * and someone upstream is still in line-by-line mode.
-		 */
-		tsaved = 0;
-		if (tcgetattr(0, &told) == 0) {
-			memcpy(&tnew, &told, sizeof(told));
-			cfmakeraw(&tnew);
-			tnew.c_iflag |= told.c_iflag & ICRNL;
-			tcsetattr(0, TCSANOW, &tnew);
-			tsaved = 1;
-		}
-		/*
 		 * Wait for something to become available.
 		 */
 		FD_ZERO(&ifds);
 		FD_SET(0, &ifds);
 		status = select(1, &ifds, NULL, NULL, &tv);
-		if (tsaved)
-			tcsetattr(0, TCSANOW, &told);
 		/*
 		 * If there's nothing ready, return an error.
 		 */

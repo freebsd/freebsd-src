@@ -389,6 +389,7 @@ struct ieee80211_regdomain {
 struct ieee80211_mimo_info {
 	int8_t		rssi[3];	/* per-antenna rssi */
 	int8_t		noise[3];	/* per-antenna noise floor */
+	uint8_t		pad[2];
 	uint32_t	evm[3];		/* EVM data */
 };
 #endif /* _NET80211__IEEE80211_H_ */

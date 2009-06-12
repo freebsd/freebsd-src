@@ -60,7 +60,6 @@ KDB_UNATTENDED	opt_kdb.h
 SYSCTL_DEBUG	opt_sysctl.h
 
 # Miscellaneous options.
-ADAPTIVE_SX
 ALQ
 AUDIT		opt_global.h
 CODA_COMPAT_5	opt_coda.h
@@ -113,7 +112,7 @@ KSTACK_PAGES
 KTRACE
 KTRACE_REQUEST_POOL	opt_ktrace.h
 LIBICONV
-MAC
+MAC		opt_global.h
 MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_IFOFF	opt_dontuse.h
@@ -134,6 +133,7 @@ MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
+NO_ADAPTIVE_SX
 NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
@@ -231,6 +231,13 @@ NFSSERVER	opt_nfs.h
 # legacy RPC implementation instead of the newer KRPC system (which
 # supports modern features such as RPCSEC_GSS
 NFS_LEGACYRPC	opt_nfs.h
+
+# Use these options to compile the experimental nfs client and/or
+# server that supports NFSv4 into a kernel.
+# NFSCL - client
+# NFSD - server
+NFSCL		opt_nfs.h
+NFSD		opt_nfs.h
 
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
@@ -393,7 +400,6 @@ IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
-IP_NONLOCALBIND		opt_inet.h
 IPSEC_FILTERTUNNEL	opt_ipsec.h
 IPSTEALTH
 IPX
@@ -409,7 +415,6 @@ NETATALK		opt_atalk.h
 NFSLOCKD
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
-COMPAT_ROUTE_FLAGS	opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
@@ -658,8 +663,8 @@ WITNESS_SKIPSPIN	opt_witness.h
 
 # options for ACPI support
 ACPI_DEBUG		opt_acpi.h
+ACPI_MAX_TASKS		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
-ACPI_NO_SEMAPHORES	opt_acpi.h
 
 # ISA support
 DEV_ISA			opt_isa.h
@@ -771,6 +776,14 @@ MALO_DEBUG		opt_malo.h
 MALO_TXBUF		opt_malo.h
 MALO_RXBUF		opt_malo.h
 
+# options for the Marvell wireless driver
+MWL_DEBUG		opt_mwl.h
+MWL_TXBUF		opt_mwl.h
+MWL_RXBUF		opt_mwl.h
+MWL_DIAGAPI		opt_mwl.h
+MWL_AGGR_SIZE		opt_mwl.h
+MWL_TX_NODROP		opt_mwl.h
+
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
@@ -816,3 +829,12 @@ VIMAGE_GLOBALS		opt_global.h
 # Common Flash Interface (CFI) options
 CFI_SUPPORT_STRATAFLASH	opt_cfi.h
 CFI_ARMEDANDDANGEROUS	opt_cfi.h
+
+# Sound options
+SND_DEBUG		opt_snd.h
+SND_DIAGNOSTIC		opt_snd.h
+SND_FEEDER_MULTIFORMAT	opt_snd.h
+SND_FEEDER_FULL_MULTIFORMAT	opt_snd.h
+SND_FEEDER_RATE_HP	opt_snd.h
+SND_PCM_64		opt_snd.h
+SND_OLDSTEREO		opt_snd.h

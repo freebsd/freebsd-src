@@ -92,24 +92,24 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
     &usb2_com_debug, 0, "ucom debug level");
 #endif
 
-static usb2_proc_callback_t usb2_com_cfg_start_transfers;
-static usb2_proc_callback_t usb2_com_cfg_open;
-static usb2_proc_callback_t usb2_com_cfg_close;
-static usb2_proc_callback_t usb2_com_cfg_line_state;
-static usb2_proc_callback_t usb2_com_cfg_status_change;
-static usb2_proc_callback_t usb2_com_cfg_param;
+static usb_proc_callback_t usb2_com_cfg_start_transfers;
+static usb_proc_callback_t usb2_com_cfg_open;
+static usb_proc_callback_t usb2_com_cfg_close;
+static usb_proc_callback_t usb2_com_cfg_line_state;
+static usb_proc_callback_t usb2_com_cfg_status_change;
+static usb_proc_callback_t usb2_com_cfg_param;
 
 static uint8_t	usb2_com_units_alloc(uint32_t, uint32_t *);
 static void	usb2_com_units_free(uint32_t, uint32_t);
-static int	usb2_com_attach_tty(struct usb2_com_softc *, uint32_t);
-static void	usb2_com_detach_tty(struct usb2_com_softc *);
-static void	usb2_com_queue_command(struct usb2_com_softc *,
-		    usb2_proc_callback_t *, struct termios *pt,
-		    struct usb2_proc_msg *t0, struct usb2_proc_msg *t1);
-static void	usb2_com_shutdown(struct usb2_com_softc *);
-static void	usb2_com_break(struct usb2_com_softc *, uint8_t);
-static void	usb2_com_dtr(struct usb2_com_softc *, uint8_t);
-static void	usb2_com_rts(struct usb2_com_softc *, uint8_t);
+static int	usb2_com_attach_tty(struct ucom_softc *, uint32_t);
+static void	usb2_com_detach_tty(struct ucom_softc *);
+static void	usb2_com_queue_command(struct ucom_softc *,
+		    usb_proc_callback_t *, struct termios *pt,
+		    struct usb_proc_msg *t0, struct usb_proc_msg *t1);
+static void	usb2_com_shutdown(struct ucom_softc *);
+static void	usb2_com_break(struct ucom_softc *, uint8_t);
+static void	usb2_com_dtr(struct ucom_softc *, uint8_t);
+static void	usb2_com_rts(struct ucom_softc *, uint8_t);
 
 static tsw_open_t usb2_com_open;
 static tsw_close_t usb2_com_close;
@@ -215,9 +215,9 @@ usb2_com_units_free(uint32_t root_unit, uint32_t sub_units)
  * before calling into the ucom-layer!
  */
 int
-usb2_com_attach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc,
+usb2_com_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
     uint32_t sub_units, void *parent,
-    const struct usb2_com_callback *callback, struct mtx *mtx)
+    const struct ucom_callback *callback, struct mtx *mtx)
 {
 	uint32_t n;
 	uint32_t root_unit;
@@ -265,7 +265,7 @@ usb2_com_attach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc,
  * the structure pointed to by "ssc" and "sc" is zero.
  */
 void
-usb2_com_detach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc,
+usb2_com_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
     uint32_t sub_units)
 {
 	uint32_t n;
@@ -287,13 +287,13 @@ usb2_com_detach(struct usb2_com_super_softc *ssc, struct usb2_com_softc *sc,
 }
 
 static int
-usb2_com_attach_tty(struct usb2_com_softc *sc, uint32_t sub_units)
+usb2_com_attach_tty(struct ucom_softc *sc, uint32_t sub_units)
 {
 	struct tty *tp;
 	int error = 0;
 	char buf[32];			/* temporary TTY device name buffer */
 
-	tp = tty_alloc(&usb2_com_class, sc, sc->sc_mtx);
+	tp = tty_alloc_mutex(&usb2_com_class, sc, sc->sc_mtx);
 	if (tp == NULL) {
 		error = ENOMEM;
 		goto done;
@@ -335,7 +335,7 @@ done:
 }
 
 static void
-usb2_com_detach_tty(struct usb2_com_softc *sc)
+usb2_com_detach_tty(struct ucom_softc *sc)
 {
 	struct tty *tp = sc->sc_tty;
 
@@ -374,12 +374,12 @@ usb2_com_detach_tty(struct usb2_com_softc *sc)
 }
 
 static void
-usb2_com_queue_command(struct usb2_com_softc *sc,
-    usb2_proc_callback_t *fn, struct termios *pt,
-    struct usb2_proc_msg *t0, struct usb2_proc_msg *t1)
+usb2_com_queue_command(struct ucom_softc *sc,
+    usb_proc_callback_t *fn, struct termios *pt,
+    struct usb_proc_msg *t0, struct usb_proc_msg *t1)
 {
-	struct usb2_com_super_softc *ssc = sc->sc_super;
-	struct usb2_com_param_task *task;
+	struct ucom_super_softc *ssc = sc->sc_super;
+	struct ucom_param_task *task;
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
@@ -392,7 +392,7 @@ usb2_com_queue_command(struct usb2_com_softc *sc,
 	 * "sc_mtx" mutex. It is safe to update fields in the message
 	 * structure after that the message got queued.
 	 */
-	task = (struct usb2_com_param_task *)
+	task = (struct ucom_param_task *)
 	  usb2_proc_msignal(&ssc->sc_tq, t0, t1);
 
 	/* Setup callback and softc pointers */
@@ -421,7 +421,7 @@ usb2_com_queue_command(struct usb2_com_softc *sc,
 }
 
 static void
-usb2_com_shutdown(struct usb2_com_softc *sc)
+usb2_com_shutdown(struct ucom_softc *sc)
 {
 	struct tty *tp = sc->sc_tty;
 
@@ -443,19 +443,19 @@ usb2_com_shutdown(struct usb2_com_softc *sc)
  * else: taskqueue is draining or gone
  */
 uint8_t
-usb2_com_cfg_is_gone(struct usb2_com_softc *sc)
+usb2_com_cfg_is_gone(struct ucom_softc *sc)
 {
-	struct usb2_com_super_softc *ssc = sc->sc_super;
+	struct ucom_super_softc *ssc = sc->sc_super;
 
 	return (usb2_proc_is_gone(&ssc->sc_tq));
 }
 
 static void
-usb2_com_cfg_start_transfers(struct usb2_proc_msg *_task)
+usb2_com_cfg_start_transfers(struct usb_proc_msg *_task)
 {
-	struct usb2_com_cfg_task *task = 
-	    (struct usb2_com_cfg_task *)_task;
-	struct usb2_com_softc *sc = task->sc;
+	struct ucom_cfg_task *task = 
+	    (struct ucom_cfg_task *)_task;
+	struct ucom_softc *sc = task->sc;
 
 	if (!(sc->sc_flag & UCOM_FLAG_LL_READY)) {
 		return;
@@ -477,7 +477,7 @@ usb2_com_cfg_start_transfers(struct usb2_proc_msg *_task)
 }
 
 static void
-usb2_com_start_transfers(struct usb2_com_softc *sc)
+usb2_com_start_transfers(struct ucom_softc *sc)
 {
 	if (!(sc->sc_flag & UCOM_FLAG_HL_READY)) {
 		return;
@@ -495,11 +495,11 @@ usb2_com_start_transfers(struct usb2_com_softc *sc)
 }
 
 static void
-usb2_com_cfg_open(struct usb2_proc_msg *_task)
+usb2_com_cfg_open(struct usb_proc_msg *_task)
 {
-	struct usb2_com_cfg_task *task = 
-	    (struct usb2_com_cfg_task *)_task;
-	struct usb2_com_softc *sc = task->sc;
+	struct ucom_cfg_task *task = 
+	    (struct ucom_cfg_task *)_task;
+	struct ucom_softc *sc = task->sc;
 
 	DPRINTF("\n");
 
@@ -523,7 +523,7 @@ usb2_com_cfg_open(struct usb2_proc_msg *_task)
 static int
 usb2_com_open(struct tty *tp)
 {
-	struct usb2_com_softc *sc = tty_softc(tp);
+	struct ucom_softc *sc = tty_softc(tp);
 	int error;
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
@@ -580,22 +580,18 @@ usb2_com_open(struct tty *tp)
 }
 
 static void
-usb2_com_cfg_close(struct usb2_proc_msg *_task)
+usb2_com_cfg_close(struct usb_proc_msg *_task)
 {
-	struct usb2_com_cfg_task *task = 
-	    (struct usb2_com_cfg_task *)_task;
-	struct usb2_com_softc *sc = task->sc;
+	struct ucom_cfg_task *task = 
+	    (struct ucom_cfg_task *)_task;
+	struct ucom_softc *sc = task->sc;
 
 	DPRINTF("\n");
 
 	if (sc->sc_flag & UCOM_FLAG_LL_READY) {
-
-		sc->sc_flag &= ~(UCOM_FLAG_LL_READY |
-		    UCOM_FLAG_GP_DATA);
-
-		if (sc->sc_callback->usb2_com_cfg_close) {
+		sc->sc_flag &= ~UCOM_FLAG_LL_READY;
+		if (sc->sc_callback->usb2_com_cfg_close)
 			(sc->sc_callback->usb2_com_cfg_close) (sc);
-		}
 	} else {
 		/* already closed */
 	}
@@ -604,7 +600,7 @@ usb2_com_cfg_close(struct usb2_proc_msg *_task)
 static void
 usb2_com_close(struct tty *tp)
 {
-	struct usb2_com_softc *sc = tty_softc(tp);
+	struct ucom_softc *sc = tty_softc(tp);
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
@@ -620,22 +616,17 @@ usb2_com_close(struct tty *tp)
 	    &sc->sc_close_task[0].hdr,
 	    &sc->sc_close_task[1].hdr);
 
-	sc->sc_flag &= ~(UCOM_FLAG_HL_READY |
-	    UCOM_FLAG_WR_START |
-	    UCOM_FLAG_RTS_IFLOW);
+	sc->sc_flag &= ~(UCOM_FLAG_HL_READY | UCOM_FLAG_RTS_IFLOW);
 
 	if (sc->sc_callback->usb2_com_stop_read) {
 		(sc->sc_callback->usb2_com_stop_read) (sc);
-	}
-	if (sc->sc_callback->usb2_com_stop_write) {
-		(sc->sc_callback->usb2_com_stop_write) (sc);
 	}
 }
 
 static int
 usb2_com_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
-	struct usb2_com_softc *sc = tty_softc(tp);
+	struct ucom_softc *sc = tty_softc(tp);
 	int error;
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
@@ -669,7 +660,7 @@ usb2_com_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 static int
 usb2_com_modem(struct tty *tp, int sigon, int sigoff)
 {
-	struct usb2_com_softc *sc = tty_softc(tp);
+	struct ucom_softc *sc = tty_softc(tp);
 	uint8_t onoff;
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
@@ -721,11 +712,11 @@ usb2_com_modem(struct tty *tp, int sigon, int sigoff)
 }
 
 static void
-usb2_com_cfg_line_state(struct usb2_proc_msg *_task)
+usb2_com_cfg_line_state(struct usb_proc_msg *_task)
 {
-	struct usb2_com_cfg_task *task = 
-	    (struct usb2_com_cfg_task *)_task;
-	struct usb2_com_softc *sc = task->sc;
+	struct ucom_cfg_task *task = 
+	    (struct ucom_cfg_task *)_task;
+	struct ucom_softc *sc = task->sc;
 	uint8_t notch_bits;
 	uint8_t any_bits;
 	uint8_t prev_value;
@@ -780,7 +771,7 @@ usb2_com_cfg_line_state(struct usb2_proc_msg *_task)
 }
 
 static void
-usb2_com_line_state(struct usb2_com_softc *sc,
+usb2_com_line_state(struct ucom_softc *sc,
     uint8_t set_bits, uint8_t clear_bits)
 {
 	mtx_assert(sc->sc_mtx, MA_OWNED);
@@ -804,7 +795,7 @@ usb2_com_line_state(struct usb2_com_softc *sc,
 }
 
 static void
-usb2_com_break(struct usb2_com_softc *sc, uint8_t onoff)
+usb2_com_break(struct ucom_softc *sc, uint8_t onoff)
 {
 	DPRINTF("onoff = %d\n", onoff);
 
@@ -815,7 +806,7 @@ usb2_com_break(struct usb2_com_softc *sc, uint8_t onoff)
 }
 
 static void
-usb2_com_dtr(struct usb2_com_softc *sc, uint8_t onoff)
+usb2_com_dtr(struct ucom_softc *sc, uint8_t onoff)
 {
 	DPRINTF("onoff = %d\n", onoff);
 
@@ -826,7 +817,7 @@ usb2_com_dtr(struct usb2_com_softc *sc, uint8_t onoff)
 }
 
 static void
-usb2_com_rts(struct usb2_com_softc *sc, uint8_t onoff)
+usb2_com_rts(struct ucom_softc *sc, uint8_t onoff)
 {
 	DPRINTF("onoff = %d\n", onoff);
 
@@ -837,11 +828,11 @@ usb2_com_rts(struct usb2_com_softc *sc, uint8_t onoff)
 }
 
 static void
-usb2_com_cfg_status_change(struct usb2_proc_msg *_task)
+usb2_com_cfg_status_change(struct usb_proc_msg *_task)
 {
-	struct usb2_com_cfg_task *task = 
-	    (struct usb2_com_cfg_task *)_task;
-	struct usb2_com_softc *sc = task->sc;
+	struct ucom_cfg_task *task = 
+	    (struct ucom_cfg_task *)_task;
+	struct ucom_softc *sc = task->sc;
 	struct tty *tp;
 	uint8_t new_msr;
 	uint8_t new_lsr;
@@ -884,7 +875,7 @@ usb2_com_cfg_status_change(struct usb2_proc_msg *_task)
 }
 
 void
-usb2_com_status_change(struct usb2_com_softc *sc)
+usb2_com_status_change(struct ucom_softc *sc)
 {
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
@@ -899,11 +890,11 @@ usb2_com_status_change(struct usb2_com_softc *sc)
 }
 
 static void
-usb2_com_cfg_param(struct usb2_proc_msg *_task)
+usb2_com_cfg_param(struct usb_proc_msg *_task)
 {
-	struct usb2_com_param_task *task = 
-	    (struct usb2_com_param_task *)_task;
-	struct usb2_com_softc *sc = task->sc;
+	struct ucom_param_task *task = 
+	    (struct ucom_param_task *)_task;
+	struct ucom_softc *sc = task->sc;
 
 	if (!(sc->sc_flag & UCOM_FLAG_LL_READY)) {
 		return;
@@ -921,7 +912,7 @@ usb2_com_cfg_param(struct usb2_proc_msg *_task)
 static int
 usb2_com_param(struct tty *tp, struct termios *t)
 {
-	struct usb2_com_softc *sc = tty_softc(tp);
+	struct ucom_softc *sc = tty_softc(tp);
 	uint8_t opened;
 	int error;
 
@@ -995,7 +986,7 @@ done:
 static void
 usb2_com_outwakeup(struct tty *tp)
 {
-	struct usb2_com_softc *sc = tty_softc(tp);
+	struct ucom_softc *sc = tty_softc(tp);
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
@@ -1005,8 +996,6 @@ usb2_com_outwakeup(struct tty *tp)
 		/* The higher layer is not ready */
 		return;
 	}
-	sc->sc_flag |= UCOM_FLAG_WR_START;
-
 	usb2_com_start_transfers(sc);
 }
 
@@ -1018,19 +1007,18 @@ usb2_com_outwakeup(struct tty *tp)
  * Else: Data is available.
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_com_get_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
+usb2_com_get_data(struct ucom_softc *sc, struct usb_page_cache *pc,
     uint32_t offset, uint32_t len, uint32_t *actlen)
 {
-	struct usb2_page_search res;
+	struct usb_page_search res;
 	struct tty *tp = sc->sc_tty;
 	uint32_t cnt;
 	uint32_t offset_orig;
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
-	if ((!(sc->sc_flag & UCOM_FLAG_HL_READY)) ||
-	    (!(sc->sc_flag & UCOM_FLAG_GP_DATA)) ||
-	    (!(sc->sc_flag & UCOM_FLAG_WR_START))) {
+	if (tty_gone(tp) ||
+	    !(sc->sc_flag & UCOM_FLAG_GP_DATA)) {
 		actlen[0] = 0;
 		return (0);		/* multiport device polling */
 	}
@@ -1066,20 +1054,19 @@ usb2_com_get_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
 }
 
 void
-usb2_com_put_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
+usb2_com_put_data(struct ucom_softc *sc, struct usb_page_cache *pc,
     uint32_t offset, uint32_t len)
 {
-	struct usb2_page_search res;
+	struct usb_page_search res;
 	struct tty *tp = sc->sc_tty;
 	char *buf;
 	uint32_t cnt;
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
-	if ((!(sc->sc_flag & UCOM_FLAG_HL_READY)) ||
-	    (!(sc->sc_flag & UCOM_FLAG_GP_DATA))) {
+	if (tty_gone(tp))
 		return;			/* multiport device polling */
-	}
+
 	if (len == 0)
 		return;			/* no data */
 
@@ -1126,7 +1113,7 @@ usb2_com_put_data(struct usb2_com_softc *sc, struct usb2_page_cache *pc,
 static void
 usb2_com_free(void *xsc)
 {
-	struct usb2_com_softc *sc = xsc;
+	struct ucom_softc *sc = xsc;
 
 	mtx_lock(sc->sc_mtx);
 	sc->sc_ttyfreed = 1;

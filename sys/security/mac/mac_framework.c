@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mac.h>
 #include <sys/module.h>
-#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
@@ -165,7 +165,7 @@ MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
  *
  * The dynamic policy list is protected by two locks: modifying the list
  * requires both locks to be held exclusively.  One of the locks,
- * mac_policy_rw, is acquired over policy entry points that will never sleep;
+ * mac_policy_rm, is acquired over policy entry points that will never sleep;
  * the other, mac_policy_sx, is acquire over policy entry points that may
  * sleep.  The former category will be used when kernel locks may be held
  * over calls to the MAC Framework, during network processing in ithreads,
@@ -173,26 +173,27 @@ MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
  * allocations, extended attribute I/O, etc.
  */
 #ifndef MAC_STATIC
-static struct rwlock mac_policy_rw;	/* Non-sleeping entry points. */
+static struct rmlock mac_policy_rm;	/* Non-sleeping entry points. */
 static struct sx mac_policy_sx;		/* Sleeping entry points. */
 #endif
 
 struct mac_policy_list_head mac_policy_list;
 struct mac_policy_list_head mac_static_policy_list;
+u_int mac_policy_count;			/* Registered policy count. */
 
 static void	mac_policy_xlock(void);
 static void	mac_policy_xlock_assert(void);
 static void	mac_policy_xunlock(void);
 
 void
-mac_policy_slock_nosleep(void)
+mac_policy_slock_nosleep(struct rm_priotracker *tracker)
 {
 
 #ifndef MAC_STATIC
 	if (!mac_late)
 		return;
 
-	rw_rlock(&mac_policy_rw);
+	rm_rlock(&mac_policy_rm, tracker);
 #endif
 }
 
@@ -212,14 +213,14 @@ mac_policy_slock_sleep(void)
 }
 
 void
-mac_policy_sunlock_nosleep(void)
+mac_policy_sunlock_nosleep(struct rm_priotracker *tracker)
 {
 
 #ifndef MAC_STATIC
 	if (!mac_late)
 		return;
 
-	rw_runlock(&mac_policy_rw);
+	rm_runlock(&mac_policy_rm, tracker);
 #endif
 }
 
@@ -247,7 +248,7 @@ mac_policy_xlock(void)
 		return;
 
 	sx_xlock(&mac_policy_sx);
-	rw_wlock(&mac_policy_rw);
+	rm_wlock(&mac_policy_rm);
 #endif
 }
 
@@ -259,7 +260,7 @@ mac_policy_xunlock(void)
 	if (!mac_late)
 		return;
 
-	rw_wunlock(&mac_policy_rw);
+	rm_wunlock(&mac_policy_rm);
 	sx_xunlock(&mac_policy_sx);
 #endif
 }
@@ -272,7 +273,7 @@ mac_policy_xlock_assert(void)
 	if (!mac_late)
 		return;
 
-	rw_assert(&mac_policy_rw, RA_WLOCKED);
+	/* XXXRW: rm_assert(&mac_policy_rm, RA_WLOCKED); */
 	sx_assert(&mac_policy_sx, SA_XLOCKED);
 #endif
 }
@@ -289,8 +290,8 @@ mac_init(void)
 	mac_labelzone_init();
 
 #ifndef MAC_STATIC
-	rw_init(&mac_policy_rw, "mac_policy_rw");
-	sx_init(&mac_policy_sx, "mac_policy_sx");
+	rm_init_flags(&mac_policy_rm, "mac_policy_rm", RM_NOWITNESS);
+	sx_init_flags(&mac_policy_sx, "mac_policy_sx", SX_NOWITNESS);
 #endif
 }
 
@@ -351,17 +352,22 @@ mac_policy_getlabeled(struct mac_policy_conf *mpc)
  * requiring labels across all policies.
  */
 static void
-mac_policy_updateflags(void)
+mac_policy_update(void)
 {
 	struct mac_policy_conf *mpc;
 
 	mac_policy_xlock_assert();
 
 	mac_labeled = 0;
-	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list)
+	mac_policy_count = 0;
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {
 		mac_labeled |= mac_policy_getlabeled(mpc);
-	LIST_FOREACH(mpc, &mac_policy_list, mpc_list)
+		mac_policy_count++;
+	}
+	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {
 		mac_labeled |= mac_policy_getlabeled(mpc);
+		mac_policy_count++;
+	}
 }
 
 static int
@@ -434,7 +440,7 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	 */
 	if (mpc->mpc_ops->mpo_init != NULL)
 		(*(mpc->mpc_ops->mpo_init))(mpc);
-	mac_policy_updateflags();
+	mac_policy_update();
 
 	SDT_PROBE(mac, kernel, policy, register, mpc, 0, 0, 0, 0);
 	printf("Security policy loaded: %s (%s)\n", mpc->mpc_fullname,
@@ -480,7 +486,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 
 	LIST_REMOVE(mpc, mpc_list);
 	mpc->mpc_runtime_flags &= ~MPC_RUNTIME_FLAG_REGISTERED;
-	mac_policy_updateflags();
+	mac_policy_update();
 	mac_policy_xunlock();
 
 	SDT_PROBE(mac, kernel, policy, unregister, mpc, 0, 0, 0, 0);

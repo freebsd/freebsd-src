@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
 #include "opt_quota.h"
 #include "opt_suiddir.h"
 #include "opt_ufs.h"
@@ -61,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lockf.h>
 #include <sys/conf.h>
 #include <sys/acl.h>
-#include <sys/jail.h>
 
 #include <machine/mutex.h>
 

@@ -311,7 +311,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 			 */
 			m->valid = 0;
 			vm_page_set_valid(m, 0, size - toff);
-			KASSERT((m->dirty & vm_page_bits(0, size - toff)) == 0,
+			KASSERT(m->dirty == 0,
 			    ("nfs_getpages: page %p is dirty", m));
 		} else {
 			/*
@@ -485,6 +485,11 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	 * But for now, this suffices.
 	 */
 	old_lock = ncl_upgrade_vnlock(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		ncl_downgrade_vnlock(vp, old_lock);
+		return (EBADF);
+	}
+
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NMODIFIED) {
 		mtx_unlock(&np->n_mtx);
@@ -1302,7 +1307,7 @@ again:
 				bp->b_dirtyoff = on;
 				bp->b_dirtyend = on + n;
 			}
-			vfs_bio_set_validclean(bp, on, n);
+			vfs_bio_set_valid(bp, on, n);
 		}
 
 		/*
@@ -1391,14 +1396,6 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 
 	ASSERT_VOP_LOCKED(vp, "ncl_vinvalbuf");
 
-	/*
-	 * XXX This check stops us from needlessly doing a vinvalbuf when
-	 * being called through vclean().  It is not clear that this is
-	 * unsafe.
-	 */
-	if (vp->v_iflag & VI_DOOMED)
-		return (0);
-
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
 	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF))
@@ -1412,6 +1409,16 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	}
 
 	old_lock = ncl_upgrade_vnlock(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		/*
+		 * Since vgonel() uses the generic vinvalbuf() to flush
+		 * dirty buffers and it does not call this function, it
+		 * is safe to just return OK when VI_DOOMED is set.
+		 */
+		ncl_downgrade_vnlock(vp, old_lock);
+		return (0);
+	}
+
 	/*
 	 * Now, flush as required.
 	 */

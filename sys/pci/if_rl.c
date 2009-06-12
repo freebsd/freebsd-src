@@ -205,14 +205,14 @@ static int rl_miibus_readreg(device_t, int, int);
 static void rl_miibus_statchg(device_t);
 static int rl_miibus_writereg(device_t, int, int, int);
 #ifdef DEVICE_POLLING
-static void rl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
-static void rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int rl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 static int rl_probe(device_t);
 static void rl_read_eeprom(struct rl_softc *, uint8_t *, int, int, int);
 static void rl_reset(struct rl_softc *);
 static int rl_resume(device_t);
-static void rl_rxeof(struct rl_softc *);
+static int rl_rxeof(struct rl_softc *);
 static void rl_setmulti(struct rl_softc *);
 static int rl_shutdown(device_t);
 static void rl_start(struct ifnet *);
@@ -1221,7 +1221,7 @@ rl_list_rx_init(struct rl_softc *sc)
  * on a 32-bit boundary. To achieve this, we pass RL_ETHER_ALIGN (2 bytes)
  * as the offset argument to m_devget().
  */
-static void
+static int
 rl_rxeof(struct rl_softc *sc)
 {
 	struct mbuf		*m;
@@ -1229,6 +1229,7 @@ rl_rxeof(struct rl_softc *sc)
 	uint8_t			*rxbufpos;
 	int			total_len = 0;
 	int			wrap = 0;
+	int			rx_npkts = 0;
 	uint32_t		rxstat;
 	uint16_t		cur_rx;
 	uint16_t		limit;
@@ -1277,7 +1278,7 @@ rl_rxeof(struct rl_softc *sc)
 		    total_len > ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN) {
 			ifp->if_ierrors++;
 			rl_init_locked(sc);
-			return;
+			return (rx_npkts);
 		}
 
 		/* No errors; receive the packet. */
@@ -1331,9 +1332,11 @@ rl_rxeof(struct rl_softc *sc)
 		RL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		RL_LOCK(sc);
+		rx_npkts++;
 	}
 
 	/* No need to sync Rx memory block as we didn't modify it. */
+	return (rx_npkts);
 }
 
 /*
@@ -1538,26 +1541,29 @@ rl_tick(void *xsc)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 rl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct rl_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	RL_LOCK(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		rl_poll_locked(ifp, cmd, count);
+		rx_npkts = rl_poll_locked(ifp, cmd, count);
 	RL_UNLOCK(sc);
+	return (rx_npkts);
 }
 
-static void
+static int
 rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct rl_softc *sc = ifp->if_softc;
+	int rx_npkts;
 
 	RL_LOCK_ASSERT(sc);
 
 	sc->rxcycles = count;
-	rl_rxeof(sc);
+	rx_npkts = rl_rxeof(sc);
 	rl_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1569,7 +1575,7 @@ rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		/* We should also check the status register. */
 		status = CSR_READ_2(sc, RL_ISR);
 		if (status == 0xffff)
-			return;
+			return (rx_npkts);
 		if (status != 0)
 			CSR_WRITE_2(sc, RL_ISR, status);
 
@@ -1578,6 +1584,7 @@ rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (status & RL_ISR_SYSTEM_ERR)
 			rl_init_locked(sc);
 	}
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 

@@ -215,11 +215,11 @@ options 	NO_ADAPTIVE_MUTEXES
 # to disable it.
 options 	NO_ADAPTIVE_RWLOCKS
 
-# ADAPTIVE_SX changes the behavior of sx locks to spin if the thread
-# that currently owns the lock is executing on another CPU.  Note that
-# in addition to enabling this option, individual sx locks must be
-# initialized with the SX_ADAPTIVESPIN flag.
-options 	ADAPTIVE_SX
+# ADAPTIVE_SX changes the behavior of sx locks to spin if the thread that
+# currently owns the sx lock is executing on another CPU.
+# This behaviour is enabled by default, so this option can be used to
+# disable it.
+options 	NO_ADAPTIVE_SX
 
 # MUTEX_NOINLINE forces mutex operations to call functions to perform each
 # operation rather than inlining the simple cases.  This can be used to
@@ -639,14 +639,6 @@ options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
 options 	ALTQ_DEBUG
 
-# IP optional behaviour.
-# IP_NONLOCALBIND disables the check that bind() usually makes that the
-# address is one that is assigned to an interface on this machine.
-# It allows transparent proxies to pretend to be other machines.
-# How the packet GET to that machine is a problem solved elsewhere,
-# smart routers, ipfw fwd, etc.
-options 	IP_NONLOCALBIND		# Allow impersonation for proxies.
-
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
 # Individual node types can be enabled with the corresponding option
 # listed below; however, this is not strictly necessary as netgraph
@@ -964,6 +956,8 @@ options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
+options 	NFSCL			#experimental NFS client with NFSv4
+options 	NFSD			#experimental NFS server with NFSv4
 
 # NT File System. Read-mostly, see mount_ntfs(8) for details.
 # For a full read-write NTFS support consider sysutils/fusefs-ntfs
@@ -1079,6 +1073,9 @@ device		random
 
 # The system memory devices; /dev/mem, /dev/kmem
 device		mem
+
+# The kernel symbol table device; /dev/ksyms
+device		ksyms
 
 # Optional character code conversion support with LIBICONV.
 # Each option requires their base file system and LIBICONV.
@@ -1757,6 +1754,7 @@ device		miibus
 #       L2 PCI-Express FastEthernet controllers.
 # age:  Support for gigabit ethernet adapters based on the Attansic/Atheros
 #       L1 PCI express gigabit ethernet controllers.
+# alc:  Support for Atheros AR8131/AR8132 PCIe ethernet controllers.
 # ale:  Support for Atheros AR8121/AR8113/AR8114 PCIe ethernet controllers.
 # bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
 #       adapters.
@@ -1899,6 +1897,7 @@ device		xe
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		ae		# Attansic/Atheros L2 FastEthernet
 device		age		# Attansic/Atheros L1 Gigabit Ethernet
+device		alc		# Atheros AR8131/AR8132 Ethernet
 device		ale		# Atheros AR8121/AR8113/AR8114 Ethernet
 device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
@@ -2111,6 +2110,42 @@ hint.gusc.0.port="0x220"
 hint.gusc.0.irq="5"
 hint.gusc.0.drq="1"
 hint.gusc.0.flags="0x13"
+
+#
+# Following options are intended for debugging/testing purposes:
+#
+# SND_DEBUG                    Enable extra debugging code that includes
+#                              sanity checking and possible increase of
+#                              verbosity.
+#
+# SND_DIAGNOSTIC               Simmilar in a spirit of INVARIANTS/DIAGNOSTIC,
+#                              zero tolerance against inconsistencies.
+#
+# SND_FEEDER_MULTIFORMAT       By default, only 16/32 bit feeders are compiled
+#                              in. This options enable most feeder converters
+#                              except for 8bit. WARNING: May bloat the kernel.
+#
+# SND_FEEDER_FULL_MULTIFORMAT  Ditto, but includes 8bit feeders as well.
+#
+# SND_FEEDER_RATE_HP           (feeder_rate) High precision 64bit arithmetic
+#                              as much as possible (the default trying to
+#                              avoid it). Possible slowdown.
+#
+# SND_PCM_64                   (Only applicable for i386/32bit arch)
+#                              Process 32bit samples through 64bit
+#                              integer/arithmetic. Slight increase of dynamic
+#                              range at a cost of possible slowdown.
+#
+# SND_OLDSTEREO                Only 2 channels are allowed, effectively
+#                              disabling multichannel processing.
+#
+options		SND_DEBUG
+options		SND_DIAGNOSTIC
+options		SND_FEEDER_MULTIFORMAT
+options		SND_FEEDER_FULL_MULTIFORMAT
+options		SND_FEEDER_RATE_HP
+options		SND_PCM_64
+options		SND_OLDSTEREO
 
 #
 # IEEE-488 hardware:

@@ -47,7 +47,7 @@
 #define	UDESCSUB_AC_PROCESSING	7
 #define	UDESCSUB_AC_EXTENSION	8
 
-/* The first fields are identical to struct usb2_endpoint_descriptor */
+/* The first fields are identical to struct usb_endpoint_descriptor */
 typedef struct {
 	uByte	bLength;
 	uByte	bDescriptorType;

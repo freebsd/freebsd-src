@@ -42,7 +42,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -111,17 +110,9 @@ static void	vnlru_free(int);
 static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
-static int	vfs_knllocked(void *arg);
+static void	vfs_knl_assert_locked(void *arg);
+static void	vfs_knl_assert_unlocked(void *arg);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
-
-/*
- * Enable Giant pushdown based on whether or not the vm is mpsafe in this
- * build.  Without mpsafevm the buffer cache can not run Giant free.
- */
-int mpsafe_vfs = 1;
-TUNABLE_INT("debug.mpsafevfs", &mpsafe_vfs);
-SYSCTL_INT(_debug, OID_AUTO, mpsafevfs, CTLFLAG_RD, &mpsafe_vfs, 0,
-    "MPSAFE VFS");
 
 /*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
@@ -467,20 +458,12 @@ vfs_suser(struct mount *mp, struct thread *td)
 		return (EPERM);
 
 	/*
-	 * If the file system was mounted outside a jail and a jailed thread
-	 * tries to access it, deny immediately.
+	 * If the file system was mounted outside the jail of the calling
+	 * thread, deny immediately.
 	 */
-	if (!jailed(mp->mnt_cred) && jailed(td->td_ucred))
+	if (mp->mnt_cred->cr_prison != td->td_ucred->cr_prison &&
+	    !prison_ischild(td->td_ucred->cr_prison, mp->mnt_cred->cr_prison))
 		return (EPERM);
-
-	/*
-	 * If the file system was mounted inside different jail that the jail of
-	 * the calling thread, deny immediately.
-	 */
-	if (jailed(mp->mnt_cred) && jailed(td->td_ucred) &&
-	    mp->mnt_cred->cr_prison != td->td_ucred->cr_prison) {
-		return (EPERM);
-	}
 
 	/*
 	 * If file system supports delegated administration, we don't check
@@ -2900,7 +2883,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 
 	db_printf("    mnt_cred = { uid=%u ruid=%u",
 	    (u_int)mp->mnt_cred->cr_uid, (u_int)mp->mnt_cred->cr_ruid);
-	if (mp->mnt_cred->cr_prison != NULL)
+	if (jailed(mp->mnt_cred))
 		db_printf(", jail=%d", mp->mnt_cred->cr_prison->pr_id);
 	db_printf(" }\n");
 	db_printf("    mnt_ref = %d\n", mp->mnt_ref);
@@ -3289,7 +3272,7 @@ v_addpollinfo(struct vnode *vp)
 	vi = uma_zalloc(vnodepoll_zone, M_WAITOK);
 	mtx_init(&vi->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 	knlist_init(&vi->vpi_selinfo.si_note, vp, vfs_knllock,
-	    vfs_knlunlock, vfs_knllocked);
+	    vfs_knlunlock, vfs_knl_assert_locked, vfs_knl_assert_unlocked);
 	VI_LOCK(vp);
 	if (vp->v_pollinfo != NULL) {
 		VI_UNLOCK(vp);
@@ -4004,7 +3987,7 @@ static struct knlist fs_knlist;
 static void
 vfs_event_init(void *arg)
 {
-	knlist_init(&fs_knlist, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&fs_knlist, NULL);
 }
 /* XXX - correct order? */
 SYSINIT(vfs_knlist, SI_SUB_VFS, SI_ORDER_ANY, vfs_event_init, NULL);
@@ -4117,12 +4100,24 @@ vfs_knlunlock(void *arg)
 	VOP_UNLOCK(vp, 0);
 }
 
-static int
-vfs_knllocked(void *arg)
+static void
+vfs_knl_assert_locked(void *arg)
 {
+#ifdef DEBUG_VFS_LOCKS
 	struct vnode *vp = arg;
 
-	return (VOP_ISLOCKED(vp) == LK_EXCLUSIVE);
+	ASSERT_VOP_LOCKED(vp, "vfs_knl_assert_locked");
+#endif
+}
+
+static void
+vfs_knl_assert_unlocked(void *arg)
+{
+#ifdef DEBUG_VFS_LOCKS
+	struct vnode *vp = arg;
+
+	ASSERT_VOP_UNLOCKED(vp, "vfs_knl_assert_unlocked");
+#endif
 }
 
 int
@@ -4175,27 +4170,37 @@ filt_vfsread(struct knote *kn, long hint)
 {
 	struct vnode *vp = (struct vnode *)kn->kn_hook;
 	struct vattr va;
+	int res;
 
 	/*
 	 * filesystem is gone, so set the EOF flag and schedule
 	 * the knote for deletion.
 	 */
 	if (hint == NOTE_REVOKE) {
+		VI_LOCK(vp);
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+		VI_UNLOCK(vp);
 		return (1);
 	}
 
 	if (VOP_GETATTR(vp, &va, curthread->td_ucred))
 		return (0);
 
+	VI_LOCK(vp);
 	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
-	return (kn->kn_data != 0);
+	res = (kn->kn_data != 0);
+	VI_UNLOCK(vp);
+	return (res);
 }
 
 /*ARGSUSED*/
 static int
 filt_vfswrite(struct knote *kn, long hint)
 {
+	struct vnode *vp = (struct vnode *)kn->kn_hook;
+
+	VI_LOCK(vp);
+
 	/*
 	 * filesystem is gone, so set the EOF flag and schedule
 	 * the knote for deletion.
@@ -4204,19 +4209,27 @@ filt_vfswrite(struct knote *kn, long hint)
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
 
 	kn->kn_data = 0;
+	VI_UNLOCK(vp);
 	return (1);
 }
 
 static int
 filt_vfsvnode(struct knote *kn, long hint)
 {
+	struct vnode *vp = (struct vnode *)kn->kn_hook;
+	int res;
+
+	VI_LOCK(vp);
 	if (kn->kn_sfflags & hint)
 		kn->kn_fflags |= hint;
 	if (hint == NOTE_REVOKE) {
 		kn->kn_flags |= EV_EOF;
+		VI_UNLOCK(vp);
 		return (1);
 	}
-	return (kn->kn_fflags != 0);
+	res = (kn->kn_fflags != 0);
+	VI_UNLOCK(vp);
+	return (res);
 }
 
 int
@@ -4260,4 +4273,51 @@ vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 
 	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		(void)VOP_MARKATIME(vp);
+}
+
+/*
+ * The purpose of this routine is to remove granularity from accmode_t,
+ * reducing it into standard unix access bits - VEXEC, VREAD, VWRITE,
+ * VADMIN and VAPPEND.
+ *
+ * If it returns 0, the caller is supposed to continue with the usual
+ * access checks using 'accmode' as modified by this routine.  If it
+ * returns nonzero value, the caller is supposed to return that value
+ * as errno.
+ *
+ * Note that after this routine runs, accmode may be zero.
+ */
+int
+vfs_unixify_accmode(accmode_t *accmode)
+{
+	/*
+	 * There is no way to specify explicit "deny" rule using
+	 * file mode or POSIX.1e ACLs.
+	 */
+	if (*accmode & VEXPLICIT_DENY) {
+		*accmode = 0;
+		return (0);
+	}
+
+	/*
+	 * None of these can be translated into usual access bits.
+	 * Also, the common case for NFSv4 ACLs is to not contain
+	 * either of these bits. Caller should check for VWRITE
+	 * on the containing directory instead.
+	 */
+	if (*accmode & (VDELETE_CHILD | VDELETE))
+		return (EPERM);
+
+	if (*accmode & VADMIN_PERMS) {
+		*accmode &= ~VADMIN_PERMS;
+		*accmode |= VADMIN;
+	}
+
+	/*
+	 * There is no way to deny VREAD_ATTRIBUTES, VREAD_ACL
+	 * or VSYNCHRONIZE using file mode or POSIX.1e ACL.
+	 */
+	*accmode &= ~(VSTAT_PERMS | VSYNCHRONIZE);
+
+	return (0);
 }

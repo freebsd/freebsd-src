@@ -966,8 +966,9 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	u_int s, e, sz;
 	u_int phys_avail_count;
 	vm_size_t physsz, hwphyssz, kstack0_sz;
-	vm_offset_t kernel_pdir, kstack0;
+	vm_offset_t kernel_pdir, kstack0, va;
 	vm_paddr_t kstack0_phys;
+	pte_t *pte;
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
@@ -1215,6 +1216,19 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		
 		/* Initialize each CPU's tidbusy entry 0 with kernel_pmap */
 		tidbusy[i][0] = kernel_pmap;
+	}
+
+	/*
+	 * Fill in PTEs covering kernel code and data. They are not required
+	 * for address translation, as this area is covered by static TLB1
+	 * entries, but for pte_vatopa() to work correctly with kernel area
+	 * addresses.
+	 */
+	for (va = KERNBASE; va < data_end; va += PAGE_SIZE) {
+		pte = &(kernel_pmap->pm_pdir[PDIR_IDX(va)][PTBL_IDX(va)]);
+		pte->rpn = kernload + (va - KERNBASE);
+		pte->flags = PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED |
+		    PTE_VALID;
 	}
 	/* Mark kernel_pmap active on all CPUs */
 	kernel_pmap->pm_active = ~0;

@@ -27,6 +27,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -50,8 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-CTASSERT(((LK_CANRECURSE | LK_NOSHARE) & LO_CLASSFLAGS) ==
-    (LK_CANRECURSE | LK_NOSHARE));
+CTASSERT((LK_NOSHARE & LO_CLASSFLAGS) == LK_NOSHARE);
 
 #define	SQ_EXCLUSIVE_QUEUE	0
 #define	SQ_SHARED_QUEUE		1
@@ -126,6 +126,9 @@ static void	 assert_lockmgr(struct lock_object *lock, int how);
 static void	 db_show_lockmgr(struct lock_object *lock);
 #endif
 static void	 lock_lockmgr(struct lock_object *lock, int how);
+#ifdef KDTRACE_HOOKS
+static int	 owner_lockmgr(struct lock_object *lock, struct thread **owner);
+#endif
 static int	 unlock_lockmgr(struct lock_object *lock);
 
 struct lock_class lock_class_lockmgr = {
@@ -136,7 +139,10 @@ struct lock_class lock_class_lockmgr = {
 	.lc_ddb_show = db_show_lockmgr,
 #endif
 	.lc_lock = lock_lockmgr,
-	.lc_unlock = unlock_lockmgr
+	.lc_unlock = unlock_lockmgr,
+#ifdef KDTRACE_HOOKS
+	.lc_owner = owner_lockmgr,
+#endif
 };
 
 static __inline struct thread *
@@ -293,6 +299,15 @@ unlock_lockmgr(struct lock_object *lock)
 	panic("lockmgr locks do not support sleep interlocking");
 }
 
+#ifdef KDTRACE_HOOKS
+static int
+owner_lockmgr(struct lock_object *lock, struct thread **owner)
+{
+
+	panic("lockmgr locks do not support owner inquiring");
+}
+#endif
+
 void
 lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 {
@@ -300,7 +315,9 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 
 	MPASS((flags & ~LK_INIT_MASK) == 0);
 
-	iflags = LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE;
+	iflags = LO_SLEEPABLE | LO_UPGRADABLE;
+	if (flags & LK_CANRECURSE)
+		iflags |= LO_RECURSABLE;
 	if ((flags & LK_NODUP) == 0)
 		iflags |= LO_DUPOK;
 	if (flags & LK_NOPROFILE)
@@ -309,7 +326,7 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 		iflags |= LO_WITNESS;
 	if (flags & LK_QUIET)
 		iflags |= LO_QUIET;
-	iflags |= flags & (LK_CANRECURSE | LK_NOSHARE);
+	iflags |= flags & LK_NOSHARE;
 
 	lk->lk_lock = LK_UNLOCKED;
 	lk->lk_recurse = 0;
@@ -514,7 +531,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 */
 		if (lockmgr_xlocked(lk)) {
 			if ((flags & LK_CANRECURSE) == 0 &&
-			    (lk->lock_object.lo_flags & LK_CANRECURSE) == 0) {
+			    (lk->lock_object.lo_flags & LO_RECURSABLE) == 0) {
 
 				/*
 				 * If the lock is expected to not panic just

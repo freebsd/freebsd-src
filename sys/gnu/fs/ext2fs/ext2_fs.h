@@ -52,6 +52,8 @@
 #define umode_t mode_t
 #define loff_t  off_t
 
+#define	cpu_to_le32(x)	htole32(x)
+
 /*
  * The second extended filesystem constants/structures
  */
@@ -87,12 +89,10 @@
 #endif
 
 /*
- * Special inodes numbers
+ * Special inode numbers
  */
 #define	EXT2_BAD_INO		 1	/* Bad blocks inode */
 #define EXT2_ROOT_INO		 2	/* Root inode */
-#define EXT2_ACL_IDX_INO	 3	/* ACL inode */
-#define EXT2_ACL_DATA_INO	 4	/* ACL inode */
 #define EXT2_BOOT_LOADER_INO	 5	/* Boot loader inode */
 #define EXT2_UNDEL_DIR_INO	 6	/* Undelete directory inode */
 
@@ -104,17 +104,29 @@
  */
 #define EXT2_SUPER_MAGIC	0xEF53
 
+#ifdef __KERNEL__
+#include <linux/ext2_fs_sb.h>
+static inline struct ext2_sb_info *EXT2_SB(struct super_block *sb)
+{
+	return sb->s_fs_info;
+}
+#elif defined(_KERNEL)
+/*
+ * FreeBSD passes the pointer to the in-core struct with relevant
+ * fields to EXT2_SB macro when accessing superblock fields.
+ */
+#define EXT2_SB(sb)	(sb)
+#else
+/* Assume that user mode programs are passing in an ext2fs superblock, not
+ * a kernel struct super_block.  This will allow us to call the feature-test
+ * macros from user land. */
+#define EXT2_SB(sb)	(sb)
+#endif
+
 /*
  * Maximal count of links to a file
  */
 #define EXT2_LINK_MAX		32000
-
-/*
- * Note: under FreeBSD, the "user" versions of the following macros are
- * used (and must be used) in most cases, because ((s)->u.ext2_sb.s_es is
- * not accessible.  This depends on __KERNEL__ not being defined for
- * kernel builds under FreeBSD.
- */
 
 /*
  * Macro-instructions used to manage several block sizes
@@ -122,23 +134,22 @@
 #define EXT2_MIN_BLOCK_SIZE		1024
 #define	EXT2_MAX_BLOCK_SIZE		4096
 #define EXT2_MIN_BLOCK_LOG_SIZE		  10
-#if defined(__KERNEL__) || (defined(__FreeBSD__) && defined(_KERNEL))
+#if defined(__KERNEL__) || defined(_KERNEL)
 # define EXT2_BLOCK_SIZE(s)		((s)->s_blocksize)
 #else
 # define EXT2_BLOCK_SIZE(s)		(EXT2_MIN_BLOCK_SIZE << (s)->s_log_block_size)
 #endif
-#define EXT2_ACLE_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_acl_entry))
 #define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (__u32))
-#ifdef __KERNEL__
+#if defined(__KERNEL__) || defined(_KERNEL)
 # define EXT2_BLOCK_SIZE_BITS(s)	((s)->s_blocksize_bits)
 #else
 # define EXT2_BLOCK_SIZE_BITS(s)	((s)->s_log_block_size + 10)
 #endif
-#ifdef notyet
-#ifdef __KERNEL__
-#define	EXT2_ADDR_PER_BLOCK_BITS(s)	((s)->u.ext2_sb.s_addr_per_block_bits)
-#define EXT2_INODE_SIZE(s)		((s)->u.ext2_sb.s_inode_size)
-#define EXT2_FIRST_INO(s)		((s)->u.ext2_sb.s_first_ino)
+#if defined(__KERNEL__) || defined(_KERNEL)
+#define	EXT2_ADDR_PER_BLOCK_BITS(s)	(EXT2_SB(s)->s_addr_per_block_bits)
+#define EXT2_INODE_SIZE(s)		(EXT2_SB(s)->s_inode_size)
+#define EXT2_FIRST_INO(s)		(EXT2_SB(s)->s_first_ino)
+#define	EXT2_INODES_PER_BLOCK(s)	((s)->s_inodes_per_block)
 #else
 #define EXT2_INODE_SIZE(s)	(((s)->s_rev_level == EXT2_GOOD_OLD_REV) ? \
 				 EXT2_GOOD_OLD_INODE_SIZE : \
@@ -147,12 +158,6 @@
 				 EXT2_GOOD_OLD_FIRST_INO : \
 				 (s)->s_first_ino)
 #endif
-#else /* !notyet */
-#define	EXT2_INODES_PER_BLOCK(s)	((s)->s_inodes_per_block)
-/* Should be sizeof(struct ext2_inode): */
-#define EXT2_INODE_SIZE(s)		((s)->s_inode_size)
-#define EXT2_FIRST_INO(s)		((s)->s_first_inode)
-#endif /* notyet */
 
 /*
  * Macro-instructions used to manage fragments
@@ -160,15 +165,11 @@
 #define EXT2_MIN_FRAG_SIZE		1024
 #define	EXT2_MAX_FRAG_SIZE		4096
 #define EXT2_MIN_FRAG_LOG_SIZE		  10
-#ifdef __KERNEL__
-# define EXT2_FRAG_SIZE(s)		((s)->u.ext2_sb.s_frag_size)
-# define EXT2_FRAGS_PER_BLOCK(s)	((s)->u.ext2_sb.s_frags_per_block)
+#if defined(__KERNEL__) || defined(_KERNEL)
+# define EXT2_FRAG_SIZE(s)		(EXT2_SB(s)->s_frag_size)
+# define EXT2_FRAGS_PER_BLOCK(s)	(EXT2_SB(s)->s_frags_per_block)
 #else
-# if defined(_KERNEL) && defined(__FreeBSD__)
-# define EXT2_FRAG_SIZE(s)		((s)->s_frag_size)
-# else
 # define EXT2_FRAG_SIZE(s)		(EXT2_MIN_FRAG_SIZE << (s)->s_log_frag_size)
-# endif
 # define EXT2_FRAGS_PER_BLOCK(s)	(EXT2_BLOCK_SIZE(s) / EXT2_FRAG_SIZE(s))
 #endif
 
@@ -212,11 +213,11 @@ struct ext2_group_desc
 /*
  * Macro-instructions used to manage group descriptors
  */
-#ifdef __KERNEL__
-# define EXT2_BLOCKS_PER_GROUP(s)	((s)->u.ext2_sb.s_blocks_per_group)
-# define EXT2_DESC_PER_BLOCK(s)		((s)->u.ext2_sb.s_desc_per_block)
-# define EXT2_INODES_PER_GROUP(s)	((s)->u.ext2_sb.s_inodes_per_group)
-# define EXT2_DESC_PER_BLOCK_BITS(s)	((s)->u.ext2_sb.s_desc_per_block_bits)
+#if defined(__KERNEL__) || defined(_KERNEL)
+# define EXT2_BLOCKS_PER_GROUP(s)	(EXT2_SB(s)->s_blocks_per_group)
+# define EXT2_DESC_PER_BLOCK(s)		(EXT2_SB(s)->s_desc_per_block)
+# define EXT2_INODES_PER_GROUP(s)	(EXT2_SB(s)->s_inodes_per_group)
+# define EXT2_DESC_PER_BLOCK_BITS(s)	(EXT2_SB(s)->s_desc_per_block_bits)
 #else
 # define EXT2_BLOCKS_PER_GROUP(s)	((s)->s_blocks_per_group)
 # define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_group_desc))
@@ -366,7 +367,7 @@ struct ext2_inode {
 
 #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
 #define set_opt(o, opt)			o |= EXT2_MOUNT_##opt
-#define test_opt(sb, opt)		((sb)->u.ext2_sb.s_mount_opt & \
+#define test_opt(sb, opt)		(EXT2_SB(sb)->s_mount_opt & \
 					 EXT2_MOUNT_##opt)
 /*
  * Maximal mount counts between two filesystem checks
@@ -444,15 +445,6 @@ struct ext2_super_block {
 	__u32	s_reserved[204];	/* Padding to the end of the block */
 };
 
-#ifdef __KERNEL__
-#define EXT2_SB(sb)	(&((sb)->u.ext2_sb))
-#else
-/* Assume that user mode programs are passing in an ext2fs superblock, not
- * a kernel struct super_block.  This will allow us to call the feature-test
- * macros from user land. */
-#define EXT2_SB(sb)	(sb)
-#endif
-
 /*
  * Codes for operating systems
  */
@@ -478,11 +470,11 @@ struct ext2_super_block {
  */
 
 #define EXT2_HAS_COMPAT_FEATURE(sb,mask)			\
-	( EXT2_SB(sb)->s_feature_compat & (mask) )
+	( EXT2_SB(sb)->s_es->s_feature_compat & cpu_to_le32(mask) )
 #define EXT2_HAS_RO_COMPAT_FEATURE(sb,mask)			\
-	( EXT2_SB(sb)->s_feature_ro_compat & (mask) )
+	( EXT2_SB(sb)->s_es->s_feature_ro_compat & cpu_to_le32(mask) )
 #define EXT2_HAS_INCOMPAT_FEATURE(sb,mask)			\
-	( EXT2_SB(sb)->s_feature_incompat & (mask) )
+	( EXT2_SB(sb)->s_es->s_feature_incompat & cpu_to_le32(mask) )
 
 #define EXT2_FEATURE_COMPAT_DIR_PREALLOC	0x0001
 

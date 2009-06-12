@@ -158,6 +158,9 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_FC1_DIR_FROMDS		0x02	/* AP ->STA */
 #define	IEEE80211_FC1_DIR_DSTODS		0x03	/* AP ->AP  */
 
+#define	IEEE80211_IS_DSTODS(wh) \
+	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
+
 #define	IEEE80211_FC1_MORE_FRAG			0x04
 #define	IEEE80211_FC1_RETRY			0x08
 #define	IEEE80211_FC1_PWR_MGT			0x10
@@ -315,9 +318,12 @@ struct ieee80211_action {
 	uint8_t		ia_action;
 } __packed;
 
-#define	IEEE80211_ACTION_CAT_QOS	0	/* QoS */
+#define	IEEE80211_ACTION_CAT_SM		0	/* Spectrum Management */
+#define	IEEE80211_ACTION_CAT_QOS	1	/* QoS */
+#define	IEEE80211_ACTION_CAT_DLS	2	/* DLS */
 #define	IEEE80211_ACTION_CAT_BA		3	/* BA */
 #define	IEEE80211_ACTION_CAT_HT		7	/* HT */
+#define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/
 #define	IEEE80211_ACTION_HT_MIMOPWRSAVE	1	/* MIMO power save */
@@ -686,7 +692,7 @@ enum {
 	IEEE80211_ELEMID_TPCREQ		= 34,
 	IEEE80211_ELEMID_TPCREP		= 35,
 	IEEE80211_ELEMID_SUPPCHAN	= 36,
-	IEEE80211_ELEMID_CHANSWITCHANN	= 37,
+	IEEE80211_ELEMID_CSA		= 37,
 	IEEE80211_ELEMID_MEASREQ	= 38,
 	IEEE80211_ELEMID_MEASREP	= 39,
 	IEEE80211_ELEMID_QUIET		= 40,
@@ -735,6 +741,14 @@ struct ieee80211_csa_ie {
 	uint8_t		csa_newchan;		/* New Channel Number */
 	uint8_t		csa_count;		/* Channel Switch Count */
 } __packed;
+
+/*
+ * Note the min acceptable CSA count is used to guard against
+ * malicious CSA injection in station mode.  Defining this value
+ * as other than 0 violates the 11h spec.
+ */
+#define	IEEE80211_CSA_COUNT_MIN	2
+#define	IEEE80211_CSA_COUNT_MAX	255
 
 /* rate set entries are in .5 Mb/s units, and potentially marked as basic */
 #define	IEEE80211_RATE_BASIC		0x80
@@ -895,6 +909,7 @@ enum {
 	IEEE80211_STATUS_SUPCHAN_REQUIRED	= 24,	/* 11h */
 	IEEE80211_STATUS_SHORTSLOT_REQUIRED	= 25,	/* 11g */
 	IEEE80211_STATUS_DSSSOFDM_REQUIRED	= 26,	/* 11g */
+	IEEE80211_STATUS_MISSING_HT_CAPS	= 27,	/* 11n D3.0 */
 	IEEE80211_STATUS_INVALID_IE		= 40,	/* 11i */
 	IEEE80211_STATUS_GROUP_CIPHER_INVALID	= 41,	/* 11i */
 	IEEE80211_STATUS_PAIRWISE_CIPHER_INVALID = 42,	/* 11i */

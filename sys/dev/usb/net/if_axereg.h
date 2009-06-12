@@ -177,9 +177,9 @@ enum {
 };
 
 struct axe_softc {
-	struct usb2_ether	sc_ue;
+	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
-	struct usb2_xfer	*sc_xfer[AXE_N_TRANSFER];
+	struct usb_xfer	*sc_xfer[AXE_N_TRANSFER];
 	int			sc_phyno;
 
 	int			sc_flags;

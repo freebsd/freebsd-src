@@ -33,8 +33,6 @@
 #include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
-#include "opt_route.h"
-#include "opt_mac.h"
 #include "opt_carp.h"
 
 #include <sys/param.h>
@@ -88,8 +86,10 @@
 #include <netinet/if_ether.h>
 #include <netinet/vinet.h>
 #endif
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
+#endif
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -154,6 +154,9 @@ extern void	nd6_setmtu(struct ifnet *);
 #endif
 
 static int	vnet_net_iattach(const void *);
+#ifdef VIMAGE
+static int	vnet_net_idetach(const void *);
+#endif
 
 #ifdef VIMAGE_GLOBALS
 struct	ifnethead ifnet;	/* depend on static init XXX */
@@ -190,7 +193,10 @@ static const vnet_modinfo_t vnet_net_modinfo = {
 	.vmi_name	= "net",
 	.vmi_size	= sizeof(struct vnet_net),
 	.vmi_symmap	= vnet_net_symmap,
-	.vmi_iattach	= vnet_net_iattach
+	.vmi_iattach	= vnet_net_iattach,
+#ifdef VIMAGE
+	.vmi_idetach	= vnet_net_idetach
+#endif
 };
 #endif /* !VIMAGE_GLOBALS */
 
@@ -441,11 +447,27 @@ vnet_net_iattach(const void *unused __unused)
 
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
-	knlist_init(&V_ifklist, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&V_ifklist, NULL);
 	if_grow();				/* create initial table */
 
 	return (0);
 }
+
+#ifdef VIMAGE
+static int
+vnet_net_idetach(const void *unused __unused)
+{
+	INIT_VNET_NET(curvnet);
+
+	VNET_ASSERT(TAILQ_EMPTY(&V_ifnet));
+	VNET_ASSERT(TAILQ_EMPTY(&V_ifg_head));
+	VNET_ASSERT(SLIST_EMPTY(&V_ifklist.kl_list));
+
+	free((caddr_t)V_ifindex_table, M_IFNET);
+
+	return (0);
+}
+#endif
 
 void
 if_grow(void)
@@ -528,7 +550,7 @@ if_alloc(u_char type)
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
 	TAILQ_INIT(&ifp->if_groups);
-	knlist_init(&ifp->if_klist, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&ifp->if_klist, NULL);
 #ifdef MAC
 	mac_ifnet_init(ifp);
 #endif
@@ -574,6 +596,7 @@ if_free_internal(struct ifnet *ifp)
 	knlist_destroy(&ifp->if_klist);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
+	ifq_detach(&ifp->if_snd);
 	free(ifp, M_IFNET);
 }
 
@@ -688,6 +711,8 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 
 #ifdef VIMAGE
 	ifp->if_vnet = curvnet;
+	if (ifp->if_home_vnet == NULL)
+		ifp->if_home_vnet = curvnet;
 #endif
 
 	if_addgroup(ifp, IFG_ALL);
@@ -1001,7 +1026,8 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	 */
 	for (i = 1; i <= AF_MAX; i++) {
 		for (j = 0; j < rt_numfibs; j++) {
-			if ((rnh = V_rt_tables[j][i]) == NULL)
+			rnh = rt_tables_get_rnh(j, i);
+			if (rnh == NULL)
 				continue;
 			RADIX_NODE_HEAD_LOCK(rnh);
 			(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
@@ -1024,9 +1050,6 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	}
 	ifp->if_afdata_initialized = 0;
 	IF_AFDATA_UNLOCK(ifp);
-
-	if (!vmove)
-		ifq_detach(&ifp->if_snd);
 }
 
 #ifdef VIMAGE
@@ -1717,9 +1740,11 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	ifp->if_qflush(ifp);
 
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
+#endif
 #endif
 	rt_ifmsg(ifp);
 }
@@ -1741,9 +1766,11 @@ if_route(struct ifnet *ifp, int flag, int fam)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFUP, ifa->ifa_addr);
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
+#endif
 #endif
 	rt_ifmsg(ifp);
 #ifdef INET6
@@ -1795,9 +1822,11 @@ do_link_state_change(void *arg, int pending)
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
 	    IFP2AC(ifp)->ac_netgraph != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
+#endif
 #endif
 	if (ifp->if_bridge) {
 		KASSERT(bstp_linkstate_p != NULL,("if_bridge bstp not loaded!"));
@@ -2283,6 +2312,21 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	ifr = (struct ifreq *)data;
 
 	switch (cmd) {
+#ifdef VIMAGE
+	/*
+	 * XXX vnet creation will be implemented through the new jail
+	 * framework - this is just a temporary hack for testing the
+	 * vnet create / destroy mechanisms.
+	 */
+	case SIOCSIFVIMAGE:
+		error = vi_if_move((struct vi_req *) data, NULL,
+		    TD_TO_VIMAGE(td));
+		return (error);
+	case SIOCSPVIMAGE:
+	case SIOCGPVIMAGE:
+		error = vi_td_ioctl(cmd, (struct vi_req *) data, td);
+		return (error);
+#endif
 	case SIOCIFCREATE:
 	case SIOCIFCREATE2:
 		error = priv_check(td, PRIV_NET_IFCREATE);

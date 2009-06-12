@@ -28,12 +28,15 @@ MAN=	accept_filter.9 \
 	bus_dma.9 \
 	bus_generic_attach.9 \
 	bus_generic_detach.9 \
+	bus_generic_new_pass.9 \
 	bus_generic_print_child.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
+	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
 	bus_release_resource.9 \
+	bus_set_pass.9 \
 	bus_set_resource.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
@@ -54,7 +57,6 @@ MAN=	accept_filter.9 \
 	DECLARE_MODULE.9 \
 	DELAY.9 \
 	devclass.9 \
-	devclass_add_driver.9 \
 	devclass_find.9 \
 	devclass_get_device.9 \
 	devclass_get_devices.9 \
@@ -99,6 +101,7 @@ MAN=	accept_filter.9 \
 	DRIVER_MODULE.9 \
 	EVENTHANDLER.9 \
 	extattr.9 \
+	fail.9 \
 	fetch.9 \
 	firmware.9 \
 	g_access.9 \
@@ -161,6 +164,7 @@ MAN=	accept_filter.9 \
 	mtx_pool.9 \
 	mutex.9 \
 	namei.9 \
+	netisr.9 \
 	panic.9 \
 	pbuf.9 \
 	p_candebug.9 \
@@ -217,6 +221,7 @@ MAN=	accept_filter.9 \
 	selrecord.9 \
 	sema.9 \
 	sf_buf.9 \
+	sglist.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
@@ -549,8 +554,6 @@ MLINKS+=crypto.9 crypto_dispatch.9 \
 	crypto.9 crypto_unregister_all.9
 MLINKS+=DB_COMMAND.9 DB_SHOW_COMMAND.9 \
 	DB_COMMAND.9 DB_SHOW_ALL_COMMAND.9
-MLINKS+=devclass_add_driver.9 devclass_delete_driver.9 \
-	devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=dev_clone.9 drain_dev_clone_events.9
 MLINKS+=devfs_set_cdevpriv.9 devfs_get_cdevpriv.9 \
 	devfs_set_cdevpriv.9 devfs_clear_cdevpriv.9
@@ -1021,6 +1024,24 @@ MLINKS+=sf_buf.9 sf_buf_alloc.9 \
 	sf_buf.9 sf_buf_free.9 \
 	sf_buf.9 sf_buf_kva.9 \
 	sf_buf.9 sf_buf_page.9
+MLINKS+=sglist.9 sglist_alloc.9 \
+	sglist.9 sglist_append.9 \
+	sglist.9 sglist_append_mbuf.9 \
+	sglist.9 sglist_append_phys.9 \
+	sglist.9 sglist_append_uio.9 \
+	sglist.9 sglist_append_user.9 \
+	sglist.9 sglist_build.9 \
+	sglist.9 sglist_clone.9 \
+	sglist.9 sglist_consume_uio.9 \
+	sglist.9 sglist_count.9 \
+	sglist.9 sglist_free.9 \
+	sglist.9 sglist_hold.9 \
+	sglist.9 sglist_init.9 \
+	sglist.9 sglist_join.9 \
+	sglist.9 sglist_length.9 \
+	sglist.9 sglist_reset.9 \
+	sglist.9 sglist_slice.9 \
+	sglist.9 sglist_split.9
 MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
@@ -1287,6 +1308,7 @@ MLINKS+=vm_page_io.9 vm_page_io_finish.9 \
 MLINKS+=vm_page_wakeup.9 vm_page_busy.9 \
 	vm_page_wakeup.9 vm_page_flash.9
 MLINKS+=vm_page_wire.9 vm_page_unwire.9
+MLINKS+=VOP_ACCESS.9 VOP_ACCESSX.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9 \
 	VOP_ATTRIB.9 VOP_SETATTR.9
 MLINKS+=VOP_CREATE.9 VOP_MKDIR.9 \

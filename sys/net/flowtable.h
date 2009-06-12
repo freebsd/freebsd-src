@@ -33,10 +33,6 @@ $FreeBSD$
 #define	_NET_FLOWTABLE_H_
 
 #ifdef	_KERNEL
-#include "opt_route.h"
-
-#include <net/ethernet.h>
-#include <netinet/in.h>
 
 #define	FL_HASH_PORTS	(1<<0)	/* hash 4-tuple + protocol */
 #define	FL_PCPU		(1<<1)	/* pcpu cache */

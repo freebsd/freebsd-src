@@ -187,7 +187,11 @@ nfsvno_accchk(struct vnode *vp, u_int32_t accessbits, struct ucred *cred,
 	if (vpislocked == 0)
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
-#ifdef NFS4_ACL_EXTATTR_NAME
+#if defined(NFS4_ACL_EXTATTR_NAME) && defined(notyet)
+	/*
+	 * This function should be called once FFS has NFSv4 ACL support
+	 * in it.
+	 */
 	/*
 	 * Should the override still be applied when ACLs are enabled?
 	 */
@@ -2669,6 +2673,7 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 int
 nfsrv_getsocksndseq(struct socket *so, tcp_seq *maxp, tcp_seq *unap)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	int error = EPIPE;

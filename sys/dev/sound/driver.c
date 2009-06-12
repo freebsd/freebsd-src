@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 
 static int
@@ -38,7 +42,7 @@ snd_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		break;
 	default:
-		return (EOPNOTSUPP);
+		return (ENOTSUP);
 		break;
 	}
 	return 0;
