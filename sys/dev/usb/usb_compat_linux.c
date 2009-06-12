@@ -1143,7 +1143,7 @@ usb_linux_free_device(struct usb_device *dev)
 		uhe++;
 	}
 	err = usb_setup_endpoint(dev, &dev->ep0, 0);
-	free(uhe, M_USBDEV);
+	free(dev->linux_endpoint_start, M_USBDEV);
 }
 
 /*------------------------------------------------------------------------*
