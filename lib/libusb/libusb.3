@@ -117,8 +117,6 @@ USB access library (libusb -lusb)
 .Ft const char *
 .Fn libusb20_dev_get_desc "struct libusb20_device *pdev"
 .Ft int
-.Fn libusb20_dev_claim_interface "struct libusb20_device *pdev" "uint8_t iface_index"
-.Ft int
 .Fn libusb20_dev_close "struct libusb20_device *pdev"
 .Ft int
 .Fn libusb20_dev_detach_kernel_driver "struct libusb20_device *pdev" "uint8_t iface_index"
@@ -134,8 +132,6 @@ USB access library (libusb -lusb)
 .Fn libusb20_dev_open "struct libusb20_device *pdev" "uint16_t transfer_max"
 .Ft int
 .Fn libusb20_dev_process "struct libusb20_device *pdev"
-.Ft int
-.Fn libusb20_dev_release_interface "struct libusb20_device *pdev" "uint8_t iface_index"
 .Ft int
 .Fn libusb20_dev_request_sync "struct libusb20_device *pdev" "struct LIBUSB20_CONTROL_SETUP_DECODED *setup" "void *data" "uint16_t *pactlen" "uint32_t timeout" "uint8_t flags"
 .Ft int
@@ -517,14 +513,6 @@ The format of the string is: "drivername<unit>: <description>"
 .
 .Pp
 .
-.Fn libusb20_dev_claim_interface
-This function will try to claim the given USB interface given by
-.Fa iface_index .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.Pp
-.
 .Fn libusb20_dev_close
 will close the given USB device.
 .
@@ -598,14 +586,6 @@ transfers.
 This function returns zero on success else a LIBUSB20_ERROR value is
 returned typically indicating that the given USB device has been
 detached.
-.
-.Pp
-.
-.Fn libusb20_dev_release_interface
-will try to release a claimed USB interface for the specified USB device.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
 .
 .Pp
 .
