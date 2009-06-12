@@ -135,14 +135,14 @@ __trace_out(const char *s, const char *f, int l)
 }
 
 void
-__trace_on()
+__trace_on(void)
 {
 	trace_level = trace_level_bk;
 	trace_level_bk = 0;
 }
 
 void
-__trace_off()
+__trace_off(void)
 {
 	trace_level_bk = trace_level;
 	trace_level = 1024;

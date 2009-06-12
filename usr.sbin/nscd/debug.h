@@ -61,7 +61,7 @@ extern void __trace_ptr(const char *, const void *, const char *, int);
 extern void __trace_int(const char *, int, const char *, int);
 extern void __trace_str(const char *, const char *, const char *, int);
 extern void __trace_out(const char *, const char *, int);
-extern void __trace_on();
-extern void __trace_off();
+extern void __trace_on(void);
+extern void __trace_off(void);
 
 #endif
