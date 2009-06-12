@@ -659,6 +659,9 @@ ukbd_probe(device_t dev)
 {
 	keyboard_switch_t *sw = kbd_get_switch(UKBD_DRIVER_NAME);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	void *d_ptr;
+	int error;
+	uint16_t d_len;
 
 	DPRINTFN(11, "\n");
 
@@ -668,16 +671,35 @@ ukbd_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
-	/* check that the keyboard speaks the boot protocol: */
-	if ((uaa->info.bInterfaceClass == UICLASS_HID)
-	    && (uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT)
-	    && (uaa->info.bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)) {
+
+	if (uaa->info.bInterfaceClass != UICLASS_HID)
+		return (ENXIO);
+
+	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
+	    (uaa->info.bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)) {
 		if (usb2_test_quirk(uaa, UQ_KBD_IGNORE))
 			return (ENXIO);
 		else
 			return (0);
 	}
-	return (ENXIO);
+
+	error = usb2_req_get_hid_desc(uaa->device, NULL,
+	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
+
+	if (error)
+		return (ENXIO);
+
+	if (hid_is_collection(d_ptr, d_len,
+	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_KEYBOARD))) {
+		if (usb2_test_quirk(uaa, UQ_KBD_IGNORE))
+			error = ENXIO;
+		else
+			error = 0;
+	} else
+		error = ENXIO;
+
+	free(d_ptr, M_TEMP);
+	return (error);
 }
 
 static int
