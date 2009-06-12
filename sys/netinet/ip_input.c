@@ -206,16 +206,19 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     ipstealth, 0, "IP stealth mode, no TTL decrementation on forwarding");
 #endif
+#ifdef FLOWTABLE
 static int ip_output_flowtable_size = 2048;
 TUNABLE_INT("net.inet.ip.output_flowtable_size", &ip_output_flowtable_size);
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, output_flowtable_size,
     CTLFLAG_RDTUN, ip_output_flowtable_size, 2048,
     "number of entries in the per-cpu output flow caches");
 
+struct flowtable *ip_ft;
+#endif
+
 #ifdef VIMAGE_GLOBALS
 int fw_one_pass;
 #endif
-struct flowtable *ip_ft;
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
@@ -374,7 +377,9 @@ ip_init(void)
 	/* Initialize various other remaining things. */
 	IPQ_LOCK_INIT();
 	netisr_register(&ip_nh);
+#ifdef FLOWTABLE
 	ip_ft = flowtable_alloc(ip_output_flowtable_size, FL_PCPU);
+#endif
 }
 
 void

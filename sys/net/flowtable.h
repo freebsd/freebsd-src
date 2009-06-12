@@ -41,7 +41,6 @@ struct flowtable;
 extern struct flowtable *ip_ft;
 extern struct flowtable *ip_forward_ft;
 
-#ifdef FLOWTABLE
 struct flowtable *flowtable_alloc(int nentry, int flags);
 
 /*
@@ -52,22 +51,6 @@ struct flowtable *flowtable_alloc(int nentry, int flags);
 int flowtable_lookup(struct flowtable *ft, struct mbuf *m,
     struct route *ro);
 
-#else
-static __inline struct flowtable *
-flowtable_alloc(int nentry, int flags)
-{
-
-	return (NULL);
-}
-
-static __inline int
-flowtable_lookup(struct flowtable *ft, struct mbuf *m,
-    struct route *ro)
-{
-
-	return (ENOTSUP);
-}
-#endif
 #endif
 
 #endif
