@@ -401,6 +401,7 @@ IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
 IPSEC_FILTERTUNNEL	opt_ipsec.h
+IPSEC_NAT_T		opt_ipsec.h
 IPSTEALTH
 IPX
 KRPC
