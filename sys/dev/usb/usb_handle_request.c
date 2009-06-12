@@ -42,13 +42,6 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 
-/* enum */
-
-enum {
-	ST_DATA,
-	ST_POST_STATUS,
-};
-
 /* function prototypes */
 
 static uint8_t usb2_handle_get_stall(struct usb_device *, uint8_t);
@@ -88,16 +81,17 @@ usb2_handle_request_callback(struct usb_xfer *xfer)
 				usb2_needs_explore(xfer->xroot->bus, 0);
 				break;
 			}
-			/*
-		         * If no control transfer is active,
-		         * receive the next SETUP message:
-		         */
 			goto tr_restart;
 		}
 		usb2_start_hardware(xfer);
 		break;
 
 	default:
+		/* check if a control transfer is active */
+		if (xfer->flags_int.control_rem != 0xFFFF) {
+			/* handle the request */
+			err = usb2_handle_request(xfer);
+		}
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* should not happen - try stalling */
 			goto tr_restart;
@@ -107,6 +101,10 @@ usb2_handle_request_callback(struct usb_xfer *xfer)
 	return;
 
 tr_restart:
+	/*
+	 * If a control transfer is active, stall it, and wait for the
+	 * next control transfer.
+	 */
 	xfer->frlengths[0] = sizeof(struct usb_device_request);
 	xfer->nframes = 1;
 	xfer->flags.manual_status = 1;
@@ -215,7 +213,7 @@ tr_repeat:
 #endif
 		error = USB_HANDLE_REQUEST(iface->subdev,
 		    &req, ppdata, plen,
-		    off, (state == ST_POST_STATUS));
+		    off, state);
 	}
 	iface_parent = usb2_get_iface(udev, iface->parent_iface_index);
 
@@ -235,7 +233,7 @@ tr_repeat:
 	    device_is_attached(iface_parent->subdev)) {
 		error = USB_HANDLE_REQUEST(iface_parent->subdev,
 		    &req, ppdata, plen, off,
-		    (state == ST_POST_STATUS));
+		    state);
 	}
 	if (error == 0) {
 		/* negativly adjust pointer and length */
@@ -249,7 +247,7 @@ tr_repeat:
 		iface_index++;		/* iterate */
 		goto tr_repeat;
 	}
-	if (state == ST_POST_STATUS) {
+	if (state != USB_HR_NOT_COMPLETE) {
 		/* we are complete */
 		goto tr_valid;
 	}
@@ -407,7 +405,7 @@ usb2_handle_remote_wakeup(struct usb_xfer *xfer, uint8_t is_on)
  *
  * Internal state sequence:
  *
- * ST_DATA -> ST_POST_STATUS
+ * USB_HR_NOT_COMPLETE -> USB_HR_COMPLETE_OK v USB_HR_COMPLETE_ERR
  *
  * Returns:
  * 0: Ready to start hardware
@@ -439,20 +437,22 @@ usb2_handle_request(struct usb_xfer *xfer)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
-		state = ST_DATA;
+		state = USB_HR_NOT_COMPLETE;
 
 		if (!xfer->flags_int.control_act) {
 			/* nothing to do */
 			goto tr_stalled;
 		}
 		break;
-
-	default:			/* USB_ST_TRANSFERRED */
+	case USB_ST_TRANSFERRED:
 		if (!xfer->flags_int.control_act) {
-			state = ST_POST_STATUS;
+			state = USB_HR_COMPLETE_OK;
 		} else {
-			state = ST_DATA;
+			state = USB_HR_NOT_COMPLETE;
 		}
+		break;
+	default:
+		state = USB_HR_COMPLETE_ERR;
 		break;
 	}
 
@@ -497,7 +497,7 @@ usb2_handle_request(struct usb_xfer *xfer)
 
 	switch (req.bmRequestType) {
 	case UT_READ_DEVICE:
-		if (state != ST_DATA) {
+		if (state != USB_HR_NOT_COMPLETE) {
 			break;
 		}
 		switch (req.bRequest) {
@@ -627,7 +627,7 @@ tr_handle_get_status:
 	goto tr_valid;
 
 tr_handle_set_address:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		if (wValue >= 0x80) {
 			/* invalid value */
 			goto tr_stalled;
@@ -635,14 +635,14 @@ tr_handle_set_address:
 			/* we are configured ! */
 			goto tr_stalled;
 		}
-	} else if (state == ST_POST_STATUS) {
+	} else if (state != USB_HR_NOT_COMPLETE) {
 		udev->address = (wValue & 0x7F);
 		goto tr_bad_context;
 	}
 	goto tr_valid;
 
 tr_handle_set_config:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		if (usb2_handle_set_config(xfer, req.wValue[0])) {
 			goto tr_stalled;
 		}
@@ -650,7 +650,7 @@ tr_handle_set_config:
 	goto tr_valid;
 
 tr_handle_clear_halt:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		if (usb2_handle_set_stall(xfer, req.wIndex[0], 0)) {
 			goto tr_stalled;
 		}
@@ -658,7 +658,7 @@ tr_handle_clear_halt:
 	goto tr_valid;
 
 tr_handle_clear_wakeup:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		if (usb2_handle_remote_wakeup(xfer, 0)) {
 			goto tr_stalled;
 		}
@@ -666,7 +666,7 @@ tr_handle_clear_wakeup:
 	goto tr_valid;
 
 tr_handle_set_halt:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		if (usb2_handle_set_stall(xfer, req.wIndex[0], 1)) {
 			goto tr_stalled;
 		}
@@ -674,7 +674,7 @@ tr_handle_set_halt:
 	goto tr_valid;
 
 tr_handle_set_wakeup:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		if (usb2_handle_remote_wakeup(xfer, 1)) {
 			goto tr_stalled;
 		}
@@ -682,7 +682,7 @@ tr_handle_set_wakeup:
 	goto tr_valid;
 
 tr_handle_get_ep_status:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		temp.wStatus[0] =
 		    usb2_handle_get_stall(udev, req.wIndex[0]);
 		temp.wStatus[1] = 0;
@@ -692,7 +692,7 @@ tr_handle_get_ep_status:
 	goto tr_valid;
 
 tr_valid:
-	if (state == ST_POST_STATUS) {
+	if (state != USB_HR_NOT_COMPLETE) {
 		goto tr_stalled;
 	}
 	/* subtract offset from length */
@@ -748,7 +748,7 @@ tr_valid:
 	return (0);			/* success */
 
 tr_stalled:
-	DPRINTF("%s\n", (state == ST_POST_STATUS) ?
+	DPRINTF("%s\n", (state != USB_HR_NOT_COMPLETE) ?
 	    "complete" : "stalled");
 	return (USB_ERR_STALLED);
 
