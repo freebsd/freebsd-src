@@ -573,17 +573,17 @@ get_time_func(struct timeval *time)
 }
 
 /*
- * The idea of _nss_cache_cycle_prevention_function is that nsdispatch will
- * search for this symbol in the executable. This symbol is the attribute of
- * the caching daemon. So, if it exists, nsdispatch won't try to connect to
- * the caching daemon and will just ignore the 'cache' source in the
- * nsswitch.conf. This method helps to avoid cycles and organize
- * self-performing requests.
+ * The idea of _nss_cache_cycle_prevention_function is that nsdispatch
+ * will search for this symbol in the executable. This symbol is the
+ * attribute of the caching daemon. So, if it exists, nsdispatch won't try
+ * to connect to the caching daemon and will just ignore the 'cache'
+ * source in the nsswitch.conf. This method helps to avoid cycles and
+ * organize self-performing requests.
+ *
+ * (not actually a function; it used to be, but it doesn't make any
+ * difference, as long as it has external linkage)
  */
-void
-_nss_cache_cycle_prevention_function(void)
-{
-}
+void *_nss_cache_cycle_prevention_function;
 
 int
 main(int argc, char *argv[])
