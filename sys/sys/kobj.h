@@ -91,13 +91,11 @@ struct kobjop_desc {
 
 /*
  * Shorthand for constructing method tables.
+ * The ternary operator is (ab)used to provoke a warning when FUNC
+ * has a signature that is not compatible with kobj method signature.
  */
-#if 1
-#define KOBJMETHOD(NAME, FUNC) { &NAME##_desc, (kobjop_t) FUNC }
-#else /* notyet */
 #define KOBJMETHOD(NAME, FUNC) \
 	{ &NAME##_desc, (kobjop_t) (1 ? FUNC : (NAME##_t *)NULL) }
-#endif
 
 /*
  *
