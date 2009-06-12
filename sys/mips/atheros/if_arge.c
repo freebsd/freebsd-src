@@ -106,7 +106,7 @@ static int arge_tx_ring_init(struct arge_softc *);
 #ifdef DEVICE_POLLING
 static void arge_poll(struct ifnet *, enum poll_cmd, int);
 #endif
-static void arge_shutdown(device_t);
+static int arge_shutdown(device_t);
 static void arge_start(struct ifnet *);
 static void arge_start_locked(struct ifnet *);
 static void arge_stop(struct arge_softc *);
@@ -459,7 +459,7 @@ arge_resume(device_t dev)
 	return 0;
 }
 
-static void
+static int
 arge_shutdown(device_t dev)
 {
 	struct arge_softc	*sc;
@@ -469,6 +469,8 @@ arge_shutdown(device_t dev)
 	ARGE_LOCK(sc);
 	arge_stop(sc);
 	ARGE_UNLOCK(sc);
+
+	return (0);
 }
 
 static int
