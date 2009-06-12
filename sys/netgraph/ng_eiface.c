@@ -387,12 +387,10 @@ ng_eiface_constructor(node_p node)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 
-#if 0
-	/* Give this node name */
-	bzero(ifname, sizeof(ifname));
-	sprintf(ifname, "if%s", ifp->if_xname);
-	(void)ng_name_node(node, ifname);
-#endif
+	/* Give this node the same name as the interface (if possible) */
+	if (ng_name_node(node, ifp->if_xname) != 0)
+		log(LOG_WARNING, "%s: can't acquire netgraph name\n",
+		    ifp->if_xname);
 
 	/* Attach the interface */
 	ether_ifattach(ifp, eaddr);
