@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+#include <arm/mv/mvwin.h>
 
 /*
  * Virtual address space layout:
