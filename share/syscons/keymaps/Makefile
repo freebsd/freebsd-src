@@ -9,7 +9,8 @@ FILES=	INDEX.keymaps \
 	colemak.iso15.acc.kbd \
 	cs.latin2.qwertz.kbd \
 	cz.iso2.kbd \
-	danish.iso.kbd danish.cp865.kbd dutch.iso.acc.kbd \
+	danish.iso.kbd danish.iso.acc.kbd danish.cp865.kbd \
+	dutch.iso.acc.kbd \
 	el.iso07.kbd \
 	estonian.iso.kbd estonian.iso15.kbd estonian.cp850.kbd \
 	finnish.iso.kbd finnish.cp850.kbd \
@@ -29,7 +30,7 @@ FILES=	INDEX.keymaps \
 	latinamerican.kbd latinamerican.iso.acc.kbd \
 	lt.iso4.kbd \
 	norwegian.iso.kbd norwegian.dvorak.kbd \
-	pl_PL.ISO8859-2.kbd  \
+	pl_PL.ISO8859-2.kbd pl_PL.dvorak.kbd \
 	pt.iso.kbd pt.iso.acc.kbd \
 	ru.koi8-r.kbd ru.koi8-r.shift.kbd ru.koi8-r.win.kbd \
 	ru.cp866.kbd ru.iso5.kbd \
@@ -42,6 +43,7 @@ FILES=	INDEX.keymaps \
 	tr.iso9.q.kbd \
 	ua.koi8-u.kbd ua.koi8-u.shift.alt.kbd ua.iso5.kbd \
 	uk.iso.kbd uk.iso-ctrl.kbd uk.cp850.kbd uk.cp850-ctrl.kbd \
+	uk.dvorak.kbd \
 	us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd \
 	us.unix.kbd us.iso.acc.kbd
 
