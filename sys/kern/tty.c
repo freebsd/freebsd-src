@@ -322,14 +322,14 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	 * console.
 	 */
 	MPASS((tp->t_flags & TF_OPENED) != TF_OPENED);
-	if (dev == dev_console) {
+	if (dev == dev_console)
 		tp->t_flags &= ~TF_OPENED_CONS;
-		if (tp->t_flags & TF_OPENED) {
-			tty_unlock(tp);
-			return (0);
-		}
-	} else {
-		tp->t_flags &= ~TF_OPENED;
+	else
+		tp->t_flags &= ~(TF_OPENED_IN|TF_OPENED_OUT);
+
+	if (tp->t_flags & TF_OPENED) {
+		tty_unlock(tp);
+		return (0);
 	}
 
 	/*
