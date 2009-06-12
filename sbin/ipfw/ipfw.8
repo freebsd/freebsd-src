@@ -1973,22 +1973,26 @@ that represents its distribution.
 The empirical curve may have both vertical and horizontal lines.
 Vertical lines represent constant delay for a range of
 probabilities.
-Horizontal lines correspond to a discontinuty in the delay
+Horizontal lines correspond to a discontinuity in the delay
 distribution: the pipe will use the largest delay for a
 given probability.
 .Pp
 The file format is the following, with whitespace acting as
 a separator and '#' indicating the beginning a comment:
 .Bl -tag -width indent
+.It Cm name Ar identifier
+optional name (listed by "ipfw pipe show")
+to identify the delay distribution;
+.It Cm bw Ar value
+the bandwidth used for the pipe.
+If not specified here, it must be present
+explicitly as a configuration parameter for the pipe;
+.It Cm loss-level Ar L
+the probability above which packets are lost.
+(0.0 <= L <= 1.0, default 1.0 i.e. no loss);
 .It Cm samples Ar N
 the number of samples used in the internal
-representation (2..1024; default 100);
-.It Cm loss-level Ar L
-The probability above which packets are lost.
-(0.0 <= L <= 1.0, default 1.0 i.e. no loss);
-.It Cm name Ar identifier
-Optional a name (listed by "ipfw pipe show")
-to identify the distribution;
+representation of the curve (2..1024; default 100);
 .It Cm "delay prob" | "prob delay"
 One of these two lines is mandatory and defines
 the format of the following lines with data points.
@@ -1997,9 +2001,9 @@ the format of the following lines with data points.
 with either delay or probability first, according
 to the chosen format.
 The unit for delay is milliseconds.
-Data points do not need to be ordered or equal to the number
-specified in the "samples" line.
-The
+Data points do not need to be sorted.
+Also, tne number of actual lines can be different
+from the value of the "samples" parameter:
 .Nm
 utility will sort and interpolate
 the curve as needed.

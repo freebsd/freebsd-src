@@ -35,8 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/dirent.h>
@@ -121,7 +119,7 @@ static struct proc *svr4_pfind(pid_t pid);
 #if defined(BOGUS)
 int
 svr4_sys_setitimer(td, uap)
-        register struct thread *td;
+        struct thread *td;
 	struct svr4_sys_setitimer_args *uap;
 {
         td->td_retval[0] = 0;
@@ -231,7 +229,7 @@ svr4_sys_getdents64(td, uap)
 	struct thread *td;
 	struct svr4_sys_getdents64_args *uap;
 {
-	register struct dirent *bdp;
+	struct dirent *bdp;
 	struct vnode *vp;
 	caddr_t inp, buf;		/* BSD-format */
 	int len, reclen;		/* BSD-format */
@@ -370,7 +368,7 @@ again:
 			svr4_dirent.d_off = (svr4_off_t)(off + reclen);
 			svr4_dirent.d_reclen = (u_short) svr4reclen;
 		}
-		strcpy(svr4_dirent.d_name, bdp->d_name);
+		strlcpy(svr4_dirent.d_name, bdp->d_name, sizeof(svr4_dirent.d_name));
 		if ((error = copyout((caddr_t)&svr4_dirent, outp, svr4reclen)))
 			goto out;
 		inp += reclen;
@@ -487,7 +485,10 @@ again:
 		reclen = bdp->d_reclen;
 		if (reclen & 3)
 			panic("svr4_sys_getdents64: bad reclen");
-		off = *cookie++;	/* each entry points to the next */
+		if (cookie)
+			off = *cookie++; /* each entry points to the next */
+		else
+			off += reclen;
 		if ((off >> 32) != 0) {
 			uprintf("svr4_sys_getdents64: dir offset too large for emulated program");
 			error = EINVAL;
@@ -511,7 +512,7 @@ again:
 		idb.d_ino = (svr4_ino_t)bdp->d_fileno;
 		idb.d_off = (svr4_off_t)off;
 		idb.d_reclen = (u_short)svr4_reclen;
-		strcpy(idb.d_name, bdp->d_name);
+		strlcpy(idb.d_name, bdp->d_name, sizeof(idb.d_name));
 		if ((error = copyout((caddr_t)&idb, outp, svr4_reclen)))
 			goto out;
 		/* advance past this real entry */
@@ -665,7 +666,7 @@ svr4_mknod(td, retval, path, mode, dev)
 
 int
 svr4_sys_mknod(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_mknod_args *uap;
 {
         int *retval = td->td_retval;
@@ -706,9 +707,6 @@ svr4_sys_sysconfig(td, uap)
 	retval = &(td->td_retval[0]);
 
 	switch (uap->name) {
-	case SVR4_CONFIG_UNUSED:
-		*retval = 0;
-		break;
 	case SVR4_CONFIG_NGROUPS:
 		*retval = NGROUPS_MAX;
 		break;
@@ -788,7 +786,45 @@ svr4_sys_sysconfig(td, uap)
 #endif
 		break;
 #endif /* NOTYET */
-
+	case SVR4_CONFIG_COHERENCY:
+		*retval = 0;	/* XXX */
+		break;
+	case SVR4_CONFIG_SPLIT_CACHE:
+		*retval = 0;	/* XXX */
+		break;
+	case SVR4_CONFIG_ICACHESZ:
+		*retval = 256;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHESZ:
+		*retval = 256;	/* XXX */
+		break;
+	case SVR4_CONFIG_ICACHELINESZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHELINESZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_ICACHEBLKSZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHEBLKSZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHETBLKSZ:
+		*retval = 64;	/* XXX */
+		break;
+	case SVR4_CONFIG_ICACHE_ASSOC:
+		*retval = 1;	/* XXX */
+		break;
+	case SVR4_CONFIG_DCACHE_ASSOC:
+		*retval = 1;	/* XXX */
+		break;
+	case SVR4_CONFIG_MAXPID:
+		*retval = PID_MAX;
+		break;
+	case SVR4_CONFIG_STACK_PROT:
+		*retval = PROT_READ|PROT_WRITE|PROT_EXEC;
+		break;
 	default:
 		return EINVAL;
 	}

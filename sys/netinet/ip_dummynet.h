@@ -113,6 +113,8 @@ struct dn_heap {
  */
 struct dn_pkt_tag {
     struct ip_fw *rule;		/* matching rule */
+    uint32_t rule_id;		/* matching rule id */
+    uint32_t chain_id;		/* ruleset id */
     int dn_dir;			/* action when packet comes out. */
 #define DN_TO_IP_OUT	1
 #define DN_TO_IP_IN	2
@@ -214,8 +216,8 @@ struct dn_flow_queue {
      * With large bandwidth and large delays, extra_bits (and also numbytes)
      * can become very large, so better play safe and use 64 bit
      */
-    dn_key numbytes ;		/* credit for transmission (dynamic queues) */
-    dn_key extra_bits;		/* extra bits simulating unavailable channel */
+    uint64_t numbytes ;		/* credit for transmission (dynamic queues) */
+    int64_t extra_bits;		/* extra bits simulating unavailable channel */
 
     u_int64_t tot_pkts ;	/* statistics counters	*/
     u_int64_t tot_bytes ;
@@ -338,7 +340,7 @@ struct dn_pipe {		/* a pipe */
     int sum;			/* sum of weights of all active sessions */
 
     /* Same as in dn_flow_queue, numbytes can become large */
-    dn_key numbytes;		/* bits I can transmit (more or less). */
+    int64_t numbytes;		/* bits I can transmit (more or less). */
 
     dn_key sched_time ;		/* time pipe was scheduled in ready_heap */
 
@@ -373,25 +375,18 @@ struct dn_pipe_max {
 SLIST_HEAD(dn_pipe_head, dn_pipe);
 
 #ifdef _KERNEL
-typedef	int ip_dn_ctl_t(struct sockopt *); /* raw_ip.c */
-typedef	void ip_dn_ruledel_t(void *); /* ip_fw.c */
-typedef	int ip_dn_io_t(struct mbuf **m, int dir, struct ip_fw_args *fwa);
-extern	ip_dn_ctl_t *ip_dn_ctl_ptr;
-extern	ip_dn_ruledel_t *ip_dn_ruledel_ptr;
-extern	ip_dn_io_t *ip_dn_io_ptr;
-#define	DUMMYNET_LOADED	(ip_dn_io_ptr != NULL)
 
 /*
- * Return the IPFW rule associated with the dummynet tag; if any.
+ * Return the dummynet tag; if any.
  * Make sure that the dummynet tag is not reused by lower layers.
  */
-static __inline struct ip_fw *
-ip_dn_claim_rule(struct mbuf *m)
+static __inline struct dn_pkt_tag *
+ip_dn_claim_tag(struct mbuf *m)
 {
 	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DUMMYNET, NULL);
 	if (mtag != NULL) {
 		mtag->m_tag_id = PACKET_TAG_NONE;
-		return (((struct dn_pkt_tag *)(mtag+1))->rule);
+		return ((struct dn_pkt_tag *)(mtag + 1));
 	} else
 		return (NULL);
 }

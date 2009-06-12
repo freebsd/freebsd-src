@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
 #include <fcntl.h>
@@ -51,7 +52,7 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-j jid]\n");
+	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-j jail]\n");
 	fprintf(stderr,
 	    "               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
@@ -100,6 +101,7 @@ nosig(char *name)
 int
 main(int ac, char **av)
 {
+	struct iovec	jparams[2];
 	struct kinfo_proc *procs = NULL, *newprocs;
 	struct stat	sb;
 	struct passwd	*pw;
@@ -159,12 +161,21 @@ main(int ac, char **av)
 				}
 				jflag++;
 				if (*av == NULL)
-				    	errx(1, "must specify jid");
-				jid = strtol(*av, &ep, 10);
-				if (!*av || *ep)
-					errx(1, "illegal jid: %s", *av);
+				    	errx(1, "must specify jail");
+				jid = strtoul(*av, &ep, 10);
+				if (!**av || *ep) {
+					*(const void **)&jparams[0].iov_base =
+					    "name";
+					jparams[0].iov_len = sizeof("name");
+					jparams[1].iov_base = *av;
+					jparams[1].iov_len = strlen(*av) + 1;
+					jid = jail_get(jparams, 2, 0);
+					if (jid < 0)
+						errx(1, "unknown jail: %s",
+						    *av);
+				}
 				if (jail_attach(jid) == -1)
-					err(1, "jail_attach(): %d", jid);
+					err(1, "jail_attach(%d)", jid);
 				break;
 			case 'u':
 				++*av;

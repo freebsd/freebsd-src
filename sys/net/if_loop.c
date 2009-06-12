@@ -38,8 +38,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
-#include "opt_route.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -106,6 +104,9 @@ int		looutput(struct ifnet *ifp, struct mbuf *m,
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
 static void	lo_clone_destroy(struct ifnet *);
 static int	vnet_loif_iattach(const void *);
+#ifdef VIMAGE
+static int	vnet_loif_idetach(const void *);
+#endif
 
 #ifdef VIMAGE_GLOBALS
 struct ifnet *loif;			/* Used externally */
@@ -120,7 +121,10 @@ static const vnet_modinfo_t vnet_loif_modinfo = {
 	.vmi_id		= VNET_MOD_LOIF,
 	.vmi_dependson	= VNET_MOD_IF_CLONE,
 	.vmi_name	= "loif",
-	.vmi_iattach	= vnet_loif_iattach
+	.vmi_iattach	= vnet_loif_iattach,
+#ifdef VIMAGE
+	.vmi_idetach	= vnet_loif_idetach
+#endif
 };
 #endif /* !VIMAGE_GLOBALS */
 
@@ -129,12 +133,11 @@ IFC_SIMPLE_DECLARE(lo, 1);
 static void
 lo_clone_destroy(struct ifnet *ifp)
 {
-#ifdef INVARIANTS
-	INIT_VNET_NET(ifp->if_vnet);
-#endif
 
+#ifndef VIMAGE
 	/* XXX: destroying lo0 will lead to panics. */
 	KASSERT(V_loif != ifp, ("%s: destroying lo0", __func__));
+#endif
 
 	bpfdetach(ifp);
 	if_detach(ifp);
@@ -167,7 +170,8 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	return (0);
 }
 
-static int vnet_loif_iattach(const void *unused __unused)
+static int
+vnet_loif_iattach(const void *unused __unused)
 {
 	INIT_VNET_NET(curvnet);
 
@@ -176,13 +180,32 @@ static int vnet_loif_iattach(const void *unused __unused)
 #ifdef VIMAGE
 	V_lo_cloner = malloc(sizeof(*V_lo_cloner), M_LO_CLONER,
 	    M_WAITOK | M_ZERO);
+	V_lo_cloner_data = malloc(sizeof(*V_lo_cloner_data), M_LO_CLONER,
+	    M_WAITOK | M_ZERO);
 	bcopy(&lo_cloner, V_lo_cloner, sizeof(*V_lo_cloner));
+	bcopy(lo_cloner.ifc_data, V_lo_cloner_data, sizeof(*V_lo_cloner_data));
+	V_lo_cloner->ifc_data = V_lo_cloner_data;
 	if_clone_attach(V_lo_cloner);
 #else
 	if_clone_attach(&lo_cloner);
 #endif
 	return (0);
 }
+
+#ifdef VIMAGE
+static int
+vnet_loif_idetach(const void *unused __unused)
+{
+	INIT_VNET_NET(curvnet);
+
+	if_clone_detach(V_lo_cloner);
+	free(V_lo_cloner, M_LO_CLONER);
+	free(V_lo_cloner_data, M_LO_CLONER);
+	V_loif = NULL;
+
+	return (0);
+}
+#endif
 
 static int
 loop_modevent(module_t mod, int type, void *data)

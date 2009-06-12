@@ -46,6 +46,7 @@ mctest		A multicast test program
 mfc		Merge a directory from HEAD to a branch where it does not
 		already exist and other MFC related script(s).
 mid	 	Create a Message-ID database for mailing lists.
+mwl		Tools specific to the Marvell 88W8363 support
 ncpus		Count the number of processors
 npe		Tools specific to the Intel IXP4XXX NPE device
 nxge		A diagnostic tool for the nxge(4) driver
@@ -60,6 +61,8 @@ sysdoc		Build a manual page with available sysctls for a specific
 		kernel configuration.
 tinybsd		Script to build FreeBSD embedded systems.
 track		Track the progress of a world / kernel build
+vimage		An interim utility for managing the virtualized network
+		stack infrastructure.
 vop_table	Generates a HTML document that shows all the VOP's in
 		the kernel.
 whereintheworld	Summarizes "make world" output.

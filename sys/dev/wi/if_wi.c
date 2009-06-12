@@ -571,12 +571,13 @@ wi_vap_delete(struct ieee80211vap *vap)
 	free(wvp, M_80211_VAP);
 }
 
-void
+int
 wi_shutdown(device_t dev)
 {
 	struct wi_softc *sc = device_get_softc(dev);
 
 	wi_stop(sc, 1);
+	return (0);
 }
 
 void

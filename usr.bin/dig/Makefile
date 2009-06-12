@@ -15,6 +15,11 @@ SRCS+=		dig.c dighost.c
 CFLAGS+=	-I${SRCDIR}/include
 CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 
+.if ${MK_BIND_IDN} == "yes"
+CFLAGS+=	-DWITH_IDN -I/usr/local/include
+CFLAGS+=	-L/usr/local/lib -lidnkit -R/usr/local/lib -liconv
+.endif
+
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 

@@ -68,8 +68,8 @@ struct sctp_event_subscribe {
  * ancillary data structures
  */
 struct sctp_initmsg {
-	uint32_t sinit_num_ostreams;
-	uint32_t sinit_max_instreams;
+	uint16_t sinit_num_ostreams;
+	uint16_t sinit_max_instreams;
 	uint16_t sinit_max_attempts;
 	uint16_t sinit_max_init_timeo;
 };

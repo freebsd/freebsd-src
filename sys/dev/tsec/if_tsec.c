@@ -97,7 +97,7 @@ static int	tsec_sysctl_ic_time(SYSCTL_HANDLER_ARGS);
 static int	tsec_sysctl_ic_count(SYSCTL_HANDLER_ARGS);
 static void	tsec_set_rxic(struct tsec_softc *sc);
 static void	tsec_set_txic(struct tsec_softc *sc);
-static void	tsec_receive_intr_locked(struct tsec_softc *sc, int count);
+static int	tsec_receive_intr_locked(struct tsec_softc *sc, int count);
 static void	tsec_transmit_intr_locked(struct tsec_softc *sc);
 static void	tsec_error_intr_locked(struct tsec_softc *sc, int count);
 static void	tsec_offload_setup(struct tsec_softc *sc);
@@ -857,16 +857,19 @@ tsec_setfilter(struct tsec_softc *sc)
 #ifdef DEVICE_POLLING
 static poll_handler_t tsec_poll;
 
-static void
+static int
 tsec_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	uint32_t ie;
 	struct tsec_softc *sc = ifp->if_softc;
+	int rx_npkts;
+
+	rx_npkts = 0;
 
 	TSEC_GLOBAL_LOCK(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		TSEC_GLOBAL_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -881,9 +884,11 @@ tsec_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	TSEC_GLOBAL_TO_RECEIVE_LOCK(sc);
 
-	tsec_receive_intr_locked(sc, count);
+	rx_npkts = tsec_receive_intr_locked(sc, count);
 
 	TSEC_RECEIVE_UNLOCK(sc);
+
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1248,7 +1253,7 @@ tsec_tick(void *arg)
  *
  *  Loops at most count times if count is > 0, or until done if count < 0.
  */
-static void
+static int
 tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 {
 	struct tsec_desc *rx_desc;
@@ -1257,7 +1262,7 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 	struct mbuf *m;
 	device_t dev;
 	uint32_t i;
-	int c;
+	int c, rx_npkts;
 	uint16_t flags;
 
 	TSEC_RECEIVE_LOCK_ASSERT(sc);
@@ -1265,6 +1270,7 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 	ifp = sc->tsec_ifp;
 	rx_data = sc->rx_data;
 	dev = sc->dev;
+	rx_npkts = 0;
 
 	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -1358,6 +1364,7 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 			TSEC_RECEIVE_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
 			TSEC_RECEIVE_LOCK(sc);
+			rx_npkts++;
 		}
 	}
 
@@ -1373,6 +1380,7 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 	 * halted, and is harmless if already running.
 	 */
 	TSEC_WRITE(sc, TSEC_REG_RSTAT, TSEC_RSTAT_QHLT);
+	return (rx_npkts);
 }
 
 void

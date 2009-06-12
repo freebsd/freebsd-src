@@ -81,6 +81,7 @@ struct ieee80211_ies {
 	uint8_t	*htcap_ie;	/* captured HTCAP ie */
 	uint8_t	*htinfo_ie;	/* captured HTINFO ie */
 	uint8_t	*tdma_ie;	/* captured TDMA ie */
+	uint8_t	*spare[4];
 	/* NB: these must be the last members of this structure */
 	uint8_t	*data;		/* frame data > 802.11 header */
 	int	len;		/* data size in bytes */
@@ -119,6 +120,8 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_SGI20	0x008000	/* Short GI in HT20 enabled */
 #define	IEEE80211_NODE_SGI40	0x010000	/* Short GI in HT40 enabled */
 #define	IEEE80211_NODE_ASSOCID	0x020000	/* xmit requires associd */
+#define	IEEE80211_NODE_AMSDU_RX	0x040000	/* AMSDU rx enabled */
+#define	IEEE80211_NODE_AMSDU_TX	0x080000	/* AMSDU tx enabled */
 	uint16_t		ni_associd;	/* association ID */
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint16_t		ni_txpower;	/* current transmit power */
@@ -192,6 +195,7 @@ struct ieee80211_node {
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
 	/* XXX move to vap? */
 	struct ifqueue		ni_wdsq;	/* wds pending queue */
+	uint64_t		ni_spare[4];
 };
 MALLOC_DECLARE(M_80211_NODE);
 MALLOC_DECLARE(M_80211_NODE_IE);
@@ -199,11 +203,13 @@ MALLOC_DECLARE(M_80211_NODE_IE);
 #define	IEEE80211_NODE_ATH	(IEEE80211_NODE_FF | IEEE80211_NODE_TURBOP)
 #define	IEEE80211_NODE_AMPDU \
 	(IEEE80211_NODE_AMPDU_RX | IEEE80211_NODE_AMPDU_TX)
+#define	IEEE80211_NODE_AMSDU \
+	(IEEE80211_NODE_AMSDU_RX | IEEE80211_NODE_AMSDU_TX)
 #define	IEEE80211_NODE_HT_ALL \
 	(IEEE80211_NODE_HT | IEEE80211_NODE_HTCOMPAT | \
-	 IEEE80211_NODE_AMPDU | IEEE80211_NODE_MIMO_PS | \
-	 IEEE80211_NODE_MIMO_RTS | IEEE80211_NODE_RIFS | \
-	 IEEE80211_NODE_SGI20 | IEEE80211_NODE_SGI40)
+	 IEEE80211_NODE_AMPDU | IEEE80211_NODE_AMSDU | \
+	 IEEE80211_NODE_MIMO_PS | IEEE80211_NODE_MIMO_RTS | \
+	 IEEE80211_NODE_RIFS | IEEE80211_NODE_SGI20 | IEEE80211_NODE_SGI40)
 
 #define	IEEE80211_NODE_BITS \
 	"\20\1AUTH\2QOS\3ERP\5PWR_MGT\6AREF\7HT\10HTCOMPAT\11WPS\12TSN" \
@@ -280,6 +286,7 @@ ieee80211_node_is_authorized(const struct ieee80211_node *ni)
 void	ieee80211_node_authorize(struct ieee80211_node *);
 void	ieee80211_node_unauthorize(struct ieee80211_node *);
 
+void	ieee80211_node_setuptxparms(struct ieee80211_node *);
 void	ieee80211_node_set_chan(struct ieee80211_node *,
 		struct ieee80211_channel *);
 void	ieee80211_create_ibss(struct ieee80211vap*, struct ieee80211_channel *);

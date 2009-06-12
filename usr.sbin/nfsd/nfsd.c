@@ -117,7 +117,7 @@ void	usage(void);
  *	-d - unregister with rpcbind
  *	-t - support tcp nfs clients
  *	-u - support udp nfs clients
- *	-4 - forces it to run a server that supports nfsv4
+ *	-e - forces it to run a server that supports nfsv4
  * followed by "n" which is the number of nfsds' to fork off
  */
 int
@@ -144,8 +144,8 @@ main(int argc, char **argv)
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-#define	GETOPT	"ah:n:rdtu4"
-#define	USAGE	"[-ardtu4] [-n num_servers] [-h bindip]"
+#define	GETOPT	"ah:n:rdtue"
+#define	USAGE	"[-ardtue] [-n num_servers] [-h bindip]"
 	while ((ch = getopt(argc, argv, GETOPT)) != -1)
 		switch (ch) {
 		case 'a':
@@ -180,7 +180,7 @@ main(int argc, char **argv)
 		case 'u':
 			udpflag = 1;
 			break;
-		case '4':
+		case 'e':
 			run_v4server = 1;
 			break;
 		default:
@@ -208,7 +208,7 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * If the "-4" option was specified OR only the nfsd module is
+	 * If the "-e" option was specified OR only the nfsd module is
 	 * found in the server, run "nfsd".
 	 * Otherwise, try and run "nfsserver".
 	 */

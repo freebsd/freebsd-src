@@ -35,6 +35,10 @@
  * ordering.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
@@ -123,10 +127,10 @@ struct via_info {
 };
 
 static uint32_t via_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 
@@ -150,7 +154,6 @@ via_chan_active(struct via_info *via)
 	return (ret);
 }
 
-#ifdef SND_DYNSYSCTL
 static int
 sysctl_via8233_spdif_enable(SYSCTL_HANDLER_ARGS)
 {
@@ -243,12 +246,10 @@ sysctl_via_polling(SYSCTL_HANDLER_ARGS)
 
 	return (err);
 }
-#endif /* SND_DYNSYSCTL */
 
 static void
 via_init_sysctls(device_t dev)
 {
-#ifdef SND_DYNSYSCTL
 	/* XXX: an user should be able to set this with a control tool,
 	   if not done before 7.0-RELEASE, this needs to be converted to
 	   a device specific sysctl "dev.pcm.X.yyy" via device_get_sysctl_*()
@@ -268,7 +269,6 @@ via_init_sysctls(device_t dev)
 	    "polling", CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
 	    sysctl_via_polling, "I",
 	    "Enable polling mode");
-#endif
 }
 
 static __inline uint32_t
@@ -374,7 +374,7 @@ via_read_codec(kobj_t obj, void *addr, int reg)
 static kobj_method_t via_ac97_methods[] = {
 	KOBJMETHOD(ac97_read,		via_read_codec),
 	KOBJMETHOD(ac97_write,		via_write_codec),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(via_ac97);
 
@@ -408,7 +408,7 @@ via8233wr_setformat(kobj_t obj, void *data, uint32_t format)
 
 	uint32_t f = WR_FORMAT_STOP_INDEX;
 
-	if (format & AFMT_STEREO)
+	if (AFMT_CHANNEL(format) > 1)
 		f |= WR_FORMAT_STEREO;
 	if (format & AFMT_S16_LE)
 		f |= WR_FORMAT_16BIT;
@@ -431,7 +431,7 @@ via8233dxs_setformat(kobj_t obj, void *data, uint32_t format)
 	v = via_rd(via, r, 4);
 
 	v &= ~(VIA8233_DXS_RATEFMT_STEREO | VIA8233_DXS_RATEFMT_16BIT);
-	if (format & AFMT_STEREO)
+	if (AFMT_CHANNEL(format) > 1)
 		v |= VIA8233_DXS_RATEFMT_STEREO;
 	if (format & AFMT_16BIT)
 		v |= VIA8233_DXS_RATEFMT_16BIT;
@@ -450,7 +450,7 @@ via8233msgd_setformat(kobj_t obj, void *data, uint32_t format)
 	uint32_t s = 0xff000000;
 	uint8_t  v = (format & AFMT_S16_LE) ? MC_SGD_16BIT : MC_SGD_8BIT;
 
-	if (format & AFMT_STEREO) {
+	if (AFMT_CHANNEL(format) > 1) {
 		v |= MC_SGD_CHANNELS(2);
 		s |= SLOT3(1) | SLOT4(2);
 	} else {
@@ -469,7 +469,7 @@ via8233msgd_setformat(kobj_t obj, void *data, uint32_t format)
 /* -------------------------------------------------------------------- */
 /* Speed setting functions */
 
-static int
+static uint32_t
 via8233wr_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct via_chinfo *ch = data;
@@ -481,7 +481,7 @@ via8233wr_setspeed(kobj_t obj, void *data, uint32_t speed)
 	return (48000);
 }
 
-static int
+static uint32_t
 via8233dxs_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct via_chinfo *ch = data;
@@ -501,7 +501,7 @@ via8233dxs_setspeed(kobj_t obj, void *data, uint32_t speed)
 	return (speed);
 }
 
-static int
+static uint32_t
 via8233msgd_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct via_chinfo *ch = data;
@@ -596,10 +596,10 @@ via8233chan_setfragments(kobj_t obj, void *data,
 	ch->blksz = sndbuf_getblksz(ch->buffer);
 	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
 
-	return (1);
+	return (0);
 }
 
-static int
+static uint32_t
 via8233chan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
 	struct via_chinfo *ch = data;
@@ -610,13 +610,12 @@ via8233chan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 	return (ch->blksz);
 }
 
-static int
+static uint32_t
 via8233chan_getptr(kobj_t obj, void *data)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
-	uint32_t v, index, count;
-	int ptr;
+	uint32_t v, index, count, ptr;
 
 	snd_mtxlock(via->lock);
 	if (via->polling != 0) {
@@ -852,7 +851,7 @@ via_poll_ticks(struct via_info *via)
 		if (ch->channel == NULL || ch->active == 0)
 			continue;
 		pollticks = ((uint64_t)hz * ch->blksz) /
-		    ((uint64_t)sndbuf_getbps(ch->buffer) *
+		    ((uint64_t)sndbuf_getalign(ch->buffer) *
 		    sndbuf_getspd(ch->buffer));
 		pollticks >>= 2;
 		if (pollticks > hz)
@@ -868,7 +867,7 @@ via_poll_ticks(struct via_info *via)
 		if (ch->channel == NULL || ch->active == 0)
 			continue;
 		pollticks = ((uint64_t)hz * ch->blksz) /
-		    ((uint64_t)sndbuf_getbps(ch->buffer) *
+		    ((uint64_t)sndbuf_getalign(ch->buffer) *
 		    sndbuf_getspd(ch->buffer));
 		pollticks >>= 2;
 		if (pollticks > hz)
@@ -902,7 +901,7 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 			ch->ptr = 0;
 			ch->prevptr = 0;
 			pollticks = ((uint64_t)hz * ch->blksz) /
-			    ((uint64_t)sndbuf_getbps(ch->buffer) *
+			    ((uint64_t)sndbuf_getalign(ch->buffer) *
 			    sndbuf_getspd(ch->buffer));
 			pollticks >>= 2;
 			if (pollticks > hz)
@@ -974,7 +973,7 @@ static kobj_method_t via8233wr_methods[] = {
 	KOBJMETHOD(channel_setfragments,	via8233chan_setfragments),
 	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
 	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(via8233wr);
 
@@ -987,7 +986,7 @@ static kobj_method_t via8233dxs_methods[] = {
 	KOBJMETHOD(channel_setfragments,	via8233chan_setfragments),
 	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
 	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(via8233dxs);
 
@@ -1000,7 +999,7 @@ static kobj_method_t via8233msgd_methods[] = {
 	KOBJMETHOD(channel_setfragments,	via8233chan_setfragments),
 	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
 	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(via8233msgd);
 

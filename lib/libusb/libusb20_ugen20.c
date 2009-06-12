@@ -126,8 +126,8 @@ static int
 ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 {
 	const char *tmp = id;
-	struct usb2_device_descriptor ddesc;
-	struct usb2_device_info devinfo;
+	struct usb_device_descriptor ddesc;
+	struct usb_device_info devinfo;
 	uint32_t plugtime;
 	char buf[64];
 	int f;
@@ -213,7 +213,7 @@ done:
 }
 
 struct ugen20_urd_state {
-	struct usb2_read_dir urd;
+	struct usb_read_dir urd;
 	uint32_t nparsed;
 	int	f;
 	uint8_t *ptr;
@@ -298,7 +298,7 @@ ugen20_init_backend(struct libusb20_backend *pbe)
 static void
 ugen20_tr_release(struct libusb20_device *pdev)
 {
-	struct usb2_fs_uninit fs_uninit;
+	struct usb_fs_uninit fs_uninit;
 
 	if (pdev->nTransfer == 0) {
 		return;
@@ -316,8 +316,8 @@ ugen20_tr_release(struct libusb20_device *pdev)
 static int
 ugen20_tr_renew(struct libusb20_device *pdev)
 {
-	struct usb2_fs_init fs_init;
-	struct usb2_fs_endpoint *pfse;
+	struct usb_fs_init fs_init;
+	struct usb_fs_endpoint *pfse;
 	int error;
 	uint32_t size;
 	uint16_t nMaxTransfer;
@@ -419,7 +419,7 @@ done:
 static int
 ugen20_close_device(struct libusb20_device *pdev)
 {
-	struct usb2_fs_uninit fs_uninit;
+	struct usb_fs_uninit fs_uninit;
 
 	if (pdev->privBeData) {
 		memset(&fs_uninit, 0, sizeof(fs_uninit));
@@ -447,8 +447,8 @@ static int
 ugen20_get_config_desc_full(struct libusb20_device *pdev,
     uint8_t **ppbuf, uint16_t *plen, uint8_t cfg_index)
 {
-	struct usb2_gen_descriptor gen_desc;
-	struct usb2_config_descriptor cdesc;
+	struct usb_gen_descriptor gen_desc;
+	struct usb_config_descriptor cdesc;
 	uint8_t *ptr;
 	uint16_t len;
 	int error;
@@ -542,7 +542,7 @@ static int
 ugen20_set_alt_index(struct libusb20_device *pdev,
     uint8_t iface_index, uint8_t alt_index)
 {
-	struct usb2_alt_interface alt_iface;
+	struct usb_alt_interface alt_iface;
 
 	memset(&alt_iface, 0, sizeof(alt_iface));
 
@@ -663,7 +663,7 @@ ugen20_do_request_sync(struct libusb20_device *pdev,
     struct LIBUSB20_CONTROL_SETUP_DECODED *setup,
     void *data, uint16_t *pactlen, uint32_t timeout, uint8_t flags)
 {
-	struct usb2_ctl_request req;
+	struct usb_ctl_request req;
 
 	memset(&req, 0, sizeof(req));
 
@@ -688,8 +688,8 @@ ugen20_do_request_sync(struct libusb20_device *pdev,
 static int
 ugen20_process(struct libusb20_device *pdev)
 {
-	struct usb2_fs_complete temp;
-	struct usb2_fs_endpoint *fsep;
+	struct usb_fs_complete temp;
+	struct usb_fs_endpoint *fsep;
 	struct libusb20_transfer *xfer;
 
 	while (1) {
@@ -739,8 +739,8 @@ static int
 ugen20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
     uint32_t MaxFrameCount, uint8_t ep_no)
 {
-	struct usb2_fs_open temp;
-	struct usb2_fs_endpoint *fsep;
+	struct usb_fs_open temp;
+	struct usb_fs_endpoint *fsep;
 
 	memset(&temp, 0, sizeof(temp));
 
@@ -772,7 +772,7 @@ ugen20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 static int
 ugen20_tr_close(struct libusb20_transfer *xfer)
 {
-	struct usb2_fs_close temp;
+	struct usb_fs_close temp;
 
 	memset(&temp, 0, sizeof(temp));
 
@@ -787,7 +787,7 @@ ugen20_tr_close(struct libusb20_transfer *xfer)
 static int
 ugen20_tr_clear_stall_sync(struct libusb20_transfer *xfer)
 {
-	struct usb2_fs_clear_stall_sync temp;
+	struct usb_fs_clear_stall_sync temp;
 
 	memset(&temp, 0, sizeof(temp));
 
@@ -804,8 +804,8 @@ ugen20_tr_clear_stall_sync(struct libusb20_transfer *xfer)
 static void
 ugen20_tr_submit(struct libusb20_transfer *xfer)
 {
-	struct usb2_fs_start temp;
-	struct usb2_fs_endpoint *fsep;
+	struct usb_fs_start temp;
+	struct usb_fs_endpoint *fsep;
 
 	memset(&temp, 0, sizeof(temp));
 
@@ -839,7 +839,7 @@ ugen20_tr_submit(struct libusb20_transfer *xfer)
 static void
 ugen20_tr_cancel_async(struct libusb20_transfer *xfer)
 {
-	struct usb2_fs_stop temp;
+	struct usb_fs_stop temp;
 
 	memset(&temp, 0, sizeof(temp));
 
@@ -876,7 +876,7 @@ static int
 ugen20_dev_get_iface_desc(struct libusb20_device *pdev, 
     uint8_t iface_index, char *buf, uint8_t len)
 {
-	struct usb2_gen_descriptor ugd;
+	struct usb_gen_descriptor ugd;
 
 	memset(&ugd, 0, sizeof(ugd));
 
@@ -892,7 +892,7 @@ ugen20_dev_get_iface_desc(struct libusb20_device *pdev,
 
 static int
 ugen20_dev_get_info(struct libusb20_device *pdev,
-    struct usb2_device_info *pinfo)
+    struct usb_device_info *pinfo)
 {
 	if (ioctl(pdev->file, USB_GET_DEVICEINFO, pinfo)) {
 		return (LIBUSB20_ERROR_INVALID_PARAM);
@@ -904,7 +904,7 @@ static int
 ugen20_root_get_dev_quirk(struct libusb20_backend *pbe,
     uint16_t quirk_index, struct libusb20_quirk *pq)
 {
-	struct usb2_gen_quirk q;
+	struct usb_gen_quirk q;
 	int error;
 
 	memset(&q, 0, sizeof(q));
@@ -931,7 +931,7 @@ static int
 ugen20_root_get_quirk_name(struct libusb20_backend *pbe, uint16_t quirk_index,
     struct libusb20_quirk *pq)
 {
-	struct usb2_gen_quirk q;
+	struct usb_gen_quirk q;
 	int error;
 
 	memset(&q, 0, sizeof(q));
@@ -954,7 +954,7 @@ static int
 ugen20_root_add_dev_quirk(struct libusb20_backend *pbe,
     struct libusb20_quirk *pq)
 {
-	struct usb2_gen_quirk q;
+	struct usb_gen_quirk q;
 	int error;
 
 	memset(&q, 0, sizeof(q));
@@ -978,7 +978,7 @@ static int
 ugen20_root_remove_dev_quirk(struct libusb20_backend *pbe,
     struct libusb20_quirk *pq)
 {
-	struct usb2_gen_quirk q;
+	struct usb_gen_quirk q;
 	int error;
 
 	memset(&q, 0, sizeof(q));

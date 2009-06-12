@@ -57,7 +57,7 @@
  *		is created, otherwise 1.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 800090	/* Master, propagated to newvers */
+#define __FreeBSD_version 800097	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
@@ -195,11 +195,6 @@
 #define	CMASK	022		/* default file mask: S_IWGRP|S_IWOTH */
 
 #define	NODEV	(dev_t)(-1)	/* non-existent device */
-
-#define	CBLOCK	128		/* Clist block size, must be a power of 2. */
-				/* Data chars/clist. */
-#define	CBSIZE	(CBLOCK - sizeof(struct cblock *))
-#define	CROUND	(CBLOCK - 1)	/* Clist rounding. */
 
 /*
  * File system parameters and macros.

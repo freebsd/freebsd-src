@@ -1,6 +1,19 @@
 /*
- * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC AND NETWORK ASSOCIATES DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE
+ * FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+ * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.66.18.10 2007/08/28 07:19:55 tbox Exp $ */
+/* $Id: dnssec-keygen.c,v 1.81 2008/09/25 04:02:38 tbox Exp $ */
 
 /*! \file */
 
@@ -49,8 +62,9 @@
 const char *program = "dnssec-keygen";
 int verbose;
 
-static const char *algs = "RSA | RSAMD5 | DH | DSA | RSASHA1 | HMAC-MD5 |"
-			  " HMAC-SHA1 | HMAC-SHA224 | HMAC-SHA256 | "
+static const char *algs = "RSA | RSAMD5 | DH | DSA | RSASHA1 | NSEC3DSA |"
+			  " NSEC3RSASHA1 | HMAC-MD5 |"
+			  " HMAC-SHA1 | HMAC-SHA224 | HMAC-SHA256 |"
 			  " HMAC-SHA384 | HMAC-SHA512";
 
 static isc_boolean_t
@@ -61,7 +75,7 @@ dsa_size_ok(int size) {
 static void
 usage(void) {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "    %s -a alg -b bits -n type [options] name\n\n",
+	fprintf(stderr, "    %s -a alg -b bits [-n type] [options] name\n\n",
 		program);
 	fprintf(stderr, "Version: %s\n", VERSION);
 	fprintf(stderr, "Required options:\n");
@@ -69,8 +83,10 @@ usage(void) {
 	fprintf(stderr, "    -b key size, in bits:\n");
 	fprintf(stderr, "        RSAMD5:\t\t[512..%d]\n", MAX_RSA);
 	fprintf(stderr, "        RSASHA1:\t\t[512..%d]\n", MAX_RSA);
+	fprintf(stderr, "        NSEC3RSASHA1:\t\t[512..%d]\n", MAX_RSA);
 	fprintf(stderr, "        DH:\t\t[128..4096]\n");
 	fprintf(stderr, "        DSA:\t\t[512..1024] and divisible by 64\n");
+	fprintf(stderr, "        NSEC3DSA:\t\t[512..1024] and divisible by 64\n");
 	fprintf(stderr, "        HMAC-MD5:\t[1..512]\n");
 	fprintf(stderr, "        HMAC-SHA1:\t[1..160]\n");
 	fprintf(stderr, "        HMAC-SHA224:\t[1..224]\n");
@@ -78,6 +94,7 @@ usage(void) {
 	fprintf(stderr, "        HMAC-SHA384:\t[1..384]\n");
 	fprintf(stderr, "        HMAC-SHA512:\t[1..512]\n");
 	fprintf(stderr, "    -n nametype: ZONE | HOST | ENTITY | USER | OTHER\n");
+	fprintf(stderr, "        (DNSKEY generation defaults to ZONE\n");
 	fprintf(stderr, "    name: owner of the key\n");
 	fprintf(stderr, "Other options:\n");
 	fprintf(stderr, "    -c <class> (default: IN)\n");
@@ -134,8 +151,10 @@ main(int argc, char **argv) {
 
 	dns_result_register();
 
+	isc_commandline_errprint = ISC_FALSE;
+
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "a:b:c:d:ef:g:kn:t:p:s:r:v:h")) != -1)
+					 "a:b:c:d:ef:g:kn:t:p:s:r:v:h")) != -1)
 	{
 	    switch (ch) {
 		case 'a':
@@ -202,12 +221,17 @@ main(int argc, char **argv) {
 				fatal("-v must be followed by a number");
 			break;
 
+		case '?':
+			if (isc_commandline_option != '?')
+				fprintf(stderr, "%s: invalid argument -%c\n",
+					program, isc_commandline_option);
 		case 'h':
 			usage();
+
 		default:
-			fprintf(stderr, "%s: invalid argument -%c\n",
-				program, ch);
-			usage();
+			fprintf(stderr, "%s: unhandled option -%c\n",
+				program, isc_commandline_option);
+			exit(1);
 		}
 	}
 
@@ -282,6 +306,7 @@ main(int argc, char **argv) {
 	switch (alg) {
 	case DNS_KEYALG_RSAMD5:
 	case DNS_KEYALG_RSASHA1:
+	case DNS_KEYALG_NSEC3RSASHA1:
 		if (size != 0 && (size < 512 || size > MAX_RSA))
 			fatal("RSA key size %d out of range", size);
 		break;
@@ -290,6 +315,7 @@ main(int argc, char **argv) {
 			fatal("DH key size %d out of range", size);
 		break;
 	case DNS_KEYALG_DSA:
+	case DNS_KEYALG_NSEC3DSA:
 		if (size != 0 && !dsa_size_ok(size))
 			fatal("invalid DSS key size: %d", size);
 		break;
@@ -349,18 +375,20 @@ main(int argc, char **argv) {
 		break;
 	}
 
-	if (!(alg == DNS_KEYALG_RSAMD5 || alg == DNS_KEYALG_RSASHA1) &&
-	    rsa_exp != 0)
+	if (!(alg == DNS_KEYALG_RSAMD5 || alg == DNS_KEYALG_RSASHA1 ||
+	      alg == DNS_KEYALG_NSEC3RSASHA1) && rsa_exp != 0)
 		fatal("specified RSA exponent for a non-RSA key");
 
 	if (alg != DNS_KEYALG_DH && generator != 0)
 		fatal("specified DH generator for a non-DH key");
 
-	if (nametype == NULL)
-		fatal("no nametype specified");
-	if (strcasecmp(nametype, "zone") == 0)
+	if (nametype == NULL) {
+		if ((options & DST_TYPE_KEY) != 0) /* KEY / HMAC */
+			fatal("no nametype specified");
+		flags |= DNS_KEYOWNER_ZONE;	/* DNSKEY */
+	} else if (strcasecmp(nametype, "zone") == 0)
 		flags |= DNS_KEYOWNER_ZONE;
-	else if ((options & DST_TYPE_KEY) != 0)	{ /* KEY */
+	else if ((options & DST_TYPE_KEY) != 0)	{ /* KEY / HMAC */
 		if (strcasecmp(nametype, "host") == 0 ||
 			 strcasecmp(nametype, "entity") == 0)
 			flags |= DNS_KEYOWNER_ENTITY;
@@ -373,7 +401,7 @@ main(int argc, char **argv) {
 
 	rdclass = strtoclass(classname);
 
-	if ((options & DST_TYPE_KEY) != 0)  /* KEY */
+	if ((options & DST_TYPE_KEY) != 0)  /* KEY / HMAC */
 		flags |= signatory;
 	else if ((flags & DNS_KEYOWNER_ZONE) != 0) /* DNSKEY */
 		flags |= ksk;

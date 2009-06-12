@@ -573,6 +573,7 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	vfsp->mnt_flag |= MNT_LOCAL;
 	vfsp->mnt_kern_flag |= MNTK_MPSAFE;
 	vfsp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
+	vfsp->mnt_kern_flag |= MNTK_SHARED_WRITES;
 
 	if (error = dsl_prop_get_integer(osname, "readonly", &readonly, NULL))
 		goto out;

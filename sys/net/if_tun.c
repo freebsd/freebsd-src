@@ -20,7 +20,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/priv.h>
@@ -392,7 +391,7 @@ tuncreate(const char *name, struct cdev *dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_snd.ifq_drv_maxlen = 0;
 	IFQ_SET_READY(&ifp->if_snd);
-	knlist_init(&sc->tun_rsel.si_note, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&sc->tun_rsel.si_note, NULL);
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));

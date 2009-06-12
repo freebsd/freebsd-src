@@ -230,6 +230,18 @@ tcp_hc_init(void)
 	    tcp_hc_purge, curvnet);
 }
 
+#ifdef VIMAGE
+void
+tcp_hc_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	/* XXX TODO walk the hashtable and free all entries  */
+
+	callout_drain(&V_tcp_hc_callout);
+}
+#endif
+
 /*
  * Internal function: look up an entry in the hostcache or return NULL.
  *

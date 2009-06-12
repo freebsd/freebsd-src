@@ -900,8 +900,8 @@ run_rc_script()
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
 	case "$_file" in
-	/etc/rc.d/*.sh)			# run in current shell
-		set $_arg; . $_file
+	/etc/rc.d/*.sh)			# no longer allowed in the base
+		warn "Ignoring old-style startup script $_file"
 		;;
 	*[~#]|*.OLD|*.bak|*.orig|*,v)	# scratch file; skip
 		warn "Ignoring scratch file $_file"

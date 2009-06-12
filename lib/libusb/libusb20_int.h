@@ -49,7 +49,7 @@ typedef int (libusb20_root_get_quirk_name_t)(struct libusb20_backend *pbe, uint1
 typedef int (libusb20_root_add_dev_quirk_t)(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
 typedef int (libusb20_root_remove_dev_quirk_t)(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
 typedef int (libusb20_close_device_t)(struct libusb20_device *pdev);
-typedef int (libusb20_dev_get_info_t)(struct libusb20_device *pdev, struct usb2_device_info *pinfo);
+typedef int (libusb20_dev_get_info_t)(struct libusb20_device *pdev, struct usb_device_info *pinfo);
 typedef int (libusb20_dev_get_iface_desc_t)(struct libusb20_device *pdev, uint8_t iface_index, char *buf, uint8_t len);
 typedef int (libusb20_init_backend_t)(struct libusb20_backend *pbe);
 typedef int (libusb20_open_device_t)(struct libusb20_device *pdev, uint16_t transfer_count_max);

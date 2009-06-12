@@ -83,8 +83,8 @@ static ssize_t ofw_std_getprop(ofw_t ofw, phandle_t package,
     const char *propname, void *buf, size_t buflen);
 static int ofw_std_nextprop(ofw_t ofw, phandle_t package, const char *previous,
     char *buf, size_t);
-static int ofw_std_setprop(ofw_t ofw, phandle_t package, char *propname,
-    void *buf, size_t len);
+static int ofw_std_setprop(ofw_t ofw, phandle_t package, const char *propname,
+    const void *buf, size_t len);
 static ssize_t ofw_std_canon(ofw_t ofw, const char *device, char *buf,
     size_t len);
 static phandle_t ofw_std_finddevice(ofw_t ofw, const char *device);
@@ -383,8 +383,8 @@ ofw_std_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 /* Set the value of a property of a package. */
 /* XXX Has a bug on FirePower */
 static int
-ofw_std_setprop(ofw_t ofw, phandle_t package, char *propname, void *buf,
-    size_t len)
+ofw_std_setprop(ofw_t ofw, phandle_t package, const char *propname,
+    const void *buf, size_t len)
 {
 	static struct {
 		cell_t name;

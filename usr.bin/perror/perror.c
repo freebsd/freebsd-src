@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <sys/errno.h>
 
-static void usage();
+static void usage(void);
 
 int 
 main(int argc, char **argv)
@@ -62,7 +62,7 @@ main(int argc, char **argv)
 }
 
 static void 
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: perror number\n");
 	exit(1);

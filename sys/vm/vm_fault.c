@@ -394,7 +394,7 @@ RetryFault:;
 			 * found the page ).
 			 */
 			vm_page_busy(fs.m);
-			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+			if (fs.m->valid != VM_PAGE_BITS_ALL &&
 				fs.m->object != kernel_object && fs.m->object != kmem_object) {
 				goto readrest;
 			}
@@ -433,7 +433,7 @@ RetryFault:;
 				unlock_and_deallocate(&fs);
 				VM_WAITPFAULT;
 				goto RetryFault;
-			} else if ((fs.m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
+			} else if (fs.m->valid == VM_PAGE_BITS_ALL)
 				break;
 		}
 
@@ -1024,9 +1024,8 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			VM_OBJECT_UNLOCK(lobject);
 			break;
 		}
-		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
-
 			vm_page_lock_queues();
 			pmap_enter_quick(pmap, addr, m, entry->protection);
 			vm_page_unlock_queues();

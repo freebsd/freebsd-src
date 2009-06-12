@@ -32,7 +32,6 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -89,7 +88,9 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct mbuf *mtail;
 	int unicast, dgl, foff;
 	static int next_dgl;
+#if defined(INET) || defined(INET6)
 	struct llentry *lle;
+#endif
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);

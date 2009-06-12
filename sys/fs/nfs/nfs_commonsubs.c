@@ -1018,7 +1018,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			    if (nfsrv_useacl) {
 				NFSACL_T *naclp;
 
-				naclp = acl_alloc();
+				naclp = acl_alloc(M_WAITOK);
 				error = nfsrv_dissectacl(nd, naclp, &aceerr,
 				    &cnt, p);
 				if (error) {
@@ -1933,7 +1933,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 	} else {
 		NFSCLRNOTFILLABLE_ATTRBIT(retbitp);
 #ifdef NFS4_ACL_EXTATTR_NAME
-		naclp = acl_alloc();
+		naclp = acl_alloc(M_WAITOK);
 #endif
 		aclp = naclp;
 	}

@@ -42,9 +42,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/acdebug.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/tools/acpiexec/aecommon.h>
 
 /*
  * Dummy DSDT Table Header
@@ -90,7 +89,13 @@ static void		 aml_simulation_regdump(const char *dumpfile);
 ACPI_STATUS
 AeLocalGetRootPointer(void)
 {
-	return AE_ERROR;
+
+	return (AE_ERROR);
+}
+
+void
+AeTableOverride(ACPI_TABLE_HEADER *ExistingTable, ACPI_TABLE_HEADER **NewTable)
+{
 }
 
 static void

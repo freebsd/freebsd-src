@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -1405,6 +1404,14 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IPV6_RECVTCLASS:
 			case IPV6_V6ONLY:
 			case IPV6_AUTOFLOWLABEL:
+			case IPV6_BINDANY:
+				if (optname == IPV6_BINDANY && td != NULL) {
+					error = priv_check(td,
+					    PRIV_NETINET_BINDANY);
+					if (error)
+						break;
+				}
+
 				if (optlen != sizeof(int)) {
 					error = EINVAL;
 					break;
@@ -1558,6 +1565,9 @@ do { \
 					OPTSET(IN6P_AUTOFLOWLABEL);
 					break;
 
+				case IPV6_BINDANY:
+					OPTSET(INP_BINDANY);
+					break;
 				}
 				break;
 
@@ -1830,6 +1840,10 @@ do { \
 
 				case IPV6_AUTOFLOWLABEL:
 					optval = OPTBIT(IN6P_AUTOFLOWLABEL);
+					break;
+
+				case IPV6_BINDANY:
+					optval = OPTBIT(INP_BINDANY);
 					break;
 				}
 				if (error)

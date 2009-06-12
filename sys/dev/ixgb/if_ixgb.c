@@ -121,7 +121,7 @@ static void     ixgb_update_stats_counters(struct adapter *);
 static void     ixgb_clean_transmit_interrupts(struct adapter *);
 static int      ixgb_allocate_receive_structures(struct adapter *);
 static int      ixgb_allocate_transmit_structures(struct adapter *);
-static void     ixgb_process_receive_interrupts(struct adapter *, int);
+static int      ixgb_process_receive_interrupts(struct adapter *, int);
 static void 
 ixgb_receive_checksum(struct adapter *,
 		      struct ixgb_rx_desc * rx_desc,
@@ -748,11 +748,12 @@ ixgb_init(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter *adapter = ifp->if_softc;
 	u_int32_t       reg_icr;
+	int		rx_npkts;
 
 	IXGB_LOCK_ASSERT(adapter);
 
@@ -766,22 +767,25 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 			    adapter);
 		}
 	}
-	ixgb_process_receive_interrupts(adapter, count);
+	rx_npkts = ixgb_process_receive_interrupts(adapter, count);
 	ixgb_clean_transmit_interrupts(adapter);
 
 	if (ifp->if_snd.ifq_head != NULL)
 		ixgb_start_locked(ifp);
+	return (rx_npkts);
 }
 
-static void
+static int
 ixgb_poll(struct ifnet * ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter *adapter = ifp->if_softc;
+	int rx_npkts = 0;
 
 	IXGB_LOCK(adapter);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ixgb_poll_locked(ifp, cmd, count);
+		rx_npkts = ixgb_poll_locked(ifp, cmd, count);
 	IXGB_UNLOCK(adapter);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -2065,7 +2069,7 @@ ixgb_free_receive_structures(struct adapter * adapter)
  *  count < 0.
  *
  *********************************************************************/
-static void
+static int
 ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 {
 	struct ifnet   *ifp;
@@ -2079,6 +2083,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 	int             i;
 	int             next_to_use = 0;
 	int             eop_desc;
+	int		rx_npkts = 0;
 	/* Pointer to the receive descriptor being examined. */
 	struct ixgb_rx_desc *current_desc;
 
@@ -2094,7 +2099,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 #ifdef _SV_
 		adapter->no_pkts_avail++;
 #endif
-		return;
+		return (rx_npkts);
 	}
 	while ((current_desc->status & IXGB_RX_DESC_STATUS_DD) && (count != 0)) {
 
@@ -2168,6 +2173,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 					IXGB_UNLOCK(adapter);
 					(*ifp->if_input) (ifp, adapter->fmp);
 					IXGB_LOCK(adapter);
+					rx_npkts++;
 				}
 #endif
 				adapter->fmp = NULL;
@@ -2239,7 +2245,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 	/* Advance the IXGB's Receive Queue #0  "Tail Pointer" */
 	IXGB_WRITE_REG(&adapter->hw, RDT, next_to_use);
 
-	return;
+	return (rx_npkts);
 }
 
 /*********************************************************************

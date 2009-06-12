@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
+#include <security/mac/mac_framework.h>
+
 NFSDLOCKMUTEX;
 
 /*

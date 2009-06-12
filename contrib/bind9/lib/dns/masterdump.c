@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.c,v 1.73.18.16 2008/08/13 23:46:04 tbox Exp $ */
+/* $Id: masterdump.c,v 1.94.50.2 2009/01/18 23:47:40 tbox Exp $ */
 
 /*! \file */
 
@@ -108,7 +108,8 @@ dns_master_style_default = {
 
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
 dns_master_style_full = {
-	DNS_STYLEFLAG_COMMENT,
+	DNS_STYLEFLAG_COMMENT |
+	DNS_STYLEFLAG_RESIGN,
 	46, 46, 46, 64, 120, 8
 };
 
@@ -283,7 +284,7 @@ totext_ctx_init(const dns_master_style_t *style, dns_totext_ctx_t *ctx) {
 		/*
 		 * Do not return ISC_R_NOSPACE if the line break string
 		 * buffer is too small, because that would just make
-		 * dump_rdataset() retry indenfinitely with ever
+		 * dump_rdataset() retry indefinitely with ever
 		 * bigger target buffers.  That's a different buffer,
 		 * so it won't help.  Use DNS_R_TEXTTOOLONG as a substitute.
 		 */
@@ -784,6 +785,13 @@ static const char *trustnames[] = {
 	"local" /* aka ultimate */
 };
 
+const char *
+dns_trust_totext(dns_trust_t trust) {
+	if (trust >= sizeof(trustnames)/sizeof(*trustnames))
+		return ("bad");
+	return (trustnames[trust]);
+}
+
 static isc_result_t
 dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 		    dns_rdatasetiter_t *rdsiter, dns_totext_ctx_t *ctx,
@@ -839,6 +847,15 @@ dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 				dumpresult = result;
 			if ((ctx->style.flags & DNS_STYLEFLAG_OMIT_OWNER) != 0)
 				name = NULL;
+		}
+		if (ctx->style.flags & DNS_STYLEFLAG_RESIGN &&
+		    rds->attributes & DNS_RDATASETATTR_RESIGN) {
+			isc_buffer_t b;
+			char buf[sizeof("YYYYMMDDHHMMSS")];
+			memset(buf, 0, sizeof(buf));
+			isc_buffer_init(&b, buf, sizeof(buf) - 1);
+			dns_time64_totext((isc_uint64_t)rds->resign, &b);
+			fprintf(f, "; resign=%s\n", buf);
 		}
 		dns_rdataset_disassociate(rds);
 	}
@@ -1020,9 +1037,9 @@ dumpctx_destroy(dns_dumpctx_t *dctx) {
 
 	dctx->magic = 0;
 	DESTROYLOCK(&dctx->lock);
+	dns_dbiterator_destroy(&dctx->dbiter);
 	if (dctx->version != NULL)
 		dns_db_closeversion(dctx->db, &dctx->version, ISC_FALSE);
-	dns_dbiterator_destroy(&dctx->dbiter);
 	dns_db_detach(&dctx->db);
 	if (dctx->task != NULL)
 		isc_task_detach(&dctx->task);
@@ -1177,7 +1194,7 @@ dumpctx_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 {
 	dns_dumpctx_t *dctx;
 	isc_result_t result;
-	isc_boolean_t relative;
+	unsigned int options;
 
 	dctx = isc_mem_get(mctx, sizeof(*dctx));
 	if (dctx == NULL)
@@ -1224,10 +1241,10 @@ dumpctx_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 
 	if (dctx->format == dns_masterformat_text &&
 	    (dctx->tctx.style.flags & DNS_STYLEFLAG_REL_OWNER) != 0) {
-		relative = ISC_TRUE;
+		options = DNS_DB_RELATIVENAMES;
 	} else
-		relative = ISC_FALSE;
-	result = dns_db_createiterator(dctx->db, relative, &dctx->dbiter);
+		options = 0;
+	result = dns_db_createiterator(dctx->db, options, &dctx->dbiter);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 

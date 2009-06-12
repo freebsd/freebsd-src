@@ -1,4 +1,6 @@
-@(#)Theory	8.2
+@(#)Theory	8.3
+This file is in the public domain, so clarified as of
+2009-05-17 by Arthur David Olson.
 $FreeBSD$
 
 ----- Outline -----
@@ -8,7 +10,6 @@ $FreeBSD$
 	Time zone abbreviations
 	Calendrical issues
 	Time and time zones on Mars
-
 
 ----- Time and date functions -----
 

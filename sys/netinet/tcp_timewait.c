@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -179,6 +178,20 @@ tcp_tw_init(void)
 		uma_zone_set_max(V_tcptw_zone, maxtcptw);
 	TAILQ_INIT(&V_twq_2msl);
 }
+
+#ifdef VIMAGE
+void
+tcp_tw_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+	struct tcptw *tw;
+
+	INP_INFO_WLOCK(&V_tcbinfo);
+	while((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
+		tcp_twclose(tw, 0);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
+}
+#endif
 
 /*
  * Move a TCP connection into TIME_WAIT state.

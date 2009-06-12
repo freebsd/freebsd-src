@@ -396,6 +396,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_QUIRKS
 	},
+	{USB_VENDOR_AIPTEK2, USB_PRODUCT_AIPTEK2_SUNPLUS_TECH, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
+		NO_SYNCHRONIZE_CACHE
+	},
 	{USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_AU6390, RID_WILDCARD,
 		UMASS_PROTO_DEFAULT,
 		NO_SYNCHRONIZE_CACHE
@@ -973,9 +977,9 @@ struct umass_softc {
 	umass_cbi_sbl_t sbl;		/* status block */
 
 	device_t sc_dev;
-	struct usb2_device *sc_udev;
+	struct usb_device *sc_udev;
 	struct cam_sim *sc_sim;		/* SCSI Interface Module */
-	struct usb2_xfer *sc_xfer[UMASS_T_MAX];
+	struct usb_xfer *sc_xfer[UMASS_T_MAX];
 
 	/*
 	 * The command transform function is used to convert the SCSI
@@ -1008,37 +1012,37 @@ static device_probe_t umass_probe;
 static device_attach_t umass_attach;
 static device_detach_t umass_detach;
 
-static usb2_callback_t umass_tr_error;
-static usb2_callback_t umass_t_bbb_reset1_callback;
-static usb2_callback_t umass_t_bbb_reset2_callback;
-static usb2_callback_t umass_t_bbb_reset3_callback;
-static usb2_callback_t umass_t_bbb_command_callback;
-static usb2_callback_t umass_t_bbb_data_read_callback;
-static usb2_callback_t umass_t_bbb_data_rd_cs_callback;
-static usb2_callback_t umass_t_bbb_data_write_callback;
-static usb2_callback_t umass_t_bbb_data_wr_cs_callback;
-static usb2_callback_t umass_t_bbb_status_callback;
-static usb2_callback_t umass_t_cbi_reset1_callback;
-static usb2_callback_t umass_t_cbi_reset2_callback;
-static usb2_callback_t umass_t_cbi_reset3_callback;
-static usb2_callback_t umass_t_cbi_reset4_callback;
-static usb2_callback_t umass_t_cbi_command_callback;
-static usb2_callback_t umass_t_cbi_data_read_callback;
-static usb2_callback_t umass_t_cbi_data_rd_cs_callback;
-static usb2_callback_t umass_t_cbi_data_write_callback;
-static usb2_callback_t umass_t_cbi_data_wr_cs_callback;
-static usb2_callback_t umass_t_cbi_status_callback;
+static usb_callback_t umass_tr_error;
+static usb_callback_t umass_t_bbb_reset1_callback;
+static usb_callback_t umass_t_bbb_reset2_callback;
+static usb_callback_t umass_t_bbb_reset3_callback;
+static usb_callback_t umass_t_bbb_command_callback;
+static usb_callback_t umass_t_bbb_data_read_callback;
+static usb_callback_t umass_t_bbb_data_rd_cs_callback;
+static usb_callback_t umass_t_bbb_data_write_callback;
+static usb_callback_t umass_t_bbb_data_wr_cs_callback;
+static usb_callback_t umass_t_bbb_status_callback;
+static usb_callback_t umass_t_cbi_reset1_callback;
+static usb_callback_t umass_t_cbi_reset2_callback;
+static usb_callback_t umass_t_cbi_reset3_callback;
+static usb_callback_t umass_t_cbi_reset4_callback;
+static usb_callback_t umass_t_cbi_command_callback;
+static usb_callback_t umass_t_cbi_data_read_callback;
+static usb_callback_t umass_t_cbi_data_rd_cs_callback;
+static usb_callback_t umass_t_cbi_data_write_callback;
+static usb_callback_t umass_t_cbi_data_wr_cs_callback;
+static usb_callback_t umass_t_cbi_status_callback;
 
 static void	umass_cancel_ccb(struct umass_softc *);
 static void	umass_init_shuttle(struct umass_softc *);
 static void	umass_reset(struct umass_softc *);
-static void	umass_t_bbb_data_clear_stall_callback(struct usb2_xfer *,
+static void	umass_t_bbb_data_clear_stall_callback(struct usb_xfer *,
 		    uint8_t, uint8_t);
 static void	umass_command_start(struct umass_softc *, uint8_t, void *,
 		    uint32_t, uint32_t, umass_callback_t *, union ccb *);
 static uint8_t	umass_bbb_get_max_lun(struct umass_softc *);
 static void	umass_cbi_start_status(struct umass_softc *);
-static void	umass_t_cbi_data_clear_stall_callback(struct usb2_xfer *,
+static void	umass_t_cbi_data_clear_stall_callback(struct usb_xfer *,
 		    uint8_t, uint8_t);
 static int	umass_cam_attach_sim(struct umass_softc *);
 static void	umass_cam_rescan_callback(struct cam_periph *, union ccb *);
@@ -1070,13 +1074,13 @@ static void	umass_dump_buffer(struct umass_softc *, uint8_t *, uint32_t,
 		    uint32_t);
 #endif
 
-struct usb2_config umass_bbb_config[UMASS_T_BBB_MAX] = {
+struct usb_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 
 	[UMASS_T_BBB_RESET1] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_bbb_reset1_callback,
 		.timeout = 5000,	/* 5 seconds */
 		.interval = 500,	/* 500 milliseconds */
@@ -1086,7 +1090,7 @@ struct usb2_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_bbb_reset2_callback,
 		.timeout = 5000,	/* 5 seconds */
 		.interval = 50,	/* 50 milliseconds */
@@ -1096,7 +1100,7 @@ struct usb2_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_bbb_reset3_callback,
 		.timeout = 5000,	/* 5 seconds */
 		.interval = 50,	/* 50 milliseconds */
@@ -1125,7 +1129,7 @@ struct usb2_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_bbb_data_rd_cs_callback,
 		.timeout = 5000,	/* 5 seconds */
 	},
@@ -1144,7 +1148,7 @@ struct usb2_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_bbb_data_wr_cs_callback,
 		.timeout = 5000,	/* 5 seconds */
 	},
@@ -1160,13 +1164,13 @@ struct usb2_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 	},
 };
 
-struct usb2_config umass_cbi_config[UMASS_T_CBI_MAX] = {
+struct usb_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 
 	[UMASS_T_CBI_RESET1] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = (sizeof(struct usb2_device_request) +
+		.bufsize = (sizeof(struct usb_device_request) +
 		    UMASS_CBI_DIAGNOSTIC_CMDLEN),
 		.callback = &umass_t_cbi_reset1_callback,
 		.timeout = 5000,	/* 5 seconds */
@@ -1177,7 +1181,7 @@ struct usb2_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_cbi_reset2_callback,
 		.timeout = 5000,	/* 5 seconds */
 		.interval = 50,	/* 50 milliseconds */
@@ -1187,7 +1191,7 @@ struct usb2_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_cbi_reset3_callback,
 		.timeout = 5000,	/* 5 seconds */
 		.interval = 50,	/* 50 milliseconds */
@@ -1197,7 +1201,7 @@ struct usb2_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = (sizeof(struct usb2_device_request) +
+		.bufsize = (sizeof(struct usb_device_request) +
 		    UMASS_MAX_CMDLEN),
 		.callback = &umass_t_cbi_command_callback,
 		.timeout = 5000,	/* 5 seconds */
@@ -1217,7 +1221,7 @@ struct usb2_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_cbi_data_rd_cs_callback,
 		.timeout = 5000,	/* 5 seconds */
 	},
@@ -1236,7 +1240,7 @@ struct usb2_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_cbi_data_wr_cs_callback,
 		.timeout = 5000,	/* 5 seconds */
 	},
@@ -1255,7 +1259,7 @@ struct usb2_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &umass_t_cbi_reset4_callback,
 		.timeout = 5000,	/* ms */
 	},
@@ -1295,9 +1299,9 @@ MODULE_DEPEND(umass, cam, 1, 1, 1);
  */
 
 static uint16_t
-umass_get_proto(struct usb2_interface *iface)
+umass_get_proto(struct usb_interface *iface)
 {
-	struct usb2_interface_descriptor *id;
+	struct usb_interface_descriptor *id;
 	uint16_t retval;
 
 	retval = 0;
@@ -1351,7 +1355,7 @@ done:
  * devices supported.
  */
 static struct umass_probe_proto
-umass_probe_proto(device_t dev, struct usb2_attach_arg *uaa)
+umass_probe_proto(device_t dev, struct usb_attach_arg *uaa)
 {
 	const struct umass_devdescr *udd = umass_devdescr;
 	struct umass_probe_proto ret;
@@ -1425,7 +1429,7 @@ done:
 static int
 umass_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umass_probe_proto temp;
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
@@ -1444,9 +1448,9 @@ static int
 umass_attach(device_t dev)
 {
 	struct umass_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umass_probe_proto temp = umass_probe_proto(dev, uaa);
-	struct usb2_interface_descriptor *id;
+	struct usb_interface_descriptor *id;
 	int32_t err;
 
 	/*
@@ -1635,8 +1639,8 @@ umass_detach(device_t dev)
 static void
 umass_init_shuttle(struct umass_softc *sc)
 {
-	struct usb2_device_request req;
-	usb2_error_t err;
+	struct usb_device_request req;
+	usb_error_t err;
 	uint8_t status[2] = {0, 0};
 
 	/*
@@ -1704,7 +1708,7 @@ umass_cancel_ccb(struct umass_softc *sc)
 }
 
 static void
-umass_tr_error(struct usb2_xfer *xfer)
+umass_tr_error(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 
@@ -1721,10 +1725,10 @@ umass_tr_error(struct usb2_xfer *xfer)
  */
 
 static void
-umass_t_bbb_reset1_callback(struct usb2_xfer *xfer)
+umass_t_bbb_reset1_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -1770,21 +1774,21 @@ umass_t_bbb_reset1_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_bbb_reset2_callback(struct usb2_xfer *xfer)
+umass_t_bbb_reset2_callback(struct usb_xfer *xfer)
 {
 	umass_t_bbb_data_clear_stall_callback(xfer, UMASS_T_BBB_RESET3,
 	    UMASS_T_BBB_DATA_READ);
 }
 
 static void
-umass_t_bbb_reset3_callback(struct usb2_xfer *xfer)
+umass_t_bbb_reset3_callback(struct usb_xfer *xfer)
 {
 	umass_t_bbb_data_clear_stall_callback(xfer, UMASS_T_BBB_COMMAND,
 	    UMASS_T_BBB_DATA_WRITE);
 }
 
 static void
-umass_t_bbb_data_clear_stall_callback(struct usb2_xfer *xfer,
+umass_t_bbb_data_clear_stall_callback(struct usb_xfer *xfer,
     uint8_t next_xfer,
     uint8_t stall_xfer)
 {
@@ -1810,7 +1814,7 @@ tr_transferred:
 }
 
 static void
-umass_t_bbb_command_callback(struct usb2_xfer *xfer)
+umass_t_bbb_command_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 	union ccb *ccb = sc->sc_transfer.ccb;
@@ -1892,7 +1896,7 @@ umass_t_bbb_command_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_bbb_data_read_callback(struct usb2_xfer *xfer)
+umass_t_bbb_data_read_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -1943,14 +1947,14 @@ umass_t_bbb_data_read_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_bbb_data_rd_cs_callback(struct usb2_xfer *xfer)
+umass_t_bbb_data_rd_cs_callback(struct usb_xfer *xfer)
 {
 	umass_t_bbb_data_clear_stall_callback(xfer, UMASS_T_BBB_STATUS,
 	    UMASS_T_BBB_DATA_READ);
 }
 
 static void
-umass_t_bbb_data_write_callback(struct usb2_xfer *xfer)
+umass_t_bbb_data_write_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -2001,14 +2005,14 @@ umass_t_bbb_data_write_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_bbb_data_wr_cs_callback(struct usb2_xfer *xfer)
+umass_t_bbb_data_wr_cs_callback(struct usb_xfer *xfer)
 {
 	umass_t_bbb_data_clear_stall_callback(xfer, UMASS_T_BBB_STATUS,
 	    UMASS_T_BBB_DATA_WRITE);
 }
 
 static void
-umass_t_bbb_status_callback(struct usb2_xfer *xfer)
+umass_t_bbb_status_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 	union ccb *ccb = sc->sc_transfer.ccb;
@@ -2156,8 +2160,8 @@ umass_command_start(struct umass_softc *sc, uint8_t dir,
 static uint8_t
 umass_bbb_get_max_lun(struct umass_softc *sc)
 {
-	struct usb2_device_request req;
-	usb2_error_t err;
+	struct usb_device_request req;
+	usb_error_t err;
 	uint8_t buf = 0;
 
 	/* The Get Max Lun command is a class-specific request. */
@@ -2202,10 +2206,10 @@ umass_cbi_start_status(struct umass_softc *sc)
 }
 
 static void
-umass_t_cbi_reset1_callback(struct usb2_xfer *xfer)
+umass_t_cbi_reset1_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t buf[UMASS_CBI_DIAGNOSTIC_CMDLEN];
 
 	uint8_t i;
@@ -2268,14 +2272,14 @@ umass_t_cbi_reset1_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_cbi_reset2_callback(struct usb2_xfer *xfer)
+umass_t_cbi_reset2_callback(struct usb_xfer *xfer)
 {
 	umass_t_cbi_data_clear_stall_callback(xfer, UMASS_T_CBI_RESET3,
 	    UMASS_T_CBI_DATA_READ);
 }
 
 static void
-umass_t_cbi_reset3_callback(struct usb2_xfer *xfer)
+umass_t_cbi_reset3_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 
@@ -2287,14 +2291,14 @@ umass_t_cbi_reset3_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_cbi_reset4_callback(struct usb2_xfer *xfer)
+umass_t_cbi_reset4_callback(struct usb_xfer *xfer)
 {
 	umass_t_cbi_data_clear_stall_callback(xfer, UMASS_T_CBI_COMMAND,
 	    UMASS_T_CBI_STATUS);
 }
 
 static void
-umass_t_cbi_data_clear_stall_callback(struct usb2_xfer *xfer,
+umass_t_cbi_data_clear_stall_callback(struct usb_xfer *xfer,
     uint8_t next_xfer,
     uint8_t stall_xfer)
 {
@@ -2324,11 +2328,11 @@ tr_transferred:
 }
 
 static void
-umass_t_cbi_command_callback(struct usb2_xfer *xfer)
+umass_t_cbi_command_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 	union ccb *ccb = sc->sc_transfer.ccb;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -2386,7 +2390,7 @@ umass_t_cbi_command_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_cbi_data_read_callback(struct usb2_xfer *xfer)
+umass_t_cbi_data_read_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -2438,14 +2442,14 @@ umass_t_cbi_data_read_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_cbi_data_rd_cs_callback(struct usb2_xfer *xfer)
+umass_t_cbi_data_rd_cs_callback(struct usb_xfer *xfer)
 {
 	umass_t_cbi_data_clear_stall_callback(xfer, UMASS_T_CBI_STATUS,
 	    UMASS_T_CBI_DATA_READ);
 }
 
 static void
-umass_t_cbi_data_write_callback(struct usb2_xfer *xfer)
+umass_t_cbi_data_write_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -2497,14 +2501,14 @@ umass_t_cbi_data_write_callback(struct usb2_xfer *xfer)
 }
 
 static void
-umass_t_cbi_data_wr_cs_callback(struct usb2_xfer *xfer)
+umass_t_cbi_data_wr_cs_callback(struct usb_xfer *xfer)
 {
 	umass_t_cbi_data_clear_stall_callback(xfer, UMASS_T_CBI_STATUS,
 	    UMASS_T_CBI_DATA_WRITE);
 }
 
 static void
-umass_t_cbi_status_callback(struct usb2_xfer *xfer)
+umass_t_cbi_status_callback(struct usb_xfer *xfer)
 {
 	struct umass_softc *sc = xfer->priv_sc;
 	union ccb *ccb = sc->sc_transfer.ccb;

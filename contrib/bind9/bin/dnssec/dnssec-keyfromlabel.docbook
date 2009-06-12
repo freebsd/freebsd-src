@@ -1,0 +1,265 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2008  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: dnssec-keyfromlabel.docbook,v 1.6 2008/11/07 13:54:11 jreed Exp $ -->
+<refentry id="man.dnssec-keyfromlabel">
+  <refentryinfo>
+    <date>February 8, 2008</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>dnssec-keyfromlabel</application></refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>dnssec-keyfromlabel</application></refname>
+    <refpurpose>DNSSEC key generation tool</refpurpose>
+  </refnamediv>
+
+  <docinfo>
+    <copyright>
+      <year>2008</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>dnssec-keyfromlabel</command>
+      <arg choice="req">-a <replaceable class="parameter">algorithm</replaceable></arg>
+      <arg choice="req">-l <replaceable class="parameter">label</replaceable></arg>
+      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg><option>-f <replaceable class="parameter">flag</replaceable></option></arg>
+      <arg><option>-k</option></arg>
+      <arg><option>-n <replaceable class="parameter">nametype</replaceable></option></arg>
+      <arg><option>-p <replaceable class="parameter">protocol</replaceable></option></arg>
+      <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg choice="req">name</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para><command>dnssec-keyfromlabel</command>
+      gets keys with the given label from a crypto hardware and builds
+      key files for DNSSEC (Secure DNS), as defined in RFC 2535
+      and RFC 4034.  
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>-a <replaceable class="parameter">algorithm</replaceable></term>
+        <listitem>
+	  <para>
+	    Selects the cryptographic algorithm.  The value of
+	    <option>algorithm</option> must be one of RSAMD5 (RSA)
+	    or RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA or DH (Diffie Hellman).
+	    These values are case insensitive.
+	  </para>
+          <para>
+            Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement
+            algorithm, and DSA is recommended.
+          </para>
+          <para>
+            Note 2: DH automatically sets the -k flag.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-l <replaceable class="parameter">label</replaceable></term>
+        <listitem>
+          <para>
+            Specifies the label of keys in the crypto hardware
+            (PKCS#11 device).
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-n <replaceable class="parameter">nametype</replaceable></term>
+        <listitem>
+          <para>
+            Specifies the owner type of the key.  The value of
+            <option>nametype</option> must either be ZONE (for a DNSSEC
+            zone key (KEY/DNSKEY)), HOST or ENTITY (for a key associated with
+            a host (KEY)),
+            USER (for a key associated with a user(KEY)) or OTHER (DNSKEY).
+            These values are
+            case insensitive.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-c <replaceable class="parameter">class</replaceable></term>
+        <listitem>
+          <para>
+            Indicates that the DNS record containing the key should have
+            the specified class.  If not specified, class IN is used.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-f <replaceable class="parameter">flag</replaceable></term>
+        <listitem>
+          <para>
+            Set the specified flag in the flag field of the KEY/DNSKEY record.
+            The only recognized flag is KSK (Key Signing Key) DNSKEY.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-h</term>
+        <listitem>
+          <para>
+            Prints a short summary of the options and arguments to
+            <command>dnssec-keygen</command>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-k</term>
+        <listitem>
+          <para>
+            Generate KEY records rather than DNSKEY records.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-p <replaceable class="parameter">protocol</replaceable></term>
+        <listitem>
+          <para>
+            Sets the protocol value for the generated key.  The protocol
+            is a number between 0 and 255.  The default is 3 (DNSSEC).
+            Other possible values for this argument are listed in
+            RFC 2535 and its successors.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-t <replaceable class="parameter">type</replaceable></term>
+        <listitem>
+          <para>
+            Indicates the use of the key.  <option>type</option> must be
+            one of AUTHCONF, NOAUTHCONF, NOAUTH, or NOCONF.  The default
+            is AUTHCONF.  AUTH refers to the ability to authenticate
+            data, and CONF the ability to encrypt data.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-v <replaceable class="parameter">level</replaceable></term>
+        <listitem>
+          <para>
+            Sets the debugging level.
+          </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>GENERATED KEY FILES</title>
+    <para>
+      When <command>dnssec-keyfromlabel</command> completes
+      successfully,
+      it prints a string of the form <filename>Knnnn.+aaa+iiiii</filename>
+      to the standard output.  This is an identification string for
+      the key files it has generated.
+    </para>
+    <itemizedlist>
+      <listitem>
+        <para><filename>nnnn</filename> is the key name.
+        </para>
+      </listitem>
+      <listitem>
+        <para><filename>aaa</filename> is the numeric representation
+          of the
+          algorithm.
+        </para>
+      </listitem>
+      <listitem>
+        <para><filename>iiiii</filename> is the key identifier (or
+          footprint).
+        </para>
+      </listitem>
+    </itemizedlist>
+    <para><command>dnssec-keyfromlabel</command> 
+      creates two files, with names based
+      on the printed string.  <filename>Knnnn.+aaa+iiiii.key</filename>
+      contains the public key, and
+      <filename>Knnnn.+aaa+iiiii.private</filename> contains the
+      private
+      key.
+    </para>
+    <para>
+      The <filename>.key</filename> file contains a DNS KEY record
+      that
+      can be inserted into a zone file (directly or with a $INCLUDE
+      statement).
+    </para>
+    <para>
+      The <filename>.private</filename> file contains algorithm
+      specific
+      fields.  For obvious security reasons, this file does not have
+      general read permission.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para><citerefentry>
+        <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>dnssec-signzone</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
+      <citetitle>RFC 2539</citetitle>,
+      <citetitle>RFC 2845</citetitle>,
+      <citetitle>RFC 4033</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry><!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

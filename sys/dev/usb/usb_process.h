@@ -39,26 +39,26 @@
 
 /* structure prototypes */
 
-struct usb2_proc_msg;
+struct usb_proc_msg;
 
 /* typedefs */
 
-typedef void (usb2_proc_callback_t)(struct usb2_proc_msg *hdr);
+typedef void (usb_proc_callback_t)(struct usb_proc_msg *hdr);
 
 /*
  * The following structure defines the USB process message header.
  */
-struct usb2_proc_msg {
-	TAILQ_ENTRY(usb2_proc_msg) pm_qentry;
-	usb2_proc_callback_t *pm_callback;
-	usb2_size_t pm_num;
+struct usb_proc_msg {
+	TAILQ_ENTRY(usb_proc_msg) pm_qentry;
+	usb_proc_callback_t *pm_callback;
+	usb_size_t pm_num;
 };
 
 /*
  * The following structure defines the USB process.
  */
-struct usb2_process {
-	TAILQ_HEAD(, usb2_proc_msg) up_qhead;
+struct usb_process {
+	TAILQ_HEAD(, usb_proc_msg) up_qhead;
 	struct cv up_cv;
 	struct cv up_drain;
 
@@ -66,7 +66,7 @@ struct usb2_process {
 	struct thread *up_curtd;
 	struct mtx *up_mtx;
 
-	usb2_size_t up_msg_num;
+	usb_size_t up_msg_num;
 
 	uint8_t	up_prio;
 	uint8_t	up_gone;
@@ -77,12 +77,12 @@ struct usb2_process {
 
 /* prototypes */
 
-uint8_t	usb2_proc_is_gone(struct usb2_process *up);
-int	usb2_proc_create(struct usb2_process *up, struct mtx *p_mtx,
+uint8_t	usb2_proc_is_gone(struct usb_process *up);
+int	usb2_proc_create(struct usb_process *up, struct mtx *p_mtx,
 	    const char *pmesg, uint8_t prio);
-void	usb2_proc_drain(struct usb2_process *up);
-void	usb2_proc_mwait(struct usb2_process *up, void *pm0, void *pm1);
-void	usb2_proc_free(struct usb2_process *up);
-void   *usb2_proc_msignal(struct usb2_process *up, void *pm0, void *pm1);
+void	usb2_proc_drain(struct usb_process *up);
+void	usb2_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
+void	usb2_proc_free(struct usb_process *up);
+void   *usb2_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
 
 #endif					/* _USB2_PROCESS_H_ */

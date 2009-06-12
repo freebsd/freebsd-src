@@ -455,7 +455,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				bp->b_pages[bp->b_npages] = m;
 				bp->b_npages++;
 			}
-			if ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
+			if (m->valid == VM_PAGE_BITS_ALL)
 				tbp->b_pages[j] = bogus_page;
 		}
 		VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
@@ -482,10 +482,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
 	for (j = 0; j < bp->b_npages; j++) {
 		VM_OBJECT_LOCK_ASSERT(bp->b_pages[j]->object, MA_OWNED);
-		if ((bp->b_pages[j]->valid & VM_PAGE_BITS_ALL) ==
-		    VM_PAGE_BITS_ALL) {
+		if (bp->b_pages[j]->valid == VM_PAGE_BITS_ALL)
 			bp->b_pages[j] = bogus_page;
-		}
 	}
 	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 	if (bp->b_bufsize > bp->b_kvasize)

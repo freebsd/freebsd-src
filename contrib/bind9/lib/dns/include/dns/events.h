@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,14 +15,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: events.h,v 1.42.18.3 2005/04/29 00:16:13 marka Exp $ */
+/* $Id: events.h,v 1.49.332.2 2009/05/07 23:47:12 tbox Exp $ */
 
 #ifndef DNS_EVENTS_H
 #define DNS_EVENTS_H 1
 
 #include <isc/eventclass.h>
 
-/*! \file 
+/*! \file dns/events.h
  * \brief
  * Registry of DNS event numbers.
  */
@@ -68,6 +68,7 @@
 #define DNS_EVENT_ACACHECONTROL			(ISC_EVENTCLASS_DNS + 38)
 #define DNS_EVENT_ACACHECLEAN			(ISC_EVENTCLASS_DNS + 39)
 #define DNS_EVENT_ACACHEOVERMEM			(ISC_EVENTCLASS_DNS + 40)
+#define DNS_EVENT_RBTPRUNE			(ISC_EVENTCLASS_DNS + 41)
 
 #define DNS_EVENT_FIRSTEVENT			(ISC_EVENTCLASS_DNS + 0)
 #define DNS_EVENT_LASTEVENT			(ISC_EVENTCLASS_DNS + 65535)

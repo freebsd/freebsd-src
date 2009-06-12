@@ -1,5 +1,7 @@
-# @(#)africa	8.19
 # <pre>
+# @(#)africa	8.21
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -241,18 +243,18 @@ Rule	Egypt	2007	only	-	Sep	Thu>=1	23:00s	0	-
 # The following appeared in Red Hat bugzilla[1] (edited):
 #
 # > $ zdump -v /usr/share/zoneinfo/Africa/Cairo | grep 2009
-# > /usr/share/zoneinfo/Africa/Cairo  Thu Apr 23 21:59:59 2009 UTC =3D Thu =
+# > /usr/share/zoneinfo/Africa/Cairo  Thu Apr 23 21:59:59 2009 UTC = Thu =
 # Apr 23
-# > 23:59:59 2009 EET isdst=3D0 gmtoff=3D7200
-# > /usr/share/zoneinfo/Africa/Cairo  Thu Apr 23 22:00:00 2009 UTC =3D Fri =
+# > 23:59:59 2009 EET isdst=0 gmtoff=7200
+# > /usr/share/zoneinfo/Africa/Cairo  Thu Apr 23 22:00:00 2009 UTC = Fri =
 # Apr 24
-# > 01:00:00 2009 EEST isdst=3D1 gmtoff=3D10800
-# > /usr/share/zoneinfo/Africa/Cairo  Thu Aug 27 20:59:59 2009 UTC =3D Thu =
+# > 01:00:00 2009 EEST isdst=1 gmtoff=10800
+# > /usr/share/zoneinfo/Africa/Cairo  Thu Aug 27 20:59:59 2009 UTC = Thu =
 # Aug 27
-# > 23:59:59 2009 EEST isdst=3D1 gmtoff=3D10800
-# > /usr/share/zoneinfo/Africa/Cairo  Thu Aug 27 21:00:00 2009 UTC =3D Thu =
+# > 23:59:59 2009 EEST isdst=1 gmtoff=10800
+# > /usr/share/zoneinfo/Africa/Cairo  Thu Aug 27 21:00:00 2009 UTC = Thu =
 # Aug 27
-# > 23:00:00 2009 EET isdst=3D0 gmtoff=3D7200
+# > 23:00:00 2009 EET isdst=0 gmtoff=7200
 #
 # > end date should be Thu Sep 24 2009 (Last Thursday in September at 23:59=
 # :59)
@@ -260,11 +262,11 @@ Rule	Egypt	2007	only	-	Sep	Thu>=1	23:00s	0	-
 #
 # timeanddate[2] and another site I've found[3] also support that.
 #
-# [1] <a href="https://bugzilla.redhat.com/show_bug.cgi?id=3D492263">
-# https://bugzilla.redhat.com/show_bug.cgi?id=3D492263
+# [1] <a href="https://bugzilla.redhat.com/show_bug.cgi?id=492263">
+# https://bugzilla.redhat.com/show_bug.cgi?id=492263
 # </a>
-# [2] <a href="http://www.timeanddate.com/worldclock/clockchange.html?n=3D53">
-# http://www.timeanddate.com/worldclock/clockchange.html?n=3D53
+# [2] <a href="http://www.timeanddate.com/worldclock/clockchange.html?n=53">
+# http://www.timeanddate.com/worldclock/clockchange.html?n=53
 # </a>
 # [3] <a href="http://wwp.greenwichmeantime.com/time-zone/africa/egypt/">
 # http://wwp.greenwichmeantime.com/time-zone/africa/egypt/
@@ -477,8 +479,8 @@ Zone Africa/Nouakchott	-1:03:48 -	LMT	1912
 
 # From Riad M. Hossen Ally (2008-08-03):
 # The Government of Mauritius weblink
-# <a href="http://www.gov.mu/portal/site/pmosite/menuitem.4ca0efdee47462e7440a600248a521ca/?content_id=3D4728ca68b2a5b110VgnVCM1000000a04a8c0RCRD">
-# http://www.gov.mu/portal/site/pmosite/menuitem.4ca0efdee47462e7440a600248a521ca/?content_id=3D4728ca68b2a5b110VgnVCM1000000a04a8c0RCRD
+# <a href="http://www.gov.mu/portal/site/pmosite/menuitem.4ca0efdee47462e7440a600248a521ca/?content_id=4728ca68b2a5b110VgnVCM1000000a04a8c0RCRD">
+# http://www.gov.mu/portal/site/pmosite/menuitem.4ca0efdee47462e7440a600248a521ca/?content_id=4728ca68b2a5b110VgnVCM1000000a04a8c0RCRD
 # </a>
 # Cabinet Decision of July 18th, 2008 states as follows:
 #

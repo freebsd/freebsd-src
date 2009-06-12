@@ -240,7 +240,7 @@ i80321_iintsrc_read(void)
 }
 
 int
-arm_get_next_irq()
+arm_get_next_irq(int last __unused)
 {
 	int irq;
 

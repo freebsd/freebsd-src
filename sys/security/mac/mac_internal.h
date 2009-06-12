@@ -55,6 +55,9 @@
 #error "no user-serviceable parts inside"
 #endif
 
+#include <sys/lock.h>
+#include <sys/rmlock.h>
+
 /*
  * MAC Framework sysctl namespace.
  */
@@ -186,6 +189,7 @@ struct label {
  */
 extern struct mac_policy_list_head	mac_policy_list;
 extern struct mac_policy_list_head	mac_static_policy_list;
+extern u_int				mac_policy_count;
 extern uint64_t				mac_labeled;
 extern struct mtx			mac_ifnet_mtx;
 
@@ -194,9 +198,9 @@ extern struct mtx			mac_ifnet_mtx;
  */
 int	mac_error_select(int error1, int error2);
 
-void	mac_policy_slock_nosleep(void);
+void	mac_policy_slock_nosleep(struct rm_priotracker *tracker);
 void	mac_policy_slock_sleep(void);
-void	mac_policy_sunlock_nosleep(void);
+void	mac_policy_sunlock_nosleep(struct rm_priotracker *tracker);
 void	mac_policy_sunlock_sleep(void);
 
 struct label	*mac_labelzone_alloc(int flags);
@@ -294,14 +298,16 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			    error);					\
 	}								\
 	if (!LIST_EMPTY(&mac_policy_list)) {				\
-		mac_policy_slock_nosleep();				\
+		struct rm_priotracker tracker;				\
+									\
+		mac_policy_slock_nosleep(&tracker);			\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## check != NULL)	\
 				error = mac_error_select(		\
 				    mpc->mpc_ops->mpo_ ## check (args),	\
 				    error);				\
 		}							\
-		mac_policy_sunlock_nosleep();				\
+		mac_policy_sunlock_nosleep(&tracker);			\
 	}								\
 } while (0)
 
@@ -323,7 +329,9 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 		}							\
 	}								\
 	if (!LIST_EMPTY(&mac_policy_list)) {				\
-		mac_policy_slock_nosleep();				\
+		struct rm_priotracker tracker;				\
+									\
+		mac_policy_slock_nosleep(&tracker);			\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## check != NULL) {	\
 				if (mpc->mpc_ops->mpo_ ## check (args)	\
@@ -331,7 +339,7 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 					error = 0;			\
 			}						\
 		}							\
-		mac_policy_sunlock_nosleep();				\
+		mac_policy_sunlock_nosleep(&tracker);			\
 	}								\
 } while (0)
 
@@ -371,14 +379,16 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			    mpc->mpc_ops->mpo_ ## operation (args);	\
 	}								\
 	if (!LIST_EMPTY(&mac_policy_list)) {				\
-		mac_policy_slock_nosleep();				\
+		struct rm_priotracker tracker;				\
+									\
+		mac_policy_slock_nosleep(&tracker);			\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## operation != NULL)	\
 				result = result composition		\
 				    mpc->mpc_ops->mpo_ ## operation	\
 				    (args);				\
 		}							\
-		mac_policy_sunlock_nosleep();				\
+		mac_policy_sunlock_nosleep(&tracker);			\
 	}								\
 } while (0)
 
@@ -492,12 +502,14 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			mpc->mpc_ops->mpo_ ## operation (args);		\
 	}								\
 	if (!LIST_EMPTY(&mac_policy_list)) {				\
-		mac_policy_slock_nosleep();				\
+		struct rm_priotracker tracker;				\
+									\
+		mac_policy_slock_nosleep(&tracker);			\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## operation != NULL)	\
 				mpc->mpc_ops->mpo_ ## operation (args);	\
 		}							\
-		mac_policy_sunlock_nosleep();				\
+		mac_policy_sunlock_nosleep(&tracker);			\
 	}								\
 } while (0)
 

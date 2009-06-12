@@ -736,11 +736,12 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		    kp->ki_ngroups * sizeof(gid_t));
 		kp->ki_rgid = cred->cr_rgid;
 		kp->ki_svgid = cred->cr_svgid;
+		kp->ki_cr_flags = cred->cr_flags;
 		/* If jailed(cred), emulate the old P_JAILED flag. */
 		if (jailed(cred)) {
 			kp->ki_flag |= P_JAILED;
-			/* If inside a jail, use 0 as a jail ID. */
-			if (!jailed(curthread->td_ucred))
+			/* If inside the jail, use 0 as a jail ID. */
+			if (cred->cr_prison != curthread->td_ucred->cr_prison)
 				kp->ki_jid = cred->cr_prison->pr_id;
 		}
 	}

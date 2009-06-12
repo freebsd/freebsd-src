@@ -1153,8 +1153,14 @@ ath_vap_delete(struct ieee80211vap *vap)
 		if (ath_startrecv(sc) != 0)
 			if_printf(ifp, "%s: unable to restart recv logic\n",
 			    __func__);
-		if (sc->sc_beacons)
-			ath_beacon_config(sc, NULL);
+		if (sc->sc_beacons) {		/* restart beacons */
+#ifdef IEEE80211_SUPPORT_TDMA
+			if (sc->sc_tdma)
+				ath_tdma_config(sc, NULL);
+			else
+#endif
+				ath_beacon_config(sc, NULL);
+		}
 		ath_hal_intrset(ah, sc->sc_imask);
 	}
 }
@@ -1652,13 +1658,13 @@ ath_reset(struct ifnet *ifp)
 	 * might change as a result.
 	 */
 	ath_chan_change(sc, ic->ic_curchan);
-	if (sc->sc_beacons) {
+	if (sc->sc_beacons) {		/* restart beacons */
 #ifdef IEEE80211_SUPPORT_TDMA
 		if (sc->sc_tdma)
 			ath_tdma_config(sc, NULL);
 		else
 #endif
-			ath_beacon_config(sc, NULL);	/* restart beacons */
+			ath_beacon_config(sc, NULL);
 	}
 	ath_hal_intrset(ah, sc->sc_imask);
 
@@ -1704,7 +1710,6 @@ _ath_getbuf_locked(struct ath_softc *sc)
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: %s\n", __func__,
 		    STAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
-		sc->sc_stats.ast_tx_nobuf++;
 	}
 	return bf;
 }
@@ -1814,6 +1819,7 @@ ath_start(struct ifnet *ifp)
 			DPRINTF(sc, ATH_DEBUG_XMIT,
 			    "%s: out of txfrag buffers\n", __func__);
 			sc->sc_stats.ast_tx_nofrag++;
+			ifp->if_oerrors++;
 			ath_freetx(m);
 			goto bad;
 		}
@@ -2796,7 +2802,7 @@ ath_beacon_proc(void *arg, int pending)
 		slot = ((tsftu % ic->ic_lintval) * ATH_BCBUF) / ic->ic_lintval;
 		vap = sc->sc_bslot[(slot+1) % ATH_BCBUF];
 		bfaddr = 0;
-		if (vap != NULL && vap->iv_state == IEEE80211_S_RUN) {
+		if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
 			bf = ath_beacon_generate(sc, vap);
 			if (bf != NULL)
 				bfaddr = bf->bf_daddr;
@@ -2806,7 +2812,7 @@ ath_beacon_proc(void *arg, int pending)
 
 		for (slot = 0; slot < ATH_BCBUF; slot++) {
 			vap = sc->sc_bslot[slot];
-			if (vap != NULL && vap->iv_state == IEEE80211_S_RUN) {
+			if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
 				bf = ath_beacon_generate(sc, vap);
 				if (bf != NULL) {
 					*bflink = bf->bf_daddr;
@@ -2872,7 +2878,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	struct mbuf *m;
 	int nmcastq, error;
 
-	KASSERT(vap->iv_state == IEEE80211_S_RUN,
+	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
 	    ("not running, state %d", vap->iv_state));
 	KASSERT(avp->av_bcbuf != NULL, ("no beacon buffer"));
 
@@ -4126,7 +4132,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 		/*
 		 * AIFS is zero so there's no pre-transmit wait.  The
 		 * burst time defines the slot duration and is configured
-		 * via sysctl.  The QCU is setup to not do post-xmit
+		 * through net80211.  The QCU is setup to not do post-xmit
 		 * back off, lockout all lower-priority QCU's, and fire
 		 * off the DMA beacon alert timer which is setup based
 		 * on the slot configuration.
@@ -5500,7 +5506,7 @@ ath_isanyrunningvaps(struct ieee80211vap *this)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-		if (vap != this && vap->iv_state == IEEE80211_S_RUN)
+		if (vap != this && vap->iv_state >= IEEE80211_S_RUN)
 			return 1;
 	}
 	return 0;
@@ -6825,55 +6831,60 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ath_softc *sc = ifp->if_softc;
 	struct ath_buf *bf;
+	int error;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, %s", __func__,
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ?
 			"!running" : "invalid");
-		sc->sc_stats.ast_tx_raw_fail++;
-		ieee80211_free_node(ni);
 		m_freem(m);
-		return ENETDOWN;
+		error = ENETDOWN;
+		goto bad;
 	}
 	/*
 	 * Grab a TX buffer and associated resources.
 	 */
 	bf = ath_getbuf(sc);
 	if (bf == NULL) {
-		/* NB: ath_getbuf handles stat+msg */
-		ieee80211_free_node(ni);
+		sc->sc_stats.ast_tx_nobuf++;
 		m_freem(m);
-		return ENOBUFS;
+		error = ENOBUFS;
+		goto bad;
 	}
-
-	ifp->if_opackets++;
-	sc->sc_stats.ast_tx_raw++;
 
 	if (params == NULL) {
 		/*
 		 * Legacy path; interpret frame contents to decide
 		 * precisely how to send the frame.
 		 */
-		if (ath_tx_start(sc, ni, bf, m))
-			goto bad;
+		if (ath_tx_start(sc, ni, bf, m)) {
+			error = EIO;		/* XXX */
+			goto bad2;
+		}
 	} else {
 		/*
 		 * Caller supplied explicit parameters to use in
 		 * sending the frame.
 		 */
-		if (ath_tx_raw_start(sc, ni, bf, m, params))
-			goto bad;
+		if (ath_tx_raw_start(sc, ni, bf, m, params)) {
+			error = EIO;		/* XXX */
+			goto bad2;
+		}
 	}
 	sc->sc_wd_timer = 5;
+	ifp->if_opackets++;
+	sc->sc_stats.ast_tx_raw++;
 
 	return 0;
-bad:
-	ifp->if_oerrors++;
+bad2:
 	ATH_TXBUF_LOCK(sc);
 	STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 	ATH_TXBUF_UNLOCK(sc);
+bad:
+	ifp->if_oerrors++;
+	sc->sc_stats.ast_tx_raw_fail++;
 	ieee80211_free_node(ni);
-	return EIO;		/* XXX */
+	return error;
 }
 
 /*

@@ -295,7 +295,7 @@ arm_unmask_irq(uintptr_t nb)
 }
 
 int
-arm_get_next_irq(void)
+arm_get_next_irq(int last __unused)
 {
 	uint32_t val;
 	val = intpnd0_read() & intr_enabled0;

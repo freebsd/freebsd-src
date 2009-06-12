@@ -105,7 +105,7 @@ hid_clear_local(struct hid_item *c)
  *	hid_start_parse
  *------------------------------------------------------------------------*/
 struct hid_data *
-hid_start_parse(const void *d, usb2_size_t len, int kindset)
+hid_start_parse(const void *d, usb_size_t len, int kindset)
 {
 	struct hid_data *s;
 
@@ -491,7 +491,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
  *	hid_report_size
  *------------------------------------------------------------------------*/
 int
-hid_report_size(const void *buf, usb2_size_t len, enum hid_kind k, uint8_t *id)
+hid_report_size(const void *buf, usb_size_t len, enum hid_kind k, uint8_t *id)
 {
 	struct hid_data *d;
 	struct hid_item h;
@@ -544,7 +544,7 @@ hid_report_size(const void *buf, usb2_size_t len, enum hid_kind k, uint8_t *id)
  *	hid_locate
  *------------------------------------------------------------------------*/
 int
-hid_locate(const void *desc, usb2_size_t size, uint32_t u, enum hid_kind k,
+hid_locate(const void *desc, usb_size_t size, uint32_t u, enum hid_kind k,
     uint8_t index, struct hid_location *loc, uint32_t *flags, uint8_t *id)
 {
 	struct hid_data *d;
@@ -578,7 +578,7 @@ hid_locate(const void *desc, usb2_size_t size, uint32_t u, enum hid_kind k,
  *	hid_get_data
  *------------------------------------------------------------------------*/
 uint32_t
-hid_get_data(const uint8_t *buf, usb2_size_t len, struct hid_location *loc)
+hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
 {
 	uint32_t hpos = loc->pos;
 	uint32_t hsize = loc->size;
@@ -621,7 +621,7 @@ hid_get_data(const uint8_t *buf, usb2_size_t len, struct hid_location *loc)
  *	hid_is_collection
  *------------------------------------------------------------------------*/
 int
-hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
+hid_is_collection(const void *desc, usb_size_t size, uint32_t usage)
 {
 	struct hid_data *hd;
 	struct hid_item hi;
@@ -650,11 +650,11 @@ hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
  * NULL: No more HID descriptors.
  * Else: Pointer to HID descriptor.
  *------------------------------------------------------------------------*/
-struct usb2_hid_descriptor *
-hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
-    struct usb2_interface_descriptor *id)
+struct usb_hid_descriptor *
+hid_get_descriptor_from_usb(struct usb_config_descriptor *cd,
+    struct usb_interface_descriptor *id)
 {
-	struct usb2_descriptor *desc = (void *)id;
+	struct usb_descriptor *desc = (void *)id;
 
 	if (desc == NULL) {
 		return (NULL);
@@ -681,14 +681,14 @@ hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
  * NULL: Failure.
  * Else: Success. The pointer should eventually be passed to free().
  *------------------------------------------------------------------------*/
-usb2_error_t
-usb2_req_get_hid_desc(struct usb2_device *udev, struct mtx *mtx,
+usb_error_t
+usb2_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
     void **descp, uint16_t *sizep,
-    usb2_malloc_type mem, uint8_t iface_index)
+    struct malloc_type *mem, uint8_t iface_index)
 {
-	struct usb2_interface *iface = usb2_get_iface(udev, iface_index);
-	struct usb2_hid_descriptor *hid;
-	usb2_error_t err;
+	struct usb_interface *iface = usb2_get_iface(udev, iface_index);
+	struct usb_hid_descriptor *hid;
+	usb_error_t err;
 
 	if ((iface == NULL) || (iface->idesc == NULL)) {
 		return (USB_ERR_INVAL);

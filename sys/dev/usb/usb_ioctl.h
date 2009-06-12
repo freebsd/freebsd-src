@@ -40,13 +40,13 @@
 #define	USB_DEVICE_DIR "usb"
 #define	USB_GENERIC_NAME "ugen"
 
-struct usb2_read_dir {
+struct usb_read_dir {
 	void   *urd_data;
 	uint32_t urd_startentry;
 	uint32_t urd_maxlen;
 };
 
-struct usb2_ctl_request {
+struct usb_ctl_request {
 	void   *ucr_data;
 	uint16_t ucr_flags;
 #define	USB_SHORT_XFER_OK       0x0004	/* allow short reads */
@@ -54,15 +54,15 @@ struct usb2_ctl_request {
 #define	USB_USER_DATA_PTR	0x0020	/* internal flag */
 	uint16_t ucr_actlen;		/* actual length transferred */
 	uint8_t	ucr_addr;		/* zero - currently not used */
-	struct usb2_device_request ucr_request;
+	struct usb_device_request ucr_request;
 };
 
-struct usb2_alt_interface {
+struct usb_alt_interface {
 	uint8_t	uai_interface_index;
 	uint8_t	uai_alt_index;
 };
 
-struct usb2_gen_descriptor {
+struct usb_gen_descriptor {
 	void   *ugd_data;
 	uint16_t ugd_lang_id;
 	uint16_t ugd_maxlen;
@@ -77,7 +77,7 @@ struct usb2_gen_descriptor {
 	uint8_t	reserved[8];
 };
 
-struct usb2_device_info {
+struct usb_device_info {
 	uint16_t udi_productNo;
 	uint16_t udi_vendorNo;
 	uint16_t udi_releaseNo;
@@ -106,25 +106,25 @@ struct usb2_device_info {
 	char	udi_release[8];
 };
 
-struct usb2_device_stats {
+struct usb_device_stats {
 	uint32_t uds_requests_ok[4];	/* Indexed by transfer type UE_XXX */
 	uint32_t uds_requests_fail[4];	/* Indexed by transfer type UE_XXX */
 };
 
-struct usb2_fs_start {
+struct usb_fs_start {
 	uint8_t	ep_index;
 };
 
-struct usb2_fs_stop {
+struct usb_fs_stop {
 	uint8_t	ep_index;
 };
 
-struct usb2_fs_complete {
+struct usb_fs_complete {
 	uint8_t	ep_index;
 };
 
 /* This structure is used for all endpoint types */
-struct usb2_fs_endpoint {
+struct usb_fs_endpoint {
 	/*
 	 * NOTE: isochronous USB transfer only use one buffer, but can have
 	 * multiple frame lengths !
@@ -151,18 +151,18 @@ struct usb2_fs_endpoint {
 	uint8_t	status;			/* see USB_ERR_XXX */
 };
 
-struct usb2_fs_init {
+struct usb_fs_init {
 	/* userland pointer to endpoints structure */
-	struct usb2_fs_endpoint *pEndpoints;
+	struct usb_fs_endpoint *pEndpoints;
 	/* maximum number of endpoints */
 	uint8_t	ep_index_max;
 };
 
-struct usb2_fs_uninit {
+struct usb_fs_uninit {
 	uint8_t	dummy;			/* zero */
 };
 
-struct usb2_fs_open {
+struct usb_fs_open {
 #define	USB_FS_MAX_BUFSIZE (1 << 18)
 	uint32_t max_bufsize;
 #define	USB_FS_MAX_FRAMES (1 << 12)
@@ -173,15 +173,15 @@ struct usb2_fs_open {
 	uint8_t	ep_no;			/* bEndpointNumber */
 };
 
-struct usb2_fs_close {
+struct usb_fs_close {
 	uint8_t	ep_index;
 };
 
-struct usb2_fs_clear_stall_sync {
+struct usb_fs_clear_stall_sync {
 	uint8_t	ep_index;
 };
 
-struct usb2_gen_quirk {
+struct usb_gen_quirk {
 	uint16_t index;			/* Quirk Index */
 	uint16_t vid;			/* Vendor ID */
 	uint16_t pid;			/* Product ID */
@@ -196,33 +196,33 @@ struct usb2_gen_quirk {
 };
 
 /* USB controller */
-#define	USB_REQUEST		_IOWR('U', 1, struct usb2_ctl_request)
+#define	USB_REQUEST		_IOWR('U', 1, struct usb_ctl_request)
 #define	USB_SETDEBUG		_IOW ('U', 2, int)
 #define	USB_DISCOVER		_IO  ('U', 3)
-#define	USB_DEVICEINFO		_IOWR('U', 4, struct usb2_device_info)
-#define	USB_DEVICESTATS		_IOR ('U', 5, struct usb2_device_stats)
+#define	USB_DEVICEINFO		_IOWR('U', 4, struct usb_device_info)
+#define	USB_DEVICESTATS		_IOR ('U', 5, struct usb_device_stats)
 #define	USB_DEVICEENUMERATE	_IOW ('U', 6, int)
 
 /* Generic HID device */
-#define	USB_GET_REPORT_DESC	_IOWR('U', 21, struct usb2_gen_descriptor)
+#define	USB_GET_REPORT_DESC	_IOWR('U', 21, struct usb_gen_descriptor)
 #define	USB_SET_IMMED		_IOW ('U', 22, int)
-#define	USB_GET_REPORT		_IOWR('U', 23, struct usb2_gen_descriptor)
-#define	USB_SET_REPORT		_IOW ('U', 24, struct usb2_gen_descriptor)
+#define	USB_GET_REPORT		_IOWR('U', 23, struct usb_gen_descriptor)
+#define	USB_SET_REPORT		_IOW ('U', 24, struct usb_gen_descriptor)
 #define	USB_GET_REPORT_ID	_IOR ('U', 25, int)
 
 /* Generic USB device */
 #define	USB_GET_CONFIG		_IOR ('U', 100, int)
 #define	USB_SET_CONFIG		_IOW ('U', 101, int)
-#define	USB_GET_ALTINTERFACE	_IOWR('U', 102, struct usb2_alt_interface)
-#define	USB_SET_ALTINTERFACE	_IOWR('U', 103, struct usb2_alt_interface)
-#define	USB_GET_DEVICE_DESC	_IOR ('U', 105, struct usb2_device_descriptor)
-#define	USB_GET_CONFIG_DESC	_IOR ('U', 106, struct usb2_config_descriptor)
-#define	USB_GET_RX_INTERFACE_DESC _IOR ('U', 107, struct usb2_interface_descriptor)
-#define	USB_GET_RX_ENDPOINT_DESC _IOR ('U', 108, struct usb2_endpoint_descriptor)
-#define	USB_GET_FULL_DESC	_IOWR('U', 109, struct usb2_gen_descriptor)
-#define	USB_GET_STRING_DESC	_IOWR('U', 110, struct usb2_gen_descriptor)
-#define	USB_DO_REQUEST		_IOWR('U', 111, struct usb2_ctl_request)
-#define	USB_GET_DEVICEINFO	_IOR ('U', 112, struct usb2_device_info)
+#define	USB_GET_ALTINTERFACE	_IOWR('U', 102, struct usb_alt_interface)
+#define	USB_SET_ALTINTERFACE	_IOWR('U', 103, struct usb_alt_interface)
+#define	USB_GET_DEVICE_DESC	_IOR ('U', 105, struct usb_device_descriptor)
+#define	USB_GET_CONFIG_DESC	_IOR ('U', 106, struct usb_config_descriptor)
+#define	USB_GET_RX_INTERFACE_DESC _IOR ('U', 107, struct usb_interface_descriptor)
+#define	USB_GET_RX_ENDPOINT_DESC _IOR ('U', 108, struct usb_endpoint_descriptor)
+#define	USB_GET_FULL_DESC	_IOWR('U', 109, struct usb_gen_descriptor)
+#define	USB_GET_STRING_DESC	_IOWR('U', 110, struct usb_gen_descriptor)
+#define	USB_DO_REQUEST		_IOWR('U', 111, struct usb_ctl_request)
+#define	USB_GET_DEVICEINFO	_IOR ('U', 112, struct usb_device_info)
 #define	USB_SET_RX_SHORT_XFER	_IOW ('U', 113, int)
 #define	USB_SET_RX_TIMEOUT	_IOW ('U', 114, int)
 #define	USB_GET_RX_FRAME_SIZE	_IOR ('U', 115, int)
@@ -230,21 +230,21 @@ struct usb2_gen_quirk {
 #define	USB_SET_RX_BUFFER_SIZE	_IOW ('U', 118, int)
 #define	USB_SET_RX_STALL_FLAG	_IOW ('U', 119, int)
 #define	USB_SET_TX_STALL_FLAG	_IOW ('U', 120, int)
-#define	USB_GET_IFACE_DRIVER	_IOWR('U', 121, struct usb2_gen_descriptor)
+#define	USB_GET_IFACE_DRIVER	_IOWR('U', 121, struct usb_gen_descriptor)
 #define	USB_CLAIM_INTERFACE	_IOW ('U', 122, int)
 #define	USB_RELEASE_INTERFACE	_IOW ('U', 123, int)
 #define	USB_IFACE_DRIVER_ACTIVE	_IOW ('U', 124, int)
 #define	USB_IFACE_DRIVER_DETACH	_IOW ('U', 125, int)
 #define	USB_GET_PLUGTIME	_IOR ('U', 126, uint32_t)
-#define	USB_READ_DIR		_IOW ('U', 127, struct usb2_read_dir)
+#define	USB_READ_DIR		_IOW ('U', 127, struct usb_read_dir)
 /* 128 - 135 unused */
 #define	USB_SET_TX_FORCE_SHORT	_IOW ('U', 136, int)
 #define	USB_SET_TX_TIMEOUT	_IOW ('U', 137, int)
 #define	USB_GET_TX_FRAME_SIZE	_IOR ('U', 138, int)
 #define	USB_GET_TX_BUFFER_SIZE	_IOR ('U', 139, int)
 #define	USB_SET_TX_BUFFER_SIZE	_IOW ('U', 140, int)
-#define	USB_GET_TX_INTERFACE_DESC _IOR ('U', 141, struct usb2_interface_descriptor)
-#define	USB_GET_TX_ENDPOINT_DESC _IOR ('U', 142, struct usb2_endpoint_descriptor)
+#define	USB_GET_TX_INTERFACE_DESC _IOR ('U', 141, struct usb_interface_descriptor)
+#define	USB_GET_TX_ENDPOINT_DESC _IOR ('U', 142, struct usb_endpoint_descriptor)
 #define	USB_SET_PORT_ENABLE	_IOW ('U', 143, int)
 #define	USB_SET_PORT_DISABLE	_IOW ('U', 144, int)
 #define	USB_SET_POWER_MODE	_IOW ('U', 145, int)
@@ -257,19 +257,19 @@ struct usb2_gen_quirk {
 #define	USB_SET_CM_OVER_DATA	_IOW ('U', 181, int)
 
 /* USB file system interface */
-#define	USB_FS_START		_IOW ('U', 192, struct usb2_fs_start)
-#define	USB_FS_STOP		_IOW ('U', 193, struct usb2_fs_stop)
-#define	USB_FS_COMPLETE		_IOR ('U', 194, struct usb2_fs_complete)
-#define	USB_FS_INIT		_IOW ('U', 195, struct usb2_fs_init)
-#define	USB_FS_UNINIT		_IOW ('U', 196, struct usb2_fs_uninit)
-#define	USB_FS_OPEN		_IOWR('U', 197, struct usb2_fs_open)
-#define	USB_FS_CLOSE		_IOW ('U', 198, struct usb2_fs_close)
-#define	USB_FS_CLEAR_STALL_SYNC _IOW ('U', 199, struct usb2_fs_clear_stall_sync)
+#define	USB_FS_START		_IOW ('U', 192, struct usb_fs_start)
+#define	USB_FS_STOP		_IOW ('U', 193, struct usb_fs_stop)
+#define	USB_FS_COMPLETE		_IOR ('U', 194, struct usb_fs_complete)
+#define	USB_FS_INIT		_IOW ('U', 195, struct usb_fs_init)
+#define	USB_FS_UNINIT		_IOW ('U', 196, struct usb_fs_uninit)
+#define	USB_FS_OPEN		_IOWR('U', 197, struct usb_fs_open)
+#define	USB_FS_CLOSE		_IOW ('U', 198, struct usb_fs_close)
+#define	USB_FS_CLEAR_STALL_SYNC _IOW ('U', 199, struct usb_fs_clear_stall_sync)
 
 /* USB quirk system interface */
-#define	USB_DEV_QUIRK_GET	_IOWR('Q', 0, struct usb2_gen_quirk)
-#define	USB_QUIRK_NAME_GET	_IOWR('Q', 1, struct usb2_gen_quirk)
-#define	USB_DEV_QUIRK_ADD	_IOW ('Q', 2, struct usb2_gen_quirk)
-#define	USB_DEV_QUIRK_REMOVE	_IOW ('Q', 3, struct usb2_gen_quirk)
+#define	USB_DEV_QUIRK_GET	_IOWR('Q', 0, struct usb_gen_quirk)
+#define	USB_QUIRK_NAME_GET	_IOWR('Q', 1, struct usb_gen_quirk)
+#define	USB_DEV_QUIRK_ADD	_IOW ('Q', 2, struct usb_gen_quirk)
+#define	USB_DEV_QUIRK_REMOVE	_IOW ('Q', 3, struct usb_gen_quirk)
 
 #endif					/* _USB2_IOCTL_H_ */

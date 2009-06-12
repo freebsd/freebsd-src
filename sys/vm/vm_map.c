@@ -1643,11 +1643,9 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	psize = atop(size);
 
-	if (object->type != OBJT_VNODE ||
-	    ((flags & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
-	     (object->resident_page_count > MAX_INIT_PT))) {
+	if ((flags & MAP_PREFAULT_PARTIAL) && psize > MAX_INIT_PT &&
+	    object->resident_page_count > MAX_INIT_PT)
 		goto unlock_return;
-	}
 
 	if (psize + pindex > object->size) {
 		if (object->size < pindex)
@@ -1683,7 +1681,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			psize = tmpidx;
 			break;
 		}
-		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) {
+		if (p->valid == VM_PAGE_BITS_ALL) {
 			if (p_start == NULL) {
 				start = addr + ptoa(tmpidx);
 				p_start = p;

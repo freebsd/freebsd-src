@@ -579,6 +579,7 @@ bwi_detach(struct bwi_softc *sc)
 	int i;
 
 	bwi_stop(sc, 1);
+	callout_drain(&sc->sc_led_blink_ch);
 	callout_drain(&sc->sc_calib_ch);
 	ieee80211_ifdetach(ic);
 
@@ -1628,6 +1629,23 @@ bwi_intr(void *xsc)
 	/* Disable all interrupts */
 	bwi_disable_intrs(sc, BWI_ALL_INTRS);
 
+	/*
+	 * http://bcm-specs.sipsolutions.net/Interrupts
+	 * Says for this bit (0x800):
+	 * "Fatal Error
+	 *
+	 * We got this one while testing things when by accident the
+	 * template ram wasn't set to big endian when it should have
+	 * been after writing the initial values. It keeps on being
+	 * triggered, the only way to stop it seems to shut down the
+	 * chip."
+	 *
+	 * Suggesting that we should never get it and if we do we're not
+	 * feeding TX packets into the MAC correctly if we do...  Apparently,
+	 * it is valid only on mac version 5 and higher, but I couldn't
+	 * find a reference for that...  Since I see them from time to time
+	 * on my card, this suggests an error in the tx path still...
+	 */
 	if (intr_status & BWI_INTR_PHY_TXERR) {
 		if (mac->mac_flags & BWI_MAC_F_PHYE_RESET) {
 			if_printf(ifp, "%s: intr PHY TX error\n", __func__);
@@ -1753,10 +1771,12 @@ static int
 bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct bwi_vap *bvp = BWI_VAP(vap);
-	struct ifnet *ifp = vap->iv_ic->ic_ifp;
+	struct ieee80211com *ic= vap->iv_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	enum ieee80211_state ostate = vap->iv_state;
 	struct bwi_softc *sc = ifp->if_softc;
 	struct bwi_mac *mac;
-	struct ieee80211_node *ni;
+	struct ieee80211_node *ni = vap->iv_bss;
 	int error;
 
 	BWI_LOCK(sc);
@@ -1772,11 +1792,25 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (error != 0)
 		goto back;
 
+	/*
+	 * Clear the BSSID when we stop a STA
+	 */
+	if (vap->iv_opmode == IEEE80211_M_STA) {
+		if (ostate == IEEE80211_S_RUN && nstate != IEEE80211_S_RUN) {
+			/*
+			 * Clear out the BSSID.  If we reassociate to
+			 * the same AP, this will reinialize things
+			 * correctly...
+			 */
+			if (ic->ic_opmode == IEEE80211_M_STA && 
+			    !(sc->sc_flags & BWI_F_STOP))
+				bwi_set_bssid(sc, bwi_zero_addr);
+		}
+	}
+
 	if (vap->iv_opmode == IEEE80211_M_MONITOR) {
 		/* Nothing to do */
 	} else if (nstate == IEEE80211_S_RUN) {
-		ni = vap->iv_bss;
-
 		bwi_set_bssid(sc, vap->iv_bss->ni_bssid);
 
 		KASSERT(sc->sc_cur_regwin->rw_type == BWI_REGWIN_T_MAC,
@@ -1796,8 +1830,6 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		callout_reset(&sc->sc_calib_ch, hz, bwi_calibrate, sc);
-	} else {
-		bwi_set_bssid(sc, bwi_zero_addr);
 	}
 back:
 	BWI_UNLOCK(sc);
@@ -3126,6 +3158,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct bwi_ring_data *rd = &sc->sc_tx_rdata[BWI_TX_DATA_RING];
 	struct bwi_txbuf_data *tbd = &sc->sc_tx_bdata[BWI_TX_DATA_RING];
 	struct bwi_txbuf *tb = &tbd->tbd_buf[idx];
@@ -3152,8 +3185,20 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	 * Find TX rate
 	 */
 	rate = params->ibp_rate0;
-	rate_fb = (params->ibp_try1 != 0) ?
-	    params->ibp_rate1 : params->ibp_rate0;
+	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
+		/* XXX fall back to mcast/mgmt rate? */
+		m_freem(m);
+		return EINVAL;
+	}
+	if (params->ibp_try1 != 0) {
+		rate_fb = params->ibp_rate1;
+		if (!ieee80211_isratevalid(ic->ic_rt, rate_fb)) {
+			/* XXX fall back to rate0? */
+			m_freem(m);
+			return EINVAL;
+		}
+	} else
+		rate_fb = rate;
 	tb->tb_rate[0] = rate;
 	tb->tb_rate[1] = rate_fb;
 	sc->sc_tx_rate = rate;
@@ -4038,8 +4083,8 @@ bwi_restart(void *xsc, int pending)
 	if_printf(ifp, "%s begin, help!\n", __func__);
 	BWI_LOCK(sc);
 	bwi_init_statechg(xsc, 0);
-	BWI_UNLOCK(sc);
 #if 0
 	bwi_start_locked(ifp);
 #endif
+	BWI_UNLOCK(sc);
 }

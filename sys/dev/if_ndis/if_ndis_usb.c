@@ -111,7 +111,7 @@ DRIVER_MODULE(ndis, uhub, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 static int
 ndisusb_devcompare(interface_type bustype, struct ndis_usb_type *t, device_t dev)
 {
-	struct usb2_attach_arg *uaa;
+	struct usb_attach_arg *uaa;
 
 	if (bustype != PNPBus)
 		return (FALSE);
@@ -134,7 +134,7 @@ static int
 ndisusb_match(device_t self)
 {
 	struct drvdb_ent *db;
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -149,7 +149,7 @@ ndisusb_match(device_t self)
 	db = windrv_match((matchfuncptr)ndisusb_devcompare, self);
 	if (db == NULL)
 		return (ENXIO);
-	uaa->driver_info = db;
+	uaa->driver_ivar = db;
 
 	return (0);
 }
@@ -159,13 +159,13 @@ ndisusb_attach(device_t self)
 {
 	const struct drvdb_ent	*db;
 	struct ndisusb_softc *dummy = device_get_softc(self);
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ndis_softc	*sc;
 	struct ndis_usb_type	*t;
 	driver_object		*drv;
 	int			devidx = 0;
 
-	db = uaa->driver_info;
+	db = uaa->driver_ivar;
 	sc = (struct ndis_softc *)dummy;
 	sc->ndis_dev = self;
 	mtx_init(&sc->ndisusb_mtx, "NDIS USB", MTX_NETWORK_LOCK, MTX_DEF);

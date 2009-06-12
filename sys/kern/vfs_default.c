@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/dirent.h>
 #include <sys/poll.h>
 
+#include <security/mac/mac_framework.h>
+
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
@@ -87,6 +89,7 @@ struct vop_vector default_vnodeops = {
 	.vop_default =		NULL,
 	.vop_bypass =		VOP_EOPNOTSUPP,
 
+	.vop_accessx =		vop_stdaccessx,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
 	.vop_bmap =		vop_stdbmap,
@@ -320,6 +323,22 @@ dirent_exists(struct vnode *vp, const char *dirname, struct thread *td)
 out:
 	free(dirbuf, M_TEMP);
 	return (found);
+}
+
+int
+vop_stdaccessx(struct vop_accessx_args *ap)
+{
+	int error;
+	accmode_t accmode = ap->a_accmode;
+
+	error = vfs_unixify_accmode(&accmode);
+	if (error != 0)
+		return (error);
+
+	if (accmode == 0)
+		return (0);
+
+	return (VOP_ACCESS(ap->a_vp, accmode, ap->a_cred, ap->a_td));
 }
 
 /*

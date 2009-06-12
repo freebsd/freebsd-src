@@ -108,7 +108,10 @@ again:	if ((ret = stat(name, &st)) < 0) {
 		 */
 		name = oname;
 	}
-	if (ret >= 0 && S_ISCHR(st.st_mode)) {
+	if (ret >= 0 && S_ISREG(st.st_mode)) {
+		/* Possibly a disk image, give it a try.  */
+		;
+	} else if (ret >= 0 && S_ISCHR(st.st_mode)) {
 		/* This is what we need, do nothing. */
 		;
 	} else if ((fs = getfsfile(name)) != NULL) {

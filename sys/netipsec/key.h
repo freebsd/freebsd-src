@@ -100,6 +100,9 @@ extern void key_randomfill __P((void *, size_t));
 extern void key_freereg __P((struct socket *));
 extern int key_parse __P((struct mbuf *, struct socket *));
 extern void key_init __P((void));
+#ifdef VIMAGE
+extern void key_destroy(void);
+#endif
 extern void key_sa_recordxfer __P((struct secasvar *, struct mbuf *));
 extern void key_sa_routechange __P((struct sockaddr *));
 extern void key_sa_stir_iv __P((struct secasvar *));

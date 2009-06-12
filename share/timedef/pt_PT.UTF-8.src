@@ -36,23 +36,23 @@ Dezembro
 #
 # Short weekday names
 #
-Dom
-Seg
-Ter
-Qua
-Qui
-Sex
-Sáb
+dom
+seg
+ter
+qua
+qui
+sex
+sáb
 #
 # Long weekday names
 #
-Domingo
-Segunda Feira
-Terça Feira
-Quarta Feira
-Quinta Feira
-Sexta Feira
-Sábado
+domingo
+segunda-feira
+terça-feira
+quarta-feira
+quinta-feira
+sexta-feira
+sábado
 #
 # X_fmt
 #
@@ -60,7 +60,7 @@ Sábado
 #
 # x_fmt
 #
-%d.%m.%Y
+%d/%m/%Y
 #
 # c_fmt
 #

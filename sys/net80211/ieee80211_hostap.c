@@ -114,6 +114,41 @@ sta_disassoc(void *arg, struct ieee80211_node *ni)
 	}
 }
 
+static void
+sta_csa(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = arg;
+
+	if (ni->ni_vap == vap && ni->ni_associd != 0)
+		if (ni->ni_inact > vap->iv_inact_init) {
+			ni->ni_inact = vap->iv_inact_init;
+			IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
+			    "%s: inact %u", __func__, ni->ni_inact);
+		}
+}
+
+static void
+sta_drop(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = arg;
+
+	if (ni->ni_vap == vap && ni->ni_associd != 0)
+		ieee80211_node_leave(ni);
+}
+
+/*
+ * Does a channel change require associated stations to re-associate
+ * so protocol state is correct.  This is used when doing CSA across
+ * bands or similar (e.g. HT -> legacy).
+ */
+static int
+isbandchange(struct ieee80211com *ic)
+{
+	return ((ic->ic_bsschan->ic_flags ^ ic->ic_csa_newchan->ic_flags) &
+	    (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_HALF |
+	     IEEE80211_CHAN_QUARTER | IEEE80211_CHAN_HT)) != 0;
+}
+
 /*
  * IEEE80211_M_HOSTAP vap state machine handler.
  */
@@ -166,7 +201,7 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * is set before doing anything so this is sufficient.
 			 */
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_NONERP_PR;
-			ic->ic_flags_ext &= ~IEEE80211_FEXT_NONHT_PR;
+			ic->ic_flags_ht &= ~IEEE80211_FHT_NONHT_PR;
 			/* fall thru... */
 		case IEEE80211_S_CAC:
 			/*
@@ -237,7 +272,7 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 */
 			ieee80211_create_ibss(vap,
 			    ieee80211_ht_adjust_channel(ic,
-				ic->ic_curchan, vap->iv_flags_ext));
+				ic->ic_curchan, vap->iv_flags_ht));
 			/* NB: iv_bss is changed on return */
 			break;
 		case IEEE80211_S_CAC:
@@ -248,6 +283,11 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 */
 			/* fall thru... */
 		case IEEE80211_S_CSA:
+			/*
+			 * Shorten inactivity timer of associated stations
+			 * to weed out sta's that don't follow a CSA.
+			 */
+			ieee80211_iterate_nodes(&ic->ic_sta, sta_csa, vap);
 			/*
 			 * Update bss node channel to reflect where
 			 * we landed after CSA.
@@ -289,6 +329,18 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 		ieee80211_node_authorize(vap->iv_bss);
 		break;
+	case IEEE80211_S_CSA:
+		if (ostate == IEEE80211_S_RUN && isbandchange(ic)) {
+			/*
+			 * On a ``band change'' silently drop associated
+			 * stations as they must re-associate before they
+			 * can pass traffic (as otherwise protocol state
+			 * such as capabilities and the negotiated rate
+			 * set may/will be wrong).
+			 */
+			ieee80211_iterate_nodes(&ic->ic_sta, sta_drop, vap);
+		}
+		break;
 	default:
 		break;
 	}
@@ -301,6 +353,9 @@ hostap_deliver_data(struct ieee80211vap *vap,
 {
 	struct ether_header *eh = mtod(m, struct ether_header *);
 	struct ifnet *ifp = vap->iv_ifp;
+
+	/* clear driver/net80211 flags before passing up */
+	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP,
 	    ("gack, opmode %d", vap->iv_opmode));
@@ -315,9 +370,6 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		IEEE80211_NODE_STAT(ni, rx_mcast);
 	} else
 		IEEE80211_NODE_STAT(ni, rx_ucast);
-
-	/* clear driver/net80211 flags before passing up */
-	m->m_flags &= ~M_80211_RX;
 
 	/* perform as a bridge within the AP */
 	if ((vap->iv_flags & IEEE80211_F_NOBRIDGE) == 0) {
@@ -1576,7 +1628,7 @@ htcapmismatch(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
 	IEEE80211_NOTE_MAC(ni->ni_vap, IEEE80211_MSG_ANY, wh->i_addr2,
 	    "deny %s request, %s missing HT ie", reassoc ? "reassoc" : "assoc");
 	/* XXX no better code */
-	IEEE80211_SEND_MGMT(ni, resp, IEEE80211_STATUS_OTHER);
+	IEEE80211_SEND_MGMT(ni, resp, IEEE80211_STATUS_MISSING_HT_CAPS);
 	ieee80211_node_leave(ni);
 }
 
@@ -1943,7 +1995,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				else if (isatherosoui(frm))
 					ath = frm;
 #endif
-				else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
+				else if (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) {
 					if (ishtcapoui(frm) && htcap == NULL)
 						htcap = frm;
 				}
@@ -2051,7 +2103,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		/*
 		 * If constrained to 11n-only stations reject legacy stations.
 		 */
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_PUREN) &&
+		if ((vap->iv_flags_ht & IEEE80211_FHT_PUREN) &&
 		    (ni->ni_flags & IEEE80211_NODE_HT) == 0) {
 			htcapmismatch(ni, wh, reassoc, resp);
 			vap->iv_stats.is_ht_assoc_nohtcap++;

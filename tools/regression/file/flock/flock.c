@@ -37,6 +37,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1401,6 +1402,112 @@ test15(int fd, __unused int argc, const __unused char **argv)
 #endif
 }
 
+struct test_ctx {
+	struct flock tc_fl;
+	int tc_fd;
+};
+
+static void *
+test16_func(void *tc_in)
+{
+	uintptr_t error;
+	struct test_ctx *tc = tc_in;
+
+	error = fcntl(tc->tc_fd, F_SETLKW, &tc->tc_fl);
+
+	pthread_exit((void *)error);
+}
+
+#define THREADS 10
+
+/*
+ * Test 16 - F_SETLKW from two threads
+ *
+ * If two threads within a process are blocked on a lock and the lock
+ * is granted, make sure things are sane.
+ */
+static int
+test16(int fd, __unused int argc, const __unused char **argv)
+{
+	/*
+	 * We create a child process to hold the lock which we will
+	 * test. We use a pipe to communicate with the child.
+	 */
+	int pid;
+	int pfd[2];
+	struct test_ctx tc = { .tc_fd = fd };
+	char ch;
+	int i;
+	int error;
+	pthread_t thr[THREADS];
+
+	if (pipe(pfd) < 0)
+		err(1, "pipe");
+
+	tc.tc_fl.l_start = 0;
+	tc.tc_fl.l_len = 0;
+	tc.tc_fl.l_type = F_WRLCK;
+	tc.tc_fl.l_whence = SEEK_SET;
+
+	pid = fork();
+	if (pid < 0)
+		err(1, "fork");
+
+	if (pid == 0) {
+		/*
+		 * We are the child. We set a write lock and then
+		 * write one byte back to the parent to tell it. The
+		 * parent will kill us when its done.
+		 */
+		if (fcntl(fd, F_SETLK, &tc.tc_fl) < 0)
+			err(1, "F_SETLK (child)");
+		if (write(pfd[1], "a", 1) < 0)
+			err(1, "writing to pipe (child)");
+		pause();
+		exit(0);
+	}
+
+	/*
+	 * Wait until the child has set its lock and then perform the
+	 * test.
+	 */
+	if (read(pfd[0], &ch, 1) != 1)
+		err(1, "reading from pipe (child)");
+
+	/*
+	 * fcntl should wait until the alarm and then return -1 with
+	 * errno set to EINTR.
+	 */
+	printf("16 - F_SETLKW on locked region by two threads: ");
+
+	for (i = 0; i < THREADS; i++) {
+		error = pthread_create(&thr[i], NULL, test16_func, &tc);
+		if (error)
+			err(1, "pthread_create");
+	}
+
+	/*
+	 * Sleep, then kill the child. This makes me a little sad, but it's
+	 * tricky to tell whether the threads are all really blocked by this
+	 * point.
+	 */
+	sleep(1);
+	kill(pid, SIGTERM);
+	safe_waitpid(pid);
+	close(pfd[0]);
+	close(pfd[1]);
+
+	for (i = 0; i < THREADS; i++) {
+		void *res;
+		error = pthread_join(thr[i], &res);
+		if (error)
+			err(1, "pthread_join");
+		FAIL((uintptr_t)res != 0);
+	}
+
+	SUCCEED;
+}
+
 struct test {
 	int (*testfn)(int, int, const char **);	/* function to perform the test */
 	int num;		/* test number */
@@ -1423,6 +1530,7 @@ struct test tests[] = {
 	{	test13,		13,	1	},
 	{	test14,		14,	0	},
 	{	test15,		15,	1	},
+	{	test16,		16,	1	},
 };
 int test_count = sizeof(tests) / sizeof(tests[0]);
 

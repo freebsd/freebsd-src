@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.47.18.3 2005/04/29 00:16:58 marka Exp $ */
+/* $Id: log.h,v 1.54.332.5 2009/02/16 02:04:05 marka Exp $ */
 
 #ifndef ISC_LOG_H
 #define ISC_LOG_H 1
 
-/*! \file */
+/*! \file isc/log.h */
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -86,7 +86,7 @@
 /*@}*/
 
 /*!
- * \brief Used to name the categories used by a library.  
+ * \brief Used to name the categories used by a library.
  *
  * An array of isc_logcategory
  * structures names each category, and the id value is initialized by calling
@@ -107,13 +107,13 @@ struct isc_logmodule {
 
 /*%
  * The isc_logfile structure is initialized as part of an isc_logdestination
- * before calling isc_log_createchannel().  
+ * before calling isc_log_createchannel().
  *
  * When defining an #ISC_LOG_TOFILE
  * channel the name, versions and maximum_size should be set before calling
  * isc_log_createchannel().  To define an #ISC_LOG_TOFILEDESC channel set only
  * the stream before the call.
- * 
+ *
  * Setting maximum_size to zero implies no maximum.
  */
 typedef struct isc_logfile {
@@ -166,6 +166,7 @@ LIBISC_EXTERNAL_DATA extern isc_logmodule_t isc_modules[];
 #define ISC_LOGMODULE_TIME (&isc_modules[1])
 #define ISC_LOGMODULE_INTERFACE (&isc_modules[2])
 #define ISC_LOGMODULE_TIMER (&isc_modules[3])
+#define ISC_LOGMODULE_FILE (&isc_modules[4])
 
 ISC_LANG_BEGINDECLS
 
@@ -477,7 +478,7 @@ isc_log_usechannel(isc_logconfig_t *lcfg, const char *name,
  *	number of named channels.)  When multiple channels of the same
  *	name are defined, the most recent definition is found.
  *
- *\li	Specifing a very large number of channels for a category will have
+ *\li	Specifying a very large number of channels for a category will have
  *	a moderate impact on performance in isc_log_write(), as each
  *	call looks up the category for the start of a linked list, which
  *	it follows all the way to the end to find matching modules.  The
@@ -527,7 +528,7 @@ isc_log_usechannel(isc_logconfig_t *lcfg, const char *name,
  */
 
 /* Attention: next four comments PRECEED code */
-/*! 
+/*!
  *   \brief
  * Write a message to the log channels.
  *
@@ -546,7 +547,7 @@ isc_log_usechannel(isc_logconfig_t *lcfg, const char *name,
  *\li	lctx is a valid logging context.
  *
  *\li	The category and module arguments must have ids that are in the
- *	range of known ids, as estabished by isc_log_registercategories()
+ *	range of known ids, as established by isc_log_registercategories()
  *	and isc_log_registermodules().
  *
  *\li	level != #ISC_LOG_DYNAMIC.  ISC_LOG_DYNAMIC is used only to define
@@ -585,7 +586,7 @@ ISC_FORMAT_PRINTF(5, 6);
  *\li	lctx is a valid logging context.
  *
  *\li	The category and module arguments must have ids that are in the
- *	range of known ids, as estabished by isc_log_registercategories()
+ *	range of known ids, as established by isc_log_registercategories()
  *	and isc_log_registermodules().
  *
  *\li	level != #ISC_LOG_DYNAMIC.  ISC_LOG_DYNAMIC is used only to define
@@ -633,8 +634,8 @@ isc_log_vwrite1(isc_log_t *lctx, isc_logcategory_t *category,
 ISC_FORMAT_PRINTF(5, 0);
 
 /*%
- * These are four internationalized versions of the the isc_log_[v]write[1]
- * functions.  
+ * These are four internationalized versions of the isc_log_[v]write[1]
+ * functions.
  *
  * The only difference is that they take arguments for a message
  * catalog, message set, and message number, all immediately preceding the
@@ -824,7 +825,7 @@ isc_log_opensyslog(const char *tag, int options, int facility);
  *			declared facility.
  * \endcode
  *
- *\li	Zero effort has been made (yet) to accomodate systems with openlog()
+ *\li	Zero effort has been made (yet) to accommodate systems with openlog()
  *	that only takes two arguments, or to identify valid syslog
  *	facilities or options for any given architecture.
  *

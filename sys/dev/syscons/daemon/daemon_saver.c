@@ -32,11 +32,11 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/consio.h>
 #include <sys/fbio.h>
-#include <sys/vimage.h>
 
 #include <machine/pc/display.h>
 
@@ -352,11 +352,12 @@ static int
 daemon_init(video_adapter_t *adp)
 {
 
-	/* XXXRW: Locking -- these can change! */
-	messagelen = strlen(G_hostname) + 3 + strlen(ostype) + 1 + 
+	mtx_lock(&prison0.pr_mtx);
+	messagelen = strlen(prison0.pr_host) + 3 + strlen(ostype) + 1 + 
 	    strlen(osrelease);
 	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
-	sprintf(message, "%s - %s %s", G_hostname, ostype, osrelease);
+	sprintf(message, "%s - %s %s", prison0.pr_host, ostype, osrelease);
+	mtx_unlock(&prison0.pr_mtx);
 	blanked = 0;
 	switch (adp->va_mode) {
 	case M_PC98_80x25:

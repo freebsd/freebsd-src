@@ -1571,7 +1571,7 @@ static void core_interrupt(void *, int);
 static void user_interrupt(softc_t *, int);
 #if BSD
 # if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
-static void fbsd_poll(struct ifnet *, enum poll_cmd, int);
+static int fbsd_poll(struct ifnet *, enum poll_cmd, int);
 # endif
 static intr_return_t bsd_interrupt(void *);
 #endif /* BSD */
