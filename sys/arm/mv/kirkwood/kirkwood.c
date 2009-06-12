@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+#include <arm/mv/mvwin.h>
 
 struct obio_device obio_devices[] = {
 	{ "ic", MV_IC_BASE, MV_IC_SIZE,
