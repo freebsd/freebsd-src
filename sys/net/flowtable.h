@@ -39,18 +39,16 @@ $FreeBSD$
 
 struct flowtable;
 extern struct flowtable *ip_ft;
-extern struct flowtable *ip_forward_ft;
 
 struct flowtable *flowtable_alloc(int nentry, int flags);
 
 /*
  * Given a flow table, look up the L3 and L2 information and
- * return it in the route
+ * return it in the route.
  *
  */
 int flowtable_lookup(struct flowtable *ft, struct mbuf *m,
     struct route *ro);
 
-#endif
-
+#endif /* _KERNEL */
 #endif
