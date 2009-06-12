@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #define	DHCP_ENV_NOVENDOR	1	/* do not parse vendor options */
 #define	DHCP_ENV_PXE		10	/* assume pxe vendor options */
-#define	DHCP_ENV_FREEBSD	11	/* assume freebsd vendor options
+#define	DHCP_ENV_FREEBSD	11	/* assume freebsd vendor options */
 /* set DHCP_ENV to one of the values above to export dhcp options to kenv */
 #define DHCP_ENV		DHCP_ENV_NO_VENDOR
 

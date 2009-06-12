@@ -1,7 +1,12 @@
 # $FreeBSD$
 
+.PATH:	${.CURDIR}/../mount
+
 PROG=	mksnap_ffs
+SRCS=	mksnap_ffs.c getmntopts.c
 MAN=	mksnap_ffs.8
+
+CFLAGS+=-I${.CURDIR}/../mount
 
 .if defined(NOSUID)
 BINMODE=550

@@ -91,8 +91,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -330,10 +328,8 @@ kern_pipe(struct thread *td, int fildes[2])
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
 
-	knlist_init(&rpipe->pipe_sel.si_note, PIPE_MTX(rpipe), NULL, NULL,
-	    NULL);
-	knlist_init(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe), NULL, NULL,
-	    NULL);
+	knlist_init_mtx(&rpipe->pipe_sel.si_note, PIPE_MTX(rpipe));
+	knlist_init_mtx(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe));
 
 	/* Only the forward direction pipe is backed by default */
 	if ((error = pipe_create(rpipe, 1)) != 0 ||
@@ -761,6 +757,8 @@ pipe_build_write_buffer(wpipe, uio)
 	pmap = vmspace_pmap(curproc->p_vmspace);
 	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
 	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
+	if (endaddr < addr)
+		return (EFAULT);
 	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
 		/*
 		 * vm_fault_quick() can sleep.  Consequently,

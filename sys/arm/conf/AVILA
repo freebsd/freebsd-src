@@ -132,15 +132,14 @@ device		ath_ar5416
 options 	AH_SUPPORT_AR5416
 device		ath_ar9160
 
-makeoptions	WITH_LEGACY
-device		ousb
+device		usb
 #options 	USB_DEBUG
-device		oohci
-device		oehci
-device		oumass
+device		ohci
+device		ehci
+device		umass
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
 
-#device		oural
-#device		ozyd
+#device		ural
+#device		zyd
 #device		wlan_amrr

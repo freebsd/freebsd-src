@@ -49,6 +49,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lockf.h>
 #include <sys/malloc.h>
@@ -71,8 +72,6 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/acl.h>
-/* until the nfsv4 acl stuff is all committed, undef NFS4_ACL_EXTATTR_NAME */
-#undef NFS4_ACL_EXTATTR_NAME
 #include <sys/module.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
@@ -789,7 +788,8 @@ void newnfs_realign(struct mbuf **);
 #define	NFSSETWRITEVERF(n)	((n)->nm_state |= NFSSTA_HASWRITEVERF)
 #define	NFSSETHASSETFSID(n)	((n)->nm_state |= NFSSTA_HASSETFSID)
 #ifdef NFS4_ACL_EXTATTR_NAME
-#define	NFSHASNFS4ACL(m)	((m)->mnt_flag & MNT_NFS4ACLS)
+#define	NFSHASNFS4ACL(m)	nfs_supportsnfsv4acls(m)
+int nfs_supportsnfsv4acls(struct mount *);
 #else
 #define	NFSHASNFS4ACL(m)	0
 #endif

@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/signal.h>
 #include <sys/types.h>
 #include <sys/fcntl.h>
 
@@ -89,14 +90,13 @@ test_flopen_open(void)
 	return (result);
 }
 
-#if FLOPEN_CAN_LOCK_AGAINST_SELF
 /*
  * Test that flopen() can lock against itself
  */
 const char *
 test_flopen_lock_self(void)
 {
-	const char *fn = "test_flopen_lock";
+	const char *fn = "test_flopen_lock_self";
 	const char *result = NULL;
 	int fd1, fd2;
 
@@ -115,7 +115,6 @@ test_flopen_lock_self(void)
 	unlink(fn);
 	return (result);
 }
-#endif
 
 /*
  * Test that flopen() can lock against other processes
@@ -123,7 +122,7 @@ test_flopen_lock_self(void)
 const char *
 test_flopen_lock_other(void)
 {
-	const char *fn = "test_flopen_lock";
+	const char *fn = "test_flopen_lock_other";
 	const char *result = NULL;
 	volatile int fd1, fd2;
 
@@ -148,16 +147,52 @@ test_flopen_lock_other(void)
 	return (result);
 }
 
+/*
+ * Test that child processes inherit the lock
+ */
+const char *
+test_flopen_lock_child(void)
+{
+	const char *fn = "test_flopen_lock_child";
+	const char *result = NULL;
+	pid_t pid;
+	volatile int fd1, fd2;
+
+	unlink(fn);
+	fd1 = flopen(fn, O_RDWR|O_CREAT, 0640);
+	if (fd1 < 0) {
+		result = strerror(errno);
+	} else {
+		if ((pid = fork()) == 0) {
+			select(0, 0, 0, 0, 0);
+			_exit(0);
+		}
+		close(fd1);
+		fd2 = -42;
+		if (vfork() == 0) {
+			fd2 = flopen(fn, O_RDWR|O_NONBLOCK);
+			close(fd2);
+			_exit(0);
+		}
+		if (fd2 == -42)
+			result = "vfork() doesn't work as expected";
+		if (fd2 >= 0)
+			result = "second open succeeded";
+		kill(pid, SIGINT);
+	}
+	unlink(fn);
+	return (result);
+}
+
 static struct test {
 	const char *name;
 	const char *(*func)(void);
 } t[] = {
 	{ "flopen_create", test_flopen_create },
 	{ "flopen_open", test_flopen_open },
-#if FLOPEN_CAN_LOCK_AGAINST_SELF
 	{ "flopen_lock_self", test_flopen_lock_self },
-#endif
 	{ "flopen_lock_other", test_flopen_lock_other },
+	{ "flopen_lock_child", test_flopen_lock_child },
 };
 
 int

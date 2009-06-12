@@ -29,7 +29,6 @@
  */
 
 #include "opt_kdtrace.h"
-#include "opt_mac.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");

@@ -105,6 +105,8 @@ struct dirhash {
 
 	int	dh_onlist;	/* true if on the ufsdirhash_list chain */
 
+	time_t	dh_lastused;	/* time the dirhash was last read or written*/
+
 	/* Protected by ufsdirhash_mtx. */
 	TAILQ_ENTRY(dirhash) dh_list;	/* chain of all dirhashes */
 };

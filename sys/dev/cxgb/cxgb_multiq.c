@@ -123,7 +123,7 @@ cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 		return (ENETDOWN);
 	}
 	txq = &qs->txq[TXQ_ETH];
-	err = buf_ring_enqueue(txq->txq_mr, m);
+	err = drbr_enqueue(qs->port->ifp, txq->txq_mr, m);
 	if (err) {
 		txq->txq_drops++;
 		m_freem(m);

@@ -83,9 +83,13 @@ __FBSDID("$FreeBSD$");
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
-/* XXX public for sysctl hookup */
-int	ieee80211_ffppsmin = 2;		/* pps threshold for ff aggregation */
-int	ieee80211_ffagemax = -1;	/* max time frames held on stage q */
+static	int ieee80211_ffppsmin = 2;	/* pps threshold for ff aggregation */
+SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLTYPE_INT | CTLFLAG_RW,
+	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
+static	int ieee80211_ffagemax = -1;	/* max time frames held on stage q */
+SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
+	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"max hold time for fast-frame staging (ms)");
 
 void
 ieee80211_superg_attach(struct ieee80211com *ic)

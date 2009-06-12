@@ -80,12 +80,14 @@ __FBSDID("$FreeBSD$");
 #define _NS_PRIVATE
 #include <nsswitch.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "nss_tls.h"
 #include "libc_private.h"
 #ifdef NS_CACHING
 #include "nscache.h"
@@ -143,7 +145,11 @@ static	void			*nss_cache_cycle_prevention_func = NULL;
  *     which in turn calls nsdispatch, which should call fallback
  *     function) are not supported
  */
-static	int			fallback_dispatch = 0;
+struct fb_state {
+	int	fb_dispatch;
+};
+static	void	fb_endstate(void *);
+NSS_TLS_HANDLING(fb);
 
 /*
  * Attempt to spew relatively uniform messages to syslog.
@@ -598,6 +604,11 @@ nss_method_lookup(const char *source, const char *database,
 	return (NULL);
 }
 
+static void
+fb_endstate(void *p)
+{
+	free(p);
+}
 
 __weak_reference(_nsdispatch, nsdispatch);
 
@@ -611,6 +622,7 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	nss_method	 method, fb_method;
 	void		*mdata;
 	int		 isthreaded, serrno, i, result, srclistsize;
+	struct fb_state	*st;
 
 #ifdef NS_CACHING
 	nss_cache_data	 cache_data;
@@ -630,12 +642,19 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 			goto fin;
 		}
 	}
+
+	result = fb_getstate(&st);
+	if (result != 0) {
+		result = NS_UNAVAIL;
+		goto fin;
+	}
+
 	result = nss_configure();
 	if (result != 0) {
 		result = NS_UNAVAIL;
 		goto fin;
 	}
-	if (fallback_dispatch == 0) {
+	if (st->fb_dispatch == 0) {
 		dbt = vector_search(&database, _nsmap, _nsmapsize, sizeof(*_nsmap),
 		    string_compare);
 		fb_method = nss_method_lookup(NSSRC_FALLBACK, database,
@@ -702,12 +721,12 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 				break;
 		} else {
 			if (fb_method != NULL) {
-				fallback_dispatch = 1;
+				st->fb_dispatch = 1;
 				va_start(ap, defaults);
 				result = fb_method(retval,
 				    (void *)srclist[i].name, ap);
 				va_end(ap);
-				fallback_dispatch = 0;
+				st->fb_dispatch = 0;
 			} else
 				nss_log(LOG_DEBUG, "%s, %s, %s, not found, "
 				    "and no fallback provided",

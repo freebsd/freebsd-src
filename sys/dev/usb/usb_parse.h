@@ -29,8 +29,8 @@
 
 /* structures */
 
-struct usb2_idesc_parse_state {
-	struct usb2_descriptor *desc;
+struct usb_idesc_parse_state {
+	struct usb_descriptor *desc;
 	uint8_t iface_index;		/* current interface index */
 	uint8_t iface_no_last;
 	uint8_t iface_index_alt;	/* current alternate setting */
@@ -38,17 +38,17 @@ struct usb2_idesc_parse_state {
 
 /* prototypes */
 
-struct usb2_descriptor *usb2_desc_foreach(struct usb2_config_descriptor *cd,
-	    struct usb2_descriptor *desc);
-struct usb2_interface_descriptor *usb2_idesc_foreach(
-	    struct usb2_config_descriptor *cd,
-	    struct usb2_idesc_parse_state *ps);
-struct usb2_endpoint_descriptor *usb2_edesc_foreach(
-	    struct usb2_config_descriptor *cd,
-	    struct usb2_endpoint_descriptor *ped);
-uint8_t usb2_get_no_descriptors(struct usb2_config_descriptor *cd,
+struct usb_descriptor *usb2_desc_foreach(struct usb_config_descriptor *cd,
+	    struct usb_descriptor *desc);
+struct usb_interface_descriptor *usb2_idesc_foreach(
+	    struct usb_config_descriptor *cd,
+	    struct usb_idesc_parse_state *ps);
+struct usb_endpoint_descriptor *usb2_edesc_foreach(
+	    struct usb_config_descriptor *cd,
+	    struct usb_endpoint_descriptor *ped);
+uint8_t usb2_get_no_descriptors(struct usb_config_descriptor *cd,
 	    uint8_t type);
-uint8_t usb2_get_no_alts(struct usb2_config_descriptor *cd,
-	    struct usb2_interface_descriptor *id);
+uint8_t usb2_get_no_alts(struct usb_config_descriptor *cd,
+	    struct usb_interface_descriptor *id);
 
 #endif					/* _USB2_PARSE_H_ */

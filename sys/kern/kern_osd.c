@@ -394,7 +394,7 @@ osd_init(void *arg __unused)
 		osd_nslots[i] = 0;
 		LIST_INIT(&osd_list[i]);
 		sx_init(&osd_module_lock[i], "osd_module");
-		rm_init(&osd_object_lock[i], "osd_object", 0);
+		rm_init(&osd_object_lock[i], "osd_object");
 		mtx_init(&osd_list_lock[i], "osd_list", NULL, MTX_DEF);
 		osd_destructors[i] = NULL;
 		osd_methods[i] = NULL;

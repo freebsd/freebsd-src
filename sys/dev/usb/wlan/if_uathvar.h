@@ -185,7 +185,7 @@ struct uath_vap {
 struct uath_softc {
 	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
-	struct usb2_device		*sc_udev;
+	struct usb_device		*sc_udev;
 	struct mtx			sc_mtx;
 	uint32_t			sc_debug;
 
@@ -193,7 +193,7 @@ struct uath_softc {
 	int				(*sc_newstate)(struct ieee80211com *,
 					    enum ieee80211_state, int);
 
-	struct usb2_xfer		*sc_xfer[UATH_N_XFERS];
+	struct usb_xfer		*sc_xfer[UATH_N_XFERS];
 	struct uath_cmd			sc_cmd[UATH_CMD_LIST_COUNT];
 	uath_cmdhead			sc_cmd_active;
 	uath_cmdhead			sc_cmd_inactive;

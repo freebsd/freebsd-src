@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_sysvipc.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -303,7 +302,7 @@ shmdt(td, uap)
 	int i;
 	int error = 0;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	mtx_lock(&Giant);
 	shmmap_s = p->p_vmspace->vm_shm;
@@ -357,7 +356,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	int rv;
 	int error = 0;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	mtx_lock(&Giant);
 	shmmap_s = p->p_vmspace->vm_shm;
@@ -392,11 +391,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 		goto done2;
 	}
 	size = round_page(shmseg->shm_bsegsz);
-#ifdef VM_PROT_READ_IS_EXEC
-	prot = VM_PROT_READ | VM_PROT_EXECUTE;
-#else
 	prot = VM_PROT_READ;
-#endif
 	if ((shmflg & SHM_RDONLY) == 0)
 		prot |= VM_PROT_WRITE;
 	flags = MAP_ANON | MAP_SHARED;
@@ -480,7 +475,7 @@ oshmctl(td, uap)
 	struct shmid_kernel *shmseg;
 	struct oshmid_ds outbuf;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	mtx_lock(&Giant);
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
@@ -542,7 +537,7 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 	int error = 0;
 	struct shmid_kernel *shmseg;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
 	mtx_lock(&Giant);
@@ -823,7 +818,7 @@ shmget(td, uap)
 	int segnum, mode;
 	int error;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	mtx_lock(&Giant);
 	mode = uap->shmflg & ACCESSPERMS;
@@ -861,7 +856,7 @@ shmsys(td, uap)
 #if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
 	int error;
 
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	if (uap->which < 0 ||
 	    uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))

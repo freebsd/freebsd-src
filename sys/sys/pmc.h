@@ -709,11 +709,6 @@ struct pmc {
  * array.  The size of this structure is thus PMC architecture
  * dependent.
  *
- * TODO: Only process-private counting mode PMCs may be attached to a
- * process different from the allocator process (since we do not have
- * the infrastructure to make sense of an interrupted PC value from a
- * 'target' process (yet)).
- *
  */
 
 struct pmc_targetstate {

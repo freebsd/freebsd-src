@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipfw.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/domain.h>
@@ -221,6 +220,20 @@ udp_discardcb(struct udpcb *up)
 
 	uma_zfree(V_udpcb_zone, up);
 }
+
+#ifdef VIMAGE
+void
+udp_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	hashdestroy(V_udbinfo.ipi_hashbase, M_PCB,
+	    V_udbinfo.ipi_hashmask);
+	hashdestroy(V_udbinfo.ipi_porthashbase, M_PCB,
+	    V_udbinfo.ipi_porthashmask);
+	INP_INFO_LOCK_DESTROY(&V_udbinfo);
+}
+#endif
 
 /*
  * Subroutine of udp_input(), which appends the provided mbuf chain to the
@@ -1008,7 +1021,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				 * Remember addr if jailed, to prevent
 				 * rebinding.
 				 */
-				if (jailed(td->td_ucred))
+				if (prison_flag(td->td_ucred, PR_IP4))
 					inp->inp_laddr = laddr;
 				inp->inp_lport = lport;
 				if (in_pcbinshash(inp) != 0) {

@@ -721,9 +721,13 @@ rtmsg(int cmd, struct sockaddr_inarp *dst, struct sockaddr_dl *sdl)
 	case RTM_GET:
 		rtm->rtm_addrs |= RTA_DST;
 	}
-#define NEXTADDR(w, s) \
-	if ((s) != NULL && rtm->rtm_addrs & (w)) { \
-		bcopy((s), cp, sizeof(*(s))); cp += SA_SIZE(s);}
+#define NEXTADDR(w, s)					   \
+	do {						   \
+		if ((s) != NULL && rtm->rtm_addrs & (w)) { \
+			bcopy((s), cp, sizeof(*(s)));	   \
+			cp += SA_SIZE(s);		   \
+		}					   \
+	} while (0)
 
 	NEXTADDR(RTA_DST, dst);
 	NEXTADDR(RTA_GATEWAY, sdl);

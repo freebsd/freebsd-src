@@ -574,3 +574,11 @@ METHOD void hint_device_unit {
 	int		*_unitp;
 };
 
+/**
+ * @brief Notify a bus that the bus pass level has been changed
+ *
+ * @param _dev		the bus device
+ */
+METHOD void new_pass {
+	device_t	_dev;
+} DEFAULT bus_generic_new_pass;

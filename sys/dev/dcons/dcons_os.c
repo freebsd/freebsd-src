@@ -357,7 +357,7 @@ dcons_attach_port(int port, char *name, int flags)
 	struct tty *tp;
 
 	dc = &sc[port];
-	tp = tty_alloc(&dcons_ttydevsw, dc, NULL);
+	tp = tty_alloc(&dcons_ttydevsw, dc);
 	dc->flags = flags;
 	dc->tty   = tp;
 	tty_init_console(tp, 0);

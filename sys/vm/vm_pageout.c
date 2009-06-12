@@ -822,12 +822,13 @@ rescan0:
 		}
 
 		/*
-		 * If the upper level VM system doesn't know anything about 
-		 * the page being dirty, we have to check for it again.  As 
-		 * far as the VM code knows, any partially dirty pages are 
-		 * fully dirty.
+		 * If the upper level VM system does not believe that the page
+		 * is fully dirty, but it is mapped for write access, then we
+		 * consult the pmap to see if the page's dirty status should
+		 * be updated.
 		 */
-		if (m->dirty == 0 && !pmap_is_modified(m)) {
+		if (m->dirty != VM_PAGE_BITS_ALL &&
+		    (m->flags & PG_WRITEABLE) != 0) {
 			/*
 			 * Avoid a race condition: Unless write access is
 			 * removed from the page, another processor could
@@ -841,10 +842,10 @@ rescan0:
 			 * to the page, removing all access will be cheaper
 			 * overall.
 			 */
-			if ((m->flags & PG_WRITEABLE) != 0)
+			if (pmap_is_modified(m))
+				vm_page_dirty(m);
+			else if (m->dirty == 0)
 				pmap_remove_all(m);
-		} else {
-			vm_page_dirty(m);
 		}
 
 		if (m->valid == 0) {

@@ -93,8 +93,8 @@ static __inline void nfe_discard_rxbuf(struct nfe_softc *, int);
 static __inline void nfe_discard_jrxbuf(struct nfe_softc *, int);
 static int nfe_newbuf(struct nfe_softc *, int);
 static int nfe_jnewbuf(struct nfe_softc *, int);
-static int  nfe_rxeof(struct nfe_softc *, int);
-static int  nfe_jrxeof(struct nfe_softc *, int);
+static int  nfe_rxeof(struct nfe_softc *, int, int *);
+static int  nfe_jrxeof(struct nfe_softc *, int, int *);
 static void nfe_txeof(struct nfe_softc *);
 static int  nfe_encap(struct nfe_softc *, struct mbuf **);
 static void nfe_setmulti(struct nfe_softc *);
@@ -1551,23 +1551,24 @@ nfe_free_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 static poll_handler_t nfe_poll;
 
 
-static void
+static int
 nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct nfe_softc *sc = ifp->if_softc;
 	uint32_t r;
+	int rx_npkts = 0;
 
 	NFE_LOCK(sc);
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		NFE_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	if (sc->nfe_framesize > MCLBYTES - ETHER_HDR_LEN)
-		nfe_jrxeof(sc, count);
+		rx_npkts = nfe_jrxeof(sc, count, &rx_npkts);
 	else
-		nfe_rxeof(sc, count);
+		rx_npkts = nfe_rxeof(sc, count, &rx_npkts);
 	nfe_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
@@ -1575,7 +1576,7 @@ nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		if ((r = NFE_READ(sc, sc->nfe_irq_status)) == 0) {
 			NFE_UNLOCK(sc);
-			return;
+			return (rx_npkts);
 		}
 		NFE_WRITE(sc, sc->nfe_irq_status, r);
 
@@ -1586,6 +1587,7 @@ nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		}
 	}
 	NFE_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1826,9 +1828,9 @@ nfe_int_task(void *arg, int pending)
 	domore = 0;
 	/* check Rx ring */
 	if (sc->nfe_framesize > MCLBYTES - ETHER_HDR_LEN)
-		domore = nfe_jrxeof(sc, sc->nfe_process_limit);
+		domore = nfe_jrxeof(sc, sc->nfe_process_limit, NULL);
 	else
-		domore = nfe_rxeof(sc, sc->nfe_process_limit);
+		domore = nfe_rxeof(sc, sc->nfe_process_limit, NULL);
 	/* check Tx ring */
 	nfe_txeof(sc);
 
@@ -2015,7 +2017,7 @@ nfe_jnewbuf(struct nfe_softc *sc, int idx)
 
 
 static int
-nfe_rxeof(struct nfe_softc *sc, int count)
+nfe_rxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 {
 	struct ifnet *ifp = sc->nfe_ifp;
 	struct nfe_desc32 *desc32;
@@ -2023,9 +2025,10 @@ nfe_rxeof(struct nfe_softc *sc, int count)
 	struct nfe_rx_data *data;
 	struct mbuf *m;
 	uint16_t flags;
-	int len, prog;
+	int len, prog, rx_npkts;
 	uint32_t vtag = 0;
 
+	rx_npkts = 0;
 	NFE_LOCK_ASSERT(sc);
 
 	bus_dmamap_sync(sc->rxq.rx_desc_tag, sc->rxq.rx_desc_map,
@@ -2115,18 +2118,21 @@ nfe_rxeof(struct nfe_softc *sc, int count)
 		NFE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		NFE_LOCK(sc);
+		rx_npkts++;
 	}
 
 	if (prog > 0)
 		bus_dmamap_sync(sc->rxq.rx_desc_tag, sc->rxq.rx_desc_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
+	if (rx_npktsp != NULL)
+		*rx_npktsp = rx_npkts;
 	return (count > 0 ? 0 : EAGAIN);
 }
 
 
 static int
-nfe_jrxeof(struct nfe_softc *sc, int count)
+nfe_jrxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 {
 	struct ifnet *ifp = sc->nfe_ifp;
 	struct nfe_desc32 *desc32;
@@ -2134,9 +2140,10 @@ nfe_jrxeof(struct nfe_softc *sc, int count)
 	struct nfe_rx_data *data;
 	struct mbuf *m;
 	uint16_t flags;
-	int len, prog;
+	int len, prog, rx_npkts;
 	uint32_t vtag = 0;
 
+	rx_npkts = 0;
 	NFE_LOCK_ASSERT(sc);
 
 	bus_dmamap_sync(sc->jrxq.jrx_desc_tag, sc->jrxq.jrx_desc_map,
@@ -2227,12 +2234,15 @@ nfe_jrxeof(struct nfe_softc *sc, int count)
 		NFE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		NFE_LOCK(sc);
+		rx_npkts++;
 	}
 
 	if (prog > 0)
 		bus_dmamap_sync(sc->jrxq.jrx_desc_tag, sc->jrxq.jrx_desc_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
+	if (rx_npktsp != NULL)
+		*rx_npktsp = rx_npkts;
 	return (count > 0 ? 0 : EAGAIN);
 }
 

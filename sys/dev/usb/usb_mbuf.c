@@ -35,20 +35,20 @@
  *   should be released.
  *------------------------------------------------------------------------*/
 void   *
-usb2_alloc_mbufs(struct malloc_type *type, struct usb2_ifqueue *ifq,
-    usb2_size_t block_size, uint16_t nblocks)
+usb2_alloc_mbufs(struct malloc_type *type, struct usb_ifqueue *ifq,
+    usb_size_t block_size, uint16_t nblocks)
 {
-	struct usb2_mbuf *m_ptr;
+	struct usb_mbuf *m_ptr;
 	uint8_t *data_ptr;
 	void *free_ptr = NULL;
-	usb2_size_t alloc_size;
+	usb_size_t alloc_size;
 
 	/* align data */
 	block_size += ((-block_size) & (USB_HOST_ALIGN - 1));
 
 	if (nblocks && block_size) {
 
-		alloc_size = (block_size + sizeof(struct usb2_mbuf)) * nblocks;
+		alloc_size = (block_size + sizeof(struct usb_mbuf)) * nblocks;
 
 		free_ptr = malloc(alloc_size, type, M_WAITOK | M_ZERO);
 

@@ -113,7 +113,7 @@ main(int argc, char **argv)
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "csWM:N:w:z4")) != -1)
+	while ((ch = getopt(argc, argv, "cesWM:N:w:z")) != -1)
 		switch(ch) {
 		case 'M':
 			memf = optarg;
@@ -140,7 +140,7 @@ main(int argc, char **argv)
 		case 'z':
 			zflag = 1;
 			break;
-		case '4':
+		case 'e':
 			run_v4 = 1;
 			break;
 		case '?':
@@ -505,7 +505,7 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: nfsstat [-cszW] [-M core] [-N system] [-w interval]\n");
+	    "usage: nfsstat [-ceszW] [-M core] [-N system] [-w interval]\n");
 	exit(1);
 }
 

@@ -89,7 +89,7 @@ cn_drvinit(void *unused)
 
 	if (cfe_consdev.cn_pri != CN_DEAD &&
 	    cfe_consdev.cn_name[0] != '\0') {
-		tp = tty_alloc(&cfe_ttydevsw, NULL, NULL);
+		tp = tty_alloc(&cfe_ttydevsw, NULL);
 		tty_makedev(tp, NULL, "%s", output);
 		tty_makealias(tp, "cfecons");
 	}

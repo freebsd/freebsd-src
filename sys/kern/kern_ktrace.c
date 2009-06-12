@@ -35,7 +35,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

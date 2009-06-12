@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_route.h"
 #include "opt_compat.h"
 
 #include <sys/cdefs.h>
@@ -1556,23 +1555,28 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	/* LINUX_CDROMAUDIOBUFSIZ */
 
 	case LINUX_DVD_READ_STRUCT: {
-		l_dvd_struct lds;
-		struct dvd_struct bds;
+		l_dvd_struct *lds;
+		struct dvd_struct *bds;
 
-		error = copyin((void *)args->arg, &lds, sizeof(lds));
+		lds = malloc(sizeof(*lds), M_LINUX, M_WAITOK);
+		bds = malloc(sizeof(*bds), M_LINUX, M_WAITOK);
+		error = copyin((void *)args->arg, lds, sizeof(*lds));
 		if (error)
-			break;
-		error = linux_to_bsd_dvd_struct(&lds, &bds);
+			goto out;
+		error = linux_to_bsd_dvd_struct(lds, bds);
 		if (error)
-			break;
-		error = fo_ioctl(fp, DVDIOCREADSTRUCTURE, (caddr_t)&bds,
+			goto out;
+		error = fo_ioctl(fp, DVDIOCREADSTRUCTURE, (caddr_t)bds,
 		    td->td_ucred, td);
 		if (error)
-			break;
-		error = bsd_to_linux_dvd_struct(&bds, &lds);
+			goto out;
+		error = bsd_to_linux_dvd_struct(bds, lds);
 		if (error)
-			break;
-		error = copyout(&lds, (void *)args->arg, sizeof(lds));
+			goto out;
+		error = copyout(lds, (void *)args->arg, sizeof(*lds));
+	out:
+		free(bds, M_LINUX);
+		free(lds, M_LINUX);
 		break;
 	}
 

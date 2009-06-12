@@ -741,9 +741,9 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	psc->pts_uidinfo = uid;
 	uihold(uid);
 
-	tp = tty_alloc(&pts_class, psc, NULL);
-	knlist_init(&psc->pts_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
-	knlist_init(&psc->pts_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
+	tp = tty_alloc(&pts_class, psc);
+	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
+	knlist_init_mtx(&psc->pts_outpoll.si_note, tp->t_mtx);
 
 	/* Expose the slave device as well. */
 	tty_makedev(tp, td->td_ucred, "pts/%u", psc->pts_unit);
@@ -781,9 +781,9 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 	psc->pts_uidinfo = uid;
 	uihold(uid);
 
-	tp = tty_alloc(&pts_class, psc, NULL);
-	knlist_init(&psc->pts_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
-	knlist_init(&psc->pts_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
+	tp = tty_alloc(&pts_class, psc);
+	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
+	knlist_init_mtx(&psc->pts_outpoll.si_note, tp->t_mtx);
 
 	/* Expose the slave device as well. */
 	tty_makedev(tp, td->td_ucred, "%s", name);

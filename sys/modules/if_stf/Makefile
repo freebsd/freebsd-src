@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../net
 
 KMOD=	if_stf
-SRCS=	if_stf.c opt_inet.h opt_inet6.h opt_mac.h
+SRCS=	if_stf.c opt_inet.h opt_inet6.h
 
 .if !defined(KERNBUILDDIR)
 opt_inet.h:

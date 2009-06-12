@@ -319,6 +319,12 @@ libusb20_tr_set_flags(struct libusb20_transfer *xfer, uint8_t flags)
 	return;
 }
 
+uint32_t
+libusb20_tr_get_length(struct libusb20_transfer *xfer, uint16_t frIndex)
+{
+	return (xfer->pLength[frIndex]);
+}
+
 void
 libusb20_tr_set_length(struct libusb20_transfer *xfer, uint32_t length, uint16_t frIndex)
 {
@@ -925,7 +931,7 @@ libusb20_dev_free(struct libusb20_device *pdev)
 
 int
 libusb20_dev_get_info(struct libusb20_device *pdev,
-    struct usb2_device_info *pinfo)
+    struct usb_device_info *pinfo)
 {
 	if (pinfo == NULL)
 		return (LIBUSB20_ERROR_INVALID_PARAM);

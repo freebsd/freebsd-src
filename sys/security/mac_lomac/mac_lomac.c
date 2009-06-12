@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -1315,6 +1315,8 @@ lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 {
 	struct mac_lomac *source, *dest;
 
+	SOCK_LOCK_ASSERT(so);
+
 	source = SLOT(solabel);
 	dest = SLOT(inplabel);
 
@@ -1930,6 +1932,7 @@ lomac_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *p, *s;
+	int error;
 
 	if (!lomac_enabled)
 		return (0);
@@ -1937,7 +1940,10 @@ lomac_socket_check_deliver(struct socket *so, struct label *solabel,
 	p = SLOT(mlabel);
 	s = SLOT(solabel);
 
-	return (lomac_equal_single(p, s) ? 0 : EACCES);
+	SOCK_LOCK(so);
+	error = lomac_equal_single(p, s) ? 0 : EACCES;
+	SOCK_UNLOCK(so);
+	return (error);
 }
 
 static int
@@ -1946,6 +1952,8 @@ lomac_socket_check_relabel(struct ucred *cred, struct socket *so,
 {
 	struct mac_lomac *subj, *obj, *new;
 	int error;
+
+	SOCK_LOCK_ASSERT(so);
 
 	new = SLOT(newlabel);
 	subj = SLOT(cred->cr_label);
@@ -2003,8 +2011,12 @@ lomac_socket_check_visible(struct ucred *cred, struct socket *so,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(solabel);
 
-	if (!lomac_dominate_single(obj, subj))
+	SOCK_LOCK(so);
+	if (!lomac_dominate_single(obj, subj)) {
+		SOCK_UNLOCK(so);
 		return (ENOENT);
+	}
+	SOCK_UNLOCK(so);
 
 	return (0);
 }
@@ -2030,19 +2042,26 @@ lomac_socket_create_mbuf(struct socket *so, struct label *solabel,
 	source = SLOT(solabel);
 	dest = SLOT(mlabel);
 
+	SOCK_LOCK(so);
 	lomac_copy_single(source, dest);
+	SOCK_UNLOCK(so);
 }
 
 static void
 lomac_socket_newconn(struct socket *oldso, struct label *oldsolabel,
     struct socket *newso, struct label *newsolabel)
 {
-	struct mac_lomac *source, *dest;
+	struct mac_lomac source, *dest;
 
-	source = SLOT(oldsolabel);
+	SOCK_LOCK(oldso);
+	source = *SLOT(oldsolabel);
+	SOCK_UNLOCK(oldso);
+
 	dest = SLOT(newsolabel);
 
-	lomac_copy_single(source, dest);
+	SOCK_LOCK(newso);
+	lomac_copy_single(&source, dest);
+	SOCK_UNLOCK(newso);
 }
 
 static void
@@ -2050,6 +2069,8 @@ lomac_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
+
+	SOCK_LOCK_ASSERT(so);
 
 	source = SLOT(newlabel);
 	dest = SLOT(solabel);
@@ -2066,7 +2087,9 @@ lomac_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
 	source = SLOT(mlabel);
 	dest = SLOT(sopeerlabel);
 
+	SOCK_LOCK(so);
 	lomac_copy_single(source, dest);
+	SOCK_UNLOCK(so);
 }
 
 static void
@@ -2074,12 +2097,17 @@ lomac_socketpeer_set_from_socket(struct socket *oldso,
     struct label *oldsolabel, struct socket *newso,
     struct label *newsopeerlabel)
 {
-	struct mac_lomac *source, *dest;
+	struct mac_lomac source, *dest;
 
-	source = SLOT(oldsolabel);
+	SOCK_LOCK(oldso);
+	source = *SLOT(oldsolabel);
+	SOCK_UNLOCK(oldso);
+
 	dest = SLOT(newsopeerlabel);
 
-	lomac_copy_single(source, dest);
+	SOCK_LOCK(newso);
+	lomac_copy_single(&source, dest);
+	SOCK_UNLOCK(newso);
 }
 
 static void

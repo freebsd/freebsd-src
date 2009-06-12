@@ -88,6 +88,16 @@ __FBSDID("$FreeBSD$");
  * remote socket for UNIX domain sockets rather than keeping a local copy on
  * this endpoint, but be cached and updated based on packets received for
  * TCP/IP.
+ *
+ * Unlike with many other object types, the lock protecting MAC labels on
+ * sockets (the socket lock) is not frequently held at the points in code
+ * where socket-related checks are called.  The MAC Framework acquires the
+ * lock over some entry points in order to enforce atomicity (such as label
+ * copies) but in other cases the policy modules will have to acquire the
+ * lock themselves if they use labels.  This approach (a) avoids lock
+ * acquisitions when policies don't require labels and (b) solves a number of
+ * potential lock order issues when multiple sockets are used in the same
+ * entry point.
  */
 
 struct label *
@@ -234,8 +244,6 @@ void
 mac_socket_newconn(struct socket *oldso, struct socket *newso)
 {
 
-	SOCK_LOCK_ASSERT(oldso);
-
 	MAC_POLICY_PERFORM_NOSLEEP(socket_newconn, oldso, oldso->so_label,
 	    newso, newso->so_label);
 }
@@ -256,7 +264,8 @@ mac_socketpeer_set_from_mbuf(struct mbuf *m, struct socket *so)
 {
 	struct label *label;
 
-	SOCK_LOCK_ASSERT(so);
+	if (mac_policy_count == 0)
+		return;
 
 	label = mac_mbuf_to_label(m);
 
@@ -267,12 +276,10 @@ mac_socketpeer_set_from_mbuf(struct mbuf *m, struct socket *so)
 void
 mac_socketpeer_set_from_socket(struct socket *oldso, struct socket *newso)
 {
+	
+	if (mac_policy_count == 0)
+		return;
 
-	/*
-	 * XXXRW: only hold the socket lock on one at a time, as one socket
-	 * is the original, and one is the new.  However, it's called in both
-	 * directions, so we can't assert the lock here currently.
-	 */
 	MAC_POLICY_PERFORM_NOSLEEP(socketpeer_set_from_socket, oldso,
 	    oldso->so_label, newso, newso->so_peerlabel);
 }
@@ -282,7 +289,8 @@ mac_socket_create_mbuf(struct socket *so, struct mbuf *m)
 {
 	struct label *label;
 
-	SOCK_LOCK_ASSERT(so);
+	if (mac_policy_count == 0)
+		return;
 
 	label = mac_mbuf_to_label(m);
 
@@ -297,8 +305,6 @@ int
 mac_socket_check_accept(struct ucred *cred, struct socket *so)
 {
 	int error;
-
-	SOCK_LOCK_ASSERT(so);
 
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_accept, cred, so,
 	    so->so_label);
@@ -316,8 +322,6 @@ mac_socket_check_bind(struct ucred *cred, struct socket *so,
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(so);
-
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_bind, cred, so, so->so_label,
 	    sa);
 	MAC_CHECK_PROBE3(socket_check_bind, error, cred, so, sa);
@@ -333,8 +337,6 @@ mac_socket_check_connect(struct ucred *cred, struct socket *so,
     struct sockaddr *sa)
 {
 	int error;
-
-	SOCK_LOCK_ASSERT(so);
 
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_connect, cred, so,
 	    so->so_label, sa);
@@ -368,7 +370,8 @@ mac_socket_check_deliver(struct socket *so, struct mbuf *m)
 	struct label *label;
 	int error;
 
-	SOCK_LOCK_ASSERT(so);
+	if (mac_policy_count == 0)
+		return (0);
 
 	label = mac_mbuf_to_label(m);
 
@@ -387,8 +390,6 @@ mac_socket_check_listen(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(so);
-
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_listen, cred, so,
 	    so->so_label);
 	MAC_CHECK_PROBE2(socket_check_listen, error, cred, so);
@@ -404,8 +405,6 @@ mac_socket_check_poll(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(so);
-
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_poll, cred, so, so->so_label);
 	MAC_CHECK_PROBE2(socket_check_poll, error, cred, so);
 
@@ -419,8 +418,6 @@ int
 mac_socket_check_receive(struct ucred *cred, struct socket *so)
 {
 	int error;
-
-	SOCK_LOCK_ASSERT(so);
 
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_receive, cred, so,
 	    so->so_label);
@@ -455,8 +452,6 @@ mac_socket_check_send(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(so);
-
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_send, cred, so, so->so_label);
 	MAC_CHECK_PROBE2(socket_check_send, error, cred, so);
 
@@ -471,8 +466,6 @@ mac_socket_check_stat(struct ucred *cred, struct socket *so)
 {
 	int error;
 
-	SOCK_LOCK_ASSERT(so);
-
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_stat, cred, so, so->so_label);
 	MAC_CHECK_PROBE2(socket_check_stat, error, cred, so);
 
@@ -486,8 +479,6 @@ int
 mac_socket_check_visible(struct ucred *cred, struct socket *so)
 {
 	int error;
-
-	SOCK_LOCK_ASSERT(so);
 
 	MAC_POLICY_CHECK_NOSLEEP(socket_check_visible, cred, so,
 	    so->so_label);

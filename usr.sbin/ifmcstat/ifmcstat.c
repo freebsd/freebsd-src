@@ -264,13 +264,13 @@ main(int argc, char **argv)
 		usage();
 
 #ifdef WITH_KVM
-	if (!Kflag)
+	if (Kflag)
 		error = ifmcstat_kvm(kernel, core);
 	/*
 	 * If KVM failed, and user did not explicitly specify a core file,
 	 * or force KVM backend to be disabled, try the sysctl backend.
 	 */
-	if (Kflag || (error != 0 && (core == NULL && kernel == NULL)))
+	if (!Kflag || (error != 0 && (core == NULL && kernel == NULL)))
 #endif
 	error = ifmcstat_getifmaddrs();
 	if (error != 0)

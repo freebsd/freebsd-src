@@ -153,6 +153,16 @@ vop_access {
 };
 
 
+%% accessx	vp	L L L
+
+vop_accessx {
+	IN struct vnode *vp;
+	IN accmode_t accmode;
+	IN struct ucred *cred;
+	IN struct thread *td;
+};
+
+
 %% getattr	vp	L L L
 
 vop_getattr {
@@ -187,7 +197,7 @@ vop_read {
 };
 
 
-%% write	vp	E E E
+%% write	vp	L L L
 %! write	pre	VOP_WRITE_PRE
 %! write	post	VOP_WRITE_POST
 
@@ -237,7 +247,7 @@ vop_revoke {
 };
 
 
-%% fsync	vp	E E E
+%% fsync	vp	L L L
 
 vop_fsync {
 	IN struct vnode *vp;

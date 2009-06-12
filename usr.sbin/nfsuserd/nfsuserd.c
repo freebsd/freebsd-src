@@ -66,12 +66,12 @@ __FBSDID("$FreeBSD$");
  * for NFS V4.
  */
 
-void	cleanup_term(int);
-void	usage(void);
-void	nfsuserdsrv(struct svc_req *, SVCXPRT *);
-bool_t	xdr_getid(XDR *, caddr_t);
-bool_t	xdr_getname(XDR *, caddr_t);
-bool_t	xdr_retval(XDR *, caddr_t);
+static void	cleanup_term(int);
+static void	usage(void);
+static void	nfsuserdsrv(struct svc_req *, SVCXPRT *);
+static bool_t	xdr_getid(XDR *, caddr_t);
+static bool_t	xdr_getname(XDR *, caddr_t);
+static bool_t	xdr_retval(XDR *, caddr_t);
 
 #define	MAXNAME		1024
 #define	MAXNFSUSERD	20
@@ -94,7 +94,7 @@ int defusertimeout = DEFUSERTIMEOUT;
 pid_t slaves[MAXNFSUSERD];
 
 int
-main(int argc, char *argv[], char *envp[])
+main(int argc, char *argv[])
 {
 	int i;
 	int error, len, mustfreeai = 0;
@@ -102,11 +102,10 @@ main(int argc, char *argv[], char *envp[])
 	struct passwd *pwd;
 	struct group *grp;
 	int sock, one = 1;
-	SVCXPRT *udptransp, *tcptransp;
-	struct passwd *pw;
+	SVCXPRT *udptransp;
 	u_short portnum;
 	sigset_t signew;
-	char hostname[MAXHOSTNAMELEN + 1], *cp, **aliases;
+	char hostname[MAXHOSTNAMELEN + 1], *cp;
 	struct addrinfo *aip, hints;
 
 	if (modfind("nfscommon") < 0) {
@@ -166,7 +165,7 @@ main(int argc, char *argv[], char *envp[])
 			i = atoi(*argv);
 			if (i < 10 || i > 100000) {
 				fprintf(stderr,
-				    "usermax out of range 10<->100000\n", i);
+				    "usermax %d out of range 10<->100000\n", i);
 				usage();
 			}
 			nid.nid_usermax = i;
@@ -178,7 +177,7 @@ main(int argc, char *argv[], char *envp[])
 			i = atoi(*argv);
 			if (i < 0 || i > 100000) {
 				fprintf(stderr,
-				    "usertimeout out of range 0<->100000\n",
+				    "usertimeout %d out of range 0<->100000\n",
 				    i);
 				usage();
 			}
@@ -409,11 +408,9 @@ main(int argc, char *argv[], char *envp[])
 /*
  * The nfsuserd rpc service
  */
-void
+static void
 nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 {
-	int i;
-	char *cp;
 	struct passwd *pwd;
 	struct group *grp;
 	int error;
@@ -577,7 +574,7 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 /*
  * Xdr routine to get an id number
  */
-bool_t
+static bool_t
 xdr_getid(XDR *xdrsp, caddr_t cp)
 {
 	struct info *ifp = (struct info *)cp;
@@ -588,7 +585,7 @@ xdr_getid(XDR *xdrsp, caddr_t cp)
 /*
  * Xdr routine to get a user name
  */
-bool_t
+static bool_t
 xdr_getname(XDR *xdrsp, caddr_t cp)
 {
 	struct info *ifp = (struct info *)cp;
@@ -607,7 +604,7 @@ xdr_getname(XDR *xdrsp, caddr_t cp)
 /*
  * Xdr routine to return the value.
  */
-bool_t
+static bool_t
 xdr_retval(XDR *xdrsp, caddr_t cp)
 {
 	struct info *ifp = (struct info *)cp;
@@ -620,8 +617,8 @@ xdr_retval(XDR *xdrsp, caddr_t cp)
 /*
  * cleanup_term() called via SIGUSR1.
  */
-void
-cleanup_term(int signo)
+static void
+cleanup_term(int signo __unused)
 {
 	int i, cnt;
 
@@ -656,7 +653,7 @@ cleanup_term(int signo)
 	exit(0);
 }
 
-void
+static void
 usage(void)
 {
 

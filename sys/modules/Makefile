@@ -19,6 +19,7 @@ SUBDIR=	${_3dfx} \
 	aio \
 	${_amd} \
 	${_amdtemp} \
+	alc \
 	ale \
 	amr \
 	${_an} \
@@ -139,6 +140,7 @@ SUBDIR=	${_3dfx} \
 	joy \
 	kbdmux \
 	krpc \
+	ksyms \
 	le \
 	lge \
 	libalias \
@@ -177,6 +179,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mwl \
 	mxge \
 	my \
 	${_ncp} \
@@ -184,7 +187,10 @@ SUBDIR=	${_3dfx} \
 	${_ndis} \
 	netgraph \
 	${_nfe} \
+	nfscl \
 	nfsclient \
+	nfscommon \
+	nfsd \
 	nfslockd \
 	nfsserver \
 	nfssvc \
@@ -572,6 +578,7 @@ _xe=		xe
 .if ${MACHINE_ARCH} == "powerpc"
 _an=		an
 _bm=		bm
+_cpufreq=	cpufreq
 _nvram=		powermac_nvram
 _smbfs=		smbfs
 _sound=		sound

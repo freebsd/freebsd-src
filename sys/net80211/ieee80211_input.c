@@ -60,11 +60,16 @@ ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 	struct ieee80211vap *vap;
 	int type = -1;
 
+	m->m_flags |= M_BCAST;		/* NB: mark for bpf tap'ing */
+
 	/* XXX locking */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		struct ieee80211_node *ni;
 		struct mbuf *mcopy;
 
+		/* NB: could check for IFF_UP but this is cheaper */
+		if (vap->iv_state == IEEE80211_S_INIT)
+			continue;
 		/*
 		 * WDS vap's only receive directed traffic from the
 		 * station at the ``far end''.  That traffic should
@@ -196,6 +201,9 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	struct ether_header *eh = mtod(m, struct ether_header *);
 	struct ifnet *ifp = vap->iv_ifp;
 
+	/* clear driver/net80211 flags before passing up */
+	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
+
 	/* NB: see hostap_deliver_data, this path doesn't handle hostap */
 	KASSERT(vap->iv_opmode != IEEE80211_M_HOSTAP, ("gack, hostap"));
 	/*
@@ -210,9 +218,6 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	} else
 		IEEE80211_NODE_STAT(ni, rx_ucast);
 	m->m_pkthdr.rcvif = ifp;
-
-	/* clear driver/net80211 flags before passing up */
-	m->m_flags &= ~M_80211_RX;
 
 	if (ni->ni_vlan != 0) {
 		/* attach vlan tag */
@@ -470,6 +475,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	 *	[tlv] ssid
 	 *	[tlv] supported rates
 	 *	[tlv] country information
+	 *	[tlv] channel switch announcement (CSA)
 	 *	[tlv] parameter set (FH/DS)
 	 *	[tlv] erp information
 	 *	[tlv] extended supported rates
@@ -502,6 +508,9 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_COUNTRY:
 			scan->country = frm;
+			break;
+		case IEEE80211_ELEMID_CSA:
+			scan->csa = frm;
 			break;
 		case IEEE80211_ELEMID_FHPARMS:
 			if (ic->ic_phytype == IEEE80211_T_FH) {
@@ -563,7 +572,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			else if (istdmaoui(frm))
 				scan->tdma = frm;
 #endif
-			else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
+			else if (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) {
 				/*
 				 * Accept pre-draft HT ie's if the
 				 * standard ones have not been seen.
@@ -636,6 +645,14 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		IEEE80211_VERIFY_LENGTH(scan->country[1], 3 * sizeof(uint8_t),
 		    scan->country = NULL);
+	}
+	if (scan->csa != NULL) {
+		/*
+		 * Validate Channel Switch Announcement; this must
+		 * be the correct length or we toss the frame.
+		 */
+		IEEE80211_VERIFY_LENGTH(scan->csa[1], 3 * sizeof(uint8_t),
+		    scan->status |= IEEE80211_BPARSE_CSA_INVALID);
 	}
 	/*
 	 * Process HT ie's.  This is complicated by our

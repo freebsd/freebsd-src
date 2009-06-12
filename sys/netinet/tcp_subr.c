@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -426,6 +425,25 @@ tcp_init(void)
 	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
 		EVENTHANDLER_PRI_ANY);
 }
+
+#ifdef VIMAGE
+void
+tcp_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	tcp_tw_destroy();
+	tcp_hc_destroy();
+	syncache_destroy();
+
+	/* XXX check that hashes are empty! */
+	hashdestroy(V_tcbinfo.ipi_hashbase, M_PCB,
+	    V_tcbinfo.ipi_hashmask);
+	hashdestroy(V_tcbinfo.ipi_porthashbase, M_PCB,
+	    V_tcbinfo.ipi_porthashmask);
+	INP_INFO_LOCK_DESTROY(&V_tcbinfo);
+}
+#endif
 
 void
 tcp_fini(void *xtp)

@@ -43,7 +43,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -244,8 +243,10 @@ iso88025_output(ifp, m, dst, ro)
 	struct iso88025_header *th;
 	struct iso88025_header gen_th;
 	struct sockaddr_dl *sdl = NULL;
-	struct llentry *lle;
 	struct rtentry *rt0 = NULL;
+#if defined(INET) || defined(INET6)
+	struct llentry *lle;
+#endif
 
 	if (ro != NULL)
 		rt0 = ro->ro_rt;

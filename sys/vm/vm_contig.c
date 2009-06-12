@@ -281,9 +281,7 @@ again:
 void
 contigfree(void *addr, unsigned long size, struct malloc_type *type)
 {
-	vm_pindex_t npgs;
 
-	npgs = round_page(size) >> PAGE_SHIFT;
 	kmem_free(kernel_map, (vm_offset_t)addr, size);
-	malloc_type_freed(type, npgs << PAGE_SHIFT);
+	malloc_type_freed(type, round_page(size));
 }

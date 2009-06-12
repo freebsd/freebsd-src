@@ -416,7 +416,7 @@ dotrap(void)
 					if (i == SIGCHLD)
 						ignore_sigchld++;
 					savestatus = exitstatus;
-					evalstring(trap[i]);
+					evalstring(trap[i], 0);
 					exitstatus = savestatus;
 					if (i == SIGCHLD)
 						ignore_sigchld--;
@@ -471,7 +471,7 @@ exitshell(int status)
 	handler = &loc1;
 	if ((p = trap[0]) != NULL && *p != '\0') {
 		trap[0] = NULL;
-		evalstring(p);
+		evalstring(p, 0);
 	}
 l1:   handler = &loc2;			/* probably unnecessary */
 	flushall();

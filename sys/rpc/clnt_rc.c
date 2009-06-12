@@ -154,7 +154,7 @@ again:
 		return (RPC_CANTSEND);
 	}
 	if (rc->rc_connecting) {
-		while (!rc->rc_closed && !rc->rc_client) {
+		while (!rc->rc_closed && !rc->rc_client && rc->rc_connecting) {
 			error = msleep(rc, &rc->rc_lock,
 			    rc->rc_intr ? PCATCH : 0, "rpcrecon", 0);
 			if (error) {
@@ -166,7 +166,7 @@ again:
 		 * If the other guy failed to connect, we might as
 		 * well have another go.
 		 */
-		if (!rc->rc_client && !rc->rc_connecting)
+		if (!rc->rc_client || rc->rc_closed)
 			goto again;
 		mtx_unlock(&rc->rc_lock);
 		return (RPC_SUCCESS);

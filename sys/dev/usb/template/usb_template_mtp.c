@@ -103,17 +103,17 @@ USB_MAKE_STRING_DESC(STRING_MTP_SERIAL, string_mtp_serial);
 static usb2_temp_get_string_desc_t mtp_get_string_desc;
 static usb2_temp_get_vendor_desc_t mtp_get_vendor_desc;
 
-static const struct usb2_temp_packet_size bulk_mps = {
+static const struct usb_temp_packet_size bulk_mps = {
 	.mps[USB_SPEED_FULL] = 64,
 	.mps[USB_SPEED_HIGH] = 512,
 };
 
-static const struct usb2_temp_packet_size intr_mps = {
+static const struct usb_temp_packet_size intr_mps = {
 	.mps[USB_SPEED_FULL] = 64,
 	.mps[USB_SPEED_HIGH] = 64,
 };
 
-static const struct usb2_temp_endpoint_desc bulk_out_ep = {
+static const struct usb_temp_endpoint_desc bulk_out_ep = {
 	.pPacketSize = &bulk_mps,
 #ifdef USB_HIP_OUT_EP_0
 	.bEndpointAddress = USB_HIP_OUT_EP_0,
@@ -123,13 +123,13 @@ static const struct usb2_temp_endpoint_desc bulk_out_ep = {
 	.bmAttributes = UE_BULK,
 };
 
-static const struct usb2_temp_endpoint_desc intr_in_ep = {
+static const struct usb_temp_endpoint_desc intr_in_ep = {
 	.pPacketSize = &intr_mps,
 	.bEndpointAddress = UE_DIR_IN,
 	.bmAttributes = UE_INTERRUPT,
 };
 
-static const struct usb2_temp_endpoint_desc bulk_in_ep = {
+static const struct usb_temp_endpoint_desc bulk_in_ep = {
 	.pPacketSize = &bulk_mps,
 #ifdef USB_HIP_IN_EP_0
 	.bEndpointAddress = USB_HIP_IN_EP_0,
@@ -139,14 +139,14 @@ static const struct usb2_temp_endpoint_desc bulk_in_ep = {
 	.bmAttributes = UE_BULK,
 };
 
-static const struct usb2_temp_endpoint_desc *mtp_data_endpoints[] = {
+static const struct usb_temp_endpoint_desc *mtp_data_endpoints[] = {
 	&bulk_in_ep,
 	&bulk_out_ep,
 	&intr_in_ep,
 	NULL,
 };
 
-static const struct usb2_temp_interface_desc mtp_data_interface = {
+static const struct usb_temp_interface_desc mtp_data_interface = {
 	.ppEndpoints = mtp_data_endpoints,
 	.bInterfaceClass = UICLASS_IMAGE,
 	.bInterfaceSubClass = UISUBCLASS_SIC,	/* Still Image Class */
@@ -154,24 +154,24 @@ static const struct usb2_temp_interface_desc mtp_data_interface = {
 	.iInterface = STRING_MTP_DATA_INDEX,
 };
 
-static const struct usb2_temp_interface_desc *mtp_interfaces[] = {
+static const struct usb_temp_interface_desc *mtp_interfaces[] = {
 	&mtp_data_interface,
 	NULL,
 };
 
-static const struct usb2_temp_config_desc mtp_config_desc = {
+static const struct usb_temp_config_desc mtp_config_desc = {
 	.ppIfaceDesc = mtp_interfaces,
 	.bmAttributes = UC_BUS_POWERED,
 	.bMaxPower = 25,		/* 50 mA */
 	.iConfiguration = STRING_MTP_CONFIG_INDEX,
 };
 
-static const struct usb2_temp_config_desc *mtp_configs[] = {
+static const struct usb_temp_config_desc *mtp_configs[] = {
 	&mtp_config_desc,
 	NULL,
 };
 
-const struct usb2_temp_device_desc usb2_template_mtp = {
+const struct usb_temp_device_desc usb2_template_mtp = {
 	.getStringDesc = &mtp_get_string_desc,
 	.getVendorDesc = &mtp_get_vendor_desc,
 	.ppConfigDesc = mtp_configs,
@@ -194,7 +194,7 @@ const struct usb2_temp_device_desc usb2_template_mtp = {
  * Else: Success. Pointer to vendor descriptor is returned.
  *------------------------------------------------------------------------*/
 static const void *
-mtp_get_vendor_desc(const struct usb2_device_request *req)
+mtp_get_vendor_desc(const struct usb_device_request *req)
 {
 	static const uint8_t dummy_desc[0x28] = {
 		0x28, 0, 0, 0, 0, 1, 4, 0,

@@ -38,6 +38,8 @@ extern	ng_ipfw_input_t	*ng_ipfw_input_p;
 struct ng_ipfw_tag {
 	struct m_tag	mt;		/* tag header */
 	struct ip_fw	*rule;		/* matching rule */
+	uint32_t	rule_id;	/* matching rule id */
+	uint32_t	chain_id;	/* ruleset id */
 	struct ifnet	*ifp;		/* interface, for ip_output */
 	int		dir;
 #define	NG_IPFW_OUT	0

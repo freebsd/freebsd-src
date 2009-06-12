@@ -9,7 +9,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ccd cleanvar cleartmp cron \
 	ddb defaultroute devd devfs dhclient \
 	dmesg dumpon \
-	early.sh encswap \
+	encswap \
 	fsck ftp-proxy ftpd \
 	gbde geli geli2 gssd \
 	hcsecd \
@@ -23,8 +23,8 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	mixer motd mountcritlocal mountcritremote mountlate \
 	mdconfig mdconfig2 mountd moused mroute6d mrouted msgs \
 	named natd netif netoptions \
-	network_ipv6 newsyslog nfsclient nfsd \
-	nfsserver nisdomain nsswitch ntpd ntpdate \
+	network_ipv6 newsyslog nfsclient nfscbd nfsd \
+	nfsserver nfsuserd nisdomain nsswitch ntpd ntpdate \
 	othermta \
 	pf pflog pfsync \
 	powerd power_profile ppp pppoed pwcheck \

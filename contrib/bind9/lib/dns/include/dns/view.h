@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.h,v 1.91.18.9 2006/03/09 23:38:21 marka Exp $ */
+/* $Id: view.h,v 1.111.88.4 2009/01/29 22:40:35 jinmei Exp $ */
 
 #ifndef DNS_VIEW_H
 #define DNS_VIEW_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/view.h
  * \brief
  * DNS View
  *
@@ -100,6 +100,9 @@ struct dns_view {
 	isc_event_t			resevent;
 	isc_event_t			adbevent;
 	isc_event_t			reqevent;
+	isc_stats_t *			resstats;
+	dns_stats_t *			resquerystats;
+
 	/* Configurable data. */
 	dns_tsig_keyring_t *		statickeys;
 	dns_tsig_keyring_t *		dynamickeys;
@@ -116,10 +119,17 @@ struct dns_view {
 	isc_boolean_t			acceptexpired;
 	dns_transfer_format_t		transfer_format;
 	dns_acl_t *			queryacl;
+	dns_acl_t *			queryonacl;
 	dns_acl_t *			recursionacl;
+	dns_acl_t *			recursiononacl;
 	dns_acl_t *			sortlist;
+	dns_acl_t *			notifyacl;
+	dns_acl_t *			transferacl;
+	dns_acl_t *			updateacl;
+	dns_acl_t *			upfwdacl;
 	isc_boolean_t			requestixfr;
 	isc_boolean_t			provideixfr;
+	isc_boolean_t			requestnsid;
 	dns_ttl_t			maxcachettl;
 	dns_ttl_t			maxncachettl;
 	in_port_t			dstport;
@@ -224,7 +234,7 @@ void
 dns_view_flushanddetach(dns_view_t **viewp);
 /*%<
  * Detach '*viewp' from its view.  If this was the last reference
- * uncommited changed in zones will be flushed to disk.
+ * uncommitted changed in zones will be flushed to disk.
  *
  * Requires:
  *
@@ -363,7 +373,7 @@ dns_view_setdstport(dns_view_t *view, in_port_t dstport);
  *\li      'dstport' is a valid TCP/UDP port number.
  *
  * Ensures:
- *\li	External name servers will be assumed to be listning
+ *\li	External name servers will be assumed to be listening
  *	on 'dstport'.  For servers whose address has already
  *	obtained obtained at the time of the call, the view may
  *	continue to use the previously set port until the address
@@ -591,6 +601,19 @@ dns_viewlist_find(dns_viewlist_t *list, const char *name,
  */
 
 isc_result_t
+dns_viewlist_findzone(dns_viewlist_t *list, dns_name_t *name, isc_boolean_t allclasses,
+		      dns_rdataclass_t rdclass, dns_zone_t **zonep);
+
+/*%<
+ * Search zone with 'name' in view with 'rdclass' in viewlist 'list'
+ * If found, zone is returned in *zonep. If allclasses is set rdclass is ignored
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS          A matching zone was found.
+ *\li	#ISC_R_NOTFOUND         No matching zone was found.
+ */
+
+isc_result_t
 dns_view_findzone(dns_view_t *view, dns_name_t *name, dns_zone_t **zonep);
 /*%<
  * Search for the zone 'name' in the zone table of 'view'.
@@ -615,7 +638,7 @@ dns_view_loadnew(dns_view_t *view, isc_boolean_t stop);
 /*%<
  * Load zones attached to this view.  dns_view_load() loads
  * all zones whose master file has changed since the last
- * load; dns_view_loadnew() loads only zones that have never 
+ * load; dns_view_loadnew() loads only zones that have never
  * been loaded.
  *
  * If 'stop' is ISC_TRUE, stop on the first error and return it.
@@ -633,7 +656,7 @@ dns_view_gettsig(dns_view_t *view, dns_name_t *keyname,
  * Find the TSIG key configured in 'view' with name 'keyname',
  * if any.
  *
- * Reqires:
+ * Requires:
  *\li	keyp points to a NULL dns_tsigkey_t *.
  *
  * Returns:
@@ -649,7 +672,7 @@ dns_view_getpeertsig(dns_view_t *view, isc_netaddr_t *peeraddr,
  * Find the TSIG key configured in 'view' for the server whose
  * address is 'peeraddr', if any.
  *
- * Reqires:
+ * Requires:
  *	keyp points to a NULL dns_tsigkey_t *.
  *
  * Returns:
@@ -691,7 +714,7 @@ dns_view_dumpdbtostream(dns_view_t *view, FILE *fp);
  * easily obtainable by other means.
  *
  * Requires:
- * 	
+ *
  *\li	'view' is valid.
  *
  *\li	'fp' refers to a file open for writing.
@@ -734,7 +757,7 @@ isc_result_t
 dns_view_adddelegationonly(dns_view_t *view, dns_name_t *name);
 /*%<
  * Add the given name to the delegation only table.
- * 
+ *
  *
  * Requires:
  *\li	'view' is valid.
@@ -749,7 +772,7 @@ isc_result_t
 dns_view_excludedelegationonly(dns_view_t *view, dns_name_t *name);
 /*%<
  * Add the given name to be excluded from the root-delegation-only.
- * 
+ *
  *
  * Requires:
  *\li	'view' is valid.
@@ -771,8 +794,8 @@ dns_view_isdelegationonly(dns_view_t *view, dns_name_t *name);
  *\li	'name' is valid.
  *
  * Returns:
- *\li	#ISC_TRUE if the name is is the table.
- *\li	#ISC_FALSE othewise.
+ *\li	#ISC_TRUE if the name is the table.
+ *\li	#ISC_FALSE otherwise.
  */
 
 void
@@ -801,4 +824,56 @@ dns_view_freezezones(dns_view_t *view, isc_boolean_t freeze);
  * Requires:
  * \li	'view' is valid.
  */
+
+void
+dns_view_setresstats(dns_view_t *view, isc_stats_t *stats);
+/*%<
+ * Set a general resolver statistics counter set 'stats' for 'view'.
+ *
+ * Requires:
+ * \li	'view' is valid and is not frozen.
+ *
+ *\li	stats is a valid statistics supporting resolver statistics counters
+ *	(see dns/stats.h).
+ */
+
+void
+dns_view_getresstats(dns_view_t *view, isc_stats_t **statsp);
+/*%<
+ * Get the general statistics counter set for 'view'.  If a statistics set is
+ * set '*statsp' will be attached to the set; otherwise, '*statsp' will be
+ * untouched.
+ *
+ * Requires:
+ * \li	'view' is valid and is not frozen.
+ *
+ *\li	'statsp' != NULL && '*statsp' != NULL
+ */
+
+void
+dns_view_setresquerystats(dns_view_t *view, dns_stats_t *stats);
+/*%<
+ * Set a statistics counter set of rdata type, 'stats', for 'view'.  Once the
+ * statistic set is installed, view's resolver will count outgoing queries
+ * per rdata type.
+ *
+ * Requires:
+ * \li	'view' is valid and is not frozen.
+ *
+ *\li	stats is a valid statistics created by dns_rdatatypestats_create().
+ */
+
+void
+dns_view_getresquerystats(dns_view_t *view, dns_stats_t **statsp);
+/*%<
+ * Get the rdatatype statistics counter set for 'view'.  If a statistics set is
+ * set '*statsp' will be attached to the set; otherwise, '*statsp' will be
+ * untouched.
+ *
+ * Requires:
+ * \li	'view' is valid and is not frozen.
+ *
+ *\li	'statsp' != NULL && '*statsp' != NULL
+ */
+
 #endif /* DNS_VIEW_H */

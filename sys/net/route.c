@@ -91,15 +91,7 @@ TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
 #ifdef VIMAGE_GLOBALS
 static struct rtstat rtstat;
-
-/* by default only the first 'row' of tables will be accessed. */
-/* 
- * XXXMRT When we fix netstat, and do this differnetly,
- * we can allocate this dynamically. As long as we are keeping
- * things backwards compaitble we need to allocate this 
- * statically.
- */
-struct radix_node_head *rt_tables[RT_MAXFIBS][AF_MAX+1];
+struct radix_node_head *rt_tables;
 
 static int	rttrash;		/* routes not in table but not freed */
 #endif
@@ -107,12 +99,18 @@ static int	rttrash;		/* routes not in table but not freed */
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
 static int vnet_route_iattach(const void *);
+#ifdef VIMAGE
+static int vnet_route_idetach(const void *);
+#endif
 
 #ifndef VIMAGE_GLOBALS
 static const vnet_modinfo_t vnet_rtable_modinfo = {
 	.vmi_id		= VNET_MOD_RTABLE,
 	.vmi_name	= "rtable",
-	.vmi_iattach	= vnet_route_iattach
+	.vmi_iattach	= vnet_route_iattach,
+#ifdef VIMAGE
+	.vmi_idetach	= vnet_route_idetach
+#endif
 };
 #endif /* !VIMAGE_GLOBALS */
 
@@ -158,6 +156,32 @@ sysctl_my_fibnum(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net, OID_AUTO, my_fibnum, CTLTYPE_INT|CTLFLAG_RD,
             NULL, 0, &sysctl_my_fibnum, "I", "default FIB of caller");
 
+static __inline struct radix_node_head **
+rt_tables_get_rnh_ptr(int table, int fam)
+{
+	INIT_VNET_NET(curvnet);
+	struct radix_node_head **rnh;
+
+	KASSERT(table >= 0 && table < rt_numfibs, ("%s: table out of bounds.",
+	    __func__));
+	KASSERT(fam >= 0 && fam < (AF_MAX+1), ("%s: fam out of bounds.",
+	    __func__));
+
+	/* rnh is [fib=0][af=0]. */
+	rnh = (struct radix_node_head **)V_rt_tables;
+	/* Get the offset to the requested table and fam. */
+	rnh += table * (AF_MAX+1) + fam;
+
+	return (rnh);
+}
+
+struct radix_node_head *
+rt_tables_get_rnh(int table, int fam)
+{
+
+	return (*rt_tables_get_rnh_ptr(table, fam));
+}
+
 static void
 route_init(void)
 {
@@ -176,12 +200,17 @@ route_init(void)
 #endif
 }
 
-static int vnet_route_iattach(const void *unused __unused)
+static int
+vnet_route_iattach(const void *unused __unused)
 {
 	INIT_VNET_NET(curvnet);
-	int table;
 	struct domain *dom;
+	struct radix_node_head **rnh;
+	int table;
 	int fam;
+
+	V_rt_tables = malloc(rt_numfibs * (AF_MAX+1) *
+	    sizeof(struct radix_node_head *), M_RTABLE, M_WAITOK|M_ZERO);
 
 	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -198,8 +227,10 @@ static int vnet_route_iattach(const void *unused __unused)
 					 * (only for AF_INET and AF_INET6
 					 * which don't need it anyhow)
 					 */
-					dom->dom_rtattach(
-				    	    (void **)&V_rt_tables[table][fam],
+					rnh = rt_tables_get_rnh_ptr(table, fam);
+					if (rnh == NULL)
+						panic("%s: rnh NULL", __func__);
+					dom->dom_rtattach((void **)rnh,
 				    	    dom->dom_rtoffset);
 				} else {
 					break;
@@ -210,6 +241,36 @@ static int vnet_route_iattach(const void *unused __unused)
 
 	return (0);
 }
+
+#ifdef VIMAGE
+static int
+vnet_route_idetach(const void *unused __unused)
+{
+	int table;
+	int fam;
+	struct domain *dom;
+	struct radix_node_head **rnh;
+
+	for (dom = domains; dom; dom = dom->dom_next) {
+		if (dom->dom_rtdetach) {
+			for (table = 0; table < rt_numfibs; table++) {
+				if ( (fam = dom->dom_family) == AF_INET ||
+				    table == 0) {
+					/* For now only AF_INET has > 1 tbl. */
+					rnh = rt_tables_get_rnh_ptr(table, fam);
+					if (rnh == NULL)
+						panic("%s: rnh NULL", __func__);
+					dom->dom_rtdetach((void **)rnh,
+					    dom->dom_rtoffset);
+				} else {
+					break;
+				}
+			}
+		}
+	}
+	return (0);
+}
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct setfib_args {
@@ -300,7 +361,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
 	if (dst->sa_family != AF_INET)	/* Only INET supports > 1 fib now */
 		fibnum = 0;
-	rnh = V_rt_tables[fibnum][dst->sa_family];
+	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
 	newrt = NULL;
 	/*
 	 * Look up the address in the table for that Address Family
@@ -362,7 +423,7 @@ rtfree(struct rtentry *rt)
 	struct radix_node_head *rnh;
 
 	KASSERT(rt != NULL,("%s: NULL rt", __func__));
-	rnh = V_rt_tables[rt->rt_fibnum][rt_key(rt)->sa_family];
+	rnh = rt_tables_get_rnh(rt->rt_fibnum, rt_key(rt)->sa_family);
 	KASSERT(rnh != NULL,("%s: NULL rnh", __func__));
 
 	RT_LOCK_ASSERT(rt);
@@ -463,8 +524,13 @@ rtredirect_fib(struct sockaddr *dst,
 	short *stat = NULL;
 	struct rt_addrinfo info;
 	struct ifaddr *ifa;
-	struct radix_node_head *rnh =
-	    V_rt_tables[fibnum][dst->sa_family];
+	struct radix_node_head *rnh;
+
+	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
+	if (rnh == NULL) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
 
 	/* verify the gateway is directly reachable */
 	if ((ifa = ifa_ifwithnet(gateway)) == NULL) {
@@ -774,7 +840,7 @@ rtexpunge(struct rtentry *rt)
 	/*
 	 * Find the correct routing tree to use for this Address Family
 	 */
-	rnh = V_rt_tables[rt->rt_fibnum][rt_key(rt)->sa_family];
+	rnh = rt_tables_get_rnh(rt->rt_fibnum, rt_key(rt)->sa_family);
 	RT_LOCK_ASSERT(rt);
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
@@ -942,7 +1008,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	/*
 	 * Find the correct routing tree to use for this Address Family
 	 */
-	rnh = V_rt_tables[fibnum][dst->sa_family];
+	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
 	needlock = ((flags & RTF_RNH_LOCKED) == 0);
@@ -1134,9 +1200,9 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	/* XXX dst may be overwritten, can we move this to below */
 	int dlen = SA_SIZE(dst), glen = SA_SIZE(gate);
 #ifdef INVARIANTS
-	INIT_VNET_NET(curvnet);
-	struct radix_node_head *rnh =
-	    V_rt_tables[rt->rt_fibnum][dst->sa_family];
+	struct radix_node_head *rnh;
+
+	rnh = rt_tables_get_rnh(rt->rt_fibnum, dst->sa_family);
 #endif
 
 	RT_LOCK_ASSERT(rt);
@@ -1203,7 +1269,6 @@ rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netma
 static inline  int
 rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 {
-	INIT_VNET_NET(curvnet);
 	struct sockaddr *dst;
 	struct sockaddr *netmask;
 	struct rtentry *rt = NULL;
@@ -1273,7 +1338,8 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			 * Look up an rtentry that is in the routing tree and
 			 * contains the correct info.
 			 */
-			if ((rnh = V_rt_tables[fibnum][dst->sa_family]) == NULL)
+			rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
+			if (rnh == NULL)
 				/* this table doesn't exist but others might */
 				continue;
 			RADIX_NODE_HEAD_LOCK(rnh);

@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2006-2008 University of Zagreb
- * Copyright (c) 2006-2008 FreeBSD Foundation
+ * Copyright (c) 2006-2009 University of Zagreb
+ * Copyright (c) 2006-2009 FreeBSD Foundation
  *
  * This software was developed by the University of Zagreb and the
  * FreeBSD Foundation under sponsorship by the Stichting NLnet and the
@@ -36,6 +36,31 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 
+/* Interim userspace API. */
+struct vi_req {
+	int	vi_api_cookie;		/* Catch API mismatch. */
+	int	vi_req_action;		/* What to do with this request? */
+	u_short	vi_proc_count;		/* Current number of processes. */
+	int	vi_if_count;		/* Current number of ifnets. */
+	int	vi_sock_count;
+	char	vi_name[MAXPATHLEN];
+	char	vi_if_xname[MAXPATHLEN]; /* XXX should be IFNAMSIZ */
+};
+
+#define	VI_CREATE		0x00000001
+#define	VI_DESTROY		0x00000002
+#define	VI_SWITCHTO		0x00000008
+#define	VI_IFACE		0x00000010
+#define	VI_GET			0x00000100
+#define	VI_GETNEXT		0x00000200
+#define	VI_GETNEXT_RECURSE	0x00000300
+
+#define	VI_API_VERSION		1		/* Bump on struct changes. */
+
+#define	VI_API_COOKIE		((sizeof(struct vi_req) << 16) | VI_API_VERSION)
+
+#ifdef _KERNEL
+
 #if defined(VIMAGE) && defined(VIMAGE_GLOBALS)
 #error "You cannot have both option VIMAGE and option VIMAGE_GLOBALS!"
 #endif
@@ -46,6 +71,8 @@
 
 struct vprocg;
 struct vnet;
+struct vi_req;
+struct ifnet;
 struct kld_sym_lookup;
 
 typedef int vnet_attach_fn(const void *);
@@ -129,6 +156,10 @@ struct vnet_modlink {
 #define	V_MOD_vprocg		0	/* no minor module ids like in vnet */
 
 int	vi_symlookup(struct kld_sym_lookup *, char *);
+int	vi_td_ioctl(u_long, struct vi_req *, struct thread *);
+int	vi_if_move(struct vi_req *, struct ifnet *, struct vimage *);
+int	vi_child_of(struct vimage *, struct vimage *);
+struct vimage *vimage_by_name(struct vimage *, char *);
 void	vnet_mod_register(const struct vnet_modinfo *);
 void	vnet_mod_register_multi(const struct vnet_modinfo *, void *, char *);
 void	vnet_mod_deregister(const struct vnet_modinfo *);
@@ -187,8 +218,6 @@ struct vprocg {
 	LIST_ENTRY(vprocg)	 vprocg_le;
 	u_int			 vprocg_id;	/* ID num */
 	u_int			 nprocs;
-	char			 _hostname[MAXHOSTNAMELEN];
-	char			 _domainname[MAXHOSTNAMELEN];
 };
 
 #ifdef VIMAGE
@@ -324,73 +353,52 @@ extern struct vprocg_list_head vprocg_head;
 /* XXX those defines bellow should probably go into vprocg.h and vcpu.h */
 #define	VPROCG(sym)		VSYM(vprocg, sym)
 
-#ifdef VIMAGE
-#define	G_hostname		TD_TO_VPROCG(&thread0)->_hostname
-#else
-#define	G_hostname		VPROCG(hostname)
-#endif
-
-#define	V_hostname		VPROCG(hostname)
-#define	V_domainname		VPROCG(domainname)
-
 /*
  * Size-guards for the vimage structures.
  * If you need to update the values you MUST increment __FreeBSD_version.
  * See description further down to see how to get the new values.
  */
 #ifdef __amd64__
-#define	SIZEOF_vnet_net		464
-#define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4352
-#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_inet	4424
+#define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __arm__
-#define	SIZEOF_vnet_net		236
-#define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
-#define	SIZEOF_vnet_inet	2580
-#define	SIZEOF_vnet_inet6	8536
+#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_inet	2616
+#define	SIZEOF_vnet_inet6	8524
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __i386__ /* incl. pc98 */
-#define	SIZEOF_vnet_net		236
-#define	SIZEOF_vnet_net_LINT	2576
-#define	SIZEOF_vnet_inet	2576
-#define	SIZEOF_vnet_inet6	8528
-#define	SIZEOF_vnet_ipsec	31016
+#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_inet	2612
+#define	SIZEOF_vnet_inet6	8512
+#define	SIZEOF_vnet_ipsec	31024
 #endif
 #ifdef __ia64__
-#define	SIZEOF_vnet_net		464
-#define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4352
-#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_inet	4424
+#define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __mips__
-#define	SIZEOF_vnet_net		236
-#define	SIZEOF_vnet_net_LINT	1	/* No LINT kernel yet. */
-#define	SIZEOF_vnet_inet	2624
-#define	SIZEOF_vnet_inet6	8552
+#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_inet	2648
+#define	SIZEOF_vnet_inet6	8544
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __powerpc__
-#define	SIZEOF_vnet_net		236
-#define	SIZEOF_vnet_net_LINT	2576
-#define	SIZEOF_vnet_inet	2616
-#define	SIZEOF_vnet_inet6	8536
+#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_inet	2640
+#define	SIZEOF_vnet_inet6	8520
 #define	SIZEOF_vnet_ipsec	31048
 #endif
 #ifdef __sparc64__ /* incl. sun4v */
-#define	SIZEOF_vnet_net		464
-#define	SIZEOF_vnet_net_LINT	5144
-#define	SIZEOF_vnet_inet	4352
-#define	SIZEOF_vnet_inet6	8800
+#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_inet	4424
+#define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
-#endif
-
-#ifdef COMPILING_LINT
-#undef	SIZEOF_vnet_net
-#define	SIZEOF_vnet_net	SIZEOF_vnet_net_LINT
 #endif
 
 #ifndef	SIZEOF_vnet_net
@@ -459,5 +467,7 @@ extern struct vprocg_list_head vprocg_head;
 #else
 #define	VIMAGE_CTASSERT(x, y)		struct __hack
 #endif
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_VIMAGE_H_ */

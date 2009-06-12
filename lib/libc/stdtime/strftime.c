@@ -57,7 +57,7 @@ extern char *	tzname[];
 #define IN_THIS	2
 #define IN_ALL	3
 
-#define PAD_DEFAULT 0
+#define PAD_DEFAULT	0
 #define PAD_LESS	1
 #define PAD_SPACE	2
 #define PAD_ZERO	3
@@ -65,7 +65,7 @@ extern char *	tzname[];
 static const char* fmt_padding[][4] = {
 	/* DEFAULT,	LESS,	SPACE,	ZERO */
 #define PAD_FMT_MONTHDAY	0
-#define PAD_FMT_HMS			0
+#define PAD_FMT_HMS		0
 #define PAD_FMT_CENTURY		0
 #define PAD_FMT_SHORTYEAR	0
 #define PAD_FMT_MONTH		0

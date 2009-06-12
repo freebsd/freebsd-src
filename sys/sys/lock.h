@@ -61,6 +61,7 @@ struct lock_class {
 	void	(*lc_assert)(struct lock_object *lock, int what);
 	void	(*lc_ddb_show)(struct lock_object *lock);
 	void	(*lc_lock)(struct lock_object *lock, int how);
+	int	(*lc_owner)(struct lock_object *lock, struct thread **owner);
 	int	(*lc_unlock)(struct lock_object *lock);
 };
 
