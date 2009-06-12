@@ -81,14 +81,18 @@ The
 .Tn NFSv4
 protocol does not use a separate mount protocol and assumes that the
 server provides a single file system tree structure, rooted at the point
-in the local file system tree specified by the
+in the local file system tree specified by one or more
 .sp 1
 .Bd -literal -offset indent -compact
-V4: <rootdir>
+V4: <rootdir> [-sec=secflavors] [host(s) or net]
 .Ed
 .sp 1
-line in
-.Xr exports 5 .
+line(s) in the
+.Xr exports 5
+file.
+(See
+.Xr exports 5
+for details.)
 The
 .Xr nfsd 8
 allows a limited subset of operations to be performed on non-exported subtrees
@@ -131,23 +135,13 @@ On FreeBSD, the mapping daemon is called
 .Xr nfsuserd 8
 and has a command line option that overrides the domain component of the
 machine's hostname.
-This can be set in
-.Xr rc.conf 5
-via the nfsv4_userd_flags variable.
 For use of
 .Nm ,
-either client or server, this daemon must be enabled by setting
-.sp
-.Bd -literal -offset indent -compact
-nfsv4_enable="YES"
-.Ed
-.sp
-in
-.Xr rc.conf 5 .
+either client or server, this daemon must be running.
 If this ``<dns.domain>'' is not set correctly or the daemon is not running, ``ls -l'' will typically
 report a lot of ``nobody'' and ``nogroup'' ownerships.
 .Pp
-Although numbers are no longer used in the
+Although uid/gid numbers are no longer used in the
 .Nm
 protocol, they will still be in the RPC authentication fields when running
 using AUTH_SYS (sec=sys), which is the default.
@@ -176,28 +170,42 @@ or start
 .Xr mountd 8
 and
 .Xr nfsd 8
-with the ``-4'' option to force use of the experimental server.
+with the ``-e'' option to force use of the experimental server.
+The
+.Xr nfsuserd 8
+daemon must also be running.
 This will occur if
 .sp
 .Bd -literal -offset indent -compact
-nfsv4_enable="YES"
+nfs_server_enable="YES"
+nfsv4_server_enable="YES"
+nfsuserd_enable="YES"
 .Ed
 .sp
-is set in
-.Xr rc.conf 5 ,
-as above.
+are set in
+.Xr rc.conf 5 .
 .Pp
-You will also need to add a:
+You will also need to add at least one ``V4:'' line to the
+.Xr exports 5
+file and, before starting the server for the first time, create an empty
 .sp
 .Bd -literal -offset indent -compact
-V4: <rootdir>
+/var/db/nfs-stablerestart
 .Ed
 .sp
-line to the
-.Xr exports 5
-file, to tell the server where the
+file.
+The command
+.sp
+.Bd -literal -offset indent -compact
+install -o root -g wheel -m 600 /dev/null /var/db/nfs-stablerestart
+.Ed
+.sp
+executed as ``su'' should suffice.
+This can only be done when the server is not running and there are no
 .Nm
-tree is rooted.
+file system mounts against the server.
+If this file is lost during a crash, recovery from backups is
+recommended.
 .Pp
 If the file systems you are exporting are only being accessed via
 .Nm
@@ -247,19 +255,24 @@ command line.
 This will force use of the experimental client plus set ``tcp'' and
 .Nm .
 .Pp
+The
+.Xr nfsuserd 8
+must be running, as above.
 If the
 .Nm
-server that is being mounted on supports delegations, you can set
+server that is being mounted on supports delegations, you can start the
+.Xr nfscbd 8
+daemon to handle client side callbacks.
+This will occur if
 .sp
 .Bd -literal -offset indent -compact
-nfsv4_callbackdaemon_enable="YES"
+nfsuserd_enable="YES"
+nfscbd_enable="YES"
 .Ed
 .sp
-via
-.Xr rc.conf 5
-so that the client side callback daemon
-.Xr nfscbd 8
-is started upon boot.
+are set in
+.Xr rc.conf 5 .
+.sp
 Without a functioning callback path, a server will never issue Delegations
 to a client.
 .sp
@@ -267,14 +280,7 @@ By default, the callback address will be set to the IP address acquired via
 rtalloc() in the kernel and port# 7745.
 To override the default port#, a command line option for
 .Xr nfscbd 8
-can be set via the variable
-.sp
-.Bd -literal -offset indent -compact
-nfsv4_callbackdaemon_flag
-.Ed
-.sp
-using
-.Xr rc.conf 5 .
+can be used.
 .sp
 To get callbacks to work when behind a NAT gateway, a port for the callback
 service will need to be set up on the NAT gateway and then the address
@@ -298,6 +304,14 @@ options	NFSCL
 must be specified in the kernel's
 .Xr config 5
 file.
+.Pp
+Options can be specified for the
+.Xr nfsuserd 8
+and
+.Xr nfscbd 8
+daemons at boot time via the ``nfsuserd_flags'' and ``nfscbd_flags''
+.Xr rc.conf 5
+variables.
 .Sh FILES
 .Bl -tag -width /var/db/nfs-stablerestart -compact
 .It Pa /var/db/nfs-stablerestart
