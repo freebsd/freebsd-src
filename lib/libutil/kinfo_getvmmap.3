@@ -35,6 +35,7 @@
 .Lb libutil
 .Sh SYNOPSIS
 .In sys/types.h
+.In sys/user.h
 .In libutil.h
 .Ft struct kinfo_vmentry *
 .Fn kinfo_getfile "pid_t pid" "int *cntp"
@@ -58,7 +59,7 @@ mib.
 While the kernel returns a packed structure, this function expands the
 data into a fixed record format.
 .Sh RETURN VALUES
-The
+On success the
 .Fn kinfo_getvmmap
 function returns a pointer to an array of
 .Vt struct kinfo_vmentry
@@ -67,6 +68,10 @@ The array was obtained by an internal call to
 .Xr malloc 3
 and must be freed by the caller with a call to
 .Xr free 3 .
+On failure the
+.Fn kinfo_getvmmap
+function returns
+.Dv NULL .
 .Sh SEE ALSO
 .Xr free 3 ,
 .Xr kinfo_getfile 3 ,
