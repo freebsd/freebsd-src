@@ -182,8 +182,8 @@ ar71xx_pci_conf_setup(int bus, int slot, int func, int reg, int bytes,
 }
 
 static uint32_t
-ar71xx_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
-    int bytes)
+ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, 
+    u_int reg, int bytes)
 {
 	uint32_t data;
 	uint32_t cmd, shift, mask;
@@ -219,8 +219,8 @@ ar71xx_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
 }
 
 static void
-ar71xx_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
-    uint32_t data, int bytes)
+ar71xx_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, 
+    u_int reg, uint32_t data, int bytes)
 {
 	uint32_t cmd;
 
