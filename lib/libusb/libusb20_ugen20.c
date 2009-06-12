@@ -67,8 +67,6 @@ const struct libusb20_backend_methods libusb20_ugen20_backend = {
 static libusb20_get_config_desc_full_t ugen20_get_config_desc_full;
 static libusb20_get_config_index_t ugen20_get_config_index;
 static libusb20_set_config_index_t ugen20_set_config_index;
-static libusb20_claim_interface_t ugen20_claim_interface;
-static libusb20_release_interface_t ugen20_release_interface;
 static libusb20_set_alt_index_t ugen20_set_alt_index;
 static libusb20_reset_device_t ugen20_reset_device;
 static libusb20_set_power_mode_t ugen20_set_power_mode;
@@ -514,28 +512,6 @@ ugen20_set_config_index(struct libusb20_device *pdev, uint8_t cfg_index)
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (ugen20_tr_renew(pdev));
-}
-
-static int
-ugen20_claim_interface(struct libusb20_device *pdev, uint8_t iface_index)
-{
-	int temp = iface_index;
-
-	if (ioctl(pdev->file_ctrl, USB_CLAIM_INTERFACE, &temp)) {
-		return (LIBUSB20_ERROR_OTHER);
-	}
-	return (0);
-}
-
-static int
-ugen20_release_interface(struct libusb20_device *pdev, uint8_t iface_index)
-{
-	int temp = iface_index;
-
-	if (ioctl(pdev->file_ctrl, USB_RELEASE_INTERFACE, &temp)) {
-		return (LIBUSB20_ERROR_OTHER);
-	}
-	return (0);
 }
 
 static int
