@@ -103,6 +103,13 @@ danish.iso.kbd:fr:Danois ISO-8859-1
 danish.iso.kbd:pt:Dinamarquês ISO-8859-1
 danish.iso.kbd:es:Danés ISO-8859-1
 
+danish.iso.acc.kbd:en:Danish ISO-8859-1 (accent keys)
+danish.iso.acc.kbd:da:Dansk ISO-8859-1 (accent taster)
+danish.iso.acc.kbd:de:Dänisch ISO-8859-1 (mit Akzenten)
+danish.iso.acc.kbd:fr:Danois ISO-8859-1 (avec accents)
+danish.iso.acc.kbd:pt:Dinamarquês ISO-8859-1 (com acentos)
+danish.iso.acc.kbd:es:Danés ISO-8859-1 (con acentos)
+
 danish.cp865.kbd:en:Danish Codepage 865
 danish.cp865.kbd:da:Dansk Code page 865
 danish.cp865.kbd:de:Dänisch Codeseite 865
@@ -313,6 +320,13 @@ pl_PL.ISO8859-2.kbd:pl:Polska ISO-8859-2 (programisty)
 pl_PL.ISO8859-2.kbd:pt:Polonês ISO-8859-2 (para programadores)
 pl_PL.ISO8859-2.kbd:es:Polaco ISO-8859-2 (para programadores)
 
+pl_PL.dvorak.kbd:en:Polish Dvorak
+pl_PL.dvorak.kbd:de:Polnisch Dvorak
+pl_PL.dvorak.kbd:fr:Polonais Dvorak
+pl_PL.dvorak.kbd:pl:Polska Dvorak
+pl_PL.dvorak.kbd:pt:Polonês Dvorak
+pl_PL.dvorak.kbd:es:Polaco Dvorak
+
 pt.iso.kbd:en:Portuguese ISO-8859-1
 pt.iso.kbd:de:Portugisisch ISO-8859-1
 pt.iso.kbd:fr:Portugais ISO-8859-1
@@ -441,6 +455,12 @@ uk.cp850.kbd:de:Vereinigtes Königreich Codeseite 850
 uk.cp850.kbd:fr:Royaume Uni Code page 850
 uk.cp850.kbd:pt:Reino Unido Codepage 850
 uk.cp850.kbd:es:Británico Codepage 850
+
+uk.dvorak.kbd:en:United Kingdom Dvorak
+uk.dvorak.kbd:de:Vereinigtes K\xf6nigreich Dvorak
+uk.dvorak.kbd:fr:Royaume Uni Dvorak
+uk.dvorak.kbd:pt:Reino Unido Dvorak
+uk.dvorak.kbd:es:Británico Dvorak
 
 us.iso.kbd:en:United States of America ISO-8859-1
 us.iso.kbd:de:US-amerikanisch ISO-8859-1
