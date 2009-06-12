@@ -25,7 +25,7 @@ options		NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
-options		NFS_LEGACYRPC
+# options		NFS_LEGACYRPC
 # Debugging for use in -current
 # options		INVARIANTS
 # options		INVARIANT_SUPPORT
