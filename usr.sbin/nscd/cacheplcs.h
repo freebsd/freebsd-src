@@ -59,7 +59,7 @@ struct cache_policy_item_
  */
 struct cache_policy_
 {
-	struct cache_policy_item_* (*create_item_func)();
+	struct cache_policy_item_* (*create_item_func)(void);
 	void (*destroy_item_func)(struct cache_policy_item_ *);
 
 	void (*add_item_func)(struct cache_policy_ *,
@@ -123,15 +123,15 @@ typedef struct cache_queue_policy_ cache_fifo_policy_;
 typedef struct cache_queue_policy_ cache_lru_policy_;
 
 /* fifo policy routines */
-extern struct cache_policy_ *init_cache_fifo_policy();
+extern struct cache_policy_ *init_cache_fifo_policy(void);
 extern void destroy_cache_fifo_policy(struct cache_policy_ *);
 
 /* lru policy routines */
-extern struct cache_policy_ *init_cache_lru_policy();
+extern struct cache_policy_ *init_cache_lru_policy(void);
 extern void destroy_cache_lru_policy(struct cache_policy_ *);
 
 /* lfu policy routines */
-extern struct cache_policy_ *init_cache_lfu_policy();
+extern struct cache_policy_ *init_cache_lfu_policy(void);
 extern void destroy_cache_lfu_policy(struct cache_policy_ *);
 
 #endif
