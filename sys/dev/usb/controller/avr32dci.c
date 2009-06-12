@@ -1062,7 +1062,7 @@ avr32dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 static void
 avr32dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_pipe *pipe)
+    struct usb_endpoint *ep)
 {
 	struct avr32dci_softc *sc;
 	uint8_t ep_no;
@@ -1148,7 +1148,7 @@ avr32dci_clear_stall_sub(struct avr32dci_softc *sc, uint8_t ep_no,
 }
 
 static void
-avr32dci_clear_stall(struct usb_device *udev, struct usb_pipe *pipe)
+avr32dci_clear_stall(struct usb_device *udev, struct usb_endpoint *ep)
 {
 	struct avr32dci_softc *sc;
 	struct usb_endpoint_descriptor *ed;
@@ -2025,8 +2025,8 @@ avr32dci_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-avr32dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
-    struct usb_pipe *pipe)
+avr32dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_endpoint *ep)
 {
 	struct avr32dci_softc *sc = AVR32_BUS2SC(udev->bus);
 
@@ -2055,7 +2055,7 @@ avr32dci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edes
 
 struct usb_bus_methods avr32dci_bus_methods =
 {
-	.pipe_init = &avr32dci_pipe_init,
+	.endpoint_init = &avr32dci_ep_init,
 	.xfer_setup = &avr32dci_xfer_setup,
 	.xfer_unsetup = &avr32dci_xfer_unsetup,
 	.get_hw_ep_profile = &avr32dci_get_hw_ep_profile,

@@ -23,6 +23,7 @@ MAN=	aac.4 \
 	ahc.4 \
 	ahd.4 \
 	aio.4 \
+	alc.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
@@ -202,6 +203,8 @@ MAN=	aac.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
+	mwl.4 \
+	mwlfw.4 \
 	mxge.4 \
 	my.4 \
 	natm.4 \

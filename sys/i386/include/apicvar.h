@@ -108,12 +108,13 @@
  */ 
 
 /* Interrupts for local APIC LVT entries other than the timer. */
+#ifdef XEN
+/* These are the Xen i386 APIC definitions */
 #define	APIC_LOCAL_INTS	240
 #define	APIC_ERROR_INT	APIC_LOCAL_INTS
 #define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
-
 #define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
-#ifdef XEN
+
 #define	IPI_RENDEZVOUS		(APIC_IPI_INTS)	/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB		(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
 #define	IPI_INVLPG		(APIC_IPI_INTS + 2)
@@ -122,17 +123,6 @@
 #define	IPI_LAZYPMAP		(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
 /* Vector to handle bitmap based IPIs */
 #define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6)
-
-#else
-#define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
-#define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
-#define	IPI_INVLPG	(APIC_IPI_INTS + 2)
-#define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
-#define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
-#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
-/* Vector to handle bitmap based IPIs */
-#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6) 
-#endif
 
 /* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
 #define	IPI_AST		0 	/* Generate software trap. */
@@ -144,6 +134,34 @@
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
+
+#else /* XEN */
+/* These are the normal i386 APIC definitions */
+#define	APIC_LOCAL_INTS	240
+#define	APIC_ERROR_INT	APIC_LOCAL_INTS
+#define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
+
+#define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
+#define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
+#define	IPI_INVLPG	(APIC_IPI_INTS + 2)
+#define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
+#define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
+#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
+/* Vector to handle bitmap based IPIs */
+#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6) 
+
+/* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
+#define	IPI_AST		0 	/* Generate software trap. */
+#define IPI_PREEMPT     1
+#define IPI_HARDCLOCK   2 
+#define IPI_STATCLOCK   3 
+#define IPI_PROFCLOCK   4 
+#define IPI_BITMAP_LAST IPI_PROFCLOCK
+#define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
+
+#define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
+#endif /* XEN */
 
 /*
  * The spurious interrupt can share the priority class with the IPIs since

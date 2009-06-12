@@ -202,7 +202,7 @@ ixp435_irq_read(void)
 }
 
 int
-arm_get_next_irq(void)
+arm_get_next_irq(int last __unused)
 {
 	uint32_t irq;
 
@@ -334,7 +334,7 @@ ixp425_add_child(device_t dev, int order, const char *name, int unit)
 }
 
 static int
-ixp425_read_ivar(device_t bus, device_t child, int which, u_char *result)
+ixp425_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct ixp425_ivar *ivar = IXP425_IVAR(child);
 

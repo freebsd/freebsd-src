@@ -260,11 +260,13 @@ ncv_pccard_attach(device_t dev)
 	return(0);
 }
 
-static	void
+static	int
 ncv_pccard_detach(device_t dev)
 {
 	ncv_card_unload(dev);
 	ncv_release_resource(dev);
+
+	return (0);
 }
 
 static device_method_t ncv_pccard_methods[] = {

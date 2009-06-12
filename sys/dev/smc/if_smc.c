@@ -999,7 +999,7 @@ smc_miibus_readreg(device_t dev, int phy, int reg)
 	return (val);
 }
 
-void
+int
 smc_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct smc_softc	*sc;
@@ -1029,6 +1029,7 @@ smc_miibus_writereg(device_t dev, int phy, int reg, int data)
 	    smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO));
 
 	SMC_UNLOCK(sc);
+	return (0);
 }
 
 void

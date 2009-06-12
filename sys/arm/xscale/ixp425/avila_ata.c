@@ -248,7 +248,7 @@ ata_avila_attach(device_t dev)
 	    NULL, ata_avila_intr, sc, &sc->sc_ih);
 
 	/* attach channel on this controller */
-	device_add_child(dev, "ata", devclass_find_free_unit(ata_devclass, 0));
+	device_add_child(dev, "ata", -1);
 	bus_generic_attach(dev);
 
 	return 0;

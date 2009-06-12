@@ -50,8 +50,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>
@@ -1992,7 +1990,6 @@ igmp_set_version(struct igmp_ifinfo *igi, const int version)
 static void
 igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 {
-	INIT_VNET_INET(curvnet);
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
 	struct in_multi		*inm;

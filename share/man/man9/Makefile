@@ -28,12 +28,15 @@ MAN=	accept_filter.9 \
 	bus_dma.9 \
 	bus_generic_attach.9 \
 	bus_generic_detach.9 \
+	bus_generic_new_pass.9 \
 	bus_generic_print_child.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
+	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
 	bus_release_resource.9 \
+	bus_set_pass.9 \
 	bus_set_resource.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
@@ -54,7 +57,6 @@ MAN=	accept_filter.9 \
 	DECLARE_MODULE.9 \
 	DELAY.9 \
 	devclass.9 \
-	devclass_add_driver.9 \
 	devclass_find.9 \
 	devclass_get_device.9 \
 	devclass_get_devices.9 \
@@ -162,6 +164,7 @@ MAN=	accept_filter.9 \
 	mtx_pool.9 \
 	mutex.9 \
 	namei.9 \
+	netisr.9 \
 	panic.9 \
 	pbuf.9 \
 	p_candebug.9 \
@@ -551,8 +554,6 @@ MLINKS+=crypto.9 crypto_dispatch.9 \
 	crypto.9 crypto_unregister_all.9
 MLINKS+=DB_COMMAND.9 DB_SHOW_COMMAND.9 \
 	DB_COMMAND.9 DB_SHOW_ALL_COMMAND.9
-MLINKS+=devclass_add_driver.9 devclass_delete_driver.9 \
-	devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=dev_clone.9 drain_dev_clone_events.9
 MLINKS+=devfs_set_cdevpriv.9 devfs_get_cdevpriv.9 \
 	devfs_set_cdevpriv.9 devfs_clear_cdevpriv.9

@@ -128,7 +128,7 @@ static devclass_t pxa_icu_devclass;
 DRIVER_MODULE(pxaicu, pxa, pxa_icu_driver, pxa_icu_devclass, 0, 0);
 
 int
-arm_get_next_irq()
+arm_get_next_irq(int last __unused)
 {
 	int	irq;
 

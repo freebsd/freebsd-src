@@ -174,6 +174,7 @@ svcpool_destroy(SVCPOOL *pool)
 		svc_unreg(pool, s->sc_prog, s->sc_vers);
 		mtx_lock(&pool->sp_lock);
 	}
+	mtx_unlock(&pool->sp_lock);
 
 	TAILQ_FOREACH_SAFE(xprt, &cleanup, xp_link, nxprt) {
 		SVC_RELEASE(xprt);
@@ -292,6 +293,8 @@ xprt_unregister_locked(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
 
+	KASSERT(xprt->xp_registered == TRUE,
+	    ("xprt_unregister_locked: not registered"));
 	if (xprt->xp_active) {
 		TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
 		xprt->xp_active = FALSE;
@@ -306,6 +309,11 @@ xprt_unregister(SVCXPRT *xprt)
 	SVCPOOL *pool = xprt->xp_pool;
 
 	mtx_lock(&pool->sp_lock);
+	if (xprt->xp_registered == FALSE) {
+		/* Already unregistered by another thread */
+		mtx_unlock(&pool->sp_lock);
+		return;
+	}
 	xprt_unregister_locked(xprt);
 	mtx_unlock(&pool->sp_lock);
 

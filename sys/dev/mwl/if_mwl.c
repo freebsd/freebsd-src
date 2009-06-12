@@ -1079,10 +1079,10 @@ mwl_seteapolformat(struct ieee80211vap *vap)
 	 * NB: this may violate POLA for sta and wds vap's.
 	 */
 	if (mode == IEEE80211_MODE_11NA &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) == 0)
+	    (vap->iv_flags_ht & IEEE80211_FHT_PUREN) == 0)
 		rate = vap->iv_txparms[IEEE80211_MODE_11A].mgmtrate;
 	else if (mode == IEEE80211_MODE_11NG &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) == 0)
+	    (vap->iv_flags_ht & IEEE80211_FHT_PUREN) == 0)
 		rate = vap->iv_txparms[IEEE80211_MODE_11G].mgmtrate;
 	else
 		rate = vap->iv_txparms[mode].mgmtrate;
@@ -1263,8 +1263,8 @@ mwl_reset_vap(struct ieee80211vap *vap, int state)
 	/* XXX off by 1? */
 	mwl_hal_setrtsthreshold(hvap, vap->iv_rtsthreshold);
 	/* XXX auto? 20/40 split? */
-	mwl_hal_sethtgi(hvap, (vap->iv_flags_ext &
-	    (IEEE80211_FEXT_SHORTGI20|IEEE80211_FEXT_SHORTGI40)) ? 1 : 0);
+	mwl_hal_sethtgi(hvap, (vap->iv_flags_ht &
+	    (IEEE80211_FHT_SHORTGI20|IEEE80211_FHT_SHORTGI40)) ? 1 : 0);
 	mwl_hal_setnprot(hvap, ic->ic_htprotmode == IEEE80211_PROT_NONE ?
 	    HTPROTECT_NONE : HTPROTECT_AUTO);
 	/* XXX txpower cap */
@@ -3865,7 +3865,7 @@ mwl_getapmode(const struct ieee80211vap *vap, struct ieee80211_channel *chan)
 	MWL_HAL_APMODE mode;
 
 	if (IEEE80211_IS_CHAN_HT(chan)) {
-		if (vap->iv_flags_ext & IEEE80211_FEXT_PUREN)
+		if (vap->iv_flags_ht & IEEE80211_FHT_PUREN)
 			mode = AP_MODE_N_ONLY;
 		else if (IEEE80211_IS_CHAN_5GHZ(chan))
 			mode = AP_MODE_AandN;
@@ -4366,9 +4366,9 @@ mwl_newassoc(struct ieee80211_node *ni, int isnew)
 		pi.AddHtInfo.stbc = ni->ni_htstbc;
 
 		/* constrain according to local configuration */
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI40) == 0)
+		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0)
 			pi.HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI40;
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI20) == 0)
+		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 			pi.HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI20;
 		if (ni->ni_chw != 40)
 			pi.HTCapabilitiesInfo &= ~IEEE80211_HTCAP_CHWIDTH40;

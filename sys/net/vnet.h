@@ -51,6 +51,7 @@ struct vnet_net {
 
 	struct ifnet *		_loif;
 	struct if_clone *	_lo_cloner;
+	struct ifc_simple_data *_lo_cloner_data;
 
 	LIST_HEAD(, rawcb)	_rawcb_list;
 
@@ -87,6 +88,7 @@ extern struct vnet_net vnet_net_0;
 #define	V_ifklist		VNET_NET(ifklist)
 #define	V_ifnet			VNET_NET(ifnet)
 #define	V_lo_cloner		VNET_NET(lo_cloner)
+#define	V_lo_cloner_data	VNET_NET(lo_cloner_data)
 #define	V_loif			VNET_NET(loif)
 #define	V_rawcb_list		VNET_NET(rawcb_list)
 #define	V_rt_tables		VNET_NET(rt_tables)

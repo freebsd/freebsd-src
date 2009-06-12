@@ -139,7 +139,7 @@ static int	link_elf_each_function_nameval(linker_file_t,
 				linker_function_nameval_callback_t,
 				void *);
 static void	link_elf_reloc_local(linker_file_t);
-static long	link_elf_symtab_get(linker_file_t, Elf_Sym **);
+static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
 static long	link_elf_strtab_get(linker_file_t, caddr_t *);
 
 static Elf_Addr elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps);
@@ -1291,7 +1291,7 @@ link_elf_reloc_local(linker_file_t lf)
 }
 
 static long
-link_elf_symtab_get(linker_file_t lf, Elf_Sym **symtab)
+link_elf_symtab_get(linker_file_t lf, const Elf_Sym **symtab)
 {
     elf_file_t ef = (elf_file_t)lf;
     

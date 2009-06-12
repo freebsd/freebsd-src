@@ -1190,7 +1190,7 @@ ate_miibus_readreg(device_t dev, int phy, int reg)
 	return (val);
 }
 
-static void
+static int
 ate_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ate_softc *sc;
@@ -1204,7 +1204,7 @@ ate_miibus_writereg(device_t dev, int phy, int reg, int data)
 	WR4(sc, ETH_MAN, ETH_MAN_REG_WR(phy, reg, data));
 	while ((RD4(sc, ETH_SR) & ETH_SR_IDLE) == 0)
 		continue;
-	return;
+	return (0);
 }
 
 static device_method_t ate_methods[] = {

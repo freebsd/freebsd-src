@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
+ * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
+ * Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
+ * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * Copyright (c) 1997 Luigi Rizzo
  * All rights reserved.
  *
@@ -25,10 +27,15 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pcm/vchan.h>
 #include <dev/sound/pcm/dsp.h>
+#include <dev/sound/pcm/sndstat.h>
 #include <dev/sound/version.h>
 #include <sys/limits.h>
 #include <sys/sysctl.h>
@@ -41,10 +48,8 @@ devclass_t pcm_devclass;
 
 int pcm_veto_load = 1;
 
-#ifdef USING_DEVFS
 int snd_unit = -1;
 TUNABLE_INT("hw.snd.default_unit", &snd_unit);
-#endif
 
 static int snd_unit_auto = 0;
 TUNABLE_INT("hw.snd.default_auto", &snd_unit_auto);
@@ -66,83 +71,56 @@ SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
 static const char snd_driver_version[] =
     __XSTRING(SND_DRV_VERSION)"/"MACHINE_ARCH;
 SYSCTL_STRING(_hw_snd, OID_AUTO, version, CTLFLAG_RD, &snd_driver_version,
-    0, "Driver version/arch");
+    0, "driver version/arch");
 
 /**
  * @brief Unit number allocator for syncgroup IDs
  */
 struct unrhdr *pcmsg_unrhdr = NULL;
 
-static int sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose);
+static int
+sndstat_prepare_pcm(SNDSTAT_PREPARE_PCM_ARGS)
+{
+	SNDSTAT_PREPARE_PCM_BEGIN();
+	SNDSTAT_PREPARE_PCM_END();
+}
 
 void *
 snd_mtxcreate(const char *desc, const char *type)
 {
-#ifdef USING_MUTEX
 	struct mtx *m;
 
 	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
 	mtx_init(m, desc, type, MTX_DEF);
 	return m;
-#else
-	return (void *)0xcafebabe;
-#endif
 }
 
 void
 snd_mtxfree(void *m)
 {
-#ifdef USING_MUTEX
 	struct mtx *mtx = m;
 
-	/* mtx_assert(mtx, MA_OWNED); */
 	mtx_destroy(mtx);
 	free(mtx, M_DEVBUF);
-#endif
 }
 
 void
 snd_mtxassert(void *m)
 {
-#ifdef USING_MUTEX
 #ifdef INVARIANTS
 	struct mtx *mtx = m;
 
 	mtx_assert(mtx, MA_OWNED);
 #endif
-#endif
-}
-/*
-void
-snd_mtxlock(void *m)
-{
-#ifdef USING_MUTEX
-	struct mtx *mtx = m;
-
-	mtx_lock(mtx);
-#endif
 }
 
-void
-snd_mtxunlock(void *m)
-{
-#ifdef USING_MUTEX
-	struct mtx *mtx = m;
-
-	mtx_unlock(mtx);
-#endif
-}
-*/
 int
 snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand, void *param, void **cookiep)
 {
 	struct snddev_info *d;
-#ifdef USING_MUTEX
+
 	flags &= INTR_MPSAFE;
 	flags |= INTR_TYPE_AV;
-#else
-	flags = INTR_TYPE_AV;
-#endif
 	d = device_get_softc(dev);
 	if (d != NULL && (flags & INTR_MPSAFE))
 		d->flags |= SD_F_MPSAFE;
@@ -154,26 +132,6 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 			hand, param, cookiep);
 }
 
-#ifndef	PCM_DEBUG_MTX
-void
-pcm_lock(struct snddev_info *d)
-{
-	snd_mtxlock(d->lock);
-}
-
-void
-pcm_unlock(struct snddev_info *d)
-{
-	snd_mtxunlock(d->lock);
-}
-#endif
-
-struct pcm_channel *
-pcm_getfakechan(struct snddev_info *d)
-{
-	return d->fakechan;
-}
-
 static void
 pcm_clonereset(struct snddev_info *d)
 {
@@ -183,20 +141,21 @@ pcm_clonereset(struct snddev_info *d)
 
 	cmax = d->playcount + d->reccount - 1;
 	if (d->pvchancount > 0)
-		cmax += MAX(d->pvchancount, snd_maxautovchans) - 1;
+		cmax += max(d->pvchancount, snd_maxautovchans) - 1;
 	if (d->rvchancount > 0)
-		cmax += MAX(d->rvchancount, snd_maxautovchans) - 1;
+		cmax += max(d->rvchancount, snd_maxautovchans) - 1;
 	if (cmax > PCMMAXCLONE)
 		cmax = PCMMAXCLONE;
 	(void)snd_clone_gc(d->clones);
 	(void)snd_clone_setmaxunit(d->clones, cmax);
 }
 
-static int
+int
 pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
 {
 	struct pcm_channel *c, *ch, *nch;
-	int err, vcnt;
+	struct pcmchan_caps *caps;
+	int i, err, vcnt;
 
 	PCM_BUSYASSERT(d);
 
@@ -228,9 +187,33 @@ pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
 			CHN_LOCK(c);
 			if (c->direction == direction &&
 			    ((c->flags & CHN_F_HAS_VCHAN) || (vcnt == 0 &&
+			    c->refcount < 1 &&
 			    !(c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL))))) {
-				ch = c;
-			    	break;
+				/* 
+				 * Reuse hw channel with vchans already
+				 * created.
+				 */
+				if (c->flags & CHN_F_HAS_VCHAN) {
+					ch = c;
+					break;
+				}
+				/*
+				 * No vchans ever created, look for
+				 * channels with supported formats.
+				 */
+				caps = chn_getcaps(c);
+				if (caps == NULL) {
+					CHN_UNLOCK(c);
+					continue;
+				}
+				for (i = 0; caps->fmtlist[i] != 0; i++) {
+					if (caps->fmtlist[i] & AFMT_CONVERTIBLE)
+						break;
+				}
+				if (caps->fmtlist[i] != 0) {
+					ch = c;
+				    	break;
+				}
 			}
 			CHN_UNLOCK(c);
 		}
@@ -267,11 +250,13 @@ pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
 			}
 			CHN_FOREACH_SAFE(ch, c, nch, children) {
 				CHN_LOCK(ch);
-				if (!(ch->flags & CHN_F_BUSY)) {
+				if (vcnt == 1 && c->refcount > 0) {
 					CHN_UNLOCK(ch);
-					CHN_UNLOCK(c);
+					break;
+				}
+				if (!(ch->flags & CHN_F_BUSY) &&
+				    ch->refcount < 1) {
 					err = vchan_destroy(ch);
-					CHN_LOCK(c);
 					if (err == 0)
 						vcnt--;
 				} else
@@ -291,10 +276,10 @@ pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
 /* return error status and a locked channel */
 int
 pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
-    pid_t pid, int devunit)
+    pid_t pid, char *comm, int devunit)
 {
 	struct pcm_channel *c;
-	int err, vchancount;
+	int err, vchancount, vchan_num;
 
 	KASSERT(d != NULL && ch != NULL && (devunit == -1 ||
 	    !(devunit & ~(SND_U_MASK | SND_D_MASK | SND_C_MASK))) &&
@@ -309,35 +294,51 @@ pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
 		case SND_DEV_DSPHW_PLAY:
 		case SND_DEV_DSPHW_VPLAY:
 			if (direction != PCMDIR_PLAY)
-				return (EOPNOTSUPP);
+				return (ENOTSUP);
 			break;
 		case SND_DEV_DSPHW_REC:
 		case SND_DEV_DSPHW_VREC:
 			if (direction != PCMDIR_REC)
-				return (EOPNOTSUPP);
+				return (ENOTSUP);
 			break;
 		default:
 			if (!(direction == PCMDIR_PLAY ||
 			    direction == PCMDIR_REC))
-				return (EOPNOTSUPP);
+				return (ENOTSUP);
 			break;
 		}
 	}
 
+	*ch = NULL;
+	vchan_num = 0;
+	vchancount = (direction == PCMDIR_PLAY) ? d->pvchancount :
+	    d->rvchancount;
+
 retry_chnalloc:
-	err = EOPNOTSUPP;
+	err = ENOTSUP;
 	/* scan for a free channel */
 	CHN_FOREACH(c, d, channels.pcm) {
 		CHN_LOCK(c);
+		if (devunit == -1 && c->direction == direction &&
+		    (c->flags & CHN_F_VIRTUAL)) {
+			if (vchancount < snd_maxautovchans &&
+			    vchan_num < CHN_CHAN(c)) {
+			    	CHN_UNLOCK(c);
+				goto vchan_alloc;
+			}
+			vchan_num++;
+		}
 		if (c->direction == direction && !(c->flags & CHN_F_BUSY) &&
 		    (devunit == -1 || devunit == -2 || c->unit == devunit)) {
 			c->flags |= CHN_F_BUSY;
 			c->pid = pid;
+			strlcpy(c->comm, (comm != NULL) ? comm :
+			    CHN_COMM_UNKNOWN, sizeof(c->comm));
 			*ch = c;
 			return (0);
 		} else if (c->unit == devunit) {
 			if (c->direction != direction)
-				err = EOPNOTSUPP;
+				err = ENOTSUP;
 			else if (c->flags & CHN_F_BUSY)
 				err = EBUSY;
 			else
@@ -353,13 +354,10 @@ retry_chnalloc:
 	if (devunit == -2)
 		return (err);
 
+vchan_alloc:
 	/* no channel available */
 	if (devunit == -1 || snd_unit2d(devunit) == SND_DEV_DSPHW_VPLAY ||
 	    snd_unit2d(devunit) == SND_DEV_DSPHW_VREC) {
-		if (direction == PCMDIR_PLAY)
-			vchancount = d->pvchancount;
-		else
-			vchancount = d->rvchancount;
 		if (!(vchancount > 0 && vchancount < snd_maxautovchans) &&
 		    (devunit == -1 || snd_unit2c(devunit) < snd_maxautovchans))
 			return (err);
@@ -384,6 +382,7 @@ pcm_chnrelease(struct pcm_channel *c)
 
 	c->flags &= ~CHN_F_BUSY;
 	c->pid = -1;
+	strlcpy(c->comm, CHN_COMM_UNUSED, sizeof(c->comm));
 	CHN_UNLOCK(c);
 
 	return (0);
@@ -403,7 +402,7 @@ pcm_chnref(struct pcm_channel *c, int ref)
 int
 pcm_inprog(struct snddev_info *d, int delta)
 {
-	snd_mtxassert(d->lock);
+	PCM_LOCKASSERT(d);
 
 	d->inprog += delta;
 
@@ -431,7 +430,6 @@ pcm_setmaxautovchans(struct snddev_info *d, int num)
 	pcm_clonereset(d);
 }
 
-#ifdef USING_DEVFS
 static int
 sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 {
@@ -451,7 +449,6 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 /* XXX: do we need a way to let the user change the default unit? */
 SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit, CTLTYPE_INT | CTLFLAG_RW,
             0, sizeof(int), sysctl_hw_snd_default_unit, "I", "default sound device");
-#endif
 
 static int
 sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
@@ -491,7 +488,7 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 	char *dirs, *devname, buf[CHN_NAMELEN];
 
 	PCM_BUSYASSERT(d);
-	snd_mtxassert(d->lock);
+	PCM_LOCKASSERT(d);
 	KASSERT(num >= -1, ("invalid num=%d", num));
 
 
@@ -570,11 +567,12 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 		return (NULL);
 	}
 
-	pcm_unlock(d);
+	PCM_UNLOCK(d);
 	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
 	ch->methods = kobj_create(cls, M_DEVBUF, M_WAITOK | M_ZERO);
 	ch->unit = udc;
 	ch->pid = -1;
+	strlcpy(ch->comm, CHN_COMM_UNUSED, sizeof(ch->comm));
 	ch->parentsnddev = d;
 	ch->parentchannel = parent;
 	ch->dev = d->dev;
@@ -583,7 +581,7 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 	    device_get_nameunit(ch->dev), dirs, devname);
 
 	err = chn_init(ch, devinfo, dir, direction);
-	pcm_lock(d);
+	PCM_LOCK(d);
 	if (err) {
 		device_printf(d->dev, "chn_init(%s) failed: err = %d\n",
 		    ch->name, err);
@@ -620,46 +618,12 @@ pcm_chn_destroy(struct pcm_channel *ch)
 int
 pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 {
-	struct pcm_channel *tmp, *after;
-	int num;
-
 	PCM_BUSYASSERT(d);
-	snd_mtxassert(d->lock);
+	PCM_LOCKASSERT(d);
 	KASSERT(ch != NULL && (ch->direction == PCMDIR_PLAY ||
 	    ch->direction == PCMDIR_REC), ("Invalid pcm channel"));
 
-	after = NULL;
-	tmp = NULL;
-	num = 0;
-
-	/*
-	 * Look for possible device collision.
-	 */
-	CHN_FOREACH(tmp, d, channels.pcm) {
-		if (tmp->unit == ch->unit) {
-			device_printf(d->dev, "%s(): Device collision "
-			    "old=%p new=%p devunit=0x%08x\n",
-			    __func__, tmp, ch, ch->unit);
-			return (ENODEV);
-		}
-		if (CHN_DEV(tmp) < CHN_DEV(ch)) {
-			if (num == 0)
-				after = tmp;
-			continue;
-		} else if (CHN_DEV(tmp) > CHN_DEV(ch))
-			break;
-		num++;
-		if (CHN_CHAN(tmp) < CHN_CHAN(ch))
-			after = tmp;
-		else if (CHN_CHAN(tmp) > CHN_CHAN(ch))
-			break;
-	}
-
-	if (after != NULL) {
-		CHN_INSERT_AFTER(after, ch, channels.pcm);
-	} else {
-		CHN_INSERT_HEAD(d, ch, channels.pcm);
-	}
+	CHN_INSERT_SORT_ASCEND(d, ch, channels.pcm);
 
 	switch (CHN_DEV(ch)) {
 	case SND_DEV_DSPHW_PLAY:
@@ -689,7 +653,7 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch)
 	struct pcm_channel *tmp;
 
 	PCM_BUSYASSERT(d);
-	snd_mtxassert(d->lock);
+	PCM_LOCKASSERT(d);
 
 	tmp = NULL;
 
@@ -734,17 +698,17 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 
 	PCM_BUSYASSERT(d);
 
-	pcm_lock(d);
+	PCM_LOCK(d);
 	ch = pcm_chn_create(d, NULL, cls, dir, -1, devinfo);
 	if (!ch) {
 		device_printf(d->dev, "pcm_chn_create(%s, %d, %p) failed\n",
 		    cls->name, dir, devinfo);
-		pcm_unlock(d);
+		PCM_UNLOCK(d);
 		return (ENODEV);
 	}
 
 	err = pcm_chn_add(d, ch);
-	pcm_unlock(d);
+	PCM_UNLOCK(d);
 	if (err) {
 		device_printf(d->dev, "pcm_chn_add(%s) failed, err=%d\n",
 		    ch->name, err);
@@ -765,9 +729,9 @@ pcm_killchan(device_t dev)
 
 	ch = CHN_FIRST(d, channels.pcm);
 
-	pcm_lock(d);
+	PCM_LOCK(d);
 	error = pcm_chn_remove(d, ch);
-	pcm_unlock(d);
+	PCM_UNLOCK(d);
 	if (error)
 		return (error);
 	return (pcm_chn_destroy(ch));
@@ -793,7 +757,7 @@ pcm_setstatus(device_t dev, char *str)
 
 	strlcpy(d->status, str, SND_STATUSLEN);
 
-	pcm_lock(d);
+	PCM_LOCK(d);
 
 	/* Last stage, enable cloning. */
 	if (d->clones != NULL)
@@ -804,7 +768,7 @@ pcm_setstatus(device_t dev, char *str)
 
 	PCM_RELEASE(d);
 
-	pcm_unlock(d);
+	PCM_UNLOCK(d);
 
 	if (snd_unit < 0 || snd_unit_auto != 0)
 		snd_unit = device_get_unit(dev);
@@ -866,7 +830,44 @@ pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int deflt, unsig
 	return sz;
 }
 
-#if defined(SND_DYNSYSCTL) && defined(SND_DEBUG)
+static int
+sysctl_dev_pcm_bitperfect(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	int err, val;
+
+	d = oidp->oid_arg1;
+	if (!PCM_REGISTERED(d))
+		return (ENODEV);
+
+	PCM_LOCK(d);
+	PCM_WAIT(d);
+	val = (d->flags & SD_F_BITPERFECT) ? 1 : 0;
+	PCM_ACQUIRE(d);
+	PCM_UNLOCK(d);
+
+	err = sysctl_handle_int(oidp, &val, 0, req);
+
+	if (err == 0 && req->newptr != NULL) {
+		if (!(val == 0 || val == 1)) {
+			PCM_RELEASE_QUICK(d);
+			return (EINVAL);
+		}
+
+		PCM_LOCK(d);
+
+		d->flags &= ~SD_F_BITPERFECT;
+		d->flags |= (val != 0) ? SD_F_BITPERFECT : 0;
+
+		PCM_RELEASE(d);
+		PCM_UNLOCK(d);
+	} else
+		PCM_RELEASE_QUICK(d);
+
+	return (err);
+}
+
+#ifdef SND_DEBUG
 static int
 sysctl_dev_pcm_clone_flags(SYSCTL_HANDLER_ARGS)
 {
@@ -981,6 +982,7 @@ int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 {
 	struct snddev_info *d;
+	int i;
 
 	if (pcm_veto_load) {
 		device_printf(dev, "disabled due to an error while initialising: %d\n", pcm_veto_load);
@@ -1010,6 +1012,15 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	 */
 	d->flags = 0;
 #endif
+	i = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "vpc", &i) != 0 || i != 0)
+		d->flags |= SD_F_VPC;
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "bitperfect", &i) == 0 && i != 0)
+		d->flags |= SD_F_BITPERFECT;
+
 	d->devinfo = devinfo;
 	d->devcount = 0;
 	d->reccount = 0;
@@ -1024,7 +1035,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
 	/*
 	 * Create clone manager, disabled by default. Cloning will be
-	 * enabled during final stage of driver iniialization through
+	 * enabled during final stage of driver initialization through
 	 * pcm_setstatus().
 	 */
 	d->clones = snd_clone_create(SND_U_MASK | SND_D_MASK, PCMMAXCLONE,
@@ -1041,15 +1052,12 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
 	CHN_INIT(d, channels.pcm);
 	CHN_INIT(d, channels.pcm.busy);
+	CHN_INIT(d, channels.pcm.opened);
 
 	/* XXX This is incorrect, but lets play along for now. */
 	if ((numplay == 0 || numrec == 0) && numplay != numrec)
 		d->flags |= SD_F_SIMPLEX;
 
-	d->fakechan = fkchan_setup(dev);
-	chn_init(d->fakechan, NULL, 0, 0);
-
-#ifdef SND_DYNSYSCTL
 	sysctl_ctx_init(&d->play_sysctl_ctx);
 	d->play_sysctl_tree = SYSCTL_ADD_NODE(&d->play_sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "play",
@@ -1063,6 +1071,11 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
             OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "bitperfect", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
+	    sysctl_dev_pcm_bitperfect, "I",
+	    "bit-perfect playback/recording (0=disable, 1=enable)");
 #ifdef SND_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
@@ -1080,12 +1093,14 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	    sysctl_dev_pcm_clone_gc, "I",
 	    "clone garbage collector");
 #endif
-#endif
 
 	if (numplay > 0 || numrec > 0) {
 		d->flags |= SD_F_AUTOVCHAN;
 		vchan_initsys(dev);
 	}
+
+	if (d->flags & SD_F_EQ)
+		feeder_eq_initsys(dev);
 
 	sndstat_register(dev, d->status, sndstat_prepare_pcm);
 
@@ -1113,18 +1128,18 @@ pcm_unregister(device_t dev)
 		return (EBUSY);
 	}
 
-	pcm_lock(d);
+	PCM_LOCK(d);
 	PCM_WAIT(d);
 
 	if (d->inprog != 0) {
 		device_printf(dev, "unregister: operation in progress\n");
-		pcm_unlock(d);
+		PCM_UNLOCK(d);
 		sndstat_release(td);
 		return (EBUSY);
 	}
 
 	PCM_ACQUIRE(d);
-	pcm_unlock(d);
+	PCM_UNLOCK(d);
 
 	CHN_FOREACH(ch, d, channels.pcm) {
 		CHN_LOCK(ch);
@@ -1147,27 +1162,27 @@ pcm_unregister(device_t dev)
 			sndstat_release(td);
 			return (EBUSY);
 		} else {
-			pcm_lock(d);
+			PCM_LOCK(d);
 			(void)snd_clone_disable(d->clones);
-			pcm_unlock(d);
+			PCM_UNLOCK(d);
 		}
 	}
 
 	if (mixer_uninit(dev) == EBUSY) {
 		device_printf(dev, "unregister: mixer busy\n");
-		pcm_lock(d);
+		PCM_LOCK(d);
 		if (d->clones != NULL)
 			(void)snd_clone_enable(d->clones);
 		PCM_RELEASE(d);
-		pcm_unlock(d);
+		PCM_UNLOCK(d);
 		sndstat_release(td);
 		return (EBUSY);
 	}
 
-	pcm_lock(d);
+	PCM_LOCK(d);
 	d->flags |= SD_F_DYING;
 	d->flags &= ~SD_F_REGISTERED;
-	pcm_unlock(d);
+	PCM_UNLOCK(d);
 
 	/*
 	 * No lock being held, so this thing can be flushed without
@@ -1178,7 +1193,6 @@ pcm_unregister(device_t dev)
 		d->clones = NULL;
 	}
 
-#ifdef SND_DYNSYSCTL
 	if (d->play_sysctl_tree != NULL) {
 		sysctl_ctx_free(&d->play_sysctl_ctx);
 		d->play_sysctl_tree = NULL;
@@ -1187,20 +1201,16 @@ pcm_unregister(device_t dev)
 		sysctl_ctx_free(&d->rec_sysctl_ctx);
 		d->rec_sysctl_tree = NULL;
 	}
-#endif
 
 	while (!CHN_EMPTY(d, channels.pcm))
 		pcm_killchan(dev);
 
-	chn_kill(d->fakechan);
-	fkchan_kill(d->fakechan);
-
 	dsp_cdevinfo_flush(d);
 
-	pcm_lock(d);
+	PCM_LOCK(d);
 	PCM_RELEASE(d);
 	cv_destroy(&d->cv);
-	pcm_unlock(d);
+	PCM_UNLOCK(d);
 	snd_mtxfree(d->lock);
 	sndstat_unregister(dev);
 	sndstat_release(td);
@@ -1225,162 +1235,6 @@ pcm_unregister(device_t dev)
 
 	return (0);
 }
-
-/************************************************************************/
-
-static int
-sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
-{
-	struct snddev_info *d;
-	struct pcm_channel *c;
-	struct pcm_feeder *f;
-
-	if (verbose < 1)
-		return 0;
-
-	d = device_get_softc(dev);
-	if (!d)
-		return ENXIO;
-
-	PCM_BUSYASSERT(d);
-
-	if (CHN_EMPTY(d, channels.pcm)) {
-		sbuf_printf(s, " (mixer only)");
-		return 0;
-	}
-
-	sbuf_printf(s, " (%dp:%dv/%dr:%dv channels%s%s)",
-			d->playcount, d->pvchancount,
-			d->reccount, d->rvchancount,
-			(d->flags & SD_F_SIMPLEX)? "" : " duplex",
-#ifdef USING_DEVFS
-			(device_get_unit(dev) == snd_unit)? " default" : ""
-#else
-			""
-#endif
-			);
-
-	if (verbose <= 1)
-		return 0;
-
-	CHN_FOREACH(c, d, channels.pcm) {
-
-		KASSERT(c->bufhard != NULL && c->bufsoft != NULL,
-			("hosed pcm channel setup"));
-
-		sbuf_printf(s, "\n\t");
-
-		/* it would be better to indent child channels */
-		sbuf_printf(s, "%s[%s]: ", c->parentchannel? c->parentchannel->name : "", c->name);
-		sbuf_printf(s, "spd %d", c->speed);
-		if (c->speed != sndbuf_getspd(c->bufhard))
-			sbuf_printf(s, "/%d", sndbuf_getspd(c->bufhard));
-		sbuf_printf(s, ", fmt 0x%08x", c->format);
-		if (c->format != sndbuf_getfmt(c->bufhard))
-			sbuf_printf(s, "/0x%08x", sndbuf_getfmt(c->bufhard));
-		sbuf_printf(s, ", flags 0x%08x, 0x%08x", c->flags, c->feederflags);
-		if (c->pid != -1)
-			sbuf_printf(s, ", pid %d", c->pid);
-		sbuf_printf(s, "\n\t");
-
-		sbuf_printf(s, "interrupts %d, ", c->interrupts);
-		if (c->direction == PCMDIR_REC)
-			sbuf_printf(s, "overruns %d, feed %u, hfree %d, sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
-				c->xruns, c->feedcount, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft),
-				sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
-				sndbuf_getblkcnt(c->bufhard),
-				sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
-				sndbuf_getblkcnt(c->bufsoft));
-		else
-			sbuf_printf(s, "underruns %d, feed %u, ready %d [b:%d/%d/%d|bs:%d/%d/%d]",
-				c->xruns, c->feedcount, sndbuf_getready(c->bufsoft),
-				sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
-				sndbuf_getblkcnt(c->bufhard),
-				sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
-				sndbuf_getblkcnt(c->bufsoft));
-		sbuf_printf(s, "\n\t");
-
-		sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC)? "hardware" : "userland");
-		sbuf_printf(s, " -> ");
-		f = c->feeder;
-		while (f->source != NULL)
-			f = f->source;
-		while (f != NULL) {
-			sbuf_printf(s, "%s", f->class->name);
-			if (f->desc->type == FEEDER_FMT)
-				sbuf_printf(s, "(0x%08x -> 0x%08x)", f->desc->in, f->desc->out);
-			if (f->desc->type == FEEDER_RATE)
-				sbuf_printf(s, "(%d -> %d)", FEEDER_GET(f, FEEDRATE_SRC), FEEDER_GET(f, FEEDRATE_DST));
-			if (f->desc->type == FEEDER_ROOT || f->desc->type == FEEDER_MIXER ||
-					f->desc->type == FEEDER_VOLUME)
-				sbuf_printf(s, "(0x%08x)", f->desc->out);
-			sbuf_printf(s, " -> ");
-			f = f->parent;
-		}
-		sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC)? "userland" : "hardware");
-	}
-
-	return 0;
-}
-
-/************************************************************************/
-
-#ifdef SND_DYNSYSCTL
-int
-sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
-{
-	struct snddev_info *d;
-	int direction, vchancount;
-	int err, cnt;
-
-	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d) || !(d->flags & SD_F_AUTOVCHAN))
-		return (EINVAL);
-
-	pcm_lock(d);
-	PCM_WAIT(d);
-
-	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
-	case VCHAN_PLAY:
-		direction = PCMDIR_PLAY;
-		vchancount = d->pvchancount;
-		cnt = d->playcount;
-		break;
-	case VCHAN_REC:
-		direction = PCMDIR_REC;
-		vchancount = d->rvchancount;
-		cnt = d->reccount;
-		break;
-	default:
-		pcm_unlock(d);
-		return (EINVAL);
-		break;
-	}
-
-	if (cnt < 1) {
-		pcm_unlock(d);
-		return (ENODEV);
-	}
-
-	PCM_ACQUIRE(d);
-	pcm_unlock(d);
-
-	cnt = vchancount;
-	err = sysctl_handle_int(oidp, &cnt, 0, req);
-
-	if (err == 0 && req->newptr != NULL && vchancount != cnt) {
-		if (cnt < 0)
-			cnt = 0;
-		if (cnt > SND_MAXVCHANS)
-			cnt = SND_MAXVCHANS;
-		err = pcm_setvchans(d, direction, cnt, -1);
-	}
-
-	PCM_RELEASE_QUICK(d);
-
-	return err;
-}
-#endif
 
 /************************************************************************/
 
@@ -1438,14 +1292,14 @@ sound_oss_sysinfo(oss_sysinfo *si)
 		/* XXX Need Giant magic entry ??? */
 
 		/* See note in function's docblock */
-		mtx_assert(d->lock, MA_NOTOWNED);
-		pcm_lock(d);
+		PCM_UNLOCKASSERT(d);
+		PCM_LOCK(d);
 
 		si->numaudios += d->devcount;
 		++ncards;
 
 		CHN_FOREACH(c, d, channels.pcm) {
-			mtx_assert(c->lock, MA_NOTOWNED);
+			CHN_UNLOCKASSERT(c);
 			CHN_LOCK(c);
 			if (c->flags & CHN_F_BUSY)
 				si->openedaudio[j / intnbits] |=
@@ -1454,7 +1308,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 			j++;
 		}
 
-		pcm_unlock(d);
+		PCM_UNLOCK(d);
 	}
 	si->numaudioengines = si->numaudios;
 
@@ -1510,8 +1364,8 @@ sound_oss_card_info(oss_card_info *si)
 		if (ncards++ != si->card)
 			continue;
 
-		mtx_assert(d->lock, MA_NOTOWNED);
-		pcm_lock(d);
+		PCM_UNLOCKASSERT(d);
+		PCM_LOCK(d);
 		
 		strlcpy(si->shortname, device_get_nameunit(d->dev),
 		    sizeof(si->shortname));
@@ -1519,7 +1373,9 @@ sound_oss_card_info(oss_card_info *si)
 		    sizeof(si->longname));
 		strlcpy(si->hw_info, d->status, sizeof(si->hw_info));
 		si->intr_count = si->ack_count = 0;
-		pcm_unlock(d);
+
+		PCM_UNLOCK(d);
+
 		return (0);
 	}
 	return (ENXIO);
@@ -1551,7 +1407,7 @@ sound_modevent(module_t mod, int type, void *data)
 			}
 			break;
 		default:
-			ret = EOPNOTSUPP;
+			ret = ENOTSUP;
 	}
 
 	return ret;

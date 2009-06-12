@@ -24,6 +24,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
@@ -167,23 +171,23 @@ static void 	 ds_wr(struct sc_info *, int, u_int32_t, int);
 /* -------------------------------------------------------------------- */
 
 static u_int32_t ds_recfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S8,
-	AFMT_STEREO | AFMT_S8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_U16_LE,
-	AFMT_STEREO | AFMT_U16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S8, 1, 0),
+	SND_FORMAT(AFMT_S8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_U16_LE, 1, 0),
+	SND_FORMAT(AFMT_U16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps ds_reccaps = {4000, 48000, ds_recfmt, 0};
 
 static u_int32_t ds_playfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	/* AFMT_S16_LE, */
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	/* SND_FORMAT(AFMT_S16_LE, 1, 0), */
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps ds_playcaps = {4000, 96000, ds_playfmt, 0};
@@ -323,7 +327,7 @@ static kobj_method_t ds_ac97_methods[] = {
     	KOBJMETHOD(ac97_init,		ds_initcd),
     	KOBJMETHOD(ac97_read,		ds_rdcd),
     	KOBJMETHOD(ac97_write,		ds_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(ds_ac97);
 
@@ -432,7 +436,7 @@ ds_setuppch(struct sc_pchinfo *ch)
 	int stereo, b16, c, sz;
 	bus_addr_t addr;
 
-	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	stereo = (AFMT_CHANNEL(ch->fmt) > 1)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
 	c = stereo? 1 : 0;
 	addr = sndbuf_getbufaddr(ch->buffer);
@@ -452,7 +456,7 @@ ds_setuprch(struct sc_rchinfo *ch)
 	u_int32_t x, y;
 	bus_addr_t addr;
 
-	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	stereo = (AFMT_CHANNEL(ch->fmt) > 1)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
 	addr = sndbuf_getbufaddr(ch->buffer);
 	sz = sndbuf_getsize(ch->buffer);
@@ -487,7 +491,7 @@ ds1pchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;
-	ch->fmt = AFMT_U8;
+	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = 8000;
 	ch->run = 0;
 	if (sndbuf_alloc(ch->buffer, sc->buffer_dmat, 0, sc->bufsz) != 0)
@@ -512,7 +516,7 @@ ds1pchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 ds1pchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_pchinfo *ch = data;
@@ -522,7 +526,7 @@ ds1pchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return speed;
 }
 
-static int
+static u_int32_t
 ds1pchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_pchinfo *ch = data;
@@ -530,7 +534,7 @@ ds1pchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	int drate;
 
 	/* irq rate is fixed at 187.5hz */
-	drate = ch->spd * sndbuf_getbps(ch->buffer);
+	drate = ch->spd * sndbuf_getalign(ch->buffer);
 	blocksize = roundup2((drate << 8) / DS1_IRQHZ, 4);
 	sndbuf_resize(ch->buffer, sc->bufsz / blocksize, blocksize);
 
@@ -547,7 +551,7 @@ ds1pchan_trigger(kobj_t obj, void *data, int go)
 
 	if (!PCMTRIG_COMMON(go))
 		return 0;
-	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	stereo = (AFMT_CHANNEL(ch->fmt) > 1)? 1 : 0;
 	if (go == PCMTRIG_START) {
 		ch->run = 1;
 		ds_setuppch(ch);
@@ -566,7 +570,7 @@ ds1pchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 ds1pchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_pchinfo *ch = data;
@@ -575,7 +579,7 @@ ds1pchan_getptr(kobj_t obj, void *data)
 	int ss;
 	u_int32_t ptr;
 
-	ss = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	ss = (AFMT_CHANNEL(ch->fmt) > 1)? 1 : 0;
 	ss += (ch->fmt & AFMT_16BIT)? 1 : 0;
 
 	bank = ch->lslot + sc->currbank;
@@ -599,7 +603,7 @@ static kobj_method_t ds1pchan_methods[] = {
     	KOBJMETHOD(channel_trigger,		ds1pchan_trigger),
     	KOBJMETHOD(channel_getptr,		ds1pchan_getptr),
     	KOBJMETHOD(channel_getcaps,		ds1pchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(ds1pchan);
 
@@ -619,7 +623,7 @@ ds1rchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;
-	ch->fmt = AFMT_U8;
+	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = 8000;
 	if (sndbuf_alloc(ch->buffer, sc->buffer_dmat, 0, sc->bufsz) != 0)
 		return NULL;
@@ -640,7 +644,7 @@ ds1rchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 ds1rchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_rchinfo *ch = data;
@@ -650,7 +654,7 @@ ds1rchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return speed;
 }
 
-static int
+static u_int32_t
 ds1rchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_rchinfo *ch = data;
@@ -658,7 +662,7 @@ ds1rchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	int drate;
 
 	/* irq rate is fixed at 187.5hz */
-	drate = ch->spd * sndbuf_getbps(ch->buffer);
+	drate = ch->spd * sndbuf_getalign(ch->buffer);
 	blocksize = roundup2((drate << 8) / DS1_IRQHZ, 4);
 	sndbuf_resize(ch->buffer, sc->bufsz / blocksize, blocksize);
 
@@ -696,7 +700,7 @@ ds1rchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 ds1rchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_rchinfo *ch = data;
@@ -719,7 +723,7 @@ static kobj_method_t ds1rchan_methods[] = {
     	KOBJMETHOD(channel_trigger,		ds1rchan_trigger),
     	KOBJMETHOD(channel_getptr,		ds1rchan_getptr),
     	KOBJMETHOD(channel_getcaps,		ds1rchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(ds1rchan);
 

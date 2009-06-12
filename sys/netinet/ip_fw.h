@@ -465,17 +465,18 @@ struct ip_fw {
 	struct ip_fw	*next_rule;	/* ptr to next [skipto] rule	*/
 	/* 'next_rule' is used to pass up 'set_disable' status		*/
 
-	u_int16_t	act_ofs;	/* offset of action in 32-bit units */
-	u_int16_t	cmd_len;	/* # of 32-bit words in cmd	*/
-	u_int16_t	rulenum;	/* rule number			*/
-	u_int8_t	set;		/* rule set (0..31)		*/
+	uint16_t	act_ofs;	/* offset of action in 32-bit units */
+	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
+	uint16_t	rulenum;	/* rule number			*/
+	uint8_t	set;		/* rule set (0..31)		*/
 #define	RESVD_SET	31	/* set for default and persistent rules */
-	u_int8_t	_pad;		/* padding			*/
+	uint8_t		_pad;		/* padding			*/
+	uint32_t	id;		/* rule id */
 
 	/* These fields are present in all rules.			*/
-	u_int64_t	pcnt;		/* Packet counter		*/
-	u_int64_t	bcnt;		/* Byte counter			*/
-	u_int32_t	timestamp;	/* tv_sec of last match		*/
+	uint64_t	pcnt;		/* Packet counter		*/
+	uint64_t	bcnt;		/* Byte counter			*/
+	uint32_t	timestamp;	/* tv_sec of last match		*/
 
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
@@ -619,10 +620,12 @@ struct ip_fw_args {
 	struct ifnet	*oif;		/* output interface		*/
 	struct sockaddr_in *next_hop;	/* forward address		*/
 	struct ip_fw	*rule;		/* matching rule		*/
+	uint32_t	rule_id;	/* matching rule id */
+	uint32_t	chain_id;	/* ruleset id */
 	struct ether_header *eh;	/* for bridged packets		*/
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
-	u_int32_t	cookie;		/* a cookie depending on rule action */
+	uint32_t	cookie;		/* a cookie depending on rule action */
 	struct inpcb	*inp;
 
 	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
@@ -662,6 +665,7 @@ struct ip_fw_chain {
 	LIST_HEAD(, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head *tables[IPFW_TABLES_MAX];
 	struct rwlock	rwmtx;
+	uint32_t	id;		/* ruleset id */
 };
 
 #ifdef IPFW_INTERNAL

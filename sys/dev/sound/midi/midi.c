@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kobj.h>
 #include <sys/module.h>
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/midi/midi.h>
 #include "mpu_if.h"
 
@@ -67,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include "synth_if.h"
 MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
 
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 #define MIDIMKMINOR(u, d, c) PCMMKMINOR(u, d, c)
@@ -145,7 +152,7 @@ static kobj_method_t midisynth_methods[] = {
 	KOBJMETHOD(synth_alloc, midisynth_alloc),
 	KOBJMETHOD(synth_controller, midisynth_controller),
 	KOBJMETHOD(synth_bender, midisynth_bender),
-	{0, 0}
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(midisynth, midisynth_methods, 0);
@@ -1367,6 +1374,7 @@ midi_destroy(struct snd_midi *m, int midiuninit)
 
 	MIDI_DEBUG(3, printf("midi_destroy\n"));
 	m->dev->si_drv1 = NULL;
+	mtx_unlock(&m->lock);	/* XXX */
 	destroy_dev(m->dev);
 	TAILQ_REMOVE(&midi_devs, m, link);
 	if (midiuninit)
@@ -1417,6 +1425,8 @@ midi_unload()
 		if (retval)
 			goto exit1;
 	}
+
+	mtx_unlock(&midistat_lock);	/* XXX */
 
 	destroy_dev(midistat_dev);
 	/*

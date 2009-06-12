@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/jail.h>
@@ -204,6 +203,19 @@ rip_init(void)
 	EVENTHANDLER_REGISTER(maxsockets_change, rip_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
+
+#ifdef VIMAGE
+void
+rip_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	hashdestroy(V_ripcbinfo.ipi_hashbase, M_PCB,
+	    V_ripcbinfo.ipi_hashmask);
+	hashdestroy(V_ripcbinfo.ipi_porthashbase, M_PCB,
+	    V_ripcbinfo.ipi_porthashmask);
+}
+#endif
 
 static int
 rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,

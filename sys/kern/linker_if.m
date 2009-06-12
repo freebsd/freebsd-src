@@ -110,7 +110,7 @@ METHOD int ctf_get {
 #
 METHOD long symtab_get {
 	linker_file_t	file;
-	Elf_Sym		**symtab;
+	const Elf_Sym	**symtab;
 };
 
 #

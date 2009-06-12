@@ -1754,6 +1754,7 @@ device		miibus
 #       L2 PCI-Express FastEthernet controllers.
 # age:  Support for gigabit ethernet adapters based on the Attansic/Atheros
 #       L1 PCI express gigabit ethernet controllers.
+# alc:  Support for Atheros AR8131/AR8132 PCIe ethernet controllers.
 # ale:  Support for Atheros AR8121/AR8113/AR8114 PCIe ethernet controllers.
 # bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
 #       adapters.
@@ -1896,6 +1897,7 @@ device		xe
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		ae		# Attansic/Atheros L2 FastEthernet
 device		age		# Attansic/Atheros L1 Gigabit Ethernet
+device		alc		# Atheros AR8131/AR8132 Ethernet
 device		ale		# Atheros AR8121/AR8113/AR8114 Ethernet
 device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
@@ -2108,6 +2110,42 @@ hint.gusc.0.port="0x220"
 hint.gusc.0.irq="5"
 hint.gusc.0.drq="1"
 hint.gusc.0.flags="0x13"
+
+#
+# Following options are intended for debugging/testing purposes:
+#
+# SND_DEBUG                    Enable extra debugging code that includes
+#                              sanity checking and possible increase of
+#                              verbosity.
+#
+# SND_DIAGNOSTIC               Simmilar in a spirit of INVARIANTS/DIAGNOSTIC,
+#                              zero tolerance against inconsistencies.
+#
+# SND_FEEDER_MULTIFORMAT       By default, only 16/32 bit feeders are compiled
+#                              in. This options enable most feeder converters
+#                              except for 8bit. WARNING: May bloat the kernel.
+#
+# SND_FEEDER_FULL_MULTIFORMAT  Ditto, but includes 8bit feeders as well.
+#
+# SND_FEEDER_RATE_HP           (feeder_rate) High precision 64bit arithmetic
+#                              as much as possible (the default trying to
+#                              avoid it). Possible slowdown.
+#
+# SND_PCM_64                   (Only applicable for i386/32bit arch)
+#                              Process 32bit samples through 64bit
+#                              integer/arithmetic. Slight increase of dynamic
+#                              range at a cost of possible slowdown.
+#
+# SND_OLDSTEREO                Only 2 channels are allowed, effectively
+#                              disabling multichannel processing.
+#
+options		SND_DEBUG
+options		SND_DIAGNOSTIC
+options		SND_FEEDER_MULTIFORMAT
+options		SND_FEEDER_FULL_MULTIFORMAT
+options		SND_FEEDER_RATE_HP
+options		SND_PCM_64
+options		SND_OLDSTEREO
 
 #
 # IEEE-488 hardware:

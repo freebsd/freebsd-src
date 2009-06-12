@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 #include "opt_pf.h"
 #include "opt_carp.h"
 #include "opt_sctp.h"
@@ -127,6 +126,9 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		udp_ctlinput,
 	.pr_ctloutput =		ip_ctloutput,
 	.pr_init =		udp_init,
+#ifdef VIMAGE
+	.pr_destroy =		udp_destroy,
+#endif
 	.pr_usrreqs =		&udp_usrreqs
 },
 {
@@ -138,6 +140,9 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		tcp_ctlinput,
 	.pr_ctloutput =		tcp_ctloutput,
 	.pr_init =		tcp_init,
+#ifdef VIMAGE
+	.pr_destroy =		tcp_destroy,
+#endif
 	.pr_slowtimo =		tcp_slowtimo,
 	.pr_drain =		tcp_drain,
 	.pr_usrreqs =		&tcp_usrreqs
@@ -348,11 +353,15 @@ IPPROTOSPACER,
 	.pr_input =		rip_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_init =		rip_init,
+#ifdef VIMAGE
+	.pr_destroy =		rip_destroy,
+#endif
 	.pr_usrreqs =		&rip_usrreqs
 },
 };
 
 extern int in_inithead(void **, int);
+extern int in_detachhead(void **, int);
 
 struct domain inetdomain = {
 	.dom_family =		AF_INET,
@@ -363,6 +372,9 @@ struct domain inetdomain = {
 	.dom_rtattach =		rn4_mpath_inithead,
 #else
 	.dom_rtattach =		in_inithead,
+#endif
+#ifdef VIMAGE
+	.dom_rtdetach =		in_detachhead,
 #endif
 	.dom_rtoffset =		32,
 	.dom_maxrtkey =		sizeof(struct sockaddr_in),

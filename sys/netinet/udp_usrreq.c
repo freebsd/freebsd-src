@@ -221,6 +221,20 @@ udp_discardcb(struct udpcb *up)
 	uma_zfree(V_udpcb_zone, up);
 }
 
+#ifdef VIMAGE
+void
+udp_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	hashdestroy(V_udbinfo.ipi_hashbase, M_PCB,
+	    V_udbinfo.ipi_hashmask);
+	hashdestroy(V_udbinfo.ipi_porthashbase, M_PCB,
+	    V_udbinfo.ipi_porthashmask);
+	INP_INFO_LOCK_DESTROY(&V_udbinfo);
+}
+#endif
+
 /*
  * Subroutine of udp_input(), which appends the provided mbuf chain to the
  * passed pcb/socket.  The caller must provide a sockaddr_in via udp_in that

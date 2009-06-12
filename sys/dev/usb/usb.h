@@ -92,12 +92,12 @@
  * - USB config 0
  *   - USB interfaces
  *     - USB alternative interfaces
- *       - USB pipes
+ *       - USB endpoints
  *
  * - USB config 1
  *   - USB interfaces
  *     - USB alternative interfaces
- *       - USB pipes
+ *       - USB endpoints
  */
 
 /* Declaration of USB records */

@@ -99,12 +99,18 @@ static int	rttrash;		/* routes not in table but not freed */
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
 static int vnet_route_iattach(const void *);
+#ifdef VIMAGE
+static int vnet_route_idetach(const void *);
+#endif
 
 #ifndef VIMAGE_GLOBALS
 static const vnet_modinfo_t vnet_rtable_modinfo = {
 	.vmi_id		= VNET_MOD_RTABLE,
 	.vmi_name	= "rtable",
-	.vmi_iattach	= vnet_route_iattach
+	.vmi_iattach	= vnet_route_iattach,
+#ifdef VIMAGE
+	.vmi_idetach	= vnet_route_idetach
+#endif
 };
 #endif /* !VIMAGE_GLOBALS */
 
@@ -194,7 +200,8 @@ route_init(void)
 #endif
 }
 
-static int vnet_route_iattach(const void *unused __unused)
+static int
+vnet_route_iattach(const void *unused __unused)
 {
 	INIT_VNET_NET(curvnet);
 	struct domain *dom;
@@ -234,6 +241,36 @@ static int vnet_route_iattach(const void *unused __unused)
 
 	return (0);
 }
+
+#ifdef VIMAGE
+static int
+vnet_route_idetach(const void *unused __unused)
+{
+	int table;
+	int fam;
+	struct domain *dom;
+	struct radix_node_head **rnh;
+
+	for (dom = domains; dom; dom = dom->dom_next) {
+		if (dom->dom_rtdetach) {
+			for (table = 0; table < rt_numfibs; table++) {
+				if ( (fam = dom->dom_family) == AF_INET ||
+				    table == 0) {
+					/* For now only AF_INET has > 1 tbl. */
+					rnh = rt_tables_get_rnh_ptr(table, fam);
+					if (rnh == NULL)
+						panic("%s: rnh NULL", __func__);
+					dom->dom_rtdetach((void **)rnh,
+					    dom->dom_rtoffset);
+				} else {
+					break;
+				}
+			}
+		}
+	}
+	return (0);
+}
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct setfib_args {

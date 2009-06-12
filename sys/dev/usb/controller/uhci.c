@@ -1034,8 +1034,8 @@ uhci_isoc_done(uhci_softc_t *sc, struct usb_xfer *xfer)
 	uhci_td_t *td = xfer->td_transfer_first;
 	uhci_td_t **pp_last = &sc->sc_isoc_p_last[xfer->qh_pos];
 
-	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
-	    xfer, xfer->pipe);
+	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
+	    xfer, xfer->endpoint);
 
 	/* sync any DMA memory before doing fixups */
 
@@ -1178,13 +1178,13 @@ uhci_non_isoc_done_sub(struct usb_xfer *xfer)
 
 	/* update data toggle */
 
-	xfer->pipe->toggle_next = (token & UHCI_TD_SET_DT(1)) ? 0 : 1;
+	xfer->endpoint->toggle_next = (token & UHCI_TD_SET_DT(1)) ? 0 : 1;
 
 #if USB_DEBUG
 	if (status & UHCI_TD_ERROR) {
 		DPRINTFN(11, "error, addr=%d, endpt=0x%02x, frame=0x%02x "
 		    "status=%s%s%s%s%s%s%s%s%s%s%s\n",
-		    xfer->address, xfer->endpoint, xfer->aframes,
+		    xfer->address, xfer->endpointno, xfer->aframes,
 		    (status & UHCI_TD_BITSTUFF) ? "[BITSTUFF]" : "",
 		    (status & UHCI_TD_CRCTO) ? "[CRCTO]" : "",
 		    (status & UHCI_TD_NAK) ? "[NAK]" : "",
@@ -1207,8 +1207,8 @@ uhci_non_isoc_done(struct usb_xfer *xfer)
 {
 	usb_error_t err = 0;
 
-	DPRINTFN(13, "xfer=%p pipe=%p transfer done\n",
-	    xfer, xfer->pipe);
+	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
+	    xfer, xfer->endpoint);
 
 #if USB_DEBUG
 	if (uhcidebug > 10) {
@@ -1329,7 +1329,7 @@ uhci_check_transfer(struct usb_xfer *xfer)
 
 	DPRINTFN(16, "xfer=%p checking transfer\n", xfer);
 
-	if (xfer->pipe->methods == &uhci_device_isoc_methods) {
+	if (xfer->endpoint->methods == &uhci_device_isoc_methods) {
 		/* isochronous transfer */
 
 		td = xfer->td_transfer_last;
@@ -1683,7 +1683,7 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
 	uint32_t x;
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
-	    xfer->address, UE_GET_ADDR(xfer->endpoint),
+	    xfer->address, UE_GET_ADDR(xfer->endpointno),
 	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
 
 	temp.average = xfer->max_frame_size;
@@ -1712,10 +1712,10 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
 		temp.td_status |= htole32(UHCI_TD_LS);
 	}
 	temp.td_token =
-	    htole32(UHCI_TD_SET_ENDPT(xfer->endpoint) |
+	    htole32(UHCI_TD_SET_ENDPT(xfer->endpointno) |
 	    UHCI_TD_SET_DEVADDR(xfer->address));
 
-	if (xfer->pipe->toggle_next) {
+	if (xfer->endpoint->toggle_next) {
 		/* DATA1 is next */
 		temp.td_token |= htole32(UHCI_TD_SET_DT(1));
 	}
@@ -1794,7 +1794,7 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
 		/* set endpoint direction */
 
 		temp.td_token |=
-		    (UE_GET_DIR(xfer->endpoint) == UE_DIR_IN) ?
+		    (UE_GET_DIR(xfer->endpointno) == UE_DIR_IN) ?
 		    htole32(UHCI_TD_PID_IN) :
 		    htole32(UHCI_TD_PID_OUT);
 
@@ -1815,7 +1815,7 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
 		    UHCI_TD_SET_ENDPT(0xF) |
 		    UHCI_TD_SET_DT(1));
 		temp.td_token |=
-		    (UE_GET_DIR(xfer->endpoint) == UE_DIR_OUT) ?
+		    (UE_GET_DIR(xfer->endpointno) == UE_DIR_OUT) ?
 		    htole32(UHCI_TD_PID_IN | UHCI_TD_SET_DT(1)) :
 		    htole32(UHCI_TD_PID_OUT | UHCI_TD_SET_DT(1));
 
@@ -1845,7 +1845,7 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
 #if USB_DEBUG
 	if (uhcidebug > 8) {
 		DPRINTF("nexttog=%d; data before transfer:\n",
-		    xfer->pipe->toggle_next);
+		    xfer->endpoint->toggle_next);
 		uhci_dump_tds(xfer->td_transfer_first);
 	}
 #endif
@@ -1859,14 +1859,14 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
 static void
 uhci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_pipe_methods *methods = xfer->pipe->methods;
+	struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
 	uhci_qh_t *qh;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
-	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
-	    xfer, xfer->pipe, error);
+	DPRINTFN(2, "xfer=%p, endpoint=%p, error=%d\n",
+	    xfer, xfer->endpoint, error);
 
 	qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
 	if (qh) {
@@ -2122,9 +2122,9 @@ uhci_device_isoc_open(struct usb_xfer *xfer)
 	uint8_t ds;
 
 	td_token =
-	    (UE_GET_DIR(xfer->endpoint) == UE_DIR_IN) ?
-	    UHCI_TD_IN(0, xfer->endpoint, xfer->address, 0) :
-	    UHCI_TD_OUT(0, xfer->endpoint, xfer->address, 0);
+	    (UE_GET_DIR(xfer->endpointno) == UE_DIR_IN) ?
+	    UHCI_TD_IN(0, xfer->endpointno, xfer->address, 0) :
+	    UHCI_TD_OUT(0, xfer->endpointno, xfer->address, 0);
 
 	td_token = htole32(td_token);
 
@@ -2167,14 +2167,14 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 	uhci_td_t **pp_last;
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
-	    xfer, xfer->pipe->isoc_next, xfer->nframes);
+	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
 
 	nframes = UREAD2(sc, UHCI_FRNUM);
 
-	temp = (nframes - xfer->pipe->isoc_next) &
+	temp = (nframes - xfer->endpoint->isoc_next) &
 	    (UHCI_VFRAMELIST_COUNT - 1);
 
-	if ((xfer->pipe->is_synced == 0) ||
+	if ((xfer->endpoint->is_synced == 0) ||
 	    (temp < xfer->nframes)) {
 		/*
 		 * If there is data underflow or the pipe queue is empty we
@@ -2182,15 +2182,15 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 		 * frame position. Else two isochronous transfers might
 		 * overlap.
 		 */
-		xfer->pipe->isoc_next = (nframes + 3) & (UHCI_VFRAMELIST_COUNT - 1);
-		xfer->pipe->is_synced = 1;
-		DPRINTFN(3, "start next=%d\n", xfer->pipe->isoc_next);
+		xfer->endpoint->isoc_next = (nframes + 3) & (UHCI_VFRAMELIST_COUNT - 1);
+		xfer->endpoint->is_synced = 1;
+		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
 	}
 	/*
 	 * compute how many milliseconds the insertion is ahead of the
 	 * current frame position:
 	 */
-	temp = (xfer->pipe->isoc_next - nframes) &
+	temp = (xfer->endpoint->isoc_next - nframes) &
 	    (UHCI_VFRAMELIST_COUNT - 1);
 
 	/*
@@ -2215,11 +2215,11 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 	td = xfer->td_start[xfer->flags_int.curr_dma_set];
 	xfer->td_transfer_first = td;
 
-	pp_last = &sc->sc_isoc_p_last[xfer->pipe->isoc_next];
+	pp_last = &sc->sc_isoc_p_last[xfer->endpoint->isoc_next];
 
 	/* store starting position */
 
-	xfer->qh_pos = xfer->pipe->isoc_next;
+	xfer->qh_pos = xfer->endpoint->isoc_next;
 
 	while (nframes--) {
 		if (td == NULL) {
@@ -2300,7 +2300,7 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 	xfer->td_transfer_last = td_last;
 
 	/* update isoc_next */
-	xfer->pipe->isoc_next = (pp_last - &sc->sc_isoc_p_last[0]) &
+	xfer->endpoint->isoc_next = (pp_last - &sc->sc_isoc_p_last[0]) &
 	    (UHCI_VFRAMELIST_COUNT - 1);
 }
 
@@ -3043,13 +3043,13 @@ alloc_dma_set:
 }
 
 static void
-uhci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
-    struct usb_pipe *pipe)
+uhci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
+    struct usb_endpoint *ep)
 {
 	uhci_softc_t *sc = UHCI_BUS2SC(udev->bus);
 
-	DPRINTFN(2, "pipe=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
-	    pipe, udev->address,
+	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
+	    ep, udev->address,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_addr);
 
@@ -3060,19 +3060,19 @@ uhci_pipe_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	if (udev->device_index != sc->sc_addr) {
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:
-			pipe->methods = &uhci_device_ctrl_methods;
+			ep->methods = &uhci_device_ctrl_methods;
 			break;
 		case UE_INTERRUPT:
-			pipe->methods = &uhci_device_intr_methods;
+			ep->methods = &uhci_device_intr_methods;
 			break;
 		case UE_ISOCHRONOUS:
 			if (udev->speed == USB_SPEED_FULL) {
-				pipe->methods = &uhci_device_isoc_methods;
+				ep->methods = &uhci_device_isoc_methods;
 			}
 			break;
 		case UE_BULK:
 			if (udev->speed != USB_SPEED_LOW) {
-				pipe->methods = &uhci_device_bulk_methods;
+				ep->methods = &uhci_device_bulk_methods;
 			}
 			break;
 		default:
@@ -3114,7 +3114,7 @@ uhci_device_resume(struct usb_device *udev)
 
 		if (xfer->xroot->udev == udev) {
 
-			methods = xfer->pipe->methods;
+			methods = xfer->endpoint->methods;
 			qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
 
 			if (methods == &uhci_device_bulk_methods) {
@@ -3156,7 +3156,7 @@ uhci_device_suspend(struct usb_device *udev)
 
 		if (xfer->xroot->udev == udev) {
 
-			methods = xfer->pipe->methods;
+			methods = xfer->endpoint->methods;
 			qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
 
 			if (xfer->flags_int.bandwidth_reclaimed) {
@@ -3224,7 +3224,7 @@ uhci_set_hw_power(struct usb_bus *bus)
 
 struct usb_bus_methods uhci_bus_methods =
 {
-	.pipe_init = uhci_pipe_init,
+	.endpoint_init = uhci_ep_init,
 	.xfer_setup = uhci_xfer_setup,
 	.xfer_unsetup = uhci_xfer_unsetup,
 	.get_dma_delay = uhci_get_dma_delay,

@@ -210,6 +210,9 @@ u_int16_t	ip_randomid(void);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);
 void	rip_init(void);
+#ifdef VIMAGE
+void	rip_destroy(void);
+#endif
 void	rip_input(struct mbuf *, int);
 int	rip_output(struct mbuf *, struct socket *, u_long);
 void	ipip_input(struct mbuf *, int);

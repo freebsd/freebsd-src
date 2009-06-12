@@ -289,7 +289,7 @@ at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 }
 
 static int
-at91_twi_callback(device_t dev, int index, caddr_t *data)
+at91_twi_callback(device_t dev, int index, caddr_t data)
 {
 	int error = 0;
 
