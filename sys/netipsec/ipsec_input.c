@@ -121,6 +121,9 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	struct secasvar *sav;
 	u_int32_t spi;
 	int error;
+#ifdef IPSEC_NAT_T
+	struct m_tag *tag;
+#endif
 
 	IPSEC_ISTAT(sproto, V_espstat.esps_input, V_ahstat.ahs_input,
 		V_ipcompstat.ipcomps_input);
@@ -175,6 +178,12 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		m_copydata(m, offsetof(struct ip, ip_dst),
 		    sizeof(struct in_addr),
 		    (caddr_t) &dst_address.sin.sin_addr);
+#ifdef IPSEC_NAT_T
+		/* Find the source port for NAT-T; see udp*_espdecap. */
+		tag = m_tag_find(m, PACKET_TAG_IPSEC_NAT_T_PORTS, NULL);
+		if (tag != NULL)
+			dst_address.sin.sin_port = ((u_int16_t *)(tag + 1))[1];
+#endif /* IPSEC_NAT_T */
 		break;
 #endif /* INET */
 #ifdef INET6

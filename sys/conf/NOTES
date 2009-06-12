@@ -534,6 +534,11 @@ options 	IPSEC			#IP security (requires device crypto)
 # using ipfw(8)'s 'ipsec' keyword, when this option is enabled.
 #
 #options 	IPSEC_FILTERTUNNEL	#filter ipsec packets from a tunnel
+#
+# Set IPSEC_NAT_T to enable NAT-Traversal support.  This enables
+# optional UDP encapsulation of ESP packets.
+#
+options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
 options 	IPX			#IPX/SPX communications protocols
 
