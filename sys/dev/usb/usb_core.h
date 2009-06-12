@@ -215,6 +215,11 @@
 #define	USB_ST_TRANSFERRED 1
 #define	USB_ST_ERROR       2
 
+/* USB handle request states */
+#define	USB_HR_NOT_COMPLETE 0
+#define	USB_HR_COMPLETE_OK  1
+#define	USB_HR_COMPLETE_ERR 2
+
 /*
  * The following macro will return the current state of an USB
  * transfer like defined by the "USB_ST_XXX" enums.
