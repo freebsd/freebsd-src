@@ -146,6 +146,7 @@ ht_item_hash_func(const void *p, size_t cache_entries_size)
 	return retval;
 }
 
+HASHTABLE_PROTOTYPE(cache_ht_, cache_ht_item_, struct cache_ht_item_data_);
 HASHTABLE_GENERATE(cache_ht_, cache_ht_item_, struct cache_ht_item_data_, data,
 	ht_item_hash_func, ht_items_cmp_func);
 
@@ -291,7 +292,7 @@ clear_cache_entry(struct cache_entry_ *entry)
 	struct cache_policy_ *policy;
 	struct cache_policy_item_ *item, *next_item;
 	size_t entry_size;
-	int i;
+	unsigned int i;
 
 	if (entry->params->entry_type == CET_COMMON) {
 		common_entry = (struct cache_common_entry_ *)entry;
@@ -396,7 +397,6 @@ flush_cache_policy(struct cache_common_entry_ *entry,
 
 		hash = HASHTABLE_CALCULATE_HASH(cache_ht_, &entry->items,
 			&ht_key);
-		assert(hash >= 0);
 		assert(hash < HASHTABLE_ENTRIES_COUNT(&entry->items));
 
 		ht_item = HASHTABLE_GET_ENTRY(&(entry->items), hash);
@@ -718,7 +718,6 @@ cache_read(struct cache_entry_ *entry, const char *key, size_t key_size,
 
 	hash = HASHTABLE_CALCULATE_HASH(cache_ht_, &common_entry->items,
 		&item_data);
-	assert(hash >= 0);
 	assert(hash < HASHTABLE_ENTRIES_COUNT(&common_entry->items));
 
 	item = HASHTABLE_GET_ENTRY(&(common_entry->items), hash);
@@ -822,7 +821,6 @@ cache_write(struct cache_entry_ *entry, const char *key, size_t key_size,
 
 	hash = HASHTABLE_CALCULATE_HASH(cache_ht_, &common_entry->items,
 		&item_data);
-	assert(hash >= 0);
 	assert(hash < HASHTABLE_ENTRIES_COUNT(&common_entry->items));
 
 	item = HASHTABLE_GET_ENTRY(&(common_entry->items), hash);
