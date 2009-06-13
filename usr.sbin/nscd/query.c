@@ -379,7 +379,7 @@ on_write_request_read2(struct query_state *qstate)
 		result += qstate->read_func(qstate, write_request->data,
 			write_request->data_size);
 
-	if (result != qstate->kevent_watermark) {
+	if (result != (ssize_t)qstate->kevent_watermark) {
 		TRACE_OUT(on_write_request_read2);
 		return (-1);
 	}
@@ -643,7 +643,7 @@ on_read_request_read2(struct query_state *qstate)
 		read_request->cache_key + qstate->eid_str_length,
 		read_request->cache_key_size);
 
-	if (result != qstate->kevent_watermark) {
+	if (result != (ssize_t)qstate->kevent_watermark) {
 		TRACE_OUT(on_read_request_read2);
 		return (-1);
 	}
@@ -839,7 +839,7 @@ on_read_response_write1(struct query_state *qstate)
 	if (read_response->error_code == 0) {
 		result += qstate->write_func(qstate, &read_response->data_size,
 			sizeof(size_t));
-		if (result != qstate->kevent_watermark) {
+		if (result != (ssize_t)qstate->kevent_watermark) {
 			TRACE_OUT(on_read_response_write1);
 			return (-1);
 		}
@@ -847,7 +847,7 @@ on_read_response_write1(struct query_state *qstate)
 		qstate->kevent_watermark = read_response->data_size;
 		qstate->process_func = on_read_response_write2;
 	} else {
-		if (result != qstate->kevent_watermark) {
+		if (result != (ssize_t)qstate->kevent_watermark) {
 			TRACE_OUT(on_read_response_write1);
 			return (-1);
 		}
@@ -871,7 +871,7 @@ on_read_response_write2(struct query_state *qstate)
 	if (read_response->data_size > 0) {
 		result = qstate->write_func(qstate, read_response->data,
 			read_response->data_size);
-		if (result != qstate->kevent_watermark) {
+		if (result != (ssize_t)qstate->kevent_watermark) {
 			TRACE_OUT(on_read_response_write2);
 			return (-1);
 		}
@@ -957,7 +957,7 @@ on_transform_request_read2(struct query_state *qstate)
 	result = qstate->read_func(qstate, transform_request->entry,
 		transform_request->entry_length);
 
-	if (result != qstate->kevent_watermark) {
+	if (result != (ssize_t)qstate->kevent_watermark) {
 		TRACE_OUT(on_transform_request_read2);
 		return (-1);
 	}
@@ -1103,23 +1103,26 @@ check_query_eids(struct query_state *qstate)
 ssize_t
 query_io_buffer_read(struct query_state *qstate, void *buf, size_t nbytes)
 {
+	size_t remaining;
 	ssize_t	result;
 
 	TRACE_IN(query_io_buffer_read);
 	if ((qstate->io_buffer_size == 0) || (qstate->io_buffer == NULL))
 		return (-1);
 
-	if (nbytes < qstate->io_buffer + qstate->io_buffer_size -
-			qstate->io_buffer_p)
+	assert(qstate->io_buffer_p <=
+		qstate->io_buffer + qstate->io_buffer_size);
+	remaining = qstate->io_buffer + qstate->io_buffer_size -
+		qstate->io_buffer_p;
+	if (nbytes < remaining)
 		result = nbytes;
 	else
-		result = qstate->io_buffer + qstate->io_buffer_size -
-			qstate->io_buffer_p;
+		result = remaining;
 
 	memcpy(buf, qstate->io_buffer_p, result);
 	qstate->io_buffer_p += result;
 
-	if (qstate->io_buffer_p == qstate->io_buffer + qstate->io_buffer_size) {
+	if (remaining == 0) {
 		free(qstate->io_buffer);
 		qstate->io_buffer = NULL;
 
@@ -1139,23 +1142,26 @@ ssize_t
 query_io_buffer_write(struct query_state *qstate, const void *buf,
 	size_t nbytes)
 {
+	size_t remaining;
 	ssize_t	result;
 
 	TRACE_IN(query_io_buffer_write);
 	if ((qstate->io_buffer_size == 0) || (qstate->io_buffer == NULL))
 		return (-1);
 
-	if (nbytes < qstate->io_buffer + qstate->io_buffer_size -
-			qstate->io_buffer_p)
+	assert(qstate->io_buffer_p <=
+		qstate->io_buffer + qstate->io_buffer_size);
+	remaining = qstate->io_buffer + qstate->io_buffer_size -
+		qstate->io_buffer_p;
+	if (nbytes < remaining)
 		result = nbytes;
 	else
-		result = qstate->io_buffer + qstate->io_buffer_size -
-		qstate->io_buffer_p;
+		result = remaining;
 
 	memcpy(qstate->io_buffer_p, buf, result);
 	qstate->io_buffer_p += result;
 
-	if (qstate->io_buffer_p == qstate->io_buffer + qstate->io_buffer_size) {
+	if (remaining == 0) {
 		qstate->use_alternate_io = 1;
 		qstate->io_buffer_p = qstate->io_buffer;
 
@@ -1182,7 +1188,7 @@ query_socket_read(struct query_state *qstate, void *buf, size_t nbytes)
 	}
 
 	result = read(qstate->sockfd, buf, nbytes);
-	if ((result == -1) || (result < nbytes))
+	if (result < 0 || (size_t)result < nbytes)
 		qstate->socket_failed = 1;
 
 	TRACE_OUT(query_socket_read);
@@ -1204,7 +1210,7 @@ query_socket_write(struct query_state *qstate, const void *buf, size_t nbytes)
 	}
 
 	result = write(qstate->sockfd, buf, nbytes);
-	if ((result == -1) || (result < nbytes))
+	if (result < 0 || (size_t)result < nbytes)
 		qstate->socket_failed = 1;
 
 	TRACE_OUT(query_socket_write);
