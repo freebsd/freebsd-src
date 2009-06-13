@@ -29,11 +29,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
 #include <assert.h>
 #include <nsswitch.h>
 #include <pwd.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "../debug.h"
 #include "passwd.h"
 
