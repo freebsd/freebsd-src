@@ -35,7 +35,7 @@ static	int	trace_level = 0;
 static	int	trace_level_bk = 0;
 
 void
-__trace_in(const char *s, const char *f, int l)
+nscd_trace_in(const char *s, const char *f, int l)
 {
 	int i;
 	if (trace_level < TRACE_WANTED)
@@ -50,7 +50,7 @@ __trace_in(const char *s, const char *f, int l)
 }
 
 void
-__trace_point(const char *f, int l)
+nscd_trace_point(const char *f, int l)
 {
 	int i;
 
@@ -64,7 +64,7 @@ __trace_point(const char *f, int l)
 }
 
 void
-__trace_msg(const char *msg, const char *f, int l)
+nscd_trace_msg(const char *msg, const char *f, int l)
 {
 	int i;
 
@@ -78,7 +78,7 @@ __trace_msg(const char *msg, const char *f, int l)
 }
 
 void
-__trace_ptr(const char *desc, const void *p, const char *f, int l)
+nscd_trace_ptr(const char *desc, const void *p, const char *f, int l)
 {
 	int i;
 
@@ -92,7 +92,7 @@ __trace_ptr(const char *desc, const void *p, const char *f, int l)
 }
 
 void
-__trace_int(const char *desc, int i, const char *f, int l)
+nscd_trace_int(const char *desc, int i, const char *f, int l)
 {
 	int j;
 
@@ -106,7 +106,7 @@ __trace_int(const char *desc, int i, const char *f, int l)
 }
 
 void
-__trace_str(const char *desc, const char *s, const char *f, int l)
+nscd_trace_str(const char *desc, const char *s, const char *f, int l)
 {
 	int i;
 
@@ -120,7 +120,7 @@ __trace_str(const char *desc, const char *s, const char *f, int l)
 }
 
 void
-__trace_out(const char *s, const char *f, int l)
+nscd_trace_out(const char *s, const char *f, int l)
 {
 	int i;
 
@@ -135,14 +135,14 @@ __trace_out(const char *s, const char *f, int l)
 }
 
 void
-__trace_on(void)
+nscd_trace_on(void)
 {
 	trace_level = trace_level_bk;
 	trace_level_bk = 0;
 }
 
 void
-__trace_off(void)
+nscd_trace_off(void)
 {
 	trace_level_bk = trace_level;
 	trace_level = 1024;

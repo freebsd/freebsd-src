@@ -33,35 +33,35 @@
 
 /* #ifndef NDEBUG */
 #if 0
-#define TRACE_IN(x)	__trace_in(#x, __FILE__, __LINE__)
-#define TRACE_POINT()	__trace_point(__FILE__, __LINE__)
-#define TRACE_MSG(x)	__trace_msg(x, __FILE__, __LINE__)
-#define TRACE_PTR(p)	__trace_ptr(#p, p, __FILE__, __LINE__)
-#define TRACE_INT(i)	__trace_int(#i, i, __FILE__, __LINE__)
-#define TRACE_STR(s)	__trace_str(#s, s, __FILE__, __LINE__)
-#define TRACE_OUT(x)	__trace_out(#x, __FILE__, __LINE__)
-#define TRACE_ON()	__trace_on()
-#define TRACE_OFF()	__trace_off()
+#define TRACE_IN(x)	nscd_trace_in(#x, __FILE__, __LINE__)
+#define TRACE_POINT()	nscd_trace_point(__FILE__, __LINE__)
+#define TRACE_MSG(x)	nscd_trace_msg(x, __FILE__, __LINE__)
+#define TRACE_PTR(p)	nscd_trace_ptr(#p, p, __FILE__, __LINE__)
+#define TRACE_INT(i)	nscd_trace_int(#i, i, __FILE__, __LINE__)
+#define TRACE_STR(s)	nscd_trace_str(#s, s, __FILE__, __LINE__)
+#define TRACE_OUT(x)	nscd_trace_out(#x, __FILE__, __LINE__)
+#define TRACE_ON()	nscd_trace_on()
+#define TRACE_OFF()	nscd_trace_off()
 #else
-#define TRACE_IN(x)
-#define TRACE_POINT()
-#define TRACE_MSG(x)
-#define TRACE_PTR(p)
-#define TRACE_INT(i)
-#define TRACE_STR(s)
-#define TRACE_OUT(x)
-#define TRACE_ON()
-#define TRACE_OFF()
+#define TRACE_IN(x)	(void)0
+#define TRACE_POINT()	(void)0
+#define TRACE_MSG(x)	(void)0
+#define TRACE_PTR(p)	(void)0
+#define TRACE_INT(i)	(void)0
+#define TRACE_STR(s)	(void)0
+#define TRACE_OUT(x)	(void)0
+#define TRACE_ON()	(void)0
+#define TRACE_OFF()	(void)0
 #endif
 
-extern void __trace_in(const char *, const char *, int);
-extern void __trace_point(const char *, int);
-extern void __trace_msg(const char *, const char *, int);
-extern void __trace_ptr(const char *, const void *, const char *, int);
-extern void __trace_int(const char *, int, const char *, int);
-extern void __trace_str(const char *, const char *, const char *, int);
-extern void __trace_out(const char *, const char *, int);
-extern void __trace_on(void);
-extern void __trace_off(void);
+extern void nscd_trace_in(const char *, const char *, int);
+extern void nscd_trace_point(const char *, int);
+extern void nscd_trace_msg(const char *, const char *, int);
+extern void nscd_trace_ptr(const char *, const void *, const char *, int);
+extern void nscd_trace_int(const char *, int, const char *, int);
+extern void nscd_trace_str(const char *, const char *, const char *, int);
+extern void nscd_trace_out(const char *, const char *, int);
+extern void nscd_trace_on(void);
+extern void nscd_trace_off(void);
 
 #endif
