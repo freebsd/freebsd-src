@@ -362,15 +362,8 @@ pte_load(pt_entry_t *ptep)
 static __inline pt_entry_t
 pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
 {
-	pt_entry_t r;
-
-	__asm __volatile(
-	    "xchgl %0,%1"
-	    : "=m" (*ptep),
-	      "=r" (r)
-	    : "1" (pte),
-	      "m" (*ptep));
-	return (r);
+	__asm volatile("xchgl %0, %1" : "+m" (*ptep), "+r" (pte));
+	return (pte);
 }
 
 #define	pte_load_clear(pte)	atomic_readandclear_int(pte)
