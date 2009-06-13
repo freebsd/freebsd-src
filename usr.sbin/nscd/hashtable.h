@@ -32,7 +32,7 @@
 #include <string.h>
 
 #define HASHTABLE_INITIAL_ENTRIES_CAPACITY 8
-typedef int hashtable_index_t;
+typedef unsigned int hashtable_index_t;
 
 /*
  * This file contains queue.h-like macro definitions for hash tables.
