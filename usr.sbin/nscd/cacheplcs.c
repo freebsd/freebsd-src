@@ -28,8 +28,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/time.h>
+
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include "cacheplcs.h"
 #include "debug.h"
 

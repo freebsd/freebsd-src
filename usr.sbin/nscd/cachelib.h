@@ -29,9 +29,6 @@
 #ifndef __NSCD_CACHELIB_H__
 #define __NSCD_CACHELIB_H__
 
-#include <sys/queue.h>
-#include <sys/time.h>
-#include <stdlib.h>
 #include "hashtable.h"
 #include "cacheplcs.h"
 

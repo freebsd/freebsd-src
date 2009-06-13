@@ -29,8 +29,6 @@
 #ifndef __NSCD_PROTOCOL_H__
 #define __NSCD_PROTOCOL_H__
 
-#include <stdlib.h>
-
 /* maximum buffer size to receive - larger buffers are not allowed */
 #define MAX_BUFFER_SIZE (1 << 20)
 
