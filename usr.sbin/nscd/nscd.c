@@ -123,14 +123,14 @@ init_cache_(struct configuration *config)
 		res = register_cache_entry(retval, (struct cache_entry_params *)
 			&config_entry->positive_cache_params);
 		config_entry->positive_cache_entry = find_cache_entry(retval,
-			config_entry->positive_cache_params.entry_name);
+			config_entry->positive_cache_params.cep.entry_name);
 		assert(config_entry->positive_cache_entry !=
 			INVALID_CACHE_ENTRY);
 
 		res = register_cache_entry(retval, (struct cache_entry_params *)
 			&config_entry->negative_cache_params);
 		config_entry->negative_cache_entry = find_cache_entry(retval,
-			config_entry->negative_cache_params.entry_name);
+			config_entry->negative_cache_params.cep.entry_name);
 		assert(config_entry->negative_cache_entry !=
 			INVALID_CACHE_ENTRY);
 	}

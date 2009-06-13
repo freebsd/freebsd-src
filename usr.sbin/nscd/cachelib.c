@@ -565,13 +565,13 @@ register_cache_entry(struct cache_ *the_cache,
 		new_common_entry->params =
 		  (struct cache_entry_params *)&new_common_entry->common_params;
 
-		new_common_entry->common_params.entry_name = (char *)calloc(1,
+		new_common_entry->common_params.cep.entry_name = (char *)calloc(1,
 			entry_name_size);
-		assert(new_common_entry->common_params.entry_name != NULL);
-		strlcpy(new_common_entry->common_params.entry_name,
+		assert(new_common_entry->common_params.cep.entry_name != NULL);
+		strlcpy(new_common_entry->common_params.cep.entry_name,
 			params->entry_name, entry_name_size);
 		new_common_entry->name =
-			new_common_entry->common_params.entry_name;
+			new_common_entry->common_params.cep.entry_name;
 
 		HASHTABLE_INIT(&(new_common_entry->items),
 			struct cache_ht_item_data_, data,
@@ -619,12 +619,12 @@ register_cache_entry(struct cache_ *the_cache,
 		new_mp_entry->params =
 			(struct cache_entry_params *)&new_mp_entry->mp_params;
 
-		new_mp_entry->mp_params.entry_name = (char *)calloc(1,
+		new_mp_entry->mp_params.cep.entry_name = (char *)calloc(1,
 			entry_name_size);
-		assert(new_mp_entry->mp_params.entry_name != NULL);
-		strlcpy(new_mp_entry->mp_params.entry_name, params->entry_name,
+		assert(new_mp_entry->mp_params.cep.entry_name != NULL);
+		strlcpy(new_mp_entry->mp_params.cep.entry_name, params->entry_name,
 			entry_name_size);
-		new_mp_entry->name = new_mp_entry->mp_params.entry_name;
+		new_mp_entry->name = new_mp_entry->mp_params.cep.entry_name;
 
 		TAILQ_INIT(&new_mp_entry->ws_head);
 		TAILQ_INIT(&new_mp_entry->rs_head);

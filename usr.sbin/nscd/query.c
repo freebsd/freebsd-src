@@ -437,7 +437,7 @@ on_write_request_process(struct query_state *qstate)
 
 	configuration_lock_rdlock(s_configuration);
 	c_entry = find_cache_entry(s_cache,
-    		qstate->config_entry->positive_cache_params.entry_name);
+		qstate->config_entry->positive_cache_params.cep.entry_name);
 	configuration_unlock(s_configuration);
 	if (c_entry != NULL) {
 		configuration_lock_entry(qstate->config_entry, CELT_POSITIVE);
@@ -518,7 +518,7 @@ on_negative_write_request_process(struct query_state *qstate)
 
 	configuration_lock_rdlock(s_configuration);
 	c_entry = find_cache_entry(s_cache,
-    		qstate->config_entry->negative_cache_params.entry_name);
+		qstate->config_entry->negative_cache_params.cep.entry_name);
 	configuration_unlock(s_configuration);
 	if (c_entry != NULL) {
 		configuration_lock_entry(qstate->config_entry, CELT_NEGATIVE);
@@ -710,9 +710,9 @@ on_read_request_process(struct query_state *qstate)
 
 	configuration_lock_rdlock(s_configuration);
 	c_entry = find_cache_entry(s_cache,
-    		qstate->config_entry->positive_cache_params.entry_name);
+		qstate->config_entry->positive_cache_params.cep.entry_name);
 	neg_c_entry = find_cache_entry(s_cache,
-		qstate->config_entry->negative_cache_params.entry_name);
+		qstate->config_entry->negative_cache_params.cep.entry_name);
 	configuration_unlock(s_configuration);
 	if ((c_entry != NULL) && (neg_c_entry != NULL)) {
 		configuration_lock_entry(qstate->config_entry, CELT_POSITIVE);
