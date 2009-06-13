@@ -16,12 +16,12 @@ LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
 .endif
 
 # Put LOADER_ZFS_SUPPORT=yes in /etc/make.conf for ZFS support
-.if ${MK_ZFS} != "no"
-CFLAGS+=	-DLOADER_ZFS_SUPPORT
-LIBZFS=		${.OBJDIR}/../../zfs/libzfsboot.a
-.else
+#.if ${MK_ZFS} != "no"
+#CFLAGS+=	-DLOADER_ZFS_SUPPORT
+#LIBZFS=		${.OBJDIR}/../../zfs/libzfsboot.a
+#.else
 LIBZFS=
-.endif
+#.endif
 
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)
