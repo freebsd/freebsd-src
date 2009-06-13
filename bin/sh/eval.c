@@ -74,11 +74,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-/* flags in argument to evaltree */
-#define EV_EXIT 01		/* exit after evaluating tree */
-#define EV_TESTED 02		/* exit status is checked; ignore -e flag */
-#define EV_BACKCMD 04		/* command executing within back quotes */
-
 MKINIT int evalskip;		/* set if we are skipping commands */
 STATIC int skipcount;		/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
@@ -163,18 +158,26 @@ evalstring(char *s, int flags)
 {
 	union node *n;
 	struct stackmark smark;
+	int flags_exit;
 
+	flags_exit = flags & EV_EXIT;
+	flags &= ~EV_EXIT;
 	setstackmark(&smark);
 	setinputstring(s, 1);
 	while ((n = parsecmd(0)) != NEOF) {
-		if (n != NULL)
-			evaltree(n, flags);
+		if (n != NULL) {
+			if (flags_exit && preadateof())
+				evaltree(n, flags | EV_EXIT);
+			else
+				evaltree(n, flags);
+		}
 		popstackmark(&smark);
 	}
 	popfile();
 	popstackmark(&smark);
+	if (flags_exit)
+		exitshell(exitstatus);
 }
-
 
 
 /*
