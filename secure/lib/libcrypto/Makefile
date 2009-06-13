@@ -325,17 +325,17 @@ SRCS+=	pcy_cache.c pcy_data.c pcy_lib.c pcy_map.c pcy_node.c \
 INCS+=	x509v3.h
 
 # cms
-SRCS+=	cms_lib.c cms_asn1.c cms_att.c cms_io.c cms_smime.c cms_err.c \
-	cms_sd.c cms_dd.c cms_cd.c cms_env.c cms_enc.c cms_ess.c
-INCS+=	cms.h
+#SRCS+=	cms_lib.c cms_asn1.c cms_att.c cms_io.c cms_smime.c cms_err.c \
+#	cms_sd.c cms_dd.c cms_cd.c cms_env.c cms_enc.c cms_ess.c
+#INCS+=	cms.h
 
 # jpake - is marked experimental
 #SRCS+=	jpake.c jpake_err.c
 #INCS+=	jpake.h
 
 # seed
-SRCS+=	seed.c seed_ecb.c seed_cbc.c seed_cfb.c seed_ofb.c
-INCS+=	seed.h
+#SRCS+=	seed.c seed_ecb.c seed_cbc.c seed_cfb.c seed_ofb.c
+#INCS+=	seed.h
 
 SRCS+=	buildinf.h
 INCS+=	opensslconf.h evp.h
