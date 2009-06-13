@@ -362,7 +362,7 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_ie_len;		/* IE length */
 	uint16_t	isi_freq;		/* MHz */
 	uint32_t	isi_flags;		/* channel flags */
-	uint16_t	isi_state;		/* state flags */
+	uint32_t	isi_state;		/* state flags */
 	uint8_t		isi_authmode;		/* authentication algorithm */
 	int8_t		isi_rssi;		/* receive signal strength */
 	int8_t		isi_noise;		/* noise floor */
@@ -381,6 +381,7 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_rxseqs[IEEE80211_TID_SIZE];/* rx seq#/TID */
 	uint16_t	isi_inact;		/* inactivity timer */
 	uint16_t	isi_txmbps;		/* current tx rate in .5 Mb/s */
+	uint16_t	isi_pad;
 	uint32_t	isi_jointime;		/* time of assoc/join */
 	struct ieee80211_mimo_info isi_mimo;	/* MIMO info for 11n sta's */
 	/* XXX frag state? */
