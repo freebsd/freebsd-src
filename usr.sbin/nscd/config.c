@@ -569,7 +569,8 @@ fill_configuration_defaults(struct configuration *config)
 void
 destroy_configuration(struct configuration *config)
 {
-	int	i;
+	unsigned int i;
+
 	TRACE_IN(destroy_configuration);
 	assert(config != NULL);
 	free(config->pidfile_path);

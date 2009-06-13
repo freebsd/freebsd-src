@@ -316,9 +316,9 @@ process_socket_event(struct kevent *event_data, struct runtime_env *env,
 	 * operations. It also does the actual socket IO operations.
 	 */
 	if (((qstate->use_alternate_io == 0) &&
-		(qstate->kevent_watermark <= event_data->data)) ||
+		(qstate->kevent_watermark <= (size_t)event_data->data)) ||
 		((qstate->use_alternate_io != 0) &&
-		(qstate->io_buffer_watermark <= event_data->data))) {
+		(qstate->io_buffer_watermark <= (size_t)event_data->data))) {
 		if (qstate->use_alternate_io != 0) {
 			switch (qstate->io_buffer_filter) {
 			case EVFILT_READ:
@@ -500,7 +500,7 @@ processing_loop(cache the_cache, struct runtime_env *env,
 			struct kevent *event_data;
 			event_data = &eventlist[0];
 
-			if (event_data->ident == env->sockfd) {
+			if ((int)event_data->ident == env->sockfd) {
 				for (i = 0; i < event_data->data; ++i)
 				    accept_connection(event_data, env, config);
 
