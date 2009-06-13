@@ -313,7 +313,7 @@ tsec_detach(struct tsec_softc *sc)
 	return (0);
 }
 
-void
+int
 tsec_shutdown(device_t dev)
 {
 	struct tsec_softc *sc;
@@ -323,6 +323,7 @@ tsec_shutdown(device_t dev)
 	TSEC_GLOBAL_LOCK(sc);
 	tsec_stop(sc);
 	TSEC_GLOBAL_UNLOCK(sc);
+	return (0);
 }
 
 int
@@ -1582,7 +1583,7 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 	return (TSEC_READ(sc, TSEC_REG_MIIMSTAT));
 }
 
-void
+int
 tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	struct tsec_softc *sc;
@@ -1606,6 +1607,8 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	if (timeout == 0)
 		device_printf(dev, "Timeout while writing to PHY!\n");
+
+	return (0);
 }
 
 void
