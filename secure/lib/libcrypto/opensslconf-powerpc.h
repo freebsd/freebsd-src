@@ -9,6 +9,10 @@
 #ifndef OPENSSL_NO_CAMELLIA
 # define OPENSSL_NO_CAMELLIA
 #endif
+/* jpake is marked experimental in OpenSSL 0.9.8. */
+#ifndef OPENSSL_NO_JPAKE
+# define OPENSSL_NO_JPAKE
+#endif
 /* libgmp is not in the FreeBSD base system. */
 #ifndef OPENSSL_NO_GMP
 # define OPENSSL_NO_GMP
