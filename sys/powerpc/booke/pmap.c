@@ -275,8 +275,8 @@ void pmap_bootstrap_ap(volatile uint32_t *);
 static void		mmu_booke_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 static void		mmu_booke_clear_modify(mmu_t, vm_page_t);
 static void		mmu_booke_clear_reference(mmu_t, vm_page_t);
-static void		mmu_booke_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t,
-    vm_offset_t);
+static void		mmu_booke_copy(mmu_t, pmap_t, pmap_t, vm_offset_t,
+    vm_size_t, vm_offset_t);
 static void		mmu_booke_copy_page(mmu_t, vm_page_t, vm_page_t);
 static void		mmu_booke_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t,
     vm_prot_t, boolean_t);
@@ -1890,8 +1890,8 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
  * This routine is only advisory and need not do anything.
  */
 static void
-mmu_booke_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
-    vm_size_t len, vm_offset_t src_addr)
+mmu_booke_copy(mmu_t mmu, pmap_t dst_pmap, pmap_t src_pmap,
+    vm_offset_t dst_addr, vm_size_t len, vm_offset_t src_addr)
 {
 
 }
