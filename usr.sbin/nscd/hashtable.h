@@ -65,7 +65,8 @@ typedef unsigned int hashtable_index_t;
 	size_t		entries_size;					\
 }
 
-#define HASHTABLE_ENTRIES_COUNT(table) ((table)->entries_size)
+#define HASHTABLE_ENTRIES_COUNT(table)					\
+	((table)->entries_size)
 
 /*
  * Unlike most of queue.h data types, hash tables can not be initialized
@@ -99,7 +100,8 @@ typedef unsigned int hashtable_index_t;
 		}							\
 	} while (0)
 
-#define HASHTABLE_GET_ENTRY(table, hash)	(&((table)->entries[hash]))
+#define HASHTABLE_GET_ENTRY(table, hash)				\
+	(&((table)->entries[hash]))
 
 /*
  * Traverses through all hash table entries
@@ -127,14 +129,18 @@ typedef unsigned int hashtable_index_t;
 	((entry)->field.capacity)
 
 #define HASHTABLE_ENTRY_CAPACITY_INCREASE(entry, field, type)		\
-	(entry)->field.capacity *= 2;					\
-	(entry)->field.values = realloc((entry)->field.values,		\
-		(entry)->field.capacity * sizeof(type));
+	do {								\
+		(entry)->field.capacity *= 2;				\
+		(entry)->field.values = realloc((entry)->field.values,	\
+			 (entry)->field.capacity * sizeof(type));	\
+	} while (0)
 
 #define HASHTABLE_ENTRY_CAPACITY_DECREASE(entry, field, type)		\
-	(entry)->field.capacity /= 2;					\
-	(entry)->field.values = realloc((entry)->field.values,		\
-		(entry)->field.capacity * sizeof(type));
+	do {								\
+		(entry)->field.capacity /= 2;				\
+		(entry)->field.values = realloc((entry)->field.values,	\
+			(entry)->field.capacity * sizeof(type));	\
+	} while (0)
 
 /*
  * Generates prototypes for the hash table functions
