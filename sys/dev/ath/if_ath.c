@@ -4918,7 +4918,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				u_int8_t txant = ts->ts_antenna;
 				sc->sc_stats.ast_ant_tx[txant]++;
 				sc->sc_ant_tx[txant]++;
-				if (ts->ts_rate & HAL_TXSTAT_ALTRATE)
+				if (ts->ts_finaltsi != 0)
 					sc->sc_stats.ast_tx_altrate++;
 				pri = M_WME_GETAC(bf->bf_m);
 				if (pri >= WME_AC_VO)
