@@ -198,7 +198,7 @@ on_mp_read_session_request_process(struct query_state *qstate)
 
 	if (qstate->config_entry->perform_actual_lookups != 0)
 		dec_cache_entry_name = strdup(
-			qstate->config_entry->mp_cache_params.entry_name);
+			qstate->config_entry->mp_cache_params.cep.entry_name);
 	else {
 #ifdef NS_NSCD_EID_CHECKING
 		if (check_query_eids(qstate) != 0) {
@@ -208,7 +208,7 @@ on_mp_read_session_request_process(struct query_state *qstate)
 #endif
 
 		asprintf(&dec_cache_entry_name, "%s%s", qstate->eid_str,
-			qstate->config_entry->mp_cache_params.entry_name);
+			qstate->config_entry->mp_cache_params.cep.entry_name);
 	}
 
 	assert(dec_cache_entry_name != NULL);
