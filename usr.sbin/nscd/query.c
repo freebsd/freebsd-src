@@ -335,11 +335,11 @@ on_write_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		write_request->entry = (char *)calloc(1,
+		write_request->entry = calloc(1,
 			write_request->entry_length + 1);
 		assert(write_request->entry != NULL);
 
-		write_request->cache_key = (char *)calloc(1,
+		write_request->cache_key = calloc(1,
 			write_request->cache_key_size +
 			qstate->eid_str_length);
 		assert(write_request->cache_key != NULL);
@@ -347,7 +347,7 @@ on_write_request_read1(struct query_state *qstate)
 			qstate->eid_str_length);
 
 		if (write_request->data_size != 0) {
-			write_request->data = (char *)calloc(1,
+			write_request->data = calloc(1,
 				write_request->data_size);
 			assert(write_request->data != NULL);
 		}
@@ -608,11 +608,11 @@ on_read_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		read_request->entry = (char *)calloc(1,
+		read_request->entry = calloc(1,
 			read_request->entry_length + 1);
 		assert(read_request->entry != NULL);
 
-		read_request->cache_key = (char *)calloc(1,
+		read_request->cache_key = calloc(1,
 			read_request->cache_key_size +
 			qstate->eid_str_length);
 		assert(read_request->cache_key != NULL);
@@ -723,8 +723,8 @@ on_read_request_process(struct query_state *qstate)
 	    		&read_response->data_size);
 
 		if (read_response->error_code == -2) {
-			read_response->data = (char *)malloc(
-		    		read_response->data_size);
+			read_response->data = malloc(
+				read_response->data_size);
 			assert(read_response != NULL);
 			read_response->error_code = cache_read(c_entry,
 				read_request->cache_key,
@@ -930,7 +930,7 @@ on_transform_request_read1(struct query_state *qstate)
 				return (-1);
 			}
 
-			transform_request->entry = (char *)calloc(1,
+			transform_request->entry = calloc(1,
 				transform_request->entry_length + 1);
 			assert(transform_request->entry != NULL);
 
@@ -1226,7 +1226,7 @@ init_query_state(int sockfd, size_t kevent_watermark, uid_t euid, gid_t egid)
 	struct query_state	*retval;
 
 	TRACE_IN(init_query_state);
-	retval = (struct query_state *)calloc(1, sizeof(struct query_state));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->sockfd = sockfd;
