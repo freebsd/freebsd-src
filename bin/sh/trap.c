@@ -222,6 +222,21 @@ clear_traps(void)
 
 
 /*
+ * Check if we have any traps enabled.
+ */
+int
+have_traps(void)
+{
+	char *volatile *tp;
+
+	for (tp = trap ; tp <= &trap[NSIG - 1] ; tp++) {
+		if (*tp && **tp)	/* trap not NULL or SIG_IGN */
+			return 1;
+	}
+	return 0;
+}
+
+/*
  * Set the signal handler for the specified signal.  The routine figures
  * out what it should be set to.
  */
