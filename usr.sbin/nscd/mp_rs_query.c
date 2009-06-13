@@ -140,7 +140,7 @@ on_mp_read_session_request_read2(struct query_state *qstate)
 	result = qstate->read_func(qstate, c_mp_rs_request->entry,
 		c_mp_rs_request->entry_length);
 
-	if (result != qstate->kevent_watermark) {
+	if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 		LOG_ERR_3("on_mp_read_session_request_read2",
 			"read failed");
 		TRACE_OUT(on_mp_read_session_request_read2);
@@ -463,7 +463,7 @@ on_mp_read_session_read_response_write1(struct query_state *qstate)
 	if (read_response->error_code == 0) {
 		result += qstate->write_func(qstate, &read_response->data_size,
 			sizeof(size_t));
-		if (result != qstate->kevent_watermark) {
+		if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 			TRACE_OUT(on_mp_read_session_read_response_write1);
 			LOG_ERR_3("on_mp_read_session_read_response_write1",
 				"write failed");
@@ -473,7 +473,7 @@ on_mp_read_session_read_response_write1(struct query_state *qstate)
 		qstate->kevent_watermark = read_response->data_size;
 		qstate->process_func = on_mp_read_session_read_response_write2;
 	} else {
-		if (result != qstate->kevent_watermark) {
+		if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 			LOG_ERR_3("on_mp_read_session_read_response_write1",
 				"write failed");
 			TRACE_OUT(on_mp_read_session_read_response_write1);
@@ -499,7 +499,7 @@ on_mp_read_session_read_response_write2(struct query_state *qstate)
 		&qstate->response);
 	result = qstate->write_func(qstate, read_response->data,
 		read_response->data_size);
-	if (result != qstate->kevent_watermark) {
+	if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 		LOG_ERR_3("on_mp_read_session_read_response_write2",
 			"write failed");
 		TRACE_OUT(on_mp_read_session_read_response_write2);

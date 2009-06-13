@@ -145,7 +145,7 @@ on_mp_write_session_request_read2(struct query_state *qstate)
 	result = qstate->read_func(qstate, c_mp_ws_request->entry,
 		c_mp_ws_request->entry_length);
 
-	if (result != qstate->kevent_watermark) {
+	if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 		LOG_ERR_3("on_mp_write_session_request_read2",
 			"read failed");
 		TRACE_OUT(on_mp_write_session_request_read2);
@@ -397,7 +397,7 @@ on_mp_write_session_write_request_read2(struct query_state *qstate)
 	result = qstate->read_func(qstate, write_request->data,
 		write_request->data_size);
 
-	if (result != qstate->kevent_watermark) {
+	if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 		LOG_ERR_3("on_mp_write_session_write_request_read2",
 			"read failed");
 		TRACE_OUT(on_mp_write_session_write_request_read2);
