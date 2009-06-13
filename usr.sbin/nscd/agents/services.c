@@ -29,18 +29,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
+
 #include <assert.h>
-#include <nsswitch.h>
 #include <netdb.h>
-#include <string.h>
+#include <nsswitch.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "../debug.h"
 #include "services.h"
 
 static int services_marshal_func(struct servent *, char *, size_t *);
 static int services_lookup_func(const char *, size_t, char **, size_t *);
-static void *services_mp_init_func();
+static void *services_mp_init_func(void);
 static int services_mp_lookup_func(char **, size_t *, void *);
 static void services_mp_destroy_func(void *);
 
@@ -205,7 +206,7 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 }
 
 static void *
-services_mp_init_func()
+services_mp_init_func(void)
 {
 	TRACE_IN(services_mp_init_func);
 	setservent(0);
@@ -240,7 +241,7 @@ services_mp_destroy_func(void *mdata)
 }
 
 struct agent *
-init_services_agent()
+init_services_agent(void)
 {
 	struct common_agent	*retval;
 	TRACE_IN(init_services_agent);
@@ -259,7 +260,7 @@ init_services_agent()
 }
 
 struct agent *
-init_services_mp_agent()
+init_services_mp_agent(void)
 {
 	struct multipart_agent	*retval;
 

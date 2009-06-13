@@ -28,5 +28,5 @@
 
 #include "../agent.h"
 
-extern struct agent *init_passwd_agent();
-extern struct agent *init_passwd_mp_agent();
+extern struct agent *init_passwd_agent(void);
+extern struct agent *init_passwd_mp_agent(void);

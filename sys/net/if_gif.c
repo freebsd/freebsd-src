@@ -274,7 +274,9 @@ vnet_gif_iattach(const void *unused __unused)
 #else
 	V_parallel_tunnels = 0;
 #endif
+#ifdef INET
 	V_ip_gif_ttl = GIF_TTL;
+#endif
 #ifdef INET6
 	V_ip6_gif_hlim = GIF_HLIM;
 #endif
@@ -912,13 +914,13 @@ gif_ioctl(ifp, cmd, data)
 	case GIFSOPTS:
 		if ((error = priv_check(curthread, PRIV_NET_GIF)) != 0)
 			break;
-		if ((error = copyin(&options, &sc->gif_options,
-				sizeof(sc->gif_options)))) {
-			if ((options | GIF_FULLOPTS) == GIF_FULLOPTS)
-				ifr->ifr_data = (caddr_t)options;
-			else
-				error = EINVAL;
-		}
+		error = copyin(ifr->ifr_data, &options, sizeof(options));
+		if (error)
+			break;
+		if (options & ~GIF_OPTMASK)
+			error = EINVAL;
+		else
+			sc->gif_options = options;
 		break;
 
 	default:

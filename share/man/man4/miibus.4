@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2008
+.Dd June 10, 2009
 .Dt MIIBUS 4
 .Os
 .Sh NAME
@@ -47,6 +47,8 @@ interface:
 .Bl -tag -compact -width ".Xr fxp 4"
 .It Xr age 4
 Attansic/Atheros L1 Gigabit Ethernet
+.It Xr alc 4
+Atheros AR8131/AR8132 PCIe Ethernet
 .It Xr ale 4
 Atheros AR8121/AR8113/AR8114 PCIe Ethernet
 .It Xr aue 4
@@ -127,6 +129,7 @@ and
 but as a result are not well behaved newbus device drivers.
 .Sh SEE ALSO
 .Xr age 4 ,
+.Xr alc 4 ,
 .Xr ale 4 ,
 .Xr arp 4 ,
 .Xr aue 4 ,

@@ -647,6 +647,7 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	VI_LOCK(vp);
 	if (vp->v_iflag & VI_DOOMED) {
 		VI_UNLOCK(vp);
+		sx_xunlock(&state->ls_lock);
 		lf_free_lock(lock);
 		return (ENOENT);
 	}

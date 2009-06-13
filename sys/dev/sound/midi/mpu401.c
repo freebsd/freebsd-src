@@ -37,17 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kobj.h>
-#ifdef SND_DEBUG
-#undef KOBJMETHOD
-#define KOBJMETHOD(NAME, FUNC)						\
-	{								\
-		&NAME##_desc,						\
-		(kobjop_t) ((FUNC != (NAME##_t *)NULL) ? FUNC : NULL)	\
-	}
-#endif
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
 #include <sys/malloc.h>
 #include <sys/bus.h>			/* to get driver_intr_t */
 
@@ -60,6 +49,10 @@ __FBSDID("$FreeBSD$");
 
 #include "mpu_if.h"
 #include "mpufoi_if.h"
+
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
 
 #define MPU_DATAPORT   0
 #define MPU_CMDPORT    1

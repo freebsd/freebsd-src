@@ -391,11 +391,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 		goto done2;
 	}
 	size = round_page(shmseg->shm_bsegsz);
-#ifdef VM_PROT_READ_IS_EXEC
-	prot = VM_PROT_READ | VM_PROT_EXECUTE;
-#else
 	prot = VM_PROT_READ;
-#endif
 	if ((shmflg & SHM_RDONLY) == 0)
 		prot |= VM_PROT_WRITE;
 	flags = MAP_ANON | MAP_SHARED;

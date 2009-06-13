@@ -93,7 +93,7 @@ enum {
 	(void) sc;						\
 } while (0)
 #endif
-int urtw_preamble_mode = URTW_PREAMBLE_MODE_LONG;
+static int urtw_preamble_mode = URTW_PREAMBLE_MODE_LONG;
 SYSCTL_INT(_hw_usb_urtw, OID_AUTO, preamble_mode, CTLFLAG_RW,
     &urtw_preamble_mode, 0, "set the preable mode (long or short)");
 TUNABLE_INT("hw.usb.urtw.preamble_mode", &urtw_preamble_mode);

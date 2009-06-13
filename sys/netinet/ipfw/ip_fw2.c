@@ -132,6 +132,8 @@ static int default_to_accept;
 #endif
 static uma_zone_t ipfw_dyn_rule_zone;
 
+struct ip_fw *ip_fw_default_rule;
+
 /*
  * Data structure to cache our ucred related
  * information. This structure only gets used if
@@ -2520,9 +2522,21 @@ do {									\
 	if (args->rule) {
 		/*
 		 * Packet has already been tagged. Look for the next rule
-		 * to restart processing.
+		 * to restart processing. Make sure that args->rule still
+		 * exists and not changed.
 		 */
-		f = args->rule->next_rule;
+		if (chain->id != args->chain_id) {
+			for (f = chain->rules; f != NULL; f = f->next)
+				if (f == args->rule && f->id == args->rule_id)
+					break;
+
+			if (f != NULL)
+				f = f->next_rule;
+			else
+				f = ip_fw_default_rule;
+		} else 
+			f = args->rule->next_rule;
+
 		if (f == NULL)
 			f = lookup_next_rule(args->rule, 0);
 	} else {
@@ -3234,6 +3248,8 @@ check_body:
 			case O_PIPE:
 			case O_QUEUE:
 				args->rule = f; /* report matching rule */
+				args->rule_id = f->id;
+				args->chain_id = chain->id;
 				if (cmd->arg1 == IP_FW_TABLEARG)
 					args->cookie = tablearg;
 				else
@@ -3342,6 +3358,8 @@ check_body:
 			case O_NETGRAPH:
 			case O_NGTEE:
 				args->rule = f;	/* report matching rule */
+				args->rule_id = f->id;
+				args->chain_id = chain->id;
 				if (cmd->arg1 == IP_FW_TABLEARG)
 					args->cookie = tablearg;
 				else
@@ -3364,6 +3382,8 @@ check_body:
 
  				if (IPFW_NAT_LOADED) {
 					args->rule = f; /* Report matching rule. */
+					args->rule_id = f->id;
+					args->chain_id = chain->id;
 					t = ((ipfw_insn_nat *)cmd)->nat;
 					if (t == NULL) {
 						nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
@@ -3422,6 +3442,8 @@ check_body:
 							ip->ip_sum = in_cksum(m, hlen);
 						retval = IP_FW_REASS;
 						args->rule = f;
+						args->rule_id = f->id;
+						args->chain_id = chain->id;
 						goto done;
 					} else {
 						retval = IP_FW_DENY;
@@ -3480,6 +3502,8 @@ flush_rule_ptrs(struct ip_fw_chain *chain)
 
 	IPFW_WLOCK_ASSERT(chain);
 
+	chain->id++;
+
 	for (rule = chain->rules; rule; rule = rule->next)
 		rule->next_rule = NULL;
 }
@@ -3516,6 +3540,7 @@ add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 
 	if (chain->rules == NULL) {	/* default rule */
 		chain->rules = rule;
+		rule->id = ++chain->id;
 		goto done;
         }
 
@@ -3557,6 +3582,8 @@ add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 		}
 	}
 	flush_rule_ptrs(chain);
+	/* chain->id incremented inside flush_rule_ptrs() */
+	rule->id = chain->id;
 done:
 	V_static_count++;
 	V_static_len += l;
@@ -3602,14 +3629,9 @@ remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 }
 
 /*
- * Hook for cleaning up dummynet when an ipfw rule is deleted.
- * Set/cleared when dummynet module is loaded/unloaded.
- */
-void   (*ip_dn_ruledel_ptr)(void *) = NULL;
-
-/**
  * Reclaim storage associated with a list of rules.  This is
  * typically the list created using remove_rule.
+ * A NULL pointer on input is handled correctly.
  */
 static void
 reap_rules(struct ip_fw *head)
@@ -3618,8 +3640,6 @@ reap_rules(struct ip_fw *head)
 
 	while ((rule = head) != NULL) {
 		head = head->next;
-		if (ip_dn_ruledel_ptr)
-			ip_dn_ruledel_ptr(rule);
 		free(rule, M_IPFW);
 	}
 }
@@ -3636,6 +3656,7 @@ free_chain(struct ip_fw_chain *chain, int kill_default)
 
 	IPFW_WLOCK_ASSERT(chain);
 
+	chain->reap = NULL;
 	flush_rule_ptrs(chain); /* more efficient to do outside the loop */
 	for (prev = NULL, rule = chain->rules; rule ; )
 		if (kill_default || rule->set != RESVD_SET)
@@ -3682,8 +3703,8 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 	}
 
 	IPFW_WLOCK(chain);
-	rule = chain->rules;
-	chain->reap = NULL;
+	rule = chain->rules;	/* common starting point */
+	chain->reap = NULL;	/* prepare for deletions */
 	switch (cmd) {
 	case 0:	/* delete rules with given number */
 		/*
@@ -3707,18 +3728,17 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 
 	case 1:	/* delete all rules with given set number */
 		flush_rule_ptrs(chain);
-		rule = chain->rules;
-		while (rule->rulenum < IPFW_DEFAULT_RULE)
+		while (rule->rulenum < IPFW_DEFAULT_RULE) {
 			if (rule->set == rulenum)
 				rule = remove_rule(chain, rule, prev);
 			else {
 				prev = rule;
 				rule = rule->next;
 			}
+		}
 		break;
 
 	case 2:	/* move rules with given number to new set */
-		rule = chain->rules;
 		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->rulenum == rulenum)
 				rule->set = new_set;
@@ -3737,6 +3757,7 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			else if (rule->set == new_set)
 				rule->set = rulenum;
 		break;
+
 	case 5: /* delete rules with given number and with given set number.
 		 * rulenum - given rule number;
 		 * new_set - given set number.
@@ -3763,10 +3784,8 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 	 * avoid a LOR with dummynet.
 	 */
 	rule = chain->reap;
-	chain->reap = NULL;
 	IPFW_WUNLOCK(chain);
-	if (rule)
-		reap_rules(rule);
+	reap_rules(rule);
 	return 0;
 }
 
@@ -4296,6 +4315,8 @@ ipfw_ctl(struct sockopt *sopt)
 		if (V_ipfw_dyn_v)		/* add size of dyn.rules */
 			size += (V_dyn_count * sizeof(ipfw_dyn_rule));
 
+		if (size >= sopt->sopt_valsize)
+			break;
 		/*
 		 * XXX todo: if the user passes a short length just to know
 		 * how much room is needed, do not bother filling up the
@@ -4322,13 +4343,10 @@ ipfw_ctl(struct sockopt *sopt)
 		 */
 
 		IPFW_WLOCK(&V_layer3_chain);
-		V_layer3_chain.reap = NULL;
 		free_chain(&V_layer3_chain, 0 /* keep default rule */);
 		rule = V_layer3_chain.reap;
-		V_layer3_chain.reap = NULL;
 		IPFW_WUNLOCK(&V_layer3_chain);
-		if (rule != NULL)
-			reap_rules(rule);
+		reap_rules(rule);
 		break;
 
 	case IP_FW_ADD:
@@ -4520,15 +4538,6 @@ ipfw_ctl(struct sockopt *sopt)
 	return (error);
 #undef RULE_MAXSIZE
 }
-
-/**
- * dummynet needs a reference to the default rule, because rules can be
- * deleted while packets hold a reference to them. When this happens,
- * dummynet changes the reference to the default rule (it could well be a
- * NULL pointer, but this way we do not need to check for the special
- * case, plus here he have info on the default behaviour).
- */
-struct ip_fw *ip_fw_default_rule;
 
 /*
  * This procedure is only used to handle keepalives. It is invoked
@@ -4725,12 +4734,10 @@ ipfw_destroy(void)
 	callout_drain(&V_ipfw_timeout);
 	IPFW_WLOCK(&V_layer3_chain);
 	flush_tables(&V_layer3_chain);
-	V_layer3_chain.reap = NULL;
 	free_chain(&V_layer3_chain, 1 /* kill default rule */);
-	reap = V_layer3_chain.reap, V_layer3_chain.reap = NULL;
+	reap = V_layer3_chain.reap;
 	IPFW_WUNLOCK(&V_layer3_chain);
-	if (reap != NULL)
-		reap_rules(reap);
+	reap_rules(reap);
 	IPFW_DYN_LOCK_DESTROY();
 	uma_zdestroy(ipfw_dyn_rule_zone);
 	if (V_ipfw_dyn_v != NULL)

@@ -29,11 +29,6 @@
 #ifndef __NSCD_CONFIG_H__
 #define __NSCD_CONFIG_H__
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <pthread.h>
-#include <nsswitch.h>
-#include <unistd.h>
 #include "cachelib.h"
 
 #define DEFAULT_QUERY_TIMEOUT		8

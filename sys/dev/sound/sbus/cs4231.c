@@ -173,15 +173,15 @@ static void	cs4231_mixer_set_value(struct cs4231_softc *,
     const struct mix_table *, u_int8_t);
 static int	cs4231_mixer_set(struct snd_mixer *, u_int32_t, u_int32_t,
     u_int32_t);
-static int	cs4231_mixer_setrecsrc(struct snd_mixer *, u_int32_t);
+static u_int32_t	cs4231_mixer_setrecsrc(struct snd_mixer *, u_int32_t);
 static void	*cs4231_chan_init(kobj_t, void *, struct snd_dbuf *,
     struct pcm_channel *, int);
 static int	cs4231_chan_setformat(kobj_t, void *, u_int32_t);
-static int	cs4231_chan_setspeed(kobj_t, void *, u_int32_t);
+static u_int32_t	cs4231_chan_setspeed(kobj_t, void *, u_int32_t);
 static void	cs4231_chan_fs(struct cs4231_softc *, int, u_int8_t);
-static int	cs4231_chan_setblocksize(kobj_t, void *, u_int32_t);
+static u_int32_t	cs4231_chan_setblocksize(kobj_t, void *, u_int32_t);
 static int	cs4231_chan_trigger(kobj_t, void *, int);
-static int	cs4231_chan_getptr(kobj_t, void *);
+static u_int32_t	cs4231_chan_getptr(kobj_t, void *);
 static struct pcmchan_caps *
     cs4231_chan_getcaps(kobj_t, void *);
 static void	cs4231_trigger(struct cs4231_channel *);
@@ -982,7 +982,7 @@ cs4231_mixer_set(struct snd_mixer *m, u_int32_t dev, u_int32_t left,
 	return (left | (right << 8));
 }
 
-static int
+static u_int32_t
 cs4231_mixer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct cs4231_softc *sc;
@@ -1103,7 +1103,7 @@ cs4231_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return (0);
 }
 
-static int
+static u_int32_t
 cs4231_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	typedef struct {
@@ -1253,7 +1253,7 @@ cs4231_chan_fs(struct cs4231_softc *sc, int dir, u_int8_t fs)
 	}
 }
 
-static int
+static u_int32_t
 cs4231_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct cs4231_softc *sc;
@@ -1299,13 +1299,12 @@ cs4231_chan_trigger(kobj_t obj, void *data, int go)
 	return (0);
 }
 
-static int
+static u_int32_t
 cs4231_chan_getptr(kobj_t obj, void *data)
 {
 	struct cs4231_softc *sc;
 	struct cs4231_channel *ch;
-	u_int32_t cur;
-	int ptr, sz;
+	u_int32_t cur, ptr, sz;
 
 	ch = data;
 	sc = ch->parent;

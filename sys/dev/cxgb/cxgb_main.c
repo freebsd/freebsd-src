@@ -224,6 +224,15 @@ TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
     &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
 
+/*
+ * Tune the size of the output queue.
+ */
+int cxgb_snd_queue_len = IFQ_MAXLEN;
+TUNABLE_INT("hw.cxgb.snd_queue_len", &cxgb_snd_queue_len);
+SYSCTL_UINT(_hw_cxgb, OID_AUTO, snd_queue_len, CTLFLAG_RDTUN,
+    &cxgb_snd_queue_len, 0, "send queue size ");
+
+
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
 	MAX_CTRL_TXQ_ENTRIES = 1024,
@@ -1025,7 +1034,7 @@ cxgb_port_attach(device_t dev)
 	ifp->if_timer = 0;	/* Disable ifnet watchdog */
 	ifp->if_watchdog = NULL;
 
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_drv_maxlen = cxgb_snd_queue_len;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 

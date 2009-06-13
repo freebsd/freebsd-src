@@ -237,7 +237,6 @@ void   *libusb20_tr_get_priv_sc1(struct libusb20_transfer *xfer);
 
 const char *libusb20_dev_get_backend_name(struct libusb20_device *pdev);
 const char *libusb20_dev_get_desc(struct libusb20_device *pdev);
-int	libusb20_dev_claim_interface(struct libusb20_device *pdev, uint8_t iface_index);
 int	libusb20_dev_close(struct libusb20_device *pdev);
 int	libusb20_dev_detach_kernel_driver(struct libusb20_device *pdev, uint8_t iface_index);
 int	libusb20_dev_set_config_index(struct libusb20_device *pdev, uint8_t configIndex);
@@ -246,7 +245,6 @@ int	libusb20_dev_get_fd(struct libusb20_device *pdev);
 int	libusb20_dev_kernel_driver_active(struct libusb20_device *pdev, uint8_t iface_index);
 int	libusb20_dev_open(struct libusb20_device *pdev, uint16_t transfer_max);
 int	libusb20_dev_process(struct libusb20_device *pdev);
-int	libusb20_dev_release_interface(struct libusb20_device *pdev, uint8_t iface_index);
 int	libusb20_dev_request_sync(struct libusb20_device *pdev, struct LIBUSB20_CONTROL_SETUP_DECODED *setup, void *data, uint16_t *pactlen, uint32_t timeout, uint8_t flags);
 int	libusb20_dev_req_string_sync(struct libusb20_device *pdev, uint8_t index, uint16_t langid, void *ptr, uint16_t len);
 int	libusb20_dev_req_string_simple_sync(struct libusb20_device *pdev, uint8_t index, void *ptr, uint16_t len);

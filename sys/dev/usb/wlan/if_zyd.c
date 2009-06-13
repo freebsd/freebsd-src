@@ -157,9 +157,7 @@ static int	zyd_set_rxfilter(struct zyd_softc *);
 static void	zyd_set_chan(struct zyd_softc *, struct ieee80211_channel *);
 static int	zyd_set_beacon_interval(struct zyd_softc *, int);
 static void	zyd_rx_data(struct usb_xfer *, int, uint16_t);
-static int	zyd_tx_mgt(struct zyd_softc *, struct mbuf *,
-		    struct ieee80211_node *);
-static int	zyd_tx_data(struct zyd_softc *, struct mbuf *,
+static int	zyd_tx_start(struct zyd_softc *, struct mbuf *,
 		    struct ieee80211_node *);
 static void	zyd_start(struct ifnet *);
 static int	zyd_raw_xmit(struct ieee80211_node *, struct mbuf *,
@@ -2329,7 +2327,7 @@ tr_setup:
 }
 
 static uint8_t
-zyd_plcp_signal(int rate)
+zyd_plcp_signal(struct zyd_softc *sc, int rate)
 {
 	switch (rate) {
 	/* OFDM rates (cf IEEE Std 802.11a-1999, pp. 14 Table 80) */
@@ -2359,109 +2357,9 @@ zyd_plcp_signal(int rate)
 	case 22:
 		return (0x3);
 	}
-	return (0xff);		/* XXX unsupported/unknown rate */
-}
 
-static int
-zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
-	struct zyd_tx_desc *desc;
-	struct zyd_tx_data *data;
-	struct ieee80211_frame *wh;
-	struct ieee80211_key *k;
-	int rate, totlen;
-	uint16_t pktlen;
-
-	data = STAILQ_FIRST(&sc->tx_free);
-	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
-	sc->tx_nfree--;
-	desc = &data->desc;
-
-	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 2;
-
-	wh = mtod(m0, struct ieee80211_frame *);
-
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
-		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			m_freem(m0);
-			return (ENOBUFS);
-		}
-	}
-
-	data->ni = ni;
-	data->m = m0;
-	data->rate = rate;
-
-	wh = mtod(m0, struct ieee80211_frame *);
-
-	totlen = m0->m_pkthdr.len + IEEE80211_CRC_LEN;
-
-	/* fill Tx descriptor */
-	desc->len = htole16(totlen);
-
-	desc->flags = ZYD_TX_FLAG_BACKOFF;
-	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		/* multicast frames are not sent at OFDM rates in 802.11b/g */
-		if (totlen > vap->iv_rtsthreshold) {
-			desc->flags |= ZYD_TX_FLAG_RTS;
-		} else if (ZYD_RATE_IS_OFDM(rate) &&
-		    (ic->ic_flags & IEEE80211_F_USEPROT)) {
-			if (ic->ic_protmode == IEEE80211_PROT_CTSONLY)
-				desc->flags |= ZYD_TX_FLAG_CTS_TO_SELF;
-			else if (ic->ic_protmode == IEEE80211_PROT_RTSCTS)
-				desc->flags |= ZYD_TX_FLAG_RTS;
-		}
-	} else
-		desc->flags |= ZYD_TX_FLAG_MULTICAST;
-
-	if ((wh->i_fc[0] &
-	    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_PS_POLL))
-		desc->flags |= ZYD_TX_FLAG_TYPE(ZYD_TX_TYPE_PS_POLL);
-
-	desc->phy = zyd_plcp_signal(rate);
-	if (ZYD_RATE_IS_OFDM(rate)) {
-		desc->phy |= ZYD_TX_PHY_OFDM;
-		if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
-			desc->phy |= ZYD_TX_PHY_5GHZ;
-	} else if (rate != 2 && (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
-		desc->phy |= ZYD_TX_PHY_SHPREAMBLE;
-
-	/* actual transmit length (XXX why +10?) */
-	pktlen = ZYD_TX_DESC_SIZE + 10;
-	if (sc->sc_macrev == ZYD_ZD1211)
-		pktlen += totlen;
-	desc->pktlen = htole16(pktlen);
-
-	desc->plcp_length = (16 * totlen + rate - 1) / rate;
-	desc->plcp_service = 0;
-	if (rate == 22) {
-		const int remainder = (16 * totlen) % 22;
-		if (remainder != 0 && remainder < 7)
-			desc->plcp_service |= ZYD_PLCP_LENGEXT;
-	}
-
-	if (ieee80211_radiotap_active_vap(vap)) {
-		struct zyd_tx_radiotap_header *tap = &sc->sc_txtap;
-
-		tap->wt_flags = 0;
-		tap->wt_rate = rate;
-
-		ieee80211_radiotap_tx(vap, m0);
-	}
-
-	DPRINTF(sc, ZYD_DEBUG_XMIT,
-	    "%s: sending mgt frame len=%zu rate=%u\n",
-	    device_get_nameunit(sc->sc_dev), (size_t)m0->m_pkthdr.len,
-		rate);
-
-	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[ZYD_BULK_WR]);
-
-	return (0);
+	device_printf(sc->sc_dev, "unsupported rate %d\n", rate);
+	return (0x0);
 }
 
 static void
@@ -2542,7 +2440,7 @@ tr_setup:
 }
 
 static int
-zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
+zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -2552,24 +2450,31 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	const struct ieee80211_txparam *tp;
 	struct ieee80211_key *k;
 	int rate, totlen;
+	static uint8_t ratediv[] = ZYD_TX_RATEDIV;
+	uint8_t phy;
 	uint16_t pktlen;
+	uint32_t bits;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	data = STAILQ_FIRST(&sc->tx_free);
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
-	desc = &data->desc;
 
-	desc->flags = ZYD_TX_FLAG_BACKOFF;
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		rate = tp->mcastrate;
-		desc->flags |= ZYD_TX_FLAG_MULTICAST;
-	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
-		rate = tp->ucastrate;
+	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MGT ||
+	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL) {
+		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
+		rate = tp->mgmtrate;
 	} else {
-		(void) ieee80211_amrr_choose(ni, &ZYD_NODE(ni)->amn);
-		rate = ni->ni_txrate;
+		tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
+		/* for data frames */
+		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+			rate = tp->mcastrate;
+		else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
+			rate = tp->ucastrate;
+		else {
+			(void) ieee80211_amrr_choose(ni, &ZYD_NODE(ni)->amn);
+			rate = ni->ni_txrate;
+		}
 	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
@@ -2584,12 +2489,23 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	data->ni = ni;
 	data->m = m0;
-
-	totlen = m0->m_pkthdr.len + IEEE80211_CRC_LEN;
+	data->rate = rate;
 
 	/* fill Tx descriptor */
+	desc = &data->desc;
+	phy = zyd_plcp_signal(sc, rate);
+	desc->phy = phy;
+	if (ZYD_RATE_IS_OFDM(rate)) {
+		desc->phy |= ZYD_TX_PHY_OFDM;
+		if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
+			desc->phy |= ZYD_TX_PHY_5GHZ;
+	} else if (rate != 2 && (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
+		desc->phy |= ZYD_TX_PHY_SHPREAMBLE;
+
+	totlen = m0->m_pkthdr.len + IEEE80211_CRC_LEN;
 	desc->len = htole16(totlen);
 
+	desc->flags = ZYD_TX_FLAG_BACKOFF;
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		/* multicast frames are not sent at OFDM rates in 802.11b/g */
 		if (totlen > vap->iv_rtsthreshold) {
@@ -2601,33 +2517,34 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			else if (ic->ic_protmode == IEEE80211_PROT_RTSCTS)
 				desc->flags |= ZYD_TX_FLAG_RTS;
 		}
-	}
-
+	} else
+		desc->flags |= ZYD_TX_FLAG_MULTICAST;
 	if ((wh->i_fc[0] &
 	    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
 	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_PS_POLL))
 		desc->flags |= ZYD_TX_FLAG_TYPE(ZYD_TX_TYPE_PS_POLL);
 
-	desc->phy = zyd_plcp_signal(rate);
-	if (ZYD_RATE_IS_OFDM(rate)) {
-		desc->phy |= ZYD_TX_PHY_OFDM;
-		if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
-			desc->phy |= ZYD_TX_PHY_5GHZ;
-	} else if (rate != 2 && (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
-		desc->phy |= ZYD_TX_PHY_SHPREAMBLE;
-
 	/* actual transmit length (XXX why +10?) */
-	pktlen = sizeof(struct zyd_tx_desc) + 10;
+	pktlen = ZYD_TX_DESC_SIZE + 10;
 	if (sc->sc_macrev == ZYD_ZD1211)
 		pktlen += totlen;
 	desc->pktlen = htole16(pktlen);
 
-	desc->plcp_length = (16 * totlen + rate - 1) / rate;
+	bits = (rate == 11) ? (totlen * 16) + 10 :
+	    ((rate == 22) ? (totlen * 8) + 10 : (totlen * 8));
+	desc->plcp_length = bits / ratediv[phy];
 	desc->plcp_service = 0;
-	if (rate == 22) {
-		const int remainder = (16 * totlen) % 22;
-		if (remainder != 0 && remainder < 7)
-			desc->plcp_service |= ZYD_PLCP_LENGEXT;
+	if (rate == 22 && (bits % 11) > 0 && (bits % 11) <= 3)
+		desc->plcp_service |= ZYD_PLCP_LENGEXT;
+	desc->nextlen = 0;
+
+	if (ieee80211_radiotap_active_vap(vap)) {
+		struct zyd_tx_radiotap_header *tap = &sc->sc_txtap;
+
+		tap->wt_flags = 0;
+		tap->wt_rate = rate;
+
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	DPRINTF(sc, ZYD_DEBUG_XMIT,
@@ -2659,7 +2576,7 @@ zyd_start(struct ifnet *ifp)
 			break;
 		}
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
-		if (zyd_tx_data(sc, m, ni) != 0) {
+		if (zyd_tx_start(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
 			break;
@@ -2697,7 +2614,7 @@ zyd_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 * precisely how to send the frame.
 	 * XXX raw path
 	 */
-	if (zyd_tx_mgt(sc, m, ni) != 0) {
+	if (zyd_tx_start(sc, m, ni) != 0) {
 		ZYD_UNLOCK(sc);
 		ifp->if_oerrors++;
 		ieee80211_free_node(ni);

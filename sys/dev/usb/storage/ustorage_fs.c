@@ -254,7 +254,7 @@ DRIVER_MODULE(ustorage_fs, uhub, ustorage_fs_driver, ustorage_fs_devclass, NULL,
 MODULE_VERSION(ustorage_fs, 0);
 MODULE_DEPEND(ustorage_fs, usb, 1, 1, 1);
 
-struct usb_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
+static struct usb_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
 
 	[USTORAGE_FS_T_BBB_COMMAND] = {
 		.type = UE_BULK,

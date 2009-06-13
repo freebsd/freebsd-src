@@ -29,8 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "agent.h"
 #include "debug.h"
 
@@ -55,7 +56,7 @@ agent_cmp_func(const void *a1, const void *a2)
 }
 
 struct agent_table *
-init_agent_table()
+init_agent_table(void)
 {
    	struct agent_table	*retval;
 

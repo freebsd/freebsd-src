@@ -66,23 +66,16 @@
 #include <sys/soundcard.h>
 #include <sys/sysctl.h>
 #include <sys/kobj.h>
-#ifdef SND_DEBUG
-#undef KOBJMETHOD
-#define KOBJMETHOD(NAME, FUNC)						\
-	{								\
-		&NAME##_desc,						\
-		(kobjop_t) ((FUNC != (NAME##_t *)NULL) ? FUNC : NULL)	\
-	}
-#endif
-#ifndef KOBJMETHOD_END
-#define KOBJMETHOD_END	{ NULL, NULL }
-#endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
 
 struct pcm_channel;
 struct pcm_feeder;
@@ -256,36 +249,6 @@ struct snd_mixer;
 
 #define AFMT_U8_NE	AFMT_U8
 #define AFMT_S8_NE	AFMT_S8
-
-#undef AFMT_S16_NE
-
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define AFMT_S16_NE	AFMT_S16_LE
-#define AFMT_S24_NE	AFMT_S24_LE
-#define AFMT_S32_NE	AFMT_S32_LE
-#define AFMT_U16_NE	AFMT_U16_LE
-#define AFMT_U24_NE	AFMT_U24_LE
-#define AFMT_U32_NE	AFMT_U32_LE
-#define AFMT_S16_OE	AFMT_S16_BE
-#define AFMT_S24_OE	AFMT_S24_BE
-#define AFMT_S32_OE	AFMT_S32_BE
-#define AFMT_U16_OE	AFMT_U16_BE
-#define AFMT_U24_OE	AFMT_U24_BE
-#define AFMT_U32_OE	AFMT_U32_BE
-#else
-#define AFMT_S16_OE	AFMT_S16_LE
-#define AFMT_S24_OE	AFMT_S24_LE
-#define AFMT_S32_OE	AFMT_S32_LE
-#define AFMT_U16_OE	AFMT_U16_LE
-#define AFMT_U24_OE	AFMT_U24_LE
-#define AFMT_U32_OE	AFMT_U32_LE
-#define AFMT_S16_NE	AFMT_S16_BE
-#define AFMT_S24_NE	AFMT_S24_BE
-#define AFMT_S32_NE	AFMT_S32_BE
-#define AFMT_U16_NE	AFMT_U16_BE
-#define AFMT_U24_NE	AFMT_U24_BE
-#define AFMT_U32_NE	AFMT_U32_BE
-#endif
 
 #define AFMT_SIGNED_NE	(AFMT_S8_NE | AFMT_S16_NE | AFMT_S24_NE | AFMT_S32_NE)
 

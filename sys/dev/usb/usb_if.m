@@ -47,6 +47,5 @@ METHOD int handle_request {
 	void **pptr; /* data pointer */
 	uint16_t *plen; /* maximum transfer length */
 	uint16_t offset; /* data offset */
-	uint8_t is_complete; /* set if transfer is complete */
+	uint8_t is_complete; /* set if transfer is complete, see USB_HR_XXX */
 };
-
