@@ -30,8 +30,6 @@
 #define __NSCD_CACHEPLCS_H__
 
 #include <sys/queue.h>
-#include <sys/time.h>
-#include <stdlib.h>
 
 /* common policy definitions */
 #define CACHELIB_MAX_FREQUENCY 100

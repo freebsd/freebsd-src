@@ -29,9 +29,6 @@
 #ifndef __NSCD_QUERY_H__
 #define __NSCD_QUERY_H__
 
-#include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include "cachelib.h"
 #include "config.h"
 #include "protocol.h"
