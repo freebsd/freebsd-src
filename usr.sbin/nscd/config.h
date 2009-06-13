@@ -115,37 +115,34 @@ enum config_entry_lock_type {
 	CELT_MULTIPART
 };
 
-extern struct configuration *init_configuration(void);
-extern void destroy_configuration(struct configuration *);
-extern void fill_configuration_defaults(struct configuration *);
+struct configuration *init_configuration(void);
+void destroy_configuration(struct configuration *);
+void fill_configuration_defaults(struct configuration *);
 
-extern int add_configuration_entry(struct configuration *,
+int add_configuration_entry(struct configuration *,
 	struct configuration_entry *);
-extern struct configuration_entry *create_def_configuration_entry(
+struct configuration_entry *create_def_configuration_entry(const char *);
+void destroy_configuration_entry(struct configuration_entry *);
+size_t configuration_get_entries_size(struct configuration *);
+struct configuration_entry *configuration_get_entry(struct configuration *,
+	size_t);
+struct configuration_entry *configuration_find_entry(struct configuration *,
 	const char *);
-extern void destroy_configuration_entry(struct configuration_entry *);
-extern size_t configuration_get_entries_size(struct configuration *);
-extern struct configuration_entry *configuration_get_entry(
-	struct configuration *, size_t);
-extern struct configuration_entry *configuration_find_entry(
-	struct configuration *, const char *);
 
-extern int configuration_entry_add_mp_cache_entry(struct configuration_entry *,
+int configuration_entry_add_mp_cache_entry(struct configuration_entry *,
 	cache_entry);
-extern cache_entry configuration_entry_find_mp_cache_entry(
-	struct configuration_entry *,
-	const char *);
-extern int configuration_entry_find_mp_cache_entries(
-	struct configuration_entry *, const char *, cache_entry **,
-	cache_entry **);
+cache_entry configuration_entry_find_mp_cache_entry(
+	struct configuration_entry *, const char *);
+int configuration_entry_find_mp_cache_entries(struct configuration_entry *,
+	const char *, cache_entry **, cache_entry **);
 
-extern void configuration_lock_rdlock(struct configuration *config);
-extern void configuration_lock_wrlock(struct configuration *config);
-extern void configuration_unlock(struct configuration *config);
+void configuration_lock_rdlock(struct configuration *config);
+void configuration_lock_wrlock(struct configuration *config);
+void configuration_unlock(struct configuration *config);
 
-extern void configuration_lock_entry(struct configuration_entry *,
+void configuration_lock_entry(struct configuration_entry *,
 	enum config_entry_lock_type);
-extern void configuration_unlock_entry(struct configuration_entry *,
+void configuration_unlock_entry(struct configuration_entry *,
 	enum config_entry_lock_type);
 
 #endif
