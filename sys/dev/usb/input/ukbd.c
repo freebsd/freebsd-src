@@ -1562,7 +1562,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 
 #endif					/* UKBD_EMULATE_ATSCANCODE */
 
-keyboard_switch_t ukbdsw = {
+static keyboard_switch_t ukbdsw = {
 	.probe = &ukbd__probe,
 	.init = &ukbd_init,
 	.term = &ukbd_term,

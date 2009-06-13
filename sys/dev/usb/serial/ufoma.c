@@ -1103,7 +1103,7 @@ ufoma_stop_write(struct ucom_softc *ucom)
 	}
 }
 
-struct umcpc_modetostr_tab{
+static struct umcpc_modetostr_tab{
 	int mode;
 	char *str;
 }umcpc_modetostr_tab[]={

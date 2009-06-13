@@ -120,7 +120,7 @@ struct cdevsw usb2_devsw = {
 static struct cdev* usb2_dev = NULL;
 
 /* character device structure used for /dev/usb */
-struct cdevsw usb2_static_devsw = {
+static struct cdevsw usb2_static_devsw = {
 	.d_version = D_VERSION,
 	.d_ioctl = usb2_static_ioctl,
 	.d_name = "usb"
