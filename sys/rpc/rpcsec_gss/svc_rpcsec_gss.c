@@ -1442,7 +1442,7 @@ svc_rpc_gss_wrap(SVCAUTH *auth, struct mbuf **mp)
 	cc = (struct svc_rpc_gss_cookedcred *) auth->svc_ah_private;
 	client = cc->cc_client;
 	if (client->cl_state != CLIENT_ESTABLISHED
-	    || cc->cc_service == rpc_gss_svc_none) {
+	    || cc->cc_service == rpc_gss_svc_none || *mp == NULL) {
 		return (TRUE);
 	}
 	
