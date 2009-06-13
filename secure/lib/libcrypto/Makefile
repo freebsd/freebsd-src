@@ -72,7 +72,7 @@ SRCS+=	bn_add.c bn_blind.c bn_const.c bn_ctx.c bn_depr.c bn_div.c \
 	bn_err.c bn_exp.c bn_exp2.c bn_gcd.c bn_gf2m.c bn_kron.c \
 	bn_lib.c bn_mod.c bn_mont.c bn_mpi.c bn_mul.c bn_nist.c bn_opt.c \
 	bn_prime.c bn_print.c bn_rand.c bn_recp.c bn_shift.c bn_sqr.c \
-	bn_sqrt.c bn_word.c
+	bn_sqrt.c bn_word.c bn_x931p.c
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	bn-586.s co-586.s
 .elif ${MACHINE_ARCH} == "amd64"
