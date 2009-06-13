@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "../debug.h"
-#include "passwd.h"
+#include "group.h"
 
 static int group_marshal_func(struct group *, char *, size_t *);
 static int group_lookup_func(const char *, size_t, char **, size_t *);
