@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
+
 #include "debug.h"
 
 static	int	trace_level = 0;
