@@ -333,6 +333,10 @@ INCS+=	cms.h
 SRCS+=	jpake.c jpake_err.c
 INCS+=	jpake.h
 
+# seed
+SRCS+=	seed.c seed_ecb.c seed_cbc.c seed_cfb.c seed_ofb.c
+INCS+=	seed.h
+
 SRCS+=	buildinf.h
 INCS+=	opensslconf.h evp.h
 INCSDIR=	${INCLUDEDIR}/openssl
@@ -435,6 +439,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/rc5 \
 	${LCRYPTO_SRC}/crypto/ripemd \
 	${LCRYPTO_SRC}/crypto/rsa \
+	${LCRYPTO_SRC}/crypto/seed \
 	${LCRYPTO_SRC}/crypto/sha \
 	${LCRYPTO_SRC}/crypto/stack \
 	${LCRYPTO_SRC}/crypto/store \
