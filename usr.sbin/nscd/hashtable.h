@@ -29,7 +29,6 @@
 #ifndef __CACHELIB_HASHTABLE_H__
 #define __CACHELIB_HASHTABLE_H__
 
-#include <search.h>
 #include <string.h>
 
 #define HASHTABLE_INITIAL_ENTRIES_CAPACITY 8
