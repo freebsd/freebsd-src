@@ -719,7 +719,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			maxhlen = M_TRAILINGSPACE(n) - maxlen;
 			pr = curthread->td_ucred->cr_prison;
 			mtx_lock(&pr->pr_mtx);
-			hlen = strlen(pr->pr_host);
+			hlen = strlen(pr->pr_hostname);
 			if (maxhlen > hlen)
 				maxhlen = hlen;
 			/*
@@ -731,7 +731,8 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			bcopy(icmp6, nicmp6, sizeof(struct icmp6_hdr));
 			p = (u_char *)(nicmp6 + 1);
 			bzero(p, 4);
-			bcopy(pr->pr_host, p + 4, maxhlen); /* meaningless TTL */
+			/* meaningless TTL */
+			bcopy(pr->pr_hostname, p + 4, maxhlen);
 			mtx_unlock(&pr->pr_mtx);
 			noff = sizeof(struct ip6_hdr);
 			n->m_pkthdr.len = n->m_len = sizeof(struct ip6_hdr) +
@@ -1334,7 +1335,8 @@ ni6_input(struct mbuf *m, int off)
 			 */
 			pr = curthread->td_ucred->cr_prison;
 			mtx_lock(&pr->pr_mtx);
-			n = ni6_nametodns(pr->pr_host, strlen(pr->pr_host), 0);
+			n = ni6_nametodns(pr->pr_hostname,
+			    strlen(pr->pr_hostname), 0);
 			mtx_unlock(&pr->pr_mtx);
 			if (!n || n->m_next || n->m_len == 0)
 				goto bad;
@@ -1461,8 +1463,8 @@ ni6_input(struct mbuf *m, int off)
 		 */
 		pr = curthread->td_ucred->cr_prison;
 		mtx_lock(&pr->pr_mtx);
-		n->m_next =
-		    ni6_nametodns(pr->pr_host, strlen(pr->pr_host), oldfqdn);
+		n->m_next = ni6_nametodns(pr->pr_hostname,
+		    strlen(pr->pr_hostname), oldfqdn);
 		mtx_unlock(&pr->pr_mtx);
 		if (n->m_next == NULL)
 			goto bad;
