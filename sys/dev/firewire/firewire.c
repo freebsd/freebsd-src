@@ -724,7 +724,7 @@ fw_reset_crom(struct firewire_comm *fc)
 	crom_add_entry(root, CSRKEY_HW, __FreeBSD_version);
 #endif
 	mtx_lock(&prison0.pr_mtx);
-	crom_add_simple_text(src, root, &buf->hw, prison0.pr_host);
+	crom_add_simple_text(src, root, &buf->hw, prison0.pr_hostname);
 	mtx_unlock(&prison0.pr_mtx);
 }
 
