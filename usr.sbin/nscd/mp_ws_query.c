@@ -216,7 +216,7 @@ on_mp_write_session_request_process(struct query_state *qstate)
 	 * cache entries - each with its own decorated name.
 	 */
 	asprintf(&dec_cache_entry_name, "%s%s", qstate->eid_str,
-		qstate->config_entry->mp_cache_params.entry_name);
+		qstate->config_entry->mp_cache_params.cep.entry_name);
 	assert(dec_cache_entry_name != NULL);
 
 	configuration_lock_rdlock(s_configuration);
@@ -522,12 +522,12 @@ cache_entry register_new_mp_cache_entry(struct query_state *qstate,
 	configuration_lock_entry(qstate->config_entry, CELT_MULTIPART);
 
 	configuration_lock_wrlock(s_configuration);
-	en_bkp = qstate->config_entry->mp_cache_params.entry_name;
-	qstate->config_entry->mp_cache_params.entry_name =
+	en_bkp = qstate->config_entry->mp_cache_params.cep.entry_name;
+	qstate->config_entry->mp_cache_params.cep.entry_name =
 		(char *)dec_cache_entry_name;
 	register_cache_entry(s_cache, (struct cache_entry_params *)
 		&qstate->config_entry->mp_cache_params);
-	qstate->config_entry->mp_cache_params.entry_name = en_bkp;
+	qstate->config_entry->mp_cache_params.cep.entry_name = en_bkp;
 	configuration_unlock(s_configuration);
 
 	configuration_lock_rdlock(s_configuration);
