@@ -156,8 +156,6 @@ static void mmu_booke_enter_locked(mmu_t, pmap_t, vm_offset_t, vm_page_t,
 unsigned int kptbl_min;		/* Index of the first kernel ptbl. */
 unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 
-static int pagedaemon_waken;
-
 /*
  * If user pmap is processed with mmu_booke_remove and the resident count
  * drops to 0, there are no more pages to remove, so we need not continue.
@@ -712,11 +710,8 @@ pv_alloc(void)
 	pv_entry_t pv;
 
 	pv_entry_count++;
-	if ((pv_entry_count > pv_entry_high_water) &&
-	    (pagedaemon_waken == 0)) {
-		pagedaemon_waken = 1;
-		wakeup(&vm_pages_needed);
-	}
+	if (pv_entry_count > pv_entry_high_water)
+		pagedaemon_wakeup();
 	pv = uma_zalloc(pvzone, M_NOWAIT);
 
 	return (pv);
