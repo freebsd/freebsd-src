@@ -27,7 +27,7 @@ INCS=	crypto.h ebcdic.h opensslv.h ossl_typ.h symhacks.h tmdiff.h \
 
 # aes
 SRCS+=	aes_cbc.c aes_cfb.c aes_core.c aes_ctr.c aes_ecb.c aes_ige.c \
-	aes_misc.c aes_ofb.c
+	aes_misc.c aes_ofb.c aes_wrap.c
 INCS+=	aes.h aes_locl.h
 
 # asn1
@@ -324,6 +324,15 @@ SRCS+=	pcy_cache.c pcy_data.c pcy_lib.c pcy_map.c pcy_node.c \
 	v3_purp.c v3_skey.c v3_sxnet.c v3_utl.c v3err.c
 INCS+=	x509v3.h
 
+# cms
+SRCS+=	cms_lib.c cms_asn1.c cms_att.c cms_io.c cms_smime.c cms_err.c \
+	cms_sd.c cms_dd.c cms_cd.c cms_env.c cms_enc.c cms_ess.c
+INCS+=	cms.h
+
+# jpake
+SRCS+=	jpake.c jpake_err.c
+INCS+=	jpake.h
+
 SRCS+=	buildinf.h
 INCS+=	opensslconf.h evp.h
 INCSDIR=	${INCLUDEDIR}/openssl
@@ -392,6 +401,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/buffer \
 	${LCRYPTO_SRC}/crypto/cast \
 	${LCRYPTO_SRC}/crypto/camellia \
+	${LCRYPTO_SRC}/crypto/cms \
 	${LCRYPTO_SRC}/crypto/comp \
 	${LCRYPTO_SRC}/crypto/conf \
 	${LCRYPTO_SRC}/crypto/des \
@@ -406,6 +416,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/evp \
 	${LCRYPTO_SRC}/crypto/hmac \
 	${_ideapath} \
+	${LCRYPTO_SRC}/crypto/jpake \
 	${LCRYPTO_SRC}/crypto/krb5 \
 	${LCRYPTO_SRC}/crypto/lhash \
 	${LCRYPTO_SRC}/crypto/md2 \

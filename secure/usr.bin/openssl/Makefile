@@ -12,7 +12,7 @@ LDADD=	-lssl -lcrypto
 
 CFLAGS+= -DMONOLITH -I${.CURDIR}
 
-SRCS+=	app_rand.c apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c \
+SRCS+=	app_rand.c apps.c asn1pars.c ca.c ciphers.c cms.c crl.c crl2p7.c \
 	dgst.c dh.c dhparam.c dsa.c dsaparam.c ec.c ecparam.c enc.c \
 	engine.c errstr.c \
 	gendh.c gendsa.c genrsa.c nseq.c ocsp.c openssl.c passwd.c \
