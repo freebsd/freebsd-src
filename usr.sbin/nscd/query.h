@@ -40,8 +40,7 @@ struct configuration_entry;
 typedef	int (*query_process_func)(struct query_state *);
 typedef void (*query_destroy_func)(struct query_state *);
 typedef ssize_t (*query_read_func)(struct query_state *, void *, size_t);
-typedef ssize_t (*query_write_func)(struct query_state *, const void *,
-	size_t);
+typedef ssize_t (*query_write_func)(struct query_state *, const void *, size_t);
 
 /*
  * The query state structure contains the information to process all types of
@@ -91,17 +90,15 @@ struct query_state {
 	int	use_alternate_io;
 };
 
-extern int check_query_eids(struct query_state *);
+int check_query_eids(struct query_state *);
 
-extern ssize_t query_io_buffer_read(struct query_state *, void *, size_t);
-extern ssize_t query_io_buffer_write(struct query_state *, const void *,
-	size_t);
+ssize_t query_io_buffer_read(struct query_state *, void *, size_t);
+ssize_t query_io_buffer_write(struct query_state *, const void *, size_t);
 
-extern ssize_t query_socket_read(struct query_state *, void *, size_t);
-extern ssize_t query_socket_write(struct query_state *, const void *,
-	size_t);
+ssize_t query_socket_read(struct query_state *, void *, size_t);
+ssize_t query_socket_write(struct query_state *, const void *, size_t);
 
-extern struct query_state *init_query_state(int, size_t, uid_t, gid_t);
-extern void destroy_query_state(struct query_state *);
+struct query_state *init_query_state(int, size_t, uid_t, gid_t);
+void destroy_query_state(struct query_state *);
 
 #endif
