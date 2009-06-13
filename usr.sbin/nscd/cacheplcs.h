@@ -39,8 +39,7 @@
  * queue. connected_item pointers to the corresponding cache_policy_item_ in
  * another policy queue.
  */
-struct cache_policy_item_
-{
+struct cache_policy_item_ {
 	char	*key;
     	size_t	key_size;
 
@@ -55,8 +54,7 @@ struct cache_policy_item_
  * cache_policy_ represents an abstract policy queue. It can be customized by
  * setting appropriate function pointers
  */
-struct cache_policy_
-{
+struct cache_policy_ {
 	struct cache_policy_item_* (*create_item_func)(void);
 	void (*destroy_item_func)(struct cache_policy_item_ *);
 
@@ -80,8 +78,7 @@ struct cache_policy_
 /*
  * LFU cache policy item "inherited" from cache_policy_item_ structure
  */
-struct cache_lfu_policy_item_
-{
+struct cache_lfu_policy_item_ {
 	struct cache_policy_item_ parent_data;
 	int	frequency;
 
@@ -93,8 +90,7 @@ TAILQ_HEAD(cache_lfu_policy_group_, cache_lfu_policy_item_);
 /*
  * LFU policy queue "inherited" from cache_policy_.
  */
-struct cache_lfu_policy_
-{
+struct cache_lfu_policy_ {
 	struct cache_policy_ parent_data;
 	struct cache_lfu_policy_group_ groups[CACHELIB_MAX_FREQUENCY];
 };
@@ -102,8 +98,7 @@ struct cache_lfu_policy_
 /*
  * LRU and FIFO policies item "inherited" from cache_policy_item_
  */
-struct cache_queue_policy_item_
-{
+struct cache_queue_policy_item_ {
 	struct cache_policy_item_ parent_data;
 	TAILQ_ENTRY(cache_queue_policy_item_) entries;
 };
@@ -111,8 +106,7 @@ struct cache_queue_policy_item_
 /*
  * LRU and FIFO policies "inherited" from cache_policy_
  */
-struct cache_queue_policy_
-{
+struct cache_queue_policy_ {
 	struct cache_policy_ parent_data;
 	TAILQ_HEAD(cache_queue_policy_head_, cache_queue_policy_item_) head;
 };
@@ -121,15 +115,15 @@ typedef struct cache_queue_policy_ cache_fifo_policy_;
 typedef struct cache_queue_policy_ cache_lru_policy_;
 
 /* fifo policy routines */
-extern struct cache_policy_ *init_cache_fifo_policy(void);
-extern void destroy_cache_fifo_policy(struct cache_policy_ *);
+struct cache_policy_ *init_cache_fifo_policy(void);
+void destroy_cache_fifo_policy(struct cache_policy_ *);
 
 /* lru policy routines */
-extern struct cache_policy_ *init_cache_lru_policy(void);
-extern void destroy_cache_lru_policy(struct cache_policy_ *);
+struct cache_policy_ *init_cache_lru_policy(void);
+void destroy_cache_lru_policy(struct cache_policy_ *);
 
 /* lfu policy routines */
-extern struct cache_policy_ *init_cache_lfu_policy(void);
-extern void destroy_cache_lfu_policy(struct cache_policy_ *);
+struct cache_policy_ *init_cache_lfu_policy(void);
+void destroy_cache_lfu_policy(struct cache_policy_ *);
 
 #endif

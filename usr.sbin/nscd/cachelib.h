@@ -69,8 +69,7 @@ enum part_position_t {
  * by using one entry.
  * get_time_func is needed to have the clocks-independent counter
  */
-struct cache_params
-{
+struct cache_params {
 	void	(*get_time_func)(struct timeval *);
 };
 
@@ -78,15 +77,13 @@ struct cache_params
  * base structure - normal_cache_entry_params and multipart_cache_entry_params
  * are "inherited" from it
  */
-struct cache_entry_params
-{
+struct cache_entry_params {
 	enum cache_entry_t entry_type;
 	char	*entry_name;
 };
 
 /* params, used for most entries */
-struct common_cache_entry_params
-{
+struct common_cache_entry_params {
 	struct cache_entry_params cep;
 
 	size_t	cache_entries_size;
@@ -100,8 +97,7 @@ struct common_cache_entry_params
 };
 
 /* params, used for multipart entries */
-struct	mp_cache_entry_params
-{
+struct	mp_cache_entry_params {
 	struct cache_entry_params cep;
 
 	/* unique fields */
@@ -111,8 +107,7 @@ struct	mp_cache_entry_params
 	struct timeval	max_lifetime;	/* maximum elements lifetime */
 };
 
-struct cache_ht_item_data_
-{
+struct cache_ht_item_data_ {
     	/* key is the bytes sequence only - not the null-terminated string */
 	char	*key;
     	size_t	key_size;
@@ -123,19 +118,16 @@ struct cache_ht_item_data_
 	struct cache_policy_item_ *fifo_policy_item;
 };
 
-struct cache_ht_item_
-{
+struct cache_ht_item_ {
 	HASHTABLE_ENTRY_HEAD(ht_item_, struct cache_ht_item_data_) data;
 };
 
-struct cache_entry_
-{
+struct cache_entry_ {
 	char	*name;
 	struct cache_entry_params *params;
 };
 
-struct cache_common_entry_
-{
+struct cache_common_entry_ {
 	char	*name;
 	struct cache_entry_params *params;
 
@@ -163,8 +155,7 @@ struct cache_mp_data_item_ {
 	TAILQ_ENTRY(cache_mp_data_item_) entries;
 };
 
-struct cache_mp_write_session_
-{
+struct cache_mp_write_session_ {
 	struct cache_mp_entry_	*parent_entry;
 
 	/*
@@ -177,16 +168,14 @@ struct cache_mp_write_session_
 	TAILQ_ENTRY(cache_mp_write_session_) entries;
 };
 
-struct cache_mp_read_session_
-{
+struct cache_mp_read_session_ {
 	struct cache_mp_entry_ *parent_entry;
 	struct cache_mp_data_item_ *current_item;
 
 	TAILQ_ENTRY(cache_mp_read_session_) entries;
 };
 
-struct cache_mp_entry_
-{
+struct cache_mp_entry_ {
 	char	*name;
 	struct cache_entry_params *params;
 
@@ -217,8 +206,7 @@ struct cache_mp_entry_
 	void	(*get_time_func)(struct timeval *);
 };
 
-struct cache_
-{
+struct cache_ {
 	struct cache_params params;
 
 	struct cache_entry_ **entries;
@@ -243,31 +231,31 @@ typedef struct cache_mp_read_session_	*cache_mp_read_session;
  */
 
 /* cache initialization/destruction routines */
-extern cache init_cache(struct cache_params const *);
-extern void destroy_cache(cache);
+cache init_cache(struct cache_params const *);
+void destroy_cache(cache);
 
 /* cache entries manipulation routines */
-extern int register_cache_entry(cache, struct cache_entry_params const *);
-extern int unregister_cache_entry(cache, const char *);
-extern cache_entry find_cache_entry(cache, const char *);
+int register_cache_entry(cache, struct cache_entry_params const *);
+int unregister_cache_entry(cache, const char *);
+cache_entry find_cache_entry(cache, const char *);
 
 /* read/write operations used on common entries */
-extern int cache_read(cache_entry, const char *, size_t, char *, size_t *);
-extern int cache_write(cache_entry, const char *, size_t, char const *, size_t);
+int cache_read(cache_entry, const char *, size_t, char *, size_t *);
+int cache_write(cache_entry, const char *, size_t, char const *, size_t);
 
 /* read/write operations used on multipart entries */
-extern cache_mp_write_session open_cache_mp_write_session(cache_entry);
-extern int cache_mp_write(cache_mp_write_session, char *, size_t);
-extern void abandon_cache_mp_write_session(cache_mp_write_session);
-extern void close_cache_mp_write_session(cache_mp_write_session);
+cache_mp_write_session open_cache_mp_write_session(cache_entry);
+int cache_mp_write(cache_mp_write_session, char *, size_t);
+void abandon_cache_mp_write_session(cache_mp_write_session);
+void close_cache_mp_write_session(cache_mp_write_session);
 
-extern cache_mp_read_session open_cache_mp_read_session(cache_entry);
-extern int cache_mp_read(cache_mp_read_session, char *, size_t *);
-extern void close_cache_mp_read_session(cache_mp_read_session);
+cache_mp_read_session open_cache_mp_read_session(cache_entry);
+int cache_mp_read(cache_mp_read_session, char *, size_t *);
+void close_cache_mp_read_session(cache_mp_read_session);
 
 /* transformation routines */
-extern int transform_cache_entry(cache_entry, enum cache_transformation_t);
-extern int transform_cache_entry_part(cache_entry, enum cache_transformation_t,
+int transform_cache_entry(cache_entry, enum cache_transformation_t);
+int transform_cache_entry_part(cache_entry, enum cache_transformation_t,
 	const char *, size_t, enum part_position_t);
 
 #endif

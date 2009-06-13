@@ -54,14 +54,14 @@
 #define TRACE_OFF()	(void)0
 #endif
 
-extern void nscd_trace_in(const char *, const char *, int);
-extern void nscd_trace_point(const char *, int);
-extern void nscd_trace_msg(const char *, const char *, int);
-extern void nscd_trace_ptr(const char *, const void *, const char *, int);
-extern void nscd_trace_int(const char *, int, const char *, int);
-extern void nscd_trace_str(const char *, const char *, const char *, int);
-extern void nscd_trace_out(const char *, const char *, int);
-extern void nscd_trace_on(void);
-extern void nscd_trace_off(void);
+void nscd_trace_in(const char *, const char *, int);
+void nscd_trace_point(const char *, int);
+void nscd_trace_msg(const char *, const char *, int);
+void nscd_trace_ptr(const char *, const void *, const char *, int);
+void nscd_trace_int(const char *, int, const char *, int);
+void nscd_trace_str(const char *, const char *, const char *, int);
+void nscd_trace_out(const char *, const char *, int);
+void nscd_trace_on(void);
+void nscd_trace_off(void);
 
 #endif
