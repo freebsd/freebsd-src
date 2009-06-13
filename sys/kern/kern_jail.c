@@ -3207,17 +3207,48 @@ jailed(struct ucred *cred)
 }
 
 /*
- * Return the correct hostname for the passed credential.
+ * Return the correct hostname (domainname, et al) for the passed credential.
  */
 void
 getcredhostname(struct ucred *cred, char *buf, size_t size)
 {
 	struct prison *pr;
 
+	/*
+	 * A NULL credential can be used to shortcut to the physical
+	 * system's hostname.
+	 */
 	pr = (cred != NULL) ? cred->cr_prison : &prison0;
 	mtx_lock(&pr->pr_mtx);
 	strlcpy(buf, pr->pr_host, size);
 	mtx_unlock(&pr->pr_mtx);
+}
+
+void
+getcreddomainname(struct ucred *cred, char *buf, size_t size)
+{
+
+	mtx_lock(&cred->cr_prison->pr_mtx);
+	strlcpy(buf, cred->cr_prison->pr_domain, size);
+	mtx_unlock(&cred->cr_prison->pr_mtx);
+}
+
+void
+getcredhostuuid(struct ucred *cred, char *buf, size_t size)
+{
+
+	mtx_lock(&cred->cr_prison->pr_mtx);
+	strlcpy(buf, cred->cr_prison->pr_uuid, size);
+	mtx_unlock(&cred->cr_prison->pr_mtx);
+}
+
+void
+getcredhostid(struct ucred *cred, unsigned long *hostid)
+{
+
+	mtx_lock(&cred->cr_prison->pr_mtx);
+	*hostid = cred->cr_prison->pr_hostid;
+	mtx_unlock(&cred->cr_prison->pr_mtx);
 }
 
 /*
