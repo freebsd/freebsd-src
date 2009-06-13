@@ -86,8 +86,8 @@ cache_queue_policy_create_item(void)
 	struct cache_queue_policy_item_ *retval;
 
 	TRACE_IN(cache_queue_policy_create_item);
-	retval = (struct cache_queue_policy_item_ *)calloc(1,
-		sizeof(struct cache_queue_policy_item_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	TRACE_OUT(cache_queue_policy_create_item);
@@ -196,8 +196,8 @@ init_cache_queue_policy(void)
 	struct cache_queue_policy_	*retval;
 
 	TRACE_IN(init_cache_queue_policy);
-	retval = (struct cache_queue_policy_ *)calloc(1,
-		sizeof(struct cache_queue_policy_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent_data.create_item_func = cache_queue_policy_create_item;
@@ -336,8 +336,8 @@ cache_lfu_policy_create_item(void)
 	struct cache_lfu_policy_item_ *retval;
 
 	TRACE_IN(cache_lfu_policy_create_item);
-	retval = (struct cache_lfu_policy_item_ *)calloc(1,
-		sizeof(struct cache_lfu_policy_item_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	TRACE_OUT(cache_lfu_policy_create_item);
@@ -540,8 +540,8 @@ init_cache_lfu_policy(void)
 	struct cache_lfu_policy_ *retval;
 
 	TRACE_IN(init_cache_lfu_policy);
-	retval = (struct cache_lfu_policy_ *)calloc(1,
-		sizeof(struct cache_lfu_policy_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent_data.create_item_func = cache_lfu_policy_create_item;
