@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090613:
+	The layout of the structure returned by IEEE80211_IOC_STA_INFO
+	has changed.  User applications that use this ioctl need to be
+	rebuilt.
+
 20090611:
 	The layout of struct thread has changed.  Kernel and modules
 	need to be rebuilt.
