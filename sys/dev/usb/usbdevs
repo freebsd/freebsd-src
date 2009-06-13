@@ -514,7 +514,7 @@ vendor TANGTOP		0x0d3d	Tangtop
 vendor SMC3		0x0d5c	Standard Microsystems
 vendor ADDON		0x0d7d	Add-on Technology
 vendor ACDC		0x0d7e	American Computer & Digital Components
-vendor ABC		0x0d8c	ABC
+vendor CMEDIA		0x0d8c	CMEDIA
 vendor CONCEPTRONIC	0x0d8e	Conceptronic
 vendor SKANHEX		0x0d96	Skanhex Technology, Inc.
 vendor MSI		0x0db0	Micro Star International
