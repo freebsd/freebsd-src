@@ -76,7 +76,7 @@ bsfl(u_int mask)
 {
 	u_int	result;
 
-	__asm __volatile("bsfl %1,%0" : "=r" (result) : "rm" (mask));
+	__asm("bsfl %1,%0" : "=r" (result) : "rm" (mask) : "cc");
 	return (result);
 }
 
@@ -85,7 +85,7 @@ bsrl(u_int mask)
 {
 	u_int	result;
 
-	__asm __volatile("bsrl %1,%0" : "=r" (result) : "rm" (mask));
+	__asm("bsrl %1,%0" : "=r" (result) : "rm" (mask) : "cc");
 	return (result);
 }
 
