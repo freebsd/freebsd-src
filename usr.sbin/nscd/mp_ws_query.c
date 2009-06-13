@@ -122,7 +122,7 @@ on_mp_write_session_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		c_mp_ws_request->entry = (char *)calloc(1,
+		c_mp_ws_request->entry = calloc(1,
 			c_mp_ws_request->entry_length + 1);
 		assert(c_mp_ws_request->entry != NULL);
 
@@ -375,7 +375,7 @@ on_mp_write_session_write_request_read1(struct query_state *qstate)
 		return (-1);
 	}
 
-	write_request->data = (char *)calloc(1, write_request->data_size);
+	write_request->data = calloc(1, write_request->data_size);
 	assert(write_request->data != NULL);
 
 	qstate->kevent_watermark = write_request->data_size;

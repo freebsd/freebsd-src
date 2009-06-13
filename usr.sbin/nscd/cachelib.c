@@ -481,14 +481,14 @@ init_cache(struct cache_params const *params)
 	TRACE_IN(init_cache);
 	assert(params != NULL);
 
-	retval = (struct cache_ *)calloc(1, sizeof(struct cache_));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	assert(params != NULL);
 	memcpy(&retval->params, params, sizeof(struct cache_params));
 
-	retval->entries = (struct cache_entry_ **)calloc(1,
-		sizeof(struct cache_entry_ *) * INITIAL_ENTRIES_CAPACITY);
+	retval->entries = calloc(1,
+		sizeof(*retval->entries) * INITIAL_ENTRIES_CAPACITY);
 	assert(retval->entries != NULL);
 
 	retval->entries_capacity = INITIAL_ENTRIES_CAPACITY;
@@ -540,8 +540,8 @@ register_cache_entry(struct cache_ *the_cache,
 
 		new_capacity = the_cache->entries_capacity +
 			ENTRIES_CAPACITY_STEP;
-		new_entries = (struct cache_entry_ **)calloc(1,
-			sizeof(struct cache_entry_ *) * new_capacity);
+		new_entries = calloc(1,
+			sizeof(*new_entries) * new_capacity);
 		assert(new_entries != NULL);
 
 		memcpy(new_entries, the_cache->entries,
@@ -556,8 +556,8 @@ register_cache_entry(struct cache_ *the_cache,
 	switch (params->entry_type)
 	{
 	case CET_COMMON:
-		new_common_entry = (struct cache_common_entry_ *)calloc(1,
-			sizeof(struct cache_common_entry_));
+		new_common_entry = calloc(1,
+			sizeof(*new_common_entry));
 		assert(new_common_entry != NULL);
 
 		memcpy(&new_common_entry->common_params, params,
@@ -565,7 +565,7 @@ register_cache_entry(struct cache_ *the_cache,
 		new_common_entry->params =
 		  (struct cache_entry_params *)&new_common_entry->common_params;
 
-		new_common_entry->common_params.cep.entry_name = (char *)calloc(1,
+		new_common_entry->common_params.cep.entry_name = calloc(1,
 			entry_name_size);
 		assert(new_common_entry->common_params.cep.entry_name != NULL);
 		strlcpy(new_common_entry->common_params.cep.entry_name,
@@ -582,8 +582,8 @@ register_cache_entry(struct cache_ *the_cache,
 		else
 			policies_size = 2;
 
-		new_common_entry->policies = (struct cache_policy_ **)calloc(1,
-			sizeof(struct cache_policy_ *) * policies_size);
+		new_common_entry->policies = calloc(1,
+			sizeof(*new_common_entry->policies) * policies_size);
 		assert(new_common_entry->policies != NULL);
 
 		new_common_entry->policies_size = policies_size;
@@ -610,8 +610,8 @@ register_cache_entry(struct cache_ *the_cache,
 			(struct cache_entry_ *)new_common_entry;
 		break;
 	case CET_MULTIPART:
-		new_mp_entry = (struct cache_mp_entry_ *)calloc(1,
-			sizeof(struct cache_mp_entry_));
+		new_mp_entry = calloc(1,
+			sizeof(*new_mp_entry));
 		assert(new_mp_entry != NULL);
 
 		memcpy(&new_mp_entry->mp_params, params,
@@ -619,7 +619,7 @@ register_cache_entry(struct cache_ *the_cache,
 		new_mp_entry->params =
 			(struct cache_entry_params *)&new_mp_entry->mp_params;
 
-		new_mp_entry->mp_params.cep.entry_name = (char *)calloc(1,
+		new_mp_entry->mp_params.cep.entry_name = calloc(1,
 			entry_name_size);
 		assert(new_mp_entry->mp_params.cep.entry_name != NULL);
 		strlcpy(new_mp_entry->mp_params.cep.entry_name, params->entry_name,
@@ -830,10 +830,10 @@ cache_write(struct cache_entry_ *entry, const char *key, size_t key_size,
 		return (-1);
 	}
 
-	item_data.key = (char *)malloc(key_size);
+	item_data.key = malloc(key_size);
 	memcpy(item_data.key, key, key_size);
 
-	item_data.value = (char *)malloc(value_size);
+	item_data.value = malloc(value_size);
 	assert(item_data.value != NULL);
 
 	memcpy(item_data.value, value, value_size);
@@ -912,8 +912,8 @@ open_cache_mp_write_session(struct cache_entry_ *entry)
 		return (NULL);
 	}
 
-	retval = (struct cache_mp_write_session_ *)calloc(1,
-		sizeof(struct cache_mp_write_session_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	TAILQ_INIT(&retval->items);
@@ -947,11 +947,11 @@ cache_mp_write(struct cache_mp_write_session_ *ws, char *data,
 		return (-1);
 	}
 
-	new_item = (struct cache_mp_data_item_ *)calloc(1,
-		sizeof(struct cache_mp_data_item_));
+	new_item = calloc(1,
+		sizeof(*new_item));
 	assert(new_item != NULL);
 
-	new_item->value = (char *)malloc(data_size);
+	new_item->value = malloc(data_size);
 	assert(new_item->value != NULL);
 	memcpy(new_item->value, data, data_size);
 	new_item->value_size = data_size;
@@ -1050,8 +1050,8 @@ open_cache_mp_read_session(struct cache_entry_ *entry)
 		}
 	}
 
-	retval = (struct cache_mp_read_session_ *)calloc(1,
-		sizeof(struct cache_mp_read_session_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent_entry = mp_entry;

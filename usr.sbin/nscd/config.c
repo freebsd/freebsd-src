@@ -125,8 +125,8 @@ create_configuration_entry(const char *name,
 	assert(negative_params != NULL);
 	assert(mp_params != NULL);
 
-	retval = (struct configuration_entry *)calloc(1,
-		sizeof(struct configuration_entry));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	res = pthread_mutex_init(&retval->positive_cache_lock, NULL);
@@ -167,7 +167,7 @@ create_configuration_entry(const char *name,
 		sizeof(struct mp_cache_entry_params));
 
 	size = strlen(name);
-	retval->name = (char *)calloc(1, size + 1);
+	retval->name = calloc(1, size + 1);
 	assert(retval->name != NULL);
 	memcpy(retval->name, name, size);
 
@@ -272,8 +272,8 @@ add_configuration_entry(struct configuration *config,
 		struct configuration_entry **new_entries;
 
 		config->entries_capacity *= 2;
-		new_entries = (struct configuration_entry **)calloc(1,
-			sizeof(struct configuration_entry *) *
+		new_entries = calloc(1,
+			sizeof(*new_entries) *
 			config->entries_capacity);
 		assert(new_entries != NULL);
 		memcpy(new_entries, config->entries,
@@ -340,7 +340,7 @@ configuration_entry_add_mp_cache_entry(struct configuration_entry *config_entry,
 
 	TRACE_IN(configuration_entry_add_mp_cache_entry);
 	++config_entry->mp_cache_entries_size;
-	new_mp_entries = (cache_entry *)malloc(sizeof(cache_entry) *
+	new_mp_entries = malloc(sizeof(*new_mp_entries) *
 		config_entry->mp_cache_entries_size);
 	assert(new_mp_entries != NULL);
 	new_mp_entries[0] = c_entry;
@@ -516,12 +516,12 @@ init_configuration(void)
 	struct configuration	*retval;
 
 	TRACE_IN(init_configuration);
-	retval = (struct configuration *)calloc(1, sizeof(struct configuration));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->entries_capacity = INITIAL_ENTRIES_CAPACITY;
-	retval->entries = (struct configuration_entry **)calloc(1,
-		sizeof(struct configuration_entry *) *
+	retval->entries = calloc(1,
+		sizeof(*retval->entries) *
 		retval->entries_capacity);
 	assert(retval->entries != NULL);
 
@@ -543,12 +543,12 @@ fill_configuration_defaults(struct configuration *config)
 		free(config->socket_path);
 
 	len = strlen(DEFAULT_SOCKET_PATH);
-	config->socket_path = (char *)calloc(1, len + 1);
+	config->socket_path = calloc(1, len + 1);
 	assert(config->socket_path != NULL);
 	memcpy(config->socket_path, DEFAULT_SOCKET_PATH, len);
 
 	len = strlen(DEFAULT_PIDFILE_PATH);
-	config->pidfile_path = (char *)calloc(1, len + 1);
+	config->pidfile_path = calloc(1, len + 1);
 	assert(config->pidfile_path != NULL);
 	memcpy(config->pidfile_path, DEFAULT_PIDFILE_PATH, len);
 

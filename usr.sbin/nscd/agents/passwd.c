@@ -150,7 +150,7 @@ passwd_lookup_func(const char *key, size_t key_size, char **buffer,
 	switch (lookup_type) {
 	case nss_lt_name:
 		size = key_size - sizeof(enum nss_lookup_type)	+ 1;
-		login = (char *)calloc(1, size);
+		login = calloc(1, size);
 		assert(login != NULL);
 		memcpy(login, key + sizeof(enum nss_lookup_type), size - 1);
 		break;
@@ -183,7 +183,7 @@ passwd_lookup_func(const char *key, size_t key_size, char **buffer,
 
 	if (result != NULL) {
 		passwd_marshal_func(result, NULL, buffer_size);
-		*buffer = (char *)malloc(*buffer_size);
+		*buffer = malloc(*buffer_size);
 		assert(*buffer != NULL);
 		passwd_marshal_func(result, *buffer, buffer_size);
 	}
@@ -211,7 +211,7 @@ passwd_mp_lookup_func(char **buffer, size_t *buffer_size, void *mdata)
 	result = getpwent();
 	if (result != NULL) {
 		passwd_marshal_func(result, NULL, buffer_size);
-		*buffer = (char *)malloc(*buffer_size);
+		*buffer = malloc(*buffer_size);
 		assert(*buffer != NULL);
 		passwd_marshal_func(result, *buffer, buffer_size);
 	}
@@ -233,7 +233,7 @@ init_passwd_agent(void)
 	struct common_agent	*retval;
 
 	TRACE_IN(init_passwd_agent);
-	retval = (struct common_agent *)calloc(1, sizeof(struct common_agent));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent.name = strdup("passwd");
@@ -252,8 +252,8 @@ init_passwd_mp_agent(void)
 	struct multipart_agent	*retval;
 
 	TRACE_IN(init_passwd_mp_agent);
-	retval = (struct multipart_agent *)calloc(1,
-		sizeof(struct multipart_agent));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent.name = strdup("passwd");
