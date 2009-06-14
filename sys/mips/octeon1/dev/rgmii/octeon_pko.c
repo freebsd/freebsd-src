@@ -9,6 +9,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <mips/octeon1/octeon_pcmap_regs.h>
 #include "octeon_fau.h"
 #include "octeon_fpa.h"
 #include "octeon_pko.h"
@@ -172,7 +173,7 @@ static void octeon_pko_doorbell_data_dump (uint64_t port)
     octeon_pko_port_status_t status;
 
     octeon_pko_get_port_status(port, 0, &status);
-    printf("\n Port #%d  Pkts %d   Bytes %lld  DoorBell %lld",
+    printf("\n Port #%lld  Pkts %ld   Bytes %lld  DoorBell %lld",
            port, status.packets, status.octets, status.doorbell);
 }
 
@@ -208,7 +209,7 @@ void octeon_pko_show (u_int start_port, u_int end_port)
     gmx_int0_ports = (16 >> octeon_pko_gmx_mode.bits.mode0);
     gmx_int1_ports = (16 >> octeon_pko_gmx_mode.bits.mode1);
     octeon_pko_crc_ports.word64 = oct_read64(OCTEON_PKO_REG_CRC_ENABLE);
-    printf("\n Total Queues: 0..%d  Ports GMX0 %d   GMX1 %d  CRC 0x%llX",
+    printf("\n Total Queues: 0..%d  Ports GMX0 %d   GMX1 %d  CRC 0x%X",
            queue_max - 1, gmx_int0_ports, gmx_int1_ports,
            octeon_pko_crc_ports.bits.crc_ports_mask);
 
@@ -228,7 +229,8 @@ void octeon_pko_show (u_int start_port, u_int end_port)
         printf("\n  Port # %d   Queue %3d   [%d]  BufPtr: 0x%llX Mask: %X%s",
                octeon_pko_queue_cfg.bits.port, octeon_pko_queue_cfg.bits.queue,
                octeon_pko_queue_cfg.bits.index,
-               octeon_pko_queue_cfg.bits.buf_ptr, octeon_pko_queue_cfg.bits.qos_mask,
+               (uint64_t)octeon_pko_queue_cfg.bits.buf_ptr,
+	       octeon_pko_queue_cfg.bits.qos_mask,
                (octeon_pko_queue_cfg.bits.tail)? "  Last":"");
     }
     printf("\n");
@@ -236,7 +238,7 @@ void octeon_pko_show (u_int start_port, u_int end_port)
     for (port = start_port; port < (end_port + 1); port++) {
 
         octeon_pko_get_port_status(port, 0, &status);
-        printf("\n Port #%d  Packets %d   Bytes %lld  DoorBell %lld",
+        printf("\n Port #%d  Packets %ld   Bytes %lld  DoorBell %lld",
                port, status.packets, status.octets, status.doorbell);
         octeon_pko_doorbell_data_dump(port);
 
@@ -264,7 +266,7 @@ octeon_pko_status_t octeon_pko_config_port (u_int port,
     octeon_pko_queue_cfg_t	qconfig;
 
     if ((port >= OCTEON_PKO_PORTS_MAX) && (port != OCTEON_PKO_PORT_ILLEGAL)) {
-        printf("\n%% Error: octeon_pko_config_port: Invalid port %llu", port);
+        printf("\n%% Error: octeon_pko_config_port: Invalid port %u", port);
         return (OCTEON_PKO_INVALID_PORT);
     }
 
