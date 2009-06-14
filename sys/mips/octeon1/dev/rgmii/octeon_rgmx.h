@@ -583,13 +583,11 @@ static inline void *octeon_pow_pktptr_to_kbuffer (octeon_buf_ptr_t pkt_ptr)
 #define OCTEON_RGMX_ADRCTL_CAM_MODE_ACCEPT_DMAC	8
 
 
-
 #define	RGMX_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
 #define	RGMX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx)
 #define	RGMX_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	RGMX_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
+#define	RGMX_UNLOCK(_sc)	mtx_unlock(&(_sc)->mtx)
 #define	RGMX_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
-
 
 #endif /* ___OCTEON_RGMX__H___ */
