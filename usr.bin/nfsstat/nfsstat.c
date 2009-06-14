@@ -49,6 +49,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
