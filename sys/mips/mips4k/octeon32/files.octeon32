@@ -1,0 +1,21 @@
+# /*
+#  *    This product includes software developed by the University of
+#  *    California, Berkeley and its contributors."
+# */
+# $FreeBSD$
+# Octeon Support Files
+#
+mips/mips4k/octeon32/obio.c			optional uart
+mips/mips4k/octeon32/uart_cpu_octeonusart.c	optional uart
+mips/mips4k/octeon32/uart_bus_octeonusart.c	optional uart
+dev/uart/uart_dev_oct16550.c			optional uart
+mips/mips/mp_machdep.c                          optional smp
+mips/mips4k/octeon32/octeon_machdep.c		standard
+
+dev/flash/octeon_ebt3000_cf.c			optional cf
+
+dev/le/octeon_fau.c				optional rgmii
+dev/le/octeon_fpa.c				optional rgmii
+dev/le/octeon_ipd.c 				optional rgmii
+dev/le/octeon_pko.c				optional rgmii
+dev/le/octeon_rgmx.c				optional rgmii
