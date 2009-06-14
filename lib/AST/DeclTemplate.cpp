@@ -50,7 +50,9 @@ unsigned TemplateParameterList::getMinRequiredArguments() const {
       ParamBegin = const_cast<TemplateParameterList *>(this)->begin();
   while (Param != ParamBegin) {
     --Param;
-    if (!(isa<TemplateTypeParmDecl>(*Param) && 
+    
+    if (!(*Param)->isTemplateParameterPack() &&
+        !(isa<TemplateTypeParmDecl>(*Param) && 
           cast<TemplateTypeParmDecl>(*Param)->hasDefaultArgument()) &&
         !(isa<NonTypeTemplateParmDecl>(*Param) &&
           cast<NonTypeTemplateParmDecl>(*Param)->hasDefaultArgument()) &&
@@ -186,9 +188,10 @@ QualType ClassTemplateDecl::getInjectedClassNameType(ASTContext &Context) {
 TemplateTypeParmDecl *
 TemplateTypeParmDecl::Create(ASTContext &C, DeclContext *DC,
                              SourceLocation L, unsigned D, unsigned P,
-                             IdentifierInfo *Id, bool Typename) {
+                             IdentifierInfo *Id, bool Typename,
+                             bool ParameterPack) {
   QualType Type = C.getTemplateTypeParmType(D, P, Id);
-  return new (C) TemplateTypeParmDecl(DC, L, Id, Typename, Type);
+  return new (C) TemplateTypeParmDecl(DC, L, Id, Typename, Type, ParameterPack);
 }
 
 //===----------------------------------------------------------------------===//
@@ -246,8 +249,26 @@ void TemplateArgumentListBuilder::push_back(const TemplateArgument& Arg) {
     break;
   }
   
+  if (!isAddingFromParameterPack()) {
+    // Add begin and end indicies.
+    Indices.push_back(Args.size());
+    Indices.push_back(Args.size());
+  }
+
   Args.push_back(Arg);
 }
+
+void TemplateArgumentListBuilder::BeginParameterPack() {
+  assert(!isAddingFromParameterPack() && "Already adding to parameter pack!");
+  
+  Indices.push_back(Args.size());
+}
+
+void TemplateArgumentListBuilder::EndParameterPack() {
+  assert(isAddingFromParameterPack() && "Not adding to parameter pack!");
+  
+  Indices.push_back(Args.size());
+}  
 
 //===----------------------------------------------------------------------===//
 // TemplateArgumentList Implementation

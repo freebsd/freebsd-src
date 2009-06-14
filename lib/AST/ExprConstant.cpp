@@ -16,6 +16,7 @@
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/ASTDiagnostic.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Compiler.h"
@@ -61,6 +62,13 @@ static bool EvaluateComplex(const Expr *E, APValue &Result, EvalInfo &Info);
 // Misc utilities
 //===----------------------------------------------------------------------===//
 
+static bool EvalPointerValueAsBool(APValue& Value, bool& Result) {
+  // FIXME: Is this accurate for all kinds of bases?  If not, what would
+  // the check look like?
+  Result = Value.getLValueBase() || Value.getLValueOffset();
+  return true;
+}
+
 static bool HandleConversionToBool(Expr* E, bool& Result, EvalInfo &Info) {
   if (E->getType()->isIntegralType()) {
     APSInt IntResult;
@@ -78,10 +86,7 @@ static bool HandleConversionToBool(Expr* E, bool& Result, EvalInfo &Info) {
     APValue PointerResult;
     if (!EvaluatePointer(E, PointerResult, Info))
       return false;
-    // FIXME: Is this accurate for all kinds of bases?  If not, what would
-    // the check look like?
-    Result = PointerResult.getLValueBase() || PointerResult.getLValueOffset();
-    return true;
+    return EvalPointerValueAsBool(PointerResult, Result);
   } else if (E->getType()->isAnyComplexType()) {
     APValue ComplexResult;
     if (!EvaluateComplex(E, ComplexResult, Info))
@@ -936,10 +941,27 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
       if (!EvaluatePointer(E->getRHS(), RHSValue, Info))
         return false;
 
-      // Reject any bases; this is conservative, but good enough for
-      // common uses
-      if (LHSValue.getLValueBase() || RHSValue.getLValueBase())
-        return false;
+      // Reject any bases from the normal codepath; we special-case comparisons
+      // to null.
+      if (LHSValue.getLValueBase()) {
+        if (!E->isEqualityOp())
+          return false;
+        if (RHSValue.getLValueBase() || RHSValue.getLValueOffset())
+          return false;
+        bool bres;
+        if (!EvalPointerValueAsBool(LHSValue, bres))
+          return false;
+        return Success(bres ^ (E->getOpcode() == BinaryOperator::EQ), E);
+      } else if (RHSValue.getLValueBase()) {
+        if (!E->isEqualityOp())
+          return false;
+        if (LHSValue.getLValueBase() || LHSValue.getLValueOffset())
+          return false;
+        bool bres;
+        if (!EvalPointerValueAsBool(RHSValue, bres))
+          return false;
+        return Success(bres ^ (E->getOpcode() == BinaryOperator::EQ), E);
+      }
 
       if (E->getOpcode() == BinaryOperator::Sub) {
         const QualType Type = E->getLHS()->getType();

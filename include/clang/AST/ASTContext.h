@@ -17,13 +17,11 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/AST/Attr.h"
-#include "clang/AST/Builtins.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
-#include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -55,6 +53,8 @@ namespace clang {
   class FieldDecl;
   class ObjCIvarRefExpr;
   class ObjCIvarDecl;
+  
+  namespace Builtin { class Context; }
   
 /// ASTContext - This class holds long-lived AST nodes (such as types and
 /// decls) that can be referred to throughout the semantic analysis of a file.
@@ -142,6 +142,7 @@ public:
   TargetInfo &Target;
   IdentifierTable &Idents;
   SelectorTable &Selectors;
+  Builtin::Context &BuiltinInfo;
   DeclarationNameTable DeclarationNames;
   llvm::OwningPtr<ExternalASTSource> ExternalSource;
   clang::PrintingPolicy PrintingPolicy;
@@ -164,7 +165,6 @@ public:
 
   TranslationUnitDecl *getTranslationUnitDecl() const { return TUDecl; }
 
-  Builtin::Context BuiltinInfo;
 
   // Builtin Types.
   QualType VoidTy;
@@ -181,20 +181,11 @@ public:
   QualType DependentTy;
 
   ASTContext(const LangOptions& LOpts, SourceManager &SM, TargetInfo &t,
-             IdentifierTable &idents, SelectorTable &sels, 
-             bool FreeMemory = true, unsigned size_reserve=0,
-             bool InitializeBuiltins = true);
+             IdentifierTable &idents, SelectorTable &sels,
+             Builtin::Context &builtins,
+             bool FreeMemory = true, unsigned size_reserve=0);
 
   ~ASTContext();
-
-  /// \brief Initialize builtins.
-  ///
-  /// Typically, this routine will be called automatically by the
-  /// constructor. However, in certain cases (e.g., when there is a
-  /// PCH file to be loaded), the constructor does not perform
-  /// initialization for builtins. This routine can be called to
-  /// perform the initialization.
-  void InitializeBuiltins(IdentifierTable &idents);
 
   /// \brief Attach an external AST source to the AST context.
   ///
@@ -455,6 +446,14 @@ public:
   TemplateName getDependentTemplateName(NestedNameSpecifier *NNS, 
                                         const IdentifierInfo *Name);
 
+  enum GetBuiltinTypeError {
+    GE_None,        //< No error
+    GE_Missing_FILE //< Missing the FILE type from <stdio.h>
+  };
+  
+  /// GetBuiltinType - Return the type for the specified builtin.
+  QualType GetBuiltinType(unsigned ID, GetBuiltinTypeError &Error);
+  
 private:
   QualType getFromTargetType(unsigned Type) const;
 

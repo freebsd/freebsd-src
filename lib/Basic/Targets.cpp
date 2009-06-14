@@ -12,9 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-// FIXME: Layering violation
-#include "clang/AST/Builtins.h"
-#include "clang/AST/TargetBuiltins.h"
+#include "clang/Basic/Builtins.h"
+#include "clang/Basic/TargetBuiltins.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/STLExtras.h"
@@ -315,7 +314,7 @@ public:
 const Builtin::Info PPCTargetInfo::BuiltinInfo[] = {
 #define BUILTIN(ID, TYPE, ATTRS) { #ID, TYPE, ATTRS, 0, false },
 #define LIBBUILTIN(ID, TYPE, ATTRS, HEADER) { #ID, TYPE, ATTRS, HEADER, false },
-#include "clang/AST/PPCBuiltins.def"
+#include "clang/Basic/BuiltinsPPC.def"
 };
 
 
@@ -489,7 +488,7 @@ namespace {
 const Builtin::Info BuiltinInfo[] = {
 #define BUILTIN(ID, TYPE, ATTRS) { #ID, TYPE, ATTRS, 0, false },
 #define LIBBUILTIN(ID, TYPE, ATTRS, HEADER) { #ID, TYPE, ATTRS, HEADER, false },
-#include "clang/AST/X86Builtins.def"
+#include "clang/Basic/BuiltinsX86.def"
 };
 
 const char *GCCRegNames[] = {
@@ -767,6 +766,7 @@ X86TargetInfo::validateAsmConstraint(const char *&Name,
             // x86_64 instructions.
   case 'N': // unsigned 8-bit integer constant for use with in and out
             // instructions.
+  case 'R': // "legacy" registers: ax, bx, cx, dx, di, si, sp, bp.
     Info.setAllowsRegister();
     return true;
   }
@@ -931,6 +931,10 @@ public:
     TLSSupported = false;
     WCharType = SignedShort;
     WCharWidth = WCharAlign = 16;
+    DoubleAlign = LongLongAlign = 64;
+    DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
+                        "i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-"
+                        "a0:0:64-f80:32:32";
   }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 std::vector<char> &Defines) const {
@@ -965,7 +969,7 @@ public:
 
     DescriptionString = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                         "i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-"
-                        "a0:0:64-f80:128:128";
+                        "a0:0:64-s0:64:64-f80:128:128";
   }
   virtual const char *getVAListDeclaration() const {
     return "typedef struct __va_list_tag {"
