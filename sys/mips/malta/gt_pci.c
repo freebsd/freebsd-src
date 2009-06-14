@@ -135,8 +135,9 @@ static int gt_pci_teardown_intr(device_t, device_t, struct resource *, void*);
 static int gt_pci_maxslots(device_t );
 static int gt_pci_conf_setup(struct gt_pci_softc *, int, int, int, int, 
     uint32_t *);
-static uint32_t gt_pci_read_config(device_t, int, int, int, int, int);
-static void gt_pci_write_config(device_t, int, int, int, int, uint32_t, int);
+static uint32_t gt_pci_read_config(device_t, u_int, u_int, u_int, u_int, int);
+static void gt_pci_write_config(device_t, u_int, u_int, u_int, u_int, 
+    uint32_t, int);
 static int gt_pci_route_interrupt(device_t pcib, device_t dev, int pin);
 static struct resource * gt_pci_alloc_resource(device_t, device_t, int, 
     int *, u_long, u_long, u_long, u_int);
@@ -420,7 +421,7 @@ gt_pci_conf_setup(struct gt_pci_softc *sc, int bus, int slot, int func,
 }
 
 static uint32_t
-gt_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
+gt_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     int bytes)
 {
 	struct gt_pci_softc *sc = device_get_softc(dev);
@@ -490,7 +491,7 @@ gt_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
 }
 
 static void
-gt_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
+gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     uint32_t data, int bytes)
 {
 	struct gt_pci_softc *sc = device_get_softc(dev);
