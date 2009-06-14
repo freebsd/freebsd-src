@@ -31,9 +31,6 @@
 
 #ifndef MIPS_INCLUDE__BUS_H
 #define	MIPS_INCLUDE__BUS_H
-#ifdef TARGET_OCTEON
-#include "_bus_octeon.h"
-#else
 /*
  * Bus address and size types
  */
@@ -45,5 +42,4 @@ typedef uintptr_t bus_size_t;
  */
 typedef struct bus_space *bus_space_tag_t;
 typedef u_long bus_space_handle_t;
-#endif
 #endif /* MIPS_INCLUDE__BUS_H */
