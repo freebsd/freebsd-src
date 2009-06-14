@@ -21,13 +21,14 @@ MAN+=	config.5 des_modes.7
 
 # base sources
 SRCS=	cpt_err.c cryptlib.c cversion.c ebcdic.c ex_data.c mem.c mem_clr.c \
-	mem_dbg.c o_dir.c o_str.c o_time.c tmdiff.c uid.c
+	mem_dbg.c o_dir.c o_str.c o_time.c tmdiff.c uid.c dyn_lck.c \
+	o_init.c fips_err.c
 INCS=	crypto.h ebcdic.h opensslv.h ossl_typ.h symhacks.h tmdiff.h \
 	../e_os.h ../e_os2.h
 
 # aes
 SRCS+=	aes_cbc.c aes_cfb.c aes_core.c aes_ctr.c aes_ecb.c aes_ige.c \
-	aes_misc.c aes_ofb.c
+	aes_misc.c aes_ofb.c aes_wrap.c
 INCS+=	aes.h aes_locl.h
 
 # asn1
@@ -36,7 +37,7 @@ SRCS+=	a_bitstr.c a_bool.c a_bytes.c a_d2i_fp.c a_digest.c a_dup.c \
 	a_meth.c a_object.c a_octet.c a_print.c a_set.c a_sign.c \
 	a_strex.c a_strnid.c a_time.c a_type.c a_utctm.c a_utf8.c \
 	a_verify.c asn1_err.c asn1_gen.c asn1_lib.c asn1_par.c \
-	asn_moid.c asn_pack.c d2i_pr.c d2i_pu.c evp_asn1.c f_enum.c \
+	asn_moid.c asn_mime.c asn_pack.c d2i_pr.c d2i_pu.c evp_asn1.c f_enum.c \
 	f_int.c f_string.c i2d_pr.c i2d_pu.c n_pkey.c nsseq.c p5_pbe.c \
 	p5_pbev2.c p8_pkey.c t_bitst.c t_crl.c t_pkey.c t_req.c \
 	t_spki.c t_x509.c t_x509a.c tasn_dec.c tasn_enc.c tasn_fre.c \
@@ -69,9 +70,9 @@ INCS+=	bio.h bio_lcl.h
 # bn
 SRCS+=	bn_add.c bn_blind.c bn_const.c bn_ctx.c bn_depr.c bn_div.c \
 	bn_err.c bn_exp.c bn_exp2.c bn_gcd.c bn_gf2m.c bn_kron.c \
-	bn_lib.c bn_mod.c bn_mont.c bn_mpi.c bn_mul.c bn_nist.c \
+	bn_lib.c bn_mod.c bn_mont.c bn_mpi.c bn_mul.c bn_nist.c bn_opt.c \
 	bn_prime.c bn_print.c bn_rand.c bn_recp.c bn_shift.c bn_sqr.c \
-	bn_sqrt.c bn_word.c
+	bn_sqrt.c bn_word.c bn_x931p.c
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	bn-586.s co-586.s
 .elif ${MACHINE_ARCH} == "amd64"
@@ -83,7 +84,7 @@ SRCS+=	bn_asm.c
 INCS+=	bn.h
 
 # buffer
-SRCS+=	buf_err.c buffer.c
+SRCS+=	buf_err.c buf_str.c buffer.c
 INCS+=	buffer.h
 
 # cast
@@ -112,7 +113,7 @@ INCS+=	conf.h conf_api.h
 
 # des
 SRCS+=	cbc3_enc.c cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c \
-	des_old.c des_old2.c ecb3_enc.c ecb_enc.c ede_cbcm_enc.c \
+	des_lib.c des_old.c des_old2.c ecb3_enc.c ecb_enc.c ede_cbcm_enc.c \
 	enc_read.c enc_writ.c fcrypt.c ofb64ede.c ofb64enc.c \
 	ofb_enc.c pcbc_enc.c qud_cksm.c rand_key.c read2pwd.c \
 	rpc_enc.c set_key.c str2key.c xcbc_enc.c
@@ -129,7 +130,7 @@ INCS+=	dh.h
 
 # dsa
 SRCS+=	dsa_asn1.c dsa_err.c dsa_depr.c dsa_gen.c dsa_key.c dsa_lib.c \
-	dsa_ossl.c dsa_sign.c dsa_vrf.c
+	dsa_ossl.c dsa_sign.c dsa_vrf.c dsa_utl.c
 INCS+=	dsa.h
 
 # dso
@@ -159,15 +160,15 @@ SRCS+=	eng_all.c eng_cnf.c eng_cryptodev.c eng_ctrl.c eng_dyn.c \
 INCS+=	engine.h
 
 # err
-SRCS+=	err.c err_all.c err_prn.c
+SRCS+=	err.c err_all.c err_prn.c err_def.c err_str.c err_bio.c
 INCS+=	err.h
 
 # evp
 SRCS+=	bio_b64.c bio_enc.c bio_md.c bio_ok.c c_all.c c_allc.c c_alld.c \
-	digest.c e_aes.c e_bf.c e_cast.c e_des.c e_des3.c e_idea.c \
+	dig_eng.c digest.c e_aes.c e_bf.c e_cast.c e_des.c e_des3.c e_idea.c \
 	e_null.c e_old.c e_rc2.c e_rc4.c e_rc5.c e_xcbc_d.c encode.c \
-	evp_acnf.c evp_enc.c evp_err.c evp_key.c evp_lib.c evp_pbe.c \
-	evp_pkey.c m_dss.c m_dss1.c m_ecdsa.c m_md2.c m_md4.c m_md5.c \
+	evp_acnf.c evp_cnf.c evp_enc.c evp_err.c evp_key.c evp_lib.c evp_pbe.c \
+	evp_pkey.c e_seed.c enc_min.c m_dss.c m_dss1.c m_ecdsa.c m_md2.c m_md4.c m_md5.c \
 	m_mdc2.c m_null.c m_ripemd.c m_sha.c m_sha1.c names.c \
 	openbsd_hw.c p5_crpt.c p5_crpt2.c p_dec.c p_enc.c p_lib.c \
 	p_open.c p_seal.c p_sign.c p_verify.c
@@ -245,7 +246,7 @@ SRCS+=	pqueue.c
 INCS+=	pqueue.h pq_compat.h
 
 # rand
-SRCS+=	md_rand.c rand_egd.c rand_err.c rand_lib.c rand_unix.c randfile.c
+SRCS+=	md_rand.c rand_egd.c rand_err.c rand_lib.c rand_unix.c randfile.c rand_eng.c
 INCS+=	rand.h
 
 # rc2
@@ -253,7 +254,7 @@ SRCS+=	rc2_cbc.c rc2_ecb.c rc2_skey.c rc2cfb64.c rc2ofb64.c
 INCS+=	rc2.h
 
 # rc4
-SRCS+=	rc4_skey.c
+SRCS+=	rc4_skey.c rc4_fblk.c
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	rc4-586.s
 .else
@@ -277,7 +278,8 @@ INCS+=	ripemd.h
 # rsa
 SRCS+=	rsa_asn1.c rsa_chk.c rsa_eay.c rsa_err.c rsa_gen.c rsa_lib.c \
 	rsa_none.c rsa_null.c rsa_oaep.c rsa_pk1.c rsa_saos.c \
-	rsa_sign.c rsa_ssl.c rsa_depr.c rsa_pss.c rsa_x931.c
+	rsa_sign.c rsa_ssl.c rsa_depr.c rsa_pss.c rsa_x931.c rsa_x931g.c \
+	rsa_eng.c
 INCS+=	rsa.h
 
 # sha
@@ -323,6 +325,19 @@ SRCS+=	pcy_cache.c pcy_data.c pcy_lib.c pcy_map.c pcy_node.c \
 	v3_pci.c v3_pcia.c v3_pcons.c v3_pku.c v3_pmaps.c v3_prn.c \
 	v3_purp.c v3_skey.c v3_sxnet.c v3_utl.c v3err.c
 INCS+=	x509v3.h
+
+# cms
+#SRCS+=	cms_lib.c cms_asn1.c cms_att.c cms_io.c cms_smime.c cms_err.c \
+#	cms_sd.c cms_dd.c cms_cd.c cms_env.c cms_enc.c cms_ess.c
+#INCS+=	cms.h
+
+# jpake - is marked experimental
+#SRCS+=	jpake.c jpake_err.c
+#INCS+=	jpake.h
+
+# seed
+#SRCS+=	seed.c seed_ecb.c seed_cbc.c seed_cfb.c seed_ofb.c
+#INCS+=	seed.h
 
 SRCS+=	buildinf.h
 INCS+=	opensslconf.h evp.h
@@ -392,6 +407,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/buffer \
 	${LCRYPTO_SRC}/crypto/cast \
 	${LCRYPTO_SRC}/crypto/camellia \
+	${LCRYPTO_SRC}/crypto/cms \
 	${LCRYPTO_SRC}/crypto/comp \
 	${LCRYPTO_SRC}/crypto/conf \
 	${LCRYPTO_SRC}/crypto/des \
@@ -406,6 +422,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/evp \
 	${LCRYPTO_SRC}/crypto/hmac \
 	${_ideapath} \
+	${LCRYPTO_SRC}/crypto/jpake \
 	${LCRYPTO_SRC}/crypto/krb5 \
 	${LCRYPTO_SRC}/crypto/lhash \
 	${LCRYPTO_SRC}/crypto/md2 \
@@ -424,6 +441,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/rc5 \
 	${LCRYPTO_SRC}/crypto/ripemd \
 	${LCRYPTO_SRC}/crypto/rsa \
+	${LCRYPTO_SRC}/crypto/seed \
 	${LCRYPTO_SRC}/crypto/sha \
 	${LCRYPTO_SRC}/crypto/stack \
 	${LCRYPTO_SRC}/crypto/store \
