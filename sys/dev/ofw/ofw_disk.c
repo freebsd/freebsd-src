@@ -47,16 +47,16 @@ __FBSDID("$FreeBSD$");
 
 struct ofwd_softc
 {
-        struct bio_queue_head ofwd_bio_queue;
-        struct mtx	ofwd_queue_mtx;
+	struct bio_queue_head ofwd_bio_queue;
+	struct mtx	ofwd_queue_mtx;
 	ihandle_t	ofwd_instance;
 	off_t		ofwd_mediasize;
-        unsigned	ofwd_sectorsize;
-        unsigned	ofwd_fwheads;
-        unsigned	ofwd_fwsectors;
-        struct proc	*ofwd_procp;
-        struct g_geom	*ofwd_gp;
-        struct g_provider *ofwd_pp;
+	unsigned	ofwd_sectorsize;
+	unsigned	ofwd_fwheads;
+	unsigned	ofwd_fwsectors;
+	struct proc	*ofwd_procp;
+	struct g_geom	*ofwd_gp;
+	struct g_provider *ofwd_pp;
 } ofwd_softc;
 
 static g_init_t g_ofwd_init;
@@ -83,21 +83,21 @@ ofwd_startio(struct ofwd_softc *sc, struct bio *bp)
 
 	r = OF_seek(sc->ofwd_instance, bp->bio_offset);
 
-        switch (bp->bio_cmd) {
-        case BIO_READ:
+	switch (bp->bio_cmd) {
+	case BIO_READ:
 		r = OF_read(sc->ofwd_instance, (void *)bp->bio_data,
-		        bp->bio_length);
-                break;
-        case BIO_WRITE:
+			bp->bio_length);
+		break;
+	case BIO_WRITE:
 		r = OF_write(sc->ofwd_instance, (void *)bp->bio_data,
-		        bp->bio_length);
-                break;
-        }
+			bp->bio_length);
+		break;
+	}
 	if (r != bp->bio_length)
 		panic("ofwd: incorrect i/o count");
 
-        bp->bio_resid = 0;
-        return (0);
+	bp->bio_resid = 0;
+	return (0);
 }
 
 static void
@@ -107,41 +107,41 @@ ofwd_kthread(void *arg)
 	struct bio *bp;
 	int error;
 
-        sc = arg;
-        curthread->td_base_pri = PRIBIO;
+	sc = arg;
+	curthread->td_base_pri = PRIBIO;
 
-        for (;;) {
+	for (;;) {
 		mtx_lock(&sc->ofwd_queue_mtx);
 		bp = bioq_takefirst(&sc->ofwd_bio_queue);
 		if (!bp) {
 			msleep(sc, &sc->ofwd_queue_mtx, PRIBIO | PDROP,
 			    "ofwdwait", 0);
-                        continue;
+			continue;
 		}
-                mtx_unlock(&sc->ofwd_queue_mtx);
-                if (bp->bio_cmd == BIO_GETATTR) {
+		mtx_unlock(&sc->ofwd_queue_mtx);
+		if (bp->bio_cmd == BIO_GETATTR) {
 			error = EOPNOTSUPP;
-                } else
+		} else
 			error = ofwd_startio(sc, bp);
 
 		if (error != -1) {
-                        bp->bio_completed = bp->bio_length;
-                        g_io_deliver(bp, error);
-                }
+			bp->bio_completed = bp->bio_length;
+			g_io_deliver(bp, error);
+		}
 	}
 }
 
 static void
 g_ofwd_init(struct g_class *mp __unused)
 {
-	struct ofwd_softc *sc;
-        struct g_geom *gp;
-        struct g_provider *pp;
-	char	path[128];
-	char	fname[32];
+	char path[128];
+	char fname[32];
 	phandle_t ofd;
+	struct ofwd_softc *sc;
+	struct g_geom *gp;
+	struct g_provider *pp;
 	ihandle_t ifd;
-	int	error;
+	int error;
 
 	if (ofwd_enable == 0)
 		return;
@@ -161,19 +161,19 @@ g_ofwd_init(struct g_class *mp __unused)
 	}
 
 	sc = (struct ofwd_softc *)malloc(sizeof *sc, M_DEVBUF,
-	         M_WAITOK|M_ZERO);
+		 M_WAITOK|M_ZERO);
 	bioq_init(&sc->ofwd_bio_queue);
-        mtx_init(&sc->ofwd_queue_mtx, "ofwd bio queue", NULL, MTX_DEF);
+	mtx_init(&sc->ofwd_queue_mtx, "ofwd bio queue", NULL, MTX_DEF);
 	sc->ofwd_instance = ifd;
-	sc->ofwd_mediasize = (off_t)2*33554432;
+	sc->ofwd_mediasize = (off_t)2 * 33554432;
 	sc->ofwd_sectorsize = OFWD_BLOCKSIZE;
 	sc->ofwd_fwsectors = 0;
 	sc->ofwd_fwheads = 0;
 	error = kproc_create(ofwd_kthread, sc, &sc->ofwd_procp, 0, 0,
-		     "ofwd0");
-        if (error != 0) {
+	    "ofwd0");
+	if (error != 0) {
 		free(sc, M_DEVBUF);
-                return;
+		return;
 	}
 
 	gp = g_new_geomf(&g_ofwd_class, "ofwd0");
@@ -189,13 +189,13 @@ g_ofwd_init(struct g_class *mp __unused)
 static void
 g_ofwd_start(struct bio *bp)
 {
-        struct ofwd_softc *sc;
+	struct ofwd_softc *sc;
 
-        sc = bp->bio_to->geom->softc;
-        mtx_lock(&sc->ofwd_queue_mtx);
-        bioq_disksort(&sc->ofwd_bio_queue, bp);
-        mtx_unlock(&sc->ofwd_queue_mtx);
-        wakeup(sc);
+	sc = bp->bio_to->geom->softc;
+	mtx_lock(&sc->ofwd_queue_mtx);
+	bioq_disksort(&sc->ofwd_bio_queue, bp);
+	mtx_unlock(&sc->ofwd_queue_mtx);
+	wakeup(sc);
 }
 
 static int
@@ -204,5 +204,5 @@ g_ofwd_access(struct g_provider *pp, int r, int w, int e)
 
 	if (pp->geom->softc == NULL)
 		return (ENXIO);
-        return (0);
+	return (0);
 }
