@@ -2608,21 +2608,6 @@ Instruction *InstCombiner::visitFSub(BinaryOperator &I) {
       else if (Op1I->getOperand(1) == Op0)         // X-(Y+X) == -Y
         return BinaryOperator::CreateFNeg(Op1I->getOperand(0), I.getName());
     }
-
-    if (Op1I->hasOneUse()) {
-      // Replace (x - (y - z)) with (x + (z - y)) if the (y - z) subexpression
-      // is not used by anyone else...
-      //
-      if (Op1I->getOpcode() == Instruction::FSub) {
-        // Swap the two operands of the subexpr...
-        Value *IIOp0 = Op1I->getOperand(0), *IIOp1 = Op1I->getOperand(1);
-        Op1I->setOperand(0, IIOp1);
-        Op1I->setOperand(1, IIOp0);
-
-        // Create the new top level fadd instruction...
-        return BinaryOperator::CreateFAdd(Op0, Op1);
-      }
-    }
   }
 
   return 0;
@@ -11824,7 +11809,8 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   if (SI.isVolatile()) return 0;  // Don't hack volatile stores.
 
   // store X, null    -> turns into 'unreachable' in SimplifyCFG
-  if (isa<ConstantPointerNull>(Ptr)) {
+  if (isa<ConstantPointerNull>(Ptr) &&
+      cast<PointerType>(Ptr->getType())->getAddressSpace() == 0) {
     if (!isa<UndefValue>(Val)) {
       SI.setOperand(0, UndefValue::get(Val->getType()));
       if (Instruction *U = dyn_cast<Instruction>(Val))

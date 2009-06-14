@@ -371,8 +371,11 @@ supported include:</p>
   <dd>string value</dd>
 <dt><tt>[{ ... }]</tt></dt>
   <dd>code fragment</dd>
-<dt><tt>[ X, Y, Z ]</tt></dt>
-  <dd>list value.</dd>
+<dt><tt>[ X, Y, Z ]<type></tt></dt>
+  <dd>list value.  <type> is the type of the list 
+element and is usually optional.  In rare cases,
+TableGen is unable to deduce the element type in
+which case the user must specify it explicitly.</dd>
 <dt><tt>{ a, b, c }</tt></dt>
   <dd>initializer for a "bits&lt;3&gt;" value</dd>
 <dt><tt>value</tt></dt>
@@ -778,7 +781,7 @@ This should highlight the APIs in <tt>TableGen/Record.h</tt>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-05-19 00:14:45 +0200 (Tue, 19 May 2009) $
+  Last modified: $Date: 2009-06-09 20:31:17 +0200 (Tue, 09 Jun 2009) $
 </address>
 
 </body>

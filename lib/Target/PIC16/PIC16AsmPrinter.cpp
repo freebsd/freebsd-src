@@ -33,8 +33,9 @@ bool PIC16AsmPrinter::printMachineInstruction(const MachineInstr *MI) {
   return true;
 }
 
-/// runOnMachineFunction - This uses the printInstruction()
-/// method to print assembly for each instruction.
+/// runOnMachineFunction - This emits the frame section, autos section and 
+/// assembly for each instruction. Also takes care of function begin debug
+/// directive and file begin debug directive (if required) for the function.
 ///
 bool PIC16AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   this->MF = &MF;
@@ -47,20 +48,38 @@ bool PIC16AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   const Function *F = MF.getFunction();
   CurrentFnName = Mang->getValueName(F);
 
-  DbgInfo.EmitFileDirective(F);
-  // Emit the function variables.
+  // Iterate over the first basic block instructions to find if it has a
+  // DebugLoc. If so emit .file directive. Instructions such as movlw do not
+  // have valid DebugLoc, so need to iterate over instructions.
+  MachineFunction::const_iterator I = MF.begin();
+  for (MachineBasicBlock::const_iterator MBBI = I->begin(), E = I->end();
+       MBBI != E; MBBI++) {
+    const DebugLoc DLoc = MBBI->getDebugLoc();
+    if (!DLoc.isUnknown()) {
+      GlobalVariable *CU = MF.getDebugLocTuple(DLoc).CompileUnit;
+      unsigned line = MF.getDebugLocTuple(DLoc).Line;
+      DbgInfo.EmitFileDirective(CU);
+      DbgInfo.SetFunctBeginLine(line);
+      break;
+    }
+  }
+
+  // Emit the function frame (args and temps).
   EmitFunctionFrame(MF);
 
-  // Emit function begin debug directives
+  // Emit function begin debug directive.
   DbgInfo.EmitFunctBeginDI(F);
 
+  // Emit the autos section of function.
   EmitAutos(CurrentFnName);
+
+  // Now emit the instructions of function in its code section.
   const char *codeSection = PAN::getCodeSectionName(CurrentFnName).c_str();
  
   const Section *fCodeSection = TAI->getNamedSection(codeSection,
                                                      SectionFlags::Code);
-  O <<  "\n";
   // Start the Code Section.
+  O <<  "\n";
   SwitchToSection (fCodeSection);
 
   // Emit the frame address of the function at the beginning of code.
@@ -77,14 +96,17 @@ bool PIC16AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   // Print out code for the function.
   for (MachineFunction::const_iterator I = MF.begin(), E = MF.end();
        I != E; ++I) {
+
     // Print a label for the basic block.
     if (I != MF.begin()) {
       printBasicBlockLabel(I, true);
       O << '\n';
     }
     
+    // Print a basic block.
     for (MachineBasicBlock::const_iterator II = I->begin(), E = I->end();
          II != E; ++II) {
+
       // Emit the line directive if source line changed.
       const DebugLoc DL = II->getDebugLoc();
       if (!DL.isUnknown()) {
@@ -102,6 +124,7 @@ bool PIC16AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   
   // Emit function end debug directives.
   DbgInfo.EmitFunctEndDI(F, CurLine);
+
   return false;  // we didn't modify anything.
 }
 
@@ -158,11 +181,16 @@ void PIC16AsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
   }
 }
 
+/// printCCOperand - Print the cond code operand.
+///
 void PIC16AsmPrinter::printCCOperand(const MachineInstr *MI, int opNum) {
   int CC = (int)MI->getOperand(opNum).getImm();
   O << PIC16CondCodeToString((PIC16CC::CondCodes)CC);
 }
 
+/// printLibcallDecls - print the extern declarations for compiler 
+/// intrinsics.
+///
 void PIC16AsmPrinter::printLibcallDecls(void) {
   // If no libcalls used, return.
   if (LibcallDecls.empty()) return;
@@ -180,6 +208,10 @@ void PIC16AsmPrinter::printLibcallDecls(void) {
   O << TAI->getCommentString() << "External decls for libcalls - END." <<"\n";
 }
 
+/// doInitialization - Perfrom Module level initializations here.
+/// One task that we do here is to sectionize all global variables.
+/// The MemSelOptimizer pass depends on the sectionizing.
+///
 bool PIC16AsmPrinter::doInitialization (Module &M) {
   bool Result = AsmPrinter::doInitialization(M);
 
@@ -194,23 +226,23 @@ bool PIC16AsmPrinter::doInitialization (Module &M) {
     I->setSection(TAI->SectionForGlobal(I)->getName());
   }
 
-  DbgInfo.EmitFileDirective(M);
+  DbgInfo.Init(M);
   EmitFunctionDecls(M);
   EmitUndefinedVars(M);
   EmitDefinedVars(M);
   EmitIData(M);
   EmitUData(M);
   EmitRomData(M);
-  DbgInfo.PopulateFunctsDI(M);
   return Result;
 }
 
-// Emit extern decls for functions imported from other modules, and emit
-// global declarations for function defined in this module and which are
-// available to other modules.
+/// Emit extern decls for functions imported from other modules, and emit
+/// global declarations for function defined in this module and which are
+/// available to other modules.
+///
 void PIC16AsmPrinter::EmitFunctionDecls (Module &M) {
  // Emit declarations for external functions.
-  O << TAI->getCommentString() << "Function Declarations - BEGIN." <<"\n";
+  O <<"\n"<<TAI->getCommentString() << "Function Declarations - BEGIN." <<"\n";
   for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
     std::string Name = Mang->getValueName(I);
     if (Name.compare("@abort") == 0)
@@ -280,6 +312,7 @@ void PIC16AsmPrinter::EmitRomData (Module &M)
 
 bool PIC16AsmPrinter::doFinalization(Module &M) {
   printLibcallDecls();
+  EmitRemainingAutos();
   DbgInfo.EmitVarDebugInfo(M);
   DbgInfo.EmitEOF();
   O << "\n\t" << "END\n";
@@ -383,6 +416,8 @@ void PIC16AsmPrinter::EmitAutos (std::string FunctName)
   for (unsigned i = 0; i < AutosSections.size(); i++) {
     O << "\n";
     if (AutosSections[i]->S_->getName() == SectionName) { 
+      // Set the printing status to true
+      AutosSections[i]->setPrintedStatus(true);
       SwitchToSection(AutosSections[i]->S_);
       std::vector<const GlobalVariable*> Items = AutosSections[i]->Items;
       for (unsigned j = 0; j < Items.size(); j++) {
@@ -394,6 +429,37 @@ void PIC16AsmPrinter::EmitAutos (std::string FunctName)
         O << VarName << "  RES  " << Size << "\n";
       }
       break;
+    }
+  }
+}
+
+// Print autos that were not printed during the code printing of functions.
+// As the functions might themselves would have got deleted by the optimizer.
+void PIC16AsmPrinter::EmitRemainingAutos()
+{
+  const TargetData *TD = TM.getTargetData();
+
+  // Now print Autos section for this function.
+  std::vector <PIC16Section *>AutosSections = PTAI->AutosSections;
+  for (unsigned i = 0; i < AutosSections.size(); i++) {
+    
+    // if the section is already printed then don't print again
+    if (AutosSections[i]->isPrinted()) 
+      continue;
+
+    // Set status as printed
+    AutosSections[i]->setPrintedStatus(true);
+
+    O << "\n";
+    SwitchToSection(AutosSections[i]->S_);
+    std::vector<const GlobalVariable*> Items = AutosSections[i]->Items;
+    for (unsigned j = 0; j < Items.size(); j++) {
+      std::string VarName = Mang->getValueName(Items[j]);
+      Constant *C = Items[j]->getInitializer();
+      const Type *Ty = C->getType();
+      unsigned Size = TD->getTypeAllocSize(Ty);
+      // Emit memory reserve directive.
+      O << VarName << "  RES  " << Size << "\n";
     }
   }
 }
