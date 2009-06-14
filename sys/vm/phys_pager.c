@@ -149,7 +149,8 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		}
 		KASSERT(m[i]->valid == VM_PAGE_BITS_ALL,
 		    ("phys_pager_getpages: partially valid page %p", m[i]));
-		m[i]->dirty = 0;
+		KASSERT(m[i]->dirty == 0,
+		    ("phys_pager_getpages: dirty page %p", m[i]));
 		/* The requested page must remain busy, the others not. */
 		if (reqpage != i) {
 			m[i]->oflags &= ~VPO_BUSY;

@@ -117,7 +117,7 @@ on_mp_read_session_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		c_mp_rs_request->entry = (char *)calloc(1,
+		c_mp_rs_request->entry = calloc(1,
 			c_mp_rs_request->entry_length + 1);
 		assert(c_mp_rs_request->entry != NULL);
 
@@ -428,7 +428,7 @@ on_mp_read_session_read_request_process(struct query_state *qstate)
 		&read_response->data_size);
 
 	if (read_response->error_code == 0) {
-		read_response->data = (char *)malloc(read_response->data_size);
+		read_response->data = malloc(read_response->data_size);
 		assert(read_response != NULL);
 		read_response->error_code = cache_mp_read(
 			(cache_mp_read_session)qstate->mdata,

@@ -561,7 +561,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int mrr;
 
-	final_rix = rt->rateCodeToIndex[ts->ts_rate &~ HAL_TXSTAT_ALTRATE];
+	final_rix = rt->rateCodeToIndex[ts->ts_rate];
 	short_tries = ts->ts_shortretry;
 	long_tries = ts->ts_longretry + 1;
 	frame_size = ds0->ds_ctl0 & 0x0fff; /* low-order 12 bits of ds_ctl0 */
@@ -579,7 +579,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		return;
 	}
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
-	if (!mrr || !(ts->ts_rate & HAL_TXSTAT_ALTRATE)) {
+	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
 			badrate(ifp, 0, ts->ts_rate, long_tries, ts->ts_status);
 			return;

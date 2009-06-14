@@ -178,7 +178,7 @@ state2:
 state3:
 	state = 4;
 	if (minusc) {
-		evalstring(minusc, 0);
+		evalstring(minusc, sflag ? 0 : EV_EXIT);
 	}
 	if (sflag || minusc == NULL) {
 state4:	/* XXX ??? - why isn't this before the "if" statement */

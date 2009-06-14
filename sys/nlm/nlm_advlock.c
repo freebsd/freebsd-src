@@ -1226,7 +1226,7 @@ nlm_init_lock(struct flock *fl, int flags, int svid,
 	oh_len = strlen(oh_space);
 
 	memset(lock, 0, sizeof(*lock));
-	lock->caller_name = prison0.pr_host;
+	lock->caller_name = prison0.pr_hostname;
 	lock->fh.n_len = fhlen;
 	lock->fh.n_bytes = fh;
 	lock->oh.n_len = oh_len;

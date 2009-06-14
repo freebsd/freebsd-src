@@ -152,7 +152,7 @@ struct prison {
 	char		 pr_path[MAXPATHLEN];		/* (c) chroot path */
 	struct cpuset	*pr_cpuset;			/* (p) cpuset */
 	struct vnode	*pr_root;			/* (c) vnode to rdir */
-	char		 pr_host[MAXHOSTNAMELEN];	/* (p) jail hostname */
+	char		 pr_hostname[MAXHOSTNAMELEN];	/* (p) jail hostname */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
 	struct prison	*pr_parent;			/* (c) containing jail */
 	int		 pr_securelevel;		/* (p) securelevel */
@@ -168,8 +168,8 @@ struct prison {
 	int		 pr_prisoncount;		/* (a) number of child jails */
 	unsigned	 pr_allow;			/* (p) PR_ALLOW_* flags */
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
-	char		 pr_domain[MAXHOSTNAMELEN];	/* (p) jail domainname */
-	char		 pr_uuid[HOSTUUIDLEN];		/* (p) jail hostuuid */
+	char		 pr_domainname[MAXHOSTNAMELEN];	/* (p) jail domainname */
+	char		 pr_hostuuid[HOSTUUIDLEN];	/* (p) jail hostuuid */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
 };
 #endif /* _KERNEL || _WANT_PRISON */

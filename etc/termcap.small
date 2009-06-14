@@ -71,6 +71,17 @@ cons60|ansi80x60:\
 	:li#60:tc=cons25:
 cons60-m|ansi80x60-mono:\
 	:li#60:tc=cons25-m:
+# Syscons console with 132 characters (VESA modes)
+cons25-w|ansi132x25:\
+	:co#132:tc=cons25:
+cons30-w|ansi132x30:\
+	:co#132:tc=cons30:
+cons43-w|ansi132x43:\
+	:co#132:tc=cons43:
+cons50-w|ansil-w|ansi132x50:\
+	:co#132:tc=cons50:
+cons60-w|ansi132x60:\
+	:co#132:tc=cons60:
 # KOI8-R/KOI8-U FreeBSD console with ACS support
 cons25r|cons25u|pc3r|ibmpc3r|cons25-koi8:\
 	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\2210\215:\
@@ -93,6 +104,28 @@ cons60r|cons60u|cons60-koi8:\
 	:li#60:tc=cons25r:
 cons60r-m|cons60u-m|cons60-koi8-mono:\
 	:li#60:tc=cons25r-m:
+# Syscons console with 90 characters (VGA modes)
+# KOI8-R/KOI8-U FreeBSD console with ACS support.
+cons25r-v|cons25u-v|pc3r-v|ibmpc3r-vga|cons25-koi8-vga:\
+	:co#90:tc=cons25r:
+cons25r-mv|cons25u-mv|pc3r-mv|ibmpc3r-monovga|cons25-koi8-monovga:\
+	:co#90:tc=cons25r-m:
+cons30r-v|cons30u-v|cons30-koi8-vga:\
+	:co#90:tc=cons30r:
+cons30r-mv|cons30u-mv|cons30-koi8-monovga:\
+	:co#90:tc=cons30r-m:
+cons43r-v|cons43u-v|cons43-koi8-vga:\
+	:co#90:tc=cons43r:
+cons43r-mv|cons43u-mv|cons43-koi8-monovga:\
+	:co#90:tc=cons43r-m:
+cons50r-v|cons50u-v|cons50-koi8-vga:\
+	:co#90:tc=cons50r:
+cons50r-mv|cons50u-mv|cons50-koi8-monovga:\
+	:co#90:tc=cons50r-m:
+cons60r-v|cons60u-v|cons60-koi8-vga:\
+	:co#90:tc=cons60r:
+cons60r-mv|cons60u-mv|cons60-koi8-monovga:\
+	:co#90:tc=cons60r-m:
 # ISO 8859-2 FreeBSD console with ACS support
 cons25l2|cons25-iso8859-2:\
 	:ac=f\260i\247:\
@@ -137,6 +170,17 @@ cons60l1|cons60-iso8859-1:\
 	:li#60:tc=cons25l1:
 cons60l1-m|cons60-iso8859-1-mono:\
 	:li#60:tc=cons25l1-m:
+# 132x25 ISO 8859-1 FreeBSD console
+cons25l1-w|:cons25w-iso8859-1:\
+	:co#132:tc=cons25l1:
+cons30l1-w|cons30w-iso8859-1:\
+	:co#132:tc=cons30l1:
+cons43l1-w|cons43w-iso8859-1:\
+	:co#132:tc=cons43l1:
+cons50l1-w|cons50w-iso8859-1:\
+	:co#132:tc=cons50l1:
+cons60l1-w|cons60w-iso8859-1:\
+	:co#132:tc=cons60l1:
 # ISO 8859-7 FreeBSD console with ACS support
 cons25l7|cons25-iso8859-7:\
 	:ac=f\260g\261{\360}\243+\253,\273i\247:\
@@ -180,8 +224,6 @@ pc|ibmpc|ibm pc PC/IX:\
 	:li#24:co#80:am:bs:bw:eo:\
 	:cd=\E[J:ce=\E[K:cl=\Ec:cm=\E[%i%2;%2H:do=\E[B:ho=\E[;H:\
 	:nd=\E[C:up=\E[A:so=\E[7m:se=\E[0m:us=\E[4m:ue=\E[0m:
-pc3mono|IBM PC 386BSD Console with monochrome monitor:\
-	:so=\E[0;1r\E[m:tc=pc3:
 pc3|ibmpc3|IBM PC 386BSD Console:\
 	:Co#8:\
 	:DO=\E[%dB:\
@@ -194,10 +236,10 @@ pc3|ibmpc3|IBM PC 386BSD Console:\
 	:K5=\E[G:\
 	:LE=\E[%dD:\
 	:RI=\E[%dC:\
-	:Sb=\E[1;%dx:\
-	:Sf=\E[2;%dx:\
+	:AB=\E[1;%dx:\
+	:AF=\E[2;%dx:\
 	:UP=\E[%dA:\
-	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
 	:am:\
 	:bl=^G:\
 	:bs:\
@@ -248,3 +290,33 @@ pc3|ibmpc3|IBM PC 386BSD Console:\
 	:ti=\E[m:\
 	:up=\E[A:\
 	:ut:
+
+# $XFree86: xc/programs/xterm/termcap,v 3.28 2001/01/17 23:46:39 dawes Exp $
+#
+xterm-xfree86|XFree86 xterm:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+	:k5=\E[15~:k6=\E[17~:k7=\E[18~:k8=\E[19~:\
+	:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
+	:@7=\EOF:@8=\EOM:kI=\E[2~:\
+	:kh=\EOH:kP=\E[5~:kN=\E[6~:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:Km=\E[M:tc=xterm-basic:
+#
+# This chunk is used for building the VT220/Sun/PC keyboard variants.
+xterm-basic|xterm common (XFree86):\
+	:li#24:co#80:am:kn#12:km:mi:ms:xn:AX:bl=^G:\
+	:is=\E[!p\E[?3;4l\E[4l\E>:rs=\E[!p\E[?3;4l\E[4l\E>:le=^H:\
+	:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:al=\E[L:dc=\E[P:dl=\E[M:\
+	:UP=\E[%dA:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:\
+	:ho=\E[H:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:cs=\E[%i%d;%dr:\
+	:im=\E[4h:ei=\E[4l:ks=\E[?1h\E=:ke=\E[?1l\E>:kD=\E[3~:kb=^H:\
+	:sf=\n:sr=\EM:st=\EH:ct=\E[3g:sc=\E7:rc=\E8:\
+	:eA=\E(B\E)0:as=\E(0:ae=\E(B:ml=\El:mu=\Em:up=\E[A:nd=\E[C:\
+	:md=\E[1m:me=\E[m:mr=\E[7m:so=\E[7m:se=\E[27m:us=\E[4m:ue=\E[24m:\
+	:ti=\E[?1049h:te=\E[?1049l:vi=\E[?25l:ve=\E[?25h:\
+	:ut:Co#8:pa#64:op=\E[39;49m:AB=\E[4%dm:AF=\E[3%dm:\
+#
+# This is the only entry which you should have to customize, since "xterm"
+# is widely used for a variety of incompatible terminal emulations including
+# color_xterm and rxvt.
+xterm|xterm-color|X11 terminal emulator:\
+	:ti@:te@:tc=xterm-xfree86:
