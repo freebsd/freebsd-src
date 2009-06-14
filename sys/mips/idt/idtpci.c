@@ -287,7 +287,7 @@ idtpci_maxslots(device_t dev)
 }
 
 static uint32_t
-idtpci_read_config(device_t dev, int bus, int slot, int func, int reg,
+idtpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     int bytes)
 {
 	uint32_t data;
@@ -343,7 +343,7 @@ idtpci_read_config(device_t dev, int bus, int slot, int func, int reg,
 }
 
 static void
-idtpci_write_config(device_t dev, int bus, int slot, int func, int reg,
+idtpci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     uint32_t data, int bytes)
 {
 	bus_addr_t addr;
