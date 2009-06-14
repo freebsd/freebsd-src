@@ -439,8 +439,9 @@ static inline octeon_wqe_t *octeon_pow_work_request_sync_nocheck_debug (octeon_p
 
     result.word64 = oct_read64(ptr.word64);
 
-    printf("WQE Result: 0x%llX  No-work %llX   Addr %llX  Ptr: %llX\n",
-           result.word64,  result.s_work.no_work, result.s_work.addr, OCTEON_PHYS2PTR(result.s_work.addr));
+    printf("WQE Result: 0x%llX  No-work %X   Addr %llX  Ptr: %p\n",
+           result.word64,  result.s_work.no_work, (uint64_t)result.s_work.addr,
+	   OCTEON_PHYS2PTR(result.s_work.addr));
 
     if (result.s_work.no_work || !result.s_work.addr) {
         return NULL;
