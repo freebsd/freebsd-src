@@ -1931,6 +1931,55 @@ skipmemq:
 }
 
 /*
+ *	Populate the specified range of the object with valid pages.  Returns
+ *	TRUE if the range is successfully populated and FALSE otherwise.
+ *
+ *	Note: This function should be optimized to pass a larger array of
+ *	pages to vm_pager_get_pages() before it is applied to a non-
+ *	OBJT_DEVICE object.
+ *
+ *	The object must be locked.
+ */
+boolean_t
+vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_page_t m, ma[1];
+	vm_pindex_t pindex;
+	int rv;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	for (pindex = start; pindex < end; pindex++) {
+		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL |
+		    VM_ALLOC_RETRY);
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			ma[0] = m;
+			rv = vm_pager_get_pages(object, ma, 1, 0);
+			m = vm_page_lookup(object, pindex);
+			if (m == NULL)
+				break;
+			if (rv != VM_PAGER_OK) {
+				vm_page_lock_queues();
+				vm_page_free(m);
+				vm_page_unlock_queues();
+				break;
+			}
+		}
+		/*
+		 * Keep "m" busy because a subsequent iteration may unlock
+		 * the object.
+		 */
+	}
+	if (pindex > start) {
+		m = vm_page_lookup(object, start);
+		while (m != NULL && m->pindex < pindex) {
+			vm_page_wakeup(m);
+			m = TAILQ_NEXT(m, listq);
+		}
+	}
+	return (pindex == end);
+}
+
+/*
  *	Routine:	vm_object_coalesce
  *	Function:	Coalesces two objects backing up adjoining
  *			regions of memory into a single object.
