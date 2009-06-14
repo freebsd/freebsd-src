@@ -57,10 +57,10 @@
  */
 
 /* This engine is not (currently) compiled in by default. Do enable it,
- * reconfigure OpenSSL with "-DOPENSSL_USE_GMP -lgmp". The GMP libraries and
+ * reconfigure OpenSSL with "enable-gmp -lgmp". The GMP libraries and
  * headers must reside in one of the paths searched by the compiler/linker,
  * otherwise paths must be specified - eg. try configuring with
- * "-DOPENSSL_USE_GMP -I<includepath> -L<libpath> -lgmp". YMMV. */
+ * "enable-gmp -I<includepath> -L<libpath> -lgmp". YMMV. */
 
 /* As for what this does - it's a largely unoptimised implementation of an
  * ENGINE that uses the GMP library to perform RSA private key operations. To
@@ -85,9 +85,11 @@
 #include <openssl/crypto.h>
 #include <openssl/buffer.h>
 #include <openssl/engine.h>
+#include <openssl/rsa.h>
+#include <openssl/bn.h>
 
 #ifndef OPENSSL_NO_HW
-#if defined(OPENSSL_USE_GMP) && !defined(OPENSSL_NO_HW_GMP)
+#ifndef OPENSSL_NO_GMP
 
 #include <gmp.h>
 
@@ -251,27 +253,61 @@ static int e_gmp_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f)(void))
 	return to_return;
 	}
 
-/* HACK - use text I/O functions in openssl and GMP to handle conversions. This
- * is vile. */
+
+/* Most often limb sizes will be the same. If not, we use hex conversion
+ * which is neat, but extremely inefficient. */
 static int bn2gmp(const BIGNUM *bn, mpz_t g)
 	{
-	int toret;
-	char *tmpchar = BN_bn2hex(bn);
-	if(!tmpchar) return 0;
-	toret = (mpz_set_str(g, tmpchar, 16) == 0 ? 1 : 0);
-	OPENSSL_free(tmpchar);
-	return toret;
+	bn_check_top(bn);
+	if(((sizeof(bn->d[0]) * 8) == GMP_NUMB_BITS) &&
+			(BN_BITS2 == GMP_NUMB_BITS)) 
+		{
+		/* The common case */
+		if(!_mpz_realloc (g, bn->top))
+			return 0;
+		memcpy(&g->_mp_d[0], &bn->d[0], bn->top * sizeof(bn->d[0]));
+		g->_mp_size = bn->top;
+		if(bn->neg)
+			g->_mp_size = -g->_mp_size;
+		return 1;
+		}
+	else
+		{
+		int toret;
+		char *tmpchar = BN_bn2hex(bn);
+		if(!tmpchar) return 0;
+		toret = (mpz_set_str(g, tmpchar, 16) == 0 ? 1 : 0);
+		OPENSSL_free(tmpchar);
+		return toret;
+		}
 	}
 
 static int gmp2bn(mpz_t g, BIGNUM *bn)
 	{
-	int toret;
-	char *tmpchar = OPENSSL_malloc(mpz_sizeinbase(g, 16) + 10);
-	if(!tmpchar) return 0;
-	mpz_get_str(tmpchar, 16, g);
-	toret = BN_hex2bn(&bn, tmpchar);
-	OPENSSL_free(tmpchar);
-	return toret;
+	if(((sizeof(bn->d[0]) * 8) == GMP_NUMB_BITS) &&
+			(BN_BITS2 == GMP_NUMB_BITS))
+		{
+		/* The common case */
+		int s = (g->_mp_size >= 0) ? g->_mp_size : -g->_mp_size;
+		BN_zero(bn);
+		if(bn_expand2 (bn, s) == NULL)
+			return 0;
+		bn->top = s;
+		memcpy(&bn->d[0], &g->_mp_d[0], s * sizeof(bn->d[0]));
+		bn_correct_top(bn);
+		bn->neg = g->_mp_size >= 0 ? 0 : 1;
+		return 1;
+		}
+	else
+		{
+		int toret;
+		char *tmpchar = OPENSSL_malloc(mpz_sizeinbase(g, 16) + 10);
+		if(!tmpchar) return 0;
+		mpz_get_str(tmpchar, 16, g);
+		toret = BN_hex2bn(&bn, tmpchar);
+		OPENSSL_free(tmpchar);
+		return toret;
+		}
 	}
 
 #ifndef OPENSSL_NO_RSA 
@@ -415,9 +451,13 @@ static int e_gmp_rsa_mod_exp(BIGNUM *r, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 	}
 #endif
 
+#endif /* !OPENSSL_NO_GMP */
+
 /* This stuff is needed if this ENGINE is being compiled into a self-contained
  * shared-library. */	   
-#ifdef ENGINE_DYNAMIC_SUPPORT
+#ifndef OPENSSL_NO_DYNAMIC_ENGINE
+IMPLEMENT_DYNAMIC_CHECK_FN()
+#ifndef OPENSSL_NO_GMP
 static int bind_fn(ENGINE *e, const char *id)
 	{
 	if(id && (strcmp(id, engine_e_gmp_id) != 0))
@@ -426,10 +466,11 @@ static int bind_fn(ENGINE *e, const char *id)
 		return 0;
 	return 1;
 	}       
-IMPLEMENT_DYNAMIC_CHECK_FN()
 IMPLEMENT_DYNAMIC_BIND_FN(bind_fn)
-#endif /* ENGINE_DYNAMIC_SUPPORT */
+#else
+OPENSSL_EXPORT
+int bind_engine(ENGINE *e, const char *id, const dynamic_fns *fns) { return 0; }
+#endif
+#endif /* OPENSSL_NO_DYNAMIC_ENGINE */
 
-#endif /* !OPENSSL_NO_HW_GMP */
 #endif /* !OPENSSL_NO_HW */
-
