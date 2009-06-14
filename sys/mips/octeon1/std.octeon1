@@ -4,8 +4,7 @@
 # */
 # $FreeBSD$
 # 
-include "../mips4k/std.mips4k"
-files	"../mips4k/octeon32/files.octeon32"
+files	"../octeon1/files.octeon1"
 
 #
 # 
