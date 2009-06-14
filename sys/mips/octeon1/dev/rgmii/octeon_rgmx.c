@@ -146,8 +146,13 @@ static int octeon_rgmx_init_ifnet(struct rgmx_softc_dev *sc);
 static void octeon_rgmx_mark_ready(struct rgmx_softc_dev *sc);
 static void octeon_rgmx_stop(struct rgmx_softc_dev *sc);
 static void octeon_rgmx_config_speed(u_int port, u_int);
+#ifdef DEBUG_RGMX_DUMP
 static void octeon_dump_rgmx_stats(u_int port);
+static void octeon_dump_pow_stats(void);
+#endif
+#ifdef __not_used__
 static void rgmx_timer_periodic(void);
+#endif
 static void octeon_rgmx_enable_RED_all(int, int);
 
 #ifdef OCTEON_RGMX_SCHEDULED_ISRS
@@ -526,10 +531,6 @@ static int rgmii_attach (device_t dev)
 #define RGMX_MAX_PAK_RECEIVE		5000000
 
 
-static void octeon_dump_pow_stats (void);
-
-
-
 #ifdef	OCTEON_RGMX_SCHEDULED_ISRS
 
 
@@ -541,9 +542,7 @@ static void octeon_rgmx_isr_link (void *context, int pending)
 
 static void octeon_rgmx_isr_rxtx (void *context, int pending)
 {
-	NET_LOCK_GIANT();
     	octeon_rx_loop(NULL);
-	NET_UNLOCK_GIANT();
 }
 
 
@@ -1065,6 +1064,7 @@ static void octeon_rgmx_xmit_mark_buffers_done (struct rgmx_softc_dev *sc, u_int
 #define OCTEON_RGMX_FLUSH_N_XMIT_MBUFS_EACH_LOOP	5
 #define OCTEON_RGMX_FLUSH_PENDING_MBUFS_MAX		1000
 
+#ifdef __not_used__
 /*
  * octeon_rgmx_output_flush
  *
@@ -1089,7 +1089,7 @@ static void octeon_rgmx_output_flush (struct ifnet *ifp)
                 ifp->if_oerrors++;
         }
 }
-
+#endif
 
 /*
  * octeon_rgmx_output_start
@@ -1850,12 +1850,14 @@ static void octeon_rgmx_config_speed (u_int port, u_int report_link)
 
 
 
+#ifdef DEBUG_RGMX_DUMP
 static void octeon_dump_rgmx_stats (u_int port)
 {
 
 }
+#endif
 
-
+#ifdef __not_used__
 static void rgmx_timer_periodic (void)
 {
     u_int port;
@@ -1914,9 +1916,10 @@ static void rgmx_timer_periodic (void)
                 octeon_rgmx_config_speed(port, 1);
         }
 }
+#endif
 
-
-static void octeon_dump_pow_stats (void)
+#ifdef DEBUG_RGMX_DUMP
+static void octeon_dump_pow_stats(void)
 {
     octeon_rgmx_pow_nos_cnt nos_cnt;
     octeon_rgmx_pow_int_pc_t intpc;
@@ -1957,7 +1960,7 @@ static void octeon_dump_pow_stats (void)
         if (inpt_q_grp.bits.iq_cnt)  printf(" Grp-%u:  %u ", i, inpt_q_grp.bits.iq_cnt);
     }
 }
-
+#endif
 
 /* ------------------------------------------------------------------- *
  *                      octeon_line_status_loop()                      *
@@ -2163,6 +2166,7 @@ static int octeon_has_4ports (void)
 }
 
 
+#ifdef __not_used__
 /*
  * octeon_rgmx_free_intr
  *
@@ -2195,7 +2199,7 @@ static void octeon_rgmx_free_intr (struct rgmx_softc_dev *sc)
 #endif
 
 }
-
+#endif
 
 static device_method_t rgmii_methods[] = {
 	/* Device interface */
