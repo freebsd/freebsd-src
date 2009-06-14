@@ -133,7 +133,7 @@ static int	admsw_ioctl(struct ifnet *, u_long, caddr_t);
 static void	admsw_init(void *);
 static void	admsw_stop(struct ifnet *, int);
 
-static void	admsw_shutdown(void *);
+static int	admsw_shutdown(device_t);
 
 static void	admsw_reset(struct admsw_softc *);
 static void	admsw_set_filter(struct admsw_softc *);
@@ -571,14 +571,16 @@ admsw_detach(device_t dev)
  *
  *	Make sure the interface is stopped at reboot time.
  */
-static void
-admsw_shutdown(void *arg)
+static int
+admsw_shutdown(device_t dev)
 {
-	struct admsw_softc *sc = arg;
+	struct admsw_softc *sc = (struct admsw_softc *) device_get_softc(dev);
 	int i;
 
 	for (i = 0; i < SW_DEVS; i++)
 		admsw_stop(sc->sc_ifnet[i], 1);
+
+	return (0);
 }
 
 /*
