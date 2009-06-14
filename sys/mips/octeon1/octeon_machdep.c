@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <machine/cpuregs.h>
 #include <machine/cpufunc.h>
+#include <mips/octeon1/octeon_pcmap_regs.h>
 #include <mips/octeon1/octeonreg.h>
 #include <machine/atomic.h>
 #include <machine/pcpu.h>
@@ -231,19 +232,17 @@ void octeon_uart_write_hex (uint32_t wl)
     octeon_uart_write_string(0, wstr);
 }
 
-
+#ifdef __not_used__
 #define OCT_CONS_BUFLEN	200
 static char console_str_buff0[OCT_CONS_BUFLEN + 1];
 #include <machine/stdarg.h>
 
-
 //#define USE_KERN_SUBR_PRINTF
-
 #ifndef USE_KERN_SUBR_PRINTF
 static int oct_printf (const char *fmt, va_list ap);
 #endif
 
-int kern_cons_printf (const char *fmt, ...)
+int kern_cons_printf(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -258,7 +257,7 @@ int kern_cons_printf (const char *fmt, ...)
 }
 
 #ifndef USE_KERN_SUBR_PRINTF
-static int oct_printf (const char *fmt, va_list ap)
+static int oct_printf(const char *fmt, va_list ap)
 {
         snprintf(console_str_buff0, OCT_CONS_BUFLEN, fmt, ap);
         octeon_uart_write_string(0, console_str_buff0);
@@ -266,8 +265,7 @@ static int oct_printf (const char *fmt, va_list ap)
 }
 #endif
 
-
-int console_printf (const char *fmt, ...)
+int console_printf(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -277,8 +275,7 @@ int console_printf (const char *fmt, ...)
         octeon_uart_write_string(0, console_str_buff0);
         return (0);
 }
-
-
+#endif
 
 
 /*
@@ -795,7 +792,7 @@ static int octeon_process_app_desc_ver_6 (void)
     	cvmx_desc_ptr = (cvmx_bootinfo_t *) ((long) app_desc_ptr->cvmx_desc_vaddr);
 
         if ((cvmx_desc_ptr == NULL) || (cvmx_desc_ptr == (cvmx_bootinfo_t *)0xffffffff)) {
-            	printf ("Bad cvmx_desc_ptr  0x%X\n", cvmx_desc_ptr);
+            	printf ("Bad cvmx_desc_ptr %p\n", cvmx_desc_ptr);
                 return 1;
         }
 
@@ -804,7 +801,7 @@ static int octeon_process_app_desc_ver_6 (void)
                              cvmx_desc_ptr->minor_version;
 
         if (cvmx_desc_ptr->major_version != 1) {
-            	printf("Incompatible CVMX descriptor from bootloader: %d.%d  0x%X\n",
+            	printf("Incompatible CVMX descriptor from bootloader: %d.%d %p\n",
                        (int) cvmx_desc_ptr->major_version,
                        (int) cvmx_desc_ptr->minor_version, cvmx_desc_ptr);
                 while (1);	/*  Never return */
