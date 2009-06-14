@@ -63,5 +63,5 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 device		loop
 device		ether
 device		uart
-nodevice	uart_8250		# No 8250 here
+nodevice	uart_ns8250		# ADM5120's UART not 16550-like
 # device		md
