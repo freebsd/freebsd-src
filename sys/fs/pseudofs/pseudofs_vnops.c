@@ -746,9 +746,10 @@ pfs_readlink(struct vop_readlink_args *va)
 	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
 	struct proc *proc = NULL;
+	struct thread *td = curthread;
 	char buf[PATH_MAX];
 	struct sbuf sb;
-	int error;
+	int error, locked;
 
 	PFS_TRACE(("%s", pn->pn_name));
 	pfs_assert_not_owned(pn);
@@ -770,14 +771,19 @@ pfs_readlink(struct vop_readlink_args *va)
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
+	vhold(vn);
+	locked = VOP_ISLOCKED(vn, td);
+	VOP_UNLOCK(vn, 0, td);
 
 	/* sbuf_new() can't fail with a static buffer */
 	sbuf_new(&sb, buf, sizeof buf, 0);
 
-	error = pn_fill(curthread, proc, pn, &sb, NULL);
+	error = pn_fill(td, proc, pn, &sb, NULL);
 
 	if (proc != NULL)
 		PRELE(proc);
+	vn_lock(vn, locked | LK_RETRY, td);
+	vdrop(vn);
 
 	if (error) {
 		sbuf_delete(&sb);
