@@ -87,7 +87,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090608_0134"
+#define HDA_DRV_TEST_REV	"20090614_0135"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -1593,9 +1593,9 @@ hdac_dma_cb(void *callback_arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 {
+	bus_addr_t lowaddr;
 	bus_size_t roundsz;
 	int result;
-	int lowaddr;
 
 	roundsz = roundup2(size, HDAC_DMA_ALIGNMENT);
 	lowaddr = (sc->support_64bit) ? BUS_SPACE_MAXADDR :
