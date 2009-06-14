@@ -25,6 +25,7 @@ ident		OCTEON1
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
+makeoptions     TARGET_BIG_ENDIAN=defined
 
 options		KERNVIRTADDR=0x80100000
 include		"../octeon1/std.octeon1"
@@ -32,6 +33,9 @@ include		"../octeon1/std.octeon1"
 hints		"OCTEON1.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+#XXXimp: Need to make work with 64-bit too
+options 	ISA_MIPS32
 
 options		DDB
 options		KDB
