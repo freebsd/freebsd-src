@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <machine/cpuregs.h>
 #include <machine/cpufunc.h>
-#include <mips/mips4k/octeon32/octeonreg.h>
+#include <mips/octeon1/octeonreg.h>
 #include <machine/atomic.h>
 #include <machine/pcpu.h>
 

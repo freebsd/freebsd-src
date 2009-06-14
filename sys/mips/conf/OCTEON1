@@ -79,4 +79,5 @@ options         ROOTDEVNAME = \"ufs:cf0s2\"	# Unmask if compact flash is needed 
 #options         ROOTDEVNAME = \"ufs:md0\"
 
 #options         MD_ROOT_SIZE = 21264
-options		SMP
+#XXX: Bring up UP first, then generalize.
+#options		SMP
