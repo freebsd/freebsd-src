@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2009
+.Dd June 14, 2009
 .Dt NETISR 9
 .Os
 .Sh NAME
@@ -137,6 +137,13 @@ Will be used only with
 Protocol function to determine what CPU a packet should be processed on.
 Will be used only with
 .Dv NETISR_POLICY_CPU .
+.It Vt netisr_drainedcpu_t Va nh_drainedcpu
+Optional callback function that will be invoked when a per-CPU queue
+was drained.
+It will never fire for directly dispatched packets.
+Unless fully understood, this special-purpose function should not be used.
+.\" In case you intend to use this please send 50 chocolate bars to each
+.\" of rwatson and bz and wait for an answer.
 .It Vt u_int Va nh_proto
 Protocol number used by both protocols to identify themselves to
 .Nm ,
