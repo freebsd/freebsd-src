@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/locore.h>
 #include <machine/md_var.h>
 
+#include <mips/octeon1/octeon_pcmap_regs.h>
+
 #include "octeon_fau.h"
 #include "octeon_fpa.h"
 #include "octeon_ipd.h"
@@ -1880,20 +1882,20 @@ static void rgmx_timer_periodic (void)
                  * Now look for anamolous conditions
                  */
                 if (sc != get_rgmx_softc(port)) {
-                    printf(" port %u  sc 0x%X not in sync with index: %u\n",
+                    printf(" port %u  sc %p not in sync with index: %u\n",
                            port, sc, index);
                     continue;
                 }
 
                 if (sc->port != port) {
-                    printf(" port %u  sc 0x%X port-> %u  not in sync with index: %u\n",
+                    printf(" port %u  sc %p port-> %u  not in sync with index: %u\n",
                            port, sc, sc->port, index);
                     continue;
                 }
 
                 ifp = sc->ifp;
                 if (ifp == NULL) {
-                    printf(" port %u  sc 0x%X . Bad ifp 0x%X\n", port, sc, ifp);
+                    printf(" port %u  sc %p . Bad ifp %p\n", port, sc, ifp);
                     continue;
                 }
 

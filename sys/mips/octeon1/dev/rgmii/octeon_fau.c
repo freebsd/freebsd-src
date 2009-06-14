@@ -7,6 +7,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <mips/octeon1/octeon_pcmap_regs.h>
 #include "octeon_fau.h"
 
 /*
@@ -39,6 +40,3 @@ void octeon_fau_enable (void)
 void octeon_fau_disable (void)
 {
 }
-
-
-

@@ -11,6 +11,7 @@
 #include <vm/pmap.h>
 
 
+#include <mips/octeon1/octeon_pcmap_regs.h>
 #include "octeon_fpa.h"
 
 
