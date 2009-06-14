@@ -207,6 +207,7 @@ void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
 void vm_object_page_clean (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
 void vm_object_page_remove (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
+boolean_t vm_object_populate(vm_object_t, vm_pindex_t, vm_pindex_t);
 void vm_object_reference (vm_object_t);
 void vm_object_reference_locked(vm_object_t);
 void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
