@@ -1,0 +1,21 @@
+# /*
+#  *    This product includes software developed by the University of
+#  *    California, Berkeley and its contributors."
+# */
+# $FreeBSD$
+# 
+include "../mips4k/std.mips4k"
+files	"../mips4k/octeon32/files.octeon32"
+
+#
+# 
+#
+cpu     CPU_MIPS4KC
+#device	pci
+#device	ata
+#device	atadisk
+
+#device clock
+#device obio
+#device uart
+
