@@ -946,7 +946,7 @@ kssl_err_set(KSSL_ERR *kssl_err, int reason, char *text)
 	if (kssl_err == NULL)  return;
 
 	kssl_err->reason = reason;
-	BIO_snprintf(kssl_err->text, KSSL_ERR_MAX, text);
+	BIO_snprintf(kssl_err->text, KSSL_ERR_MAX, "%s", text);
 	return;
         }
 
@@ -2196,7 +2196,7 @@ krb5_error_code  kssl_build_principal_2(
 #else /* !OPENSSL_NO_KRB5 */
 
 #if defined(PEDANTIC) || defined(OPENSSL_SYS_VMS)
-static int dummy=(int)&dummy;
+static void *dummy=&dummy;
 #endif
 
 #endif	/* !OPENSSL_NO_KRB5	*/

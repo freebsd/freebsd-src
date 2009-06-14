@@ -154,6 +154,7 @@ sub main'exch	{ &out2("xchg",@_); }
 sub main'cmp	{ &out2("cmp",@_); }
 sub main'lea	{ &out2("lea",@_); }
 sub main'mul	{ &out1("mul",@_); }
+sub main'imul	{ &out2("imul",@_); }
 sub main'div	{ &out1("div",@_); }
 sub main'dec	{ &out1("dec",@_); }
 sub main'inc	{ &out1("inc",@_); }
@@ -281,6 +282,7 @@ sub main'function_begin
 	my($func,$extra)=@_;
 
 	push(@labels,$func);
+	push(@out,".") if ($main'mwerks);
 	my($tmp)=<<"EOF";
 global	$under$func
 $under$func:
@@ -296,6 +298,7 @@ EOF
 sub main'function_begin_B
 	{
 	my($func,$extra)=@_;
+	push(@out,".") if ($main'mwerks);
 	my($tmp)=<<"EOF";
 global	$under$func
 $under$func:
@@ -375,6 +378,7 @@ sub main'comment
 sub main'public_label
 	{
 	$label{$_[0]}="${under}${_[0]}"	if (!defined($label{$_[0]}));
+	push(@out,".") if ($main'mwerks);
 	push(@out,"global\t$label{$_[0]}\n");
 	}
 
