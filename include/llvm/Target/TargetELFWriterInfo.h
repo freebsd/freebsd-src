@@ -15,15 +15,21 @@
 #define LLVM_TARGET_TARGETELFWRITERINFO_H
 
 namespace llvm {
+  class Function;
+  class TargetData;
+  class TargetMachine;
 
   //===--------------------------------------------------------------------===//
   //                          TargetELFWriterInfo
   //===--------------------------------------------------------------------===//
 
   class TargetELFWriterInfo {
+  protected:
     // EMachine - This field is the target specific value to emit as the
     // e_machine member of the ELF header.
     unsigned short EMachine;
+    TargetMachine &TM;
+    bool is64Bit, isLittleEndian;
   public:
 
     // Machine architectures
@@ -44,10 +50,39 @@ namespace llvm {
       EM_X86_64 = 62   // AMD64
     };
 
-    explicit TargetELFWriterInfo(MachineType machine) : EMachine(machine) {}
-    virtual ~TargetELFWriterInfo() {}
+    // ELF File classes
+    enum {
+      ELFCLASS32 = 1, // 32-bit object file
+      ELFCLASS64 = 2  // 64-bit object file
+    };
+
+    // ELF Endianess
+    enum {
+      ELFDATA2LSB = 1, // Little-endian object file
+      ELFDATA2MSB = 2  // Big-endian object file
+    };
+
+    explicit TargetELFWriterInfo(TargetMachine &tm);
+    virtual ~TargetELFWriterInfo();
 
     unsigned short getEMachine() const { return EMachine; }
+    unsigned getEFlags() const { return 0; }
+    unsigned getEIClass() const { return is64Bit ? ELFCLASS64 : ELFCLASS32; }
+    unsigned getEIData() const {
+      return isLittleEndian ? ELFDATA2LSB : ELFDATA2MSB;
+    }
+
+    /// ELF Header and ELF Section Header Info
+    unsigned getHdrSize() const { return is64Bit ? 64 : 52; }
+    unsigned getSHdrSize() const { return is64Bit ? 64 : 40; }
+
+    /// Symbol Table Info
+    unsigned getSymTabEntrySize() const { return is64Bit ? 24 : 16; }
+    unsigned getSymTabAlignment() const { return is64Bit ? 8 : 4; }
+
+    /// getFunctionAlignment - Returns the alignment for function 'F', targets
+    /// with different alignment constraints should overload this method
+    virtual unsigned getFunctionAlignment(const Function *F) const;
   };
 
 } // end llvm namespace

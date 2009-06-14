@@ -13,9 +13,9 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
+#include "llvm/CodeGen/BinaryObject.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/Debug.h"
 
@@ -28,27 +28,22 @@ namespace llvm {
 /// startFunction - This callback is invoked when a new machine function is
 /// about to be emitted.
 void ELFCodeEmitter::startFunction(MachineFunction &MF) {
-  const TargetData *TD = TM.getTargetData();
-  const Function *F = MF.getFunction();
-
-  // Align the output buffer to the appropriate alignment, power of 2.
-  unsigned FnAlign = F->getAlignment();
-  unsigned TDAlign = TD->getPrefTypeAlignment(F->getType());
-  unsigned Align = std::max(FnAlign, TDAlign);
-  assert(!(Align & (Align-1)) && "Alignment is not a power of two!");
-
   // Get the ELF Section that this function belongs in.
   ES = &EW.getTextSection();
 
+  DOUT << "processing function: " << MF.getFunction()->getName() << "\n";
+
   // FIXME: better memory management, this will be replaced by BinaryObjects
-  ES->SectionData.reserve(4096);
-  BufferBegin = &ES->SectionData[0];
-  BufferEnd = BufferBegin + ES->SectionData.capacity();
+  BinaryData &BD = ES->getData();
+  BD.reserve(4096);
+  BufferBegin = &BD[0];
+  BufferEnd = BufferBegin + BD.capacity();
 
-  // Upgrade the section alignment if required.
+  // Align the output buffer with function alignment, and
+  // upgrade the section alignment if required
+  unsigned Align =
+    TM.getELFWriterInfo()->getFunctionAlignment(MF.getFunction());
   if (ES->Align < Align) ES->Align = Align;
-
-  // Round the size up to the correct alignment for starting the new function.
   ES->Size = (ES->Size + (Align-1)) & (-Align);
 
   // Snaity check on allocated space for text section
@@ -107,7 +102,7 @@ bool ELFCodeEmitter::finishFunction(MachineFunction &MF) {
   FnSym.Value = FnStartPtr-BufferBegin;
 
   // Finally, add it to the symtab.
-  EW.SymbolTable.push_back(FnSym);
+  EW.SymbolList.push_back(FnSym);
 
   // Relocations
   // -----------
@@ -128,7 +123,7 @@ bool ELFCodeEmitter::finishFunction(MachineFunction &MF) {
     } else {
       assert(0 && "Unhandled relocation type");
     }
-    ES->Relocations.push_back(MR);
+    ES->addRelocation(MR);
   }
   Relocations.clear();
 
