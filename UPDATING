@@ -18,7 +18,8 @@ portupgrade.
 
 20090520:
 	Update ZFS to version 13. ZFS users will need to re-build
-	kernel and world. Existing pools will continue to work
+	and install both kernel and world simultaneously in order 
+	for the ZFS tools to work. Existing pools will continue to work
 	without upgrade. If a pool is upgraded it will no longer be
 	usable by older kernel revs. ZFS send / recv between 
 	pool version 6 and pool version 13 is not supported.
