@@ -21,8 +21,6 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
  */
 
 #include <sys/cdefs.h>
@@ -86,11 +84,11 @@ ofwd_startio(struct ofwd_softc *sc, struct bio *bp)
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		r = OF_read(sc->ofwd_instance, (void *)bp->bio_data,
-			bp->bio_length);
+		   bp->bio_length);
 		break;
 	case BIO_WRITE:
 		r = OF_write(sc->ofwd_instance, (void *)bp->bio_data,
-			bp->bio_length);
+		   bp->bio_length);
 		break;
 	}
 	if (r != bp->bio_length)
@@ -161,7 +159,7 @@ g_ofwd_init(struct g_class *mp __unused)
 	}
 
 	sc = (struct ofwd_softc *)malloc(sizeof *sc, M_DEVBUF,
-		 M_WAITOK|M_ZERO);
+	    M_WAITOK | M_ZERO);
 	bioq_init(&sc->ofwd_bio_queue);
 	mtx_init(&sc->ofwd_queue_mtx, "ofwd bio queue", NULL, MTX_DEF);
 	sc->ofwd_instance = ifd;
