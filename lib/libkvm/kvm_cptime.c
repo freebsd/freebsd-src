@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "kvm_private.h"
 
