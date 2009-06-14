@@ -54,7 +54,6 @@ options 	BOOTP_COMPAT
 #options 	UFS_DIRHASH		#Improve performance on big directories
 options 	ROOTDEVNAME=\"nfs:10.0.0.1:/mnt/bsd\"
 
-
 # Debugging for use in -current
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
@@ -64,4 +63,5 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 device		loop
 device		ether
 device		uart
+nodevice	uart_8250		# No 8250 here
 # device		md
