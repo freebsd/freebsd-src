@@ -21,6 +21,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
@@ -1107,9 +1108,9 @@ llvm::Value *CodeGenModule::getBuiltinLibFunction(unsigned BuiltinID) {
     Name += 10;
   
   // Get the type for the builtin.
-  Builtin::Context::GetBuiltinTypeError Error;
-  QualType Type = Context.BuiltinInfo.GetBuiltinType(BuiltinID, Context, Error);
-  assert(Error == Builtin::Context::GE_None && "Can't get builtin type");
+  ASTContext::GetBuiltinTypeError Error;
+  QualType Type = Context.GetBuiltinType(BuiltinID, Error);
+  assert(Error == ASTContext::GE_None && "Can't get builtin type");
 
   const llvm::FunctionType *Ty = 
     cast<llvm::FunctionType>(getTypes().ConvertType(Type));
@@ -1481,7 +1482,11 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
   case Decl::CXXDestructor:
     EmitCXXDestructors(cast<CXXDestructorDecl>(D));
     break;
-        
+
+  case Decl::StaticAssert:
+    // Nothing to do.
+    break;
+
   // Objective-C Decls
     
   // Forward declarations, no (immediate) code generation.

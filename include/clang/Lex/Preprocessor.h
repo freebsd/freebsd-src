@@ -19,6 +19,7 @@
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/TokenLexer.h"
 #include "clang/Lex/PTHManager.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceLocation.h"
@@ -69,6 +70,8 @@ class Preprocessor {
   IdentifierInfo *Ident__TIMESTAMP__;              // __TIMESTAMP__
   IdentifierInfo *Ident__COUNTER__;                // __COUNTER__
   IdentifierInfo *Ident_Pragma, *Ident__VA_ARGS__; // _Pragma, __VA_ARGS__
+  IdentifierInfo *Ident__has_feature;              // __has_feature
+  IdentifierInfo *Ident__has_builtin;              // __has_builtin
   
   SourceLocation DATELoc, TIMELoc;
   unsigned CounterValue;  // Next __COUNTER__ value.
@@ -99,6 +102,9 @@ class Preprocessor {
   /// the lifetime fo the preprocessor.
   SelectorTable Selectors;
 
+  /// BuiltinInfo - Information about builtins.
+  Builtin::Context BuiltinInfo;
+  
   /// PragmaHandlers - This tracks all of the pragmas that the client registered
   /// with this preprocessor.
   PragmaNamespace *PragmaHandlers;
@@ -194,14 +200,13 @@ private:  // Cached tokens state.
 public:
   Preprocessor(Diagnostic &diags, const LangOptions &opts, TargetInfo &target,
                SourceManager &SM, HeaderSearch &Headers,
-               IdentifierInfoLookup* IILookup = 0);
+               IdentifierInfoLookup *IILookup = 0);
 
   ~Preprocessor();
 
   Diagnostic &getDiagnostics() const { return *Diags; }
   void setDiagnostics(Diagnostic &D) { Diags = &D; }
 
-  
   const LangOptions &getLangOptions() const { return Features; }
   TargetInfo &getTargetInfo() const { return Target; }
   FileManager &getFileManager() const { return FileMgr; }
@@ -210,6 +215,7 @@ public:
 
   IdentifierTable &getIdentifierTable() { return Identifiers; }
   SelectorTable &getSelectorTable() { return Selectors; }
+  Builtin::Context &getBuiltinInfo() { return BuiltinInfo; }
   llvm::BumpPtrAllocator &getPreprocessorAllocator() { return BP; }
     
   void setPTHManager(PTHManager* pm);
@@ -667,7 +673,6 @@ private:
   /// RegisterBuiltinMacros - Register builtin macros, such as __LINE__ with the
   /// identifier table.
   void RegisterBuiltinMacros();
-  IdentifierInfo *RegisterBuiltinMacro(const char *Name);
   
   /// HandleMacroExpandedIdentifier - If an identifier token is read that is to
   /// be expanded as a macro, handle it and return the next token as 'Tok'.  If

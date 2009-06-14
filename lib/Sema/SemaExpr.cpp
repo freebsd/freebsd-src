@@ -1177,7 +1177,12 @@ Sema::ActOnDeclarationNameExpr(Scope *S, SourceLocation Loc,
       ValueDependent = true;
     //    - a constant with integral or enumeration type and is
     //      initialized with an expression that is value-dependent
-    //      (FIXME!).
+    else if (const VarDecl *Dcl = dyn_cast<VarDecl>(VD)) {
+      if (Dcl->getType().getCVRQualifiers() == QualType::Const &&
+          Dcl->getInit()) {
+        ValueDependent = Dcl->getInit()->isValueDependent();
+      }
+    }
   }
 
   return Owned(BuildDeclRefExpr(VD, VD->getType().getNonReferenceType(), Loc,
@@ -2479,9 +2484,19 @@ Sema::ConvertArgumentsForCall(CallExpr *Call, Expr *Fn,
       // Pass the argument.
       if (PerformCopyInitialization(Arg, ProtoArgType, "passing"))
         return true;
-    } else
+    } else {
+      if (FDecl->getParamDecl(i)->hasUnparsedDefaultArg()) {
+        Diag (Call->getSourceRange().getBegin(),
+              diag::err_use_of_default_argument_to_function_declared_later) <<
+        FDecl << cast<CXXRecordDecl>(FDecl->getDeclContext())->getDeclName();
+        Diag(UnparsedDefaultArgLocs[FDecl->getParamDecl(i)], 
+              diag::note_default_argument_declared_here);
+      }
+      
       // We already type-checked the argument, so we know it works.
       Arg = new (Context) CXXDefaultArgExpr(FDecl->getParamDecl(i));
+    }
+    
     QualType ArgType = Arg->getType();
 
     Call->setArg(i, Arg);

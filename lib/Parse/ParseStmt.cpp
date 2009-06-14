@@ -142,33 +142,33 @@ Parser::ParseStatementOrDeclaration(bool OnlyStatement) {
     return ParseWhileStatement();
   case tok::kw_do:                  // C99 6.8.5.2: do-statement
     Res = ParseDoStatement();
-    SemiError = "do/while loop";
+    SemiError = "do/while";
     break;
   case tok::kw_for:                 // C99 6.8.5.3: for-statement
     return ParseForStatement();
 
   case tok::kw_goto:                // C99 6.8.6.1: goto-statement
     Res = ParseGotoStatement();
-    SemiError = "goto statement";
+    SemiError = "goto";
     break;
   case tok::kw_continue:            // C99 6.8.6.2: continue-statement
     Res = ParseContinueStatement();
-    SemiError = "continue statement";
+    SemiError = "continue";
     break;
   case tok::kw_break:               // C99 6.8.6.3: break-statement
     Res = ParseBreakStatement();
-    SemiError = "break statement";
+    SemiError = "break";
     break;
   case tok::kw_return:              // C99 6.8.6.4: return-statement
     Res = ParseReturnStatement();
-    SemiError = "return statement";
+    SemiError = "return";
     break;
 
   case tok::kw_asm: {
     bool msAsm = false;
     Res = ParseAsmStatement(msAsm);
     if (msAsm) return move(Res);
-    SemiError = "asm statement";
+    SemiError = "asm";
     break;
   }
 
@@ -180,10 +180,14 @@ Parser::ParseStatementOrDeclaration(bool OnlyStatement) {
   if (Tok.is(tok::semi)) {
     ConsumeToken();
   } else if (!Res.isInvalid()) {
-    Diag(Tok, diag::err_expected_semi_after) << SemiError;
+    // If the result was valid, then we do want to diagnose this.  Use
+    // ExpectAndConsume to emit the diagnostic, even though we know it won't
+    // succeed.
+    ExpectAndConsume(tok::semi, diag::err_expected_semi_after_stmt, SemiError);
     // Skip until we see a } or ;, but don't eat it.
     SkipUntil(tok::r_brace, true, true);
   }
+  
   return move(Res);
 }
 
@@ -487,8 +491,11 @@ Parser::OwningStmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
 /// successfully parsed.  Note that a successful parse can still have semantic
 /// errors in the condition.
 bool Parser::ParseParenExprOrCondition(OwningExprResult &CondExp,
-                                       bool OnlyAllowCondition) {
+                                       bool OnlyAllowCondition,
+                                       SourceLocation *LParenLocPtr,
+                                       SourceLocation *RParenLocPtr) {
   SourceLocation LParenLoc = ConsumeParen();
+  if (LParenLocPtr) *LParenLocPtr = LParenLoc;
   
   if (getLang().CPlusPlus)
     CondExp = ParseCXXCondition();
@@ -507,7 +514,8 @@ bool Parser::ParseParenExprOrCondition(OwningExprResult &CondExp,
   }
   
   // Otherwise the condition is valid or the rparen is present.
-  MatchRHSPunctuation(tok::r_paren, LParenLoc);
+  SourceLocation RPLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
+  if (RParenLocPtr) *RParenLocPtr = RPLoc;
   return false;
 }
 
@@ -837,14 +845,16 @@ Parser::OwningStmtResult Parser::ParseDoStatement() {
 
   // Parse the parenthesized condition.
   OwningExprResult Cond(Actions);
-  ParseParenExprOrCondition(Cond, true);
+  SourceLocation LPLoc, RPLoc;
+  ParseParenExprOrCondition(Cond, true, &LPLoc, &RPLoc);
   
   DoScope.Exit();
 
   if (Cond.isInvalid() || Body.isInvalid())
     return StmtError();
 
-  return Actions.ActOnDoStmt(DoLoc, move(Body), WhileLoc, move(Cond));
+  return Actions.ActOnDoStmt(DoLoc, move(Body), WhileLoc, LPLoc,
+                             move(Cond), RPLoc);
 }
 
 /// ParseForStatement

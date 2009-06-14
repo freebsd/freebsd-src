@@ -290,11 +290,11 @@ Parser::ParseTemplateParameterList(unsigned Depth,
 ///         parameter-declaration
 ///
 ///       type-parameter: (see below)
-///         'class' identifier[opt]
+///         'class' ...[opt][C++0x] identifier[opt]
 ///         'class' identifier[opt] '=' type-id
-///         'typename' identifier[opt]
+///         'typename' ...[opt][C++0x] identifier[opt]
 ///         'typename' identifier[opt] '=' type-id
-///         'template' '<' template-parameter-list '>' 'class' identifier[opt]
+///         'template' ...[opt][C++0x] '<' template-parameter-list '>' 'class' identifier[opt]
 ///         'template' '<' template-parameter-list '>' 'class' identifier[opt] = id-expression
 Parser::DeclPtrTy 
 Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
@@ -319,9 +319,9 @@ Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
 /// ParseTemplateTemplateParameter and ParseNonTypeTemplateParameter.
 ///
 ///       type-parameter:     [C++ temp.param]
-///         'class' identifier[opt]
+///         'class' ...[opt][C++0x] identifier[opt]
 ///         'class' identifier[opt] '=' type-id
-///         'typename' identifier[opt]
+///         'typename' ...[opt][C++0x] identifier[opt]
 ///         'typename' identifier[opt] '=' type-id
 Parser::DeclPtrTy Parser::ParseTypeParameter(unsigned Depth, unsigned Position){
   assert((Tok.is(tok::kw_class) || Tok.is(tok::kw_typename)) &&
@@ -331,6 +331,17 @@ Parser::DeclPtrTy Parser::ParseTypeParameter(unsigned Depth, unsigned Position){
   bool TypenameKeyword = Tok.is(tok::kw_typename);
   SourceLocation KeyLoc = ConsumeToken();
 
+  // Grab the ellipsis (if given).
+  bool Ellipsis = false;
+  SourceLocation EllipsisLoc;
+  if (Tok.is(tok::ellipsis)) {
+    Ellipsis = true;
+    EllipsisLoc = ConsumeToken();
+    
+    if (!getLang().CPlusPlus0x) 
+      Diag(EllipsisLoc, diag::err_variadic_templates);
+  }
+  
   // Grab the template parameter name (if given)
   SourceLocation NameLoc;
   IdentifierInfo* ParamName = 0;
@@ -347,6 +358,7 @@ Parser::DeclPtrTy Parser::ParseTypeParameter(unsigned Depth, unsigned Position){
   }
   
   DeclPtrTy TypeParam = Actions.ActOnTypeParameter(CurScope, TypenameKeyword,
+                                                   Ellipsis, EllipsisLoc,
                                                    KeyLoc, ParamName, NameLoc,
                                                    Depth, Position);
 

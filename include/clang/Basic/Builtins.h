@@ -12,12 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_BUILTINS_H
-#define LLVM_CLANG_AST_BUILTINS_H
+#ifndef LLVM_CLANG_BASIC_BUILTINS_H
+#define LLVM_CLANG_BASIC_BUILTINS_H
 
 #include <cstring>
-#include <string>
-#include "llvm/ADT/SmallVector.h"
+
+namespace llvm {
+  template <typename T> class SmallVectorImpl;
+}
 
 namespace clang {
   class TargetInfo;
@@ -29,7 +31,7 @@ namespace Builtin {
 enum ID {
   NotBuiltin  = 0,      // This is not a builtin function.
 #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
-#include "clang/AST/Builtins.def"
+#include "clang/Basic/Builtins.def"
   FirstTSBuiltin
 };
 
@@ -53,14 +55,11 @@ class Context {
 public:
   Context() : TSRecords(0), NumTSRecords(0) {}
 
-  /// \brief Load all of the target builtins. This should be called
-  /// prior to initializing the builtin identifiers.
-  void InitializeTargetBuiltins(const TargetInfo &Target);
-
   /// InitializeBuiltins - Mark the identifiers for all the builtins with their
   /// appropriate builtin ID # and mark any non-portable builtin identifiers as
   /// such.
-  void InitializeBuiltins(IdentifierTable &Table, bool NoBuiltins = false);
+  void InitializeBuiltins(IdentifierTable &Table, const TargetInfo &Target,
+                          bool NoBuiltins = false);
 
   /// \brief Popular the vector with the names of all of the builtins.
   void GetBuiltinNames(llvm::SmallVectorImpl<const char *> &Names,
@@ -70,6 +69,11 @@ public:
   /// e.g. "__builtin_abs".
   const char *GetName(unsigned ID) const {
     return GetRecord(ID).Name;
+  }
+  
+  /// GetTypeString - Get the type descriptor string for the specified builtin.
+  const char *GetTypeString(unsigned ID) const {
+    return GetRecord(ID).Type;
   }
   
   /// isConst - Return true if this function has no side effects and doesn't
@@ -121,13 +125,6 @@ public:
     return strchr(GetRecord(ID).Attributes, 'e') != 0;
   }
 
-  /// GetBuiltinType - Return the type for the specified builtin.
-  enum GetBuiltinTypeError {
-    GE_None, //< No error
-    GE_Missing_FILE //< Missing the FILE type from <stdio.h>
-  };
-  QualType GetBuiltinType(unsigned ID, ASTContext &Context,
-                          GetBuiltinTypeError &Error) const;
 private:
   const Info &GetRecord(unsigned ID) const;
 };
