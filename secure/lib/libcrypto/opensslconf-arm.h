@@ -21,6 +21,10 @@
 #ifndef OPENSSL_NO_GMP
 # define OPENSSL_NO_GMP
 #endif
+/* jpake is marked experimental in OpenSSL 0.9.8. */
+#ifndef OPENSSL_NO_JPAKE
+# define OPENSSL_NO_JPAKE
+#endif
 /* The Kerberos 5 support is MIT-specific. */
 #ifndef OPENSSL_NO_KRB5
 # define OPENSSL_NO_KRB5
