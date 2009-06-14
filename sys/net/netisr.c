@@ -197,6 +197,7 @@ struct netisr_proto {
 	netisr_handler_t *np_handler;	/* Protocol handler. */
 	netisr_m2flow_t	*np_m2flow;	/* Query flow for untagged packet. */
 	netisr_m2cpuid_t *np_m2cpuid;	/* Query CPU to process packet on. */
+	netisr_drainedcpu_t *np_drainedcpu; /* Callback when drained a queue. */
 	u_int		 np_qlimit;	/* Maximum per-CPU queue depth. */
 	u_int		 np_policy;	/* Work placement policy. */
 };
@@ -380,6 +381,7 @@ netisr_register(const struct netisr_handler *nhp)
 	np[proto].np_handler = nhp->nh_handler;
 	np[proto].np_m2flow = nhp->nh_m2flow;
 	np[proto].np_m2cpuid = nhp->nh_m2cpuid;
+	np[proto].np_drainedcpu = nhp->nh_drainedcpu;
 	if (nhp->nh_qlimit == 0)
 		np[proto].np_qlimit = netisr_defaultqlimit;
 	else if (nhp->nh_qlimit > netisr_maxqlimit) {
@@ -705,6 +707,8 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 	}
 	KASSERT(local_npw.nw_len == 0,
 	    ("%s(%u): len %u", __func__, proto, local_npw.nw_len));
+	if (np[proto].np_drainedcpu)
+		np[proto].np_drainedcpu(nwsp->nws_cpu);
 	NWS_LOCK(nwsp);
 	npwp->nw_handled += handled;
 	return (handled);
