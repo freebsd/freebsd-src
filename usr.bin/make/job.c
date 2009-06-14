@@ -342,7 +342,7 @@ static int	fifoFd;		/* Fd of our job fifo */
 static char	fifoName[] = "/tmp/make_fifo_XXXXXXXXX";
 static int	fifoMaster;
 
-static sig_atomic_t interrupted;
+static volatile sig_atomic_t interrupted;
 
 
 #if defined(USE_PGRP) && defined(SYSV)
