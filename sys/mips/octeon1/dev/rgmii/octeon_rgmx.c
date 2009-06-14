@@ -58,7 +58,8 @@ __FBSDID("$FreeBSD$");
 #include "octeon_rgmx.h"
 
 
-#define OCTEON_RGMX_NUM_PORTS_MAX	   4
+/* The "battleship" boards have 8 ports */
+#define OCTEON_RGMX_NUM_PORTS_MAX	   8
 #define NUM_TX_PACKETS			  80
 #define NUM_RX_PACKETS			 300
 #define MAX_RX_BUFS			(NUM_RX_PACKETS) * (OCTEON_RGMX_NUM_PORTS_MAX)
