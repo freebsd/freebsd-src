@@ -1,20 +1,15 @@
-# /*
-#  *    This product includes software developed by the University of
-#  *    California, Berkeley and its contributors."
-# */
 # $FreeBSD$
 # Octeon Support Files
 #
-mips/octeon1/octeon_machdep.c			standard
-mips/octeon1/obio.c				optional uart
-mips/octeon1/uart_cpu_octeonusart.c		optional uart
-mips/octeon1/uart_bus_octeonusart.c		optional uart
-mips/octeon1/octeon_ebt3000_cf.c		optional cf
-
-mips/mips/mp_machdep.c                          optional smp
 dev/uart/uart_dev_oct16550.c			optional uart
-dev/le/octeon_fau.c				optional rgmii
-dev/le/octeon_fpa.c				optional rgmii
-dev/le/octeon_ipd.c 				optional rgmii
-dev/le/octeon_pko.c				optional rgmii
-dev/le/octeon_rgmx.c				optional rgmii
+mips/mips/mp_machdep.c				optional smp
+mips/octeon1/dev/rgmii/octeon_fau.c		optional rgmii
+mips/octeon1/dev/rgmii/octeon_fpa.c		optional rgmii
+mips/octeon1/dev/rgmii/octeon_ipd.c 		optional rgmii
+mips/octeon1/dev/rgmii/octeon_pko.c		optional rgmii
+mips/octeon1/dev/rgmii/octeon_rgmx.c		optional rgmii
+mips/octeon1/obio.c				optional uart
+mips/octeon1/octeon_ebt3000_cf.c		optional cf
+mips/octeon1/octeon_machdep.c			standard
+mips/octeon1/uart_bus_octeonusart.c		optional uart
+mips/octeon1/uart_cpu_octeonusart.c		optional uart
