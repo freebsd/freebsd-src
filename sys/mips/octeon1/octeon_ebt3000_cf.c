@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "octeon_ebt3000_cf.h"
 #include "driveid.h"
+#include <mips/octeon1/octeon_pcmap_regs.h>
 
 /* ATA Commands */
 #define CMD_READ_SECTOR		0x20
@@ -505,7 +506,8 @@ static void cf_identify (driver_t *drv, device_t parent)
         octeon_mio_boot_reg_cfgx_t cfg;
 
 
-    	if (!octeon_board_real()) return 1;
+    	if (!octeon_board_real())
+		return;
 
 	base_addr = (void *) OCTEON_PHYS2PTR(OCTEON_CF_COMMON_BASE_ADDR);
 
