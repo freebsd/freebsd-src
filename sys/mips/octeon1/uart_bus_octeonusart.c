@@ -53,22 +53,28 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
+/*
+ * XXXMIPS:
+ */
 #include <mips/octeon1/octeonreg.h>
 
 #include "uart_if.h"
 
+extern struct uart_class uart_oct16550_class;
+
+
 static int uart_octeon_probe(device_t dev);
-static void octeon_uart_identify(driver_t *drv, device_t parent);
+static void octeon_uart_identify(driver_t * drv, device_t parent);
 
 extern struct uart_class octeon_uart_class;
 
 static device_method_t uart_octeon_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_octeon_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	DEVMETHOD(device_identify,	octeon_uart_identify),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, uart_octeon_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, uart_bus_detach),
+	DEVMETHOD(device_identify, octeon_uart_identify),
+	{0, 0}
 };
 
 static driver_t uart_octeon_driver = {
@@ -77,35 +83,36 @@ static driver_t uart_octeon_driver = {
 	sizeof(struct uart_softc),
 };
 
-extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
-static int
-uart_octeon_probe (device_t dev)
+extern 
+SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
+	static int
+	    uart_octeon_probe(device_t dev)
 {
 	struct uart_softc *sc;
-        int unit;
+	int unit;
 
 /*
  * Note that both tty0 & tty1 are viable consoles. We add child devices
  * such that ttyu0 ends up front of queue.
  */
-        unit = device_get_unit(dev);
+	unit = device_get_unit(dev);
 	sc = device_get_softc(dev);
-        sc->sc_sysdev = NULL;
-        sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
-        bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
-        if (!unit) {
-            	sc->sc_sysdev->bas.bst = 0;
-                sc->sc_sysdev->bas.bsh = OCTEON_UART0ADR;
-        }
+	sc->sc_sysdev = NULL;
+	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
+	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
+	if (!unit) {
+		sc->sc_sysdev->bas.bst = 0;
+		sc->sc_sysdev->bas.bsh = OCTEON_UART0ADR;
+	}
 	sc->sc_class = &uart_oct16550_class;
 	sc->sc_bas.bst = 0;
 	sc->sc_bas.bsh = unit ? OCTEON_UART1ADR : OCTEON_UART0ADR;
 	sc->sc_bas.regshft = 0x3;
-        return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
+	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
 }
 
 static void
-octeon_uart_identify (driver_t *drv, device_t parent)
+octeon_uart_identify(driver_t * drv, device_t parent)
 {
 	BUS_ADD_CHILD(parent, 0, "uart", 0);
 }
@@ -113,4 +120,3 @@ octeon_uart_identify (driver_t *drv, device_t parent)
 
 
 DRIVER_MODULE(uart, obio, uart_octeon_driver, uart_devclass, 0, 0);
-
