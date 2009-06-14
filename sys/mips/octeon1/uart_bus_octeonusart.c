@@ -53,10 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-/*
- * XXXMIPS:
- */
-#include <mips/mips4k/octeon32/octeonreg.h>
+#include <mips/octeon1/octeonreg.h>
 
 #include "uart_if.h"
 
