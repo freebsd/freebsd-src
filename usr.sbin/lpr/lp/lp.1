@@ -78,6 +78,8 @@ or
 .Ev PRINTER
 (with this precedence)
 are taken as the destination printer.
+.It Fl m
+Send mail upon completion.
 .It Fl n Ar num
 Specify that
 .Ar num
@@ -91,6 +93,9 @@ Silent operation.
 Not supported,
 provided only as a compatibility option for
 .St -susv2 .
+.It Fl t Ar title
+Set the job title to
+.Ar title .
 .El
 .Sh ENVIRONMENT
 As described above, the variables
