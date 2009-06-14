@@ -332,7 +332,6 @@ static int
 ums_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	struct usb_interface_descriptor *id;
 	void *d_ptr;
 	int error;
 	uint16_t d_len;
@@ -342,11 +341,12 @@ ums_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
-	id = usb2_get_interface_descriptor(uaa->iface);
-
-	if ((id == NULL) ||
-	    (id->bInterfaceClass != UICLASS_HID))
+	if (uaa->info.bInterfaceClass != UICLASS_HID)
 		return (ENXIO);
+
+	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
+	    (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))
+		return (0);
 
 	error = usb2_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
@@ -356,9 +356,6 @@ ums_probe(device_t dev)
 
 	if (hid_is_collection(d_ptr, d_len,
 	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
-		error = 0;
-	else if ((id->bInterfaceSubClass == UISUBCLASS_BOOT) &&
-	    (id->bInterfaceProtocol == UIPROTO_MOUSE))
 		error = 0;
 	else
 		error = ENXIO;

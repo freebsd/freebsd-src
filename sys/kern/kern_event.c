@@ -208,12 +208,10 @@ SYSCTL_INT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 } while (0)
 #ifdef INVARIANTS
 #define	KNL_ASSERT_LOCKED(knl) do {					\
-	if (!knl->kl_locked((knl)->kl_lockarg))				\
-			panic("knlist not locked, but should be");	\
+	knl->kl_assert_locked((knl)->kl_lockarg);			\
 } while (0)
-#define	KNL_ASSERT_UNLOCKED(knl) do {				\
-	if (knl->kl_locked((knl)->kl_lockarg))				\
-		panic("knlist locked, but should not be");		\
+#define	KNL_ASSERT_UNLOCKED(knl) do {					\
+	knl->kl_assert_unlocked((knl)->kl_lockarg);			\
 } while (0)
 #else /* !INVARIANTS */
 #define	KNL_ASSERT_LOCKED(knl) do {} while(0)
@@ -577,7 +575,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
 	TAILQ_INIT(&kq->kq_head);
 	kq->kq_fdp = fdp;
-	knlist_init(&kq->kq_sel.si_note, &kq->kq_lock, NULL, NULL, NULL);
+	knlist_init_mtx(&kq->kq_sel.si_note, &kq->kq_lock);
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
 	FILEDESC_XLOCK(fdp);
@@ -1723,7 +1721,6 @@ MTX_SYSINIT(knlist_lock, &knlist_lock, "knlist lock for lockless objects",
 	MTX_DEF);
 static void knlist_mtx_lock(void *arg);
 static void knlist_mtx_unlock(void *arg);
-static int knlist_mtx_locked(void *arg);
 
 static void
 knlist_mtx_lock(void *arg)
@@ -1737,15 +1734,22 @@ knlist_mtx_unlock(void *arg)
 	mtx_unlock((struct mtx *)arg);
 }
 
-static int
-knlist_mtx_locked(void *arg)
+static void
+knlist_mtx_assert_locked(void *arg)
 {
-	return (mtx_owned((struct mtx *)arg));
+	mtx_assert((struct mtx *)arg, MA_OWNED);
+}
+
+static void
+knlist_mtx_assert_unlocked(void *arg)
+{
+	mtx_assert((struct mtx *)arg, MA_NOTOWNED);
 }
 
 void
 knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
-    void (*kl_unlock)(void *), int (*kl_locked)(void *))
+    void (*kl_unlock)(void *),
+    void (*kl_assert_locked)(void *), void (*kl_assert_unlocked)(void *))
 {
 
 	if (lock == NULL)
@@ -1761,12 +1765,23 @@ knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
 		knl->kl_unlock = knlist_mtx_unlock;
 	else
 		knl->kl_unlock = kl_unlock;
-	if (kl_locked == NULL)
-		knl->kl_locked = knlist_mtx_locked;
+	if (kl_assert_locked == NULL)
+		knl->kl_assert_locked = knlist_mtx_assert_locked;
 	else
-		knl->kl_locked = kl_locked;
+		knl->kl_assert_locked = kl_assert_locked;
+	if (kl_assert_unlocked == NULL)
+		knl->kl_assert_unlocked = knlist_mtx_assert_unlocked;
+	else
+		knl->kl_assert_unlocked = kl_assert_unlocked;
 
 	SLIST_INIT(&knl->kl_list);
+}
+
+void
+knlist_init_mtx(struct knlist *knl, struct mtx *lock)
+{
+
+	knlist_init(knl, lock, NULL, NULL, NULL, NULL);
 }
 
 void

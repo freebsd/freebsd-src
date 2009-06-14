@@ -200,11 +200,13 @@ nsp_pccard_attach(device_t dev)
 	return(0);
 }
 
-static void
+static int
 nsp_pccard_detach(device_t dev)
 {
 	nsp_card_unload(dev);
 	nsp_release_resource(dev);
+
+	return (0);
 }
 
 static device_method_t nsp_pccard_methods[] = {

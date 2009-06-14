@@ -43,7 +43,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
 #include "opt_bootp.h"
 
 #include <sys/param.h>
@@ -1564,7 +1563,7 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 		} else {
 			strcpy(nd->my_hostnam, p);
 			mtx_lock(&prison0.pr_mtx);
-			strcpy(prison0.pr_host, p);
+			strcpy(prison0.pr_hostname, p);
 			mtx_unlock(&prison0.pr_mtx);
 			printf("hostname %s ", p);
 			gctx->sethostname = ifctx;

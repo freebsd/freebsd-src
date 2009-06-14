@@ -136,16 +136,16 @@ struct VISIBILITY_HIDDEN GlobalStatus {
 
 }
 
-/// ConstantIsDead - Return true if the specified constant is (transitively)
-/// dead.  The constant may be used by other constants (e.g. constant arrays and
-/// constant exprs) as long as they are dead, but it cannot be used by anything
-/// else.
-static bool ConstantIsDead(Constant *C) {
+// SafeToDestroyConstant - It is safe to destroy a constant iff it is only used
+// by constants itself.  Note that constants cannot be cyclic, so this test is
+// pretty easy to implement recursively.
+//
+static bool SafeToDestroyConstant(Constant *C) {
   if (isa<GlobalValue>(C)) return false;
 
   for (Value::use_iterator UI = C->use_begin(), E = C->use_end(); UI != E; ++UI)
     if (Constant *CU = dyn_cast<Constant>(*UI)) {
-      if (!ConstantIsDead(CU)) return false;
+      if (!SafeToDestroyConstant(CU)) return false;
     } else
       return false;
   return true;
@@ -233,7 +233,7 @@ static bool AnalyzeGlobal(Value *V, GlobalStatus &GS,
     } else if (Constant *C = dyn_cast<Constant>(*UI)) {
       GS.HasNonInstructionUser = true;
       // We might have a dead and dangling constant hanging off of here.
-      if (!ConstantIsDead(C))
+      if (!SafeToDestroyConstant(C))
         return true;
     } else {
       GS.HasNonInstructionUser = true;
@@ -338,7 +338,7 @@ static bool CleanupConstantGlobalUsers(Value *V, Constant *Init) {
     } else if (Constant *C = dyn_cast<Constant>(U)) {
       // If we have a chain of dead constantexprs or other things dangling from
       // us, and if they are all dead, nuke them without remorse.
-      if (ConstantIsDead(C)) {
+      if (SafeToDestroyConstant(C)) {
         C->destroyConstant();
         // This could have invalidated UI, start over from scratch.
         CleanupConstantGlobalUsers(V, Init);
@@ -354,7 +354,7 @@ static bool CleanupConstantGlobalUsers(Value *V, Constant *Init) {
 static bool isSafeSROAElementUse(Value *V) {
   // We might have a dead and dangling constant hanging off of here.
   if (Constant *C = dyn_cast<Constant>(V))
-    return ConstantIsDead(C);
+    return SafeToDestroyConstant(C);
   
   Instruction *I = dyn_cast<Instruction>(V);
   if (!I) return false;
@@ -1769,22 +1769,6 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
   return false;
 }
 
-/// OnlyCalledDirectly - Return true if the specified function is only called
-/// directly.  In other words, its address is never taken.
-static bool OnlyCalledDirectly(Function *F) {
-  for (Value::use_iterator UI = F->use_begin(), E = F->use_end(); UI != E;++UI){
-    Instruction *User = dyn_cast<Instruction>(*UI);
-    if (!User) return false;
-    if (!isa<CallInst>(User) && !isa<InvokeInst>(User)) return false;
-
-    // See if the function address is passed as an argument.
-    for (User::op_iterator i = User->op_begin() + 1, e = User->op_end();
-         i != e; ++i)
-      if (*i == F) return false;
-  }
-  return true;
-}
-
 /// ChangeCalleesToFastCall - Walk all of the direct calls of the specified
 /// function, changing them to FastCC.
 static void ChangeCalleesToFastCall(Function *F) {
@@ -1830,7 +1814,7 @@ bool GlobalOpt::OptimizeFunctions(Module &M) {
       ++NumFnDeleted;
     } else if (F->hasLocalLinkage()) {
       if (F->getCallingConv() == CallingConv::C && !F->isVarArg() &&
-          OnlyCalledDirectly(F)) {
+          !F->hasAddressTaken()) {
         // If this function has C calling conventions, is not a varargs
         // function, and is only called directly, promote it to use the Fast
         // calling convention.
@@ -1841,7 +1825,7 @@ bool GlobalOpt::OptimizeFunctions(Module &M) {
       }
 
       if (F->getAttributes().hasAttrSomewhere(Attribute::Nest) &&
-          OnlyCalledDirectly(F)) {
+          !F->hasAddressTaken()) {
         // The function is not used by a trampoline intrinsic, so it is safe
         // to remove the 'nest' attribute.
         RemoveNestAttribute(F);

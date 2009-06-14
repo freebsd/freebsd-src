@@ -256,6 +256,9 @@ public:
   /// unit.
   bool CompleteTranslationUnit;
 
+  /// \brief The number of SFINAE diagnostics that have been trapped.
+  unsigned NumSFINAEErrors;
+
   typedef llvm::DenseMap<Selector, ObjCMethodList> MethodPool;
 
   /// Instance/Factory Method Pools - allows efficient lookup when typechecking
@@ -297,11 +300,38 @@ public:
     SemaDiagnosticBuilder(DiagnosticBuilder &DB, Sema &SemaRef, unsigned DiagID)
       : DiagnosticBuilder(DB), SemaRef(SemaRef), DiagID(DiagID) { }
 
+    explicit SemaDiagnosticBuilder(Sema &SemaRef) 
+      : DiagnosticBuilder(DiagnosticBuilder::Suppress), SemaRef(SemaRef) { }
+
     ~SemaDiagnosticBuilder();
   };
 
   /// \brief Emit a diagnostic.
   SemaDiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) {
+    if (isSFINAEContext() && Diagnostic::isBuiltinSFINAEDiag(DiagID)) {
+      // If we encountered an error during template argument
+      // deduction, and that error is one of the SFINAE errors,
+      // suppress the diagnostic.
+      bool Fatal = false;
+      switch (Diags.getDiagnosticLevel(DiagID)) {
+      case Diagnostic::Ignored:
+      case Diagnostic::Note:
+      case Diagnostic::Warning:
+        break;
+
+      case Diagnostic::Error:
+        ++NumSFINAEErrors;
+        break;
+
+      case Diagnostic::Fatal:
+        Fatal = true;
+        break;
+      }
+
+      if (!Fatal)
+        return SemaDiagnosticBuilder(*this);
+    }
+
     DiagnosticBuilder DB = Diags.Report(FullSourceLoc(Loc, SourceMgr), DiagID);
     return SemaDiagnosticBuilder(DB, *this, DiagID);
   }
@@ -349,6 +379,11 @@ public:
                              QualType *ParamTypes, unsigned NumParamTypes,
                              bool Variadic, unsigned Quals,
                              SourceLocation Loc, DeclarationName Entity);
+  QualType BuildMemberPointerType(QualType T, QualType Class, 
+                                  unsigned Quals, SourceLocation Loc, 
+                                  DeclarationName Entity);
+  QualType BuildBlockPointerType(QualType T, unsigned Quals,
+                                 SourceLocation Loc, DeclarationName Entity);
   QualType GetTypeForDeclarator(Declarator &D, Scope *S, unsigned Skip = 0,
                                 TagDecl **OwnedDecl = 0);
   DeclarationName GetNameForDeclarator(Declarator &D);
@@ -409,8 +444,14 @@ public:
                                          SourceLocation EqualLoc,
                                          ExprArg defarg);
   virtual void ActOnParamUnparsedDefaultArgument(DeclPtrTy param, 
-                                                 SourceLocation EqualLoc);
+                                                 SourceLocation EqualLoc,
+                                                 SourceLocation ArgLoc);
   virtual void ActOnParamDefaultArgumentError(DeclPtrTy param);
+  
+  // Contains the locations of the beginning of unparsed default
+  // argument locations.
+  llvm::DenseMap<ParmVarDecl *,SourceLocation> UnparsedDefaultArgLocs;
+
   virtual void AddInitializerToDecl(DeclPtrTy dcl, FullExprArg init);
   void AddInitializerToDecl(DeclPtrTy dcl, ExprArg init, bool DirectInit);
   void ActOnUninitializedDecl(DeclPtrTy dcl);
@@ -1194,7 +1235,9 @@ public:
   virtual OwningStmtResult ActOnWhileStmt(SourceLocation WhileLoc, 
                                           FullExprArg Cond, StmtArg Body);
   virtual OwningStmtResult ActOnDoStmt(SourceLocation DoLoc, StmtArg Body,
-                                       SourceLocation WhileLoc, ExprArg Cond);
+                                       SourceLocation WhileLoc,
+                                       SourceLocation CondLParen, ExprArg Cond,
+                                       SourceLocation CondRParen);
 
   virtual OwningStmtResult ActOnForStmt(SourceLocation ForLoc,
                                         SourceLocation LParenLoc,
@@ -1871,7 +1914,8 @@ public:
   bool DiagnoseTemplateParameterShadow(SourceLocation Loc, Decl *PrevDecl);
   TemplateDecl *AdjustDeclIfTemplate(DeclPtrTy &Decl);
 
-  virtual DeclPtrTy ActOnTypeParameter(Scope *S, bool Typename,
+  virtual DeclPtrTy ActOnTypeParameter(Scope *S, bool Typename, bool Ellipsis, 
+                                       SourceLocation EllipsisLoc,
                                        SourceLocation KeyLoc,
                                        IdentifierInfo *ParamName,
                                        SourceLocation ParamNameLoc,
@@ -1940,7 +1984,13 @@ public:
                                     ClassTemplateSpecializationDecl *PrevDecl,
                                              SourceLocation TemplateNameLoc,
                                              SourceRange ScopeSpecifierRange,
+                                             bool PartialSpecialization,
                                              bool ExplicitInstantiation);
+
+  bool CheckClassTemplatePartialSpecializationArgs(
+                                        TemplateParameterList *TemplateParams,
+                              const TemplateArgumentListBuilder &TemplateArgs,
+                                        bool &MirrorsPrimaryTemplate);
 
   virtual DeclResult
   ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec, TagKind TK,
@@ -1985,6 +2035,10 @@ public:
                                  SourceLocation RAngleLoc,
                                  TemplateArgumentListBuilder &Converted);
 
+  bool CheckTemplateTypeArgument(TemplateTypeParmDecl *Param, 
+                                 const TemplateArgument &Arg,
+                                 TemplateArgumentListBuilder &Converted);
+
   bool CheckTemplateArgument(TemplateTypeParmDecl *Param, QualType Arg,
                              SourceLocation ArgLoc);
   bool CheckTemplateArgumentAddressOfObjectOrFunction(Expr *Arg, 
@@ -1992,7 +2046,7 @@ public:
   bool CheckTemplateArgumentPointerToMember(Expr *Arg, NamedDecl *&Member);
   bool CheckTemplateArgument(NonTypeTemplateParmDecl *Param, 
                              QualType InstantiatedParamType, Expr *&Arg,
-                             TemplateArgumentListBuilder *Converted = 0);
+                             TemplateArgument &Converted);
   bool CheckTemplateArgument(TemplateTemplateParmDecl *Param, DeclRefExpr *Arg);
   bool TemplateParameterListsAreEqual(TemplateParameterList *New,
                                       TemplateParameterList *Old,
@@ -2031,10 +2085,122 @@ public:
                              const IdentifierInfo &II,
                              SourceRange Range);
 
-  TemplateArgumentList *
+  /// \brief Describes the result of template argument deduction.
+  ///
+  /// The TemplateDeductionResult enumeration describes the result of
+  /// template argument deduction, as returned from
+  /// DeduceTemplateArguments(). The separate TemplateDeductionInfo
+  /// structure provides additional information about the results of
+  /// template argument deduction, e.g., the deduced template argument
+  /// list (if successful) or the specific template parameters or
+  /// deduced arguments that were involved in the failure.
+  enum TemplateDeductionResult {
+    /// \brief Template argument deduction was successful.
+    TDK_Success = 0,
+    /// \brief Template argument deduction exceeded the maximum template
+    /// instantiation depth (which has already been diagnosed).
+    TDK_InstantiationDepth,
+    /// \brief Template argument deduction did not deduce a value
+    /// for every template parameter.
+    TDK_Incomplete,
+    /// \brief Template argument deduction produced inconsistent
+    /// deduced values for the given template parameter.
+    TDK_Inconsistent,
+    /// \brief Template argument deduction failed due to inconsistent
+    /// cv-qualifiers on a template parameter type that would
+    /// otherwise be deduced, e.g., we tried to deduce T in "const T"
+    /// but were given a non-const "X".
+    TDK_InconsistentQuals,
+    /// \brief Substitution of the deduced template argument values
+    /// resulted in an error.
+    TDK_SubstitutionFailure,
+    /// \brief Substitution of the deduced template argument values
+    /// into a non-deduced context produced a type or value that
+    /// produces a type that does not match the original template
+    /// arguments provided.
+    TDK_NonDeducedMismatch
+  };
+
+  /// \brief Provides information about an attempted template argument
+  /// deduction, whose success or failure was described by a
+  /// TemplateDeductionResult value.
+  class TemplateDeductionInfo {
+    /// \brief The context in which the template arguments are stored.
+    ASTContext &Context;
+
+    /// \brief The deduced template argument list.
+    ///
+    TemplateArgumentList *Deduced;
+
+    // do not implement these
+    TemplateDeductionInfo(const TemplateDeductionInfo&);
+    TemplateDeductionInfo &operator=(const TemplateDeductionInfo&);
+
+  public:
+    TemplateDeductionInfo(ASTContext &Context) : Context(Context), Deduced(0) { }
+
+    ~TemplateDeductionInfo() {
+      // FIXME: if (Deduced) Deduced->Destroy(Context);
+    }
+
+    /// \brief Take ownership of the deduced template argument list.
+    TemplateArgumentList *take() { 
+      TemplateArgumentList *Result = Deduced;
+      Deduced = 0;
+      return Result;
+    }
+
+    /// \brief Provide a new template argument list that contains the
+    /// results of template argument deduction.
+    void reset(TemplateArgumentList *NewDeduced) {
+      // FIXME: if (Deduced) Deduced->Destroy(Context);
+      Deduced = NewDeduced;
+    }
+
+    /// \brief The template parameter to which a template argument
+    /// deduction failure refers.
+    ///
+    /// Depending on the result of template argument deduction, this
+    /// template parameter may have different meanings:
+    ///
+    ///   TDK_Incomplete: this is the first template parameter whose
+    ///   corresponding template argument was not deduced.
+    ///
+    ///   TDK_Inconsistent: this is the template parameter for which
+    ///   two different template argument values were deduced.
+    TemplateParameter Param;
+
+    /// \brief The first template argument to which the template
+    /// argument deduction failure refers.
+    ///
+    /// Depending on the result of the template argument deduction,
+    /// this template argument may have different meanings:
+    ///
+    ///   TDK_Inconsistent: this argument is the first value deduced
+    ///   for the corresponding template parameter.
+    ///
+    ///   TDK_SubstitutionFailure: this argument is the template
+    ///   argument we were instantiating when we encountered an error.
+    ///
+    ///   TDK_NonDeducedMismatch: this is the template argument
+    ///   provided in the source code.
+    TemplateArgument FirstArg;
+
+    /// \brief The second template argument to which the template
+    /// argument deduction failure refers.
+    ///
+    /// FIXME: Finish documenting this.
+    TemplateArgument SecondArg;
+  };
+
+  TemplateDeductionResult
   DeduceTemplateArguments(ClassTemplatePartialSpecializationDecl *Partial,
-                          const TemplateArgumentList &TemplateArgs);
-                             
+                          const TemplateArgumentList &TemplateArgs,
+                          TemplateDeductionInfo &Info);
+                   
+  void MarkDeducedTemplateParameters(const TemplateArgumentList &TemplateArgs,
+                                     llvm::SmallVectorImpl<bool> &Deduced);
+          
   //===--------------------------------------------------------------------===//
   // C++ Template Instantiation
   //
@@ -2053,7 +2219,16 @@ public:
       /// parameter. The Entity is the template, and
       /// TemplateArgs/NumTemplateArguments provides the template
       /// arguments as specified.
-      DefaultTemplateArgumentInstantiation
+      /// FIXME: Use a TemplateArgumentList
+      DefaultTemplateArgumentInstantiation,
+
+      /// We are performing template argument deduction for a class
+      /// template partial specialization. The Entity is the class
+      /// template partial specialization, and
+      /// TemplateArgs/NumTemplateArgs provides the deduced template
+      /// arguments.
+      /// FIXME: Use a TemplateArgumentList
+      PartialSpecDeductionInstantiation
     } Kind;
 
     /// \brief The point of instantiation within the source code.
@@ -2087,6 +2262,7 @@ public:
         return true;
 
       case DefaultTemplateArgumentInstantiation:
+      case PartialSpecDeductionInstantiation:
         return X.TemplateArgs == Y.TemplateArgs;
       }
 
@@ -2143,6 +2319,15 @@ public:
                           unsigned NumTemplateArgs,
                           SourceRange InstantiationRange = SourceRange());
 
+    /// \brief Note that we are instantiating as part of template
+    /// argument deduction for a class template partial
+    /// specialization.
+    InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
+                          ClassTemplatePartialSpecializationDecl *PartialSpec,
+                          const TemplateArgument *TemplateArgs,
+                          unsigned NumTemplateArgs,
+                          SourceRange InstantiationRange = SourceRange());
+
     /// \brief Note that we have finished instantiating this template.
     void Clear();
 
@@ -2166,6 +2351,32 @@ public:
   };
 
   void PrintInstantiationStack();
+
+  /// \brief Determines whether we are currently in a context where
+  /// template argument substitution failures are not considered
+  /// errors.
+  ///
+  /// When this routine returns true, the emission of most diagnostics
+  /// will be suppressed and there will be no local error recovery.
+  bool isSFINAEContext() const;
+
+  /// \brief RAII class used to determine whether SFINAE has
+  /// trapped any errors that occur during template argument
+  /// deduction.
+  class SFINAETrap {
+    Sema &SemaRef;
+    unsigned PrevSFINAEErrors;
+  public:
+    explicit SFINAETrap(Sema &SemaRef)
+      : SemaRef(SemaRef), PrevSFINAEErrors(SemaRef.NumSFINAEErrors) { }
+
+    ~SFINAETrap() { SemaRef.NumSFINAEErrors = PrevSFINAEErrors; }
+
+    /// \brief Determine whether any SFINAE errors have been trapped.
+    bool hasErrorOccurred() const { 
+      return SemaRef.NumSFINAEErrors > PrevSFINAEErrors; 
+    }
+  };
 
   /// \brief A stack-allocated class that identifies which local
   /// variable declaration instantiations are present in this scope.
@@ -2285,6 +2496,8 @@ public:
   TemplateName
   InstantiateTemplateName(TemplateName Name, SourceLocation Loc,
                           const TemplateArgumentList &TemplateArgs);
+  TemplateArgument Instantiate(TemplateArgument Arg,
+                               const TemplateArgumentList &TemplateArgs);
 
   void InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
                                      FunctionDecl *Function);

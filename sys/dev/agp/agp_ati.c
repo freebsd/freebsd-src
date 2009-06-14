@@ -315,11 +315,11 @@ agp_ati_set_aperture(device_t dev, u_int32_t aperture)
 }
 
 static int
-agp_ati_bind_page(device_t dev, int offset, vm_offset_t physical)
+agp_ati_bind_page(device_t dev, vm_offset_t offset, vm_offset_t physical)
 {
 	struct agp_ati_softc *sc = device_get_softc(dev);
 
-	if (offset < 0 || offset >= (sc->ag_entries << AGP_PAGE_SHIFT))
+	if (offset >= (sc->ag_entries << AGP_PAGE_SHIFT))
 		return EINVAL;
 
 	sc->ag_virtual[offset >> AGP_PAGE_SHIFT] = physical | 1;
@@ -328,11 +328,11 @@ agp_ati_bind_page(device_t dev, int offset, vm_offset_t physical)
 }
 
 static int
-agp_ati_unbind_page(device_t dev, int offset)
+agp_ati_unbind_page(device_t dev, vm_offset_t offset)
 {
 	struct agp_ati_softc *sc = device_get_softc(dev);
 
-	if (offset < 0 || offset >= (sc->ag_entries << AGP_PAGE_SHIFT))
+	if (offset >= (sc->ag_entries << AGP_PAGE_SHIFT))
 		return EINVAL;
 
 	sc->ag_virtual[offset >> AGP_PAGE_SHIFT] = 0;

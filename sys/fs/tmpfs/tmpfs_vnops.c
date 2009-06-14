@@ -468,8 +468,7 @@ nocache:
 	m = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_ZERO | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
-		int behind, ahead;
-		if (vm_pager_has_page(tobj, idx, &behind, &ahead)) {
+		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
 			error = vm_pager_get_pages(tobj, &m, 1, 0);
 			if (error != 0) {
 				printf("tmpfs get pages from pager error [read]\n");
@@ -583,8 +582,7 @@ nocache:
 	tpg = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_ZERO | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (tpg->valid != VM_PAGE_BITS_ALL) {
-		int behind, ahead;
-		if (vm_pager_has_page(tobj, idx, &behind, &ahead)) {
+		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
 			error = vm_pager_get_pages(tobj, &tpg, 1, 0);
 			if (error != 0) {
 				printf("tmpfs get pages from pager error [write]\n");

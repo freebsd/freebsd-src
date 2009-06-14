@@ -524,7 +524,8 @@ nfs_mountroot(struct mount *mp)
 	 * mount the right /var based upon its preset value.
 	 */
 	mtx_lock(&prison0.pr_mtx);
-	strlcpy(prison0.pr_host, nd->my_hostnam, sizeof (prison0.pr_host));
+	strlcpy(prison0.pr_hostname, nd->my_hostnam,
+	    sizeof (prison0.pr_hostname));
 	mtx_unlock(&prison0.pr_mtx);
 	inittodr(ntohl(nd->root_time));
 	return (0);

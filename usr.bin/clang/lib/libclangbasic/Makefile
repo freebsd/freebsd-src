@@ -3,7 +3,7 @@
 LIB=	clangbasic
 
 SRCDIR=	tools/clang/lib/Basic
-SRCS=	ConvertUTF.c Diagnostic.cpp FileManager.cpp \
+SRCS=	Builtins.cpp ConvertUTF.c Diagnostic.cpp FileManager.cpp \
 	IdentifierTable.cpp SourceLocation.cpp SourceManager.cpp \
 	TargetInfo.cpp Targets.cpp TokenKinds.cpp
 

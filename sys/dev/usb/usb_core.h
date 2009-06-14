@@ -215,6 +215,11 @@
 #define	USB_ST_TRANSFERRED 1
 #define	USB_ST_ERROR       2
 
+/* USB handle request states */
+#define	USB_HR_NOT_COMPLETE 0
+#define	USB_HR_COMPLETE_OK  1
+#define	USB_HR_COMPLETE_ERR 2
+
 /*
  * The following macro will return the current state of an USB
  * transfer like defined by the "USB_ST_XXX" enums.
@@ -485,7 +490,8 @@ struct usb_lookup_info {
 struct usb_attach_arg {
 	struct usb_lookup_info info;
 	device_t temp_dev;		/* for internal use */
-	const void *driver_info;	/* for internal use */
+	unsigned long driver_info;	/* for internal use */
+	void *driver_ivar;
 	struct usb_device *device;	/* current device */
 	struct usb_interface *iface;	/* current interface */
 	enum usb_hc_mode usb_mode;	/* host or device mode */

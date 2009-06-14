@@ -90,6 +90,30 @@ Sema::InstantiatingTemplate::InstantiatingTemplate(Sema &SemaRef,
   }
 }
 
+Sema::InstantiatingTemplate::InstantiatingTemplate(Sema &SemaRef, 
+                                         SourceLocation PointOfInstantiation,
+                          ClassTemplatePartialSpecializationDecl *PartialSpec,
+                                         const TemplateArgument *TemplateArgs,
+                                         unsigned NumTemplateArgs,
+                                         SourceRange InstantiationRange)
+  : SemaRef(SemaRef) {
+
+  Invalid = CheckInstantiationDepth(PointOfInstantiation,
+                                    InstantiationRange);
+  if (!Invalid) {
+    ActiveTemplateInstantiation Inst;
+    Inst.Kind 
+      = ActiveTemplateInstantiation::PartialSpecDeductionInstantiation;
+    Inst.PointOfInstantiation = PointOfInstantiation;
+    Inst.Entity = reinterpret_cast<uintptr_t>(PartialSpec);
+    Inst.TemplateArgs = TemplateArgs;
+    Inst.NumTemplateArgs = NumTemplateArgs;
+    Inst.InstantiationRange = InstantiationRange;
+    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
+    Invalid = false;
+  }
+}
+
 void Sema::InstantiatingTemplate::Clear() {
   if (!Invalid) {
     SemaRef.ActiveTemplateInstantiations.pop_back();
@@ -157,8 +181,50 @@ void Sema::PrintInstantiationStack() {
         << Active->InstantiationRange;
       break;
     }
+
+    case ActiveTemplateInstantiation::PartialSpecDeductionInstantiation: {
+      ClassTemplatePartialSpecializationDecl *PartialSpec
+        = cast<ClassTemplatePartialSpecializationDecl>((Decl *)Active->Entity);
+      // FIXME: The active template instantiation's template arguments
+      // are interesting, too. We should add something like [with T =
+      // foo, U = bar, etc.] to the string.
+      Diags.Report(FullSourceLoc(Active->PointOfInstantiation, SourceMgr),
+                   diag::note_partial_spec_deduct_instantiation_here)
+        << Context.getTypeDeclType(PartialSpec)
+        << Active->InstantiationRange;
+      break;
+    }
+
     }
   }
+}
+
+bool Sema::isSFINAEContext() const {
+  using llvm::SmallVector;
+  for (SmallVector<ActiveTemplateInstantiation, 16>::const_reverse_iterator
+         Active = ActiveTemplateInstantiations.rbegin(),
+         ActiveEnd = ActiveTemplateInstantiations.rend();
+       Active != ActiveEnd;
+       ++Active) {
+
+    switch(Active->Kind) {
+    case ActiveTemplateInstantiation::PartialSpecDeductionInstantiation:
+      // We're in a template argument deduction context, so SFINAE
+      // applies.
+      return true;
+
+    case ActiveTemplateInstantiation::DefaultTemplateArgumentInstantiation:
+      // A default template argument instantiation may or may not be a
+      // SFINAE context; look further up the stack.
+      break;
+
+    case ActiveTemplateInstantiation::TemplateInstantiation:
+      // This is a template instantiation, so there is no SFINAE.
+      return false;
+    }
+  }
+
+  return false;
 }
 
 //===----------------------------------------------------------------------===/
@@ -236,9 +302,11 @@ TemplateTypeInstantiator::InstantiatePointerType(const PointerType *T,
 QualType 
 TemplateTypeInstantiator::InstantiateBlockPointerType(const BlockPointerType *T,
                                                       unsigned Quals) const {
-  // FIXME: Implement this
-  assert(false && "Cannot instantiate BlockPointerType yet");
-  return QualType();
+  QualType PointeeType = Instantiate(T->getPointeeType());
+  if (PointeeType.isNull())
+    return QualType();
+  
+  return SemaRef.BuildBlockPointerType(PointeeType, Quals, Loc, Entity);
 }
 
 QualType
@@ -265,9 +333,16 @@ QualType
 TemplateTypeInstantiator::
 InstantiateMemberPointerType(const MemberPointerType *T,
                              unsigned Quals) const {
-  // FIXME: Implement this
-  assert(false && "Cannot instantiate MemberPointerType yet");
-  return QualType();
+  QualType PointeeType = Instantiate(T->getPointeeType());
+  if (PointeeType.isNull())
+    return QualType();
+
+  QualType ClassType = Instantiate(QualType(T->getClass(), 0));
+  if (ClassType.isNull())
+    return QualType();
+
+  return SemaRef.BuildMemberPointerType(PointeeType, ClassType, Quals, Loc, 
+                                        Entity);
 }
 
 QualType 
@@ -390,7 +465,7 @@ InstantiateFunctionProtoType(const FunctionProtoType *T,
     ParamTypes.push_back(P);
   }
 
-  return SemaRef.BuildFunctionType(ResultType, &ParamTypes[0], 
+  return SemaRef.BuildFunctionType(ResultType, ParamTypes.data(), 
                                    ParamTypes.size(),
                                    T->isVariadic(), T->getTypeQuals(),
                                    Loc, Entity);
@@ -502,37 +577,11 @@ InstantiateTemplateSpecializationType(
   InstantiatedTemplateArgs.reserve(T->getNumArgs());
   for (TemplateSpecializationType::iterator Arg = T->begin(), ArgEnd = T->end();
        Arg != ArgEnd; ++Arg) {
-    switch (Arg->getKind()) {
-    case TemplateArgument::Null:
-      assert(false && "Should never have a NULL template argument");
-      break;
-        
-    case TemplateArgument::Type: {
-      QualType T = SemaRef.InstantiateType(Arg->getAsType(), 
-                                           TemplateArgs, 
-                                           Arg->getLocation(),
-                                           DeclarationName());
-      if (T.isNull())
-        return QualType();
+    TemplateArgument InstArg = SemaRef.Instantiate(*Arg, TemplateArgs);
+    if (InstArg.isNull())
+      return QualType();
 
-      InstantiatedTemplateArgs.push_back(
-                                TemplateArgument(Arg->getLocation(), T));
-      break;
-    }
-
-    case TemplateArgument::Declaration:
-    case TemplateArgument::Integral:
-      InstantiatedTemplateArgs.push_back(*Arg);
-      break;
-
-    case TemplateArgument::Expression:
-      Sema::OwningExprResult E 
-        = SemaRef.InstantiateExpr(Arg->getAsExpr(), TemplateArgs);
-      if (E.isInvalid())
-        return QualType();
-      InstantiatedTemplateArgs.push_back(E.takeAs<Expr>());
-      break;
-    }
+    InstantiatedTemplateArgs.push_back(InstArg);
   }
 
   // FIXME: We're missing the locations of the template name, '<', and '>'.
@@ -542,7 +591,7 @@ InstantiateTemplateSpecializationType(
                                                       TemplateArgs);
 
   return SemaRef.CheckTemplateIdType(Name, Loc, SourceLocation(),
-                                     &InstantiatedTemplateArgs[0],
+                                     InstantiatedTemplateArgs.data(),
                                      InstantiatedTemplateArgs.size(),
                                      SourceLocation());
 }
@@ -831,8 +880,14 @@ Sema::InstantiateClassTemplateSpecialization(
   const TemplateArgumentList *TemplateArgs 
     = &ClassTemplateSpec->getTemplateArgs();
 
-  // Determine whether any class template partial specializations
-  // match the given template arguments.
+  // C++ [temp.class.spec.match]p1:
+  //   When a class template is used in a context that requires an
+  //   instantiation of the class, it is necessary to determine
+  //   whether the instantiation is to be generated using the primary
+  //   template or one of the partial specializations. This is done by
+  //   matching the template arguments of the class template
+  //   specialization with the template argument lists of the partial
+  //   specializations.
   typedef std::pair<ClassTemplatePartialSpecializationDecl *,
                     TemplateArgumentList *> MatchResult;
   llvm::SmallVector<MatchResult, 4> Matched;
@@ -841,20 +896,42 @@ Sema::InstantiateClassTemplateSpecialization(
          PartialEnd = Template->getPartialSpecializations().end();
        Partial != PartialEnd;
        ++Partial) {
-    if (TemplateArgumentList *Deduced 
+    TemplateDeductionInfo Info(Context);
+    if (TemplateDeductionResult Result
           = DeduceTemplateArguments(&*Partial, 
-                                    ClassTemplateSpec->getTemplateArgs()))
-      Matched.push_back(std::make_pair(&*Partial, Deduced));
+                                    ClassTemplateSpec->getTemplateArgs(),
+                                    Info)) {
+      // FIXME: Store the failed-deduction information for use in
+      // diagnostics, later.
+      (void)Result;
+    } else {
+      Matched.push_back(std::make_pair(&*Partial, Info.take()));
+    }
   }
 
   if (Matched.size() == 1) {
+    //   -- If exactly one matching specialization is found, the
+    //      instantiation is generated from that specialization.
     Pattern = Matched[0].first;
     TemplateArgs = Matched[0].second;
   } else if (Matched.size() > 1) {
+    //   -- If more than one matching specialization is found, the
+    //      partial order rules (14.5.4.2) are used to determine
+    //      whether one of the specializations is more specialized
+    //      than the others. If none of the specializations is more
+    //      specialized than all of the other matching
+    //      specializations, then the use of the class template is
+    //      ambiguous and the program is ill-formed.
     // FIXME: Implement partial ordering of class template partial
     // specializations.
     Diag(ClassTemplateSpec->getLocation(), 
          diag::unsup_template_partial_spec_ordering);
+  } else {
+    //   -- If no matches are found, the instantiation is generated
+    //      from the primary template.
+
+    // Since we initialized the pattern and template arguments from
+    // the primary template, there is nothing more we need to do here.
   }
 
   // Note that this is an instantiation.  
@@ -965,7 +1042,7 @@ Sema::InstantiateNestedNameSpecifier(NestedNameSpecifier *NNS,
     if (T.isNull())
       return 0;
 
-    if (T->isRecordType() ||
+    if (T->isDependentType() || T->isRecordType() ||
         (getLangOptions().CPlusPlus0x && T->isEnumeralType())) {
       assert(T.getCVRQualifiers() == 0 && "Can't get cv-qualifiers here");
       return NestedNameSpecifier::Create(Context, Prefix, 
@@ -1045,4 +1122,39 @@ Sema::InstantiateTemplateName(TemplateName Name, SourceLocation Loc,
   // parameter, we may need to instantiate the outer contexts of that
   // Decl. However, this won't be needed until we implement member templates.
   return Name;
+}
+
+TemplateArgument Sema::Instantiate(TemplateArgument Arg, 
+                                   const TemplateArgumentList &TemplateArgs) {
+  switch (Arg.getKind()) {
+  case TemplateArgument::Null:
+    assert(false && "Should never have a NULL template argument");
+    break;
+    
+  case TemplateArgument::Type: {
+    QualType T = InstantiateType(Arg.getAsType(), TemplateArgs, 
+                                 Arg.getLocation(), DeclarationName());
+    if (T.isNull())
+      return TemplateArgument();
+    
+    return TemplateArgument(Arg.getLocation(), T);
+  }
+
+  case TemplateArgument::Declaration:
+    // FIXME: Template instantiation for template template parameters.
+    return Arg;
+
+  case TemplateArgument::Integral:
+    return Arg;
+
+  case TemplateArgument::Expression: {
+    Sema::OwningExprResult E = InstantiateExpr(Arg.getAsExpr(), TemplateArgs);
+    if (E.isInvalid())
+      return TemplateArgument();
+    return TemplateArgument(E.takeAs<Expr>());
+  }
+  }
+
+  assert(false && "Unhandled template argument kind");
+  return TemplateArgument();
 }

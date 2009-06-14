@@ -32,8 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -112,7 +110,7 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 
 	pr = curthread->td_ucred->cr_prison;
 	mtx_lock(&pr->pr_mtx);
-	hostnamelen = strlen(pr->pr_host);
+	hostnamelen = strlen(pr->pr_hostname);
 #if 0
 	/* we need at least several letters as seed for ifid */
 	if (hostnamelen < 3) {
@@ -124,7 +122,7 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	/* generate 8 bytes of pseudo-random value. */
 	bzero(&ctxt, sizeof(ctxt));
 	MD5Init(&ctxt);
-	MD5Update(&ctxt, pr->pr_host, hostnamelen);
+	MD5Update(&ctxt, pr->pr_hostname, hostnamelen);
 	mtx_unlock(&pr->pr_mtx);
 	MD5Final(digest, &ctxt);
 
@@ -639,7 +637,7 @@ in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
 	if (!name && namelen == -1) {
 		pr = curthread->td_ucred->cr_prison;
 		mtx_lock(&pr->pr_mtx);
-		name = pr->pr_host;
+		name = pr->pr_hostname;
 		namelen = strlen(name);
 	} else
 		pr = NULL;

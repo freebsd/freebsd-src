@@ -342,13 +342,13 @@ gpart_autofill(struct gctl_req *req)
 		return (ENOSPC);
 
 	if (!has_size) {
-		asprintf(&val, "%jd", size);
+		asprintf(&val, "%llu", size);
 		if (val == NULL)
 			return (ENOMEM);
 		gctl_change_param(req, "size", -1, val);
 	}
 	if (!has_start) {
-		asprintf(&val, "%jd", start);
+		asprintf(&val, "%llu", start);
 		if (val == NULL)
 			return (ENOMEM);
 		gctl_change_param(req, "start", -1, val);

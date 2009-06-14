@@ -214,7 +214,7 @@ static const struct usb_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
 	},
 };
 
-struct ucom_callback uplcom_callback = {
+static struct ucom_callback uplcom_callback = {
 	.usb2_com_cfg_get_status = &uplcom_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &uplcom_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &uplcom_cfg_set_rts,

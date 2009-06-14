@@ -28,15 +28,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+
 #include <assert.h>
 #include <errno.h>
+#include <nsswitch.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "cachelib.h"
 #include "config.h"
@@ -115,7 +117,7 @@ on_mp_read_session_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		c_mp_rs_request->entry = (char *)calloc(1,
+		c_mp_rs_request->entry = calloc(1,
 			c_mp_rs_request->entry_length + 1);
 		assert(c_mp_rs_request->entry != NULL);
 
@@ -138,7 +140,7 @@ on_mp_read_session_request_read2(struct query_state *qstate)
 	result = qstate->read_func(qstate, c_mp_rs_request->entry,
 		c_mp_rs_request->entry_length);
 
-	if (result != qstate->kevent_watermark) {
+	if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 		LOG_ERR_3("on_mp_read_session_request_read2",
 			"read failed");
 		TRACE_OUT(on_mp_read_session_request_read2);
@@ -196,7 +198,7 @@ on_mp_read_session_request_process(struct query_state *qstate)
 
 	if (qstate->config_entry->perform_actual_lookups != 0)
 		dec_cache_entry_name = strdup(
-			qstate->config_entry->mp_cache_params.entry_name);
+			qstate->config_entry->mp_cache_params.cep.entry_name);
 	else {
 #ifdef NS_NSCD_EID_CHECKING
 		if (check_query_eids(qstate) != 0) {
@@ -206,7 +208,7 @@ on_mp_read_session_request_process(struct query_state *qstate)
 #endif
 
 		asprintf(&dec_cache_entry_name, "%s%s", qstate->eid_str,
-			qstate->config_entry->mp_cache_params.entry_name);
+			qstate->config_entry->mp_cache_params.cep.entry_name);
 	}
 
 	assert(dec_cache_entry_name != NULL);
@@ -426,7 +428,7 @@ on_mp_read_session_read_request_process(struct query_state *qstate)
 		&read_response->data_size);
 
 	if (read_response->error_code == 0) {
-		read_response->data = (char *)malloc(read_response->data_size);
+		read_response->data = malloc(read_response->data_size);
 		assert(read_response != NULL);
 		read_response->error_code = cache_mp_read(
 			(cache_mp_read_session)qstate->mdata,
@@ -461,7 +463,7 @@ on_mp_read_session_read_response_write1(struct query_state *qstate)
 	if (read_response->error_code == 0) {
 		result += qstate->write_func(qstate, &read_response->data_size,
 			sizeof(size_t));
-		if (result != qstate->kevent_watermark) {
+		if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 			TRACE_OUT(on_mp_read_session_read_response_write1);
 			LOG_ERR_3("on_mp_read_session_read_response_write1",
 				"write failed");
@@ -471,7 +473,7 @@ on_mp_read_session_read_response_write1(struct query_state *qstate)
 		qstate->kevent_watermark = read_response->data_size;
 		qstate->process_func = on_mp_read_session_read_response_write2;
 	} else {
-		if (result != qstate->kevent_watermark) {
+		if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 			LOG_ERR_3("on_mp_read_session_read_response_write1",
 				"write failed");
 			TRACE_OUT(on_mp_read_session_read_response_write1);
@@ -497,7 +499,7 @@ on_mp_read_session_read_response_write2(struct query_state *qstate)
 		&qstate->response);
 	result = qstate->write_func(qstate, read_response->data,
 		read_response->data_size);
-	if (result != qstate->kevent_watermark) {
+	if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 		LOG_ERR_3("on_mp_read_session_read_response_write2",
 			"write failed");
 		TRACE_OUT(on_mp_read_session_read_response_write2);

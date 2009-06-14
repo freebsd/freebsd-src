@@ -143,7 +143,7 @@ static const struct usb_config uslcom_config[USLCOM_N_TRANSFER] = {
 	},
 };
 
-struct ucom_callback uslcom_callback = {
+static struct ucom_callback uslcom_callback = {
 	.usb2_com_cfg_open = &uslcom_open,
 	.usb2_com_cfg_close = &uslcom_close,
 	.usb2_com_cfg_get_status = &uslcom_get_status,

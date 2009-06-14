@@ -82,10 +82,12 @@ __FBSDID("$FreeBSD$");
 #define	SANAMES
 #include <netipx/spx_debug.h>
 
+#ifdef INET
 #ifdef TCPDEBUG
 static	int spxconsdebug = 0;
 static	struct spx_debug spx_debug[SPX_NDEBUG];
 static	int spx_debx;
+#endif
 #endif
 
 /*

@@ -17,6 +17,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/PointerUnion.h"
 
 namespace clang {
 
@@ -28,6 +29,10 @@ class ClassTemplatePartialSpecializationDecl;
 class TemplateTypeParmDecl;
 class NonTypeTemplateParmDecl;
 class TemplateTemplateParmDecl;
+
+/// \brief Stores a template parameter of any kind.
+typedef llvm::PointerUnion3<TemplateTypeParmDecl*, NonTypeTemplateParmDecl*,
+                            TemplateTemplateParmDecl*> TemplateParameter;
 
 /// TemplateParameterList - Stores a list of template parameters for a
 /// TemplateDecl and its derived classes.
@@ -69,6 +74,11 @@ public:
 
   unsigned size() const { return NumParams; }
 
+  Decl* getParam(unsigned Idx) {
+    assert(Idx < size() && "Template parameter index out-of-range");
+    return begin()[Idx];
+  }
+
   const Decl* getParam(unsigned Idx) const {
     assert(Idx < size() && "Template parameter index out-of-range");
     return begin()[Idx];
@@ -77,7 +87,7 @@ public:
   /// \btief Returns the minimum number of arguments needed to form a
   /// template specialization. This may be fewer than the number of
   /// template parameters, if some of the parameters have default
-  /// arguments.
+  /// arguments or if there is a parameter pack.
   unsigned getMinRequiredArguments() const;
 
   SourceLocation getTemplateLoc() const { return TemplateLoc; }
@@ -223,6 +233,9 @@ class TemplateTypeParmDecl : public TypeDecl {
   /// default argument.
   bool InheritedDefault : 1;
 
+  /// \brief Whether this is a parameter pack.
+  bool ParameterPack : 1;
+
   /// \brief The location of the default argument, if any.
   SourceLocation DefaultArgumentLoc;
 
@@ -230,16 +243,17 @@ class TemplateTypeParmDecl : public TypeDecl {
   QualType DefaultArgument;
 
   TemplateTypeParmDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id, 
-                       bool Typename, QualType Type)
+                       bool Typename, QualType Type, bool ParameterPack)
     : TypeDecl(TemplateTypeParm, DC, L, Id), Typename(Typename),
-      InheritedDefault(false), DefaultArgument() { 
+      InheritedDefault(false), ParameterPack(ParameterPack), DefaultArgument() { 
     TypeForDecl = Type.getTypePtr();
   }
 
 public:
   static TemplateTypeParmDecl *Create(ASTContext &C, DeclContext *DC,
                                       SourceLocation L, unsigned D, unsigned P,
-                                      IdentifierInfo *Id, bool Typename);
+                                      IdentifierInfo *Id, bool Typename,
+                                      bool ParameterPack);
 
   /// \brief Whether this template type parameter was declared with
   /// the 'typename' keyword. If not, it was declared with the 'class'
@@ -269,6 +283,9 @@ public:
     DefaultArgumentLoc = DefArgLoc;
     InheritedDefault = Inherited;
   }
+
+  /// \brief Returns whether this is a parameter pack.
+  bool isParameterPack() const { return ParameterPack; }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) {
@@ -575,17 +592,38 @@ public:
 
 /// \brief A helper class for making template argument lists.
 class TemplateArgumentListBuilder {
+  /// Args - contains the template arguments.
   llvm::SmallVector<TemplateArgument, 16> Args;
+  
+  llvm::SmallVector<unsigned, 32> Indices;
 
   ASTContext &Context;
+  
+  /// isAddingFromParameterPack - Returns whether we're adding arguments from
+  /// a parameter pack.
+  bool isAddingFromParameterPack() const { return Indices.size() % 2; }
+  
 public:
   TemplateArgumentListBuilder(ASTContext &Context) : Context(Context) { }
   
-  // FIXME: Should use the  index array size.
-  size_t size() const { return Args.size(); }
+  size_t size() const { 
+    assert(!isAddingFromParameterPack() && 
+           "Size is not valid when adding from a parameter pack");
+    
+    return Indices.size() / 2;
+  }
+  
   size_t flatSize() const { return Args.size(); }
 
   void push_back(const TemplateArgument& Arg);
+  
+  /// BeginParameterPack - Start adding arguments from a parameter pack.
+  void BeginParameterPack();
+  
+  /// EndParameterPack - Finish adding arguments from a parameter pack.
+  void EndParameterPack();
+  
+  const TemplateArgument *getFlatArgumentList() const { return Args.data(); }
   TemplateArgument *getFlatArgumentList() { return Args.data(); }
 };
 
@@ -733,6 +771,7 @@ public:
   static void 
   Profile(llvm::FoldingSetNodeID &ID, const TemplateArgument *TemplateArgs, 
           unsigned NumTemplateArgs) {
+    ID.AddInteger(NumTemplateArgs);
     for (unsigned Arg = 0; Arg != NumTemplateArgs; ++Arg)
       TemplateArgs[Arg].Profile(ID);
   }

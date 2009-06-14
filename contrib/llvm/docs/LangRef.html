@@ -1091,19 +1091,27 @@ stack before the local variables that's checked upon return from the function to
 see if it has been overwritten. A heuristic is used to determine if a function
 needs stack protectors or not.
 
-<p>If a function that has an <tt>ssp</tt> attribute is inlined into a function
+<br><br>If a function that has an <tt>ssp</tt> attribute is inlined into a function
 that doesn't have an <tt>ssp</tt> attribute, then the resulting function will
-have an <tt>ssp</tt> attribute.</p></dd>
+have an <tt>ssp</tt> attribute.</dd>
 
 <dt><tt>sspreq</tt></dt>
 <dd>This attribute indicates that the function should <em>always</em> emit a
 stack smashing protector. This overrides the <tt><a href="#ssp">ssp</a></tt>
 function attribute.
 
-<p>If a function that has an <tt>sspreq</tt> attribute is inlined into a
+If a function that has an <tt>sspreq</tt> attribute is inlined into a
 function that doesn't have an <tt>sspreq</tt> attribute or which has
 an <tt>ssp</tt> attribute, then the resulting function will have
-an <tt>sspreq</tt> attribute.</p></dd>
+an <tt>sspreq</tt> attribute.</dd>
+
+<dt><tt>noredzone</tt></dt>
+<dd>This attribute indicates that the code generator should not enforce red zone
+mandated by target specific ABI.</dd>
+
+<dt><tt>noimplicitfloat</tt></dt>
+<dd>This attributes disables implicit floating point instructions.</dd>
+
 </dl>
 
 </div>
@@ -1177,6 +1185,9 @@ aspect of the data layout.  The specifications accepted are as follows: </p>
   <dt><tt>a<i>size</i>:<i>abi</i>:<i>pref</i></tt></dt>
   <dd>This specifies the alignment for an aggregate type of a given bit
   <i>size</i>.</dd>
+  <dt><tt>s<i>size</i>:<i>abi</i>:<i>pref</i></tt></dt>
+  <dd>This specifies the alignment for a stack object of a given bit
+  <i>size</i>.</dd>
 </dl>
 <p>When constructing the data layout for a given target, LLVM starts with a
 default set of specifications which are then (possibly) overriden by the
@@ -1196,6 +1207,7 @@ are given in this list:</p>
   <li><tt>v64:64:64</tt> - 64-bit vector is 64-bit aligned</li>
   <li><tt>v128:128:128</tt> - 128-bit vector is 128-bit aligned</li>
   <li><tt>a0:0:1</tt> - aggregates are 8-bit aligned</li>
+  <li><tt>s0:64:64</tt> - stack objects are 64-bit aligned</li>
 </ul>
 <p>When LLVM is determining the alignment for a given type, it uses the 
 following rules:</p>
@@ -7209,7 +7221,7 @@ declare void @llvm.stackprotector( i8* &lt;guard&gt;, i8** &lt;slot&gt; )
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-06-05 00:49:04 +0200 (Fri, 05 Jun 2009) $
+  Last modified: $Date: 2009-06-12 21:45:19 +0200 (Fri, 12 Jun 2009) $
 </address>
 
 </body>

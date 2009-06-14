@@ -1074,7 +1074,7 @@ static void	umass_dump_buffer(struct umass_softc *, uint8_t *, uint32_t,
 		    uint32_t);
 #endif
 
-struct usb_config umass_bbb_config[UMASS_T_BBB_MAX] = {
+static struct usb_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 
 	[UMASS_T_BBB_RESET1] = {
 		.type = UE_CONTROL,
@@ -1164,7 +1164,7 @@ struct usb_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 	},
 };
 
-struct usb_config umass_cbi_config[UMASS_T_CBI_MAX] = {
+static struct usb_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 
 	[UMASS_T_CBI_RESET1] = {
 		.type = UE_CONTROL,

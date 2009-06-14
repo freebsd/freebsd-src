@@ -257,7 +257,7 @@ static const struct usb_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 	},
 };
 
-struct ucom_callback uchcom_callback = {
+static struct ucom_callback uchcom_callback = {
 	.usb2_com_cfg_get_status = &uchcom_cfg_get_status,
 	.usb2_com_cfg_set_dtr = &uchcom_cfg_set_dtr,
 	.usb2_com_cfg_set_rts = &uchcom_cfg_set_rts,

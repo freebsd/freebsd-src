@@ -123,8 +123,8 @@ Parser::DeclPtrTy Parser::ParseNamespaceAlias(SourceLocation NamespaceLoc,
   
   // Eat the ';'.
   DeclEnd = Tok.getLocation();
-  ExpectAndConsume(tok::semi, diag::err_expected_semi_after,
-                   "namespace name", tok::semi);
+  ExpectAndConsume(tok::semi, diag::err_expected_semi_after_namespace_name,
+                   "", tok::semi);
   
   return Actions.ActOnNamespaceAliasDef(CurScope, NamespaceLoc, AliasLoc, Alias, 
                                         SS, IdentLoc, Ident);
@@ -232,8 +232,9 @@ Parser::DeclPtrTy Parser::ParseUsingDirective(unsigned Context,
   
   // Eat ';'.
   DeclEnd = Tok.getLocation();
-  ExpectAndConsume(tok::semi, diag::err_expected_semi_after,
-                   AttrList ? "attributes list" : "namespace name", tok::semi);
+  ExpectAndConsume(tok::semi,
+                   AttrList ? diag::err_expected_semi_after_attribute_list :
+                   diag::err_expected_semi_after_namespace_name, "", tok::semi);
 
   return Actions.ActOnUsingDirective(CurScope, UsingLoc, NamespcLoc, SS,
                                       IdentLoc, NamespcName, AttrList);
@@ -409,9 +410,8 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     Attr = ParseAttributes();
 
   // If declspecs exist after tag, parse them.
-  if (Tok.is(tok::kw___declspec) && PP.getLangOptions().Microsoft)
-    // FIXME: Need to do something with the attributes!
-    ParseMicrosoftDeclSpec();
+  if (Tok.is(tok::kw___declspec))
+    Attr = ParseMicrosoftDeclSpec(Attr);
   
   // Parse the (optional) nested-name-specifier.
   CXXScopeSpec SS;

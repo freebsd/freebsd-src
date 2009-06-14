@@ -122,7 +122,7 @@ ieee80211_hdrsize(const void *data)
 	/* NB: we don't handle control frames */
 	KASSERT((wh->i_fc[0]&IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_CTL,
 		("%s: control frame", __func__));
-	if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
+	if (IEEE80211_IS_DSTODS(wh))
 		size += IEEE80211_ADDR_LEN;
 	if (IEEE80211_QOS_HAS_SEQ(wh))
 		size += sizeof(uint16_t);
@@ -255,9 +255,12 @@ ieee80211_gettid(const struct ieee80211_frame *wh)
 	uint8_t tid;
 
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
-		tid = ((const struct ieee80211_qosframe *)wh)->
-			i_qos[0] & IEEE80211_QOS_TID;
-		tid++;
+		if (IEEE80211_IS_DSTODS(wh))
+			tid = ((const struct ieee80211_qosframe_addr4 *)wh)->
+				i_qos[0];
+		else
+			tid = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+		tid &= IEEE80211_QOS_TID;
 	} else
 		tid = IEEE80211_NONQOS_TID;
 	return tid;

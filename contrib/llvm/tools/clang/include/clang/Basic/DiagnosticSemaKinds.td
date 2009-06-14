@@ -331,7 +331,7 @@ def note_overridden_virtual_function : Note<
 def err_covariant_return_inaccessible_base : Error<
   "return type of virtual function %2 is not covariant with the return type "
   "of the function it overrides "
-  "(conversion from %0 to inaccessible base class %1)">;
+  "(conversion from %0 to inaccessible base class %1)">, NoSFINAE;
 def err_covariant_return_ambiguous_derived_to_base_conv : Error<
   "return type of virtual function %3 is not covariant with the return type of "
   "the function it overrides (ambiguous conversion from derived class "
@@ -572,6 +572,11 @@ def err_param_default_argument_nonfunc : Error<
   "default arguments can only be specified for parameters in a function "
   "declaration">;
 
+def err_use_of_default_argument_to_function_declared_later : Error<
+  "use of default argument to function %0 that is declared later in class %1">;
+def note_default_argument_declared_here : Note<
+  "default argument declared here">;
+
 def ext_param_promoted_not_compatible_with_prototype : ExtWarn<
   "promoted type %0 of K&R function parameter is not compatible with the "
   "parameter type %1 declared in a previous prototype">;
@@ -737,26 +742,48 @@ def err_template_spec_needs_header : Error<
   "template specialization requires 'template<>'">;
 def err_template_spec_extra_headers : Error<
   "template specialization must have a single 'template<>' header">;
+def err_template_spec_decl_out_of_scope_global : Error<
+  "class template %select{|partial }0specialization of %1 must occur in the "
+  "global scope">;
+def err_template_spec_decl_out_of_scope : Error<
+  "class template %select{|partial }0specialization of %1 not in namespace %2">;
+def err_template_spec_decl_function_scope : Error<
+  "%select{class template specialization|class template partial specialization|"
+  "explicit instantiation}0 of %1 in function scope">;
+def err_template_spec_redecl_out_of_scope : Error<
+  "%select{class template specialization|class template partial specialization|"
+  "explicit instantiation}0 of %1 not in a namespace enclosing %2">;
+def err_template_spec_redecl_global_scope : Error<
+  "%select{class template specialization|class template partial specialization|"
+  "explicit instantiation}0 of %1 must occur at global scope">;
+
+// C++ Class Template Partial Specialization
+def err_default_arg_in_partial_spec : Error<
+    "default template argument in a class template partial specialization">;
+def err_dependent_non_type_arg_in_partial_spec : Error<
+    "non-type template argument depends on a template parameter of the "
+    "partial specialization">;
+def err_dependent_typed_non_type_arg_in_partial_spec : Error<
+    "non-type template argument specializes a template parameter with "
+    "dependent type %0">;
+def err_partial_spec_args_match_primary_template : Error<
+    "class template partial specialization does not specialize any template "
+    "argument; to %select{declare|define}0 the primary template, remove the "
+    "template argument list">; 
+def warn_partial_specs_not_deducible : Warning<
+    "class template partial specialization contains "
+    "%select{a template parameter|template parameters}0 that can not be "
+    "deduced; this partial specialization will never be used">;
+def note_partial_spec_unused_parameter : Note<
+    "non-deducible template parameter %0">;
 def unsup_template_partial_spec_ordering : Error<
   "partial ordering of class template partial specializations is not yet "
   "supported">;
-def err_template_spec_decl_out_of_scope_global : Error<
-  "class template specialization of %0 must occur in the global scope">;
-def err_template_spec_decl_out_of_scope : Error<
-  "class template specialization of %0 not in namespace %1">;
-def err_template_spec_decl_function_scope : Error<
-  "%select{class template specialization|explicit instantiation}0 of %1 "
-  "in function scope">;
-def err_template_spec_redecl_out_of_scope : Error<
-  "%select{class template specialization|explicit instantiation}0 of %1 "
-  "not in a namespace enclosing %2">;
-def err_template_spec_redecl_global_scope : Error<
-  "%select{class template specialization|explicit instantiation}0 of %1 must "
-  "occur at global scope">;
 
 // C++ Template Instantiation
 def err_template_recursion_depth_exceeded : Error<
-  "recursive template instantiation exceeded maximum depth of %0">,DefaultFatal;
+  "recursive template instantiation exceeded maximum depth of %0">,
+  DefaultFatal, NoSFINAE;
 def note_template_recursion_depth : Note<
   "use -ftemplate-depth-N to increase recursive template instantiation depth">;
 
@@ -772,6 +799,9 @@ def note_template_member_function_here : Note<
   "in instantiation of member function %q0 requested here">;
 def note_default_arg_instantiation_here : Note<
   "in instantiation of default argument for '%0' required here">;
+def note_partial_spec_deduct_instantiation_here : Note<
+  "during template argument deduction for class template partial "
+  "specialization %0, here">;
 def err_field_instantiates_to_function : Error<
   "data member instantiated with function type %0">;
 def err_nested_name_spec_non_tag : Error<
@@ -809,6 +839,12 @@ def err_template_kw_refers_to_non_template : Error<
     "%0 following the 'template' keyword does not refer to a template">;
 def err_template_kw_refers_to_function_template : Error<
     "%0 following the 'template' keyword refers to a function template">;
+
+// C++0x Variadic Templates
+def err_template_param_pack_default_arg : Error<
+  "template parameter pack cannot have a default argument">;
+def err_template_param_pack_must_be_last_template_parameter : Error<
+  "template parameter pack must be the last template parameter">;
 
 def err_unexpected_typedef : Error<
   "unexpected type name %0: expected expression">;
@@ -1001,6 +1037,8 @@ def err_illegal_decl_mempointer_to_void : Error<
   "'%0' declared as a member pointer to void">;
 def err_illegal_decl_mempointer_in_nonclass : Error<
   "'%0' does not point into a class">;
+def err_mempointer_in_nonclass_type : Error<
+  "member pointer refers into non-class type %0">;
 def err_reference_to_void : Error<"cannot form a reference to 'void'">;
 def err_qualified_block_pointer_type : Error<
   "qualifier specification on block pointer type not allowed">;
@@ -1567,7 +1605,7 @@ def err_memptr_conv_via_virtual : Error<
 
 // C++ access control
 def err_conv_to_inaccessible_base : Error<
-  "conversion from %0 to inaccessible base class %1">;
+  "conversion from %0 to inaccessible base class %1">, NoSFINAE;
 def note_inheritance_specifier_here : Note<
   "'%0' inheritance specifier here">;
 def note_inheritance_implicitly_private_here : Note<
@@ -1814,8 +1852,10 @@ def warn_ivar_use_hidden : Warning<
   "local declaration of %0 hides instance variable">;
 def error_ivar_use_in_class_method : Error<
   "instance variable %0 accessed in class method">;
-def error_private_ivar_access : Error<"instance variable %0 is private">;
-def error_protected_ivar_access : Error<"instance variable %0 is protected">;
+def error_private_ivar_access : Error<"instance variable %0 is private">,
+    NoSFINAE;
+def error_protected_ivar_access : Error<"instance variable %0 is protected">,
+    NoSFINAE;
 def warn_maynot_respond : Warning<"%0  may not respond to %1">;
 def warn_attribute_method_def : Warning<
   "method attribute can only be specified on method declarations">;

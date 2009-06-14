@@ -651,7 +651,7 @@ SVal RegionStoreManager::EvalBinOp(const GRState *state,
     // Get symbol's type. It should be a pointer type.
     SymbolRef Sym = SR->getSymbol();
     QualType T = Sym->getType(getContext());
-    QualType EleTy = cast<PointerType>(T.getTypePtr())->getPointeeType();
+    QualType EleTy = T->getAsPointerType()->getPointeeType();
 
     SVal ZeroIdx = ValMgr.makeZeroArrayIndex();
     ER = MRMgr.getElementRegion(EleTy, ZeroIdx, SR);
@@ -840,7 +840,7 @@ SVal RegionStoreManager::RetrieveStruct(const GRState* St,const TypedRegion* R){
   QualType T = R->getValueType(getContext());
   assert(T->isStructureType());
 
-  const RecordType* RT = cast<RecordType>(T.getTypePtr());
+  const RecordType* RT = T->getAsStructureType();
   RecordDecl* RD = RT->getDecl();
   assert(RD->isDefinition());
 
@@ -1196,6 +1196,11 @@ RegionStoreManager::BindStruct(const GRState* St, const TypedRegion* R, SVal V){
     return St;
 
   if (V.isUnknown())
+    return KillStruct(St, R);
+
+  // We may get non-CompoundVal accidentally due to imprecise cast logic. Ignore
+  // them and make struct unknown.
+  if (!isa<nonloc::CompoundVal>(V))
     return KillStruct(St, R);
 
   nonloc::CompoundVal& CV = cast<nonloc::CompoundVal>(V);

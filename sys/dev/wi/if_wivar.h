@@ -176,7 +176,7 @@ struct wi_card_ident {
 
 int	wi_attach(device_t);
 int	wi_detach(device_t);
-void	wi_shutdown(device_t);
+int	wi_shutdown(device_t);
 int	wi_alloc(device_t, int);
 void	wi_free(device_t);
 extern devclass_t wi_devclass;

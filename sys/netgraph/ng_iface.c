@@ -482,9 +482,10 @@ ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 	/* Copy length before the mbuf gets invalidated. */
 	len = m->m_pkthdr.len;
 
-	/* Send packet. If hook is not connected,
-	   mbuf will get freed. */
+	/* Send packet. If hook is not connected, mbuf will get freed. */
+	NG_OUTBOUND_THREAD_REF();
 	NG_SEND_DATA_ONLY(error, *get_hook_from_iffam(priv, iffam), m);
+	NG_OUTBOUND_THREAD_UNREF();
 
 	/* Update stats. */
 	if (error == 0) {
@@ -610,6 +611,7 @@ ng_iface_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 	*hookptr = hook;
 	NG_HOOK_HI_STACK(hook);
+	NG_HOOK_SET_TO_INBOUND(hook);
 	return (0);
 }
 

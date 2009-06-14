@@ -403,12 +403,12 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 		const struct ieee80211_mcs_rates *mcs =
 		    &ieee80211_htrates[ni->ni_txrate &~ IEEE80211_RATE_MCS];
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
-			if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+			if (ni->ni_flags & IEEE80211_NODE_SGI40)
 				si->isi_txmbps = mcs->ht40_rate_800ns;
 			else
 				si->isi_txmbps = mcs->ht40_rate_400ns;
 		} else {
-			if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
+			if (ni->ni_flags & IEEE80211_NODE_SGI20)
 				si->isi_txmbps = mcs->ht20_rate_800ns;
 			else
 				si->isi_txmbps = mcs->ht20_rate_400ns;

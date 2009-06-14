@@ -68,7 +68,7 @@ static device_method_t ofw_iicbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct ofw_iicbus_devinfo {
@@ -100,7 +100,7 @@ ofw_iicbus_attach(device_t dev)
 {
 	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
 	struct ofw_iicbus_devinfo *dinfo;
-	phandle_t node, child;
+	phandle_t child;
 	device_t childdev;
 	uint32_t addr;
 
@@ -114,16 +114,13 @@ ofw_iicbus_attach(device_t dev)
 	/*
 	 * Attach those children represented in the device tree.
 	 */
-
-	node = ofw_bus_get_node(dev);
-
-	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
+	    child = OF_peer(child)) {
 		/*
 		 * Try to get the I2C address first from the i2c-address
-		 * property, then try the reg property. It moves around
+		 * property, then try the reg property.  It moves around
 		 * on different systems.
 		 */
-
 		if (OF_getprop(child, "i2c-address", &addr, sizeof(addr)) == -1)
 			if (OF_getprop(child, "reg", &addr, sizeof(addr)) == -1)
 				continue;
@@ -132,7 +129,6 @@ ofw_iicbus_attach(device_t dev)
 		 * Now set up the I2C and OFW bus layer devinfo and add it
 		 * to the bus.
 		 */
-
 		dinfo = malloc(sizeof(struct ofw_iicbus_devinfo), M_DEVBUF,
 		    M_NOWAIT | M_ZERO);
 		if (dinfo == NULL)
@@ -159,15 +155,17 @@ ofw_iicbus_add_child(device_t dev, int order, const char *name, int unit)
 	child = device_add_child_ordered(dev, order, name, unit);
 	if (child == NULL)
 		return (child);
-	devi = malloc(sizeof(struct ofw_iicbus_devinfo), M_DEVBUF, 
+	devi = malloc(sizeof(struct ofw_iicbus_devinfo), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (devi == NULL) {
 		device_delete_child(dev, child);
 		return (0);
 	}
 
-	/* NULL all the OFW-related parts of the ivars for non-OFW children */
-	
+	/*
+	 * NULL all the OFW-related parts of the ivars for non-OFW
+	 * children.
+	 */
 	devi->opd_obdinfo.obd_node = -1;
 	devi->opd_obdinfo.obd_name = NULL;
 	devi->opd_obdinfo.obd_compat = NULL;
@@ -175,7 +173,7 @@ ofw_iicbus_add_child(device_t dev, int order, const char *name, int unit)
 	devi->opd_obdinfo.obd_model = NULL;
 
 	device_set_ivars(child, devi);
-	
+
 	return (child);
 }
 
@@ -187,4 +185,3 @@ ofw_iicbus_get_devinfo(device_t bus, device_t dev)
 	dinfo = device_get_ivars(dev);
 	return (&dinfo->opd_obdinfo);
 }
-
