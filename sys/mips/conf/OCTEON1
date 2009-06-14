@@ -1,4 +1,4 @@
-# QEMU -- Generic kernel configuration file for FreeBSD/mips
+# OCTEON1 -- Configuration kernel for all Octeon1 SoCs from Cavium Networks
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
@@ -19,7 +19,7 @@
 
 machine		mips
 cpu		CPU_MIPS4KC
-ident		CAVIUM
+ident		OCTEON1
 
 #makeoptions	ARCH_FLAGS=-march=mips32
 
@@ -27,9 +27,9 @@ ident		CAVIUM
 makeoptions	MODULES_OVERRIDE=""
 
 options		KERNVIRTADDR=0x80100000
-include		"../mips4k/octeon32/std.octeon32"
+include		"../octeon1/std.octeon1"
 
-hints		"OCTEON.hints"		#Default places to look for devices.
+hints		"OCTEON1.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
@@ -62,9 +62,9 @@ device		genclock
 device		loop
 device		ether
 device		md
-device		mem
 device		uart
 device		uart_oct16550
+nodevice	uart_8250
 device 		rgmii
 #options 	VERBOSE_SYSINIT
 
