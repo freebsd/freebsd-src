@@ -65,13 +65,13 @@ device_delete_all_children(device_t dev)
 #endif
 
 /*------------------------------------------------------------------------*
- *	device_set_usb2_desc
+ *	device_set_usb_desc
  *
  * This function can be called at probe or attach to set the USB
  * device supplied textual description for the given device.
  *------------------------------------------------------------------------*/
 void
-device_set_usb2_desc(device_t dev)
+device_set_usb_desc(device_t dev)
 {
 	struct usb_attach_arg *uaa;
 	struct usb_device *udev;
@@ -103,13 +103,13 @@ device_set_usb2_desc(device_t dev)
 
 	if (!err) {
 		/* try to get the interface string ! */
-		err = usb2_req_get_string_any
+		err = usbd_req_get_string_any
 		    (udev, NULL, temp_p,
 		    sizeof(udev->bus->scratch), iface->idesc->iInterface);
 	}
 	if (err) {
 		/* use default description */
-		usb2_devinfo(udev, temp_p,
+		usb_devinfo(udev, temp_p,
 		    sizeof(udev->bus->scratch));
 	}
 	device_set_desc_copy(dev, temp_p);
@@ -118,14 +118,14 @@ device_set_usb2_desc(device_t dev)
 }
 
 /*------------------------------------------------------------------------*
- *	 usb2_pause_mtx - factored out code
+ *	 usb_pause_mtx - factored out code
  *
  * This function will delay the code by the passed number of system
  * ticks. The passed mutex "mtx" will be dropped while waiting, if
  * "mtx" is not NULL.
  *------------------------------------------------------------------------*/
 void
-usb2_pause_mtx(struct mtx *mtx, int _ticks)
+usb_pause_mtx(struct mtx *mtx, int _ticks)
 {
 	if (mtx != NULL)
 		mtx_unlock(mtx);
@@ -154,14 +154,14 @@ usb2_pause_mtx(struct mtx *mtx, int _ticks)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_printBCD
+ *	usb_printbcd
  *
  * This function will print the version number "bcd" to the string
  * pointed to by "p" having a maximum length of "p_len" bytes
  * including the terminating zero.
  *------------------------------------------------------------------------*/
 void
-usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
+usb_printbcd(char *p, uint16_t p_len, uint16_t bcd)
 {
 	if (snprintf(p, p_len, "%x.%02x", bcd >> 8, bcd & 0xff)) {
 		/* ignore any errors */
@@ -169,13 +169,13 @@ usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_trim_spaces
+ *	usb_trim_spaces
  *
  * This function removes spaces at the beginning and the end of the string
  * pointed to by the "p" argument.
  *------------------------------------------------------------------------*/
 void
-usb2_trim_spaces(char *p)
+usb_trim_spaces(char *p)
 {
 	char *q;
 	char *e;
@@ -192,10 +192,10 @@ usb2_trim_spaces(char *p)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_make_str_desc - convert an ASCII string into a UNICODE string
+ *	usb_make_str_desc - convert an ASCII string into a UNICODE string
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_make_str_desc(void *ptr, uint16_t max_len, const char *s)
+usb_make_str_desc(void *ptr, uint16_t max_len, const char *s)
 {
 	struct usb_string_descriptor *p = ptr;
 	uint8_t totlen;

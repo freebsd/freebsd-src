@@ -204,7 +204,7 @@ atmegadci_wakeup_peer(struct atmegadci_softc *sc)
 
 	/* wait 8 milliseconds */
 	/* Wait for reset to complete. */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
 
 	/* hardware should have cleared RMWKUP bit */
 }
@@ -267,7 +267,7 @@ atmegadci_setup_rx(struct atmegadci_td *td)
 	    (void *)&req, sizeof(req));
 
 	/* copy data into real buffer */
-	usb2_copy_in(td->pc, 0, &req, sizeof(req));
+	usbd_copy_in(td->pc, 0, &req, sizeof(req));
 
 	td->offset = sizeof(req);
 	td->remainder = 0;
@@ -378,7 +378,7 @@ repeat:
 		return (0);		/* we are complete */
 	}
 	while (count > 0) {
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -465,7 +465,7 @@ repeat:
 	}
 	while (count > 0) {
 
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -768,7 +768,7 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpointno),
-	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
+	    xfer->sumlen, usbd_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
 
@@ -929,11 +929,11 @@ atmegadci_start_standard_chain(struct usb_xfer *xfer)
 	if (atmegadci_xfer_do_fifo(xfer)) {
 
 		/* put transfer on interrupt queue */
-		usb2_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
+		usbd_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
 
 		/* start timeout, if any */
 		if (xfer->timeout != 0) {
-			usb2_transfer_timeout_ms(xfer,
+			usbd_transfer_timeout_ms(xfer,
 			    &atmegadci_timeout, xfer->timeout);
 		}
 	}
@@ -1089,7 +1089,7 @@ atmegadci_device_done(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTFN(15, "disabled interrupts!\n");
 	}
 	/* dequeue transfer and start next transfer */
-	usb2_transfer_done(xfer, error);
+	usbd_transfer_done(xfer, error);
 }
 
 static void
@@ -1236,7 +1236,7 @@ atmegadci_init(struct atmegadci_softc *sc)
 		if (ATMEGA_READ_1(sc, 0x49) & 0x01)
 			break;
 		/* wait a little bit for PLL to start */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+		usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 	}
 
 	/* make sure USB is enabled */
@@ -1252,7 +1252,7 @@ atmegadci_init(struct atmegadci_softc *sc)
 	ATMEGA_WRITE_1(sc, ATMEGA_UDCON, ATMEGA_UDCON_DETACH);
 
 	/* wait a little for things to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 20);
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 20);
 
 	/* enable interrupts */
 	ATMEGA_WRITE_1(sc, ATMEGA_UDIEN,
@@ -1453,7 +1453,7 @@ atmegadci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	 * pre-compute when the isochronous transfer will be finished:
 	 */
 	xfer->isoc_time_complete =
-	    usb2_isoc_time_expand(&sc->sc_bus, nframes) + temp +
+	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
 	    xfer->nframes;
 
 	/* compute frame number for next insertion */
@@ -2017,7 +2017,7 @@ atmegadci_xfer_setup(struct usb_setup_params *parm)
 	parm->hc_max_packet_count = 1;
 	parm->hc_max_frame_size = 0x500;
 
-	usb2_transfer_setup_sub(parm);
+	usbd_transfer_setup_sub(parm);
 
 	/*
 	 * compute maximum number of TDs
@@ -2032,7 +2032,7 @@ atmegadci_xfer_setup(struct usb_setup_params *parm)
 	}
 
 	/*
-	 * check if "usb2_transfer_setup_sub" set an error
+	 * check if "usbd_transfer_setup_sub" set an error
 	 */
 	if (parm->err)
 		return;

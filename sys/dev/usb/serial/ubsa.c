@@ -213,16 +213,16 @@ static const struct usb_config ubsa_config[UBSA_N_TRANSFER] = {
 };
 
 static const struct ucom_callback ubsa_callback = {
-	.usb2_com_cfg_get_status = &ubsa_cfg_get_status,
-	.usb2_com_cfg_set_dtr = &ubsa_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &ubsa_cfg_set_rts,
-	.usb2_com_cfg_set_break = &ubsa_cfg_set_break,
-	.usb2_com_cfg_param = &ubsa_cfg_param,
-	.usb2_com_pre_param = &ubsa_pre_param,
-	.usb2_com_start_read = &ubsa_start_read,
-	.usb2_com_stop_read = &ubsa_stop_read,
-	.usb2_com_start_write = &ubsa_start_write,
-	.usb2_com_stop_write = &ubsa_stop_write,
+	.ucom_cfg_get_status = &ubsa_cfg_get_status,
+	.ucom_cfg_set_dtr = &ubsa_cfg_set_dtr,
+	.ucom_cfg_set_rts = &ubsa_cfg_set_rts,
+	.ucom_cfg_set_break = &ubsa_cfg_set_break,
+	.ucom_cfg_param = &ubsa_cfg_param,
+	.ucom_pre_param = &ubsa_pre_param,
+	.ucom_start_read = &ubsa_start_read,
+	.ucom_stop_read = &ubsa_stop_read,
+	.ucom_start_write = &ubsa_start_write,
+	.ucom_stop_write = &ubsa_stop_write,
 };
 
 static const struct usb_device_id ubsa_devs[] = {
@@ -277,7 +277,7 @@ ubsa_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UBSA_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(ubsa_devs, sizeof(ubsa_devs), uaa));
+	return (usbd_lookup_id_by_uaa(ubsa_devs, sizeof(ubsa_devs), uaa));
 }
 
 static int
@@ -289,14 +289,14 @@ ubsa_attach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ubsa", NULL, MTX_DEF);
 
 	sc->sc_udev = uaa->device;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index = UBSA_IFACE_INDEX;
 
-	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
+	error = usbd_transfer_setup(uaa->device, &sc->sc_iface_index,
 	    sc->sc_xfer, ubsa_config, UBSA_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
@@ -305,14 +305,14 @@ ubsa_attach(device_t dev)
 	}
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_RD]);
+	usbd_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &ubsa_callback, &sc->sc_mtx);
 	if (error) {
-		DPRINTF("usb2_com_attach failed\n");
+		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
 	return (0);
@@ -329,8 +329,8 @@ ubsa_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-	usb2_transfer_unsetup(sc->sc_xfer, UBSA_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UBSA_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -349,11 +349,11 @@ ubsa_cfg_request(struct ubsa_softc *sc, uint8_t index, uint16_t value)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	err = usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
+		    "(ignored)\n", usbd_errstr(err));
 	}
 }
 
@@ -491,10 +491,10 @@ ubsa_start_read(struct ucom_softc *ucom)
 	struct ubsa_softc *sc = ucom->sc_parent;
 
 	/* start interrupt endpoint */
-	usb2_transfer_start(sc->sc_xfer[UBSA_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UBSA_INTR_DT_RD]);
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[UBSA_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UBSA_BULK_DT_RD]);
 }
 
 static void
@@ -503,10 +503,10 @@ ubsa_stop_read(struct ucom_softc *ucom)
 	struct ubsa_softc *sc = ucom->sc_parent;
 
 	/* stop interrupt endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UBSA_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UBSA_INTR_DT_RD]);
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UBSA_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UBSA_BULK_DT_RD]);
 }
 
 static void
@@ -514,7 +514,7 @@ ubsa_start_write(struct ucom_softc *ucom)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UBSA_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UBSA_BULK_DT_WR]);
 }
 
 static void
@@ -522,7 +522,7 @@ ubsa_stop_write(struct ucom_softc *ucom)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UBSA_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UBSA_BULK_DT_WR]);
 }
 
 static void
@@ -546,11 +546,11 @@ ubsa_write_callback(struct usb_xfer *xfer)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		if (ucom_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    UBSA_BSIZE, &actlen)) {
 
 			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -572,12 +572,12 @@ ubsa_read_callback(struct usb_xfer *xfer)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
+		ucom_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -602,7 +602,7 @@ ubsa_intr_callback(struct usb_xfer *xfer)
 
 		if (xfer->actlen >= sizeof(buf)) {
 
-			usb2_copy_out(xfer->frbuffers, 0, buf, sizeof(buf));
+			usbd_copy_out(xfer->frbuffers, 0, buf, sizeof(buf));
 
 			/*
 			 * incidentally, Belkin adapter status bits match
@@ -614,7 +614,7 @@ ubsa_intr_callback(struct usb_xfer *xfer)
 			DPRINTF("lsr = 0x%02x, msr = 0x%02x\n",
 			    sc->sc_lsr, sc->sc_msr);
 
-			usb2_com_status_change(&sc->sc_ucom);
+			ucom_status_change(&sc->sc_ucom);
 		} else {
 			DPRINTF("ignoring short packet, %d bytes\n",
 			    xfer->actlen);
@@ -623,7 +623,7 @@ ubsa_intr_callback(struct usb_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */

@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb_cdc.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
@@ -131,13 +131,13 @@ static const struct usb_config uipaq_config_data[UIPAQ_N_TRANSFER] = {
 };
 
 static const struct ucom_callback uipaq_callback = {
-	.usb2_com_cfg_set_dtr = &uipaq_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &uipaq_cfg_set_rts,
-	.usb2_com_cfg_set_break = &uipaq_cfg_set_break,
-	.usb2_com_start_read = &uipaq_start_read,
-	.usb2_com_stop_read = &uipaq_stop_read,
-	.usb2_com_start_write = &uipaq_start_write,
-	.usb2_com_stop_write = &uipaq_stop_write,
+	.ucom_cfg_set_dtr = &uipaq_cfg_set_dtr,
+	.ucom_cfg_set_rts = &uipaq_cfg_set_rts,
+	.ucom_cfg_set_break = &uipaq_cfg_set_break,
+	.ucom_start_read = &uipaq_start_read,
+	.ucom_stop_read = &uipaq_stop_read,
+	.ucom_start_write = &uipaq_start_write,
+	.ucom_stop_write = &uipaq_stop_write,
 };
 
 /*
@@ -1089,7 +1089,7 @@ uipaq_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UIPAQ_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(uipaq_devs, sizeof(uipaq_devs), uaa));
+	return (usbd_lookup_id_by_uaa(uipaq_devs, sizeof(uipaq_devs), uaa));
 }
 
 static int
@@ -1104,7 +1104,7 @@ uipaq_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uipaq", NULL, MTX_DEF);
 
 	/*
@@ -1119,15 +1119,15 @@ uipaq_attach(device_t dev)
 	USETW(req.wLength, 0);
 	for (i = 0; i != 64; i++) {
 		error =
-		    usb2_do_request_flags(uaa->device, NULL, &req,
+		    usbd_do_request_flags(uaa->device, NULL, &req,
 		    NULL, 0, NULL, 100);
 		if (error == 0)
 			break;
-		usb2_pause_mtx(NULL, hz / 10);
+		usb_pause_mtx(NULL, hz / 10);
 	}
 
 	iface_index = UIPAQ_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, uipaq_config_data,
 	    UIPAQ_N_TRANSFER, sc, &sc->sc_mtx);
 
@@ -1136,11 +1136,11 @@ uipaq_attach(device_t dev)
 	}
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
+	usbd_transfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uipaq_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
@@ -1157,8 +1157,8 @@ uipaq_detach(device_t dev)
 {
 	struct uipaq_softc *sc = device_get_softc(dev);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-	usb2_transfer_unsetup(sc->sc_xfer, UIPAQ_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UIPAQ_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -1170,7 +1170,7 @@ uipaq_start_read(struct ucom_softc *ucom)
 	struct uipaq_softc *sc = ucom->sc_parent;
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
 }
 
 static void
@@ -1179,7 +1179,7 @@ uipaq_stop_read(struct ucom_softc *ucom)
 	struct uipaq_softc *sc = ucom->sc_parent;
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
 }
 
 static void
@@ -1187,7 +1187,7 @@ uipaq_start_write(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
 }
 
 static void
@@ -1195,7 +1195,7 @@ uipaq_stop_write(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
 }
 
 static void
@@ -1218,7 +1218,7 @@ uipaq_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -1242,7 +1242,7 @@ uipaq_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -1262,7 +1262,7 @@ uipaq_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -1276,10 +1276,10 @@ uipaq_write_callback(struct usb_xfer *xfer)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		if (ucom_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    UIPAQ_BUF_SIZE, &actlen)) {
 			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -1300,13 +1300,13 @@ uipaq_read_callback(struct usb_xfer *xfer)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		ucom_put_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    xfer->actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */

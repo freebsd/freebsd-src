@@ -77,12 +77,12 @@ struct usb_process {
 
 /* prototypes */
 
-uint8_t	usb2_proc_is_gone(struct usb_process *up);
-int	usb2_proc_create(struct usb_process *up, struct mtx *p_mtx,
+uint8_t	usb_proc_is_gone(struct usb_process *up);
+int	usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
 	    const char *pmesg, uint8_t prio);
-void	usb2_proc_drain(struct usb_process *up);
-void	usb2_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
-void	usb2_proc_free(struct usb_process *up);
-void   *usb2_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
+void	usb_proc_drain(struct usb_process *up);
+void	usb_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
+void	usb_proc_free(struct usb_process *up);
+void   *usb_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
 
 #endif					/* _USB2_PROCESS_H_ */

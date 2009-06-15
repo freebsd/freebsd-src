@@ -338,7 +338,7 @@ uath_match(device_t dev)
 	if (uaa->info.bIfaceIndex != UATH_IFACE_INDEX)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(uath_devs, sizeof(uath_devs), uaa));
+	return (usbd_lookup_id_by_uaa(uath_devs, sizeof(uath_devs), uaa));
 }
 
 static int
@@ -357,7 +357,7 @@ uath_attach(device_t dev)
 #ifdef UATH_DEBUG
 	sc->sc_debug = uath_debug;
 #endif
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	/*
 	 * Only post-firmware devices here.
@@ -378,11 +378,11 @@ uath_attach(device_t dev)
 		goto fail;
 	}
 
-	error = usb2_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    uath_usbconfig, UATH_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
-		    "err=%s\n", usb2_errstr(error));
+		    "err=%s\n", usbd_errstr(error));
 		goto fail1;
 	}
 
@@ -497,7 +497,7 @@ uath_attach(device_t dev)
 
 fail4:	if_free(ifp);
 fail3:	UATH_UNLOCK(sc);
-fail2:	usb2_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
+fail2:	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
 fail1:	uath_free_cmd_list(sc, sc->sc_cmd, UATH_CMD_LIST_COUNT);
 fail:
 	return (error);
@@ -519,7 +519,7 @@ uath_detach(device_t dev)
 	callout_drain(&sc->stat_ch);
 	callout_drain(&sc->watchdog_ch);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
+	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
 	ieee80211_ifdetach(ic);
 
 	/* free buffers */
@@ -735,10 +735,10 @@ uath_cmdsend(struct uath_softc *sc, uint32_t code, const void *idata, int ilen,
 
 	STAILQ_INSERT_TAIL(&sc->sc_cmd_pending, cmd, next);
 	UATH_STAT_INC(sc, st_cmd_pending);
-	usb2_transfer_start(sc->sc_xfer[UATH_INTR_TX]);
+	usbd_transfer_start(sc->sc_xfer[UATH_INTR_TX]);
 
 	if (cmd->flags & UATH_CMD_FLAG_READ) {
-		usb2_transfer_start(sc->sc_xfer[UATH_INTR_RX]);
+		usbd_transfer_start(sc->sc_xfer[UATH_INTR_RX]);
 
 		/* wait at most two seconds for command reply */
 		error = mtx_sleep(cmd, &sc->sc_mtx, 0, "uathcmd", 2 * hz);
@@ -1168,7 +1168,7 @@ uath_init_locked(void *arg)
 	/* XXX? check */
 	uath_cmd_write(sc, WDCMSG_RESET_KEY_CACHE, NULL, 0, 0);
 
-	usb2_transfer_start(sc->sc_xfer[UATH_BULK_RX]);
+	usbd_transfer_start(sc->sc_xfer[UATH_BULK_RX]);
 	/* enable Rx */
 	uath_set_rxfilter(sc, 0x0, UATH_FILTER_OP_INIT);
 	uath_set_rxfilter(sc,
@@ -1355,7 +1355,7 @@ uath_abort_xfers(struct uath_softc *sc)
 	UATH_ASSERT_LOCKED(sc);
 	/* abort any pending transfers */
 	for (i = 0; i < UATH_N_XFERS; i++)
-		usb2_transfer_stop(sc->sc_xfer[i]);
+		usbd_transfer_stop(sc->sc_xfer[i]);
 }
 
 static int
@@ -1425,7 +1425,7 @@ uath_dataflush(struct uath_softc *sc)
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
 	UATH_STAT_INC(sc, st_tx_pending);
 	sc->sc_tx_timer = 5;
-	usb2_transfer_start(sc->sc_xfer[UATH_BULK_TX]);
+	usbd_transfer_start(sc->sc_xfer[UATH_BULK_TX]);
 
 	return (0);
 }
@@ -1692,7 +1692,7 @@ uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
 	UATH_STAT_INC(sc, st_tx_pending);
-	usb2_transfer_start(sc->sc_xfer[UATH_BULK_TX]);
+	usbd_transfer_start(sc->sc_xfer[UATH_BULK_TX]);
 
 	return (0);
 }
@@ -2401,12 +2401,12 @@ uath_intr_rx_callback(struct usb_xfer *xfer)
 
 		KASSERT(xfer->actlen >= sizeof(struct uath_cmd_hdr),
 		    ("short xfer error"));
-		usb2_copy_out(xfer->frbuffers, 0, cmd->buf, xfer->actlen);
+		usbd_copy_out(xfer->frbuffers, 0, cmd->buf, xfer->actlen);
 		uath_cmdeof(sc, cmd);
 	case USB_ST_SETUP:
 setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 	default:
 		if (xfer->error != USB_ERR_CANCELLED) {
@@ -2456,9 +2456,9 @@ setup:
 		else
 			UATH_STAT_INC(sc, st_cmd_active);
 
-		usb2_set_frame_data(xfer, cmd->buf, 0);
+		usbd_set_frame_data(xfer, cmd->buf, 0);
 		xfer->frlengths[0] = cmd->buflen;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 	default:
 		if (xfer->error != USB_ERR_CANCELLED) {
@@ -2708,9 +2708,9 @@ setup:
 		UATH_STAT_DEC(sc, st_rx_inactive);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
 		UATH_STAT_INC(sc, st_rx_active);
-		usb2_set_frame_data(xfer, data->buf, 0);
+		usbd_set_frame_data(xfer, data->buf, 0);
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 
 		/*
 		 * To avoid LOR we should unlock our private mutex here to call
@@ -2818,9 +2818,9 @@ setup:
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		UATH_STAT_INC(sc, st_tx_active);
 
-		usb2_set_frame_data(xfer, data->buf, 0);
+		usbd_set_frame_data(xfer, data->buf, 0);
 		xfer->frlengths[0] = data->buflen;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 
 		UATH_UNLOCK(sc);
 		uath_start(ifp);

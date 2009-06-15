@@ -95,7 +95,7 @@ USB_MAKE_STRING_DESC(STRING_MSC_SERIAL, string_msc_serial);
 
 /* prototypes */
 
-static usb2_temp_get_string_desc_t msc_get_string_desc;
+static usb_temp_get_string_desc_t msc_get_string_desc;
 
 static const struct usb_temp_packet_size bulk_mps = {
 	.mps[USB_SPEED_FULL] = 64,
@@ -153,7 +153,7 @@ static const struct usb_temp_config_desc *msc_configs[] = {
 	NULL,
 };
 
-const struct usb_temp_device_desc usb2_template_msc = {
+const struct usb_temp_device_desc usb_template_msc = {
 	.getStringDesc = &msc_get_string_desc,
 	.ppConfigDesc = msc_configs,
 	.idVendor = 0x0001,

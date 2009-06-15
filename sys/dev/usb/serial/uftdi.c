@@ -166,17 +166,17 @@ static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 };
 
 static const struct ucom_callback uftdi_callback = {
-	.usb2_com_cfg_get_status = &uftdi_cfg_get_status,
-	.usb2_com_cfg_set_dtr = &uftdi_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &uftdi_cfg_set_rts,
-	.usb2_com_cfg_set_break = &uftdi_cfg_set_break,
-	.usb2_com_cfg_param = &uftdi_cfg_param,
-	.usb2_com_cfg_open = &uftdi_cfg_open,
-	.usb2_com_pre_param = &uftdi_pre_param,
-	.usb2_com_start_read = &uftdi_start_read,
-	.usb2_com_stop_read = &uftdi_stop_read,
-	.usb2_com_start_write = &uftdi_start_write,
-	.usb2_com_stop_write = &uftdi_stop_write,
+	.ucom_cfg_get_status = &uftdi_cfg_get_status,
+	.ucom_cfg_set_dtr = &uftdi_cfg_set_dtr,
+	.ucom_cfg_set_rts = &uftdi_cfg_set_rts,
+	.ucom_cfg_set_break = &uftdi_cfg_set_break,
+	.ucom_cfg_param = &uftdi_cfg_param,
+	.ucom_cfg_open = &uftdi_cfg_open,
+	.ucom_pre_param = &uftdi_pre_param,
+	.ucom_start_read = &uftdi_start_read,
+	.ucom_stop_read = &uftdi_stop_read,
+	.ucom_start_write = &uftdi_start_write,
+	.ucom_stop_write = &uftdi_stop_write,
 };
 
 static device_method_t uftdi_methods[] = {
@@ -248,7 +248,7 @@ uftdi_probe(device_t dev)
 	}
 	/* attach to all present interfaces */
 
-	return (usb2_lookup_id_by_uaa(uftdi_devs, sizeof(uftdi_devs), uaa));
+	return (usbd_lookup_id_by_uaa(uftdi_devs, sizeof(uftdi_devs), uaa));
 }
 
 static int
@@ -262,7 +262,7 @@ uftdi_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_unit = device_get_unit(dev);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uftdi", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
@@ -283,7 +283,7 @@ uftdi_attach(device_t dev)
 		break;
 	}
 
-	error = usb2_transfer_setup(uaa->device,
+	error = usbd_transfer_setup(uaa->device,
 	    &sc->sc_iface_index, sc->sc_xfer, uftdi_config,
 	    UFTDI_N_TRANSFER, sc, &sc->sc_mtx);
 
@@ -296,8 +296,8 @@ uftdi_attach(device_t dev)
 
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_RD]);
+	usbd_transfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
 	/* set a valid "lcr" value */
@@ -307,7 +307,7 @@ uftdi_attach(device_t dev)
 	    FTDI_SIO_SET_DATA_PARITY_NONE |
 	    FTDI_SIO_SET_DATA_BITS(8));
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uftdi_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
@@ -324,8 +324,8 @@ uftdi_detach(device_t dev)
 {
 	struct uftdi_softc *sc = device_get_softc(dev);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-	usb2_transfer_unsetup(sc->sc_xfer, UFTDI_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UFTDI_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -347,7 +347,7 @@ uftdi_cfg_open(struct ucom_softc *ucom)
 	USETW(req.wValue, FTDI_SIO_RESET_SIO);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 
 	/* turn on RTS/CTS flow control */
@@ -357,7 +357,7 @@ uftdi_cfg_open(struct ucom_softc *ucom)
 	USETW(req.wValue, 0);
 	USETW2(req.wIndex, FTDI_SIO_RTS_CTS_HS, wIndex);
 	USETW(req.wLength, 0);
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 
 	/*
@@ -378,17 +378,17 @@ uftdi_write_callback(struct usb_xfer *xfer)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers,
+		if (ucom_get_data(&sc->sc_ucom, xfer->frbuffers,
 		    sc->sc_hdrlen, UFTDI_OBUFSIZE - sc->sc_hdrlen,
 		    &actlen)) {
 
 			if (sc->sc_hdrlen > 0) {
 				buf[0] =
 				    FTDI_OUT_TAG(actlen, sc->sc_ucom.sc_portno);
-				usb2_copy_in(xfer->frbuffers, 0, buf, 1);
+				usbd_copy_in(xfer->frbuffers, 0, buf, 1);
 			}
 			xfer->frlengths[0] = actlen + sc->sc_hdrlen;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -417,7 +417,7 @@ uftdi_read_callback(struct usb_xfer *xfer)
 		if (xfer->actlen < 2) {
 			goto tr_setup;
 		}
-		usb2_copy_out(xfer->frbuffers, 0, buf, 2);
+		usbd_copy_out(xfer->frbuffers, 0, buf, 2);
 
 		ftdi_msr = FTDI_GET_MSR(buf);
 		lsr = FTDI_GET_LSR(buf);
@@ -441,18 +441,18 @@ uftdi_read_callback(struct usb_xfer *xfer)
 			sc->sc_msr = msr;
 			sc->sc_lsr = lsr;
 
-			usb2_com_status_change(&sc->sc_ucom);
+			ucom_status_change(&sc->sc_ucom);
 		}
 		xfer->actlen -= 2;
 
 		if (xfer->actlen > 0) {
-			usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 2,
+			ucom_put_data(&sc->sc_ucom, xfer->frbuffers, 2,
 			    xfer->actlen);
 		}
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -480,7 +480,7 @@ uftdi_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wValue, wValue);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -499,7 +499,7 @@ uftdi_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wValue, wValue);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -524,7 +524,7 @@ uftdi_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wValue, wValue);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -657,7 +657,7 @@ uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	USETW(req.wValue, cfg.rate);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -665,7 +665,7 @@ uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	USETW(req.wValue, cfg.lcr);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -673,7 +673,7 @@ uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	USETW2(req.wValue, cfg.v_stop, cfg.v_start);
 	USETW2(req.wIndex, cfg.v_flow, wIndex);
 	USETW(req.wLength, 0);
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -694,7 +694,7 @@ uftdi_start_read(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UFTDI_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UFTDI_BULK_DT_RD]);
 }
 
 static void
@@ -702,7 +702,7 @@ uftdi_stop_read(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UFTDI_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UFTDI_BULK_DT_RD]);
 }
 
 static void
@@ -710,7 +710,7 @@ uftdi_start_write(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UFTDI_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UFTDI_BULK_DT_WR]);
 }
 
 static void
@@ -718,7 +718,7 @@ uftdi_stop_write(struct ucom_softc *ucom)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UFTDI_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UFTDI_BULK_DT_WR]);
 }
 
 /*------------------------------------------------------------------------*
