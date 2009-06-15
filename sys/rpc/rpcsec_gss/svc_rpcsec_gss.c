@@ -65,12 +65,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
 #include <sys/ucred.h>
 
@@ -121,7 +123,7 @@ enum svc_rpc_gss_client_state {
 #define SVC_RPC_GSS_SEQWINDOW	128
 
 struct svc_rpc_gss_clientid {
-	uint32_t		ci_hostid;
+	unsigned long		ci_hostid;
 	uint32_t		ci_boottime;
 	uint32_t		ci_id;
 };
@@ -505,9 +507,11 @@ svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_find_client(%d)", id->ci_id);
 
+	getcredhostid(curthread->td_ucred, &hostid);
 	if (id->ci_hostid != hostid || id->ci_boottime != boottime.tv_sec)
 		return (NULL);
 
@@ -536,6 +540,7 @@ svc_rpc_gss_create_client(void)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_create_client()");
 
@@ -543,6 +548,7 @@ svc_rpc_gss_create_client(void)
 	memset(client, 0, sizeof(struct svc_rpc_gss_client));
 	refcount_init(&client->cl_refs, 1);
 	sx_init(&client->cl_lock, "GSS-client");
+	getcredhostid(curthread->td_ucred, &hostid);
 	client->cl_id.ci_hostid = hostid;
 	client->cl_id.ci_boottime = boottime.tv_sec;
 	client->cl_id.ci_id = svc_rpc_gss_next_clientid++;
