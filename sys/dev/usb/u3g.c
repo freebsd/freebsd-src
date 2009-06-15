@@ -53,8 +53,8 @@
 
 //#define U3G_DEBUG
 #ifdef U3G_DEBUG
-#define DPRINTF(x...)		do { if (u3gdebug) device_printf(sc->sc_dev, ##x); } while (0)
-int	u3gdebug = 1;
+#define DPRINTF(x...)		device_printf(sc->sc_dev, ##x)
+#define bootverbose		(1)
 #else
 #define DPRINTF(x...)		/* nop */
 #endif
@@ -67,7 +67,7 @@ struct u3g_softc {
 	device_t		sc_dev;
 	usbd_device_handle	sc_udev;
 	u_int8_t		sc_speed;
-	u_int8_t		sc_flags;
+	u_int8_t		sc_init;
 	u_char			sc_numports;
 };
 
@@ -117,81 +117,83 @@ static const struct u3g_speeds_s u3g_speeds[] = {
 struct u3g_dev_type_s {
 	struct usb_devno	devno;
 	u_int8_t		speed;
-	u_int8_t		flags;
-#define U3GFL_NONE		0x00
-#define U3GFL_HUAWEI_INIT	0x01		// Requires init command (Huawei cards)
-#define U3GFL_SCSI_EJECT	0x02		// Requires SCSI eject command (Novatel)
-#define U3GFL_SIERRA_INIT	0x04		// Requires init command (Sierra cards)
-#define U3GFL_CMOTECH_INIT	0x08		// Requires init command (CMOTECH cards)
-#define U3GFL_STUB_WAIT		0x80		// Device reappears after a short delay
+	u_int8_t		init;
+#define U3GINIT_NONE		0
+#define U3GINIT_HUAWEI		1		// Requires init command (Huawei)
+#define U3GINIT_SIERRA		2		// Requires init command (Sierra)
+#define U3GINIT_EJECT		3		// Requires SCSI eject command (Novatel, Qualcomm)
+#define U3GINIT_ZTESTOR		4		// Requires SCSI command (ZTE STOR)
+#define U3GINIT_CMOTECH		5		// Requires init command (CMOTECH)
+#define U3GINIT_WAIT		6		// Device reappears after a short delay (none)
 };
 
 // Note: The entries marked with XXX should be checked for the correct speed
 // indication to set the buffer sizes.
 static const struct u3g_dev_type_s u3g_devs[] = {
 	/* OEM: Option */
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G },		U3GSP_UMTS,	U3GFL_NONE },
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },		U3GSP_UMTS,	U3GFL_NONE },
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS },		U3GSP_UMTS,	U3GFL_NONE },
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36 },		U3GSP_HSDPA,	U3GFL_NONE },
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAXHSUPA },		U3GSP_HSDPA,	U3GFL_NONE },
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },	U3GSP_UMTS,	U3GFL_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G },		U3GSP_UMTS,	U3GINIT_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },		U3GSP_UMTS,	U3GINIT_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS },		U3GSP_UMTS,	U3GINIT_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36 },		U3GSP_HSDPA,	U3GINIT_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAXHSUPA },		U3GSP_HSDPA,	U3GINIT_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },	U3GSP_UMTS,	U3GINIT_NONE },
 	/* OEM: Qualcomm, Inc. */
-	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_ZTE_STOR },	U3GSP_CDMA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GSP_CDMA,	U3GFL_SCSI_EJECT },
+	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_ZTE_STOR },	U3GSP_CDMA,	U3GINIT_ZTESTOR },
+	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GSP_CDMA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_ZTE_MSM },	U3GSP_CDMA,	U3GINIT_NONE },
 	/* OEM: Huawei */
-	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },		U3GSP_HSDPA,	U3GFL_HUAWEI_INIT },
-	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GSP_HSPA,	U3GFL_HUAWEI_INIT },
+	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },		U3GSP_HSDPA,	U3GINIT_HUAWEI },
+	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GSP_HSPA,	U3GINIT_HUAWEI },
 	/* OEM: Novatel */
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM },	U3GSP_CDMA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620 },		U3GSP_UMTS,	U3GFL_SCSI_EJECT },	// XXX
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_MC950D },		U3GSP_HSUPA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U720 },		U3GSP_UMTS,	U3GFL_SCSI_EJECT },	// XXX
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U727 },		U3GSP_UMTS,	U3GFL_SCSI_EJECT },	// XXX
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740 },		U3GSP_HSDPA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740_2 },		U3GSP_HSDPA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U870 },		U3GSP_UMTS,	U3GFL_SCSI_EJECT },	// XXX
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V620 },		U3GSP_UMTS,	U3GFL_SCSI_EJECT },	// XXX
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V640 },		U3GSP_UMTS,	U3GFL_SCSI_EJECT },	// XXX
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V720 },		U3GSP_UMTS,	U3GFL_SCSI_EJECT },	// XXX
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V740 },		U3GSP_HSDPA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_X950D },		U3GSP_HSUPA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_XU870 },		U3GSP_HSDPA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ZEROCD },    	U3GSP_HSUPA,	U3GFL_SCSI_EJECT },
-	{{ USB_VENDOR_DELL,    USB_PRODUCT_DELL_U740 },			U3GSP_HSDPA,	U3GFL_SCSI_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM },	U3GSP_CDMA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620 },		U3GSP_UMTS,	U3GINIT_EJECT },	// XXX
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_MC950D },		U3GSP_HSUPA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U720 },		U3GSP_UMTS,	U3GINIT_EJECT },	// XXX
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U727 },		U3GSP_UMTS,	U3GINIT_EJECT },	// XXX
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740 },		U3GSP_HSDPA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740_2 },		U3GSP_HSDPA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U870 },		U3GSP_UMTS,	U3GINIT_EJECT },	// XXX
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V620 },		U3GSP_UMTS,	U3GINIT_EJECT },	// XXX
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V640 },		U3GSP_UMTS,	U3GINIT_EJECT },	// XXX
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V720 },		U3GSP_UMTS,	U3GINIT_EJECT },	// XXX
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V740 },		U3GSP_HSDPA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_X950D },		U3GSP_HSUPA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_XU870 },		U3GSP_HSDPA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ZEROCD },    	U3GSP_HSUPA,	U3GINIT_EJECT },
+	{{ USB_VENDOR_DELL,    USB_PRODUCT_DELL_U740 },			U3GSP_HSDPA,	U3GINIT_EJECT },
 	/* OEM: Merlin */
-	{{ USB_VENDOR_MERLIN, USB_PRODUCT_MERLIN_V620 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
+	{{ USB_VENDOR_MERLIN, USB_PRODUCT_MERLIN_V620 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
 	/* OEM: Sierra Wireless: */
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD580 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD595 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC595U },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC597E },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_C597 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880E },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880U },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881E },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881U },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_EM5625 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720_2 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5725 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MINI5725 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD875 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_2 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_3 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8765 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC875U },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8775_2 },		U3GSP_HSDPA,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8780 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8781 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_TRUINSTALL },		U3GSP_UMTS,	U3GFL_SIERRA_INIT },
-	{{ USB_VENDOR_HP, USB_PRODUCT_HP_HS2300 },			U3GSP_HSDPA,	U3GFL_NONE },
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD580 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD595 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC595U },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC597E },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_C597 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880E },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880U },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881E },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881U },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_EM5625 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720_2 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5725 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MINI5725 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD875 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_2 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_3 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8765 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC875U },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8775_2 },		U3GSP_HSDPA,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8780 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8781 },		U3GSP_UMTS,	U3GINIT_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_TRUINSTALL },		U3GSP_UMTS,	U3GINIT_SIERRA },
+	{{ USB_VENDOR_HP, USB_PRODUCT_HP_HS2300 },			U3GSP_HSDPA,	U3GINIT_NONE },
 	/* OEM: CMOTECH */
-	{{ USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CGU628 },		U3GSP_HSDPA,	U3GFL_CMOTECH_INIT },
-	{{ USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_DISK },		U3GSP_HSDPA,	U3GFL_NONE },
+	{{ USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CGU628 },		U3GSP_HSDPA,	U3GINIT_CMOTECH },
+	{{ USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_DISK },		U3GSP_HSDPA,	U3GINIT_NONE },
 };
 #define u3g_lookup(v, p) ((const struct u3g_dev_type_s *)usb_lookup(u3g_devs, v, p))
 
@@ -208,16 +210,13 @@ u3g_match(device_t self)
 	if (!u3g_dev_type)
 		return UMATCH_NONE;
 
-	if (u3g_dev_type->flags&U3GFL_HUAWEI_INIT) {
-		/* If the interface class of the first interface is no longer
-		 * mass storage the card has changed to modem (see u3g_attach()
-		 * below).
-		 */
-		usb_interface_descriptor_t *id;
-		id = usbd_get_interface_descriptor(uaa->iface);
-		if (!id || id->bInterfaceClass == UICLASS_MASS)
-			return UMATCH_NONE;
-	}
+	/* If the interface class of the first interface is no longer
+	 * mass storage the card has changed to modem.
+	 */
+	usb_interface_descriptor_t *id;
+	id = usbd_get_interface_descriptor(uaa->iface);
+	if (!id || id->bInterfaceClass == UICLASS_MASS)
+		return UMATCH_NONE;
 
 	return UMATCH_VENDOR_PRODUCT_CONF_IFACE;
 }
@@ -253,7 +252,7 @@ u3g_attach(device_t self)
 	sc->sc_udev = dev;
 
 	u3g_dev_type = u3g_lookup(uaa->vendor, uaa->product);
-	sc->sc_flags = u3g_dev_type->flags;
+	sc->sc_init = u3g_dev_type->init;
 	sc->sc_speed = u3g_dev_type->speed;
 
 	sprintf(devnamefmt,"U%d.%%d", device_get_unit(self));
@@ -269,12 +268,10 @@ u3g_attach(device_t self)
 			 * Claim the first umass device (cdX) as it contains
 			 * only Windows drivers anyway (CD-ROM), hiding it.
 			 */
-#ifndef U3G_DEBUG
 			if (!bootverbose)
 				if (uaa->vendor == USB_VENDOR_HUAWEI)
 					if (id->bInterfaceNumber == 2)
 						uaa->ifaces[i] = NULL;
-#endif
 			continue;
 		}
 
@@ -402,9 +399,6 @@ u3g_close(void *addr, int portno)
 		struct u3g_softc *sc = addr;
 		struct ucom_softc *ucom = &sc->sc_ucom[portno];
 		struct tty *tp = ucom->sc_tty;
-#ifdef U3G_DEBUG
-		device_t self = sc->sc_dev;
-#endif
 
 		tp->t_ispeedwat = (speed_t)-1;
 		tp->t_ospeedwat = (speed_t)-1;
@@ -441,14 +435,196 @@ MODULE_VERSION(u3g, 1);
 struct u3gstub_softc {
 	device_t		sc_dev;
 	usbd_device_handle	sc_udev;
+	usbd_interface_handle	sc_iface;
 	usbd_pipe_handle 	sc_pipe_out, sc_pipe_in;
 	usbd_xfer_handle 	sc_xfer;
+	int			sc_vendor;
+	int			sc_product;
+
+	struct usb_task		sc_task;
+
+	u_char			sc_dying;
 };
 
+/* See definition of umass_bbb_cbw_t in sys/dev/usb/umass.c for the SCSI/ATAPI command structs below.
+ */
+
+/*
+ * See struct scsi_test_unit_ready in sys/cam/scsi/scsi_all.h .
+ */
+static unsigned char scsi_test_unit_ready[31] = {
+    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
+    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
+    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
+    0x00,			/* 12: CBW Flag: input */
+    0x00,			/* 13: CBW Lun */
+    0x0c,			/* 14: CBW Length */
+
+    0x00,			/* 15+0: opcode: SCSI TEST UNIT READY*/
+    0x00,			/* 15+1: byte2: Not immediate */
+    0x00, 0x00,			/* 15+2..3: reserved */
+    0x00,			/* 15+4: Load/Eject command */
+    0x00,			/* 15+5: control */
+    0x00, 0x00, 0x00, 0x00,	/* 15+6..15: unused */
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00
+};
+
+/*
+ * See struct scsi_start_stop_unit in sys/cam/scsi/scsi_all.h .
+ */
+static unsigned char scsi_start_stop_unit[31] = {
+    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
+    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
+    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
+    0x00,			/* 12: CBW Flag: input */
+    0x00,			/* 13: CBW Lun */
+    0x0c,			/* 14: CBW Length */
+
+    0x1b,			/* 15+0: opcode: SCSI START/STOP */
+    0x00,			/* 15+1: byte2: Not immediate */
+    0x00, 0x00,			/* 15+2..3: reserved */
+    0x02,			/* 15+4: Load/Eject command */
+    0x00,			/* 15+5: control */
+    0x00, 0x00, 0x00, 0x00,	/* 15+6..15: unused */
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00
+};
+
+static unsigned char ztestor_cmd[31] = {
+    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
+    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
+    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
+    0x00,			/* 12: CBW Flag: input */
+    0x00,			/* 13: CBW Lun */
+    0x0c,			/* 14: CBW Length */
+
+    0x85,			/* 15+0: opcode */
+    0x01,			/* 15+1: byte2 */
+    0x01, 0x01,			/* 15+2..3 */
+    0x18,			/* 15+4: */
+    0x01,			/* 15+5: */
+    0x01, 0x01, 0x01, 0x01,	/* 15+6..15: */
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00
+};
+
+static unsigned char cmotech_cmd[31] = {
+    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
+    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
+    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
+    0x80,			/* 12: CBW Flag: output, so 0 */
+    0x00,			/* 13: CBW Lun */
+    0x08,			/* 14: CBW Length */	/* XXX Is this correct? Not 6,10,12, or 20? */
+
+    0xff,			/* 15+0 */
+    0x52,			/* 15+1 */
+    0x44,			/* 15+2 */
+    0x45,			/* 15+2 */
+    0x56,			/* 15+4 */
+    0x43,			/* 15+5 */
+    0x48,			/* 15+5 */
+    0x47,			/* 15+5 */
+    0x00, 0x00, 0x00, 0x00,	/* 15+8..15: unused */
+    0x00, 0x00, 0x00, 0x00
+};
+
+
+/*!
+ * \brief Execute a command over BBB protocol (see umass driver).
+ * \param sc softc
+ * \param cmd 31 byte CBW buffer
+ * \returns 0 if transfer was cancelled, 1 otherwise.
+ * \note If 0 is returned detach was probably called and no data from the
+ * softc should be touched.
+ */
 static int
-u3gstub_huawei_init(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
+u3gstub_BBB_cmd(struct u3gstub_softc *sc, unsigned char *cmd)
+{
+	int err;
+
+	DPRINTF("Sending CBW\n");
+	usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe_out, sc,
+			cmd, 31 /* CBW len */,
+			0, USBD_DEFAULT_TIMEOUT, NULL);
+	err = usbd_sync_transfer(sc->sc_xfer);
+	
+	if (err == USBD_CANCELLED) {
+		return 0;
+	} else if (err == USBD_STALLED) {
+		DPRINTF("Sending CBW, STALLED\n");
+		err = usbd_clear_endpoint_stall(sc->sc_pipe_out);
+		if (err != USBD_NORMAL_COMPLETION) {
+			device_printf(sc->sc_dev,
+				      "Failed to send CBW to "
+				      "change to modem mode, "
+				      "clear endpoint stall failed: %s\n",
+				      usbd_errstr(err));
+		}
+	} else if (err) {
+		device_printf(sc->sc_dev,
+			      "Failed to send CBW to "
+		              "change to modem mode: %s\n",
+			      usbd_errstr(err));
+	} else {
+		DPRINTF("Reading CSW\n");
+		usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe_in, sc,
+				cmd, sizeof(cmd),
+				0, USBD_DEFAULT_TIMEOUT, NULL);
+		err = usbd_sync_transfer(sc->sc_xfer);
+		if (err == USBD_CANCELLED) {
+			return 0;
+		} else if (err == USBD_STALLED) {
+			DPRINTF("Reading CSW, STALLED\n");
+			err = usbd_clear_endpoint_stall(sc->sc_pipe_out);
+			if (err != USBD_NORMAL_COMPLETION) {
+				device_printf(sc->sc_dev,
+					      "Failed to retrieve CSW to "
+					      "change to modem mode, "
+					      "clear endpoint stall failed: %s\n",
+					      usbd_errstr(err));
+			}
+		} else if (err != USBD_NORMAL_COMPLETION) {
+			if (bootverbose)
+				device_printf(sc->sc_dev,
+					      "Failed to retrieve CSW to "
+					      "change to modem mode: %s\n",
+					      usbd_errstr(err));
+		}
+	}
+
+	return 1;
+}
+
+static int
+u3gstub_sierra_init(struct u3gstub_softc *sc)
 {
 	usb_device_request_t req;
+	int err;
+
+	req.bmRequestType = UT_VENDOR;
+	req.bRequest = UR_SET_INTERFACE;
+	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
+	USETW(req.wIndex, UHF_PORT_CONNECTION);
+	USETW(req.wLength, 0);
+
+	err = usbd_do_request(sc->sc_udev, &req, 0);
+	if (bootverbose) {
+		if (err) {
+			device_printf(sc->sc_dev,
+				      "Failed to send Sierra request: %s\n",
+				      usbd_errstr(err));
+		}
+	}
+
+	return 1;
+}
+
+static int
+u3gstub_huawei_init(struct u3gstub_softc *sc)
+{
+	usb_device_request_t req;
+	int err;
 
 	req.bmRequestType = UT_WRITE_DEVICE;
 	req.bRequest = UR_SET_FEATURE;
@@ -456,212 +632,74 @@ u3gstub_huawei_init(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 	USETW(req.wIndex, UHF_PORT_SUSPEND);
 	USETW(req.wLength, 0);
 
-	(void) usbd_do_request(uaa->device, &req, 0);		/* ignore any error */
+	err = usbd_do_request(sc->sc_udev, &req, 0);
+	if (bootverbose) {
+		if (err) {
+			device_printf(sc->sc_dev,
+				      "Failed to send Huawei request: %s\n",
+				      usbd_errstr(err));
+		}
+	}
 
 	return 1;
 }
 
+/*!
+ * \brief Execute the requested init command for the device.
+ * \param priv u3gstub_softc
+ * 
+ * This is implemented as a task so we can do synchronous transfers.
+ */
 static void
-u3gstub_BBB_cb(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status err)
+u3gstub_do_init(void *priv)
 {
-	struct u3gstub_softc *sc = (struct u3gstub_softc *) priv;
-	unsigned char cmd[13];
+	struct u3gstub_softc *sc = priv;
+	const struct u3g_dev_type_s *u3g_dev_type;
 
-	if (err) {
-		device_printf(sc->sc_dev,
-			      "Failed to send CD eject command to "
-		              "change to modem mode\n");
-	} else {
-		usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe_in, NULL, cmd, sizeof(cmd),
-				0, USBD_DEFAULT_TIMEOUT, NULL);
-		int err = usbd_transfer(sc->sc_xfer) != USBD_NORMAL_COMPLETION;
-		if (err != USBD_NORMAL_COMPLETION && err != USBD_IN_PROGRESS)
-			DPRINTF("failed to start transfer (CSW)\n");
+	u3g_dev_type = u3g_lookup(sc->sc_vendor, sc->sc_product);
+	switch (u3g_dev_type->init) {
+	case U3GINIT_HUAWEI:
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "changing Huawei modem to modem mode\n");
+		u3gstub_huawei_init(sc);
+		break;
+	case U3GINIT_SIERRA:
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "changing Sierra modem to modem mode\n");
+		u3gstub_sierra_init(sc);
+		break;
+	case U3GINIT_EJECT:
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "sending CD eject command to change to modem mode\n");
+		while (!sc->sc_dying
+		       && u3gstub_BBB_cmd(sc, scsi_test_unit_ready)
+		       && u3gstub_BBB_cmd(sc, scsi_start_stop_unit))
+			;	/* nop */
+		break;
+	case U3GINIT_ZTESTOR:
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "changing ZTE STOR modem to modem mode\n");
+		u3gstub_BBB_cmd(sc, ztestor_cmd);
+		u3gstub_BBB_cmd(sc, scsi_test_unit_ready);
+		u3gstub_BBB_cmd(sc, scsi_start_stop_unit);
+		break;
+	case U3GINIT_CMOTECH:
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "changing CMOTECH modem to modem mode\n");
+		u3gstub_BBB_cmd(sc, cmotech_cmd);
+		break;
+	case U3GINIT_WAIT:
+	default:
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "waiting for modem to change to modem mode\n");
+		/* nop  */
 	}
-}
-
-static int
-u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
-{
-	/* See definition of umass_bbb_cbw_t in sys/dev/usb/umass.c and struct
-	 * scsi_start_stop_unit in sys/cam/scsi/scsi_all.h .
-         */
-	unsigned char cmd[31] = {
-	    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
-	    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
-	    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
-	    0x00,			/* 12: CBW Flag: output */
-	    0x00,			/* 13: CBW Lun */
-	    0x06,			/* 14: CBW Length */
-
-	    0x1b,			/* 15+0: opcode: SCSI START/STOP */
-	    0x00,			/* 15+1: byte2: Not immediate */
-	    0x00, 0x00,			/* 15+2..3: reserved */
-	    0x02,			/* 15+4: Load/Eject command */
-	    0x00,			/* 15+5: control */
-	    0x00, 0x00, 0x00, 0x00,	/* 15+6..15: unused */
-	    0x00, 0x00, 0x00, 0x00,
-	    0x00, 0x00
-	};
-
-	usb_interface_descriptor_t *id;
-	usb_endpoint_descriptor_t *ed = NULL;
-	int i;
-
-
-	/* Find the bulk-out endpoints */
-	id = usbd_get_interface_descriptor(uaa->iface);
-	for (i = 0 ; i < id->bNumEndpoints; i++) {
-		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
-		if (ed != NULL
-		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
-			if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT) {
-				if (usbd_open_pipe(uaa->iface,
-					           ed->bEndpointAddress,
-				                   USBD_EXCLUSIVE_USE,
-						   &sc->sc_pipe_out)
-				    != USBD_NORMAL_COMPLETION) {
-					DPRINTF("failed to open bulk-out pipe on endpoint %d\n",
-						ed->bEndpointAddress);
-					return 0;
-				}
-			} else {
-				if (usbd_open_pipe(uaa->iface,
-					           ed->bEndpointAddress,
-				                   USBD_EXCLUSIVE_USE,
-						   &sc->sc_pipe_in)
-				    != USBD_NORMAL_COMPLETION) {
-					DPRINTF("failed to open bulk-in pipe on endpoint %d\n",
-						ed->bEndpointAddress);
-					return 0;
-				}
-			}
-		}
-		if (sc->sc_pipe_out && sc->sc_pipe_in)
-			break;
-	}
-
-	if (i == id->bNumEndpoints) {
-		DPRINTF("failed to find bulk-out pipe\n");
-		return 0;
-	}
-
-	sc->sc_xfer = usbd_alloc_xfer(uaa->device);
-	if (sc->sc_xfer == NULL) {
-		DPRINTF("failed to allocate xfer\n");
-		return 0;
-	}
-
-	usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe_out, NULL, cmd, sizeof(cmd),
-			0, USBD_DEFAULT_TIMEOUT, u3gstub_BBB_cb);
-	int err = usbd_transfer(sc->sc_xfer) != USBD_NORMAL_COMPLETION;
-	if (err != USBD_NORMAL_COMPLETION && err != USBD_IN_PROGRESS) {
-		DPRINTF("failed to start transfer (CBW)\n");
-		return 0;
-	}
-
-	return 1;
-}
-
-static int
-u3gstub_cmotech_init(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
-{
-	/* See definition of umass_bbb_cbw_t in sys/dev/usb/umass.c
-	 * in sys/cam/scsi/scsi_all.h .
-         */
-	unsigned char cmd[31] = {
-	    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
-	    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
-	    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
-	    0x80,			/* 12: CBW Flag: output, so 0 */
-	    0x00,			/* 13: CBW Lun */
-	    0x08,			/* 14: CBW Length */
-
-	    0xff,			/* 15+0 */
-	    0x52,			/* 15+1 */
-	    0x44,			/* 15+2 */
-	    0x45,			/* 15+2 */
-	    0x56,			/* 15+4 */
-	    0x43,			/* 15+5 */
-	    0x48,			/* 15+5 */
-	    0x47,			/* 15+5 */
-	    0x00, 0x00, 0x00, 0x00,	/* 15+8..15: unused */
-	    0x00, 0x00, 0x00, 0x00
-	};
-
-	usb_interface_descriptor_t *id;
-	usb_endpoint_descriptor_t *ed = NULL;
-	int i;
-
-
-	/* Find the bulk-out endpoints */
-	id = usbd_get_interface_descriptor(uaa->iface);
-	for (i = 0 ; i < id->bNumEndpoints ; i++) {
-		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
-		if (ed != NULL
-		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
-			if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT) {
-				if (usbd_open_pipe(uaa->iface,
-					           ed->bEndpointAddress,
-				                   USBD_EXCLUSIVE_USE,
-						   &sc->sc_pipe_out)
-				    != USBD_NORMAL_COMPLETION) {
-					DPRINTF("failed to open bulk-out pipe on endpoint %d\n",
-						ed->bEndpointAddress);
-					return 0;
-				}
-			} else {
-				if (usbd_open_pipe(uaa->iface,
-					           ed->bEndpointAddress,
-				                   USBD_EXCLUSIVE_USE,
-						   &sc->sc_pipe_in)
-				    != USBD_NORMAL_COMPLETION) {
-					DPRINTF("failed to open bulk-in pipe on endpoint %d\n",
-						ed->bEndpointAddress);
-					return 0;
-				}
-			}
-		}
-		if (sc->sc_pipe_out && sc->sc_pipe_in)
-			break;
-	}
-
-	if (i == id->bNumEndpoints) {
-		DPRINTF("failed to find bulk-out pipe\n");
-		return 0;
-	}
-
-	sc->sc_xfer = usbd_alloc_xfer(uaa->device);
-	if (sc->sc_xfer == NULL) {
-		DPRINTF("failed to allocate xfer\n");
-		return 0;
-	}
-
-	usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe_out, NULL, cmd, sizeof(cmd),
-			0, USBD_DEFAULT_TIMEOUT, u3gstub_BBB_cb);
-	int err = usbd_transfer(sc->sc_xfer) != USBD_NORMAL_COMPLETION;
-	if (err != USBD_NORMAL_COMPLETION && err != USBD_IN_PROGRESS) {
-		DPRINTF("failed to start transfer (CBW)\n");
-		return 0;
-	}
-
-	return 1;
-}
-
-static int
-u3gstub_sierra_init(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
-{
-      usb_device_request_t req;
-
-      req.bmRequestType = UT_VENDOR;
-      req.bRequest = UR_SET_INTERFACE;
-      USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
-      USETW(req.wIndex, UHF_PORT_CONNECTION);
-      USETW(req.wLength, 0);
-
-      (void) usbd_do_request(uaa->device, &req, 0);		/* ignore any error */
-
-      return 1;
 }
 
 static int
@@ -683,21 +721,15 @@ u3gstub_match(device_t self)
 	if (!u3g_dev_type)
 		return UMATCH_NONE;
 
-	if (u3g_dev_type->flags&U3GFL_HUAWEI_INIT
-	    || u3g_dev_type->flags&U3GFL_SCSI_EJECT
-	    || u3g_dev_type->flags&U3GFL_SIERRA_INIT
-	    || u3g_dev_type->flags&U3GFL_CMOTECH_INIT
-	    || u3g_dev_type->flags&U3GFL_STUB_WAIT) {
+	if (u3g_dev_type->init != U3GINIT_NONE) {
 		/* We assume that if the first interface is still a mass
 		 * storage device the device has not yet changed appearance.
 		 */
 		id = usbd_get_interface_descriptor(uaa->iface);
 		if (id && id->bInterfaceNumber == 0
 		    && id->bInterfaceClass == UICLASS_MASS) {
-#ifndef U3G_DEBUG
 			if (!bootverbose)
 				device_quiet(self);
-#endif
 
 			return UMATCH_VENDOR_PRODUCT;
 		}
@@ -711,51 +743,73 @@ u3gstub_attach(device_t self)
 {
 	struct u3gstub_softc *sc = device_get_softc(self);
 	struct usb_attach_arg *uaa = device_get_ivars(self);
-	const struct u3g_dev_type_s *u3g_dev_type;
-	int i;
+	usb_interface_descriptor_t *id;
+	usb_endpoint_descriptor_t *ed;
+	int i, err;
 
-#ifndef U3G_DEBUG
 	if (!bootverbose)
 		device_quiet(self);
-#endif
-
-	sc->sc_dev = self;
-	sc->sc_udev = uaa->device;
 
 	for (i = 0; i < uaa->nifaces; i++)
 		uaa->ifaces[i] = NULL;		// claim all interfaces
 
-	u3g_dev_type = u3g_lookup(uaa->vendor, uaa->product);
-	if (u3g_dev_type->flags&U3GFL_HUAWEI_INIT) {
-		if (bootverbose)
-			device_printf(sc->sc_dev,
-				      "changing Huawei modem to modem mode\n");
-		if (!u3gstub_huawei_init(sc, uaa))
-			return ENXIO;
-	} else if (u3g_dev_type->flags&U3GFL_SCSI_EJECT) {
-		if (bootverbose)
-			device_printf(sc->sc_dev, "sending CD eject command to "
-				      "change to modem mode\n");
-		if (!u3gstub_scsi_eject(sc, uaa))
-			return ENXIO;
-	} else if (u3g_dev_type->flags&U3GFL_SIERRA_INIT) {
-		if (bootverbose)
-			device_printf(sc->sc_dev,
-				      "changing Sierra modem to modem mode\n");
-		if (!u3gstub_sierra_init(sc, uaa))
-			return ENXIO;
-	} else if (u3g_dev_type->flags&U3GFL_CMOTECH_INIT) {
-		if (bootverbose)
-			device_printf(sc->sc_dev,
-				      "changing CMOTECH modem to modem mode\n");
-		if (!u3gstub_cmotech_init(sc, uaa))
-			return ENXIO;
-	} else if (u3g_dev_type->flags&U3GFL_STUB_WAIT) {
-		if (bootverbose)
-			device_printf(sc->sc_dev, "waiting for modem to change "
-				      "to modem mode\n");
-		/* nop  */
+	sc->sc_dev = self;
+	sc->sc_udev = uaa->device;
+	sc->sc_iface = uaa->iface;
+	sc->sc_vendor = uaa->vendor;
+	sc->sc_product = uaa->product;
+
+	sc->sc_xfer = usbd_alloc_xfer(sc->sc_udev);
+	if (sc->sc_xfer == NULL) {
+		DPRINTF("failed to allocate xfer\n");
+		return ENOMEM;
 	}
+
+	/* Find the bulk-out endpoints */
+	id = usbd_get_interface_descriptor(sc->sc_iface);
+	for (i = 0 ; i < id->bNumEndpoints; i++) {
+		ed = usbd_interface2endpoint_descriptor(sc->sc_iface, i);
+		if (ed != NULL
+		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
+			if (!sc->sc_pipe_out
+			    && UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT) {
+				err = usbd_open_pipe(sc->sc_iface,
+						     ed->bEndpointAddress,
+						     USBD_EXCLUSIVE_USE,
+						     &sc->sc_pipe_out);
+				if (err != USBD_NORMAL_COMPLETION) {
+					DPRINTF("failed to open bulk-out pipe on endpoint %d\n",
+						ed->bEndpointAddress);
+					return 0;
+				} else {
+					DPRINTF("opening bulk-in pipe on endpoint %d\n", ed->bEndpointAddress);
+				}
+			} else if (!sc->sc_pipe_in
+				   && UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN) {
+				err = usbd_open_pipe(sc->sc_iface,
+						     ed->bEndpointAddress,
+						     USBD_EXCLUSIVE_USE,
+						     &sc->sc_pipe_in);
+				if (err != USBD_NORMAL_COMPLETION) {
+					DPRINTF("failed to open bulk-in pipe on endpoint %d\n",
+						ed->bEndpointAddress);
+					return 0;
+				} else {
+					DPRINTF("opening bulk-in pipe on endpoint %d\n", ed->bEndpointAddress);
+				}
+			}
+		}
+		if (sc->sc_pipe_out && sc->sc_pipe_in)
+			break;
+	}
+
+	if (i == id->bNumEndpoints) {
+		device_printf(sc->sc_dev, "failed to find bulk-out and/or bulk-in pipe\n");
+		return ENXIO;
+	}
+
+	usb_init_task(&sc->sc_task, u3gstub_do_init, sc);
+	usb_add_task(sc->sc_udev, &sc->sc_task, USB_TASKQ_DRIVER);
 
 	return 0;
 }
@@ -764,9 +818,9 @@ static int
 u3gstub_detach(device_t self)
 {
 	struct u3gstub_softc *sc = device_get_softc(self);
-	
-	if (sc->sc_xfer)
-		usbd_free_xfer(sc->sc_xfer);
+
+	sc->sc_dying = 1;
+	usb_rem_task(sc->sc_udev, &sc->sc_task);
 
 	if (sc->sc_pipe_in) {
 		usbd_abort_pipe(sc->sc_pipe_in);
@@ -776,6 +830,9 @@ u3gstub_detach(device_t self)
 		usbd_abort_pipe(sc->sc_pipe_out);
 		usbd_close_pipe(sc->sc_pipe_out);
 	}
+
+	if (sc->sc_xfer)
+		usbd_free_xfer(sc->sc_xfer);
 
 	return 0;
 }
