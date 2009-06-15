@@ -261,7 +261,7 @@ error:
 	if (crd->is_uref) {
 		sx_unlock(cpd->udev->default_sx + 1);
 		if (--(cpd->udev->refcount) == 0) {
-			usb2_cv_signal(cpd->udev->default_cv + 1);
+			cv_signal(cpd->udev->default_cv + 1);
 		}
 	}
 	mtx_unlock(&usb2_ref_lock);
@@ -318,19 +318,19 @@ usb2_unref_device(struct usb_cdev_privdata *cpd,
 	mtx_lock(&usb2_ref_lock);
 	if (crd->is_read) {
 		if (--(crd->rxfifo->refcount) == 0) {
-			usb2_cv_signal(&crd->rxfifo->cv_drain);
+			cv_signal(&crd->rxfifo->cv_drain);
 		}
 		crd->is_read = 0;
 	}
 	if (crd->is_write) {
 		if (--(crd->txfifo->refcount) == 0) {
-			usb2_cv_signal(&crd->txfifo->cv_drain);
+			cv_signal(&crd->txfifo->cv_drain);
 		}
 		crd->is_write = 0;
 	}
 	if (crd->is_uref) {
 		if (--(cpd->udev->refcount) == 0) {
-			usb2_cv_signal(cpd->udev->default_cv + 1);
+			cv_signal(cpd->udev->default_cv + 1);
 		}
 		crd->is_uref = 0;
 	}
@@ -344,8 +344,8 @@ usb2_fifo_alloc(void)
 
 	f = malloc(sizeof(*f), M_USBDEV, M_WAITOK | M_ZERO);
 	if (f) {
-		usb2_cv_init(&f->cv_io, "FIFO-IO");
-		usb2_cv_init(&f->cv_drain, "FIFO-DRAIN");
+		cv_init(&f->cv_io, "FIFO-IO");
+		cv_init(&f->cv_drain, "FIFO-DRAIN");
 		f->refcount = 1;
 	}
 	return (f);
@@ -567,21 +567,21 @@ usb2_fifo_free(struct usb_fifo *f)
 		/* get I/O thread out of any sleep state */
 		if (f->flag_sleeping) {
 			f->flag_sleeping = 0;
-			usb2_cv_broadcast(&f->cv_io);
+			cv_broadcast(&f->cv_io);
 		}
 		mtx_unlock(f->priv_mtx);
 		mtx_lock(&usb2_ref_lock);
 
 		/* wait for sync */
-		usb2_cv_wait(&f->cv_drain, &usb2_ref_lock);
+		cv_wait(&f->cv_drain, &usb2_ref_lock);
 	}
 	mtx_unlock(&usb2_ref_lock);
 
 	/* take care of closing the device here, if any */
 	usb2_fifo_close(f, 0);
 
-	usb2_cv_destroy(&f->cv_io);
-	usb2_cv_destroy(&f->cv_drain);
+	cv_destroy(&f->cv_io);
+	cv_destroy(&f->cv_drain);
 
 	free(f, M_USBDEV);
 }
@@ -768,7 +768,7 @@ usb2_fifo_close(struct usb_fifo *f, int fflags)
 			    (!f->flag_iserror)) {
 				/* wait until all data has been written */
 				f->flag_sleeping = 1;
-				err = usb2_cv_wait_sig(&f->cv_io, f->priv_mtx);
+				err = cv_wait_sig(&f->cv_io, f->priv_mtx);
 				if (err) {
 					DPRINTF("signal received\n");
 					break;
@@ -1454,7 +1454,7 @@ usb2_fifo_wait(struct usb_fifo *f)
 	}
 	f->flag_sleeping = 1;
 
-	err = usb2_cv_wait_sig(&f->cv_io, f->priv_mtx);
+	err = cv_wait_sig(&f->cv_io, f->priv_mtx);
 
 	if (f->flag_iserror) {
 		/* we are gone */
@@ -1468,7 +1468,7 @@ usb2_fifo_signal(struct usb_fifo *f)
 {
 	if (f->flag_sleeping) {
 		f->flag_sleeping = 0;
-		usb2_cv_broadcast(&f->cv_io);
+		cv_broadcast(&f->cv_io);
 	}
 }
 

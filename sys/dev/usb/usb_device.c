@@ -1464,8 +1464,8 @@ usb2_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	/* initialise our SX-lock */
 	sx_init(udev->default_sx + 1, "0123456789ABCDEF - USB config SX lock" + depth);
 
-	usb2_cv_init(udev->default_cv, "WCTRL");
-	usb2_cv_init(udev->default_cv + 1, "UGONE");
+	cv_init(udev->default_cv, "WCTRL");
+	cv_init(udev->default_cv + 1, "UGONE");
 
 	/* initialise our mutex */
 	mtx_init(udev->default_mtx, "USB device mutex", NULL, MTX_DEF);
@@ -1947,7 +1947,7 @@ usb2_free_device(struct usb_device *udev, uint8_t flag)
 	mtx_lock(&usb2_ref_lock);
 	udev->refcount--;
 	while (udev->refcount != 0) {
-		usb2_cv_wait(udev->default_cv + 1, &usb2_ref_lock);
+		cv_wait(udev->default_cv + 1, &usb2_ref_lock);
 	}
 	mtx_unlock(&usb2_ref_lock);
 
@@ -1981,8 +1981,8 @@ usb2_free_device(struct usb_device *udev, uint8_t flag)
 	sx_destroy(udev->default_sx);
 	sx_destroy(udev->default_sx + 1);
 
-	usb2_cv_destroy(udev->default_cv);
-	usb2_cv_destroy(udev->default_cv + 1);
+	cv_destroy(udev->default_cv);
+	cv_destroy(udev->default_cv + 1);
 
 	mtx_destroy(udev->default_mtx);
 #if USB_HAVE_UGEN
