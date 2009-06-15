@@ -309,7 +309,7 @@ exit1(struct thread *td, int rv)
 		sp->s_ttyvp = NULL;
 		SESS_UNLOCK(sp);
 
-		if (ttyvp != NULL) {
+		if (ttyvp != NULL && ttyvp->v_type != VBAD) {
 			/*
 			 * Controlling process.
 			 * Signal foreground pgrp and revoke access to
