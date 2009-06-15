@@ -61,13 +61,11 @@
 #
 # x_fmt
 #
-%Y/%m/%d
+%Y년 %b월 %e일
 #
 # c_fmt
 #
-# just following tradition...
-# %Y년 %b월 %e일 %a요일 %X
-%a %b/%e %H:%M:%S %Y
+%x %A %X
 #
 # am
 #
@@ -79,7 +77,7 @@
 #
 # date_fmt
 #
-%Y년 %B %e일 %A %X %Z
+%c %Z
 #
 # Long month names (without case ending)
 #
