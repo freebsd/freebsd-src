@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_UTIL_H_
-#define	_USB2_UTIL_H_
+#ifndef _USB_UTIL_H_
+#define	_USB_UTIL_H_
 
 int	device_delete_all_children(device_t dev);
 uint8_t	usb_make_str_desc(void *ptr, uint16_t max_len, const char *s);
@@ -34,4 +34,4 @@ void	usb_pause_mtx(struct mtx *mtx, int _ticks);
 void	usb_printbcd(char *p, uint16_t p_len, uint16_t bcd);
 void	usb_trim_spaces(char *p);
 
-#endif					/* _USB2_UTIL_H_ */
+#endif					/* _USB_UTIL_H_ */

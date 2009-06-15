@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_DEFS_H_
-#define	_USB2_DEFS_H_
+#ifndef _USB_DEFS_H_
+#define	_USB_DEFS_H_
 
 /* Definition of some hardcoded USB constants. */
 
@@ -58,4 +58,4 @@
 #if (USB_ROOT_HUB_ADDR >= USB_MIN_DEVICES)
 #error "The root hub address must be less than USB_MIN_DEVICES."
 #endif
-#endif					/* _USB2_DEFS_H_ */
+#endif					/* _USB_DEFS_H_ */

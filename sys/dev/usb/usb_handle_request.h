@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_HANDLE_REQUEST_H_
-#define	_USB2_HANDLE_REQUEST_H_
+#ifndef _USB_HANDLE_REQUEST_H_
+#define	_USB_HANDLE_REQUEST_H_
 
-#endif					/* _USB2_HANDLE_REQUEST_H_ */
+#endif					/* _USB_HANDLE_REQUEST_H_ */

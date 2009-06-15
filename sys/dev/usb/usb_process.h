@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_PROCESS_H_
-#define	_USB2_PROCESS_H_
+#ifndef _USB_PROCESS_H_
+#define	_USB_PROCESS_H_
 
 #include <sys/priority.h>
 
@@ -85,4 +85,4 @@ void	usb_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
 void	usb_proc_free(struct usb_process *up);
 void   *usb_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
 
-#endif					/* _USB2_PROCESS_H_ */
+#endif					/* _USB_PROCESS_H_ */

@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_BUSDMA_H_
-#define	_USB2_BUSDMA_H_
+#ifndef _USB_BUSDMA_H_
+#define	_USB_BUSDMA_H_
 
 #include <sys/uio.h>
 #include <sys/mbuf.h>
@@ -172,4 +172,4 @@ void	usb_pc_cpu_invalidate(struct usb_page_cache *pc);
 void	usb_pc_dmamap_destroy(struct usb_page_cache *pc);
 void	usb_pc_free_mem(struct usb_page_cache *pc);
 
-#endif					/* _USB2_BUSDMA_H_ */
+#endif					/* _USB_BUSDMA_H_ */
