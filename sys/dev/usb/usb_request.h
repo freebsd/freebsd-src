@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_REQUEST_H_
-#define	_USB2_REQUEST_H_
+#ifndef _USB_REQUEST_H_
+#define	_USB_REQUEST_H_
 
 struct usb_process;
 
@@ -103,4 +103,4 @@ usb_error_t usbd_req_set_device_feature(struct usb_device *udev, struct mtx *mtx
 #define	usbd_do_request(u,m,r,d) \
   usbd_do_request_flags(u,m,r,d,0,NULL,USB_DEFAULT_TIMEOUT)
 
-#endif					/* _USB2_REQUEST_H_ */
+#endif					/* _USB_REQUEST_H_ */

@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_LOOKUP_H_
-#define	_USB2_LOOKUP_H_
+#ifndef _USB_LOOKUP_H_
+#define	_USB_LOOKUP_H_
 
 struct usb_attach_arg;
 
@@ -119,4 +119,4 @@ const struct usb_device_id *usbd_lookup_id_by_info(
 int	usbd_lookup_id_by_uaa(const struct usb_device_id *id,
 	    usb_size_t sizeof_id, struct usb_attach_arg *uaa);
 
-#endif					/* _USB2_LOOKUP_H_ */
+#endif					/* _USB_LOOKUP_H_ */

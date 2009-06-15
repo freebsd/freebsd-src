@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_HID_H_
-#define	_USB2_HID_H_
+#ifndef _USB_HID_H_
+#define	_USB_HID_H_
 
 #include <dev/usb/usb_endian.h>
 
@@ -173,4 +173,4 @@ struct usb_hid_descriptor {
 #define	HIO_VOLATILE	0x080
 #define	HIO_BUFBYTES	0x100
 
-#endif					/* _USB2_HID_H_ */
+#endif					/* _USB_HID_H_ */

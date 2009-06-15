@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_IOCTL_H_
-#define	_USB2_IOCTL_H_
+#ifndef _USB_IOCTL_H_
+#define	_USB_IOCTL_H_
 
 #include <sys/ioccom.h>
 
@@ -272,4 +272,4 @@ struct usb_gen_quirk {
 #define	USB_DEV_QUIRK_ADD	_IOW ('Q', 2, struct usb_gen_quirk)
 #define	USB_DEV_QUIRK_REMOVE	_IOW ('Q', 3, struct usb_gen_quirk)
 
-#endif					/* _USB2_IOCTL_H_ */
+#endif					/* _USB_IOCTL_H_ */

@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_DYNAMIC_H_
-#define	_USB2_DYNAMIC_H_
+#ifndef _USB_DYNAMIC_H_
+#define	_USB_DYNAMIC_H_
 
 /* prototypes */
 
@@ -64,4 +64,4 @@ void	usb_bus_unload(void *);
 
 uint8_t	usb_test_quirk(const struct usb_attach_arg *uaa, uint16_t quirk);
 
-#endif					/* _USB2_DYNAMIC_H_ */
+#endif					/* _USB_DYNAMIC_H_ */
