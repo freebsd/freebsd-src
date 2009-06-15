@@ -3065,6 +3065,13 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* closefrom */
+	case 509: {
+		struct closefrom_args *p = params;
+		iarg[0] = p->lowfd; /* int */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8129,6 +8136,16 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* jail_remove */
 	case 508:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* closefrom */
+	case 509:
 		switch(ndx) {
 		case 0:
 			p = "int";
