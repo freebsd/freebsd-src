@@ -2091,9 +2091,9 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
  */
 
 static struct ifnet *
-ifname_linux_to_bsd(const char *lxname, char *bsdname)
+ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 {
-	INIT_VNET_NET(TD_TO_VNET(curthread));
+	INIT_VNET_NET(TD_TO_VNET(td));
 	struct ifnet *ifp;
 	int len, unit;
 	char *ep;
@@ -2379,7 +2379,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		printf("%s(): ioctl %d on %.*s\n", __func__,
 		    args->cmd & 0xffff, LINUX_IFNAMSIZ, lifname);
 #endif
-		ifp = ifname_linux_to_bsd(lifname, ifname);
+		ifp = ifname_linux_to_bsd(td, lifname, ifname);
 		if (ifp == NULL)
 			return (EINVAL);
 		/*
