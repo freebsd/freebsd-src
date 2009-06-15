@@ -2017,7 +2017,7 @@ usbd_get_iface(struct usb_device *udev, uint8_t iface_index)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_find_descriptor
+ *	usbd_find_descriptor
  *
  * This function will lookup the first descriptor that matches the
  * criteria given by the arguments "type" and "subtype". Descriptors
@@ -2032,7 +2032,7 @@ usbd_get_iface(struct usb_device *udev, uint8_t iface_index)
  *   Else: A descriptor matching the criteria
  *------------------------------------------------------------------------*/
 void   *
-usb2_find_descriptor(struct usb_device *udev, void *id, uint8_t iface_index,
+usbd_find_descriptor(struct usb_device *udev, void *id, uint8_t iface_index,
     uint8_t type, uint8_t type_mask,
     uint8_t subtype, uint8_t subtype_mask)
 {

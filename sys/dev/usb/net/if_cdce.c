@@ -243,7 +243,7 @@ cdce_attach(device_t dev)
 		sc->sc_data_iface_no = 0;	/* not used */
 		goto alloc_transfers;
 	}
-	ud = usb2_find_descriptor
+	ud = usbd_find_descriptor
 	    (uaa->device, NULL, uaa->info.bIfaceIndex,
 	    UDESC_CS_INTERFACE, 0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
 
@@ -319,7 +319,7 @@ alloc_transfers:
 		}
 	}
 
-	ued = usb2_find_descriptor
+	ued = usbd_find_descriptor
 	    (uaa->device, NULL, uaa->info.bIfaceIndex,
 	    UDESC_CS_INTERFACE, 0 - 1, UDESCSUB_CDC_ENF, 0 - 1);
 
