@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_HUB_H_
-#define	_USB2_HUB_H_
+#ifndef _USB_HUB_H_
+#define	_USB_HUB_H_
 
 /*
  * The following structure defines an USB port. 
@@ -79,4 +79,4 @@ void	usb_bus_power_update(struct usb_bus *bus);
 void	usb_bus_powerd(struct usb_bus *bus);
 void	uhub_root_intr(struct usb_bus *, const uint8_t *, uint8_t);
 
-#endif					/* _USB2_HUB_H_ */
+#endif					/* _USB_HUB_H_ */

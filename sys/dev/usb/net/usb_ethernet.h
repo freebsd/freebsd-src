@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_ETHERNET_H_
-#define	_USB2_ETHERNET_H_
+#ifndef _USB_ETHERNET_H_
+#define	_USB_ETHERNET_H_
 
 #include "opt_inet.h"
 
@@ -119,4 +119,4 @@ int		uether_rxbuf(struct usb_ether *,
 		    unsigned int, unsigned int);
 void		uether_rxflush(struct usb_ether *);
 uint8_t		uether_is_gone(struct usb_ether *);
-#endif					/* _USB2_ETHERNET_H_ */
+#endif					/* _USB_ETHERNET_H_ */

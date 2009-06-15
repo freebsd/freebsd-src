@@ -64,8 +64,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _USB2_SERIAL_H_
-#define	_USB2_SERIAL_H_
+#ifndef _USB_SERIAL_H_
+#define	_USB_SERIAL_H_
 
 #include <sys/tty.h>
 #include <sys/serial.h>
@@ -196,4 +196,4 @@ uint8_t	ucom_get_data(struct ucom_softc *, struct usb_page_cache *,
 void	ucom_put_data(struct ucom_softc *, struct usb_page_cache *,
 	    uint32_t, uint32_t);
 uint8_t	ucom_cfg_is_gone(struct ucom_softc *);
-#endif					/* _USB2_SERIAL_H_ */
+#endif					/* _USB_SERIAL_H_ */

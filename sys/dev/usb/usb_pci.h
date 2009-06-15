@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_PCI_H_
-#define	_USB2_PCI_H_
+#ifndef _USB_PCI_H_
+#define	_USB_PCI_H_
 
 /*
  * We don't want the following files included everywhere, that's why
@@ -36,4 +36,4 @@
 
 #include <sys/rman.h>
 
-#endif					/* _USB2_PCI_H_ */
+#endif					/* _USB_PCI_H_ */

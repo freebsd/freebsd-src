@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_PARSE_H_
-#define	_USB2_PARSE_H_
+#ifndef _USB_PARSE_H_
+#define	_USB_PARSE_H_
 
 /* structures */
 
@@ -51,4 +51,4 @@ uint8_t usbd_get_no_descriptors(struct usb_config_descriptor *cd,
 uint8_t usbd_get_no_alts(struct usb_config_descriptor *cd,
 	    struct usb_interface_descriptor *id);
 
-#endif					/* _USB2_PARSE_H_ */
+#endif					/* _USB_PARSE_H_ */

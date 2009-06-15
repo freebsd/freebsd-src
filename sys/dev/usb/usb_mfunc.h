@@ -26,8 +26,8 @@
 
 /* This file contains various macro functions. */
 
-#ifndef _USB2_MFUNC_H_
-#define	_USB2_MFUNC_H_
+#ifndef _USB_MFUNC_H_
+#define	_USB_MFUNC_H_
 
 #define	USB_LOG2(n) (	    \
 ((x) <= (1<<0x00)) ? 0x00 : \
@@ -75,4 +75,4 @@
 /* debug macro */
 #define	USB_ASSERT KASSERT
 
-#endif					/* _USB2_MFUNC_H_ */
+#endif					/* _USB_MFUNC_H_ */

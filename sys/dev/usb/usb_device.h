@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_DEVICE_H_
-#define	_USB2_DEVICE_H_
+#ifndef _USB_DEVICE_H_
+#define	_USB_DEVICE_H_
 
 struct usb_symlink;		/* UGEN */
 struct usb_device;		/* linux compat */
@@ -256,4 +256,4 @@ struct usb_endpoint *usb_endpoint_foreach(struct usb_device *udev, struct usb_en
 void	usb_set_device_state(struct usb_device *udev,
 	    enum usb_dev_state state);
 
-#endif					/* _USB2_DEVICE_H_ */
+#endif					/* _USB_DEVICE_H_ */

@@ -24,10 +24,10 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_MSCTEST_H_
-#define	_USB2_MSCTEST_H_
+#ifndef _USB_MSCTEST_H_
+#define	_USB_MSCTEST_H_
 
 usb_error_t usb_test_autoinstall(struct usb_device *udev,
 	    uint8_t iface_index, uint8_t do_eject);
 
-#endif					/* _USB2_MSCTEST_H_ */
+#endif					/* _USB_MSCTEST_H_ */
