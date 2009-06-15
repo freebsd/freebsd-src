@@ -66,17 +66,17 @@ struct usb_hub {
 
 /* function prototypes */
 
-uint8_t	usb2_intr_schedule_adjust(struct usb_device *udev, int16_t len,
+uint8_t	usb_intr_schedule_adjust(struct usb_device *udev, int16_t len,
 	    uint8_t slot);
-void	usb2_fs_isoc_schedule_init_all(struct usb_fs_isoc_schedule *fss);
-void	usb2_bus_port_set_device(struct usb_bus *bus, struct usb_port *up,
+void	usbd_fs_isoc_schedule_init_all(struct usb_fs_isoc_schedule *fss);
+void	usb_bus_port_set_device(struct usb_bus *bus, struct usb_port *up,
 	    struct usb_device *udev, uint8_t device_index);
-struct usb_device *usb2_bus_port_get_device(struct usb_bus *bus,
+struct usb_device *usb_bus_port_get_device(struct usb_bus *bus,
 	    struct usb_port *up);
-void	usb2_needs_explore(struct usb_bus *bus, uint8_t do_probe);
-void	usb2_needs_explore_all(void);
-void	usb2_bus_power_update(struct usb_bus *bus);
-void	usb2_bus_powerd(struct usb_bus *bus);
+void	usb_needs_explore(struct usb_bus *bus, uint8_t do_probe);
+void	usb_needs_explore_all(void);
+void	usb_bus_power_update(struct usb_bus *bus);
+void	usb_bus_powerd(struct usb_bus *bus);
 void	uhub_root_intr(struct usb_bus *, const uint8_t *, uint8_t);
 
 #endif					/* _USB2_HUB_H_ */

@@ -197,7 +197,7 @@ ums_intr_callback(struct usb_xfer *xfer)
 		if (len == 0)
 			goto tr_setup;
 
-		usb2_copy_out(xfer->frbuffers, 0, buf, len);
+		usbd_copy_out(xfer->frbuffers, 0, buf, len);
 
 		DPRINTFN(6, "data = %02x %02x %02x %02x "
 		    "%02x %02x %02x %02x\n",
@@ -287,11 +287,11 @@ ums_intr_callback(struct usb_xfer *xfer)
 			    (dx == 0) && (dy == 0) && (dz == 0) && (dt == 0) &&
 			    (dw == 0) && (buttons == 0)) {
 
-				usb2_callout_reset(&sc->sc_callout, hz / 20,
+				usb_callout_reset(&sc->sc_callout, hz / 20,
 				    &ums_put_queue_timeout, sc);
 			} else {
 
-				usb2_callout_stop(&sc->sc_callout);
+				usb_callout_stop(&sc->sc_callout);
 
 				ums_put_queue(sc, dx, dy, dz, dt, buttons);
 			}
@@ -299,10 +299,10 @@ ums_intr_callback(struct usb_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		/* check if we can put more data into the FIFO */
-		if (usb2_fifo_put_bytes_max(
+		if (usb_fifo_put_bytes_max(
 		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
 			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		break;
 
@@ -348,7 +348,7 @@ ums_probe(device_t dev)
 	    (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))
 		return (0);
 
-	error = usb2_req_get_hid_desc(uaa->device, NULL,
+	error = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
 
 	if (error)
@@ -476,11 +476,11 @@ ums_attach(device_t dev)
 
 	DPRINTFN(11, "sc=%p\n", sc);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "ums lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	usb2_callout_init_mtx(&sc->sc_callout, &sc->sc_mtx, 0);
+	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_mtx, 0);
 
 	/*
          * Force the report (non-boot) protocol.
@@ -488,18 +488,18 @@ ums_attach(device_t dev)
          * Mice without boot protocol support may choose not to implement
          * Set_Protocol at all; Ignore any error.
          */
-	err = usb2_req_set_protocol(uaa->device, NULL,
+	err = usbd_req_set_protocol(uaa->device, NULL,
 	    uaa->info.bIfaceIndex, 1);
 
-	err = usb2_transfer_setup(uaa->device,
+	err = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ums_config,
 	    UMS_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (err) {
-		DPRINTF("error=%s\n", usb2_errstr(err));
+		DPRINTF("error=%s\n", usbd_errstr(err));
 		goto detach;
 	}
-	err = usb2_req_get_hid_desc(uaa->device, NULL, &d_ptr,
+	err = usbd_req_get_hid_desc(uaa->device, NULL, &d_ptr,
 	    &d_len, M_TEMP, uaa->info.bIfaceIndex);
 
 	if (err) {
@@ -515,7 +515,7 @@ ums_attach(device_t dev)
 	 * all of its other button positions are all off. It also reports that
 	 * it has two addional buttons and a tilt wheel.
 	 */
-	if (usb2_test_quirk(uaa, UQ_MS_BAD_CLASS)) {
+	if (usb_test_quirk(uaa, UQ_MS_BAD_CLASS)) {
 		info = &sc->sc_info[0];
 		info->sc_flags = (UMS_FLAG_X_AXIS |
 		    UMS_FLAG_Y_AXIS |
@@ -542,7 +542,7 @@ ums_attach(device_t dev)
 		}
 	}
 
-	if (usb2_test_quirk(uaa, UQ_MS_REVZ)) {
+	if (usb_test_quirk(uaa, UQ_MS_REVZ)) {
 		info = &sc->sc_info[0];
 		/* Some wheels need the Z axis reversed. */
 		info->sc_flags |= UMS_FLAG_REVZ;
@@ -599,7 +599,7 @@ ums_attach(device_t dev)
 	sc->sc_mode.syncmask[0] = MOUSE_MSC_SYNCMASK;
 	sc->sc_mode.syncmask[1] = MOUSE_MSC_SYNC;
 
-	err = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
+	err = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ums_fifo_methods, &sc->sc_fifo,
 	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
   	    UID_ROOT, GID_OPERATOR, 0644);
@@ -623,11 +623,11 @@ ums_detach(device_t self)
 
 	DPRINTF("sc=%p\n", sc);
 
-	usb2_fifo_detach(&sc->sc_fifo);
+	usb_fifo_detach(&sc->sc_fifo);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UMS_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_xfer, UMS_N_TRANSFER);
 
-	usb2_callout_drain(&sc->sc_callout);
+	usb_callout_drain(&sc->sc_callout);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -639,7 +639,7 @@ ums_start_read(struct usb_fifo *fifo)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[UMS_INTR_DT]);
+	usbd_transfer_start(sc->sc_xfer[UMS_INTR_DT]);
 }
 
 static void
@@ -647,8 +647,8 @@ ums_stop_read(struct usb_fifo *fifo)
 {
 	struct ums_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[UMS_INTR_DT]);
-	usb2_callout_stop(&sc->sc_callout);
+	usbd_transfer_stop(sc->sc_xfer[UMS_INTR_DT]);
+	usb_callout_stop(&sc->sc_callout);
 }
 
 
@@ -694,7 +694,7 @@ ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy,
 			buf[6] = dz - (dz >> 1);
 			buf[7] = (((~buttons) >> 3) & MOUSE_SYS_EXTBUTTONS);
 		}
-		usb2_fifo_put_data_linear(sc->sc_fifo.fp[USB_FIFO_RX], buf,
+		usb_fifo_put_data_linear(sc->sc_fifo.fp[USB_FIFO_RX], buf,
 		    sc->sc_mode.packetsize, 1);
 
 	} else {
@@ -706,7 +706,7 @@ static void
 ums_reset_buf(struct ums_softc *sc)
 {
 	/* reset read queue */
-	usb2_fifo_reset(sc->sc_fifo.fp[USB_FIFO_RX]);
+	usb_fifo_reset(sc->sc_fifo.fp[USB_FIFO_RX]);
 }
 
 static int
@@ -728,7 +728,7 @@ ums_open(struct usb_fifo *fifo, int fflags)
 		sc->sc_status.dz = 0;
 		/* sc->sc_status.dt = 0; */
 
-		if (usb2_fifo_alloc_buffer(fifo,
+		if (usb_fifo_alloc_buffer(fifo,
 		    UMS_BUF_SIZE, UMS_IFQ_MAXLEN)) {
 			return (ENOMEM);
 		}
@@ -740,7 +740,7 @@ static void
 ums_close(struct usb_fifo *fifo, int fflags)
 {
 	if (fflags & FREAD) {
-		usb2_fifo_free_buffer(fifo);
+		usb_fifo_free_buffer(fifo);
 	}
 }
 

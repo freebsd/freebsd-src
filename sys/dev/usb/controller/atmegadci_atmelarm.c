@@ -84,7 +84,7 @@ atmegadci_attach(device_t dev)
 	sc->sc_otg.sc_bus.devices_max = ATMEGA_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
+	if (usb_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
 	}
@@ -168,7 +168,7 @@ atmegadci_detach(device_t dev)
 		    sc->sc_otg.sc_io_res);
 		sc->sc_otg.sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_otg.sc_bus, NULL);
+	usb_bus_mem_free_all(&sc->sc_otg.sc_bus, NULL);
 
 	return (0);
 }

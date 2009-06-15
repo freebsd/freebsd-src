@@ -239,7 +239,7 @@ upgt_match(device_t dev)
 	if (uaa->info.bIfaceIndex != UPGT_IFACE_INDEX)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(upgt_devs_2, sizeof(upgt_devs_2), uaa));
+	return (usbd_lookup_id_by_uaa(upgt_devs_2, sizeof(upgt_devs_2), uaa));
 }
 
 static int
@@ -257,7 +257,7 @@ upgt_attach(device_t dev)
 #ifdef UPGT_DEBUG
 	sc->sc_debug = upgt_debug;
 #endif
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -272,11 +272,11 @@ upgt_attach(device_t dev)
 	if (error)
 		goto fail2;
 
-	error = usb2_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    upgt_config, UPGT_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
-		    "err=%s\n", usb2_errstr(error));
+		    "err=%s\n", usbd_errstr(error));
 		goto fail3;
 	}
 
@@ -382,7 +382,7 @@ upgt_attach(device_t dev)
 	return (0);
 
 fail5:	if_free(ifp);
-fail4:	usb2_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+fail4:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
 fail3:	upgt_free_rx(sc);
 fail2:	upgt_free_tx(sc);
 fail1:	mtx_destroy(&sc->sc_mtx);
@@ -641,7 +641,7 @@ upgt_init_locked(struct upgt_softc *sc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		upgt_stop_locked(sc);
 
-	usb2_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
+	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
 
 	(void)upgt_set_macfilter(sc, IEEE80211_S_SCAN);
 
@@ -1319,7 +1319,7 @@ upgt_eeprom_read(struct upgt_softc *sc)
 	int block, error, offset;
 
 	UPGT_LOCK(sc);
-	usb2_pause_mtx(&sc->sc_mtx, 100);
+	usb_pause_mtx(&sc->sc_mtx, 100);
 
 	offset = 0;
 	block = UPGT_EEPROM_BLOCK_SIZE;
@@ -1679,7 +1679,7 @@ upgt_fw_load(struct upgt_softc *sc)
 	upgt_bulk_tx(sc, data_cmd);
 
 	/* waiting 'OK' response.  */
-	usb2_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
+	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
 	error = mtx_sleep(sc, &sc->sc_mtx, 0, "upgtfw", 2 * hz);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "firmware load failed!\n");
@@ -1911,7 +1911,7 @@ upgt_bulk_tx(struct upgt_softc *sc, struct upgt_data *data)
 
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
 	UPGT_STAT_INC(sc, st_tx_pending);
-	usb2_transfer_start(sc->sc_xfer[UPGT_BULK_TX]);
+	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_TX]);
 }
 
 static int
@@ -1930,7 +1930,7 @@ upgt_device_reset(struct upgt_softc *sc)
 	bcopy(init_cmd, data->buf, sizeof(init_cmd));
 	data->buflen = sizeof(init_cmd);
 	upgt_bulk_tx(sc, data);
-	usb2_pause_mtx(&sc->sc_mtx, 100);
+	usb_pause_mtx(&sc->sc_mtx, 100);
 
 	UPGT_UNLOCK(sc);
 	DPRINTF(sc, UPGT_DEBUG_FW, "%s: device initialized\n", __func__);
@@ -2000,7 +2000,7 @@ upgt_detach(device_t dev)
 	callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
 	ieee80211_ifdetach(ic);
 	upgt_free_rx(sc);
 	upgt_free_tx(sc);
@@ -2045,7 +2045,7 @@ upgt_abort_xfers_locked(struct upgt_softc *sc)
 	UPGT_ASSERT_LOCKED(sc);
 	/* abort any pending transfers */
 	for (i = 0; i < UPGT_N_XFERS; i++)
-		usb2_transfer_stop(sc->sc_xfer[i]);
+		usbd_transfer_stop(sc->sc_xfer[i]);
 }
 
 static void
@@ -2274,9 +2274,9 @@ setup:
 			return;
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_inactive, next);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
-		usb2_set_frame_data(xfer, data->buf, 0);
+		usbd_set_frame_data(xfer, data->buf, 0);
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 
 		/*
 		 * To avoid LOR we should unlock our private mutex here to call
@@ -2347,9 +2347,9 @@ setup:
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		UPGT_STAT_INC(sc, st_tx_active);
 
-		usb2_set_frame_data(xfer, data->buf, 0);
+		usbd_set_frame_data(xfer, data->buf, 0);
 		xfer->frlengths[0] = data->buflen;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		UPGT_UNLOCK(sc);
 		upgt_start(ifp);
 		UPGT_LOCK(sc);

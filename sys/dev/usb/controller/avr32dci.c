@@ -237,7 +237,7 @@ avr32dci_wakeup_peer(struct avr32dci_softc *sc)
 
 	/* wait 8 milliseconds */
 	/* Wait for reset to complete. */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
 
 	/* hardware should have cleared RMWKUP bit */
 }
@@ -289,7 +289,7 @@ avr32dci_setup_rx(struct avr32dci_td *td)
 	memcpy(&req, sc->physdata, sizeof(req));
 
 	/* copy data into real buffer */
-	usb2_copy_in(td->pc, 0, &req, sizeof(req));
+	usbd_copy_in(td->pc, 0, &req, sizeof(req));
 
 	td->offset = sizeof(req);
 	td->remainder = 0;
@@ -390,7 +390,7 @@ repeat:
 		return (0);		/* we are complete */
 	}
 	while (count > 0) {
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -466,7 +466,7 @@ repeat:
 	}
 	while (count > 0) {
 
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -738,7 +738,7 @@ avr32dci_setup_standard_chain(struct usb_xfer *xfer)
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpoint),
-	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
+	    xfer->sumlen, usbd_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
 
@@ -900,11 +900,11 @@ avr32dci_start_standard_chain(struct usb_xfer *xfer)
 		avr32dci_mod_ien(sc, AVR32_INT_EPT_INT(ep_no), 0);
 
 		/* put transfer on interrupt queue */
-		usb2_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
+		usbd_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
 
 		/* start timeout, if any */
 		if (xfer->timeout != 0) {
-			usb2_transfer_timeout_ms(xfer,
+			usbd_transfer_timeout_ms(xfer,
 			    &avr32dci_timeout, xfer->timeout);
 		}
 	}
@@ -1057,7 +1057,7 @@ avr32dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTFN(15, "disabled interrupts!\n");
 	}
 	/* dequeue transfer and start next transfer */
-	usb2_transfer_done(xfer, error);
+	usbd_transfer_done(xfer, error);
 }
 
 static void
@@ -1198,7 +1198,7 @@ avr32dci_init(struct avr32dci_softc *sc)
 	avr32dci_mod_ctrl(sc, AVR32_CTRL_DEV_DETACH, 0);
 
 	/* wait a little for things to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 20);
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 20);
 
 	/* disable interrupts */
 	avr32dci_mod_ien(sc, 0, 0xFFFFFFFF);
@@ -1387,7 +1387,7 @@ avr32dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	 * pre-compute when the isochronous transfer will be finished:
 	 */
 	xfer->isoc_time_complete =
-	    usb2_isoc_time_expand(&sc->sc_bus, nframes) + temp +
+	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
 	    xfer->nframes;
 
 	/* compute frame number for next insertion */
@@ -1950,7 +1950,7 @@ avr32dci_xfer_setup(struct usb_setup_params *parm)
 	parm->hc_max_packet_count = 1;
 	parm->hc_max_frame_size = 0x400;
 
-	usb2_transfer_setup_sub(parm);
+	usbd_transfer_setup_sub(parm);
 
 	/*
 	 * compute maximum number of TDs
@@ -1965,7 +1965,7 @@ avr32dci_xfer_setup(struct usb_setup_params *parm)
 	}
 
 	/*
-	 * check if "usb2_transfer_setup_sub" set an error
+	 * check if "usbd_transfer_setup_sub" set an error
 	 */
 	if (parm->err)
 		return;
