@@ -17,7 +17,7 @@ SRCS=	linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	device_if.h bus_if.h assym.s
 
 # XXX: for assym.s
-SRCS+=  opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h opt_hwpmc_hooks.h
 
 OBJS=	linux${SFX}_locore.o linux${SFX}_support.o
 
