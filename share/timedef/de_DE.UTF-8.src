@@ -59,7 +59,11 @@ Samstag
 #
 # x_fmt
 #
-%Y-%m-%d
+# Note about the new DIN5008, ISO8601 and EN28601 format of %Y-%m-%d:
+# A quick poll on IRC and the -doc mailinglist (June 2009) showed that
+# this format was not used often enough to push this change through.
+#
+%d.%m.%Y
 #
 # c_fmt
 #
