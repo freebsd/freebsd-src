@@ -102,5 +102,5 @@ md
 #
 # ampm_fmt
 #
-%I:%M:%S %p
+%p %I:%M:%S
 # EOF
