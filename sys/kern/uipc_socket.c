@@ -359,7 +359,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	so = soalloc(TD_TO_VNET(td));
+	so = soalloc(CRED_TO_VNET(cred));
 	if (so == NULL)
 		return (ENOBUFS);
 
