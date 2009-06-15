@@ -328,7 +328,7 @@ usb2_com_attach_tty(struct ucom_softc *sc, uint32_t sub_units)
 	sc->sc_tty = tp;
 
 	DPRINTF("ttycreate: %s\n", buf);
-	usb2_cv_init(&sc->sc_cv, "usb2_com");
+	cv_init(&sc->sc_cv, "usb2_com");
 
 done:
 	return (error);
@@ -358,7 +358,7 @@ usb2_com_detach_tty(struct ucom_softc *sc)
 		mtx_lock(sc->sc_mtx);
 		/* Wait for the callback after the TTY is torn down */
 		while (sc->sc_ttyfreed == 0)
-			usb2_cv_wait(&sc->sc_cv, sc->sc_mtx);
+			cv_wait(&sc->sc_cv, sc->sc_mtx);
 		/*
 		 * make sure that read and write transfers are stopped
 		 */
@@ -370,7 +370,7 @@ usb2_com_detach_tty(struct ucom_softc *sc)
 		}
 		mtx_unlock(sc->sc_mtx);
 	}
-	usb2_cv_destroy(&sc->sc_cv);
+	cv_destroy(&sc->sc_cv);
 }
 
 static void
@@ -1117,6 +1117,6 @@ usb2_com_free(void *xsc)
 
 	mtx_lock(sc->sc_mtx);
 	sc->sc_ttyfreed = 1;
-	usb2_cv_signal(&sc->sc_cv);
+	cv_signal(&sc->sc_cv);
 	mtx_unlock(sc->sc_mtx);
 }

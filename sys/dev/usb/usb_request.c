@@ -79,7 +79,7 @@ usb2_do_request_callback(struct usb_xfer *xfer)
 		usb2_start_hardware(xfer);
 		break;
 	default:
-		usb2_cv_signal(xfer->xroot->udev->default_cv);
+		cv_signal(xfer->xroot->udev->default_cv);
 		break;
 	}
 }
@@ -437,7 +437,7 @@ usb2_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		usb2_transfer_start(xfer);
 
 		while (usb2_transfer_pending(xfer)) {
-			usb2_cv_wait(udev->default_cv,
+			cv_wait(udev->default_cv,
 			    xfer->xroot->xfer_mtx);
 		}
 

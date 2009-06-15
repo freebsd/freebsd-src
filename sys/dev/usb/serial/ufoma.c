@@ -366,7 +366,7 @@ ufoma_attach(device_t dev)
 	sc->sc_unit = device_get_unit(dev);
 
 	mtx_init(&sc->sc_mtx, "ufoma", NULL, MTX_DEF);
-	usb2_cv_init(&sc->sc_cv, "CWAIT");
+	cv_init(&sc->sc_cv, "CWAIT");
 
 	device_set_usb2_desc(dev);
 
@@ -475,7 +475,7 @@ ufoma_detach(device_t dev)
 		free(sc->sc_modetable, M_USBDEV);
 	}
 	mtx_destroy(&sc->sc_mtx);
-	usb2_cv_destroy(&sc->sc_cv);
+	cv_destroy(&sc->sc_cv);
 
 	return (0);
 }
@@ -514,7 +514,7 @@ ufoma_cfg_link_state(struct ufoma_softc *sc)
 	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, sc->sc_modetable, 0, 1000);
 
-	error = usb2_cv_timedwait(&sc->sc_cv, &sc->sc_mtx, hz);
+	error = cv_timedwait(&sc->sc_cv, &sc->sc_mtx, hz);
 
 	if (error) {
 		DPRINTF("NO response\n");
@@ -536,7 +536,7 @@ ufoma_cfg_activate_state(struct ufoma_softc *sc, uint16_t state)
 	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 
-	error = usb2_cv_timedwait(&sc->sc_cv, &sc->sc_mtx,
+	error = cv_timedwait(&sc->sc_cv, &sc->sc_mtx,
 	    (UFOMA_MAX_TIMEOUT * hz));
 	if (error) {
 		DPRINTF("No response\n");
@@ -672,7 +672,7 @@ ufoma_intr_callback(struct usb_xfer *xfer)
 			if (!(temp & 0xff)) {
 				DPRINTF("Mode change failed!\n");
 			}
-			usb2_cv_signal(&sc->sc_cv);
+			cv_signal(&sc->sc_cv);
 		}
 		if (pkt.bmRequestType != UCDC_NOTIFICATION) {
 			goto tr_setup;
