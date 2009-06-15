@@ -97,7 +97,7 @@
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
@@ -127,7 +127,7 @@ static device_detach_t	ubt_detach;
 static void		ubt_task_schedule(ubt_softc_p, int);
 static task_fn_t	ubt_task;
 
-#define	ubt_xfer_start(sc, i)	usb2_transfer_start((sc)->sc_xfer[(i)])
+#define	ubt_xfer_start(sc, i)	usbd_transfer_start((sc)->sc_xfer[(i)])
 
 /* Netgraph methods */
 static ng_constructor_t	ng_ubt_constructor;
@@ -407,11 +407,11 @@ ubt_probe(device_t dev)
 	if (uaa->use_generic == 0)
 		return (ENXIO);
 
-	if (usb2_lookup_id_by_uaa(ubt_ignore_devs,
+	if (usbd_lookup_id_by_uaa(ubt_ignore_devs,
 			sizeof(ubt_ignore_devs), uaa) == 0)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(ubt_devs, sizeof(ubt_devs), uaa));
+	return (usbd_lookup_id_by_uaa(ubt_devs, sizeof(ubt_devs), uaa));
 } /* ubt_probe */
 
 /*
@@ -430,7 +430,7 @@ ubt_attach(device_t dev)
 	uint8_t				alt_index, i, j;
 	uint8_t				iface_index[2] = { 0, 1 };
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	sc->sc_dev = dev;
 	sc->sc_debug = NG_UBT_WARN_LEVEL;
@@ -502,8 +502,8 @@ ubt_attach(device_t dev)
 	 * Search through all the descriptors looking for the largest
 	 * packet size:
 	 */
-	while ((ed = (struct usb_endpoint_descriptor *)usb2_desc_foreach(
-	    usb2_get_config_descriptor(uaa->device), 
+	while ((ed = (struct usb_endpoint_descriptor *)usb_desc_foreach(
+	    usbd_get_config_descriptor(uaa->device), 
 	    (struct usb_descriptor *)ed))) {
 
 		if ((ed->bDescriptorType == UDESC_INTERFACE) &&
@@ -528,22 +528,22 @@ ubt_attach(device_t dev)
 
 	/* Set alt configuration on interface #1 only if we found it */
 	if (wMaxPacketSize > 0 &&
-	    usb2_set_alt_interface_index(uaa->device, 1, alt_index)) {
+	    usbd_set_alt_interface_index(uaa->device, 1, alt_index)) {
 		UBT_ALERT(sc, "could not set alternate setting %d " \
 			"for interface 1!\n", alt_index);
 		goto detach;
 	}
 
 	/* Setup transfers for both interfaces */
-	if (usb2_transfer_setup(uaa->device, iface_index, sc->sc_xfer,
+	if (usbd_transfer_setup(uaa->device, iface_index, sc->sc_xfer,
 			ubt_config, UBT_N_TRANSFER, sc, &sc->sc_if_mtx)) {
 		UBT_ALERT(sc, "could not allocate transfers\n");
 		goto detach;
 	}
 
 	/* Claim all interfaces on the device */
-	for (i = 1; usb2_get_iface(uaa->device, i) != NULL; i ++)
-		usb2_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
+	for (i = 1; usbd_get_iface(uaa->device, i) != NULL; i ++)
+		usbd_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
 
 	return (0); /* success */
 
@@ -575,7 +575,7 @@ ubt_detach(device_t dev)
 	taskqueue_drain(taskqueue_swi, &sc->sc_task);
 
 	/* Free USB transfers, if any */
-	usb2_transfer_unsetup(sc->sc_xfer, UBT_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_xfer, UBT_N_TRANSFER);
 
 	/* Destroy queues */
 	UBT_NG_LOCK(sc);
@@ -631,8 +631,8 @@ send_next:
 			"bmRequestType=0x%02x, wLength=%d\n",
 			req.bmRequestType, UGETW(req.wLength));
 
-		usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-		usb2_m_copy_in(xfer->frbuffers + 1, 0, m, 0, m->m_pkthdr.len);
+		usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+		usbd_m_copy_in(xfer->frbuffers + 1, 0, m, 0, m->m_pkthdr.len);
 
 		xfer->frlengths[0] = sizeof(req);
 		xfer->frlengths[1] = m->m_pkthdr.len;
@@ -640,13 +640,13 @@ send_next:
 
 		NG_FREE_M(m);
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			UBT_WARN(sc, "control transfer failed: %s\n",
-				usb2_errstr(xfer->error));
+				usbd_errstr(xfer->error));
 
 			UBT_STAT_OERROR(sc);
 			goto send_next;
@@ -694,7 +694,7 @@ ubt_intr_read_callback(struct usb_xfer *xfer)
 		if (xfer->actlen > MCLBYTES - 1)
 			xfer->actlen = MCLBYTES - 1;
 
-		usb2_copy_out(xfer->frbuffers, 0, mtod(m, uint8_t *) + 1,
+		usbd_copy_out(xfer->frbuffers, 0, mtod(m, uint8_t *) + 1,
 			xfer->actlen);
 		m->m_pkthdr.len += xfer->actlen;
 		m->m_len += xfer->actlen;
@@ -735,13 +735,13 @@ submit_next:
 		NG_FREE_M(m); /* checks for m != NULL */
 
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			UBT_WARN(sc, "interrupt transfer failed: %s\n",
-				usb2_errstr(xfer->error));
+				usbd_errstr(xfer->error));
 
 			/* Try to clear stall first */
 			xfer->flags.stall_pipe = 1;
@@ -790,7 +790,7 @@ ubt_bulk_read_callback(struct usb_xfer *xfer)
 		if (xfer->actlen > MCLBYTES - 1)
 			xfer->actlen = MCLBYTES - 1;
 
-		usb2_copy_out(xfer->frbuffers, 0, mtod(m, uint8_t *) + 1,
+		usbd_copy_out(xfer->frbuffers, 0, mtod(m, uint8_t *) + 1,
 			xfer->actlen);
 		m->m_pkthdr.len += xfer->actlen;
 		m->m_len += xfer->actlen;
@@ -831,13 +831,13 @@ submit_next:
 		NG_FREE_M(m); /* checks for m != NULL */
 
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			UBT_WARN(sc, "bulk-in transfer failed: %s\n",
-				usb2_errstr(xfer->error));
+				usbd_errstr(xfer->error));
 
 			/* Try to clear stall first */
 			xfer->flags.stall_pipe = 1;
@@ -884,7 +884,7 @@ send_next:
 		 * and schedule transfer
 		 */
 
-		usb2_m_copy_in(xfer->frbuffers, 0, m, 0, m->m_pkthdr.len);
+		usbd_m_copy_in(xfer->frbuffers, 0, m, 0, m->m_pkthdr.len);
 		xfer->frlengths[0] = m->m_pkthdr.len;
 
 		UBT_INFO(sc, "bulk-out transfer has been started, len=%d\n",
@@ -892,13 +892,13 @@ send_next:
 
 		NG_FREE_M(m);
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			UBT_WARN(sc, "bulk-out transfer failed: %s\n",
-				usb2_errstr(xfer->error));
+				usbd_errstr(xfer->error));
 
 			UBT_STAT_OERROR(sc);
 
@@ -935,7 +935,7 @@ read_next:
 		for (n = 0; n < xfer->nframes; n ++)
 			xfer->frlengths[n] = xfer->max_frame_size;
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
@@ -1003,7 +1003,7 @@ ubt_isoc_read_one_frame(struct usb_xfer *xfer, int frame_no)
 		if (got + len > want)
 			len = want - got;
 
-		usb2_copy_out(xfer->frbuffers, frame_no * xfer->max_frame_size,
+		usbd_copy_out(xfer->frbuffers, frame_no * xfer->max_frame_size,
 			mtod(m, uint8_t *) + m->m_pkthdr.len, len);
 
 		m->m_pkthdr.len += len;
@@ -1070,7 +1070,7 @@ send_next:
 
 			n = min(space, m->m_pkthdr.len);
 			if (n > 0) {
-				usb2_m_copy_in(xfer->frbuffers, offset, m,0, n);
+				usbd_m_copy_in(xfer->frbuffers, offset, m,0, n);
 				m_adj(m, n);
 
 				offset += n;
@@ -1101,7 +1101,7 @@ send_next:
 			offset -= xfer->frlengths[n];
 		}
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
@@ -1233,12 +1233,12 @@ ubt_task(void *context, int pending)
 	/*
 	 * Stop all USB transfers synchronously.
 	 * Stop interface #0 and #1 transfers at the same time and in the
-	 * same loop. usb2_transfer_drain() will do appropriate locking.
+	 * same loop. usbd_transfer_drain() will do appropriate locking.
 	 */
 
 	if (task_flags & UBT_FLAG_T_STOP_ALL)
 		for (i = 0; i < UBT_N_TRANSFER; i ++)
-			usb2_transfer_drain(sc->sc_xfer[i]);
+			usbd_transfer_drain(sc->sc_xfer[i]);
 
 	/* Start incoming interrupt and bulk, and all isoc. USB transfers */
 	if (task_flags & UBT_FLAG_T_START_ALL) {

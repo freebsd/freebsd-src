@@ -81,7 +81,7 @@ struct usb_ether {
 	const struct usb_ether_methods *ue_methods;
 	struct sysctl_oid	*ue_sysctl_oid;
 	void			*ue_sc;
-	struct usb_device	*ue_udev; /* used by usb2_ether_do_request() */
+	struct usb_device	*ue_udev; /* used by uether_do_request() */
 	device_t		ue_dev;
 	device_t		ue_miibus;
 
@@ -101,22 +101,22 @@ struct usb_ether {
 	uint8_t			ue_eaddr[ETHER_ADDR_LEN];
 };
 
-#define	usb2_ether_do_request(ue,req,data,timo) \
-    usb2_do_request_proc((ue)->ue_udev,&(ue)->ue_tq,req,data,0,NULL,timo)
+#define	uether_do_request(ue,req,data,timo) \
+    usbd_do_request_proc((ue)->ue_udev,&(ue)->ue_tq,req,data,0,NULL,timo)
 
-uint8_t		usb2_ether_pause(struct usb_ether *, unsigned int);
-struct ifnet	*usb2_ether_getifp(struct usb_ether *);
-struct mii_data *usb2_ether_getmii(struct usb_ether *);
-void		*usb2_ether_getsc(struct usb_ether *);
-int		usb2_ether_ifattach(struct usb_ether *);
-void		usb2_ether_ifdetach(struct usb_ether *);
-int		usb2_ether_ioctl(struct ifnet *, u_long, caddr_t);
-struct mbuf	*usb2_ether_newbuf(void);
-int		usb2_ether_rxmbuf(struct usb_ether *, struct mbuf *, 
+uint8_t		uether_pause(struct usb_ether *, unsigned int);
+struct ifnet	*uether_getifp(struct usb_ether *);
+struct mii_data *uether_getmii(struct usb_ether *);
+void		*uether_getsc(struct usb_ether *);
+int		uether_ifattach(struct usb_ether *);
+void		uether_ifdetach(struct usb_ether *);
+int		uether_ioctl(struct ifnet *, u_long, caddr_t);
+struct mbuf	*uether_newbuf(void);
+int		uether_rxmbuf(struct usb_ether *, struct mbuf *, 
 		    unsigned int);
-int		usb2_ether_rxbuf(struct usb_ether *,
+int		uether_rxbuf(struct usb_ether *,
 		    struct usb_page_cache *, 
 		    unsigned int, unsigned int);
-void		usb2_ether_rxflush(struct usb_ether *);
-uint8_t		usb2_ether_is_gone(struct usb_ether *);
+void		uether_rxflush(struct usb_ether *);
+uint8_t		uether_is_gone(struct usb_ether *);
 #endif					/* _USB2_ETHERNET_H_ */

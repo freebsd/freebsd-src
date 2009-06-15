@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbhid.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
@@ -136,13 +136,13 @@ static const struct usb_config ucycom_config[UCYCOM_N_TRANSFER] = {
 };
 
 static const struct ucom_callback ucycom_callback = {
-	.usb2_com_cfg_param = &ucycom_cfg_param,
-	.usb2_com_cfg_open = &ucycom_cfg_open,
-	.usb2_com_pre_param = &ucycom_pre_param,
-	.usb2_com_start_read = &ucycom_start_read,
-	.usb2_com_stop_read = &ucycom_stop_read,
-	.usb2_com_start_write = &ucycom_start_write,
-	.usb2_com_stop_write = &ucycom_stop_write,
+	.ucom_cfg_param = &ucycom_cfg_param,
+	.ucom_cfg_open = &ucycom_cfg_open,
+	.ucom_pre_param = &ucycom_pre_param,
+	.ucom_start_read = &ucycom_start_read,
+	.ucom_stop_read = &ucycom_stop_read,
+	.ucom_start_write = &ucycom_start_write,
+	.ucom_stop_write = &ucycom_stop_write,
 };
 
 static device_method_t ucycom_methods[] = {
@@ -188,7 +188,7 @@ ucycom_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UCYCOM_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(ucycom_devs, sizeof(ucycom_devs), uaa));
+	return (usbd_lookup_id_by_uaa(ucycom_devs, sizeof(ucycom_devs), uaa));
 }
 
 static int
@@ -203,7 +203,7 @@ ucycom_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ucycom", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
@@ -221,14 +221,14 @@ ucycom_attach(device_t dev)
 
 	/* get report descriptor */
 
-	error = usb2_req_get_hid_desc(uaa->device, NULL,
+	error = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &urd_ptr, &urd_len, M_USBDEV,
 	    UCYCOM_IFACE_INDEX);
 
 	if (error) {
 		device_printf(dev, "failed to get report "
 		    "descriptor: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 		goto detach;
 	}
 	/* get report sizes */
@@ -248,7 +248,7 @@ ucycom_attach(device_t dev)
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 
 	iface_index = UCYCOM_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, ucycom_config, UCYCOM_N_TRANSFER,
 	    sc, &sc->sc_mtx);
 	if (error) {
@@ -256,7 +256,7 @@ ucycom_attach(device_t dev)
 		    "transfers failed!\n");
 		goto detach;
 	}
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &ucycom_callback, &sc->sc_mtx);
 
 	if (error) {
@@ -280,8 +280,8 @@ ucycom_detach(device_t dev)
 {
 	struct ucycom_softc *sc = device_get_softc(dev);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-	usb2_transfer_unsetup(sc->sc_xfer, UCYCOM_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UCYCOM_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -301,7 +301,7 @@ ucycom_start_read(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UCYCOM_INTR_RD]);
+	usbd_transfer_start(sc->sc_xfer[UCYCOM_INTR_RD]);
 }
 
 static void
@@ -309,7 +309,7 @@ ucycom_stop_read(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UCYCOM_INTR_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UCYCOM_INTR_RD]);
 }
 
 static void
@@ -317,7 +317,7 @@ ucycom_start_write(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UCYCOM_CTRL_RD]);
+	usbd_transfer_start(sc->sc_xfer[UCYCOM_CTRL_RD]);
 }
 
 static void
@@ -325,7 +325,7 @@ ucycom_stop_write(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UCYCOM_CTRL_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UCYCOM_CTRL_RD]);
 }
 
 static void
@@ -354,7 +354,7 @@ tr_transferred:
 			break;
 		}
 
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers + 1, offset,
+		if (ucom_get_data(&sc->sc_ucom, xfer->frbuffers + 1, offset,
 		    sc->sc_olen - offset, &actlen)) {
 
 			req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
@@ -376,13 +376,13 @@ tr_transferred:
 				break;
 			}
 
-			usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-			usb2_copy_in(xfer->frbuffers + 1, 0, data, offset);
+			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+			usbd_copy_in(xfer->frbuffers + 1, 0, data, offset);
 
 			xfer->frlengths[0] = sizeof(req);
 			xfer->frlengths[1] = sc->sc_olen;
 			xfer->nframes = xfer->frlengths[1] ? 2 : 1;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -391,7 +391,7 @@ tr_transferred:
 			return;
 		}
 		DPRINTF("error=%s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 		goto tr_transferred;
 	}
 }
@@ -422,11 +422,11 @@ ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg)
 	sc->sc_temp_cfg[3] = (baud >> 24) & 0xff;
 	sc->sc_temp_cfg[4] = cfg;
 
-	err = usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, sc->sc_temp_cfg, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
+		    "(ignored)\n", usbd_errstr(err));
 	}
 }
 
@@ -508,7 +508,7 @@ ucycom_intr_read_callback(struct usb_xfer *xfer)
 			if (xfer->actlen < 1) {
 				goto tr_setup;
 			}
-			usb2_copy_out(xfer->frbuffers, 0, buf, 1);
+			usbd_copy_out(xfer->frbuffers, 0, buf, 1);
 
 			sc->sc_ist = buf[0] & ~0x07;
 			len = buf[0] & 0x07;
@@ -523,7 +523,7 @@ ucycom_intr_read_callback(struct usb_xfer *xfer)
 			if (xfer->actlen < 2) {
 				goto tr_setup;
 			}
-			usb2_copy_out(xfer->frbuffers, 0, buf, 2);
+			usbd_copy_out(xfer->frbuffers, 0, buf, 2);
 
 			sc->sc_ist = buf[0] & ~0x07;
 			len = buf[1];
@@ -543,13 +543,13 @@ ucycom_intr_read_callback(struct usb_xfer *xfer)
 			len = xfer->actlen;
 		}
 		if (len) {
-			usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers,
+			ucom_put_data(&sc->sc_ucom, xfer->frbuffers,
 			    offset, len);
 		}
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = sc->sc_ilen;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */

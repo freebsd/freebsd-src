@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usbhid.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
@@ -659,7 +659,7 @@ hid_get_descriptor_from_usb(struct usb_config_descriptor *cd,
 	if (desc == NULL) {
 		return (NULL);
 	}
-	while ((desc = usb2_desc_foreach(cd, desc))) {
+	while ((desc = usb_desc_foreach(cd, desc))) {
 		if ((desc->bDescriptorType == UDESC_HID) &&
 		    (desc->bLength >= USB_HID_DESCRIPTOR_SIZE(0))) {
 			return (void *)desc;
@@ -672,7 +672,7 @@ hid_get_descriptor_from_usb(struct usb_config_descriptor *cd,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_req_get_hid_desc
+ *	usbd_req_get_hid_desc
  *
  * This function will read out an USB report descriptor from the USB
  * device.
@@ -682,11 +682,11 @@ hid_get_descriptor_from_usb(struct usb_config_descriptor *cd,
  * Else: Success. The pointer should eventually be passed to free().
  *------------------------------------------------------------------------*/
 usb_error_t
-usb2_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
+usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
     void **descp, uint16_t *sizep,
     struct malloc_type *mem, uint8_t iface_index)
 {
-	struct usb_interface *iface = usb2_get_iface(udev, iface_index);
+	struct usb_interface *iface = usbd_get_iface(udev, iface_index);
 	struct usb_hid_descriptor *hid;
 	usb_error_t err;
 
@@ -694,7 +694,7 @@ usb2_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 		return (USB_ERR_INVAL);
 	}
 	hid = hid_get_descriptor_from_usb
-	    (usb2_get_config_descriptor(udev), iface->idesc);
+	    (usbd_get_config_descriptor(udev), iface->idesc);
 
 	if (hid == NULL) {
 		return (USB_ERR_IOERROR);
@@ -714,7 +714,7 @@ usb2_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 	if (*descp == NULL) {
 		return (USB_ERR_NOMEM);
 	}
-	err = usb2_req_get_report_descriptor
+	err = usbd_req_get_report_descriptor
 	    (udev, mtx, *descp, *sizep, iface_index);
 
 	if (err) {

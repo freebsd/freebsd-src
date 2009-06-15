@@ -1307,7 +1307,7 @@ umass_get_proto(struct usb_interface *iface)
 	retval = 0;
 
 	/* Check for a standards compliant device */
-	id = usb2_get_interface_descriptor(iface);
+	id = usbd_get_interface_descriptor(iface);
 	if ((id == NULL) ||
 	    (id->bInterfaceClass != UICLASS_MASS)) {
 		goto done;
@@ -1468,14 +1468,14 @@ umass_attach(device_t dev)
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
 	    "%s", device_get_nameunit(dev));
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
         mtx_init(&sc->sc_mtx, device_get_nameunit(dev), 
 	    NULL, MTX_DEF | MTX_RECURSE);
 
 	/* get interface index */
 
-	id = usb2_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id == NULL) {
 		device_printf(dev, "failed to get "
 		    "interface number\n");
@@ -1526,7 +1526,7 @@ umass_attach(device_t dev)
 #endif
 
 	if (sc->sc_quirks & ALT_IFACE_1) {
-		err = usb2_set_alt_interface_index
+		err = usbd_set_alt_interface_index
 		    (uaa->device, uaa->info.bIfaceIndex, 1);
 
 		if (err) {
@@ -1539,7 +1539,7 @@ umass_attach(device_t dev)
 
 	if (sc->sc_proto & UMASS_PROTO_BBB) {
 
-		err = usb2_transfer_setup(uaa->device,
+		err = usbd_transfer_setup(uaa->device,
 		    &uaa->info.bIfaceIndex, sc->sc_xfer, umass_bbb_config,
 		    UMASS_T_BBB_MAX, sc, &sc->sc_mtx);
 
@@ -1548,7 +1548,7 @@ umass_attach(device_t dev)
 
 	} else if (sc->sc_proto & (UMASS_PROTO_CBI | UMASS_PROTO_CBI_I)) {
 
-		err = usb2_transfer_setup(uaa->device,
+		err = usbd_transfer_setup(uaa->device,
 		    &uaa->info.bIfaceIndex, sc->sc_xfer, umass_cbi_config,
 		    (sc->sc_proto & UMASS_PROTO_CBI_I) ?
 		    UMASS_T_CBI_MAX : (UMASS_T_CBI_MAX - 2), sc,
@@ -1563,7 +1563,7 @@ umass_attach(device_t dev)
 
 	if (err) {
 		device_printf(dev, "could not setup required "
-		    "transfers, %s\n", usb2_errstr(err));
+		    "transfers, %s\n", usbd_errstr(err));
 		goto detach;
 	}
 	sc->sc_transform =
@@ -1594,7 +1594,7 @@ umass_attach(device_t dev)
 	 * some devices need a delay after that the configuration value is
 	 * set to function properly:
 	 */
-	usb2_pause_mtx(NULL, hz);
+	usb_pause_mtx(NULL, hz);
 
 	/* register the SIM */
 	err = umass_cam_attach_sim(sc);
@@ -1622,7 +1622,7 @@ umass_detach(device_t dev)
 
 	/* teardown our statemachine */
 
-	usb2_transfer_unsetup(sc->sc_xfer, UMASS_T_MAX);
+	usbd_transfer_unsetup(sc->sc_xfer, UMASS_T_MAX);
 
 #if (__FreeBSD_version >= 700037)
 	mtx_lock(&sc->sc_mtx);
@@ -1653,7 +1653,7 @@ umass_init_shuttle(struct umass_softc *sc)
 	req.wIndex[0] = sc->sc_iface_no;
 	req.wIndex[1] = 0;
 	USETW(req.wLength, sizeof(status));
-	err = usb2_do_request(sc->sc_udev, NULL, &req, &status);
+	err = usbd_do_request(sc->sc_udev, NULL, &req, &status);
 
 	DPRINTF(sc, UDMASS_GEN, "Shuttle init returned 0x%02x%02x\n",
 	    status[0], status[1]);
@@ -1671,7 +1671,7 @@ umass_transfer_start(struct umass_softc *sc, uint8_t xfer_index)
 
 	if (sc->sc_xfer[xfer_index]) {
 		sc->sc_last_xfer_index = xfer_index;
-		usb2_transfer_start(sc->sc_xfer[xfer_index]);
+		usbd_transfer_start(sc->sc_xfer[xfer_index]);
 	} else {
 		umass_cancel_ccb(sc);
 	}
@@ -1685,7 +1685,7 @@ umass_reset(struct umass_softc *sc)
 	/*
 	 * stop the last transfer, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[sc->sc_last_xfer_index]);
+	usbd_transfer_stop(sc->sc_xfer[sc->sc_last_xfer_index]);
 	umass_transfer_start(sc, 0);
 }
 
@@ -1715,7 +1715,7 @@ umass_tr_error(struct usb_xfer *xfer)
 	if (xfer->error != USB_ERR_CANCELLED) {
 
 		DPRINTF(sc, UDMASS_GEN, "transfer error, %s -> "
-		    "reset\n", usb2_errstr(xfer->error));
+		    "reset\n", usbd_errstr(xfer->error));
 	}
 	umass_cancel_ccb(sc);
 }
@@ -1759,11 +1759,11 @@ umass_t_bbb_reset1_callback(struct usb_xfer *xfer)
 		req.wIndex[1] = 0;
 		USETW(req.wLength, 0);
 
-		usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+		usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
 
 		xfer->frlengths[0] = sizeof(req);
 		xfer->nframes = 1;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -1801,7 +1801,7 @@ tr_transferred:
 		return;
 
 	case USB_ST_SETUP:
-		if (usb2_clear_stall_callback(xfer, sc->sc_xfer[stall_xfer])) {
+		if (usbd_clear_stall_callback(xfer, sc->sc_xfer[stall_xfer])) {
 			goto tr_transferred;
 		}
 		return;
@@ -1881,10 +1881,10 @@ umass_t_bbb_command_callback(struct usb_xfer *xfer)
 
 			DIF(UDMASS_BBB, umass_bbb_dump_cbw(sc, &sc->cbw));
 
-			usb2_copy_in(xfer->frbuffers, 0, &sc->cbw, sizeof(sc->cbw));
+			usbd_copy_in(xfer->frbuffers, 0, &sc->cbw, sizeof(sc->cbw));
 
 			xfer->frlengths[0] = sizeof(sc->cbw);
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -1904,7 +1904,7 @@ umass_t_bbb_data_read_callback(struct usb_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		if (!xfer->flags.ext_buffer) {
-			usb2_copy_out(xfer->frbuffers, 0,
+			usbd_copy_out(xfer->frbuffers, 0,
 			    sc->sc_transfer.data_ptr, xfer->actlen);
 		}
 		sc->sc_transfer.data_rem -= xfer->actlen;
@@ -1930,9 +1930,9 @@ umass_t_bbb_data_read_callback(struct usb_xfer *xfer)
 		xfer->frlengths[0] = max_bulk;
 
 		if (xfer->flags.ext_buffer) {
-			usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+			usbd_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
 		}
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -1984,13 +1984,13 @@ umass_t_bbb_data_write_callback(struct usb_xfer *xfer)
 		xfer->frlengths[0] = max_bulk;
 
 		if (xfer->flags.ext_buffer) {
-			usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+			usbd_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
 		} else {
-			usb2_copy_in(xfer->frbuffers, 0,
+			usbd_copy_in(xfer->frbuffers, 0,
 			    sc->sc_transfer.data_ptr, max_bulk);
 		}
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -2031,7 +2031,7 @@ umass_t_bbb_status_callback(struct usb_xfer *xfer)
 		if (xfer->actlen < sizeof(sc->csw)) {
 			bzero(&sc->csw, sizeof(sc->csw));
 		}
-		usb2_copy_out(xfer->frbuffers, 0, &sc->csw, xfer->actlen);
+		usbd_copy_out(xfer->frbuffers, 0, &sc->csw, xfer->actlen);
 
 		DIF(UDMASS_BBB, umass_bbb_dump_csw(sc, &sc->csw));
 
@@ -2105,13 +2105,13 @@ umass_t_bbb_status_callback(struct usb_xfer *xfer)
 
 	case USB_ST_SETUP:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:
 tr_error:
 		DPRINTF(sc, UDMASS_BBB, "Failed to read CSW: %s, try %d\n",
-		    usb2_errstr(xfer->error), sc->sc_status_try);
+		    usbd_errstr(xfer->error), sc->sc_status_try);
 
 		if ((xfer->error == USB_ERR_CANCELLED) ||
 		    (sc->sc_status_try)) {
@@ -2150,7 +2150,7 @@ umass_command_start(struct umass_softc *sc, uint8_t dir,
 	sc->sc_transfer.ccb = ccb;
 
 	if (sc->sc_xfer[sc->sc_last_xfer_index]) {
-		usb2_transfer_start(sc->sc_xfer[sc->sc_last_xfer_index]);
+		usbd_transfer_start(sc->sc_xfer[sc->sc_last_xfer_index]);
 	} else {
 		ccb->ccb_h.status = CAM_TID_INVALID;
 		xpt_done(ccb);
@@ -2172,13 +2172,13 @@ umass_bbb_get_max_lun(struct umass_softc *sc)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 1);
 
-	err = usb2_do_request(sc->sc_udev, NULL, &req, &buf);
+	err = usbd_do_request(sc->sc_udev, NULL, &req, &buf);
 	if (err) {
 		buf = 0;
 
 		/* Device doesn't support Get Max Lun request. */
 		printf("%s: Get Max Lun not supported (%s)\n",
-		    sc->sc_name, usb2_errstr(err));
+		    sc->sc_name, usbd_errstr(err));
 	}
 	return (buf);
 }
@@ -2255,13 +2255,13 @@ umass_t_cbi_reset1_callback(struct usb_xfer *xfer)
 			buf[i] = 0xff;
 		}
 
-		usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-		usb2_copy_in(xfer->frbuffers + 1, 0, buf, sizeof(buf));
+		usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+		usbd_copy_in(xfer->frbuffers + 1, 0, buf, sizeof(buf));
 
 		xfer->frlengths[0] = sizeof(req);
 		xfer->frlengths[1] = sizeof(buf);
 		xfer->nframes = 2;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -2315,7 +2315,7 @@ tr_transferred:
 		return;
 
 	case USB_ST_SETUP:
-		if (usb2_clear_stall_callback(xfer, sc->sc_xfer[stall_xfer])) {
+		if (usbd_clear_stall_callback(xfer, sc->sc_xfer[stall_xfer])) {
 			goto tr_transferred;	/* should not happen */
 		}
 		return;
@@ -2365,8 +2365,8 @@ umass_t_cbi_command_callback(struct usb_xfer *xfer)
 			req.wLength[0] = sc->sc_transfer.cmd_len;
 			req.wLength[1] = 0;
 
-			usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-			usb2_copy_in(xfer->frbuffers + 1, 0, sc->sc_transfer.cmd_data,
+			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+			usbd_copy_in(xfer->frbuffers + 1, 0, sc->sc_transfer.cmd_data,
 			    sc->sc_transfer.cmd_len);
 
 			xfer->frlengths[0] = sizeof(req);
@@ -2378,7 +2378,7 @@ umass_t_cbi_command_callback(struct usb_xfer *xfer)
 			    sc->sc_transfer.cmd_data,
 			    sc->sc_transfer.cmd_len));
 
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -2398,7 +2398,7 @@ umass_t_cbi_data_read_callback(struct usb_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		if (!xfer->flags.ext_buffer) {
-			usb2_copy_out(xfer->frbuffers, 0,
+			usbd_copy_out(xfer->frbuffers, 0,
 			    sc->sc_transfer.data_ptr, xfer->actlen);
 		}
 		sc->sc_transfer.data_rem -= xfer->actlen;
@@ -2423,10 +2423,10 @@ umass_t_cbi_data_read_callback(struct usb_xfer *xfer)
 		xfer->timeout = sc->sc_transfer.data_timeout;
 
 		if (xfer->flags.ext_buffer) {
-			usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+			usbd_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
 		}
 		xfer->frlengths[0] = max_bulk;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -2478,14 +2478,14 @@ umass_t_cbi_data_write_callback(struct usb_xfer *xfer)
 		xfer->timeout = sc->sc_transfer.data_timeout;
 
 		if (xfer->flags.ext_buffer) {
-			usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+			usbd_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
 		} else {
-			usb2_copy_in(xfer->frbuffers, 0,
+			usbd_copy_in(xfer->frbuffers, 0,
 			    sc->sc_transfer.data_ptr, max_bulk);
 		}
 
 		xfer->frlengths[0] = max_bulk;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -2521,7 +2521,7 @@ umass_t_cbi_status_callback(struct usb_xfer *xfer)
 		if (xfer->actlen < sizeof(sc->sbl)) {
 			goto tr_setup;
 		}
-		usb2_copy_out(xfer->frbuffers, 0, &sc->sbl, sizeof(sc->sbl));
+		usbd_copy_out(xfer->frbuffers, 0, &sc->sbl, sizeof(sc->sbl));
 
 		residue = (sc->sc_transfer.data_len -
 		    sc->sc_transfer.actlen);
@@ -2585,12 +2585,12 @@ umass_t_cbi_status_callback(struct usb_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
 		DPRINTF(sc, UDMASS_CBI, "Failed to read CSW: %s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 		umass_tr_error(xfer);
 		return;
 
@@ -2976,7 +2976,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 				if (sc->sc_quirks & FLOPPY_SPEED) {
 					cpi->base_transfer_speed =
 					    UMASS_FLOPPY_TRANSFER_SPEED;
-				} else if (usb2_get_speed(sc->sc_udev) ==
+				} else if (usbd_get_speed(sc->sc_udev) ==
 				    USB_SPEED_HIGH) {
 					cpi->base_transfer_speed =
 					    UMASS_HIGH_TRANSFER_SPEED;
@@ -3081,7 +3081,7 @@ umass_cam_poll(struct cam_sim *sim)
 
 	DPRINTF(sc, UDMASS_SCSI, "CAM poll\n");
 
-	usb2_do_poll(sc->sc_xfer, UMASS_T_MAX);
+	usbd_do_poll(sc->sc_xfer, UMASS_T_MAX);
 }
 
 

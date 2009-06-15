@@ -30,8 +30,8 @@
 #ifndef _USB_TEMPLATE_H_
 #define	_USB_TEMPLATE_H_
 
-typedef const void *(usb2_temp_get_string_desc_t)(uint16_t lang_id, uint8_t string_index);
-typedef const void *(usb2_temp_get_vendor_desc_t)(const struct usb_device_request *req);
+typedef const void *(usb_temp_get_string_desc_t)(uint16_t lang_id, uint8_t string_index);
+typedef const void *(usb_temp_get_vendor_desc_t)(const struct usb_device_request *req);
 
 struct usb_temp_packet_size {
 	uint16_t mps[USB_SPEED_MAX];
@@ -72,8 +72,8 @@ struct usb_temp_config_desc {
 };
 
 struct usb_temp_device_desc {
-	usb2_temp_get_string_desc_t *getStringDesc;
-	usb2_temp_get_vendor_desc_t *getVendorDesc;
+	usb_temp_get_string_desc_t *getStringDesc;
+	usb_temp_get_vendor_desc_t *getVendorDesc;
 	const struct usb_temp_config_desc **ppConfigDesc;
 	uint16_t idVendor;
 	uint16_t idProduct;
@@ -94,9 +94,9 @@ struct usb_temp_data {
 
 /* prototypes */
 
-extern const struct usb_temp_device_desc usb2_template_cdce;
-extern const struct usb_temp_device_desc usb2_template_msc;	/* Mass Storage Class */
-extern const struct usb_temp_device_desc usb2_template_mtp;	/* Message Transfer
+extern const struct usb_temp_device_desc usb_template_cdce;
+extern const struct usb_temp_device_desc usb_template_msc;	/* Mass Storage Class */
+extern const struct usb_temp_device_desc usb_template_mtp;	/* Message Transfer
 								 * Protocol */
 
 #endif					/* _USB_TEMPLATE_H_ */

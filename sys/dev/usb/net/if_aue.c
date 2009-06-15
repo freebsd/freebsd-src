@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
  * the controller uses an external PHY chip, it's possible that board
  * designers might simply choose a 10Mbps PHY.
  *
- * Registers are accessed using usb2_ether_do_request(). Packet
- * transfers are done using usb2_transfer() and friends.
+ * Registers are accessed using uether_do_request(). Packet
+ * transfers are done using usbd_transfer() and friends.
  */
 
 #include "usbdevs.h"
@@ -297,7 +297,7 @@ aue_csr_read_1(struct aue_softc *sc, uint16_t reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usb2_ether_do_request(&sc->sc_ue, &req, &val, 1000);
+	err = uether_do_request(&sc->sc_ue, &req, &val, 1000);
 	if (err)
 		return (0);
 	return (val);
@@ -316,7 +316,7 @@ aue_csr_read_2(struct aue_softc *sc, uint16_t reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usb2_ether_do_request(&sc->sc_ue, &req, &val, 1000);
+	err = uether_do_request(&sc->sc_ue, &req, &val, 1000);
 	if (err)
 		return (0);
 	return (le16toh(val));
@@ -334,7 +334,7 @@ aue_csr_write_1(struct aue_softc *sc, uint16_t reg, uint8_t val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	if (usb2_ether_do_request(&sc->sc_ue, &req, &val, 1000)) {
+	if (uether_do_request(&sc->sc_ue, &req, &val, 1000)) {
 		/* error ignored */
 	}
 }
@@ -352,7 +352,7 @@ aue_csr_write_2(struct aue_softc *sc, uint16_t reg, uint16_t val)
 
 	val = htole16(val);
 
-	if (usb2_ether_do_request(&sc->sc_ue, &req, &val, 1000)) {
+	if (uether_do_request(&sc->sc_ue, &req, &val, 1000)) {
 		/* error ignored */
 	}
 }
@@ -372,7 +372,7 @@ aue_eeprom_getword(struct aue_softc *sc, int addr, uint16_t *dest)
 	for (i = 0; i != AUE_TIMEOUT; i++) {
 		if (aue_csr_read_1(sc, AUE_EE_CTL) & AUE_EECTL_DONE)
 			break;
-		if (usb2_ether_pause(&sc->sc_ue, hz / 100))
+		if (uether_pause(&sc->sc_ue, hz / 100))
 			break;
 	}
 
@@ -429,7 +429,7 @@ aue_miibus_readreg(device_t dev, int phy, int reg)
 	for (i = 0; i != AUE_TIMEOUT; i++) {
 		if (aue_csr_read_1(sc, AUE_PHY_CTL) & AUE_PHYCTL_DONE)
 			break;
-		if (usb2_ether_pause(&sc->sc_ue, hz / 100))
+		if (uether_pause(&sc->sc_ue, hz / 100))
 			break;
 	}
 
@@ -465,7 +465,7 @@ aue_miibus_writereg(device_t dev, int phy, int reg, int data)
 	for (i = 0; i != AUE_TIMEOUT; i++) {
 		if (aue_csr_read_1(sc, AUE_PHY_CTL) & AUE_PHYCTL_DONE)
 			break;
-		if (usb2_ether_pause(&sc->sc_ue, hz / 100))
+		if (uether_pause(&sc->sc_ue, hz / 100))
 			break;
 	}
 
@@ -520,8 +520,8 @@ aue_miibus_statchg(device_t dev)
 static void
 aue_setmulti(struct usb_ether *ue)
 {
-	struct aue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct aue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	struct ifmultiaddr *ifma;
 	uint32_t h = 0;
 	uint32_t i;
@@ -576,7 +576,7 @@ aue_reset(struct aue_softc *sc)
 	for (i = 0; i != AUE_TIMEOUT; i++) {
 		if (!(aue_csr_read_1(sc, AUE_CTL1) & AUE_CTL1_RESETMAC))
 			break;
-		if (usb2_ether_pause(&sc->sc_ue, hz / 100))
+		if (uether_pause(&sc->sc_ue, hz / 100))
 			break;
 	}
 
@@ -605,13 +605,13 @@ aue_reset(struct aue_softc *sc)
 		aue_reset_pegasus_II(sc);
 
 	/* Wait a little while for the chip to get its brains in order: */
-	usb2_ether_pause(&sc->sc_ue, hz / 100);
+	uether_pause(&sc->sc_ue, hz / 100);
 }
 
 static void
 aue_attach_post(struct usb_ether *ue)
 {
-	struct aue_softc *sc = usb2_ether_getsc(ue);
+	struct aue_softc *sc = uether_getsc(ue);
 
 	/* reset the adapter */
 	aue_reset(sc);
@@ -644,7 +644,7 @@ aue_probe(device_t dev)
 	    uaa->info.bcdDevice == 0x0413)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(aue_devs, sizeof(aue_devs), uaa));
+	return (usbd_lookup_id_by_uaa(aue_devs, sizeof(aue_devs), uaa));
 }
 
 /*
@@ -667,11 +667,11 @@ aue_attach(device_t dev)
 		sc->sc_flags |= AUE_FLAG_VER_2;
 	}
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	iface_index = AUE_IFACE_IDX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, aue_config, AUE_N_TRANSFER,
 	    sc, &sc->sc_mtx);
 	if (error) {
@@ -685,7 +685,7 @@ aue_attach(device_t dev)
 	ue->ue_mtx = &sc->sc_mtx;
 	ue->ue_methods = &aue_ue_methods;
 
-	error = usb2_ether_ifattach(ue);
+	error = uether_ifattach(ue);
 	if (error) {
 		device_printf(dev, "could not attach interface\n");
 		goto detach;
@@ -703,8 +703,8 @@ aue_detach(device_t dev)
 	struct aue_softc *sc = device_get_softc(dev);
 	struct usb_ether *ue = &sc->sc_ue;
 
-	usb2_transfer_unsetup(sc->sc_xfer, AUE_N_TRANSFER);
-	usb2_ether_ifdetach(ue);
+	usbd_transfer_unsetup(sc->sc_xfer, AUE_N_TRANSFER);
+	uether_ifdetach(ue);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -714,7 +714,7 @@ static void
 aue_intr_callback(struct usb_xfer *xfer)
 {
 	struct aue_softc *sc = xfer->priv_sc;
-	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
+	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	struct aue_intrpkt pkt;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -723,7 +723,7 @@ aue_intr_callback(struct usb_xfer *xfer)
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 		    xfer->actlen >= sizeof(pkt)) {
 
-			usb2_copy_out(xfer->frbuffers, 0, &pkt, sizeof(pkt));
+			usbd_copy_out(xfer->frbuffers, 0, &pkt, sizeof(pkt));
 
 			if (pkt.aue_txstat0)
 				ifp->if_oerrors++;
@@ -735,7 +735,7 @@ aue_intr_callback(struct usb_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -753,7 +753,7 @@ aue_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct aue_softc *sc = xfer->priv_sc;
 	struct usb_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	struct aue_rxpkt stat;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -772,7 +772,7 @@ aue_bulk_read_callback(struct usb_xfer *xfer)
 				ifp->if_ierrors++;
 				goto tr_setup;
 			}
-			usb2_copy_out(xfer->frbuffers,
+			usbd_copy_out(xfer->frbuffers,
 			    xfer->actlen - sizeof(stat), &stat, sizeof(stat));
 
 			/*
@@ -787,19 +787,19 @@ aue_bulk_read_callback(struct usb_xfer *xfer)
 			/* No errors; receive the packet. */
 			xfer->actlen -= (sizeof(stat) + ETHER_CRC_LEN);
 		}
-		usb2_ether_rxbuf(ue, xfer->frbuffers, 0, xfer->actlen);
+		uether_rxbuf(ue, xfer->frbuffers, 0, xfer->actlen);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
-		usb2_ether_rxflush(ue);
+		usbd_transfer_submit(xfer);
+		uether_rxflush(ue);
 		return;
 
 	default:			/* Error */
 		DPRINTF("bulk read error, %s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -814,7 +814,7 @@ static void
 aue_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct aue_softc *sc = xfer->priv_sc;
-	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
+	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	struct mbuf *m;
 	uint8_t buf[2];
 
@@ -842,7 +842,7 @@ tr_setup:
 
 			xfer->frlengths[0] = m->m_pkthdr.len;
 
-			usb2_m_copy_in(xfer->frbuffers, 0,
+			usbd_m_copy_in(xfer->frbuffers, 0,
 			    m, 0, m->m_pkthdr.len);
 
 		} else {
@@ -860,9 +860,9 @@ tr_setup:
 			buf[0] = (uint8_t)(m->m_pkthdr.len);
 			buf[1] = (uint8_t)(m->m_pkthdr.len >> 8);
 
-			usb2_copy_in(xfer->frbuffers, 0, buf, 2);
+			usbd_copy_in(xfer->frbuffers, 0, buf, 2);
 
-			usb2_m_copy_in(xfer->frbuffers, 2,
+			usbd_m_copy_in(xfer->frbuffers, 2,
 			    m, 0, m->m_pkthdr.len);
 		}
 
@@ -874,12 +874,12 @@ tr_setup:
 
 		m_freem(m);
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 
 		ifp->if_oerrors++;
 
@@ -895,7 +895,7 @@ tr_setup:
 static void
 aue_tick(struct usb_ether *ue)
 {
-	struct aue_softc *sc = usb2_ether_getsc(ue);
+	struct aue_softc *sc = uether_getsc(ue);
 	struct mii_data *mii = GET_MII(sc);
 
 	AUE_LOCK_ASSERT(sc, MA_OWNED);
@@ -912,21 +912,21 @@ aue_tick(struct usb_ether *ue)
 static void
 aue_start(struct usb_ether *ue)
 {
-	struct aue_softc *sc = usb2_ether_getsc(ue);
+	struct aue_softc *sc = uether_getsc(ue);
 
 	/*
 	 * start the USB transfers, if not already started:
 	 */
-	usb2_transfer_start(sc->sc_xfer[AUE_INTR_DT_RD]);
-	usb2_transfer_start(sc->sc_xfer[AUE_BULK_DT_RD]);
-	usb2_transfer_start(sc->sc_xfer[AUE_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[AUE_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[AUE_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[AUE_BULK_DT_WR]);
 }
 
 static void
 aue_init(struct usb_ether *ue)
 {
-	struct aue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct aue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	int i;
 
 	AUE_LOCK_ASSERT(sc, MA_OWNED);
@@ -951,7 +951,7 @@ aue_init(struct usb_ether *ue)
 	AUE_SETBIT(sc, AUE_CTL0, AUE_CTL0_TX_ENB);
 	AUE_SETBIT(sc, AUE_CTL2, AUE_CTL2_EP3_CLR);
 
-	usb2_transfer_set_stall(sc->sc_xfer[AUE_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[AUE_BULK_DT_WR]);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	aue_start(ue);
@@ -960,8 +960,8 @@ aue_init(struct usb_ether *ue)
 static void
 aue_setpromisc(struct usb_ether *ue)
 {
-	struct aue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct aue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 
 	AUE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1017,8 +1017,8 @@ aue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 static void
 aue_stop(struct usb_ether *ue)
 {
-	struct aue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct aue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 
 	AUE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1028,9 +1028,9 @@ aue_stop(struct usb_ether *ue)
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[AUE_BULK_DT_WR]);
-	usb2_transfer_stop(sc->sc_xfer[AUE_BULK_DT_RD]);
-	usb2_transfer_stop(sc->sc_xfer[AUE_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[AUE_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[AUE_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[AUE_INTR_DT_RD]);
 
 	aue_csr_write_1(sc, AUE_CTL0, 0);
 	aue_csr_write_1(sc, AUE_CTL1, 0);
