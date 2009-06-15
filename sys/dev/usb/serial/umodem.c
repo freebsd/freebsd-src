@@ -289,7 +289,7 @@ umodem_attach(device_t dev)
 
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
 
-		cud = usb2_find_descriptor(uaa->device, NULL,
+		cud = usbd_find_descriptor(uaa->device, NULL,
 		    uaa->info.bIfaceIndex, UDESC_CS_INTERFACE,
 		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
 
@@ -746,7 +746,7 @@ tr_setup:
 static void *
 umodem_get_desc(struct usb_attach_arg *uaa, uint8_t type, uint8_t subtype)
 {
-	return (usb2_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
+	return (usbd_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
 	    type, 0 - 1, subtype, 0 - 1));
 }
 

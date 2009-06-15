@@ -247,7 +247,7 @@ usb_error_t	usb_suspend_resume(struct usb_device *udev,
 		    uint8_t do_suspend);
 void	usb_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len);
 void	usb_free_device(struct usb_device *, uint8_t);
-void	*usb2_find_descriptor(struct usb_device *udev, void *id,
+void	*usbd_find_descriptor(struct usb_device *udev, void *id,
 	    uint8_t iface_index, uint8_t type, uint8_t type_mask,
 	    uint8_t subtype, uint8_t subtype_mask);
 void	usb_linux_free_device(struct usb_device *dev);
