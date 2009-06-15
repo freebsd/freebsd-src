@@ -799,7 +799,7 @@ usb2_transfer_setup(struct usb_device *udev,
 			info->xfer_page_cache_start = USB_ADD_BYTES(buf, parm.size[5]);
 			info->xfer_page_cache_end = USB_ADD_BYTES(buf, parm.size[2]);
 
-			usb2_cv_init(&info->cv_drain, "WDRAIN");
+			cv_init(&info->cv_drain, "WDRAIN");
 
 			info->xfer_mtx = xfer_mtx;
 #if USB_HAVE_BUSDMA
@@ -1089,7 +1089,7 @@ usb2_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
 	usb2_dma_tag_unsetup(&info->dma_parent_tag);
 #endif
 
-	usb2_cv_destroy(&info->cv_drain);
+	cv_destroy(&info->cv_drain);
 
 	/*
 	 * free the "memory_base" last, hence the "info" structure is
@@ -1775,7 +1775,7 @@ usb2_transfer_drain(struct usb_xfer *xfer)
 		 * Wait until the current outstanding USB
 		 * transfer is complete !
 		 */
-		usb2_cv_wait(&xfer->xroot->cv_drain, xfer->xroot->xfer_mtx);
+		cv_wait(&xfer->xroot->cv_drain, xfer->xroot->xfer_mtx);
 	}
 	USB_XFER_UNLOCK(xfer);
 }
@@ -1988,7 +1988,7 @@ done:
 	    (!xfer->flags_int.transferring)) {
 		/* "usb2_transfer_drain()" is waiting for end of transfer */
 		xfer->flags_int.draining = 0;
-		usb2_cv_broadcast(&info->cv_drain);
+		cv_broadcast(&info->cv_drain);
 	}
 
 	/* do the next callback, if any */

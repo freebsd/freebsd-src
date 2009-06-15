@@ -150,14 +150,14 @@ usb_process(void *arg)
 		/* end if messages - check if anyone is waiting for sync */
 		if (up->up_dsleep) {
 			up->up_dsleep = 0;
-			usb2_cv_broadcast(&up->up_drain);
+			cv_broadcast(&up->up_drain);
 		}
 		up->up_msleep = 1;
-		usb2_cv_wait(&up->up_cv, up->up_mtx);
+		cv_wait(&up->up_cv, up->up_mtx);
 	}
 
 	up->up_ptr = NULL;
-	usb2_cv_signal(&up->up_cv);
+	cv_signal(&up->up_cv);
 	mtx_unlock(up->up_mtx);
 
 	USB_THREAD_EXIT(0);
@@ -185,8 +185,8 @@ usb2_proc_create(struct usb_process *up, struct mtx *p_mtx,
 
 	TAILQ_INIT(&up->up_qhead);
 
-	usb2_cv_init(&up->up_cv, "wmsg");
-	usb2_cv_init(&up->up_drain, "dmsg");
+	cv_init(&up->up_cv, "wmsg");
+	cv_init(&up->up_drain, "dmsg");
 
 	if (USB_THREAD_CREATE(&usb_process, up,
 	    &up->up_ptr, pmesg)) {
@@ -219,8 +219,8 @@ usb2_proc_free(struct usb_process *up)
 
 	usb2_proc_drain(up);
 
-	usb2_cv_destroy(&up->up_cv);
-	usb2_cv_destroy(&up->up_drain);
+	cv_destroy(&up->up_cv);
+	cv_destroy(&up->up_drain);
 
 	/* make sure that we do not enter here again */
 	up->up_mtx = NULL;
@@ -308,7 +308,7 @@ usb2_proc_msignal(struct usb_process *up, void *_pm0, void *_pm1)
 
 	if (up->up_msleep) {
 		up->up_msleep = 0;	/* save "cv_signal()" calls */
-		usb2_cv_signal(&up->up_cv);
+		cv_signal(&up->up_cv);
 	}
 	return (pm2);
 }
@@ -366,7 +366,7 @@ usb2_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
 			if (up->up_gone)
 				break;
 			up->up_dsleep = 1;
-			usb2_cv_wait(&up->up_drain, up->up_mtx);
+			cv_wait(&up->up_drain, up->up_mtx);
 		}
 }
 
@@ -402,7 +402,7 @@ usb2_proc_drain(struct usb_process *up)
 		if (up->up_msleep || up->up_csleep) {
 			up->up_msleep = 0;
 			up->up_csleep = 0;
-			usb2_cv_signal(&up->up_cv);
+			cv_signal(&up->up_cv);
 		}
 		/* Check if we are still cold booted */
 
@@ -412,13 +412,13 @@ usb2_proc_drain(struct usb_process *up)
 			    "been left suspended!\n");
 			break;
 		}
-		usb2_cv_wait(&up->up_cv, up->up_mtx);
+		cv_wait(&up->up_cv, up->up_mtx);
 	}
 	/* Check if someone is waiting - should not happen */
 
 	if (up->up_dsleep) {
 		up->up_dsleep = 0;
-		usb2_cv_broadcast(&up->up_drain);
+		cv_broadcast(&up->up_drain);
 		DPRINTF("WARNING: Someone is waiting "
 		    "for USB process drain!\n");
 	}
