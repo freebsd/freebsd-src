@@ -1719,7 +1719,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		if (q->txq[i].txq_mr != NULL) 
 			buf_ring_free(q->txq[i].txq_mr, M_DEVBUF);
 		if (q->txq[i].txq_ifq != NULL) {
-			ifq_detach(q->txq[i].txq_ifq);
+			ifq_delete(q->txq[i].txq_ifq);
 			free(q->txq[i].txq_ifq, M_DEVBUF);
 		}
 	}
@@ -2289,7 +2289,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			device_printf(sc->dev, "failed to allocate ifq\n");
 			goto err;
 		}
-		ifq_attach(q->txq[i].txq_ifq, pi->ifp);
+		ifq_init(q->txq[i].txq_ifq, pi->ifp);
 	}
 	init_qset_cntxt(q, id);
 	q->idx = id;

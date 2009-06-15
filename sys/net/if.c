@@ -554,6 +554,7 @@ if_alloc(u_char type)
 #ifdef MAC
 	mac_ifnet_init(ifp);
 #endif
+	ifq_init(&ifp->if_snd, ifp);
 
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
 	IFNET_WLOCK();
@@ -596,7 +597,7 @@ if_free_internal(struct ifnet *ifp)
 	knlist_destroy(&ifp->if_klist);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
-	ifq_detach(&ifp->if_snd);
+	ifq_delete(&ifp->if_snd);
 	free(ifp, M_IFNET);
 }
 
@@ -655,7 +656,7 @@ if_rele(struct ifnet *ifp)
 }
 
 void
-ifq_attach(struct ifaltq *ifq, struct ifnet *ifp)
+ifq_init(struct ifaltq *ifq, struct ifnet *ifp)
 {
 	
 	mtx_init(&ifq->ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
@@ -671,7 +672,7 @@ ifq_attach(struct ifaltq *ifq, struct ifnet *ifp)
 }
 
 void
-ifq_detach(struct ifaltq *ifq)
+ifq_delete(struct ifaltq *ifq)
 {
 	mtx_destroy(&ifq->ifq_mtx);
 }
@@ -741,8 +742,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 			make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
 			    net_cdevsw.d_name, ifp->if_index);
 		}
-
-		ifq_attach(&ifp->if_snd, ifp);
 
 		/*
 		 * Create a Link Level name for this device.
