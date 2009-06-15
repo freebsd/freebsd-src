@@ -300,52 +300,47 @@ exit1(struct thread *td, int rv)
 
 	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
-		struct session *sp;
+		struct session *sp = p->p_session;
+		struct tty *tp;
 
-		sp = p->p_session;
-
+		/*
+		 * s_ttyp is not zero'd; we use this to indicate that
+		 * the session once had a controlling terminal. (for
+		 * logging and informational purposes)
+		 */
 		SESS_LOCK(sp);
 		ttyvp = sp->s_ttyvp;
+		tp = sp->s_ttyp;
 		sp->s_ttyvp = NULL;
+		sp->s_leader = NULL;
 		SESS_UNLOCK(sp);
 
-		if (ttyvp != NULL && ttyvp->v_type != VBAD) {
-			/*
-			 * Controlling process.
-			 * Signal foreground pgrp and revoke access to
-			 * controlling terminal.
-			 *
-			 * There is no need to drain the terminal here,
-			 * because this will be done on revocation.
-			 */
-			if (sp->s_ttyp != NULL) {
-				struct tty *tp = sp->s_ttyp;
+		/*
+		 * Signal foreground pgrp and revoke access to
+		 * controlling terminal if it has not been revoked
+		 * already.
+		 *
+		 * Because the TTY may have been revoked in the mean
+		 * time and could already have a new session associated
+		 * with it, make sure we don't send a SIGHUP to a
+		 * foreground process group that does not belong to this
+		 * session.
+		 */
 
-				tty_lock(tp);
+		if (tp != NULL) {
+			tty_lock(tp);
+			if (tp->t_session == sp)
 				tty_signal_pgrp(tp, SIGHUP);
-				tty_unlock(tp);
-
-				/*
-				 * The tty could have been revoked
-				 * if we blocked.
-				 */
-				if (ttyvp->v_type != VBAD) {
-					sx_xunlock(&proctree_lock);
-					VOP_LOCK(ttyvp, LK_EXCLUSIVE);
-					VOP_REVOKE(ttyvp, REVOKEALL);
-					VOP_UNLOCK(ttyvp, 0);
-					sx_xlock(&proctree_lock);
-				}
-			}
-			/*
-			 * s_ttyp is not zero'd; we use this to indicate that
-			 * the session once had a controlling terminal.
-			 * (for logging and informational purposes)
-			 */
+			tty_unlock(tp);
 		}
-		SESS_LOCK(p->p_session);
-		sp->s_leader = NULL;
-		SESS_UNLOCK(p->p_session);
+
+		if (ttyvp != NULL && ttyvp->v_type != VBAD) {
+			sx_xunlock(&proctree_lock);
+			VOP_LOCK(ttyvp, LK_EXCLUSIVE);
+			VOP_REVOKE(ttyvp, REVOKEALL);
+			VOP_UNLOCK(ttyvp, 0);
+			sx_xlock(&proctree_lock);
+		}
 	}
 	fixjobc(p, p->p_pgrp, 0);
 	sx_xunlock(&proctree_lock);
