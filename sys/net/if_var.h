@@ -817,8 +817,8 @@ int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
 struct	ifnet *ifunit_ref(const char *);
 
-void	ifq_attach(struct ifaltq *, struct ifnet *ifp);
-void	ifq_detach(struct ifaltq *);
+void	ifq_init(struct ifaltq *, struct ifnet *ifp);
+void	ifq_delete(struct ifaltq *);
 
 struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *);
