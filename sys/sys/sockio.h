@@ -108,6 +108,9 @@
 #define	SIOCGPRIVATE_0	_IOWR('i', 80, struct ifreq)	/* device private 0 */
 #define	SIOCGPRIVATE_1	_IOWR('i', 81, struct ifreq)	/* device private 1 */
 
+#define	SIOCSIFVNET	_IOWR('i', 90, struct ifreq)	/* move IF jail/vnet */
+#define	SIOCSIFRVNET	_IOWR('i', 91, struct ifreq)	/* reclaim vnet IF */
+
 #define	SIOCSPVIMAGE	 _IOW('i', 101, struct vi_req)	/* set proc vimage */
 #define	SIOCGPVIMAGE	_IOWR('i', 102, struct vi_req)	/* get proc vimage */
 #define	SIOCSIFVIMAGE	_IOWR('i', 103, struct vi_req)	/* set ifc vi/net */

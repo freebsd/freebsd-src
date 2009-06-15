@@ -296,6 +296,7 @@ struct	ifreq {
 		struct	sockaddr ifru_broadaddr;
 		short	ifru_flags[2];
 		short	ifru_index;
+		int	ifru_jid;
 		int	ifru_metric;
 		int	ifru_mtu;
 		int	ifru_phys;
@@ -308,6 +309,7 @@ struct	ifreq {
 #define	ifr_broadaddr	ifr_ifru.ifru_broadaddr	/* broadcast address */
 #define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags (low 16 bits) */
 #define	ifr_flagshigh	ifr_ifru.ifru_flags[1]	/* flags (high 16 bits) */
+#define	ifr_jid		ifr_ifru.ifru_jid	/* jail/vnet */
 #define	ifr_metric	ifr_ifru.ifru_metric	/* metric */
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
