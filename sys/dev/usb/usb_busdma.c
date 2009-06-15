@@ -28,7 +28,7 @@
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
@@ -42,23 +42,23 @@
 #include <dev/usb/usb_bus.h>
 
 #if USB_HAVE_BUSDMA
-static void	usb2_dma_tag_create(struct usb_dma_tag *, usb_size_t, usb_size_t);
-static void	usb2_dma_tag_destroy(struct usb_dma_tag *);
-static void	usb2_dma_lock_cb(void *, bus_dma_lock_op_t);
-static void	usb2_pc_alloc_mem_cb(void *, bus_dma_segment_t *, int, int);
-static void	usb2_pc_load_mem_cb(void *, bus_dma_segment_t *, int, int);
-static void	usb2_pc_common_mem_cb(void *, bus_dma_segment_t *, int, int,
+static void	usb_dma_tag_create(struct usb_dma_tag *, usb_size_t, usb_size_t);
+static void	usb_dma_tag_destroy(struct usb_dma_tag *);
+static void	usb_dma_lock_cb(void *, bus_dma_lock_op_t);
+static void	usb_pc_alloc_mem_cb(void *, bus_dma_segment_t *, int, int);
+static void	usb_pc_load_mem_cb(void *, bus_dma_segment_t *, int, int);
+static void	usb_pc_common_mem_cb(void *, bus_dma_segment_t *, int, int,
 		    uint8_t);
 #endif
 
 /*------------------------------------------------------------------------*
- *  usb2_get_page - lookup DMA-able memory for the given offset
+ *  usbd_get_page - lookup DMA-able memory for the given offset
  *
  * NOTE: Only call this function when the "page_cache" structure has
  * been properly initialized !
  *------------------------------------------------------------------------*/
 void
-usb2_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
+usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
     struct usb_page_search *res)
 {
 	struct usb_page *page;
@@ -111,17 +111,17 @@ usb2_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 }
 
 /*------------------------------------------------------------------------*
- *  usb2_copy_in - copy directly to DMA-able memory
+ *  usbd_copy_in - copy directly to DMA-able memory
  *------------------------------------------------------------------------*/
 void
-usb2_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
+usbd_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
     const void *ptr, usb_frlength_t len)
 {
 	struct usb_page_search buf_res;
 
 	while (len != 0) {
 
-		usb2_get_page(cache, offset, &buf_res);
+		usbd_get_page(cache, offset, &buf_res);
 
 		if (buf_res.length > len) {
 			buf_res.length = len;
@@ -135,7 +135,7 @@ usb2_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
 }
 
 /*------------------------------------------------------------------------*
- *  usb2_copy_in_user - copy directly to DMA-able memory from userland
+ *  usbd_copy_in_user - copy directly to DMA-able memory from userland
  *
  * Return values:
  *    0: Success
@@ -143,7 +143,7 @@ usb2_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
  *------------------------------------------------------------------------*/
 #if USB_HAVE_USER_IO
 int
-usb2_copy_in_user(struct usb_page_cache *cache, usb_frlength_t offset,
+usbd_copy_in_user(struct usb_page_cache *cache, usb_frlength_t offset,
     const void *ptr, usb_frlength_t len)
 {
 	struct usb_page_search buf_res;
@@ -151,7 +151,7 @@ usb2_copy_in_user(struct usb_page_cache *cache, usb_frlength_t offset,
 
 	while (len != 0) {
 
-		usb2_get_page(cache, offset, &buf_res);
+		usbd_get_page(cache, offset, &buf_res);
 
 		if (buf_res.length > len) {
 			buf_res.length = len;
@@ -169,41 +169,41 @@ usb2_copy_in_user(struct usb_page_cache *cache, usb_frlength_t offset,
 #endif
 
 /*------------------------------------------------------------------------*
- *  usb2_m_copy_in - copy a mbuf chain directly into DMA-able memory
+ *  usbd_m_copy_in - copy a mbuf chain directly into DMA-able memory
  *------------------------------------------------------------------------*/
 #if USB_HAVE_MBUF
-struct usb2_m_copy_in_arg {
+struct usb_m_copy_in_arg {
 	struct usb_page_cache *cache;
 	usb_frlength_t dst_offset;
 };
 
 static int
-usb2_m_copy_in_cb(void *arg, void *src, uint32_t count)
+usbd_m_copy_in_cb(void *arg, void *src, uint32_t count)
 {
-	register struct usb2_m_copy_in_arg *ua = arg;
+	register struct usb_m_copy_in_arg *ua = arg;
 
-	usb2_copy_in(ua->cache, ua->dst_offset, src, count);
+	usbd_copy_in(ua->cache, ua->dst_offset, src, count);
 	ua->dst_offset += count;
 	return (0);
 }
 
 void
-usb2_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
+usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
     struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len)
 {
-	struct usb2_m_copy_in_arg arg = {cache, dst_offset};
+	struct usb_m_copy_in_arg arg = {cache, dst_offset};
 	int error;
 
-	error = m_apply(m, src_offset, src_len, &usb2_m_copy_in_cb, &arg);
+	error = m_apply(m, src_offset, src_len, &usbd_m_copy_in_cb, &arg);
 }
 #endif
 
 /*------------------------------------------------------------------------*
- *  usb2_uiomove - factored out code
+ *  usb_uiomove - factored out code
  *------------------------------------------------------------------------*/
 #if USB_HAVE_USER_IO
 int
-usb2_uiomove(struct usb_page_cache *pc, struct uio *uio,
+usb_uiomove(struct usb_page_cache *pc, struct uio *uio,
     usb_frlength_t pc_offset, usb_frlength_t len)
 {
 	struct usb_page_search res;
@@ -211,7 +211,7 @@ usb2_uiomove(struct usb_page_cache *pc, struct uio *uio,
 
 	while (len != 0) {
 
-		usb2_get_page(pc, pc_offset, &res);
+		usbd_get_page(pc, pc_offset, &res);
 
 		if (res.length > len) {
 			res.length = len;
@@ -233,17 +233,17 @@ usb2_uiomove(struct usb_page_cache *pc, struct uio *uio,
 #endif
 
 /*------------------------------------------------------------------------*
- *  usb2_copy_out - copy directly from DMA-able memory
+ *  usbd_copy_out - copy directly from DMA-able memory
  *------------------------------------------------------------------------*/
 void
-usb2_copy_out(struct usb_page_cache *cache, usb_frlength_t offset,
+usbd_copy_out(struct usb_page_cache *cache, usb_frlength_t offset,
     void *ptr, usb_frlength_t len)
 {
 	struct usb_page_search res;
 
 	while (len != 0) {
 
-		usb2_get_page(cache, offset, &res);
+		usbd_get_page(cache, offset, &res);
 
 		if (res.length > len) {
 			res.length = len;
@@ -257,7 +257,7 @@ usb2_copy_out(struct usb_page_cache *cache, usb_frlength_t offset,
 }
 
 /*------------------------------------------------------------------------*
- *  usb2_copy_out_user - copy directly from DMA-able memory to userland
+ *  usbd_copy_out_user - copy directly from DMA-able memory to userland
  *
  * Return values:
  *    0: Success
@@ -265,7 +265,7 @@ usb2_copy_out(struct usb_page_cache *cache, usb_frlength_t offset,
  *------------------------------------------------------------------------*/
 #if USB_HAVE_USER_IO
 int
-usb2_copy_out_user(struct usb_page_cache *cache, usb_frlength_t offset,
+usbd_copy_out_user(struct usb_page_cache *cache, usb_frlength_t offset,
     void *ptr, usb_frlength_t len)
 {
 	struct usb_page_search res;
@@ -273,7 +273,7 @@ usb2_copy_out_user(struct usb_page_cache *cache, usb_frlength_t offset,
 
 	while (len != 0) {
 
-		usb2_get_page(cache, offset, &res);
+		usbd_get_page(cache, offset, &res);
 
 		if (res.length > len) {
 			res.length = len;
@@ -291,17 +291,17 @@ usb2_copy_out_user(struct usb_page_cache *cache, usb_frlength_t offset,
 #endif
 
 /*------------------------------------------------------------------------*
- *  usb2_bzero - zero DMA-able memory
+ *  usbd_frame_zero - zero DMA-able memory
  *------------------------------------------------------------------------*/
 void
-usb2_bzero(struct usb_page_cache *cache, usb_frlength_t offset,
+usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
     usb_frlength_t len)
 {
 	struct usb_page_search res;
 
 	while (len != 0) {
 
-		usb2_get_page(cache, offset, &res);
+		usbd_get_page(cache, offset, &res);
 
 		if (res.length > len) {
 			res.length = len;
@@ -316,22 +316,22 @@ usb2_bzero(struct usb_page_cache *cache, usb_frlength_t offset,
 #if USB_HAVE_BUSDMA
 
 /*------------------------------------------------------------------------*
- *	usb2_dma_lock_cb - dummy callback
+ *	usb_dma_lock_cb - dummy callback
  *------------------------------------------------------------------------*/
 static void
-usb2_dma_lock_cb(void *arg, bus_dma_lock_op_t op)
+usb_dma_lock_cb(void *arg, bus_dma_lock_op_t op)
 {
 	/* we use "mtx_owned()" instead of this function */
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dma_tag_create - allocate a DMA tag
+ *	usb_dma_tag_create - allocate a DMA tag
  *
  * NOTE: If the "align" parameter has a value of 1 the DMA-tag will
  * allow multi-segment mappings. Else all mappings are single-segment.
  *------------------------------------------------------------------------*/
 static void
-usb2_dma_tag_create(struct usb_dma_tag *udt,
+usb_dma_tag_create(struct usb_dma_tag *udt,
     usb_size_t size, usb_size_t align)
 {
 	bus_dma_tag_t tag;
@@ -350,7 +350,7 @@ usb2_dma_tag_create(struct usb_dma_tag *udt,
 	     /* maxsegsz  */ (align == 1) ?
 	    USB_PAGE_SIZE : size,
 	     /* flags     */ BUS_DMA_KEEP_PG_OFFSET,
-	     /* lockfn    */ &usb2_dma_lock_cb,
+	     /* lockfn    */ &usb_dma_lock_cb,
 	     /* lockarg   */ NULL,
 	    &tag)) {
 		tag = NULL;
@@ -359,39 +359,39 @@ usb2_dma_tag_create(struct usb_dma_tag *udt,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dma_tag_free - free a DMA tag
+ *	usb_dma_tag_free - free a DMA tag
  *------------------------------------------------------------------------*/
 static void
-usb2_dma_tag_destroy(struct usb_dma_tag *udt)
+usb_dma_tag_destroy(struct usb_dma_tag *udt)
 {
 	bus_dma_tag_destroy(udt->tag);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_alloc_mem_cb - BUS-DMA callback function
+ *	usb_pc_alloc_mem_cb - BUS-DMA callback function
  *------------------------------------------------------------------------*/
 static void
-usb2_pc_alloc_mem_cb(void *arg, bus_dma_segment_t *segs,
+usb_pc_alloc_mem_cb(void *arg, bus_dma_segment_t *segs,
     int nseg, int error)
 {
-	usb2_pc_common_mem_cb(arg, segs, nseg, error, 0);
+	usb_pc_common_mem_cb(arg, segs, nseg, error, 0);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_load_mem_cb - BUS-DMA callback function
+ *	usb_pc_load_mem_cb - BUS-DMA callback function
  *------------------------------------------------------------------------*/
 static void
-usb2_pc_load_mem_cb(void *arg, bus_dma_segment_t *segs,
+usb_pc_load_mem_cb(void *arg, bus_dma_segment_t *segs,
     int nseg, int error)
 {
-	usb2_pc_common_mem_cb(arg, segs, nseg, error, 1);
+	usb_pc_common_mem_cb(arg, segs, nseg, error, 1);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_common_mem_cb - BUS-DMA callback function
+ *	usb_pc_common_mem_cb - BUS-DMA callback function
  *------------------------------------------------------------------------*/
 static void
-usb2_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
+usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
     int nseg, int error, uint8_t isload)
 {
 	struct usb_dma_parent_tag *uptag;
@@ -452,14 +452,14 @@ done:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_alloc_mem - allocate DMA'able memory
+ *	usb_pc_alloc_mem - allocate DMA'able memory
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
+usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
     usb_size_t size, usb_size_t align)
 {
 	struct usb_dma_parent_tag *uptag;
@@ -505,7 +505,7 @@ usb2_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 #endif
 	}
 	/* get the correct DMA tag */
-	utag = usb2_dma_tag_find(uptag, size, align);
+	utag = usb_dma_tag_find(uptag, size, align);
 	if (utag == NULL) {
 		goto error;
 	}
@@ -527,7 +527,7 @@ usb2_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 
 	/* load memory into DMA */
 	err = bus_dmamap_load(
-	    utag->tag, map, ptr, size, &usb2_pc_alloc_mem_cb,
+	    utag->tag, map, ptr, size, &usb_pc_alloc_mem_cb,
 	    pc, (BUS_DMA_WAITOK | BUS_DMA_COHERENT));
 
 	if (err == EINPROGRESS) {
@@ -542,7 +542,7 @@ usb2_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 	}
 	bzero(ptr, size);
 
-	usb2_pc_cpu_flush(pc);
+	usb_pc_cpu_flush(pc);
 
 	return (0);
 
@@ -558,12 +558,12 @@ error:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_free_mem - free DMA memory
+ *	usb_pc_free_mem - free DMA memory
  *
  * This function is NULL safe.
  *------------------------------------------------------------------------*/
 void
-usb2_pc_free_mem(struct usb_page_cache *pc)
+usb_pc_free_mem(struct usb_page_cache *pc)
 {
 	if (pc && pc->buffer) {
 
@@ -576,14 +576,14 @@ usb2_pc_free_mem(struct usb_page_cache *pc)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_load_mem - load virtual memory into DMA
+ *	usb_pc_load_mem - load virtual memory into DMA
  *
  * Return values:
  * 0: Success
  * Else: Error
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
+usb_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 {
 	/* setup page cache */
 	pc->page_offset_buf = 0;
@@ -610,7 +610,7 @@ usb2_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 			 */
 			err = bus_dmamap_load(
 			    pc->tag, pc->map, pc->buffer, size,
-			    &usb2_pc_alloc_mem_cb, pc, BUS_DMA_WAITOK);
+			    &usb_pc_alloc_mem_cb, pc, BUS_DMA_WAITOK);
 			if (err == EINPROGRESS) {
 				cv_wait(uptag->cv, uptag->mtx);
 				err = 0;
@@ -632,7 +632,7 @@ usb2_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 			 */
 			if (bus_dmamap_load(
 			    pc->tag, pc->map, pc->buffer, size,
-			    &usb2_pc_load_mem_cb, pc, BUS_DMA_WAITOK)) {
+			    &usb_pc_load_mem_cb, pc, BUS_DMA_WAITOK)) {
 			}
 		}
 	} else {
@@ -649,10 +649,10 @@ usb2_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_cpu_invalidate - invalidate CPU cache
+ *	usb_pc_cpu_invalidate - invalidate CPU cache
  *------------------------------------------------------------------------*/
 void
-usb2_pc_cpu_invalidate(struct usb_page_cache *pc)
+usb_pc_cpu_invalidate(struct usb_page_cache *pc)
 {
 	if (pc->page_offset_end == pc->page_offset_buf) {
 		/* nothing has been loaded into this page cache! */
@@ -663,10 +663,10 @@ usb2_pc_cpu_invalidate(struct usb_page_cache *pc)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_cpu_flush - flush CPU cache
+ *	usb_pc_cpu_flush - flush CPU cache
  *------------------------------------------------------------------------*/
 void
-usb2_pc_cpu_flush(struct usb_page_cache *pc)
+usb_pc_cpu_flush(struct usb_page_cache *pc)
 {
 	if (pc->page_offset_end == pc->page_offset_buf) {
 		/* nothing has been loaded into this page cache! */
@@ -677,14 +677,14 @@ usb2_pc_cpu_flush(struct usb_page_cache *pc)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_dmamap_create - create a DMA map
+ *	usb_pc_dmamap_create - create a DMA map
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_pc_dmamap_create(struct usb_page_cache *pc, usb_size_t size)
+usb_pc_dmamap_create(struct usb_page_cache *pc, usb_size_t size)
 {
 	struct usb_xfer_root *info;
 	struct usb_dma_tag *utag;
@@ -696,7 +696,7 @@ usb2_pc_dmamap_create(struct usb_page_cache *pc, usb_size_t size)
 	if (info == NULL) {
 		goto error;
 	}
-	utag = usb2_dma_tag_find(pc->tag_parent, size, 1);
+	utag = usb_dma_tag_find(pc->tag_parent, size, 1);
 	if (utag == NULL) {
 		goto error;
 	}
@@ -714,12 +714,12 @@ error:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pc_dmamap_destroy
+ *	usb_pc_dmamap_destroy
  *
  * This function is NULL safe.
  *------------------------------------------------------------------------*/
 void
-usb2_pc_dmamap_destroy(struct usb_page_cache *pc)
+usb_pc_dmamap_destroy(struct usb_page_cache *pc)
 {
 	if (pc && pc->tag) {
 		bus_dmamap_destroy(pc->tag, pc->map);
@@ -729,10 +729,10 @@ usb2_pc_dmamap_destroy(struct usb_page_cache *pc)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dma_tag_find - factored out code
+ *	usb_dma_tag_find - factored out code
  *------------------------------------------------------------------------*/
 struct usb_dma_tag *
-usb2_dma_tag_find(struct usb_dma_parent_tag *udpt,
+usb_dma_tag_find(struct usb_dma_parent_tag *udpt,
     usb_size_t size, usb_size_t align)
 {
 	struct usb_dma_tag *udt;
@@ -747,7 +747,7 @@ usb2_dma_tag_find(struct usb_dma_parent_tag *udpt,
 	while (nudt--) {
 
 		if (udt->align == 0) {
-			usb2_dma_tag_create(udt, size, align);
+			usb_dma_tag_create(udt, size, align);
 			if (udt->tag == NULL) {
 				return (NULL);
 			}
@@ -764,10 +764,10 @@ usb2_dma_tag_find(struct usb_dma_parent_tag *udpt,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dma_tag_setup - initialise USB DMA tags
+ *	usb_dma_tag_setup - initialise USB DMA tags
  *------------------------------------------------------------------------*/
 void
-usb2_dma_tag_setup(struct usb_dma_parent_tag *udpt,
+usb_dma_tag_setup(struct usb_dma_parent_tag *udpt,
     struct usb_dma_tag *udt, bus_dma_tag_t dmat,
     struct mtx *mtx, usb_dma_callback_t *func,
     uint8_t ndmabits, uint8_t nudt)
@@ -800,10 +800,10 @@ usb2_dma_tag_setup(struct usb_dma_parent_tag *udpt,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_bus_tag_unsetup - factored out code
+ *	usb_bus_tag_unsetup - factored out code
  *------------------------------------------------------------------------*/
 void
-usb2_dma_tag_unsetup(struct usb_dma_parent_tag *udpt)
+usb_dma_tag_unsetup(struct usb_dma_parent_tag *udpt)
 {
 	struct usb_dma_tag *udt;
 	uint8_t nudt;
@@ -815,7 +815,7 @@ usb2_dma_tag_unsetup(struct usb_dma_parent_tag *udpt)
 
 		if (udt->align) {
 			/* destroy the USB DMA tag */
-			usb2_dma_tag_destroy(udt);
+			usb_dma_tag_destroy(udt);
 			udt->align = 0;
 		}
 		udt++;
@@ -828,13 +828,13 @@ usb2_dma_tag_unsetup(struct usb_dma_parent_tag *udpt)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_bdma_work_loop
+ *	usb_bdma_work_loop
  *
  * This function handles loading of virtual buffers into DMA and is
  * only called when "dma_refcount" is zero.
  *------------------------------------------------------------------------*/
 void
-usb2_bdma_work_loop(struct usb_xfer_queue *pq)
+usb_bdma_work_loop(struct usb_xfer_queue *pq)
 {
 	struct usb_xfer_root *info;
 	struct usb_xfer *xfer;
@@ -848,7 +848,7 @@ usb2_bdma_work_loop(struct usb_xfer_queue *pq)
 	if (xfer->error) {
 		/* some error happened */
 		USB_BUS_LOCK(info->bus);
-		usb2_transfer_done(xfer, 0);
+		usbd_transfer_done(xfer, 0);
 		USB_BUS_UNLOCK(info->bus);
 		return;
 	}
@@ -922,7 +922,7 @@ usb2_bdma_work_loop(struct usb_xfer_queue *pq)
 	}
 	if (info->dma_error) {
 		USB_BUS_LOCK(info->bus);
-		usb2_transfer_done(xfer, USB_ERR_DMA_LOAD_FAILED);
+		usbd_transfer_done(xfer, USB_ERR_DMA_LOAD_FAILED);
 		USB_BUS_UNLOCK(info->bus);
 		return;
 	}
@@ -930,12 +930,12 @@ usb2_bdma_work_loop(struct usb_xfer_queue *pq)
 
 		if (info->dma_currframe == 0) {
 			/* special case */
-			usb2_pc_load_mem(xfer->frbuffers,
+			usb_pc_load_mem(xfer->frbuffers,
 			    info->dma_frlength_0, 0);
 		} else {
 			/* default case */
 			nframes = info->dma_currframe;
-			usb2_pc_load_mem(xfer->frbuffers + nframes,
+			usb_pc_load_mem(xfer->frbuffers + nframes,
 			    xfer->frlengths[nframes], 0);
 		}
 
@@ -945,23 +945,23 @@ usb2_bdma_work_loop(struct usb_xfer_queue *pq)
 		return;
 	}
 	/* go ahead */
-	usb2_bdma_pre_sync(xfer);
+	usb_bdma_pre_sync(xfer);
 
 	/* start loading next USB transfer, if any */
-	usb2_command_wrapper(pq, NULL);
+	usb_command_wrapper(pq, NULL);
 
 	/* finally start the hardware */
-	usb2_pipe_enter(xfer);
+	usbd_pipe_enter(xfer);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_bdma_done_event
+ *	usb_bdma_done_event
  *
  * This function is called when the BUS-DMA has loaded virtual memory
  * into DMA, if any.
  *------------------------------------------------------------------------*/
 void
-usb2_bdma_done_event(struct usb_dma_parent_tag *udpt)
+usb_bdma_done_event(struct usb_dma_parent_tag *udpt)
 {
 	struct usb_xfer_root *info;
 
@@ -973,18 +973,18 @@ usb2_bdma_done_event(struct usb_dma_parent_tag *udpt)
 	info->dma_error = udpt->dma_error;
 
 	/* enter workloop again */
-	usb2_command_wrapper(&info->dma_q,
+	usb_command_wrapper(&info->dma_q,
 	    info->dma_q.curr);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_bdma_pre_sync
+ *	usb_bdma_pre_sync
  *
  * This function handles DMA synchronisation that must be done before
  * an USB transfer is started.
  *------------------------------------------------------------------------*/
 void
-usb2_bdma_pre_sync(struct usb_xfer *xfer)
+usb_bdma_pre_sync(struct usb_xfer *xfer)
 {
 	struct usb_page_cache *pc;
 	usb_frcount_t nframes;
@@ -1002,22 +1002,22 @@ usb2_bdma_pre_sync(struct usb_xfer *xfer)
 	while (nframes--) {
 
 		if (pc->isread) {
-			usb2_pc_cpu_invalidate(pc);
+			usb_pc_cpu_invalidate(pc);
 		} else {
-			usb2_pc_cpu_flush(pc);
+			usb_pc_cpu_flush(pc);
 		}
 		pc++;
 	}
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_bdma_post_sync
+ *	usb_bdma_post_sync
  *
  * This function handles DMA synchronisation that must be done after
  * an USB transfer is complete.
  *------------------------------------------------------------------------*/
 void
-usb2_bdma_post_sync(struct usb_xfer *xfer)
+usb_bdma_post_sync(struct usb_xfer *xfer)
 {
 	struct usb_page_cache *pc;
 	usb_frcount_t nframes;
@@ -1034,7 +1034,7 @@ usb2_bdma_post_sync(struct usb_xfer *xfer)
 
 	while (nframes--) {
 		if (pc->isread) {
-			usb2_pc_cpu_invalidate(pc);
+			usb_pc_cpu_invalidate(pc);
 		}
 		pc++;
 	}

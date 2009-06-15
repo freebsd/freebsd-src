@@ -328,7 +328,7 @@ struct usb_interface *usb_ifnum_to_if(struct usb_device *dev, uint8_t iface_no);
 
 void   *usb_buffer_alloc(struct usb_device *dev, usb_size_t size,
 	    uint16_t mem_flags, uint8_t *dma_addr);
-void   *usb_get_intfdata(struct usb_interface *intf);
+void   *usbd_get_intfdata(struct usb_interface *intf);
 
 void	usb_buffer_free(struct usb_device *dev, usb_size_t size, void *addr, uint8_t dma_addr);
 void	usb_free_urb(struct urb *urb);

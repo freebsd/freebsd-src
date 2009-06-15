@@ -288,7 +288,7 @@ atausb2_probe(device_t dev)
 		/* give other drivers a try first */
 		return (ENXIO);
 	}
-	id = usb2_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(uaa->iface);
 	if ((!id) || (id->bInterfaceClass != UICLASS_MASS)) {
 		return (ENXIO);
 	}
@@ -328,16 +328,16 @@ atausb2_attach(device_t dev)
 	uint8_t has_intr;
 	int err;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	sc->dev = dev;
 	sc->maxlun = 0;
 	sc->locked_ch = NULL;
 	sc->restart_ch = NULL;
-	sc->usb2_speed = usb2_get_speed(uaa->device);
+	sc->usb2_speed = usbd_get_speed(uaa->device);
 	mtx_init(&sc->locked_mtx, "ATAUSB lock", NULL, (MTX_DEF | MTX_RECURSE));
 
-	id = usb2_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(uaa->iface);
 	switch (id->bInterfaceProtocol) {
 	case UIPROTO_MASS_BBB:
 	case UIPROTO_MASS_BBB_OLD:
@@ -380,7 +380,7 @@ atausb2_attach(device_t dev)
 	    (strcmp(subclass, "ATAPI") && strcmp(subclass, "SCSI"))) {
 		goto detach;
 	}
-	err = usb2_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
+	err = usbd_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
 	    sc->xfer, atausb2_config, ATAUSB_T_BBB_MAX, sc,
 	    &sc->locked_mtx);
 
@@ -389,7 +389,7 @@ atausb2_attach(device_t dev)
 
 	if (err) {
 		device_printf(sc->dev, "could not setup required "
-		    "transfers, %s\n", usb2_errstr(err));
+		    "transfers, %s\n", usbd_errstr(err));
 		goto detach;
 	}
 	/* get number of devices so we can add matching channels */
@@ -398,12 +398,12 @@ atausb2_attach(device_t dev)
 	USETW(request.wValue, 0);
 	USETW(request.wIndex, sc->iface_no);
 	USETW(request.wLength, sizeof(maxlun));
-	err = usb2_do_request(uaa->device, &Giant, &request, &maxlun);
+	err = usbd_do_request(uaa->device, &Giant, &request, &maxlun);
 
 	if (err) {
 		if (bootverbose) {
 			device_printf(sc->dev, "get maxlun not supported %s\n",
-			    usb2_errstr(err));
+			    usbd_errstr(err));
 		}
 	} else {
 		sc->maxlun = maxlun;
@@ -438,7 +438,7 @@ atausb2_detach(device_t dev)
 
 	/* teardown our statemachine */
 
-	usb2_transfer_unsetup(sc->xfer, ATAUSB_T_MAX);
+	usbd_transfer_unsetup(sc->xfer, ATAUSB_T_MAX);
 
 	/* detach & delete all children, if any */
 
@@ -460,7 +460,7 @@ atausb2_transfer_start(struct atausb2_softc *sc, uint8_t xfer_no)
 	}
 	if (sc->xfer[xfer_no]) {
 		sc->last_xfer_no = xfer_no;
-		usb2_transfer_start(sc->xfer[xfer_no]);
+		usbd_transfer_start(sc->xfer[xfer_no]);
 	} else {
 		atausb2_cancel_request(sc);
 	}
@@ -485,11 +485,11 @@ atausb2_t_bbb_reset1_callback(struct usb_xfer *xfer)
 		req.wIndex[1] = 0;
 		USETW(req.wLength, 0);
 
-		usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+		usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
 
 		xfer->frlengths[0] = sizeof(req);
 		xfer->nframes = 1;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -527,7 +527,7 @@ tr_transferred:
 		return;
 
 	case USB_ST_SETUP:
-		if (usb2_clear_stall_callback(xfer, sc->xfer[stall_xfer])) {
+		if (usbd_clear_stall_callback(xfer, sc->xfer[stall_xfer])) {
 			goto tr_transferred;
 		}
 		return;
@@ -575,10 +575,10 @@ atausb2_t_bbb_command_callback(struct usb_xfer *xfer)
 			bzero(sc->cbw.cdb, 16);
 			bcopy(request->u.atapi.ccb, sc->cbw.cdb, 12);	/* XXX SOS */
 
-			usb2_copy_in(xfer->frbuffers, 0, &sc->cbw, sizeof(sc->cbw));
+			usbd_copy_in(xfer->frbuffers, 0, &sc->cbw, sizeof(sc->cbw));
 
 			xfer->frlengths[0] = sizeof(sc->cbw);
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -598,7 +598,7 @@ atausb2_t_bbb_data_read_callback(struct usb_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		usb2_copy_out(xfer->frbuffers, 0,
+		usbd_copy_out(xfer->frbuffers, 0,
 		    sc->ata_data, xfer->actlen);
 
 		sc->ata_bytecount -= xfer->actlen;
@@ -625,7 +625,7 @@ atausb2_t_bbb_data_read_callback(struct usb_xfer *xfer)
 		xfer->timeout = sc->timeout;
 		xfer->frlengths[0] = max_bulk;
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -675,10 +675,10 @@ atausb2_t_bbb_data_write_callback(struct usb_xfer *xfer)
 		xfer->timeout = sc->timeout;
 		xfer->frlengths[0] = max_bulk;
 
-		usb2_copy_in(xfer->frbuffers, 0,
+		usbd_copy_in(xfer->frbuffers, 0,
 		    sc->ata_data, max_bulk);
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -712,7 +712,7 @@ atausb2_t_bbb_status_callback(struct usb_xfer *xfer)
 		if (xfer->actlen < sizeof(sc->csw)) {
 			bzero(&sc->csw, sizeof(sc->csw));
 		}
-		usb2_copy_out(xfer->frbuffers, 0, &sc->csw, xfer->actlen);
+		usbd_copy_out(xfer->frbuffers, 0, &sc->csw, xfer->actlen);
 
 		if (request->flags & (ATA_R_READ | ATA_R_WRITE)) {
 			request->donecount = sc->ata_donecount;
@@ -780,7 +780,7 @@ atausb2_t_bbb_status_callback(struct usb_xfer *xfer)
 
 	case USB_ST_SETUP:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:
@@ -828,7 +828,7 @@ atausb2_tr_error(struct usb_xfer *xfer)
 
 		if (atausbdebug) {
 			device_printf(sc->dev, "transfer failed, %s, in state %d "
-			    "-> BULK reset\n", usb2_errstr(xfer->error),
+			    "-> BULK reset\n", usbd_errstr(xfer->error),
 			    sc->last_xfer_no);
 		}
 	}
@@ -903,7 +903,7 @@ ata_usbchannel_begin_transaction(struct ata_request *request)
 		sc->ata_data = request->data;
 		sc->ata_donecount = 0;
 
-		usb2_transfer_start(sc->xfer[sc->last_xfer_no]);
+		usbd_transfer_start(sc->xfer[sc->last_xfer_no]);
 		error = ATA_OP_CONTINUES;
 	} else {
 		request->result = EIO;

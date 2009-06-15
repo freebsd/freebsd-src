@@ -116,7 +116,7 @@ USB_MAKE_STRING_DESC(STRING_ETH_SERIAL, string_eth_serial);
 
 /* prototypes */
 
-static usb2_temp_get_string_desc_t eth_get_string_desc;
+static usb_temp_get_string_desc_t eth_get_string_desc;
 
 static const struct usb_cdc_union_descriptor eth_union_desc = {
 	.bLength = sizeof(eth_union_desc),
@@ -244,7 +244,7 @@ static const struct usb_temp_config_desc *eth_configs[] = {
 	NULL,
 };
 
-const struct usb_temp_device_desc usb2_template_cdce = {
+const struct usb_temp_device_desc usb_template_cdce = {
 	.getStringDesc = &eth_get_string_desc,
 	.ppConfigDesc = eth_configs,
 	.idVendor = 0x0001,

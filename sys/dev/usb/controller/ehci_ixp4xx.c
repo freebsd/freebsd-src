@@ -131,7 +131,7 @@ ehci_ixp_attach(device_t self)
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_bus,
+	if (usb_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
@@ -273,7 +273,7 @@ ehci_ixp_detach(device_t self)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
+	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
 
 	return (0);
 }

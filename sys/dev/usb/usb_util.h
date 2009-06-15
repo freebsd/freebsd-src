@@ -28,10 +28,10 @@
 #define	_USB2_UTIL_H_
 
 int	device_delete_all_children(device_t dev);
-uint8_t	usb2_make_str_desc(void *ptr, uint16_t max_len, const char *s);
-void	device_set_usb2_desc(device_t dev);
-void	usb2_pause_mtx(struct mtx *mtx, int _ticks);
-void	usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd);
-void	usb2_trim_spaces(char *p);
+uint8_t	usb_make_str_desc(void *ptr, uint16_t max_len, const char *s);
+void	device_set_usb_desc(device_t dev);
+void	usb_pause_mtx(struct mtx *mtx, int _ticks);
+void	usb_printbcd(char *p, uint16_t p_len, uint16_t bcd);
+void	usb_trim_spaces(char *p);
 
 #endif					/* _USB2_UTIL_H_ */

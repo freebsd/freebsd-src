@@ -28,10 +28,10 @@
 #include <dev/usb/usb_lookup.h>
 
 /*------------------------------------------------------------------------*
- *	usb2_lookup_id_by_info
+ *	usbd_lookup_id_by_info
  *
  * This functions takes an array of "struct usb_device_id" and tries
- * to match the entries with the information in "struct usb_lookup_info".
+ * to match the entries with the information in "struct usbd_lookup_info".
  *
  * NOTE: The "sizeof_id" parameter must be a multiple of the
  * usb_device_id structure size. Else the behaviour of this function
@@ -42,8 +42,8 @@
  * Else: Pointer to matching entry.
  *------------------------------------------------------------------------*/
 const struct usb_device_id *
-usb2_lookup_id_by_info(const struct usb_device_id *id, usb_size_t sizeof_id,
-    const struct usb_lookup_info *info)
+usbd_lookup_id_by_info(const struct usb_device_id *id, usb_size_t sizeof_id,
+    const struct usbd_lookup_info *info)
 {
 	const struct usb_device_id *id_end;
 
@@ -114,17 +114,17 @@ done:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_lookup_id_by_uaa - factored out code
+ *	usbd_lookup_id_by_uaa - factored out code
  *
  * Return values:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
 int
-usb2_lookup_id_by_uaa(const struct usb_device_id *id, usb_size_t sizeof_id,
+usbd_lookup_id_by_uaa(const struct usb_device_id *id, usb_size_t sizeof_id,
     struct usb_attach_arg *uaa)
 {
-	id = usb2_lookup_id_by_info(id, sizeof_id, &uaa->info);
+	id = usbd_lookup_id_by_info(id, sizeof_id, &uaa->info);
 	if (id) {
 		/* copy driver info */
 		uaa->driver_info = id->driver_info;

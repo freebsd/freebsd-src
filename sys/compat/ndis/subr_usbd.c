@@ -472,7 +472,7 @@ usbd_func_getdesc(ip)
 		 * The NDIS driver is not allowed to change the
 		 * config! There is only one choice!
 		 */
-		cdp = usb2_get_config_descriptor(sc->ndisusb_dev);
+		cdp = usbd_get_config_descriptor(sc->ndisusb_dev);
 		if (cdp == NULL) {
 			status = USB_ERR_INVAL;
 			goto exit;
@@ -492,7 +492,7 @@ usbd_func_getdesc(ip)
 		status = USB_ERR_NORMAL_COMPLETION;
 	} else {
 		NDISUSB_LOCK(sc);
-		status = usb2_req_get_desc(sc->ndisusb_dev, &sc->ndisusb_mtx,
+		status = usbd_req_get_desc(sc->ndisusb_dev, &sc->ndisusb_mtx,
 		    &actlen, ctldesc->ucd_trans_buf, 2,
 		    ctldesc->ucd_trans_buflen, ctldesc->ucd_langid,
 		    ctldesc->ucd_desctype, ctldesc->ucd_idx,
@@ -540,16 +540,16 @@ usbd_func_selconf(ip)
 
 	intf = &selconf->usc_intf;
 	for (i = 0; i < conf->bNumInterface && intf->uii_len > 0; i++) {
-		ret = usb2_set_alt_interface_index(udev,
+		ret = usbd_set_alt_interface_index(udev,
 		    intf->uii_intfnum, intf->uii_altset);
 		if (ret != USB_ERR_NORMAL_COMPLETION && ret != USB_ERR_IN_USE) {
 			device_printf(dev,
 			    "setting alternate interface failed: %s\n",
-			    usb2_errstr(ret));
+			    usbd_errstr(ret));
 			return usbd_usb2urb(ret);
 		}
 
-		for (j = 0; (ep = usb2_endpoint_foreach(udev, ep)); j++) {
+		for (j = 0; (ep = usb_endpoint_foreach(udev, ep)); j++) {
 			if (j >= intf->uii_numeps) {
 				device_printf(dev,
 				    "endpoint %d and above are ignored",
@@ -608,11 +608,11 @@ usbd_setup_endpoint_one(ip, ifidx, ne, epconf)
 	InitializeListHead(&ne->ne_pending);
 	KeInitializeSpinLock(&ne->ne_lock);
 
-	status = usb2_transfer_setup(sc->ndisusb_dev, &ifidx, ne->ne_xfer,
+	status = usbd_transfer_setup(sc->ndisusb_dev, &ifidx, ne->ne_xfer,
 	    epconf, 1, sc, &sc->ndisusb_mtx);
 	if (status != USB_ERR_NORMAL_COMPLETION) {
 		device_printf(dev, "couldn't setup xfer: %s\n",
-		    usb2_errstr(status));
+		    usbd_errstr(status));
 		return (status);
 	}
 	xfer = ne->ne_xfer[0];
@@ -680,11 +680,11 @@ usbd_setup_endpoint(ip, ifidx, ep)
 	if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN)
 		cfg.flags.short_xfer_ok = 1;
 
-	status = usb2_transfer_setup(sc->ndisusb_dev, &ifidx, ne->ne_xfer,
+	status = usbd_transfer_setup(sc->ndisusb_dev, &ifidx, ne->ne_xfer,
 	    &cfg, 1, sc, &sc->ndisusb_mtx);
 	if (status != USB_ERR_NORMAL_COMPLETION) {
 		device_printf(dev, "couldn't setup xfer: %s\n",
-		    usb2_errstr(status));
+		    usbd_errstr(status));
 		return (status);
 	}
 	xfer = ne->ne_xfer[0];
@@ -718,8 +718,8 @@ usbd_func_abort_pipe(ip)
 	}
 
 	NDISUSB_LOCK(sc);
-	usb2_transfer_stop(ne->ne_xfer[0]);
-	usb2_transfer_start(ne->ne_xfer[0]);
+	usbd_transfer_stop(ne->ne_xfer[0]);
+	usbd_transfer_start(ne->ne_xfer[0]);
 	NDISUSB_UNLOCK(sc);
 
 	return (USBD_STATUS_SUCCESS);
@@ -800,8 +800,8 @@ usbd_irpcancel(dobj, ip)
 	 * cancelled and then restarted.
 	 */
 	NDISUSB_LOCK(sc);
-	usb2_transfer_stop(ne->ne_xfer[0]);
-	usb2_transfer_start(ne->ne_xfer[0]);
+	usbd_transfer_stop(ne->ne_xfer[0]);
+	usbd_transfer_start(ne->ne_xfer[0]);
 	NDISUSB_UNLOCK(sc);
 
 	ip->irp_cancel = TRUE;
@@ -873,7 +873,7 @@ usbd_non_isoc_callback(struct usb_xfer *xfer)
 
 		/* copy in data with regard to the URB */
 		if (ne->ne_dirin != 0)
-			usb2_copy_out(xfer->frbuffers, 0, nx->nx_urbbuf,
+			usbd_copy_out(xfer->frbuffers, 0, nx->nx_urbbuf,
 			    xfer->frlengths[0]);
 		nx->nx_urbbuf += xfer->frlengths[0];
 		nx->nx_urbactlen += xfer->frlengths[0];
@@ -929,10 +929,10 @@ next:
 extra:
 		len = MIN(xfer->max_data_length, nx->nx_urblen);
 		if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_OUT)
-			usb2_copy_in(xfer->frbuffers, 0, nx->nx_urbbuf, len);
+			usbd_copy_in(xfer->frbuffers, 0, nx->nx_urbbuf, len);
 		xfer->frlengths[0] = len;
 		xfer->nframes = 1;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 	default:
 		nx = usbd_aq_getfirst(sc, ne);
@@ -941,7 +941,7 @@ extra:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			xfer->flags.stall_pipe = 1;
 			device_printf(sc->ndis_dev, "usb xfer warning (%s)\n",
-			    usb2_errstr(xfer->error));
+			    usbd_errstr(xfer->error));
 		}
 		usbd_xfer_complete(sc, ne, nx, xfer->error);
 		if (xfer->error != USB_ERR_CANCELLED)
@@ -974,7 +974,7 @@ usbd_ctrl_callback(struct usb_xfer *xfer)
 		vcreq = &urb->uu_vcreq;
 
 		if (vcreq->uvc_trans_flags & USBD_TRANSFER_DIRECTION_IN) {
-			usb2_copy_out(xfer->frbuffers + 1, 0,
+			usbd_copy_out(xfer->frbuffers + 1, 0,
 			    vcreq->uvc_trans_buf, xfer->frlengths[1]);
 			nx->nx_urbactlen += xfer->frlengths[1];
 		}
@@ -1044,7 +1044,7 @@ next:
 		nx->nx_urblen		= vcreq->uvc_trans_buflen;
 		nx->nx_urbactlen	= 0;
 
-		usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+		usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
 		xfer->frlengths[0] = sizeof(req);
 		xfer->nframes = 1;
 		if (vcreq->uvc_trans_flags & USBD_TRANSFER_DIRECTION_IN) {
@@ -1066,13 +1066,13 @@ next:
 			 * the future if it needs to be.
 			 */
 			if (nx->nx_urblen > 0) {
-				usb2_copy_in(xfer->frbuffers + 1 , 0,
+				usbd_copy_in(xfer->frbuffers + 1 , 0,
 				    nx->nx_urbbuf, nx->nx_urblen);
 				xfer->frlengths[1] = nx->nx_urblen;
 				xfer->nframes = 2;
 			}
 		}
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 	default:
 		nx = usbd_aq_getfirst(sc, ne);
@@ -1081,7 +1081,7 @@ next:
 		if (xfer->error != USB_ERR_CANCELLED) {
 			xfer->flags.stall_pipe = 1;
 			device_printf(sc->ndis_dev, "usb xfer warning (%s)\n",
-			    usb2_errstr(xfer->error));
+			    usbd_errstr(xfer->error));
 		}
 		usbd_xfer_complete(sc, ne, nx, xfer->error);
 		if (xfer->error != USB_ERR_CANCELLED)
@@ -1244,7 +1244,7 @@ usbd_task(dobj, arg)
 			ne = usbd_get_ndisep(ip, urb->uu_bulkintr.ubi_epdesc);
 			if (ne == NULL)
 				goto exit;
-			usb2_transfer_start(ne->ne_xfer[0]);
+			usbd_transfer_start(ne->ne_xfer[0]);
 			break;
 		case NDISUSB_TASK_IRPCANCEL:
 			ne = usbd_get_ndisep(ip,
@@ -1254,14 +1254,14 @@ usbd_task(dobj, arg)
 			if (ne == NULL)
 				goto exit;
 			
-			usb2_transfer_stop(ne->ne_xfer[0]);
-			usb2_transfer_start(ne->ne_xfer[0]);
+			usbd_transfer_stop(ne->ne_xfer[0]);
+			usbd_transfer_start(ne->ne_xfer[0]);
 			break;
 		case NDISUSB_TASK_VENDOR:
 			ne = (urb->uu_vcreq.uvc_trans_flags &
 			    USBD_TRANSFER_DIRECTION_IN) ?
 			    &sc->ndisusb_dread_ep : &sc->ndisusb_dwrite_ep;
-			usb2_transfer_start(ne->ne_xfer[0]);
+			usbd_transfer_start(ne->ne_xfer[0]);
 			break;
 		default:
 			break;
@@ -1437,7 +1437,7 @@ USBD_ParseConfigurationDescriptorEx(conf, start, intfnum,
 	struct usb_descriptor *next = NULL;
 	usb_interface_descriptor_t *desc;
 
-	while ((next = usb2_desc_foreach(conf, next)) != NULL) {
+	while ((next = usb_desc_foreach(conf, next)) != NULL) {
 		desc = (usb_interface_descriptor_t *)next;
 		if (desc->bDescriptorType != UDESC_INTERFACE)
 			continue;

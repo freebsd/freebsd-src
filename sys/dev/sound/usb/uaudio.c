@@ -547,7 +547,7 @@ uaudio_probe(device_t dev)
 
 	if ((uaa->info.bInterfaceClass == UICLASS_AUDIO) &&
 	    (uaa->info.bInterfaceSubClass == UISUBCLASS_AUDIOCONTROL)) {
-		if (usb2_test_quirk(uaa, UQ_BAD_AUDIO))
+		if (usb_test_quirk(uaa, UQ_BAD_AUDIO))
 			return (ENXIO);
 		else
 			return (0);
@@ -567,23 +567,23 @@ uaudio_attach(device_t dev)
 	sc->sc_rec_chan.priv_sc = sc;
 	sc->sc_udev = uaa->device;
 
-	if (usb2_test_quirk(uaa, UQ_AUDIO_SWAP_LR))
+	if (usb_test_quirk(uaa, UQ_AUDIO_SWAP_LR))
 		sc->sc_uq_audio_swap_lr = 1;
 
-	if (usb2_test_quirk(uaa, UQ_AU_INP_ASYNC))
+	if (usb_test_quirk(uaa, UQ_AU_INP_ASYNC))
 		sc->sc_uq_au_inp_async = 1;
 
-	if (usb2_test_quirk(uaa, UQ_AU_NO_XU))
+	if (usb_test_quirk(uaa, UQ_AU_NO_XU))
 		sc->sc_uq_au_no_xu = 1;
 
-	if (usb2_test_quirk(uaa, UQ_BAD_ADC))
+	if (usb_test_quirk(uaa, UQ_BAD_ADC))
 		sc->sc_uq_bad_adc = 1;
 
 	umidi_init(dev);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
-	id = usb2_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(uaa->iface);
 
 	uaudio_chan_fill_info(sc, uaa->device);
 
@@ -728,7 +728,7 @@ repeat:
 
 	if (error) {
 		device_printf(dev, "Waiting for sound application to exit!\n");
-		usb2_pause_mtx(NULL, 2 * hz);
+		usb_pause_mtx(NULL, 2 * hz);
 		goto repeat;		/* try again */
 	}
 	return (0);			/* success */
@@ -783,7 +783,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 	const struct usb2_audio_streaming_endpoint_descriptor *sed = NULL;
 	const usb2_endpoint_descriptor_audio_t *ed1 = NULL;
 	const usb2_endpoint_descriptor_audio_t *ed2 = NULL;
-	struct usb_config_descriptor *cd = usb2_get_config_descriptor(udev);
+	struct usb_config_descriptor *cd = usbd_get_config_descriptor(udev);
 	struct usb_interface_descriptor *id;
 	const struct uaudio_format *p_fmt;
 	struct uaudio_chan *chan;
@@ -800,7 +800,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 	uint8_t audio_if = 0;
 	uint8_t sample_size;
 
-	while ((desc = usb2_desc_foreach(cd, desc))) {
+	while ((desc = usb_desc_foreach(cd, desc))) {
 
 		if ((desc->bDescriptorType == UDESC_INTERFACE) &&
 		    (desc->bLength >= sizeof(*id))) {
@@ -832,7 +832,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 				 */
 
 				if ((sc->sc_midi_chan.valid == 0) &&
-				    usb2_get_iface(udev, curidx)) {
+				    usbd_get_iface(udev, curidx)) {
 					sc->sc_midi_chan.iface_index = curidx;
 					sc->sc_midi_chan.iface_alt_index = alt_index;
 					sc->sc_midi_chan.valid = 1;
@@ -994,7 +994,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 				    &sc->sc_rec_chan :
 				    &sc->sc_play_chan;
 
-				if ((chan->valid == 0) && usb2_get_iface(udev, curidx)) {
+				if ((chan->valid == 0) && usbd_get_iface(udev, curidx)) {
 
 					chan->valid = 1;
 #if USB_DEBUG
@@ -1061,7 +1061,7 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 {
 	uint32_t rate = uaudio_default_rate;
 	uint32_t z;
-	uint16_t fps = usb2_get_isoc_fps(udev);
+	uint16_t fps = usbd_get_isoc_fps(udev);
 	uint8_t bits = uaudio_default_bits;
 	uint8_t y;
 	uint8_t channels = uaudio_default_channels;
@@ -1172,7 +1172,7 @@ tr_transferred:
 			if (n > total) {
 				n = total;
 			}
-			usb2_copy_in(xfer->frbuffers, offset, ch->cur, n);
+			usbd_copy_in(xfer->frbuffers, offset, ch->cur, n);
 
 			total -= n;
 			ch->cur += n;
@@ -1183,7 +1183,7 @@ tr_transferred:
 			}
 		}
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
@@ -1249,7 +1249,7 @@ tr_transferred:
 				if (m > p_len[n]) {
 					m = p_len[n];
 				}
-				usb2_copy_out(xfer->frbuffers, offset1, ch->cur, m);
+				usbd_copy_out(xfer->frbuffers, offset1, ch->cur, m);
 
 				p_len[n] -= m;
 				offset1 += m;
@@ -1282,7 +1282,7 @@ tr_transferred:
 			DPRINTF("no buffer!\n");
 			return;
 		}
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -1361,13 +1361,13 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 	DPRINTF("endpoint=0x%02x, speed=%d, iface=%d alt=%d\n",
 	    endpoint, ch->sample_rate, iface_index, alt_index);
 
-	err = usb2_set_alt_interface_index(sc->sc_udev, iface_index, alt_index);
+	err = usbd_set_alt_interface_index(sc->sc_udev, iface_index, alt_index);
 	if (err) {
 		DPRINTF("setting of alternate index failed: %s!\n",
-		    usb2_errstr(err));
+		    usbd_errstr(err));
 		goto error;
 	}
-	usb2_set_parent_iface(sc->sc_udev, iface_index, sc->sc_mixer_iface_index);
+	usbd_set_parent_iface(sc->sc_udev, iface_index, sc->sc_mixer_iface_index);
 
 	/*
 	 * If just one sampling rate is supported,
@@ -1383,7 +1383,7 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 			DPRINTF("setting of sample rate failed! (continuing anyway)\n");
 		}
 	}
-	if (usb2_transfer_setup(sc->sc_udev, &iface_index, ch->xfer,
+	if (usbd_transfer_setup(sc->sc_udev, &iface_index, ch->xfer,
 	    ch->usb2_cfg, UAUDIO_NCHANBUFS, ch, ch->pcm_mtx)) {
 		DPRINTF("could not allocate USB transfers!\n");
 		goto error;
@@ -1402,7 +1402,7 @@ uaudio_chan_free(struct uaudio_chan *ch)
 		free(ch->buf, M_DEVBUF);
 		ch->buf = NULL;
 	}
-	usb2_transfer_unsetup(ch->xfer, UAUDIO_NCHANBUFS);
+	usbd_transfer_unsetup(ch->xfer, UAUDIO_NCHANBUFS);
 
 	ch->valid = 0;
 
@@ -1521,10 +1521,10 @@ uaudio_chan_start(struct uaudio_chan *ch)
 #error "please update code"
 #endif
 	if (ch->xfer[0]) {
-		usb2_transfer_start(ch->xfer[0]);
+		usbd_transfer_start(ch->xfer[0]);
 	}
 	if (ch->xfer[1]) {
-		usb2_transfer_start(ch->xfer[1]);
+		usbd_transfer_start(ch->xfer[1]);
 	}
 	return (0);
 }
@@ -1535,8 +1535,8 @@ uaudio_chan_stop(struct uaudio_chan *ch)
 #if (UAUDIO_NCHANBUFS != 2)
 #error "please update code"
 #endif
-	usb2_transfer_stop(ch->xfer[0]);
-	usb2_transfer_stop(ch->xfer[1]);
+	usbd_transfer_stop(ch->xfer[0]);
+	usbd_transfer_stop(ch->xfer[1]);
 	return (0);
 }
 
@@ -2677,7 +2677,7 @@ uaudio_mixer_fill_info(struct uaudio_softc *sc, struct usb_device *udev,
     void *desc)
 {
 	const struct usb2_audio_control_descriptor *acdp;
-	struct usb_config_descriptor *cd = usb2_get_config_descriptor(udev);
+	struct usb_config_descriptor *cd = usbd_get_config_descriptor(udev);
 	const struct usb_descriptor *dp;
 	const struct usb2_audio_unit *au;
 	struct uaudio_terminal_node *iot = NULL;
@@ -2685,7 +2685,7 @@ uaudio_mixer_fill_info(struct uaudio_softc *sc, struct usb_device *udev,
 	uint8_t ID_max = 0;		/* inclusive */
 	uint8_t i;
 
-	desc = usb2_desc_foreach(cd, desc);
+	desc = usb_desc_foreach(cd, desc);
 
 	if (desc == NULL) {
 		DPRINTF("no Audio Control header\n");
@@ -2724,7 +2724,7 @@ uaudio_mixer_fill_info(struct uaudio_softc *sc, struct usb_device *udev,
 		DPRINTF("no memory!\n");
 		goto done;
 	}
-	while ((desc = usb2_desc_foreach(cd, desc))) {
+	while ((desc = usb_desc_foreach(cd, desc))) {
 
 		dp = desc;
 
@@ -2939,9 +2939,9 @@ uaudio_mixer_get(struct usb_device *udev, uint8_t what,
 	USETW(req.wIndex, mc->wIndex);
 	USETW(req.wLength, len);
 
-	err = usb2_do_request(udev, &Giant, &req, data);
+	err = usbd_do_request(udev, &Giant, &req, data);
 	if (err) {
-		DPRINTF("err=%s\n", usb2_errstr(err));
+		DPRINTF("err=%s\n", usbd_errstr(err));
 		return (0);
 	}
 	if (len < 1) {
@@ -3011,13 +3011,13 @@ tr_setup:
 					if (len > 1) {
 						buf[1] = (mc->wData[chan] >> 8) & 0xFF;
 					}
-					usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-					usb2_copy_in(xfer->frbuffers + 1, 0, buf, len);
+					usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+					usbd_copy_in(xfer->frbuffers + 1, 0, buf, len);
 
 					xfer->frlengths[0] = sizeof(req);
 					xfer->frlengths[1] = len;
 					xfer->nframes = xfer->frlengths[1] ? 2 : 1;
-					usb2_start_hardware(xfer);
+					usbd_transfer_submit(xfer);
 					return;
 				}
 			}
@@ -3033,7 +3033,7 @@ tr_setup:
 		break;
 
 	default:			/* Error */
-		DPRINTF("error=%s\n", usb2_errstr(xfer->error));
+		DPRINTF("error=%s\n", usbd_errstr(xfer->error));
 		if (xfer->error == USB_ERR_CANCELLED) {
 			/* do nothing - we are detaching */
 			break;
@@ -3059,7 +3059,7 @@ uaudio_set_speed(struct usb_device *udev, uint8_t endpt, uint32_t speed)
 	data[1] = speed >> 8;
 	data[2] = speed >> 16;
 
-	return (usb2_do_request(udev, &Giant, &req, data));
+	return (usbd_do_request(udev, &Giant, &req, data));
 }
 
 static int
@@ -3105,7 +3105,7 @@ uaudio_mixer_ctl_set(struct uaudio_softc *sc, struct uaudio_mixer_node *mc,
 
 	/* start the transfer, if not already started */
 
-	usb2_transfer_start(sc->sc_mixer_xfer[0]);
+	usbd_transfer_start(sc->sc_mixer_xfer[0]);
 }
 
 static void
@@ -3142,7 +3142,7 @@ uaudio_mixer_init_sub(struct uaudio_softc *sc, struct snd_mixer *m)
 {
 	DPRINTF("\n");
 
-	if (usb2_transfer_setup(sc->sc_udev, &sc->sc_mixer_iface_index,
+	if (usbd_transfer_setup(sc->sc_udev, &sc->sc_mixer_iface_index,
 	    sc->sc_mixer_xfer, uaudio_mixer_config, 1, sc,
 	    mixer_get_lock(m))) {
 		DPRINTFN(0, "could not allocate USB "
@@ -3163,7 +3163,7 @@ uaudio_mixer_uninit_sub(struct uaudio_softc *sc)
 {
 	DPRINTF("\n");
 
-	usb2_transfer_unsetup(sc->sc_mixer_xfer, 1);
+	usbd_transfer_unsetup(sc->sc_mixer_xfer, 1);
 
 	return (0);
 }
@@ -3242,10 +3242,10 @@ umidi_read_clear_stall_callback(struct usb_xfer *xfer)
 	struct umidi_chan *chan = xfer->priv_sc;
 	struct usb_xfer *xfer_other = chan->xfer[1];
 
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
+	if (usbd_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		chan->flags &= ~UMIDI_FLAG_READ_STALL;
-		usb2_transfer_start(xfer_other);
+		usbd_transfer_start(xfer_other);
 	}
 }
 
@@ -3272,14 +3272,14 @@ umidi_bulk_read_callback(struct usb_xfer *xfer)
 
 		while (xfer->actlen >= 4) {
 
-			usb2_copy_out(xfer->frbuffers, pos, buf, 1);
+			usbd_copy_out(xfer->frbuffers, pos, buf, 1);
 
 			cmd_len = umidi_cmd_to_len[buf[0] & 0xF];	/* command length */
 			cn = buf[0] >> 4;	/* cable number */
 			sub = &chan->sub[cn];
 
 			if (cmd_len && (cn < chan->max_cable) && sub->read_open) {
-				usb2_fifo_put_data(sub->fifo.fp[USB_FIFO_RX], xfer->frbuffers,
+				usb_fifo_put_data(sub->fifo.fp[USB_FIFO_RX], xfer->frbuffers,
 				    pos + 1, cmd_len, 1);
 			} else {
 				/* ignore the command */
@@ -3293,22 +3293,22 @@ umidi_bulk_read_callback(struct usb_xfer *xfer)
 		DPRINTF("start\n");
 
 		if (chan->flags & UMIDI_FLAG_READ_STALL) {
-			usb2_transfer_start(chan->xfer[3]);
+			usbd_transfer_start(chan->xfer[3]);
 			return;
 		}
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:
 tr_error:
 
-		DPRINTF("error=%s\n", usb2_errstr(xfer->error));
+		DPRINTF("error=%s\n", usbd_errstr(xfer->error));
 
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			chan->flags |= UMIDI_FLAG_READ_STALL;
-			usb2_transfer_start(chan->xfer[3]);
+			usbd_transfer_start(chan->xfer[3]);
 		}
 		return;
 
@@ -3321,10 +3321,10 @@ umidi_write_clear_stall_callback(struct usb_xfer *xfer)
 	struct umidi_chan *chan = xfer->priv_sc;
 	struct usb_xfer *xfer_other = chan->xfer[0];
 
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
+	if (usbd_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		chan->flags &= ~UMIDI_FLAG_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
+		usbd_transfer_start(xfer_other);
 	}
 }
 
@@ -3481,7 +3481,7 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 		DPRINTF("start\n");
 
 		if (chan->flags & UMIDI_FLAG_WRITE_STALL) {
-			usb2_transfer_start(chan->xfer[2]);
+			usbd_transfer_start(chan->xfer[2]);
 			return;
 		}
 		total_length = 0;	/* reset */
@@ -3497,7 +3497,7 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 			sub = &chan->sub[chan->curr_cable];
 
 			if (sub->write_open) {
-				usb2_fifo_get_data(sub->fifo.fp[USB_FIFO_TX],
+				usb_fifo_get_data(sub->fifo.fp[USB_FIFO_TX],
 				    xfer->frbuffers, total_length,
 				    1, &actlen, 0);
 			} else {
@@ -3505,7 +3505,7 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 			}
 
 			if (actlen) {
-				usb2_copy_out(xfer->frbuffers, total_length, &buf, 1);
+				usbd_copy_out(xfer->frbuffers, total_length, &buf, 1);
 
 				tr_any = 1;
 
@@ -3517,7 +3517,7 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 					    sub->temp_cmd[0], sub->temp_cmd[1],
 					    sub->temp_cmd[2], sub->temp_cmd[3]);
 
-					usb2_copy_in(xfer->frbuffers, total_length,
+					usbd_copy_in(xfer->frbuffers, total_length,
 					    sub->temp_cmd, 4);
 
 					total_length += 4;
@@ -3543,18 +3543,18 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 
 		if (total_length) {
 			xfer->frlengths[0] = total_length;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
 
-		DPRINTF("error=%s\n", usb2_errstr(xfer->error));
+		DPRINTF("error=%s\n", usbd_errstr(xfer->error));
 
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			chan->flags |= UMIDI_FLAG_WRITE_STALL;
-			usb2_transfer_start(chan->xfer[2]);
+			usbd_transfer_start(chan->xfer[2]);
 		}
 		return;
 
@@ -3587,7 +3587,7 @@ umidi_start_read(struct usb_fifo *fifo)
 {
 	struct umidi_chan *chan = fifo->priv_sc0;
 
-	usb2_transfer_start(chan->xfer[1]);
+	usbd_transfer_start(chan->xfer[1]);
 }
 
 static void
@@ -3614,7 +3614,7 @@ umidi_start_write(struct usb_fifo *fifo)
 {
 	struct umidi_chan *chan = fifo->priv_sc0;
 
-	usb2_transfer_start(chan->xfer[0]);
+	usbd_transfer_start(chan->xfer[0]);
 }
 
 static void
@@ -3629,8 +3629,8 @@ umidi_stop_write(struct usb_fifo *fifo)
 
 	if (--(chan->write_open_refcount) == 0) {
 		DPRINTF("(stopping write transfer)\n");
-		usb2_transfer_stop(chan->xfer[2]);
-		usb2_transfer_stop(chan->xfer[0]);
+		usbd_transfer_stop(chan->xfer[2]);
+		usbd_transfer_stop(chan->xfer[0]);
 	}
 }
 
@@ -3641,7 +3641,7 @@ umidi_open(struct usb_fifo *fifo, int fflags)
 	struct umidi_sub_chan *sub = umidi_sub_by_fifo(fifo);
 
 	if (fflags & FREAD) {
-		if (usb2_fifo_alloc_buffer(fifo, 4, (1024 / 4))) {
+		if (usb_fifo_alloc_buffer(fifo, 4, (1024 / 4))) {
 			return (ENOMEM);
 		}
 		mtx_lock(fifo->priv_mtx);
@@ -3650,7 +3650,7 @@ umidi_open(struct usb_fifo *fifo, int fflags)
 		mtx_unlock(fifo->priv_mtx);
 	}
 	if (fflags & FWRITE) {
-		if (usb2_fifo_alloc_buffer(fifo, 32, (1024 / 32))) {
+		if (usb_fifo_alloc_buffer(fifo, 32, (1024 / 32))) {
 			return (ENOMEM);
 		}
 		/* clear stall first */
@@ -3670,10 +3670,10 @@ static void
 umidi_close(struct usb_fifo *fifo, int fflags)
 {
 	if (fflags & FREAD) {
-		usb2_fifo_free_buffer(fifo);
+		usb_fifo_free_buffer(fifo);
 	}
 	if (fflags & FWRITE) {
-		usb2_fifo_free_buffer(fifo);
+		usb_fifo_free_buffer(fifo);
 	}
 }
 
@@ -3716,18 +3716,18 @@ umidi_probe(device_t dev)
 	int error;
 	uint32_t n;
 
-	if (usb2_set_alt_interface_index(sc->sc_udev, chan->iface_index,
+	if (usbd_set_alt_interface_index(sc->sc_udev, chan->iface_index,
 	    chan->iface_alt_index)) {
 		DPRINTF("setting of alternate index failed!\n");
 		goto detach;
 	}
-	usb2_set_parent_iface(sc->sc_udev, chan->iface_index, sc->sc_mixer_iface_index);
+	usbd_set_parent_iface(sc->sc_udev, chan->iface_index, sc->sc_mixer_iface_index);
 
-	error = usb2_transfer_setup(uaa->device, &chan->iface_index,
+	error = usbd_transfer_setup(uaa->device, &chan->iface_index,
 	    chan->xfer, umidi_config, UMIDI_N_TRANSFER,
 	    chan, &chan->mtx);
 	if (error) {
-		DPRINTF("error=%s\n", usb2_errstr(error));
+		DPRINTF("error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
 	if ((chan->max_cable > UMIDI_CABLES_MAX) ||
@@ -3739,7 +3739,7 @@ umidi_probe(device_t dev)
 
 		sub = &chan->sub[n];
 
-		error = usb2_fifo_attach(sc->sc_udev, chan, &chan->mtx,
+		error = usb_fifo_attach(sc->sc_udev, chan, &chan->mtx,
 		    &umidi_fifo_methods, &sub->fifo, unit, n,
 		    chan->iface_index,
 		    UID_ROOT, GID_OPERATOR, 0644);
@@ -3757,7 +3757,7 @@ umidi_probe(device_t dev)
 	 * NOTE: at least one device will not work properly unless
 	 * the BULK pipe is open all the time.
 	 */
-	usb2_transfer_start(chan->xfer[1]);
+	usbd_transfer_start(chan->xfer[1]);
 
 	mtx_unlock(&chan->mtx);
 
@@ -3775,17 +3775,17 @@ umidi_detach(device_t dev)
 	uint32_t n;
 
 	for (n = 0; n < UMIDI_CABLES_MAX; n++) {
-		usb2_fifo_detach(&chan->sub[n].fifo);
+		usb_fifo_detach(&chan->sub[n].fifo);
 	}
 
 	mtx_lock(&chan->mtx);
 
-	usb2_transfer_stop(chan->xfer[3]);
-	usb2_transfer_stop(chan->xfer[1]);
+	usbd_transfer_stop(chan->xfer[3]);
+	usbd_transfer_stop(chan->xfer[1]);
 
 	mtx_unlock(&chan->mtx);
 
-	usb2_transfer_unsetup(chan->xfer, UMIDI_N_TRANSFER);
+	usbd_transfer_unsetup(chan->xfer, UMIDI_N_TRANSFER);
 
 	mtx_destroy(&chan->mtx);
 

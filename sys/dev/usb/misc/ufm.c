@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_error.h>
 #include <dev/usb/ufm_ioctl.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
@@ -137,9 +137,9 @@ ufm_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "ufm lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
-	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
+	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ufm_fifo_methods, &sc->sc_fifo,
 	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
@@ -158,7 +158,7 @@ ufm_detach(device_t dev)
 {
 	struct ufm_softc *sc = device_get_softc(dev);
 
-	usb2_fifo_detach(&sc->sc_fifo);
+	usb_fifo_detach(&sc->sc_fifo);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -189,7 +189,7 @@ ufm_do_req(struct ufm_softc *sc, uint8_t request,
 	USETW(req.wIndex, index);
 	USETW(req.wLength, 1);
 
-	error = usb2_do_request(sc->sc_udev, NULL, &req, buf);
+	error = usbd_do_request(sc->sc_udev, NULL, &req, buf);
 
 	if (retbuf) {
 		*retbuf = buf[0];
@@ -284,7 +284,7 @@ ufm_get_stat(struct ufm_softc *sc, void *addr)
 	 * Note, there's a 240ms settle time before the status
 	 * will be valid, so sleep that amount.
 	 */
-	usb2_pause_mtx(NULL, hz / 4);
+	usb_pause_mtx(NULL, hz / 4);
 
 	if (ufm_do_req(sc, UFM_CMD0,
 	    0x00, 0x24, &ret)) {

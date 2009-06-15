@@ -159,7 +159,7 @@ uhid_intr_callback(struct usb_xfer *xfer)
 		DPRINTF("transferred!\n");
 
 		if (xfer->actlen >= sc->sc_isize) {
-			usb2_fifo_put_data(
+			usb_fifo_put_data(
 			    sc->sc_fifo.fp[USB_FIFO_RX],
 			    xfer->frbuffers,
 			    0, sc->sc_isize, 1);
@@ -171,10 +171,10 @@ uhid_intr_callback(struct usb_xfer *xfer)
 
 	case USB_ST_SETUP:
 re_submit:
-		if (usb2_fifo_put_bytes_max(
+		if (usb_fifo_put_bytes_max(
 		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
 			xfer->frlengths[0] = sc->sc_isize;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -227,14 +227,14 @@ uhid_write_callback(struct usb_xfer *xfer)
 		/* try to extract the ID byte */
 		if (sc->sc_oid) {
 
-			if (usb2_fifo_get_data(
+			if (usb_fifo_get_data(
 			    sc->sc_fifo.fp[USB_FIFO_TX],
 			    xfer->frbuffers,
 			    0, 1, &actlen, 0)) {
 				if (actlen != 1) {
 					goto tr_error;
 				}
-				usb2_copy_out(xfer->frbuffers, 0, &id, 1);
+				usbd_copy_out(xfer->frbuffers, 0, &id, 1);
 
 			} else {
 				return;
@@ -246,7 +246,7 @@ uhid_write_callback(struct usb_xfer *xfer)
 			id = 0;
 		}
 
-		if (usb2_fifo_get_data(
+		if (usb_fifo_get_data(
 		    sc->sc_fifo.fp[USB_FIFO_TX],
 		    xfer->frbuffers + 1,
 		    0, UHID_BSIZE, &actlen, 1)) {
@@ -257,19 +257,19 @@ uhid_write_callback(struct usb_xfer *xfer)
 			    (&req, sc->sc_iface_no,
 			    UHID_OUTPUT_REPORT, id, size);
 
-			usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
 
 			xfer->frlengths[0] = sizeof(req);
 			xfer->frlengths[1] = size;
 			xfer->nframes = xfer->frlengths[1] ? 2 : 1;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:
 tr_error:
 		/* bomb out */
-		usb2_fifo_get_data_error(sc->sc_fifo.fp[USB_FIFO_TX]);
+		usb_fifo_get_data_error(sc->sc_fifo.fp[USB_FIFO_TX]);
 		return;
 	}
 }
@@ -282,30 +282,30 @@ uhid_read_callback(struct usb_xfer *xfer)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_fifo_put_data(sc->sc_fifo.fp[USB_FIFO_RX], xfer->frbuffers,
+		usb_fifo_put_data(sc->sc_fifo.fp[USB_FIFO_RX], xfer->frbuffers,
 		    sizeof(req), sc->sc_isize, 1);
 		return;
 
 	case USB_ST_SETUP:
 
-		if (usb2_fifo_put_bytes_max(sc->sc_fifo.fp[USB_FIFO_RX]) > 0) {
+		if (usb_fifo_put_bytes_max(sc->sc_fifo.fp[USB_FIFO_RX]) > 0) {
 
 			uhid_fill_get_report
 			    (&req, sc->sc_iface_no, UHID_INPUT_REPORT,
 			    sc->sc_iid, sc->sc_isize);
 
-			usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
 
 			xfer->frlengths[0] = sizeof(req);
 			xfer->frlengths[1] = sc->sc_isize;
 			xfer->nframes = xfer->frlengths[1] ? 2 : 1;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
 		/* bomb out */
-		usb2_fifo_put_data_error(sc->sc_fifo.fp[USB_FIFO_RX]);
+		usb_fifo_put_data_error(sc->sc_fifo.fp[USB_FIFO_RX]);
 		return;
 	}
 }
@@ -346,9 +346,9 @@ uhid_start_read(struct usb_fifo *fifo)
 	struct uhid_softc *sc = fifo->priv_sc0;
 
 	if (sc->sc_flags & UHID_FLAG_IMMED) {
-		usb2_transfer_start(sc->sc_xfer[UHID_CTRL_DT_RD]);
+		usbd_transfer_start(sc->sc_xfer[UHID_CTRL_DT_RD]);
 	} else {
-		usb2_transfer_start(sc->sc_xfer[UHID_INTR_DT_RD]);
+		usbd_transfer_start(sc->sc_xfer[UHID_INTR_DT_RD]);
 	}
 }
 
@@ -357,8 +357,8 @@ uhid_stop_read(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_RD]);
-	usb2_transfer_stop(sc->sc_xfer[UHID_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UHID_INTR_DT_RD]);
 }
 
 static void
@@ -366,7 +366,7 @@ uhid_start_write(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
 }
 
 static void
@@ -374,7 +374,7 @@ uhid_stop_write(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_WR]);
 }
 
 static int
@@ -393,7 +393,7 @@ uhid_get_report(struct uhid_softc *sc, uint8_t type,
 		}
 		free_data = 1;
 	}
-	err = usb2_req_get_report(sc->sc_udev, NULL, kern_data,
+	err = usbd_req_get_report(sc->sc_udev, NULL, kern_data,
 	    len, sc->sc_iface_index, type, id);
 	if (err) {
 		err = ENXIO;
@@ -433,7 +433,7 @@ uhid_set_report(struct uhid_softc *sc, uint8_t type,
 			goto done;
 		}
 	}
-	err = usb2_req_set_report(sc->sc_udev, NULL, kern_data,
+	err = usbd_req_set_report(sc->sc_udev, NULL, kern_data,
 	    len, sc->sc_iface_index, type, id);
 	if (err) {
 		err = ENXIO;
@@ -459,13 +459,13 @@ uhid_open(struct usb_fifo *fifo, int fflags)
 		/* reset flags */
 		sc->sc_flags &= ~UHID_FLAG_IMMED;
 
-		if (usb2_fifo_alloc_buffer(fifo,
+		if (usb_fifo_alloc_buffer(fifo,
 		    sc->sc_isize + 1, UHID_FRAME_NUM)) {
 			return (ENOMEM);
 		}
 	}
 	if (fflags & FWRITE) {
-		if (usb2_fifo_alloc_buffer(fifo,
+		if (usb_fifo_alloc_buffer(fifo,
 		    sc->sc_osize + 1, UHID_FRAME_NUM)) {
 			return (ENOMEM);
 		}
@@ -477,7 +477,7 @@ static void
 uhid_close(struct usb_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE)) {
-		usb2_fifo_free_buffer(fifo);
+		usb_fifo_free_buffer(fifo);
 	}
 }
 
@@ -616,7 +616,7 @@ uhid_probe(device_t dev)
 			return (ENXIO);
 		}
 	}
-	if (usb2_test_quirk(uaa, UQ_HID_IGNORE)) {
+	if (usb_test_quirk(uaa, UQ_HID_IGNORE)) {
 		return (ENXIO);
 	}
 	return (0);
@@ -632,7 +632,7 @@ uhid_attach(device_t dev)
 
 	DPRINTFN(10, "sc=%p\n", sc);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "uhid lock", NULL, MTX_DEF | MTX_RECURSE);
 
@@ -641,12 +641,12 @@ uhid_attach(device_t dev)
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index = uaa->info.bIfaceIndex;
 
-	error = usb2_transfer_setup(uaa->device,
+	error = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, uhid_config,
 	    UHID_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
-		DPRINTF("error=%s\n", usb2_errstr(error));
+		DPRINTF("error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
 	if (uaa->info.idVendor == USB_VENDOR_WACOM) {
@@ -668,13 +668,13 @@ uhid_attach(device_t dev)
 			 * feature report ID 2 before it'll start
 			 * returning digitizer data.
 			 */
-			error = usb2_req_set_report(uaa->device, NULL,
+			error = usbd_req_set_report(uaa->device, NULL,
 			    reportbuf, sizeof(reportbuf),
 			    uaa->info.bIfaceIndex, UHID_FEATURE_REPORT, 2);
 
 			if (error) {
 				DPRINTF("set report failed, error=%s (ignored)\n",
-				    usb2_errstr(error));
+				    usbd_errstr(error));
 			}
 			sc->sc_repdesc_size = sizeof(uhid_graphire3_4x5_report_descr);
 			sc->sc_repdesc_ptr = USB_ADD_BYTES(uhid_graphire3_4x5_report_descr, 0);
@@ -691,7 +691,7 @@ uhid_attach(device_t dev)
 	}
 	if (sc->sc_repdesc_ptr == NULL) {
 
-		error = usb2_req_get_hid_desc(uaa->device, NULL,
+		error = usbd_req_get_hid_desc(uaa->device, NULL,
 		    &sc->sc_repdesc_ptr, &sc->sc_repdesc_size,
 		    M_USBDEV, uaa->info.bIfaceIndex);
 
@@ -700,12 +700,12 @@ uhid_attach(device_t dev)
 			goto detach;
 		}
 	}
-	error = usb2_req_set_idle(uaa->device, NULL,
+	error = usbd_req_set_idle(uaa->device, NULL,
 	    uaa->info.bIfaceIndex, 0, 0);
 
 	if (error) {
 		DPRINTF("set idle failed, error=%s (ignored)\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 	sc->sc_isize = hid_report_size
 	    (sc->sc_repdesc_ptr, sc->sc_repdesc_size, hid_input, &sc->sc_iid);
@@ -735,7 +735,7 @@ uhid_attach(device_t dev)
 		sc->sc_fsize = UHID_BSIZE;
 	}
 
-	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
+	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &uhid_fifo_methods, &sc->sc_fifo,
 	    unit, 0 - 1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
@@ -754,9 +754,9 @@ uhid_detach(device_t dev)
 {
 	struct uhid_softc *sc = device_get_softc(dev);
 
-	usb2_fifo_detach(&sc->sc_fifo);
+	usb_fifo_detach(&sc->sc_fifo);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UHID_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_xfer, UHID_N_TRANSFER);
 
 	if (sc->sc_repdesc_ptr) {
 		if (!(sc->sc_flags & UHID_FLAG_STATIC_DESC)) {

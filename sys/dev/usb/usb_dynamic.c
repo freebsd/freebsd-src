@@ -34,72 +34,72 @@
 #include <dev/usb/usb_dynamic.h>
 
 /* function prototypes */
-static usb_handle_req_t usb2_temp_get_desc_w;
-static usb2_temp_setup_by_index_t usb2_temp_setup_by_index_w;
-static usb2_temp_unsetup_t usb2_temp_unsetup_w;
-static usb2_test_quirk_t usb2_test_quirk_w;
-static usb2_test_huawei_autoinst_t usb2_test_huawei_autoinst_w;
-static usb2_quirk_ioctl_t usb2_quirk_ioctl_w;
+static usb_handle_req_t usb_temp_get_desc_w;
+static usb_temp_setup_by_index_t usb_temp_setup_by_index_w;
+static usb_temp_unsetup_t usb_temp_unsetup_w;
+static usb_test_quirk_t usb_test_quirk_w;
+static usb_test_huawei_autoinst_t usb_test_huawei_autoinst_w;
+static usb_quirk_ioctl_t usb_quirk_ioctl_w;
 
 /* global variables */
-usb_handle_req_t *usb2_temp_get_desc_p = &usb2_temp_get_desc_w;
-usb2_temp_setup_by_index_t *usb2_temp_setup_by_index_p = &usb2_temp_setup_by_index_w;
-usb2_temp_unsetup_t *usb2_temp_unsetup_p = &usb2_temp_unsetup_w;
-usb2_test_quirk_t *usb2_test_quirk_p = &usb2_test_quirk_w;
-usb2_test_huawei_autoinst_t *usb2_test_huawei_autoinst_p = &usb2_test_huawei_autoinst_w;
-usb2_quirk_ioctl_t *usb2_quirk_ioctl_p = &usb2_quirk_ioctl_w;
-devclass_t usb2_devclass_ptr = NULL;
+usb_handle_req_t *usb_temp_get_desc_p = &usb_temp_get_desc_w;
+usb_temp_setup_by_index_t *usb_temp_setup_by_index_p = &usb_temp_setup_by_index_w;
+usb_temp_unsetup_t *usb_temp_unsetup_p = &usb_temp_unsetup_w;
+usb_test_quirk_t *usb_test_quirk_p = &usb_test_quirk_w;
+usb_test_huawei_autoinst_t *usb_test_huawei_autoinst_p = &usb_test_huawei_autoinst_w;
+usb_quirk_ioctl_t *usb_quirk_ioctl_p = &usb_quirk_ioctl_w;
+devclass_t usb_devclass_ptr = NULL;
 
 static usb_error_t
-usb2_temp_setup_by_index_w(struct usb_device *udev, uint16_t index)
+usb_temp_setup_by_index_w(struct usb_device *udev, uint16_t index)
 {
 	return (USB_ERR_INVAL);
 }
 
 static uint8_t
-usb2_test_quirk_w(const struct usb_lookup_info *info, uint16_t quirk)
+usb_test_quirk_w(const struct usbd_lookup_info *info, uint16_t quirk)
 {
 	return (0);			/* no match */
 }
 
 static int
-usb2_quirk_ioctl_w(unsigned long cmd, caddr_t data, int fflag, struct thread *td)
+usb_quirk_ioctl_w(unsigned long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	return (ENOIOCTL);
 }
 
 static usb_error_t
-usb2_temp_get_desc_w(struct usb_device *udev, struct usb_device_request *req, const void **pPtr, uint16_t *pLength)
+usb_temp_get_desc_w(struct usb_device *udev, struct usb_device_request *req, const void **pPtr, uint16_t *pLength)
 {
 	/* stall */
 	return (USB_ERR_STALLED);
 }
 
 static void
-usb2_temp_unsetup_w(struct usb_device *udev)
+usb_temp_unsetup_w(struct usb_device *udev)
 {
-	if (udev->usb2_template_ptr) {
+	if (udev->usb_template_ptr) {
 
-		free(udev->usb2_template_ptr, M_USB);
+		free(udev->usb_template_ptr, M_USB);
 
-		udev->usb2_template_ptr = NULL;
+		udev->usb_template_ptr = NULL;
 	}
 }
 
 static uint8_t
-usb2_test_huawei_autoinst_w(struct usb_device *udev,
+usb_test_huawei_autoinst_w(struct usb_device *udev,
     struct usb_attach_arg *uaa)
 {
 	return (USB_ERR_INVAL);
 }
 
 void
-usb2_quirk_unload(void *arg)
+usb_quirk_unload(void *arg)
 {
 	/* reset function pointers */
 
-	usb2_test_quirk_p = &usb2_test_quirk_w;
-	usb2_quirk_ioctl_p = &usb2_quirk_ioctl_w;
+	usb_test_quirk_p = &usb_test_quirk_w;
+	usb_quirk_ioctl_p = &usb_quirk_ioctl_w;
 
 	/* wait for CPU to exit the loaded functions, if any */
 
@@ -109,13 +109,13 @@ usb2_quirk_unload(void *arg)
 }
 
 void
-usb2_temp_unload(void *arg)
+usb_temp_unload(void *arg)
 {
 	/* reset function pointers */
 
-	usb2_temp_get_desc_p = &usb2_temp_get_desc_w;
-	usb2_temp_setup_by_index_p = &usb2_temp_setup_by_index_w;
-	usb2_temp_unsetup_p = &usb2_temp_unsetup_w;
+	usb_temp_get_desc_p = &usb_temp_get_desc_w;
+	usb_temp_setup_by_index_p = &usb_temp_setup_by_index_w;
+	usb_temp_unsetup_p = &usb_temp_unsetup_w;
 
 	/* wait for CPU to exit the loaded functions, if any */
 
@@ -125,11 +125,11 @@ usb2_temp_unload(void *arg)
 }
 
 void
-usb2_bus_unload(void *arg)
+usb_bus_unload(void *arg)
 {
 	/* reset function pointers */
 
-	usb2_devclass_ptr = NULL;
+	usb_devclass_ptr = NULL;
 
 	/* wait for CPU to exit the loaded functions, if any */
 
@@ -139,11 +139,11 @@ usb2_bus_unload(void *arg)
 }
 
 void
-usb2_test_huawei_unload(void *arg)
+usb_test_huawei_unload(void *arg)
 {
 	/* reset function pointers */
 
-	usb2_test_huawei_autoinst_p = &usb2_test_huawei_autoinst_w;
+	usb_test_huawei_autoinst_p = &usb_test_huawei_autoinst_w;
 
 	/* wait for CPU to exit the loaded functions, if any */
 

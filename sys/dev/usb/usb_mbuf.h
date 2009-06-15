@@ -34,8 +34,8 @@
 struct usb_mbuf {
 	uint8_t *cur_data_ptr;
 	uint8_t *min_data_ptr;
-	struct usb_mbuf *usb2_nextpkt;
-	struct usb_mbuf *usb2_next;
+	struct usb_mbuf *usb_nextpkt;
+	struct usb_mbuf *usb_next;
 
 	usb_size_t cur_data_len;
 	usb_size_t max_data_len;
@@ -56,11 +56,11 @@ struct usb_ifqueue {
 };
 
 #define	USB_IF_ENQUEUE(ifq, m) do {		\
-    (m)->usb2_nextpkt = NULL;			\
+    (m)->usb_nextpkt = NULL;			\
     if ((ifq)->ifq_tail == NULL)		\
         (ifq)->ifq_head = (m);			\
     else					\
-        (ifq)->ifq_tail->usb2_nextpkt = (m);	\
+        (ifq)->ifq_tail->usb_nextpkt = (m);	\
     (ifq)->ifq_tail = (m);			\
     (ifq)->ifq_len++;				\
   } while (0)
@@ -68,16 +68,16 @@ struct usb_ifqueue {
 #define	USB_IF_DEQUEUE(ifq, m) do {				\
     (m) = (ifq)->ifq_head;					\
     if (m) {							\
-        if (((ifq)->ifq_head = (m)->usb2_nextpkt) == NULL) {	\
+        if (((ifq)->ifq_head = (m)->usb_nextpkt) == NULL) {	\
 	     (ifq)->ifq_tail = NULL;				\
 	}							\
-	(m)->usb2_nextpkt = NULL;				\
+	(m)->usb_nextpkt = NULL;				\
 	(ifq)->ifq_len--;					\
     }								\
   } while (0)
 
 #define	USB_IF_PREPEND(ifq, m) do {		\
-      (m)->usb2_nextpkt = (ifq)->ifq_head;	\
+      (m)->usb_nextpkt = (ifq)->ifq_head;	\
       if ((ifq)->ifq_tail == NULL) {		\
 	  (ifq)->ifq_tail = (m);		\
       }						\
@@ -96,7 +96,7 @@ struct usb_ifqueue {
   } while (0)
 
 /* prototypes */
-void   *usb2_alloc_mbufs(struct malloc_type *type, struct usb_ifqueue *ifq,
+void   *usb_alloc_mbufs(struct malloc_type *type, struct usb_ifqueue *ifq,
 	    usb_size_t block_size, uint16_t nblocks);
 
 #endif					/* _USB2_MBUF_H_ */
