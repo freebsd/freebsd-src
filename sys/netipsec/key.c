@@ -2363,14 +2363,17 @@ key_spddump(so, m, mhp)
 
 	/* search SPD entry and get buffer size. */
 	cnt = 0;
+	SPTREE_LOCK();
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
 		LIST_FOREACH(sp, &sptree[dir], chain) {
 			cnt++;
 		}
 	}
 
-	if (cnt == 0)
+	if (cnt == 0) {
+		SPTREE_UNLOCK();
 		return key_senderror(so, m, ENOENT);
+	}
 
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
 		LIST_FOREACH(sp, &sptree[dir], chain) {
@@ -2383,6 +2386,7 @@ key_spddump(so, m, mhp)
 		}
 	}
 
+	SPTREE_UNLOCK();
 	m_freem(m);
 	return 0;
 }
