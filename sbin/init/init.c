@@ -1563,30 +1563,13 @@ runshutdown(void)
 	shell = get_shell();
 
 	if ((pid = fork()) == 0) {
-		int	fd;
-
-		/* Assume that init already grab console as ctty before */
-
 		sigemptyset(&sa.sa_mask);
 		sa.sa_flags = 0;
 		sa.sa_handler = SIG_IGN;
 		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 		sigaction(SIGHUP, &sa, (struct sigaction *)0);
 
-		revoke(_PATH_CONSOLE);
-		if ((fd = open(_PATH_CONSOLE, O_RDWR)) == -1)
-			warning("can't open %s: %m", _PATH_CONSOLE);
-		else {
-			dup2(fd, 0);
-			dup2(fd, 1);
-			dup2(fd, 2);
-			if (fd > 2)
-				close(fd);
-		}
-
-		/*
-		 * Run the shutdown script.
-		 */
+		setctty(_PATH_CONSOLE);
 
 		char _sh[]	= "sh";
 		char _reboot[]	= "reboot";
