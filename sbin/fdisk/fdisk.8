@@ -372,6 +372,31 @@ starting at sector
 for
 .Ar length
 sectors.
+If the
+.Ar start
+or
+.Ar length
+is suffixed with a
+.Em K ,
+.Em M
+or
+.Em G ,
+it is taken as a
+.Em Kilobyte ,
+.Em Megabyte
+or
+.Em Gigabyte
+measurement respectively.
+If the
+.Ar start
+is given as
+.Qq *
+it is set to the value of the previous partition end.
+If the
+.Ar length
+is given as
+.Qq *
+the partition end is set to the end of the disk.
 .Pp
 Only those slices explicitly mentioned by these lines are modified;
 any slice not referenced by a
@@ -421,6 +446,17 @@ for 2503871 sectors (note: these numbers will be rounded upwards and
 downwards to correspond to head and cylinder boundaries):
 .Pp
 .Dl "p       1       165     1       2503871"
+.Pp
+Example: to set slices 1, 2 and 4 to
+.Fx
+slices, the first being 2 Gigabytes, the second being 10 Gigabytes and the
+forth being the remainder of the disk (again, numbers will be rounded
+appropriately):
+.Pp
+.Dl "p       1       165     63      2G"
+.Dl "p       2       165     *       10G"
+.Dl "p       3       0       0       0"
+.Dl "p       4       165     *       *"
 .It Ic a Ar slice
 Make
 .Ar slice
