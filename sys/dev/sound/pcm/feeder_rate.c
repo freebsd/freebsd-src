@@ -789,13 +789,11 @@ z_resampler_sinc_len(struct z_info *info)
     defined(Z_COEFF_INTER_BSPLINE) || defined(Z_COEFF_INTERP_OPT32X) ||		\
     defined(Z_COEFF_INTERP_OPT16X) || defined(Z_COEFF_INTERP_OPT8X) ||		\
     defined(Z_COEFF_INTERP_OPT4X) || defined(Z_COEFF_INTERP_OPT2X))
-#if Z_DRIFT_SHIFT >= 8
+#if Z_DRIFT_SHIFT >= 12
 #define Z_COEFF_INTERP_LINEAR		1
-#elif Z_DRIFT_SHIFT == 7
+#elif Z_DRIFT_SHIFT >= 8
 #define Z_COEFF_INTERP_QUADRATIC	1
-#elif Z_DRIFT_SHIFT == 6
-#define Z_COEFF_INTERP_HERMITE		1
-#elif Z_DRIFT_SHIFT == 5
+#elif Z_DRIFT_SHIFT >= 5
 #define Z_COEFF_INTERP_OPT32X		1
 #elif Z_DRIFT_SHIFT == 4
 #define Z_COEFF_INTERP_OPT16X		1
