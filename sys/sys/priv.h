@@ -325,6 +325,7 @@
 #define	PRIV_NET_DELIFADDR	414	/* Delete protocol addr on interface. */
 #define	PRIV_NET_LAGG		415	/* Administer lagg interface. */
 #define	PRIV_NET_GIF		416	/* Administer gif interface. */
+#define	PRIV_NET_SETIFVNET	417	/* Move interface to vnet. */
 
 /*
  * 802.11-related privileges.

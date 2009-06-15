@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
@@ -96,7 +97,6 @@ struct mtx vnet_list_refc_mtx;
 int vnet_list_refc = 0;
 
 static u_int last_vi_id = 0;
-static u_int last_vnet_id = 0;
 static u_int last_vprocg_id = 0;
 
 struct vnet *vnet0;
@@ -105,68 +105,89 @@ struct vnet *vnet0;
 #ifdef VIMAGE
 
 /*
- * Interim userspace interface - will be replaced by jail soon.
- */
-
-/*
- * Move an ifnet to another vnet.  The ifnet can be specified either
- * by ifp argument, or by name contained in vi_req->vi_if_xname if NULL is
- * passed as ifp.  The target vnet can be specified either by vnet
- * argument or by name. If vnet name equals to ".." or vi_req is set to
- * NULL the interface is moved to the parent vnet.
+ * Move an ifnet to or from another vnet, specified by the jail id.  If a
+ * vi_req is passed in, it is used to find the interface and a vimage
+ * containing the vnet (a vimage name of ".." stands for the parent vnet).
  */
 int
-vi_if_move(struct vi_req *vi_req, struct ifnet *ifp, struct vimage *vip)
+vi_if_move(struct thread *td, struct ifnet *ifp, char *ifname, int jid,
+    struct vi_req *vi_req)
 {
-	struct vimage *new_vip;
-	struct vnet *new_vnet = NULL;
+	struct ifnet *t_ifp;
+	struct prison *pr;
+	struct vimage *new_vip, *my_vip;
+	struct vnet *new_vnet;
 
-	/* Check for API / ABI version mismatch. */
-	if (vi_req != NULL && vi_req->vi_api_cookie != VI_API_COOKIE)
-		return (EDOOFUS);
+	if (vi_req != NULL) {
+		/* SIOCSIFVIMAGE */
+		/* Check for API / ABI version mismatch. */
+		if (vi_req->vi_api_cookie != VI_API_COOKIE)
+			return (EDOOFUS);
 
-	/* Find the target vnet. */
-	if (vi_req == NULL || strcmp(vi_req->vi_name, "..") == 0) {
-		if (IS_DEFAULT_VIMAGE(vip))
+		/* Find the target vnet. */
+		my_vip = TD_TO_VIMAGE(td);
+		if (strcmp(vi_req->vi_name, "..") == 0) {
+			if (IS_DEFAULT_VIMAGE(my_vip))
+				return (ENXIO);
+			new_vnet = my_vip->vi_parent->v_net;
+		} else {
+			new_vip = vimage_by_name(my_vip, vi_req->vi_name);
+			if (new_vip == NULL)
+				return (ENXIO);
+			new_vnet = new_vip->v_net;
+		}
+
+		/* Try to find the target ifnet by name. */
+		ifname = vi_req->vi_if_xname;
+		ifp = ifunit(ifname);
+		if (ifp == NULL)
 			return (ENXIO);
-		new_vnet = vip->vi_parent->v_net;
 	} else {
-		new_vip = vimage_by_name(vip, vi_req->vi_name);
-		if (new_vip == NULL)
+		sx_slock(&allprison_lock);
+		pr = prison_find_child(td->td_ucred->cr_prison, jid);
+		sx_sunlock(&allprison_lock);
+		if (pr == NULL)
 			return (ENXIO);
-		new_vnet = new_vip->v_net;
+		mtx_unlock(&pr->pr_mtx);
+		if (ifp != NULL) {
+			/* SIOCSIFVNET */
+			new_vnet = pr->pr_vnet;
+		} else {
+			/* SIOCSIFRVNET */
+			new_vnet = TD_TO_VNET(td);
+			CURVNET_SET(pr->pr_vnet);
+			ifp = ifunit(ifname);
+			CURVNET_RESTORE();
+			if (ifp == NULL)
+				return (ENXIO);
+		}
+
+		/* No-op if the target jail has the same vnet. */
+		if (new_vnet == ifp->if_vnet)
+			return (0);
 	}
-
-	/* Try to find the target ifnet by name. */
-	if (ifp == NULL)
-		ifp = ifunit(vi_req->vi_if_xname);
-
-	if (ifp == NULL)
-		return (ENXIO);
 
 	/*
 	 * Check for naming clashes in target vnet.  Not locked so races
 	 * are possible.
 	 */
-	if (vi_req != NULL) {
-		struct ifnet *t_ifp;
-
-		CURVNET_SET_QUIET(new_vnet);
-		t_ifp = ifunit(vi_req->vi_if_xname);
-		CURVNET_RESTORE();
-		if (t_ifp != NULL)
-			return (EEXIST);
-	}
+	CURVNET_SET_QUIET(new_vnet);
+	t_ifp = ifunit(ifname);
+	CURVNET_RESTORE();
+	if (t_ifp != NULL)
+		return (EEXIST);
 
 	/* Detach from curvnet and attach to new_vnet. */
 	if_vmove(ifp, new_vnet);
 
 	/* Report the new if_xname back to the userland */
-	if (vi_req != NULL)
-		sprintf(vi_req->vi_if_xname, "%s", ifp->if_xname);
-
+	sprintf(ifname, "%s", ifp->if_xname);
 	return (0);
 }
+
+/*
+ * Interim userspace interface - will be replaced by jail soon.
+ */
 
 int
 vi_td_ioctl(u_long cmd, struct vi_req *vi_req, struct thread *td)
@@ -606,13 +627,66 @@ vi_symlookup(struct kld_sym_lookup *lookup, char *symstr)
 }
 
 #ifdef VIMAGE
+struct vnet *
+vnet_alloc(void)
+{
+	struct vnet *vnet;
+	struct vnet_modlink *vml;
+
+	vnet = malloc(sizeof(struct vnet), M_VNET, M_WAITOK | M_ZERO);
+	vnet->vnet_magic_n = VNET_MAGIC_N;
+
+	/* Initialize / attach vnet module instances. */
+	CURVNET_SET_QUIET(vnet);
+	TAILQ_FOREACH(vml, &vnet_modlink_head, vml_mod_le)
+		vnet_mod_constructor(vml);
+	CURVNET_RESTORE();
+
+	VNET_LIST_WLOCK();
+	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
+	VNET_LIST_WUNLOCK();
+
+	return (vnet);
+}
+
+void
+vnet_destroy(struct vnet *vnet)
+{
+	struct ifnet *ifp, *nifp;
+	struct vnet_modlink *vml;
+
+	KASSERT(vnet->sockcnt == 0, ("%s: vnet still has sockets", __func__));
+
+	VNET_LIST_WLOCK();
+	LIST_REMOVE(vnet, vnet_le);
+	VNET_LIST_WUNLOCK();
+
+	CURVNET_SET_QUIET(vnet);
+	INIT_VNET_NET(vnet);
+
+	/* Return all inherited interfaces to their parent vnets. */
+	TAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
+		if (ifp->if_home_vnet != ifp->if_vnet)
+			if_vmove(ifp, ifp->if_home_vnet);
+	}
+
+	/* Detach / free per-module state instances. */
+	TAILQ_FOREACH_REVERSE(vml, &vnet_modlink_head,
+			      vnet_modlink_head, vml_mod_le)
+		vnet_mod_destructor(vml);
+
+	CURVNET_RESTORE();
+
+	/* Hopefully, we are OK to free the vnet container itself. */
+	vnet->vnet_magic_n = 0xdeadbeef;
+	free(vnet, M_VNET);
+}
+
 static struct vimage *
 vi_alloc(struct vimage *parent, char *name)
 {
 	struct vimage *vip;
 	struct vprocg *vprocg;
-	struct vnet *vnet;
-	struct vnet_modlink *vml;
 
 	vip = malloc(sizeof(struct vimage), M_VIMAGE, M_NOWAIT | M_ZERO);
 	if (vip == NULL)
@@ -628,30 +702,13 @@ vi_alloc(struct vimage *parent, char *name)
 		panic("there can be only one default vimage!");
 	LIST_INSERT_HEAD(&vimage_head, vip, vi_le);
 
-	vnet = malloc(sizeof(struct vnet), M_VNET, M_NOWAIT | M_ZERO);
-	if (vnet == NULL)
-		panic("vi_alloc: malloc failed for vnet \"%s\"\n", name);
-	vip->v_net = vnet;
-	vnet->vnet_id = last_vnet_id++;
-	if (vnet->vnet_id == 0)
-		vnet0 = vnet;
-	vnet->vnet_magic_n = VNET_MAGIC_N;
+	vip->v_net = vnet_alloc();
 
 	vprocg = malloc(sizeof(struct vprocg), M_VPROCG, M_NOWAIT | M_ZERO);
 	if (vprocg == NULL)
 		panic("vi_alloc: malloc failed for vprocg \"%s\"\n", name);
 	vip->v_procg = vprocg;
 	vprocg->vprocg_id = last_vprocg_id++;
-
-	/* Initialize / attach vnet module instances. */
-	CURVNET_SET_QUIET(vnet);
-	TAILQ_FOREACH(vml, &vnet_modlink_head, vml_mod_le)
-		vnet_mod_constructor(vml);
-	CURVNET_RESTORE();
-
-	VNET_LIST_WLOCK();
-	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
-	VNET_LIST_WUNLOCK();
 
 	/* XXX locking */
 	LIST_INSERT_HEAD(&vprocg_head, vprocg, vprocg_le);
@@ -666,19 +723,13 @@ vi_alloc(struct vimage *parent, char *name)
 static int
 vi_destroy(struct vimage *vip)
 {
-	struct vnet *vnet = vip->v_net;
 	struct vprocg *vprocg = vip->v_procg;
-	struct ifnet *ifp, *nifp;
-	struct vnet_modlink *vml;
 
 	/* XXX Beware of races -> more locking to be done... */
 	if (!LIST_EMPTY(&vip->vi_child_head))
 		return (EBUSY);
 
 	if (vprocg->nprocs != 0)
-		return (EBUSY);
-
-	if (vnet->sockcnt != 0)
 		return (EBUSY);
 
 #ifdef INVARIANTS
@@ -688,33 +739,12 @@ vi_destroy(struct vimage *vip)
 #endif
 
 	/* Point with no return - cleanup MUST succeed! */
+	vnet_destroy(vip->v_net);
+
 	LIST_REMOVE(vip, vi_le);
 	LIST_REMOVE(vip, vi_sibling);
 	LIST_REMOVE(vprocg, vprocg_le);
 
-	VNET_LIST_WLOCK();
-	LIST_REMOVE(vnet, vnet_le);
-	VNET_LIST_WUNLOCK();
-
-	CURVNET_SET_QUIET(vnet);
-	INIT_VNET_NET(vnet);
-
-	/* Return all inherited interfaces to their parent vnets. */
-	TAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
-		if (ifp->if_home_vnet != ifp->if_vnet)
-			vi_if_move(NULL, ifp, vip);
-	}
-
-	/* Detach / free per-module state instances. */
-	TAILQ_FOREACH_REVERSE(vml, &vnet_modlink_head,
-			      vnet_modlink_head, vml_mod_le)
-		vnet_mod_destructor(vml);
-
-	CURVNET_RESTORE();
-
-	/* Hopefully, we are OK to free the vnet container itself. */
-	vnet->vnet_magic_n = 0xdeadbeef;
-	free(vnet, M_VNET);
 	free(vprocg, M_VPROCG);
 	free(vip, M_VIMAGE);
 
@@ -745,7 +775,7 @@ vi_init(void *unused)
 	 * otherwise CURVNET_SET() macros would scream about unnecessary
 	 * curvnet recursions.
 	 */
-	curvnet = LIST_FIRST(&vnet_head);
+	curvnet = prison0.pr_vnet = vnet0 = LIST_FIRST(&vnet_head);
 #endif
 }
 
