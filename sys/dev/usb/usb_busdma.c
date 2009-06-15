@@ -445,7 +445,7 @@ done:
 	if (isload) {
 		(uptag->func) (uptag);
 	} else {
-		usb2_cv_broadcast(uptag->cv);
+		cv_broadcast(uptag->cv);
 	}
 	if (!owned)
 		mtx_unlock(uptag->mtx);
@@ -531,7 +531,7 @@ usb2_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 	    pc, (BUS_DMA_WAITOK | BUS_DMA_COHERENT));
 
 	if (err == EINPROGRESS) {
-		usb2_cv_wait(uptag->cv, uptag->mtx);
+		cv_wait(uptag->cv, uptag->mtx);
 		err = 0;
 	}
 	mtx_unlock(uptag->mtx);
@@ -612,7 +612,7 @@ usb2_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 			    pc->tag, pc->map, pc->buffer, size,
 			    &usb2_pc_alloc_mem_cb, pc, BUS_DMA_WAITOK);
 			if (err == EINPROGRESS) {
-				usb2_cv_wait(uptag->cv, uptag->mtx);
+				cv_wait(uptag->cv, uptag->mtx);
 				err = 0;
 			}
 			if (err || uptag->dma_error) {
@@ -782,7 +782,7 @@ usb2_dma_tag_setup(struct usb_dma_parent_tag *udpt,
 		return;
 	}
 	/* initialise condition variable */
-	usb2_cv_init(udpt->cv, "USB DMA CV");
+	cv_init(udpt->cv, "USB DMA CV");
 
 	/* store some information */
 	udpt->mtx = mtx;
@@ -823,7 +823,7 @@ usb2_dma_tag_unsetup(struct usb_dma_parent_tag *udpt)
 
 	if (udpt->utag_max) {
 		/* destroy the condition variable */
-		usb2_cv_destroy(udpt->cv);
+		cv_destroy(udpt->cv);
 	}
 }
 

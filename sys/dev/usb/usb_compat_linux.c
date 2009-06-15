@@ -556,7 +556,7 @@ usb_start_wait_urb(struct urb *urb, usb_timeout_t timeout, uint16_t *p_actlen)
 	 */
 	while (urb->transfer_flags & URB_WAIT_WAKEUP) {
 		urb->transfer_flags |= URB_IS_SLEEPING;
-		usb2_cv_wait(&urb->cv_wait, &Giant);
+		cv_wait(&urb->cv_wait, &Giant);
 		urb->transfer_flags &= ~URB_IS_SLEEPING;
 	}
 
@@ -943,7 +943,7 @@ usb_alloc_urb(uint16_t iso_packets, uint16_t mem_flags)
 	urb = malloc(size, M_USBDEV, M_WAITOK | M_ZERO);
 	if (urb) {
 
-		usb2_cv_init(&urb->cv_wait, "URBWAIT");
+		cv_init(&urb->cv_wait, "URBWAIT");
 		if (iso_packets == 0xFFFF) {
 			urb->setup_packet = (void *)(urb + 1);
 			urb->transfer_buffer = (void *)(urb->setup_packet +
@@ -1169,7 +1169,7 @@ usb_free_urb(struct urb *urb)
 	usb_kill_urb(urb);
 
 	/* destroy condition variable */
-	usb2_cv_destroy(&urb->cv_wait);
+	cv_destroy(&urb->cv_wait);
 
 	/* just free it */
 	free(urb, M_USBDEV);
@@ -1252,7 +1252,7 @@ static void
 usb_linux_wait_complete(struct urb *urb)
 {
 	if (urb->transfer_flags & URB_IS_SLEEPING) {
-		usb2_cv_signal(&urb->cv_wait);
+		cv_signal(&urb->cv_wait);
 	}
 	urb->transfer_flags &= ~URB_WAIT_WAKEUP;
 }

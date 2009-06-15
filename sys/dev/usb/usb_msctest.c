@@ -214,7 +214,7 @@ bbb_done(struct bbb_transfer *sc, uint8_t error)
 	sc->error = error;
 	sc->state = ST_COMMAND;
 	sc->status_try = 1;
-	usb2_cv_signal(&sc->cv);
+	cv_signal(&sc->cv);
 }
 
 static void
@@ -450,7 +450,7 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	usb2_transfer_start(sc->xfer[sc->state]);
 
 	while (usb2_transfer_pending(sc->xfer[sc->state])) {
-		usb2_cv_wait(&sc->cv, &sc->mtx);
+		cv_wait(&sc->cv, &sc->mtx);
 	}
 	return (sc->error);
 }
@@ -508,7 +508,7 @@ usb2_test_autoinstall(struct usb_device *udev, uint8_t iface_index,
 		return (USB_ERR_NOMEM);
 	}
 	mtx_init(&sc->mtx, "USB autoinstall", NULL, MTX_DEF);
-	usb2_cv_init(&sc->cv, "WBBB");
+	cv_init(&sc->cv, "WBBB");
 
 	err = usb2_transfer_setup(udev,
 	    &iface_index, sc->xfer, bbb_config,
@@ -568,7 +568,7 @@ done:
 	mtx_unlock(&sc->mtx);
 	usb2_transfer_unsetup(sc->xfer, ST_MAX);
 	mtx_destroy(&sc->mtx);
-	usb2_cv_destroy(&sc->cv);
+	cv_destroy(&sc->cv);
 	free(sc, M_USB);
 	return (err);
 }
