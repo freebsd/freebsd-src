@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_CORE_HID_H_
-#define	_USB2_CORE_HID_H_
+#ifndef _USB_CORE_HID_H_
+#define	_USB_CORE_HID_H_
 
 struct usb_hid_descriptor;
 struct usb_config_descriptor;
@@ -92,4 +92,4 @@ usb_error_t usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 	    void **descp, uint16_t *sizep, struct malloc_type *mem,
 	    uint8_t iface_index);
 
-#endif					/* _USB2_CORE_HID_H_ */
+#endif					/* _USB_CORE_HID_H_ */

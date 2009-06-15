@@ -28,8 +28,8 @@
  * Including this file is mandatory for all USB related c-files in the kernel.
  */
 
-#ifndef _USB2_CORE_H_
-#define	_USB2_CORE_H_
+#ifndef _USB_CORE_H_
+#define	_USB_CORE_H_
 
 #define	USB_STACK_VERSION 2000		/* 2.0 */
 
@@ -542,4 +542,4 @@ uint8_t	usbd_get_device_index(struct usb_device *udev);
 void	usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode);
 uint8_t	usbd_device_attached(struct usb_device *udev);
 
-#endif					/* _USB2_CORE_H_ */
+#endif					/* _USB_CORE_H_ */

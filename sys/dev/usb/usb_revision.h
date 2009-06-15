@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_REVISION_H_
-#define	_USB2_REVISION_H_
+#ifndef _USB_REVISION_H_
+#define	_USB_REVISION_H_
 
 /*
  * The "USB_SPEED" macros defines all the supported USB speeds.
@@ -74,4 +74,4 @@ enum usb_dev_state {
 	USB_STATE_CONFIGURED,
 };
 #define	USB_STATE_MAX	(USB_STATE_CONFIGURED+1)
-#endif					/* _USB2_REVISION_H_ */
+#endif					/* _USB_REVISION_H_ */

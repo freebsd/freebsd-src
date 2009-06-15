@@ -36,8 +36,8 @@
  * USB v3.0
  */
 
-#ifndef _USB2_STANDARD_H_
-#define	_USB2_STANDARD_H_
+#ifndef _USB_STANDARD_H_
+#define	_USB_STANDARD_H_
 
 #include <dev/usb/usb_endian.h>
 
@@ -642,4 +642,4 @@ struct usb_port_status {
 } __packed;
 typedef struct usb_port_status usb_port_status_t;
 
-#endif					/* _USB2_STANDARD_H_ */
+#endif					/* _USB_STANDARD_H_ */

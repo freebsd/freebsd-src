@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_ERROR_H_
-#define	_USB2_ERROR_H_
+#ifndef _USB_ERROR_H_
+#define	_USB_ERROR_H_
 
 enum {	/* keep in sync with usb_errstr_table */
 	USB_ERR_NORMAL_COMPLETION = 0,
@@ -60,4 +60,4 @@ enum {	/* keep in sync with usb_errstr_table */
 	USB_ERR_MAX
 };
 
-#endif					/* _USB2_ERROR_H_ */
+#endif					/* _USB_ERROR_H_ */

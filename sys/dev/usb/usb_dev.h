@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_DEV_H_
-#define	_USB2_DEV_H_
+#ifndef _USB_DEV_H_
+#define	_USB_DEV_H_
 
 #include <sys/file.h>
 #include <sys/vnode.h>
@@ -204,4 +204,4 @@ int	usb_read_symlink(uint8_t *user_ptr, uint32_t startentry,
 	    uint32_t user_len);
 void	usb_fifo_set_close_zlp(struct usb_fifo *, uint8_t);
 
-#endif					/* _USB2_DEV_H_ */
+#endif					/* _USB_DEV_H_ */
