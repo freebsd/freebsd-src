@@ -1977,7 +1977,7 @@ supersede:
 					len = ip->client->
 					    config->defaults[i].len +
 					    lease->options[i].len;
-					if (len > sizeof(dbuf)) {
+					if (len >= sizeof(dbuf)) {
 						warning("no space to %s %s",
 						    "prepend option",
 						    dhcp_options[i].name);
@@ -1996,24 +1996,34 @@ supersede:
 					dp[len] = '\0';
 					break;
 				case ACTION_APPEND:
+					/*
+					 * When we append, we assume that we're
+					 * appending to text.  Some MS servers
+					 * include a NUL byte at the end of
+					 * the search string provided.
+					 */
 					len = ip->client->
 					    config->defaults[i].len +
 					    lease->options[i].len;
-					if (len > sizeof(dbuf)) {
+					if (len >= sizeof(dbuf)) {
 						warning("no space to %s %s",
 						    "append option",
 						    dhcp_options[i].name);
 						goto supersede;
 					}
-					dp = dbuf;
-					memcpy(dp,
+					memcpy(dbuf,
 						lease->options[i].data,
 						lease->options[i].len);
-					memcpy(dp + lease->options[i].len,
+					for (dp = dbuf + lease->options[i].len;
+					    dp > dbuf; dp--, len--)
+						if (dp[-1] != '\0')
+							break;
+					memcpy(dp,
 						ip->client->
 						config->defaults[i].data,
 						ip->client->
 						config->defaults[i].len);
+					dp = dbuf;
 					dp[len] = '\0';
 				}
 			} else {
