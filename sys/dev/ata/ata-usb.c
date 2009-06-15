@@ -166,93 +166,93 @@ struct usb_config atausb2_config[ATAUSB_T_BBB_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb_device_request),
-		.mh.flags = {},
-		.mh.callback = &atausb2_t_bbb_reset1_callback,
-		.mh.timeout = 5000,	/* 5 seconds */
-		.mh.interval = 500,	/* 500 milliseconds */
+		.bufsize = sizeof(struct usb_device_request),
+		.flags = {},
+		.callback = &atausb2_t_bbb_reset1_callback,
+		.timeout = 5000,	/* 5 seconds */
+		.interval = 500,	/* 500 milliseconds */
 	},
 
 	[ATAUSB_T_BBB_RESET2] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb_device_request),
-		.mh.flags = {},
-		.mh.callback = &atausb2_t_bbb_reset2_callback,
-		.mh.timeout = 5000,	/* 5 seconds */
-		.mh.interval = 50,	/* 50 milliseconds */
+		.bufsize = sizeof(struct usb_device_request),
+		.flags = {},
+		.callback = &atausb2_t_bbb_reset2_callback,
+		.timeout = 5000,	/* 5 seconds */
+		.interval = 50,	/* 50 milliseconds */
 	},
 
 	[ATAUSB_T_BBB_RESET3] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb_device_request),
-		.mh.flags = {},
-		.mh.callback = &atausb2_t_bbb_reset3_callback,
-		.mh.timeout = 5000,	/* 5 seconds */
-		.mh.interval = 50,	/* 50 milliseconds */
+		.bufsize = sizeof(struct usb_device_request),
+		.flags = {},
+		.callback = &atausb2_t_bbb_reset3_callback,
+		.timeout = 5000,	/* 5 seconds */
+		.interval = 50,	/* 50 milliseconds */
 	},
 
 	[ATAUSB_T_BBB_COMMAND] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = sizeof(struct bbb_cbw),
-		.mh.flags = {},
-		.mh.callback = &atausb2_t_bbb_command_callback,
-		.mh.timeout = 5000,	/* 5 seconds */
+		.bufsize = sizeof(struct bbb_cbw),
+		.flags = {},
+		.callback = &atausb2_t_bbb_command_callback,
+		.timeout = 5000,	/* 5 seconds */
 	},
 
 	[ATAUSB_T_BBB_DATA_READ] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = ATAUSB_BULK_SIZE,
-		.mh.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
-		.mh.callback = &atausb2_t_bbb_data_read_callback,
-		.mh.timeout = 0,	/* overwritten later */
+		.bufsize = ATAUSB_BULK_SIZE,
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.callback = &atausb2_t_bbb_data_read_callback,
+		.timeout = 0,	/* overwritten later */
 	},
 
 	[ATAUSB_T_BBB_DATA_RD_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb_device_request),
-		.mh.flags = {},
-		.mh.callback = &atausb2_t_bbb_data_rd_cs_callback,
-		.mh.timeout = 5000,	/* 5 seconds */
+		.bufsize = sizeof(struct usb_device_request),
+		.flags = {},
+		.callback = &atausb2_t_bbb_data_rd_cs_callback,
+		.timeout = 5000,	/* 5 seconds */
 	},
 
 	[ATAUSB_T_BBB_DATA_WRITE] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = ATAUSB_BULK_SIZE,
-		.mh.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
-		.mh.callback = &atausb2_t_bbb_data_write_callback,
-		.mh.timeout = 0,	/* overwritten later */
+		.bufsize = ATAUSB_BULK_SIZE,
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.callback = &atausb2_t_bbb_data_write_callback,
+		.timeout = 0,	/* overwritten later */
 	},
 
 	[ATAUSB_T_BBB_DATA_WR_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb_device_request),
-		.mh.flags = {},
-		.mh.callback = &atausb2_t_bbb_data_wr_cs_callback,
-		.mh.timeout = 5000,	/* 5 seconds */
+		.bufsize = sizeof(struct usb_device_request),
+		.flags = {},
+		.callback = &atausb2_t_bbb_data_wr_cs_callback,
+		.timeout = 5000,	/* 5 seconds */
 	},
 
 	[ATAUSB_T_BBB_STATUS] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = sizeof(struct bbb_csw),
-		.mh.flags = {.short_xfer_ok = 1,},
-		.mh.callback = &atausb2_t_bbb_status_callback,
-		.mh.timeout = 5000,	/* ms */
+		.bufsize = sizeof(struct bbb_csw),
+		.flags = {.short_xfer_ok = 1,},
+		.callback = &atausb2_t_bbb_status_callback,
+		.timeout = 5000,	/* ms */
 	},
 };
 
