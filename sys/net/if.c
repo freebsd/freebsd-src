@@ -2127,6 +2127,15 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 		break;
 
+#ifdef VIMAGE
+	case SIOCSIFVNET:
+		error = priv_check(td, PRIV_NET_SETIFVNET);
+		if (error)
+			return (error);
+		error = vi_if_move(td, ifp, ifr->ifr_name, ifr->ifr_jid, NULL);
+		break;
+#endif
+
 	case SIOCSIFMETRIC:
 		error = priv_check(td, PRIV_NET_SETIFMETRIC);
 		if (error)
@@ -2313,14 +2322,19 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 	switch (cmd) {
 #ifdef VIMAGE
+	case SIOCSIFRVNET:
+		error = priv_check(td, PRIV_NET_SETIFVNET);
+		if (error)
+			return (error);
+		return (vi_if_move(td, NULL, ifr->ifr_name, ifr->ifr_jid,
+		    NULL));
 	/*
 	 * XXX vnet creation will be implemented through the new jail
 	 * framework - this is just a temporary hack for testing the
 	 * vnet create / destroy mechanisms.
 	 */
 	case SIOCSIFVIMAGE:
-		error = vi_if_move((struct vi_req *) data, NULL,
-		    TD_TO_VIMAGE(td));
+		error = vi_if_move(td, NULL, NULL, 0, (struct vi_req *) data);
 		return (error);
 	case SIOCSPVIMAGE:
 	case SIOCGPVIMAGE:

@@ -126,6 +126,9 @@ static char *pr_flag_names[] = {
 #ifdef INET6
 	[3] = "ip6",
 #endif
+#ifdef VIMAGE
+	[4] = "vnet",
+#endif
 };
 
 static char *pr_flag_nonames[] = {
@@ -136,6 +139,9 @@ static char *pr_flag_nonames[] = {
 #endif
 #ifdef INET6
 	[3] = "noip6",
+#endif
+#ifdef VIMAGE
+	[4] = "novnet",
 #endif
 };
 
@@ -561,6 +567,13 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		vfs_opterror(opts, "new jail must persist or attach");
 		goto done_errmsg;
 	}
+#ifdef VIMAGE
+	if ((flags & JAIL_UPDATE) && (ch_flags & PR_VNET)) {
+		error = EINVAL;
+		vfs_opterror(opts, "vnet cannot be changed after creation");
+		goto done_errmsg;
+	}
+#endif
 
 	pr_allow = ch_allow = 0;
 	for (fi = 0; fi < sizeof(pr_allow_names) / sizeof(pr_allow_names[0]);
@@ -1113,6 +1126,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		LIST_INIT(&pr->pr_children);
 		mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF | MTX_DUPOK);
 
+#ifdef VIMAGE
+		/* Allocate a new vnet if specified. */
+		pr->pr_vnet = (pr_flags & PR_VNET)
+		    ? vnet_alloc() : ppr->pr_vnet;
+#endif
 		/*
 		 * Allocate a dedicated cpuset for each jail.
 		 * Unlike other initial settings, this may return an erorr.
@@ -2410,6 +2428,10 @@ prison_deref(struct prison *pr, int flags)
 			tpr->pr_prisoncount--;
 		sx_downgrade(&allprison_lock);
 
+#ifdef VIMAGE
+		if (pr->pr_flags & PR_VNET)
+			vnet_destroy(pr->pr_vnet);
+#endif
 		if (pr->pr_root != NULL) {
 			vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 			vrele(pr->pr_root);
@@ -3849,6 +3871,10 @@ SYSCTL_JAIL_PARAM(, enforce_statfs, CTLTYPE_INT | CTLFLAG_RW,
     "I", "Jail cannot see all mounted file systems");
 SYSCTL_JAIL_PARAM(, persist, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail persistence");
+#ifdef VIMAGE
+SYSCTL_JAIL_PARAM(, vnet, CTLTYPE_INT | CTLFLAG_RDTUN,
+    "B", "Virtual network stack");
+#endif
 SYSCTL_JAIL_PARAM(, dying, CTLTYPE_INT | CTLFLAG_RD,
     "B", "Jail is in the process of shutting down");
 
@@ -3923,6 +3949,9 @@ db_show_prison(struct prison *pr)
 	db_printf(" path            = %s\n", pr->pr_path);
 	db_printf(" cpuset          = %d\n", pr->pr_cpuset
 	    ? pr->pr_cpuset->cs_id : -1);
+#ifdef VIMAGE
+	db_printf(" vnet            = %p\n", pr->pr_vnet);
+#endif
 	db_printf(" root            = %p\n", pr->pr_root);
 	db_printf(" securelevel     = %d\n", pr->pr_securelevel);
 	db_printf(" child           = %p\n", LIST_FIRST(&pr->pr_children));
