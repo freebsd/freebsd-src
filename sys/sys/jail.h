@@ -171,6 +171,7 @@ struct prison {
 	char		 pr_domainname[MAXHOSTNAMELEN];	/* (p) jail domainname */
 	char		 pr_hostuuid[HOSTUUIDLEN];	/* (p) jail hostuuid */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
+	struct vnet	*pr_vnet;			/* (c) network stack */
 };
 #endif /* _KERNEL || _WANT_PRISON */
 
@@ -180,6 +181,7 @@ struct prison {
 #define	PR_HOST		0x00000002	/* Virtualize hostname et al */
 #define	PR_IP4_USER	0x00000004	/* Virtualize IPv4 addresses */
 #define	PR_IP6_USER	0x00000008	/* Virtualize IPv6 addresses */
+#define	PR_VNET		0x00000010	/* Virtual network stack */
 
 /* Internal flag bits */
 #define	PR_REMOVE	0x01000000	/* In process of being removed */
