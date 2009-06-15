@@ -139,7 +139,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_CHOWN 1
 
 /* Define if you have the function `closefrom'. */
-/* #undef HAVE_CLOSEFROM */
+#define HAVE_CLOSEFROM
 
 /* Define to 1 if you have the <config.h> header file. */
 /* #undef HAVE_CONFIG_H */
