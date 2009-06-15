@@ -3529,9 +3529,10 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case READ_12:
 	case WRITE_12:
 	default:
-		printf("%s: Unsupported ATAPI command 0x%02x"
-			" - trying anyway\n",
-			device_get_nameunit(sc->sc_dev), cmd[0]);
+		if (bootverbose)
+			printf("%s: Unsupported ATAPI command 0x%02x"
+				" - trying anyway\n",
+				device_get_nameunit(sc->sc_dev), cmd[0]);
 		memcpy(*rcmd, cmd, cmdlen);
 		return 1;
 	}
