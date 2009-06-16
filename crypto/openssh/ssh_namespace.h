@@ -153,7 +153,6 @@
 #define ciphers_valid				ssh_ciphers_valid
 #define cleanhostname				ssh_cleanhostname
 #define cleanup_exit				ssh_cleanup_exit
-#define closefrom				ssh_closefrom
 #define colon					ssh_colon
 #define compat_cipher_proposal			ssh_compat_cipher_proposal
 #define compat_datafellows			ssh_compat_datafellows
