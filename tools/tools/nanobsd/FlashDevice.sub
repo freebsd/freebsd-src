@@ -70,7 +70,7 @@ sub_FlashDevice () {
 		;;
 	kodak)
 		# Source: mwlucas@FreeBSD.org
-		case $a2 iin
+		case $a2 in
 		64|64mb)
 			NANO_MEDIASIZE=`expr expr 64487424 / 512`
 			NANO_HEADS=4
