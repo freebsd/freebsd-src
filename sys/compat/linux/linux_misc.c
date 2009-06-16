@@ -716,7 +716,6 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	struct l_new_utsname utsname;
 	char osname[LINUX_MAX_UTSNAME];
 	char osrelease[LINUX_MAX_UTSNAME];
-	struct prison *pr;
 	char *p;
 
 #ifdef DEBUG
@@ -730,6 +729,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	bzero(&utsname, sizeof(utsname));
 	strlcpy(utsname.sysname, osname, LINUX_MAX_UTSNAME);
 	getcredhostname(td->td_ucred, utsname.nodename, LINUX_MAX_UTSNAME);
+	getcreddomainname(td->td_ucred, utsname.domainname, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.release, osrelease, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.version, version, LINUX_MAX_UTSNAME);
 	for (p = utsname.version; *p != '\0'; ++p)
@@ -738,11 +738,6 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 			break;
 		}
 	strlcpy(utsname.machine, linux_platform, LINUX_MAX_UTSNAME);
-
-	pr = td->td_ucred->cr_prison;
-	mtx_lock(&pr->pr_mtx);
-	strlcpy(utsname.domainname, pr->pr_domain, LINUX_MAX_UTSNAME);
-	mtx_unlock(&pr->pr_mtx);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }

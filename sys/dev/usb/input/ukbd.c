@@ -297,14 +297,14 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 
 	if (sc->sc_inputs == 0) {
 		/* start transfer, if not already started */
-		usb2_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
+		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 	}
 	if (sc->sc_flags & UKBD_FLAG_POLLING) {
 		DPRINTFN(2, "polling\n");
 
 		while (sc->sc_inputs == 0) {
 
-			usb2_do_poll(sc->sc_xfer, UKBD_N_TRANSFER);
+			usbd_do_poll(sc->sc_xfer, UKBD_N_TRANSFER);
 
 			DELAY(1000);	/* delay 1 ms */
 
@@ -454,7 +454,7 @@ ukbd_timeout(void *arg)
 	}
 	ukbd_interrupt(sc);
 
-	usb2_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
+	usb_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
 }
 
 static uint8_t
@@ -501,7 +501,7 @@ ukbd_intr_callback(struct usb_xfer *xfer)
 
 		if (sc->sc_kbd_id != 0) {
 			/* check and remove HID ID byte */
-			usb2_copy_out(xfer->frbuffers, 0, &id, 1);
+			usbd_copy_out(xfer->frbuffers, 0, &id, 1);
 			if (id != sc->sc_kbd_id) {
 				DPRINTF("wrong HID ID\n");
 				goto tr_setup;
@@ -518,7 +518,7 @@ ukbd_intr_callback(struct usb_xfer *xfer)
 
 		if (len) {
 			memset(&sc->sc_ndata, 0, sizeof(sc->sc_ndata));
-			usb2_copy_out(xfer->frbuffers, offset, 
+			usbd_copy_out(xfer->frbuffers, offset, 
 			    &sc->sc_ndata, len);
 
 			if ((sc->sc_flags & UKBD_FLAG_APPLE_EJECT) &&
@@ -568,14 +568,14 @@ ukbd_intr_callback(struct usb_xfer *xfer)
 tr_setup:
 		if (sc->sc_inputs < UKBD_IN_BUF_FULL) {
 			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		} else {
 			DPRINTF("input queue is full!\n");
 		}
 		break;
 
 	default:			/* Error */
-		DPRINTF("error=%s\n", usb2_errstr(xfer->error));
+		DPRINTF("error=%s\n", usbd_errstr(xfer->error));
 
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -617,18 +617,18 @@ ukbd_set_leds_callback(struct usb_xfer *xfer)
 				buf[1] = 0;
 			}
 
-			usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-			usb2_copy_in(xfer->frbuffers + 1, 0, buf, sizeof(buf));
+			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+			usbd_copy_in(xfer->frbuffers + 1, 0, buf, sizeof(buf));
 
 			xfer->frlengths[0] = sizeof(req);
 			xfer->frlengths[1] = req.wLength[0];
 			xfer->nframes = 2;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		DPRINTFN(0, "error=%s\n", usb2_errstr(xfer->error));
+		DPRINTFN(0, "error=%s\n", usbd_errstr(xfer->error));
 		return;
 	}
 }
@@ -659,6 +659,9 @@ ukbd_probe(device_t dev)
 {
 	keyboard_switch_t *sw = kbd_get_switch(UKBD_DRIVER_NAME);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	void *d_ptr;
+	int error;
+	uint16_t d_len;
 
 	DPRINTFN(11, "\n");
 
@@ -668,16 +671,35 @@ ukbd_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
-	/* check that the keyboard speaks the boot protocol: */
-	if ((uaa->info.bInterfaceClass == UICLASS_HID)
-	    && (uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT)
-	    && (uaa->info.bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)) {
-		if (usb2_test_quirk(uaa, UQ_KBD_IGNORE))
+
+	if (uaa->info.bInterfaceClass != UICLASS_HID)
+		return (ENXIO);
+
+	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
+	    (uaa->info.bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)) {
+		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			return (ENXIO);
 		else
 			return (0);
 	}
-	return (ENXIO);
+
+	error = usbd_req_get_hid_desc(uaa->device, NULL,
+	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
+
+	if (error)
+		return (ENXIO);
+
+	if (hid_is_collection(d_ptr, d_len,
+	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_KEYBOARD))) {
+		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
+			error = ENXIO;
+		else
+			error = 0;
+	} else
+		error = ENXIO;
+
+	free(d_ptr, M_TEMP);
+	return (error);
 }
 
 static int
@@ -699,7 +721,7 @@ ukbd_attach(device_t dev)
 
 	kbd->kb_data = (void *)sc;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	sc->sc_udev = uaa->device;
 	sc->sc_iface = uaa->iface;
@@ -707,14 +729,14 @@ ukbd_attach(device_t dev)
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_mode = K_XLATE;
 
-	usb2_callout_init_mtx(&sc->sc_callout, &Giant, 0);
+	usb_callout_init_mtx(&sc->sc_callout, &Giant, 0);
 
-	err = usb2_transfer_setup(uaa->device,
+	err = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ukbd_config,
 	    UKBD_N_TRANSFER, sc, &Giant);
 
 	if (err) {
-		DPRINTF("error=%s\n", usb2_errstr(err));
+		DPRINTF("error=%s\n", usbd_errstr(err));
 		goto detach;
 	}
 	/* setup default keyboard maps */
@@ -739,7 +761,7 @@ ukbd_attach(device_t dev)
 	KBD_PROBE_DONE(kbd);
 
 	/* figure out if there is an ID byte in the data */
-	err = usb2_req_get_hid_desc(uaa->device, NULL, &hid_ptr,
+	err = usbd_req_get_hid_desc(uaa->device, NULL, &hid_ptr,
 	    &hid_len, M_TEMP, uaa->info.bIfaceIndex);
 	if (err == 0) {
 		uint8_t temp_id;
@@ -779,7 +801,7 @@ ukbd_attach(device_t dev)
 	}
 
 	/* ignore if SETIDLE fails, hence it is not crucial */
-	err = usb2_req_set_idle(sc->sc_udev, &Giant, sc->sc_iface_index, 0, 0);
+	err = usbd_req_set_idle(sc->sc_udev, &Giant, sc->sc_iface_index, 0, 0);
 
 	ukbd_ioctl(kbd, KDSETLED, (caddr_t)&sc->sc_state);
 
@@ -808,7 +830,7 @@ ukbd_attach(device_t dev)
 
 	/* start the keyboard */
 
-	usb2_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
+	usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 
 	/* start the timer */
 
@@ -836,7 +858,7 @@ ukbd_detach(device_t dev)
 	}
 	sc->sc_flags |= UKBD_FLAG_GONE;
 
-	usb2_callout_stop(&sc->sc_callout);
+	usb_callout_stop(&sc->sc_callout);
 
 	ukbd_disable(&sc->sc_kbd);
 
@@ -860,9 +882,9 @@ ukbd_detach(device_t dev)
 	}
 	sc->sc_kbd.kb_flags = 0;
 
-	usb2_transfer_unsetup(sc->sc_xfer, UKBD_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_xfer, UKBD_N_TRANSFER);
 
-	usb2_callout_drain(&sc->sc_callout);
+	usb_callout_drain(&sc->sc_callout);
 
 	DPRINTF("%s: disconnected\n",
 	    device_get_nameunit(dev));
@@ -1470,7 +1492,7 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 
 	/* start transfer, if not already started */
 
-	usb2_transfer_start(sc->sc_xfer[UKBD_CTRL_LED]);
+	usbd_transfer_start(sc->sc_xfer[UKBD_CTRL_LED]);
 }
 
 static int
@@ -1540,7 +1562,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 
 #endif					/* UKBD_EMULATE_ATSCANCODE */
 
-keyboard_switch_t ukbdsw = {
+static keyboard_switch_t ukbdsw = {
 	.probe = &ukbd__probe,
 	.init = &ukbd_init,
 	.term = &ukbd_term,

@@ -137,7 +137,7 @@
 #define	UDAV_GPR_GEPIO1		(1<<1)	/* General purpose 1 */
 #define	UDAV_GPR_GEPIO0		(1<<0)	/* General purpose 0 */
 
-#define	GET_MII(sc)		usb2_ether_getmii(&(sc)->sc_ue)
+#define	GET_MII(sc)		uether_getmii(&(sc)->sc_ue)
 
 struct udav_rxpkt {
 	uint8_t	rxstat;

@@ -149,13 +149,8 @@ static int	mld_v2_process_group_query(struct in6_multi *,
 static int	sysctl_mld_gsr(SYSCTL_HANDLER_ARGS);
 static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
 
-#ifdef VIMAGE
 static vnet_attach_fn	vnet_mld_iattach;
 static vnet_detach_fn	vnet_mld_idetach;
-#else
-static int	vnet_mld_iattach(const void *);
-static int	vnet_mld_idetach(const void *);
-#endif /* VIMAGE */
 
 /*
  * Normative references: RFC 2710, RFC 3590, RFC 3810.
@@ -3296,9 +3291,7 @@ mld_modevent(module_t mod, int type, void *unused __unused)
 	break;
     case MOD_UNLOAD:
 #ifndef VIMAGE_GLOBALS
-#ifdef NOTYET
 	vnet_mod_deregister(&vnet_mld_modinfo);
-#endif
 #else
 	vnet_mld_idetach(NULL);
 #endif

@@ -230,20 +230,20 @@ static const struct usb_config umoscom_config_data[UMOSCOM_N_TRANSFER] = {
 
 static const struct ucom_callback umoscom_callback = {
 	/* configuration callbacks */
-	.usb2_com_cfg_get_status = &umoscom_cfg_get_status,
-	.usb2_com_cfg_set_dtr = &umoscom_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &umoscom_cfg_set_rts,
-	.usb2_com_cfg_set_break = &umoscom_cfg_set_break,
-	.usb2_com_cfg_param = &umoscom_cfg_param,
-	.usb2_com_cfg_open = &umoscom_cfg_open,
-	.usb2_com_cfg_close = &umoscom_cfg_close,
+	.ucom_cfg_get_status = &umoscom_cfg_get_status,
+	.ucom_cfg_set_dtr = &umoscom_cfg_set_dtr,
+	.ucom_cfg_set_rts = &umoscom_cfg_set_rts,
+	.ucom_cfg_set_break = &umoscom_cfg_set_break,
+	.ucom_cfg_param = &umoscom_cfg_param,
+	.ucom_cfg_open = &umoscom_cfg_open,
+	.ucom_cfg_close = &umoscom_cfg_close,
 
 	/* other callbacks */
-	.usb2_com_pre_param = &umoscom_pre_param,
-	.usb2_com_start_read = &umoscom_start_read,
-	.usb2_com_stop_read = &umoscom_stop_read,
-	.usb2_com_start_write = &umoscom_start_write,
-	.usb2_com_stop_write = &umoscom_stop_write,
+	.ucom_pre_param = &umoscom_pre_param,
+	.ucom_start_read = &umoscom_start_read,
+	.ucom_stop_read = &umoscom_stop_read,
+	.ucom_start_write = &umoscom_start_write,
+	.ucom_stop_write = &umoscom_stop_write,
 };
 
 static device_method_t umoscom_methods[] = {
@@ -283,7 +283,7 @@ umoscom_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UMOSCOM_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(umoscom_devs, sizeof(umoscom_devs), uaa));
+	return (usbd_lookup_id_by_uaa(umoscom_devs, sizeof(umoscom_devs), uaa));
 }
 
 static int
@@ -304,7 +304,7 @@ umoscom_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, "umoscom", NULL, MTX_DEF);
 
 	iface_index = UMOSCOM_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, umoscom_config_data,
 	    UMOSCOM_N_TRANSFER, sc, &sc->sc_mtx);
 
@@ -313,11 +313,11 @@ umoscom_attach(device_t dev)
 	}
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
+	usbd_transfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &umoscom_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
@@ -325,7 +325,7 @@ umoscom_attach(device_t dev)
 	return (0);
 
 detach:
-	device_printf(dev, "attach error: %s\n", usb2_errstr(error));
+	device_printf(dev, "attach error: %s\n", usbd_errstr(error));
 	umoscom_detach(dev);
 	return (ENXIO);
 }
@@ -335,8 +335,8 @@ umoscom_detach(device_t dev)
 {
 	struct umoscom_softc *sc = device_get_softc(dev);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-	usb2_transfer_unsetup(sc->sc_xfer, UMOSCOM_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UMOSCOM_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -517,7 +517,7 @@ umoscom_cfg_write(struct umoscom_softc *sc, uint16_t reg, uint16_t val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -533,7 +533,7 @@ umoscom_cfg_read(struct umoscom_softc *sc, uint16_t reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, &val, 0, 1000);
 
 	DPRINTF("reg=0x%04x, val=0x%02x\n", reg, val);
@@ -548,10 +548,10 @@ umoscom_start_read(struct ucom_softc *ucom)
 
 #if 0
 	/* start interrupt endpoint */
-	usb2_transfer_start(sc->sc_xfer[UMOSCOM_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UMOSCOM_INTR_DT_RD]);
 #endif
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
 }
 
 static void
@@ -560,10 +560,10 @@ umoscom_stop_read(struct ucom_softc *ucom)
 	struct umoscom_softc *sc = ucom->sc_parent;
 
 	/* stop interrupt transfer */
-	usb2_transfer_stop(sc->sc_xfer[UMOSCOM_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UMOSCOM_INTR_DT_RD]);
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
 }
 
 static void
@@ -571,7 +571,7 @@ umoscom_start_write(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
 }
 
 static void
@@ -579,7 +579,7 @@ umoscom_stop_write(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
 }
 
 static void
@@ -594,11 +594,11 @@ umoscom_write_callback(struct usb_xfer *xfer)
 tr_setup:
 		DPRINTF("\n");
 
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		if (ucom_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    UMOSCOM_BUFSIZE, &actlen)) {
 
 			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -621,14 +621,14 @@ umoscom_read_callback(struct usb_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTF("got %d bytes\n", xfer->actlen);
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
+		ucom_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
 		DPRINTF("\n");
 
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -653,12 +653,12 @@ umoscom_intr_callback(struct usb_xfer *xfer)
 			DPRINTF("too short message\n");
 			goto tr_setup;
 		}
-		usb2_com_status_change(&sc->sc_ucom);
+		ucom_status_change(&sc->sc_ucom);
 
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */

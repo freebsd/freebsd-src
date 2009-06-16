@@ -321,6 +321,23 @@ check:
 }
 
 /*
+ * Returns if we are certain we are at EOF. Does not cause any more input
+ * to be read from the outside world.
+ */
+
+int
+preadateof(void)
+{
+	if (parsenleft > 0)
+		return 0;
+	if (parsefile->strpush)
+		return 0;
+	if (parsenleft == EOF_NLEFT || parsefile->buf == NULL)
+		return 1;
+	return 0;
+}
+
+/*
  * Undo the last call to pgetc.  Only one character may be pushed back.
  * PEOF may be pushed back.
  */

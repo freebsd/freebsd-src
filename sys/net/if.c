@@ -554,6 +554,7 @@ if_alloc(u_char type)
 #ifdef MAC
 	mac_ifnet_init(ifp);
 #endif
+	ifq_init(&ifp->if_snd, ifp);
 
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
 	IFNET_WLOCK();
@@ -596,7 +597,7 @@ if_free_internal(struct ifnet *ifp)
 	knlist_destroy(&ifp->if_klist);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
-	ifq_detach(&ifp->if_snd);
+	ifq_delete(&ifp->if_snd);
 	free(ifp, M_IFNET);
 }
 
@@ -655,7 +656,7 @@ if_rele(struct ifnet *ifp)
 }
 
 void
-ifq_attach(struct ifaltq *ifq, struct ifnet *ifp)
+ifq_init(struct ifaltq *ifq, struct ifnet *ifp)
 {
 	
 	mtx_init(&ifq->ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
@@ -671,7 +672,7 @@ ifq_attach(struct ifaltq *ifq, struct ifnet *ifp)
 }
 
 void
-ifq_detach(struct ifaltq *ifq)
+ifq_delete(struct ifaltq *ifq)
 {
 	mtx_destroy(&ifq->ifq_mtx);
 }
@@ -741,8 +742,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 			make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
 			    net_cdevsw.d_name, ifp->if_index);
 		}
-
-		ifq_attach(&ifp->if_snd, ifp);
 
 		/*
 		 * Create a Link Level name for this device.
@@ -2127,6 +2126,15 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 		break;
 
+#ifdef VIMAGE
+	case SIOCSIFVNET:
+		error = priv_check(td, PRIV_NET_SETIFVNET);
+		if (error)
+			return (error);
+		error = vi_if_move(td, ifp, ifr->ifr_name, ifr->ifr_jid, NULL);
+		break;
+#endif
+
 	case SIOCSIFMETRIC:
 		error = priv_check(td, PRIV_NET_SETIFMETRIC);
 		if (error)
@@ -2313,14 +2321,19 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 	switch (cmd) {
 #ifdef VIMAGE
+	case SIOCSIFRVNET:
+		error = priv_check(td, PRIV_NET_SETIFVNET);
+		if (error)
+			return (error);
+		return (vi_if_move(td, NULL, ifr->ifr_name, ifr->ifr_jid,
+		    NULL));
 	/*
 	 * XXX vnet creation will be implemented through the new jail
 	 * framework - this is just a temporary hack for testing the
 	 * vnet create / destroy mechanisms.
 	 */
 	case SIOCSIFVIMAGE:
-		error = vi_if_move((struct vi_req *) data, NULL,
-		    TD_TO_VIMAGE(td));
+		error = vi_if_move(td, NULL, NULL, 0, (struct vi_req *) data);
 		return (error);
 	case SIOCSPVIMAGE:
 	case SIOCGPVIMAGE:

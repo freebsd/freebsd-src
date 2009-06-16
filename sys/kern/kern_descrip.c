@@ -1128,6 +1128,42 @@ kern_close(td, fd)
 	return (error);
 }
 
+/*
+ * Close open file descriptors.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct closefrom_args {
+	int	lowfd;
+};
+#endif
+/* ARGSUSED */
+int
+closefrom(struct thread *td, struct closefrom_args *uap)
+{
+	struct filedesc *fdp;
+	int fd;
+
+	fdp = td->td_proc->p_fd;
+	AUDIT_ARG(fd, uap->lowfd);
+
+	/*
+	 * Treat negative starting file descriptor values identical to
+	 * closefrom(0) which closes all files.
+	 */
+	if (uap->lowfd < 0)
+		uap->lowfd = 0;
+	FILEDESC_SLOCK(fdp);
+	for (fd = uap->lowfd; fd < fdp->fd_nfiles; fd++) {
+		if (fdp->fd_ofiles[fd] != NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			(void)kern_close(td, fd);
+			FILEDESC_SLOCK(fdp);
+		}
+	}
+	FILEDESC_SUNLOCK(fdp);
+	return (0);
+}
+
 #if defined(COMPAT_43)
 /*
  * Return status information about a file descriptor.

@@ -902,5 +902,6 @@
 507	AUE_NULL	STD	{ int jail_set(struct iovec *iovp, \
 				    unsigned int iovcnt, int flags); }
 508	AUE_NULL	STD	{ int jail_remove(int jid); }
+509	AUE_CLOSEFROM	STD	{ int closefrom(int lowfd); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

@@ -1,4 +1,5 @@
 .\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2008-2009 Ivan Voras <ivoras@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2004
+.Dd June 13, 2009
 .Dt GLABEL 8
 .Os
 .Sh NAME
@@ -119,7 +120,18 @@ NTFS (directory
 .Pa /dev/ntfs/ ) .
 .El
 .Pp
-Non file-system labels are created in the directory
+Support for partition metadata is implemented for:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+GPT labels (directory
+.Pa /dev/gpt/ ) .
+.It
+GPT UUIDs (directory
+.Pa /dev/gptid/ ) .
+.El
+.Pp
+Generic labels are created in the directory
 .Pa /dev/label/ .
 .Pp
 The first argument to

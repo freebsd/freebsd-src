@@ -676,16 +676,12 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	struct nfsclclient *newclp = NULL;
 	struct nfscllockowner *lp, *nlp;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
-	struct prison *pr;
 	char uuid[HOSTUUIDLEN];
 	int igotlock = 0, error, trystalecnt, clidinusedelay, i;
 	u_int16_t idlen = 0;
 
 	if (cred != NULL) {
-		pr = cred->cr_prison;
-		mtx_lock(&pr->pr_mtx);
-		strlcpy(uuid, pr->pr_uuid, sizeof uuid);
-		mtx_unlock(&pr->pr_mtx);
+		getcredhostuuid(cred, uuid, sizeof uuid);
 		idlen = strlen(uuid);
 		if (idlen > 0)
 			idlen += sizeof (u_int64_t);

@@ -58,7 +58,7 @@ static int	sec_attach(device_t dev);
 static int	sec_detach(device_t dev);
 static int	sec_suspend(device_t dev);
 static int	sec_resume(device_t dev);
-static void	sec_shutdown(device_t dev);
+static int	sec_shutdown(device_t dev);
 static void	sec_primary_intr(void *arg);
 static void	sec_secondary_intr(void *arg);
 static int	sec_setup_intr(struct sec_softc *sc, struct resource **ires,
@@ -500,9 +500,11 @@ sec_resume(device_t dev)
 	return (0);
 }
 
-static void
+static int
 sec_shutdown(device_t dev)
 {
+
+	return (0);
 }
 
 static int

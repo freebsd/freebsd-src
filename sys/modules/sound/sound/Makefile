@@ -19,19 +19,25 @@ SRCS+=	ac97.c ac97_patch.c buffer.c channel.c clone.c dsp.c
 SRCS+=	mixer.c sndstat.c sound.c unit.c vchan.c
 SRCS+=	midi.c mpu401.c sequencer.c
 
-@/tools/sound/feeder_eq_mkfilter.awk:	@
-
-@/tools/sound/feeder_rate_mkfilter.awk:	@
-
-@/tools/sound/snd_fxdiv_gen.awk:	@
-
-feeder_eq_gen.h:	@/tools/sound/feeder_eq_mkfilter.awk machine
+.if !exists(@)
+feeder_eq_gen.h:	@
+.else
+feeder_eq_gen.h:	@/tools/sound/feeder_eq_mkfilter.awk
+.endif
 	${AWK} -f @/tools/sound/feeder_eq_mkfilter.awk -- ${FEEDER_EQ_PRESETS} > ${.TARGET}
 
-feeder_rate_gen.h:	@/tools/sound/feeder_rate_mkfilter.awk machine
+.if !exists(@)
+feeder_rate_gen.h:	@
+.else
+feeder_rate_gen.h:	@/tools/sound/feeder_rate_mkfilter.awk
+.endif
 	${AWK} -f @/tools/sound/feeder_rate_mkfilter.awk -- ${FEEDER_RATE_PRESETS} > ${.TARGET}
 
-snd_fxdiv_gen.h:	@/tools/sound/snd_fxdiv_gen.awk machine
+.if !exists(@)
+snd_fxdiv_gen.h:	@
+.else
+snd_fxdiv_gen.h:	@/tools/sound/snd_fxdiv_gen.awk
+.endif
 	${AWK} -f @/tools/sound/snd_fxdiv_gen.awk -- > ${.TARGET}
 
 CLEANFILES+=	feeder_eq_gen.h feeder_rate_gen.h snd_fxdiv_gen.h

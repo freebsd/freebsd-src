@@ -1599,7 +1599,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		sx_xlock(&sysctlmemlock);
 	} else
 		memlocked = 0;
-	CURVNET_SET(TD_TO_VNET(curthread));
+	CURVNET_SET(TD_TO_VNET(td));
 
 	for (;;) {
 		req.oldidx = 0;

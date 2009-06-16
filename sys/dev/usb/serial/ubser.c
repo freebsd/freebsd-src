@@ -172,13 +172,13 @@ static const struct usb_config ubser_config[UBSER_N_TRANSFER] = {
 };
 
 static const struct ucom_callback ubser_callback = {
-	.usb2_com_cfg_set_break = &ubser_cfg_set_break,
-	.usb2_com_cfg_get_status = &ubser_cfg_get_status,
-	.usb2_com_pre_param = &ubser_pre_param,
-	.usb2_com_start_read = &ubser_start_read,
-	.usb2_com_stop_read = &ubser_stop_read,
-	.usb2_com_start_write = &ubser_start_write,
-	.usb2_com_stop_write = &ubser_stop_write,
+	.ucom_cfg_set_break = &ubser_cfg_set_break,
+	.ucom_cfg_get_status = &ubser_cfg_get_status,
+	.ucom_pre_param = &ubser_pre_param,
+	.ucom_start_read = &ubser_start_read,
+	.ucom_stop_read = &ubser_stop_read,
+	.ucom_start_write = &ubser_start_write,
+	.ucom_stop_write = &ubser_stop_write,
 };
 
 static device_method_t ubser_methods[] = {
@@ -226,7 +226,7 @@ ubser_attach(device_t dev)
 	uint8_t n;
 	int error;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ubser", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
@@ -243,14 +243,14 @@ ubser_attach(device_t dev)
 	req.wIndex[0] = sc->sc_iface_no;
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 1);
-	error = usb2_do_request_flags(uaa->device, NULL,
+	error = usbd_do_request_flags(uaa->device, NULL,
 	    &req, &sc->sc_numser,
 	    0, NULL, USB_DEFAULT_TIMEOUT);
 
 	if (error || (sc->sc_numser == 0)) {
 		device_printf(dev, "failed to get number "
 		    "of serial ports: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 		goto detach;
 	}
 	if (sc->sc_numser > UBSER_UNIT_MAX)
@@ -258,7 +258,7 @@ ubser_attach(device_t dev)
 
 	device_printf(dev, "found %i serials\n", sc->sc_numser);
 
-	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
+	error = usbd_transfer_setup(uaa->device, &sc->sc_iface_index,
 	    sc->sc_xfer, ubser_config, UBSER_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		goto detach;
@@ -275,16 +275,16 @@ ubser_attach(device_t dev)
 		sc->sc_ucom[n].sc_portno = n;
 	}
 
-	error = usb2_com_attach(&sc->sc_super_ucom, sc->sc_ucom,
+	error = ucom_attach(&sc->sc_super_ucom, sc->sc_ucom,
 	    sc->sc_numser, sc, &ubser_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
 
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_RD]);
-	usb2_transfer_start(sc->sc_xfer[UBSER_BULK_DT_RD]);
+	usbd_transfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UBSER_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
 	return (0);			/* success */
@@ -301,8 +301,8 @@ ubser_detach(device_t dev)
 
 	DPRINTF("\n");
 
-	usb2_com_detach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_numser);
-	usb2_transfer_unsetup(sc->sc_xfer, UBSER_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_numser);
+	usbd_transfer_unsetup(sc->sc_xfer, UBSER_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -379,16 +379,16 @@ ubser_write_callback(struct usb_xfer *xfer)
 	case USB_ST_TRANSFERRED:
 tr_setup:
 		do {
-			if (usb2_com_get_data(sc->sc_ucom + sc->sc_curr_tx_unit,
+			if (ucom_get_data(sc->sc_ucom + sc->sc_curr_tx_unit,
 			    xfer->frbuffers, 1, sc->sc_tx_size - 1,
 			    &actlen)) {
 
 				buf[0] = sc->sc_curr_tx_unit;
 
-				usb2_copy_in(xfer->frbuffers, 0, buf, 1);
+				usbd_copy_in(xfer->frbuffers, 0, buf, 1);
 
 				xfer->frlengths[0] = actlen + 1;
-				usb2_start_hardware(xfer);
+				usbd_transfer_submit(xfer);
 
 				ubser_inc_tx_unit(sc);	/* round robin */
 
@@ -423,19 +423,19 @@ ubser_read_callback(struct usb_xfer *xfer)
 			DPRINTF("invalid actlen=0!\n");
 			goto tr_setup;
 		}
-		usb2_copy_out(xfer->frbuffers, 0, buf, 1);
+		usbd_copy_out(xfer->frbuffers, 0, buf, 1);
 
 		if (buf[0] >= sc->sc_numser) {
 			DPRINTF("invalid serial number!\n");
 			goto tr_setup;
 		}
-		usb2_com_put_data(sc->sc_ucom + buf[0],
+		ucom_put_data(sc->sc_ucom + buf[0],
 		    xfer->frbuffers, 1, xfer->actlen - 1);
 
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -467,11 +467,11 @@ ubser_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 		req.wIndex[1] = 0;
 		USETW(req.wLength, 0);
 
-		err = usb2_com_cfg_do_request(sc->sc_udev, ucom, 
+		err = ucom_cfg_do_request(sc->sc_udev, ucom, 
 		    &req, NULL, 0, 1000);
 		if (err) {
 			DPRINTFN(0, "send break failed, error=%s\n",
-			    usb2_errstr(err));
+			    usbd_errstr(err));
 		}
 	}
 }
@@ -489,7 +489,7 @@ ubser_start_read(struct ucom_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UBSER_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UBSER_BULK_DT_RD]);
 }
 
 static void
@@ -497,7 +497,7 @@ ubser_stop_read(struct ucom_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UBSER_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UBSER_BULK_DT_RD]);
 }
 
 static void
@@ -505,7 +505,7 @@ ubser_start_write(struct ucom_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UBSER_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UBSER_BULK_DT_WR]);
 }
 
 static void
@@ -513,5 +513,5 @@ ubser_stop_write(struct ucom_softc *ucom)
 {
 	struct ubser_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UBSER_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UBSER_BULK_DT_WR]);
 }

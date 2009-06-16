@@ -370,7 +370,7 @@ gt_pci_conf_setup(struct gt_pci_softc *sc, int bus, int slot, int func,
 }
 
 static uint32_t
-gt_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
+gt_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     int bytes)
 {
 	struct gt_pci_softc *sc = device_get_softc(dev);
@@ -440,7 +440,7 @@ gt_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
 }
 
 static void
-gt_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
+gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     uint32_t data, int bytes)
 {
 	struct gt_pci_softc *sc = device_get_softc(dev);

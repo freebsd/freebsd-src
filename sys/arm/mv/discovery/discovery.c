@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+#include <arm/mv/mvwin.h>
 
 #define _MV_PCIE_MAX_PORT	8
 

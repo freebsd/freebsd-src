@@ -34,7 +34,7 @@
 #include <dev/usb/usb_mfunc.h>
 #include <dev/usb/usb_error.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
@@ -54,50 +54,50 @@ MODULE_VERSION(usb_template, 1);
 
 /* function prototypes */
 
-static void	usb2_make_raw_desc(struct usb_temp_setup *, const uint8_t *);
-static void	usb2_make_endpoint_desc(struct usb_temp_setup *,
+static void	usb_make_raw_desc(struct usb_temp_setup *, const uint8_t *);
+static void	usb_make_endpoint_desc(struct usb_temp_setup *,
 		    const struct usb_temp_endpoint_desc *);
-static void	usb2_make_interface_desc(struct usb_temp_setup *,
+static void	usb_make_interface_desc(struct usb_temp_setup *,
 		    const struct usb_temp_interface_desc *);
-static void	usb2_make_config_desc(struct usb_temp_setup *,
+static void	usb_make_config_desc(struct usb_temp_setup *,
 		    const struct usb_temp_config_desc *);
-static void	usb2_make_device_desc(struct usb_temp_setup *,
+static void	usb_make_device_desc(struct usb_temp_setup *,
 		    const struct usb_temp_device_desc *);
-static uint8_t	usb2_hw_ep_match(const struct usb_hw_ep_profile *, uint8_t,
+static uint8_t	usb_hw_ep_match(const struct usb_hw_ep_profile *, uint8_t,
 		    uint8_t);
-static uint8_t	usb2_hw_ep_find_match(struct usb_hw_ep_scratch *,
+static uint8_t	usb_hw_ep_find_match(struct usb_hw_ep_scratch *,
 		    struct usb_hw_ep_scratch_sub *, uint8_t);
-static uint8_t	usb2_hw_ep_get_needs(struct usb_hw_ep_scratch *, uint8_t,
+static uint8_t	usb_hw_ep_get_needs(struct usb_hw_ep_scratch *, uint8_t,
 		    uint8_t);
-static usb_error_t usb2_hw_ep_resolve(struct usb_device *,
+static usb_error_t usb_hw_ep_resolve(struct usb_device *,
 		    struct usb_descriptor *);
-static const struct usb_temp_device_desc *usb2_temp_get_tdd(struct usb_device *);
-static void	*usb2_temp_get_device_desc(struct usb_device *);
-static void	*usb2_temp_get_qualifier_desc(struct usb_device *);
-static void	*usb2_temp_get_config_desc(struct usb_device *, uint16_t *,
+static const struct usb_temp_device_desc *usb_temp_get_tdd(struct usb_device *);
+static void	*usb_temp_get_device_desc(struct usb_device *);
+static void	*usb_temp_get_qualifier_desc(struct usb_device *);
+static void	*usb_temp_get_config_desc(struct usb_device *, uint16_t *,
 		    uint8_t);
-static const void *usb2_temp_get_string_desc(struct usb_device *, uint16_t,
+static const void *usb_temp_get_string_desc(struct usb_device *, uint16_t,
 		    uint8_t);
-static const void *usb2_temp_get_vendor_desc(struct usb_device *,
+static const void *usb_temp_get_vendor_desc(struct usb_device *,
 		    const struct usb_device_request *);
-static const void *usb2_temp_get_hub_desc(struct usb_device *);
-static usb_error_t usb2_temp_get_desc(struct usb_device *,
+static const void *usb_temp_get_hub_desc(struct usb_device *);
+static usb_error_t usb_temp_get_desc(struct usb_device *,
 		    struct usb_device_request *, const void **, uint16_t *);
 static usb_error_t usb_temp_setup(struct usb_device *,
 		    const struct usb_temp_device_desc *);
-static void	usb2_temp_unsetup(struct usb_device *);
-static usb_error_t usb2_temp_setup_by_index(struct usb_device *,
+static void	usb_temp_unsetup(struct usb_device *);
+static usb_error_t usb_temp_setup_by_index(struct usb_device *,
 		    uint16_t index);
-static void	usb2_temp_init(void *);
+static void	usb_temp_init(void *);
 
 /*------------------------------------------------------------------------*
- *	usb2_make_raw_desc
+ *	usb_make_raw_desc
  *
  * This function will insert a raw USB descriptor into the generated
  * USB configuration.
  *------------------------------------------------------------------------*/
 static void
-usb2_make_raw_desc(struct usb_temp_setup *temp,
+usb_make_raw_desc(struct usb_temp_setup *temp,
     const uint8_t *raw)
 {
 	void *dst;
@@ -132,14 +132,14 @@ usb2_make_raw_desc(struct usb_temp_setup *temp,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_make_endpoint_desc
+ *	usb_make_endpoint_desc
  *
  * This function will generate an USB endpoint descriptor from the
  * given USB template endpoint descriptor, which will be inserted into
  * the USB configuration.
  *------------------------------------------------------------------------*/
 static void
-usb2_make_endpoint_desc(struct usb_temp_setup *temp,
+usb_make_endpoint_desc(struct usb_temp_setup *temp,
     const struct usb_temp_endpoint_desc *ted)
 {
 	struct usb_endpoint_descriptor *ed;
@@ -158,7 +158,7 @@ usb2_make_endpoint_desc(struct usb_temp_setup *temp,
 	rd = ted->ppRawDesc;
 	if (rd) {
 		while (*rd) {
-			usb2_make_raw_desc(temp, *rd);
+			usb_make_raw_desc(temp, *rd);
 			rd++;
 		}
 	}
@@ -232,14 +232,14 @@ usb2_make_endpoint_desc(struct usb_temp_setup *temp,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_make_interface_desc
+ *	usb_make_interface_desc
  *
  * This function will generate an USB interface descriptor from the
  * given USB template interface descriptor, which will be inserted
  * into the USB configuration.
  *------------------------------------------------------------------------*/
 static void
-usb2_make_interface_desc(struct usb_temp_setup *temp,
+usb_make_interface_desc(struct usb_temp_setup *temp,
     const struct usb_temp_interface_desc *tid)
 {
 	struct usb_interface_descriptor *id;
@@ -267,7 +267,7 @@ usb2_make_interface_desc(struct usb_temp_setup *temp,
 
 	if (rd) {
 		while (*rd) {
-			usb2_make_raw_desc(temp, *rd);
+			usb_make_raw_desc(temp, *rd);
 			rd++;
 		}
 	}
@@ -280,7 +280,7 @@ usb2_make_interface_desc(struct usb_temp_setup *temp,
 	ted = tid->ppEndpoints;
 	if (ted) {
 		while (*ted) {
-			usb2_make_endpoint_desc(temp, *ted);
+			usb_make_endpoint_desc(temp, *ted);
 			ted++;
 		}
 	}
@@ -303,14 +303,14 @@ usb2_make_interface_desc(struct usb_temp_setup *temp,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_make_config_desc
+ *	usb_make_config_desc
  *
  * This function will generate an USB config descriptor from the given
  * USB template config descriptor, which will be inserted into the USB
  * configuration.
  *------------------------------------------------------------------------*/
 static void
-usb2_make_config_desc(struct usb_temp_setup *temp,
+usb_make_config_desc(struct usb_temp_setup *temp,
     const struct usb_temp_config_desc *tcd)
 {
 	struct usb_config_descriptor *cd;
@@ -332,7 +332,7 @@ usb2_make_config_desc(struct usb_temp_setup *temp,
 	tid = tcd->ppIfaceDesc;
 	if (tid) {
 		while (*tid) {
-			usb2_make_interface_desc(temp, *tid);
+			usb_make_interface_desc(temp, *tid);
 			tid++;
 		}
 	}
@@ -365,13 +365,13 @@ usb2_make_config_desc(struct usb_temp_setup *temp,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_make_device_desc
+ *	usb_make_device_desc
  *
  * This function will generate an USB device descriptor from the
  * given USB template device descriptor.
  *------------------------------------------------------------------------*/
 static void
-usb2_make_device_desc(struct usb_temp_setup *temp,
+usb_make_device_desc(struct usb_temp_setup *temp,
     const struct usb_temp_device_desc *tdd)
 {
 	struct usb_temp_data *utd;
@@ -389,7 +389,7 @@ usb2_make_device_desc(struct usb_temp_setup *temp,
 	tcd = tdd->ppConfigDesc;
 	if (tcd) {
 		while (*tcd) {
-			usb2_make_config_desc(temp, *tcd);
+			usb_make_config_desc(temp, *tcd);
 			temp->bConfigurationValue++;
 			tcd++;
 		}
@@ -460,14 +460,14 @@ usb2_make_device_desc(struct usb_temp_setup *temp,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_hw_ep_match
+ *	usb_hw_ep_match
  *
  * Return values:
  *    0: The endpoint profile does not match the criterias
  * Else: The endpoint profile matches the criterias
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_hw_ep_match(const struct usb_hw_ep_profile *pf,
+usb_hw_ep_match(const struct usb_hw_ep_profile *pf,
     uint8_t ep_type, uint8_t ep_dir_in)
 {
 	if (ep_type == UE_CONTROL) {
@@ -486,7 +486,7 @@ usb2_hw_ep_match(const struct usb_hw_ep_profile *pf,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_hw_ep_find_match
+ *	usb_hw_ep_find_match
  *
  * This function is used to find the best matching endpoint profile
  * for and endpoint belonging to an USB descriptor.
@@ -496,7 +496,7 @@ usb2_hw_ep_match(const struct usb_hw_ep_profile *pf,
  * Else: Failure. No match.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_hw_ep_find_match(struct usb_hw_ep_scratch *ues,
+usb_hw_ep_find_match(struct usb_hw_ep_scratch *ues,
     struct usb_hw_ep_scratch_sub *ep, uint8_t is_simplex)
 {
 	const struct usb_hw_ep_profile *pf;
@@ -555,7 +555,7 @@ usb2_hw_ep_find_match(struct usb_hw_ep_scratch *ues,
 			continue;
 		}
 		/* check if HW endpoint matches */
-		if (!usb2_hw_ep_match(pf, ep->needs_ep_type, dir_in)) {
+		if (!usb_hw_ep_match(pf, ep->needs_ep_type, dir_in)) {
 			/* mismatch */
 			continue;
 		}
@@ -601,7 +601,7 @@ usb2_hw_ep_find_match(struct usb_hw_ep_scratch *ues,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_hw_ep_get_needs
+ *	usb_hw_ep_get_needs
  *
  * This function will figure out the type and number of endpoints
  * which are needed for an USB configuration.
@@ -611,7 +611,7 @@ usb2_hw_ep_find_match(struct usb_hw_ep_scratch *ues,
  * Else: Failure.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_hw_ep_get_needs(struct usb_hw_ep_scratch *ues,
+usb_hw_ep_get_needs(struct usb_hw_ep_scratch *ues,
     uint8_t ep_type, uint8_t is_complete)
 {
 	const struct usb_hw_ep_profile *pf;
@@ -632,11 +632,11 @@ usb2_hw_ep_get_needs(struct usb_hw_ep_scratch *ues,
 	ep_end = ues->ep + USB_EP_MAX;
 	ep_max = ues->ep_max;
 	desc = NULL;
-	speed = usb2_get_speed(ues->udev);
+	speed = usbd_get_speed(ues->udev);
 
 repeat:
 
-	while ((desc = usb2_desc_foreach(ues->cd, desc))) {
+	while ((desc = usb_desc_foreach(ues->cd, desc))) {
 
 		if ((desc->bDescriptorType == UDESC_INTERFACE) &&
 		    (desc->bLength >= sizeof(*id))) {
@@ -771,7 +771,7 @@ handle_endpoint_desc:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_hw_ep_resolve
+ *	usb_hw_ep_resolve
  *
  * This function will try to resolve endpoint requirements by the
  * given endpoint profiles that the USB hardware reports.
@@ -781,7 +781,7 @@ handle_endpoint_desc:
  * Else: Failure
  *------------------------------------------------------------------------*/
 static usb_error_t
-usb2_hw_ep_resolve(struct usb_device *udev,
+usb_hw_ep_resolve(struct usb_device *udev,
     struct usb_descriptor *desc)
 {
 	struct usb_hw_ep_scratch *ues;
@@ -812,7 +812,7 @@ usb2_hw_ep_resolve(struct usb_device *udev,
 		if (pf == NULL) {
 			return (USB_ERR_INVAL);
 		}
-		if (!usb2_hw_ep_match(pf, UE_CONTROL, 0)) {
+		if (!usb_hw_ep_match(pf, UE_CONTROL, 0)) {
 			DPRINTFN(0, "Endpoint 0 does not "
 			    "support control\n");
 			return (USB_ERR_INVAL);
@@ -868,10 +868,10 @@ usb2_hw_ep_resolve(struct usb_device *udev,
 
 	/* Get all the endpoints we need */
 
-	if (usb2_hw_ep_get_needs(ues, UE_ISOCHRONOUS, 0) ||
-	    usb2_hw_ep_get_needs(ues, UE_INTERRUPT, 0) ||
-	    usb2_hw_ep_get_needs(ues, UE_CONTROL, 0) ||
-	    usb2_hw_ep_get_needs(ues, UE_BULK, 0)) {
+	if (usb_hw_ep_get_needs(ues, UE_ISOCHRONOUS, 0) ||
+	    usb_hw_ep_get_needs(ues, UE_INTERRUPT, 0) ||
+	    usb_hw_ep_get_needs(ues, UE_CONTROL, 0) ||
+	    usb_hw_ep_get_needs(ues, UE_BULK, 0)) {
 		DPRINTFN(0, "Could not get needs\n");
 		return (USB_ERR_INVAL);
 	}
@@ -883,8 +883,8 @@ usb2_hw_ep_resolve(struct usb_device *udev,
 		         * First try to use a simplex endpoint.
 		         * Then try to use a duplex endpoint.
 		         */
-			if (usb2_hw_ep_find_match(ues, ep, 1) &&
-			    usb2_hw_ep_find_match(ues, ep, 0)) {
+			if (usb_hw_ep_find_match(ues, ep, 1) &&
+			    usb_hw_ep_find_match(ues, ep, 0)) {
 				DPRINTFN(0, "Could not find match\n");
 				return (USB_ERR_INVAL);
 			}
@@ -895,10 +895,10 @@ usb2_hw_ep_resolve(struct usb_device *udev,
 
 	/* Update all endpoint addresses */
 
-	if (usb2_hw_ep_get_needs(ues, UE_ISOCHRONOUS, 1) ||
-	    usb2_hw_ep_get_needs(ues, UE_INTERRUPT, 1) ||
-	    usb2_hw_ep_get_needs(ues, UE_CONTROL, 1) ||
-	    usb2_hw_ep_get_needs(ues, UE_BULK, 1)) {
+	if (usb_hw_ep_get_needs(ues, UE_ISOCHRONOUS, 1) ||
+	    usb_hw_ep_get_needs(ues, UE_INTERRUPT, 1) ||
+	    usb_hw_ep_get_needs(ues, UE_CONTROL, 1) ||
+	    usb_hw_ep_get_needs(ues, UE_BULK, 1)) {
 		DPRINTFN(0, "Could not update endpoint address\n");
 		return (USB_ERR_INVAL);
 	}
@@ -906,37 +906,37 @@ usb2_hw_ep_resolve(struct usb_device *udev,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_get_tdd
+ *	usb_temp_get_tdd
  *
  * Returns:
  *  NULL: No USB template device descriptor found.
  *  Else: Pointer to the USB template device descriptor.
  *------------------------------------------------------------------------*/
 static const struct usb_temp_device_desc *
-usb2_temp_get_tdd(struct usb_device *udev)
+usb_temp_get_tdd(struct usb_device *udev)
 {
-	if (udev->usb2_template_ptr == NULL) {
+	if (udev->usb_template_ptr == NULL) {
 		return (NULL);
 	}
-	return (udev->usb2_template_ptr->tdd);
+	return (udev->usb_template_ptr->tdd);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_get_device_desc
+ *	usb_temp_get_device_desc
  *
  * Returns:
  *  NULL: No USB device descriptor found.
  *  Else: Pointer to USB device descriptor.
  *------------------------------------------------------------------------*/
 static void *
-usb2_temp_get_device_desc(struct usb_device *udev)
+usb_temp_get_device_desc(struct usb_device *udev)
 {
 	struct usb_device_descriptor *dd;
 
-	if (udev->usb2_template_ptr == NULL) {
+	if (udev->usb_template_ptr == NULL) {
 		return (NULL);
 	}
-	dd = &udev->usb2_template_ptr->udd;
+	dd = &udev->usb_template_ptr->udd;
 	if (dd->bDescriptorType != UDESC_DEVICE) {
 		/* sanity check failed */
 		return (NULL);
@@ -945,21 +945,21 @@ usb2_temp_get_device_desc(struct usb_device *udev)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_get_qualifier_desc
+ *	usb_temp_get_qualifier_desc
  *
  * Returns:
  *  NULL: No USB device_qualifier descriptor found.
  *  Else: Pointer to USB device_qualifier descriptor.
  *------------------------------------------------------------------------*/
 static void *
-usb2_temp_get_qualifier_desc(struct usb_device *udev)
+usb_temp_get_qualifier_desc(struct usb_device *udev)
 {
 	struct usb_device_qualifier *dq;
 
-	if (udev->usb2_template_ptr == NULL) {
+	if (udev->usb_template_ptr == NULL) {
 		return (NULL);
 	}
-	dq = &udev->usb2_template_ptr->udq;
+	dq = &udev->usb_template_ptr->udq;
 	if (dq->bDescriptorType != UDESC_DEVICE_QUALIFIER) {
 		/* sanity check failed */
 		return (NULL);
@@ -968,25 +968,25 @@ usb2_temp_get_qualifier_desc(struct usb_device *udev)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_get_config_desc
+ *	usb_temp_get_config_desc
  *
  * Returns:
  *  NULL: No USB config descriptor found.
  *  Else: Pointer to USB config descriptor having index "index".
  *------------------------------------------------------------------------*/
 static void *
-usb2_temp_get_config_desc(struct usb_device *udev,
+usb_temp_get_config_desc(struct usb_device *udev,
     uint16_t *pLength, uint8_t index)
 {
 	struct usb_device_descriptor *dd;
 	struct usb_config_descriptor *cd;
 	uint16_t temp;
 
-	if (udev->usb2_template_ptr == NULL) {
+	if (udev->usb_template_ptr == NULL) {
 		return (NULL);
 	}
-	dd = &udev->usb2_template_ptr->udd;
-	cd = (void *)(udev->usb2_template_ptr + 1);
+	dd = &udev->usb_template_ptr->udd;
+	cd = (void *)(udev->usb_template_ptr + 1);
 
 	if (index >= dd->bNumConfigurations) {
 		/* out of range */
@@ -1008,19 +1008,19 @@ usb2_temp_get_config_desc(struct usb_device *udev,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_get_vendor_desc
+ *	usb_temp_get_vendor_desc
  *
  * Returns:
  *  NULL: No vendor descriptor found.
  *  Else: Pointer to a vendor descriptor.
  *------------------------------------------------------------------------*/
 static const void *
-usb2_temp_get_vendor_desc(struct usb_device *udev,
+usb_temp_get_vendor_desc(struct usb_device *udev,
     const struct usb_device_request *req)
 {
 	const struct usb_temp_device_desc *tdd;
 
-	tdd = usb2_temp_get_tdd(udev);
+	tdd = usb_temp_get_tdd(udev);
 	if (tdd == NULL) {
 		return (NULL);
 	}
@@ -1031,19 +1031,19 @@ usb2_temp_get_vendor_desc(struct usb_device *udev,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_get_string_desc
+ *	usb_temp_get_string_desc
  *
  * Returns:
  *  NULL: No string descriptor found.
  *  Else: Pointer to a string descriptor.
  *------------------------------------------------------------------------*/
 static const void *
-usb2_temp_get_string_desc(struct usb_device *udev,
+usb_temp_get_string_desc(struct usb_device *udev,
     uint16_t lang_id, uint8_t string_index)
 {
 	const struct usb_temp_device_desc *tdd;
 
-	tdd = usb2_temp_get_tdd(udev);
+	tdd = usb_temp_get_tdd(udev);
 	if (tdd == NULL) {
 		return (NULL);
 	}
@@ -1054,26 +1054,26 @@ usb2_temp_get_string_desc(struct usb_device *udev,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_get_hub_desc
+ *	usb_temp_get_hub_desc
  *
  * Returns:
  *  NULL: No USB HUB descriptor found.
  *  Else: Pointer to a USB HUB descriptor.
  *------------------------------------------------------------------------*/
 static const void *
-usb2_temp_get_hub_desc(struct usb_device *udev)
+usb_temp_get_hub_desc(struct usb_device *udev)
 {
 	return (NULL);			/* needs to be implemented */
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_get_desc
+ *	usb_temp_get_desc
  *
  * This function is a demultiplexer for local USB device side control
  * endpoint requests.
  *------------------------------------------------------------------------*/
 static usb_error_t
-usb2_temp_get_desc(struct usb_device *udev, struct usb_device_request *req,
+usb_temp_get_desc(struct usb_device *udev, struct usb_device_request *req,
     const void **pPtr, uint16_t *pLength)
 {
 	const uint8_t *buf;
@@ -1101,7 +1101,7 @@ usb2_temp_get_desc(struct usb_device *udev, struct usb_device_request *req,
 		break;
 	case UT_READ_VENDOR_DEVICE:
 	case UT_READ_VENDOR_OTHER:
-		buf = usb2_temp_get_vendor_desc(udev, req);
+		buf = usb_temp_get_vendor_desc(udev, req);
 		goto tr_valid;
 	default:
 		goto tr_stalled;
@@ -1113,7 +1113,7 @@ tr_handle_get_descriptor:
 		if (req->wValue[0]) {
 			goto tr_stalled;
 		}
-		buf = usb2_temp_get_device_desc(udev);
+		buf = usb_temp_get_device_desc(udev);
 		goto tr_valid;
 	case UDESC_DEVICE_QUALIFIER:
 		if (udev->speed != USB_SPEED_HIGH) {
@@ -1122,18 +1122,18 @@ tr_handle_get_descriptor:
 		if (req->wValue[0]) {
 			goto tr_stalled;
 		}
-		buf = usb2_temp_get_qualifier_desc(udev);
+		buf = usb_temp_get_qualifier_desc(udev);
 		goto tr_valid;
 	case UDESC_OTHER_SPEED_CONFIGURATION:
 		if (udev->speed != USB_SPEED_HIGH) {
 			goto tr_stalled;
 		}
 	case UDESC_CONFIG:
-		buf = usb2_temp_get_config_desc(udev,
+		buf = usb_temp_get_config_desc(udev,
 		    &len, req->wValue[0]);
 		goto tr_valid;
 	case UDESC_STRING:
-		buf = usb2_temp_get_string_desc(udev,
+		buf = usb_temp_get_string_desc(udev,
 		    UGETW(req->wIndex), req->wValue[0]);
 		goto tr_valid;
 	default:
@@ -1145,7 +1145,7 @@ tr_handle_get_class_descriptor:
 	if (req->wValue[0]) {
 		goto tr_stalled;
 	}
-	buf = usb2_temp_get_hub_desc(udev);
+	buf = usb_temp_get_hub_desc(udev);
 	goto tr_valid;
 
 tr_valid:
@@ -1197,7 +1197,7 @@ usb_temp_setup(struct usb_device *udev,
 
 	/* first pass */
 
-	usb2_make_device_desc(uts, tdd);
+	usb_make_device_desc(uts, tdd);
 
 	if (uts->err) {
 		/* some error happened */
@@ -1217,12 +1217,12 @@ usb_temp_setup(struct usb_device *udev,
 
 	uts->size = 0;
 
-	usb2_make_device_desc(uts, tdd);
+	usb_make_device_desc(uts, tdd);
 
 	/*
 	 * Store a pointer to our descriptors:
 	 */
-	udev->usb2_template_ptr = uts->buf;
+	udev->usb_template_ptr = uts->buf;
 
 	if (uts->err) {
 		/* some error happened during second pass */
@@ -1231,66 +1231,66 @@ usb_temp_setup(struct usb_device *udev,
 	/*
 	 * Resolve all endpoint addresses !
 	 */
-	buf = usb2_temp_get_device_desc(udev);
-	uts->err = usb2_hw_ep_resolve(udev, buf);
+	buf = usb_temp_get_device_desc(udev);
+	uts->err = usb_hw_ep_resolve(udev, buf);
 	if (uts->err) {
 		DPRINTFN(0, "Could not resolve endpoints for "
 		    "Device Descriptor, error = %s\n",
-		    usb2_errstr(uts->err));
+		    usbd_errstr(uts->err));
 		goto error;
 	}
 	for (n = 0;; n++) {
 
-		buf = usb2_temp_get_config_desc(udev, NULL, n);
+		buf = usb_temp_get_config_desc(udev, NULL, n);
 		if (buf == NULL) {
 			break;
 		}
-		uts->err = usb2_hw_ep_resolve(udev, buf);
+		uts->err = usb_hw_ep_resolve(udev, buf);
 		if (uts->err) {
 			DPRINTFN(0, "Could not resolve endpoints for "
 			    "Config Descriptor %u, error = %s\n", n,
-			    usb2_errstr(uts->err));
+			    usbd_errstr(uts->err));
 			goto error;
 		}
 	}
 	return (uts->err);
 
 error:
-	usb2_temp_unsetup(udev);
+	usb_temp_unsetup(udev);
 	return (uts->err);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_temp_unsetup
+ *	usb_temp_unsetup
  *
  * This function frees any memory associated with the currently
  * setup template, if any.
  *------------------------------------------------------------------------*/
 static void
-usb2_temp_unsetup(struct usb_device *udev)
+usb_temp_unsetup(struct usb_device *udev)
 {
-	if (udev->usb2_template_ptr) {
+	if (udev->usb_template_ptr) {
 
-		free(udev->usb2_template_ptr, M_USB);
+		free(udev->usb_template_ptr, M_USB);
 
-		udev->usb2_template_ptr = NULL;
+		udev->usb_template_ptr = NULL;
 	}
 }
 
 static usb_error_t
-usb2_temp_setup_by_index(struct usb_device *udev, uint16_t index)
+usb_temp_setup_by_index(struct usb_device *udev, uint16_t index)
 {
 	usb_error_t err;
 
 	switch (index) {
 	case 0:
-		err = usb_temp_setup(udev, &usb2_template_msc);
+		err = usb_temp_setup(udev, &usb_template_msc);
 		break;
 	case 1:
-		err = usb_temp_setup(udev, &usb2_template_cdce);
+		err = usb_temp_setup(udev, &usb_template_cdce);
 		break;
 	case 2:
-		err = usb_temp_setup(udev, &usb2_template_mtp);
+		err = usb_temp_setup(udev, &usb_template_mtp);
 		break;
 	default:
 		return (USB_ERR_INVAL);
@@ -1300,13 +1300,13 @@ usb2_temp_setup_by_index(struct usb_device *udev, uint16_t index)
 }
 
 static void
-usb2_temp_init(void *arg)
+usb_temp_init(void *arg)
 {
 	/* register our functions */
-	usb2_temp_get_desc_p = &usb2_temp_get_desc;
-	usb2_temp_setup_by_index_p = &usb2_temp_setup_by_index;
-	usb2_temp_unsetup_p = &usb2_temp_unsetup;
+	usb_temp_get_desc_p = &usb_temp_get_desc;
+	usb_temp_setup_by_index_p = &usb_temp_setup_by_index;
+	usb_temp_unsetup_p = &usb_temp_unsetup;
 }
 
-SYSINIT(usb2_temp_init, SI_SUB_LOCK, SI_ORDER_FIRST, usb2_temp_init, NULL);
-SYSUNINIT(usb2_temp_unload, SI_SUB_LOCK, SI_ORDER_ANY, usb2_temp_unload, NULL);
+SYSINIT(usb_temp_init, SI_SUB_LOCK, SI_ORDER_FIRST, usb_temp_init, NULL);
+SYSUNINIT(usb_temp_unload, SI_SUB_LOCK, SI_ORDER_ANY, usb_temp_unload, NULL);

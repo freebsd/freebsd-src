@@ -28,14 +28,14 @@
 #include <dev/usb/usb_mbuf.h>
 
 /*------------------------------------------------------------------------*
- *      usb2_alloc_mbufs - allocate mbufs to an usbd interface queue
+ *      usb_alloc_mbufs - allocate mbufs to an usbd interface queue
  *
  * Returns:
  *   A pointer that should be passed to "free()" when the buffer(s)
  *   should be released.
  *------------------------------------------------------------------------*/
 void   *
-usb2_alloc_mbufs(struct malloc_type *type, struct usb_ifqueue *ifq,
+usb_alloc_mbufs(struct malloc_type *type, struct usb_ifqueue *ifq,
     usb_size_t block_size, uint16_t nblocks)
 {
 	struct usb_mbuf *m_ptr;
