@@ -5,7 +5,6 @@ INCS=	roken.h roken-common.h
 
 SRCS=	base64.c \
 	bswap.c \
-	closefrom.c \
 	concat.c \
 	copyhostent.c \
 	dumpdata.c \
