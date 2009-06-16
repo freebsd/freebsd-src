@@ -300,7 +300,7 @@ teken_input_byte(teken_t *t, unsigned char c)
 		t->t_utf8_left--;
 		t->t_utf8_partial = (t->t_utf8_partial << 6) | (c & 0x3f);
 		if (t->t_utf8_left == 0) {
-			teken_printf("Got UTF-8 char %u\n", t->t_utf8_partial);
+			teken_printf("Got UTF-8 char %x\n", t->t_utf8_partial);
 			teken_input_char(t, t->t_utf8_partial);
 		}
 	}
