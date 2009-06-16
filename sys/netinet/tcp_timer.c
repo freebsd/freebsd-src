@@ -254,7 +254,7 @@ tcp_timer_2msl(void *xtp)
 		tp = tcp_close(tp);             
 	} else {
 		if (tp->t_state != TCPS_TIME_WAIT &&
-		   (ticks - tp->t_rcvtime) <= tcp_maxidle)
+		   ticks - tp->t_rcvtime <= tcp_maxidle)
 		       callout_reset(&tp->t_timers->tt_2msl, tcp_keepintvl,
 				     tcp_timer_2msl, tp);
 	       else
@@ -318,7 +318,7 @@ tcp_timer_keep(void *xtp)
 		goto dropit;
 	if ((always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
 	    tp->t_state <= TCPS_CLOSING) {
-		if ((ticks - tp->t_rcvtime) >= tcp_keepidle + tcp_maxidle)
+		if (ticks - tp->t_rcvtime >= tcp_keepidle + tcp_maxidle)
 			goto dropit;
 		/*
 		 * Send a packet designed to force a response
@@ -418,8 +418,8 @@ tcp_timer_persist(void *xtp)
 	 * backoff that we would use if retransmitting.
 	 */
 	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
-	    ((ticks - tp->t_rcvtime) >= tcp_maxpersistidle ||
-	     (ticks - tp->t_rcvtime) >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
+	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
+	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
 		TCPSTAT_INC(tcps_persistdrop);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		goto out;
