@@ -3824,7 +3824,7 @@ nfsrv_setupstable(NFSPROC_T *p)
 	struct nfst_rec *tsp;
 	int error, i, tryagain;
 	off_t off = 0;
-	size_t aresid, len;
+	int aresid, len;
 	struct timeval curtime;
 
 	/*
