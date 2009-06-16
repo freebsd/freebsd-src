@@ -620,6 +620,20 @@ load_dr7(u_int dr7)
 	__asm __volatile("movl %0,%%dr7" : : "r" (dr7));
 }
 
+static __inline u_char
+read_cyrix_reg(u_char reg)
+{
+	outb(0x22, reg);
+	return inb(0x23);
+}
+
+static __inline void
+write_cyrix_reg(u_char reg, u_char data)
+{
+	outb(0x22, reg);
+	outb(0x23, data);
+}
+
 static __inline register_t
 intr_disable(void)
 {
@@ -702,6 +716,7 @@ u_int	rdr5(void);
 u_int	rdr6(void);
 u_int	rdr7(void);
 uint64_t rdtsc(void);
+u_char	read_cyrix_reg(u_char reg);
 u_int	read_eflags(void);
 u_int	rfs(void);
 uint64_t rgdt(void);
@@ -710,6 +725,7 @@ uint64_t ridt(void);
 u_short	rldt(void);
 u_short	rtr(void);
 void	wbinvd(void);
+void	write_cyrix_reg(u_char reg, u_char data);
 void	write_eflags(u_int ef);
 void	wrmsr(u_int msr, uint64_t newval);
 
