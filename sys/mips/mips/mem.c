@@ -124,8 +124,10 @@ memrw(dev, uio, flags)
 				pmap_unmap_fpage(pa, fp);
 				sched_unpin();
 				mtx_unlock(&sysmaps->lock);
-			} else
+			} else {
+				printf("NOT OK\n");
 				return (EFAULT);
+			}
 			continue;
 		}
 
@@ -133,6 +135,7 @@ memrw(dev, uio, flags)
 		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			v = uio->uio_offset;
 			c = min(iov->iov_len, MAXPHYS);
+
 			vm_offset_t addr, eaddr;
 			vm_offset_t wired_tlb_virtmem_end;
 
@@ -143,25 +146,37 @@ memrw(dev, uio, flags)
 			addr = trunc_page(uio->uio_offset);
 			eaddr = round_page(uio->uio_offset + c);
 
-			if (addr < (vm_offset_t) VM_MIN_KERNEL_ADDRESS)
-				return EFAULT;
+			if (addr > (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
+				wired_tlb_virtmem_end = VM_MIN_KERNEL_ADDRESS +
+				    VM_KERNEL_ALLOC_OFFSET;
+				if ((addr < wired_tlb_virtmem_end) &&
+				    (eaddr >= wired_tlb_virtmem_end))
+					addr = wired_tlb_virtmem_end;
 
-			wired_tlb_virtmem_end = VM_MIN_KERNEL_ADDRESS +
-			    VM_KERNEL_ALLOC_OFFSET;
-			if ((addr < wired_tlb_virtmem_end) &&
-			    (eaddr >= wired_tlb_virtmem_end))
-				addr = wired_tlb_virtmem_end;
+				if (addr >= wired_tlb_virtmem_end) {
+					for (; addr < eaddr; addr += PAGE_SIZE) 
+						if (pmap_extract(kernel_pmap,
+						    addr) == 0)
+							return EFAULT;
 
-			if (addr >= wired_tlb_virtmem_end) {
-				for (; addr < eaddr; addr += PAGE_SIZE) 
-					if (pmap_extract(kernel_pmap,addr) == 0)
-						return EFAULT;
-
-				if (!kernacc((caddr_t)(int)uio->uio_offset, c,
-				    uio->uio_rw == UIO_READ ?
-				    VM_PROT_READ : VM_PROT_WRITE))
+					if (!kernacc(
+					    (caddr_t)(int)uio->uio_offset, c,
+					    uio->uio_rw == UIO_READ ?
+					    VM_PROT_READ : VM_PROT_WRITE))
+						return (EFAULT);
+				}
+			}
+			else if (MIPS_IS_KSEG0_ADDR(v)) {
+				if (MIPS_KSEG0_TO_PHYS(v + c) >= ctob(physmem))
 					return (EFAULT);
 			}
+			else if (MIPS_IS_KSEG1_ADDR(v)) {
+				if (MIPS_KSEG1_TO_PHYS(v + c) >= ctob(physmem))
+					return (EFAULT);
+			}
+			else
+				return (EFAULT);
+
 
 			error = uiomove((caddr_t)v, c, uio);
 			continue;
