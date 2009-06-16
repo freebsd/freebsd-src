@@ -178,6 +178,7 @@ struct mount {
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
 	int		mnt_ref;		/* (i) Reference count */
 	int		mnt_gen;		/* struct mount generation */
+	struct lock	mnt_explock;		/* vfs_export walkers lock */
 };
 
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);

@@ -179,6 +179,7 @@ vfs_hang_addrlist(mp, nep, argp)
 	    sizeof(np->netc_anon.cr_groups));
 	refcount_init(&np->netc_anon.cr_ref, 1);
 	return (0);
+
 out:
 	free(np, M_NETADDR);
 	return (error);
@@ -232,10 +233,14 @@ vfs_export(mp, argp)
 	struct netexport *nep;
 	int error;
 
+	error = 0;
+	lockmgr(&mp->mnt_explock, LK_EXCLUSIVE, NULL, curthread);
 	nep = mp->mnt_export;
 	if (argp->ex_flags & MNT_DELEXPORT) {
-		if (nep == NULL)
-			return (ENOENT);
+		if (nep == NULL) {
+			error = ENOENT;
+			goto out;
+		}
 		if (mp->mnt_flag & MNT_EXPUBLIC) {
 			vfs_setpublicfs(NULL, NULL, NULL);
 			MNT_ILOCK(mp);
@@ -257,18 +262,20 @@ vfs_export(mp, argp)
 		}
 		if (argp->ex_flags & MNT_EXPUBLIC) {
 			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0)
-				return (error);
+				goto out;
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_EXPUBLIC;
 			MNT_IUNLOCK(mp);
 		}
 		if ((error = vfs_hang_addrlist(mp, nep, argp)))
-			return (error);
+			goto out;
 		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_EXPORTED;
 		MNT_IUNLOCK(mp);
 	}
-	return (0);
+out:
+	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL, curthread);
+	return (error);
 }
 
 /*
@@ -412,7 +419,9 @@ vfs_stdcheckexp(mp, nam, extflagsp, credanonp)
 {
 	struct netcred *np;
 
+	lockmgr(&mp->mnt_explock, LK_SHARED, NULL, curthread);
 	np = vfs_export_lookup(mp, nam);
+	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL, curthread);
 	if (np == NULL)
 		return (EACCES);
 	*extflagsp = np->netc_exflags;
