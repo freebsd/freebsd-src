@@ -124,10 +124,8 @@ memrw(dev, uio, flags)
 				pmap_unmap_fpage(pa, fp);
 				sched_unpin();
 				mtx_unlock(&sysmaps->lock);
-			} else {
-				printf("NOT OK\n");
+			} else
 				return (EFAULT);
-			}
 			continue;
 		}
 
