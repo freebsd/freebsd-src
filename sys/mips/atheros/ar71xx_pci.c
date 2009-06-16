@@ -87,8 +87,9 @@ ar71xx_pci_mask_irq(void *source)
 	unsigned int irq = (unsigned int)source;
 
 	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
+	/* flush */
+	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
 	ATH_WRITE_REG(AR71XX_PCI_INTR_MASK, reg & ~(1 << irq));
-
 }
 
 static void 
@@ -99,6 +100,8 @@ ar71xx_pci_unmask_irq(void *source)
 
 	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
 	ATH_WRITE_REG(AR71XX_PCI_INTR_MASK, reg | (1 << irq));
+	/* flush */
+	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
 }
 
 /* 
@@ -294,10 +297,12 @@ ar71xx_pci_attach(device_t dev)
 	reset |= (RST_RESET_PCI_CORE | RST_RESET_PCI_BUS);
 	ATH_WRITE_REG(AR71XX_RST_RESET, reset);
 	DELAY(1000);
+	ATH_READ_REG(AR71XX_RST_RESET);
 
 	reset &= ~(RST_RESET_PCI_CORE | RST_RESET_PCI_BUS);
 	ATH_WRITE_REG(AR71XX_RST_RESET, reset);
 	DELAY(1000);
+	ATH_READ_REG(AR71XX_RST_RESET);
 
 	/* Init PCI windows */
 	ATH_WRITE_REG(AR71XX_PCI_WINDOW0, PCI_WINDOW0_ADDR);
@@ -472,9 +477,14 @@ ar71xx_pci_intr(void *arg)
 {
 	struct ar71xx_pci_softc *sc = arg;
 	struct intr_event *event;
-	uint32_t reg, irq;
+	uint32_t reg, irq, mask;
 
 	reg = ATH_READ_REG(AR71XX_PCI_INTR_STATUS);
+	mask = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
+	/*
+	 * Handle only unmasked interrupts
+	 */
+	reg &= mask;
 	for (irq = AR71XX_PCI_IRQ_START; irq <= AR71XX_PCI_IRQ_END; irq++) {
 		if (reg & (1 << irq)) {
 			event = sc->sc_eventstab[irq];
