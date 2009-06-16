@@ -7,6 +7,7 @@ OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
 CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
+CFLAGS+=	-fno-omit-frame-pointer
 
 all: ${OBJS}
 
