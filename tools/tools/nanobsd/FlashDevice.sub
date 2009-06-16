@@ -68,6 +68,20 @@ sub_FlashDevice () {
 			;;
 		esac
 		;;
+	kodak)
+		# Source: mwlucas@FreeBSD.org
+		case $a2 iin
+		64|64mb)
+			NANO_MEDIASIZE=`expr expr 64487424 / 512`
+			NANO_HEADS=4
+			NANO_SECTS=32
+			;;
+		*)
+			echo "Unknown Kodak Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
 	memorycorp)
 		# Source: simon@FreeBSD.org
 		case $a2 in
