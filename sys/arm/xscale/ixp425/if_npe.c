@@ -153,9 +153,9 @@ struct npe_softc {
  * multi-port processing.  It may be better to handle
  * all traffic through one Q (as done by the Intel drivers).
  *
- * Note that the PHY's are accessible only from MAC A
- * on the IXP425.  This and other platform-specific
- * assumptions probably need to be handled through hints.
+ * Note that the PHY's are accessible only from MAC B on the
+ * IXP425 and from MAC C on other devices.  This and other
+ * platform-specific assumptions are handled with hints.
  */
 static const struct {
 	uint32_t	macbase;
@@ -177,7 +177,7 @@ static const struct {
 	},
 	[NPE_B] = {
 	  .macbase	= IXP425_MAC_B_HWBASE,
-	  .miibase	= IXP425_MAC_C_HWBASE,
+	  .miibase	= IXP425_MAC_B_HWBASE,
 	  .phy		= 0,
 	  .rx_qid	= 4,
 	  .rx_freeqid	= 27,
@@ -186,7 +186,7 @@ static const struct {
 	},
 	[NPE_C] = {
 	  .macbase	= IXP425_MAC_C_HWBASE,
-	  .miibase	= IXP425_MAC_C_HWBASE,
+	  .miibase	= IXP425_MAC_B_HWBASE,
 	  .phy		= 1,
 	  .rx_qid	= 12,
 	  .rx_freeqid	= 28,
@@ -239,6 +239,7 @@ static int	npeioctl(struct ifnet * ifp, u_long, caddr_t);
 
 static int	npe_setrxqosentry(struct npe_softc *, int classix,
 			int trafclass, int qid);
+static int	npe_setportaddress(struct npe_softc *, const uint8_t mac[]);
 static int	npe_setfirewallmode(struct npe_softc *, int onoff);
 static int	npe_updatestats(struct npe_softc *);
 #if 0
@@ -666,7 +667,7 @@ npe_mac_reset(struct npe_softc *sc)
 static int
 npe_activate(device_t dev)
 {
-	struct npe_softc * sc = device_get_softc(dev);
+	struct npe_softc *sc = device_get_softc(dev);
 	int error, i, macbase, miibase;
 
 	/*
@@ -1024,7 +1025,7 @@ npe_txdone(int qid, void *arg)
 	struct txdone *td, q[NPE_MAX];
 	uint32_t entry;
 
-	/* XXX no NPE-A support */
+	q[NPE_A].tail = &q[NPE_A].head; q[NPE_A].count = 0;
 	q[NPE_B].tail = &q[NPE_B].head; q[NPE_B].count = 0;
 	q[NPE_C].tail = &q[NPE_C].head; q[NPE_C].count = 0;
 	/* XXX max # at a time? */
@@ -1043,6 +1044,8 @@ npe_txdone(int qid, void *arg)
 		td->count++;
 	}
 
+	if (q[NPE_A].count)
+		npe_txdone_finish(npes[NPE_A], &q[NPE_A]);
 	if (q[NPE_B].count)
 		npe_txdone_finish(npes[NPE_B], &q[NPE_B]);
 	if (q[NPE_C].count)
@@ -1252,6 +1255,7 @@ if (ifp->if_drv_flags & IFF_DRV_RUNNING) return;/*XXX*/
 	WR4(sc, NPE_MAC_RX_CNTRL2, 0);
 
 	npe_setmac(sc, IF_LLADDR(ifp));
+	npe_setportaddress(sc, IF_LLADDR(ifp));
 	npe_setmcast(sc);
 
 	npe_startxmit(sc);
@@ -1548,6 +1552,22 @@ npe_setrxqosentry(struct npe_softc *sc, int classix, int trafclass, int qid)
 
 	msg[0] = (NPE_SETRXQOSENTRY << 24) | (sc->sc_npeid << 20) | classix;
 	msg[1] = (trafclass << 24) | (1 << 23) | (qid << 16) | (qid << 4);
+	return ixpnpe_sendandrecvmsg_sync(sc->sc_npe, msg, msg);
+}
+
+static int
+npe_setportaddress(struct npe_softc *sc, const uint8_t mac[ETHER_ADDR_LEN])
+{
+	uint32_t msg[2];
+
+	msg[0] = (NPE_SETPORTADDRESS << 24)
+	       | (sc->sc_npeid << 20)
+	       | (mac[0] << 8)
+	       | (mac[1] << 0);
+	msg[1] = (mac[2] << 24)
+	       | (mac[3] << 16)
+	       | (mac[4] << 8)
+	       | (mac[5] << 0);
 	return ixpnpe_sendandrecvmsg_sync(sc->sc_npe, msg, msg);
 }
 
