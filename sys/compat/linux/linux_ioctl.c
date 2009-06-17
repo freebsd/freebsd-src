@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
+#include <sys/jail.h>
 #include <sys/kbio.h>
 #include <sys/kernel.h>
 #include <sys/linker_set.h>
