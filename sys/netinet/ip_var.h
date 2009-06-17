@@ -34,9 +34,6 @@
 #define	_NETINET_IP_VAR_H_
 
 #include <sys/queue.h>
-#ifdef _KERNEL
-#include <sys/vimage.h>
-#endif
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
