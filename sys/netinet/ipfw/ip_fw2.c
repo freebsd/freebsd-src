@@ -2016,7 +2016,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	if (inp && *ugid_lookupp == 0) {
 		INP_LOCK_ASSERT(inp);
 		if (inp->inp_socket != NULL) {
-			*uc=crhold(inp->inp_cred);
+			*uc = crhold(inp->inp_cred);
 			*ugid_lookupp = 1;
 		} else
 			*ugid_lookupp = -1;
@@ -2049,7 +2049,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 				dst_ip, htons(dst_port),
 				wildcard, NULL);
 		if (pcb != NULL) {
-			*uc=crhold(inp->inp_cred);
+			*uc = crhold(inp->inp_cred);
 			*ugid_lookupp = 1;
 		}
 		INP_INFO_RUNLOCK(pi);
