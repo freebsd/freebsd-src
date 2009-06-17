@@ -120,8 +120,10 @@ svc_create(
 			/* It was not found. Now create a new one */
 			xprt = svc_tp_create(pool, dispatch, prognum, versnum,
 			    NULL, nconf);
-			if (xprt)
+			if (xprt) {
 				num++;
+				SVC_RELEASE(xprt);
+			}
 		}
 	}
 	__rpc_endconf(handle);
@@ -179,6 +181,7 @@ svc_tp_create(
 				(unsigned)prognum, (unsigned)versnum,
 				nconf->nc_netid);
 		xprt_unregister(xprt);
+		SVC_RELEASE(xprt);
 		return (NULL);
 	}
 	return (xprt);
