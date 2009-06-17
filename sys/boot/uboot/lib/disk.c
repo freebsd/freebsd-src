@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/queue.h>
 #include <netinet/in.h>
 #include <machine/stdarg.h>
@@ -121,6 +122,15 @@ struct devsw uboot_storage = {
 	noioctl,
 	stor_print
 };
+
+static void
+uuid_letoh(uuid_t *uuid)
+{
+
+	uuid->time_low = le32toh(uuid->time_low);
+	uuid->time_mid = le16toh(uuid->time_mid);
+	uuid->time_hi_and_version = le16toh(uuid->time_hi_and_version);
+}
 
 static int
 stor_init(void)
@@ -251,7 +261,7 @@ stor_open_gpt(struct open_dev *od, struct uboot_devdesc *dev)
 	}
 
 	/* Check the slice table magic. */
-	if (*((uint16_t *)(buf + DOSMAGICOFFSET)) != DOSMAGIC) {
+	if (le16toh(*((uint16_t *)(buf + DOSMAGICOFFSET))) != DOSMAGIC) {
 		err = ENXIO;
 		goto out;
 	}
@@ -286,9 +296,10 @@ stor_open_gpt(struct open_dev *od, struct uboot_devdesc *dev)
 
 	/* Check GPT header */
 	if (bcmp(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig)) != 0 ||
-	    hdr->hdr_lba_self != 1 || hdr->hdr_revision < 0x00010000 ||
-	    hdr->hdr_entsz < sizeof(*ent) ||
-	    od->od_bsize % hdr->hdr_entsz != 0) {
+	    le64toh(hdr->hdr_lba_self) != 1 ||
+	    le32toh(hdr->hdr_revision) < 0x00010000 ||
+	    le32toh(hdr->hdr_entsz) < sizeof(*ent) ||
+	    od->od_bsize % le32toh(hdr->hdr_entsz) != 0) {
 		debugf("Invalid GPT header!\n");
 		err = EINVAL;
 		goto out;
@@ -296,9 +307,9 @@ stor_open_gpt(struct open_dev *od, struct uboot_devdesc *dev)
 
 	/* Count number of valid partitions */
 	part = 0;
-	eps = od->od_bsize / hdr->hdr_entsz;
-	slba = hdr->hdr_lba_table;
-	elba = slba + hdr->hdr_entries / eps;
+	eps = od->od_bsize / le32toh(hdr->hdr_entsz);
+	slba = le64toh(hdr->hdr_lba_table);
+	elba = slba + le32toh(hdr->hdr_entries) / eps;
 
 	for (lba = slba; lba < elba; lba++) {
 		err = stor_readdev(dev, lba, 1, buf);
@@ -312,8 +323,9 @@ stor_open_gpt(struct open_dev *od, struct uboot_devdesc *dev)
 
 		for (i = 0; i < eps; i++) {
 			if (uuid_is_nil(&ent[i].ent_type, NULL) ||
-			    ent[i].ent_lba_start == 0 ||
-			    ent[i].ent_lba_end < ent[i].ent_lba_start)
+			    le64toh(ent[i].ent_lba_start) == 0 ||
+			    le64toh(ent[i].ent_lba_end) <
+			    le64toh(ent[i].ent_lba_start))
 				continue;
 
 			part += 1;
@@ -343,8 +355,9 @@ stor_open_gpt(struct open_dev *od, struct uboot_devdesc *dev)
 
 			for (i = 0; i < eps; i++) {
 				if (uuid_is_nil(&ent[i].ent_type, NULL) ||
-				    ent[i].ent_lba_start == 0 ||
-				    ent[i].ent_lba_end < ent[i].ent_lba_start)
+				    le64toh(ent[i].ent_lba_start) == 0 ||
+				    le64toh(ent[i].ent_lba_end) <
+				    le64toh(ent[i].ent_lba_start))
 					continue;
 
 				od->od_partitions[part].gp_index = (lba - slba)
@@ -352,9 +365,11 @@ stor_open_gpt(struct open_dev *od, struct uboot_devdesc *dev)
 				od->od_partitions[part].gp_type =
 				    ent[i].ent_type;
 				od->od_partitions[part].gp_start =
-				    ent[i].ent_lba_start;
+				    le64toh(ent[i].ent_lba_start);
 				od->od_partitions[part].gp_end =
-				    ent[i].ent_lba_end;
+				    le64toh(ent[i].ent_lba_end);
+
+				uuid_letoh(&od->od_partitions[part].gp_type);
 				part += 1;
 			}
 		}

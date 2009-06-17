@@ -101,7 +101,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'd': /* local address */
-			if (!bt_aton(optarg, &local_bdaddr)) {
+			if (!bt_devaddr(optarg, &local_bdaddr)) {
 				struct hostent  *he;
 
 				if ((he = bt_gethostbyname(optarg)) == NULL)

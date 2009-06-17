@@ -409,8 +409,10 @@ cryptodev_op(
 	cse->uio.uio_rw = UIO_WRITE;
 	cse->uio.uio_td = td;
 	cse->uio.uio_iov[0].iov_len = cop->len;
-	if (cse->thash)
+	if (cse->thash) {
 		cse->uio.uio_iov[0].iov_len += cse->thash->hashsize;
+		cse->uio.uio_resid += cse->thash->hashsize;
+	}
 	cse->uio.uio_iov[0].iov_base = malloc(cse->uio.uio_iov[0].iov_len,
 	    M_XDATA, M_WAITOK);
 

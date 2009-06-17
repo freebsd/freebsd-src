@@ -167,7 +167,7 @@ teken_funcs_copy(teken_t *t, const teken_rect_t *r, const teken_pos_t *p)
 }
 
 static inline void
-teken_funcs_param(teken_t *t, int cmd, int value)
+teken_funcs_param(teken_t *t, int cmd, unsigned int value)
 {
 
 	t->t_funcs->tf_param(t->t_softc, cmd, value);
@@ -300,7 +300,7 @@ teken_input_byte(teken_t *t, unsigned char c)
 		t->t_utf8_left--;
 		t->t_utf8_partial = (t->t_utf8_partial << 6) | (c & 0x3f);
 		if (t->t_utf8_left == 0) {
-			teken_printf("Got UTF-8 char %u\n", t->t_utf8_partial);
+			teken_printf("Got UTF-8 char %x\n", t->t_utf8_partial);
 			teken_input_char(t, t->t_utf8_partial);
 		}
 	}

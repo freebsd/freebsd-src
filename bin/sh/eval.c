@@ -74,15 +74,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-/* flags in argument to evaltree */
-#define EV_EXIT 01		/* exit after evaluating tree */
-#define EV_TESTED 02		/* exit status is checked; ignore -e flag */
-#define EV_BACKCMD 04		/* command executing within back quotes */
-
 MKINIT int evalskip;		/* set if we are skipping commands */
 STATIC int skipcount;		/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
+STATIC int builtin_flags;	/* evalcommand flags for builtins */
 
 
 char *commandname;
@@ -147,7 +143,7 @@ evalcmd(int argc, char **argv)
                         STPUTC('\0', concat);
                         p = grabstackstr(concat);
                 }
-                evalstring(p);
+                evalstring(p, builtin_flags & EV_TESTED);
         }
         return exitstatus;
 }
@@ -158,22 +154,30 @@ evalcmd(int argc, char **argv)
  */
 
 void
-evalstring(char *s)
+evalstring(char *s, int flags)
 {
 	union node *n;
 	struct stackmark smark;
+	int flags_exit;
 
+	flags_exit = flags & EV_EXIT;
+	flags &= ~EV_EXIT;
 	setstackmark(&smark);
 	setinputstring(s, 1);
 	while ((n = parsecmd(0)) != NEOF) {
-		if (n != NULL)
-			evaltree(n, 0);
+		if (n != NULL) {
+			if (flags_exit && preadateof())
+				evaltree(n, flags | EV_EXIT);
+			else
+				evaltree(n, flags);
+		}
 		popstackmark(&smark);
 	}
 	popfile();
 	popstackmark(&smark);
+	if (flags_exit)
+		exitshell(exitstatus);
 }
-
 
 
 /*
@@ -593,7 +597,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *lastarg;
 	int realstatus;
 	int do_clearcmdentry;
-#if __GNUC__
+#ifdef __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &argv;
 	(void) &argc;
@@ -730,7 +734,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	/* Fork off a child process if necessary. */
 	if (cmd->ncmd.backgnd
 	 || (cmdentry.cmdtype == CMDNORMAL
-	    && ((flags & EV_EXIT) == 0 || Tflag))
+	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN
 		 || cmdentry.u.index == CDCMD
@@ -839,6 +843,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		commandname = argv[0];
 		argptr = argv + 1;
 		optptr = NULL;			/* initialize nextopt */
+		builtin_flags = flags;
 		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
 		flushall();
 cmddone:

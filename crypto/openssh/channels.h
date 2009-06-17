@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.96 2008/06/15 20:06:26 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.98 2009/02/12 03:00:56 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -55,8 +55,6 @@
 #define SSH_CHANNEL_ZOMBIE		14	/* Almost dead. */
 #define SSH_CHANNEL_MAX_TYPE		15
 
-#define SSH_CHANNEL_PATH_LEN		256
-
 struct Channel;
 typedef struct Channel Channel;
 
@@ -105,7 +103,7 @@ struct Channel {
 	Buffer  output;		/* data received over encrypted connection for
 				 * send on socket */
 	Buffer  extended;
-	char    path[SSH_CHANNEL_PATH_LEN];
+	char    *path;
 		/* path for unix domain sockets, or host name for forwards */
 	int     listening_port;	/* port being listened for forwards */
 	int     host_port;	/* remote port to connect for forwards */
@@ -247,7 +245,7 @@ int	 channel_request_remote_forwarding(const char *, u_short,
 int	 channel_setup_local_fwd_listener(const char *, u_short,
 	     const char *, u_short, int);
 void	 channel_request_rforward_cancel(const char *host, u_short port);
-int	 channel_setup_remote_fwd_listener(const char *, u_short, int);
+int	 channel_setup_remote_fwd_listener(const char *, u_short, int *, int);
 int	 channel_cancel_rport_listener(const char *, u_short);
 
 /* x11 forwarding */

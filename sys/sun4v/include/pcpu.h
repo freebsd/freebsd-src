@@ -39,9 +39,9 @@
 struct pmap;
 
 #ifdef KTR
-#define	PCPU_MD_FIELDS_PAD	(4 - (PCPU_NAME_LEN + 7) / 8)
+#define	PCPU_MD_FIELDS_PAD	(3 - (PCPU_NAME_LEN + 7) / 8)
 #else
-#define	PCPU_MD_FIELDS_PAD	4
+#define	PCPU_MD_FIELDS_PAD	3
 #endif
 
 /*

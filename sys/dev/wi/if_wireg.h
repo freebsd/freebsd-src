@@ -691,7 +691,8 @@ struct wi_frame {
  * Radio capture format for Prism.
  */
 #define WI_RX_RADIOTAP_PRESENT \
-	((1 << IEEE80211_RADIOTAP_FLAGS) | \
+	((1 << IEEE80211_RADIOTAP_TSFT) | \
+	 (1 << IEEE80211_RADIOTAP_FLAGS) | \
 	 (1 << IEEE80211_RADIOTAP_RATE) | \
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) | \
 	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL) | \
@@ -699,6 +700,7 @@ struct wi_frame {
 
 struct wi_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
+	u_int64_t	wr_tsf;
 	u_int8_t	wr_flags;
 	u_int8_t	wr_rate;
 	u_int16_t	wr_chan_freq;

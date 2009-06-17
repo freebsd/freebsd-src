@@ -742,6 +742,16 @@ cpu_shutdown(void *args)
 	ofw_exit(args);
 }
 
+/*
+ * Flush the D-cache for non-DMA I/O so that the I-cache can
+ * be made coherent later.
+ */
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+	/* TBD */
+}
+
 /* Get current clock frequency for the given CPU ID. */
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)

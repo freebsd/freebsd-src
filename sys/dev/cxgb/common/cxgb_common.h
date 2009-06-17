@@ -701,7 +701,6 @@ int t3_slow_intr_handler(adapter_t *adapter);
 int t3_phy_intr_handler(adapter_t *adapter);
 
 void t3_link_changed(adapter_t *adapter, int port_id);
-void t3_link_fault(adapter_t *adapter, int port_id);
 int t3_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);
 const struct adapter_info *t3_get_adapter_info(unsigned int board_id);
 int t3_seeprom_read(adapter_t *adapter, u32 addr, u32 *data);

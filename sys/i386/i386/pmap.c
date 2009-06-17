@@ -1624,7 +1624,7 @@ retry:
  * Deal with a SMP shootdown of other users of the pmap that we are
  * trying to dispose of.  This can be a bit hairy.
  */
-static u_int *lazymask;
+static cpumask_t *lazymask;
 static u_int lazyptd;
 static volatile u_int lazywait;
 
@@ -1633,7 +1633,7 @@ void pmap_lazyfix_action(void);
 void
 pmap_lazyfix_action(void)
 {
-	u_int mymask = PCPU_GET(cpumask);
+	cpumask_t mymask = PCPU_GET(cpumask);
 
 #ifdef COUNT_IPIS
 	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
@@ -1645,7 +1645,7 @@ pmap_lazyfix_action(void)
 }
 
 static void
-pmap_lazyfix_self(u_int mymask)
+pmap_lazyfix_self(cpumask_t mymask)
 {
 
 	if (rcr3() == lazyptd)
@@ -1657,8 +1657,7 @@ pmap_lazyfix_self(u_int mymask)
 static void
 pmap_lazyfix(pmap_t pmap)
 {
-	u_int mymask;
-	u_int mask;
+	cpumask_t mymask, mask;
 	u_int spins;
 
 	while ((mask = pmap->pm_active) != 0) {
@@ -3443,62 +3442,57 @@ void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
+	pd_entry_t *pde;
+	vm_paddr_t pa, ptepa;
 	vm_page_t p;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_DEVICE,
 	    ("pmap_object_init_pt: non-device object"));
 	if (pseflag && 
-	    ((addr & (NBPDR - 1)) == 0) && ((size & (NBPDR - 1)) == 0)) {
-		int i;
-		vm_page_t m[1];
-		unsigned int ptepindex;
-		int npdes;
-		pd_entry_t ptepa;
-
-		PMAP_LOCK(pmap);
-		if (pmap->pm_pdir[ptepindex = (addr >> PDRSHIFT)])
-			goto out;
-		PMAP_UNLOCK(pmap);
-retry:
+	    (addr & (NBPDR - 1)) == 0 && (size & (NBPDR - 1)) == 0) {
+		if (!vm_object_populate(object, pindex, pindex + atop(size)))
+			return;
 		p = vm_page_lookup(object, pindex);
-		if (p != NULL) {
-			if (vm_page_sleep_if_busy(p, FALSE, "init4p"))
-				goto retry;
-		} else {
-			p = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
-			if (p == NULL)
-				return;
-			m[0] = p;
+		KASSERT(p->valid == VM_PAGE_BITS_ALL,
+		    ("pmap_object_init_pt: invalid page %p", p));
 
-			if (vm_pager_get_pages(object, m, 1, 0) != VM_PAGER_OK) {
-				vm_page_lock_queues();
-				vm_page_free(p);
-				vm_page_unlock_queues();
-				return;
-			}
-
-			p = vm_page_lookup(object, pindex);
-			vm_page_wakeup(p);
-		}
-
+		/*
+		 * Abort the mapping if the first page is not physically
+		 * aligned to a 2/4MB page boundary.
+		 */
 		ptepa = VM_PAGE_TO_PHYS(p);
 		if (ptepa & (NBPDR - 1))
 			return;
 
-		p->valid = VM_PAGE_BITS_ALL;
-
-		PMAP_LOCK(pmap);
-		pmap->pm_stats.resident_count += size >> PAGE_SHIFT;
-		npdes = size >> PDRSHIFT;
-		for(i = 0; i < npdes; i++) {
-			pde_store(&pmap->pm_pdir[ptepindex],
-			    ptepa | PG_U | PG_RW | PG_V | PG_PS);
-			ptepa += NBPDR;
-			ptepindex += 1;
+		/*
+		 * Skip the first page.  Abort the mapping if the rest of
+		 * the pages are not physically contiguous.
+		 */
+		p = TAILQ_NEXT(p, listq);
+		for (pa = ptepa + PAGE_SIZE; pa < ptepa + size;
+		    pa += PAGE_SIZE) {
+			KASSERT(p->valid == VM_PAGE_BITS_ALL,
+			    ("pmap_object_init_pt: invalid page %p", p));
+			if (pa != VM_PAGE_TO_PHYS(p))
+				return;
+			p = TAILQ_NEXT(p, listq);
 		}
-		pmap_invalidate_all(pmap);
-out:
+
+		/* Map using 2/4MB pages. */
+		PMAP_LOCK(pmap);
+		for (pa = ptepa; pa < ptepa + size; pa += NBPDR) {
+			pde = pmap_pde(pmap, addr);
+			if (*pde == 0) {
+				pde_store(pde, pa | PG_PS | PG_M | PG_A |
+				    PG_U | PG_RW | PG_V);
+				pmap->pm_stats.resident_count += NBPDR /
+				    PAGE_SIZE;
+				pmap_pde_mappings++;
+			}
+			/* Else continue on if the PDE is already valid. */
+			addr += NBPDR;
+		}
 		PMAP_UNLOCK(pmap);
 	}
 }
@@ -3638,7 +3632,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				dstmpte = pmap_allocpte(dst_pmap, addr,
 				    M_NOWAIT);
 				if (dstmpte == NULL)
-					break;
+					goto out;
 				dst_pte = pmap_pte_quick(dst_pmap, addr);
 				if (*dst_pte == 0 &&
 				    pmap_try_insert_pv_entry(dst_pmap, addr,
@@ -3653,12 +3647,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					dst_pmap->pm_stats.resident_count++;
 	 			} else {
 					free = NULL;
-					if (pmap_unwire_pte_hold( dst_pmap,
+					if (pmap_unwire_pte_hold(dst_pmap,
 					    dstmpte, &free)) {
 						pmap_invalidate_page(dst_pmap,
 						    addr);
 						pmap_free_zero_pages(free);
 					}
+					goto out;
 				}
 				if (dstmpte->wire_count >= srcmpte->wire_count)
 					break;
@@ -3667,6 +3662,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			src_pte++;
 		}
 	}
+out:
 	sched_unpin();
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(src_pmap);

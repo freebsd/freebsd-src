@@ -57,13 +57,15 @@ struct ipw_rx_radiotap_header {
 	uint8_t		wr_flags;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
-	uint8_t		wr_antsignal;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 };
 
 #define IPW_RX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
-	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL))
+	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DB_ANTNOISE))
 
 struct ipw_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
@@ -155,10 +157,7 @@ struct ipw_softc {
 	int				txfree;
 
 	struct ipw_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
 	struct ipw_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 /*

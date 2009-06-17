@@ -509,7 +509,7 @@ pmap_mmu_install(char *name, int prio)
 
 		if (mmup->name &&
 		    !strcmp(mmup->name, name) &&
-		    prio >= curr_prio) {
+		    (prio >= curr_prio || mmu_def_impl == NULL)) {
 			curr_prio = prio;
 			mmu_def_impl = mmup;
 			return (TRUE);

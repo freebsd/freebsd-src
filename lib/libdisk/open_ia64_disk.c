@@ -40,15 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <uuid.h>
 
 #include "libdisk.h"
-
-static uuid_t _efi = GPT_ENT_TYPE_EFI;
-static uuid_t _mbr = GPT_ENT_TYPE_MBR;
-static uuid_t _fbsd = GPT_ENT_TYPE_FREEBSD;
-static uuid_t _swap = GPT_ENT_TYPE_FREEBSD_SWAP;
-static uuid_t _ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 
 static struct disk *
 parse_disk(char *conftxt, const char *name)
@@ -147,11 +140,9 @@ struct disk *
 Int_Open_Disk(const char *name, char *conftxt)
 {
 	struct chunk chunk;
-	uuid_t uuid;
 	struct disk *disk;
-	char *p, *q, *r, *s, *sd, *type;
+	char *p, *q, *r, *s, *sd;
 	u_long i;
-	uint32_t status;
 
 	p = conftxt;
 	while (p != NULL && *p != 0) {
@@ -186,17 +177,27 @@ Int_Open_Disk(const char *name, char *conftxt)
 		if (conftxt != NULL)
 			*conftxt++ = '\0';
 
+		/*
+		 * 1 PART da0p4 34359738368 512
+		 *	i 4 o 52063912960 ty freebsd-ufs
+		 *	xs GPT xt 516e7cb6-6ecf-11d6-8ff8-00022d09712b
+		 */
 		sd = strsep(&p, " ");			/* depth */
 		if (strcmp(sd, "0") == 0)
 			break;
 
-		type = strsep(&p, " ");			/* type */
+		q = strsep(&p, " ");			/* type */
+		if (strcmp(q, "PART") != 0)
+			continue;
+
 		chunk.name = strsep(&p, " ");		/* name */
+
 		q = strsep(&p, " ");			/* length */
 		i = strtoimax(q, &r, 0);
 		if (*r)
 			abort();
 		chunk.end = i / disk->sector_size;
+
 		q = strsep(&p, " ");			/* sector size */
 
 		for (;;) {
@@ -205,82 +206,30 @@ Int_Open_Disk(const char *name, char *conftxt)
 				break;
 			r = strsep(&p, " ");
 			i = strtoimax(r, &s, 0);
-			if (*s) {
-				status = uuid_s_ok;
+			if (strcmp(q, "ty") == 0 && *s != '\0') {
 				if (!strcmp(r, "efi"))
-					uuid = _efi;
-				else if (!strcmp(r, "mbr"))
-					uuid = _mbr;
-				else if (!strcmp(r, "freebsd"))
-					uuid = _fbsd;
-				else if (!strcmp(r, "freebsd-swap"))
-					uuid = _swap;
-				else if (!strcmp(r, "freebsd-ufs"))
-					uuid = _ufs;
-				else {
-					if (!strcmp(type, "PART"))
-						uuid_from_string(r + 1, &uuid,
-						    &status);
-					else
-						uuid_from_string(r, &uuid,
-						    &status);
+					chunk.type = efi;
+				else if (!strcmp(r, "freebsd")) {
+					chunk.type = freebsd;
+					chunk.subtype = 0xa5;
+				} else if (!strcmp(r, "freebsd-swap")) {
+					chunk.type = part;
+					chunk.subtype = FS_SWAP;
+				} else if (!strcmp(r, "freebsd-ufs")) {
+					chunk.type = part;
+					chunk.subtype = FS_BSDFFS;
+				} else {
+					chunk.type = part;
+					chunk.subtype = FS_OTHER;
 				}
-			} else
-				status = uuid_s_invalid_string_uuid;
-			if (!strcmp(q, "o"))
-				chunk.offset = i / disk->sector_size;
-			else if (!strcmp(q, "i"))
-				chunk.flags = CHUNK_ITOF(i) | CHUNK_HAS_INDEX;
-			else if (!strcmp(q, "ty"))
-				chunk.subtype = i;
-		}
-
-		if (strncmp(type, "MBR", 3) == 0) {
-			switch (chunk.subtype) {
-			case 0xa5:
-				chunk.type = freebsd;
-				break;
-			case 0x01:
-			case 0x04:
-			case 0x06:
-			case 0x0b:
-			case 0x0c:
-			case 0x0e:
-				chunk.type = fat;
-				break;
-			case 0xef:	/* EFI */
-				chunk.type = efi;
-				break;
-			default:
-				chunk.type = mbr;
-				break;
+			} else {
+				if (!strcmp(q, "o"))
+					chunk.offset = i / disk->sector_size;
+				else if (!strcmp(q, "i"))
+					chunk.flags = CHUNK_ITOF(i) |
+					    CHUNK_HAS_INDEX;
 			}
-		} else if (strcmp(type, "BSD") == 0) {
-			chunk.type = part;
-		} else if (strcmp(type, "GPT") == 0 ||
-		    strcmp(type, "PART") == 0) {
-			chunk.subtype = 0;
-			if (status != uuid_s_ok)
-				abort();
-			if (uuid_is_nil(&uuid, NULL))
-				chunk.type = unused;
-			else if (uuid_equal(&uuid, &_efi, NULL))
-				chunk.type = efi;
-			else if (uuid_equal(&uuid, &_mbr, NULL))
-				chunk.type = mbr;
-			else if (uuid_equal(&uuid, &_fbsd, NULL)) {
-				chunk.type = freebsd;
-				chunk.subtype = 0xa5;
-			} else if (uuid_equal(&uuid, &_swap, NULL)) {
-				chunk.type = part;
-				chunk.subtype = FS_SWAP;
-			} else if (uuid_equal(&uuid, &_ufs, NULL)) {
-				chunk.type = part;
-				chunk.subtype = FS_BSDFFS;
-			} else
-				chunk.type = part;
-		} else
-			abort();
+		}
 
 		Add_Chunk(disk, chunk.offset, chunk.end, chunk.name,
 		    chunk.type, chunk.subtype, chunk.flags, 0);

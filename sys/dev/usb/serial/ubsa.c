@@ -83,8 +83,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int ubsa_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ubsa, CTLFLAG_RW, 0, "USB ubsa");
-SYSCTL_INT(_hw_usb2_ubsa, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ubsa, CTLFLAG_RW, 0, "USB ubsa");
+SYSCTL_INT(_hw_usb_ubsa, OID_AUTO, debug, CTLFLAG_RW,
     &ubsa_debug, 0, "ubsa debug level");
 #endif
 
@@ -148,11 +148,11 @@ enum {
 };
 
 struct ubsa_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UBSA_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UBSA_N_TRANSFER];
+	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
 	uint8_t	sc_iface_no;		/* interface number */
@@ -165,24 +165,24 @@ static device_probe_t ubsa_probe;
 static device_attach_t ubsa_attach;
 static device_detach_t ubsa_detach;
 
-static usb2_callback_t ubsa_write_callback;
-static usb2_callback_t ubsa_read_callback;
-static usb2_callback_t ubsa_intr_callback;
+static usb_callback_t ubsa_write_callback;
+static usb_callback_t ubsa_read_callback;
+static usb_callback_t ubsa_intr_callback;
 
 static void	ubsa_cfg_request(struct ubsa_softc *, uint8_t, uint16_t);
-static void	ubsa_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	ubsa_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static void	ubsa_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static int	ubsa_pre_param(struct usb2_com_softc *, struct termios *);
-static void	ubsa_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	ubsa_start_read(struct usb2_com_softc *);
-static void	ubsa_stop_read(struct usb2_com_softc *);
-static void	ubsa_start_write(struct usb2_com_softc *);
-static void	ubsa_stop_write(struct usb2_com_softc *);
-static void	ubsa_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static void	ubsa_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	ubsa_cfg_set_rts(struct ucom_softc *, uint8_t);
+static void	ubsa_cfg_set_break(struct ucom_softc *, uint8_t);
+static int	ubsa_pre_param(struct ucom_softc *, struct termios *);
+static void	ubsa_cfg_param(struct ucom_softc *, struct termios *);
+static void	ubsa_start_read(struct ucom_softc *);
+static void	ubsa_stop_read(struct ucom_softc *);
+static void	ubsa_start_write(struct ucom_softc *);
+static void	ubsa_stop_write(struct ucom_softc *);
+static void	ubsa_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 
-static const struct usb2_config ubsa_config[UBSA_N_TRANSFER] = {
+static const struct usb_config ubsa_config[UBSA_N_TRANSFER] = {
 
 	[UBSA_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -212,20 +212,20 @@ static const struct usb2_config ubsa_config[UBSA_N_TRANSFER] = {
 	},
 };
 
-static const struct usb2_com_callback ubsa_callback = {
-	.usb2_com_cfg_get_status = &ubsa_cfg_get_status,
-	.usb2_com_cfg_set_dtr = &ubsa_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &ubsa_cfg_set_rts,
-	.usb2_com_cfg_set_break = &ubsa_cfg_set_break,
-	.usb2_com_cfg_param = &ubsa_cfg_param,
-	.usb2_com_pre_param = &ubsa_pre_param,
-	.usb2_com_start_read = &ubsa_start_read,
-	.usb2_com_stop_read = &ubsa_stop_read,
-	.usb2_com_start_write = &ubsa_start_write,
-	.usb2_com_stop_write = &ubsa_stop_write,
+static const struct ucom_callback ubsa_callback = {
+	.ucom_cfg_get_status = &ubsa_cfg_get_status,
+	.ucom_cfg_set_dtr = &ubsa_cfg_set_dtr,
+	.ucom_cfg_set_rts = &ubsa_cfg_set_rts,
+	.ucom_cfg_set_break = &ubsa_cfg_set_break,
+	.ucom_cfg_param = &ubsa_cfg_param,
+	.ucom_pre_param = &ubsa_pre_param,
+	.ucom_start_read = &ubsa_start_read,
+	.ucom_stop_read = &ubsa_stop_read,
+	.ucom_start_write = &ubsa_start_write,
+	.ucom_stop_write = &ubsa_stop_write,
 };
 
-static const struct usb2_device_id ubsa_devs[] = {
+static const struct usb_device_id ubsa_devs[] = {
 	/* AnyData ADU-500A */
 	{USB_VPI(USB_VENDOR_ANYDATA, USB_PRODUCT_ANYDATA_ADU_500A, 0)},
 	/* AnyData ADU-E100A/H */
@@ -266,9 +266,9 @@ MODULE_DEPEND(ubsa, usb, 1, 1, 1);
 static int
 ubsa_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UBSA_CONFIG_INDEX) {
@@ -277,26 +277,26 @@ ubsa_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UBSA_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(ubsa_devs, sizeof(ubsa_devs), uaa));
+	return (usbd_lookup_id_by_uaa(ubsa_devs, sizeof(ubsa_devs), uaa));
 }
 
 static int
 ubsa_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ubsa_softc *sc = device_get_softc(dev);
 	int error;
 
 	DPRINTF("sc=%p\n", sc);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ubsa", NULL, MTX_DEF);
 
 	sc->sc_udev = uaa->device;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index = UBSA_IFACE_INDEX;
 
-	error = usb2_transfer_setup(uaa->device, &sc->sc_iface_index,
+	error = usbd_transfer_setup(uaa->device, &sc->sc_iface_index,
 	    sc->sc_xfer, ubsa_config, UBSA_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
@@ -305,14 +305,14 @@ ubsa_attach(device_t dev)
 	}
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_RD]);
+	usbd_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[UBSA_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &ubsa_callback, &sc->sc_mtx);
 	if (error) {
-		DPRINTF("usb2_com_attach failed\n");
+		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
 	return (0);
@@ -329,8 +329,8 @@ ubsa_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-	usb2_transfer_unsetup(sc->sc_xfer, UBSA_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UBSA_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -339,8 +339,8 @@ ubsa_detach(device_t dev)
 static void
 ubsa_cfg_request(struct ubsa_softc *sc, uint8_t index, uint16_t value)
 {
-	struct usb2_device_request req;
-	usb2_error_t err;
+	struct usb_device_request req;
+	usb_error_t err;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = index;
@@ -349,16 +349,16 @@ ubsa_cfg_request(struct ubsa_softc *sc, uint8_t index, uint16_t value)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	err = usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
+		    "(ignored)\n", usbd_errstr(err));
 	}
 }
 
 static void
-ubsa_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+ubsa_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
@@ -368,7 +368,7 @@ ubsa_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-ubsa_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+ubsa_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
@@ -378,7 +378,7 @@ ubsa_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-ubsa_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+ubsa_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
@@ -388,7 +388,7 @@ ubsa_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static int
-ubsa_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+ubsa_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
@@ -415,7 +415,7 @@ ubsa_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-ubsa_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+ubsa_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 	uint16_t value = 0;
@@ -486,47 +486,47 @@ ubsa_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-ubsa_start_read(struct usb2_com_softc *ucom)
+ubsa_start_read(struct ucom_softc *ucom)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
 	/* start interrupt endpoint */
-	usb2_transfer_start(sc->sc_xfer[UBSA_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UBSA_INTR_DT_RD]);
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[UBSA_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UBSA_BULK_DT_RD]);
 }
 
 static void
-ubsa_stop_read(struct usb2_com_softc *ucom)
+ubsa_stop_read(struct ucom_softc *ucom)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
 	/* stop interrupt endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UBSA_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UBSA_INTR_DT_RD]);
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UBSA_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UBSA_BULK_DT_RD]);
 }
 
 static void
-ubsa_start_write(struct usb2_com_softc *ucom)
+ubsa_start_write(struct ucom_softc *ucom)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UBSA_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UBSA_BULK_DT_WR]);
 }
 
 static void
-ubsa_stop_write(struct usb2_com_softc *ucom)
+ubsa_stop_write(struct ucom_softc *ucom)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UBSA_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UBSA_BULK_DT_WR]);
 }
 
 static void
-ubsa_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+ubsa_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct ubsa_softc *sc = ucom->sc_parent;
 
@@ -537,7 +537,7 @@ ubsa_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static void
-ubsa_write_callback(struct usb2_xfer *xfer)
+ubsa_write_callback(struct usb_xfer *xfer)
 {
 	struct ubsa_softc *sc = xfer->priv_sc;
 	uint32_t actlen;
@@ -546,11 +546,11 @@ ubsa_write_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		if (ucom_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
 		    UBSA_BSIZE, &actlen)) {
 
 			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -566,18 +566,18 @@ tr_setup:
 }
 
 static void
-ubsa_read_callback(struct usb2_xfer *xfer)
+ubsa_read_callback(struct usb_xfer *xfer)
 {
 	struct ubsa_softc *sc = xfer->priv_sc;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
+		ucom_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -592,7 +592,7 @@ tr_setup:
 }
 
 static void
-ubsa_intr_callback(struct usb2_xfer *xfer)
+ubsa_intr_callback(struct usb_xfer *xfer)
 {
 	struct ubsa_softc *sc = xfer->priv_sc;
 	uint8_t buf[4];
@@ -602,7 +602,7 @@ ubsa_intr_callback(struct usb2_xfer *xfer)
 
 		if (xfer->actlen >= sizeof(buf)) {
 
-			usb2_copy_out(xfer->frbuffers, 0, buf, sizeof(buf));
+			usbd_copy_out(xfer->frbuffers, 0, buf, sizeof(buf));
 
 			/*
 			 * incidentally, Belkin adapter status bits match
@@ -614,7 +614,7 @@ ubsa_intr_callback(struct usb2_xfer *xfer)
 			DPRINTF("lsr = 0x%02x, msr = 0x%02x\n",
 			    sc->sc_lsr, sc->sc_msr);
 
-			usb2_com_status_change(&sc->sc_ucom);
+			ucom_status_change(&sc->sc_ucom);
 		} else {
 			DPRINTF("ignoring short packet, %d bytes\n",
 			    xfer->actlen);
@@ -623,7 +623,7 @@ ubsa_intr_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */

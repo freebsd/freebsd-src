@@ -54,3 +54,4 @@ ENTRY(sin)
 	fstp	%st(1)
 	fsin
 	ret
+END(sin)

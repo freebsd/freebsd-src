@@ -40,8 +40,6 @@
  *	mkdir: want it ?
  */
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -942,8 +940,10 @@ devfs_open(struct vop_open_args *ap)
 
 	fpop = td->td_fpop;
 	td->td_fpop = fp;
-	if (fp != NULL)
+	if (fp != NULL) {
 		fp->f_data = dev;
+		fp->f_vnode = vp;
+	}
 	if (dsw->d_fdopen != NULL)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
 	else
@@ -1276,11 +1276,19 @@ devfs_revoke(struct vop_revoke_args *ap)
 static int
 devfs_rioctl(struct vop_ioctl_args *ap)
 {
-	int error;
+	struct vnode *vp;
 	struct devfs_mount *dmp;
+	int error;
 
-	dmp = VFSTODEVFS(ap->a_vp->v_mount);
+	vp = ap->a_vp;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	if (vp->v_iflag & VI_DOOMED) {
+		VOP_UNLOCK(vp, 0);
+		return (EBADF);
+	}
+	dmp = VFSTODEVFS(vp->v_mount);
 	sx_xlock(&dmp->dm_lock);
+	VOP_UNLOCK(vp, 0);
 	DEVFS_DMP_HOLD(dmp);
 	devfs_populate(dmp);
 	if (DEVFS_DMP_DROP(dmp)) {

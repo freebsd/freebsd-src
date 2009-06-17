@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/clist.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/poll.h>
@@ -50,11 +49,16 @@ __FBSDID("$FreeBSD$");
 
 #define KBD_INDEX(dev)	dev2unit(dev)
 
+#define KB_QSIZE	512
+#define KB_BUFSIZE	64
+
 typedef struct genkbd_softc {
 	int		gkb_flags;	/* flag/status bits */
 #define KB_ASLEEP	(1 << 0)
-	struct clist	gkb_q;		/* input queue */
 	struct selinfo	gkb_rsel;
+	char		gkb_q[KB_QSIZE];		/* input queue */
+	unsigned int	gkb_q_start;
+	unsigned int	gkb_q_length;
 } genkbd_softc_t;
 
 static	SLIST_HEAD(, keyboard_driver) keyboard_drivers =
@@ -521,8 +525,38 @@ kbd_detach(keyboard_t *kbd)
  * driver functions.
  */
 
-#define KB_QSIZE	512
-#define KB_BUFSIZE	64
+static void
+genkbd_putc(genkbd_softc_t *sc, char c)
+{
+	unsigned int p;
+
+	if (sc->gkb_q_length == KB_QSIZE)
+		return;
+
+	p = (sc->gkb_q_start + sc->gkb_q_length) % KB_QSIZE;
+	sc->gkb_q[p] = c;
+	sc->gkb_q_length++;
+}
+
+static size_t
+genkbd_getc(genkbd_softc_t *sc, char *buf, size_t len)
+{
+
+	/* Determine copy size. */
+	if (sc->gkb_q_length == 0)
+		return (0);
+	if (len >= sc->gkb_q_length)
+		len = sc->gkb_q_length;
+	if (len >= KB_QSIZE - sc->gkb_q_start)
+		len = KB_QSIZE - sc->gkb_q_start;
+
+	/* Copy out data and progress offset. */
+	memcpy(buf, sc->gkb_q + sc->gkb_q_start, len);
+	sc->gkb_q_start = (sc->gkb_q_start + len) % KB_QSIZE;
+	sc->gkb_q_length -= len;
+
+	return (len);
+}
 
 static kbd_callback_func_t genkbd_event;
 
@@ -555,10 +589,7 @@ genkbdopen(struct cdev *dev, int mode, int flag, struct thread *td)
 	 * the device may still be missing (!KBD_HAS_DEVICE(kbd)).
 	 */
 
-#if 0
-	bzero(&sc->gkb_q, sizeof(sc->gkb_q));
-#endif
-	clist_alloc_cblocks(&sc->gkb_q, KB_QSIZE, KB_QSIZE/2); /* XXX */
+	sc->gkb_q_length = 0;
 	splx(s);
 
 	return (0);
@@ -582,9 +613,6 @@ genkbdclose(struct cdev *dev, int mode, int flag, struct thread *td)
 		/* XXX: we shall be forgiving and don't report error... */
 	} else {
 		kbd_release(kbd, (void *)sc);
-#if 0
-		clist_free_cblocks(&sc->gkb_q);
-#endif
 	}
 	splx(s);
 	return (0);
@@ -608,7 +636,7 @@ genkbdread(struct cdev *dev, struct uio *uio, int flag)
 		splx(s);
 		return (ENXIO);
 	}
-	while (sc->gkb_q.c_cc == 0) {
+	while (sc->gkb_q_length == 0) {
 		if (flag & O_NONBLOCK) {
 			splx(s);
 			return (EWOULDBLOCK);
@@ -632,7 +660,7 @@ genkbdread(struct cdev *dev, struct uio *uio, int flag)
 	error = 0;
 	while (uio->uio_resid > 0) {
 		len = imin(uio->uio_resid, sizeof(buffer));
-		len = q_to_b(&sc->gkb_q, buffer, len);
+		len = genkbd_getc(sc, buffer, len);
 		if (len <= 0)
 			break;
 		error = uiomove(buffer, len, uio);
@@ -684,7 +712,7 @@ genkbdpoll(struct cdev *dev, int events, struct thread *td)
 	if ((sc == NULL) || (kbd == NULL) || !KBD_IS_VALID(kbd)) {
 		revents =  POLLHUP;	/* the keyboard has gone */
 	} else if (events & (POLLIN | POLLRDNORM)) {
-		if (sc->gkb_q.c_cc > 0)
+		if (sc->gkb_q_length > 0)
 			revents = events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &sc->gkb_rsel);
@@ -738,7 +766,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 
 		/* store the byte as is for K_RAW and K_CODE modes */
 		if (mode != K_XLATE) {
-			putc(KEYCHAR(c), &sc->gkb_q);
+			genkbd_putc(sc, KEYCHAR(c));
 			continue;
 		}
 
@@ -753,9 +781,9 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 				/* ignore them... */
 				continue;
 			case BTAB:	/* a backtab: ESC [ Z */
-				putc(0x1b, &sc->gkb_q);
-				putc('[', &sc->gkb_q);
-				putc('Z', &sc->gkb_q);
+				genkbd_putc(sc, 0x1b);
+				genkbd_putc(sc, '[');
+				genkbd_putc(sc, 'Z');
 				continue;
 			}
 		}
@@ -763,24 +791,24 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 		/* normal chars, normal chars with the META, function keys */
 		switch (KEYFLAGS(c)) {
 		case 0:			/* a normal char */
-			putc(KEYCHAR(c), &sc->gkb_q);
+			genkbd_putc(sc, KEYCHAR(c));
 			break;
 		case MKEY:		/* the META flag: prepend ESC */
-			putc(0x1b, &sc->gkb_q);
-			putc(KEYCHAR(c), &sc->gkb_q);
+			genkbd_putc(sc, 0x1b);
+			genkbd_putc(sc, KEYCHAR(c));
 			break;
 		case FKEY | SPCLKEY:	/* a function key, return string */
 			cp = kbdd_get_fkeystr(kbd, KEYCHAR(c), &len);
 			if (cp != NULL) {
 				while (len-- >  0)
-					putc(*cp++, &sc->gkb_q);
+					genkbd_putc(sc, *cp++);
 			}
 			break;
 		}
 	}
 
 	/* wake up sleeping/polling processes */
-	if (sc->gkb_q.c_cc > 0) {
+	if (sc->gkb_q_length > 0) {
 		if (sc->gkb_flags & KB_ASLEEP) {
 			sc->gkb_flags &= ~KB_ASLEEP;
 			wakeup(sc);

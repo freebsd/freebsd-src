@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.h,v 1.30.18.2 2005/04/29 00:17:10 marka Exp $ */
+/* $Id: time.h,v 1.38.56.2 2009/01/05 23:47:23 tbox Exp $ */
 
 #ifndef ISC_TIME_H
 #define ISC_TIME_H 1
@@ -29,7 +29,7 @@
  *** Intervals
  ***/
 
-/*! 
+/*!
  *  \brief
  * The contents of this structure are private, and MUST NOT be accessed
  * directly by callers.
@@ -90,15 +90,17 @@ extern isc_time_t *isc_time_epoch;
 void
 isc_time_set(isc_time_t *t, unsigned int seconds, unsigned int nanoseconds);
 /*%<
- * Set 't' to a particular number of seconds + nanoseconds since the epoch.
+ * Set 't' to a value which represents the given number of seconds and
+ * nanoseconds since 00:00:00 January 1, 1970, UTC.
  *
  * Notes:
- *\li	This call is equivalent to:
+ *\li	The Unix version of this call is equivalent to:
  *\code
  *	isc_time_settoepoch(t);
  *	isc_interval_set(i, seconds, nanoseconds);
  *	isc_time_add(t, i, t);
  *\endcode
+ *
  * Requires:
  *\li	't' is a valid pointer.
  *\li	nanoseconds < 1000000000.
@@ -110,7 +112,7 @@ isc_time_settoepoch(isc_time_t *t);
  * Set 't' to the time of the epoch.
  *
  * Notes:
- * \li	The date of the epoch is platform-dependent.
+ *\li	The date of the epoch is platform-dependent.
  *
  * Requires:
  *
@@ -199,7 +201,7 @@ isc_time_add(const isc_time_t *t, const isc_interval_t *i, isc_time_t *result);
  *\li	't', 'i', and 'result' are valid pointers.
  *
  * Returns:
- * \li	Success
+ *\li	Success
  *\li	Out of range
  * 		The interval added to the time is too large to
  *		be represented in the current definition of isc_time_t.
@@ -274,7 +276,7 @@ isc_time_nanoseconds(const isc_time_t *t);
  * Return the number of nanoseconds stored in a time structure.
  *
  * Notes:
- *\li	This is the number of nanoseconds in excess of the the number
+ *\li	This is the number of nanoseconds in excess of the number
  *	of seconds since the epoch; it will always be less than one
  *	full second.
  *
@@ -295,7 +297,35 @@ isc_time_formattimestamp(const isc_time_t *t, char *buf, unsigned int len);
  *
  *  Requires:
  *\li      'len' > 0
- *  \li    'buf' points to an array of at least len chars
+ *\li      'buf' points to an array of at least len chars
+ *
+ */
+
+void
+isc_time_formathttptimestamp(const isc_time_t *t, char *buf, unsigned int len);
+/*%<
+ * Format the time 't' into the buffer 'buf' of length 'len',
+ * using a format like "Mon, 30 Aug 2000 04:06:47 GMT"
+ * If the text does not fit in the buffer, the result is indeterminate,
+ * but is always guaranteed to be null terminated.
+ *
+ *  Requires:
+ *\li      'len' > 0
+ *\li      'buf' points to an array of at least len chars
+ *
+ */
+
+void
+isc_time_formatISO8601(const isc_time_t *t, char *buf, unsigned int len);
+/*%<
+ * Format the time 't' into the buffer 'buf' of length 'len',
+ * using the ISO8601 format: "yyyy-mm-ddThh:mm:ssZ"
+ * If the text does not fit in the buffer, the result is indeterminate,
+ * but is always guaranteed to be null terminated.
+ *
+ *  Requires:
+ *\li      'len' > 0
+ *\li      'buf' points to an array of at least len chars
  *
  */
 

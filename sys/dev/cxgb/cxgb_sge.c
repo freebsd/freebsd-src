@@ -1719,7 +1719,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		if (q->txq[i].txq_mr != NULL) 
 			buf_ring_free(q->txq[i].txq_mr, M_DEVBUF);
 		if (q->txq[i].txq_ifq != NULL) {
-			ifq_detach(q->txq[i].txq_ifq);
+			ifq_delete(q->txq[i].txq_ifq);
 			free(q->txq[i].txq_ifq, M_DEVBUF);
 		}
 	}
@@ -2289,7 +2289,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			device_printf(sc->dev, "failed to allocate ifq\n");
 			goto err;
 		}
-		ifq_attach(q->txq[i].txq_ifq, pi->ifp);
+		ifq_init(q->txq[i].txq_ifq, pi->ifp);
 	}
 	init_qset_cntxt(q, id);
 	q->idx = id;
@@ -3349,6 +3349,10 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    "hw_revision",
 	    CTLFLAG_RD, &sc->params.rev,
 	    0, "chip model");
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
+	    "port_types",
+	    CTLFLAG_RD, &sc->port_types,
+	    0, "type of ports");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "enable_debug",
 	    CTLFLAG_RW, &cxgb_debug,
@@ -3650,6 +3654,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 		CXGB_SYSCTL_ADD_QUAD(rx_mcast_frames);
 		CXGB_SYSCTL_ADD_QUAD(rx_bcast_frames);
 		CXGB_SYSCTL_ADD_QUAD(rx_pause);
+		CXGB_SYSCTL_ADD_QUAD(rx_fcs_errs);
 		CXGB_SYSCTL_ADD_QUAD(rx_align_errs);
 		CXGB_SYSCTL_ADD_QUAD(rx_symbol_errs);
 		CXGB_SYSCTL_ADD_QUAD(rx_data_errs);
@@ -3680,6 +3685,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 		CXGB_SYSCTL_ADD_ULONG(xaui_pcs_align_change);
 		CXGB_SYSCTL_ADD_ULONG(num_toggled);
 		CXGB_SYSCTL_ADD_ULONG(num_resets);
+		CXGB_SYSCTL_ADD_ULONG(link_faults);
 #undef CXGB_SYSCTL_ADD_ULONG
 	}
 }

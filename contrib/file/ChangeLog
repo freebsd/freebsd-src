@@ -1,3 +1,59 @@
+2009-05-06  10:25  Christos Zoulas <christos@zoulas.com>
+
+	* Avoid null dereference in cdf code (Drew Yao)
+
+	* More cdf bounds checks and overflow checks
+
+2009-05-01  18:37  Christos Zoulas <christos@zoulas.com>
+
+	* Buffer overflow fixes from Drew Yao
+
+2009-04-30  17:10  Christos Zoulas <christos@zoulas.com>
+
+	* Fix more cdf lossage. All the documents I have
+	  right now print the correct information.
+
+2009-03-27  18:43  Christos Zoulas <christos@zoulas.com>
+
+	* don't print \012- separators in the same magic entry 
+	  if it consists of multiple magic printing lines.
+
+2009-03-23  10:20  Christos Zoulas <christos@zoulas.com>
+
+	* Avoid file descriptor leak in compress code from
+	  (Daniel Novotny)
+
+2009-03-18  16:50  Christos Zoulas <christos@zoulas.com>
+
+	* Allow escaping of relation characters, so that we can say \^[A-Z]
+	  and the ^ is not eaten as a relation char.
+
+	* Fix troff and fortran to their previous glory using
+	  regex. This was broken since their removel from ascmagic.
+
+2009-03-10  16:50  Christos Zoulas <christos@zoulas.com>
+
+	* don't use strlen in strndup() (Toby Peterson)
+
+2009-03-10  7:45  Christos Zoulas <christos@zoulas.com>
+
+	* avoid c99 syntax.
+
+2009-02-23 15:45  Christos Zoulas <christos@zoulas.com>
+
+	* make the cdf code use the buffer first if available,
+	  and then the fd code.
+
+2009-02-13 13:45  Christos Zoulas <christos@zoulas.com>
+
+	* look for struct option to determine if getopt.h is usable for IRIX.
+
+	* sanitize cdf document strings
+
+2009-02-04 13:25  Christos Zoulas <christos@zoulas.com>
+
+	* fix OS/2 warnings.
+
 2008-12-12 15:50  Christos Zoulas <christos@zoulas.com>
 
 	* fix initial offset calculation for non 4K sector files

@@ -551,11 +551,8 @@ struct malo_softc {
 	struct malo_txq		malo_txq[MALO_NUM_TX_QUEUES];
 	struct task		malo_txtask;	/* tx int processing */
 
-	struct bpf_if		*malo_drvbpf;
 	struct malo_tx_radiotap_header malo_tx_th;
-	int			malo_tx_th_len;
 	struct malo_rx_radiotap_header malo_rx_th;
-	int			malo_rx_th_len;
 
 	struct malo_stats	malo_stats;	/* interface statistics */
 	int			malo_debug;

@@ -571,6 +571,7 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_O_DIRECTORY	00200000	/* Must be a directory */
 #define	LINUX_O_NOFOLLOW	00400000	/* Do not follow links */
 #define	LINUX_O_NOATIME		01000000
+#define	LINUX_O_CLOEXEC		02000000
 
 #define	LINUX_F_DUPFD		0
 #define	LINUX_F_GETFD		1
@@ -668,6 +669,7 @@ union l_semun {
 #define	LINUX_GETSOCKOPT	15
 #define	LINUX_SENDMSG		16
 #define	LINUX_RECVMSG		17
+#define	LINUX_ACCEPT4		18
 
 #define	LINUX_SOL_SOCKET	1
 #define	LINUX_SOL_IP		0

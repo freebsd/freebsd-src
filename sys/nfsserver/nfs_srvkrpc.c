@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -80,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
 #include <nfsserver/nfs_fha.h>
+
+#include <security/mac/mac_framework.h>
 
 #ifndef NFS_LEGACYRPC
 
@@ -488,7 +491,9 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		if (error)
 			return (error);
 	} else {
-		snprintf(principal, sizeof(principal), "nfs@%s", hostname);
+		memcpy(principal, "nfs@", 4);
+		getcredhostname(td->td_ucred, principal + 4,
+		    sizeof(principal) - 4);
 	}
 #endif
 

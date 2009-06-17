@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <rpc/rpc.h>
-#include <rpc/rpcclnt.h>
 
 #include <kgssapi/krb5/kcrypto.h>
 
@@ -300,7 +299,9 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 #ifdef KGSSAPI
 	rpc_gss_service_t svc;
 	AUTH *auth;
+#ifdef notyet
 	rpc_gss_options_req_t req_options;
+#endif
 #endif
 
 	switch (secflavour) {
@@ -318,6 +319,7 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 			svc = rpc_gss_svc_integrity;
 		else
 			svc = rpc_gss_svc_privacy;
+#ifdef notyet
 		req_options.req_flags = GSS_C_MUTUAL_FLAG;
 		req_options.time_req = 0;
 		req_options.my_cred = GSS_C_NO_CREDENTIAL;
@@ -327,8 +329,22 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		auth = rpc_gss_secfind(nrp->nr_client, cred,
 		    clnt_principal, srv_principal, mech_oid, svc,
 		    &req_options);
-		return (auth);
+#else
+		/*
+		 * Until changes to the rpcsec_gss code are committed,
+		 * there is no support for host based initiator
+		 * principals. As such, that case cannot yet be handled.
+		 */
+		if (clnt_principal == NULL)
+			auth = rpc_gss_secfind(nrp->nr_client, cred,
+			    srv_principal, mech_oid, svc);
+		else
+			auth = NULL;
 #endif
+		if (auth != NULL)
+			return (auth);
+		/* fallthrough */
+#endif	/* KGSSAPI */
 	case AUTH_SYS:
 	default:
 		return (authunix_create(cred));
@@ -388,7 +404,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 {
 	u_int32_t *tl;
 	time_t waituntil;
-	int i, j;
+	int i, j, set_uid = 0;
 	int trycnt, error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
@@ -399,6 +415,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	enum clnt_stat stat;
 	struct nfsreq *rep = NULL;
 	char *srv_principal = NULL;
+	uid_t saved_uid = (uid_t)-1;
 
 	if (xidp != NULL)
 		*xidp = 0;
@@ -407,6 +424,14 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		m_freem(nd->nd_mreq);
 		return (ESTALE);
 	}
+
+	/*
+	 * XXX if not already connected call nfs_connect now. Longer
+	 * term, change nfs_mount to call nfs_connect unconditionally
+	 * and let clnt_reconnect_create handle reconnects.
+	 */
+	if (nrp->nr_client == NULL)
+		newnfs_connect(nmp, nrp, cred, td, 0);
 
 	/*
 	 * For a client side mount, nmp is != NULL and clp == NULL. For
@@ -428,8 +453,30 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	     nd->nd_procnum != NFSPROC_NULL) {
 		if (NFSHASALLGSSNAME(nmp) && nmp->nm_krbnamelen > 0)
 			nd->nd_flag |= ND_USEGSSNAME;
-		if ((nd->nd_flag & ND_USEGSSNAME) && nmp->nm_krbnamelen > 0)
-			usegssname = 1;
+		if ((nd->nd_flag & ND_USEGSSNAME) != 0) {
+			/*
+			 * If there is a client side host based credential,
+			 * use that, otherwise use the system uid, if set.
+			 */
+			if (nmp->nm_krbnamelen > 0) {
+				usegssname = 1;
+			} else if (nmp->nm_uid != (uid_t)-1) {
+				saved_uid = cred->cr_uid;
+				cred->cr_uid = nmp->nm_uid;
+				set_uid = 1;
+			}
+		} else if (nmp->nm_krbnamelen == 0 &&
+		    nmp->nm_uid != (uid_t)-1 && cred->cr_uid == (uid_t)0) {
+			/*
+			 * If there is no host based principal name and
+			 * the system uid is set and this is root, use the
+			 * system uid, since root won't have user
+			 * credentials in a credentials cache file.
+			 */
+			saved_uid = cred->cr_uid;
+			cred->cr_uid = nmp->nm_uid;
+			set_uid = 1;
+		}
 		if (NFSHASINTEGRITY(nmp))
 			secflavour = RPCSEC_GSS_KRB5I;
 		else if (NFSHASPRIVACY(nmp))
@@ -448,20 +495,16 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		    ((nmp->nm_tprintf_delay)-(nmp->nm_tprintf_initial_delay));
 	}
 
-	/*
-	 * XXX if not already connected call nfs_connect now. Longer
-	 * term, change nfs_mount to call nfs_connect unconditionally
-	 * and let clnt_reconnect_create handle reconnects.
-	 */
-	if (nrp->nr_client == NULL)
-		newnfs_connect(nmp, nrp, cred, td, 0);
-
-	if (usegssname)
+	if (nd->nd_procnum == NFSPROC_NULL)
+		auth = authnone_create();
+	else if (usegssname)
 		auth = nfs_getauth(nrp, secflavour, nmp->nm_krbname,
 		    srv_principal, NULL, cred);
 	else
 		auth = nfs_getauth(nrp, secflavour, NULL,
 		    srv_principal, NULL, cred);
+	if (set_uid)
+		cred->cr_uid = saved_uid;
 	if (auth == NULL) {
 		m_freem(nd->nd_mreq);
 		return (EACCES);
@@ -475,7 +518,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 
 	procnum = nd->nd_procnum;
 	if ((nd->nd_flag & ND_NFSV4) &&
-	    nd->nd_procnum != NFSV4PROC_CBNULL &&
+	    nd->nd_procnum != NFSPROC_NULL &&
 	    nd->nd_procnum != NFSV4PROC_CBCOMPOUND)
 		procnum = NFSV4PROC_COMPOUND;
 
@@ -560,6 +603,13 @@ tryagain:
 
 	KASSERT(nd->nd_mrep != NULL, ("mrep shouldn't be NULL if no error\n"));
 
+	/*
+	 * Search for any mbufs that are not a multiple of 4 bytes long
+	 * or with m_data not longword aligned.
+	 * These could cause pointer alignment problems, so copy them to
+	 * well aligned mbufs.
+	 */
+	newnfs_realign(&nd->nd_mrep);
 	nd->nd_md = nd->nd_mrep;
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
@@ -672,14 +722,13 @@ tryagain:
 			    rep != NULL && (rep->r_flags & R_DONTRECOVER))
 				nd->nd_repstat = NFSERR_STALEDONTRECOVER;
 		}
-
-		m_freem(nd->nd_mreq);
-		AUTH_DESTROY(auth);
-		if (rep != NULL)
-			FREE((caddr_t)rep, M_NFSDREQ);
-		return (0);
 	}
-	error = EPROTONOSUPPORT;
+
+	m_freem(nd->nd_mreq);
+	AUTH_DESTROY(auth);
+	if (rep != NULL)
+		FREE((caddr_t)rep, M_NFSDREQ);
+	return (0);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
 	mbuf_freem(nd->nd_mreq);

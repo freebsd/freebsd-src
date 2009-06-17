@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 
 /* Belkin F5U111 adapter covered by NETMATE entry */
 
-static const struct usb2_device_id cue_devs[] = {
+static const struct usb_device_id cue_devs[] = {
 	{USB_VPI(USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE, 0)},
 	{USB_VPI(USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE2, 0)},
 	{USB_VPI(USB_VENDOR_SMARTBRIDGES, USB_PRODUCT_SMARTBRIDGES_SMARTLINK, 0)},
@@ -87,16 +87,16 @@ static device_probe_t cue_probe;
 static device_attach_t cue_attach;
 static device_detach_t cue_detach;
 
-static usb2_callback_t cue_bulk_read_callback;
-static usb2_callback_t cue_bulk_write_callback;
+static usb_callback_t cue_bulk_read_callback;
+static usb_callback_t cue_bulk_write_callback;
 
-static usb2_ether_fn_t cue_attach_post;
-static usb2_ether_fn_t cue_init;
-static usb2_ether_fn_t cue_stop;
-static usb2_ether_fn_t cue_start;
-static usb2_ether_fn_t cue_tick;
-static usb2_ether_fn_t cue_setmulti;
-static usb2_ether_fn_t cue_setpromisc;
+static uether_fn_t cue_attach_post;
+static uether_fn_t cue_init;
+static uether_fn_t cue_stop;
+static uether_fn_t cue_start;
+static uether_fn_t cue_tick;
+static uether_fn_t cue_setmulti;
+static uether_fn_t cue_setpromisc;
 
 static uint8_t	cue_csr_read_1(struct cue_softc *, uint16_t);
 static uint16_t	cue_csr_read_2(struct cue_softc *, uint8_t);
@@ -109,12 +109,12 @@ static void	cue_reset(struct cue_softc *);
 #if USB_DEBUG
 static int cue_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
-SYSCTL_INT(_hw_usb2_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
+SYSCTL_INT(_hw_usb_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
     "Debug level");
 #endif
 
-static const struct usb2_config cue_config[CUE_N_TRANSFER] = {
+static const struct usb_config cue_config[CUE_N_TRANSFER] = {
 
 	[CUE_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -158,7 +158,7 @@ MODULE_DEPEND(cue, uether, 1, 1, 1);
 MODULE_DEPEND(cue, usb, 1, 1, 1);
 MODULE_DEPEND(cue, ether, 1, 1, 1);
 
-static const struct usb2_ether_methods cue_ue_methods = {
+static const struct usb_ether_methods cue_ue_methods = {
 	.ue_attach_post = cue_attach_post,
 	.ue_start = cue_start,
 	.ue_init = cue_init,
@@ -177,7 +177,7 @@ static const struct usb2_ether_methods cue_ue_methods = {
 static uint8_t
 cue_csr_read_1(struct cue_softc *sc, uint16_t reg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t val;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -186,7 +186,7 @@ cue_csr_read_1(struct cue_softc *sc, uint16_t reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	if (usb2_ether_do_request(&sc->sc_ue, &req, &val, 1000)) {
+	if (uether_do_request(&sc->sc_ue, &req, &val, 1000)) {
 		/* ignore any errors */
 	}
 	return (val);
@@ -195,7 +195,7 @@ cue_csr_read_1(struct cue_softc *sc, uint16_t reg)
 static uint16_t
 cue_csr_read_2(struct cue_softc *sc, uint8_t reg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t val;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -204,14 +204,14 @@ cue_csr_read_2(struct cue_softc *sc, uint8_t reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	(void)usb2_ether_do_request(&sc->sc_ue, &req, &val, 1000);
+	(void)uether_do_request(&sc->sc_ue, &req, &val, 1000);
 	return (le16toh(val));
 }
 
 static int
 cue_csr_write_1(struct cue_softc *sc, uint16_t reg, uint16_t val)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_WRITEREG;
@@ -219,13 +219,13 @@ cue_csr_write_1(struct cue_softc *sc, uint16_t reg, uint16_t val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 0);
 
-	return (usb2_ether_do_request(&sc->sc_ue, &req, NULL, 1000));
+	return (uether_do_request(&sc->sc_ue, &req, NULL, 1000));
 }
 
 static int
 cue_mem(struct cue_softc *sc, uint8_t cmd, uint16_t addr, void *buf, int len)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	if (cmd == CUE_CMD_READSRAM)
 		req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -236,13 +236,13 @@ cue_mem(struct cue_softc *sc, uint8_t cmd, uint16_t addr, void *buf, int len)
 	USETW(req.wIndex, addr);
 	USETW(req.wLength, len);
 
-	return (usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000));
+	return (uether_do_request(&sc->sc_ue, &req, buf, 1000));
 }
 
 static int
 cue_getmac(struct cue_softc *sc, void *buf)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_GET_MACADDR;
@@ -250,7 +250,7 @@ cue_getmac(struct cue_softc *sc, void *buf)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, ETHER_ADDR_LEN);
 
-	return (usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000));
+	return (uether_do_request(&sc->sc_ue, &req, buf, 1000));
 }
 
 #define	CUE_BITS 9
@@ -267,10 +267,10 @@ cue_mchash(const uint8_t *addr)
 }
 
 static void
-cue_setpromisc(struct usb2_ether *ue)
+cue_setpromisc(struct usb_ether *ue)
 {
-	struct cue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct cue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -285,10 +285,10 @@ cue_setpromisc(struct usb2_ether *ue)
 }
 
 static void
-cue_setmulti(struct usb2_ether *ue)
+cue_setmulti(struct usb_ether *ue)
 {
-	struct cue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct cue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	struct ifmultiaddr *ifma;
 	uint32_t h = 0, i;
 	uint8_t hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -329,7 +329,7 @@ cue_setmulti(struct usb2_ether *ue)
 static void
 cue_reset(struct cue_softc *sc)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = CUE_CMD_RESET;
@@ -337,20 +337,20 @@ cue_reset(struct cue_softc *sc)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
 
-	if (usb2_ether_do_request(&sc->sc_ue, &req, NULL, 1000)) {
+	if (uether_do_request(&sc->sc_ue, &req, NULL, 1000)) {
 		/* ignore any errors */
 	}
 
 	/*
 	 * wait a little while for the chip to get its brains in order:
 	 */
-	usb2_ether_pause(&sc->sc_ue, hz / 100);
+	uether_pause(&sc->sc_ue, hz / 100);
 }
 
 static void
-cue_attach_post(struct usb2_ether *ue)
+cue_attach_post(struct usb_ether *ue)
 {
-	struct cue_softc *sc = usb2_ether_getsc(ue);
+	struct cue_softc *sc = uether_getsc(ue);
 
 	cue_getmac(sc, ue->ue_eaddr);
 }
@@ -358,16 +358,16 @@ cue_attach_post(struct usb2_ether *ue)
 static int
 cue_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != CUE_CONFIG_IDX)
 		return (ENXIO);
 	if (uaa->info.bIfaceIndex != CUE_IFACE_IDX)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(cue_devs, sizeof(cue_devs), uaa));
+	return (usbd_lookup_id_by_uaa(cue_devs, sizeof(cue_devs), uaa));
 }
 
 /*
@@ -377,17 +377,17 @@ cue_probe(device_t dev)
 static int
 cue_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct cue_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
 	int error;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	iface_index = CUE_IFACE_IDX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, cue_config, CUE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB transfers failed!\n");
@@ -400,7 +400,7 @@ cue_attach(device_t dev)
 	ue->ue_mtx = &sc->sc_mtx;
 	ue->ue_methods = &cue_ue_methods;
 
-	error = usb2_ether_ifattach(ue);
+	error = uether_ifattach(ue);
 	if (error) {
 		device_printf(dev, "could not attach interface\n");
 		goto detach;
@@ -416,21 +416,21 @@ static int
 cue_detach(device_t dev)
 {
 	struct cue_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 
-	usb2_transfer_unsetup(sc->sc_xfer, CUE_N_TRANSFER);
-	usb2_ether_ifdetach(ue);
+	usbd_transfer_unsetup(sc->sc_xfer, CUE_N_TRANSFER);
+	uether_ifdetach(ue);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
 
 static void
-cue_bulk_read_callback(struct usb2_xfer *xfer)
+cue_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct cue_softc *sc = xfer->priv_sc;
-	struct usb2_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct usb_ether *ue = &sc->sc_ue;
+	struct ifnet *ifp = uether_getifp(ue);
 	uint8_t buf[2];
 	int len;
 
@@ -441,23 +441,23 @@ cue_bulk_read_callback(struct usb2_xfer *xfer)
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
-		usb2_copy_out(xfer->frbuffers, 0, buf, 2);
+		usbd_copy_out(xfer->frbuffers, 0, buf, 2);
 		xfer->actlen -= 2;
 		len = buf[0] | (buf[1] << 8);
 		len = min(xfer->actlen, len);
 
-		usb2_ether_rxbuf(ue, xfer->frbuffers, 2, len);
+		uether_rxbuf(ue, xfer->frbuffers, 2, len);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
-		usb2_ether_rxflush(ue);
+		usbd_transfer_submit(xfer);
+		uether_rxflush(ue);
 		return;
 
 	default:			/* Error */
 		DPRINTF("bulk read error, %s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -470,10 +470,10 @@ tr_setup:
 }
 
 static void
-cue_bulk_write_callback(struct usb2_xfer *xfer)
+cue_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct cue_softc *sc = xfer->priv_sc;
-	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
+	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	struct mbuf *m;
 	uint8_t buf[2];
 
@@ -498,9 +498,9 @@ tr_setup:
 		buf[0] = (uint8_t)(m->m_pkthdr.len);
 		buf[1] = (uint8_t)(m->m_pkthdr.len >> 8);
 
-		usb2_copy_in(xfer->frbuffers, 0, buf, 2);
+		usbd_copy_in(xfer->frbuffers, 0, buf, 2);
 
-		usb2_m_copy_in(xfer->frbuffers, 2,
+		usbd_m_copy_in(xfer->frbuffers, 2,
 		    m, 0, m->m_pkthdr.len);
 
 		/*
@@ -511,13 +511,13 @@ tr_setup:
 
 		m_freem(m);
 
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 
 		return;
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 
 		ifp->if_oerrors++;
 
@@ -531,10 +531,10 @@ tr_setup:
 }
 
 static void
-cue_tick(struct usb2_ether *ue)
+cue_tick(struct usb_ether *ue)
 {
-	struct cue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct cue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -547,22 +547,22 @@ cue_tick(struct usb2_ether *ue)
 }
 
 static void
-cue_start(struct usb2_ether *ue)
+cue_start(struct usb_ether *ue)
 {
-	struct cue_softc *sc = usb2_ether_getsc(ue);
+	struct cue_softc *sc = uether_getsc(ue);
 
 	/*
 	 * start the USB transfers, if not already started:
 	 */
-	usb2_transfer_start(sc->sc_xfer[CUE_BULK_DT_RD]);
-	usb2_transfer_start(sc->sc_xfer[CUE_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[CUE_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[CUE_BULK_DT_WR]);
 }
 
 static void
-cue_init(struct usb2_ether *ue)
+cue_init(struct usb_ether *ue)
 {
-	struct cue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct cue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	int i;
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
@@ -598,7 +598,7 @@ cue_init(struct usb2_ether *ue)
 	/* Program the LED operation. */
 	cue_csr_write_1(sc, CUE_LEDCTL, CUE_LEDCTL_FOLLOW_LINK);
 
-	usb2_transfer_set_stall(sc->sc_xfer[CUE_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[CUE_BULK_DT_WR]);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	cue_start(ue);
@@ -609,10 +609,10 @@ cue_init(struct usb2_ether *ue)
  * RX and TX lists.
  */
 static void
-cue_stop(struct usb2_ether *ue)
+cue_stop(struct usb_ether *ue)
 {
-	struct cue_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct cue_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -621,8 +621,8 @@ cue_stop(struct usb2_ether *ue)
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[CUE_BULK_DT_WR]);
-	usb2_transfer_stop(sc->sc_xfer[CUE_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[CUE_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[CUE_BULK_DT_RD]);
 
 	cue_csr_write_1(sc, CUE_ETHCTL, 0);
 	cue_reset(sc);

@@ -41,7 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
@@ -259,7 +260,7 @@ apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
 	clone->acpi_sc = acpi_sc;
 	clone->notify_status = APM_EV_NONE;
 	bzero(&clone->sel_read, sizeof(clone->sel_read));
-	knlist_init(&clone->sel_read.si_note, &acpi_mutex, NULL, NULL, NULL);
+	knlist_init_mtx(&clone->sel_read.si_note, &acpi_mutex);
 
 	/*
 	 * The acpi device is always managed by devd(8) and is considered
@@ -277,7 +278,7 @@ apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
 }
 
 static int
-apmopen(struct cdev *dev, int flag, int fmt, d_thread_t *td)
+apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	acpi_softc *acpi_sc;
 	struct 	apm_clone_data *clone;
@@ -294,7 +295,7 @@ apmopen(struct cdev *dev, int flag, int fmt, d_thread_t *td)
 }
 
 static int
-apmclose(struct cdev *dev, int flag, int fmt, d_thread_t *td)
+apmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	apm_clone_data *clone;
 	struct	acpi_softc *acpi_sc;
@@ -318,7 +319,7 @@ apmclose(struct cdev *dev, int flag, int fmt, d_thread_t *td)
 }
 
 static int
-apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
+apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	int	error;
 	struct	apm_clone_data *clone;
@@ -436,7 +437,7 @@ apmwrite(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static int
-apmpoll(struct cdev *dev, int events, d_thread_t *td)
+apmpoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct	apm_clone_data *clone;
 	int revents;

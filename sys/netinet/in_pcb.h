@@ -410,8 +410,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_FAITH		0x00000200 /* accept FAITH'ed connections */
 #define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
-#define	INP_NONLOCALOK		0x00001000 /* Allow bind to spoof any address */
-					/* - requires options IP_NONLOCALBIND */
+#define	INP_BINDANY		0x00001000 /* allow bind to any address */
 #define	INP_INHASHLIST		0x00002000 /* in_pcbinshash() has been called */
 #define	IN6P_IPV6_V6ONLY	0x00008000 /* restrict AF_INET6 socket for v6 */
 #define	IN6P_PKTINFO		0x00010000 /* receive IP6 dst and I/F */
@@ -501,14 +500,7 @@ int	in_getsockaddr(struct socket *so, struct sockaddr **nam);
 struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbsosetlabel(struct socket *so);
-void	in_pcbremlists(struct inpcb *inp);
 void	ipport_tick(void *xtp);
-
-/*
- * Debugging routines compiled in when DDB is present.
- */
-void	db_print_inpcb(struct inpcb *inp, const char *name, int indent);
-
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */

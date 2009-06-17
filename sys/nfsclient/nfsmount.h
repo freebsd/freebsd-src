@@ -79,7 +79,6 @@ struct	nfsmount {
 	int	nm_numgrps;		/* Max. size of groupslist */
 	u_char	nm_fh[NFSX_V4FH];	/* File handle of root dir */
 	int	nm_fhsize;		/* Size of root file handle */
-	struct	rpcclnt nm_rpcclnt;	/* rpc state */
 #ifdef NFS_LEGACYRPC
 	struct	socket *nm_so;		/* Rpc socket */
 #endif

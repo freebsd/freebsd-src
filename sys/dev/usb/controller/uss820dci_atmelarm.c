@@ -137,7 +137,7 @@ uss820_atmelarm_attach(device_t dev)
 	sc->sc_bus.devices_max = USS820_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_bus,
+	if (usb_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
 	}
@@ -151,9 +151,6 @@ uss820_atmelarm_attach(device_t dev)
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
-
-	/* multiply all addresses by 4 */
-	sc->sc_reg_shift = 2;
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -230,7 +227,7 @@ uss820_atmelarm_detach(device_t dev)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_bus, NULL);
+	usb_bus_mem_free_all(&sc->sc_bus, NULL);
 
 	return (0);
 }

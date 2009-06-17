@@ -83,9 +83,13 @@ __FBSDID("$FreeBSD$");
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
-/* XXX public for sysctl hookup */
-int	ieee80211_ffppsmin = 2;		/* pps threshold for ff aggregation */
-int	ieee80211_ffagemax = -1;	/* max time frames held on stage q */
+static	int ieee80211_ffppsmin = 2;	/* pps threshold for ff aggregation */
+SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLTYPE_INT | CTLFLAG_RW,
+	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
+static	int ieee80211_ffagemax = -1;	/* max time frames held on stage q */
+SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
+	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"max hold time for fast-frame staging (ms)");
 
 void
 ieee80211_superg_attach(struct ieee80211com *ic)
@@ -503,9 +507,6 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 		struct ifnet *ifp = vap->iv_ifp;
 		struct ifnet *parent = ni->ni_ic->ic_ifp;
 
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
-
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
@@ -835,6 +836,7 @@ ieee80211_dturbo_switch(struct ieee80211vap *vap, int newflags)
 	ic->ic_curchan = chan;
 	ic->ic_rt = ieee80211_get_ratetable(chan);
 	ic->ic_set_channel(ic);
+	ieee80211_radiotap_chan_change(ic);
 	/* NB: do not need to reset ERP state 'cuz we're in sta mode */
 }
 

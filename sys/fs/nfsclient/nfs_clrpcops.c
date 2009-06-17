@@ -550,7 +550,7 @@ nfsmout:
  * V4 Close operation.
  */
 APPLESTATIC int
-nfsrpc_close(vnode_t vp, struct ucred *cred, NFSPROC_T *p)
+nfsrpc_close(vnode_t vp, int doclose, NFSPROC_T *p)
 {
 	struct nfsclclient *clp;
 	struct nfsclopenhead oh;
@@ -558,11 +558,14 @@ nfsrpc_close(vnode_t vp, struct ucred *cred, NFSPROC_T *p)
 
 	if (vnode_vtype(vp) != VREG)
 		return (0);
-	error = nfscl_getclose(vp, cred, p, &clp, &oh);
+	if (doclose)
+		error = nfscl_getclose(vp, &clp, &oh);
+	else
+		error = nfscl_getclose(vp, &clp, NULL);
 	if (error)
 		return (error);
 
-	if (!LIST_EMPTY(&oh))
+	if (doclose && !LIST_EMPTY(&oh))
 		nfsrpc_doclose(VFSTONFS(vnode_mount(vp)), &oh, p);
 	nfscl_clientrelease(clp);
 	return (0);
@@ -997,7 +1000,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		if (lckp != NULL)
 			nfscl_lockderef(lckp);
 		if (!openerr)
-			(void) nfsrpc_close(vp, cred, p);
+			(void) nfsrpc_close(vp, 0, p);
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		    error == NFSERR_OLDSTATEID) {

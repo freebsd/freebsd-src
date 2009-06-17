@@ -31,7 +31,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/blist.h>
@@ -64,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/cpuset.h>
-#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -715,7 +713,6 @@ linux_times(struct thread *td, struct linux_times_args *args)
 int
 linux_newuname(struct thread *td, struct linux_newuname_args *args)
 {
-	INIT_VPROCG(TD_TO_VPROCG(td));
 	struct l_new_utsname utsname;
 	char osname[LINUX_MAX_UTSNAME];
 	char osrelease[LINUX_MAX_UTSNAME];
@@ -732,6 +729,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	bzero(&utsname, sizeof(utsname));
 	strlcpy(utsname.sysname, osname, LINUX_MAX_UTSNAME);
 	getcredhostname(td->td_ucred, utsname.nodename, LINUX_MAX_UTSNAME);
+	getcreddomainname(td->td_ucred, utsname.domainname, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.release, osrelease, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.version, version, LINUX_MAX_UTSNAME);
 	for (p = utsname.version; *p != '\0'; ++p)
@@ -740,10 +738,6 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 			break;
 		}
 	strlcpy(utsname.machine, linux_platform, LINUX_MAX_UTSNAME);
-
-	mtx_lock(&hostname_mtx);
-	strlcpy(utsname.domainname, V_domainname, LINUX_MAX_UTSNAME);
-	mtx_unlock(&hostname_mtx);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }

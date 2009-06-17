@@ -129,6 +129,10 @@ int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 void	setugidsafety(struct thread *td);
 
+/* Return a referenced file from an unlocked descriptor. */
+struct file *fget_unlocked(struct filedesc *fdp, int fd);
+
+/* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
 fget_locked(struct filedesc *fdp, int fd)
 {

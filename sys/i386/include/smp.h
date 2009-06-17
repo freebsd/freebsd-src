@@ -69,12 +69,12 @@ u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	smp_cache_flush(void);
 void	smp_invlpg(vm_offset_t addr);
-void	smp_masked_invlpg(u_int mask, vm_offset_t addr);
+void	smp_masked_invlpg(cpumask_t mask, vm_offset_t addr);
 void	smp_invlpg_range(vm_offset_t startva, vm_offset_t endva);
-void	smp_masked_invlpg_range(u_int mask, vm_offset_t startva,
+void	smp_masked_invlpg_range(cpumask_t mask, vm_offset_t startva,
 	    vm_offset_t endva);
 void	smp_invltlb(void);
-void	smp_masked_invltlb(u_int mask);
+void	smp_masked_invltlb(cpumask_t mask);
 
 #ifdef STOP_NMI
 int	ipi_nmi_handler(void);

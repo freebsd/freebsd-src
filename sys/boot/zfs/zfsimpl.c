@@ -45,16 +45,13 @@ static vdev_list_t zfs_vdevs;
 static spa_list_t zfs_pools;
 
 static uint64_t zfs_crc64_table[256];
-static char *zfs_decomp_buf;
 static const dnode_phys_t *dnode_cache_obj = 0;
 static uint64_t dnode_cache_bn;
 static char *dnode_cache_buf;
 static char *zap_scratch;
+static char *zfs_temp_buf, *zfs_temp_end, *zfs_temp_ptr;
 
-/*
- * Forward declarations.
- */
-static int zio_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf, off_t offset);
+#define TEMP_SIZE	(1*SPA_MAXBLOCKSIZE)
 
 static void
 zfs_init(void)
@@ -62,11 +59,35 @@ zfs_init(void)
 	STAILQ_INIT(&zfs_vdevs);
 	STAILQ_INIT(&zfs_pools);
 
-	zfs_decomp_buf = malloc(128*1024);
-	dnode_cache_buf = malloc(128*1024);
-	zap_scratch = malloc(128*1024);
+	zfs_temp_buf = malloc(TEMP_SIZE);
+	zfs_temp_end = zfs_temp_buf + TEMP_SIZE;
+	zfs_temp_ptr = zfs_temp_buf;
+	dnode_cache_buf = malloc(SPA_MAXBLOCKSIZE);
+	zap_scratch = malloc(SPA_MAXBLOCKSIZE);
 
 	zfs_init_crc();
+}
+
+static char *
+zfs_alloc_temp(size_t sz)
+{
+	char *p;
+
+	if (zfs_temp_ptr + sz > zfs_temp_end) {
+		printf("ZFS: out of temporary buffer space\n");
+		for (;;) ;
+	}
+	p = zfs_temp_ptr;
+	zfs_temp_ptr += sz;
+
+	return (p);
+}
+
+static void
+zfs_reset_temp(void)
+{
+
+	zfs_temp_ptr = zfs_temp_buf;
 }
 
 static int
@@ -299,7 +320,41 @@ nvlist_print(const unsigned char *nvlist, unsigned int indent)
 #endif
 
 static int
-vdev_mirror_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t size)
+vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
+    off_t offset, size_t size)
+{
+	size_t psize;
+	int rc;
+
+	if (bp) {
+		psize = BP_GET_PSIZE(bp);
+	} else {
+		psize = size;
+	}
+
+	/*printf("ZFS: reading %d bytes at 0x%llx to %p\n", psize, offset, buf);*/
+	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
+	if (rc)
+		return (rc);
+	if (bp && zio_checksum_error(bp, buf))
+		return (EIO);
+
+	return (0);
+}
+
+static int
+vdev_disk_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
+    off_t offset, size_t bytes)
+{
+
+	return (vdev_read_phys(vdev, bp, buf,
+		offset + VDEV_LABEL_START_SIZE, bytes));
+}
+
+
+static int
+vdev_mirror_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
+    off_t offset, size_t bytes)
 {
 	vdev_t *kid;
 	int rc;
@@ -308,7 +363,7 @@ vdev_mirror_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t size)
 	STAILQ_FOREACH(kid, &vdev->v_children, v_childlink) {
 		if (kid->v_state != VDEV_STATE_HEALTHY)
 			continue;
-		rc = kid->v_read(kid, kid->v_read_priv, offset, buf, size);
+		rc = kid->v_read(kid, bp, buf, offset, bytes);
 		if (!rc)
 			return (0);
 	}
@@ -329,7 +384,7 @@ vdev_find(uint64_t guid)
 }
 
 static vdev_t *
-vdev_create(uint64_t guid, vdev_read_t *read, void *read_priv)
+vdev_create(uint64_t guid, vdev_read_t *read)
 {
 	vdev_t *vdev;
 
@@ -339,7 +394,8 @@ vdev_create(uint64_t guid, vdev_read_t *read, void *read_priv)
 	vdev->v_guid = guid;
 	vdev->v_state = VDEV_STATE_OFFLINE;
 	vdev->v_read = read;
-	vdev->v_read_priv = read_priv;
+	vdev->v_phys_read = 0;
+	vdev->v_read_priv = 0;
 	STAILQ_INSERT_TAIL(&zfs_vdevs, vdev, v_alllink);
 
 	return (vdev);
@@ -349,7 +405,7 @@ static int
 vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 {
 	int rc;
-	uint64_t guid, id;
+	uint64_t guid, id, ashift, nparity;
 	const char *type;
 	const char *path;
 	vdev_t *vdev, *kid;
@@ -378,17 +434,30 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 	}
 
 	if (strcmp(type, VDEV_TYPE_MIRROR)
-	    && strcmp(type, VDEV_TYPE_DISK)) {
-		printf("ZFS: can only boot from disk or mirror vdevs\n");
+	    && strcmp(type, VDEV_TYPE_DISK)
+	    && strcmp(type, VDEV_TYPE_RAIDZ)) {
+		printf("ZFS: can only boot from disk, mirror or raidz vdevs\n");
 		return (EIO);
 	}
 
 	if (!strcmp(type, VDEV_TYPE_MIRROR))
-		vdev = vdev_create(guid, vdev_mirror_read, 0);
+		vdev = vdev_create(guid, vdev_mirror_read);
+	else if (!strcmp(type, VDEV_TYPE_RAIDZ))
+		vdev = vdev_create(guid, vdev_raidz_read);
 	else
-		vdev = vdev_create(guid, 0, 0);
+		vdev = vdev_create(guid, vdev_disk_read);
 
-
+	vdev->v_id = id;
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
+		DATA_TYPE_UINT64, 0, &ashift) == 0)
+		vdev->v_ashift = ashift;
+	else
+		vdev->v_ashift = 0;
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
+		DATA_TYPE_UINT64, 0, &nparity) == 0)
+		vdev->v_nparity = nparity;
+	else
+		vdev->v_nparity = 0;
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
 			DATA_TYPE_STRING, 0, &path) == 0) {
 		if (strlen(path) > 5
@@ -400,15 +469,22 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 			path += 5;
 		vdev->v_name = strdup(path);
 	} else {
-		vdev->v_name = strdup(type);
+		if (!strcmp(type, "raidz")) {
+			if (vdev->v_nparity == 1)
+				vdev->v_name = "raidz1";
+			else
+				vdev->v_name = "raidz2";
+		} else {
+			vdev->v_name = strdup(type);
+		}
 	}
-	vdev->v_id = id;
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN,
 			 DATA_TYPE_NVLIST_ARRAY, &nkids, &kids);
 	/*
 	 * Its ok if we don't have any kids.
 	 */
 	if (rc == 0) {
+		vdev->v_nchildren = nkids;
 		for (i = 0; i < nkids; i++) {
 			rc = vdev_init_from_nvlist(kids, &kid);
 			if (rc)
@@ -416,6 +492,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 			STAILQ_INSERT_TAIL(&vdev->v_children, kid, v_childlink);
 			kids = nvlist_next(kids);
 		}
+	} else {
+		vdev->v_nchildren = 0;
 	}
 
 	if (vdevp)
@@ -431,11 +509,10 @@ vdev_set_state(vdev_t *vdev)
 	int bad_kids;
 
 	/*
-	 * We assume that if we have kids, we are a mirror. A mirror
-	 * is healthy if all its kids are healthy. Its degraded (but
-	 * working) if at least one kid is healty.
+	 * A mirror or raidz is healthy if all its kids are healthy. A
+	 * mirror is degraded if any of its kids is healthy; a raidz
+	 * is degraded if at most nparity kids are offline.
 	 */
-
 	if (STAILQ_FIRST(&vdev->v_children)) {
 		good_kids = 0;
 		bad_kids = 0;
@@ -445,13 +522,22 @@ vdev_set_state(vdev_t *vdev)
 			else
 				bad_kids++;
 		}
-		if (good_kids) {
-			if (!bad_kids && good_kids)
-				vdev->v_state = VDEV_STATE_HEALTHY;
-			else
-				vdev->v_state = VDEV_STATE_DEGRADED;
+		if (bad_kids == 0) {
+			vdev->v_state = VDEV_STATE_HEALTHY;
 		} else {
-			vdev->v_state = VDEV_STATE_OFFLINE;
+			if (vdev->v_read == vdev_mirror_read) {
+				if (good_kids) {
+					vdev->v_state = VDEV_STATE_DEGRADED;
+				} else {
+					vdev->v_state = VDEV_STATE_OFFLINE;
+				}
+			} else if (vdev->v_read == vdev_raidz_read) {
+				if (bad_kids > vdev->v_nparity) {
+					vdev->v_state = VDEV_STATE_OFFLINE;
+				} else {
+					vdev->v_state = VDEV_STATE_DEGRADED;
+				}
+			}
 		}
 	}
 }
@@ -609,7 +695,7 @@ spa_all_status(void)
 }
 
 static int
-vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
+vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 {
 	vdev_t vtmp;
 	vdev_phys_t *vdev_label = (vdev_phys_t *) zap_scratch;
@@ -632,7 +718,7 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 	 * uberblock is most current.
 	 */
 	memset(&vtmp, 0, sizeof(vtmp));
-	vtmp.v_read = read;
+	vtmp.v_phys_read = read;
 	vtmp.v_read_priv = read_priv;
 	off = offsetof(vdev_label_t, vl_vdev_phys);
 	BP_ZERO(&bp);
@@ -641,7 +727,7 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 	BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
 	BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
 	ZIO_SET_CHECKSUM(&bp.blk_cksum, off, 0, 0, 0);
-	if (zio_read_phys(&vtmp, &bp, vdev_label, off))
+	if (vdev_read_phys(&vtmp, &bp, vdev_label, off, 0))
 		return (EIO);
 
 	if (vdev_label->vp_nvlist[0] != NV_ENCODE_XDR) {
@@ -668,6 +754,7 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 		return (EIO);
 	}
 
+#ifndef TEST
 	if (val != POOL_STATE_ACTIVE) {
 		/*
 		 * Don't print a message here. If we happen to reboot
@@ -677,6 +764,7 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 		/*printf("ZFS: pool is not active\n");*/
 		return (EIO);
 	}
+#endif
 
 	if (nvlist_find(nvlist,
 			ZPOOL_CONFIG_POOL_TXG,
@@ -687,7 +775,11 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 	    || nvlist_find(nvlist,
 			   ZPOOL_CONFIG_POOL_NAME,
 			   DATA_TYPE_STRING, 0, &pool_name)) {
-		printf("ZFS: can't find pool details\n");
+		/*
+		 * Cache and spare devices end up here - just ignore
+		 * them.
+		 */
+		/*printf("ZFS: can't find pool details\n");*/
 		return (EIO);
 	}
 
@@ -742,7 +834,7 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 	 */
 	vdev = vdev_find(guid);
 	if (vdev) {
-		vdev->v_read = read;
+		vdev->v_phys_read = read;
 		vdev->v_read_priv = read_priv;
 		vdev->v_state = VDEV_STATE_HEALTHY;
 	} else {
@@ -772,7 +864,7 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 		BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
 		BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
 		ZIO_SET_CHECKSUM(&bp.blk_cksum, off, 0, 0, 0);
-		if (zio_read_phys(vdev, &bp, upbuf, off))
+		if (vdev_read_phys(vdev, &bp, upbuf, off, 0))
 			continue;
 
 		up = (const struct uberblock *) upbuf;
@@ -805,38 +897,19 @@ ilog2(int n)
 }
 
 static int
-zio_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf, off_t offset)
+zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 {
 	int cpfunc = BP_GET_COMPRESS(bp);
 	size_t lsize = BP_GET_LSIZE(bp);
 	size_t psize = BP_GET_PSIZE(bp);
-	int rc;
-
-	/*printf("ZFS: reading %d bytes at 0x%llx to %p\n", psize, offset, buf);*/
-	if (cpfunc != ZIO_COMPRESS_OFF) {
-		rc = vdev->v_read(vdev, vdev->v_read_priv, offset, zfs_decomp_buf, psize);
-		if (rc)
-			return (rc);
-		if (zio_checksum_error(bp, zfs_decomp_buf))
-			return (EIO);
-		if (zio_decompress_data(cpfunc, zfs_decomp_buf, psize,
-			buf, lsize))
-			return (EIO);
-	} else {
-		rc = vdev->v_read(vdev, vdev->v_read_priv, offset, buf, psize);
-		if (rc)
-			return (rc);
-					  
-		if (zio_checksum_error(bp, buf))
-			return (EIO);
-	}
-	return (0);
-}
-
-static int
-zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
-{
+	void *pbuf;
 	int i;
+
+	zfs_reset_temp();
+	if (cpfunc != ZIO_COMPRESS_OFF)
+		pbuf = zfs_alloc_temp(psize);
+	else
+		pbuf = buf;
 
 	for (i = 0; i < SPA_DVAS_PER_BP; i++) {
 		const dva_t *dva = &bp->blk_dva[i];
@@ -848,14 +921,20 @@ zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 			continue;
 
 		vdevid = DVA_GET_VDEV(dva);
-		offset = DVA_GET_OFFSET(dva) + VDEV_LABEL_START_SIZE;
+		offset = DVA_GET_OFFSET(dva);
 		STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
 			if (vdev->v_id == vdevid)
 				break;
 		if (!vdev || !vdev->v_read)
 			continue;
-		if (zio_read_phys(vdev, bp, buf, offset))
+		if (vdev->v_read(vdev, bp, pbuf, offset, psize))
 			continue;
+
+		if (cpfunc != ZIO_COMPRESS_OFF) {
+			if (zio_decompress_data(cpfunc, pbuf, psize,
+				buf, lsize))
+				return (EIO);
+		}
 
 		return (0);
 	}

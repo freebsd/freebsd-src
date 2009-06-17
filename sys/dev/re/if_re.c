@@ -237,11 +237,11 @@ static int re_tx_list_init	(struct rl_softc *);
 static __inline void re_fixup_rx
 				(struct mbuf *);
 #endif
-static int re_rxeof		(struct rl_softc *);
+static int re_rxeof		(struct rl_softc *, int *);
 static void re_txeof		(struct rl_softc *);
 #ifdef DEVICE_POLLING
-static void re_poll		(struct ifnet *, enum poll_cmd, int);
-static void re_poll_locked	(struct ifnet *, enum poll_cmd, int);
+static int re_poll		(struct ifnet *, enum poll_cmd, int);
+static int re_poll_locked	(struct ifnet *, enum poll_cmd, int);
 #endif
 static int re_intr		(void *);
 static void re_tick		(void *);
@@ -1792,14 +1792,14 @@ re_rx_list_init(struct rl_softc *sc)
  * across multiple 2K mbuf cluster buffers.
  */
 static int
-re_rxeof(struct rl_softc *sc)
+re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp;
 	int			i, total_len;
 	struct rl_desc		*cur_rx;
 	u_int32_t		rxstat, rxvlan;
-	int			maxpkt = 16;
+	int			maxpkt = 16, rx_npkts = 0;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -1982,6 +1982,7 @@ re_rxeof(struct rl_softc *sc)
 		RL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		RL_LOCK(sc);
+		rx_npkts++;
 	}
 
 	/* Flush the RX DMA ring */
@@ -1992,6 +1993,8 @@ re_rxeof(struct rl_softc *sc)
 
 	sc->rl_ldata.rl_rx_prodidx = i;
 
+	if (rx_npktsp != NULL)
+		*rx_npktsp = rx_npkts;
 	if (maxpkt)
 		return(EAGAIN);
 
@@ -2092,26 +2095,29 @@ re_tick(void *xsc)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 re_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct rl_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	RL_LOCK(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		re_poll_locked(ifp, cmd, count);
+		rx_npkts = re_poll_locked(ifp, cmd, count);
 	RL_UNLOCK(sc);
+	return (rx_npkts);
 }
 
-static void
+static int
 re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct rl_softc *sc = ifp->if_softc;
+	int rx_npkts;
 
 	RL_LOCK_ASSERT(sc);
 
 	sc->rxcycles = count;
-	re_rxeof(sc);
+	re_rxeof(sc, &rx_npkts);
 	re_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2122,7 +2128,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		status = CSR_READ_2(sc, RL_ISR);
 		if (status == 0xffff)
-			return;
+			return (rx_npkts);
 		if (status)
 			CSR_WRITE_2(sc, RL_ISR, status);
 		if ((status & (RL_ISR_TX_OK | RL_ISR_TX_DESC_UNAVAIL)) &&
@@ -2136,6 +2142,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (status & RL_ISR_SYSTEM_ERR)
 			re_init_locked(sc);
 	}
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -2187,7 +2194,7 @@ re_int_task(void *arg, int npending)
 #endif
 
 	if (status & (RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_FIFO_OFLOW))
-		rval = re_rxeof(sc);
+		rval = re_rxeof(sc, NULL);
 
 	/*
 	 * Some chips will ignore a second TX request issued
@@ -2885,7 +2892,7 @@ re_watchdog(struct rl_softc *sc)
 	if_printf(ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
 
-	re_rxeof(sc);
+	re_rxeof(sc, NULL);
 	re_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);

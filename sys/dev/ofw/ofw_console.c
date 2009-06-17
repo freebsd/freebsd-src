@@ -95,7 +95,7 @@ cn_drvinit(void *unused)
 		 * XXX: This is a hack and it may result in two /dev/ttya
 		 * XXX: devices on platforms where the sab driver works.
 		 */
-		tp = tty_alloc(&ofw_ttydevsw, NULL, NULL);
+		tp = tty_alloc(&ofw_ttydevsw, NULL);
 		tty_makedev(tp, NULL, "%s", output);
 		tty_makealias(tp, "ofwcons");
 	}

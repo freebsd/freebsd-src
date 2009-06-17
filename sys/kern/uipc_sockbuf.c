@@ -175,6 +175,7 @@ sbunlock(struct sockbuf *sb)
 void
 sowakeup(struct socket *so, struct sockbuf *sb)
 {
+	int ret;
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
@@ -186,13 +187,22 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 		wakeup(&sb->sb_cc);
 	}
 	KNOTE_LOCKED(&sb->sb_sel.si_note, 0);
-	SOCKBUF_UNLOCK(sb);
-	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
-		pgsigio(&so->so_sigio, SIGIO, 0);
-	if (sb->sb_flags & SB_UPCALL)
-		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
+	if (sb->sb_upcall != NULL) {
+		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_DONTWAIT);
+		if (ret == SU_ISCONNECTED) {
+			KASSERT(sb == &so->so_rcv,
+			    ("SO_SND upcall returned SU_ISCONNECTED"));
+			soupcall_clear(so, SO_RCV);
+		}
+	} else
+		ret = SU_OK;
 	if (sb->sb_flags & SB_AIO)
 		aio_swake(so, sb);
+	SOCKBUF_UNLOCK(sb);
+	if (ret == SU_ISCONNECTED)
+		soisconnected(so);
+	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
+		pgsigio(&so->so_sigio, SIGIO, 0);
 	mtx_assert(SOCKBUF_MTX(sb), MA_NOTOWNED);
 }
 

@@ -54,3 +54,4 @@ ENTRY(cos)
 	fstp	%st(1)
 	fcos
 	ret
+END(cos)

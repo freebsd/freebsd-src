@@ -121,6 +121,7 @@ typedef struct XDR {
  * Changes must be reviewed by Solaris File Sharing
  * Changes must be communicated to contract-2003-523@sun.com
  */
+#ifndef __FreeBSD__	
 struct xdr_ops {
 #ifdef __STDC__
 #if !defined(_KERNEL)
@@ -168,6 +169,28 @@ struct xdr_ops {
 #endif
 };
 
+#else /* FreeBSD */
+struct xdr_ops {
+	/* get a long from underlying stream */
+	bool_t	(*x_getint32)(struct XDR *, int32_t *);
+	/* put a long to " */
+	bool_t	(*x_putint32)(struct XDR *, const int32_t *);
+	/* get some bytes from " */
+	bool_t	(*x_getbytes)(struct XDR *, char *, u_int);
+	/* put some bytes to " */
+	bool_t	(*x_putbytes)(struct XDR *, const char *, u_int);
+	/* returns bytes off from beginning */
+	u_int	(*x_getpostn)(struct XDR *);
+	/* lets you reposition the stream */
+	bool_t  (*x_setpostn)(struct XDR *, u_int);
+	/* buf quick ptr to buffered data */
+	int32_t *(*x_inline)(struct XDR *, u_int);
+	/* free privates of this xdr_stream */
+	void	(*x_destroy)(struct XDR *);
+	bool_t	(*x_control)(struct XDR *, int, void *);
+};
+#endif
+	
 /*
  * Operations defined on a XDR handle
  *

@@ -3121,3 +3121,4 @@ static moduledata_t zfs_mod = {
 };
 DECLARE_MODULE(zfsctrl, zfs_mod, SI_SUB_VFS, SI_ORDER_ANY);
 MODULE_DEPEND(zfsctrl, opensolaris, 1, 1, 1);
+MODULE_DEPEND(zfsctrl, krpc, 1, 1, 1);

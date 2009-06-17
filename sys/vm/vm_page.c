@@ -566,10 +566,13 @@ vm_page_sleep(vm_page_t m, const char *msg)
 void
 vm_page_dirty(vm_page_t m)
 {
+
 	KASSERT((m->flags & PG_CACHED) == 0,
 	    ("vm_page_dirty: page in cache!"));
 	KASSERT(!VM_PAGE_IS_FREE(m),
 	    ("vm_page_dirty: page is free!"));
+	KASSERT(m->valid == VM_PAGE_BITS_ALL,
+	    ("vm_page_dirty: page is invalid!"));
 	m->dirty = VM_PAGE_BITS_ALL;
 }
 
@@ -1849,6 +1852,58 @@ vm_page_bits(int base, int size)
 	last_bit = (base + size - 1) >> DEV_BSHIFT;
 
 	return ((2 << last_bit) - (1 << first_bit));
+}
+
+/*
+ *	vm_page_set_valid:
+ *
+ *	Sets portions of a page valid.  The arguments are expected
+ *	to be DEV_BSIZE aligned but if they aren't the bitmap is inclusive
+ *	of any partial chunks touched by the range.  The invalid portion of
+ *	such chunks will be zeroed.
+ *
+ *	(base + size) must be less then or equal to PAGE_SIZE.
+ */
+void
+vm_page_set_valid(vm_page_t m, int base, int size)
+{
+	int endoff, frag;
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if (size == 0)	/* handle degenerate case */
+		return;
+
+	/*
+	 * If the base is not DEV_BSIZE aligned and the valid
+	 * bit is clear, we have to zero out a portion of the
+	 * first block.
+	 */
+	if ((frag = base & ~(DEV_BSIZE - 1)) != base &&
+	    (m->valid & (1 << (base >> DEV_BSHIFT))) == 0)
+		pmap_zero_page_area(m, frag, base - frag);
+
+	/*
+	 * If the ending offset is not DEV_BSIZE aligned and the 
+	 * valid bit is clear, we have to zero out a portion of
+	 * the last block.
+	 */
+	endoff = base + size;
+	if ((frag = endoff & ~(DEV_BSIZE - 1)) != endoff &&
+	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0)
+		pmap_zero_page_area(m, endoff,
+		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1)));
+
+	/*
+	 * Assert that no previously invalid block that is now being validated
+	 * is already dirty. 
+	 */
+	KASSERT((~m->valid & vm_page_bits(base, size) & m->dirty) == 0,
+	    ("vm_page_set_valid: page %p is dirty", m)); 
+
+	/*
+	 * Set valid bits inclusive of any overlap.
+	 */
+	m->valid |= vm_page_bits(base, size);
 }
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkzone.c,v 1.29.18.21 2008/10/24 01:43:17 tbox Exp $ */
+/* $Id: named-checkzone.c,v 1.51.34.2 2009/02/16 23:47:15 tbox Exp $ */
 
 /*! \file */
 
@@ -106,6 +106,7 @@ main(int argc, char **argv) {
 	const char *outputformatstr = NULL;
 	dns_masterformat_t inputformat = dns_masterformat_text;
 	dns_masterformat_t outputformat = dns_masterformat_text;
+	FILE *errout = stdout;
 
 	outputstyle = &dns_master_style_full;
 
@@ -140,8 +141,10 @@ main(int argc, char **argv) {
 
 #define ARGCMP(X) (strcmp(isc_commandline_argument, X) == 0)
 
+	isc_commandline_errprint = ISC_FALSE;
+
 	while ((c = isc_commandline_parse(argc, argv,
-					  "c:df:i:jk:m:n:qs:t:o:vw:DF:M:S:W:"))
+					 "c:df:hi:jk:m:n:qs:t:o:vw:DF:M:S:W:"))
 	       != EOF) {
 		switch (c) {
 		case 'c':
@@ -265,12 +268,6 @@ main(int argc, char **argv) {
 					isc_result_totext(result));
 				exit(1);
 			}
-			result = isc_dir_chdir("/");
-			if (result != ISC_R_SUCCESS) {
-				fprintf(stderr, "isc_dir_chdir: %s\n",
-					isc_result_totext(result));
-				exit(1);
-			}
 			break;
 
 		case 's':
@@ -343,17 +340,17 @@ main(int argc, char **argv) {
 				zone_options &= ~DNS_ZONEOPT_CHECKWILDCARD;
 			break;
 
-		default:
+		case '?':
+			if (isc_commandline_option != '?')
+				fprintf(stderr, "%s: invalid argument -%c\n",
+					prog_name, isc_commandline_option);
+		case 'h':
 			usage();
-		}
-	}
 
-	if (progmode == progmode_compile) {
-		dumpzone = 1;	/* always dump */
-		if (output_filename == NULL) {
-			fprintf(stderr,
-				"output file required, but not specified\n");
-			usage();
+		default:
+			fprintf(stderr, "%s: unhandled option -%c\n",
+				prog_name, isc_commandline_option);
+			exit(1);
 		}
 	}
 
@@ -390,12 +387,36 @@ main(int argc, char **argv) {
 		}
 	}
 
-	if (isc_commandline_index + 2 > argc)
+	if (progmode == progmode_compile) {
+		dumpzone = 1;	/* always dump */
+		if (output_filename == NULL) {
+			fprintf(stderr,
+				"output file required, but not specified\n");
+			usage();
+		}
+	}
+
+	if (output_filename != NULL)
+		dumpzone = 1;
+
+	/*
+	 * If we are outputing to stdout then send the informational
+	 * output to stderr.
+	 */
+	if (dumpzone &&
+	    (output_filename == NULL ||
+	     strcmp(output_filename, "-") == 0 ||
+	     strcmp(output_filename, "/dev/fd/1") == 0 ||
+	     strcmp(output_filename, "/dev/stdout") == 0))
+		errout = stderr;
+
+	if (isc_commandline_index + 2 != argc)
 		usage();
 
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
 	if (!quiet)
-		RUNTIME_CHECK(setup_logging(mctx, &lctx) == ISC_R_SUCCESS);
+		RUNTIME_CHECK(setup_logging(mctx, errout, &lctx)
+			      == ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_entropy_create(mctx, &ectx) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_hash_create(mctx, ectx, DNS_NAME_MAXWIRE)
 		      == ISC_R_SUCCESS);
@@ -409,17 +430,17 @@ main(int argc, char **argv) {
 
 	if (result == ISC_R_SUCCESS && dumpzone) {
 		if (!quiet && progmode == progmode_compile) {
-			fprintf(stdout, "dump zone to %s...", output_filename);
-			fflush(stdout);
+			fprintf(errout, "dump zone to %s...", output_filename);
+			fflush(errout);
 		}
 		result = dump_zone(origin, zone, output_filename,
 				   outputformat, outputstyle);
 		if (!quiet && progmode == progmode_compile)
-			fprintf(stdout, "done\n");
+			fprintf(errout, "done\n");
 	}
 
 	if (!quiet && result == ISC_R_SUCCESS)
-		fprintf(stdout, "OK\n");
+		fprintf(errout, "OK\n");
 	destroy();
 	if (lctx != NULL)
 		isc_log_destroy(&lctx);

@@ -311,16 +311,13 @@ main(int argc, char **argv)
 		}
 	}
 
-	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	cur.dinfo = (struct devinfo *)calloc(1, sizeof(struct devinfo));
 	if (cur.dinfo == NULL)
-		err(1, "malloc failed");
+		err(1, "calloc failed");
 
-	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	last.dinfo = (struct devinfo *)calloc(1, sizeof(struct devinfo));
 	if (last.dinfo == NULL)
-		err(1, "malloc failed");
-
-	bzero(cur.dinfo, sizeof(struct devinfo));
-	bzero(last.dinfo, sizeof(struct devinfo));
+		err(1, "calloc failed");
 
 	/*
 	 * Grab all the devices.  We don't look to see if the list has

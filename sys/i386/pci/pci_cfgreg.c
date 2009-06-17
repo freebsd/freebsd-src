@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <machine/pci_cfgreg.h>
@@ -75,6 +76,8 @@ enum {
 	CFGMECH_PCIE,
 };
 
+SYSCTL_DECL(_hw_pci);
+
 static TAILQ_HEAD(pcie_cfg_list, pcie_cfg_elem) pcie_list[MAXCPU];
 static uint64_t pcie_base;
 static int pcie_minbus, pcie_maxbus;
@@ -84,6 +87,8 @@ static int devmax;
 static struct mtx pcicfg_mtx;
 static int mcfg_enable = 1;
 TUNABLE_INT("hw.pci.mcfg", &mcfg_enable);
+SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
+    "Enable support for PCI-e memory mapped config access");
 
 static uint32_t	pci_docfgregread(int bus, int slot, int func, int reg,
 		    int bytes);

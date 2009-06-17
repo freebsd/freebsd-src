@@ -1,7 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(file, 5.00, christos@astron.com)
+AC_INIT(file, 5.03, christos@astron.com)
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
+#AC_CONFIG_MACRO_DIR([m4])
 
 AC_MSG_CHECKING(for builtin ELF support)
 AC_ARG_ENABLE(elf,
@@ -46,6 +47,7 @@ fi], [
   fsect=4
 ])
 
+AC_SUBST([pkgdatadir], ['$(datadir)/misc'])
 AC_SUBST(fsect)
 AM_CONDITIONAL(FSECT5, test x$fsect = x5)
 
@@ -82,6 +84,8 @@ AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
 AC_TYPE_MBSTATE_T
 
+AC_STRUCT_OPTION_GETOPT_H
+
 AC_CHECK_TYPES([uint8_t, uint16_t, uint32_t, int32_t, uint64_t, int64_t])
 AC_CHECK_SIZEOF(long long)
 AH_BOTTOM([
@@ -116,7 +120,7 @@ typedef long int64_t;
 AC_MSG_CHECKING(for gcc compiler warnings)
 AC_ARG_ENABLE(warnings,
 [  --disable-warnings	disable compiler warnings],
-[if test "${enableval}" = no -o $GCC = no; then
+[if test "${enableval}" = no -o "$GCC" = no; then
    AC_MSG_RESULT(no)
    WARNINGS=
 else
@@ -126,7 +130,7 @@ else
        -Wsign-compare -Wreturn-type -Wswitch -Wshadow \
        -Wcast-qual -Wwrite-strings -Wextra -Wunused-parameter"
 fi], [
-if test $GCC = no; then
+if test "$GCC" = no; then
    WARNINGS=
    AC_MSG_RESULT(no)
 else

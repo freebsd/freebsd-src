@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
 #include "opt_quota.h"
 #include "opt_suiddir.h"
 #include "opt_ufs.h"
@@ -61,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lockf.h>
 #include <sys/conf.h>
 #include <sys/acl.h>
-#include <sys/jail.h>
 
 #include <machine/mutex.h>
 
@@ -1851,7 +1849,7 @@ ufs_symlink(ap)
 	} else
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
 		    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
-		    ap->a_cnp->cn_cred, NOCRED, (int *)0, (struct thread *)0);
+		    ap->a_cnp->cn_cred, NOCRED, NULL, NULL);
 	if (error)
 		vput(vp);
 	return (error);

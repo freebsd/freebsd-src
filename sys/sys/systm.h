@@ -45,8 +45,6 @@
 #include <sys/queue.h>
 #include <sys/stdint.h>		/* for people using printf mainly */
 
-extern int securelevel;		/* system security level (see init(8)) */
-
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int rebooting;		/* boot() has been called. */
 extern const char *panicstr;	/* panic message */
@@ -147,6 +145,7 @@ void	panic(const char *, ...) __dead2 __printflike(1, 2);
 #endif
 
 void	cpu_boot(int);
+void	cpu_flush_dcache(void *, size_t);
 void	cpu_rootconf(void);
 void	critical_enter(void);
 void	critical_exit(void);

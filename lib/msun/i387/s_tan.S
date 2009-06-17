@@ -56,3 +56,4 @@ ENTRY(tan)
 	fptan
 	fstp	%st(0)
 	ret
+END(tan)

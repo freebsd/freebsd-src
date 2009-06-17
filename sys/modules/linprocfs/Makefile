@@ -6,8 +6,7 @@ KMOD=	linprocfs
 SRCS=	vnode_if.h \
 	device_if.h bus_if.h \
 	linprocfs.c \
-	opt_compat.h \
-	opt_route.h
+	opt_compat.h
 
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=-DCOMPAT_LINUX32

@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/jail.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
-#include <sys/vimage.h>
 
 #include <fs/cd9660/iso.h>
 #include <fs/cd9660/cd9660_node.h>
@@ -114,11 +114,11 @@ cd9660_rrip_slink(p,ana)
 	ISO_RRIP_SLINK	*p;
 	ISO_RRIP_ANALYZE *ana;
 {
-	INIT_VPROCG(TD_TO_VPROCG(curthread));
 	ISO_RRIP_SLINK_COMPONENT *pcomp;
 	ISO_RRIP_SLINK_COMPONENT *pcompe;
 	int len, wlen, cont;
 	char *outbuf, *inbuf;
+	char hostbuf[MAXHOSTNAMELEN];
 
 	pcomp = (ISO_RRIP_SLINK_COMPONENT *)p->component;
 	pcompe = (ISO_RRIP_SLINK_COMPONENT *)((char *)p + isonum_711(p->h.length));
@@ -172,10 +172,11 @@ cd9660_rrip_slink(p,ana)
 			break;
 
 		case ISO_SUSP_CFLAG_HOST:
-			/* XXXRW: locking. */
 			/* Inserting hostname i.e. "kurt.tools.de" */
-			inbuf = V_hostname;
-			wlen = strlen(V_hostname);
+			getcredhostname(curthread->td_ucred, hostbuf,
+			    sizeof(hostbuf));
+			inbuf = hostbuf;
+			wlen = strlen(inbuf);
 			break;
 
 		case ISO_SUSP_CFLAG_CONTINUE:
@@ -225,10 +226,10 @@ cd9660_rrip_altname(p,ana)
 	ISO_RRIP_ALTNAME *p;
 	ISO_RRIP_ANALYZE *ana;
 {
-	INIT_VPROCG(TD_TO_VPROCG(curthread));
 	char *inbuf;
 	int wlen;
 	int cont;
+	char hostbuf[MAXHOSTNAMELEN];
 
 	inbuf = "..";
 	wlen = 0;
@@ -246,10 +247,10 @@ cd9660_rrip_altname(p,ana)
 		break;
 
 	case ISO_SUSP_CFLAG_HOST:
-		/* XXXRW: locking. */
 		/* Inserting hostname i.e. "kurt.tools.de" */
-		inbuf = V_hostname;
-		wlen = strlen(V_hostname);
+		getcredhostname(curthread->td_ucred, hostbuf, sizeof(hostbuf));
+		inbuf = hostbuf;
+		wlen = strlen(inbuf);
 		break;
 
 	case ISO_SUSP_CFLAG_CONTINUE:

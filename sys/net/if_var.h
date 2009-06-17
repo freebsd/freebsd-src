@@ -71,6 +71,7 @@ struct	ether_header;
 struct	carp_if;
 struct  ifvlantrunk;
 struct	route;
+struct	vnet;
 #endif
 
 #include <sys/queue.h>		/* get TAILQ macros */
@@ -169,6 +170,9 @@ struct ifnet {
 		(struct ifnet *);
 	int	(*if_transmit)		/* initiate output routine */
 		(struct ifnet *, struct mbuf *);
+	void	(*if_reassign)		/* reassign to vnet routine */
+		(struct ifnet *, struct vnet *, char *);
+	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	void	*if_llsoftc;		/* link layer softc */
 	int	if_drv_flags;		/* driver-managed status flags */
@@ -552,10 +556,11 @@ do {									\
 static __inline void
 drbr_stats_update(struct ifnet *ifp, int len, int mflags)
 {
-
+#ifndef NO_SLOW_STATS
 	ifp->if_obytes += len;
 	if (mflags & M_MCAST)
 		ifp->if_omcasts++;
+#endif
 }
 
 static __inline int
@@ -571,9 +576,8 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 		return (error);
 	}
 #endif
-	if ((error = buf_ring_enqueue(br, m)) == ENOBUFS) {
+	if ((error = buf_ring_enqueue_bytes(br, m, len)) == ENOBUFS) {
 		br->br_drops++;
-		_IF_DROP(&ifp->if_snd);
 		m_freem(m);
 	} else
 		drbr_stats_update(ifp, len, mflags);
@@ -606,6 +610,27 @@ drbr_dequeue(struct ifnet *ifp, struct buf_ring *br)
 	return (buf_ring_dequeue_sc(br));
 }
 
+static __inline struct mbuf *
+drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
+    int (*func) (struct mbuf *, void *), void *arg) 
+{
+	struct mbuf *m;
+#ifdef ALTQ
+	/*
+	 * XXX need to evaluate / requeue 
+	 */
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {	
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		return (m);
+	}
+#endif
+	m = buf_ring_peek(br);
+	if (m == NULL || func(m, arg) == 0)
+		return (NULL);
+
+	return (buf_ring_dequeue_sc(br));
+}
+
 static __inline int
 drbr_empty(struct ifnet *ifp, struct buf_ring *br)
 {
@@ -614,6 +639,16 @@ drbr_empty(struct ifnet *ifp, struct buf_ring *br)
 		return (IFQ_DRV_IS_EMPTY(&ifp->if_snd));
 #endif
 	return (buf_ring_empty(br));
+}
+
+static __inline int
+drbr_inuse(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		return (ifp->if_snd.ifq_len);
+#endif
+	return (buf_ring_count(br));
 }
 #endif
 /*
@@ -733,7 +768,6 @@ struct ifindex_entry {
 struct ifnet	*ifnet_byindex(u_short idx);
 struct ifnet	*ifnet_byindex_locked(u_short idx);
 struct ifnet	*ifnet_byindex_ref(u_short idx);
-void ifnet_setbyindex(u_short idx, struct ifnet *ifp);
 
 /*
  * Given the index, ifaddr_byindex() returns the one and only
@@ -761,6 +795,7 @@ void	if_grow(void);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
+void	if_vmove(struct ifnet *, struct vnet *);
 void	if_purgeaddrs(struct ifnet *);
 void	if_purgemaddrs(struct ifnet *);
 void	if_down(struct ifnet *);
@@ -782,8 +817,8 @@ int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
 struct	ifnet *ifunit_ref(const char *);
 
-void	ifq_attach(struct ifaltq *, struct ifnet *ifp);
-void	ifq_detach(struct ifaltq *);
+void	ifq_init(struct ifaltq *, struct ifnet *ifp);
+void	ifq_delete(struct ifaltq *);
 
 struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *);
@@ -807,7 +842,7 @@ void	if_deregister_com_alloc(u_char type);
 #ifdef DEVICE_POLLING
 enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };
 
-typedef	void poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
+typedef	int poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
 int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
 int    ether_poll_deregister(struct ifnet *ifp);
 #endif /* DEVICE_POLLING */

@@ -443,6 +443,9 @@
     <para><application>CVS</application> has been updated from 1.11.17
       to a post-1.11.22 snapshot from 10 March 2008.</para>
 
+    <para><application>FILE</application> has been updated from 4.23
+      to 5.03.</para>
+
     <para><application>hostapd</application> has been
       updated from 0.5.8 to 0.5.10.</para>
 

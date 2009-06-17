@@ -32,3 +32,4 @@ ENTRY(fmal, 3)
 	fma		f8 = f8, f9, f10
 	br.ret.sptk	b0
 }
+END(fmal)

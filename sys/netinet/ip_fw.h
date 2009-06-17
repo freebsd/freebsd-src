@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,6 +41,20 @@
  * (IPFW_TABLES_MAX - 1).
  */
 #define	IPFW_TABLES_MAX		128
+
+/*
+ * Most commands (queue, pipe, tag, untag, limit...) can have a 16-bit
+ * argument between 1 and 65534. The value 0 is unused, the value
+ * 65535 (IP_FW_TABLEARG) is used to represent 'tablearg', i.e. the
+ * can be 1..65534, or 65535 to indicate the use of a 'tablearg'
+ * result of the most recent table() lookup.
+ * Note that 16bit is only a historical limit, resulting from
+ * the use of a 16-bit fields for that value. In reality, we can have
+ * 2^32 pipes, queues, tag values and so on, and use 0 as a tablearg.
+ */
+#define	IPFW_ARG_MIN		1
+#define	IPFW_ARG_MAX		65534
+#define IP_FW_TABLEARG		65535	/* XXX should use 0 */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -238,8 +252,6 @@ typedef struct	_ipfw_insn {	/* template for instructions */
  * a given type.
  */
 #define	F_INSN_SIZE(t)	((sizeof (t))/sizeof(u_int32_t))
-
-#define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
 
 /*
  * This is used to store an array of 16-bit entries (ports etc.)
@@ -453,17 +465,18 @@ struct ip_fw {
 	struct ip_fw	*next_rule;	/* ptr to next [skipto] rule	*/
 	/* 'next_rule' is used to pass up 'set_disable' status		*/
 
-	u_int16_t	act_ofs;	/* offset of action in 32-bit units */
-	u_int16_t	cmd_len;	/* # of 32-bit words in cmd	*/
-	u_int16_t	rulenum;	/* rule number			*/
-	u_int8_t	set;		/* rule set (0..31)		*/
+	uint16_t	act_ofs;	/* offset of action in 32-bit units */
+	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
+	uint16_t	rulenum;	/* rule number			*/
+	uint8_t	set;		/* rule set (0..31)		*/
 #define	RESVD_SET	31	/* set for default and persistent rules */
-	u_int8_t	_pad;		/* padding			*/
+	uint8_t		_pad;		/* padding			*/
+	uint32_t	id;		/* rule id */
 
 	/* These fields are present in all rules.			*/
-	u_int64_t	pcnt;		/* Packet counter		*/
-	u_int64_t	bcnt;		/* Byte counter			*/
-	u_int32_t	timestamp;	/* tv_sec of last match		*/
+	uint64_t	pcnt;		/* Packet counter		*/
+	uint64_t	bcnt;		/* Byte counter			*/
+	uint32_t	timestamp;	/* tv_sec of last match		*/
 
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
@@ -558,12 +571,12 @@ typedef struct	_ipfw_table {
 	ipfw_table_entry ent[0];	/* entries			*/
 } ipfw_table;
 
-#define IP_FW_TABLEARG	65535
-
 /*
  * Main firewall chains definitions and global var's definitions.
  */
 #ifdef _KERNEL
+
+#define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
 
 /* Return values from ipfw_chk() */
 enum {
@@ -607,10 +620,12 @@ struct ip_fw_args {
 	struct ifnet	*oif;		/* output interface		*/
 	struct sockaddr_in *next_hop;	/* forward address		*/
 	struct ip_fw	*rule;		/* matching rule		*/
+	uint32_t	rule_id;	/* matching rule id */
+	uint32_t	chain_id;	/* ruleset id */
 	struct ether_header *eh;	/* for bridged packets		*/
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
-	u_int32_t	cookie;		/* a cookie depending on rule action */
+	uint32_t	cookie;		/* a cookie depending on rule action */
 	struct inpcb	*inp;
 
 	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
@@ -636,9 +651,6 @@ void ipfw_destroy(void);
 void ipfw_nat_destroy(void);
 #endif
 
-typedef int ip_fw_ctl_t(struct sockopt *);
-extern ip_fw_ctl_t *ip_fw_ctl_ptr;
-
 #ifdef VIMAGE_GLOBALS
 extern int fw_one_pass;
 extern int fw_enable;
@@ -647,17 +659,13 @@ extern int fw6_enable;
 #endif
 #endif
 
-/* For kernel ipfw_ether and ipfw_bridge. */
-typedef	int ip_fw_chk_t(struct ip_fw_args *args);
-extern	ip_fw_chk_t	*ip_fw_chk_ptr;
-#define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
-
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
 	LIST_HEAD(, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head *tables[IPFW_TABLES_MAX];
 	struct rwlock	rwmtx;
+	uint32_t	id;		/* ruleset id */
 };
 
 #ifdef IPFW_INTERNAL

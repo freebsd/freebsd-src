@@ -158,7 +158,7 @@ static const struct ng_ksocket_alias ng_ksocket_protos[] = {
 /* Helper functions */
 static int	ng_ksocket_check_accept(priv_p);
 static void	ng_ksocket_finish_accept(priv_p);
-static void	ng_ksocket_incoming(struct socket *so, void *arg, int waitflag);
+static int	ng_ksocket_incoming(struct socket *so, void *arg, int waitflag);
 static int	ng_ksocket_parse(const struct ng_ksocket_alias *aliases,
 			const char *s, int family);
 static void	ng_ksocket_incoming2(node_p node, hook_p hook,
@@ -616,13 +616,11 @@ ng_ksocket_connect(hook_p hook)
 	struct socket *const so = priv->so;
 
 	/* Add our hook for incoming data and other events */
-	priv->so->so_upcallarg = (caddr_t)node;
-	priv->so->so_upcall = ng_ksocket_incoming;
 	SOCKBUF_LOCK(&priv->so->so_rcv);
-	priv->so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(priv->so, SO_RCV, ng_ksocket_incoming, node);
 	SOCKBUF_UNLOCK(&priv->so->so_rcv);
 	SOCKBUF_LOCK(&priv->so->so_snd);
-	priv->so->so_snd.sb_flags |= SB_UPCALL;
+	soupcall_set(priv->so, SO_SND, ng_ksocket_incoming, node);
 	SOCKBUF_UNLOCK(&priv->so->so_snd);
 	SOCK_LOCK(priv->so);
 	priv->so->so_state |= SS_NBIO;
@@ -941,12 +939,11 @@ ng_ksocket_shutdown(node_p node)
 	/* Close our socket (if any) */
 	if (priv->so != NULL) {
 		SOCKBUF_LOCK(&priv->so->so_rcv);
-		priv->so->so_rcv.sb_flags &= ~SB_UPCALL;
+		soupcall_clear(priv->so, SO_RCV);
 		SOCKBUF_UNLOCK(&priv->so->so_rcv);
 		SOCKBUF_LOCK(&priv->so->so_snd);
-		priv->so->so_snd.sb_flags &= ~SB_UPCALL;
+		soupcall_clear(priv->so, SO_SND);
 		SOCKBUF_UNLOCK(&priv->so->so_snd);
-		priv->so->so_upcall = NULL;
 		soclose(priv->so);
 		priv->so = NULL;
 	}
@@ -1000,7 +997,7 @@ ng_ksocket_disconnect(hook_p hook)
  * To decouple stack, we use queue version of ng_send_fn().
  */
 
-static void
+static int
 ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 {
 	const node_p node = arg;
@@ -1017,6 +1014,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 	    ng_send_fn1(node, NULL, &ng_ksocket_incoming2, so, 0, wait)) {
 		atomic_store_rel_int(&priv->fn_sent, 0);
 	}
+	return (SU_OK);
 }
 
 
@@ -1258,13 +1256,11 @@ ng_ksocket_finish_accept(priv_p priv)
 	 */
 	LIST_INSERT_HEAD(&priv->embryos, priv2, siblings);
 
-	so->so_upcallarg = (caddr_t)node;
-	so->so_upcall = ng_ksocket_incoming;
 	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(so, SO_RCV, ng_ksocket_incoming, node);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	SOCKBUF_LOCK(&so->so_snd);
-	so->so_snd.sb_flags |= SB_UPCALL;
+	soupcall_set(so, SO_RCV, ng_ksocket_incoming, node);
 	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/* Fill in the response data and send it or return it to the caller */

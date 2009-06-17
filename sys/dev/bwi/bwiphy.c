@@ -135,7 +135,6 @@ bwi_phy_write(struct bwi_mac *mac, uint16_t ctrl, uint16_t data)
 {
 	struct bwi_softc *sc = mac->mac_sc;
 
-	/* TODO: 11A */
 	CSR_WRITE_2(sc, BWI_PHY_CTRL, ctrl);
 	CSR_WRITE_2(sc, BWI_PHY_DATA, data);
 }
@@ -145,7 +144,6 @@ bwi_phy_read(struct bwi_mac *mac, uint16_t ctrl)
 {
 	struct bwi_softc *sc = mac->mac_sc;
 
-	/* TODO: 11A */
 	CSR_WRITE_2(sc, BWI_PHY_CTRL, ctrl);
 	return CSR_READ_2(sc, BWI_PHY_DATA);
 }
@@ -375,7 +373,7 @@ bwi_phy_init_11g(struct bwi_mac *mac)
 			RF_WRITE(mac, 0x52,
 				 (tpctl->tp_ctrl1 << 4) | tpctl->tp_ctrl2);
 		} else {
-			RF_FILT_SETBITS(mac, 0x52, 0xfff0, tpctl->tp_ctrl1);
+			RF_FILT_SETBITS(mac, 0x52, 0xfff0, tpctl->tp_ctrl2);
 		}
 
 		if (phy->phy_rev >= 6) {
@@ -664,6 +662,9 @@ bwi_phy_init_11b_rev6(struct bwi_mac *mac)
 	for (ofs = 0xa8; ofs < 0xc8; ++ofs) {
 		PHY_WRITE(mac, ofs, (val & 0x3f3f));
 		val += 0x202;
+
+		/* XXX: delay 10 us to avoid PCI parity errors with BCM4318 */
+		DELAY(10);
 	}
 
 	if (phy->phy_mode == IEEE80211_MODE_11G) {

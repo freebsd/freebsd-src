@@ -369,6 +369,23 @@ prthumanval(int64_t bytes)
 }
 
 /*
+ * Print an inode count in "human-readable" format.
+ */
+static void
+prthumanvalinode(int64_t bytes)
+{
+	char buf[6];
+	int flags;
+
+	flags = HN_NOSPACE | HN_DECIMAL | HN_DIVISOR_1000;
+
+	humanize_number(buf, sizeof(buf) - (bytes < 0 ? 0 : 1),
+	    bytes, "", HN_AUTOSCALE, flags);
+
+	(void)printf(" %5s", buf);
+}
+
+/*
  * Convert statfs returned file system size into BLOCKSIZE units.
  * Attempts to avoid overflow for large file systems.
  */
@@ -413,8 +430,10 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 		(void)printf(" %-*s %*s %*s Capacity", mwp->total, header,
 		    mwp->used, "Used", mwp->avail, "Avail");
 		if (iflag) {
-			mwp->iused = imax(mwp->iused, (int)strlen("  iused"));
-			mwp->ifree = imax(mwp->ifree, (int)strlen("ifree"));
+			mwp->iused = imax(hflag ? 0 : mwp->iused,
+			    (int)strlen("  iused"));
+			mwp->ifree = imax(hflag ? 0 : mwp->ifree,
+			    (int)strlen("ifree"));
 			(void)printf(" %*s %*s %%iused",
 			    mwp->iused - 2, "iused", mwp->ifree, "ifree");
 		}
@@ -440,8 +459,15 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (iflag) {
 		inodes = sfsp->f_files;
 		used = inodes - sfsp->f_ffree;
-		(void)printf(" %*jd %*jd %4.0f%% ", mwp->iused, (intmax_t)used,
-		    mwp->ifree, (intmax_t)sfsp->f_ffree, inodes == 0 ? 100.0 :
+		if (hflag) {
+			(void)printf("  ");
+			prthumanvalinode(used);
+			prthumanvalinode(sfsp->f_ffree);
+		} else {
+			(void)printf(" %*jd %*jd", mwp->iused, (intmax_t)used,
+			    mwp->ifree, (intmax_t)sfsp->f_ffree);
+		}
+		(void)printf(" %4.0f%% ", inodes == 0 ? 100.0 :
 		    (double)used / (double)inodes * 100.0);
 	} else
 		(void)printf("  ");

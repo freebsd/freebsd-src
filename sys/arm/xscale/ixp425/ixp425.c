@@ -85,6 +85,12 @@ ixp4xx_read_feature_bits(void)
 	return bits;
 }
 
+void
+ixp4xx_write_feature_bits(uint32_t v)
+{
+	IXPREG(IXP425_EXP_VBASE + EXP_FCTRL_OFFSET) = ~v;
+}
+
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
@@ -202,7 +208,7 @@ ixp435_irq_read(void)
 }
 
 int
-arm_get_next_irq(void)
+arm_get_next_irq(int last __unused)
 {
 	uint32_t irq;
 
@@ -334,7 +340,7 @@ ixp425_add_child(device_t dev, int order, const char *name, int unit)
 }
 
 static int
-ixp425_read_ivar(device_t bus, device_t child, int which, u_char *result)
+ixp425_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct ixp425_ivar *ivar = IXP425_IVAR(child);
 

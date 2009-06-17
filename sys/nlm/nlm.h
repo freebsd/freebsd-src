@@ -210,6 +210,11 @@ struct vop_reclaim_args;
 extern int nlm_advlock(struct vop_advlock_args *ap);
 extern int nlm_reclaim(struct vop_reclaim_args *ap);
 
+/*
+ * Acquire the next sysid for remote locks not handled by the NLM.
+ */
+extern uint32_t nlm_acquire_next_sysid(void);
+
 #endif
 
 #endif

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2007
+.Dd June 1, 2009
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -51,16 +51,6 @@ hint.pcm.0.drq="1"
 hint.pcm.0.flags="0x0"
 .Ed
 .Sh DESCRIPTION
-.Bf -emphasis
-Note: There exists some ambiguity in the naming at the moment
-.Pq Nm sound , pcm , snd .
-It will be resolved soon by renaming
-.Cd "device sound"
-to
-.Cd "device snd" ,
-and doing associated changes.
-.Ef
-.Pp
 The
 .Nm
 driver provides support for
@@ -170,14 +160,34 @@ tunables are global settings and
 .Va dev.pcm.*
 are device specific.
 .Bl -tag -width ".Va hw.snd.report_soft_formats" -offset indent
-.It Va hw.snd.latency_profile
-Define sets of buffering latency conversion tables for the
-.Va hw.snd.latency
-tunable.
-A value of 0 will use a low and aggressive latency profile which can result
-in possible underruns if the application cannot keep up with a rapid irq
-rate, especially during high workload.
-The default value is 1, which is considered a moderate/safe latency profile.
+.It Va hw.snd.compat_linux_mmap
+Enable to allow PROT_EXEC page mappings.
+All Linux applications using sound and
+.Xr mmap 2
+require this.
+.It Va hw.snd.default_auto
+Enable to automatically assign default sound unit to the most recent
+attached device.
+.It Va hw.snd.default_unit
+Default sound card for systems with multiple sound cards.
+When using
+.Xr devfs 5 ,
+the default device for
+.Pa /dev/dsp .
+Equivalent to a symlink from
+.Pa /dev/dsp
+to
+.Pa /dev/dsp Ns Va ${hw.snd.default_unit} .
+.It Va hw.snd.feeder_rate_max
+Maximum allowable sample rate.
+.It Va hw.snd.feeder_rate_min
+Minimum allowable sample rate.
+.It Va hw.snd.feeder_rate_round
+Sample rate rounding threshold, to avoid large prime division at the
+cost of accuracy.
+All requested sample rates will be rounded to the nearest threshold value.
+Possible values range between 0 (disabled) and 500.
+Default is 25.
 .It Va hw.snd.latency
 Configure the buffering latency.
 Only affects applications that do not explicitly request
@@ -186,26 +196,31 @@ This tunable provides finer granularity than the
 .Va hw.snd.latency_profile
 tunable.
 Possible values range between 0 (lowest latency) and 10 (highest latency).
+.It Va hw.snd.latency_profile
+Define sets of buffering latency conversion tables for the
+.Va hw.snd.latency
+tunable.
+A value of 0 will use a low and aggressive latency profile which can result
+in possible underruns if the application cannot keep up with a rapid irq
+rate, especially during high workload.
+The default value is 1, which is considered a moderate/safe latency profile.
+.It Va hw.snd.maxautovchans
+Global
+.Tn VCHAN
+setting that only affects devices with at least one playback or recording channel available.
+The sound system will dynamically create up this many
+.Tn VCHANs .
+Set to
+.Dq 0
+if no
+.Tn VCHANS
+are desired.
+Maximum value is 256.
 .It Va hw.snd.report_soft_formats
 Controls the internal format conversion if it is
 available transparently to the application software.
 When disabled or not available, the application will
 only be able to select formats the device natively supports.
-.It Va hw.snd.compat_linux_mmap
-Enable to allow PROT_EXEC page mappings.
-All Linux applications using sound and
-.Xr mmap 2
-require this.
-.It Va hw.snd.feeder_rate_round
-Sample rate rounding threshold, to avoid large prime division at the
-cost of accuracy.
-All requested sample rates will be rounded to the nearest threshold value.
-Possible values range between 0 (disabled) and 500.
-Default is 25.
-.It Va hw.snd.feeder_rate_max
-Maximum allowable sample rate.
-.It Va hw.snd.feeder_rate_min
-Minimum allowable sample rate.
 .It Va hw.snd.verbose
 Level of verbosity for the
 .Pa /dev/sndstat
@@ -228,31 +243,6 @@ File names and versions of the currently loaded sound modules.
 .It 4
 Various messages intended for debugging.
 .El
-.It Va hw.snd.maxautovchans
-Global
-.Tn VCHAN
-setting that only affects devices with at least one playback or recording channel available.
-The sound system will dynamically create up this many
-.Tn VCHANs .
-Set to
-.Dq 0
-if no
-.Tn VCHANS
-are desired.
-Maximum value is 256.
-.It Va hw.snd.default_unit
-Default sound card for systems with multiple sound cards.
-When using
-.Xr devfs 5 ,
-the default device for
-.Pa /dev/dsp .
-Equivalent to a symlink from
-.Pa /dev/dsp
-to
-.Pa /dev/dsp Ns Va ${hw.snd.default_unit} .
-.It Va hw.snd.default_auto
-Enable to automatically assign default sound unit to the most recent
-attached device.
 .It Va dev.pcm.%d.[play|rec].vchans
 The current number of
 .Tn VCHANs
@@ -264,17 +254,17 @@ Setting this value to
 will disable
 .Tn VCHANs
 for this device.
-.It Va dev.pcm.%d.[play|rec].vchanrate
-Sample rate speed for
-.Tn VCHAN
-mixing.
-All playback paths will be converted to this sample rate before the mixing
-process begins.
 .It Va dev.pcm.%d.[play|rec].vchanformat
 Format for
 .Tn VCHAN
 mixing.
 All playback paths will be converted to this format before the mixing
+process begins.
+.It Va dev.pcm.%d.[play|rec].vchanrate
+Sample rate speed for
+.Tn VCHAN
+mixing.
+All playback paths will be converted to this sample rate before the mixing
 process begins.
 .It Va dev.pcm.%d.polling
 Experimental polling mode support where the driver operates by querying the

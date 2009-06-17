@@ -278,6 +278,7 @@ i386/xen/locore.s		optional xen	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
 i386/i386/machdep.c		standard
 i386/xen/xen_machdep.c		optional xen
+i386/i386/mca.c			standard
 i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
@@ -326,6 +327,8 @@ i386/isa/atpic.c		optional atpic
 #i386/isa/atpic_vector.s		standard
 i386/isa/clock.c		optional native
 i386/xen/clock.c		optional xen
+i386/xen/xen_clock_util.c	optional xen
+i386/xen/xen_rtc.c		optional xen
 i386/isa/dpms.c			optional dpms
 i386/isa/elcr.c			standard
 i386/isa/elink.c		optional ep | ie

@@ -85,12 +85,12 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int rum_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
-SYSCTL_INT(_hw_usb2_rum, OID_AUTO, debug, CTLFLAG_RW, &rum_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
+SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RW, &rum_debug, 0,
     "Debug level");
 #endif
 
-static const struct usb2_device_id rum_devs[] = {
+static const struct usb_device_id rum_devs[] = {
     { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_HWU54DM) },
     { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT2573_2) },
     { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT2573_3) },
@@ -149,11 +149,11 @@ static device_probe_t rum_match;
 static device_attach_t rum_attach;
 static device_detach_t rum_detach;
 
-static usb2_callback_t rum_bulk_read_callback;
-static usb2_callback_t rum_bulk_write_callback;
+static usb_callback_t rum_bulk_read_callback;
+static usb_callback_t rum_bulk_write_callback;
 
-static usb2_error_t	rum_do_request(struct rum_softc *sc,
-			    struct usb2_device_request *req, void *data);
+static usb_error_t	rum_do_request(struct rum_softc *sc,
+			    struct usb_device_request *req, void *data);
 static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
 			    const char name[IFNAMSIZ], int unit, int opmode,
 			    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
@@ -181,8 +181,8 @@ static void		rum_eeprom_read(struct rum_softc *, uint16_t, void *,
 static uint32_t		rum_read(struct rum_softc *, uint16_t);
 static void		rum_read_multi(struct rum_softc *, uint16_t, void *,
 			    int);
-static usb2_error_t	rum_write(struct rum_softc *, uint16_t, uint32_t);
-static usb2_error_t	rum_write_multi(struct rum_softc *, uint16_t, void *,
+static usb_error_t	rum_write(struct rum_softc *, uint16_t, uint32_t);
+static usb_error_t	rum_write_multi(struct rum_softc *, uint16_t, void *,
 			    size_t);
 static void		rum_bbp_write(struct rum_softc *, uint8_t, uint8_t);
 static uint8_t		rum_bbp_read(struct rum_softc *, uint8_t);
@@ -196,6 +196,7 @@ static void		rum_select_band(struct rum_softc *,
 static void		rum_set_chan(struct rum_softc *,
 			    struct ieee80211_channel *);
 static void		rum_enable_tsf_sync(struct rum_softc *);
+static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_update_slot(struct ifnet *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
@@ -385,7 +386,7 @@ static const struct rfprog {
 	{ 165, 0x00b33, 0x012ad, 0x2e014, 0x30285 }
 };
 
-static const struct usb2_config rum_config[RUM_N_TRANSFER] = {
+static const struct usb_config rum_config[RUM_N_TRANSFER] = {
 	[RUM_BULK_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -408,22 +409,22 @@ static const struct usb2_config rum_config[RUM_N_TRANSFER] = {
 static int
 rum_match(device_t self)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != 0)
 		return (ENXIO);
 	if (uaa->info.bIfaceIndex != RT2573_IFACE_INDEX)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(rum_devs, sizeof(rum_devs), uaa));
+	return (usbd_lookup_id_by_uaa(rum_devs, sizeof(rum_devs), uaa));
 }
 
 static int
 rum_attach(device_t self)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct rum_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
@@ -431,7 +432,7 @@ rum_attach(device_t self)
 	uint32_t tmp;
 	int error, ntries;
 
-	device_set_usb2_desc(self);
+	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
 
@@ -439,11 +440,11 @@ rum_attach(device_t self)
 	    MTX_NETWORK_LOCK, MTX_DEF);
 
 	iface_index = RT2573_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, rum_config, RUM_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(self, "could not allocate USB transfers, "
-		    "err=%s\n", usb2_errstr(error));
+		    "err=%s\n", usbd_errstr(error));
 		goto detach;
 	}
 
@@ -522,16 +523,11 @@ rum_attach(device_t self)
 	ic->ic_vap_create = rum_vap_create;
 	ic->ic_vap_delete = rum_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof(sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(RT2573_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(RT2573_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		RT2573_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		RT2573_RX_RADIOTAP_PRESENT);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -551,7 +547,7 @@ rum_detach(device_t self)
 	struct ieee80211com *ic;
 
 	/* stop all USB transfers */
-	usb2_transfer_unsetup(sc->sc_xfer, RUM_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_xfer, RUM_N_TRANSFER);
 
 	/* free TX list, if any */
 	RUM_LOCK(sc);
@@ -560,7 +556,6 @@ rum_detach(device_t self)
 
 	if (ifp) {
 		ic = ifp->if_l2com;
-		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 		if_free(ifp);
 	}
@@ -569,21 +564,21 @@ rum_detach(device_t self)
 	return (0);
 }
 
-static usb2_error_t
+static usb_error_t
 rum_do_request(struct rum_softc *sc,
-    struct usb2_device_request *req, void *data)
+    struct usb_device_request *req, void *data)
 {
-	usb2_error_t err;
+	usb_error_t err;
 	int ntries = 10;
 
 	while (ntries--) {
-		err = usb2_do_request_flags(sc->sc_udev, &sc->sc_mtx,
+		err = usbd_do_request_flags(sc->sc_udev, &sc->sc_mtx,
 		    req, data, 0, NULL, 250 /* ms */);
 		if (err == 0)
 			break;
 
 		DPRINTFN(1, "Control request failed, %s (retrying)\n",
-		    usb2_errstr(err));
+		    usbd_errstr(err));
 		if (rum_pause(sc, hz / 100))
 			break;
 	}
@@ -615,7 +610,7 @@ rum_vap_create(struct ieee80211com *ic,
 	rvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = rum_newstate;
 
-	usb2_callout_init_mtx(&rvp->amrr_ch, &sc->sc_mtx, 0);
+	usb_callout_init_mtx(&rvp->amrr_ch, &sc->sc_mtx, 0);
 	TASK_INIT(&rvp->amrr_task, 0, rum_amrr_task, rvp);
 	ieee80211_amrr_init(&rvp->amrr, vap,
 	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
@@ -634,7 +629,7 @@ rum_vap_delete(struct ieee80211vap *vap)
 	struct rum_vap *rvp = RUM_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
 
-	usb2_callout_drain(&rvp->amrr_ch);
+	usb_callout_drain(&rvp->amrr_ch);
 	ieee80211_draintask(ic, &rvp->amrr_task);
 	ieee80211_amrr_cleanup(&rvp->amrr);
 	ieee80211_vap_detach(vap);
@@ -723,7 +718,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	IEEE80211_UNLOCK(ic);
 	RUM_LOCK(sc);
-	usb2_callout_stop(&rvp->amrr_ch);
+	usb_callout_stop(&rvp->amrr_ch);
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
@@ -752,9 +747,11 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR)
 			rum_enable_tsf_sync(sc);
+		else
+			rum_enable_tsf(sc);
 
 		/* enable automatic rate adaptation */
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
+		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
 			rum_amrr_start(sc, ni);
 		break;
@@ -767,12 +764,11 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 }
 
 static void
-rum_bulk_write_callback(struct usb2_xfer *xfer)
+rum_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct rum_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211_channel *c = ic->ic_curchan;
+	struct ieee80211vap *vap;
 	struct rum_tx_data *data;
 	struct mbuf *m;
 	unsigned int len;
@@ -802,21 +798,20 @@ tr_setup:
 				    m->m_pkthdr.len);
 				m->m_pkthdr.len = (MCLBYTES + RT2573_TX_DESC_SIZE);
 			}
-			usb2_copy_in(xfer->frbuffers, 0, &data->desc,
+			usbd_copy_in(xfer->frbuffers, 0, &data->desc,
 			    RT2573_TX_DESC_SIZE);
-			usb2_m_copy_in(xfer->frbuffers, RT2573_TX_DESC_SIZE, m,
+			usbd_m_copy_in(xfer->frbuffers, RT2573_TX_DESC_SIZE, m,
 			    0, m->m_pkthdr.len);
 
-			if (bpf_peers_present(ifp->if_bpf)) {
+			vap = data->ni->ni_vap;
+			if (ieee80211_radiotap_active_vap(vap)) {
 				struct rum_tx_radiotap_header *tap = &sc->sc_txtap;
 
 				tap->wt_flags = 0;
 				tap->wt_rate = data->rate;
-				tap->wt_chan_freq = htole16(c->ic_freq);
-				tap->wt_chan_flags = htole16(c->ic_flags);
 				tap->wt_antenna = sc->tx_ant;
 
-				bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m);
+				ieee80211_radiotap_tx(vap, m);
 			}
 
 			/* align end on a 4-bytes boundary */
@@ -830,13 +825,13 @@ tr_setup:
 			xfer->frlengths[0] = len;
 			xfer->priv_fifo = data;
 
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		break;
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 
 		ifp->if_oerrors++;
 		data = xfer->priv_fifo;
@@ -857,7 +852,7 @@ tr_setup:
 }
 
 static void
-rum_bulk_read_callback(struct usb2_xfer *xfer)
+rum_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct rum_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -882,7 +877,7 @@ rum_bulk_read_callback(struct usb2_xfer *xfer)
 		}
 
 		len -= RT2573_RX_DESC_SIZE;
-		usb2_copy_out(xfer->frbuffers, 0, &sc->sc_rx_desc,
+		usbd_copy_out(xfer->frbuffers, 0, &sc->sc_rx_desc,
 		    RT2573_RX_DESC_SIZE);
 
 		rssi = rum_get_rssi(sc, sc->sc_rx_desc.rssi);
@@ -904,32 +899,30 @@ rum_bulk_read_callback(struct usb2_xfer *xfer)
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
-		usb2_copy_out(xfer->frbuffers, RT2573_RX_DESC_SIZE,
+		usbd_copy_out(xfer->frbuffers, RT2573_RX_DESC_SIZE,
 		    mtod(m, uint8_t *), len);
 
 		/* finalize mbuf */
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = (flags >> 16) & 0xfff;
 
-		if (bpf_peers_present(ifp->if_bpf)) {
+		if (ieee80211_radiotap_active(ic)) {
 			struct rum_rx_radiotap_header *tap = &sc->sc_rxtap;
 
-			tap->wr_flags = IEEE80211_RADIOTAP_F_FCS;
+			/* XXX read tsf */
+			tap->wr_flags = 0;
 			tap->wr_rate = ieee80211_plcp2rate(sc->sc_rx_desc.rate,
 			    (flags & RT2573_RX_OFDM) ?
 			    IEEE80211_T_OFDM : IEEE80211_T_CCK);
-			tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-			tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
+			tap->wr_antsignal = RT2573_NOISE_FLOOR + rssi;
+			tap->wr_antnoise = RT2573_NOISE_FLOOR;
 			tap->wr_antenna = sc->rx_ant;
-			tap->wr_antsignal = rssi;
-
-			bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
 		}
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 
 		/*
 		 * At the end of a USB callback it is always safe to unlock
@@ -942,11 +935,11 @@ tr_setup:
 			    mtod(m, struct ieee80211_frame_min *));
 			if (ni != NULL) {
 				(void) ieee80211_input(ni, m, rssi,
-				    RT2573_NOISE_FLOOR, 0);
+				    RT2573_NOISE_FLOOR);
 				ieee80211_free_node(ni);
 			} else
 				(void) ieee80211_input_all(ic, m, rssi,
-				    RT2573_NOISE_FLOOR, 0);
+				    RT2573_NOISE_FLOOR);
 			RUM_LOCK(sc);
 		}
 		return;
@@ -1075,7 +1068,7 @@ rum_sendprot(struct rum_softc *sc,
 	rum_setup_tx_desc(sc, &data->desc, flags, 0, mprot->m_pkthdr.len, protrate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[RUM_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[RUM_BULK_WR]);
 
 	return 0;
 }
@@ -1135,7 +1128,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    m0->m_pkthdr.len + (int)RT2573_TX_DESC_SIZE, tp->mgmtrate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[RUM_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[RUM_BULK_WR]);
 
 	return (0);
 }
@@ -1144,6 +1137,7 @@ static int
 rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     const struct ieee80211_bpf_params *params)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct rum_tx_data *data;
 	uint32_t flags;
 	int rate, error;
@@ -1151,9 +1145,8 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	RUM_LOCK_ASSERT(sc, MA_OWNED);
 	KASSERT(params != NULL, ("no raw xmit params"));
 
-	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
-	/* XXX validate */
-	if (rate == 0) {
+	rate = params->ibp_rate0;
+	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
 		m_freem(m0);
 		return EINVAL;
 	}
@@ -1187,7 +1180,7 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	    m0->m_pkthdr.len, rate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[RUM_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[RUM_BULK_WR]);
 
 	return 0;
 }
@@ -1269,7 +1262,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    m0->m_pkthdr.len + (int)RT2573_TX_DESC_SIZE, rate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[RUM_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[RUM_BULK_WR]);
 
 	return 0;
 }
@@ -1346,8 +1339,8 @@ rum_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 rum_eeprom_read(struct rum_softc *sc, uint16_t addr, void *buf, int len)
 {
-	struct usb2_device_request req;
-	usb2_error_t error;
+	struct usb_device_request req;
+	usb_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = RT2573_READ_EEPROM;
@@ -1358,7 +1351,7 @@ rum_eeprom_read(struct rum_softc *sc, uint16_t addr, void *buf, int len)
 	error = rum_do_request(sc, &req, buf);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not read EEPROM: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 }
 
@@ -1375,8 +1368,8 @@ rum_read(struct rum_softc *sc, uint16_t reg)
 static void
 rum_read_multi(struct rum_softc *sc, uint16_t reg, void *buf, int len)
 {
-	struct usb2_device_request req;
-	usb2_error_t error;
+	struct usb_device_request req;
+	usb_error_t error;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = RT2573_READ_MULTI_MAC;
@@ -1388,11 +1381,11 @@ rum_read_multi(struct rum_softc *sc, uint16_t reg, void *buf, int len)
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not multi read MAC register: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 }
 
-static usb2_error_t
+static usb_error_t
 rum_write(struct rum_softc *sc, uint16_t reg, uint32_t val)
 {
 	uint32_t tmp = htole32(val);
@@ -1400,11 +1393,11 @@ rum_write(struct rum_softc *sc, uint16_t reg, uint32_t val)
 	return (rum_write_multi(sc, reg, &tmp, sizeof tmp));
 }
 
-static usb2_error_t
+static usb_error_t
 rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 {
-	struct usb2_device_request req;
-	usb2_error_t error;
+	struct usb_device_request req;
+	usb_error_t error;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = RT2573_WRITE_MULTI_MAC;
@@ -1416,7 +1409,7 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not multi write MAC register: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 	return (error);
 }
@@ -1737,6 +1730,14 @@ rum_enable_tsf_sync(struct rum_softc *sc)
 }
 
 static void
+rum_enable_tsf(struct rum_softc *sc)
+{
+	rum_write(sc, RT2573_TXRX_CSR9, 
+	    (rum_read(sc, RT2573_TXRX_CSR9) & 0xff000000) |
+	    RT2573_TSF_TICKING | RT2573_TSF_MODE(2));
+}
+
+static void
 rum_update_slot(struct ifnet *ifp)
 {
 	struct rum_softc *sc = ifp->if_softc;
@@ -1944,7 +1945,7 @@ rum_init_locked(struct rum_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t tmp;
-	usb2_error_t error;
+	usb_error_t error;
 	int i, ntries;
 
 	RUM_LOCK_ASSERT(sc, MA_OWNED);
@@ -2010,8 +2011,8 @@ rum_init_locked(struct rum_softc *sc)
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	usb2_transfer_set_stall(sc->sc_xfer[RUM_BULK_WR]);
-	usb2_transfer_start(sc->sc_xfer[RUM_BULK_RD]);
+	usbd_transfer_set_stall(sc->sc_xfer[RUM_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[RUM_BULK_RD]);
 	return;
 
 fail:	rum_stop(sc);
@@ -2048,8 +2049,8 @@ rum_stop(struct rum_softc *sc)
 	/*
 	 * Drain the USB transfers, if not already drained:
 	 */
-	usb2_transfer_drain(sc->sc_xfer[RUM_BULK_WR]);
-	usb2_transfer_drain(sc->sc_xfer[RUM_BULK_RD]);
+	usbd_transfer_drain(sc->sc_xfer[RUM_BULK_WR]);
+	usbd_transfer_drain(sc->sc_xfer[RUM_BULK_RD]);
 
 	RUM_LOCK(sc);
 
@@ -2067,9 +2068,9 @@ rum_stop(struct rum_softc *sc)
 static void
 rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t reg = RT2573_MCU_CODE_BASE;
-	usb2_error_t err;
+	usb_error_t err;
 
 	/* copy firmware image into NIC */
 	for (; size >= 4; reg += 4, ucode += 4, size -= 4) {
@@ -2091,7 +2092,7 @@ rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 	err = rum_do_request(sc, &req, NULL);
 	if (err != 0) {
 		device_printf(sc->sc_dev, "could not run firmware: %s\n",
-		    usb2_errstr(err));
+		    usbd_errstr(err));
 	}
 
 	/* give the chip some time to boot */
@@ -2188,7 +2189,7 @@ rum_amrr_start(struct rum_softc *sc, struct ieee80211_node *ni)
 
 	ieee80211_amrr_node_init(&rvp->amrr, &RUM_NODE(ni)->amn, ni);
 
-	usb2_callout_reset(&rvp->amrr_ch, hz, rum_amrr_timeout, rvp);
+	usb_callout_reset(&rvp->amrr_ch, hz, rum_amrr_timeout, rvp);
 }
 
 static void
@@ -2226,7 +2227,7 @@ rum_amrr_task(void *arg, int pending)
 
 	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
 
-	usb2_callout_reset(&rvp->amrr_ch, hz, rum_amrr_timeout, rvp);
+	usb_callout_reset(&rvp->amrr_ch, hz, rum_amrr_timeout, rvp);
 	RUM_UNLOCK(sc);
 }
 
@@ -2338,7 +2339,7 @@ static int
 rum_pause(struct rum_softc *sc, int timeout)
 {
 
-	usb2_pause_mtx(&sc->sc_mtx, timeout);
+	usb_pause_mtx(&sc->sc_mtx, timeout);
 	return (0);
 }
 

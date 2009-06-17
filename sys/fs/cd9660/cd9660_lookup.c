@@ -374,15 +374,17 @@ found:
 		 */
 		mp = pdp->v_mount;
 		ltype = VOP_ISLOCKED(pdp);
-		for (;;) {
-			error = vfs_busy(mp, MBF_NOWAIT);
-			if (error == 0)
-				break;
+		error = vfs_busy(mp, MBF_NOWAIT);
+		if (error != 0) {
 			VOP_UNLOCK(pdp, 0);
-			pause("vn_vget", 1);
+			error = vfs_busy(mp, 0);
 			vn_lock(pdp, ltype | LK_RETRY);
-			if (pdp->v_iflag & VI_DOOMED)
+			if (error)
 				return (ENOENT);
+			if (pdp->v_iflag & VI_DOOMED) {
+				vfs_unbusy(mp);
+				return (ENOENT);
+			}
 		}
 		VOP_UNLOCK(pdp, 0);
 		error = cd9660_vget_internal(vdp->v_mount, i_ino,

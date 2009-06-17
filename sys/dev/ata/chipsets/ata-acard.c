@@ -51,6 +51,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
+struct ata_serialize {
+    struct mtx  locked_mtx;
+    int         locked_ch;
+    int         restart_ch;
+};
+
 /* local prototypes */
 static int ata_acard_chipinit(device_t dev);
 static int ata_acard_ch_attach(device_t dev);
@@ -58,6 +64,7 @@ static int ata_acard_status(device_t dev);
 static void ata_acard_850_setmode(device_t dev, int mode);
 static void ata_acard_86X_setmode(device_t dev, int mode);
 static int ata_serialize(device_t dev, int flags);
+static void ata_serialize_init(struct ata_serialize *serial);
 
 /* misc defines */
 #define ATP_OLD		1
@@ -93,6 +100,7 @@ static int
 ata_acard_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ata_serialize *serial;
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
@@ -102,6 +110,10 @@ ata_acard_chipinit(device_t dev)
     if (ctlr->chip->cfg1 == ATP_OLD) {
 	ctlr->setmode = ata_acard_850_setmode;
 	ctlr->locking = ata_serialize;
+	serial = malloc(sizeof(struct ata_serialize),
+			      M_TEMP, M_WAITOK | M_ZERO);
+	ata_serialize_init(serial);
+	ctlr->chipset_data = serial;
     }
     else
 	ctlr->setmode = ata_acard_86X_setmode;
@@ -225,11 +237,14 @@ ata_acard_86X_setmode(device_t dev, int mode)
     /* we could set PIO mode timings, but we assume the BIOS did that */
 }
 
-struct ata_serialize {
-    struct mtx  locked_mtx;
-    int         locked_ch;
-    int         restart_ch;
-};
+static void
+ata_serialize_init(struct ata_serialize *serial)
+{
+
+    mtx_init(&serial->locked_mtx, "ATA serialize lock", NULL, MTX_DEF); 
+    serial->locked_ch = -1;
+    serial->restart_ch = -1;
+}
 
 static int
 ata_serialize(device_t dev, int flags)
@@ -237,20 +252,9 @@ ata_serialize(device_t dev, int flags)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_serialize *serial;
-    static int inited = 0;
     int res;
 
-    if (!inited) {
-	serial = malloc(sizeof(struct ata_serialize),
-			      M_TEMP, M_NOWAIT | M_ZERO);
-	mtx_init(&serial->locked_mtx, "ATA serialize lock", NULL, MTX_DEF); 
-	serial->locked_ch = -1;
-	serial->restart_ch = -1;
-	device_set_ivars(ctlr->dev, serial);
-	inited = 1;
-    }
-    else
-	serial = device_get_ivars(ctlr->dev);
+    serial = ctlr->chipset_data;
 
     mtx_lock(&serial->locked_mtx);
     switch (flags) {

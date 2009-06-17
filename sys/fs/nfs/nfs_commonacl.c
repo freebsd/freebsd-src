@@ -66,7 +66,7 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 		acep->ae_tag = ACL_UNDEFINED_TAG;
 		acep->ae_id = ACL_UNDEFINED_ID;
 		acep->ae_perm = (acl_perm_t)0;
-		acep->ae_extended = ACL_EXTENDED_DENY;
+		acep->ae_entry_type = ACL_ENTRY_TYPE_DENY;
 		if (acesizep)
 			*acesizep = 4 * NFSX_UNSIGNED;
 		return (0);
@@ -128,11 +128,11 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 		}
 		if (flag & NFSV4ACE_NOPROPAGATEINHERIT) {
 			flag &= ~NFSV4ACE_NOPROPAGATEINHERIT;
-			acep->ae_flags |= ACL_ENTRY_LIMIT_INHERIT;
+			acep->ae_flags |= ACL_ENTRY_NO_PROPAGATE_INHERIT;
 		}
 		if (flag & NFSV4ACE_INHERITONLY) {
 			flag &= ~NFSV4ACE_INHERITONLY;
-			acep->ae_flags |= ACL_ENTRY_ONLY_INHERIT;
+			acep->ae_flags |= ACL_ENTRY_INHERIT_ONLY;
 		}
 		if (flag & NFSV4ACE_SUCCESSFULACCESS) {
 			flag &= ~NFSV4ACE_SUCCESSFULACCESS;
@@ -143,16 +143,16 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 			acep->ae_flags |= ACL_ENTRY_FAILED_ACCESS;
 		}
 		/*
-		 * Set ae_extended.
+		 * Set ae_entry_type.
 		 */
 		if (acetype == NFSV4ACE_ALLOWEDTYPE)
-			acep->ae_extended = ACL_EXTENDED_ALLOW;
+			acep->ae_entry_type = ACL_ENTRY_TYPE_ALLOW;
 		else if (acetype == NFSV4ACE_DENIEDTYPE)
-			acep->ae_extended = ACL_EXTENDED_DENY;
+			acep->ae_entry_type = ACL_ENTRY_TYPE_DENY;
 		else if (acetype == NFSV4ACE_AUDITTYPE)
-			acep->ae_extended = ACL_EXTENDED_AUDIT;
+			acep->ae_entry_type = ACL_ENTRY_TYPE_AUDIT;
 		else if (acetype == NFSV4ACE_ALARMTYPE)
-			acep->ae_extended = ACL_EXTENDED_ALARM;
+			acep->ae_entry_type = ACL_ENTRY_TYPE_ALARM;
 		else
 			aceerr = NFSERR_ATTRNOTSUPP;
 	}
@@ -224,7 +224,7 @@ nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
 	}
 	if (mask & NFSV4ACE_SEARCH) {
 		mask &= ~NFSV4ACE_SEARCH;
-		perm |= ACL_SEARCH;
+		perm |= ACL_EXECUTE;
 	}
 	if (mask & NFSV4ACE_DELETECHILD) {
 		mask &= ~NFSV4ACE_DELETECHILD;
@@ -466,11 +466,11 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 	/*
 	 * Fill in the ace type.
 	 */
-	if (ace->ae_extended & ACL_EXTENDED_ALLOW)
+	if (ace->ae_entry_type & ACL_ENTRY_TYPE_ALLOW)
 		acetype = NFSV4ACE_ALLOWEDTYPE;
-	else if (ace->ae_extended & ACL_EXTENDED_DENY)
+	else if (ace->ae_entry_type & ACL_ENTRY_TYPE_DENY)
 		acetype = NFSV4ACE_DENIEDTYPE;
-	else if (ace->ae_extended & ACL_EXTENDED_AUDIT)
+	else if (ace->ae_entry_type & ACL_ENTRY_TYPE_AUDIT)
 		acetype = NFSV4ACE_AUDITTYPE;
 	else
 		acetype = NFSV4ACE_ALARMTYPE;
@@ -483,9 +483,9 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 		aceflag |= NFSV4ACE_FILEINHERIT;
 	if (ace->ae_flags & ACL_ENTRY_DIRECTORY_INHERIT)
 		aceflag |= NFSV4ACE_DIRECTORYINHERIT;
-	if (ace->ae_flags & ACL_ENTRY_LIMIT_INHERIT)
+	if (ace->ae_flags & ACL_ENTRY_NO_PROPAGATE_INHERIT)
 		aceflag |= NFSV4ACE_NOPROPAGATEINHERIT;
-	if (ace->ae_flags & ACL_ENTRY_ONLY_INHERIT)
+	if (ace->ae_flags & ACL_ENTRY_INHERIT_ONLY)
 		aceflag |= NFSV4ACE_INHERITONLY;
 	if (ace->ae_flags & ACL_ENTRY_SUCCESSFUL_ACCESS)
 		aceflag |= NFSV4ACE_SUCCESSFULACCESS;
@@ -505,7 +505,7 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 			acemask |= NFSV4ACE_READNAMEDATTR;
 		if (ace->ae_perm & ACL_WRITE_NAMED_ATTRS)
 			acemask |= NFSV4ACE_WRITENAMEDATTR;
-		if (ace->ae_perm & ACL_SEARCH)
+		if (ace->ae_perm & ACL_EXECUTE)
 			acemask |= NFSV4ACE_SEARCH;
 		if (ace->ae_perm & ACL_DELETE_CHILD)
 			acemask |= NFSV4ACE_DELETECHILD;
@@ -703,10 +703,6 @@ nfsrv_setacl(vnode_t vp, NFSACL_T *aclp, struct ucred *cred,
 	if (aclp->acl_cnt > (ACL_MAX_ENTRIES - 6) / 2)
 		return (NFSERR_ATTRNOTSUPP);
 	error = VOP_ACLCHECK(vp, ACL_TYPE_NFS4, aclp, cred, p);
-#ifdef MAC
-	if (!error)
-		error = mac_check_vnode_setacl(cred, vp, ACL_TYPE_NFS4, aclp);
-#endif
 	if (!error)
 		error = VOP_SETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
 	return (error);

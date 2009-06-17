@@ -28,7 +28,7 @@
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_process.h>
@@ -42,35 +42,28 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 
-/* enum */
-
-enum {
-	ST_DATA,
-	ST_POST_STATUS,
-};
-
 /* function prototypes */
 
-static uint8_t usb2_handle_get_stall(struct usb2_device *, uint8_t);
-static usb2_error_t	 usb2_handle_remote_wakeup(struct usb2_xfer *, uint8_t);
-static usb2_error_t	 usb2_handle_request(struct usb2_xfer *);
-static usb2_error_t	 usb2_handle_set_config(struct usb2_xfer *, uint8_t);
-static usb2_error_t	 usb2_handle_set_stall(struct usb2_xfer *, uint8_t,
+static uint8_t usb_handle_get_stall(struct usb_device *, uint8_t);
+static usb_error_t	 usb_handle_remote_wakeup(struct usb_xfer *, uint8_t);
+static usb_error_t	 usb_handle_request(struct usb_xfer *);
+static usb_error_t	 usb_handle_set_config(struct usb_xfer *, uint8_t);
+static usb_error_t	 usb_handle_set_stall(struct usb_xfer *, uint8_t,
 			    uint8_t);
-static usb2_error_t	 usb2_handle_iface_request(struct usb2_xfer *, void **,
-			    uint16_t *, struct usb2_device_request, uint16_t,
+static usb_error_t	 usb_handle_iface_request(struct usb_xfer *, void **,
+			    uint16_t *, struct usb_device_request, uint16_t,
 			    uint8_t);
 
 /*------------------------------------------------------------------------*
- *	usb2_handle_request_callback
+ *	usb_handle_request_callback
  *
  * This function is the USB callback for generic USB Device control
  * transfers.
  *------------------------------------------------------------------------*/
 void
-usb2_handle_request_callback(struct usb2_xfer *xfer)
+usb_handle_request_callback(struct usb_xfer *xfer)
 {
-	usb2_error_t err;
+	usb_error_t err;
 
 	/* check the current transfer state */
 
@@ -79,25 +72,26 @@ usb2_handle_request_callback(struct usb2_xfer *xfer)
 	case USB_ST_TRANSFERRED:
 
 		/* handle the request */
-		err = usb2_handle_request(xfer);
+		err = usb_handle_request(xfer);
 
 		if (err) {
 
 			if (err == USB_ERR_BAD_CONTEXT) {
 				/* we need to re-setup the control transfer */
-				usb2_needs_explore(xfer->xroot->bus, 0);
+				usb_needs_explore(xfer->xroot->bus, 0);
 				break;
 			}
-			/*
-		         * If no control transfer is active,
-		         * receive the next SETUP message:
-		         */
 			goto tr_restart;
 		}
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:
+		/* check if a control transfer is active */
+		if (xfer->flags_int.control_rem != 0xFFFF) {
+			/* handle the request */
+			err = usb_handle_request(xfer);
+		}
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* should not happen - try stalling */
 			goto tr_restart;
@@ -107,26 +101,30 @@ usb2_handle_request_callback(struct usb2_xfer *xfer)
 	return;
 
 tr_restart:
-	xfer->frlengths[0] = sizeof(struct usb2_device_request);
+	/*
+	 * If a control transfer is active, stall it, and wait for the
+	 * next control transfer.
+	 */
+	xfer->frlengths[0] = sizeof(struct usb_device_request);
 	xfer->nframes = 1;
 	xfer->flags.manual_status = 1;
 	xfer->flags.force_short_xfer = 0;
 	xfer->flags.stall_pipe = 1;	/* cancel previous transfer, if any */
-	usb2_start_hardware(xfer);
+	usbd_transfer_submit(xfer);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_handle_set_config
+ *	usb_handle_set_config
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
-usb2_handle_set_config(struct usb2_xfer *xfer, uint8_t conf_no)
+static usb_error_t
+usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 {
-	struct usb2_device *udev = xfer->xroot->udev;
-	usb2_error_t err = 0;
+	struct usb_device *udev = xfer->xroot->udev;
+	usb_error_t err = 0;
 
 	/*
 	 * We need to protect against other threads doing probe and
@@ -146,12 +144,12 @@ usb2_handle_set_config(struct usb2_xfer *xfer, uint8_t conf_no)
 		conf_no--;
 	}
 
-	if (usb2_set_config_index(udev, conf_no)) {
+	if (usbd_set_config_index(udev, conf_no)) {
 		DPRINTF("set config %d failed\n", conf_no);
 		err = USB_ERR_STALLED;
 		goto done;
 	}
-	if (usb2_probe_and_attach(udev, USB_IFACE_INDEX_ANY)) {
+	if (usb_probe_and_attach(udev, USB_IFACE_INDEX_ANY)) {
 		DPRINTF("probe and attach failed\n");
 		err = USB_ERR_STALLED;
 		goto done;
@@ -164,20 +162,20 @@ done:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_handle_iface_request
+ *	usb_handle_iface_request
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
-usb2_handle_iface_request(struct usb2_xfer *xfer,
+static usb_error_t
+usb_handle_iface_request(struct usb_xfer *xfer,
     void **ppdata, uint16_t *plen,
-    struct usb2_device_request req, uint16_t off, uint8_t state)
+    struct usb_device_request req, uint16_t off, uint8_t state)
 {
-	struct usb2_interface *iface;
-	struct usb2_interface *iface_parent;	/* parent interface */
-	struct usb2_device *udev = xfer->xroot->udev;
+	struct usb_interface *iface;
+	struct usb_interface *iface_parent;	/* parent interface */
+	struct usb_device *udev = xfer->xroot->udev;
 	int error;
 	uint8_t iface_index;
 
@@ -198,7 +196,7 @@ usb2_handle_iface_request(struct usb2_xfer *xfer,
 	error = ENXIO;
 
 tr_repeat:
-	iface = usb2_get_iface(udev, iface_index);
+	iface = usbd_get_iface(udev, iface_index);
 	if ((iface == NULL) ||
 	    (iface->idesc == NULL)) {
 		/* end of interfaces non-existing interface */
@@ -215,9 +213,9 @@ tr_repeat:
 #endif
 		error = USB_HANDLE_REQUEST(iface->subdev,
 		    &req, ppdata, plen,
-		    off, (state == ST_POST_STATUS));
+		    off, state);
 	}
-	iface_parent = usb2_get_iface(udev, iface->parent_iface_index);
+	iface_parent = usbd_get_iface(udev, iface->parent_iface_index);
 
 	if ((iface_parent == NULL) ||
 	    (iface_parent->idesc == NULL)) {
@@ -235,7 +233,7 @@ tr_repeat:
 	    device_is_attached(iface_parent->subdev)) {
 		error = USB_HANDLE_REQUEST(iface_parent->subdev,
 		    &req, ppdata, plen, off,
-		    (state == ST_POST_STATUS));
+		    state);
 	}
 	if (error == 0) {
 		/* negativly adjust pointer and length */
@@ -249,7 +247,7 @@ tr_repeat:
 		iface_index++;		/* iterate */
 		goto tr_repeat;
 	}
-	if (state == ST_POST_STATUS) {
+	if (state != USB_HR_NOT_COMPLETE) {
 		/* we are complete */
 		goto tr_valid;
 	}
@@ -267,11 +265,11 @@ tr_repeat:
 			 */
 			if ((iface_parent != NULL) ||
 			    (iface->alt_index == req.wValue[0])) {
-				error = usb2_reset_iface_endpoints(udev,
+				error = usb_reset_iface_endpoints(udev,
 				    iface_index);
 				if (error) {
 					DPRINTF("alt setting failed %s\n",
-					    usb2_errstr(error));
+					    usbd_errstr(error));
 					goto tr_stalled;
 				}
 				break;
@@ -280,14 +278,14 @@ tr_repeat:
 			 * Doing the alternate setting will detach the
 			 * interface aswell:
 			 */
-			error = usb2_set_alt_interface_index(udev,
+			error = usbd_set_alt_interface_index(udev,
 			    iface_index, req.wValue[0]);
 			if (error) {
 				DPRINTF("alt setting failed %s\n",
-				    usb2_errstr(error));
+				    usbd_errstr(error));
 				goto tr_stalled;
 			}
-			error = usb2_probe_and_attach(udev,
+			error = usb_probe_and_attach(udev,
 			    iface_index);
 			if (error) {
 				DPRINTF("alt setting probe failed\n");
@@ -327,62 +325,62 @@ tr_stalled:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_handle_stall
+ *	usb_handle_stall
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
-usb2_handle_set_stall(struct usb2_xfer *xfer, uint8_t ep, uint8_t do_stall)
+static usb_error_t
+usb_handle_set_stall(struct usb_xfer *xfer, uint8_t ep, uint8_t do_stall)
 {
-	struct usb2_device *udev = xfer->xroot->udev;
-	usb2_error_t err;
+	struct usb_device *udev = xfer->xroot->udev;
+	usb_error_t err;
 
 	USB_XFER_UNLOCK(xfer);
-	err = usb2_set_endpoint_stall(udev,
-	    usb2_get_pipe_by_addr(udev, ep), do_stall);
+	err = usbd_set_endpoint_stall(udev,
+	    usbd_get_ep_by_addr(udev, ep), do_stall);
 	USB_XFER_LOCK(xfer);
 	return (err);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_handle_get_stall
+ *	usb_handle_get_stall
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_handle_get_stall(struct usb2_device *udev, uint8_t ea_val)
+usb_handle_get_stall(struct usb_device *udev, uint8_t ea_val)
 {
-	struct usb2_pipe *pipe;
+	struct usb_endpoint *ep;
 	uint8_t halted;
 
-	pipe = usb2_get_pipe_by_addr(udev, ea_val);
-	if (pipe == NULL) {
+	ep = usbd_get_ep_by_addr(udev, ea_val);
+	if (ep == NULL) {
 		/* nothing to do */
 		return (0);
 	}
 	USB_BUS_LOCK(udev->bus);
-	halted = pipe->is_stalled;
+	halted = ep->is_stalled;
 	USB_BUS_UNLOCK(udev->bus);
 
 	return (halted);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_handle_remote_wakeup
+ *	usb_handle_remote_wakeup
  *
  * Returns:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb2_error_t
-usb2_handle_remote_wakeup(struct usb2_xfer *xfer, uint8_t is_on)
+static usb_error_t
+usb_handle_remote_wakeup(struct usb_xfer *xfer, uint8_t is_on)
 {
-	struct usb2_device *udev;
-	struct usb2_bus *bus;
+	struct usb_device *udev;
+	struct usb_bus *bus;
 
 	udev = xfer->xroot->udev;
 	bus = udev->bus;
@@ -398,26 +396,26 @@ usb2_handle_remote_wakeup(struct usb2_xfer *xfer, uint8_t is_on)
 	USB_BUS_UNLOCK(bus);
 
 	/* In case we are out of sync, update the power state. */
-	usb2_bus_power_update(udev->bus);
+	usb_bus_power_update(udev->bus);
 	return (0);			/* success */
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_handle_request
+ *	usb_handle_request
  *
  * Internal state sequence:
  *
- * ST_DATA -> ST_POST_STATUS
+ * USB_HR_NOT_COMPLETE -> USB_HR_COMPLETE_OK v USB_HR_COMPLETE_ERR
  *
  * Returns:
  * 0: Ready to start hardware
  * Else: Stall current transfer, if any
  *------------------------------------------------------------------------*/
-static usb2_error_t
-usb2_handle_request(struct usb2_xfer *xfer)
+static usb_error_t
+usb_handle_request(struct usb_xfer *xfer)
 {
-	struct usb2_device_request req;
-	struct usb2_device *udev;
+	struct usb_device_request req;
+	struct usb_device *udev;
 	const void *src_zcopy;		/* zero-copy source pointer */
 	const void *src_mcopy;		/* non zero-copy source pointer */
 	uint16_t off;			/* data offset */
@@ -426,7 +424,7 @@ usb2_handle_request(struct usb2_xfer *xfer)
 	uint16_t wValue;
 	uint16_t wIndex;
 	uint8_t state;
-	usb2_error_t err;
+	usb_error_t err;
 	union {
 		uWord	wStatus;
 		uint8_t	buf[2];
@@ -439,20 +437,22 @@ usb2_handle_request(struct usb2_xfer *xfer)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
-		state = ST_DATA;
+		state = USB_HR_NOT_COMPLETE;
 
 		if (!xfer->flags_int.control_act) {
 			/* nothing to do */
 			goto tr_stalled;
 		}
 		break;
-
-	default:			/* USB_ST_TRANSFERRED */
+	case USB_ST_TRANSFERRED:
 		if (!xfer->flags_int.control_act) {
-			state = ST_POST_STATUS;
+			state = USB_HR_COMPLETE_OK;
 		} else {
-			state = ST_DATA;
+			state = USB_HR_NOT_COMPLETE;
 		}
+		break;
+	default:
+		state = USB_HR_COMPLETE_ERR;
 		break;
 	}
 
@@ -460,12 +460,12 @@ usb2_handle_request(struct usb2_xfer *xfer)
 
 	xfer->frlengths[0] = 0;
 
-	usb2_set_frame_offset(xfer, 0, 0);
-	usb2_set_frame_offset(xfer, sizeof(req), 1);
+	usbd_set_frame_offset(xfer, 0, 0);
+	usbd_set_frame_offset(xfer, sizeof(req), 1);
 
 	/* get the current request, if any */
 
-	usb2_copy_out(xfer->frbuffers, 0, &req, sizeof(req));
+	usbd_copy_out(xfer->frbuffers, 0, &req, sizeof(req));
 
 	if (xfer->flags_int.control_rem == 0xFFFF) {
 		/* first time - not initialised */
@@ -497,7 +497,7 @@ usb2_handle_request(struct usb2_xfer *xfer)
 
 	switch (req.bmRequestType) {
 	case UT_READ_DEVICE:
-		if (state != ST_DATA) {
+		if (state != USB_HR_NOT_COMPLETE) {
 			break;
 		}
 		switch (req.bRequest) {
@@ -572,7 +572,7 @@ usb2_handle_request(struct usb2_xfer *xfer)
 		break;
 	default:
 		/* we use "USB_ADD_BYTES" to de-const the src_zcopy */
-		err = usb2_handle_iface_request(xfer,
+		err = usb_handle_iface_request(xfer,
 		    USB_ADD_BYTES(&src_zcopy, 0),
 		    &max_len, req, off, state);
 		if (err == 0) {
@@ -595,7 +595,7 @@ usb2_handle_request(struct usb2_xfer *xfer)
 	goto tr_valid;
 
 tr_handle_get_descriptor:
-	err = (usb2_temp_get_desc_p) (udev, &req, &src_zcopy, &max_len);
+	err = (usb_temp_get_desc_p) (udev, &req, &src_zcopy, &max_len);
 	if (err)
 		goto tr_stalled;
 	if (src_zcopy == NULL)
@@ -627,7 +627,7 @@ tr_handle_get_status:
 	goto tr_valid;
 
 tr_handle_set_address:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		if (wValue >= 0x80) {
 			/* invalid value */
 			goto tr_stalled;
@@ -635,56 +635,56 @@ tr_handle_set_address:
 			/* we are configured ! */
 			goto tr_stalled;
 		}
-	} else if (state == ST_POST_STATUS) {
+	} else if (state != USB_HR_NOT_COMPLETE) {
 		udev->address = (wValue & 0x7F);
 		goto tr_bad_context;
 	}
 	goto tr_valid;
 
 tr_handle_set_config:
-	if (state == ST_DATA) {
-		if (usb2_handle_set_config(xfer, req.wValue[0])) {
+	if (state == USB_HR_NOT_COMPLETE) {
+		if (usb_handle_set_config(xfer, req.wValue[0])) {
 			goto tr_stalled;
 		}
 	}
 	goto tr_valid;
 
 tr_handle_clear_halt:
-	if (state == ST_DATA) {
-		if (usb2_handle_set_stall(xfer, req.wIndex[0], 0)) {
+	if (state == USB_HR_NOT_COMPLETE) {
+		if (usb_handle_set_stall(xfer, req.wIndex[0], 0)) {
 			goto tr_stalled;
 		}
 	}
 	goto tr_valid;
 
 tr_handle_clear_wakeup:
-	if (state == ST_DATA) {
-		if (usb2_handle_remote_wakeup(xfer, 0)) {
+	if (state == USB_HR_NOT_COMPLETE) {
+		if (usb_handle_remote_wakeup(xfer, 0)) {
 			goto tr_stalled;
 		}
 	}
 	goto tr_valid;
 
 tr_handle_set_halt:
-	if (state == ST_DATA) {
-		if (usb2_handle_set_stall(xfer, req.wIndex[0], 1)) {
+	if (state == USB_HR_NOT_COMPLETE) {
+		if (usb_handle_set_stall(xfer, req.wIndex[0], 1)) {
 			goto tr_stalled;
 		}
 	}
 	goto tr_valid;
 
 tr_handle_set_wakeup:
-	if (state == ST_DATA) {
-		if (usb2_handle_remote_wakeup(xfer, 1)) {
+	if (state == USB_HR_NOT_COMPLETE) {
+		if (usb_handle_remote_wakeup(xfer, 1)) {
 			goto tr_stalled;
 		}
 	}
 	goto tr_valid;
 
 tr_handle_get_ep_status:
-	if (state == ST_DATA) {
+	if (state == USB_HR_NOT_COMPLETE) {
 		temp.wStatus[0] =
-		    usb2_handle_get_stall(udev, req.wIndex[0]);
+		    usb_handle_get_stall(udev, req.wIndex[0]);
 		temp.wStatus[1] = 0;
 		src_mcopy = temp.wStatus;
 		max_len = sizeof(temp.wStatus);
@@ -692,7 +692,7 @@ tr_handle_get_ep_status:
 	goto tr_valid;
 
 tr_valid:
-	if (state == ST_POST_STATUS) {
+	if (state != USB_HR_NOT_COMPLETE) {
 		goto tr_stalled;
 	}
 	/* subtract offset from length */
@@ -732,10 +732,10 @@ tr_valid:
 	if (max_len > 0) {
 		if (src_mcopy) {
 			src_mcopy = USB_ADD_BYTES(src_mcopy, off);
-			usb2_copy_in(xfer->frbuffers + 1, 0,
+			usbd_copy_in(xfer->frbuffers + 1, 0,
 			    src_mcopy, max_len);
 		} else {
-			usb2_set_frame_data(xfer,
+			usbd_set_frame_data(xfer,
 			    USB_ADD_BYTES(src_zcopy, off), 1);
 		}
 		xfer->frlengths[1] = max_len;
@@ -748,7 +748,7 @@ tr_valid:
 	return (0);			/* success */
 
 tr_stalled:
-	DPRINTF("%s\n", (state == ST_POST_STATUS) ?
+	DPRINTF("%s\n", (state != USB_HR_NOT_COMPLETE) ?
 	    "complete" : "stalled");
 	return (USB_ERR_STALLED);
 

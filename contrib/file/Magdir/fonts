@@ -6,8 +6,8 @@
 0	short		017001		byte-swapped Berkeley vfont data
 
 # PostScript fonts (must precede "printer" entries), quinlan@yggdrasil.com
-0	search/1	%!PS-AdobeFont-1.	PostScript Type 1 font text
->20	search/1	>\0			(%s)
+0	string		%!PS-AdobeFont-1.	PostScript Type 1 font text
+>20	string		>\0			(%s)
 6	string		%!PS-AdobeFont-1.	PostScript Type 1 font program data
 
 # X11 font files in SNF (Server Natural Format) format
@@ -54,6 +54,8 @@
 
 0	string		\007\001\001\000Copyright\ (c)\ 199	Adobe Multiple Master font
 0	string		\012\001\001\000Copyright\ (c)\ 199	Adobe Multiple Master font
+
+0	string		ttcf		TrueType font collection data
 
 # Opentype font data from Avi Bercovich
 0	string		OTTO		OpenType font data 

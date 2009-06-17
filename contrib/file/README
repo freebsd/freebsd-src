@@ -1,14 +1,17 @@
 ** README for file(1) Command **
-@(#) $File: README,v 1.41 2008/12/02 16:34:46 christos Exp $
+@(#) $File: README,v 1.42 2009/02/14 15:16:24 christos Exp $
 
 E-mail: christos@astron.com
 Mailing List: file@mx.gw.com
 
 Phone: Do not even think of telephoning me about this program. Send cash first!
 
-This is Release 4.x of Ian Darwin's (copyright but distributable)
+This is Release 5.x of Ian Darwin's (copyright but distributable)
 file(1) command. This version is the standard "file" command for Linux,
 *BSD, and other systems. (See "patchlevel.h" for the exact release number).
+
+The major changes for 5.x are CDF file parsing, indirect magic, and
+overhaul in mime and ascii encoding handling.
 
 The major feature of 4.x is the refactoring of the code into a library,
 and the re-write of the file command in terms of that library. The library

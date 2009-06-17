@@ -79,6 +79,22 @@ NANO_CUSTOMIZE="$NANO_CUSTOMIZE ath_clean_tools"
 NANO_CUSTOMIZE="$NANO_CUSTOMIZE ath_build_tools"
 NANO_CUSTOMIZE="$NANO_CUSTOMIZE ath_install_tools"
 
+npe_clean_tools()
+{
+	echo "cd tools/tools/npe; make clean" | buildenv
+}
+npe_build_tools()
+{
+	echo "cd tools/tools/npe; make" | buildenv
+}
+npe_install_tools()
+{
+	echo "cd tools/tools/npe; make install" | buildenv
+}
+NANO_CUSTOMIZE="$NANO_CUSTOMIZE npe_clean_tools"
+NANO_CUSTOMIZE="$NANO_CUSTOMIZE npe_build_tools"
+NANO_CUSTOMIZE="$NANO_CUSTOMIZE npe_install_tools"
+
 NANO_MAKEFS="makefs -B big \
 	-o bsize=4096,fsize=512,density=8192,optimization=space"
 export NANO_MAKEFS

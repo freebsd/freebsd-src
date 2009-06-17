@@ -2727,31 +2727,7 @@ ndis_getstate_80211(sc)
 	if (rval)
 		device_printf (sc->ndis_dev, "get link speed failed: %d\n",
 		    rval);
-
-	if (isset(ic->ic_modecaps, IEEE80211_MODE_11B)) {
-		ni->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11B];
-		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-			if ((ni->ni_rates.rs_rates[i] &
-			    IEEE80211_RATE_VAL) == arg / 5000)
-				break;
-		}
-	}
-
-	if (i == ni->ni_rates.rs_nrates &&
-	    isset(ic->ic_modecaps, IEEE80211_MODE_11G)) {
-		ni->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11G];
-		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-			if ((ni->ni_rates.rs_rates[i] &
-			    IEEE80211_RATE_VAL) == arg / 5000)
-				break;
-		}
-	}
-
-	if (i == ni->ni_rates.rs_nrates)
-		device_printf(sc->ndis_dev, "no matching rate for: %d\n",
-		    arg / 5000);
-	else
-		ni->ni_txrate = i;
+	ni->ni_txrate = arg / 5000;
 
 	if (ic->ic_caps & IEEE80211_C_PMGT) {
 		len = sizeof(arg);
@@ -3288,9 +3264,7 @@ ndis_scan(void *arg)
 	ic = sc->ifp->if_l2com;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	NDIS_LOCK(sc);
 	ndis_scan_results(sc);
-	NDIS_UNLOCK(sc);
 	ieee80211_scan_done(vap);
 }
 
@@ -3306,7 +3280,6 @@ ndis_scan_results(struct ndis_softc *sc)
 	struct ieee80211_channel *saved_chan;
 	int i, j;
 	int error, len, rssi, noise, freq, chanflag;
-	static long rstamp;
 	uint8_t ssid[2+IEEE80211_NWID_LEN];
 	uint8_t rates[2+IEEE80211_RATE_MAXSIZE];
 	uint8_t *frm, *efrm;
@@ -3337,7 +3310,6 @@ ndis_scan_results(struct ndis_softc *sc)
 	}
 
 	DPRINTF(("%s: %d results\n", __func__, bl->nblx_items));
-	rstamp++;
 	wb = &bl->nblx_bssid[0];
 	for (i = 0; i < bl->nblx_items; i++) {
 		memset(&sp, 0, sizeof(sp));
@@ -3408,7 +3380,7 @@ done:
 		DPRINTF(("scan: bssid %s chan %dMHz (%d/%d) rssi %d\n",
 		    ether_sprintf(wb->nwbx_macaddr), freq, sp.bchan, chanflag,
 		    rssi));
-		ieee80211_add_scan(vap, &sp, &wh, 0, rssi, noise, rstamp);
+		ieee80211_add_scan(vap, &sp, &wh, 0, rssi, noise);
 		wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
 	}
 	free(bl, M_DEVBUF);
@@ -3429,10 +3401,8 @@ ndis_scan_start(struct ieee80211com *ic)
 	ss = ic->ic_scan;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	NDIS_LOCK(sc);
 	if (!NDIS_INITIALIZED(sc)) {
 		DPRINTF(("%s: scan aborted\n", __func__));
-		NDIS_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
 		return;
 	}
@@ -3456,11 +3426,9 @@ ndis_scan_start(struct ieee80211com *ic)
 	    NULL, &len);
 	if (error) {
 		DPRINTF(("%s: scan command failed\n", __func__));
-		NDIS_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
 		return;
 	}
-	NDIS_UNLOCK(sc);
 	/* Set a timer to collect the results */
 	callout_reset(&sc->ndis_scan_callout, hz * 3, ndis_scan, sc);
 }

@@ -64,6 +64,7 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
+options 	MAC			# TrustedBSD MAC Framework
 
 # Debugging for use in -current
 options 	KDB			#Enable the kernel debugger
@@ -75,6 +76,9 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 # To make an SMP kernel, the next line is needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
+
+# CPU frequency control
+device		cpufreq
 
 # Standard busses
 device		pci

@@ -615,9 +615,7 @@ struct bwi_softc {
 	const struct ieee80211_rate_table *sc_rates;
 
 	struct bwi_tx_radiotap_hdr sc_tx_th;
-	int			sc_tx_th_len;
 	struct bwi_rx_radiotap_hdr sc_rx_th;
-	int			sc_rx_th_len;
 
 	struct taskqueue	*sc_tq;
 	struct task		sc_restart_task;

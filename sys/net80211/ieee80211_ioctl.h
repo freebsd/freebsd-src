@@ -64,6 +64,7 @@ struct ieee80211_nodestats {
 
 	uint32_t	ns_tx_data;		/* tx data frames */
 	uint32_t	ns_tx_mgmt;		/* tx management frames */
+	uint32_t	ns_tx_ctrl;		/* tx control frames */
 	uint32_t	ns_tx_ucast;		/* tx unicast frames */
 	uint32_t	ns_tx_mcast;		/* tx multi/broadcast frames */
 	uint64_t	ns_tx_bytes;		/* tx data count (bytes) */
@@ -83,6 +84,7 @@ struct ieee80211_nodestats {
 	uint32_t	ns_tx_deauth_code;	/* last deauth reason */
 	uint32_t	ns_tx_disassoc;		/* disassociations */
 	uint32_t	ns_tx_disassoc_code;	/* last disassociation reason */
+	uint32_t	ns_spare[8];
 };
 
 /*
@@ -101,7 +103,7 @@ struct ieee80211_stats {
 	uint32_t	is_rx_wepfail;		/* rx wep processing failed */
 	uint32_t	is_rx_decap;		/* rx decapsulation failed */
 	uint32_t	is_rx_mgtdiscard;	/* rx discard mgt frames */
-	uint32_t	is_rx_ctl;		/* rx discard ctrl frames */
+	uint32_t	is_rx_ctl;		/* rx ctrl frames */
 	uint32_t	is_rx_beacon;		/* rx beacon frames */
 	uint32_t	is_rx_rstoobig;		/* rx rate set truncated */
 	uint32_t	is_rx_elem_missing;	/* rx required element missing*/
@@ -218,7 +220,10 @@ struct ieee80211_stats {
 	uint32_t	is_beacon_miss;		/* beacon miss notification */
 	uint32_t	is_rx_badstate;		/* rx discard state != RUN */
 	uint32_t	is_ff_flush;		/* ff's flush'd from stageq */
-	uint32_t	is_spare[11];
+	uint32_t	is_tx_ctl;		/* tx ctrl frames */
+	uint32_t	is_ampdu_rexmt;		/* A-MPDU frames rexmt ok */
+	uint32_t	is_ampdu_rexmt_fail;	/* A-MPDU frames rexmt fail */
+	uint32_t	is_spare[16];
 };
 
 /*
@@ -357,7 +362,7 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_ie_len;		/* IE length */
 	uint16_t	isi_freq;		/* MHz */
 	uint32_t	isi_flags;		/* channel flags */
-	uint16_t	isi_state;		/* state flags */
+	uint32_t	isi_state;		/* state flags */
 	uint8_t		isi_authmode;		/* authentication algorithm */
 	int8_t		isi_rssi;		/* receive signal strength */
 	int8_t		isi_noise;		/* noise floor */
@@ -376,6 +381,7 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_rxseqs[IEEE80211_TID_SIZE];/* rx seq#/TID */
 	uint16_t	isi_inact;		/* inactivity timer */
 	uint16_t	isi_txmbps;		/* current tx rate in .5 Mb/s */
+	uint16_t	isi_pad;
 	uint32_t	isi_jointime;		/* time of assoc/join */
 	struct ieee80211_mimo_info isi_mimo;	/* MIMO info for 11n sta's */
 	/* XXX frag state? */
@@ -628,6 +634,8 @@ struct ieee80211req {
 #define	IEEE80211_IOC_STA_VLAN		109	/* per-station vlan tag */
 #define	IEEE80211_IOC_SMPS		110	/* MIMO power save */
 #define	IEEE80211_IOC_RIFS		111	/* RIFS config (on, off) */
+#define	IEEE80211_IOC_GREENFIELD	112	/* Greenfield (on, off) */
+#define	IEEE80211_IOC_STBC		113	/* STBC Tx/RX (on, off) */
 
 #define	IEEE80211_IOC_TDMA_SLOT		201	/* TDMA: assigned slot */
 #define	IEEE80211_IOC_TDMA_SLOTCNT	202	/* TDMA: slots in bss */

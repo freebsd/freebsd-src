@@ -33,10 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ipfw.h"
-#include "opt_inet.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
-#include "opt_mac.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
 #include "opt_sctp.h"
@@ -103,12 +101,6 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif
 
-#if defined(IP_NONLOCALBIND)
-static int ip_nonlocalok = 0;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, nonlocalok,
-	CTLFLAG_RW|CTLFLAG_SECURE, &ip_nonlocalok, 0, "");
-#endif
-
 static void	ip_mloopback
 	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
 
@@ -150,22 +142,29 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 #endif
 	M_ASSERTPKTHDR(m);
 
-	if (ro == NULL) {
-		ro = &iproute;
-		bzero(ro, sizeof (*ro));
-	}
-
 	if (inp != NULL) {
-		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		INP_LOCK_ASSERT(inp);
+		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		if (inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			m->m_flags |= M_FLOWID;
 		}
 	}
-	if ((ro == &iproute) && (ro->ro_rt == NULL) && (ro->ro_lle == NULL)) {
+
+	if (ro == NULL) {
+		ro = &iproute;
+		bzero(ro, sizeof (*ro));
+
+#ifdef FLOWTABLE
+		/*
+		 * The flow table returns route entries valid for up to 30
+		 * seconds; we rely on the remainder of ip_output() taking no
+		 * longer than that long for the stability of ro_rt.  The
+		 * flow ID assignment must have happened before this point.
+		 */
 		if (flowtable_lookup(ip_ft, m, ro) == 0)
 			nortfree = 1;
+#endif
 	}
 
 	if (opt) {
@@ -470,7 +469,7 @@ again:
 
 sendit:
 #ifdef IPSEC
-	switch(ip_ipsec_output(&m, inp, &flags, &error, &ro, &iproute, &dst, &ia, &ifp)) {
+	switch(ip_ipsec_output(&m, inp, &flags, &error, &ifp)) {
 	case 1:
 		goto bad;
 	case -1:
@@ -926,14 +925,14 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			return (error);
 		}
 
-#if defined(IP_NONLOCALBIND)
-		case IP_NONLOCALOK:
-			if (! ip_nonlocalok) {
-				error = ENOPROTOOPT;
-				break;
+		case IP_BINDANY:
+			if (sopt->sopt_td != NULL) {
+				error = priv_check(sopt->sopt_td,
+				    PRIV_NETINET_BINDANY);
+				if (error)
+					break;
 			}
 			/* FALLTHROUGH */
-#endif
 		case IP_TOS:
 		case IP_TTL:
 		case IP_MINTTL:
@@ -1005,11 +1004,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_DONTFRAG:
 				OPTSET(INP_DONTFRAG);
 				break;
-#if defined(IP_NONLOCALBIND)
-			case IP_NONLOCALOK:
-				OPTSET(INP_NONLOCALOK);
+			case IP_BINDANY:
+				OPTSET(INP_BINDANY);
 				break;
-#endif
 			}
 			break;
 #undef OPTSET

@@ -672,7 +672,7 @@ gjournal_check(const char *filesys)
 
 	devnam = filesys;
 	getdisk();
-	/* Are there any unreferenced inodes in this cylinder group? */
+	/* Are there any unreferenced inodes in this file system? */
 	if (fs->fs_unrefs == 0) {
 		//printf("No unreferenced inodes.\n");
 		closedisk();

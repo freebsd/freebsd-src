@@ -33,7 +33,6 @@
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
-#include <sys/vimage.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

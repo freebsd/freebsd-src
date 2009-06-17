@@ -31,8 +31,9 @@ struct ural_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 	uint8_t		wr_antenna;
-	uint8_t		wr_antsignal;
 };
 
 #define RAL_RX_RADIOTAP_PRESENT						\
@@ -40,7 +41,8 @@ struct ural_rx_radiotap_header {
 	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
 	 (1 << IEEE80211_RADIOTAP_ANTENNA) |				\
-	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL))
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE))
 
 struct ural_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
@@ -79,7 +81,7 @@ struct ural_vap {
 	struct ieee80211vap		vap;
 	struct ieee80211_beacon_offsets	bo;
 	struct ieee80211_amrr		amrr;
-	struct usb2_callout		amrr_ch;
+	struct usb_callout		amrr_ch;
 	struct task			amrr_task;
 
 	int				(*newstate)(struct ieee80211vap *,
@@ -96,12 +98,12 @@ enum {
 struct ural_softc {
 	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
-	struct usb2_device		*sc_udev;
+	struct usb_device		*sc_udev;
 
 	uint32_t			asic_rev;
 	uint8_t				rf_rev;
 
-	struct usb2_xfer		*sc_xfer[URAL_N_TRANSFER];
+	struct usb_xfer		*sc_xfer[URAL_N_TRANSFER];
 
 	struct ural_tx_data		tx_data[RAL_TX_LIST_COUNT];
 	ural_txdhead			tx_q;

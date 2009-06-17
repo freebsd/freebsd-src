@@ -52,8 +52,8 @@
 #if USB_DEBUG
 static int ustorage_fs_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ustorage_fs, CTLFLAG_RW, 0, "USB ustorage_fs");
-SYSCTL_INT(_hw_usb2_ustorage_fs, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ustorage_fs, CTLFLAG_RW, 0, "USB ustorage_fs");
+SYSCTL_INT(_hw_usb_ustorage_fs, OID_AUTO, debug, CTLFLAG_RW,
     &ustorage_fs_debug, 0, "ustorage_fs debug level");
 #endif
 
@@ -186,8 +186,8 @@ struct ustorage_fs_softc {
 	}	sc_transfer;
 
 	device_t sc_dev;
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[USTORAGE_FS_T_BBB_MAX];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[USTORAGE_FS_T_BBB_MAX];
 
 	uint8_t	sc_iface_no;		/* interface number */
 	uint8_t	sc_last_lun;
@@ -204,11 +204,11 @@ static device_suspend_t ustorage_fs_suspend;
 static device_resume_t ustorage_fs_resume;
 static usb_handle_request_t ustorage_fs_handle_request;
 
-static usb2_callback_t ustorage_fs_t_bbb_command_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_dump_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_read_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_write_callback;
-static usb2_callback_t ustorage_fs_t_bbb_status_callback;
+static usb_callback_t ustorage_fs_t_bbb_command_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_dump_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_read_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_write_callback;
+static usb_callback_t ustorage_fs_t_bbb_status_callback;
 
 static void ustorage_fs_transfer_start(struct ustorage_fs_softc *sc, uint8_t xfer_index);
 static void ustorage_fs_transfer_stop(struct ustorage_fs_softc *sc);
@@ -254,7 +254,7 @@ DRIVER_MODULE(ustorage_fs, uhub, ustorage_fs_driver, ustorage_fs_devclass, NULL,
 MODULE_VERSION(ustorage_fs, 0);
 MODULE_DEPEND(ustorage_fs, usb, 1, 1, 1);
 
-struct usb2_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
+static struct usb_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
 
 	[USTORAGE_FS_T_BBB_COMMAND] = {
 		.type = UE_BULK,
@@ -314,10 +314,10 @@ struct usb2_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
 static int
 ustorage_fs_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 
-	if (uaa->usb2_mode != USB_MODE_DEVICE) {
+	if (uaa->usb_mode != USB_MODE_DEVICE) {
 		return (ENXIO);
 	}
 	if (uaa->use_generic == 0) {
@@ -325,7 +325,7 @@ ustorage_fs_probe(device_t dev)
 		return (ENXIO);
 	}
 	/* Check for a standards compliant device */
-	id = usb2_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(uaa->iface);
 	if ((id == NULL) ||
 	    (id->bInterfaceClass != UICLASS_MASS) ||
 	    (id->bInterfaceSubClass != UISUBCLASS_SCSI) ||
@@ -339,8 +339,8 @@ static int
 ustorage_fs_attach(device_t dev)
 {
 	struct ustorage_fs_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 	int err;
 	int unit;
 
@@ -371,14 +371,14 @@ ustorage_fs_attach(device_t dev)
 		sc->sc_lun[0].removable = 1;
 	}
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "USTORAGE_FS lock",
 	    NULL, (MTX_DEF | MTX_RECURSE));
 
 	/* get interface index */
 
-	id = usb2_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id == NULL) {
 		device_printf(dev, "failed to get "
 		    "interface number\n");
@@ -386,12 +386,12 @@ ustorage_fs_attach(device_t dev)
 	}
 	sc->sc_iface_no = id->bInterfaceNumber;
 
-	err = usb2_transfer_setup(uaa->device,
+	err = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ustorage_fs_bbb_config,
 	    USTORAGE_FS_T_BBB_MAX, sc, &sc->sc_mtx);
 	if (err) {
 		device_printf(dev, "could not setup required "
-		    "transfers, %s\n", usb2_errstr(err));
+		    "transfers, %s\n", usbd_errstr(err));
 		goto detach;
 	}
 	/* start Mass Storage State Machine */
@@ -414,7 +414,7 @@ ustorage_fs_detach(device_t dev)
 
 	/* teardown our statemachine */
 
-	usb2_transfer_unsetup(sc->sc_xfer, USTORAGE_FS_T_BBB_MAX);
+	usbd_transfer_unsetup(sc->sc_xfer, USTORAGE_FS_T_BBB_MAX);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -444,16 +444,16 @@ ustorage_fs_transfer_start(struct ustorage_fs_softc *sc, uint8_t xfer_index)
 {
 	if (sc->sc_xfer[xfer_index]) {
 		sc->sc_last_xfer_index = xfer_index;
-		usb2_transfer_start(sc->sc_xfer[xfer_index]);
+		usbd_transfer_start(sc->sc_xfer[xfer_index]);
 	}
 }
 
 static void
 ustorage_fs_transfer_stop(struct ustorage_fs_softc *sc)
 {
-	usb2_transfer_stop(sc->sc_xfer[sc->sc_last_xfer_index]);
+	usbd_transfer_stop(sc->sc_xfer[sc->sc_last_xfer_index]);
 	mtx_unlock(&sc->sc_mtx);
-	usb2_transfer_drain(sc->sc_xfer[sc->sc_last_xfer_index]);
+	usbd_transfer_drain(sc->sc_xfer[sc->sc_last_xfer_index]);
 	mtx_lock(&sc->sc_mtx);
 }
 
@@ -463,10 +463,11 @@ ustorage_fs_handle_request(device_t dev,
     uint16_t offset, uint8_t is_complete)
 {
 	struct ustorage_fs_softc *sc = device_get_softc(dev);
-	const struct usb2_device_request *req = preq;
+	const struct usb_device_request *req = preq;
 
 	if (!is_complete) {
-		if (req->bRequest == UR_BBB_RESET) {
+		if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
+		    (req->bRequest == UR_BBB_RESET)) {
 			*plen = 0;
 			mtx_lock(&sc->sc_mtx);
 			ustorage_fs_transfer_stop(sc);
@@ -475,7 +476,8 @@ ustorage_fs_handle_request(device_t dev,
 			    USTORAGE_FS_T_BBB_COMMAND);
 			mtx_unlock(&sc->sc_mtx);
 			return (0);
-		} else if (req->bRequest == UR_BBB_GET_MAX_LUN) {
+		} else if ((req->bmRequestType == UT_READ_CLASS_INTERFACE) &&
+			   (req->bRequest == UR_BBB_GET_MAX_LUN)) {
 			if (offset == 0) {
 				*plen = 1;
 				*pptr = &sc->sc_last_lun;
@@ -489,7 +491,7 @@ ustorage_fs_handle_request(device_t dev,
 }
 
 static void
-ustorage_fs_t_bbb_command_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_command_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 	uint32_t tag;
@@ -583,8 +585,8 @@ tr_setup:
 		}
 
 		xfer->frlengths[0] = sizeof(sc->sc_cbw);
-		usb2_set_frame_data(xfer, &sc->sc_cbw, 0);
-		usb2_start_hardware(xfer);
+		usbd_set_frame_data(xfer, &sc->sc_cbw, 0);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
@@ -593,7 +595,7 @@ tr_setup:
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
@@ -619,7 +621,7 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_data_dump_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_dump_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -652,7 +654,7 @@ tr_setup:
 			xfer->flags.stall_pipe = 0;
 		}
 		xfer->frlengths[0] = max_bulk;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
@@ -662,7 +664,7 @@ tr_setup:
 		/*
 		 * If the pipe is already stalled, don't do another stall:
 		 */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
@@ -671,7 +673,7 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_data_read_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_read_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -706,8 +708,8 @@ tr_setup:
 		}
 
 		xfer->frlengths[0] = max_bulk;
-		usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
-		usb2_start_hardware(xfer);
+		usbd_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
@@ -715,7 +717,7 @@ tr_setup:
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
@@ -724,7 +726,7 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_data_write_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_write_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 	uint32_t max_bulk = xfer->max_data_length;
@@ -765,8 +767,8 @@ tr_setup:
 		}
 
 		xfer->frlengths[0] = max_bulk;
-		usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
-		usb2_start_hardware(xfer);
+		usbd_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
@@ -777,7 +779,7 @@ tr_setup:
 		 * If the pipe is already stalled, don't do another
 		 * stall
 		 */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */
@@ -786,7 +788,7 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_status_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_status_callback(struct usb_xfer *xfer)
 {
 	struct ustorage_fs_softc *sc = xfer->priv_sc;
 
@@ -810,8 +812,8 @@ tr_setup:
 		}
 
 		xfer->frlengths[0] = sizeof(sc->sc_csw);
-		usb2_set_frame_data(xfer, &sc->sc_csw, 0);
-		usb2_start_hardware(xfer);
+		usbd_set_frame_data(xfer, &sc->sc_csw, 0);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:
@@ -819,7 +821,7 @@ tr_setup:
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!xfer->endpoint->is_stalled) {
 			sc->sc_transfer.data_error = 1;
 		}
 		/* try again */

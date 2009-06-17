@@ -517,8 +517,7 @@ nfs_open(struct vop_open_args *ap)
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error == EINTR || error == EIO) {
 				if (NFS_ISV4(vp))
-					(void) nfsrpc_close(vp, ap->a_cred,
-					    ap->a_td);
+					(void) nfsrpc_close(vp, 0, ap->a_td);
 				return (error);
 			}
 			np->n_attrstamp = 0;
@@ -527,8 +526,7 @@ nfs_open(struct vop_open_args *ap)
 			error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 			if (error) {
 				if (NFS_ISV4(vp))
-					(void) nfsrpc_close(vp, ap->a_cred,
-					    ap->a_td);
+					(void) nfsrpc_close(vp, 0, ap->a_td);
 				return (error);
 			}
 			mtx_lock(&np->n_mtx);
@@ -549,8 +547,7 @@ nfs_open(struct vop_open_args *ap)
 			error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 			if (error) {
 				if (NFS_ISV4(vp))
-					(void) nfsrpc_close(vp, ap->a_cred,
-					    ap->a_td);
+					(void) nfsrpc_close(vp, 0, ap->a_td);
 				return (error);
 			}
 			mtx_lock(&np->n_mtx);
@@ -562,8 +559,8 @@ nfs_open(struct vop_open_args *ap)
 				error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 				if (error == EINTR || error == EIO) {
 					if (NFS_ISV4(vp))
-						(void) nfsrpc_close(vp,
-						    ap->a_cred, ap->a_td);
+						(void) nfsrpc_close(vp, 0,
+						    ap->a_td);
 					return (error);
 				}
 				mtx_lock(&np->n_mtx);
@@ -583,8 +580,7 @@ nfs_open(struct vop_open_args *ap)
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error) {
 				if (NFS_ISV4(vp))
-					(void) nfsrpc_close(vp, ap->a_cred,
-					    ap->a_td);
+					(void) nfsrpc_close(vp, 0, ap->a_td);
 				return (error);
 			}
 			mtx_lock(&np->n_mtx);
@@ -691,12 +687,8 @@ nfs_close(struct vop_close_args *ap)
 		    int cm = newnfs_commit_on_close ? 1 : 0;
 		    error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
-		} else if (NFS_ISV4(vp)) {
-			int cm;
-			if (newnfs_commit_on_close != 0)
-				cm = 1;
-			else
-				cm = nfscl_mustflush(vp);
+		} else if (NFS_ISV4(vp) && nfscl_mustflush(vp)) {
+			int cm = newnfs_commit_on_close ? 1 : 0;
 			error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm);
 			/* as above w.r.t. races when clearing NMODIFIED */
 			/* np->n_flag &= ~NMODIFIED; */
@@ -745,7 +737,7 @@ nfs_close(struct vop_close_args *ap)
 		/*
 		 * and do the close.
 		 */
-		ret = nfsrpc_close(vp, cred, ap->a_td);
+		ret = nfsrpc_close(vp, 0, ap->a_td);
 		if (!error && ret)
 			error = ret;
 		if (error)
@@ -1382,7 +1374,7 @@ again:
 	}
 	mtx_unlock(&dnp->n_mtx);
 
-	CURVNET_SET(nmp->nm_sockreq.nr_so->so_vnet);
+	CURVNET_SET(P_TO_VNET(&proc0));
 #ifdef INET
 	INIT_VNET_INET(curvnet);
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
@@ -2734,14 +2726,16 @@ nfs_advlock(struct vop_advlock_args *ap)
 	struct proc *p = (struct proc *)ap->a_id;
 	struct thread *td = curthread;	/* XXX */
 	struct vattr va;
-	int ret, error = EOPNOTSUPP, vlret;
+	int ret, error = EOPNOTSUPP;
 	u_quad_t size;
 	
 	if (NFS_ISV4(vp) && (ap->a_flags & F_POSIX)) {
 		cred = p->p_ucred;
-		vlret = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		if (vlret)
-			return (vlret);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if (vp->v_iflag & VI_DOOMED) {
+			VOP_UNLOCK(vp, 0);
+			return (EBADF);
+		}
 
 		/*
 		 * If this is unlocking a write locked region, flush and
@@ -2765,9 +2759,11 @@ nfs_advlock(struct vop_advlock_args *ap)
 				error = nfs_catnap(PZERO | PCATCH, "ncladvl");
 				if (error)
 					return (EINTR);
-				vlret = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-				if (vlret)
-					return (vlret);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+				if (vp->v_iflag & VI_DOOMED) {
+					VOP_UNLOCK(vp, 0);
+					return (EBADF);
+				}
 			}
 		} while (ret == NFSERR_DENIED && (ap->a_flags & F_WAIT) &&
 		     ap->a_op == F_SETLK);

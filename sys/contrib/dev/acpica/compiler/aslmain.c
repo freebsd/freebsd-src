@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslmain - compiler main and utilities
- *              $Revision: 1.96 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,9 +118,7 @@
 #define _DECLARE_GLOBALS
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/actables.h>
-#include <contrib/dev/acpica/acapps.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -129,15 +126,6 @@
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslmain")
-
-BOOLEAN                 AslToFile = TRUE;
-BOOLEAN                 DoCompile = TRUE;
-BOOLEAN                 DoSignon = TRUE;
-
-char                    hex[] =
-{
-    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
-};
 
 /* Local prototypes */
 
@@ -157,14 +145,11 @@ static void
 AslInitialize (
     void);
 
-static void
+static int
 AslCommandLine (
     int                     argc,
     char                    **argv);
 
-#ifdef _DEBUG
-#include <crtdbg.h>
-#endif
 
 /*******************************************************************************
  *
@@ -184,7 +169,8 @@ Options (
 {
 
     printf ("General Output:\n");
-    printf ("  -p <prefix>    Specify filename prefix for all output files (including .aml)\n");
+    printf ("  -p <prefix>    Specify path/filename prefix for all output files\n");
+    printf ("  -va            Disable all errors and warnings (summary only)\n");
     printf ("  -vi            Less verbose errors and warnings for use with IDEs\n");
     printf ("  -vo            Enable optimization comments\n");
     printf ("  -vr            Disable remarks\n");
@@ -212,7 +198,7 @@ Options (
     printf ("  -d  [file]     Disassemble or decode binary ACPI table to file (*.dsl)\n");
     printf ("  -dc [file]     Disassemble AML and immediately compile it\n");
     printf ("                 (Obtain DSDT from current system if no input file)\n");
-    printf ("  -e  [file]     Include ACPI table for external symbol resolution\n");
+    printf ("  -e  [f1,f2]    Include ACPI table(s) for external symbol resolution\n");
     printf ("  -2             Emit ACPI 2.0 compatible ASL code\n");
     printf ("  -g             Get ACPI tables and write to files (*.dat)\n");
 
@@ -278,7 +264,7 @@ Usage (
     void)
 {
 
-    printf ("Usage:    %s [Options] [InputFile]\n\n", CompilerName);
+    printf ("Usage:    %s [Options] [Files]\n\n", CompilerName);
     Options ();
 }
 
@@ -334,13 +320,13 @@ AslInitialize (
  *
  ******************************************************************************/
 
-static void
+static int
 AslCommandLine (
     int                     argc,
     char                    **argv)
 {
     BOOLEAN                 BadCommandLine = FALSE;
-    ACPI_NATIVE_INT         j;
+    int                     j;
 
 
     /* Minimum command line contains at least one option or an input file */
@@ -400,7 +386,7 @@ AslCommandLine (
         switch (AcpiGbl_Optarg[0])
         {
         case '^':
-            DoCompile = FALSE;
+            Gbl_DoCompile = FALSE;
             break;
 
         case 'c':
@@ -434,7 +420,7 @@ AslCommandLine (
         /* Get all ACPI tables */
 
         Gbl_GetAllTables = TRUE;
-        DoCompile = FALSE;
+        Gbl_DoCompile = FALSE;
         break;
 
 
@@ -635,6 +621,12 @@ AslCommandLine (
 
         switch (AcpiGbl_Optarg[0])
         {
+        case 'a':
+            /* Disable All error/warning messages */
+
+            Gbl_NoErrors = TRUE;
+            break;
+
         case 'i':
             /* Less verbose error messages */
 
@@ -650,7 +642,7 @@ AslCommandLine (
             break;
 
         case 's':
-            DoSignon = FALSE;
+            Gbl_DoSignon = FALSE;
             break;
 
         default:
@@ -699,9 +691,7 @@ AslCommandLine (
 
     /* Next parameter must be the input filename */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = argv[AcpiGbl_Optind];
-
-    if (!Gbl_Files[ASL_FILE_INPUT].Filename &&
+    if (!argv[AcpiGbl_Optind] &&
         !Gbl_DisasmFlag &&
         !Gbl_GetAllTables)
     {
@@ -709,7 +699,7 @@ AslCommandLine (
         BadCommandLine = TRUE;
     }
 
-    if (DoSignon)
+    if (Gbl_DoSignon)
     {
         AslCompilerSignon (ASL_FILE_STDOUT);
     }
@@ -723,11 +713,7 @@ AslCommandLine (
         exit (1);
     }
 
-    if ((AcpiGbl_Optind + 1) < argc)
-    {
-        printf ("Warning: extra arguments (%d) after input filename are ignored\n\n",
-            argc - AcpiGbl_Optind - 1);
-    }
+    return (AcpiGbl_Optind);
 }
 
 
@@ -739,8 +725,8 @@ AslCommandLine (
  *
  * RETURN:      Program termination code
  *
- * DESCRIPTION: C main routine for the Asl Compiler.  Handle command line
- *              options and begin the compile.
+ * DESCRIPTION: C main routine for the Asl Compiler. Handle command line
+ *              options and begin the compile for each file on the command line
  *
  ******************************************************************************/
 
@@ -750,7 +736,7 @@ main (
     char                    **argv)
 {
     ACPI_STATUS             Status;
-    char                    *Prefix;
+    int                     Index;
 
 
 #ifdef _DEBUG
@@ -761,105 +747,31 @@ main (
     /* Init and command line */
 
     AslInitialize ();
-    AslCommandLine (argc, argv);
+    Index = AslCommandLine (argc, argv);
 
-    /*
-     * If -p not specified, we will use the input filename as the
-     * output filename prefix
-     */
-    Status = FlSplitInputPathname (Gbl_Files[ASL_FILE_INPUT].Filename,
-        &Gbl_DirectoryPath, &Prefix);
-    if (ACPI_FAILURE (Status))
+    /* Options that have no additional parameters or pathnames */
+
+    if (Gbl_GetAllTables)
     {
-        return -1;
+        Status = AslDoOneFile (NULL);
+        if (ACPI_FAILURE (Status))
+        {
+            return (-1);
+        }
+        return (0);
     }
 
-    if (Gbl_UseDefaultAmlFilename)
+    /* Process each pathname/filename in the list, with possible wildcards */
+
+    while (argv[Index])
     {
-        Gbl_OutputFilenamePrefix = Prefix;
-    }
-
-    /* AML Disassembly (Optional) */
-
-    if (Gbl_DisasmFlag || Gbl_GetAllTables)
-    {
-        /* ACPI CA subsystem initialization */
-
-        Status = AdInitialize ();
+        Status = AslDoOnePathname (argv[Index]);
         if (ACPI_FAILURE (Status))
         {
-            return -1;
+            return (-1);
         }
 
-        Status = AcpiAllocateRootTable (4);
-        if (ACPI_FAILURE (Status))
-        {
-            AcpiOsPrintf ("Could not initialize ACPI Table Manager, %s\n",
-                AcpiFormatException (Status));
-            return -1;
-        }
-
-        /* This is where the disassembly happens */
-
-        AcpiGbl_DbOpt_disasm = TRUE;
-        Status = AdAmlDisassemble (AslToFile,
-                        Gbl_Files[ASL_FILE_INPUT].Filename,
-                        Gbl_OutputFilenamePrefix,
-                        &Gbl_Files[ASL_FILE_INPUT].Filename,
-                        Gbl_GetAllTables);
-        if (ACPI_FAILURE (Status))
-        {
-            return -1;
-        }
-
-        /*
-         * Gbl_Files[ASL_FILE_INPUT].Filename was replaced with the
-         * .DSL disassembly file, which can now be compiled if requested
-         */
-        if (DoCompile)
-        {
-            AcpiOsPrintf ("\nCompiling \"%s\"\n",
-                Gbl_Files[ASL_FILE_INPUT].Filename);
-        }
-    }
-
-    /*
-     * ASL Compilation (Optional)
-     */
-    if (DoCompile)
-    {
-        /*
-         * If -p not specified, we will use the input filename as the
-         * output filename prefix
-         */
-        Status = FlSplitInputPathname (Gbl_Files[ASL_FILE_INPUT].Filename,
-            &Gbl_DirectoryPath, &Prefix);
-        if (ACPI_FAILURE (Status))
-        {
-            return -1;
-        }
-
-        if (Gbl_UseDefaultAmlFilename)
-        {
-            Gbl_OutputFilenamePrefix = Prefix;
-        }
-
-        /* ACPI CA subsystem initialization (Must be re-initialized) */
-
-        Status = AcpiOsInitialize ();
-        AcpiUtInitGlobals ();
-        Status = AcpiUtMutexInitialize ();
-        if (ACPI_FAILURE (Status))
-        {
-            return -1;
-        }
-
-        Status = AcpiNsRootInitialize ();
-        if (ACPI_FAILURE (Status))
-        {
-            return -1;
-        }
-        Status = CmDoCompile ();
+        Index++;
     }
 
     return (0);

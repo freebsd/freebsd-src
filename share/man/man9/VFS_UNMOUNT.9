@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd May 23, 2009
 .Os
 .Dt VFS_UNMOUNT 9
 .Sh NAME
@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_UNMOUNT "struct mount *mp" "int mntflags" "struct thread *td"
+.Fn VFS_UNMOUNT "struct mount *mp" "int mntflags"
 .Sh DESCRIPTION
 The
 .Fn VFS_UNMOUNT
@@ -58,8 +58,6 @@ are:
 .It Dv MNT_FORCE
 Open files are forcibly closed before the file system is unmounted.
 .El
-.It Fa td
-Thread which is unmounting the file system.
 .El
 .Sh SEE ALSO
 .Xr vflush 9 ,

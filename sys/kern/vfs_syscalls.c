@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -164,12 +163,6 @@ sync(td, uap)
 	return (0);
 }
 
-/* XXX PRISON: could be per prison flag */
-static int prison_quotas;
-#if 0
-SYSCTL_INT(_kern_prison, OID_AUTO, quotas, CTLFLAG_RW, &prison_quotas, 0, "");
-#endif
-
 /*
  * Change filesystem quotas.
  */
@@ -198,7 +191,7 @@ quotactl(td, uap)
 
 	AUDIT_ARG(cmd, uap->cmd);
 	AUDIT_ARG(uid, uap->uid);
-	if (jailed(td->td_ucred) && !prison_quotas)
+	if (!prison_allow(td->td_ucred, PR_ALLOW_QUOTAS))
 		return (EPERM);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
 	   UIO_USERSPACE, uap->path, td);
@@ -1514,7 +1507,7 @@ linkat(struct thread *td, struct linkat_args *uap)
 	    UIO_USERSPACE, (flag & AT_SYMLINK_FOLLOW) ? FOLLOW : NOFOLLOW));
 }
 
-static int hardlink_check_uid = 0;
+int hardlink_check_uid = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, hardlink_check_uid, CTLFLAG_RW,
     &hardlink_check_uid, 0,
     "Unprivileged processes cannot create hard links to files owned by other "
@@ -2596,6 +2589,9 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 
+	if (count > INT_MAX)
+		return (EINVAL);
+
 	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, fd, td);
 
@@ -3480,7 +3476,7 @@ fsync(td, uap)
 	struct mount *mp;
 	struct file *fp;
 	int vfslocked;
-	int error;
+	int error, lock_flags;
 
 	AUDIT_ARG(fd, uap->fd);
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
@@ -3489,7 +3485,13 @@ fsync(td, uap)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	if (MNT_SHARED_WRITES(mp) ||
+	    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) {
+		lock_flags = LK_SHARED;
+	} else {
+		lock_flags = LK_EXCLUSIVE;
+	}
+	vn_lock(vp, lock_flags | LK_RETRY);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	if (vp->v_object != NULL) {
 		VM_OBJECT_LOCK(vp->v_object);
@@ -4232,22 +4234,13 @@ getvnode(fdp, fd, fpp)
 	int error;
 	struct file *fp;
 
+	error = 0;
 	fp = NULL;
-	if (fdp == NULL)
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
 		error = EBADF;
-	else {
-		FILEDESC_SLOCK(fdp);
-		if ((u_int)fd >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[fd]) == NULL)
-			error = EBADF;
-		else if (fp->f_vnode == NULL) {
-			fp = NULL;
-			error = EINVAL;
-		} else {
-			fhold(fp);
-			error = 0;
-		}
-		FILEDESC_SUNLOCK(fdp);
+	else if (fp->f_vnode == NULL) {
+		error = EINVAL;
+		fdrop(fp, curthread);
 	}
 	*fpp = fp;
 	return (error);

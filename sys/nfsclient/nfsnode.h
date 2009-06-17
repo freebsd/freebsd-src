@@ -135,8 +135,6 @@ struct nfsnode {
 	short			n_fhsize;	/* size in bytes, of fh */
 	short			n_flag;		/* Flag for locking.. */
 	nfsfh_t			n_fh;		/* Small File Handle */
-	struct nfs4_fctx	n_rfc;
-	struct nfs4_fctx	n_wfc;
 	u_char			*n_name;	/* leaf name, for v4 OPEN op */
 	uint32_t		n_namelen;
 	int			n_directio_opens;
@@ -188,9 +186,7 @@ extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 
 extern	struct vop_vector	nfs_fifoops;
 extern	struct vop_vector	nfs_vnodeops;
-extern	struct vop_vector	nfs4_vnodeops;
 extern struct buf_ops buf_ops_nfs;
-extern struct buf_ops buf_ops_nfs4;
 
 extern vop_advlock_t *nfs_advlock_p;
 extern vop_reclaim_t *nfs_reclaim_p;
@@ -206,12 +202,9 @@ int	nfs_reclaim(struct vop_reclaim_args *);
 
 /* other stuff */
 int	nfs_removeit(struct sillyrename *);
-int	nfs4_removeit(struct sillyrename *);
 int	nfs_nget(struct mount *, nfsfh_t *, int, struct nfsnode **, int flags);
 nfsuint64 *nfs_getcookie(struct nfsnode *, off_t, int);
-uint64_t *nfs4_getcookie(struct nfsnode *, off_t, int);
 void	nfs_invaldir(struct vnode *);
-void	nfs4_invaldir(struct vnode *);
 int	nfs_upgrade_vnlock(struct vnode *vp);
 void	nfs_downgrade_vnlock(struct vnode *vp, int old_lock);
 void	nfs_printf(const char *fmt, ...);

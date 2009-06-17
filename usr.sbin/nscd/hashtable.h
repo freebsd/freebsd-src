@@ -29,11 +29,10 @@
 #ifndef __CACHELIB_HASHTABLE_H__
 #define __CACHELIB_HASHTABLE_H__
 
-#include <search.h>
 #include <string.h>
 
 #define HASHTABLE_INITIAL_ENTRIES_CAPACITY 8
-typedef int hashtable_index_t;
+typedef unsigned int hashtable_index_t;
 
 /*
  * This file contains queue.h-like macro definitions for hash tables.
@@ -66,7 +65,8 @@ typedef int hashtable_index_t;
 	size_t		entries_size;					\
 }
 
-#define HASHTABLE_ENTRIES_COUNT(table) ((table)->entries_size)
+#define HASHTABLE_ENTRIES_COUNT(table)					\
+	((table)->entries_size)
 
 /*
  * Unlike most of queue.h data types, hash tables can not be initialized
@@ -75,16 +75,16 @@ typedef int hashtable_index_t;
 #define HASHTABLE_INIT(table, type, field, _entries_size)		\
 	do {								\
 		hashtable_index_t var;					\
-		(table)->entries = (void *)calloc(1,			\
+		(table)->entries = calloc(1,				\
 			sizeof(*(table)->entries) * (_entries_size));	\
 		(table)->entries_size = (_entries_size);		\
 		for (var = 0; var < HASHTABLE_ENTRIES_COUNT(table); ++var) {\
 			(table)->entries[var].field.capacity = 		\
 				HASHTABLE_INITIAL_ENTRIES_CAPACITY;	\
 			(table)->entries[var].field.size = 0;		\
-			(table)->entries[var].field.values = (type *)malloc(\
-				sizeof(type) * 				\
-		    		HASHTABLE_INITIAL_ENTRIES_CAPACITY);	\
+			(table)->entries[var].field.values = malloc(	\
+				sizeof(type) *				\
+				HASHTABLE_INITIAL_ENTRIES_CAPACITY);	\
 			assert((table)->entries[var].field.values != NULL);\
 		}							\
 	} while (0)
@@ -100,7 +100,8 @@ typedef int hashtable_index_t;
 		}							\
 	} while (0)
 
-#define HASHTABLE_GET_ENTRY(table, hash)	(&((table)->entries[hash]))
+#define HASHTABLE_GET_ENTRY(table, hash)				\
+	(&((table)->entries[hash]))
 
 /*
  * Traverses through all hash table entries
@@ -128,14 +129,18 @@ typedef int hashtable_index_t;
 	((entry)->field.capacity)
 
 #define HASHTABLE_ENTRY_CAPACITY_INCREASE(entry, field, type)		\
-	(entry)->field.capacity *= 2;					\
-	(entry)->field.values = (type *)realloc((entry)->field.values, 	\
-		(entry)->field.capacity * sizeof(type));
+	do {								\
+		(entry)->field.capacity *= 2;				\
+		(entry)->field.values = realloc((entry)->field.values,	\
+			 (entry)->field.capacity * sizeof(type));	\
+	} while (0)
 
 #define HASHTABLE_ENTRY_CAPACITY_DECREASE(entry, field, type)		\
-	(entry)->field.capacity /= 2;					\
-	(entry)->field.values = (type *)realloc((entry)->field.values, 	\
-		(entry)->field.capacity * sizeof(type));
+	do {								\
+		(entry)->field.capacity /= 2;				\
+		(entry)->field.values = realloc((entry)->field.values,	\
+			(entry)->field.capacity * sizeof(type));	\
+	} while (0)
 
 /*
  * Generates prototypes for the hash table functions

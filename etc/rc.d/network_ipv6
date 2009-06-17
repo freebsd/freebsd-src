@@ -29,7 +29,7 @@
 #
 
 # PROVIDE: network_ipv6
-# REQUIRE: routing
+# REQUIRE: routing ip6fw
 # KEYWORD: nojail
 
 . /etc/rc.subr

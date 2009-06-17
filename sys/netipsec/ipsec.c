@@ -104,6 +104,9 @@ struct vnet_ipsec vnet_ipsec_0;
 #endif
 
 static int ipsec_iattach(const void *);
+#ifdef VIMAGE
+static int ipsec_idetach(const void *);
+#endif
 
 #ifdef VIMAGE_GLOBALS
 /* NB: name changed so netstat doesn't use it. */
@@ -167,6 +170,9 @@ SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
 SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
 	ipsecstats,	CTLFLAG_RD,	ipsec4stat, ipsecstat,	
 	"IPsec IPv4 statistics.");
+SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
+	filtertunnel, CTLFLAG_RW, ip4_ipsec_filtertunnel,  0,
+	"If set filter packets from an IPsec tunnel.");
 
 #ifdef REGRESSION
 #ifdef VIMAGE_GLOBALS
@@ -228,6 +234,9 @@ SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_DEBUG,
 SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_STATS,
 	ipsecstats, CTLFLAG_RD, ipsec6stat, ipsecstat,
 	"IPsec IPv6 statistics.");
+SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, OID_AUTO,
+	filtertunnel, CTLFLAG_RW, ip6_ipsec6_filtertunnel,  0,
+	"If set filter packets from an IPsec tunnel.");
 #endif /* INET6 */
 
 static int ipsec_setspidx_inpcb __P((struct mbuf *, struct inpcb *));
@@ -250,7 +259,10 @@ static const vnet_modinfo_t vnet_ipsec_modinfo = {
 	.vmi_name	= "ipsec",
 	.vmi_size	= sizeof(struct vnet_ipsec),
 	.vmi_dependson	= VNET_MOD_INET,	/* XXX revisit - INET6 ? */
-	.vmi_iattach	= ipsec_iattach
+	.vmi_iattach	= ipsec_iattach,
+#ifdef VIMAGE
+	.vmi_idetach	= ipsec_idetach
+#endif
 };
 #endif /* !VIMAGE_GLOBALS */
 
@@ -273,6 +285,11 @@ ipsec_init(void)
 	V_ip4_ah_net_deflev = IPSEC_LEVEL_USE;
 	V_ip4_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
 	V_ip4_esp_randpad = -1;
+#ifdef IPSEC_FILTERTUNNEL
+	V_ip4_ipsec_filtertunnel = 1;
+#else
+	V_ip4_ipsec_filtertunnel = 0;
+#endif
 
 	V_crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
 
@@ -287,6 +304,11 @@ ipsec_init(void)
 	V_ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
 	V_ip6_ah_net_deflev = IPSEC_LEVEL_USE;
 	V_ip6_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+#ifdef IPSEC_FILTERTUNNEL
+	V_ip6_ipsec6_filtertunnel = 1;
+#else
+	V_ip6_ipsec6_filtertunnel = 0;
+#endif
 #endif
 }
 
@@ -1680,6 +1702,7 @@ vshiftl(unsigned char *bitmap, int nbit, int wsize)
 	}
 }
 
+#ifdef INET
 /* Return a printable string for the IPv4 address. */
 static char *
 inet_ntoa4(struct in_addr ina)
@@ -1694,6 +1717,7 @@ inet_ntoa4(struct in_addr ina)
 	    ucp[2] & 0xff, ucp[3] & 0xff);
 	return (buf[i]);
 }
+#endif
 
 /* Return a printable string for the address. */
 char *
@@ -1775,7 +1799,6 @@ ipsec_attach(void)
 #else
 	ipsec_iattach(NULL);
 #endif
-
 }
 
 static int
@@ -1788,6 +1811,17 @@ ipsec_iattach(const void *unused __unused)
 
 	return (0);
 }
+
+#ifdef VIMAGE
+static int
+ipsec_idetach(const void *unused __unused)
+{
+
+	/* XXX revisit this! */
+
+	return (0);
+}
+#endif
 SYSINIT(ipsec, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, ipsec_attach, NULL);
 
 

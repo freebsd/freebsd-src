@@ -300,9 +300,12 @@ elf_cpu_load_file(linker_file_t lf)
 		++ph;
 	}
 
-	/* Invalidate the I-cache, but not for the kernel itself. */
+	/*
+	 * Make the I-cache coherent, but don't worry obout the kernel
+	 * itself because the loader needs to do that.
+	 */
 	if (lf->id != 1)
-		ia64_invalidate_icache((uintptr_t)lf->address, lf->size);
+		ia64_sync_icache((uintptr_t)lf->address, lf->size);
 
 	return (0);
 }

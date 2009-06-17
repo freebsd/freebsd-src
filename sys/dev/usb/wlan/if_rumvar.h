@@ -26,16 +26,19 @@ struct rum_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 	uint8_t		wr_antenna;
-	uint8_t		wr_antsignal;
 };
 
 #define RT2573_RX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |			\
 	 (1 << IEEE80211_RADIOTAP_ANTENNA) |				\
-	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL))
+	 0)
 
 struct rum_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
@@ -74,7 +77,7 @@ struct rum_vap {
 	struct ieee80211vap		vap;
 	struct ieee80211_beacon_offsets	bo;
 	struct ieee80211_amrr		amrr;
-	struct usb2_callout		amrr_ch;
+	struct usb_callout		amrr_ch;
 	struct task			amrr_task;
 
 	int				(*newstate)(struct ieee80211vap *,
@@ -91,9 +94,9 @@ enum {
 struct rum_softc {
 	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
-	struct usb2_device		*sc_udev;
+	struct usb_device		*sc_udev;
 
-	struct usb2_xfer		*sc_xfer[RUM_N_TRANSFER];
+	struct usb_xfer		*sc_xfer[RUM_N_TRANSFER];
 
 	uint8_t				rf_rev;
 	uint8_t				rffreq;

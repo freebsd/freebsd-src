@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #if !defined(KLD_MODULE)
 #include "opt_inet.h"
 #include "opt_ipfw.h"
-#include "opt_mac.h"
 #include "opt_sctp.h"
 #ifndef INET
 #error "IPDIVERT requires INET."
@@ -467,12 +466,10 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			m->m_pkthdr.rcvif = ifa->ifa_ifp;
 		}
 #ifdef MAC
-		SOCK_LOCK(so);
 		mac_socket_create_mbuf(so, m);
-		SOCK_UNLOCK(so);
 #endif
 		/* Send packet to input processing via netisr */
-		netisr_queue(NETISR_IP, m);
+		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
 	}
 
 	return error;

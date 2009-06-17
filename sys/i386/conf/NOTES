@@ -465,14 +465,11 @@ device		tdfx_linux		# Enable Linuxulator support
 # Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
 # defined when it is built).
 #
-# ACPI_NO_SEMAPHORES makes the AcpiOs*Semaphore routines a no-op.
-#
 # Note that building ACPI into the kernel is deprecated; the module is
 # normally loaded automatically by the loader.
 
 device		acpi
 options 	ACPI_DEBUG
-#!options 	ACPI_NO_SEMAPHORES
 
 # ACPI Asus Desktop Extras. (voltage, temp, fan)
 device		acpi_aiboost

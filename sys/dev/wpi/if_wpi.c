@@ -681,16 +681,11 @@ wpi_attach(device_t dev)
 	ic->ic_vap_create = wpi_vap_create;
 	ic->ic_vap_delete = wpi_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(WPI_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(WPI_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		WPI_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		WPI_RX_RADIOTAP_PRESENT);
 
 	/*
 	 * Hook our interrupt after all initialization is complete.
@@ -728,7 +723,6 @@ wpi_detach(device_t dev)
 		wpi_stop(sc);
 		callout_drain(&sc->watchdog_to);
 		callout_drain(&sc->calib_to);
-		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 	}
 
@@ -1519,7 +1513,7 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	/* update Rx descriptor */
 	ring->desc[ring->cur] = htole32(paddr);
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active(ic)) {
 		struct wpi_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
@@ -1551,18 +1545,16 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		}
 		if (le16toh(head->flags) & 0x4)
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
 	}
 
 	WPI_UNLOCK(sc);
 
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 	if (ni != NULL) {
-		(void) ieee80211_input(ni, m, stat->rssi, 0, 0);
+		(void) ieee80211_input(ni, m, stat->rssi, 0);
 		ieee80211_free_node(ni);
 	} else
-		(void) ieee80211_input_all(ic, m, stat->rssi, 0, 0);
+		(void) ieee80211_input_all(ic, m, stat->rssi, 0);
 
 	WPI_LOCK(sc);
 }
@@ -1938,17 +1930,15 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	tx->data_ntries = 15;		/* XXX way too high */
 #endif
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct wpi_tx_radiotap_header *tap = &sc->sc_txtap;
 		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ni->ni_chan->ic_freq);
-		tap->wt_chan_flags = htole16(ni->ni_chan->ic_flags);
 		tap->wt_rate = rate;
 		tap->wt_hwqueue = ac;
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	/* save and trim IEEE802.11 header */

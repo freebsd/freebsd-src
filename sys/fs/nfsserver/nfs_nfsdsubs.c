@@ -2019,3 +2019,25 @@ nfsd_init(void)
 	NFSBZERO(nfs_v2pubfh, NFSX_V2FH);
 }
 
+/*
+ * Check the v4 root exports.
+ * Return 0 if ok, 1 otherwise.
+ */
+int
+nfsd_checkrootexp(struct nfsrv_descript *nd)
+{
+
+	if ((nd->nd_flag & (ND_GSS | ND_EXAUTHSYS)) == ND_EXAUTHSYS)
+		return (0);
+	if ((nd->nd_flag & (ND_GSSINTEGRITY | ND_EXGSSINTEGRITY)) ==
+	    (ND_GSSINTEGRITY | ND_EXGSSINTEGRITY))
+		return (0);
+	if ((nd->nd_flag & (ND_GSSPRIVACY | ND_EXGSSPRIVACY)) ==
+	    (ND_GSSPRIVACY | ND_EXGSSPRIVACY))
+		return (0);
+	if ((nd->nd_flag & (ND_GSS | ND_GSSINTEGRITY | ND_GSSPRIVACY |
+	     ND_EXGSS)) == (ND_GSS | ND_EXGSS))
+		return (0);
+	return (1);
+}
+

@@ -413,6 +413,20 @@ int13probe(int drive)
     return(0);
 }
 
+/*
+ * We call this when we find a ZFS vdev - ZFS consumes the dsk
+ * structure so we must make a new one.
+ */
+static struct dsk *
+copy_dsk(struct dsk *dsk)
+{
+    struct dsk *newdsk;
+
+    newdsk = malloc(sizeof(struct dsk));
+    *newdsk = *dsk;
+    return (newdsk);
+}
+
 static void
 probe_drive(struct dsk *dsk, spa_t **spap)
 {
@@ -425,9 +439,6 @@ probe_drive(struct dsk *dsk, spa_t **spap)
     struct dos_partition *dp;
     char *sec;
     unsigned i;
-
-    if (!int13probe(dsk->drive))
-	return;
 
     /*
      * If we find a vdev on the whole disk, stop here. Otherwise dig
@@ -473,7 +484,7 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 		if (vdev_probe(vdev_read, dsk, spap) == 0) {
 		    /*
 		     * We record the first pool we find (we will try
-		     * to boot from that one.
+		     * to boot from that one).
 		     */
 		    spap = 0;
 
@@ -481,10 +492,7 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 		     * This slice had a vdev. We need a new dsk
 		     * structure now since the vdev now owns this one.
 		     */
-		    struct dsk *newdsk;
-		    newdsk = malloc(sizeof(struct dsk));
-		    *newdsk = *dsk;
-		    dsk = newdsk;
+		    dsk = copy_dsk(dsk);
 		}
 		break;
 	    }
@@ -514,10 +522,7 @@ trymbr:
 	     * This slice had a vdev. We need a new dsk structure now
 	     * since the vdev now owns this one.
 	     */
-	    struct dsk *newdsk;
-	    newdsk = malloc(sizeof(struct dsk));
-	    *newdsk = *dsk;
-	    dsk = newdsk;
+	    dsk = copy_dsk(dsk);
 	}
     }
 }
@@ -569,9 +574,12 @@ main(void)
      * will find any other available pools and it may fill in missing
      * vdevs for the boot pool.
      */
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 128; i++) {
 	if ((i | DRV_HARD) == *(uint8_t *)PTOV(ARGS))
 	    continue;
+
+	if (!int13probe(i | DRV_HARD))
+	    break;
 
 	dsk = malloc(sizeof(struct dsk));
 	dsk->drive = i | DRV_HARD;
@@ -944,7 +952,7 @@ static int
 drvread(struct dsk *dsk, void *buf, unsigned lba, unsigned nblk)
 {
 #ifdef GPT
-   static unsigned c = 0x2d5c7c2f;
+    static unsigned c = 0x2d5c7c2f;
 
     if (!OPT_CHECK(RBX_QUIET))
 	printf("%c\b", c = c << 8 | c >> 24);

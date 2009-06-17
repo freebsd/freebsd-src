@@ -610,6 +610,13 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "vnode interlock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * ZFS locking
+	 */
+	{ "dn->dn_mtx", &lock_class_sx },
+	{ "dr->dt.di.dr_mtx", &lock_class_sx },
+	{ "db->db_mtx", &lock_class_sx },
+	{ NULL, NULL },
+	/*
 	 * spin locks
 	 */
 #ifdef SMP

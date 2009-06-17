@@ -93,6 +93,9 @@
 /* Define to 1 if you have the `strtoul' function. */
 #undef HAVE_STRTOUL
 
+/* HAVE_STRUCT_OPTION */
+#undef HAVE_STRUCT_OPTION
+
 /* Define to 1 if `st_rdev' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_RDEV
 

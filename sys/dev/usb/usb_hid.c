@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_error.h>
 #include <dev/usb/usbhid.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
@@ -105,7 +105,7 @@ hid_clear_local(struct hid_item *c)
  *	hid_start_parse
  *------------------------------------------------------------------------*/
 struct hid_data *
-hid_start_parse(const void *d, usb2_size_t len, int kindset)
+hid_start_parse(const void *d, usb_size_t len, int kindset)
 {
 	struct hid_data *s;
 
@@ -296,9 +296,6 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				} else {
 					s->ncount = 1;
 				}
-				/* set default usage */
-				/* use the undefined HID PAGE */
-				s->usage_last = 0;
 				goto top;
 
 			case 9:	/* Output */
@@ -309,6 +306,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->kind = hid_collection;
 				c->collection = dval;
 				c->collevel++;
+				c->usage = s->usage_last;
 				*h = *c;
 				return (1);
 			case 11:	/* Feature */
@@ -408,6 +406,9 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				if (bSize != 4)
 					dval = (dval & mask) | c->_usage_page;
 
+				/* set last usage, in case of a collection */
+				s->usage_last = dval;
+
 				if (s->nusage < MAXUSAGE) {
 					s->usages_min[s->nusage] = dval;
 					s->usages_max[s->nusage] = dval;
@@ -490,7 +491,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
  *	hid_report_size
  *------------------------------------------------------------------------*/
 int
-hid_report_size(const void *buf, usb2_size_t len, enum hid_kind k, uint8_t *id)
+hid_report_size(const void *buf, usb_size_t len, enum hid_kind k, uint8_t *id)
 {
 	struct hid_data *d;
 	struct hid_item h;
@@ -543,7 +544,7 @@ hid_report_size(const void *buf, usb2_size_t len, enum hid_kind k, uint8_t *id)
  *	hid_locate
  *------------------------------------------------------------------------*/
 int
-hid_locate(const void *desc, usb2_size_t size, uint32_t u, enum hid_kind k,
+hid_locate(const void *desc, usb_size_t size, uint32_t u, enum hid_kind k,
     uint8_t index, struct hid_location *loc, uint32_t *flags, uint8_t *id)
 {
 	struct hid_data *d;
@@ -577,7 +578,7 @@ hid_locate(const void *desc, usb2_size_t size, uint32_t u, enum hid_kind k,
  *	hid_get_data
  *------------------------------------------------------------------------*/
 uint32_t
-hid_get_data(const uint8_t *buf, usb2_size_t len, struct hid_location *loc)
+hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
 {
 	uint32_t hpos = loc->pos;
 	uint32_t hsize = loc->size;
@@ -620,7 +621,7 @@ hid_get_data(const uint8_t *buf, usb2_size_t len, struct hid_location *loc)
  *	hid_is_collection
  *------------------------------------------------------------------------*/
 int
-hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
+hid_is_collection(const void *desc, usb_size_t size, uint32_t usage)
 {
 	struct hid_data *hd;
 	struct hid_item hi;
@@ -630,9 +631,11 @@ hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
 	if (hd == NULL)
 		return (0);
 
-	err = hid_get_item(hd, &hi) &&
-	    hi.kind == hid_collection &&
-	    hi.usage == usage;
+	while ((err = hid_get_item(hd, &hi))) {
+		 if (hi.kind == hid_collection &&
+		     hi.usage == usage)
+			break;
+	}
 	hid_end_parse(hd);
 	return (err);
 }
@@ -647,16 +650,16 @@ hid_is_collection(const void *desc, usb2_size_t size, uint32_t usage)
  * NULL: No more HID descriptors.
  * Else: Pointer to HID descriptor.
  *------------------------------------------------------------------------*/
-struct usb2_hid_descriptor *
-hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
-    struct usb2_interface_descriptor *id)
+struct usb_hid_descriptor *
+hid_get_descriptor_from_usb(struct usb_config_descriptor *cd,
+    struct usb_interface_descriptor *id)
 {
-	struct usb2_descriptor *desc = (void *)id;
+	struct usb_descriptor *desc = (void *)id;
 
 	if (desc == NULL) {
 		return (NULL);
 	}
-	while ((desc = usb2_desc_foreach(cd, desc))) {
+	while ((desc = usb_desc_foreach(cd, desc))) {
 		if ((desc->bDescriptorType == UDESC_HID) &&
 		    (desc->bLength >= USB_HID_DESCRIPTOR_SIZE(0))) {
 			return (void *)desc;
@@ -669,7 +672,7 @@ hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_req_get_hid_desc
+ *	usbd_req_get_hid_desc
  *
  * This function will read out an USB report descriptor from the USB
  * device.
@@ -678,20 +681,20 @@ hid_get_descriptor_from_usb(struct usb2_config_descriptor *cd,
  * NULL: Failure.
  * Else: Success. The pointer should eventually be passed to free().
  *------------------------------------------------------------------------*/
-usb2_error_t
-usb2_req_get_hid_desc(struct usb2_device *udev, struct mtx *mtx,
+usb_error_t
+usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
     void **descp, uint16_t *sizep,
-    usb2_malloc_type mem, uint8_t iface_index)
+    struct malloc_type *mem, uint8_t iface_index)
 {
-	struct usb2_interface *iface = usb2_get_iface(udev, iface_index);
-	struct usb2_hid_descriptor *hid;
-	usb2_error_t err;
+	struct usb_interface *iface = usbd_get_iface(udev, iface_index);
+	struct usb_hid_descriptor *hid;
+	usb_error_t err;
 
 	if ((iface == NULL) || (iface->idesc == NULL)) {
 		return (USB_ERR_INVAL);
 	}
 	hid = hid_get_descriptor_from_usb
-	    (usb2_get_config_descriptor(udev), iface->idesc);
+	    (usbd_get_config_descriptor(udev), iface->idesc);
 
 	if (hid == NULL) {
 		return (USB_ERR_IOERROR);
@@ -711,7 +714,7 @@ usb2_req_get_hid_desc(struct usb2_device *udev, struct mtx *mtx,
 	if (*descp == NULL) {
 		return (USB_ERR_NOMEM);
 	}
-	err = usb2_req_get_report_descriptor
+	err = usbd_req_get_report_descriptor
 	    (udev, mtx, *descp, *sizep, iface_index);
 
 	if (err) {

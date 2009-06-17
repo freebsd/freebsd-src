@@ -64,6 +64,12 @@ remain open after a "eow@openssh.com" has been sent and more data may
 still be sent in the other direction. This message does not consume
 window space and may be sent even if no window space is available.
 
+NB. due to certain broken SSH implementations aborting upon receipt
+of this message (in contravention of RFC4254 section 5.4), this
+message is only sent to OpenSSH peers (identified by banner).
+Other SSH implementations may be whitelisted to receive this message
+upon request.
+
 4. connection: disallow additional sessions extension
    "no-more-sessions@openssh.com"
 
@@ -86,6 +92,11 @@ connection.
 
 Note that this is not a general defence against compromised clients
 (that is impossible), but it thwarts a simple attack.
+
+NB. due to certain broken SSH implementations aborting upon receipt
+of this message, the no-more-sessions request is only sent to OpenSSH
+servers (identified by banner). Other SSH implementations may be
+whitelisted to receive this message upon request.
 
 5. connection: Tunnel forward extension "tun@openssh.com"
 
@@ -240,4 +251,4 @@ The values of the f_flag bitmask are as follows:
 Both the "statvfs@openssh.com" and "fstatvfs@openssh.com" extensions are
 advertised in the SSH_FXP_VERSION hello with version "2".
 
-$OpenBSD: PROTOCOL,v 1.11 2008/07/05 05:16:01 djm Exp $
+$OpenBSD: PROTOCOL,v 1.12 2009/02/14 06:35:49 djm Exp $

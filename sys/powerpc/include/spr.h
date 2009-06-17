@@ -129,8 +129,6 @@
 #define	SPR_SPRG7		0x117	/* 4.. SPR General 7 */
 #define	SPR_ASR			0x118	/* ... Address Space Register (PPC64) */
 #define	SPR_EAR			0x11a	/* .68 External Access Register */
-#define	SPR_TBL			0x11c	/* 468 Time Base Lower */
-#define	SPR_TBU			0x11d	/* 468 Time Base Upper */
 #define	SPR_PVR			0x11f	/* 468 Processor Version Register */
 #define	  MPC601		  0x0001
 #define	  MPC603		  0x0003
@@ -419,6 +417,7 @@
 #define	SPR_DAC2		0x3f7	/* 4.. Data Address Compare 2 */
 #define	SPR_PIR			0x3ff	/* .6. Processor Identification Register */
 #elif defined(E500)
+#define	SPR_PIR			0x11e	/* ..8 Processor Identification Register */
 #define	SPR_DBSR		0x130	/* ..8 Debug Status Register */
 #define	  DBSR_IDE		  0x80000000 /* Imprecise debug event. */
 #define	  DBSR_UDE		  0x40000000 /* Unconditional debug event. */
@@ -667,6 +666,9 @@
 #define	  L1CSR1_ICLFR		0x00000100	/* Instruction Cache Lock Bits Flash Reset */
 #define	  L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
 #define	  L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
+
+#define	SPR_BUCSR		0x3F5	/* ..8 Branch Unit Control and Status Register */
+#define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
 
 #endif /* #elif defined(E500) */
 

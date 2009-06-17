@@ -115,8 +115,10 @@ diff_loop () {
   while [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" -o \
     "${HANDLE_COMPFILE}" = "NOT V" ]; do
     if [ -f "${DESTDIR}${COMPFILE#.}" -a -f "${COMPFILE}" ]; then
-      if [ -n "${AUTO_UPGRADE}" ]; then
-        if echo "${CHANGED}" | grep -qsv ${DESTDIR}${COMPFILE#.}; then
+      if [ -n "${AUTO_UPGRADE}" -a -n "${CHANGED}" ]; then
+        case "${CHANGED}" in
+        *:${DESTDIR}${COMPFILE#.}:*) ;;		# File has been modified
+        *)
           echo ''
           echo "  *** ${COMPFILE} has not been user modified."
           echo ''
@@ -128,10 +130,11 @@ diff_loop () {
             AUTO_UPGRADED_FILES="${AUTO_UPGRADED_FILES}      ${DESTDIR}${COMPFILE#.}
 "
           else
-          echo "   *** Problem upgrading ${COMPFILE}, it will remain to merge by hand"
+            echo "   *** Problem upgrading ${COMPFILE}, it will remain to merge by hand"
           fi
           return
-        fi
+          ;;
+        esac
       fi
       if [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" ]; then
 	echo ''
@@ -348,9 +351,10 @@ fi
 case "${AUTO_UPGRADE}" in
 '') ;;	# If the option is not set no need to run the test or warn the user
 *)
-  if [ ! -f "${DESTDIR}${MTREEFILE}" ]; then
+  if [ ! -s "${DESTDIR}${MTREEFILE}" ]; then
     echo ''
-    echo "*** Unable to find mtree database. Skipping auto-upgrade."
+    echo "*** Unable to find mtree database. Skipping auto-upgrade on this run."
+    echo "    It will be created for the next run when this one is complete."
     echo ''
     press_to_continue
     unset AUTO_UPGRADE
@@ -459,14 +463,15 @@ MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.
 #
-CHANGED=
-if [ -n "${AUTO_UPGRADE}" -a -f "${DESTDIR}${MTREEFILE}" ]; then
-	for file in `mtree -eq -f ${DESTDIR}${MTREEFILE} -p ${DESTDIR}/ \
+if [ -n "${AUTO_UPGRADE}" -a -s "${DESTDIR}${MTREEFILE}" ]; then
+	CHANGED=:
+	for file in `mtree -eqL -f ${DESTDIR}${MTREEFILE} -p ${DESTDIR}/ \
 		2>/dev/null | awk '($2 == "changed") {print $1}'`; do
 		if [ -f "${DESTDIR}/$file" ]; then
-			CHANGED="${CHANGED} ${DESTDIR}/$file"
+			CHANGED="${CHANGED}${DESTDIR}/${file}:"
 		fi
 	done
+	[ "$CHANGED" = ':' ] && unset CHANGED
 fi
 
 # Check the width of the user's terminal
@@ -670,8 +675,11 @@ rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
 # We only need to compare things like freebsd.cf once
 find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
 
-# Delete 0 length files to make the mtree database as small as possible.
+# Delete stuff we do not need to keep the mtree database small,
+# and to make the actual comparison faster.
+find ${TEMPROOT}/usr -type l -delete 2>/dev/null
 find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
+find -d ${TEMPROOT} -type d -empty -delete 2>/dev/null
 
 # Build the mtree database in a temporary location.
 MTREENEW=`mktemp -t mergemaster.mtree`
@@ -959,11 +967,7 @@ if [ -r "${MM_PRE_COMPARE_SCRIPT}" ]; then
   . "${MM_PRE_COMPARE_SCRIPT}"
 fi
 
-# Using -size +0 avoids uselessly checking the empty log files created
-# by ${SOURCEDIR}/etc/Makefile and the device entries in ./dev, but does
-# check the scripts in ./dev, as we'd like (assuming no devfs of course).
-#
-for COMPFILE in `find . -type f -size +0`; do
+for COMPFILE in `find . -type f`; do
 
   # First, check to see if the file exists in DESTDIR.  If not, the
   # diff_loop function knows how to handle it.
@@ -1055,7 +1059,7 @@ done # This is for the for way up there at the beginning of the comparison
 echo ''
 echo "*** Comparison complete"
 
-if [ -f "${MTREENEW}" ]; then
+if [ -s "${MTREENEW}" ]; then
   echo "*** Saving mtree database for future upgrades"
   test -e "${DESTDIR}${MTREEFILE}" && unlink ${DESTDIR}${MTREEFILE}
   mv ${MTREENEW} ${DESTDIR}${MTREEFILE}

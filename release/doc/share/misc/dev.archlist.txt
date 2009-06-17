@@ -93,7 +93,6 @@ ncv	i386,pc98
 nfe	i386,amd64
 ng_bt3c	i386,pc98,amd64
 ng_ubt	i386,pc98,amd64
-nge	i386,pc98,amd64
 nsp	i386,pc98
 nve	i386,amd64
 nxge	i386,amd64

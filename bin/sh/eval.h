@@ -45,8 +45,13 @@ struct backcmd {		/* result of evalbackcmd */
 	struct job *jp;		/* job structure for command */
 };
 
+/* flags in argument to evaltree/evalstring */
+#define EV_EXIT 01		/* exit after evaluating tree */
+#define EV_TESTED 02		/* exit status is checked; ignore -e flag */
+#define EV_BACKCMD 04		/* command executing within back quotes */
+
 int evalcmd(int, char **);
-void evalstring(char *);
+void evalstring(char *, int);
 union node;	/* BLETCH for ansi C */
 void evaltree(union node *, int);
 void evalbackcmd(union node *, struct backcmd *);

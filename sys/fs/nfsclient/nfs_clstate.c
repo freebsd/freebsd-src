@@ -663,28 +663,41 @@ nfscl_openrelease(struct nfsclopen *op, int error, int candelete)
  * client data structures to do the SetClientId/SetClientId_confirm,
  * but will release that lock and return the clientid with a refernce
  * count on it.
+ * If the "cred" argument is NULL, a new clientid should not be created.
+ * If the "p" argument is NULL, a SetClientID/SetClientIDConfirm cannot
+ * be done.
+ * It always clpp with a reference count on it, unless returning an error.
  */
 APPLESTATIC int
 nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
     struct nfsclclient **clpp)
 {
 	struct nfsclclient *clp;
-	struct nfsclclient *newclp;
+	struct nfsclclient *newclp = NULL;
 	struct nfscllockowner *lp, *nlp;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	char uuid[HOSTUUIDLEN];
 	int igotlock = 0, error, trystalecnt, clidinusedelay, i;
-	u_int16_t idlen;
+	u_int16_t idlen = 0;
 
-	idlen = strlen(hostuuid);
-	if (idlen > 0)
-		idlen += sizeof (u_int64_t);
-	else
-		idlen += sizeof (u_int64_t) + 16;	/* 16 random bytes */
-	MALLOC(newclp, struct nfsclclient *, sizeof (struct nfsclclient) +
-	    idlen - 1, M_NFSCLCLIENT, M_WAITOK);
+	if (cred != NULL) {
+		getcredhostuuid(cred, uuid, sizeof uuid);
+		idlen = strlen(uuid);
+		if (idlen > 0)
+			idlen += sizeof (u_int64_t);
+		else
+			idlen += sizeof (u_int64_t) + 16; /* 16 random bytes */
+		MALLOC(newclp, struct nfsclclient *,
+		    sizeof (struct nfsclclient) + idlen - 1, M_NFSCLCLIENT,
+		    M_WAITOK);
+	}
 	NFSLOCKCLSTATE();
 	clp = nmp->nm_clp;
 	if (clp == NULL) {
+		if (newclp == NULL) {
+			NFSUNLOCKCLSTATE();
+			return (EACCES);
+		}
 		clp = newclp;
 		NFSBZERO((caddr_t)clp, sizeof(struct nfsclclient) + idlen - 1);
 		clp->nfsc_idlen = idlen;
@@ -696,7 +709,7 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		clp->nfsc_flags = NFSCLFLAGS_INITED;
 		clp->nfsc_clientidrev = 1;
 		clp->nfsc_cbident = nfscl_nextcbident();
-		nfscl_fillclid(nmp->nm_clval, hostuuid, clp->nfsc_id,
+		nfscl_fillclid(nmp->nm_clval, uuid, clp->nfsc_id,
 		    clp->nfsc_idlen);
 		LIST_INSERT_HEAD(&nfsclhead, clp, nfsc_list);
 		nmp->nm_clp = clp;
@@ -705,7 +718,8 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		nfscl_start_renewthread(clp);
 	} else {
 		NFSUNLOCKCLSTATE();
-		FREE((caddr_t)newclp, M_NFSCLCLIENT);
+		if (newclp != NULL)
+			FREE((caddr_t)newclp, M_NFSCLCLIENT);
 	}
 	NFSLOCKCLSTATE();
 	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock)
@@ -721,7 +735,7 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	if ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0) {
 		if (!igotlock)
 			panic("nfscl_clget");
-		if (p == NULL) {
+		if (p == NULL || cred == NULL) {
 			NFSLOCKCLSTATE();
 			nfsv4_unlock(&clp->nfsc_lock, 0);
 			NFSUNLOCKCLSTATE();
@@ -753,8 +767,8 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 			clidinusedelay = 120;
 		trystalecnt = 3;
 		do {
-			error = nfsrpc_setclient(VFSTONFS(vnode_mount(vp)), clp,
-			    cred, p);
+			error = nfsrpc_setclient(VFSTONFS(vnode_mount(vp)),
+			    clp, cred, p);
 			if (error == NFSERR_STALECLIENTID ||
 			    error == NFSERR_STALEDONTRECOVER ||
 			    error == NFSERR_CLIDINUSE) {
@@ -2748,8 +2762,8 @@ nfscl_dupopen(vnode_t vp, int dupopens)
  * on ohp.
  */
 APPLESTATIC int
-nfscl_getclose(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
-    struct nfsclclient **clpp, struct nfsclopenhead *ohp)
+nfscl_getclose(vnode_t vp, struct nfsclclient **clpp,
+    struct nfsclopenhead *ohp)
 {
 	struct nfsclclient *clp;
 	struct nfsclowner *owp, *nowp;
@@ -2758,12 +2772,13 @@ nfscl_getclose(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	struct nfsfh *nfhp;
 	int error, notdecr, candelete;
 
-	error = nfscl_getcl(vp, cred, p, &clp);
+	error = nfscl_getcl(vp, NULL, NULL, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
 
-	LIST_INIT(ohp);
+	if (ohp != NULL)
+		LIST_INIT(ohp);
 	nfhp = VTONFS(vp)->n_fhp;
 	notdecr = 1;
 	NFSLOCKCLSTATE();
@@ -2798,49 +2813,56 @@ nfscl_getclose(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 
 	/* Now process the opens against the server. */
 	LIST_FOREACH(owp, &clp->nfsc_owner, nfsow_list) {
-	    op = LIST_FIRST(&owp->nfsow_open);
-	    while (op != NULL) {
-		nop = LIST_NEXT(op, nfso_list);
-		if (op->nfso_fhlen == nfhp->nfh_len &&
-		    !NFSBCMP(op->nfso_fh, nfhp->nfh_fh, nfhp->nfh_len)) {
-		    /* Found an open, decrement cnt if possible */
-		    if (notdecr && op->nfso_opencnt > 0) {
-			notdecr = 0;
-			op->nfso_opencnt--;
-		    }
-		    /*
-		     * There are more opens, so just return after
-		     * putting any opens already found back in the
-		     * state list.
-		     */
-		    if (op->nfso_opencnt > 0) {
-			/* reuse op, since we're returning */
-			op = LIST_FIRST(ohp);
-			while (op != NULL) {
-			    nop = LIST_NEXT(op, nfso_list);
-			    LIST_REMOVE(op, nfso_list);
-			    LIST_INSERT_HEAD(&op->nfso_own->nfsow_open,
-				op, nfso_list);
-			    op = nop;
-			}
-			NFSUNLOCKCLSTATE();
-			LIST_INIT(ohp);
-			return (0);
-		    }
+		op = LIST_FIRST(&owp->nfsow_open);
+		while (op != NULL) {
+			nop = LIST_NEXT(op, nfso_list);
+			if (op->nfso_fhlen == nfhp->nfh_len &&
+			    !NFSBCMP(op->nfso_fh, nfhp->nfh_fh,
+			    nfhp->nfh_len)) {
+				/* Found an open, decrement cnt if possible */
+				if (notdecr && op->nfso_opencnt > 0) {
+					notdecr = 0;
+					op->nfso_opencnt--;
+				}
+				/*
+				 * There are more opens, so just return after
+				 * putting any opens already found back in the
+				 * state list.
+				 */
+				if (op->nfso_opencnt > 0) {
+					if (ohp != NULL) {
+					    /* Reattach open until later */
+					    op = LIST_FIRST(ohp);
+					    while (op != NULL) {
+						nop = LIST_NEXT(op, nfso_list);
+						LIST_REMOVE(op, nfso_list);
+						LIST_INSERT_HEAD(
+						    &op->nfso_own->nfsow_open,
+						    op, nfso_list);
+						op = nop;
+					    }
+					    LIST_INIT(ohp);
+					}
+					NFSUNLOCKCLSTATE();
+					return (0);
+				}
 
-		    /*
-		     * Move this entry to the list of opens to be returned.
-		     * (If we find other open(s) still in use, it will be
-		     *  put back in the state list in the code just above.)
-		     */
-		    LIST_REMOVE(op, nfso_list);
-		    LIST_INSERT_HEAD(ohp, op, nfso_list);
+				/*
+				 * Move this entry to the list of opens to be
+				 * returned. (If we find other open(s) still in
+				 * use, it will be put back in the state list
+				 * in the code just above.)
+				 */
+				if (ohp != NULL) {
+					LIST_REMOVE(op, nfso_list);
+					LIST_INSERT_HEAD(ohp, op, nfso_list);
+				}
+			}
+			op = nop;
 		}
-		op = nop;
-	    }
 	}
 
-	if (dp != NULL) {
+	if (dp != NULL && ohp != NULL) {
 		/*
 		 * If we are flushing all writes against the server for this
 		 * file upon close, we do not need to keep the local opens
@@ -2869,8 +2891,8 @@ nfscl_getclose(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		}
 	}
 	NFSUNLOCKCLSTATE();
-	if (notdecr)
-	    printf("nfscl: never fnd open\n");
+	if (notdecr && ohp == NULL)
+		printf("nfscl: never fnd open\n");
 	return (0);
 }
 

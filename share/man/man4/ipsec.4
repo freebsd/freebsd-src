@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2007
+.Dd May 23, 2009
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Nd Internet Protocol Security protocol
 .Sh SYNOPSIS
 .Cd "options IPSEC"
-.Cd "options IPSEC_FILTERTUNNEL"
 .Cd "device crypto"
 .Pp
 .In sys/types.h
@@ -88,9 +87,12 @@ inbound.
 .Pp
 To properly filter on the inner packets of an
 .Nm
-tunnel with firewalls, add
-.Cd "options IPSEC_FILTERTUNNEL"
-to the kernel configuration file.
+tunnel with firewalls, you can change the values of the following sysctls
+.Bl -column net.inet6.ipsec6.filtertunnel default enable
+.It Sy "Name	Default	Enable"
+.It net.inet.ipsec.filtertunnel	0	1
+.It net.inet6.ipsec6.filtertunnel	0	1
+.El
 .\"
 .Ss Kernel interface
 .Nm

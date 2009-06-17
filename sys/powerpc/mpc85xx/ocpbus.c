@@ -216,6 +216,7 @@ ocpbus_attach(device_t dev)
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_TSEC, 3);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PIC, 0);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_QUICC, 0);
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_SEC, 0);
 
 	/* Set up IRQ rman */
 	start = 0;
@@ -255,7 +256,8 @@ ocpbus_attach(device_t dev)
 		if ((sr & 0x80000000) == 0)
 			continue;
 		tgt = (sr & 0x01f00000) >> 20;
-		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2)
+		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2 ||
+		    tgt == OCP85XX_TGTIF_RAM_INTL)
 			continue;
 
 		ccsr_write4(OCP85XX_LAWSR(i), sr & 0x7fffffff);
@@ -346,6 +348,11 @@ const struct ocp_resource mpc8555_resources[] = {
 	{OCPBUS_DEVTYPE_I2C, 1, SYS_RES_MEMORY, 0, OCP85XX_I2C1_OFF,
 	    OCP85XX_I2C_SIZE},
 	{OCPBUS_DEVTYPE_I2C, 1, SYS_RES_IRQ, 0, PIC_IRQ_INT(27), 1},
+
+	{OCPBUS_DEVTYPE_SEC, 0, SYS_RES_MEMORY, 0, OCP85XX_SEC_OFF,
+	    OCP85XX_SEC_SIZE},
+	{OCPBUS_DEVTYPE_SEC, 0, SYS_RES_IRQ, 0, PIC_IRQ_INT(29), 1},
+	{OCPBUS_DEVTYPE_SEC, 0, SYS_RES_IRQ, 1, PIC_IRQ_INT(42), 1},
 
 	{0}
 };

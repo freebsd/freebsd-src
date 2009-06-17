@@ -114,7 +114,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/mmuvar.h>
 #include <machine/pcb.h>
-#include <machine/powerpc.h>
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/spr.h>
@@ -360,7 +359,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 */
 
 	msr = mfmsr();
-	mtmsr(msr & ~(PSL_IR | PSL_DR));
+	mtmsr((msr & ~(PSL_IR | PSL_DR)) | PSL_RI);
 	isync();
 
 	/*
@@ -380,6 +379,12 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/* Find the first byte dcbz did not zero to get the cache line size */
 	for (cacheline_size = 0; cacheline_size < 0x100 &&
 	    cache_check[cacheline_size] == 0; cacheline_size++);
+
+	/* Work around psim bug */
+	if (cacheline_size == 0) {
+		printf("WARNING: cacheline size undetermined, setting to 32\n");
+		cacheline_size = 32;
+	}
 
 	/*
 	 * Figure out whether we need to use the 64 bit PMAP. This works by
@@ -472,14 +477,22 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 */
 	mtmsr(msr);
 	isync();
+	
+	/*
+	 * Choose a platform module so we can get the physical memory map.
+	 */
+	
+	platform_probe_and_attach();
 
 	/*
-	 * Initialise virtual memory.
+	 * Initialise virtual memory. Use BUS_PROBE_GENERIC priority
+	 * in case the platform module had a better idea of what we
+	 * should do.
 	 */
 	if (ppc64)
-		pmap_mmu_install(MMU_TYPE_G5, 0);
+		pmap_mmu_install(MMU_TYPE_G5, BUS_PROBE_GENERIC);
 	else
-		pmap_mmu_install(MMU_TYPE_OEA, 0);
+		pmap_mmu_install(MMU_TYPE_OEA, BUS_PROBE_GENERIC);
 
 	pmap_bootstrap(startkernel, endkernel);
 	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);
@@ -857,19 +870,21 @@ cpu_boot(int howto)
 {
 }
 
+/*
+ * Flush the D-cache for non-DMA I/O so that the I-cache can
+ * be made coherent later.
+ */
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+	/* TBD */
+}
+
 void
 cpu_initclocks(void)
 {
 
 	decr_tc_init();
-}
-
-/* Get current clock frequency for the given cpu id. */
-int
-cpu_est_clockrate(int cpu_id, uint64_t *rate)
-{
-
-	return (ENXIO);
 }
 
 /*

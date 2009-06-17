@@ -218,36 +218,6 @@
 #define	NFSPROC_COMMIT		21
 
 /*
- * These cover all the procedures for V2 and 3. The higher numbers are
- * used to reference other V4 ops.
- * NFS_V3NPROCS is one greater than the last V3 op and NFS_NPROCS is
- * one greater than the last number.
- */
-#define	NFS_V3NPROCS		22
-
-#define	NFSPROC_LOOKUPP		22
-#define	NFSPROC_SETCLIENTID	23
-#define	NFSPROC_SETCLIENTIDCFRM	24
-#define	NFSPROC_LOCK		25
-#define	NFSPROC_LOCKU		26
-#define	NFSPROC_OPEN		27
-#define	NFSPROC_CLOSE		28
-#define	NFSPROC_OPENCONFIRM	29
-#define	NFSPROC_LOCKT		30
-#define	NFSPROC_OPENDOWNGRADE	31
-#define	NFSPROC_RENEW		32
-#define	NFSPROC_PUTROOTFH	33
-#define	NFSPROC_RELEASELCKOWN	34
-#define	NFSPROC_DELEGRETURN	35
-#define	NFSPROC_RETDELEGREMOVE	36
-#define	NFSPROC_RETDELEGRENAME1	37
-#define	NFSPROC_RETDELEGRENAME2	38
-#define	NFSPROC_GETACL		39
-#define	NFSPROC_SETACL		40
-
-#define	NFS_NPROCS		41
-
-/*
  * NFSPROC_NOOP is a fake op# that can't be the same as any V2/3/4 Procedure
  * or Operation#. Since the NFS V4 Op #s go higher, use NFSV4OP_NOPS, which
  * is one greater than the highest Op#.
@@ -276,77 +246,11 @@
 #define	NFSV2PROC_STATFS	17
 
 /*
- * V4 Procedure and suboperation numbers
+ * V4 Procedure numbers
  */
 #define	NFSV4PROC_COMPOUND	1
 #define	NFSV4PROC_CBNULL	0
 #define	NFSV4PROC_CBCOMPOUND	1
-
-#define	NFSV4OP_ACCESS		3
-#define	NFSV4OP_CLOSE		4
-#define	NFSV4OP_COMMIT		5
-#define	NFSV4OP_CREATE		6
-#define	NFSV4OP_DELEGPURGE	7
-#define	NFSV4OP_DELEGRETURN	8
-#define	NFSV4OP_GETATTR		9
-#define	NFSV4OP_GETFH		10
-#define	NFSV4OP_LINK		11
-#define	NFSV4OP_LOCK		12
-#define	NFSV4OP_LOCKT		13
-#define	NFSV4OP_LOCKU		14
-#define	NFSV4OP_LOOKUP		15
-#define	NFSV4OP_LOOKUPP		16
-#define	NFSV4OP_NVERIFY		17
-#define	NFSV4OP_OPEN		18
-#define	NFSV4OP_OPENATTR	19
-#define	NFSV4OP_OPENCONFIRM	20
-#define	NFSV4OP_OPENDOWNGRADE	21
-#define	NFSV4OP_PUTFH		22
-#define	NFSV4OP_PUTPUBFH	23
-#define	NFSV4OP_PUTROOTFH	24
-#define	NFSV4OP_READ		25
-#define	NFSV4OP_READDIR		26
-#define	NFSV4OP_READLINK	27
-#define	NFSV4OP_REMOVE		28
-#define	NFSV4OP_RENAME		29
-#define	NFSV4OP_RENEW		30
-#define	NFSV4OP_RESTOREFH	31
-#define	NFSV4OP_SAVEFH		32
-#define	NFSV4OP_SECINFO		33
-#define	NFSV4OP_SETATTR		34
-#define	NFSV4OP_SETCLIENTID	35
-#define	NFSV4OP_SETCLIENTIDCFRM	36
-#define	NFSV4OP_VERIFY		37
-#define	NFSV4OP_WRITE		38
-#define	NFSV4OP_RELEASELCKOWN	39
-
-/*
- * and the Callback OPs
- */
-#define	NFSV4OP_CBGETATTR	3
-#define	NFSV4OP_CBRECALL	4
-
-/*
- * NFSV4OP_NOPS is one greater than the largest V4 Op#. (Used for sizing
- * arrays, etc.)
- */
-#define	NFSV4OP_NOPS		40
-#define	NFSV4OP_CBNOPS		5
-
-/*
- * Fake NFSV4OP_xxx used for nfsstat. Start at NFSV4OP_NOPS.
- */
-#define	NFSV4OP_SYMLINK		(NFSV4OP_NOPS)
-#define	NFSV4OP_MKDIR		(NFSV4OP_NOPS + 1)
-#define	NFSV4OP_RMDIR		(NFSV4OP_NOPS + 2)
-#define	NFSV4OP_READDIRPLUS	(NFSV4OP_NOPS + 3)
-#define	NFSV4OP_MKNOD		(NFSV4OP_NOPS + 4)
-#define	NFSV4OP_FSSTAT		(NFSV4OP_NOPS + 5)
-#define	NFSV4OP_FSINFO		(NFSV4OP_NOPS + 6)
-#define	NFSV4OP_PATHCONF	(NFSV4OP_NOPS + 7)
-#define	NFSV4OP_V3CREATE	(NFSV4OP_NOPS + 8)
-
-#define	NFSV4OP_FAKENOPS	9
 
 /*
  * Constants used by the Version 3 and 4 protocols for various RPCs

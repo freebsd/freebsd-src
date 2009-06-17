@@ -436,10 +436,11 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			if (osp == 0)
 				bzero(dst, sc->sectorsize);
 			else if (osp <= 255)
-				for (i = 0; i < sc->sectorsize; i++)
-					dst[i] = osp;
-			else
+				memset(dst, osp, sc->sectorsize);
+			else {
 				bcopy((void *)osp, dst, sc->sectorsize);
+				cpu_flush_dcache(dst, sc->sectorsize);
+			}
 			osp = 0;
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (sc->flags & MD_COMPRESS) {
@@ -491,6 +492,7 @@ mdstart_preload(struct md_s *sc, struct bio *bp)
 	case BIO_READ:
 		bcopy(sc->pl_ptr + bp->bio_offset, bp->bio_data,
 		    bp->bio_length);
+		cpu_flush_dcache(bp->bio_data, bp->bio_length);
 		break;
 	case BIO_WRITE:
 		bcopy(bp->bio_data, sc->pl_ptr + bp->bio_offset,
@@ -633,6 +635,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				break;
 			}
 			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
+			cpu_flush_dcache(p, len);
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);

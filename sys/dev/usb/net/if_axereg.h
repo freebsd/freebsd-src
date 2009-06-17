@@ -166,7 +166,7 @@ struct axe_sframe_hdr {
 	uint16_t ilen;
 } __packed;
 
-#define	GET_MII(sc)		usb2_ether_getmii(&(sc)->sc_ue)
+#define	GET_MII(sc)		uether_getmii(&(sc)->sc_ue)
 
 /* The interrupt endpoint is currently unused by the ASIX part. */
 enum {
@@ -177,9 +177,9 @@ enum {
 };
 
 struct axe_softc {
-	struct usb2_ether	sc_ue;
+	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
-	struct usb2_xfer	*sc_xfer[AXE_N_TRANSFER];
+	struct usb_xfer	*sc_xfer[AXE_N_TRANSFER];
 	int			sc_phyno;
 
 	int			sc_flags;

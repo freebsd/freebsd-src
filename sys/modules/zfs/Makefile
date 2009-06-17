@@ -16,6 +16,7 @@ SRCS+=	nvpair.c
 SRCS+=	u8_textprep.c
 
 .PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
+SRCS+=	opensolaris_acl.c
 SRCS+=	opensolaris_kmem.c
 SRCS+=	opensolaris_kobj.c
 SRCS+=	opensolaris_kstat.c
@@ -42,11 +43,6 @@ SRCS+=	callb.c
 SRCS+=	list.c
 SRCS+=	nvpair_alloc_system.c
 SRCS+=	taskq.c
-
-.PATH:	${SUNW}/uts/common/rpc
-SRCS+=	opensolaris_xdr.c
-SRCS+=	opensolaris_xdr_array.c
-SRCS+=	opensolaris_xdr_mem.c
 
 .PATH:	${SUNW}/uts/common/zmod
 SRCS+=	adler32.c

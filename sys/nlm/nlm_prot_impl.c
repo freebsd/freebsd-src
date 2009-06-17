@@ -835,6 +835,20 @@ nlm_create_host(const char* caller_name)
 }
 
 /*
+ * Acquire the next sysid for remote locks not handled by the NLM.
+ */
+uint32_t
+nlm_acquire_next_sysid(void)
+{
+	uint32_t next_sysid;
+
+	mtx_lock(&nlm_global_lock);
+	next_sysid = nlm_next_sysid++;
+	mtx_unlock(&nlm_global_lock);
+	return (next_sysid);
+}
+
+/*
  * Return non-zero if the address parts of the two sockaddrs are the
  * same.
  */

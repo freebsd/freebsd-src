@@ -891,7 +891,7 @@
 0x410	leshort		0x2478		Minix filesystem, version 2, 30 char names
 
 # romfs filesystems - Juan Cespedes <cespedes@debian.org>
-0	string		-rom1fs-\0	romfs filesystem, version 1
+0	string		-rom1fs-	romfs filesystem, version 1
 >8	belong	x			%d bytes,
 >16	string	x			named %s.
 

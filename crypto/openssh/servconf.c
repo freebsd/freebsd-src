@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.186 2008/07/04 03:44:59 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.194 2009/01/22 10:02:34 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -43,8 +43,8 @@ __RCSID("$FreeBSD$");
 #include "channels.h"
 #include "groupaccess.h"
 
-static void add_listen_addr(ServerOptions *, char *, u_short);
-static void add_one_listen_addr(ServerOptions *, char *, u_short);
+static void add_listen_addr(ServerOptions *, char *, int);
+static void add_one_listen_addr(ServerOptions *, char *, int);
 
 /* Use of privilege separation or not */
 extern int use_privsep;
@@ -128,6 +128,7 @@ initialize_server_options(ServerOptions *options)
 	options->num_permitted_opens = -1;
 	options->adm_forced_command = NULL;
 	options->chroot_directory = NULL;
+	options->zero_knowledge_password_authentication = -1;
 }
 
 void
@@ -259,6 +260,8 @@ fill_default_server_options(ServerOptions *options)
 		options->authorized_keys_file = _PATH_SSH_USER_PERMITTED_KEYS;
 	if (options->permit_tun == -1)
 		options->permit_tun = SSH_TUNMODE_NO;
+	if (options->zero_knowledge_password_authentication == -1)
+		options->zero_knowledge_password_authentication = 0;
 
 	/* Turn privilege separation on by default */
 	if (use_privsep == -1)
@@ -303,6 +306,7 @@ typedef enum {
 	sGssAuthentication, sGssCleanupCreds, sAcceptEnv, sPermitTunnel,
 	sMatch, sPermitOpen, sForceCommand, sChrootDirectory,
 	sUsePrivilegeSeparation, sAllowAgentForwarding,
+	sZeroKnowledgePasswordAuthentication,
 	sVersionAddendum,
 	sDeprecated, sUnsupported
 } ServerOpCodes;
@@ -370,6 +374,11 @@ static struct {
 	{ "kbdinteractiveauthentication", sKbdInteractiveAuthentication, SSHCFG_ALL },
 	{ "challengeresponseauthentication", sChallengeResponseAuthentication, SSHCFG_GLOBAL },
 	{ "skeyauthentication", sChallengeResponseAuthentication, SSHCFG_GLOBAL }, /* alias */
+#ifdef JPAKE
+	{ "zeroknowledgepasswordauthentication", sZeroKnowledgePasswordAuthentication, SSHCFG_ALL },
+#else
+	{ "zeroknowledgepasswordauthentication", sUnsupported, SSHCFG_ALL },
+#endif
 	{ "checkmail", sDeprecated, SSHCFG_GLOBAL },
 	{ "listenaddress", sListenAddress, SSHCFG_GLOBAL },
 	{ "addressfamily", sAddressFamily, SSHCFG_GLOBAL },
@@ -382,7 +391,7 @@ static struct {
 	{ "x11uselocalhost", sX11UseLocalhost, SSHCFG_ALL },
 	{ "xauthlocation", sXAuthLocation, SSHCFG_GLOBAL },
 	{ "strictmodes", sStrictModes, SSHCFG_GLOBAL },
-	{ "permitemptypasswords", sEmptyPasswd, SSHCFG_GLOBAL },
+	{ "permitemptypasswords", sEmptyPasswd, SSHCFG_ALL },
 	{ "permituserenvironment", sPermitUserEnvironment, SSHCFG_GLOBAL },
 	{ "uselogin", sUseLogin, SSHCFG_GLOBAL },
 	{ "compression", sCompression, SSHCFG_GLOBAL },
@@ -454,7 +463,7 @@ parse_token(const char *cp, const char *filename,
 }
 
 static void
-add_listen_addr(ServerOptions *options, char *addr, u_short port)
+add_listen_addr(ServerOptions *options, char *addr, int port)
 {
 	u_int i;
 
@@ -470,7 +479,7 @@ add_listen_addr(ServerOptions *options, char *addr, u_short port)
 }
 
 static void
-add_one_listen_addr(ServerOptions *options, char *addr, u_short port)
+add_one_listen_addr(ServerOptions *options, char *addr, int port)
 {
 	struct addrinfo hints, *ai, *aitop;
 	char strport[NI_MAXSERV];
@@ -480,7 +489,7 @@ add_one_listen_addr(ServerOptions *options, char *addr, u_short port)
 	hints.ai_family = options->address_family;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = (addr == NULL) ? AI_PASSIVE : 0;
-	snprintf(strport, sizeof strport, "%u", port);
+	snprintf(strport, sizeof strport, "%d", port);
 	if ((gaierr = getaddrinfo(addr, strport, &hints, &aitop)) != 0)
 		fatal("bad addr or host: %s (%s)",
 		    addr ? addr : "<NULL>",
@@ -636,7 +645,7 @@ process_server_config_line(ServerOptions *options, char *line,
 	SyslogFacility *log_facility_ptr;
 	LogLevel *log_level_ptr;
 	ServerOpCodes opcode;
-	u_short port;
+	int port;
 	u_int i, flags = 0;
 	size_t len;
 
@@ -693,7 +702,7 @@ process_server_config_line(ServerOptions *options, char *line,
 			fatal("%s line %d: missing port number.",
 			    filename, linenum);
 		options->ports[options->num_ports++] = a2port(arg);
-		if (options->ports[options->num_ports-1] == 0)
+		if (options->ports[options->num_ports-1] <= 0)
 			fatal("%s line %d: Badly formatted port number.",
 			    filename, linenum);
 		break;
@@ -746,7 +755,7 @@ process_server_config_line(ServerOptions *options, char *line,
 		p = cleanhostname(p);
 		if (arg == NULL)
 			port = 0;
-		else if ((port = a2port(arg)) == 0)
+		else if ((port = a2port(arg)) <= 0)
 			fatal("%s line %d: bad port number", filename, linenum);
 
 		add_listen_addr(options, p, port);
@@ -891,6 +900,10 @@ process_server_config_line(ServerOptions *options, char *line,
 
 	case sPasswordAuthentication:
 		intptr = &options->password_authentication;
+		goto parse_flag;
+
+	case sZeroKnowledgePasswordAuthentication:
+		intptr = &options->zero_knowledge_password_authentication;
 		goto parse_flag;
 
 	case sKbdInteractiveAuthentication:
@@ -1255,7 +1268,7 @@ process_server_config_line(ServerOptions *options, char *line,
 				fatal("%s line %d: missing host in PermitOpen",
 				    filename, linenum);
 			p = cleanhostname(p);
-			if (arg == NULL || (port = a2port(arg)) == 0)
+			if (arg == NULL || (port = a2port(arg)) <= 0)
 				fatal("%s line %d: bad port number in "
 				    "PermitOpen", filename, linenum);
 			if (*activep && n == -1)
@@ -1387,7 +1400,9 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(kerberos_authentication);
 	M_CP_INTOPT(hostbased_authentication);
 	M_CP_INTOPT(kbd_interactive_authentication);
+	M_CP_INTOPT(zero_knowledge_password_authentication);
 	M_CP_INTOPT(permit_root_login);
+	M_CP_INTOPT(permit_empty_passwd);
 
 	M_CP_INTOPT(allow_tcp_forwarding);
 	M_CP_INTOPT(allow_agent_forwarding);
@@ -1449,7 +1464,7 @@ fmt_intarg(ServerOpCodes code, int val)
 	if (code == sPermitRootLogin) {
 		switch (val) {
 		case PERMIT_NO_PASSWD:
-			return "without-passord";
+			return "without-password";
 		case PERMIT_FORCED_ONLY:
 			return "forced-commands-only";
 		case PERMIT_YES:
@@ -1554,11 +1569,15 @@ dump_config(ServerOptions *o)
 	}
 
 	/* integer arguments */
+#ifdef USE_PAM
+	dump_cfg_int(sUsePAM, o->use_pam);
+#endif
 	dump_cfg_int(sServerKeyBits, o->server_key_bits);
 	dump_cfg_int(sLoginGraceTime, o->login_grace_time);
 	dump_cfg_int(sKeyRegenerationTime, o->key_regeneration_time);
 	dump_cfg_int(sX11DisplayOffset, o->x11_display_offset);
 	dump_cfg_int(sMaxAuthTries, o->max_authtries);
+	dump_cfg_int(sMaxSessions, o->max_sessions);
 	dump_cfg_int(sClientAliveInterval, o->client_alive_interval);
 	dump_cfg_int(sClientAliveCountMax, o->client_alive_count_max);
 
@@ -1572,12 +1591,22 @@ dump_config(ServerOptions *o)
 	    o->hostbased_uses_name_from_packet_only);
 	dump_cfg_fmtint(sRSAAuthentication, o->rsa_authentication);
 	dump_cfg_fmtint(sPubkeyAuthentication, o->pubkey_authentication);
+#ifdef KRB5
 	dump_cfg_fmtint(sKerberosAuthentication, o->kerberos_authentication);
 	dump_cfg_fmtint(sKerberosOrLocalPasswd, o->kerberos_or_local_passwd);
 	dump_cfg_fmtint(sKerberosTicketCleanup, o->kerberos_ticket_cleanup);
+# ifdef USE_AFS
 	dump_cfg_fmtint(sKerberosGetAFSToken, o->kerberos_get_afs_token);
+# endif
+#endif
+#ifdef GSSAPI
 	dump_cfg_fmtint(sGssAuthentication, o->gss_authentication);
 	dump_cfg_fmtint(sGssCleanupCreds, o->gss_cleanup_creds);
+#endif
+#ifdef JPAKE
+	dump_cfg_fmtint(sZeroKnowledgePasswordAuthentication,
+	    o->zero_knowledge_password_authentication);
+#endif
 	dump_cfg_fmtint(sPasswordAuthentication, o->password_authentication);
 	dump_cfg_fmtint(sKbdInteractiveAuthentication,
 	    o->kbd_interactive_authentication);
@@ -1636,7 +1665,5 @@ dump_config(ServerOptions *o)
 		}
 	dump_cfg_string(sPermitTunnel, s);
 
-	printf("permitopen");
 	channel_print_adm_permitted_opens();
-	printf("\n");
 }

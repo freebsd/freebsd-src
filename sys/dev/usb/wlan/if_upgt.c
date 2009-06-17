@@ -121,10 +121,10 @@ static int	upgt_fw_load(struct upgt_softc *);
 static int	upgt_fw_copy(const uint8_t *, char *, int);
 static uint32_t	upgt_crc32_le(const void *, size_t);
 static struct mbuf *
-		upgt_rxeof(struct usb2_xfer *, struct upgt_data *, int *);
+		upgt_rxeof(struct usb_xfer *, struct upgt_data *, int *);
 static struct mbuf *
 		upgt_rx(struct upgt_softc *, uint8_t *, int, int *);
-static void	upgt_txeof(struct usb2_xfer *, struct upgt_data *);
+static void	upgt_txeof(struct usb_xfer *, struct upgt_data *);
 static int	upgt_eeprom_read(struct upgt_softc *);
 static int	upgt_eeprom_parse(struct upgt_softc *);
 static void	upgt_eeprom_parse_hwrx(struct upgt_softc *, uint8_t *);
@@ -175,7 +175,7 @@ static int	upgt_tx_start(struct upgt_softc *, struct mbuf *,
 
 static const char *upgt_fwname = "upgt-gw3887";
 
-static const struct usb2_device_id upgt_devs_2[] = {
+static const struct usb_device_id upgt_devs_2[] = {
 #define	UPGT_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	/* version 2 devices */
 	UPGT_DEV(ACCTON,	PRISM_GT),
@@ -196,10 +196,10 @@ static const struct usb2_device_id upgt_devs_2[] = {
 	UPGT_DEV(ZCOM,		XM142)
 };
 
-static usb2_callback_t upgt_bulk_rx_callback;
-static usb2_callback_t upgt_bulk_tx_callback;
+static usb_callback_t upgt_bulk_rx_callback;
+static usb_callback_t upgt_bulk_tx_callback;
 
-static const struct usb2_config upgt_config[UPGT_N_XFERS] = {
+static const struct usb_config upgt_config[UPGT_N_XFERS] = {
 	[UPGT_BULK_TX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -230,16 +230,16 @@ static const struct usb2_config upgt_config[UPGT_N_XFERS] = {
 static int
 upgt_match(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != UPGT_CONFIG_INDEX)
 		return (ENXIO);
 	if (uaa->info.bIfaceIndex != UPGT_IFACE_INDEX)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(upgt_devs_2, sizeof(upgt_devs_2), uaa));
+	return (usbd_lookup_id_by_uaa(upgt_devs_2, sizeof(upgt_devs_2), uaa));
 }
 
 static int
@@ -249,7 +249,7 @@ upgt_attach(device_t dev)
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	struct upgt_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	uint8_t bands, iface_index = UPGT_IFACE_INDEX;
 
 	sc->sc_dev = dev;
@@ -257,6 +257,7 @@ upgt_attach(device_t dev)
 #ifdef UPGT_DEBUG
 	sc->sc_debug = upgt_debug;
 #endif
+	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -271,11 +272,11 @@ upgt_attach(device_t dev)
 	if (error)
 		goto fail2;
 
-	error = usb2_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    upgt_config, UPGT_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
-		    "err=%s\n", usb2_errstr(error));
+		    "err=%s\n", usbd_errstr(error));
 		goto fail3;
 	}
 
@@ -367,14 +368,11 @@ upgt_attach(device_t dev)
 	ic->ic_vap_delete = upgt_vap_delete;
 	ic->ic_update_mcast = upgt_update_mcast;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof(struct ieee80211_frame) + sizeof(sc->sc_txtap));
-	sc->sc_rxtap_len = sizeof(sc->sc_rxtap);
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(UPGT_RX_RADIOTAP_PRESENT);
-	sc->sc_txtap_len = sizeof(sc->sc_txtap);
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(UPGT_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		UPGT_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		UPGT_RX_RADIOTAP_PRESENT);
 
 	upgt_sysctl_node(sc);
 
@@ -384,7 +382,7 @@ upgt_attach(device_t dev)
 	return (0);
 
 fail5:	if_free(ifp);
-fail4:	usb2_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+fail4:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
 fail3:	upgt_free_rx(sc);
 fail2:	upgt_free_tx(sc);
 fail1:	mtx_destroy(&sc->sc_mtx);
@@ -393,7 +391,7 @@ fail1:	mtx_destroy(&sc->sc_mtx);
 }
 
 static void
-upgt_txeof(struct usb2_xfer *xfer, struct upgt_data *data)
+upgt_txeof(struct usb_xfer *xfer, struct upgt_data *data)
 {
 	struct upgt_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -643,7 +641,7 @@ upgt_init_locked(struct upgt_softc *sc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		upgt_stop_locked(sc);
 
-	usb2_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
+	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
 
 	(void)upgt_set_macfilter(sc, IEEE80211_S_SCAN);
 
@@ -1321,7 +1319,7 @@ upgt_eeprom_read(struct upgt_softc *sc)
 	int block, error, offset;
 
 	UPGT_LOCK(sc);
-	usb2_pause_mtx(&sc->sc_mtx, 100);
+	usb_pause_mtx(&sc->sc_mtx, 100);
 
 	offset = 0;
 	block = UPGT_EEPROM_BLOCK_SIZE;
@@ -1385,7 +1383,7 @@ upgt_eeprom_read(struct upgt_softc *sc)
  * When a rx data came in the function returns a mbuf and a rssi values.
  */
 static struct mbuf *
-upgt_rxeof(struct usb2_xfer *xfer, struct upgt_data *data, int *rssi)
+upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 {
 	struct mbuf *m = NULL;
 	struct upgt_softc *sc = xfer->priv_sc;
@@ -1507,16 +1505,12 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 	m->m_len = m->m_pkthdr.len = pkglen - IEEE80211_CRC_LEN;
 	m->m_pkthdr.rcvif = ifp;
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active(ic)) {
 		struct upgt_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
 		tap->wr_rate = upgt_rx_rate(sc, rxdesc->rate);
-		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wr_antsignal = rxdesc->rssi;
-
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
 	}
 	ifp->if_ipackets++;
 
@@ -1685,7 +1679,7 @@ upgt_fw_load(struct upgt_softc *sc)
 	upgt_bulk_tx(sc, data_cmd);
 
 	/* waiting 'OK' response.  */
-	usb2_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
+	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
 	error = mtx_sleep(sc, &sc->sc_mtx, 0, "upgtfw", 2 * hz);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "firmware load failed!\n");
@@ -1917,7 +1911,7 @@ upgt_bulk_tx(struct upgt_softc *sc, struct upgt_data *data)
 
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
 	UPGT_STAT_INC(sc, st_tx_pending);
-	usb2_transfer_start(sc->sc_xfer[UPGT_BULK_TX]);
+	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_TX]);
 }
 
 static int
@@ -1936,7 +1930,7 @@ upgt_device_reset(struct upgt_softc *sc)
 	bcopy(init_cmd, data->buf, sizeof(init_cmd));
 	data->buflen = sizeof(init_cmd);
 	upgt_bulk_tx(sc, data);
-	usb2_pause_mtx(&sc->sc_mtx, 100);
+	usb_pause_mtx(&sc->sc_mtx, 100);
 
 	UPGT_UNLOCK(sc);
 	DPRINTF(sc, UPGT_DEBUG_FW, "%s: device initialized\n", __func__);
@@ -2002,16 +1996,15 @@ upgt_detach(device_t dev)
 		return 0;
 
 	upgt_stop(sc);
-	ieee80211_ifdetach(ic);
 
 	callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+	ieee80211_ifdetach(ic);
 	upgt_free_rx(sc);
 	upgt_free_tx(sc);
 
-	bpfdetach(ifp);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
 
@@ -2052,7 +2045,7 @@ upgt_abort_xfers_locked(struct upgt_softc *sc)
 	UPGT_ASSERT_LOCKED(sc);
 	/* abort any pending transfers */
 	for (i = 0; i < UPGT_N_XFERS; i++)
-		usb2_transfer_stop(sc->sc_xfer[i]);
+		usbd_transfer_stop(sc->sc_xfer[i]);
 }
 
 static void
@@ -2157,11 +2150,11 @@ static int
 upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
     struct upgt_data *data)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
 	int error = 0, len;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct upgt_lmac_mem *mem;
 	struct upgt_lmac_tx_desc *txdesc;
 
@@ -2211,15 +2204,13 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	txdesc->type = htole32(UPGT_TX_DESC_TYPE_DATA);
 	txdesc->pad3[0] = UPGT_TX_DESC_PAD3_SIZE;
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct upgt_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = 0;	/* XXX where to get from? */
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m);
+		ieee80211_radiotap_tx(vap, m);
 	}
 
 	/* copy frame below our TX descriptor header */
@@ -2253,7 +2244,7 @@ done:
 }
 
 static void
-upgt_bulk_rx_callback(struct usb2_xfer *xfer)
+upgt_bulk_rx_callback(struct usb_xfer *xfer)
 {
 	struct upgt_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2283,9 +2274,9 @@ setup:
 			return;
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_inactive, next);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
-		usb2_set_frame_data(xfer, data->buf, 0);
+		usbd_set_frame_data(xfer, data->buf, 0);
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 
 		/*
 		 * To avoid LOR we should unlock our private mutex here to call
@@ -2299,11 +2290,11 @@ setup:
 			    (struct ieee80211_frame_min *)wh);
 			nf = -95;	/* XXX */
 			if (ni != NULL) {
-				(void) ieee80211_input(ni, m, rssi, nf, 0);
+				(void) ieee80211_input(ni, m, rssi, nf);
 				/* node is no longer needed */
 				ieee80211_free_node(ni);
 			} else
-				(void) ieee80211_input_all(ic, m, rssi, nf, 0);
+				(void) ieee80211_input_all(ic, m, rssi, nf);
 			m = NULL;
 		}
 		UPGT_LOCK(sc);
@@ -2325,7 +2316,7 @@ setup:
 }
 
 static void
-upgt_bulk_tx_callback(struct usb2_xfer *xfer)
+upgt_bulk_tx_callback(struct usb_xfer *xfer)
 {
 	struct upgt_softc *sc = xfer->priv_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2356,9 +2347,9 @@ setup:
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		UPGT_STAT_INC(sc, st_tx_active);
 
-		usb2_set_frame_data(xfer, data->buf, 0);
+		usbd_set_frame_data(xfer, data->buf, 0);
 		xfer->frlengths[0] = data->buflen;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		UPGT_UNLOCK(sc);
 		upgt_start(ifp);
 		UPGT_LOCK(sc);

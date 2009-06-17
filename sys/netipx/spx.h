@@ -129,7 +129,7 @@ struct spxpcb {
 	u_short s_mtu;			/* Max packet size for this stream */
 /* use sequence fields in headers to store sequence numbers for this
    connection */
-	struct	ipx	*s_ipx;
+	struct	ipx	s_ipx;
 	struct	spxhdr	s_shdr;		/* prototype header to transmit */
 #define s_cc s_shdr.spx_cc		/* connection control (for EM bit) */
 #define s_dt s_shdr.spx_dt		/* datastream type */
@@ -138,7 +138,7 @@ struct spxpcb {
 #define s_seq s_shdr.spx_seq		/* sequence number */
 #define s_ack s_shdr.spx_ack		/* acknowledge number */
 #define s_alo s_shdr.spx_alo		/* allocation number */
-#define s_dport s_ipx->ipx_dna.x_port	/* where we are sending */
+#define s_dport s_ipx.ipx_dna.x_port	/* where we are sending */
 	struct spxhdr s_rhdr;		/* last received header (in effect!)*/
 	u_short s_rack;			/* their acknowledge number */
 	u_short s_ralo;			/* their allocation number */

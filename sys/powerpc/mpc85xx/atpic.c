@@ -211,7 +211,7 @@ atpic_isa_attach(device_t dev)
 	if (sc->sc_ires == NULL)
 		goto fail;
 
-	error = bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_MISC | INTR_FAST,
+	error = bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_MISC | INTR_MPSAFE,
 	    NULL, atpic_intr, NULL, &sc->sc_icookie);
 	if (error)
 		goto fail;

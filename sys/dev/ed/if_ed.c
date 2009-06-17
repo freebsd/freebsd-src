@@ -1164,14 +1164,6 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	int     error = 0;
 
-	/*
-	 * XXX really needed?
-	 */
-	if (sc == NULL) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		return (ENXIO);
-	}
-
 	switch (command) {
 	case SIOCSIFFLAGS:
 		/*

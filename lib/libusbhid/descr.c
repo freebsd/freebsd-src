@@ -76,7 +76,7 @@ hid_get_report_id(int fd)
 report_desc_t
 hid_get_report_desc(int fd)
 {
-	struct usb2_gen_descriptor ugd;
+	struct usb_gen_descriptor ugd;
 	report_desc_t rep;
 	void *data;
 

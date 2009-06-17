@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -120,7 +119,13 @@ __FBSDID("$FreeBSD$");
 extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
-static struct ifqueue ip6intrq;
+
+static struct netisr_handler ip6_nh = {
+	.nh_name = "ip6",
+	.nh_handler = ip6_input,
+	.nh_proto = NETISR_IPV6,
+	.nh_policy = NETISR_POLICY_FLOW,
+};
 
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
@@ -129,7 +134,6 @@ struct vnet_inet6 vnet_inet6_0;
 #endif
 
 #ifdef VIMAGE_GLOBALS
-static int ip6qmaxlen;
 struct in6_ifaddr *in6_ifaddr;
 struct ip6stat ip6stat;
 
@@ -186,7 +190,6 @@ ip6_init(void)
 	struct ip6protosw *pr;
 	int i;
 
-	V_ip6qmaxlen = IFQ_MAXLEN;
 	V_in6_maxmtu = 0;
 #ifdef IP6_AUTO_LINKLOCAL
 	V_ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
@@ -296,10 +299,19 @@ ip6_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
-	ip6intrq.ifq_maxlen = V_ip6qmaxlen; /* XXX */
-	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, 0);
+	netisr_register(&ip6_nh);
 }
+
+#ifdef VIMAGE
+void
+ip6_destroy()
+{
+	INIT_VNET_INET6(curvnet);
+
+	nd6_destroy();
+	callout_drain(&V_in6_tmpaddrtimer_ch);
+}
+#endif
 
 static int
 ip6_init2_vnet(const void *unused __unused)
@@ -378,7 +390,7 @@ ip6_input(struct mbuf *m)
 #define M2MMAX	(sizeof(V_ip6stat.ip6s_m2m)/sizeof(V_ip6stat.ip6s_m2m[0]))
 		if (m->m_next) {
 			if (m->m_flags & M_LOOP) {
-				V_ip6stat.ip6s_m2m[V_loif[0].if_index]++; /* XXX */
+				V_ip6stat.ip6s_m2m[V_loif->if_index]++;
 			} else if (m->m_pkthdr.rcvif->if_index < M2MMAX)
 				V_ip6stat.ip6s_m2m[m->m_pkthdr.rcvif->if_index]++;
 			else
@@ -773,10 +785,11 @@ passin:
 		 * case we should pass the packet to the multicast routing
 		 * daemon.
 		 */
-		if (rtalert != ~0 && V_ip6_forwarding) {
+		if (rtalert != ~0) {
 			switch (rtalert) {
 			case IP6OPT_RTALERT_MLD:
-				ours = 1;
+				if (V_ip6_forwarding)
+					ours = 1;
 				break;
 			default:
 				/*
@@ -820,6 +833,9 @@ passin:
 		 * The packet is returned (relatively) intact; if
 		 * ip6_mforward() returns a non-zero value, the packet
 		 * must be discarded, else it may be accepted below.
+		 *
+		 * XXX TODO: Check hlim and multicast scope here to avoid
+		 * unnecessarily calling into ip6_mforward().
 		 */
 		if (ip6_mforward &&
 		    ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
@@ -882,6 +898,14 @@ passin:
 		if (ip6_ipsec_input(m, nxt))
 			goto bad;
 #endif /* IPSEC */
+
+		/*
+		 * Use mbuf flags to propagate Router Alert option to
+		 * ICMPv6 layer, as hop-by-hop options have been stripped.
+		 */
+		if (nxt == IPPROTO_ICMPV6 && rtalert != ~0)
+			m->m_flags |= M_RTALERT_MLD;
+
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
 	goto out;

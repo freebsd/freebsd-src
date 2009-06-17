@@ -101,8 +101,8 @@ int
 ata_ahci_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    int	error;
-    u_int32_t version;
+    int error, speed;
+    u_int32_t caps, version;
 
     /* if we have a memory BAR(5) we are likely on an AHCI part */
     ctlr->r_type2 = SYS_RES_MEMORY;
@@ -142,16 +142,45 @@ ata_ahci_chipinit(device_t dev)
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
 
-    /* announce we support the HW */
-    version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
-    device_printf(dev,
-		  "AHCI Version %x%x.%x%x controller with %d ports PM %s\n",
-		  (version >> 24) & 0xff, (version >> 16) & 0xff,
-		  (version >> 8) & 0xff, version & 0xff,
-		  (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_NPMASK) + 1,
-		  (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) ?
-		  "supported" : "not supported");
-    return 0;
+	/* announce we support the HW */
+	version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
+	caps = ATA_INL(ctlr->r_res2, ATA_AHCI_CAP);
+	speed = (caps & ATA_AHCI_CAP_ISS) >> ATA_AHCI_CAP_ISS_SHIFT;
+	device_printf(dev,
+		    "AHCI v%x.%02x controller with %d %sGbps ports, PM %s\n",
+		    ((version >> 20) & 0xf0) + ((version >> 16) & 0x0f),
+		    ((version >> 4) & 0xf0) + (version & 0x0f),
+		    (caps & ATA_AHCI_CAP_NPMASK) + 1,
+		    ((speed == 1) ? "1.5":((speed == 2) ? "3":
+		    ((speed == 3) ? "6":"?"))),
+		    (caps & ATA_AHCI_CAP_SPM) ?
+		    "supported" : "not supported");
+	if (bootverbose) {
+		device_printf(dev, "Caps:%s%s%s%s%s%s%s%s %sGbps",
+		    (caps & ATA_AHCI_CAP_64BIT) ? " 64bit":"",
+		    (caps & ATA_AHCI_CAP_SNCQ) ? " NCQ":"",
+		    (caps & ATA_AHCI_CAP_SSNTF) ? " SNTF":"",
+		    (caps & ATA_AHCI_CAP_SMPS) ? " MPS":"",
+		    (caps & ATA_AHCI_CAP_SSS) ? " SS":"",
+		    (caps & ATA_AHCI_CAP_SALP) ? " ALP":"",
+		    (caps & ATA_AHCI_CAP_SAL) ? " AL":"",
+		    (caps & ATA_AHCI_CAP_SCLO) ? " CLO":"",
+		    ((speed == 1) ? "1.5":((speed == 2) ? "3":
+		    ((speed == 3) ? "6":"?"))));
+		printf("%s%s%s%s%s%s %dcmd%s%s%s %dports\n",
+		    (caps & ATA_AHCI_CAP_SAM) ? " AM":"",
+		    (caps & ATA_AHCI_CAP_SPM) ? " PM":"",
+		    (caps & ATA_AHCI_CAP_FBSS) ? " FBS":"",
+		    (caps & ATA_AHCI_CAP_PMD) ? " PMD":"",
+		    (caps & ATA_AHCI_CAP_SSC) ? " SSC":"",
+		    (caps & ATA_AHCI_CAP_PSC) ? " PSC":"",
+		    ((caps & ATA_AHCI_CAP_NCS) >> ATA_AHCI_CAP_NCS_SHIFT) + 1,
+		    (caps & ATA_AHCI_CAP_CCCS) ? " CCC":"",
+		    (caps & ATA_AHCI_CAP_EMS) ? " EM":"",
+		    (caps & ATA_AHCI_CAP_SXS) ? " eSATA":"",
+		    (caps & ATA_AHCI_CAP_NPMASK) + 1);
+	}
+	return 0;
 }
 
 int
@@ -625,7 +654,7 @@ ata_ahci_clo(device_t dev)
     int timeout;
 
     /* issue Command List Override if supported */ 
-    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_CLO) {
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SCLO) {
 	cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
 	cmd |= ATA_AHCI_P_CMD_CLO;
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, cmd);

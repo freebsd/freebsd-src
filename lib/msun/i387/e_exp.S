@@ -96,3 +96,4 @@ x_Inf_or_NaN:
 x_not_minus_Inf:
 	fldl	4(%esp)
 	ret
+END(exp)

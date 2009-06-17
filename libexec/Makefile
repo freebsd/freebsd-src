@@ -11,7 +11,6 @@ SUBDIR=	${_atrun} \
 	getty \
 	lukemftpd \
 	${_mail.local} \
-	makekey \
 	${_mknetid} \
 	${_pppoed} \
 	rbootd \

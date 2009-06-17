@@ -28,8 +28,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/time.h>
+
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include "cacheplcs.h"
 #include "debug.h"
 
@@ -55,7 +59,7 @@ static void cache_lru_policy_update_item(struct cache_policy_ *,
 	struct cache_policy_item_ *);
 static void cache_queue_policy_add_item(struct cache_policy_ *,
 	struct cache_policy_item_ *);
-static struct cache_policy_item_ * cache_queue_policy_create_item();
+static struct cache_policy_item_ * cache_queue_policy_create_item(void);
 static void cache_queue_policy_destroy_item(struct cache_policy_item_ *);
 static struct cache_policy_item_ *cache_queue_policy_get_first_item(
 	struct cache_policy_ *);
@@ -77,13 +81,13 @@ static struct cache_queue_policy_ *init_cache_queue_policy(void);
  * cache_queue_policy_ with cache_update_item function changed.
  */
 static struct cache_policy_item_ *
-cache_queue_policy_create_item()
+cache_queue_policy_create_item(void)
 {
 	struct cache_queue_policy_item_ *retval;
 
 	TRACE_IN(cache_queue_policy_create_item);
-	retval = (struct cache_queue_policy_item_ *)calloc(1,
-		sizeof(struct cache_queue_policy_item_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	TRACE_OUT(cache_queue_policy_create_item);
@@ -192,8 +196,8 @@ init_cache_queue_policy(void)
 	struct cache_queue_policy_	*retval;
 
 	TRACE_IN(init_cache_queue_policy);
-	retval = (struct cache_queue_policy_ *)calloc(1,
-		sizeof(struct cache_queue_policy_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent_data.create_item_func = cache_queue_policy_create_item;
@@ -248,7 +252,7 @@ cache_fifo_policy_update_item(struct cache_policy_ *policy,
 }
 
 struct cache_policy_ *
-init_cache_fifo_policy()
+init_cache_fifo_policy(void)
 {
 	struct cache_queue_policy_ *retval;
 
@@ -293,7 +297,7 @@ cache_lru_policy_update_item(struct cache_policy_ *policy,
 }
 
 struct cache_policy_ *
-init_cache_lru_policy()
+init_cache_lru_policy(void)
 {
 	struct cache_queue_policy_ *retval;
 
@@ -332,8 +336,8 @@ cache_lfu_policy_create_item(void)
 	struct cache_lfu_policy_item_ *retval;
 
 	TRACE_IN(cache_lfu_policy_create_item);
-	retval = (struct cache_lfu_policy_item_ *)calloc(1,
-		sizeof(struct cache_lfu_policy_item_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	TRACE_OUT(cache_lfu_policy_create_item);
@@ -530,14 +534,14 @@ cache_lfu_policy_get_prev_item(struct cache_policy_ *policy,
  * functions pointers
  */
 struct cache_policy_ *
-init_cache_lfu_policy()
+init_cache_lfu_policy(void)
 {
 	int i;
 	struct cache_lfu_policy_ *retval;
 
 	TRACE_IN(init_cache_lfu_policy);
-	retval = (struct cache_lfu_policy_ *)calloc(1,
-		sizeof(struct cache_lfu_policy_));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent_data.create_item_func = cache_lfu_policy_create_item;

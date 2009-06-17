@@ -101,6 +101,7 @@ void	ixp425_mem_bs_init(bus_space_tag_t, void *);
 uint32_t ixp425_sdram_size(void);
 uint32_t ixp435_ddram_size(void);
 uint32_t ixp4xx_read_feature_bits(void);
+void	ixp4xx_write_feature_bits(uint32_t);
 
 int	ixp425_md_route_interrupt(device_t, device_t, int);
 void	ixp425_md_attach(device_t);

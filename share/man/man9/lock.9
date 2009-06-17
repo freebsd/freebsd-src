@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 05, 2009
+.Dd June 16, 2009
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -96,6 +96,9 @@ The timeout value passed to
 .It Fa flags
 The flags the lock is to be initialized with:
 .Bl -tag -width ".Dv LK_CANRECURSE"
+.It Dv LK_ADAPTIVE
+Enable adaptive spinning for this lock if the kernel is compiled with the
+ADAPTIVE_LOCKMGRS option.
 .It Dv LK_CANRECURSE
 Allow recursive exclusive locks.
 .It Dv LK_NOPROFILE

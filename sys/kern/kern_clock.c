@@ -112,7 +112,7 @@ sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, cp_time, CTLTYPE_LONG|CTLFLAG_RD,
+SYSCTL_PROC(_kern, OID_AUTO, cp_time, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0,0, sysctl_kern_cp_time, "LU", "CPU time statistics");
 
 static long empty[CPUSTATES];
@@ -156,7 +156,7 @@ sysctl_kern_cp_times(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, cp_times, CTLTYPE_LONG|CTLFLAG_RD,
+SYSCTL_PROC(_kern, OID_AUTO, cp_times, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0,0, sysctl_kern_cp_times, "LU", "per-CPU time statistics");
 
 void
@@ -559,7 +559,8 @@ sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_opaque(oidp, &clkinfo, sizeof clkinfo, req));
 }
 
-SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
+SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate,
+	CTLTYPE_STRUCT|CTLFLAG_RD|CTLFLAG_MPSAFE,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo",
 	"Rate and period of various kernel clocks");
 

@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslfiles - file I/O suppoert
- *              $Revision: 1.54 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,7 +115,7 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/acapps.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslfiles")
@@ -191,7 +190,18 @@ FlOpenLocalFile (
     char                    *Mode)
 {
 
-    strcpy (StringBuffer, Gbl_DirectoryPath);
+    StringBuffer[0] = 0;
+
+    /* Check for an absolute pathname */
+
+    if ((LocalName[0] != '/') &&        /* Forward slash */
+        (LocalName[0] != '\\') &&       /* backslash (Win) */
+        (LocalName[1] != ':'))          /* Device name (Win) */
+    {
+        /* The include file path is relative, prepend the directory path */
+
+        strcat (StringBuffer, Gbl_DirectoryPath);
+    }
     strcat (StringBuffer, LocalName);
 
     DbgPrint (ASL_PARSE_OUTPUT, "FlOpenLocalFile: %s\n", StringBuffer);
@@ -369,6 +379,8 @@ FlPrintFile (
     va_start (Args, Format);
 
     Actual = vfprintf (Gbl_Files[FileId].Handle, Format, Args);
+    va_end (Args);
+
     if (Actual == -1)
     {
         FlFileError (FileId, ASL_MSG_WRITE);

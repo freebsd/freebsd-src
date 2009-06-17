@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.44 2009/01/28 02:11:20 christos Exp $
+# $File: Makefile.am,v 1.45 2009/03/05 22:40:59 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_FRAGMENT_DIR = $(top_srcdir)/magic/$(MAGIC_FRAGMENT_BASE)
@@ -97,6 +97,7 @@ $(MAGIC_FRAGMENT_DIR)/java \
 $(MAGIC_FRAGMENT_DIR)/jpeg \
 $(MAGIC_FRAGMENT_DIR)/karma \
 $(MAGIC_FRAGMENT_DIR)/kde \
+$(MAGIC_FRAGMENT_DIR)/kml \
 $(MAGIC_FRAGMENT_DIR)/lecter \
 $(MAGIC_FRAGMENT_DIR)/lex \
 $(MAGIC_FRAGMENT_DIR)/lif \

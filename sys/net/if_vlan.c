@@ -41,7 +41,6 @@
  * and ask it to send them.
  */
 
-#include "opt_route.h"
 #include "opt_vlan.h"
 
 #include <sys/param.h>

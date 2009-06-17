@@ -100,14 +100,15 @@ nb_intr(struct nbpcb *nbp, struct proc *p)
 	return 0;
 }
 
-static void
+static int
 nb_upcall(struct socket *so, void *arg, int waitflag)
 {
 	struct nbpcb *nbp = arg;
 
 	if (arg == NULL || nbp->nbp_selectid == NULL)
-		return;
+		return (SU_OK);
 	wakeup(nbp->nbp_selectid);
+	return (SU_OK);
 }
 
 static int
@@ -152,10 +153,8 @@ nb_connect_in(struct nbpcb *nbp, struct sockaddr_in *to, struct thread *td)
 	if (error)
 		return error;
 	nbp->nbp_tso = so;
-	so->so_upcallarg = (caddr_t)nbp;
-	so->so_upcall = nb_upcall;
 	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(so, SO_RCV, nb_upcall, nbp);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	so->so_rcv.sb_timeo = (5 * hz);
 	so->so_snd.sb_timeo = (5 * hz);

@@ -33,6 +33,10 @@
  * SB16 register descriptions.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/sb.h>
 #include <dev/sound/pci/als4000.h>
@@ -84,10 +88,10 @@ struct sc_info {
 /* Channel caps */
 
 static u_int32_t als_format[] = {
-        AFMT_U8,
-        AFMT_STEREO | AFMT_U8,
-        AFMT_S16_LE,
-        AFMT_STEREO | AFMT_S16_LE,
+        SND_FORMAT(AFMT_U8, 1, 0),
+        SND_FORMAT(AFMT_U8, 2, 0),
+        SND_FORMAT(AFMT_S16_LE, 1, 0),
+        SND_FORMAT(AFMT_S16_LE, 2, 0),
         0
 };
 
@@ -216,7 +220,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->parent = sc;
 	ch->channel = c;
 	ch->bps = 1;
-	ch->format = AFMT_U8;
+	ch->format = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->speed = DSP_DEFAULT_SPEED;
 	ch->buffer = b;
 	snd_mtxunlock(sc->lock);
@@ -236,7 +240,7 @@ alschan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 alschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct	sc_chinfo *ch = data, *other;
@@ -254,7 +258,7 @@ alschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return speed;
 }
 
-static int
+static u_int32_t
 alschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct	sc_chinfo *ch = data;
@@ -267,7 +271,7 @@ alschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	return blocksize;
 }
 
-static int
+static u_int32_t
 alschan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
@@ -316,10 +320,10 @@ struct playback_command {
 	u_int8_t  dma_prog;	/* sb16 dma program */
 	u_int8_t  dma_stop;	/* sb16 stop register */
 } static const playback_cmds[] = {
-	ALS_8BIT_CMD(AFMT_U8, DSP_MODE_U8MONO),
-	ALS_8BIT_CMD(AFMT_U8 | AFMT_STEREO, DSP_MODE_U8STEREO),
-	ALS_16BIT_CMD(AFMT_S16_LE, DSP_MODE_S16MONO),
-	ALS_16BIT_CMD(AFMT_S16_LE | AFMT_STEREO, DSP_MODE_S16STEREO),
+	ALS_8BIT_CMD(SND_FORMAT(AFMT_U8, 1, 0), DSP_MODE_U8MONO),
+	ALS_8BIT_CMD(SND_FORMAT(AFMT_U8, 2, 0), DSP_MODE_U8STEREO),
+	ALS_16BIT_CMD(SND_FORMAT(AFMT_S16_LE, 1, 0), DSP_MODE_S16MONO),
+	ALS_16BIT_CMD(SND_FORMAT(AFMT_S16_LE, 2, 0), DSP_MODE_S16STEREO),
 };
 
 static const struct playback_command*
@@ -418,7 +422,7 @@ static kobj_method_t alspchan_methods[] = {
 	KOBJMETHOD(channel_trigger,		alspchan_trigger),
 	KOBJMETHOD(channel_getptr,		alschan_getptr),
 	KOBJMETHOD(channel_getcaps,		alschan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(alspchan);
 
@@ -429,13 +433,13 @@ static u_int8_t
 als_get_fifo_format(struct sc_info *sc, u_int32_t format)
 {
 	switch (format) {
-	case AFMT_U8:
+	case SND_FORMAT(AFMT_U8, 1, 0):
 		return ALS_FIFO1_8BIT;
-	case AFMT_U8 | AFMT_STEREO:
+	case SND_FORMAT(AFMT_U8, 2, 0):
 		return ALS_FIFO1_8BIT | ALS_FIFO1_STEREO;
-	case AFMT_S16_LE:
+	case SND_FORMAT(AFMT_S16_LE, 1, 0):
 		return ALS_FIFO1_SIGNED;
-	case AFMT_S16_LE | AFMT_STEREO:
+	case SND_FORMAT(AFMT_S16_LE, 2, 0):
 		return ALS_FIFO1_SIGNED | ALS_FIFO1_STEREO;
 	}
 	device_printf(sc->dev, "format not found: 0x%08x\n", format);
@@ -512,7 +516,7 @@ static kobj_method_t alsrchan_methods[] = {
 	KOBJMETHOD(channel_trigger,		alsrchan_trigger),
 	KOBJMETHOD(channel_getptr,		alschan_getptr),
 	KOBJMETHOD(channel_getcaps,		alschan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(alsrchan);
 
@@ -594,7 +598,7 @@ alsmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return 0;
 }
 
-static int
+static u_int32_t
 alsmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct sc_info *sc = mix_getdevinfo(m);
@@ -621,7 +625,7 @@ static kobj_method_t als_mixer_methods[] = {
 	KOBJMETHOD(mixer_init,		alsmix_init),
 	KOBJMETHOD(mixer_set,		alsmix_set),
 	KOBJMETHOD(mixer_setrecsrc,	alsmix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(als_mixer);
 

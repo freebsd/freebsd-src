@@ -75,6 +75,15 @@ The
 .Fn acl_set_link_np
 function acts on a symlink rather than its target, if the target of the
 path is a symlink.
+.Pp
+Valid values for the
+.Va type
+argument are:
+.Pp
+.Bl -column -offset 3n "ACL_TYPE_DEFAULT"
+.It ACL_TYPE_ACCESS	POSIX.1e access ACL
+.It ACL_TYPE_DEFAULT	POSIX.1e default ACL
+.El
 .Sh IMPLEMENTATION NOTES
 .Fx Ns 's
 support for POSIX.1e interfaces and features is still under

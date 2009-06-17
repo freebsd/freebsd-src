@@ -675,8 +675,8 @@ malloc_init(void *data)
 	KASSERT(cnt.v_page_count != 0, ("malloc_register before vm_init"));
 
 	mtp = data;
-	KASSERT(mtp->ks_magic == M_MAGIC,
-	    ("malloc_init: bad malloc type magic"));
+	if (mtp->ks_magic != M_MAGIC)
+		panic("malloc_init: bad malloc type magic");
 
 	mtip = uma_zalloc(mt_zone, M_WAITOK | M_ZERO);
 	mtp->ks_handle = mtip;
@@ -709,9 +709,13 @@ malloc_uninit(void *data)
 	if (mtp != kmemstatistics) {
 		for (temp = kmemstatistics; temp != NULL;
 		    temp = temp->ks_next) {
-			if (temp->ks_next == mtp)
+			if (temp->ks_next == mtp) {
 				temp->ks_next = mtp->ks_next;
+				break;
+			}
 		}
+		KASSERT(temp,
+		    ("malloc_uninit: type '%s' not found", mtp->ks_shortdesc));
 	} else
 		kmemstatistics = mtp->ks_next;
 	kmemcount--;

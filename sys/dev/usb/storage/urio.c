@@ -67,8 +67,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int urio_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
-SYSCTL_INT(_hw_usb2_urio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
+SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
     &urio_debug, 0, "urio debug level");
 #endif
 
@@ -82,11 +82,11 @@ SYSCTL_INT(_hw_usb2_urio, OID_AUTO, debug, CTLFLAG_RW,
 #define	URIO_IFQ_MAXLEN      2		/* units */
 
 struct urio_softc {
-	struct usb2_fifo_sc sc_fifo;
+	struct usb_fifo_sc sc_fifo;
 	struct mtx sc_mtx;
 
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[URIO_T_MAX];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[URIO_T_MAX];
 
 	uint8_t	sc_flags;
 #define	URIO_FLAG_READ_STALL    0x01	/* read transfer stalled */
@@ -101,20 +101,20 @@ static device_probe_t urio_probe;
 static device_attach_t urio_attach;
 static device_detach_t urio_detach;
 
-static usb2_callback_t urio_write_callback;
-static usb2_callback_t urio_write_clear_stall_callback;
-static usb2_callback_t urio_read_callback;
-static usb2_callback_t urio_read_clear_stall_callback;
+static usb_callback_t urio_write_callback;
+static usb_callback_t urio_write_clear_stall_callback;
+static usb_callback_t urio_read_callback;
+static usb_callback_t urio_read_clear_stall_callback;
 
-static usb2_fifo_close_t urio_close;
-static usb2_fifo_cmd_t urio_start_read;
-static usb2_fifo_cmd_t urio_start_write;
-static usb2_fifo_cmd_t urio_stop_read;
-static usb2_fifo_cmd_t urio_stop_write;
-static usb2_fifo_ioctl_t urio_ioctl;
-static usb2_fifo_open_t urio_open;
+static usb_fifo_close_t urio_close;
+static usb_fifo_cmd_t urio_start_read;
+static usb_fifo_cmd_t urio_start_write;
+static usb_fifo_cmd_t urio_stop_read;
+static usb_fifo_cmd_t urio_stop_write;
+static usb_fifo_ioctl_t urio_ioctl;
+static usb_fifo_open_t urio_open;
 
-static struct usb2_fifo_methods urio_fifo_methods = {
+static struct usb_fifo_methods urio_fifo_methods = {
 	.f_close = &urio_close,
 	.f_ioctl = &urio_ioctl,
 	.f_open = &urio_open,
@@ -125,7 +125,7 @@ static struct usb2_fifo_methods urio_fifo_methods = {
 	.basename[0] = "urio",
 };
 
-static const struct usb2_config urio_config[URIO_T_MAX] = {
+static const struct usb_config urio_config[URIO_T_MAX] = {
 	[URIO_T_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -148,7 +148,7 @@ static const struct usb2_config urio_config[URIO_T_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &urio_write_clear_stall_callback,
 		.timeout = 1000,	/* 1 second */
 		.interval = 50,	/* 50ms */
@@ -158,7 +158,7 @@ static const struct usb2_config urio_config[URIO_T_MAX] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
+		.bufsize = sizeof(struct usb_device_request),
 		.callback = &urio_read_clear_stall_callback,
 		.timeout = 1000,	/* 1 second */
 		.interval = 50,	/* 50ms */
@@ -187,9 +187,9 @@ MODULE_DEPEND(urio, usb, 1, 1, 1);
 static int
 urio_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if ((((uaa->info.idVendor == USB_VENDOR_DIAMOND) &&
@@ -205,11 +205,11 @@ urio_probe(device_t dev)
 static int
 urio_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct urio_softc *sc = device_get_softc(dev);
 	int error;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	sc->sc_udev = uaa->device;
 
@@ -218,16 +218,16 @@ urio_attach(device_t dev)
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
 	    "%s", device_get_nameunit(dev));
 
-	error = usb2_transfer_setup(uaa->device,
+	error = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer,
 	    urio_config, URIO_T_MAX, sc, &sc->sc_mtx);
 
 	if (error) {
-		DPRINTF("error=%s\n", usb2_errstr(error));
+		DPRINTF("error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
 
-	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
+	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &urio_fifo_methods, &sc->sc_fifo,
 	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
@@ -242,24 +242,24 @@ detach:
 }
 
 static void
-urio_write_callback(struct usb2_xfer *xfer)
+urio_write_callback(struct usb_xfer *xfer)
 {
 	struct urio_softc *sc = xfer->priv_sc;
-	struct usb2_fifo *f = sc->sc_fifo.fp[USB_FIFO_TX];
+	struct usb_fifo *f = sc->sc_fifo.fp[USB_FIFO_TX];
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 		if (sc->sc_flags & URIO_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[URIO_T_WR_CS]);
+			usbd_transfer_start(sc->sc_xfer[URIO_T_WR_CS]);
 			return;
 		}
-		if (usb2_fifo_get_data(f, xfer->frbuffers, 0,
+		if (usb_fifo_get_data(f, xfer->frbuffers, 0,
 		    xfer->max_data_length, &actlen, 0)) {
 
 			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -267,44 +267,44 @@ urio_write_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= URIO_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[URIO_T_WR_CS]);
+			usbd_transfer_start(sc->sc_xfer[URIO_T_WR_CS]);
 		}
 		return;
 	}
 }
 
 static void
-urio_write_clear_stall_callback(struct usb2_xfer *xfer)
+urio_write_clear_stall_callback(struct usb_xfer *xfer)
 {
 	struct urio_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[URIO_T_WR];
+	struct usb_xfer *xfer_other = sc->sc_xfer[URIO_T_WR];
 
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
+	if (usbd_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		sc->sc_flags &= ~URIO_FLAG_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
+		usbd_transfer_start(xfer_other);
 	}
 }
 
 static void
-urio_read_callback(struct usb2_xfer *xfer)
+urio_read_callback(struct usb_xfer *xfer)
 {
 	struct urio_softc *sc = xfer->priv_sc;
-	struct usb2_fifo *f = sc->sc_fifo.fp[USB_FIFO_RX];
+	struct usb_fifo *f = sc->sc_fifo.fp[USB_FIFO_RX];
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_fifo_put_data(f, xfer->frbuffers, 0,
+		usb_fifo_put_data(f, xfer->frbuffers, 0,
 		    xfer->actlen, 1);
 
 	case USB_ST_SETUP:
 		if (sc->sc_flags & URIO_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[URIO_T_RD_CS]);
+			usbd_transfer_start(sc->sc_xfer[URIO_T_RD_CS]);
 			return;
 		}
-		if (usb2_fifo_put_bytes_max(f) != 0) {
+		if (usb_fifo_put_bytes_max(f) != 0) {
 			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
@@ -312,61 +312,61 @@ urio_read_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= URIO_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[URIO_T_RD_CS]);
+			usbd_transfer_start(sc->sc_xfer[URIO_T_RD_CS]);
 		}
 		return;
 	}
 }
 
 static void
-urio_read_clear_stall_callback(struct usb2_xfer *xfer)
+urio_read_clear_stall_callback(struct usb_xfer *xfer)
 {
 	struct urio_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[URIO_T_RD];
+	struct usb_xfer *xfer_other = sc->sc_xfer[URIO_T_RD];
 
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
+	if (usbd_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		sc->sc_flags &= ~URIO_FLAG_READ_STALL;
-		usb2_transfer_start(xfer_other);
+		usbd_transfer_start(xfer_other);
 	}
 }
 
 static void
-urio_start_read(struct usb2_fifo *fifo)
+urio_start_read(struct usb_fifo *fifo)
 {
 	struct urio_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[URIO_T_RD]);
+	usbd_transfer_start(sc->sc_xfer[URIO_T_RD]);
 }
 
 static void
-urio_stop_read(struct usb2_fifo *fifo)
+urio_stop_read(struct usb_fifo *fifo)
 {
 	struct urio_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[URIO_T_RD_CS]);
-	usb2_transfer_stop(sc->sc_xfer[URIO_T_RD]);
+	usbd_transfer_stop(sc->sc_xfer[URIO_T_RD_CS]);
+	usbd_transfer_stop(sc->sc_xfer[URIO_T_RD]);
 }
 
 static void
-urio_start_write(struct usb2_fifo *fifo)
+urio_start_write(struct usb_fifo *fifo)
 {
 	struct urio_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[URIO_T_WR]);
+	usbd_transfer_start(sc->sc_xfer[URIO_T_WR]);
 }
 
 static void
-urio_stop_write(struct usb2_fifo *fifo)
+urio_stop_write(struct usb_fifo *fifo)
 {
 	struct urio_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[URIO_T_WR_CS]);
-	usb2_transfer_stop(sc->sc_xfer[URIO_T_WR]);
+	usbd_transfer_stop(sc->sc_xfer[URIO_T_WR_CS]);
+	usbd_transfer_stop(sc->sc_xfer[URIO_T_WR]);
 }
 
 static int
-urio_open(struct usb2_fifo *fifo, int fflags)
+urio_open(struct usb_fifo *fifo, int fflags)
 {
 	struct urio_softc *sc = fifo->priv_sc0;
 
@@ -379,7 +379,7 @@ urio_open(struct usb2_fifo *fifo, int fflags)
 		sc->sc_flags |= URIO_FLAG_READ_STALL;
 		mtx_unlock(&sc->sc_mtx);
 
-		if (usb2_fifo_alloc_buffer(fifo,
+		if (usb_fifo_alloc_buffer(fifo,
 		    sc->sc_xfer[URIO_T_RD]->max_data_length,
 		    URIO_IFQ_MAXLEN)) {
 			return (ENOMEM);
@@ -389,7 +389,7 @@ urio_open(struct usb2_fifo *fifo, int fflags)
 		/* clear stall first */
 		sc->sc_flags |= URIO_FLAG_WRITE_STALL;
 
-		if (usb2_fifo_alloc_buffer(fifo,
+		if (usb_fifo_alloc_buffer(fifo,
 		    sc->sc_xfer[URIO_T_WR]->max_data_length,
 		    URIO_IFQ_MAXLEN)) {
 			return (ENOMEM);
@@ -399,18 +399,18 @@ urio_open(struct usb2_fifo *fifo, int fflags)
 }
 
 static void
-urio_close(struct usb2_fifo *fifo, int fflags)
+urio_close(struct usb_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE)) {
-		usb2_fifo_free_buffer(fifo);
+		usb_fifo_free_buffer(fifo);
 	}
 }
 
 static int
-urio_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
+urio_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
     int fflags)
 {
-	struct usb2_ctl_request ur;
+	struct usb_ctl_request ur;
 	struct RioCommand *rio_cmd;
 	int error;
 
@@ -465,9 +465,9 @@ urio_detach(device_t dev)
 
 	DPRINTF("\n");
 
-	usb2_fifo_detach(&sc->sc_fifo);
+	usb_fifo_detach(&sc->sc_fifo);
 
-	usb2_transfer_unsetup(sc->sc_xfer, URIO_T_MAX);
+	usbd_transfer_unsetup(sc->sc_xfer, URIO_T_MAX);
 
 	mtx_destroy(&sc->sc_mtx);
 

@@ -150,8 +150,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 
 	/*
 	 * XXX: tcp_reass() is rather inefficient with its data structures
-	 * and should be rewritten (see NetBSD for optimizations).  While
-	 * doing that it should move to its own file tcp_reass.c.
+	 * and should be rewritten (see NetBSD for optimizations).
 	 */
 
 	/*

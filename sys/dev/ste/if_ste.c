@@ -98,7 +98,7 @@ static void ste_init(void *);
 static void ste_init_locked(struct ste_softc *);
 static void ste_intr(void *);
 static void ste_rxeoc(struct ste_softc *);
-static void ste_rxeof(struct ste_softc *);
+static int ste_rxeof(struct ste_softc *);
 static void ste_txeoc(struct ste_softc *);
 static void ste_txeof(struct ste_softc *);
 static void ste_stats_update(void *);
@@ -620,28 +620,31 @@ ste_setmulti(sc)
 #ifdef DEVICE_POLLING
 static poll_handler_t ste_poll, ste_poll_locked;
 
-static void
+static int
 ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct ste_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	STE_LOCK(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ste_poll_locked(ifp, cmd, count);
+		rx_npkts = ste_poll_locked(ifp, cmd, count);
 	STE_UNLOCK(sc);
+	return (rx_npkts);
 }
 
-static void
+static int
 ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct ste_softc *sc = ifp->if_softc;
+	int rx_npkts;
 
 	STE_LOCK_ASSERT(sc);
 
 	sc->rxcycles = count;
 	if (cmd == POLL_AND_CHECK_STATUS)
 		ste_rxeoc(sc);
-	ste_rxeof(sc);
+	rx_npkts = ste_rxeof(sc);
 	ste_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start_locked(ifp);
@@ -667,6 +670,7 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			ste_init_locked(sc);
 		}
 	}
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -765,14 +769,14 @@ ste_rxeoc(struct ste_softc *sc)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 ste_rxeof(sc)
 	struct ste_softc		*sc;
 {
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct ste_chain_onefrag	*cur_rx;
-	int			total_len = 0, count=0;
+	int			total_len = 0, count=0, rx_npkts = 0;
 	u_int32_t		rxstat;
 
 	STE_LOCK_ASSERT(sc);
@@ -847,9 +851,10 @@ ste_rxeof(sc)
 
 		cur_rx->ste_ptr->ste_status = 0;
 		count++;
+		rx_npkts++;
 	}
 
-	return;
+	return (rx_npkts);
 }
 
 static void

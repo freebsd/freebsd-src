@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/intr_machdep.h>
+#include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb.h>
@@ -256,6 +257,8 @@ cpu_startup(dummy)
 	vm_pager_bufferinit();
 
 	cpu_setregs();
+
+	mca_init();
 }
 
 /*
@@ -1045,6 +1048,16 @@ sigreturn(td, uap)
 void
 cpu_boot(int howto)
 {
+}
+
+/*
+ * Flush the D-cache for non-DMA I/O so that the I-cache can
+ * be made coherent later.
+ */
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+	/* Not applicable */
 }
 
 /* Get current clock frequency for the given cpu id. */

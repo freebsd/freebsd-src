@@ -63,3 +63,4 @@ ENTRY(remquof)
 	fstps	-4(%rsp)
 	movss	-4(%rsp),%xmm0
 	ret
+END(remquof)

@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.78 2008/07/07 23:32:51 stevesk Exp $ */
+/* $OpenBSD: key.c,v 1.80 2008/10/10 05:00:12 stevesk Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -369,7 +369,8 @@ key_fingerprint_randomart(u_char *dgst_raw, u_int dgst_raw_len, const Key *k)
 			y = MIN(y, FLDSIZE_Y - 1);
 
 			/* augment the field */
-			field[x][y]++;
+			if (field[x][y] < len - 2)
+				field[x][y]++;
 			input = input >> 2;
 		}
 	}
@@ -427,7 +428,7 @@ key_fingerprint(const Key *k, enum fp_type dgst_type, enum fp_rep dgst_rep)
 		retval = key_fingerprint_randomart(dgst_raw, dgst_raw_len, k);
 		break;
 	default:
-		fatal("key_fingerprint_ex: bad digest representation %d",
+		fatal("key_fingerprint: bad digest representation %d",
 		    dgst_rep);
 		break;
 	}

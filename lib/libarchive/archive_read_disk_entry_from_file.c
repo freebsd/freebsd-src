@@ -92,6 +92,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	int initial_fd = fd;
 	int r, r1;
 
+	archive_clear_error(_a);
 	path = archive_entry_sourcepath(entry);
 	if (path == NULL)
 		path = archive_entry_pathname(entry);

@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -163,11 +162,13 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			if (so->so_options & SO_REUSEADDR)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			struct ifaddr *ia = NULL;
+			struct ifaddr *ia;
 
 			sin6->sin6_port = 0;		/* yech... */
-			if ((ia = ifa_ifwithaddr((struct sockaddr *)sin6)) == 0)
+			if ((ia = ifa_ifwithaddr((struct sockaddr *)sin6)) == NULL &&
+			    (inp->inp_flags & INP_BINDANY) == 0) {
 				return (EADDRNOTAVAIL);
+			}
 
 			/*
 			 * XXX: bind to an anycast address might accidentally
@@ -666,7 +667,8 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 			    inp->inp_lport == lport) {
 				/* Found. */
 				if (cred == NULL ||
-				    inp->inp_cred->cr_prison == cred->cr_prison)
+				    prison_equal_ip6(cred->cr_prison,
+					inp->inp_cred->cr_prison))
 					return (inp);
 			}
 		}
@@ -698,7 +700,8 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
 				if (cred != NULL &&
-				    inp->inp_cred->cr_prison != cred->cr_prison)
+				    !prison_equal_ip6(cred->cr_prison,
+					inp->inp_cred->cr_prison))
 					continue;
 				/* XXX inp locking */
 				if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -838,7 +841,7 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			 * the inp here, without any checks.
 			 * Well unless both bound with SO_REUSEPORT?
 			 */
-			if (jailed(inp->inp_cred))
+			if (prison_flag(inp->inp_cred, PR_IP6))
 				return (inp);
 			if (tmpinp == NULL)
 				tmpinp = inp;
@@ -878,7 +881,7 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			if (faith && (inp->inp_flags & INP_FAITH) == 0)
 				continue;
 
-			injail = jailed(inp->inp_cred);
+			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
 				if (prison_check_ip6(inp->inp_cred,
 				    laddr) != 0)

@@ -80,16 +80,18 @@ static const struct bwi_dev {
 	uint16_t	did;
 	const char	*desc;
 } bwi_devices[] = {
-	{ PCI_VENDOR_BROADCOM, 0x4301,"Broadcom BCM4301 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4307,"Broadcom BCM4307 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4311,"Broadcom BCM4311 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4312,"Broadcom BCM4312 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4320,"Broadcom BCM4306v1 802.11 Wireless Lan"},
-	{ PCI_VENDOR_BROADCOM, 0x4321,"Broadcom BCM4306v2 802.11 Wireless Lan"},
-	{ PCI_VENDOR_BROADCOM, 0x4325,"Broadcom BCM4306v3 802.11 Wireless Lan"},
-	{ PCI_VENDOR_BROADCOM, 0x4324,"Broadcom BCM4309 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4318,"Broadcom BCM4318 802.11 Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x4319,"Broadcom BCM4319 802.11 Wireless Lan" }
+	{ PCI_VENDOR_BROADCOM, 0x4301,"Broadcom BCM4301 802.11b Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4307,"Broadcom BCM4307 802.11b Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4311,"Broadcom BCM4311 802.11b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4312,"Broadcom BCM4312 802.11a/b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4313,"Broadcom BCM4312 802.11a Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4320,"Broadcom BCM4306 802.11b/g Wireless Lan"},
+	{ PCI_VENDOR_BROADCOM, 0x4321,"Broadcom BCM4306 802.11a Wireless Lan"},
+	{ PCI_VENDOR_BROADCOM, 0x4325,"Broadcom BCM4306 802.11b/g Wireless Lan"},
+	{ PCI_VENDOR_BROADCOM, 0x4324,"Broadcom BCM4309 802.11a/b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4318,"Broadcom BCM4318 802.11b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x4319,"Broadcom BCM4318 802.11a/b/g Wireless Lan" },
+	{ PCI_VENDOR_BROADCOM, 0x431a,"Broadcom BCM4318 802.11a Wireless Lan" }
 };
 
 static int
@@ -245,9 +247,7 @@ static driver_t bwi_driver = {
 	sizeof (struct bwi_pci_softc)
 };
 static	devclass_t bwi_devclass;
-DRIVER_MODULE(if_bwi, pci, bwi_driver, bwi_devclass, 0, 0);
-DRIVER_MODULE(bwi, cardbus, bwi_driver, bwi_devclass, 0, 0);
-MODULE_VERSION(if_bwi, 1);
-MODULE_DEPEND(if_bwi, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(if_bwi, firmware, 1, 1, 1);	/* firmware support */
-MODULE_DEPEND(if_bwi, wlan_amrr, 1, 1, 1);
+DRIVER_MODULE(bwi, pci, bwi_driver, bwi_devclass, 0, 0);
+MODULE_DEPEND(bwi, wlan, 1, 1, 1);		/* 802.11 media layer */
+MODULE_DEPEND(bwi, firmware, 1, 1, 1);		/* firmware support */
+MODULE_DEPEND(bwi, wlan_amrr, 1, 1, 1);

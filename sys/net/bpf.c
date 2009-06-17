@@ -38,7 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bpf.h"
-#include "opt_mac.h"
 #include "opt_netgraph.h"
 
 #include <sys/types.h>
@@ -534,6 +533,8 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 
 	bpf_bpfd_cnt++;
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, bp->bif_dlt, 1);
 }
 
 /*
@@ -560,6 +561,8 @@ bpf_detachd(struct bpf_d *d)
 	d->bd_bif = NULL;
 	BPFD_UNLOCK(d);
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, ifp, bp->bif_dlt, 0);
 
 	/*
 	 * Check if this descriptor had requested promiscuous mode.
@@ -645,7 +648,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, CALLOUT_MPSAFE);
-	knlist_init(&d->bd_sel.si_note, &d->bd_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_mtx);
 
 	return (0);
 }

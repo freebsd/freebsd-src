@@ -49,7 +49,7 @@ typedef int (libusb20_root_get_quirk_name_t)(struct libusb20_backend *pbe, uint1
 typedef int (libusb20_root_add_dev_quirk_t)(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
 typedef int (libusb20_root_remove_dev_quirk_t)(struct libusb20_backend *pbe, struct libusb20_quirk *pq);
 typedef int (libusb20_close_device_t)(struct libusb20_device *pdev);
-typedef int (libusb20_dev_get_info_t)(struct libusb20_device *pdev, struct usb2_device_info *pinfo);
+typedef int (libusb20_dev_get_info_t)(struct libusb20_device *pdev, struct usb_device_info *pinfo);
 typedef int (libusb20_dev_get_iface_desc_t)(struct libusb20_device *pdev, uint8_t iface_index, char *buf, uint8_t len);
 typedef int (libusb20_init_backend_t)(struct libusb20_backend *pbe);
 typedef int (libusb20_open_device_t)(struct libusb20_device *pdev, uint16_t transfer_count_max);
@@ -90,14 +90,12 @@ typedef int (libusb20_dummy_int_t)(void);
 typedef void (libusb20_dummy_void_t)(void);
 
 /* USB device specific */
-typedef int (libusb20_claim_interface_t)(struct libusb20_device *pdev, uint8_t iface_index);
 typedef int (libusb20_detach_kernel_driver_t)(struct libusb20_device *pdev, uint8_t iface_index);
 typedef int (libusb20_do_request_sync_t)(struct libusb20_device *pdev, struct LIBUSB20_CONTROL_SETUP_DECODED *setup, void *data, uint16_t *pactlen, uint32_t timeout, uint8_t flags);
 typedef int (libusb20_get_config_desc_full_t)(struct libusb20_device *pdev, uint8_t **ppbuf, uint16_t *plen, uint8_t index);
 typedef int (libusb20_get_config_index_t)(struct libusb20_device *pdev, uint8_t *pindex);
 typedef int (libusb20_kernel_driver_active_t)(struct libusb20_device *pdev, uint8_t iface_index);
 typedef int (libusb20_process_t)(struct libusb20_device *pdev);
-typedef int (libusb20_release_interface_t)(struct libusb20_device *pdev, uint8_t iface_index);
 typedef int (libusb20_reset_device_t)(struct libusb20_device *pdev);
 typedef int (libusb20_set_power_mode_t)(struct libusb20_device *pdev, uint8_t power_mode);
 typedef int (libusb20_get_power_mode_t)(struct libusb20_device *pdev, uint8_t *power_mode);
@@ -112,14 +110,12 @@ typedef void (libusb20_tr_submit_t)(struct libusb20_transfer *xfer);
 typedef void (libusb20_tr_cancel_async_t)(struct libusb20_transfer *xfer);
 
 #define	LIBUSB20_DEVICE(m,n) \
-  m(n, claim_interface) \
   m(n, detach_kernel_driver) \
   m(n, do_request_sync) \
   m(n, get_config_desc_full) \
   m(n, get_config_index) \
   m(n, kernel_driver_active) \
   m(n, process) \
-  m(n, release_interface) \
   m(n, reset_device) \
   m(n, set_power_mode) \
   m(n, get_power_mode) \
@@ -198,8 +194,8 @@ struct libusb20_device {
 	/* libUSB v0.1 compat data */
 	void   *priv01Data;
 
-	/* claimed interfaces */
-	uint32_t claimed_interfaces;
+	/* claimed interface */
+	uint8_t claimed_interface;
 
 	/* device file handle */
 	int	file;

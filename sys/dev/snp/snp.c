@@ -257,8 +257,8 @@ snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			SNP_UNLOCK();
 			return (EBUSY);
 		}
-		error = ttyhook_register(&ss->snp_tty, td->td_proc, *(int *)data,
-		    &snp_hook, ss);
+		error = ttyhook_register(&ss->snp_tty, td->td_proc,
+		    *(int *)data, &snp_hook, ss);
 		SNP_UNLOCK();
 		if (error != 0)
 			return (error);

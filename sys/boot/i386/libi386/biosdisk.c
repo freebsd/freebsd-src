@@ -387,6 +387,7 @@ bd_printgptpart(struct open_disk *od, struct gpt_part *gp, char *prefix,
 	sprintf(line, "%s: FreeBSD swap%s\n", prefix, stats);
     else
 	sprintf(line, "%s: %08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x%s\n",
+	    prefix,
 	    gp->gp_type.time_low, gp->gp_type.time_mid,
 	    gp->gp_type.time_hi_and_version,
 	    gp->gp_type.clock_seq_hi_and_reserved, gp->gp_type.clock_seq_low,
@@ -989,7 +990,8 @@ bd_open_gpt(struct open_disk *od, struct i386_devdesc *dev)
 
 out:
     if (error) {
-	free(od->od_partitions);
+	if (od->od_nparts > 0)
+	    free(od->od_partitions);
 	od->od_flags &= ~BD_GPTOK;
     }
     return (error);
@@ -1043,7 +1045,7 @@ bd_closedisk(struct open_disk *od)
 	delay(3000000);
 #endif
 #ifdef LOADER_GPT_SUPPORT
-    if (od->od_flags & BD_GPTOK)
+    if (od->od_flags & BD_GPTOK && od->od_nparts > 0)
 	free(od->od_partitions);
 #endif
     free(od);

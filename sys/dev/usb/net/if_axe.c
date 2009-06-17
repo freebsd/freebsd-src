@@ -112,15 +112,15 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int axe_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
-SYSCTL_INT(_hw_usb2_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
+SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
     "Debug level");
 #endif
 
 /*
  * Various supported device vendors/products.
  */
-static const struct usb2_device_id axe_devs[] = {
+static const struct usb_device_id axe_devs[] = {
 	{USB_VPI(USB_VENDOR_ABOCOM, USB_PRODUCT_ABOCOM_UF200, 0)},
 	{USB_VPI(USB_VENDOR_ACERCM, USB_PRODUCT_ACERCM_EP1427X2, 0)},
 	{USB_VPI(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_ETHERNET, AXE_FLAG_772)},
@@ -152,21 +152,21 @@ static device_probe_t axe_probe;
 static device_attach_t axe_attach;
 static device_detach_t axe_detach;
 
-static usb2_callback_t axe_intr_callback;
-static usb2_callback_t axe_bulk_read_callback;
-static usb2_callback_t axe_bulk_write_callback;
+static usb_callback_t axe_intr_callback;
+static usb_callback_t axe_bulk_read_callback;
+static usb_callback_t axe_bulk_write_callback;
 
 static miibus_readreg_t axe_miibus_readreg;
 static miibus_writereg_t axe_miibus_writereg;
 static miibus_statchg_t axe_miibus_statchg;
 
-static usb2_ether_fn_t axe_attach_post;
-static usb2_ether_fn_t axe_init;
-static usb2_ether_fn_t axe_stop;
-static usb2_ether_fn_t axe_start;
-static usb2_ether_fn_t axe_tick;
-static usb2_ether_fn_t axe_setmulti;
-static usb2_ether_fn_t axe_setpromisc;
+static uether_fn_t axe_attach_post;
+static uether_fn_t axe_init;
+static uether_fn_t axe_stop;
+static uether_fn_t axe_start;
+static uether_fn_t axe_tick;
+static uether_fn_t axe_setmulti;
+static uether_fn_t axe_setpromisc;
 
 static int	axe_ifmedia_upd(struct ifnet *);
 static void	axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -175,7 +175,7 @@ static void	axe_ax88178_init(struct axe_softc *);
 static void	axe_ax88772_init(struct axe_softc *);
 static int	axe_get_phyno(struct axe_softc *, int);
 
-static const struct usb2_config axe_config[AXE_N_TRANSFER] = {
+static const struct usb_config axe_config[AXE_N_TRANSFER] = {
 
 	[AXE_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -243,7 +243,7 @@ MODULE_DEPEND(axe, usb, 1, 1, 1);
 MODULE_DEPEND(axe, ether, 1, 1, 1);
 MODULE_DEPEND(axe, miibus, 1, 1, 1);
 
-static const struct usb2_ether_methods axe_ue_methods = {
+static const struct usb_ether_methods axe_ue_methods = {
 	.ue_attach_post = axe_attach_post,
 	.ue_start = axe_start,
 	.ue_init = axe_init,
@@ -258,8 +258,8 @@ static const struct usb2_ether_methods axe_ue_methods = {
 static int
 axe_cmd(struct axe_softc *sc, int cmd, int index, int val, void *buf)
 {
-	struct usb2_device_request req;
-	usb2_error_t err;
+	struct usb_device_request req;
+	usb_error_t err;
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -271,7 +271,7 @@ axe_cmd(struct axe_softc *sc, int cmd, int index, int val, void *buf)
 	USETW(req.wIndex, index);
 	USETW(req.wLength, AXE_CMD_LEN(cmd));
 
-	err = usb2_ether_do_request(&sc->sc_ue, &req, buf, 1000);
+	err = uether_do_request(&sc->sc_ue, &req, buf, 1000);
 
 	return (err);
 }
@@ -347,7 +347,7 @@ axe_miibus_statchg(device_t dev)
 	if (!locked)
 		AXE_LOCK(sc);
 
-	ifp = usb2_ether_getifp(&sc->sc_ue);
+	ifp = uether_getifp(&sc->sc_ue);
 	if (mii == NULL || ifp == NULL ||
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		goto done;
@@ -440,10 +440,10 @@ axe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-axe_setmulti(struct usb2_ether *ue)
+axe_setmulti(struct usb_ether *ue)
 {
-	struct axe_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct axe_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	struct ifmultiaddr *ifma;
 	uint32_t h = 0;
 	uint16_t rxmode;
@@ -522,35 +522,35 @@ axe_ax88178_init(struct axe_softc *sc)
 	}
 
 	axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x008c, NULL);
-	usb2_ether_pause(&sc->sc_ue, hz / 16);
+	uether_pause(&sc->sc_ue, hz / 16);
 
 	if ((eeprom >> 8) != 0x01) {
 		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x003c, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 32);
+		uether_pause(&sc->sc_ue, hz / 32);
 
 		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x001c, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 3);
+		uether_pause(&sc->sc_ue, hz / 3);
 
 		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x003c, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 32);
+		uether_pause(&sc->sc_ue, hz / 32);
 	} else {
 		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x0004, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 32);
+		uether_pause(&sc->sc_ue, hz / 32);
 
 		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x000c, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 32);
+		uether_pause(&sc->sc_ue, hz / 32);
 	}
 
 	/* soft reset */
 	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_CLEAR, NULL);
-	usb2_ether_pause(&sc->sc_ue, hz / 4);
+	uether_pause(&sc->sc_ue, hz / 4);
 
 	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
 	    AXE_SW_RESET_PRL | AXE_178_RESET_MAGIC, NULL);
-	usb2_ether_pause(&sc->sc_ue, hz / 4);
+	uether_pause(&sc->sc_ue, hz / 4);
 	/* Enable MII/GMII/RGMII interface to work with external PHY. */
 	axe_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, 0, NULL);
-	usb2_ether_pause(&sc->sc_ue, hz / 4);
+	uether_pause(&sc->sc_ue, hz / 4);
 
 	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
 }
@@ -559,22 +559,22 @@ static void
 axe_ax88772_init(struct axe_softc *sc)
 {
 	axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x00b0, NULL);
-	usb2_ether_pause(&sc->sc_ue, hz / 16);
+	uether_pause(&sc->sc_ue, hz / 16);
 
 	if (sc->sc_phyno == AXE_772_PHY_NO_EPHY) {
 		/* ask for the embedded PHY */
 		axe_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, 0x01, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 64);
+		uether_pause(&sc->sc_ue, hz / 64);
 
 		/* power down and reset state, pin reset state */
 		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
 		    AXE_SW_RESET_CLEAR, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 16);
+		uether_pause(&sc->sc_ue, hz / 16);
 
 		/* power down/reset state, pin operating state */
 		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
 		    AXE_SW_RESET_IPPD | AXE_SW_RESET_PRL, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 4);
+		uether_pause(&sc->sc_ue, hz / 4);
 
 		/* power up, reset */
 		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_PRL, NULL);
@@ -585,38 +585,38 @@ axe_ax88772_init(struct axe_softc *sc)
 	} else {
 		/* ask for external PHY */
 		axe_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, 0x00, NULL);
-		usb2_ether_pause(&sc->sc_ue, hz / 64);
+		uether_pause(&sc->sc_ue, hz / 64);
 
 		/* power down internal PHY */
 		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
 		    AXE_SW_RESET_IPPD | AXE_SW_RESET_PRL, NULL);
 	}
 
-	usb2_ether_pause(&sc->sc_ue, hz / 4);
+	uether_pause(&sc->sc_ue, hz / 4);
 	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
 }
 
 static void
 axe_reset(struct axe_softc *sc)
 {
-	struct usb2_config_descriptor *cd;
-	usb2_error_t err;
+	struct usb_config_descriptor *cd;
+	usb_error_t err;
 
-	cd = usb2_get_config_descriptor(sc->sc_ue.ue_udev);
+	cd = usbd_get_config_descriptor(sc->sc_ue.ue_udev);
 
-	err = usb2_req_set_config(sc->sc_ue.ue_udev, &sc->sc_mtx,
+	err = usbd_req_set_config(sc->sc_ue.ue_udev, &sc->sc_mtx,
 	    cd->bConfigurationValue);
 	if (err)
 		DPRINTF("reset failed (ignored)\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
-	usb2_ether_pause(&sc->sc_ue, hz / 100);
+	uether_pause(&sc->sc_ue, hz / 100);
 }
 
 static void
-axe_attach_post(struct usb2_ether *ue)
+axe_attach_post(struct usb_ether *ue)
 {
-	struct axe_softc *sc = usb2_ether_getsc(ue);
+	struct axe_softc *sc = uether_getsc(ue);
 
 	/*
 	 * Load PHY indexes first. Needed by axe_xxx_init().
@@ -660,16 +660,16 @@ axe_attach_post(struct usb2_ether *ue)
 static int
 axe_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST)
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != AXE_CONFIG_IDX)
 		return (ENXIO);
 	if (uaa->info.bIfaceIndex != AXE_IFACE_IDX)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(axe_devs, sizeof(axe_devs), uaa));
+	return (usbd_lookup_id_by_uaa(axe_devs, sizeof(axe_devs), uaa));
 }
 
 /*
@@ -679,20 +679,20 @@ axe_probe(device_t dev)
 static int
 axe_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct axe_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 	uint8_t iface_index;
 	int error;
 
 	sc->sc_flags = USB_GET_DRIVER_INFO(uaa);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	iface_index = AXE_IFACE_IDX;
-	error = usb2_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    axe_config, AXE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB transfers failed!\n");
@@ -705,7 +705,7 @@ axe_attach(device_t dev)
 	ue->ue_mtx = &sc->sc_mtx;
 	ue->ue_methods = &axe_ue_methods;
 
-	error = usb2_ether_ifattach(ue);
+	error = uether_ifattach(ue);
 	if (error) {
 		device_printf(dev, "could not attach interface\n");
 		goto detach;
@@ -721,24 +721,24 @@ static int
 axe_detach(device_t dev)
 {
 	struct axe_softc *sc = device_get_softc(dev);
-	struct usb2_ether *ue = &sc->sc_ue;
+	struct usb_ether *ue = &sc->sc_ue;
 
-	usb2_transfer_unsetup(sc->sc_xfer, AXE_N_TRANSFER);
-	usb2_ether_ifdetach(ue);
+	usbd_transfer_unsetup(sc->sc_xfer, AXE_N_TRANSFER);
+	uether_ifdetach(ue);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
 
 static void
-axe_intr_callback(struct usb2_xfer *xfer)
+axe_intr_callback(struct usb_xfer *xfer)
 {
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
@@ -756,11 +756,11 @@ tr_setup:
 #endif
 
 static void
-axe_bulk_read_callback(struct usb2_xfer *xfer)
+axe_bulk_read_callback(struct usb_xfer *xfer)
 {
 	struct axe_softc *sc = xfer->priv_sc;
-	struct usb2_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct usb_ether *ue = &sc->sc_ue;
+	struct ifnet *ifp = uether_getifp(ue);
 	struct axe_sframe_hdr hdr;
 	int error, pos, len, adjust;
 
@@ -773,7 +773,7 @@ axe_bulk_read_callback(struct usb2_xfer *xfer)
 					/* too little data */
 					break;
 				}
-				usb2_copy_out(xfer->frbuffers, pos, &hdr, sizeof(hdr));
+				usbd_copy_out(xfer->frbuffers, pos, &hdr, sizeof(hdr));
 
 				if ((hdr.len ^ hdr.ilen) != 0xFFFF) {
 					/* we lost sync */
@@ -793,7 +793,7 @@ axe_bulk_read_callback(struct usb2_xfer *xfer)
 				len = xfer->actlen;
 				adjust = 0;
 			}
-			error = usb2_ether_rxbuf(ue, xfer->frbuffers, pos, len);
+			error = uether_rxbuf(ue, xfer->frbuffers, pos, len);
 			if (error)
 				break;
 
@@ -815,13 +815,13 @@ axe_bulk_read_callback(struct usb2_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
-		usb2_ether_rxflush(ue);
+		usbd_transfer_submit(xfer);
+		uether_rxflush(ue);
 		return;
 
 	default:			/* Error */
 		DPRINTF("bulk read error, %s\n", 
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -838,11 +838,11 @@ tr_setup:
 #endif
 
 static void
-axe_bulk_write_callback(struct usb2_xfer *xfer)
+axe_bulk_write_callback(struct usb_xfer *xfer)
 {
 	struct axe_softc *sc = xfer->priv_sc;
 	struct axe_sframe_hdr hdr;
-	struct ifnet *ifp = usb2_ether_getifp(&sc->sc_ue);
+	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	struct mbuf *m;
 	int pos;
 
@@ -878,7 +878,7 @@ tr_setup:
 				hdr.len = htole16(m->m_pkthdr.len);
 				hdr.ilen = ~hdr.len;
 
-				usb2_copy_in(xfer->frbuffers, pos, &hdr, sizeof(hdr));
+				usbd_copy_in(xfer->frbuffers, pos, &hdr, sizeof(hdr));
 
 				pos += sizeof(hdr);
 
@@ -890,7 +890,7 @@ tr_setup:
 				 * USB_FORCE_SHORT_XFER flag instead.
 				 */
 			}
-			usb2_m_copy_in(xfer->frbuffers, pos,
+			usbd_m_copy_in(xfer->frbuffers, pos,
 			    m, 0, m->m_pkthdr.len);
 
 			pos += m->m_pkthdr.len;
@@ -915,12 +915,12 @@ tr_setup:
 		}
 
 		xfer->frlengths[0] = pos;
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(xfer->error));
 
 		ifp->if_oerrors++;
 
@@ -935,9 +935,9 @@ tr_setup:
 }
 
 static void
-axe_tick(struct usb2_ether *ue)
+axe_tick(struct usb_ether *ue)
 {
-	struct axe_softc *sc = usb2_ether_getsc(ue);
+	struct axe_softc *sc = uether_getsc(ue);
 	struct mii_data *mii = GET_MII(sc);
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
@@ -951,23 +951,23 @@ axe_tick(struct usb2_ether *ue)
 }
 
 static void
-axe_start(struct usb2_ether *ue)
+axe_start(struct usb_ether *ue)
 {
-	struct axe_softc *sc = usb2_ether_getsc(ue);
+	struct axe_softc *sc = uether_getsc(ue);
 
 	/*
 	 * start the USB transfers, if not already started:
 	 */
-	usb2_transfer_start(sc->sc_xfer[AXE_INTR_DT_RD]);
-	usb2_transfer_start(sc->sc_xfer[AXE_BULK_DT_RD]);
-	usb2_transfer_start(sc->sc_xfer[AXE_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[AXE_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[AXE_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[AXE_BULK_DT_WR]);
 }
 
 static void
-axe_init(struct usb2_ether *ue)
+axe_init(struct usb_ether *ue)
 {
-	struct axe_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct axe_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	uint16_t rxmode;
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
@@ -1010,17 +1010,17 @@ axe_init(struct usb2_ether *ue)
 	/* Load the multicast filter. */
 	axe_setmulti(ue);
 
-	usb2_transfer_set_stall(sc->sc_xfer[AXE_BULK_DT_WR]);
+	usbd_transfer_set_stall(sc->sc_xfer[AXE_BULK_DT_WR]);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	axe_start(ue);
 }
 
 static void
-axe_setpromisc(struct usb2_ether *ue)
+axe_setpromisc(struct usb_ether *ue)
 {
-	struct axe_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct axe_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	uint16_t rxmode;
 
 	axe_cmd(sc, AXE_CMD_RXCTL_READ, 0, 0, &rxmode);
@@ -1039,10 +1039,10 @@ axe_setpromisc(struct usb2_ether *ue)
 }
 
 static void
-axe_stop(struct usb2_ether *ue)
+axe_stop(struct usb_ether *ue)
 {
-	struct axe_softc *sc = usb2_ether_getsc(ue);
-	struct ifnet *ifp = usb2_ether_getifp(ue);
+	struct axe_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1052,9 +1052,9 @@ axe_stop(struct usb2_ether *ue)
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usb2_transfer_stop(sc->sc_xfer[AXE_BULK_DT_WR]);
-	usb2_transfer_stop(sc->sc_xfer[AXE_BULK_DT_RD]);
-	usb2_transfer_stop(sc->sc_xfer[AXE_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[AXE_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[AXE_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[AXE_INTR_DT_RD]);
 
 	axe_reset(sc);
 }

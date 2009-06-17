@@ -219,7 +219,7 @@ static int
 sta_add(struct ieee80211_scan_state *ss, 
 	const struct ieee80211_scanparams *sp,
 	const struct ieee80211_frame *wh,
-	int subtype, int rssi, int noise, int rstamp)
+	int subtype, int rssi, int noise)
 {
 #define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 #define	PICK1ST(_ss) \
@@ -278,7 +278,6 @@ found:
 		ise->se_rssi = IEEE80211_RSSI_GET(se->se_avgrssi);
 		ise->se_noise = noise;
 	}
-	ise->se_rstamp = rstamp;
 	memcpy(ise->se_tstamp.data, sp->tstamp, sizeof(ise->se_tstamp));
 	ise->se_intval = sp->bintval;
 	ise->se_capinfo = sp->capinfo;
@@ -1562,7 +1561,7 @@ notfound:
 				chan = adhoc_pick_channel(ss, 0);
 				if (chan != NULL)
 					chan = ieee80211_ht_adjust_channel(ic,
-					    chan, vap->iv_flags_ext);
+					    chan, vap->iv_flags_ht);
 			} else
 				chan = vap->iv_des_chan;
 			if (chan != NULL) {
@@ -1762,7 +1761,7 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 		return 1;
 	}
 	ieee80211_create_ibss(vap,
-	    ieee80211_ht_adjust_channel(ic, bestchan, vap->iv_flags_ext));
+	    ieee80211_ht_adjust_channel(ic, bestchan, vap->iv_flags_ht));
 	return 1;
 }
 

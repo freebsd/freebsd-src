@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003 Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -75,6 +75,9 @@ enum {
 	dns_rdatatype_rrsig = 46,
 	dns_rdatatype_nsec = 47,
 	dns_rdatatype_dnskey = 48,
+	dns_rdatatype_dhcid = 49,
+	dns_rdatatype_nsec3 = 50,
+	dns_rdatatype_nsec3param = 51,
 	dns_rdatatype_spf = 99,
 	dns_rdatatype_unspec = 103,
 	dns_rdatatype_tkey = 249,
@@ -132,6 +135,9 @@ enum {
 #define dns_rdatatype_rrsig	((dns_rdatatype_t)dns_rdatatype_rrsig)
 #define dns_rdatatype_nsec	((dns_rdatatype_t)dns_rdatatype_nsec)
 #define dns_rdatatype_dnskey	((dns_rdatatype_t)dns_rdatatype_dnskey)
+#define dns_rdatatype_dhcid	((dns_rdatatype_t)dns_rdatatype_dhcid)
+#define dns_rdatatype_nsec3	((dns_rdatatype_t)dns_rdatatype_nsec3)
+#define dns_rdatatype_nsec3param	((dns_rdatatype_t)dns_rdatatype_nsec3param)
 #define dns_rdatatype_spf	((dns_rdatatype_t)dns_rdatatype_spf)
 #define dns_rdatatype_unspec	((dns_rdatatype_t)dns_rdatatype_unspec)
 #define dns_rdatatype_tkey	((dns_rdatatype_t)dns_rdatatype_tkey)
