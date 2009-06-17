@@ -11,8 +11,10 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
-;		NODEF, NOARGS, NOPROTO, NOSTD, COMPAT4
+;	type	one of STD, OBSOL, UNIMPL, COMPAT, COMPAT4, COMPAT6,
+;		LIBCOMPAT, NODEF, NOARGS, NOPROTO, NOSTD
+;		The COMPAT* options may be combined with one or more NO*
+;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
@@ -24,6 +26,7 @@
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
 ;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
+;	COMPAT6	included on COMPAT4 #ifdef (FreeBSD 6 compat)
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
@@ -214,7 +217,7 @@
 				    int protocol); }
 98	AUE_CONNECT	STD	{ int connect(int s, caddr_t name, \
 				    int namelen); }
-99	AUE_ACCEPT	CPT_NOA	{ int accept(int s, caddr_t name, \
+99	AUE_ACCEPT	COMPAT|NOARGS { int accept(int s, caddr_t name, \
 				    int *anamelen); } accept accept_args int
 100	AUE_GETPRIORITY	STD	{ int getpriority(int which, int who); }
 101	AUE_SEND	COMPAT	{ int send(int s, caddr_t buf, int len, \
@@ -258,7 +261,7 @@
 				    struct timezone *tzp); }
 123	AUE_FCHOWN	STD	{ int fchown(int fd, int uid, int gid); }
 124	AUE_FCHMOD	STD	{ int fchmod(int fd, int mode); }
-125	AUE_RECVFROM	CPT_NOA	{ int recvfrom(int s, caddr_t buf, \
+125	AUE_RECVFROM	COMPAT|NOARGS { int recvfrom(int s, caddr_t buf, \
 				    size_t len, int flags, caddr_t from, int \
 				    *fromlenaddr); } recvfrom recvfrom_args \
 				    int
@@ -294,7 +297,7 @@
 148	AUE_QUOTACTL	STD	{ int quotactl(char *path, int cmd, int uid, \
 				    caddr_t arg); }
 149	AUE_O_QUOTA	COMPAT	{ int quota(void); }
-150	AUE_GETSOCKNAME	CPT_NOA	{ int getsockname(int fdec, \
+150	AUE_GETSOCKNAME	COMPAT|NOARGS { int getsockname(int fdec, \
 				    caddr_t asa, int *alen); } getsockname \
 				    getsockname_args int
 
