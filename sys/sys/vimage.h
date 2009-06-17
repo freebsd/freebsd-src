@@ -35,9 +35,6 @@
 
 #include <sys/proc.h>
 #include <sys/queue.h>
-#ifdef VIMAGE
-#include <sys/jail.h>
-#endif
 
 /* Interim userspace API. */
 struct vi_req {
