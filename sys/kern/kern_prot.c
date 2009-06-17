@@ -1899,7 +1899,7 @@ cru2x(struct ucred *cr, struct xucred *xcr)
 	xcr->cr_version = XUCRED_VERSION;
 	xcr->cr_uid = cr->cr_uid;
 
-	ngroups = min(cr->cr_ngroups, XU_NGROUPS);
+	ngroups = MIN(cr->cr_ngroups, XU_NGROUPS);
 	xcr->cr_ngroups = ngroups;
 	bcopy(cr->cr_groups, xcr->cr_groups,
 	    ngroups * sizeof(*cr->cr_groups));
