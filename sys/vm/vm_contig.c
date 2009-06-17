@@ -193,7 +193,7 @@ vm_page_release_contig(vm_page_t m, vm_pindex_t count)
  *	specified through the given flags, then the pages are zeroed
  *	before they are mapped.
  */
-static void *
+static vm_offset_t
 contigmapping(vm_map_t map, vm_size_t size, vm_page_t m, int flags)
 {
 	vm_object_t object = kernel_object;
@@ -202,7 +202,7 @@ contigmapping(vm_map_t map, vm_size_t size, vm_page_t m, int flags)
 	vm_map_lock(map);
 	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
-		return (NULL);
+		return (0);
 	}
 	vm_object_reference(object);
 	vm_map_insert(map, object, addr - VM_MIN_KERNEL_ADDRESS,
@@ -220,7 +220,7 @@ contigmapping(vm_map_t map, vm_size_t size, vm_page_t m, int flags)
 	VM_OBJECT_UNLOCK(object);
 	vm_map_wire(map, addr, addr + size,
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
-	return ((void *)addr);
+	return (addr);
 }
 
 void *
@@ -234,6 +234,19 @@ contigmalloc(
 	unsigned long boundary)
 {
 	void *ret;
+
+	ret = (void *)kmem_alloc_contig(kernel_map, size, flags, low, high,
+	    alignment, boundary);
+	if (ret != NULL)
+		malloc_type_allocated(type, round_page(size));
+	return (ret);
+}
+
+vm_offset_t
+kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, unsigned long alignment, unsigned long boundary)
+{
+	vm_offset_t ret;
 	vm_page_t pages;
 	unsigned long npgs;
 	int actl, actmax, inactl, inactmax, tries;
@@ -265,13 +278,11 @@ again:
 			tries++;
 			goto retry;
 		}
-		ret = NULL;
+		ret = 0;
 	} else {
-		ret = contigmapping(kernel_map, size, pages, flags);
-		if (ret == NULL)
+		ret = contigmapping(map, size, pages, flags);
+		if (ret == 0)
 			vm_page_release_contig(pages, npgs);
-		else
-			malloc_type_allocated(type, npgs << PAGE_SHIFT);
 	}
 	return (ret);
 }
