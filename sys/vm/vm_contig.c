@@ -218,6 +218,7 @@ contigmapping(vm_page_t m, vm_pindex_t npages, int flags)
 		    OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
 		if ((flags & M_ZERO) && !(m[i].flags & PG_ZERO))
 			pmap_zero_page(&m[i]);
+		m[i].valid = VM_PAGE_BITS_ALL;
 		tmp_addr += PAGE_SIZE;
 	}
 	VM_OBJECT_UNLOCK(object);
