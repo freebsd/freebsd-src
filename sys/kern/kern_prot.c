@@ -1856,9 +1856,7 @@ crcopy(struct ucred *dest, struct ucred *src)
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));
-	crextend(dest, src->cr_agroups);
-	memcpy(dest->cr_groups, src->cr_groups,
-	    src->cr_ngroups * sizeof(gid_t));
+	crsetgroups(dest, src->cr_ngroups, src->cr_groups);
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
 	prison_hold(dest->cr_prison);
@@ -1959,17 +1957,23 @@ crextend(struct ucred *cr, int n)
 
 	/*
 	 * We extend by 2 each time since we're using a power of two
-	 * allocator.
-	 * XXX: it probably makes more sense to right-size the
-	 * allocation if we need more than a page.
+	 * allocator until we need enough groups to fill a page.
+	 * Once we're allocating multiple pages, only allocate as many
+	 * as we actually need.  The case of processes needing a
+	 * non-power of two number of pages seems more likely than
+	 * a real world process that adds thousands of groups one at a
+	 * time.
 	 */
-	if (cr->cr_agroups)
-		cnt = cr->cr_agroups * 2;
-	else
-		cnt = MINALLOCSIZE / sizeof(gid_t);
+	if ( n < PAGE_SIZE / sizeof(gid_t) ) {
+		if (cr->cr_agroups == 0)
+			cnt = MINALLOCSIZE / sizeof(gid_t);
+		else
+			cnt = cr->cr_agroups * 2;
 
-	while (cnt < n)
-		cnt *= 2;
+		while (cnt < n)
+			cnt *= 2;
+	} else
+		cnt = roundup2(n, PAGE_SIZE / sizeof(gid_t));
 
 	/* Free the old array. */
 	if (cr->cr_groups)
