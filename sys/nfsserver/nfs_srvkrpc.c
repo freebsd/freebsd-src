@@ -467,6 +467,7 @@ nfssvc_addsock(struct file *fp, struct thread *td)
 		fp->f_data = NULL;
 		svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program, NULL);
 		svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program, NULL);
+		SVC_RELEASE(xprt);
 	}
 
 	return (0);

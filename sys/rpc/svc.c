@@ -276,6 +276,7 @@ xprt_register(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
 
+	SVC_ACQUIRE(xprt);
 	mtx_lock(&pool->sp_lock);
 	xprt->xp_registered = TRUE;
 	xprt->xp_active = FALSE;
