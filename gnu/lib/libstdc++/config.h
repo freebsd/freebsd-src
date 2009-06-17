@@ -257,7 +257,7 @@
 #define HAVE_POWF 1
 
 /* Define to 1 if you have the `powl' function. */
-/* #undef HAVE_POWL */
+#define HAVE_POWL 1
 
 /* Define to 1 if you have the `qfpclass' function. */
 /* #undef HAVE_QFPCLASS */
