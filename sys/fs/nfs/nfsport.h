@@ -78,6 +78,7 @@
 #include <sys/priv.h>
 #include <sys/kthread.h>
 #include <sys/syscallsubr.h>
+#include <sys/vimage.h>
 #include <fs/fifofs/fifo.h>
 #include <net/if.h>
 #include <net/radix.h>
