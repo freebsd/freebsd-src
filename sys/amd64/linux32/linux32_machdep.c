@@ -232,20 +232,15 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	return (error);
 }
 
-struct iovec32 {
-	u_int32_t iov_base;
-	int	iov_len;
-};
-
-CTASSERT(sizeof(struct iovec32) == 8);
+CTASSERT(sizeof(struct l_iovec32) == 8);
 
 static int
-linux32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
+linux32_copyinuio(struct l_iovec32 *iovp, l_ulong iovcnt, struct uio **uiop)
 {
-	struct iovec32 iov32;
+	struct l_iovec32 iov32;
 	struct iovec *iov;
 	struct uio *uio;
-	u_int iovlen;
+	uint32_t iovlen;
 	int error, i;
 
 	*uiop = NULL;
@@ -255,7 +250,7 @@ linux32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
 	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
 	iov = (struct iovec *)(uio + 1);
 	for (i = 0; i < iovcnt; i++) {
-		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
+		error = copyin(&iovp[i], &iov32, sizeof(struct l_iovec32));
 		if (error) {
 			free(uio, M_IOV);
 			return (error);
@@ -278,6 +273,34 @@ linux32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
 	}
 	*uiop = uio;
 	return (0);
+}
+
+int
+linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt, struct iovec **iovp,
+    int error)
+{
+	struct l_iovec32 iov32;
+	struct iovec *iov;
+	uint32_t iovlen;
+	int i;
+
+	*iovp = NULL;
+	if (iovcnt > UIO_MAXIOV)
+		return (error);
+	iovlen = iovcnt * sizeof(struct iovec);
+	iov = malloc(iovlen, M_IOV, M_WAITOK);
+	for (i = 0; i < iovcnt; i++) {
+		error = copyin(&iovp32[i], &iov32, sizeof(struct l_iovec32));
+		if (error) {
+			free(iov, M_IOV);
+			return (error);
+		}
+		iov[i].iov_base = PTRIN(iov32.iov_base);
+		iov[i].iov_len = iov32.iov_len;
+	}
+	*iovp = iov;
+	return(0);
+
 }
 
 int
