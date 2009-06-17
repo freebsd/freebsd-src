@@ -12,7 +12,7 @@
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
 ;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
-;		NODEF, NOARGS, NOPROTO, NOIMPL, NOSTD, COMPAT4
+;		NODEF, NOARGS, NOPROTO, NOSTD, COMPAT4
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different

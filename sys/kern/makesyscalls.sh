@@ -326,7 +326,7 @@ s/\$//g
 	}
 
 	$3 == "STD" || $3 == "NODEF" || $3 == "NOARGS"  || $3 == "NOPROTO" \
-	    || $3 == "NOIMPL" || $3 == "NOSTD" {
+	    || $3 == "NOSTD" {
 		parseline()
 		printf("\t/* %s */\n\tcase %d: {\n", funcname, syscall) > systrace
 		printf("\t/* %s */\n\tcase %d:\n", funcname, syscall) > systracetmp
@@ -375,10 +375,7 @@ s/\$//g
 		}
 		printf("\t{ %s, (sy_call_t *)", argssize) > sysent
 		column = 8 + 2 + length(argssize) + 15
-		if ($3 == "NOIMPL") {
-			printf("%s },", "nosys, AUE_NULL, NULL, 0, 0, 0") > sysent
-			column = column + length("nosys") + length("AUE_NULL") + 3
-		} else if ($3 == "NOSTD") {
+		if ($3 == "NOSTD") {
 			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0, 0") > sysent
 			column = column + length("lkmressys") + length("AUE_NULL") + 3
 		} else {
