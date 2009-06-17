@@ -463,6 +463,12 @@ long double	nexttowardl(long double, long double);
 #if 0
 long double	powl(long double, long double);
 #endif
+static inline long double
+powl(long double x, long double y)
+{
+
+	return (pow(x, y));
+}
 long double	remainderl(long double, long double);
 long double	remquol(long double, long double, int *);
 long double	rintl(long double);
