@@ -48,6 +48,7 @@
 #define LINUX_MSG_RST		0x1000
 #define LINUX_MSG_ERRQUEUE	0x2000
 #define LINUX_MSG_NOSIGNAL	0x4000
+#define LINUX_MSG_CMSG_CLOEXEC	0x40000000
 
 /* Socket-level control message types */
 
