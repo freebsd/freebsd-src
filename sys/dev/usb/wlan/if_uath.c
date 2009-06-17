@@ -513,14 +513,17 @@ uath_detach(device_t dev)
 	if (!device_is_attached(dev))
 		return (0);
 
+	UATH_LOCK(sc);
 	sc->sc_flags |= UATH_FLAG_INVALID;
+	UATH_UNLOCK(sc);
+
+	ieee80211_ifdetach(ic);
 	uath_stop(ifp);
 
 	callout_drain(&sc->stat_ch);
 	callout_drain(&sc->watchdog_ch);
 
 	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
-	ieee80211_ifdetach(ic);
 
 	/* free buffers */
 	UATH_LOCK(sc);
@@ -1857,7 +1860,8 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct uath_softc *sc = ifp->if_softc;
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
+	    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		m_freem(m);
 		ieee80211_free_node(ni);
 		return (ENETDOWN);
@@ -1907,6 +1911,11 @@ uath_set_channel(struct ieee80211com *ic)
 	struct uath_softc *sc = ifp->if_softc;
 
 	UATH_LOCK(sc);
+	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		UATH_UNLOCK(sc);
+		return;
+	}
 	(void)uath_switch_channel(sc, ic->ic_curchan);
 	UATH_UNLOCK(sc);
 }
@@ -1923,6 +1932,11 @@ uath_update_mcast(struct ifnet *ifp)
 	struct uath_softc *sc = ifp->if_softc;
 
 	UATH_LOCK(sc);
+	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		UATH_UNLOCK(sc);
+		return;
+	}
 	/*
 	 * this is for avoiding the race condition when we're try to
 	 * connect to the AP with WPA.
@@ -1938,6 +1952,11 @@ uath_update_promisc(struct ifnet *ifp)
 	struct uath_softc *sc = ifp->if_softc;
 
 	UATH_LOCK(sc);
+	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		UATH_UNLOCK(sc);
+		return;
+	}
 	if (sc->sc_flags & UATH_FLAG_INITDONE) {
 		uath_set_rxfilter(sc,
 		    UATH_FILTER_RX_UCAST | UATH_FILTER_RX_MCAST |
@@ -2649,7 +2668,8 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 	}
 
 	/* there are a lot more fields in the RX descriptor */
-	if (ieee80211_radiotap_active(ic)) {
+	if ((sc->sc_flags & UATH_FLAG_INVALID) == 0 &&
+	    ieee80211_radiotap_active(ic)) {
 		struct uath_rx_radiotap_header *tap = &sc->sc_rxtap;
 		uint32_t tsf_hi = be32toh(desc->tstamp_high);
 		uint32_t tsf_lo = be32toh(desc->tstamp_low);
@@ -2717,6 +2737,11 @@ setup:
 		 * ieee80211_input() because here is at the end of a USB
 		 * callback and safe to unlock.
 		 */
+		if (sc->sc_flags & UATH_FLAG_INVALID) {
+			if (m != NULL)
+				m_freem(m);
+			return;
+		}
 		UATH_UNLOCK(sc);
 		if (m != NULL && desc != NULL) {
 			wh = mtod(m, struct ieee80211_frame *);
@@ -2769,7 +2794,8 @@ uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 	 */
 	if (data->m) {
 		m = data->m;
-		if (m->m_flags & M_TXCB) {
+		if (m->m_flags & M_TXCB &&
+		    (sc->sc_flags & UATH_FLAG_INVALID) == 0) {
 			/* XXX status? */
 			ieee80211_process_callback(data->ni, m, 0);
 		}
@@ -2777,7 +2803,8 @@ uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 		data->m = NULL;
 	}
 	if (data->ni) {
-		ieee80211_free_node(data->ni);
+		if ((sc->sc_flags & UATH_FLAG_INVALID) == 0)
+			ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
 	sc->sc_tx_timer = 0;
@@ -2831,7 +2858,8 @@ setup:
 		if (data == NULL)
 			goto setup;
 		if (data->ni != NULL) {
-			ieee80211_free_node(data->ni);
+			if ((sc->sc_flags & UATH_FLAG_INVALID) == 0)
+				ieee80211_free_node(data->ni);
 			data->ni = NULL;
 			ifp->if_oerrors++;
 		}
