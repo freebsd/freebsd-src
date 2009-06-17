@@ -36,7 +36,7 @@ Sanitize_Bios_Geom(struct disk *disk)
 
 	if (disk->bios_cyl >= 65536)
 		sane = 0;
-	if (disk->bios_hd >= 256)
+	if (disk->bios_hd > 256)
 		sane = 0;
 #ifdef PC98
 	if (disk->bios_sect >= 256)
