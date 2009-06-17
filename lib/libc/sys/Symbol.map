@@ -196,7 +196,6 @@ FBSD_1.0 {
 	nanosleep;
 	netbsd_lchown;
 	netbsd_msync;
-	nfsclnt;
 	nfssvc;
 	nfstat;
 	nlstat;
@@ -748,8 +747,6 @@ FBSDprivate_1.0 {
 	__sys_netbsd_lchown;
 	_netbsd_msync;
 	__sys_netbsd_msync;
-	_nfsclnt;
-	__sys_nfsclnt;
 	_nfssvc;
 	__sys_nfssvc;
 	_nfstat;
