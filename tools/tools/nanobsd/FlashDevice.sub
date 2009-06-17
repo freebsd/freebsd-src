@@ -72,7 +72,7 @@ sub_FlashDevice () {
 		# Source: mwlucas@FreeBSD.org
 		case $a2 in
 		64|64mb)
-			NANO_MEDIASIZE=`expr expr 64487424 / 512`
+			NANO_MEDIASIZE=`expr 64487424 / 512`
 			NANO_HEADS=4
 			NANO_SECTS=32
 			;;
