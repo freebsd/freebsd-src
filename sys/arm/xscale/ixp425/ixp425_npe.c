@@ -306,8 +306,14 @@ ixpnpe_attach(device_t dev, int npeid)
 	sc->sc_nrefs = 1;
 
 	sc->sc_size = config->size;
-	sc->insMemSize = config->ins_memsize;	/* size of instruction memory */
-	sc->dataMemSize = config->data_memsize;	/* size of data memory */
+	if (cpu_is_ixp42x()) {
+		/* NB: instruction/data memory sizes are NPE-dependent */
+		sc->insMemSize = config->ins_memsize;
+		sc->dataMemSize = config->data_memsize;
+	} else {
+		sc->insMemSize = IXP46X_NPEDL_INS_MEMSIZE_WORDS;
+		sc->dataMemSize = IXP46X_NPEDL_DATA_MEMSIZE_WORDS;
+	}
 
 	if (bus_space_map(sc->sc_iot, config->base, sc->sc_size, 0, &sc->sc_ioh))
 		panic("%s: Cannot map registers", device_get_name(dev));
