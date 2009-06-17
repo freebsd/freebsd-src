@@ -879,6 +879,16 @@ typedef int l_mqd_t;
 	(LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES |	\
 	LINUX_CLONE_SIGHAND | LINUX_CLONE_THREAD)
 
+struct iovec;
+
+struct l_iovec32 {
+	uint32_t	iov_base;
+	l_size_t	iov_len;
+};
+
+int linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt,
+			    struct iovec **iovp, int error);
+
 /* robust futexes */
 struct linux_robust_list {
 	l_uintptr_t			next;
