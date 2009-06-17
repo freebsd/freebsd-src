@@ -446,13 +446,18 @@ printmonth(int y, int m, int jd_flag)
 {
 	struct monthlines month;
 	struct weekdays wds;
-	int i;
+	int i, len;
 
 	mkmonth(y, m - 1, jd_flag, &month);
 	mkweekdays(&wds);
 	printf("    %ls %d\n", month.name, y);
-	for (i = 0; i != 7; i++)
-		wprintf(L"%.2ls%s\n", wds.names[i], month.lines[i]);
+	for (i = 0; i != 7; i++) {
+		len = wcslen(wds.names[i]);
+		if (wcswidth(wds.names[i], len) == len)
+			wprintf(L"%.2ls%s\n", wds.names[i], month.lines[i]);
+		else
+			wprintf(L"%.1ls%s\n", wds.names[i], month.lines[i]);
+	}
 	if (flag_weeks)
 		printf("  %s\n", month.weeks);
 }
@@ -830,7 +835,7 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 void
 mkweekdays(struct weekdays *wds)
 {
-	int i, len;
+	int i, len, width = 0;
 	struct tm tm;
 	wchar_t buf[20];
 
@@ -839,11 +844,15 @@ mkweekdays(struct weekdays *wds)
 	for (i = 0; i != 7; i++) {
 		tm.tm_wday = (i+1) % 7;
 		wcsftime(buf, sizeof(buf), L"%a", &tm);
-		len = wcslen(buf);
-		if (len > 2)
-			len = 2;
-		wcscpy(wds->names[i], L"   ");
-		wcsncpy(wds->names[i] + 2 - len, buf, len);
+		for (len = wcslen(buf); len > 0; --len) {
+			if ((width = wcswidth(buf, len)) <= 2)
+				break;
+		}
+		wmemset(wds->names[i], L'\0', 4);
+		if (width == 1)
+			wds->names[i][0] = L' ';
+		wcsncat(wds->names[i], buf, len);
+		wcsncat(wds->names[i], L"  ", 3 - wcswidth(wds->names[i], 2));
 	}
 }
 
