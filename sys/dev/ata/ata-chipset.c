@@ -198,6 +198,9 @@ static int ata_atapi(device_t dev);
 static int ata_check_80pin(device_t dev, int mode);
 static int ata_mode2idx(int mode);
 
+struct ali_sata_resources {
+	struct resource *bars[4];
+};
 
 /*
  * generic ATA support functions
@@ -1094,6 +1097,8 @@ static int
 ata_ali_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ali_sata_resources *res;
+    int i, rid;
 
     if (ata_setup_interrupt(dev))
 	return ENXIO;
@@ -1108,6 +1113,22 @@ ata_ali_chipinit(device_t dev)
 	if ((ctlr->chip->chipid == ATA_ALI_5288) &&
 	    (ata_ahci_chipinit(dev) != ENXIO))
             return 0;
+
+	/* Allocate resources for later use by channel attach routines. */
+	res = malloc(sizeof(struct ali_sata_resources), M_TEMP, M_WAITOK);
+	for (i = 0; i < 4; i++) {
+		rid = PCIR_BAR(i);
+		res->bars[i] = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+		    RF_ACTIVE);
+		if (res->bars[i] == NULL) {
+			device_printf(dev, "Failed to allocate BAR %d\n", i);
+			for (i--; i >=0; i--)
+				bus_release_resource(dev, SYS_RES_IOPORT,
+				    PCIR_BAR(i), res->bars[i]);
+			free(res, M_TEMP);
+		}
+	}
+	ctlr->chipset_data = res;
 	break;
 
     case ALINEW:
@@ -1162,20 +1183,18 @@ ata_ali_sata_allocate(device_t dev)
     device_t parent = device_get_parent(dev);
     struct ata_pci_controller *ctlr = device_get_softc(parent);
     struct ata_channel *ch = device_get_softc(dev);
+    struct ali_sata_resources *res;
     struct resource *io = NULL, *ctlio = NULL;
     int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
-    int i, rid;
-		
-    rid = PCIR_BAR(0) + (unit01 ? 8 : 0);
-    io = bus_alloc_resource_any(parent, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-    if (!io)
-	return ENXIO;
+    int i;
 
-    rid = PCIR_BAR(1) + (unit01 ? 8 : 0);
-    ctlio = bus_alloc_resource_any(parent, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-    if (!ctlio) {
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
-	return ENXIO;
+    res = ctlr->chipset_data;
+    if (unit01) {
+	    io = res->bars[2];
+	    ctlio = res->bars[3];
+    } else {
+	    io = res->bars[0];
+	    ctlio = res->bars[1];
     }
 		
     for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
