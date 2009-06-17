@@ -33,11 +33,8 @@
 #ifndef _VM_EXTERN_H_
 #define	_VM_EXTERN_H_
 
-struct buf;
 struct proc;
 struct vmspace;
-struct vmtotal;
-struct mount;
 struct vnode;
 
 #ifdef _KERNEL
