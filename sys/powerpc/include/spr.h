@@ -127,6 +127,8 @@
 #define	SPR_SPRG5		0x115	/* 4.. SPR General 5 */
 #define	SPR_SPRG6		0x116	/* 4.. SPR General 6 */
 #define	SPR_SPRG7		0x117	/* 4.. SPR General 7 */
+#define	SPR_SCOMC		0x114	/* ... SCOM Address Register (970) */
+#define	SPR_SCOMD		0x115	/* ... SCOM Data Register (970) */
 #define	SPR_ASR			0x118	/* ... Address Space Register (PPC64) */
 #define	SPR_EAR			0x11a	/* .68 External Access Register */
 #define	SPR_PVR			0x11f	/* 468 Processor Version Register */
@@ -302,6 +304,20 @@
 #define	SPR_DVC1		0x3b6	/* 4.. Data Value Compare 1 */
 #define	SPR_DVC2		0x3b7	/* 4.. Data Value Compare 2 */
 #define	SPR_MMCR0		0x3b8	/* .6. Monitor Mode Control Register 0 */
+
+#define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
+#define	SPR_970MMCR1		0x31e	/* ... Monitor Mode Control Register 1 (PPC 970) */
+#define	SPR_970MMCRA		0x312	/* ... Monitor Mode Control Register 2 (PPC 970) */
+#define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
+#define SPR_970PMC1		0x313	/* ... PMC 1 */
+#define SPR_970PMC2		0x314	/* ... PMC 2 */
+#define SPR_970PMC3		0x315	/* ... PMC 3 */
+#define SPR_970PMC4		0x316	/* ... PMC 4 */
+#define SPR_970PMC5		0x317	/* ... PMC 5 */
+#define SPR_970PMC6		0x318	/* ... PMC 6 */
+#define SPR_970PMC7		0x319	/* ... PMC 7 */
+#define SPR_970PMC8		0x31a	/* ... PMC 8 */
+
 #define	  SPR_MMCR0_FC		  0x80000000 /* Freeze counters */
 #define	  SPR_MMCR0_FCS		  0x40000000 /* Freeze counters in supervisor mode */
 #define	  SPR_MMCR0_FCP		  0x20000000 /* Freeze counters in user mode */
@@ -320,6 +336,8 @@
 #define	  SPR_MMCR0_TRIGGER	  0x00002000 /* Trigger */
 #define	  SPR_MMCR0_PMC1SEL(x)	  ((x) << 6) /* PMC1 selector */
 #define	  SPR_MMCR0_PMC2SEL(x)	  ((x) << 0) /* PMC2 selector */
+#define	  SPR_970MMCR0_PMC1SEL(x) ((x) << 6) /* PMC1 selector (970) */
+#define	  SPR_970MMCR0_PMC2SEL(x) ((x) << 1) /* PMC2 selector (970) */
 #define	SPR_SGR			0x3b9	/* 4.. Storage Guarded Register */
 #define	SPR_PMC1		0x3b9	/* .6. Performance Counter Register 1 */
 #define	SPR_DCWR		0x3ba	/* 4.. Data Cache Write-through Register */
@@ -566,12 +584,17 @@
 /* Performance counter declarations */
 #define	PMC_OVERFLOW	  	0x80000000 /* Counter has overflowed */
 
-/* The first five countable [non-]events are common to all the PMC's */
+/* The first five countable [non-]events are common to many PMC's */
 #define	PMCN_NONE		 0 /* Count nothing */
 #define	PMCN_CYCLES		 1 /* Processor cycles */
 #define	PMCN_ICOMP		 2 /* Instructions completed */
 #define	PMCN_TBLTRANS		 3 /* TBL bit transitions */
 #define	PCMN_IDISPATCH		 4 /* Instructions dispatched */
+
+/* Similar things for the 970 PMC direct counters */
+#define	PMC970N_NONE		0x8 /* Count nothing */
+#define	PMC970N_CYCLES		0xf /* Processor cycles */
+#define	PMC970N_ICOMP		0x9 /* Instructions completed */
 
 #if defined(AIM)
 
