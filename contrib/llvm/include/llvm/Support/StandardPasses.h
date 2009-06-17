@@ -136,7 +136,7 @@ namespace llvm {
       if (UnrollLoops)
         PM->add(createLoopUnrollPass());          // Unroll small loops
       PM->add(createInstructionCombiningPass());  // Clean up after the unroller
-      PM->add(createGVNPass());                   // Remove redundancies
+      //PM->add(createGVNPass());                   // Remove redundancies
       PM->add(createMemCpyOptPass());             // Remove memcpy / form memset
       PM->add(createSCCPPass());                  // Constant prop with SCCP
     
