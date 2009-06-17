@@ -82,7 +82,8 @@ static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
 SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0, "BSD security policy");
 
-static __inline void crsetgroups_locked(struct ucred *cr, int ngrp,
+static void crextend(struct ucred *cr, int n);
+static void crsetgroups_locked(struct ucred *cr, int ngrp,
     gid_t *groups);
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1946,7 +1947,7 @@ crcopysafe(struct proc *p, struct ucred *cr)
 /*
  * Extend the passed in credential to hold n items.
  */
-void
+static void
 crextend(struct ucred *cr, int n)
 {
 	int cnt;
@@ -1988,7 +1989,7 @@ crextend(struct ucred *cr, int n)
  * (i.e. sorting in the future).  crextend() must have been called
  * before hand to ensure sufficient space is available.  If 
  */
-static inline void
+static void
 crsetgroups_locked(struct ucred *cr, int ngrp, gid_t *groups)
 {
 	
