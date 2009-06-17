@@ -194,35 +194,31 @@ vm_page_release_contig(vm_page_t m, vm_pindex_t count)
  *	before they are mapped.
  */
 static void *
-contigmapping(vm_page_t m, vm_pindex_t npages, int flags)
+contigmapping(vm_map_t map, vm_size_t size, vm_page_t m, int flags)
 {
 	vm_object_t object = kernel_object;
-	vm_map_t map = kernel_map;
 	vm_offset_t addr, tmp_addr;
-	vm_pindex_t i;
  
 	vm_map_lock(map);
-	if (vm_map_findspace(map, vm_map_min(map), npages << PAGE_SHIFT, &addr)
-	    != KERN_SUCCESS) {
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
 		return (NULL);
 	}
 	vm_object_reference(object);
 	vm_map_insert(map, object, addr - VM_MIN_KERNEL_ADDRESS,
-	    addr, addr + (npages << PAGE_SHIFT), VM_PROT_ALL, VM_PROT_ALL, 0);
+	    addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
-	tmp_addr = addr;
 	VM_OBJECT_LOCK(object);
-	for (i = 0; i < npages; i++) {
-		vm_page_insert(&m[i], object,
+	for (tmp_addr = addr; tmp_addr < addr + size; tmp_addr += PAGE_SIZE) {
+		vm_page_insert(m, object,
 		    OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
-		if ((flags & M_ZERO) && !(m[i].flags & PG_ZERO))
-			pmap_zero_page(&m[i]);
-		m[i].valid = VM_PAGE_BITS_ALL;
-		tmp_addr += PAGE_SIZE;
+		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
+			pmap_zero_page(m);
+		m->valid = VM_PAGE_BITS_ALL;
+		m++;
 	}
 	VM_OBJECT_UNLOCK(object);
-	vm_map_wire(map, addr, addr + (npages << PAGE_SHIFT),
+	vm_map_wire(map, addr, addr + size,
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
 	return ((void *)addr);
 }
@@ -242,7 +238,8 @@ contigmalloc(
 	unsigned long npgs;
 	int actl, actmax, inactl, inactmax, tries;
 
-	npgs = round_page(size) >> PAGE_SHIFT;
+	size = round_page(size);
+	npgs = size >> PAGE_SHIFT;
 	tries = 0;
 retry:
 	pages = vm_phys_alloc_contig(npgs, low, high, alignment, boundary);
@@ -270,7 +267,7 @@ again:
 		}
 		ret = NULL;
 	} else {
-		ret = contigmapping(pages, npgs, flags);
+		ret = contigmapping(kernel_map, size, pages, flags);
 		if (ret == NULL)
 			vm_page_release_contig(pages, npgs);
 		else
