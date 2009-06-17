@@ -268,7 +268,8 @@ void
 chownerr(const char *file)
 {
 	static uid_t euid = -1;
-	static int ngroups = -1, ngroups_max;
+	static int ngroups = -1;
+	static long ngroups_max;
 	gid_t *groups;
 
 	/* Check for chown without being root. */
@@ -281,7 +282,7 @@ chownerr(const char *file)
 	/* Check group membership; kernel just returns EPERM. */
 	if (gid != (gid_t)-1 && ngroups == -1 &&
 	    euid == (uid_t)-1 && (euid = geteuid()) != 0) {
-		ngroups_max = sysconf(_SC_NGROUPS_MAX);
+		ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
 		if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
 			err(1, "malloc");
 		ngroups = getgroups(ngroups_max, groups);

@@ -49,16 +49,18 @@ initgroups(uname, agroup)
 	gid_t agroup;
 {
 	int ngroups, ret;
+	long ngroups_max;
 	gid_t *groups;
 
 	/*
 	 * Provide space for one group more than possible to allow
 	 * setgroups to fail and set errno.
 	 */
-	ngroups = sysconf(_SC_NGROUPS_MAX) + 1;
-	if ((groups = malloc(sizeof(*groups) * ngroups)) == NULL)
+	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 2;
+	if ((groups = malloc(sizeof(*groups) * ngroups_max)) == NULL)
 		return (ENOMEM);
 
+	ngroups = (int)ngroups_max;
 	getgrouplist(uname, agroup, groups, &ngroups);
 	ret = setgroups(ngroups, groups);
 	free(groups);

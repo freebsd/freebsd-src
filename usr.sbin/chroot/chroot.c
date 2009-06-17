@@ -71,7 +71,8 @@ main(argc, argv)
 	const char	*shell;
 	gid_t		gid, *gidlist;
 	uid_t		uid;
-	int		ch, gids, ngroups_max;
+	int		ch, gids;
+	long		ngroups_max;
 
 	gid = 0;
 	uid = 0;
@@ -117,7 +118,7 @@ main(argc, argv)
 		}
 	}
 
-	ngroups_max = sysconf(_SC_NGROUPS_MAX);
+	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
 	if ((gidlist = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
 		err(1, "malloc");
 	for (gids = 0;

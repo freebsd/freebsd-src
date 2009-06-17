@@ -147,8 +147,8 @@ static void
 addgroup(const char *grpname)
 {
 	gid_t *grps;
-	long lgid;
-	int dbmember, i, ngrps, ngrps_max;
+	long lgid, ngrps_max;
+	int dbmember, i, ngrps;
 	gid_t egid;
 	struct group *grp;
 	char *ep, *pass;
@@ -185,7 +185,7 @@ addgroup(const char *grpname)
 		}
 	}
 
-	ngrps_max = sysconf(_SC_NGROUPS_MAX);
+	ngrps_max = sysconf(_SC_NGROUPS_MAX) + 1;
 	if ((grps = malloc(sizeof(gid_t) * ngrps_max)) == NULL)
 		err(1, "malloc");
 	if ((ngrps = getgroups(ngrps_max, (gid_t *)grps)) < 0) {

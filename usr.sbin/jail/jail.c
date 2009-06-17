@@ -119,6 +119,7 @@ main(int argc, char **argv)
 	size_t sysvallen;
 	int ch, cmdarg, i, jail_set_flags, jid, ngroups, sysval;
 	int hflag, iflag, Jflag, lflag, rflag, uflag, Uflag;
+	long ngroups_max;
 	unsigned pi;
 	char *ep, *jailname, *securelevel, *username, *JidFile;
 	char errmsg[ERRMSG_SIZE], enforce_statfs[4];
@@ -132,7 +133,7 @@ main(int argc, char **argv)
 	jailname = securelevel = username = JidFile = cleanenv = NULL;
 	fp = NULL;
 
-	ngroups_max = sysconf(_SC_NGROUPS_MAX);	
+	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;	
 	if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
 		err(1, "malloc");
 

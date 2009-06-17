@@ -257,7 +257,8 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 	struct group *gr;
 	gid_t gid, egid, lastgid;
 	uid_t uid, euid;
-	int cnt, ngroups, ngroups_max;
+	int cnt, ngroups;
+	long ngroups_max;
 	gid_t *groups;
 	const char *fmt;
 
@@ -270,16 +271,16 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 		gid = getgid();
 	}
 
-	ngroups_max = sysconf(_SC_NGROUPS_MAX);
-	if ((groups = malloc(sizeof(gid_t) * (ngroups_max + 1))) == NULL)
+	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
+	if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
 		err(1, "malloc");
 
 	if (use_ggl && pw != NULL) {
-		ngroups = ngroups_max + 1;
+		ngroups = ngroups_max;
 		getgrouplist(pw->pw_name, gid, groups, &ngroups);
 	}
 	else {
-		ngroups = getgroups(ngroups_max + 1, groups);
+		ngroups = getgroups(ngroups_max, groups);
 	}
 
 	if (pw != NULL)
@@ -365,20 +366,20 @@ void
 group(struct passwd *pw, int nflag)
 {
 	struct group *gr;
-	int cnt, id, lastid, ngroups, ngroups_max;
+	int cnt, id, lastid, ngroups;
+	long ngroups_max;
 	gid_t *groups;
 	const char *fmt;
 
-	ngroups_max = sysconf(_SC_NGROUPS_MAX);
-	if ((groups = malloc(sizeof(gid_t) * (ngroups_max + 1))) == NULL)
+	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
+	if ((groups = malloc(sizeof(gid_t) * (ngroups_max))) == NULL)
 		err(1, "malloc");
 
 	if (pw) {
-		ngroups = ngroups_max + 1;
+		ngroups = ngroups_max;
 		(void) getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups);
 	} else {
-		groups[0] = getgid();
-		ngroups = getgroups(ngroups_max, groups + 1) + 1;
+		ngroups = getgroups(ngroups_max, groups);
 	}
 	fmt = nflag ? "%s" : "%u";
 	for (lastid = -1, cnt = 0; cnt < ngroups; ++cnt) {

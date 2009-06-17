@@ -72,12 +72,13 @@ main(int argc, char *argv[])
 	login_cap_t *lcap = NULL;
 	struct passwd *pwd = NULL;
 	gid_t *groups = NULL;
-	int ch, ngroups, ngroups_max, uflag, Uflag;
+	int ch, ngroups, uflag, Uflag;
+	long ngroups_max;
 	char *ep, *username;
 	ch = uflag = Uflag = 0;
 	username = NULL;
 
-	ngroups_max = sysconf(_SC_NGROUPS_MAX);
+	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
 	if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
 		err(1, "malloc");
 

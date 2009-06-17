@@ -186,13 +186,14 @@ AUTH *
 authunix_create_default()
 {
 	int ngids;
+	long ngids_max;
 	char machname[MAXHOSTNAMELEN + 1];
 	uid_t uid;
 	gid_t gid;
 	gid_t *gids;
 
-	ngids = sysconf(_SC_NGROUPS_MAX);
-	gids = malloc(sizeof(gid_t) * ngids);
+	ngids_max = sysconf(_SC_NGROUPS_MAX) + 1;
+	gids = malloc(sizeof(gid_t) * ngids_max);
 	if (gids == NULL)
 		return (NULL);
 
@@ -201,7 +202,7 @@ authunix_create_default()
 	machname[sizeof(machname) - 1] = 0;
 	uid = geteuid();
 	gid = getegid();
-	if ((ngids = getgroups(NGROUPS_MAX, gids)) < 0)
+	if ((ngids = getgroups(ngids_max, gids)) < 0)
 		abort();
 	if (ngids > NGRPS)
 		ngids = NGRPS;
