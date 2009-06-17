@@ -92,7 +92,14 @@ archive_read_support_compression_gzip(struct archive *_a)
 	bidder->init = gzip_bidder_init;
 	bidder->options = NULL;
 	bidder->free = NULL; /* No data, so no cleanup necessary. */
+	/* Signal the extent of gzip support with the return value here. */
+#if HAVE_ZLIB_H
 	return (ARCHIVE_OK);
+#else
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	    "Using external gunzip program");
+	return (ARCHIVE_WARN);
+#endif
 }
 
 /*
@@ -207,9 +214,9 @@ gzip_bidder_bid(struct archive_read_filter_bidder *self,
 #ifndef HAVE_ZLIB_H
 
 /*
- * If we don't have the library on this system, we can't actually do the
- * decompression.  We can, however, still detect compressed archives
- * and emit a useful message.
+ * If we don't have the library on this system, we can't do the
+ * decompression directly.  We can, however, try to run gunzip
+ * in case that's available.
  */
 static int
 gzip_bidder_init(struct archive_read_filter *self)
@@ -217,6 +224,9 @@ gzip_bidder_init(struct archive_read_filter *self)
 	int r;
 
 	r = __archive_read_program(self, "gunzip");
+	/* Note: We set the format here even if __archive_read_program()
+	 * above fails.  We do, after all, know what the format is
+	 * even if we weren't able to read it. */
 	self->code = ARCHIVE_COMPRESSION_GZIP;
 	self->name = "gzip";
 	return (r);

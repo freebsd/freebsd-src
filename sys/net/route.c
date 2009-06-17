@@ -106,6 +106,15 @@ static int	rttrash;		/* routes not in table but not freed */
 
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
+static int vnet_route_iattach(const void *);
+
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_rtable_modinfo = {
+	.vmi_id		= VNET_MOD_RTABLE,
+	.vmi_name	= "rtable",
+	.vmi_iattach	= vnet_route_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -122,7 +131,9 @@ static void rt_maskedcopy(struct sockaddr *,
  */
 #define RNTORT(p)	((struct rtentry *)(p))
 
+#ifdef VIMAGE_GLOBALS
 static uma_zone_t rtzone;		/* Routing table UMA zone. */
+#endif
 
 #if 0
 /* default fib for tunnels to use */
@@ -150,20 +161,30 @@ SYSCTL_PROC(_net, OID_AUTO, my_fibnum, CTLTYPE_INT|CTLFLAG_RD,
 static void
 route_init(void)
 {
-	INIT_VNET_INET(curvnet);
-	int table;
-	struct domain *dom;
-	int fam;
 
 	/* whack the tunable ints into  line. */
 	if (rt_numfibs > RT_MAXFIBS)
 		rt_numfibs = RT_MAXFIBS;
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
-	rtzone = uma_zcreate("rtentry", sizeof(struct rtentry), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	rn_init();	/* initialize all zeroes, all ones, mask table */
 
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_rtable_modinfo);
+#else
+	vnet_route_iattach(NULL);
+#endif
+}
+
+static int vnet_route_iattach(const void *unused __unused)
+{
+	INIT_VNET_NET(curvnet);
+	int table;
+	struct domain *dom;
+	int fam;
+
+	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	for (dom = domains; dom; dom = dom->dom_next) {
 		if (dom->dom_rtattach)  {
 			for  (table = 0; table < rt_numfibs; table++) {
@@ -186,6 +207,8 @@ route_init(void)
 			}
 		}
 	}
+
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -402,7 +425,7 @@ rtfree(struct rtentry *rt)
 		 * and the rtentry itself of course
 		 */
 		RT_LOCK_DESTROY(rt);
-		uma_zfree(rtzone, rt);
+		uma_zfree(V_rtzone, rt);
 		return;
 	}
 done:
@@ -803,6 +826,103 @@ bad:
 	return (error);
 }
 
+#ifdef RADIX_MPATH
+static int
+rn_mpath_update(int req, struct rt_addrinfo *info,
+    struct radix_node_head *rnh, struct rtentry **ret_nrt)
+{
+	/*
+	 * if we got multipath routes, we require users to specify
+	 * a matching RTAX_GATEWAY.
+	 */
+	struct rtentry *rt, *rto = NULL;
+	register struct radix_node *rn;
+	int error = 0;
+
+	rn = rnh->rnh_matchaddr(dst, rnh);
+	if (rn == NULL)
+		return (ESRCH);
+	rto = rt = RNTORT(rn);
+	rt = rt_mpath_matchgate(rt, gateway);
+	if (rt == NULL)
+		return (ESRCH);
+	/*
+	 * this is the first entry in the chain
+	 */
+	if (rto == rt) {
+		rn = rn_mpath_next((struct radix_node *)rt);
+		/*
+		 * there is another entry, now it's active
+		 */
+		if (rn) {
+			rto = RNTORT(rn);
+			RT_LOCK(rto);
+			rto->rt_flags |= RTF_UP;
+			RT_UNLOCK(rto);
+		} else if (rt->rt_flags & RTF_GATEWAY) {
+			/*
+			 * For gateway routes, we need to 
+			 * make sure that we we are deleting
+			 * the correct gateway. 
+			 * rt_mpath_matchgate() does not 
+			 * check the case when there is only
+			 * one route in the chain.  
+			 */
+			if (gateway &&
+			    (rt->rt_gateway->sa_len != gateway->sa_len ||
+				memcmp(rt->rt_gateway, gateway, gateway->sa_len)))
+				error = ESRCH;
+			goto done;
+		}
+		/*
+		 * use the normal delete code to remove
+		 * the first entry
+		 */
+		if (req != RTM_DELETE) 
+			goto nondelete;
+
+		error = ENOENT;
+		goto done;
+	}
+		
+	/*
+	 * if the entry is 2nd and on up
+	 */
+	if ((req == RTM_DELETE) && !rt_mpath_deldup(rto, rt))
+		panic ("rtrequest1: rt_mpath_deldup");
+	RT_LOCK(rt);
+	RT_ADDREF(rt);
+	if (req == RTM_DELETE) {
+		rt->rt_flags &= ~RTF_UP;
+		/*
+		 * One more rtentry floating around that is not
+		 * linked to the routing table. rttrash will be decremented
+		 * when RTFREE(rt) is eventually called.
+		 */
+		V_rttrash++;
+		
+	}
+	
+nondelete:
+	if (req != RTM_DELETE)
+		panic("unrecognized request %d", req);
+	
+
+	/*
+	 * If the caller wants it, then it can have it,
+	 * but it's up to it to free the rtentry as we won't be
+	 * doing it.
+	 */
+	if (ret_nrt) {
+		*ret_nrt = rt;
+		RT_UNLOCK(rt);
+	} else
+		RTFREE_LOCKED(rt);
+done:
+	return (error);
+}
+#endif
+
 int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
@@ -841,65 +961,15 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	switch (req) {
 	case RTM_DELETE:
 #ifdef RADIX_MPATH
-		/*
-		 * if we got multipath routes, we require users to specify
-		 * a matching RTAX_GATEWAY.
-		 */
 		if (rn_mpath_capable(rnh)) {
-			struct rtentry *rto = NULL;
-
-			rn = rnh->rnh_matchaddr(dst, rnh);
-			if (rn == NULL)
-				senderr(ESRCH);
- 			rto = rt = RNTORT(rn);
-			rt = rt_mpath_matchgate(rt, gateway);
-			if (!rt)
-				senderr(ESRCH);
+			error = rn_mpath_update(req, info, rnh, ret_nrt);
 			/*
-			 * this is the first entry in the chain
+			 * "bad" holds true for the success case
+			 * as well
 			 */
-			if (rto == rt) {
-				rn = rn_mpath_next((struct radix_node *)rt);
-				/*
-				 * there is another entry, now it's active
-				 */
-				if (rn) {
-					rto = RNTORT(rn);
-					RT_LOCK(rto);
-					rto->rt_flags |= RTF_UP;
-					RT_UNLOCK(rto);
-				} else if (rt->rt_flags & RTF_GATEWAY) {
-					/*
-					 * For gateway routes, we need to 
-					 * make sure that we we are deleting
-					 * the correct gateway. 
-					 * rt_mpath_matchgate() does not 
-					 * check the case when there is only
-					 * one route in the chain.  
-					 */
-					if (gateway &&
-					    (rt->rt_gateway->sa_len != gateway->sa_len ||
-					    memcmp(rt->rt_gateway, gateway, gateway->sa_len)))
-						senderr(ESRCH);
-				}
-				/*
-				 * use the normal delete code to remove
-				 * the first entry
-				 */
-				goto normal_rtdel;
-			}
-			/*
-			 * if the entry is 2nd and on up
-			 */
-			if (!rt_mpath_deldup(rto, rt))
-				panic ("rtrequest1: rt_mpath_deldup");
-			RT_LOCK(rt);
-			RT_ADDREF(rt);
-			rt->rt_flags &= ~RTF_UP;
-			goto deldone;  /* done with the RTM_DELETE command */
+			if (error != ENOENT)
+				goto bad;
 		}
-
-normal_rtdel:
 #endif
 		/*
 		 * Remove the item from the tree and return it.
@@ -921,9 +991,6 @@ normal_rtdel:
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(RTM_DELETE, rt, info);
 
-#ifdef RADIX_MPATH
-deldone:
-#endif
 		/*
 		 * One more rtentry floating around that is not
 		 * linked to the routing table. rttrash will be decremented
@@ -958,7 +1025,7 @@ deldone:
 		if (info->rti_ifa == NULL && (error = rt_getifa_fib(info, fibnum)))
 			senderr(error);
 		ifa = info->rti_ifa;
-		rt = uma_zalloc(rtzone, M_NOWAIT | M_ZERO);
+		rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
 		if (rt == NULL)
 			senderr(ENOBUFS);
 		RT_LOCK_INIT(rt);
@@ -971,7 +1038,7 @@ deldone:
 		RT_LOCK(rt);
 		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
 			RT_LOCK_DESTROY(rt);
-			uma_zfree(rtzone, rt);
+			uma_zfree(V_rtzone, rt);
 			senderr(error);
 		}
 
@@ -996,6 +1063,7 @@ deldone:
 		IFAREF(ifa);
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
+		rt->rt_rmx.rmx_weight = 1;
 
 #ifdef RADIX_MPATH
 		/* do not permit exactly the same dst/mask/gw pair */
@@ -1006,7 +1074,7 @@ deldone:
 			}
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
-			uma_zfree(rtzone, rt);
+			uma_zfree(V_rtzone, rt);
 			senderr(EEXIST);
 		}
 #endif
@@ -1022,7 +1090,7 @@ deldone:
 				IFAFREE(rt->rt_ifa);
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
-			uma_zfree(rtzone, rt);
+			uma_zfree(V_rtzone, rt);
 			senderr(EEXIST);
 		}
 
@@ -1063,10 +1131,10 @@ bad:
 int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 {
-	INIT_VNET_NET(curvnet);
 	/* XXX dst may be overwritten, can we move this to below */
 	int dlen = SA_SIZE(dst), glen = SA_SIZE(gate);
 #ifdef INVARIANTS
+	INIT_VNET_NET(curvnet);
 	struct radix_node_head *rnh =
 	    V_rt_tables[rt->rt_fibnum][dst->sa_family];
 #endif

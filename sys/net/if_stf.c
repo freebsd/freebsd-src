@@ -178,7 +178,7 @@ static int stfmodevent(module_t, int, void *);
 static int stf_encapcheck(const struct mbuf *, int, int, void *);
 static struct in6_ifaddr *stf_getsrcifa6(struct ifnet *);
 static int stf_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-	struct rtentry *);
+	struct route *);
 static int isrfc1918addr(struct in_addr *);
 static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
 	struct ifnet *);
@@ -382,7 +382,8 @@ stf_getsrcifa6(ifp)
 	struct sockaddr_in6 *sin6;
 	struct in_addr in;
 
-	TAILQ_FOREACH(ia, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr->sa_family != AF_INET6)
 			continue;
 		sin6 = (struct sockaddr_in6 *)ia->ifa_addr;
@@ -396,18 +397,20 @@ stf_getsrcifa6(ifp)
 		if (ia4 == NULL)
 			continue;
 
+		IF_ADDR_UNLOCK(ifp);
 		return (struct in6_ifaddr *)ia;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	return NULL;
 }
 
 static int
-stf_output(ifp, m, dst, rt)
+stf_output(ifp, m, dst, ro)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
-	struct rtentry *rt;
+	struct route *ro;
 {
 	struct stf_softc *sc;
 	struct sockaddr_in6 *dst6;

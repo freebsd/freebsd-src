@@ -60,6 +60,7 @@ struct keyboard {
 #define KB_INITIALIZED	(1 << 19)	/* device initialized */
 #define KB_REGISTERED	(1 << 20)	/* device registered to kbdio */
 #define KB_BUSY		(1 << 21)	/* device used by a client */
+#define KB_POLLED	(1 << 22)	/* device is polled */
 	int		kb_active;	/* 0: inactive */
 	void		*kb_token;	/* id of the current client */
 	keyboard_callback_t kb_callback;/* callback function */
@@ -107,6 +108,9 @@ struct keyboard {
 #define KBD_IS_BUSY(k)		((k)->kb_flags & KB_BUSY)
 #define KBD_BUSY(k)		((k)->kb_flags |= KB_BUSY)
 #define KBD_UNBUSY(k)		((k)->kb_flags &= ~KB_BUSY)
+#define KBD_IS_POLLED(k)	((k)->kb_flags & KB_POLLED)
+#define KBD_POLL(k)		((k)->kb_flags |= KB_POLLED)
+#define KBD_UNPOLL(k)		((k)->kb_flags &= ~KB_POLLED)
 #define KBD_IS_ACTIVE(k)	((k)->kb_active)
 #define KBD_ACTIVATE(k)		(++(k)->kb_active)
 #define KBD_DEACTIVATE(k)	(--(k)->kb_active)
@@ -170,7 +174,7 @@ typedef struct keyboard_switch {
 	(*kbdsw[(kbd)->kb_index]->intr)((kbd), (arg))
 #define kbdd_test_if(kbd)						\
 	(*kbdsw[(kbd)->kb_index]->test_if)((kbd))
-#define kbdd_enable(kbd)							\
+#define kbdd_enable(kbd)						\
 	(*kbdsw[(kbd)->kb_index]->enable)((kbd))
 #define kbdd_disable(kbd)						\
 	(*kbdsw[(kbd)->kb_index]->disable)((kbd))
@@ -194,7 +198,7 @@ typedef struct keyboard_switch {
 	(*kbdsw[(kbd)->kb_index]->get_state)((kbd), (buf), (len))
 #define kbdd_set_state(kbd, buf, len)					\
 	(*kbdsw[(kbd)->kb_index]->set_state)((kbd), (buf), (len))
-#define kbdd_get_fkeystr(kbd, fkey, len)					\
+#define kbdd_get_fkeystr(kbd, fkey, len)				\
 	(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
 #define kbdd_poll(kbd, on)						\
 	(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))

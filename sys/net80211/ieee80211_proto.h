@@ -70,7 +70,7 @@ int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
 int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 int	ieee80211_output(struct ifnet *, struct mbuf *,
-		struct sockaddr *, struct rtentry *);
+               struct sockaddr *, struct route *ro);
 void	ieee80211_start(struct ifnet *);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_classify(struct ieee80211_node *, struct mbuf *m);

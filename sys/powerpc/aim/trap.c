@@ -208,9 +208,8 @@ trap(struct trapframe *frame)
 			break;
 
 		case EXC_PGM:
-			/* XXX temporarily */
-			/* XXX: Magic Number? */
-			if (frame->srr1 & 0x0002000)
+			/* Identify the trap reason */
+			if (frame->srr1 & EXC_PGM_TRAP)
 				sig = SIGTRAP;
  			else
 				sig = SIGILL;

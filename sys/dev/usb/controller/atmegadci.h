@@ -236,7 +236,6 @@ struct atmegadci_flags {
 struct atmegadci_softc {
 	struct usb2_bus sc_bus;
 	union atmegadci_hub_temp sc_hub_temp;
-	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
 
 	/* must be set by by the bus interface layer */
 	atmegadci_clocks_t *sc_clocks_on;

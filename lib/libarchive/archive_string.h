@@ -99,8 +99,12 @@ __archive_string_ensure(struct archive_string *, size_t);
 #define	archive_string_ensure __archive_string_ensure
 
 /* Append C string, which may lack trailing \0. */
+/* The source is declared void * here because this gets used with
+ * "signed char *", "unsigned char *" and "char *" arguments.
+ * Declaring it "char *" as with some of the other functions just
+ * leads to a lot of extra casts. */
 struct archive_string *
-__archive_strncat(struct archive_string *, const char *, size_t);
+__archive_strncat(struct archive_string *, const void *, size_t);
 #define	archive_strncat  __archive_strncat
 
 /* Append a C string to an archive_string, resizing as necessary. */

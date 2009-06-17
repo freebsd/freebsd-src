@@ -135,6 +135,10 @@ show_pcpu(struct pcpu *pc)
 		db_printf("none\n");
 	db_show_mdpcpu(pc);
 		
+#ifdef VIMAGE
+	db_printf("curvnet      = %p\n", pc->pc_curthread->td_vnet);
+#endif
+
 #ifdef WITNESS
 	db_printf("spin locks held:\n");
 	witness_list_locks(&pc->pc_spinlocks);

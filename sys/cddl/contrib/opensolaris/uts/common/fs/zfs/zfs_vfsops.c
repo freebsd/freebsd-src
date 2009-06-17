@@ -91,12 +91,12 @@ static int zfs_version_zpl = ZPL_VERSION;
 SYSCTL_INT(_vfs_zfs_version, OID_AUTO, zpl, CTLFLAG_RD, &zfs_version_zpl, 0,
     "ZPL_VERSION");
 
-static int zfs_mount(vfs_t *vfsp, kthread_t *td);
-static int zfs_umount(vfs_t *vfsp, int fflag, kthread_t *td);
-static int zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp, kthread_t *td);
-static int zfs_statfs(vfs_t *vfsp, struct statfs *statp, kthread_t *td);
+static int zfs_mount(vfs_t *vfsp);
+static int zfs_umount(vfs_t *vfsp, int fflag);
+static int zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp);
+static int zfs_statfs(vfs_t *vfsp, struct statfs *statp);
 static int zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp);
-static int zfs_sync(vfs_t *vfsp, int waitfor, kthread_t *td);
+static int zfs_sync(vfs_t *vfsp, int waitfor);
 static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp);
 static void zfs_objset_close(zfsvfs_t *zfsvfs);
 static void zfs_freevfs(vfs_t *vfsp);
@@ -122,7 +122,7 @@ static uint32_t	zfs_active_fs_count = 0;
 
 /*ARGSUSED*/
 static int
-zfs_sync(vfs_t *vfsp, int waitfor, kthread_t *td)
+zfs_sync(vfs_t *vfsp, int waitfor)
 {
 
 	/*
@@ -139,7 +139,7 @@ zfs_sync(vfs_t *vfsp, int waitfor, kthread_t *td)
 		zfsvfs_t *zfsvfs = vfsp->vfs_data;
 		int error;
 
-		error = vfs_stdsync(vfsp, waitfor, td);
+		error = vfs_stdsync(vfsp, waitfor);
 		if (error != 0)
 			return (error);
 
@@ -688,8 +688,9 @@ zfs_unregister_callbacks(zfsvfs_t *zfsvfs)
 
 /*ARGSUSED*/
 static int
-zfs_mount(vfs_t *vfsp, kthread_t *td)
+zfs_mount(vfs_t *vfsp)
 {
+	kthread_t	*td = curthread;
 	vnode_t		*mvp = vfsp->mnt_vnodecovered;
 	cred_t		*cr = td->td_ucred;
 	char		*osname;
@@ -782,7 +783,7 @@ out:
 }
 
 static int
-zfs_statfs(vfs_t *vfsp, struct statfs *statp, kthread_t *td)
+zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 {
 	zfsvfs_t *zfsvfs = vfsp->vfs_data;
 	uint64_t refdbytes, availbytes, usedobjs, availobjs;
@@ -840,7 +841,7 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp, kthread_t *td)
 }
 
 static int
-zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp, kthread_t *td)
+zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 {
 	zfsvfs_t *zfsvfs = vfsp->vfs_data;
 	znode_t *rootzp;
@@ -957,11 +958,11 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 
 /*ARGSUSED*/
 static int
-zfs_umount(vfs_t *vfsp, int fflag, kthread_t *td)
+zfs_umount(vfs_t *vfsp, int fflag)
 {
 	zfsvfs_t *zfsvfs = vfsp->vfs_data;
 	objset_t *os;
-	cred_t *cr = td->td_ucred;
+	cred_t *cr = curthread->td_ucred;
 	int ret;
 
 	if (fflag & MS_FORCE) {
@@ -992,7 +993,7 @@ zfs_umount(vfs_t *vfsp, int fflag, kthread_t *td)
 	if (zfsvfs->z_ctldir != NULL) {
 		if ((ret = zfsctl_umount_snapshots(vfsp, fflag, cr)) != 0)
 			return (ret);
-		ret = vflush(vfsp, 0, 0, td);
+		ret = vflush(vfsp, 0, 0, curthread);
 		ASSERT(ret == EBUSY);
 		if (!(fflag & MS_FORCE)) {
 			if (zfsvfs->z_ctldir->v_count > 1)
@@ -1006,7 +1007,7 @@ zfs_umount(vfs_t *vfsp, int fflag, kthread_t *td)
 	/*
 	 * Flush all the files.
 	 */
-	ret = vflush(vfsp, 1, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
+	ret = vflush(vfsp, 1, (fflag & MS_FORCE) ? FORCECLOSE : 0, curthread);
 	if (ret != 0) {
 		if (!zfsvfs->z_issnap) {
 			zfsctl_create(zfsvfs);

@@ -237,16 +237,17 @@ node_setuptxparms(struct ieee80211_node *ni)
 		else
 			mode = IEEE80211_MODE_11NG;
 	} else {				/* legacy rate handling */
-		/* NB: 108A/108G should be handled as 11a/11g respectively */
 		if (IEEE80211_IS_CHAN_ST(ni->ni_chan))
 			mode = IEEE80211_MODE_STURBO_A;
 		else if (IEEE80211_IS_CHAN_HALF(ni->ni_chan))
 			mode = IEEE80211_MODE_HALF;
 		else if (IEEE80211_IS_CHAN_QUARTER(ni->ni_chan))
 			mode = IEEE80211_MODE_QUARTER;
+		/* NB: 108A should be handled as 11a */
 		else if (IEEE80211_IS_CHAN_A(ni->ni_chan))
 			mode = IEEE80211_MODE_11A;
-		else if (ni->ni_flags & IEEE80211_NODE_ERP)
+		else if (IEEE80211_IS_CHAN_108G(ni->ni_chan) ||
+		    (ni->ni_flags & IEEE80211_NODE_ERP))
 			mode = IEEE80211_MODE_11G;
 		else
 			mode = IEEE80211_MODE_11B;
@@ -628,16 +629,18 @@ ieee80211_sync_curchan(struct ieee80211com *ic)
 		ic->ic_curchan = c;
 		ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
 		ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
+		IEEE80211_UNLOCK(ic);
 		ic->ic_set_channel(ic);
+		IEEE80211_LOCK(ic);
 	}
 }
 
 /*
- * Change the current channel.  The request channel may be
+ * Setup the current channel.  The request channel may be
  * promoted if other vap's are operating with HT20/HT40.
  */
 void
-ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
+ieee80211_setupcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 {
 	if (ic->ic_htcaps & IEEE80211_HTC_HT) {
 		int flags = gethtadjustflags(ic);
@@ -653,7 +656,17 @@ ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 	ic->ic_bsschan = ic->ic_curchan = c;
 	ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
 	ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
-	ic->ic_set_channel(ic);
+}
+
+/*
+ * Change the current channel.  The channel change is guaranteed to have
+ * happened before the next state change.
+ */
+void
+ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
+{
+	ieee80211_setupcurchan(ic, c);
+	ieee80211_runtask(ic, &ic->ic_chan_task);
 }
 
 /*

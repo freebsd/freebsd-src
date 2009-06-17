@@ -427,6 +427,7 @@ typedef struct {
  * built, these entries will need to be adjusted.
  */
 #define	DT_ADDRRNGLO	0x6ffffe00
+#define	DT_GNU_HASH	0x6ffffef5	/* GNU-style hash table */
 #define	DT_CONFIG	0x6ffffefa	/* configuration information */
 #define	DT_DEPAUDIT	0x6ffffefb	/* dependency auditing */
 #define	DT_AUDIT	0x6ffffefc	/* object auditing */

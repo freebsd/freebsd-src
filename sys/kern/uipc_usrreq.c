@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/unpcb.h>
 #include <sys/vnode.h>
+#include <sys/vimage.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -457,10 +458,8 @@ restart:
 	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
 #endif
-	if (error == 0) {
-		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
+	if (error == 0)
 		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
-	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	if (error) {
@@ -1649,6 +1648,10 @@ static void
 unp_init(void)
 {
 
+#ifdef VIMAGE
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+#endif
 	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (unp_zone == NULL)

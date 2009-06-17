@@ -1,8 +1,104 @@
+2008-12-12 15:50  Christos Zoulas <christos@zoulas.com>
+
+	* fix initial offset calculation for non 4K sector files
+
+	* add loop limits to avoid DoS attacks by constructing
+	  looping sector references.
+
+2008-12-03 13:05  Christos Zoulas <christos@zoulas.com>
+
+	* fix memory botches on cdf file parsing.
+
+	* exit with non-zero value for any error, not just for the last
+	  file processed.
+
+2008-11-09 20:42  Charles Longeau <chl@tuxfamily.org>
+
+	* Replace all str{cpy,cat} functions with strl{cpy,cat}
+	* Ensure that strl{cpy,cat} are included in libmagic,
+	  as needed.
+
+2008-11-06 18:18  Christos Zoulas <christos@zoulas.com>
+
+	* Handle ID3 format files.
+
+2008-11-06 23:00  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix --mime, --mime-type and --mime-encoding under new scheme.
+
+	* Rename "ascii" to "text" and add "encoding" test.
+
+	* Return a precise ("utf-16le" or "utf-16be") MIME charset for
+	  UTF-16.
+
+	* Fix error in comment caused by automatic indentation adding
+	  words!
+
+2008-11-06 10:35  Christos Zoulas <christos@astron.com>
+
+	* use memchr instead of strchr because the string
+	  might not be NUL terminated (Scott MacVicar)
+
+2008-11-03 07:31  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix a printf with a non-literal format string.
+
+	* Fix formatting and punctuation of help for "--apple".
+
+2008-10-30 11:00  Reuben Thomas <rrt@sc3d.org>
+
+	* Correct words counts in comments of struct magic.
+
+	* Fix handle_annotation to allow both Apple and MIME types to be
+	  printed, and to return correct code if MIME type is
+	  printed (1, not 0) or if there's an error (-1 not 1).
+
+	* Fix output of charset for MIME type (precede with semi-colon;
+	  fixes Debian bug #501460).
+
+	* Fix potential attacks via conversion specifications in magic
+	  strings.
+
+	* Add a FIXME for Debian bug #488562 (magic files should be
+	  read in a defined order, by sorting the names).
+
+2008-10-18 16:45  Christos Zoulas <christos@astron.com>
+
+	* Added APPLE file creator/type
+
+2008-10-12 10:20  Christos Zoulas <christos@astron.com>
+
+	* Added CDF parsing
+
+2008-10-09 16:40  Christos Zoulas <christos@astron.com>
+
+	* filesystem and msdos patches (Joerg Jenderek)
+
+2008-10-09 13:20  Christos Zoulas <christos@astron.com>
+
+	* correct --exclude documentation issues: remove troff and fortran
+	  and rename "token" to "tokens". (Randy McMurchy)
+
+2008-10-01 10:30  Christos Zoulas <christos@astron.com>
+
+	* Read ~/.magic in addition to the default magic file not instead
+	  of, as documented in the man page.
+
+2008-09-10 21:30  Reuben Thomas  <rrt@sc3d.org>
+
+	* Comment out graphviz patterns, as they match too many files.
+
 2008-08-30 12:54  Christos Zoulas <christos@astron.com>
 
 	* Don't eat trailing \n in magic enties.
 
 	* Cast defines to allow compilation using a c++ compiler.
+
+2008-08-25 23:56  Reuben Thomas  <rrt@sc3d.org>
+
+	* Add text/x-lua MIME type for Lua scripts.
+
+	* Escape { in regex in graphviz patterns.
 
 2008-07-26 00:59  Reuben Thomas  <rrt@sc3d.org>
 
@@ -55,22 +151,22 @@
 
 2008-05-06 00:13  Robert Byrnes  <byrnes@wildpumpkin.net>
 
-        * src/Makefile.am:
+	* src/Makefile.am:
 	  Ensure that getopt_long and [v]asprintf are included in libmagic,
 	  as needed.
 
 	  Remove unnecessary EXTRA_DIST.
 
-        * src/Makefile.in:
+	* src/Makefile.in:
 	  Rerun automake.
 
-        * src/vasprintf.c (dispatch):
+	* src/vasprintf.c (dispatch):
 	  Fix variable precision bug: be sure to step past '*'.
 
-        * src/vasprintf.c (core):
+	* src/vasprintf.c (core):
 	  Remove unreachable code.
 
-        * src/apprentice.c (set_test_type):
+	* src/apprentice.c (set_test_type):
 	  Add cast to avoid compiler warning.
 
 2008-04-22 23:45  Christos Zoulas  <christos@astron.com>
@@ -81,12 +177,12 @@
 
 2008-04-04 11:00  Christos Zoulas  <christos@astron.com>
 
-        * >= <= is not supported, so fix the magic and warn about it.
+	* >= <= is not supported, so fix the magic and warn about it.
 	  reported by: Thien-Thi Nguyen <ttn@gnuvola.org>
 
 2008-03-27 16:16  Robert Byrnes  <byrnes@wildpumpkin.net>
 
-        * src/readelf.c (donote):
+	* src/readelf.c (donote):
 	  ELF core file command name/line bug fixes and enhancements:
 
 	  Try larger offsets first to avoid false matches
@@ -112,7 +208,7 @@
 	* Clarify UTF-8 BOM message (Reuben Thomas)
 
 	* Add HTML comment to token list in names.h
-	
+
 2007-02-04 15:50 Christos Zoulas <christos@astron.com>
 
 	* Debian fixes (Reuben Thomas)
@@ -152,7 +248,7 @@
 
 2007-10-28 20:48 Christos Zoulas <christos@astron.com>
 
- 	* float and double magic support (Behan Webster) 
+ 	* float and double magic support (Behan Webster)
 
 2007-10-28 20:48 Christos Zoulas <christos@astron.com>
 
@@ -199,7 +295,7 @@
 	  be easily parsed:
 	      mimetype [charset=character-set] [encoding=encoding-mime-type]
 
-	  Remove spurious extra text from some MIME type printouts 
+	  Remove spurious extra text from some MIME type printouts
 	  (mostly in is_tar).
 
 	  Fix one case where -i produced nothing at all (for a 1-byte file,
@@ -229,7 +325,7 @@
 2007-03-15 10:51 Christos Zoulas <christos@astron.com>
 
 	* fix fortran and nroff reversed tests (Dmitry V. Levin)
-	
+
 	* fix exclude option (Dmitry V. Levin)
 
 2007-02-08 17:30 Christos Zoulas <christos@astron.com>
@@ -248,7 +344,7 @@
 	* Add exclude flag.
 
 2007-01-18 05:29 Anon Ymous <do@not.spam.me>
-	
+
 	* Move the "type" detection code from parse() into its own table
 	  driven routine.  This avoids maintaining multiple lists in
 	  file.h.
@@ -256,7 +352,7 @@
 	* Add an optional conditional field (ust before the type field).
 	  This code is wrapped in "#ifdef ENABLE_CONDITIONALS" as it is
 	  likely to go away.
-	
+
 2007-01-16 23:24 Anon Ymous <do@not.spam.me>
 
 	* Fix an initialization bug in check_mem().
@@ -327,7 +423,7 @@
 2006-12-08 16:32 Christos Zoulas <christos@astron.com>
 
 	* store and print the line number of the magic
-	  entry for debugging.         
+	  entry for debugging.
 
 	* if the magic entry did not print anything,
 	  don't treat it as a match
@@ -342,7 +438,7 @@
 	  file_softmagic.
 
 2006-11-25 13:35 Christos Zoulas <christos@astron.com>
-	
+
 	* Don't store the current offset in the magic
 	  struct, because it needs to be restored and
 	  it was not done properly all the time. Bug
@@ -432,7 +528,7 @@
 	* Look for note sections in non executables.
 
 2005-09-20 13:33 Christos Zoulas <christos@astron.com>
-	
+
 	* Don't print SVR4 Style in core files multiple times
 	    (Radek Vokál)
 
@@ -443,9 +539,9 @@
 2005-08-18 09:53 Christos Zoulas <christos@astron.com>
 
 	* Remove erroreous mention of /etc/magic in the file man page
-	  This is gentoo bug 101639. (Mike Frysinger) 
+	  This is gentoo bug 101639. (Mike Frysinger)
 
-	* Cross-compile support and detection (Mike Frysinger) 
+	* Cross-compile support and detection (Mike Frysinger)
 
 2005-08-12 10:17 Christos Zoulas <christos@astron.com>
 
@@ -477,20 +573,20 @@
 	* Avoid NULL pointer dereference in time conversion.
 
 2005-03-06 00:00  Joerg Walter <jwalt@mail.garni.ch>
-	
+
 	* Add indirect magic offset support, and search mode.
 
 2005-01-12 00:00  Stepan Kasal  <kasal@ucw.cz>
 
-        * src/ascmagic.c (file_ascmagic): Fix three bugs about text files:
-          If a CRLF text file happens to have CR at offset HOWMANY - 1
-          (currently 0xffff), it should not be counted as CR line
-          terminator.
-          If a line has length exactly MAXLINELEN, it should not yet be
-          treated as a ``very long line'', as MAXLINELEN is ``longest sane
-          line length''.
-          With CRLF, the line length was not computed correctly, and even
-          lines of length MAXLINELEN - 1 were treated as ``very long''.
+	* src/ascmagic.c (file_ascmagic): Fix three bugs about text files:
+	  If a CRLF text file happens to have CR at offset HOWMANY - 1
+	  (currently 0xffff), it should not be counted as CR line
+	  terminator.
+	  If a line has length exactly MAXLINELEN, it should not yet be
+	  treated as a ``very long line'', as MAXLINELEN is ``longest sane
+	  line length''.
+	  With CRLF, the line length was not computed correctly, and even
+	  lines of length MAXLINELEN - 1 were treated as ``very long''.
 
 2004-12-07 14:15  Christos Zoulas  <christos@astron.com>
 
@@ -525,12 +621,12 @@
 
 	* Remove 3rd and 4th copyright clause; approved by Ian Darwin.
 
-	* Fix small memory leaks; caught by: Tamas Sarlos 
+	* Fix small memory leaks; caught by: Tamas Sarlos
 	    <stamas@csillag.ilab.sztaki.hu>
 
 2004-07-24 16:33  Christos Zoulas  <christos@astron.com>
 
-	* magic.mime update Danny Milosavljevic <danny.milo@gmx.net> 
+	* magic.mime update Danny Milosavljevic <danny.milo@gmx.net>
 
 	* FreeBSD version update Oliver Eikemeier <eikemeier@fillmore-labs.com>
 

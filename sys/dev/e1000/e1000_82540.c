@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -229,6 +229,8 @@ static s32 e1000_init_mac_params_82540(struct e1000_hw *hw)
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
 	/* setting MTA */
 	mac->ops.mta_set = e1000_mta_set_generic;
+	/* ID LED init */
+	mac->ops.id_led_init = e1000_id_led_init_generic;
 	/* setup LED */
 	mac->ops.setup_led = e1000_setup_led_generic;
 	/* cleanup LED */
@@ -332,7 +334,7 @@ static s32 e1000_init_hw_82540(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_init_hw_82540");
 
 	/* Initialize identification LED */
-	ret_val = e1000_id_led_init_generic(hw);
+	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val) {
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */

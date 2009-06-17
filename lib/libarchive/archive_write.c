@@ -132,8 +132,14 @@ archive_write_set_format_options(struct archive *_a, const char *s)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	char key[64], val[64];
-	int len, r;
+	int len, r, ret = ARCHIVE_OK;
 
+	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_options");
+	archive_clear_error(&a->archive);
+
+	if (s == NULL || *s == '\0')
+		return (ARCHIVE_OK);
 	if (a->format_options == NULL)
 		/* This format does not support option. */
 		return (ARCHIVE_OK);
@@ -146,14 +152,19 @@ archive_write_set_format_options(struct archive *_a, const char *s)
 			r = a->format_options(a, key, val);
 		if (r == ARCHIVE_FATAL)
 			return (r);
+		if (r < ARCHIVE_OK) { /* This key was not handled. */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Unsupported option ``%s''", key);
+			ret = ARCHIVE_WARN;
+		}
 		s += len;
 	}
 	if (len < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Illegal format options.");
+		    "Malformed options string.");
 		return (ARCHIVE_WARN);
 	}
-	return (ARCHIVE_OK);
+	return (ret);
 }
 
 /*
@@ -165,10 +176,20 @@ archive_write_set_compressor_options(struct archive *_a, const char *s)
 	struct archive_write *a = (struct archive_write *)_a;
 	char key[64], val[64];
 	int len, r;
+	int ret = ARCHIVE_OK;
 
-	if (a->compressor.options == NULL)
-		/* This compressor does not support option. */
+	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_compressor_options");
+	archive_clear_error(&a->archive);
+
+	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
+	if (a->compressor.options == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Unsupported option ``%s''", s);
+		/* This compressor does not support option. */
+		return (ARCHIVE_WARN);
+	}
 
 	while ((len = __archive_parse_options(s, a->archive.compression_name,
 	    sizeof(key), key, sizeof(val), val)) > 0) {
@@ -178,6 +199,11 @@ archive_write_set_compressor_options(struct archive *_a, const char *s)
 			r = a->compressor.options(a, key, val);
 		if (r == ARCHIVE_FATAL)
 			return (r);
+		if (r < ARCHIVE_OK) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Unsupported option ``%s''", key);
+			ret = ARCHIVE_WARN;
+		}
 		s += len;
 	}
 	if (len < 0) {
@@ -185,7 +211,7 @@ archive_write_set_compressor_options(struct archive *_a, const char *s)
 		    "Illegal format options.");
 		return (ARCHIVE_WARN);
 	}
-	return (ARCHIVE_OK);
+	return (ret);
 }
 
 /*
@@ -194,14 +220,16 @@ archive_write_set_compressor_options(struct archive *_a, const char *s)
 int
 archive_write_set_options(struct archive *_a, const char *s)
 {
-	int r;
+	int r1, r2;
 
-	r = archive_write_set_format_options(_a, s);
-	if (r != ARCHIVE_OK)
-		return (r);
-	r = archive_write_set_compressor_options(_a, s);
-	if (r != ARCHIVE_OK)
-		return (r);
+	r1 = archive_write_set_format_options(_a, s);
+	if (r1 < ARCHIVE_WARN)
+		return (r1);
+	r2 = archive_write_set_compressor_options(_a, s);
+	if (r2 < ARCHIVE_WARN)
+		return (r2);
+	if (r1 == ARCHIVE_WARN && r2 == ARCHIVE_WARN)
+		return (ARCHIVE_WARN);
 	return (ARCHIVE_OK);
 }
 

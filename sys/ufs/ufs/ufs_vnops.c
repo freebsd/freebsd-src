@@ -157,11 +157,11 @@ ufs_itimes_locked(struct vnode *vp)
 	if (ip->i_flag & IN_UPDATE) {
 		DIP_SET(ip, i_mtime, ts.tv_sec);
 		DIP_SET(ip, i_mtimensec, ts.tv_nsec);
-		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE) {
 		DIP_SET(ip, i_ctime, ts.tv_sec);
 		DIP_SET(ip, i_ctimensec, ts.tv_nsec);
+		DIP_SET(ip, i_modrev, DIP(ip, i_modrev) + 1);
 	}
 
  out:
@@ -374,7 +374,7 @@ relock:
 
 #ifdef UFS_ACL
 	if ((vp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		acl = uma_zalloc(acl_zone, M_WAITOK);
+		acl = acl_alloc(M_WAITOK);
 		error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred,
 		    ap->a_td);
 		switch (error) {
@@ -398,7 +398,7 @@ relock:
 			error = vaccess(vp->v_type, ip->i_mode, ip->i_uid,
 			    ip->i_gid, ap->a_accmode, ap->a_cred, NULL);
 		}
-		uma_zfree(acl_zone, acl);
+		acl_free(acl);
 	} else
 #endif /* !UFS_ACL */
 		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
@@ -446,6 +446,7 @@ ufs_getattr(ap)
 		vap->va_ctime.tv_sec = ip->i_din1->di_ctime;
 		vap->va_ctime.tv_nsec = ip->i_din1->di_ctimensec;
 		vap->va_bytes = dbtob((u_quad_t)ip->i_din1->di_blocks);
+		vap->va_filerev = ip->i_din1->di_modrev;
 	} else {
 		vap->va_rdev = ip->i_din2->di_rdev;
 		vap->va_size = ip->i_din2->di_size;
@@ -456,12 +457,12 @@ ufs_getattr(ap)
 		vap->va_birthtime.tv_sec = ip->i_din2->di_birthtime;
 		vap->va_birthtime.tv_nsec = ip->i_din2->di_birthnsec;
 		vap->va_bytes = dbtob((u_quad_t)ip->i_din2->di_blocks);
+		vap->va_filerev = ip->i_din2->di_modrev;
 	}
 	vap->va_flags = ip->i_flags;
 	vap->va_gen = ip->i_gen;
 	vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
 	vap->va_type = IFTOVT(ip->i_mode);
-	vap->va_filerev = ip->i_modrev;
 	return (0);
 }
 
@@ -1036,6 +1037,7 @@ ufs_rename(ap)
 	struct direct newdir;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
 	int error = 0, ioflag;
+	ino_t fvp_ino;
 
 #ifdef INVARIANTS
 	if ((tcnp->cn_flags & HASBUF) == 0 ||
@@ -1146,6 +1148,7 @@ abortit:
 	 * call to checkpath().
 	 */
 	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
+	fvp_ino = ip->i_number;
 	VOP_UNLOCK(fvp, 0);
 	if (oldparent != dp->i_number)
 		newparent = dp->i_number;
@@ -1154,7 +1157,7 @@ abortit:
 			goto bad;
 		if (xp != NULL)
 			vput(tvp);
-		error = ufs_checkpath(ip, dp, tcnp->cn_cred);
+		error = ufs_checkpath(fvp_ino, dp, tcnp->cn_cred);
 		if (error)
 			goto out;
 		if ((tcnp->cn_flags & SAVESTART) == 0)
@@ -1507,8 +1510,8 @@ ufs_mkdir(ap)
 #ifdef UFS_ACL
 	acl = dacl = NULL;
 	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		acl = uma_zalloc(acl_zone, M_WAITOK);
-		dacl = uma_zalloc(acl_zone, M_WAITOK);
+		acl = acl_alloc(M_WAITOK);
+		dacl = acl_alloc(M_WAITOK);
 
 		/*
 		 * Retrieve default ACL from parent, if any.
@@ -1538,16 +1541,16 @@ ufs_mkdir(ap)
 			 */
 			ip->i_mode = dmode;
 			DIP_SET(ip, i_mode, dmode);
-			uma_zfree(acl_zone, acl);
-			uma_zfree(acl_zone, dacl);
+			acl_free(acl);
+			acl_free(dacl);
 			dacl = acl = NULL;
 			break;
 		
 		default:
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
-			uma_zfree(acl_zone, acl);
-			uma_zfree(acl_zone, dacl);
+			acl_free(acl);
+			acl_free(dacl);
 			return (error);
 		}
 	} else {
@@ -1617,13 +1620,13 @@ ufs_mkdir(ap)
 			break;
 
 		default:
-			uma_zfree(acl_zone, acl);
-			uma_zfree(acl_zone, dacl);
+			acl_free(acl);
+			acl_free(dacl);
 			dacl = acl = NULL;
 			goto bad;
 		}
-		uma_zfree(acl_zone, acl);
-		uma_zfree(acl_zone, dacl);
+		acl_free(acl);
+		acl_free(dacl);
 		dacl = acl = NULL;
 	}
 #endif /* !UFS_ACL */
@@ -1689,9 +1692,9 @@ bad:
 	} else {
 #ifdef UFS_ACL
 		if (acl != NULL)
-			uma_zfree(acl_zone, acl);
+			acl_free(acl);
 		if (dacl != NULL)
-			uma_zfree(acl_zone, dacl);
+			acl_free(dacl);
 #endif
 		dp->i_effnlink--;
 		dp->i_nlink--;
@@ -2223,7 +2226,6 @@ ufs_vinit(mntp, fifoops, vpp)
 	ASSERT_VOP_LOCKED(vp, "ufs_vinit");
 	if (ip->i_number == ROOTINO)
 		vp->v_vflag |= VV_ROOT;
-	ip->i_modrev = init_va_filerev();
 	*vpp = vp;
 	return (0);
 }
@@ -2325,7 +2327,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef UFS_ACL
 	acl = NULL;
 	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
-		acl = uma_zalloc(acl_zone, M_WAITOK);
+		acl = acl_alloc(M_WAITOK);
 
 		/*
 		 * Retrieve default ACL for parent, if any.
@@ -2360,14 +2362,14 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			 */
 			ip->i_mode = mode;
 			DIP_SET(ip, i_mode, mode);
-			uma_zfree(acl_zone, acl);
+			acl_free(acl);
 			acl = NULL;
 			break;
 	
 		default:
 			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
-			uma_zfree(acl_zone, acl);
+			acl_free(acl);
 			acl = NULL;
 			return (error);
 		}
@@ -2433,10 +2435,10 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			break;
 
 		default:
-			uma_zfree(acl_zone, acl);
+			acl_free(acl);
 			goto bad;
 		}
-		uma_zfree(acl_zone, acl);
+		acl_free(acl);
 	}
 #endif /* !UFS_ACL */
 	ufs_makedirentry(ip, cnp, &newdir);

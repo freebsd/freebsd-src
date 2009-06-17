@@ -3988,7 +3988,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	sf = &statfs;
-	error = VFS_STATFS(vp->v_mount, sf, curthread);
+	error = VFS_STATFS(vp->v_mount, sf);
 	getret = VOP_GETATTR(vp, &at, cred);
 	vput(vp);
 	vp = NULL;
@@ -4083,7 +4083,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 
 	/* XXX Try to make a guess on the max file size. */
-	VFS_STATFS(vp->v_mount, &sb, curthread);
+	VFS_STATFS(vp->v_mount, &sb);
 	maxfsize = (u_quad_t)0x80000000 * sb.f_bsize - 1;
 
 	getret = VOP_GETATTR(vp, &at, cred);

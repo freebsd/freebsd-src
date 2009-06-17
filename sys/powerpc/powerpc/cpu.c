@@ -231,7 +231,6 @@ cpu_setup(u_int cpuid)
 
 		case FSL_E500v1:
 		case FSL_E500v2:
-			hid0 |= HID0_EMCP;
 			break;
 	}
 

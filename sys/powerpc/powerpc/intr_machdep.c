@@ -60,6 +60,8 @@
  * $FreeBSD$
  */
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -83,6 +85,14 @@
 
 #include "pic_if.h"
 
+#ifdef MPC85XX
+#define	ISA_IRQ_COUNT	16
+#endif
+
+#ifndef ISA_IRQ_COUNT
+#define	ISA_IRQ_COUNT	0
+#endif
+
 #define	MAX_STRAY_LOG	5
 
 MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
@@ -90,12 +100,15 @@ MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 struct powerpc_intr {
 	struct intr_event *event;
 	long	*cntp;
+	u_int	irq;
+	device_t pic;
+	u_int	intline;
+	u_int	vector;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
-	u_int	irq;
-	u_int	vector;
 };
 
+static struct mtx intr_table_lock;
 static struct powerpc_intr *powerpc_intrs[INTR_VECTORS];
 static u_int nvectors;		/* Allocated vectors */
 static u_int stray_count;
@@ -107,10 +120,20 @@ static void *ipi_cookie;
 static u_int ipi_irq;
 
 device_t pic;
+device_t pic8259;
+
+static void
+intr_init(void *dummy __unused)
+{
+
+	mtx_init(&intr_table_lock, "intr sources lock", NULL, MTX_DEF);
+}
+SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
 static void
 intrcnt_setname(const char *name, int index)
 {
+
 	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
 	    MAXCOMLEN, name);
 }
@@ -122,11 +145,15 @@ intr_lookup(u_int irq)
 	struct powerpc_intr *i, *iscan;
 	int vector;
 
+	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->irq == irq)
+		if (i != NULL && i->irq == irq) {
+			mtx_unlock(&intr_table_lock);
 			return (i);
+		}
 	}
+	mtx_unlock(&intr_table_lock);
 
 	i = malloc(sizeof(*i), M_INTR, M_NOWAIT);
 	if (i == NULL)
@@ -139,8 +166,7 @@ intr_lookup(u_int irq)
 	i->irq = irq;
 	i->vector = -1;
 
-	/* XXX LOCK */
-
+	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < INTR_VECTORS && vector <= nvectors;
 	    vector++) {
 		iscan = powerpc_intrs[vector];
@@ -157,8 +183,7 @@ intr_lookup(u_int irq)
 		intrcnt_setname(intrname, i->vector);
 		nvectors++;
 	}
-
-	/* XXX UNLOCK */
+	mtx_unlock(&intr_table_lock);
 
 	if (iscan != NULL || i->vector == -1) {
 		free(i, M_INTR);
@@ -168,28 +193,50 @@ intr_lookup(u_int irq)
 	return (i);
 }
 
+static int
+powerpc_map_irq(struct powerpc_intr *i)
+{
+
+#if ISA_IRQ_COUNT > 0
+	if (i->irq < ISA_IRQ_COUNT) {
+		if (pic8259 == NULL) {
+			i->pic = pic;
+			i->intline = 0;
+			return (ENXIO);
+		}
+		i->pic = pic8259;
+		i->intline = i->irq;
+		return (0);
+	}
+#endif
+
+	i->pic = pic;
+	i->intline = i->irq - ISA_IRQ_COUNT;
+	return (0);
+}
+
 static void
 powerpc_intr_eoi(void *arg)
 {
-	u_int irq = (uintptr_t)arg;
+	struct powerpc_intr *i = arg;
 
-	PIC_EOI(pic, irq);
+	PIC_EOI(i->pic, i->intline);
 }
 
 static void
 powerpc_intr_mask(void *arg)
 {
-	u_int irq = (uintptr_t)arg;
+	struct powerpc_intr *i = arg;
 
-	PIC_MASK(pic, irq);
+	PIC_MASK(i->pic, i->intline);
 }
 
 static void
 powerpc_intr_unmask(void *arg)
 {
-	u_int irq = (uintptr_t)arg;
+	struct powerpc_intr *i = arg;
 
-	PIC_UNMASK(pic, irq);
+	PIC_UNMASK(i->pic, i->intline);
 }
 
 void
@@ -197,17 +244,21 @@ powerpc_register_pic(device_t dev, u_int ipi)
 {
 
 	pic = dev;
-	ipi_irq = ipi;
+	ipi_irq = ipi + ISA_IRQ_COUNT;
+}
+
+void
+powerpc_register_8259(device_t dev)
+{
+
+	pic8259 = dev;
 }
 
 int
 powerpc_enable_intr(void)
 {
 	struct powerpc_intr *i;
-#ifdef SMP
-	int error;
-#endif
-	int vector;
+	int error, vector;
 
 	if (pic == NULL)
 		panic("no PIC detected\n");
@@ -227,12 +278,16 @@ powerpc_enable_intr(void)
 		if (i == NULL)
 			continue;
 
+		error = powerpc_map_irq(i);
+		if (error)
+			continue;
+
 		if (i->trig != INTR_TRIGGER_CONFORM ||
 		    i->pol != INTR_POLARITY_CONFORM)
-			PIC_CONFIG(pic, i->irq, i->trig, i->pol);
+			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
 		if (i->event != NULL)
-			PIC_ENABLE(pic, i->irq, vector);
+			PIC_ENABLE(i->pic, i->intline, vector);
 	}
 
 	return (0);
@@ -250,7 +305,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 		return (ENOMEM);
 
 	if (i->event == NULL) {
-		error = intr_event_create(&i->event, (void *)irq, 0, irq,
+		error = intr_event_create(&i->event, (void *)i, 0, irq,
 		    powerpc_intr_mask, powerpc_intr_unmask, powerpc_intr_eoi,
 		    NULL, "irq%u:", irq);
 		if (error)
@@ -263,11 +318,16 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 
 	error = intr_event_add_handler(i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);
+
+	mtx_lock(&intr_table_lock);
 	intrcnt_setname(i->event->ie_fullname, i->vector);
+	mtx_unlock(&intr_table_lock);
 
-	if (!cold && enable)
-		PIC_ENABLE(pic, i->irq, i->vector);
-
+	if (!cold) {
+		error = powerpc_map_irq(i);
+		if (!error && enable)
+			PIC_ENABLE(i->pic, i->intline, i->vector);
+	}
 	return (error);
 }
 
@@ -283,9 +343,6 @@ powerpc_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct powerpc_intr *i;
 
-	if (trig == INTR_TRIGGER_CONFORM && pol == INTR_POLARITY_CONFORM)
-		return (0);
-
 	i = intr_lookup(irq);
 	if (i == NULL)
 		return (ENOMEM);
@@ -294,7 +351,7 @@ powerpc_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)
 	i->pol = pol;
 
 	if (!cold)
-		PIC_CONFIG(pic, irq, trig, pol);
+		PIC_CONFIG(i->pic, i->intline, trig, pol);
 
 	return (0);
 }
@@ -329,5 +386,5 @@ stray:
 		}
 	}
 	if (i != NULL)
-		PIC_MASK(pic, i->irq);
+		PIC_MASK(i->pic, i->intline);
 }

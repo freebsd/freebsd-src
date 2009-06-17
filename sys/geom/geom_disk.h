@@ -88,8 +88,6 @@ struct disk {
 
 	/* Fields private to the driver */
 	void			*d_drv1;
-
-	struct root_hold_token	*d_roothold;
 };
 
 #define DISKFLAG_NEEDSGIANT	0x1

@@ -64,7 +64,7 @@ create_tree(void)
 		buff2[0] = 'm';
 		assertEqualInt(0, link(buff, buff2));
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 		/* Create a symlink named "s/abcdef..." to the above. */
 		strcpy(buff2 + 3, buff);
 		buff[0] = 's';
@@ -156,7 +156,7 @@ verify_tree(int limit)
 			}
 		}
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 		/*
 		 * Symlink text doesn't include the 'original/' prefix,
 		 * so the limit here is 100 characters.

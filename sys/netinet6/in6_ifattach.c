@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/mld6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/vinet6.h>
 
@@ -233,9 +234,8 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	static u_int8_t allone[8] =
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	for (ifa = ifp->if_addrlist.tqh_first;
-	     ifa;
-	     ifa = ifa->ifa_list.tqe_next) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -246,6 +246,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 
 		goto found;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	return -1;
 
@@ -269,18 +270,24 @@ found:
 			addrlen = 8;
 
 		/* look at IEEE802/EUI64 only */
-		if (addrlen != 8 && addrlen != 6)
+		if (addrlen != 8 && addrlen != 6) {
+			IF_ADDR_UNLOCK(ifp);
 			return -1;
+		}
 
 		/*
 		 * check for invalid MAC address - on bsdi, we see it a lot
 		 * since wildboar configures all-zero MAC on pccard before
 		 * card insertion.
 		 */
-		if (bcmp(addr, allzero, addrlen) == 0)
+		if (bcmp(addr, allzero, addrlen) == 0) {
+			IF_ADDR_UNLOCK(ifp);
 			return -1;
-		if (bcmp(addr, allone, addrlen) == 0)
+		}
+		if (bcmp(addr, allone, addrlen) == 0) {
+			IF_ADDR_UNLOCK(ifp);
 			return -1;
+		}
 
 		/* make EUI64 address */
 		if (addrlen == 8)
@@ -298,10 +305,14 @@ found:
 		break;
 
 	case IFT_ARCNET:
-		if (addrlen != 1)
+		if (addrlen != 1) {
+			IF_ADDR_UNLOCK(ifp);
 			return -1;
-		if (!addr[0])
+		}
+		if (!addr[0]) {
+			IF_ADDR_UNLOCK(ifp);
 			return -1;
+		}
 
 		bzero(&in6->s6_addr[8], 8);
 		in6->s6_addr[15] = addr[0];
@@ -323,15 +334,19 @@ found:
 		 * identifier source (can be renumbered).
 		 * we don't do this.
 		 */
+		IF_ADDR_UNLOCK(ifp);
 		return -1;
 
 	default:
+		IF_ADDR_UNLOCK(ifp);
 		return -1;
 	}
 
 	/* sanity check: g bit must not indicate "group" */
-	if (EUI64_GROUP(in6))
+	if (EUI64_GROUP(in6)) {
+		IF_ADDR_UNLOCK(ifp);
 		return -1;
+	}
 
 	/* convert EUI64 into IPv6 interface identifier */
 	EUI64_TO_IFID(in6);
@@ -342,9 +357,11 @@ found:
 	 */
 	if ((in6->s6_addr[8] & ~(EUI64_GBIT | EUI64_UBIT)) == 0x00 &&
 	    bcmp(&in6->s6_addr[9], allzero, 7) == 0) {
+		IF_ADDR_UNLOCK(ifp);
 		return -1;
 	}
 
+	IF_ADDR_UNLOCK(ifp);
 	return 0;
 }
 
@@ -750,17 +767,14 @@ in6_ifdetach(struct ifnet *ifp)
 	nd6_purge(ifp);
 
 	/* nuke any of IPv6 addresses we have */
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = next) {
-		next = ifa->ifa_list.tqe_next;
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		in6_purgeaddr(ifa);
 	}
 
 	/* undo everything done by in6_ifattach(), just in case */
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = next) {
-		next = ifa->ifa_list.tqe_next;
-
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6
 		 || !IN6_IS_ADDR_LINKLOCAL(&satosin6(&ifa->ifa_addr)->sin6_addr)) {
 			continue;
@@ -788,7 +802,9 @@ in6_ifdetach(struct ifnet *ifp)
 		}
 
 		/* remove from the linked list */
-		TAILQ_REMOVE(&ifp->if_addrlist, (struct ifaddr *)ia, ifa_list);
+		IF_ADDR_LOCK(ifp);
+		TAILQ_REMOVE(&ifp->if_addrhead, (struct ifaddr *)ia, ifa_link);
+		IF_ADDR_UNLOCK(ifp);
 		IFAFREE(&ia->ia_ifa);
 
 		/* also remove from the IPv6 address chain(itojun&jinmei) */
@@ -872,8 +888,9 @@ in6_get_tmpifid(struct ifnet *ifp, u_int8_t *retbuf,
 }
 
 void
-in6_tmpaddrtimer(void *ignored_arg)
+in6_tmpaddrtimer(void *arg)
 {
+	CURVNET_SET((struct vnet *) arg);
 	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	struct nd_ifinfo *ndi;
@@ -882,7 +899,7 @@ in6_tmpaddrtimer(void *ignored_arg)
 
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 	    (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
-	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, NULL);
+	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, curvnet);
 
 	bzero(nullbuf, sizeof(nullbuf));
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
@@ -898,16 +915,40 @@ in6_tmpaddrtimer(void *ignored_arg)
 		}
 	}
 
+	CURVNET_RESTORE();
 }
 
 static void
 in6_purgemaddrs(struct ifnet *ifp)
 {
-	struct in6_multi *in6m;
-	struct in6_multi *oin6m;
+	LIST_HEAD(,in6_multi)	 purgeinms;
+	struct in6_multi	*inm, *tinm;
+	struct ifmultiaddr	*ifma;
 
-	LIST_FOREACH_SAFE(in6m, &in6_multihead, in6m_entry, oin6m) {
-		if (in6m->in6m_ifp == ifp)
-			in6_delmulti(in6m);
+	LIST_INIT(&purgeinms);
+	IN6_MULTI_LOCK();
+
+	/*
+	 * Extract list of in6_multi associated with the detaching ifp
+	 * which the PF_INET6 layer is about to release.
+	 * We need to do this as IF_ADDR_LOCK() may be re-acquired
+	 * by code further down.
+	 */
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_INET6 ||
+		    ifma->ifma_protospec == NULL)
+			continue;
+		inm = (struct in6_multi *)ifma->ifma_protospec;
+		LIST_INSERT_HEAD(&purgeinms, inm, in6m_entry);
 	}
+	IF_ADDR_UNLOCK(ifp);
+
+	LIST_FOREACH_SAFE(inm, &purgeinms, in6m_entry, tinm) {
+		LIST_REMOVE(inm, in6m_entry);
+		in6m_release_locked(inm);
+	}
+	mld_ifdetach(ifp);
+
+	IN6_MULTI_UNLOCK();
 }

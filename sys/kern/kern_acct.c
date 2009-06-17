@@ -436,7 +436,6 @@ acct_process(struct thread *td)
 	 * Write the accounting information to the file.
 	 */
 	vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
-	VOP_LEASE(acct_vp, td, acct_cred, LEASE_WRITE);
 	ret = vn_rdwr(UIO_WRITE, acct_vp, (caddr_t)&acct, sizeof (acct),
 	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, acct_cred, NOCRED,
 	    (int *)0, td);
@@ -587,7 +586,7 @@ acctwatch(void)
 	 * Stopping here is better than continuing, maybe it will be VBAD
 	 * next time around.
 	 */
-	if (VFS_STATFS(acct_vp->v_mount, &sb, curthread) < 0) {
+	if (VFS_STATFS(acct_vp->v_mount, &sb) < 0) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		return;
 	}

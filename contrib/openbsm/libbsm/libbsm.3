@@ -1,6 +1,6 @@
 .\"-
 .\" Copyright (c) 2005-2007 Robert N. M. Watson
-.\" Copyright (c) 2008 Apple Inc.
+.\" Copyright (c) 2008-2009 Apple Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,9 +24,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/libbsm.3#16 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/libbsm.3#17 $
 .\"
-.Dd November 12, 2008
+.Dd March 5, 2009
 .Dt LIBBSM 3
 .Os
 .Sh NAME
@@ -200,9 +200,11 @@ number, socket type, and protocol famil spaces, and must be used to generate
 and interpret BSM return and extended socket tokens:
 .Xr au_bsm_to_domain 3 ,
 .Xr au_bsm_to_errno 3 ,
+.Xr au_bsm_to_fcntl_cmd 3 ,
 .Xr au_bsm_to_socket_type 3 ,
 .Xr au_domain_to_bsm 3 ,
 .Xr au_errno_to_bsm 3 ,
+.Xr au_fcntl_cmd_to_bsm 3 ,
 .Xr au_socket_type_to_bsm 3 .
 .Sh SEE ALSO
 .Xr au_class 3 ,

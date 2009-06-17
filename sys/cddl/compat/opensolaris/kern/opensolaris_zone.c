@@ -233,7 +233,7 @@ static void
 zone_sysinit(void *arg __unused)
 {
 
-	zone_slot = osd_jail_register(zone_destroy);
+	zone_slot = osd_jail_register(zone_destroy, NULL);
 }
 
 static void

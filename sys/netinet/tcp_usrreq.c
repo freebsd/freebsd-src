@@ -1113,7 +1113,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 		tp->request_r_scale++;
 
 	soisconnecting(so);
-	V_tcpstat.tcps_connattempt++;
+	TCPSTAT_INC(tcps_connattempt);
 	tp->t_state = TCPS_SYN_SENT;
 	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 	tp->iss = tcp_new_isn(tp);
@@ -1173,11 +1173,11 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
-	    (TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
+	    (TCP_MAXWIN << tp->request_r_scale) < sb_max)
 		tp->request_r_scale++;
 
 	soisconnecting(so);
-	V_tcpstat.tcps_connattempt++;
+	TCPSTAT_INC(tcps_connattempt);
 	tp->t_state = TCPS_SYN_SENT;
 	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 	tp->iss = tcp_new_isn(tp);

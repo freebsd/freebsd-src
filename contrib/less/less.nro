@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 416: 22 Nov 2007"
+.TH LESS 1 "Version 429: 11 Apr 2009"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -256,6 +256,23 @@ turn highlighting back on.
 Any search command will also turn highlighting back on.
 (Highlighting can also be disabled by toggling the \-G option;
 in that case search commands do not turn highlighting back on.)
+.IP "&pattern"
+Display only lines which match the pattern;
+lines which do not match the pattern are not displayed.
+If pattern is empty (if you type & immediately followed by ENTER),
+any filtering is turned off, and all lines are displayed.
+While filtering is in effect, an ampersand is displayed at the
+beginning of the prompt,
+as a reminder that some lines in the file may be hidden.
+.sp
+Certain characters are special as in the / command:
+.RS
+.IP "^N or !"
+Display only lines which do NOT match the pattern.
+.IP "^R"
+Don't interpret regular expression metacharacters;
+that is, do a simple textual comparison.
+.RE
 .IP ":e [filename]"
 Examine a new file.
 If the filename is missing, the "current" file (see the :n and :p commands
@@ -498,7 +515,9 @@ being set: n=normal, s=standout, d=bold, u=underlined, k=blink.
 \fIcolor\fP is a pair of numbers separated by a period.  
 The first number selects the foreground color and the second selects 
 the background color of the text.
-A single number \fIN\fP is the same as \fIN.0\fP.
+A single number \fIN\fP is the same as \fIN.M\fP,
+where \fIM\fP is the normal background color.
+
 .IP "\-e or \-\-quit-at-eof"
 Causes 
 .I less 
@@ -890,7 +909,8 @@ or the pattern for a search command),
 certain keys can be used to manipulate the command line.
 Most commands have an alternate form in [ brackets ] which can be used if
 a key does not exist on a particular keyboard. 
-(The bracketed forms do not work in the MS-DOS version.)
+(Note that the forms beginning with ESC do not work 
+in some MS-DOS and Windows systems because ESC is the line erase character.)
 Any of these special keys may be entered literally by preceding
 it with the "literal" character, either ^V or ^A.
 A backslash itself may also be entered literally by entering two backslashes.
@@ -1126,6 +1146,14 @@ but it is usually not necessary since there is no replacement file
 to clean up.
 In this case, the replacement file name passed to the LESSCLOSE
 postprocessor is "\-".
+.PP
+For compatibility with previous versions of
+.I less,
+the input pipe is not used if
+.I less
+is viewing standard input.  
+However, if the character after the vertical bar is a dash (\-),
+the input pipe is used on standard input as well as other files.
 
 .SH "NATIONAL CHARACTER SETS"
 There are three types of characters in the input file:
@@ -1174,7 +1202,7 @@ It is the only character set that supports multi-byte characters.
 .IP windows
 Selects a character set appropriate for Microsoft Windows (cp 1251).
 .PP
-In special cases, it may be desired to tailor
+In rare cases, it may be desired to tailor
 .I less
 to use a character set other than the ones definable by LESSCHARSET.
 In this case, the environment variable LESSCHARDEF can be used
@@ -1620,45 +1648,8 @@ The name of the editor (used for the v command).
 .SH "SEE ALSO"
 lesskey(1)
 
-.SH WARNINGS
-The = command and prompts (unless changed by \-P)
-report the line numbers of the lines at the top and bottom of the screen,
-but the byte and percent of the line after the one at the bottom of the screen.
-.PP
-On certain older terminals (the so-called "magic cookie" terminals),
-search highlighting will cause an erroneous display.
-On such terminals, search highlighting is disabled by default 
-to avoid possible problems.
-.PP
-When searching in a binary file, text which follows a null byte 
-may not be found.
-This problem does not occur when searching with regular expressions turned
-off via ^R, and also does not occur when
-.I less
-is compiled to use the PCRE regular expression library.
-.PP
-In certain cases, when search highlighting is enabled and 
-a search pattern begins with a ^,
-more text than the matching string may be highlighted.
-(This problem does not occur when less is compiled to use the POSIX
-regular expression package.)
-.PP
-On some systems,
-.I setlocale
-claims that ASCII characters 0 thru 31 are control characters 
-rather than binary characters.
-This causes 
-.I less 
-to treat some binary files as ordinary, non-binary files.
-To workaround this problem, set the environment variable
-LESSCHARSET to "ascii" (or whatever character set is appropriate).
-.PP
-This manual is too long.
-.PP
-See http://www.greenwoodsoftware.com/less for the latest list of known bugs in less.
-
 .SH COPYRIGHT
-Copyright (C) 1984-2007  Mark Nudelman
+Copyright (C) 1984-2008  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -1682,6 +1673,8 @@ See the GNU General Public License for more details.
 .SH AUTHOR
 .PP
 Mark Nudelman <markn@greenwoodsoftware.com>
+.br
+See http://www.greenwoodsoftware.com/less/bugs.html for the latest list of known bugs in less.
 .br
 Send bug reports or comments to the above address or to 
 .br

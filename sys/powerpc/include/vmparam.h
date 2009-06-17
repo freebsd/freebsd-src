@@ -124,7 +124,7 @@
 #define	KERNBASE		0xc0000000	/* start of kernel virtual */
 
 #define	VM_MIN_KERNEL_ADDRESS	KERNBASE
-#define	VM_MAX_KERNEL_ADDRESS	CCSRBAR_VA
+#define	VM_MAX_KERNEL_ADDRESS	0xf8000000
 
 #endif /* AIM/E500 */
 

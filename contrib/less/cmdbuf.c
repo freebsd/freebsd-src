@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -662,12 +662,14 @@ set_mlist(mlist, cmdflags)
 	void *mlist;
 	int cmdflags;
 {
+#if CMD_HISTORY
 	curr_mlist = (struct mlist *) mlist;
 	curr_cmdflags = cmdflags;
 
 	/* Make sure the next up-arrow moves to the last string in the mlist. */
 	if (curr_mlist != NULL)
 		curr_mlist->curr_mp = curr_mlist;
+#endif
 }
 
 #if CMD_HISTORY
@@ -1303,6 +1305,7 @@ get_cmdbuf()
 	return (cmdbuf);
 }
 
+#if CMD_HISTORY
 /*
  * Return the last (most recent) string in the current command history.
  */
@@ -1313,6 +1316,7 @@ cmd_lastpattern()
 		return (NULL);
 	return (curr_mlist->curr_mp->prev->string);
 }
+#endif
 
 #if CMD_HISTORY
 /*
@@ -1465,8 +1469,19 @@ save_cmdhist()
 	if (f == NULL)
 		return;
 #if HAVE_FCHMOD
+{
 	/* Make history file readable only by owner. */
-	fchmod(fileno(f), 0600);
+	int do_chmod = 1;
+#if HAVE_STAT
+	struct stat statbuf;
+	int r = fstat(fileno(f), &statbuf);
+	if (r < 0 || !S_ISREG(statbuf.st_mode))
+		/* Don't chmod if not a regular file. */
+		do_chmod = 0;
+#endif
+	if (do_chmod)
+		fchmod(fileno(f), 0600);
+}
 #endif
 
 	fprintf(f, "%s\n", HISTFILE_FIRST_LINE);

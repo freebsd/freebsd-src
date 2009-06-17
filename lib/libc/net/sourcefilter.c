@@ -337,7 +337,7 @@ getsourcefilter(int s, uint32_t interface, struct sockaddr *group,
 {
 	struct __msfilterreq	 msfr;
 	sockunion_t		*psu;
-	int			 err, level, optlen, optname;
+	int			 err, level, nsrcs, optlen, optname;
 
 	if (interface == 0 || group == NULL || numsrc == NULL ||
 	    fmode == NULL) {
@@ -345,6 +345,7 @@ getsourcefilter(int s, uint32_t interface, struct sockaddr *group,
 		return (-1);
 	}
 
+	nsrcs = *numsrc;
 	*numsrc = 0;
 	*fmode = 0;
 
@@ -382,7 +383,7 @@ getsourcefilter(int s, uint32_t interface, struct sockaddr *group,
 	memset(&msfr, 0, optlen);
 	msfr.msfr_ifindex = interface;
 	msfr.msfr_fmode = 0;
-	msfr.msfr_nsrcs = *numsrc;
+	msfr.msfr_nsrcs = nsrcs;
 	memcpy(&msfr.msfr_group, &psu->ss, psu->ss.ss_len);
 
 	/*

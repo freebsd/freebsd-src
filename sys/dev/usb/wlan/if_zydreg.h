@@ -1163,12 +1163,6 @@ struct zyd_mac_pair {
 	uint32_t		val;
 };
 
-struct zyd_task {
-	struct usb2_proc_msg	hdr;
-	usb2_proc_callback_t	*func;
-	struct zyd_softc	*sc;
-};
-
 struct zyd_tx_data {
 	STAILQ_ENTRY(zyd_tx_data)	next;
 	struct zyd_softc		*sc;
@@ -1248,7 +1242,6 @@ struct zyd_vap {
 	struct ieee80211vap	vap;
 	int			(*newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
-	struct zyd_softc	*sc;
 	struct ieee80211_amrr	amrr;
 };
 #define	ZYD_VAP(vap)	((struct zyd_vap *)(vap))
@@ -1265,26 +1258,13 @@ struct zyd_softc {
 	struct ifnet		*sc_ifp;
 	device_t		sc_dev;
 	struct usb2_device	*sc_udev;
-	struct usb2_process	sc_tq;
 
 	struct usb2_xfer	*sc_xfer[ZYD_N_TRANSFER];
-	struct zyd_task		*sc_last_task;
 
-	enum ieee80211_state	sc_state;
-	int			sc_arg;
 	int			sc_flags;
 #define	ZYD_FLAG_FWLOADED		(1 << 0)
 #define	ZYD_FLAG_INITONCE		(1 << 1)
 #define	ZYD_FLAG_INITDONE		(1 << 2)
-
-	struct zyd_task		sc_synctask[2];
-	struct zyd_task		sc_mcasttask[2];
-	struct zyd_task		sc_scantask[2];
-	int			sc_scan_action;
-#define ZYD_SCAN_START		0
-#define ZYD_SCAN_END		1
-#define ZYD_SET_CHANNEL		2
-	struct zyd_task		sc_task[2];
 
 	struct zyd_rf		sc_rf;
 
@@ -1317,7 +1297,6 @@ struct zyd_softc {
 	uint8_t			sc_ofdm54_cal[14];
 
 	struct mtx		sc_mtx;
-	struct cv		sc_cmd_cv;
 	struct zyd_tx_data	tx_data[ZYD_TX_LIST_CNT];
 	zyd_txdhead		tx_q;
 	zyd_txdhead		tx_free;

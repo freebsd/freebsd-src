@@ -74,7 +74,6 @@ struct inode {
 
 	struct	 fs *i_fs;	/* Associated filesystem superblock. */
 	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
-	u_quad_t i_modrev;	/* Revision level for NFS lease. */
 	/*
 	 * Side effects; used during directory lookup.
 	 */

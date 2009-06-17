@@ -47,8 +47,8 @@
 
 struct vnet_ipsec {
 	int			_ipsec_debug;
-	struct	ipsecstat	_ipsec4stat;
-	struct	secpolicy 	_ip4_def_policy;
+	struct ipsecstat	_ipsec4stat;
+	struct secpolicy 	_ip4_def_policy;
 
 	int			_ip4_esp_trans_deflev;
 	int			_ip4_esp_net_deflev;

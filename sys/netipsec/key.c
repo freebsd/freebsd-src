@@ -684,6 +684,7 @@ found:
 	return sp;
 }
 
+#if 0
 /*
  * return a policy that matches this particular inbound packet.
  * XXX slow
@@ -760,6 +761,7 @@ done:
 			sp, sp ? sp->id : 0, sp ? sp->refcnt : 0));
 	return sp;
 }
+#endif
 
 /*
  * allocating an SA entry for an *OUTBOUND* packet.
@@ -3763,13 +3765,16 @@ key_ismyaddr6(sin6)
 {
 	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
+#if 0
 	struct in6_multi *in6m;
+#endif
 
 	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
 		if (key_sockaddrcmp((struct sockaddr *)&sin6,
 		    (struct sockaddr *)&ia->ia_addr, 0) == 0)
 			return 1;
 
+#if 0
 		/*
 		 * XXX Multicast
 		 * XXX why do we care about multlicast here while we don't care
@@ -3780,6 +3785,7 @@ key_ismyaddr6(sin6)
 		IN6_LOOKUP_MULTI(sin6->sin6_addr, ia->ia_ifp, in6m);
 		if (in6m)
 			return 1;
+#endif
 	}
 
 	/* loopback, just for safety */
@@ -7171,12 +7177,6 @@ key_init(void)
 	V_ipsec_esp_auth = 0;
 	V_ipsec_ah_keymin = 128;
 
-	SPTREE_LOCK_INIT();
-	REGTREE_LOCK_INIT();
-	SAHTREE_LOCK_INIT();
-	ACQ_LOCK_INIT();
-	SPACQ_LOCK_INIT();
-
 	for (i = 0; i < IPSEC_DIR_MAX; i++)
 		LIST_INIT(&V_sptree[i]);
 
@@ -7191,6 +7191,15 @@ key_init(void)
 	/* system default */
 	V_ip4_def_policy.policy = IPSEC_POLICY_NONE;
 	V_ip4_def_policy.refcnt++;	/*never reclaim this*/
+
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
+	SPTREE_LOCK_INIT();
+	REGTREE_LOCK_INIT();
+	SAHTREE_LOCK_INIT();
+	ACQ_LOCK_INIT();
+	SPACQ_LOCK_INIT();
 
 #ifndef IPSEC_DEBUG2
 	timeout((void *)key_timehandler, (void *)0, hz);

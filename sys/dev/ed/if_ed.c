@@ -164,7 +164,6 @@ ed_alloc_port(device_t dev, int rid, int size)
 	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 	    0ul, ~0ul, size, RF_ACTIVE);
 	if (res) {
-		sc->port_rid = rid;
 		sc->port_res = res;
 		sc->port_used = size;
 		sc->port_bst = rman_get_bustag(res);
@@ -186,7 +185,6 @@ ed_alloc_memory(device_t dev, int rid, int size)
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 	    0ul, ~0ul, size, RF_ACTIVE);
 	if (res) {
-		sc->mem_rid = rid;
 		sc->mem_res = res;
 		sc->mem_used = size;
 		sc->mem_bst = rman_get_bustag(res);
@@ -207,7 +205,6 @@ ed_alloc_irq(device_t dev, int rid, int flags)
 
 	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE | flags);
 	if (res) {
-		sc->irq_rid = rid;
 		sc->irq_res = res;
 		return (0);
 	}
@@ -222,21 +219,18 @@ ed_release_resources(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 
-	if (sc->port_res) {
-		bus_release_resource(dev, SYS_RES_IOPORT,
-		    sc->port_rid, sc->port_res);
-		sc->port_res = 0;
-	}
-	if (sc->mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    sc->mem_rid, sc->mem_res);
-		sc->mem_res = 0;
-	}
-	if (sc->irq_res) {
-		bus_release_resource(dev, SYS_RES_IRQ,
-		    sc->irq_rid, sc->irq_res);
-		sc->irq_res = 0;
-	}
+	if (sc->port_res)
+		bus_free_resource(dev, SYS_RES_IOPORT, sc->port_res);
+	if (sc->port_res2)
+		bus_free_resource(dev, SYS_RES_IOPORT, sc->port_res2);
+	if (sc->mem_res)
+		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
+	if (sc->irq_res)
+		bus_free_resource(dev, SYS_RES_IRQ, sc->irq_res);
+	sc->port_res = 0;
+	sc->port_res2 = 0;
+	sc->mem_res = 0;
+	sc->irq_res = 0;
 	if (sc->ifp)
 		if_free(sc->ifp);
 }
@@ -379,7 +373,8 @@ ed_detach(device_t dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->ifp;
 
-	ED_ASSERT_UNLOCKED(sc);
+	if (mtx_initialized(ED_MUTEX(sc)))
+		ED_ASSERT_UNLOCKED(sc);
 	if (ifp) {
 		ED_LOCK(sc);
 		if (bus_child_present(dev))
@@ -394,7 +389,8 @@ ed_detach(device_t dev)
 	ed_release_resources(dev);
 	if (sc->miibus)
 		device_delete_child(dev, sc->miibus);
-	ED_LOCK_DESTROY(sc);
+	if (mtx_initialized(ED_MUTEX(sc)))
+		ED_LOCK_DESTROY(sc);
 	bus_generic_detach(dev);
 	return (0);
 }
@@ -1738,4 +1734,39 @@ ed_shmem_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 		}
 	}
 	return (len);
+}
+
+/*
+ * Generic ifmedia support.  By default, the DP8390-based cards don't know
+ * what their network attachment really is, or even if it is valid (except
+ * upon successful transmission of a packet).  To play nicer with dhclient, as
+ * well as to fit in with a framework where some cards can provde more
+ * detailed information, make sure that we use this as a fallback.
+ */
+static int
+ed_gen_ifmedia_ioctl(struct ed_softc *sc, struct ifreq *ifr, u_long command)
+{
+	return (ifmedia_ioctl(sc->ifp, ifr, &sc->ifmedia, command));
+}
+
+static int
+ed_gen_ifmedia_upd(struct ifnet *ifp)
+{
+	return 0;
+}
+
+static void
+ed_gen_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+	ifmr->ifm_active = IFM_ETHER | IFM_AUTO;
+	ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;
+}
+
+void
+ed_gen_ifmedia_init(struct ed_softc *sc)
+{
+	sc->sc_media_ioctl = &ed_gen_ifmedia_ioctl;
+	ifmedia_init(&sc->ifmedia, 0, ed_gen_ifmedia_upd, ed_gen_ifmedia_sts);
+	ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_AUTO, 0, 0);
+	ifmedia_set(&sc->ifmedia, IFM_ETHER | IFM_AUTO);
 }

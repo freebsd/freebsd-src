@@ -992,7 +992,6 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
 #ifdef MAC
 	error = mac_vnode_check_write(cred, NOCRED, vp);
 	if (error == 0)

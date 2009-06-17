@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	uathload
-NO_MAN=
+MAN=	uathload.8
 
 SRCS=	uathload.c ar5523.bin
 

@@ -243,7 +243,6 @@ typedef struct pte pte_t;
 #define PTE_MODIFIED	0x40000000	/* Modified */
 #define PTE_WIRED	0x20000000	/* Wired */
 #define PTE_MANAGED	0x10000000	/* Managed */
-#define PTE_FAKE	0x08000000	/* Ficticious */
 #define PTE_REFERENCED	0x04000000	/* Referenced */
 
 /* Macro argument must of pte_t type. */
@@ -251,7 +250,6 @@ typedef struct pte pte_t;
 #define PTE_ISVALID(pte)	((pte)->flags & PTE_VALID)
 #define PTE_ISWIRED(pte)	((pte)->flags & PTE_WIRED)
 #define PTE_ISMANAGED(pte)	((pte)->flags & PTE_MANAGED)
-#define PTE_ISFAKE(pte)		((pte)->flags & PTE_FAKE)
 #define PTE_ISMODIFIED(pte)	((pte)->flags & PTE_MODIFIED)
 #define PTE_ISREFERENCED(pte)	((pte)->flags & PTE_REFERENCED)
 

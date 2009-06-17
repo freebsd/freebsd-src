@@ -293,7 +293,6 @@ alq_doio(struct alq *alq)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	VOP_LEASE(vp, td, alq->aq_cred, LEASE_WRITE);
 	/*
 	 * XXX: VOP_WRITE error checks are ignored.
 	 */

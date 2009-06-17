@@ -36,6 +36,8 @@
 /* is 802.11 address multicast/broadcast? */
 #define	IEEE80211_IS_MULTICAST(_a)	(*(_a) & 0x01)
 
+typedef uint16_t ieee80211_seq;
+
 /* IEEE 802.11 PLCP header */
 struct ieee80211_plcp_hdr {
 	uint16_t	i_sfd;

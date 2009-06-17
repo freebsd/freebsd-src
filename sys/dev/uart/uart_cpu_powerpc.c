@@ -55,7 +55,11 @@ bus_space_tag_t uart_bus_space_mem = &bs_le_tag;
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
+#ifdef MPC85XX
+	return ((b1->bsh == b2->bsh) ? 1 : 0);
+#else
 	return ((pmap_kextract(b1->bsh) == pmap_kextract(b2->bsh)) ? 1 : 0);
+#endif
 }
 
 #ifdef MPC85XX

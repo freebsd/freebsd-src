@@ -90,17 +90,38 @@ int	ieee80211_ffagemax = -1;	/* max time frames held on stage q */
 void
 ieee80211_superg_attach(struct ieee80211com *ic)
 {
+	struct ieee80211_superg *sg;
+
+	if (ic->ic_caps & IEEE80211_C_FF) {
+		sg = (struct ieee80211_superg *) malloc(
+		     sizeof(struct ieee80211_superg), M_80211_VAP,
+		     M_NOWAIT | M_ZERO);
+		if (sg == NULL) {
+			printf("%s: cannot allocate SuperG state block\n",
+			    __func__);
+			return;
+		}
+		ic->ic_superg = sg;
+	}
 	ieee80211_ffagemax = msecs_to_ticks(150);
 }
 
 void
 ieee80211_superg_detach(struct ieee80211com *ic)
 {
+	if (ic->ic_superg != NULL) {
+		free(ic->ic_superg, M_80211_VAP);
+		ic->ic_superg = NULL;
+	}
 }
 
 void
 ieee80211_superg_vattach(struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = vap->iv_ic;
+
+	if (ic->ic_superg == NULL)	/* NB: can't do fast-frames w/o state */
+		vap->iv_caps &= ~IEEE80211_C_FF;
 	if (vap->iv_caps & IEEE80211_C_FF)
 		vap->iv_flags |= IEEE80211_F_FF;
 	/* NB: we only implement sta mode */
@@ -482,6 +503,9 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 		struct ifnet *ifp = vap->iv_ifp;
 		struct ifnet *parent = ni->ni_ic->ic_ifp;
 
+		if (bpf_peers_present(vap->iv_rawbpf))
+			bpf_mtap(vap->iv_rawbpf, m);
+
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
@@ -524,8 +548,10 @@ ff_flush(struct mbuf *head, struct mbuf *last)
  * Age frames on the staging queue.
  */
 void
-ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq, int quanta)
+ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
+    int quanta)
 {
+	struct ieee80211_superg *sg = ic->ic_superg;
 	struct mbuf *m, *head;
 	struct ieee80211_node *ni;
 	struct ieee80211_tx_ampdu *tap;
@@ -543,7 +569,7 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq, int quant
 
 		sq->head = m->m_nextpkt;
 		sq->depth--;
-		ic->ic_stageqdepth--;
+		sg->ff_stageqdepth--;
 	}
 	if (m == NULL)
 		sq->tail = NULL;
@@ -628,6 +654,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_superg *sg = ic->ic_superg;
 	const int pri = M_WME_GETAC(m);
 	struct ieee80211_stageq *sq;
 	struct ieee80211_tx_ampdu *tap;
@@ -666,7 +693,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		IEEE80211_UNLOCK(ic);
 		return m;
 	}
-	sq = &ic->ic_ff_stageq[pri];
+	sq = &sg->ff_stageq[pri];
 	/*
 	 * Check the txop limit to insure the aggregate fits.
 	 */
@@ -722,14 +749,12 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		mstaged->m_nextpkt = m;
 		mstaged->m_flags |= M_FF; /* NB: mark for encap work */
 	} else {
-		m->m_pkthdr.rcvif = (void *)ni;	/* NB: hold node reference */
-
 		KASSERT(tap->txa_private == NULL,
 		    ("txa_private %p", tap->txa_private));
 		tap->txa_private = m;
 
 		stageq_add(sq, m);
-		ic->ic_stageqdepth++;
+		sg->ff_stageqdepth++;
 		IEEE80211_UNLOCK(ic);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
@@ -754,6 +779,7 @@ void
 ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_superg *sg = ic->ic_superg;
 	struct ieee80211_tx_ampdu *tap;
 	struct mbuf *m, *head;
 	int ac;
@@ -765,7 +791,7 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 		m = tap->txa_private;
 		if (m != NULL) {
 			tap->txa_private = NULL;
-			stageq_remove(&ic->ic_ff_stageq[ac], m);
+			stageq_remove(&sg->ff_stageq[ac], m);
 			m->m_nextpkt = head;
 			head = m;
 		}

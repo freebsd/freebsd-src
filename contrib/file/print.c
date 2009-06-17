@@ -30,8 +30,11 @@
  */
 
 #include "file.h"
-#include <stdio.h>
-#include <errno.h>
+
+#ifndef lint
+FILE_RCSID("@(#)$File: print.c,v 1.66 2009/02/03 20:27:51 christos Exp $")
+#endif  /* lint */
+
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -39,10 +42,6 @@
 #include <unistd.h>
 #endif
 #include <time.h>
-
-#ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.63 2008/02/17 19:28:54 rrt Exp $")
-#endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
 
@@ -64,7 +63,8 @@ file_mdump(struct magic *m)
 		if (m->in_op & FILE_OPINVERSE)
 			(void) fputc('~', stderr);
 		(void) fprintf(stderr, "%c%u),",
-			       ((m->in_op & FILE_OPS_MASK) < SZOF(optyp)) ? 
+			       ((size_t)(m->in_op & FILE_OPS_MASK) <
+			       SZOF(optyp)) ? 
 					optyp[m->in_op & FILE_OPS_MASK] : '?',
 				m->in_offset);
 	}
@@ -93,7 +93,7 @@ file_mdump(struct magic *m)
 			(void) fprintf(stderr, "/%u", m->str_range);
 	}
 	else {
-		if ((m->mask_op & FILE_OPS_MASK) < SZOF(optyp))
+		if ((size_t)(m->mask_op & FILE_OPS_MASK) < SZOF(optyp))
 			(void) fputc(optyp[m->mask_op & FILE_OPS_MASK], stderr);
 		else
 			(void) fputc('?', stderr);

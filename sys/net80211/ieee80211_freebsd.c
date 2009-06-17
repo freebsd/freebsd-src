@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <sys/socket.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -498,9 +499,11 @@ notify_macaddr(struct ifnet *ifp, int op, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211_join_event iev;
 
+	CURVNET_SET(ifp->if_vnet);
 	memset(&iev, 0, sizeof(iev));
 	IEEE80211_ADDR_COPY(iev.iev_addr, mac);
 	rt_ieee80211msg(ifp, op, &iev, sizeof(iev));
+	CURVNET_RESTORE();
 }
 
 void
@@ -509,6 +512,7 @@ ieee80211_notify_node_join(struct ieee80211_node *ni, int newassoc)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ifnet *ifp = vap->iv_ifp;
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	IEEE80211_NOTE(vap, IEEE80211_MSG_NODE, ni, "%snode join",
 	    (ni == vap->iv_bss) ? "bss " : "");
 
@@ -520,6 +524,7 @@ ieee80211_notify_node_join(struct ieee80211_node *ni, int newassoc)
 		notify_macaddr(ifp, newassoc ?
 		    RTM_IEEE80211_JOIN : RTM_IEEE80211_REJOIN, ni->ni_macaddr);
 	}
+	CURVNET_RESTORE();
 }
 
 void
@@ -528,6 +533,7 @@ ieee80211_notify_node_leave(struct ieee80211_node *ni)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ifnet *ifp = vap->iv_ifp;
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	IEEE80211_NOTE(vap, IEEE80211_MSG_NODE, ni, "%snode leave",
 	    (ni == vap->iv_bss) ? "bss " : "");
 
@@ -538,6 +544,7 @@ ieee80211_notify_node_leave(struct ieee80211_node *ni)
 		/* fire off wireless event station leaving */
 		notify_macaddr(ifp, RTM_IEEE80211_LEAVE, ni->ni_macaddr);
 	}
+	CURVNET_RESTORE();
 }
 
 void
@@ -548,7 +555,9 @@ ieee80211_notify_scan_done(struct ieee80211vap *vap)
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s\n", "notify scan done");
 
 	/* dispatch wireless event indicating scan completed */
+	CURVNET_SET(ifp->if_vnet);
 	rt_ieee80211msg(ifp, RTM_IEEE80211_SCAN, NULL, 0);
+	CURVNET_RESTORE();
 }
 
 void
@@ -576,7 +585,9 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 			iev.iev_keyix = k->wk_keyix;
 		iev.iev_keyrsc = k->wk_keyrsc[0];	/* XXX need tid */
 		iev.iev_rsc = rsc;
+		CURVNET_SET(ifp->if_vnet);
 		rt_ieee80211msg(ifp, RTM_IEEE80211_REPLAY, &iev, sizeof(iev));
+		CURVNET_RESTORE();
 	}
 }
 
@@ -597,7 +608,9 @@ ieee80211_notify_michael_failure(struct ieee80211vap *vap,
 		IEEE80211_ADDR_COPY(iev.iev_src, wh->i_addr2);
 		iev.iev_cipher = IEEE80211_CIPHER_TKIP;
 		iev.iev_keyix = keyix;
+		CURVNET_SET(ifp->if_vnet);
 		rt_ieee80211msg(ifp, RTM_IEEE80211_MICHAEL, &iev, sizeof(iev));
+		CURVNET_RESTORE();
 	}
 }
 

@@ -199,16 +199,6 @@ vop_write {
 };
 
 
-%% lease	vp	= = =
-
-vop_lease {
-	IN struct vnode *vp;
-	IN struct thread *td;
-	IN struct ucred *cred;
-	IN int flag;
-};
-
-
 %% ioctl	vp	U U U
 
 vop_ioctl {

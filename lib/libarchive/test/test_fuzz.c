@@ -61,9 +61,18 @@ files[] = {
 	NULL
 };
 
+#define UnsupportedCompress(r, a) \
+        (r != ARCHIVE_OK && \
+         (strcmp(archive_error_string(a), \
+            "Unrecognized archive format") == 0 && \
+          archive_compression(a) == ARCHIVE_COMPRESSION_NONE))
+
 DEFINE_TEST(test_fuzz)
 {
 	const char **filep;
+	const void *blk;
+	size_t blk_size;
+	off_t blk_offset;
 
 	for (filep = files; *filep != NULL; ++filep) {
 		struct archive_entry *ae;
@@ -105,6 +114,10 @@ DEFINE_TEST(test_fuzz)
 				assert(0 == archive_read_finish(a));
 				continue;
 			}
+			while (0 == archive_read_data_block(a, &blk,
+				&blk_size, &blk_offset))
+				continue;
+
 		}
 		assert(0 == archive_read_close(a));
 		assert(0 == archive_read_finish(a));
@@ -134,7 +147,9 @@ DEFINE_TEST(test_fuzz)
 
 			if (0 == archive_read_open_memory(a, image, size)) {
 				while(0 == archive_read_next_header(a, &ae)) {
-					archive_read_data_skip(a);
+					while (0 == archive_read_data_block(a,
+						&blk, &blk_size, &blk_offset))
+						continue;
 				}
 				archive_read_close(a);
 				archive_read_finish(a);

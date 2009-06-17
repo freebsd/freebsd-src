@@ -76,6 +76,12 @@ __FBSDID("$FreeBSD$");
 #define ATE_MAX_TX_BUFFERS 2		/* We have ping-pong tx buffers */
 #define ATE_MAX_RX_BUFFERS 64
 
+/*
+ * Driver-specific flags.
+ */
+#define	ATE_FLAG_DETACHING	0x01
+#define	ATE_FLAG_MULTICAST	0x02
+
 struct ate_softc
 {
 	struct ifnet *ifp;		/* ifnet pointer */
@@ -100,6 +106,8 @@ struct ate_softc
 	eth_rx_desc_t *rx_descs;
 	int use_rmii;
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
+	int	flags;
+	int	if_flags;
 };
 
 static inline uint32_t
@@ -149,6 +157,7 @@ static int ate_ifmedia_upd(struct ifnet *ifp);
 static void ate_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 static int ate_get_mac(struct ate_softc *sc, u_char *eaddr);
 static void ate_set_mac(struct ate_softc *sc, u_char *eaddr);
+static void	ate_rxfilter(struct ate_softc *sc);
 
 /*
  * The AT91 family of products has the ethernet called EMAC.  However,
@@ -238,6 +247,7 @@ ate_attach(device_t dev)
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_COLLS;
+	sc->if_flags = ifp->if_flags;
 
 	ether_ifattach(ifp, eaddr);
 
@@ -307,26 +317,39 @@ ate_load_rx_buf(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
  * of different MAC chips use this method (or the reverse the bits)
  * method.
  */
-static void
+static int
 ate_setmcast(struct ate_softc *sc)
 {
 	uint32_t index;
 	uint32_t mcaf[2];
 	u_char *af = (u_char *) mcaf;
 	struct ifmultiaddr *ifma;
+	struct ifnet *ifp;
 
+	ifp = sc->ifp;
+
+	if ((ifp->if_flags & IFF_PROMISC) != 0)
+		return (0);
+	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+		WR4(sc, ETH_HSL, 0xffffffff);
+		WR4(sc, ETH_HSH, 0xffffffff);
+		return (1);
+	}
+
+	/*
+	 * Compute the multicast hash.
+	 */
 	mcaf[0] = 0;
 	mcaf[1] = 0;
-
-	IF_ADDR_LOCK(sc->ifp);
-	TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		index = ether_crc32_be(LLADDR((struct sockaddr_dl *)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		af[index >> 3] |= 1 << (index & 7);
 	}
-	IF_ADDR_UNLOCK(sc->ifp);
+	IF_ADDR_UNLOCK(ifp);
 
 	/*
 	 * Write the hash to the hash register.  This card can also
@@ -337,6 +360,7 @@ ate_setmcast(struct ate_softc *sc)
 	 */
 	WR4(sc, ETH_HSL, mcaf[0]);
 	WR4(sc, ETH_HSH, mcaf[1]);
+	return (mcaf[0] || mcaf[1]);
 }
 
 static int
@@ -763,13 +787,11 @@ ateinit_locked(void *xsc)
 	else
 		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_RMII);
 
-	/*
-	 * Turn on the multicast hash, and write 0's to it.
-	 */
-	WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_MTI);
-	WR4(sc, ETH_HSH, 0);
-	WR4(sc, ETH_HSL, 0);
+	ate_rxfilter(sc);
 
+	/*
+	 * Turn on MACs and interrupt processing.
+	 */
 	WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) | ETH_CTL_TE | ETH_CTL_RE);
 	WR4(sc, ETH_IER, ETH_ISR_RCOM | ETH_ISR_TCOM | ETH_ISR_RBNA);
 
@@ -779,7 +801,6 @@ ateinit_locked(void *xsc)
 	 * the byte order is big endian, not little endian, so we have some
 	 * swapping to do.  Again, if we need it (which I don't think we do).
 	 */
-	ate_setmcast(sc);
 
 	/* enable big packets */
 	WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_BIG);
@@ -940,35 +961,83 @@ atestop(struct ate_softc *sc)
 	 */
 }
 
+static void
+ate_rxfilter(struct ate_softc *sc)
+{
+	struct ifnet *ifp;
+	uint32_t reg;
+	int enabled;
+
+	KASSERT(sc != NULL, ("[ate, %d]: sc is NULL!", __LINE__));
+	ATE_ASSERT_LOCKED(sc);
+	ifp = sc->ifp;
+
+	/*
+	 * Wipe out old filter settings.
+	 */
+	reg = RD4(sc, ETH_CFG);
+	reg &= ~(ETH_CFG_CAF | ETH_CFG_MTI | ETH_CFG_UNI);
+	reg |= ETH_CFG_NBC;
+	sc->flags &= ~ATE_FLAG_MULTICAST;
+
+	/*
+	 * Set new parameters.
+	 */
+	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+		reg &= ~ETH_CFG_NBC;
+	if ((ifp->if_flags & IFF_PROMISC) != 0) {
+		reg |= ETH_CFG_CAF;
+	} else {
+		enabled = ate_setmcast(sc);
+		if (enabled != 0) {
+			reg |= ETH_CFG_MTI;
+			sc->flags |= ATE_FLAG_MULTICAST;
+		}
+	}
+	WR4(sc, ETH_CFG, reg);
+}
+
 static int
 ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ate_softc *sc = ifp->if_softc;
  	struct mii_data *mii;
  	struct ifreq *ifr = (struct ifreq *)data;	
-	int mask, error = 0;
+	int drv_flags, flags;
+	int mask, error, enabled;
 
+	error = 0;
+	flags = ifp->if_flags;
+	drv_flags = ifp->if_drv_flags;
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		ATE_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if ((flags & IFF_UP) != 0) {
+			if ((drv_flags & IFF_DRV_RUNNING) != 0) {
+				if (((flags ^ sc->if_flags)
+				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+					ate_rxfilter(sc);
+			} else {
+				if ((sc->flags & ATE_FLAG_DETACHING) == 0)
+					ateinit_locked(sc);
+			}
+		} else if ((drv_flags & IFF_DRV_RUNNING) != 0) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			atestop(sc);
-		} else {
-			/* reinitialize card on any parameter change */
-			ateinit_locked(sc);
 		}
+		sc->if_flags = flags;
 		ATE_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		/* update multicast filter list. */
-		ATE_LOCK(sc);
-		ate_setmcast(sc);
-		ATE_UNLOCK(sc);
-		error = 0;
+		if ((drv_flags & IFF_DRV_RUNNING) != 0) {
+			ATE_LOCK(sc);
+			enabled = ate_setmcast(sc);
+			if (enabled != (sc->flags & ATE_FLAG_MULTICAST))
+				ate_rxfilter(sc);
+			ATE_UNLOCK(sc);
+		}
 		break;
 
   	case SIOCSIFMEDIA:

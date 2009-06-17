@@ -757,27 +757,21 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, uint8_t flags)
 	if (pte == NULL || !PTE_ISVALID(pte))
 		return (0);
 
-	/* Get vm_page_t for mapped pte. */
-	m = PHYS_TO_VM_PAGE(PTE_PA(pte));
-
 	if (PTE_ISWIRED(pte))
 		pmap->pm_stats.wired_count--;
 
-	if (!PTE_ISFAKE(pte)) {
-		/* Handle managed entry. */
-		if (PTE_ISMANAGED(pte)) {
+	/* Handle managed entry. */
+	if (PTE_ISMANAGED(pte)) {
+		/* Get vm_page_t for mapped pte. */
+		m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
-			/* Handle modified pages. */
-			if (PTE_ISMODIFIED(pte))
-				vm_page_dirty(m);
+		if (PTE_ISMODIFIED(pte))
+			vm_page_dirty(m);
 
-			/* Referenced pages. */
-			if (PTE_ISREFERENCED(pte))
-				vm_page_flag_set(m, PG_REFERENCED);
+		if (PTE_ISREFERENCED(pte))
+			vm_page_flag_set(m, PG_REFERENCED);
 
-			/* Remove pv_entry from pv_list. */
-			pv_remove(pmap, va, m);
-		}
+		pv_remove(pmap, va, m);
 	}
 
 	mtx_lock_spin(&tlbivax_mutex);
@@ -847,8 +841,6 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
 			/* Create and insert pv entry. */
 			pv_insert(pmap, va, m);
 		}
-        } else {
-		flags |= PTE_FAKE;
 	}
 
 	pmap->pm_stats.resident_count++;
@@ -1297,23 +1289,7 @@ mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	KASSERT(((va >= VM_MIN_KERNEL_ADDRESS) &&
 	    (va <= VM_MAX_KERNEL_ADDRESS)), ("mmu_booke_kenter: invalid va"));
 
-#if 0
-	/* assume IO mapping, set I, G bits */
-	flags = (PTE_G | PTE_I | PTE_FAKE);
-
-	/* if mapping is within system memory, do not set I, G bits */
-	for (i = 0; i < totalmem_regions_sz; i++) {
-		if ((pa >= totalmem_regions[i].mr_start) &&
-				(pa < (totalmem_regions[i].mr_start +
-				       totalmem_regions[i].mr_size))) {
-			flags &= ~(PTE_I | PTE_G | PTE_FAKE);
-			break;
-		}
-	}
-#else
 	flags = 0;
-#endif
-
 	flags |= (PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID);
 	flags |= PTE_M;
 
@@ -1430,14 +1406,6 @@ mmu_booke_release(mmu_t mmu, pmap_t pmap)
 
 	PMAP_LOCK_DESTROY(pmap);
 }
-
-#if 0
-/* Not needed, kernel page tables are statically allocated. */
-void
-mmu_booke_growkernel(vm_offset_t maxkvaddr)
-{
-}
-#endif
 
 /*
  * Insert the given physical page at the specified virtual address in the
@@ -2030,18 +1998,6 @@ mmu_booke_copy_page(mmu_t mmu, vm_page_t sm, vm_page_t dm)
 	mmu_booke_kremove(mmu, sva);
 	mtx_unlock(&copy_page_mutex);
 }
-
-#if 0
-/*
- * Remove all pages from specified address space, this aids process exit
- * speeds. This is much faster than mmu_booke_remove in the case of running
- * down an entire address space. Only works for the current pmap.
- */
-void
-mmu_booke_remove_pages(pmap_t pmap)
-{
-}
-#endif
 
 /*
  * mmu_booke_zero_page_idle zeros the specified hardware page by mapping it

@@ -151,6 +151,9 @@ int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
 /*
  * NFS server system calls
  */
+/*
+ * This is now called from nfssvc() in nfs/nfs_nfssvc.c.
+ */
 
 /*
  * Nfs server psuedo system call for the nfsd's
@@ -163,25 +166,14 @@ int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
  *  - sockaddr with no IPv4-mapped addresses
  *  - mask for both INET and INET6 families if there is IPv4-mapped overlap
  */
-#ifndef _SYS_SYSPROTO_H_
-struct nfssvc_args {
-	int flag;
-	caddr_t argp;
-};
-#endif
 int
-nfssvc(struct thread *td, struct nfssvc_args *uap)
+nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 {
 	struct file *fp;
 	struct nfsd_addsock_args addsockarg;
 	struct nfsd_nfsd_args nfsdarg;
 	int error;
 
-	KASSERT(!mtx_owned(&Giant), ("nfssvc(): called with Giant"));
-
-	error = priv_check(td, PRIV_NFS_DAEMON);
-	if (error)
-		return (error);
 	if (uap->flag & NFSSVC_ADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&addsockarg,
 		    sizeof(addsockarg));
@@ -208,8 +200,6 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	} else {
 		error = ENXIO;
 	}
-	if (error == EINTR || error == ERESTART)
-		error = 0;
 	return (error);
 }
 

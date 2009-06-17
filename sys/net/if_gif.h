@@ -106,7 +106,7 @@ struct etherip_header {
 /* Prototypes */
 void gif_input(struct mbuf *, int, struct ifnet *);
 int gif_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-	       struct rtentry *);
+	       struct route *);
 int gif_ioctl(struct ifnet *, u_long, caddr_t);
 int gif_set_tunnel(struct ifnet *, struct sockaddr *, struct sockaddr *);
 void gif_delete_tunnel(struct ifnet *);
@@ -117,11 +117,11 @@ int gif_encapcheck(const struct mbuf *, int, int, void *);
  */
 
 struct vnet_gif {
-	LIST_HEAD(, gif_softc) _gif_softc_list;
-	int	_max_gif_nesting;
-	int	_parallel_tunnels;
-	int	_ip_gif_ttl;
-	int	_ip6_gif_hlim;
+	LIST_HEAD(, gif_softc)	_gif_softc_list;
+	int			_max_gif_nesting;
+	int			_parallel_tunnels;
+	int			_ip_gif_ttl;
+	int			_ip6_gif_hlim;
 };
 
 #ifndef VIMAGE

@@ -1641,7 +1641,11 @@ fw_explore_node(struct fw_device *dfwdev)
 				break;
 				
 		}
-		/* inesrt into sorted fwdev list */
+
+		/*
+		 * If the fwdev is not found in the 
+		 * fc->devices TAILQ, then we will add it.
+		 */
 		pfwdev = NULL;
 		STAILQ_FOREACH(tfwdev, &fc->devices, link) {
 			if (tfwdev->eui.hi > fwdev->eui.hi ||

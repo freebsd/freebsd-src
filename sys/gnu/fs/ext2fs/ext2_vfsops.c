@@ -127,12 +127,12 @@ static const char *ext2_opts[] = { "from", "export", "acls", "noexec",
  * mount system call
  */
 static int
-ext2_mount(mp, td)
+ext2_mount(mp)
 	struct mount *mp;
-	struct thread *td;
 {
 	struct vfsoptlist *opts;
 	struct vnode *devvp;
+	struct thread *td;
 	struct ext2mount *ump = 0;
 	struct ext2_sb_info *fs;
 	char *path, *fspec;
@@ -140,6 +140,7 @@ ext2_mount(mp, td)
 	accmode_t accmode;
 	struct nameidata nd, *ndp = &nd;
 
+	td = curthread;
 	opts = mp->mnt_optnew;
 
 	if (vfs_filteropt(opts, ext2_opts))
@@ -165,7 +166,7 @@ ext2_mount(mp, td)
 		error = 0;
 		if (fs->s_rd_only == 0 &&
 		    vfs_flagopt(opts, "ro", NULL, 0)) {
-			error = VFS_SYNC(mp, MNT_WAIT, td);
+			error = VFS_SYNC(mp, MNT_WAIT);
 			if (error)
 				return (error);
 			flags = WRITECLOSE;
@@ -734,10 +735,9 @@ out:
  * unmount system call
  */
 static int
-ext2_unmount(mp, mntflags, td)
+ext2_unmount(mp, mntflags)
 	struct mount *mp;
 	int mntflags;
-	struct thread *td;
 {
 	struct ext2mount *ump;
 	struct ext2_sb_info *fs;
@@ -749,7 +749,7 @@ ext2_unmount(mp, mntflags, td)
 			return (EINVAL);
 		flags |= FORCECLOSE;
 	}
-	if ((error = ext2_flushfiles(mp, flags, td)) != 0)
+	if ((error = ext2_flushfiles(mp, flags, curthread)) != 0)
 		return (error);
 	ump = VFSTOEXT2(mp);
 	fs = ump->um_e2fs;
@@ -810,10 +810,9 @@ ext2_flushfiles(mp, flags, td)
  * taken from ext2/super.c ext2_statfs
  */
 static int
-ext2_statfs(mp, sbp, td)
+ext2_statfs(mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
         unsigned long overhead;
 	struct ext2mount *ump;
@@ -862,17 +861,18 @@ ext2_statfs(mp, sbp, td)
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
 static int
-ext2_sync(mp, waitfor, td)
+ext2_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
-	struct thread *td;
 {
 	struct vnode *mvp, *vp;
+	struct thread *td;
 	struct inode *ip;
 	struct ext2mount *ump = VFSTOEXT2(mp);
 	struct ext2_sb_info *fs;
 	int error, allerror = 0;
 
+	td = curthread;
 	fs = ump->um_e2fs;
 	if (fs->s_dirt != 0 && fs->s_rd_only != 0) {		/* XXX */
 		printf("fs = %s\n", fs->fs_fsmnt);
@@ -1143,11 +1143,10 @@ printf("\nupdating superblock, waitfor=%s\n", waitfor == MNT_WAIT ? "yes":"no");
  * Return the root of a filesystem.
  */
 static int
-ext2_root(mp, flags, vpp, td)
+ext2_root(mp, flags, vpp)
 	struct mount *mp;
 	int flags;
 	struct vnode **vpp;
-	struct thread *td;
 {
 	struct vnode *nvp;
 	int error;

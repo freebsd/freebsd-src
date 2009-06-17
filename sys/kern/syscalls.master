@@ -897,5 +897,10 @@
 504	AUE_POSIX_OPENPT	STD	{ int posix_openpt(int flags); }
 ; 505 is initialised by the kgssapi code, if present.
 505	AUE_NULL	NOSTD	{ int gssd_syscall(char *path); }
+506	AUE_NULL	STD	{ int jail_get(struct iovec *iovp, \
+				    unsigned int iovcnt, int flags); }
+507	AUE_NULL	STD	{ int jail_set(struct iovec *iovp, \
+				    unsigned int iovcnt, int flags); }
+508	AUE_NULL	STD	{ int jail_remove(int jid); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

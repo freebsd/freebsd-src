@@ -934,6 +934,30 @@ sysctl_handle_int(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+#ifdef VIMAGE
+int
+sysctl_handle_v_int(SYSCTL_HANDLER_ARGS)
+{
+	int tmpout, error = 0;
+ 
+	SYSCTL_RESOLVE_V_ARG1();
+ 
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	tmpout = *(int *)arg1;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(int));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(int));
+	return (error);
+}
+#endif
 
 /*
  * Based on on sysctl_handle_int() convert milliseconds into ticks.
@@ -944,7 +968,9 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 {
 	int error, s, tt;
 
-	tt = *(int *)oidp->oid_arg1;
+	SYSCTL_RESOLVE_V_ARG1();
+
+	tt = *(int *)arg1;
 	s = (int)((int64_t)tt * 1000 / hz);
 
 	error = sysctl_handle_int(oidp, &s, 0, req);
@@ -955,7 +981,7 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 	if (tt < 1)
 		return (EINVAL);
 
-	*(int *)oidp->oid_arg1 = tt;
+	*(int *)arg1 = tt;
 	return (0);
 }
 
@@ -1069,6 +1095,47 @@ retry:
 	return (error);
 }
 
+#ifdef VIMAGE
+int
+sysctl_handle_v_string(SYSCTL_HANDLER_ARGS)
+{
+	int error=0;
+	char *tmparg;
+	size_t outlen;
+
+	SYSCTL_RESOLVE_V_ARG1();
+
+	/*
+	 * Attempt to get a coherent snapshot by copying to a
+	 * temporary kernel buffer.
+	 */
+retry:
+	outlen = strlen((char *)arg1)+1;
+	tmparg = malloc(outlen, M_SYSCTLTMP, M_WAITOK);
+
+	if (strlcpy(tmparg, (char *)arg1, outlen) >= outlen) {
+		free(tmparg, M_SYSCTLTMP);
+		goto retry;
+	}
+
+	error = SYSCTL_OUT(req, tmparg, outlen);
+	free(tmparg, M_SYSCTLTMP);
+
+	if (error || !req->newptr)
+		return (error);
+
+	if ((req->newlen - req->newidx) >= arg2) {
+		error = EINVAL;
+	} else {
+		arg2 = (req->newlen - req->newidx);
+		error = SYSCTL_IN(req, arg1, arg2);
+		((char *)arg1)[arg2] = '\0';
+	}
+
+	return (error);
+}
+#endif
+
 /*
  * Handle any kind of opaque data.
  * arg1 points to it, arg2 is the size.
@@ -1105,6 +1172,35 @@ retry:
 
 	return (error);
 }
+
+#ifdef VIMAGE
+int
+sysctl_handle_v_opaque(SYSCTL_HANDLER_ARGS)
+{
+	int error, tries;
+	u_int generation;
+	struct sysctl_req req2;
+
+	SYSCTL_RESOLVE_V_ARG1();
+
+	tries = 0;
+	req2 = *req;
+retry:
+	generation = curthread->td_generation;
+	error = SYSCTL_OUT(req, arg1, arg2);
+	if (error)
+		return (error);
+	tries++;
+	if (generation != curthread->td_generation && tries < 3) {
+		*req = req2;
+		goto retry;
+	}
+
+	error = SYSCTL_IN(req, arg1, arg2);
+
+	return (error);
+}
+#endif
 
 /*
  * Transfer functions to/from kernel space.

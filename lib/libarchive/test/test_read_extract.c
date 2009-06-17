@@ -32,13 +32,13 @@ DEFINE_TEST(test_read_extract)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	struct stat st;
 #endif
 	size_t used;
 	int i;
 	char *buff, *file_buff;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	int fd;
 	ssize_t bytes_read;
 #endif
@@ -138,7 +138,7 @@ DEFINE_TEST(test_read_extract)
 	assert(0 == archive_read_finish(a));
 #endif
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Test the entries on disk. */
 	/* This first entry was extracted with ARCHIVE_EXTRACT_PERM,
 	 * so the permissions should have been restored exactly,

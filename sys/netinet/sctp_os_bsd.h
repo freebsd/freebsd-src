@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
+#include <netipsec/vipsec.h>
 #endif				/* IPSEC */
 
 #ifdef INET6

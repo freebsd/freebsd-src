@@ -151,6 +151,7 @@ MAN=	aac.4 \
 	ispfw.4 \
 	iwi.4 \
 	iwn.4 \
+	iwnfw.4 \
 	ixgb.4 \
 	ixgbe.4 \
 	jme.4 \

@@ -132,7 +132,6 @@ static device_method_t uhub_methods[] = {
 
 	DEVMETHOD(device_suspend, uhub_suspend),
 	DEVMETHOD(device_resume, uhub_resume),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD(bus_child_location_str, uhub_child_location_string),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
@@ -544,7 +543,8 @@ uhub_explore(struct usb2_device *udev)
 	if (udev->depth > USB_HUB_MAX_DEPTH) {
 		return (USB_ERR_TOO_DEEP);
 	}
-	if (udev->pwr_save.suspended) {
+
+	if (udev->flags.self_suspended) {
 		/* need to wait until the child signals resume */
 		DPRINTF("Device is suspended!\n");
 		return (0);
@@ -1117,7 +1117,7 @@ usb2_intr_schedule_adjust(struct usb2_device *udev, int16_t len, uint8_t slot)
 	         * access.
 	         */
 
-		hub = bus->devices[udev->hs_hub_addr]->hub;
+		hub = udev->parent_hs_hub->hub;
 		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
 			slot = usb2_intr_find_best_slot(hub->uframe_usage,
 			    USB_FS_ISOC_UFRAME_MAX, 6);
@@ -1232,7 +1232,7 @@ usb2_fs_isoc_schedule_isoc_time_expand(struct usb2_device *udev,
 
 	isoc_time = usb2_isoc_time_expand(udev->bus, isoc_time);
 
-	hs_hub = udev->bus->devices[udev->hs_hub_addr]->hub;
+	hs_hub = udev->parent_hs_hub->hub;
 
 	if (hs_hub != NULL) {
 
@@ -1518,7 +1518,7 @@ usb2_transfer_power_ref(struct usb2_xfer *xfer, int val)
 		udev->pwr_save.write_refs += val;
 	}
 
-	if (udev->pwr_save.suspended)
+	if (udev->flags.self_suspended)
 		needs_explore =
 		    (udev->pwr_save.write_refs != 0) ||
 		    ((udev->pwr_save.read_refs != 0) &&
@@ -1600,7 +1600,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 		    (rem_wakeup == 0))) {
 
 			/* check if we are suspended */
-			if (udev->pwr_save.suspended != 0) {
+			if (udev->flags.self_suspended != 0) {
 				USB_BUS_UNLOCK(bus);
 				usb2_dev_resume_peer(udev);
 				USB_BUS_LOCK(bus);
@@ -1608,7 +1608,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 		} else if (temp >= limit) {
 
 			/* check if we are not suspended */
-			if (udev->pwr_save.suspended == 0) {
+			if (udev->flags.self_suspended == 0) {
 				USB_BUS_UNLOCK(bus);
 				usb2_dev_suspend_peer(udev);
 				USB_BUS_LOCK(bus);
@@ -1647,7 +1647,7 @@ usb2_bus_powerd(struct usb2_bus *bus)
 		if (temp < mintime)
 			mintime = temp;
 
-		if (udev->pwr_save.suspended == 0) {
+		if (udev->flags.self_suspended == 0) {
 			type_refs[0] += udev->pwr_save.type_refs[0];
 			type_refs[1] += udev->pwr_save.type_refs[1];
 			type_refs[2] += udev->pwr_save.type_refs[2];
@@ -1697,7 +1697,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 		return;
 
 	/* check if already resumed */
-	if (udev->pwr_save.suspended == 0)
+	if (udev->flags.self_suspended == 0)
 		return;
 
 	/* we need a parent HUB to do resume */
@@ -1737,7 +1737,7 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 	}
 	USB_BUS_LOCK(bus);
 	/* set that this device is now resumed */
-	udev->pwr_save.suspended = 0;
+	udev->flags.self_suspended = 0;
 #if USB_HAVE_POWERD
 	/* make sure that we don't go into suspend right away */
 	udev->pwr_save.last_xfer_time = ticks;
@@ -1786,12 +1786,10 @@ usb2_dev_resume_peer(struct usb2_device *udev)
 static void
 usb2_dev_suspend_peer(struct usb2_device *udev)
 {
-	struct usb2_device *hub;
 	struct usb2_device *child;
 	int err;
 	uint8_t x;
 	uint8_t nports;
-	uint8_t suspend_parent;
 
 repeat:
 	/* be NULL safe */
@@ -1799,7 +1797,7 @@ repeat:
 		return;
 
 	/* check if already suspended */
-	if (udev->pwr_save.suspended)
+	if (udev->flags.self_suspended)
 		return;
 
 	/* we need a parent HUB to do suspend */
@@ -1808,33 +1806,25 @@ repeat:
 
 	DPRINTF("udev=%p\n", udev);
 
-	/* check if all devices on the parent hub are suspended */
-	hub = udev->parent_hub;
-	if (hub != NULL) {
-		nports = hub->hub->nports;
-		suspend_parent = 1;
+	/* check if the current device is a HUB */
+	if (udev->hub != NULL) {
+		nports = udev->hub->nports;
 
+		/* check if all devices on the HUB are suspended */
 		for (x = 0; x != nports; x++) {
 
-			child = usb2_bus_port_get_device(hub->bus,
-			    hub->hub->ports + x);
+			child = usb2_bus_port_get_device(udev->bus,
+			    udev->hub->ports + x);
 
 			if (child == NULL)
 				continue;
 
-			if (child->pwr_save.suspended)
+			if (child->flags.self_suspended)
 				continue;
 
-			if (child == udev)
-				continue;
-
-			/* another device on the HUB is not suspended */
-			suspend_parent = 0;
-
-			break;
+			DPRINTFN(1, "Port %u is busy on the HUB!\n", x + 1);
+			return;
 		}
-	} else {
-		suspend_parent = 0;
 	}
 
 	sx_xlock(udev->default_sx + 1);
@@ -1856,7 +1846,7 @@ repeat:
 	 * Set that this device is suspended. This variable must be set
 	 * before calling USB controller suspend callbacks.
 	 */
-	udev->pwr_save.suspended = 1;
+	udev->flags.self_suspended = 1;
 	USB_BUS_UNLOCK(udev->bus);
 
 	if (udev->bus->methods->device_suspend != NULL) {
@@ -1877,11 +1867,9 @@ repeat:
 		DPRINTFN(0, "Suspending port failed\n");
 		return;
 	}
-	if (suspend_parent) {
-		udev = udev->parent_hub;
-		goto repeat;
-	}
-	return;
+
+	udev = udev->parent_hub;
+	goto repeat;
 }
 
 /*------------------------------------------------------------------------*

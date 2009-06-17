@@ -173,7 +173,6 @@ static const struct usb2_device_id aue_devs[] = {
 static device_probe_t aue_probe;
 static device_attach_t aue_attach;
 static device_detach_t aue_detach;
-static device_shutdown_t aue_shutdown;
 static miibus_readreg_t aue_miibus_readreg;
 static miibus_writereg_t aue_miibus_writereg;
 static miibus_statchg_t aue_miibus_statchg;
@@ -239,7 +238,6 @@ static device_method_t aue_methods[] = {
 	DEVMETHOD(device_probe, aue_probe),
 	DEVMETHOD(device_attach, aue_attach),
 	DEVMETHOD(device_detach, aue_detach),
-	DEVMETHOD(device_shutdown, aue_shutdown),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -1037,18 +1035,4 @@ aue_stop(struct usb2_ether *ue)
 	aue_csr_write_1(sc, AUE_CTL0, 0);
 	aue_csr_write_1(sc, AUE_CTL1, 0);
 	aue_reset(sc);
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-aue_shutdown(device_t dev)
-{
-	struct aue_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

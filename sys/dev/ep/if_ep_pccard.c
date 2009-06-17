@@ -68,9 +68,10 @@ struct ep_pccard_product
 
 #define EP_CHIP_589	1	/* Classic 3c5x9 chipset */
 #define EP_CHIP_574	2	/* Roadrunner */
+#define EP_CHIP_C1	3	/* 3c1 */
 
 static const struct ep_pccard_product ep_pccard_products[] = {
-	{ PCMCIA_CARD(3COM, 3C1),		EP_CHIP_589 },
+	{ PCMCIA_CARD(3COM, 3C1),		EP_CHIP_C1 },
 	{ PCMCIA_CARD(3COM, 3C562),		EP_CHIP_589 },
 	{ PCMCIA_CARD(3COM, 3C589),		EP_CHIP_589 },
 	{ PCMCIA_CARD(3COM, 3CXEM556),		EP_CHIP_589 },
@@ -144,19 +145,21 @@ ep_pccard_attach(device_t dev)
 	if ((pp = ep_pccard_lookup(dev)) == NULL)
 		panic("ep_pccard_attach: can't find product in attach.");
 
-	if (pp->chipset == EP_CHIP_589) {
-		sc->epb.mii_trans = 0;
-		sc->epb.cmd_off = 0;
-	} else {
+	if (pp->chipset == EP_CHIP_574) {
 		sc->epb.mii_trans = 1;
 		sc->epb.cmd_off = 2;
+	} else {
+		sc->epb.mii_trans = 0;
+		sc->epb.cmd_off = 0;
 	}
-
 	if ((error = ep_alloc(dev))) {
 		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
 		goto bad;
 	}
 
+	if (pp->chipset == EP_CHIP_C1)
+		sc->stat |= F_HAS_TX_PLL;
+	
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
 	error = ep_get_e(sc, EEPROM_ADDR_CFG, &result);

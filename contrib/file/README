@@ -1,5 +1,5 @@
 ** README for file(1) Command **
-@(#) $File: README,v 1.40 2008/04/23 03:45:20 christos Exp $
+@(#) $File: README,v 1.41 2008/12/02 16:34:46 christos Exp $
 
 E-mail: christos@astron.com
 Mailing List: file@mx.gw.com
@@ -48,33 +48,35 @@ in magic(5) format please, to the maintainer, Christos Zoulas.
 
 COPYING - read this first.
 README - read this second (you are currently reading this file).
-PORTING - read this only if the program won't compile.
-Makefile - read this next, adapt it as needed (particularly
-	the location of the old existing file command and
-	the man page layouts), type "make" to compile, 
-	"make try" to try it out against your old version.
-	Expect some diffs, particularly since your original
-	file(1) may not grok the embedded-space ("\ ") in
-	the current magic file, or may even not use the
-	magic file.
-apprentice.c - parses /etc/magic to learn magic
-ascmagic.c - third & last set of tests, based on hardwired assumptions.
-core - not included in distribution due to mailer limitations.
-debug.c - includes -c printout routine
-file.1 - man page for the command
-magic.4 - man page for the magic file, courtesy Guy Harris.
+INSTALL - read on how to install
+
+src/apprentice.c - parses /etc/magic to learn magic
+src/apptype.c - used for OS/2 specific application type magic
+src/asprintf.c - replacement for OS's that don't have it.
+src/ascmagic.c - third & last set of tests, based on hardwired assumptions.
+src/cdf.c - parser for Microsoft Compound Document Files
+src/cdf_time.c - time converter for CDF.
+src/compress.c - handles decompressing files to look inside.
+src/encoding.c - handles unicode encodings
+src/file.c - the main program
+src/file.h - header file
+src/fsmagic.c - first set of tests the program runs, based on filesystem info
+src/funcs.c - utilility functions
+src/getopt_long.c - used for OS/2 specific application type magic
+src/is_tar.c, tar.h - knows about tarchives (courtesy John Gilmore).
+src/names.h - header file for ascmagic.c
+src/magic.c - the libmagic api
+src/print.c - print results, errors, warnings.
+src/readcdf.c - CDF wrapper.
+src/readelf.[ch] - Stand-alone elf parsing code.
+src/softmagic.c - 2nd set of tests, based on /etc/magic
+src/strlcat.c - used for OS/2 specific application type magic
+src/strlcpy.c - used for OS/2 specific application type magic
+src/vasprintf.c - used for OS/2 specific application type magic
+doc/file.1 - man page for the command
+doc/magic.4 - man page for the magic file, courtesy Guy Harris.
 	Install as magic.4 on USG and magic.5 on V7 or Berkeley; cf Makefile.
-file.c - main program
-file.h - header file
-fsmagic.c - first set of tests the program runs, based on filesystem info
-is_tar.c, tar.h - knows about tarchives (courtesy John Gilmore).
-magdir - directory of /etc/magic pieces
-	magdir/Makefile - ADJUST THIS FOR YOUR CONFIGURATION
-names.h - header file for ascmagic.c
-softmagic.c - 2nd set of tests, based on /etc/magic
-readelf.[ch] - Stand-alone elf parsing code.
-compress.c - on-the-fly decompression.
-print.c - print results, errors, warnings.
+Magdir - directory of /etc/magic pieces
 
 ------------------------------------------------------------------------------
 

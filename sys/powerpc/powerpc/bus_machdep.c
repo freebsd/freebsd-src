@@ -39,9 +39,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define	KTR_BE_IO	0
+#define	KTR_LE_IO	0
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/ktr.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -141,7 +145,7 @@ static void
 bs_gen_barrier(bus_space_handle_t bsh __unused, bus_size_t ofs __unused,
     bus_size_t size __unused, int flags __unused)
 {
-	__asm __volatile("" : : : "memory");
+	__asm __volatile("eieio; sync" : : : "memory");
 }
 
 /*
@@ -150,19 +154,37 @@ bs_gen_barrier(bus_space_handle_t bsh __unused, bus_size_t ofs __unused,
 static uint8_t
 bs_be_rs_1(bus_space_handle_t bsh, bus_size_t ofs)
 {
-	return (in8(__ppc_ba(bsh, ofs)));
+	volatile uint8_t *addr;
+	uint8_t res;
+
+	addr = __ppc_ba(bsh, ofs);
+	res = *addr;
+	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
+	return (res);
 }
 
 static uint16_t
 bs_be_rs_2(bus_space_handle_t bsh, bus_size_t ofs)
 {
-	return (in16(__ppc_ba(bsh, ofs)));
+	volatile uint16_t *addr;
+	uint16_t res;
+
+	addr = __ppc_ba(bsh, ofs);
+	res = *addr;
+	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
+	return (res);
 }
 
 static uint32_t
 bs_be_rs_4(bus_space_handle_t bsh, bus_size_t ofs)
 {
-	return (in32(__ppc_ba(bsh, ofs)));
+	volatile uint32_t *addr;
+	uint32_t res;
+
+	addr = __ppc_ba(bsh, ofs);
+	res = *addr;
+	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
+	return (res);
 }
 
 static uint64_t
@@ -234,19 +256,31 @@ bs_be_rr_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t *addr, size_t cnt)
 static void
 bs_be_ws_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val)
 {
-	out8(__ppc_ba(bsh, ofs), val);
+	volatile uint8_t *addr;
+
+	addr = __ppc_ba(bsh, ofs);
+	*addr = val;
+	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
 static void
 bs_be_ws_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val)
 {
-	out16(__ppc_ba(bsh, ofs), val);
+	volatile uint16_t *addr;
+
+	addr = __ppc_ba(bsh, ofs);
+	*addr = val;
+	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
 static void
 bs_be_ws_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val)
 {
-	out32(__ppc_ba(bsh, ofs), val);
+	volatile uint32_t *addr;
+
+	addr = __ppc_ba(bsh, ofs);
+	*addr = val;
+	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
 static void
@@ -401,19 +435,37 @@ bs_be_sr_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val, size_t cnt)
 static uint8_t
 bs_le_rs_1(bus_space_handle_t bsh, bus_size_t ofs)
 {
-	return (in8(__ppc_ba(bsh, ofs)));
+	volatile uint8_t *addr;
+	uint8_t res;
+
+	addr = __ppc_ba(bsh, ofs);
+	res = *addr;
+	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
+	return (res);
 }
 
 static uint16_t
 bs_le_rs_2(bus_space_handle_t bsh, bus_size_t ofs)
 {
-	return (in16rb(__ppc_ba(bsh, ofs)));
+	volatile uint16_t *addr;
+	uint16_t res;
+
+	addr = __ppc_ba(bsh, ofs);
+	__asm __volatile("lhbrx %0, 0, %1" : "=r"(res) : "r"(addr));
+	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
+	return (res);
 }
 
 static uint32_t
 bs_le_rs_4(bus_space_handle_t bsh, bus_size_t ofs)
 {
-	return (in32rb(__ppc_ba(bsh, ofs)));
+	volatile uint32_t *addr;
+	uint32_t res;
+
+	addr = __ppc_ba(bsh, ofs);
+	__asm __volatile("lwbrx %0, 0, %1" : "=r"(res) : "r"(addr));
+	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
+	return (res);
 }
 
 static uint64_t
@@ -485,19 +537,31 @@ bs_le_rr_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t *addr, size_t cnt)
 static void
 bs_le_ws_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val)
 {
-	out8(__ppc_ba(bsh, ofs), val);
+	volatile uint8_t *addr;
+
+	addr = __ppc_ba(bsh, ofs);
+	*addr = val;
+	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
 static void
 bs_le_ws_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val)
 {
-	out16rb(__ppc_ba(bsh, ofs), val);
+	volatile uint16_t *addr;
+ 
+	addr = __ppc_ba(bsh, ofs);
+	__asm __volatile("sthbrx %0, 0, %1" :: "r"(val), "r"(addr));
+	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
 static void
 bs_le_ws_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val)
 {
-	out32rb(__ppc_ba(bsh, ofs), val);
+	volatile uint32_t *addr;
+
+	addr = __ppc_ba(bsh, ofs);
+	__asm __volatile("stwbrx %0, 0, %1" :: "r"(val), "r"(addr));
+	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
 static void

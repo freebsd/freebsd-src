@@ -132,6 +132,7 @@ extern struct usb2_pipe_methods uhci_device_ctrl_methods;
 extern struct usb2_pipe_methods uhci_device_intr_methods;
 extern struct usb2_pipe_methods uhci_device_isoc_methods;
 
+static uint8_t	uhci_restart(uhci_softc_t *sc);
 static void	uhci_do_poll(struct usb2_bus *);
 static void	uhci_device_done(struct usb2_xfer *, usb2_error_t);
 static void	uhci_transfer_intr_enqueue(struct usb2_xfer *);
@@ -246,10 +247,51 @@ uhci_mem_layout_fixup(struct uhci_mem_layout *ml, struct uhci_td *td)
 	ml->buf_offset += td->len;
 }
 
+/*
+ * Return values:
+ * 0: Success
+ * Else: Failure
+ */
+static uint8_t
+uhci_restart(uhci_softc_t *sc)
+{
+	struct usb2_page_search buf_res;
+
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
+
+  	if (UREAD2(sc, UHCI_CMD) & UHCI_CMD_RS) {
+		DPRINTFN(2, "Already started\n");
+		return (0);
+	}
+
+	DPRINTFN(2, "Restarting\n");
+
+	usb2_get_page(&sc->sc_hw.pframes_pc, 0, &buf_res);
+
+	/* Reload fresh base address */
+	UWRITE4(sc, UHCI_FLBASEADDR, buf_res.physaddr);
+
+	/*
+	 * Assume 64 byte packets at frame end and start HC controller:
+	 */
+	UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
+
+	/* wait 10 milliseconds */
+
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+
+	/* check that controller has started */
+
+	if (UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) {
+		DPRINTFN(2, "Failed\n");
+		return (1);
+	}
+	return (0);
+}
+
 void
 uhci_reset(uhci_softc_t *sc)
 {
-	struct usb2_page_search buf_res;
 	uint16_t n;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -309,8 +351,6 @@ done_1:
 done_2:
 
 	/* reload the configuration */
-	usb2_get_page(&sc->sc_hw.pframes_pc, 0, &buf_res);
-	UWRITE4(sc, UHCI_FLBASEADDR, buf_res.physaddr);
 	UWRITE2(sc, UHCI_FRNUM, sc->sc_saved_frnum);
 	UWRITE1(sc, UHCI_SOF, sc->sc_saved_sof);
 
@@ -337,30 +377,11 @@ uhci_start(uhci_softc_t *sc)
 	    UHCI_INTR_IOCE |
 	    UHCI_INTR_SPIE));
 
-	/*
-	 * assume 64 byte packets at frame end and start HC controller
-	 */
-
-	UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
-
-	uint8_t n = 10;
-
-	while (n--) {
-		/* wait one millisecond */
-
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
-
-		/* check that controller has started */
-
-		if (!(UREAD2(sc, UHCI_STS) & UHCI_STS_HCH)) {
-			goto done;
-		}
+	if (uhci_restart(sc)) {
+		device_printf(sc->sc_bus.bdev,
+		    "cannot start HC controller\n");
 	}
 
-	device_printf(sc->sc_bus.bdev,
-	    "cannot start HC controller\n");
-
-done:
 	/* start root interrupt */
 	uhci_root_intr(sc);
 }
@@ -1921,7 +1942,7 @@ uhci_device_bulk_start(struct usb2_xfer *xfer)
 	qh->e_next = td;
 	qh->qh_e_next = td->td_self;
 
-	if (xfer->xroot->udev->pwr_save.suspended == 0) {
+	if (xfer->xroot->udev->flags.self_suspended == 0) {
 		UHCI_APPEND_QH(qh, sc->sc_bulk_p_last);
 		uhci_add_loop(sc);
 		xfer->flags_int.bandwidth_reclaimed = 1;
@@ -1982,7 +2003,7 @@ uhci_device_ctrl_start(struct usb2_xfer *xfer)
 	 * NOTE: some devices choke on bandwidth- reclamation for control
 	 * transfers
 	 */
-	if (xfer->xroot->udev->pwr_save.suspended == 0) {
+	if (xfer->xroot->udev->flags.self_suspended == 0) {
 		if (xfer->xroot->udev->speed == USB_SPEED_LOW) {
 			UHCI_APPEND_QH(qh, sc->sc_ls_ctl_p_last);
 		} else {
@@ -2071,11 +2092,9 @@ uhci_device_intr_start(struct usb2_xfer *xfer)
 	qh->e_next = td;
 	qh->qh_e_next = td->td_self;
 
-	if (xfer->xroot->udev->pwr_save.suspended == 0) {
-
+	if (xfer->xroot->udev->flags.self_suspended == 0) {
 		/* enter QHs into the controller data structures */
 		UHCI_APPEND_QH(qh, sc->sc_intr_p_last[xfer->qh_pos]);
-
 	} else {
 		usb2_pc_cpu_flush(qh->page_cache);
 	}
@@ -2391,15 +2410,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index)
 	 * Before we do anything, turn on SOF messages on the USB
 	 * BUS. Some USB devices do not cope without them!
 	 */
-  	if (!(UREAD2(sc, UHCI_CMD) & UHCI_CMD_RS)) {
-
-		DPRINTF("Activating SOFs!\n");
-
-		UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
-
-		/* wait a little bit */
-		usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
-	}
+	uhci_restart(sc);
 
 	x = URWMASK(UREAD2(sc, port));
 	UWRITE2(sc, port, x | UHCI_PORTSC_PR);
@@ -2482,35 +2493,39 @@ done:
 	return (USB_ERR_NORMAL_COMPLETION);
 }
 
-static void
-uhci_roothub_exec(struct usb2_bus *bus)
+static usb2_error_t
+uhci_roothub_exec(struct usb2_device *udev,
+    struct usb2_device_request *req, const void **pptr, uint16_t *plength)
 {
-	uhci_softc_t *sc = UHCI_BUS2SC(bus);
-	struct usb2_sw_transfer *std = &sc->sc_bus.roothub_req;
-	char *ptr;
+	uhci_softc_t *sc = UHCI_BUS2SC(udev->bus);
+	const void *ptr;
+	const char *str_ptr;
 	uint16_t x;
 	uint16_t port;
 	uint16_t value;
 	uint16_t index;
 	uint16_t status;
 	uint16_t change;
+	uint16_t len;
+	usb2_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	/* buffer reset */
-	std->ptr = sc->sc_hub_desc.temp;
-	std->len = 0;
+	ptr = (const void *)&sc->sc_hub_desc.temp;
+	len = 0;
+	err = 0;
 
-	value = UGETW(std->req.wValue);
-	index = UGETW(std->req.wIndex);
+	value = UGETW(req->wValue);
+	index = UGETW(req->wIndex);
 
 	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
-	    std->req.bmRequestType, std->req.bRequest,
-	    UGETW(std->req.wLength), value, index);
+	    req->bmRequestType, req->bRequest,
+	    UGETW(req->wLength), value, index);
 
 #define	C(x,y) ((x) | ((y) << 8))
-	switch (C(std->req.bRequest, std->req.bmRequestType)) {
+	switch (C(req->bRequest, req->bmRequestType)) {
 	case C(UR_CLEAR_FEATURE, UT_WRITE_DEVICE):
 	case C(UR_CLEAR_FEATURE, UT_WRITE_INTERFACE):
 	case C(UR_CLEAR_FEATURE, UT_WRITE_ENDPOINT):
@@ -2520,82 +2535,82 @@ uhci_roothub_exec(struct usb2_bus *bus)
 		 */
 		break;
 	case C(UR_GET_CONFIG, UT_READ_DEVICE):
-		std->len = 1;
+		len = 1;
 		sc->sc_hub_desc.temp[0] = sc->sc_conf;
 		break;
 	case C(UR_GET_DESCRIPTOR, UT_READ_DEVICE):
 		switch (value >> 8) {
 		case UDESC_DEVICE:
 			if ((value & 0xff) != 0) {
-				std->err = USB_ERR_IOERROR;
+				err = USB_ERR_IOERROR;
 				goto done;
 			}
-			std->len = sizeof(uhci_devd);
-			sc->sc_hub_desc.devd = uhci_devd;
+			len = sizeof(uhci_devd);
+			ptr = (const void *)&uhci_devd;
 			break;
 
 		case UDESC_CONFIG:
 			if ((value & 0xff) != 0) {
-				std->err = USB_ERR_IOERROR;
+				err = USB_ERR_IOERROR;
 				goto done;
 			}
-			std->len = sizeof(uhci_confd);
-			std->ptr = USB_ADD_BYTES(&uhci_confd, 0);
+			len = sizeof(uhci_confd);
+			ptr = (const void *)&uhci_confd;
 			break;
 
 		case UDESC_STRING:
 			switch (value & 0xff) {
 			case 0:	/* Language table */
-				ptr = "\001";
+				str_ptr = "\001";
 				break;
 
 			case 1:	/* Vendor */
-				ptr = sc->sc_vendor;
+				str_ptr = sc->sc_vendor;
 				break;
 
 			case 2:	/* Product */
-				ptr = "UHCI root HUB";
+				str_ptr = "UHCI root HUB";
 				break;
 
 			default:
-				ptr = "";
+				str_ptr = "";
 				break;
 			}
 
-			std->len = usb2_make_str_desc
+			len = usb2_make_str_desc
 			    (sc->sc_hub_desc.temp,
 			    sizeof(sc->sc_hub_desc.temp),
-			    ptr);
+			    str_ptr);
 			break;
 
 		default:
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		break;
 	case C(UR_GET_INTERFACE, UT_READ_INTERFACE):
-		std->len = 1;
+		len = 1;
 		sc->sc_hub_desc.temp[0] = 0;
 		break;
 	case C(UR_GET_STATUS, UT_READ_DEVICE):
-		std->len = 2;
+		len = 2;
 		USETW(sc->sc_hub_desc.stat.wStatus, UDS_SELF_POWERED);
 		break;
 	case C(UR_GET_STATUS, UT_READ_INTERFACE):
 	case C(UR_GET_STATUS, UT_READ_ENDPOINT):
-		std->len = 2;
+		len = 2;
 		USETW(sc->sc_hub_desc.stat.wStatus, 0);
 		break;
 	case C(UR_SET_ADDRESS, UT_WRITE_DEVICE):
 		if (value >= UHCI_MAX_DEVICES) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		sc->sc_addr = value;
 		break;
 	case C(UR_SET_CONFIG, UT_WRITE_DEVICE):
 		if ((value != 0) && (value != 1)) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		sc->sc_conf = value;
@@ -2605,7 +2620,7 @@ uhci_roothub_exec(struct usb2_bus *bus)
 	case C(UR_SET_FEATURE, UT_WRITE_DEVICE):
 	case C(UR_SET_FEATURE, UT_WRITE_INTERFACE):
 	case C(UR_SET_FEATURE, UT_WRITE_ENDPOINT):
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	case C(UR_SET_INTERFACE, UT_WRITE_INTERFACE):
 		break;
@@ -2623,7 +2638,7 @@ uhci_roothub_exec(struct usb2_bus *bus)
 		else if (index == 2)
 			port = UHCI_PORTSC2;
 		else {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		switch (value) {
@@ -2653,7 +2668,7 @@ uhci_roothub_exec(struct usb2_bus *bus)
 			break;
 		case UHF_C_PORT_RESET:
 			sc->sc_isreset = 0;
-			std->err = USB_ERR_NORMAL_COMPLETION;
+			err = USB_ERR_NORMAL_COMPLETION;
 			goto done;
 		case UHF_C_PORT_SUSPEND:
 			sc->sc_isresumed &= ~(1 << index);
@@ -2663,7 +2678,7 @@ uhci_roothub_exec(struct usb2_bus *bus)
 		case UHF_PORT_POWER:
 		case UHF_PORT_LOW_SPEED:
 		default:
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		break;
@@ -2673,24 +2688,24 @@ uhci_roothub_exec(struct usb2_bus *bus)
 		else if (index == 2)
 			port = UHCI_PORTSC2;
 		else {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
-		std->len = 1;
+		len = 1;
 		sc->sc_hub_desc.temp[0] =
 		    ((UREAD2(sc, port) & UHCI_PORTSC_LS) >>
 		    UHCI_PORTSC_LS_SHIFT);
 		break;
 	case C(UR_GET_DESCRIPTOR, UT_READ_CLASS_DEVICE):
 		if ((value & 0xff) != 0) {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
-		std->len = sizeof(uhci_hubd_piix);
-		std->ptr = USB_ADD_BYTES(&uhci_hubd_piix, 0);
+		len = sizeof(uhci_hubd_piix);
+		ptr = (const void *)&uhci_hubd_piix;
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_DEVICE):
-		std->len = 16;
+		len = 16;
 		bzero(sc->sc_hub_desc.temp, 16);
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_OTHER):
@@ -2699,7 +2714,7 @@ uhci_roothub_exec(struct usb2_bus *bus)
 		else if (index == 2)
 			port = UHCI_PORTSC2;
 		else {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		x = UREAD2(sc, port);
@@ -2744,10 +2759,10 @@ uhci_roothub_exec(struct usb2_bus *bus)
 			change |= UPS_C_PORT_RESET;
 		USETW(sc->sc_hub_desc.ps.wPortStatus, status);
 		USETW(sc->sc_hub_desc.ps.wPortChange, change);
-		std->len = sizeof(sc->sc_hub_desc.ps);
+		len = sizeof(sc->sc_hub_desc.ps);
 		break;
 	case C(UR_SET_DESCRIPTOR, UT_WRITE_CLASS_DEVICE):
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	case C(UR_SET_FEATURE, UT_WRITE_CLASS_DEVICE):
 		break;
@@ -2757,7 +2772,7 @@ uhci_roothub_exec(struct usb2_bus *bus)
 		else if (index == 2)
 			port = UHCI_PORTSC2;
 		else {
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		switch (value) {
@@ -2770,11 +2785,11 @@ uhci_roothub_exec(struct usb2_bus *bus)
 			UWRITE2(sc, port, x | UHCI_PORTSC_SUSP);
 			break;
 		case UHF_PORT_RESET:
-			std->err = uhci_portreset(sc, index);
+			err = uhci_portreset(sc, index);
 			goto done;
 		case UHF_PORT_POWER:
 			/* pretend we turned on power */
-			std->err = USB_ERR_NORMAL_COMPLETION;
+			err = USB_ERR_NORMAL_COMPLETION;
 			goto done;
 		case UHF_C_PORT_CONNECTION:
 		case UHF_C_PORT_ENABLE:
@@ -2785,16 +2800,18 @@ uhci_roothub_exec(struct usb2_bus *bus)
 		case UHF_C_PORT_SUSPEND:
 		case UHF_C_PORT_RESET:
 		default:
-			std->err = USB_ERR_IOERROR;
+			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		break;
 	default:
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	}
 done:
-	return;
+	*plength = len;
+	*pptr = ptr;
+	return (err);
 }
 
 /*
@@ -3190,11 +3207,11 @@ uhci_set_hw_power(struct usb2_bus *bus)
 	    USB_HW_POWER_INTERRUPT |
 	    USB_HW_POWER_ISOC)) {
 		DPRINTF("Some USB transfer is "
-		    "active on %u.\n",
+		    "active on unit %u.\n",
 		    device_get_unit(sc->sc_bus.bdev));
-		UHCICMD(sc, (UHCI_CMD_MAXP | UHCI_CMD_RS));
+		uhci_restart(sc);
 	} else {
-		DPRINTF("Power save on %u.\n",
+		DPRINTF("Power save on unit %u.\n",
 		    device_get_unit(sc->sc_bus.bdev));
 		UHCICMD(sc, UHCI_CMD_MAXP);
 	}

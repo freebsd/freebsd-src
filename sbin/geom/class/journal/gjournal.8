@@ -162,7 +162,8 @@ Hardcode provider names in metadata.
 Specifies size of the journal if only one provider is used for both data and
 journal.
 The default is one gigabyte.
-Size should be chosen based on provider's load, and not on its size.
+Size should be chosen based on provider's load, and not on its size;
+recommended minimum is twice the size of the physical memory installed.
 It is not recommended to use
 .Nm
 for small file systems (e.g.: only few gigabytes big).

@@ -561,7 +561,7 @@ mqfs_destroy(struct mqfs_node *node)
  * Mount a mqfs instance
  */
 static int
-mqfs_mount(struct mount *mp, struct thread *td)
+mqfs_mount(struct mount *mp)
 {
 	struct statfs *sbp;
 
@@ -591,11 +591,12 @@ mqfs_mount(struct mount *mp, struct thread *td)
  * Unmount a mqfs instance
  */
 static int
-mqfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+mqfs_unmount(struct mount *mp, int mntflags)
 {
 	int error;
 
-	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0, td);
+	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0,
+	    curthread);
 	return (error);
 }
 
@@ -603,7 +604,7 @@ mqfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return a root vnode
  */
 static int
-mqfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+mqfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct mqfs_info *mqfs;
 	int ret;
@@ -617,7 +618,7 @@ mqfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
  * Return filesystem stats
  */
 static int
-mqfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+mqfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	/* XXX update statistics */
 	return (0);

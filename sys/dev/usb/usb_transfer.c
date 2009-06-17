@@ -822,7 +822,16 @@ usb2_transfer_setup(struct usb2_device *udev,
 			info->done_m[1].hdr.pm_callback = &usb2_callback_proc;
 			info->done_m[1].xroot = info;
 
-			if (xfer_mtx == &Giant)
+			/* 
+			 * In device side mode control endpoint
+			 * requests need to run from a separate
+			 * context, else there is a chance of
+			 * deadlock!
+			 */
+			if (setup_start == usb2_control_ep_cfg)
+				info->done_p = 
+				    &udev->bus->control_xfer_proc;
+			else if (xfer_mtx == &Giant)
 				info->done_p = 
 				    &udev->bus->giant_callback_proc;
 			else
@@ -1356,7 +1365,12 @@ error:
 void
 usb2_start_hardware(struct usb2_xfer *xfer)
 {
+	struct usb2_xfer_root *info;
+	struct usb2_bus *bus;
 	usb2_frcount_t x;
+
+	info = xfer->xroot;
+	bus = info->bus;
 
 	DPRINTF("xfer=%p, pipe=%p, nframes=%d, dir=%s\n",
 	    xfer, xfer->pipe, xfer->nframes, USB_GET_DATA_ISREAD(xfer) ?
@@ -1364,16 +1378,16 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 
 #if USB_DEBUG
 	if (USB_DEBUG_VAR > 0) {
-		USB_BUS_LOCK(xfer->xroot->bus);
+		USB_BUS_LOCK(bus);
 
 		usb2_dump_pipe(xfer->pipe);
 
-		USB_BUS_UNLOCK(xfer->xroot->bus);
+		USB_BUS_UNLOCK(bus);
 	}
 #endif
 
 	USB_XFER_LOCK_ASSERT(xfer, MA_OWNED);
-	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_NOTOWNED);
+	USB_BUS_LOCK_ASSERT(bus, MA_NOTOWNED);
 
 	/* Only open the USB transfer once! */
 	if (!xfer->flags_int.open) {
@@ -1381,9 +1395,9 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 
 		DPRINTF("open\n");
 
-		USB_BUS_LOCK(xfer->xroot->bus);
+		USB_BUS_LOCK(bus);
 		(xfer->pipe->methods->open) (xfer);
-		USB_BUS_UNLOCK(xfer->xroot->bus);
+		USB_BUS_UNLOCK(bus);
 	}
 	/* set "transferring" flag */
 	xfer->flags_int.transferring = 1;
@@ -1397,9 +1411,9 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	 * frequently the "done_q":
 	 */
 	if (xfer->wait_queue) {
-		USB_BUS_LOCK(xfer->xroot->bus);
+		USB_BUS_LOCK(bus);
 		usb2_transfer_dequeue(xfer);
-		USB_BUS_UNLOCK(xfer->xroot->bus);
+		USB_BUS_UNLOCK(bus);
 	}
 	/* clear "did_dma_delay" flag */
 	xfer->flags_int.did_dma_delay = 0;
@@ -1422,8 +1436,15 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	/* clear any previous errors */
 	xfer->error = 0;
 
-	/* sanity check */
+	/* Check if the device is still alive */
+	if (info->udev->state < USB_STATE_POWERED) {
+		USB_BUS_LOCK(bus);
+		usb2_transfer_done(xfer, USB_ERR_NOT_CONFIGURED);
+		USB_BUS_UNLOCK(bus);
+		return;
+	}
 
+	/* sanity check */
 	if (xfer->nframes == 0) {
 		if (xfer->flags.stall_pipe) {
 			/*
@@ -1432,16 +1453,16 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 			 */
 			DPRINTF("xfer=%p nframes=0: stall "
 			    "or clear stall!\n", xfer);
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(bus);
 			xfer->flags_int.can_cancel_immed = 1;
 			/* start the transfer */
 			usb2_command_wrapper(&xfer->pipe->pipe_q, xfer);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
+			USB_BUS_UNLOCK(bus);
 			return;
 		}
-		USB_BUS_LOCK(xfer->xroot->bus);
+		USB_BUS_LOCK(bus);
 		usb2_transfer_done(xfer, USB_ERR_INVAL);
-		USB_BUS_UNLOCK(xfer->xroot->bus);
+		USB_BUS_UNLOCK(bus);
 		return;
 	}
 	/* compute total transfer length */
@@ -1450,9 +1471,9 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 		xfer->sumlen += xfer->frlengths[x];
 		if (xfer->sumlen < xfer->frlengths[x]) {
 			/* length wrapped around */
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(bus);
 			usb2_transfer_done(xfer, USB_ERR_INVAL);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
+			USB_BUS_UNLOCK(bus);
 			return;
 		}
 	}
@@ -1467,9 +1488,9 @@ usb2_start_hardware(struct usb2_xfer *xfer)
 	if (xfer->flags_int.control_xfr) {
 
 		if (usb2_start_hardware_sub(xfer)) {
-			USB_BUS_LOCK(xfer->xroot->bus);
+			USB_BUS_LOCK(bus);
 			usb2_transfer_done(xfer, USB_ERR_STALLED);
-			USB_BUS_UNLOCK(xfer->xroot->bus);
+			USB_BUS_UNLOCK(bus);
 			return;
 		}
 	}

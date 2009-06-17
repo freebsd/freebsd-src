@@ -584,7 +584,9 @@ static int
 linux_socket(struct thread *td, struct linux_socket_args *args)
 {
 #ifdef INET6
+#ifndef KLD_MODULE
 	INIT_VNET_INET6(curvnet);
+#endif
 #endif
 	struct socket_args /* {
 		int domain;
@@ -597,7 +599,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	bsd_args.type = args->type;
 	bsd_args.domain = linux_to_bsd_domain(args->domain);
 	if (bsd_args.domain == -1)
-		return (EINVAL);
+		return (EAFNOSUPPORT);
 
 	retval_socket = socket(td, &bsd_args);
 	if (bsd_args.type == SOCK_RAW
@@ -853,11 +855,21 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 	} */ bsd_args;
 
 	bsd_args.domain = linux_to_bsd_domain(args->domain);
-	if (bsd_args.domain == -1)
-		return (EINVAL);
+	if (bsd_args.domain != PF_LOCAL)
+		return (EAFNOSUPPORT);
 
 	bsd_args.type = args->type;
-	bsd_args.protocol = args->protocol;
+	if (args->protocol != 0 && args->protocol != PF_UNIX)
+
+		/*
+		 * Use of PF_UNIX as protocol argument is not right,
+		 * but Linux does it.
+		 * Do not map PF_UNIX as its Linux value is identical
+		 * to FreeBSD one.
+		 */
+		return (EPROTONOSUPPORT);
+	else
+		bsd_args.protocol = 0;
 	bsd_args.rsv = (int *)PTRIN(args->rsv);
 	return (socketpair(td, &bsd_args));
 }
@@ -912,7 +924,7 @@ linux_recv(struct thread *td, struct linux_recv_args *args)
 	bsd_args.s = args->s;
 	bsd_args.buf = (caddr_t)PTRIN(args->msg);
 	bsd_args.len = args->len;
-	bsd_args.flags = args->flags;
+	bsd_args.flags = linux_to_bsd_msg_flags(args->flags);
 	bsd_args.from = NULL;
 	bsd_args.fromlenaddr = 0;
 	return (recvfrom(td, &bsd_args));
@@ -1266,6 +1278,8 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		caddr_t val;
 		int valsize;
 	} */ bsd_args;
+	l_timeval linux_tv;
+	struct timeval tv;
 	int error, name;
 
 	bsd_args.s = args->s;
@@ -1273,6 +1287,23 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	switch (bsd_args.level) {
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
+		switch (name) {
+		case SO_RCVTIMEO:
+			/* FALLTHROUGH */
+		case SO_SNDTIMEO:
+			error = copyin(PTRIN(args->optval), &linux_tv,
+			    sizeof(linux_tv));
+			if (error)
+				return (error);
+			tv.tv_sec = linux_tv.tv_sec;
+			tv.tv_usec = linux_tv.tv_usec;
+			return (kern_setsockopt(td, args->s, bsd_args.level,
+			    name, &tv, UIO_SYSSPACE, sizeof(tv)));
+			/* NOTREACHED */
+			break;
+		default:
+			break;
+		}
 		break;
 	case IPPROTO_IP:
 		name = linux_to_bsd_ip_sockopt(args->optname);
@@ -1321,6 +1352,9 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		caddr_t val;
 		int *avalsize;
 	} */ bsd_args;
+	l_timeval linux_tv;
+	struct timeval tv;
+	socklen_t tv_len;
 	int error, name;
 
 	bsd_args.s = args->s;
@@ -1328,6 +1362,24 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	switch (bsd_args.level) {
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
+		switch (name) {
+		case SO_RCVTIMEO:
+			/* FALLTHROUGH */
+		case SO_SNDTIMEO:
+			tv_len = sizeof(tv);
+			error = kern_getsockopt(td, args->s, bsd_args.level,
+			    name, &tv, UIO_SYSSPACE, &tv_len);
+			if (error)
+				return (error);
+			linux_tv.tv_sec = tv.tv_sec;
+			linux_tv.tv_usec = tv.tv_usec;
+			return (copyout(&linux_tv, PTRIN(args->optval),
+			    sizeof(linux_tv)));
+			/* NOTREACHED */
+			break;
+		default:
+			break;
+		}
 		break;
 	case IPPROTO_IP:
 		name = linux_to_bsd_ip_sockopt(args->optname);

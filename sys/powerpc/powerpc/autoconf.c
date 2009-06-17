@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_isa.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -34,6 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 
 #include <machine/intr_machdep.h>
+
+#ifdef DEV_ISA
+extern void isa_probe_children(device_t dev);
+
+device_t isa_bus_device;
+#endif
 
 static device_t nexusdev;
 
@@ -62,6 +70,10 @@ configure(void *dummy)
 {
 
 	root_bus_configure();
+#ifdef DEV_ISA
+	if (isa_bus_device)
+		isa_probe_children(isa_bus_device);
+#endif
 }
 
 static void

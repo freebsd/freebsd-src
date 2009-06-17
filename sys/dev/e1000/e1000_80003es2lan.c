@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -43,9 +43,7 @@ static s32  e1000_init_phy_params_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_init_mac_params_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_acquire_phy_80003es2lan(struct e1000_hw *hw);
-static s32  e1000_acquire_mac_csr_80003es2lan(struct e1000_hw *hw);
 static void e1000_release_phy_80003es2lan(struct e1000_hw *hw);
-static void e1000_release_mac_csr_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_acquire_nvm_80003es2lan(struct e1000_hw *hw);
 static void e1000_release_nvm_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
@@ -276,6 +274,8 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 	mac->ops.mta_set = e1000_mta_set_generic;
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_80003es2lan;
+	/* ID LED init */
+	mac->ops.id_led_init = e1000_id_led_init_generic;
 	/* blink LED */
 	mac->ops.blink_led = e1000_blink_led_generic;
 	/* setup LED */
@@ -802,16 +802,15 @@ static s32 e1000_get_cable_length_80003es2lan(struct e1000_hw *hw)
 
 	index = phy_data & GG82563_DSPD_CABLE_LENGTH;
 
-	if (index < GG82563_CABLE_LENGTH_TABLE_SIZE + 5) {
-		phy->min_cable_length = e1000_gg82563_cable_length_table[index];
-		phy->max_cable_length =
-		                 e1000_gg82563_cable_length_table[index+5];
-
-		phy->cable_length = (phy->min_cable_length +
-		                     phy->max_cable_length) / 2;
-	} else {
+	if (index >= GG82563_CABLE_LENGTH_TABLE_SIZE + 5) {
 		ret_val = E1000_ERR_PHY;
+		goto out;
 	}
+
+	phy->min_cable_length = e1000_gg82563_cable_length_table[index];
+	phy->max_cable_length = e1000_gg82563_cable_length_table[index+5];
+
+	phy->cable_length = (phy->min_cable_length + phy->max_cable_length) / 2;
 
 out:
 	return ret_val;
@@ -892,7 +891,7 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
 	icr = E1000_READ_REG(hw, E1000_ICR);
 
-	e1000_check_alt_mac_addr_generic(hw);
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
 
 out:
 	return ret_val;
@@ -916,7 +915,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	e1000_initialize_hw_bits_80003es2lan(hw);
 
 	/* Initialize identification LED */
-	ret_val = e1000_id_led_init_generic(hw);
+	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val) {
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
@@ -1104,9 +1103,9 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 
 	/* Bypass Rx and Tx FIFO's */
 	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
-	                        E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,
-	                        E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS |
-	                                E1000_KMRNCTRLSTA_FIFO_CTRL_TX_BYPASS);
+					E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,
+					E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS |
+					E1000_KMRNCTRLSTA_FIFO_CTRL_TX_BYPASS);
 	if (ret_val)
 		goto out;
 
@@ -1147,22 +1146,19 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	if (!(hw->mac.ops.check_mng_mode(hw))) {
 		/* Enable Electrical Idle on the PHY */
 		data |= GG82563_PMCR_ENABLE_ELECTRICAL_IDLE;
-		ret_val = hw->phy.ops.write_reg(hw,
-		                                GG82563_PHY_PWR_MGMT_CTRL,
+		ret_val = hw->phy.ops.write_reg(hw, GG82563_PHY_PWR_MGMT_CTRL,
 		                                data);
 		if (ret_val)
 			goto out;
-		ret_val = hw->phy.ops.read_reg(hw,
-			                       GG82563_PHY_KMRN_MODE_CTRL,
-			                       &data);
-			if (ret_val)
-				goto out;
+
+		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
+		                               &data);
+		if (ret_val)
+			goto out;
 
 		data &= ~GG82563_KMCR_PASS_FALSE_CARRIER;
-		ret_val = hw->phy.ops.write_reg(hw,
-		                                GG82563_PHY_KMRN_MODE_CTRL,
+		ret_val = hw->phy.ops.write_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
 		                                data);
-
 		if (ret_val)
 			goto out;
 	}
@@ -1261,7 +1257,6 @@ static s32 e1000_cfg_on_link_up_80003es2lan(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_configure_on_link_up");
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
-
 		ret_val = e1000_get_speed_and_duplex_copper_generic(hw,
 		                                                    &speed,
 		                                                    &duplex);
@@ -1393,7 +1388,8 @@ out:
  *  using the kumeran interface.  The information retrieved is stored in data.
  *  Release the semaphore before exiting.
  **/
-s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset, u16 *data)
+static s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+                                           u16 *data)
 {
 	u32 kmrnctrlsta;
 	s32 ret_val = E1000_SUCCESS;
@@ -1429,7 +1425,8 @@ out:
  *  at the offset using the kumeran interface.  Release semaphore
  *  before exiting.
  **/
-s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset, u16 data)
+static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+                                            u16 data)
 {
 	u32 kmrnctrlsta;
 	s32 ret_val = E1000_SUCCESS;
@@ -1461,9 +1458,19 @@ static s32 e1000_read_mac_addr_80003es2lan(struct e1000_hw *hw)
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_read_mac_addr_80003es2lan");
-	if (e1000_check_alt_mac_addr_generic(hw))
-		ret_val = e1000_read_mac_addr_generic(hw);
 
+	/*
+	 * If there's an alternate MAC address place it in RAR0
+	 * so that it will override the Si installed default perm
+	 * address.
+	 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = e1000_read_mac_addr_generic(hw);
+
+out:
 	return ret_val;
 }
 

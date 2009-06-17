@@ -89,6 +89,12 @@
 #define	ALIGN(p)		_ALIGN(p)
 #define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
+/*
+ * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
+ * architecture.  It should be used with appropriate caution.
+ */
+#define	CACHE_LINE_SHIFT	6
+#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
 /* Size of the level 1 page table units */
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))

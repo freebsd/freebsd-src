@@ -2310,7 +2310,7 @@ g_journal_create(struct g_class *mp, struct g_provider *pp,
 		sc->sc_inactive.jj_queue = NULL;
 		sc->sc_active.jj_queue = NULL;
 
-		sc->sc_rootmount = root_mount_hold("GJOURNAL", M_WAITOK);
+		sc->sc_rootmount = root_mount_hold("GJOURNAL");
 		GJ_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
 
 		callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
@@ -2939,7 +2939,7 @@ g_journal_do_switch(struct g_class *classp)
 		GJ_TIMER_STOP(1, &bt, "Msync time of %s", mountpoint);
 
 		GJ_TIMER_START(1, &bt);
-		error = VFS_SYNC(mp, MNT_NOWAIT, curthread);
+		error = VFS_SYNC(mp, MNT_NOWAIT);
 		if (error == 0)
 			GJ_TIMER_STOP(1, &bt, "Sync time of %s", mountpoint);
 		else {

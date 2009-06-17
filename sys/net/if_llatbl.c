@@ -104,6 +104,45 @@ llentry_free(struct llentry *lle)
 }
 
 /*
+ * Update an llentry for address dst (equivalent to rtalloc for new-arp)
+ * Caller must pass in a valid struct llentry *
+ *
+ * if found the llentry * is returned referenced and unlocked
+ */
+int
+llentry_update(struct llentry **llep, struct lltable *lt,
+    struct sockaddr *dst, struct ifnet *ifp)
+{
+	struct llentry *la;
+
+	IF_AFDATA_RLOCK(ifp);	
+	la = lla_lookup(lt, LLE_EXCLUSIVE,
+	    (struct sockaddr *)dst);
+	IF_AFDATA_RUNLOCK(ifp);
+	if ((la == NULL) && 
+	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
+		IF_AFDATA_WLOCK(ifp);
+		la = lla_lookup(lt,
+		    (LLE_CREATE | LLE_EXCLUSIVE),
+		    (struct sockaddr *)dst);
+		IF_AFDATA_WUNLOCK(ifp);	
+	}
+	if (la != NULL && (*llep != la)) {
+		if (*llep != NULL)
+			LLE_FREE(*llep);
+		LLE_ADDREF(la);
+		LLE_WUNLOCK(la);
+		*llep = la;
+	} else if (la != NULL)
+		LLE_WUNLOCK(la);
+
+	if (la == NULL)
+		return (ENOENT);
+
+	return (0);
+}
+
+/*
  * Free all entries from given table and free itself.
  * Since lltables collects from all of the intefaces,
  * the caller of this function must acquire IFNET_WLOCK().

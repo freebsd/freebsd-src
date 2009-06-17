@@ -1,15 +1,22 @@
-OpenBSM 1.1 beta 1
+OpenBSM 1.1
 
   Introduction
 
-OpenBSM provides an open source implementation of Sun's BSM Audit API. 
-Originally created under contract to Apple Computer by McAfee Research, this
-implementation is now maintained by volunteers and the generous contribution
-of several organizations.  Coupled with a kernel audit implementation,
-OpenBSM can be used to maintain system audit streams, and is a foundation for
-an Audit-enabled system.  Portions of OpenBSM, including include files and
-token-building routines, are reusable in a kernel audit implementation, and
-may be found in the FreeBSD and Mac OS X kernels.
+OpenBSM is an open source implementation of Sun's BSM event auditing file
+format and API.  Originally created for Apple Computer by McAfee Research,
+OpenBSM is now maintained by volunteers and through the generous contribution
+of several organizations.
+
+OpenBSM includes several command line tools, including auditreduce(8) and
+praudit(8) for reducing and printing audit trails, as well as the libbsm(3)
+library to manage configuration files, generate audit records, and parse and
+print audit trils.
+
+Coupled with a kernel audit implementation, OpenBSM can be used to maintain
+system audit streams, and is a foundation for a full audit-enabled system.
+Portions of OpenBSM, including include files and token-building routines, are
+reusable in a kernel audit implementation, and may be found in the FreeBSD
+and Mac OS X kernels.
 
   Contents
 
@@ -17,7 +24,7 @@ OpenBSM consists of several directories:
 
     bin/           Audit-related command line tools
     bsm/           Library include files for BSM
-    compat/        Compatibility code to build on various OS's
+    compat/        Compatibility code to build on various operating systems
     etc/           Sample /etc/security configuration files
     libauditd      Common audit management functions for auditd and launchd
     libbsm/        Implementation of BSM library interfaces and man pages
@@ -44,7 +51,8 @@ Please see the file INSTALL for build and installation instructions.
 
 The TrustedBSD Project would appreciate the contribution of bug fixes, 
 enhancements, etc, under identically or substantially similar licenses to 
-those present on the remainder of the OpenBSM source code.
+those present on the remainder of the OpenBSM source code.  Please see the
+file CREDITS to learn more about who has contributed to the project.
 
   Location
 
@@ -56,4 +64,4 @@ Information on TrustedBSD may be found on the TrustedBSD home page:
 
     http://www.TrustedBSD.org/
 
-$P4: //depot/projects/trustedbsd/openbsm/README#35 $
+$P4: //depot/projects/trustedbsd/openbsm/README#36 $

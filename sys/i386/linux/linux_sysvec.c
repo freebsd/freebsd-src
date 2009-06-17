@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
@@ -110,9 +111,6 @@ static register_t *linux_copyout_strings(struct image_params *imgp);
 
 static int linux_szplatform;
 const char *linux_platform;
-
-extern LIST_HEAD(futex_list, futex) futex_list;
-extern struct sx futex_sx;
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_schedtail_tag;
@@ -257,7 +255,17 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
 
 	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP, cpu_feature);
-	AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, hz);
+
+	/*
+	 * Do not export AT_CLKTCK when emulating Linux kernel prior to 2.4.0,
+	 * as it has appeared in the 2.4.0-rc7 first time.
+	 * Being exported, AT_CLKTCK is returned by sysconf(_SC_CLK_TCK),
+	 * glibc falls back to the hard-coded CLK_TCK value when aux entry
+	 * is not present.
+	 * Also see linux_times() implementation.
+	 */
+	if (linux_kernver(curthread) >= LINUX_KERNVER_2004000)
+		AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, stclohz);
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
@@ -1083,7 +1091,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			mtx_init(&emul_lock, "emuldata lock", NULL, MTX_DEF);
 			sx_init(&emul_shared_lock, "emuldata->shared lock");
 			LIST_INIT(&futex_list);
-			sx_init(&futex_sx, "futex protection lock");
+			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit, linux_proc_exit,
 			      NULL, 1000);
 			linux_schedtail_tag = EVENTHANDLER_REGISTER(schedtail, linux_schedtail,
@@ -1093,6 +1101,8 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			linux_get_machine(&linux_platform);
 			linux_szplatform = roundup(strlen(linux_platform) + 1,
 			    sizeof(char *));
+			linux_osd_jail_register();
+			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else
@@ -1116,10 +1126,11 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_device_unregister_handler(*ldhp);
 			mtx_destroy(&emul_lock);
 			sx_destroy(&emul_shared_lock);
-			sx_destroy(&futex_sx);
+			mtx_destroy(&futex_mtx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
 			EVENTHANDLER_DEREGISTER(schedtail, linux_schedtail_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
+			linux_osd_jail_deregister();
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else

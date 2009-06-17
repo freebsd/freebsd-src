@@ -344,6 +344,9 @@ FBSD_1.1 {
 	fexecve;
 	fstatat;
 	futimesat;
+	jail_get;
+	jail_set;
+	jail_remove;
 	linkat;
 	mkdirat;
 	mkfifoat;

@@ -58,8 +58,10 @@
 extern struct mtx hostname_mtx;
 extern unsigned long hostid;
 extern char hostuuid[64];
+#ifdef VIMAGE_GLOBALS
 extern char hostname[MAXHOSTNAMELEN];
 extern char domainname[MAXHOSTNAMELEN];
+#endif
 extern char kernelname[MAXPATHLEN];
 
 extern int tick;			/* usec per tick (1000000 / hz) */
@@ -163,6 +165,7 @@ enum sysinit_sub_id {
 	SI_SUB_SWAP		= 0xc000000,	/* swap */
 	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
 	SI_SUB_SYSCALLS		= 0xd800000,	/* register system calls */
+	SI_SUB_VIMAGE_DONE	= 0xdc00000,	/* vnet registration complete */
 	SI_SUB_KTHREAD_INIT	= 0xe000000,	/* init process*/
 	SI_SUB_KTHREAD_PAGE	= 0xe400000,	/* pageout daemon*/
 	SI_SUB_KTHREAD_VM	= 0xe800000,	/* vm daemon*/

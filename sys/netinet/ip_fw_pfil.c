@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <sys/vimage.h>
 
-#define _NET_IF_VAR_H_	/* we don't want if_var.h, only if.h */
 #include <net/if.h>
 #include <net/route.h>
 #include <net/pfil.h>
@@ -63,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_fw.h>
 #include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
+#include <netinet/vinet.h>
 
 #include <netgraph/ng_ipfw.h>
 
@@ -95,6 +95,7 @@ int
 ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip_fw_args args;
 	struct ng_ipfw_tag *ng_tag;
 	struct m_tag *dn_tag;
@@ -131,10 +132,14 @@ again:
 
 	args.m = *m0;
 	args.inp = inp;
-	ipfw = ipfw_chk(&args);
-	*m0 = args.m;
 	tee = 0;
 
+	if (V_fw_one_pass == 0 || args.rule == NULL) {
+		ipfw = ipfw_chk(&args);
+		*m0 = args.m;
+	} else
+		ipfw = IP_FW_PASS;
+		
 	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY, ("%s: m0 is NULL",
 	    __func__));
 
@@ -220,6 +225,7 @@ int
 ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip_fw_args args;
 	struct ng_ipfw_tag *ng_tag;
 	struct m_tag *dn_tag;
@@ -257,9 +263,13 @@ again:
 	args.m = *m0;
 	args.oif = ifp;
 	args.inp = inp;
-	ipfw = ipfw_chk(&args);
-	*m0 = args.m;
 	tee = 0;
+
+	if (V_fw_one_pass == 0 || args.rule == NULL) {
+		ipfw = ipfw_chk(&args);
+		*m0 = args.m;
+	} else
+		ipfw = IP_FW_PASS;
 
 	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY, ("%s: m0 is NULL",
 	    __func__));

@@ -39,7 +39,7 @@ static const char rcsid[] _U_ =
 
 char *
 bpf_image(p, n)
-	const struct bpf_insn *p;
+	struct bpf_insn *p;
 	int n;
 {
 	int v;

@@ -102,13 +102,22 @@
 int		loioctl(struct ifnet *, u_long, caddr_t);
 static void	lortrequest(int, struct rtentry *, struct rt_addrinfo *);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
-		    struct sockaddr *dst, struct rtentry *rt);
+		    struct sockaddr *dst, struct route *ro);
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
 static void	lo_clone_destroy(struct ifnet *);
+static int	vnet_loif_iattach(const void *);
 
 #ifdef VIMAGE_GLOBALS
 struct ifnet *loif;			/* Used externally */
 #endif
+
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_loif_modinfo = {
+	.vmi_id		= VNET_MOD_LOIF,
+	.vmi_name	= "loif",
+	.vmi_iattach	= vnet_loif_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
 
 IFC_SIMPLE_DECLARE(lo, 1);
 
@@ -153,15 +162,26 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	return (0);
 }
 
-static int
-loop_modevent(module_t mod, int type, void *data)
+static int vnet_loif_iattach(const void *unused __unused)
 {
 	INIT_VNET_NET(curvnet);
 
+	V_loif = NULL;
+	if_clone_attach(&lo_cloner);
+	return (0);
+}
+
+static int
+loop_modevent(module_t mod, int type, void *data)
+{
+
 	switch (type) {
 	case MOD_LOAD:
-		V_loif = NULL;
-		if_clone_attach(&lo_cloner);
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_loif_modinfo);
+#else
+		vnet_loif_iattach(NULL);
+#endif
 		break;
 
 	case MOD_UNLOAD:
@@ -184,15 +204,18 @@ DECLARE_MODULE(loop, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 int
 looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-    struct rtentry *rt)
+    struct route *ro)
 {
 	u_int32_t af;
+	struct rtentry *rt = NULL;
 #ifdef MAC
 	int error;
 #endif
 
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
+	if (ro != NULL)
+		rt = ro->ro_rt;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {

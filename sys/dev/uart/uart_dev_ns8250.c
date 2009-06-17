@@ -50,14 +50,16 @@ __FBSDID("$FreeBSD$");
 static void
 ns8250_clrint(struct uart_bas *bas)
 {
-	uint8_t iir;
+	uint8_t iir, lsr;
 
 	iir = uart_getreg(bas, REG_IIR);
 	while ((iir & IIR_NOPEND) == 0) {
 		iir &= IIR_IMASK;
-		if (iir == IIR_RLS)
-			(void)uart_getreg(bas, REG_LSR);
-		else if (iir == IIR_RXRDY || iir == IIR_RXTOUT)
+		if (iir == IIR_RLS) {
+			lsr = uart_getreg(bas, REG_LSR);
+			if (lsr & (LSR_BI|LSR_FE|LSR_PE))
+				(void)uart_getreg(bas, REG_DATA);
+		} else if (iir == IIR_RXRDY || iir == IIR_RXTOUT)
 			(void)uart_getreg(bas, REG_DATA);
 		else if (iir == IIR_MLSC)
 			(void)uart_getreg(bas, REG_MSR);
@@ -587,7 +589,6 @@ ns8250_bus_ipend(struct uart_softc *sc)
 	ipend = 0;
 	if (iir & IIR_RXRDY) {
 		lsr = uart_getreg(bas, REG_LSR);
-		uart_unlock(sc->sc_hwmtx);
 		if (lsr & LSR_OE)
 			ipend |= SER_INT_OVERRUN;
 		if (lsr & LSR_BI)
@@ -595,12 +596,14 @@ ns8250_bus_ipend(struct uart_softc *sc)
 		if (lsr & LSR_RXRDY)
 			ipend |= SER_INT_RXREADY;
 	} else {
-		uart_unlock(sc->sc_hwmtx);
 		if (iir & IIR_TXRDY)
 			ipend |= SER_INT_TXIDLE;
 		else
 			ipend |= SER_INT_SIGCHG;
 	}
+	if (ipend == 0)
+		ns8250_clrint(bas);
+	uart_unlock(sc->sc_hwmtx);
 	return ((sc->sc_leaving) ? 0 : ipend);
 }
 

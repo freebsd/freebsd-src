@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
  * This first test does basic sanity checks on the environment.  For
  * most of these, we just exit on failure.
  */
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #define DEV_NULL "/dev/null"
 #else
 #define DEV_NULL "NUL"

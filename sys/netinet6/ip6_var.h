@@ -98,11 +98,19 @@ struct	ip6asfrag {
 
 #define IP6_REASS_MBUF(ip6af) (*(struct mbuf **)&((ip6af)->ip6af_m))
 
-struct	ip6_moptions {
+/*
+ * Structure attached to inpcb.in6p_moptions and
+ * passed to ip6_output when IPv6 multicast options are in use.
+ * This structure is lazy-allocated.
+ */
+struct ip6_moptions {
 	struct	ifnet *im6o_multicast_ifp; /* ifp for outgoing multicasts */
 	u_char	im6o_multicast_hlim;	/* hoplimit for outgoing multicasts */
 	u_char	im6o_multicast_loop;	/* 1 >= hear sends if a member */
-	LIST_HEAD(, in6_multi_mship) im6o_memberships;
+	u_short	im6o_num_memberships;	/* no. memberships this socket */
+	u_short	im6o_max_memberships;	/* max memberships this socket */
+	struct	in6_multi **im6o_membership;	/* group memberships */
+	struct	in6_mfilter *im6o_mfilters;	/* source filters */
 };
 
 /*
@@ -234,6 +242,13 @@ struct	ip6stat {
 };
 
 #ifdef _KERNEL
+#define	IP6STAT_ADD(name, val)	V_ip6stat.name += (val)
+#define	IP6STAT_SUB(name, val)	V_ip6stat.name -= (val)
+#define	IP6STAT_INC(name)	IP6STAT_ADD(name, 1)
+#define	IP6STAT_DEC(name)	IP6STAT_SUB(name, 1)
+#endif
+
+#ifdef _KERNEL
 /*
  * IPv6 onion peeling state.
  * it will be initialized when we come into ip6_input().
@@ -287,10 +302,7 @@ extern int	ip6_rr_prune;		/* router renumbering prefix
 					 * walk list every 5 sec.    */
 extern int	ip6_mcast_pmtu;		/* enable pMTU discovery for multicast? */
 extern int	ip6_v6only;
-#endif /* VIMAGE_GLOBALS */
-
 extern struct socket *ip6_mrouter;	/* multicast routing daemon */
-#ifdef VIMAGE_GLOBALS
 extern int	ip6_sendredirects;	/* send IP redirects when forwarding? */
 extern int	ip6_maxfragpackets; /* Maximum packets in reassembly queue */
 extern int	ip6_maxfrags;	/* Maximum fragments in reassembly queue */
@@ -330,7 +342,7 @@ void	ip6_init __P((void));
 void	ip6_input __P((struct mbuf *));
 struct in6_ifaddr *ip6_getdstifaddr __P((struct mbuf *));
 void	ip6_freepcbopts __P((struct ip6_pktopts *));
-void	ip6_freemoptions __P((struct ip6_moptions *));
+
 int	ip6_unknown_opt __P((u_int8_t *, struct mbuf *, int));
 char *	ip6_get_prevhdr __P((struct mbuf *, int));
 int	ip6_nexthdr __P((struct mbuf *, int, int, int *));

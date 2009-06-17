@@ -40,6 +40,8 @@
 #include "opt_nfs.h"
 #endif
 
+#include <nfs/nfssvc.h>
+
 /*
  * Tunable constants for nfs
  */
@@ -114,13 +116,6 @@ struct nfsd_nfsd_args {
 #ifdef NFS_NPROCS
 #include <nfsserver/nfsrvstats.h>
 #endif
-
-/*
- * Flags for nfssvc() system call.
- */
-#define	NFSSVC_OLDNFSD	0x004
-#define	NFSSVC_ADDSOCK	0x008
-#define	NFSSVC_NFSD	0x010
 
 /*
  * vfs.nfsrv sysctl(3) identifiers
@@ -447,6 +442,13 @@ int	nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
 int	nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
+/*
+ * #ifdef _SYS_SYSPROTO_H_ so that it is only defined when sysproto.h
+ * has been included, so that "struct nfssvc_args" is defined.
+ */
+#ifdef _SYS_SYSPROTO_H_
+int nfssvc_nfsserver(struct thread *, struct nfssvc_args *);
+#endif
 #endif	/* _KERNEL */
 
 #endif

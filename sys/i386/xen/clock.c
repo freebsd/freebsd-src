@@ -120,7 +120,6 @@ int adjkerntz;		/* local offset from GMT in seconds */
 int clkintr_pending;
 int pscnt = 1;
 int psdiv = 1;
-int statclock_disable;
 int wall_cmos_clock;
 u_int timer_freq = TIMER_FREQ;
 static int independent_wallclock;

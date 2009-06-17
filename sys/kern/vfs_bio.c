@@ -202,6 +202,9 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW, &getnewbufrestarts, 0,
 static int flushbufqtarget = 100;
 SYSCTL_INT(_vfs, OID_AUTO, flushbufqtarget, CTLFLAG_RW, &flushbufqtarget, 0,
     "Amount of work to do in flushbufqueues when helping bufdaemon");
+static long notbufdflashes;
+SYSCTL_LONG(_vfs, OID_AUTO, notbufdflashes, CTLFLAG_RD, &notbufdflashes, 0,
+    "Number of dirty buffer flushes done by the bufdaemon helpers");
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -2186,7 +2189,7 @@ SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
 static int
 flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 {
-	struct buf sentinel;
+	struct buf *sentinel;
 	struct vnode *vp;
 	struct mount *mp;
 	struct buf *bp;
@@ -2202,14 +2205,15 @@ flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 		target = flushbufqtarget;
 	flushed = 0;
 	bp = NULL;
-	sentinel.b_qindex = QUEUE_SENTINEL;
+	sentinel = malloc(sizeof(struct buf), M_TEMP, M_WAITOK | M_ZERO);
+	sentinel->b_qindex = QUEUE_SENTINEL;
 	mtx_lock(&bqlock);
-	TAILQ_INSERT_HEAD(&bufqueues[queue], &sentinel, b_freelist);
+	TAILQ_INSERT_HEAD(&bufqueues[queue], sentinel, b_freelist);
 	while (flushed != target) {
-		bp = TAILQ_NEXT(&sentinel, b_freelist);
+		bp = TAILQ_NEXT(sentinel, b_freelist);
 		if (bp != NULL) {
-			TAILQ_REMOVE(&bufqueues[queue], &sentinel, b_freelist);
-			TAILQ_INSERT_AFTER(&bufqueues[queue], bp, &sentinel,
+			TAILQ_REMOVE(&bufqueues[queue], sentinel, b_freelist);
+			TAILQ_INSERT_AFTER(&bufqueues[queue], bp, sentinel,
 			    b_freelist);
 		} else
 			break;
@@ -2281,6 +2285,7 @@ flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 			else {
 				bremfree(bp);
 				bwrite(bp);
+				notbufdflashes++;
 			}
 			vn_finished_write(mp);
 			VOP_UNLOCK(vp, 0);
@@ -2300,8 +2305,9 @@ flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 		vn_finished_write(mp);
 		BUF_UNLOCK(bp);
 	}
-	TAILQ_REMOVE(&bufqueues[queue], &sentinel, b_freelist);
+	TAILQ_REMOVE(&bufqueues[queue], sentinel, b_freelist);
 	mtx_unlock(&bqlock);
+	free(sentinel, M_TEMP);
 	return (flushed);
 }
 
@@ -3513,7 +3519,8 @@ retry:
 			goto retry;
 	}
 	bogus = 0;
-	vm_page_lock_queues();
+	if (clear_modify)
+		vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 
@@ -3536,17 +3543,18 @@ retry:
 		 * It may not work properly with small-block devices.
 		 * We need to find a better way.
 		 */
-		pmap_remove_all(m);
-		if (clear_modify)
+		if (clear_modify) {
+			pmap_remove_write(m);
 			vfs_page_set_valid(bp, foff, m);
-		else if (m->valid == VM_PAGE_BITS_ALL &&
+		} else if (m->valid == VM_PAGE_BITS_ALL &&
 		    (bp->b_flags & B_CACHE) == 0) {
 			bp->b_pages[i] = bogus_page;
 			bogus++;
 		}
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 	}
-	vm_page_unlock_queues();
+	if (clear_modify)
+		vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(obj);
 	if (bogus)
 		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),

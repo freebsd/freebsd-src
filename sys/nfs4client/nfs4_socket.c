@@ -259,7 +259,7 @@ nfs4_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	 ** lookup cache, just in case.
 	 **/
 	if (error == ESTALE)
-		cache_purge(vp);
+		nfs_purgecache(vp);
 
 	return (error);
 }

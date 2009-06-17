@@ -456,8 +456,6 @@ smbfs_getpages(ap)
 
 	VM_OBJECT_LOCK(object);
 	if (m->valid != 0) {
-		/* handled by vm_fault now	  */
-		/* vm_page_zero_invalid(m, TRUE); */
 		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
 			if (i != reqpage)
@@ -526,8 +524,6 @@ smbfs_getpages(ap)
 			 */
 			m->valid = 0;
 			vm_page_set_validclean(m, 0, size - toff);
-			/* handled by vm_fault now	  */
-			/* vm_page_zero_invalid(m, TRUE); */
 		} else {
 			/*
 			 * Read operation was short.  If no error occured

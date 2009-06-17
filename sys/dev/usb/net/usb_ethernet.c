@@ -288,19 +288,6 @@ usb2_ether_ifdetach(struct usb2_ether *ue)
 	usb2_proc_free(&ue->ue_tq);
 }
 
-void
-usb2_ether_ifshutdown(struct usb2_ether *ue)
-{
-	struct ifnet *ifp = ue->ue_ifp;
-
-	UE_LOCK(ue);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ue_queue_command(ue, ue_stop_task,
-		    &ue->ue_sync_task[0].hdr,
-		    &ue->ue_sync_task[1].hdr);
-	UE_UNLOCK(ue);
-}
-
 uint8_t
 usb2_ether_is_gone(struct usb2_ether *ue)
 {

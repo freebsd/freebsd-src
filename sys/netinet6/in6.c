@@ -106,8 +106,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/vinet6.h>
 
-MALLOC_DEFINE(M_IP6MADDR, "in6_multi", "internet multicast address");
-
 /*
  * Definitions of some costant IP6 addresses.
  */
@@ -119,6 +117,8 @@ const struct in6_addr in6addr_linklocal_allnodes =
 	IN6ADDR_LINKLOCAL_ALLNODES_INIT;
 const struct in6_addr in6addr_linklocal_allrouters =
 	IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
+const struct in6_addr in6addr_linklocal_allv2routers =
+	IN6ADDR_LINKLOCAL_ALLV2ROUTERS_INIT;
 
 const struct in6_addr in6mask0 = IN6MASK0;
 const struct in6_addr in6mask32 = IN6MASK32;
@@ -135,7 +135,6 @@ static int in6_ifinit __P((struct ifnet *, struct in6_ifaddr *,
 	struct sockaddr_in6 *, int));
 static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
-struct in6_multihead in6_multihead;	/* XXX BSS initialization */
 int	(*faithprefix_p)(struct in6_addr *);
 
 
@@ -815,7 +814,9 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			V_in6_ifaddr = ia;
 
 		ia->ia_ifa.ifa_refcnt = 1;
-		TAILQ_INSERT_TAIL(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
+		IF_ADDR_LOCK(ifp);
+		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+		IF_ADDR_UNLOCK(ifp);
 	}
 
 	/* update timestamp */
@@ -1108,10 +1109,12 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			 * should be larger than the MLD delay (this could be
 			 * relaxed a bit, but this simple logic is at least
 			 * safe).
+			 * XXX: Break data hiding guidelines and look at
+			 * state for the solicited multicast group.
 			 */
 			mindelay = 0;
 			if (in6m_sol != NULL &&
-			    in6m_sol->in6m_state == MLD_REPORTPENDING) {
+			    in6m_sol->in6m_state == MLD_REPORTING_MEMBER) {
 				mindelay = in6m_sol->in6m_timer;
 			}
 			maxdelay = MAX_RTR_SOLICITATION_DELAY * hz;
@@ -1175,7 +1178,9 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	struct in6_ifaddr *oia;
 	int	s = splnet();
 
-	TAILQ_REMOVE(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
+	IF_ADDR_LOCK(ifp);
+	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+	IF_ADDR_UNLOCK(ifp);
 
 	oia = ia;
 	if (oia == (ia = V_in6_ifaddr))
@@ -1227,8 +1232,7 @@ in6_purgeif(struct ifnet *ifp)
 {
 	struct ifaddr *ifa, *nifa;
 
-	for (ifa = TAILQ_FIRST(&ifp->if_addrlist); ifa != NULL; ifa = nifa) {
-		nifa = TAILQ_NEXT(ifa, ifa_list);
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		in6_purgeaddr(ifa);
@@ -1410,7 +1414,8 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 		}
 
-		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
 			if (!cmp)
@@ -1430,6 +1435,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (IN6_ARE_ADDR_EQUAL(&candidate, &match))
 				break;
 		}
+		IF_ADDR_UNLOCK(ifp);
 		if (!ifa)
 			return EADDRNOTAVAIL;
 		ia = ifa2ia6(ifa);
@@ -1507,11 +1513,13 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ifacount++;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	ia->ia_addr = *sin6;
 
@@ -1583,36 +1591,6 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	return (error);
 }
 
-struct in6_multi_mship *
-in6_joingroup(struct ifnet *ifp, struct in6_addr *addr,
-    int *errorp, int delay)
-{
-	struct in6_multi_mship *imm;
-
-	imm = malloc(sizeof(*imm), M_IP6MADDR, M_NOWAIT);
-	if (!imm) {
-		*errorp = ENOBUFS;
-		return NULL;
-	}
-	imm->i6mm_maddr = in6_addmulti(addr, ifp, errorp, delay);
-	if (!imm->i6mm_maddr) {
-		/* *errorp is alrady set */
-		free(imm, M_IP6MADDR);
-		return NULL;
-	}
-	return imm;
-}
-
-int
-in6_leavegroup(struct in6_multi_mship *imm)
-{
-
-	if (imm->i6mm_maddr)
-		in6_delmulti(imm->i6mm_maddr);
-	free(imm,  M_IP6MADDR);
-	return 0;
-}
-
 /*
  * Find an IPv6 interface link-local address specific to an interface.
  */
@@ -1621,7 +1599,8 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 {
 	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_IS_ADDR_LINKLOCAL(IFA_IN6(ifa))) {
@@ -1631,6 +1610,7 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 			break;
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	return ((struct in6_ifaddr *)ifa);
 }
@@ -1644,12 +1624,14 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(addr, IFA_IN6(ifa)))
 			break;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	return ((struct in6_ifaddr *)ifa);
 }
@@ -1848,7 +1830,8 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 	 * If two or more, return one which matches the dst longest.
 	 * If none, return one of global addresses assigned other ifs.
 	 */
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST)
@@ -1879,10 +1862,12 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 				besta = (struct in6_ifaddr *)ifa;
 		}
 	}
-	if (besta)
+	if (besta) {
+		IF_ADDR_UNLOCK(ifp);
 		return (besta);
+	}
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST)
@@ -1897,8 +1882,10 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 			continue;
 		}
 
+		IF_ADDR_UNLOCK(ifp);
 		return (struct in6_ifaddr *)ifa;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	/* use the last-resort values, that are, deprecated addresses */
 	if (dep[0])
@@ -1918,7 +1905,8 @@ in6_if_up(struct ifnet *ifp)
 	struct ifaddr *ifa;
 	struct in6_ifaddr *ia;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ia = (struct in6_ifaddr *)ifa;
@@ -1933,6 +1921,7 @@ in6_if_up(struct ifnet *ifp)
 			    arc4random() % (MAX_RTR_SOLICITATION_DELAY * hz));
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	/*
 	 * special cases, like 6to4, are handled in in6_ifattach
@@ -2310,6 +2299,9 @@ in6_domifattach(struct ifnet *ifp)
 		ext->lltable->llt_lookup = in6_lltable_lookup;
 		ext->lltable->llt_dump = in6_lltable_dump;
 	}
+
+	ext->mld_ifinfo = mld_domifattach(ifp);
+
 	return ext;
 }
 
@@ -2318,6 +2310,7 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
 {
 	struct in6_ifextra *ext = (struct in6_ifextra *)aux;
 
+	mld_domifdetach(ifp);
 	scope6_ifdetach(ext->scope6_id);
 	nd6_ifdetach(ext->nd_ifinfo);
 	lltable_free(ext->lltable);

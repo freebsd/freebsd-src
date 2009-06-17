@@ -159,15 +159,15 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 	case SYS_RES_IOPORT:
 		switch (trgt) {
 		case OCP85XX_TGTIF_PCI0:
-			addr = 0xff000000;
+			addr = 0xfee00000;
 			size = 0x00010000;
 			break;
 		case OCP85XX_TGTIF_PCI1:
-			addr = 0xff010000;
+			addr = 0xfee10000;
 			size = 0x00010000;
 			break;
 		case OCP85XX_TGTIF_PCI2:
-			addr = 0xff020000;
+			addr = 0xfee20000;
 			size = 0x00010000;
 			break;
 		default:
@@ -266,7 +266,7 @@ ocpbus_attach(device_t dev)
 		    ccsr_read4(OCP85XX_PORDEVSR),
 		    ccsr_read4(OCP85XX_PORDEVSR2));
 
-	for (i = 0; i < 4; i++)
+	for (i = PIC_IRQ_START; i < PIC_IRQ_START + 4; i++)
 		powerpc_config_intr(i, INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 
 	return (bus_generic_attach(dev));
@@ -424,15 +424,8 @@ ocpbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				return (NULL);
 		}
 
-		/*
-		 * ISA interrupts (IRQ 0-15) are remapped by the
-		 * PCI driver. Make sure this happened.
-		 */
-		if (start < PIC_IRQ_START)
-			return (NULL);
-
-		rv = rman_reserve_resource(&sc->sc_irq, start - PIC_IRQ_START,
-		    start - PIC_IRQ_START + count - 1, count, flags, child);
+		rv = rman_reserve_resource(&sc->sc_irq, start,
+		    start + count - 1, count, flags, child);
 		if (rv == NULL)
 			return (NULL);
 		break;
@@ -598,7 +591,5 @@ ocpbus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	if (irq < PIC_IRQ_START)
-		return (EINVAL);
-	return (powerpc_config_intr(irq - PIC_IRQ_START, trig, pol));
+	return (powerpc_config_intr(irq, trig, pol));
 }

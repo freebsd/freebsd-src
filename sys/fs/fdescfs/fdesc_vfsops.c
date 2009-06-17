@@ -64,7 +64,7 @@ static vfs_root_t	fdesc_root;
  * Compatibility shim for old mount(2) system call.
  */
 int
-fdesc_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+fdesc_cmount(struct mntarg *ma, void *data, int flags)
 {
 	return kernel_mount(ma, flags);
 }
@@ -73,7 +73,7 @@ fdesc_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
  * Mount the per-process file descriptors (/dev/fd)
  */
 static int
-fdesc_mount(struct mount *mp, struct thread *td)
+fdesc_mount(struct mount *mp)
 {
 	int error = 0;
 	struct fdescmount *fmp;
@@ -94,7 +94,7 @@ fdesc_mount(struct mount *mp, struct thread *td)
 	 */
 	mp->mnt_data = (qaddr_t) fmp;
 	fmp->flags = 0;
-	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp, td);
+	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp);
 	if (error) {
 		free(fmp, M_FDESCMNT);
 		mp->mnt_data = 0;
@@ -116,10 +116,9 @@ fdesc_mount(struct mount *mp, struct thread *td)
 }
 
 static int
-fdesc_unmount(mp, mntflags, td)
+fdesc_unmount(mp, mntflags)
 	struct mount *mp;
 	int mntflags;
-	struct thread *td;
 {
 	struct fdescmount *fmp;
 	caddr_t data;
@@ -143,7 +142,7 @@ fdesc_unmount(mp, mntflags, td)
 	 * There is 1 extra root vnode reference corresponding
 	 * to f_root.
 	 */
-	if ((error = vflush(mp, 1, flags, td)) != 0)
+	if ((error = vflush(mp, 1, flags, curthread)) != 0)
 		return (error);
 
 	/*
@@ -160,11 +159,10 @@ fdesc_unmount(mp, mntflags, td)
 }
 
 static int
-fdesc_root(mp, flags, vpp, td)
+fdesc_root(mp, flags, vpp)
 	struct mount *mp;
 	int flags;
 	struct vnode **vpp;
-	struct thread *td;
 {
 	struct vnode *vp;
 
@@ -172,22 +170,24 @@ fdesc_root(mp, flags, vpp, td)
 	 * Return locked reference to root.
 	 */
 	vp = VFSTOFDESC(mp)->f_root;
-	vget(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vget(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 	*vpp = vp;
 	return (0);
 }
 
 static int
-fdesc_statfs(mp, sbp, td)
+fdesc_statfs(mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
+	struct thread *td;
 	struct filedesc *fdp;
 	int lim;
 	int i;
 	int last;
 	int freefd;
+
+	td = curthread;
 
 	/*
 	 * Compute number of free file descriptors.

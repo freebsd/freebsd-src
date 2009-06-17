@@ -33,7 +33,7 @@ options 	MP_WATCHDOG
 # 
 # Debugging options.
 #
-options		STOP_NMI		# Stop CPUS using NMI instead of IPI
+options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
 
 
 
@@ -82,7 +82,7 @@ options 	DEVICE_POLLING
 
 # BPF_JITTER adds support for BPF just-in-time compiler.
 
-options		BPF_JITTER
+options 	BPF_JITTER
 
 
 #####################################################################
@@ -153,7 +153,7 @@ device		agp
 #
 # AGP debugging.
 #
-options		AGP_DEBUG
+options 	AGP_DEBUG
 
 
 #####################################################################
@@ -288,7 +288,7 @@ device		wpi
 
 device		ath			# Atheros pci/cardbus NIC's
 device		ath_hal			# pci/cardbus chip support
-options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample		# SampleRate tx rate control for ath
 #device		ath_rate_amrr		# AMRR rate control for ath driver
 #device		ath_rate_onoe		# Onoe rate control for ath driver
@@ -457,7 +457,7 @@ options 	LINPROCFS
 
 #Enable the linux-like sys filesystem support (requires COMPAT_LINUX32
 # and PSEUDOFS)
-options		LINSYSFS
+options 	LINSYSFS
 
 #
 # SysVR4 ABI emulation

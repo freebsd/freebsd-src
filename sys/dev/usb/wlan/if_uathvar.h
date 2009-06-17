@@ -183,7 +183,6 @@ struct uath_softc {
 	struct uath_stat		sc_stat;
 	int				(*sc_newstate)(struct ieee80211com *,
 					    enum ieee80211_state, int);
-	enum ieee80211_state		sc_state;
 
 	struct usb2_xfer		*sc_xfer[UATH_N_XFERS];
 	struct uath_cmd			sc_cmd[UATH_CMD_LIST_COUNT];

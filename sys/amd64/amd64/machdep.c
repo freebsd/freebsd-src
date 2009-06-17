@@ -2178,45 +2178,24 @@ user_dbreg_trap(void)
 #ifdef KDB
 
 /*
- * Provide inb() and outb() as functions.  They are normally only
- * available as macros calling inlined functions, thus cannot be
- * called from the debugger.
- *
- * The actual code is stolen from <machine/cpufunc.h>, and de-inlined.
+ * Provide inb() and outb() as functions.  They are normally only available as
+ * inline functions, thus cannot be called from the debugger.
  */
 
-#undef inb
-#undef outb
-
 /* silence compiler warnings */
-u_char inb(u_int);
-void outb(u_int, u_char);
+u_char inb_(u_short);
+void outb_(u_short, u_char);
 
 u_char
-inb(u_int port)
+inb_(u_short port)
 {
-	u_char	data;
-	/*
-	 * We use %%dx and not %1 here because i/o is done at %dx and not at
-	 * %edx, while gcc generates inferior code (movw instead of movl)
-	 * if we tell it to load (u_short) port.
-	 */
-	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
-	return (data);
+	return inb(port);
 }
 
 void
-outb(u_int port, u_char data)
+outb_(u_short port, u_char data)
 {
-	u_char	al;
-	/*
-	 * Use an unnecessary assignment to help gcc's register allocator.
-	 * This make a large difference for gcc-1.40 and a tiny difference
-	 * for gcc-2.6.0.  For gcc-1.40, al had to be ``asm("ax")'' for
-	 * best results.  gcc-2.6.0 can't handle this.
-	 */
-	al = data;
-	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
+	outb(port, data);
 }
 
 #endif /* KDB */

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2008 Semihalf, Rafal Jaworowski
+ * Copyright (c) 2009 Semihalf, Piotr Ziecik
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #define FSTYPENAMES
 #include <sys/disklabel.h>
+#include <sys/diskmbr.h>
+#include <sys/gpt.h>
 
 #include "api_public.h"
 #include "bootstrap.h"
@@ -72,9 +75,6 @@ struct gpt_part {
 struct open_dev {
 	int		od_bsize;	/* block size */
 	int		od_bstart;	/* start block offset from beginning of disk */
-	int		od_type;
-#define OD_BSDLABEL	0x0001
-#define	OD_GPT		0x0002
 	union {
 		struct {
 			struct disklabel bsdlabel;
@@ -89,6 +89,13 @@ struct open_dev {
 #define	od_bsdlabel	_data._bsd.bsdlabel
 #define	od_nparts	_data._gpt.gpt_nparts
 #define	od_partitions	_data._gpt.gpt_partitions
+
+static uuid_t efi = GPT_ENT_TYPE_EFI;
+static uuid_t freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
+static uuid_t freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+static uuid_t freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
+static uuid_t freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
+static uuid_t ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 
 static int stor_info[UB_MAX_DEV];
 static int stor_info_no = 0;
@@ -213,9 +220,158 @@ stor_close(struct open_file *f)
 static int
 stor_open_gpt(struct open_dev *od, struct uboot_devdesc *dev)
 {
+	char *buf;
+	struct dos_partition *dp;
+	struct gpt_hdr *hdr;
+	struct gpt_ent *ent;
+	daddr_t slba, lba, elba;
+	int eps, part, i;
+	int err = 0;
 
-	/* TODO */
-	return (ENXIO);
+	od->od_nparts = 0;
+	od->od_partitions = NULL;
+
+	/* Devices with block size smaller than 512 bytes cannot use GPT */
+	if (od->od_bsize < 512)
+		return (ENXIO);
+
+	/* Allocate 1 block */
+	buf = malloc(od->od_bsize);
+	if (!buf) {
+		stor_printf("could not allocate memory for GPT\n");
+		return (ENOMEM);
+	}
+
+	/* Read MBR */
+	err = stor_readdev(dev, 0, 1, buf);
+	if (err) {
+		stor_printf("GPT read error=%d\n", err);
+		err = EIO;
+		goto out;
+	}
+
+	/* Check the slice table magic. */
+	if (*((uint16_t *)(buf + DOSMAGICOFFSET)) != DOSMAGIC) {
+		err = ENXIO;
+		goto out;
+	}
+
+	/* Check GPT slice */
+	dp = (struct dos_partition *)(buf + DOSPARTOFF);
+	part = 0;
+
+	for (i = 0; i < NDOSPART; i++) {
+		if (dp[i].dp_typ == 0xee)
+			part += 1;
+		else if (dp[i].dp_typ != 0x00) {
+			err = EINVAL;
+			goto out;
+		}
+	}
+
+	if (part != 1) {
+		err = EINVAL;
+		goto out;
+	}
+
+	/* Read primary GPT header */
+	err = stor_readdev(dev, 1, 1, buf);
+	if (err) {
+		stor_printf("GPT read error=%d\n", err);
+		err = EIO;
+		goto out;
+	}
+
+	hdr = (struct gpt_hdr *)buf;
+
+	/* Check GPT header */
+	if (bcmp(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig)) != 0 ||
+	    hdr->hdr_lba_self != 1 || hdr->hdr_revision < 0x00010000 ||
+	    hdr->hdr_entsz < sizeof(*ent) ||
+	    od->od_bsize % hdr->hdr_entsz != 0) {
+		debugf("Invalid GPT header!\n");
+		err = EINVAL;
+		goto out;
+	}
+
+	/* Count number of valid partitions */
+	part = 0;
+	eps = od->od_bsize / hdr->hdr_entsz;
+	slba = hdr->hdr_lba_table;
+	elba = slba + hdr->hdr_entries / eps;
+
+	for (lba = slba; lba < elba; lba++) {
+		err = stor_readdev(dev, lba, 1, buf);
+		if (err) {
+			stor_printf("GPT read error=%d\n", err);
+			err = EIO;
+			goto out;
+		}
+
+		ent = (struct gpt_ent *)buf;
+
+		for (i = 0; i < eps; i++) {
+			if (uuid_is_nil(&ent[i].ent_type, NULL) ||
+			    ent[i].ent_lba_start == 0 ||
+			    ent[i].ent_lba_end < ent[i].ent_lba_start)
+				continue;
+
+			part += 1;
+		}
+	}
+
+	/* Save information about partitions */
+	if (part != 0) {
+		od->od_nparts = part;
+		od->od_partitions = malloc(part * sizeof(struct gpt_part));
+		if (!od->od_partitions) {
+			stor_printf("could not allocate memory for GPT\n");
+			err = ENOMEM;
+			goto out;
+		}
+
+		part = 0;
+		for (lba = slba; lba < elba; lba++) {
+			err = stor_readdev(dev, lba, 1, buf);
+			if (err) {
+				stor_printf("GPT read error=%d\n", err);
+				err = EIO;
+				goto out;
+			}
+
+			ent = (struct gpt_ent *)buf;
+
+			for (i = 0; i < eps; i++) {
+				if (uuid_is_nil(&ent[i].ent_type, NULL) ||
+				    ent[i].ent_lba_start == 0 ||
+				    ent[i].ent_lba_end < ent[i].ent_lba_start)
+					continue;
+
+				od->od_partitions[part].gp_index = (lba - slba)
+				    * eps + i + 1;
+				od->od_partitions[part].gp_type =
+				    ent[i].ent_type;
+				od->od_partitions[part].gp_start =
+				    ent[i].ent_lba_start;
+				od->od_partitions[part].gp_end =
+				    ent[i].ent_lba_end;
+				part += 1;
+			}
+		}
+	}
+
+	dev->d_disk.ptype = PTYPE_GPT;
+
+	for (i = 0; i < od->od_nparts; i++)
+		if (od->od_partitions[i].gp_index == dev->d_disk.pnum)
+			od->od_bstart = od->od_partitions[i].gp_start;
+
+out:
+	if (err && od->od_partitions)
+		free(od->od_partitions);
+
+	free(buf);
+	return (err);
 }
 
 static int
@@ -247,8 +403,9 @@ stor_open_bsdlabel(struct open_dev *od, struct uboot_devdesc *dev)
 		err = EUNLAB;
 		goto out;
 	}
-	od->od_type = OD_BSDLABEL;
-	od->od_bstart = dl->d_partitions[dev->d_disk.partition].p_offset;
+
+	od->od_bstart = dl->d_partitions[dev->d_disk.pnum].p_offset;
+	dev->d_disk.ptype = PTYPE_BSDLABEL;
 
 	debugf("bstart=%d\n", od->od_bstart);
 
@@ -314,7 +471,6 @@ stor_opendev(struct open_dev **odp, struct uboot_devdesc *dev)
 	}
 	od->od_bsize = di->di_stor.block_size;
 	od->od_bstart = 0;
-	od->od_type = 0;
 
 	if ((err = stor_open_gpt(od, dev)) != 0)
 		err = stor_open_bsdlabel(od, dev);
@@ -332,9 +488,14 @@ stor_opendev(struct open_dev **odp, struct uboot_devdesc *dev)
 static int
 stor_closedev(struct uboot_devdesc *dev)
 {
+	struct open_dev *od;
 	int err, h;
 
-	free((struct open_dev *)dev->d_disk.data);
+	od = (struct open_dev *)dev->d_disk.data;
+	if (dev->d_disk.ptype == PTYPE_GPT && od->od_nparts != 0)
+		free(od->od_partitions);
+
+	free(od);
 	dev->d_disk.data = NULL;
 
 	if (--stor_open_count == 0) {
@@ -420,6 +581,42 @@ stor_print_bsdlabel(struct uboot_devdesc *dev, char *prefix, int verbose)
 }
 
 static void
+stor_print_gpt(struct uboot_devdesc *dev, char *prefix, int verbose)
+{
+	struct open_dev *od = (struct open_dev *)dev->d_disk.data;
+	struct gpt_part *gp;
+	char line[80];
+	char *fs;
+	int i;
+
+	for (i = 0; i < od->od_nparts; i++) {
+		gp = &od->od_partitions[i];
+
+		if (uuid_equal(&gp->gp_type, &efi, NULL))
+			fs = "EFI";
+		else if (uuid_equal(&gp->gp_type, &ms_basic_data, NULL))
+			fs = "FAT/NTFS";
+		else if (uuid_equal(&gp->gp_type, &freebsd_boot, NULL))
+			fs = "FreeBSD Boot";
+		else if (uuid_equal(&gp->gp_type, &freebsd_ufs, NULL))
+			fs = "FreeBSD UFS";
+		else if (uuid_equal(&gp->gp_type, &freebsd_swap, NULL))
+			fs = "FreeBSD Swap";
+		else if (uuid_equal(&gp->gp_type, &freebsd_zfs, NULL))
+			fs = "FreeBSD ZFS";
+		else
+			fs = "unknown";
+
+		sprintf(line, "  %sp%u: %s %s (%lld - %lld)\n", prefix,
+		    gp->gp_index, fs,
+		    display_size(gp->gp_end + 1 - gp->gp_start), gp->gp_start,
+		    gp->gp_end);
+
+		pager_output(line);
+	}
+}
+
+static void
 stor_print_one(int i, struct device_info *di, int verbose)
 {
 	struct uboot_devdesc dev;
@@ -431,16 +628,16 @@ stor_print_one(int i, struct device_info *di, int verbose)
 
 	dev.d_dev = &uboot_storage;
 	dev.d_unit = i;
-	dev.d_disk.partition = -1;
+	dev.d_disk.pnum = -1;
 	dev.d_disk.data = NULL;
 
 	if (stor_opendev(&od, &dev) == 0) {
 		dev.d_disk.data = od;
 
-		if (od->od_type == OD_GPT) {
-			/* TODO */
-
-		} else if (od->od_type == OD_BSDLABEL) {
+		if (dev.d_disk.ptype == PTYPE_GPT) {
+			sprintf(line, "\t\tdisk%d", i);
+			stor_print_gpt(&dev, line, verbose);
+		} else if (dev.d_disk.ptype == PTYPE_BSDLABEL) {
 			sprintf(line, "\t\tdisk%d", i);
 			stor_print_bsdlabel(&dev, line, verbose);
 		}

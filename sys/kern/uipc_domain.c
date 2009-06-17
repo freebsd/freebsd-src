@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 #include <vm/uma.h>
 
 /*
@@ -63,6 +64,8 @@ SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL);
 static void domainfinalize(void *);
 SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
     NULL);
+
+static vnet_attach_fn net_init_domain;
 
 static struct callout pffast_callout;
 static struct callout pfslow_callout;
@@ -99,6 +102,14 @@ struct pr_usrreqs nousrreqs = {
 	.pru_soreceive =	pru_soreceive_notsupp,
 	.pru_sopoll =		pru_sopoll_notsupp,
 };
+
+#ifndef VIMAGE_GLOBALS
+vnet_modinfo_t vnet_domain_modinfo = {
+	.vmi_id		= VNET_MOD_DOMAIN,
+	.vmi_name	= "domain",
+	.vmi_iattach	= net_init_domain
+};
+#endif
 
 static void
 protosw_init(struct protosw *pr)
@@ -159,9 +170,10 @@ protosw_init(struct protosw *pr)
  * Note: you cant unload it again because a socket may be using it.
  * XXX can't fail at this time.
  */
-static void
-net_init_domain(struct domain *dp)
+static int
+net_init_domain(const void *arg)
 {
+	const struct domain *dp = arg;
 	struct protosw *pr;
 
 	if (dp->dom_init)
@@ -175,6 +187,7 @@ net_init_domain(struct domain *dp)
 	max_datalen = MHLEN - max_hdr;
 	if (max_datalen < 1)
 		panic("%s: max_datalen < 1", __func__);
+	return (0);
 }
 
 /*
@@ -210,7 +223,11 @@ net_add_domain(void *data)
 		    "domainfinalize()\n", dp->dom_name);
 #endif
 	mtx_unlock(&dom_mtx);
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register_multi(&vnet_domain_modinfo, dp, dp->dom_name);
+#else
 	net_init_domain(dp);
+#endif
 }
 
 static void

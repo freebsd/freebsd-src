@@ -873,11 +873,10 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	m->m_len -= hlen;
 	m->m_data += hlen;	/* XXX */
 
+	CURVNET_SET(ifp->if_vnet);
 #ifdef MAC
 	BPFD_LOCK(d);
-	CURVNET_SET(ifp->if_vnet);
 	mac_bpfdesc_create_mbuf(d, m);
-	CURVNET_RESTORE();
 	if (mc != NULL)
 		mac_bpfdesc_create_mbuf(d, mc);
 	BPFD_UNLOCK(d);
@@ -893,6 +892,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		else
 			m_freem(mc);
 	}
+	CURVNET_RESTORE();
 
 	return (error);
 }

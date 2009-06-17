@@ -1066,20 +1066,23 @@ struct ed_ring	{
 /*
  * Chip types.
  */
-
-#define ED_CHIP_TYPE_DP8390	0
-#define ED_CHIP_TYPE_WD790	1
-#define ED_CHIP_TYPE_AX88190	2
-#define ED_CHIP_TYPE_DL10019	3
-#define ED_CHIP_TYPE_DL10022	4
-#define ED_CHIP_TYPE_TC5299J	5
-#define ED_CHIP_TYPE_RTL8019	6
-#define ED_CHIP_TYPE_RTL8029	7
-#define ED_CHIP_TYPE_AX88790	8
+#define ED_CHIP_TYPE_AX88190	0
+#define ED_CHIP_TYPE_AX88790	1
+#define ED_CHIP_TYPE_DL10019	2
+#define ED_CHIP_TYPE_DL10022	3
+#define ED_CHIP_TYPE_DP8390	4
+#define ED_CHIP_TYPE_NS83903	5
+#define ED_CHIP_TYPE_NS83926	6
+#define ED_CHIP_TYPE_RTL8019	7
+#define ED_CHIP_TYPE_RTL8029	8
+#define ED_CHIP_TYPE_TC3299	9
+#define ED_CHIP_TYPE_TC5299J	10
+#define ED_CHIP_TYPE_W89C926	11
+#define ED_CHIP_TYPE_WD790	12
 
 /*
  * MII bus definitions.  These are common to both DL100xx and AX88x90
- * MII definitions, most likely because they are standards based.
+ * MII definitions, because they are standards based.
  */
 #define ED_MII_STARTDELIM	0x01
 #define ED_MII_WRITEOP		0x01

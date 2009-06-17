@@ -37,7 +37,7 @@
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
 #include "config_freebsd.h"
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 /* Win32 can't run the 'configure' script. */
 #include "config_windows.h"
 #else
@@ -45,7 +45,7 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <dirent.h>
 #else
 #define dirent direct
@@ -58,7 +58,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
 #endif
 #include <wchar.h>
@@ -67,11 +67,15 @@
 #include <dmalloc.h>
 #endif
 
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
+/* Some non-FreeBSD platforms such as newlib-derived ones like
+ * cygwin, have __FBSDID, so this definition must be guarded.
+ */
+#ifndef __FBSDID
 #define	__FBSDID(a)     /* null */
+#endif
 #endif
 
 /*

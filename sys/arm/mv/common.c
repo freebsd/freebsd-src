@@ -91,7 +91,8 @@ cpu_extra_feat(void)
 	uint32_t ef = 0;
 
 	soc_id(&dev, &rev);
-	if (dev == MV_DEV_88F6281 || dev == MV_DEV_MV78100)
+	if (dev == MV_DEV_88F6281 || dev == MV_DEV_MV78100_Z0 ||
+	    dev == MV_DEV_MV78100)
 		__asm __volatile("mrc p15, 1, %0, c15, c1, 0" : "=r" (ef));
 	else if (dev == MV_DEV_88F5182 || dev == MV_DEV_88F5281)
 		__asm __volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (ef));
@@ -166,6 +167,9 @@ soc_identify(void)
 		else if (r == 2)
 			rev = "A0";
 		break;
+	case MV_DEV_MV78100_Z0:
+		dev = "Marvell MV78100 Z0";
+		break;
 	case MV_DEV_MV78100:
 		dev = "Marvell MV78100";
 		break;
@@ -199,15 +203,16 @@ soc_decode_win(void)
 	decode_win_cpu_setup();
 	decode_win_usb_setup();
 	decode_win_eth_setup(MV_ETH0_BASE);
-	if (dev == MV_DEV_MV78100)
+	if (dev == MV_DEV_MV78100 || dev == MV_DEV_MV78100_Z0)
 		decode_win_eth_setup(MV_ETH1_BASE);
-	if (dev == MV_DEV_88F6281 || dev == MV_DEV_MV78100)
+	if (dev == MV_DEV_88F6281 || dev == MV_DEV_MV78100 ||
+	    dev == MV_DEV_MV78100_Z0)
 		decode_win_cesa_setup();
 
 	decode_win_idma_setup();
 	decode_win_xor_setup();
 
-	if (dev == MV_DEV_MV78100) {
+	if (dev == MV_DEV_MV78100 || dev == MV_DEV_MV78100_Z0) {
 		decode_win_pcie_setup(MV_PCIE00_BASE);
 		decode_win_pcie_setup(MV_PCIE01_BASE);
 		decode_win_pcie_setup(MV_PCIE02_BASE);
@@ -360,7 +365,8 @@ win_cpu_can_remap(int i)
 	if ((dev == MV_DEV_88F5182 && i < 2) ||
 	    (dev == MV_DEV_88F5281 && i < 4) ||
 	    (dev == MV_DEV_88F6281 && i < 4) ||
-	    (dev == MV_DEV_MV78100 && i < 8))
+	    (dev == MV_DEV_MV78100 && i < 8) ||
+	    (dev == MV_DEV_MV78100_Z0 && i < 8))
 		return (1);
 
 	return (0);
@@ -590,7 +596,7 @@ usb_max_ports(void)
 	uint32_t dev, rev;
 
 	soc_id(&dev, &rev);
-	return (dev == MV_DEV_MV78100 ? 3 : 1);
+	return ((dev == MV_DEV_MV78100 || dev == MV_DEV_MV78100_Z0) ? 3 : 1);
 }
 
 static void
@@ -1109,14 +1115,18 @@ win_xor_can_remap(int i)
 	return (0);
 }
 
-static __inline int
+static int
 xor_max_eng(void)
 {
 	uint32_t dev, rev;
 
 	soc_id(&dev, &rev);
-	return ((dev == MV_DEV_88F6281) ? 2 :
-	    (dev == MV_DEV_MV78100) ? 1 : 0);
+	if (dev == MV_DEV_88F6281)
+		return (2);
+	else if ((dev == MV_DEV_MV78100) || (dev == MV_DEV_MV78100_Z0))
+		return (1);
+	else
+		return (0);
 }
 
 static void

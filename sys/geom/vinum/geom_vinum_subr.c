@@ -127,7 +127,6 @@ gv_parse_config(struct gv_softc *sc, char *buf, struct gv_drive *d)
 			 * needed here (on-disk config parsing).
 			 */
 			p->flags &= ~GV_PLEX_ADDED;
-			p->flags &= ~GV_PLEX_NEWBORN;
 
 		} else if (!strcmp(token[0], "sd")) {
 			s = gv_new_sd(tokens, token);
@@ -381,7 +380,7 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 		if ((p->org == GV_PLEX_RAID5 ||
 		    p->org == GV_PLEX_STRIPED) &&
 		    !(p->flags & GV_PLEX_NEWBORN) && 
-		    p->state >= GV_PLEX_DEGRADED) {
+		    p->state == GV_PLEX_UP) {
 			s->flags |= GV_SD_GROW;
 		}
 		p->sdcount++;

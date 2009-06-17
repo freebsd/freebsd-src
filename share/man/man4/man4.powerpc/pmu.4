@@ -43,15 +43,14 @@ kernel configuration file:
 The
 .Nm
 driver provides support for the Power Management Unit (PMU) found in Apple
-Core99 hardware. This includes late G3 laptops, all G4 machines, early G5
+Core99 hardware.
+This includes late G3 laptops, all G4 machines, early G5
 desktops and all G5 XServes.
-.Ed
 .Pp
 The Apple PMU controller is a multi-purpose ASIC that provides power
 management and thermal control, as well as an ADB bus for the internal
 keyboard and mouse on laptops.
 .Sh HARDWARE
-.Pp
 Chips supported by the
 .Nm
 driver include:
@@ -62,13 +61,13 @@ Apple KeyLargo PMU
 .It
 Apple K2-KeyLargo PMU
 .El
-.Pp
 .Sh SYSCTL VARIABLES
 The
 .Nm
 driver provides power management services in addition to an
 .Xr adb 4
-interface. The following sysctls can be used to control the
+interface.
+The following sysctls can be used to control the
 power management behavior and to examine current system power and
 thermal conditions.
 .Bl -tag -width indent
@@ -84,7 +83,8 @@ The current battery charge, in milliamp hours.
 .It Va dev.pmu.%d.batteries.%d.maxcharge
 The battery's self-reported maximum charge, in milliamp hours.
 .It Va dev.pmu.%d.batteries.%d.rate
-The current into the battery, in milliamps. While the battery is discharging,
+The current into the battery, in milliamps.
+While the battery is discharging,
 this will be negative.
 .It Va dev.pmu.%d.batteries.%d.voltage
 Battery voltage, in millivolts.
@@ -92,9 +92,10 @@ Battery voltage, in millivolts.
 Estimated time until full battery charge (or discharge), in minutes.
 .It Va dev.pmu.%d.batteries.%d.life
 Current fraction of the battery's maximum charge, in percent.
+.El
 .Sh SEE ALSO
-.Xr adb 4 ,
-.Xr acpi 4
+.Xr acpi 4 ,
+.Xr adb 4
 .Sh HISTORY
 The
 .Nm
@@ -111,4 +112,4 @@ driver was written by
 .Aq macallan@NetBSD.org
 and ported to FreeBSD by
 .An Nathan Whitehorn
-.Aq nwhitehorn@freebsd.org .
+.Aq nwhitehorn@FreeBSD.org .

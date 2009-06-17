@@ -277,6 +277,9 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 			ieee80211_free_node(ni);
 			continue;
 		}
+
+		BPF_MTAP(ifp, m);		/* 802.3 tx */
+
 		/*
 		 * Encapsulate the packet in prep for transmission.
 		 */
@@ -288,6 +291,9 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		}
 		mcopy->m_flags |= M_MCAST;
 		mcopy->m_pkthdr.rcvif = (void *) ni;
+
+		if (bpf_peers_present(vap->iv_rawbpf))
+			bpf_mtap(vap->iv_rawbpf, m);
 
 		err = parent->if_transmit(parent, mcopy);
 		if (err) {
@@ -519,7 +525,8 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
 	    IEEE80211_FC0_VERSION_0) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, NULL, "wrong version %x", wh->i_fc[0]);
+		    ni->ni_macaddr, NULL, "wrong version, fc %02x:%02x",
+		    wh->i_fc[0], wh->i_fc[1]);
 		vap->iv_stats.is_rx_badversion++;
 		goto err;
 	}

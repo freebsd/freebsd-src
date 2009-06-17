@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 static device_probe_t cdce_probe;
 static device_attach_t cdce_attach;
 static device_detach_t cdce_detach;
-static device_shutdown_t cdce_shutdown;
 static device_suspend_t cdce_suspend;
 static device_resume_t cdce_resume;
 static usb_handle_request_t cdce_handle_request;
@@ -157,7 +156,6 @@ static device_method_t cdce_methods[] = {
 	DEVMETHOD(device_detach, cdce_detach),
 	DEVMETHOD(device_suspend, cdce_suspend),
 	DEVMETHOD(device_resume, cdce_resume),
-	DEVMETHOD(device_shutdown, cdce_shutdown),
 
 	{0, 0}
 };
@@ -593,16 +591,6 @@ cdce_setpromisc(struct usb2_ether *ue)
 {
 	/* no-op */
 	return;
-}
-
-static int
-cdce_shutdown(device_t dev)
-{
-	struct cdce_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }
 
 static int

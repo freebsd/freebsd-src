@@ -90,6 +90,7 @@ struct ieee80211_scan_ssid {
  */
 struct ieee80211_scan_state {
 	struct ieee80211vap *ss_vap;
+	struct ieee80211com *ss_ic;
 	const struct ieee80211_scanner *ss_ops;	/* policy hookup, see below */
 	void		*ss_priv;		/* scanner private state */
 	uint16_t	ss_flags;

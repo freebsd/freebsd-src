@@ -3621,19 +3621,6 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					continue;
 				}
 			}
-			if ((PR_SCTP_RTX_ENABLED(tp1->flags)) && tp1->sent < SCTP_DATAGRAM_ACKED) {
-				/* Has it been retransmitted tv_sec times? */
-				if (tp1->snd_count > tp1->rec.data.timetodrop.tv_sec) {
-					/* Yes, so drop it */
-					if (tp1->data != NULL) {
-						(void)sctp_release_pr_sctp_chunk(stcb, tp1,
-						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
-						    SCTP_SO_NOT_LOCKED);
-					}
-					tp1 = TAILQ_NEXT(tp1, sctp_next);
-					continue;
-				}
-			}
 		}
 		if (compare_with_wrap(tp1->rec.data.TSN_seq,
 		    asoc->this_sack_highest_gap, MAX_TSN)) {
@@ -3846,9 +3833,49 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			}
 		}
 		if (tp1->sent == SCTP_DATAGRAM_RESEND) {
-			/* Increment the count to resend */
 			struct sctp_nets *alt;
 
+			/* fix counts and things */
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
+				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND,
+				    (tp1->whoTo ? (tp1->whoTo->flight_size) : 0),
+				    tp1->book_size,
+				    (uintptr_t) tp1->whoTo,
+				    tp1->rec.data.TSN_seq);
+			}
+			if (tp1->whoTo) {
+				tp1->whoTo->net_ack++;
+				sctp_flight_size_decrease(tp1);
+			}
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_RWND_ENABLE) {
+				sctp_log_rwnd(SCTP_INCREASE_PEER_RWND,
+				    asoc->peers_rwnd, tp1->send_size, SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
+			}
+			/* add back to the rwnd */
+			asoc->peers_rwnd += (tp1->send_size + SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
+
+			/* remove from the total flight */
+			sctp_total_flight_decrease(stcb, tp1);
+
+			if ((stcb->asoc.peer_supports_prsctp) &&
+			    (PR_SCTP_RTX_ENABLED(tp1->flags))) {
+				/*
+				 * Has it been retransmitted tv_sec times? -
+				 * we store the retran count there.
+				 */
+				if (tp1->snd_count > tp1->rec.data.timetodrop.tv_sec) {
+					/* Yes, so drop it */
+					if (tp1->data != NULL) {
+						(void)sctp_release_pr_sctp_chunk(stcb, tp1,
+						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
+						    SCTP_SO_NOT_LOCKED);
+					}
+					/* Make sure to flag we had a FR */
+					tp1->whoTo->net_ack++;
+					tp1 = TAILQ_NEXT(tp1, sctp_next);
+					continue;
+				}
+			}
 			/* printf("OK, we are now ready to FR this guy\n"); */
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 				sctp_log_fr(tp1->rec.data.TSN_seq, tp1->snd_count,
@@ -3951,27 +3978,6 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 */
 				tp1->do_rtt = 0;
 			}
-			/* fix counts and things */
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
-				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND,
-				    (tp1->whoTo ? (tp1->whoTo->flight_size) : 0),
-				    tp1->book_size,
-				    (uintptr_t) tp1->whoTo,
-				    tp1->rec.data.TSN_seq);
-			}
-			if (tp1->whoTo) {
-				tp1->whoTo->net_ack++;
-				sctp_flight_size_decrease(tp1);
-			}
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_RWND_ENABLE) {
-				sctp_log_rwnd(SCTP_INCREASE_PEER_RWND,
-				    asoc->peers_rwnd, tp1->send_size, SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
-			}
-			/* add back to the rwnd */
-			asoc->peers_rwnd += (tp1->send_size + SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
-
-			/* remove from the total flight */
-			sctp_total_flight_decrease(stcb, tp1);
 			if (alt != tp1->whoTo) {
 				/* yes, there is an alternate. */
 				sctp_free_remote_addr(tp1->whoTo);

@@ -43,14 +43,11 @@ typedef uint8_t		(usb2_test_quirk_t)(const struct usb2_lookup_info *info,
 			    uint16_t quirk);
 typedef int		(usb2_quirk_ioctl_t)(unsigned long cmd, caddr_t data,
 			    int fflag, struct thread *td);
-typedef void		(usb2_temp_get_desc_t)(struct usb2_device *udev,
-			    struct usb2_device_request *req, const void **pPtr,
-			    uint16_t *pLength);
 typedef void		(usb2_temp_unsetup_t)(struct usb2_device *udev);
 
 /* global function pointers */
 
-extern usb2_temp_get_desc_t *usb2_temp_get_desc_p;
+extern usb2_handle_request_t *usb2_temp_get_desc_p;
 extern usb2_temp_setup_by_index_t *usb2_temp_setup_by_index_p;
 extern usb2_temp_unsetup_t *usb2_temp_unsetup_p;
 extern usb2_test_quirk_t *usb2_test_quirk_p;

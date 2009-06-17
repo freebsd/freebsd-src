@@ -57,11 +57,14 @@ static int hpt_get_controller_info(int id, PCONTROLLER_INFO pInfo);
 static int hpt_get_channel_info(int id, int bus, PCHANNEL_INFO pInfo);
 static int hpt_get_logical_devices(DEVICEID * pIds, int nMaxCount);
 static int hpt_get_device_info(DEVICEID id, PLOGICAL_DEVICE_INFO pInfo);
+static int hpt_get_device_info_v2(DEVICEID id, PLOGICAL_DEVICE_INFO_V2 pInfo);
 static DEVICEID hpt_create_array(_VBUS_ARG PCREATE_ARRAY_PARAMS pParam);
+static DEVICEID hpt_create_array_v2(_VBUS_ARG PCREATE_ARRAY_PARAMS_V2 pParam);
 static int hpt_add_spare_disk(_VBUS_ARG DEVICEID idDisk);
 static int hpt_remove_spare_disk(_VBUS_ARG DEVICEID idDisk);
 static int hpt_set_array_info(_VBUS_ARG DEVICEID idArray, PALTERABLE_ARRAY_INFO pInfo);
 static int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO pInfo);
+static int hpt_set_device_info_v2(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO_V2 pInfo);
 
 int
 check_VDevice_valid(PVDevice p)
@@ -97,82 +100,65 @@ check_VDevice_valid(PVDevice p)
 }
 
 #ifdef SUPPORT_ARRAY
-static void get_array_info(PVDevice pVDevice, PLOGICAL_DEVICE_INFO pInfo)
-{
-	int	i;
 
-	pInfo->Type = LDT_ARRAY;
-	pInfo->Capacity = pVDevice->VDeviceCapacity;
-	pInfo->ParentArray = VDEV_TO_ID(pVDevice->pParent);
-
-	memcpy(pInfo->u.array.Name, pVDevice->u.array.ArrayName, MAX_ARRAY_NAME);
-
-	switch( pVDevice->VDeviceType )
+static UCHAR get_vdev_type(PVDevice pVDevice)
 	{
-		case VD_RAID_0:
-			pInfo->u.array.ArrayType = AT_RAID0;
-			break;
-		case VD_RAID_1:
-			pInfo->u.array.ArrayType = AT_RAID1;
-			break;
-		case VD_JBOD:
-			pInfo->u.array.ArrayType = AT_JBOD;
-			break;
-		case VD_RAID_5:
-			pInfo->u.array.ArrayType = AT_RAID5;
-			break;
-		default:
-			pInfo->u.array.ArrayType = AT_UNKNOWN;
+	switch (pVDevice->VDeviceType) {
+		case VD_RAID_0: return AT_RAID0;
+		case VD_RAID_1: return AT_RAID1;
+		case VD_JBOD:   return AT_JBOD;
+		case VD_RAID_5: return AT_RAID5;
+		default:        return AT_UNKNOWN;
+	}
 	}
 
-	pInfo->u.array.BlockSizeShift = pVDevice->u.array.bArBlockSizeShift;
-
-	pInfo->u.array.RebuiltSectors = pVDevice->u.array.RebuildSectors;	
+static DWORD get_array_flag(PVDevice pVDevice)
+{
+	int i;
+	DWORD f = 0;
 
 	/* The array is disabled */
 	if(!pVDevice->vf_online)	{
-		pInfo->u.array.Flags |= ARRAY_FLAG_DISABLED;
-		goto ignore_info;
+		f |= ARRAY_FLAG_DISABLED;
+		/* Ignore other info */
+		return f;
 	}
 
 	/* array need synchronizing */
 	if(pVDevice->u.array.rf_need_rebuild && !pVDevice->u.array.rf_duplicate_and_create)
-		pInfo->u.array.Flags |= ARRAY_FLAG_NEEDBUILDING;
-
-	pInfo->u.array.RebuildingProgress = ((pVDevice->u.array.RebuildSectors>>11)*1000 / 
-		(pVDevice->VDeviceCapacity>>11) * (pVDevice->u.array.bArnMember-1)) * 10;
+		f |= ARRAY_FLAG_NEEDBUILDING;
 
 	/* array is in rebuilding process */
 	if(pVDevice->u.array.rf_rebuilding)
-		pInfo->u.array.Flags |= ARRAY_FLAG_REBUILDING;
+		f |= ARRAY_FLAG_REBUILDING;
 
 	/* array is being verified */
 	if(pVDevice->u.array.rf_verifying)
-		pInfo->u.array.Flags |= ARRAY_FLAG_VERIFYING;
+		f |= ARRAY_FLAG_VERIFYING;
 
 	/* array is being initialized */
 	if(pVDevice->u.array.rf_initializing)
-		pInfo->u.array.Flags |= ARRAY_FLAG_INITIALIZING;
+		f |= ARRAY_FLAG_INITIALIZING;
 
 	/* broken but may still working */
 	if(pVDevice->u.array.rf_broken)
-		pInfo->u.array.Flags |= ARRAY_FLAG_BROKEN;
+		f |= ARRAY_FLAG_BROKEN;
 
 	/* array has a active partition */
 	if(pVDevice->vf_bootable)
-		pInfo->u.array.Flags |= ARRAY_FLAG_BOOTDISK;
+		f |= ARRAY_FLAG_BOOTDISK;
 
 	/* a newly created array */
 	if(pVDevice->u.array.rf_newly_created)
-		pInfo->u.array.Flags |= ARRAY_FLAG_NEWLY_CREATED;
+		f |= ARRAY_FLAG_NEWLY_CREATED;
 
 	/* array has boot mark set */
 	if(pVDevice->vf_bootmark)
-		pInfo->u.array.Flags |= ARRAY_FLAG_BOOTMARK;
+		f |= ARRAY_FLAG_BOOTMARK;
 
 	/* auto-rebuild should start */
 	if(pVDevice->u.array.rf_auto_rebuild)
-		pInfo->u.array.Flags |= ARRAY_FLAG_NEED_AUTOREBUILD;
+		f |= ARRAY_FLAG_NEED_AUTOREBUILD;
 
 	for(i = 0; i < pVDevice->u.array.bArnMember; i++)
 	{
@@ -183,94 +169,128 @@ static void get_array_info(PVDevice pVDevice, PLOGICAL_DEVICE_INFO pInfo)
 		/* array need synchronizing */
 		if(pMember->u.array.rf_need_rebuild && 
 		   !pMember->u.array.rf_duplicate_and_create)
-			pInfo->u.array.Flags |= ARRAY_FLAG_NEEDBUILDING;
+			f |= ARRAY_FLAG_NEEDBUILDING;
 
 		/* array is in rebuilding process */
 		if(pMember->u.array.rf_rebuilding)
-			pInfo->u.array.Flags |= ARRAY_FLAG_REBUILDING;
+			f |= ARRAY_FLAG_REBUILDING;
 		
 		/* array is being verified */	
 		if(pMember->u.array.rf_verifying)
-			pInfo->u.array.Flags |= ARRAY_FLAG_VERIFYING;
+			f |= ARRAY_FLAG_VERIFYING;
 			
 		/* array is being initialized */
 		if(pMember->u.array.rf_initializing)
-			pInfo->u.array.Flags |= ARRAY_FLAG_INITIALIZING;
+			f |= ARRAY_FLAG_INITIALIZING;
 
 		/* broken but may still working */
 		if(pMember->u.array.rf_broken)
-			pInfo->u.array.Flags |= ARRAY_FLAG_BROKEN;
+			f |= ARRAY_FLAG_BROKEN;
 
 		/* a newly created array */
 		if(pMember->u.array.rf_newly_created)
-			pInfo->u.array.Flags |= ARRAY_FLAG_NEWLY_CREATED;
+			f |= ARRAY_FLAG_NEWLY_CREATED;
 
 		/* auto-rebuild should start */
 		if(pMember->u.array.rf_auto_rebuild)
-			pInfo->u.array.Flags |= ARRAY_FLAG_NEED_AUTOREBUILD;
+			f |= ARRAY_FLAG_NEED_AUTOREBUILD;
+	}
+
+	return f;
+}
+
+static DWORD calc_rebuild_progress(PVDevice pVDevice)
+{
+	int i;
+	DWORD result = ((ULONG)(pVDevice->u.array.RebuildSectors>>11)*1000 /
+		(ULONG)(pVDevice->VDeviceCapacity>>11) * (pVDevice->u.array.bArnMember-1)) * 10;
+
+	for(i = 0; i < pVDevice->u.array.bArnMember; i++)
+	{
+		PVDevice pMember = pVDevice->u.array.pMember[i];
+		if (!pMember || !pMember->vf_online || (pMember->VDeviceType==VD_SINGLE_DISK))
+			continue;
 
 		/* for RAID1/0 case */
 		if (pMember->u.array.rf_rebuilding || 
 			pMember->u.array.rf_verifying ||
 			pMember->u.array.rf_initializing)
 		{
-			DWORD percent = ((pMember->u.array.RebuildSectors>>11)*1000 / 
-				(pMember->VDeviceCapacity>>11) * (pMember->u.array.bArnMember-1)) * 10;
-			if (pInfo->u.array.RebuildingProgress==0 || 
-				pInfo->u.array.RebuildingProgress>percent)
-				pInfo->u.array.RebuildingProgress = percent;
+			DWORD percent = ((ULONG)(pMember->u.array.RebuildSectors>>11)*1000 /
+				(ULONG)(pMember->VDeviceCapacity>>11) * (pMember->u.array.bArnMember-1)) * 10;
+			if (result==0 || result>percent)
+				result = percent;
 		}
+		}
+
+	if (result>10000) result = 10000;
+	return result;
 	}
 	
-	if (pInfo->u.array.RebuildingProgress>10000)
-		pInfo->u.array.RebuildingProgress = 10000;
+static void get_array_info(PVDevice pVDevice, PHPT_ARRAY_INFO pArrayInfo)
+{
+	int	i;
 
-ignore_info:
+	memcpy(pArrayInfo->Name, pVDevice->u.array.ArrayName, MAX_ARRAY_NAME);
+	pArrayInfo->ArrayType = get_vdev_type(pVDevice);
+	pArrayInfo->BlockSizeShift = pVDevice->u.array.bArBlockSizeShift;
+	pArrayInfo->RebuiltSectors = pVDevice->u.array.RebuildSectors;
+	pArrayInfo->Flags = get_array_flag(pVDevice);
+	pArrayInfo->RebuildingProgress = calc_rebuild_progress(pVDevice);
 
-	pInfo->u.array.nDisk = 0;
-	for(i=0; i<MAX_ARRAY_MEMBERS; i++)
-		pInfo->u.array.Members[i] = INVALID_DEVICEID;
+	pArrayInfo->nDisk = 0;
 
 	for(i = 0; i < pVDevice->u.array.bArnMember; i++)
-	{
-		if(pVDevice->u.array.pMember[i] != 0)
-		{
-			pInfo->u.array.Members[pInfo->u.array.nDisk] = VDEV_TO_ID(pVDevice->u.array.pMember[i]);
-			pInfo->u.array.nDisk++;
-		}
+		if(pVDevice->u.array.pMember[i] != NULL)
+			pArrayInfo->Members[pArrayInfo->nDisk++] = VDEV_TO_ID(pVDevice->u.array.pMember[i]);
+
+	for(i=pArrayInfo->nDisk; i<MAX_ARRAY_MEMBERS; i++)
+		pArrayInfo->Members[i] = INVALID_DEVICEID;
 	}
+
+static void get_array_info_v2(PVDevice pVDevice, PHPT_ARRAY_INFO_V2 pArrayInfo)
+{
+	int	i;
+
+	memcpy(pArrayInfo->Name, pVDevice->u.array.ArrayName, MAX_ARRAYNAME_LEN);
+	pArrayInfo->ArrayType = get_vdev_type(pVDevice);
+	pArrayInfo->BlockSizeShift = pVDevice->u.array.bArBlockSizeShift;
+	pArrayInfo->RebuiltSectors.lo32 = pVDevice->u.array.RebuildSectors;
+	pArrayInfo->RebuiltSectors.hi32 = sizeof(LBA_T)>4? (pVDevice->u.array.RebuildSectors>>32) : 0;
+	pArrayInfo->Flags = get_array_flag(pVDevice);
+	pArrayInfo->RebuildingProgress = calc_rebuild_progress(pVDevice);
+
+	pArrayInfo->nDisk = 0;
+
+	for(i = 0; i < pVDevice->u.array.bArnMember; i++)
+		if(pVDevice->u.array.pMember[i] != NULL)
+			pArrayInfo->Members[pArrayInfo->nDisk++] = VDEV_TO_ID(pVDevice->u.array.pMember[i]);
+
+	for(i=pArrayInfo->nDisk; i<MAX_ARRAY_MEMBERS_V2; i++)
+		pArrayInfo->Members[i] = INVALID_DEVICEID;
 }
 #endif
 
-static int get_disk_info(PVDevice pVDevice, PLOGICAL_DEVICE_INFO pInfo)
+static int get_disk_info(PVDevice pVDevice, PDEVICE_INFO pDiskInfo)
 {
 	MV_SATA_ADAPTER *pSataAdapter;
 	MV_SATA_CHANNEL *pSataChannel;
 	IAL_ADAPTER_T   *pAdapter;
+	MV_CHANNEL		*channelInfo;
 	char *p;
 	int i;
-
-	pInfo->Type = LDT_DEVICE;
-
-	if (pVDevice->pParent)
-		pInfo->ParentArray = VDEV_TO_ID(pVDevice->pParent);
-	else
-		pInfo->ParentArray = INVALID_DEVICEID;
-
-	/* report real capacity to be compatible with old arrays */
-	pInfo->Capacity = pVDevice->u.disk.dDeRealCapacity;
 
 	/* device location */
 	pSataChannel = pVDevice->u.disk.mv;
 	if(pSataChannel == NULL)	return -1;	
-	pInfo->u.device.TargetId = 0;
+	pDiskInfo->TargetId = 0;
 	pSataAdapter = pSataChannel->mvSataAdapter;
 	if(pSataAdapter == NULL)	return -1;
 
 	pAdapter = pSataAdapter->IALData;
 
-	pInfo->u.device.PathId = pSataChannel->channelNumber;
-	pInfo->u.device.ControllerId = (UCHAR)pSataAdapter->adapterId;
+	pDiskInfo->PathId = pSataChannel->channelNumber;
+	pDiskInfo->ControllerId = (UCHAR)pSataAdapter->adapterId;
 
 /*GUI uses DeviceModeSetting to display to users
 (1) if users select a mode, GUI/BIOS should display that mode.
@@ -278,48 +298,58 @@ static int get_disk_info(PVDevice pVDevice, PLOGICAL_DEVICE_INFO pInfo)
 (3) display real mode if case (1)&&(2) not satisfied.
 */
 	if (pVDevice->u.disk.df_user_mode_set)
-		pInfo->u.device.DeviceModeSetting = pVDevice->u.disk.bDeUserSelectMode;
-	else if ((((PIDENTIFY_DATA)pVDevice->u.disk.mv->identifyDevice)->SataCapability & 3)==2) 
-		pInfo->u.device.DeviceModeSetting = 15;
+		pDiskInfo->DeviceModeSetting = pVDevice->u.disk.bDeUserSelectMode;
+	else if (((((PIDENTIFY_DATA)pVDevice->u.disk.mv->identifyDevice)->SataCapability) & 3)==2)
+		pDiskInfo->DeviceModeSetting = 15;
 	else {
 		p = (char *)&((PIDENTIFY_DATA)pVDevice->u.disk.mv->identifyDevice)->ModelNumber;
-		if (*(WORD*)p==0x5354 /*'ST'*/ &&
-			(*(WORD*)(p+8)==0x4153/*'AS'*/ || (p[8]=='A' && p[11]=='S')))
-			pInfo->u.device.DeviceModeSetting = 15;
+		if (*(WORD*)p==(0x5354) /*'ST'*/ &&
+			(*(WORD*)(p+8)==(0x4153)/*'AS'*/ || (p[8]=='A' && p[11]=='S')))
+			pDiskInfo->DeviceModeSetting = 15;
 		else
-			pInfo->u.device.DeviceModeSetting = pVDevice->u.disk.bDeModeSetting;
+			pDiskInfo->DeviceModeSetting = pVDevice->u.disk.bDeModeSetting;
 	}
 		
-	pInfo->u.device.UsableMode = pVDevice->u.disk.bDeUsable_Mode;
+	pDiskInfo->UsableMode = pVDevice->u.disk.bDeUsable_Mode;
 
-	pInfo->u.device.DeviceType = PDT_HARDDISK;
+	pDiskInfo->DeviceType = PDT_HARDDISK;
 
-	pInfo->u.device.Flags = 0x0;
+	pDiskInfo->Flags = 0x0;
 
 	/* device is disabled */
 	if(!pVDevice->u.disk.df_on_line)
-		pInfo->u.device.Flags |= DEVICE_FLAG_DISABLED;
+		pDiskInfo->Flags |= DEVICE_FLAG_DISABLED;
 
 	/* disk has a active partition */
 	if(pVDevice->vf_bootable)
-		pInfo->u.device.Flags |= DEVICE_FLAG_BOOTDISK;
+		pDiskInfo->Flags |= DEVICE_FLAG_BOOTDISK;
 
 	/* disk has boot mark set */
 	if(pVDevice->vf_bootmark)
-		pInfo->u.device.Flags |= DEVICE_FLAG_BOOTMARK;
+		pDiskInfo->Flags |= DEVICE_FLAG_BOOTMARK;
 
-	pInfo->u.device.Flags |= DEVICE_FLAG_SATA;
+	pDiskInfo->Flags |= DEVICE_FLAG_SATA;
 
 	/* is a spare disk */
 	if(pVDevice->VDeviceType == VD_SPARE)
-		pInfo->u.device.Flags |= DEVICE_FLAG_IS_SPARE;
+		pDiskInfo->Flags |= DEVICE_FLAG_IS_SPARE;
 
-	memcpy(&(pInfo->u.device.IdentifyData), (pSataChannel->identifyDevice), sizeof(IDENTIFY_DATA2));
-	p = (char *)&pInfo->u.device.IdentifyData.ModelNumber;
+	memcpy(&(pDiskInfo->IdentifyData), (pSataChannel->identifyDevice), sizeof(IDENTIFY_DATA2));
+	p = (char *)&pDiskInfo->IdentifyData.ModelNumber;
 	for (i = 0; i < 20; i++)
 		((WORD*)p)[i] = shortswap(pSataChannel->identifyDevice[IDEN_MODEL_OFFSET+i]);
 	p[39] = '\0';
 
+	channelInfo = &pAdapter->mvChannel[pSataChannel->channelNumber];
+	pDiskInfo->ReadAheadSupported = channelInfo->readAheadSupported;
+	pDiskInfo->ReadAheadEnabled = channelInfo->readAheadEnabled;
+	pDiskInfo->WriteCacheSupported = channelInfo->writeCacheSupported;
+	pDiskInfo->WriteCacheEnabled = channelInfo->writeCacheEnabled;
+	pDiskInfo->TCQSupported = (pSataChannel->identifyDevice[IDEN_SUPPORTED_COMMANDS2] & (0x2))!=0;
+	pDiskInfo->TCQEnabled = pSataChannel->queuedDMA==MV_EDMA_MODE_QUEUED;
+	pDiskInfo->NCQSupported = MV_SATA_GEN_2(pSataAdapter) &&
+		(pSataChannel->identifyDevice[IDEN_SATA_CAPABILITIES] & (0x0100));
+	pDiskInfo->NCQEnabled = pSataChannel->queuedDMA==MV_EDMA_MODE_NATIVE_QUEUING;
 	return 0;
 }
 
@@ -403,7 +433,7 @@ int hpt_get_controller_info(int id, PCONTROLLER_INFO pInfo)
 #else 
 #define _set_product_id(x) strcpy(pInfo->szProductID, x)
 #endif
-			_set_product_id("RocketRAID 182x SATA Controller");			
+			_set_product_id("RocketRAID 18xx SATA Controller");			
 			pInfo->NumBuses = 8;
 			pInfo->ChipFlags |= CHIP_SUPPORT_ULTRA_133|CHIP_SUPPORT_ULTRA_150;
 			return 0;
@@ -487,24 +517,60 @@ int hpt_get_device_info(DEVICEID id, PLOGICAL_DEVICE_INFO pInfo)
 		return -1;
 
 #ifdef SUPPORT_ARRAY
-	if (mIsArray(pVDevice))
-		get_array_info(pVDevice, pInfo);
-	else
+	if (mIsArray(pVDevice)) {
+		pInfo->Type = LDT_ARRAY;
+		pInfo->Capacity = pVDevice->VDeviceCapacity;
+		pInfo->ParentArray = VDEV_TO_ID(pVDevice->pParent);
+		get_array_info(pVDevice, &pInfo->u.array);
+		return 0;
+	}
 #endif
-	return	get_disk_info(pVDevice, pInfo);
 
+	pInfo->Type = LDT_DEVICE;
+	pInfo->ParentArray = pVDevice->pParent? VDEV_TO_ID(pVDevice->pParent) : INVALID_DEVICEID;
+	/* report real capacity to be compatible with old arrays */
+	pInfo->Capacity = pVDevice->u.disk.dDeRealCapacity;
+	return get_disk_info(pVDevice, &pInfo->u.device);
+}
+
+int hpt_get_device_info_v2(DEVICEID id, PLOGICAL_DEVICE_INFO_V2 pInfo)
+{
+	PVDevice pVDevice = ID_TO_VDEV(id);
+
+	if((id == 0) || check_VDevice_valid(pVDevice))
+		return -1;
+
+#ifdef SUPPORT_ARRAY
+	if (mIsArray(pVDevice)) {
+		pInfo->Type = LDT_ARRAY;
+		pInfo->Capacity.lo32 = pVDevice->VDeviceCapacity;
+		pInfo->Capacity.hi32 = sizeof(LBA_T)>4? (pVDevice->VDeviceCapacity>>32) : 0;
+		pInfo->ParentArray = VDEV_TO_ID(pVDevice->pParent);
+		get_array_info_v2(pVDevice, &pInfo->u.array);
 	return 0;
+}
+#endif
+
+	pInfo->Type = LDT_DEVICE;
+	pInfo->ParentArray = pVDevice->pParent? VDEV_TO_ID(pVDevice->pParent) : INVALID_DEVICEID;
+	/* report real capacity to be compatible with old arrays */
+	pInfo->Capacity.lo32 = pVDevice->u.disk.dDeRealCapacity;
+	pInfo->Capacity.hi32 = 0;
+	return get_disk_info(pVDevice, &pInfo->u.device);
 }
 
 #ifdef SUPPORT_ARRAY
-DEVICEID hpt_create_array(_VBUS_ARG PCREATE_ARRAY_PARAMS pParam)
+DEVICEID hpt_create_array_v2(_VBUS_ARG PCREATE_ARRAY_PARAMS_V2 pParam)
 {
 	ULONG Stamp = GetStamp();
 	int	i,j;
-	ULONG  capacity = MAX_LBA_T;
+	LBA_T  capacity = MAX_LBA_T;
 	PVDevice pArray,pChild;
 	int		Loca = -1;
 
+	if (pParam->nDisk > MAX_MEMBERS)
+		return INVALID_DEVICEID;
+/* check in verify_vd
 	for(i = 0; i < pParam->nDisk; i++)
 	{
 		PVDevice pVDev = ID_TO_VDEV(pParam->Members[i]);
@@ -516,6 +582,8 @@ DEVICEID hpt_create_array(_VBUS_ARG PCREATE_ARRAY_PARAMS pParam)
 		else if (_vbus_p != pVDev->u.disk.pVBus)
 			return INVALID_DEVICEID;
 	}
+*/
+	_vbus_p = (ID_TO_VDEV(pParam->Members[0]))->u.disk.pVBus;
 	if (!_vbus_p) return INVALID_DEVICEID;
 
 	mArGetArrayTable(pArray);
@@ -742,6 +810,22 @@ error:
 	return INVALID_DEVICEID;
 }
 
+DEVICEID hpt_create_array(_VBUS_ARG PCREATE_ARRAY_PARAMS pParam)
+{
+	CREATE_ARRAY_PARAMS_V2 param2;
+	param2.ArrayType = pParam->ArrayType;
+	param2.nDisk = pParam->nDisk;
+	param2.BlockSizeShift = pParam->BlockSizeShift;
+	param2.CreateFlags = pParam->CreateFlags;
+	param2.CreateTime = pParam->CreateTime;
+	memcpy(param2.ArrayName, pParam->ArrayName, sizeof(param2.ArrayName));
+	memcpy(param2.Description, pParam->Description, sizeof(param2.Description));
+	memcpy(param2.CreateManager, pParam->CreateManager, sizeof(param2.CreateManager));
+	param2.Capacity.lo32 = param2.Capacity.hi32 = 0;
+	memcpy(param2.Members, pParam->Members, sizeof(pParam->Members));
+	return hpt_create_array_v2(_VBUS_P &param2);
+}
+
 #ifdef SUPPORT_OLD_ARRAY
 /* this is only for old RAID 0/1 */
 int old_add_disk_to_raid01(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
@@ -822,7 +906,7 @@ int hpt_add_disk_to_array(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 {
 	int	i;
 
-	ULONG	Capacity;
+	LBA_T Capacity;
 	PVDevice pArray = ID_TO_VDEV(idArray);
 	PVDevice pDisk	= ID_TO_VDEV(idDisk);
 
@@ -859,7 +943,7 @@ int hpt_add_disk_to_array(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 	if (pArray->pVBus!=_vbus_p) { HPT_ASSERT(0); return -1;}
 
 	for(i = 0; i < pArray->u.array.bArnMember; i++)
-		if((pArray->u.array.pMember[i] == NULL) || !pArray->u.array.pMember[i]->vf_online)
+		if((pArray->u.array.pMember[i] == 0) || !pArray->u.array.pMember[i]->vf_online)
 		{
 			if(pArray->u.array.pMember[i] != NULL)
 				pArray->u.array.pMember[i]->pParent = NULL;
@@ -961,124 +1045,76 @@ int hpt_set_array_info(_VBUS_ARG DEVICEID idArray, PALTERABLE_ARRAY_INFO pInfo)
 	return 0;
 }
 
-int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO pInfo)
+static int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO pInfo)
 {
 	PVDevice pVDevice = ID_TO_VDEV(idDisk);
 
-	/* stop buzzer. */
-	if(idDisk == 0) {
-#ifndef FOR_DEMO
-		IAL_ADAPTER_T *pAdapter;
-		for (pAdapter=gIal_Adapter; pAdapter; pAdapter=pAdapter->next) {
-			if (pAdapter->beeping) {
-				pAdapter->beeping = 0;
-				BeepOff(pAdapter->mvSataAdapter.adapterIoBaseAddress);
-			}
-		}
-#endif
-		return 0;
-	}
-	
-	if (check_VDevice_valid(pVDevice)) return -1;
+	if(idDisk == 0 || check_VDevice_valid(pVDevice)) return -1;
 	if (mIsArray(pVDevice))
 		return -1;
 
 	if (pVDevice->u.disk.pVBus!=_vbus_p) return -1;
 
-/*	if (pInfo->ValidFields & ADIF_MODE) {
+	/* TODO */
+		return 0;
+	}
+	
+static int hpt_set_device_info_v2(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO_V2 pInfo)
+{
+	PVDevice pVDevice = ID_TO_VDEV(idDisk);
+	int sync = 0;
+
+	if(idDisk==0 || check_VDevice_valid(pVDevice)) return -1;
+	if (mIsArray(pVDevice))
+		return -1;
+
+	if (pVDevice->u.disk.pVBus!=_vbus_p) return -1;
+
+	if (pInfo->ValidFields & ADIF_MODE) {
 		pVDevice->u.disk.bDeModeSetting = pInfo->DeviceModeSetting;
 		pVDevice->u.disk.bDeUserSelectMode = pInfo->DeviceModeSetting;
 		pVDevice->u.disk.df_user_mode_set = 1;
 		fDeSelectMode((PDevice)&(pVDevice->u.disk), (UCHAR)pInfo->DeviceModeSetting);
+		sync = 1;
+}
+
+	if (pInfo->ValidFields & ADIF_TCQ) {
+		if (fDeSetTCQ(&pVDevice->u.disk, pInfo->TCQEnabled, 0)) {
+			pVDevice->u.disk.df_tcq_set = 1;
+			pVDevice->u.disk.df_tcq = pInfo->TCQEnabled!=0;
+			sync = 1;
+}
+	}
+
+	if (pInfo->ValidFields & ADIF_NCQ) {
+		if (fDeSetNCQ(&pVDevice->u.disk, pInfo->NCQEnabled, 0)) {
+			pVDevice->u.disk.df_ncq_set = 1;
+			pVDevice->u.disk.df_ncq = pInfo->NCQEnabled!=0;
+			sync = 1;
+	}
+	}
+
+	if (pInfo->ValidFields & ADIF_WRITE_CACHE) {
+		if (fDeSetWriteCache(&pVDevice->u.disk, pInfo->WriteCacheEnabled)) {
+			pVDevice->u.disk.df_write_cache_set = 1;
+			pVDevice->u.disk.df_write_cache = pInfo->WriteCacheEnabled!=0;
+			sync = 1;
+	}
+	}
+		
+	if (pInfo->ValidFields & ADIF_READ_AHEAD) {
+		if (fDeSetReadAhead(&pVDevice->u.disk, pInfo->ReadAheadEnabled)) {
+			pVDevice->u.disk.df_read_ahead_set = 1;
+			pVDevice->u.disk.df_read_ahead = pInfo->ReadAheadEnabled!=0;
+			sync = 1;
+		}
+	}
+
+	if (sync)
 		SyncArrayInfo(pVDevice);
-	}*/
-	return 0;
-}
-#endif
-
-#ifdef SUPPORT_HPT601
-int hpt_get_601_info(DEVICEID idDisk, PHPT601_INFO pInfo)
-{
-	PVDevice pVDevice = ID_TO_VDEV(idDisk);
-	PChannel          pChan = pVDevice->u.disk.pChannel;
-	PIDE_REGISTERS_1  IoPort = pChan->BaseIoAddress1;
-
-	if(!pVDevice->u.disk.df_with_601) return -1;
-
-	mSelectUnit(IoPort, pVDevice->u.disk.bDeUnitId);
-	pChan->pChipInstance->ftbl.pfnWaitOnBusy(pChan, pVDevice->u.disk.bDeUnitId, 1);
-	
-	BeginAccess601(IoPort);
-
-	mSetBlockCount(IoPort, 0);
-	pInfo->DeviceId = InWord(&IoPort->Data);
-
-	mSetBlockCount(IoPort, 0x14);
-	pInfo->Temperature = InWord(&IoPort->Data);
-
-	mSetBlockCount(IoPort, 0xA);
-	pInfo->FanStatus = InWord(&IoPort->Data);
-
-	mSetBlockCount(IoPort, 7);
-	pInfo->BeeperControl = InWord(&IoPort->Data);
-
-	mSetBlockCount(IoPort, 3);
-	pInfo->LED1Control = InWord(&IoPort->Data);
-
-	mSetBlockCount(IoPort, 5);
-	pInfo->LED2Control = InWord(&IoPort->Data);
-
-	mSetBlockCount(IoPort, 0x18);
-	pInfo->PowerStatus = InWord(&IoPort->Data);
-		
-	EndAccess601(IoPort);
-	pInfo->ValidFields = 0x7F;
-	/*DEVICEID|TEMPERATURE|FANSTATUS|BEEPERCONTROL|LED1CONTROL|LED2CONTROL|POWERSTATUS*/
 	return 0;
 }
 
-int hpt_set_601_info(DEVICEID idDisk, PHPT601_INFO pInfo)
-{
-	PVDevice pVDevice = ID_TO_VDEV(idDisk);
-	PChannel          pChan = pVDevice->u.disk.pChannel;
-	PIDE_REGISTERS_1  IoPort = pChan->BaseIoAddress1;
-
-	if(!pVDevice->u.disk.df_with_601) return -1;
-
-	mSelectUnit(IoPort, pVDevice->u.disk.bDeUnitId);
-	pChan->pChipInstance->ftbl.pfnWaitOnBusy(pChan, pVDevice->u.disk.bDeUnitId, 1);
-	
-	BeginAccess601(IoPort);
-
-	if (pInfo->ValidFields & HPT601_INFO_TEMPERATURE) {
-		mSetBlockCount(IoPort, 1);
-		OutWord(&IoPort->Data, pInfo->Temperature);
-	}
-
-	if (pInfo->ValidFields & HPT601_INFO_FANSTATUS) {
-		mSetBlockCount(IoPort, 0xA);
-		OutWord(&IoPort->Data, pInfo->FanStatus);
-	}
-
-	if (pInfo->ValidFields & HPT601_INFO_BEEPERCONTROL) {
-		mSetBlockCount(IoPort, 7);
-		OutWord(&IoPort->Data, pInfo->BeeperControl);
-	}
-
-	if (pInfo->ValidFields & HPT601_INFO_LED1CONTROL) {
-		mSetBlockCount(IoPort, 3);
-		OutWord(&IoPort->Data, pInfo->LED1Control);
-	}
-
-	if (pInfo->ValidFields & HPT601_INFO_LED2CONTROL) {
-		mSetBlockCount(IoPort, 5);
-		OutWord(&IoPort->Data, pInfo->LED2Control);
-	}
-		
-	EndAccess601(IoPort);
-
-	return 0;
-}
 #endif
 
 /* hpt_default_ioctl()
@@ -1175,21 +1211,46 @@ int hpt_default_ioctl(_VBUS_ARG
 		}
 		break;
 
+	case HPT_IOCTL_GET_DEVICE_INFO_V2:
+		{
+			DEVICEID id;
+			PLOGICAL_DEVICE_INFO_V2 pInfo;
+
+			if (nInBufferSize!=sizeof(DEVICEID)) return -1;
+			if (nOutBufferSize!=sizeof(LOGICAL_DEVICE_INFO_V2)) return -1;
+
+			id = *(DWORD *)lpInBuffer;
+			if (id == INVALID_DEVICEID)	return -1;
+
+			pInfo = (PLOGICAL_DEVICE_INFO_V2)lpOutBuffer;
+			memset(pInfo, 0, sizeof(LOGICAL_DEVICE_INFO_V2));
+
+			if (hpt_get_device_info_v2(id, pInfo)!=0)
+				return -1;
+		}
+		break;
+
 #ifdef SUPPORT_ARRAY
 	case HPT_IOCTL_CREATE_ARRAY:
 		{
-			CREATE_ARRAY_PARAMS *pParam;
-			DEVICEID id;
-
 			if (nInBufferSize!=sizeof(CREATE_ARRAY_PARAMS)) return -1;
 			if (nOutBufferSize!=sizeof(DEVICEID)) return -1;
 
-			pParam = (PCREATE_ARRAY_PARAMS)lpInBuffer;
+			*(DEVICEID *)lpOutBuffer = hpt_create_array(_VBUS_P (PCREATE_ARRAY_PARAMS)lpInBuffer);
 
-			id = hpt_create_array(_VBUS_P pParam);
-			*(DEVICEID *)lpOutBuffer = id;
+			if(*(DEVICEID *)lpOutBuffer == INVALID_DEVICEID)
+				return -1;
+		}
+		break;
 
-			if(id == (DEVICEID)INVALID_DEVICEID)
+	case HPT_IOCTL_CREATE_ARRAY_V2:
+		{
+			if (nInBufferSize!=sizeof(CREATE_ARRAY_PARAMS_V2)) return -1;
+			if (nOutBufferSize!=sizeof(DEVICEID)) return -1;
+
+			*(DEVICEID *)lpOutBuffer = hpt_create_array_v2(_VBUS_P (PCREATE_ARRAY_PARAMS_V2)lpInBuffer);
+
+			if (*(DEVICEID *)lpOutBuffer == INVALID_DEVICEID)
 				return -1;
 		}
 		break;
@@ -1225,6 +1286,21 @@ int hpt_default_ioctl(_VBUS_ARG
 		}
 		break;
 
+	case HPT_IOCTL_SET_DEVICE_INFO_V2:
+		{
+			DEVICEID idDisk;
+			PALTERABLE_DEVICE_INFO_V2 pInfo;
+
+			if (nInBufferSize < sizeof(HPT_SET_DEVICE_INFO_V2)) return -1;
+			if (nOutBufferSize!=0) return -1;
+
+			idDisk = ((PHPT_SET_DEVICE_INFO_V2)lpInBuffer)->idDisk;
+			pInfo = &((PHPT_SET_DEVICE_INFO_V2)lpInBuffer)->Info;
+			if(hpt_set_device_info_v2(_VBUS_P idDisk, pInfo) != 0)
+				return -1;
+		}
+		break;
+
 	case HPT_IOCTL_SET_BOOT_MARK:
 		{
 			DEVICEID id;
@@ -1238,7 +1314,7 @@ int hpt_default_ioctl(_VBUS_ARG
 			while(pAdapter != 0)
 			{
 				pVBus = &pAdapter->VBus;
-				for(i = 0; i < MAX_ARRAY_PER_VBUS; i++)
+				for(i = 0; i < MAX_VDEVICE_PER_VBUS; i++)
 				{
 					if(!(pTop = pVBus->pVDevice[i])) continue;
 					if (pTop->pVBus!=_vbus_p) return -1;
@@ -1256,16 +1332,7 @@ int hpt_default_ioctl(_VBUS_ARG
 			}
 		}
 		break;
-#endif
-	case HPT_IOCTL_RESCAN_DEVICES:
-		{
-			if (nInBufferSize!=0) return -1;
-			if (nOutBufferSize!=0) return -1;
-			fRescanAllDevice(_VBUS_P0);
-		}
-		break;
 
-#ifdef SUPPORT_ARRAY
 	case HPT_IOCTL_ADD_SPARE_DISK:
 		{
 			DEVICEID id;
@@ -1319,41 +1386,57 @@ int hpt_default_ioctl(_VBUS_ARG
 		}
 		break;
 
-#ifdef SUPPORT_HPT601	
-	case HPT_IOCTL_GET_601_INFO:
+	case HPT_IOCTL_GET_CONTROLLER_VENID:
 		{
-			DEVICEID id;
-			PHPT601_INFO pInfo;
+			DWORD id = ((DWORD*)lpInBuffer)[0];
+			IAL_ADAPTER_T *pAdapTemp;
+			int iControllerCount = 0;
 
-			if (nInBufferSize!=sizeof(DEVICEID)) return -1;
-			if (nOutBufferSize!=sizeof(HPT601_INFO)) return -1;
-
-			id = *(DWORD *)lpInBuffer;
-			if (id == INVALID_DEVICEID)	return -1;
-
-			pInfo = (PHPT601_INFO)lpOutBuffer;
-			memset(pInfo, 0, sizeof(HPT601_INFO));
-
-			if (hpt_get_601_info(id, pInfo)!=0)
+			for (pAdapTemp = gIal_Adapter; pAdapTemp; pAdapTemp = pAdapTemp->next)
+				if (iControllerCount++==id)
+					break;
+			
+			if (!pAdapTemp)
 				return -1;
+				
+			if (nOutBufferSize < 4)
+				return -1;
+				
+			*(DWORD*)lpOutBuffer = ((DWORD)pAdapTemp->mvSataAdapter.pciConfigDeviceId << 16) | 0x11AB;
+			return 0;
+		}
+
+	case HPT_IOCTL_EPROM_IO:
+		{
+			DWORD id           = ((DWORD*)lpInBuffer)[0];
+			DWORD offset	   = ((DWORD*)lpInBuffer)[1];
+			DWORD direction    = ((DWORD*)lpInBuffer)[2];
+			DWORD length	   = ((DWORD*)lpInBuffer)[3];
+			IAL_ADAPTER_T *pAdapTemp;
+			int iControllerCount = 0;
+
+			for (pAdapTemp = gIal_Adapter; pAdapTemp; pAdapTemp = pAdapTemp->next)
+				if (iControllerCount++==id)
+					break;
+			
+			if (!pAdapTemp)
+				return -1;
+				
+			if (nInBufferSize < sizeof(DWORD) * 4 + (direction? length : 0) ||
+				nOutBufferSize < (direction? 0 : length))
+				return -1;
+
+			if (direction == 0) /* read */
+				sx508x_flash_access(&pAdapTemp->mvSataAdapter,
+					offset, lpOutBuffer, length, 1);
+			else
+				sx508x_flash_access(&pAdapTemp->mvSataAdapter,
+					offset, (char *)lpInBuffer + 16, length, 0);
+
+			return 0;
 		}
 		break;
 
-	case HPT_IOCTL_SET_601_INFO:
-		{
-			DEVICEID id;
-			PHPT601_INFO pInfo;
-
-			if (nInBufferSize!=sizeof(HPT_SET_601_INFO)) return -1;
-			if (nOutBufferSize!=0) return -1;
-
-			id = ((PHPT_SET_601_INFO)lpInBuffer)->idDisk;
-			pInfo = &((PHPT_SET_601_INFO)lpInBuffer)->Info;
-			if(hpt_set_601_info(id, pInfo) != 0)
-				return -1;
-		}
-		break;
-#endif
 	default:
 		return -1;
 	}

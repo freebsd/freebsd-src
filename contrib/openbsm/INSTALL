@@ -2,9 +2,8 @@ OpenBSM Build and Installation Instructions
 
 OpenBSM is currently built using autoconf and automake, which should allow
 for building on a range of operating systems, including FreeBSD, Mac OS X,
-and Linux.  Depending on the availability of audit facilities in the
-underlying operating system, some components that depend on kernel audit
-support are built conditionally.  Typically, build will be performed using:
+and Linux.  Some components are built only if appropriate kernel audit
+suppport is found.  Typical builds will be performed using:
 
     ./configure
     make
@@ -15,9 +14,13 @@ force the compile to fail if a warning is found:
 
     CFLAGS="-Wall -Werror" ./configure
 
-To install, use:
+To install the library, binaries, and man pages, use:
 
     make install
+
+The OpenBSM install will not install files in /etc; these have to be
+manually installed or merged.  Currently, the locations of these files are
+not configurable.
 
 You may wish to specify that the OpenBSM components not be installed in the
 base system, rather in a specific directory.  This may be done using the
@@ -29,7 +32,3 @@ directory the correct libbsm is used:
     make
     make install
     LD_LIBRARY_PATH=/home/rwatson/openbsm/libbsm ; export LD_LIBRARY_PATH
-
-You will need to manually propagate openbsm/etc/* into /etc/security on your
-system; this is not done automatically so as to avoid disrupting the current
-configuration.  Currently, the locations of these files is not configurable.

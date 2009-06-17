@@ -51,11 +51,14 @@
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#include <arpa/inet.h>
 
 #include <err.h>
 #include <errno.h>
 #include <osreldate.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 char *progname;
@@ -69,6 +72,8 @@ int delta = 0 ;
 
 extern char *optarg;
 extern int optind;
+
+void print_load_stats(void);
 
 void
 usage()
@@ -228,7 +233,7 @@ get_flags(char *buf, int flags)
 #endif /*NEVER*/
 }
 
-int
+void
 print_routing(char *proto)
 {
 	int	mib[6];
@@ -414,18 +419,17 @@ print_routing(char *proto)
 			get_rtaddrs(ifam->ifam_addrs, sa, rti_info);
 			printf("  %s", Sock_ntop(sa, sa->sa_len));
 		}
-		printf("    %u", rtm->rtm_use);
+		/* printf("    %u", rtm->rtm_use); */
 		printf("\n");
 	}
 	free(rt_buf);
 	free(if_buf);
 	free(if_table);
 	free(ifm_table);
-	return;
-
 }
 
-print_ip_stats()
+void
+print_ip_stats(void)
 {
 	int	mib[4];
 	int	len;
@@ -442,7 +446,7 @@ print_ip_stats()
 	len = sizeof(struct ipstat);
 	if (sysctl(mib, 4, &s, &len, NULL, 0) < 0) {
 		perror("sysctl");
-		return (-1);
+		return;
 	}
 	printf("\nIP statistics:\n");
 	printf("--------------\n");
@@ -486,7 +490,8 @@ print_ip_stats()
 #endif
 }
 
-print_tcp_stats()
+void
+print_tcp_stats(void)
 {
 	int	mib[4];
 	int	len;
@@ -497,13 +502,13 @@ print_tcp_stats()
 	mib[2] = IPPROTO_TCP;
 #ifndef TCPCTL_STATS
 	printf("sorry, tcp stats not available\n");
-	return -1;
+	return;
 #else
 	mib[3] = TCPCTL_STATS;
 	len = sizeof(struct tcpstat);
 	if (sysctl(mib, 4, &s, &len, NULL, 0) < 0) {
 		perror("sysctl");
-		return (-1);
+		return;
 	}
 	printf("\nTCP statistics:\n");
 	printf("---------------\n");
@@ -584,7 +589,8 @@ print_tcp_stats()
 #endif
 }
 
-print_udp_stats()
+void
+print_udp_stats(void)
 {
 	int	mib[4];
 	int	len;
@@ -597,7 +603,7 @@ print_udp_stats()
 	len = sizeof(struct udpstat);
 	if (sysctl(mib, 4, &s, &len, NULL, 0) < 0) {
 		perror("sysctl");
-		return (-1);
+		return;
 	}
 	printf("\nUDP statistics:\n");
 	printf("---------------\n");
@@ -785,7 +791,7 @@ again:
 	exit(0);
 }
 
-int
+void
 print_load_stats(void)
 {
 	static u_int32_t cp_time[5];
@@ -795,12 +801,12 @@ print_load_stats(void)
 	static int stathz ;
 
 	if (!lflag || !wflag)
-		return 0;
+		return;
 	l = sizeof(new_cp_time) ;
 	bzero(new_cp_time, l);
 	if (sysctlbyname("kern.cp_time", new_cp_time, &l, NULL, 0) < 0) {
 		warn("sysctl: retrieving cp_time length");
-		return 0;
+		return;
 	}
 	if (stathz == 0) {
 		struct clockinfo ci;
@@ -809,7 +815,7 @@ print_load_stats(void)
 		l = sizeof(ci) ;
 		if (sysctlbyname("kern.clockrate", &ci, &l, NULL, 0) < 0) {
 			warn("sysctl: retrieving clockinfo length");
-			return 0;
+			return;
 		}
 		stathz = ci.stathz ;
 		bcopy(new_cp_time, cp_time, sizeof(cp_time));
@@ -822,4 +828,4 @@ print_load_stats(void)
 			"INTR %5.2f%% IDLE %5.2f%%\n",
 		X(0), X(1), X(2), X(3), X(4) );
 	bcopy(new_cp_time, cp_time, sizeof(cp_time));
-}              
+}

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2008
+.Dd March 25, 2009
 .Dt BSDTAR 1
 .Os
 .Sh NAME
@@ -37,12 +37,12 @@
 .Nm
 .Brq Fl c
 .Op Ar options
-.Op Ar files | directories
+.Op Ar files | Ar directories
 .Nm
 .Brq Fl r | Fl u
 .Fl f Ar archive-file
 .Op Ar options
-.Op Ar files | directories
+.Op Ar files | Ar directories
 .Nm
 .Brq Fl t | Fl x
 .Op Ar options
@@ -305,6 +305,64 @@ A synonym for
 .It Fl -one-file-system
 (c, r, and u modes)
 Do not cross mount points.
+.It Fl -options Ar options
+Select optional behaviors for particular modules.
+The argument is a text string containing comma-separated
+keywords and values.
+These are passed to the modules that handle particular
+formats to control how those formats will behave.
+Each option has one of the following forms:
+.Bl -tag -compact -width indent
+.It Ar key=value
+The key will be set to the specified value in every module that supports it.
+Modules that do not support this key will ignore it.
+.It Ar key
+The key will be enabled in every module that supports it.
+This is equivalent to
+.Ar key Ns Cm =1 .
+.It Ar !key
+The key will be disabled in every module that supports it.
+.It Ar module:key=value , Ar module:key , Ar module:!key
+As above, but the corresponding key and value will be provided
+only to modules whose name matches
+.Ar module .
+.El
+The currently supported modules and keys are:
+.Bl -tag -compact -width indent
+.It Cm iso9660:joliet
+Support Joliet extensions.
+This is enabled by default, use
+.Cm !joliet
+or
+.Cm iso9660:!joliet
+to disable.
+.It Cm gzip:compression-level
+A decimal integer from 0 to 9 specifying the gzip compression level.
+.It Cm xz:compression-level
+A decimal integer from 0 to 9 specifying the xz compression level.
+.It Cm mtree: Ns Ar keyword
+The mtree writer module allows you to specify which mtree keywords
+will be included in the output.
+Supported keywords include:
+.Cm cksum , Cm device , Cm flags , Cm gid , Cm gname , Cm indent ,
+.Cm link , Cm md5 , Cm mode , Cm nlink , Cm rmd160 , Cm sha1 , Cm sha256 ,
+.Cm sha384 , Cm sha512 , Cm size , Cm time , Cm uid , Cm uname .
+The default is equivalent to:
+.Dq device, flags, gid, gname, link, mode, nlink, size, time, type, uid, uname .
+.It Cm mtree:all
+Enables all of the above keywords.
+You can also use
+.Cm mtree:!all
+to disable all keywords.
+.It Cm mtree:use-set
+Enable generation of
+.Cm /set
+lines in the output.
+.It Cm mtree:indent
+XXX need explanation XXX
+.El
+If a provided option is not supported by any module, that
+is a fatal error.
 .It Fl P
 Preserve pathnames.
 By default, absolute pathnames (those that begin with a /
@@ -555,6 +613,27 @@ switches accept a variety of common date and time specifications, including
 .Dq 5 minutes ago ,
 and
 .Dq 19:14 PST May 1 .
+.Pp
+The
+.Fl -options
+argument can be used to control various details of archive generation
+or reading.
+For example, you can generate mtree output which only contains
+.Cm type , Cm time ,
+and
+.Cm uid
+keywords:
+.Dl Nm Fl cf Pa file.tar Fl -format=mtree Fl -options='!all,type,time,uid' Pa dir
+or you can set the compression level used by gzip or xz compression:
+.Dl Nm Fl czf Pa file.tar Fl -options='compression-level=9' .
+For more details, see the explanation of the
+.Fn archive_read_set_options
+and
+.Fn archive_write_set_options
+API calls that are described in
+.Xr archive_read 3
+and
+.Xr archive_write 3 .
 .Sh COMPATIBILITY
 The bundled-arguments format is supported for compatibility
 with historic implementations.

@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.73 2008/02/19 17:58:00 rrt Exp $
-.Dd February 19, 2008
+.\" $File: file.man,v 1.79 2008/11/06 22:49:08 rrt Exp $
+.Dd October 9, 2008
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -41,12 +41,12 @@ characters and is probably safe to read on an
 terminal),
 .Em executable
 (the file contains the result of compiling a program
-in a form understandable to some 
+in a form understandable to some
 .Dv UNIX
 kernel or another),
 or
 .Em data
-meaning anything else (data is usually 
+meaning anything else (data is usually
 .Sq binary
 or non-printable).
 Exceptions are well-known file formats (core files, tar archives)
@@ -54,13 +54,13 @@ that are known to contain binary data.
 When modifying magic files or the program itself, make sure to
 .Em "preserve these keywords" .
 Users depend on knowing that all the readable files in a directory
-have the word 
-.Dq text
+have the word
+.Sq text
 printed.
-Don't do as Berkeley did and change 
-.Dq shell commands text
-to 
-.Dq shell script .
+Don't do as Berkeley did and change
+.Sq shell commands text
+to
+.Sq shell script .
 .Pp
 The filesystem tests are based on examining the return from a
 .Xr stat 2
@@ -78,16 +78,16 @@ The magic tests are used to check for files with data in
 particular fixed formats.
 The canonical example of this is a binary executable (compiled program)
 .Dv a.out
-file, whose format is defined in 
+file, whose format is defined in
 .In elf.h ,
 .In a.out.h
 and possibly
 .In exec.h
 in the standard include directory.
-These files have a 
+These files have a
 .Sq "magic number"
 stored in a particular place
-near the beginning of the file that tells the 
+near the beginning of the file that tells the
 .Dv UNIX operating system
 that the file is a binary executable, and which of several types thereof.
 The concept of a
@@ -116,11 +116,11 @@ ranges and sequences of bytes that constitute printable text
 in each set.
 If a file passes any of these tests, its character set is reported.
 ASCII, ISO-8859-x, UTF-8, and extended-ASCII files are identified
-as 
-.Dq text
+as
+.Sq text
 because they will be mostly readable on nearly any terminal;
-UTF-16 and EBCDIC are only 
-.Dq character data
+UTF-16 and EBCDIC are only
+.Sq character data
 because, while
 they contain text, it is text that will require translation
 before it can be read.
@@ -144,19 +144,19 @@ For example, the keyword
 .Em .br
 indicates that the file is most likely a
 .Xr troff 1
-input file, just as the keyword 
+input file, just as the keyword
 .Em struct
 indicates a C program.
 These tests are less reliable than the previous
 two groups, so they are performed last.
 The language test routines also test for some miscellany
-(such as 
+(such as
 .Xr tar 1
 archives).
 .Pp
 Any file that cannot be identified as having been written
 in any of the character sets listed above is simply said to be
-.Dq data .
+.Sq data .
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl b , -brief
@@ -177,40 +177,41 @@ from the list of tests made to determine the file type. Valid test names
 are:
 .Bl -tag -width
 .It apptype
-Check for
 .Dv EMX
 application type (only on EMX).
-.It ascii
-Check for various types of ascii files.
+.It text
+Various types of text files (this test will try to guess the text encoding, irrespective of the setting of the
+.Sq encoding
+option).
+.It encoding
+Different text encodings for soft magic tests.
+.It tokens
+Looks for known tokens inside text files.
+.It cdf
+Prints details of Compound Document Files.
 .It compress
-Don't look for, or inside compressed files.
+Checks for, and looks inside, compressed files.
 .It elf
-Don't print elf details.
-.It fortran
-Don't look for fortran sequences inside ascii files.
+Prints ELF file details.
 .It soft
-Don't consult magic files.
+Consults magic files.
 .It tar
-Don't examine tar files.
-.It token
-Don't look for known tokens inside ascii files.
-.It troff
-Don't look for troff sequences inside ascii files.
+Examines tar files.
 .El
 .It Fl f , -files-from Ar namefile
-Read the names of the files to be examined from 
+Read the names of the files to be examined from
 .Ar namefile
-(one per line) 
+(one per line)
 before the argument list.
-Either 
+Either
 .Ar namefile
 or at least one filename argument must be present;
-to test the standard input, use 
+to test the standard input, use
 .Sq -
 as a filename argument.
 .It Fl F , -separator Ar separator
 Use the specified string as the separator between the filename and the
-file result returned. Defaults to 
+file result returned. Defaults to
 .Sq \&: .
 .It Fl h , -no-dereference
 option causes symlinks not to be followed
@@ -221,17 +222,15 @@ is not defined.
 .It Fl i , -mime
 Causes the file command to output mime type strings rather than the more
 traditional human readable ones. Thus it may say
-.Dq text/plain charset=us-ascii
+.Sq text/plain; charset=us-ascii
 rather than
-.Dq ASCII text .
+.Sq ASCII text .
 In order for this option to work, file changes the way
 it handles files recognized by the command itself (such as many of the
 text file types, directories etc), and makes use of an alternative
-.Dq magic
+.Sq magic
 file.
-(See
-.Dq FILES
-section, below).
+(See the FILES section, below).
 .It Fl -mime-type , -mime-encoding
 Like
 .Fl i ,
@@ -239,10 +238,10 @@ but print only the specified element(s).
 .It Fl k , -keep-going
 Don't stop at the first match, keep going. Subsequent matches will be
 have the string
-.Dq "\[rs]012\- "
+.Sq "\[rs]012\- "
 prepended.
 (If you want a newline, see the
-.Dq "\-r"
+.Sq "\-r"
 option.)
 .It Fl L , -dereference
 option causes symlinks to be followed, as the like-named option in
@@ -324,7 +323,7 @@ will not attempt to open
 .Pa $HOME/.magic .
 .Nm
 adds
-.Dq .mgc
+.Sq .mgc
 to the value of this variable as appropriate.
 The environment variable
 .Dv POSIXLY_CORRECT
@@ -347,47 +346,47 @@ options.
 .Sh STANDARDS CONFORMANCE
 This program is believed to exceed the System V Interface Definition
 of FILE(CMD), as near as one can determine from the vague language
-contained therein. 
+contained therein.
 Its behavior is mostly compatible with the System V program of the same name.
 This version knows more magic, however, so it will produce
-different (albeit more accurate) output in many cases. 
+different (albeit more accurate) output in many cases.
 .\" URL: http://www.opengroup.org/onlinepubs/009695399/utilities/file.html
 .Pp
-The one significant difference 
+The one significant difference
 between this version and System V
 is that this version treats any white space
 as a delimiter, so that spaces in pattern strings must be escaped.
 For example,
-.Bd -literal -offset indent 
+.Bd -literal -offset indent
 >10	string	language impress\ 	(imPRESS data)
 .Ed
 .Pp
 in an existing magic file would have to be changed to
-.Bd -literal -offset indent 
+.Bd -literal -offset indent
 >10	string	language\e impress	(imPRESS data)
 .Ed
 .Pp
 In addition, in this version, if a pattern string contains a backslash,
 it must be escaped.
 For example
-.Bd -literal -offset indent 
+.Bd -literal -offset indent
 0	string		\ebegindata	Andrew Toolkit document
 .Ed
 .Pp
 in an existing magic file would have to be changed to
-.Bd -literal -offset indent 
+.Bd -literal -offset indent
 0	string		\e\ebegindata	Andrew Toolkit document
 .Ed
 .Pp
 SunOS releases 3.2 and later from Sun Microsystems include a
-.Nm 
+.Nm
 command derived from the System V one, but with some extensions.
 My version differs from Sun's only in minor ways.
-It includes the extension of the 
+It includes the extension of the
 .Sq &
 operator, used as,
 for example,
-.Bd -literal -offset indent 
+.Bd -literal -offset indent
 >16	long&0x7fffffff	>0		not stripped
 .Ed
 .Sh MAGIC DIRECTORY
@@ -395,7 +394,7 @@ The magic file entries have been collected from various sources,
 mainly USENET, and contributed by various authors.
 Christos Zoulas (address below) will collect additional
 or corrected magic file entries.
-A consolidation of magic file entries 
+A consolidation of magic file entries
 will be distributed periodically.
 .Pp
 The order of entries in the magic file is significant.
@@ -405,14 +404,14 @@ If your old
 .Nm
 command uses a magic file,
 keep the old magic file around for comparison purposes
-(rename it to 
+(rename it to
 .Pa __MAGIC__.orig ).
 .Sh EXAMPLES
-.Bd -literal -offset indent 
+.Bd -literal -offset indent
 $ file file.c file /dev/{wd0a,hda}
 file.c:   C program text
 file:     ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
-          dynamically linked (uses shared libs), stripped
+	  dynamically linked (uses shared libs), stripped
 /dev/wd0a: block special (0/0)
 /dev/hda: block special (3/0)
 
@@ -441,9 +440,9 @@ file:        application/x-executable
 
 .Ed
 .Sh HISTORY
-There has been a 
-.Nm 
-command in every 
+There has been a
+.Nm
+command in every
 .Dv UNIX since at least Research Version 4
 (man page dated November, 1973).
 The System V version introduced one significant major change:
@@ -466,7 +465,7 @@ Primary development and maintenance from 1990 to the present by
 Christos Zoulas (christos@astron.com).
 .Pp
 Altered by Chris Lowth, chris@lowth.com, 2000:
-Handle the 
+Handle the
 .Fl i
 option to output mime type strings, using an alternative
 magic file and internal logic.
@@ -480,7 +479,7 @@ support and merge MIME and non-MIME magic, support directories as well
 as files of magic, apply many bug fixes and improve the build system.
 .Pp
 The list of contributors to the
-.Dq magic
+.Sq magic
 directory (magic files)
 is too long to include here.
 You know who you are; thank you.
@@ -512,10 +511,10 @@ files.
 The support for text files (primarily for programming languages)
 is simplistic, inefficient and requires recompilation to update.
 .Pp
-The list of keywords in 
+The list of keywords in
 .Dv ascmagic
 probably belongs in the Magic file.
-This could be done by using some keyword like 
+This could be done by using some keyword like
 .Sq *
 for the offset value.
 .Pp
@@ -523,20 +522,20 @@ Complain about conflicts in the magic file entries.
 Make a rule that the magic entries sort based on file offset rather
 than position within the magic file?
 .Pp
-The program should provide a way to give an estimate 
-of 
-.Dq how good
+The program should provide a way to give an estimate
+of
+.Sq how good
 a guess is.
-We end up removing guesses (e.g. 
-.Dq From\ 
+We end up removing guesses (e.g.
+.Sq From\
 as first 5 chars of file) because
-they are not as good as other guesses (e.g. 
-.Dq Newsgroups:
+they are not as good as other guesses (e.g.
+.Sq Newsgroups:
 versus
-.Dq Return-Path:
+.Sq Return-Path:
 ).
 Still, if the others don't pan out, it should be possible to use the
-first guess.  
+first guess.
 .Pp
 This manual page, and particularly this section, is too long.
 .Sh RETURN CODE

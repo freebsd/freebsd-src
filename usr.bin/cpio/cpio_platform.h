@@ -39,7 +39,7 @@
 #include PLATFORM_CONFIG_H
 #elif defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
-#include "../config.h"
+#include "config.h"
 #else
 /* Warn if cpio hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no built-in configuration in cpio_platform.h.
@@ -48,7 +48,7 @@
 /* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
-#else
+#elif !defined(__FBSDID)
 /* Just leaving this macro replacement empty leads to a dangling semicolon. */
 #define	__FBSDID(a)     struct _undefined_hack
 #endif
@@ -87,6 +87,12 @@
 #define __LA_DEAD       __attribute__((__noreturn__))
 #else
 #define __LA_DEAD
+#endif
+
+#if defined(__CYGWIN__)
+#include "cpio_cygwin.h"
+#elif defined(_WIN32)	/* && !__CYGWIN__ */
+#include "cpio_windows.h"
 #endif
 
 #endif /* !CPIO_PLATFORM_H_INCLUDED */

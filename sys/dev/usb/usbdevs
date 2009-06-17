@@ -1287,6 +1287,7 @@ product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
 /* Future Technology Devices products */
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
+product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi

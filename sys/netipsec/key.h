@@ -53,9 +53,11 @@ extern struct secpolicy *key_allocsp(struct secpolicyindex *, u_int,
 extern struct secpolicy *key_allocsp2(u_int32_t spi, union sockaddr_union *dst,
 	u_int8_t proto, u_int dir, const char*, int);
 extern struct secpolicy *key_newsp(const char*, int);
+#if 0
 extern struct secpolicy *key_gettunnel(const struct sockaddr *,
 	const struct sockaddr *, const struct sockaddr *,
 	const struct sockaddr *, const char*, int);
+#endif
 /* NB: prepend with _ for KAME IPv6 compatbility */
 extern void _key_freesp(struct secpolicy **, const char*, int);
 
@@ -65,8 +67,10 @@ extern void _key_freesp(struct secpolicy **, const char*, int);
 	key_allocsp2(spi, dst, proto, dir, __FILE__, __LINE__)
 #define	KEY_NEWSP()						\
 	key_newsp(__FILE__, __LINE__)
+#if 0
 #define	KEY_GETTUNNEL(osrc, odst, isrc, idst)			\
 	key_gettunnel(osrc, odst, isrc, idst, __FILE__, __LINE__)
+#endif
 #define	KEY_FREESP(spp)						\
 	_key_freesp(spp, __FILE__, __LINE__)
 

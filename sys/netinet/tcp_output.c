@@ -264,9 +264,9 @@ again:
 		if (len > 0) {
 			sack_rxmit = 1;
 			sendalot = 1;
-			V_tcpstat.tcps_sack_rexmits++;
-			V_tcpstat.tcps_sack_rexmit_bytes +=
-			    min(len, tp->t_maxseg);
+			TCPSTAT_INC(tcps_sack_rexmits);
+			TCPSTAT_ADD(tcps_sack_rexmit_bytes,
+			    min(len, tp->t_maxseg));
 		}
 	}
 after_sack_rexmit:
@@ -768,13 +768,13 @@ send:
 		u_int moff;
 
 		if ((tp->t_flags & TF_FORCEDATA) && len == 1)
-			V_tcpstat.tcps_sndprobe++;
+			TCPSTAT_INC(tcps_sndprobe);
 		else if (SEQ_LT(tp->snd_nxt, tp->snd_max) || sack_rxmit) {
-			V_tcpstat.tcps_sndrexmitpack++;
-			V_tcpstat.tcps_sndrexmitbyte += len;
+			TCPSTAT_INC(tcps_sndrexmitpack);
+			TCPSTAT_ADD(tcps_sndrexmitbyte, len);
 		} else {
-			V_tcpstat.tcps_sndpack++;
-			V_tcpstat.tcps_sndbyte += len;
+			TCPSTAT_INC(tcps_sndpack);
+			TCPSTAT_ADD(tcps_sndbyte, len);
 		}
 #ifdef notyet
 		if ((m = m_copypack(so->so_snd.sb_mb, off,
@@ -841,13 +841,13 @@ send:
 	} else {
 		SOCKBUF_UNLOCK(&so->so_snd);
 		if (tp->t_flags & TF_ACKNOW)
-			V_tcpstat.tcps_sndacks++;
+			TCPSTAT_INC(tcps_sndacks);
 		else if (flags & (TH_SYN|TH_FIN|TH_RST))
-			V_tcpstat.tcps_sndctrl++;
+			TCPSTAT_INC(tcps_sndctrl);
 		else if (SEQ_GT(tp->snd_up, tp->snd_una))
-			V_tcpstat.tcps_sndurg++;
+			TCPSTAT_INC(tcps_sndurg);
 		else
-			V_tcpstat.tcps_sndwinup++;
+			TCPSTAT_INC(tcps_sndwinup);
 
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
@@ -919,7 +919,7 @@ send:
 			else
 #endif
 				ip->ip_tos |= IPTOS_ECN_ECT0;
-			V_tcpstat.tcps_ecn_ect0++;
+			TCPSTAT_INC(tcps_ecn_ect0);
 		}
 		
 		/*
@@ -1085,7 +1085,7 @@ send:
 			if (tp->t_rtttime == 0) {
 				tp->t_rtttime = ticks;
 				tp->t_rtseq = startseq;
-				V_tcpstat.tcps_segstimed++;
+				TCPSTAT_INC(tcps_segstimed);
 			}
 		}
 
@@ -1262,7 +1262,7 @@ out:
 			return (error);
 		}
 	}
-	V_tcpstat.tcps_sndtotal++;
+	TCPSTAT_INC(tcps_sndtotal);
 
 	/*
 	 * Data sent (as far as we can tell).
@@ -1437,7 +1437,7 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 				optlen += TCPOLEN_SACK;
 				sack++;
 			}
-			V_tcpstat.tcps_sack_send_blocks++;
+			TCPSTAT_INC(tcps_sack_send_blocks);
 			break;
 			}
 		default:

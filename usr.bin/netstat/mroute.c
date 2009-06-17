@@ -59,7 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/igmp.h>
 #include <net/route.h>
+
+#define _KERNEL 1
 #include <netinet/ip_mroute.h>
+#undef _KERNEL
 
 #include <err.h>
 #include <stdint.h>

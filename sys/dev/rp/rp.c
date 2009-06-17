@@ -117,6 +117,8 @@ Byte_t rp_sBitMapSetTbl[8] =
    0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
 };
 
+static void rpfree(void *);
+
 /***************************************************************************
 Function: sReadAiopID
 Purpose:  Read the AIOP idenfication number directly from an AIOP.
@@ -572,21 +574,19 @@ static	struct	rp_port *p_rp_table[MAX_RP_PORTS];
  * The top-level routines begin here
  */
 
-static	void	rpbreak(struct tty *, int);
 static	void	rpclose(struct tty *tp);
 static	void	rphardclose(struct tty *tp);
 static	int	rpmodem(struct tty *, int, int);
 static	int	rpparam(struct tty *, struct termios *);
 static	void	rpstart(struct tty *);
-static	void	rpstop(struct tty *, int);
-static	t_open_t	rpopen;
+static	int	rpioctl(struct tty *, u_long, caddr_t, struct thread *);
+static	int	rpopen(struct tty *);
 
 static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			CHANNEL_t *cp, unsigned int ChanStatus)
 {
-	int	spl;
 	unsigned	int	CharNStat;
-	int	i, ToRecv, wRecv, ch, ttynocopy;
+	int	ToRecv, ch, err = 0;
 
 	ToRecv = sGetRxCnt(cp);
 	if(ToRecv == 0)
@@ -608,22 +608,22 @@ static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 	FIFO one word at a time, pulling apart the character and
 	the status. Update error counters depending on status.
 */
+	tty_lock(tp);
 	if(ChanStatus & STATMODE) {
 		while(ToRecv) {
-			if(tp->t_state & TS_TBLOCK) {
-				break;
-			}
 			CharNStat = rp_readch2(cp,sGetTxRxDataIO(cp));
 			ch = CharNStat & 0xff;
 
 			if((CharNStat & STMBREAK) || (CharNStat & STMFRAMEH))
-				ch |= TTY_FE;
+				err |= TRE_FRAMING;
 			else if (CharNStat & STMPARITYH)
-				ch |= TTY_PE;
-			else if (CharNStat & STMRCVROVRH)
+				err |= TRE_PARITY;
+			else if (CharNStat & STMRCVROVRH) {
 				rp->rp_overflows++;
+				err |= TRE_OVERRUN;
+			}
 
-			ttyld_rint(tp, ch);
+			ttydisc_rint(tp, ch, err);
 			ToRecv--;
 		}
 /*
@@ -634,42 +634,15 @@ static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			sDisRxStatusMode(cp);
 		}
 	} else {
-		/*
-		 * Avoid the grotesquely inefficient lineswitch routine
-		 * (ttyinput) in "raw" mode.  It usually takes about 450
-		 * instructions (that's without canonical processing or echo!).
-		 * slinput is reasonably fast (usually 40 instructions plus
-		 * call overhead).
-		 */
 		ToRecv = sGetRxCnt(cp);
-		if ( tp->t_state & TS_CAN_BYPASS_L_RINT ) {
-			if ( ToRecv > RXFIFO_SIZE ) {
-				ToRecv = RXFIFO_SIZE;
-			}
-			for ( i = 0, wRecv = ToRecv >> 1; wRecv > 0; i += 2, wRecv-- ) {
-				le16enc(rp->RxBuf + i,rp_readch2(cp,sGetTxRxDataIO(cp)));
-			}
-			if ( ToRecv & 1 ) {
-				rp->RxBuf[(ToRecv-1)] = rp_readch1(cp,sGetTxRxDataIO(cp));
-			}
-			tk_nin += ToRecv;
-			tk_rawcc += ToRecv;
-			tp->t_rawcc += ToRecv;
-			ttynocopy = b_to_q(rp->RxBuf, ToRecv, &tp->t_rawq);
-			ttwakeup(tp);
-		} else {
-			while (ToRecv) {
-				if(tp->t_state & TS_TBLOCK) {
-					break;
-				}
-				ch = (u_char) rp_readch1(cp,sGetTxRxDataIO(cp));
-				spl = spltty();
-				ttyld_rint(tp, ch);
-				splx(spl);
-				ToRecv--;
-			}
+		while (ToRecv) {
+			ch = rp_readch1(cp,sGetTxRxDataIO(cp));
+			ttydisc_rint(tp, ch & 0xff, err);
+			ToRecv--;
 		}
 	}
+        ttydisc_rint_done(tp);
+        tty_unlock(tp);
 }
 
 static void rp_handle_port(struct rp_port *rp)
@@ -687,21 +660,12 @@ static void rp_handle_port(struct rp_port *rp)
 	IntMask = IntMask & rp->rp_intmask;
 	ChanStatus = sGetChanStatus(cp);
 	if(IntMask & RXF_TRIG)
-		if(!(tp->t_state & TS_TBLOCK) && (tp->t_state & TS_CARR_ON) && (tp->t_state & TS_ISOPEN)) {
-			rp_do_receive(rp, tp, cp, ChanStatus);
-		}
+		rp_do_receive(rp, tp, cp, ChanStatus);
 	if(IntMask & DELTA_CD) {
 		if(ChanStatus & CD_ACT) {
-			if(!(tp->t_state & TS_CARR_ON) ) {
-				(void)ttyld_modem(tp, 1);
-			}
+			(void)ttydisc_modem(tp, 1);
 		} else {
-			if((tp->t_state & TS_CARR_ON)) {
-				(void)ttyld_modem(tp, 0);
-				if(ttyld_modem(tp, 0) == 0) {
-					rphardclose(tp);
-				}
-			}
+			(void)ttydisc_modem(tp, 0);
 		}
 	}
 /*	oldcts = rp->rp_cts;
@@ -740,15 +704,13 @@ static void rp_do_poll(void *not_used)
 	for(line = 0, rp = rp_addr(unit); line < rp_num_ports[unit];
 			line++, rp++) {
 		tp = rp->rp_tty;
-		if((tp->t_state & TS_BUSY) && (tp->t_state & TS_ISOPEN)) {
-			count = sGetTxCnt(&rp->rp_channel);
-			if(count == 0)
-				tp->t_state &= ~(TS_BUSY);
-			if(!(tp->t_state & TS_TTSTOP) &&
-				(count <= rp->rp_restart)) {
-				ttyld_start(tp);
-			}
+		tty_lock(tp);
+		count = sGetTxCnt(&rp->rp_channel);
+		if (count >= 0  &&
+		    (count <= rp->rp_restart)) {
+			rpstart(tp);
 		}
+		tty_unlock(tp);
 	}
 	}
 	if(rp_num_ports_open)
@@ -756,10 +718,31 @@ static void rp_do_poll(void *not_used)
 					    (void *)NULL, POLL_INTERVAL);
 }
 
+static struct ttydevsw rp_tty_class = {
+	.tsw_flags	= TF_INITLOCK|TF_CALLOUT,
+	.tsw_open	= rpopen,
+	.tsw_close	= rpclose,
+	.tsw_outwakeup	= rpstart,
+	.tsw_ioctl	= rpioctl,
+	.tsw_param	= rpparam,
+	.tsw_modem	= rpmodem,
+	.tsw_free	= rpfree,
+};
+
+
+static void
+rpfree(void *softc)
+{
+	struct	rp_port *rp = softc;
+	CONTROLLER_t *ctlp = rp->rp_ctlp;
+
+	atomic_subtract_32(&ctlp->free, 1);
+}
+
 int
 rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 {
-	int	oldspl, unit;
+	int	unit;
 	int	num_chan;
 	int	aiop, chan, port;
 	int	ChanStatus, line, count;
@@ -775,7 +758,7 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 	callout_handle_init(&rp_callout_handle);
 
 	ctlp->rp = rp = (struct rp_port *)
-		malloc(sizeof(struct rp_port) * num_ports, M_TTYS, M_NOWAIT | M_ZERO);
+		malloc(sizeof(struct rp_port) * num_ports, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (rp == NULL) {
 		device_printf(ctlp->dev, "rp_attachcommon: Could not malloc rp_ports structures.\n");
 		retval = ENOMEM;
@@ -785,26 +768,13 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 	count = unit * 32;      /* board times max ports per card SG */
 
 	bzero(rp, sizeof(struct rp_port) * num_ports);
-	oldspl = spltty();
 	rp_addr(unit) = rp;
-	splx(oldspl);
 
 	port = 0;
 	for(aiop=0; aiop < num_aiops; aiop++) {
 		num_chan = sGetAiopNumChan(ctlp, aiop);
 		for(chan=0; chan < num_chan; chan++, port++, rp++) {
-			tp = rp->rp_tty = ttyalloc();
-			tp->t_sc = rp;
-			tp->t_param = rpparam;
-			tp->t_oproc = rpstart;
-			tp->t_stop = rpstop;
-			tp->t_break = rpbreak;
-			tp->t_modem = rpmodem;
-			tp->t_close = rpclose;
-			tp->t_open = rpopen;
-			tp->t_ififosize = 512;
-			tp->t_ispeedwat = (speed_t)-1;
-			tp->t_ospeedwat = (speed_t)-1;
+			rp->rp_tty = tp = tty_alloc(&rp_tty_class, rp, NULL);
 			rp->rp_port = port;
 			rp->rp_ctlp = ctlp;
 			rp->rp_unit = unit;
@@ -826,11 +796,13 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 			rp->rp_cts = (ChanStatus & CTS_ACT) != 0;
 			line = (unit << 5) | (aiop << 3) | chan;
 			rp_table(line) = rp;
-			ttycreate(tp, TS_CALLOUT, "R%r%r", unit, port);
+			tty_makedev(tp, NULL, "R%r%r", unit, port);
 		}
 	}
 
 	rp_ndevs++;
+	mtx_init(&ctlp->hwmtx, "rp_hwmtx", NULL, MTX_DEF);
+	ctlp->hwmtx_init = 1;
 	return (0);
 
 nogo:
@@ -842,7 +814,7 @@ nogo:
 void
 rp_releaseresource(CONTROLLER_t *ctlp)
 {
-	int i, s, unit;
+	int i, unit;
 	struct	rp_port *rp;
 
 
@@ -850,21 +822,25 @@ rp_releaseresource(CONTROLLER_t *ctlp)
 	if (rp_addr(unit) != NULL) {
 		for (i = 0; i < rp_num_ports[unit]; i++) {
 			rp = rp_addr(unit) + i;
-			ttyfree(rp->rp_tty);
+			atomic_add_32(&ctlp->free, 1);
+			tty_lock(rp->rp_tty);
+			tty_rel_gone(rp->rp_tty);
 		}
 	}
 
+	while (ctlp->free != 0) {
+		pause("rpwt", hz / 10);
+	}
+
 	if (ctlp->rp != NULL) {
-		s = spltty();
 		for (i = 0 ; i < sizeof(p_rp_addr) / sizeof(*p_rp_addr) ; i++)
 			if (p_rp_addr[i] == ctlp->rp)
 				p_rp_addr[i] = NULL;
 		for (i = 0 ; i < sizeof(p_rp_table) / sizeof(*p_rp_table) ; i++)
 			if (p_rp_table[i] == ctlp->rp)
 				p_rp_table[i] = NULL;
-		splx(s);
-		free(ctlp->rp, M_DEVBUF);
-		ctlp->rp = NULL;
+                free(ctlp->rp, M_DEVBUF);
+                ctlp->rp = NULL;
 	}
 }
 
@@ -875,15 +851,13 @@ rp_untimeout(void)
 }
 
 static int
-rpopen(struct tty *tp, struct cdev *dev)
+rpopen(struct tty *tp)
 {
 	struct	rp_port *rp;
-	int	oldspl, flags;
+	int	flags;
 	unsigned int	IntMask, ChanStatus;
 
-	rp = dev->si_drv1;
-
-	oldspl = spltty();
+	rp = tty_softc(tp);
 
 	flags = 0;
 	flags |= SET_RTS;
@@ -938,7 +912,7 @@ rpclose(struct tty *tp)
 {
 	struct	rp_port	*rp;
 
-	rp = tp->t_sc;
+	rp = tty_softc(tp);
 	rphardclose(tp);
 	device_unbusy(rp->rp_ctlp->dev);
 }
@@ -949,7 +923,7 @@ rphardclose(struct tty *tp)
 	struct	rp_port	*rp;
 	CHANNEL_t	*cp;
 
-	rp = tp->t_sc;
+	rp = tty_softc(tp);
 	cp = &rp->rp_channel;
 
 	sFlushRxFIFO(cp);
@@ -961,6 +935,7 @@ rphardclose(struct tty *tp)
 	sDisTxSoftFlowCtl(cp);
 	sClrTxXOFF(cp);
 
+#ifdef DJA
 	if(tp->t_cflag&HUPCL || !(tp->t_state&TS_ISOPEN) || !tp->t_actout) {
 		sClrDTR(cp);
 	}
@@ -970,18 +945,24 @@ rphardclose(struct tty *tp)
 	tp->t_actout = FALSE;
 	wakeup(&tp->t_actout);
 	wakeup(TSA_CARR_ON(tp));
+#endif /* DJA */
 }
 
-static void
-rpbreak(struct tty *tp, int sig)
+static int
+rpioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
 	struct rp_port	*rp;
 
-	rp = tp->t_sc;
-	if (sig) {
+	rp = tty_softc(tp);
+	switch (cmd) {
+	case TIOCSBRK:
 		sSendBreak(&rp->rp_channel);
-	} else {
+		return (0);
+	case TIOCCBRK:
 		sClrBreak(&rp->rp_channel);
+		return (0);
+	default:
+		return ENOIOCTL;
 	}
 }
 
@@ -991,7 +972,7 @@ rpmodem(struct tty *tp, int sigon, int sigoff)
 	struct rp_port	*rp;
 	int i, j, k;
 
-	rp = tp->t_sc;
+	rp = tty_softc(tp);
 	if (sigon != 0 || sigoff != 0) {
 		i = j = 0;
 		if (sigon & SER_DTR)
@@ -1025,7 +1006,11 @@ rpmodem(struct tty *tp, int sigon, int sigoff)
 	return (0);
 }
 
-static struct speedtab baud_table[] = {
+static struct
+{
+	int baud;
+	int conversion;
+} baud_table[] = {
 	{B0,	0},		{B50,	BRD50},		{B75,	BRD75},
 	{B110,	BRD110}, 	{B134,	BRD134}, 	{B150,	BRD150},
 	{B200,	BRD200}, 	{B300,	BRD300}, 	{B600,	BRD600},
@@ -1037,6 +1022,17 @@ static struct speedtab baud_table[] = {
 	{-1,	-1}
 };
 
+static int rp_convert_baud(int baud) {
+	int i;
+
+	for (i = 0; baud_table[i].baud >= 0; i++) {
+		if (baud_table[i].baud == baud)
+			break;
+	}
+
+	return baud_table[i].conversion;
+}
+
 static int
 rpparam(tp, t)
 	struct tty *tp;
@@ -1044,16 +1040,14 @@ rpparam(tp, t)
 {
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
-	int	oldspl, cflag, iflag, oflag, lflag;
+	int	cflag, iflag, oflag, lflag;
 	int	ospeed;
 #ifdef RPCLOCAL
 	int	devshift;
 #endif
 
-
-	rp = tp->t_sc;
+	rp = tty_softc(tp);
 	cp = &rp->rp_channel;
-	oldspl = spltty();
 
 	cflag = t->c_cflag;
 #ifdef RPCLOCAL
@@ -1067,16 +1061,9 @@ rpparam(tp, t)
 	oflag = t->c_oflag;
 	lflag = t->c_lflag;
 
-	ospeed = ttspeedtab(t->c_ispeed, baud_table);
+	ospeed = rp_convert_baud(t->c_ispeed);
 	if(ospeed < 0 || t->c_ispeed != t->c_ospeed)
 		return(EINVAL);
-
-	tp->t_ispeed = t->c_ispeed;
-	tp->t_ospeed = t->c_ospeed;
-	tp->t_cflag = cflag;
-	tp->t_iflag = iflag;
-	tp->t_oflag = oflag;
-	tp->t_lflag = lflag;
 
 	if(t->c_ospeed == 0) {
 		sClrDTR(cp);
@@ -1143,104 +1130,36 @@ rpparam(tp, t)
 	} else {
 		sDisRTSFlowCtl(cp);
 	}
-	ttyldoptim(tp);
-
-	if((cflag & CLOCAL) || (sGetChanStatusLo(cp) & CD_ACT)) {
-		tp->t_state |= TS_CARR_ON;
-		wakeup(TSA_CARR_ON(tp));
-	}
-
-/*	tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	flags = rp->rp_channel.TxControl[3];
-	if(flags & SET_DTR)
-	else
-	if(flags & SET_RTS)
-	else
-*/
-	splx(oldspl);
 
 	return(0);
 }
 
 static void
-rpstart(tp)
-	struct tty *tp;
+rpstart(struct tty *tp)
 {
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
-	struct	clist	*qp;
 	char	flags;
-	int	spl, xmit_fifo_room;
+	int	xmit_fifo_room;
 	int	i, count, wcount;
 
-
-	rp = tp->t_sc;
+	rp = tty_softc(tp);
 	cp = &rp->rp_channel;
 	flags = rp->rp_channel.TxControl[3];
-	spl = spltty();
 
-	if(tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
-		ttwwakeup(tp);
-		splx(spl);
-		return;
-	}
 	if(rp->rp_xmit_stopped) {
 		sEnTransmit(cp);
 		rp->rp_xmit_stopped = 0;
 	}
-	count = sGetTxCnt(cp);
 
-	if(tp->t_outq.c_cc == 0) {
-		if((tp->t_state & TS_BUSY) && (count == 0)) {
-			tp->t_state &= ~TS_BUSY;
-		}
-		ttwwakeup(tp);
-		splx(spl);
-		return;
-	}
 	xmit_fifo_room = TXFIFO_SIZE - sGetTxCnt(cp);
-	qp = &tp->t_outq;
-	if(xmit_fifo_room > 0 && qp->c_cc > 0) {
-		tp->t_state |= TS_BUSY;
-		count = q_to_b( qp, rp->TxBuf, xmit_fifo_room );
+	count = ttydisc_getc(tp, &rp->TxBuf, xmit_fifo_room);
+	if(xmit_fifo_room > 0) {
 		for( i = 0, wcount = count >> 1; wcount > 0; i += 2, wcount-- ) {
-			rp_writech2(cp, sGetTxRxDataIO(cp), le16dec(rp->TxBuf + i));
+			rp_writech2(cp, sGetTxRxDataIO(cp), le16dec(&rp->TxBuf[i]));
 		}
 		if ( count & 1 ) {
 			rp_writech1(cp, sGetTxRxDataIO(cp), rp->TxBuf[(count-1)]);
 		}
 	}
-	rp->rp_restart = (qp->c_cc > 0) ? rp->rp_fifo_lw : 0;
-
-	ttwwakeup(tp);
-	splx(spl);
-}
-
-static
-void
-rpstop(tp, flag)
-	register struct tty *tp;
-	int	flag;
-{
-	struct rp_port	*rp;
-	CHANNEL_t	*cp;
-	int	spl;
-
-	rp = tp->t_sc;
-	cp = &rp->rp_channel;
-
-	spl = spltty();
-
-	if(tp->t_state & TS_BUSY) {
-		if((tp->t_state&TS_TTSTOP) == 0) {
-			sFlushTxFIFO(cp);
-		} else {
-			if(rp->rp_xmit_stopped == 0) {
-				sDisTransmit(cp);
-				rp->rp_xmit_stopped = 1;
-			}
-		}
-	}
-	splx(spl);
-	rpstart(tp);
 }

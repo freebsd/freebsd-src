@@ -67,7 +67,6 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 	struct vnode *dvp = v->a_dvp;
 	struct vnode **vpp = v->a_vpp;
 	struct componentname *cnp = v->a_cnp;
-	struct thread *td = cnp->cn_thread;
 
 	int error;
 	struct tmpfs_dirent *de;
@@ -77,7 +76,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 	*vpp = NULLVP;
 
 	/* Check accessibility of requested node as a first step. */
-	error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td);
+	error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, cnp->cn_thread);
 	if (error != 0)
 		goto out;
 
@@ -94,7 +93,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		VOP_UNLOCK(dvp, 0);
 		/* Allocate a new vnode on the matching entry. */
 		error = tmpfs_alloc_vp(dvp->v_mount, dnode->tn_dir.tn_parent,
-		    cnp->cn_lkflags, vpp, td);
+		    cnp->cn_lkflags, vpp);
 
 		vn_lock(dvp, ltype | LK_RETRY);
 		vdrop(dvp);
@@ -155,7 +154,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 
 				/* Allocate a new vnode on the matching entry. */
 				error = tmpfs_alloc_vp(dvp->v_mount, tnode,
-						cnp->cn_lkflags, vpp, td);
+						cnp->cn_lkflags, vpp);
 				if (error != 0)
 					goto out;
 
@@ -170,7 +169,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 				cnp->cn_flags |= SAVENAME;
 			} else {
 				error = tmpfs_alloc_vp(dvp->v_mount, tnode,
-						cnp->cn_lkflags, vpp, td);
+						cnp->cn_lkflags, vpp);
 			}
 		}
 	}

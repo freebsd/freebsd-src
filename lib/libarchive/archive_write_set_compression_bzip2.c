@@ -47,9 +47,10 @@ __FBSDID("$FreeBSD$");
 
 #ifndef HAVE_BZLIB_H
 int
-archive_write_set_compression_bzip2(struct archive *_a)
+archive_write_set_compression_bzip2(struct archive *a)
 {
-	/* Unsupported bzip2 compression, we don't have bzlib */
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    "bzip2 compression not supported on this platform");
 	return (ARCHIVE_FATAL);
 }
 #else
@@ -62,6 +63,9 @@ struct private_data {
 	size_t		 compressed_buffer_size;
 };
 
+struct private_config {
+	int		 compression_level;
+};
 
 /*
  * Yuck.  bzlib.h is not const-correct, so I need this one bit
@@ -72,6 +76,8 @@ struct private_data {
 
 static int	archive_compressor_bzip2_finish(struct archive_write *);
 static int	archive_compressor_bzip2_init(struct archive_write *);
+static int	archive_compressor_bzip2_options(struct archive_write *,
+		    const char *, const char *);
 static int	archive_compressor_bzip2_write(struct archive_write *,
 		    const void *, size_t);
 static int	drive_compressor(struct archive_write *, struct private_data *,
@@ -84,9 +90,21 @@ int
 archive_write_set_compression_bzip2(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
+	struct private_config *config;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_compression_bzip2");
+	config = malloc(sizeof(*config));
+	if (config == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
+	a->compressor.config = config;
+	a->compressor.finish = archive_compressor_bzip2_finish;
+	config->compression_level = 9; /* default */
 	a->compressor.init = &archive_compressor_bzip2_init;
+	a->compressor.options = &archive_compressor_bzip2_options;
+	a->archive.compression_code = ARCHIVE_COMPRESSION_BZIP2;
+	a->archive.compression_name = "bzip2";
 	return (ARCHIVE_OK);
 }
 
@@ -98,10 +116,9 @@ archive_compressor_bzip2_init(struct archive_write *a)
 {
 	int ret;
 	struct private_data *state;
+	struct private_config *config;
 
-	a->archive.compression_code = ARCHIVE_COMPRESSION_BZIP2;
-	a->archive.compression_name = "bzip2";
-
+	config = (struct private_config *)a->compressor.config;
 	if (a->client_opener != NULL) {
 		ret = (a->client_opener)(&a->archive, a->client_data);
 		if (ret != 0)
@@ -129,10 +146,10 @@ archive_compressor_bzip2_init(struct archive_write *a)
 	state->stream.next_out = state->compressed;
 	state->stream.avail_out = state->compressed_buffer_size;
 	a->compressor.write = archive_compressor_bzip2_write;
-	a->compressor.finish = archive_compressor_bzip2_finish;
 
 	/* Initialize compression library */
-	ret = BZ2_bzCompressInit(&(state->stream), 9, 0, 30);
+	ret = BZ2_bzCompressInit(&(state->stream),
+	    config->compression_level, 0, 30);
 	if (ret == BZ_OK) {
 		a->compressor.data = state;
 		return (ARCHIVE_OK);
@@ -165,6 +182,32 @@ archive_compressor_bzip2_init(struct archive_write *a)
 
 	return (ARCHIVE_FATAL);
 
+}
+
+/*
+ * Set write options.
+ */
+static int
+archive_compressor_bzip2_options(struct archive_write *a, const char *key,
+    const char *value)
+{
+	struct private_config *config;
+
+	config = (struct private_config *)a->compressor.config;
+	if (strcmp(key, "compression-level") == 0) {
+		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
+		    value[1] != '\0')
+			return (ARCHIVE_WARN);
+		config->compression_level = value[0] - '0';
+		/* Make '0' be a synonym for '1'. */
+		/* This way, bzip2 compressor supports the same 0..9
+		 * range of levels as gzip. */
+		if (config->compression_level < 1)
+			config->compression_level = 1;
+		return (ARCHIVE_OK);
+	}
+
+	return (ARCHIVE_WARN);
 }
 
 /*
@@ -212,83 +255,88 @@ archive_compressor_bzip2_finish(struct archive_write *a)
 	ssize_t bytes_written;
 	unsigned tocopy;
 
-	state = (struct private_data *)a->compressor.data;
 	ret = ARCHIVE_OK;
-	if (a->client_writer == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "No write callback is registered?\n"
-		    "This is probably an internal programming error.");
-		ret = ARCHIVE_FATAL;
-		goto cleanup;
-	}
-
-	/* By default, always pad the uncompressed data. */
-	if (a->pad_uncompressed) {
-		tocopy = a->bytes_per_block -
-		    (state->total_in % a->bytes_per_block);
-		while (tocopy > 0 && tocopy < (unsigned)a->bytes_per_block) {
-			SET_NEXT_IN(state, a->nulls);
-			state->stream.avail_in = tocopy < a->null_length ?
-			    tocopy : a->null_length;
-			state->total_in += state->stream.avail_in;
-			tocopy -= state->stream.avail_in;
-			ret = drive_compressor(a, state, 0);
-			if (ret != ARCHIVE_OK)
-				goto cleanup;
+	state = (struct private_data *)a->compressor.data;
+	if (state != NULL) {
+		if (a->client_writer == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_PROGRAMMER,
+			    "No write callback is registered?\n"
+			    "This is probably an internal programming error.");
+			ret = ARCHIVE_FATAL;
+			goto cleanup;
 		}
-	}
 
-	/* Finish compression cycle. */
-	if ((ret = drive_compressor(a, state, 1)))
-		goto cleanup;
+		/* By default, always pad the uncompressed data. */
+		if (a->pad_uncompressed) {
+			tocopy = a->bytes_per_block -
+			    (state->total_in % a->bytes_per_block);
+			while (tocopy > 0 && tocopy < (unsigned)a->bytes_per_block) {
+				SET_NEXT_IN(state, a->nulls);
+				state->stream.avail_in = tocopy < a->null_length ?
+				    tocopy : a->null_length;
+				state->total_in += state->stream.avail_in;
+				tocopy -= state->stream.avail_in;
+				ret = drive_compressor(a, state, 0);
+				if (ret != ARCHIVE_OK)
+					goto cleanup;
+			}
+		}
 
-	/* Optionally, pad the final compressed block. */
-	block_length = state->stream.next_out - state->compressed;
+		/* Finish compression cycle. */
+		if ((ret = drive_compressor(a, state, 1)))
+			goto cleanup;
 
+		/* Optionally, pad the final compressed block. */
+		block_length = state->stream.next_out - state->compressed;
 
-	/* Tricky calculation to determine size of last block. */
-	target_block_length = block_length;
-	if (a->bytes_in_last_block <= 0)
-		/* Default or Zero: pad to full block */
-		target_block_length = a->bytes_per_block;
-	else
-		/* Round length to next multiple of bytes_in_last_block. */
-		target_block_length = a->bytes_in_last_block *
-		    ( (block_length + a->bytes_in_last_block - 1) /
-			a->bytes_in_last_block);
-	if (target_block_length > a->bytes_per_block)
-		target_block_length = a->bytes_per_block;
-	if (block_length < target_block_length) {
-		memset(state->stream.next_out, 0,
-		    target_block_length - block_length);
-		block_length = target_block_length;
-	}
+		/* Tricky calculation to determine size of last block. */
+		target_block_length = block_length;
+		if (a->bytes_in_last_block <= 0)
+			/* Default or Zero: pad to full block */
+			target_block_length = a->bytes_per_block;
+		else
+			/* Round length to next multiple of bytes_in_last_block. */
+			target_block_length = a->bytes_in_last_block *
+			    ( (block_length + a->bytes_in_last_block - 1) /
+				a->bytes_in_last_block);
+		if (target_block_length > a->bytes_per_block)
+			target_block_length = a->bytes_per_block;
+		if (block_length < target_block_length) {
+			memset(state->stream.next_out, 0,
+			    target_block_length - block_length);
+			block_length = target_block_length;
+		}
 
-	/* Write the last block */
-	bytes_written = (a->client_writer)(&a->archive, a->client_data,
-	    state->compressed, block_length);
+		/* Write the last block */
+		bytes_written = (a->client_writer)(&a->archive, a->client_data,
+		    state->compressed, block_length);
 
-	/* TODO: Handle short write of final block. */
-	if (bytes_written <= 0)
-		ret = ARCHIVE_FATAL;
-	else {
-		a->archive.raw_position += ret;
-		ret = ARCHIVE_OK;
-	}
+		/* TODO: Handle short write of final block. */
+		if (bytes_written <= 0)
+			ret = ARCHIVE_FATAL;
+		else {
+			a->archive.raw_position += ret;
+			ret = ARCHIVE_OK;
+		}
 
-	/* Cleanup: shut down compressor, release memory, etc. */
+		/* Cleanup: shut down compressor, release memory, etc. */
 cleanup:
-	switch (BZ2_bzCompressEnd(&(state->stream))) {
-	case BZ_OK:
-		break;
-	default:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "Failed to clean up compressor");
-		ret = ARCHIVE_FATAL;
-	}
+		switch (BZ2_bzCompressEnd(&(state->stream))) {
+		case BZ_OK:
+			break;
+		default:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+			    "Failed to clean up compressor");
+			ret = ARCHIVE_FATAL;
+		}
 
-	free(state->compressed);
-	free(state);
+		free(state->compressed);
+		free(state);
+	}
+	/* Free configuration data even if we were never fully initialized. */
+	free(a->compressor.config);
+	a->compressor.config = NULL;
 	return (ret);
 }
 

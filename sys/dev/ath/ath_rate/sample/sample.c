@@ -766,6 +766,15 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 				sn->static_rix = sc->sc_rixmap[tp->ucastrate];
 				break;
 			}
+#ifdef IEEE80211_DEBUG
+			if (sn->static_rix == -1) {
+				IEEE80211_NOTE(ni->ni_vap,
+				    IEEE80211_MSG_RATECTL, ni,
+				    "%s: ucastrate %u not found, nrates %u",
+				    __func__, tp->ucastrate,
+				    ni->ni_rates.rs_nrates);
+			}
+#endif
 	}
 
 	/*

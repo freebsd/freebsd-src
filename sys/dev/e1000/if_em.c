@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -39,6 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf_ring.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -93,7 +94,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "6.9.6";
+char em_driver_version[] = "6.9.9";
 
 
 /*********************************************************************
@@ -278,10 +279,8 @@ static void	em_set_multi(struct adapter *);
 static void	em_print_hw_stats(struct adapter *);
 static void	em_update_link_status(struct adapter *);
 static int	em_get_buf(struct adapter *, int);
-
 static void	em_register_vlan(void *, struct ifnet *, u16);
 static void	em_unregister_vlan(void *, struct ifnet *, u16);
-
 static int	em_xmit(struct adapter *, struct mbuf **);
 static void	em_smartspeed(struct adapter *);
 static int	em_82547_fifo_workaround(struct adapter *, int);
@@ -322,17 +321,19 @@ static void	em_irq_fast(void *);
 #else
 static int	em_irq_fast(void *);
 #endif
+
 /* MSIX handlers */
 static void	em_msix_tx(void *);
 static void	em_msix_rx(void *);
 static void	em_msix_link(void *);
-static void	em_add_rx_process_limit(struct adapter *, const char *,
-		    const char *, int *, int);
-static void	em_handle_rxtx(void *context, int pending);
 static void	em_handle_rx(void *context, int pending);
 static void	em_handle_tx(void *context, int pending);
+
+static void	em_handle_rxtx(void *context, int pending);
 static void	em_handle_link(void *context, int pending);
-#endif /* EM_LEGACY_IRQ */
+static void	em_add_rx_process_limit(struct adapter *, const char *,
+		    const char *, int *, int);
+#endif /* ~EM_LEGACY_IRQ */
 
 #ifdef DEVICE_POLLING
 static poll_handler_t em_poll;
@@ -514,8 +515,8 @@ em_attach(device_t dev)
 	** identified
 	*/
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan)) {
+	    (adapter->hw.mac.type == e1000_ich9lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan)) {
 		int rid = EM_BAR_TYPE_FLASH;
 		adapter->flash = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -644,6 +645,13 @@ em_attach(device_t dev)
 	adapter->rx_desc_base =
 	    (struct e1000_rx_desc *)adapter->rxdma.dma_vaddr;
 
+	/*
+	** Start from a known state, this is
+	** important in reading the nvm and
+	** mac from that.
+	*/
+	e1000_reset_hw(&adapter->hw);
+
 	/* Make sure we have a good EEPROM before we read from it */
 	if (e1000_validate_nvm_checksum(&adapter->hw) < 0) {
 		/*
@@ -659,13 +667,6 @@ em_attach(device_t dev)
 		}
 	}
 
-	/* Initialize the hardware */
-	if (em_hardware_init(adapter)) {
-		device_printf(dev, "Unable to initialize the hardware\n");
-		error = EIO;
-		goto err_hw_init;
-	}
-
 	/* Copy the permanent MAC address out of the EEPROM */
 	if (e1000_read_mac_addr(&adapter->hw) < 0) {
 		device_printf(dev, "EEPROM read error while reading MAC"
@@ -676,6 +677,13 @@ em_attach(device_t dev)
 
 	if (!em_is_valid_ether_addr(adapter->hw.mac.addr)) {
 		device_printf(dev, "Invalid MAC address\n");
+		error = EIO;
+		goto err_hw_init;
+	}
+
+	/* Initialize the hardware */
+	if (em_hardware_init(adapter)) {
+		device_printf(dev, "Unable to initialize the hardware\n");
 		error = EIO;
 		goto err_hw_init;
 	}
@@ -890,6 +898,7 @@ em_detach(device_t dev)
 	bus_generic_detach(dev);
 	if_free(ifp);
 
+	drbr_free(adapter->br, M_DEVBUF);
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -984,6 +993,74 @@ em_resume(device_t dev)
  *  the packet is requeued.
  **********************************************************************/
 
+#ifdef IFNET_BUF_RING
+static int
+em_transmit_locked(struct ifnet *ifp, struct mbuf *m)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	int error;
+
+	EM_TX_LOCK_ASSERT(adapter);
+	if (((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+	    || (!adapter->link_active)) {
+		error = drbr_enqueue(ifp, adapter->br, m);
+		return (error);
+	}
+	
+	if (ADAPTER_RING_EMPTY(adapter) &&
+	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
+		if (em_xmit(adapter, &m)) {
+			if (m && (error = drbr_enqueue(ifp, adapter->br, m)) != 0)
+				return (error);
+		} else {
+			/*
+			** Send a copy of the frame to the BPF
+			** listener and set the watchdog on.
+			*/
+			ETHER_BPF_MTAP(ifp, m);
+			adapter->watchdog_timer = EM_TX_TIMEOUT;
+		}
+	} else if ((error = drbr_enqueue(ifp, adapter->br, m)) != 0)
+		return (error);
+	
+	if (!ADAPTER_RING_EMPTY(adapter))
+		em_start_locked(ifp);
+
+	return (0);
+}
+	
+static int
+em_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	
+	struct adapter *adapter = ifp->if_softc;
+	int error = 0;
+
+	if(EM_TX_TRYLOCK(adapter)) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			error = em_transmit_locked(ifp, m);
+		EM_TX_UNLOCK(adapter);
+	} else 
+		error = drbr_enqueue(ifp, adapter->br, m);
+
+	return (error);
+}
+
+static void
+em_qflush(struct ifnet *ifp)
+{
+	struct mbuf *m;
+	struct adapter *adapter = (struct adapter *)ifp->if_softc;
+
+	EM_TX_LOCK(adapter);
+	while ((m = buf_ring_dequeue_sc(adapter->br)) != NULL)
+		m_freem(m);
+	if_qflush(ifp);
+	EM_TX_UNLOCK(adapter);
+}
+#endif
+
 static void
 em_start_locked(struct ifnet *ifp)
 {
@@ -998,9 +1075,10 @@ em_start_locked(struct ifnet *ifp)
 	if (!adapter->link_active)
 		return;
 
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	while ((adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)
+	    && (!ADAPTER_RING_EMPTY(adapter))) {
 
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = em_dequeue(ifp, adapter->br);
 		if (m_head == NULL)
 			break;
 		/*
@@ -1010,8 +1088,10 @@ em_start_locked(struct ifnet *ifp)
 		if (em_xmit(adapter, &m_head)) {
 			if (m_head == NULL)
 				break;
+#ifndef IFNET_BUF_RING
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+#endif
 			break;
 		}
 
@@ -1021,6 +1101,9 @@ em_start_locked(struct ifnet *ifp)
 		/* Set timeout in case hardware has problems transmitting. */
 		adapter->watchdog_timer = EM_TX_TIMEOUT;
 	}
+	if ((adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD))
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+
 }
 
 static void
@@ -1463,8 +1546,6 @@ em_init_locked(struct adapter *adapter)
 	/* Setup VLAN support, basic and offload if available */
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
-	/* New register interface replaces this but
-	   waiting on kernel support to be added */
 	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) &&
 	    ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)) {
 		u32 ctrl;
@@ -1472,6 +1553,7 @@ em_init_locked(struct adapter *adapter)
 		ctrl |= E1000_CTRL_VME;
 		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
 	}
+
 
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -1597,7 +1679,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	EM_TX_LOCK(adapter);
 	em_txeof(adapter);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!ADAPTER_RING_EMPTY(adapter))
 		em_start_locked(ifp);
 	EM_TX_UNLOCK(adapter);
 }
@@ -1622,51 +1704,37 @@ em_intr(void *arg)
 		return;
 
 	EM_CORE_LOCK(adapter);
-	for (;;) {
-		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+	if ((reg_icr == 0xffffffff) || (reg_icr == 0)||
+	    (adapter->hw.mac.type >= e1000_82571 &&
+	    (reg_icr & E1000_ICR_INT_ASSERTED) == 0))
+			goto out;
 
-		if (adapter->hw.mac.type >= e1000_82571 &&
-	    	    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
-			break;
-		else if (reg_icr == 0)
-			break;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			goto out;
 
-		/*
-		 * XXX: some laptops trigger several spurious interrupts
-		 * on em(4) when in the resume cycle. The ICR register
-		 * reports all-ones value in this case. Processing such
-		 * interrupts would lead to a freeze. I don't know why.
-		 */
-		if (reg_icr == 0xffffffff)
-			break;
+	EM_TX_LOCK(adapter);
+	em_txeof(adapter);
+	em_rxeof(adapter, -1);
+	em_txeof(adapter);
+	EM_TX_UNLOCK(adapter);
 
-		EM_CORE_UNLOCK(adapter);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			em_rxeof(adapter, -1);
-			EM_TX_LOCK(adapter);
-			em_txeof(adapter);
-			EM_TX_UNLOCK(adapter);
-		}
-		EM_CORE_LOCK(adapter);
-
-		/* Link status change */
-		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-			callout_stop(&adapter->timer);
-			adapter->hw.mac.get_link_status = 1;
-			em_update_link_status(adapter);
-			/* Deal with TX cruft when link lost */
-			em_tx_purge(adapter);
-			callout_reset(&adapter->timer, hz,
-			    em_local_timer, adapter);
-		}
-
-		if (reg_icr & E1000_ICR_RXO)
-			adapter->rx_overruns++;
+	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+		callout_stop(&adapter->timer);
+		adapter->hw.mac.get_link_status = 1;
+		em_update_link_status(adapter);
+		/* Deal with TX cruft when link lost */
+		em_tx_purge(adapter);
+		callout_reset(&adapter->timer, hz,
+		    em_local_timer, adapter);
 	}
-	EM_CORE_UNLOCK(adapter);
 
+	if (reg_icr & E1000_ICR_RXO)
+		adapter->rx_overruns++;
+out:
+	EM_CORE_UNLOCK(adapter);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	    !ADAPTER_RING_EMPTY(adapter))
 		em_start(ifp);
 }
 
@@ -1705,39 +1773,12 @@ em_handle_rxtx(void *context, int pending)
 		EM_TX_LOCK(adapter);
 		em_txeof(adapter);
 
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!ADAPTER_RING_EMPTY(adapter))
 			em_start_locked(ifp);
 		EM_TX_UNLOCK(adapter);
 	}
 
 	em_enable_intr(adapter);
-}
-
-static void
-em_handle_rx(void *context, int pending)
-{
-	struct adapter	*adapter = context;
-	struct ifnet	*ifp = adapter->ifp;
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-	    (em_rxeof(adapter, adapter->rx_process_limit) != 0))
-		taskqueue_enqueue(adapter->tq, &adapter->rx_task);
-
-}
-
-static void
-em_handle_tx(void *context, int pending)
-{
-	struct adapter	*adapter = context;
-	struct ifnet	*ifp = adapter->ifp;
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		EM_TX_LOCK(adapter);
-		em_txeof(adapter);
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			em_start_locked(ifp);
-		EM_TX_UNLOCK(adapter);
-	}
 }
 
 /*********************************************************************
@@ -1867,6 +1908,35 @@ em_msix_link(void *arg)
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS,
 	    EM_MSIX_LINK | E1000_IMS_LSC);
 	return;
+}
+
+static void
+em_handle_rx(void *context, int pending)
+{
+	struct adapter	*adapter = context;
+	struct ifnet	*ifp = adapter->ifp;
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+	    (em_rxeof(adapter, adapter->rx_process_limit) != 0))
+		taskqueue_enqueue(adapter->tq, &adapter->rx_task);
+
+}
+
+static void
+em_handle_tx(void *context, int pending)
+{
+	struct adapter	*adapter = context;
+	struct ifnet	*ifp = adapter->ifp;
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (!EM_TX_TRYLOCK(adapter))
+			return;
+
+		em_txeof(adapter);
+		if (!ADAPTER_RING_EMPTY(adapter))
+			em_start_locked(ifp);
+		EM_TX_UNLOCK(adapter);
+	}
 }
 #endif /* EM_FAST_IRQ */
 
@@ -2083,22 +2153,14 @@ em_xmit(struct adapter *adapter, struct mbuf **m_headp)
 		error = bus_dmamap_load_mbuf_sg(adapter->txtag, map,
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
-		if (error == ENOMEM) {
-			adapter->no_tx_dma_setup++;
-			return (error);
-		} else if (error != 0) {
+		if (error) {
 			adapter->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
-	} else if (error == ENOMEM) {
-		adapter->no_tx_dma_setup++;
-		return (error);
 	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
-		m_freem(*m_headp);
-		*m_headp = NULL;
 		return (error);
 	}
 
@@ -2468,7 +2530,7 @@ em_set_multi(struct adapter *adapter)
 	struct ifnet	*ifp = adapter->ifp;
 	struct ifmultiaddr *ifma;
 	u32 reg_rctl = 0;
-	u8  mta[512]; /* Largest MTS is 4096 bits */
+	u8  *mta; /* Multicast array memory */
 	int mcnt = 0;
 
 	IOCTL_DEBUGOUT("em_set_multi: begin");
@@ -2482,6 +2544,13 @@ em_set_multi(struct adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 		msec_delay(5);
 	}
+
+	/* Allocate temporary memory to setup array */
+	mta = malloc(sizeof(u8) *
+	    (ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (mta == NULL)
+		panic("em_set_multi memory failure\n");
 
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -2502,8 +2571,7 @@ em_set_multi(struct adapter *adapter)
 		reg_rctl |= E1000_RCTL_MPE;
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 	} else
-		e1000_update_mc_addr_list(&adapter->hw, mta,
-		    mcnt, 1, adapter->hw.mac.rar_entry_count);
+		e1000_update_mc_addr_list(&adapter->hw, mta, mcnt);
 
 	if (adapter->hw.mac.type == e1000_82542 && 
 	    adapter->hw.revision_id == E1000_REVISION_2) {
@@ -2514,6 +2582,7 @@ em_set_multi(struct adapter *adapter)
 		if (adapter->hw.bus.pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
 			e1000_pci_set_mwi(&adapter->hw);
 	}
+	free(mta, M_DEVBUF);
 }
 
 
@@ -2532,6 +2601,8 @@ em_local_timer(void *arg)
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
+	taskqueue_enqueue(adapter->tq,
+	    &adapter->rxtx_task);
 	em_update_link_status(adapter);
 	em_update_stats_counters(adapter);
 
@@ -2876,6 +2947,11 @@ em_allocate_msix(struct adapter *adapter)
 	 */
 	TASK_INIT(&adapter->rx_task, 0, em_handle_rx, adapter);
 	TASK_INIT(&adapter->tx_task, 0, em_handle_tx, adapter);
+	/*
+	 * Handle compatibility for msi case for deferral due to
+	 * trylock failure
+	 */
+	TASK_INIT(&adapter->rxtx_task, 0, em_handle_tx, adapter);
 	TASK_INIT(&adapter->link_task, 0, em_handle_link, adapter);
 	adapter->tq = taskqueue_create_fast("em_taskq", M_NOWAIT,
 	    taskqueue_thread_enqueue, &adapter->tq);
@@ -2925,6 +3001,7 @@ em_allocate_msix(struct adapter *adapter)
 	return (0);
 }
 
+
 static void
 em_free_pci_resources(struct adapter *adapter)
 {
@@ -2973,7 +3050,7 @@ em_free_pci_resources(struct adapter *adapter)
 }
 
 /*
- * Setup MSI/X
+ * Setup MSI or MSI/X
  */
 static int
 em_setup_msix(struct adapter *adapter)
@@ -3126,6 +3203,11 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
+#ifdef IFNET_BUF_RING
+	ifp->if_transmit = em_transmit;
+	ifp->if_qflush = em_qflush;
+	adapter->br = buf_ring_alloc(2048, M_DEVBUF, M_WAITOK, &adapter->tx_mtx);
+#endif	
 	if (adapter->hw.mac.type >= e1000_82543) {
 		int version_cap;
 #if __FreeBSD_version < 700000
@@ -3908,6 +3990,7 @@ static void
 em_txeof(struct adapter *adapter)
 {
         int first, last, done, num_avail;
+	u32 cleaned = 0;
         struct em_buffer *tx_buffer;
         struct e1000_tx_desc   *tx_desc, *eop_desc;
 	struct ifnet   *ifp = adapter->ifp;
@@ -3943,7 +4026,7 @@ em_txeof(struct adapter *adapter)
                 	tx_desc->upper.data = 0;
                 	tx_desc->lower.data = 0;
                 	tx_desc->buffer_addr = 0;
-                	num_avail++;
+                	++num_avail; ++cleaned;
 
 			if (tx_buffer->m_head) {
 				ifp->if_opackets++;
@@ -3980,21 +4063,22 @@ em_txeof(struct adapter *adapter)
         adapter->next_tx_to_clean = first;
 
         /*
-         * If we have enough room, clear IFF_DRV_OACTIVE to tell the stack
-         * that it is OK to send packets.
-         * If there are no pending descriptors, clear the timeout. Otherwise,
-         * if some descriptors have been freed, restart the timeout.
+         * If we have enough room, clear IFF_DRV_OACTIVE to
+         * tell the stack that it is OK to send packets.
+         * If there are no pending descriptors, clear the timeout.
          */
         if (num_avail > EM_TX_CLEANUP_THRESHOLD) {                
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		/* All clean, turn off the timer */
                 if (num_avail == adapter->num_tx_desc) {
 			adapter->watchdog_timer = 0;
-		} else
-		/* Some cleaned, reset the timer */
-                if (num_avail != adapter->num_tx_desc_avail)
-			adapter->watchdog_timer = EM_TX_TIMEOUT;
+        		adapter->num_tx_desc_avail = num_avail;
+			return;
+		} 
         }
+
+	/* If any descriptors cleaned, reset the watchdog */
+	if (cleaned)
+		adapter->watchdog_timer = EM_TX_TIMEOUT;
         adapter->num_tx_desc_avail = num_avail;
 	return;
 }

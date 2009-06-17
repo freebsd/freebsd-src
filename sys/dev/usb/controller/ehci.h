@@ -446,8 +446,6 @@ struct ehci_config_desc {
 union ehci_hub_desc {
 	struct usb2_status stat;
 	struct usb2_port_status ps;
-	struct usb2_device_descriptor devd;
-	struct usb2_device_qualifier odevd;
 	struct usb2_hub_descriptor hubd;
 	uint8_t	temp[128];
 };

@@ -180,6 +180,25 @@ struct	pr_usrreqs spx_usrreq_sps = {
 	.pru_close =		spx_usr_close,
 };
 
+static __inline void
+spx_insque(struct spx_q *element, struct spx_q *head)
+{
+
+	element->si_next = head->si_next;
+	element->si_prev = head;
+	head->si_next = element;
+	element->si_next->si_prev = element;
+}
+
+static __inline void
+spx_remque(struct spx_q *element)
+{
+
+	element->si_next->si_prev = element->si_prev;
+	element->si_prev->si_next = element->si_next;
+	element->si_prev = NULL;
+}
+
 void
 spx_init(void)
 {
@@ -649,7 +668,7 @@ update_window:
 			break;
 		}
 	}
-	insque(si, q->si_prev);
+	spx_insque((struct spx_q *)si, q->si_prev);
 
 	/*
 	 * If this packet is urgent, inform process
@@ -680,7 +699,7 @@ present:
 					so->so_rcv.sb_state |= SBS_RCVATMARK;
 			}
 			q = q->si_prev;
-			remque(q->si_next);
+			spx_remque(q->si_next);
 			wakeup = 1;
 			spxstat.spxs_rcvpack++;
 #ifdef SF_NEWCALL
@@ -1458,7 +1477,7 @@ spx_pcbdetach(struct ipxpcb *ipxp)
 	s = cb->s_q.si_next;
 	while (s != &(cb->s_q)) {
 		s = s->si_next;
-		remque(s);
+		spx_remque(s);
 		m = dtom(s);
 		m_freem(m);
 	}

@@ -6232,6 +6232,8 @@ struct l2_fhdr {
 
 #endif /* ZERO_COPY_SOCKETS */
 
+#define CTX_INIT_RETRY_COUNT        10
+
 /* Context size. */
 #define CTX_SHIFT                   7
 #define CTX_SIZE                    (1 << CTX_SHIFT)

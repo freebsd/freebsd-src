@@ -456,6 +456,7 @@ iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
       if (ncprange_equal(&iface->addr[n].ifa, ifa) &&
           ncpaddr_equal(&iface->addr[n].peer, peer)) {
         close(s);
+        ncp_IfaceAddrAdded(ncp, iface->addr + n);
         return 1;	/* Already there */
       }
 

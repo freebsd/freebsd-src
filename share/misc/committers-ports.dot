@@ -127,6 +127,7 @@ mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
 osa [label="Sergey A. Osokin\nosa@FreeBSD.org\n2003/06/04"]
 pat [label="Patrick Li\npat@FreeBSD.org\n2001/11/14"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
+pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
@@ -136,6 +137,7 @@ sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
+skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
 sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2006/09/18"]
 stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
@@ -216,6 +218,7 @@ flz -> johans
 flz -> laszlof
 
 gabor -> lippe
+gabor -> pgj
 
 garga -> acm
 garga -> alepulver
@@ -317,6 +320,7 @@ stas -> araujo
 steve -> netchild
 
 tabthorpe -> jadawin
+tabthorpe -> pgj
 
 thierry -> jadawin
 
@@ -324,5 +328,7 @@ tmclaugh -> itetcu
 tmclaugh -> xride
 
 will -> lioux
+
+wxs -> skreuzer
 
 }

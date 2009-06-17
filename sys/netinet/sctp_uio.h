@@ -764,6 +764,8 @@ struct sctp_timeval {
 };
 
 struct sctpstat {
+	struct sctp_timeval sctps_discontinuitytime;	/* sctpStats 18
+							 * (TimeStamp) */
 	/* MIB according to RFC 3873 */
 	uint32_t sctps_currestab;	/* sctpStats  1   (Gauge32) */
 	uint32_t sctps_activeestab;	/* sctpStats  2 (Counter32) */
@@ -948,8 +950,8 @@ struct sctpstat {
 	uint32_t sctps_fwdtsn_map_over;	/* number of map array over-runs via
 					 * fwd-tsn's */
 
-	struct sctp_timeval sctps_discontinuitytime;	/* sctpStats 18
-							 * (TimeStamp) */
+	uint32_t sctps_reserved[32];	/* Future ABI compat - remove int's
+					 * from here when adding new */
 };
 
 #define SCTP_STAT_INCR(_x) SCTP_STAT_INCR_BY(_x,1)
@@ -986,7 +988,7 @@ struct xsctp_inpcb {
 	uint16_t local_port;
 	uint16_t qlen;
 	uint16_t maxqlen;
-	uint32_t extra_padding[8];	/* future */
+	uint32_t extra_padding[32];	/* future */
 };
 
 struct xsctp_tcb {
@@ -1017,14 +1019,14 @@ struct xsctp_tcb {
 	struct sctp_timeval discontinuity_time;	/* sctpAssocEntry 17  */
 	uint32_t peers_rwnd;
 	sctp_assoc_t assoc_id;	/* sctpAssocEntry 1   */
-	uint32_t extra_padding[8];	/* future */
+	uint32_t extra_padding[32];	/* future */
 };
 
 struct xsctp_laddr {
 	union sctp_sockstore address;	/* sctpAssocLocalAddrEntry 1/2 */
 	uint32_t last;
 	struct sctp_timeval start_time;	/* sctpAssocLocalAddrEntry 3   */
-	uint32_t extra_padding[8];	/* future */
+	uint32_t extra_padding[32];	/* future */
 };
 
 struct xsctp_raddr {
@@ -1041,8 +1043,8 @@ struct xsctp_raddr {
 	uint8_t confirmed;	/* */
 	uint8_t heartbeat_enabled;	/* sctpAssocLocalRemEntry 4   */
 	struct sctp_timeval start_time;	/* sctpAssocLocalRemEntry 8   */
-	uint32_t extra_padding[8];	/* future */
-
+	uint32_t rtt;
+	uint32_t extra_padding[32];	/* future */
 };
 
 #define SCTP_MAX_LOGGING_SIZE 30000

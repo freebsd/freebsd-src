@@ -37,6 +37,7 @@ awk -v x="$ioctl_includes" 'BEGIN {print x}' |
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
 	print "#define COMPAT_43"
+	print "#define COMPAT_43TTY"
 	print "#include <sys/param.h>"
 	print "#include <sys/devicestat.h>"
 	print "#include <sys/disklabel.h>"

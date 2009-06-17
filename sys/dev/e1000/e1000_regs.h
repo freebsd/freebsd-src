@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -62,6 +62,7 @@
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
 #define E1000_TXCW     0x00178  /* Tx Configuration Word - RW */
 #define E1000_RXCW     0x00180  /* Rx Configuration Word - RO */
+#define E1000_PBA_ECC  0x01100  /* PBA ECC Register */
 #define E1000_EICR     0x01580  /* Ext. Interrupt Cause Read - R/clr */
 #define E1000_EITR(_n) (0x01680 + (0x4 * (_n)))
 #define E1000_EICS     0x01520  /* Ext. Interrupt Cause Set - W0 */
@@ -269,15 +270,6 @@
 #define E1000_ICRXDMTC 0x04120  /* Interrupt Cause Rx Desc Min Thresh Count */
 #define E1000_ICRXOC   0x04124  /* Interrupt Cause Receiver Overrun Count */
 
-#define E1000_VFGPRC   0x00F10
-#define E1000_VFGORC   0x00F18
-#define E1000_VFMPRC   0x00F3C
-#define E1000_VFGPTC   0x00F14
-#define E1000_VFGOTC   0x00F34
-#define E1000_VFGOTLBC 0x00F50
-#define E1000_VFGPTLBC 0x00F44
-#define E1000_VFGORLBC 0x00F48
-#define E1000_VFGPRLBC 0x00F40
 #define E1000_LSECTXUT        0x04300  /* LinkSec Tx Untagged Packet Count - OutPktsUntagged */
 #define E1000_LSECTXPKTE      0x04304  /* LinkSec Encrypted Tx Packets Count - OutPktsEncrypted */
 #define E1000_LSECTXPKTP      0x04308  /* LinkSec Protected Tx Packet Count - OutPktsProtected */
@@ -387,6 +379,7 @@
 #define E1000_GIOCTL      0x05B44 /* GIO Analog Control Register */
 #define E1000_SCCTL       0x05B4C /* PCIc PLL Configuration Register */
 #define E1000_GCR         0x05B00 /* PCI-Ex Control */
+#define E1000_GCR2        0x05B64 /* PCI-Ex Control #2 */
 #define E1000_GSCL_1    0x05B10 /* PCI-Ex Statistic Control #1 */
 #define E1000_GSCL_2    0x05B14 /* PCI-Ex Statistic Control #2 */
 #define E1000_GSCL_3    0x05B18 /* PCI-Ex Statistic Control #3 */
@@ -429,7 +422,6 @@
 #define E1000_VFTE      0x00C90 /* VF Transmit Enables */
 #define E1000_QDE       0x02408 /* Queue Drop Enable - RW */
 #define E1000_DTXSWC    0x03500 /* DMA Tx Switch Control - RW */
-#define E1000_VLVF      0x05D00 /* VLAN Virtual Machine Filter - RW */
 #define E1000_RPLOLR    0x05AF0 /* Replication Offload - RW */
 #define E1000_UTA       0x0A000 /* Unicast Table Array - RW */
 #define E1000_IOVTCL    0x05BBC /* IOV Control Register */
@@ -440,6 +432,8 @@
 #define E1000_VMBMEM(_n)       (0x00800 + (64 * (_n)))
 #define E1000_VFVMBMEM(_n)     (0x00800 + (_n))
 #define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
+#define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
+                                                       * Filter - RW */
 /* Time Sync */
 #define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
 #define E1000_TSYNCTXCTL 0x0B614 /* Tx Time Sync Control register - RW */

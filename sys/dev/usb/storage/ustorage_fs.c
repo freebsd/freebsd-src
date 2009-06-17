@@ -202,7 +202,6 @@ static device_attach_t ustorage_fs_attach;
 static device_detach_t ustorage_fs_detach;
 static device_suspend_t ustorage_fs_suspend;
 static device_resume_t ustorage_fs_resume;
-static device_shutdown_t ustorage_fs_shutdown;
 static usb_handle_request_t ustorage_fs_handle_request;
 
 static usb2_callback_t ustorage_fs_t_bbb_command_callback;
@@ -239,7 +238,6 @@ static device_method_t ustorage_fs_methods[] = {
 	DEVMETHOD(device_detach, ustorage_fs_detach),
 	DEVMETHOD(device_suspend, ustorage_fs_suspend),
 	DEVMETHOD(device_resume, ustorage_fs_resume),
-	DEVMETHOD(device_shutdown, ustorage_fs_shutdown),
 
 	{0, 0}
 };
@@ -434,12 +432,6 @@ static int
 ustorage_fs_resume(device_t dev)
 {
 	device_printf(dev, "resuming\n");
-	return (0);			/* success */
-}
-
-static int
-ustorage_fs_shutdown(device_t dev)
-{
 	return (0);			/* success */
 }
 

@@ -38,10 +38,22 @@ __FBSDID("$FreeBSD$");
  *
  * The specification in SUSv2 is a bit incomplete, I assume the following:
  *   Trailing '-' in [...] is not special.
+ *
+ * TODO: Figure out if there's a good way to extend this to handle
+ * Windows paths that use '\' as a path separator.  <sigh>
  */
 
 DEFINE_TEST(test_pathmatch)
 {
+	assertEqualInt(1, pathmatch("a/b/c", "a/b/c", 0));
+	assertEqualInt(0, pathmatch("a/b/", "a/b/c", 0));
+	assertEqualInt(0, pathmatch("a/b", "a/b/c", 0));
+	assertEqualInt(0, pathmatch("a/b/c", "a/b/", 0));
+	assertEqualInt(0, pathmatch("a/b/c", "a/b", 0));
+
+	/* Empty pattern only matches empty string. */
+	assertEqualInt(1, pathmatch("","", 0));
+	assertEqualInt(0, pathmatch("","a", 0));
 	assertEqualInt(1, pathmatch("*","", 0));
 	assertEqualInt(1, pathmatch("*","a", 0));
 	assertEqualInt(1, pathmatch("*","abcd", 0));
@@ -68,6 +80,8 @@ DEFINE_TEST(test_pathmatch)
 	assertEqualInt(1, pathmatch("*a*", "defaaaaaaa", 0));
 	assertEqualInt(0, pathmatch("a*", "defghi", 0));
 	assertEqualInt(0, pathmatch("*a*", "defghi", 0));
+
+	/* Character classes */
 	assertEqualInt(1, pathmatch("abc[def", "abc[def", 0));
 	assertEqualInt(0, pathmatch("abc[def]", "abc[def", 0));
 	assertEqualInt(0, pathmatch("abc[def", "abcd", 0));
@@ -84,6 +98,7 @@ DEFINE_TEST(test_pathmatch)
 	assertEqualInt(1, pathmatch("abc[d-f]", "abce", 0));
 	assertEqualInt(1, pathmatch("abc[d-f]", "abcf", 0));
 	assertEqualInt(0, pathmatch("abc[d-f]", "abcg", 0));
+	assertEqualInt(0, pathmatch("abc[d-fh-k]", "abca", 0));
 	assertEqualInt(1, pathmatch("abc[d-fh-k]", "abcd", 0));
 	assertEqualInt(1, pathmatch("abc[d-fh-k]", "abce", 0));
 	assertEqualInt(1, pathmatch("abc[d-fh-k]", "abcf", 0));
@@ -94,6 +109,14 @@ DEFINE_TEST(test_pathmatch)
 	assertEqualInt(1, pathmatch("abc[d-fh-k]", "abck", 0));
 	assertEqualInt(0, pathmatch("abc[d-fh-k]", "abcl", 0));
 	assertEqualInt(0, pathmatch("abc[d-fh-k]", "abc-", 0));
+
+	/* [] matches nothing, [!] is the same as ? */
+	assertEqualInt(0, pathmatch("abc[]efg", "abcdefg", 0));
+	assertEqualInt(0, pathmatch("abc[]efg", "abcqefg", 0));
+	assertEqualInt(0, pathmatch("abc[]efg", "abcefg", 0));
+	assertEqualInt(1, pathmatch("abc[!]efg", "abcdefg", 0));
+	assertEqualInt(1, pathmatch("abc[!]efg", "abcqefg", 0));
+	assertEqualInt(0, pathmatch("abc[!]efg", "abcefg", 0));
 
 	/* I assume: Trailing '-' is non-special. */
 	assertEqualInt(0, pathmatch("abc[d-fh-]", "abcl", 0));
@@ -138,12 +161,23 @@ DEFINE_TEST(test_pathmatch)
 	assertEqualInt(0, pathmatch("abc\\\\[def]", "abc[def]", 0));
 	assertEqualInt(0, pathmatch("abc\\\\[def]", "abc\\[def]", 0));
 	assertEqualInt(1, pathmatch("abc\\\\[def]", "abc\\d", 0));
+	assertEqualInt(1, pathmatch("abcd\\", "abcd\\", 0));
+	assertEqualInt(0, pathmatch("abcd\\", "abcd\\[", 0));
+	assertEqualInt(0, pathmatch("abcd\\", "abcde", 0));
+	assertEqualInt(0, pathmatch("abcd\\[", "abcd\\", 0));
 
 	/*
 	 * Because '.' and '/' have special meanings, we can
 	 * identify many equivalent paths even if they're expressed
-	 * differently.
+	 * differently.  (But quoting a character with '\\' suppresses
+	 * special meanings!)
 	 */
+	assertEqualInt(0, pathmatch("a/b/", "a/bc", 0));
+	assertEqualInt(1, pathmatch("a/./b", "a/b", 0));
+	assertEqualInt(0, pathmatch("a\\/./b", "a/b", 0));
+	assertEqualInt(0, pathmatch("a/\\./b", "a/b", 0));
+	assertEqualInt(0, pathmatch("a/.\\/b", "a/b", 0));
+	assertEqualInt(0, pathmatch("a\\/\\.\\/b", "a/b", 0));
 	assertEqualInt(1, pathmatch("./abc/./def/", "abc/def/", 0));
 	assertEqualInt(1, pathmatch("abc/def", "./././abc/./def", 0));
 	assertEqualInt(1, pathmatch("abc/def/././//", "./././abc/./def/", 0));
@@ -162,4 +196,48 @@ DEFINE_TEST(test_pathmatch)
 	assertEqualInt(1, pathmatch("./abc/./def", "abc/def/./", 0));
 	failure("Trailing '/.' is still the same directory.");
 	assertEqualInt(1, pathmatch("./abc*/./def", "abc/def/.", 0));
+
+	/* Matches not anchored at beginning. */
+	assertEqualInt(0,
+	    pathmatch("bcd", "abcd", PATHMATCH_NO_ANCHOR_START));
+	assertEqualInt(1,
+	    pathmatch("abcd", "abcd", PATHMATCH_NO_ANCHOR_START));
+	assertEqualInt(0,
+	    pathmatch("^bcd", "abcd", PATHMATCH_NO_ANCHOR_START));
+	assertEqualInt(1,
+	    pathmatch("b/c/d", "a/b/c/d", PATHMATCH_NO_ANCHOR_START));
+	assertEqualInt(0,
+	    pathmatch("b/c", "a/b/c/d", PATHMATCH_NO_ANCHOR_START));
+	assertEqualInt(0,
+	    pathmatch("^b/c", "a/b/c/d", PATHMATCH_NO_ANCHOR_START));
+
+	/* Matches not anchored at end. */
+	assertEqualInt(0,
+	    pathmatch("bcd", "abcd", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("abcd", "abcd", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("abcd", "abcd/", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("abcd", "abcd/.", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(0,
+	    pathmatch("abc", "abcd", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("a/b/c", "a/b/c/d", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(0,
+	    pathmatch("a/b/c$", "a/b/c/d", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("a/b/c$", "a/b/c", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("a/b/c$", "a/b/c/", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("a/b/c/", "a/b/c/d", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(0,
+	    pathmatch("a/b/c/$", "a/b/c/d", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("a/b/c/$", "a/b/c/", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    pathmatch("a/b/c/$", "a/b/c", PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(0,
+	    pathmatch("b/c", "a/b/c/d", PATHMATCH_NO_ANCHOR_END));
 }

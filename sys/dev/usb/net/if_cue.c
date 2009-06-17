@@ -86,7 +86,6 @@ static const struct usb2_device_id cue_devs[] = {
 static device_probe_t cue_probe;
 static device_attach_t cue_attach;
 static device_detach_t cue_detach;
-static device_shutdown_t cue_shutdown;
 
 static usb2_callback_t cue_bulk_read_callback;
 static usb2_callback_t cue_bulk_write_callback;
@@ -142,7 +141,6 @@ static device_method_t cue_methods[] = {
 	DEVMETHOD(device_probe, cue_probe),
 	DEVMETHOD(device_attach, cue_attach),
 	DEVMETHOD(device_detach, cue_detach),
-	DEVMETHOD(device_shutdown, cue_shutdown),
 
 	{0, 0}
 };
@@ -628,18 +626,4 @@ cue_stop(struct usb2_ether *ue)
 
 	cue_csr_write_1(sc, CUE_ETHCTL, 0);
 	cue_reset(sc);
-}
-
-/*
- * Stop all chip I/O so that the kernel's probe routines don't
- * get confused by errant DMAs when rebooting.
- */
-static int
-cue_shutdown(device_t dev)
-{
-	struct cue_softc *sc = device_get_softc(dev);
-
-	usb2_ether_ifshutdown(&sc->sc_ue);
-
-	return (0);
 }

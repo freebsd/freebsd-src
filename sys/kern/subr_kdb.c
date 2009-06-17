@@ -47,9 +47,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int kdb_active = 0;
-void *kdb_jmpbufp = NULL;
+static void *kdb_jmpbufp = NULL;
 struct kdb_dbbe *kdb_dbbe = NULL;
-struct pcb kdb_pcb;
+static struct pcb kdb_pcb;
 struct pcb *kdb_thrctx = NULL;
 struct thread *kdb_thread = NULL;
 struct trapframe *kdb_frame = NULL;
@@ -66,22 +66,22 @@ static int kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD, 0, 0,
-    kdb_sysctl_available, "A", "list of available KDB backends");
+SYSCTL_PROC(_debug_kdb, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD, NULL,
+    0, kdb_sysctl_available, "A", "list of available KDB backends");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, current, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
-    kdb_sysctl_current, "A", "currently selected KDB backend");
+SYSCTL_PROC(_debug_kdb, OID_AUTO, current, CTLTYPE_STRING | CTLFLAG_RW, NULL,
+    0, kdb_sysctl_current, "A", "currently selected KDB backend");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, enter, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, enter, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
     kdb_sysctl_enter, "I", "set to enter the debugger");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, panic, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, panic, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
     kdb_sysctl_panic, "I", "set to panic the kernel");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, trap, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
     kdb_sysctl_trap, "I", "set to cause a page fault via data access");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
 
 /*
@@ -292,7 +292,7 @@ kdb_alt_break(int key, int *state)
  */
 
 void
-kdb_backtrace()
+kdb_backtrace(void)
 {
 
 	if (kdb_dbbe != NULL && kdb_dbbe->dbbe_trace != NULL) {
@@ -346,7 +346,7 @@ kdb_enter(const char *why, const char *msg)
  */
 
 void
-kdb_init()
+kdb_init(void)
 {
 	struct kdb_dbbe *be, **iter;
 	int cur_pri, pri;

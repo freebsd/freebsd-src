@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2007  Mark Nudelman
+ * Copyright (C) 2005-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.

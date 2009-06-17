@@ -117,7 +117,7 @@ obreak(td, uap)
 			goto done;
 		}
 		rv = vm_map_insert(&vm->vm_map, NULL, 0, old, new,
-		    VM_PROT_ALL, VM_PROT_ALL, 0);
+		    VM_PROT_RW, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			error = ENOMEM;
 			goto done;

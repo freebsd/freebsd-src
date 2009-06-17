@@ -135,7 +135,7 @@ device		ehci		# EHCI PCI->USB interface
 device		usb		# USB Bus (required)
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
-options         KBD_INSTALL_CDEV # install a CDEV entry in /dev
+options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da0
 device		ums		# Mouse

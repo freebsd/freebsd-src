@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/signalvar.h>
+#include <sys/vimage.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -349,6 +350,9 @@ norfproc_fail:
 	 * are hard-limits as to the number of processes that can run.
 	 */
 	nprocs++;
+#ifdef VIMAGE
+	P_TO_VPROCG(p1)->nprocs++;
+#endif
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
@@ -522,6 +526,11 @@ again:
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
+
+#ifdef VIMAGE
+	td2->td_vnet = NULL;
+	td2->td_vnet_lpush = NULL;
+#endif
 
 	/*
 	 * Duplicate sub-structures as needed.

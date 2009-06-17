@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <sys/vimage.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -504,13 +505,13 @@ exit1(struct thread *td, int rv)
 		proc_reparent(p, initproc);
 		p->p_sigparent = SIGCHLD;
 		PROC_LOCK(p->p_pptr);
+
 		/*
-		 * If this was the last child of our parent, notify
-		 * parent, so in case he was wait(2)ing, he will
+		 * Notify parent, so in case he was wait(2)ing or
+		 * executing waitpid(2) with our pid, he will
 		 * continue.
 		 */
-		if (LIST_EMPTY(&pp->p_children))
-			wakeup(pp);
+		wakeup(pp);
 	} else
 		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
@@ -737,6 +738,7 @@ loop:
 		nfound++;
 		PROC_SLOCK(p);
 		if (p->p_state == PRS_ZOMBIE) {
+			INIT_VPROCG(P_TO_VPROCG(p));
 			if (rusage) {
 				*rusage = p->p_ru;
 				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
@@ -837,6 +839,9 @@ loop:
 			uma_zfree(proc_zone, p);
 			sx_xlock(&allproc_lock);
 			nprocs--;
+#ifdef VIMAGE
+			vprocg->nprocs--;
+#endif
 			sx_xunlock(&allproc_lock);
 			return (0);
 		}

@@ -16,11 +16,10 @@ OpenBSM TODO
   just at the beginning of a record.  This will make it easier to use
   praudit in test suites processing single-token files without header and
   trailer context.
-- Put hostname in trail file name.
 - Document audit_warn event arguments.
 - Allow the path /etc/security to be configured at configure-time so that
   alternative locations can be used.
 - NLS support for au_strerror(3), which provides error strings for BSM errors
   not available on the local OS platform.
 
-$P4: //depot/projects/trustedbsd/openbsm/TODO#12 $
+$P4: //depot/projects/trustedbsd/openbsm/TODO#13 $

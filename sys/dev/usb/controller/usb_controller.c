@@ -114,7 +114,7 @@ usb2_attach(device_t dev)
 	}
 
 	/* delay vfs_mountroot until the bus is explored */
-	bus->bus_roothold = root_mount_hold(device_get_nameunit(dev), M_WAITOK);
+	bus->bus_roothold = root_mount_hold(device_get_nameunit(dev));
 
 	if (usb2_post_init_called) {
 		mtx_lock(&Giant);
@@ -168,6 +168,10 @@ usb2_detach(device_t dev)
 	/* Get rid of USB explore process */
 
 	usb2_proc_free(&bus->explore_proc);
+
+	/* Get rid of control transfer process */
+
+	usb2_proc_free(&bus->control_xfer_proc);
 
 	return (0);
 }
@@ -411,6 +415,10 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 	} else if (usb2_proc_create(&bus->explore_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
 		printf("WARNING: Creation of USB explore "
+		    "process failed.\n");
+	} else if (usb2_proc_create(&bus->control_xfer_proc,
+	    &bus->bus_mtx, pname, USB_PRI_MED)) {
+		printf("WARNING: Creation of USB control transfer "
 		    "process failed.\n");
 	} else {
 		/* Get final attach going */

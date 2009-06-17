@@ -82,9 +82,12 @@ struct tree_entry {
 	size_t dirname_length;
 	dev_t dev;
 	ino_t ino;
+#ifdef HAVE_FCHDIR
 	int fd;
-#ifdef _WIN32
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	char *fullpath;
+#else
+#error fchdir function required.
 #endif
 	int flags;
 };
@@ -102,8 +105,9 @@ struct tree {
 	struct tree_entry	*stack;
 	struct tree_entry	*current;
 	DIR	*d;
+#ifdef HAVE_FCHDIR
 	int	 initialDirFd;
-#ifdef _WIN32
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	char	*initialDir;
 #endif
 	int	 flags;
@@ -169,8 +173,9 @@ tree_push(struct tree *t, const char *path)
 	memset(te, 0, sizeof(*te));
 	te->next = t->stack;
 	t->stack = te;
+#ifdef HAVE_FCHDIR
 	te->fd = -1;
-#ifdef _WIN32
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	te->fullpath = NULL;
 #endif
 	te->name = strdup(path);
@@ -222,10 +227,10 @@ tree_open(const char *path)
 	t = malloc(sizeof(*t));
 	memset(t, 0, sizeof(*t));
 	tree_append(t, path, strlen(path));
+#ifdef HAVE_FCHDIR
 	t->initialDirFd = open(".", O_RDONLY);
-#ifdef _WIN32
-	if (t->initialDirFd >= 0)
-		t->initialDir = getcwd(NULL, 0);
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+	t->initialDir = getcwd(NULL, 0);
 #endif
 	/*
 	 * During most of the traversal, items are set up and then
@@ -254,16 +259,15 @@ tree_ascend(struct tree *t)
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
 		}
-#endif
-#ifdef _WIN32
-		if (te->fullpath != NULL && chdir(te->fullpath) != 0) {
+		close(te->fd);
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+		if (chdir(te->fullpath) != 0) {
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
 		}
 		free(te->fullpath);
 		te->fullpath = NULL;
 #endif
-		close(te->fd);
 		t->openCount--;
 	} else {
 		if (chdir("..") != 0) {
@@ -354,8 +358,9 @@ tree_next(struct tree *t)
 			t->stack->flags &= ~needsPreVisit;
 			/* If it is a link, set up fd for the ascent. */
 			if (t->stack->flags & isDirLink) {
+#ifdef HAVE_FCHDIR
 				t->stack->fd = open(".", O_RDONLY);
-#ifdef _WIN32
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 				t->stack->fullpath = getcwd(NULL, 0);
 #endif
 				t->openCount++;
@@ -580,17 +585,18 @@ tree_close(struct tree *t)
 	if (t->buff)
 		free(t->buff);
 	/* chdir() back to where we started. */
-	if (t->initialDirFd >= 0) {
 #ifdef HAVE_FCHDIR
+	if (t->initialDirFd >= 0) {
 		fchdir(t->initialDirFd);
-#endif
-#ifdef _WIN32
-		chdir(t->initialDir);
-		free(t->initialDir);
-		t->initialDir = NULL;
-#endif
 		close(t->initialDirFd);
 		t->initialDirFd = -1;
 	}
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+	if (t->initialDir != NULL) {
+		chdir(t->initialDir);
+		free(t->initialDir);
+		t->initialDir = NULL;
+	}
+#endif
 	free(t);
 }

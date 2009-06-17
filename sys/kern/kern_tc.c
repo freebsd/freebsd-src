@@ -103,24 +103,6 @@ static int timestepwarnings;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "");
 
-#ifdef TC_COUNTERS
-#define TC_STATS(foo) \
-	static u_int foo; \
-	SYSCTL_UINT(_kern_timecounter, OID_AUTO, foo, CTLFLAG_RD, &foo, 0, "");\
-	struct __hack
-
-TC_STATS(nbinuptime);    TC_STATS(nnanouptime);    TC_STATS(nmicrouptime);
-TC_STATS(nbintime);      TC_STATS(nnanotime);      TC_STATS(nmicrotime);
-TC_STATS(ngetbinuptime); TC_STATS(ngetnanouptime); TC_STATS(ngetmicrouptime);
-TC_STATS(ngetbintime);   TC_STATS(ngetnanotime);   TC_STATS(ngetmicrotime);
-TC_STATS(nsetclock);
-
-#define	TC_COUNT(var)	var++
-#undef TC_STATS
-#else
-#define	TC_COUNT(var)	/* nothing */
-#endif /* TC_COUNTERS */
-
 static void tc_windup(void);
 static void cpu_tick_calibrate(int);
 
@@ -185,7 +167,6 @@ binuptime(struct bintime *bt)
 	struct timehands *th;
 	u_int gen;
 
-	TC_COUNT(nbinuptime);
 	do {
 		th = timehands;
 		gen = th->th_generation;
@@ -199,7 +180,6 @@ nanouptime(struct timespec *tsp)
 {
 	struct bintime bt;
 
-	TC_COUNT(nnanouptime);
 	binuptime(&bt);
 	bintime2timespec(&bt, tsp);
 }
@@ -209,7 +189,6 @@ microuptime(struct timeval *tvp)
 {
 	struct bintime bt;
 
-	TC_COUNT(nmicrouptime);
 	binuptime(&bt);
 	bintime2timeval(&bt, tvp);
 }
@@ -218,7 +197,6 @@ void
 bintime(struct bintime *bt)
 {
 
-	TC_COUNT(nbintime);
 	binuptime(bt);
 	bintime_add(bt, &boottimebin);
 }
@@ -228,7 +206,6 @@ nanotime(struct timespec *tsp)
 {
 	struct bintime bt;
 
-	TC_COUNT(nnanotime);
 	bintime(&bt);
 	bintime2timespec(&bt, tsp);
 }
@@ -238,7 +215,6 @@ microtime(struct timeval *tvp)
 {
 	struct bintime bt;
 
-	TC_COUNT(nmicrotime);
 	bintime(&bt);
 	bintime2timeval(&bt, tvp);
 }
@@ -249,7 +225,6 @@ getbinuptime(struct bintime *bt)
 	struct timehands *th;
 	u_int gen;
 
-	TC_COUNT(ngetbinuptime);
 	do {
 		th = timehands;
 		gen = th->th_generation;
@@ -263,7 +238,6 @@ getnanouptime(struct timespec *tsp)
 	struct timehands *th;
 	u_int gen;
 
-	TC_COUNT(ngetnanouptime);
 	do {
 		th = timehands;
 		gen = th->th_generation;
@@ -277,7 +251,6 @@ getmicrouptime(struct timeval *tvp)
 	struct timehands *th;
 	u_int gen;
 
-	TC_COUNT(ngetmicrouptime);
 	do {
 		th = timehands;
 		gen = th->th_generation;
@@ -291,7 +264,6 @@ getbintime(struct bintime *bt)
 	struct timehands *th;
 	u_int gen;
 
-	TC_COUNT(ngetbintime);
 	do {
 		th = timehands;
 		gen = th->th_generation;
@@ -306,7 +278,6 @@ getnanotime(struct timespec *tsp)
 	struct timehands *th;
 	u_int gen;
 
-	TC_COUNT(ngetnanotime);
 	do {
 		th = timehands;
 		gen = th->th_generation;
@@ -320,7 +291,6 @@ getmicrotime(struct timeval *tvp)
 	struct timehands *th;
 	u_int gen;
 
-	TC_COUNT(ngetmicrotime);
 	do {
 		th = timehands;
 		gen = th->th_generation;
@@ -411,7 +381,6 @@ tc_setclock(struct timespec *ts)
 	struct bintime bt, bt2;
 
 	cpu_tick_calibrate(1);
-	TC_COUNT(nsetclock);
 	nanotime(&tbef);
 	timespec2bintime(ts, &bt);
 	binuptime(&bt2);

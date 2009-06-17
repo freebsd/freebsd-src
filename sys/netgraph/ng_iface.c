@@ -75,6 +75,7 @@
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/netisr.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 
@@ -121,7 +122,7 @@ typedef struct ng_iface_private *priv_p;
 static void	ng_iface_start(struct ifnet *ifp);
 static int	ng_iface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int	ng_iface_output(struct ifnet *ifp, struct mbuf *m0,
-			struct sockaddr *dst, struct rtentry *rt0);
+    			struct sockaddr *dst, struct route *ro);
 static void	ng_iface_bpftap(struct ifnet *ifp,
 			struct mbuf *m, sa_family_t family);
 static int	ng_iface_send(struct ifnet *ifp, struct mbuf *m,
@@ -208,8 +209,21 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
+static vnet_attach_fn ng_iface_iattach;
+static vnet_detach_fn ng_iface_idetach;
+
 #ifdef VIMAGE_GLOBALS
 static struct unrhdr	*ng_iface_unit;
+#endif
+
+#ifndef VIMAGE_GLOBALS
+static vnet_modinfo_t vnet_ng_iface_modinfo = {
+	.vmi_id		= VNET_MOD_NG_IFACE,
+	.vmi_name	= "ng_iface",
+	.vmi_dependson	= VNET_MOD_NETGRAPH,
+	.vmi_iattach	= ng_iface_iattach,
+	.vmi_idetach	= ng_iface_idetach
+};
 #endif
 
 /************************************************************************
@@ -354,7 +368,7 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 static int
 ng_iface_output(struct ifnet *ifp, struct mbuf *m,
-		struct sockaddr *dst, struct rtentry *rt0)
+    		struct sockaddr *dst, struct route *ro)
 {
 	struct m_tag *mtag;
 	uint32_t af;
@@ -667,6 +681,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			struct ifaddr *ifa;
 
 			/* Return the first configured IP address */
+			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct ng_cisco_ipaddr *ips;
 
@@ -684,6 +699,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 						ifa->ifa_netmask)->sin_addr;
 				break;
 			}
+			IF_ADDR_UNLOCK(ifp);
 
 			/* No IP addresses on this interface? */
 			if (ifa == NULL)
@@ -833,14 +849,40 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_ng_iface_modinfo);
+#else
+		ng_iface_iattach(NULL);
+#endif
 		break;
 	case MOD_UNLOAD:
-		delete_unrhdr(V_ng_iface_unit);
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_deregister(&vnet_ng_iface_modinfo);
+#else
+		ng_iface_idetach(NULL);
+#endif
 		break;
 	default:
 		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);
+}
+
+static int ng_iface_iattach(const void *unused)
+{
+	INIT_VNET_NETGRAPH(curvnet);
+
+	V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
+
+	return (0);
+}
+
+static int ng_iface_idetach(const void *unused)
+{
+	INIT_VNET_NETGRAPH(curvnet);
+
+	delete_unrhdr(V_ng_iface_unit);
+
+	return (0);
 }

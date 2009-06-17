@@ -35,8 +35,6 @@
 /* threshold for aging overlapping non-HT bss */
 #define	IEEE80211_NONHT_PRESENT_AGE	msecs_to_ticks(60*1000)
 
-typedef uint16_t ieee80211_seq;
-
 struct ieee80211_tx_ampdu {
 	struct ieee80211_node *txa_ni;	/* back pointer */
 	u_short		txa_flags;

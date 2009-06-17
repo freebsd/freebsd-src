@@ -2152,28 +2152,32 @@ USB_MAKE_STRING_DESC(STRING_LANG, musbotg_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, musbotg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, musbotg_product);
 
-static void
-musbotg_roothub_exec(struct usb2_bus *bus)
+static usb2_error_t
+musbotg_roothub_exec(struct usb2_device *udev,
+    struct usb2_device_request *req, const void **pptr, uint16_t *plength)
 {
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(bus);
-	struct usb2_sw_transfer *std = &sc->sc_bus.roothub_req;
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(udev->bus);
+	const void *ptr;
+	uint16_t len;
 	uint16_t value;
 	uint16_t index;
+	usb2_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	/* buffer reset */
-	std->ptr = USB_ADD_BYTES(&sc->sc_hub_temp, 0);
-	std->len = 0;
+	ptr = (const void *)&sc->sc_hub_temp;
+	len = 0;
+	err = 0;
 
-	value = UGETW(std->req.wValue);
-	index = UGETW(std->req.wIndex);
+	value = UGETW(req->wValue);
+	index = UGETW(req->wIndex);
 
 	/* demultiplex the control request */
 
-	switch (std->req.bmRequestType) {
+	switch (req->bmRequestType) {
 	case UT_READ_DEVICE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_DESCRIPTOR:
 			goto tr_handle_get_descriptor;
 		case UR_GET_CONFIG:
@@ -2186,7 +2190,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_WRITE_DEVICE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_SET_ADDRESS:
 			goto tr_handle_set_address;
 		case UR_SET_CONFIG:
@@ -2202,9 +2206,9 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_WRITE_ENDPOINT:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_CLEAR_FEATURE:
-			switch (UGETW(std->req.wValue)) {
+			switch (UGETW(req->wValue)) {
 			case UF_ENDPOINT_HALT:
 				goto tr_handle_clear_halt;
 			case UF_DEVICE_REMOTE_WAKEUP:
@@ -2214,7 +2218,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 			}
 			break;
 		case UR_SET_FEATURE:
-			switch (UGETW(std->req.wValue)) {
+			switch (UGETW(req->wValue)) {
 			case UF_ENDPOINT_HALT:
 				goto tr_handle_set_halt;
 			case UF_DEVICE_REMOTE_WAKEUP:
@@ -2231,7 +2235,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_READ_ENDPOINT:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_STATUS:
 			goto tr_handle_get_ep_status;
 		default:
@@ -2240,7 +2244,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_WRITE_INTERFACE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_SET_INTERFACE:
 			goto tr_handle_set_interface;
 		case UR_CLEAR_FEATURE:
@@ -2252,7 +2256,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_READ_INTERFACE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_INTERFACE:
 			goto tr_handle_get_interface;
 		case UR_GET_STATUS:
@@ -2273,7 +2277,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_WRITE_CLASS_DEVICE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_CLEAR_FEATURE:
 			goto tr_valid;
 		case UR_SET_DESCRIPTOR:
@@ -2285,7 +2289,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_WRITE_CLASS_OTHER:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_CLEAR_FEATURE:
 			goto tr_handle_clear_port_feature;
 		case UR_SET_FEATURE:
@@ -2301,7 +2305,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_READ_CLASS_OTHER:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_TT_STATE:
 			goto tr_handle_get_tt_state;
 		case UR_GET_STATUS:
@@ -2312,7 +2316,7 @@ musbotg_roothub_exec(struct usb2_bus *bus)
 		break;
 
 	case UT_READ_CLASS_DEVICE:
-		switch (std->req.bRequest) {
+		switch (req->bRequest) {
 		case UR_GET_DESCRIPTOR:
 			goto tr_handle_get_class_descriptor;
 		case UR_GET_STATUS:
@@ -2333,31 +2337,31 @@ tr_handle_get_descriptor:
 		if (value & 0xff) {
 			goto tr_stalled;
 		}
-		std->len = sizeof(musbotg_devd);
-		std->ptr = USB_ADD_BYTES(&musbotg_devd, 0);
+		len = sizeof(musbotg_devd);
+		ptr = (const void *)&musbotg_devd;
 		goto tr_valid;
 	case UDESC_CONFIG:
 		if (value & 0xff) {
 			goto tr_stalled;
 		}
-		std->len = sizeof(musbotg_confd);
-		std->ptr = USB_ADD_BYTES(&musbotg_confd, 0);
+		len = sizeof(musbotg_confd);
+		ptr = (const void *)&musbotg_confd;
 		goto tr_valid;
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			std->len = sizeof(musbotg_langtab);
-			std->ptr = USB_ADD_BYTES(&musbotg_langtab, 0);
+			len = sizeof(musbotg_langtab);
+			ptr = (const void *)&musbotg_langtab;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
-			std->len = sizeof(musbotg_vendor);
-			std->ptr = USB_ADD_BYTES(&musbotg_vendor, 0);
+			len = sizeof(musbotg_vendor);
+			ptr = (const void *)&musbotg_vendor;
 			goto tr_valid;
 
 		case 2:		/* Product */
-			std->len = sizeof(musbotg_product);
-			std->ptr = USB_ADD_BYTES(&musbotg_product, 0);
+			len = sizeof(musbotg_product);
+			ptr = (const void *)&musbotg_product;
 			goto tr_valid;
 		default:
 			break;
@@ -2369,12 +2373,12 @@ tr_handle_get_descriptor:
 	goto tr_stalled;
 
 tr_handle_get_config:
-	std->len = 1;
+	len = 1;
 	sc->sc_hub_temp.wValue[0] = sc->sc_conf;
 	goto tr_valid;
 
 tr_handle_get_status:
-	std->len = 2;
+	len = 2;
 	USETW(sc->sc_hub_temp.wValue, UDS_SELF_POWERED);
 	goto tr_valid;
 
@@ -2393,7 +2397,7 @@ tr_handle_set_config:
 	goto tr_valid;
 
 tr_handle_get_interface:
-	std->len = 1;
+	len = 1;
 	sc->sc_hub_temp.wValue[0] = 0;
 	goto tr_valid;
 
@@ -2401,7 +2405,7 @@ tr_handle_get_tt_state:
 tr_handle_get_class_status:
 tr_handle_get_iface_status:
 tr_handle_get_ep_status:
-	std->len = 2;
+	len = 2;
 	USETW(sc->sc_hub_temp.wValue, 0);
 	goto tr_valid;
 
@@ -2446,7 +2450,7 @@ tr_handle_clear_port_feature:
 		sc->sc_flags.change_suspend = 0;
 		break;
 	default:
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	}
 	goto tr_valid;
@@ -2471,7 +2475,7 @@ tr_handle_set_port_feature:
 		sc->sc_flags.port_powered = 1;
 		break;
 	default:
-		std->err = USB_ERR_IOERROR;
+		err = USB_ERR_IOERROR;
 		goto done;
 	}
 	goto tr_valid;
@@ -2528,22 +2532,24 @@ tr_handle_get_port_status:
 		value |= UPS_C_SUSPEND;
 	}
 	USETW(sc->sc_hub_temp.ps.wPortChange, value);
-	std->len = sizeof(sc->sc_hub_temp.ps);
+	len = sizeof(sc->sc_hub_temp.ps);
 	goto tr_valid;
 
 tr_handle_get_class_descriptor:
 	if (value & 0xFF) {
 		goto tr_stalled;
 	}
-	std->ptr = USB_ADD_BYTES(&musbotg_hubd, 0);
-	std->len = sizeof(musbotg_hubd);
+	ptr = (const void *)&musbotg_hubd;
+	len = sizeof(musbotg_hubd);
 	goto tr_valid;
 
 tr_stalled:
-	std->err = USB_ERR_STALLED;
+	err = USB_ERR_STALLED;
 tr_valid:
 done:
-	return;
+	*plength = len;
+	*pptr = ptr;
+	return (err);
 }
 
 static void

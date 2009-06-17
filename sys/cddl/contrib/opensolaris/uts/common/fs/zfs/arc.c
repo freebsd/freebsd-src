@@ -131,6 +131,8 @@
 #include <sys/kstat.h>
 #include <sys/sdt.h>
 
+#include <vm/vm_pageout.h>
+
 static kmutex_t		arc_reclaim_thr_lock;
 static kcondvar_t	arc_reclaim_thr_cv;	/* used to signal reclaim thr */
 static uint8_t		arc_thread_exit;
@@ -1710,14 +1712,23 @@ arc_adjust(void)
 static void
 arc_do_user_evicts(void)
 {
+	static arc_buf_t *tmp_arc_eviction_list;
+
+	/*
+	 * Move list over to avoid LOR
+	 */
+restart:	
 	mutex_enter(&arc_eviction_mtx);
-	while (arc_eviction_list != NULL) {
-		arc_buf_t *buf = arc_eviction_list;
-		arc_eviction_list = buf->b_next;
+	tmp_arc_eviction_list = arc_eviction_list;
+	arc_eviction_list = NULL;
+	mutex_exit(&arc_eviction_mtx);
+
+	while (tmp_arc_eviction_list != NULL) {
+		arc_buf_t *buf = tmp_arc_eviction_list;
+		tmp_arc_eviction_list = buf->b_next;
 		rw_enter(&buf->b_lock, RW_WRITER);
 		buf->b_hdr = NULL;
 		rw_exit(&buf->b_lock);
-		mutex_exit(&arc_eviction_mtx);
 
 		if (buf->b_efunc != NULL)
 			VERIFY(buf->b_efunc(buf) == 0);
@@ -1725,9 +1736,10 @@ arc_do_user_evicts(void)
 		buf->b_efunc = NULL;
 		buf->b_private = NULL;
 		kmem_cache_free(buf_cache, buf);
-		mutex_enter(&arc_eviction_mtx);
 	}
-	mutex_exit(&arc_eviction_mtx);
+
+	if (arc_eviction_list != NULL)
+		goto restart;
 }
 
 /*
@@ -1808,6 +1820,13 @@ arc_reclaim_needed(void)
 #endif
 
 #ifdef _KERNEL
+
+	/*
+	 * If pages are needed or we're within 2048 pages 
+	 * of needing to page need to reclaim
+	 */
+	if (vm_pages_needed || (vm_paging_target() > -2048))
+		return (1);
 
 	if (needfree)
 		return (1);

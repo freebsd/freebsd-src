@@ -138,7 +138,6 @@ SUBDIR=	${_ac} \
 	quot \
 	${_quotaon} \
 	rarpd \
-	${_raycontrol} \
 	${_repquota} \
 	${_rip6query} \
 	rmt \
@@ -164,7 +163,6 @@ SUBDIR=	${_ac} \
 	setfmac \
 	setpmac \
 	${_sicontrol} \
-	${_slstat} \
 	smbmsg \
 	snapinfo \
 	${_spkrtest} \
@@ -180,6 +178,7 @@ SUBDIR=	${_ac} \
 	${_traceroute6} \
 	trpt \
 	tzsetup \
+	${_uathload} \
 	ugidfw \
 	${_usbdevs} \
 	${_usbconfig} \
@@ -396,13 +395,15 @@ _crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
+.if ${MACHINE_ARCH} != "ia64"
+_uathload=	uathload
+.endif
 #_usbdevs=	usbdevs
 _usbconfig=	usbconfig
 .endif
 
 .if ${MK_WIRELESS} != "no"
 _ancontrol=	ancontrol
-_raycontrol=	raycontrol
 _wlandebug=	wlandebug
 _wpa=		wpa
 .endif

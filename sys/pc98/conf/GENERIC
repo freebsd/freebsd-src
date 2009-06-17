@@ -261,8 +261,9 @@ device		bpf		# Berkeley packet filter
 #device		ulpt		# Printer
 #device		umass		# Disks/Mass storage - Requires scbus and da
 #device		ums		# Mouse
-#device		ural		# Ralink Technology RT2500USB wireless NICs
 #device		rum		# Ralink Technology RT2501USB wireless NICs
+#device		uath		# Atheros AR5523 wireless NICs
+#device		ural		# Ralink Technology RT2500USB wireless NICs
 #device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 #device		urio		# Diamond Rio 500 MP3 player
 # USB Serial devices

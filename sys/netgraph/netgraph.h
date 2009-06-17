@@ -352,6 +352,7 @@ struct ng_node {
 	LIST_ENTRY(ng_node)	  nd_idnodes;	/* ID hash collision list */
 	struct	ng_queue	  nd_input_queue; /* input queue for locking */
 	int	nd_refs;		/* # of references to this node */
+	struct	vnet		 *nd_vnet;	/* network stack instance */
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define ND_MAGIC 0x59264837
 	int	nd_magic;
@@ -1123,6 +1124,7 @@ hook_p	ng_findhook(node_p node, const char *name);
 struct	ng_type *ng_findtype(const char *type);
 int	ng_make_node_common(struct ng_type *typep, node_p *nodep);
 int	ng_name_node(node_p node, const char *name);
+node_p	ng_name2noderef(node_p node, const char *name);
 int	ng_newtype(struct ng_type *tp);
 ng_ID_t ng_node2ID(node_p node);
 item_p	ng_package_data(struct mbuf *m, int flags);

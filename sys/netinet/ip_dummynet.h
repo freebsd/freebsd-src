@@ -204,7 +204,18 @@ struct dn_flow_queue {
     struct mbuf *head, *tail ;	/* queue of packets */
     u_int len ;
     u_int len_bytes ;
-    u_long numbytes ;		/* credit for transmission (dynamic queues) */
+
+    /*
+     * When we emulate MAC overheads, or channel unavailability due
+     * to other traffic on a shared medium, we augment the packet at
+     * the head of the queue with an 'extra_bits' field representsing
+     * the additional delay the packet will be subject to:
+     *		extra_bits = bw*unavailable_time.
+     * With large bandwidth and large delays, extra_bits (and also numbytes)
+     * can become very large, so better play safe and use 64 bit
+     */
+    dn_key numbytes ;		/* credit for transmission (dynamic queues) */
+    dn_key extra_bits;		/* extra bits simulating unavailable channel */
 
     u_int64_t tot_pkts ;	/* statistics counters	*/
     u_int64_t tot_bytes ;
@@ -252,6 +263,7 @@ struct dn_flow_set {
 #define DN_IS_GENTLE_RED	0x0004
 #define DN_QSIZE_IS_BYTES	0x0008	/* queue size is measured in bytes */
 #define DN_NOERROR		0x0010	/* do not report ENOBUFS on drops  */
+#define	DN_HAS_PROFILE		0x0020	/* the pipe has a delay profile. */
 #define DN_IS_PIPE		0x4000
 #define DN_IS_QUEUE		0x8000
 
@@ -324,7 +336,9 @@ struct dn_pipe {		/* a pipe */
 
     dn_key V ;			/* virtual time */
     int sum;			/* sum of weights of all active sessions */
-    int numbytes;		/* bits I can transmit (more or less). */
+
+    /* Same as in dn_flow_queue, numbytes can become large */
+    dn_key numbytes;		/* bits I can transmit (more or less). */
 
     dn_key sched_time ;		/* time pipe was scheduled in ready_heap */
 
@@ -337,7 +351,25 @@ struct dn_pipe {		/* a pipe */
     int ready ; /* set if ifp != NULL and we got a signal from it */
 
     struct dn_flow_set fs ; /* used with fixed-rate flows */
+
+    /* fields to simulate a delay profile */
+
+#define ED_MAX_NAME_LEN		32
+    char name[ED_MAX_NAME_LEN];
+    int loss_level;
+    int samples_no;
+    int *samples;
 };
+
+/* dn_pipe_max is used to pass pipe configuration from userland onto
+ * kernel space and back
+ */
+#define ED_MAX_SAMPLES_NO	1024
+struct dn_pipe_max {
+	struct dn_pipe pipe;
+	int samples[ED_MAX_SAMPLES_NO];
+};
+
 SLIST_HEAD(dn_pipe_head, dn_pipe);
 
 #ifdef _KERNEL

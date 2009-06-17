@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Apple Inc.
+ * Copyright (c) 2004-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#15 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#17 $
  */
 
 /*
@@ -60,7 +60,7 @@
 static int	token = 0;
 #endif	/* AUDIT_NOTIFICATION_ENABLED */
 
-static long	au_cond = AUC_UNSET;	/* <bsm/audit.h> */
+static int	au_cond = AUC_UNSET;	/* <bsm/audit.h> */
 
 uint32_t
 au_notify_initialize(void)
@@ -77,7 +77,7 @@ au_notify_initialize(void)
 		return (status);
 #endif
 
-	if (auditon(A_GETCOND, &au_cond, sizeof(long)) < 0) {
+	if (audit_get_cond(&au_cond) != 0) {
 		syslog(LOG_ERR, "Initial audit status check failed (%s)",
 		    strerror(errno));
 		if (errno == ENOSYS)	/* auditon() unimplemented. */
@@ -137,7 +137,7 @@ au_get_state(void)
 		return (au_cond);
 #endif
 
-	if (auditon(A_GETCOND, &au_cond, sizeof(long)) < 0) {
+	if (audit_get_cond(&au_cond) != 0) {
 		/* XXX Reset au_cond to AUC_UNSET? */
 		syslog(LOG_ERR, "Audit status check failed (%s)",
 		    strerror(errno));
@@ -165,16 +165,16 @@ cannot_audit(int val __unused)
 #ifdef __APPLE__
 	return (!(au_get_state() == AUC_AUDITING));
 #else
-	long au_cond;
+	int cond;
 
-	if (auditon(A_GETCOND, &au_cond, sizeof(long)) < 0) {
+	if (audit_get_cond(&cond) != 0) {
 		if (errno != ENOSYS) {
 			syslog(LOG_ERR, "Audit status check failed (%s)",
 			    strerror(errno));
 		}
 		return (1);
 	}
-	if (au_cond == AUC_NOAUDIT || au_cond == AUC_DISABLED)
+	if (cond == AUC_NOAUDIT || cond == AUC_DISABLED)
 		return (1);
 	return (0);
 #endif	/* !__APPLE__ */

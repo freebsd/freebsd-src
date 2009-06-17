@@ -179,6 +179,14 @@ static const struct pmap_devmap at91rm9200_devmap[] = {
 		PTE_NOCACHE,
 	},
 	{
+		/* CompactFlash controller. */
+		AT91RM92_CF_BASE,
+		AT91RM92_CF_PA_BASE,
+		AT91RM92_CF_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	{
 		0,
 		0,
 		0,

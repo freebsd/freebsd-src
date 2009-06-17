@@ -137,9 +137,9 @@ struct ieee80211_node {
 	uint32_t		*ni_challenge;	/* shared-key challenge */
 	struct ieee80211_ies	ni_ies;		/* captured ie's */
 						/* tx seq per-tid */
-	uint16_t		ni_txseqs[IEEE80211_TID_SIZE];
+	ieee80211_seq		ni_txseqs[IEEE80211_TID_SIZE];
 						/* rx seq previous per-tid*/
-	uint16_t		ni_rxseqs[IEEE80211_TID_SIZE];
+	ieee80211_seq		ni_rxseqs[IEEE80211_TID_SIZE];
 	uint32_t		ni_rxfragstamp;	/* time stamp of last rx frag */
 	struct mbuf		*ni_rxfrag[3];	/* rx frag reassembly */
 	struct ieee80211_key	ni_ucastkey;	/* unicast key */
@@ -286,6 +286,8 @@ void	ieee80211_node_set_chan(struct ieee80211_node *,
 void	ieee80211_create_ibss(struct ieee80211vap*, struct ieee80211_channel *);
 void	ieee80211_reset_bss(struct ieee80211vap *);
 void	ieee80211_sync_curchan(struct ieee80211com *);
+void	ieee80211_setupcurchan(struct ieee80211com *,
+	    struct ieee80211_channel *);
 void	ieee80211_setcurchan(struct ieee80211com *, struct ieee80211_channel *);
 int	ieee80211_ibss_merge(struct ieee80211_node *);
 struct ieee80211_scan_entry;

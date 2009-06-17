@@ -2,7 +2,7 @@
  * Copyright (c) Ian F. Darwin 1986-1995.
  * Software written by Ian F. Darwin and others;
  * maintained 1995-present by Christos Zoulas and others.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -12,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *  
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.108 2008/07/16 18:00:57 christos Exp $
+ * @(#)$File: file.h,v 1.118 2009/02/03 20:27:51 christos Exp $
  */
 
 #ifndef __file_h__
@@ -48,6 +48,7 @@
 #endif
 #include <regex.h>
 #include <sys/types.h>
+#include <sys/param.h>
 /* Do this here and now, because struct stat gets re-defined on solaris */
 #include <sys/stat.h>
 #include <stdarg.h>
@@ -103,8 +104,8 @@
 #define MAXstring 32		/* max leng of "string" types */
 
 #define MAGICNO		0xF11E041C
-#define VERSIONNO	6
-#define FILE_MAGICSIZE	(32 * 6)
+#define VERSIONNO	7
+#define FILE_MAGICSIZE	200
 
 #define	FILE_LOAD	0
 #define FILE_CHECK	1
@@ -122,7 +123,7 @@ union VALUETYPE {
 	unsigned char us[MAXstring];
 	float f;
 	double d;
-}; 
+};
 
 struct magic {
 	/* Word 1 */
@@ -134,7 +135,7 @@ struct magic {
 #define UNSIGNED	0x08	/* comparison is unsigned */
 #define NOSPACE		0x10	/* suppress space character before output */
 #define BINTEST		0x20	/* test is for a binary type (set only
-                                   for top-level tests) */
+				   for top-level tests) */
 #define TEXTTEST	0	/* for passing to file_softmagic */
 
 	uint8_t factor;
@@ -183,7 +184,10 @@ struct magic {
 #define				FILE_DOUBLE	36
 #define				FILE_BEDOUBLE	37
 #define				FILE_LEDOUBLE	38
-#define				FILE_NAMES_SIZE	39/* size of array to contain all names */
+#define				FILE_BEID3	39
+#define				FILE_LEID3	40
+#define				FILE_INDIRECT	41
+#define				FILE_NAMES_SIZE	42/* size of array to contain all names */
 
 #define IS_STRING(t) \
 	((t) == FILE_STRING || \
@@ -209,7 +213,7 @@ struct magic {
 #else
 	uint8_t dummy;
 #endif
-	uint8_t factor_op;	
+	uint8_t factor_op;
 #define		FILE_FACTOR_OP_PLUS	'+'
 #define		FILE_FACTOR_OP_MINUS	'-'
 #define		FILE_FACTOR_OP_TIMES	'*'
@@ -257,11 +261,13 @@ struct magic {
 #define str_range _u._s._count
 #define str_flags _u._s._flags
 	/* Words 9-16 */
-	union VALUETYPE value;		/* either number or string */
-	/* Words 17..31 */
+	union VALUETYPE value;	/* either number or string */
+	/* Words 17-24 */
 	char desc[MAXDESC];	/* description */
-	/* Words 32..47 */
+	/* Words 25-32 */
 	char mimetype[MAXDESC]; /* MIME type */
+	/* Words 33-34 */
+	char apple[8];
 };
 
 #define BIT(A)   (1 << (A))
@@ -302,7 +308,7 @@ struct level_info {
 	int last_match;
 	int last_cond;	/* used for error checking by parse() */
 #endif
-} *li;
+};
 struct magic_set {
 	struct mlist *mlist;
 	struct cont {
@@ -315,8 +321,9 @@ struct magic_set {
 	} o;
 	uint32_t offset;
 	int error;
-	int flags;
-	int haderr;
+	int flags;			/* Control magic tests. */
+	int event_flags;		/* Note things that happened. */
+#define 		EVENT_HAD_ERR		0x01
 	const char *file;
 	size_t line;			/* current magic line number */
 
@@ -348,11 +355,19 @@ protected int file_printf(struct magic_set *, const char *, ...)
 protected int file_reset(struct magic_set *);
 protected int file_tryelf(struct magic_set *, int, const unsigned char *,
     size_t);
+protected int file_trycdf(struct magic_set *, int, const unsigned char *,
+    size_t);
 protected int file_zmagic(struct magic_set *, int, const char *,
     const unsigned char *, size_t);
 protected int file_ascmagic(struct magic_set *, const unsigned char *, size_t);
+protected int file_ascmagic_with_encoding(struct magic_set *,
+    const unsigned char *, size_t, unichar *, size_t, const char *,
+    const char *);
+protected int file_encoding(struct magic_set *, const unsigned char *, size_t,
+    unichar **, size_t *, const char **, const char **, const char **);
 protected int file_is_tar(struct magic_set *, const unsigned char *, size_t);
-protected int file_softmagic(struct magic_set *, const unsigned char *, size_t, int);
+protected int file_softmagic(struct magic_set *, const unsigned char *, size_t,
+    int);
 protected struct mlist *file_apprentice(struct magic_set *, const char *, int);
 protected uint64_t file_signextend(struct magic_set *, struct magic *,
     uint64_t);
@@ -397,6 +412,13 @@ int vasprintf(char **, const char *, va_list);
 int asprintf(char **ptr, const char *format_string, ...);
 #endif
 
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#endif
+#ifndef HAVE_STRLCAT
+size_t strlcat(char *dst, const char *src, size_t siz);
+#endif
+
 #if defined(HAVE_MMAP) && defined(HAVE_SYS_MMAN_H) && !defined(QUICK)
 #define QUICK
 #endif
@@ -407,12 +429,14 @@ int asprintf(char **ptr, const char *format_string, ...);
 
 #ifndef __cplusplus
 #ifdef __GNUC__
-static const char *rcsid(const char *) __attribute__((__used__));
-#endif
+#define FILE_RCSID(id) \
+static const char rcsid[] __attribute__((__used__)) = id;
+#else
 #define FILE_RCSID(id) \
 static const char *rcsid(const char *p) { \
 	return rcsid(p = id); \
 }
+#endif
 #else
 #define FILE_RCSID(id)
 #endif

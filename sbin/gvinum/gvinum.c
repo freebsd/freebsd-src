@@ -61,6 +61,7 @@ void	gvinum_attach(int, char **);
 void	gvinum_concat(int, char **);
 void	gvinum_create(int, char **);
 void	gvinum_detach(int, char **);
+void	gvinum_grow(int, char **);
 void	gvinum_help(void);
 void	gvinum_list(int, char **);
 void	gvinum_move(int, char **);
@@ -82,6 +83,7 @@ void	printconfig(FILE *, char *);
 char	*create_drive(char *);
 void	 create_volume(int, char **, char *);
 char	*find_name(const char *, int, int);
+char	*find_drive(const char *);
 char	*find_pattern(char *, char *);
 
 int
@@ -422,21 +424,16 @@ create_drive(char *device)
 	drives = 1;
 	dname = NULL;
 
-	/* Strip away eventual /dev/ in front. */
-	if (strncmp(device, "/dev/", 5) == 0)
-		device += 5;
-
-	drivename = find_name("gvinumdrive", GV_TYPE_DRIVE, GV_MAXDRIVENAME);
+	drivename = find_drive(device);
 	if (drivename == NULL)
 		return (NULL);
 
 	req = gctl_get_handle();
 	gctl_ro_param(req, "class", -1, "VINUM");
 	gctl_ro_param(req, "verb", -1, "create");
-	d = malloc(sizeof(struct gv_drive));
+	d = gv_alloc_drive();
 	if (d == NULL)
 		err(1, "unable to allocate for gv_drive object");
-	memset(d, 0, sizeof(struct gv_drive));
 
 	strlcpy(d->name, drivename, sizeof(d->name));
 	strlcpy(d->device, device, sizeof(d->device));
@@ -629,6 +626,16 @@ find_name(const char *prefix, int type, int namelen)
 	return (NULL);
 }
 
+char *
+find_drive(const char *device)
+{
+
+	/* Strip possible /dev/ in front. */
+	if (strncmp(device, "/dev/", 5) == 0)
+		device += 5;
+	return (find_name("gvinumdrive", GV_TYPE_DRIVE, GV_MAXDRIVENAME));
+}
+
 /* Detach a plex or subdisk from its parent. */
 void
 gvinum_detach(int argc, char **argv)
@@ -684,6 +691,8 @@ gvinum_help(void)
 	    "detach [-f] [plex | subdisk]\n"
 	    "        Detach a plex or a subdisk from the volume or plex to\n"
 	    "        which it is attached.\n"
+	    "grow plex drive\n"
+	    "        Grow plex by creating a properly sized subdisk on drive\n"
 	    "l | list [-r] [-v] [-V] [volume | plex | subdisk]\n"
 	    "        List information about specified objects.\n"
 	    "ld [-r] [-v] [-V] [volume]\n"
@@ -1236,6 +1245,87 @@ gvinum_stripe(int argc, char **argv)
 	create_volume(argc, argv, "stripe");
 }
 
+/* Grow a subdisk by adding disk backed by provider. */
+void
+gvinum_grow(int argc, char **argv)
+{
+	struct gctl_req *req;
+	char *drive, *sdname;
+	char sdprefix[GV_MAXSDNAME];
+	struct gv_drive *d;
+	struct gv_sd *s;
+	const char *errstr;
+	int drives, volumes, plexes, subdisks, flags;
+
+	drives = volumes = plexes = subdisks = 0;
+	if (argc < 3) {
+		warnx("usage:\tgrow plex drive\n");
+		return;
+	}
+
+	s = gv_alloc_sd();
+	if (s == NULL) {
+		warn("unable to create subdisk");
+		return;
+	}
+	d = gv_alloc_drive();
+	if (d == NULL) {
+		warn("unable to create drive");
+		free(s);
+		return;
+	}
+	/* Lookup device and set an appropriate drive name. */
+	drive = find_drive(argv[2]);
+	if (drive == NULL) {
+		warn("unable to find an appropriate drive name");
+		free(s);
+		free(d);
+		return;
+	}
+	strlcpy(d->name, drive, sizeof(d->name));
+	if (strncmp(argv[2], "/dev/", 5) == 0)
+		strlcpy(d->device, (argv[2] + 5), sizeof(d->device));
+	else
+		strlcpy(d->device, argv[2], sizeof(d->device));
+	drives = 1;
+
+	/* We try to use the plex name as basis for the subdisk name. */
+	snprintf(sdprefix, sizeof(sdprefix), "%s.s", argv[1]);
+	sdname = find_name(sdprefix, GV_TYPE_SD, GV_MAXSDNAME);
+	if (sdname == NULL) {
+		warn("unable to find an appropriate subdisk name");
+		free(s);
+		free(d);
+		free(drive);
+		return;
+	}
+	strlcpy(s->name, sdname, sizeof(s->name));
+	free(sdname);
+	strlcpy(s->plex, argv[1], sizeof(s->plex));
+	strlcpy(s->drive, d->name, sizeof(s->drive));
+	subdisks = 1;
+
+	req = gctl_get_handle();
+	gctl_ro_param(req, "class", -1, "VINUM");
+	gctl_ro_param(req, "verb", -1, "create");
+	gctl_ro_param(req, "flags", sizeof(int), &flags);
+	gctl_ro_param(req, "volumes", sizeof(int), &volumes);
+	gctl_ro_param(req, "plexes", sizeof(int), &plexes);
+	gctl_ro_param(req, "subdisks", sizeof(int), &subdisks);
+	gctl_ro_param(req, "drives", sizeof(int), &drives);
+	gctl_ro_param(req, "drive0", sizeof(*d), d);
+	gctl_ro_param(req, "sd0", sizeof(*s), s);
+	errstr = gctl_issue(req);
+	free(drive);
+	if (errstr != NULL) {
+		warnx("unable to grow plex: %s", errstr);
+		free(s);
+		free(d);
+		return;
+	}
+	gctl_free(req);
+}
+
 void
 parseline(int argc, char **argv)
 {
@@ -1252,6 +1342,8 @@ parseline(int argc, char **argv)
 		gvinum_detach(argc, argv);
 	else if (!strcmp(argv[0], "concat"))
 		gvinum_concat(argc, argv);
+	else if (!strcmp(argv[0], "grow"))
+		gvinum_grow(argc, argv);
 	else if (!strcmp(argv[0], "help"))
 		gvinum_help();
 	else if (!strcmp(argv[0], "list") || !strcmp(argv[0], "l"))

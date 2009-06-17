@@ -45,6 +45,8 @@
 #include <sys/sockopt.h>
 #endif
 
+struct vnet;
+
 /*
  * Kernel structure per socket.
  * Contains send and receive buffer queues,
@@ -72,6 +74,7 @@ struct socket {
 	short	so_state;		/* (b) internal state flags SS_* */
 	int	so_qstate;		/* (e) internal state flags SQ_* */
 	void	*so_pcb;		/* protocol control block */
+	struct	vnet *so_vnet;		/* network stack instance */
 	struct	protosw *so_proto;	/* (a) protocol handle */
 /*
  * Variables for connection queuing.

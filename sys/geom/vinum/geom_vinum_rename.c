@@ -125,7 +125,6 @@ gv_rename_drive(struct gv_softc *sc, struct gv_drive *d, char *newname,
 {
 	struct gv_sd *s;
 
-	g_topology_assert();
 	KASSERT(d != NULL, ("gv_rename_drive: NULL d"));
 
 	if (gv_object_type(sc, newname) != GV_ERR_NOTFOUND) {
@@ -151,7 +150,6 @@ gv_rename_plex(struct gv_softc *sc, struct gv_plex *p, char *newname, int flags)
 	char *ptr;
 	int err;
 
-	g_topology_assert();
 	KASSERT(p != NULL, ("gv_rename_plex: NULL p"));
 
 	if (gv_object_type(sc, newname) != GV_ERR_NOTFOUND) {
@@ -203,7 +201,6 @@ gv_rename_sd(struct gv_softc *sc, struct gv_sd *s, char *newname, int flags)
 {
 	char *dot1, *dot2;
 
-	g_topology_assert();
 	KASSERT(s != NULL, ("gv_rename_sd: NULL s"));
 
 	if (gv_object_type(sc, newname) != GV_ERR_NOTFOUND) {
@@ -231,7 +228,6 @@ gv_rename_vol(struct gv_softc *sc, struct gv_volume *v, char *newname,
 	char newplex[GV_MAXPLEXNAME], *ptr;
 	int err;
 
-	g_topology_assert();
 	KASSERT(v != NULL, ("gv_rename_vol: NULL v"));
 	pp = v->provider;
 	KASSERT(pp != NULL, ("gv_rename_vol: NULL pp"));

@@ -116,8 +116,6 @@ typedef struct acl_t_struct *acl_t;
 
 #ifdef _KERNEL
 
-extern uma_zone_t	acl_zone;
-
 /*
  * POSIX.1e ACLs are capable of expressing the read, write, and execute bits
  * of the POSIX mode field.  We provide two masks: one that defines the bits
@@ -141,6 +139,8 @@ mode_t			acl_posix1e_perms_to_mode(
 mode_t			acl_posix1e_acl_to_mode(struct acl *acl);
 mode_t			acl_posix1e_newfilemode(mode_t cmode,
 			    struct acl *dacl);
+struct acl		*acl_alloc(int flags);
+void			acl_free(struct acl *aclp);
 
 /*
  * File system independent syntax check for a POSIX.1e ACL.

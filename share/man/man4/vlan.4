@@ -36,7 +36,6 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device miibus"
 .Cd "device vlan"
 .Ed
 .Pp
@@ -193,18 +192,7 @@ The MTU setting on
 .Nm
 can be corrected manually if used in conjunction with such a parent interface.
 .Sh SEE ALSO
-.Xr kqueue 2 ,
-.Xr miibus 4 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8
 .Sh BUGS
 No 802.1Q features except VLAN tagging are implemented.
-.Pp
-.Dv EVFILT_NETDEV
-events on a
-.Nm
-interface will be sent through
-.Xr kqueue 2
-only if the parent interface uses
-.Xr miibus 4
-for link state notification.

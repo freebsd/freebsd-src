@@ -142,11 +142,9 @@
 #include "opt_asr.h"
 #include <i386/include/cputypes.h>
 
-#ifndef BURN_BRIDGES
 #if defined(ASR_COMPAT)
 #define ASR_IOCTL_COMPAT
 #endif /* ASR_COMPAT */
-#endif /* !BURN_BRIDGES */
 #endif
 #include <machine/vmparam.h>
 

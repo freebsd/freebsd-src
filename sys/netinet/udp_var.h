@@ -71,6 +71,11 @@ struct udpstat {
 	u_long	udps_filtermcast;	/* blocked by multicast filter */
 };
 
+#ifdef _KERNEL
+#define	UDPSTAT_ADD(name, val)	V_udpstat.name += (val)
+#define	UDPSTAT_INC(name)	UDPSTAT_ADD(name, 1)
+#endif
+
 /*
  * Names for UDP sysctl objects.
  */

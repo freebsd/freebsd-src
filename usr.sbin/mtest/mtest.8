@@ -26,111 +26,116 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2009
+.Dd April 29, 2009
 .Os
 .Dt MTEST 8
 .Sh NAME
 .Nm mtest
-.Nd test multicast membership socket operations and ioctls
+.Nd test multicast socket operations
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
 The
 .Nm
 utility
-is a small program for testing the multicast membership socket operations
-and ioctls.
-It accepts the following commands, interactively:
+is a small program for testing multicast socket operations.
+.Pp
+It accepts the following commands, interactively, or as part of a scripted
+input file (useful for automated testing):
 .Bl -tag -width "a ifname e.e.e.e e.e.e.e" -compact -offset indent
-.It Ic j Ar g.g.g.g Ar i.i.i.i Op Ar s.s.s.s
-Join the IP group address
-.Ar g.g.g.g
-on the interface with address
-.Ar i.i.i.i .
 .Pp
-If an optional source
-.Ar s.s.s.s
-is specified, a source-specific join will be performed;
-if
-.Nm
-is already a member of the group, the source
-will be added to its filter list.
-.Pp
-.Ar i.i.i.i
-may be specified as 0.0.0.0 to use the default interface,
-although this is legacy behaviour and is not recommended,
-as group memberships are keyed to each individual link.
-.It Ic l Ar g.g.g.g Ar i.i.i.i Op Ar s.s.s.s
-Leave the IP group address
-.Ar g.g.g.g
-on the interface with address
-.Ar i.i.i.i .
-If a source
-.Ar s.s.s.s
-is specified, only that source will be left.
-.It Ic a Ar ifname Ar e.e.e.e.e.e
-Join the Ethernet group address
-.Ar e.e.e.e.e.e
+.\"
+.It Ic a Ar ifname Ar mac-addr
+Join the link-layer group address
+.Ar mac-addr
 on interface
 .Ar ifname .
-.It Ic d Ar ifname Ar e.e.e.e.e.e
-Leave the Ethernet group address
-.Ar e.e.e.e.e.e
+The group address should be in IEEE 802 MAC format,
+delimited by colon (':') characters.
+.It Ic d Ar ifname Ar mac-addr
+Leave the link-layer group address
+.Ar mac-addr
 on interface
 .Ar ifname .
 .It Ic m Ar ifname Ar 1/0
 Set or reset ALLMULTI mode on interface
 .Ar ifname .
+This option is deprecated and is now a no-op.
 .It Ic p Ar ifname Ar 1/0
 Set or reset promiscuous mode on interface
 .Ar ifname .
+.Pp
+.It Ic j Ar mcast-addr Ar ifname Op Ar source-addr
+Join the multicast address
+.Ar mcast-addr
+on the interface with name
+.Ar ifname .
+.Pp
+If an optional source
+.Ar source-addr
+is specified, a source-specific join will be performed;
+if
+.Nm
+is already joined to the multicast address, the source
+will be added to its filter list.
+.Pp
+.It Ic l Ar mcast-addr Ar ifname Op Ar source-addr
+Leave the multicast address
+.Ar mcast-addr
+on the interface with address
+.Ar ifname .
+If a source
+.Ar source-addr
+is specified, only that source will be left.
 .\"
-.It Ic i Ar g.g.g.g Ar i.i.i.i Ar n Ar x.x.x.x ...
-Set the socket with group membership of
-.Ar g.g.g.g
-on IPv4 address
-.Ar i.i.i.i
+.It Ic i Ar mcast-addr Ar ifname Ar n Ar source-addr ...
+Set the socket with membership of
+.Ar mcast-addr
+on interface
+.Ar ifname
 to include filter mode, and add
 .Ar n
 sources beginning with
-.Ar x.x.x.x
+.Ar source-addr
 to the inclusion filter list.
 .\"
-.It Ic e Ar g.g.g.g Ar i.i.i.i Ar n Ar x.x.x.x ...
-Set the socket with group membership of
-.Ar g.g.g.g
-on IPv4 address
-.Ar i.i.i.i
+.It Ic e Ar mcast-addr Ar ifname Ar n Ar source-addr ...
+Set the socket with membership of
+.Ar mcast-addr
+on interface
+.Ar ifname
 to exclude filter mode, and add
 .Ar n
 sources beginning with
-.Ar x.x.x.x
+.Ar source-addr
 to the exclusion filter list.
 .\"
-.It Ic t Ar g.g.g.g Ar i.i.i.i Ar s.s.s.s
-Set the socket with group membership of
-.Ar g.g.g.g
-on IPv4 address
-.Ar i.i.i.i
+.It Ic t Ar mcast-addr Ar ifname Ar source-addr
+Set the socket with membership of
+.Ar mcast-addr
+on interface
+.Ar ifname
 to block traffic from source
-.Ar s.s.s.s .
+.Ar source-addr .
 .\"
-.It Ic b Ar g.g.g.g Ar i.i.i.i Ar s.s.s.s
-Set the socket with group membership of
-.Ar g.g.g.g
-on IPv4 address
-.Ar i.i.i.i
+.It Ic b Ar mcast-addr Ar ifname Ar source-addr
+Set the socket with membership of
+.Ar mcast-addr
+on interface
+.Ar ifname
 to allow traffic from source
-.Ar s.s.s.s .
+.Ar source-addr .
 .\"
-.It Ic g Ar g.g.g.g Ar i.i.i.i Ar n
+.Pp
+.It Ic g Ar mcast-addr Ar ifname Ar n
 Print
 .Ar n
-source filter entries for group
-.An g.g.g.g
-on IPv4 address
-.An i.i.i.i .
+source filter entries for
+.An mcast-addr
+on interface
+.An ifname .
 .\"
+.Pp
 .It Ic f Ar filename
 Read commands from the file
 .Ar filename .
@@ -143,6 +148,18 @@ List legal commands.
 .It Ic q
 Quit the program.
 .El
+.Sh IMPLEMENTATION NOTES
+For each command implemented by
+.Nm ,
+the address family of each argument must be identical; it is not possible
+to mix IPv4 multicast memberships with IPv6, for example.
+.Pp
+To support IPv6, all commands have now changed to accept an interface
+name rather than an interface address.
+For IPv4, the program will perform
+a lookup of the primary IP address based on the interface name.
+This may fail if no primary IP address is assigned.
+.Pp
 .Sh SEE ALSO
 .Rs
 .%A D. Thaler

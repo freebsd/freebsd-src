@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -52,6 +52,7 @@ extern int force_open;
 extern int secure;
 extern int use_lessopen;
 extern int ctldisp;
+extern int utf_mode;
 extern IFILE curr_ifile;
 extern IFILE old_ifile;
 #if SPACES_IN_FILENAMES
@@ -469,23 +470,26 @@ fcomplete(s)
 bin_file(f)
 	int f;
 {
-	int i;
 	int n;
 	int bin_count = 0;
-	unsigned char data[256];
+	char data[256];
+	char* p;
+	char* pend;
 
 	if (!seekable(f))
 		return (0);
 	if (lseek(f, (off_t)0, SEEK_SET) == BAD_LSEEK)
 		return (0);
 	n = read(f, data, sizeof(data));
-	for (i = 0;  i < n;  i++)
+	pend = &data[n];
+	for (p = data;  p < pend;  )
 	{
-		char c = data[i];
+		LWCHAR c = step_char(&p, +1, pend);
 		if (ctldisp == OPT_ONPLUS && IS_CSI_START(c))
 		{
-			while (++i < n && is_ansi_middle(data[i]))
-				continue;
+			do {
+				c = step_char(&p, +1, pend);
+			} while (p < pend && is_ansi_middle(c));
 		} else if (binary_char(c))
 			bin_count++;
 	}
@@ -827,20 +831,27 @@ open_altfile(filename, pf, pfd)
 	ch_ungetchar(-1);
 	if ((lessopen = lgetenv("LESSOPEN")) == NULL)
 		return (NULL);
-	if (strcmp(filename, "-") == 0)
-		return (NULL);
 	if (*lessopen == '|')
 	{
 		/*
 		 * If LESSOPEN starts with a |, it indicates 
 		 * a "pipe preprocessor".
 		 */
-#if HAVE_FILENO
-		lessopen++;
-		returnfd = 1;
-#else
+#if !HAVE_FILENO
 		error("LESSOPEN pipe is not supported", NULL_PARG);
 		return (NULL);
+#else
+		lessopen++;
+		returnfd = 1;
+		if (*lessopen == '-') {
+			/*
+			 * Lessopen preprocessor will accept "-" as a filename.
+			 */
+			lessopen++;
+		} else {
+			if (strcmp(filename, "-") == 0)
+				return (NULL);
+		}
 #endif
 	}
 

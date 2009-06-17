@@ -250,6 +250,7 @@ pipeline(void)
 	int negate;
 
 	negate = 0;
+	checkkwd = 2;
 	TRACE(("pipeline: entered\n"));
 	while (readtoken() == TNOT)
 		negate = !negate;

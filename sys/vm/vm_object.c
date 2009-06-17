@@ -2196,16 +2196,13 @@ vm_object_print(
 DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 {
 	vm_object_t object;
-	int nl = 0;
-	int c;
+	vm_pindex_t fidx;
+	vm_paddr_t pa;
+	vm_page_t m, prev_m;
+	int rcount, nl, c;
 
+	nl = 0;
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		vm_pindex_t idx, fidx;
-		vm_pindex_t osize;
-		vm_paddr_t pa = -1;
-		int rcount;
-		vm_page_t m;
-
 		db_printf("new object: %p\n", (void *)object);
 		if (nl > 18) {
 			c = cngetc();
@@ -2216,12 +2213,12 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 		nl++;
 		rcount = 0;
 		fidx = 0;
-		osize = object->size;
-		if (osize > 128)
-			osize = 128;
-		for (idx = 0; idx < osize; idx++) {
-			m = vm_page_lookup(object, idx);
-			if (m == NULL) {
+		pa = -1;
+		TAILQ_FOREACH(m, &object->memq, listq) {
+			if (m->pindex > 128)
+				break;
+			if ((prev_m = TAILQ_PREV(m, pglist, listq)) != NULL &&
+			    prev_m->pindex + 1 != m->pindex) {
 				if (rcount) {
 					db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
 						(long)fidx, rcount, (long)pa);
@@ -2234,10 +2231,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 					nl++;
 					rcount = 0;
 				}
-				continue;
-			}
-
-				
+			}				
 			if (rcount &&
 				(VM_PAGE_TO_PHYS(m) == pa + rcount * PAGE_SIZE)) {
 				++rcount;
@@ -2254,7 +2248,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 				}
 				nl++;
 			}
-			fidx = idx;
+			fidx = m->pindex;
 			pa = VM_PAGE_TO_PHYS(m);
 			rcount = 1;
 		}

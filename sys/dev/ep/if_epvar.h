@@ -57,6 +57,7 @@ struct ep_softc {
 #define F_ENADDR_SKIP		0x002
 #define	F_PROMISC		0x008
 #define	F_ACCESS_32_BITS	0x100
+#define	F_HAS_TX_PLL		0x200
 
 	int gone;		/* adapter is not present (for PCCARD) */
 	struct ep_board epb;

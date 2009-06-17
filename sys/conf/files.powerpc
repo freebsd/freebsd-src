@@ -103,6 +103,8 @@ powerpc/fpu/fpu_implode.c	optional	fpu_emu
 powerpc/fpu/fpu_mul.c		optional	fpu_emu
 powerpc/fpu/fpu_sqrt.c		optional	fpu_emu
 powerpc/fpu/fpu_subr.c		optional	fpu_emu
+powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
+powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
 powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/nexus.c		optional	mpc85xx

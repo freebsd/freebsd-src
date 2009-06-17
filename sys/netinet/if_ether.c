@@ -81,8 +81,6 @@ __FBSDID("$FreeBSD$");
 
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
-#define LLTABLE(ifp)	\
-	((struct in_ifinfo *)(ifp)->if_afdata[AF_INET])->ii_llt
 
 SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
@@ -111,6 +109,7 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, proxyall,
 	"Enable proxy ARP for all suitable requests");
 
 static void	arp_init(void);
+static int	arp_iattach(const void *);
 void		arprequest(struct ifnet *,
 			struct in_addr *, struct in_addr *, u_char *);
 static void	arpintr(struct mbuf *);
@@ -118,6 +117,15 @@ static void	arptimer(void *);
 #ifdef INET
 static void	in_arpinput(struct mbuf *);
 #endif
+
+#ifndef VIMAGE_GLOBALS
+static const vnet_modinfo_t vnet_arp_modinfo = {
+	.vmi_id		= VNET_MOD_ARP,
+	.vmi_name	= "arp",
+	.vmi_dependson	= VNET_MOD_INET,
+	.vmi_iattach	= arp_iattach
+};
+#endif /* !VIMAGE_GLOBALS */
 
 #ifdef AF_INET
 void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
@@ -135,10 +143,12 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 	addr4.sin_len    = sizeof(addr4);
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
+	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
 	lla_lookup(LLTABLE(ifp), (LLE_DELETE | LLE_IFADDR),
 	    (struct sockaddr *)&addr4);
 	IF_AFDATA_UNLOCK(ifp);
+	CURVNET_RESTORE();
 }
 #endif
 
@@ -230,7 +240,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
 	m->m_flags |= M_BCAST;
-	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
+	(*ifp->if_output)(ifp, m, &sa, NULL);
 }
 
 /*
@@ -745,7 +755,7 @@ reply:
 	m->m_pkthdr.len = m->m_len;   
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
-	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
+	(*ifp->if_output)(ifp, m, &sa, NULL);
 	return;
 
 drop:
@@ -790,8 +800,8 @@ arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
 	ifa->ifa_rtrequest = NULL;
 }
 
-static void
-arp_init(void)
+static int
+arp_iattach(const void *unused __unused)
 {
 	INIT_VNET_INET(curvnet);
 
@@ -799,6 +809,19 @@ arp_init(void)
 	V_arp_maxtries = 5;
 	V_useloopback = 1; /* use loopback interface for local traffic */
 	V_arp_proxyall = 0;
+
+	return (0);
+}
+
+static void
+arp_init(void)
+{
+
+#ifndef VIMAGE_GLOBALS
+	vnet_mod_register(&vnet_arp_modinfo);
+#else
+	arp_iattach(NULL);
+#endif
 
 	arpintrq.ifq_maxlen = 50;
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);

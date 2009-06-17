@@ -865,6 +865,29 @@ nfs_getattrcache(struct vnode *vp, struct vattr *vaper)
 	return (0);
 }
 
+/*
+ * Purge all cached information about an NFS vnode including name
+ * cache entries, the attribute cache, and the access cache.  This is
+ * called when an NFS request for a node fails with a stale
+ * filehandle.
+ */
+void
+nfs_purgecache(struct vnode *vp)
+{
+	struct nfsnode *np;
+	int i;
+
+	np = VTONFS(vp);
+	cache_purge(vp);
+	mtx_lock(&np->n_mtx);
+	np->n_attrstamp = 0;
+	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+	for (i = 0; i < NFS_ACCESSCACHESIZE; i++)
+		np->n_accesscache[i].stamp = 0;
+	KDTRACE_NFS_ACCESSCACHE_FLUSH_DONE(vp);
+	mtx_unlock(&np->n_mtx);
+}
+
 static nfsuint64 nfs_nullcookie = { { 0, 0 } };
 /*
  * This function finds the directory cookie that corresponds to the

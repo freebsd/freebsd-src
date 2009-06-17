@@ -863,23 +863,26 @@ ath_vap_create(struct ieee80211com *ic,
 	IEEE80211_ADDR_COPY(mac, mac0);
 
 	ATH_LOCK(sc);
+	ic_opmode = opmode;		/* default to opmode of new vap */
 	switch (opmode) {
 	case IEEE80211_M_STA:
-		if (sc->sc_nstavaps != 0) {	/* XXX only 1 sta for now */
+		if (sc->sc_nstavaps != 0) {	/* XXX only 1 for now */
 			device_printf(sc->sc_dev, "only 1 sta vap supported\n");
 			goto bad;
 		}
 		if (sc->sc_nvaps) {
 			/*
-			 * When there are multiple vaps we must fall
-			 * back to s/w beacon miss handling.
+			 * With multiple vaps we must fall back
+			 * to s/w beacon miss handling.
 			 */
 			flags |= IEEE80211_CLONE_NOBEACONS;
 		}
-		if (flags & IEEE80211_CLONE_NOBEACONS)
+		if (flags & IEEE80211_CLONE_NOBEACONS) {
+			/*
+			 * Station mode w/o beacons are implemented w/ AP mode.
+			 */
 			ic_opmode = IEEE80211_M_HOSTAP;
-		else
-			ic_opmode = opmode;
+		}
 		break;
 	case IEEE80211_M_IBSS:
 		if (sc->sc_nvaps != 0) {	/* XXX only 1 for now */
@@ -887,12 +890,16 @@ ath_vap_create(struct ieee80211com *ic,
 			    "only 1 ibss vap supported\n");
 			goto bad;
 		}
-		ic_opmode = opmode;
 		needbeacon = 1;
 		break;
 	case IEEE80211_M_AHDEMO:
 #ifdef IEEE80211_SUPPORT_TDMA
 		if (flags & IEEE80211_CLONE_TDMA) {
+			if (sc->sc_nvaps != 0) {
+				device_printf(sc->sc_dev,
+				    "only 1 tdma vap supported\n");
+				goto bad;
+			}
 			needbeacon = 1;
 			flags |= IEEE80211_CLONE_NOBEACONS;
 		}
@@ -900,29 +907,34 @@ ath_vap_create(struct ieee80211com *ic,
 #endif
 	case IEEE80211_M_MONITOR:
 		if (sc->sc_nvaps != 0 && ic->ic_opmode != opmode) {
+			/*
+			 * Adopt existing mode.  Adding a monitor or ahdemo
+			 * vap to an existing configuration is of dubious
+			 * value but should be ok.
+			 */
 			/* XXX not right for monitor mode */
 			ic_opmode = ic->ic_opmode;
-		} else
-			ic_opmode = opmode;
+		}
 		break;
 	case IEEE80211_M_HOSTAP:
 		needbeacon = 1;
-		/* fall thru... */
+		break;
 	case IEEE80211_M_WDS:
-		if (sc->sc_nvaps && ic->ic_opmode == IEEE80211_M_STA) {
+		if (sc->sc_nvaps != 0 && ic->ic_opmode == IEEE80211_M_STA) {
 			device_printf(sc->sc_dev,
 			    "wds not supported in sta mode\n");
 			goto bad;
 		}
-		if (opmode == IEEE80211_M_WDS) {
-			/*
-			 * Silently remove any request for a unique
-			 * bssid; WDS vap's always share the local
-			 * mac address.
-			 */
-			flags &= ~IEEE80211_CLONE_BSSID;
-		}
-		ic_opmode = IEEE80211_M_HOSTAP;
+		/*
+		 * Silently remove any request for a unique
+		 * bssid; WDS vap's always share the local
+		 * mac address.
+		 */
+		flags &= ~IEEE80211_CLONE_BSSID;
+		if (sc->sc_nvaps == 0)
+			ic_opmode = IEEE80211_M_HOSTAP;
+		else
+			ic_opmode = ic->ic_opmode;
 		break;
 	default:
 		device_printf(sc->sc_dev, "unknown opmode %d\n", opmode);
@@ -3995,12 +4007,7 @@ rx_next:
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
-		if (ic->ic_stageqdepth) {
-			ieee80211_age_stageq(ic, WME_AC_VO, 100);
-			ieee80211_age_stageq(ic, WME_AC_VI, 100);
-			ieee80211_age_stageq(ic, WME_AC_BE, 100);
-			ieee80211_age_stageq(ic, WME_AC_BK, 100);
-		}
+		ieee80211_ff_age_all(ic, 100);
 #endif
 		if (!IFQ_IS_EMPTY(&ifp->if_snd))
 			ath_start(ifp);
@@ -4215,17 +4222,15 @@ ath_tx_cleanup(struct ath_softc *sc)
 }
 
 /*
- * Return h/w rate index for an IEEE rate (w/o basic rate bit).
+ * Return h/w rate index for an IEEE rate (w/o basic rate bit)
+ * using the current rates in sc_rixmap.
  */
-static int
-ath_tx_findrix(const HAL_RATE_TABLE *rt, int rate)
+static __inline int
+ath_tx_findrix(const struct ath_softc *sc, uint8_t rate)
 {
-	int i;
-
-	for (i = 0; i < rt->rateCount; i++)
-		if ((rt->info[i].dot11Rate & IEEE80211_RATE_VAL) == rate)
-			return i;
-	return 0;		/* NB: lowest rate */
+	int rix = sc->sc_rixmap[rate];
+	/* NB: return lowest rix for invalid rate */
+	return (rix == 0xff ? 0 : rix);
 }
 
 /*
@@ -4773,8 +4778,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	m0->m_nextpkt = NULL;
 
 	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
-		ieee80211_dump_pkt(ic, mtod(m0, caddr_t), m0->m_len,
-			sc->sc_hwmap[rix].ieeerate, -1);
+		ieee80211_dump_pkt(ic, mtod(m0, const uint8_t *), m0->m_len,
+		    sc->sc_hwmap[rix].ieeerate, -1);
 
 	if (bpf_peers_present(ifp->if_bpf)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
@@ -4980,7 +4985,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	 * Flush fast-frame staging queue when traffic slows.
 	 */
 	if (txq->axq_depth <= 1)
-		ieee80211_flush_stageq(ic, txq->axq_ac);
+		ieee80211_ff_flush(ic, txq->axq_ac);
 #endif
 	return nacked;
 }
@@ -5118,8 +5123,8 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			ath_printtxbuf(sc, bf, txq->axq_qnum, ix,
 				ath_hal_txprocdesc(ah, bf->bf_desc,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
-			ieee80211_dump_pkt(ic, mtod(bf->bf_m, caddr_t),
-				bf->bf_m->m_len, 0, -1);
+			ieee80211_dump_pkt(ic, mtod(bf->bf_m, const uint8_t *),
+			    bf->bf_m->m_len, 0, -1);
 		}
 #endif /* ATH_DEBUG */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
@@ -5187,8 +5192,9 @@ ath_draintxq(struct ath_softc *sc)
 			ath_printtxbuf(sc, bf, sc->sc_bhalq, 0,
 				ath_hal_txprocdesc(ah, bf->bf_desc,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
-			ieee80211_dump_pkt(ifp->if_l2com, mtod(bf->bf_m, caddr_t),
-				bf->bf_m->m_len, 0, -1);
+			ieee80211_dump_pkt(ifp->if_l2com,
+			    mtod(bf->bf_m, const uint8_t *), bf->bf_m->m_len,
+			    0, -1);
 		}
 	}
 #endif /* ATH_DEBUG */
@@ -5752,8 +5758,8 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
 
-	an->an_mcastrix = ath_tx_findrix(sc->sc_currates, tp->mcastrate);
-	an->an_mgmtrix = ath_tx_findrix(sc->sc_currates, tp->mgmtrate);
+	an->an_mcastrix = ath_tx_findrix(sc, tp->mcastrate);
+	an->an_mgmtrix = ath_tx_findrix(sc, tp->mgmtrate);
 
 	ath_rate_newassoc(sc, an, isnew);
 	if (isnew && 
@@ -6001,9 +6007,9 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	 * 11g, otherwise at 1Mb/s.
 	 */
 	if (mode == IEEE80211_MODE_11G)
-		sc->sc_protrix = ath_tx_findrix(rt, 2*2);
+		sc->sc_protrix = ath_tx_findrix(sc, 2*2);
 	else
-		sc->sc_protrix = ath_tx_findrix(rt, 2*1);
+		sc->sc_protrix = ath_tx_findrix(sc, 2*1);
 	/* NB: caller is responsible for reseting rate control state */
 #undef N
 }
@@ -6741,7 +6747,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	rt = sc->sc_currates;
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
-	rix = ath_tx_findrix(rt, params->ibp_rate0);
+	rix = ath_tx_findrix(sc, params->ibp_rate0);
 	txrate = rt->info[rix].rateCode;
 	if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 		txrate |= rt->info[rix].shortPreamble;
@@ -6753,7 +6759,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		txantenna = sc->sc_txantenna;
 	ctsduration = 0;
 	if (flags & (HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA)) {
-		cix = ath_tx_findrix(rt, params->ibp_ctsrate);
+		cix = ath_tx_findrix(sc, params->ibp_ctsrate);
 		ctsrate = rt->info[cix].rateCode;
 		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE) {
 			ctsrate |= rt->info[cix].shortPreamble;
@@ -6783,7 +6789,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
 		ieee80211_dump_pkt(ic, mtod(m0, caddr_t), m0->m_len,
-			sc->sc_hwmap[rix].ieeerate, -1);
+		    sc->sc_hwmap[rix].ieeerate, -1);
 	
 	if (bpf_peers_present(ifp->if_bpf)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
@@ -6819,19 +6825,19 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_txflags = flags;
 
 	if (ismrr) {
-		rix = ath_tx_findrix(rt, params->ibp_rate1);
+		rix = ath_tx_findrix(sc, params->ibp_rate1);
 		rate1 = rt->info[rix].rateCode;
 		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 			rate1 |= rt->info[rix].shortPreamble;
 		if (params->ibp_try2) {
-			rix = ath_tx_findrix(rt, params->ibp_rate2);
+			rix = ath_tx_findrix(sc, params->ibp_rate2);
 			rate2 = rt->info[rix].rateCode;
 			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 				rate2 |= rt->info[rix].shortPreamble;
 		} else
 			rate2 = 0;
 		if (params->ibp_try3) {
-			rix = ath_tx_findrix(rt, params->ibp_rate3);
+			rix = ath_tx_findrix(sc, params->ibp_rate3);
 			rate3 = rt->info[rix].rateCode;
 			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 				rate3 |= rt->info[rix].shortPreamble;
@@ -6987,7 +6993,6 @@ ath_tdma_bintvalsetup(struct ath_softc *sc,
 {
 	/* copy from vap state (XXX check all vaps have same value?) */
 	sc->sc_tdmaslotlen = tdma->tdma_slotlen;
-	sc->sc_tdmabintcnt = tdma->tdma_bintval;
 
 	sc->sc_tdmabintval = roundup((sc->sc_tdmaslotlen+sc->sc_tdmaguard) *
 		tdma->tdma_slotcnt, 1024);
@@ -7056,9 +7061,9 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	 */
 	tdma = vap->iv_tdma;
 	if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
-		rix = ath_tx_findrix(sc->sc_currates, tp->ucastrate);
+		rix = ath_tx_findrix(sc, tp->ucastrate);
 	else
-		rix = ath_tx_findrix(sc->sc_currates, tp->mcastrate);
+		rix = ath_tx_findrix(sc, tp->mcastrate);
 	/* XXX short preamble assumed */
 	sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
 		ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
@@ -7121,6 +7126,8 @@ ath_tdma_update(struct ieee80211_node *ni,
 		const struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 		ath_tdma_bintvalsetup(sc, ts);
+		if (changed & TDMA_UPDATE_SLOTLEN)
+			ath_wme_update(ic);
 
 		DPRINTF(sc, ATH_DEBUG_TDMA,
 		    "%s: adopt slot %u slotcnt %u slotlen %u us "
@@ -7128,7 +7135,6 @@ ath_tdma_update(struct ieee80211_node *ni,
 		    ts->tdma_slot, ts->tdma_slotcnt, ts->tdma_slotlen,
 		    sc->sc_tdmabintval);
 
-		ath_beaconq_config(sc);
 		/* XXX right? */
 		ath_hal_intrset(ah, sc->sc_imask);
 		/* NB: beacon timers programmed below */

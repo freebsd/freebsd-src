@@ -224,7 +224,6 @@ extern void *end;
 vm_offset_t kernel_vm_end = 0;
 
 struct pmap kernel_pmap_store;
-pmap_t kernel_pmap;
 
 static pt_entry_t *csrc_pte, *cdst_pte;
 static vm_offset_t csrcp, cdstp;
@@ -2337,7 +2336,6 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	    firstaddr, loadaddr));
 	
 	virtual_avail = firstaddr;
-	kernel_pmap = &kernel_pmap_store;
 	kernel_pmap->pm_l1 = l1;
 	kernel_l1pa = l1pt->pv_pa;
 	

@@ -180,7 +180,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		printf("icmp_error(%p, %x, %d)\n", oip, type, code);
 #endif
 	if (type != ICMP_REDIRECT)
-		V_icmpstat.icps_error++;
+		ICMPSTAT_INC(icps_error);
 	/*
 	 * Don't send error:
 	 *  if the original packet was encrypted.
@@ -197,7 +197,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 	if (oip->ip_p == IPPROTO_ICMP && type != ICMP_REDIRECT &&
 	  n->m_len >= oiphlen + ICMP_MINLEN &&
 	  !ICMP_INFOTYPE(((struct icmp *)((caddr_t)oip + oiphlen))->icmp_type)) {
-		V_icmpstat.icps_oldicmp++;
+		ICMPSTAT_INC(icps_oldicmp);
 		goto freeit;
 	}
 	/* Drop if IP header plus 8 bytes is not contignous in first mbuf. */
@@ -257,7 +257,7 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, oip->ip_len - oiphlen));
 	 */
 	M_SETFIB(m, M_GETFIB(n));
 	icp = mtod(m, struct icmp *);
-	V_icmpstat.icps_outhist[type]++;
+	ICMPSTAT_INC(icps_outhist[type]);
 	icp->icmp_type = type;
 	if (type == ICMP_REDIRECT)
 		icp->icmp_gwaddr.s_addr = dest;
@@ -340,12 +340,12 @@ icmp_input(struct mbuf *m, int off)
 	}
 #endif
 	if (icmplen < ICMP_MINLEN) {
-		V_icmpstat.icps_tooshort++;
+		ICMPSTAT_INC(icps_tooshort);
 		goto freeit;
 	}
 	i = hlen + min(icmplen, ICMP_ADVLENMIN);
 	if (m->m_len < i && (m = m_pullup(m, i)) == 0)  {
-		V_icmpstat.icps_tooshort++;
+		ICMPSTAT_INC(icps_tooshort);
 		return;
 	}
 	ip = mtod(m, struct ip *);
@@ -353,7 +353,7 @@ icmp_input(struct mbuf *m, int off)
 	m->m_data += hlen;
 	icp = mtod(m, struct icmp *);
 	if (in_cksum(m, icmplen)) {
-		V_icmpstat.icps_checksum++;
+		ICMPSTAT_INC(icps_checksum);
 		goto freeit;
 	}
 	m->m_len += hlen;
@@ -395,7 +395,7 @@ icmp_input(struct mbuf *m, int off)
 	icmpgw.sin_len = sizeof(struct sockaddr_in);
 	icmpgw.sin_family = AF_INET;
 
-	V_icmpstat.icps_inhist[icp->icmp_type]++;
+	ICMPSTAT_INC(icps_inhist[icp->icmp_type]);
 	code = icp->icmp_code;
 	switch (icp->icmp_type) {
 
@@ -460,7 +460,7 @@ icmp_input(struct mbuf *m, int off)
 		 */
 		if (icmplen < ICMP_ADVLENMIN || icmplen < ICMP_ADVLEN(icp) ||
 		    icp->icmp_ip.ip_hl < (sizeof(struct ip) >> 2)) {
-			V_icmpstat.icps_badlen++;
+			ICMPSTAT_INC(icps_badlen);
 			goto freeit;
 		}
 		icp->icmp_ip.ip_len = ntohs(icp->icmp_ip.ip_len);
@@ -483,13 +483,13 @@ icmp_input(struct mbuf *m, int off)
 		break;
 
 	badcode:
-		V_icmpstat.icps_badcode++;
+		ICMPSTAT_INC(icps_badcode);
 		break;
 
 	case ICMP_ECHO:
 		if (!V_icmpbmcastecho
 		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0) {
-			V_icmpstat.icps_bmcastecho++;
+			ICMPSTAT_INC(icps_bmcastecho);
 			break;
 		}
 		icp->icmp_type = ICMP_ECHOREPLY;
@@ -501,11 +501,11 @@ icmp_input(struct mbuf *m, int off)
 	case ICMP_TSTAMP:
 		if (!V_icmpbmcastecho
 		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0) {
-			V_icmpstat.icps_bmcasttstamp++;
+			ICMPSTAT_INC(icps_bmcasttstamp);
 			break;
 		}
 		if (icmplen < ICMP_TSLEN) {
-			V_icmpstat.icps_badlen++;
+			ICMPSTAT_INC(icps_badlen);
 			break;
 		}
 		icp->icmp_type = ICMP_TSTAMPREPLY;
@@ -554,8 +554,8 @@ icmp_input(struct mbuf *m, int off)
 		}
 reflect:
 		ip->ip_len += hlen;	/* since ip_input deducts this */
-		V_icmpstat.icps_reflect++;
-		V_icmpstat.icps_outhist[icp->icmp_type]++;
+		ICMPSTAT_INC(icps_reflect);
+		ICMPSTAT_INC(icps_outhist[icp->icmp_type]);
 		icmp_reflect(m);
 		return;
 
@@ -585,7 +585,7 @@ reflect:
 			goto badcode;
 		if (icmplen < ICMP_ADVLENMIN || icmplen < ICMP_ADVLEN(icp) ||
 		    icp->icmp_ip.ip_hl < (sizeof(struct ip) >> 2)) {
-			V_icmpstat.icps_badlen++;
+			ICMPSTAT_INC(icps_badlen);
 			break;
 		}
 		/*
@@ -650,7 +650,7 @@ icmp_reflect(struct mbuf *m)
 	INIT_VNET_INET(curvnet);
 	struct ip *ip = mtod(m, struct ip *);
 	struct ifaddr *ifa;
-	struct ifnet *ifn;
+	struct ifnet *ifp;
 	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct mbuf *opts = 0;
@@ -660,7 +660,7 @@ icmp_reflect(struct mbuf *m)
 	    IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) ||
 	    IN_ZERONET(ntohl(ip->ip_src.s_addr)) ) {
 		m_freem(m);	/* Bad return address */
-		V_icmpstat.icps_badaddr++;
+		ICMPSTAT_INC(icps_badaddr);
 		goto done;	/* Ip_output() will check for broadcast */
 	}
 
@@ -673,24 +673,32 @@ icmp_reflect(struct mbuf *m)
 	 * If the incoming packet was addressed directly to one of our
 	 * own addresses, use dst as the src for the reply.
 	 */
-	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash)
-		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
+	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash) {
+		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr) {
+			t = IA_SIN(ia)->sin_addr;
 			goto match;
+		}
+	}
 	/*
 	 * If the incoming packet was addressed to one of our broadcast
 	 * addresses, use the first non-broadcast address which corresponds
 	 * to the incoming interface.
 	 */
-	if (m->m_pkthdr.rcvif != NULL &&
-	    m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
-		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+	ifp = m->m_pkthdr.rcvif;
+	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
-			    t.s_addr)
+			    t.s_addr) {
+				t = IA_SIN(ia)->sin_addr;
+				IF_ADDR_UNLOCK(ifp);
 				goto match;
+			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/*
 	 * If the packet was transiting through us, use the address of
@@ -698,13 +706,17 @@ icmp_reflect(struct mbuf *m)
 	 * doesn't have a suitable IP address, the normal selection
 	 * criteria apply.
 	 */
-	if (V_icmp_rfi && m->m_pkthdr.rcvif != NULL) {
-		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+	if (V_icmp_rfi && ifp != NULL) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
+			t = IA_SIN(ia)->sin_addr;
+			IF_ADDR_UNLOCK(ifp);
 			goto match;
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/*
 	 * If the incoming packet was not addressed directly to us, use
@@ -712,13 +724,17 @@ icmp_reflect(struct mbuf *m)
 	 * net.inet.icmp.reply_src (default not set). Otherwise continue
 	 * with normal source selection.
 	 */
-	if (V_reply_src[0] != '\0' && (ifn = ifunit(V_reply_src))) {
-		TAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
+	if (V_reply_src[0] != '\0' && (ifp = ifunit(V_reply_src))) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
+			t = IA_SIN(ia)->sin_addr;
+			IF_ADDR_UNLOCK(ifp);
 			goto match;
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	/*
 	 * If the packet was transiting through us, use the address of
@@ -729,14 +745,14 @@ icmp_reflect(struct mbuf *m)
 	ia = ip_rtaddr(ip->ip_dst, M_GETFIB(m));
 	if (ia == NULL) {
 		m_freem(m);
-		V_icmpstat.icps_noroute++;
+		ICMPSTAT_INC(icps_noroute);
 		goto done;
 	}
+	t = IA_SIN(ia)->sin_addr;
 match:
 #ifdef MAC
 	mac_netinet_icmp_replyinplace(m);
 #endif
-	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
 	ip->ip_ttl = V_ip_defttl;
 

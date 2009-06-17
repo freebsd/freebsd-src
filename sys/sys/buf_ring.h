@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright (c) 2007,2008 Kip Macy kmacy@freebsd.org
+ * Copyright (c) 2007-2009 Kip Macy kmacy@freebsd.org
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,10 @@ struct buf_ring {
 	void			*br_ring[0];
 };
 
-
+/*
+ * multi-producer safe lock-free ring buffer enqueue
+ *
+ */
 static __inline int
 buf_ring_enqueue(struct buf_ring *br, void *buf)
 {
@@ -169,8 +172,9 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 }
 
 /*
- * Single-Consumer dequeue for uses where dequeue
- * is protected by a lock
+ * single-consumer dequeue 
+ * use where dequeue is protected by a lock
+ * e.g. a network driver's tx queue lock
  */
 static __inline void *
 buf_ring_dequeue_sc(struct buf_ring *br)
@@ -208,6 +212,11 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 	return (buf);
 }
 
+/*
+ * return a pointer to the first entry in the ring
+ * without modifying it, or NULL if the ring is empty
+ * race-prone if not protected by a lock
+ */
 static __inline void *
 buf_ring_peek(struct buf_ring *br)
 {
