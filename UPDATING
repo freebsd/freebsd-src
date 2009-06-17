@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090616:
+	The compiling option ADAPTIVE_LOCKMGRS has been introduced.
+	This option compiles in the support for adaptive spinning for lockmgrs
+	which want to enable it.  The lockinit() function now accepts the
+	flag LK_ADAPTIVE in order to make the lock object subject to
+	adaptive spinning when both held in write and read mode.
+
 20090613:
 	The layout of the structure returned by IEEE80211_IOC_STA_INFO
 	has changed.  User applications that use this ioctl need to be

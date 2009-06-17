@@ -60,6 +60,7 @@ KDB_UNATTENDED	opt_kdb.h
 SYSCTL_DEBUG	opt_sysctl.h
 
 # Miscellaneous options.
+ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
 CODA_COMPAT_5	opt_coda.h

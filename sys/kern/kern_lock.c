@@ -26,6 +26,7 @@
  * DAMAGE.
  */
 
+#include "opt_adaptive_lockmgrs.h"
 #include "opt_ddb.h"
 #include "opt_kdtrace.h"
 
@@ -34,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ktr.h>
+#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/lockmgr.h>
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEBUG_LOCKS
 #include <sys/stack.h>
 #endif
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
@@ -51,7 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-CTASSERT((LK_NOSHARE & LO_CLASSFLAGS) == LK_NOSHARE);
+CTASSERT(((LK_ADAPTIVE | LK_NOSHARE) & LO_CLASSFLAGS) ==
+    (LK_ADAPTIVE | LK_NOSHARE));
+CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
+    ~(LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS)));
 
 #define	SQ_EXCLUSIVE_QUEUE	0
 #define	SQ_SHARED_QUEUE		1
@@ -106,6 +112,7 @@ CTASSERT((LK_NOSHARE & LO_CLASSFLAGS) == LK_NOSHARE);
 
 #define	LK_CAN_SHARE(x)							\
 	(((x) & LK_SHARE) && (((x) & LK_EXCLUSIVE_WAITERS) == 0 ||	\
+	((x) & LK_EXCLUSIVE_SPINNERS) == 0 ||				\
 	curthread->td_lk_slocks || (curthread->td_pflags & TDP_DEADLKTREAT)))
 #define	LK_TRYOP(x)							\
 	((x) & LK_NOWAIT)
@@ -114,6 +121,10 @@ CTASSERT((LK_NOSHARE & LO_CLASSFLAGS) == LK_NOSHARE);
 	(((x) & LK_NOWITNESS) == 0 && !LK_TRYOP(x))
 #define	LK_TRYWIT(x)							\
 	(LK_TRYOP(x) ? LOP_TRYLOCK : 0)
+
+#define	LK_CAN_ADAPT(lk, f)						\
+	(((lk)->lock_object.lo_flags & LK_ADAPTIVE) != 0 &&		\
+	((f) & LK_SLEEPFAIL) == 0)
 
 #define	lockmgr_disowned(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == LK_KERNPROC)
@@ -144,6 +155,14 @@ struct lock_class lock_class_lockmgr = {
 	.lc_owner = owner_lockmgr,
 #endif
 };
+
+#ifdef ADAPTIVE_LOCKMGRS
+static u_int alk_retries = 10;
+static u_int alk_loops = 10000;
+SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL, "lockmgr debugging");
+SYSCTL_UINT(_debug_lockmgr, OID_AUTO, retries, CTLFLAG_RW, &alk_retries, 0, "");
+SYSCTL_UINT(_debug_lockmgr, OID_AUTO, loops, CTLFLAG_RW, &alk_loops, 0, "");
+#endif
 
 static __inline struct thread *
 lockmgr_xholder(struct lock *lk)
@@ -233,9 +252,9 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		 * lock quickly.
 		 */
 		if ((x & LK_ALL_WAITERS) == 0) {
-			MPASS(x == LK_SHARERS_LOCK(1));
-			if (atomic_cmpset_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1),
-			    LK_UNLOCKED))
+			MPASS((x & ~LK_EXCLUSIVE_SPINNERS) ==
+			    LK_SHARERS_LOCK(1));
+			if (atomic_cmpset_ptr(&lk->lk_lock, x, LK_UNLOCKED))
 				break;
 			continue;
 		}
@@ -245,7 +264,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		 * path in order to handle wakeups correctly.
 		 */
 		sleepq_lock(&lk->lock_object);
-		x = lk->lk_lock & LK_ALL_WAITERS;
+		x = lk->lk_lock & (LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS);
 		v = LK_UNLOCKED;
 
 		/*
@@ -256,7 +275,8 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 			queue = SQ_EXCLUSIVE_QUEUE;
 			v |= (x & LK_SHARED_WAITERS);
 		} else {
-			MPASS(x == LK_SHARED_WAITERS);
+			MPASS((x & ~LK_EXCLUSIVE_SPINNERS) ==
+			    LK_SHARED_WAITERS);
 			queue = SQ_SHARED_QUEUE;
 		}
 
@@ -326,7 +346,7 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 		iflags |= LO_WITNESS;
 	if (flags & LK_QUIET)
 		iflags |= LO_QUIET;
-	iflags |= flags & LK_NOSHARE;
+	iflags |= flags & (LK_ADAPTIVE | LK_NOSHARE);
 
 	lk->lk_lock = LK_UNLOCKED;
 	lk->lk_recurse = 0;
@@ -358,6 +378,10 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
 	int contested = 0;
+#endif
+#ifdef ADAPTIVE_LOCKMGRS
+	volatile struct thread *owner;
+	u_int i, spintries = 0;
 #endif
 
 	error = 0;
@@ -436,6 +460,59 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				break;
 			}
 
+#ifdef ADAPTIVE_LOCKMGRS
+			/*
+			 * If the owner is running on another CPU, spin until
+			 * the owner stops running or the state of the lock
+			 * changes.
+			 */
+			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
+			    LK_HOLDER(x) != LK_KERNPROC) {
+				owner = (struct thread *)LK_HOLDER(x);
+				if (LOCK_LOG_TEST(&lk->lock_object, 0))
+					CTR3(KTR_LOCK,
+					    "%s: spinning on %p held by %p",
+					    __func__, lk, owner);
+
+				/*
+				 * If we are holding also an interlock drop it
+				 * in order to avoid a deadlock if the lockmgr
+				 * owner is adaptively spinning on the
+				 * interlock itself.
+				 */
+				if (flags & LK_INTERLOCK) {
+					class->lc_unlock(ilk);
+					flags &= ~LK_INTERLOCK;
+				}
+				GIANT_SAVE();
+				while (LK_HOLDER(lk->lk_lock) ==
+				    (uintptr_t)owner && TD_IS_RUNNING(owner))
+					cpu_spinwait();
+			} else if (LK_CAN_ADAPT(lk, flags) &&
+			    (x & LK_SHARE) !=0 && LK_SHARERS(x) &&
+			    spintries < alk_retries) {
+				if (flags & LK_INTERLOCK) {
+					class->lc_unlock(ilk);
+					flags &= ~LK_INTERLOCK;
+				}
+				GIANT_SAVE();
+				spintries++;
+				for (i = 0; i < alk_loops; i++) {
+					if (LOCK_LOG_TEST(&lk->lock_object, 0))
+						CTR4(KTR_LOCK,
+				    "%s: shared spinning on %p with %u and %u",
+						    __func__, lk, spintries, i);
+					x = lk->lk_lock;
+					if ((x & LK_SHARE) == 0 ||
+					    LK_CAN_SHARE(x) != 0)
+						break;
+					cpu_spinwait();
+				}
+				if (i != alk_loops)
+					continue;
+			}
+#endif
+
 			/*
 			 * Acquire the sleepqueue chain lock because we
 			 * probabilly will need to manipulate waiters flags.
@@ -451,6 +528,24 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				sleepq_release(&lk->lock_object);
 				continue;
 			}
+
+#ifdef ADAPTIVE_LOCKMGRS
+			/*
+			 * The current lock owner might have started executing
+			 * on another CPU (or the lock could have changed
+			 * owner) while we were waiting on the turnstile
+			 * chain lock.  If so, drop the turnstile lock and try
+			 * again.
+			 */
+			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
+			    LK_HOLDER(x) != LK_KERNPROC) {
+				owner = (struct thread *)LK_HOLDER(x);
+				if (TD_IS_RUNNING(owner)) {
+					sleepq_release(&lk->lock_object);
+					continue;
+				}
+			}
+#endif
 
 			/*
 			 * Try to set the LK_SHARED_WAITERS flag.  If we fail,
@@ -497,13 +592,15 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		break;
 	case LK_UPGRADE:
 		_lockmgr_assert(lk, KA_SLOCKED, file, line);
-		x = lk->lk_lock & LK_ALL_WAITERS;
+		v = lk->lk_lock;
+		x = v & LK_ALL_WAITERS;
+		v &= LK_EXCLUSIVE_SPINNERS;
 
 		/*
 		 * Try to switch from one shared lock to an exclusive one.
 		 * We need to preserve waiters flags during the operation.
 		 */
-		if (atomic_cmpset_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1) | x,
+		if (atomic_cmpset_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1) | x | v,
 		    tid | x)) {
 			LOCK_LOG_LOCK("XUPGRADE", &lk->lock_object, 0, 0, file,
 			    line);
@@ -575,13 +672,69 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				break;
 			}
 
+#ifdef ADAPTIVE_LOCKMGRS
+			/*
+			 * If the owner is running on another CPU, spin until
+			 * the owner stops running or the state of the lock
+			 * changes.
+			 */
+			x = lk->lk_lock;
+			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
+			    LK_HOLDER(x) != LK_KERNPROC) {
+				owner = (struct thread *)LK_HOLDER(x);
+				if (LOCK_LOG_TEST(&lk->lock_object, 0))
+					CTR3(KTR_LOCK,
+					    "%s: spinning on %p held by %p",
+					    __func__, lk, owner);
+
+				/*
+				 * If we are holding also an interlock drop it
+				 * in order to avoid a deadlock if the lockmgr
+				 * owner is adaptively spinning on the
+				 * interlock itself.
+				 */
+				if (flags & LK_INTERLOCK) {
+					class->lc_unlock(ilk);
+					flags &= ~LK_INTERLOCK;
+				}
+				GIANT_SAVE();
+				while (LK_HOLDER(lk->lk_lock) ==
+				    (uintptr_t)owner && TD_IS_RUNNING(owner))
+					cpu_spinwait();
+			} else if (LK_CAN_ADAPT(lk, flags) &&
+			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
+			    spintries < alk_retries) {
+				if ((x & LK_EXCLUSIVE_SPINNERS) == 0 &&
+				    !atomic_cmpset_ptr(&lk->lk_lock, x,
+				    x | LK_EXCLUSIVE_SPINNERS))
+					continue;
+				if (flags & LK_INTERLOCK) {
+					class->lc_unlock(ilk);
+					flags &= ~LK_INTERLOCK;
+				}
+				GIANT_SAVE();
+				spintries++;
+				for (i = 0; i < alk_loops; i++) {
+					if (LOCK_LOG_TEST(&lk->lock_object, 0))
+						CTR4(KTR_LOCK,
+				    "%s: shared spinning on %p with %u and %u",
+						    __func__, lk, spintries, i);
+					if ((lk->lk_lock &
+					    LK_EXCLUSIVE_SPINNERS) == 0)
+						break;
+					cpu_spinwait();
+				}
+				if (i != alk_loops)
+					continue;
+			}
+#endif
+
 			/*
 			 * Acquire the sleepqueue chain lock because we
 			 * probabilly will need to manipulate waiters flags.
 			 */
 			sleepq_lock(&lk->lock_object);
 			x = lk->lk_lock;
-			v = x & LK_ALL_WAITERS;
 
 			/*
 			 * if the lock has been released while we spun on
@@ -592,6 +745,24 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				continue;
 			}
 
+#ifdef ADAPTIVE_LOCKMGRS
+			/*
+			 * The current lock owner might have started executing
+			 * on another CPU (or the lock could have changed
+			 * owner) while we were waiting on the turnstile
+			 * chain lock.  If so, drop the turnstile lock and try
+			 * again.
+			 */
+			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
+			    LK_HOLDER(x) != LK_KERNPROC) {
+				owner = (struct thread *)LK_HOLDER(x);
+				if (TD_IS_RUNNING(owner)) {
+					sleepq_release(&lk->lock_object);
+					continue;
+				}
+			}
+#endif
+
 			/*
 			 * The lock can be in the state where there is a
 			 * pending queue of waiters, but still no owner.
@@ -601,7 +772,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 * claim lock ownership and return, preserving waiters
 			 * flags.
 			 */
-			if (x == (LK_UNLOCKED | v)) {
+			v = x & (LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS);
+			if ((x & ~v) == LK_UNLOCKED) {
+				v &= ~LK_EXCLUSIVE_SPINNERS;
 				if (atomic_cmpset_acq_ptr(&lk->lk_lock, x,
 				    tid | v)) {
 					sleepq_release(&lk->lock_object);
@@ -666,7 +839,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 * In order to preserve waiters flags, just spin.
 		 */
 		for (;;) {
-			x = lk->lk_lock & LK_ALL_WAITERS;
+			x = lk->lk_lock;
+			MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
+			x &= LK_ALL_WAITERS;
 			if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid | x,
 			    LK_SHARERS_LOCK(1) | x))
 				break;
@@ -712,7 +887,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				break;
 
 			sleepq_lock(&lk->lock_object);
-			x = lk->lk_lock & LK_ALL_WAITERS;
+			x = lk->lk_lock;
 			v = LK_UNLOCKED;
 
 			/*
@@ -720,11 +895,13 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 * preference in order to avoid deadlock with
 			 * shared runners up.
 			 */
+			MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
 			if (x & LK_EXCLUSIVE_WAITERS) {
 				queue = SQ_EXCLUSIVE_QUEUE;
 				v |= (x & LK_SHARED_WAITERS);
 			} else {
-				MPASS(x == LK_SHARED_WAITERS);
+				MPASS((x & LK_ALL_WAITERS) ==
+				    LK_SHARED_WAITERS);
 				queue = SQ_SHARED_QUEUE;
 			}
 
@@ -777,7 +954,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 */
 			sleepq_lock(&lk->lock_object);
 			x = lk->lk_lock;
-			v = x & LK_ALL_WAITERS;
 
 			/*
 			 * if the lock has been released while we spun on
@@ -788,8 +964,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				continue;
 			}
 
-			if (x == (LK_UNLOCKED | v)) {
-				v = x;
+			v = x & (LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS);
+			if ((x & ~v) == LK_UNLOCKED) {
+				v = (x & ~LK_EXCLUSIVE_SPINNERS);
 				if (v & LK_EXCLUSIVE_WAITERS) {
 					queue = SQ_EXCLUSIVE_QUEUE;
 					v &= ~LK_EXCLUSIVE_WAITERS;
@@ -902,7 +1079,9 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	 * In order to preserve waiters flags, just spin.
 	 */
 	for (;;) {
-		x = lk->lk_lock & LK_ALL_WAITERS;
+		x = lk->lk_lock;
+		MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
+		x &= LK_ALL_WAITERS;
 		if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid | x,
 		    LK_KERNPROC | x))
 			return;
@@ -933,6 +1112,8 @@ lockmgr_printinfo(struct lock *lk)
 		printf(" with exclusive waiters pending\n");
 	if (x & LK_SHARED_WAITERS)
 		printf(" with shared waiters pending\n");
+	if (x & LK_EXCLUSIVE_SPINNERS)
+		printf(" with exclusive spinners pending\n");
 
 	STACK_PRINT(lk);
 }
@@ -1094,5 +1275,10 @@ db_show_lockmgr(struct lock_object *lock)
 	default:
 		db_printf("none\n");
 	}
+	db_printf(" spinners: ");
+	if (lk->lk_lock & LK_EXCLUSIVE_SPINNERS)
+		db_printf("exclusive\n");
+	else
+		db_printf("none\n");
 }
 #endif
