@@ -50,6 +50,7 @@ FBSD_1.0 {
 	logf;
 	pow;
 	powf;
+	powl;
 	remainder;
 	remainderf;
 	scalb;
