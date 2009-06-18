@@ -844,7 +844,7 @@ mkweekdays(struct weekdays *wds)
 	for (i = 0; i != 7; i++) {
 		tm.tm_wday = (i+1) % 7;
 		wcsftime(buf, sizeof(buf), L"%a", &tm);
-		for (len = wcslen(buf); len > 0; --len) {
+		for (len = 2; len > 0; --len) {
 			if ((width = wcswidth(buf, len)) <= 2)
 				break;
 		}
@@ -852,7 +852,7 @@ mkweekdays(struct weekdays *wds)
 		if (width == 1)
 			wds->names[i][0] = L' ';
 		wcsncat(wds->names[i], buf, len);
-		wcsncat(wds->names[i], L"  ", 3 - wcswidth(wds->names[i], 2));
+		wcsncat(wds->names[i], L" ", 1);
 	}
 }
 
