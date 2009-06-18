@@ -51,7 +51,6 @@ NANO_PACKAGE_LIST="*"
 
 # Object tree directory
 # default is subdir of /usr/obj
-# XXX: MAKEOBJDIRPREFIX handling... ?
 #NANO_OBJ=""
 
 # The directory to put the final images
@@ -147,21 +146,19 @@ NANO_ARCH=i386
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
 
-	if rm -rf ${MAKEOBJDIRPREFIX} > /dev/null 2>&1 ; then
-		true
-	else
+	if ! rm -rf ${MAKEOBJDIRPREFIX} > /dev/null 2>&1 ; then
 		chflags -R noschg ${MAKEOBJDIRPREFIX}
-		rm -rf ${MAKEOBJDIRPREFIX}
+		rm -r ${MAKEOBJDIRPREFIX}
 	fi
 	mkdir -p ${MAKEOBJDIRPREFIX}
 	printenv > ${MAKEOBJDIRPREFIX}/_.env
 )
 
 make_conf_build ( ) (
-	pprint 2 "Construct build make.conf ($NANO_MAKE_CONF)"
+	pprint 2 "Construct build make.conf ($NANO_MAKE_CONF_BUILD)"
 
-	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF}
-	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF}
+	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
+	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
 )
 
 build_world ( ) (
@@ -170,7 +167,7 @@ build_world ( ) (
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} \
-		__MAKE_CONF=${NANO_MAKE_CONF} buildworld \
+		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} buildworld \
 		> ${MAKEOBJDIRPREFIX}/_.bw 2>&1
 )
 
@@ -188,62 +185,70 @@ build_kernel ( ) (
 	unset TARGET_CPUTYPE
 	unset TARGET_BIG_ENDIAN
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
-		__MAKE_CONF=${NANO_MAKE_CONF} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${MAKEOBJDIRPREFIX}/_.bk 2>&1
+		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} KERNCONF=`basename ${NANO_KERNEL}` \
+		> ${NANO_OBJ}/_.bk 2>&1
 	)
 )
 
 clean_world ( ) (
-	pprint 2 "Clean and create world directory (${NANO_WORLDDIR})"
-	if rm -rf ${NANO_WORLDDIR}/ > /dev/null 2>&1 ; then
-		true
+	if [ "${NANO_OBJ}" != "${MAKEOBJDIRPREFIX}" ]; then
+		pprint 2 "Clean and create object directory (${NANO_OBJ})"
+		if ! rm -rf ${NANO_OBJ} > /dev/null 2>&1 ; then
+			chflags -R noschg ${NANO_OBJ}
+			rm -r ${NANO_OBJ}
+		fi
+		mkdir -p ${NANO_OBJ} ${NANO_WORLDDIR}
+		printenv > ${NANO_OBJ}/_.env
 	else
-		chflags -R noschg ${NANO_WORLDDIR}/
-		rm -rf ${NANO_WORLDDIR}/
+		pprint 2 "Clean and create world directory (${NANO_WORLDDIR})"
+		if ! rm -rf ${NANO_WORLDDIR}/ > /dev/null 2>&1 ; then
+			chflags -R noschg ${NANO_WORLDDIR}
+			rm -rf ${NANO_WORLDDIR}
+		fi
+		mkdir -p ${NANO_WORLDDIR}
 	fi
-	mkdir -p ${NANO_WORLDDIR}/
 )
 
 make_conf_install ( ) (
-	pprint 2 "Construct install make.conf ($NANO_MAKE_CONF)"
+	pprint 2 "Construct install make.conf ($NANO_MAKE_CONF_INSTALL)"
 
-	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF}
-	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF}
+	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_INSTALL}
+	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF_INSTALL}
 )
 
 install_world ( ) (
 	pprint 2 "installworld"
-	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.iw"
+	pprint 3 "log: ${NANO_OBJ}/_.iw"
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF} installworld \
+	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} installworld \
 		DESTDIR=${NANO_WORLDDIR} \
-		> ${MAKEOBJDIRPREFIX}/_.iw 2>&1
+		> ${NANO_OBJ}/_.iw 2>&1
 	chflags -R noschg ${NANO_WORLDDIR}
 )
 
 install_etc ( ) (
 
 	pprint 2 "install /etc"
-	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.etc"
+	pprint 3 "log: ${NANO_OBJ}/_.etc"
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF} distribution \
+	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
-		> ${MAKEOBJDIRPREFIX}/_.etc 2>&1
+		> ${NANO_OBJ}/_.etc 2>&1
 )
 
 install_kernel ( ) (
 	pprint 2 "install kernel"
-	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.ik"
+	pprint 3 "log: ${NANO_OBJ}/_.ik"
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} installkernel \
 		DESTDIR=${NANO_WORLDDIR} \
-		__MAKE_CONF=${NANO_MAKE_CONF} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${MAKEOBJDIRPREFIX}/_.ik 2>&1
+		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} KERNCONF=`basename ${NANO_KERNEL}` \
+		> ${NANO_OBJ}/_.ik 2>&1
 )
 
 run_customize() (
@@ -252,9 +257,9 @@ run_customize() (
 	for c in $NANO_CUSTOMIZE
 	do
 		pprint 2 "customize \"$c\""
-		pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.cust.$c"
+		pprint 3 "log: ${NANO_OBJ}/_.cust.$c"
 		pprint 4 "`type $c`"
-		( $c ) > ${MAKEOBJDIRPREFIX}/_.cust.$c 2>&1
+		( $c ) > ${NANO_OBJ}/_.cust.$c 2>&1
 	done
 )
 
@@ -264,15 +269,15 @@ run_late_customize() (
 	for c in $NANO_LATE_CUSTOMIZE
 	do
 		pprint 2 "late customize \"$c\""
-		pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.late_cust.$c"
+		pprint 3 "log: ${NANO_OBJ}/_.late_cust.$c"
 		pprint 4 "`type $c`"
-		( $c ) > ${MAKEOBJDIRPREFIX}/_.late_cust.$c 2>&1
+		( $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
 	done
 )
 
 setup_nanobsd ( ) (
 	pprint 2 "configure nanobsd setup"
-	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.dl"
+	pprint 3 "log: ${NANO_OBJ}/_.dl"
 
 	(
 	cd ${NANO_WORLDDIR}
@@ -312,7 +317,7 @@ setup_nanobsd ( ) (
 	rm tmp || true
 	ln -s var/tmp tmp
 
-	) > ${MAKEOBJDIRPREFIX}/_.dl 2>&1
+	) > ${NANO_OBJ}/_.dl 2>&1
 )
 
 setup_nanobsd_etc ( ) (
@@ -348,7 +353,7 @@ prune_usr() (
 
 create_i386_diskimage ( ) (
 	pprint 2 "build diskimage"
-	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.di"
+	pprint 3 "log: ${NANO_OBJ}/_.di"
 
 	(
 	echo $NANO_MEDIASIZE $NANO_IMAGES \
@@ -417,10 +422,10 @@ create_i386_diskimage ( ) (
 		# for booting the image from a USB device to work.
 		print "a 1"
 	}
-	' > ${MAKEOBJDIRPREFIX}/_.fdisk
+	' > ${NANO_OBJ}/_.fdisk
 
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
-	MNT=${MAKEOBJDIRPREFIX}/_.mnt
+	MNT=${NANO_OBJ}/_.mnt
 	mkdir -p ${MNT}
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
@@ -429,14 +434,14 @@ create_i386_diskimage ( ) (
 	else
 		echo "Creating md backing file..."
 		dd if=/dev/zero of=${IMG} bs=${NANO_SECTS}b \
-			count=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}`
+			seek=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}` count=0
 		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
 			-y ${NANO_HEADS}`
 	fi
 
 	trap "df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
-	fdisk -i -f ${MAKEOBJDIRPREFIX}/_.fdisk ${MD}
+	fdisk -i -f ${NANO_OBJ}/_.fdisk ${MD}
 	fdisk ${MD}
 	# XXX: params
 	# XXX: pick up cached boot* files, they may not be in image anymore.
@@ -446,27 +451,26 @@ create_i386_diskimage ( ) (
 
 	# Create first image
 	newfs ${NANO_NEWFS} /dev/${MD}s1a
-	mount /dev/${MD}s1a ${MNT}
+	mount -o async /dev/${MD}s1a ${MNT}
 	df -i ${MNT}
 	echo "Copying worlddir..."
 	( cd ${NANO_WORLDDIR} && find . -print | cpio -dump ${MNT} )
 	df -i ${MNT}
 	echo "Generating mtree..."
-	( cd ${MNT} && mtree -c ) > ${MAKEOBJDIRPREFIX}/_.mtree
-	( cd ${MNT} && du -k ) > ${MAKEOBJDIRPREFIX}/_.du
+	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
+	( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
 	umount ${MNT}
 
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
 		echo "Duplicating to second image..."
-		dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
+		dd conv=sparse if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 		mount /dev/${MD}s2a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
 			sed -i "" "s/${NANO_DRIVE}s1/${NANO_DRIVE}s2/g" $f
 		done
 		umount ${MNT}
-
 	fi
 	
 	# Create Config slice
@@ -474,7 +478,7 @@ create_i386_diskimage ( ) (
 	# XXX: fill from where ?
 
 	# Create Data slice, if any.
-	if [ $NANO_DATASIZE -ne 0 ] ; then
+	if [ $NANO_DATASIZE -gt 0 ] ; then
 		newfs ${NANO_NEWFS} /dev/${MD}s4
 		# XXX: fill from where ?
 	fi
@@ -485,16 +489,16 @@ create_i386_diskimage ( ) (
 	fi
 
 	echo "Writing out _.disk.image..."
-	dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+	dd conv=sparse if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	mdconfig -d -u $MD
-	) > ${MAKEOBJDIRPREFIX}/_.di 2>&1
+	) > ${NANO_OBJ}/_.di 2>&1
 )
 
 last_orders () (
 	# Redefine this function with any last orders you may have
 	# after the build completed, for instance to copy the finished
 	# image to a more convenient place:
-	# cp ${MAKEOBJDIRPREFIX}/_.disk.image /home/ftp/pub/nanobsd.disk
+	# cp ${NANO_DISKIMGDIR}/_.disk.image /home/ftp/pub/nanobsd.disk
 )
 
 #######################################################################
@@ -751,19 +755,13 @@ fi
 #######################################################################
 # Setup and Export Internal variables
 #
-if [ "x${NANO_OBJ}" = "x" ] ; then
-	MAKEOBJDIRPREFIX=/usr/obj/nanobsd.${NANO_NAME}/
-	NANO_OBJ=${MAKEOBJDIRPREFIX}
-else
-	MAKEOBJDIRPREFIX=${NANO_OBJ}
-fi
+test -n "${NANO_OBJ}" || NANO_OBJ=/usr/obj/nanobsd.${NANO_NAME}/
+test -n "${MAKEOBJDIRPREFIX}" || MAKEOBJDIRPREFIX=${NANO_OBJ}
+test -n "${NANO_DISKIMGDIR}" || NANO_DISKIMGDIR=${NANO_OBJ}
 
-if [ "x${NANO_DISKIMGDIR}" = "x" ] ; then
-	NANO_DISKIMGDIR=${MAKEOBJDIRPREFIX}
-fi
-
-NANO_WORLDDIR=${MAKEOBJDIRPREFIX}/_.w
-NANO_MAKE_CONF=${MAKEOBJDIRPREFIX}/make.conf
+NANO_WORLDDIR=${NANO_OBJ}/_.w
+NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
+NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
 
 if [ -d ${NANO_TOOLS} ] ; then
 	true
@@ -791,7 +789,8 @@ export NANO_DRIVE
 export NANO_HEADS
 export NANO_IMAGES
 export NANO_IMGNAME
-export NANO_MAKE_CONF
+export NANO_MAKE_CONF_BUILD
+export NANO_MAKE_CONF_INSTALL
 export NANO_MEDIASIZE
 export NANO_NAME
 export NANO_NEWFS
@@ -840,7 +839,7 @@ prune_usr
 run_late_customize
 if $do_image ; then
 	create_${NANO_ARCH}_diskimage
-	echo "# Created NanoBSD disk image: ${MAKEOBJDIRPREFIX}/${NANO_IMGNAME}"
+	echo "# Created NanoBSD disk image: ${NANO_DISKIMGDIR}/${NANO_IMGNAME}"
 else
 	pprint 2 "Skipping image build (as instructed)"
 fi
