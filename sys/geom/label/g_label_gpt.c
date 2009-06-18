@@ -41,16 +41,16 @@ __FBSDID("$FreeBSD$");
 #define	PART_CLASS_NAME	"PART"
 #define	SCHEME_NAME	"GPT"
 
-#define G_LABEL_GPT_VOLUME_DIR	"gpt"
-#define G_LABEL_GPT_ID_DIR	"gptid"
+#define	G_LABEL_GPT_VOLUME_DIR	"gpt"
+#define	G_LABEL_GPT_ID_DIR	"gptid"
 
-/* also defined in geom/part/g_part_gpt.c */
+/* XXX: Also defined in geom/part/g_part_gpt.c */
 struct g_part_gpt_entry {
 	struct g_part_entry     base;
 	struct gpt_ent          ent;
 };
 
-/* shamelessly stolen from g_part_gpt.c */
+/* XXX: Shamelessly stolen from g_part_gpt.c */
 static void
 sbuf_nprintf_utf16(struct sbuf *sb, uint16_t *str, size_t len)
 {
@@ -109,7 +109,7 @@ g_label_gpt_taste(struct g_consumer *cp, char *label, size_t size)
 	tp = (struct g_part_table *)pp->geom->softc;
 	label[0] = '\0';
 
-	/* We taste only partitions from GPART */
+	/* We taste only partitions handled by GPART */
 	if (strncmp(pp->geom->class->name, PART_CLASS_NAME, sizeof(PART_CLASS_NAME)))
 		return;
 	/* and only GPT */
@@ -119,11 +119,11 @@ g_label_gpt_taste(struct g_consumer *cp, char *label, size_t size)
 	part_gpt_entry = (struct g_part_gpt_entry *)pp->private;
 
 	/*
-	 * create sbuf with biggest possible size
-	 * we need max. 4 bytes for every 2-byte utf16 char
+	 * Create sbuf with biggest possible size.
+	 * We need max. 4 bytes for every 2-byte utf16 char.
 	 */
 	lbl = sbuf_new(NULL, NULL, sizeof(part_gpt_entry->ent.ent_name) << 1, SBUF_FIXEDLEN);
-	/* size ist the number of characters, not bytes */
+	/* Size is the number of characters, not bytes */
 	sbuf_nprintf_utf16(lbl, part_gpt_entry->ent.ent_name, sizeof(part_gpt_entry->ent.ent_name) >> 1);
 	sbuf_finish(lbl);
 	strlcpy(label, sbuf_data(lbl), size);
@@ -142,7 +142,7 @@ g_label_gpt_uuid_taste(struct g_consumer *cp, char *label, size_t size)
 	tp = (struct g_part_table *)pp->geom->softc;
 	label[0] = '\0';
 
-	/* we taste only partitions from GPART */
+	/* We taste only partitions handled by GPART */
 	if (strncmp(pp->geom->class->name, PART_CLASS_NAME, sizeof(PART_CLASS_NAME)))
 		return;
 	/* and only GPT */
