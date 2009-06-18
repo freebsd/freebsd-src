@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -2010,8 +2010,10 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 			dt_dprintf("skipping library %s: %s\n",
 			    dld->dtld_library,
 			    dtrace_errmsg(dtp, dtrace_errno(dtp)));
-		} else
+		} else {
+			dld->dtld_loaded = B_TRUE;
 			dt_program_destroy(dtp, pgp);
+		}
 	}
 
 	dt_lib_depend_free(dtp);

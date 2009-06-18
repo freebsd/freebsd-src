@@ -3607,14 +3607,14 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 
-		if (nargs <= 2)
-			remaining = (int64_t)size;
-
 		if (!DTRACE_INSCRATCH(mstate, size)) {
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOSCRATCH);
 			regs[rd] = NULL;
 			break;
 		}
+
+		if (nargs <= 2)
+			remaining = (int64_t)size;
 
 		if (index < 0) {
 			index += len;
@@ -3625,18 +3625,20 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			}
 		}
 
-		if (index >= len || index < 0)
-			index = len;
-
-		for (d[0] = '\0'; remaining > 0; remaining--) {
-			if ((d[i++] = dtrace_load8(s++ + index)) == '\0')
-				break;
-
-			if (i == size) {
-				d[i - 1] = '\0';
-				break;
-			}
+		if (index >= len || index < 0) {
+			remaining = 0;
+		} else if (remaining < 0) {
+			remaining += len - index;
+		} else if (index + remaining > size) {
+			remaining = size - index;
 		}
+
+		for (i = 0; i < remaining; i++) {
+			if ((d[i] = dtrace_load8(s + index + i)) == '\0')
+				break;
+		}
+
+		d[i] = '\0';
 
 		mstate->dtms_scratch_ptr += size;
 		regs[rd] = (uintptr_t)d;
@@ -3706,9 +3708,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		 * explained to them, and who can't even concisely describe
 		 * the conditions under which one would be forced to resort to
 		 * this technique.  Needless to say, those conditions are
-		 * found here -- and probably only here.  Is this is the only
-		 * use of this infamous trick in shipping, production code?
-		 * If it isn't, it probably should be...
+		 * found here -- and probably only here.  Is this the only use
+		 * of this infamous trick in shipping, production code?  If it
+		 * isn't, it probably should be...
 		 */
 		if (minor != -1) {
 			uintptr_t maddr = dtrace_loadptr(daddr +
@@ -10776,33 +10778,6 @@ dtrace_enabling_matchall(void)
 	mutex_exit(&cpu_lock);
 }
 
-static int
-dtrace_enabling_matchstate(dtrace_state_t *state, int *nmatched)
-{
-	dtrace_enabling_t *enab;
-	int matched, total = 0, err;
-
-	ASSERT(MUTEX_HELD(&cpu_lock));
-	ASSERT(MUTEX_HELD(&dtrace_lock));
-
-	for (enab = dtrace_retained; enab != NULL; enab = enab->dten_next) {
-		ASSERT(enab->dten_vstate->dtvs_state != NULL);
-
-		if (enab->dten_vstate->dtvs_state != state)
-			continue;
-
-		if ((err = dtrace_enabling_match(enab, &matched)) != 0)
-			return (err);
-
-		total += matched;
-	}
-
-	if (nmatched != NULL)
-		*nmatched = total;
-
-	return (0);
-}
-
 /*
  * If an enabling is to be enabled without having matched probes (that is, if
  * dtrace_state_go() is to be called on the underlying dtrace_state_t), the
@@ -14790,13 +14765,9 @@ dtrace_ioctl(dev_t dev, int cmd, intptr_t arg, int md, cred_t *cr, int *rv)
 		 * cue to reevaluate our enablings.
 		 */
 		if (arg == NULL) {
-			mutex_enter(&cpu_lock);
-			mutex_enter(&dtrace_lock);
-			err = dtrace_enabling_matchstate(state, rv);
-			mutex_exit(&dtrace_lock);
-			mutex_exit(&cpu_lock);
+			dtrace_enabling_matchall();
 
-			return (err);
+			return (0);
 		}
 
 		if ((dof = dtrace_dof_copyin(arg, &rval)) == NULL)
