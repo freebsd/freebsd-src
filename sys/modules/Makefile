@@ -18,6 +18,7 @@ SUBDIR=	${_3dfx} \
 	aio \
 	${_amd} \
 	${_amdtemp} \
+	alc \
 	ale \
 	amr \
 	${_an} \
