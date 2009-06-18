@@ -434,7 +434,7 @@ create_i386_diskimage ( ) (
 	else
 		echo "Creating md backing file..."
 		dd if=/dev/zero of=${IMG} bs=${NANO_SECTS}b \
-			seek=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}` count=0
+			count=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}`
 		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
 			-y ${NANO_HEADS}`
 	fi
@@ -451,7 +451,7 @@ create_i386_diskimage ( ) (
 
 	# Create first image
 	newfs ${NANO_NEWFS} /dev/${MD}s1a
-	mount -o async /dev/${MD}s1a ${MNT}
+	mount /dev/${MD}s1a ${MNT}
 	df -i ${MNT}
 	echo "Copying worlddir..."
 	( cd ${NANO_WORLDDIR} && find . -print | cpio -dump ${MNT} )
@@ -464,7 +464,7 @@ create_i386_diskimage ( ) (
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
 		echo "Duplicating to second image..."
-		dd conv=sparse if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
+		dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 		mount /dev/${MD}s2a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
@@ -478,7 +478,7 @@ create_i386_diskimage ( ) (
 	# XXX: fill from where ?
 
 	# Create Data slice, if any.
-	if [ $NANO_DATASIZE -gt 0 ] ; then
+	if [ $NANO_DATASIZE -ne 0 ] ; then
 		newfs ${NANO_NEWFS} /dev/${MD}s4
 		# XXX: fill from where ?
 	fi
@@ -489,7 +489,7 @@ create_i386_diskimage ( ) (
 	fi
 
 	echo "Writing out _.disk.image..."
-	dd conv=sparse if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+	dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	mdconfig -d -u $MD
 	) > ${NANO_OBJ}/_.di 2>&1
 )
