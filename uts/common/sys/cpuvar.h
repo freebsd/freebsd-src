@@ -668,7 +668,7 @@ void	cpu_destroy_bound_threads(cpu_t *cp);
 
 extern int cpu_bind_thread(kthread_t *tp, processorid_t bind,
     processorid_t *obind, int *error);
-extern int cpu_unbind(processorid_t cpu_id);
+extern int cpu_unbind(processorid_t cpu_id, boolean_t force);
 extern void thread_affinity_set(kthread_t *t, int cpu_id);
 extern void thread_affinity_clear(kthread_t *t);
 extern void affinity_set(int cpu_id);
