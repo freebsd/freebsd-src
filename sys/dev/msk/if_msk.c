@@ -190,13 +190,21 @@ static struct msk_product {
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8062X,
 	    "Marvell Yukon 88E8062 SX/LX Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8035,
-	    "Marvell Yukon 88E8035 Gigabit Ethernet" },
+	    "Marvell Yukon 88E8035 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8036,
-	    "Marvell Yukon 88E8036 Gigabit Ethernet" },
+	    "Marvell Yukon 88E8036 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8038,
-	    "Marvell Yukon 88E8038 Gigabit Ethernet" },
+	    "Marvell Yukon 88E8038 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8039,
-	    "Marvell Yukon 88E8039 Gigabit Ethernet" },
+	    "Marvell Yukon 88E8039 Fast Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8040,
+	    "Marvell Yukon 88E8040 Fast Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8040T,
+	    "Marvell Yukon 88E8040T Fast Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8048,
+	    "Marvell Yukon 88E8048 Fast Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8070,
+	    "Marvell Yukon 88E8070 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4361,
 	    "Marvell Yukon 88E8050 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4360,
@@ -896,6 +904,10 @@ msk_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc_if = ifp->if_softc;
 	MSK_IF_LOCK(sc_if);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		MSK_IF_UNLOCK(sc_if);
+		return;
+	}
 	mii = device_get_softc(sc_if->msk_miibus);
 
 	mii_pollstat(mii);
@@ -945,18 +957,14 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		MSK_IF_LOCK(sc_if);
 		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-				if (((ifp->if_flags ^ sc_if->msk_if_flags)
-				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
-					msk_rxfilter(sc_if);
-			} else {
-				if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
-					msk_init_locked(sc_if);
-			}
-		} else {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-				msk_stop(sc_if);
-		}
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc_if->msk_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+				msk_rxfilter(sc_if);
+			else if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
+				msk_init_locked(sc_if);
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			msk_stop(sc_if);
 		sc_if->msk_if_flags = ifp->if_flags;
 		MSK_IF_UNLOCK(sc_if);
 		break;
@@ -975,23 +983,24 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 		MSK_IF_LOCK(sc_if);
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if ((mask & IFCAP_TXCSUM) != 0) {
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0 &&
-			    (IFCAP_TXCSUM & ifp->if_capabilities) != 0)
+			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= MSK_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~MSK_CSUM_FEATURES;
 		}
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0) {
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			msk_setvlan(sc_if, ifp);
 		}
 
-		if ((mask & IFCAP_TSO4) != 0) {
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (IFCAP_TSO4 & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & ifp->if_capenable) != 0 &&
-			    (IFCAP_TSO4 & ifp->if_capabilities) != 0)
+			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= CSUM_TSO;
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
@@ -1493,14 +1502,17 @@ msk_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 	MSK_IF_LOCK(sc_if);
 
-	/*
-	 * VLAN capability setup 
-	 * Due to Tx checksum offload hardware bugs, msk(4) manually
-	 * computes checksum for short frames. For VLAN tagged frames
-	 * this workaround does not work so disable checksum offload
-	 * for VLAN interface.
-	 */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
+	/* VLAN capability setup */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	if ((sc_if->msk_flags & MSK_FLAG_NOHWVLAN) == 0) {
+		/*
+		 * Due to Tx checksum offload hardware bugs, msk(4) manually
+		 * computes checksum for short frames. For VLAN tagged frames
+		 * this workaround does not work so disable checksum offload
+		 * for VLAN interface.
+		 */
+        	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -1646,6 +1658,19 @@ mskc_attach(device_t dev)
 	case CHIP_ID_YUKON_FE_P:
 		sc->msk_clock = 50;	/* 50 Mhz */
 		sc->msk_pflags |= MSK_FLAG_FASTETHER | MSK_FLAG_DESCV2;
+		if (sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
+			/*
+			 * XXX
+			 * FE+ A0 has status LE writeback bug so msk(4)
+			 * does not rely on status word of received frame
+			 * in msk_rxeof() which in turn disables all
+			 * hardware assistance bits reported by the status
+			 * word as well as validity of the recevied frame.
+			 * Just pass received frames to upper stack with
+			 * minimal test and let upper stack handle them.
+			 */
+			sc->msk_pflags |= MSK_FLAG_NOHWVLAN | MSK_FLAG_NORXCHK;
+		}
 		break;
 	case CHIP_ID_YUKON_XL:
 		sc->msk_clock = 156;	/* 156 Mhz */
@@ -2735,6 +2760,7 @@ msk_watchdog(struct msk_if_softc *sc_if)
 			if_printf(sc_if->msk_ifp, "watchdog timeout "
 			   "(missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		msk_init_locked(sc_if);
 		return;
 	}
@@ -2759,6 +2785,7 @@ msk_watchdog(struct msk_if_softc *sc_if)
 
 	if_printf(ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	msk_init_locked(sc_if);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(taskqueue_fast, &sc_if->msk_tx_task);
@@ -2837,8 +2864,11 @@ mskc_resume(device_t dev)
 	mskc_reset(sc);
 	for (i = 0; i < sc->msk_num_port; i++) {
 		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
-		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0))
+		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0)) {
+			sc->msk_if[i]->msk_ifp->if_drv_flags &=
+			    ~IFF_DRV_RUNNING;
 			msk_init_locked(sc->msk_if[i]);
+		}
 	}
 	sc->msk_pflags &= ~MSK_FLAG_SUSPEND;
 
@@ -2882,7 +2912,18 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 			rxlen -= ETHER_VLAN_ENCAP_LEN;
-		if (len > sc_if->msk_framesize ||
+		if ((sc_if->msk_flags & MSK_FLAG_NORXCHK) != 0) {
+			/*
+			 * For controllers that returns bogus status code
+			 * just do minimal check and let upper stack
+			 * handle this frame.
+			 */
+			if (len > MSK_MAX_FRAMELEN || len < ETHER_HDR_LEN) {
+				ifp->if_ierrors++;
+				msk_discard_rxbuf(sc_if, cons);
+				break;
+			}
+		} else if (len > sc_if->msk_framesize ||
 		    ((status & GMR_FS_ANY_ERR) != 0) ||
 		    ((status & GMR_FS_RX_OK) == 0) || (rxlen != len)) {
 			/* Don't count flow-control packet as errors. */
@@ -3527,6 +3568,9 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	sc = sc_if->msk_softc;
 	mii = device_get_softc(sc_if->msk_miibus);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	error = 0;
 	/* Cancel pending I/O and free all Rx/Tx buffers. */
 	msk_stop(sc_if);
@@ -3613,8 +3657,12 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	 * Set Rx FIFO flush threshold to 64 bytes + 1 FIFO word
 	 * due to hardware hang on receipt of pause frames.
 	 */
-	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_THR),
-	    RX_GMF_FL_THR_DEF + 1);
+	reg = RX_GMF_FL_THR_DEF + 1;
+	/* Another magic for Yukon FE+ - From Linux. */
+	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P &&
+	    sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0)
+		reg = 0x178;
+	CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_THR), reg);
 
 	/* Configure Tx MAC FIFO. */
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T), GMF_RST_SET);
@@ -3645,6 +3693,14 @@ msk_init_locked(struct msk_if_softc *sc_if)
 			    TX_JUMBO_DIS | TX_STFW_ENA);
 		}
 	}
+
+ 	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P &&
+ 	    sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
+ 		/* Disable dynamic watermark - from Linux. */
+ 		reg = CSR_READ_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA));
+ 		reg &= ~0x03;
+ 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA), reg);
+ 	}
 
 	/*
 	 * Disable Force Sync bit and Alloc bit in Tx RAM interface
