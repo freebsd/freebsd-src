@@ -186,7 +186,7 @@ build_kernel ( ) (
 	unset TARGET_BIG_ENDIAN
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
 		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${NANO_OBJ}/_.bk 2>&1
+		> ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 	)
 )
 
@@ -484,7 +484,7 @@ create_i386_diskimage ( ) (
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
-		echo "Writing out _.disk.full..."
+		echo "Writing out ${NANO_IMGNAME}..."
 		dd if=/dev/${MD} of=${IMG} bs=64k
 	fi
 
@@ -839,7 +839,6 @@ prune_usr
 run_late_customize
 if $do_image ; then
 	create_${NANO_ARCH}_diskimage
-	echo "# Created NanoBSD disk image: ${NANO_DISKIMGDIR}/${NANO_IMGNAME}"
 else
 	pprint 2 "Skipping image build (as instructed)"
 fi
