@@ -568,13 +568,6 @@ create_service(struct netconfig *nconf)
 					continue;
 				}
 			}
-			if (si.si_socktype == SOCK_DGRAM &&
-			    setsockopt(fd, IPPROTO_IP, IP_RECVDSTADDR, &one,
-			        sizeof one) < 0) {
-				syslog(LOG_ERR,
-				    "can't disable v4-in-v6 on IPv6 socket");
-				exit(1);
-			}
 			break;
 		case AF_INET6:
 			if (inet_pton(AF_INET6, hosts[nhostsbak],
