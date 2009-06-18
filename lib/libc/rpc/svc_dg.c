@@ -97,8 +97,9 @@ int svc_dg_enablecache(SVCXPRT *, u_int);
  */
 static const char svc_dg_str[] = "svc_dg_create: %s";
 static const char svc_dg_err1[] = "could not get transport information";
-static const char svc_dg_err2[] = " transport does not support data transfer";
+static const char svc_dg_err2[] = "transport does not support data transfer";
 static const char svc_dg_err3[] = "getsockname failed";
+static const char svc_dg_err4[] = "cannot set IP_RECVDSTADDR";
 static const char __no_mem_str[] = "out of memory";
 
 SVCXPRT *
@@ -156,6 +157,23 @@ svc_dg_create(fd, sendsize, recvsize)
 	xprt->xp_ltaddr.len = slen;
 	memcpy(xprt->xp_ltaddr.buf, &ss, slen);
 
+	if (ss.ss_family == AF_INET) {
+		struct sockaddr_in *sin;
+		static const int true_value = 1;
+
+		sin = (struct sockaddr_in *)(void *)&ss;
+		if (sin->sin_addr.s_addr == INADDR_ANY) {
+		    su->su_srcaddr.buf = mem_alloc(sizeof (ss));
+		    su->su_srcaddr.maxlen = sizeof (ss);
+
+		    if (_setsockopt(fd, IPPROTO_IP, IP_RECVDSTADDR,
+				    &true_value, sizeof(true_value))) {
+			    warnx(svc_dg_str,  svc_dg_err4);
+			    goto freedata_nowarn;
+		    }
+		}
+	}
+
 	xprt_register(xprt);
 	return (xprt);
 freedata:
@@ -197,13 +215,15 @@ svc_dg_recvfrom(int fd, char *buf, int buflen,
 	msg.msg_iovlen = 1;
 	msg.msg_namelen = *raddrlen;
 	msg.msg_name = (char *)raddr;
-	msg.msg_control = (caddr_t)tmp;
-	msg.msg_controllen = CMSG_LEN(sizeof(*lin));
+	if (laddr != NULL) {
+	    msg.msg_control = (caddr_t)tmp;
+	    msg.msg_controllen = CMSG_LEN(sizeof(*lin));
+	}
 	rlen = _recvmsg(fd, &msg, 0);
 	if (rlen >= 0)
 		*raddrlen = msg.msg_namelen;
 
-	if (rlen == -1 || !laddr ||
+	if (rlen == -1 || laddr == NULL ||
 	    msg.msg_controllen < sizeof(struct cmsghdr) ||
 	    msg.msg_flags & MSG_CTRUNC)
 		return rlen;
@@ -214,17 +234,18 @@ svc_dg_recvfrom(int fd, char *buf, int buflen,
 		    cmsg->cmsg_type == IP_RECVDSTADDR) {
 			have_lin = TRUE;
 			memcpy(&lin->sin_addr,
-			    (struct in_addr *)CMSG_DATA(cmsg), sizeof(struct in_addr));
+			    (struct in_addr *)CMSG_DATA(cmsg),
+			    sizeof(struct in_addr));
 			break;
 		}
 	}
 
-	if (!have_lin)
-		return rlen;
-
 	lin->sin_family = AF_INET;
 	lin->sin_port = 0;
 	*laddrlen = sizeof(struct sockaddr_in);
+
+	if (!have_lin)
+		lin->sin_addr.s_addr = INADDR_ANY;
 
 	return rlen;
 }
@@ -246,7 +267,7 @@ again:
 	alen = sizeof (struct sockaddr_storage);
 	rlen = svc_dg_recvfrom(xprt->xp_fd, rpc_buffer(xprt), su->su_iosz,
 	    (struct sockaddr *)(void *)&ss, &alen,
-	    (struct sockaddr *)xprt->xp_ltaddr.buf, &xprt->xp_ltaddr.len);
+	    (struct sockaddr *)su->su_srcaddr.buf, &su->su_srcaddr.len);
 	if (rlen == -1 && errno == EINTR)
 		goto again;
 	if (rlen == -1 || (rlen < (ssize_t)(4 * sizeof (u_int32_t))))
@@ -300,7 +321,8 @@ svc_dg_sendto(int fd, char *buf, int buflen,
 	msg.msg_namelen = raddrlen;
 	msg.msg_name = (char *)raddr;
 
-	if (laddr->sa_family == AF_INET && lin->s_addr != INADDR_ANY) {
+	if (laddr != NULL && laddr->sa_family == AF_INET &&
+	    lin->s_addr != INADDR_ANY) {
 		msg.msg_control = (caddr_t)tmp;
 		msg.msg_controllen = CMSG_LEN(sizeof(*lin));
 		cmsg = CMSG_FIRSTHDR(&msg);
@@ -346,8 +368,8 @@ svc_dg_reply(xprt, msg)
 		if (svc_dg_sendto(xprt->xp_fd, rpc_buffer(xprt), slen,
 		    (struct sockaddr *)xprt->xp_rtaddr.buf,
 		    (socklen_t)xprt->xp_rtaddr.len,
-		    (struct sockaddr *)xprt->xp_ltaddr.buf,
-		    xprt->xp_ltaddr.len) == (ssize_t) slen) {
+		    (struct sockaddr *)su->su_srcaddr.buf,
+		    (socklen_t)su->su_srcaddr.len) == (ssize_t) slen) {
 			stat = TRUE;
 			if (su->su_cache)
 				cache_set(xprt, slen);
@@ -393,6 +415,8 @@ svc_dg_destroy(xprt)
 		(void)_close(xprt->xp_fd);
 	XDR_DESTROY(&(su->su_xdrs));
 	(void) mem_free(rpc_buffer(xprt), su->su_iosz);
+	if (su->su_srcaddr.buf)
+		(void) mem_free(su->su_srcaddr.buf, su->su_srcaddr.maxlen);
 	(void) mem_free(su, sizeof (*su));
 	if (xprt->xp_rtaddr.buf)
 		(void) mem_free(xprt->xp_rtaddr.buf, xprt->xp_rtaddr.maxlen);
