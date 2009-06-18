@@ -2277,6 +2277,7 @@ ndis_setstate_80211(sc)
 	struct ndis_softc	*sc;
 {
 	struct ieee80211com	*ic;
+	struct ieee80211vap	*vap;
 	ndis_80211_macaddr	bssid;
 	ndis_80211_config	config;
 	int			rval = 0, len;
@@ -2285,6 +2286,7 @@ ndis_setstate_80211(sc)
 
 	ifp = sc->ifp;
 	ic = ifp->if_l2com;
+	vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	if (!NDIS_INITIALIZED(sc)) {
 		DPRINTF(("%s: NDIS not initialized\n", __func__));
@@ -2313,7 +2315,7 @@ ndis_setstate_80211(sc)
 	/* Set power management */
 
 	len = sizeof(arg);
-	if (ic->ic_flags & IEEE80211_F_PMGTON)
+	if (vap->iv_flags & IEEE80211_F_PMGTON)
 		arg = NDIS_80211_POWERMODE_FAST_PSP;
 	else
 		arg = NDIS_80211_POWERMODE_CAM;
@@ -2737,9 +2739,9 @@ ndis_getstate_80211(sc)
 			device_printf(sc->ndis_dev,
 			    "get power mode failed: %d\n", rval);
 		if (arg == NDIS_80211_POWERMODE_CAM)
-			ic->ic_flags &= ~IEEE80211_F_PMGTON;
+			vap->iv_flags &= ~IEEE80211_F_PMGTON;
 		else
-			ic->ic_flags |= IEEE80211_F_PMGTON;
+			vap->iv_flags |= IEEE80211_F_PMGTON;
 	}
 
 	/* Get TX power */
@@ -2776,7 +2778,7 @@ ndis_getstate_80211(sc)
 		device_printf (sc->ndis_dev,
 		    "get authmode status failed: %d\n", rval);
 	else {
-		ic->ic_flags &= ~IEEE80211_F_WPA;
+		vap->iv_flags &= ~IEEE80211_F_WPA;
 		switch(arg) {
 		case NDIS_80211_AUTHMODE_OPEN:
 			ni->ni_authmode = IEEE80211_AUTH_OPEN;
@@ -2791,12 +2793,12 @@ ndis_getstate_80211(sc)
 		case NDIS_80211_AUTHMODE_WPAPSK:
 		case NDIS_80211_AUTHMODE_WPANONE:
 			ni->ni_authmode = IEEE80211_AUTH_WPA;
-			ic->ic_flags |= IEEE80211_F_WPA1;
+			vap->iv_flags |= IEEE80211_F_WPA1;
 			break;
 		case NDIS_80211_AUTHMODE_WPA2:
 		case NDIS_80211_AUTHMODE_WPA2PSK:
 			ni->ni_authmode = IEEE80211_AUTH_WPA;
-			ic->ic_flags |= IEEE80211_F_WPA2;
+			vap->iv_flags |= IEEE80211_F_WPA2;
 			break;
 		default:
 			ni->ni_authmode = IEEE80211_AUTH_NONE;
@@ -2812,9 +2814,9 @@ ndis_getstate_80211(sc)
 		    "get wep status failed: %d\n", rval);
 
 	if (arg == NDIS_80211_WEPSTAT_ENABLED)
-		ic->ic_flags |= IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC;
+		vap->iv_flags |= IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC;
 	else
-		ic->ic_flags &= ~(IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC);
+		vap->iv_flags &= ~(IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC);
 	return;
 }
 
