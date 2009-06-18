@@ -285,7 +285,6 @@ static int msk_phy_writereg(struct msk_if_softc *, int, int, int);
 static int msk_miibus_readreg(device_t, int, int);
 static int msk_miibus_writereg(device_t, int, int, int);
 static void msk_miibus_statchg(device_t);
-static void msk_link_task(void *, int);
 
 static void msk_rxfilter(struct msk_if_softc *);
 static void msk_setvlan(struct msk_if_softc *, struct ifnet *);
@@ -459,40 +458,30 @@ msk_phy_writereg(struct msk_if_softc *sc_if, int phy, int reg, int val)
 static void
 msk_miibus_statchg(device_t dev)
 {
-	struct msk_if_softc *sc_if;
-
-	sc_if = device_get_softc(dev);
-	taskqueue_enqueue(taskqueue_swi, &sc_if->msk_link_task);
-}
-
-static void
-msk_link_task(void *arg, int pending)
-{
 	struct msk_softc *sc;
 	struct msk_if_softc *sc_if;
 	struct mii_data *mii;
 	struct ifnet *ifp;
 	uint32_t gmac;
 
-	sc_if = (struct msk_if_softc *)arg;
+	sc_if = device_get_softc(dev);
 	sc = sc_if->msk_softc;
 
 	MSK_IF_LOCK(sc_if);
 
 	mii = device_get_softc(sc_if->msk_miibus);
 	ifp = sc_if->msk_ifp;
-	if (mii == NULL || ifp == NULL) {
-		MSK_IF_UNLOCK(sc_if);
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
-	}
 
 	if (mii->mii_media_status & IFM_ACTIVE) {
 		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc_if->msk_link = 1;
+			sc_if->msk_flags |= MSK_FLAG_LINK;
 	} else
-		sc_if->msk_link = 0;
+		sc_if->msk_flags &= ~MSK_FLAG_LINK;
 
-	if (sc_if->msk_link != 0) {
+	if ((sc_if->msk_flags & MSK_FLAG_LINK) != 0) {
 		/* Enable Tx FIFO Underrun. */
 		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_MSK),
 		    GM_IS_TX_FF_UR | GM_IS_RX_FF_OR);
@@ -554,8 +543,6 @@ msk_link_task(void *arg, int pending)
 		/* Read again to ensure writing. */
 		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 	}
-
-	MSK_IF_UNLOCK(sc_if);
 }
 
 static void
@@ -869,15 +856,16 @@ msk_mediachange(struct ifnet *ifp)
 {
 	struct msk_if_softc *sc_if;
 	struct mii_data	*mii;
+	int error;
 
 	sc_if = ifp->if_softc;
 
 	MSK_IF_LOCK(sc_if);
 	mii = device_get_softc(sc_if->msk_miibus);
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	MSK_IF_UNLOCK(sc_if);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -936,7 +924,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 					msk_rxfilter(sc_if);
 			} else {
-				if (sc_if->msk_detach == 0)
+				if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
 					msk_init_locked(sc_if);
 			}
 		} else {
@@ -1416,7 +1404,6 @@ msk_attach(device_t dev)
 	}
 
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
-	TASK_INIT(&sc_if->msk_link_task, 0, msk_link_task, sc_if);
 	msk_sysctl_node(sc_if);
 
 	/* Disable jumbo frame for Yukon FE. */
@@ -1659,7 +1646,7 @@ mskc_attach(device_t dev)
 			if (sc->msk_num_port == 1 &&
 			    pci_alloc_msi(dev, &msir) == 0) {
 				if (msic == msir) {
-					sc->msk_msi = 1;
+					sc->msk_pflags |= MSK_FLAG_MSI;
 					sc->msk_irq_spec = msic == 2 ?
 					    msk_irq_spec_msi2 :
 					    msk_irq_spec_msi;
@@ -1785,13 +1772,12 @@ msk_detach(device_t dev)
 	ifp = sc_if->msk_ifp;
 	if (device_is_attached(dev)) {
 		/* XXX */
-		sc_if->msk_detach = 1;
+		sc_if->msk_flags |= MSK_FLAG_DETACH;
 		msk_stop(sc_if);
 		/* Can't hold locks while calling detach. */
 		MSK_IF_UNLOCK(sc_if);
 		callout_drain(&sc_if->msk_tick_ch);
 		taskqueue_drain(taskqueue_fast, &sc_if->msk_tx_task);
-		taskqueue_drain(taskqueue_swi, &sc_if->msk_link_task);
 		ether_ifdetach(ifp);
 		MSK_IF_LOCK(sc_if);
 	}
@@ -1870,7 +1856,7 @@ mskc_detach(device_t dev)
 		sc->msk_intrhand[1] = NULL;
 	}
 	bus_release_resources(dev, sc->msk_irq_spec, sc->msk_irq);
-	if (sc->msk_msi)
+	if ((sc->msk_pflags & MSK_FLAG_MSI) != 0)
 		pci_release_msi(dev);
 	bus_release_resources(dev, sc->msk_res_spec, sc->msk_res);
 	mtx_destroy(&sc->msk_mtx);
@@ -2641,7 +2627,7 @@ msk_start(struct ifnet *ifp)
 	MSK_IF_LOCK(sc_if);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc_if->msk_link == 0) {
+	    IFF_DRV_RUNNING || (sc_if->msk_flags & MSK_FLAG_LINK) == 0) {
 		MSK_IF_UNLOCK(sc_if);
 		return;
 	}
@@ -2698,7 +2684,7 @@ msk_watchdog(struct msk_if_softc *sc_if)
 	if (sc_if->msk_watchdog_timer == 0 || --sc_if->msk_watchdog_timer)
 		return;
 	ifp = sc_if->msk_ifp;
-	if (sc_if->msk_link == 0) {
+	if ((sc_if->msk_flags & MSK_FLAG_LINK) == 0) {
 		if (bootverbose)
 			if_printf(sc_if->msk_ifp, "watchdog timeout "
 			   "(missed link)\n");
@@ -2785,7 +2771,7 @@ mskc_suspend(device_t dev)
 
 	/* Put hardware reset. */
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-	sc->msk_suspended = 1;
+	sc->msk_pflags |= MSK_FLAG_SUSPEND;
 
 	MSK_UNLOCK(sc);
 
@@ -2808,7 +2794,7 @@ mskc_resume(device_t dev)
 		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0))
 			msk_init_locked(sc->msk_if[i]);
 	}
-	sc->msk_suspended = 0;
+	sc->msk_pflags &= MSK_FLAG_SUSPEND;
 
 	MSK_UNLOCK(sc);
 
@@ -3321,7 +3307,8 @@ msk_legacy_intr(void *xsc)
 
 	/* Reading B0_Y2_SP_ISRC2 masks further interrupts. */
 	status = CSR_READ_4(sc, B0_Y2_SP_ISRC2);
-	if (status == 0 || status == 0xffffffff || sc->msk_suspended != 0 ||
+	if (status == 0 || status == 0xffffffff ||
+	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0) {
 		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
 		return;
@@ -3408,7 +3395,8 @@ msk_int_task(void *arg, int pending)
 
 	/* Get interrupt source. */
 	status = CSR_READ_4(sc, B0_ISRC);
-	if (status == 0 || status == 0xffffffff || sc->msk_suspended != 0 ||
+	if (status == 0 || status == 0xffffffff ||
+	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0)
 		goto done;
 
@@ -3690,7 +3678,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	CSR_WRITE_4(sc, B0_IMSK, sc->msk_intrmask);
 	CSR_READ_4(sc, B0_IMSK);
 
-	sc_if->msk_link = 0;
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
 	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -3925,7 +3913,7 @@ msk_stop(struct msk_if_softc *sc_if)
 	 * Mark the interface down.
 	 */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	sc_if->msk_link = 0;
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
 }
 
 /*
