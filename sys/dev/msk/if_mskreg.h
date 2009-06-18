@@ -2122,6 +2122,8 @@ struct msk_stat_desc {
 #define OP_ADDR64VLAN	(OP_ADDR64 | OP_VLAN)
 #define OP_LRGLEN	0x24000000
 #define OP_LRGLENVLAN	(OP_LRGLEN | OP_VLAN)
+#define OP_MSS		0x28000000
+#define OP_MSSVLAN	(OP_MSS | OP_VLAN)
 #define OP_BUFFER	0x40000000
 #define OP_PACKET	0x41000000
 #define OP_LARGESEND	0x43000000
@@ -2382,8 +2384,11 @@ struct msk_if_softc {
 	int			msk_phyaddr;
 	uint32_t		msk_flags;
 #define	MSK_FLAG_MSI		0x0001
-#define	MSK_FLAG_RAMBUF		0x0010
-#define	MSK_FLAG_NOJUMBO	0x0020
+#define	MSK_FLAG_FASTETHER	0x0004
+#define	MSK_FLAG_JUMBO		0x0008
+#define	MSK_FLAG_JUMBO_NOCSUM	0x0010
+#define	MSK_FLAG_RAMBUF		0x0020
+#define	MSK_FLAG_DESCV2		0x0040
 #define	MSK_FLAG_SUSPEND	0x2000
 #define	MSK_FLAG_DETACH		0x4000
 #define	MSK_FLAG_LINK		0x8000

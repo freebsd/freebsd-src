@@ -467,7 +467,7 @@ msk_miibus_statchg(device_t dev)
 	sc_if = device_get_softc(dev);
 	sc = sc_if->msk_softc;
 
-	MSK_IF_LOCK(sc_if);
+	MSK_IF_LOCK_ASSERT(sc_if);
 
 	mii = device_get_softc(sc_if->msk_miibus);
 	ifp = sc_if->msk_ifp;
@@ -475,11 +475,25 @@ msk_miibus_statchg(device_t dev)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	if (mii->mii_media_status & IFM_ACTIVE) {
-		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_AVALID | IFM_ACTIVE)) ==
+	    (IFM_AVALID | IFM_ACTIVE)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
 			sc_if->msk_flags |= MSK_FLAG_LINK;
-	} else
-		sc_if->msk_flags &= ~MSK_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+		case IFM_1000_SX:
+		case IFM_1000_LX:
+		case IFM_1000_CX:
+			if ((sc_if->msk_flags & MSK_FLAG_FASTETHER) == 0)
+				sc_if->msk_flags |= MSK_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
 
 	if ((sc_if->msk_flags & MSK_FLAG_LINK) != 0) {
 		/* Enable Tx FIFO Underrun. */
@@ -538,10 +552,12 @@ msk_miibus_statchg(device_t dev)
 		msk_phy_writereg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_MASK, 0);
 		/* Disable Rx/Tx MAC. */
 		gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
-		gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
-		GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
-		/* Read again to ensure writing. */
-		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
+		if ((GM_GPCR_RX_ENA | GM_GPCR_TX_ENA) != 0) {
+			gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
+			GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
+			/* Read again to ensure writing. */
+			GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
+		}
 	}
 }
 
@@ -901,20 +917,29 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch(command) {
 	case SIOCSIFMTU:
+		MSK_IF_LOCK(sc_if);
 		if (ifr->ifr_mtu > MSK_JUMBO_MTU || ifr->ifr_mtu < ETHERMIN)
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
-			if ((sc_if->msk_flags & MSK_FLAG_NOJUMBO) != 0 &&
-			    ifr->ifr_mtu > ETHERMTU)
-				error = EINVAL;
-			else {
-				MSK_IF_LOCK(sc_if);
-				ifp->if_mtu = ifr->ifr_mtu;
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-					msk_init_locked(sc_if);
-				MSK_IF_UNLOCK(sc_if);
+ 			if (ifr->ifr_mtu > ETHERMTU) {
+				if ((sc_if->msk_flags & MSK_FLAG_JUMBO) == 0) {
+					error = EINVAL;
+					MSK_IF_UNLOCK(sc_if);
+					break;
+				}
+				if ((sc_if->msk_flags &
+				    MSK_FLAG_JUMBO_NOCSUM) != 0) {
+					ifp->if_hwassist &=
+					    ~(MSK_CSUM_FEATURES | CSUM_TSO);
+					ifp->if_capenable &=
+					    ~(IFCAP_TSO4 | IFCAP_TXCSUM);
+					VLAN_CAPABILITIES(ifp);
+				}
 			}
+			ifp->if_mtu = ifr->ifr_mtu;
+			msk_init_locked(sc_if);
 		}
+		MSK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCSIFFLAGS:
 		MSK_IF_LOCK(sc_if);
@@ -971,11 +996,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist &= ~CSUM_TSO;
 		}
 		if (ifp->if_mtu > ETHERMTU &&
-		    sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-			/*
-			 * In Yukon EC Ultra, TSO & checksum offload is not
-			 * supported for jumbo frame.
-			 */
+		    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
 			ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
 			ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 		}
@@ -1059,7 +1080,7 @@ mskc_setup_rambuffer(struct msk_softc *sc)
 static void
 msk_phy_power(struct msk_softc *sc, int mode)
 {
-	uint32_t val;
+	uint32_t our, val;
 	int i;
 
 	switch (mode) {
@@ -1085,16 +1106,17 @@ msk_phy_power(struct msk_softc *sc, int mode)
 
 		val = pci_read_config(sc->msk_dev, PCI_OUR_REG_1, 4);
 		val &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
-		if (sc->msk_hw_id == CHIP_ID_YUKON_XL &&
-		    sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
-			/* Deassert Low Power for 1st PHY. */
-			val |= PCI_Y2_PHY1_COMA;
-			if (sc->msk_num_port > 1)
-				val |= PCI_Y2_PHY2_COMA;
-		} else if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-			uint32_t our;
-
-			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_ON);
+		switch (sc->msk_hw_id) {
+		case CHIP_ID_YUKON_XL:
+			if (sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
+				/* Deassert Low Power for 1st PHY. */
+				val |= PCI_Y2_PHY1_COMA;
+				if (sc->msk_num_port > 1)
+					val |= PCI_Y2_PHY2_COMA;
+			}
+			break;
+		case CHIP_ID_YUKON_EC_U:
+			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
 			pci_write_config(sc->msk_dev, PCI_OUR_REG_3, 0, 4);
@@ -1105,6 +1127,9 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			pci_write_config(sc->msk_dev, PCI_OUR_REG_4, our, 4);
 			/* Set to default value. */
 			pci_write_config(sc->msk_dev, PCI_OUR_REG_5, 0, 4);
+			break;
+		default:
+			break;
 		}
 		/* Release PHY from PowerDown/COMA mode. */
 		pci_write_config(sc->msk_dev, PCI_OUR_REG_1, val, 4);
@@ -1406,10 +1431,6 @@ msk_attach(device_t dev)
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
 	msk_sysctl_node(sc_if);
 
-	/* Disable jumbo frame for Yukon FE. */
-	if (sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_FE)
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
-
 	if ((error = msk_txrx_dma_alloc(sc_if) != 0))
 		goto fail;
 	msk_rx_dma_jalloc(sc_if);
@@ -1609,14 +1630,20 @@ mskc_attach(device_t dev)
 
 	switch (sc->msk_hw_id) {
 	case CHIP_ID_YUKON_EC:
+		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO;
+		break;
 	case CHIP_ID_YUKON_EC_U:
 		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_JUMBO_NOCSUM;
 		break;
 	case CHIP_ID_YUKON_FE:
 		sc->msk_clock = 100;	/* 100 Mhz */
+		sc->msk_pflags |= MSK_FLAG_FASTETHER;
 		break;
 	case CHIP_ID_YUKON_XL:
 		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	default:
 		sc->msk_clock = 156;	/* 156 Mhz */
@@ -2158,11 +2185,10 @@ msk_rx_dma_jalloc(struct msk_if_softc *sc_if)
 	bus_size_t rxalign;
 	int error, i;
 
-	if (jumbo_disable != 0 || (sc_if->msk_flags & MSK_FLAG_NOJUMBO) != 0) {
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
+	if (jumbo_disable != 0 || (sc_if->msk_flags & MSK_FLAG_JUMBO) == 0) {
+		sc_if->msk_flags &= ~MSK_FLAG_JUMBO;
 		device_printf(sc_if->msk_if_dev,
 		    "disabling jumbo frame support\n");
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
 		return (0);
 	}
 	/* Create tag for jumbo Rx ring. */
@@ -2257,7 +2283,7 @@ jumbo_fail:
 	msk_rx_dma_jfree(sc_if);
 	device_printf(sc_if->msk_if_dev, "disabling jumbo frame support "
 	    "due to resource shortage\n");
-	sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
+	sc_if->msk_flags &= ~MSK_FLAG_JUMBO;
 	return (error);
 }
 
@@ -2393,7 +2419,8 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	tcp_offset = offset = 0;
 	m = *m_head;
-	if ((m->m_pkthdr.csum_flags & (MSK_CSUM_FEATURES | CSUM_TSO)) != 0) {
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    (m->m_pkthdr.csum_flags & (MSK_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * Since mbuf has no protocol specific structure information
 		 * in it we have to inspect protocol information here to
@@ -2520,11 +2547,18 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	/* Check TSO support. */
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		tso_mtu = offset + m->m_pkthdr.tso_segsz;
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+			tso_mtu = m->m_pkthdr.tso_segsz;
+		else
+			tso_mtu = offset + m->m_pkthdr.tso_segsz;
 		if (tso_mtu != sc_if->msk_cdata.msk_tso_mtu) {
 			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
 			tx_le->msk_addr = htole32(tso_mtu);
-			tx_le->msk_control = htole32(OP_LRGLEN | HW_OWNER);
+			if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+				tx_le->msk_control = htole32(OP_MSS | HW_OWNER);
+			else
+				tx_le->msk_control =
+				    htole32(OP_LRGLEN | HW_OWNER);
 			sc_if->msk_cdata.msk_tx_cnt++;
 			MSK_INC(prod, MSK_TX_RING_CNT);
 			sc_if->msk_cdata.msk_tso_mtu = tso_mtu;
@@ -2548,15 +2582,21 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	}
 	/* Check if we have to handle checksum offload. */
 	if (tso == 0 && (m->m_pkthdr.csum_flags & MSK_CSUM_FEATURES) != 0) {
-		tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
-		tx_le->msk_addr = htole32(((tcp_offset + m->m_pkthdr.csum_data)
-		    & 0xffff) | ((uint32_t)tcp_offset << 16));
-		tx_le->msk_control = htole32(1 << 16 | (OP_TCPLISW | HW_OWNER));
-		control = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
-		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
-			control |= UDPTCP;
-		sc_if->msk_cdata.msk_tx_cnt++;
-		MSK_INC(prod, MSK_TX_RING_CNT);
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+			control |= CALSUM;
+		else {
+			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+			tx_le->msk_addr = htole32(((tcp_offset +
+			    m->m_pkthdr.csum_data) & 0xffff) |
+			    ((uint32_t)tcp_offset << 16));
+			tx_le->msk_control = htole32(1 << 16 |
+			    (OP_TCPLISW | HW_OWNER));
+			control = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
+			if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+				control |= UDPTCP;
+			sc_if->msk_cdata.msk_tx_cnt++;
+			MSK_INC(prod, MSK_TX_RING_CNT);
+		}
 	}
 
 	si = prod;
@@ -2794,7 +2834,7 @@ mskc_resume(device_t dev)
 		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0))
 			msk_init_locked(sc->msk_if[i]);
 	}
-	sc->msk_pflags &= MSK_FLAG_SUSPEND;
+	sc->msk_pflags &= ~MSK_FLAG_SUSPEND;
 
 	MSK_UNLOCK(sc);
 
@@ -3490,27 +3530,21 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		sc_if->msk_framesize = ifp->if_mtu;
 	sc_if->msk_framesize += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	if (ifp->if_mtu > ETHERMTU &&
-	    sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-		/*
-		 * In Yukon EC Ultra, TSO & checksum offload is not
-		 * supported for jumbo frame.
-		 */
+	    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
 		ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
 		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 	}
 
+ 	/* GMAC Control reset. */
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_SET);
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_CLR);
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_F_LOOPB_OFF);
+ 
 	/*
-	 * Initialize GMAC first.
-	 * Without this initialization, Rx MAC did not work as expected
-	 * and Rx MAC garbled status LEs and it resulted in out-of-order
-	 * or duplicated frame delivery which in turn showed very poor
-	 * Rx performance.(I had to write a packet analysis code that
-	 * could be embeded in driver to diagnose this issue.)
-	 * I've spent almost 2 months to fix this issue. If I have had
-	 * datasheet for Yukon II I wouldn't have encountered this. :-(
+	 * Initialize GMAC first such that speed/duplex/flow-control
+	 * parameters are renegotiated when interface is brought up.
 	 */
-	gmac = GM_GPCR_SPEED_100 | GM_GPCR_SPEED_1000 | GM_GPCR_DUP_FULL;
-	GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, 0);
 
 	/* Dummy read the Interrupt Source Register. */
 	CSR_READ_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_SRC));
