@@ -18,6 +18,7 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
@@ -183,6 +184,7 @@ typedef struct dt_lib_depend {
 	char *dtld_libpath;		/* library pathname */
 	uint_t dtld_finish;		/* completion time in tsort for lib */
 	uint_t dtld_start;		/* starting time in tsort for lib */
+	uint_t dtld_loaded;		/* boolean: is this library loaded */
 	dt_list_t dtld_dependencies;	/* linked-list of lib dependencies */
 	dt_list_t dtld_dependents;	/* linked-list of lib dependents */
 } dt_lib_depend_t;

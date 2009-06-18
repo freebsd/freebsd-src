@@ -667,7 +667,13 @@ dt_pid_create_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp, dt_pcb_t *pcb)
 		assert(dpr != NULL);
 		(void) pthread_mutex_lock(&dpr->dpr_lock);
 
-		err = dt_pid_create_pid_probes(pdp, dtp, pcb, dpr);
+		if ((err = dt_pid_create_pid_probes(pdp, dtp, pcb, dpr)) == 0) {
+			/*
+			 * Alert other retained enablings which may match
+			 * against the newly created probes.
+			 */
+			(void) dt_ioctl(dtp, DTRACEIOC_ENABLE, NULL);
+		}
 
 		(void) pthread_mutex_unlock(&dpr->dpr_lock);
 		dt_proc_release(dtp, P);
