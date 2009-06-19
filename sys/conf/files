@@ -756,8 +756,6 @@ dev/cxgb/cxgb_offload.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_sge.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
-dev/cxgb/cxgb_multiq.c		optional cxgb pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_mc5.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_vsc7323.c	optional cxgb pci \
@@ -775,8 +773,6 @@ dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci \
 dev/cxgb/common/cxgb_tn1010.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"	
 dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgb"
-dev/cxgb/sys/cxgb_support.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"

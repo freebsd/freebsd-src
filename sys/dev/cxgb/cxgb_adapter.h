@@ -35,7 +35,6 @@ $FreeBSD$
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/rman.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -63,8 +62,6 @@ $FreeBSD$
 #include <netinet/tcp_lro.h>
 #endif
 
-#define USE_SX
-
 struct adapter;
 struct sge_qset;
 extern int cxgb_debug;
@@ -82,22 +79,9 @@ extern int cxgb_debug;
 		mtx_destroy((lock));					\
 	} while (0)
 
-#define SX_INIT(lock, lockname) \
-	do { \
-		printf("initializing %s at %s:%d\n", lockname, __FILE__, __LINE__); \
-		sx_init((lock), lockname);		\
-	} while (0)
-
-#define SX_DESTROY(lock) \
-	do { \
-		printf("destroying %s at %s:%d\n", (lock)->lock_object.lo_name, __FILE__, __LINE__); \
-		sx_destroy((lock));					\
-	} while (0)
 #else
 #define MTX_INIT mtx_init
 #define MTX_DESTROY mtx_destroy
-#define SX_INIT sx_init
-#define SX_DESTROY sx_destroy
 #endif
 
 enum {
@@ -110,20 +94,17 @@ struct port_info {
 	struct adapter	*adapter;
 	struct ifnet	*ifp;
 	int		if_flags;
+	int		flags;
 	const struct port_type_info *port_type;
 	struct cphy	phy;
 	struct cmac	mac;
 	struct link_config link_config;
 	struct ifmedia	media;
-#ifdef USE_SX	
-	struct sx	lock;
-#else	
 	struct mtx	lock;
-#endif	
-	uint8_t		port_id;
-	uint8_t		tx_chan;
-	uint8_t		txpkt_intf;
-	uint8_t         first_qset;
+	uint32_t	port_id;
+	uint32_t	tx_chan;
+	uint32_t	txpkt_intf;
+	uint32_t        first_qset;
 	uint32_t	nqsets;
 	int		link_fault;
 
@@ -135,19 +116,30 @@ struct port_info {
 #define PORT_NAME_LEN 32
 	char            lockbuf[PORT_LOCK_NAME_LEN];
 	char            namebuf[PORT_NAME_LEN];
-};
+} __aligned(L1_CACHE_BYTES);
 
-enum {				/* adapter flags */
+enum {
+	/* adapter flags */
 	FULL_INIT_DONE	= (1 << 0),
 	USING_MSI	= (1 << 1),
 	USING_MSIX	= (1 << 2),
 	QUEUES_BOUND	= (1 << 3),
-	FW_UPTODATE     = (1 << 4),
-	TPS_UPTODATE    = (1 << 5),
+	FW_UPTODATE	= (1 << 4),
+	TPS_UPTODATE	= (1 << 5),
 	CXGB_SHUTDOWN	= (1 << 6),
 	CXGB_OFLD_INIT	= (1 << 7),
-	TP_PARITY_INIT  = (1 << 8),
+	TP_PARITY_INIT	= (1 << 8),
+	CXGB_BUSY	= (1 << 9),
+
+	/* port flags */
+	DOOMED		= (1 << 0),
 };
+#define IS_DOOMED(p)	(p->flags & DOOMED)
+#define SET_DOOMED(p)	do {p->flags |= DOOMED;} while (0)
+#define DOOMED(p)	(p->flags & DOOMED)
+#define IS_BUSY(sc)	(sc->flags & CXGB_BUSY)
+#define SET_BUSY(sc)	do {sc->flags |= CXGB_BUSY;} while (0)
+#define CLR_BUSY(sc)	do {sc->flags &= ~CXGB_BUSY;} while (0)
 
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	1024
@@ -205,10 +197,6 @@ struct sge_rspq {
 	uint32_t	rspq_dump_count;
 };
 
-#ifndef DISABLE_MBUF_IOVEC
-#define rspq_mbuf rspq_mh.mh_head
-#endif
-
 struct rx_desc;
 struct rx_sw_desc;
 
@@ -253,7 +241,6 @@ struct sge_txq {
 	bus_addr_t	phys_addr;
 	struct task     qresume_task;
 	struct task     qreclaim_task;
-	struct port_info *port;
 	uint32_t	cntxt_id;
 	uint64_t	stops;
 	uint64_t	restarts;
@@ -261,26 +248,21 @@ struct sge_txq {
 	bus_dmamap_t	desc_map;
 	bus_dma_tag_t   entry_tag;
 	struct mbuf_head sendq;
-	/*
-	 * cleanq should really be an buf_ring to avoid extra
-	 * mbuf touches
-	 */
-	struct mbuf_head cleanq;	
+
 	struct buf_ring *txq_mr;
 	struct ifaltq	*txq_ifq;
-	struct mbuf     *immpkt;
-
+	struct callout	txq_timer;
+	struct callout	txq_watchdog;
+	uint64_t        txq_coalesced;
 	uint32_t        txq_drops;
 	uint32_t        txq_skipped;
-	uint32_t        txq_coalesced;
 	uint32_t        txq_enqueued;
 	uint32_t	txq_dump_start;
 	uint32_t	txq_dump_count;
-	unsigned long   txq_frees;
-	struct mtx      lock;
+	uint64_t	txq_direct_packets;
+	uint64_t	txq_direct_bytes;	
+	uint64_t	txq_frees;
 	struct sg_ent  txq_sgl[TX_MAX_SEGS / 2 + 1];
-	#define TXQ_NAME_LEN  32
-	char            lockbuf[TXQ_NAME_LEN];
 };
      	
 
@@ -297,6 +279,8 @@ enum {
 #define QS_EXITING              0x1
 #define QS_RUNNING              0x2
 #define QS_BOUND                0x4
+#define	QS_FLUSHING		0x8
+#define	QS_TIMEOUT		0x10
 
 struct sge_qset {
 	struct sge_rspq		rspq;
@@ -309,10 +293,10 @@ struct sge_qset {
 	uint64_t                port_stats[SGE_PSTAT_MAX];
 	struct port_info        *port;
 	int                     idx; /* qset # */
-	int                     qs_cpuid;
 	int                     qs_flags;
+	int			coalescing;
 	struct cv		qs_cv;
-	struct mtx		qs_mtx;
+	struct mtx		lock;
 #define QS_NAME_LEN 32
 	char                    namebuf[QS_NAME_LEN];
 };
@@ -328,7 +312,7 @@ struct adapter {
 	device_t		dev;
 	int			flags;
 	TAILQ_ENTRY(adapter)    adapter_entry;
-	
+
 	/* PCI register resources */
 	int			regs_rid;
 	struct resource		*regs_res;
@@ -401,11 +385,7 @@ struct adapter {
 	char                    port_types[MAX_NPORTS + 1];
 	uint32_t                open_device_map;
 	uint32_t                registered_device_map;
-#ifdef USE_SX
-	struct sx               lock;
-#else	
 	struct mtx              lock;
-#endif	
 	driver_intr_t           *cxgb_intr;
 	int                     msi_count;
 
@@ -422,31 +402,17 @@ struct t3_rx_mode {
 	struct port_info        *port;
 };
 
-
 #define MDIO_LOCK(adapter)	mtx_lock(&(adapter)->mdio_lock)
 #define MDIO_UNLOCK(adapter)	mtx_unlock(&(adapter)->mdio_lock)
 #define ELMR_LOCK(adapter)	mtx_lock(&(adapter)->elmer_lock)
 #define ELMR_UNLOCK(adapter)	mtx_unlock(&(adapter)->elmer_lock)
 
 
-#ifdef USE_SX
-#define PORT_LOCK(port)		     sx_xlock(&(port)->lock);
-#define PORT_UNLOCK(port)	     sx_xunlock(&(port)->lock);
-#define PORT_LOCK_INIT(port, name)   SX_INIT(&(port)->lock, name)
-#define PORT_LOCK_DEINIT(port)       SX_DESTROY(&(port)->lock)
-#define PORT_LOCK_ASSERT_OWNED(port) sx_assert(&(port)->lock, SA_LOCKED)
-
-#define ADAPTER_LOCK(adap)	           sx_xlock(&(adap)->lock);
-#define ADAPTER_UNLOCK(adap)	           sx_xunlock(&(adap)->lock);
-#define ADAPTER_LOCK_INIT(adap, name)      SX_INIT(&(adap)->lock, name)
-#define ADAPTER_LOCK_DEINIT(adap)          SX_DESTROY(&(adap)->lock)
-#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) sx_assert(&(adap)->lock, SA_UNLOCKED)
-#define ADAPTER_LOCK_ASSERT_OWNED(adap) sx_assert(&(adap)->lock, SA_LOCKED)
-#else
 #define PORT_LOCK(port)		     mtx_lock(&(port)->lock);
 #define PORT_UNLOCK(port)	     mtx_unlock(&(port)->lock);
 #define PORT_LOCK_INIT(port, name)   mtx_init(&(port)->lock, name, 0, MTX_DEF)
 #define PORT_LOCK_DEINIT(port)       mtx_destroy(&(port)->lock)
+#define PORT_LOCK_ASSERT_NOTOWNED(port) mtx_assert(&(port)->lock, MA_NOTOWNED)
 #define PORT_LOCK_ASSERT_OWNED(port) mtx_assert(&(port)->lock, MA_OWNED)
 
 #define ADAPTER_LOCK(adap)	mtx_lock(&(adap)->lock);
@@ -455,7 +421,6 @@ struct t3_rx_mode {
 #define ADAPTER_LOCK_DEINIT(adap) mtx_destroy(&(adap)->lock)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) mtx_assert(&(adap)->lock, MA_NOTOWNED)
 #define ADAPTER_LOCK_ASSERT_OWNED(adap) mtx_assert(&(adap)->lock, MA_OWNED)
-#endif
 
 
 static __inline uint32_t
@@ -555,14 +520,11 @@ void t3_sge_stop(adapter_t *);
 void t3b_intr(void *data);
 void t3_intr_msi(void *data);
 void t3_intr_msix(void *data);
-int t3_encap(struct sge_qset *, struct mbuf **, int);
 
 int t3_sge_init_adapter(adapter_t *);
 int t3_sge_reset_adapter(adapter_t *);
 int t3_sge_init_port(struct port_info *);
-void t3_sge_deinit_sw(adapter_t *);
-void t3_free_tx_desc(struct sge_txq *q, int n);
-void t3_free_tx_desc_all(struct sge_txq *q);
+void t3_free_tx_desc(struct sge_qset *qs, int n, int qid);
 
 void t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad);
 
@@ -615,13 +577,8 @@ static inline int offload_running(adapter_t *adapter)
         return isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT);
 }
 
-int cxgb_pcpu_enqueue_packet(struct ifnet *ifp, struct mbuf *m);
-int cxgb_pcpu_transmit(struct ifnet *ifp, struct mbuf *m);
-void cxgb_pcpu_shutdown_threads(struct adapter *sc);
-void cxgb_pcpu_startup_threads(struct adapter *sc);
-
-int process_responses(adapter_t *adap, struct sge_qset *qs, int budget);
-void t3_free_qset(adapter_t *sc, struct sge_qset *q);
+void cxgb_tx_watchdog(void *arg);
+int cxgb_transmit(struct ifnet *ifp, struct mbuf *m);
+void cxgb_qflush(struct ifnet *ifp);
 void cxgb_start(struct ifnet *ifp);
-void refill_fl_service(adapter_t *adap, struct sge_fl *fl);
 #endif
