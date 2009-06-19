@@ -375,15 +375,17 @@ found:
 		 */
 		mp = pdp->v_mount;
 		ltype = VOP_ISLOCKED(pdp, td);
-		for (;;) {
-			error = vfs_busy(mp, LK_NOWAIT, NULL, curthread);
-			if (error == 0)
-				break;
+		error = vfs_busy(mp, LK_NOWAIT, NULL, td);
+		if (error != 0) {
 			VOP_UNLOCK(pdp, 0, td);
-			pause("vn_vget", 1);
+			error = vfs_busy(mp, 0, NULL, td);
 			vn_lock(pdp, ltype | LK_RETRY, td);
-			if (pdp->v_iflag & VI_DOOMED)
+			if (error)
 				return (ENOENT);
+			if (pdp->v_iflag & VI_DOOMED) {
+				vfs_unbusy(mp, td);
+				return (ENOENT);
+			}
 		}
 		VOP_UNLOCK(pdp, 0, td);
 		error = cd9660_vget_internal(vdp->v_mount, i_ino,
