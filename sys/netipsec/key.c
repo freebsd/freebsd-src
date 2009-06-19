@@ -4991,6 +4991,7 @@ key_update(so, m, mhp)
 	struct sadb_address *src0, *dst0;
 #ifdef IPSEC_NAT_T
 	struct sadb_x_nat_t_type *type;
+	struct sadb_x_nat_t_port *sport, *dport;
 	struct sadb_address *iaddr, *raddr;
 	struct sadb_x_nat_t_frag *frag;
 #endif
@@ -5066,7 +5067,6 @@ key_update(so, m, mhp)
 	if (mhp->ext[SADB_X_EXT_NAT_T_TYPE] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
-		struct sadb_x_nat_t_port *sport, *dport;
 
 		if (mhp->extlen[SADB_X_EXT_NAT_T_TYPE] < sizeof(*type) ||
 		    mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
@@ -5082,15 +5082,9 @@ key_update(so, m, mhp)
 		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
 		dport = (struct sadb_x_nat_t_port *)
 		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
-
-		if (sport)
-			KEY_PORTTOSADDR(&saidx.src,
-			    sport->sadb_x_nat_t_port_port);
-		if (dport)
-			KEY_PORTTOSADDR(&saidx.dst,
-			    dport->sadb_x_nat_t_port_port);
 	} else {
 		type = 0;
+		sport = dport = 0;
 	}
 	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
@@ -5192,6 +5186,13 @@ key_update(so, m, mhp)
 	 */
 	if (type)
 		sav->natt_type = type->sadb_x_nat_t_type_type;
+
+	if (sport)
+		KEY_PORTTOSADDR(&sav->sah->saidx.src,
+		    sport->sadb_x_nat_t_port_port);
+	if (dport)
+		KEY_PORTTOSADDR(&sav->sah->saidx.dst,
+		    dport->sadb_x_nat_t_port_port);
 
 #if 0
 	/*
