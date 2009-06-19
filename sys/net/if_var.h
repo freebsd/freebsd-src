@@ -586,13 +586,27 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 }
 
 static __inline void
-drbr_free(struct buf_ring *br, struct malloc_type *type)
+drbr_flush(struct ifnet *ifp, struct buf_ring *br)
 {
 	struct mbuf *m;
 
+#ifdef ALTQ
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		while (!IFQ_IS_EMPTY(&ifp->if_snd)) {
+			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+			m_freem(m);
+		}
+	}
+#endif	
 	while ((m = buf_ring_dequeue_sc(br)) != NULL)
 		m_freem(m);
+}
 
+static __inline void
+drbr_free(struct buf_ring *br, struct malloc_type *type)
+{
+
+	drbr_flush(NULL, br);
 	buf_ring_free(br, type);
 }
 
