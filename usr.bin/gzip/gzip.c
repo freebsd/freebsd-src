@@ -1297,7 +1297,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	ssize_t rbytes;
 	unsigned char header1[4];
 	enum filetype method;
-	int rv, fd, ofd, zfd = -1;
+	int fd, ofd, zfd = -1;
 #ifndef SMALL
 	time_t timestamp = 0;
 	unsigned char name[PATH_MAX + 1];
@@ -1344,6 +1344,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 #ifndef SMALL
 	if (method == FT_GZIP && Nflag) {
 		unsigned char ts[4];	/* timestamp */
+		int rv;
 
 		rv = pread(fd, ts, sizeof ts, GZIP_TIMESTAMP);
 		if (rv >= 0 && (size_t)rv < sizeof ts)
@@ -1966,6 +1967,8 @@ print_list(int fd, off_t out, const char *outfile, time_t ts)
 	}
 	in_tot += in;
 	out_tot += out;
+#else
+	(void)&ts;	/* XXX */
 #endif
 	printf("%12llu %12llu ", (unsigned long long)out, (unsigned long long)in);
 	print_ratio(in, out, stdout);
