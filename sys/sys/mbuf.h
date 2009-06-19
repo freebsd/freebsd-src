@@ -366,12 +366,15 @@ static __inline struct mbuf	*m_gethdr(int how, short type);
 static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
 				    int size);
 static __inline struct mbuf	*m_getclr(int how, short type);	/* XXX */
+static __inline int		 m_init(struct mbuf *m, uma_zone_t zone,
+				    int size, int how, short type, int flags);
 static __inline struct mbuf	*m_free(struct mbuf *m);
 static __inline void		 m_clget(struct mbuf *m, int how);
 static __inline void		*m_cljget(struct mbuf *m, int how, int size);
 static __inline void		 m_chtype(struct mbuf *m, short new_type);
 void				 mb_free_ext(struct mbuf *);
 static __inline struct mbuf	*m_last(struct mbuf *m);
+int				 m_pkthdr_init(struct mbuf *m, int how);
 
 static __inline int
 m_gettype(int size)
@@ -431,6 +434,33 @@ m_getzone(int size)
 	}
 
 	return (zone);
+}
+
+/*
+ * Initialize an mbuf with linear storage.
+ *
+ * Inline because the consumer text overhead will be roughly the same to
+ * initialize or call a function with this many parameters and M_PKTHDR
+ * should go away with constant propagation for !MGETHDR.
+ */
+static __inline int
+m_init(struct mbuf *m, uma_zone_t zone, int size, int how, short type,
+    int flags)
+{
+	int error;
+
+	m->m_next = NULL;
+	m->m_nextpkt = NULL;
+	m->m_data = m->m_dat;
+	m->m_len = 0;
+	m->m_flags = flags;
+	m->m_type = type;
+	if (flags & M_PKTHDR) {
+		if ((error = m_pkthdr_init(m, how)) != 0)
+			return (error);
+	}
+
+	return (0);
 }
 
 static __inline struct mbuf *
