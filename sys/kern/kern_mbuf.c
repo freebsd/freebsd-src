@@ -645,6 +645,32 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	return (0);
 }
 
+int
+m_pkthdr_init(struct mbuf *m, int how)
+{
+#ifdef MAC
+	int error;
+#endif
+	m->m_data = m->m_pktdat;
+	SLIST_INIT(&m->m_pkthdr.tags);
+	m->m_pkthdr.rcvif = NULL;
+	m->m_pkthdr.header = NULL;
+	m->m_pkthdr.len = 0;
+	m->m_pkthdr.flowid = 0;
+	m->m_pkthdr.csum_flags = 0;
+	m->m_pkthdr.csum_data = 0;
+	m->m_pkthdr.tso_segsz = 0;
+	m->m_pkthdr.ether_vtag = 0;
+#ifdef MAC
+	/* If the label init fails, fail the alloc */
+	error = mac_mbuf_init(m, how);
+	if (error)
+		return (error);
+#endif
+
+	return (0);
+}
+
 /*
  * This is the protocol drain routine.
  *
