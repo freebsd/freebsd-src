@@ -2360,7 +2360,6 @@ int
 nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
     struct ucred *credanon)
 {
-	int i;
 	int error = 0;
 
 	/*
@@ -2403,9 +2402,8 @@ nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
 	     (nd->nd_flag & ND_AUTHNONE))) {
 		nd->nd_cred->cr_uid = credanon->cr_uid;
 		nd->nd_cred->cr_gid = credanon->cr_gid;
-		for (i = 0; i < credanon->cr_ngroups && i < NGROUPS; i++)
-			nd->nd_cred->cr_groups[i] = credanon->cr_groups[i];
-		nd->nd_cred->cr_ngroups = i;
+		crsetgroups(nd->nd_cred, credanon->cr_ngroups,
+		    credanon->cr_groups);
 	}
 	return (0);
 }

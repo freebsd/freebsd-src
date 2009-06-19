@@ -976,14 +976,12 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 void
 newnfs_copyincred(struct ucred *cr, struct nfscred *nfscr)
 {
-	int ngroups, i;
+	int i;
 
 	nfscr->nfsc_uid = cr->cr_uid;
-	ngroups = (cr->cr_ngroups > NGROUPS) ? NGROUPS :
-	    cr->cr_ngroups;
-	for (i = 0; i < ngroups; i++)
+	nfscr->nfsc_ngroups = MIN(cr->cr_ngroups, XU_NGROUPS);
+	for (i = 0; i < nfscr->nfsc_ngroups; i++)
 		nfscr->nfsc_groups[i] = cr->cr_groups[i];
-	nfscr->nfsc_ngroups = ngroups;
 }
 
 

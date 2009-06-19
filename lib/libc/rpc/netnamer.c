@@ -66,10 +66,6 @@ static char    *NETIDFILE = "/etc/netid";
 static int getnetid( char *, char * );
 static int _getgroups( char *, gid_t * );
 
-#ifndef NGROUPS
-#define NGROUPS 16
-#endif
-
 /*
  * Convert network-name into unix credential
  */
@@ -104,7 +100,7 @@ netname2user(netname, uidp, gidp, gidlenp, gidlist)
 			return (0);
 		}
 		*gidp = (gid_t) atol(p);
-		for (gidlen = 0; gidlen < NGROUPS; gidlen++) {
+		for (gidlen = 0; gidlen < NGRPS; gidlen++) {
 			p = strsep(&res, "\n,");
 			if (p == NULL)
 				break;
@@ -157,7 +153,7 @@ netname2user(netname, uidp, gidp, gidlenp, gidlist)
 static int
 _getgroups(uname, groups)
 	char           *uname;
-	gid_t          groups[NGROUPS];
+	gid_t          groups[NGRPS];
 {
 	gid_t           ngroups = 0;
 	struct group *grp;
@@ -169,7 +165,7 @@ _getgroups(uname, groups)
 	while ((grp = getgrent())) {
 		for (i = 0; grp->gr_mem[i]; i++)
 			if (!strcmp(grp->gr_mem[i], uname)) {
-				if (ngroups == NGROUPS) {
+				if (ngroups == NGRPS) {
 #ifdef DEBUG
 					fprintf(stderr,
 				"initgroups: %s is in too many groups\n", uname);
