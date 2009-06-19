@@ -389,6 +389,19 @@ NNON_LEAF(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	jalr	k0
 	sw	a3, STAND_RA_OFFSET + KERN_REG_SIZE(sp)		# for debugging
 
+	/*
+	 * Update interrupt mask in saved status register
+	 * Some of interrupts could be disabled by
+	 * intr filters if interrupts are enabled later
+	 * in trap handler
+	 */
+	mfc0	a0, COP_0_STATUS_REG
+	mtc0	zero, COP_0_STATUS_REG
+	and	a0, a0, SR_INT_MASK
+	RESTORE_REG(a1, SR, sp)
+	and	a1, a1, ~SR_INT_MASK
+	or	a1, a1, a0
+	SAVE_REG(a1, SR, sp)
 	RESTORE_CPU			# v0 contains the return address.
 	sync
 	eret
