@@ -657,24 +657,29 @@ ibcs2_getgroups(td, uap)
 	struct thread *td;
 	struct ibcs2_getgroups_args *uap;
 {
-	ibcs2_gid_t iset[NGROUPS_MAX];
-	gid_t gp[NGROUPS_MAX];
+	ibcs2_gid_t *iset;
+	gid_t *gp;
 	u_int i, ngrp;
 	int error;
 
 	if (uap->gidsetsize < 0)
 		return (EINVAL);
 	ngrp = MIN(uap->gidsetsize, NGROUPS_MAX);
+	gp = malloc(ngrp * sizeof(*gp), M_TEMP, M_WAITOK);
 	error = kern_getgroups(td, &ngrp, gp);
 	if (error)
-		return (error);
+		goto out;
 	if (uap->gidsetsize > 0) {
+		iset = malloc(ngrp * sizeof(*iset), M_TEMP, M_WAITOK);
 		for (i = 0; i < ngrp; i++)
 			iset[i] = (ibcs2_gid_t)gp[i];
 		error = copyout(iset, uap->gidset, ngrp * sizeof(ibcs2_gid_t));
+		free(iset, M_TEMP);
 	}
 	if (error == 0)
 		td->td_retval[0] = ngrp;
+out:
+	free(gp, M_TEMP);
 	return (error);
 }
 
@@ -683,21 +688,31 @@ ibcs2_setgroups(td, uap)
 	struct thread *td;
 	struct ibcs2_setgroups_args *uap;
 {
-	ibcs2_gid_t iset[NGROUPS_MAX];
-	gid_t gp[NGROUPS_MAX];
+	ibcs2_gid_t *iset;
+	gid_t *gp;
 	int error, i;
 
 	if (uap->gidsetsize < 0 || uap->gidsetsize > NGROUPS_MAX)
 		return (EINVAL);
-	if (uap->gidsetsize && uap->gidset) {
+	if (uap->gidsetsize && uap->gidset == NULL)
+		return (EINVAL);
+	gp = malloc(uap->gidsetsize * sizeof(*gp), M_TEMP, M_WAITOK);
+	if (uap->gidsetsize) {
+		iset = malloc(uap->gidsetsize * sizeof(*iset), M_TEMP, M_WAITOK);
 		error = copyin(uap->gidset, iset, sizeof(ibcs2_gid_t) *
 		    uap->gidsetsize);
-		if (error)
-			return (error);
+		if (error) {
+			free(iset, M_TEMP);
+			goto out;
+		}
 		for (i = 0; i < uap->gidsetsize; i++)
 			gp[i] = (gid_t)iset[i];
 	}
-	return (kern_setgroups(td, uap->gidsetsize, gp));
+
+	error = kern_setgroups(td, uap->gidsetsize, gp);
+out:
+	free(gp, M_TEMP);
+	return (error);
 }
 
 int

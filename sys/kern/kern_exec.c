@@ -579,6 +579,7 @@ interpret:
 	 * reset.
 	 */
 	PROC_LOCK(p);
+	oldcred = crcopysafe(p, newcred);
 	if (sigacts_shared(p->p_sigacts)) {
 		oldsigacts = p->p_sigacts;
 		PROC_UNLOCK(p);
@@ -629,7 +630,6 @@ interpret:
 	 * XXXMAC: For the time being, use NOSUID to also prohibit
 	 * transitions on the file system.
 	 */
-	oldcred = p->p_ucred;
 	credential_changing = 0;
 	credential_changing |= (attr.va_mode & S_ISUID) && oldcred->cr_uid !=
 	    attr.va_uid;
@@ -683,7 +683,6 @@ interpret:
 		/*
 		 * Set the new credentials.
 		 */
-		crcopy(newcred, oldcred);
 		if (attr.va_mode & S_ISUID)
 			change_euid(newcred, euip);
 		if (attr.va_mode & S_ISGID)
@@ -723,7 +722,6 @@ interpret:
 		 */
 		if (oldcred->cr_svuid != oldcred->cr_uid ||
 		    oldcred->cr_svgid != oldcred->cr_gid) {
-			crcopy(newcred, oldcred);
 			change_svuid(newcred, newcred->cr_uid);
 			change_svgid(newcred, newcred->cr_gid);
 			p->p_ucred = newcred;

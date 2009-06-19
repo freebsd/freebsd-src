@@ -370,11 +370,11 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		}
 		tl = nfsm_dissect_nonblock(u_int32_t *, (len + 2) * NFSX_UNSIGNED);
 		for (i = 1; i <= len; i++)
-		    if (i < NGROUPS)
+		    if (i < XU_NGROUPS)
 			nd->nd_cr->cr_groups[i] = fxdr_unsigned(gid_t, *tl++);
 		    else
 			tl++;
-		nd->nd_cr->cr_ngroups = (len >= NGROUPS) ? NGROUPS : (len + 1);
+		nd->nd_cr->cr_ngroups = MIN(XU_NGROUPS, len + 1);
 		if (nd->nd_cr->cr_ngroups > 1)
 		    nfsrvw_sort(nd->nd_cr->cr_groups, nd->nd_cr->cr_ngroups);
 		len = fxdr_unsigned(int, *++tl);
