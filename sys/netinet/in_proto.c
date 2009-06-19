@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>

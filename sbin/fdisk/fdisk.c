@@ -1066,8 +1066,8 @@ process_geometry(CMD *command)
 	    warnx("ERROR line %d: number of heads not specified",
 		    current_line_number);
 	    status = 0;
-	    } else if (dos_heads > 255) {
-	    warnx("ERROR line %d: number of heads must be within (1-255)",
+	    } else if (dos_heads > 256) {
+	    warnx("ERROR line %d: number of heads must be within (1-256)",
 		    current_line_number);
 	    status = 0;
 	}

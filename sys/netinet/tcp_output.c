@@ -172,7 +172,7 @@ tcp_output(struct tcpcb *tp)
 	 * to send, then transmit; otherwise, investigate further.
 	 */
 	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
-	if (idle && (ticks - tp->t_rcvtime) >= tp->t_rxtcur) {
+	if (idle && ticks - tp->t_rcvtime >= tp->t_rxtcur) {
 		/*
 		 * We have been idle for "a while" and no acks are
 		 * expected to clock out any data we send --

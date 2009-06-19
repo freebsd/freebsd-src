@@ -194,6 +194,7 @@ nfscbd_addsock(struct file *fp)
 		fp->f_data = NULL;
 		svc_reg(xprt, NFS_CALLBCKPROG, NFSV4_CBVERS, nfscb_program,
 		    NULL);
+		SVC_RELEASE(xprt);
 	}
 
 	return (0);

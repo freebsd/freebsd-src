@@ -86,6 +86,7 @@ static void crextend(struct ucred *cr, int n);
 static void crsetgroups_locked(struct ucred *cr, int ngrp,
     gid_t *groups);
 
+
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
 	int	dummy;

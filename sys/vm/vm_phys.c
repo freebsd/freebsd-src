@@ -382,8 +382,7 @@ vm_phys_paddr_to_vm_page(vm_paddr_t pa)
 		if (pa >= seg->start && pa < seg->end)
 			return (&seg->first_page[atop(pa - seg->start)]);
 	}
-	panic("vm_phys_paddr_to_vm_page: paddr %#jx is not in any segment",
-	    (uintmax_t)pa);
+	return (NULL);
 }
 
 /*
@@ -691,14 +690,16 @@ done:
 		    ("vm_phys_alloc_contig: page %p has unexpected queue %d",
 		    m, m->queue));
 		m_object = m->object;
-		if ((m->flags & PG_CACHED) != 0)
+		if ((m->flags & PG_CACHED) != 0) {
+			m->valid = 0;
 			vm_page_cache_remove(m);
-		else {
+		} else {
 			KASSERT(VM_PAGE_IS_FREE(m),
 			    ("vm_phys_alloc_contig: page %p is not free", m));
+			KASSERT(m->valid == 0,
+			    ("vm_phys_alloc_contig: free page %p is valid", m));
 			cnt.v_free_count--;
 		}
-		m->valid = VM_PAGE_BITS_ALL;
 		if (m->flags & PG_ZERO)
 			vm_page_zero_count--;
 		/* Don't clear the PG_ZERO flag; we'll need it later. */

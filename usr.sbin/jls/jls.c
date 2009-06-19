@@ -141,7 +141,7 @@ main(int argc, char **argv)
 			add_param("path", NULL, PARAM_USER);
 			add_param("name", NULL, PARAM_USER);
 			add_param("dying", NULL, PARAM_USER);
-			add_param("cpuset", NULL, PARAM_USER);
+			add_param("cpuset.id", NULL, PARAM_USER);
 			add_param("ip4.addr", NULL, PARAM_USER);
 			add_param("ip6.addr", NULL, PARAM_USER | PARAM_OPT);
 		} else {

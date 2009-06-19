@@ -924,6 +924,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
+	struct mount *mp = dvp->v_mount;
 	struct vattr vattr;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
@@ -933,17 +934,17 @@ nfs_lookup(struct vop_lookup_args *ap)
 	long len;
 	nfsfh_t *fhp;
 	struct nfsnode *np;
-	int error = 0, attrflag, fhsize;
+	int error = 0, attrflag, fhsize, ltype;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
 	
 	*vpp = NULLVP;
-	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
+	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
-	nmp = VFSTONFS(dvp->v_mount);
+	nmp = VFSTONFS(mp);
 	np = VTONFS(dvp);
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0) {
 		*vpp = NULLVP;
@@ -1022,7 +1023,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			m_freem(mrep);
 			return (EISDIR);
 		}
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, LK_EXCLUSIVE);
+		error = nfs_nget(mp, fhp, fhsize, &np, LK_EXCLUSIVE);
 		if (error) {
 			m_freem(mrep);
 			return (error);
@@ -1040,17 +1041,45 @@ nfs_lookup(struct vop_lookup_args *ap)
 	}
 
 	if (flags & ISDOTDOT) {
+		ltype = VOP_ISLOCKED(dvp);
+		error = vfs_busy(mp, MBF_NOWAIT);
+		if (error != 0) {
+			VOP_UNLOCK(dvp, 0);
+			error = vfs_busy(mp, 0);
+			vn_lock(dvp, ltype | LK_RETRY);
+			if (error == 0 && (dvp->v_iflag & VI_DOOMED)) {
+				vfs_unbusy(mp);
+				error = ENOENT;
+			}
+			if (error != 0) {
+				m_freem(mrep);
+				return (error);
+			}
+		}
 		VOP_UNLOCK(dvp, 0);
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, cnp->cn_lkflags);
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
-		if (error)
+		error = nfs_nget(mp, fhp, fhsize, &np, cnp->cn_lkflags);
+		if (error == 0)
+			newvp = NFSTOV(np);
+		vfs_unbusy(mp);
+		vn_lock(dvp, ltype | LK_RETRY);
+		if (dvp->v_iflag & VI_DOOMED) {
+			if (error == 0) {
+				if (newvp == dvp)
+					vrele(newvp);
+				else
+					vput(newvp);
+			}
+			error = ENOENT;
+		}
+		if (error) {
+			m_freem(mrep);
 			return (error);
-		newvp = NFSTOV(np);
+		}
 	} else if (NFS_CMPFH(np, fhp, fhsize)) {
 		VREF(dvp);
 		newvp = dvp;
 	} else {
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, cnp->cn_lkflags);
+		error = nfs_nget(mp, fhp, fhsize, &np, cnp->cn_lkflags);
 		if (error) {
 			m_freem(mrep);
 			return (error);
@@ -1089,7 +1118,7 @@ nfsmout:
 			 * VWRITE) here instead of just checking
 			 * MNT_RDONLY.
 			 */
-			if (dvp->v_mount->mnt_flag & MNT_RDONLY)
+			if (mp->mnt_flag & MNT_RDONLY)
 				return (EROFS);
 			cnp->cn_flags |= SAVENAME;
 			return (EJUSTRETURN);

@@ -85,6 +85,12 @@ ixp4xx_read_feature_bits(void)
 	return bits;
 }
 
+void
+ixp4xx_write_feature_bits(uint32_t v)
+{
+	IXPREG(IXP425_EXP_VBASE + EXP_FCTRL_OFFSET) = ~v;
+}
+
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
