@@ -294,7 +294,7 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 		"addu %2, %3, %0\n\t"		/* calculate new value */
 		"sc %2, %1\n\t"			/* attempt to store */
 		"beqz %2, 1b\n\t"		/* spin if failed */
-		: "=&r" (value), "=m" (*p), "=r" (temp)
+		: "=&r" (value), "=m" (*p), "=&r" (temp)
 		: "r" (v), "m" (*p));
 	return (value);
 }
