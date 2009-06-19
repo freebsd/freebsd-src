@@ -22,6 +22,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090619:
+	NGROUPS_MAX and NGROUPS have been increased from 16 to 1023
+	and 1024 respectively.  As long as no more than 16 groups per
+	process are used, no changes should be visible.  When more
+	than 16 groups are used, old binaries may fail if they call
+	getgroups() or getgrouplist() with statically sized storage.
+	Recompiling will work around this, but applications should be
+	modified to use dynamically allocated storage for group arrays
+	as POSIX.1-2008 does not cap an implementation's number of
+	supported groups at NGROUPS_MAX+1 as previous versions did.
+
+	NFS and portalfs mounts may also be affected as the list of
+	groups is truncated to 16.  Users of NFS who use more than 16
+	groups, should take care that negative group permissions are not
+	used on the exported file systems as they will not be reliable
+	unless a GSSAPI based authentication method is used.
+
 20090616:
 	The compiling option ADAPTIVE_LOCKMGRS has been introduced.
 	This option compiles in the support for adaptive spinning for lockmgrs
