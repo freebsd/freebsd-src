@@ -52,6 +52,7 @@
 #include <sys/stat.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/endian.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
@@ -1194,7 +1195,7 @@ ext2_mkdir(ap)
 		goto bad;
 
 	/* Initialize directory with "." and ".." from static template. */
-	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs->s_es,
+	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs,
 	    EXT2_FEATURE_INCOMPAT_FILETYPE))
 		dtp = &mastertemplate;
 	else
