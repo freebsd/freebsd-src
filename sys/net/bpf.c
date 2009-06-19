@@ -2032,6 +2032,35 @@ bpf_drvinit(void *unused)
 
 }
 
+/*
+ * Zero out the various packet counters associated with all of the bpf
+ * descriptors.  At some point, we will probably want to get a bit more
+ * granular and allow the user to specify descriptors to be zeroed.
+ */
+static void
+bpf_zero_counters(void)
+{
+	struct bpf_if *bp;
+	struct bpf_d *bd;
+
+	mtx_lock(&bpf_mtx);
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		BPFIF_LOCK(bp);
+		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
+			BPFD_LOCK(bd);
+			bd->bd_rcount = 0;
+			bd->bd_dcount = 0;
+			bd->bd_fcount = 0;
+			bd->bd_wcount = 0;
+			bd->bd_wfcount = 0;
+			bd->bd_zcopy = 0;
+			BPFD_UNLOCK(bd);
+		}
+		BPFIF_UNLOCK(bp);
+	}
+	mtx_unlock(&bpf_mtx);
+}
+
 static void
 bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 {
@@ -2066,7 +2095,7 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 static int
 bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct xbpf_d *xbdbuf, *xbd;
+	struct xbpf_d *xbdbuf, *xbd, zerostats;
 	int index, error;
 	struct bpf_if *bp;
 	struct bpf_d *bd;
@@ -2080,6 +2109,21 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	error = priv_check(req->td, PRIV_NET_BPF);
 	if (error)
 		return (error);
+	/*
+	 * Check to see if the user is requesting that the counters be
+	 * zeroed out.  Explicitly check that the supplied data is zeroed,
+	 * as we aren't allowing the user to set the counters currently.
+	 */
+	if (req->newptr != NULL) {
+		if (req->newlen != sizeof(zerostats))
+			return (EINVAL);
+		bzero(&zerostats, sizeof(zerostats));
+		xbd = req->newptr;
+		if (bcmp(xbd, &zerostats, sizeof(*xbd)) != 0)
+			return (EINVAL);
+		bpf_zero_counters();
+		return (0);
+	}
 	if (req->oldptr == NULL)
 		return (SYSCTL_OUT(req, 0, bpf_bpfd_cnt * sizeof(*xbd)));
 	if (bpf_bpfd_cnt == 0)
