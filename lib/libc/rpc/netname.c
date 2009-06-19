@@ -61,9 +61,6 @@ __FBSDID("$FreeBSD$");
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 256
 #endif
-#ifndef NGROUPS
-#define NGROUPS 16
-#endif
 
 #define TYPE_BIT(type)  (sizeof (type) * CHAR_BIT)
 
