@@ -2390,7 +2390,7 @@ cons60l1|cons60-iso8859-1:\
 cons60l1-m|cons60-iso8859-1-mono:\
 	:li#60:tc=cons25l1-m:
 # 132x25 ISO 8859-1 FreeBSD console
-cons25l1-w|:cons25w-iso8859-1:\
+cons25l1-w|cons25w-iso8859-1:\
 	:co#132:tc=cons25l1:
 cons30l1-w|cons30w-iso8859-1:\
 	:co#132:tc=cons30l1:
@@ -2401,7 +2401,7 @@ cons50l1-w|cons50w-iso8859-1:\
 cons60l1-w|cons60w-iso8859-1:\
 	:co#132:tc=cons60l1:
 # ISO 8859-7 FreeBSD console with ACS support
-cons25l7:cons25-iso8859-7:\
+cons25l7|cons25-iso8859-7:\
 	:ac=f\260g\261{\360}\243+\253,\273i\247:\
 	:tc=cons25w:
 cons25l7-m|cons25-iso8859-7-mono:\
