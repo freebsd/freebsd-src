@@ -43,7 +43,7 @@
 #define m_ulp_mode	m_pkthdr.tso_segsz	/* upper level protocol	*/
 
 static __inline void
-busdma_map_mbuf_fast(struct sge_txq *txq, struct tx_sw_desc *txsd,
+busdma_map_mbuf_fast(struct sge_txq *txq, bus_dmamap_t map,
     struct mbuf *m, bus_dma_segment_t *seg)
 {
 #if defined(__i386__) || defined(__amd64__)
@@ -52,14 +52,15 @@ busdma_map_mbuf_fast(struct sge_txq *txq, struct tx_sw_desc *txsd,
 #else
 	int nsegstmp;
 
-	bus_dmamap_load_mbuf_sg(txq->entry_tag, txsd->map, m, seg,
+	bus_dmamap_load_mbuf_sg(txq->entry_tag, map, m, seg,
 		    &nsegstmp, 0);
 #endif
 }
 
-int busdma_map_sg_collapse(struct sge_txq *txq, struct tx_sw_desc *txsd,
+int busdma_map_sg_collapse(struct sge_txq *txq, bus_dmamap_t map,
     struct mbuf **m, bus_dma_segment_t *segs, int *nsegs);
-void busdma_map_sg_vec(struct sge_txq *txq, struct tx_sw_desc *txsd, struct mbuf *m, bus_dma_segment_t *segs, int *nsegs);
+void busdma_map_sg_vec(struct sge_txq *txq, bus_dmamap_t map,
+    struct mbuf *m, bus_dma_segment_t *segs, int *nsegs);
 static __inline int
 busdma_map_sgl(bus_dma_segment_t *vsegs, bus_dma_segment_t *segs, int count) 
 {
