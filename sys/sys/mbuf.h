@@ -60,12 +60,12 @@
 
 #ifdef _KERNEL
 /*-
- * Macros for type conversion:
+ * Macro for type conversion: convert mbuf pointer to data pointer of correct
+ * type:
+ *
  * mtod(m, t)	-- Convert mbuf pointer to data pointer of correct type.
- * dtom(x)	-- Convert data pointer within mbuf to mbuf pointer (XXX).
  */
 #define	mtod(m, t)	((t)((m)->m_data))
-#define	dtom(x)		((struct mbuf *)((intptr_t)(x) & ~(MSIZE-1)))
 
 /*
  * Argument structure passed to UMA routines during mbuf and packet
