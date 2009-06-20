@@ -1781,7 +1781,6 @@ lomac_priv_check(struct ucred *cred, int priv)
 	case PRIV_TTY_DRAINWAIT:
 	case PRIV_TTY_DTRWAIT:
 	case PRIV_TTY_EXCLUSIVE:
-	case PRIV_TTY_PRISON:
 	case PRIV_TTY_STI:
 	case PRIV_TTY_SETA:
 
