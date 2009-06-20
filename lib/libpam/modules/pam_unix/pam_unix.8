@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2007
+.Dd June 20, 2009
 .Dt PAM_UNIX 8
 .Os
 .Sh NAME
@@ -106,9 +106,7 @@ except that if the previously obtained password fails,
 the user is prompted for another password.
 .It Cm auth_as_self
 This option will require the user
-to authenticate himself as the user
-given by
-.Xr getlogin 2 ,
+to authenticate themselves as themselves,
 not as the account they are attempting to access.
 This is primarily for services like
 .Xr su 1 ,
