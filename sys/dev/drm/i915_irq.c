@@ -177,7 +177,7 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	return count;
 }
 
-u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
+u32 g45_get_vblank_counter(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int reg = pipe ? PIPEB_FRMCOUNT_GM45 : PIPEA_FRMCOUNT_GM45;
@@ -515,8 +515,6 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
-
-	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask_reg = ~I915_INTERRUPT_ENABLE_FIX;
