@@ -405,12 +405,12 @@ typedef struct {
 
 /*
  * Store uid, gid creds that were used when the stateid was acquired.
- * The RPC layer allows RPCAUTH_UNIXGIDS + 1 groups to go out on the wire,
+ * The RPC layer allows NFS_MAXGRPS + 1 groups to go out on the wire,
  * so that's how many gets stored here.
  */
 struct nfscred {
 	uid_t 		nfsc_uid;
-	gid_t		nfsc_groups[RPCAUTH_UNIXGIDS + 1];
+	gid_t		nfsc_groups[NFS_MAXGRPS + 1];
 	int		nfsc_ngroups;
 };
 
