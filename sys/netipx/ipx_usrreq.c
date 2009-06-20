@@ -187,6 +187,12 @@ ipx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		m->m_pkthdr.len -= sizeof(struct ipx);
 		m->m_data += sizeof(struct ipx);
 	}
+#ifdef MAC
+	if (mac_socket_check_deliver(ipxp->ipxp_socket, m) != 0) {
+		m_freem(m);
+		return;
+	}
+#endif
 	if (sbappendaddr(&ipxp->ipxp_socket->so_rcv,
 	    (struct sockaddr *)&ipx_ipx, m, NULL) == 0)
 		m_freem(m);
