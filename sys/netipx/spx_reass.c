@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -92,24 +93,7 @@ __FBSDID("$FreeBSD$");
 static int	spx_use_delack = 0;
 static int	spxrexmtthresh = 3;
 
-static __inline void
-spx_insque(struct spx_q *element, struct spx_q *head)
-{
-
-	element->si_next = head->si_next;
-	element->si_prev = head;
-	head->si_next = element;
-	element->si_next->si_prev = element;
-}
- 
-static void
-spx_remque(struct spx_q *element)
-{
-
-	element->si_next->si_prev = element->si_prev;
-	element->si_prev->si_next = element->si_next;
-	element->si_prev = NULL;
-}
+MALLOC_DEFINE(M_SPXREASSQ, "spxreassq", "SPX reassembly queue entry");
 
 /*
  * Flesh pending queued segments on SPX close.
@@ -117,15 +101,12 @@ spx_remque(struct spx_q *element)
 void
 spx_reass_flush(struct spxpcb *cb)
 {
-	struct spx_q *s;
-	struct mbuf *m;
+	struct spx_q *q;
 
-	s = cb->s_q.si_next;
-	while (s != &(cb->s_q)) {
-		s = s->si_next;
-		spx_remque(s);
-		m = dtom(s);
-		m_freem(m);
+	while ((q = LIST_FIRST(&cb->s_q)) != NULL) {
+		LIST_REMOVE(q, sq_entry);
+		m_freem(q->sq_msi);
+		free(q, M_SPXREASSQ);
 	}
 }
 
@@ -136,7 +117,7 @@ void
 spx_reass_init(struct spxpcb *cb)
 {
 
-	cb->s_q.si_next = cb->s_q.si_prev = &cb->s_q;
+	LIST_INIT(&cb->s_q);
 }
 
 /*
@@ -145,9 +126,9 @@ spx_reass_init(struct spxpcb *cb)
  * suppresses duplicates.
  */
 int
-spx_reass(struct spxpcb *cb, struct spx *si)
+spx_reass(struct spxpcb *cb, struct mbuf *msi, struct spx *si)
 {
-	struct spx_q *q;
+	struct spx_q *q, *q_new, *q_temp;
 	struct mbuf *m;
 	struct socket *so = cb->s_ipxpcb->ipxp_socket;
 	char packetp = cb->s_flags & SF_HI;
@@ -352,17 +333,26 @@ update_window:
 	 * Loop through all packets queued up to insert in appropriate
 	 * sequence.
 	 */
-	for (q = cb->s_q.si_next; q != &cb->s_q; q = q->si_next) {
-		if (si->si_seq == SI(q)->si_seq) {
+	q_new = malloc(sizeof(*q_new), M_SPXREASSQ, M_NOWAIT | M_ZERO);
+	if (q_new == NULL)
+		return (1);
+	q_new->sq_si = si;
+	q_new->sq_msi = msi;
+	LIST_FOREACH(q, &cb->s_q, sq_entry) {
+		if (si->si_seq == q->sq_si->si_seq) {
+			free(q_new, M_SPXREASSQ);
 			spxstat.spxs_rcvduppack++;
 			return (1);
 		}
-		if (SSEQ_LT(si->si_seq, SI(q)->si_seq)) {
+		if (SSEQ_LT(si->si_seq, q->sq_si->si_seq)) {
 			spxstat.spxs_rcvoopack++;
 			break;
 		}
 	}
-	spx_insque((struct spx_q *)si, q->si_prev);
+	if (q != NULL)
+		LIST_INSERT_BEFORE(q, q_new, sq_entry);
+	else
+		LIST_INSERT_HEAD(&cb->s_q, q_new, sq_entry);
 
 	/*
 	 * If this packet is urgent, inform process
@@ -381,25 +371,31 @@ present:
 	 * and present all acknowledged data to user; if in packet interface
 	 * mode, show packet headers.
 	 */
-	for (q = cb->s_q.si_next; q != &cb->s_q; q = q->si_next) {
-		  if (SI(q)->si_seq == cb->s_ack) {
+	LIST_FOREACH_SAFE(q, &cb->s_q, sq_entry, q_temp) {
+		struct spx *qsi;
+		struct mbuf *mqsi;
+
+		qsi = q->sq_si;
+		mqsi = q->sq_msi;
+		if (qsi->si_seq == cb->s_ack) {
 			cb->s_ack++;
-			m = dtom(q);
-			if (SI(q)->si_cc & SPX_OB) {
+			if (qsi->si_cc & SPX_OB) {
 				cb->s_oobflags &= ~SF_IOOB;
 				if (so->so_rcv.sb_cc)
 					so->so_oobmark = so->so_rcv.sb_cc;
 				else
 					so->so_rcv.sb_state |= SBS_RCVATMARK;
 			}
-			q = q->si_prev;
-			spx_remque(q->si_next);
+			LIST_REMOVE(q, sq_entry);
+			free(q, M_SPXREASSQ);
 			wakeup = 1;
 			spxstat.spxs_rcvpack++;
 #ifdef SF_NEWCALL
 			if (cb->s_flags2 & SF_NEWCALL) {
-				struct spxhdr *sp = mtod(m, struct spxhdr *);
+				struct spxhdr *sp =
+				    mtod(mqsi, struct spxhdr *);
 				u_char dt = sp->spx_dt;
+
 				spx_newchecks[4]++;
 				if (dt != cb->s_rhdr.spx_dt) {
 					struct mbuf *mm =
@@ -417,31 +413,32 @@ present:
 					}
 				}
 				if (sp->spx_cc & SPX_OB) {
-					MCHTYPE(m, MT_OOBDATA);
+					MCHTYPE(mqsi, MT_OOBDATA);
 					spx_newchecks[1]++;
 					so->so_oobmark = 0;
 					so->so_rcv.sb_state &= ~SBS_RCVATMARK;
 				}
 				if (packetp == 0) {
-					m->m_data += SPINC;
-					m->m_len -= SPINC;
-					m->m_pkthdr.len -= SPINC;
+					mqsi->m_data += SPINC;
+					mqsi->m_len -= SPINC;
+					mqsi->m_pkthdr.len -= SPINC;
 				}
 				if ((sp->spx_cc & SPX_EM) || packetp) {
-					sbappendrecord_locked(&so->so_rcv, m);
+					sbappendrecord_locked(&so->so_rcv,
+					    mqsi);
 					spx_newchecks[9]++;
 				} else
-					sbappend_locked(&so->so_rcv, m);
+					sbappend_locked(&so->so_rcv, mqsi);
 			} else
 #endif
 			if (packetp)
-				sbappendrecord_locked(&so->so_rcv, m);
+				sbappendrecord_locked(&so->so_rcv, mqsi);
 			else {
-				cb->s_rhdr = *mtod(m, struct spxhdr *);
-				m->m_data += SPINC;
-				m->m_len -= SPINC;
-				m->m_pkthdr.len -= SPINC;
-				sbappend_locked(&so->so_rcv, m);
+				cb->s_rhdr = *mtod(mqsi, struct spxhdr *);
+				mqsi->m_data += SPINC;
+				mqsi->m_len -= SPINC;
+				mqsi->m_pkthdr.len -= SPINC;
+				sbappend_locked(&so->so_rcv, mqsi);
 			}
 		  } else
 			break;
