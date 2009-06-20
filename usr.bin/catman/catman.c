@@ -91,6 +91,7 @@ static const char *locale_device[] = {
 #define	GZCAT_CMD	"z"
 enum Ziptype {NONE, BZIP, GZIP};
 
+static uid_t uid;
 static int starting_dir;
 static char tmp_file[MAXPATHLEN];
 struct stat test_st;
@@ -742,6 +743,14 @@ main(int argc, char **argv)
 {
 	int opt;
 
+	if ((uid = getuid()) == 0) {
+		fprintf(stderr, "don't run %s as root, use:\n   echo", argv[0]);
+		for (optind = 0; optind < argc; optind++) {
+			fprintf(stderr, " %s", argv[optind]);
+		}
+		fprintf(stderr, " | nice -5 su -m man\n");
+		exit(1);
+	}
 	while ((opt = getopt(argc, argv, "vnfLrh")) != -1) {
 		switch (opt) {
 		case 'f':
