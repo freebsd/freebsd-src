@@ -714,6 +714,7 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 			if (q->zone = zone_pack)
 				uma_zfree(q->zone, cl);
 			m_free(m);
+			goto done;
 		}
 #else
 		cb_arg.seg.ds_addr = pmap_kextract((vm_offset_t)cl);
@@ -1157,7 +1158,7 @@ retry:
 	m0 = *m;
 	pktlen = m0->m_pkthdr.len;
 #if defined(__i386__) || defined(__amd64__)
-	if (busdma_map_sg_collapse(txq, txsd, m, segs, nsegs) == 0) {
+	if (busdma_map_sg_collapse(txq, txsd->map, m, segs, nsegs) == 0) {
 		goto done;
 	} else
 #endif
@@ -1411,11 +1412,11 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
 #endif
 	if (m0->m_nextpkt != NULL) {
-		busdma_map_sg_vec(txq, txsd, m0, segs, &nsegs);
+		busdma_map_sg_vec(txq, txsd->map, m0, segs, &nsegs);
 		ndesc = 1;
 		mlen = 0;
 	} else {
- 		if ((err = busdma_map_sg_collapse(txq, txsd, &m0, segs, &nsegs))) {
+ 		if ((err = busdma_map_sg_collapse(txq, txsd->map, &m0, segs, &nsegs))) {
 			if (cxgb_debug)
 				printf("failed ... err=%d\n", err);
 			return (err);
