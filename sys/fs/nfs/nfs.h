@@ -404,13 +404,13 @@ typedef struct {
 		(b)->bits[1] = NFSATTRBIT_REFERRAL1; } while (0)
 
 /*
- * Store uid, gid creds that handle maps to.
- * Since some BSDen define cr_gid as cr_groups[0], I'll just keep them
- * all in nfsc_groups[NGROUPS + 1].
+ * Store uid, gid creds that were used when the stateid was acquired.
+ * The RPC layer allows RPCAUTH_UNIXGIDS + 1 groups to go out on the wire,
+ * so that's how many gets stored here.
  */
 struct nfscred {
 	uid_t 		nfsc_uid;
-	gid_t		nfsc_groups[NGROUPS + 1];
+	gid_t		nfsc_groups[RPCAUTH_UNIXGIDS + 1];
 	int		nfsc_ngroups;
 };
 
