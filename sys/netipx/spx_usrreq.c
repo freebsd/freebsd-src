@@ -89,6 +89,8 @@ __FBSDID("$FreeBSD$");
 #include <netipx/spx_timer.h>
 #include <netipx/spx_var.h>
 
+#include <security/mac/mac_framework.h>
+
 /*
  * SPX protocol implementation.
  */
@@ -812,6 +814,10 @@ send:
 	cb->s_outx = 4;
 	if (so->so_options & SO_DEBUG || traceallspxs)
 		spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
+
+#ifdef MAC
+	mac_socket_create_mbuf(so, m);
+#endif
 
 	if (so->so_options & SO_DONTROUTE)
 		error = ipx_outputfl(m, NULL, IPX_ROUTETOIF);
