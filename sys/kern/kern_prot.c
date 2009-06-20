@@ -86,7 +86,6 @@ static void crextend(struct ucred *cr, int n);
 static void crsetgroups_locked(struct ucred *cr, int ngrp,
     gid_t *groups);
 
-
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
 	int	dummy;
@@ -1248,13 +1247,30 @@ __setugid(struct thread *td, struct __setugid_args *uap)
 int
 groupmember(gid_t gid, struct ucred *cred)
 {
-	register gid_t *gp;
-	gid_t *egp;
+	int l;
+	int h;
+	int m;
 
-	egp = &(cred->cr_groups[cred->cr_ngroups]);
-	for (gp = cred->cr_groups; gp < egp; gp++)
-		if (*gp == gid)
-			return (1);
+	if (cred->cr_groups[0] == gid)
+		return(1);
+
+	/*
+	 * If gid was not our primary group, perform a binary search
+	 * of the supplemental groups.  This is possible because we
+	 * sort the groups in crsetgroups().
+	 */
+	l = 1;
+	h = cred->cr_ngroups;
+	while (l < h) {
+		m = l + ((h - l) / 2);
+		if (cred->cr_groups[m] < gid)
+			l = m + 1; 
+		else
+			h = m; 
+	}
+	if ((l < cred->cr_ngroups) && (cred->cr_groups[l] == gid))
+		return (1);
+
 	return (0);
 }
 
@@ -1986,18 +2002,37 @@ crextend(struct ucred *cr, int n)
 }
 
 /*
- * Copy groups in to a credential, preserving any necessicary invariants
- * (i.e. sorting in the future).  crextend() must have been called
- * before hand to ensure sufficient space is available.  If 
+ * Copy groups in to a credential, preserving any necessary invariants.
+ * Currently this includes the sorting of all supplemental gids.
+ * crextend() must have been called before hand to ensure sufficient
+ * space is available.
  */
 static void
 crsetgroups_locked(struct ucred *cr, int ngrp, gid_t *groups)
 {
+	int i;
+	int j;
+	gid_t g;
 	
 	KASSERT(cr->cr_agroups >= ngrp, ("cr_ngroups is too small"));
 
 	bcopy(groups, cr->cr_groups, ngrp * sizeof(gid_t));
 	cr->cr_ngroups = ngrp;
+
+	/*
+	 * Sort all groups except cr_groups[0] to allow groupmember to
+	 * perform a binary search.
+	 *
+	 * XXX: If large numbers of groups become common this should
+	 * be replaced with shell sort like linux uses or possibly
+	 * heap sort.
+	 */
+	for (i = 2; i < ngrp; i++) {
+		g = cr->cr_groups[i];
+		for (j = i-1; j >= 1 && g < cr->cr_groups[j]; j--)
+			cr->cr_groups[j + 1] = cr->cr_groups[j];
+		cr->cr_groups[j + 1] = g;
+	}
 }
 
 /*
