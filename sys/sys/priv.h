@@ -211,7 +211,6 @@
 #define	PRIV_TTY_DRAINWAIT	251	/* Set tty drain wait time. */
 #define	PRIV_TTY_DTRWAIT	252	/* Set DTR wait on tty. */
 #define	PRIV_TTY_EXCLUSIVE	253	/* Override tty exclusive flag. */
-#define	PRIV_TTY_PRISON		254	/* Can open pts across jails. */
 #define	PRIV_TTY_STI		255	/* Simulate input on another tty. */
 #define	PRIV_TTY_SETA		256	/* Set tty termios structure. */
 
