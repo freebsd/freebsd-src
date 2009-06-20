@@ -107,15 +107,14 @@ static int load_needed_objects(Obj_Entry *);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(const char *, const Obj_Entry *);
 static Obj_Entry *obj_from_addr(const void *);
-static void objlist_call_fini(Objlist *, int *lockstate);
-static void objlist_call_init(Objlist *, int *lockstate);
+static void objlist_call_fini(Objlist *, bool, int *);
+static void objlist_call_init(Objlist *, int *);
 static void objlist_clear(Objlist *);
 static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
 static void objlist_init(Objlist *);
 static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
-static void objlist_remove_unref(Objlist *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *);
 static int rtld_dirname(const char *, char *);
@@ -136,9 +135,9 @@ static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
-static int origin_subst_one(char **res, const char *real, const char *kw,
-  const char *subst, char *may_free);
-static char *origin_subst(const char *real, const char *origin_path);
+static int origin_subst_one(char **, const char *, const char *,
+  const char *, char *);
+static char *origin_subst(const char *, const char *);
 static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
@@ -1379,9 +1378,9 @@ initlist_add_neededs(Needed_Entry *needed, Objlist *list)
 static void
 initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 {
-    if (obj->init_done)
+    if (obj->init_scanned || obj->init_done)
 	return;
-    obj->init_done = true;
+    obj->init_scanned = true;
 
     /* Recursively process the successor objects. */
     if (&obj->next != tail)
@@ -1396,8 +1395,10 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 	objlist_push_tail(list, obj);
 
     /* Add the object to the global fini list in the reverse order. */
-    if (obj->fini != (Elf_Addr)NULL)
+    if (obj->fini != (Elf_Addr)NULL && !obj->on_fini_list) {
 	objlist_push_head(&list_fini, obj);
+	obj->on_fini_list = true;
+    }
 }
 
 #ifndef FPTR_TARGET
@@ -1600,9 +1601,9 @@ obj_from_addr(const void *addr)
  * non-NULL fini functions.
  */
 static void
-objlist_call_fini(Objlist *list, int *lockstate)
+objlist_call_fini(Objlist *list, bool force, int *lockstate)
 {
-    Objlist_Entry *elm;
+    Objlist_Entry *elm, *elm_tmp;
     char *saved_msg;
 
     /*
@@ -1610,17 +1611,22 @@ objlist_call_fini(Objlist *list, int *lockstate)
      * call into the dynamic linker and overwrite it.
      */
     saved_msg = errmsg_save();
-    wlock_release(rtld_bind_lock, *lockstate);
-    STAILQ_FOREACH(elm, list, link) {
-	if (elm->obj->refcount == 0) {
+    STAILQ_FOREACH_SAFE(elm, list, link, elm_tmp) {
+	if (elm->obj->refcount == 0 || force) {
 	    dbg("calling fini function for %s at %p", elm->obj->path,
 	        (void *)elm->obj->fini);
 	    LD_UTRACE(UTRACE_FINI_CALL, elm->obj, (void *)elm->obj->fini, 0, 0,
 		elm->obj->path);
+	    /* Remove object from fini list to prevent recursive invocation. */
+	    STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
+	    wlock_release(rtld_bind_lock, *lockstate);
 	    call_initfini_pointer(elm->obj, elm->obj->fini);
+	    *lockstate = wlock_acquire(rtld_bind_lock);
+	    /* No need to free anything if process is going down. */
+	    if (!force)
+	    	free(elm);
 	}
     }
-    *lockstate = wlock_acquire(rtld_bind_lock);
     errmsg_restore(saved_msg);
 }
 
@@ -1633,22 +1639,39 @@ static void
 objlist_call_init(Objlist *list, int *lockstate)
 {
     Objlist_Entry *elm;
+    Obj_Entry *obj;
     char *saved_msg;
+
+    /*
+     * Clean init_scanned flag so that objects can be rechecked and
+     * possibly initialized earlier if any of vectors called below
+     * cause the change by using dlopen.
+     */
+    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+	obj->init_scanned = false;
 
     /*
      * Preserve the current error message since an init function might
      * call into the dynamic linker and overwrite it.
      */
     saved_msg = errmsg_save();
-    wlock_release(rtld_bind_lock, *lockstate);
     STAILQ_FOREACH(elm, list, link) {
+	if (elm->obj->init_done) /* Initialized early. */
+	    continue;
 	dbg("calling init function for %s at %p", elm->obj->path,
 	    (void *)elm->obj->init);
 	LD_UTRACE(UTRACE_INIT_CALL, elm->obj, (void *)elm->obj->init, 0, 0,
 	    elm->obj->path);
+	/*
+	 * Race: other thread might try to use this object before current
+	 * one completes the initilization. Not much can be done here
+	 * without better locking.
+	 */
+	elm->obj->init_done = true;
+    	wlock_release(rtld_bind_lock, *lockstate);
 	call_initfini_pointer(elm->obj, elm->obj->init);
+	*lockstate = wlock_acquire(rtld_bind_lock);
     }
-    *lockstate = wlock_acquire(rtld_bind_lock);
     errmsg_restore(saved_msg);
 }
 
@@ -1710,27 +1733,6 @@ objlist_remove(Objlist *list, Obj_Entry *obj)
 	STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
 	free(elm);
     }
-}
-
-/*
- * Remove all of the unreferenced objects from "list".
- */
-static void
-objlist_remove_unref(Objlist *list)
-{
-    Objlist newlist;
-    Objlist_Entry *elm;
-
-    STAILQ_INIT(&newlist);
-    while (!STAILQ_EMPTY(list)) {
-	elm = STAILQ_FIRST(list);
-	STAILQ_REMOVE_HEAD(list, link);
-	if (elm->obj->refcount == 0)
-	    free(elm);
-	else
-	    STAILQ_INSERT_TAIL(&newlist, elm, link);
-    }
-    *list = newlist;
 }
 
 /*
@@ -1808,15 +1810,11 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj)
 static void
 rtld_exit(void)
 {
-    Obj_Entry *obj;
     int	lockstate;
 
     lockstate = wlock_acquire(rtld_bind_lock);
     dbg("rtld_exit()");
-    /* Clear all the reference counts so the fini functions will be called. */
-    for (obj = obj_list;  obj != NULL;  obj = obj->next)
-	obj->refcount = 0;
-    objlist_call_fini(&list_fini, &lockstate);
+    objlist_call_fini(&list_fini, true, &lockstate);
     /* No need to remove the items from the list, since we are exiting. */
     if (!libmap_disable)
         lm_fini();
@@ -1936,8 +1934,7 @@ dlclose(void *handle)
 	 * The object is no longer referenced, so we must unload it.
 	 * First, call the fini functions.
 	 */
-	objlist_call_fini(&list_fini, &lockstate);
-	objlist_remove_unref(&list_fini);
+	objlist_call_fini(&list_fini, false, &lockstate);
 
 	/* Finish cleaning up the newly-unreferenced objects. */
 	GDB_STATE(RT_DELETE,&root->linkmap);
@@ -2132,7 +2129,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 			       &donelist);
 
 	    /*
-	     * We do not distinguish between 'main' object an global scope.
+	     * We do not distinguish between 'main' object and global scope.
 	     * If symbol is not defined by objects loaded at startup, continue
 	     * search among dynamically loaded objects with RTLD_GLOBAL
 	     * scope.
