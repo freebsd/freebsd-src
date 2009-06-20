@@ -225,6 +225,11 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	so = ipxp->ipxp_socket;
 	KASSERT(so != NULL, ("spx_input: so == NULL"));
 
+#ifdef MAC
+	if (mac_socket_check_deliver(so, m) != 0)
+		goto drop;
+#endif
+
 	if (so->so_options & SO_DEBUG || traceallspxs) {
 		ostate = cb->s_state;
 		spx_savesi = *si;
