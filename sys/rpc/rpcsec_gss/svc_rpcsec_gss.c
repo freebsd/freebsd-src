@@ -429,7 +429,6 @@ rpc_gss_svc_getcred(struct svc_req *req, struct ucred **crp, int *flavorp)
 	struct svc_rpc_gss_cookedcred *cc;
 	struct svc_rpc_gss_client *client;
 	rpc_gss_ucred_t *uc;
-	int i;
 
 	if (req->rq_cred.oa_flavor != RPCSEC_GSS)
 		return (FALSE);
