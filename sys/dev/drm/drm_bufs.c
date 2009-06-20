@@ -296,6 +296,9 @@ void drm_rmmap(struct drm_device *dev, drm_local_map_t *map)
 {
 	DRM_SPINLOCK_ASSERT(&dev->dev_lock);
 
+	if (map == NULL)
+		return;
+
 	TAILQ_REMOVE(&dev->maplist, map, link);
 
 	switch (map->type) {
