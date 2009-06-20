@@ -52,8 +52,7 @@ The
 authentication service module for PAM,
 .Nm
 provides functionality for three PAM categories:
-authentication,
-account management, and password management.
+authentication, account management, and password management.
 In terms of the
 .Ar module-type
 parameter, they are the
@@ -66,14 +65,13 @@ It also provides a null function for session management.
 .Ss Ux Ss Authentication Module
 The
 .Ux
-authentication component
-provides functions to verify the identity of a user
+authentication component provides functions to verify the identity of
+a user
 .Pq Fn pam_sm_authenticate ,
 which obtains the relevant
 .Xr passwd 5
 entry.
-It prompts the user for a password
-and verifies that this is correct with
+It prompts the user for a password and verifies that this is correct with
 .Xr crypt 3 .
 .Pp
 The following options may be passed to the authentication module:
@@ -84,64 +82,46 @@ debugging information at
 .Dv LOG_DEBUG
 level.
 .It Cm use_first_pass
-If the authentication module
-is not the first in the stack,
-and a previous module
-obtained the user's password,
-that password is used
-to authenticate the user.
-If this fails,
-the authentication module returns failure
-without prompting the user for a password.
-This option has no effect
-if the authentication module
-is the first in the stack,
-or if no previous modules
-obtained the user's password.
+If the authentication module is not the first in the stack, and a
+previous module obtained the user's password, that password is used to
+authenticate the user.
+If this fails, the authentication module returns failure without
+prompting the user for a password.
+This option has no effect if the authentication module is the first in
+the stack, or if no previous modules obtained the user's password.
 .It Cm try_first_pass
 This option is similar to the
 .Cm use_first_pass
-option,
-except that if the previously obtained password fails,
-the user is prompted for another password.
+option, except that if the previously obtained password fails, the
+user is prompted for another password.
 .It Cm auth_as_self
-This option will require the user
-to authenticate themselves as themselves,
-not as the account they are attempting to access.
+This option will require the user to authenticate themselves as
+themselves, not as the account they are attempting to access.
 This is primarily for services like
 .Xr su 1 ,
-where the user's ability to retype
-their own password
-might be deemed sufficient.
+where the user's ability to retype their own password might be deemed
+sufficient.
 .It Cm nullok
-If the password database
-has no password
-for the entity being authenticated,
-then this option
-will forgo password prompting,
-and silently allow authentication to succeed.
+If the password database has no password for the entity being
+authenticated, then this option will forgo password prompting, and
+silently allow authentication to succeed.
 .It Cm local_pass
-Use only the local password database,
-even if NIS is in use.
-This will cause an authentication failure
-if the system is configured
+Use only the local password database, even if NIS is in use.
+This will cause an authentication failure if the system is configured
 to only use NIS.
 .It Cm nis_pass
 Use only the NIS password database.
-This will cause an authentication failure
-if the system is not configured
-to use NIS.
+This will cause an authentication failure if the system is not
+configured to use NIS.
 .El
 .Ss Ux Ss Account Management Module
 The
 .Ux
-account management component
-provides a function to perform account management,
+account management component provides a function to perform account
+management,
 .Fn pam_sm_acct_mgmt .
-The function verifies
-that the authenticated user
-is allowed to log into the local user account
-by checking the following criteria:
+The function verifies that the authenticated user is allowed to log
+into the local user account by checking the following criteria:
 .Bl -dash -offset indent
 .It
 locked status of the account compatible with
@@ -166,8 +146,8 @@ level.
 .Ss Ux Ss Password Management Module
 The
 .Ux
-password management component
-provides a function to perform password management,
+password management component provides a function to perform password
+management,
 .Fn pam_sm_chauthtok .
 The function changes
 the user's password.
@@ -181,17 +161,14 @@ debugging information at
 level.
 .It Cm no_warn
 suppress warning messages to the user.
-These messages include
-reasons why the user's
-authentication attempt was declined.
+These messages include reasons why the user's authentication attempt
+was declined.
 .It Cm local_pass
-forces the password module
-to change a local password
-in favour of a NIS one.
+forces the password module to change a local password in favour of a
+NIS one.
 .It Cm nis_pass
-forces the password module
-to change a NIS password
-in favour of a local one.
+forces the password module to change a NIS password in favour of a
+local one.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/master.passwd" -compact
