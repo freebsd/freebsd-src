@@ -378,7 +378,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	m->m_pkthdr.len -= sizeof(struct ipx);
 	m->m_data += sizeof(struct ipx);
 
-	if (spx_reass(cb, si))
+	if (spx_reass(cb, m, si))
 		m_freem(m);
 	if (cb->s_force || (cb->s_flags & (SF_ACKNOW|SF_WIN|SF_RXT)))
 		spx_output(cb, NULL);
