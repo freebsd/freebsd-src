@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 
+#include <fs/nfs/rpcv2.h>
 #include <fs/nfs/nfsproto.h>
 #include <fs/nfs/nfskpiport.h>
 #include <fs/nfs/nfs.h>
-#include <fs/nfs/rpcv2.h>
 
 #include <err.h>
 #include <errno.h>
