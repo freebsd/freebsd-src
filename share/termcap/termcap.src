@@ -3998,6 +3998,31 @@ wy100q|Wyse 100 for Quotron:\
 	:dc=\EW:dl=\ER:do=^J:ei=\Er:im=\Eq:is=\E`\072\200\EC\EDF\E0\E'\E(\EA21:\
 	:kd=^J:kl=^H:kr=^L:ku=^K:li#24:nd=^L:up=^K:us=\EG8:ue=\EG0:\
 	:so=\EG4:se=\EG0:sg#1:sr=\Ej:ho=^^:ug#1:
+# Wyse 120 definitions from conf/81882 by Meister des Chaos <meister@netz00.com>
+wy120|wyse120|wy150|wyse150|Wyse 120/150:\
+        :am:bw:hs:km:mi:ms:xo:\
+        :co#80:it#8:li#24:pb#9601:ws#45:\
+        :ae=\EcD:al=\EE:as=\EcE:bl=^G:bt=\EI:cd=\EY:ce=\ET:cl=\E+:\
+        :cm=\E=%+ %+ :cr=^M:ct=\E0:dc=\EW:dl=\ER:do=^J:ds=\EF\r:\
+        :ei=\Er:fs=^M:ho=^^:i1=\EcB0\EcC1:i2=\EwJ\Ew1:im=\Eq:ip=:\
+        :is=\Ed$\EcD\E'\Er\EH\003\Ed/\EO\Ee1\Ed*\E`@\E`9\E`1\016\024\El:\
+        :k1=^A@\r:k2=^AA\r:k3=^AB\r:k4=^AC\r:k5=^AD\r:k6=^AE\r:\
+        :k7=^AF\r:k8=^AG\r:k9=^AH\r:kD=\EW:kI=\EQ:kN=\EK:kP=\EJ:\
+        :kb=^H:kd=^J:kh=^^:kl=^H:kr=^L:ku=^K:le=^H:ll=^^^K:mb=\EG2:\
+        :me=\E(\EH\003\EG0\EcD:mh=\EGp:mr=\EG4:nd=^L:nw=\r\n:\
+        :se=\EG0:sf=\n:so=\EGt:sr=\Ej:st=\E1:ta=\011:te=\Ew1:\
+        :ti=\Ew0:ts=\EF:ue=\EG0:up=^K:us=\EG8:vb=\E`8\E`9:ve=\E`1:\
+        :vi=\E`0:
+wy120-w|wyse120-w|wy150-w|wyse150-w|wyse 120/150 132-column:\
+	:cm=\Ea%i%dR%dC:co#132:ws#97:tc=wy120:
+wy120-25|wyse120-25|wy150-25|wyse150-25|wyse 120/150 80-column 25-lines:\
+        :li#25:tc=wy120:
+wy120-25-w|wyse120-25-w|wy150-25-w|wyse150-25-w|wyse 120/150 132-column 25-lines:\
+	:cm=\Ea%i%dR%dC:co#132:li#25:ws#97:tc=wy120:
+wy120-vb|wyse120-vb|wy150-vb|wyse150-vb|Wyse 120/150 visible bell:\
+	:bl@:tc=wy120:
+wy120-w-vb|wy120-wvb|wyse120-wvb|wy150-w-vb|wyse150-w-vb|Wyse 120/150 132-column visible bell:\
+	:bl@:cm=\Ea%i%dR%dC:co#132:ws#97:tc=wy120:
 # # --------------------------------
 #
 # y: TELERAY
