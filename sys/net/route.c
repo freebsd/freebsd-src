@@ -474,7 +474,7 @@ rtfree(struct rtentry *rt)
 		 * e.g other routes and ifaddrs.
 		 */
 		if (rt->rt_ifa)
-			IFAFREE(rt->rt_ifa);
+			ifa_free(rt->rt_ifa);
 		/*
 		 * The key is separatly alloc'd so free it (see rt_setgate()).
 		 * This also frees the gateway, as they are always malloc'd
@@ -1126,7 +1126,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 * This moved from below so that rnh->rnh_addaddr() can
 		 * examine the ifa and  ifa->ifa_ifp if it so desires.
 		 */
-		IFAREF(ifa);
+		ifa_ref(ifa);
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
 		rt->rt_rmx.rmx_weight = 1;
@@ -1136,7 +1136,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		if (rn_mpath_capable(rnh) &&
 			rt_mpath_conflict(rnh, rt, netmask)) {
 			if (rt->rt_ifa) {
-				IFAFREE(rt->rt_ifa);
+				ifa_free(rt->rt_ifa);
 			}
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
@@ -1153,7 +1153,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 */
 		if (rn == NULL) {
 			if (rt->rt_ifa)
-				IFAFREE(rt->rt_ifa);
+				ifa_free(rt->rt_ifa);
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
 			uma_zfree(V_rtzone, rt);
@@ -1409,8 +1409,8 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			 */
 			if (memcmp(rt->rt_ifa->ifa_addr,
 			    ifa->ifa_addr, ifa->ifa_addr->sa_len)) {
-				IFAFREE(rt->rt_ifa);
-				IFAREF(ifa);
+				ifa_free(rt->rt_ifa);
+				ifa_ref(ifa);
 				rt->rt_ifp = ifa->ifa_ifp;
 				rt->rt_ifa = ifa;
 			}

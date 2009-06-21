@@ -189,8 +189,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * and link our new one on the end 
 			 */
 			ifa = (struct ifaddr *)aa;
-			IFA_LOCK_INIT(ifa);
-			ifa->ifa_refcnt = 1;
+			ifa_init(ifa);
 
 			/*
 			 * As the at_ifaddr contains the actual sockaddrs,
@@ -325,7 +324,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		/*
 		 * Now reclaim the reference.
 		 */
-		IFAFREE(ifa0);
+		ifa_free(ifa0);
 		break;
 
 	default:

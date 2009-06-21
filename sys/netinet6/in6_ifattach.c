@@ -827,7 +827,7 @@ in6_ifdetach(struct ifnet *ifp)
 		IF_ADDR_LOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, (struct ifaddr *)ia, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
-		IFAFREE(&ia->ia_ifa);
+		ifa_free(&ia->ia_ifa);
 
 		/* also remove from the IPv6 address chain(itojun&jinmei) */
 		oia = ia;
@@ -845,7 +845,7 @@ in6_ifdetach(struct ifnet *ifp)
 			}
 		}
 
-		IFAFREE(&oia->ia_ifa);
+		ifa_free(&oia->ia_ifa);
 	}
 
 	in6_pcbpurgeif0(&V_udbinfo, ifp);
