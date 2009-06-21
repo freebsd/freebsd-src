@@ -758,7 +758,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		socksize = roundup2(socksize, sizeof(long));
 		ifasize = sizeof(*ifa) + 2 * socksize;
 		ifa = malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
-		IFA_LOCK_INIT(ifa);
+		ifa_init(ifa);
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
 		sdl->sdl_family = AF_LINK;
@@ -775,7 +775,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		sdl->sdl_len = masklen;
 		while (namelen != 0)
 			sdl->sdl_data[--namelen] = 0xff;
-		ifa->ifa_refcnt = 1;
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
@@ -896,7 +895,7 @@ if_purgeaddrs(struct ifnet *ifp)
 		}
 #endif /* INET6 */
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		IFAFREE(ifa);
+		ifa_free(ifa);
 	}
 }
 
@@ -1013,7 +1012,7 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
 			ifa = TAILQ_FIRST(&ifp->if_addrhead);
 			TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-			IFAFREE(ifa);
+			ifa_free(ifa);
 		}
 	}
 
@@ -1420,6 +1419,34 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
+ * Reference count functions for ifaddrs.
+ */
+void
+ifa_init(struct ifaddr *ifa)
+{
+
+	mtx_init(&ifa->ifa_mtx, "ifaddr", NULL, MTX_DEF);
+	refcount_init(&ifa->ifa_refcnt, 1);
+}
+
+void
+ifa_ref(struct ifaddr *ifa)
+{
+
+	refcount_acquire(&ifa->ifa_refcnt);
+}
+
+void
+ifa_free(struct ifaddr *ifa)
+{
+
+	if (refcount_release(&ifa->ifa_refcnt)) {
+		mtx_destroy(&ifa->ifa_mtx);
+		free(ifa, M_IFADDR);
+	}
+}
+
+/*
  * XXX: Because sockaddr_dl has deeper structure than the sockaddr
  * structs used to represent other address families, it is necessary
  * to perform a different comparison.
@@ -1711,10 +1738,10 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 		return;
 	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
-		IFAREF(ifa);		/* XXX */
+		ifa_ref(ifa);		/* XXX */
 		oifa = rt->rt_ifa;
 		rt->rt_ifa = ifa;
-		IFAFREE(oifa);
+		ifa_free(oifa);
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
 			ifa->ifa_rtrequest(cmd, rt, info);
 	}
