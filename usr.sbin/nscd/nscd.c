@@ -28,12 +28,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/event.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/param.h>
 #include <sys/un.h>
+
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -122,14 +123,14 @@ init_cache_(struct configuration *config)
 		res = register_cache_entry(retval, (struct cache_entry_params *)
 			&config_entry->positive_cache_params);
 		config_entry->positive_cache_entry = find_cache_entry(retval,
-			config_entry->positive_cache_params.entry_name);
+			config_entry->positive_cache_params.cep.entry_name);
 		assert(config_entry->positive_cache_entry !=
 			INVALID_CACHE_ENTRY);
 
 		res = register_cache_entry(retval, (struct cache_entry_params *)
 			&config_entry->negative_cache_params);
 		config_entry->negative_cache_entry = find_cache_entry(retval,
-			config_entry->negative_cache_params.entry_name);
+			config_entry->negative_cache_params.cep.entry_name);
 		assert(config_entry->negative_cache_entry !=
 			INVALID_CACHE_ENTRY);
 	}
@@ -315,9 +316,9 @@ process_socket_event(struct kevent *event_data, struct runtime_env *env,
 	 * operations. It also does the actual socket IO operations.
 	 */
 	if (((qstate->use_alternate_io == 0) &&
-		(qstate->kevent_watermark <= event_data->data)) ||
+		(qstate->kevent_watermark <= (size_t)event_data->data)) ||
 		((qstate->use_alternate_io != 0) &&
-		(qstate->io_buffer_watermark <= event_data->data))) {
+		(qstate->io_buffer_watermark <= (size_t)event_data->data))) {
 		if (qstate->use_alternate_io != 0) {
 			switch (qstate->io_buffer_filter) {
 			case EVFILT_READ:
@@ -499,7 +500,7 @@ processing_loop(cache the_cache, struct runtime_env *env,
 			struct kevent *event_data;
 			event_data = &eventlist[0];
 
-			if (event_data->ident == env->sockfd) {
+			if ((int)event_data->ident == env->sockfd) {
 				for (i = 0; i < event_data->data; ++i)
 				    accept_connection(event_data, env, config);
 
@@ -573,17 +574,17 @@ get_time_func(struct timeval *time)
 }
 
 /*
- * The idea of _nss_cache_cycle_prevention_function is that nsdispatch will
- * search for this symbol in the executable. This symbol is the attribute of
- * the caching daemon. So, if it exists, nsdispatch won't try to connect to
- * the caching daemon and will just ignore the 'cache' source in the
- * nsswitch.conf. This method helps to avoid cycles and organize
- * self-performing requests.
+ * The idea of _nss_cache_cycle_prevention_function is that nsdispatch
+ * will search for this symbol in the executable. This symbol is the
+ * attribute of the caching daemon. So, if it exists, nsdispatch won't try
+ * to connect to the caching daemon and will just ignore the 'cache'
+ * source in the nsswitch.conf. This method helps to avoid cycles and
+ * organize self-performing requests.
+ *
+ * (not actually a function; it used to be, but it doesn't make any
+ * difference, as long as it has external linkage)
  */
-void
-_nss_cache_cycle_prevention_function(void)
-{
-}
+void *_nss_cache_cycle_prevention_function;
 
 int
 main(int argc, char *argv[])

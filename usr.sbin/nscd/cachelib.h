@@ -29,9 +29,6 @@
 #ifndef __NSCD_CACHELIB_H__
 #define __NSCD_CACHELIB_H__
 
-#include <sys/queue.h>
-#include <sys/time.h>
-#include <stdlib.h>
 #include "hashtable.h"
 #include "cacheplcs.h"
 
@@ -90,11 +87,8 @@ struct cache_entry_params
 /* params, used for most entries */
 struct common_cache_entry_params
 {
-	/* inherited fields */
-	enum cache_entry_t	entry_type;
+	struct cache_entry_params cep;
 
-	/* unique fields */
-	char	*entry_name;
 	size_t	cache_entries_size;
 
 	size_t	max_elemsize;		/* if 0 then no check is made */
@@ -108,9 +102,7 @@ struct common_cache_entry_params
 /* params, used for multipart entries */
 struct	mp_cache_entry_params
 {
-	/* inherited fields */
-	enum cache_entry_t entry_type;
-	char	*entry_name;
+	struct cache_entry_params cep;
 
 	/* unique fields */
 	size_t	max_elemsize;	/* if 0 then no check is made */

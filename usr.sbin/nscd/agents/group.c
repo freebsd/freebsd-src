@@ -29,18 +29,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
+
 #include <assert.h>
-#include <nsswitch.h>
 #include <grp.h>
-#include <string.h>
+#include <nsswitch.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "../debug.h"
-#include "passwd.h"
+#include "group.h"
 
 static int group_marshal_func(struct group *, char *, size_t *);
 static int group_lookup_func(const char *, size_t, char **, size_t *);
-static void *group_mp_init_func();
+static void *group_mp_init_func(void);
 static int group_mp_lookup_func(char **, size_t *, void *);
 static void group_mp_destroy_func(void *);
 
@@ -184,7 +185,7 @@ group_lookup_func(const char *key, size_t key_size, char **buffer,
 }
 
 static void *
-group_mp_init_func()
+group_mp_init_func(void)
 {
 	TRACE_IN(group_mp_init_func);
 	setgrent();
@@ -219,7 +220,7 @@ group_mp_destroy_func(void *mdata)
 }
 
 struct agent *
-init_group_agent()
+init_group_agent(void)
 {
 	struct common_agent	*retval;
 
@@ -238,7 +239,7 @@ init_group_agent()
 }
 
 struct agent *
-init_group_mp_agent()
+init_group_mp_agent(void)
 {
 	struct multipart_agent	*retval;
 

@@ -28,5 +28,5 @@
 
 #include "../agent.h"
 
-extern struct agent *init_services_agent();
-extern struct agent *init_services_mp_agent();
+extern struct agent *init_services_agent(void);
+extern struct agent *init_services_mp_agent(void);
