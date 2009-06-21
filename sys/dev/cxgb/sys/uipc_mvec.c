@@ -90,7 +90,7 @@ retry:
 		n = n->m_next;
 	}
 #else
-	err = bus_dmamap_load_mbuf_sg(txq->entry_tag, map, m, segs,
+	err = bus_dmamap_load_mbuf_sg(txq->entry_tag, map, *m, segs,
 		    &seg_count, 0);
 #endif	
 	if (seg_count == 0) {
