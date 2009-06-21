@@ -171,12 +171,9 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			ia = oia;
 			ifa = (struct ifaddr *)ia;
 			ifa_init(ifa);
-			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 			ia->ia_ifp = ifp;
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
-
 			ifa->ifa_netmask = (struct sockaddr *)&ipx_netmask;
-
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			if (ifp->if_flags & IFF_BROADCAST) {
 				ia->ia_broadaddr.sipx_family = AF_IPX;
@@ -185,6 +182,9 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				ia->ia_broadaddr.sipx_addr.x_host =
 				    ipx_broadhost;
 			}
+			IF_ADDR_LOCK(ifp);
+			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
+			IF_ADDR_UNLOCK(ifp);
 		}
 		break;
 
@@ -217,7 +217,9 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCDIFADDR:
 		ipx_ifscrub(ifp, ia);
 		ifa = (struct ifaddr *)ia;
+		IF_ADDR_LOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+		IF_ADDR_UNLOCK(ifp);
 		oia = ia;
 		if (oia == (ia = ipx_ifaddr)) {
 			ipx_ifaddr = ia->ia_next;
