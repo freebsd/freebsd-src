@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2009 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -109,32 +111,44 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	 */
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
+
+	IPX_IFADDR_WLOCK();
 	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
 		if (ia->ia_ifp == ifp)
 			break;
 
 	switch (cmd) {
 	case SIOCGIFADDR:
-		if (ia == NULL)
-			return (EADDRNOTAVAIL);
+		if (ia == NULL) {
+			error = EADDRNOTAVAIL;
+			goto out;
+		}
 		*(struct sockaddr_ipx *)&ifr->ifr_addr = ia->ia_addr;
-		return (0);
+		goto out;
 
 	case SIOCGIFBRDADDR:
-		if (ia == NULL)
-			return (EADDRNOTAVAIL);
-		if ((ifp->if_flags & IFF_BROADCAST) == 0)
-			return (EINVAL);
+		if (ia == NULL) {
+			error = EADDRNOTAVAIL;
+			goto out;
+		}
+		if ((ifp->if_flags & IFF_BROADCAST) == 0) {
+			error = EINVAL;
+			goto out;
+		}
 		*(struct sockaddr_ipx *)&ifr->ifr_dstaddr = ia->ia_broadaddr;
-		return (0);
+		goto out;
 
 	case SIOCGIFDSTADDR:
-		if (ia == NULL)
-			return (EADDRNOTAVAIL);
-		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
-			return (EINVAL);
+		if (ia == NULL) {
+			error = EADDRNOTAVAIL;
+			goto out;
+		}
+		if ((ifp->if_flags & IFF_POINTOPOINT) == 0) {
+			error = EINVAL;
+			goto out;
+		}
 		*(struct sockaddr_ipx *)&ifr->ifr_dstaddr = ia->ia_dstaddr;
-		return (0);
+		goto out;
 	}
 
 	switch (cmd) {
@@ -143,7 +157,7 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		priv = (cmd == SIOCAIFADDR) ? PRIV_NET_ADDIFADDR :
 		    PRIV_NET_DELIFADDR;
 		if (td && (error = priv_check(td, priv)) != 0)
-			return (error);
+			goto out;
 		if (ifra->ifra_addr.sipx_family == AF_IPX)
 		    for (oia = ia; ia != NULL; ia = ia->ia_next) {
 			if (ia->ia_ifp == ifp  &&
@@ -151,20 +165,24 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				  ifra->ifra_addr.sipx_addr))
 			    break;
 		    }
-		if (cmd == SIOCDIFADDR && ia == NULL)
-			return (EADDRNOTAVAIL);
+		if (cmd == SIOCDIFADDR && ia == NULL) {
+			error = EADDRNOTAVAIL;
+			goto out;
+		}
 		/* FALLTHROUGH */
 
 	case SIOCSIFADDR:
 	case SIOCSIFDSTADDR:
 		if (td && (error = priv_check(td, PRIV_NET_SETLLADDR)) != 0)
-			return (error);
+			goto out;
 		if (ia == NULL) {
 			oia = (struct ipx_ifaddr *)
 				malloc(sizeof(*ia), M_IFADDR,
-				M_WAITOK | M_ZERO);
-			if (oia == NULL)
-				return (ENOBUFS);
+				M_NOWAIT | M_ZERO);
+			if (oia == NULL) {
+				error = ENOBUFS;
+				goto out;
+			}
 			if ((ia = ipx_ifaddr) != NULL) {
 				for ( ; ia->ia_next != NULL; ia = ia->ia_next)
 					;
@@ -193,32 +211,48 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 
 	default:
 		if (td && (error = priv_check(td, PRIV_NET_HWIOCTL)) != 0)
-			return (error);
+			goto out;
 	}
 
 	switch (cmd) {
 	case SIOCSIFDSTADDR:
-		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
-			return (EINVAL);
+		if ((ifp->if_flags & IFF_POINTOPOINT) == 0) {
+			error = EINVAL;
+			goto out;
+		}
 		if (ia->ia_flags & IFA_ROUTE) {
 			rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST);
 			ia->ia_flags &= ~IFA_ROUTE;
 		}
+		ifa_ref(&ia->ia_ifa);
+		IPX_IFADDR_WUNLOCK();
 		if (ifp->if_ioctl) {
 			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR,
 			    (void *)ia);
-			if (error)
+			if (error) {
+				ifa_free(&ia->ia_ifa);
 				return (error);
+			}
 		}
 		*(struct sockaddr *)&ia->ia_dstaddr = ifr->ifr_dstaddr;
+		ifa_free(&ia->ia_ifa);
 		return (0);
 
 	case SIOCSIFADDR:
-		return (ipx_ifinit(ifp, ia,
-				(struct sockaddr_ipx *)&ifr->ifr_addr, 1));
+		ifa_ref(&ia->ia_ifa);
+		IPX_IFADDR_WUNLOCK();
+		error = ipx_ifinit(ifp, ia,
+		    (struct sockaddr_ipx *)&ifr->ifr_addr, 1);
+		ifa_free(&ia->ia_ifa);
+		return (error);
 
 	case SIOCDIFADDR:
+		/* XXXRW: Potential race here while ipx_ifaddr_rw is dropped. */
+		ifa_ref(&ia->ia_ifa);
+		IPX_IFADDR_WUNLOCK();
 		ipx_ifscrub(ifp, ia);
+		IPX_IFADDR_WLOCK();
+		ifa_free(&ia->ia_ifa);
 		ifa = (struct ifaddr *)ia;
 		IF_ADDR_LOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
@@ -236,6 +270,7 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				printf("Didn't unlink ipxifadr from list\n");
 		}
 		ifa_free(&oia->ia_ifa);
+		IPX_IFADDR_WUNLOCK();
 		return (0);
 
 	case SIOCAIFADDR:
@@ -249,6 +284,8 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 					 ia->ia_addr.sipx_addr))
 				hostIsNew = 0;
 		}
+		ifa_ref(&ia->ia_ifa);
+		IPX_IFADDR_WUNLOCK();
 		if ((ifp->if_flags & IFF_POINTOPOINT) &&
 		    (ifra->ifra_dstaddr.sipx_family == AF_IPX)) {
 			if (hostIsNew == 0)
@@ -259,13 +296,19 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		if (ifra->ifra_addr.sipx_family == AF_IPX &&
 					    (hostIsNew || dstIsNew))
 			error = ipx_ifinit(ifp, ia, &ifra->ifra_addr, 0);
+		ifa_free(&ia->ia_ifa);
 		return (error);
 
 	default:
+		IPX_IFADDR_WUNLOCK();
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
+
+out:
+	IPX_IFADDR_WUNLOCK();
+	return (error);
 }
 
 /*
