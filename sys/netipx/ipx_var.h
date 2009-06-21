@@ -97,7 +97,6 @@ extern struct sockaddr_ipx ipx_netmask;
 extern struct sockaddr_ipx ipx_hostmask;
 
 extern const union ipx_net ipx_zeronet;
-extern const union ipx_host ipx_zerohost;
 extern const union ipx_net ipx_broadnet;
 extern const union ipx_host ipx_broadhost;
 
