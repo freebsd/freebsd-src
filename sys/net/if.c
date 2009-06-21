@@ -2382,7 +2382,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 #else
 	{
-		int ocmd = cmd;
+		u_long ocmd = cmd;
 
 		switch (cmd) {
 
