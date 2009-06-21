@@ -617,7 +617,7 @@ fddi_ifdetach(ifp, bpf)
 int
 fddi_ioctl (ifp, command, data)
 	struct ifnet *ifp;
-	int command;
+	u_long command;
 	caddr_t data;
 {
 	struct ifaddr *ifa;
