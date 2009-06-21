@@ -91,7 +91,7 @@ vn_open(ndp, flagp, cmode, fp)
 {
 	struct thread *td = ndp->ni_cnd.cn_thread;
 
-	return (vn_open_cred(ndp, flagp, cmode, td->td_ucred, fp));
+	return (vn_open_cred(ndp, flagp, cmode, 0, td->td_ucred, fp));
 }
 
 /*
@@ -102,11 +102,8 @@ vn_open(ndp, flagp, cmode, fp)
  * due to the NDINIT being done elsewhere.
  */
 int
-vn_open_cred(ndp, flagp, cmode, cred, fp)
-	struct nameidata *ndp;
-	int *flagp, cmode;
-	struct ucred *cred;
-	struct file *fp;
+vn_open_cred(struct nameidata *ndp, int *flagp, int cmode, u_int vn_open_flags,
+    struct ucred *cred, struct file *fp)
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -124,9 +121,11 @@ restart:
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
 		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF |
-		    MPSAFE | AUDITVNODE1;
+		    MPSAFE;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
+		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
+			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
 		bwillwrite();
 		if ((error = namei(ndp)) != 0)
 			return (error);
@@ -181,9 +180,11 @@ restart:
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
 		ndp->ni_cnd.cn_flags = ISOPEN |
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
-		    LOCKLEAF | MPSAFE | AUDITVNODE1;
+		    LOCKLEAF | MPSAFE;
 		if (!(fmode & FWRITE))
 			ndp->ni_cnd.cn_flags |= LOCKSHARED;
+		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
+			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (!mpsafe)
