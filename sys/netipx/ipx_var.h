@@ -124,7 +124,6 @@ int	ipx_output_type20(struct mbuf *);
 int	ipx_peeraddr(struct socket *so, struct sockaddr **nam);
 void	ipx_printhost(struct ipx_addr *addr);
 int	ipx_sockaddr(struct socket *so, struct sockaddr **nam);
-void	ipx_watch_output(struct mbuf *m, struct ifnet *ifp);
 
 #endif /* _KERNEL */
 
