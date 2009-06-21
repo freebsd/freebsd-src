@@ -82,9 +82,9 @@ __FBSDID("$FreeBSD$");
  */
 struct ipx_ifaddr *ipx_ifaddr;
 
-static	void ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia);
-static	int ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
-		       struct sockaddr_ipx *sipx, int scrub);
+static void	ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia);
+static int	ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
+		    struct sockaddr_ipx *sipx, int scrub);
 
 /*
  * Generic internet control operations (ioctl's).
@@ -111,7 +111,6 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			break;
 
 	switch (cmd) {
-
 	case SIOCGIFADDR:
 		if (ia == NULL)
 			return (EADDRNOTAVAIL);
@@ -182,18 +181,20 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			if (ifp->if_flags & IFF_BROADCAST) {
 				ia->ia_broadaddr.sipx_family = AF_IPX;
-				ia->ia_broadaddr.sipx_len = sizeof(ia->ia_addr);
-				ia->ia_broadaddr.sipx_addr.x_host = ipx_broadhost;
+				ia->ia_broadaddr.sipx_len =
+				    sizeof(ia->ia_addr);
+				ia->ia_broadaddr.sipx_addr.x_host =
+				    ipx_broadhost;
 			}
 		}
 		break;
+
 	default:
 		if (td && (error = priv_check(td, PRIV_NET_HWIOCTL)) != 0)
 			return (error);
 	}
 
 	switch (cmd) {
-
 	case SIOCSIFDSTADDR:
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			return (EINVAL);
@@ -202,7 +203,8 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			ia->ia_flags &= ~IFA_ROUTE;
 		}
 		if (ifp->if_ioctl) {
-			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR, (void *)ia);
+			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR,
+			    (void *)ia);
 			if (error)
 				return (error);
 		}
@@ -263,8 +265,8 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 }
 
 /*
-* Delete any previous route for an old address.
-*/
+ * Delete any previous route for an old address.
+ */
 static void
 ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia)
 {
@@ -277,9 +279,9 @@ ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia)
 		ia->ia_flags &= ~IFA_ROUTE;
 	}
 }
+
 /*
- * Initialize an interface's internet address
- * and routing table entry.
+ * Initialize an interface's internet address and routing table entry.
  */
 static int
 ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
@@ -295,15 +297,13 @@ ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
 	ia->ia_addr = *sipx;
 
 	/*
-	 * The convention we shall adopt for naming is that
-	 * a supplied address of zero means that "we don't care".
-	 * Use the MAC address of the interface. If it is an
-	 * interface without a MAC address, like a serial line, the
-	 * address must be supplied.
+	 * The convention we shall adopt for naming is that a supplied
+	 * address of zero means that "we don't care".  Use the MAC address
+	 * of the interface.  If it is an interface without a MAC address,
+	 * like a serial line, the address must be supplied.
 	 *
-	 * Give the interface a chance to initialize
-	 * if this is its first address,
-	 * and to validate the address if necessary.
+	 * Give the interface a chance to initialize if this is its first
+	 * address, and to validate the address if necessary.
 	 */
 	if (ifp->if_ioctl != NULL &&
 	    (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (void *)ia))) {
@@ -313,6 +313,7 @@ ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
 	}
 	splx(s);
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
+
 	/*
 	 * Add route for the network.
 	 */
@@ -349,17 +350,18 @@ ipx_iaonnetof(struct ipx_addr *dst)
 				compare = &satoipx_addr(ia->ia_dstaddr);
 				if (ipx_hosteq(*dst, *compare))
 					return (ia);
-				if (ipx_neteqnn(net, ia->ia_addr.sipx_addr.x_net))
+				if (ipx_neteqnn(net,
+				    ia->ia_addr.sipx_addr.x_net))
 					ia_maybe = ia;
 			} else {
-				if (ipx_neteqnn(net, ia->ia_addr.sipx_addr.x_net))
+				if (ipx_neteqnn(net,
+				    ia->ia_addr.sipx_addr.x_net))
 					return (ia);
 			}
 		}
 	}
 	return (ia_maybe);
 }
-
 
 void
 ipx_printhost(struct ipx_addr *addr)
@@ -373,7 +375,6 @@ ipx_printhost(struct ipx_addr *addr)
 	port = ntohs(work.x_port);
 
 	if (ipx_nullnet(work) && ipx_nullhost(work)) {
-
 		if (port)
 			printf("*.%x", port);
 		else
