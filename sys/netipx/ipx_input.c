@@ -106,7 +106,6 @@ static	void ipx_forward(struct mbuf *m);
 static	void ipxintr(struct mbuf *m);
 
 const union	ipx_net ipx_zeronet;
-const union	ipx_host ipx_zerohost;
 
 const union	ipx_net	ipx_broadnet = { .s_net[0] = 0xffff,
 					    .s_net[1] = 0xffff };
