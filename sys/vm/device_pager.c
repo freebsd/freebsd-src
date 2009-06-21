@@ -307,6 +307,7 @@ dev_pager_getfake(paddr)
 
 	m->flags = PG_FICTITIOUS;
 	m->oflags = VPO_BUSY;
+	/* Fictitious pages don't use "act_count". */
 	m->valid = VM_PAGE_BITS_ALL;
 	m->dirty = 0;
 	m->busy = 0;
