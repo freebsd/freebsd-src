@@ -283,21 +283,21 @@ void	witness_thread_exit(struct thread *);
 	witness_line(lock)
 
 #else	/* WITNESS */
-#define	WITNESS_INIT(lock, type)
-#define	WITNESS_DESTROY(lock)
+#define	WITNESS_INIT(lock, type)				(void)0
+#define	WITNESS_DESTROY(lock)					(void)0
 #define	WITNESS_DEFINEORDER(lock1, lock2)	0
-#define	WITNESS_CHECKORDER(lock, flags, file, line, interlock)
-#define	WITNESS_LOCK(lock, flags, file, line)
-#define	WITNESS_UPGRADE(lock, flags, file, line)
-#define	WITNESS_DOWNGRADE(lock, flags, file, line)
-#define	WITNESS_UNLOCK(lock, flags, file, line)
+#define	WITNESS_CHECKORDER(lock, flags, file, line, interlock)	(void)0
+#define	WITNESS_LOCK(lock, flags, file, line)			(void)0
+#define	WITNESS_UPGRADE(lock, flags, file, line)		(void)0
+#define	WITNESS_DOWNGRADE(lock, flags, file, line)		(void)0
+#define	WITNESS_UNLOCK(lock, flags, file, line)			(void)0
 #define	WITNESS_CHECK(flags, lock, fmt, ...)	0
-#define	WITNESS_WARN(flags, lock, fmt, ...)
-#define	WITNESS_SAVE_DECL(n)
-#define	WITNESS_SAVE(lock, n)
-#define	WITNESS_RESTORE(lock, n)
-#define	WITNESS_NORELEASE(lock)
-#define	WITNESS_RELEASEOK(lock)
+#define	WITNESS_WARN(flags, lock, fmt, ...)			(void)0
+#define	WITNESS_SAVE_DECL(n)					(void)0
+#define	WITNESS_SAVE(lock, n)					(void)0
+#define	WITNESS_RESTORE(lock, n)				(void)0
+#define	WITNESS_NORELEASE(lock)					(void)0
+#define	WITNESS_RELEASEOK(lock)					(void)0
 #define	WITNESS_FILE(lock) ("?")
 #define	WITNESS_LINE(lock) (0)
 #endif	/* WITNESS */
