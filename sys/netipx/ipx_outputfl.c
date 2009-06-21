@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_var.h>
 
-static int ipx_copy_output = 0;
-
 int
 ipx_outputfl(struct mbuf *m0, struct route *ro, int flags)
 {
@@ -150,9 +148,6 @@ gotif:
 
 	if (htons(ipx->ipx_len) <= ifp->if_mtu) {
 		ipxstat.ipxs_localout++;
-		if (ipx_copy_output) {
-			ipx_watch_output(m0, ifp);
-		}
 		error = (*ifp->if_output)(ifp, m0,
 					(struct sockaddr *)dst, ro);
 		goto done;
@@ -161,9 +156,6 @@ gotif:
 		error = EMSGSIZE;
 	}
 bad:
-	if (ipx_copy_output) {
-		ipx_watch_output(m0, ifp);
-	}
 	m_freem(m0);
 done:
 	if (ro == &ipxroute && (flags & IPX_ROUTETOIF) == 0 &&
