@@ -182,7 +182,7 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 		vref(startvp);
 	NDINIT_ATVP(&nd, operation, MPSAFE, UIO_SYSSPACE, pnamep, startvp, td);
 	filemode |= O_NOFOLLOW;
-	error = vn_open_cred(&nd, &filemode, createmode, td->td_ucred, NULL);
+	error = vn_open_cred(&nd, &filemode, createmode, 0, td->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0) {
 		/* We just unlock so we hold a reference. */
