@@ -292,7 +292,7 @@ static int	X_ip_mrouter_done(void);
 static int	X_ip_mrouter_get(struct socket *, struct sockopt *);
 static int	X_ip_mrouter_set(struct socket *, struct sockopt *);
 static int	X_legal_vif_num(int);
-static int	X_mrt_ioctl(int, caddr_t, int);
+static int	X_mrt_ioctl(u_long, caddr_t, int);
 
 static int	add_bw_upcall(struct bw_upcall *);
 static int	add_mfc(struct mfcctl2 *);
@@ -511,7 +511,7 @@ X_ip_mrouter_get(struct socket *so, struct sockopt *sopt)
  * Handle ioctl commands to obtain information from the cache
  */
 static int
-X_mrt_ioctl(int cmd, caddr_t data, int fibnum __unused)
+X_mrt_ioctl(u_long cmd, caddr_t data, int fibnum __unused)
 {
     int error = 0;
 
