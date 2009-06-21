@@ -149,7 +149,7 @@ iso88025_ifdetach(ifp, bpf)
 }
 
 int
-iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
+iso88025_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
         struct ifaddr *ifa;
         struct ifreq *ifr;
