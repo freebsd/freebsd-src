@@ -65,8 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/rwlock.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 
@@ -78,9 +80,10 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_var.h>
 
 /*
- * XXXRW: Requires synchronization.
+ * The IPX-layer address list is protected by ipx_ifaddr_rw.
  */
-struct ipx_ifaddr *ipx_ifaddr;
+struct rwlock		 ipx_ifaddr_rw;
+struct ipx_ifaddr	*ipx_ifaddr;
 
 static void	ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia);
 static int	ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
@@ -344,6 +347,8 @@ ipx_iaonnetof(struct ipx_addr *dst)
 	struct ifnet *ifp;
 	struct ipx_ifaddr *ia_maybe = NULL;
 	union ipx_net net = dst->x_net;
+
+	IPX_IFADDR_LOCK_ASSERT();
 
 	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next) {
 		if ((ifp = ia->ia_ifp) != NULL) {
