@@ -170,8 +170,7 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				ipx_ifaddr = oia;
 			ia = oia;
 			ifa = (struct ifaddr *)ia;
-			IFA_LOCK_INIT(ifa);
-			ifa->ifa_refcnt = 1;
+			ifa_init(ifa);
 			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 			ia->ia_ifp = ifp;
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
@@ -231,7 +230,7 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			else
 				printf("Didn't unlink ipxifadr from list\n");
 		}
-		IFAFREE((&oia->ia_ifa));
+		ifa_free(&oia->ia_ifa);
 		return (0);
 
 	case SIOCAIFADDR:

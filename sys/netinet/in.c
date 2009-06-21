@@ -377,11 +377,10 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			}
 
 			ifa = &ia->ia_ifa;
-			IFA_LOCK_INIT(ifa);
+			ifa_init(ifa);
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
-			ifa->ifa_refcnt = 1;
 
 			ia->ia_sockmask.sin_len = 8;
 			ia->ia_sockmask.sin_family = AF_INET;
@@ -617,7 +616,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			IN_MULTI_UNLOCK();
 		}
 	}
-	IFAFREE(&ia->ia_ifa);
+	ifa_free(&ia->ia_ifa);
 	splx(s);
 
 	return (error);
