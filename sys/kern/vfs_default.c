@@ -723,7 +723,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	NDINIT_ATVP(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE,
 	    "..", vp, td);
 	flags = FREAD;
-	error = vn_open(&nd, &flags, 0, NULL);
+	error = vn_open_cred(&nd, &flags, 0, VN_OPEN_NOAUDIT, NULL, NULL);
 	if (error) {
 		vn_lock(vp, locked | LK_RETRY);
 		return (error);
