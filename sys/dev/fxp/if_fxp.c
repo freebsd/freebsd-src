@@ -992,7 +992,6 @@ fxp_detach(device_t dev)
 #endif
 
 	FXP_LOCK(sc);
-	sc->suspended = 1;	/* Do same thing as we do for suspend */
 	/*
 	 * Stop DMA and drop transmit queue, but disable interrupts first.
 	 */
@@ -1317,6 +1316,10 @@ fxp_start_body(struct ifnet *ifp)
 	 * of the command chain).
 	 */
 	if (sc->need_mcsetup)
+		return;
+
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	if (sc->tx_queued > FXP_NTXCB_HIWAT)
@@ -1727,7 +1730,8 @@ fxp_intr(void *xsc)
 		 * First ACK all the interrupts in this pass.
 		 */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, statack);
-		fxp_intr_body(sc, ifp, statack, -1);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			fxp_intr_body(sc, ifp, statack, -1);
 	}
 	FXP_UNLOCK(sc);
 }
@@ -1987,6 +1991,8 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			(*ifp->if_input)(ifp, m);
 			FXP_LOCK(sc);
 			rx_npkts++;
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+				return (rx_npkts);
 		} else {
 			/* Reuse RFA and loaded DMA map. */
 			ifp->if_iqdrops++;
@@ -2070,7 +2076,8 @@ fxp_tick(void *xsc)
 	 */
 	if (sc->rx_idle_secs > FXP_MAX_RX_IDLE) {
 		sc->rx_idle_secs = 0;
-		fxp_mc_setup(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			fxp_mc_setup(sc);
 	}
 	/*
 	 * If there is no pending command, start another stats
