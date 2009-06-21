@@ -29,9 +29,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/time.h>
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "cachelib.h"
 #include "debug.h"
 
@@ -144,6 +146,7 @@ ht_item_hash_func(const void *p, size_t cache_entries_size)
 	return retval;
 }
 
+HASHTABLE_PROTOTYPE(cache_ht_, cache_ht_item_, struct cache_ht_item_data_);
 HASHTABLE_GENERATE(cache_ht_, cache_ht_item_, struct cache_ht_item_data_, data,
 	ht_item_hash_func, ht_items_cmp_func);
 
@@ -289,7 +292,7 @@ clear_cache_entry(struct cache_entry_ *entry)
 	struct cache_policy_ *policy;
 	struct cache_policy_item_ *item, *next_item;
 	size_t entry_size;
-	int i;
+	unsigned int i;
 
 	if (entry->params->entry_type == CET_COMMON) {
 		common_entry = (struct cache_common_entry_ *)entry;
@@ -394,7 +397,6 @@ flush_cache_policy(struct cache_common_entry_ *entry,
 
 		hash = HASHTABLE_CALCULATE_HASH(cache_ht_, &entry->items,
 			&ht_key);
-		assert(hash >= 0);
 		assert(hash < HASHTABLE_ENTRIES_COUNT(&entry->items));
 
 		ht_item = HASHTABLE_GET_ENTRY(&(entry->items), hash);
@@ -563,13 +565,13 @@ register_cache_entry(struct cache_ *the_cache,
 		new_common_entry->params =
 		  (struct cache_entry_params *)&new_common_entry->common_params;
 
-		new_common_entry->common_params.entry_name = (char *)calloc(1,
+		new_common_entry->common_params.cep.entry_name = (char *)calloc(1,
 			entry_name_size);
-		assert(new_common_entry->common_params.entry_name != NULL);
-		strlcpy(new_common_entry->common_params.entry_name,
+		assert(new_common_entry->common_params.cep.entry_name != NULL);
+		strlcpy(new_common_entry->common_params.cep.entry_name,
 			params->entry_name, entry_name_size);
 		new_common_entry->name =
-			new_common_entry->common_params.entry_name;
+			new_common_entry->common_params.cep.entry_name;
 
 		HASHTABLE_INIT(&(new_common_entry->items),
 			struct cache_ht_item_data_, data,
@@ -617,12 +619,12 @@ register_cache_entry(struct cache_ *the_cache,
 		new_mp_entry->params =
 			(struct cache_entry_params *)&new_mp_entry->mp_params;
 
-		new_mp_entry->mp_params.entry_name = (char *)calloc(1,
+		new_mp_entry->mp_params.cep.entry_name = (char *)calloc(1,
 			entry_name_size);
-		assert(new_mp_entry->mp_params.entry_name != NULL);
-		strlcpy(new_mp_entry->mp_params.entry_name, params->entry_name,
+		assert(new_mp_entry->mp_params.cep.entry_name != NULL);
+		strlcpy(new_mp_entry->mp_params.cep.entry_name, params->entry_name,
 			entry_name_size);
-		new_mp_entry->name = new_mp_entry->mp_params.entry_name;
+		new_mp_entry->name = new_mp_entry->mp_params.cep.entry_name;
 
 		TAILQ_INIT(&new_mp_entry->ws_head);
 		TAILQ_INIT(&new_mp_entry->rs_head);
@@ -716,7 +718,6 @@ cache_read(struct cache_entry_ *entry, const char *key, size_t key_size,
 
 	hash = HASHTABLE_CALCULATE_HASH(cache_ht_, &common_entry->items,
 		&item_data);
-	assert(hash >= 0);
 	assert(hash < HASHTABLE_ENTRIES_COUNT(&common_entry->items));
 
 	item = HASHTABLE_GET_ENTRY(&(common_entry->items), hash);
@@ -820,7 +821,6 @@ cache_write(struct cache_entry_ *entry, const char *key, size_t key_size,
 
 	hash = HASHTABLE_CALCULATE_HASH(cache_ht_, &common_entry->items,
 		&item_data);
-	assert(hash >= 0);
 	assert(hash < HASHTABLE_ENTRIES_COUNT(&common_entry->items));
 
 	item = HASHTABLE_GET_ENTRY(&(common_entry->items), hash);
