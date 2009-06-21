@@ -40,10 +40,9 @@ ENTRY(strncmp)
 
 /* ip == last src address to compare */
 	adds	ip, r0, r2
-	sub	ip, ip, #1
 /* Use last possible address on overflow. */
 	movcs	ip, #0
-	subcs	ip, ip, #1
+	sub	ip, ip, #1
 1:
 	ldrb	r2, [r0], #1
 	ldrb	r3, [r1], #1
