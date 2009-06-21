@@ -1108,10 +1108,13 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	 *  At this point we had better have found a good page.
 	 */
 
-	KASSERT(
-	    m != NULL,
-	    ("vm_page_alloc(): missing page on free queue")
-	);
+	KASSERT(m != NULL, ("vm_page_alloc: missing page"));
+	KASSERT(m->queue == PQ_NONE, ("vm_page_alloc: page %p has unexpected queue %d",
+	    m, m->queue));
+	KASSERT(m->wire_count == 0, ("vm_page_alloc: page %p is wired", m));
+	KASSERT(m->hold_count == 0, ("vm_page_alloc: page %p is held", m));
+	KASSERT(m->busy == 0, ("vm_page_alloc: page %p is busy", m));
+	KASSERT(m->dirty == 0, ("vm_page_alloc: page %p is dirty", m));
 	if ((m->flags & PG_CACHED) != 0) {
 		KASSERT(m->valid != 0,
 		    ("vm_page_alloc: cached page %p is invalid", m));
@@ -1150,12 +1153,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	if (req & VM_ALLOC_WIRED) {
 		atomic_add_int(&cnt.v_wire_count, 1);
 		m->wire_count = 1;
-	} else
-		m->wire_count = 0;
-	m->hold_count = 0;
+	}
 	m->act_count = 0;
-	m->busy = 0;
-	KASSERT(m->dirty == 0, ("vm_page_alloc: free/cache page %p was dirty", m));
 	mtx_unlock(&vm_page_queue_free_mtx);
 
 	if ((req & VM_ALLOC_NOOBJ) == 0)
