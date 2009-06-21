@@ -101,14 +101,18 @@ ipx_outputfl(struct mbuf *m0, struct route *ro, int flags)
 		 * short circuit routing lookup.
 		 */
 		if (flags & IPX_ROUTETOIF) {
-			struct ipx_ifaddr *ia = ipx_iaonnetof(&ipx->ipx_dna);
+			struct ipx_ifaddr *ia;
 
+			IPX_IFADDR_RLOCK();
+			ia = ipx_iaonnetof(&ipx->ipx_dna);
 			if (ia == NULL) {
+				IPX_IFADDR_RUNLOCK();
 				ipxstat.ipxs_noroute++;
 				error = ENETUNREACH;
 				goto bad;
 			}
 			ifp = ia->ia_ifp;
+			IPX_IFADDR_RUNLOCK();
 			goto gotif;
 		}
 		rtalloc_ign(ro, 0);
@@ -200,6 +204,7 @@ ipx_output_type20(struct mbuf *m)
 	/*
 	 * Now see if we have already seen this.
 	 */
+	IPX_IFADDR_RLOCK();
 	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
 		if(ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) {
 			if(tia == NULL)
@@ -207,15 +212,20 @@ ipx_output_type20(struct mbuf *m)
 
 			for (i=0;i<ipx->ipx_tc;i++,nbnet++)
 				if(ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
-							*nbnet))
+							*nbnet)) {
+					IPX_IFADDR_RUNLOCK();
 					goto bad;
+				}
 		}
+
 	/*
 	 * Don't route the packet if the interface where it come from
 	 * does not have an IPX address.
 	 */
-	if(tia == NULL)
+	if (tia == NULL) {
+		IPX_IFADDR_RUNLOCK();
 		goto bad;
+	}
 
 	/*
 	 * Add our receiving interface to the list.
@@ -266,6 +276,7 @@ ipx_output_type20(struct mbuf *m)
 			}
 skip_this: ;
 		}
+	IPX_IFADDR_RUNLOCK();
 
 bad:
 	m_freem(m);

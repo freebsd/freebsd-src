@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/random.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -146,6 +147,7 @@ ipx_init(void)
 	LIST_INIT(&ipxrawpcb_list);
 
 	IPX_LIST_LOCK_INIT();
+	IPX_IFADDR_LOCK_INIT();
 
 	ipx_netmask.sipx_len = 6;
 	ipx_netmask.sipx_addr.x_net = ipx_broadnet;
@@ -253,11 +255,15 @@ ipxintr(struct mbuf *m)
 			 * If it is a broadcast to the net where it was
 			 * received from, treat it as ours.
 			 */
+			IPX_IFADDR_RLOCK();
 			for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
 				if((ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) &&
 				   ipx_neteq(ia->ia_addr.sipx_addr,
-					     ipx->ipx_dna))
+					     ipx->ipx_dna)) {
+					IPX_IFADDR_RUNLOCK();
 					goto ours;
+				}
+			IPX_IFADDR_RUNLOCK();
 
 			/*
 			 * Look to see if I need to eat this packet.
@@ -278,12 +284,13 @@ ipxintr(struct mbuf *m)
 	 * Is this our packet? If not, forward.
 	 */
 	} else {
+		IPX_IFADDR_RLOCK();
 		for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
 			if (ipx_hosteq(ipx->ipx_dna, ia->ia_addr.sipx_addr) &&
 			    (ipx_neteq(ipx->ipx_dna, ia->ia_addr.sipx_addr) ||
 			     ipx_neteqnn(ipx->ipx_dna.x_net, ipx_zeronet)))
 				break;
-
+		IPX_IFADDR_RUNLOCK();
 		if (ia == NULL) {
 			ipx_forward(m);
 			return;
@@ -370,13 +377,17 @@ ipx_forward(struct mbuf *m)
 	 * age the packet so we can eat it safely the second time around.
 	 */
 	if (ipx->ipx_dna.x_host.c_host[0] & 0x1) {
-		struct ipx_ifaddr *ia = ipx_iaonnetof(&ipx->ipx_dna);
+		struct ipx_ifaddr *ia;
 		struct ifnet *ifp;
+
+		IPX_IFADDR_RLOCK();
+		ia = ipx_iaonnetof(&ipx->ipx_dna);
 		if (ia != NULL) {
 			/* I'm gonna hafta eat this packet */
 			agedelta += IPX_MAXHOPS - ipx->ipx_tc;
 			ipx->ipx_tc = IPX_MAXHOPS;
 		}
+		IPX_IFADDR_RUNLOCK();
 		if ((ok_back = ipx_do_route(&ipx->ipx_sna,&ipx_sroute)) == 0) {
 			/* error = ENETUNREACH; He'll never get it! */
 			ipxstat.ipxs_noroute++;
