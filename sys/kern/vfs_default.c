@@ -693,6 +693,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vnode **dvp = ap->a_vpp;
+	struct ucred *cred = ap->a_cred;
 	char *buf = ap->a_buf;
 	int *buflen = ap->a_buflen;
 	char *dirbuf, *cpos;
@@ -713,7 +714,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	if (vp->v_type != VDIR)
 		return (ENOENT);
 
-	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	error = VOP_GETATTR(vp, &va, cred);
 	if (error)
 		return (error);
 
@@ -723,7 +724,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	NDINIT_ATVP(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE,
 	    "..", vp, td);
 	flags = FREAD;
-	error = vn_open_cred(&nd, &flags, 0, VN_OPEN_NOAUDIT, NULL, NULL);
+	error = vn_open_cred(&nd, &flags, 0, VN_OPEN_NOAUDIT, cred, NULL);
 	if (error) {
 		vn_lock(vp, locked | LK_RETRY);
 		return (error);
@@ -738,7 +739,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 		*dvp = (*dvp)->v_mount->mnt_vnodecovered;
 		VREF(mvp);
 		VOP_UNLOCK(mvp, 0);
-		vn_close(mvp, FREAD, td->td_ucred, td);
+		vn_close(mvp, FREAD, cred, td);
 		VREF(*dvp);
 		vn_lock(*dvp, LK_EXCLUSIVE | LK_RETRY);
 		covered = 1;
@@ -803,7 +804,7 @@ out:
 		vrele(mvp);
 	} else {
 		VOP_UNLOCK(mvp, 0);
-		vn_close(mvp, FREAD, td->td_ucred, td);
+		vn_close(mvp, FREAD, cred, td);
 	}
 	vn_lock(vp, locked | LK_RETRY);
 	return (error);

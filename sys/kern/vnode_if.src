@@ -607,6 +607,7 @@ vop_vptofh {
 vop_vptocnp {
 	IN struct vnode *vp;
 	OUT struct vnode **vpp;
+	IN struct ucred *cred;
 	INOUT char *buf;
 	INOUT int *buflen;
 };
