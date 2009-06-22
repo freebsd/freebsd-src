@@ -313,6 +313,17 @@ ixp425_attach(device_t dev)
 	}
 	arm_post_filter = ixp425_post_filter;
 
+	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
+	    0, &sc->sc_gpio_ioh))
+		panic("%s: unable to map GPIO registers", __func__);
+	if (bus_space_map(sc->sc_iot, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
+	    0, &sc->sc_exp_ioh))
+		panic("%s: unable to map Expansion Bus registers", __func__);
+
+	/* XXX belongs in platform init */
+	if (cpu_is_ixp43x())
+		cambria_exp_bus_init(sc);
+
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
 	    NULL, NULL, &sc->sc_dmat))
@@ -338,13 +349,6 @@ ixp425_attach(device_t dev)
 
 	/* attach wired devices via hints */
 	bus_enumerate_hinted_children(dev);
-
-	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
-	    0, &sc->sc_gpio_ioh))
-		panic("%s: unable to map GPIO registers", __func__);
-	if (bus_space_map(sc->sc_iot, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
-	    0, &sc->sc_exp_ioh))
-		panic("%s: unable to map Expansion Bus registers", __func__);
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -420,6 +424,7 @@ struct hwvtrans {
 	uint32_t	size;
 	uint32_t	vbase;
 	int		isa4x;	/* XXX needs special bus space tag */
+	int		isslow;	/* XXX needs special bus space tag */
 };
 
 static const struct hwvtrans *
@@ -453,10 +458,12 @@ gethwvtrans(uint32_t hwbase, uint32_t size)
 	      .vbase	= IXP435_USB2_VBASE },
 	    { .hwbase	= CAMBRIA_GPS_HWBASE,
 	      .size 	= CAMBRIA_GPS_SIZE,
-	      .vbase	= CAMBRIA_GPS_VBASE },
+	      .vbase	= CAMBRIA_GPS_VBASE,
+	      .isslow	= 1 },
 	    { .hwbase	= CAMBRIA_RS485_HWBASE,
 	      .size 	= CAMBRIA_RS485_SIZE,
-	      .vbase	= CAMBRIA_RS485_VBASE },
+	      .vbase	= CAMBRIA_RS485_VBASE,
+	      .isslow	= 1 },
 	};
 	int i;
 
@@ -522,7 +529,8 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					device_printf(child,
 					    "%s: assign 0x%lx:0x%lx%s\n",
 					    __func__, start, end - start,
-					    vtrans->isa4x ? " A4X" : "");
+					    vtrans->isa4x ? " A4X" : 
+					    vtrans->isslow ? " SLOW" : "");
 			}
 		} else
 			vtrans = gethwvtrans(start, end - start);
@@ -578,6 +586,8 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 		}
 		if (vtrans->isa4x)
 			rman_set_bustag(r, &ixp425_a4x_bs_tag);
+		else if (vtrans->isslow)
+			rman_set_bustag(r, &cambria_exp_bs_tag);
 		else
 			rman_set_bustag(r, sc->sc_iot);
 		rman_set_bushandle(r, vtrans->vbase);
