@@ -547,7 +547,7 @@ rtredirect_fib(struct sockaddr *dst,
 	if (!(flags & RTF_DONE) && rt &&
 	     (!sa_equal(src, rt->rt_gateway) || rt->rt_ifa != ifa))
 		error = EINVAL;
-	else if (ifa_ifwithaddr(gateway))
+	else if (ifa_ifwithaddr_check(gateway))
 		error = EHOSTUNREACH;
 	if (error)
 		goto done;

@@ -1466,8 +1466,8 @@ ifa_free(struct ifaddr *ifa)
  * Locate an interface based on a complete address.
  */
 /*ARGSUSED*/
-struct ifaddr *
-ifa_ifwithaddr(struct sockaddr *addr)
+static struct ifaddr *
+ifa_ifwithaddr_internal(struct sockaddr *addr)
 {
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
@@ -1498,6 +1498,20 @@ ifa_ifwithaddr(struct sockaddr *addr)
 done:
 	IFNET_RUNLOCK();
 	return (ifa);
+}
+
+struct ifaddr *
+ifa_ifwithaddr(struct sockaddr *addr)
+{
+
+	return (ifa_ifwithaddr_internal(addr));
+}
+
+int
+ifa_ifwithaddr_check(struct sockaddr *addr)
+{
+
+	return (ifa_ifwithaddr_internal(addr) != NULL);
 }
 
 /*
