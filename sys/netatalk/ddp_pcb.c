@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2005 Robert N. M. Watson
+ * Copyright (c) 2004-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,6 +104,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 	/*
 	 * Validate passed address.
 	 */
+	aa = NULL;
 	if (addr != NULL) {
 		sat = (struct sockaddr_at *)addr;
 		if (sat->sat_family != AF_APPLETALK)
@@ -111,6 +112,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 
 		if (sat->sat_addr.s_node != ATADDR_ANYNODE ||
 		    sat->sat_addr.s_net != ATADDR_ANYNET) {
+			AT_IFADDR_RLOCK();
 			for (aa = at_ifaddr_list; aa != NULL;
 			    aa = aa->aa_next) {
 				if ((sat->sat_addr.s_net ==
@@ -119,6 +121,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 				    AA_SAT(aa)->sat_addr.s_node))
 					break;
 			}
+			AT_IFADDR_RUNLOCK();
 			if (aa == NULL)
 				return (EADDRNOTAVAIL);
 		}
@@ -142,9 +145,13 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 
 	if (sat->sat_addr.s_node == ATADDR_ANYNODE &&
 	    sat->sat_addr.s_net == ATADDR_ANYNET) {
-		if (at_ifaddr_list == NULL)
+		AT_IFADDR_RLOCK();
+		if (at_ifaddr_list == NULL) {
+			AT_IFADDR_RUNLOCK();
 			return (EADDRNOTAVAIL);
+		}
 		sat->sat_addr = AA_SAT(at_ifaddr_list)->sat_addr;
+		AT_IFADDR_RUNLOCK();
 	}
 	ddp->ddp_lsat = *sat;
 
@@ -220,6 +227,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 		else
 			net = sat->sat_addr.s_net;
 		aa = NULL;
+		AT_IFADDR_RLOCK();
 		if ((ifp = ro->ro_rt->rt_ifp) != NULL) {
 			for (aa = at_ifaddr_list; aa != NULL;
 			    aa = aa->aa_next) {
@@ -236,6 +244,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 			RTFREE(ro->ro_rt);
 			ro->ro_rt = NULL;
 		}
+		AT_IFADDR_RUNLOCK();
 	}
 
 	/*
@@ -258,10 +267,12 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 	 */
 	aa = NULL;
 	if (ro->ro_rt && (ifp = ro->ro_rt->rt_ifp)) {
+		AT_IFADDR_RLOCK();
 		for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 			if (aa->aa_ifp == ifp)
 				break;
 		}
+		AT_IFADDR_RUNLOCK();
 	}
 	if (aa == NULL)
 		return (ENETUNREACH);
