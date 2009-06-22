@@ -25,6 +25,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ValueHandle.h"
+#include "llvm/ADT/DenseMap.h"
 #include <iosfwd>
 
 namespace llvm {
@@ -34,6 +35,7 @@ namespace llvm {
   class SCEVHandle;
   class ScalarEvolution;
   class TargetData;
+  template<> struct DenseMapInfo<SCEVHandle>;
 
   /// SCEV - This class represents an analyzed expression in the program.  These
   /// are reference-counted opaque objects that the client is not allowed to
@@ -44,18 +46,22 @@ namespace llvm {
     mutable unsigned RefCount;
 
     friend class SCEVHandle;
+    friend class DenseMapInfo<SCEVHandle>;
     void addRef() const { ++RefCount; }
     void dropRef() const {
       if (--RefCount == 0)
         delete this;
     }
 
+    const ScalarEvolution* parent;
+
     SCEV(const SCEV &);            // DO NOT IMPLEMENT
     void operator=(const SCEV &);  // DO NOT IMPLEMENT
   protected:
     virtual ~SCEV();
   public:
-    explicit SCEV(unsigned SCEVTy) : SCEVType(SCEVTy), RefCount(0) {}
+    explicit SCEV(unsigned SCEVTy, const ScalarEvolution* p) : 
+      SCEVType(SCEVTy), RefCount(0), parent(p) {}
 
     unsigned getSCEVType() const { return SCEVType; }
 
@@ -123,7 +129,7 @@ namespace llvm {
   /// None of the standard SCEV operations are valid on this class, it is just a
   /// marker.
   struct SCEVCouldNotCompute : public SCEV {
-    SCEVCouldNotCompute();
+    SCEVCouldNotCompute(const ScalarEvolution* p);
     ~SCEVCouldNotCompute();
 
     // None of these methods are valid for this object.
@@ -196,6 +202,31 @@ namespace llvm {
   };
   template<> struct simplify_type<SCEVHandle>
     : public simplify_type<const SCEVHandle> {};
+
+  // Specialize DenseMapInfo for SCEVHandle so that SCEVHandle may be used
+  // as a key in DenseMaps.
+  template<>
+  struct DenseMapInfo<SCEVHandle> {
+    static inline SCEVHandle getEmptyKey() {
+      static SCEVCouldNotCompute Empty(0);
+      if (Empty.RefCount == 0)
+        Empty.addRef();
+      return &Empty;
+    }
+    static inline SCEVHandle getTombstoneKey() {
+      static SCEVCouldNotCompute Tombstone(0);
+      if (Tombstone.RefCount == 0)
+        Tombstone.addRef();
+      return &Tombstone;
+    }
+    static unsigned getHashValue(const SCEVHandle &Val) {
+      return DenseMapInfo<const SCEV *>::getHashValue(Val);
+    }
+    static bool isEqual(const SCEVHandle &LHS, const SCEVHandle &RHS) {
+      return LHS == RHS;
+    }
+    static bool isPod() { return false; }
+  };
 
   /// ScalarEvolution - This class is the main scalar evolution driver.  Because
   /// client code (intentionally) can't do much with the SCEV objects directly,
@@ -301,6 +332,13 @@ namespace llvm {
                                           const SCEVHandle &SymName,
                                           const SCEVHandle &NewVal);
 
+    /// getBECount - Subtract the end and start values and divide by the step,
+    /// rounding up, to get the number of times the backedge is executed. Return
+    /// CouldNotCompute if an intermediate computation overflows.
+    SCEVHandle getBECount(const SCEVHandle &Start,
+                          const SCEVHandle &End,
+                          const SCEVHandle &Step);
+
     /// getBackedgeTakenInfo - Return the BackedgeTakenInfo for the given
     /// loop, lazily computing new values if the loop hasn't been analyzed
     /// yet.
@@ -309,6 +347,31 @@ namespace llvm {
     /// ComputeBackedgeTakenCount - Compute the number of times the specified
     /// loop will iterate.
     BackedgeTakenInfo ComputeBackedgeTakenCount(const Loop *L);
+
+    /// ComputeBackedgeTakenCountFromExit - Compute the number of times the
+    /// backedge of the specified loop will execute if it exits via the
+    /// specified block.
+    BackedgeTakenInfo ComputeBackedgeTakenCountFromExit(const Loop *L,
+                                                      BasicBlock *ExitingBlock);
+
+    /// ComputeBackedgeTakenCountFromExitCond - Compute the number of times the
+    /// backedge of the specified loop will execute if its exit condition
+    /// were a conditional branch of ExitCond, TBB, and FBB.
+    BackedgeTakenInfo
+      ComputeBackedgeTakenCountFromExitCond(const Loop *L,
+                                            Value *ExitCond,
+                                            BasicBlock *TBB,
+                                            BasicBlock *FBB);
+
+    /// ComputeBackedgeTakenCountFromExitCondICmp - Compute the number of
+    /// times the backedge of the specified loop will execute if its exit
+    /// condition were a conditional branch of the ICmpInst ExitCond, TBB,
+    /// and FBB.
+    BackedgeTakenInfo
+      ComputeBackedgeTakenCountFromExitCondICmp(const Loop *L,
+                                                ICmpInst *ExitCond,
+                                                BasicBlock *TBB,
+                                                BasicBlock *FBB);
 
     /// ComputeLoadConstantCompareBackedgeTakenCount - Given an exit condition
     /// of 'icmp op load X, cst', try to see if we can compute the trip count.
@@ -390,28 +453,29 @@ namespace llvm {
 
     SCEVHandle getConstant(ConstantInt *V);
     SCEVHandle getConstant(const APInt& Val);
+    SCEVHandle getConstant(const Type *Ty, uint64_t V, bool isSigned = false);
     SCEVHandle getTruncateExpr(const SCEVHandle &Op, const Type *Ty);
     SCEVHandle getZeroExtendExpr(const SCEVHandle &Op, const Type *Ty);
     SCEVHandle getSignExtendExpr(const SCEVHandle &Op, const Type *Ty);
     SCEVHandle getAnyExtendExpr(const SCEVHandle &Op, const Type *Ty);
-    SCEVHandle getAddExpr(std::vector<SCEVHandle> &Ops);
+    SCEVHandle getAddExpr(SmallVectorImpl<SCEVHandle> &Ops);
     SCEVHandle getAddExpr(const SCEVHandle &LHS, const SCEVHandle &RHS) {
-      std::vector<SCEVHandle> Ops;
+      SmallVector<SCEVHandle, 2> Ops;
       Ops.push_back(LHS);
       Ops.push_back(RHS);
       return getAddExpr(Ops);
     }
     SCEVHandle getAddExpr(const SCEVHandle &Op0, const SCEVHandle &Op1,
                           const SCEVHandle &Op2) {
-      std::vector<SCEVHandle> Ops;
+      SmallVector<SCEVHandle, 3> Ops;
       Ops.push_back(Op0);
       Ops.push_back(Op1);
       Ops.push_back(Op2);
       return getAddExpr(Ops);
     }
-    SCEVHandle getMulExpr(std::vector<SCEVHandle> &Ops);
+    SCEVHandle getMulExpr(SmallVectorImpl<SCEVHandle> &Ops);
     SCEVHandle getMulExpr(const SCEVHandle &LHS, const SCEVHandle &RHS) {
-      std::vector<SCEVHandle> Ops;
+      SmallVector<SCEVHandle, 2> Ops;
       Ops.push_back(LHS);
       Ops.push_back(RHS);
       return getMulExpr(Ops);
@@ -419,17 +483,19 @@ namespace llvm {
     SCEVHandle getUDivExpr(const SCEVHandle &LHS, const SCEVHandle &RHS);
     SCEVHandle getAddRecExpr(const SCEVHandle &Start, const SCEVHandle &Step,
                              const Loop *L);
-    SCEVHandle getAddRecExpr(std::vector<SCEVHandle> &Operands,
+    SCEVHandle getAddRecExpr(SmallVectorImpl<SCEVHandle> &Operands,
                              const Loop *L);
-    SCEVHandle getAddRecExpr(const std::vector<SCEVHandle> &Operands,
+    SCEVHandle getAddRecExpr(const SmallVectorImpl<SCEVHandle> &Operands,
                              const Loop *L) {
-      std::vector<SCEVHandle> NewOp(Operands);
+      SmallVector<SCEVHandle, 4> NewOp(Operands.begin(), Operands.end());
       return getAddRecExpr(NewOp, L);
     }
     SCEVHandle getSMaxExpr(const SCEVHandle &LHS, const SCEVHandle &RHS);
-    SCEVHandle getSMaxExpr(std::vector<SCEVHandle> Operands);
+    SCEVHandle getSMaxExpr(SmallVectorImpl<SCEVHandle> &Operands);
     SCEVHandle getUMaxExpr(const SCEVHandle &LHS, const SCEVHandle &RHS);
-    SCEVHandle getUMaxExpr(std::vector<SCEVHandle> Operands);
+    SCEVHandle getUMaxExpr(SmallVectorImpl<SCEVHandle> &Operands);
+    SCEVHandle getSMinExpr(const SCEVHandle &LHS, const SCEVHandle &RHS);
+    SCEVHandle getUMinExpr(const SCEVHandle &LHS, const SCEVHandle &RHS);
     SCEVHandle getUnknown(Value *V);
     SCEVHandle getCouldNotCompute();
 
@@ -480,6 +546,12 @@ namespace llvm {
     /// getIntegerSCEV - Given an integer or FP type, create a constant for the
     /// specified signed integer value and return a SCEV for the constant.
     SCEVHandle getIntegerSCEV(int Val, const Type *Ty);
+
+    /// getUMaxFromMismatchedTypes - Promote the operands to the wider of
+    /// the types using zero-extension, and then perform a umax operation
+    /// with them.
+    SCEVHandle getUMaxFromMismatchedTypes(const SCEVHandle &LHS,
+                                          const SCEVHandle &RHS);
 
     /// hasSCEV - Return true if the SCEV for this value has already been
     /// computed.
@@ -538,6 +610,20 @@ namespace llvm {
     /// ScalarEvolution's ability to compute a trip count, or if the loop
     /// is deleted.
     void forgetLoopBackedgeTakenCount(const Loop *L);
+
+    /// GetMinTrailingZeros - Determine the minimum number of zero bits that S is
+    /// guaranteed to end in (at every loop iteration).  It is, at the same time,
+    /// the minimum number of times S is divisible by 2.  For example, given {4,+,8}
+    /// it returns 2.  If S is guaranteed to be 0, it returns the bitwidth of S.
+    uint32_t GetMinTrailingZeros(const SCEVHandle &S);
+
+    /// GetMinLeadingZeros - Determine the minimum number of zero bits that S is
+    /// guaranteed to begin with (at every loop iteration).
+    uint32_t GetMinLeadingZeros(const SCEVHandle &S);
+
+    /// GetMinSignBits - Determine the minimum number of sign bits that S is
+    /// guaranteed to begin with.
+    uint32_t GetMinSignBits(const SCEVHandle &S);
 
     virtual bool runOnFunction(Function &F);
     virtual void releaseMemory();

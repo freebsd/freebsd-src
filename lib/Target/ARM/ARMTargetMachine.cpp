@@ -23,9 +23,6 @@
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
-static cl::opt<bool>
-EnablePreLdStOpti("arm-pre-alloc-loadstore-opti", cl::Hidden,
-                  cl::desc("Enable pre-regalloc load store optimization pass"));
 static cl::opt<bool> DisableLdStOpti("disable-arm-loadstore-opti", cl::Hidden,
                               cl::desc("Disable load store optimization pass"));
 static cl::opt<bool> DisableIfConversion("disable-arm-if-conversion",cl::Hidden,
@@ -41,6 +38,11 @@ int ARMTargetMachineModule = 0;
 // Register the target.
 static RegisterTarget<ARMTargetMachine>   X("arm",   "ARM");
 static RegisterTarget<ThumbTargetMachine> Y("thumb", "Thumb");
+
+// Force static initialization when called from llvm/InitializeAllTargets.h
+namespace llvm {
+  void InitializeARMTarget() { }
+}
 
 // No assembler printer by default
 ARMTargetMachine::AsmPrinterCtorFn ARMTargetMachine::AsmPrinterCtor = 0;
@@ -97,7 +99,8 @@ ARMTargetMachine::ARMTargetMachine(const Module &M, const std::string &FS,
     InstrInfo(Subtarget),
     FrameInfo(Subtarget),
     JITInfo(),
-    TLInfo(*this) {
+    TLInfo(*this),
+    InstrItins(Subtarget.getInstrItineraryData()) {
   DefRelocModel = getRelocationModel();
 }
 
@@ -149,8 +152,6 @@ bool ARMTargetMachine::addInstSelector(PassManagerBase &PM,
 
 bool ARMTargetMachine::addPreRegAlloc(PassManagerBase &PM,
                                       CodeGenOpt::Level OptLevel) {
-  if (!EnablePreLdStOpti)
-    return false;
   // FIXME: temporarily disabling load / store optimization pass for Thumb mode.
   if (OptLevel != CodeGenOpt::None && !DisableLdStOpti && !Subtarget.isThumb())
     PM.add(createARMLoadStoreOptimizationPass(true));

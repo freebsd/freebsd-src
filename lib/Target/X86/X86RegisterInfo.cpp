@@ -662,6 +662,10 @@ void X86RegisterInfo::emitFrameMoves(MachineFunction &MF,
      TargetFrameInfo::StackGrowsUp ?
      TD->getPointerSize() : -TD->getPointerSize());
 
+  MachineLocation FPDst(hasFP(MF) ? FramePtr : StackPtr);
+  MachineLocation FPSrc(MachineLocation::VirtualFP);
+  Moves.push_back(MachineMove(ReadyLabelId, FPDst, FPSrc));
+
   if (StackSize) {
     // Show update of SP.
     if (hasFP(MF)) {
@@ -676,7 +680,7 @@ void X86RegisterInfo::emitFrameMoves(MachineFunction &MF,
       Moves.push_back(MachineMove(FrameLabelId, SPDst, SPSrc));
     }
   } else {
-    //FIXME: Verify & implement for FP
+    // FIXME: Verify & implement for FP
     MachineLocation SPDst(StackPtr);
     MachineLocation SPSrc(StackPtr, stackGrowth);
     Moves.push_back(MachineMove(FrameLabelId, SPDst, SPSrc));
@@ -711,10 +715,6 @@ void X86RegisterInfo::emitFrameMoves(MachineFunction &MF,
     MachineLocation FPSrc(FramePtr);
     Moves.push_back(MachineMove(ReadyLabelId, FPDst, FPSrc));
   }
-
-  MachineLocation FPDst(hasFP(MF) ? FramePtr : StackPtr);
-  MachineLocation FPSrc(MachineLocation::VirtualFP);
-  Moves.push_back(MachineMove(ReadyLabelId, FPDst, FPSrc));
 }
 
 
@@ -729,8 +729,7 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
   bool needsFrameMoves = (MMI && MMI->hasDebugInfo()) ||
                           !Fn->doesNotThrow() ||
                           UnwindTablesMandatory;
-  DebugLoc DL = (MBBI != MBB.end() ? MBBI->getDebugLoc() :
-                 DebugLoc::getUnknownLoc());
+  DebugLoc DL;
 
   // Prepare for frame info.
   unsigned FrameLabelId = 0;
@@ -822,13 +821,6 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
     NumBytes = StackSize - X86FI->getCalleeSavedFrameSize();
   }
 
-  unsigned ReadyLabelId = 0;
-  if (needsFrameMoves) {
-    // Mark effective beginning of when frame pointer is ready.
-    ReadyLabelId = MMI->NextLabelID();
-    BuildMI(MBB, MBBI, DL, TII.get(X86::DBG_LABEL)).addImm(ReadyLabelId);
-  }
-
   // Skip the callee-saved push instructions.
   while (MBBI != MBB.end() &&
          (MBBI->getOpcode() == X86::PUSH32r ||
@@ -891,8 +883,13 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
       emitSPUpdate(MBB, MBBI, StackPtr, -(int64_t)NumBytes, Is64Bit, TII);
   }
 
-  if (needsFrameMoves)
+  if (needsFrameMoves) {
+    unsigned ReadyLabelId = 0;
+    // Mark effective beginning of when frame pointer is ready.
+    ReadyLabelId = MMI->NextLabelID();
+    BuildMI(MBB, MBBI, DL, TII.get(X86::DBG_LABEL)).addImm(ReadyLabelId);
     emitFrameMoves(MF, FrameLabelId, ReadyLabelId);
+  }
 }
 
 void X86RegisterInfo::emitEpilogue(MachineFunction &MF,

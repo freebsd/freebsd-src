@@ -44,40 +44,25 @@ X86DarwinTargetAsmInfo::X86DarwinTargetAsmInfo(const X86TargetMachine &TM):
 
   AlignmentIsInBytes = false;
   TextAlignFillValue = 0x90;
-  GlobalPrefix = "_";
+    
+    
   if (!is64Bit)
     Data64bitsDirective = 0;       // we can't emit a 64-bit unit
   ZeroDirective = "\t.space\t";  // ".space N" emits N zeros.
-  PrivateGlobalPrefix = "L";     // Marker for constant pool idxs
-  LessPrivateGlobalPrefix = "l";  // Marker for some ObjC metadata
-  BSSSection = 0;                       // no BSS section.
   ZeroFillDirective = "\t.zerofill\t";  // Uses .zerofill
   if (TM.getRelocationModel() != Reloc::Static)
     ConstantPoolSection = "\t.const_data";
   else
     ConstantPoolSection = "\t.const\n";
-  JumpTableDataSection = "\t.const\n";
-  CStringSection = "\t.cstring";
-  // FIXME: Why don't always use this section?
-  if (is64Bit) {
+  // FIXME: Why don't we always use this section?
+  if (is64Bit)
     SixteenByteConstantSection = getUnnamedSection("\t.literal16\n",
                                                    SectionFlags::Mergeable);
-  }
   LCOMMDirective = "\t.lcomm\t";
-  SwitchToSectionDirective = "\t.section ";
-  StringConstantPrefix = "\1LC";
   // Leopard and above support aligned common symbols.
   COMMDirectiveTakesAlignment = (Subtarget->getDarwinVers() >= 9);
   HasDotTypeDotSizeDirective = false;
-  HasSingleParameterDotFile = false;
   NonLocalEHFrameLabel = true;
-  if (TM.getRelocationModel() == Reloc::Static) {
-    StaticCtorsSection = ".constructor";
-    StaticDtorsSection = ".destructor";
-  } else {
-    StaticCtorsSection = ".mod_init_func";
-    StaticDtorsSection = ".mod_term_func";
-  }
   if (is64Bit) {
     PersonalityPrefix = "";
     PersonalitySuffix = "+4@GOTPCREL";
@@ -85,40 +70,18 @@ X86DarwinTargetAsmInfo::X86DarwinTargetAsmInfo(const X86TargetMachine &TM):
     PersonalityPrefix = "L";
     PersonalitySuffix = "$non_lazy_ptr";
   }
-  NeedsIndirectEncoding = true;
   InlineAsmStart = "## InlineAsm Start";
   InlineAsmEnd = "## InlineAsm End";
   CommentString = "##";
   SetDirective = "\t.set";
   PCSymbol = ".";
   UsedDirective = "\t.no_dead_strip\t";
-  WeakDefDirective = "\t.weak_definition ";
-  WeakRefDirective = "\t.weak_reference ";
-  HiddenDirective = "\t.private_extern ";
   ProtectedDirective = "\t.globl\t";
 
-  // In non-PIC modes, emit a special label before jump tables so that the
-  // linker can perform more accurate dead code stripping.
-  if (TM.getRelocationModel() != Reloc::PIC_) {
-    // Emit a local label that is preserved until the linker runs.
-    JumpTableSpecialLabelPrefix = "l";
-  }
-
   SupportsDebugInformation = true;
-  NeedsSet = true;
-  DwarfAbbrevSection = ".section __DWARF,__debug_abbrev,regular,debug";
-  DwarfInfoSection = ".section __DWARF,__debug_info,regular,debug";
-  DwarfLineSection = ".section __DWARF,__debug_line,regular,debug";
-  DwarfFrameSection = ".section __DWARF,__debug_frame,regular,debug";
-  DwarfPubNamesSection = ".section __DWARF,__debug_pubnames,regular,debug";
-  DwarfPubTypesSection = ".section __DWARF,__debug_pubtypes,regular,debug";
+
   DwarfDebugInlineSection = ".section __DWARF,__debug_inlined,regular,debug";
   DwarfUsesInlineInfoSection = true;
-  DwarfStrSection = ".section __DWARF,__debug_str,regular,debug";
-  DwarfLocSection = ".section __DWARF,__debug_loc,regular,debug";
-  DwarfARangesSection = ".section __DWARF,__debug_aranges,regular,debug";
-  DwarfRangesSection = ".section __DWARF,__debug_ranges,regular,debug";
-  DwarfMacInfoSection = ".section __DWARF,__debug_macinfo,regular,debug";
 
   // Exceptions handling
   SupportsExceptionHandling = true;
@@ -176,7 +139,7 @@ X86ELFTargetAsmInfo::X86ELFTargetAsmInfo(const X86TargetMachine &TM):
   DwarfLocSection =     "\t.section\t.debug_loc,\"\",@progbits";
   DwarfARangesSection = "\t.section\t.debug_aranges,\"\",@progbits";
   DwarfRangesSection =  "\t.section\t.debug_ranges,\"\",@progbits";
-  DwarfMacInfoSection = "\t.section\t.debug_macinfo,\"\",@progbits";
+  DwarfMacroInfoSection = "\t.section\t.debug_macinfo,\"\",@progbits";
 
   // Exceptions handling
   SupportsExceptionHandling = true;
@@ -259,7 +222,7 @@ X86COFFTargetAsmInfo::X86COFFTargetAsmInfo(const X86TargetMachine &TM):
   DwarfLocSection =     "\t.section\t.debug_loc,\"dr\"";
   DwarfARangesSection = "\t.section\t.debug_aranges,\"dr\"";
   DwarfRangesSection =  "\t.section\t.debug_ranges,\"dr\"";
-  DwarfMacInfoSection = "\t.section\t.debug_macinfo,\"dr\"";
+  DwarfMacroInfoSection = "\t.section\t.debug_macinfo,\"dr\"";
 }
 
 unsigned
@@ -340,8 +303,11 @@ X86WinTargetAsmInfo::X86WinTargetAsmInfo(const X86TargetMachine &TM):
   GlobalPrefix = "_";
   CommentString = ";";
 
+  InlineAsmStart = "; InlineAsm Start";
+  InlineAsmEnd   = "; InlineAsm End";
+
   PrivateGlobalPrefix = "$";
-  AlignDirective = "\talign\t";
+  AlignDirective = "\tALIGN\t";
   ZeroDirective = "\tdb\t";
   ZeroDirectiveSuffix = " dup(0)";
   AsciiDirective = "\tdb\t";
@@ -353,13 +319,15 @@ X86WinTargetAsmInfo::X86WinTargetAsmInfo(const X86TargetMachine &TM):
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
 
+  AlignmentIsInBytes = true;
+
   TextSection = getUnnamedSection("_text", SectionFlags::Code);
   DataSection = getUnnamedSection("_data", SectionFlags::Writeable);
 
   JumpTableDataSection = NULL;
   SwitchToSectionDirective = "";
-  TextSectionStartSuffix = "\tsegment 'CODE'";
-  DataSectionStartSuffix = "\tsegment 'DATA'";
+  TextSectionStartSuffix = "\tSEGMENT PARA 'CODE'";
+  DataSectionStartSuffix = "\tSEGMENT PARA 'DATA'";
   SectionEndDirectiveSuffix = "\tends\n";
 }
 

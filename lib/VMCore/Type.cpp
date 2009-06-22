@@ -23,6 +23,9 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Mutex.h"
+#include "llvm/System/RWMutex.h"
+#include "llvm/System/Threading.h"
 #include <algorithm>
 #include <cstdarg>
 using namespace llvm;
@@ -39,6 +42,14 @@ AbstractTypeUser::~AbstractTypeUser() {}
 //===----------------------------------------------------------------------===//
 //                         Type Class Implementation
 //===----------------------------------------------------------------------===//
+
+// Reader/writer lock used for guarding access to the type maps.
+static ManagedStatic<sys::SmartRWMutex<true> > TypeMapLock;
+
+// Recursive lock used for guarding access to AbstractTypeUsers.
+// NOTE: The true template parameter means this will no-op when we're not in
+// multithreaded mode.
+static ManagedStatic<sys::SmartMutex<true> > AbstractTypeUsersLock;
 
 // Concrete/Abstract TypeDescriptions - We lazily calculate type descriptions
 // for types as they are needed.  Because resolution of types must invalidate
@@ -112,6 +123,14 @@ const Type *Type::getVAArgsPromotedType() const {
     return this;
 }
 
+/// getScalarType - If this is a vector type, return the element type,
+/// otherwise return this.
+const Type *Type::getScalarType() const {
+  if (const VectorType *VTy = dyn_cast<VectorType>(this))
+    return VTy->getElementType();
+  return this;
+}
+
 /// isIntOrIntVector - Return true if this is an integer type or a vector of
 /// integer types.
 ///
@@ -172,6 +191,28 @@ unsigned Type::getPrimitiveSizeInBits() const {
   case Type::VectorTyID:  return cast<VectorType>(this)->getBitWidth();
   default: return 0;
   }
+}
+
+/// getScalarSizeInBits - If this is a vector type, return the
+/// getPrimitiveSizeInBits value for the element type. Otherwise return the
+/// getPrimitiveSizeInBits value for this type.
+unsigned Type::getScalarSizeInBits() const {
+  return getScalarType()->getPrimitiveSizeInBits();
+}
+
+/// getFPMantissaWidth - Return the width of the mantissa of this type.  This
+/// is only valid on floating point types.  If the FP type does not
+/// have a stable mantissa (e.g. ppc long double), this method returns -1.
+int Type::getFPMantissaWidth() const {
+  if (const VectorType *VTy = dyn_cast<VectorType>(this))
+    return VTy->getElementType()->getFPMantissaWidth();
+  assert(isFloatingPoint() && "Not a floating point type!");
+  if (ID == FloatTyID) return 24;
+  if (ID == DoubleTyID) return 53;
+  if (ID == X86_FP80TyID) return 64;
+  if (ID == FP128TyID) return 113;
+  assert(ID == PPC_FP128TyID && "unknown fp type");
+  return -1;
 }
 
 /// isSizedDerivedType - Derived types like structures and arrays are sized
@@ -414,8 +455,29 @@ void DerivedType::dropAllTypeUses() {
   if (NumContainedTys != 0) {
     // The type must stay abstract.  To do this, we insert a pointer to a type
     // that will never get resolved, thus will always be abstract.
-    static Type *AlwaysOpaqueTy = OpaqueType::get();
-    static PATypeHolder Holder(AlwaysOpaqueTy);
+    static Type *AlwaysOpaqueTy = 0;
+    static PATypeHolder* Holder = 0;
+    Type *tmp = AlwaysOpaqueTy;
+    if (llvm_is_multithreaded()) {
+      sys::MemoryFence();
+      if (!tmp) {
+        llvm_acquire_global_lock();
+        tmp = AlwaysOpaqueTy;
+        if (!tmp) {
+          tmp = OpaqueType::get();
+          PATypeHolder* tmp2 = new PATypeHolder(AlwaysOpaqueTy);
+          sys::MemoryFence();
+          AlwaysOpaqueTy = tmp;
+          Holder = tmp2;
+        }
+      
+        llvm_release_global_lock();
+      }
+    } else {
+      AlwaysOpaqueTy = OpaqueType::get();
+      Holder = new PATypeHolder(AlwaysOpaqueTy);
+    } 
+        
     ContainedTys[0] = AlwaysOpaqueTy;
 
     // Change the rest of the types to be Int32Ty's.  It doesn't matter what we
@@ -818,7 +880,7 @@ public:
         // We already have this type in the table.  Get rid of the newly refined
         // type.
         TypeClass *NewTy = cast<TypeClass>((Type*)I->second.get());
-        Ty->refineAbstractTypeTo(NewTy);
+        Ty->unlockedRefineAbstractTypeTo(NewTy);
         return;
       }
     } else {
@@ -854,7 +916,7 @@ public:
               }
               TypesByHash.erase(Entry);
             }
-            Ty->refineAbstractTypeTo(NewTy);
+            Ty->unlockedRefineAbstractTypeTo(NewTy);
             return;
           }
         }
@@ -938,15 +1000,30 @@ const IntegerType *IntegerType::get(unsigned NumBits) {
     default: 
       break;
   }
-
+  
   IntegerValType IVT(NumBits);
-  IntegerType *ITy = IntegerTypes->get(IVT);
-  if (ITy) return ITy;           // Found a match, return it!
-
-  // Value not found.  Derive a new type!
-  ITy = new IntegerType(NumBits);
-  IntegerTypes->add(IVT, ITy);
-
+  IntegerType *ITy = 0;
+  
+  // First, see if the type is already in the table, for which
+  // a reader lock suffices.
+  TypeMapLock->reader_acquire();
+  ITy = IntegerTypes->get(IVT);
+  TypeMapLock->reader_release();
+    
+  if (!ITy) {
+    // OK, not in the table, get a writer lock.
+    sys::SmartScopedWriter<true> Writer(&*TypeMapLock);
+    ITy = IntegerTypes->get(IVT);
+      
+    // We need to _recheck_ the table in case someone
+    // put it in between when we released the reader lock
+    // and when we gained the writer lock!
+    if (!ITy) {
+      // Value not found.  Derive a new type!
+      ITy = new IntegerType(NumBits);
+      IntegerTypes->add(IVT, ITy);
+    }
+  }
 #ifdef DEBUG_MERGE_TYPES
   DOUT << "Derived new type: " << *ITy << "\n";
 #endif
@@ -1010,14 +1087,26 @@ FunctionType *FunctionType::get(const Type *ReturnType,
                                 const std::vector<const Type*> &Params,
                                 bool isVarArg) {
   FunctionValType VT(ReturnType, Params, isVarArg);
-  FunctionType *FT = FunctionTypes->get(VT);
-  if (FT)
-    return FT;
-
-  FT = (FunctionType*) operator new(sizeof(FunctionType) +
-                                    sizeof(PATypeHandle)*(Params.size()+1));
-  new (FT) FunctionType(ReturnType, Params, isVarArg);
-  FunctionTypes->add(VT, FT);
+  FunctionType *FT = 0;
+  
+  TypeMapLock->reader_acquire();
+  FT = FunctionTypes->get(VT);
+  TypeMapLock->reader_release();
+  
+  if (!FT) {
+    sys::SmartScopedWriter<true> Writer(&*TypeMapLock);
+    
+    // Have to check again here, because it might have
+    // been inserted between when we release the reader
+    // lock and when we acquired the writer lock.
+    FT = FunctionTypes->get(VT);
+    if (!FT) {
+      FT = (FunctionType*) operator new(sizeof(FunctionType) +
+                                      sizeof(PATypeHandle)*(Params.size()+1));
+      new (FT) FunctionType(ReturnType, Params, isVarArg);
+      FunctionTypes->add(VT, FT);
+    }
+  }
 
 #ifdef DEBUG_MERGE_TYPES
   DOUT << "Derived new type: " << FT << "\n";
@@ -1049,20 +1138,30 @@ public:
   }
 };
 }
-static ManagedStatic<TypeMap<ArrayValType, ArrayType> > ArrayTypes;
 
+static ManagedStatic<TypeMap<ArrayValType, ArrayType> > ArrayTypes;
 
 ArrayType *ArrayType::get(const Type *ElementType, uint64_t NumElements) {
   assert(ElementType && "Can't get array of <null> types!");
   assert(isValidElementType(ElementType) && "Invalid type for array element!");
 
   ArrayValType AVT(ElementType, NumElements);
-  ArrayType *AT = ArrayTypes->get(AVT);
-  if (AT) return AT;           // Found a match, return it!
-
-  // Value not found.  Derive a new type!
-  ArrayTypes->add(AVT, AT = new ArrayType(ElementType, NumElements));
-
+  ArrayType *AT = 0;
+  
+  TypeMapLock->reader_acquire();
+  AT = ArrayTypes->get(AVT);
+  TypeMapLock->reader_release();
+    
+  if (!AT) {
+    sys::SmartScopedWriter<true> Writer(&*TypeMapLock);
+    
+    // Recheck.  Might have changed between release and acquire.
+    AT = ArrayTypes->get(AVT);
+    if (!AT) {
+      // Value not found.  Derive a new type!
+      ArrayTypes->add(AVT, AT = new ArrayType(ElementType, NumElements));
+    }
+  }
 #ifdef DEBUG_MERGE_TYPES
   DOUT << "Derived new type: " << *AT << "\n";
 #endif
@@ -1106,19 +1205,27 @@ public:
   }
 };
 }
-static ManagedStatic<TypeMap<VectorValType, VectorType> > VectorTypes;
 
+static ManagedStatic<TypeMap<VectorValType, VectorType> > VectorTypes;
 
 VectorType *VectorType::get(const Type *ElementType, unsigned NumElements) {
   assert(ElementType && "Can't get vector of <null> types!");
 
   VectorValType PVT(ElementType, NumElements);
-  VectorType *PT = VectorTypes->get(PVT);
-  if (PT) return PT;           // Found a match, return it!
-
-  // Value not found.  Derive a new type!
-  VectorTypes->add(PVT, PT = new VectorType(ElementType, NumElements));
-
+  VectorType *PT = 0;
+  
+  TypeMapLock->reader_acquire();
+  PT = VectorTypes->get(PVT);
+  TypeMapLock->reader_release();
+    
+  if (!PT) {
+    sys::SmartScopedWriter<true> Writer(&*TypeMapLock);
+    PT = VectorTypes->get(PVT);
+    // Recheck.  Might have changed between release and acquire.
+    if (!PT) {
+      VectorTypes->add(PVT, PT = new VectorType(ElementType, NumElements));
+    }
+  }
 #ifdef DEBUG_MERGE_TYPES
   DOUT << "Derived new type: " << *PT << "\n";
 #endif
@@ -1173,15 +1280,24 @@ static ManagedStatic<TypeMap<StructValType, StructType> > StructTypes;
 StructType *StructType::get(const std::vector<const Type*> &ETypes, 
                             bool isPacked) {
   StructValType STV(ETypes, isPacked);
-  StructType *ST = StructTypes->get(STV);
-  if (ST) return ST;
-
-  // Value not found.  Derive a new type!
-  ST = (StructType*) operator new(sizeof(StructType) +
-                                  sizeof(PATypeHandle) * ETypes.size());
-  new (ST) StructType(ETypes, isPacked);
-  StructTypes->add(STV, ST);
-
+  StructType *ST = 0;
+  
+  TypeMapLock->reader_acquire();
+  ST = StructTypes->get(STV);
+  TypeMapLock->reader_release();
+    
+  if (!ST) {
+    sys::SmartScopedWriter<true> Writer(&*TypeMapLock);
+    ST = StructTypes->get(STV);
+    // Recheck.  Might have changed between release and acquire.
+    if (!ST) {
+      // Value not found.  Derive a new type!
+      ST = (StructType*) operator new(sizeof(StructType) +
+                                      sizeof(PATypeHandle) * ETypes.size());
+      new (ST) StructType(ETypes, isPacked);
+      StructTypes->add(STV, ST);
+    }
+  }
 #ifdef DEBUG_MERGE_TYPES
   DOUT << "Derived new type: " << *ST << "\n";
 #endif
@@ -1249,12 +1365,21 @@ PointerType *PointerType::get(const Type *ValueType, unsigned AddressSpace) {
   assert(isValidElementType(ValueType) && "Invalid type for pointer element!");
   PointerValType PVT(ValueType, AddressSpace);
 
-  PointerType *PT = PointerTypes->get(PVT);
-  if (PT) return PT;
-
-  // Value not found.  Derive a new type!
-  PointerTypes->add(PVT, PT = new PointerType(ValueType, AddressSpace));
-
+  PointerType *PT = 0;
+  
+  TypeMapLock->reader_acquire();
+  PT = PointerTypes->get(PVT);
+  TypeMapLock->reader_release();
+  
+  if (!PT) {
+    sys::SmartScopedWriter<true> Writer(&*TypeMapLock);
+    PT = PointerTypes->get(PVT);
+    // Recheck.  Might have changed between release and acquire.
+    if (!PT) {
+      // Value not found.  Derive a new type!
+      PointerTypes->add(PVT, PT = new PointerType(ValueType, AddressSpace));
+    }
+  }
 #ifdef DEBUG_MERGE_TYPES
   DOUT << "Derived new type: " << *PT << "\n";
 #endif
@@ -1281,12 +1406,24 @@ bool PointerType::isValidElementType(const Type *ElemTy) {
 //                     Derived Type Refinement Functions
 //===----------------------------------------------------------------------===//
 
+// addAbstractTypeUser - Notify an abstract type that there is a new user of
+// it.  This function is called primarily by the PATypeHandle class.
+void Type::addAbstractTypeUser(AbstractTypeUser *U) const {
+  assert(isAbstract() && "addAbstractTypeUser: Current type not abstract!");
+  AbstractTypeUsersLock->acquire();
+  AbstractTypeUsers.push_back(U);
+  AbstractTypeUsersLock->release();
+}
+
+
 // removeAbstractTypeUser - Notify an abstract type that a user of the class
 // no longer has a handle to the type.  This function is called primarily by
 // the PATypeHandle class.  When there are no users of the abstract type, it
 // is annihilated, because there is no way to get a reference to it ever again.
 //
 void Type::removeAbstractTypeUser(AbstractTypeUser *U) const {
+  AbstractTypeUsersLock->acquire();
+  
   // Search from back to front because we will notify users from back to
   // front.  Also, it is likely that there will be a stack like behavior to
   // users that register and unregister users.
@@ -1310,16 +1447,20 @@ void Type::removeAbstractTypeUser(AbstractTypeUser *U) const {
     DOUT << "DELETEing unused abstract type: <" << *this
          << ">[" << (void*)this << "]" << "\n";
 #endif
-    this->destroy();
+  
+  this->destroy();
   }
+  
+  AbstractTypeUsersLock->release();
 }
 
-// refineAbstractTypeTo - This function is used when it is discovered that
-// the 'this' abstract type is actually equivalent to the NewType specified.
-// This causes all users of 'this' to switch to reference the more concrete type
-// NewType and for 'this' to be deleted.
+// unlockedRefineAbstractTypeTo - This function is used when it is discovered
+// that the 'this' abstract type is actually equivalent to the NewType
+// specified. This causes all users of 'this' to switch to reference the more 
+// concrete type NewType and for 'this' to be deleted.  Only used for internal
+// callers.
 //
-void DerivedType::refineAbstractTypeTo(const Type *NewType) {
+void DerivedType::unlockedRefineAbstractTypeTo(const Type *NewType) {
   assert(isAbstract() && "refineAbstractTypeTo: Current type is not abstract!");
   assert(this != NewType && "Can't refine to myself!");
   assert(ForwardType == 0 && "This type has already been refined!");
@@ -1338,8 +1479,7 @@ void DerivedType::refineAbstractTypeTo(const Type *NewType) {
   // refined, that we will not continue using a dead reference...
   //
   PATypeHolder NewTy(NewType);
-
-  // Any PATypeHolders referring to this type will now automatically forward to
+  // Any PATypeHolders referring to this type will now automatically forward o
   // the type we are resolved to.
   ForwardType = NewType;
   if (NewType->isAbstract())
@@ -1362,6 +1502,7 @@ void DerivedType::refineAbstractTypeTo(const Type *NewType) {
   // will not cause users to drop off of the use list.  If we resolve to ourself
   // we succeed!
   //
+  AbstractTypeUsersLock->acquire();
   while (!AbstractTypeUsers.empty() && NewTy != this) {
     AbstractTypeUser *User = AbstractTypeUsers.back();
 
@@ -1377,11 +1518,22 @@ void DerivedType::refineAbstractTypeTo(const Type *NewType) {
     assert(AbstractTypeUsers.size() != OldSize &&
            "AbsTyUser did not remove self from user list!");
   }
+  AbstractTypeUsersLock->release();
 
   // If we were successful removing all users from the type, 'this' will be
   // deleted when the last PATypeHolder is destroyed or updated from this type.
   // This may occur on exit of this function, as the CurrentTy object is
   // destroyed.
+}
+
+// refineAbstractTypeTo - This function is used by external callers to notify
+// us that this abstract type is equivalent to another type.
+//
+void DerivedType::refineAbstractTypeTo(const Type *NewType) {
+  // All recursive calls will go through unlockedRefineAbstractTypeTo,
+  // to avoid deadlock problems.
+  sys::SmartScopedWriter<true> Writer(&*TypeMapLock);
+  unlockedRefineAbstractTypeTo(NewType);
 }
 
 // notifyUsesThatTypeBecameConcrete - Notify AbstractTypeUsers of this type that
@@ -1392,6 +1544,7 @@ void DerivedType::notifyUsesThatTypeBecameConcrete() {
   DOUT << "typeIsREFINED type: " << (void*)this << " " << *this << "\n";
 #endif
 
+  AbstractTypeUsersLock->acquire();
   unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;
   while (!AbstractTypeUsers.empty()) {
     AbstractTypeUser *ATU = AbstractTypeUsers.back();
@@ -1400,6 +1553,7 @@ void DerivedType::notifyUsesThatTypeBecameConcrete() {
     assert(AbstractTypeUsers.size() < OldSize-- &&
            "AbstractTypeUser did not remove itself from the use list!");
   }
+  AbstractTypeUsersLock->release();
 }
 
 // refineAbstractType - Called when a contained type is found to be more

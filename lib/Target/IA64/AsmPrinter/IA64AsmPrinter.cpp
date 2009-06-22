@@ -374,3 +374,18 @@ FunctionPass *llvm::createIA64CodePrinterPass(raw_ostream &o,
                                               bool verbose) {
   return new IA64AsmPrinter(o, tm, tm.getTargetAsmInfo(), OptLevel, verbose);
 }
+
+namespace {
+  static struct Register {
+    Register() {
+      IA64TargetMachine::registerAsmPrinter(createIA64CodePrinterPass);
+    }
+  } Registrator;
+}
+
+
+// Force static initialization when called from
+// llvm/InitializeAllAsmPrinters.h
+namespace llvm {
+  void InitializeIA64AsmPrinter() { }
+}

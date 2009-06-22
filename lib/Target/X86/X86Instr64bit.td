@@ -19,6 +19,14 @@
 
 // 64-bits but only 32 bits are significant.
 def i64i32imm  : Operand<i64>;
+
+// 64-bits but only 32 bits are significant, and those bits are treated as being
+// pc relative.
+def i64i32imm_pcrel : Operand<i64> {
+  let PrintMethod = "print_pcrel_imm";
+}
+
+
 // 64-bits but only 8 bits are significant.
 def i64i8imm   : Operand<i64>;
 
@@ -29,6 +37,7 @@ def lea64mem : Operand<i64> {
 
 def lea64_32mem : Operand<i32> {
   let PrintMethod = "printlea64_32mem";
+  let AsmOperandLowerMethod = "lower_lea64_32mem";
   let MIOperandInfo = (ops GR32, i8imm, GR32, i32imm);
 }
 
@@ -38,6 +47,9 @@ def lea64_32mem : Operand<i32> {
 def lea64addr : ComplexPattern<i64, 4, "SelectLEAAddr",
                         [add, mul, X86mul_imm, shl, or, frameindex, X86Wrapper],
                         []>;
+
+def tls64addr : ComplexPattern<i64, 4, "SelectTLSADDRAddr",
+                               [tglobaltlsaddr], []>;
 
 //===----------------------------------------------------------------------===//
 // Pattern fragments.
@@ -113,9 +125,9 @@ let isCall = 1 in
     // NOTE: this pattern doesn't match "X86call imm", because we do not know
     // that the offset between an arbitrary immediate and the call will fit in
     // the 32-bit pcrel field that we have.
-    def CALL64pcrel32 : I<0xE8, RawFrm,
-                          (outs), (ins i64i32imm:$dst, variable_ops),
-                          "call\t${dst:call}", []>,
+    def CALL64pcrel32 : Ii32<0xE8, RawFrm,
+                          (outs), (ins i64i32imm_pcrel:$dst, variable_ops),
+                          "call\t$dst", []>,
                         Requires<[In64BitMode]>;
     def CALL64r       : I<0xFF, MRM2r, (outs), (ins GR64:$dst, variable_ops),
                           "call\t{*}$dst", [(X86call GR64:$dst)]>;
@@ -175,6 +187,15 @@ def POP64r   : I<0x58, AddRegFrm,
 let mayStore = 1 in
 def PUSH64r  : I<0x50, AddRegFrm,
                  (outs), (ins GR64:$reg), "push{q}\t$reg", []>;
+}
+
+let Defs = [RSP], Uses = [RSP], neverHasSideEffects = 1, mayStore = 1 in {
+def PUSH64i8   : Ii8<0x6a, RawFrm, (outs), (ins i8imm:$imm), 
+                     "push{q}\t$imm", []>;
+def PUSH64i16  : Ii16<0x68, RawFrm, (outs), (ins i16imm:$imm), 
+                      "push{q}\t$imm", []>;
+def PUSH64i32  : Ii32<0x68, RawFrm, (outs), (ins i32imm:$imm), 
+                      "push{q}\t$imm", []>;
 }
 
 let Defs = [RSP, EFLAGS], Uses = [RSP], mayLoad = 1 in
@@ -1312,13 +1333,13 @@ let Defs = [RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
             XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
             XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15, EFLAGS],
     Uses = [RSP] in
-def TLS_addr64 : I<0, Pseudo, (outs), (ins i64imm:$sym),
+def TLS_addr64 : I<0, Pseudo, (outs), (ins lea64mem:$sym),
                    ".byte\t0x66; "
-                   "leaq\t${sym:mem}(%rip), %rdi; "
+                   "leaq\t$sym(%rip), %rdi; "
                    ".word\t0x6666; "
                    "rex64; "
                    "call\t__tls_get_addr@PLT",
-                  [(X86tlsaddr tglobaltlsaddr:$sym)]>,
+                  [(X86tlsaddr tls64addr:$sym)]>,
                   Requires<[In64BitMode]>;
 
 let AddedComplexity = 5 in

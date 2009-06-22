@@ -37,6 +37,15 @@ class MachineRegisterInfo {
   /// virtual registers. For each target register class, it keeps a list of
   /// virtual registers belonging to the class.
   std::vector<std::vector<unsigned> > RegClass2VRegMap;
+
+  /// RegAllocHints - This vector records register allocation hints for virtual
+  /// registers. For each virtual register, it keeps a register and hint type
+  /// pair making up the allocation hint. Hint type is target specific except
+  /// for the value 0 which means the second value of the pair is the preferred
+  /// register for allocation. For example, if the hint is <0, 1024>, it means
+  /// the allocator should prefer the physical register allocated to the virtual
+  /// register of the hint.
+  std::vector<std::pair<unsigned, unsigned> > RegAllocHints;
   
   /// PhysRegUseDefLists - This is an array of the head of the use/def list for
   /// physical registers.
@@ -170,7 +179,25 @@ public:
   std::vector<unsigned> &getRegClassVirtRegs(const TargetRegisterClass *RC) {
     return RegClass2VRegMap[RC->getID()];
   }
-  
+
+  /// setRegAllocationHint - Specify a register allocation hint for the
+  /// specified virtual register.
+  void setRegAllocationHint(unsigned Reg, unsigned Type, unsigned PrefReg) {
+    Reg -= TargetRegisterInfo::FirstVirtualRegister;
+    assert(Reg < VRegInfo.size() && "Invalid vreg!");
+    RegAllocHints[Reg].first  = Type;
+    RegAllocHints[Reg].second = PrefReg;
+  }
+
+  /// getRegAllocationHint - Return the register allocation hint for the
+  /// specified virtual register.
+  std::pair<unsigned, unsigned>
+  getRegAllocationHint(unsigned Reg) const {
+    Reg -= TargetRegisterInfo::FirstVirtualRegister;
+    assert(Reg < VRegInfo.size() && "Invalid vreg!");
+    return RegAllocHints[Reg];
+  }
+
   //===--------------------------------------------------------------------===//
   // Physical Register Use Info
   //===--------------------------------------------------------------------===//

@@ -17,13 +17,12 @@
 #include "llvm/Support/DataTypes.h"
 #include <vector>
 #include <string>
-#include <iosfwd>
 #include <cassert>
 
 namespace llvm {
 class MemoryBuffer;
-class TGSourceMgr;
-class TGLoc;
+class SourceMgr;
+class SMLoc;
   
 namespace tgtok {
   enum TokKind {
@@ -58,7 +57,7 @@ namespace tgtok {
 
 /// TGLexer - TableGen Lexer class.
 class TGLexer {
-  TGSourceMgr &SrcMgr;
+  SourceMgr &SrcMgr;
   
   const char *CurPtr;
   const MemoryBuffer *CurBuf;
@@ -73,16 +72,9 @@ class TGLexer {
   /// by the SourceMgr object.
   int CurBuffer;
   
-  // IncludeDirectories - This is the list of directories we should search for
-  // include files in.
-  std::vector<std::string> IncludeDirectories;
 public:
-  TGLexer(TGSourceMgr &SrcMgr);
+  TGLexer(SourceMgr &SrcMgr);
   ~TGLexer() {}
-  
-  void setIncludeDirs(const std::vector<std::string> &Dirs) {
-    IncludeDirectories = Dirs;
-  }
   
   tgtok::TokKind Lex() {
     return CurCode = LexToken();
@@ -101,10 +93,10 @@ public:
     return CurIntVal;
   }
 
-  TGLoc getLoc() const;
+  SMLoc getLoc() const;
 
   void PrintError(const char *Loc, const std::string &Msg) const;
-  void PrintError(TGLoc Loc, const std::string &Msg) const;
+  void PrintError(SMLoc Loc, const std::string &Msg) const;
   
 private:
   /// LexToken - Read the next token and return its code.

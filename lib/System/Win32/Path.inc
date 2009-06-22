@@ -125,6 +125,20 @@ Path::isValid() const {
   return true;
 }
 
+bool
+Path::isAbsolute(const char *NameStart, unsigned NameLen) {
+  assert(NameStart);
+  switch (NameLen) {
+  case 0:
+    return false;
+  case 1:
+  case 2:
+    return NameStart[0] == '/';
+  default:
+    return NameStart[0] == '/' || (NameStart[1] == ':' && NameStart[2] == '/');
+  }
+}
+
 bool 
 Path::isAbsolute() const {
   switch (path.length()) {
@@ -234,7 +248,9 @@ Path::GetCurrentDirectory() {
 /// GetMainExecutable - Return the path to the main executable, given the
 /// value of argv[0] from program startup.
 Path Path::GetMainExecutable(const char *argv0, void *MainAddr) {
-  return Path();
+  char pathname[MAX_PATH];
+  DWORD ret = ::GetModuleFileNameA(NULL, pathname, MAX_PATH);
+  return ret != MAX_PATH ? Path(pathname) : Path();
 }
 
 

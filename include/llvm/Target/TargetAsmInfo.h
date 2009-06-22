@@ -130,7 +130,6 @@ namespace llvm {
   private:
     mutable StringMap<Section> Sections;
     mutable SectionFlags::FlagsStringsMapType FlagsStrings;
-    void fillDefaultValues();
   protected:
     /// TM - The current TargetMachine.
     const TargetMachine &TM;
@@ -278,6 +277,10 @@ namespace llvm {
     /// use '\1' as the first character.
     const char *StringConstantPrefix;     // Defaults to ".str"
 
+    /// AllowQuotesInName - This is true if the assembler allows for complex
+    /// symbol names to be surrounded in quotes.  This defaults to false.
+    bool AllowQuotesInName;
+    
     //===--- Data Emission Directives -------------------------------------===//
 
     /// ZeroDirective - this should be set to the directive used to get some
@@ -308,8 +311,7 @@ namespace llvm {
     /// directives for various sizes and non-default address spaces.
     virtual const char *getASDirective(unsigned size, 
                                        unsigned AS) const {
-      assert (AS > 0 
-              && "Dont know the directives for default addr space");
+      assert(AS > 0 && "Dont know the directives for default addr space");
       return NULL;
     }
 
@@ -472,10 +474,6 @@ namespace llvm {
     /// encode inline subroutine information.
     bool DwarfUsesInlineInfoSection; // Defaults to false.
 
-    /// SupportsMacInfo - true if the Dwarf output supports macro information
-    ///
-    bool SupportsMacInfoSection;            // Defaults to true
-
     /// NonLocalEHFrameLabel - If set, the EH_frame label needs to be non-local.
     ///
     bool NonLocalEHFrameLabel;              // Defaults to false.
@@ -536,9 +534,9 @@ namespace llvm {
     ///
     const char *DwarfRangesSection; // Defaults to ".debug_ranges".
 
-    /// DwarfMacInfoSection - Section directive for Dwarf info.
+    /// DwarfMacroInfoSection - Section directive for DWARF macro info.
     ///
-    const char *DwarfMacInfoSection; // Defaults to ".debug_macinfo".
+    const char *DwarfMacroInfoSection; // Defaults to ".debug_macinfo".
     
     /// DwarfEHFrameSection - Section directive for Exception frames.
     ///
@@ -749,6 +747,9 @@ namespace llvm {
     const char *getStringConstantPrefix() const {
       return StringConstantPrefix;
     }
+    bool doesAllowQuotesInName() const {
+      return AllowQuotesInName;
+    }
     const char *getZeroDirective() const {
       return ZeroDirective;
     }
@@ -866,9 +867,6 @@ namespace llvm {
     bool doesDwarfUsesInlineInfoSection() const {
       return DwarfUsesInlineInfoSection;
     }
-    bool doesSupportMacInfoSection() const {
-      return SupportsMacInfoSection;
-    }
     bool doesRequireNonLocalEHFrameLabel() const {
       return NonLocalEHFrameLabel;
     }
@@ -914,8 +912,8 @@ namespace llvm {
     const char *getDwarfRangesSection() const {
       return DwarfRangesSection;
     }
-    const char *getDwarfMacInfoSection() const {
-      return DwarfMacInfoSection;
+    const char *getDwarfMacroInfoSection() const {
+      return DwarfMacroInfoSection;
     }
     const char *getDwarfEHFrameSection() const {
       return DwarfEHFrameSection;

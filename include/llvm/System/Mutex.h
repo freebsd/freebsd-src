@@ -14,12 +14,15 @@
 #ifndef LLVM_SYSTEM_MUTEX_H
 #define LLVM_SYSTEM_MUTEX_H
 
+#include "llvm/System/Threading.h"
+#include <cassert>
+
 namespace llvm
 {
   namespace sys
   {
     /// @brief Platform agnostic Mutex class.
-    class Mutex
+    class MutexImpl
     {
     /// @name Constructors
     /// @{
@@ -30,11 +33,11 @@ namespace llvm
       /// also more likely to deadlock (same thread can't acquire more than
       /// once).
       /// @brief Default Constructor.
-      explicit Mutex(bool recursive = true);
+      explicit MutexImpl(bool recursive = true);
 
       /// Releases and removes the lock
       /// @brief Destructor
-      ~Mutex();
+      ~MutexImpl();
 
     /// @}
     /// @name Methods
@@ -66,18 +69,81 @@ namespace llvm
     /// @name Platform Dependent Data
     /// @{
     private:
-#ifdef ENABLE_THREADS
       void* data_; ///< We don't know what the data will be
-#endif
 
     /// @}
     /// @name Do Not Implement
     /// @{
     private:
-      Mutex(const Mutex & original);
-      void operator=(const Mutex &);
+      MutexImpl(const MutexImpl & original);
+      void operator=(const MutexImpl &);
     /// @}
     };
+    
+    
+    /// SmartMutex - A mutex with a compile time constant parameter that 
+    /// indicates whether this mutex should become a no-op when we're not
+    /// running in multithreaded mode.
+    template<bool mt_only>
+    class SmartMutex : public MutexImpl {
+      unsigned acquired;
+      bool recursive;
+    public:
+      explicit SmartMutex(bool rec = true) :
+        MutexImpl(rec), acquired(0), recursive(rec) { }
+      
+      bool acquire() {
+        if (!mt_only || llvm_is_multithreaded())
+          return MutexImpl::acquire();
+        
+        // Single-threaded debugging code.  This would be racy in multithreaded
+        // mode, but provides not sanity checks in single threaded mode.
+        assert((recursive || acquired == 0) && "Lock already acquired!!");
+        ++acquired;
+        return true;
+      }
+
+      bool release() {
+        if (!mt_only || llvm_is_multithreaded())
+          return MutexImpl::release();
+        
+        // Single-threaded debugging code.  This would be racy in multithreaded
+        // mode, but provides not sanity checks in single threaded mode.
+        assert(((recursive && acquired) || (acquired == 1)) &&
+               "Lock not acquired before release!");
+        --acquired;
+        return true;
+      }
+
+      bool tryacquire() {
+        if (!mt_only || llvm_is_multithreaded())
+          return MutexImpl::tryacquire();
+        return true;
+      }
+      
+      private:
+        SmartMutex(const SmartMutex<mt_only> & original);
+        void operator=(const SmartMutex<mt_only> &);
+    };
+    
+    /// Mutex - A standard, always enforced mutex.
+    typedef SmartMutex<false> Mutex;
+    
+    template<bool mt_only>
+    class SmartScopedLock  {
+      SmartMutex<mt_only>* mtx;
+      
+    public:
+      SmartScopedLock(SmartMutex<mt_only>* m) : mtx(m) {
+        mtx->acquire();
+      }
+      
+      ~SmartScopedLock() {
+        mtx->release();
+      }
+    };
+    
+    typedef SmartScopedLock<false> ScopedLock;
   }
 }
 

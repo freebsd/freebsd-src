@@ -20,6 +20,8 @@
 #include "llvm/Support/Streams.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Mutex.h"
+#include "llvm/System/Threading.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm-c/Core.h"
 #include <algorithm>
@@ -355,6 +357,9 @@ namespace {
 /// amount of time each pass takes to execute.  This only happens when
 /// -time-passes is enabled on the command line.
 ///
+
+static ManagedStatic<sys::SmartMutex<true> > TimingInfoMutex;
+
 class VISIBILITY_HIDDEN TimingInfo {
   std::map<Pass*, Timer> TimingData;
   TimerGroup TG;
@@ -379,15 +384,18 @@ public:
     if (dynamic_cast<PMDataManager *>(P)) 
       return;
 
+    sys::SmartScopedLock<true> Lock(&*TimingInfoMutex);
     std::map<Pass*, Timer>::iterator I = TimingData.find(P);
     if (I == TimingData.end())
       I=TimingData.insert(std::make_pair(P, Timer(P->getPassName(), TG))).first;
     I->second.startTimer();
   }
+  
   void passEnded(Pass *P) {
     if (dynamic_cast<PMDataManager *>(P)) 
       return;
 
+    sys::SmartScopedLock<true> Lock(&*TimingInfoMutex);
     std::map<Pass*, Timer>::iterator I = TimingData.find(P);
     assert(I != TimingData.end() && "passStarted/passEnded not nested right!");
     I->second.stopTimer();

@@ -1310,7 +1310,7 @@ bool InsertElementInst::isValidOperands(const Value *Vec, const Value *Elt,
     return false;// Second operand of insertelement must be vector element type.
     
   if (Index->getType() != Type::Int32Ty)
-    return false;  // Third operand of insertelement must be uint.
+    return false;  // Third operand of insertelement must be i32.
   return true;
 }
 
@@ -1576,9 +1576,8 @@ void BinaryOperator::init(BinaryOps iType) {
   case FDiv:
     assert(getType() == LHS->getType() &&
            "Arithmetic operation should return same type as operands!");
-    assert((getType()->isFloatingPoint() || (isa<VectorType>(getType()) &&
-            cast<VectorType>(getType())->getElementType()->isFloatingPoint())) 
-            && "Incorrect operand type (not floating point) for FDIV");
+    assert(getType()->isFPOrFPVector() &&
+           "Incorrect operand type (not floating point) for FDIV");
     break;
   case URem: 
   case SRem: 
@@ -1591,9 +1590,8 @@ void BinaryOperator::init(BinaryOps iType) {
   case FRem:
     assert(getType() == LHS->getType() &&
            "Arithmetic operation should return same type as operands!");
-    assert((getType()->isFloatingPoint() || (isa<VectorType>(getType()) &&
-            cast<VectorType>(getType())->getElementType()->isFloatingPoint())) 
-            && "Incorrect operand type (not floating point) for FREM");
+    assert(getType()->isFPOrFPVector() &&
+           "Incorrect operand type (not floating point) for FREM");
     break;
   case Shl:
   case LShr:
@@ -1837,11 +1835,11 @@ bool CastInst::isNoopCast(const Type *IntPtrTy) const {
     case Instruction::BitCast:
       return true;  // BitCast never modifies bits.
     case Instruction::PtrToInt:
-      return IntPtrTy->getPrimitiveSizeInBits() ==
-            getType()->getPrimitiveSizeInBits();
+      return IntPtrTy->getScalarSizeInBits() ==
+             getType()->getScalarSizeInBits();
     case Instruction::IntToPtr:
-      return IntPtrTy->getPrimitiveSizeInBits() ==
-             getOperand(0)->getType()->getPrimitiveSizeInBits();
+      return IntPtrTy->getScalarSizeInBits() ==
+             getOperand(0)->getType()->getScalarSizeInBits();
   }
 }
 
@@ -1880,8 +1878,8 @@ unsigned CastInst::isEliminableCastPair(
   // BITCONVERT    =       FirstClass   n/a       FirstClass    n/a   
   //
   // NOTE: some transforms are safe, but we consider them to be non-profitable.
-  // For example, we could merge "fptoui double to uint" + "zext uint to ulong",
-  // into "fptoui double to ulong", but this loses information about the range
+  // For example, we could merge "fptoui double to i32" + "zext i32 to i64",
+  // into "fptoui double to i64", but this loses information about the range
   // of the produced value (we no longer know the top-part is all zeros). 
   // Further this conversion is often much more expensive for typical hardware,
   // and causes issues when building libgcc.  We disallow fptosi+sext for the 
@@ -1946,8 +1944,8 @@ unsigned CastInst::isEliminableCastPair(
       return 0;
     case 7: { 
       // ptrtoint, inttoptr -> bitcast (ptr -> ptr) if int size is >= ptr size
-      unsigned PtrSize = IntPtrTy->getPrimitiveSizeInBits();
-      unsigned MidSize = MidTy->getPrimitiveSizeInBits();
+      unsigned PtrSize = IntPtrTy->getScalarSizeInBits();
+      unsigned MidSize = MidTy->getScalarSizeInBits();
       if (MidSize >= PtrSize)
         return Instruction::BitCast;
       return 0;
@@ -1956,8 +1954,8 @@ unsigned CastInst::isEliminableCastPair(
       // ext, trunc -> bitcast,    if the SrcTy and DstTy are same size
       // ext, trunc -> ext,        if sizeof(SrcTy) < sizeof(DstTy)
       // ext, trunc -> trunc,      if sizeof(SrcTy) > sizeof(DstTy)
-      unsigned SrcSize = SrcTy->getPrimitiveSizeInBits();
-      unsigned DstSize = DstTy->getPrimitiveSizeInBits();
+      unsigned SrcSize = SrcTy->getScalarSizeInBits();
+      unsigned DstSize = DstTy->getScalarSizeInBits();
       if (SrcSize == DstSize)
         return Instruction::BitCast;
       else if (SrcSize < DstSize)
@@ -1985,9 +1983,9 @@ unsigned CastInst::isEliminableCastPair(
       return 0;
     case 13: {
       // inttoptr, ptrtoint -> bitcast if SrcSize<=PtrSize and SrcSize==DstSize
-      unsigned PtrSize = IntPtrTy->getPrimitiveSizeInBits();
-      unsigned SrcSize = SrcTy->getPrimitiveSizeInBits();
-      unsigned DstSize = DstTy->getPrimitiveSizeInBits();
+      unsigned PtrSize = IntPtrTy->getScalarSizeInBits();
+      unsigned SrcSize = SrcTy->getScalarSizeInBits();
+      unsigned DstSize = DstTy->getScalarSizeInBits();
       if (SrcSize <= PtrSize && SrcSize == DstSize)
         return Instruction::BitCast;
       return 0;
@@ -2051,7 +2049,7 @@ CastInst *CastInst::Create(Instruction::CastOps op, Value *S, const Type *Ty,
 CastInst *CastInst::CreateZExtOrBitCast(Value *S, const Type *Ty, 
                                         const std::string &Name,
                                         Instruction *InsertBefore) {
-  if (S->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (S->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return Create(Instruction::BitCast, S, Ty, Name, InsertBefore);
   return Create(Instruction::ZExt, S, Ty, Name, InsertBefore);
 }
@@ -2059,7 +2057,7 @@ CastInst *CastInst::CreateZExtOrBitCast(Value *S, const Type *Ty,
 CastInst *CastInst::CreateZExtOrBitCast(Value *S, const Type *Ty, 
                                         const std::string &Name,
                                         BasicBlock *InsertAtEnd) {
-  if (S->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (S->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return Create(Instruction::BitCast, S, Ty, Name, InsertAtEnd);
   return Create(Instruction::ZExt, S, Ty, Name, InsertAtEnd);
 }
@@ -2067,7 +2065,7 @@ CastInst *CastInst::CreateZExtOrBitCast(Value *S, const Type *Ty,
 CastInst *CastInst::CreateSExtOrBitCast(Value *S, const Type *Ty, 
                                         const std::string &Name,
                                         Instruction *InsertBefore) {
-  if (S->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (S->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return Create(Instruction::BitCast, S, Ty, Name, InsertBefore);
   return Create(Instruction::SExt, S, Ty, Name, InsertBefore);
 }
@@ -2075,7 +2073,7 @@ CastInst *CastInst::CreateSExtOrBitCast(Value *S, const Type *Ty,
 CastInst *CastInst::CreateSExtOrBitCast(Value *S, const Type *Ty, 
                                         const std::string &Name,
                                         BasicBlock *InsertAtEnd) {
-  if (S->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (S->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return Create(Instruction::BitCast, S, Ty, Name, InsertAtEnd);
   return Create(Instruction::SExt, S, Ty, Name, InsertAtEnd);
 }
@@ -2083,7 +2081,7 @@ CastInst *CastInst::CreateSExtOrBitCast(Value *S, const Type *Ty,
 CastInst *CastInst::CreateTruncOrBitCast(Value *S, const Type *Ty,
                                          const std::string &Name,
                                          Instruction *InsertBefore) {
-  if (S->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (S->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return Create(Instruction::BitCast, S, Ty, Name, InsertBefore);
   return Create(Instruction::Trunc, S, Ty, Name, InsertBefore);
 }
@@ -2091,7 +2089,7 @@ CastInst *CastInst::CreateTruncOrBitCast(Value *S, const Type *Ty,
 CastInst *CastInst::CreateTruncOrBitCast(Value *S, const Type *Ty,
                                          const std::string &Name, 
                                          BasicBlock *InsertAtEnd) {
-  if (S->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (S->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return Create(Instruction::BitCast, S, Ty, Name, InsertAtEnd);
   return Create(Instruction::Trunc, S, Ty, Name, InsertAtEnd);
 }
@@ -2125,8 +2123,8 @@ CastInst *CastInst::CreateIntegerCast(Value *C, const Type *Ty,
                                       bool isSigned, const std::string &Name,
                                       Instruction *InsertBefore) {
   assert(C->getType()->isInteger() && Ty->isInteger() && "Invalid cast");
-  unsigned SrcBits = C->getType()->getPrimitiveSizeInBits();
-  unsigned DstBits = Ty->getPrimitiveSizeInBits();
+  unsigned SrcBits = C->getType()->getScalarSizeInBits();
+  unsigned DstBits = Ty->getScalarSizeInBits();
   Instruction::CastOps opcode =
     (SrcBits == DstBits ? Instruction::BitCast :
      (SrcBits > DstBits ? Instruction::Trunc :
@@ -2137,9 +2135,10 @@ CastInst *CastInst::CreateIntegerCast(Value *C, const Type *Ty,
 CastInst *CastInst::CreateIntegerCast(Value *C, const Type *Ty, 
                                       bool isSigned, const std::string &Name,
                                       BasicBlock *InsertAtEnd) {
-  assert(C->getType()->isInteger() && Ty->isInteger() && "Invalid cast");
-  unsigned SrcBits = C->getType()->getPrimitiveSizeInBits();
-  unsigned DstBits = Ty->getPrimitiveSizeInBits();
+  assert(C->getType()->isIntOrIntVector() && Ty->isIntOrIntVector() &&
+         "Invalid cast");
+  unsigned SrcBits = C->getType()->getScalarSizeInBits();
+  unsigned DstBits = Ty->getScalarSizeInBits();
   Instruction::CastOps opcode =
     (SrcBits == DstBits ? Instruction::BitCast :
      (SrcBits > DstBits ? Instruction::Trunc :
@@ -2150,10 +2149,10 @@ CastInst *CastInst::CreateIntegerCast(Value *C, const Type *Ty,
 CastInst *CastInst::CreateFPCast(Value *C, const Type *Ty, 
                                  const std::string &Name, 
                                  Instruction *InsertBefore) {
-  assert(C->getType()->isFloatingPoint() && Ty->isFloatingPoint() && 
+  assert(C->getType()->isFPOrFPVector() && Ty->isFPOrFPVector() &&
          "Invalid cast");
-  unsigned SrcBits = C->getType()->getPrimitiveSizeInBits();
-  unsigned DstBits = Ty->getPrimitiveSizeInBits();
+  unsigned SrcBits = C->getType()->getScalarSizeInBits();
+  unsigned DstBits = Ty->getScalarSizeInBits();
   Instruction::CastOps opcode =
     (SrcBits == DstBits ? Instruction::BitCast :
      (SrcBits > DstBits ? Instruction::FPTrunc : Instruction::FPExt));
@@ -2163,10 +2162,10 @@ CastInst *CastInst::CreateFPCast(Value *C, const Type *Ty,
 CastInst *CastInst::CreateFPCast(Value *C, const Type *Ty, 
                                  const std::string &Name, 
                                  BasicBlock *InsertAtEnd) {
-  assert(C->getType()->isFloatingPoint() && Ty->isFloatingPoint() && 
+  assert(C->getType()->isFPOrFPVector() && Ty->isFPOrFPVector() &&
          "Invalid cast");
-  unsigned SrcBits = C->getType()->getPrimitiveSizeInBits();
-  unsigned DstBits = Ty->getPrimitiveSizeInBits();
+  unsigned SrcBits = C->getType()->getScalarSizeInBits();
+  unsigned DstBits = Ty->getScalarSizeInBits();
   Instruction::CastOps opcode =
     (SrcBits == DstBits ? Instruction::BitCast :
      (SrcBits > DstBits ? Instruction::FPTrunc : Instruction::FPExt));
@@ -2183,8 +2182,8 @@ bool CastInst::isCastable(const Type *SrcTy, const Type *DestTy) {
     return true;
 
   // Get the bit sizes, we'll need these
-  unsigned SrcBits = SrcTy->getPrimitiveSizeInBits();   // 0 for ptr/vector
-  unsigned DestBits = DestTy->getPrimitiveSizeInBits(); // 0 for ptr/vector
+  unsigned SrcBits = SrcTy->getScalarSizeInBits();   // 0 for ptr
+  unsigned DestBits = DestTy->getScalarSizeInBits(); // 0 for ptr
 
   // Run through the possibilities ...
   if (DestTy->isInteger()) {                   // Casting to integral
@@ -2242,8 +2241,8 @@ CastInst::getCastOpcode(
   const Value *Src, bool SrcIsSigned, const Type *DestTy, bool DestIsSigned) {
   // Get the bit sizes, we'll need these
   const Type *SrcTy = Src->getType();
-  unsigned SrcBits = SrcTy->getPrimitiveSizeInBits();   // 0 for ptr/vector
-  unsigned DestBits = DestTy->getPrimitiveSizeInBits(); // 0 for ptr/vector
+  unsigned SrcBits = SrcTy->getScalarSizeInBits();   // 0 for ptr
+  unsigned DestBits = DestTy->getScalarSizeInBits(); // 0 for ptr
 
   assert(SrcTy->isFirstClassType() && DestTy->isFirstClassType() &&
          "Only first class types are castable!");
@@ -2344,8 +2343,8 @@ CastInst::castIsValid(Instruction::CastOps op, Value *S, const Type *DstTy) {
     return false;
 
   // Get the size of the types in bits, we'll need this later
-  unsigned SrcBitSize = SrcTy->getPrimitiveSizeInBits();
-  unsigned DstBitSize = DstTy->getPrimitiveSizeInBits();
+  unsigned SrcBitSize = SrcTy->getScalarSizeInBits();
+  unsigned DstBitSize = DstTy->getScalarSizeInBits();
 
   // Switch on the opcode provided
   switch (op) {
@@ -2400,7 +2399,7 @@ CastInst::castIsValid(Instruction::CastOps op, Value *S, const Type *DstTy) {
     // Now we know we're not dealing with a pointer/non-pointer mismatch. In all
     // these cases, the cast is okay if the source and destination bit widths
     // are identical.
-    return SrcBitSize == DstBitSize;
+    return SrcTy->getPrimitiveSizeInBits() == DstTy->getPrimitiveSizeInBits();
   }
 }
 

@@ -143,10 +143,10 @@ namespace {
     /// inside the loop then try to eliminate the cast opeation.
     void OptimizeShadowIV(Loop *L);
 
-    /// OptimizeSMax - Rewrite the loop's terminating condition
-    /// if it uses an smax computation.
-    ICmpInst *OptimizeSMax(Loop *L, ICmpInst *Cond,
-                           IVStrideUse* &CondUse);
+    /// OptimizeMax - Rewrite the loop's terminating condition
+    /// if it uses a max computation.
+    ICmpInst *OptimizeMax(Loop *L, ICmpInst *Cond,
+                          IVStrideUse* &CondUse);
 
     bool FindIVUserForCond(ICmpInst *Cond, IVStrideUse *&CondUse,
                            const SCEVHandle *&CondStride);
@@ -336,13 +336,6 @@ namespace {
     /// EmittedBase.
     Value *OperandValToReplace;
 
-    /// isSigned - The stride (and thus also the Base) of this use may be in
-    /// a narrower type than the use itself (OperandValToReplace->getType()).
-    /// When this is the case, the isSigned field indicates whether the
-    /// IV expression should be signed-extended instead of zero-extended to
-    /// fit the type of the use.
-    bool isSigned;
-
     /// Imm - The immediate value that should be added to the base immediately
     /// before Inst, because it will be folded into the imm field of the
     /// instruction.  This is also sometimes used for loop-variant values that
@@ -363,7 +356,6 @@ namespace {
     BasedUser(IVStrideUse &IVSU, ScalarEvolution *se)
       : SE(se), Base(IVSU.getOffset()), Inst(IVSU.getUser()),
         OperandValToReplace(IVSU.getOperandValToReplace()),
-        isSigned(IVSU.isSigned()),
         Imm(SE->getIntegerSCEV(0, Base->getType())), 
         isUseOfPostIncrementedValue(IVSU.isUseOfPostIncrementedValue()) {}
 
@@ -427,11 +419,6 @@ Value *BasedUser::InsertCodeForBaseAtPosition(const SCEVHandle &NewBase,
     // Always emit the immediate (if non-zero) into the same block as the user.
     NewValSCEV = SE->getAddExpr(NewValSCEV, Imm);
   }
-
-  if (isSigned)
-    NewValSCEV = SE->getTruncateOrSignExtend(NewValSCEV, Ty);
-  else
-    NewValSCEV = SE->getTruncateOrZeroExtend(NewValSCEV, Ty);
 
   return Rewriter.expandCodeFor(NewValSCEV, Ty, IP);
 }
@@ -592,7 +579,7 @@ static void MoveLoopVariantsToImmediateField(SCEVHandle &Val, SCEVHandle &Imm,
   if (Val->isLoopInvariant(L)) return;  // Nothing to do.
   
   if (const SCEVAddExpr *SAE = dyn_cast<SCEVAddExpr>(Val)) {
-    std::vector<SCEVHandle> NewOps;
+    SmallVector<SCEVHandle, 4> NewOps;
     NewOps.reserve(SAE->getNumOperands());
     
     for (unsigned i = 0; i != SAE->getNumOperands(); ++i)
@@ -613,7 +600,7 @@ static void MoveLoopVariantsToImmediateField(SCEVHandle &Val, SCEVHandle &Imm,
     SCEVHandle Start = SARE->getStart();
     MoveLoopVariantsToImmediateField(Start, Imm, L, SE);
     
-    std::vector<SCEVHandle> Ops(SARE->op_begin(), SARE->op_end());
+    SmallVector<SCEVHandle, 4> Ops(SARE->op_begin(), SARE->op_end());
     Ops[0] = Start;
     Val = SE->getAddRecExpr(Ops, SARE->getLoop());
   } else {
@@ -633,7 +620,7 @@ static void MoveImmediateValues(const TargetLowering *TLI,
                                 bool isAddress, Loop *L,
                                 ScalarEvolution *SE) {
   if (const SCEVAddExpr *SAE = dyn_cast<SCEVAddExpr>(Val)) {
-    std::vector<SCEVHandle> NewOps;
+    SmallVector<SCEVHandle, 4> NewOps;
     NewOps.reserve(SAE->getNumOperands());
     
     for (unsigned i = 0; i != SAE->getNumOperands(); ++i) {
@@ -660,7 +647,7 @@ static void MoveImmediateValues(const TargetLowering *TLI,
     MoveImmediateValues(TLI, AccessTy, Start, Imm, isAddress, L, SE);
     
     if (Start != SARE->getStart()) {
-      std::vector<SCEVHandle> Ops(SARE->op_begin(), SARE->op_end());
+      SmallVector<SCEVHandle, 4> Ops(SARE->op_begin(), SARE->op_end());
       Ops[0] = Start;
       Val = SE->getAddRecExpr(Ops, SARE->getLoop());
     }
@@ -717,7 +704,7 @@ static void MoveImmediateValues(const TargetLowering *TLI,
 /// SeparateSubExprs - Decompose Expr into all of the subexpressions that are
 /// added together.  This is used to reassociate common addition subexprs
 /// together for maximal sharing when rewriting bases.
-static void SeparateSubExprs(std::vector<SCEVHandle> &SubExprs,
+static void SeparateSubExprs(SmallVector<SCEVHandle, 16> &SubExprs,
                              SCEVHandle Expr,
                              ScalarEvolution *SE) {
   if (const SCEVAddExpr *AE = dyn_cast<SCEVAddExpr>(Expr)) {
@@ -729,7 +716,7 @@ static void SeparateSubExprs(std::vector<SCEVHandle> &SubExprs,
       SubExprs.push_back(Expr);
     } else {
       // Compute the addrec with zero as its base.
-      std::vector<SCEVHandle> Ops(SARE->op_begin(), SARE->op_end());
+      SmallVector<SCEVHandle, 4> Ops(SARE->op_begin(), SARE->op_end());
       Ops[0] = Zero;   // Start with zero base.
       SubExprs.push_back(SE->getAddRecExpr(Ops, SARE->getLoop()));
       
@@ -783,9 +770,9 @@ RemoveCommonExpressionsFromUseBases(std::vector<BasedUser> &Uses,
   
   // UniqueSubExprs - Keep track of all of the subexpressions we see in the
   // order we see them.
-  std::vector<SCEVHandle> UniqueSubExprs;
+  SmallVector<SCEVHandle, 16> UniqueSubExprs;
 
-  std::vector<SCEVHandle> SubExprs;
+  SmallVector<SCEVHandle, 16> SubExprs;
   unsigned NumUsesInsideLoop = 0;
   for (unsigned i = 0; i != NumUses; ++i) {
     // If the user is outside the loop, just ignore it for base computation.
@@ -1129,11 +1116,11 @@ static bool isNonConstantNegative(const SCEVHandle &Expr) {
   return SC->getValue()->getValue().isNegative();
 }
 
-// CollectIVUsers - Transform our list of users and offsets to a bit more
-// complex table. In this new vector, each 'BasedUser' contains 'Base', the base
-// of the strided accesses, as well as the old information from Uses. We
-// progressively move information from the Base field to the Imm field, until
-// we eventually have the full access expression to rewrite the use.
+/// CollectIVUsers - Transform our list of users and offsets to a bit more
+/// complex table. In this new vector, each 'BasedUser' contains 'Base', the base
+/// of the strided accesses, as well as the old information from Uses. We
+/// progressively move information from the Base field to the Imm field, until
+/// we eventually have the full access expression to rewrite the use.
 SCEVHandle LoopStrengthReduce::CollectIVUsers(const SCEVHandle &Stride,
                                               IVUsersOfOneStride &Uses,
                                               Loop *L,
@@ -2008,15 +1995,15 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
       if (!isa<PointerType>(NewCmpTy))
         NewCmpRHS = ConstantInt::get(NewCmpTy, NewCmpVal);
       else {
-        ConstantInt *CI = ConstantInt::get(NewCmpIntTy, NewCmpVal);
+        Constant *CI = ConstantInt::get(NewCmpIntTy, NewCmpVal);
         NewCmpRHS = ConstantExpr::getIntToPtr(CI, NewCmpTy);
       }
       NewOffset = TyBits == NewTyBits
         ? SE->getMulExpr(CondUse->getOffset(),
-                         SE->getConstant(ConstantInt::get(CmpTy, Scale)))
-        : SE->getConstant(ConstantInt::get(NewCmpIntTy,
+                         SE->getConstant(CmpTy, Scale))
+        : SE->getConstant(NewCmpIntTy,
           cast<SCEVConstant>(CondUse->getOffset())->getValue()
-            ->getSExtValue()*Scale));
+            ->getSExtValue()*Scale);
       break;
     }
   }
@@ -2047,7 +2034,7 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
     OldCond->replaceAllUsesWith(Cond);
     OldCond->eraseFromParent();
 
-    IU->IVUsesByStride[*NewStride]->addUser(NewOffset, Cond, NewCmpLHS, false);
+    IU->IVUsesByStride[*NewStride]->addUser(NewOffset, Cond, NewCmpLHS);
     CondUse = &IU->IVUsesByStride[*NewStride]->Users.back();
     CondStride = NewStride;
     ++NumEliminated;
@@ -2057,8 +2044,8 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
   return Cond;
 }
 
-/// OptimizeSMax - Rewrite the loop's terminating condition if it uses
-/// an smax computation.
+/// OptimizeMax - Rewrite the loop's terminating condition if it uses
+/// a max computation.
 ///
 /// This is a narrow solution to a specific, but acute, problem. For loops
 /// like this:
@@ -2068,10 +2055,10 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
 ///     p[i] = 0.0;
 ///   } while (++i < n);
 ///
-/// where the comparison is signed, the trip count isn't just 'n', because
-/// 'n' could be negative. And unfortunately this can come up even for loops
-/// where the user didn't use a C do-while loop. For example, seemingly
-/// well-behaved top-test loops will commonly be lowered like this:
+/// the trip count isn't just 'n', because 'n' might not be positive. And
+/// unfortunately this can come up even for loops where the user didn't use
+/// a C do-while loop. For example, seemingly well-behaved top-test loops
+/// will commonly be lowered like this:
 //
 ///   if (n > 0) {
 ///     i = 0;
@@ -2084,14 +2071,14 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
 /// test in such a way that indvars can't find it.
 ///
 /// When indvars can't find the if test in loops like this, it creates a
-/// signed-max expression, which allows it to give the loop a canonical
+/// max expression, which allows it to give the loop a canonical
 /// induction variable:
 ///
 ///   i = 0;
-///   smax = n < 1 ? 1 : n;
+///   max = n < 1 ? 1 : n;
 ///   do {
 ///     p[i] = 0.0;
-///   } while (++i != smax);
+///   } while (++i != max);
 ///
 /// Canonical induction variables are necessary because the loop passes
 /// are designed around them. The most obvious example of this is the
@@ -2107,8 +2094,8 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
 /// rewriting their conditions from ICMP_NE back to ICMP_SLT, and deleting
 /// the instructions for the maximum computation.
 ///
-ICmpInst *LoopStrengthReduce::OptimizeSMax(Loop *L, ICmpInst *Cond,
-                                           IVStrideUse* &CondUse) {
+ICmpInst *LoopStrengthReduce::OptimizeMax(Loop *L, ICmpInst *Cond,
+                                          IVStrideUse* &CondUse) {
   // Check that the loop matches the pattern we're looking for.
   if (Cond->getPredicate() != CmpInst::ICMP_EQ &&
       Cond->getPredicate() != CmpInst::ICMP_NE)
@@ -2126,12 +2113,19 @@ ICmpInst *LoopStrengthReduce::OptimizeSMax(Loop *L, ICmpInst *Cond,
   SCEVHandle IterationCount = SE->getAddExpr(BackedgeTakenCount, One);
 
   // Check for a max calculation that matches the pattern.
-  const SCEVSMaxExpr *SMax = dyn_cast<SCEVSMaxExpr>(IterationCount);
-  if (!SMax || SMax != SE->getSCEV(Sel)) return Cond;
+  if (!isa<SCEVSMaxExpr>(IterationCount) && !isa<SCEVUMaxExpr>(IterationCount))
+    return Cond;
+  const SCEVNAryExpr *Max = cast<SCEVNAryExpr>(IterationCount);
+  if (Max != SE->getSCEV(Sel)) return Cond;
 
-  SCEVHandle SMaxLHS = SMax->getOperand(0);
-  SCEVHandle SMaxRHS = SMax->getOperand(1);
-  if (!SMaxLHS || SMaxLHS != One) return Cond;
+  // To handle a max with more than two operands, this optimization would
+  // require additional checking and setup.
+  if (Max->getNumOperands() != 2)
+    return Cond;
+
+  SCEVHandle MaxLHS = Max->getOperand(0);
+  SCEVHandle MaxRHS = Max->getOperand(1);
+  if (!MaxLHS || MaxLHS != One) return Cond;
 
   // Check the relevant induction variable for conformance to
   // the pattern.
@@ -2148,19 +2142,23 @@ ICmpInst *LoopStrengthReduce::OptimizeSMax(Loop *L, ICmpInst *Cond,
   // Check the right operand of the select, and remember it, as it will
   // be used in the new comparison instruction.
   Value *NewRHS = 0;
-  if (SE->getSCEV(Sel->getOperand(1)) == SMaxRHS)
+  if (SE->getSCEV(Sel->getOperand(1)) == MaxRHS)
     NewRHS = Sel->getOperand(1);
-  else if (SE->getSCEV(Sel->getOperand(2)) == SMaxRHS)
+  else if (SE->getSCEV(Sel->getOperand(2)) == MaxRHS)
     NewRHS = Sel->getOperand(2);
   if (!NewRHS) return Cond;
+
+  // Determine the new comparison opcode. It may be signed or unsigned,
+  // and the original comparison may be either equality or inequality.
+  CmpInst::Predicate Pred =
+    isa<SCEVSMaxExpr>(Max) ? CmpInst::ICMP_SLT : CmpInst::ICMP_ULT;
+  if (Cond->getPredicate() == CmpInst::ICMP_EQ)
+    Pred = CmpInst::getInversePredicate(Pred);
 
   // Ok, everything looks ok to change the condition into an SLT or SGE and
   // delete the max calculation.
   ICmpInst *NewCond =
-    new ICmpInst(Cond->getPredicate() == CmpInst::ICMP_NE ?
-                   CmpInst::ICMP_SLT :
-                   CmpInst::ICMP_SGE,
-                 Cond->getOperand(0), NewRHS, "scmp", Cond);
+    new ICmpInst(Pred, Cond->getOperand(0), NewRHS, "scmp", Cond);
 
   // Delete the max calculation instructions.
   Cond->replaceAllUsesWith(NewCond);
@@ -2242,7 +2240,7 @@ void LoopStrengthReduce::OptimizeShadowIV(Loop *L) {
         
       ConstantInt *Init = dyn_cast<ConstantInt>(PH->getIncomingValue(Entry));
       if (!Init) continue;
-      ConstantFP *NewInit = ConstantFP::get(DestTy, Init->getZExtValue());
+      Constant *NewInit = ConstantFP::get(DestTy, Init->getZExtValue());
 
       BinaryOperator *Incr = 
         dyn_cast<BinaryOperator>(PH->getIncomingValue(Latch));
@@ -2266,7 +2264,7 @@ void LoopStrengthReduce::OptimizeShadowIV(Loop *L) {
       PHINode *NewPH = PHINode::Create(DestTy, "IV.S.", PH);
 
       /* create new increment. '++d' in above example. */
-      ConstantFP *CFP = ConstantFP::get(DestTy, C->getZExtValue());
+      Constant *CFP = ConstantFP::get(DestTy, C->getZExtValue());
       BinaryOperator *NewIncr = 
         BinaryOperator::Create(Incr->getOpcode() == Instruction::Add ?
                                  Instruction::FAdd : Instruction::FSub,
@@ -2284,9 +2282,9 @@ void LoopStrengthReduce::OptimizeShadowIV(Loop *L) {
   }
 }
 
-// OptimizeIndvars - Now that IVUsesByStride is set up with all of the indvar
-// uses in the loop, look to see if we can eliminate some, in favor of using
-// common indvars for the different uses.
+/// OptimizeIndvars - Now that IVUsesByStride is set up with all of the indvar
+/// uses in the loop, look to see if we can eliminate some, in favor of using
+/// common indvars for the different uses.
 void LoopStrengthReduce::OptimizeIndvars(Loop *L) {
   // TODO: implement optzns here.
 
@@ -2301,11 +2299,11 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
   // induction variable, to allow coalescing the live ranges for the IV into
   // one register value.
   BasicBlock *LatchBlock = L->getLoopLatch();
-  BasicBlock *ExitBlock = L->getExitingBlock();
-  if (!ExitBlock)
+  BasicBlock *ExitingBlock = L->getExitingBlock();
+  if (!ExitingBlock)
     // Multiple exits, just look at the exit in the latch block if there is one.
-    ExitBlock = LatchBlock;
-  BranchInst *TermBr = dyn_cast<BranchInst>(ExitBlock->getTerminator());
+    ExitingBlock = LatchBlock;
+  BranchInst *TermBr = dyn_cast<BranchInst>(ExitingBlock->getTerminator());
   if (!TermBr)
     return;
   if (TermBr->isUnconditional() || !isa<ICmpInst>(TermBr->getCondition()))
@@ -2318,7 +2316,7 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
   if (!FindIVUserForCond(Cond, CondUse, CondStride))
     return; // setcc doesn't use the IV.
 
-  if (ExitBlock != LatchBlock) {
+  if (ExitingBlock != LatchBlock) {
     if (!Cond->hasOneUse())
       // See below, we don't want the condition to be cloned.
       return;
@@ -2373,14 +2371,14 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
     StrideNoReuse.insert(*CondStride);
   }
 
-  // If the trip count is computed in terms of an smax (due to ScalarEvolution
+  // If the trip count is computed in terms of a max (due to ScalarEvolution
   // being unable to find a sufficient guard, for example), change the loop
-  // comparison to use SLT instead of NE.
-  Cond = OptimizeSMax(L, Cond, CondUse);
+  // comparison to use SLT or ULT instead of NE.
+  Cond = OptimizeMax(L, Cond, CondUse);
 
   // If possible, change stride and operands of the compare instruction to
   // eliminate one stride.
-  if (ExitBlock == LatchBlock)
+  if (ExitingBlock == LatchBlock)
     Cond = ChangeCompareStride(L, Cond, CondUse, CondStride);
 
   // It's possible for the setcc instruction to be anywhere in the loop, and
@@ -2397,8 +2395,7 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
       
       // Clone the IVUse, as the old use still exists!
       IU->IVUsesByStride[*CondStride]->addUser(CondUse->getOffset(), Cond,
-                                              CondUse->getOperandValToReplace(),
-                                               false);
+                                             CondUse->getOperandValToReplace());
       CondUse = &IU->IVUsesByStride[*CondStride]->Users.back();
     }
   }
@@ -2413,9 +2410,9 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
   ++NumLoopCond;
 }
 
-// OptimizeLoopCountIV - If, after all sharing of IVs, the IV used for deciding
-// when to exit the loop is used only for that purpose, try to rearrange things
-// so it counts down to a test against zero.
+/// OptimizeLoopCountIV - If, after all sharing of IVs, the IV used for deciding
+/// when to exit the loop is used only for that purpose, try to rearrange things
+/// so it counts down to a test against zero.
 void LoopStrengthReduce::OptimizeLoopCountIV(Loop *L) {
 
   // If the number of times the loop is executed isn't computable, give up.
@@ -2506,7 +2503,7 @@ void LoopStrengthReduce::OptimizeLoopCountIV(Loop *L) {
   Value *startVal = phi->getIncomingValue(inBlock);
   Value *endVal = Cond->getOperand(1);
   // FIXME check for case where both are constant
-  ConstantInt* Zero = ConstantInt::get(Cond->getOperand(1)->getType(), 0);
+  Constant* Zero = ConstantInt::get(Cond->getOperand(1)->getType(), 0);
   BinaryOperator *NewStartVal = 
     BinaryOperator::Create(Instruction::Sub, endVal, startVal,
                            "tmp", PreInsertPt);

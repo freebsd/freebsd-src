@@ -25,6 +25,9 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/System/Mutex.h"
+#include "llvm/System/RWMutex.h"
+#include "llvm/System/Threading.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include <algorithm>
@@ -34,6 +37,9 @@ using namespace llvm;
 //===----------------------------------------------------------------------===//
 //                              Constant Class
 //===----------------------------------------------------------------------===//
+
+// Becomes a no-op when multithreading is disabled.
+ManagedStatic<sys::SmartRWMutex<true> > ConstantsLock;
 
 void Constant::destroyConstantImpl() {
   // When a Constant is destroyed, there may be lingering
@@ -269,9 +275,20 @@ typedef DenseMap<DenseMapAPIntKeyInfo::KeyTy, ConstantInt*,
                  DenseMapAPIntKeyInfo> IntMapTy;
 static ManagedStatic<IntMapTy> IntConstants;
 
-ConstantInt *ConstantInt::get(const Type *Ty, uint64_t V, bool isSigned) {
-  const IntegerType *ITy = cast<IntegerType>(Ty);
-  return get(APInt(ITy->getBitWidth(), V, isSigned));
+ConstantInt *ConstantInt::get(const IntegerType *Ty,
+                              uint64_t V, bool isSigned) {
+  return get(APInt(Ty->getBitWidth(), V, isSigned));
+}
+
+Constant *ConstantInt::get(const Type *Ty, uint64_t V, bool isSigned) {
+  Constant *C = get(cast<IntegerType>(Ty->getScalarType()), V, isSigned);
+
+  // For vectors, broadcast the value.
+  if (const VectorType *VTy = dyn_cast<VectorType>(Ty))
+    return
+      ConstantVector::get(std::vector<Constant *>(VTy->getNumElements(), C));
+
+  return C;
 }
 
 // Get a ConstantInt from an APInt. Note that the value stored in the DenseMap 
@@ -284,12 +301,35 @@ ConstantInt *ConstantInt::get(const APInt& V) {
   const IntegerType *ITy = IntegerType::get(V.getBitWidth());
   // get an existing value or the insertion position
   DenseMapAPIntKeyInfo::KeyTy Key(V, ITy);
+  
+  ConstantsLock->reader_acquire();
   ConstantInt *&Slot = (*IntConstants)[Key]; 
-  // if it exists, return it.
-  if (Slot)
+  ConstantsLock->reader_release();
+    
+  if (!Slot) {
+    sys::SmartScopedWriter<true> Writer(&*ConstantsLock);
+    ConstantInt *&NewSlot = (*IntConstants)[Key]; 
+    if (!Slot) {
+      NewSlot = new ConstantInt(ITy, V);
+    }
+    
+    return NewSlot;
+  } else {
     return Slot;
-  // otherwise create a new one, insert it, and return it.
-  return Slot = new ConstantInt(ITy, V);
+  }
+}
+
+Constant *ConstantInt::get(const Type *Ty, const APInt &V) {
+  ConstantInt *C = ConstantInt::get(V);
+  assert(C->getType() == Ty->getScalarType() &&
+         "ConstantInt type doesn't match the type implied by its value!");
+
+  // For vectors, broadcast the value.
+  if (const VectorType *VTy = dyn_cast<VectorType>(Ty))
+    return
+      ConstantVector::get(std::vector<Constant *>(VTy->getNumElements(), C));
+
+  return C;
 }
 
 //===----------------------------------------------------------------------===//
@@ -368,34 +408,54 @@ static ManagedStatic<FPMapTy> FPConstants;
 
 ConstantFP *ConstantFP::get(const APFloat &V) {
   DenseMapAPFloatKeyInfo::KeyTy Key(V);
-  ConstantFP *&Slot = (*FPConstants)[Key];
-  if (Slot) return Slot;
   
-  const Type *Ty;
-  if (&V.getSemantics() == &APFloat::IEEEsingle)
-    Ty = Type::FloatTy;
-  else if (&V.getSemantics() == &APFloat::IEEEdouble)
-    Ty = Type::DoubleTy;
-  else if (&V.getSemantics() == &APFloat::x87DoubleExtended)
-    Ty = Type::X86_FP80Ty;
-  else if (&V.getSemantics() == &APFloat::IEEEquad)
-    Ty = Type::FP128Ty;
-  else {
-    assert(&V.getSemantics() == &APFloat::PPCDoubleDouble&&"Unknown FP format");
-    Ty = Type::PPC_FP128Ty;
+  ConstantsLock->reader_acquire();
+  ConstantFP *&Slot = (*FPConstants)[Key];
+  ConstantsLock->reader_release();
+    
+  if (!Slot) {
+    sys::SmartScopedWriter<true> Writer(&*ConstantsLock);
+    ConstantFP *&NewSlot = (*FPConstants)[Key];
+    if (!NewSlot) {
+      const Type *Ty;
+      if (&V.getSemantics() == &APFloat::IEEEsingle)
+        Ty = Type::FloatTy;
+      else if (&V.getSemantics() == &APFloat::IEEEdouble)
+        Ty = Type::DoubleTy;
+      else if (&V.getSemantics() == &APFloat::x87DoubleExtended)
+        Ty = Type::X86_FP80Ty;
+      else if (&V.getSemantics() == &APFloat::IEEEquad)
+        Ty = Type::FP128Ty;
+      else {
+        assert(&V.getSemantics() == &APFloat::PPCDoubleDouble && 
+               "Unknown FP format");
+        Ty = Type::PPC_FP128Ty;
+      }
+      NewSlot = new ConstantFP(Ty, V);
+    }
+    
+    return NewSlot;
   }
   
-  return Slot = new ConstantFP(Ty, V);
+  return Slot;
 }
 
 /// get() - This returns a constant fp for the specified value in the
 /// specified type.  This should only be used for simple constant values like
 /// 2.0/1.0 etc, that are known-valid both as double and as the target format.
-ConstantFP *ConstantFP::get(const Type *Ty, double V) {
+Constant *ConstantFP::get(const Type *Ty, double V) {
   APFloat FV(V);
   bool ignored;
-  FV.convert(*TypeToFloatSemantics(Ty), APFloat::rmNearestTiesToEven, &ignored);
-  return get(FV);
+  FV.convert(*TypeToFloatSemantics(Ty->getScalarType()),
+             APFloat::rmNearestTiesToEven, &ignored);
+  Constant *C = get(FV);
+
+  // For vectors, broadcast the value.
+  if (const VectorType *VTy = dyn_cast<VectorType>(Ty))
+    return
+      ConstantVector::get(std::vector<Constant *>(VTy->getNumElements(), C));
+
+  return C;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1093,8 +1153,13 @@ namespace llvm {
     /// AbstractTypeMap - Map for abstract type constants.
     ///
     AbstractTypeMapTy AbstractTypeMap;
+    
+    /// ValueMapLock - Mutex for this map.
+    sys::SmartMutex<true> ValueMapLock;
 
   public:
+    // NOTE: This function is not locked.  It is the caller's responsibility
+    // to enforce proper synchronization.
     typename MapTy::iterator map_end() { return Map.end(); }
     
     /// InsertOrGetItem - Return an iterator for the specified element.
@@ -1102,6 +1167,8 @@ namespace llvm {
     /// entry and Exists=true.  If not, the iterator points to the newly
     /// inserted entry and returns Exists=false.  Newly inserted entries have
     /// I->second == 0, and should be filled in.
+    /// NOTE: This function is not locked.  It is the caller's responsibility
+    // to enforce proper synchronization.
     typename MapTy::iterator InsertOrGetItem(std::pair<MapKey, Constant *>
                                    &InsertVal,
                                    bool &Exists) {
@@ -1131,19 +1198,10 @@ private:
       }
       return I;
     }
-public:
     
-    /// getOrCreate - Return the specified constant from the map, creating it if
-    /// necessary.
-    ConstantClass *getOrCreate(const TypeClass *Ty, const ValType &V) {
-      MapKey Lookup(Ty, V);
-      typename MapTy::iterator I = Map.find(Lookup);
-      // Is it in the map?      
-      if (I != Map.end())
-        return static_cast<ConstantClass *>(I->second);  
-
-      // If no preexisting value, create one now...
-      ConstantClass *Result =
+    ConstantClass* Create(const TypeClass *Ty, const ValType &V,
+                          typename MapTy::iterator I) {
+      ConstantClass* Result =
         ConstantCreator<ConstantClass,TypeClass,ValType>::create(Ty, V);
 
       assert(Result->getType() == Ty && "Type specified is not correct!");
@@ -1151,11 +1209,12 @@ public:
 
       if (HasLargeKey)  // Remember the reverse mapping if needed.
         InverseMap.insert(std::make_pair(Result, I));
-      
-      // If the type of the constant is abstract, make sure that an entry exists
-      // for it in the AbstractTypeMap.
+
+      // If the type of the constant is abstract, make sure that an entry
+      // exists for it in the AbstractTypeMap.
       if (Ty->isAbstract()) {
-        typename AbstractTypeMapTy::iterator TI = AbstractTypeMap.find(Ty);
+        typename AbstractTypeMapTy::iterator TI = 
+                                                 AbstractTypeMap.find(Ty);
 
         if (TI == AbstractTypeMap.end()) {
           // Add ourselves to the ATU list of the type.
@@ -1164,10 +1223,33 @@ public:
           AbstractTypeMap.insert(TI, std::make_pair(Ty, I));
         }
       }
+      
+      return Result;
+    }
+public:
+    
+    /// getOrCreate - Return the specified constant from the map, creating it if
+    /// necessary.
+    ConstantClass *getOrCreate(const TypeClass *Ty, const ValType &V) {
+      sys::SmartScopedLock<true> Lock(&ValueMapLock);
+      MapKey Lookup(Ty, V);
+      ConstantClass* Result = 0;
+      
+      typename MapTy::iterator I = Map.find(Lookup);
+      // Is it in the map?  
+      if (I != Map.end())
+        Result = static_cast<ConstantClass *>(I->second);
+        
+      if (!Result) {
+        // If no preexisting value, create one now...
+        Result = Create(Ty, V, I);
+      }
+        
       return Result;
     }
 
     void remove(ConstantClass *CP) {
+      sys::SmartScopedLock<true> Lock(&ValueMapLock);
       typename MapTy::iterator I = FindExistingElement(CP);
       assert(I != Map.end() && "Constant not found in constant table!");
       assert(I->second == CP && "Didn't find correct element?");
@@ -1221,6 +1303,8 @@ public:
     /// MoveConstantToNewSlot - If we are about to change C to be the element
     /// specified by I, update our internal data structures to reflect this
     /// fact.
+    /// NOTE: This function is not locked. It is the responsibility of the
+    /// caller to enforce proper synchronization if using this method.
     void MoveConstantToNewSlot(ConstantClass *C, typename MapTy::iterator I) {
       // First, remove the old location of the specified constant in the map.
       typename MapTy::iterator OldI = FindExistingElement(C);
@@ -1250,6 +1334,7 @@ public:
     }
     
     void refineAbstractType(const DerivedType *OldTy, const Type *NewTy) {
+      sys::SmartScopedLock<true> Lock(&ValueMapLock);
       typename AbstractTypeMapTy::iterator I =
         AbstractTypeMap.find(cast<Type>(OldTy));
 
@@ -1314,12 +1399,15 @@ static char getValType(ConstantAggregateZero *CPZ) { return 0; }
 ConstantAggregateZero *ConstantAggregateZero::get(const Type *Ty) {
   assert((isa<StructType>(Ty) || isa<ArrayType>(Ty) || isa<VectorType>(Ty)) &&
          "Cannot create an aggregate zero of non-aggregate type!");
+  
+  // Implicitly locked.
   return AggZeroConstants->getOrCreate(Ty, 0);
 }
 
 /// destroyConstant - Remove the constant from the constant table...
 ///
 void ConstantAggregateZero::destroyConstant() {
+  // Implicitly locked.
   AggZeroConstants->remove(this);
   destroyConstantImpl();
 }
@@ -1359,18 +1447,24 @@ Constant *ConstantArray::get(const ArrayType *Ty,
   // If this is an all-zero array, return a ConstantAggregateZero object
   if (!V.empty()) {
     Constant *C = V[0];
-    if (!C->isNullValue())
+    if (!C->isNullValue()) {
+      // Implicitly locked.
       return ArrayConstants->getOrCreate(Ty, V);
+    }
     for (unsigned i = 1, e = V.size(); i != e; ++i)
-      if (V[i] != C)
+      if (V[i] != C) {
+        // Implicitly locked.
         return ArrayConstants->getOrCreate(Ty, V);
+      }
   }
+  
   return ConstantAggregateZero::get(Ty);
 }
 
 /// destroyConstant - Remove the constant from the constant table...
 ///
 void ConstantArray::destroyConstant() {
+  // Implicitly locked.
   ArrayConstants->remove(this);
   destroyConstantImpl();
 }
@@ -1482,6 +1576,7 @@ Constant *ConstantStruct::get(const StructType *Ty,
   // Create a ConstantAggregateZero value if all elements are zeros...
   for (unsigned i = 0, e = V.size(); i != e; ++i)
     if (!V[i]->isNullValue())
+      // Implicitly locked.
       return StructConstants->getOrCreate(Ty, V);
 
   return ConstantAggregateZero::get(Ty);
@@ -1498,6 +1593,7 @@ Constant *ConstantStruct::get(const std::vector<Constant*> &V, bool packed) {
 // destroyConstant - Remove the constant from the constant table...
 //
 void ConstantStruct::destroyConstant() {
+  // Implicitly locked.
   StructConstants->remove(this);
   destroyConstantImpl();
 }
@@ -1552,6 +1648,8 @@ Constant *ConstantVector::get(const VectorType *Ty,
     return ConstantAggregateZero::get(Ty);
   if (isUndef)
     return UndefValue::get(Ty);
+    
+  // Implicitly locked.
   return VectorConstants->getOrCreate(Ty, V);
 }
 
@@ -1563,6 +1661,7 @@ Constant *ConstantVector::get(const std::vector<Constant*> &V) {
 // destroyConstant - Remove the constant from the constant table...
 //
 void ConstantVector::destroyConstant() {
+  // Implicitly locked.
   VectorConstants->remove(this);
   destroyConstantImpl();
 }
@@ -1627,12 +1726,14 @@ static char getValType(ConstantPointerNull *) {
 
 
 ConstantPointerNull *ConstantPointerNull::get(const PointerType *Ty) {
+  // Implicitly locked.
   return NullPtrConstants->getOrCreate(Ty, 0);
 }
 
 // destroyConstant - Remove the constant from the constant table...
 //
 void ConstantPointerNull::destroyConstant() {
+  // Implicitly locked.
   NullPtrConstants->remove(this);
   destroyConstantImpl();
 }
@@ -1670,12 +1771,14 @@ static char getValType(UndefValue *) {
 
 
 UndefValue *UndefValue::get(const Type *Ty) {
+  // Implicitly locked.
   return UndefValueConstants->getOrCreate(Ty, 0);
 }
 
 // destroyConstant - Remove the constant from the constant table.
 //
 void UndefValue::destroyConstant() {
+  // Implicitly locked.
   UndefValueConstants->remove(this);
   destroyConstantImpl();
 }
@@ -1690,15 +1793,18 @@ MDString::MDString(const char *begin, const char *end)
 static ManagedStatic<StringMap<MDString*> > MDStringCache;
 
 MDString *MDString::get(const char *StrBegin, const char *StrEnd) {
-  StringMapEntry<MDString *> &Entry = MDStringCache->GetOrCreateValue(StrBegin,
-                                                                      StrEnd);
+  sys::SmartScopedWriter<true> Writer(&*ConstantsLock);
+  StringMapEntry<MDString *> &Entry = MDStringCache->GetOrCreateValue(
+                                        StrBegin, StrEnd);
   MDString *&S = Entry.getValue();
   if (!S) S = new MDString(Entry.getKeyData(),
                            Entry.getKeyData() + Entry.getKeyLength());
+
   return S;
 }
 
 void MDString::destroyConstant() {
+  sys::SmartScopedWriter<true> Writer(&*ConstantsLock);
   MDStringCache->erase(MDStringCache->find(StrBegin, StrEnd));
   destroyConstantImpl();
 }
@@ -1724,18 +1830,27 @@ MDNode *MDNode::get(Value*const* Vals, unsigned NumVals) {
   for (unsigned i = 0; i != NumVals; ++i)
     ID.AddPointer(Vals[i]);
 
+  ConstantsLock->reader_acquire();
   void *InsertPoint;
-  if (MDNode *N = MDNodeSet->FindNodeOrInsertPos(ID, InsertPoint))
-    return N;
-
-  // InsertPoint will have been set by the FindNodeOrInsertPos call.
-  MDNode *N = new(0) MDNode(Vals, NumVals);
-  MDNodeSet->InsertNode(N, InsertPoint);
+  MDNode *N = MDNodeSet->FindNodeOrInsertPos(ID, InsertPoint);
+  ConstantsLock->reader_release();
+  
+  if (!N) {
+    sys::SmartScopedWriter<true> Writer(&*ConstantsLock);
+    N = MDNodeSet->FindNodeOrInsertPos(ID, InsertPoint);
+    if (!N) {
+      // InsertPoint will have been set by the FindNodeOrInsertPos call.
+      N = new(0) MDNode(Vals, NumVals);
+      MDNodeSet->InsertNode(N, InsertPoint);
+    }
+  }
   return N;
 }
 
 void MDNode::destroyConstant() {
+  sys::SmartScopedWriter<true> Writer(&*ConstantsLock); 
   MDNodeSet->RemoveNode(this);
+  
   destroyConstantImpl();
 }
 
@@ -1902,6 +2017,8 @@ static inline Constant *getFoldedCast(
   // Look up the constant in the table first to ensure uniqueness
   std::vector<Constant*> argVec(1, C);
   ExprMapKeyType Key(opc, argVec);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(Ty, Key);
 }
  
@@ -1932,19 +2049,19 @@ Constant *ConstantExpr::getCast(unsigned oc, Constant *C, const Type *Ty) {
 } 
 
 Constant *ConstantExpr::getZExtOrBitCast(Constant *C, const Type *Ty) {
-  if (C->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (C->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return getCast(Instruction::BitCast, C, Ty);
   return getCast(Instruction::ZExt, C, Ty);
 }
 
 Constant *ConstantExpr::getSExtOrBitCast(Constant *C, const Type *Ty) {
-  if (C->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (C->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return getCast(Instruction::BitCast, C, Ty);
   return getCast(Instruction::SExt, C, Ty);
 }
 
 Constant *ConstantExpr::getTruncOrBitCast(Constant *C, const Type *Ty) {
-  if (C->getType()->getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits())
+  if (C->getType()->getScalarSizeInBits() == Ty->getScalarSizeInBits())
     return getCast(Instruction::BitCast, C, Ty);
   return getCast(Instruction::Trunc, C, Ty);
 }
@@ -1960,9 +2077,10 @@ Constant *ConstantExpr::getPointerCast(Constant *S, const Type *Ty) {
 
 Constant *ConstantExpr::getIntegerCast(Constant *C, const Type *Ty, 
                                        bool isSigned) {
-  assert(C->getType()->isInteger() && Ty->isInteger() && "Invalid cast");
-  unsigned SrcBits = C->getType()->getPrimitiveSizeInBits();
-  unsigned DstBits = Ty->getPrimitiveSizeInBits();
+  assert(C->getType()->isIntOrIntVector() &&
+         Ty->isIntOrIntVector() && "Invalid cast");
+  unsigned SrcBits = C->getType()->getScalarSizeInBits();
+  unsigned DstBits = Ty->getScalarSizeInBits();
   Instruction::CastOps opcode =
     (SrcBits == DstBits ? Instruction::BitCast :
      (SrcBits > DstBits ? Instruction::Trunc :
@@ -1971,10 +2089,10 @@ Constant *ConstantExpr::getIntegerCast(Constant *C, const Type *Ty,
 }
 
 Constant *ConstantExpr::getFPCast(Constant *C, const Type *Ty) {
-  assert(C->getType()->isFloatingPoint() && Ty->isFloatingPoint() && 
+  assert(C->getType()->isFPOrFPVector() && Ty->isFPOrFPVector() &&
          "Invalid cast");
-  unsigned SrcBits = C->getType()->getPrimitiveSizeInBits();
-  unsigned DstBits = Ty->getPrimitiveSizeInBits();
+  unsigned SrcBits = C->getType()->getScalarSizeInBits();
+  unsigned DstBits = Ty->getScalarSizeInBits();
   if (SrcBits == DstBits)
     return C; // Avoid a useless cast
   Instruction::CastOps opcode =
@@ -1983,42 +2101,67 @@ Constant *ConstantExpr::getFPCast(Constant *C, const Type *Ty) {
 }
 
 Constant *ConstantExpr::getTrunc(Constant *C, const Type *Ty) {
-  assert(C->getType()->isInteger() && "Trunc operand must be integer");
-  assert(Ty->isInteger() && "Trunc produces only integral");
-  assert(C->getType()->getPrimitiveSizeInBits() > Ty->getPrimitiveSizeInBits()&&
+#ifndef NDEBUG
+  bool fromVec = C->getType()->getTypeID() == Type::VectorTyID;
+  bool toVec = Ty->getTypeID() == Type::VectorTyID;
+#endif
+  assert((fromVec == toVec) && "Cannot convert from scalar to/from vector");
+  assert(C->getType()->isIntOrIntVector() && "Trunc operand must be integer");
+  assert(Ty->isIntOrIntVector() && "Trunc produces only integral");
+  assert(C->getType()->getScalarSizeInBits() > Ty->getScalarSizeInBits()&&
          "SrcTy must be larger than DestTy for Trunc!");
 
   return getFoldedCast(Instruction::Trunc, C, Ty);
 }
 
 Constant *ConstantExpr::getSExt(Constant *C, const Type *Ty) {
-  assert(C->getType()->isInteger() && "SEXt operand must be integral");
-  assert(Ty->isInteger() && "SExt produces only integer");
-  assert(C->getType()->getPrimitiveSizeInBits() < Ty->getPrimitiveSizeInBits()&&
+#ifndef NDEBUG
+  bool fromVec = C->getType()->getTypeID() == Type::VectorTyID;
+  bool toVec = Ty->getTypeID() == Type::VectorTyID;
+#endif
+  assert((fromVec == toVec) && "Cannot convert from scalar to/from vector");
+  assert(C->getType()->isIntOrIntVector() && "SExt operand must be integral");
+  assert(Ty->isIntOrIntVector() && "SExt produces only integer");
+  assert(C->getType()->getScalarSizeInBits() < Ty->getScalarSizeInBits()&&
          "SrcTy must be smaller than DestTy for SExt!");
 
   return getFoldedCast(Instruction::SExt, C, Ty);
 }
 
 Constant *ConstantExpr::getZExt(Constant *C, const Type *Ty) {
-  assert(C->getType()->isInteger() && "ZEXt operand must be integral");
-  assert(Ty->isInteger() && "ZExt produces only integer");
-  assert(C->getType()->getPrimitiveSizeInBits() < Ty->getPrimitiveSizeInBits()&&
+#ifndef NDEBUG
+  bool fromVec = C->getType()->getTypeID() == Type::VectorTyID;
+  bool toVec = Ty->getTypeID() == Type::VectorTyID;
+#endif
+  assert((fromVec == toVec) && "Cannot convert from scalar to/from vector");
+  assert(C->getType()->isIntOrIntVector() && "ZEXt operand must be integral");
+  assert(Ty->isIntOrIntVector() && "ZExt produces only integer");
+  assert(C->getType()->getScalarSizeInBits() < Ty->getScalarSizeInBits()&&
          "SrcTy must be smaller than DestTy for ZExt!");
 
   return getFoldedCast(Instruction::ZExt, C, Ty);
 }
 
 Constant *ConstantExpr::getFPTrunc(Constant *C, const Type *Ty) {
-  assert(C->getType()->isFloatingPoint() && Ty->isFloatingPoint() &&
-         C->getType()->getPrimitiveSizeInBits() > Ty->getPrimitiveSizeInBits()&&
+#ifndef NDEBUG
+  bool fromVec = C->getType()->getTypeID() == Type::VectorTyID;
+  bool toVec = Ty->getTypeID() == Type::VectorTyID;
+#endif
+  assert((fromVec == toVec) && "Cannot convert from scalar to/from vector");
+  assert(C->getType()->isFPOrFPVector() && Ty->isFPOrFPVector() &&
+         C->getType()->getScalarSizeInBits() > Ty->getScalarSizeInBits()&&
          "This is an illegal floating point truncation!");
   return getFoldedCast(Instruction::FPTrunc, C, Ty);
 }
 
 Constant *ConstantExpr::getFPExtend(Constant *C, const Type *Ty) {
-  assert(C->getType()->isFloatingPoint() && Ty->isFloatingPoint() &&
-         C->getType()->getPrimitiveSizeInBits() < Ty->getPrimitiveSizeInBits()&&
+#ifndef NDEBUG
+  bool fromVec = C->getType()->getTypeID() == Type::VectorTyID;
+  bool toVec = Ty->getTypeID() == Type::VectorTyID;
+#endif
+  assert((fromVec == toVec) && "Cannot convert from scalar to/from vector");
+  assert(C->getType()->isFPOrFPVector() && Ty->isFPOrFPVector() &&
+         C->getType()->getScalarSizeInBits() < Ty->getScalarSizeInBits()&&
          "This is an illegal floating point extension!");
   return getFoldedCast(Instruction::FPExt, C, Ty);
 }
@@ -2136,6 +2279,8 @@ Constant *ConstantExpr::getTy(const Type *ReqTy, unsigned Opcode,
 
   std::vector<Constant*> argVec(1, C1); argVec.push_back(C2);
   ExprMapKeyType Key(Opcode, argVec);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(ReqTy, Key);
 }
 
@@ -2188,34 +2333,30 @@ Constant *ConstantExpr::get(unsigned Opcode, Constant *C1, Constant *C2) {
   case Instruction::UDiv: 
   case Instruction::SDiv: 
     assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert((C1->getType()->isInteger() || (isa<VectorType>(C1->getType()) &&
-      cast<VectorType>(C1->getType())->getElementType()->isInteger())) &&
+    assert(C1->getType()->isIntOrIntVector() &&
            "Tried to create an arithmetic operation on a non-arithmetic type!");
     break;
   case Instruction::FDiv:
     assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert((C1->getType()->isFloatingPoint() || (isa<VectorType>(C1->getType())
-      && cast<VectorType>(C1->getType())->getElementType()->isFloatingPoint())) 
-      && "Tried to create an arithmetic operation on a non-arithmetic type!");
+    assert(C1->getType()->isFPOrFPVector() &&
+           "Tried to create an arithmetic operation on a non-arithmetic type!");
     break;
   case Instruction::URem: 
   case Instruction::SRem: 
     assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert((C1->getType()->isInteger() || (isa<VectorType>(C1->getType()) &&
-      cast<VectorType>(C1->getType())->getElementType()->isInteger())) &&
+    assert(C1->getType()->isIntOrIntVector() &&
            "Tried to create an arithmetic operation on a non-arithmetic type!");
     break;
   case Instruction::FRem:
     assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert((C1->getType()->isFloatingPoint() || (isa<VectorType>(C1->getType())
-      && cast<VectorType>(C1->getType())->getElementType()->isFloatingPoint())) 
-      && "Tried to create an arithmetic operation on a non-arithmetic type!");
+    assert(C1->getType()->isFPOrFPVector() &&
+           "Tried to create an arithmetic operation on a non-arithmetic type!");
     break;
   case Instruction::And:
   case Instruction::Or:
   case Instruction::Xor:
     assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert((C1->getType()->isInteger() || isa<VectorType>(C1->getType())) &&
+    assert(C1->getType()->isIntOrIntVector() &&
            "Tried to create a logical operation on a non-integral type!");
     break;
   case Instruction::Shl:
@@ -2251,6 +2392,8 @@ Constant *ConstantExpr::getSelectTy(const Type *ReqTy, Constant *C,
   argVec[1] = V1;
   argVec[2] = V2;
   ExprMapKeyType Key(Instruction::Select, argVec);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(ReqTy, Key);
 }
 
@@ -2274,6 +2417,8 @@ Constant *ConstantExpr::getGetElementPtrTy(const Type *ReqTy, Constant *C,
   for (unsigned i = 0; i != NumIdx; ++i)
     ArgVec.push_back(cast<Constant>(Idxs[i]));
   const ExprMapKeyType Key(Instruction::GetElementPtr, ArgVec);
+
+  // Implicitly locked.
   return ExprConstants->getOrCreate(ReqTy, Key);
 }
 
@@ -2308,6 +2453,8 @@ ConstantExpr::getICmp(unsigned short pred, Constant* LHS, Constant* RHS) {
   ArgVec.push_back(RHS);
   // Get the key type with both the opcode and predicate
   const ExprMapKeyType Key(Instruction::ICmp, ArgVec, pred);
+
+  // Implicitly locked.
   return ExprConstants->getOrCreate(Type::Int1Ty, Key);
 }
 
@@ -2325,6 +2472,8 @@ ConstantExpr::getFCmp(unsigned short pred, Constant* LHS, Constant* RHS) {
   ArgVec.push_back(RHS);
   // Get the key type with both the opcode and predicate
   const ExprMapKeyType Key(Instruction::FCmp, ArgVec, pred);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(Type::Int1Ty, Key);
 }
 
@@ -2370,6 +2519,8 @@ ConstantExpr::getVICmp(unsigned short pred, Constant* LHS, Constant* RHS) {
   ArgVec.push_back(RHS);
   // Get the key type with both the opcode and predicate
   const ExprMapKeyType Key(Instruction::VICmp, ArgVec, pred);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(LHS->getType(), Key);
 }
 
@@ -2417,6 +2568,8 @@ ConstantExpr::getVFCmp(unsigned short pred, Constant* LHS, Constant* RHS) {
   ArgVec.push_back(RHS);
   // Get the key type with both the opcode and predicate
   const ExprMapKeyType Key(Instruction::VFCmp, ArgVec, pred);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(ResultTy, Key);
 }
 
@@ -2428,6 +2581,8 @@ Constant *ConstantExpr::getExtractElementTy(const Type *ReqTy, Constant *Val,
   std::vector<Constant*> ArgVec(1, Val);
   ArgVec.push_back(Idx);
   const ExprMapKeyType Key(Instruction::ExtractElement,ArgVec);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(ReqTy, Key);
 }
 
@@ -2449,6 +2604,8 @@ Constant *ConstantExpr::getInsertElementTy(const Type *ReqTy, Constant *Val,
   ArgVec.push_back(Elt);
   ArgVec.push_back(Idx);
   const ExprMapKeyType Key(Instruction::InsertElement,ArgVec);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(ReqTy, Key);
 }
 
@@ -2472,6 +2629,8 @@ Constant *ConstantExpr::getShuffleVectorTy(const Type *ReqTy, Constant *V1,
   ArgVec.push_back(V2);
   ArgVec.push_back(Mask);
   const ExprMapKeyType Key(Instruction::ShuffleVector,ArgVec);
+  
+  // Implicitly locked.
   return ExprConstants->getOrCreate(ReqTy, Key);
 }
 
@@ -2555,6 +2714,7 @@ Constant *ConstantExpr::getZeroValueForNegationExpr(const Type *Ty) {
 // destroyConstant - Remove the constant from the constant table...
 //
 void ConstantExpr::destroyConstant() {
+  // Implicitly locked.
   ExprConstants->remove(this);
   destroyConstantImpl();
 }
@@ -2619,6 +2779,7 @@ void ConstantArray::replaceUsesOfWithOnConstant(Value *From, Value *To,
     Replacement = ConstantAggregateZero::get(getType());
   } else {
     // Check to see if we have this array type already.
+    sys::SmartScopedWriter<true> Writer(&*ConstantsLock);
     bool Exists;
     ArrayConstantsTy::MapTy::iterator I =
       ArrayConstants->InsertOrGetItem(Lookup, Exists);
@@ -2694,6 +2855,7 @@ void ConstantStruct::replaceUsesOfWithOnConstant(Value *From, Value *To,
     Replacement = ConstantAggregateZero::get(getType());
   } else {
     // Check to see if we have this array type already.
+    sys::SmartScopedWriter<true> Writer(&*ConstantsLock);
     bool Exists;
     StructConstantsTy::MapTy::iterator I =
       StructConstants->InsertOrGetItem(Lookup, Exists);

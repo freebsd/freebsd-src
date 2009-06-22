@@ -17,7 +17,10 @@
 //      which starts at zero and steps by one.
 //   2. The canonical induction variable is guaranteed to be the first PHI node
 //      in the loop header block.
-//   3. Any pointer arithmetic recurrences are raised to use array subscripts.
+//   3. The canonical induction variable is guaranteed to be in a wide enough
+//      type so that IV expressions need not be (directly) zero-extended or
+//      sign-extended.
+//   4. Any pointer arithmetic recurrences are raised to use array subscripts.
 //
 // If the trip count of a loop is computable, this pass also makes the following
 // changes:
@@ -296,11 +299,11 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L,
         // If this instruction is dead now, delete it.
         RecursivelyDeleteTriviallyDeadInstructions(Inst);
 
-        // See if this is a single-entry LCSSA PHI node.  If so, we can (and
-        // have to) remove
-        // the PHI entirely.  This is safe, because the NewVal won't be variant
+        // If we're inserting code into the exit block rather than the
+        // preheader, we can (and have to) remove the PHI entirely.
+        // This is safe, because the NewVal won't be variant
         // in the loop, so we don't need an LCSSA phi node anymore.
-        if (NumPreds == 1) {
+        if (ExitBlocks.size() == 1) {
           PN->replaceAllUsesWith(ExitVal);
           RecursivelyDeleteTriviallyDeadInstructions(PN);
           break;

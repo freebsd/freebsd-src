@@ -16,13 +16,18 @@
 #include "LTOCodeGenerator.h"
 
 
-#include "llvm/Module.h"
-#include "llvm/PassManager.h"
-#include "llvm/Linker.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/Linker.h"
+#include "llvm/Module.h"
 #include "llvm/ModuleProvider.h"
+#include "llvm/PassManager.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/Analysis/Passes.h"
+#include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/Verifier.h"
 #include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/CodeGen/FileWriters.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Mangler.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -30,25 +35,21 @@
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Signals.h"
-#include "llvm/Analysis/Passes.h"
-#include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/Verifier.h"
-#include "llvm/CodeGen/FileWriters.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetMachineRegistry.h"
-#include "llvm/Target/TargetAsmInfo.h"
+#include "llvm/Target/TargetSelect.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
 
 
+#include <cstdlib>
 #include <fstream>
 #include <unistd.h>
-#include <stdlib.h>
 #include <fcntl.h>
 
 
@@ -74,6 +75,8 @@ LTOCodeGenerator::LTOCodeGenerator()
       _codeModel(LTO_CODEGEN_PIC_MODEL_DYNAMIC),
       _nativeObjectFile(NULL), _gccPath(NULL), _assemblerPath(NULL)
 {
+  InitializeAllTargets();
+  InitializeAllAsmPrinters();
 
 }
 

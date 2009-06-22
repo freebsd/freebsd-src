@@ -14,6 +14,7 @@
 #include "llvm/AbstractTypeUser.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/System/Atomic.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/iterator.h"
 #include <string>
@@ -102,7 +103,7 @@ private:
   /// has no AbstractTypeUsers, the type is deleted.  This is only sensical for
   /// derived types.
   ///
-  mutable unsigned RefCount;
+  mutable sys::cas_flag RefCount;
 
   const Type *getForwardedTypeInternal() const;
 
@@ -268,19 +269,16 @@ public:
   /// primitive type.
   ///
   unsigned getPrimitiveSizeInBits() const;
-  
+
+  /// getScalarSizeInBits - If this is a vector type, return the
+  /// getPrimitiveSizeInBits value for the element type. Otherwise return the
+  /// getPrimitiveSizeInBits value for this type.
+  unsigned getScalarSizeInBits() const;
+
   /// getFPMantissaWidth - Return the width of the mantissa of this type.  This
-  /// is only valid on scalar floating point types.  If the FP type does not
+  /// is only valid on floating point types.  If the FP type does not
   /// have a stable mantissa (e.g. ppc long double), this method returns -1.
-  int getFPMantissaWidth() const {
-    assert(isFloatingPoint() && "Not a floating point type!");
-    if (ID == FloatTyID) return 24;
-    if (ID == DoubleTyID) return 53;
-    if (ID == X86_FP80TyID) return 64;
-    if (ID == FP128TyID) return 113;
-    assert(ID == PPC_FP128TyID && "unknown fp type");
-    return -1;
-  }
+  int getFPMantissaWidth() const;
 
   /// getForwardedType - Return the type that this type has been resolved to if
   /// it has been resolved to anything.  This is used to implement the
@@ -295,6 +293,10 @@ public:
   /// will be promoted to if passed through a variable argument
   /// function.
   const Type *getVAArgsPromotedType() const; 
+
+  /// getScalarType - If this is a vector type, return the element type,
+  /// otherwise return this.
+  const Type *getScalarType() const;
 
   //===--------------------------------------------------------------------===//
   // Type Iteration support
@@ -336,7 +338,7 @@ public:
 
   void addRef() const {
     assert(isAbstract() && "Cannot add a reference to a non-abstract type!");
-    ++RefCount;
+    sys::AtomicIncrement(&RefCount);
   }
 
   void dropRef() const {
@@ -345,17 +347,15 @@ public:
 
     // If this is the last PATypeHolder using this object, and there are no
     // PATypeHandles using it, the type is dead, delete it now.
-    if (--RefCount == 0 && AbstractTypeUsers.empty())
+    sys::cas_flag OldCount = sys::AtomicDecrement(&RefCount);
+    if (OldCount == 0 && AbstractTypeUsers.empty())
       this->destroy();
   }
   
   /// addAbstractTypeUser - Notify an abstract type that there is a new user of
   /// it.  This function is called primarily by the PATypeHandle class.
   ///
-  void addAbstractTypeUser(AbstractTypeUser *U) const {
-    assert(isAbstract() && "addAbstractTypeUser: Current type not abstract!");
-    AbstractTypeUsers.push_back(U);
-  }
+  void addAbstractTypeUser(AbstractTypeUser *U) const;
   
   /// removeAbstractTypeUser - Notify an abstract type that a user of the class
   /// no longer has a handle to the type.  This function is called primarily by

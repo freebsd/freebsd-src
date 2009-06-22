@@ -19,6 +19,8 @@
 #include "llvm/ModuleProvider.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/System/Atomic.h"
+#include "llvm/System/Threading.h"
 #include <algorithm>
 #include <map>
 #include <set>
@@ -192,8 +194,26 @@ static std::vector<PassRegistrationListener*> *Listeners = 0;
 // ressurection after llvm_shutdown is run.
 static PassRegistrar *getPassRegistrar() {
   static PassRegistrar *PassRegistrarObj = 0;
-  if (!PassRegistrarObj)
+  
+  // Use double-checked locking to safely initialize the registrar when
+  // we're running in multithreaded mode.
+  PassRegistrar* tmp = PassRegistrarObj;
+  if (llvm_is_multithreaded()) {
+    sys::MemoryFence();
+    if (!tmp) {
+      llvm_acquire_global_lock();
+      tmp = PassRegistrarObj;
+      if (!tmp) {
+        tmp = new PassRegistrar();
+        sys::MemoryFence();
+        PassRegistrarObj = tmp;
+      }
+      llvm_release_global_lock();
+    }
+  } else if (!tmp) {
     PassRegistrarObj = new PassRegistrar();
+  }
+  
   return PassRegistrarObj;
 }
 

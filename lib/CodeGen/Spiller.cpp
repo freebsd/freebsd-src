@@ -39,7 +39,8 @@ protected:
   VirtRegMap *vrm;
   
   /// Construct a spiller base. 
-  SpillerBase(MachineFunction *mf, LiveIntervals *lis, LiveStacks *ls, VirtRegMap *vrm) :
+  SpillerBase(MachineFunction *mf, LiveIntervals *lis, LiveStacks *ls,
+              VirtRegMap *vrm) :
     mf(mf), lis(lis), ls(ls), vrm(vrm)
   {
     mfi = mf->getFrameInfo();
@@ -47,16 +48,24 @@ protected:
     tii = mf->getTarget().getInstrInfo();
   }
 
-  /// Insert a store of the given vreg to the given stack slot immediately
-  /// after the given instruction. Returns the base index of the inserted
-  /// instruction. The caller is responsible for adding an appropriate
-  /// LiveInterval to the LiveIntervals analysis.
-  unsigned insertStoreFor(MachineInstr *mi, unsigned ss,
-                          unsigned newVReg,
-                          const TargetRegisterClass *trc) {
-    MachineBasicBlock::iterator nextInstItr(mi); 
-    ++nextInstItr;
+  /// Ensures there is space before the given machine instruction, returns the
+  /// instruction's new number.
+  unsigned makeSpaceBefore(MachineInstr *mi) {
+    if (!lis->hasGapBeforeInstr(lis->getInstructionIndex(mi))) {
+      lis->scaleNumbering(2);
+      ls->scaleNumbering(2);
+    }
 
+    unsigned miIdx = lis->getInstructionIndex(mi);
+
+    assert(lis->hasGapBeforeInstr(miIdx));
+    
+    return miIdx;
+  }
+
+  /// Ensure there is space after the given machine instruction, returns the
+  /// instruction's new number.
+  unsigned makeSpaceAfter(MachineInstr *mi) {
     if (!lis->hasGapAfterInstr(lis->getInstructionIndex(mi))) {
       lis->scaleNumbering(2);
       ls->scaleNumbering(2);
@@ -66,7 +75,24 @@ protected:
 
     assert(lis->hasGapAfterInstr(miIdx));
 
-    tii->storeRegToStackSlot(*mi->getParent(), nextInstItr, newVReg,
+    return miIdx;
+  }  
+
+
+  /// Insert a store of the given vreg to the given stack slot immediately
+  /// after the given instruction. Returns the base index of the inserted
+  /// instruction. The caller is responsible for adding an appropriate
+  /// LiveInterval to the LiveIntervals analysis.
+  unsigned insertStoreFor(MachineInstr *mi, unsigned ss,
+                          unsigned vreg,
+                          const TargetRegisterClass *trc) {
+
+    MachineBasicBlock::iterator nextInstItr(mi); 
+    ++nextInstItr;
+
+    unsigned miIdx = makeSpaceAfter(mi);
+
+    tii->storeRegToStackSlot(*mi->getParent(), nextInstItr, vreg,
                              true, ss, trc);
     MachineBasicBlock::iterator storeInstItr(mi);
     ++storeInstItr;
@@ -81,25 +107,35 @@ protected:
     return storeInstIdx;
   }
 
+  void insertStoreOnInterval(LiveInterval *li,
+                             MachineInstr *mi, unsigned ss,
+                             unsigned vreg,
+                             const TargetRegisterClass *trc) {
+
+    unsigned storeInstIdx = insertStoreFor(mi, ss, vreg, trc);
+    unsigned start = lis->getDefIndex(lis->getInstructionIndex(mi)),
+             end = lis->getUseIndex(storeInstIdx);
+
+    VNInfo *vni =
+      li->getNextValue(storeInstIdx, 0, true, lis->getVNInfoAllocator());
+    vni->kills.push_back(storeInstIdx);
+    LiveRange lr(start, end, vni);
+      
+    li->addRange(lr);
+  }
+
   /// Insert a load of the given veg from the given stack slot immediately
   /// before the given instruction. Returns the base index of the inserted
   /// instruction. The caller is responsible for adding an appropriate
   /// LiveInterval to the LiveIntervals analysis.
   unsigned insertLoadFor(MachineInstr *mi, unsigned ss,
-                         unsigned newVReg,
+                         unsigned vreg,
                          const TargetRegisterClass *trc) {
     MachineBasicBlock::iterator useInstItr(mi);
-
-    if (!lis->hasGapBeforeInstr(lis->getInstructionIndex(mi))) {
-      lis->scaleNumbering(2);
-      ls->scaleNumbering(2);
-    }
-
-    unsigned miIdx = lis->getInstructionIndex(mi);
-
-    assert(lis->hasGapBeforeInstr(miIdx));
-    
-    tii->loadRegFromStackSlot(*mi->getParent(), useInstItr, newVReg, ss, trc);
+  
+    unsigned miIdx = makeSpaceBefore(mi);
+  
+    tii->loadRegFromStackSlot(*mi->getParent(), useInstItr, vreg, ss, trc);
     MachineBasicBlock::iterator loadInstItr(mi);
     --loadInstItr;
     MachineInstr *loadInst = &*loadInstItr;
@@ -112,6 +148,24 @@ protected:
 
     return loadInstIdx;
   }
+
+  void insertLoadOnInterval(LiveInterval *li,
+                            MachineInstr *mi, unsigned ss, 
+                            unsigned vreg,
+                            const TargetRegisterClass *trc) {
+
+    unsigned loadInstIdx = insertLoadFor(mi, ss, vreg, trc);
+    unsigned start = lis->getDefIndex(loadInstIdx),
+             end = lis->getUseIndex(lis->getInstructionIndex(mi));
+
+    VNInfo *vni =
+      li->getNextValue(loadInstIdx, 0, true, lis->getVNInfoAllocator());
+    vni->kills.push_back(lis->getInstructionIndex(mi));
+    LiveRange lr(start, end, vni);
+
+    li->addRange(lr);
+  }
+
 
 
   /// Add spill ranges for every use/def of the live interval, inserting loads
@@ -173,34 +227,15 @@ protected:
       assert(hasUse || hasDef);
 
       if (hasUse) {
-        unsigned loadInstIdx = insertLoadFor(mi, ss, newVReg, trc);
-        unsigned start = lis->getDefIndex(loadInstIdx),
-                 end = lis->getUseIndex(lis->getInstructionIndex(mi));
-
-        VNInfo *vni =
-          newLI->getNextValue(loadInstIdx, 0, lis->getVNInfoAllocator());
-        vni->kills.push_back(lis->getInstructionIndex(mi));
-        LiveRange lr(start, end, vni);
-
-        newLI->addRange(lr);
+        insertLoadOnInterval(newLI, mi, ss, newVReg, trc);
       }
 
       if (hasDef) {
-        unsigned storeInstIdx = insertStoreFor(mi, ss, newVReg, trc);
-        unsigned start = lis->getDefIndex(lis->getInstructionIndex(mi)),
-                 end = lis->getUseIndex(storeInstIdx);
-
-        VNInfo *vni =
-          newLI->getNextValue(storeInstIdx, 0, lis->getVNInfoAllocator());
-        vni->kills.push_back(storeInstIdx);
-        LiveRange lr(start, end, vni);
-      
-        newLI->addRange(lr);
+        insertStoreOnInterval(newLI, mi, ss, newVReg, trc);
       }
 
       added.push_back(newLI);
     }
-
 
     return added;
   }
@@ -212,11 +247,42 @@ protected:
 /// folding.
 class TrivialSpiller : public SpillerBase {
 public:
-  TrivialSpiller(MachineFunction *mf, LiveIntervals *lis, LiveStacks *ls, VirtRegMap *vrm) :
+
+  TrivialSpiller(MachineFunction *mf, LiveIntervals *lis, LiveStacks *ls,
+                 VirtRegMap *vrm) :
     SpillerBase(mf, lis, ls, vrm) {}
 
   std::vector<LiveInterval*> spill(LiveInterval *li) {
     return trivialSpillEverywhere(li);
+  }
+
+  std::vector<LiveInterval*> intraBlockSplit(LiveInterval *li, VNInfo *valno)  {
+    std::vector<LiveInterval*> spillIntervals;
+    MachineBasicBlock::iterator storeInsertPoint;
+
+    if (valno->isDefAccurate()) {
+      // If we have an accurate def we can just grab an iterator to the instr
+      // after the def.
+      storeInsertPoint =
+        next(MachineBasicBlock::iterator(lis->getInstructionFromIndex(valno->def)));
+    } else {
+      // If the def info isn't accurate we check if this is a PHI def.
+      // If it is then def holds the index of the defining Basic Block, and we
+      // can use that to get an insertion point.
+      if (valno->isPHIDef()) {
+
+      } else {
+        // We have no usable def info. We can't split this value sensibly.
+        // FIXME: Need sensible feedback for "failure to split", an empty
+        // set of spill intervals could be reasonably returned from a
+        // split where both the store and load are folded.
+        return spillIntervals;
+      }
+    }
+
+        
+
+    return spillIntervals;
   }
 
 };

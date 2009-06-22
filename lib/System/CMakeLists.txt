@@ -10,7 +10,9 @@ add_llvm_library(LLVMSystem
   Path.cpp
   Process.cpp
   Program.cpp
+  RWMutex.cpp
   Signals.cpp
+  Threading.cpp
   TimeValue.cpp
   )
 

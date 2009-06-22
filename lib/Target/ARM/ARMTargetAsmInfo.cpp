@@ -17,80 +17,42 @@
 #include <cctype>
 using namespace llvm;
 
-
 const char *const llvm::arm_asm_table[] = {
-                                      "{r0}", "r0",
-                                      "{r1}", "r1",
-                                      "{r2}", "r2",
-                                      "{r3}", "r3",
-                                      "{r4}", "r4",
-                                      "{r5}", "r5",
-                                      "{r6}", "r6",
-                                      "{r7}", "r7",
-                                      "{r8}", "r8",
-                                      "{r9}", "r9",
-                                      "{r10}", "r10",
-                                      "{r11}", "r11",
-                                      "{r12}", "r12",
-                                      "{r13}", "r13",
-                                      "{r14}", "r14",
-                                      "{lr}", "lr",
-                                      "{sp}", "sp",
-                                      "{ip}", "ip",
-                                      "{fp}", "fp",
-                                      "{sl}", "sl",
-                                      "{memory}", "memory",
-                                      "{cc}", "cc",
-                                      0,0};
+  "{r0}", "r0",
+  "{r1}", "r1",
+  "{r2}", "r2",
+  "{r3}", "r3",
+  "{r4}", "r4",
+  "{r5}", "r5",
+  "{r6}", "r6",
+  "{r7}", "r7",
+  "{r8}", "r8",
+  "{r9}", "r9",
+  "{r10}", "r10",
+  "{r11}", "r11",
+  "{r12}", "r12",
+  "{r13}", "r13",
+  "{r14}", "r14",
+  "{lr}", "lr",
+  "{sp}", "sp",
+  "{ip}", "ip",
+  "{fp}", "fp",
+  "{sl}", "sl",
+  "{memory}", "memory",
+  "{cc}", "cc",
+  0,0
+};
 
 ARMDarwinTargetAsmInfo::ARMDarwinTargetAsmInfo(const ARMTargetMachine &TM):
   ARMTargetAsmInfo<DarwinTargetAsmInfo>(TM) {
   Subtarget = &TM.getSubtarget<ARMSubtarget>();
 
-  GlobalPrefix = "_";
-  PrivateGlobalPrefix = "L";
-  LessPrivateGlobalPrefix = "l";
-  StringConstantPrefix = "\1LC";
-  BSSSection = 0;                       // no BSS section
   ZeroDirective = "\t.space\t";
   ZeroFillDirective = "\t.zerofill\t";  // Uses .zerofill
   SetDirective = "\t.set\t";
-  WeakRefDirective = "\t.weak_reference\t";
-  WeakDefDirective = "\t.weak_definition ";
-  HiddenDirective = "\t.private_extern\t";
   ProtectedDirective = NULL;
-  JumpTableDataSection = ".const";
-  CStringSection = "\t.cstring";
   HasDotTypeDotSizeDirective = false;
-  HasSingleParameterDotFile = false;
-  NeedsIndirectEncoding = true;
-  if (TM.getRelocationModel() == Reloc::Static) {
-    StaticCtorsSection = ".constructor";
-    StaticDtorsSection = ".destructor";
-  } else {
-    StaticCtorsSection = ".mod_init_func";
-    StaticDtorsSection = ".mod_term_func";
-  }
-
-  // In non-PIC modes, emit a special label before jump tables so that the
-  // linker can perform more accurate dead code stripping.
-  if (TM.getRelocationModel() != Reloc::PIC_) {
-    // Emit a local label that is preserved until the linker runs.
-    JumpTableSpecialLabelPrefix = "l";
-  }
-
-  NeedsSet = true;
-  DwarfAbbrevSection = ".section __DWARF,__debug_abbrev,regular,debug";
-  DwarfInfoSection = ".section __DWARF,__debug_info,regular,debug";
-  DwarfLineSection = ".section __DWARF,__debug_line,regular,debug";
-  DwarfFrameSection = ".section __DWARF,__debug_frame,regular,debug";
-  DwarfPubNamesSection = ".section __DWARF,__debug_pubnames,regular,debug";
-  DwarfPubTypesSection = ".section __DWARF,__debug_pubtypes,regular,debug";
-  DwarfStrSection = ".section __DWARF,__debug_str,regular,debug";
-  DwarfLocSection = ".section __DWARF,__debug_loc,regular,debug";
-  DwarfARangesSection = ".section __DWARF,__debug_aranges,regular,debug";
-  DwarfRangesSection = ".section __DWARF,__debug_ranges,regular,debug";
-  DwarfMacInfoSection = ".section __DWARF,__debug_macinfo,regular,debug";
+  SupportsDebugInformation = true;
 }
 
 ARMELFTargetAsmInfo::ARMELFTargetAsmInfo(const ARMTargetMachine &TM):
@@ -115,7 +77,7 @@ ARMELFTargetAsmInfo::ARMELFTargetAsmInfo(const ARMTargetMachine &TM):
   DwarfLocSection =     "\t.section\t.debug_loc,\"\",%progbits";
   DwarfARangesSection = "\t.section\t.debug_aranges,\"\",%progbits";
   DwarfRangesSection =  "\t.section\t.debug_ranges,\"\",%progbits";
-  DwarfMacInfoSection = "\t.section\t.debug_macinfo,\"\",%progbits";
+  DwarfMacroInfoSection = "\t.section\t.debug_macinfo,\"\",%progbits";
 
   if (Subtarget->isAAPCS_ABI()) {
     StaticCtorsSection = "\t.section .init_array,\"aw\",%init_array";
@@ -124,6 +86,7 @@ ARMELFTargetAsmInfo::ARMELFTargetAsmInfo(const ARMTargetMachine &TM):
     StaticCtorsSection = "\t.section .ctors,\"aw\",%progbits";
     StaticDtorsSection = "\t.section .dtors,\"aw\",%progbits";
   }
+  SupportsDebugInformation = true;
 }
 
 /// Count the number of comma-separated arguments.

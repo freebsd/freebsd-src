@@ -14,6 +14,7 @@
 #ifndef ARMSUBTARGET_H
 #define ARMSUBTARGET_H
 
+#include "llvm/Target/TargetInstrItineraries.h"
 #include "llvm/Target/TargetSubtarget.h"
 #include <string>
 
@@ -48,9 +49,6 @@ protected:
   /// ThumbMode - Indicates supported Thumb version.
   ThumbTypeEnum ThumbMode;
 
-  /// UseThumbBacktraces - True if we use thumb style backtraces.
-  bool UseThumbBacktraces;
-
   /// IsR9Reserved - True if R9 is a not available as general purpose register.
   bool IsR9Reserved;
 
@@ -61,6 +59,9 @@ protected:
   /// CPUString - String name of used CPU.
   std::string CPUString;
 
+  /// Selected instruction itineraries (one entry per itinerary class.)
+  InstrItineraryData InstrItins;
+  
  public:
   enum {
     isELF, isDarwin
@@ -106,13 +107,16 @@ protected:
   bool isAAPCS_ABI() const { return TargetABI == ARM_ABI_AAPCS; }
 
   bool isThumb() const { return IsThumb; }
-  bool isThumb1() const { return IsThumb && (ThumbMode == Thumb1); }
-  bool isThumb2() const { return IsThumb && (ThumbMode >= Thumb2); }
+  bool isThumb1Only() const { return IsThumb && (ThumbMode == Thumb1); }
+  bool hasThumb2() const { return IsThumb && (ThumbMode >= Thumb2); }
 
-  bool useThumbBacktraces() const { return UseThumbBacktraces; }
   bool isR9Reserved() const { return IsR9Reserved; }
 
   const std::string & getCPUString() const { return CPUString; }
+
+  /// getInstrItins - Return the instruction itineraies based on subtarget 
+  /// selection.
+  const InstrItineraryData &getInstrItineraryData() const { return InstrItins; }
 
   /// getStackAlignment - Returns the minimum alignment known to hold of the
   /// stack frame on entry to the function and which must be maintained by every
