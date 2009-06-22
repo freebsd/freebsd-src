@@ -109,6 +109,8 @@ powerpc/fpu/fpu_mul.c		optional	fpu_emu
 powerpc/fpu/fpu_sqrt.c		optional	fpu_emu
 powerpc/fpu/fpu_subr.c		optional	fpu_emu
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
+powerpc/mpc85xx/ds1553_bus_lbc.c	optional	ds1553
+powerpc/mpc85xx/ds1553_core.c	optional	ds1553
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/i2c.c		optional	iicbus mpc85xx
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
