@@ -59,6 +59,8 @@ device		da
 device		em
 device		ether
 device		fxp
+device		iic
+device		iicbus
 device		isa
 device		loop
 device		md
