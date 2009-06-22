@@ -72,6 +72,8 @@ def ext_anon_param_requires_type_specifier : Extension<
 def err_bad_variable_name : Error<
   "'%0' cannot be the name of a variable or data member">;
 def err_parameter_name_omitted : Error<"parameter name omitted">;
+def warn_unused_parameter : Warning<"unused parameter %0">,
+  InGroup<UnusedParameter>, DefaultIgnore;
 def warn_decl_in_param_list : Warning<
   "declaration of %0 will not be visible outside of this function">;
   
@@ -90,6 +92,10 @@ def warn_use_out_of_scope_declaration : Warning<
   "use of out-of-scope declaration of %0">;
 def err_inline_non_function : Error<
   "'inline' can only appear on functions">;
+def err_using_requires_qualname : Error<
+  "using declaration requires a qualified name">;
+def err_using_typename_non_type : Error<
+  "'typename' keyword used on a non-type">;
 
 def err_invalid_thread : Error<
   "'__thread' is only allowed on variable declarations">;
@@ -240,7 +246,9 @@ def error_duplicate_ivar_use : Error<
 def error_property_implemented : Error<"property %0 is already implemented">;
 def warn_objc_property_attr_mutually_exclusive : Warning<
   "property attributes '%0' and '%1' are mutually exclusive">,
-  InGroup<DiagGroup<"readonly-setter-attrs">>, DefaultIgnore;
+  InGroup<ReadOnlySetterAttrs>, DefaultIgnore;
+def warn_undeclared_selector : Warning<
+  "undeclared selector %0">, InGroup<UndeclaredSelector>, DefaultIgnore;
 
 // C++ declarations
 def err_static_assert_expression_is_not_constant : Error<
@@ -571,6 +579,14 @@ def err_param_default_argument_references_this : Error<
 def err_param_default_argument_nonfunc : Error<
   "default arguments can only be specified for parameters in a function "
   "declaration">;
+def err_defining_default_ctor : Error<
+  "cannot define the default constructor for %0, because %select{base class|member}1 "
+  "%2 does not have any implicit default constructor">;
+def note_previous_class_decl : Note<
+  "%0 declared here">;
+def err_unintialized_member : Error<
+  "cannot define the implicit default constructor for %0, because "
+  "%select{reference|const}1 member %2 cannot be default-initialized">;
 
 def err_use_of_default_argument_to_function_declared_later : Error<
   "use of default argument to function %0 that is declared later in class %1">;

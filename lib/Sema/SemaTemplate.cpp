@@ -444,6 +444,9 @@ Sema::ActOnClassTemplate(Scope *S, unsigned TagSpec, TagKind TK,
   if (Previous.begin() != Previous.end())
     PrevDecl = *Previous.begin();
 
+  if (PrevDecl && !isDeclInScope(PrevDecl, CurContext, S))
+    PrevDecl = 0;
+  
   DeclContext *SemanticContext = CurContext;
   if (SS.isNotEmpty() && !SS.isInvalid()) {
     SemanticContext = computeDeclContext(SS);
@@ -548,7 +551,7 @@ Sema::ActOnClassTemplate(Scope *S, unsigned TagSpec, TagKind TK,
     NewClass->startDefinition();
 
   if (Attr)
-    ProcessDeclAttributeList(NewClass, Attr);
+    ProcessDeclAttributeList(S, NewClass, Attr);
 
   PushOnScopeChains(NewTemplate, S);
 
@@ -806,6 +809,10 @@ static void CanonicalizeTemplateArguments(const TemplateArgument *TemplateArgs,
       Canonical.push_back(TemplateArgument(SourceLocation(), CanonType));
       break;
     }
+    
+    case TemplateArgument::Pack:
+      assert(0 && "FIXME: Implement!");
+      break;
     }
   }
 }
@@ -846,7 +853,7 @@ QualType Sema::CheckTemplateIdType(TemplateName Name,
                                 ConvertedTemplateArgs))
     return QualType();
 
-  assert((ConvertedTemplateArgs.size() == 
+  assert((ConvertedTemplateArgs.structuredSize() == 
             Template->getTemplateParameters()->size()) &&
          "Converted template argument list is too short!");
 
@@ -1207,6 +1214,11 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
           Diag(Arg.getLocation(), diag::err_template_arg_must_be_expr);
         Diag((*Param)->getLocation(), diag::note_template_param_here);
         Invalid = true;
+        break;
+      
+      case TemplateArgument::Pack:
+        assert(0 && "FIXME: Implement!");
+        break;
       }
     } else { 
       // Check template template parameters.
@@ -1250,6 +1262,10 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
         
       case TemplateArgument::Integral:
         assert(false && "Integral argument with template template parameter");
+        break;
+      
+      case TemplateArgument::Pack:
+        assert(0 && "FIXME: Implement!");
         break;
       }
     }
@@ -2288,7 +2304,7 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec, TagKind TK,
                                 RAngleLoc, ConvertedTemplateArgs))
     return true;
 
-  assert((ConvertedTemplateArgs.size() == 
+  assert((ConvertedTemplateArgs.structuredSize() == 
             ClassTemplate->getTemplateParameters()->size()) &&
          "Converted template argument list is too short!");
   
@@ -2549,7 +2565,7 @@ Sema::ActOnExplicitInstantiation(Scope *S, SourceLocation TemplateLoc,
                                 RAngleLoc, ConvertedTemplateArgs))
     return true;
 
-  assert((ConvertedTemplateArgs.size() == 
+  assert((ConvertedTemplateArgs.structuredSize() == 
             ClassTemplate->getTemplateParameters()->size()) &&
          "Converted template argument list is too short!");
   

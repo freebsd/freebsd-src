@@ -248,6 +248,19 @@ public:
   virtual void ActOnCXXExitDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
   }
 
+  /// ActOnCXXEnterDeclInitializer - Invoked when we are about to parse an
+  /// initializer for the declaration 'Dcl'.
+  /// After this method is called, according to [C++ 3.4.1p13], if 'Dcl' is a
+  /// static data member of class X, names should be looked up in the scope of
+  /// class X.
+  virtual void ActOnCXXEnterDeclInitializer(Scope *S, DeclPtrTy Dcl) {
+  }
+
+  /// ActOnCXXExitDeclInitializer - Invoked after we are finished parsing an
+  /// initializer for the declaration 'Dcl'.
+  virtual void ActOnCXXExitDeclInitializer(Scope *S, DeclPtrTy Dcl) {
+  }
+
   /// ActOnDeclarator - This callback is invoked when a declarator is parsed and
   /// 'Init' specifies the initializer if any.  This is for things like:
   /// "int X = 4" or "typedef int foo".
@@ -624,6 +637,18 @@ public:
   // Expression Parsing Callbacks.
   //===--------------------------------------------------------------------===//
 
+  /// \brief Notifies the action when the parser is processing an unevaluated
+  /// operand.
+  ///
+  /// \param UnevaluatedOperand true to indicate that the parser is processing
+  /// an unevaluated operand, or false otherwise.
+  ///
+  /// \returns whether the the action module was previously in an unevaluated
+  /// operand.
+  virtual bool setUnevaluatedOperand(bool UnevaluatedOperand) { 
+    return false;
+  }
+  
   // Primary Expressions.
 
   /// \brief Retrieve the source range that corresponds to the given
@@ -907,6 +932,15 @@ public:
                                            IdentifierInfo *Ident) {
     return DeclPtrTy();
   }
+
+  /// ActOnUsingDirective - This is called when using-directive is parsed.
+  virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
+                                        SourceLocation UsingLoc,
+                                        const CXXScopeSpec &SS,
+                                        SourceLocation IdentLoc,
+                                        IdentifierInfo *TargetName,
+                                        AttributeList *AttrList,
+                                        bool IsTypeName);
                                          
   /// ActOnParamDefaultArgument - Parse default argument for function parameter
   virtual void ActOnParamDefaultArgument(DeclPtrTy param,

@@ -124,7 +124,7 @@ public:
   /// with location to warn on and the source range[s] to report with the
   /// warning.
   bool isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
-                              SourceRange &R2) const;
+                              SourceRange &R2, ASTContext &Context) const;
   
   /// isLvalue - C99 6.3.2.1: an lvalue is an expression with an object type or
   /// incomplete type other than void. Nonarray expressions that can be lvalues:
@@ -2463,10 +2463,13 @@ public:
 class BlockDeclRefExpr : public Expr {
   ValueDecl *D; 
   SourceLocation Loc;
-  bool IsByRef;
+  bool IsByRef : 1;
+  bool ConstQualAdded : 1;
 public:
-  BlockDeclRefExpr(ValueDecl *d, QualType t, SourceLocation l, bool ByRef) : 
-       Expr(BlockDeclRefExprClass, t), D(d), Loc(l), IsByRef(ByRef) {}
+  BlockDeclRefExpr(ValueDecl *d, QualType t, SourceLocation l, bool ByRef, 
+                   bool constAdded = false) :
+       Expr(BlockDeclRefExprClass, t), D(d), Loc(l), IsByRef(ByRef),
+                                       ConstQualAdded(constAdded) {}
 
   // \brief Build an empty reference to a declared variable in a
   // block.
@@ -2484,6 +2487,9 @@ public:
   
   bool isByRef() const { return IsByRef; }
   void setByRef(bool BR) { IsByRef = BR; }
+  
+  bool isConstQualAdded() const { return ConstQualAdded; }
+  void setConstQualAdded(bool C) { ConstQualAdded = C; }
 
   static bool classof(const Stmt *T) { 
     return T->getStmtClass() == BlockDeclRefExprClass; 

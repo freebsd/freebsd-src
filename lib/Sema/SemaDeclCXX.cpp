@@ -147,8 +147,11 @@ Sema::ActOnParamDefaultArgument(DeclPtrTy param, SourceLocation EqualLoc,
     return;
   }
 
+  DefaultArgPtr = MaybeCreateCXXExprWithTemporaries(DefaultArg.take(),
+                                                    /*DestroyTemps=*/false);
+  
   // Okay: add the default argument to the parameter
-  Param->setDefaultArg(DefaultArg.take());
+  Param->setDefaultArg(DefaultArgPtr);
 }
 
 /// ActOnParamUnparsedDefaultArgument - We've seen a default
@@ -1031,9 +1034,6 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
     DefaultCon->setAccess(AS_public);
     DefaultCon->setImplicit();
     ClassDecl->addDecl(Context, DefaultCon);
-
-    // Notify the class that we've added a constructor.
-    ClassDecl->addedConstructor(Context, DefaultCon);
   }
 
   if (!ClassDecl->hasUserDeclaredCopyConstructor()) {
@@ -1110,8 +1110,6 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
                                                  /*IdentifierInfo=*/0,
                                                  ArgType, VarDecl::None, 0);
     CopyConstructor->setParams(Context, &FromParam, 1);
-
-    ClassDecl->addedConstructor(Context, CopyConstructor);
     ClassDecl->addDecl(Context, CopyConstructor);
   }
 
@@ -1750,6 +1748,43 @@ void Sema::PushUsingDirective(Scope *S, UsingDirectiveDecl *UDir) {
     S->PushUsingDirective(DeclPtrTy::make(UDir));
 }
 
+
+Sema::DeclPtrTy Sema::ActOnUsingDeclaration(Scope *S,
+                                          SourceLocation UsingLoc,
+                                          const CXXScopeSpec &SS,
+                                          SourceLocation IdentLoc,
+                                          IdentifierInfo *TargetName,
+                                          AttributeList *AttrList,
+                                          bool IsTypeName) {
+  assert(!SS.isInvalid() && "Invalid CXXScopeSpec.");
+  assert(TargetName && "Invalid TargetName.");
+  assert(IdentLoc.isValid() && "Invalid TargetName location.");
+  assert(S->getFlags() & Scope::DeclScope && "Invalid Scope.");
+
+  UsingDecl *UsingAlias = 0;
+
+  // Lookup target name.
+  LookupResult R = LookupParsedName(S, &SS, TargetName,
+                                    LookupOrdinaryName, false);
+
+  if (NamedDecl *NS = R) {
+    if (IsTypeName && !isa<TypeDecl>(NS)) {
+      Diag(IdentLoc, diag::err_using_typename_non_type);
+    }
+    UsingAlias = UsingDecl::Create(Context, CurContext, IdentLoc, SS.getRange(),
+        NS->getLocation(), UsingLoc, NS,
+        static_cast<NestedNameSpecifier *>(SS.getScopeRep()),
+        IsTypeName);
+    PushOnScopeChains(UsingAlias, S);
+  } else {
+    Diag(IdentLoc, diag::err_using_requires_qualname) << SS.getRange();
+  }
+
+  // FIXME: We ignore attributes for now.
+  delete AttrList;
+  return DeclPtrTy::make(UsingAlias);
+}
+
 /// getNamespaceDecl - Returns the namespace a decl represents. If the decl
 /// is a namespace alias, returns the namespace it points to.
 static inline NamespaceDecl *getNamespaceDecl(NamedDecl *D) {
@@ -1795,7 +1830,7 @@ Sema::DeclPtrTy Sema::ActOnNamespaceAliasDef(Scope *S,
     return DeclPtrTy();
   }
   
-  NamespaceAliasDecl *AliasDecl = 
+  NamespaceAliasDecl *AliasDecl =
     NamespaceAliasDecl::Create(Context, CurContext, NamespaceLoc, AliasLoc, 
                                Alias, SS.getRange(), 
                                (NestedNameSpecifier *)SS.getScopeRep(),
@@ -1803,6 +1838,81 @@ Sema::DeclPtrTy Sema::ActOnNamespaceAliasDef(Scope *S,
   
   CurContext->addDecl(Context, AliasDecl);
   return DeclPtrTy::make(AliasDecl);
+}
+
+void Sema::DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
+                                            CXXConstructorDecl *Constructor) {
+  if (!Constructor->isDefaultConstructor() ||
+      !Constructor->isImplicit() || Constructor->isImplicitMustBeDefined())
+    return;
+  
+  CXXRecordDecl *ClassDecl
+    = cast<CXXRecordDecl>(Constructor->getDeclContext());
+  assert(ClassDecl && "InitializeVarWithConstructor - invalid constructor");
+  // Before the implicitly-declared default constructor for a class is 
+  // implicitly defined, all the implicitly-declared default constructors
+  // for its base class and its non-static data members shall have been
+  // implicitly defined.
+  bool err = false;
+  for (CXXRecordDecl::base_class_iterator Base = ClassDecl->bases_begin();
+       Base != ClassDecl->bases_end(); ++Base) {
+    CXXRecordDecl *BaseClassDecl
+      = cast<CXXRecordDecl>(Base->getType()->getAsRecordType()->getDecl());
+    if (!BaseClassDecl->hasTrivialConstructor()) {
+      if (CXXConstructorDecl *BaseCtor = 
+            BaseClassDecl->getDefaultConstructor(Context)) {
+        if (BaseCtor->isImplicit())
+          BaseCtor->setImplicitMustBeDefined();
+      }
+      else {
+        Diag(CurrentLocation, diag::err_defining_default_ctor) 
+          << Context.getTagDeclType(ClassDecl) << 1 
+          << Context.getTagDeclType(BaseClassDecl);
+        Diag(BaseClassDecl->getLocation(), diag::note_previous_class_decl) 
+              << Context.getTagDeclType(BaseClassDecl);
+        err = true;
+      }
+    }
+  }
+  for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(Context);
+       Field != ClassDecl->field_end(Context);
+       ++Field) {
+    QualType FieldType = Context.getCanonicalType((*Field)->getType());
+    if (const ArrayType *Array = Context.getAsArrayType(FieldType))
+      FieldType = Array->getElementType();
+    if (const RecordType *FieldClassType = FieldType->getAsRecordType()) {
+      CXXRecordDecl *FieldClassDecl
+        = cast<CXXRecordDecl>(FieldClassType->getDecl());
+      if (!FieldClassDecl->hasTrivialConstructor())
+        if (CXXConstructorDecl *FieldCtor = 
+            FieldClassDecl->getDefaultConstructor(Context)) {
+          if (FieldCtor->isImplicit())
+            FieldCtor->setImplicitMustBeDefined();
+        }
+        else {
+          Diag(CurrentLocation, diag::err_defining_default_ctor) 
+          << Context.getTagDeclType(ClassDecl) << 0 <<
+              Context.getTagDeclType(FieldClassDecl);
+          Diag(FieldClassDecl->getLocation(), diag::note_previous_class_decl) 
+          << Context.getTagDeclType(FieldClassDecl);
+          err = true;
+        }
+      }
+    else if (FieldType->isReferenceType()) {
+      Diag(CurrentLocation, diag::err_unintialized_member) 
+        << Context.getTagDeclType(ClassDecl) << 0 << (*Field)->getNameAsCString();
+      Diag((*Field)->getLocation(), diag::note_declared_at);
+      err = true;
+    }
+    else if (FieldType.isConstQualified()) {
+      Diag(CurrentLocation, diag::err_unintialized_member) 
+        << Context.getTagDeclType(ClassDecl) << 1 << (*Field)->getNameAsCString();
+       Diag((*Field)->getLocation(), diag::note_declared_at);
+      err = true;
+    }
+  }
+  if (!err)
+    Constructor->setImplicitMustBeDefined();  
 }
 
 void Sema::InitializeVarWithConstructor(VarDecl *VD, 
@@ -1880,6 +1990,9 @@ void Sema::AddCXXDirectInitializerToDecl(DeclPtrTy Dcl,
       VDecl->setCXXDirectInitializer(true);
       InitializeVarWithConstructor(VDecl, Constructor, DeclInitType, 
                                    (Expr**)Exprs.release(), NumExprs);
+      // An implicitly-declared default constructor for a class is implicitly
+      // defined when it is used to creat an object of its class type.
+      DefineImplicitDefaultConstructor(VDecl->getLocation(), Constructor);
     }
     return;
   }
@@ -1956,7 +2069,7 @@ Sema::PerformInitializationByConstructor(QualType ClassType,
   // constructors, we'll need to make them appear here.
 
   OverloadCandidateSet::iterator Best;
-  switch (BestViableFunction(CandidateSet, Best)) {
+  switch (BestViableFunction(CandidateSet, Loc, Best)) {
   case OR_Success:
     // We found a constructor. Return it.
     return cast<CXXConstructorDecl>(Best->Function);
@@ -2188,7 +2301,7 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
     }
 
     OverloadCandidateSet::iterator Best;
-    switch (BestViableFunction(CandidateSet, Best)) {
+    switch (BestViableFunction(CandidateSet, Init->getLocStart(), Best)) {
     case OR_Success:
       // This is a direct binding.
       BindsDirectly = true;
@@ -2668,7 +2781,7 @@ Sema::DeclPtrTy Sema::ActOnExceptionDeclarator(Scope *S, Declarator &D) {
   else
     CurContext->addDecl(Context, ExDecl);
 
-  ProcessDeclAttributes(ExDecl, D);
+  ProcessDeclAttributes(S, ExDecl, D);
   return DeclPtrTy::make(ExDecl);
 }
 
@@ -2829,4 +2942,47 @@ bool Sema::CheckOverridingFunctionReturnType(const CXXMethodDecl *New,
   };
   
   return false;
+}
+
+/// ActOnCXXEnterDeclInitializer - Invoked when we are about to parse an
+/// initializer for the declaration 'Dcl'.
+/// After this method is called, according to [C++ 3.4.1p13], if 'Dcl' is a
+/// static data member of class X, names should be looked up in the scope of
+/// class X.
+void Sema::ActOnCXXEnterDeclInitializer(Scope *S, DeclPtrTy Dcl) {
+  Decl *D = Dcl.getAs<Decl>();
+  // If there is no declaration, there was an error parsing it.
+  if (D == 0)
+    return;
+
+  // Check whether it is a declaration with a nested name specifier like
+  // int foo::bar;
+  if (!D->isOutOfLine())
+    return;
+  
+  // C++ [basic.lookup.unqual]p13
+  //
+  // A name used in the definition of a static data member of class X
+  // (after the qualified-id of the static member) is looked up as if the name
+  // was used in a member function of X.
+  
+  // Change current context into the context of the initializing declaration.
+  EnterDeclaratorContext(S, D->getDeclContext());
+}
+
+/// ActOnCXXExitDeclInitializer - Invoked after we are finished parsing an
+/// initializer for the declaration 'Dcl'.
+void Sema::ActOnCXXExitDeclInitializer(Scope *S, DeclPtrTy Dcl) {
+  Decl *D = Dcl.getAs<Decl>();
+  // If there is no declaration, there was an error parsing it.
+  if (D == 0)
+    return;
+
+  // Check whether it is a declaration with a nested name specifier like
+  // int foo::bar;
+  if (!D->isOutOfLine())
+    return;
+
+  assert(S->getEntity() == D->getDeclContext() && "Context imbalance!");
+  ExitDeclaratorContext(S);
 }

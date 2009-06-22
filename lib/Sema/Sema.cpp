@@ -125,6 +125,7 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   
   if (!PP.getLangOptions().ObjC1) return;
   
+  // Built-in ObjC types may already be set by PCHReader (hence isNull checks).
   if (Context.getObjCSelType().isNull()) {
     // Synthesize "typedef struct objc_selector *SEL;"
     RecordDecl *SelTag = CreateStructDecl(Context, "objc_selector");
@@ -163,7 +164,7 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   // Synthesize "typedef struct objc_object { Class isa; } *id;"
   if (Context.getObjCIdType().isNull()) {
     RecordDecl *ObjectTag = CreateStructDecl(Context, "objc_object");
-    
+
     QualType ObjT = Context.getPointerType(Context.getTagDeclType(ObjectTag));
     PushOnScopeChains(ObjectTag, TUScope);
     TypedefDecl *IdTypedef = TypedefDecl::Create(Context, CurContext,
@@ -181,7 +182,7 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
     Diags(PP.getDiagnostics()), SourceMgr(PP.getSourceManager()), 
     ExternalSource(0), CurContext(0), PreDeclaratorDC(0),
     CurBlock(0), PackContext(0), IdResolver(pp.getLangOptions()),
-    GlobalNewDeleteDeclared(false), 
+    GlobalNewDeleteDeclared(false), InUnevaluatedOperand(false),
     CompleteTranslationUnit(CompleteTranslationUnit),
     NumSFINAEErrors(0), CurrentInstantiationScope(0) {
   

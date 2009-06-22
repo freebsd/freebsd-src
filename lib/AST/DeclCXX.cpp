@@ -128,36 +128,33 @@ bool CXXRecordDecl::hasConstCopyAssignment(ASTContext &Context) const {
 void
 CXXRecordDecl::addedConstructor(ASTContext &Context, 
                                 CXXConstructorDecl *ConDecl) {
-  if (!ConDecl->isImplicit()) {
-    // Note that we have a user-declared constructor.
-    UserDeclaredConstructor = true;
+  assert(!ConDecl->isImplicit() && "addedConstructor - not for implicit decl");
+  // Note that we have a user-declared constructor.
+  UserDeclaredConstructor = true;
 
-    // C++ [dcl.init.aggr]p1: 
-    //   An aggregate is an array or a class (clause 9) with no
-    //   user-declared constructors (12.1) [...].
-    Aggregate = false;
+  // C++ [dcl.init.aggr]p1: 
+  //   An aggregate is an array or a class (clause 9) with no
+  //   user-declared constructors (12.1) [...].
+  Aggregate = false;
 
-    // C++ [class]p4:
-    //   A POD-struct is an aggregate class [...]
-    PlainOldData = false;
+  // C++ [class]p4:
+  //   A POD-struct is an aggregate class [...]
+  PlainOldData = false;
 
-    // C++ [class.ctor]p5:
-    //   A constructor is trivial if it is an implicitly-declared default
-    //   constructor.
-    HasTrivialConstructor = false;
+  // C++ [class.ctor]p5:
+  //   A constructor is trivial if it is an implicitly-declared default
+  //   constructor.
+  HasTrivialConstructor = false;
     
-    // Note when we have a user-declared copy constructor, which will
-    // suppress the implicit declaration of a copy constructor.
-    if (ConDecl->isCopyConstructor(Context))
-      UserDeclaredCopyConstructor = true;
-  }
+  // Note when we have a user-declared copy constructor, which will
+  // suppress the implicit declaration of a copy constructor.
+  if (ConDecl->isCopyConstructor(Context))
+    UserDeclaredCopyConstructor = true;
 }
 
 void CXXRecordDecl::addedAssignmentOperator(ASTContext &Context,
                                             CXXMethodDecl *OpDecl) {
   // We're interested specifically in copy assignment operators.
-  // Unlike addedConstructor, this method is not called for implicit
-  // declarations.
   const FunctionProtoType *FnType = OpDecl->getType()->getAsFunctionProtoType();
   assert(FnType && "Overloaded operator has no proto function type.");
   assert(FnType->getNumArgs() == 1 && !FnType->isVariadic());
@@ -187,10 +184,28 @@ void CXXRecordDecl::addConversionFunction(ASTContext &Context,
   Conversions.addOverload(ConvDecl);
 }
 
+
+CXXConstructorDecl *
+CXXRecordDecl::getDefaultConstructor(ASTContext &Context) {
+  QualType ClassType = Context.getTypeDeclType(this);
+  DeclarationName ConstructorName
+    = Context.DeclarationNames.getCXXConstructorName(
+                      Context.getCanonicalType(ClassType.getUnqualifiedType()));
+  
+  DeclContext::lookup_const_iterator Con, ConEnd;
+  for (llvm::tie(Con, ConEnd) = lookup(Context, ConstructorName);
+       Con != ConEnd; ++Con) {
+    CXXConstructorDecl *Constructor = cast<CXXConstructorDecl>(*Con);
+    if (Constructor->isDefaultConstructor())
+      return Constructor;
+  }
+  return 0;
+}
+
 const CXXDestructorDecl *
 CXXRecordDecl::getDestructor(ASTContext &Context) {
   QualType ClassType = Context.getTypeDeclType(this);
-
+  
   DeclarationName Name 
     = Context.DeclarationNames.getCXXDestructorName(ClassType);
 
@@ -426,6 +441,14 @@ NamespaceAliasDecl *NamespaceAliasDecl::Create(ASTContext &C, DeclContext *DC,
                                                NamedDecl *Namespace) {
   return new (C) NamespaceAliasDecl(DC, L, AliasLoc, Alias, QualifierRange, 
                                     Qualifier, IdentLoc, Namespace);
+}
+
+UsingDecl *UsingDecl::Create(ASTContext &C, DeclContext *DC,
+      SourceLocation L, SourceRange NNR, SourceLocation TargetNL,
+      SourceLocation UL, NamedDecl* Target,
+      NestedNameSpecifier* TargetNNS, bool IsTypeNameArg) {
+  return new (C) UsingDecl(DC, L, NNR, TargetNL, UL, Target,
+      TargetNNS, IsTypeNameArg);
 }
 
 StaticAssertDecl *StaticAssertDecl::Create(ASTContext &C, DeclContext *DC,

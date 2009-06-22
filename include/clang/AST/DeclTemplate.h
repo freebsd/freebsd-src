@@ -18,6 +18,7 @@
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerUnion.h"
+#include <limits>
 
 namespace clang {
 
@@ -404,6 +405,11 @@ class TemplateArgument {
       char Value[sizeof(llvm::APSInt)];
       void *Type;
     } Integer;
+    struct {
+      TemplateArgument *Args;
+      unsigned NumArgs;
+      bool CopyArgs;
+    } Args;
   };
 
   /// \brief Location of the beginning of this template argument.
@@ -413,7 +419,7 @@ public:
   /// \brief The type of template argument we're storing.
   enum ArgKind {
     Null = 0,
-    /// The template argument is a type. It's value is stored in the
+    /// The template argument is a type. Its value is stored in the
     /// TypeOrValue field.
     Type = 1,
     /// The template argument is a declaration
@@ -422,7 +428,11 @@ public:
     Integral = 3,
     /// The template argument is a value- or type-dependent expression
     /// stored in an Expr*.
-    Expression = 4
+    Expression = 4,
+
+    /// The template argument is actually a parameter pack. Arguments are stored
+    /// in the Args struct.
+    Pack = 5
   } Kind;
 
   /// \brief Construct an empty, invalid template argument.
@@ -459,11 +469,20 @@ public:
   /// occur in a non-dependent, canonical template argument list.
   TemplateArgument(Expr *E);
 
+  /// \brief Construct a template argument pack.
+  TemplateArgument(SourceLocation Loc, TemplateArgument *Args, 
+                   unsigned NumArgs, bool CopyArgs);
+  
   /// \brief Copy constructor for a template argument.
   TemplateArgument(const TemplateArgument &Other) : Kind(Other.Kind) {
     if (Kind == Integral) {
       new (Integer.Value) llvm::APSInt(*Other.getAsIntegral());
       Integer.Type = Other.Integer.Type;
+    } else if (Kind == Pack) {
+      Args.NumArgs = Other.Args.NumArgs;
+      Args.Args = new TemplateArgument[Args.NumArgs];
+      for (unsigned I = 0; I != Args.NumArgs; ++I)
+            Args.Args[I] = Other.Args.Args[I];
     }
     else
       TypeOrValue = Other.TypeOrValue;
@@ -474,6 +493,10 @@ public:
     // FIXME: Does not provide the strong guarantee for exception
     // safety.
     using llvm::APSInt;
+
+    // FIXME: Handle Packs
+    assert(Kind != Pack && "FIXME: Handle packs");
+    assert(Other.Kind != Pack && "FIXME: Handle packs");
 
     if (Kind == Other.Kind && Kind == Integral) {
       // Copy integral values.
@@ -502,6 +525,8 @@ public:
 
     if (Kind == Integral)
       getAsIntegral()->~APSInt();
+    else if (Kind == Pack && Args.CopyArgs)
+      delete[] Args.Args;
   }
 
   /// \brief Return the kind of stored template argument.
@@ -586,34 +611,44 @@ public:
       // FIXME: We need a canonical representation of expressions.
       ID.AddPointer(getAsExpr());
       break;
+    
+    case Pack:
+      ID.AddInteger(Args.NumArgs);
+      for (unsigned I = 0; I != Args.NumArgs; ++I)
+        Args.Args[I].Profile(ID);
     }
   }
 };
 
 /// \brief A helper class for making template argument lists.
 class TemplateArgumentListBuilder {
-  /// Args - contains the template arguments.
-  llvm::SmallVector<TemplateArgument, 16> Args;
+  /// FlatArgs - contains the template arguments in flat form.
+  llvm::SmallVector<TemplateArgument, 16> FlatArgs;
   
-  llvm::SmallVector<unsigned, 32> Indices;
+  llvm::SmallVector<TemplateArgument, 16> StructuredArgs;
 
   ASTContext &Context;
   
+  unsigned PackBeginIndex;
+
   /// isAddingFromParameterPack - Returns whether we're adding arguments from
   /// a parameter pack.
-  bool isAddingFromParameterPack() const { return Indices.size() % 2; }
+  bool isAddingFromParameterPack() const { 
+    return PackBeginIndex != std::numeric_limits<unsigned>::max();
+  }
   
 public:
-  TemplateArgumentListBuilder(ASTContext &Context) : Context(Context) { }
+  TemplateArgumentListBuilder(ASTContext &Context) : Context(Context),
+    PackBeginIndex(std::numeric_limits<unsigned>::max()) { }
   
-  size_t size() const { 
+  size_t structuredSize() const { 
     assert(!isAddingFromParameterPack() && 
            "Size is not valid when adding from a parameter pack");
     
-    return Indices.size() / 2;
+    return StructuredArgs.size();
   }
   
-  size_t flatSize() const { return Args.size(); }
+  size_t flatSize() const { return FlatArgs.size(); }
 
   void push_back(const TemplateArgument& Arg);
   
@@ -623,8 +658,12 @@ public:
   /// EndParameterPack - Finish adding arguments from a parameter pack.
   void EndParameterPack();
   
-  const TemplateArgument *getFlatArgumentList() const { return Args.data(); }
-  TemplateArgument *getFlatArgumentList() { return Args.data(); }
+  const TemplateArgument *getFlatArgumentList() const { 
+      return FlatArgs.data();
+  }
+  TemplateArgument *getFlatArgumentList() { 
+      return FlatArgs.data();
+  }
 };
 
 /// \brief A template argument list.
@@ -657,13 +696,6 @@ public:
   }
 
   /// \brief Retrieve the template argument at a given index.
-  TemplateArgument &get(unsigned Idx) { 
-    assert(Idx < NumArguments && "Invalid template argument index");
-    return getFlatArgumentList()[Idx];
-  }
-
-  /// \brief Retrieve the template argument at a given index.
-        TemplateArgument &operator[](unsigned Idx)       { return get(Idx); }
   const TemplateArgument &operator[](unsigned Idx) const { return get(Idx); }
 
   /// \brief Retrieve the number of template arguments in this
@@ -675,9 +707,6 @@ public:
   unsigned flat_size() const { return NumArguments; }
 
   /// \brief Retrieve the flattened template argument list.
-  TemplateArgument *getFlatArgumentList() { 
-    return Arguments.getPointer();
-  }
   const TemplateArgument *getFlatArgumentList() const { 
     return Arguments.getPointer();
   }

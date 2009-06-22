@@ -20,63 +20,59 @@
 namespace clang {
 
 class SimpleConstraintManager : public ConstraintManager {
-protected:
-  GRStateManager& StateMgr;
 public:
-  SimpleConstraintManager(GRStateManager& statemgr) 
-    : StateMgr(statemgr) {}
-  virtual ~SimpleConstraintManager();
+  SimpleConstraintManager() {}
+  virtual ~SimpleConstraintManager();  
   
+  //===------------------------------------------------------------------===//
+  // Common implementation for the interface provided by ConstraintManager.
+  //===------------------------------------------------------------------===//
+
   bool canReasonAbout(SVal X) const;
+
+  const GRState *Assume(const GRState *state, SVal Cond, bool Assumption);
+
+  const GRState *Assume(const GRState *state, Loc Cond, bool Assumption);
+
+  const GRState *Assume(const GRState *state, NonLoc Cond, bool Assumption);
+
+  const GRState *AssumeSymInt(const GRState *state, bool Assumption,
+                              const SymIntExpr *SE);
   
-  virtual const GRState* Assume(const GRState* St, SVal Cond, bool Assumption,
-                                bool& isFeasible);
+  const GRState *AssumeInBound(const GRState *state, SVal Idx, SVal UpperBound,
+                               bool Assumption);
+  
+protected:
+  
+  //===------------------------------------------------------------------===//
+  // Interface that subclasses must implement.
+  //===------------------------------------------------------------------===//
+  
+  virtual const GRState *AssumeSymNE(const GRState *state, SymbolRef sym,
+                                     const llvm::APSInt& V) = 0;
 
-  const GRState* Assume(const GRState* St, Loc Cond, bool Assumption,
-                        bool& isFeasible);
+  virtual const GRState *AssumeSymEQ(const GRState *state, SymbolRef sym,
+                                     const llvm::APSInt& V) = 0;
 
-  const GRState* AssumeAux(const GRState* St, Loc Cond,bool Assumption,
-                           bool& isFeasible);
+  virtual const GRState *AssumeSymLT(const GRState *state, SymbolRef sym,
+                                     const llvm::APSInt& V) = 0;
 
-  const GRState* Assume(const GRState* St, NonLoc Cond, bool Assumption,
-                        bool& isFeasible);
+  virtual const GRState *AssumeSymGT(const GRState *state, SymbolRef sym,
+                                     const llvm::APSInt& V) = 0;
 
-  const GRState* AssumeAux(const GRState* St, NonLoc Cond, bool Assumption,
-                           bool& isFeasible);
+  virtual const GRState *AssumeSymLE(const GRState *state, SymbolRef sym,
+                                     const llvm::APSInt& V) = 0;
 
-  const GRState* AssumeSymInt(const GRState* St, bool Assumption,
-                              const SymIntExpr *SE, bool& isFeasible);
-
-  virtual const GRState* AssumeSymNE(const GRState* St, SymbolRef sym,
-                                     const llvm::APSInt& V,
-                                     bool& isFeasible) = 0;
-
-  virtual const GRState* AssumeSymEQ(const GRState* St, SymbolRef sym,
-                                     const llvm::APSInt& V,
-                                     bool& isFeasible) = 0;
-
-  virtual const GRState* AssumeSymLT(const GRState* St, SymbolRef sym,
-                                     const llvm::APSInt& V,
-                                     bool& isFeasible) = 0;
-
-  virtual const GRState* AssumeSymGT(const GRState* St, SymbolRef sym,
-                                     const llvm::APSInt& V,
-                                     bool& isFeasible) = 0;
-
-  virtual const GRState* AssumeSymLE(const GRState* St, SymbolRef sym,
-				     const llvm::APSInt& V,
-				     bool& isFeasible) = 0;
-
-  virtual const GRState* AssumeSymGE(const GRState* St, SymbolRef sym,
-				     const llvm::APSInt& V,
-				     bool& isFeasible) = 0;
-
-  const GRState* AssumeInBound(const GRState* St, SVal Idx, SVal UpperBound,
-                               bool Assumption, bool& isFeasible);
-
-private:
-  BasicValueFactory& getBasicVals() { return StateMgr.getBasicVals(); }
-  SymbolManager& getSymbolManager() const { return StateMgr.getSymbolManager(); }
+  virtual const GRState *AssumeSymGE(const GRState *state, SymbolRef sym,
+                                     const llvm::APSInt& V) = 0;
+  
+  //===------------------------------------------------------------------===//
+  // Internal implementation.
+  //===------------------------------------------------------------------===//
+  
+  const GRState *AssumeAux(const GRState *state, Loc Cond,bool Assumption);
+  
+  const GRState *AssumeAux(const GRState *state, NonLoc Cond, bool Assumption);
 };
 
 }  // end clang namespace

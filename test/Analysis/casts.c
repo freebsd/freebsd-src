@@ -14,3 +14,27 @@ void f(int sock) {
     ;
   }
 }
+
+struct s {
+  struct s *value;
+};
+
+int f1(struct s **pval) {
+  int *tbool = ((void*)0);
+  struct s *t = *pval;
+  pval = &(t->value);
+  tbool = (int *)pval; // Should record the cast-to type here.
+  char c = (unsigned char) *tbool; // Should use cast-to type to create symbol.
+  if (*tbool == -1)
+    3;
+}
+
+void f2(const char *str) {
+ unsigned char ch, cl, *p;
+
+ p = (unsigned char *)str;
+ ch = *p++; // use cast-to type 'unsigned char' to create element region.
+ cl = *p++;
+ if(!cl)
+    cl = 'a';
+}

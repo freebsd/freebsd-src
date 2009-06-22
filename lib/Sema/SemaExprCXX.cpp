@@ -546,7 +546,7 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
 
   // Do the resolution.
   OverloadCandidateSet::iterator Best;
-  switch(BestViableFunction(Candidates, Best)) {
+  switch(BestViableFunction(Candidates, StartLoc, Best)) {
   case OR_Success: {
     // Got one!
     FunctionDecl *FnDecl = Best->Function;
@@ -1175,7 +1175,7 @@ static bool FindConditionalOverload(Sema &Self, Expr *&LHS, Expr *&RHS,
   Self.AddBuiltinOperatorCandidates(OO_Conditional, Args, 2, CandidateSet);
 
   OverloadCandidateSet::iterator Best;
-  switch (Self.BestViableFunction(CandidateSet, Best)) {
+  switch (Self.BestViableFunction(CandidateSet, Loc, Best)) {
     case Sema::OR_Success:
       // We found a match. Perform the conversions on the arguments and move on.
       if (Self.PerformImplicitConversion(LHS, Best->BuiltinTypes.ParamTypes[0],
@@ -1589,7 +1589,7 @@ Expr *Sema::RemoveOutermostTemporaryBinding(Expr *E) {
 }
 
 Expr *Sema::MaybeCreateCXXExprWithTemporaries(Expr *SubExpr, 
-                                              bool DestroyTemps) {
+                                              bool ShouldDestroyTemps) {
   assert(SubExpr && "sub expression can't be null!");
   
   if (ExprTemporaries.empty())
@@ -1598,7 +1598,7 @@ Expr *Sema::MaybeCreateCXXExprWithTemporaries(Expr *SubExpr,
   Expr *E = CXXExprWithTemporaries::Create(Context, SubExpr,
                                            &ExprTemporaries[0], 
                                            ExprTemporaries.size(),
-                                           DestroyTemps);
+                                           ShouldDestroyTemps);
   ExprTemporaries.clear();
   
   return E;
@@ -1607,7 +1607,8 @@ Expr *Sema::MaybeCreateCXXExprWithTemporaries(Expr *SubExpr,
 Sema::OwningExprResult Sema::ActOnFinishFullExpr(ExprArg Arg) {
   Expr *FullExpr = Arg.takeAs<Expr>();
   if (FullExpr)
-    FullExpr = MaybeCreateCXXExprWithTemporaries(FullExpr);
+    FullExpr = MaybeCreateCXXExprWithTemporaries(FullExpr, 
+                                                 /*ShouldDestroyTemps=*/true);
 
   return Owned(FullExpr);
 }
