@@ -159,6 +159,25 @@ DB_SHOW_COMMAND(gpio, db_show_gpio)
 }
 #endif
 
+void
+ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type)
+{
+	uint32_t gpiotr = GPIO_CONF_READ_4(sc, GPIO_TYPE_REG(pin));
+
+	/* clear interrupt type */
+	GPIO_CONF_WRITE_4(sc, GPIO_TYPE_REG(pin),
+	    gpiotr &~ GPIO_TYPE(pin, GPIO_TYPE_MASK));
+	/* clear any pending interrupt */
+	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPISR, (1<<pin));
+	/* set new interrupt type */
+	GPIO_CONF_WRITE_4(sc, GPIO_TYPE_REG(pin),
+	    gpiotr | GPIO_TYPE(pin, type));
+
+	/* configure gpio line as an input */
+	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOER, 
+	    GPIO_CONF_READ_4(sc, IXP425_GPIO_GPOER) | (1<<pin));
+}
+
 static __inline void
 ixp425_gpio_ack(int irq)
 {
