@@ -319,7 +319,7 @@ StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto,
  */
 
 static int
-setup_redir_addr(char *spool_buf, int len,
+setup_redir_addr(char *spool_buf, unsigned int len,
 		 int *_ac, char ***_av) 
 {
 	char **av, *sep; /* Token separator. */
