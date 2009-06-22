@@ -51,6 +51,7 @@ static RegisterPass<VirtRegMap>
 X("virtregmap", "Virtual Register Map");
 
 bool VirtRegMap::runOnMachineFunction(MachineFunction &mf) {
+  MRI = &mf.getRegInfo();
   TII = mf.getTarget().getInstrInfo();
   TRI = mf.getTarget().getRegisterInfo();
   MF = &mf;
@@ -96,6 +97,18 @@ void VirtRegMap::grow() {
   Virt2SplitKillMap.grow(LastVirtReg);
   ReMatMap.grow(LastVirtReg);
   ImplicitDefed.resize(LastVirtReg-TargetRegisterInfo::FirstVirtualRegister+1);
+}
+
+unsigned VirtRegMap::getRegAllocPref(unsigned virtReg) {
+  std::pair<unsigned, unsigned> Hint = MRI->getRegAllocationHint(virtReg);
+  unsigned physReg = Hint.second;
+  if (physReg &&
+      TargetRegisterInfo::isVirtualRegister(physReg) && hasPhys(physReg))
+    physReg = getPhys(physReg);
+  if (Hint.first == 0)
+    return (physReg && TargetRegisterInfo::isPhysicalRegister(physReg))
+      ? physReg : 0;
+  return TRI->ResolveRegAllocHint(Hint.first, physReg, *MF);
 }
 
 int VirtRegMap::assignVirt2StackSlot(unsigned virtReg) {
@@ -213,8 +226,7 @@ void VirtRegMap::RemoveMachineInstrFromMaps(MachineInstr *MI) {
 
 /// FindUnusedRegisters - Gather a list of allocatable registers that
 /// have not been allocated to any virtual register.
-bool VirtRegMap::FindUnusedRegisters(const TargetRegisterInfo *TRI,
-                                     LiveIntervals* LIs) {
+bool VirtRegMap::FindUnusedRegisters(LiveIntervals* LIs) {
   unsigned NumRegs = TRI->getNumRegs();
   UnusedRegs.reset();
   UnusedRegs.resize(NumRegs);

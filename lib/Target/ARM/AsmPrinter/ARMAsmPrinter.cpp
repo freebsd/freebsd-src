@@ -45,7 +45,6 @@ STATISTIC(EmittedInsts, "Number of machine instrs printed");
 namespace {
   class VISIBILITY_HIDDEN ARMAsmPrinter : public AsmPrinter {
     DwarfWriter *DW;
-    MachineModuleInfo *MMI;
 
     /// Subtarget - Keep a pointer to the ARMSubtarget around so that we can
     /// make the right decision when printing asm code for different targets.
@@ -84,7 +83,7 @@ namespace {
     explicit ARMAsmPrinter(raw_ostream &O, TargetMachine &TM,
                            const TargetAsmInfo *T, CodeGenOpt::Level OL,
                            bool V)
-      : AsmPrinter(O, TM, T, OL, V), DW(0), MMI(NULL), AFI(NULL), MCP(NULL),
+      : AsmPrinter(O, TM, T, OL, V), DW(0), AFI(NULL), MCP(NULL),
         InCPMode(false) {
       Subtarget = &TM.getSubtarget<ARMSubtarget>();
     }
@@ -97,6 +96,7 @@ namespace {
                       const char *Modifier = 0);
     void printSOImmOperand(const MachineInstr *MI, int opNum);
     void printSOImm2PartOperand(const MachineInstr *MI, int opNum);
+    void printSOOperand(const MachineInstr *MI, int OpNum);
     void printSORegOperand(const MachineInstr *MI, int opNum);
     void printAddrMode2Operand(const MachineInstr *MI, int OpNo);
     void printAddrMode2OffsetOperand(const MachineInstr *MI, int OpNo);
@@ -394,6 +394,28 @@ void ARMAsmPrinter::printSOImm2PartOperand(const MachineInstr *MI, int OpNum) {
   printOperand(MI, 0); 
   O << ", ";
   printSOImm(O, ARM_AM::getSOImmVal(V2), VerboseAsm, TAI);
+}
+
+// Constant shifts so_reg is a 3-operand unit corresponding to register forms of
+// the A5.1 "Addressing Mode 1 - Data-processing operands" forms.  This
+// includes:
+// REG 0 - e.g. R5
+// REG IMM, SH_OPC - e.g. R5, LSL #3
+void ARMAsmPrinter::printSOOperand(const MachineInstr *MI, int OpNum) {
+  const MachineOperand &MO1 = MI->getOperand(OpNum);
+  const MachineOperand &MO2 = MI->getOperand(OpNum+1);
+
+  unsigned Reg = MO1.getReg();
+  assert(TargetRegisterInfo::isPhysicalRegister(Reg));
+  O << TM.getRegisterInfo()->getAsmName(Reg);
+
+  // Print the shift opc.
+  O << ", "
+    << ARM_AM::getShiftOpcStr(ARM_AM::getSORegShOp(MO2.getImm()))
+    << " ";
+
+  assert(MO2.isImm() && "Not a valid t2_so_reg value!");
+  O << "#" << ARM_AM::getSORegOffset(MO2.getImm());
 }
 
 // so_reg is a 4-operand unit corresponding to register forms of the A5.1
@@ -805,17 +827,11 @@ void ARMAsmPrinter::printMachineInstruction(const MachineInstr *MI) {
 bool ARMAsmPrinter::doInitialization(Module &M) {
 
   bool Result = AsmPrinter::doInitialization(M);
-
-  // Emit initial debug information.
-  MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-  assert(MMI);
   DW = getAnalysisIfAvailable<DwarfWriter>();
-  assert(DW && "Dwarf Writer is not available");
-  DW->BeginModule(&M, MMI, O, this, TAI);
 
-  // Darwin wants symbols to be quoted if they have complex names.
-  if (Subtarget->isTargetDarwin())
-    Mang->setUseQuotes(true);
+  // Thumb-2 instructions are supported only in unified assembler syntax mode.
+  if (Subtarget->hasThumb2())
+    O << "\t.syntax unified\n";
 
   // Emit ARM Build Attributes
   if (Subtarget->isTargetELF()) {
@@ -1114,4 +1130,10 @@ namespace {
       ARMTargetMachine::registerAsmPrinter(createARMCodePrinterPass);
     }
   } Registrator;
+}
+
+// Force static initialization when called from
+// llvm/InitializeAllAsmPrinters.h
+namespace llvm {
+  void InitializeARMAsmPrinter() { }
 }

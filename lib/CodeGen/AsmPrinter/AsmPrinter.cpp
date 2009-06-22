@@ -152,6 +152,9 @@ void AsmPrinter::getAnalysisUsage(AnalysisUsage &AU) const {
 bool AsmPrinter::doInitialization(Module &M) {
   Mang = new Mangler(M, TAI->getGlobalPrefix(), TAI->getPrivateGlobalPrefix());
   
+  if (TAI->doesAllowQuotesInName())
+    Mang->setUseQuotes(true);
+  
   GCModuleInfo *MI = getAnalysisIfAvailable<GCModuleInfo>();
   assert(MI && "AsmPrinter didn't require GCModuleInfo?");
 
@@ -174,9 +177,17 @@ bool AsmPrinter::doInitialization(Module &M) {
 
   SwitchToDataSection("");   // Reset back to no section.
   
-  MachineModuleInfo *MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-  if (MMI) MMI->AnalyzeModule(M);
-  DW = getAnalysisIfAvailable<DwarfWriter>();
+  if (TAI->doesSupportDebugInformation() 
+      || TAI->doesSupportExceptionHandling()) {
+    MachineModuleInfo *MMI = getAnalysisIfAvailable<MachineModuleInfo>();
+    if (MMI) {
+      MMI->AnalyzeModule(M);
+      DW = getAnalysisIfAvailable<DwarfWriter>();
+      if (DW)
+        DW->BeginModule(&M, MMI, O, this, TAI);
+    }
+  }
+
   return false;
 }
 
@@ -347,8 +358,9 @@ void AsmPrinter::EmitJumpTableInfo(MachineJumpTableInfo *MJTI,
   const char* JumpTableDataSection = TAI->getJumpTableDataSection();
   const Function *F = MF.getFunction();
   unsigned SectionFlags = TAI->SectionFlagsForGlobal(F);
+  bool JTInDiffSection = false;
   if ((IsPic && !(LoweringInfo && LoweringInfo->usesGlobalOffsetTable())) ||
-     !JumpTableDataSection ||
+      !JumpTableDataSection ||
       SectionFlags & SectionFlags::Linkonce) {
     // In PIC mode, we need to emit the jump table to the same section as the
     // function body itself, otherwise the label differences won't make sense.
@@ -357,6 +369,7 @@ void AsmPrinter::EmitJumpTableInfo(MachineJumpTableInfo *MJTI,
     SwitchToSection(TAI->SectionForGlobal(F));
   } else {
     SwitchToDataSection(JumpTableDataSection);
+    JTInDiffSection = true;
   }
   
   EmitAlignment(Log2_32(MJTI->getAlignment()));
@@ -380,8 +393,10 @@ void AsmPrinter::EmitJumpTableInfo(MachineJumpTableInfo *MJTI,
     // before each jump table.  The first label is never referenced, but tells
     // the assembler and linker the extents of the jump table object.  The
     // second label is actually referenced by the code.
-    if (const char *JTLabelPrefix = TAI->getJumpTableSpecialLabelPrefix())
-      O << JTLabelPrefix << "JTI" << getFunctionNumber() << '_' << i << ":\n";
+    if (JTInDiffSection) {
+      if (const char *JTLabelPrefix = TAI->getJumpTableSpecialLabelPrefix())
+        O << JTLabelPrefix << "JTI" << getFunctionNumber() << '_' << i << ":\n";
+    }
     
     O << TAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber() 
       << '_' << i << ":\n";
@@ -502,7 +517,7 @@ const GlobalValue * AsmPrinter::findGlobalValue(const Constant *CV) {
 void AsmPrinter::EmitLLVMUsedList(Constant *List) {
   const char *Directive = TAI->getUsedDirective();
 
-  // Should be an array of 'sbyte*'.
+  // Should be an array of 'i8*'.
   ConstantArray *InitList = dyn_cast<ConstantArray>(List);
   if (InitList == 0) return;
   

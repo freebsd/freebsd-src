@@ -26,8 +26,10 @@
 #include "llvm/Type.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/CodeGen/DwarfWriter.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Mangler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetAsmInfo.h"
@@ -35,6 +37,9 @@
 using namespace llvm;
 
 STATISTIC(EmittedInsts, "Number of machine instrs printed");
+
+static cl::opt<bool> NewAsmPrinter("experimental-asm-printer",
+                                   cl::Hidden);
 
 static std::string getPICLabelString(unsigned FnNum,
                                      const TargetAsmInfo *TAI,
@@ -266,7 +271,7 @@ bool X86ATTAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
     O << "\t.size\t" << CurrentFnName << ", .-" << CurrentFnName << '\n';
 
   // Emit post-function debug information.
-  if (TAI->doesSupportDebugInformation())
+  if (TAI->doesSupportDebugInformation() || TAI->doesSupportExceptionHandling())
     DW->EndFunction(&MF);
 
   // Print out jump tables referenced by the function.
@@ -291,6 +296,136 @@ static inline bool shouldPrintStub(TargetMachine &TM, const X86Subtarget* ST) {
   return ST->isPICStyleStub() && TM.getRelocationModel() != Reloc::Static;
 }
 
+/// print_pcrel_imm - This is used to print an immediate value that ends up
+/// being encoded as a pc-relative value.  These print slightly differently, for
+/// example, a $ is not emitted.
+void X86ATTAsmPrinter::print_pcrel_imm(const MachineInstr *MI, unsigned OpNo) {
+  const MachineOperand &MO = MI->getOperand(OpNo);
+  switch (MO.getType()) {
+  default: assert(0 && "Unknown pcrel immediate operand");
+  case MachineOperand::MO_Immediate:
+    O << MO.getImm();
+    return;
+  case MachineOperand::MO_MachineBasicBlock:
+    printBasicBlockLabel(MO.getMBB(), false, false, VerboseAsm);
+    return;
+      
+  case MachineOperand::MO_GlobalAddress: {
+    const GlobalValue *GV = MO.getGlobal();
+    std::string Name = Mang->getValueName(GV);
+    decorateName(Name, GV);
+    
+    bool needCloseParen = false;
+    if (Name[0] == '$') {
+      // The name begins with a dollar-sign. In order to avoid having it look
+      // like an integer immediate to the assembler, enclose it in parens.
+      O << '(';
+      needCloseParen = true;
+    }
+    
+    if (shouldPrintStub(TM, Subtarget)) {
+      // Link-once, declaration, or Weakly-linked global variables need
+      // non-lazily-resolved stubs
+      if (GV->isDeclaration() || GV->isWeakForLinker()) {
+        // Dynamically-resolved functions need a stub for the function.
+        if (isa<Function>(GV)) {
+          // Function stubs are no longer needed for Mac OS X 10.5 and up.
+          if (Subtarget->isTargetDarwin() && Subtarget->getDarwinVers() >= 9) {
+            O << Name;
+          } else {
+            FnStubs.insert(Name);
+            printSuffixedName(Name, "$stub");
+          }
+        } else if (GV->hasHiddenVisibility()) {
+          if (!GV->isDeclaration() && !GV->hasCommonLinkage())
+            // Definition is not definitely in the current translation unit.
+            O << Name;
+          else {
+            HiddenGVStubs.insert(Name);
+            printSuffixedName(Name, "$non_lazy_ptr");
+          }
+        } else {
+          GVStubs.insert(Name);
+          printSuffixedName(Name, "$non_lazy_ptr");
+        }
+      } else {
+        if (GV->hasDLLImportLinkage())
+          O << "__imp_";
+        O << Name;
+      }
+    } else {
+      if (GV->hasDLLImportLinkage()) {
+        O << "__imp_";
+      }
+      O << Name;
+      
+      if (shouldPrintPLT(TM, Subtarget)) {
+        // Assemble call via PLT for externally visible symbols
+        if (!GV->hasHiddenVisibility() && !GV->hasProtectedVisibility() &&
+            !GV->hasLocalLinkage())
+          O << "@PLT";
+      }
+      if (Subtarget->isTargetCygMing() && GV->isDeclaration())
+        // Save function name for later type emission
+        FnStubs.insert(Name);
+    }
+    
+    if (GV->hasExternalWeakLinkage())
+      ExtWeakSymbols.insert(GV);
+    
+    printOffset(MO.getOffset());
+    
+    if (needCloseParen)
+      O << ')';
+    return;
+  }
+      
+  case MachineOperand::MO_ExternalSymbol: {
+    bool needCloseParen = false;
+    std::string Name(TAI->getGlobalPrefix());
+    Name += MO.getSymbolName();
+    // Print function stub suffix unless it's Mac OS X 10.5 and up.
+    if (shouldPrintStub(TM, Subtarget) && 
+        !(Subtarget->isTargetDarwin() && Subtarget->getDarwinVers() >= 9)) {
+      FnStubs.insert(Name);
+      printSuffixedName(Name, "$stub");
+      return;
+    }
+    
+    if (Name[0] == '$') {
+      // The name begins with a dollar-sign. In order to avoid having it look
+      // like an integer immediate to the assembler, enclose it in parens.
+      O << '(';
+      needCloseParen = true;
+    }
+    
+    O << Name;
+    
+    if (shouldPrintPLT(TM, Subtarget)) {
+      std::string GOTName(TAI->getGlobalPrefix());
+      GOTName+="_GLOBAL_OFFSET_TABLE_";
+      if (Name == GOTName)
+        // HACK! Emit extra offset to PC during printing GOT offset to
+        // compensate for the size of popl instruction. The resulting code
+        // should look like:
+        //   call .piclabel
+        // piclabel:
+        //   popl %some_register
+        //   addl $_GLOBAL_ADDRESS_TABLE_ + [.-piclabel], %some_register
+        O << " + [.-"
+          << getPICLabelString(getFunctionNumber(), TAI, Subtarget) << ']';
+      
+      O << "@PLT";
+    }
+    
+    if (needCloseParen)
+      O << ')';
+    
+    return;
+  }
+  }
+}
+
 void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
                                     const char *Modifier, bool NotRIPRel) {
   const MachineOperand &MO = MI->getOperand(OpNo);
@@ -312,13 +447,9 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
 
   case MachineOperand::MO_Immediate:
     if (!Modifier || (strcmp(Modifier, "debug") &&
-                      strcmp(Modifier, "mem") &&
-                      strcmp(Modifier, "call")))
+                      strcmp(Modifier, "mem")))
       O << '$';
     O << MO.getImm();
-    return;
-  case MachineOperand::MO_MachineBasicBlock:
-    printBasicBlockLabel(MO.getMBB(), false, false, VerboseAsm);
     return;
   case MachineOperand::MO_JumpTableIndex: {
     bool isMemOp  = Modifier && !strcmp(Modifier, "mem");
@@ -359,8 +490,7 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
     return;
   }
   case MachineOperand::MO_GlobalAddress: {
-    bool isCallOp = Modifier && !strcmp(Modifier, "call");
-    bool isMemOp  = Modifier && !strcmp(Modifier, "mem");
+    bool isMemOp = Modifier && !strcmp(Modifier, "mem");
     bool needCloseParen = false;
 
     const GlobalValue *GV = MO.getGlobal();
@@ -369,7 +499,7 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
       // If GV is an alias then use the aliasee for determining
       // thread-localness.
       if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(GV))
-        GVar = dyn_cast_or_null<GlobalVariable>(GA->resolveAliasedGlobal(false));
+        GVar =dyn_cast_or_null<GlobalVariable>(GA->resolveAliasedGlobal(false));
     }
 
     bool isThreadLocal = GVar && GVar->isThreadLocal();
@@ -377,7 +507,7 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
     std::string Name = Mang->getValueName(GV);
     decorateName(Name, GV);
 
-    if (!isMemOp && !isCallOp)
+    if (!isMemOp)
       O << '$';
     else if (Name[0] == '$') {
       // The name begins with a dollar-sign. In order to avoid having it look
@@ -391,15 +521,7 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
       // non-lazily-resolved stubs
       if (GV->isDeclaration() || GV->isWeakForLinker()) {
         // Dynamically-resolved functions need a stub for the function.
-        if (isCallOp && isa<Function>(GV)) {
-          // Function stubs are no longer needed for Mac OS X 10.5 and up.
-          if (Subtarget->isTargetDarwin() && Subtarget->getDarwinVers() >= 9) {
-            O << Name;
-          } else {
-            FnStubs.insert(Name);
-            printSuffixedName(Name, "$stub");
-          }
-        } else if (GV->hasHiddenVisibility()) {
+        if (GV->hasHiddenVisibility()) {
           if (!GV->isDeclaration() && !GV->hasCommonLinkage())
             // Definition is not definitely in the current translation unit.
             O << Name;
@@ -417,25 +539,12 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
         O << Name;
       }
 
-      if (!isCallOp && TM.getRelocationModel() == Reloc::PIC_)
+      if (TM.getRelocationModel() == Reloc::PIC_)
         O << '-' << getPICLabelString(getFunctionNumber(), TAI, Subtarget);
     } else {
-      if (GV->hasDLLImportLinkage()) {
+      if (GV->hasDLLImportLinkage())
         O << "__imp_";
-      }
       O << Name;
-
-      if (isCallOp) {
-        if (shouldPrintPLT(TM, Subtarget)) {
-          // Assemble call via PLT for externally visible symbols
-          if (!GV->hasHiddenVisibility() && !GV->hasProtectedVisibility() &&
-              !GV->hasLocalLinkage())
-            O << "@PLT";
-        }
-        if (Subtarget->isTargetCygMing() && GV->isDeclaration())
-          // Save function name for later type emission
-          FnStubs.insert(Name);
-      }
     }
 
     if (GV->hasExternalWeakLinkage())
@@ -443,6 +552,10 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
 
     printOffset(MO.getOffset());
 
+    if (needCloseParen)
+      O << ')';
+    
+    bool isRIPRelative = false;
     if (isThreadLocal) {
       TLSModel::Model model = getTLSModel(GVar, TM.getRelocationModel());
       switch (model) {
@@ -456,7 +569,8 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
       case TLSModel::InitialExec:
         if (Subtarget->is64Bit()) {
           assert (!NotRIPRel);
-          O << "@GOTTPOFF(%rip)";
+          O << "@GOTTPOFF";
+          isRIPRelative = true;
         } else {
           O << "@INDNTPOFF";
         }
@@ -476,43 +590,33 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
           O << "@GOT";
         else
           O << "@GOTOFF";
-      } else if (Subtarget->isPICStyleRIPRel() && !NotRIPRel) {
+      } else if (Subtarget->isPICStyleRIPRel() &&
+                 !NotRIPRel) {
         if (TM.getRelocationModel() != Reloc::Static) {
           if (Subtarget->GVRequiresExtraLoad(GV, TM, false))
             O << "@GOTPCREL";
-
-          if (needCloseParen) {
-            needCloseParen = false;
-            O << ')';
-          }
         }
-
-        // Use rip when possible to reduce code size, except when
-        // index or base register are also part of the address. e.g.
-        // foo(%rip)(%rcx,%rax,4) is not legal
-        O << "(%rip)";
+        
+        isRIPRelative = true;
       }
     }
 
-    if (needCloseParen)
-      O << ')';
-
+    // Use rip when possible to reduce code size, except when
+    // index or base register are also part of the address. e.g.
+    // foo(%rip)(%rcx,%rax,4) is not legal.
+    if (isRIPRelative)
+      O << "(%rip)";
+    
     return;
   }
   case MachineOperand::MO_ExternalSymbol: {
-    bool isCallOp = Modifier && !strcmp(Modifier, "call");
     bool isMemOp  = Modifier && !strcmp(Modifier, "mem");
     bool needCloseParen = false;
     std::string Name(TAI->getGlobalPrefix());
     Name += MO.getSymbolName();
+
     // Print function stub suffix unless it's Mac OS X 10.5 and up.
-    if (isCallOp && shouldPrintStub(TM, Subtarget) && 
-        !(Subtarget->isTargetDarwin() && Subtarget->getDarwinVers() >= 9)) {
-      FnStubs.insert(Name);
-      printSuffixedName(Name, "$stub");
-      return;
-    }
-    if (!isMemOp && !isCallOp)
+    if (!isMemOp)
       O << '$';
     else if (Name[0] == '$') {
       // The name begins with a dollar-sign. In order to avoid having it look
@@ -536,17 +640,13 @@ void X86ATTAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
         //   addl $_GLOBAL_ADDRESS_TABLE_ + [.-piclabel], %some_register
         O << " + [.-"
           << getPICLabelString(getFunctionNumber(), TAI, Subtarget) << ']';
-
-      if (isCallOp)
-        O << "@PLT";
     }
 
     if (needCloseParen)
       O << ')';
 
-    if (!isCallOp && Subtarget->isPICStyleRIPRel())
+    if (Subtarget->isPICStyleRIPRel())
       O << "(%rip)";
-
     return;
   }
   default:
@@ -673,8 +773,7 @@ void X86ATTAsmPrinter::printPICJumpTableEntry(const MachineJumpTableInfo *MJTI,
     printBasicBlockLabel(MBB, false, false, false);
 }
 
-bool X86ATTAsmPrinter::printAsmMRegister(const MachineOperand &MO,
-                                         const char Mode) {
+bool X86ATTAsmPrinter::printAsmMRegister(const MachineOperand &MO, char Mode) {
   unsigned Reg = MO.getReg();
   switch (Mode) {
   default: return true;  // Unknown mode.
@@ -758,37 +857,84 @@ bool X86ATTAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
   return false;
 }
 
+static void lower_lea64_32mem(MCInst *MI, unsigned OpNo) {
+  // Convert registers in the addr mode according to subreg64.
+  for (unsigned i = 0; i != 4; ++i) {
+    if (!MI->getOperand(i).isReg()) continue;
+    
+    unsigned Reg = MI->getOperand(i).getReg();
+    if (Reg == 0) continue;
+    
+    MI->getOperand(i).setReg(getX86SubSuperRegister(Reg, MVT::i64));
+  }
+}
+
 /// printMachineInstruction -- Print out a single X86 LLVM instruction MI in
 /// AT&T syntax to the current output stream.
 ///
 void X86ATTAsmPrinter::printMachineInstruction(const MachineInstr *MI) {
   ++EmittedInsts;
 
+  if (NewAsmPrinter) {
+    if (MI->getOpcode() == TargetInstrInfo::INLINEASM) {
+      O << "\t";
+      printInlineAsm(MI);
+      return;
+    } else if (MI->isLabel()) {
+      printLabel(MI);
+      return;
+    } else if (MI->getOpcode() == TargetInstrInfo::DECLARE) {
+      printDeclare(MI);
+      return;
+    } else if (MI->getOpcode() == TargetInstrInfo::IMPLICIT_DEF) {
+      printImplicitDef(MI);
+      return;
+    }
+    
+    O << "NEW: ";
+    MCInst TmpInst;
+    
+    TmpInst.setOpcode(MI->getOpcode());
+    
+    for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+      const MachineOperand &MO = MI->getOperand(i);
+      
+      MCOperand MCOp;
+      if (MO.isReg()) {
+        MCOp.MakeReg(MO.getReg());
+      } else if (MO.isImm()) {
+        MCOp.MakeImm(MO.getImm());
+      } else if (MO.isMBB()) {
+        MCOp.MakeMBBLabel(getFunctionNumber(), MO.getMBB()->getNumber());
+      } else {
+        assert(0 && "Unimp");
+      }
+      
+      TmpInst.addOperand(MCOp);
+    }
+    
+    switch (TmpInst.getOpcode()) {
+    case X86::LEA64_32r:
+      // Handle the 'subreg rewriting' for the lea64_32mem operand.
+      lower_lea64_32mem(&TmpInst, 1);
+      break;
+    }
+    
+    // FIXME: Convert TmpInst.
+    printInstruction(&TmpInst);
+    O << "OLD: ";
+  }
+  
   // Call the autogenerated instruction printer routines.
   printInstruction(MI);
 }
 
 /// doInitialization
 bool X86ATTAsmPrinter::doInitialization(Module &M) {
-
-  bool Result = AsmPrinter::doInitialization(M);
-
-  if (TAI->doesSupportDebugInformation()) {
-    // Let PassManager know we need debug information and relay
-    // the MachineModuleInfo address on to DwarfWriter.
-    // AsmPrinter::doInitialization did this analysis.
+  if (TAI->doesSupportDebugInformation() || TAI->doesSupportExceptionHandling()) 
     MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-    DW = getAnalysisIfAvailable<DwarfWriter>();
-    DW->BeginModule(&M, MMI, O, this, TAI);
-  }
-
-  // Darwin wants symbols to be quoted if they have complex names.
-  if (Subtarget->isTargetDarwin())
-    Mang->setUseQuotes(true);
-
-  return Result;
+  return AsmPrinter::doInitialization(M);
 }
-
 
 void X86ATTAsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
   const TargetData *TD = TM.getTargetData();
@@ -1040,8 +1186,8 @@ bool X86ATTAsmPrinter::doFinalization(Module &M) {
     }
 
     // Emit final debug information.
-    DwarfWriter *DW = getAnalysisIfAvailable<DwarfWriter>();
-    DW->EndModule();
+    if (TAI->doesSupportDebugInformation() || TAI->doesSupportExceptionHandling())
+      DW->EndModule();
 
     // Funny Darwin hack: This flag tells the linker that no global symbols
     // contain code that falls through to other global symbols (e.g. the obvious
@@ -1060,12 +1206,12 @@ bool X86ATTAsmPrinter::doFinalization(Module &M) {
     }
 
     // Emit final debug information.
-    DwarfWriter *DW = getAnalysisIfAvailable<DwarfWriter>();
-    DW->EndModule();
+    if (TAI->doesSupportDebugInformation() || TAI->doesSupportExceptionHandling())
+      DW->EndModule();
   } else if (Subtarget->isTargetELF()) {
     // Emit final debug information.
-    DwarfWriter *DW = getAnalysisIfAvailable<DwarfWriter>();
-    DW->EndModule();
+    if (TAI->doesSupportDebugInformation() || TAI->doesSupportExceptionHandling())
+      DW->EndModule();
   }
 
   return AsmPrinter::doFinalization(M);

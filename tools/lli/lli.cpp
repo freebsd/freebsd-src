@@ -28,6 +28,7 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/System/Process.h"
 #include "llvm/System/Signals.h"
+#include "llvm/Target/TargetSelect.h"
 #include <iostream>
 #include <cerrno>
 using namespace llvm;
@@ -137,6 +138,10 @@ int main(int argc, char **argv, char * const *envp) {
   case '2': OLvl = CodeGenOpt::Default; break;
   case '3': OLvl = CodeGenOpt::Aggressive; break;
   }
+  
+  // If we have a native target, initialize it to ensure it is linked in and
+  // usable by the JIT.
+  InitializeNativeTarget();
 
   EE = ExecutionEngine::create(MP, ForceInterpreter, &ErrorMsg, OLvl);
   if (!EE && !ErrorMsg.empty()) {

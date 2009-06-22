@@ -292,6 +292,25 @@ ARMTargetLowering::ARMTargetLowering(TargetMachine &TM)
   setIfCvtBlockSizeLimit(Subtarget->isThumb() ? 0 : 10);
   setIfCvtDupBlockSizeLimit(Subtarget->isThumb() ? 0 : 2);
 
+  if (!Subtarget->isThumb()) {
+    // Use branch latency information to determine if-conversion limits.
+    // FIXME: If-converter should use instruction latency of the branch being
+    // eliminated to compute the threshold. For ARMv6, the branch "latency"
+    // varies depending on whether it's dynamically or statically predicted
+    // and on whether the destination is in the prefetch buffer.
+    const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+    const InstrItineraryData &InstrItins = Subtarget->getInstrItineraryData();
+    unsigned Latency= InstrItins.getLatency(TII->get(ARM::Bcc).getSchedClass());
+    if (Latency > 1) {
+      setIfCvtBlockSizeLimit(Latency-1);
+      if (Latency > 2)
+        setIfCvtDupBlockSizeLimit(Latency-2);
+    } else {
+      setIfCvtBlockSizeLimit(10);
+      setIfCvtDupBlockSizeLimit(2);
+    }
+  }
+
   maxStoresPerMemcpy = 1;   //// temporary - rewrite interface to use type
   // Do not enable CodePlacementOpt for now: it currently runs after the
   // ARMConstantIslandPass and messes up branch relaxation and placement
@@ -415,7 +434,7 @@ static bool CC_ARM_APCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
                                         ARM::NoRegister };
 
   unsigned Reg = State.AllocateReg(HiRegList, LoRegList, 4);
-  if (Reg == 0) 
+  if (Reg == 0)
     return false; // we didn't handle it
 
   unsigned i;
@@ -487,6 +506,33 @@ static bool RetCC_ARM_AAPCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
                                    State);
 }
 
+/// CCAssignFnForNode - Selects the correct CCAssignFn for a the
+/// given CallingConvention value.
+CCAssignFn *ARMTargetLowering::CCAssignFnForNode(unsigned CC,
+                                                 bool Return) const {
+  switch (CC) {
+  default:
+   assert(0 && "Unsupported calling convention");
+  case CallingConv::C:
+  case CallingConv::Fast:
+   // Use target triple & subtarget features to do actual dispatch.
+   if (Subtarget->isAAPCS_ABI()) {
+     if (Subtarget->hasVFP2() &&
+         FloatABIType == FloatABI::Hard)
+       return (Return ? RetCC_ARM_AAPCS_VFP: CC_ARM_AAPCS_VFP);
+     else
+       return (Return ? RetCC_ARM_AAPCS: CC_ARM_AAPCS);
+   } else
+     return (Return ? RetCC_ARM_APCS: CC_ARM_APCS);
+  case CallingConv::ARM_AAPCS_VFP:
+   return (Return ? RetCC_ARM_AAPCS_VFP: CC_ARM_AAPCS_VFP);
+  case CallingConv::ARM_AAPCS:
+   return (Return ? RetCC_ARM_AAPCS: CC_ARM_AAPCS);
+  case CallingConv::ARM_APCS:
+   return (Return ? RetCC_ARM_APCS: CC_ARM_APCS);
+  }
+}
+
 /// LowerCallResult - Lower the result values of an ISD::CALL into the
 /// appropriate copies out of appropriate physical registers.  This assumes that
 /// Chain/InFlag are the input chain/flag to use, and that TheCall is the call
@@ -501,7 +547,8 @@ LowerCallResult(SDValue Chain, SDValue InFlag, CallSDNode *TheCall,
   SmallVector<CCValAssign, 16> RVLocs;
   bool isVarArg = TheCall->isVarArg();
   CCState CCInfo(CallingConv, isVarArg, getTargetMachine(), RVLocs);
-  CCInfo.AnalyzeCallResult(TheCall, RetCC_ARM);
+  CCInfo.AnalyzeCallResult(TheCall,
+                           CCAssignFnForNode(CallingConv, /* Return*/ true));
 
   SmallVector<SDValue, 8> ResultVals;
 
@@ -586,8 +633,6 @@ SDValue ARMTargetLowering::LowerCALL(SDValue Op, SelectionDAG &DAG) {
   MVT RetVT           = TheCall->getRetValType(0);
   SDValue Chain       = TheCall->getChain();
   unsigned CC         = TheCall->getCallingConv();
-  assert((CC == CallingConv::C ||
-          CC == CallingConv::Fast) && "unknown calling convention");
   bool isVarArg       = TheCall->isVarArg();
   SDValue Callee      = TheCall->getCallee();
   DebugLoc dl         = TheCall->getDebugLoc();
@@ -595,7 +640,7 @@ SDValue ARMTargetLowering::LowerCALL(SDValue Op, SelectionDAG &DAG) {
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CC, isVarArg, getTargetMachine(), ArgLocs);
-  CCInfo.AnalyzeCallOperands(TheCall, CC_ARM);
+  CCInfo.AnalyzeCallOperands(TheCall, CCAssignFnForNode(CC, /* Return*/ false));
 
   // Get a count of how many bytes are to be pushed on the stack.
   unsigned NumBytes = CCInfo.getNextStackOffset();
@@ -788,7 +833,7 @@ SDValue ARMTargetLowering::LowerRET(SDValue Op, SelectionDAG &DAG) {
   CCState CCInfo(CC, isVarArg, getTargetMachine(), RVLocs);
 
   // Analyze return values of ISD::RET.
-  CCInfo.AnalyzeReturn(Op.getNode(), RetCC_ARM);
+  CCInfo.AnalyzeReturn(Op.getNode(), CCAssignFnForNode(CC, /* Return */ true));
 
   // If this is the first return lowered for this function, add
   // the regs to the liveout set for the function.
@@ -1085,7 +1130,8 @@ ARMTargetLowering::LowerFORMAL_ARGUMENTS(SDValue Op, SelectionDAG &DAG) {
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CC, isVarArg, getTargetMachine(), ArgLocs);
-  CCInfo.AnalyzeFormalArguments(Op.getNode(), CC_ARM);
+  CCInfo.AnalyzeFormalArguments(Op.getNode(),
+                                CCAssignFnForNode(CC, /* Return*/ false));
 
   SmallVector<SDValue, 16> ArgValues;
 
@@ -1456,7 +1502,7 @@ SDValue ARMTargetLowering::LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) {
   MVT VT = Op.getValueType();
   DebugLoc dl = Op.getDebugLoc();  // FIXME probably not meaningful
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
-  unsigned FrameReg = (Subtarget->isThumb() || Subtarget->useThumbBacktraces())
+  unsigned FrameReg = (Subtarget->isThumb() || Subtarget->isTargetDarwin())
     ? ARM::R7 : ARM::R11;
   SDValue FrameAddr = DAG.getCopyFromReg(DAG.getEntryNode(), dl, FrameReg, VT);
   while (Depth--)

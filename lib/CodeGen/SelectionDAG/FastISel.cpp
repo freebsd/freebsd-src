@@ -47,7 +47,6 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/DebugLoc.h"
 #include "llvm/CodeGen/DwarfWriter.h"
 #include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Target/TargetData.h"
@@ -361,7 +360,7 @@ bool FastISel::SelectCall(User *I) {
           // Returned ID is 0 if this is unbalanced "end of inlined
           // scope". This could happen if optimizer eats dbg intrinsics
           // or "beginning of inlined scope" is not recoginized due to
-          // missing location info. In such cases, do ignore this region.end.
+          // missing location info. In such cases, ignore this region.end.
           BuildMI(MBB, DL, II).addImm(ID);
       } else {
         const TargetInstrDesc &II = TII.get(TargetInstrInfo::DBG_LABEL);

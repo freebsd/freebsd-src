@@ -90,12 +90,12 @@ def ARMeh_sjlj_setjmp: SDNode<"ARMISD::EH_SJLJ_SETJMP", SDT_ARMEH_SJLJ_Setjmp>;
 //===----------------------------------------------------------------------===//
 // ARM Instruction Predicate Definitions.
 //
-def HasV5T   : Predicate<"Subtarget->hasV5TOps()">;
-def HasV5TE  : Predicate<"Subtarget->hasV5TEOps()">;
-def HasV6    : Predicate<"Subtarget->hasV6Ops()">;
-def IsThumb  : Predicate<"Subtarget->isThumb()">;
-def IsThumb2 : Predicate<"Subtarget->isThumb2()">;
-def IsARM    : Predicate<"!Subtarget->isThumb()">;
+def HasV5T    : Predicate<"Subtarget->hasV5TOps()">;
+def HasV5TE   : Predicate<"Subtarget->hasV5TEOps()">;
+def HasV6     : Predicate<"Subtarget->hasV6Ops()">;
+def IsThumb   : Predicate<"Subtarget->isThumb()">;
+def HasThumb2 : Predicate<"Subtarget->hasThumb2()">;
+def IsARM     : Predicate<"!Subtarget->isThumb()">;
 
 //===----------------------------------------------------------------------===//
 // ARM Flag Definitions.
@@ -539,7 +539,7 @@ let isReturn = 1, isTerminator = 1 in
                     LdStMulFrm, "ldm${p}${addr:submode} $addr, $dst1",
                     []>;
 
-let isCall = 1,
+let isCall = 1, Itinerary = IIC_Br,
   Defs = [R0, R1, R2, R3, R12, LR,
           D0, D1, D2, D3, D4, D5, D6, D7, CPSR] in {
   def BL  : ABXI<0b1011, (outs), (ins i32imm:$func, variable_ops),
@@ -567,7 +567,7 @@ let isCall = 1,
   }
 }
 
-let isBranch = 1, isTerminator = 1 in {
+let isBranch = 1, isTerminator = 1, Itinerary = IIC_Br in {
   // B is "predicable" since it can be xformed into a Bcc.
   let isBarrier = 1 in {
     let isPredicable = 1 in
@@ -647,9 +647,8 @@ def LDRSB : AI3ldsb<(outs GPR:$dst), (ins addrmode3:$addr), LdMiscFrm,
 
 let mayLoad = 1 in {
 // Load doubleword
-def LDRD  : AI3ldd<(outs GPR:$dst), (ins addrmode3:$addr), LdMiscFrm,
-                 "ldr", "d $dst, $addr",
-                []>, Requires<[IsARM, HasV5T]>;
+def LDRD : AI3ldd<(outs GPR:$dst1, GPR:$dst2), (ins addrmode3:$addr), LdMiscFrm,
+                "ldr", "d $dst1, $addr", []>, Requires<[IsARM, HasV5T]>;
 
 // Indexed loads
 def LDR_PRE  : AI2ldwpr<(outs GPR:$dst, GPR:$base_wb),
@@ -709,9 +708,8 @@ def STRB : AI2stb<(outs), (ins GPR:$src, addrmode2:$addr), StFrm,
 
 // Store doubleword
 let mayStore = 1 in
-def STRD : AI3std<(outs), (ins GPR:$src, addrmode3:$addr), StMiscFrm,
-               "str", "d $src, $addr",
-               []>, Requires<[IsARM, HasV5T]>;
+def STRD : AI3std<(outs), (ins GPR:$src1, GPR:$src2, addrmode3:$addr),StMiscFrm,
+               "str", "d $src1, $addr", []>, Requires<[IsARM, HasV5T]>;
 
 // Indexed stores
 def STR_PRE  : AI2stwpr<(outs GPR:$base_wb),
@@ -1385,6 +1383,12 @@ def : ARMV5TEPat<(add GPR:$acc,
 //
 
 include "ARMInstrThumb.td"
+
+//===----------------------------------------------------------------------===//
+// Thumb2 Support
+//
+
+include "ARMInstrThumb2.td"
 
 //===----------------------------------------------------------------------===//
 // Floating Point Support

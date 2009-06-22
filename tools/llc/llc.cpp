@@ -38,6 +38,7 @@
 #include "llvm/System/Signals.h"
 #include "llvm/Config/config.h"
 #include "llvm/LinkAllVMCore.h"
+#include "llvm/Target/TargetSelect.h"
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -214,6 +215,9 @@ int main(int argc, char **argv) {
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm system compiler\n");
 
+  InitializeAllTargets();
+  InitializeAllAsmPrinters();
+  
   // Load the module to be compiled...
   std::string ErrorMessage;
   std::auto_ptr<Module> M;

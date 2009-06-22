@@ -234,6 +234,13 @@ if test "$llvm_cv_target_arch" = "Unknown" ; then
   AC_MSG_WARN([Configuring LLVM for an unknown target archicture])
 fi
 
+# Determine the LLVM native architecture for the target
+case "$llvm_cv_target_arch" in
+    x86)     LLVM_NATIVE_ARCH="X86" ;;
+    x86_64)  LLVM_NATIVE_ARCH="X86" ;;
+    *)       LLVM_NATIVE_ARCH="$llvm_cv_target_arch" ;;
+esac
+  
 dnl Define a substitution, ARCH, for the target architecture
 AC_SUBST(ARCH,$llvm_cv_target_arch)
 
@@ -435,6 +442,28 @@ case "$enableval" in
   ;;
 esac
 AC_SUBST(TARGETS_TO_BUILD,$TARGETS_TO_BUILD)
+
+# Determine whether we are building LLVM support for the native architecture.
+# If so, define LLVM_NATIVE_ARCH to that LLVM target.
+for a_target in $TARGETS_TO_BUILD; do
+  if test "$a_target" = "$LLVM_NATIVE_ARCH"; then
+    AC_DEFINE_UNQUOTED(LLVM_NATIVE_ARCH,$LLVM_NATIVE_ARCH,
+      [LLVM architecture name for the native architecture, if available])
+  fi
+done
+
+# Build the LLVM_TARGET and LLVM_ASM_PRINTER macro uses for 
+# Targets.def and AsmPrinters.def.
+LLVM_ENUM_TARGETS=""
+LLVM_ENUM_ASM_PRINTERS=""
+for target_to_build in $TARGETS_TO_BUILD; do
+  LLVM_ENUM_TARGETS="LLVM_TARGET($target_to_build) $LLVM_ENUM_TARGETS"
+  if test -f ${srcdir}/lib/Target/${target_to_build}/AsmPrinter/Makefile ; then
+    LLVM_ENUM_ASM_PRINTERS="LLVM_ASM_PRINTER($target_to_build) $LLVM_ENUM_ASM_PRINTERS";
+  fi
+done
+AC_SUBST(LLVM_ENUM_TARGETS)
+AC_SUBST(LLVM_ENUM_ASM_PRINTERS)
 
 dnl Prevent the CBackend from using printf("%a") for floating point so older
 dnl C compilers that cannot deal with the 0x0p+0 hex floating point format
@@ -796,6 +825,9 @@ if test "$ENABLE_THREADS" -eq 1 ; then
   AC_SEARCH_LIBS(pthread_mutex_lock,pthread,
                  AC_DEFINE([HAVE_PTHREAD_MUTEX_LOCK],[1],
                            [Have pthread_mutex_lock]))
+  AC_SEARCH_LIBS(pthread_rwlock_init,pthread,
+                 AC_DEFINE([HAVE_PTHREAD_RWLOCK_INIT],[1],
+                 [Have pthread_rwlock_init]))
 fi
 
 dnl Allow extra x86-disassembler library
@@ -919,6 +951,8 @@ AC_LINK_IFELSE(
         volatile unsigned long val = 1;
         __sync_synchronize();
         __sync_val_compare_and_swap(&val, 1, 0);
+        __sync_add_and_fetch(&val, 1);
+        __sync_sub_and_fetch(&val, 1);
         return 0;
       }
     ]]),
@@ -1108,6 +1142,8 @@ dnl you MUST also update Makefile.rules so that the variable FilesToConfig
 dnl contains the same list of files as AC_CONFIG_HEADERS below. This ensures the
 dnl files can be updated automatically when their *.in sources change.
 AC_CONFIG_HEADERS([include/llvm/Config/config.h])
+AC_CONFIG_FILES([include/llvm/Config/Targets.def])
+AC_CONFIG_FILES([include/llvm/Config/AsmPrinters.def])
 AC_CONFIG_HEADERS([include/llvm/Support/DataTypes.h])
 AC_CONFIG_HEADERS([include/llvm/ADT/iterator.h])
 

@@ -646,19 +646,10 @@ bool PPCLinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
 
 bool PPCLinuxAsmPrinter::doInitialization(Module &M) {
   bool Result = AsmPrinter::doInitialization(M);
-
-  // Emit initial debug information.
+  DW = getAnalysisIfAvailable<DwarfWriter>();
   MMI = getAnalysisIfAvailable<MachineModuleInfo>();
   assert(MMI);
-  DW = getAnalysisIfAvailable<DwarfWriter>();
-  assert(DW && "DwarfWriter is not available");
-  DW->BeginModule(&M, MMI, O, this, TAI);
-
-  // GNU as handles section names wrapped in quotes
-  Mang->setUseQuotes(true);
-
   SwitchToSection(TAI->getTextSection());
-
   return Result;
 }
 
@@ -875,18 +866,9 @@ bool PPCDarwinAsmPrinter::doInitialization(Module &M) {
   O << "\t.machine " << CPUDirectives[Directive] << '\n';
 
   bool Result = AsmPrinter::doInitialization(M);
-
-  // Emit initial debug information.
-  // We need this for Personality functions.
-  // AsmPrinter::doInitialization should have done this analysis.
+  DW = getAnalysisIfAvailable<DwarfWriter>();
   MMI = getAnalysisIfAvailable<MachineModuleInfo>();
   assert(MMI);
-  DW = getAnalysisIfAvailable<DwarfWriter>();
-  assert(DW && "DwarfWriter is not available");
-  DW->BeginModule(&M, MMI, O, this, TAI);
-
-  // Darwin wants symbols to be quoted if they have complex names.
-  Mang->setUseQuotes(true);
 
   // Prime text sections so they are adjacent.  This reduces the likelihood a
   // large data or debug section causes a branch to exceed 16M limit.
@@ -1202,3 +1184,9 @@ namespace {
 
 extern "C" int PowerPCAsmPrinterForceLink;
 int PowerPCAsmPrinterForceLink = 0;
+
+// Force static initialization when called from
+// llvm/InitializeAllAsmPrinters.h
+namespace llvm {
+  void InitializePowerPCAsmPrinter() { }
+}

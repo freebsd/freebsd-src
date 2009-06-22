@@ -15,6 +15,7 @@
 #define LLVM_SUPPORT_MANAGED_STATIC_H
 
 #include "llvm/System/Atomic.h"
+#include "llvm/System/Threading.h"
 
 namespace llvm {
 
@@ -60,28 +61,28 @@ public:
   // Accessors.
   C &operator*() {
     void* tmp = Ptr;
-    sys::MemoryFence();
+    if (llvm_is_multithreaded()) sys::MemoryFence();
     if (!tmp) RegisterManagedStatic(object_creator<C>, object_deleter<C>);
 
     return *static_cast<C*>(Ptr);
   }
   C *operator->() {
     void* tmp = Ptr;
-    sys::MemoryFence();
+    if (llvm_is_multithreaded()) sys::MemoryFence();
     if (!tmp) RegisterManagedStatic(object_creator<C>, object_deleter<C>);
 
     return static_cast<C*>(Ptr);
   }
   const C &operator*() const {
     void* tmp = Ptr;
-    sys::MemoryFence();
+    if (llvm_is_multithreaded()) sys::MemoryFence();
     if (!tmp) RegisterManagedStatic(object_creator<C>, object_deleter<C>);
 
     return *static_cast<C*>(Ptr);
   }
   const C *operator->() const {
     void* tmp = Ptr;
-    sys::MemoryFence();
+    if (llvm_is_multithreaded()) sys::MemoryFence();
     if (!tmp) RegisterManagedStatic(object_creator<C>, object_deleter<C>);
 
     return static_cast<C*>(Ptr);
@@ -93,13 +94,6 @@ class ManagedCleanup : public ManagedStaticBase {
 public:
   void Register() { RegisterManagedStatic(0, CleanupFn); }
 };
-
-
-/// llvm_start_multithreaded - Allocate and initialize structures needed to
-/// make LLVM safe for multithreading.  The return value indicates whether
-/// multithreaded initialization succeeded.  LLVM will still be operational
-/// on "failed" return, but will not be safe to run multithreaded.
-bool llvm_start_multithreaded();
 
 /// llvm_shutdown - Deallocate and destroy all ManagedStatic variables.
 void llvm_shutdown();

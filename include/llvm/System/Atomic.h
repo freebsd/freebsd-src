@@ -24,6 +24,8 @@ namespace llvm {
     cas_flag CompareAndSwap(volatile cas_flag* ptr,
                             cas_flag new_value,
                             cas_flag old_value);
+    cas_flag AtomicIncrement(volatile cas_flag* ptr);
+    cas_flag AtomicDecrement(volatile cas_flag* ptr);
   }
 }
 

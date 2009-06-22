@@ -1757,6 +1757,9 @@ unsigned DwarfDebug::RecordInlinedFnStart(DISubprogram &SP, DICompileUnit CU,
   if (TimePassesIsEnabled)
     DebugTimer->startTimer();
 
+  CompileUnit *Unit = MainCU;
+  if (!Unit)
+    Unit = &FindCompileUnit(SP.getCompileUnit());
   GlobalVariable *GV = SP.getGV();
   DenseMap<const GlobalVariable *, DbgScope *>::iterator
     II = AbstractInstanceRootMap.find(GV);
@@ -1767,7 +1770,6 @@ unsigned DwarfDebug::RecordInlinedFnStart(DISubprogram &SP, DICompileUnit CU,
     DbgScope *Scope = new DbgScope(NULL, DIDescriptor(GV));
 
     // Get the compile unit context.
-    CompileUnit *Unit = &FindCompileUnit(SP.getCompileUnit());
     DIE *SPDie = Unit->getDieMapSlotFor(GV);
     if (!SPDie)
       SPDie = CreateSubprogramDIE(Unit, SP, false, true);
@@ -1789,7 +1791,6 @@ unsigned DwarfDebug::RecordInlinedFnStart(DISubprogram &SP, DICompileUnit CU,
   // Create a concrete inlined instance for this inlined function.
   DbgConcreteScope *ConcreteScope = new DbgConcreteScope(DIDescriptor(GV));
   DIE *ScopeDie = new DIE(dwarf::DW_TAG_inlined_subroutine);
-  CompileUnit *Unit = &FindCompileUnit(SP.getCompileUnit());
   ScopeDie->setAbstractCompileUnit(Unit);
 
   DIE *Origin = Unit->getDieMapSlotFor(GV);
@@ -1850,7 +1851,14 @@ unsigned DwarfDebug::RecordInlinedFnEnd(DISubprogram &SP) {
   }
 
   SmallVector<DbgScope *, 8> &Scopes = I->second;
-  assert(!Scopes.empty() && "We should have at least one debug scope!");
+  if (Scopes.empty()) {
+    // Returned ID is 0 if this is unbalanced "end of inlined
+    // scope". This could happen if optimizer eats dbg intrinsics
+    // or "beginning of inlined scope" is not recoginized due to
+    // missing location info. In such cases, ignore this region.end.
+    return 0;
+  }
+
   DbgScope *Scope = Scopes.back(); Scopes.pop_back();
   unsigned ID = MMI->NextLabelID();
   MMI->RecordUsedDbgLabel(ID);
@@ -1987,8 +1995,8 @@ void DwarfDebug::EmitInitial() {
   Asm->SwitchToDataSection(TAI->getDwarfARangesSection());
   EmitLabel("section_aranges", 0);
 
-  if (TAI->doesSupportMacInfoSection()) {
-    Asm->SwitchToDataSection(TAI->getDwarfMacInfoSection());
+  if (const char *LineInfoDirective = TAI->getDwarfMacroInfoSection()) {
+    Asm->SwitchToDataSection(LineInfoDirective);
     EmitLabel("section_macinfo", 0);
   }
 
@@ -2534,9 +2542,9 @@ void DwarfDebug::EmitDebugRanges() {
 /// EmitDebugMacInfo - Emit visible names into a debug macinfo section.
 ///
 void DwarfDebug::EmitDebugMacInfo() {
-  if (TAI->doesSupportMacInfoSection()) {
+  if (const char *LineInfoDirective = TAI->getDwarfMacroInfoSection()) {
     // Start the dwarf macinfo section.
-    Asm->SwitchToDataSection(TAI->getDwarfMacInfoSection());
+    Asm->SwitchToDataSection(LineInfoDirective);
     Asm->EOL();
   }
 }

@@ -17,6 +17,7 @@
 
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
+#include "llvm/GlobalAlias.h"
 #include "llvm/GlobalVariable.h"
 #include "llvm/Function.h"
 #include "llvm/Support/ConstantFolder.h"
@@ -202,7 +203,7 @@ public:
   Value *CreateFMul(Value *LHS, Value *RHS, const char *Name = "") {
     if (Constant *LC = dyn_cast<Constant>(LHS))
       if (Constant *RC = dyn_cast<Constant>(RHS))
-        return Folder.CreateMul(LC, RC);
+        return Folder.CreateFMul(LC, RC);
     return Insert(BinaryOperator::CreateFMul(LHS, RHS), Name);
   }
   Value *CreateUDiv(Value *LHS, Value *RHS, const char *Name = "") {
@@ -290,6 +291,11 @@ public:
     if (Constant *VC = dyn_cast<Constant>(V))
       return Folder.CreateNeg(VC);
     return Insert(BinaryOperator::CreateNeg(V), Name);
+  }
+  Value *CreateFNeg(Value *V, const char *Name = "") {
+    if (Constant *VC = dyn_cast<Constant>(V))
+      return Folder.CreateFNeg(VC);
+    return Insert(BinaryOperator::CreateFNeg(V), Name);
   }
   Value *CreateNot(Value *V, const char *Name = "") {
     if (Constant *VC = dyn_cast<Constant>(V))

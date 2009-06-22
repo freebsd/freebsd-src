@@ -24,10 +24,10 @@
 #include "llvm/Support/Dwarf.h"
 #include <cctype>
 #include <cstring>
-
 using namespace llvm;
 
-void TargetAsmInfo::fillDefaultValues() {
+TargetAsmInfo::TargetAsmInfo(const TargetMachine &tm)
+: TM(tm) {
   BSSSection = "\t.bss";
   BSSSection_ = 0;
   ReadOnlySection = 0;
@@ -58,6 +58,7 @@ void TargetAsmInfo::fillDefaultValues() {
   InlineAsmEnd = "#NO_APP";
   AssemblerDialect = 0;
   StringConstantPrefix = ".str";
+  AllowQuotesInName = false;
   ZeroDirective = "\t.zero\t";
   ZeroDirectiveSuffix = 0;
   AsciiDirective = "\t.ascii\t";
@@ -102,7 +103,6 @@ void TargetAsmInfo::fillDefaultValues() {
   SupportsExceptionHandling = false;
   DwarfRequiresFrameSection = true;
   DwarfUsesInlineInfoSection = false;
-  SupportsMacInfoSection = true;
   NonLocalEHFrameLabel = false;
   GlobalEHDirective = 0;
   SupportsWeakOmittedEHFrame = true;
@@ -118,17 +118,12 @@ void TargetAsmInfo::fillDefaultValues() {
   DwarfLocSection = ".debug_loc";
   DwarfARangesSection = ".debug_aranges";
   DwarfRangesSection = ".debug_ranges";
-  DwarfMacInfoSection = ".debug_macinfo";
+  DwarfMacroInfoSection = ".debug_macinfo";
   DwarfEHFrameSection = ".eh_frame";
   DwarfExceptionSection = ".gcc_except_table";
   AsmTransCBE = 0;
   TextSection = getUnnamedSection("\t.text", SectionFlags::Code);
   DataSection = getUnnamedSection("\t.data", SectionFlags::Writeable);
-}
-
-TargetAsmInfo::TargetAsmInfo(const TargetMachine &tm)
-  : TM(tm) {
-  fillDefaultValues();
 }
 
 TargetAsmInfo::~TargetAsmInfo() {
