@@ -417,9 +417,11 @@ AcpiOsReleaseMutex(ACPI_MUTEX Handle)
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if (am == NULL)
+	if (am == NULL) {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
 		    "cannot release null mutex\n"));
+		return_VOID;
+	}
 
 	mtx_lock(&am->am_lock);
 
