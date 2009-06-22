@@ -83,10 +83,9 @@ kobj_open_file_vnode(const char *file)
 	}
 	FILEDESC_XUNLOCK(fd);
 
-	flags = FREAD;
+	flags = FREAD | O_NOFOLLOW;
 	NDINIT(&nd, LOOKUP, MPSAFE, UIO_SYSSPACE, file, td);
-	error = vn_open_cred(&nd, &flags, O_NOFOLLOW, 0, curthread->td_ucred,
-	    NULL);
+	error = vn_open_cred(&nd, &flags, 0, 0, curthread->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0)
 		return (NULL);
