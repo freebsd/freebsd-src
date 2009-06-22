@@ -1770,6 +1770,34 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 }
 
 /*
+ * Copy an mbuf chain into a uio limited by len if set.
+ */
+int
+m_mbuftouio(struct uio *uio, struct mbuf *m, int len)
+{
+	int error, length, total;
+	int progress = 0;
+
+	if (len > 0)
+		total = min(uio->uio_resid, len);
+	else
+		total = uio->uio_resid;
+
+	/* Fill the uio with data from the mbufs. */
+	for (; m != NULL; m = m->m_next) {
+		length = min(m->m_len, total - progress);
+
+		error = uiomove(mtod(m, void *), length, uio);
+		if (error)
+			return (error);
+
+		progress += length;
+	}
+
+	return (0);
+}
+
+/*
  * Set the m_data pointer of a newly-allocated mbuf
  * to place an object of the specified size at the
  * end of the mbuf, longword aligned.
