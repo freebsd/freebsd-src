@@ -2178,8 +2178,7 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	/*
 	 * We don't want to call anything outside the driver while inside a
 	 * begin-op/end-op block.  If it calls us back (eg.  ether_ioctl may
-	 * call cxgb_init), which is cxgb_init), we may deadlock if the state is
-	 * already marked busy.
+	 * call cxgb_init) we may deadlock if the state is already marked busy.
 	 *
 	 * XXX: this probably opens a small race window with kldunload...
 	 */
@@ -2187,13 +2186,10 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 
 	/* The IS_DOOMED check is racy, we're clutching at straws here */
 	if (handle_unsynchronized && !IS_DOOMED(p)) {
-		switch (command) {
-		case SIOCSIFMEDIA:
-		case SIOCGIFMEDIA:
+		if (command == SIOCSIFMEDIA || command == SIOCGIFMEDIA)
 			error = ifmedia_ioctl(ifp, ifr, &p->media, command);
-		default:
+		else
 			error = ether_ioctl(ifp, command, data);
-		}
 	}
 
 	return (error);
