@@ -11,7 +11,7 @@ hint.uart.0.irq=15
 hint.uart.0.flags=0x10
 hint.uart.0.ier_rxbits=0x5d	# NB: need UUE+RTOIE
 
-# NB: no UART1 on ixp436
+# NB: no UART1 on ixp435
 
 # NPE Hardware Queue Manager
 hint.ixpqmgr.0.at="ixp0"
