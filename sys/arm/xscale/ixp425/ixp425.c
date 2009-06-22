@@ -171,7 +171,7 @@ void
 arm_mask_irq(uintptr_t nb)
 {
 	int i;
-	
+
 	i = disable_interrupts(I32_bit);
 	if (nb < 32) {
 		intr_enabled &= ~(1 << nb);
@@ -189,7 +189,7 @@ void
 arm_unmask_irq(uintptr_t nb)
 {
 	int i;
-	
+
 	i = disable_interrupts(I32_bit);
 	if (nb < 32) {
 		intr_enabled |= (1 << nb);
