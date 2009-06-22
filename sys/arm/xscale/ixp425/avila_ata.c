@@ -218,16 +218,7 @@ ata_avila_attach(device_t dev)
 	rman_set_bustag(&sc->sc_alt_ata, &sc->sc_expbus_tag);
 	rman_set_bushandle(&sc->sc_alt_ata, sc->sc_alt_ioh);
 
-	GPIO_CONF_WRITE_4(sa, IXP425_GPIO_GPOER, 
-	    GPIO_CONF_READ_4(sa, IXP425_GPIO_GPOER) | (1<<config->gpin));
-	/* set interrupt type */
-	GPIO_CONF_WRITE_4(sa, GPIO_TYPE_REG(config->gpin),
-	    (GPIO_CONF_READ_4(sa, GPIO_TYPE_REG(config->gpin)) &~
-	     GPIO_TYPE(config->gpin, GPIO_TYPE_MASK)) |
-	     GPIO_TYPE(config->gpin, GPIO_TYPE_EDG_RISING));
-
-	/* clear ISR */
-	GPIO_CONF_WRITE_4(sa, IXP425_GPIO_GPISR, (1<<config->gpin));
+	ixp425_set_gpio(sa, config->gpin, GPIO_TYPE_EDG_RISING);
 
 	/* configure CS1/3 window, leaving timing unchanged */
 	EXP_BUS_WRITE_4(sc, sc->sc_16bit_off,
