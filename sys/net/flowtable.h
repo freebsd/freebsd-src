@@ -38,7 +38,9 @@ $FreeBSD$
 #define	FL_PCPU		(1<<1)	/* pcpu cache */
 
 struct flowtable;
+#ifdef VIMAGE_GLOBALS
 extern struct flowtable *ip_ft;
+#endif
 
 struct flowtable *flowtable_alloc(int nentry, int flags);
 
