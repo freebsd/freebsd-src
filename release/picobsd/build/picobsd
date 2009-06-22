@@ -140,7 +140,7 @@ set_defaults() {	# no arguments
     				# mountpoint used to build memory filesystems
     c_fs=fs.PICOBSD		# filename used for the memory filesystem
     c_img=picobsd.bin		# filename used for the picobsd image
-    c_iso=picobsd.bin		# filename used for the ISO image
+    c_iso=picobsd.iso		# filename used for the ISO image
     generate_iso="NO"		# don't generate the iso image
 
     # select the right disklabel program
