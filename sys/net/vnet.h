@@ -86,9 +86,5 @@ extern struct vnet_net vnet_net_0;
 #define	V_lo_cloner_data	VNET_NET(lo_cloner_data)
 #define	V_loif			VNET_NET(loif)
 #define	V_rawcb_list		VNET_NET(rawcb_list)
-#define	V_rt_tables		VNET_NET(rt_tables)
-#define	V_rtstat		VNET_NET(rtstat)
-#define	V_rttrash		VNET_NET(rttrash)
-#define	V_rtzone		VNET_NET(rtzone)
 
 #endif /* !_NET_VNET_H_ */
