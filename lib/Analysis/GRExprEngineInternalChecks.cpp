@@ -347,9 +347,7 @@ public:
       assert (E && "Return expression cannot be NULL");
       
       // Get the value associated with E.
-      loc::MemRegionVal V =
-        cast<loc::MemRegionVal>(Eng.getStateManager().GetSVal(N->getState(),
-                                                               E));
+      loc::MemRegionVal V = cast<loc::MemRegionVal>(N->getState()->getSVal(E));
       
       // Generate a report for this bug.
       std::string buf;
@@ -427,7 +425,7 @@ class VISIBILITY_HIDDEN UndefBranch : public BuiltinBug {
       return Ex;
     }
     
-    bool MatchesCriteria(Expr* Ex) { return VM.GetSVal(St, Ex).isUndef(); }
+    bool MatchesCriteria(Expr* Ex) { return St->getSVal(Ex).isUndef(); }
   };
   
 public:
@@ -519,8 +517,7 @@ public:
             "variable-length array (VLA) '"
          << VD->getNameAsString() << "' evaluates to ";
       
-      bool isUndefined = Eng.getStateManager().GetSVal(N->getState(),
-                                                       SizeExpr).isUndef();
+      bool isUndefined = N->getState()->getSVal(SizeExpr).isUndef();
       
       if (isUndefined)
         os << "an undefined or garbage value.";
@@ -563,13 +560,13 @@ public:
     CallExpr* CE = cast<CallExpr>(cast<PostStmt>(N->getLocation()).getStmt());
     const GRState* state = N->getState();
     
-    SVal X = VMgr.GetSVal(state, CE->getCallee());
+    SVal X = state->getSVal(CE->getCallee());
 
     const FunctionDecl* FD = X.getAsFunctionDecl();
     if (!FD)
       return false;
 
-    const NonNullAttr* Att = FD->getAttr<NonNullAttr>();
+    const NonNullAttr* Att = FD->getAttr<NonNullAttr>(BR.getContext());
     
     if (!Att)
       return false;
@@ -819,24 +816,15 @@ public:
     
     // Check if in the previous state it was feasible for this constraint
     // to *not* be true.
-    
-    GRStateManager &StateMgr = BRC.getStateManager();
-    bool isFeasible = false;    
-    if (StateMgr.Assume(PrevN->getState(), Constraint, !Assumption,
-                        isFeasible)) {
-      assert(isFeasible); // Eventually we don't need 'isFeasible'.
+    if (PrevN->getState()->assume(Constraint, !Assumption)) {
 
       isSatisfied = true;
       
       // As a sanity check, make sure that the negation of the constraint
       // was infeasible in the current state.  If it is feasible, we somehow
       // missed the transition point.
-      isFeasible = false;
-      if (StateMgr.Assume(N->getState(), Constraint, !Assumption,
-                          isFeasible)) {
-        assert(isFeasible);
+      if (N->getState()->assume(Constraint, !Assumption))
         return NULL;
-      }
       
       // We found the transition point for the constraint.  We now need to
       // pretty-print the constraint. (work-in-progress)      
@@ -897,7 +885,7 @@ static void registerTrackNullOrUndefValue(BugReporterContext& BRC,
         StateMgr.getRegionManager().getVarRegion(VD);
 
       // What did we load?
-      SVal V = StateMgr.GetSVal(state, S);
+      SVal V = state->getSVal(S);
         
       if (isa<loc::ConcreteInt>(V) || isa<nonloc::ConcreteInt>(V) 
           || V.isUndef()) {
@@ -906,7 +894,7 @@ static void registerTrackNullOrUndefValue(BugReporterContext& BRC,
     }
   }
     
-  SVal V = StateMgr.GetSValAsScalarOrLoc(state, S);
+  SVal V = state->getSValAsScalarOrLoc(S);
   
   // Uncomment this to find cases where we aren't properly getting the
   // base value that was dereferenced.

@@ -71,6 +71,7 @@ class ASTContext {
   llvm::FoldingSet<IncompleteArrayType> IncompleteArrayTypes;
   std::vector<VariableArrayType*> VariableArrayTypes;
   std::vector<DependentSizedArrayType*> DependentSizedArrayTypes;
+  std::vector<DependentSizedExtVectorType*> DependentSizedExtVectorTypes;
   llvm::FoldingSet<VectorType> VectorTypes;
   llvm::FoldingSet<FunctionNoProtoType> FunctionNoProtoTypes;
   llvm::FoldingSet<FunctionProtoType> FunctionProtoTypes;
@@ -79,7 +80,7 @@ class ASTContext {
   llvm::FoldingSet<QualifiedNameType> QualifiedNameTypes;
   llvm::FoldingSet<TypenameType> TypenameTypes;
   llvm::FoldingSet<ObjCQualifiedInterfaceType> ObjCQualifiedInterfaceTypes;
-  llvm::FoldingSet<ObjCQualifiedIdType> ObjCQualifiedIdTypes;
+  llvm::FoldingSet<ObjCObjectPointerType> ObjCObjectPointerTypes;
 
   llvm::FoldingSet<QualifiedTemplateName> QualifiedTemplateNames;
   llvm::FoldingSet<DependentTemplateName> DependentTemplateNames;
@@ -103,7 +104,7 @@ class ASTContext {
   /// This is initially null and set by Sema::LazilyCreateBuiltin when
   /// a builtin that takes a valist is encountered.
   QualType BuiltinVaListType;
-  
+
   /// ObjCIdType - a pseudo built-in typedef type (set by Sema).
   QualType ObjCIdType;
   const RecordType *IdStructType;
@@ -124,6 +125,12 @@ class ASTContext {
   RecordDecl *CFConstantStringTypeDecl;
 
   RecordDecl *ObjCFastEnumerationStateTypeDecl;
+  
+  /// \brief Keeps track of all declaration attributes. 
+  ///
+  /// Since so few decls have attrs, we keep them in a hash map instead of
+  /// wasting space in the Decl class.
+  llvm::DenseMap<const Decl*, Attr*> DeclAttrs;
   
   TranslationUnitDecl *TUDecl;
 
@@ -163,6 +170,12 @@ public:
     return FullSourceLoc(Loc,SourceMgr);
   }
 
+  /// \brief Retrieve the attributes for the given declaration.
+  Attr*& getDeclAttrs(const Decl *D) { return DeclAttrs[D]; }
+  
+  /// \brief Erase the attributes corresponding to the given declaration.
+  void eraseDeclAttrs(const Decl *D) { DeclAttrs.erase(D); }
+  
   TranslationUnitDecl *getTranslationUnitDecl() const { return TUDecl; }
 
 
@@ -277,6 +290,14 @@ public:
   /// type.
   QualType getExtVectorType(QualType VectorType, unsigned NumElts);
 
+  /// getDependentSizedExtVectorType - Returns a non-unique reference to
+  /// the type for a dependently-sized vector of the specified element
+  /// type. FIXME: We will need these to be uniqued, or at least
+  /// comparable, at some point.
+  QualType getDependentSizedExtVectorType(QualType VectorType, 
+                                          Expr *SizeExpr,
+                                          SourceLocation AttrLoc);
+
   /// getFunctionNoProtoType - Return a K&R style C function type like 'int()'.
   ///
   QualType getFunctionNoProtoType(QualType ResultTy);
@@ -299,6 +320,7 @@ public:
   QualType getObjCInterfaceType(const ObjCInterfaceDecl *Decl);
 
   QualType getTemplateTypeParmType(unsigned Depth, unsigned Index, 
+                                   bool ParameterPack,
                                    IdentifierInfo *Name = 0);
 
   QualType getTemplateSpecializationType(TemplateName T,
@@ -315,6 +337,12 @@ public:
                            const TemplateSpecializationType *TemplateId,
                            QualType Canon = QualType());
 
+  /// getObjCObjectPointerType - Return a ObjCObjectPointerType type for the
+  /// given interface decl and the conforming protocol list.
+  QualType getObjCObjectPointerType(ObjCInterfaceDecl *Decl,
+                                    ObjCProtocolDecl **ProtocolList = 0,
+                                    unsigned NumProtocols = 0);
+  
   /// getObjCQualifiedInterfaceType - Return a 
   /// ObjCQualifiedInterfaceType type for the given interface decl and
   /// the conforming protocol list.
@@ -416,7 +444,7 @@ public:
   /// getObjCEncodingTypeSize returns size of type for objective-c encoding
   /// purpose.
   int getObjCEncodingTypeSize(QualType t);
-    
+
   /// This setter/getter represents the ObjC 'id' type. It is setup lazily, by
   /// Sema.  id is always a (typedef for a) pointer type, a pointer to a struct.
   QualType getObjCIdType() const { return ObjCIdType; }

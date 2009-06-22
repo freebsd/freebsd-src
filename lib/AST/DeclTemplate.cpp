@@ -190,7 +190,7 @@ TemplateTypeParmDecl::Create(ASTContext &C, DeclContext *DC,
                              SourceLocation L, unsigned D, unsigned P,
                              IdentifierInfo *Id, bool Typename,
                              bool ParameterPack) {
-  QualType Type = C.getTemplateTypeParmType(D, P, Id);
+  QualType Type = C.getTemplateTypeParmType(D, P, ParameterPack, Id);
   return new (C) TemplateTypeParmDecl(DC, L, Id, Typename, Type, ParameterPack);
 }
 
@@ -238,6 +238,22 @@ TemplateArgument::TemplateArgument(Expr *E) : Kind(Expression) {
   StartLoc = E->getSourceRange().getBegin();
 }
 
+/// \brief Construct a template argument pack.
+TemplateArgument::TemplateArgument(SourceLocation Loc, TemplateArgument *args, 
+                                   unsigned NumArgs, bool CopyArgs) 
+  : Kind(Pack) {
+    Args.NumArgs = NumArgs;
+    Args.CopyArgs = CopyArgs;
+    if (!Args.CopyArgs) {
+      Args.Args = args;
+      return;
+    }
+
+    Args.Args = new TemplateArgument[NumArgs];
+    for (unsigned I = 0; I != NumArgs; ++I)
+      Args.Args[I] = args[I];
+}
+
 //===----------------------------------------------------------------------===//
 // TemplateArgumentListBuilder Implementation
 //===----------------------------------------------------------------------===//
@@ -249,25 +265,28 @@ void TemplateArgumentListBuilder::push_back(const TemplateArgument& Arg) {
     break;
   }
   
-  if (!isAddingFromParameterPack()) {
-    // Add begin and end indicies.
-    Indices.push_back(Args.size());
-    Indices.push_back(Args.size());
-  }
-
-  Args.push_back(Arg);
+  FlatArgs.push_back(Arg);
+  
+  if (!isAddingFromParameterPack())
+    StructuredArgs.push_back(Arg);
 }
 
 void TemplateArgumentListBuilder::BeginParameterPack() {
   assert(!isAddingFromParameterPack() && "Already adding to parameter pack!");
-  
-  Indices.push_back(Args.size());
+
+  PackBeginIndex = FlatArgs.size();
 }
 
 void TemplateArgumentListBuilder::EndParameterPack() {
   assert(isAddingFromParameterPack() && "Not adding to parameter pack!");
+
+  unsigned NumArgs = FlatArgs.size() - PackBeginIndex;
+  TemplateArgument *Args = NumArgs ? &FlatArgs[PackBeginIndex] : 0;
   
-  Indices.push_back(Args.size());
+  StructuredArgs.push_back(TemplateArgument(SourceLocation(), Args, NumArgs,
+                                            /*CopyArgs=*/false));
+  
+  PackBeginIndex = std::numeric_limits<unsigned>::max();
 }  
 
 //===----------------------------------------------------------------------===//

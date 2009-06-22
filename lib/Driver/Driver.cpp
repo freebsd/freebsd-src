@@ -356,10 +356,15 @@ void Driver::PrintVersion(const Compilation &C) const {
   // don't know what the client would like to do.
 
   llvm::errs() << "clang version " CLANG_VERSION_STRING " (" 
-               << vers << " " << revision << ")" << "\n";
+               << vers << " " << revision << ")" << '\n';
 
   const ToolChain &TC = C.getDefaultToolChain();
   llvm::errs() << "Target: " << TC.getTripleString() << '\n';
+
+  // Print the threading model.
+  //
+  // FIXME: Implement correctly.
+  llvm::errs() << "Thread model: " << "posix" << '\n';
 }
 
 bool Driver::HandleImmediateArgs(const Compilation &C) {
@@ -426,6 +431,47 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
 
   if (C.getArgs().hasArg(options::OPT_print_libgcc_file_name)) {
     llvm::outs() << GetFilePath("libgcc.a", TC).toString() << "\n";
+    return false;
+  }
+
+  if (C.getArgs().hasArg(options::OPT_print_multi_lib)) {
+    // FIXME: We need tool chain support for this.
+    llvm::outs() << ".;\n";
+
+    switch (C.getDefaultToolChain().getTriple().getArch()) {
+    default:
+      break;
+      
+    case llvm::Triple::x86_64:
+      llvm::outs() << "x86_64;@m64" << "\n";
+      break;
+
+    case llvm::Triple::ppc64:
+      llvm::outs() << "ppc64;@m64" << "\n";
+      break;
+    }
+    return false;
+  }
+
+  // FIXME: What is the difference between print-multi-directory and
+  // print-multi-os-directory?
+  if (C.getArgs().hasArg(options::OPT_print_multi_directory) ||
+      C.getArgs().hasArg(options::OPT_print_multi_os_directory)) {
+    switch (C.getDefaultToolChain().getTriple().getArch()) {
+    default:
+    case llvm::Triple::x86:
+    case llvm::Triple::ppc:
+      llvm::outs() << "." << "\n";
+      break;
+      
+    case llvm::Triple::x86_64:
+      llvm::outs() << "x86_64" << "\n";
+      break;
+
+    case llvm::Triple::ppc64:
+      llvm::outs() << "ppc64" << "\n";
+      break;
+    }
     return false;
   }
 

@@ -64,6 +64,8 @@ template <typename T> struct GRStateTrait {
 //===----------------------------------------------------------------------===//
 // GRState- An ImmutableMap type Stmt*/Decl*/Symbols to SVals.
 //===----------------------------------------------------------------------===//
+
+class GRStateManager;
   
 /// GRState - This class encapsulates the actual data values for
 ///  for a "state" in our symbolic value tracking.  It is intended to be
@@ -81,7 +83,8 @@ private:
   void operator=(const GRState& R) const;
   
   friend class GRStateManager;
-  
+
+  GRStateManager *Mgr;
   Environment Env;
   Store St;
 
@@ -92,8 +95,10 @@ public:
 public:
   
   /// This ctor is used when creating the first GRState object.
-  GRState(const Environment& env,  Store st, GenericDataMap gdm)
-    : Env(env),
+  GRState(GRStateManager *mgr, const Environment& env,  Store st,
+          GenericDataMap gdm)
+    : Mgr(mgr),
+      Env(env),
       St(st),
       GDM(gdm) {}
   
@@ -101,9 +106,13 @@ public:
   ///  in FoldingSetNode will also get copied.
   GRState(const GRState& RHS)
     : llvm::FoldingSetNode(),
+      Mgr(RHS.Mgr),
       Env(RHS.Env),
       St(RHS.St),
       GDM(RHS.GDM) {}
+  
+  /// getStateManager - Return the GRStateManager associated with this state.
+  GRStateManager &getStateManager() const { return *Mgr; }
   
   /// getEnvironment - Return the environment associated with this state.
   ///  The environment is the mapping from expressions to values.
@@ -134,6 +143,10 @@ public:
     return Env.LookupExpr(E);
   }
   
+  /// makeWithStore - Return a GRState with the same values as the current
+  /// state with the exception of using the specified Store.
+  const GRState *makeWithStore(Store store) const;
+  
   // Iterators.
   typedef Environment::seb_iterator seb_iterator;
   seb_iterator seb_begin() const { return Env.seb_begin(); }
@@ -142,10 +155,119 @@ public:
   typedef Environment::beb_iterator beb_iterator;
   beb_iterator beb_begin() const { return Env.beb_begin(); }
   beb_iterator beb_end() const { return Env.beb_end(); }
+  
+  BasicValueFactory &getBasicVals() const;
+  SymbolManager &getSymbolManager() const;
+  GRTransferFuncs &getTransferFuncs() const;
+    
+  //==---------------------------------------------------------------------==//
+  // Constraints on values.
+  //==---------------------------------------------------------------------==//
+  //
+  // Each GRState records constraints on symbolic values.  These constraints
+  // are managed using the ConstraintManager associated with a GRStateManager.
+  // As constraints gradually accrue on symbolic values, added constraints
+  // may conflict and indicate that a state is infeasible (as no real values
+  // could satisfy all the constraints).  This is the principal mechanism
+  // for modeling path-sensitivity in GRExprEngine/GRState.
+  //
+  // Various "Assume" methods form the interface for adding constraints to
+  // symbolic values.  A call to "Assume" indicates an assumption being placed
+  // on one or symbolic values.  Assume methods take the following inputs:
+  //
+  //  (1) A GRState object representing the current state.
+  //
+  //  (2) The assumed constraint (which is specific to a given "Assume" method).
+  //
+  //  (3) A binary value "Assumption" that indicates whether the constraint is
+  //      assumed to be true or false.
+  //
+  // The output of "Assume" are two values:
+  //
+  //  (a) "isFeasible" is set to true or false to indicate whether or not
+  //      the assumption is feasible.
+  //
+  //  (b) A new GRState object with the added constraints.
+  //
+  // FIXME: (a) should probably disappear since it is redundant with (b).
+  //  (i.e., (b) could just be set to NULL).
+  //
+  
+  const GRState *assume(SVal condition, bool assumption) const;
+  
+  const GRState *assumeInBound(SVal idx, SVal upperBound, 
+                               bool assumption) const;
+  
+  //==---------------------------------------------------------------------==//
+  // Binding and retrieving values to/from the environment and symbolic store.
+  //==---------------------------------------------------------------------==//
+  
+  /// BindCompoundLiteral - Return the state that has the bindings currently
+  ///  in 'state' plus the bindings for the CompoundLiteral.  'R' is the region
+  ///  for the compound literal and 'BegInit' and 'EndInit' represent an
+  ///  array of initializer values.
+  const GRState* bindCompoundLiteral(const CompoundLiteralExpr* CL,
+                                     SVal V) const;
+  
+  const GRState *bindExpr(const Stmt* Ex, SVal V, bool isBlkExpr,
+                          bool Invalidate) const;
+  
+  const GRState *bindExpr(const Stmt* Ex, SVal V, bool Invalidate = true) const;
+  
+  const GRState *bindBlkExpr(const Stmt *Ex, SVal V) const {
+    return bindExpr(Ex, V, true, false);
+  }
+  
+  const GRState *bindLoc(Loc location, SVal V) const;
+  
+  const GRState *bindLoc(SVal location, SVal V) const;
+  
+  const GRState *unbindLoc(Loc LV) const;
 
-  // Trait based GDM dispatch.  
+  /// Get the lvalue for a variable reference.
+  SVal getLValue(const VarDecl *decl) const;
+  
+  /// Get the lvalue for a StringLiteral.
+  SVal getLValue(const StringLiteral *literal) const;
+  
+  SVal getLValue(const CompoundLiteralExpr *literal) const;
+  
+  /// Get the lvalue for an ivar reference.
+  SVal getLValue(const ObjCIvarDecl *decl, SVal base) const;
+  
+  /// Get the lvalue for a field reference.
+  SVal getLValue(SVal Base, const FieldDecl *decl) const;
+  
+  /// Get the lvalue for an array index.
+  SVal getLValue(QualType ElementType, SVal Base, SVal Idx) const;
+  
+  const llvm::APSInt *getSymVal(SymbolRef sym) const;
+
+  SVal getSVal(const Stmt* Ex) const;
+  
+  SVal getBlkExprSVal(const Stmt* Ex) const;
+  
+  SVal getSValAsScalarOrLoc(const Stmt *Ex) const;
+  
+  SVal getSVal(Loc LV, QualType T = QualType()) const;
+  
+  SVal getSVal(const MemRegion* R) const;
+  
+  SVal getSValAsScalarOrLoc(const MemRegion *R) const;
+  
+  bool scanReachableSymbols(SVal val, SymbolVisitor& visitor) const;
+
+  template <typename CB> CB scanReachableSymbols(SVal val) const;
+  
+  //==---------------------------------------------------------------------==//
+  // Accessing the Generic Data Map (GDM).
+  //==---------------------------------------------------------------------==//
+
   void* const* FindGDM(void* K) const;
   
+  template<typename T>
+  const GRState *add(typename GRStateTrait<T>::key_type K) const;
+
   template <typename T>
   typename GRStateTrait<T>::data_type
   get() const {
@@ -159,6 +281,29 @@ public:
     return GRStateTrait<T>::Lookup(GRStateTrait<T>::MakeData(d), key);
   }
   
+  template <typename T>
+  typename GRStateTrait<T>::context_type get_context() const;
+    
+  
+  template<typename T>
+  const GRState *remove(typename GRStateTrait<T>::key_type K) const;
+
+  template<typename T>
+  const GRState *remove(typename GRStateTrait<T>::key_type K,
+                        typename GRStateTrait<T>::context_type C) const;
+  
+  template<typename T>
+  const GRState *set(typename GRStateTrait<T>::data_type D) const;
+  
+  template<typename T>
+  const GRState *set(typename GRStateTrait<T>::key_type K,
+                     typename GRStateTrait<T>::value_type E) const;  
+
+  template<typename T>
+  const GRState *set(typename GRStateTrait<T>::key_type K,
+                     typename GRStateTrait<T>::value_type E,
+                     typename GRStateTrait<T>::context_type C) const;
+
   template<typename T>
   bool contains(typename GRStateTrait<T>::key_type key) const {
     void* const* d = FindGDM(GRStateTrait<T>::GDMIndex());
@@ -172,11 +317,14 @@ public:
     virtual void Print(std::ostream& Out, const GRState* state,
                        const char* nl, const char* sep) = 0;
   };
+  
+  // Pretty-printing.
+  void print(std::ostream& Out, const char *nl = "\n",
+             const char *sep = "") const;  
 
-  void print(std::ostream& Out, StoreManager& StoreMgr,
-             ConstraintManager& ConstraintMgr,
-             Printer **Beg = 0, Printer **End = 0,
-             const char* nl = "\n", const char *sep = "") const; 
+  void printStdErr() const; 
+  
+  void printDOT(std::ostream& Out) const;  
   
   // Tags used for the Generic Data Map.
   struct NullDerefTag {
@@ -233,11 +381,9 @@ public:
 // GRStateManager - Factory object for GRStates.
 //===----------------------------------------------------------------------===//
 
-class GRStateRef;
-  
 class GRStateManager {
   friend class GRExprEngine;
-  friend class GRStateRef;
+  friend class GRState;
   
 private:
   EnvironmentManager                   EnvMgr;
@@ -361,15 +507,6 @@ public:
     // Store manager should return a persistent state.
     return StoreMgr->BindDeclWithNoInit(St, VD);
   }
-  
-  /// BindCompoundLiteral - Return the state that has the bindings currently
-  ///  in 'state' plus the bindings for the CompoundLiteral.  'R' is the region
-  ///  for the compound literal and 'BegInit' and 'EndInit' represent an
-  ///  array of initializer values.
-  const GRState* BindCompoundLiteral(const GRState* St,
-                                     const CompoundLiteralExpr* CL, SVal V) {
-    return StoreMgr->BindCompoundLiteral(St, CL, V);
-  }
 
   const GRState* RemoveDeadBindings(const GRState* St, Stmt* Loc, 
                                     SymbolReaper& SymReaper);
@@ -391,38 +528,10 @@ public:
     return StoreMgr->getSelfRegion(state->getStore());
   }
   
-  // Get the lvalue for a variable reference.
-  SVal GetLValue(const GRState* St, const VarDecl* D) {
-    return StoreMgr->getLValueVar(St, D);
-  }
+private:
 
-  // Get the lvalue for a StringLiteral.
-  SVal GetLValue(const GRState* St, const StringLiteral* E) {
-    return StoreMgr->getLValueString(St, E);
-  }
-
-  SVal GetLValue(const GRState* St, const CompoundLiteralExpr* CL) {
-    return StoreMgr->getLValueCompoundLiteral(St, CL);
-  }
-
-  // Get the lvalue for an ivar reference.
-  SVal GetLValue(const GRState* St, const ObjCIvarDecl* D, SVal Base) {
-    return StoreMgr->getLValueIvar(St, D, Base);
-  }
-  
-  // Get the lvalue for a field reference.
-  SVal GetLValue(const GRState* St, SVal Base, const FieldDecl* D) {
-    return StoreMgr->getLValueField(St, Base, D);
-  }
-  
-  // Get the lvalue for an array index.
-  SVal GetLValue(const GRState* St, QualType ElementType, SVal Base, SVal Idx) {
-    return StoreMgr->getLValueElement(St, ElementType, Base, Idx);
-  }  
-
-  // Methods that query & manipulate the Environment.
-  
-  SVal GetSVal(const GRState* St, Stmt* Ex) {
+  // Methods that query & manipulate the Environment.  
+  SVal GetSVal(const GRState* St, const Stmt* Ex) {
     return St->getEnvironment().GetSVal(Ex, getBasicVals());
   }
   
@@ -435,19 +544,12 @@ public:
     
     return UnknownVal();
   }
-    
 
-  SVal GetSVal(const GRState* St, const Stmt* Ex) {
-    return St->getEnvironment().GetSVal(const_cast<Stmt*>(Ex), getBasicVals());
-  }
-  
-  SVal GetBlkExprSVal(const GRState* St, Stmt* Ex) {
+  SVal GetBlkExprSVal(const GRState* St, const Stmt* Ex) {
     return St->getEnvironment().GetBlkExprSVal(Ex, getBasicVals());
   }
   
-  
-  
-  const GRState* BindExpr(const GRState* St, Stmt* Ex, SVal V,
+  const GRState* BindExpr(const GRState* St, const Stmt* Ex, SVal V,
                           bool isBlkExpr, bool Invalidate) {
     
     const Environment& OldEnv = St->getEnvironment();
@@ -461,7 +563,7 @@ public:
     return getPersistentState(NewSt);
   }
   
-  const GRState* BindExpr(const GRState* St, Stmt* Ex, SVal V,
+  const GRState* BindExpr(const GRState* St, const Stmt* Ex, SVal V,
                           bool Invalidate = true) {
     
     bool isBlkExpr = false;
@@ -477,6 +579,8 @@ public:
     
     return BindExpr(St, Ex, V, isBlkExpr, Invalidate);
   }
+
+public:
 
   SVal ArrayToPointer(Loc Array) {
     return StoreMgr->ArrayToPointer(Array);
@@ -533,12 +637,8 @@ public:
   
   const GRState* getPersistentState(GRState& Impl);
 
-  // MakeStateWithStore - get a persistent state with the new store.
-  const GRState* MakeStateWithStore(const GRState* St, Store store);
-  
   bool isEqual(const GRState* state, Expr* Ex, const llvm::APSInt& V);
   bool isEqual(const GRState* state, Expr* Ex, uint64_t);
-  
   
   //==---------------------------------------------------------------------==//
   // Generic Data Map methods.
@@ -605,56 +705,6 @@ public:
     
     return GRStateTrait<T>::MakeContext(p);
   }
-  
-  //==---------------------------------------------------------------------==//
-  // Constraints on values.
-  //==---------------------------------------------------------------------==//
-  //
-  // Each GRState records constraints on symbolic values.  These constraints
-  // are managed using the ConstraintManager associated with a GRStateManager.
-  // As constraints gradually accrue on symbolic values, added constraints
-  // may conflict and indicate that a state is infeasible (as no real values
-  // could satisfy all the constraints).  This is the principal mechanism
-  // for modeling path-sensitivity in GRExprEngine/GRState.
-  //
-  // Various "Assume" methods form the interface for adding constraints to
-  // symbolic values.  A call to "Assume" indicates an assumption being placed
-  // on one or symbolic values.  Assume methods take the following inputs:
-  //
-  //  (1) A GRState object representing the current state.
-  //
-  //  (2) The assumed constraint (which is specific to a given "Assume" method).
-  //
-  //  (3) A binary value "Assumption" that indicates whether the constraint is
-  //      assumed to be true or false.
-  //
-  // The output of "Assume" are two values:
-  //
-  //  (a) "isFeasible" is set to true or false to indicate whether or not
-  //      the assumption is feasible.
-  //
-  //  (b) A new GRState object with the added constraints.
-  //
-  // FIXME: (a) should probably disappear since it is redundant with (b).
-  //  (i.e., (b) could just be set to NULL).
-  //
-
-  const GRState* Assume(const GRState* St, SVal Cond, bool Assumption,
-                           bool& isFeasible) {
-    const GRState *state =
-      ConstraintMgr->Assume(St, Cond, Assumption, isFeasible);
-    assert(!isFeasible || state);
-    return isFeasible ? state : NULL;
-  }
-
-  const GRState* AssumeInBound(const GRState* St, SVal Idx, SVal UpperBound,
-                               bool Assumption, bool& isFeasible) {
-    const GRState *state =
-      ConstraintMgr->AssumeInBound(St, Idx, UpperBound, Assumption, 
-                                   isFeasible);
-    assert(!isFeasible || state);
-    return isFeasible ? state : NULL;
-  }
 
   const llvm::APSInt* getSymVal(const GRState* St, SymbolRef sym) {
     return ConstraintMgr->getSymVal(St, sym);
@@ -663,157 +713,158 @@ public:
   void EndPath(const GRState* St) {
     ConstraintMgr->EndPath(St);
   }
-
-  bool scanReachableSymbols(SVal val, const GRState* state,
-                            SymbolVisitor& visitor);
 };
   
+
 //===----------------------------------------------------------------------===//
-// GRStateRef - A "fat" reference to GRState that also bundles GRStateManager.
+// Out-of-line method definitions for GRState.
 //===----------------------------------------------------------------------===//
-  
-class GRStateRef {
-  const GRState* St;
-  GRStateManager* Mgr;
-public:
-  GRStateRef(const GRState* st, GRStateManager& mgr) : St(st), Mgr(&mgr) {}
 
-  const GRState* getState() const { return St; } 
-  operator const GRState*() const { return St; }
-  GRStateManager& getManager() const { return *Mgr; }
-    
-  SVal GetSVal(Expr* Ex) {
-    return Mgr->GetSVal(St, Ex);
-  }
-  
-  SVal GetBlkExprSVal(Expr* Ex) {  
-    return Mgr->GetBlkExprSVal(St, Ex);
-  }
-  
-  SVal GetSValAsScalarOrLoc(const Expr *Ex) {
-    return Mgr->GetSValAsScalarOrLoc(St, Ex);
-  }
+inline const GRState *GRState::assume(SVal Cond, bool Assumption) const {
+  return Mgr->ConstraintMgr->Assume(this, Cond, Assumption);
+}
 
-  SVal GetSVal(Loc LV, QualType T = QualType()) {
-    return Mgr->GetSVal(St, LV, T);
-  }
-  
-  SVal GetSVal(const MemRegion* R) {
-    return Mgr->GetSVal(St, R);
-  }
-  
-  SVal GetSValAsScalarOrLoc(const MemRegion *R) {
-    return Mgr->GetSValAsScalarOrLoc(St, R);
-  }
+inline const GRState *GRState::assumeInBound(SVal Idx, SVal UpperBound,
+                                             bool Assumption) const {
+  return Mgr->ConstraintMgr->AssumeInBound(this, Idx, UpperBound, Assumption);
+} 
 
-  GRStateRef BindExpr(Stmt* Ex, SVal V, bool isBlkExpr, bool Invalidate) {
-    return GRStateRef(Mgr->BindExpr(St, Ex, V, isBlkExpr, Invalidate), *Mgr);
-  }
+inline const GRState *GRState::bindCompoundLiteral(const CompoundLiteralExpr* CL,
+                                            SVal V) const {
+  return Mgr->StoreMgr->BindCompoundLiteral(this, CL, V);
+}
   
-  GRStateRef BindExpr(Stmt* Ex, SVal V, bool Invalidate = true) {
-    return GRStateRef(Mgr->BindExpr(St, Ex, V, Invalidate), *Mgr);
-  }
-    
-  GRStateRef BindDecl(const VarDecl* VD, SVal InitVal) {
-    return GRStateRef(Mgr->BindDecl(St, VD, InitVal), *Mgr);
-  }
-  
-  GRStateRef BindLoc(Loc LV, SVal V) {
-    return GRStateRef(Mgr->BindLoc(St, LV, V), *Mgr);
-  }
-  
-  GRStateRef BindLoc(SVal LV, SVal V) {
-    if (!isa<Loc>(LV)) return *this;
-    return BindLoc(cast<Loc>(LV), V);
-  }    
-  
-  GRStateRef Unbind(Loc LV) {
-    return GRStateRef(Mgr->Unbind(St, LV), *Mgr);
-  }
-  
-  // Trait based GDM dispatch.
-  template<typename T>
-  typename GRStateTrait<T>::data_type get() const {
-    return St->get<T>();
-  }
-  
-  template<typename T>
-  typename GRStateTrait<T>::lookup_type
-  get(typename GRStateTrait<T>::key_type key) const {
-    return St->get<T>(key);
-  }
-  
-  template<typename T>
-  GRStateRef set(typename GRStateTrait<T>::data_type D) {
-    return GRStateRef(Mgr->set<T>(St, D), *Mgr);
-  }
+inline const GRState *GRState::bindExpr(const Stmt* Ex, SVal V, bool isBlkExpr,
+                                        bool Invalidate) const {
+  return Mgr->BindExpr(this, Ex, V, isBlkExpr, Invalidate);
+}
 
-  template <typename T>
-  typename GRStateTrait<T>::context_type get_context() {
-    return Mgr->get_context<T>();
-  }
+inline const GRState *GRState::bindExpr(const Stmt* Ex, SVal V,
+                                        bool Invalidate) const {
+  return Mgr->BindExpr(this, Ex, V, Invalidate);
+}
+  
+inline const GRState *GRState::bindLoc(Loc LV, SVal V) const {
+  return Mgr->BindLoc(this, LV, V);
+}
 
-  template<typename T>
-  GRStateRef set(typename GRStateTrait<T>::key_type K,
-                 typename GRStateTrait<T>::value_type E,
-                 typename GRStateTrait<T>::context_type C) {
-    return GRStateRef(Mgr->set<T>(St, K, E, C), *Mgr);
-  }
+inline const GRState *GRState::bindLoc(SVal LV, SVal V) const {
+  return !isa<Loc>(LV) ? this : bindLoc(cast<Loc>(LV), V);
+}
   
-  template<typename T>
-  GRStateRef set(typename GRStateTrait<T>::key_type K,
-                 typename GRStateTrait<T>::value_type E) {
-    return GRStateRef(Mgr->set<T>(St, K, E, get_context<T>()), *Mgr);
-  }  
+inline SVal GRState::getLValue(const VarDecl* VD) const {
+  return Mgr->StoreMgr->getLValueVar(this, VD);
+}
 
-  template<typename T>
-  GRStateRef add(typename GRStateTrait<T>::key_type K) {
-    return GRStateRef(Mgr->add<T>(St, K, get_context<T>()), *Mgr);
-  }
+inline SVal GRState::getLValue(const StringLiteral *literal) const {
+  return Mgr->StoreMgr->getLValueString(this, literal);
+}
+  
+inline SVal GRState::getLValue(const CompoundLiteralExpr *literal) const {
+  return Mgr->StoreMgr->getLValueCompoundLiteral(this, literal);
+}
 
-  template<typename T>
-  GRStateRef remove(typename GRStateTrait<T>::key_type K,
-                    typename GRStateTrait<T>::context_type C) {
-    return GRStateRef(Mgr->remove<T>(St, K, C), *Mgr);
-  }
+inline SVal GRState::getLValue(const ObjCIvarDecl *D, SVal Base) const {
+  return Mgr->StoreMgr->getLValueIvar(this, D, Base);
+}
   
-  template<typename T>
-  GRStateRef remove(typename GRStateTrait<T>::key_type K) {
-    return GRStateRef(Mgr->remove<T>(St, K, get_context<T>()), *Mgr);
-  }
+inline SVal GRState::getLValue(SVal Base, const FieldDecl* D) const {
+  return Mgr->StoreMgr->getLValueField(this, Base, D);
+}
   
-  template<typename T>
-  bool contains(typename GRStateTrait<T>::key_type key) const {
-    return St->contains<T>(key);
-  }
+inline SVal GRState::getLValue(QualType ElementType, SVal Base, SVal Idx) const{
+  return Mgr->StoreMgr->getLValueElement(this, ElementType, Base, Idx);
+}
   
-  // Lvalue methods.
-  SVal GetLValue(const VarDecl* VD) {
-    return Mgr->GetLValue(St, VD);
-  }
-    
-  GRStateRef Assume(SVal Cond, bool Assumption, bool& isFeasible) {
-    return GRStateRef(Mgr->Assume(St, Cond, Assumption, isFeasible), *Mgr);  
-  }
+inline const llvm::APSInt *GRState::getSymVal(SymbolRef sym) const {
+  return Mgr->getSymVal(this, sym);
+}
   
-  template <typename CB>
-  CB scanReachableSymbols(SVal val) {
-    CB cb(*this);
-    Mgr->scanReachableSymbols(val, St, cb);
-    return cb;
-  }
+inline SVal GRState::getSVal(const Stmt* Ex) const {
+  return Mgr->GetSVal(this, Ex);
+}
+
+inline SVal GRState::getBlkExprSVal(const Stmt* Ex) const {  
+  return Mgr->GetBlkExprSVal(this, Ex);
+}
+
+inline SVal GRState::getSValAsScalarOrLoc(const Stmt *Ex) const {
+  return Mgr->GetSValAsScalarOrLoc(this, Ex);
+}
+
+inline SVal GRState::getSVal(Loc LV, QualType T) const {
+  return Mgr->GetSVal(this, LV, T);
+}
+
+inline SVal GRState::getSVal(const MemRegion* R) const {
+  return Mgr->GetSVal(this, R);
+}
+
+inline SVal GRState::getSValAsScalarOrLoc(const MemRegion *R) const {
+  return Mgr->GetSValAsScalarOrLoc(this, R);
+}
   
-  SymbolManager& getSymbolManager() { return Mgr->getSymbolManager(); }
-  BasicValueFactory& getBasicVals() { return Mgr->getBasicVals(); }
+inline BasicValueFactory &GRState::getBasicVals() const {
+  return Mgr->getBasicVals();
+}
+
+inline SymbolManager &GRState::getSymbolManager() const {
+  return Mgr->getSymbolManager();
+}
   
-  // Pretty-printing.
-  void print(std::ostream& Out, const char* nl = "\n",
-             const char *sep = "") const;
+inline GRTransferFuncs &GRState::getTransferFuncs() const {
+  return Mgr->getTransferFuncs();
+}
+
+template<typename T>
+const GRState *GRState::add(typename GRStateTrait<T>::key_type K) const {
+  return Mgr->add<T>(this, K, get_context<T>());
+}
   
-  void printStdErr() const; 
+template <typename T>
+typename GRStateTrait<T>::context_type GRState::get_context() const {
+  return Mgr->get_context<T>();
+}
   
-  void printDOT(std::ostream& Out) const;
-};
+template<typename T>
+const GRState *GRState::remove(typename GRStateTrait<T>::key_type K) const {
+  return Mgr->remove<T>(this, K, get_context<T>());
+}
+
+template<typename T>
+const GRState *GRState::remove(typename GRStateTrait<T>::key_type K,
+                               typename GRStateTrait<T>::context_type C) const {
+  return Mgr->remove<T>(this, K, C);
+}
+  
+template<typename T>
+const GRState *GRState::set(typename GRStateTrait<T>::data_type D) const {
+  return Mgr->set<T>(this, D);
+}
+  
+template<typename T>
+const GRState *GRState::set(typename GRStateTrait<T>::key_type K,
+                            typename GRStateTrait<T>::value_type E) const {
+  return Mgr->set<T>(this, K, E, get_context<T>());
+}
+  
+template<typename T>
+const GRState *GRState::set(typename GRStateTrait<T>::key_type K,
+                            typename GRStateTrait<T>::value_type E,
+                            typename GRStateTrait<T>::context_type C) const {
+  return Mgr->set<T>(this, K, E, C);
+}
+  
+template <typename CB>
+CB GRState::scanReachableSymbols(SVal val) const {
+  CB cb(this);
+  scanReachableSymbols(val, cb);
+  return cb;
+}
+  
+inline const GRState *GRState::unbindLoc(Loc LV) const {
+  return Mgr->Unbind(this, LV);
+}
 
 } // end clang namespace
 

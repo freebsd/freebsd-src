@@ -80,8 +80,9 @@ void PCHDeclReader::VisitDecl(Decl *D) {
   D->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
   D->setInvalidDecl(Record[Idx++]);
   if (Record[Idx++])
-    D->addAttr(Reader.ReadAttributes());
+    D->addAttr(*Reader.getContext(), Reader.ReadAttributes());
   D->setImplicit(Record[Idx++]);
+  D->setUsed(Record[Idx++]);
   D->setAccess((AccessSpecifier)Record[Idx++]);
 }
 
@@ -156,6 +157,7 @@ void PCHDeclReader::VisitFunctionDecl(FunctionDecl *FD) {
   FD->setHasWrittenPrototype(Record[Idx++]);
   FD->setDeleted(Record[Idx++]);
   FD->setTypeSpecStartLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  FD->setLocEnd(SourceLocation::getFromRawEncoding(Record[Idx++]));
   // FIXME: C++ TemplateOrInstantiation
   unsigned NumParams = Record[Idx++];
   llvm::SmallVector<ParmVarDecl *, 16> Params;

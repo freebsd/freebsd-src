@@ -46,16 +46,22 @@ static NonTypeTemplateParmDecl *getDeducedParameterFromExpr(Expr *E) {
 static Sema::TemplateDeductionResult
 DeduceNonTypeTemplateArgument(ASTContext &Context, 
                               NonTypeTemplateParmDecl *NTTP, 
-                              llvm::APInt Value,
+                              llvm::APSInt Value,
                               Sema::TemplateDeductionInfo &Info,
                               llvm::SmallVectorImpl<TemplateArgument> &Deduced) {
   assert(NTTP->getDepth() == 0 && 
          "Cannot deduce non-type template argument with depth > 0");
   
   if (Deduced[NTTP->getIndex()].isNull()) {
-    Deduced[NTTP->getIndex()] = TemplateArgument(SourceLocation(), 
-                                                 llvm::APSInt(Value),
-                                                 NTTP->getType());
+    QualType T = NTTP->getType();
+    
+    // FIXME: Make sure we didn't overflow our data type!
+    unsigned AllowedBits = Context.getTypeSize(T);
+    if (Value.getBitWidth() != AllowedBits)
+      Value.extOrTrunc(AllowedBits);
+    Value.setIsSigned(T->isSignedIntegerType());
+
+    Deduced[NTTP->getIndex()] = TemplateArgument(SourceLocation(), Value, T);
     return Sema::TDK_Success;
   }
   
@@ -64,18 +70,14 @@ DeduceNonTypeTemplateArgument(ASTContext &Context,
   // If the template argument was previously deduced to a negative value, 
   // then our deduction fails.
   const llvm::APSInt *PrevValuePtr = Deduced[NTTP->getIndex()].getAsIntegral();
-  if (PrevValuePtr->isSigned() && PrevValuePtr->isNegative()) {
-    // FIXME: This is wacky; we should be dealing with APSInts and
-    // checking the actual signs.
+  if (PrevValuePtr->isNegative()) {
     Info.Param = NTTP;
     Info.FirstArg = Deduced[NTTP->getIndex()];
-    Info.SecondArg = TemplateArgument(SourceLocation(), 
-                                      llvm::APSInt(Value),
-                                      NTTP->getType());
+    Info.SecondArg = TemplateArgument(SourceLocation(), Value, NTTP->getType());
     return Sema::TDK_Inconsistent;
   }
 
-  llvm::APInt PrevValue = *PrevValuePtr;
+  llvm::APSInt PrevValue = *PrevValuePtr;
   if (Value.getBitWidth() > PrevValue.getBitWidth())
     PrevValue.zext(Value.getBitWidth());
   else if (Value.getBitWidth() < PrevValue.getBitWidth())
@@ -84,9 +86,7 @@ DeduceNonTypeTemplateArgument(ASTContext &Context,
   if (Value != PrevValue) {
     Info.Param = NTTP;
     Info.FirstArg = Deduced[NTTP->getIndex()];
-    Info.SecondArg = TemplateArgument(SourceLocation(), 
-                                      llvm::APSInt(Value),
-                                      NTTP->getType());
+    Info.SecondArg = TemplateArgument(SourceLocation(), Value, NTTP->getType());
     return Sema::TDK_Inconsistent;
   }
 
@@ -329,10 +329,11 @@ DeduceTemplateArguments(ASTContext &Context,
       assert(NTTP->getDepth() == 0 && 
              "Cannot deduce non-type template argument at depth > 0");
       if (const ConstantArrayType *ConstantArrayArg 
-            = dyn_cast<ConstantArrayType>(ArrayArg))
-        return DeduceNonTypeTemplateArgument(Context, NTTP, 
-                                             ConstantArrayArg->getSize(),
+            = dyn_cast<ConstantArrayType>(ArrayArg)) {
+        llvm::APSInt Size(ConstantArrayArg->getSize());
+        return DeduceNonTypeTemplateArgument(Context, NTTP, Size,
                                              Info, Deduced);
+      }
       if (const DependentSizedArrayType *DependentArrayArg
             = dyn_cast<DependentSizedArrayType>(ArrayArg))
         return DeduceNonTypeTemplateArgument(Context, NTTP,
@@ -597,6 +598,9 @@ DeduceTemplateArguments(ASTContext &Context,
     // Can't deduce anything, but that's okay.
     return Sema::TDK_Success;
   }
+  case TemplateArgument::Pack:
+    assert(0 && "FIXME: Implement!");
+    break;
   }
       
   return Sema::TDK_Success;
@@ -674,35 +678,6 @@ Sema::DeduceTemplateArguments(ClassTemplatePartialSpecializationDecl *Partial,
                                          /*FlattenArgs=*/true);
   Info.reset(DeducedArgumentList);
 
-  // Now that we have all of the deduced template arguments, take
-  // another pass through them to convert any integral template
-  // arguments to the appropriate type.
-  for (unsigned I = 0, N = Deduced.size(); I != N; ++I) {
-    TemplateArgument &Arg = Deduced[I];    
-    if (Arg.getKind() == TemplateArgument::Integral) {
-      const NonTypeTemplateParmDecl *Parm 
-        = cast<NonTypeTemplateParmDecl>(Partial->getTemplateParameters()
-                                          ->getParam(I));
-      QualType T = InstantiateType(Parm->getType(), *DeducedArgumentList,
-                                   Parm->getLocation(), Parm->getDeclName());
-      if (T.isNull()) {
-        Info.Param = const_cast<NonTypeTemplateParmDecl*>(Parm);
-        Info.FirstArg = TemplateArgument(Parm->getLocation(), Parm->getType());
-        return TDK_SubstitutionFailure;
-      }
-      
-      // FIXME: Make sure we didn't overflow our data type!
-      llvm::APSInt &Value = *Arg.getAsIntegral();
-      unsigned AllowedBits = Context.getTypeSize(T);
-      if (Value.getBitWidth() != AllowedBits)
-        Value.extOrTrunc(AllowedBits);
-      Value.setIsSigned(T->isSignedIntegerType());
-      Arg.setIntegralType(T);
-    }
-
-    (*DeducedArgumentList)[I] = Arg;
-  }
-
   // Substitute the deduced template arguments into the template
   // arguments of the class template partial specialization, and
   // verify that the instantiated template arguments are both valid
@@ -750,12 +725,13 @@ MarkDeducedTemplateParameters(Sema &SemaRef,
 /// \brief Mark the template arguments that are deduced by the given
 /// expression.
 static void 
-MarkDeducedTemplateParameters(Expr *E, llvm::SmallVectorImpl<bool> &Deduced) {
-  DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E);
+MarkDeducedTemplateParameters(const Expr *E, 
+                              llvm::SmallVectorImpl<bool> &Deduced) {
+  const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E);
   if (!E)
     return;
 
-  NonTypeTemplateParmDecl *NTTP 
+  const NonTypeTemplateParmDecl *NTTP 
     = dyn_cast<NonTypeTemplateParmDecl>(DRE->getDecl());
   if (!NTTP)
     return;
@@ -776,26 +752,26 @@ MarkDeducedTemplateParameters(Sema &SemaRef, QualType T,
   switch (T->getTypeClass()) {
   case Type::ExtQual:
     MarkDeducedTemplateParameters(SemaRef, 
-                QualType(cast<ExtQualType>(T.getTypePtr())->getBaseType(), 0),
+                              QualType(cast<ExtQualType>(T)->getBaseType(), 0),
                                   Deduced);
     break;
 
   case Type::Pointer:
     MarkDeducedTemplateParameters(SemaRef,
-                          cast<PointerType>(T.getTypePtr())->getPointeeType(),
+                                  cast<PointerType>(T)->getPointeeType(),
                                   Deduced);
     break;
 
   case Type::BlockPointer:
     MarkDeducedTemplateParameters(SemaRef,
-                     cast<BlockPointerType>(T.getTypePtr())->getPointeeType(),
+                                  cast<BlockPointerType>(T)->getPointeeType(),
                                   Deduced);
     break;
 
   case Type::LValueReference:
   case Type::RValueReference:
     MarkDeducedTemplateParameters(SemaRef,
-                        cast<ReferenceType>(T.getTypePtr())->getPointeeType(),
+                                  cast<ReferenceType>(T)->getPointeeType(),
                                   Deduced);
     break;
 
@@ -808,27 +784,34 @@ MarkDeducedTemplateParameters(Sema &SemaRef, QualType T,
   }
 
   case Type::DependentSizedArray:
-    MarkDeducedTemplateParameters(
-                 cast<DependentSizedArrayType>(T.getTypePtr())->getSizeExpr(),
+    MarkDeducedTemplateParameters(cast<DependentSizedArrayType>(T)->getSizeExpr(),
                                   Deduced);
     // Fall through to check the element type
 
   case Type::ConstantArray:
   case Type::IncompleteArray:
     MarkDeducedTemplateParameters(SemaRef,
-                            cast<ArrayType>(T.getTypePtr())->getElementType(),
+                                  cast<ArrayType>(T)->getElementType(),
                                   Deduced);
     break;
 
   case Type::Vector:
   case Type::ExtVector:
     MarkDeducedTemplateParameters(SemaRef,
-                           cast<VectorType>(T.getTypePtr())->getElementType(),
+                                  cast<VectorType>(T)->getElementType(),
                                   Deduced);
     break;
 
+  case Type::DependentSizedExtVector: {
+    const DependentSizedExtVectorType *VecType
+      = cast<DependentSizedExtVectorType>(T);
+    MarkDeducedTemplateParameters(SemaRef, VecType->getElementType(), Deduced);
+    MarkDeducedTemplateParameters(VecType->getSizeExpr(), Deduced);
+    break;
+  }
+
   case Type::FunctionProto: {
-    const FunctionProtoType *Proto = cast<FunctionProtoType>(T.getTypePtr());
+    const FunctionProtoType *Proto = cast<FunctionProtoType>(T);
     MarkDeducedTemplateParameters(SemaRef, Proto->getResultType(), Deduced);
     for (unsigned I = 0, N = Proto->getNumArgs(); I != N; ++I)
       MarkDeducedTemplateParameters(SemaRef, Proto->getArgType(I), Deduced);
@@ -836,12 +819,12 @@ MarkDeducedTemplateParameters(Sema &SemaRef, QualType T,
   }
 
   case Type::TemplateTypeParm:
-    Deduced[cast<TemplateTypeParmType>(T.getTypePtr())->getIndex()] = true;
+    Deduced[cast<TemplateTypeParmType>(T)->getIndex()] = true;
     break;
 
   case Type::TemplateSpecialization: {
     const TemplateSpecializationType *Spec 
-      = cast<TemplateSpecializationType>(T.getTypePtr());
+      = cast<TemplateSpecializationType>(T);
     if (TemplateDecl *Template = Spec->getTemplateName().getAsTemplateDecl())
       if (TemplateTemplateParmDecl *TTP 
             = dyn_cast<TemplateTemplateParmDecl>(Template))
@@ -864,7 +847,7 @@ MarkDeducedTemplateParameters(Sema &SemaRef, QualType T,
   case Type::Typename:
   case Type::ObjCInterface:
   case Type::ObjCQualifiedInterface:
-  case Type::ObjCQualifiedId:
+  case Type::ObjCObjectPointer:
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
 #define DEPENDENT_TYPE(Class, Base)
@@ -897,6 +880,9 @@ MarkDeducedTemplateParameters(Sema &SemaRef,
 
   case TemplateArgument::Expression:
     MarkDeducedTemplateParameters(TemplateArg.getAsExpr(), Deduced);
+    break;
+  case TemplateArgument::Pack:
+    assert(0 && "FIXME: Implement!");
     break;
   }
 }

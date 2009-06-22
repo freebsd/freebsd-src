@@ -48,6 +48,8 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
   
   SourceLocation IdentLoc;
   IdentifierInfo *Ident = 0;
+
+  Token attrTok;
   
   if (Tok.is(tok::identifier)) {
     Ident = Tok.getIdentifierInfo();
@@ -56,13 +58,19 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
   
   // Read label attributes, if present.
   Action::AttrTy *AttrList = 0;
-  if (Tok.is(tok::kw___attribute))
+  if (Tok.is(tok::kw___attribute)) {
+    attrTok = Tok;
+
     // FIXME: save these somewhere.
     AttrList = ParseAttributes();
+  }
   
-  if (Tok.is(tok::equal))
-    // FIXME: Verify no attributes were present.
+  if (Tok.is(tok::equal)) {
+    if (AttrList)
+      Diag(attrTok, diag::err_unexpected_namespace_attributes_alias);
+
     return ParseNamespaceAlias(NamespaceLoc, IdentLoc, Ident, DeclEnd);
+  }
   
   if (Tok.isNot(tok::l_brace)) {
     Diag(Tok, Ident ? diag::err_expected_lbrace : 
@@ -245,15 +253,62 @@ Parser::DeclPtrTy Parser::ParseUsingDirective(unsigned Context,
 ///
 ///     using-declaration: [C++ 7.3.p3: namespace.udecl]
 ///       'using' 'typename'[opt] ::[opt] nested-name-specifier
-///               unqualified-id [TODO]
-///       'using' :: unqualified-id [TODO]
+///               unqualified-id
+///       'using' :: unqualified-id
 ///
 Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
                                                 SourceLocation UsingLoc,
                                                 SourceLocation &DeclEnd) {
-  assert(false && "Not implemented");
-  // FIXME: Implement parsing.
-  return DeclPtrTy();
+  CXXScopeSpec SS;
+  bool IsTypeName;
+
+  // Ignore optional 'typename'.
+  if (Tok.is(tok::kw_typename)) {
+    ConsumeToken();
+    IsTypeName = true;
+  }
+  else
+    IsTypeName = false;
+
+  // Parse nested-name-specifier.
+  ParseOptionalCXXScopeSpecifier(SS);
+
+  AttributeList *AttrList = 0;
+  IdentifierInfo *TargetName = 0;
+  SourceLocation IdentLoc = SourceLocation();
+
+  // Check nested-name specifier.
+  if (SS.isInvalid()) {
+    SkipUntil(tok::semi);
+    return DeclPtrTy();
+  }
+  if (Tok.is(tok::annot_template_id)) {
+    Diag(Tok, diag::err_unexpected_template_spec_in_using);
+    SkipUntil(tok::semi);
+    return DeclPtrTy();
+  }
+  if (Tok.isNot(tok::identifier)) {
+    Diag(Tok, diag::err_expected_ident_in_using);
+    // If there was invalid identifier, skip to end of decl, and eat ';'.
+    SkipUntil(tok::semi);
+    return DeclPtrTy();
+  }
+  
+  // Parse identifier.
+  TargetName = Tok.getIdentifierInfo();
+  IdentLoc = ConsumeToken();
+  
+  // Parse (optional) attributes (most likely GNU strong-using extension).
+  if (Tok.is(tok::kw___attribute))
+    AttrList = ParseAttributes();
+  
+  // Eat ';'.
+  DeclEnd = Tok.getLocation();
+  ExpectAndConsume(tok::semi, diag::err_expected_semi_after,
+                   AttrList ? "attributes list" : "namespace name", tok::semi);
+
+  return Actions.ActOnUsingDeclaration(CurScope, UsingLoc, SS,
+                                      IdentLoc, TargetName, AttrList, IsTypeName);
 }
 
 /// ParseStaticAssertDeclaration - Parse C++0x static_assert-declaratoion.
@@ -271,7 +326,7 @@ Parser::DeclPtrTy Parser::ParseStaticAssertDeclaration(SourceLocation &DeclEnd){
   }
   
   SourceLocation LParenLoc = ConsumeParen();
-  
+
   OwningExprResult AssertExpr(ParseConstantExpression());
   if (AssertExpr.isInvalid()) {
     SkipUntil(tok::semi);
@@ -782,7 +837,23 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS) {
     ConsumeToken();
     return ParseCXXClassMemberDeclaration(AS);
   }
-  
+
+  if (Tok.is(tok::kw_using)) {
+    // Eat 'using'.
+    SourceLocation UsingLoc = ConsumeToken();
+
+    if (Tok.is(tok::kw_namespace)) {
+      Diag(UsingLoc, diag::err_using_namespace_in_class);
+      SkipUntil(tok::semi, true, true);
+    }
+    else {
+      SourceLocation DeclEnd;
+      // Otherwise, it must be using-declaration.
+      ParseUsingDeclaration(Declarator::MemberContext, UsingLoc, DeclEnd);
+    }
+    return;
+  }
+
   SourceLocation DSStart = Tok.getLocation();
   // decl-specifier-seq:
   // Parse the common declaration-specifiers piece.

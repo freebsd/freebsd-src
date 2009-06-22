@@ -393,6 +393,7 @@ public:
   bool isComplexIntegerType() const;            // GCC _Complex integer type.
   bool isVectorType() const;                    // GCC vector type.
   bool isExtVectorType() const;                 // Extended vector type.
+  bool isObjCObjectPointerType() const;         // Pointer to *any* ObjC object.
   bool isObjCInterfaceType() const;             // NSString or NSString<foo>
   bool isObjCQualifiedInterfaceType() const;    // NSString<foo>
   bool isObjCQualifiedIdType() const;           // id<foo>
@@ -439,9 +440,10 @@ public:
   const ComplexType *getAsComplexType() const;
   const ComplexType *getAsComplexIntegerType() const; // GCC complex int type.
   const ExtVectorType *getAsExtVectorType() const; // Extended vector type.
+  const ObjCObjectPointerType *getAsObjCObjectPointerType() const;
   const ObjCInterfaceType *getAsObjCInterfaceType() const;
   const ObjCQualifiedInterfaceType *getAsObjCQualifiedInterfaceType() const;
-  const ObjCQualifiedIdType *getAsObjCQualifiedIdType() const;
+  const ObjCObjectPointerType *getAsObjCQualifiedIdType() const;
   const TemplateTypeParmType *getAsTemplateTypeParmType() const;
 
   const TemplateSpecializationType *
@@ -992,6 +994,41 @@ public:
   }
 };
 
+/// DependentSizedExtVectorType - This type represent an extended vector type
+/// where either the type or size is dependent. For example:
+/// @code
+/// template<typename T, int Size>
+/// class vector {
+///   typedef T __attribute__((ext_vector_type(Size))) type;
+/// }
+/// @endcode
+class DependentSizedExtVectorType : public Type {
+  Expr *SizeExpr;
+  /// ElementType - The element type of the array.
+  QualType ElementType;
+  SourceLocation loc;
+  
+  DependentSizedExtVectorType(QualType ElementType, QualType can, 
+                              Expr *SizeExpr, SourceLocation loc)
+    : Type (DependentSizedExtVector, can, true), 
+    SizeExpr(SizeExpr), ElementType(ElementType), loc(loc) {}
+  friend class ASTContext;
+  virtual void Destroy(ASTContext& C);
+
+public:
+  const Expr *getSizeExpr() const { return SizeExpr; }
+  QualType getElementType() const { return ElementType; }
+  SourceLocation getAttributeLoc() const { return loc; }
+
+  virtual void getAsStringInternal(std::string &InnerString, const PrintingPolicy &Policy) const;
+  
+  static bool classof(const Type *T) { 
+    return T->getTypeClass() == DependentSizedExtVector; 
+  }
+  static bool classof(const DependentSizedExtVectorType *) { return true; } 
+};
+  
+
 /// VectorType - GCC generic vector type. This type is created using
 /// __attribute__((vector_size(n)), where "n" specifies the vector size in 
 /// bytes. Since the constructor takes the number of vector elements, the 
@@ -1403,36 +1440,40 @@ public:
 };
 
 class TemplateTypeParmType : public Type, public llvm::FoldingSetNode {
-  unsigned Depth : 16;
+  unsigned Depth : 15;
   unsigned Index : 16;
+  unsigned ParameterPack : 1;
   IdentifierInfo *Name;
 
-  TemplateTypeParmType(unsigned D, unsigned I, IdentifierInfo *N, 
+  TemplateTypeParmType(unsigned D, unsigned I, bool PP, IdentifierInfo *N, 
                        QualType Canon) 
     : Type(TemplateTypeParm, Canon, /*Dependent=*/true),
-      Depth(D), Index(I), Name(N) { }
+      Depth(D), Index(I), ParameterPack(PP), Name(N) { }
 
-  TemplateTypeParmType(unsigned D, unsigned I) 
+  TemplateTypeParmType(unsigned D, unsigned I, bool PP) 
     : Type(TemplateTypeParm, QualType(this, 0), /*Dependent=*/true),
-      Depth(D), Index(I), Name(0) { }
+      Depth(D), Index(I), ParameterPack(PP), Name(0) { }
 
   friend class ASTContext;  // ASTContext creates these
 
 public:
   unsigned getDepth() const { return Depth; }
   unsigned getIndex() const { return Index; }
+  bool isParameterPack() const { return ParameterPack; }
   IdentifierInfo *getName() const { return Name; }
   
   virtual void getAsStringInternal(std::string &InnerString, const PrintingPolicy &Policy) const;
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, Depth, Index, Name);
+    Profile(ID, Depth, Index, ParameterPack, Name);
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, unsigned Depth, 
-                      unsigned Index, IdentifierInfo *Name) {
+                      unsigned Index, bool ParameterPack, 
+                      IdentifierInfo *Name) {
     ID.AddInteger(Depth);
     ID.AddInteger(Index);
+    ID.AddBoolean(ParameterPack);
     ID.AddPointer(Name);
   }
 
@@ -1644,6 +1685,53 @@ public:
   static bool classof(const TypenameType *T) { return true; }
 };
 
+/// ObjCObjectPointerType - Used to represent 'id', 'Interface *', 'id <p>',
+/// and 'Interface <p> *'.
+///
+/// Duplicate protocols are removed and protocol list is canonicalized to be in
+/// alphabetical order.
+class ObjCObjectPointerType : public Type, public llvm::FoldingSetNode {
+  ObjCInterfaceDecl *Decl;
+  // List of protocols for this protocol conforming object type
+  // List is sorted on protocol name. No protocol is entered more than once.
+  llvm::SmallVector<ObjCProtocolDecl*, 8> Protocols;
+
+  ObjCObjectPointerType(ObjCInterfaceDecl *D,
+                        ObjCProtocolDecl **Protos, unsigned NumP) :
+    Type(ObjCObjectPointer, QualType(), /*Dependent=*/false),
+    Decl(D), Protocols(Protos, Protos+NumP) { }
+  friend class ASTContext;  // ASTContext creates these.
+
+public:
+  ObjCInterfaceDecl *getDecl() const { return Decl; }
+  
+  /// isObjCQualifiedIdType - true for "id <p>".
+  bool isObjCQualifiedIdType() const { return Decl == 0 && Protocols.size(); }
+  
+  /// qual_iterator and friends: this provides access to the (potentially empty)
+  /// list of protocols qualifying this interface.
+  typedef llvm::SmallVector<ObjCProtocolDecl*, 8>::const_iterator qual_iterator;
+
+  qual_iterator qual_begin() const { return Protocols.begin(); }
+  qual_iterator qual_end() const   { return Protocols.end(); }
+  bool qual_empty() const { return Protocols.size() == 0; }
+
+  /// getNumProtocols - Return the number of qualifying protocols in this
+  /// interface type, or 0 if there are none.
+  unsigned getNumProtocols() const { return Protocols.size(); }
+
+  void Profile(llvm::FoldingSetNodeID &ID);
+  static void Profile(llvm::FoldingSetNodeID &ID,
+                      const ObjCInterfaceDecl *Decl,
+                      ObjCProtocolDecl **protocols, unsigned NumProtocols);
+  virtual void getAsStringInternal(std::string &InnerString, 
+                                   const PrintingPolicy &Policy) const;
+  static bool classof(const Type *T) { 
+    return T->getTypeClass() == ObjCObjectPointer; 
+  }
+  static bool classof(const ObjCObjectPointerType *) { return true; }
+};
+  
 /// ObjCInterfaceType - Interfaces are the core concept in Objective-C for
 /// object oriented design.  They basically correspond to C++ classes.  There
 /// are two kinds of interface types, normal interfaces like "NSString" and
@@ -1742,44 +1830,6 @@ inline unsigned ObjCInterfaceType::getNumProtocols() const {
   return 0;
 }
 
-/// ObjCQualifiedIdType - to represent id<protocol-list>.
-///
-/// Duplicate protocols are removed and protocol list is canonicalized to be in
-/// alphabetical order.
-class ObjCQualifiedIdType : public Type,
-                            public llvm::FoldingSetNode {
-  // List of protocols for this protocol conforming 'id' type
-  // List is sorted on protocol name. No protocol is enterred more than once.
-  llvm::SmallVector<ObjCProtocolDecl*, 8> Protocols;
-    
-  ObjCQualifiedIdType(ObjCProtocolDecl **Protos, unsigned NumP)
-    : Type(ObjCQualifiedId, QualType()/*these are always canonical*/,
-           /*Dependent=*/false), 
-  Protocols(Protos, Protos+NumP) { }
-  friend class ASTContext;  // ASTContext creates these.
-public:
-    
-  unsigned getNumProtocols() const {
-    return Protocols.size();
-  }
-                              
-  typedef llvm::SmallVector<ObjCProtocolDecl*, 8>::const_iterator qual_iterator;
-  qual_iterator qual_begin() const { return Protocols.begin(); }
-  qual_iterator qual_end() const   { return Protocols.end(); }
-    
-  virtual void getAsStringInternal(std::string &InnerString, const PrintingPolicy &Policy) const;
-    
-  void Profile(llvm::FoldingSetNodeID &ID);
-  static void Profile(llvm::FoldingSetNodeID &ID,
-                      ObjCProtocolDecl **protocols, unsigned NumProtocols);
-    
-  static bool classof(const Type *T) { 
-    return T->getTypeClass() == ObjCQualifiedId; 
-  }
-  static bool classof(const ObjCQualifiedIdType *) { return true; }
-    
-};
-  
 // Inline function definitions.
 
 /// getUnqualifiedType - Return the type without any qualifiers.
@@ -1926,6 +1976,9 @@ inline bool Type::isVectorType() const {
 inline bool Type::isExtVectorType() const {
   return isa<ExtVectorType>(CanonicalType.getUnqualifiedType());
 }
+inline bool Type::isObjCObjectPointerType() const {
+  return isa<ObjCObjectPointerType>(CanonicalType.getUnqualifiedType());
+}
 inline bool Type::isObjCInterfaceType() const {
   return isa<ObjCInterfaceType>(CanonicalType.getUnqualifiedType());
 }
@@ -1933,7 +1986,10 @@ inline bool Type::isObjCQualifiedInterfaceType() const {
   return isa<ObjCQualifiedInterfaceType>(CanonicalType.getUnqualifiedType());
 }
 inline bool Type::isObjCQualifiedIdType() const {
-  return isa<ObjCQualifiedIdType>(CanonicalType.getUnqualifiedType());
+  if (const ObjCObjectPointerType *OPT = getAsObjCObjectPointerType()) {
+    return OPT->isObjCQualifiedIdType();
+  }
+  return false;
 }
 inline bool Type::isTemplateTypeParmType() const {
   return isa<TemplateTypeParmType>(CanonicalType.getUnqualifiedType());

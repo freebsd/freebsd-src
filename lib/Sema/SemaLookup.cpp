@@ -685,7 +685,7 @@ Sema::CppLookupName(Scope *S, DeclarationName Name,
       // identifier chain.
       if (isa<RecordDecl>(Ctx)) {
         R = LookupQualifiedName(Ctx, Name, NameKind, RedeclarationOnly);
-        if (R || RedeclarationOnly)
+        if (R)
           return std::make_pair(true, R);
       }
       if (Ctx->getParent() != Ctx->getLexicalParent() 
@@ -697,7 +697,7 @@ Sema::CppLookupName(Scope *S, DeclarationName Name,
         for (OutOfLineCtx = Ctx; OutOfLineCtx && !OutOfLineCtx->isFileContext();
              OutOfLineCtx = OutOfLineCtx->getParent()) {
           R = LookupQualifiedName(OutOfLineCtx, Name, NameKind, RedeclarationOnly);
-          if (R || RedeclarationOnly)
+          if (R)
             return std::make_pair(true, R);
         }
       }
@@ -894,7 +894,7 @@ Sema::LookupName(Scope *S, DeclarationName Name, LookupNameKind NameKind,
             continue;
         }
 
-        if ((*I)->getAttr<OverloadableAttr>()) {
+        if ((*I)->getAttr<OverloadableAttr>(Context)) {
           // If this declaration has the "overloadable" attribute, we
           // might have a set of overloaded functions.
 
@@ -1151,8 +1151,10 @@ Sema::LookupParsedName(Scope *S, const CXXScopeSpec *SS,
                                Name, NameKind, RedeclarationOnly);
   }
 
-  return LookupName(S, Name, NameKind, RedeclarationOnly, 
-                    AllowBuiltinCreation, Loc);
+  LookupResult result(LookupName(S, Name, NameKind, RedeclarationOnly, 
+                    AllowBuiltinCreation, Loc));
+  
+  return(result);
 }
 
 

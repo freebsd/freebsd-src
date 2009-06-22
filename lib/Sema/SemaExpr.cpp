@@ -39,7 +39,7 @@ using namespace clang;
 /// referenced), false otherwise.
 bool Sema::DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc) {
   // See if the decl is deprecated.
-  if (D->getAttr<DeprecatedAttr>()) {
+  if (D->getAttr<DeprecatedAttr>(Context)) {
     // Implementing deprecated stuff requires referencing deprecated
     // stuff. Don't warn if we are implementing a deprecated
     // construct.
@@ -48,7 +48,7 @@ bool Sema::DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc) {
     if (NamedDecl *ND = getCurFunctionOrMethodDecl()) {
       // If this reference happens *in* a deprecated function or method, don't
       // warn.
-      isSilenced = ND->getAttr<DeprecatedAttr>();
+      isSilenced = ND->getAttr<DeprecatedAttr>(Context);
       
       // If this is an Objective-C method implementation, check to see if the
       // method was deprecated on the declaration, not the definition.
@@ -61,7 +61,7 @@ bool Sema::DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc) {
           MD = Impl->getClassInterface()->getMethod(Context, 
                                                     MD->getSelector(),
                                                     MD->isInstanceMethod());
-          isSilenced |= MD && MD->getAttr<DeprecatedAttr>();
+          isSilenced |= MD && MD->getAttr<DeprecatedAttr>(Context);
         }
       }
     }
@@ -80,7 +80,7 @@ bool Sema::DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc) {
   }
 
   // See if the decl is unavailable
-  if (D->getAttr<UnavailableAttr>()) {
+  if (D->getAttr<UnavailableAttr>(Context)) {
     Diag(Loc, diag::warn_unavailable) << D->getDeclName();
     Diag(D->getLocation(), diag::note_unavailable_here) << 0;
   }
@@ -95,7 +95,7 @@ bool Sema::DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc) {
 void Sema::DiagnoseSentinelCalls(NamedDecl *D, SourceLocation Loc,
                                  Expr **Args, unsigned NumArgs)
 {
-  const SentinelAttr *attr = D->getAttr<SentinelAttr>();
+  const SentinelAttr *attr = D->getAttr<SentinelAttr>(Context);
   if (!attr) 
     return;
   int sentinelPos = attr->getSentinel();
@@ -627,6 +627,7 @@ DeclRefExpr *
 Sema::BuildDeclRefExpr(NamedDecl *D, QualType Ty, SourceLocation Loc,
                        bool TypeDependent, bool ValueDependent,
                        const CXXScopeSpec *SS) {
+  MarkDeclarationReferenced(Loc, D);
   if (SS && !SS->isEmpty()) {
     return new (Context) QualifiedDeclRefExpr(D, Ty, Loc, TypeDependent, 
                                               ValueDependent, SS->getRange(),
@@ -721,6 +722,7 @@ Sema::BuildAnonymousStructUnionMemberReference(SourceLocation Loc,
     // BaseObject is an anonymous struct/union variable (and is,
     // therefore, not part of another non-anonymous record).
     if (BaseObjectExpr) BaseObjectExpr->Destroy(Context);
+    MarkDeclarationReferenced(Loc, BaseObject);
     BaseObjectExpr = new (Context) DeclRefExpr(BaseObject,BaseObject->getType(),
                                                SourceLocation());
     ExtraQuals 
@@ -777,6 +779,7 @@ Sema::BuildAnonymousStructUnionMemberReference(SourceLocation Loc,
         = MemberType.getCVRQualifiers() | ExtraQuals;
       MemberType = MemberType.getQualifiedType(combinedQualifiers);
     }
+    MarkDeclarationReferenced(Loc, *FI);
     Result = new (Context) MemberExpr(Result, BaseObjectIsPointer, *FI,
                                       OpLoc, MemberType);
     BaseObjectIsPointer = false;
@@ -876,6 +879,7 @@ Sema::ActOnDeclarationNameExpr(Scope *S, SourceLocation Loc,
           // turn this into Self->ivar, just return a BareIVarExpr or something.
           IdentifierInfo &II = Context.Idents.get("self");
           OwningExprResult SelfExpr = ActOnIdentifierExpr(S, Loc, II, false);
+          MarkDeclarationReferenced(Loc, IV);
           return Owned(new (Context) 
                        ObjCIvarRefExpr(IV, IV->getType(), Loc, 
                                        SelfExpr.takeAs<Expr>(), true, true));
@@ -1025,6 +1029,7 @@ Sema::ActOnDeclarationNameExpr(Scope *S, SourceLocation Loc,
           // Build the implicit member access expression.
           Expr *This = new (Context) CXXThisExpr(SourceLocation(),
                                                  MD->getThisType(Context));
+          MarkDeclarationReferenced(Loc, D);
           return Owned(new (Context) MemberExpr(This, true, D,
                                                 Loc, MemberType));
         }
@@ -1125,14 +1130,18 @@ Sema::ActOnDeclarationNameExpr(Scope *S, SourceLocation Loc,
   // as they do not get snapshotted.
   //
   if (CurBlock && ShouldSnapshotBlockValueReference(CurBlock, VD)) {
+    MarkDeclarationReferenced(Loc, VD);
     QualType ExprTy = VD->getType().getNonReferenceType();
     // The BlocksAttr indicates the variable is bound by-reference.
-    if (VD->getAttr<BlocksAttr>())
+    if (VD->getAttr<BlocksAttr>(Context))
       return Owned(new (Context) BlockDeclRefExpr(VD, ExprTy, Loc, true));
-
+    // This is to record that a 'const' was actually synthesize and added.
+    bool constAdded = !ExprTy.isConstQualified();
     // Variable will be bound by-copy, make it const within the closure.
+    
     ExprTy.addConst();
-    return Owned(new (Context) BlockDeclRefExpr(VD, ExprTy, Loc, false));
+    return Owned(new (Context) BlockDeclRefExpr(VD, ExprTy, Loc, false, 
+                                                constAdded));
   }
   // If this reference is not in a block or if the referenced variable is
   // within the block, create a normal DeclRefExpr.
@@ -1576,7 +1585,7 @@ Sema::ActOnPostfixUnaryOp(Scope *S, SourceLocation OpLoc,
 
     // Perform overload resolution.
     OverloadCandidateSet::iterator Best;
-    switch (BestViableFunction(CandidateSet, Best)) {
+    switch (BestViableFunction(CandidateSet, OpLoc, Best)) {
     case OR_Success: {
       // We found a built-in operator or an overloaded operator.
       FunctionDecl *FnDecl = Best->Function;
@@ -1686,7 +1695,7 @@ Sema::ActOnArraySubscriptExpr(Scope *S, ExprArg Base, SourceLocation LLoc,
 
     // Perform overload resolution.
     OverloadCandidateSet::iterator Best;
-    switch (BestViableFunction(CandidateSet, Best)) {
+    switch (BestViableFunction(CandidateSet, LLoc, Best)) {
     case OR_Success: {
       // We found a built-in operator or an overloaded operator.
       FunctionDecl *FnDecl = Best->Function;
@@ -1969,13 +1978,13 @@ static Decl *FindGetterNameDeclFromProtocolList(const ObjCProtocolDecl*PDecl,
   return 0;
 }
 
-static Decl *FindGetterNameDecl(const ObjCQualifiedIdType *QIdTy,
+static Decl *FindGetterNameDecl(const ObjCObjectPointerType *QIdTy,
                                 IdentifierInfo &Member,
                                 const Selector &Sel,
                                 ASTContext &Context) {
   // Check protocols on qualified interfaces.
   Decl *GDecl = 0;
-  for (ObjCQualifiedIdType::qual_iterator I = QIdTy->qual_begin(),
+  for (ObjCObjectPointerType::qual_iterator I = QIdTy->qual_begin(),
        E = QIdTy->qual_end(); I != E; ++I) {
     if (ObjCPropertyDecl *PD = (*I)->FindPropertyDeclaration(Context, &Member)) {
       GDecl = PD;
@@ -1988,7 +1997,7 @@ static Decl *FindGetterNameDecl(const ObjCQualifiedIdType *QIdTy,
     }
   }
   if (!GDecl) {
-    for (ObjCQualifiedIdType::qual_iterator I = QIdTy->qual_begin(),
+    for (ObjCObjectPointerType::qual_iterator I = QIdTy->qual_begin(),
          E = QIdTy->qual_end(); I != E; ++I) {
       // Search in the protocol-qualifier list of current protocol.
       GDecl = FindGetterNameDeclFromProtocolList(*I, Member, Sel, Context);
@@ -2313,7 +2322,7 @@ Sema::ActOnMemberReferenceExpr(Scope *S, ExprArg Base, SourceLocation OpLoc,
       << &Member << BaseType);
   }
   // Handle properties on qualified "id" protocols.
-  const ObjCQualifiedIdType *QIdTy;
+  const ObjCObjectPointerType *QIdTy;
   if (OpKind == tok::period && (QIdTy = BaseType->getAsObjCQualifiedIdType())) {
     // Check protocols on qualified interfaces.
     Selector Sel = PP.getSelectorTable().getNullarySelector(&Member);
@@ -2491,8 +2500,21 @@ Sema::ConvertArgumentsForCall(CallExpr *Call, Expr *Fn,
         FDecl << cast<CXXRecordDecl>(FDecl->getDeclContext())->getDeclName();
         Diag(UnparsedDefaultArgLocs[FDecl->getParamDecl(i)], 
               diag::note_default_argument_declared_here);
+      } else {
+        Expr *DefaultExpr = FDecl->getParamDecl(i)->getDefaultArg();
+        
+        // If the default expression creates temporaries, we need to
+        // push them to the current stack of expression temporaries so they'll
+        // be properly destroyed.
+        if (CXXExprWithTemporaries *E 
+              = dyn_cast_or_null<CXXExprWithTemporaries>(DefaultExpr)) {
+          assert(!E->shouldDestroyTemporaries() && 
+                 "Can't destroy temporaries in a default argument expr!");
+          for (unsigned I = 0, N = E->getNumTemporaries(); I != N; ++I)
+            ExprTemporaries.push_back(E->getTemporary(I));
+        }
       }
-      
+  
       // We already type-checked the argument, so we know it works.
       Arg = new (Context) CXXDefaultArgExpr(FDecl->getParamDecl(i));
     }
@@ -3395,7 +3417,7 @@ Sema::CheckTransparentUnionArgumentConstraints(QualType ArgType, Expr *&rExpr) {
   // If the ArgType is a Union type, we want to handle a potential 
   // transparent_union GCC extension.
   const RecordType *UT = ArgType->getAsUnionType();
-  if (!UT || !UT->getDecl()->hasAttr<TransparentUnionAttr>())
+  if (!UT || !UT->getDecl()->hasAttr<TransparentUnionAttr>(Context))
     return Incompatible;
 
   // The field to initialize within the transparent union.
@@ -5098,7 +5120,7 @@ void Sema::ActOnBlockStart(SourceLocation CaretLoc, Scope *BlockScope) {
   BSI->PrevBlockInfo = CurBlock;
   CurBlock = BSI;
 
-  BSI->ReturnType = 0;
+  BSI->ReturnType = QualType();
   BSI->TheScope = BlockScope;
   BSI->hasBlockDeclRefExprs = false;
   BSI->SavedFunctionNeedsScopeChecking = CurFunctionNeedsScopeChecking;
@@ -5113,7 +5135,7 @@ void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
 
   if (ParamInfo.getNumTypeObjects() == 0
       || ParamInfo.getTypeObject(0).Kind != DeclaratorChunk::Function) {
-    ProcessDeclAttributes(CurBlock->TheDecl, ParamInfo);
+    ProcessDeclAttributes(CurScope, CurBlock->TheDecl, ParamInfo);
     QualType T = GetTypeForDeclarator(ParamInfo, CurScope);
 
     if (T->isArrayType()) {
@@ -5129,7 +5151,7 @@ void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
     CurBlock->hasPrototype = true;
     CurBlock->isVariadic = false;
     // Check for a valid sentinel attribute on this block.
-    if (CurBlock->TheDecl->getAttr<SentinelAttr>()) {
+    if (CurBlock->TheDecl->getAttr<SentinelAttr>(Context)) {
       Diag(ParamInfo.getAttributes()->getLoc(), 
            diag::warn_attribute_sentinel_not_variadic) << 1;
       // FIXME: remove the attribute.
@@ -5169,7 +5191,7 @@ void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
   CurBlock->TheDecl->setParams(Context, CurBlock->Params.data(),
                                CurBlock->Params.size());
   CurBlock->TheDecl->setIsVariadic(CurBlock->isVariadic);
-  ProcessDeclAttributes(CurBlock->TheDecl, ParamInfo);
+  ProcessDeclAttributes(CurScope, CurBlock->TheDecl, ParamInfo);
   for (BlockDecl::param_iterator AI = CurBlock->TheDecl->param_begin(),
        E = CurBlock->TheDecl->param_end(); AI != E; ++AI)
     // If this has an identifier, add it to the scope stack.
@@ -5177,7 +5199,8 @@ void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
       PushOnScopeChains(*AI, CurBlock->TheScope);
 
   // Check for a valid sentinel attribute on this block.
-  if (!CurBlock->isVariadic && CurBlock->TheDecl->getAttr<SentinelAttr>()) {
+  if (!CurBlock->isVariadic && 
+      CurBlock->TheDecl->getAttr<SentinelAttr>(Context)) {
     Diag(ParamInfo.getAttributes()->getLoc(), 
          diag::warn_attribute_sentinel_not_variadic) << 1;
     // FIXME: remove the attribute.
@@ -5192,7 +5215,7 @@ void Sema::ActOnBlockArguments(Declarator &ParamInfo, Scope *CurScope) {
     Diag(ParamInfo.getSourceRange().getBegin(),
          diag::err_object_cannot_be_passed_returned_by_value) << 0 << RetTy;
   } else if (!RetTy->isDependentType())
-    CurBlock->ReturnType = RetTy.getTypePtr();
+    CurBlock->ReturnType = RetTy;
 }
 
 /// ActOnBlockError - If there is an error parsing a block, this callback
@@ -5226,8 +5249,8 @@ Sema::OwningExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
   CurBlock = CurBlock->PrevBlockInfo;
 
   QualType RetTy = Context.VoidTy;
-  if (BSI->ReturnType)
-    RetTy = QualType(BSI->ReturnType, 0);
+  if (!BSI->ReturnType.isNull())
+    RetTy = BSI->ReturnType;
 
   llvm::SmallVector<QualType, 8> ArgTypes;
   for (unsigned i = 0, e = BSI->Params.size(); i != e; ++i)
@@ -5241,7 +5264,7 @@ Sema::OwningExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
                                       BSI->isVariadic, 0);
 
   // FIXME: Check that return/parameter types are complete/non-abstract
-
+  DiagnoseUnusedParameters(BSI->Params.begin(), BSI->Params.end());
   BlockTy = Context.getBlockPointerType(BlockTy);
 
   // If needed, diagnose invalid gotos and switches in the block.
@@ -5408,3 +5431,49 @@ bool Sema::VerifyIntegerConstantExpression(const Expr *E, llvm::APSInt *Result){
     *Result = EvalResult.Val.getInt();
   return false;
 }
+
+
+/// \brief Note that the given declaration was referenced in the source code.
+///
+/// This routine should be invoke whenever a given declaration is referenced
+/// in the source code, and where that reference occurred. If this declaration
+/// reference means that the the declaration is used (C++ [basic.def.odr]p2,
+/// C99 6.9p3), then the declaration will be marked as used.
+///
+/// \param Loc the location where the declaration was referenced.
+///
+/// \param D the declaration that has been referenced by the source code.
+void Sema::MarkDeclarationReferenced(SourceLocation Loc, Decl *D) {
+  assert(D && "No declaration?");
+  
+  // Mark a parameter declaration "used", regardless of whether we're in a
+  // template or not.
+  if (isa<ParmVarDecl>(D))
+    D->setUsed(true);
+  
+  // Do not mark anything as "used" within a dependent context; wait for
+  // an instantiation.
+  if (CurContext->isDependentContext())
+    return;
+  
+  // If we are in an unevaluated operand, don't mark any definitions as used.
+  if (InUnevaluatedOperand)
+    return;
+  
+  // Note that this declaration has been used.
+  if (FunctionDecl *Function = dyn_cast<FunctionDecl>(D)) {
+    // FIXME: implicit template instantiation
+    // FIXME: keep track of references to static functions
+    (void)Function;
+    Function->setUsed(true);
+    return;
+  } 
+  
+  if (VarDecl *Var = dyn_cast<VarDecl>(D)) {
+    (void)Var;
+    // FIXME: implicit template instantiation
+    // FIXME: keep track of references to static data?
+    D->setUsed(true);
+  }
+}
+

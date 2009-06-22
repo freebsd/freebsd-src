@@ -69,8 +69,7 @@ const GRState* GRStateManager::Unbind(const GRState* St, Loc LV) {
 }
 
 const GRState* GRStateManager::getInitialState() {
-
-  GRState StateImpl(EnvMgr.getInitialEnvironment(), 
+  GRState StateImpl(this, EnvMgr.getInitialEnvironment(), 
                     StoreMgr->getInitialStore(),
                     GDMFactory.GetEmptyMap());
 
@@ -92,25 +91,19 @@ const GRState* GRStateManager::getPersistentState(GRState& State) {
   return I;
 }
 
-const GRState* GRStateManager::MakeStateWithStore(const GRState* St, 
-                                                  Store store) {
-  GRState NewSt = *St;
+const GRState* GRState::makeWithStore(Store store) const {
+  GRState NewSt = *this;
   NewSt.St = store;
-  return getPersistentState(NewSt);
+  return Mgr->getPersistentState(NewSt);
 }
-
 
 //===----------------------------------------------------------------------===//
 //  State pretty-printing.
 //===----------------------------------------------------------------------===//
 
-void GRState::print(std::ostream& Out, StoreManager& StoreMgr,
-                    ConstraintManager& ConstraintMgr,
-                    Printer** Beg, Printer** End,
-                    const char* nl, const char* sep) const {
-  
+void GRState::print(std::ostream& Out, const char* nl, const char* sep) const {  
   // Print the store.
-  StoreMgr.print(getStore(), Out, nl, sep);
+  Mgr->getStoreManager().print(getStore(), Out, nl, sep);
   
   // Print Subexpression bindings.
   bool isFirst = true;
@@ -150,24 +143,21 @@ void GRState::print(std::ostream& Out, StoreManager& StoreMgr,
     I.getData().print(Out);
   }
   
-  ConstraintMgr.print(this, Out, nl, sep);
+  Mgr->getConstraintManager().print(this, Out, nl, sep);
   
-  // Print checker-specific data. 
-  for ( ; Beg != End ; ++Beg) (*Beg)->Print(Out, this, nl, sep);
+  // Print checker-specific data.
+  for (std::vector<Printer*>::iterator I = Mgr->Printers.begin(),
+                                       E = Mgr->Printers.end(); I != E; ++I) {
+    (*I)->Print(Out, this, nl, sep);
+  }
 }
 
-void GRStateRef::printDOT(std::ostream& Out) const {
+void GRState::printDOT(std::ostream& Out) const {
   print(Out, "\\l", "\\|");
 }
 
-void GRStateRef::printStdErr() const {
+void GRState::printStdErr() const {
   print(*llvm::cerr);
-}  
-
-void GRStateRef::print(std::ostream& Out, const char* nl, const char* sep)const{
-  GRState::Printer **beg = Mgr->Printers.empty() ? 0 : &Mgr->Printers[0];
-  GRState::Printer **end = !beg ? 0 : beg + Mgr->Printers.size();  
-  St->print(Out, *Mgr->StoreMgr, *Mgr->ConstraintMgr, beg, end, nl, sep);
 }
 
 //===----------------------------------------------------------------------===//
@@ -213,13 +203,13 @@ class VISIBILITY_HIDDEN ScanReachableSymbols : public SubRegionMap::Visitor  {
   typedef llvm::DenseSet<const MemRegion*> VisitedRegionsTy;
 
   VisitedRegionsTy visited;
-  GRStateRef state;
+  const GRState *state;
   SymbolVisitor &visitor;
   llvm::OwningPtr<SubRegionMap> SRM;
 public:
   
-  ScanReachableSymbols(GRStateManager* sm, const GRState *st, SymbolVisitor& v)
-    : state(st, *sm), visitor(v) {}
+  ScanReachableSymbols(const GRState *st, SymbolVisitor& v)
+    : state(st), visitor(v) {}
   
   bool scan(nonloc::CompoundVal val);
   bool scan(SVal val);
@@ -270,19 +260,18 @@ bool ScanReachableSymbols::scan(const MemRegion *R) {
       return false;
   
   // Now look at the binding to this region (if any).
-  if (!scan(state.GetSValAsScalarOrLoc(R)))
+  if (!scan(state->getSValAsScalarOrLoc(R)))
     return false;
   
   // Now look at the subregions.
   if (!SRM.get())
-   SRM.reset(state.getManager().getStoreManager().getSubRegionMap(state));
+   SRM.reset(state->getStateManager().getStoreManager().getSubRegionMap(state));
   
   return SRM->iterSubRegions(R, *this);
 }
 
-bool GRStateManager::scanReachableSymbols(SVal val, const GRState* state,
-                                          SymbolVisitor& visitor) {
-  ScanReachableSymbols S(this, state, visitor);
+bool GRState::scanReachableSymbols(SVal val, SymbolVisitor& visitor) const {
+  ScanReachableSymbols S(this, visitor);
   return S.scan(val);
 }
 

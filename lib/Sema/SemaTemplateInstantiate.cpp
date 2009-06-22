@@ -431,6 +431,32 @@ InstantiateDependentSizedArrayType(const DependentSizedArrayType *T,
 }
 
 QualType 
+TemplateTypeInstantiator::
+InstantiateDependentSizedExtVectorType(const DependentSizedExtVectorType *T,
+                                   unsigned Quals) const {
+
+  // Instantiate the element type if needed.
+  QualType ElementType = T->getElementType();
+  if (ElementType->isDependentType()) {
+    ElementType = Instantiate(ElementType);
+    if (ElementType.isNull())
+      return QualType();
+  }
+
+  // Instantiate the size expression.
+  const Expr *SizeExpr = T->getSizeExpr();
+  Sema::OwningExprResult InstantiatedArraySize = 
+    SemaRef.InstantiateExpr(const_cast<Expr *>(SizeExpr), TemplateArgs);
+  if (InstantiatedArraySize.isInvalid())
+    return QualType();
+  
+  return SemaRef.BuildExtVectorType(ElementType,
+                                    SemaRef.Owned(
+                                      InstantiatedArraySize.takeAs<Expr>()),
+                                    T->getAttributeLoc());
+}
+
+QualType 
 TemplateTypeInstantiator::InstantiateVectorType(const VectorType *T,
                                              unsigned Quals) const {
   // FIXME: Implement this
@@ -564,6 +590,7 @@ InstantiateTemplateTypeParmType(const TemplateTypeParmType *T,
   // parameter with the template "level" reduced by one.
   return SemaRef.Context.getTemplateTypeParmType(T->getDepth() - 1,
                                                  T->getIndex(),
+                                                 T->isParameterPack(),
                                                  T->getName())
     .getQualifiedType(Quals);
 }
@@ -630,6 +657,14 @@ InstantiateTypenameType(const TypenameType *T, unsigned Quals) const {
 
 QualType 
 TemplateTypeInstantiator::
+InstantiateObjCObjectPointerType(const ObjCObjectPointerType *T,
+                                 unsigned Quals) const {
+  assert(false && "Objective-C types cannot be dependent");
+  return QualType();
+}
+
+QualType
+TemplateTypeInstantiator::
 InstantiateObjCInterfaceType(const ObjCInterfaceType *T,
                              unsigned Quals) const {
   assert(false && "Objective-C types cannot be dependent");
@@ -640,14 +675,6 @@ QualType
 TemplateTypeInstantiator::
 InstantiateObjCQualifiedInterfaceType(const ObjCQualifiedInterfaceType *T,
                                       unsigned Quals) const {
-  assert(false && "Objective-C types cannot be dependent");
-  return QualType();
-}
-
-QualType 
-TemplateTypeInstantiator::
-InstantiateObjCQualifiedIdType(const ObjCQualifiedIdType *T,
-                               unsigned Quals) const {
   assert(false && "Objective-C types cannot be dependent");
   return QualType();
 }
@@ -1153,6 +1180,10 @@ TemplateArgument Sema::Instantiate(TemplateArgument Arg,
       return TemplateArgument();
     return TemplateArgument(E.takeAs<Expr>());
   }
+  
+  case TemplateArgument::Pack:
+    assert(0 && "FIXME: Implement!");
+    break;
   }
 
   assert(false && "Unhandled template argument kind");

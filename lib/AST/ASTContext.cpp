@@ -222,7 +222,7 @@ const llvm::fltSemantics &ASTContext::getFloatTypeSemantics(QualType T) const {
 unsigned ASTContext::getDeclAlignInBytes(const Decl *D) {
   unsigned Align = Target.getCharWidth();
 
-  if (const AlignedAttr* AA = D->getAttr<AlignedAttr>())
+  if (const AlignedAttr* AA = D->getAttr<AlignedAttr>(*this))
     Align = std::max(Align, AA->getAlignment());
 
   if (const ValueDecl *VD = dyn_cast<ValueDecl>(D)) {
@@ -369,7 +369,7 @@ ASTContext::getTypeInfo(const Type *T) {
     // FIXME: Pointers into different addr spaces could have different sizes and
     // alignment requirements: getPointerInfo should take an AddrSpace.
     return getTypeInfo(QualType(cast<ExtQualType>(T)->getBaseType(), 0));
-  case Type::ObjCQualifiedId:
+  case Type::ObjCObjectPointer:
   case Type::ObjCQualifiedInterface:
     Width = Target.getPointerWidth(0);
     Align = Target.getPointerAlign(0);
@@ -445,7 +445,7 @@ ASTContext::getTypeInfo(const Type *T) {
 
   case Type::Typedef: {
     const TypedefDecl *Typedef = cast<TypedefType>(T)->getDecl();
-    if (const AlignedAttr *Aligned = Typedef->getAttr<AlignedAttr>()) {
+    if (const AlignedAttr *Aligned = Typedef->getAttr<AlignedAttr>(*this)) {
       Align = Aligned->getAlignment();
       Width = getTypeSize(Typedef->getUnderlyingType().getTypePtr());
     } else
@@ -505,7 +505,7 @@ void ASTRecordLayout::LayoutField(const FieldDecl *FD, unsigned FieldNo,
 
   // FIXME: Should this override struct packing? Probably we want to
   // take the minimum?
-  if (const PackedAttr *PA = FD->getAttr<PackedAttr>())
+  if (const PackedAttr *PA = FD->getAttr<PackedAttr>(Context))
     FieldPacking = PA->getAlignment();
   
   if (const Expr *BitWidthExpr = FD->getBitWidth()) {
@@ -525,7 +525,7 @@ void ASTRecordLayout::LayoutField(const FieldDecl *FD, unsigned FieldNo,
     FieldAlign = FieldInfo.second;
     if (FieldPacking)
       FieldAlign = std::min(FieldAlign, FieldPacking);
-    if (const AlignedAttr *AA = FD->getAttr<AlignedAttr>())
+    if (const AlignedAttr *AA = FD->getAttr<AlignedAttr>(Context))
       FieldAlign = std::max(FieldAlign, AA->getAlignment());
     
     // Check if we need to add padding to give the field the correct
@@ -565,7 +565,7 @@ void ASTRecordLayout::LayoutField(const FieldDecl *FD, unsigned FieldNo,
     // is smaller than the specified packing?
     if (FieldPacking)
       FieldAlign = std::min(FieldAlign, std::max(8U, FieldPacking));
-    if (const AlignedAttr *AA = FD->getAttr<AlignedAttr>())
+    if (const AlignedAttr *AA = FD->getAttr<AlignedAttr>(Context))
       FieldAlign = std::max(FieldAlign, AA->getAlignment());
     
     // Round up the current record size to the field's alignment boundary.
@@ -731,10 +731,10 @@ ASTContext::getObjCLayout(const ObjCInterfaceDecl *D,
   }
 
   unsigned StructPacking = 0;
-  if (const PackedAttr *PA = D->getAttr<PackedAttr>())
+  if (const PackedAttr *PA = D->getAttr<PackedAttr>(*this))
     StructPacking = PA->getAlignment();
 
-  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>())
+  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>(*this))
     NewEntry->SetAlignment(std::max(NewEntry->getAlignment(), 
                                     AA->getAlignment()));
 
@@ -783,10 +783,10 @@ const ASTRecordLayout &ASTContext::getASTRecordLayout(const RecordDecl *D) {
   bool IsUnion = D->isUnion();
 
   unsigned StructPacking = 0;
-  if (const PackedAttr *PA = D->getAttr<PackedAttr>())
+  if (const PackedAttr *PA = D->getAttr<PackedAttr>(*this))
     StructPacking = PA->getAlignment();
 
-  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>())
+  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>(*this))
     NewEntry->SetAlignment(std::max(NewEntry->getAlignment(), 
                                     AA->getAlignment()));
 
@@ -1269,6 +1269,18 @@ QualType ASTContext::getExtVectorType(QualType vecType, unsigned NumElts) {
   return QualType(New, 0);
 }
 
+QualType ASTContext::getDependentSizedExtVectorType(QualType vecType, 
+                                                    Expr *SizeExpr,
+                                                    SourceLocation AttrLoc) {
+  DependentSizedExtVectorType *New =
+      new (*this,8) DependentSizedExtVectorType(vecType, QualType(), 
+                                                SizeExpr, AttrLoc);
+
+  DependentSizedExtVectorTypes.push_back(New);
+  Types.push_back(New);
+  return QualType(New, 0);
+}
+
 /// getFunctionNoProtoType - Return a K&R style C function type like 'int()'.
 ///
 QualType ASTContext::getFunctionNoProtoType(QualType ResultTy) {
@@ -1414,11 +1426,13 @@ QualType ASTContext::getObjCInterfaceType(const ObjCInterfaceDecl *Decl) {
 }
 
 /// \brief Retrieve the template type parameter type for a template
-/// parameter with the given depth, index, and (optionally) name.
+/// parameter or parameter pack with the given depth, index, and (optionally) 
+/// name.
 QualType ASTContext::getTemplateTypeParmType(unsigned Depth, unsigned Index, 
+                                             bool ParameterPack,
                                              IdentifierInfo *Name) {
   llvm::FoldingSetNodeID ID;
-  TemplateTypeParmType::Profile(ID, Depth, Index, Name);
+  TemplateTypeParmType::Profile(ID, Depth, Index, ParameterPack, Name);
   void *InsertPos = 0;
   TemplateTypeParmType *TypeParm 
     = TemplateTypeParmTypes.FindNodeOrInsertPos(ID, InsertPos);
@@ -1426,11 +1440,12 @@ QualType ASTContext::getTemplateTypeParmType(unsigned Depth, unsigned Index,
   if (TypeParm)
     return QualType(TypeParm, 0);
   
-  if (Name)
-    TypeParm = new (*this, 8) TemplateTypeParmType(Depth, Index, Name,
-                                         getTemplateTypeParmType(Depth, Index));
-  else
-    TypeParm = new (*this, 8) TemplateTypeParmType(Depth, Index);
+  if (Name) {
+    QualType Canon = getTemplateTypeParmType(Depth, Index, ParameterPack);
+    TypeParm = new (*this, 8) TemplateTypeParmType(Depth, Index, ParameterPack,
+                                                   Name, Canon);
+  } else
+    TypeParm = new (*this, 8) TemplateTypeParmType(Depth, Index, ParameterPack);
 
   Types.push_back(TypeParm);
   TemplateTypeParmTypes.InsertNode(TypeParm, InsertPos);
@@ -1563,6 +1578,31 @@ static void SortAndUniqueProtocols(ObjCProtocolDecl **&Protocols,
   NumProtocols = ProtocolsEnd-Protocols;
 }
 
+/// getObjCObjectPointerType - Return a ObjCObjectPointerType type for
+/// the given interface decl and the conforming protocol list.
+QualType ASTContext::getObjCObjectPointerType(ObjCInterfaceDecl *Decl,
+                                              ObjCProtocolDecl **Protocols, 
+                                              unsigned NumProtocols) {
+  // Sort the protocol list alphabetically to canonicalize it.
+  if (NumProtocols)
+    SortAndUniqueProtocols(Protocols, NumProtocols);
+
+  llvm::FoldingSetNodeID ID;
+  ObjCObjectPointerType::Profile(ID, Decl, Protocols, NumProtocols);
+
+  void *InsertPos = 0;
+  if (ObjCObjectPointerType *QT =
+              ObjCObjectPointerTypes.FindNodeOrInsertPos(ID, InsertPos))
+    return QualType(QT, 0);
+
+  // No Match;
+  ObjCObjectPointerType *QType =
+    new (*this,8) ObjCObjectPointerType(Decl, Protocols, NumProtocols);
+  
+  Types.push_back(QType);
+  ObjCObjectPointerTypes.InsertNode(QType, InsertPos);
+  return QualType(QType, 0);
+}
 
 /// getObjCQualifiedInterfaceType - Return a ObjCQualifiedInterfaceType type for
 /// the given interface decl and the conforming protocol list.
@@ -1592,23 +1632,7 @@ QualType ASTContext::getObjCQualifiedInterfaceType(ObjCInterfaceDecl *Decl,
 /// and the conforming protocol list.
 QualType ASTContext::getObjCQualifiedIdType(ObjCProtocolDecl **Protocols, 
                                             unsigned NumProtocols) {
-  // Sort the protocol list alphabetically to canonicalize it.
-  SortAndUniqueProtocols(Protocols, NumProtocols);
-
-  llvm::FoldingSetNodeID ID;
-  ObjCQualifiedIdType::Profile(ID, Protocols, NumProtocols);
-  
-  void *InsertPos = 0;
-  if (ObjCQualifiedIdType *QT =
-        ObjCQualifiedIdTypes.FindNodeOrInsertPos(ID, InsertPos))
-    return QualType(QT, 0);
-  
-  // No Match;
-  ObjCQualifiedIdType *QType =
-    new (*this,8) ObjCQualifiedIdType(Protocols, NumProtocols);
-  Types.push_back(QType);
-  ObjCQualifiedIdTypes.InsertNode(QType, InsertPos);
-  return QualType(QType, 0);
+  return getObjCObjectPointerType(0, Protocols, NumProtocols);
 }
 
 /// getTypeOfExprType - Unlike many "get<Type>" functions, we can't unique
@@ -2398,9 +2422,9 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
     if (FD || EncodingProperty) {
       // Note that we do extended encoding of protocol qualifer list
       // Only when doing ivar or property encoding.
-      const ObjCQualifiedIdType *QIDT = T->getAsObjCQualifiedIdType();
+      const ObjCObjectPointerType *QIDT = T->getAsObjCQualifiedIdType();
       S += '"';
-      for (ObjCQualifiedIdType::qual_iterator I = QIDT->qual_begin(),
+      for (ObjCObjectPointerType::qual_iterator I = QIDT->qual_begin(),
            E = QIDT->qual_end(); I != E; ++I) {
         S += '<';
         S += (*I)->getNameAsString();
@@ -2758,7 +2782,7 @@ QualType ASTContext::getFromTargetType(unsigned Type) const {
 bool ASTContext::isObjCNSObjectType(QualType Ty) const {
   if (TypedefType *TDT = dyn_cast<TypedefType>(Ty)) {
     if (TypedefDecl *TD = TDT->getDecl())
-      if (TD->getAttr<ObjCNSObjectAttr>())
+      if (TD->getAttr<ObjCNSObjectAttr>(*const_cast<ASTContext*>(this)))
         return true;
   }
   return false;  
@@ -3283,7 +3307,8 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
 
     return QualType();
   }
-  case Type::ObjCQualifiedId:
+  case Type::ObjCObjectPointer:
+    // FIXME: finish
     // Distinct qualified id's are not compatible.
     return QualType();
   case Type::FixedWidthInt:

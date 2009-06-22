@@ -18,7 +18,9 @@
 #include "IdentifierResolver.h"
 #include "CXXFieldCollector.h"
 #include "SemaOverload.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/DeclBase.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Parse/Action.h"
@@ -102,7 +104,7 @@ struct BlockSemaInfo {
   
   /// ReturnType - This will get set to block result type, by looking at
   /// return types, if any, in the block body.
-  Type *ReturnType;
+  QualType ReturnType;
   
   /// LabelMap - This is a mapping from label identifiers to the LabelStmt for
   /// it (which acts like the label decl in some ways).  Forward referenced
@@ -245,6 +247,12 @@ public:
   /// have been declared.
   bool GlobalNewDeleteDeclared;
 
+  /// A flag that indicates when we are processing an unevaluated operand
+  /// (C++0x [expr]). C99 has the same notion of declarations being
+  /// "used" and C++03 has the notion of "potentially evaluated", but we
+  /// adopt the C++0x terminology since it is most precise.
+  bool InUnevaluatedOperand;
+  
   /// \brief Whether the code handled by Sema should be considered a
   /// complete translation unit or not.
   ///
@@ -312,24 +320,8 @@ public:
       // If we encountered an error during template argument
       // deduction, and that error is one of the SFINAE errors,
       // suppress the diagnostic.
-      bool Fatal = false;
-      switch (Diags.getDiagnosticLevel(DiagID)) {
-      case Diagnostic::Ignored:
-      case Diagnostic::Note:
-      case Diagnostic::Warning:
-        break;
-
-      case Diagnostic::Error:
-        ++NumSFINAEErrors;
-        break;
-
-      case Diagnostic::Fatal:
-        Fatal = true;
-        break;
-      }
-
-      if (!Fatal)
-        return SemaDiagnosticBuilder(*this);
+      ++NumSFINAEErrors;
+      return SemaDiagnosticBuilder(*this);
     }
 
     DiagnosticBuilder DB = Diags.Report(FullSourceLoc(Loc, SourceMgr), DiagID);
@@ -375,6 +367,8 @@ public:
   QualType BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
                           Expr *ArraySize, unsigned Quals,
                           SourceLocation Loc, DeclarationName Entity);
+  QualType BuildExtVectorType(QualType T, ExprArg ArraySize, 
+                              SourceLocation AttrLoc);
   QualType BuildFunctionType(QualType T,
                              QualType *ParamTypes, unsigned NumParamTypes,
                              bool Variadic, unsigned Quals,
@@ -468,6 +462,19 @@ public:
   virtual DeclPtrTy ActOnFinishFunctionBody(DeclPtrTy Decl, StmtArg Body);
   DeclPtrTy ActOnFinishFunctionBody(DeclPtrTy Decl, StmtArg Body,
                                     bool IsInstantiation);
+  
+  /// \brief Diagnose any unused parameters in the given sequence of
+  /// ParmVarDecl pointers.
+  template<typename InputIterator>
+  void DiagnoseUnusedParameters(InputIterator Param, InputIterator ParamEnd) {
+    for (; Param != ParamEnd; ++Param) {
+      if (!(*Param)->isUsed() && (*Param)->getDeclName() && 
+          !(*Param)->template hasAttr<UnusedAttr>(Context))
+        Diag((*Param)->getLocation(), diag::warn_unused_parameter)
+          << (*Param)->getDeclName();
+    }
+  }
+  
   void DiagnoseInvalidJumps(Stmt *Body);
   virtual DeclPtrTy ActOnFileScopeAsmDecl(SourceLocation Loc, ExprArg expr);
 
@@ -552,6 +559,12 @@ public:
   /// Set the current declaration context until it gets popped.
   void PushDeclContext(Scope *S, DeclContext *DC);
   void PopDeclContext();
+  
+  /// EnterDeclaratorContext - Used when we must lookup names in the context
+  /// of a declarator's nested name specifier.
+  void EnterDeclaratorContext(Scope *S, DeclContext *DC);
+  void ExitDeclaratorContext(Scope *S);
+  
   
   /// getCurFunctionDecl - If inside of a function body, this returns a pointer
   /// to the function decl for the function being parsed.  If we're currently
@@ -702,6 +715,7 @@ public:
   bool isBetterOverloadCandidate(const OverloadCandidate& Cand1,
                                  const OverloadCandidate& Cand2);
   OverloadingResult BestViableFunction(OverloadCandidateSet& CandidateSet,
+                                       SourceLocation Loc,
                                        OverloadCandidateSet::iterator& Best);
   void PrintOverloadCandidates(OverloadCandidateSet& CandidateSet,
                                bool OnlyViable);
@@ -1132,8 +1146,8 @@ public:
   // More parsing and symbol table subroutines.
 
   // Decl attributes - this routine is the top level dispatcher. 
-  void ProcessDeclAttributes(Decl *D, const Declarator &PD);
-  void ProcessDeclAttributeList(Decl *D, const AttributeList *AttrList);
+  void ProcessDeclAttributes(Scope *S, Decl *D, const Declarator &PD);
+  void ProcessDeclAttributeList(Scope *S, Decl *D, const AttributeList *AttrList);
 
   void WarnUndefinedMethod(SourceLocation ImpLoc, ObjCMethodDecl *method,
                            bool &IncompleteImpl);
@@ -1320,6 +1334,14 @@ public:
   void DiagnoseSentinelCalls(NamedDecl *D, SourceLocation Loc,
                              Expr **Args, unsigned NumArgs);
 
+  virtual bool setUnevaluatedOperand(bool UnevaluatedOperand) { 
+    bool Result = InUnevaluatedOperand;
+    InUnevaluatedOperand = UnevaluatedOperand;
+    return Result;
+  }
+
+  void MarkDeclarationReferenced(SourceLocation Loc, Decl *D);
+  
   // Primary Expressions.
   virtual SourceRange getExprRange(ExprTy *E) const;
 
@@ -1525,6 +1547,14 @@ public:
                                            const CXXScopeSpec &SS,
                                            SourceLocation IdentLoc,
                                            IdentifierInfo *Ident);
+
+  virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
+                                        SourceLocation UsingLoc,
+                                        const CXXScopeSpec &SS,
+                                        SourceLocation IdentLoc,
+                                        IdentifierInfo *TargetName,
+                                        AttributeList *AttrList,
+                                        bool IsTypeName);
   
   /// AddCXXDirectInitializerToDecl - This action is called immediately after 
   /// ActOnDeclarator, when a C++ direct initializer is present.
@@ -1541,6 +1571,11 @@ public:
                                     CXXConstructorDecl *Constructor,
                                     QualType DeclInitType, 
                                     Expr **Exprs, unsigned NumExprs);
+  
+  /// DefineImplicitDefaultConstructor - Checks for feasibilityt of 
+  /// defining this constructor as the default constructor.
+  void DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
+                                        CXXConstructorDecl *Constructor);
 
   /// MaybeBindToTemporary - If the passed in expression has a record type with
   /// a non-trivial destructor, this will return CXXBindTemporaryExpr. Otherwise
@@ -1677,8 +1712,8 @@ public:
   /// MaybeCreateCXXExprWithTemporaries - If the list of temporaries is 
   /// non-empty, will create a new CXXExprWithTemporaries expression.
   /// Otherwise, just returs the passed in expression.
-  Expr *MaybeCreateCXXExprWithTemporaries(Expr *SubExpr, 
-                                          bool DestroyTemps = true);
+  Expr *MaybeCreateCXXExprWithTemporaries(Expr *SubExpr,
+                                          bool ShouldDestroyTemporaries);
   
   virtual OwningExprResult ActOnFinishFullExpr(ExprArg Expr);
 
@@ -1734,6 +1769,17 @@ public:
   /// Used to indicate that names should revert to being looked up in the
   /// defining scope.
   virtual void ActOnCXXExitDeclaratorScope(Scope *S, const CXXScopeSpec &SS);
+
+  /// ActOnCXXEnterDeclInitializer - Invoked when we are about to parse an
+  /// initializer for the declaration 'Dcl'.
+  /// After this method is called, according to [C++ 3.4.1p13], if 'Dcl' is a
+  /// static data member of class X, names should be looked up in the scope of
+  /// class X.
+  virtual void ActOnCXXEnterDeclInitializer(Scope *S, DeclPtrTy Dcl);
+
+  /// ActOnCXXExitDeclInitializer - Invoked after we are finished parsing an
+  /// initializer for the declaration 'Dcl'.
+  virtual void ActOnCXXExitDeclInitializer(Scope *S, DeclPtrTy Dcl);
 
   // ParseObjCStringLiteral - Parse Objective-C string literals.
   virtual ExprResult ParseObjCStringLiteral(SourceLocation *AtLocs, 

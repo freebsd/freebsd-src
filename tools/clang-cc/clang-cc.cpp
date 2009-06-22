@@ -67,6 +67,7 @@
 #include "llvm/System/Process.h"
 #include "llvm/System/Program.h"
 #include "llvm/System/Signals.h"
+#include "llvm/Target/TargetSelect.h"
 #include <cstdlib>
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -139,7 +140,7 @@ namespace llvm {
       }
 
       std::string::size_type FirstColon = ArgValue.rfind(':', SecondColon-1);
-      if (SecondColon == std::string::npos) {
+      if (FirstColon == std::string::npos) {
         std::fprintf(stderr, "%s\n", ExpectedFormat);
         return true;
       }
@@ -2142,6 +2143,9 @@ int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
                               "LLVM 'Clang' Compiler: http://clang.llvm.org\n");
 
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllAsmPrinters();
+  
   if (TimeReport)
     ClangFrontendTimer = new llvm::Timer("Clang front-end time");
   
@@ -2305,7 +2309,6 @@ int main(int argc, char **argv) {
     
       // Initialize builtin info.
       PP->getBuiltinInfo().InitializeBuiltins(PP->getIdentifierTable(),
-                                              PP->getTargetInfo(),
                                               PP->getLangOptions().NoBuiltin);
     }
 

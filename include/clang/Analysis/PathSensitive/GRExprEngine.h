@@ -477,67 +477,14 @@ public:
   const SymbolManager& getSymbolManager() const { return SymMgr; }
   
 protected:
-  
   const GRState* GetState(NodeTy* N) {
     return N == EntryNode ? CleanedState : N->getState();
   }
   
-public:
-  
-  const GRState* BindExpr(const GRState* St, Expr* Ex, SVal V) {
-    return StateMgr.BindExpr(St, Ex, V);
-  }
-  
-  const GRState* BindExpr(const GRState* St, const Expr* Ex, SVal V) {
-    return BindExpr(St, const_cast<Expr*>(Ex), V);
-  }
-    
-protected:
- 
-  const GRState* BindBlkExpr(const GRState* St, Expr* Ex, SVal V) {
-    return StateMgr.BindExpr(St, Ex, V, true, false);
-  }
-  
-  const GRState* BindLoc(const GRState* St, Loc LV, SVal V) {
-    return StateMgr.BindLoc(St, LV, V);
-  }
-
-  SVal GetSVal(const GRState* St, Stmt* Ex) {
-    return StateMgr.GetSVal(St, Ex);
-  }
-    
-  SVal GetSVal(const GRState* St, const Stmt* Ex) {
-    return GetSVal(St, const_cast<Stmt*>(Ex));
-  }
-  
-  SVal GetBlkExprSVal(const GRState* St, Stmt* Ex) {
-    return StateMgr.GetBlkExprSVal(St, Ex);
-  }
-    
-  SVal GetSVal(const GRState* St, Loc LV, QualType T = QualType()) {    
-    return StateMgr.GetSVal(St, LV, T);
-  }
-  
+public:  
   inline NonLoc MakeConstantVal(uint64_t X, Expr* Ex) {
     return NonLoc::MakeVal(getBasicVals(), X, Ex->getType());
-  }
-  
-  /// Assume - Create new state by assuming that a given expression
-  ///  is true or false.
-  const GRState* Assume(const GRState* St, SVal Cond, bool Assumption,
-                           bool& isFeasible) {
-    return StateMgr.Assume(St, Cond, Assumption, isFeasible);
-  }
-  
-  const GRState* Assume(const GRState* St, Loc Cond, bool Assumption,
-                           bool& isFeasible) {
-    return StateMgr.Assume(St, Cond, Assumption, isFeasible);
-  }
-
-  const GRState* AssumeInBound(const GRState* St, SVal Idx, SVal UpperBound,
-                               bool Assumption, bool& isFeasible) {
-    return StateMgr.AssumeInBound(St, Idx, UpperBound, Assumption, isFeasible);
-  }
+  }  
 
 public:
   NodeTy* MakeNode(NodeSet& Dst, Stmt* S, NodeTy* Pred, const GRState* St,
