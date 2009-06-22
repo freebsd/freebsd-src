@@ -182,9 +182,6 @@ static struct filterops netdev_filtops =
 #ifndef VIMAGE_GLOBALS
 static struct vnet_symmap vnet_net_symmap[] = {
 	VNET_SYMMAP(net, ifnet),
-	VNET_SYMMAP(net, rt_tables),
-	VNET_SYMMAP(net, rtstat),
-	VNET_SYMMAP(net, rttrash),
 	VNET_SYMMAP_END
 };
 

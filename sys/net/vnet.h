@@ -44,11 +44,6 @@ struct vnet_net {
 	int			_if_indexlim;
 	struct knlist		_ifklist;
 
-	struct rtstat		_rtstat;
-	struct radix_node_head *_rt_tables;
-	int			_rttrash;
-	uma_zone_t		_rtzone;
-
 	struct ifnet *		_loif;
 	struct if_clone *	_lo_cloner;
 	struct ifc_simple_data *_lo_cloner_data;
