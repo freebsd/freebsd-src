@@ -9,6 +9,7 @@ hint.uart.0.at="ixp0"
 hint.uart.0.addr=0xc8000000
 hint.uart.0.irq=15
 hint.uart.0.flags=0x10
+hint.uart.0.ier_rxbits=0x5d	# NB: need UUE+RTOIE
 
 # NB: no UART1 on ixp436
 
