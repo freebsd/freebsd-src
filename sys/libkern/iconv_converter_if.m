@@ -61,7 +61,7 @@ STATICMETHOD int init {
 	struct iconv_converter_class *dcp;
 } DEFAULT iconv_converter_initstub;
 
-STATICMETHOD void done {
+STATICMETHOD int done {
 	struct iconv_converter_class *dcp;
 } DEFAULT iconv_converter_donestub;
 
