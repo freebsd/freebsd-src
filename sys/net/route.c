@@ -90,10 +90,10 @@ SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
 TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
 #ifdef VIMAGE_GLOBALS
-static struct rtstat rtstat;
-struct radix_node_head *rt_tables;
-
-static int	rttrash;		/* routes not in table but not freed */
+struct radix_node_head	*rt_tables;
+static uma_zone_t	rtzone;		/* Routing table UMA zone. */
+int			rttrash;	/* routes not in table but not freed */
+struct rtstat		rtstat;
 #endif
 
 static void rt_maskedcopy(struct sockaddr *,
@@ -128,10 +128,6 @@ static const vnet_modinfo_t vnet_rtable_modinfo = {
  * do not cast explicitly, but always use the macro below.
  */
 #define RNTORT(p)	((struct rtentry *)(p))
-
-#ifdef VIMAGE_GLOBALS
-static uma_zone_t rtzone;		/* Routing table UMA zone. */
-#endif
 
 #if 0
 /* default fib for tunnels to use */
