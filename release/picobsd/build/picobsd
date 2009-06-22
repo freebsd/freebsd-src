@@ -140,6 +140,7 @@ set_defaults() {	# no arguments
     				# mountpoint used to build memory filesystems
     c_fs=fs.PICOBSD		# filename used for the memory filesystem
     c_img=picobsd.bin		# filename used for the picobsd image
+    c_iso=picobsd.bin		# filename used for the ISO image
     generate_iso="NO"		# don't generate the iso image
 
     # select the right disklabel program
@@ -276,15 +277,7 @@ set_msgs() {		# OK
 \t3.  Site-info: ${SITE}\n\t4.  Full-path: ${MY_TREE}\n"
 }
 
-# build the iso image
-build_iso_image() {
-    log "build_iso_image()"
-    clear
-    set_msgs
-    printf "${MSG}---> Build the iso image not ready yet\n\n"
-}
-
-# Main build procedure.
+# Main build procedure. Builds both the disk image and the ISO
 build_image() {
     log "build_image() <${name}>"
     [ -n "${name}" ] || fail $? bad_type
@@ -902,6 +895,16 @@ fill_floppy_image() {
     fi
 
     log "image used `du -s ${dst}` of ${blocks}k"
+    if [ "${generate_iso}" = "YES" ]; then
+	logverbose "generate_iso ${generate_iso}"
+	# build_iso_image	# XXX not implemented yet
+	(cd ${BUILDDIR}
+	cp -p /boot/cdboot ${dst}/boot || fail $? no_space "copying cdboot"
+	mkisofs -b boot/cdboot -no-emul-boot -J -r -ldots -l -L \
+		-o ${c_iso} ${dst}
+	)
+    fi
+
     (cd ${BUILDDIR}
     makefs -t ffs -o bsize=4096 -o fsize=512 \
 	-s ${blocks}k -f 50 ${c_img} ${dst}
@@ -918,11 +921,6 @@ fill_floppy_image() {
     )
 
     echo "BUILDDIR ${BUILDDIR}"
-    if [ "${generate_iso}" = "YES" ]; then
-	echo "generate_iso ${generate_iso}"
-	# build_iso_image	# XXX not implemented yet
-	exit 1
-    fi
 
     # dump the primary and secondary boot
     # XXX primary is 512 bytes
