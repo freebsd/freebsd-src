@@ -61,7 +61,15 @@ struct at_aliasreq {
 #define	AFA_PHASE2	0x0004
 
 #ifdef _KERNEL
+extern struct rwlock	 at_ifaddr_rw;
 extern struct at_ifaddr	*at_ifaddr_list;
+
+#define	AT_IFADDR_LOCK_INIT()	rw_init(&at_ifaddr_rw, "at_ifaddr_rw")
+#define	AT_IFADDR_LOCK_ASSERT()	rw_assert(&at_ifaddr_rw, RA_LOCKED)
+#define	AT_IFADDR_RLOCK()	rw_rlock(&at_ifaddr_rw)
+#define	AT_IFADDR_RUNLOCK()	rw_runlock(&at_ifaddr_rw)
+#define	AT_IFADDR_WLOCK()	rw_wlock(&at_ifaddr_rw)
+#define	AT_IFADDR_WUNLOCK()	rw_wunlock(&at_ifaddr_rw)
 #endif
 
 #endif /* _NETATALK_AT_VAR_H_ */
