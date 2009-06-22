@@ -443,16 +443,12 @@ gethwvtrans(uint32_t hwbase, uint32_t size)
 	    { .hwbase	= IXP435_USB2_HWBASE,
 	      .size 	= IXP435_USB2_SIZE,
 	      .vbase	= IXP435_USB2_VBASE },
-#ifdef CAMBRIA_GPS_VBASE
 	    { .hwbase	= CAMBRIA_GPS_HWBASE,
 	      .size 	= CAMBRIA_GPS_SIZE,
 	      .vbase	= CAMBRIA_GPS_VBASE },
-#endif
-#ifdef CAMBRIA_RS485_VBASE
 	    { .hwbase	= CAMBRIA_RS485_HWBASE,
 	      .size 	= CAMBRIA_RS485_SIZE,
 	      .vbase	= CAMBRIA_RS485_VBASE },
-#endif
 	};
 	int i;
 
