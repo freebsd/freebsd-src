@@ -214,15 +214,27 @@ ixp435_irq_read(void)
 }
 
 int
-arm_get_next_irq(int last __unused)
+arm_get_next_irq(int last)
 {
-	uint32_t irq;
+	uint32_t mask;
 
-	if ((irq = ixp425_irq_read()))
-		return (ffs(irq) - 1);
-	if (cpu_is_ixp43x() && (irq = ixp435_irq_read()))
-		return (32 + ffs(irq) - 1);
-	return (-1);
+	last += 1;		/* always advance fwd, NB: handles -1 */
+	if (last < 32) {
+		mask = ixp425_irq_read() >> last;
+		for (; mask != 0; mask >>= 1, last += 1) {
+			if (mask & 1)
+				return last;
+		}
+		last = 32;
+	}
+	if (cpu_is_ixp43x()) {
+		mask = ixp435_irq_read() >> (32-last);
+		for (; mask != 0; mask >>= 1, last++) {
+			if (mask & 1)
+				return last;
+		}
+	}
+	return -1;
 }
 
 void
