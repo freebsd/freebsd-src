@@ -357,7 +357,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			 * to any endpoint address, local or not.
 			 */
 			if ((inp->inp_flags & INP_BINDANY) == 0 &&
-			    ifa_ifwithaddr((struct sockaddr *)sin) == NULL)
+			    ifa_ifwithaddr_check((struct sockaddr *)sin) == 0) 
 				return (EADDRNOTAVAIL);
 		}
 		laddr = sin->sin_addr;
