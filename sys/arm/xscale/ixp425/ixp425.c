@@ -159,6 +159,14 @@ DB_SHOW_COMMAND(gpio, db_show_gpio)
 }
 #endif
 
+static __inline void
+ixp425_gpio_ack(int irq)
+{
+	if (irq < 32 && ((1 << irq) & IXP425_INT_GPIOMASK))
+		IXPREG(IXP425_GPIO_VBASE + IXP425_GPIO_GPISR) =
+		    ixp425_irq2gpio_bit(irq);
+}
+
 void
 arm_mask_irq(uintptr_t nb)
 {
@@ -174,9 +182,7 @@ arm_mask_irq(uintptr_t nb)
 	}
 	restore_interrupts(i);
 	/*XXX; If it's a GPIO interrupt, ACK it know. Can it be a problem ?*/
-	if (nb < 32 && ((1 << nb) & IXP425_INT_GPIOMASK))
-		IXPREG(IXP425_GPIO_VBASE + IXP425_GPIO_GPISR) =
-		    ixp425_irq2gpio_bit(nb);
+	ixp425_gpio_ack(nb);
 }
 
 void
