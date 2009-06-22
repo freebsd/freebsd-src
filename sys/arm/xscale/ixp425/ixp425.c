@@ -139,8 +139,8 @@ DB_SHOW_COMMAND(gpio, db_show_gpio)
 	uint32_t gpit2r = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPIT2R);
 	int i, j;
 
-	db_printf("GPOUTR %08x GPOER  %08x GPINR  %08x GPISR %08x\n",
-	   gpoutr, gpoer, gpinr,
+	db_printf("GPOUTR %08x GPINR  %08x GPOER  %08x GPISR %08x\n",
+	   gpoutr, gpinr, gpoer,
 	   GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPISR));
 	db_printf("GPIT1R %08x GPIT2R %08x GPCLKR %08x\n",
 	   gpit1r, gpit2r, GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPCLKR));
