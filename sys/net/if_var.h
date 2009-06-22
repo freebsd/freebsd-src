@@ -820,6 +820,7 @@ void	ifq_init(struct ifaltq *, struct ifnet *ifp);
 void	ifq_delete(struct ifaltq *);
 
 struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
+int		ifa_ifwithaddr_check(struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithnet(struct sockaddr *);

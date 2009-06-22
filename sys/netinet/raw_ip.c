@@ -875,7 +875,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
 	     (inp->inp_flags & INP_BINDANY) == 0 &&
-	     ifa_ifwithaddr((struct sockaddr *)addr) == NULL))
+	     ifa_ifwithaddr_check((struct sockaddr *)addr) == 0))
 		return (EADDRNOTAVAIL);
 
 	INP_INFO_WLOCK(&V_ripcbinfo);
