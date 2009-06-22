@@ -68,3 +68,13 @@ STATICMETHOD void done {
 STATICMETHOD const char * name {
 	struct iconv_converter_class *dcp;
 };
+
+METHOD int tolower {
+	void *handle;
+	int c;
+} DEFAULT iconv_converter_tolowerstub;
+
+METHOD int toupper {
+	void *handle;
+	int c;
+} DEFAULT iconv_converter_tolowerstub;
