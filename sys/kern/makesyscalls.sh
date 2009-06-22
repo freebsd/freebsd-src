@@ -448,6 +448,8 @@ s/\$//g
 		if (!flag("NOPROTO") && !flag("NODEF")) {
 			printf("%s\t%s%s(struct thread *, struct %s *);\n",
 			    rettype, prefix, funcname, argalias) > outdcl
+			printf("#define\t%sAUE_%s%s\t%s\n", syscallprefix,
+			    prefix, funcname, auditev) > sysaue
 		}
 		if (flag("NOSTD")) {
 			printf("\t{ %s, (sy_call_t *)%s, %s, NULL, 0, 0, 0 },",
