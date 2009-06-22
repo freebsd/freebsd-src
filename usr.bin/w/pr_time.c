@@ -44,6 +44,7 @@ static const char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
 
 #include <stdio.h>
 #include <string.h>
+#include <wchar.h>
 
 #include "extern.h"
 
@@ -82,7 +83,7 @@ pr_attime(time_t *started, time_t *now)
 	}
 
 	(void)strftime(buf, sizeof(buf), fmt, &tp);
-	(void)printf("%-7.7s", buf);
+	(void)wprintf(L"%-7.7s", buf);
 }
 
 /*
