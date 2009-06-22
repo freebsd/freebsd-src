@@ -297,8 +297,6 @@ ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[])
 		sprintf(prefix, "%05d: %s %4d ms ",
 		    p->pipe_nr, buf, p->delay);
 		print_flowset_parms(&(p->fs), prefix);
-		if (co.verbose)
-			printf("   V %20llu\n", align_uint64(&p->V) >> MY_M);
 
 		q = (struct dn_flow_queue *)(p+1);
 		list_queues(&(p->fs), q);

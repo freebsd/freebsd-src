@@ -121,7 +121,7 @@ altq_name_to_qid(const char *name)
 	return altq->qid;
 }
 
-const char *
+static const char *
 altq_qid_to_name(u_int32_t qid)
 {
 	struct pf_altq *altq;
