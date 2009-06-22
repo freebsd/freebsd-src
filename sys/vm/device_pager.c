@@ -194,7 +194,7 @@ dev_pager_dealloc(object)
 	/*
 	 * Free up our fake pages.
 	 */
-	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != 0) {
+	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != NULL) {
 		TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, pageq);
 		dev_pager_putfake(m);
 	}
@@ -219,7 +219,8 @@ dev_pager_getpages(object, m, count, reqpage)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	dev = object->handle;
-	offset = m[reqpage]->pindex;
+	page = m[reqpage];
+	offset = page->pindex;
 	VM_OBJECT_UNLOCK(object);
 	csw = dev_refthread(dev);
 	if (csw == NULL)
@@ -234,13 +235,13 @@ dev_pager_getpages(object, m, count, reqpage)
 	td->td_fpop = fpop;
 	dev_relthread(dev);
 
-	if ((m[reqpage]->flags & PG_FICTITIOUS) != 0) {
+	if ((page->flags & PG_FICTITIOUS) != 0) {
 		/*
 		 * If the passed in reqpage page is a fake page, update it with
 		 * the new physical address.
 		 */
 		VM_OBJECT_LOCK(object);
-		dev_pager_updatefake(m[reqpage], paddr);
+		dev_pager_updatefake(page, paddr);
 		if (count > 1) {
 			vm_page_lock_queues();
 			for (i = 0; i < count; i++) {
@@ -264,7 +265,7 @@ dev_pager_getpages(object, m, count, reqpage)
 		vm_page_insert(page, object, offset);
 		m[reqpage] = page;
 	}
-
+	page->valid = VM_PAGE_BITS_ALL;
 	return (VM_PAGER_OK);
 }
 
@@ -308,7 +309,6 @@ dev_pager_getfake(paddr)
 	m->flags = PG_FICTITIOUS;
 	m->oflags = VPO_BUSY;
 	/* Fictitious pages don't use "act_count". */
-	m->valid = VM_PAGE_BITS_ALL;
 	m->dirty = 0;
 	m->busy = 0;
 	m->queue = PQ_NONE;
@@ -338,5 +338,4 @@ dev_pager_updatefake(m, paddr)
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_updatefake: bad page");
 	m->phys_addr = paddr;
-	m->valid = VM_PAGE_BITS_ALL;
 }
