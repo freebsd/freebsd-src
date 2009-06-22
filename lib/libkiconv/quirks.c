@@ -183,9 +183,13 @@ quirk_unix2vendor(uint16_t c, struct quirk_replace_list *replace_list, size_t nu
 
 #else /* statically linked */
 
+#include <sys/types.h>
+#include <sys/iconv.h>
+
 const char *
-kiconv_quirkcs(const char* base, int vendor)
+kiconv_quirkcs(const char* base __unused, int vendor __unused)
 {
+
 	return (base);
 }
 
