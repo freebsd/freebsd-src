@@ -122,6 +122,7 @@ struct vnet_modlink {
 #define	VNET_MOD_ACCF_HTTP	11
 #define	VNET_MOD_IGMP		12
 #define	VNET_MOD_MLD		13
+#define	VNET_MOD_RTABLE		14
 
 /* Stateless modules. */
 #define	VNET_MOD_IF_CLONE	19
@@ -134,7 +135,7 @@ struct vnet_modlink {
 #define	VNET_MOD_IPCOMP	 	26	
 #define	VNET_MOD_GIF		27
 #define	VNET_MOD_ARP		28
-#define	VNET_MOD_RTABLE		29
+		/*		29 */
 #define	VNET_MOD_LOIF		30
 #define	VNET_MOD_DOMAIN		31
 #define	VNET_MOD_DYNAMIC_START	32
@@ -154,6 +155,7 @@ struct vnet_modlink {
 #define	V_MOD_vnet_pf		VNET_MOD_PF
 #define	V_MOD_vnet_gif		VNET_MOD_GIF
 #define	V_MOD_vnet_ipsec	VNET_MOD_IPSEC
+#define	V_MOD_vnet_rtable	VNET_MOD_RTABLE
  
 #define	V_MOD_vprocg		0	/* no minor module ids like in vnet */
 
