@@ -19,13 +19,11 @@ hint.uart.1.addr=0x53fc0000
 hint.uart.1.irq=20
 hint.uart.1.ier_rxbits=0x1
 hint.uart.1.rclk=1843200
-hint.uart.1.rwdelay=20
 # optional RS485 serial port
 hint.uart.2.at="ixp0"
 hint.uart.2.addr=0x53f80000
 hint.uart.2.irq=21
 hint.uart.2.rclk=1843200
-hint.uart.2.rwdelay=2
 
 # NPE Hardware Queue Manager
 hint.ixpqmgr.0.at="ixp0"
