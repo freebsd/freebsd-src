@@ -320,11 +320,13 @@ m_demote(struct mbuf *m0, int all)
 			m->m_flags &= ~M_PKTHDR;
 			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
 		}
-		if (m->m_type == MT_HEADER)
-			m->m_type = MT_DATA;
-		if (m != m0 && m->m_nextpkt != NULL)
+		if (m != m0 && m->m_nextpkt != NULL) {
+			KASSERT(m->m_nextpkt == NULL,
+			    ("%s: m_nextpkt not NULL", __func__));
+			m_freem(m->m_nextpkt);
 			m->m_nextpkt = NULL;
-		m->m_flags = m->m_flags & (M_EXT|M_EOR|M_RDONLY|M_FREELIST);
+		}
+		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_FREELIST|M_NOFREE);
 	}
 }
 
