@@ -27,7 +27,7 @@
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
 ;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
-;	COMPAT6	included on COMPAT4 #ifdef (FreeBSD 6 compat)
+;	COMPAT6	included on COMPAT6 #ifdef (FreeBSD 6 compat)
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
