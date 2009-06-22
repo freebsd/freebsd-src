@@ -135,7 +135,7 @@ struct vnet_modlink {
 #define	VNET_MOD_IPCOMP	 	26	
 #define	VNET_MOD_GIF		27
 #define	VNET_MOD_ARP		28
-		/*		29 */
+#define	VNET_MOD_FLOWTABLE	29
 #define	VNET_MOD_LOIF		30
 #define	VNET_MOD_DOMAIN		31
 #define	VNET_MOD_DYNAMIC_START	32
