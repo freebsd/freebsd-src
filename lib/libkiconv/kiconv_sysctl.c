@@ -39,7 +39,6 @@ int
 kiconv_lookupconv(const char *drvname)
 {
 	size_t size;
-	int error;
 
 	if (sysctlbyname("kern.iconv.drvlist", NULL, &size, NULL, 0) == -1)
 		return (errno);
@@ -50,7 +49,6 @@ kiconv_lookupconv(const char *drvname)
 		if (drivers == NULL)
 			return (ENOMEM);
 		if (sysctlbyname("kern.iconv.drvlist", drivers, &size, NULL, 0) == -1) {
-			error = errno;
 			free(drivers);
 			return (errno);
 		}
@@ -68,7 +66,6 @@ kiconv_lookupcs(const char *tocode, const char *fromcode)
 {
 	size_t i, size;
 	struct iconv_cspair_info *csi, *csip;
-	int error;
 
 	if (sysctlbyname("kern.iconv.cslist", NULL, &size, NULL, 0) == -1)
 		return (errno);
@@ -77,9 +74,8 @@ kiconv_lookupcs(const char *tocode, const char *fromcode)
 		if (csi == NULL)
 			return (ENOMEM);
 		if (sysctlbyname("kern.iconv.cslist", csi, &size, NULL, 0) == -1) {
-			error = errno;
 			free(csi);
-			return (error);
+			return (errno);
 		}
 		for (i = 0, csip = csi; i < (size/sizeof(*csi)); i++, csip++){
 			if (strcmp(csip->cs_to, tocode) == 0 &&
