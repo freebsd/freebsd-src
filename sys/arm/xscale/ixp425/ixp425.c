@@ -113,7 +113,7 @@ static const uint8_t int2gpio[32] __attribute__ ((aligned(32))) = {
 	0xff, 0xff				/* INT#30 -> INT#31 */
 };
 
-static __inline u_int32_t
+static __inline uint32_t
 ixp425_irq2gpio_bit(int irq)
 {
 	return (1U << int2gpio[irq]);
