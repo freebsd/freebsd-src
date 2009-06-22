@@ -186,6 +186,13 @@ ixp425_gpio_ack(int irq)
 		    ixp425_irq2gpio_bit(irq);
 }
 
+static void
+ixp425_post_filter(void *arg)
+{
+	uintptr_t irq = (uintptr_t) arg;
+	ixp425_gpio_ack(irq);
+}
+
 void
 arm_mask_irq(uintptr_t nb)
 {
@@ -304,6 +311,7 @@ ixp425_attach(device_t dev)
 		ixp435_set_intrmask();
 		ixp435_set_intrsteer();
 	}
+	arm_post_filter = ixp425_post_filter;
 
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
