@@ -1070,7 +1070,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 		if (error) {
 			return (error);
 		}
-		if (length >= sizeof(*req)) {
+		if (length != sizeof(*req)) {
 			xfer->error = USB_ERR_INVAL;
 			goto complete;
 		}
