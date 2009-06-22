@@ -65,6 +65,8 @@ struct ixp425_softc {
 	bus_dma_tag_t sc_dmat;
 };
 
+void	ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type);
+
 struct ixppcib_softc {
 	device_t                sc_dev;
 	
