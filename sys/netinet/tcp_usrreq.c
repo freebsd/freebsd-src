@@ -1032,6 +1032,9 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in_getsockaddr,
+#if 0
+	.pru_soreceive =	soreceive_stream,
+#endif
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
@@ -1053,6 +1056,9 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
+#if 0
+	.pru_soreceive =	soreceive_stream,
+#endif
  	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
