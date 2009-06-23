@@ -324,6 +324,8 @@ cpu_mp_start(void)
 		va = kmem_alloc(kernel_map, PCPU_PAGES * PAGE_SIZE);
 		pc = (struct pcpu *)(va + (PCPU_PAGES * PAGE_SIZE)) - 1;
 		pcpu_init(pc, cpuid, sizeof(*pc));
+		dpcpu_init((void *)kmem_alloc(kernel_map, DPCPU_SIZE),
+		    cpuid);
 		pc->pc_addr = va;
 
 		all_cpus |= 1 << cpuid;

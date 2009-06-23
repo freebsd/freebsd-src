@@ -264,6 +264,7 @@ typedef Elf_Addr elf_lookup_fn(linker_file_t, Elf_Size, int);
 /* Support functions */
 int	elf_reloc(linker_file_t _lf, Elf_Addr base, const void *_rel, int _type, elf_lookup_fn _lu);
 int	elf_reloc_local(linker_file_t _lf, Elf_Addr base, const void *_rel, int _type, elf_lookup_fn _lu);
+Elf_Addr elf_relocaddr(linker_file_t _lf, Elf_Addr addr);
 const Elf_Sym *elf_get_sym(linker_file_t _lf, Elf_Size _symidx);
 const char *elf_get_symname(linker_file_t _lf, Elf_Size _symidx);
 

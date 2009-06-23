@@ -224,12 +224,15 @@ static int
 smp_start_secondary(int cpuid)
 {
 	struct pcpu *pcpu;
+	void *dpcpu;
 	int i;
 
 	if (bootverbose)
 		printf("smp_start_secondary: starting cpu %d\n", cpuid);
 
+	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 	pcpu_init(&__pcpu[cpuid], cpuid, sizeof(struct pcpu));
+	dpcpu_init(dpcpu, cpuid);
 
 	if (bootverbose)
 		printf("smp_start_secondary: cpu %d started\n", cpuid);
