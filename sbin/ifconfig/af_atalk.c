@@ -173,7 +173,7 @@ static __constructor void
 atalk_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(atalk_cmds);  i++)
 		cmd_register(&atalk_cmds[i]);

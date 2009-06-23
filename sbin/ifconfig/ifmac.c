@@ -112,7 +112,7 @@ static __constructor void
 mac_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(mac_cmds);  i++)
 		cmd_register(&mac_cmds[i]);
