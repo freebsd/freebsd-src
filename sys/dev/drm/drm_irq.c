@@ -463,16 +463,19 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 	} else {
 		DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
 		    vblwait->request.sequence, crtc);
-		mtx_lock(&dev->irq_lock);
 		dev->vblank[crtc].last = vblwait->request.sequence;
 		for ( ret = 0 ; !ret && !(((drm_vblank_count(dev, crtc) -
 		    vblwait->request.sequence) <= (1 << 23)) ||
 		    !dev->irq_enabled) ; ) {
-			ret = mtx_sleep(&dev->vblank[crtc].queue,
-			    &dev->irq_lock, PCATCH, "vblwtq",
-			    3 * DRM_HZ);
+			mtx_lock(&dev->irq_lock);
+			if (!(((drm_vblank_count(dev, crtc) -
+			    vblwait->request.sequence) <= (1 << 23)) ||
+			    !dev->irq_enabled))
+				ret = mtx_sleep(&dev->vblank[crtc].queue,
+				    &dev->irq_lock, PCATCH, "vblwtq",
+				    3 * DRM_HZ);
+			mtx_unlock(&dev->irq_lock);
 		}
-		mtx_unlock(&dev->irq_lock);
 
 		if (ret != EINTR && ret != ERESTART) {
 			struct timeval now;
