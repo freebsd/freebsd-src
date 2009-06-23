@@ -20,12 +20,14 @@ namespace llvm {
   namespace sys {
     void MemoryFence();
 
-    typedef uint32_t cas_flag;
-    cas_flag CompareAndSwap(volatile cas_flag* ptr,
-                            cas_flag new_value,
-                            cas_flag old_value);
-    cas_flag AtomicIncrement(volatile cas_flag* ptr);
-    cas_flag AtomicDecrement(volatile cas_flag* ptr);
+    uint32_t CompareAndSwap32(volatile uint32_t* ptr,
+                            uint32_t new_value,
+                            uint32_t old_value);
+    int32_t AtomicIncrement32(volatile int32_t* ptr);
+    int32_t AtomicDecrement32(volatile int32_t* ptr);
+    int32_t AtomicAdd32(volatile int32_t* ptr, int32_t val);
+    
+    int64_t AtomicAdd64(volatile int64_t* ptr, int64_t val);
   }
 }
 
