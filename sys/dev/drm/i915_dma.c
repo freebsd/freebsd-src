@@ -193,7 +193,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		dev_priv->ring.map.flags = 0;
 		dev_priv->ring.map.mtrr = 0;
 
-		drm_core_ioremap(&dev_priv->ring.map, dev);
+		drm_core_ioremap_wc(&dev_priv->ring.map, dev);
 
 		if (dev_priv->ring.map.handle == NULL) {
 			i915_dma_cleanup(dev);
@@ -209,7 +209,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	dev_priv->back_offset = init->back_offset;
 	dev_priv->front_offset = init->front_offset;
 	dev_priv->current_page = 0;
-	dev_priv->sarea_priv->pf_current_page = dev_priv->current_page;
+	dev_priv->sarea_priv->pf_current_page = 0;
 
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
@@ -721,7 +721,7 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("%s\n", __func__);
 
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	ret = i915_dispatch_flip(dev);
 
@@ -758,7 +758,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 0;
 		break;
 	default:
-		DRM_ERROR("Unknown parameter %d\n", param->param);
+		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
@@ -791,7 +791,7 @@ static int i915_setparam(struct drm_device *dev, void *data,
 		dev_priv->allow_batchbuffer = param->value;
 		break;
 	default:
-		DRM_ERROR("unknown parameter %d\n", param->param);
+		DRM_DEBUG("unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
@@ -822,7 +822,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	dev_priv->hws_map.flags = 0;
 	dev_priv->hws_map.mtrr = 0;
 
-	drm_core_ioremap(&dev_priv->hws_map, dev);
+	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
 	if (dev_priv->hws_map.handle == NULL) {
 		i915_dma_cleanup(dev);
 		dev_priv->status_gfx_addr = 0;
@@ -880,8 +880,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	/* Init HWS */
 	if (!I915_NEED_GFX_HWS(dev)) {
 		ret = i915_init_phys_hws(dev);
-		if (ret != 0)
+		if (ret != 0) {
+			drm_rmmap(dev, dev_priv->mmio_map);
+			drm_free(dev_priv, sizeof(struct drm_i915_private),
+			    DRM_MEM_DRIVER);
 			return ret;
+		}
 	}
 #ifdef __linux__
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -901,6 +905,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_opregion_init(dev);
 #endif
 	DRM_SPININIT(&dev_priv->user_irq_lock, "userirq");
+	dev_priv->user_irq_refcount = 0;
 
 	ret = drm_vblank_init(dev, I915_NUM_PIPE);
 
