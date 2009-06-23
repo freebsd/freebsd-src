@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -408,28 +407,6 @@ in6_mtutimo(void *rock)
 	callout_reset(&V_rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
 	CURVNET_RESTORE();
 }
-
-#if 0
-void
-in6_rtqdrain(void)
-{
-	INIT_VNET_NET(curvnet);
-	struct radix_node_head *rnh;
-	struct rtqk_arg arg;
-
-	rnh = rt_tables_get_rnh(0, AF_INET6);
-	if (rnh == NULL)
-		panic("%s: rnh == NULL", __func__);
-	arg.found = arg.killed = 0;
-	arg.rnh = rnh;
-	arg.nextstop = 0;
-	arg.draining = 1;
-	arg.updating = 0;
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
-}
-#endif
 
 /*
  * Initialize our routing tree.
