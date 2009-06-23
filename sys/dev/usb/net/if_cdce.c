@@ -641,7 +641,7 @@ cdce_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			m = sc->sc_rx_buf[x];
 			sc->sc_rx_buf[x] = NULL;
-			len = usbd_xfer_get_frame_len(xfer, x);
+			len = usbd_xfer_frame_len(xfer, x);
 
 			/* Strip off CRC added by Zaurus, if any */
 			if ((sc->sc_flags & CDCE_FLAG_ZAURUS) && len >= 14)

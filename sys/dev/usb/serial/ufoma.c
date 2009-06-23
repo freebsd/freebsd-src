@@ -571,7 +571,7 @@ tr_transferred:
 		if (aframes != nframes)
 			goto tr_setup;
 		pc1 = usbd_xfer_get_frame(xfer, 1);
-		len = usbd_xfer_get_frame_len(xfer, 1);
+		len = usbd_xfer_frame_len(xfer, 1);
 		if (len > 0)
 			ucom_put_data(&sc->sc_ucom, pc1, 0, len);
 		/* FALLTHROUGH */
