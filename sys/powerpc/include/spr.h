@@ -336,7 +336,7 @@
 #define	  SPR_MMCR0_TRIGGER	  0x00002000 /* Trigger */
 #define	  SPR_MMCR0_PMC1SEL(x)	  ((x) << 6) /* PMC1 selector */
 #define	  SPR_MMCR0_PMC2SEL(x)	  ((x) << 0) /* PMC2 selector */
-#define	  SPR_970MMCR0_PMC1SEL(x) ((x) << 6) /* PMC1 selector (970) */
+#define	  SPR_970MMCR0_PMC1SEL(x) ((x) << 8) /* PMC1 selector (970) */
 #define	  SPR_970MMCR0_PMC2SEL(x) ((x) << 1) /* PMC2 selector (970) */
 #define	SPR_SGR			0x3b9	/* 4.. Storage Guarded Register */
 #define	SPR_PMC1		0x3b9	/* .6. Performance Counter Register 1 */
