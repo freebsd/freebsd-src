@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 29, 2009
+.Dd June 23, 2009
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -279,6 +279,17 @@ A jail never has a lower securelevel than the default system, but by
 setting this parameter it may have a higher one.
 If the system securelevel is changed, any jail securelevels will be at
 least as secure.
+.It Va children.max
+The number of child jails allowed to be created by this jail (or by
+other jails under this jail).
+This limit is zero by default, indicating the jail is not allowed to
+create child jails.
+See the
+.Va "Hierarchical Jails"
+section for more information.
+.It Va children.cur
+The number of descendents of this jail, including its own child jails
+and any jails created under them.
 .It Va enforce_statfs
 This determines which information processes in a jail are able to get
 about mount points.
@@ -368,10 +379,6 @@ with non-jailed parts of the system.
 Sockets within a jail are normally restricted to IPv4, IPv6, local
 (UNIX), and route.  This allows access to other protocol stacks that
 have not had jail functionality added to them.
-.It Va allow.jails
-The prison root may create child jails under this jail.  See the
-.Va "Hierarchical Jails"
-section for more information.
 .El
 .El
 .Pp
@@ -756,7 +763,7 @@ and
 .Va kern.hostuuid .
 .Ss "Hierarchical Jails"
 By setting a jail's
-.Va allow.jails
+.Va children.max
 parameter, processes within a jail may be able to create jails of their own.
 These child jails are kept in a hierarchy, with jails only able to see and/or
 modify the jails they created (or those jails' children).
@@ -782,8 +789,8 @@ and
 may not be bypassed in child jails.
 .Pp
 A child jail may in turn create its own child jails if its own
-.Va allow.jails
-parameter is set (remember it is off by default).
+.Va children.max
+parameter is set (remember it is zero by default).
 These jails are visible to and can be modified by their parent and all
 ancestors.
 .Pp

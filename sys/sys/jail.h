@@ -165,13 +165,14 @@ struct prison {
 	struct in6_addr	*pr_ip6;			/* (p) v6 IPs of jail */
 	LIST_HEAD(, prison) pr_children;		/* (a) list of child jails */
 	LIST_ENTRY(prison) pr_sibling;			/* (a) next in parent's list */
-	int		 pr_prisoncount;		/* (a) number of child jails */
+	int		 pr_childcount;			/* (a) number of child jails */
 	unsigned	 pr_allow;			/* (p) PR_ALLOW_* flags */
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
 	char		 pr_domainname[MAXHOSTNAMELEN];	/* (p) jail domainname */
 	char		 pr_hostuuid[HOSTUUIDLEN];	/* (p) jail hostuuid */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
 	struct vnet	*pr_vnet;			/* (c) network stack */
+	int		 pr_childmax;			/* (p) maximum child jails */
 };
 #endif /* _KERNEL || _WANT_PRISON */
 
@@ -197,9 +198,8 @@ struct prison {
 #define	PR_ALLOW_CHFLAGS		0x0008
 #define	PR_ALLOW_MOUNT			0x0010
 #define	PR_ALLOW_QUOTAS			0x0020
-#define	PR_ALLOW_JAILS			0x0040
-#define	PR_ALLOW_SOCKET_AF		0x0080
-#define	PR_ALLOW_ALL			0x00ff
+#define	PR_ALLOW_SOCKET_AF		0x0040
+#define	PR_ALLOW_ALL			0x007f
 
 /*
  * OSD methods
@@ -266,6 +266,23 @@ prison_unlock(struct prison *pr)
 		    (descend) = LIST_NEXT(cpr, pr_sibling) != NULL)	\
 		    ? LIST_NEXT(cpr, pr_sibling)			\
 		    : (cpr)->pr_parent))));)				\
+		if ((descend) ? (prison_lock(cpr), 0) : 1)		\
+			;						\
+		else
+
+/*
+ * As above, but also keep track of the level descended to.
+ */
+#define	FOREACH_PRISON_DESCENDANT_LOCKED_LEVEL(ppr, cpr, descend, level)\
+	for ((cpr) = (ppr), (descend) = 1, (level) = 0;			\
+	    ((cpr) = (((descend) && !LIST_EMPTY(&(cpr)->pr_children))	\
+	      ? (level++, LIST_FIRST(&(cpr)->pr_children))		\
+	      : ((cpr) == (ppr)						\
+		 ? NULL							\
+		 : ((prison_unlock(cpr),				\
+		    (descend) = LIST_NEXT(cpr, pr_sibling) != NULL)	\
+		    ? LIST_NEXT(cpr, pr_sibling)			\
+		    : (level--, (cpr)->pr_parent)))));)			\
 		if ((descend) ? (prison_lock(cpr), 0) : 1)		\
 			;						\
 		else

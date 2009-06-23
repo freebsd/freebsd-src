@@ -80,6 +80,7 @@ struct prison prison0 = {
 	.pr_uref	= 1,
 	.pr_path	= "/",
 	.pr_securelevel	= -1,
+	.pr_childmax	= JAIL_MAX,
 	.pr_hostuuid	= "00000000-0000-0000-0000-000000000000",
 	.pr_children	= LIST_HEAD_INITIALIZER(&prison0.pr_children),
 	.pr_flags	= PR_HOST,
@@ -152,7 +153,6 @@ static char *pr_allow_names[] = {
 	"allow.chflags",
 	"allow.mount",
 	"allow.quotas",
-	"allow.jails",
 	"allow.socket_af",
 };
 
@@ -163,7 +163,6 @@ static char *pr_allow_nonames[] = {
 	"allow.nochflags",
 	"allow.nomount",
 	"allow.noquotas",
-	"allow.nojails",
 	"allow.nosocket_af",
 };
 
@@ -479,8 +478,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	unsigned long hid;
 	size_t namelen, onamelen;
 	int created, cuflags, descend, enforce, error, errmsg_len, errmsg_pos;
-	int gotenforce, gothid, gotslevel, fi, jid, len;
-	int slevel, vfslocked;
+	int gotchildmax, gotenforce, gothid, gotslevel, fi, jid, len, level;
+	int childmax, slevel, vfslocked;
 #if defined(INET) || defined(INET6)
 	int ii, ij;
 #endif
@@ -500,7 +499,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	if (error)
 		return (error);
 	mypr = ppr = td->td_ucred->cr_prison;
-	if ((flags & JAIL_CREATE) && !(mypr->pr_allow & PR_ALLOW_JAILS))
+	if ((flags & JAIL_CREATE) && mypr->pr_childmax == 0)
 		return (EPERM);
 	if (flags & ~JAIL_SET_MASK)
 		return (EINVAL);
@@ -543,6 +542,15 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		goto done_free;
 	else
 		gotslevel = 1;
+
+	error =
+	    vfs_copyopt(opts, "children.max", &childmax, sizeof(childmax));
+	if (error == ENOENT)
+		gotchildmax = 0;
+	else if (error != 0)
+		goto done_free;
+	else
+		gotchildmax = 1;
 
 	error = vfs_copyopt(opts, "enforce_statfs", &enforce, sizeof(enforce));
 	gotenforce = (error == 0);
@@ -1023,6 +1031,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 	/* If there's no prison to update, create a new one and link it in. */
 	if (pr == NULL) {
+		for (tpr = mypr; tpr != NULL; tpr = tpr->pr_parent)
+			if (tpr->pr_childcount >= tpr->pr_childmax) {
+				error = EPERM;
+				vfs_opterror(opts, "prison limit exceeded");
+				goto done_unlock_list;
+			}
 		created = 1;
 		mtx_lock(&ppr->pr_mtx);
 		if (ppr->pr_ref == 0 || (ppr->pr_flags & PR_REMOVE)) {
@@ -1076,7 +1090,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			TAILQ_INSERT_TAIL(&allprison, pr, pr_list);
 		LIST_INSERT_HEAD(&ppr->pr_children, pr, pr_sibling);
 		for (tpr = ppr; tpr != NULL; tpr = tpr->pr_parent)
-			tpr->pr_prisoncount++;
+			tpr->pr_childcount++;
 
 		pr->pr_parent = ppr;
 		pr->pr_id = jid;
@@ -1159,6 +1173,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	/* Do final error checking before setting anything. */
 	if (gotslevel) {
 		if (slevel < ppr->pr_securelevel) {
+			error = EPERM;
+			goto done_deref_locked;
+		}
+	}
+	if (gotchildmax) {
+		if (childmax >= ppr->pr_childmax) {
 			error = EPERM;
 			goto done_deref_locked;
 		}
@@ -1505,6 +1525,14 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend)
 			if (tpr->pr_securelevel < slevel)
 				tpr->pr_securelevel = slevel;
+	}
+	if (gotchildmax) {
+		pr->pr_childmax = childmax;
+		/* Set all child jails to under this limit. */
+		FOREACH_PRISON_DESCENDANT_LOCKED_LEVEL(pr, tpr, descend, level)
+			if (tpr->pr_childmax > childmax - level)
+				tpr->pr_childmax = childmax > level
+				    ? childmax - level : 0;
 	}
 	if (gotenforce) {
 		pr->pr_enforce_statfs = enforce;
@@ -1893,6 +1921,14 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 #endif
 	error = vfs_setopt(opts, "securelevel", &pr->pr_securelevel,
 	    sizeof(pr->pr_securelevel));
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
+	error = vfs_setopt(opts, "children.cur", &pr->pr_childcount,
+	    sizeof(pr->pr_childcount));
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
+	error = vfs_setopt(opts, "children.max", &pr->pr_childmax,
+	    sizeof(pr->pr_childmax));
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
 	error = vfs_setopts(opts, "host.hostname", pr->pr_hostname);
@@ -2425,7 +2461,7 @@ prison_deref(struct prison *pr, int flags)
 		LIST_REMOVE(pr, pr_sibling);
 		ppr = pr->pr_parent;
 		for (tpr = ppr; tpr != NULL; tpr = tpr->pr_parent)
-			tpr->pr_prisoncount--;
+			tpr->pr_childcount--;
 		sx_downgrade(&allprison_lock);
 
 #ifdef VIMAGE
@@ -3878,6 +3914,12 @@ SYSCTL_JAIL_PARAM(, vnet, CTLTYPE_INT | CTLFLAG_RDTUN,
 SYSCTL_JAIL_PARAM(, dying, CTLTYPE_INT | CTLFLAG_RD,
     "B", "Jail is in the process of shutting down");
 
+SYSCTL_JAIL_PARAM_NODE(children, "Number of child jails");
+SYSCTL_JAIL_PARAM(_children, cur, CTLTYPE_INT | CTLFLAG_RD,
+    "I", "Current number of child jails");
+SYSCTL_JAIL_PARAM(_children, max, CTLTYPE_INT | CTLFLAG_RW,
+    "I", "Maximum number of child jails");
+
 SYSCTL_JAIL_PARAM_NODE(host, "Jail host info");
 SYSCTL_JAIL_PARAM(, nohost, CTLTYPE_INT | CTLFLAG_RW,
     "BN", "Jail w/ no host info");
@@ -3921,8 +3963,6 @@ SYSCTL_JAIL_PARAM(_allow, mount, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount/unmount jail-friendly file systems");
 SYSCTL_JAIL_PARAM(_allow, quotas, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may set file quotas");
-SYSCTL_JAIL_PARAM(_allow, jails, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may create child jails");
 SYSCTL_JAIL_PARAM(_allow, socket_af, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create sockets other than just UNIX/IPv4/IPv6/route");
 
@@ -3954,6 +3994,7 @@ db_show_prison(struct prison *pr)
 #endif
 	db_printf(" root            = %p\n", pr->pr_root);
 	db_printf(" securelevel     = %d\n", pr->pr_securelevel);
+	db_printf(" childcount      = %d\n", pr->pr_childcount);
 	db_printf(" child           = %p\n", LIST_FIRST(&pr->pr_children));
 	db_printf(" sibling         = %p\n", LIST_NEXT(pr, pr_sibling));
 	db_printf(" flags           = %x", pr->pr_flags);
