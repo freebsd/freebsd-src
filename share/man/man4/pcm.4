@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2009
+.Dd June 23, 2009
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -288,7 +288,9 @@ File names and versions of the currently loaded sound modules.
 Various messages intended for debugging.
 .El
 .It Va hw.snd.vpc_0db
-Default value for pcm volume.
+Default value for
+.Nm
+volume.
 Increase to give more room for attenuation control.
 Decrease for more amplification, with the possible cost of sound clipping.
 .It Va hw.snd.vpc_autoreset
@@ -298,8 +300,10 @@ Enabling this will preserve the volume, at the cost of possible confusion
 when applications tries to re-open the same device.
 .It Va hw.snd.vpc_mixer_bypass
 The recommended way to use the vpc feature is to teach applications to use
-the correct ioctl(): SNDCTL_DSP_GETPLAYVOL, SNDCTL_DSP_SETPLAYVOL,
-SNDCTL_DSP_SETRECVOL, SNDCTL_DSP_SETRECVOL.
+the correct
+.Fn ioctl :
+.Dv SNDCTL_DSP_GETPLAYVOL, SNDCTL_DSP_SETPLAYVOL,
+.Dv SNDCTL_DSP_SETRECVOL, SNDCTL_DSP_SETRECVOL.
 This is however not always possible.
 Enable this to allow applications to use their own existing mixer logic
 to control their own channel volume.
@@ -309,7 +313,9 @@ Enable to restore all channel volumes back to the default value of 0db.
 Enable or disable bitperfect mode.
 When enabled, channels will skip all dsp processing, such as channel
 matrixing, rate converting and equalizing.
-The pure pcm stream will be fed directly to the hardware.
+The pure
+.Nm
+stream will be fed directly to the hardware.
 If
 .Tn VCHANs
 are enabled, the bitperfect mode will use the
@@ -341,26 +347,32 @@ process begins.
 format/rate selection.
 Available options include:
 .Bl -tag -width 2n
-.It fixed / 0
+.It fixed
 Channel mixing is done using fixed format/rate.
 Advanced operations such as digital passthrough will not work.
-Can be considered as a 'legacy' mode.
+Can be considered as a
+.Dq legacy
+mode.
 This is the default mode for hardware channels which lack support for digital
 formats.
-.It passthrough / 1
+.It passthrough
 Channel mixing is done using fixed format/rate, but advanced operations such
-as digital passthrough also works.
+as digital passthrough also work.
 All channels will produce sound as usual until a digital format playback is
 requested.
 When this happens all other channels will be muted and the latest incoming
 digital format will be allowed to pass through undisturbed.
 Multiple concurrent digital streams are supported, but the latest stream will
 take precedence and mute all other streams.
-.It adaptive / 2
-Works like the 'passthrough' mode, but is a bit smarter, especially for
-multiple pcm channels with different format/rate.
+.It adaptive
+Works like the
+.Dq passthrough
+mode, but is a bit smarter, especially for
+multiple
+.Nm
+channels with different format/rate.
 When a new channel is about to start, the entire list of virtual channels will
-be scanned and the channel with the best format/rate (usuallay the
+be scanned, and the channel with the best format/rate (usually the
 highest/biggest) will be selected.
 This ensures that mixing quality depends on the best channel.
 The downside is that the hardware DMA mode needs to be restarted, which may
