@@ -72,34 +72,23 @@ int drm_ctxbitmap_next(struct drm_device *dev)
 	}
 
 	set_bit(bit, dev->ctx_bitmap);
-	DRM_DEBUG("drm_ctxbitmap_next bit : %d\n", bit);
+	DRM_DEBUG("bit : %d\n", bit);
 	if ((bit+1) > dev->max_context) {
-		dev->max_context = (bit+1);
-		if (dev->context_sareas != NULL) {
-			drm_local_map_t **ctx_sareas;
+		drm_local_map_t **ctx_sareas;
+		int max_ctx = (bit+1);
 
-			ctx_sareas = realloc(dev->context_sareas,
-			    dev->max_context * sizeof(*dev->context_sareas),
-			    DRM_MEM_SAREA, M_NOWAIT);
-			if (ctx_sareas == NULL) {
-				clear_bit(bit, dev->ctx_bitmap);
-				DRM_UNLOCK();
-				return -1;
-			}
-			dev->context_sareas = ctx_sareas;
-			dev->context_sareas[bit] = NULL;
-		} else {
-			/* max_context == 1 at this point */
-			dev->context_sareas = malloc(dev->max_context * 
-			    sizeof(*dev->context_sareas), DRM_MEM_SAREA,
-			    M_NOWAIT);
-			if (dev->context_sareas == NULL) {
-				clear_bit(bit, dev->ctx_bitmap);
-				DRM_UNLOCK();
-				return -1;
-			}
-			dev->context_sareas[bit] = NULL;
+		ctx_sareas = realloc(dev->context_sareas,
+		    max_ctx * sizeof(*dev->context_sareas),
+		    DRM_MEM_SAREA, M_NOWAIT);
+		if (ctx_sareas == NULL) {
+			clear_bit(bit, dev->ctx_bitmap);
+			DRM_DEBUG("failed to allocate bit : %d\n", bit);
+			DRM_UNLOCK();
+			return -1;
 		}
+		dev->max_context = max_ctx;
+		dev->context_sareas = ctx_sareas;
+		dev->context_sareas[bit] = NULL;
 	}
 	DRM_UNLOCK();
 	return bit;
