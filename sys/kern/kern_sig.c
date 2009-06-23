@@ -2941,7 +2941,7 @@ restart:
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, name, td);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
 	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR, VN_OPEN_NOAUDIT,
-	    NULL, NULL);
+	    cred, NULL);
 	if (error) {
 #ifdef AUDIT
 		audit_proc_coredump(td, name, error);
