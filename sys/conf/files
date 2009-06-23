@@ -1207,12 +1207,12 @@ mwlboot.fw		optional mwlfw					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/mwl/mwlboot.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"mwlboot.fw"
-dev/mxge/if_mxge.c		optional mxge pci inet
-dev/mxge/mxge_lro.c		optional mxge pci inet
-dev/mxge/mxge_eth_z8e.c		optional mxge pci inet
-dev/mxge/mxge_ethp_z8e.c	optional mxge pci inet
-dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci inet
-dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci inet
+dev/mxge/if_mxge.c		optional mxge pci
+dev/mxge/mxge_lro.c		optional mxge pci
+dev/mxge/mxge_eth_z8e.c		optional mxge pci
+dev/mxge/mxge_ethp_z8e.c	optional mxge pci
+dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
+dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
