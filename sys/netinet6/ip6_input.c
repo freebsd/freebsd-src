@@ -724,6 +724,7 @@ passin:
 				 * to the upper layers.
 				 */
 			}
+			ifa_free(&ia6->ia_ifa);
 		}
 	}
 
@@ -919,6 +920,11 @@ out:
 /*
  * set/grab in6_ifaddr correspond to IPv6 destination address.
  * XXX backward compatibility wrapper
+ *
+ * XXXRW: We should bump the refcount on ia6 before sticking it in the m_tag,
+ * and then bump it when the tag is copied, and release it when the tag is
+ * freed.  Unfortunately, m_tags don't support deep copies (yet), so instead
+ * we just bump the ia refcount when we receive it.  This should be fixed.
  */
 static struct ip6aux *
 ip6_setdstifaddr(struct mbuf *m, struct in6_ifaddr *ia6)
@@ -935,11 +941,14 @@ struct in6_ifaddr *
 ip6_getdstifaddr(struct mbuf *m)
 {
 	struct ip6aux *ip6a;
+	struct in6_ifaddr *ia;
 
 	ip6a = ip6_findaux(m);
-	if (ip6a)
-		return ip6a->ip6a_dstia6;
-	else
+	if (ip6a) {
+		ia = ip6a->ip6a_dstia6;
+		ifa_ref(&ia->ia_ifa);
+		return ia;
+	} else
 		return NULL;
 }
 

@@ -1233,8 +1233,10 @@ igmp_input_v1_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	 */
 	if (V_igmp_recvifkludge && in_nullhost(ip->ip_src)) {
 		IFP_TO_IA(ifp, ia);
-		if (ia != NULL)
+		if (ia != NULL) {
 			ip->ip_src.s_addr = htonl(ia->ia_subnet);
+			ifa_free(&ia->ia_ifa);
+		}
 	}
 
 	CTR3(KTR_IGMPV3, "process v1 report %s on ifp %p(%s)",
@@ -1326,16 +1328,23 @@ igmp_input_v2_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	 * group.
 	 */
 	IFP_TO_IA(ifp, ia);
-	if (ia != NULL && in_hosteq(ip->ip_src, IA_SIN(ia)->sin_addr))
+	if (ia != NULL && in_hosteq(ip->ip_src, IA_SIN(ia)->sin_addr)) {
+		ifa_free(&ia->ia_ifa);
 		return (0);
+	}
 
 	IGMPSTAT_INC(igps_rcv_reports);
 
-	if (ifp->if_flags & IFF_LOOPBACK)
+	if (ifp->if_flags & IFF_LOOPBACK) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return (0);
+	}
 
 	if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
 	    !in_hosteq(igmp->igmp_group, ip->ip_dst)) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		IGMPSTAT_INC(igps_rcv_badreports);
 		return (EINVAL);
 	}
@@ -1351,6 +1360,8 @@ igmp_input_v2_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 		if (ia != NULL)
 			ip->ip_src.s_addr = htonl(ia->ia_subnet);
 	}
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 
 	CTR3(KTR_IGMPV3, "process v2 report %s on ifp %p(%s)",
 	     inet_ntoa(igmp->igmp_group), ifp, ifp->if_xname);
@@ -3534,8 +3545,10 @@ igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
 		struct in_ifaddr *ia;
 
 		IFP_TO_IA(ifp, ia);
-		if (ia != NULL)
+		if (ia != NULL) {
 			ip->ip_src = ia->ia_addr.sin_addr;
+			ifa_free(&ia->ia_ifa);
+		}
 	}
 
 	ip->ip_dst.s_addr = htonl(INADDR_ALLRPTS_GROUP);

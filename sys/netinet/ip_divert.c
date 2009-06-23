@@ -464,6 +464,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				goto cantsend;
 			}
 			m->m_pkthdr.rcvif = ifa->ifa_ifp;
+			ifa_free(ifa);
 		}
 #ifdef MAC
 		mac_socket_create_mbuf(so, m);

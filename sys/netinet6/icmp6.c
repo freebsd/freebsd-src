@@ -1244,11 +1244,13 @@ ni6_input(struct mbuf *m, int off)
 
 		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) &&
 		    !(V_icmp6_nodeinfo & ICMP6_NODEINFO_TMPADDROK)) {
+			ifa_free(&ia6->ia_ifa);
 			nd6log((LOG_DEBUG, "ni6_input: ignore node info to "
 				"a temporary address in %s:%d",
 			       __FILE__, __LINE__));
 			goto bad;
 		}
+		ifa_free(&ia6->ia_ifa);
 	}
 
 	/* validate query Subject field. */
@@ -2074,7 +2076,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	struct icmp6_hdr *icmp6;
-	struct in6_ifaddr *ia;
+	struct in6_ifaddr *ia = NULL;
 	int plen;
 	int type, code;
 	struct ifnet *outif = NULL;
@@ -2220,9 +2222,13 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	if (outif)
 		icmp6_ifoutstat_inc(outif, type, code);
 
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	return;
 
  bad:
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	m_freem(m);
 	return;
 }
@@ -2541,6 +2547,8 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 						 IN6_IFF_ANYCAST)) == NULL)
 			goto fail;
 		ifp_ll6 = &ia->ia_addr.sin6_addr;
+		/* XXXRW: reference released prematurely. */
+		ifa_free(&ia->ia_ifa);
 	}
 
 	/* get ip6 linklocal address for the router. */

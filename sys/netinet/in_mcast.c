@@ -1722,6 +1722,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 				if (ia != NULL) {
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
+					ifa_free(&ia->ia_ifa);
 				}
 			}
 		}
