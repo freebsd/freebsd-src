@@ -75,9 +75,9 @@ main(int argc, char *argv[])
 	int ch, ngroups, uflag, Uflag;
 	long ngroups_max;
 	char *ep, *username;
+
 	ch = uflag = Uflag = 0;
 	username = NULL;
-
 	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
 	if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
 		err(1, "malloc");
