@@ -149,6 +149,10 @@ static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
 #endif
 
+#define	ENTRY_CHARGED(e) ((e)->uip != NULL || \
+    ((e)->object.vm_object != NULL && (e)->object.vm_object->uip != NULL && \
+     !((e)->eflags & MAP_ENTRY_NEEDS_COPY)))
+
 /* 
  * PROC_VMSPACE_{UN,}LOCK() can be a noop as long as vmspaces are type
  * stable.
@@ -1076,6 +1080,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t prev_entry;
 	vm_map_entry_t temp_entry;
 	vm_eflags_t protoeflags;
+	struct uidinfo *uip;
+	boolean_t charge_prev_obj;
 
 	VM_MAP_ASSERT_LOCKED(map);
 
@@ -1103,6 +1109,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		return (KERN_NO_SPACE);
 
 	protoeflags = 0;
+	charge_prev_obj = FALSE;
 
 	if (cow & MAP_COPY_ON_WRITE)
 		protoeflags |= MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY;
@@ -1118,6 +1125,27 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if (cow & MAP_DISABLE_COREDUMP)
 		protoeflags |= MAP_ENTRY_NOCOREDUMP;
 
+	uip = NULL;
+	KASSERT((object != kmem_object && object != kernel_object) ||
+	    ((object == kmem_object || object == kernel_object) &&
+		!(protoeflags & MAP_ENTRY_NEEDS_COPY)),
+	    ("kmem or kernel object and cow"));
+	if (cow & (MAP_ACC_NO_CHARGE | MAP_NOFAULT))
+		goto charged;
+	if ((cow & MAP_ACC_CHARGED) || ((prot & VM_PROT_WRITE) &&
+	    ((protoeflags & MAP_ENTRY_NEEDS_COPY) || object == NULL))) {
+		if (!(cow & MAP_ACC_CHARGED) && !swap_reserve(end - start))
+			return (KERN_RESOURCE_SHORTAGE);
+		KASSERT(object == NULL || (cow & MAP_ENTRY_NEEDS_COPY) ||
+		    object->uip == NULL,
+		    ("OVERCOMMIT: vm_map_insert o %p", object));
+		uip = curthread->td_ucred->cr_ruidinfo;
+		uihold(uip);
+		if (object == NULL && !(protoeflags & MAP_ENTRY_NEEDS_COPY))
+			charge_prev_obj = TRUE;
+	}
+
+charged:
 	if (object != NULL) {
 		/*
 		 * OBJ_ONEMAPPING must be cleared unless this mapping
@@ -1135,11 +1163,13 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		 (prev_entry->eflags == protoeflags) &&
 		 (prev_entry->end == start) &&
 		 (prev_entry->wired_count == 0) &&
-		 ((prev_entry->object.vm_object == NULL) ||
-		  vm_object_coalesce(prev_entry->object.vm_object,
-				     prev_entry->offset,
-				     (vm_size_t)(prev_entry->end - prev_entry->start),
-				     (vm_size_t)(end - prev_entry->end)))) {
+		 (prev_entry->uip == uip ||
+		  (prev_entry->object.vm_object != NULL &&
+		   (prev_entry->object.vm_object->uip == uip))) &&
+		   vm_object_coalesce(prev_entry->object.vm_object,
+		       prev_entry->offset,
+		       (vm_size_t)(prev_entry->end - prev_entry->start),
+		       (vm_size_t)(end - prev_entry->end), charge_prev_obj)) {
 		/*
 		 * We were able to extend the object.  Determine if we
 		 * can extend the previous map entry to include the
@@ -1152,6 +1182,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			prev_entry->end = end;
 			vm_map_entry_resize_free(map, prev_entry);
 			vm_map_simplify_entry(map, prev_entry);
+			if (uip != NULL)
+				uifree(uip);
 			return (KERN_SUCCESS);
 		}
 
@@ -1165,6 +1197,12 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		offset = prev_entry->offset +
 			(prev_entry->end - prev_entry->start);
 		vm_object_reference(object);
+		if (uip != NULL && object != NULL && object->uip != NULL &&
+		    !(prev_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
+			/* Object already accounts for this uid. */
+			uifree(uip);
+			uip = NULL;
+		}
 	}
 
 	/*
@@ -1179,6 +1217,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	new_entry = vm_map_entry_create(map);
 	new_entry->start = start;
 	new_entry->end = end;
+	new_entry->uip = NULL;
 
 	new_entry->eflags = protoeflags;
 	new_entry->object.vm_object = object;
@@ -1189,6 +1228,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	new_entry->protection = prot;
 	new_entry->max_protection = max;
 	new_entry->wired_count = 0;
+
+	KASSERT(uip == NULL || !ENTRY_CHARGED(new_entry),
+	    ("OVERCOMMIT: vm_map_insert leaks vm_map %p", new_entry));
+	new_entry->uip = uip;
 
 	/*
 	 * Insert the new entry into the list
@@ -1398,7 +1441,8 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		     (prev->protection == entry->protection) &&
 		     (prev->max_protection == entry->max_protection) &&
 		     (prev->inheritance == entry->inheritance) &&
-		     (prev->wired_count == entry->wired_count)) {
+		     (prev->wired_count == entry->wired_count) &&
+		     (prev->uip == entry->uip)) {
 			vm_map_entry_unlink(map, prev);
 			entry->start = prev->start;
 			entry->offset = prev->offset;
@@ -1416,6 +1460,8 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			 */
 			if (prev->object.vm_object)
 				vm_object_deallocate(prev->object.vm_object);
+			if (prev->uip != NULL)
+				uifree(prev->uip);
 			vm_map_entry_dispose(map, prev);
 		}
 	}
@@ -1431,7 +1477,8 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		    (next->protection == entry->protection) &&
 		    (next->max_protection == entry->max_protection) &&
 		    (next->inheritance == entry->inheritance) &&
-		    (next->wired_count == entry->wired_count)) {
+		    (next->wired_count == entry->wired_count) &&
+		    (next->uip == entry->uip)) {
 			vm_map_entry_unlink(map, next);
 			entry->end = next->end;
 			vm_map_entry_resize_free(map, entry);
@@ -1441,6 +1488,8 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			 */
 			if (next->object.vm_object)
 				vm_object_deallocate(next->object.vm_object);
+			if (next->uip != NULL)
+				uifree(next->uip);
 			vm_map_entry_dispose(map, next);
 		}
 	}
@@ -1489,6 +1538,21 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 				atop(entry->end - entry->start));
 		entry->object.vm_object = object;
 		entry->offset = 0;
+		if (entry->uip != NULL) {
+			object->uip = entry->uip;
+			object->charge = entry->end - entry->start;
+			entry->uip = NULL;
+		}
+	} else if (entry->object.vm_object != NULL &&
+		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
+		   entry->uip != NULL) {
+		VM_OBJECT_LOCK(entry->object.vm_object);
+		KASSERT(entry->object.vm_object->uip == NULL,
+		    ("OVERCOMMIT: vm_entry_clip_start: both uip e %p", entry));
+		entry->object.vm_object->uip = entry->uip;
+		entry->object.vm_object->charge = entry->end - entry->start;
+		VM_OBJECT_UNLOCK(entry->object.vm_object);
+		entry->uip = NULL;
 	}
 
 	new_entry = vm_map_entry_create(map);
@@ -1497,6 +1561,8 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	new_entry->end = start;
 	entry->offset += (start - entry->start);
 	entry->start = start;
+	if (new_entry->uip != NULL)
+		uihold(entry->uip);
 
 	vm_map_entry_link(map, entry->prev, new_entry);
 
@@ -1542,6 +1608,21 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 				atop(entry->end - entry->start));
 		entry->object.vm_object = object;
 		entry->offset = 0;
+		if (entry->uip != NULL) {
+			object->uip = entry->uip;
+			object->charge = entry->end - entry->start;
+			entry->uip = NULL;
+		}
+	} else if (entry->object.vm_object != NULL &&
+		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
+		   entry->uip != NULL) {
+		VM_OBJECT_LOCK(entry->object.vm_object);
+		KASSERT(entry->object.vm_object->uip == NULL,
+		    ("OVERCOMMIT: vm_entry_clip_end: both uip e %p", entry));
+		entry->object.vm_object->uip = entry->uip;
+		entry->object.vm_object->charge = entry->end - entry->start;
+		VM_OBJECT_UNLOCK(entry->object.vm_object);
+		entry->uip = NULL;
 	}
 
 	/*
@@ -1552,6 +1633,8 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 
 	new_entry->start = entry->end = end;
 	new_entry->offset += (end - entry->start);
+	if (new_entry->uip != NULL)
+		uihold(entry->uip);
 
 	vm_map_entry_link(map, entry, new_entry);
 
@@ -1724,6 +1807,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 {
 	vm_map_entry_t current;
 	vm_map_entry_t entry;
+	vm_object_t obj;
+	struct uidinfo *uip;
 
 	vm_map_lock(map);
 
@@ -1751,6 +1836,61 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		current = current->next;
 	}
 
+
+	/*
+	 * Do an accounting pass for private read-only mappings that
+	 * now will do cow due to allowed write (e.g. debugger sets
+	 * breakpoint on text segment)
+	 */
+	for (current = entry; (current != &map->header) &&
+	     (current->start < end); current = current->next) {
+
+		vm_map_clip_end(map, current, end);
+
+		if (set_max ||
+		    ((new_prot & ~(current->protection)) & VM_PROT_WRITE) == 0 ||
+		    ENTRY_CHARGED(current)) {
+			continue;
+		}
+
+		uip = curthread->td_ucred->cr_ruidinfo;
+		obj = current->object.vm_object;
+
+		if (obj == NULL || (current->eflags & MAP_ENTRY_NEEDS_COPY)) {
+			if (!swap_reserve(current->end - current->start)) {
+				vm_map_unlock(map);
+				return (KERN_RESOURCE_SHORTAGE);
+			}
+			uihold(uip);
+			current->uip = uip;
+			continue;
+		}
+
+		VM_OBJECT_LOCK(obj);
+		if (obj->type != OBJT_DEFAULT && obj->type != OBJT_SWAP) {
+			VM_OBJECT_UNLOCK(obj);
+			continue;
+		}
+
+		/*
+		 * Charge for the whole object allocation now, since
+		 * we cannot distinguish between non-charged and
+		 * charged clipped mapping of the same object later.
+		 */
+		KASSERT(obj->charge == 0,
+		    ("vm_map_protect: object %p overcharged\n", obj));
+		if (!swap_reserve(ptoa(obj->size))) {
+			VM_OBJECT_UNLOCK(obj);
+			vm_map_unlock(map);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
+
+		uihold(uip);
+		obj->uip = uip;
+		obj->charge = ptoa(obj->size);
+		VM_OBJECT_UNLOCK(obj);
+	}
+
 	/*
 	 * Go back and fix up protections. [Note that clipping is not
 	 * necessary the second time.]
@@ -1758,8 +1898,6 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	current = entry;
 	while ((current != &map->header) && (current->start < end)) {
 		vm_prot_t old_prot;
-
-		vm_map_clip_end(map, current, end);
 
 		old_prot = current->protection;
 		if (set_max)
@@ -2470,14 +2608,25 @@ static void
 vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_object_t object;
-	vm_pindex_t offidxstart, offidxend, count;
+	vm_pindex_t offidxstart, offidxend, count, size1;
+	vm_ooffset_t size;
 
 	vm_map_entry_unlink(map, entry);
-	map->size -= entry->end - entry->start;
+	object = entry->object.vm_object;
+	size = entry->end - entry->start;
+	map->size -= size;
+
+	if (entry->uip != NULL) {
+		swap_release_by_uid(size, entry->uip);
+		uifree(entry->uip);
+	}
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
-	    (object = entry->object.vm_object) != NULL) {
-		count = OFF_TO_IDX(entry->end - entry->start);
+	    (object != NULL)) {
+		KASSERT(entry->uip == NULL || object->uip == NULL ||
+		    (entry->eflags & MAP_ENTRY_NEEDS_COPY),
+		    ("OVERCOMMIT vm_map_entry_delete: both uip %p", entry));
+		count = OFF_TO_IDX(size);
 		offidxstart = OFF_TO_IDX(entry->offset);
 		offidxend = offidxstart + count;
 		VM_OBJECT_LOCK(object);
@@ -2489,8 +2638,17 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 			if (object->type == OBJT_SWAP)
 				swap_pager_freespace(object, offidxstart, count);
 			if (offidxend >= object->size &&
-			    offidxstart < object->size)
+			    offidxstart < object->size) {
+				size1 = object->size;
 				object->size = offidxstart;
+				if (object->uip != NULL) {
+					size1 -= object->size;
+					KASSERT(object->charge >= ptoa(size1),
+					    ("vm_map_entry_delete: object->charge < 0"));
+					swap_release_by_uid(ptoa(size1), object->uip);
+					object->charge -= ptoa(size1);
+				}
+			}
 		}
 		VM_OBJECT_UNLOCK(object);
 	} else
@@ -2664,9 +2822,13 @@ vm_map_copy_entry(
 	vm_map_t src_map,
 	vm_map_t dst_map,
 	vm_map_entry_t src_entry,
-	vm_map_entry_t dst_entry)
+	vm_map_entry_t dst_entry,
+	vm_ooffset_t *fork_charge)
 {
 	vm_object_t src_object;
+	vm_offset_t size;
+	struct uidinfo *uip;
+	int charged;
 
 	VM_MAP_ASSERT_LOCKED(dst_map);
 
@@ -2689,8 +2851,10 @@ vm_map_copy_entry(
 		/*
 		 * Make a copy of the object.
 		 */
+		size = src_entry->end - src_entry->start;
 		if ((src_object = src_entry->object.vm_object) != NULL) {
 			VM_OBJECT_LOCK(src_object);
+			charged = ENTRY_CHARGED(src_entry);
 			if ((src_object->handle == NULL) &&
 				(src_object->type == OBJT_DEFAULT ||
 				 src_object->type == OBJT_SWAP)) {
@@ -2702,14 +2866,39 @@ vm_map_copy_entry(
 			}
 			vm_object_reference_locked(src_object);
 			vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
+			if (src_entry->uip != NULL &&
+			    !(src_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
+				KASSERT(src_object->uip == NULL,
+				    ("OVERCOMMIT: vm_map_copy_entry: uip %p",
+				     src_object));
+				src_object->uip = src_entry->uip;
+				src_object->charge = size;
+			}
 			VM_OBJECT_UNLOCK(src_object);
 			dst_entry->object.vm_object = src_object;
+			if (charged) {
+				uip = curthread->td_ucred->cr_ruidinfo;
+				uihold(uip);
+				dst_entry->uip = uip;
+				*fork_charge += size;
+				if (!(src_entry->eflags &
+				      MAP_ENTRY_NEEDS_COPY)) {
+					uihold(uip);
+					src_entry->uip = uip;
+					*fork_charge += size;
+				}
+			}
 			src_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
 			dst_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
 			dst_entry->offset = src_entry->offset;
 		} else {
 			dst_entry->object.vm_object = NULL;
 			dst_entry->offset = 0;
+			if (src_entry->uip != NULL) {
+				dst_entry->uip = curthread->td_ucred->cr_ruidinfo;
+				uihold(dst_entry->uip);
+				*fork_charge += size;
+			}
 		}
 
 		pmap_copy(dst_map->pmap, src_map->pmap, dst_entry->start,
@@ -2766,7 +2955,7 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  * The source map must not be locked.
  */
 struct vmspace *
-vmspace_fork(struct vmspace *vm1)
+vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 {
 	struct vmspace *vm2;
 	vm_map_t old_map = &vm1->vm_map;
@@ -2777,7 +2966,6 @@ vmspace_fork(struct vmspace *vm1)
 	int locked;
 
 	vm_map_lock(old_map);
-
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	if (vm2 == NULL)
 		goto unlock_and_return;
@@ -2809,6 +2997,12 @@ vmspace_fork(struct vmspace *vm1)
 					atop(old_entry->end - old_entry->start));
 				old_entry->object.vm_object = object;
 				old_entry->offset = 0;
+				if (old_entry->uip != NULL) {
+					object->uip = old_entry->uip;
+					object->charge = old_entry->end -
+					    old_entry->start;
+					old_entry->uip = NULL;
+				}
 			}
 
 			/*
@@ -2835,6 +3029,12 @@ vmspace_fork(struct vmspace *vm1)
 			}
 			VM_OBJECT_LOCK(object);
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
+			if (old_entry->uip != NULL) {
+				KASSERT(object->uip == NULL, ("vmspace_fork both uip"));
+				object->uip = old_entry->uip;
+				object->charge = old_entry->end - old_entry->start;
+				old_entry->uip = NULL;
+			}
 			VM_OBJECT_UNLOCK(object);
 
 			/*
@@ -2877,7 +3077,7 @@ vmspace_fork(struct vmspace *vm1)
 			    new_entry);
 			vmspace_map_entry_forked(vm1, vm2, new_entry);
 			vm_map_copy_entry(old_map, new_map, old_entry,
-			    new_entry);
+			    new_entry, fork_charge);
 			break;
 		}
 		old_entry = old_entry->next;
@@ -3005,6 +3205,7 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	size_t grow_amount, max_grow;
 	rlim_t stacklim, vmemlim;
 	int is_procstack, rv;
+	struct uidinfo *uip;
 
 Retry:
 	PROC_LOCK(p);
@@ -3170,13 +3371,17 @@ Retry:
 		}
 
 		grow_amount = addr - stack_entry->end;
-
+		uip = stack_entry->uip;
+		if (uip == NULL && stack_entry->object.vm_object != NULL)
+			uip = stack_entry->object.vm_object->uip;
+		if (uip != NULL && !swap_reserve_by_uid(grow_amount, uip))
+			rv = KERN_NO_SPACE;
 		/* Grow the underlying object if applicable. */
-		if (stack_entry->object.vm_object == NULL ||
-		    vm_object_coalesce(stack_entry->object.vm_object,
-		    stack_entry->offset,
-		    (vm_size_t)(stack_entry->end - stack_entry->start),
-		    (vm_size_t)grow_amount)) {
+		else if (stack_entry->object.vm_object == NULL ||
+			 vm_object_coalesce(stack_entry->object.vm_object,
+			 stack_entry->offset,
+			 (vm_size_t)(stack_entry->end - stack_entry->start),
+			 (vm_size_t)grow_amount, uip != NULL)) {
 			map->size += (addr - stack_entry->end);
 			/* Update the current entry. */
 			stack_entry->end = addr;
@@ -3249,12 +3454,18 @@ vmspace_unshare(struct proc *p)
 {
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
+	vm_ooffset_t fork_charge;
 
 	if (oldvmspace->vm_refcnt == 1)
 		return (0);
-	newvmspace = vmspace_fork(oldvmspace);
+	fork_charge = 0;
+	newvmspace = vmspace_fork(oldvmspace, &fork_charge);
 	if (newvmspace == NULL)
 		return (ENOMEM);
+	if (!swap_reserve_by_uid(fork_charge, p->p_ucred->cr_ruidinfo)) {
+		vmspace_free(newvmspace);
+		return (ENOMEM);
+	}
 	PROC_VMSPACE_LOCK(p);
 	p->p_vmspace = newvmspace;
 	PROC_VMSPACE_UNLOCK(p);
@@ -3300,6 +3511,9 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_map_t map = *var_map;
 	vm_prot_t prot;
 	vm_prot_t fault_type = fault_typea;
+	vm_object_t eobject;
+	struct uidinfo *uip;
+	vm_ooffset_t size;
 
 RetryLookup:;
 
@@ -3356,7 +3570,7 @@ RetryLookup:;
 	*wired = (entry->wired_count != 0);
 	if (*wired)
 		prot = fault_type = entry->protection;
-
+	size = entry->end - entry->start;
 	/*
 	 * If the entry was copy-on-write, we either ...
 	 */
@@ -3378,11 +3592,40 @@ RetryLookup:;
 			if (vm_map_lock_upgrade(map))
 				goto RetryLookup;
 
+			if (entry->uip == NULL) {
+				/*
+				 * The debugger owner is charged for
+				 * the memory.
+				 */
+				uip = curthread->td_ucred->cr_ruidinfo;
+				uihold(uip);
+				if (!swap_reserve_by_uid(size, uip)) {
+					uifree(uip);
+					vm_map_unlock(map);
+					return (KERN_RESOURCE_SHORTAGE);
+				}
+				entry->uip = uip;
+			}
 			vm_object_shadow(
 			    &entry->object.vm_object,
 			    &entry->offset,
-			    atop(entry->end - entry->start));
+			    atop(size));
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
+			eobject = entry->object.vm_object;
+			if (eobject->uip != NULL) {
+				/*
+				 * The object was not shadowed.
+				 */
+				swap_release_by_uid(size, entry->uip);
+				uifree(entry->uip);
+				entry->uip = NULL;
+			} else if (entry->uip != NULL) {
+				VM_OBJECT_LOCK(eobject);
+				eobject->uip = entry->uip;
+				eobject->charge = size;
+				VM_OBJECT_UNLOCK(eobject);
+				entry->uip = NULL;
+			}
 
 			vm_map_lock_downgrade(map);
 		} else {
@@ -3402,8 +3645,15 @@ RetryLookup:;
 		if (vm_map_lock_upgrade(map))
 			goto RetryLookup;
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
-		    atop(entry->end - entry->start));
+		    atop(size));
 		entry->offset = 0;
+		if (entry->uip != NULL) {
+			VM_OBJECT_LOCK(entry->object.vm_object);
+			entry->object.vm_object->uip = entry->uip;
+			entry->object.vm_object->charge = size;
+			VM_OBJECT_UNLOCK(entry->object.vm_object);
+			entry->uip = NULL;
+		}
 		vm_map_lock_downgrade(map);
 	}
 
@@ -3583,9 +3833,15 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_indent -= 2;
 			}
 		} else {
+			if (entry->uip != NULL)
+				db_printf(", uip %d", entry->uip->ui_uid);
 			db_printf(", object=%p, offset=0x%jx",
 			    (void *)entry->object.vm_object,
 			    (uintmax_t)entry->offset);
+			if (entry->object.vm_object && entry->object.vm_object->uip)
+				db_printf(", obj uip %d charge %jx",
+				    entry->object.vm_object->uip->ui_uid,
+				    (uintmax_t)entry->object.vm_object->charge);
 			if (entry->eflags & MAP_ENTRY_COW)
 				db_printf(", copy (%s)",
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");

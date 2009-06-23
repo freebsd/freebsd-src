@@ -1830,6 +1830,8 @@ biba_priv_check(struct ucred *cred, int priv)
 	case PRIV_VM_MADV_PROTECT:
 	case PRIV_VM_MLOCK:
 	case PRIV_VM_MUNLOCK:
+	case PRIV_VM_SWAP_NOQUOTA:
+	case PRIV_VM_SWAP_NORLIMIT:
 
 	/*
 	 * Allow some but not all network privileges.  In general, dont allow
