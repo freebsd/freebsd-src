@@ -38,6 +38,7 @@ static int	   drm_name_info DRM_SYSCTL_HANDLER_ARGS;
 static int	   drm_vm_info DRM_SYSCTL_HANDLER_ARGS;
 static int	   drm_clients_info DRM_SYSCTL_HANDLER_ARGS;
 static int	   drm_bufs_info DRM_SYSCTL_HANDLER_ARGS;
+static int	   drm_vblank_info DRM_SYSCTL_HANDLER_ARGS;
 
 struct drm_sysctl_list {
 	const char *name;
@@ -47,6 +48,7 @@ struct drm_sysctl_list {
 	{"vm",	    drm_vm_info},
 	{"clients", drm_clients_info},
 	{"bufs",    drm_bufs_info},
+	{"vblank",    drm_vblank_info},
 };
 #define DRM_SYSCTL_ENTRIES (sizeof(drm_sysctl_list)/sizeof(drm_sysctl_list[0]))
 
@@ -311,5 +313,27 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 	SYSCTL_OUT(req, "", 1);
 done:
 	free(tempprivs, DRM_MEM_DRIVER);
+	return retcode;
+}
+
+static int drm_vblank_info DRM_SYSCTL_HANDLER_ARGS
+{
+	struct drm_device *dev = arg1;
+	char buf[128];
+	int retcode;
+	int i;
+
+	DRM_SYSCTL_PRINT("\ncrtc ref count    last     enabled inmodeset\n");
+	for(i = 0 ; i < dev->num_crtcs ; i++) {
+		DRM_SYSCTL_PRINT("  %02d  %02d %08d %08d %02d      %02d\n",
+		    i, atomic_load_acq_32(&dev->vblank[i].refcount),
+		    atomic_load_acq_32(&dev->vblank[i].count),
+		    atomic_load_acq_32(&dev->vblank[i].last),
+		    atomic_load_acq_int(&dev->vblank[i].enabled),
+		    atomic_load_acq_int(&dev->vblank[i].inmodeset));
+	}
+
+	SYSCTL_OUT(req, "", -1);
+done:
 	return retcode;
 }
