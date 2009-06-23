@@ -247,7 +247,7 @@ arm_get_next_irq(int last)
 	last += 1;		/* always advance fwd, NB: handles -1 */
 	if (last < 32) {
 		mask = ixp425_irq_read() >> last;
-		for (; mask != 0; mask >>= 1, last += 1) {
+		for (; mask != 0; mask >>= 1, last++) {
 			if (mask & 1)
 				return last;
 		}
