@@ -53,8 +53,9 @@
  *	doc/en_US.ISO8859-1/books/porters-handbook/book.sgml
  *
  * scheme is:  <major><two digit minor>Rxx
- *		'R' is 0 if release branch or x.0-CURRENT before RELENG_*_0
- *		is created, otherwise 1.
+ *		'R' is in the range 0 to 4 if this is a release branch or
+ *		x.0-CURRENT before RELENG_*_0 is created, otherwise 'R' is
+ *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
 #define __FreeBSD_version 800099	/* Master, propagated to newvers */
