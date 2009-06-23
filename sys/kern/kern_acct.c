@@ -438,7 +438,7 @@ acct_process(struct thread *td)
 	VOP_LEASE(acct_vp, td, acct_cred, LEASE_WRITE);
 	ret = vn_rdwr(UIO_WRITE, acct_vp, (caddr_t)&acct, sizeof (acct),
 	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, acct_cred, NOCRED,
-	    (int *)0, td);
+	    NULL, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 	sx_sunlock(&acct_sx);
 	return (ret);
