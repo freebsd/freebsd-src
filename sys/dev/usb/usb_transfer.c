@@ -1805,7 +1805,7 @@ usbd_xfer_get_frame(struct usb_xfer *xfer, usb_frcount_t frindex)
 }
 
 usb_frlength_t
-usbd_xfer_get_frame_len(struct usb_xfer *xfer, usb_frcount_t frindex)
+usbd_xfer_frame_len(struct usb_xfer *xfer, usb_frcount_t frindex)
 {
 	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
 
@@ -1832,7 +1832,7 @@ usbd_xfer_set_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
 }
 
 void
-usbd_xfer_get_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
+usbd_xfer_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
     void **ptr, int *len)
 {
 	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));

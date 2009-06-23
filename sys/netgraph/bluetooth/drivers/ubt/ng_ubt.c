@@ -1002,7 +1002,7 @@ ubt_isoc_read_one_frame(struct usb_xfer *xfer, int frame_no)
 	/* Get existing SCO reassembly buffer */
 	pc = usbd_xfer_get_frame(xfer, 0);
 	m = sc->sc_isoc_in_buffer;
-	total = usbd_xfer_get_framelen(xfer, frame_no);
+	total = usbd_xfer_frame_len(xfer, frame_no);
 
 	/* While we have data in the frame */
 	while (total > 0) {
@@ -1143,7 +1143,7 @@ send_next:
 		for (n = 0; n < nframes; n ++) {
 			usbd_xfer_set_frame_len(xfer, n,
 			    min(offset, usbd_xfer_max_framelen(xfer)));
-			offset -= usbd_xfer_get_framelen(xfer, n);
+			offset -= usbd_xfer_frame_len(xfer, n);
 		}
 
 		usbd_transfer_submit(xfer);
