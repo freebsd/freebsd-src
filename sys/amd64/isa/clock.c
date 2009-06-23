@@ -170,7 +170,7 @@ clkintr(struct trapframe *frame)
 		hardclockintr(frame);
 	} else {
 		if (--pscnt == 0) {
-			pscnt = psrate;
+			pscnt = psratio;
 #ifdef SMP
 			if (smp_started)
 				ipi_all_but_self(IPI_STATCLOCK);
