@@ -3,6 +3,9 @@
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
  *
+ * Copyright (c) 2009 Jeffrey Roberson <jeff@freebsd.org>
+ * All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -49,13 +52,28 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/sx.h>
 #include <ddb/ddb.h>
 
+MALLOC_DEFINE(M_PCPU, "Per-cpu", "Per-cpu resource accouting.");
+
+struct dpcpu_free {
+	uintptr_t	df_start;
+	int		df_len;
+	TAILQ_ENTRY(dpcpu_free) df_link;
+};
+
+static DPCPU_DEFINE(char, modspace[DPCPU_MODMIN]);
+static TAILQ_HEAD(, dpcpu_free) dpcpu_head = TAILQ_HEAD_INITIALIZER(dpcpu_head);
+static struct sx dpcpu_lock;
+uintptr_t dpcpu_off[MAXCPU];
 struct pcpu *cpuid_to_pcpu[MAXCPU];
 struct cpuhead cpuhead = SLIST_HEAD_INITIALIZER(cpuhead);
 
@@ -79,7 +97,146 @@ pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 #ifdef KTR
 	snprintf(pcpu->pc_name, sizeof(pcpu->pc_name), "CPU %d", cpuid);
 #endif
+}
 
+void
+dpcpu_init(void *dpcpu, int cpuid)
+{
+	struct pcpu *pcpu;
+
+	pcpu = pcpu_find(cpuid);
+	pcpu->pc_dynamic = (uintptr_t)dpcpu - DPCPU_START;
+
+	/*
+	 * Initialize defaults from our linker section.
+	 */
+	memcpy(dpcpu, (void *)DPCPU_START, DPCPU_BYTES);
+
+	/*
+	 * Place it in the global pcpu offset array.
+	 */
+	dpcpu_off[cpuid] = pcpu->pc_dynamic;
+}
+
+static void
+dpcpu_startup(void *dummy __unused)
+{
+	struct dpcpu_free *df;
+
+	df = malloc(sizeof(*df), M_PCPU, M_WAITOK | M_ZERO);
+	df->df_start = (uintptr_t)&DPCPU_NAME(modspace);
+	df->df_len = DPCPU_MODSIZE;
+	TAILQ_INSERT_HEAD(&dpcpu_head, df, df_link);
+	sx_init(&dpcpu_lock, "dpcpu alloc lock");
+}
+SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, 0);
+
+/*
+ * First-fit extent based allocator for allocating space in the per-cpu
+ * region reserved for modules.  This is only intended for use by the
+ * kernel linkers to place module linker sets.
+ */
+void *
+dpcpu_alloc(int size)
+{
+	struct dpcpu_free *df;
+	void *s;
+
+	s = NULL;
+	size = roundup2(size, sizeof(void *));
+	sx_xlock(&dpcpu_lock);
+	TAILQ_FOREACH(df, &dpcpu_head, df_link) {
+		if (df->df_len < size)
+			continue;
+		if (df->df_len == size) {
+			s = (void *)df->df_start;
+			TAILQ_REMOVE(&dpcpu_head, df, df_link);
+			free(df, M_PCPU);
+			break;
+		}
+		s = (void *)df->df_start;
+		df->df_len -= size;
+		df->df_start = df->df_start + size;
+		break;
+	}
+	sx_xunlock(&dpcpu_lock);
+
+	return (s);
+}
+
+/*
+ * Free dynamic per-cpu space at module unload time. 
+ */
+void
+dpcpu_free(void *s, int size)
+{
+	struct dpcpu_free *df;
+	struct dpcpu_free *dn;
+	uintptr_t start;
+	uintptr_t end;
+
+	size = roundup2(size, sizeof(void *));
+	start = (uintptr_t)s;
+	end = start + size;
+	/*
+	 * Free a region of space and merge it with as many neighbors as
+	 * possible.  Keeping the list sorted simplifies this operation.
+	 */
+	sx_xlock(&dpcpu_lock);
+	TAILQ_FOREACH(df, &dpcpu_head, df_link) {
+		if (df->df_start > end)
+			break;
+		/*
+		 * If we expand at the end of an entry we may have to
+		 * merge it with the one following it as well.
+		 */
+		if (df->df_start + df->df_len == start) {
+			df->df_len += size;
+			dn = TAILQ_NEXT(df, df_link);
+			if (df->df_start + df->df_len == dn->df_start) {
+				df->df_len += dn->df_len;
+				TAILQ_REMOVE(&dpcpu_head, dn, df_link);
+				free(dn, M_PCPU);
+			}
+			sx_xunlock(&dpcpu_lock);
+			return;
+		}
+		if (df->df_start == end) {
+			df->df_start = start;
+			df->df_len += size;
+			sx_xunlock(&dpcpu_lock);
+			return;
+		}
+	}
+	dn = malloc(sizeof(*df), M_PCPU, M_WAITOK | M_ZERO);
+	dn->df_start = start;
+	dn->df_len = size;
+	if (df)
+		TAILQ_INSERT_BEFORE(df, dn, df_link);
+	else
+		TAILQ_INSERT_TAIL(&dpcpu_head, dn, df_link);
+	sx_xunlock(&dpcpu_lock);
+}
+
+/*
+ * Initialize the per-cpu storage from an updated linker-set region.
+ */
+void
+dpcpu_copy(void *s, int size)
+{
+#ifdef SMP
+	uintptr_t dpcpu;
+	int i;
+
+	for (i = 0; i < mp_ncpus; ++i) {
+		dpcpu = dpcpu_off[i];
+		if (dpcpu == 0)
+			continue;
+		memcpy((void *)(dpcpu + (uintptr_t)s), s, size);
+	}
+#else
+	memcpy((void *)(dpcpu_off[0] + (uintptr_t)s), s, size);
+#endif
 }
 
 /*
@@ -91,6 +248,7 @@ pcpu_destroy(struct pcpu *pcpu)
 
 	SLIST_REMOVE(&cpuhead, pcpu, pcpu, pc_allcpu);
 	cpuid_to_pcpu[pcpu->pc_cpuid] = NULL;
+	dpcpu_off[pcpu->pc_cpuid] = 0;
 }
 
 /*
@@ -103,6 +261,48 @@ pcpu_find(u_int cpuid)
 	return (cpuid_to_pcpu[cpuid]);
 }
 
+int
+sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS)
+{
+	int64_t count;
+#ifdef SMP
+	uintptr_t dpcpu;
+	int i;
+
+	count = 0;
+	for (i = 0; i < mp_ncpus; ++i) {
+		dpcpu = dpcpu_off[i];
+		if (dpcpu == 0)
+			continue;
+		count += *(int64_t *)(dpcpu + (uintptr_t)arg1);
+	}
+#else
+	count = *(int64_t *)(dpcpu_off[0] + (uintptr_t)arg1);
+#endif
+	return (SYSCTL_OUT(req, &count, sizeof(count)));
+}
+
+int
+sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS)
+{
+	int count;
+#ifdef SMP
+	uintptr_t dpcpu;
+	int i;
+
+	count = 0;
+	for (i = 0; i < mp_ncpus; ++i) {
+		dpcpu = dpcpu_off[i];
+		if (dpcpu == 0)
+			continue;
+		count += *(int *)(dpcpu + (uintptr_t)arg1);
+	}
+#else
+	count = *(int *)(dpcpu_off[0] + (uintptr_t)arg1);
+#endif
+	return (SYSCTL_OUT(req, &count, sizeof(count)));
+}
+
 #ifdef DDB
 
 static void
@@ -111,6 +311,7 @@ show_pcpu(struct pcpu *pc)
 	struct thread *td;
 
 	db_printf("cpuid        = %d\n", pc->pc_cpuid);
+	db_printf("dynamic pcpu	= %p\n", (void *)pc->pc_dynamic);
 	db_printf("curthread    = ");
 	td = pc->pc_curthread;
 	if (td != NULL)

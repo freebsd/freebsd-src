@@ -744,6 +744,7 @@ start_all_aps(void)
 		/* Get per-cpu data */
 		pc = &__pcpu[bootAP];
 		pcpu_init(pc, bootAP, sizeof(struct pcpu));
+		dpcpu_init((void *)kmem_alloc(kernel_map, DPCPU_SIZE), bootAP);
 		pc->pc_apic_id = cpu_apic_ids[bootAP];
 		pc->pc_prvspace = pc;
 		pc->pc_curthread = 0;
