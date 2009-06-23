@@ -460,9 +460,6 @@ static void radeon_cp_load_microcode(drm_radeon_private_t * dev_priv)
 
 	DRM_DEBUG("\n");
 
-	radeon_do_wait_for_idle(dev_priv);
-
-	RADEON_WRITE(RADEON_CP_ME_RAM_ADDR, 0);
 	switch (dev_priv->flags & RADEON_FAMILY_MASK) {
 	case CHIP_R100:
 	case CHIP_RV100:
@@ -515,6 +512,10 @@ static void radeon_cp_load_microcode(drm_radeon_private_t * dev_priv)
 	default:
 		return;
 	}
+
+	radeon_do_wait_for_idle(dev_priv);
+
+	RADEON_WRITE(RADEON_CP_ME_RAM_ADDR, 0);
 
 	for (i = 0; i != 256; i++) {
 		RADEON_WRITE(RADEON_CP_ME_RAM_DATAH, cp[i][1]);
