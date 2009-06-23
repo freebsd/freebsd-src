@@ -285,7 +285,7 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	value = rela->r_addend + (Elf_Addr)lf->address;
 	where = (Elf_Addr *)((Elf_Addr)lf->address + rela->r_offset);
 
-	*where = value;
+	*where = elf_relocaddr(lf, value);
 
 	return (0);
 }
@@ -338,8 +338,9 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;
 
-	if (RELOC_BASE_RELATIVE(rtype))
-		value += relocbase;
+	if (RELOC_BASE_RELATIVE(rtype)) {
+		value = elf_relocaddr(lf, value + relocbase);
+	}
 
 	mask = RELOC_VALUE_BITMASK(rtype);
 	value >>= RELOC_VALUE_RIGHTSHIFT(rtype);

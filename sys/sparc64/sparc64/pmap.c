@@ -363,6 +363,11 @@ pmap_bootstrap(vm_offset_t ekva)
 	bzero(tsb_kernel, tsb_kernel_size);
 
 	/*
+	 * Allocate and map the dynamic per-CPU area for the BSP.
+	 */
+	dpcpu0 = (void *)TLB_PHYS_TO_DIRECT(pmap_bootstrap_alloc(DPCPU_SIZE));
+
+	/*
 	 * Allocate and map the message buffer.
 	 */
 	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);

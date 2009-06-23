@@ -45,6 +45,68 @@
 struct pcb;
 struct thread;
 
+/*
+ * Define a set for pcpu data.
+ * 
+ * We don't use SET_DECLARE because it defines the set as 'a' when we
+ * want 'aw'.  GCC considers uninitialized data in a seperate section
+ * writable and there is no generic zero initializer that works for
+ * structs and scalars.
+ */
+extern uintptr_t *__start_set_pcpu;
+extern uintptr_t *__stop_set_pcpu;
+
+#if defined(__arm__)
+__asm__(".section set_pcpu, \"aw\", %progbits");
+#else
+__asm__(".section set_pcpu, \"aw\", @progbits");
+#endif
+__asm__(".previous");
+
+/*
+ * Array of dynamic pcpu base offsets.  Indexed by id.
+ */
+extern uintptr_t dpcpu_off[];
+
+/*
+ * Convenience defines.
+ */
+#define	DPCPU_START		(uintptr_t)&__start_set_pcpu
+#define	DPCPU_STOP		(uintptr_t)&__stop_set_pcpu
+#define	DPCPU_BYTES		(DPCPU_STOP - DPCPU_START)
+#define	DPCPU_MODMIN		2048
+#define	DPCPU_SIZE		roundup2(DPCPU_BYTES, PAGE_SIZE)
+#define	DPCPU_MODSIZE		(DPCPU_SIZE - (DPCPU_BYTES - DPCPU_MODMIN))
+
+/*
+ * Declaration and definition.
+ */
+#define	DPCPU_NAME(n)		pcpu_entry_##n
+#define	DPCPU_DECLARE(t, n)	extern t DPCPU_NAME(n)
+#define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section("set_pcpu") __used
+
+/*
+ * Accessors with a given base.
+ */
+#define	_DPCPU_PTR(b, n)						\
+    (__typeof(DPCPU_NAME(n))*)((b) + (uintptr_t)&DPCPU_NAME(n))
+#define	_DPCPU_GET(b, n)	(*_DPCPU_PTR(b, n))
+#define	_DPCPU_SET(b, n, v)	(*_DPCPU_PTR(b, n) = v)
+
+/*
+ * Accessors for the current cpu.
+ */
+#define	DPCPU_PTR(n)		_DPCPU_PTR(PCPU_GET(dynamic), n)
+#define	DPCPU_GET(n)		(*DPCPU_PTR(n))
+#define	DPCPU_SET(n, v)		(*DPCPU_PTR(n) = v)
+
+/*
+ * Accessors for remote cpus.
+ */
+#define	DPCPU_ID_PTR(i, n)	_DPCPU_PTR(dpcpu_off[(i)], n)
+#define	DPCPU_ID_GET(i, n)	(*DPCPU_ID_PTR(i, n))
+#define	DPCPU_ID_SET(i, n, v)	(*DPCPU_ID_PTR(i, n) = v)
+
 /* 
  * XXXUPS remove as soon as we have per cpu variable
  * linker sets and  can define rm_queue in _rm_lock.h
@@ -93,6 +155,11 @@ struct pcpu {
 	struct rm_queue  pc_rm_queue; 
 
 	/*
+	 * Dynamic per-cpu data area.
+	 */
+	uintptr_t	pc_dynamic;
+
+	/*
 	 * Keep MD fields last, so that CPU-specific variations on a
 	 * single architecture don't result in offset variations of
 	 * the machine-independent fields of the pcpu. Even though
@@ -103,7 +170,7 @@ struct pcpu {
 	 * If only to make kernel debugging easier...
 	 */
 	PCPU_MD_FIELDS;
-};
+} __aligned(128);
 
 #ifdef _KERNEL
 
@@ -133,6 +200,10 @@ void	db_show_mdpcpu(struct pcpu *pcpu);
 void	pcpu_destroy(struct pcpu *pcpu);
 struct	pcpu *pcpu_find(u_int cpuid);
 void	pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
+void	*dpcpu_alloc(int size);
+void	dpcpu_copy(void *s, int size);
+void	dpcpu_free(void *s, int size);
+void	dpcpu_init(void *dpcpu, int cpuid);
 
 #endif	/* _KERNEL */
 
