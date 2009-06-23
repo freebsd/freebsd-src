@@ -16,7 +16,12 @@
 #include "llvm/Module.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Support/CommandLine.h"
 using namespace llvm;
+
+static cl::opt<bool>
+ReserveR9("arm-reserve-r9", cl::Hidden,
+          cl::desc("Reserve R9, making it unavailable as GPR"));
 
 ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
                            bool isThumb)
@@ -24,7 +29,7 @@ ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
   , ARMFPUType(None)
   , IsThumb(isThumb)
   , ThumbMode(Thumb1)
-  , IsR9Reserved(false)
+  , IsR9Reserved(ReserveR9)
   , stackAlignment(4)
   , CPUString("generic")
   , TargetType(isELF) // Default to ELF unless otherwise specified.
@@ -46,7 +51,7 @@ ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
 
   if (Len >= 5 && TT.substr(0, 4) == "armv")
     Idx = 4;
-  else if (Len >= 6 && TT.substr(0, 6) == "thumb") {
+  else if (Len >= 6 && TT.substr(0, 5) == "thumb") {
     IsThumb = true;
     if (Len >= 7 && TT[5] == 'v')
       Idx = 6;
@@ -54,15 +59,19 @@ ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
   if (Idx) {
     unsigned SubVer = TT[Idx];
     if (SubVer > '4' && SubVer <= '9') {
-      if (SubVer >= '7')
+      if (SubVer >= '7') {
         ARMArchVersion = V7A;
-      else if (SubVer == '6')
+      } else if (SubVer == '6') {
         ARMArchVersion = V6;
-      else if (SubVer == '5') {
+        if (Len >= Idx+3 && TT[Idx+1] == 't' && TT[Idx+2] == '2')
+          ARMArchVersion = V6T2;
+      } else if (SubVer == '5') {
         ARMArchVersion = V5T;
         if (Len >= Idx+3 && TT[Idx+1] == 't' && TT[Idx+2] == 'e')
           ARMArchVersion = V5TE;
       }
+      if (ARMArchVersion >= V6T2)
+        ThumbMode = Thumb2;
     }
   }
 
@@ -83,5 +92,5 @@ ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
     stackAlignment = 8;
 
   if (isTargetDarwin())
-    IsR9Reserved = true;
+    IsR9Reserved = ReserveR9 | (ARMArchVersion < V6);
 }
