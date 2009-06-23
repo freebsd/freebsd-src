@@ -642,17 +642,32 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	/* Print the command if xflag is set. */
 	if (xflag) {
 		char sep = 0;
+		const char *p;
 		out2str(ps4val());
 		for (sp = varlist.list ; sp ; sp = sp->next) {
 			if (sep != 0)
 				outc(' ', &errout);
-			out2str(sp->text);
+			p = sp->text;
+			while (*p != '=' && *p != '\0')
+				out2c(*p++);
+			if (*p != '\0') {
+				out2c(*p++);
+				out2qstr(p);
+			}
 			sep = ' ';
 		}
 		for (sp = arglist.list ; sp ; sp = sp->next) {
 			if (sep != 0)
 				outc(' ', &errout);
-			out2str(sp->text);
+			/* Disambiguate command looking like assignment. */
+			if (sp == arglist.list &&
+					strchr(sp->text, '=') != NULL &&
+					strchr(sp->text, '\'') == NULL) {
+				out2c('\'');
+				out2str(sp->text);
+				out2c('\'');
+			} else
+				out2qstr(sp->text);
 			sep = ' ';
 		}
 		outc('\n', &errout);
