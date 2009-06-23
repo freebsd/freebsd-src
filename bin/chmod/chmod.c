@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void usage(void);
+static void usage(void);
 
 int
 main(int argc, char *argv[])
@@ -212,7 +212,7 @@ done:	argv += optind;
 	exit(rval);
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr,
