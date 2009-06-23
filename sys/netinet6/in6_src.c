@@ -179,10 +179,10 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 	goto out;		/* XXX: we can't use 'break' here */ \
 } while(0)
 
-struct in6_addr *
+int
 in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
-    struct ifnet **ifpp, int *errorp)
+    struct ifnet **ifpp, struct in6_addr *srcp)
 {
 	INIT_VNET_INET6(curvnet);
 	struct in6_addr dst;
@@ -193,10 +193,12 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	struct in6_addrpolicy *dst_policy = NULL, *best_policy = NULL;
 	u_int32_t odstzone;
 	int prefer_tempaddr;
+	int error;
 	struct ip6_moptions *mopts;
 
+	KASSERT(srcp != NULL, ("%s: srcp is NULL", __func__));
+
 	dst = dstsock->sin6_addr; /* make a copy for local operation */
-	*errorp = 0;
 	if (ifpp)
 		*ifpp = NULL;
 
@@ -219,10 +221,8 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		struct in6_ifaddr *ia6;
 
 		/* get the outgoing interface */
-		if ((*errorp = in6_selectif(dstsock, opts, mopts, ro, &ifp))
-		    != 0) {
-			return (NULL);
-		}
+		if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp)) != 0)
+			return (error);
 
 		/*
 		 * determine the appropriate zone id of the source based on
@@ -236,14 +236,14 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		srcsock.sin6_len = sizeof(srcsock);
 		srcsock.sin6_addr = pi->ipi6_addr;
 		if (ifp) {
-			*errorp = in6_setscope(&srcsock.sin6_addr, ifp, NULL);
-			if (*errorp != 0)
-				return (NULL);
+			error = in6_setscope(&srcsock.sin6_addr, ifp, NULL);
+			if (error)
+				return (error);
 		}
-		if (cred != NULL && (*errorp = prison_local_ip6(cred,
+		if (cred != NULL && (error = prison_local_ip6(cred,
 		    &srcsock.sin6_addr, (inp != NULL &&
 		    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
-			return (NULL);
+			return (error);
 
 		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr(
 		    (struct sockaddr *)&srcsock);
@@ -251,21 +251,14 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		    (ia6->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
 			if (ia6 != NULL)
 				ifa_free(&ia6->ia_ifa);
-			*errorp = EADDRNOTAVAIL;
-			return (NULL);
+			return (EADDRNOTAVAIL);
 		}
 		pi->ipi6_addr = srcsock.sin6_addr; /* XXX: this overrides pi */
 		if (ifpp)
 			*ifpp = ifp;
-
-		/*
-		 * XXXRW: This returns a pointer into a structure with no
-		 * refcount.  in6_selectsrc() should return it to caller-
-		 * provided memory using call-by-reference rather than
-		 * returning pointers into other memory.
-		 */
+		bcopy(&ia6->ia_addr.sin6_addr, srcp, sizeof(*srcp));
 		ifa_free(&ia6->ia_ifa);
-		return (&ia6->ia_addr.sin6_addr);
+		return (0);
 	}
 
 	/*
@@ -273,10 +266,11 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 */
 	if (inp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
 		if (cred != NULL &&
-		    (*errorp = prison_local_ip6(cred, &inp->in6p_laddr,
+		    (error = prison_local_ip6(cred, &inp->in6p_laddr,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
-			return (NULL);
-		return (&inp->in6p_laddr);
+			return (error);
+		bcopy(&inp->in6p_laddr, srcp, sizeof(*srcp));
+		return (0);
 	}
 
 	/*
@@ -284,16 +278,16 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * the outgoing interface and the destination address.
 	 */
 	/* get the outgoing interface */
-	if ((*errorp = in6_selectif(dstsock, opts, mopts, ro, &ifp)) != 0)
-		return (NULL);
+	if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp)) != 0)
+		return (error);
 
 #ifdef DIAGNOSTIC
 	if (ifp == NULL)	/* this should not happen */
 		panic("in6_selectsrc: NULL ifp");
 #endif
-	*errorp = in6_setscope(&dst, ifp, &odstzone);
-	if (*errorp != 0)
-		return (NULL);
+	error = in6_setscope(&dst, ifp, &odstzone);
+	if (error)
+		return (error);
 
 	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
 		int new_scope = -1, new_matchlen = -1;
@@ -472,15 +466,14 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		break;
 	}
 
-	if ((ia = ia_best) == NULL) {
-		*errorp = EADDRNOTAVAIL;
-		return (NULL);
-	}
+	if ((ia = ia_best) == NULL)
+		return (EADDRNOTAVAIL);
 
 	if (ifpp)
 		*ifpp = ifp;
 
-	return (&ia->ia_addr.sin6_addr);
+	bcopy(&ia->ia_addr.sin6_addr, srcp, sizeof(*srcp));
+	return (0);
 }
 
 /*
