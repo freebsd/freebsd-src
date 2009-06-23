@@ -513,7 +513,7 @@ SVal RegionStoreManager::getLValueElement(const GRState *St,
       if (OffI.isUnsigned()) {
         llvm::APSInt Tmp = OffI;
         Tmp.setIsSigned(true);
-        Offset = NonLoc::MakeVal(getBasicVals(), Tmp);
+        Offset = ValMgr.makeIntVal(Tmp);
       }
     }
     return loc::MemRegionVal(MRMgr.getElementRegion(elementType, Offset,
@@ -547,7 +547,7 @@ SVal RegionStoreManager::getLValueElement(const GRState *St,
     
     Tmp.setIsSigned(true);
     Tmp += BaseIdxI; // Compute the new offset.    
-    NewIdx = NonLoc::MakeVal(getBasicVals(), Tmp);    
+    NewIdx = ValMgr.makeIntVal(Tmp);    
   }
   else
     NewIdx = nonloc::ConcreteInt(getBasicVals().getValue(BaseIdxI + OffI));
@@ -572,7 +572,7 @@ SVal RegionStoreManager::getSizeInElements(const GRState *state,
     
     if (const ConstantArrayType* CAT = dyn_cast<ConstantArrayType>(T)) {
       // return the size as signed integer.
-      return NonLoc::MakeVal(getBasicVals(), CAT->getSize(), false);
+      return ValMgr.makeIntVal(CAT->getSize(), false);
     }
 
     const QualType* CastTy = state->get<RegionCasts>(VR);
@@ -585,19 +585,19 @@ SVal RegionStoreManager::getSizeInElements(const GRState *state,
       uint64_t EleSize = getContext().getTypeSize(EleTy);
       uint64_t VarSize = getContext().getTypeSize(VarTy);
       assert(VarSize != 0);
-      return NonLoc::MakeIntVal(getBasicVals(), VarSize / EleSize, false);
+      return ValMgr.makeIntVal(VarSize/EleSize, false);
     }
 
     // Clients can use ordinary variables as if they were arrays.  These
     // essentially are arrays of size 1.
-    return NonLoc::MakeIntVal(getBasicVals(), 1, false);
+    return ValMgr.makeIntVal(1, false);
   }
 
   if (const StringRegion* SR = dyn_cast<StringRegion>(R)) {
     const StringLiteral* Str = SR->getStringLiteral();
     // We intentionally made the size value signed because it participates in 
     // operations with signed indices.
-    return NonLoc::MakeIntVal(getBasicVals(), Str->getByteLength()+1, false);
+    return ValMgr.makeIntVal(Str->getByteLength()+1, false);
   }
 
   if (const FieldRegion* FR = dyn_cast<FieldRegion>(R)) {
@@ -676,7 +676,9 @@ RegionStoreManager::CastRegion(const GRState *state, const MemRegion* R,
 
   // CodeTextRegion should be cast to only function pointer type.
   if (isa<CodeTextRegion>(R)) {
-    assert(CastToTy->isFunctionPointerType() || CastToTy->isBlockPointerType());
+    assert(CastToTy->isFunctionPointerType() || CastToTy->isBlockPointerType()
+           || (CastToTy->isPointerType() 
+              && CastToTy->getAsPointerType()->getPointeeType()->isVoidType()));
     return CastResult(state, R);
   }
 
@@ -800,7 +802,7 @@ SVal RegionStoreManager::EvalBinOp(const GRState *state,
     const MemRegion* NewER =
       MRMgr.getElementRegion(ER->getElementType(), NewIdx,ER->getSuperRegion(),
 			     getContext());
-    return Loc::MakeVal(NewER);
+    return ValMgr.makeLoc(NewER);
 
   }
   
@@ -937,7 +939,7 @@ SVal RegionStoreManager::Retrieve(const GRState *state, Loc L, QualType T) {
     }
   }  
 
-  if (MRMgr.onStack(R) || MRMgr.onHeap(R)) {
+  if (MRMgr.hasStackStorage(R) || MRMgr.hasHeapStorage(R)) {
     // All stack variables are considered to have undefined values
     // upon creation.  All heap allocated blocks are considered to
     // have undefined values as well unless they are explicitly bound
@@ -984,7 +986,7 @@ SVal RegionStoreManager::RetrieveStruct(const GRState *state,
     StructVal = getBasicVals().consVals(FieldValue, StructVal);
   }
 
-  return NonLoc::MakeCompoundVal(T, StructVal, getBasicVals());
+  return ValMgr.makeCompoundVal(T, StructVal);
 }
 
 SVal RegionStoreManager::RetrieveArray(const GRState *state,
@@ -998,7 +1000,7 @@ SVal RegionStoreManager::RetrieveArray(const GRState *state,
   llvm::APSInt i = getBasicVals().getZeroWithPtrWidth(false);
 
   for (; i < Size; ++i) {
-    SVal Idx = NonLoc::MakeVal(getBasicVals(), i);
+    SVal Idx = ValMgr.makeIntVal(i);
     ElementRegion* ER = MRMgr.getElementRegion(CAT->getElementType(), Idx, R,
 					       getContext());
     QualType ETy = ER->getElementType();
@@ -1006,7 +1008,7 @@ SVal RegionStoreManager::RetrieveArray(const GRState *state,
     ArrayVal = getBasicVals().consVals(ElementVal, ArrayVal);
   }
 
-  return NonLoc::MakeCompoundVal(T, ArrayVal, getBasicVals());
+  return ValMgr.makeCompoundVal(T, ArrayVal);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1059,7 +1061,7 @@ const GRState *RegionStoreManager::BindDecl(const GRState *state,
   if (T->isStructureType())
     return BindStruct(state, VR, InitVal);
 
-  return Bind(state, Loc::MakeVal(VR), InitVal);
+  return Bind(state, ValMgr.makeLoc(VR), InitVal);
 }
 
 // FIXME: this method should be merged into Bind().
@@ -1077,17 +1079,11 @@ const GRState *RegionStoreManager::BindArray(const GRState *state,
                                              SVal Init) {
 
   QualType T = R->getValueType(getContext());
-  assert(T->isArrayType());
-
-  // When we are binding the whole array, it always has default value 0.
-  state = state->set<RegionDefaultValue>(R, NonLoc::MakeIntVal(getBasicVals(),
-                                                               0, false));
-
   ConstantArrayType* CAT = cast<ConstantArrayType>(T.getTypePtr());
+  QualType ElementTy = CAT->getElementType();
 
   llvm::APSInt Size(CAT->getSize(), false);
-  llvm::APSInt i = getBasicVals().getValue(0, Size.getBitWidth(),
-                                           Size.isUnsigned());
+  llvm::APSInt i(llvm::APInt::getNullValue(Size.getBitWidth()), false);
 
   // Check if the init expr is a StringLiteral.
   if (isa<loc::MemRegionVal>(Init)) {
@@ -1104,12 +1100,10 @@ const GRState *RegionStoreManager::BindArray(const GRState *state,
       if (j >= len)
         break;
 
-      SVal Idx = NonLoc::MakeVal(getBasicVals(), i);
-      ElementRegion* ER =
-        MRMgr.getElementRegion(cast<ArrayType>(T)->getElementType(),
-                               Idx, R, getContext());
+      SVal Idx = ValMgr.makeIntVal(i);
+      ElementRegion* ER = MRMgr.getElementRegion(ElementTy, Idx,R,getContext());
 
-      SVal V = NonLoc::MakeVal(getBasicVals(), str[j], sizeof(char)*8, true);
+      SVal V = ValMgr.makeIntVal(str[j], sizeof(char)*8, true);
       state = Bind(state, loc::MemRegionVal(ER), V);
     }
 
@@ -1120,19 +1114,29 @@ const GRState *RegionStoreManager::BindArray(const GRState *state,
   nonloc::CompoundVal::iterator VI = CV.begin(), VE = CV.end();
 
   for (; i < Size; ++i, ++VI) {
-    // The init list might be shorter than the array decl.
+    // The init list might be shorter than the array length.
     if (VI == VE)
       break;
 
-    SVal Idx = NonLoc::MakeVal(getBasicVals(), i);
-    ElementRegion* ER =
-      MRMgr.getElementRegion(cast<ArrayType>(T)->getElementType(),
-                             Idx, R, getContext());
+    SVal Idx = ValMgr.makeIntVal(i);
+    ElementRegion* ER = MRMgr.getElementRegion(ElementTy, Idx, R, getContext());
 
     if (CAT->getElementType()->isStructureType())
       state = BindStruct(state, ER, *VI);
     else
-      state = Bind(state, Loc::MakeVal(ER), *VI);
+      state = Bind(state, ValMgr.makeLoc(ER), *VI);
+  }
+
+  // If the init list is shorter than the array length, bind the rest elements
+  // to 0.
+  if (ElementTy->isIntegerType()) {
+    while (i < Size) {
+      SVal Idx = ValMgr.makeIntVal(i);
+      ElementRegion* ER = MRMgr.getElementRegion(ElementTy, Idx,R,getContext());
+      SVal V = ValMgr.makeZeroVal(ElementTy);
+      state = Bind(state, ValMgr.makeLoc(ER), V);
+      ++i;
+    }
   }
 
   return state;
@@ -1161,28 +1165,35 @@ RegionStoreManager::BindStruct(const GRState *state, const TypedRegion* R,
 
   nonloc::CompoundVal& CV = cast<nonloc::CompoundVal>(V);
   nonloc::CompoundVal::iterator VI = CV.begin(), VE = CV.end();
-  
-  for (RecordDecl::field_iterator FI = RD->field_begin(getContext()), 
-                                  FE = RD->field_end(getContext()); 
+
+  RecordDecl::field_iterator FI, FE;
+
+  for (FI = RD->field_begin(getContext()), FE = RD->field_end(getContext());
        FI != FE; ++FI, ++VI) {
 
-    // There may be fewer values than fields only when we are initializing a
-    // struct decl. In this case, mark the region as having default value.
-    if (VI == VE) {
-      const NonLoc& Idx = NonLoc::MakeIntVal(getBasicVals(), 0, false);
-      state = state->set<RegionDefaultValue>(R, Idx);
+    if (VI == VE)
       break;
-    }
 
     QualType FTy = (*FI)->getType();
     FieldRegion* FR = MRMgr.getFieldRegion(*FI, R);
 
     if (Loc::IsLocType(FTy) || FTy->isIntegerType())
-      state = Bind(state, Loc::MakeVal(FR), *VI);    
+      state = Bind(state, ValMgr.makeLoc(FR), *VI);    
     else if (FTy->isArrayType())
       state = BindArray(state, FR, *VI);
     else if (FTy->isStructureType())
       state = BindStruct(state, FR, *VI);
+  }
+
+  // There may be fewer values in the initialize list than the fields of struct.
+  while (FI != FE) {
+    QualType FTy = (*FI)->getType();
+    if (FTy->isIntegerType()) {
+      FieldRegion* FR = MRMgr.getFieldRegion(*FI, R);
+      state = Bind(state, ValMgr.makeLoc(FR), ValMgr.makeZeroVal(FTy));
+    }
+
+    ++FI;
   }
 
   return state;
@@ -1202,7 +1213,7 @@ const GRState *RegionStoreManager::KillStruct(const GRState *state,
     const MemRegion* R = I.getKey();
     if (const SubRegion* subRegion = dyn_cast<SubRegion>(R))
       if (subRegion->isSubRegionOf(R))
-        store = Remove(store, Loc::MakeVal(subRegion));
+        store = Remove(store, ValMgr.makeLoc(subRegion));
     // FIXME: Maybe we should also remove the bindings for the "views" of the
     // subregions.
   }
@@ -1398,7 +1409,7 @@ Store RegionStoreManager::RemoveDeadBindings(const GRState *state, Stmt* Loc,
       continue;
     
     // Remove this dead region from the store.
-    store = Remove(store, Loc::MakeVal(R));
+    store = Remove(store, ValMgr.makeLoc(R));
     
     // Mark all non-live symbols that this region references as dead.
     if (const SymbolicRegion* SymR = dyn_cast<SymbolicRegion>(R))

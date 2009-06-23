@@ -29,7 +29,9 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/OwningPtr.h"
+#include <list>
 #include <string>
+#include <queue>
 #include <vector>
 
 namespace llvm {
@@ -247,11 +249,18 @@ public:
   /// have been declared.
   bool GlobalNewDeleteDeclared;
 
-  /// A flag that indicates when we are processing an unevaluated operand
-  /// (C++0x [expr]). C99 has the same notion of declarations being
-  /// "used" and C++03 has the notion of "potentially evaluated", but we
-  /// adopt the C++0x terminology since it is most precise.
-  bool InUnevaluatedOperand;
+  /// The current expression evaluation context.
+  ExpressionEvaluationContext ExprEvalContext;
+  
+  typedef std::vector<std::pair<SourceLocation, Decl *> > 
+    PotentiallyReferencedDecls;
+  
+  /// A stack of declarations, each element of which is a set of declarations
+  /// that will be marked as referenced if the corresponding potentially
+  /// potentially evaluated expression is potentially evaluated. Each element
+  /// in the stack corresponds to a PotentiallyPotentiallyEvaluated expression
+  /// evaluation context.
+  std::list<PotentiallyReferencedDecls> PotentiallyReferencedDeclStack;
   
   /// \brief Whether the code handled by Sema should be considered a
   /// complete translation unit or not.
@@ -1334,12 +1343,13 @@ public:
   void DiagnoseSentinelCalls(NamedDecl *D, SourceLocation Loc,
                              Expr **Args, unsigned NumArgs);
 
-  virtual bool setUnevaluatedOperand(bool UnevaluatedOperand) { 
-    bool Result = InUnevaluatedOperand;
-    InUnevaluatedOperand = UnevaluatedOperand;
-    return Result;
-  }
-
+  virtual ExpressionEvaluationContext 
+  PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext);
+  
+  virtual void 
+  PopExpressionEvaluationContext(ExpressionEvaluationContext OldContext,
+                                 ExpressionEvaluationContext NewContext);
+  
   void MarkDeclarationReferenced(SourceLocation Loc, Decl *D);
   
   // Primary Expressions.
@@ -1572,10 +1582,16 @@ public:
                                     QualType DeclInitType, 
                                     Expr **Exprs, unsigned NumExprs);
   
-  /// DefineImplicitDefaultConstructor - Checks for feasibilityt of 
+  /// DefineImplicitDefaultConstructor - Checks for feasibility of 
   /// defining this constructor as the default constructor.
   void DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
                                         CXXConstructorDecl *Constructor);
+  
+  /// DefineImplicitCopyConstructor - Checks for feasibility of 
+  /// defining this constructor as the copy constructor.
+  void DefineImplicitCopyConstructor(SourceLocation CurrentLocation,
+                                     CXXConstructorDecl *Constructor,
+                                     unsigned TypeQuals);
 
   /// MaybeBindToTemporary - If the passed in expression has a record type with
   /// a non-trivial destructor, this will return CXXBindTemporaryExpr. Otherwise
@@ -2495,6 +2511,22 @@ public:
   /// variables.
   LocalInstantiationScope *CurrentInstantiationScope;
 
+  /// \brief An entity for which implicit template instantiation is required.
+  ///
+  /// The source location associated with the declaration is the first place in 
+  /// the source code where the declaration was "used". It is not necessarily
+  /// the point of instantiation (which will be either before or after the 
+  /// namespace-scope declaration that triggered this implicit instantiation),
+  /// However, it is the location that diagnostics should generally refer to,
+  /// because users will need to know what code triggered the instantiation.
+  typedef std::pair<ValueDecl *, SourceLocation> PendingImplicitInstantiation;
+  
+  /// \brief The queue of implicit template instantiations that are required
+  /// but have not yet been performed.
+  std::queue<PendingImplicitInstantiation> PendingImplicitInstantiations;
+
+  void PerformPendingImplicitInstantiations();
+  
   QualType InstantiateType(QualType T, const TemplateArgumentList &TemplateArgs,
                            SourceLocation Loc, DeclarationName Entity);
   
@@ -2550,7 +2582,7 @@ public:
   void InstantiateVariableDefinition(VarDecl *Var);
 
   NamedDecl *InstantiateCurrentDeclRef(NamedDecl *D);
-  
+    
   // Simple function for cloning expressions.
   template<typename T> 
   OwningExprResult Clone(T *E) {

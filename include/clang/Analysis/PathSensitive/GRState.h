@@ -532,7 +532,7 @@ private:
 
   // Methods that query & manipulate the Environment.  
   SVal GetSVal(const GRState* St, const Stmt* Ex) {
-    return St->getEnvironment().GetSVal(Ex, getBasicVals());
+    return St->getEnvironment().GetSVal(Ex, ValueMgr);
   }
   
   SVal GetSValAsScalarOrLoc(const GRState* state, const Stmt *S) {
@@ -546,7 +546,7 @@ private:
   }
 
   SVal GetBlkExprSVal(const GRState* St, const Stmt* Ex) {
-    return St->getEnvironment().GetBlkExprSVal(Ex, getBasicVals());
+    return St->getEnvironment().GetBlkExprSVal(Ex, ValueMgr);
   }
   
   const GRState* BindExpr(const GRState* St, const Stmt* Ex, SVal V,
@@ -613,7 +613,7 @@ public:
     // We only want to do fetches from regions that we can actually bind
     // values.  For example, SymbolicRegions of type 'id<...>' cannot
     // have direct bindings (but their can be bindings on their subregions).
-    if (!R->isBoundable(getContext()))
+    if (!R->isBoundable())
       return UnknownVal();
     
     if (const TypedRegion *TR = dyn_cast<TypedRegion>(R)) {

@@ -107,6 +107,9 @@ namespace {
 void
 Sema::ActOnParamDefaultArgument(DeclPtrTy param, SourceLocation EqualLoc, 
                                 ExprArg defarg) {
+  if (!param || !defarg.get())
+    return;
+  
   ParmVarDecl *Param = cast<ParmVarDecl>(param.getAs<Decl>());
   UnparsedDefaultArgLocs.erase(Param);
 
@@ -161,6 +164,9 @@ Sema::ActOnParamDefaultArgument(DeclPtrTy param, SourceLocation EqualLoc,
 void Sema::ActOnParamUnparsedDefaultArgument(DeclPtrTy param, 
                                              SourceLocation EqualLoc,
                                              SourceLocation ArgLoc) {
+  if (!param)
+    return;
+  
   ParmVarDecl *Param = cast<ParmVarDecl>(param.getAs<Decl>());
   if (Param)
     Param->setUnparsedDefaultArg();
@@ -171,6 +177,9 @@ void Sema::ActOnParamUnparsedDefaultArgument(DeclPtrTy param,
 /// ActOnParamDefaultArgumentError - Parsing or semantic analysis of
 /// the default argument for the parameter param failed.
 void Sema::ActOnParamDefaultArgumentError(DeclPtrTy param) {
+  if (!param)
+    return;
+  
   ParmVarDecl *Param = cast<ParmVarDecl>(param.getAs<Decl>());
   
   Param->setInvalidDecl();
@@ -415,6 +424,9 @@ Sema::BaseResult
 Sema::ActOnBaseSpecifier(DeclPtrTy classdecl, SourceRange SpecifierRange,
                          bool Virtual, AccessSpecifier Access,
                          TypeTy *basetype, SourceLocation BaseLoc) {
+  if (!classdecl)
+    return true;
+
   AdjustDeclIfTemplate(classdecl);
   CXXRecordDecl *Class = cast<CXXRecordDecl>(classdecl.getAs<Decl>());
   QualType BaseType = QualType::getFromOpaquePtr(basetype);
@@ -640,6 +652,9 @@ Sema::ActOnMemInitializer(DeclPtrTy ConstructorD,
                           ExprTy **Args, unsigned NumArgs,
                           SourceLocation *CommaLocs,
                           SourceLocation RParenLoc) {
+  if (!ConstructorD)
+    return true;
+  
   CXXConstructorDecl *Constructor 
     = dyn_cast<CXXConstructorDecl>(ConstructorD.getAs<Decl>());
   if (!Constructor) {
@@ -741,8 +756,11 @@ Sema::ActOnMemInitializer(DeclPtrTy ConstructorD,
 void Sema::ActOnMemInitializers(DeclPtrTy ConstructorDecl, 
                                 SourceLocation ColonLoc,
                                 MemInitTy **MemInits, unsigned NumMemInits) {
-  CXXConstructorDecl *Constructor = 
-  dyn_cast<CXXConstructorDecl>(ConstructorDecl.getAs<Decl>());
+  if (!ConstructorDecl)
+    return;
+  
+  CXXConstructorDecl *Constructor 
+    = dyn_cast<CXXConstructorDecl>(ConstructorDecl.getAs<Decl>());
   
   if (!Constructor) {
     Diag(ColonLoc, diag::err_only_constructors_take_base_inits);
@@ -957,6 +975,9 @@ void Sema::ActOnFinishCXXMemberSpecification(Scope* S, SourceLocation RLoc,
                                              DeclPtrTy TagDecl,
                                              SourceLocation LBrac,
                                              SourceLocation RBrac) {
+  if (!TagDecl)
+    return;
+  
   AdjustDeclIfTemplate(TagDecl);
   ActOnFields(S, RLoc, TagDecl,
               (DeclPtrTy*)FieldCollector->getCurFields(),
@@ -1238,6 +1259,9 @@ void Sema::ActOnReenterTemplateScope(Scope *S, DeclPtrTy TemplateD) {
 /// name. However, it should not bring the parameters into scope;
 /// that will be performed by ActOnDelayedCXXMethodParameter.
 void Sema::ActOnStartDelayedCXXMethodDeclaration(Scope *S, DeclPtrTy MethodD) {
+  if (!MethodD)
+    return;
+  
   CXXScopeSpec SS;
   FunctionDecl *Method = cast<FunctionDecl>(MethodD.getAs<Decl>());
   QualType ClassTy 
@@ -1253,6 +1277,9 @@ void Sema::ActOnStartDelayedCXXMethodDeclaration(Scope *S, DeclPtrTy MethodD) {
 /// the method declaration. For example, we could see an
 /// ActOnParamDefaultArgument event for this parameter.
 void Sema::ActOnDelayedCXXMethodParameter(Scope *S, DeclPtrTy ParamD) {
+  if (!ParamD)
+    return;
+  
   ParmVarDecl *Param = cast<ParmVarDecl>(ParamD.getAs<Decl>());
 
   // If this parameter has an unparsed default argument, clear it out
@@ -1272,6 +1299,9 @@ void Sema::ActOnDelayedCXXMethodParameter(Scope *S, DeclPtrTy ParamD) {
 /// immediately!) for this method, if it was also defined inside the
 /// class body.
 void Sema::ActOnFinishDelayedCXXMethodDeclaration(Scope *S, DeclPtrTy MethodD) {
+  if (!MethodD)
+    return;
+  
   FunctionDecl *Method = cast<FunctionDecl>(MethodD.getAs<Decl>());
   CXXScopeSpec SS;
   QualType ClassTy 
@@ -1842,13 +1872,13 @@ Sema::DeclPtrTy Sema::ActOnNamespaceAliasDef(Scope *S,
 
 void Sema::DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
                                             CXXConstructorDecl *Constructor) {
-  if (!Constructor->isDefaultConstructor() ||
-      !Constructor->isImplicit() || Constructor->isImplicitMustBeDefined())
-    return;
+  assert((Constructor->isImplicit() && Constructor->isDefaultConstructor() &&
+          !Constructor->isUsed()) &&
+    "DefineImplicitDefaultConstructor - call it for implicit default ctor");
   
   CXXRecordDecl *ClassDecl
     = cast<CXXRecordDecl>(Constructor->getDeclContext());
-  assert(ClassDecl && "InitializeVarWithConstructor - invalid constructor");
+  assert(ClassDecl && "DefineImplicitDefaultConstructor - invalid constructor");
   // Before the implicitly-declared default constructor for a class is 
   // implicitly defined, all the implicitly-declared default constructors
   // for its base class and its non-static data members shall have been
@@ -1861,8 +1891,8 @@ void Sema::DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
     if (!BaseClassDecl->hasTrivialConstructor()) {
       if (CXXConstructorDecl *BaseCtor = 
             BaseClassDecl->getDefaultConstructor(Context)) {
-        if (BaseCtor->isImplicit())
-          BaseCtor->setImplicitMustBeDefined();
+        if (BaseCtor->isImplicit() && !BaseCtor->isUsed())
+          MarkDeclarationReferenced(CurrentLocation, BaseCtor);
       }
       else {
         Diag(CurrentLocation, diag::err_defining_default_ctor) 
@@ -1886,8 +1916,8 @@ void Sema::DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
       if (!FieldClassDecl->hasTrivialConstructor())
         if (CXXConstructorDecl *FieldCtor = 
             FieldClassDecl->getDefaultConstructor(Context)) {
-          if (FieldCtor->isImplicit())
-            FieldCtor->setImplicitMustBeDefined();
+          if (FieldCtor->isImplicit() && !FieldCtor->isUsed())
+            MarkDeclarationReferenced(CurrentLocation, FieldCtor);
         }
         else {
           Diag(CurrentLocation, diag::err_defining_default_ctor) 
@@ -1912,7 +1942,49 @@ void Sema::DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
     }
   }
   if (!err)
-    Constructor->setImplicitMustBeDefined();  
+    Constructor->setUsed();  
+}
+
+void Sema::DefineImplicitCopyConstructor(SourceLocation CurrentLocation,
+                                   CXXConstructorDecl *CopyConstructor,
+                                   unsigned TypeQuals) {
+  assert((CopyConstructor->isImplicit() && 
+          CopyConstructor->isCopyConstructor(Context, TypeQuals) &&
+          !CopyConstructor->isUsed()) &&
+         "DefineImplicitCopyConstructor - call it for implicit copy ctor");
+  
+  CXXRecordDecl *ClassDecl
+    = cast<CXXRecordDecl>(CopyConstructor->getDeclContext());
+  assert(ClassDecl && "DefineImplicitCopyConstructor - invalid constructor");
+  // Before the implicitly-declared copy constructor for a class is 
+  // implicitly defined, all the implicitly-declared copy constructors
+  // for its base class and its non-static data members shall have been
+  // implicitly defined.
+  for (CXXRecordDecl::base_class_iterator Base = ClassDecl->bases_begin();
+       Base != ClassDecl->bases_end(); ++Base) {
+    CXXRecordDecl *BaseClassDecl
+      = cast<CXXRecordDecl>(Base->getType()->getAsRecordType()->getDecl());
+    if (CXXConstructorDecl *BaseCopyCtor = 
+        BaseClassDecl->getCopyConstructor(Context, TypeQuals))
+      if (BaseCopyCtor->isImplicit() && !BaseCopyCtor->isUsed())
+        MarkDeclarationReferenced(CurrentLocation, BaseCopyCtor);
+  }
+  for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(Context);
+       Field != ClassDecl->field_end(Context);
+       ++Field) {
+    QualType FieldType = Context.getCanonicalType((*Field)->getType());
+    if (const ArrayType *Array = Context.getAsArrayType(FieldType))
+      FieldType = Array->getElementType();
+    if (const RecordType *FieldClassType = FieldType->getAsRecordType()) {
+      CXXRecordDecl *FieldClassDecl
+        = cast<CXXRecordDecl>(FieldClassType->getDecl());
+      if (CXXConstructorDecl *FieldCopyCtor = 
+          FieldClassDecl->getCopyConstructor(Context, TypeQuals))
+          if (FieldCopyCtor->isImplicit() && !FieldCopyCtor->isUsed())
+            MarkDeclarationReferenced(CurrentLocation, FieldCopyCtor);
+    }
+  }
+  CopyConstructor->setUsed();
 }
 
 void Sema::InitializeVarWithConstructor(VarDecl *VD, 
@@ -1921,6 +1993,7 @@ void Sema::InitializeVarWithConstructor(VarDecl *VD,
                                         Expr **Exprs, unsigned NumExprs) {
   Expr *Temp = CXXConstructExpr::Create(Context, DeclInitType, Constructor, 
                                         false, Exprs, NumExprs);
+  MarkDeclarationReferenced(VD->getLocation(), Constructor);
   VD->setInit(Context, Temp);
 }
 
@@ -1990,9 +2063,6 @@ void Sema::AddCXXDirectInitializerToDecl(DeclPtrTy Dcl,
       VDecl->setCXXDirectInitializer(true);
       InitializeVarWithConstructor(VDecl, Constructor, DeclInitType, 
                                    (Expr**)Exprs.release(), NumExprs);
-      // An implicitly-declared default constructor for a class is implicitly
-      // defined when it is used to creat an object of its class type.
-      DefineImplicitDefaultConstructor(VDecl->getLocation(), Constructor);
     }
     return;
   }

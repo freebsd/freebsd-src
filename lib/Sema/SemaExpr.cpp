@@ -2134,25 +2134,32 @@ Sema::ActOnMemberReferenceExpr(Scope *S, ExprArg Base, SourceLocation OpLoc,
         MemberType = MemberType.getQualifiedType(combinedQualifiers);
       }
 
+      MarkDeclarationReferenced(MemberLoc, FD);
       return Owned(new (Context) MemberExpr(BaseExpr, OpKind == tok::arrow, FD,
                                             MemberLoc, MemberType));
     }
     
-    if (VarDecl *Var = dyn_cast<VarDecl>(MemberDecl))
+    if (VarDecl *Var = dyn_cast<VarDecl>(MemberDecl)) {
+      MarkDeclarationReferenced(MemberLoc, MemberDecl);
       return Owned(new (Context) MemberExpr(BaseExpr, OpKind == tok::arrow,
                                             Var, MemberLoc,
                                          Var->getType().getNonReferenceType()));
-    if (FunctionDecl *MemberFn = dyn_cast<FunctionDecl>(MemberDecl))
+    }
+    if (FunctionDecl *MemberFn = dyn_cast<FunctionDecl>(MemberDecl)) {
+      MarkDeclarationReferenced(MemberLoc, MemberDecl);
       return Owned(new (Context) MemberExpr(BaseExpr, OpKind == tok::arrow,
                                             MemberFn, MemberLoc,
                                             MemberFn->getType()));
+    }
     if (OverloadedFunctionDecl *Ovl
           = dyn_cast<OverloadedFunctionDecl>(MemberDecl))
       return Owned(new (Context) MemberExpr(BaseExpr, OpKind == tok::arrow, Ovl,
                                             MemberLoc, Context.OverloadTy));
-    if (EnumConstantDecl *Enum = dyn_cast<EnumConstantDecl>(MemberDecl))
+    if (EnumConstantDecl *Enum = dyn_cast<EnumConstantDecl>(MemberDecl)) {
+      MarkDeclarationReferenced(MemberLoc, MemberDecl);
       return Owned(new (Context) MemberExpr(BaseExpr, OpKind == tok::arrow,
                                             Enum, MemberLoc, Enum->getType()));
+    }
     if (isa<TypeDecl>(MemberDecl))
       return ExprError(Diag(MemberLoc,diag::err_typecheck_member_reference_type)
         << DeclarationName(&Member) << int(OpKind == tok::arrow));
@@ -5432,6 +5439,35 @@ bool Sema::VerifyIntegerConstantExpression(const Expr *E, llvm::APSInt *Result){
   return false;
 }
 
+Sema::ExpressionEvaluationContext 
+Sema::PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext) { 
+  // Introduce a new set of potentially referenced declarations to the stack.
+  if (NewContext == PotentiallyPotentiallyEvaluated)
+    PotentiallyReferencedDeclStack.push_back(PotentiallyReferencedDecls());
+  
+  std::swap(ExprEvalContext, NewContext);
+  return NewContext;
+}
+
+void 
+Sema::PopExpressionEvaluationContext(ExpressionEvaluationContext OldContext,
+                                     ExpressionEvaluationContext NewContext) {
+  ExprEvalContext = NewContext;
+
+  if (OldContext == PotentiallyPotentiallyEvaluated) {
+    // Mark any remaining declarations in the current position of the stack
+    // as "referenced". If they were not meant to be referenced, semantic
+    // analysis would have eliminated them (e.g., in ActOnCXXTypeId).
+    PotentiallyReferencedDecls RemainingDecls;
+    RemainingDecls.swap(PotentiallyReferencedDeclStack.back());
+    PotentiallyReferencedDeclStack.pop_back();
+    
+    for (PotentiallyReferencedDecls::iterator I = RemainingDecls.begin(),
+                                           IEnd = RemainingDecls.end();
+         I != IEnd; ++I)
+      MarkDeclarationReferenced(I->first, I->second);
+  }
+}
 
 /// \brief Note that the given declaration was referenced in the source code.
 ///
@@ -5446,6 +5482,9 @@ bool Sema::VerifyIntegerConstantExpression(const Expr *E, llvm::APSInt *Result){
 void Sema::MarkDeclarationReferenced(SourceLocation Loc, Decl *D) {
   assert(D && "No declaration?");
   
+  if (D->isUsed())
+    return;
+  
   // Mark a parameter declaration "used", regardless of whether we're in a
   // template or not.
   if (isa<ParmVarDecl>(D))
@@ -5456,18 +5495,55 @@ void Sema::MarkDeclarationReferenced(SourceLocation Loc, Decl *D) {
   if (CurContext->isDependentContext())
     return;
   
-  // If we are in an unevaluated operand, don't mark any definitions as used.
-  if (InUnevaluatedOperand)
-    return;
-  
+  switch (ExprEvalContext) {
+    case Unevaluated:
+      // We are in an expression that is not potentially evaluated; do nothing.
+      return;
+      
+    case PotentiallyEvaluated:
+      // We are in a potentially-evaluated expression, so this declaration is
+      // "used"; handle this below.
+      break;
+      
+    case PotentiallyPotentiallyEvaluated:
+      // We are in an expression that may be potentially evaluated; queue this
+      // declaration reference until we know whether the expression is
+      // potentially evaluated.
+      PotentiallyReferencedDeclStack.back().push_back(std::make_pair(Loc, D));
+      return;
+  }
+      
   // Note that this declaration has been used.
+  if (CXXConstructorDecl *Constructor = dyn_cast<CXXConstructorDecl>(D)) {
+    unsigned TypeQuals;
+    if (Constructor->isImplicit() && Constructor->isDefaultConstructor()) {
+        if (!Constructor->isUsed())
+          DefineImplicitDefaultConstructor(Loc, Constructor);
+    }
+    else if (Constructor->isImplicit() && 
+             Constructor->isCopyConstructor(Context, TypeQuals)) {
+      if (!Constructor->isUsed())
+        DefineImplicitCopyConstructor(Loc, Constructor, TypeQuals);
+    }
+    // FIXME: more checking for other implicits go here.
+    else
+      Constructor->setUsed(true);
+  } 
+  
   if (FunctionDecl *Function = dyn_cast<FunctionDecl>(D)) {
-    // FIXME: implicit template instantiation
+    // Implicit instantiation of function templates
+    if (!Function->getBody(Context)) {
+      if (Function->getInstantiatedFromMemberFunction())
+        PendingImplicitInstantiations.push(std::make_pair(Function, Loc));
+
+      // FIXME: check for function template specializations.
+    }
+    
+    
     // FIXME: keep track of references to static functions
-    (void)Function;
     Function->setUsed(true);
     return;
-  } 
+  }
   
   if (VarDecl *Var = dyn_cast<VarDecl>(D)) {
     (void)Var;
