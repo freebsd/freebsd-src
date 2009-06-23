@@ -169,7 +169,7 @@ clkintr(struct trapframe *frame)
 #endif
 		hardclockintr(frame);
 	} else {
-		if (--pscnt == 0) {
+		if (--pscnt <= 0) {
 			pscnt = psratio;
 #ifdef SMP
 			if (smp_started)
@@ -262,7 +262,7 @@ rtcintr(struct trapframe *frame)
 
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		flag = 1;
-		if (--pscnt == 0) {
+		if (--pscnt <= 0) {
 			pscnt = psdiv;
 #ifdef SMP
 			if (smp_started)
